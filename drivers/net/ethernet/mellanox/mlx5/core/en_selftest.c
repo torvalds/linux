@@ -64,7 +64,7 @@ static int mlx5e_test_health_info(struct mlx5e_priv *priv)
 {
 	struct mlx5_core_health *health = &priv->mdev->priv.health;
 
-	return health->sick ? 1 : 0;
+	return health->fatal_error ? 1 : 0;
 }
 
 static int mlx5e_test_link_state(struct mlx5e_priv *priv)

@@ -1717,7 +1717,7 @@ static int pl011_allocate_irq(struct uart_amba_port *uap)
 {
 	pl011_write(uap->im, uap, REG_IMSC);
 
-	return request_irq(uap->port.irq, pl011_int, 0, "uart-pl011", uap);
+	return request_irq(uap->port.irq, pl011_int, IRQF_SHARED, "uart-pl011", uap);
 }
 
 /*
@@ -2718,11 +2718,8 @@ static int sbsa_uart_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "cannot obtain irq\n");
+	if (ret < 0)
 		return ret;
-	}
 	uap->port.irq	= ret;
 
 #ifdef CONFIG_ACPI_SPCR_TABLE

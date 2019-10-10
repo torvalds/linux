@@ -345,6 +345,18 @@
 334	common	rseq			__x64_sys_rseq
 # don't use numbers 387 through 423, add new calls after the last
 # 'common' entry
+424	common	pidfd_send_signal	__x64_sys_pidfd_send_signal
+425	common	io_uring_setup		__x64_sys_io_uring_setup
+426	common	io_uring_enter		__x64_sys_io_uring_enter
+427	common	io_uring_register	__x64_sys_io_uring_register
+428	common	open_tree		__x64_sys_open_tree
+429	common	move_mount		__x64_sys_move_mount
+430	common	fsopen			__x64_sys_fsopen
+431	common	fsconfig		__x64_sys_fsconfig
+432	common	fsmount			__x64_sys_fsmount
+433	common	fspick			__x64_sys_fspick
+434	common	pidfd_open		__x64_sys_pidfd_open
+435	common	clone3			__x64_sys_clone3/ptregs
 
 #
 # x32-specific system call numbers start at 512 to avoid cache impact

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * drm_sysfs.c - Modifications to drm_sysfs_class.c to support
@@ -7,20 +8,26 @@
  * Copyright (c) 2004 Jon Smirl <jonsmirl@gmail.com>
  * Copyright (c) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (c) 2003-2004 IBM Corp.
- *
- * This file is released under the GPLv2
- *
  */
 
 #include <linux/device.h>
-#include <linux/kdev_t.h>
-#include <linux/gfp.h>
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/gfp.h>
+#include <linux/i2c.h>
+#include <linux/kdev_t.h>
+#include <linux/slab.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_print.h>
+#include <drm/drm_property.h>
 #include <drm/drm_sysfs.h>
-#include <drm/drmP.h>
+
 #include "drm_internal.h"
+#include "drm_crtc_internal.h"
 
 #define to_drm_minor(d) dev_get_drvdata(d)
 #define to_drm_connector(d) dev_get_drvdata(d)
@@ -78,6 +85,7 @@ int drm_sysfs_init(void)
 	}
 
 	drm_class->devnode = drm_devnode;
+	drm_setup_hdcp_srm(drm_class);
 	return 0;
 }
 
@@ -90,6 +98,7 @@ void drm_sysfs_destroy(void)
 {
 	if (IS_ERR_OR_NULL(drm_class))
 		return;
+	drm_teardown_hdcp_srm(drm_class);
 	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
 	drm_class = NULL;
@@ -287,6 +296,9 @@ int drm_sysfs_connector_add(struct drm_connector *connector)
 	/* Let userspace know we have a new connector */
 	drm_sysfs_hotplug_event(dev);
 
+	if (connector->ddc)
+		return sysfs_create_link(&connector->kdev->kobj,
+				 &connector->ddc->dev.kobj, "ddc");
 	return 0;
 }
 
@@ -294,6 +306,10 @@ void drm_sysfs_connector_remove(struct drm_connector *connector)
 {
 	if (!connector->kdev)
 		return;
+
+	if (connector->ddc)
+		sysfs_remove_link(&connector->kdev->kobj, "ddc");
+
 	DRM_DEBUG("removing \"%s\" from sysfs\n",
 		  connector->name);
 
@@ -318,6 +334,9 @@ void drm_sysfs_lease_event(struct drm_device *dev)
  * Send a uevent for the DRM device specified by @dev.  Currently we only
  * set HOTPLUG=1 in the uevent environment, but this could be expanded to
  * deal with other types of events.
+ *
+ * Any new uapi should be using the drm_sysfs_connector_status_event()
+ * for uevents on connector status change.
  */
 void drm_sysfs_hotplug_event(struct drm_device *dev)
 {
@@ -329,6 +348,37 @@ void drm_sysfs_hotplug_event(struct drm_device *dev)
 	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
 }
 EXPORT_SYMBOL(drm_sysfs_hotplug_event);
+
+/**
+ * drm_sysfs_connector_status_event - generate a DRM uevent for connector
+ * property status change
+ * @connector: connector on which property status changed
+ * @property: connector property whose status changed.
+ *
+ * Send a uevent for the DRM device specified by @dev.  Currently we
+ * set HOTPLUG=1 and connector id along with the attached property id
+ * related to the status change.
+ */
+void drm_sysfs_connector_status_event(struct drm_connector *connector,
+				      struct drm_property *property)
+{
+	struct drm_device *dev = connector->dev;
+	char hotplug_str[] = "HOTPLUG=1", conn_id[21], prop_id[21];
+	char *envp[4] = { hotplug_str, conn_id, prop_id, NULL };
+
+	WARN_ON(!drm_mode_obj_find_prop_id(&connector->base,
+					   property->base.id));
+
+	snprintf(conn_id, ARRAY_SIZE(conn_id),
+		 "CONNECTOR=%u", connector->base.id);
+	snprintf(prop_id, ARRAY_SIZE(prop_id),
+		 "PROPERTY=%u", property->base.id);
+
+	DRM_DEBUG("generating connector status event\n");
+
+	kobject_uevent_env(&dev->primary->kdev->kobj, KOBJ_CHANGE, envp);
+}
+EXPORT_SYMBOL(drm_sysfs_connector_status_event);
 
 static void drm_sysfs_release(struct device *dev)
 {

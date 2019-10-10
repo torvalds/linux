@@ -86,3 +86,22 @@
 	.result = ACCEPT,
 	.retval = 2,
 },
+{
+	"jit: jsgt, jslt",
+	.insns = {
+	BPF_LD_IMM64(BPF_REG_1, 0x80000000ULL),
+	BPF_LD_IMM64(BPF_REG_2, 0x0ULL),
+	BPF_JMP_REG(BPF_JSGT, BPF_REG_1, BPF_REG_2, 2),
+	BPF_MOV64_IMM(BPF_REG_0, 1),
+	BPF_EXIT_INSN(),
+
+	BPF_JMP_REG(BPF_JSLT, BPF_REG_2, BPF_REG_1, 2),
+	BPF_MOV64_IMM(BPF_REG_0, 1),
+	BPF_EXIT_INSN(),
+
+	BPF_MOV64_IMM(BPF_REG_0, 2),
+	BPF_EXIT_INSN(),
+	},
+	.result = ACCEPT,
+	.retval = 2,
+},

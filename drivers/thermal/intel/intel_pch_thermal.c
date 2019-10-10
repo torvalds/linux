@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* intel_pch_thermal.c - Intel PCH Thermal driver
  *
  * Copyright (c) 2015, Intel Corporation.
  *
  * Authors:
  *     Tushar Dave <tushar.n.dave@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/module.h>
@@ -380,16 +371,14 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 
 static int intel_pch_thermal_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct pch_thermal_device *ptd = pci_get_drvdata(pdev);
+	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
 	return ptd->ops->suspend(ptd);
 }
 
 static int intel_pch_thermal_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct pch_thermal_device *ptd = pci_get_drvdata(pdev);
+	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
 	return ptd->ops->resume(ptd);
 }

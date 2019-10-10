@@ -43,7 +43,7 @@
 static inline v4l2_std_id vivid_get_std_cap(const struct vivid_dev *dev)
 {
 	if (vivid_is_sdtv_cap(dev))
-		return dev->std_cap;
+		return dev->std_cap[dev->input];
 	return 0;
 }
 
@@ -232,8 +232,8 @@ static void *plane_vaddr(struct tpg_data *tpg, struct vivid_buffer *buf,
 	return vbuf;
 }
 
-static int vivid_copy_buffer(struct vivid_dev *dev, unsigned p, u8 *vcapbuf,
-		struct vivid_buffer *vid_cap_buf)
+static noinline_for_stack int vivid_copy_buffer(struct vivid_dev *dev, unsigned p,
+		u8 *vcapbuf, struct vivid_buffer *vid_cap_buf)
 {
 	bool blank = dev->must_blank[vid_cap_buf->vb.vb2_buf.index];
 	struct tpg_data *tpg = &dev->tpg;
@@ -408,7 +408,7 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 	unsigned factor = V4L2_FIELD_HAS_T_OR_B(dev->field_cap) ? 2 : 1;
 	unsigned line_height = 16 / factor;
 	bool is_tv = vivid_is_sdtv_cap(dev);
-	bool is_60hz = is_tv && (dev->std_cap & V4L2_STD_525_60);
+	bool is_60hz = is_tv && (dev->std_cap[dev->input] & V4L2_STD_525_60);
 	unsigned p;
 	int line = 1;
 	u8 *basep[TPG_MAX_PLANES][2];
@@ -419,9 +419,9 @@ static void vivid_fillbuff(struct vivid_dev *dev, struct vivid_buffer *buf)
 
 	if (dev->loop_video && dev->can_loop_video &&
 		((vivid_is_svid_cap(dev) &&
-		!VIVID_INVALID_SIGNAL(dev->std_signal_mode)) ||
+		!VIVID_INVALID_SIGNAL(dev->std_signal_mode[dev->input])) ||
 		(vivid_is_hdmi_cap(dev) &&
-		!VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode))))
+		!VIVID_INVALID_SIGNAL(dev->dv_timings_signal_mode[dev->input]))))
 		is_loop = true;
 
 	buf->vb.sequence = dev->vid_cap_seq_count;
@@ -658,6 +658,8 @@ static void vivid_cap_update_frame_period(struct vivid_dev *dev)
 	u64 f_period;
 
 	f_period = (u64)dev->timeperframe_vid_cap.numerator * 1000000000;
+	if (WARN_ON(dev->timeperframe_vid_cap.denominator == 0))
+		dev->timeperframe_vid_cap.denominator = 1;
 	do_div(f_period, dev->timeperframe_vid_cap.denominator);
 	if (dev->field_cap == V4L2_FIELD_ALTERNATE)
 		f_period >>= 1;
@@ -670,7 +672,8 @@ static void vivid_cap_update_frame_period(struct vivid_dev *dev)
 	dev->cap_frame_period = f_period;
 }
 
-static void vivid_thread_vid_cap_tick(struct vivid_dev *dev, int dropped_bufs)
+static noinline_for_stack void vivid_thread_vid_cap_tick(struct vivid_dev *dev,
+							 int dropped_bufs)
 {
 	struct vivid_buffer *vid_cap_buf = NULL;
 	struct vivid_buffer *vbi_cap_buf = NULL;

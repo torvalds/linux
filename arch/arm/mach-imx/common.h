@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2004-2014 Freescale Semiconductor, Inc. All Rights Reserved.
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
 
 #ifndef __ASM_ARCH_MXC_COMMON_H__
 #define __ASM_ARCH_MXC_COMMON_H__
@@ -72,6 +68,15 @@ enum mxc_cpu_pwr_mode {
 	STOP_POWER_OFF,		/* STOP + SRPG */
 };
 
+enum ulp_cpu_pwr_mode {
+	ULP_PM_HSRUN,    /* High speed run mode */
+	ULP_PM_RUN,      /* Run mode */
+	ULP_PM_WAIT,     /* Wait mode */
+	ULP_PM_STOP,     /* Stop mode */
+	ULP_PM_VLPS,     /* Very low power stop mode */
+	ULP_PM_VLLS,     /* very low leakage stop mode */
+};
+
 void imx_enable_cpu(int cpu, bool enable);
 void imx_set_cpu_jump(int cpu, void *jump_addr);
 u32 imx_get_cpu_arg(int cpu);
@@ -98,6 +103,7 @@ int imx6_set_lpm(enum mxc_cpu_pwr_mode mode);
 void imx6_set_int_mem_clk_lpm(bool enable);
 void imx6sl_set_wait_clk(bool enter);
 int imx_mmdc_get_ddr_type(void);
+int imx7ulp_set_lpm(enum ulp_cpu_pwr_mode mode);
 
 void imx_cpu_die(unsigned int cpu);
 int imx_cpu_kill(unsigned int cpu);

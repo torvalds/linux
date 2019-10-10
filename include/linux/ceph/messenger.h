@@ -323,7 +323,8 @@ struct ceph_connection {
 };
 
 
-extern const char *ceph_pr_addr(const struct sockaddr_storage *ss);
+extern const char *ceph_pr_addr(const struct ceph_entity_addr *addr);
+
 extern int ceph_parse_ips(const char *c, const char *end,
 			  struct ceph_entity_addr *addr,
 			  int max_count, int *count);
@@ -336,6 +337,7 @@ extern void ceph_msgr_flush(void);
 extern void ceph_messenger_init(struct ceph_messenger *msgr,
 				struct ceph_entity_addr *myaddr);
 extern void ceph_messenger_fini(struct ceph_messenger *msgr);
+extern void ceph_messenger_reset_nonce(struct ceph_messenger *msgr);
 
 extern void ceph_con_init(struct ceph_connection *con, void *private,
 			const struct ceph_connection_operations *ops,

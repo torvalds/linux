@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) International Business Machines Corp., 2006
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See
- * the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём), Thomas Gleixner
  */
@@ -273,6 +260,27 @@ static int in_wl_tree(struct ubi_wl_entry *e, struct rb_root *root)
 				p = p->rb_right;
 		}
 	}
+
+	return 0;
+}
+
+/**
+ * in_pq - check if a wear-leveling entry is present in the protection queue.
+ * @ubi: UBI device description object
+ * @e: the wear-leveling entry to check
+ *
+ * This function returns non-zero if @e is in the protection queue and zero
+ * if it is not.
+ */
+static inline int in_pq(const struct ubi_device *ubi, struct ubi_wl_entry *e)
+{
+	struct ubi_wl_entry *p;
+	int i;
+
+	for (i = 0; i < UBI_PROT_QUEUE_LEN; ++i)
+		list_for_each_entry(p, &ubi->pq[i], u.list)
+			if (p == e)
+				return 1;
 
 	return 0;
 }
@@ -700,6 +708,12 @@ static int wear_leveling_worker(struct ubi_device *ubi, struct ubi_work *wrk,
 			goto out_cancel;
 		e2 = get_peb_for_wl(ubi);
 		if (!e2)
+			goto out_cancel;
+
+		/*
+		 * Anchor move within the anchor area is useless.
+		 */
+		if (e2->pnum < UBI_FM_MAX_START)
 			goto out_cancel;
 
 		self_check_in_wl_tree(ubi, e1, &ubi->used);
@@ -1419,6 +1433,150 @@ int ubi_wl_flush(struct ubi_device *ubi, int vol_id, int lnum)
 	return err;
 }
 
+static bool scrub_possible(struct ubi_device *ubi, struct ubi_wl_entry *e)
+{
+	if (in_wl_tree(e, &ubi->scrub))
+		return false;
+	else if (in_wl_tree(e, &ubi->erroneous))
+		return false;
+	else if (ubi->move_from == e)
+		return false;
+	else if (ubi->move_to == e)
+		return false;
+
+	return true;
+}
+
+/**
+ * ubi_bitflip_check - Check an eraseblock for bitflips and scrub it if needed.
+ * @ubi: UBI device description object
+ * @pnum: the physical eraseblock to schedule
+ * @force: dont't read the block, assume bitflips happened and take action.
+ *
+ * This function reads the given eraseblock and checks if bitflips occured.
+ * In case of bitflips, the eraseblock is scheduled for scrubbing.
+ * If scrubbing is forced with @force, the eraseblock is not read,
+ * but scheduled for scrubbing right away.
+ *
+ * Returns:
+ * %EINVAL, PEB is out of range
+ * %ENOENT, PEB is no longer used by UBI
+ * %EBUSY, PEB cannot be checked now or a check is currently running on it
+ * %EAGAIN, bit flips happened but scrubbing is currently not possible
+ * %EUCLEAN, bit flips happened and PEB is scheduled for scrubbing
+ * %0, no bit flips detected
+ */
+int ubi_bitflip_check(struct ubi_device *ubi, int pnum, int force)
+{
+	int err = 0;
+	struct ubi_wl_entry *e;
+
+	if (pnum < 0 || pnum >= ubi->peb_count) {
+		err = -EINVAL;
+		goto out;
+	}
+
+	/*
+	 * Pause all parallel work, otherwise it can happen that the
+	 * erase worker frees a wl entry under us.
+	 */
+	down_write(&ubi->work_sem);
+
+	/*
+	 * Make sure that the wl entry does not change state while
+	 * inspecting it.
+	 */
+	spin_lock(&ubi->wl_lock);
+	e = ubi->lookuptbl[pnum];
+	if (!e) {
+		spin_unlock(&ubi->wl_lock);
+		err = -ENOENT;
+		goto out_resume;
+	}
+
+	/*
+	 * Does it make sense to check this PEB?
+	 */
+	if (!scrub_possible(ubi, e)) {
+		spin_unlock(&ubi->wl_lock);
+		err = -EBUSY;
+		goto out_resume;
+	}
+	spin_unlock(&ubi->wl_lock);
+
+	if (!force) {
+		mutex_lock(&ubi->buf_mutex);
+		err = ubi_io_read(ubi, ubi->peb_buf, pnum, 0, ubi->peb_size);
+		mutex_unlock(&ubi->buf_mutex);
+	}
+
+	if (force || err == UBI_IO_BITFLIPS) {
+		/*
+		 * Okay, bit flip happened, let's figure out what we can do.
+		 */
+		spin_lock(&ubi->wl_lock);
+
+		/*
+		 * Recheck. We released wl_lock, UBI might have killed the
+		 * wl entry under us.
+		 */
+		e = ubi->lookuptbl[pnum];
+		if (!e) {
+			spin_unlock(&ubi->wl_lock);
+			err = -ENOENT;
+			goto out_resume;
+		}
+
+		/*
+		 * Need to re-check state
+		 */
+		if (!scrub_possible(ubi, e)) {
+			spin_unlock(&ubi->wl_lock);
+			err = -EBUSY;
+			goto out_resume;
+		}
+
+		if (in_pq(ubi, e)) {
+			prot_queue_del(ubi, e->pnum);
+			wl_tree_add(e, &ubi->scrub);
+			spin_unlock(&ubi->wl_lock);
+
+			err = ensure_wear_leveling(ubi, 1);
+		} else if (in_wl_tree(e, &ubi->used)) {
+			rb_erase(&e->u.rb, &ubi->used);
+			wl_tree_add(e, &ubi->scrub);
+			spin_unlock(&ubi->wl_lock);
+
+			err = ensure_wear_leveling(ubi, 1);
+		} else if (in_wl_tree(e, &ubi->free)) {
+			rb_erase(&e->u.rb, &ubi->free);
+			ubi->free_count--;
+			spin_unlock(&ubi->wl_lock);
+
+			/*
+			 * This PEB is empty we can schedule it for
+			 * erasure right away. No wear leveling needed.
+			 */
+			err = schedule_erase(ubi, e, UBI_UNKNOWN, UBI_UNKNOWN,
+					     force ? 0 : 1, true);
+		} else {
+			spin_unlock(&ubi->wl_lock);
+			err = -EAGAIN;
+		}
+
+		if (!err && !force)
+			err = -EUCLEAN;
+	} else {
+		err = 0;
+	}
+
+out_resume:
+	up_write(&ubi->work_sem);
+out:
+
+	return err;
+}
+
 /**
  * tree_destroy - destroy an RB-tree.
  * @ubi: UBI device description object
@@ -1848,16 +2006,11 @@ static int self_check_in_wl_tree(const struct ubi_device *ubi,
 static int self_check_in_pq(const struct ubi_device *ubi,
 			    struct ubi_wl_entry *e)
 {
-	struct ubi_wl_entry *p;
-	int i;
-
 	if (!ubi_dbg_chk_gen(ubi))
 		return 0;
 
-	for (i = 0; i < UBI_PROT_QUEUE_LEN; ++i)
-		list_for_each_entry(p, &ubi->pq[i], u.list)
-			if (p == e)
-				return 0;
+	if (in_pq(ubi, e))
+		return 0;
 
 	ubi_err(ubi, "self-check failed for PEB %d, EC %d, Protect queue",
 		e->pnum, e->ec);

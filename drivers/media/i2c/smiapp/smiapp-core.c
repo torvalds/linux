@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/i2c/smiapp/smiapp-core.c
  *
@@ -9,15 +10,6 @@
  * Based on smiapp driver by Vimarsh Zutshi
  * Based on jt8ev1.c by Vimarsh Zutshi
  * Based on smia-sensor.c by Tuukka Toivonen <tuukkat76@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -2855,8 +2847,7 @@ out_err:
 	return NULL;
 }
 
-static int smiapp_probe(struct i2c_client *client,
-			const struct i2c_device_id *devid)
+static int smiapp_probe(struct i2c_client *client)
 {
 	struct smiapp_sensor *sensor;
 	struct smiapp_hwconfig *hwcfg = smiapp_get_hwconfig(&client->dev);
@@ -3180,7 +3171,7 @@ static struct i2c_driver smiapp_i2c_driver = {
 		.name = SMIAPP_NAME,
 		.pm = &smiapp_pm_ops,
 	},
-	.probe	= smiapp_probe,
+	.probe_new = smiapp_probe,
 	.remove	= smiapp_remove,
 	.id_table = smiapp_id_table,
 };

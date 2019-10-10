@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Boot code and exception vectors for Book3E processors
  *
  *  Copyright (C) 2007 Ben. Herrenschmidt (benh@kernel.crashing.org), IBM Corp.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -76,17 +72,6 @@ special_reg_save:
 	ld	r3,_MSR(r1)
 	andi.	r3,r3,MSR_PR
 	bnelr
-
-	/* Copy info into temporary exception thread info */
-	ld	r11,PACAKSAVE(r13)
-	CURRENT_THREAD_INFO(r11, r11)
-	CURRENT_THREAD_INFO(r12, r1)
-	ld	r10,TI_FLAGS(r11)
-	std	r10,TI_FLAGS(r12)
-	ld	r10,TI_PREEMPT(r11)
-	std	r10,TI_PREEMPT(r12)
-	ld	r10,TI_TASK(r11)
-	std	r10,TI_TASK(r12)
 
 	/*
 	 * Advance to the next TLB exception frame for handler
@@ -349,6 +334,7 @@ ret_from_mc_except:
 #define GEN_BTB_FLUSH
 #define CRIT_BTB_FLUSH
 #define DBG_BTB_FLUSH
+#define MC_BTB_FLUSH
 #define GDBELL_BTB_FLUSH
 #endif
 
@@ -504,7 +490,7 @@ exc_##n##_bad_stack:							    \
  * interrupts happen before the wait instruction.
  */
 #define CHECK_NAPPING()							\
-	CURRENT_THREAD_INFO(r11, r1);					\
+	ld	r11, PACA_THREAD_INFO(r13);				\
 	ld	r10,TI_LOCAL_FLAGS(r11);				\
 	andi.	r9,r10,_TLF_NAPPING;					\
 	beq+	1f;							\
@@ -764,12 +750,14 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	ld	r15,PACATOC(r13)
 	ld	r14,interrupt_base_book3e@got(r15)
 	ld	r15,__end_interrupts@got(r15)
-#else
-	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
-	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
-#endif
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
+#else
+	LOAD_REG_IMMEDIATE_SYM(r14, r15, interrupt_base_book3e)
+	cmpld	cr0, r10, r14
+	LOAD_REG_IMMEDIATE_SYM(r14, r15, __end_interrupts)
+	cmpld	cr1, r10, r14
+#endif
 	blt+	cr0,1f
 	bge+	cr1,1f
 
@@ -834,12 +822,14 @@ kernel_dbg_exc:
 	ld	r15,PACATOC(r13)
 	ld	r14,interrupt_base_book3e@got(r15)
 	ld	r15,__end_interrupts@got(r15)
-#else
-	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
-	LOAD_REG_IMMEDIATE(r15,__end_interrupts)
-#endif
 	cmpld	cr0,r10,r14
 	cmpld	cr1,r10,r15
+#else
+	LOAD_REG_IMMEDIATE_SYM(r14, r15, interrupt_base_book3e)
+	cmpld	cr0, r10, r14
+	LOAD_REG_IMMEDIATE_SYM(r14, r15,__end_interrupts)
+	cmpld	cr1, r10, r14
+#endif
 	blt+	cr0,1f
 	bge+	cr1,1f
 
@@ -1463,7 +1453,7 @@ a2_tlbinit_code_start:
 a2_tlbinit_after_linear_map:
 
 	/* Now we branch the new virtual address mapped by this entry */
-	LOAD_REG_IMMEDIATE(r3,1f)
+	LOAD_REG_IMMEDIATE_SYM(r3, r5, 1f)
 	mtctr	r3
 	bctr
 

@@ -389,7 +389,7 @@ static int dac_event(struct snd_soc_dapm_widget *w,
 
 	mutex_lock(&tscs42xx->coeff_ram_lock);
 
-	if (tscs42xx->coeff_ram_synced == false) {
+	if (!tscs42xx->coeff_ram_synced) {
 		ret = write_coeff_ram(component, tscs42xx->coeff_ram, 0x00,
 			COEFF_RAM_COEFF_COUNT);
 		if (ret < 0)

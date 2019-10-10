@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/etherdevice.h>
 #include <linux/if_tap.h>
 #include <linux/if_vlan.h>
@@ -519,8 +520,7 @@ static int tap_open(struct inode *inode, struct file *file)
 		goto err;
 	}
 
-	RCU_INIT_POINTER(q->sock.wq, &q->wq);
-	init_waitqueue_head(&q->wq.wait);
+	init_waitqueue_head(&q->sock.wq.wait);
 	q->sock.type = SOCK_RAW;
 	q->sock.state = SS_CONNECTED;
 	q->sock.file = file;
@@ -578,7 +578,7 @@ static __poll_t tap_poll(struct file *file, poll_table *wait)
 		goto out;
 
 	mask = 0;
-	poll_wait(file, &q->wq.wait, wait);
+	poll_wait(file, &q->sock.wq.wait, wait);
 
 	if (!ptr_ring_empty(&q->ring))
 		mask |= EPOLLIN | EPOLLRDNORM;
@@ -1200,7 +1200,7 @@ err_kfree:
 	kfree_skb(skb);
 err:
 	rcu_read_lock();
-		tap = rcu_dereference(q->tap);
+	tap = rcu_dereference(q->tap);
 	if (tap && tap->count_tx_dropped)
 		tap->count_tx_dropped(tap);
 	rcu_read_unlock();

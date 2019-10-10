@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Media driver for Freescale i.MX5/6 SOC
  *
  * Open Firmware parsing.
  *
  * Copyright (c) 2016 Mentor Graphics Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/of_platform.h>
 #include <media/v4l2-ctrls.h>
@@ -20,31 +16,32 @@
 #include <video/imx-ipu-v3.h>
 #include "imx-media.h"
 
-static int of_add_csi(struct imx_media_dev *imxmd, struct device_node *csi_np)
+int imx_media_of_add_csi(struct imx_media_dev *imxmd,
+			 struct device_node *csi_np)
 {
-	int ret;
+	struct v4l2_async_subdev *asd;
+	int ret = 0;
 
 	if (!of_device_is_available(csi_np)) {
 		dev_dbg(imxmd->md.dev, "%s: %pOFn not enabled\n", __func__,
 			csi_np);
-		/* unavailable is not an error */
-		return 0;
+		return -ENODEV;
 	}
 
 	/* add CSI fwnode to async notifier */
-	ret = imx_media_add_async_subdev(imxmd, of_fwnode_handle(csi_np), NULL);
-	if (ret) {
-		if (ret == -EEXIST) {
-			/* already added, everything is fine */
-			return 0;
-		}
-
-		/* other error, can't continue */
-		return ret;
+	asd = v4l2_async_notifier_add_fwnode_subdev(&imxmd->notifier,
+						    of_fwnode_handle(csi_np),
+						    sizeof(*asd));
+	if (IS_ERR(asd)) {
+		ret = PTR_ERR(asd);
+		if (ret == -EEXIST)
+			dev_dbg(imxmd->md.dev, "%s: already added %pOFn\n",
+				__func__, csi_np);
 	}
 
-	return 0;
+	return ret;
 }
+EXPORT_SYMBOL_GPL(imx_media_of_add_csi);
 
 int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
 			     struct device_node *np)
@@ -57,14 +54,26 @@ int imx_media_add_of_subdevs(struct imx_media_dev *imxmd,
 		if (!csi_np)
 			break;
 
-		ret = of_add_csi(imxmd, csi_np);
-		of_node_put(csi_np);
-		if (ret)
-			return ret;
+		ret = imx_media_of_add_csi(imxmd, csi_np);
+		if (ret) {
+			/* unavailable or already added is not an error */
+			if (ret == -ENODEV || ret == -EEXIST) {
+				of_node_put(csi_np);
+				continue;
+			}
+
+			/* other error, can't continue */
+			goto err_out;
+		}
 	}
 
 	return 0;
+
+err_out:
+	of_node_put(csi_np);
+	return ret;
 }
+EXPORT_SYMBOL_GPL(imx_media_add_of_subdevs);
 
 /*
  * Create a single media link to/from sd using a fwnode link.
@@ -134,6 +143,7 @@ int imx_media_create_of_links(struct imx_media_dev *imxmd,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(imx_media_create_of_links);
 
 /*
  * Create media links to the given CSI subdevice's sink pads,
@@ -143,15 +153,18 @@ int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
 				  struct v4l2_subdev *csi)
 {
 	struct device_node *csi_np = csi->dev->of_node;
-	struct fwnode_handle *fwnode, *csi_ep;
-	struct v4l2_fwnode_link link;
 	struct device_node *ep;
-	int ret;
-
-	link.local_node = of_fwnode_handle(csi_np);
-	link.local_port = CSI_SINK_PAD;
 
 	for_each_child_of_node(csi_np, ep) {
+		struct fwnode_handle *fwnode, *csi_ep;
+		struct v4l2_fwnode_link link;
+		int ret;
+
+		memset(&link, 0, sizeof(link));
+
+		link.local_node = of_fwnode_handle(csi_np);
+		link.local_port = CSI_SINK_PAD;
+
 		csi_ep = of_fwnode_handle(ep);
 
 		fwnode = fwnode_graph_get_remote_endpoint(csi_ep);
@@ -174,3 +187,4 @@ int imx_media_create_csi_of_links(struct imx_media_dev *imxmd,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(imx_media_create_csi_of_links);

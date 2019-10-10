@@ -294,6 +294,7 @@ enum cmd_frame_type {
 	COMMON_DEV_CONFIG = 0x28,
 	RADIO_PARAMS_UPDATE = 0x29,
 	WOWLAN_CONFIG_PARAMS = 0x2B,
+	FEATURES_ENABLE = 0x33,
 	WOWLAN_WAKEUP_REASON = 0xc5
 };
 
@@ -349,6 +350,15 @@ struct rsi_cmd_desc {
 struct rsi_boot_params {
 	__le16 desc_word[8];
 	struct bootup_params bootup_params;
+} __packed;
+
+struct rsi_boot_params_9116 {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	__le16 reserved;
+	__le16 umac_clk;
+	struct bootup_params_9116 bootup_params;
 } __packed;
 
 struct rsi_peer_notify {
@@ -653,6 +663,22 @@ struct rsi_bgscan_probe {
 	__le16 channel_scan_time;
 	__le16 probe_req_length;
 } __packed;
+
+#define RSI_DUTY_CYCLING	BIT(0)
+#define RSI_END_OF_FRAME	BIT(1)
+#define RSI_SIFS_TX_ENABLE	BIT(2)
+#define RSI_DPD			BIT(3)
+struct rsi_wlan_9116_features {
+	struct rsi_cmd_desc desc;
+	u8 pll_mode;
+	u8 rf_type;
+	u8 wireless_mode;
+	u8 enable_ppe;
+	u8 afe_type;
+	u8 reserved1;
+	__le16 reserved2;
+	__le32 feature_enable;
+};
 
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
 {

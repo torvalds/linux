@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi_bus.c - ACPI Bus Driver ($Revision: 80 $)
  *
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
 #include <linux/module.h>
@@ -799,9 +786,23 @@ const struct acpi_device_id *acpi_match_device(const struct acpi_device_id *ids,
 }
 EXPORT_SYMBOL_GPL(acpi_match_device);
 
+static const void *acpi_of_device_get_match_data(const struct device *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	const struct of_device_id *match = NULL;
+
+	if (!acpi_of_match_device(adev, dev->driver->of_match_table, &match))
+		return NULL;
+
+	return match->data;
+}
+
 const void *acpi_device_get_match_data(const struct device *dev)
 {
 	const struct acpi_device_id *match;
+
+	if (!dev->driver->acpi_match_table)
+		return acpi_of_device_get_match_data(dev);
 
 	match = acpi_match_device(dev->driver->acpi_match_table, dev);
 	if (!match)
@@ -1028,9 +1029,6 @@ void __init acpi_early_init(void)
 		acpi_gbl_enable_interpreter_slack = TRUE;
 
 	acpi_permanent_mmap = true;
-
-	/* Initialize debug output. Linux does not use ACPICA defaults */
-	acpi_dbg_level = ACPI_LV_INFO | ACPI_LV_REPAIR;
 
 #ifdef CONFIG_X86
 	/*

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2008-2009 ST-Ericsson SA
  *
  * Author: Srinidhi KASAGAR <srinidhi.kasagar@stericsson.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2, as
- * published by the Free Software Foundation.
- *
  */
 #include <linux/types.h>
 #include <linux/init.h>
@@ -114,7 +110,6 @@ static void ux500_restart(enum reboot_mode mode, const char *cmd)
 static const struct of_device_id u8500_local_bus_nodes[] = {
 	/* only create devices below soc node */
 	{ .compatible = "stericsson,db8500", },
-	{ .compatible = "stericsson,db8500-prcmu", },
 	{ .compatible = "simple-bus"},
 	{ },
 };

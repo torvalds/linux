@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
  *  Routines for control of YMF724/740/744/754 chips
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -1985,11 +1971,7 @@ static void snd_ymfpci_proc_read(struct snd_info_entry *entry,
 
 static int snd_ymfpci_proc_init(struct snd_card *card, struct snd_ymfpci *chip)
 {
-	struct snd_info_entry *entry;
-	
-	if (! snd_card_proc_new(card, "ymfpci", &entry))
-		snd_info_set_text_ops(entry, chip, snd_ymfpci_proc_read);
-	return 0;
+	return snd_card_ro_proc_new(card, "ymfpci", chip, snd_ymfpci_proc_read);
 }
 
 /*
@@ -2304,10 +2286,6 @@ static int snd_ymfpci_suspend(struct device *dev)
 	unsigned int i;
 	
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
-	snd_pcm_suspend_all(chip->pcm2);
-	snd_pcm_suspend_all(chip->pcm_spdif);
-	snd_pcm_suspend_all(chip->pcm_4ch);
 	snd_ac97_suspend(chip->ac97);
 	for (i = 0; i < YDSXGR_NUM_SAVED_REGS; i++)
 		chip->saved_regs[i] = snd_ymfpci_readl(chip, saved_regs_index[i]);

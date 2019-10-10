@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_HEAD_H__
 #define __NVKM_DISP_HEAD_H__
 #include "priv.h"

@@ -1,6 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2014, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #ifndef _SELFTESTS_POWERPC_REG_H
@@ -76,6 +76,16 @@
 #define TEXASR_FS	0x0000000008000000
 #define TEXASR_TE	0x0000000004000000
 #define TEXASR_ROT	0x0000000002000000
+
+/* MSR register bits */
+#define MSR_TS_S_LG     33              /* Trans Mem state: Suspended */
+#define MSR_TS_T_LG	34              /* Trans Mem state: Active */
+
+#define __MASK(X)       (1UL<<(X))
+
+/* macro to check TM MSR bits */
+#define MSR_TS_S        __MASK(MSR_TS_S_LG)   /* Transaction Suspended */
+#define MSR_TS_T	__MASK(MSR_TS_T_LG)   /* Transaction Transactional */
 
 /* Vector Instructions */
 #define VSX_XX1(xs, ra, rb)	(((xs) & 0x1f) << 21 | ((ra) << 16) |  \

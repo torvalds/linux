@@ -59,7 +59,12 @@ struct nfsd4_client_tracking_ops {
 	void (*remove)(struct nfs4_client *);
 	int (*check)(struct nfs4_client *);
 	void (*grace_done)(struct nfsd_net *);
+	uint8_t version;
+	size_t msglen;
 };
+
+static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops;
+static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops_v2;
 
 /* Globals */
 static char user_recovery_dirname[PATH_MAX] = "/var/lib/nfs/v4recovery";
@@ -126,7 +131,6 @@ nfs4_make_rec_clidname(char *dname, const struct xdr_netobj *clname)
 		SHASH_DESC_ON_STACK(desc, tfm);
 
 		desc->tfm = tfm;
-		desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 		status = crypto_shash_digest(desc, clname->data, clname->len,
 					     cksum.data);
@@ -170,12 +174,34 @@ legacy_recdir_name_error(struct nfs4_client *clp, int error)
 }
 
 static void
+__nfsd4_create_reclaim_record_grace(struct nfs4_client *clp,
+		const char *dname, int len, struct nfsd_net *nn)
+{
+	struct xdr_netobj name;
+	struct xdr_netobj princhash = { .len = 0, .data = NULL };
+	struct nfs4_client_reclaim *crp;
+
+	name.data = kmemdup(dname, len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		return;
+	}
+	name.len = len;
+	crp = nfs4_client_to_reclaim(name, princhash, nn);
+	if (!crp) {
+		kfree(name.data);
+		return;
+	}
+	crp->cr_clp = clp;
+}
+
+static void
 nfsd4_create_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
 	char dname[HEXDIR_LEN];
 	struct dentry *dir, *dentry;
-	struct nfs4_client_reclaim *crp;
 	int status;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
 
@@ -221,11 +247,9 @@ out_put:
 out_unlock:
 	inode_unlock(d_inode(dir));
 	if (status == 0) {
-		if (nn->in_grace) {
-			crp = nfs4_client_to_reclaim(dname, nn);
-			if (crp)
-				crp->cr_clp = clp;
-		}
+		if (nn->in_grace)
+			__nfsd4_create_reclaim_record_grace(clp, dname,
+					HEXDIR_LEN, nn);
 		vfs_fsync(nn->rec_file, 0);
 	} else {
 		printk(KERN_ERR "NFSD: failed to write recovery record"
@@ -346,10 +370,29 @@ out_unlock:
 }
 
 static void
+__nfsd4_remove_reclaim_record_grace(const char *dname, int len,
+		struct nfsd_net *nn)
+{
+	struct xdr_netobj name;
+	struct nfs4_client_reclaim *crp;
+
+	name.data = kmemdup(dname, len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		return;
+	}
+	name.len = len;
+	crp = nfsd4_find_reclaim_client(name, nn);
+	kfree(name.data);
+	if (crp)
+		nfs4_remove_reclaim_record(crp, nn);
+}
+
+static void
 nfsd4_remove_clid_dir(struct nfs4_client *clp)
 {
 	const struct cred *original_cred;
-	struct nfs4_client_reclaim *crp;
 	char dname[HEXDIR_LEN];
 	int status;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
@@ -374,12 +417,9 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	nfs4_reset_creds(original_cred);
 	if (status == 0) {
 		vfs_fsync(nn->rec_file, 0);
-		if (nn->in_grace) {
-			/* remove reclaim record */
-			crp = nfsd4_find_reclaim_client(dname, nn);
-			if (crp)
-				nfs4_remove_reclaim_record(crp, nn);
-		}
+		if (nn->in_grace)
+			__nfsd4_remove_reclaim_record_grace(dname,
+					HEXDIR_LEN, nn);
 	}
 out_drop_write:
 	mnt_drop_write_file(nn->rec_file);
@@ -393,14 +433,31 @@ static int
 purge_old(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
 	int status;
+	struct xdr_netobj name;
 
-	if (nfs4_has_reclaimed_state(child->d_name.name, nn))
+	if (child->d_name.len != HEXDIR_LEN - 1) {
+		printk("%s: illegal name %pd in recovery directory\n",
+				__func__, child);
+		/* Keep trying; maybe the others are OK: */
 		return 0;
+	}
+	name.data = kmemdup_nul(child->d_name.name, child->d_name.len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		goto out;
+	}
+	name.len = HEXDIR_LEN;
+	if (nfs4_has_reclaimed_state(name, nn))
+		goto out_free;
 
 	status = vfs_rmdir(d_inode(parent), child);
 	if (status)
 		printk("failed to remove client recovery directory %pd\n",
 				child);
+out_free:
+	kfree(name.data);
+out:
 	/* Keep trying, success or failure: */
 	return 0;
 }
@@ -430,13 +487,25 @@ out:
 static int
 load_recdir(struct dentry *parent, struct dentry *child, struct nfsd_net *nn)
 {
+	struct xdr_netobj name;
+	struct xdr_netobj princhash = { .len = 0, .data = NULL };
+
 	if (child->d_name.len != HEXDIR_LEN - 1) {
-		printk("nfsd4: illegal name %pd in recovery directory\n",
-				child);
+		printk("%s: illegal name %pd in recovery directory\n",
+				__func__, child);
 		/* Keep trying; maybe the others are OK: */
 		return 0;
 	}
-	nfs4_client_to_reclaim(child->d_name.name, nn);
+	name.data = kmemdup_nul(child->d_name.name, child->d_name.len, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		goto out;
+	}
+	name.len = HEXDIR_LEN;
+	if (!nfs4_client_to_reclaim(name, princhash, nn))
+		kfree(name.data);
+out:
 	return 0;
 }
 
@@ -565,6 +634,7 @@ nfsd4_legacy_tracking_init(struct net *net)
 	status = nfsd4_load_reboot_recovery_data(net);
 	if (status)
 		goto err;
+	printk("NFSD: Using legacy client tracking operations.\n");
 	return 0;
 
 err:
@@ -616,6 +686,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	char dname[HEXDIR_LEN];
 	struct nfs4_client_reclaim *crp;
 	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct xdr_netobj name;
 
 	/* did we already find that this client is stable? */
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
@@ -628,13 +699,22 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 	}
 
 	/* look for it in the reclaim hashtable otherwise */
-	crp = nfsd4_find_reclaim_client(dname, nn);
+	name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
+	if (!name.data) {
+		dprintk("%s: failed to allocate memory for name.data!\n",
+			__func__);
+		goto out_enoent;
+	}
+	name.len = HEXDIR_LEN;
+	crp = nfsd4_find_reclaim_client(name, nn);
+	kfree(name.data);
 	if (crp) {
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 		crp->cr_clp = clp;
 		return 0;
 	}
 
+out_enoent:
 	return -ENOENT;
 }
 
@@ -645,6 +725,8 @@ static const struct nfsd4_client_tracking_ops nfsd4_legacy_tracking_ops = {
 	.remove		= nfsd4_remove_clid_dir,
 	.check		= nfsd4_check_legacy_client,
 	.grace_done	= nfsd4_recdir_purge_old,
+	.version	= 1,
+	.msglen		= 0,
 };
 
 /* Globals */
@@ -657,25 +739,33 @@ struct cld_net {
 	spinlock_t		 cn_lock;
 	struct list_head	 cn_list;
 	unsigned int		 cn_xid;
+	bool			 cn_has_legacy;
+	struct crypto_shash	*cn_tfm;
 };
 
 struct cld_upcall {
 	struct list_head	 cu_list;
 	struct cld_net		*cu_net;
 	struct completion	 cu_done;
-	struct cld_msg		 cu_msg;
+	union {
+		struct cld_msg_hdr	 cu_hdr;
+		struct cld_msg		 cu_msg;
+		struct cld_msg_v2	 cu_msg_v2;
+	} cu_u;
 };
 
 static int
-__cld_pipe_upcall(struct rpc_pipe *pipe, struct cld_msg *cmsg)
+__cld_pipe_upcall(struct rpc_pipe *pipe, void *cmsg)
 {
 	int ret;
 	struct rpc_pipe_msg msg;
-	struct cld_upcall *cup = container_of(cmsg, struct cld_upcall, cu_msg);
+	struct cld_upcall *cup = container_of(cmsg, struct cld_upcall, cu_u);
+	struct nfsd_net *nn = net_generic(pipe->dentry->d_sb->s_fs_info,
+					  nfsd_net_id);
 
 	memset(&msg, 0, sizeof(msg));
 	msg.data = cmsg;
-	msg.len = sizeof(*cmsg);
+	msg.len = nn->client_tracking_ops->msglen;
 
 	ret = rpc_queue_upcall(pipe, &msg);
 	if (ret < 0) {
@@ -691,7 +781,7 @@ out:
 }
 
 static int
-cld_pipe_upcall(struct rpc_pipe *pipe, struct cld_msg *cmsg)
+cld_pipe_upcall(struct rpc_pipe *pipe, void *cmsg)
 {
 	int ret;
 
@@ -707,24 +797,96 @@ cld_pipe_upcall(struct rpc_pipe *pipe, struct cld_msg *cmsg)
 }
 
 static ssize_t
+__cld_pipe_inprogress_downcall(const struct cld_msg_v2 __user *cmsg,
+		struct nfsd_net *nn)
+{
+	uint8_t cmd, princhashlen;
+	struct xdr_netobj name, princhash = { .len = 0, .data = NULL };
+	uint16_t namelen;
+	struct cld_net *cn = nn->cld_net;
+
+	if (get_user(cmd, &cmsg->cm_cmd)) {
+		dprintk("%s: error when copying cmd from userspace", __func__);
+		return -EFAULT;
+	}
+	if (cmd == Cld_GraceStart) {
+		if (nn->client_tracking_ops->version >= 2) {
+			const struct cld_clntinfo __user *ci;
+
+			ci = &cmsg->cm_u.cm_clntinfo;
+			if (get_user(namelen, &ci->cc_name.cn_len))
+				return -EFAULT;
+			name.data = memdup_user(&ci->cc_name.cn_id, namelen);
+			if (IS_ERR_OR_NULL(name.data))
+				return -EFAULT;
+			name.len = namelen;
+			get_user(princhashlen, &ci->cc_princhash.cp_len);
+			if (princhashlen > 0) {
+				princhash.data = memdup_user(
+						&ci->cc_princhash.cp_data,
+						princhashlen);
+				if (IS_ERR_OR_NULL(princhash.data))
+					return -EFAULT;
+				princhash.len = princhashlen;
+			} else
+				princhash.len = 0;
+		} else {
+			const struct cld_name __user *cnm;
+
+			cnm = &cmsg->cm_u.cm_name;
+			if (get_user(namelen, &cnm->cn_len))
+				return -EFAULT;
+			name.data = memdup_user(&cnm->cn_id, namelen);
+			if (IS_ERR_OR_NULL(name.data))
+				return -EFAULT;
+			name.len = namelen;
+		}
+		if (name.len > 5 && memcmp(name.data, "hash:", 5) == 0) {
+			name.len = name.len - 5;
+			memmove(name.data, name.data + 5, name.len);
+			cn->cn_has_legacy = true;
+		}
+		if (!nfs4_client_to_reclaim(name, princhash, nn)) {
+			kfree(name.data);
+			kfree(princhash.data);
+			return -EFAULT;
+		}
+		return nn->client_tracking_ops->msglen;
+	}
+	return -EFAULT;
+}
+
+static ssize_t
 cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 {
 	struct cld_upcall *tmp, *cup;
-	struct cld_msg __user *cmsg = (struct cld_msg __user *)src;
+	struct cld_msg_hdr __user *hdr = (struct cld_msg_hdr __user *)src;
+	struct cld_msg_v2 __user *cmsg = (struct cld_msg_v2 __user *)src;
 	uint32_t xid;
 	struct nfsd_net *nn = net_generic(file_inode(filp)->i_sb->s_fs_info,
 						nfsd_net_id);
 	struct cld_net *cn = nn->cld_net;
+	int16_t status;
 
-	if (mlen != sizeof(*cmsg)) {
+	if (mlen != nn->client_tracking_ops->msglen) {
 		dprintk("%s: got %zu bytes, expected %zu\n", __func__, mlen,
-			sizeof(*cmsg));
+			nn->client_tracking_ops->msglen);
 		return -EINVAL;
 	}
 
 	/* copy just the xid so we can try to find that */
-	if (copy_from_user(&xid, &cmsg->cm_xid, sizeof(xid)) != 0) {
+	if (copy_from_user(&xid, &hdr->cm_xid, sizeof(xid)) != 0) {
 		dprintk("%s: error when copying xid from userspace", __func__);
+		return -EFAULT;
+	}
+
+	/*
+	 * copy the status so we know whether to remove the upcall from the
+	 * list (for -EINPROGRESS, we just want to make sure the xid is
+	 * valid, not remove the upcall from the list)
+	 */
+	if (get_user(status, &hdr->cm_status)) {
+		dprintk("%s: error when copying status from userspace", __func__);
 		return -EFAULT;
 	}
 
@@ -732,9 +894,10 @@ cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 	cup = NULL;
 	spin_lock(&cn->cn_lock);
 	list_for_each_entry(tmp, &cn->cn_list, cu_list) {
-		if (get_unaligned(&tmp->cu_msg.cm_xid) == xid) {
+		if (get_unaligned(&tmp->cu_u.cu_hdr.cm_xid) == xid) {
 			cup = tmp;
-			list_del_init(&cup->cu_list);
+			if (status != -EINPROGRESS)
+				list_del_init(&cup->cu_list);
 			break;
 		}
 	}
@@ -746,7 +909,10 @@ cld_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		return -EINVAL;
 	}
 
-	if (copy_from_user(&cup->cu_msg, src, mlen) != 0)
+	if (status == -EINPROGRESS)
+		return __cld_pipe_inprogress_downcall(cmsg, nn);
+
+	if (copy_from_user(&cup->cu_u.cu_msg_v2, src, mlen) != 0)
 		return -EFAULT;
 
 	complete(&cup->cu_done);
@@ -758,7 +924,7 @@ cld_pipe_destroy_msg(struct rpc_pipe_msg *msg)
 {
 	struct cld_msg *cmsg = msg->data;
 	struct cld_upcall *cup = container_of(cmsg, struct cld_upcall,
-						 cu_msg);
+						 cu_u.cu_msg);
 
 	/* errno >= 0 means we got a downcall */
 	if (msg->errno >= 0)
@@ -821,7 +987,7 @@ nfsd4_cld_unregister_net(struct net *net, struct rpc_pipe *pipe)
 
 /* Initialize rpc_pipefs pipe for communication with client tracking daemon */
 static int
-nfsd4_init_cld_pipe(struct net *net)
+__nfsd4_init_cld_pipe(struct net *net)
 {
 	int ret;
 	struct dentry *dentry;
@@ -852,6 +1018,7 @@ nfsd4_init_cld_pipe(struct net *net)
 	}
 
 	cn->cn_pipe->dentry = dentry;
+	cn->cn_has_legacy = false;
 	nn->cld_net = cn;
 	return 0;
 
@@ -864,6 +1031,17 @@ err:
 	return ret;
 }
 
+static int
+nfsd4_init_cld_pipe(struct net *net)
+{
+	int status;
+
+	status = __nfsd4_init_cld_pipe(net);
+	if (!status)
+		printk("NFSD: Using old nfsdcld client tracking operations.\n");
+	return status;
+}
+
 static void
 nfsd4_remove_cld_pipe(struct net *net)
 {
@@ -872,14 +1050,17 @@ nfsd4_remove_cld_pipe(struct net *net)
 
 	nfsd4_cld_unregister_net(net, cn->cn_pipe);
 	rpc_destroy_pipe_data(cn->cn_pipe);
+	if (cn->cn_tfm)
+		crypto_free_shash(cn->cn_tfm);
 	kfree(nn->cld_net);
 	nn->cld_net = NULL;
 }
 
 static struct cld_upcall *
-alloc_cld_upcall(struct cld_net *cn)
+alloc_cld_upcall(struct nfsd_net *nn)
 {
 	struct cld_upcall *new, *tmp;
+	struct cld_net *cn = nn->cld_net;
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
@@ -889,20 +1070,20 @@ alloc_cld_upcall(struct cld_net *cn)
 restart_search:
 	spin_lock(&cn->cn_lock);
 	list_for_each_entry(tmp, &cn->cn_list, cu_list) {
-		if (tmp->cu_msg.cm_xid == cn->cn_xid) {
+		if (tmp->cu_u.cu_msg.cm_xid == cn->cn_xid) {
 			cn->cn_xid++;
 			spin_unlock(&cn->cn_lock);
 			goto restart_search;
 		}
 	}
 	init_completion(&new->cu_done);
-	new->cu_msg.cm_vers = CLD_UPCALL_VERSION;
-	put_unaligned(cn->cn_xid++, &new->cu_msg.cm_xid);
+	new->cu_u.cu_msg.cm_vers = nn->client_tracking_ops->version;
+	put_unaligned(cn->cn_xid++, &new->cu_u.cu_msg.cm_xid);
 	new->cu_net = cn;
 	list_add(&new->cu_list, &cn->cn_list);
 	spin_unlock(&cn->cn_lock);
 
-	dprintk("%s: allocated xid %u\n", __func__, new->cu_msg.cm_xid);
+	dprintk("%s: allocated xid %u\n", __func__, new->cu_u.cu_msg.cm_xid);
 
 	return new;
 }
@@ -931,20 +1112,20 @@ nfsd4_cld_create(struct nfs4_client *clp)
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
 
-	cup = alloc_cld_upcall(cn);
+	cup = alloc_cld_upcall(nn);
 	if (!cup) {
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
-	cup->cu_msg.cm_cmd = Cld_Create;
-	cup->cu_msg.cm_u.cm_name.cn_len = clp->cl_name.len;
-	memcpy(cup->cu_msg.cm_u.cm_name.cn_id, clp->cl_name.data,
+	cup->cu_u.cu_msg.cm_cmd = Cld_Create;
+	cup->cu_u.cu_msg.cm_u.cm_name.cn_len = clp->cl_name.len;
+	memcpy(cup->cu_u.cu_msg.cm_u.cm_name.cn_id, clp->cl_name.data,
 			clp->cl_name.len);
 
-	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_msg);
+	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
 	if (!ret) {
-		ret = cup->cu_msg.cm_status;
+		ret = cup->cu_u.cu_msg.cm_status;
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 	}
 
@@ -953,6 +1134,75 @@ out_err:
 	if (ret)
 		printk(KERN_ERR "NFSD: Unable to create client "
 				"record on stable storage: %d\n", ret);
+}
+
+/* Ask daemon to create a new record */
+static void
+nfsd4_cld_create_v2(struct nfs4_client *clp)
+{
+	int ret;
+	struct cld_upcall *cup;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct cld_net *cn = nn->cld_net;
+	struct cld_msg_v2 *cmsg;
+	struct crypto_shash *tfm = cn->cn_tfm;
+	struct xdr_netobj cksum;
+	char *principal = NULL;
+	SHASH_DESC_ON_STACK(desc, tfm);
+
+	/* Don't upcall if it's already stored */
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return;
+
+	cup = alloc_cld_upcall(nn);
+	if (!cup) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	cmsg = &cup->cu_u.cu_msg_v2;
+	cmsg->cm_cmd = Cld_Create;
+	cmsg->cm_u.cm_clntinfo.cc_name.cn_len = clp->cl_name.len;
+	memcpy(cmsg->cm_u.cm_clntinfo.cc_name.cn_id, clp->cl_name.data,
+			clp->cl_name.len);
+	if (clp->cl_cred.cr_raw_principal)
+		principal = clp->cl_cred.cr_raw_principal;
+	else if (clp->cl_cred.cr_principal)
+		principal = clp->cl_cred.cr_principal;
+	if (principal) {
+		desc->tfm = tfm;
+		cksum.len = crypto_shash_digestsize(tfm);
+		cksum.data = kmalloc(cksum.len, GFP_KERNEL);
+		if (cksum.data == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		ret = crypto_shash_digest(desc, principal, strlen(principal),
+					  cksum.data);
+		shash_desc_zero(desc);
+		if (ret) {
+			kfree(cksum.data);
+			goto out;
+		}
+		cmsg->cm_u.cm_clntinfo.cc_princhash.cp_len = cksum.len;
+		memcpy(cmsg->cm_u.cm_clntinfo.cc_princhash.cp_data,
+		       cksum.data, cksum.len);
+		kfree(cksum.data);
+	} else
+		cmsg->cm_u.cm_clntinfo.cc_princhash.cp_len = 0;
+
+	ret = cld_pipe_upcall(cn->cn_pipe, cmsg);
+	if (!ret) {
+		ret = cmsg->cm_status;
+		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
+	}
+
+out:
+	free_cld_upcall(cup);
+out_err:
+	if (ret)
+		pr_err("NFSD: Unable to create client record on stable storage: %d\n",
+				ret);
 }
 
 /* Ask daemon to create a new record */
@@ -968,20 +1218,20 @@ nfsd4_cld_remove(struct nfs4_client *clp)
 	if (!test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return;
 
-	cup = alloc_cld_upcall(cn);
+	cup = alloc_cld_upcall(nn);
 	if (!cup) {
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
-	cup->cu_msg.cm_cmd = Cld_Remove;
-	cup->cu_msg.cm_u.cm_name.cn_len = clp->cl_name.len;
-	memcpy(cup->cu_msg.cm_u.cm_name.cn_id, clp->cl_name.data,
+	cup->cu_u.cu_msg.cm_cmd = Cld_Remove;
+	cup->cu_u.cu_msg.cm_u.cm_name.cn_len = clp->cl_name.len;
+	memcpy(cup->cu_u.cu_msg.cm_u.cm_name.cn_id, clp->cl_name.data,
 			clp->cl_name.len);
 
-	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_msg);
+	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
 	if (!ret) {
-		ret = cup->cu_msg.cm_status;
+		ret = cup->cu_u.cu_msg.cm_status;
 		clear_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 	}
 
@@ -992,9 +1242,14 @@ out_err:
 				"record from stable storage: %d\n", ret);
 }
 
-/* Check for presence of a record, and update its timestamp */
+/*
+ * For older nfsdcld's that do not allow us to "slurp" the clients
+ * from the tracking database during startup.
+ *
+ * Check for presence of a record, and update its timestamp
+ */
 static int
-nfsd4_cld_check(struct nfs4_client *clp)
+nfsd4_cld_check_v0(struct nfs4_client *clp)
 {
 	int ret;
 	struct cld_upcall *cup;
@@ -1005,21 +1260,21 @@ nfsd4_cld_check(struct nfs4_client *clp)
 	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
 		return 0;
 
-	cup = alloc_cld_upcall(cn);
+	cup = alloc_cld_upcall(nn);
 	if (!cup) {
 		printk(KERN_ERR "NFSD: Unable to check client record on "
 				"stable storage: %d\n", -ENOMEM);
 		return -ENOMEM;
 	}
 
-	cup->cu_msg.cm_cmd = Cld_Check;
-	cup->cu_msg.cm_u.cm_name.cn_len = clp->cl_name.len;
-	memcpy(cup->cu_msg.cm_u.cm_name.cn_id, clp->cl_name.data,
+	cup->cu_u.cu_msg.cm_cmd = Cld_Check;
+	cup->cu_u.cu_msg.cm_u.cm_name.cn_len = clp->cl_name.len;
+	memcpy(cup->cu_u.cu_msg.cm_u.cm_name.cn_id, clp->cl_name.data,
 			clp->cl_name.len);
 
-	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_msg);
+	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
 	if (!ret) {
-		ret = cup->cu_msg.cm_status;
+		ret = cup->cu_u.cu_msg.cm_status;
 		set_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags);
 	}
 
@@ -1027,24 +1282,173 @@ nfsd4_cld_check(struct nfs4_client *clp)
 	return ret;
 }
 
-static void
-nfsd4_cld_grace_done(struct nfsd_net *nn)
+/*
+ * For newer nfsdcld's that allow us to "slurp" the clients
+ * from the tracking database during startup.
+ *
+ * Check for presence of a record in the reclaim_str_hashtbl
+ */
+static int
+nfsd4_cld_check(struct nfs4_client *clp)
+{
+	struct nfs4_client_reclaim *crp;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct cld_net *cn = nn->cld_net;
+	int status;
+	char dname[HEXDIR_LEN];
+	struct xdr_netobj name;
+
+	/* did we already find that this client is stable? */
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return 0;
+
+	/* look for it in the reclaim hashtable otherwise */
+	crp = nfsd4_find_reclaim_client(clp->cl_name, nn);
+	if (crp)
+		goto found;
+
+	if (cn->cn_has_legacy) {
+		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
+		if (status)
+			return -ENOENT;
+
+		name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
+		if (!name.data) {
+			dprintk("%s: failed to allocate memory for name.data!\n",
+				__func__);
+			return -ENOENT;
+		}
+		name.len = HEXDIR_LEN;
+		crp = nfsd4_find_reclaim_client(name, nn);
+		kfree(name.data);
+		if (crp)
+			goto found;
+
+	}
+	return -ENOENT;
+found:
+	crp->cr_clp = clp;
+	return 0;
+}
+
+static int
+nfsd4_cld_check_v2(struct nfs4_client *clp)
+{
+	struct nfs4_client_reclaim *crp;
+	struct nfsd_net *nn = net_generic(clp->net, nfsd_net_id);
+	struct cld_net *cn = nn->cld_net;
+	int status;
+	char dname[HEXDIR_LEN];
+	struct xdr_netobj name;
+	struct crypto_shash *tfm = cn->cn_tfm;
+	struct xdr_netobj cksum;
+	char *principal = NULL;
+	SHASH_DESC_ON_STACK(desc, tfm);
+
+	/* did we already find that this client is stable? */
+	if (test_bit(NFSD4_CLIENT_STABLE, &clp->cl_flags))
+		return 0;
+
+	/* look for it in the reclaim hashtable otherwise */
+	crp = nfsd4_find_reclaim_client(clp->cl_name, nn);
+	if (crp)
+		goto found;
+
+	if (cn->cn_has_legacy) {
+		status = nfs4_make_rec_clidname(dname, &clp->cl_name);
+		if (status)
+			return -ENOENT;
+
+		name.data = kmemdup(dname, HEXDIR_LEN, GFP_KERNEL);
+		if (!name.data) {
+			dprintk("%s: failed to allocate memory for name.data\n",
+					__func__);
+			return -ENOENT;
+		}
+		name.len = HEXDIR_LEN;
+		crp = nfsd4_find_reclaim_client(name, nn);
+		kfree(name.data);
+		if (crp)
+			goto found;
+
+	}
+	return -ENOENT;
+found:
+	if (crp->cr_princhash.len) {
+		if (clp->cl_cred.cr_raw_principal)
+			principal = clp->cl_cred.cr_raw_principal;
+		else if (clp->cl_cred.cr_principal)
+			principal = clp->cl_cred.cr_principal;
+		if (principal == NULL)
+			return -ENOENT;
+		desc->tfm = tfm;
+		cksum.len = crypto_shash_digestsize(tfm);
+		cksum.data = kmalloc(cksum.len, GFP_KERNEL);
+		if (cksum.data == NULL)
+			return -ENOENT;
+		status = crypto_shash_digest(desc, principal, strlen(principal),
+					     cksum.data);
+		shash_desc_zero(desc);
+		if (status) {
+			kfree(cksum.data);
+			return -ENOENT;
+		}
+		if (memcmp(crp->cr_princhash.data, cksum.data,
+				crp->cr_princhash.len)) {
+			kfree(cksum.data);
+			return -ENOENT;
+		}
+		kfree(cksum.data);
+	}
+	crp->cr_clp = clp;
+	return 0;
+}
+
+static int
+nfsd4_cld_grace_start(struct nfsd_net *nn)
 {
 	int ret;
 	struct cld_upcall *cup;
 	struct cld_net *cn = nn->cld_net;
 
-	cup = alloc_cld_upcall(cn);
+	cup = alloc_cld_upcall(nn);
 	if (!cup) {
 		ret = -ENOMEM;
 		goto out_err;
 	}
 
-	cup->cu_msg.cm_cmd = Cld_GraceDone;
-	cup->cu_msg.cm_u.cm_gracetime = (int64_t)nn->boot_time;
-	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_msg);
+	cup->cu_u.cu_msg.cm_cmd = Cld_GraceStart;
+	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
 	if (!ret)
-		ret = cup->cu_msg.cm_status;
+		ret = cup->cu_u.cu_msg.cm_status;
+
+	free_cld_upcall(cup);
+out_err:
+	if (ret)
+		dprintk("%s: Unable to get clients from userspace: %d\n",
+			__func__, ret);
+	return ret;
+}
+
+/* For older nfsdcld's that need cm_gracetime */
+static void
+nfsd4_cld_grace_done_v0(struct nfsd_net *nn)
+{
+	int ret;
+	struct cld_upcall *cup;
+	struct cld_net *cn = nn->cld_net;
+
+	cup = alloc_cld_upcall(nn);
+	if (!cup) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	cup->cu_u.cu_msg.cm_cmd = Cld_GraceDone;
+	cup->cu_u.cu_msg.cm_u.cm_gracetime = (int64_t)nn->boot_time;
+	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
+	if (!ret)
+		ret = cup->cu_u.cu_msg.cm_status;
 
 	free_cld_upcall(cup);
 out_err:
@@ -1052,13 +1456,223 @@ out_err:
 		printk(KERN_ERR "NFSD: Unable to end grace period: %d\n", ret);
 }
 
-static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
+/*
+ * For newer nfsdcld's that do not need cm_gracetime.  We also need to call
+ * nfs4_release_reclaim() to clear out the reclaim_str_hashtbl.
+ */
+static void
+nfsd4_cld_grace_done(struct nfsd_net *nn)
+{
+	int ret;
+	struct cld_upcall *cup;
+	struct cld_net *cn = nn->cld_net;
+
+	cup = alloc_cld_upcall(nn);
+	if (!cup) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+
+	cup->cu_u.cu_msg.cm_cmd = Cld_GraceDone;
+	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
+	if (!ret)
+		ret = cup->cu_u.cu_msg.cm_status;
+
+	free_cld_upcall(cup);
+out_err:
+	nfs4_release_reclaim(nn);
+	if (ret)
+		printk(KERN_ERR "NFSD: Unable to end grace period: %d\n", ret);
+}
+
+static int
+nfs4_cld_state_init(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	int i;
+
+	nn->reclaim_str_hashtbl = kmalloc_array(CLIENT_HASH_SIZE,
+						sizeof(struct list_head),
+						GFP_KERNEL);
+	if (!nn->reclaim_str_hashtbl)
+		return -ENOMEM;
+
+	for (i = 0; i < CLIENT_HASH_SIZE; i++)
+		INIT_LIST_HEAD(&nn->reclaim_str_hashtbl[i]);
+	nn->reclaim_str_hashtbl_size = 0;
+	nn->track_reclaim_completes = true;
+	atomic_set(&nn->nr_reclaim_complete, 0);
+
+	return 0;
+}
+
+static void
+nfs4_cld_state_shutdown(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	nn->track_reclaim_completes = false;
+	kfree(nn->reclaim_str_hashtbl);
+}
+
+static bool
+cld_running(struct nfsd_net *nn)
+{
+	struct cld_net *cn = nn->cld_net;
+	struct rpc_pipe *pipe = cn->cn_pipe;
+
+	return pipe->nreaders || pipe->nwriters;
+}
+
+static int
+nfsd4_cld_get_version(struct nfsd_net *nn)
+{
+	int ret = 0;
+	struct cld_upcall *cup;
+	struct cld_net *cn = nn->cld_net;
+	uint8_t version;
+
+	cup = alloc_cld_upcall(nn);
+	if (!cup) {
+		ret = -ENOMEM;
+		goto out_err;
+	}
+	cup->cu_u.cu_msg.cm_cmd = Cld_GetVersion;
+	ret = cld_pipe_upcall(cn->cn_pipe, &cup->cu_u.cu_msg);
+	if (!ret) {
+		ret = cup->cu_u.cu_msg.cm_status;
+		if (ret)
+			goto out_free;
+		version = cup->cu_u.cu_msg.cm_u.cm_version;
+		dprintk("%s: userspace returned version %u\n",
+				__func__, version);
+		if (version < 1)
+			version = 1;
+		else if (version > CLD_UPCALL_VERSION)
+			version = CLD_UPCALL_VERSION;
+
+		switch (version) {
+		case 1:
+			nn->client_tracking_ops = &nfsd4_cld_tracking_ops;
+			break;
+		case 2:
+			nn->client_tracking_ops = &nfsd4_cld_tracking_ops_v2;
+			break;
+		default:
+			break;
+		}
+	}
+out_free:
+	free_cld_upcall(cup);
+out_err:
+	if (ret)
+		dprintk("%s: Unable to get version from userspace: %d\n",
+			__func__, ret);
+	return ret;
+}
+
+static int
+nfsd4_cld_tracking_init(struct net *net)
+{
+	int status;
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	bool running;
+	int retries = 10;
+
+	status = nfs4_cld_state_init(net);
+	if (status)
+		return status;
+
+	status = __nfsd4_init_cld_pipe(net);
+	if (status)
+		goto err_shutdown;
+	nn->cld_net->cn_tfm = crypto_alloc_shash("sha256", 0, 0);
+	if (IS_ERR(nn->cld_net->cn_tfm)) {
+		status = PTR_ERR(nn->cld_net->cn_tfm);
+		goto err_remove;
+	}
+
+	/*
+	 * rpc pipe upcalls take 30 seconds to time out, so we don't want to
+	 * queue an upcall unless we know that nfsdcld is running (because we
+	 * want this to fail fast so that nfsd4_client_tracking_init() can try
+	 * the next client tracking method).  nfsdcld should already be running
+	 * before nfsd is started, so the wait here is for nfsdcld to open the
+	 * pipefs file we just created.
+	 */
+	while (!(running = cld_running(nn)) && retries--)
+		msleep(100);
+
+	if (!running) {
+		status = -ETIMEDOUT;
+		goto err_remove;
+	}
+
+	status = nfsd4_cld_get_version(nn);
+	if (status == -EOPNOTSUPP)
+		pr_warn("NFSD: nfsdcld GetVersion upcall failed. Please upgrade nfsdcld.\n");
+
+	status = nfsd4_cld_grace_start(nn);
+	if (status) {
+		if (status == -EOPNOTSUPP)
+			pr_warn("NFSD: nfsdcld GraceStart upcall failed. Please upgrade nfsdcld.\n");
+		nfs4_release_reclaim(nn);
+		goto err_remove;
+	} else
+		printk("NFSD: Using nfsdcld client tracking operations.\n");
+	return 0;
+
+err_remove:
+	nfsd4_remove_cld_pipe(net);
+err_shutdown:
+	nfs4_cld_state_shutdown(net);
+	return status;
+}
+
+static void
+nfsd4_cld_tracking_exit(struct net *net)
+{
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+
+	nfs4_release_reclaim(nn);
+	nfsd4_remove_cld_pipe(net);
+	nfs4_cld_state_shutdown(net);
+}
+
+/* For older nfsdcld's */
+static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops_v0 = {
 	.init		= nfsd4_init_cld_pipe,
 	.exit		= nfsd4_remove_cld_pipe,
 	.create		= nfsd4_cld_create,
 	.remove		= nfsd4_cld_remove,
+	.check		= nfsd4_cld_check_v0,
+	.grace_done	= nfsd4_cld_grace_done_v0,
+	.version	= 1,
+	.msglen		= sizeof(struct cld_msg),
+};
+
+/* For newer nfsdcld's */
+static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops = {
+	.init		= nfsd4_cld_tracking_init,
+	.exit		= nfsd4_cld_tracking_exit,
+	.create		= nfsd4_cld_create,
+	.remove		= nfsd4_cld_remove,
 	.check		= nfsd4_cld_check,
 	.grace_done	= nfsd4_cld_grace_done,
+	.version	= 1,
+	.msglen		= sizeof(struct cld_msg),
+};
+
+/* v2 create/check ops include the principal, if available */
+static const struct nfsd4_client_tracking_ops nfsd4_cld_tracking_ops_v2 = {
+	.init		= nfsd4_cld_tracking_init,
+	.exit		= nfsd4_cld_tracking_exit,
+	.create		= nfsd4_cld_create_v2,
+	.remove		= nfsd4_cld_remove,
+	.check		= nfsd4_cld_check_v2,
+	.grace_done	= nfsd4_cld_grace_done,
+	.version	= 2,
+	.msglen		= sizeof(struct cld_msg_v2),
 };
 
 /* upcall via usermodehelper */
@@ -1268,6 +1882,8 @@ nfsd4_umh_cltrack_init(struct net *net)
 
 	ret = nfsd4_umh_cltrack_upcall("init", NULL, grace_start, NULL);
 	kfree(grace_start);
+	if (!ret)
+		printk("NFSD: Using UMH upcall client tracking operations.\n");
 	return ret;
 }
 
@@ -1404,6 +2020,8 @@ static const struct nfsd4_client_tracking_ops nfsd4_umh_tracking_ops = {
 	.remove		= nfsd4_umh_cltrack_remove,
 	.check		= nfsd4_umh_cltrack_check,
 	.grace_done	= nfsd4_umh_cltrack_grace_done,
+	.version	= 1,
+	.msglen		= 0,
 };
 
 int
@@ -1417,9 +2035,20 @@ nfsd4_client_tracking_init(struct net *net)
 	if (nn->client_tracking_ops)
 		goto do_init;
 
+	/* First, try to use nfsdcld */
+	nn->client_tracking_ops = &nfsd4_cld_tracking_ops;
+	status = nn->client_tracking_ops->init(net);
+	if (!status)
+		return status;
+	if (status != -ETIMEDOUT) {
+		nn->client_tracking_ops = &nfsd4_cld_tracking_ops_v0;
+		status = nn->client_tracking_ops->init(net);
+		if (!status)
+			return status;
+	}
+
 	/*
-	 * First, try a UMH upcall. It should succeed or fail quickly, so
-	 * there's little harm in trying that first.
+	 * Next, try the UMH upcall.
 	 */
 	nn->client_tracking_ops = &nfsd4_umh_tracking_ops;
 	status = nn->client_tracking_ops->init(net);
@@ -1427,25 +2056,23 @@ nfsd4_client_tracking_init(struct net *net)
 		return status;
 
 	/*
-	 * See if the recoverydir exists and is a directory. If it is,
-	 * then use the legacy ops.
+	 * Finally, See if the recoverydir exists and is a directory.
+	 * If it is, then use the legacy ops.
 	 */
 	nn->client_tracking_ops = &nfsd4_legacy_tracking_ops;
 	status = kern_path(nfs4_recoverydir(), LOOKUP_FOLLOW, &path);
 	if (!status) {
 		status = d_is_dir(path.dentry);
 		path_put(&path);
-		if (status)
-			goto do_init;
+		if (!status) {
+			status = -EINVAL;
+			goto out;
+		}
 	}
 
-	/* Finally, try to use nfsdcld */
-	nn->client_tracking_ops = &nfsd4_cld_tracking_ops;
-	printk(KERN_WARNING "NFSD: the nfsdcld client tracking upcall will be "
-			"removed in 3.10. Please transition to using "
-			"nfsdcltrack.\n");
 do_init:
 	status = nn->client_tracking_ops->init(net);
+out:
 	if (status) {
 		printk(KERN_WARNING "NFSD: Unable to initialize client "
 				    "recovery tracking! (%d)\n", status);

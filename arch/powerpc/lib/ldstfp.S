@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Floating-point, VMX/Altivec and VSX loads and stores
  * for use in instruction emulation.
  *
  * Copyright 2010 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <asm/processor.h>
@@ -17,8 +13,6 @@
 #include <asm/asm-offsets.h>
 #include <asm/asm-compat.h>
 #include <linux/errno.h>
-
-#ifdef CONFIG_PPC_FPU
 
 #define STKFRM	(PPC_MIN_STKFRM + 16)
 
@@ -241,5 +235,3 @@ _GLOBAL(conv_dp_to_sp)
 	MTMSRD(r6)
 	isync
 	blr
-
-#endif	/* CONFIG_PPC_FPU */

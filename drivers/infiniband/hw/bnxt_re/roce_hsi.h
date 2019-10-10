@@ -49,11 +49,11 @@ struct cmpl_doorbell {
 	#define CMPL_DOORBELL_IDX_SFT				    0
 	#define CMPL_DOORBELL_RESERVED_MASK			    0x3000000UL
 	#define CMPL_DOORBELL_RESERVED_SFT			    24
-	#define CMPL_DOORBELL_IDX_VALID			    0x4000000UL
+	#define CMPL_DOORBELL_IDX_VALID				    0x4000000UL
 	#define CMPL_DOORBELL_MASK				    0x8000000UL
 	#define CMPL_DOORBELL_KEY_MASK				    0xf0000000UL
 	#define CMPL_DOORBELL_KEY_SFT				    28
-	#define CMPL_DOORBELL_KEY_CMPL				   (0x2UL << 28)
+	#define CMPL_DOORBELL_KEY_CMPL				(0x2UL << 28)
 };
 
 /* Status Door Bell Format (4 bytes) */
@@ -71,46 +71,56 @@ struct status_doorbell {
 /* RoCE Host Structures */
 
 /* Doorbell Structures */
-/* 64b Doorbell Format (8 bytes) */
-struct dbr_dbr {
-	__le32 index;
-	#define DBR_DBR_INDEX_MASK				    0xfffffUL
-	#define DBR_DBR_INDEX_SFT				    0
-	#define DBR_DBR_RESERVED12_MASK			    0xfff00000UL
-	#define DBR_DBR_RESERVED12_SFT				    20
-	__le32 type_xid;
-	#define DBR_DBR_XID_MASK				    0xfffffUL
-	#define DBR_DBR_XID_SFT				    0
-	#define DBR_DBR_RESERVED8_MASK				    0xff00000UL
-	#define DBR_DBR_RESERVED8_SFT				    20
-	#define DBR_DBR_TYPE_MASK				    0xf0000000UL
-	#define DBR_DBR_TYPE_SFT				    28
-	#define DBR_DBR_TYPE_SQ				   (0x0UL << 28)
-	#define DBR_DBR_TYPE_RQ				   (0x1UL << 28)
-	#define DBR_DBR_TYPE_SRQ				   (0x2UL << 28)
-	#define DBR_DBR_TYPE_SRQ_ARM				   (0x3UL << 28)
-	#define DBR_DBR_TYPE_CQ				   (0x4UL << 28)
-	#define DBR_DBR_TYPE_CQ_ARMSE				   (0x5UL << 28)
-	#define DBR_DBR_TYPE_CQ_ARMALL				   (0x6UL << 28)
-	#define DBR_DBR_TYPE_CQ_ARMENA				   (0x7UL << 28)
-	#define DBR_DBR_TYPE_SRQ_ARMENA			   (0x8UL << 28)
-	#define DBR_DBR_TYPE_CQ_CUTOFF_ACK			   (0x9UL << 28)
-	#define DBR_DBR_TYPE_NULL				   (0xfUL << 28)
+/* dbc_dbc (size:64b/8B) */
+struct dbc_dbc {
+	__le32  index;
+	#define DBC_DBC_INDEX_MASK		0xffffffUL
+	#define DBC_DBC_INDEX_SFT		0
+	__le32  type_path_xid;
+	#define DBC_DBC_XID_MASK		0xfffffUL
+	#define DBC_DBC_XID_SFT			0
+	#define DBC_DBC_PATH_MASK		0x3000000UL
+	#define DBC_DBC_PATH_SFT		24
+	#define DBC_DBC_PATH_ROCE		(0x0UL << 24)
+	#define DBC_DBC_PATH_L2			(0x1UL << 24)
+	#define DBC_DBC_PATH_ENGINE		(0x2UL << 24)
+	#define DBC_DBC_PATH_LAST		DBC_DBC_PATH_ENGINE
+	#define DBC_DBC_DEBUG_TRACE		0x8000000UL
+	#define DBC_DBC_TYPE_MASK		0xf0000000UL
+	#define DBC_DBC_TYPE_SFT		28
+	#define DBC_DBC_TYPE_SQ			(0x0UL << 28)
+	#define DBC_DBC_TYPE_RQ			(0x1UL << 28)
+	#define DBC_DBC_TYPE_SRQ		(0x2UL << 28)
+	#define DBC_DBC_TYPE_SRQ_ARM		(0x3UL << 28)
+	#define DBC_DBC_TYPE_CQ			(0x4UL << 28)
+	#define DBC_DBC_TYPE_CQ_ARMSE		(0x5UL << 28)
+	#define DBC_DBC_TYPE_CQ_ARMALL		(0x6UL << 28)
+	#define DBC_DBC_TYPE_CQ_ARMENA		(0x7UL << 28)
+	#define DBC_DBC_TYPE_SRQ_ARMENA		(0x8UL << 28)
+	#define DBC_DBC_TYPE_CQ_CUTOFF_ACK	(0x9UL << 28)
+	#define DBC_DBC_TYPE_NQ			(0xaUL << 28)
+	#define DBC_DBC_TYPE_NQ_ARM		(0xbUL << 28)
+	#define DBC_DBC_TYPE_NULL		(0xfUL << 28)
+	#define DBC_DBC_TYPE_LAST		DBC_DBC_TYPE_NULL
 };
 
-/* 32b Doorbell Format (4 bytes) */
-struct dbr_dbr32 {
-	__le32 type_abs_incr_xid;
-	#define DBR_DBR32_XID_MASK				    0xfffffUL
-	#define DBR_DBR32_XID_SFT				    0
-	#define DBR_DBR32_RESERVED4_MASK			    0xf00000UL
-	#define DBR_DBR32_RESERVED4_SFT			    20
-	#define DBR_DBR32_INCR_MASK				    0xf000000UL
-	#define DBR_DBR32_INCR_SFT				    24
-	#define DBR_DBR32_ABS					    0x10000000UL
-	#define DBR_DBR32_TYPE_MASK				    0xe0000000UL
-	#define DBR_DBR32_TYPE_SFT				    29
-	#define DBR_DBR32_TYPE_SQ				   (0x0UL << 29)
+/* dbc_dbc32 (size:32b/4B) */
+struct dbc_dbc32 {
+	__le32  type_abs_incr_xid;
+	#define DBC_DBC32_XID_MASK		0xfffffUL
+	#define DBC_DBC32_XID_SFT		0
+	#define DBC_DBC32_PATH_MASK		0xc00000UL
+	#define DBC_DBC32_PATH_SFT		22
+	#define DBC_DBC32_PATH_ROCE		(0x0UL << 22)
+	#define DBC_DBC32_PATH_L2		(0x1UL << 22)
+	#define DBC_DBC32_PATH_LAST		DBC_DBC32_PATH_L2
+	#define DBC_DBC32_INCR_MASK		0xf000000UL
+	#define DBC_DBC32_INCR_SFT		24
+	#define DBC_DBC32_ABS			0x10000000UL
+	#define DBC_DBC32_TYPE_MASK		0xe0000000UL
+	#define DBC_DBC32_TYPE_SFT		29
+	#define DBC_DBC32_TYPE_SQ		(0x0UL << 29)
+	#define DBC_DBC32_TYPE_LAST		DBC_DBC32_TYPE_SQ
 };
 
 /* SQ WQE Structures */
@@ -149,7 +159,24 @@ struct sq_psn_search {
 	#define SQ_PSN_SEARCH_NEXT_PSN_MASK			    0xffffffUL
 	#define SQ_PSN_SEARCH_NEXT_PSN_SFT			    0
 	#define SQ_PSN_SEARCH_FLAGS_MASK			    0xff000000UL
-	#define SQ_PSN_SEARCH_FLAGS_SFT			    24
+	#define SQ_PSN_SEARCH_FLAGS_SFT				    24
+};
+
+/* sq_psn_search_ext (size:128b/16B) */
+struct sq_psn_search_ext {
+	__le32  opcode_start_psn;
+	#define SQ_PSN_SEARCH_EXT_START_PSN_MASK		    0xffffffUL
+	#define SQ_PSN_SEARCH_EXT_START_PSN_SFT			    0
+	#define SQ_PSN_SEARCH_EXT_OPCODE_MASK			    0xff000000UL
+	#define SQ_PSN_SEARCH_EXT_OPCODE_SFT			    24
+	__le32  flags_next_psn;
+	#define SQ_PSN_SEARCH_EXT_NEXT_PSN_MASK			    0xffffffUL
+	#define SQ_PSN_SEARCH_EXT_NEXT_PSN_SFT			    0
+	#define SQ_PSN_SEARCH_EXT_FLAGS_MASK			    0xff000000UL
+	#define SQ_PSN_SEARCH_EXT_FLAGS_SFT			    24
+	__le16  start_slot_idx;
+	__le16  reserved16;
+	__le32  reserved32;
 };
 
 /* Send SQ WQE (40 bytes) */
@@ -505,22 +532,24 @@ struct cq_res_rc {
 
 /* Responder UD CQE (32 bytes) */
 struct cq_res_ud {
-	__le32 length;
+	__le16 length;
 	#define CQ_RES_UD_LENGTH_MASK				    0x3fffUL
 	#define CQ_RES_UD_LENGTH_SFT				    0
-	#define CQ_RES_UD_RESERVED18_MASK			    0xffffc000UL
-	#define CQ_RES_UD_RESERVED18_SFT			    14
+	__le16 cfa_metadata;
+	#define CQ_RES_UD_CFA_METADATA_VID_MASK			0xfffUL
+	#define CQ_RES_UD_CFA_METADATA_VID_SFT			0
+	#define CQ_RES_UD_CFA_METADATA_DE			0x1000UL
+	#define CQ_RES_UD_CFA_METADATA_PRI_MASK			0xe000UL
+	#define CQ_RES_UD_CFA_METADATA_PRI_SFT			13
 	__le32 imm_data;
 	__le64 qp_handle;
 	__le16 src_mac[3];
 	__le16 src_qp_low;
 	u8 cqe_type_toggle;
-	#define CQ_RES_UD_TOGGLE				    0x1UL
-	#define CQ_RES_UD_CQE_TYPE_MASK			    0x1eUL
-	#define CQ_RES_UD_CQE_TYPE_SFT				    1
+	#define CQ_RES_UD_TOGGLE				   0x1UL
+	#define CQ_RES_UD_CQE_TYPE_MASK				   0x1eUL
+	#define CQ_RES_UD_CQE_TYPE_SFT				   1
 	#define CQ_RES_UD_CQE_TYPE_RES_UD			   (0x2UL << 1)
-	#define CQ_RES_UD_RESERVED3_MASK			    0xe0UL
-	#define CQ_RES_UD_RESERVED3_SFT			    5
 	u8 status;
 	#define CQ_RES_UD_STATUS_OK				   0x0UL
 	#define CQ_RES_UD_STATUS_LOCAL_ACCESS_ERROR		   0x1UL
@@ -536,18 +565,30 @@ struct cq_res_ud {
 	#define CQ_RES_UD_FLAGS_SRQ_SRQ			   (0x1UL << 0)
 	#define CQ_RES_UD_FLAGS_SRQ_LAST    CQ_RES_UD_FLAGS_SRQ_SRQ
 	#define CQ_RES_UD_FLAGS_IMM				    0x2UL
-	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_MASK		    0xcUL
-	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_SFT		    2
-	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_V1			   (0x0UL << 2)
-	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_V2IPV4		   (0x2UL << 2)
-	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_V2IPV6		   (0x3UL << 2)
+	#define CQ_RES_UD_FLAGS_UNUSED_MASK			0xcUL
+	#define CQ_RES_UD_FLAGS_UNUSED_SFT			2
+	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_MASK		0x30UL
+	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_SFT			4
+	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_V1			(0x0UL << 4)
+	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_V2IPV4		(0x2UL << 4)
+	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_V2IPV6		(0x3UL << 4)
 	#define CQ_RES_UD_FLAGS_ROCE_IP_VER_LAST		\
 					CQ_RES_UD_FLAGS_ROCE_IP_VER_V2IPV6
+	#define CQ_RES_UD_FLAGS_META_FORMAT_MASK		0x3c0UL
+	#define CQ_RES_UD_FLAGS_META_FORMAT_SFT			6
+	#define CQ_RES_UD_FLAGS_META_FORMAT_NONE		(0x0UL << 6)
+	#define CQ_RES_UD_FLAGS_META_FORMAT_VLAN		(0x1UL << 6)
+	#define CQ_RES_UD_FLAGS_META_FORMAT_TUNNEL_ID		(0x2UL << 6)
+	#define CQ_RES_UD_FLAGS_META_FORMAT_CHDR_DATA		(0x3UL << 6)
+	#define CQ_RES_UD_FLAGS_META_FORMAT_HDR_OFFSET		(0x4UL << 6)
+	#define CQ_RES_UD_FLAGS_META_FORMAT_LAST		\
+					CQ_RES_UD_FLAGS_META_FORMAT_HDR_OFFSET
+	#define CQ_RES_UD_FLAGS_EXT_META_FORMAT_MASK		0xc00UL
+	#define CQ_RES_UD_FLAGS_EXT_META_FORMAT_SFT		10
+
 	__le32 src_qp_high_srq_or_rq_wr_id;
 	#define CQ_RES_UD_SRQ_OR_RQ_WR_ID_MASK			    0xfffffUL
 	#define CQ_RES_UD_SRQ_OR_RQ_WR_ID_SFT			    0
-	#define CQ_RES_UD_RESERVED4_MASK			    0xf00000UL
-	#define CQ_RES_UD_RESERVED4_SFT			    20
 	#define CQ_RES_UD_SRC_QP_HIGH_MASK			    0xff000000UL
 	#define CQ_RES_UD_SRC_QP_HIGH_SFT			    24
 };
@@ -983,6 +1024,7 @@ struct cmdq_create_qp {
 	#define CMDQ_CREATE_QP_TYPE_RC				   0x2UL
 	#define CMDQ_CREATE_QP_TYPE_UD				   0x4UL
 	#define CMDQ_CREATE_QP_TYPE_RAW_ETHERTYPE		   0x6UL
+	#define CMDQ_CREATE_QP_TYPE_GSI				   0x7UL
 	u8 sq_pg_size_sq_lvl;
 	#define CMDQ_CREATE_QP_SQ_LVL_MASK			    0xfUL
 	#define CMDQ_CREATE_QP_SQ_LVL_SFT			    0
@@ -2719,6 +2761,8 @@ struct creq_query_func_resp_sb {
 	__le16 max_srq;
 	__le32 max_gid;
 	__le32 tqm_alloc_reqs[12];
+	__le32 max_dpi;
+	__le32 reserved_32;
 };
 
 /* Set resources command response (16 bytes) */

@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
-/include/ "skeleton.dtsi"
 
 / {
 	model = "ARM Versatile AB";
@@ -21,6 +20,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x0 0x08000000>;
 	};
 
@@ -161,6 +161,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x34000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	i2c0: i2c@10002000 {

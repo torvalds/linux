@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
  * Copyright (C) 2019 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/gfp.h>
 #include <linux/kernel.h>
@@ -221,9 +218,12 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	bool include_plid = false;
 	u16 peering_proto = 0;
 	u8 *pos, ie_len = 4;
+	u8 ie_len_he_cap;
 	int hdr_len = offsetofend(struct ieee80211_mgmt, u.action.u.self_prot);
 	int err = -ENOMEM;
 
+	ie_len_he_cap = ieee80211_ie_len_he_cap(sdata,
+						NL80211_IFTYPE_MESH_POINT);
 	skb = dev_alloc_skb(local->tx_headroom +
 			    hdr_len +
 			    2 + /* capability info */
@@ -236,6 +236,8 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 			    2 + sizeof(struct ieee80211_ht_operation) +
 			    2 + sizeof(struct ieee80211_vht_cap) +
 			    2 + sizeof(struct ieee80211_vht_operation) +
+			    ie_len_he_cap +
+			    2 + 1 + sizeof(struct ieee80211_he_operation) +
 			    2 + 8 + /* peering IE */
 			    sdata->u.mesh.ie_len);
 	if (!skb)
@@ -324,7 +326,9 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		if (mesh_add_ht_cap_ie(sdata, skb) ||
 		    mesh_add_ht_oper_ie(sdata, skb) ||
 		    mesh_add_vht_cap_ie(sdata, skb) ||
-		    mesh_add_vht_oper_ie(sdata, skb))
+		    mesh_add_vht_oper_ie(sdata, skb) ||
+		    mesh_add_he_cap_ie(sdata, skb, ie_len_he_cap) ||
+		    mesh_add_he_oper_ie(sdata, skb))
 			goto free;
 	}
 
@@ -435,6 +439,9 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 					    elems->vht_cap_elem, sta);
+
+	ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband, elems->he_cap,
+					  elems->he_cap_len, sta);
 
 	if (bw != sta->sta.bandwidth)
 		changed |= IEEE80211_RC_BW_CHANGED;

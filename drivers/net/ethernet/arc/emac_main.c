@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004-2013 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Driver for the ARC EMAC 10100 (hardware revision 5)
  *
@@ -960,8 +957,8 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	/* Get MAC address from device tree */
 	mac_addr = of_get_mac_address(dev->of_node);
 
-	if (mac_addr)
-		memcpy(ndev->dev_addr, mac_addr, ETH_ALEN);
+	if (!IS_ERR(mac_addr))
+		ether_addr_copy(ndev->dev_addr, mac_addr);
 	else
 		eth_hw_addr_random(ndev);
 

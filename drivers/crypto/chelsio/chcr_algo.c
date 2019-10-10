@@ -200,17 +200,10 @@ void chcr_verify_tag(struct aead_request *req, u8 *input, int *err)
 
 static int chcr_inc_wrcount(struct chcr_dev *dev)
 {
-	int err = 0;
-
-	spin_lock_bh(&dev->lock_chcr_dev);
 	if (dev->state == CHCR_DETACH)
-		err = 1;
-	else
-		atomic_inc(&dev->inflight);
-
-	spin_unlock_bh(&dev->lock_chcr_dev);
-
-	return err;
+		return 1;
+	atomic_inc(&dev->inflight);
+	return 0;
 }
 
 static inline void chcr_dec_wrcount(struct chcr_dev *dev)
@@ -1030,22 +1023,21 @@ static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv,
 	struct crypto_ablkcipher *tfm = crypto_ablkcipher_reqtfm(req);
 	struct ablk_ctx *ablkctx = ABLK_CTX(c_ctx(tfm));
 	struct chcr_blkcipher_req_ctx *reqctx = ablkcipher_request_ctx(req);
-	struct crypto_cipher *cipher;
+	struct crypto_aes_ctx aes;
 	int ret, i;
 	u8 *key;
 	unsigned int keylen;
 	int round = reqctx->last_req_len / AES_BLOCK_SIZE;
 	int round8 = round / 8;
 
-	cipher = ablkctx->aes_generic;
 	memcpy(iv, reqctx->iv, AES_BLOCK_SIZE);
 
 	keylen = ablkctx->enckey_len / 2;
 	key = ablkctx->key + keylen;
-	ret = crypto_cipher_setkey(cipher, key, keylen);
+	ret = aes_expandkey(&aes, key, keylen);
 	if (ret)
-		goto out;
-	crypto_cipher_encrypt_one(cipher, iv, iv);
+		return ret;
+	aes_encrypt(&aes, iv, iv);
 	for (i = 0; i < round8; i++)
 		gf128mul_x8_ble((le128 *)iv, (le128 *)iv);
 
@@ -1053,9 +1045,10 @@ static int chcr_update_tweak(struct ablkcipher_request *req, u8 *iv,
 		gf128mul_x_ble((le128 *)iv, (le128 *)iv);
 
 	if (!isfinal)
-		crypto_cipher_decrypt_one(cipher, iv, iv);
-out:
-	return ret;
+		aes_decrypt(&aes, iv, iv);
+
+	memzero_explicit(&aes, sizeof(aes));
+	return 0;
 }
 
 static int chcr_update_cipher_iv(struct ablkcipher_request *req,
@@ -1101,8 +1094,8 @@ static int chcr_final_cipher_iv(struct ablkcipher_request *req,
 	int ret = 0;
 
 	if (subtype == CRYPTO_ALG_SUB_TYPE_CTR)
-		ctr_add_iv(iv, req->info, (reqctx->processed /
-			   AES_BLOCK_SIZE));
+		ctr_add_iv(iv, req->info, DIV_ROUND_UP(reqctx->processed,
+						       AES_BLOCK_SIZE));
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_XTS)
 		ret = chcr_update_tweak(req, iv, 1);
 	else if (subtype == CRYPTO_ALG_SUB_TYPE_CBC) {
@@ -1418,16 +1411,6 @@ static int chcr_cra_init(struct crypto_tfm *tfm)
 		return PTR_ERR(ablkctx->sw_cipher);
 	}
 
-	if (get_cryptoalg_subtype(tfm) == CRYPTO_ALG_SUB_TYPE_XTS) {
-		/* To update tweak*/
-		ablkctx->aes_generic = crypto_alloc_cipher("aes-generic", 0, 0);
-		if (IS_ERR(ablkctx->aes_generic)) {
-			pr_err("failed to allocate aes cipher for tweak\n");
-			return PTR_ERR(ablkctx->aes_generic);
-		}
-	} else
-		ablkctx->aes_generic = NULL;
-
 	tfm->crt_ablkcipher.reqsize =  sizeof(struct chcr_blkcipher_req_ctx);
 	return chcr_device_init(crypto_tfm_ctx(tfm));
 }
@@ -1458,8 +1441,6 @@ static void chcr_cra_exit(struct crypto_tfm *tfm)
 	struct ablk_ctx *ablkctx = ABLK_CTX(ctx);
 
 	crypto_free_sync_skcipher(ablkctx->sw_cipher);
-	if (ablkctx->aes_generic)
-		crypto_free_cipher(ablkctx->aes_generic);
 }
 
 static int get_alg_config(struct algo_param *params,
@@ -2130,7 +2111,6 @@ static int chcr_ahash_setkey(struct crypto_ahash *tfm, const u8 *key,
 	 * ipad in hmacctx->ipad and opad in hmacctx->opad location
 	 */
 	shash->tfm = hmacctx->base_hash;
-	shash->flags = crypto_shash_get_flags(hmacctx->base_hash);
 	if (keylen > bs) {
 		err = crypto_shash_digest(shash, key, keylen,
 					  hmacctx->ipad);
@@ -3372,9 +3352,9 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 {
 	struct chcr_aead_ctx *aeadctx = AEAD_CTX(a_ctx(aead));
 	struct chcr_gcm_ctx *gctx = GCM_CTX(aeadctx);
-	struct crypto_cipher *cipher;
 	unsigned int ck_size;
 	int ret = 0, key_ctx_size = 0;
+	struct crypto_aes_ctx aes;
 
 	aeadctx->enckey_len = 0;
 	crypto_aead_clear_flags(aeadctx->sw_cipher, CRYPTO_TFM_REQ_MASK);
@@ -3417,23 +3397,15 @@ static int chcr_gcm_setkey(struct crypto_aead *aead, const u8 *key,
 	/* Calculate the H = CIPH(K, 0 repeated 16 times).
 	 * It will go in key context
 	 */
-	cipher = crypto_alloc_cipher("aes-generic", 0, 0);
-	if (IS_ERR(cipher)) {
-		aeadctx->enckey_len = 0;
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = crypto_cipher_setkey(cipher, key, keylen);
+	ret = aes_expandkey(&aes, key, keylen);
 	if (ret) {
 		aeadctx->enckey_len = 0;
-		goto out1;
+		goto out;
 	}
 	memset(gctx->ghash_h, 0, AEAD_H_SIZE);
-	crypto_cipher_encrypt_one(cipher, gctx->ghash_h, gctx->ghash_h);
+	aes_encrypt(&aes, gctx->ghash_h, gctx->ghash_h);
+	memzero_explicit(&aes, sizeof(aes));
 
-out1:
-	crypto_free_cipher(cipher);
 out:
 	return ret;
 }
@@ -3517,7 +3489,6 @@ static int chcr_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 		SHASH_DESC_ON_STACK(shash, base_hash);
 
 		shash->tfm = base_hash;
-		shash->flags = crypto_shash_get_flags(base_hash);
 		bs = crypto_shash_blocksize(base_hash);
 		align = KEYCTX_ALIGN_PAD(max_authsize);
 		o_ptr =  actx->h_iopad + param.result_size + align;

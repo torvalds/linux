@@ -421,14 +421,14 @@ kernel support.
 
 
   The CodaCred structure defines a variety of user and group ids as
-  they are set for the calling process. The vuid_t and guid_t are 32 bit
+  they are set for the calling process. The vuid_t and vgid_t are 32 bit
   unsigned integers.  It also defines group membership in an array.  On
   Unix the CodaCred has proven sufficient to implement good security
   semantics for Coda but the structure may have to undergo modification
   for the Windows environment when these mature.
 
   struct CodaCred {
-      vuid_t cr_uid, cr_euid, cr_suid, cr_fsuid; /* Real, effective, set, fs uid*/
+      vuid_t cr_uid, cr_euid, cr_suid, cr_fsuid; /* Real, effective, set, fs uid */
       vgid_t cr_gid, cr_egid, cr_sgid, cr_fsgid; /* same for groups */
       vgid_t cr_groups[NGROUPS];        /* Group membership for caller */
   };
@@ -481,7 +481,10 @@ kernel support.
 
 
 
-
+  struct coda_timespec {
+          int64_t         tv_sec;         /* seconds */
+          long            tv_nsec;        /* nanoseconds */
+  };
 
   struct coda_vattr {
           enum coda_vtype va_type;        /* vnode type (for create) */
@@ -493,9 +496,9 @@ kernel support.
           long            va_fileid;      /* file id */
           u_quad_t        va_size;        /* file size in bytes */
           long            va_blocksize;   /* blocksize preferred for i/o */
-          struct timespec va_atime;       /* time of last access */
-          struct timespec va_mtime;       /* time of last modification */
-          struct timespec va_ctime;       /* time file changed */
+          struct coda_timespec va_atime;  /* time of last access */
+          struct coda_timespec va_mtime;  /* time of last modification */
+          struct coda_timespec va_ctime;  /* time file changed */
           u_long          va_gen;         /* generation number of file */
           u_long          va_flags;       /* flags defined for file */
           dev_t           va_rdev;        /* device special file represents */

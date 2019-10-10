@@ -58,6 +58,10 @@ static const struct freq_desc freq_desc_ann = {
 	1, { 83300, 100000, 133300, 100000, 0, 0, 0, 0 }
 };
 
+static const struct freq_desc freq_desc_lgm = {
+	1, { 78000, 78000, 78000, 78000, 78000, 78000, 78000, 78000 }
+};
+
 static const struct x86_cpu_id tsc_msr_cpu_ids[] = {
 	INTEL_CPU_FAM6(ATOM_SALTWELL_MID,	freq_desc_pnw),
 	INTEL_CPU_FAM6(ATOM_SALTWELL_TABLET,	freq_desc_clv),
@@ -65,13 +69,14 @@ static const struct x86_cpu_id tsc_msr_cpu_ids[] = {
 	INTEL_CPU_FAM6(ATOM_SILVERMONT_MID,	freq_desc_tng),
 	INTEL_CPU_FAM6(ATOM_AIRMONT,		freq_desc_cht),
 	INTEL_CPU_FAM6(ATOM_AIRMONT_MID,	freq_desc_ann),
+	INTEL_CPU_FAM6(ATOM_AIRMONT_NP,		freq_desc_lgm),
 	{}
 };
 
 /*
  * MSR-based CPU/TSC frequency discovery for certain CPUs.
  *
- * Set global "lapic_timer_frequency" to bus_clock_cycles/jiffy
+ * Set global "lapic_timer_period" to bus_clock_cycles/jiffy
  * Return processor base frequency in KHz, or 0 on failure.
  */
 unsigned long cpu_khz_from_msr(void)
@@ -104,7 +109,7 @@ unsigned long cpu_khz_from_msr(void)
 	res = freq * ratio;
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	lapic_timer_frequency = (freq * 1000) / HZ;
+	lapic_timer_period = (freq * 1000) / HZ;
 #endif
 
 	/*

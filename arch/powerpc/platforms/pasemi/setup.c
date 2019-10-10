@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2007 PA Semi, Inc
  *
@@ -7,19 +8,6 @@
  * Maintained by: Olof Johansson <olof@lixom.net>
  *
  * Based on arch/powerpc/platforms/maple/setup.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/errno.h>
@@ -411,55 +399,6 @@ out:
 	return !!(srr1 & 0x2);
 }
 
-#ifdef CONFIG_PCMCIA
-static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
-			 void *data)
-{
-	struct device *dev = data;
-	struct device *parent;
-	struct pcmcia_device *pdev = to_pcmcia_dev(dev);
-
-	/* We are only intereted in device addition */
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return 0;
-
-	parent = pdev->socket->dev.parent;
-
-	/* We know electra_cf devices will always have of_node set, since
-	 * electra_cf is an of_platform driver.
-	 */
-	if (!parent->of_node)
-		return 0;
-
-	if (!of_device_is_compatible(parent->of_node, "electra-cf"))
-		return 0;
-
-	/* We use the direct ops for localbus */
-	dev->dma_ops = &dma_nommu_ops;
-
-	return 0;
-}
-
-static struct notifier_block pcmcia_notifier = {
-	.notifier_call = pcmcia_notify,
-};
-
-static inline void pasemi_pcmcia_init(void)
-{
-	extern struct bus_type pcmcia_bus_type;
-
-	bus_register_notifier(&pcmcia_bus_type, &pcmcia_notifier);
-}
-
-#else
-
-static inline void pasemi_pcmcia_init(void)
-{
-}
-
-#endif
-
-
 static const struct of_device_id pasemi_bus_ids[] = {
 	/* Unfortunately needed for legacy firmwares */
 	{ .type = "localbus", },
@@ -472,8 +411,6 @@ static const struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	pasemi_pcmcia_init();
-
 	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
 

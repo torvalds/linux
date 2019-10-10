@@ -197,21 +197,21 @@ ia64_emulate_brl (struct pt_regs *regs, unsigned long ar_ec)
 		 */
 		printk(KERN_DEBUG "Woah! Unimplemented Instruction Address Trap!\n");
 		force_sig_fault(SIGILL, ILL_BADIADDR, (void __user *)NULL,
-				0, 0, 0, current);
+				0, 0, 0);
 	} else if (ia64_psr(regs)->tb) {
 		/*
 		 *  Branch Tracing is enabled.
 		 *  Force a taken branch signal.
 		 */
 		force_sig_fault(SIGTRAP, TRAP_BRANCH, (void __user *)NULL,
-				0, 0, 0, current);
+				0, 0, 0);
 	} else if (ia64_psr(regs)->ss) {
 		/*
 		 *  Single Step is enabled.
 		 *  Force a trace signal.
 		 */
 		force_sig_fault(SIGTRAP, TRAP_TRACE, (void __user *)NULL,
-				0, 0, 0, current);
+				0, 0, 0);
 	}
 	return rv;
 }

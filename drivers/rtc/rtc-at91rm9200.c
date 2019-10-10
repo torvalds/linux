@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Real Time Clock interface for Linux on Atmel AT91RM9200
  *
@@ -10,12 +11,6 @@
  *
  *	Based on sa1100-rtc.c by Nils Faerber
  *	Based on rtc.c by Paul Gortmaker
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/bcd.h>
@@ -383,10 +378,8 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "no irq resource defined\n");
+	if (irq < 0)
 		return -ENXIO;
-	}
 
 	at91_rtc_regs = devm_ioremap(&pdev->dev, regs->start,
 				     resource_size(regs));

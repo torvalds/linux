@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Shenzhen Wesion Technology Co., Ltd.
+ * (https://www.khadas.com)
+ */
+
+/dts-v1/;
+#include "rk3399-khadas-edge.dtsi"
+
+/ {
+	model = "Khadas Edge";
+	compatible = "khadas,edge", "rockchip,rk3399";
+};

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/bond/bond_options.c - bonding options
  * Copyright (c) 2013 Jiri Pirko <jiri@resnulli.us>
  * Copyright (c) 2013 Scott Feldman <sfeldma@cumulusnetworks.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -28,6 +24,8 @@ static int bond_option_updelay_set(struct bonding *bond,
 				   const struct bond_opt_value *newval);
 static int bond_option_downdelay_set(struct bonding *bond,
 				     const struct bond_opt_value *newval);
+static int bond_option_peer_notif_delay_set(struct bonding *bond,
+					    const struct bond_opt_value *newval);
 static int bond_option_use_carrier_set(struct bonding *bond,
 				       const struct bond_opt_value *newval);
 static int bond_option_arp_interval_set(struct bonding *bond,
@@ -428,6 +426,13 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.desc = "Number of peer notifications to send on failover event",
 		.values = bond_num_peer_notif_tbl,
 		.set = bond_option_num_peer_notif_set
+	},
+	[BOND_OPT_PEER_NOTIF_DELAY] = {
+		.id = BOND_OPT_PEER_NOTIF_DELAY,
+		.name = "peer_notif_delay",
+		.desc = "Delay between each peer notification on failover event, in milliseconds",
+		.values = bond_intmax_tbl,
+		.set = bond_option_peer_notif_delay_set
 	}
 };
 
@@ -787,14 +792,12 @@ static int bond_option_active_slave_set(struct bonding *bond,
 
 	if (slave_dev) {
 		if (!netif_is_bond_slave(slave_dev)) {
-			netdev_err(bond->dev, "Device %s is not bonding slave\n",
-				   slave_dev->name);
+			slave_err(bond->dev, slave_dev, "Device is not bonding slave\n");
 			return -EINVAL;
 		}
 
 		if (bond->dev != netdev_master_upper_dev_get(slave_dev)) {
-			netdev_err(bond->dev, "Device %s is not our slave\n",
-				   slave_dev->name);
+			slave_err(bond->dev, slave_dev, "Device is not our slave\n");
 			return -EINVAL;
 		}
 	}
@@ -813,18 +816,15 @@ static int bond_option_active_slave_set(struct bonding *bond,
 
 		if (new_active == old_active) {
 			/* do nothing */
-			netdev_dbg(bond->dev, "%s is already the current active slave\n",
-				   new_active->dev->name);
+			slave_dbg(bond->dev, new_active->dev, "is already the current active slave\n");
 		} else {
 			if (old_active && (new_active->link == BOND_LINK_UP) &&
 			    bond_slave_is_up(new_active)) {
-				netdev_dbg(bond->dev, "Setting %s as active slave\n",
-					   new_active->dev->name);
+				slave_dbg(bond->dev, new_active->dev, "Setting as active slave\n");
 				bond_change_active_slave(bond, new_active);
 			} else {
-				netdev_err(bond->dev, "Could not set %s as active slave; either %s is down or the link is down\n",
-					   new_active->dev->name,
-					   new_active->dev->name);
+				slave_err(bond->dev, new_active->dev, "Could not set as active slave; either %s is down or the link is down\n",
+					  new_active->dev->name);
 				ret = -EINVAL;
 			}
 		}
@@ -850,6 +850,9 @@ static int bond_option_miimon_set(struct bonding *bond,
 	if (bond->params.downdelay)
 		netdev_dbg(bond->dev, "Note: Updating downdelay (to %d) since it is a multiple of the miimon value\n",
 			   bond->params.downdelay * bond->params.miimon);
+	if (bond->params.peer_notif_delay)
+		netdev_dbg(bond->dev, "Note: Updating peer_notif_delay (to %d) since it is a multiple of the miimon value\n",
+			   bond->params.peer_notif_delay * bond->params.miimon);
 	if (newval->value && bond->params.arp_interval) {
 		netdev_dbg(bond->dev, "MII monitoring cannot be used with ARP monitoring - disabling ARP monitoring...\n");
 		bond->params.arp_interval = 0;
@@ -873,52 +876,59 @@ static int bond_option_miimon_set(struct bonding *bond,
 	return 0;
 }
 
-/* Set up and down delays. These must be multiples of the
- * MII monitoring value, and are stored internally as the multiplier.
- * Thus, we must translate to MS for the real world.
+/* Set up, down and peer notification delays. These must be multiples
+ * of the MII monitoring value, and are stored internally as the
+ * multiplier. Thus, we must translate to MS for the real world.
  */
-static int bond_option_updelay_set(struct bonding *bond,
-				   const struct bond_opt_value *newval)
+static int _bond_option_delay_set(struct bonding *bond,
+				  const struct bond_opt_value *newval,
+				  const char *name,
+				  int *target)
 {
 	int value = newval->value;
 
 	if (!bond->params.miimon) {
-		netdev_err(bond->dev, "Unable to set up delay as MII monitoring is disabled\n");
+		netdev_err(bond->dev, "Unable to set %s as MII monitoring is disabled\n",
+			   name);
 		return -EPERM;
 	}
 	if ((value % bond->params.miimon) != 0) {
-		netdev_warn(bond->dev, "up delay (%d) is not a multiple of miimon (%d), updelay rounded to %d ms\n",
+		netdev_warn(bond->dev,
+			    "%s (%d) is not a multiple of miimon (%d), value rounded to %d ms\n",
+			    name,
 			    value, bond->params.miimon,
 			    (value / bond->params.miimon) *
 			    bond->params.miimon);
 	}
-	bond->params.updelay = value / bond->params.miimon;
-	netdev_dbg(bond->dev, "Setting up delay to %d\n",
-		   bond->params.updelay * bond->params.miimon);
+	*target = value / bond->params.miimon;
+	netdev_dbg(bond->dev, "Setting %s to %d\n",
+		   name,
+		   *target * bond->params.miimon);
 
 	return 0;
+}
+
+static int bond_option_updelay_set(struct bonding *bond,
+				   const struct bond_opt_value *newval)
+{
+	return _bond_option_delay_set(bond, newval, "up delay",
+				      &bond->params.updelay);
 }
 
 static int bond_option_downdelay_set(struct bonding *bond,
 				     const struct bond_opt_value *newval)
 {
-	int value = newval->value;
+	return _bond_option_delay_set(bond, newval, "down delay",
+				      &bond->params.downdelay);
+}
 
-	if (!bond->params.miimon) {
-		netdev_err(bond->dev, "Unable to set down delay as MII monitoring is disabled\n");
-		return -EPERM;
-	}
-	if ((value % bond->params.miimon) != 0) {
-		netdev_warn(bond->dev, "down delay (%d) is not a multiple of miimon (%d), delay rounded to %d ms\n",
-			    value, bond->params.miimon,
-			    (value / bond->params.miimon) *
-			    bond->params.miimon);
-	}
-	bond->params.downdelay = value / bond->params.miimon;
-	netdev_dbg(bond->dev, "Setting down delay to %d\n",
-		   bond->params.downdelay * bond->params.miimon);
-
-	return 0;
+static int bond_option_peer_notif_delay_set(struct bonding *bond,
+					    const struct bond_opt_value *newval)
+{
+	int ret = _bond_option_delay_set(bond, newval,
+					 "peer notification delay",
+					 &bond->params.peer_notif_delay);
+	return ret;
 }
 
 static int bond_option_use_carrier_set(struct bonding *bond,
@@ -1098,13 +1108,6 @@ static int bond_option_arp_validate_set(struct bonding *bond,
 {
 	netdev_dbg(bond->dev, "Setting arp_validate to %s (%llu)\n",
 		   newval->string, newval->value);
-
-	if (bond->dev->flags & IFF_UP) {
-		if (!newval->value)
-			bond->recv_probe = NULL;
-		else if (bond->params.arp_interval)
-			bond->recv_probe = bond_arp_rcv;
-	}
 	bond->params.arp_validate = newval->value;
 
 	return 0;
@@ -1143,8 +1146,7 @@ static int bond_option_primary_set(struct bonding *bond,
 
 	bond_for_each_slave(bond, slave, iter) {
 		if (strncmp(slave->dev->name, primary, IFNAMSIZ) == 0) {
-			netdev_dbg(bond->dev, "Setting %s as primary slave\n",
-				   slave->dev->name);
+			slave_dbg(bond->dev, slave->dev, "Setting as primary slave\n");
 			rcu_assign_pointer(bond->primary_slave, slave);
 			strcpy(bond->params.primary, slave->dev->name);
 			bond->force_primary = true;
@@ -1161,8 +1163,8 @@ static int bond_option_primary_set(struct bonding *bond,
 	strncpy(bond->params.primary, primary, IFNAMSIZ);
 	bond->params.primary[IFNAMSIZ - 1] = 0;
 
-	netdev_dbg(bond->dev, "Recording %s as primary, but it has not been enslaved to %s yet\n",
-		   primary, bond->dev->name);
+	netdev_dbg(bond->dev, "Recording %s as primary, but it has not been enslaved yet\n",
+		   primary);
 
 out:
 	unblock_netpoll_tx();
@@ -1389,12 +1391,12 @@ static int bond_option_slaves_set(struct bonding *bond,
 
 	switch (command[0]) {
 	case '+':
-		netdev_dbg(bond->dev, "Adding slave %s\n", dev->name);
+		slave_dbg(bond->dev, dev, "Enslaving interface\n");
 		ret = bond_enslave(bond->dev, dev, NULL);
 		break;
 
 	case '-':
-		netdev_dbg(bond->dev, "Removing slave %s\n", dev->name);
+		slave_dbg(bond->dev, dev, "Releasing interface\n");
 		ret = bond_release(bond->dev, dev);
 		break;
 
@@ -1458,7 +1460,7 @@ static int bond_option_ad_actor_system_set(struct bonding *bond,
 	return 0;
 
 err:
-	netdev_err(bond->dev, "Invalid MAC address.\n");
+	netdev_err(bond->dev, "Invalid ad_actor_system MAC address.\n");
 	return -EINVAL;
 }
 

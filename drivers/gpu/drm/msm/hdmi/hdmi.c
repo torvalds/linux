@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 The Linux Foundation. All rights reserved.
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/of_irq.h>
@@ -436,38 +425,6 @@ static const struct {
 	{ "qcom,hdmi-tx-mux-lpm", true, 1, "HDMI_MUX_LPM" },
 };
 
-static int msm_hdmi_get_gpio(struct device_node *of_node, const char *name)
-{
-	int gpio;
-
-	/* try with the gpio names as in the table (downstream bindings) */
-	gpio = of_get_named_gpio(of_node, name, 0);
-	if (gpio < 0) {
-		char name2[32];
-
-		/* try with the gpio names as in the upstream bindings */
-		snprintf(name2, sizeof(name2), "%s-gpios", name);
-		gpio = of_get_named_gpio(of_node, name2, 0);
-		if (gpio < 0) {
-			char name3[32];
-
-			/*
-			 * try again after stripping out the "qcom,hdmi-tx"
-			 * prefix. This is mainly to match "hpd-gpios" used
-			 * in the upstream bindings
-			 */
-			if (sscanf(name2, "qcom,hdmi-tx-%s", name3))
-				gpio = of_get_named_gpio(of_node, name3, 0);
-		}
-
-		if (gpio < 0) {
-			DBG("failed to get gpio: %s (%d)", name, gpio);
-			gpio = -1;
-		}
-	}
-	return gpio;
-}
-
 /*
  * HDMI audio codec callbacks
  */
@@ -593,11 +550,39 @@ static int msm_hdmi_bind(struct device *dev, struct device *master, void *data)
 	hdmi_cfg->qfprom_mmio_name = "qfprom_physical";
 
 	for (i = 0; i < HDMI_MAX_NUM_GPIO; i++) {
-		hdmi_cfg->gpios[i].num = msm_hdmi_get_gpio(of_node,
-						msm_hdmi_gpio_pdata[i].name);
+		const char *name = msm_hdmi_gpio_pdata[i].name;
+		struct gpio_desc *gpiod;
+
+		/*
+		 * We are fetching the GPIO lines "as is" since the connector
+		 * code is enabling and disabling the lines. Until that point
+		 * the power-on default value will be kept.
+		 */
+		gpiod = devm_gpiod_get_optional(dev, name, GPIOD_ASIS);
+		/* This will catch e.g. -PROBE_DEFER */
+		if (IS_ERR(gpiod))
+			return PTR_ERR(gpiod);
+		if (!gpiod) {
+			/* Try a second time, stripping down the name */
+			char name3[32];
+
+			/*
+			 * Try again after stripping out the "qcom,hdmi-tx"
+			 * prefix. This is mainly to match "hpd-gpios" used
+			 * in the upstream bindings.
+			 */
+			if (sscanf(name, "qcom,hdmi-tx-%s", name3))
+				gpiod = devm_gpiod_get_optional(dev, name3, GPIOD_ASIS);
+			if (IS_ERR(gpiod))
+				return PTR_ERR(gpiod);
+			if (!gpiod)
+				DBG("failed to get gpio: %s", name);
+		}
+		hdmi_cfg->gpios[i].gpiod = gpiod;
+		if (gpiod)
+			gpiod_set_consumer_name(gpiod, msm_hdmi_gpio_pdata[i].label);
 		hdmi_cfg->gpios[i].output = msm_hdmi_gpio_pdata[i].output;
 		hdmi_cfg->gpios[i].value = msm_hdmi_gpio_pdata[i].value;
-		hdmi_cfg->gpios[i].label = msm_hdmi_gpio_pdata[i].label;
 	}
 
 	dev->platform_data = hdmi_cfg;

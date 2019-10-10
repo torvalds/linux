@@ -68,6 +68,7 @@
 #define ACPI_WRDD_METHOD	"WRDD"
 #define ACPI_SPLC_METHOD	"SPLC"
 #define ACPI_ECKV_METHOD	"ECKV"
+#define ACPI_PPAG_METHOD	"PPAG"
 
 #define ACPI_WIFI_DOMAIN	(0x07)
 
@@ -92,12 +93,23 @@
 #define ACPI_WGDS_NUM_BANDS		2
 #define ACPI_WGDS_TABLE_SIZE		3
 
+#define ACPI_PPAG_NUM_CHAINS		2
+#define ACPI_PPAG_NUM_SUB_BANDS		5
+#define ACPI_PPAG_WIFI_DATA_SIZE	((ACPI_PPAG_NUM_CHAINS * \
+					ACPI_PPAG_NUM_SUB_BANDS) + 3)
+
+/* PPAG gain value bounds in 1/8 dBm */
+#define ACPI_PPAG_MIN_LB -16
+#define ACPI_PPAG_MAX_LB 24
+#define ACPI_PPAG_MIN_HB -16
+#define ACPI_PPAG_MAX_HB 40
+
 #ifdef CONFIG_ACPI
 
 void *iwl_acpi_get_object(struct device *dev, acpi_string method);
 union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 					 union acpi_object *data,
-					 int data_size);
+					 int data_size, int *tbl_rev);
 
 /**
  * iwl_acpi_get_mcc - read MCC from ACPI, if available
@@ -131,7 +143,8 @@ static inline void *iwl_acpi_get_object(struct device *dev, acpi_string method)
 
 static inline union acpi_object *iwl_acpi_get_wifi_pkg(struct device *dev,
 						       union acpi_object *data,
-						       int data_size)
+						       int data_size,
+						       int *tbl_rev)
 {
 	return ERR_PTR(-ENOENT);
 }

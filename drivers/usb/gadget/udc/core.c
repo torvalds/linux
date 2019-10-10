@@ -281,10 +281,10 @@ EXPORT_SYMBOL_GPL(usb_ep_queue);
  * @ep:the endpoint associated with the request
  * @req:the request being canceled
  *
- * If the request is still active on the endpoint, it is dequeued and its
- * completion routine is called (with status -ECONNRESET); else a negative
- * error code is returned. This is guaranteed to happen before the call to
- * usb_ep_dequeue() returns.
+ * If the request is still active on the endpoint, it is dequeued and
+ * eventually its completion routine is called (with status -ECONNRESET);
+ * else a negative error code is returned.  This routine is asynchronous,
+ * that is, it may return before the completion routine runs.
  *
  * Note that some hardware can't clear out write fifos (to unlink the request
  * at the head of the queue) except as part of disconnecting from usb. Such
@@ -1143,7 +1143,7 @@ static int check_pending_gadget_drivers(struct usb_udc *udc)
 						dev_name(&udc->dev)) == 0) {
 			ret = udc_bind_to_driver(udc, driver);
 			if (ret != -EPROBE_DEFER)
-				list_del(&driver->pending);
+				list_del_init(&driver->pending);
 			break;
 		}
 

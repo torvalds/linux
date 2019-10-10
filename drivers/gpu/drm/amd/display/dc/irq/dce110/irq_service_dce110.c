@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 
 #include "include/logger_interface.h"
@@ -78,6 +80,11 @@ static const struct irq_source_info_funcs pflip_irq_info_funcs = {
 
 static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 	.set = dce110_vblank_set,
+	.ack = NULL
+};
+
+static const struct irq_source_info_funcs vupdate_irq_info_funcs = {
+	.set = NULL,
 	.ack = NULL
 };
 
@@ -137,7 +144,7 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 		CRTC_V_UPDATE_INT_STATUS__CRTC_V_UPDATE_INT_CLEAR_MASK,\
 		.ack_value =\
 		CRTC_V_UPDATE_INT_STATUS__CRTC_V_UPDATE_INT_CLEAR_MASK,\
-		.funcs = &vblank_irq_info_funcs\
+		.funcs = &vupdate_irq_info_funcs\
 	}
 
 #define vblank_int_entry(reg_num)\

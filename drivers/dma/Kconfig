@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # DMA engine configuration
 #
@@ -99,9 +100,10 @@ config AT_XDMAC
 
 config AXI_DMAC
 	tristate "Analog Devices AXI-DMAC DMA support"
-	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_SOCFPGA || COMPILE_TEST
+	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_SOCFPGA || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
+	select REGMAP_MMIO
 	help
 	  Enable support for the Analog Devices AXI-DMAC peripheral. This DMA
 	  controller is often used in Analog Device's reference designs for FPGA
@@ -132,12 +134,6 @@ config COH901318
 config DMA_BCM2835
 	tristate "BCM2835 DMA engine support"
 	depends on ARCH_BCM2835
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-
-config DMA_JZ4740
-	tristate "JZ4740 DMA support"
-	depends on MACH_JZ4740 || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
@@ -218,6 +214,20 @@ config FSL_EDMA
 	  multiplexing capability for DMA request sources(slot).
 	  This module can be found on Freescale Vybrid and LS-1 SoCs.
 
+config FSL_QDMA
+       tristate "NXP Layerscape qDMA engine support"
+       depends on ARM || ARM64
+       select DMA_ENGINE
+       select DMA_VIRTUAL_CHANNELS
+       select DMA_ENGINE_RAID
+       select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+       help
+         Support the NXP Layerscape qDMA engine with command queue and legacy mode.
+         Channel virtualization is supported through enqueuing of DMA jobs to,
+         or dequeuing DMA jobs from, different work queues.
+         This module can be found on NXP Layerscape SoCs.
+	  The qdma driver only work on  SoCs with a DPAA hardware block.
+
 config FSL_RAID
         tristate "Freescale RAID engine Support"
         depends on FSL_SOC && !ASYNC_TX_ENABLE_CHANNEL_SWITCH
@@ -278,8 +288,8 @@ config INTEL_IOATDMA
 	  If unsure, say N.
 
 config INTEL_IOP_ADMA
-	tristate "Intel IOP ADMA support"
-	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
+	tristate "Intel IOP32x ADMA support"
+	depends on ARCH_IOP32X || COMPILE_TEST
 	select DMA_ENGINE
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
@@ -569,7 +579,7 @@ config TEGRA20_APB_DMA
 
 config TEGRA210_ADMA
 	tristate "NVIDIA Tegra210 ADMA support"
-	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST) && PM_CLK
+	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -650,6 +660,8 @@ source "drivers/dma/mediatek/Kconfig"
 source "drivers/dma/qcom/Kconfig"
 
 source "drivers/dma/dw/Kconfig"
+
+source "drivers/dma/dw-edma/Kconfig"
 
 source "drivers/dma/hsu/Kconfig"
 

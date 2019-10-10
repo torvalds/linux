@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale eSDHC controller driver.
  *
@@ -6,11 +7,6 @@
  *
  * Authors: Xiaobo Xie <X.Xie@freescale.com>
  *	    Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/err.h>
@@ -24,6 +20,7 @@
 #include <linux/ktime.h>
 #include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
+#include <linux/mmc/mmc.h>
 #include "sdhci-pltfm.h"
 #include "sdhci-esdhc.h"
 
@@ -81,6 +78,7 @@ struct sdhci_esdhc {
 	bool quirk_limited_clk_division;
 	bool quirk_unreliable_pulse_detection;
 	bool quirk_fixup_tuning;
+	bool quirk_ignore_data_inhibit;
 	unsigned int peripheral_clock;
 	const struct esdhc_clk_fixup *clk_fixup;
 	u32 div_ratio;
@@ -144,6 +142,19 @@ static u32 esdhc_readl_fixup(struct sdhci_host *host,
 	if (spec_reg == SDHCI_CAPABILITIES_1) {
 		ret = value & ~(SDHCI_SUPPORT_SDR50 | SDHCI_SUPPORT_SDR104 |
 				SDHCI_SUPPORT_DDR50);
+		return ret;
+	}
+
+	/*
+	 * Some controllers have unreliable Data Line Active
+	 * bit for commands with busy signal. This affects
+	 * Command Inhibit (data) bit. Just ignore it since
+	 * MMC core driver has already polled card status
+	 * with CMD13 after any command with busy siganl.
+	 */
+	if ((spec_reg == SDHCI_PRESENT_STATE) &&
+	(esdhc->quirk_ignore_data_inhibit == true)) {
+		ret = value & ~SDHCI_DATA_INHIBIT;
 		return ret;
 	}
 
@@ -484,7 +495,12 @@ static int esdhc_of_enable_dma(struct sdhci_host *host)
 		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(40));
 
 	value = sdhci_readl(host, ESDHC_DMA_SYSCTL);
-	value |= ESDHC_DMA_SNOOP;
+
+	if (of_dma_is_coherent(dev->of_node))
+		value |= ESDHC_DMA_SNOOP;
+	else
+		value &= ~ESDHC_DMA_SNOOP;
+
 	sdhci_writel(host, value, ESDHC_DMA_SYSCTL);
 	return 0;
 }
@@ -694,6 +710,9 @@ static void esdhc_reset(struct sdhci_host *host, u8 mask)
 	sdhci_writel(host, host->ier, SDHCI_INT_ENABLE);
 	sdhci_writel(host, host->ier, SDHCI_SIGNAL_ENABLE);
 
+	if (of_find_compatible_node(NULL, NULL, "fsl,p2020-esdhc"))
+		mdelay(5);
+
 	if (mask & SDHCI_RESET_ALL) {
 		val = sdhci_readl(host, ESDHC_TBCTL);
 		val &= ~ESDHC_TB_EN;
@@ -816,8 +835,16 @@ static int esdhc_execute_tuning(struct mmc_host *mmc, u32 opcode)
 	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
 	struct sdhci_esdhc *esdhc = sdhci_pltfm_priv(pltfm_host);
 	bool hs400_tuning;
+	unsigned int clk;
 	u32 val;
 	int ret;
+
+	/* For tuning mode, the sd clock divisor value
+	 * must be larger than 3 according to reference manual.
+	 */
+	clk = esdhc->peripheral_clock / 3;
+	if (host->clock > clk)
+		esdhc_of_set_clock(host, clk);
 
 	if (esdhc->quirk_limited_clk_division &&
 	    host->flags & SDHCI_HS400_TUNING)
@@ -862,6 +889,25 @@ static void esdhc_set_uhs_signaling(struct sdhci_host *host,
 		esdhc_tuning_block_enable(host, true);
 	else
 		sdhci_set_uhs_signaling(host, timing);
+}
+
+static u32 esdhc_irq(struct sdhci_host *host, u32 intmask)
+{
+	u32 command;
+
+	if (of_find_compatible_node(NULL, NULL,
+				"fsl,p2020-esdhc")) {
+		command = SDHCI_GET_CMD(sdhci_readw(host,
+					SDHCI_COMMAND));
+		if (command == MMC_WRITE_MULTIPLE_BLOCK &&
+				sdhci_readw(host, SDHCI_BLOCK_COUNT) &&
+				intmask & SDHCI_INT_DATA_END) {
+			intmask &= ~SDHCI_INT_DATA_END;
+			sdhci_writel(host, SDHCI_INT_DATA_END,
+					SDHCI_INT_STATUS);
+		}
+	}
+	return intmask;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -911,6 +957,7 @@ static const struct sdhci_ops sdhci_esdhc_be_ops = {
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.reset = esdhc_reset,
 	.set_uhs_signaling = esdhc_set_uhs_signaling,
+	.irq = esdhc_irq,
 };
 
 static const struct sdhci_ops sdhci_esdhc_le_ops = {
@@ -928,6 +975,7 @@ static const struct sdhci_ops sdhci_esdhc_le_ops = {
 	.set_bus_width = esdhc_pltfm_set_bus_width,
 	.reset = esdhc_reset,
 	.set_uhs_signaling = esdhc_set_uhs_signaling,
+	.irq = esdhc_irq,
 };
 
 static const struct sdhci_pltfm_data sdhci_esdhc_be_pdata = {
@@ -955,6 +1003,8 @@ static struct soc_device_attribute soc_incorrect_hostver[] = {
 
 static struct soc_device_attribute soc_fixup_sdhc_clkdivs[] = {
 	{ .family = "QorIQ LX2160A", .revision = "1.0", },
+	{ .family = "QorIQ LX2160A", .revision = "2.0", },
+	{ .family = "QorIQ LS1028A", .revision = "1.0", },
 	{ },
 };
 
@@ -1004,11 +1054,12 @@ static void esdhc_init(struct platform_device *pdev, struct sdhci_host *host)
 		/*
 		 * esdhc->peripheral_clock would be assigned with a value
 		 * which is eSDHC base clock when use periperal clock.
-		 * For ls1046a, the clock value got by common clk API is
-		 * peripheral clock while the eSDHC base clock is 1/2
-		 * peripheral clock.
+		 * For some platforms, the clock value got by common clk
+		 * API is peripheral clock while the eSDHC base clock is
+		 * 1/2 peripheral clock.
 		 */
-		if (of_device_is_compatible(np, "fsl,ls1046a-esdhc"))
+		if (of_device_is_compatible(np, "fsl,ls1046a-esdhc") ||
+		    of_device_is_compatible(np, "fsl,ls1028a-esdhc"))
 			esdhc->peripheral_clock = clk_get_rate(clk) / 2;
 		else
 			esdhc->peripheral_clock = clk_get_rate(clk);
@@ -1074,6 +1125,11 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	if (esdhc->vendor_ver > VENDOR_V_22)
 		host->quirks &= ~SDHCI_QUIRK_NO_BUSY_IRQ;
 
+	if (of_find_compatible_node(NULL, NULL, "fsl,p2020-esdhc")) {
+		host->quirks2 |= SDHCI_QUIRK_RESET_AFTER_REQUEST;
+		host->quirks2 |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
+	}
+
 	if (of_device_is_compatible(np, "fsl,p5040-esdhc") ||
 	    of_device_is_compatible(np, "fsl,p5020-esdhc") ||
 	    of_device_is_compatible(np, "fsl,p4080-esdhc") ||
@@ -1084,12 +1140,14 @@ static int sdhci_esdhc_probe(struct platform_device *pdev)
 	if (of_device_is_compatible(np, "fsl,ls1021a-esdhc"))
 		host->quirks |= SDHCI_QUIRK_BROKEN_TIMEOUT_VAL;
 
+	esdhc->quirk_ignore_data_inhibit = false;
 	if (of_device_is_compatible(np, "fsl,p2020-esdhc")) {
 		/*
 		 * Freescale messed up with P2020 as it has a non-standard
 		 * host control register
 		 */
 		host->quirks2 |= SDHCI_QUIRK2_BROKEN_HOST_CONTROL;
+		esdhc->quirk_ignore_data_inhibit = true;
 	}
 
 	/* call to generic mmc_of_parse to support additional capabilities */

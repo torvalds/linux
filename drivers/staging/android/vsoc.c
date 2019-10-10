@@ -29,7 +29,6 @@
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include <linux/interrupt.h>
-#include <linux/mutex.h>
 #include <linux/cdev.h>
 #include <linux/file.h>
 #include "uapi/vsoc_shm.h"
@@ -260,7 +259,8 @@ do_create_fd_scoped_permission(struct vsoc_device_region *region_p,
 	atomic_t *owner_ptr = NULL;
 	struct vsoc_device_region *managed_region_p;
 
-	if (copy_from_user(&np->permission, &arg->perm, sizeof(*np)) ||
+	if (copy_from_user(&np->permission,
+			   &arg->perm, sizeof(np->permission)) ||
 	    copy_from_user(&managed_fd,
 			   &arg->managed_region_fd, sizeof(managed_fd))) {
 		return -EFAULT;
@@ -437,12 +437,10 @@ static int handle_vsoc_cond_wait(struct file *filp, struct vsoc_cond_wait *arg)
 			return -EINVAL;
 		wake_time = ktime_set(arg->wake_time_sec, arg->wake_time_nsec);
 
-		hrtimer_init_on_stack(&to->timer, CLOCK_MONOTONIC,
-				      HRTIMER_MODE_ABS);
+		hrtimer_init_sleeper_on_stack(to, CLOCK_MONOTONIC,
+					      HRTIMER_MODE_ABS);
 		hrtimer_set_expires_range_ns(&to->timer, wake_time,
 					     current->timer_slack_ns);
-
-		hrtimer_init_sleeper(to, current);
 	}
 
 	while (1) {
@@ -460,7 +458,7 @@ static int handle_vsoc_cond_wait(struct file *filp, struct vsoc_cond_wait *arg)
 			break;
 		}
 		if (to) {
-			hrtimer_start_expires(&to->timer, HRTIMER_MODE_ABS);
+			hrtimer_sleeper_start_expires(to, HRTIMER_MODE_ABS);
 			if (likely(to->task))
 				freezable_schedule();
 			hrtimer_cancel(&to->timer);

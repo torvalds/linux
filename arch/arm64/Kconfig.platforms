@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Platform selection"
 
 config ARCH_ACTIONS
@@ -6,6 +7,11 @@ config ARCH_ACTIONS
 	select PINCTRL
 	help
 	  This enables support for the Actions Semiconductor S900 SoC family.
+
+config ARCH_AGILEX
+	bool "Intel's Agilex SoCFPGA Family"
+	help
+	  This enables support for Intel's Agilex SoCFPGA Family.
 
 config ARCH_SUNXI
 	bool "Allwinner sunxi 64-bit SoC Family"
@@ -27,6 +33,7 @@ config ARCH_BCM2835
 	bool "Broadcom BCM2835 family"
 	select TIMER_OF
 	select GPIOLIB
+	select MFD_CORE
 	select PINCTRL
 	select PINCTRL_BCM2835
 	select ARM_AMBA
@@ -52,16 +59,25 @@ config ARCH_BERLIN
 	help
 	  This enables support for Marvell Berlin SoC Family
 
+config ARCH_BITMAIN
+	bool "Bitmain SoC Platforms"
+	help
+	  This enables support for the Bitmain SoC Family.
+
 config ARCH_BRCMSTB
 	bool "Broadcom Set-Top-Box SoCs"
+	select ARCH_HAS_RESET_CONTROLLER
+	select BCM7038_L1_IRQ
 	select BRCMSTB_L2_IRQ
 	select GENERIC_IRQ_CHIP
+	select PINCTRL
 	help
 	  This enables support for Broadcom's ARMv8 Set Top Box SoCs
 
 config ARCH_EXYNOS
 	bool "ARMv8 based Samsung Exynos SoC family"
 	select COMMON_CLK_SAMSUNG
+	select EXYNOS_CHIPID
 	select EXYNOS_PM_DOMAINS if PM_GENERIC_DOMAINS
 	select EXYNOS_PMU
 	select HAVE_S3C2410_WATCHDOG if WATCHDOG
@@ -76,6 +92,12 @@ config ARCH_EXYNOS
 config ARCH_K3
 	bool "Texas Instruments Inc. K3 multicore SoC architecture"
 	select PM_GENERIC_DOMAINS if PM
+	select MAILBOX
+	select SOC_TI
+	select TI_MESSAGE_MANAGER
+	select TI_SCI_PROTOCOL
+	select TI_SCI_INTR_IRQCHIP
+	select TI_SCI_INTA_IRQCHIP
 	help
 	  This enables support for Texas Instruments' K3 multicore SoC
 	  architecture.
@@ -112,12 +134,13 @@ config ARCH_MESON
 	bool "Amlogic Platforms"
 	select PINCTRL
 	select PINCTRL_MESON
-	select COMMON_CLK_AMLOGIC
 	select COMMON_CLK_GXBB
 	select COMMON_CLK_AXG
+	select COMMON_CLK_G12A
 	select MESON_IRQ_GPIO
 	help
-	  This enables support for the Amlogic S905 SoCs.
+	  This enables support for the arm64 based Amlogic SoCs
+	  such as the s905, S905X/D, S912, A113X/D or S905X/D2
 
 config ARCH_MVEBU
 	bool "Marvell EBU SoC Family"
@@ -145,7 +168,13 @@ config ARCH_MVEBU
 config ARCH_MXC
 	bool "ARMv8 based NXP i.MX SoC family"
 	select ARM64_ERRATUM_843419
-	select ARM64_ERRATUM_845719
+	select ARM64_ERRATUM_845719 if COMPAT
+	select IMX_GPCV2
+	select IMX_GPCV2_PM_DOMAINS
+	select PM
+	select PM_GENERIC_DOMAINS
+	select SOC_BUS
+	select TIMER_IMX_SYS_CTR
 	help
 	  This enables support for the ARMv8 based SoCs in the
 	  NXP i.MX family.
@@ -199,6 +228,7 @@ config ARCH_SYNQUACER
 config ARCH_TEGRA
 	bool "NVIDIA Tegra SoC Family"
 	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_GIC_PM
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
 	select TIMER_OF

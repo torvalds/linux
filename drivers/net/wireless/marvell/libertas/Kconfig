@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config LIBERTAS
 	tristate "Marvell 8xxx Libertas WLAN driver support"
 	depends on CFG80211

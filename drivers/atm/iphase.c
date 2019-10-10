@@ -63,6 +63,7 @@
 #include <asm/byteorder.h>  
 #include <linux/vmalloc.h>
 #include <linux/jiffies.h>
+#include <linux/nospec.h>
 #include "iphase.h"		  
 #include "suni.h"		  
 #define swap_byte_order(x) (((x & 0xff) << 8) | ((x & 0xff00) >> 8))
@@ -2760,19 +2761,16 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
    }
    if (copy_from_user(&ia_cmds, arg, sizeof ia_cmds)) return -EFAULT; 
    board = ia_cmds.status;
-   if ((board < 0) || (board > iadev_count))
-         board = 0;    
+
+	if ((board < 0) || (board > iadev_count))
+		board = 0;
+	board = array_index_nospec(board, iadev_count + 1);
+
    iadev = ia_dev[board];
    switch (ia_cmds.cmd) {
    case MEMDUMP:
    {
 	switch (ia_cmds.sub_cmd) {
-       	  case MEMDUMP_DEV:     
-	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
-	     if (copy_to_user(ia_cmds.buf, iadev, sizeof(IADEV)))
-                return -EFAULT;
-             ia_cmds.status = 0;
-             break;
           case MEMDUMP_SEGREG:
 	     if (!capable(CAP_NET_ADMIN)) return -EPERM;
              tmps = (u16 __user *)ia_cmds.buf;
@@ -2826,8 +2824,8 @@ static int ia_ioctl(struct atm_dev *dev, unsigned int cmd, void __user *arg)
          case 0x6:
          {  
              ia_cmds.status = 0; 
-             printk("skb = 0x%lx\n", (long)skb_peek(&iadev->tx_backlog));
-             printk("rtn_q: 0x%lx\n",(long)ia_deque_rtn_q(&iadev->tx_return_q));
+             printk("skb = 0x%p\n", skb_peek(&iadev->tx_backlog));
+             printk("rtn_q: 0x%p\n",ia_deque_rtn_q(&iadev->tx_return_q));
          }
              break;
          case 0x8:

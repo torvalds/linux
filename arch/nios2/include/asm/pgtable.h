@@ -232,7 +232,6 @@ static inline void pte_clear(struct mm_struct *mm,
 	pte_val(null) = (addr >> PAGE_SHIFT) & 0xf;
 
 	set_pte_at(mm, addr, ptep, null);
-	flush_tlb_one(addr);
 }
 
 /*
@@ -291,8 +290,6 @@ static inline void pte_clear(struct mm_struct *mm,
 #define kern_addr_valid(addr)		(1)
 
 #include <asm-generic/pgtable.h>
-
-#define pgtable_cache_init()		do { } while (0)
 
 extern void __init paging_init(void);
 extern void __init mmu_init(void);

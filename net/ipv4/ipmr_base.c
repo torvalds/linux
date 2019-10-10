@@ -228,7 +228,7 @@ int mr_fill_mroute(struct mr_table *mrt, struct sk_buff *skb,
 	if (c->mfc_flags & MFC_OFFLOAD)
 		rtm->rtm_flags |= RTNH_F_OFFLOAD;
 
-	mp_attr = nla_nest_start(skb, RTA_MULTIPATH);
+	mp_attr = nla_nest_start_noflag(skb, RTA_MULTIPATH);
 	if (!mp_attr)
 		return -EMSGSIZE;
 
@@ -335,8 +335,6 @@ next_entry2:
 	}
 	spin_unlock_bh(lock);
 	err = 0;
-	e = 0;
-
 out:
 	cb->args[1] = e;
 	return err;
@@ -374,6 +372,7 @@ int mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb,
 		err = mr_table_dump(mrt, skb, cb, fill, lock, filter);
 		if (err < 0)
 			break;
+		cb->args[1] = 0;
 next_table:
 		t++;
 	}

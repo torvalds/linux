@@ -28,7 +28,7 @@
 # override by exporting to your environment prior running this script.
 # For instance this script assumes you do not have xfs loaded upon boot.
 # If this is false, export DEFAULT_KMOD_FS="ext4" prior to running this
-# script if the filesyste module you don't have loaded upon bootup
+# script if the filesystem module you don't have loaded upon bootup
 # is ext4 instead. Refer to allow_user_defaults() for a list of user
 # override variables possible.
 #
@@ -263,7 +263,7 @@ config_get_test_result()
 config_reset()
 {
 	if ! echo -n "1" >"$DIR"/reset; then
-		echo "$0: reset shuld have worked" >&2
+		echo "$0: reset should have worked" >&2
 		exit 1
 	fi
 }
@@ -488,7 +488,7 @@ usage()
 	echo Example uses:
 	echo
 	echo "${TEST_NAME}.sh		-- executes all tests"
-	echo "${TEST_NAME}.sh -t 0008	-- Executes test ID 0008 number of times is recomended"
+	echo "${TEST_NAME}.sh -t 0008	-- Executes test ID 0008 number of times is recommended"
 	echo "${TEST_NAME}.sh -w 0008	-- Watch test ID 0008 run until an error occurs"
 	echo "${TEST_NAME}.sh -s 0008	-- Run test ID 0008 once"
 	echo "${TEST_NAME}.sh -c 0008 3	-- Run test ID 0008 three times"

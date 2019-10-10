@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/wait.h>
 
+#include "../ccm.h"
 #include "../nfp_asm.h"
 #include "fw.h"
 
@@ -84,15 +85,9 @@ enum pkt_vec {
 /**
  * struct nfp_app_bpf - bpf app priv structure
  * @app:		backpointer to the app
+ * @ccm:		common control message handler data
  *
  * @bpf_dev:		BPF offload device handle
- *
- * @tag_allocator:	bitmap of control message tags in use
- * @tag_alloc_next:	next tag bit to allocate
- * @tag_alloc_last:	next tag bit to be freed
- *
- * @cmsg_replies:	received cmsg replies waiting to be consumed
- * @cmsg_wq:		work queue for waiting for cmsg replies
  *
  * @cmsg_key_sz:	size of key in cmsg element array
  * @cmsg_val_sz:	size of value in cmsg element array
@@ -104,6 +99,7 @@ enum pkt_vec {
  * @maps_neutral:	hash table of offload-neutral maps (on pointer)
  *
  * @abi_version:	global BPF ABI version
+ * @cmsg_cache_cnt:	number of entries to read for caching
  *
  * @adjust_head:	adjust head capability
  * @adjust_head.flags:		extra flags for adjust head
@@ -129,21 +125,18 @@ enum pkt_vec {
  * @pseudo_random:	FW initialized the pseudo-random machinery (CSRs)
  * @queue_select:	BPF can set the RX queue ID in packet vector
  * @adjust_tail:	BPF can simply trunc packet size for adjust tail
+ * @cmsg_multi_ent:	FW can pack multiple map entries in a single cmsg
  */
 struct nfp_app_bpf {
 	struct nfp_app *app;
+	struct nfp_ccm ccm;
 
 	struct bpf_offload_dev *bpf_dev;
 
-	DECLARE_BITMAP(tag_allocator, U16_MAX + 1);
-	u16 tag_alloc_next;
-	u16 tag_alloc_last;
-
-	struct sk_buff_head cmsg_replies;
-	struct wait_queue_head cmsg_wq;
-
 	unsigned int cmsg_key_sz;
 	unsigned int cmsg_val_sz;
+
+	unsigned int cmsg_cache_cnt;
 
 	struct list_head map_list;
 	unsigned int maps_in_use;
@@ -180,6 +173,7 @@ struct nfp_app_bpf {
 	bool pseudo_random;
 	bool queue_select;
 	bool adjust_tail;
+	bool cmsg_multi_ent;
 };
 
 enum nfp_bpf_map_use {
@@ -194,11 +188,21 @@ struct nfp_bpf_map_word {
 	unsigned char non_zero_update	:1;
 };
 
+#define NFP_BPF_MAP_CACHE_CNT		4U
+#define NFP_BPF_MAP_CACHE_TIME_NS	(250 * 1000)
+
 /**
  * struct nfp_bpf_map - private per-map data attached to BPF maps for offload
  * @offmap:	pointer to the offloaded BPF map
  * @bpf:	back pointer to bpf app private structure
  * @tid:	table id identifying map on datapath
+ *
+ * @cache_lock:	protects @cache_blockers, @cache_to, @cache
+ * @cache_blockers:	number of ops in flight which block caching
+ * @cache_gen:	counter incremented by every blocker on exit
+ * @cache_to:	time when cache will no longer be valid (ns)
+ * @cache:	skb with cached response
+ *
  * @l:		link on the nfp_app_bpf->map_list list
  * @use_map:	map of how the value is used (in 4B chunks)
  */
@@ -206,6 +210,13 @@ struct nfp_bpf_map {
 	struct bpf_offloaded_map *offmap;
 	struct nfp_app_bpf *bpf;
 	u32 tid;
+
+	spinlock_t cache_lock;
+	u32 cache_blockers;
+	u32 cache_gen;
+	u64 cache_to;
+	struct sk_buff *cache;
+
 	struct list_head l;
 	struct nfp_bpf_map_word use_map[];
 };
@@ -249,6 +260,8 @@ struct nfp_bpf_reg_state {
 #define FLAG_INSN_SKIP_PREC_DEPENDENT		BIT(4)
 /* Instruction is optimized by the verifier */
 #define FLAG_INSN_SKIP_VERIFIER_OPT		BIT(5)
+/* Instruction needs to zero extend to high 32-bit */
+#define FLAG_INSN_DO_ZEXT			BIT(6)
 
 #define FLAG_INSN_SKIP_MASK		(FLAG_INSN_SKIP_NOOP | \
 					 FLAG_INSN_SKIP_PREC_DEPENDENT | \
@@ -573,7 +586,9 @@ nfp_bpf_goto_meta(struct nfp_prog *nfp_prog, struct nfp_insn_meta *meta,
 
 void *nfp_bpf_relo_for_vnic(struct nfp_prog *nfp_prog, struct nfp_bpf_vnic *bv);
 
+unsigned int nfp_bpf_ctrl_cmsg_min_mtu(struct nfp_app_bpf *bpf);
 unsigned int nfp_bpf_ctrl_cmsg_mtu(struct nfp_app_bpf *bpf);
+unsigned int nfp_bpf_ctrl_cmsg_cache_cnt(struct nfp_app_bpf *bpf);
 long long int
 nfp_bpf_ctrl_alloc_map(struct nfp_app_bpf *bpf, struct bpf_map *map);
 void

@@ -9,7 +9,7 @@
 
 #include <crypto/aes.h>
 #include <crypto/algapi.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/skcipher.h>
 #include <crypto/xts.h>
 #include <crypto/internal/skcipher.h>
@@ -153,6 +153,24 @@ static void sec_alg_skcipher_init_context(struct crypto_skcipher *atfm,
 				       ctx->cipher_alg);
 }
 
+static void sec_free_hw_sgl(struct sec_hw_sgl *hw_sgl,
+			    dma_addr_t psec_sgl, struct sec_dev_info *info)
+{
+	struct sec_hw_sgl *sgl_current, *sgl_next;
+	dma_addr_t sgl_next_dma;
+
+	sgl_current = hw_sgl;
+	while (sgl_current) {
+		sgl_next = sgl_current->next;
+		sgl_next_dma = sgl_current->next_sgl;
+
+		dma_pool_free(info->hw_sgl_pool, sgl_current, psec_sgl);
+
+		sgl_current = sgl_next;
+		psec_sgl = sgl_next_dma;
+	}
+}
+
 static int sec_alloc_and_fill_hw_sgl(struct sec_hw_sgl **sec_sgl,
 				     dma_addr_t *psec_sgl,
 				     struct scatterlist *sgl,
@@ -199,33 +217,10 @@ static int sec_alloc_and_fill_hw_sgl(struct sec_hw_sgl **sec_sgl,
 	return 0;
 
 err_free_hw_sgls:
-	sgl_current = *sec_sgl;
-	while (sgl_current) {
-		sgl_next = sgl_current->next;
-		dma_pool_free(info->hw_sgl_pool, sgl_current,
-			      sgl_current->next_sgl);
-		sgl_current = sgl_next;
-	}
+	sec_free_hw_sgl(*sec_sgl, *psec_sgl, info);
 	*psec_sgl = 0;
 
 	return ret;
-}
-
-static void sec_free_hw_sgl(struct sec_hw_sgl *hw_sgl,
-			    dma_addr_t psec_sgl, struct sec_dev_info *info)
-{
-	struct sec_hw_sgl *sgl_current, *sgl_next;
-
-	if (!hw_sgl)
-		return;
-	sgl_current = hw_sgl;
-	while (sgl_current->next) {
-		sgl_next = sgl_current->next;
-		dma_pool_free(info->hw_sgl_pool, sgl_current,
-			      sgl_current->next_sgl);
-		sgl_current = sgl_next;
-	}
-	dma_pool_free(info->hw_sgl_pool, hw_sgl, psec_sgl);
 }
 
 static int sec_alg_skcipher_setkey(struct crypto_skcipher *tfm,
@@ -347,38 +342,30 @@ static int sec_alg_skcipher_setkey_aes_xts(struct crypto_skcipher *tfm,
 static int sec_alg_skcipher_setkey_des_ecb(struct crypto_skcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_ECB_64);
+	return verify_skcipher_des_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_ECB_64);
 }
 
 static int sec_alg_skcipher_setkey_des_cbc(struct crypto_skcipher *tfm,
 					   const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_CBC_64);
+	return verify_skcipher_des_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen, SEC_C_DES_CBC_64);
 }
 
 static int sec_alg_skcipher_setkey_3des_ecb(struct crypto_skcipher *tfm,
 					    const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES_KEY_SIZE * 3)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen,
+	return verify_skcipher_des3_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen,
 				       SEC_C_3DES_ECB_192_3KEY);
 }
 
 static int sec_alg_skcipher_setkey_3des_cbc(struct crypto_skcipher *tfm,
 					    const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES3_EDE_KEY_SIZE)
-		return -EINVAL;
-
-	return sec_alg_skcipher_setkey(tfm, key, keylen,
+	return verify_skcipher_des3_key(tfm, key) ?:
+	       sec_alg_skcipher_setkey(tfm, key, keylen,
 				       SEC_C_3DES_CBC_192_3KEY);
 }
 

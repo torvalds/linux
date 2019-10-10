@@ -10,19 +10,19 @@
 
 static
 const char iavf_client_interface_version_str[] = IAVF_CLIENT_VERSION_STR;
-static struct i40e_client *vf_registered_client;
-static LIST_HEAD(i40e_devices);
+static struct iavf_client *vf_registered_client;
+static LIST_HEAD(iavf_devices);
 static DEFINE_MUTEX(iavf_device_mutex);
 
-static u32 iavf_client_virtchnl_send(struct i40e_info *ldev,
-				     struct i40e_client *client,
+static u32 iavf_client_virtchnl_send(struct iavf_info *ldev,
+				     struct iavf_client *client,
 				     u8 *msg, u16 len);
 
-static int iavf_client_setup_qvlist(struct i40e_info *ldev,
-				    struct i40e_client *client,
-				    struct i40e_qvlist_info *qvlist_info);
+static int iavf_client_setup_qvlist(struct iavf_info *ldev,
+				    struct iavf_client *client,
+				    struct iavf_qvlist_info *qvlist_info);
 
-static struct i40e_ops iavf_lan_ops = {
+static struct iavf_ops iavf_lan_ops = {
 	.virtchnl_send = iavf_client_virtchnl_send,
 	.setup_qvlist = iavf_client_setup_qvlist,
 };
@@ -33,11 +33,11 @@ static struct i40e_ops iavf_lan_ops = {
  * @params: client param struct
  **/
 static
-void iavf_client_get_params(struct iavf_vsi *vsi, struct i40e_params *params)
+void iavf_client_get_params(struct iavf_vsi *vsi, struct iavf_params *params)
 {
 	int i;
 
-	memset(params, 0, sizeof(struct i40e_params));
+	memset(params, 0, sizeof(struct iavf_params));
 	params->mtu = vsi->netdev->mtu;
 	params->link_up = vsi->back->link_up;
 
@@ -57,7 +57,7 @@ void iavf_client_get_params(struct iavf_vsi *vsi, struct i40e_params *params)
  **/
 void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len)
 {
-	struct i40e_client_instance *cinst;
+	struct iavf_client_instance *cinst;
 
 	if (!vsi)
 		return;
@@ -81,8 +81,8 @@ void iavf_notify_client_message(struct iavf_vsi *vsi, u8 *msg, u16 len)
  **/
 void iavf_notify_client_l2_params(struct iavf_vsi *vsi)
 {
-	struct i40e_client_instance *cinst;
-	struct i40e_params params;
+	struct iavf_client_instance *cinst;
+	struct iavf_params params;
 
 	if (!vsi)
 		return;
@@ -110,7 +110,7 @@ void iavf_notify_client_l2_params(struct iavf_vsi *vsi)
 void iavf_notify_client_open(struct iavf_vsi *vsi)
 {
 	struct iavf_adapter *adapter = vsi->back;
-	struct i40e_client_instance *cinst = adapter->cinst;
+	struct iavf_client_instance *cinst = adapter->cinst;
 	int ret;
 
 	if (!cinst || !cinst->client || !cinst->client->ops ||
@@ -119,10 +119,10 @@ void iavf_notify_client_open(struct iavf_vsi *vsi)
 			"Cannot locate client instance open function\n");
 		return;
 	}
-	if (!(test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cinst->state))) {
+	if (!(test_bit(__IAVF_CLIENT_INSTANCE_OPENED, &cinst->state))) {
 		ret = cinst->client->ops->open(&cinst->lan_info, cinst->client);
 		if (!ret)
-			set_bit(__I40E_CLIENT_INSTANCE_OPENED, &cinst->state);
+			set_bit(__IAVF_CLIENT_INSTANCE_OPENED, &cinst->state);
 	}
 }
 
@@ -132,17 +132,17 @@ void iavf_notify_client_open(struct iavf_vsi *vsi)
  *
  * Return 0 on success or < 0 on error
  **/
-static int iavf_client_release_qvlist(struct i40e_info *ldev)
+static int iavf_client_release_qvlist(struct iavf_info *ldev)
 {
 	struct iavf_adapter *adapter = ldev->vf;
-	iavf_status err;
+	enum iavf_status err;
 
 	if (adapter->aq_required)
 		return -EAGAIN;
 
 	err = iavf_aq_send_msg_to_pf(&adapter->hw,
 				     VIRTCHNL_OP_RELEASE_IWARP_IRQ_MAP,
-				     I40E_SUCCESS, NULL, 0, NULL);
+				     IAVF_SUCCESS, NULL, 0, NULL);
 
 	if (err)
 		dev_err(&adapter->pdev->dev,
@@ -162,7 +162,7 @@ static int iavf_client_release_qvlist(struct i40e_info *ldev)
 void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset)
 {
 	struct iavf_adapter *adapter = vsi->back;
-	struct i40e_client_instance *cinst = adapter->cinst;
+	struct iavf_client_instance *cinst = adapter->cinst;
 
 	if (!cinst || !cinst->client || !cinst->client->ops ||
 	    !cinst->client->ops->close) {
@@ -172,7 +172,7 @@ void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset)
 	}
 	cinst->client->ops->close(&cinst->lan_info, cinst->client, reset);
 	iavf_client_release_qvlist(&cinst->lan_info);
-	clear_bit(__I40E_CLIENT_INSTANCE_OPENED, &cinst->state);
+	clear_bit(__IAVF_CLIENT_INSTANCE_OPENED, &cinst->state);
 }
 
 /**
@@ -181,13 +181,13 @@ void iavf_notify_client_close(struct iavf_vsi *vsi, bool reset)
  *
  * Returns cinst ptr on success, NULL on failure
  **/
-static struct i40e_client_instance *
+static struct iavf_client_instance *
 iavf_client_add_instance(struct iavf_adapter *adapter)
 {
-	struct i40e_client_instance *cinst = NULL;
+	struct iavf_client_instance *cinst = NULL;
 	struct iavf_vsi *vsi = &adapter->vsi;
 	struct netdev_hw_addr *mac = NULL;
-	struct i40e_params params;
+	struct iavf_params params;
 
 	if (!vf_registered_client)
 		goto out;
@@ -205,7 +205,7 @@ iavf_client_add_instance(struct iavf_adapter *adapter)
 	cinst->lan_info.netdev = vsi->netdev;
 	cinst->lan_info.pcidev = adapter->pdev;
 	cinst->lan_info.fid = 0;
-	cinst->lan_info.ftype = I40E_CLIENT_FTYPE_VF;
+	cinst->lan_info.ftype = IAVF_CLIENT_FTYPE_VF;
 	cinst->lan_info.hw_addr = adapter->hw.hw_addr;
 	cinst->lan_info.ops = &iavf_lan_ops;
 	cinst->lan_info.version.major = IAVF_CLIENT_VERSION_MAJOR;
@@ -213,7 +213,7 @@ iavf_client_add_instance(struct iavf_adapter *adapter)
 	cinst->lan_info.version.build = IAVF_CLIENT_VERSION_BUILD;
 	iavf_client_get_params(vsi, &params);
 	cinst->lan_info.params = params;
-	set_bit(__I40E_CLIENT_INSTANCE_NONE, &cinst->state);
+	set_bit(__IAVF_CLIENT_INSTANCE_NONE, &cinst->state);
 
 	cinst->lan_info.msix_count = adapter->num_iwarp_msix;
 	cinst->lan_info.msix_entries =
@@ -250,8 +250,8 @@ void iavf_client_del_instance(struct iavf_adapter *adapter)
  **/
 void iavf_client_subtask(struct iavf_adapter *adapter)
 {
-	struct i40e_client *client = vf_registered_client;
-	struct i40e_client_instance *cinst;
+	struct iavf_client *client = vf_registered_client;
+	struct iavf_client_instance *cinst;
 	int ret = 0;
 
 	if (adapter->state < __IAVF_DOWN)
@@ -269,13 +269,13 @@ void iavf_client_subtask(struct iavf_adapter *adapter)
 	dev_info(&adapter->pdev->dev, "Added instance of Client %s\n",
 		 client->name);
 
-	if (!test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cinst->state)) {
+	if (!test_bit(__IAVF_CLIENT_INSTANCE_OPENED, &cinst->state)) {
 		/* Send an Open request to the client */
 
 		if (client->ops && client->ops->open)
 			ret = client->ops->open(&cinst->lan_info, client);
 		if (!ret)
-			set_bit(__I40E_CLIENT_INSTANCE_OPENED,
+			set_bit(__IAVF_CLIENT_INSTANCE_OPENED,
 				&cinst->state);
 		else
 			/* remove client instance */
@@ -291,11 +291,11 @@ void iavf_client_subtask(struct iavf_adapter *adapter)
  **/
 int iavf_lan_add_device(struct iavf_adapter *adapter)
 {
-	struct i40e_device *ldev;
+	struct iavf_device *ldev;
 	int ret = 0;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
+	list_for_each_entry(ldev, &iavf_devices, list) {
 		if (ldev->vf == adapter) {
 			ret = -EEXIST;
 			goto out;
@@ -308,7 +308,7 @@ int iavf_lan_add_device(struct iavf_adapter *adapter)
 	}
 	ldev->vf = adapter;
 	INIT_LIST_HEAD(&ldev->list);
-	list_add(&ldev->list, &i40e_devices);
+	list_add(&ldev->list, &iavf_devices);
 	dev_info(&adapter->pdev->dev, "Added LAN device bus=0x%02x dev=0x%02x func=0x%02x\n",
 		 adapter->hw.bus.bus_id, adapter->hw.bus.device,
 		 adapter->hw.bus.func);
@@ -331,11 +331,11 @@ out:
  **/
 int iavf_lan_del_device(struct iavf_adapter *adapter)
 {
-	struct i40e_device *ldev, *tmp;
+	struct iavf_device *ldev, *tmp;
 	int ret = -ENODEV;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry_safe(ldev, tmp, &i40e_devices, list) {
+	list_for_each_entry_safe(ldev, tmp, &iavf_devices, list) {
 		if (ldev->vf == adapter) {
 			dev_info(&adapter->pdev->dev,
 				 "Deleted LAN device bus=0x%02x dev=0x%02x func=0x%02x\n",
@@ -357,24 +357,24 @@ int iavf_lan_del_device(struct iavf_adapter *adapter)
  * @client: pointer to the registered client
  *
  **/
-static void iavf_client_release(struct i40e_client *client)
+static void iavf_client_release(struct iavf_client *client)
 {
-	struct i40e_client_instance *cinst;
-	struct i40e_device *ldev;
+	struct iavf_client_instance *cinst;
+	struct iavf_device *ldev;
 	struct iavf_adapter *adapter;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
+	list_for_each_entry(ldev, &iavf_devices, list) {
 		adapter = ldev->vf;
 		cinst = adapter->cinst;
 		if (!cinst)
 			continue;
-		if (test_bit(__I40E_CLIENT_INSTANCE_OPENED, &cinst->state)) {
+		if (test_bit(__IAVF_CLIENT_INSTANCE_OPENED, &cinst->state)) {
 			if (client->ops && client->ops->close)
 				client->ops->close(&cinst->lan_info, client,
 						   false);
 			iavf_client_release_qvlist(&cinst->lan_info);
-			clear_bit(__I40E_CLIENT_INSTANCE_OPENED, &cinst->state);
+			clear_bit(__IAVF_CLIENT_INSTANCE_OPENED, &cinst->state);
 
 			dev_warn(&adapter->pdev->dev,
 				 "Client %s instance closed\n", client->name);
@@ -392,13 +392,13 @@ static void iavf_client_release(struct i40e_client *client)
  * @client: pointer to the registered client
  *
  **/
-static void iavf_client_prepare(struct i40e_client *client)
+static void iavf_client_prepare(struct iavf_client *client)
 {
-	struct i40e_device *ldev;
+	struct iavf_device *ldev;
 	struct iavf_adapter *adapter;
 
 	mutex_lock(&iavf_device_mutex);
-	list_for_each_entry(ldev, &i40e_devices, list) {
+	list_for_each_entry(ldev, &iavf_devices, list) {
 		adapter = ldev->vf;
 		/* Signal the watchdog to service the client */
 		adapter->flags |= IAVF_FLAG_SERVICE_CLIENT_REQUESTED;
@@ -415,18 +415,18 @@ static void iavf_client_prepare(struct i40e_client *client)
  *
  * Return 0 on success or < 0 on error
  **/
-static u32 iavf_client_virtchnl_send(struct i40e_info *ldev,
-				     struct i40e_client *client,
+static u32 iavf_client_virtchnl_send(struct iavf_info *ldev,
+				     struct iavf_client *client,
 				     u8 *msg, u16 len)
 {
 	struct iavf_adapter *adapter = ldev->vf;
-	iavf_status err;
+	enum iavf_status err;
 
 	if (adapter->aq_required)
 		return -EAGAIN;
 
 	err = iavf_aq_send_msg_to_pf(&adapter->hw, VIRTCHNL_OP_IWARP,
-				     I40E_SUCCESS, msg, len, NULL);
+				     IAVF_SUCCESS, msg, len, NULL);
 	if (err)
 		dev_err(&adapter->pdev->dev, "Unable to send iWarp message to PF, error %d, aq status %d\n",
 			err, adapter->hw.aq.asq_last_status);
@@ -442,16 +442,16 @@ static u32 iavf_client_virtchnl_send(struct i40e_info *ldev,
  *
  * Return 0 on success or < 0 on error
  **/
-static int iavf_client_setup_qvlist(struct i40e_info *ldev,
-				    struct i40e_client *client,
-				    struct i40e_qvlist_info *qvlist_info)
+static int iavf_client_setup_qvlist(struct iavf_info *ldev,
+				    struct iavf_client *client,
+				    struct iavf_qvlist_info *qvlist_info)
 {
 	struct virtchnl_iwarp_qvlist_info *v_qvlist_info;
 	struct iavf_adapter *adapter = ldev->vf;
-	struct i40e_qv_info *qv_info;
-	iavf_status err;
+	struct iavf_qv_info *qv_info;
+	enum iavf_status err;
 	u32 v_idx, i;
-	u32 msg_size;
+	size_t msg_size;
 
 	if (adapter->aq_required)
 		return -EAGAIN;
@@ -469,13 +469,12 @@ static int iavf_client_setup_qvlist(struct i40e_info *ldev,
 	}
 
 	v_qvlist_info = (struct virtchnl_iwarp_qvlist_info *)qvlist_info;
-	msg_size = sizeof(struct virtchnl_iwarp_qvlist_info) +
-			(sizeof(struct virtchnl_iwarp_qv_info) *
-			(v_qvlist_info->num_vectors - 1));
+	msg_size = struct_size(v_qvlist_info, qv_info,
+			       v_qvlist_info->num_vectors - 1);
 
 	adapter->client_pending |= BIT(VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP);
 	err = iavf_aq_send_msg_to_pf(&adapter->hw,
-				VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP, I40E_SUCCESS,
+				VIRTCHNL_OP_CONFIG_IWARP_IRQ_MAP, IAVF_SUCCESS,
 				(u8 *)v_qvlist_info, msg_size, NULL);
 
 	if (err) {
@@ -499,12 +498,12 @@ out:
 }
 
 /**
- * iavf_register_client - Register a i40e client driver with the L2 driver
- * @client: pointer to the i40e_client struct
+ * iavf_register_client - Register a iavf client driver with the L2 driver
+ * @client: pointer to the iavf_client struct
  *
  * Returns 0 on success or non-0 on error
  **/
-int iavf_register_client(struct i40e_client *client)
+int iavf_register_client(struct iavf_client *client)
 {
 	int ret = 0;
 
@@ -550,12 +549,12 @@ out:
 EXPORT_SYMBOL(iavf_register_client);
 
 /**
- * iavf_unregister_client - Unregister a i40e client driver with the L2 driver
- * @client: pointer to the i40e_client struct
+ * iavf_unregister_client - Unregister a iavf client driver with the L2 driver
+ * @client: pointer to the iavf_client struct
  *
  * Returns 0 on success or non-0 on error
  **/
-int iavf_unregister_client(struct i40e_client *client)
+int iavf_unregister_client(struct iavf_client *client)
 {
 	int ret = 0;
 

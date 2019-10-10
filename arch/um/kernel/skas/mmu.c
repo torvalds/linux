@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/mm.h>
@@ -63,12 +63,12 @@ int init_new_context(struct task_struct *task, struct mm_struct *mm)
 	if (current->mm != NULL && current->mm != &init_mm)
 		from_mm = &current->mm->context;
 
-	block_signals();
+	block_signals_trace();
 	if (from_mm)
 		to_mm->id.u.pid = copy_context_skas0(stack,
 						     from_mm->id.u.pid);
 	else to_mm->id.u.pid = start_userspace(stack);
-	unblock_signals();
+	unblock_signals_trace();
 
 	if (to_mm->id.u.pid < 0) {
 		ret = to_mm->id.u.pid;
@@ -119,7 +119,7 @@ void uml_setup_stubs(struct mm_struct *mm)
 	return;
 
 out:
-	force_sigsegv(SIGSEGV, current);
+	force_sigsegv(SIGSEGV);
 }
 
 void arch_exit_mmap(struct mm_struct *mm)

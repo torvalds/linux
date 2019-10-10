@@ -111,6 +111,7 @@ void ist_enter(struct pt_regs *regs)
 	/* This code is a bit fragile.  Test it. */
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "ist_enter didn't work");
 }
+NOKPROBE_SYMBOL(ist_enter);
 
 void ist_exit(struct pt_regs *regs)
 {
@@ -253,9 +254,9 @@ do_trap(int trapnr, int signr, char *str, struct pt_regs *regs,
 	show_signal(tsk, signr, "trap ", str, regs, error_code);
 
 	if (!sicode)
-		force_sig(signr, tsk);
+		force_sig(signr);
 	else
-		force_sig_fault(signr, sicode, addr, tsk);
+		force_sig_fault(signr, sicode, addr);
 }
 NOKPROBE_SYMBOL(do_trap);
 
@@ -312,13 +313,10 @@ __visible void __noreturn handle_stack_overflow(const char *message,
 
 #ifdef CONFIG_X86_64
 /* Runs on IST stack */
-dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
+dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code, unsigned long cr2)
 {
 	static const char str[] = "double fault";
 	struct task_struct *tsk = current;
-#ifdef CONFIG_VMAP_STACK
-	unsigned long cr2;
-#endif
 
 #ifdef CONFIG_X86_ESPFIX64
 	extern unsigned char native_irq_return_iret[];
@@ -414,7 +412,6 @@ dotraplinkage void do_double_fault(struct pt_regs *regs, long error_code)
 	 * stack even if the actual trigger for the double fault was
 	 * something else.
 	 */
-	cr2 = read_cr2();
 	if ((unsigned long)task_stack_page(tsk) - 1 - cr2 < PAGE_SIZE)
 		handle_stack_overflow("kernel stack overflow (double-fault)", regs, cr2);
 #endif
@@ -455,7 +452,7 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 	 * which is all zeros which indicates MPX was not
 	 * responsible for the exception.
 	 */
-	bndcsr = get_xsave_field_ptr(XFEATURE_MASK_BNDCSR);
+	bndcsr = get_xsave_field_ptr(XFEATURE_BNDCSR);
 	if (!bndcsr)
 		goto exit_trap;
 
@@ -565,7 +562,7 @@ do_general_protection(struct pt_regs *regs, long error_code)
 
 	show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
 
-	force_sig(SIGSEGV, tsk);
+	force_sig(SIGSEGV);
 }
 NOKPROBE_SYMBOL(do_general_protection);
 
@@ -804,7 +801,7 @@ dotraplinkage void do_debug(struct pt_regs *regs, long error_code)
 	}
 	si_code = get_si_code(tsk->thread.debugreg6);
 	if (tsk->thread.debugreg6 & (DR_STEP | DR_TRAP_BITS) || user_icebp)
-		send_sigtrap(tsk, regs, error_code, si_code);
+		send_sigtrap(regs, error_code, si_code);
 	cond_local_irq_disable(regs);
 	debug_stack_usage_dec();
 
@@ -855,7 +852,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 		return;
 
 	force_sig_fault(SIGFPE, si_code,
-			(void __user *)uprobe_get_trap_addr(regs), task);
+			(void __user *)uprobe_get_trap_addr(regs));
 }
 
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
@@ -880,12 +877,12 @@ do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 dotraplinkage void
 do_device_not_available(struct pt_regs *regs, long error_code)
 {
-	unsigned long cr0;
+	unsigned long cr0 = read_cr0();
 
 	RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 
 #ifdef CONFIG_MATH_EMULATION
-	if (!boot_cpu_has(X86_FEATURE_FPU) && (read_cr0() & X86_CR0_EM)) {
+	if (!boot_cpu_has(X86_FEATURE_FPU) && (cr0 & X86_CR0_EM)) {
 		struct math_emu_info info = { };
 
 		cond_local_irq_enable(regs);
@@ -897,7 +894,6 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 #endif
 
 	/* This should not happen. */
-	cr0 = read_cr0();
 	if (WARN(cr0 & X86_CR0_TS, "CR0.TS was set")) {
 		/* Try to fix it up and carry on. */
 		write_cr0(cr0 & ~X86_CR0_TS);

@@ -196,7 +196,7 @@ static u64 to_sndif_formats_mask(u64 alsa_formats)
 	mask = 0;
 	for (i = 0; i < ARRAY_SIZE(ALSA_SNDIF_FORMATS); i++)
 		if (pcm_format_to_bits(ALSA_SNDIF_FORMATS[i].alsa) & alsa_formats)
-			mask |= 1 << ALSA_SNDIF_FORMATS[i].sndif;
+			mask |= BIT_ULL(ALSA_SNDIF_FORMATS[i].sndif);
 
 	return mask;
 }
@@ -208,7 +208,7 @@ static u64 to_alsa_formats_mask(u64 sndif_formats)
 
 	mask = 0;
 	for (i = 0; i < ARRAY_SIZE(ALSA_SNDIF_FORMATS); i++)
-		if (1 << ALSA_SNDIF_FORMATS[i].sndif & sndif_formats)
+		if (BIT_ULL(ALSA_SNDIF_FORMATS[i].sndif) & sndif_formats)
 			mask |= pcm_format_to_bits(ALSA_SNDIF_FORMATS[i].alsa);
 
 	return mask;
@@ -441,7 +441,7 @@ static int shbuf_setup_backstore(struct xen_snd_front_pcm_stream_info *stream,
 {
 	int i;
 
-	stream->buffer = alloc_pages_exact(stream->buffer_sz, GFP_KERNEL);
+	stream->buffer = alloc_pages_exact(buffer_sz, GFP_KERNEL);
 	if (!stream->buffer)
 		return -ENOMEM;
 

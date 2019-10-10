@@ -82,6 +82,7 @@ enum irq_domain_bus_token {
 	DOMAIN_BUS_NEXUS,
 	DOMAIN_BUS_IPI,
 	DOMAIN_BUS_FSL_MC_MSI,
+	DOMAIN_BUS_TI_SCI_INTA_MSI,
 };
 
 /**
@@ -219,7 +220,7 @@ static inline struct device_node *irq_domain_get_of_node(struct irq_domain *d)
 
 #ifdef CONFIG_IRQ_DOMAIN
 struct fwnode_handle *__irq_domain_alloc_fwnode(unsigned int type, int id,
-						const char *name, void *data);
+						const char *name, phys_addr_t *pa);
 
 enum {
 	IRQCHIP_FWNODE_REAL,
@@ -240,9 +241,9 @@ struct fwnode_handle *irq_domain_alloc_named_id_fwnode(const char *name, int id)
 					 NULL);
 }
 
-static inline struct fwnode_handle *irq_domain_alloc_fwnode(void *data)
+static inline struct fwnode_handle *irq_domain_alloc_fwnode(phys_addr_t *pa)
 {
-	return __irq_domain_alloc_fwnode(IRQCHIP_FWNODE_REAL, 0, NULL, data);
+	return __irq_domain_alloc_fwnode(IRQCHIP_FWNODE_REAL, 0, NULL, pa);
 }
 
 void irq_domain_free_fwnode(struct fwnode_handle *fwnode);
@@ -419,6 +420,11 @@ int irq_domain_xlate_twocell(struct irq_domain *d, struct device_node *ctrlr,
 int irq_domain_xlate_onetwocell(struct irq_domain *d, struct device_node *ctrlr,
 			const u32 *intspec, unsigned int intsize,
 			irq_hw_number_t *out_hwirq, unsigned int *out_type);
+
+int irq_domain_translate_twocell(struct irq_domain *d,
+				 struct irq_fwspec *fwspec,
+				 unsigned long *out_hwirq,
+				 unsigned int *out_type);
 
 /* IPI functions */
 int irq_reserve_ipi(struct irq_domain *domain, const struct cpumask *dest);

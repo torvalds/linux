@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Pavel Machek <pavel@denx.de>
- *
- * The code contained herein is licensed under the GNU General Public
- * License V2.
  */
 
 /dts-v1/;

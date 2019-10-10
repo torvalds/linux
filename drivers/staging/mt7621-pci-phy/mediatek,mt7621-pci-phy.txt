@@ -1,0 +1,28 @@
+Mediatek Mt7621 PCIe PHY
+
+Required properties:
+- compatible: must be "mediatek,mt7621-pci-phy"
+- reg: base address and length of the PCIe PHY block
+- #phy-cells: must be <1> for pcie0_phy and for pcie1_phy.
+
+Example:
+	pcie0_phy: pcie-phy@1e149000 {
+		compatible = "mediatek,mt7621-pci-phy";
+		reg = <0x1e149000 0x0700>;
+		#phy-cells = <1>;
+	};
+
+	pcie1_phy: pcie-phy@1e14a000 {
+		compatible = "mediatek,mt7621-pci-phy";
+		reg = <0x1e14a000 0x0700>;
+		#phy-cells = <1>;
+	};
+
+	/* users of the PCIe phy */
+
+	pcie: pcie@1e140000 {
+		...
+		...
+		phys = <&pcie0_phy 0>, <&pcie0_phy 1>, <&pcie1_phy 0>;
+		phy-names = "pcie-phy0", "pcie-phy1", "pcie-phy2";
+	};

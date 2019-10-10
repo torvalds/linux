@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright © 2005-2009 Samsung Electronics
  *  Copyright © 2007 Nokia Corporation
@@ -12,10 +13,6 @@
  *	Flex-OneNAND support
  *	Amul Kumar Saha <amul.saha at samsung.com>
  *	OTP support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -2458,7 +2455,7 @@ static int onenand_default_block_markbad(struct mtd_info *mtd, loff_t ofs)
                 bbm->bbt[block >> 2] |= 0x01 << ((block & 0x03) << 1);
 
         /* We write two bytes, so we don't have to mess with 16-bit access */
-        ofs += mtd->oobsize + (bbm->badblockpos & ~0x01);
+        ofs += mtd->oobsize + (this->badblockpos & ~0x01);
 	/* FIXME : What to do when marking SLC block in partition
 	 * 	   with MLC erasesize? For now, it is not advisable to
 	 *	   create partitions containing both SLC and MLC regions.
@@ -3260,6 +3257,9 @@ static void onenand_check_features(struct mtd_info *mtd)
 
 	/* Lock scheme */
 	switch (density) {
+	case ONENAND_DEVICE_DENSITY_8Gb:
+		this->options |= ONENAND_HAS_NOP_1;
+		/* fall through */
 	case ONENAND_DEVICE_DENSITY_4Gb:
 		if (ONENAND_IS_DDP(this))
 			this->options |= ONENAND_HAS_2PLANE;
@@ -3280,12 +3280,15 @@ static void onenand_check_features(struct mtd_info *mtd)
 			if ((this->version_id & 0xf) == 0xe)
 				this->options |= ONENAND_HAS_NOP_1;
 		}
+		this->options |= ONENAND_HAS_UNLOCK_ALL;
+		break;
 
 	case ONENAND_DEVICE_DENSITY_2Gb:
 		/* 2Gb DDP does not have 2 plane */
 		if (!ONENAND_IS_DDP(this))
 			this->options |= ONENAND_HAS_2PLANE;
 		this->options |= ONENAND_HAS_UNLOCK_ALL;
+		break;
 
 	case ONENAND_DEVICE_DENSITY_1Gb:
 		/* A-Die has all block unlock */
@@ -3877,6 +3880,9 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 		if (!this->oob_buf) {
 			if (this->options & ONENAND_PAGEBUF_ALLOC) {
 				this->options &= ~ONENAND_PAGEBUF_ALLOC;
+#ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
+				kfree(this->verify_buf);
+#endif
 				kfree(this->page_buf);
 			}
 			return -ENOMEM;
@@ -3966,6 +3972,9 @@ int onenand_scan(struct mtd_info *mtd, int maxchips)
 	/* Unlock whole block */
 	if (!(this->options & ONENAND_SKIP_INITIAL_UNLOCKING))
 		this->unlock_all(mtd);
+
+	/* Set the bad block marker position */
+	this->badblockpos = ONENAND_BADBLOCK_POS;
 
 	ret = this->scan_bbt(mtd);
 	if ((!FLEXONENAND(this)) || ret)

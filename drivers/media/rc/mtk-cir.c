@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Mediatek IR Receiver Controller
  *
  * Copyright (C) 2017 Sean Wang <sean.wang@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -43,6 +34,11 @@
 
 /* Fields containing pulse width data */
 #define MTK_WIDTH_MASK		  (GENMASK(7, 0))
+
+/* IR threshold */
+#define MTK_IRTHD		 0x14
+#define MTK_DG_CNT_MASK		 (GENMASK(12, 8))
+#define MTK_DG_CNT(x)		 ((x) << 8)
 
 /* Bit to enable interrupt */
 #define MTK_IRINT_EN		  BIT(0)
@@ -329,10 +325,8 @@ static int mtk_ir_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	ir->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(ir->base)) {
-		dev_err(dev, "failed to map registers\n");
+	if (IS_ERR(ir->base))
 		return PTR_ERR(ir->base);
-	}
 
 	ir->rc = devm_rc_allocate_device(dev, RC_DRIVER_IR_RAW);
 	if (!ir->rc) {
@@ -351,7 +345,7 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	ir->rc->map_name = map_name ?: RC_MAP_EMPTY;
 	ir->rc->dev.parent = dev;
 	ir->rc->driver_name = MTK_IR_DEV;
-	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL;
+	ir->rc->allowed_protocols = RC_PROTO_BIT_ALL_IR_DECODER;
 	ir->rc->rx_resolution = MTK_IR_SAMPLE;
 	ir->rc->timeout = MTK_MAX_SAMPLES * (MTK_IR_SAMPLE + 1);
 
@@ -364,10 +358,8 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ir);
 
 	ir->irq = platform_get_irq(pdev, 0);
-	if (ir->irq < 0) {
-		dev_err(dev, "no irq resource\n");
+	if (ir->irq < 0)
 		return -ENODEV;
-	}
 
 	if (clk_prepare_enable(ir->clk)) {
 		dev_err(dev, "try to enable ir_clk failed\n");
@@ -408,6 +400,9 @@ static int mtk_ir_probe(struct platform_device *pdev)
 	       ir->data->fields[MTK_HW_PERIOD].mask;
 	mtk_w32_mask(ir, val, ir->data->fields[MTK_HW_PERIOD].mask,
 		     ir->data->fields[MTK_HW_PERIOD].reg);
+
+	/* Set de-glitch counter */
+	mtk_w32_mask(ir, MTK_DG_CNT(1), MTK_DG_CNT_MASK, MTK_IRTHD);
 
 	/* Enable IR and PWM */
 	val = mtk_r32(ir, MTK_CONFIG_HIGH_REG);

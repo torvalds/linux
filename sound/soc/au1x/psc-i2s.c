@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Au12x0/Au1550 PSC ALSA ASoC audio support.
  *
  * (c) 2007-2008 MSC Vertriebsges.m.b.H.,
  *	Manuel Lauss <manuel.lauss@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Au1xxx-PSC I2S glue.
  *
@@ -294,7 +291,7 @@ static const struct snd_soc_component_driver au1xpsc_i2s_component = {
 
 static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 {
-	struct resource *iores, *dmares;
+	struct resource *dmares;
 	unsigned long sel;
 	struct au1xpsc_audio_data *wd;
 
@@ -303,8 +300,7 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 	if (!wd)
 		return -ENOMEM;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wd->mmio = devm_ioremap_resource(&pdev->dev, iores);
+	wd->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wd->mmio))
 		return PTR_ERR(wd->mmio);
 
@@ -343,15 +339,13 @@ static int au1xpsc_i2s_drvprobe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, wd);
 
-	return snd_soc_register_component(&pdev->dev, &au1xpsc_i2s_component,
-					  &wd->dai_drv, 1);
+	return devm_snd_soc_register_component(&pdev->dev,
+				&au1xpsc_i2s_component, &wd->dai_drv, 1);
 }
 
 static int au1xpsc_i2s_drvremove(struct platform_device *pdev)
 {
 	struct au1xpsc_audio_data *wd = platform_get_drvdata(pdev);
-
-	snd_soc_unregister_component(&pdev->dev);
 
 	__raw_writel(0, I2S_CFG(wd));
 	wmb(); /* drain writebuffer */

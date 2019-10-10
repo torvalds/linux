@@ -12,12 +12,10 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
 #include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_trans.h"
-#include "xfs_extfree_item.h"
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
@@ -28,11 +26,8 @@
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
-#include "xfs_log.h"
-#include "xfs_rmap_btree.h"
 #include "xfs_iomap.h"
 #include "xfs_reflink.h"
-#include "xfs_refcount.h"
 
 /* Kernel only BMAP related definitions and functions */
 
@@ -44,9 +39,9 @@
 xfs_daddr_t
 xfs_fsb_to_db(struct xfs_inode *ip, xfs_fsblock_t fsb)
 {
-	return (XFS_IS_REALTIME_INODE(ip) ? \
-		 (xfs_daddr_t)XFS_FSB_TO_BB((ip)->i_mount, (fsb)) : \
-		 XFS_FSB_TO_DADDR((ip)->i_mount, (fsb)));
+	if (XFS_IS_REALTIME_INODE(ip))
+		return XFS_FSB_TO_BB(ip->i_mount, fsb);
+	return XFS_FSB_TO_DADDR(ip->i_mount, fsb);
 }
 
 /*
@@ -276,7 +271,7 @@ xfs_bmap_count_tree(
 	struct xfs_btree_block	*block, *nextblock;
 	int			numrecs;
 
-	error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp, XFS_BMAP_BTREE_REF,
+	error = xfs_btree_read_bufl(mp, tp, bno, &bp, XFS_BMAP_BTREE_REF,
 						&xfs_bmbt_buf_ops);
 	if (error)
 		return error;
@@ -287,7 +282,7 @@ xfs_bmap_count_tree(
 		/* Not at node above leaves, count this level of nodes */
 		nextbno = be64_to_cpu(block->bb_u.l.bb_rightsib);
 		while (nextbno != NULLFSBLOCK) {
-			error = xfs_btree_read_bufl(mp, tp, nextbno, 0, &nbp,
+			error = xfs_btree_read_bufl(mp, tp, nextbno, &nbp,
 						XFS_BMAP_BTREE_REF,
 						&xfs_bmbt_buf_ops);
 			if (error)
@@ -321,7 +316,7 @@ xfs_bmap_count_tree(
 			if (nextbno == NULLFSBLOCK)
 				break;
 			bno = nextbno;
-			error = xfs_btree_read_bufl(mp, tp, bno, 0, &bp,
+			error = xfs_btree_read_bufl(mp, tp, bno, &bp,
 						XFS_BMAP_BTREE_REF,
 						&xfs_bmbt_buf_ops);
 			if (error)
@@ -869,6 +864,7 @@ xfs_alloc_file_space(
 	xfs_filblks_t		allocatesize_fsb;
 	xfs_extlen_t		extsz, temp;
 	xfs_fileoff_t		startoffset_fsb;
+	xfs_fileoff_t		endoffset_fsb;
 	int			nimaps;
 	int			quota_flag;
 	int			rt;
@@ -896,7 +892,8 @@ xfs_alloc_file_space(
 	imapp = &imaps[0];
 	nimaps = 1;
 	startoffset_fsb	= XFS_B_TO_FSBT(mp, offset);
-	allocatesize_fsb = XFS_B_TO_FSB(mp, count);
+	endoffset_fsb = XFS_B_TO_FSB(mp, offset + count);
+	allocatesize_fsb = endoffset_fsb - startoffset_fsb;
 
 	/*
 	 * Allocate file space until done or until there is an error
@@ -1162,16 +1159,13 @@ xfs_zero_file_space(
 	 * by virtue of the hole punch.
 	 */
 	error = xfs_free_file_space(ip, offset, len);
-	if (error)
-		goto out;
+	if (error || xfs_is_always_cow_inode(ip))
+		return error;
 
-	error = xfs_alloc_file_space(ip, round_down(offset, blksize),
+	return xfs_alloc_file_space(ip, round_down(offset, blksize),
 				     round_up(offset + len, blksize) -
 				     round_down(offset, blksize),
 				     XFS_BMAPI_PREALLOC);
-out:
-	return error;
-
 }
 
 static int
@@ -1196,6 +1190,8 @@ xfs_prepare_shift(
 	 * about to shift down every extent from offset to EOF.
 	 */
 	error = xfs_flush_unmap_range(ip, offset, XFS_ISIZE(ip));
+	if (error)
+		return error;
 
 	/*
 	 * Clean out anything hanging around in the cow fork now that
@@ -1538,24 +1534,16 @@ xfs_swap_extent_rmap(
 			trace_xfs_swap_extent_rmap_remap_piece(tip, &uirec);
 
 			/* Remove the mapping from the donor file. */
-			error = xfs_bmap_unmap_extent(tp, tip, &uirec);
-			if (error)
-				goto out;
+			xfs_bmap_unmap_extent(tp, tip, &uirec);
 
 			/* Remove the mapping from the source file. */
-			error = xfs_bmap_unmap_extent(tp, ip, &irec);
-			if (error)
-				goto out;
+			xfs_bmap_unmap_extent(tp, ip, &irec);
 
 			/* Map the donor file's blocks into the source file. */
-			error = xfs_bmap_map_extent(tp, ip, &uirec);
-			if (error)
-				goto out;
+			xfs_bmap_map_extent(tp, ip, &uirec);
 
 			/* Map the source file's blocks into the donor file. */
-			error = xfs_bmap_map_extent(tp, tip, &irec);
-			if (error)
-				goto out;
+			xfs_bmap_map_extent(tp, tip, &irec);
 
 			error = xfs_defer_finish(tpp);
 			tp = *tpp;

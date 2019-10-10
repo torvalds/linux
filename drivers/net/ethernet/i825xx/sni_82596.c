@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sni_82596.c -- driver for intel 82596 ethernet controller, as
  *  		  used in older SNI RM machines

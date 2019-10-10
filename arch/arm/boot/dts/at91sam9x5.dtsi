@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9x5.dtsi - Device Tree Include file for AT91SAM9x5 family SoC
  *                   applies to AT91SAM9G15, AT91SAM9G25, AT91SAM9G35,
@@ -5,11 +6,8 @@
  *
  *  Copyright (C) 2012 Atmel,
  *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
-#include "skeleton.dtsi"
 #include <dt-bindings/dma/at91.h>
 #include <dt-bindings/pinctrl/at91.h>
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -17,6 +15,8 @@
 #include <dt-bindings/clock/at91.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Atmel AT91SAM9x5 family SoC";
 	compatible = "atmel,at91sam9x5";
 	interrupt-parent = <&aic>;
@@ -49,6 +49,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x20000000 0x10000000>;
 	};
 
@@ -148,28 +149,11 @@
 				clocks = <&pmc PMC_TYPE_CORE PMC_MCK>;
 			};
 
-			sckc@fffffe50 {
+			clk32k: sckc@fffffe50 {
 				compatible = "atmel,at91sam9x5-sckc";
 				reg = <0xfffffe50 0x4>;
-
-				slow_osc: slow_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-osc";
-					#clock-cells = <0>;
-					clocks = <&slow_xtal>;
-				};
-
-				slow_rc_osc: slow_rc_osc {
-					compatible = "atmel,at91sam9x5-clk-slow-rc-osc";
-					#clock-cells = <0>;
-					clock-frequency = <32768>;
-					clock-accuracy = <50000000>;
-				};
-
-				clk32k: slck {
-					compatible = "atmel,at91sam9x5-clk-slow";
-					#clock-cells = <0>;
-					clocks = <&slow_rc_osc>, <&slow_osc>;
-				};
+				clocks = <&slow_xtal>;
+				#clock-cells = <0>;
 			};
 
 			tcb0: timer@f8008000 {
@@ -957,7 +941,7 @@
 				status = "disabled";
 			};
 
-			rtc@fffffeb0 {
+			rtc: rtc@fffffeb0 {
 				compatible = "atmel,at91sam9x5-rtc";
 				reg = <0xfffffeb0 0x40>;
 				interrupts = <1 IRQ_TYPE_LEVEL_HIGH 7>;

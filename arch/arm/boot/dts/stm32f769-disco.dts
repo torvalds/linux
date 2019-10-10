@@ -56,6 +56,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0xC0000000 0x1000000>;
 	};
 
@@ -99,6 +100,10 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
+};
+
+&rcc {
+	compatible = "st,stm32f769-rcc", "st,stm32f746-rcc", "st,stm32-rcc";
 };
 
 &cec {

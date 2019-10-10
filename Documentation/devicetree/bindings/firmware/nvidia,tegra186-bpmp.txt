@@ -8,7 +8,6 @@ which can create the interprocessor communication (IPC) between the CPU
 and BPMP.
 
 Required properties:
-- name : Should be bpmp
 - compatible
     Array of strings
     One of:

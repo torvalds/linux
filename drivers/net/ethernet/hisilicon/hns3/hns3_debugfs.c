@@ -8,10 +8,12 @@
 #include "hns3_enet.h"
 
 #define HNS3_DBG_READ_LEN 256
+#define HNS3_DBG_WRITE_LEN 1024
 
 static struct dentry *hns3_dbgfs_root;
 
-static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
+static int hns3_dbg_queue_info(struct hnae3_handle *h,
+			       const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_nic_ring_data *ring_data;
@@ -37,7 +39,7 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h, char *cmd_buf)
 
 	if (queue_num >= h->kinfo.num_tqps) {
 		dev_err(&h->pdev->dev,
-			"Queue number(%u) is out of range(%u)\n", queue_num,
+			"Queue number(%u) is out of range(0-%u)\n", queue_num,
 			h->kinfo.num_tqps - 1);
 		return -EINVAL;
 	}
@@ -155,7 +157,7 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 	return 0;
 }
 
-static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
+static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
 	struct hns3_nic_ring_data *ring_data;
@@ -164,6 +166,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
 	struct hns3_enet_ring *ring;
 	u32 tx_index, rx_index;
 	u32 q_num, value;
+	dma_addr_t addr;
 	int cnt;
 
 	cnt = sscanf(&cmd_buf[8], "%u %u", &q_num, &tx_index);
@@ -175,7 +178,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
 	}
 
 	if (q_num >= h->kinfo.num_tqps) {
-		dev_err(dev, "Queue number(%u) is out of range(%u)\n", q_num,
+		dev_err(dev, "Queue number(%u) is out of range(0-%u)\n", q_num,
 			h->kinfo.num_tqps - 1);
 		return -EINVAL;
 	}
@@ -186,14 +189,15 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
 	tx_index = (cnt == 1) ? value : tx_index;
 
 	if (tx_index >= ring->desc_num) {
-		dev_err(dev, "bd index (%u) is out of range(%u)\n", tx_index,
+		dev_err(dev, "bd index(%u) is out of range(0-%u)\n", tx_index,
 			ring->desc_num - 1);
 		return -EINVAL;
 	}
 
 	tx_desc = &ring->desc[tx_index];
+	addr = le64_to_cpu(tx_desc->addr);
 	dev_info(dev, "TX Queue Num: %u, BD Index: %u\n", q_num, tx_index);
-	dev_info(dev, "(TX) addr: 0x%llx\n", tx_desc->addr);
+	dev_info(dev, "(TX)addr: %pad\n", &addr);
 	dev_info(dev, "(TX)vlan_tag: %u\n", tx_desc->tx.vlan_tag);
 	dev_info(dev, "(TX)send_size: %u\n", tx_desc->tx.send_size);
 	dev_info(dev, "(TX)vlan_tso: %u\n", tx_desc->tx.type_cs_vlan_tso);
@@ -215,8 +219,10 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, char *cmd_buf)
 	rx_index = (cnt == 1) ? value : tx_index;
 	rx_desc	 = &ring->desc[rx_index];
 
+	addr = le64_to_cpu(rx_desc->addr);
 	dev_info(dev, "RX Queue Num: %u, BD Index: %u\n", q_num, rx_index);
-	dev_info(dev, "(RX)addr: 0x%llx\n", rx_desc->addr);
+	dev_info(dev, "(RX)addr: %pad\n", &addr);
+	dev_info(dev, "(RX)l234_info: %u\n", rx_desc->rx.l234_info);
 	dev_info(dev, "(RX)pkt_len: %u\n", rx_desc->rx.pkt_len);
 	dev_info(dev, "(RX)size: %u\n", rx_desc->rx.size);
 	dev_info(dev, "(RX)rss_hash: %u\n", rx_desc->rx.rss_hash);
@@ -236,33 +242,41 @@ static void hns3_dbg_help(struct hnae3_handle *h)
 	char printf_buf[HNS3_DBG_BUF_LEN];
 
 	dev_info(&h->pdev->dev, "available commands\n");
-	dev_info(&h->pdev->dev, "queue info [number]\n");
+	dev_info(&h->pdev->dev, "queue info <number>\n");
 	dev_info(&h->pdev->dev, "queue map\n");
-	dev_info(&h->pdev->dev, "bd info [q_num] <bd index>\n");
+	dev_info(&h->pdev->dev, "bd info <q_num> <bd index>\n");
+
+	if (!hns3_is_phys_func(h->pdev))
+		return;
+
 	dev_info(&h->pdev->dev, "dump fd tcam\n");
 	dev_info(&h->pdev->dev, "dump tc\n");
-	dev_info(&h->pdev->dev, "dump tm map [q_num]\n");
+	dev_info(&h->pdev->dev, "dump tm map <q_num>\n");
 	dev_info(&h->pdev->dev, "dump tm\n");
 	dev_info(&h->pdev->dev, "dump qos pause cfg\n");
 	dev_info(&h->pdev->dev, "dump qos pri map\n");
 	dev_info(&h->pdev->dev, "dump qos buf cfg\n");
 	dev_info(&h->pdev->dev, "dump mng tbl\n");
+	dev_info(&h->pdev->dev, "dump reset info\n");
+	dev_info(&h->pdev->dev, "dump m7 info\n");
+	dev_info(&h->pdev->dev, "dump ncl_config <offset> <length>(in hex)\n");
+	dev_info(&h->pdev->dev, "dump mac tnl status\n");
 
 	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
-	strncat(printf_buf, "dump reg [[bios common] [ssu <prt_id>]",
+	strncat(printf_buf, "dump reg [[bios common] [ssu <port_id>]",
 		HNS3_DBG_BUF_LEN - 1);
 	strncat(printf_buf + strlen(printf_buf),
-		" [igu egu <prt_id>] [rpu <tc_queue_num>]",
+		" [igu egu <port_id>] [rpu <tc_queue_num>]",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	strncat(printf_buf + strlen(printf_buf),
-		" [rtc] [ppp] [rcb] [tqp <q_num>]]\n",
+		" [rtc] [ppp] [rcb] [tqp <queue_num>]]\n",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	dev_info(&h->pdev->dev, "%s", printf_buf);
 
 	memset(printf_buf, 0, HNS3_DBG_BUF_LEN);
-	strncat(printf_buf, "dump reg dcb [port_id] [pri_id] [pg_id]",
+	strncat(printf_buf, "dump reg dcb <port_id> <pri_id> <pg_id>",
 		HNS3_DBG_BUF_LEN - 1);
-	strncat(printf_buf + strlen(printf_buf), " [rq_id] [nq_id] [qset_id]\n",
+	strncat(printf_buf + strlen(printf_buf), " <rq_id> <nq_id> <qset_id>\n",
 		HNS3_DBG_BUF_LEN - strlen(printf_buf) - 1);
 	dev_info(&h->pdev->dev, "%s", printf_buf);
 }
@@ -313,6 +327,9 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 	    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 		return 0;
 
+	if (count > HNS3_DBG_WRITE_LEN)
+		return -ENOSPC;
+
 	cmd_buf = kzalloc(count + 1, GFP_KERNEL);
 	if (!cmd_buf)
 		return count;
@@ -341,6 +358,8 @@ static ssize_t hns3_dbg_cmd_write(struct file *filp, const char __user *buffer,
 		ret = hns3_dbg_bd_info(handle, cmd_buf);
 	else if (handle->ae_algo->ops->dbg_run_cmd)
 		ret = handle->ae_algo->ops->dbg_run_cmd(handle, cmd_buf);
+	else
+		ret = -EOPNOTSUPP;
 
 	if (ret)
 		hns3_dbg_help(handle);
@@ -361,20 +380,11 @@ static const struct file_operations hns3_dbg_cmd_fops = {
 void hns3_dbg_init(struct hnae3_handle *handle)
 {
 	const char *name = pci_name(handle->pdev);
-	struct dentry *pfile;
 
 	handle->hnae3_dbgfs = debugfs_create_dir(name, hns3_dbgfs_root);
-	if (!handle->hnae3_dbgfs)
-		return;
 
-	pfile = debugfs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
-				    &hns3_dbg_cmd_fops);
-	if (!pfile) {
-		debugfs_remove_recursive(handle->hnae3_dbgfs);
-		handle->hnae3_dbgfs = NULL;
-		dev_warn(&handle->pdev->dev, "create file for %s fail\n",
-			 name);
-	}
+	debugfs_create_file("cmd", 0600, handle->hnae3_dbgfs, handle,
+			    &hns3_dbg_cmd_fops);
 }
 
 void hns3_dbg_uninit(struct hnae3_handle *handle)
@@ -386,10 +396,6 @@ void hns3_dbg_uninit(struct hnae3_handle *handle)
 void hns3_dbg_register_debugfs(const char *debugfs_dir_name)
 {
 	hns3_dbgfs_root = debugfs_create_dir(debugfs_dir_name, NULL);
-	if (!hns3_dbgfs_root) {
-		pr_warn("Register debugfs for %s fail\n", debugfs_dir_name);
-		return;
-	}
 }
 
 void hns3_dbg_unregister_debugfs(void)

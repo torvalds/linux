@@ -5,7 +5,7 @@
  * Copyright (c) 2002-3 Patrick Mochel
  * Copyright (c) 2002-3 Open Source Development Labs
  *
- * Please see Documentation/driver-model/platform.txt for more
+ * Please see Documentation/driver-api/driver-model/platform.rst for more
  * information.
  */
 
@@ -40,25 +40,6 @@ struct device platform_bus = {
 EXPORT_SYMBOL_GPL(platform_bus);
 
 /**
- * arch_setup_pdev_archdata - Allow manipulation of archdata before its used
- * @pdev: platform device
- *
- * This is called before platform_device_add() such that any pdev_archdata may
- * be setup before the platform_notifier is called.  So if a user needs to
- * manipulate any relevant information in the pdev_archdata they can do:
- *
- *	platform_device_alloc()
- *	... manipulate ...
- *	platform_device_add()
- *
- * And if they don't care they can just call platform_device_register() and
- * everything will just work out.
- */
-void __weak arch_setup_pdev_archdata(struct platform_device *pdev)
-{
-}
-
-/**
  * platform_get_resource - get a resource for a device
  * @dev: platform device
  * @type: resource type
@@ -80,11 +61,26 @@ struct resource *platform_get_resource(struct platform_device *dev,
 EXPORT_SYMBOL_GPL(platform_get_resource);
 
 /**
- * platform_get_irq - get an IRQ for a device
- * @dev: platform device
- * @num: IRQ number index
+ * devm_platform_ioremap_resource - call devm_ioremap_resource() for a platform
+ *				    device
+ *
+ * @pdev: platform device to use both for memory resource lookup as well as
+ *        resource management
+ * @index: resource index
  */
-int platform_get_irq(struct platform_device *dev, unsigned int num)
+#ifdef CONFIG_HAS_IOMEM
+void __iomem *devm_platform_ioremap_resource(struct platform_device *pdev,
+					     unsigned int index)
+{
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, index);
+	return devm_ioremap_resource(&pdev->dev, res);
+}
+EXPORT_SYMBOL_GPL(devm_platform_ioremap_resource);
+#endif /* CONFIG_HAS_IOMEM */
+
+static int __platform_get_irq(struct platform_device *dev, unsigned int num)
 {
 #ifdef CONFIG_SPARC
 	/* sparc does not have irqs represented as IORESOURCE_IRQ resources */
@@ -127,10 +123,78 @@ int platform_get_irq(struct platform_device *dev, unsigned int num)
 		irqd_set_trigger_type(irqd, r->flags & IORESOURCE_BITS);
 	}
 
-	return r ? r->start : -ENXIO;
+	if (r)
+		return r->start;
+
+	/*
+	 * For the index 0 interrupt, allow falling back to GpioInt
+	 * resources. While a device could have both Interrupt and GpioInt
+	 * resources, making this fallback ambiguous, in many common cases
+	 * the device will only expose one IRQ, and this fallback
+	 * allows a common code path across either kind of resource.
+	 */
+	if (num == 0 && has_acpi_companion(&dev->dev)) {
+		int ret = acpi_dev_gpio_irq_get(ACPI_COMPANION(&dev->dev), num);
+
+		/* Our callers expect -ENXIO for missing IRQs. */
+		if (ret >= 0 || ret == -EPROBE_DEFER)
+			return ret;
+	}
+
+	return -ENXIO;
 #endif
 }
+
+/**
+ * platform_get_irq - get an IRQ for a device
+ * @dev: platform device
+ * @num: IRQ number index
+ *
+ * Gets an IRQ for a platform device and prints an error message if finding the
+ * IRQ fails. Device drivers should check the return value for errors so as to
+ * not pass a negative integer value to the request_irq() APIs.
+ *
+ * Example:
+ *		int irq = platform_get_irq(pdev, 0);
+ *		if (irq < 0)
+ *			return irq;
+ *
+ * Return: IRQ number on success, negative error number on failure.
+ */
+int platform_get_irq(struct platform_device *dev, unsigned int num)
+{
+	int ret;
+
+	ret = __platform_get_irq(dev, num);
+	if (ret < 0 && ret != -EPROBE_DEFER)
+		dev_err(&dev->dev, "IRQ index %u not found\n", num);
+
+	return ret;
+}
 EXPORT_SYMBOL_GPL(platform_get_irq);
+
+/**
+ * platform_get_irq_optional - get an optional IRQ for a device
+ * @dev: platform device
+ * @num: IRQ number index
+ *
+ * Gets an IRQ for a platform device. Device drivers should check the return
+ * value for errors so as to not pass a negative integer value to the
+ * request_irq() APIs. This is the same as platform_get_irq(), except that it
+ * does not print an error message if an IRQ can not be obtained.
+ *
+ * Example:
+ *		int irq = platform_get_irq_optional(pdev, 0);
+ *		if (irq < 0)
+ *			return irq;
+ *
+ * Return: IRQ number on success, negative error number on failure.
+ */
+int platform_get_irq_optional(struct platform_device *dev, unsigned int num)
+{
+	return __platform_get_irq(dev, num);
+}
+EXPORT_SYMBOL_GPL(platform_get_irq_optional);
 
 /**
  * platform_irq_count - Count the number of IRQs a platform device uses
@@ -142,7 +206,7 @@ int platform_irq_count(struct platform_device *dev)
 {
 	int ret, nr = 0;
 
-	while ((ret = platform_get_irq(dev, nr)) >= 0)
+	while ((ret = __platform_get_irq(dev, nr)) >= 0)
 		nr++;
 
 	if (ret == -EPROBE_DEFER)
@@ -195,7 +259,11 @@ int platform_get_irq_byname(struct platform_device *dev, const char *name)
 	}
 
 	r = platform_get_resource_byname(dev, IORESOURCE_IRQ, name);
-	return r ? r->start : -ENXIO;
+	if (r)
+		return r->start;
+
+	dev_err(&dev->dev, "IRQ %s not found\n", name);
+	return -ENXIO;
 }
 EXPORT_SYMBOL_GPL(platform_get_irq_byname);
 
@@ -224,6 +292,20 @@ EXPORT_SYMBOL_GPL(platform_add_devices);
 struct platform_object {
 	struct platform_device pdev;
 	char name[];
+};
+
+/*
+ * Set up default DMA mask for platform devices if the they weren't
+ * previously set by the architecture / DT.
+ */
+static void setup_pdev_dma_masks(struct platform_device *pdev)
+{
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
+	if (!pdev->dma_mask)
+		pdev->dma_mask = DMA_BIT_MASK(32);
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &pdev->dma_mask;
 };
 
 /**
@@ -272,7 +354,7 @@ struct platform_device *platform_device_alloc(const char *name, int id)
 		pa->pdev.id = id;
 		device_initialize(&pa->pdev.dev);
 		pa->pdev.dev.release = platform_device_release;
-		arch_setup_pdev_archdata(&pa->pdev);
+		setup_pdev_dma_masks(&pa->pdev);
 	}
 
 	return pa ? &pa->pdev : NULL;
@@ -405,10 +487,12 @@ int platform_device_add(struct platform_device *pdev)
 				p = &ioport_resource;
 		}
 
-		if (p && insert_resource(p, r)) {
-			dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
-			ret = -EBUSY;
-			goto failed;
+		if (p) {
+			ret = insert_resource(p, r);
+			if (ret) {
+				dev_err(&pdev->dev, "failed to claim resource %d: %pR\n", i, r);
+				goto failed;
+			}
 		}
 	}
 
@@ -472,7 +556,7 @@ EXPORT_SYMBOL_GPL(platform_device_del);
 int platform_device_register(struct platform_device *pdev)
 {
 	device_initialize(&pdev->dev);
-	arch_setup_pdev_archdata(pdev);
+	setup_pdev_dma_masks(pdev);
 	return platform_device_add(pdev);
 }
 EXPORT_SYMBOL_GPL(platform_device_register);
@@ -508,10 +592,12 @@ struct platform_device *platform_device_register_full(
 
 	pdev = platform_device_alloc(pdevinfo->name, pdevinfo->id);
 	if (!pdev)
-		goto err_alloc;
+		return ERR_PTR(-ENOMEM);
 
 	pdev->dev.parent = pdevinfo->parent;
 	pdev->dev.fwnode = pdevinfo->fwnode;
+	pdev->dev.of_node = of_node_get(to_of_node(pdev->dev.fwnode));
+	pdev->dev.of_node_reused = pdevinfo->of_node_reused;
 
 	if (pdevinfo->dma_mask) {
 		/*
@@ -553,8 +639,6 @@ struct platform_device *platform_device_register_full(
 err:
 		ACPI_COMPANION_SET(&pdev->dev, NULL);
 		kfree(pdev->dev.dma_mask);
-
-err_alloc:
 		platform_device_put(pdev);
 		return ERR_PTR(ret);
 	}
@@ -1161,6 +1245,20 @@ struct bus_type platform_bus_type = {
 	.pm		= &platform_dev_pm_ops,
 };
 EXPORT_SYMBOL_GPL(platform_bus_type);
+
+/**
+ * platform_find_device_by_driver - Find a platform device with a given
+ * driver.
+ * @start: The device to start the search from.
+ * @drv: The device driver to look for.
+ */
+struct device *platform_find_device_by_driver(struct device *start,
+					      const struct device_driver *drv)
+{
+	return bus_find_device(&platform_bus_type, start, drv,
+			       (void *)platform_match);
+}
+EXPORT_SYMBOL_GPL(platform_find_device_by_driver);
 
 int __init platform_bus_init(void)
 {

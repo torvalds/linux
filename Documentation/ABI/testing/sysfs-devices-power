@@ -260,3 +260,12 @@ Description:
 
 		This attribute has no effect on system-wide suspend/resume and
 		hibernation.
+
+What:		/sys/devices/.../power/runtime_status
+Date:		April 2010
+Contact:	Rafael J. Wysocki <rjw@rjwysocki.net>
+Description:
+		The /sys/devices/.../power/runtime_status attribute contains
+		the current runtime PM status of the device, which may be
+		"suspended", "suspending", "resuming", "active", "error" (fatal
+		error), or "unsupported" (runtime PM is disabled).

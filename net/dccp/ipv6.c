@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	DCCP over IPv6
  *	Linux INET6 implementation
@@ -5,11 +6,6 @@
  *	Based on net/dccp6/ipv6.c
  *
  *	Arnaldo Carvalho de Melo <acme@ghostprotocols.net>
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -234,7 +230,8 @@ static int dccp_v6_send_response(const struct sock *sk, struct request_sock *req
 		opt = ireq->ipv6_opt;
 		if (!opt)
 			opt = rcu_dereference(np->opt);
-		err = ip6_xmit(sk, skb, &fl6, sk->sk_mark, opt, np->tclass);
+		err = ip6_xmit(sk, skb, &fl6, sk->sk_mark, opt, np->tclass,
+			       sk->sk_priority);
 		rcu_read_unlock();
 		err = net_xmit_eval(err);
 	}
@@ -288,7 +285,7 @@ static void dccp_v6_ctl_send_reset(const struct sock *sk, struct sk_buff *rxskb)
 	dst = ip6_dst_lookup_flow(ctl_sk, &fl6, NULL);
 	if (!IS_ERR(dst)) {
 		skb_dst_set(skb, dst);
-		ip6_xmit(ctl_sk, skb, &fl6, 0, NULL, 0);
+		ip6_xmit(ctl_sk, skb, &fl6, 0, NULL, 0, 0);
 		DCCP_INC_STATS(DCCP_MIB_OUTSEGS);
 		DCCP_INC_STATS(DCCP_MIB_OUTRSTS);
 		return;
@@ -436,8 +433,8 @@ static struct sock *dccp_v6_request_recv_sock(const struct sock *sk,
 		newnp->ipv6_mc_list = NULL;
 		newnp->ipv6_ac_list = NULL;
 		newnp->ipv6_fl_list = NULL;
-		newnp->mcast_oif   = inet6_iif(skb);
-		newnp->mcast_hops  = ipv6_hdr(skb)->hop_limit;
+		newnp->mcast_oif   = inet_iif(skb);
+		newnp->mcast_hops  = ip_hdr(skb)->ttl;
 
 		/*
 		 * No need to charge this sock to the relevant IPv6 refcnt debug socks count
@@ -834,7 +831,7 @@ static int dccp_v6_connect(struct sock *sk, struct sockaddr *uaddr,
 		if (fl6.flowlabel & IPV6_FLOWLABEL_MASK) {
 			struct ip6_flowlabel *flowlabel;
 			flowlabel = fl6_sock_lookup(sk, fl6.flowlabel);
-			if (flowlabel == NULL)
+			if (IS_ERR(flowlabel))
 				return -EINVAL;
 			fl6_sock_release(flowlabel);
 		}
@@ -1075,6 +1072,7 @@ static const struct proto_ops inet6_dccp_ops = {
 	.getname	   = inet6_getname,
 	.poll		   = dccp_poll,
 	.ioctl		   = inet6_ioctl,
+	.gettstamp	   = sock_gettstamp,
 	.listen		   = inet_dccp_listen,
 	.shutdown	   = inet_shutdown,
 	.setsockopt	   = sock_common_setsockopt,

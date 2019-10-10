@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
  *
  * Intel MIC X100 DMA Driver.
  *
@@ -728,10 +717,8 @@ static int mic_dma_driver_probe(struct mbus_device *mbdev)
 	if (mic_dma_dbg) {
 		mic_dma_dev->dbg_dir = debugfs_create_dir(dev_name(&mbdev->dev),
 							  mic_dma_dbg);
-		if (mic_dma_dev->dbg_dir)
-			debugfs_create_file("mic_dma_reg", 0444,
-					    mic_dma_dev->dbg_dir, mic_dma_dev,
-					    &mic_dma_reg_fops);
+		debugfs_create_file("mic_dma_reg", 0444, mic_dma_dev->dbg_dir,
+				    mic_dma_dev, &mic_dma_reg_fops);
 	}
 	return 0;
 }

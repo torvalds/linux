@@ -239,10 +239,7 @@ static void _rtl_usb_io_handler_release(struct ieee80211_hw *hw)
 	mutex_destroy(&rtlpriv->io.bb_mutex);
 }
 
-/**
- *
- *	Default aggregation handler. Do nothing and just return the oldest skb.
- */
+/*	Default aggregation handler. Do nothing and just return the oldest skb.  */
 static struct sk_buff *_none_usb_tx_aggregate_hdl(struct ieee80211_hw *hw,
 						  struct sk_buff_head *list)
 {
@@ -756,11 +753,6 @@ static int rtl_usb_start(struct ieee80211_hw *hw)
 	return err;
 }
 
-/**
- *
- *
- */
-
 /*=======================  tx =========================================*/
 static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 {
@@ -786,11 +778,7 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 	usb_kill_anchored_urbs(&rtlusb->tx_submitted);
 }
 
-/**
- *
- * We may add some struct into struct rtl_usb later. Do deinit here.
- *
- */
+/* We may add some struct into struct rtl_usb later. Do deinit here.  */
 static void rtl_usb_deinit(struct ieee80211_hw *hw)
 {
 	rtl_usb_cleanup(hw);
@@ -1064,13 +1052,13 @@ int rtl_usb_probe(struct usb_interface *intf,
 	rtlpriv->cfg->ops->read_eeprom_info(hw);
 	err = _rtl_usb_init(hw);
 	if (err)
-		goto error_out;
+		goto error_out2;
 	rtl_usb_init_sw(hw);
 	/* Init mac80211 sw */
 	err = rtl_init_core(hw);
 	if (err) {
 		pr_err("Can't allocate sw for mac80211\n");
-		goto error_out;
+		goto error_out2;
 	}
 	if (rtlpriv->cfg->ops->init_sw_vars(hw)) {
 		pr_err("Can't init_sw_vars\n");
@@ -1091,6 +1079,7 @@ int rtl_usb_probe(struct usb_interface *intf,
 
 error_out:
 	rtl_deinit_core(hw);
+error_out2:
 	_rtl_usb_io_handler_release(hw);
 	usb_put_dev(udev);
 	complete(&rtlpriv->firmware_loading_complete);

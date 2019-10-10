@@ -66,7 +66,7 @@ int torture_shutdown_init(int ssecs, void (*cleanup)(void));
 
 /* Task stuttering, which forces load/no-load transitions. */
 bool stutter_wait(const char *title);
-int torture_stutter_init(int s);
+int torture_stutter_init(int s, int sgap);
 
 /* Initialization and cleanup. */
 bool torture_init_begin(char *ttype, int v);
@@ -86,7 +86,7 @@ void _torture_stop_kthread(char *m, struct task_struct **tp);
 #define torture_stop_kthread(n, tp) \
 	_torture_stop_kthread("Stopping " #n " task", &(tp))
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 #define torture_preempt_schedule() preempt_schedule()
 #else
 #define torture_preempt_schedule()

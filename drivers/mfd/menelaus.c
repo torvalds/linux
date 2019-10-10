@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2004 Texas Instruments, Inc.
  *
@@ -15,20 +16,6 @@
  * Added support for controlling VCORE and regulator sleep states,
  * Amit Kucheria <amit.kucheria@nokia.com>
  * Copyright (C) 2005, 2006 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include <linux/module.h>
@@ -1138,8 +1125,6 @@ static inline void menelaus_rtc_init(struct menelaus_chip *m)
 			menelaus_remove_irq_work(MENELAUS_RTCALM_IRQ);
 			device_init_wakeup(&m->client->dev, 0);
 		}
-		dev_err(&m->client->dev, "can't register RTC: %d\n",
-				(int) PTR_ERR(m->rtc));
 		the_menelaus->rtc = NULL;
 	}
 }

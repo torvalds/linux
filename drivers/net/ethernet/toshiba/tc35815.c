@@ -694,10 +694,10 @@ err_out:
  * should provide a "tc35815-mac" device with a MAC address in its
  * platform_data.
  */
-static int tc35815_mac_match(struct device *dev, void *data)
+static int tc35815_mac_match(struct device *dev, const void *data)
 {
 	struct platform_device *plat_dev = to_platform_device(dev);
-	struct pci_dev *pci_dev = data;
+	const struct pci_dev *pci_dev = data;
 	unsigned int id = pci_dev->irq;
 	return !strcmp(plat_dev->name, "tc35815-mac") && plat_dev->id == id;
 }
@@ -1504,7 +1504,7 @@ tc35815_rx(struct net_device *dev, int limit)
 			pci_unmap_single(lp->pci_dev,
 					 lp->rx_skbs[cur_bd].skb_dma,
 					 RX_BUF_SIZE, PCI_DMA_FROMDEVICE);
-			if (!HAVE_DMA_RXALIGN(lp) && NET_IP_ALIGN)
+			if (!HAVE_DMA_RXALIGN(lp) && NET_IP_ALIGN != 0)
 				memmove(skb->data, skb->data - NET_IP_ALIGN,
 					pkt_len);
 			data = skb_put(skb, pkt_len);

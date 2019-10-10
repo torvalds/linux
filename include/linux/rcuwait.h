@@ -6,19 +6,14 @@
 
 /*
  * rcuwait provides a way of blocking and waking up a single
- * task in an rcu-safe manner; where it is forbidden to use
- * after exit_notify(). task_struct is not properly rcu protected,
- * unless dealing with rcu-aware lists, ie: find_task_by_*().
+ * task in an rcu-safe manner.
  *
- * Alternatively we have task_rcu_dereference(), but the return
- * semantics have different implications which would break the
- * wakeup side. The only time @task is non-nil is when a user is
- * blocked (or checking if it needs to) on a condition, and reset
- * as soon as we know that the condition has succeeded and are
- * awoken.
+ * The only time @task is non-nil is when a user is blocked (or
+ * checking if it needs to) on a condition, and reset as soon as we
+ * know that the condition has succeeded and are awoken.
  */
 struct rcuwait {
-	struct task_struct *task;
+	struct task_struct __rcu *task;
 };
 
 #define __RCUWAIT_INITIALIZER(name)		\
@@ -37,13 +32,6 @@ extern void rcuwait_wake_up(struct rcuwait *w);
  */
 #define rcuwait_wait_event(w, condition)				\
 ({									\
-	/*								\
-	 * Complain if we are called after do_exit()/exit_notify(),     \
-	 * as we cannot rely on the rcu critical region for the		\
-	 * wakeup side.							\
-	 */                                                             \
-	WARN_ON(current->exit_state);                                   \
-									\
 	rcu_assign_pointer((w)->task, current);				\
 	for (;;) {							\
 		/*							\

@@ -148,52 +148,6 @@ static const struct streebog_uint512 C[12] = {
 	 } }
 };
 
-static const u8 Tau[64] = {
-	0,   8,  16,  24,  32,  40,  48,  56,
-	1,   9,  17,  25,  33,  41,  49,  57,
-	2,  10,  18,  26,  34,  42,  50,  58,
-	3,  11,  19,  27,  35,  43,  51,  59,
-	4,  12,  20,  28,  36,  44,  52,  60,
-	5,  13,  21,  29,  37,  45,  53,  61,
-	6,  14,  22,  30,  38,  46,  54,  62,
-	7,  15,  23,  31,  39,  47,  55,  63
-};
-
-static const u8 Pi[256] = {
-	252, 238, 221,  17, 207, 110,  49,  22,
-	251, 196, 250, 218,  35, 197,   4,  77,
-	233, 119, 240, 219, 147,  46, 153, 186,
-	 23,  54, 241, 187,  20, 205,  95, 193,
-	249,  24, 101,  90, 226,  92, 239,  33,
-	129,  28,  60,  66, 139,   1, 142,  79,
-	  5, 132,   2, 174, 227, 106, 143, 160,
-	  6,  11, 237, 152, 127, 212, 211,  31,
-	235,  52,  44,  81, 234, 200,  72, 171,
-	242,  42, 104, 162, 253,  58, 206, 204,
-	181, 112,  14,  86,   8,  12, 118,  18,
-	191, 114,  19,  71, 156, 183,  93, 135,
-	 21, 161, 150,  41,  16, 123, 154, 199,
-	243, 145, 120, 111, 157, 158, 178, 177,
-	 50, 117,  25,  61, 255,  53, 138, 126,
-	109,  84, 198, 128, 195, 189,  13,  87,
-	223, 245,  36, 169,  62, 168,  67, 201,
-	215, 121, 214, 246, 124,  34, 185,   3,
-	224,  15, 236, 222, 122, 148, 176, 188,
-	220, 232,  40,  80,  78,  51,  10,  74,
-	167, 151,  96, 115,  30,   0,  98,  68,
-	 26, 184,  56, 130, 100, 159,  38,  65,
-	173,  69,  70, 146,  39,  94,  85,  47,
-	140, 163, 165, 125, 105, 213, 149,  59,
-	  7,  88, 179,  64, 134, 172,  29, 247,
-	 48,  55, 107, 228, 136, 217, 231, 137,
-	225,  27, 131,  73,  76,  63, 248, 254,
-	141,  83, 170, 144, 202, 216, 133,  97,
-	 32, 113, 103, 164,  45,  43,   9,  91,
-	203, 155,  37, 208, 190, 229, 108,  82,
-	 89, 166, 116, 210, 230, 244, 180, 192,
-	209, 102, 175, 194,  57,  75,  99, 182
-};
-
 static const unsigned long long Ax[8][256] = {
 	{
 	0xd01f715b5c7ef8e6ULL, 0x16fa240980778325ULL, 0xa8a42e857ee049c8ULL,
@@ -996,7 +950,7 @@ static void streebog_add512(const struct streebog_uint512 *x,
 
 static void streebog_g(struct streebog_uint512 *h,
 		       const struct streebog_uint512 *N,
-		       const u8 *m)
+		       const struct streebog_uint512 *m)
 {
 	struct streebog_uint512 Ki, data;
 	unsigned int i;
@@ -1005,7 +959,7 @@ static void streebog_g(struct streebog_uint512 *h,
 
 	/* Starting E() */
 	Ki = data;
-	streebog_xlps(&Ki, (const struct streebog_uint512 *)&m[0], &data);
+	streebog_xlps(&Ki, m, &data);
 
 	for (i = 0; i < 11; i++)
 		streebog_round(i, &Ki, &data);
@@ -1015,16 +969,19 @@ static void streebog_g(struct streebog_uint512 *h,
 	/* E() done */
 
 	streebog_xor(&data, h, &data);
-	streebog_xor(&data, (const struct streebog_uint512 *)&m[0], h);
+	streebog_xor(&data, m, h);
 }
 
 static void streebog_stage2(struct streebog_state *ctx, const u8 *data)
 {
-	streebog_g(&ctx->h, &ctx->N, data);
+	struct streebog_uint512 m;
+
+	memcpy(&m, data, sizeof(m));
+
+	streebog_g(&ctx->h, &ctx->N, &m);
 
 	streebog_add512(&ctx->N, &buffer512, &ctx->N);
-	streebog_add512(&ctx->Sigma, (const struct streebog_uint512 *)data,
-			&ctx->Sigma);
+	streebog_add512(&ctx->Sigma, &m, &ctx->Sigma);
 }
 
 static void streebog_stage3(struct streebog_state *ctx)
@@ -1034,13 +991,11 @@ static void streebog_stage3(struct streebog_state *ctx)
 	buf.qword[0] = cpu_to_le64(ctx->fillsize << 3);
 	streebog_pad(ctx);
 
-	streebog_g(&ctx->h, &ctx->N, (const u8 *)&ctx->buffer);
+	streebog_g(&ctx->h, &ctx->N, &ctx->m);
 	streebog_add512(&ctx->N, &buf, &ctx->N);
-	streebog_add512(&ctx->Sigma,
-			(const struct streebog_uint512 *)&ctx->buffer[0],
-			&ctx->Sigma);
-	streebog_g(&ctx->h, &buffer0, (const u8 *)&ctx->N);
-	streebog_g(&ctx->h, &buffer0, (const u8 *)&ctx->Sigma);
+	streebog_add512(&ctx->Sigma, &ctx->m, &ctx->Sigma);
+	streebog_g(&ctx->h, &buffer0, &ctx->N);
+	streebog_g(&ctx->h, &buffer0, &ctx->Sigma);
 	memcpy(&ctx->hash, &ctx->h, sizeof(struct streebog_uint512));
 }
 
@@ -1127,7 +1082,7 @@ static void __exit streebog_mod_fini(void)
 	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 }
 
-module_init(streebog_mod_init);
+subsys_initcall(streebog_mod_init);
 module_exit(streebog_mod_fini);
 
 MODULE_LICENSE("GPL");

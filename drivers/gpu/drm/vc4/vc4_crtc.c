@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /**
@@ -32,14 +29,18 @@
  * ones that set the clock.
  */
 
-#include <drm/drm_atomic.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_atomic_uapi.h>
 #include <linux/clk.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <linux/component.h>
 #include <linux/of_device.h>
+
+#include <drm/drm_atomic.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_atomic_uapi.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -49,6 +50,13 @@ struct vc4_crtc_state {
 	struct drm_mm_node mm;
 	bool feed_txp;
 	bool txp_armed;
+
+	struct {
+		unsigned int left;
+		unsigned int right;
+		unsigned int top;
+		unsigned int bottom;
+	} margins;
 };
 
 static inline struct vc4_crtc_state *
@@ -60,66 +68,21 @@ to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
 #define CRTC_WRITE(offset, val) writel(val, vc4_crtc->regs + (offset))
 #define CRTC_READ(offset) readl(vc4_crtc->regs + (offset))
 
-#define CRTC_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} crtc_regs[] = {
-	CRTC_REG(PV_CONTROL),
-	CRTC_REG(PV_V_CONTROL),
-	CRTC_REG(PV_VSYNCD_EVEN),
-	CRTC_REG(PV_HORZA),
-	CRTC_REG(PV_HORZB),
-	CRTC_REG(PV_VERTA),
-	CRTC_REG(PV_VERTB),
-	CRTC_REG(PV_VERTA_EVEN),
-	CRTC_REG(PV_VERTB_EVEN),
-	CRTC_REG(PV_INTEN),
-	CRTC_REG(PV_INTSTAT),
-	CRTC_REG(PV_STAT),
-	CRTC_REG(PV_HACT_ACT),
+static const struct debugfs_reg32 crtc_regs[] = {
+	VC4_REG32(PV_CONTROL),
+	VC4_REG32(PV_V_CONTROL),
+	VC4_REG32(PV_VSYNCD_EVEN),
+	VC4_REG32(PV_HORZA),
+	VC4_REG32(PV_HORZB),
+	VC4_REG32(PV_VERTA),
+	VC4_REG32(PV_VERTB),
+	VC4_REG32(PV_VERTA_EVEN),
+	VC4_REG32(PV_VERTB_EVEN),
+	VC4_REG32(PV_INTEN),
+	VC4_REG32(PV_INTSTAT),
+	VC4_REG32(PV_STAT),
+	VC4_REG32(PV_HACT_ACT),
 };
-
-static void vc4_crtc_dump_regs(struct vc4_crtc *vc4_crtc)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(crtc_regs); i++) {
-		DRM_INFO("0x%04x (%s): 0x%08x\n",
-			 crtc_regs[i].reg, crtc_regs[i].name,
-			 CRTC_READ(crtc_regs[i].reg));
-	}
-}
-
-#ifdef CONFIG_DEBUG_FS
-int vc4_crtc_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *dev = node->minor->dev;
-	int crtc_index = (uintptr_t)node->info_ent->data;
-	struct drm_crtc *crtc;
-	struct vc4_crtc *vc4_crtc;
-	int i;
-
-	i = 0;
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (i == crtc_index)
-			break;
-		i++;
-	}
-	if (!crtc)
-		return 0;
-	vc4_crtc = to_vc4_crtc(crtc);
-
-	for (i = 0; i < ARRAY_SIZE(crtc_regs); i++) {
-		seq_printf(m, "%s (0x%04x): 0x%08x\n",
-			   crtc_regs[i].name, crtc_regs[i].reg,
-			   CRTC_READ(crtc_regs[i].reg));
-	}
-
-	return 0;
-}
-#endif
 
 bool vc4_crtc_get_scanoutpos(struct drm_device *dev, unsigned int crtc_id,
 			     bool in_vblank_irq, int *vpos, int *hpos,
@@ -427,8 +390,10 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	bool debug_dump_regs = false;
 
 	if (debug_dump_regs) {
-		DRM_INFO("CRTC %d regs before:\n", drm_crtc_index(crtc));
-		vc4_crtc_dump_regs(vc4_crtc);
+		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
+		dev_info(&vc4_crtc->pdev->dev, "CRTC %d regs before:\n",
+			 drm_crtc_index(crtc));
+		drm_print_regset32(&p, &vc4_crtc->regset);
 	}
 
 	if (vc4_crtc->channel == 2) {
@@ -469,8 +434,10 @@ static void vc4_crtc_mode_set_nofb(struct drm_crtc *crtc)
 	vc4_crtc_lut_load(crtc);
 
 	if (debug_dump_regs) {
-		DRM_INFO("CRTC %d regs after:\n", drm_crtc_index(crtc));
-		vc4_crtc_dump_regs(vc4_crtc);
+		struct drm_printer p = drm_info_printer(&vc4_crtc->pdev->dev);
+		dev_info(&vc4_crtc->pdev->dev, "CRTC %d regs after:\n",
+			 drm_crtc_index(crtc));
+		drm_print_regset32(&p, &vc4_crtc->regset);
 	}
 }
 
@@ -624,6 +591,37 @@ static enum drm_mode_status vc4_crtc_mode_valid(struct drm_crtc *crtc,
 	return MODE_OK;
 }
 
+void vc4_crtc_get_margins(struct drm_crtc_state *state,
+			  unsigned int *left, unsigned int *right,
+			  unsigned int *top, unsigned int *bottom)
+{
+	struct vc4_crtc_state *vc4_state = to_vc4_crtc_state(state);
+	struct drm_connector_state *conn_state;
+	struct drm_connector *conn;
+	int i;
+
+	*left = vc4_state->margins.left;
+	*right = vc4_state->margins.right;
+	*top = vc4_state->margins.top;
+	*bottom = vc4_state->margins.bottom;
+
+	/* We have to interate over all new connector states because
+	 * vc4_crtc_get_margins() might be called before
+	 * vc4_crtc_atomic_check() which means margins info in vc4_crtc_state
+	 * might be outdated.
+	 */
+	for_each_new_connector_in_state(state->state, conn, conn_state, i) {
+		if (conn_state->crtc != state->crtc)
+			continue;
+
+		*left = conn_state->tv.margins.left;
+		*right = conn_state->tv.margins.right;
+		*top = conn_state->tv.margins.top;
+		*bottom = conn_state->tv.margins.bottom;
+		break;
+	}
+}
+
 static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 				 struct drm_crtc_state *state)
 {
@@ -671,6 +669,10 @@ static int vc4_crtc_atomic_check(struct drm_crtc *crtc,
 			vc4_state->feed_txp = false;
 		}
 
+		vc4_state->margins.left = conn_state->tv.margins.left;
+		vc4_state->margins.right = conn_state->tv.margins.right;
+		vc4_state->margins.top = conn_state->tv.margins.top;
+		vc4_state->margins.bottom = conn_state->tv.margins.bottom;
 		break;
 	}
 
@@ -792,6 +794,14 @@ static void vc4_crtc_handle_page_flip(struct vc4_crtc *vc4_crtc)
 		drm_crtc_send_vblank_event(crtc, vc4_crtc->event);
 		vc4_crtc->event = NULL;
 		drm_crtc_vblank_put(crtc);
+
+		/* Wait for the page flip to unmask the underrun to ensure that
+		 * the display list was updated by the hardware. Before that
+		 * happens, the HVS will be using the previous display list with
+		 * the CRTC and encoder already reconfigured, leading to
+		 * underruns. This can be seen when reconfiguring the CRTC.
+		 */
+		vc4_hvs_unmask_underrun(dev, vc4_crtc->channel);
 	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
@@ -972,6 +982,7 @@ static struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
 
 	old_vc4_state = to_vc4_crtc_state(crtc->state);
 	vc4_state->feed_txp = old_vc4_state->feed_txp;
+	vc4_state->margins = old_vc4_state->margins;
 
 	__drm_atomic_helper_crtc_duplicate_state(crtc, &vc4_state->base);
 	return &vc4_state->base;
@@ -999,7 +1010,7 @@ static void
 vc4_crtc_reset(struct drm_crtc *crtc)
 {
 	if (crtc->state)
-		__drm_atomic_helper_crtc_destroy_state(crtc->state);
+		vc4_crtc_destroy_state(crtc, crtc->state);
 
 	crtc->state = kzalloc(sizeof(struct vc4_crtc_state), GFP_KERNEL);
 	if (crtc->state)
@@ -1032,6 +1043,7 @@ static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
 
 static const struct vc4_crtc_data pv0_data = {
 	.hvs_channel = 0,
+	.debugfs_name = "crtc0_regs",
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI0,
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_DPI,
@@ -1040,6 +1052,7 @@ static const struct vc4_crtc_data pv0_data = {
 
 static const struct vc4_crtc_data pv1_data = {
 	.hvs_channel = 2,
+	.debugfs_name = "crtc1_regs",
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DSI] = VC4_ENCODER_TYPE_DSI1,
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_SMI,
@@ -1048,6 +1061,7 @@ static const struct vc4_crtc_data pv1_data = {
 
 static const struct vc4_crtc_data pv2_data = {
 	.hvs_channel = 1,
+	.debugfs_name = "crtc2_regs",
 	.encoder_types = {
 		[PV_CONTROL_CLK_SELECT_DPI_SMI_HDMI] = VC4_ENCODER_TYPE_HDMI,
 		[PV_CONTROL_CLK_SELECT_VEC] = VC4_ENCODER_TYPE_VEC,
@@ -1126,10 +1140,15 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	if (!match)
 		return -ENODEV;
 	vc4_crtc->data = match->data;
+	vc4_crtc->pdev = pdev;
 
 	vc4_crtc->regs = vc4_ioremap_regs(pdev, 0);
 	if (IS_ERR(vc4_crtc->regs))
 		return PTR_ERR(vc4_crtc->regs);
+
+	vc4_crtc->regset.base = vc4_crtc->regs;
+	vc4_crtc->regset.regs = crtc_regs;
+	vc4_crtc->regset.nregs = ARRAY_SIZE(crtc_regs);
 
 	/* For now, we create just the primary and the legacy cursor
 	 * planes.  We should be able to stack more planes on easily,
@@ -1203,6 +1222,9 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	platform_set_drvdata(pdev, vc4_crtc);
+
+	vc4_debugfs_add_regset32(drm, vc4_crtc->data->debugfs_name,
+				 &vc4_crtc->regset);
 
 	return 0;
 

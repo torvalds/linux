@@ -436,6 +436,12 @@ union ceph_mds_request_args {
 		__le64 length; /* num bytes to lock from start */
 		__u8 wait; /* will caller wait for lock to become available? */
 	} __attribute__ ((packed)) filelock_change;
+	struct {
+		__le32 mask;                 /* CEPH_CAP_* */
+		__le64 snapid;
+		__le64 parent;
+		__le32 hash;
+	} __attribute__ ((packed)) lookupino;
 } __attribute__ ((packed));
 
 #define CEPH_MDS_FLAG_REPLAY        1  /* this is a replayed op */
@@ -676,7 +682,7 @@ extern const char *ceph_cap_op_name(int op);
 /* flags field in client cap messages (version >= 10) */
 #define CEPH_CLIENT_CAPS_SYNC			(1<<0)
 #define CEPH_CLIENT_CAPS_NO_CAPSNAP		(1<<1)
-#define CEPH_CLIENT_CAPS_PENDING_CAPSNAP	(1<<2);
+#define CEPH_CLIENT_CAPS_PENDING_CAPSNAP	(1<<2)
 
 /*
  * caps message, used for capability callbacks, acks, requests, etc.

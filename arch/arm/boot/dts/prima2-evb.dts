@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DTS file for CSR SiRFprimaII Evaluation Board
  *
  * Copyright (c) 2012 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 /dts-v1/;
@@ -15,6 +14,7 @@
 	compatible = "sirf,prima2", "sirf,prima2-cb";
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x20000000>;
 	};
 

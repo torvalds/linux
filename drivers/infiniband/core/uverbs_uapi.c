@@ -22,6 +22,8 @@ static void *uapi_add_elm(struct uverbs_api *uapi, u32 key, size_t alloc_size)
 		return ERR_PTR(-EOVERFLOW);
 
 	elm = kzalloc(alloc_size, GFP_KERNEL);
+	if (!elm)
+		return ERR_PTR(-ENOMEM);
 	rc = radix_tree_insert(&uapi->radix, key, elm);
 	if (rc) {
 		kfree(elm);
@@ -188,13 +190,18 @@ static int uapi_merge_obj_tree(struct uverbs_api *uapi,
 		obj_elm->type_attrs = obj->type_attrs;
 		obj_elm->type_class = obj->type_attrs->type_class;
 		/*
-		 * Today drivers are only permitted to use idr_class
-		 * types. They cannot use FD types because we currently have
-		 * no way to revoke the fops pointer after device
-		 * disassociation.
+		 * Today drivers are only permitted to use idr_class and
+		 * fd_class types. We can revoke the IDR types during
+		 * disassociation, and the FD types require the driver to use
+		 * struct file_operations.owner to prevent the driver module
+		 * code from unloading while the file is open. This provides
+		 * enough safety that uverbs_close_fd() will continue to work.
+		 * Drivers using FD are responsible to handle disassociation of
+		 * the device on their own.
 		 */
 		if (WARN_ON(is_driver &&
-			    obj->type_attrs->type_class != &uverbs_idr_class))
+			    obj->type_attrs->type_class != &uverbs_idr_class &&
+			    obj->type_attrs->type_class != &uverbs_fd_class))
 			return -EINVAL;
 	}
 
@@ -640,7 +647,7 @@ struct uverbs_api *uverbs_alloc_api(struct ib_device *ibdev)
 		return ERR_PTR(-ENOMEM);
 
 	INIT_RADIX_TREE(&uapi->radix, GFP_KERNEL);
-	uapi->driver_id = ibdev->driver_id;
+	uapi->driver_id = ibdev->ops.driver_id;
 
 	rc = uapi_merge_def(uapi, ibdev, uverbs_core_api, false);
 	if (rc)

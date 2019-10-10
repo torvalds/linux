@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Applied Micro X-Gene SoC Ethernet v2 Driver
  *
  * Copyright (c) 2017, Applied Micro Circuits Corporation
  * Author(s): Iyappan Subramanian <isubramanian@apm.com>
  *	      Keyur Chudgar <kchudgar@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "main.h"
@@ -66,10 +54,8 @@ static int xge_get_resources(struct xge_pdata *pdata)
 	}
 
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(dev, "Unable to get irq\n");
+	if (ret < 0)
 		return ret;
-	}
 	pdata->resources.irq = ret;
 
 	return 0;

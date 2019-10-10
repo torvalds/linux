@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Generic OPP Interface
  *
@@ -5,10 +6,6 @@
  *	Nishanth Menon
  *	Romit Dasgupta
  *	Kevin Hilman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __DRIVER_OPP_H__
@@ -60,6 +57,7 @@ extern struct list_head opp_tables;
  * @suspend:	true if suspend OPP
  * @pstate: Device's power domain's performance state.
  * @rate:	Frequency in hertz
+ * @level:	Performance level
  * @supplies:	Power supplies voltage/current values
  * @clock_latency_ns: Latency (in nanoseconds) of switching to this OPP's
  *		frequency from any other OPP's frequency.
@@ -80,6 +78,7 @@ struct dev_pm_opp {
 	bool suspend;
 	unsigned int pstate;
 	unsigned long rate;
+	unsigned int level;
 
 	struct dev_pm_opp_supply *supplies;
 
@@ -236,18 +235,17 @@ static inline void _of_opp_free_required_opps(struct opp_table *opp_table,
 
 #ifdef CONFIG_DEBUG_FS
 void opp_debug_remove_one(struct dev_pm_opp *opp);
-int opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table);
-int opp_debug_register(struct opp_device *opp_dev, struct opp_table *opp_table);
+void opp_debug_create_one(struct dev_pm_opp *opp, struct opp_table *opp_table);
+void opp_debug_register(struct opp_device *opp_dev, struct opp_table *opp_table);
 void opp_debug_unregister(struct opp_device *opp_dev, struct opp_table *opp_table);
 #else
 static inline void opp_debug_remove_one(struct dev_pm_opp *opp) {}
 
-static inline int opp_debug_create_one(struct dev_pm_opp *opp,
-				       struct opp_table *opp_table)
-{ return 0; }
-static inline int opp_debug_register(struct opp_device *opp_dev,
-				     struct opp_table *opp_table)
-{ return 0; }
+static inline void opp_debug_create_one(struct dev_pm_opp *opp,
+					struct opp_table *opp_table) { }
+
+static inline void opp_debug_register(struct opp_device *opp_dev,
+				      struct opp_table *opp_table) { }
 
 static inline void opp_debug_unregister(struct opp_device *opp_dev,
 					struct opp_table *opp_table)

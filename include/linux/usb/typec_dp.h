@@ -5,6 +5,11 @@
 #include <linux/usb/typec_altmode.h>
 
 #define USB_TYPEC_DP_SID	0xff01
+/* USB IF has not assigned a Standard ID (SID) for VirtualLink,
+ * so the manufacturers of VirtualLink adapters use their Vendor
+ * IDs as the SVID.
+ */
+#define USB_TYPEC_NVIDIA_VLINK_SID	0x955	/* NVIDIA VirtualLink */
 #define USB_TYPEC_DP_MODE	1
 
 /*
@@ -91,5 +96,9 @@ enum {
 #define DP_CONF_SIGNALING_GEN_2		BIT(3) /* Reserved after v1.0b */
 #define DP_CONF_PIN_ASSIGNEMENT_SHIFT	8
 #define DP_CONF_PIN_ASSIGNEMENT_MASK	GENMASK(15, 8)
+
+/* Helper for setting/getting the pin assignement value to the configuration */
+#define DP_CONF_SET_PIN_ASSIGN(_a_)	((_a_) << 8)
+#define DP_CONF_GET_PIN_ASSIGN(_conf_)	(((_conf_) & GENMASK(15, 8)) >> 8)
 
 #endif /* __USB_TYPEC_DP_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *      intel-mid_wdt: generic Intel MID SCU watchdog driver
  *
@@ -6,10 +7,6 @@
  *
  *      Copyright (C) 2014 Intel Corporation. All rights reserved.
  *      Contact: David Cohen <david.a.cohen@linux.intel.com>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of version 2 of the GNU General
- *      Public License as published by the Free Software Foundation.
  */
 
 #include <linux/interrupt.h>
@@ -110,12 +107,13 @@ static const struct watchdog_ops mid_wdt_ops = {
 
 static int mid_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdt_dev;
-	struct intel_mid_wdt_pdata *pdata = pdev->dev.platform_data;
+	struct intel_mid_wdt_pdata *pdata = dev->platform_data;
 	int ret;
 
 	if (!pdata) {
-		dev_err(&pdev->dev, "missing platform data\n");
+		dev_err(dev, "missing platform data\n");
 		return -EINVAL;
 	}
 
@@ -125,7 +123,7 @@ static int mid_wdt_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	wdt_dev = devm_kzalloc(&pdev->dev, sizeof(*wdt_dev), GFP_KERNEL);
+	wdt_dev = devm_kzalloc(dev, sizeof(*wdt_dev), GFP_KERNEL);
 	if (!wdt_dev)
 		return -ENOMEM;
 
@@ -134,16 +132,15 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	wdt_dev->min_timeout = MID_WDT_TIMEOUT_MIN;
 	wdt_dev->max_timeout = MID_WDT_TIMEOUT_MAX;
 	wdt_dev->timeout = MID_WDT_DEFAULT_TIMEOUT;
-	wdt_dev->parent = &pdev->dev;
+	wdt_dev->parent = dev;
 
-	watchdog_set_drvdata(wdt_dev, &pdev->dev);
+	watchdog_set_drvdata(wdt_dev, dev);
 
-	ret = devm_request_irq(&pdev->dev, pdata->irq, mid_wdt_irq,
+	ret = devm_request_irq(dev, pdata->irq, mid_wdt_irq,
 			       IRQF_SHARED | IRQF_NO_SUSPEND, "watchdog",
 			       wdt_dev);
 	if (ret) {
-		dev_err(&pdev->dev, "error requesting warning irq %d\n",
-			pdata->irq);
+		dev_err(dev, "error requesting warning irq %d\n", pdata->irq);
 		return ret;
 	}
 
@@ -163,13 +160,11 @@ static int mid_wdt_probe(struct platform_device *pdev)
 	/* Make sure the watchdog is serviced */
 	set_bit(WDOG_HW_RUNNING, &wdt_dev->status);
 
-	ret = devm_watchdog_register_device(&pdev->dev, wdt_dev);
-	if (ret) {
-		dev_err(&pdev->dev, "error registering watchdog device\n");
+	ret = devm_watchdog_register_device(dev, wdt_dev);
+	if (ret)
 		return ret;
-	}
 
-	dev_info(&pdev->dev, "Intel MID watchdog device probed\n");
+	dev_info(dev, "Intel MID watchdog device probed\n");
 
 	return 0;
 }

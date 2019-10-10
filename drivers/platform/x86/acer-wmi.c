@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Acer WMI Laptop Extras
  *
@@ -6,20 +7,6 @@
  *  Based on acer_acpi:
  *    Copyright (C) 2005-2007	E.M. Smith
  *    Copyright (C) 2007-2008	Carlos Corbacho <cathectic@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -272,7 +259,6 @@ struct acer_data {
 
 struct acer_debug {
 	struct dentry *root;
-	struct dentry *devices;
 	u32 wmid_devices;
 };
 
@@ -1015,6 +1001,7 @@ static acpi_status WMID_get_u32(u32 *value, u32 cap)
 			*value = tmp & 0x1;
 			return 0;
 		}
+		/* fall through */
 	default:
 		return AE_ERROR;
 	}
@@ -1341,6 +1328,7 @@ static acpi_status get_u32(u32 *value, u32 cap)
 			status = AMW0_get_u32(value, cap);
 			break;
 		}
+		/* fall through */
 	case ACER_WMID:
 		status = WMID_get_u32(value, cap);
 		break;
@@ -1383,6 +1371,7 @@ static acpi_status set_u32(u32 value, u32 cap)
 
 				return AMW0_set_u32(value, cap);
 			}
+			/* fall through */
 		case ACER_WMID:
 			return WMID_set_u32(value, cap);
 		case ACER_WMID_v2:
@@ -1392,6 +1381,7 @@ static acpi_status set_u32(u32 value, u32 cap)
 				return wmid_v2_set_u32(value, cap);
 			else if (wmi_has_guid(WMID_GUID2))
 				return WMID_set_u32(value, cap);
+			/* fall through */
 		default:
 			return AE_BAD_PARAMETER;
 		}
@@ -1891,52 +1881,17 @@ static int __init acer_wmi_enable_rf_button(void)
 	return status;
 }
 
-#define ACER_WMID_ACCEL_HID	"BST0001"
-
-static acpi_status __init acer_wmi_get_handle_cb(acpi_handle ah, u32 level,
-						void *ctx, void **retval)
-{
-	struct acpi_device *dev;
-
-	if (!strcmp(ctx, "SENR")) {
-		if (acpi_bus_get_device(ah, &dev))
-			return AE_OK;
-		if (strcmp(ACER_WMID_ACCEL_HID, acpi_device_hid(dev)))
-			return AE_OK;
-	} else
-		return AE_OK;
-
-	*(acpi_handle *)retval = ah;
-
-	return AE_CTRL_TERMINATE;
-}
-
-static int __init acer_wmi_get_handle(const char *name, const char *prop,
-					acpi_handle *ah)
-{
-	acpi_status status;
-	acpi_handle handle;
-
-	BUG_ON(!name || !ah);
-
-	handle = NULL;
-	status = acpi_get_devices(prop, acer_wmi_get_handle_cb,
-					(void *)name, &handle);
-	if (ACPI_SUCCESS(status) && handle) {
-		*ah = handle;
-		return 0;
-	} else {
-		return -ENODEV;
-	}
-}
-
 static int __init acer_wmi_accel_setup(void)
 {
+	struct acpi_device *adev;
 	int err;
 
-	err = acer_wmi_get_handle("SENR", ACER_WMID_ACCEL_HID, &gsensor_handle);
-	if (err)
-		return err;
+	adev = acpi_dev_get_first_match_dev("BST0001", NULL, -1);
+	if (!adev)
+		return -ENODEV;
+
+	gsensor_handle = acpi_device_handle(adev);
+	acpi_dev_put(adev);
 
 	interface->capability |= ACER_CAP_ACCEL;
 
@@ -2161,29 +2116,15 @@ static struct platform_device *acer_platform_device;
 
 static void remove_debugfs(void)
 {
-	debugfs_remove(interface->debug.devices);
-	debugfs_remove(interface->debug.root);
+	debugfs_remove_recursive(interface->debug.root);
 }
 
-static int __init create_debugfs(void)
+static void __init create_debugfs(void)
 {
 	interface->debug.root = debugfs_create_dir("acer-wmi", NULL);
-	if (!interface->debug.root) {
-		pr_err("Failed to create debugfs directory");
-		return -ENOMEM;
-	}
 
-	interface->debug.devices = debugfs_create_u32("devices", S_IRUGO,
-					interface->debug.root,
-					&interface->debug.wmid_devices);
-	if (!interface->debug.devices)
-		goto error_debugfs;
-
-	return 0;
-
-error_debugfs:
-	remove_debugfs();
-	return -ENOMEM;
+	debugfs_create_u32("devices", S_IRUGO, interface->debug.root,
+			   &interface->debug.wmid_devices);
 }
 
 static int __init acer_wmi_init(void)
@@ -2313,9 +2254,7 @@ static int __init acer_wmi_init(void)
 
 	if (wmi_has_guid(WMID_GUID2)) {
 		interface->debug.wmid_devices = get_wmid_devices();
-		err = create_debugfs();
-		if (err)
-			goto error_create_debugfs;
+		create_debugfs();
 	}
 
 	/* Override any initial settings with values from the commandline */
@@ -2323,8 +2262,6 @@ static int __init acer_wmi_init(void)
 
 	return 0;
 
-error_create_debugfs:
-	platform_device_del(acer_platform_device);
 error_device_add:
 	platform_device_put(acer_platform_device);
 error_device_alloc:

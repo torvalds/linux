@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __ASM_POWERPC_PCI_H
 #define __ASM_POWERPC_PCI_H
 #ifdef __KERNEL__
 
 /*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/types.h>
@@ -52,10 +49,8 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 
 #ifdef CONFIG_PCI
 extern void set_pci_dma_ops(const struct dma_map_ops *dma_ops);
-extern const struct dma_map_ops *get_pci_dma_ops(void);
 #else	/* CONFIG_PCI */
 #define set_pci_dma_ops(d)
-#define get_pci_dma_ops()	NULL
 #endif
 
 #ifdef CONFIG_PPC64
@@ -116,8 +111,6 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long pfn,
 					 unsigned long size,
 					 pgprot_t prot);
-
-#define HAVE_ARCH_PCI_RESOURCE_TO_USER
 
 extern resource_size_t pcibios_io_space_offset(struct pci_controller *hose);
 extern void pcibios_setup_bus_devices(struct pci_bus *bus);

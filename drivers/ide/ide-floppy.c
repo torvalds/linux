@@ -427,7 +427,7 @@ static int ide_floppy_get_capacity(ide_drive_t *drive)
 				 * (maintains previous driver behaviour)
 				 */
 				break;
-			/* else: fall through */
+			/* fall through */
 		case CAPACITY_CURRENT:
 			/* Normal Zip/LS-120 disks */
 			if (memcmp(cap_desc, &floppy->cap_desc, 8))

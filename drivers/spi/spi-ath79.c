@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * SPI controller driver for the Atheros AR71XX/AR724X/AR913X SoCs
  *
@@ -5,11 +6,6 @@
  *
  * This driver has been based on the spi-gpio.c:
  *	Copyright (C) 2006,2008 David Brownell
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/kernel.h>
@@ -143,7 +139,6 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct ath79_spi *sp;
 	struct ath79_spi_platform_data *pdata;
-	struct resource	*r;
 	unsigned long rate;
 	int ret;
 
@@ -173,8 +168,7 @@ static int ath79_spi_probe(struct platform_device *pdev)
 	sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_mode0;
 	sp->bitbang.flags = SPI_CS_HIGH;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sp->base = devm_ioremap_resource(&pdev->dev, r);
+	sp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sp->base)) {
 		ret = PTR_ERR(sp->base);
 		goto err_put_master;

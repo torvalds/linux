@@ -196,6 +196,12 @@ static ssize_t vbus_show(struct device *dev,
 }
 static DEVICE_ATTR_RO(vbus);
 
+static struct attribute *twl6030_attrs[] = {
+	&dev_attr_vbus.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(twl6030);
+
 static irqreturn_t twl6030_usb_irq(int irq, void *_twl)
 {
 	struct twl6030_usb *twl = _twl;
@@ -361,8 +367,6 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, twl);
-	if (device_create_file(&pdev->dev, &dev_attr_vbus))
-		dev_warn(&pdev->dev, "could not create sysfs file\n");
 
 	INIT_WORK(&twl->set_vbus_work, otg_set_vbus_work);
 	INIT_DELAYED_WORK(&twl->get_status_work, twl6030_status_work);
@@ -373,7 +377,6 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 	if (status < 0) {
 		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 			twl->irq1, status);
-		device_remove_file(twl->dev, &dev_attr_vbus);
 		return status;
 	}
 
@@ -384,7 +387,6 @@ static int twl6030_usb_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "can't get IRQ %d, err %d\n",
 			twl->irq2, status);
 		free_irq(twl->irq1, twl);
-		device_remove_file(twl->dev, &dev_attr_vbus);
 		return status;
 	}
 
@@ -400,7 +402,7 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 {
 	struct twl6030_usb *twl = platform_get_drvdata(pdev);
 
-	cancel_delayed_work(&twl->get_status_work);
+	cancel_delayed_work_sync(&twl->get_status_work);
 	twl6030_interrupt_mask(TWL6030_USBOTG_INT_MASK,
 		REG_INT_MSK_LINE_C);
 	twl6030_interrupt_mask(TWL6030_USBOTG_INT_MASK,
@@ -408,7 +410,6 @@ static int twl6030_usb_remove(struct platform_device *pdev)
 	free_irq(twl->irq1, twl);
 	free_irq(twl->irq2, twl);
 	regulator_put(twl->usb3v3);
-	device_remove_file(twl->dev, &dev_attr_vbus);
 	cancel_work_sync(&twl->set_vbus_work);
 
 	return 0;
@@ -426,6 +427,7 @@ static struct platform_driver twl6030_usb_driver = {
 	.driver		= {
 		.name	= "twl6030_usb",
 		.of_match_table = of_match_ptr(twl6030_usb_id_table),
+		.dev_groups = twl6030_groups,
 	},
 };
 

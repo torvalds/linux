@@ -86,6 +86,13 @@ Description:
 		The unit size is one block, now only support configuring in range
 		of [1, 512].
 
+What:          /sys/fs/f2fs/<disk>/umount_discard_timeout
+Date:          January 2019
+Contact:       "Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:
+		Set timeout to issue discard commands during umount.
+		Default: 5 secs
+
 What:		/sys/fs/f2fs/<disk>/max_victim_search
 Date:		January 2014
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
@@ -236,3 +243,18 @@ Description:
 		 - Del: echo '[h/c]!extension' > /sys/fs/f2fs/<disk>/extension_list
 		 - [h] means add/del hot file extension
 		 - [c] means add/del cold file extension
+
+What:		/sys/fs/f2fs/<disk>/unusable
+Date		April 2019
+Contact:	"Daniel Rosenberg" <drosen@google.com>
+Description:
+		If checkpoint=disable, it displays the number of blocks that are unusable.
+                If checkpoint=enable it displays the enumber of blocks that would be unusable
+                if checkpoint=disable were to be set.
+
+What:		/sys/fs/f2fs/<disk>/encoding
+Date		July 2019
+Contact:	"Daniel Rosenberg" <drosen@google.com>
+Description:
+		Displays name and version of the encoding set for the filesystem.
+                If no encoding is set, displays (none)

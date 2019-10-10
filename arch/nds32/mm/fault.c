@@ -271,7 +271,7 @@ bad_area_nosemaphore:
 		tsk->thread.address = addr;
 		tsk->thread.error_code = error_code;
 		tsk->thread.trap_no = entry;
-		force_sig_fault(SIGSEGV, si_code, (void __user *)addr, tsk);
+		force_sig_fault(SIGSEGV, si_code, (void __user *)addr);
 		return;
 	}
 
@@ -340,7 +340,7 @@ do_sigbus:
 	tsk->thread.address = addr;
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_no = entry;
-	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)addr, tsk);
+	force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)addr);
 
 	return;
 

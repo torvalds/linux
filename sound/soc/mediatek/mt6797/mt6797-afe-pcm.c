@@ -401,9 +401,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = DL1_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	[MT6797_MEMIF_DL2] = {
 		.name = "DL2",
@@ -420,9 +418,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = DL2_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	[MT6797_MEMIF_DL3] = {
 		.name = "DL3",
@@ -439,9 +435,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = DL3_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	[MT6797_MEMIF_VUL] = {
 		.name = "VUL",
@@ -458,9 +452,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = VUL_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	[MT6797_MEMIF_AWB] = {
 		.name = "AWB",
@@ -477,9 +469,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = AWB_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	[MT6797_MEMIF_VUL12] = {
 		.name = "VUL12",
@@ -496,9 +486,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = VUL_DATA2_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	[MT6797_MEMIF_DAI] = {
 		.name = "DAI",
@@ -515,9 +503,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = DAI_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	[MT6797_MEMIF_MOD_DAI] = {
 		.name = "MOD_DAI",
@@ -534,9 +520,7 @@ static const struct mtk_base_memif_data memif_data[MT6797_MEMIF_NUM] = {
 		.hd_reg = AFE_MEMIF_HD_MODE,
 		.hd_shift = MOD_DAI_HD_SFT,
 		.agent_disable_reg = -1,
-		.agent_disable_shift = -1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 };
 
@@ -765,7 +749,6 @@ static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe;
 	struct mt6797_afe_private *afe_priv;
-	struct resource *res;
 	struct device *dev;
 	int i, irq_id, ret;
 
@@ -790,9 +773,7 @@ static int mt6797_afe_pcm_dev_probe(struct platform_device *pdev)
 	}
 
 	/* regmap init */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	afe->base_addr = devm_ioremap_resource(&pdev->dev, res);
+	afe->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(afe->base_addr))
 		return PTR_ERR(afe->base_addr);
 

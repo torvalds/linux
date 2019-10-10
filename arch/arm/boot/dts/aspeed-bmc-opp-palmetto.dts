@@ -32,9 +32,9 @@
 			no-map;
 		};
 
-		flash_memory: region@98000000 {
+		flash_memory: region@5c000000 {
 			no-map;
-			reg = <0x98000000 0x01000000>; /* 16MB */
+			reg = <0x5C000000 0x02000000>; /* 32MB */
 		};
 	};
 
@@ -169,6 +169,11 @@
 
 &i2c3 {
 	status = "okay";
+
+	occ-hwmon@50 {
+		compatible = "ibm,p8-occ-hwmon";
+		reg = <0x50>;
+	};
 };
 
 &i2c4 {
@@ -340,5 +345,27 @@
 		gpios = <ASPEED_GPIO(H, 7) GPIO_ACTIVE_HIGH>;
 		output-high;
 		line-name = "BMC_TPM_INT_N";
+	};
+};
+
+&fsi {
+	cfam@0,0 {
+		reg = <0 0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		chip-id = <0>;
+
+		scom@1000 {
+			compatible = "ibm,fsi2pib";
+			reg = <0x1000 0x400>;
+		};
+
+		fsi_hub0: hub@3400 {
+			compatible = "ibm,fsi-master-hub";
+			reg = <0x3400 0x400>;
+			#address-cells = <2>;
+			#size-cells = <0>;
+			no-scan-on-init;
+		};
 	};
 };

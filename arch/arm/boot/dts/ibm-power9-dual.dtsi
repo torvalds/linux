@@ -1,0 +1,248 @@
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright 2018 IBM Corp
+
+&fsi {
+	cfam@0,0 {
+		reg = <0 0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		chip-id = <0>;
+
+		scom@1000 {
+			compatible = "ibm,fsi2pib";
+			reg = <0x1000 0x400>;
+		};
+
+		i2c@1800 {
+			compatible = "ibm,fsi-i2c-master";
+			reg = <0x1800 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			cfam0_i2c0: i2c-bus@0 {
+				reg = <0>;
+			};
+
+			cfam0_i2c1: i2c-bus@1 {
+				reg = <1>;
+			};
+
+			cfam0_i2c2: i2c-bus@2 {
+				reg = <2>;
+			};
+
+			cfam0_i2c3: i2c-bus@3 {
+				reg = <3>;
+			};
+
+			cfam0_i2c4: i2c-bus@4 {
+				reg = <4>;
+			};
+
+			cfam0_i2c5: i2c-bus@5 {
+				reg = <5>;
+			};
+
+			cfam0_i2c6: i2c-bus@6 {
+				reg = <6>;
+			};
+
+			cfam0_i2c7: i2c-bus@7 {
+				reg = <7>;
+			};
+
+			cfam0_i2c8: i2c-bus@8 {
+				reg = <8>;
+			};
+
+			cfam0_i2c9: i2c-bus@9 {
+				reg = <9>;
+			};
+
+			cfam0_i2c10: i2c-bus@a {
+				reg = <10>;
+			};
+
+			cfam0_i2c11: i2c-bus@b {
+				reg = <11>;
+			};
+
+			cfam0_i2c12: i2c-bus@c {
+				reg = <12>;
+			};
+
+			cfam0_i2c13: i2c-bus@d {
+				reg = <13>;
+			};
+
+			cfam0_i2c14: i2c-bus@e {
+				reg = <14>;
+			};
+		};
+
+		sbefifo@2400 {
+			compatible = "ibm,p9-sbefifo";
+			reg = <0x2400 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			fsi_occ0: occ {
+				compatible = "ibm,p9-occ";
+			};
+		};
+
+		fsi_hub0: hub@3400 {
+			compatible = "fsi-master-hub";
+			reg = <0x3400 0x400>;
+			#address-cells = <2>;
+			#size-cells = <0>;
+
+			no-scan-on-init;
+		};
+	};
+};
+
+&fsi_hub0 {
+	cfam@1,0 {
+		reg = <1 0>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		chip-id = <1>;
+
+		scom@1000 {
+			compatible = "ibm,fsi2pib";
+			reg = <0x1000 0x400>;
+		};
+
+		i2c@1800 {
+			compatible = "ibm,fsi-i2c-master";
+			reg = <0x1800 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			cfam1_i2c0: i2c-bus@0 {
+				reg = <0>;
+			};
+
+			cfam1_i2c1: i2c-bus@1 {
+				reg = <1>;
+			};
+
+			cfam1_i2c2: i2c-bus@2 {
+				reg = <2>;
+			};
+
+			cfam1_i2c3: i2c-bus@3 {
+				reg = <3>;
+			};
+
+			cfam1_i2c4: i2c-bus@4 {
+				reg = <4>;
+			};
+
+			cfam1_i2c5: i2c-bus@5 {
+				reg = <5>;
+			};
+
+			cfam1_i2c6: i2c-bus@6 {
+				reg = <6>;
+			};
+
+			cfam1_i2c7: i2c-bus@7 {
+				reg = <7>;
+			};
+
+			cfam1_i2c8: i2c-bus@8 {
+				reg = <8>;
+			};
+
+			cfam1_i2c9: i2c-bus@9 {
+				reg = <9>;
+			};
+
+			cfam1_i2c10: i2c-bus@a {
+				reg = <10>;
+			};
+
+			cfam1_i2c11: i2c-bus@b {
+				reg = <11>;
+			};
+
+			cfam1_i2c12: i2c-bus@c {
+				reg = <12>;
+			};
+
+			cfam1_i2c13: i2c-bus@d {
+				reg = <13>;
+			};
+
+			cfam1_i2c14: i2c-bus@e {
+				reg = <14>;
+			};
+		};
+
+		sbefifo@2400 {
+			compatible = "ibm,p9-sbefifo";
+			reg = <0x2400 0x400>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			fsi_occ1: occ {
+				compatible = "ibm,p9-occ";
+			};
+		};
+
+		fsi_hub1: hub@3400 {
+			compatible = "fsi-master-hub";
+			reg = <0x3400 0x400>;
+			#address-cells = <2>;
+			#size-cells = <0>;
+
+			no-scan-on-init;
+		};
+	};
+};
+
+/* Legacy OCC numbering (to get rid of when userspace is fixed) */
+&fsi_occ0 {
+	reg = <1>;
+};
+
+&fsi_occ1 {
+	reg = <2>;
+};
+
+/ {
+	aliases {
+		i2c100 = &cfam0_i2c0;
+		i2c101 = &cfam0_i2c1;
+		i2c102 = &cfam0_i2c2;
+		i2c103 = &cfam0_i2c3;
+		i2c104 = &cfam0_i2c4;
+		i2c105 = &cfam0_i2c5;
+		i2c106 = &cfam0_i2c6;
+		i2c107 = &cfam0_i2c7;
+		i2c108 = &cfam0_i2c8;
+		i2c109 = &cfam0_i2c9;
+		i2c110 = &cfam0_i2c10;
+		i2c111 = &cfam0_i2c11;
+		i2c112 = &cfam0_i2c12;
+		i2c113 = &cfam0_i2c13;
+		i2c114 = &cfam0_i2c14;
+		i2c200 = &cfam1_i2c0;
+		i2c201 = &cfam1_i2c1;
+		i2c202 = &cfam1_i2c2;
+		i2c203 = &cfam1_i2c3;
+		i2c204 = &cfam1_i2c4;
+		i2c205 = &cfam1_i2c5;
+		i2c206 = &cfam1_i2c6;
+		i2c207 = &cfam1_i2c7;
+		i2c208 = &cfam1_i2c8;
+		i2c209 = &cfam1_i2c9;
+		i2c210 = &cfam1_i2c10;
+		i2c211 = &cfam1_i2c11;
+		i2c212 = &cfam1_i2c12;
+		i2c213 = &cfam1_i2c13;
+		i2c214 = &cfam1_i2c14;
+	};
+};

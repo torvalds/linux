@@ -25,16 +25,23 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+
 #include <linux/console.h>
-#include <linux/slab.h>
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_cache.h>
-#include <drm/radeon_drm.h>
-#include <linux/pm_runtime.h>
-#include <linux/vgaarb.h>
-#include <linux/vga_switcheroo.h>
 #include <linux/efi.h>
+#include <linux/pm_runtime.h>
+#include <linux/slab.h>
+#include <linux/vga_switcheroo.h>
+#include <linux/vgaarb.h>
+
+#include <drm/drm_cache.h>
+#include <drm/drm_crtc_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/radeon_drm.h>
+
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "atom.h"
@@ -1318,8 +1325,6 @@ int radeon_device_init(struct radeon_device *rdev,
 	init_rwsem(&rdev->pm.mclk_lock);
 	init_rwsem(&rdev->exclusive_lock);
 	init_waitqueue_head(&rdev->irq.vblank_queue);
-	mutex_init(&rdev->mn_lock);
-	hash_init(rdev->mn_hash);
 	r = radeon_gem_init(rdev);
 	if (r)
 		return r;
@@ -1358,36 +1363,29 @@ int radeon_device_init(struct radeon_device *rdev,
 	else
 		rdev->mc.mc_mask = 0xffffffffULL; /* 32 bit MC */
 
-	/* set DMA mask + need_dma32 flags.
+	/* set DMA mask.
 	 * PCIE - can handle 40-bits.
 	 * IGP - can handle 40-bits
 	 * AGP - generally dma32 is safest
 	 * PCI - dma32 for legacy pci gart, 40 bits on newer asics
 	 */
-	rdev->need_dma32 = false;
+	dma_bits = 40;
 	if (rdev->flags & RADEON_IS_AGP)
-		rdev->need_dma32 = true;
+		dma_bits = 32;
 	if ((rdev->flags & RADEON_IS_PCI) &&
 	    (rdev->family <= CHIP_RS740))
-		rdev->need_dma32 = true;
+		dma_bits = 32;
 #ifdef CONFIG_PPC64
 	if (rdev->family == CHIP_CEDAR)
-		rdev->need_dma32 = true;
+		dma_bits = 32;
 #endif
 
-	dma_bits = rdev->need_dma32 ? 32 : 40;
-	r = pci_set_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
+	r = dma_set_mask_and_coherent(&rdev->pdev->dev, DMA_BIT_MASK(dma_bits));
 	if (r) {
-		rdev->need_dma32 = true;
-		dma_bits = 32;
 		pr_warn("radeon: No suitable DMA available\n");
+		return r;
 	}
-	r = pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(dma_bits));
-	if (r) {
-		pci_set_consistent_dma_mask(rdev->pdev, DMA_BIT_MASK(32));
-		pr_warn("radeon: No coherent DMA available\n");
-	}
-	rdev->need_swiotlb = drm_get_max_iomem() > ((u64)1 << dma_bits);
+	rdev->need_swiotlb = drm_need_swiotlb(dma_bits);
 
 	/* Registers mapping */
 	/* TODO: block userspace mapping of io register */

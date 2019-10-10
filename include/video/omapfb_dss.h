@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2016 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef __OMAPFB_DSS_H
@@ -118,11 +114,6 @@ enum omap_dss_trans_key_type {
 	OMAP_DSS_COLOR_KEY_VID_SRC = 1,
 };
 
-enum omap_rfbi_te_mode {
-	OMAP_DSS_RFBI_TE_MODE_1 = 1,
-	OMAP_DSS_RFBI_TE_MODE_2 = 2,
-};
-
 enum omap_dss_signal_level {
 	OMAPDSS_SIG_ACTIVE_LOW,
 	OMAPDSS_SIG_ACTIVE_HIGH,
@@ -191,27 +182,6 @@ enum omap_dss_output_id {
 	OMAP_DSS_OUTPUT_DSI2	= 1 << 4,
 	OMAP_DSS_OUTPUT_VENC	= 1 << 5,
 	OMAP_DSS_OUTPUT_HDMI	= 1 << 6,
-};
-
-/* RFBI */
-
-struct rfbi_timings {
-	int cs_on_time;
-	int cs_off_time;
-	int we_on_time;
-	int we_off_time;
-	int re_on_time;
-	int re_off_time;
-	int we_cycle_time;
-	int re_cycle_time;
-	int cs_pulse_width;
-	int access_time;
-
-	int clk_div;
-
-	u32 tim[5];             /* set by rfbi_convert_timings() */
-
-	int converted;
 };
 
 /* DSI */
@@ -645,11 +615,6 @@ struct omap_dss_device {
 		} dpi;
 
 		struct {
-			u8 channel;
-			u8 data_lines;
-		} rfbi;
-
-		struct {
 			u8 datapairs;
 		} sdi;
 
@@ -672,7 +637,6 @@ struct omap_dss_device {
 
 	struct {
 		u8 pixel_size;
-		struct rfbi_timings rfbi_timings;
 	} ctrl;
 
 	const char *name;

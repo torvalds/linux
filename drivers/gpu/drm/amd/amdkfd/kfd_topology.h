@@ -27,7 +27,7 @@
 #include <linux/list.h>
 #include "kfd_crat.h"
 
-#define KFD_TOPOLOGY_PUBLIC_NAME_SIZE 128
+#define KFD_TOPOLOGY_PUBLIC_NAME_SIZE 32
 
 #define HSA_CAP_HOT_PLUGGABLE			0x00000001
 #define HSA_CAP_ATS_PRESENT			0x00000002
@@ -48,6 +48,10 @@
 #define HSA_CAP_DOORBELL_TYPE_2_0		0x2
 #define HSA_CAP_AQL_QUEUE_DOUBLE_MAP		0x00004000
 
+#define HSA_CAP_SRAM_EDCSUPPORTED		0x00080000
+#define HSA_CAP_MEM_EDCSUPPORTED		0x00100000
+#define HSA_CAP_RASEVENTNOTIFY			0x00200000
+
 struct kfd_node_properties {
 	uint64_t hive_id;
 	uint32_t cpu_cores_count;
@@ -61,6 +65,7 @@ struct kfd_node_properties {
 	uint32_t max_waves_per_simd;
 	uint32_t lds_size_in_kb;
 	uint32_t gds_size_in_kb;
+	uint32_t num_gws;
 	uint32_t wave_front_size;
 	uint32_t array_count;
 	uint32_t simd_arrays_per_engine;
@@ -74,7 +79,9 @@ struct kfd_node_properties {
 	uint32_t max_engine_clk_fcompute;
 	uint32_t max_engine_clk_ccompute;
 	int32_t  drm_render_minor;
-	uint16_t marketing_name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
+	uint32_t num_sdma_engines;
+	uint32_t num_sdma_xgmi_engines;
+	char name[KFD_TOPOLOGY_PUBLIC_NAME_SIZE];
 };
 
 #define HSA_MEM_HEAP_TYPE_SYSTEM	0

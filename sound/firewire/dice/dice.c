@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TC Applied Technologies Digital Interface Communications Engine driver
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "dice.h"
@@ -18,6 +18,8 @@ MODULE_LICENSE("GPL v2");
 #define OUI_ALESIS		0x000595
 #define OUI_MAUDIO		0x000d6c
 #define OUI_MYTEK		0x001ee8
+#define OUI_SSL			0x0050c2	// Actually ID reserved by IEEE.
+#define OUI_PRESONUS		0x000a92
 
 #define DICE_CATEGORY_ID	0x04
 #define WEISS_CATEGORY_ID	0x00
@@ -196,7 +198,7 @@ static int dice_probe(struct fw_unit *unit,
 	struct snd_dice *dice;
 	int err;
 
-	if (!entry->driver_data) {
+	if (!entry->driver_data && entry->vendor_id != OUI_SSL) {
 		err = check_dice_category(unit);
 		if (err < 0)
 			return -ENODEV;
@@ -360,6 +362,23 @@ static const struct ieee1394_device_id dice_id_table[] = {
 		.vendor_id	= OUI_MYTEK,
 		.model_id	= 0x000002,
 		.driver_data = (kernel_ulong_t)snd_dice_detect_mytek_formats,
+	},
+	// Solid State Logic, Duende Classic and Mini.
+	// NOTE: each field of GUID in config ROM is not compliant to standard
+	// DICE scheme.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_SSL,
+		.model_id	= 0x000070,
+	},
+	// Presonus FireStudio.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_PRESONUS,
+		.model_id	= 0x000008,
+		.driver_data	= (kernel_ulong_t)snd_dice_detect_presonus_formats,
 	},
 	{
 		.match_flags = IEEE1394_MATCH_VERSION,

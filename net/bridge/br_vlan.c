@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
@@ -6,6 +7,8 @@
 
 #include "br_private.h"
 #include "br_private_tunnel.h"
+
+static void nbp_vlan_set_vlan_dev_state(struct net_bridge_port *p, u16 vid);
 
 static inline int br_vlan_cmp(struct rhashtable_compare_arg *arg,
 			      const void *ptr)
@@ -21,7 +24,6 @@ static const struct rhashtable_params br_vlan_rht_params = {
 	.key_offset = offsetof(struct net_bridge_vlan, vid),
 	.key_len = sizeof(u16),
 	.nelem_hint = 3,
-	.locks_mul = 1,
 	.max_size = VLAN_N_VID,
 	.obj_cmpfn = br_vlan_cmp,
 	.automatic_shrinking = true,
@@ -294,6 +296,9 @@ static int __vlan_add(struct net_bridge_vlan *v, u16 flags,
 
 	__vlan_add_list(v);
 	__vlan_add_flags(v, flags);
+
+	if (p)
+		nbp_vlan_set_vlan_dev_state(p, v->vid);
 out:
 	return err;
 
@@ -358,6 +363,7 @@ static int __vlan_del(struct net_bridge_vlan *v)
 		rhashtable_remove_fast(&vg->vlan_hash, &v->vnode,
 				       br_vlan_rht_params);
 		__vlan_del_list(v);
+		nbp_vlan_set_vlan_dev_state(p, v->vid);
 		call_rcu(&v->rcu, nbp_vlan_rcu_free);
 	}
 
@@ -791,6 +797,16 @@ bool br_vlan_enabled(const struct net_device *dev)
 }
 EXPORT_SYMBOL_GPL(br_vlan_enabled);
 
+int br_vlan_get_proto(const struct net_device *dev, u16 *p_proto)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	*p_proto = ntohs(br->vlan_proto);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(br_vlan_get_proto);
+
 int __br_vlan_set_proto(struct net_bridge *br, __be16 proto)
 {
 	int err = 0;
@@ -1037,7 +1053,6 @@ int br_vlan_init(struct net_bridge *br)
 {
 	struct net_bridge_vlan_group *vg;
 	int ret = -ENOMEM;
-	bool changed;
 
 	vg = kzalloc(sizeof(*vg), GFP_KERNEL);
 	if (!vg)
@@ -1052,17 +1067,10 @@ int br_vlan_init(struct net_bridge *br)
 	br->vlan_proto = htons(ETH_P_8021Q);
 	br->default_pvid = 1;
 	rcu_assign_pointer(br->vlgrp, vg);
-	ret = br_vlan_add(br, 1,
-			  BRIDGE_VLAN_INFO_PVID | BRIDGE_VLAN_INFO_UNTAGGED |
-			  BRIDGE_VLAN_INFO_BRENTRY, &changed, NULL);
-	if (ret)
-		goto err_vlan_add;
 
 out:
 	return ret;
 
-err_vlan_add:
-	vlan_tunnel_deinit(vg);
 err_tunnel_init:
 	rhashtable_destroy(&vg->vlan_hash);
 err_rhtbl:
@@ -1221,13 +1229,11 @@ void br_vlan_get_stats(const struct net_bridge_vlan *v,
 	}
 }
 
-int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
+static int __br_vlan_get_pvid(const struct net_device *dev,
+			      struct net_bridge_port *p, u16 *p_pvid)
 {
 	struct net_bridge_vlan_group *vg;
-	struct net_bridge_port *p;
 
-	ASSERT_RTNL();
-	p = br_port_get_check_rtnl(dev);
 	if (p)
 		vg = nbp_vlan_group(p);
 	else if (netif_is_bridge_master(dev))
@@ -1238,7 +1244,20 @@ int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
 	*p_pvid = br_get_pvid(vg);
 	return 0;
 }
+
+int br_vlan_get_pvid(const struct net_device *dev, u16 *p_pvid)
+{
+	ASSERT_RTNL();
+
+	return __br_vlan_get_pvid(dev, br_port_get_check_rtnl(dev), p_pvid);
+}
 EXPORT_SYMBOL_GPL(br_vlan_get_pvid);
+
+int br_vlan_get_pvid_rcu(const struct net_device *dev, u16 *p_pvid)
+{
+	return __br_vlan_get_pvid(dev, br_port_get_check_rcu(dev), p_pvid);
+}
+EXPORT_SYMBOL_GPL(br_vlan_get_pvid_rcu);
 
 int br_vlan_get_info(const struct net_device *dev, u16 vid,
 		     struct bridge_vlan_info *p_vinfo)
@@ -1262,6 +1281,227 @@ int br_vlan_get_info(const struct net_device *dev, u16 vid,
 
 	p_vinfo->vid = vid;
 	p_vinfo->flags = v->flags;
+	if (vid == br_get_pvid(vg))
+		p_vinfo->flags |= BRIDGE_VLAN_INFO_PVID;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(br_vlan_get_info);
+
+static int br_vlan_is_bind_vlan_dev(const struct net_device *dev)
+{
+	return is_vlan_dev(dev) &&
+		!!(vlan_dev_priv(dev)->flags & VLAN_FLAG_BRIDGE_BINDING);
+}
+
+static int br_vlan_is_bind_vlan_dev_fn(struct net_device *dev,
+				       __always_unused void *data)
+{
+	return br_vlan_is_bind_vlan_dev(dev);
+}
+
+static bool br_vlan_has_upper_bind_vlan_dev(struct net_device *dev)
+{
+	int found;
+
+	rcu_read_lock();
+	found = netdev_walk_all_upper_dev_rcu(dev, br_vlan_is_bind_vlan_dev_fn,
+					      NULL);
+	rcu_read_unlock();
+
+	return !!found;
+}
+
+struct br_vlan_bind_walk_data {
+	u16 vid;
+	struct net_device *result;
+};
+
+static int br_vlan_match_bind_vlan_dev_fn(struct net_device *dev,
+					  void *data_in)
+{
+	struct br_vlan_bind_walk_data *data = data_in;
+	int found = 0;
+
+	if (br_vlan_is_bind_vlan_dev(dev) &&
+	    vlan_dev_priv(dev)->vlan_id == data->vid) {
+		data->result = dev;
+		found = 1;
+	}
+
+	return found;
+}
+
+static struct net_device *
+br_vlan_get_upper_bind_vlan_dev(struct net_device *dev, u16 vid)
+{
+	struct br_vlan_bind_walk_data data = {
+		.vid = vid,
+	};
+
+	rcu_read_lock();
+	netdev_walk_all_upper_dev_rcu(dev, br_vlan_match_bind_vlan_dev_fn,
+				      &data);
+	rcu_read_unlock();
+
+	return data.result;
+}
+
+static bool br_vlan_is_dev_up(const struct net_device *dev)
+{
+	return  !!(dev->flags & IFF_UP) && netif_oper_up(dev);
+}
+
+static void br_vlan_set_vlan_dev_state(const struct net_bridge *br,
+				       struct net_device *vlan_dev)
+{
+	u16 vid = vlan_dev_priv(vlan_dev)->vlan_id;
+	struct net_bridge_vlan_group *vg;
+	struct net_bridge_port *p;
+	bool has_carrier = false;
+
+	if (!netif_carrier_ok(br->dev)) {
+		netif_carrier_off(vlan_dev);
+		return;
+	}
+
+	list_for_each_entry(p, &br->port_list, list) {
+		vg = nbp_vlan_group(p);
+		if (br_vlan_find(vg, vid) && br_vlan_is_dev_up(p->dev)) {
+			has_carrier = true;
+			break;
+		}
+	}
+
+	if (has_carrier)
+		netif_carrier_on(vlan_dev);
+	else
+		netif_carrier_off(vlan_dev);
+}
+
+static void br_vlan_set_all_vlan_dev_state(struct net_bridge_port *p)
+{
+	struct net_bridge_vlan_group *vg = nbp_vlan_group(p);
+	struct net_bridge_vlan *vlan;
+	struct net_device *vlan_dev;
+
+	list_for_each_entry(vlan, &vg->vlan_list, vlist) {
+		vlan_dev = br_vlan_get_upper_bind_vlan_dev(p->br->dev,
+							   vlan->vid);
+		if (vlan_dev) {
+			if (br_vlan_is_dev_up(p->dev)) {
+				if (netif_carrier_ok(p->br->dev))
+					netif_carrier_on(vlan_dev);
+			} else {
+				br_vlan_set_vlan_dev_state(p->br, vlan_dev);
+			}
+		}
+	}
+}
+
+static void br_vlan_upper_change(struct net_device *dev,
+				 struct net_device *upper_dev,
+				 bool linking)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	if (!br_vlan_is_bind_vlan_dev(upper_dev))
+		return;
+
+	if (linking) {
+		br_vlan_set_vlan_dev_state(br, upper_dev);
+		br_opt_toggle(br, BROPT_VLAN_BRIDGE_BINDING, true);
+	} else {
+		br_opt_toggle(br, BROPT_VLAN_BRIDGE_BINDING,
+			      br_vlan_has_upper_bind_vlan_dev(dev));
+	}
+}
+
+struct br_vlan_link_state_walk_data {
+	struct net_bridge *br;
+};
+
+static int br_vlan_link_state_change_fn(struct net_device *vlan_dev,
+					void *data_in)
+{
+	struct br_vlan_link_state_walk_data *data = data_in;
+
+	if (br_vlan_is_bind_vlan_dev(vlan_dev))
+		br_vlan_set_vlan_dev_state(data->br, vlan_dev);
+
+	return 0;
+}
+
+static void br_vlan_link_state_change(struct net_device *dev,
+				      struct net_bridge *br)
+{
+	struct br_vlan_link_state_walk_data data = {
+		.br = br
+	};
+
+	rcu_read_lock();
+	netdev_walk_all_upper_dev_rcu(dev, br_vlan_link_state_change_fn,
+				      &data);
+	rcu_read_unlock();
+}
+
+/* Must be protected by RTNL. */
+static void nbp_vlan_set_vlan_dev_state(struct net_bridge_port *p, u16 vid)
+{
+	struct net_device *vlan_dev;
+
+	if (!br_opt_get(p->br, BROPT_VLAN_BRIDGE_BINDING))
+		return;
+
+	vlan_dev = br_vlan_get_upper_bind_vlan_dev(p->br->dev, vid);
+	if (vlan_dev)
+		br_vlan_set_vlan_dev_state(p->br, vlan_dev);
+}
+
+/* Must be protected by RTNL. */
+int br_vlan_bridge_event(struct net_device *dev, unsigned long event, void *ptr)
+{
+	struct netdev_notifier_changeupper_info *info;
+	struct net_bridge *br = netdev_priv(dev);
+	bool changed;
+	int ret = 0;
+
+	switch (event) {
+	case NETDEV_REGISTER:
+		ret = br_vlan_add(br, br->default_pvid,
+				  BRIDGE_VLAN_INFO_PVID |
+				  BRIDGE_VLAN_INFO_UNTAGGED |
+				  BRIDGE_VLAN_INFO_BRENTRY, &changed, NULL);
+		break;
+	case NETDEV_UNREGISTER:
+		br_vlan_delete(br, br->default_pvid);
+		break;
+	case NETDEV_CHANGEUPPER:
+		info = ptr;
+		br_vlan_upper_change(dev, info->upper_dev, info->linking);
+		break;
+
+	case NETDEV_CHANGE:
+	case NETDEV_UP:
+		if (!br_opt_get(br, BROPT_VLAN_BRIDGE_BINDING))
+			break;
+		br_vlan_link_state_change(dev, br);
+		break;
+	}
+
+	return ret;
+}
+
+/* Must be protected by RTNL. */
+void br_vlan_port_event(struct net_bridge_port *p, unsigned long event)
+{
+	if (!br_opt_get(p->br, BROPT_VLAN_BRIDGE_BINDING))
+		return;
+
+	switch (event) {
+	case NETDEV_CHANGE:
+	case NETDEV_DOWN:
+	case NETDEV_UP:
+		br_vlan_set_all_vlan_dev_state(p);
+		break;
+	}
+}

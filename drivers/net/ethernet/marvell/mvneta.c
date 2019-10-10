@@ -437,6 +437,7 @@ struct mvneta_port {
 	struct device_node *dn;
 	unsigned int tx_csum_limit;
 	struct phylink *phylink;
+	struct phylink_config phylink_config;
 	struct phy *comphy;
 
 	struct mvneta_bm *bm_priv;
@@ -1118,7 +1119,7 @@ static void mvneta_bm_update_mtu(struct mvneta_port *pp, int mtu)
 			SKB_DATA_ALIGN(MVNETA_RX_BUF_SIZE(bm_pool->pkt_size));
 
 	/* Fill entire long pool */
-	num = hwbm_pool_add(hwbm_pool, hwbm_pool->size, GFP_ATOMIC);
+	num = hwbm_pool_add(hwbm_pool, hwbm_pool->size);
 	if (num != hwbm_pool->size) {
 		WARN(1, "pool %d: %d of %d allocated\n",
 		     bm_pool->id, num, hwbm_pool->size);
@@ -2349,10 +2350,10 @@ static int mvneta_tx_frag_process(struct mvneta_port *pp, struct sk_buff *skb,
 
 	for (i = 0; i < nr_frags; i++) {
 		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
-		void *addr = page_address(frag->page.p) + frag->page_offset;
+		void *addr = skb_frag_address(frag);
 
 		tx_desc = mvneta_txq_next_desc_get(txq);
-		tx_desc->data_size = frag->size;
+		tx_desc->data_size = skb_frag_size(frag);
 
 		tx_desc->buf_phys_addr =
 			dma_map_single(pp->dev->dev.parent, addr,
@@ -2467,7 +2468,7 @@ out:
 		if (txq->count >= txq->tx_stop_threshold)
 			netif_tx_stop_queue(nq);
 
-		if (!skb->xmit_more || netif_xmit_stopped(nq) ||
+		if (!netdev_xmit_more() || netif_xmit_stopped(nq) ||
 		    txq->pending + frags > MVNETA_TXQ_DEC_SENT_MASK)
 			mvneta_txq_pend_desc_add(pp, txq, frags);
 		else
@@ -3356,9 +3357,11 @@ static int mvneta_set_mac_addr(struct net_device *dev, void *addr)
 	return 0;
 }
 
-static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
+static void mvneta_validate(struct phylink_config *config,
+			    unsigned long *supported,
 			    struct phylink_link_state *state)
 {
+	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
 	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 
@@ -3385,6 +3388,7 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 		phylink_set(mask, 1000baseX_Full);
 	}
 	if (pp->comphy || state->interface == PHY_INTERFACE_MODE_2500BASEX) {
+		phylink_set(mask, 2500baseT_Full);
 		phylink_set(mask, 2500baseX_Full);
 	}
 
@@ -3407,9 +3411,10 @@ static void mvneta_validate(struct net_device *ndev, unsigned long *supported,
 	phylink_helper_basex_speed(state);
 }
 
-static int mvneta_mac_link_state(struct net_device *ndev,
+static int mvneta_mac_link_state(struct phylink_config *config,
 				 struct phylink_link_state *state)
 {
+	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 gmac_stat;
 
@@ -3437,8 +3442,9 @@ static int mvneta_mac_link_state(struct net_device *ndev,
 	return 1;
 }
 
-static void mvneta_mac_an_restart(struct net_device *ndev)
+static void mvneta_mac_an_restart(struct phylink_config *config)
 {
+	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 gmac_an = mvreg_read(pp, MVNETA_GMAC_AUTONEG_CONFIG);
 
@@ -3448,9 +3454,10 @@ static void mvneta_mac_an_restart(struct net_device *ndev)
 		    gmac_an & ~MVNETA_GMAC_INBAND_RESTART_AN);
 }
 
-static void mvneta_mac_config(struct net_device *ndev, unsigned int mode,
-	const struct phylink_link_state *state)
+static void mvneta_mac_config(struct phylink_config *config, unsigned int mode,
+			      const struct phylink_link_state *state)
 {
+	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 new_ctrl0, gmac_ctrl0 = mvreg_read(pp, MVNETA_GMAC_CTRL_0);
 	u32 new_ctrl2, gmac_ctrl2 = mvreg_read(pp, MVNETA_GMAC_CTRL_2);
@@ -3580,9 +3587,10 @@ static void mvneta_set_eee(struct mvneta_port *pp, bool enable)
 	mvreg_write(pp, MVNETA_LPI_CTRL_1, lpi_ctl1);
 }
 
-static void mvneta_mac_link_down(struct net_device *ndev, unsigned int mode,
-				 phy_interface_t interface)
+static void mvneta_mac_link_down(struct phylink_config *config,
+				 unsigned int mode, phy_interface_t interface)
 {
+	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 val;
 
@@ -3599,10 +3607,11 @@ static void mvneta_mac_link_down(struct net_device *ndev, unsigned int mode,
 	mvneta_set_eee(pp, false);
 }
 
-static void mvneta_mac_link_up(struct net_device *ndev, unsigned int mode,
+static void mvneta_mac_link_up(struct phylink_config *config, unsigned int mode,
 			       phy_interface_t interface,
 			       struct phy_device *phy)
 {
+	struct net_device *ndev = to_net_dev(config->dev);
 	struct mvneta_port *pp = netdev_priv(ndev);
 	u32 val;
 
@@ -4460,7 +4469,6 @@ static int mvneta_port_power_up(struct mvneta_port *pp, int phy_mode)
 /* Device initialization routine */
 static int mvneta_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct device_node *dn = pdev->dev.of_node;
 	struct device_node *bm_node;
 	struct mvneta_port *pp;
@@ -4475,15 +4483,14 @@ static int mvneta_probe(struct platform_device *pdev)
 	int err;
 	int cpu;
 
-	dev = alloc_etherdev_mqs(sizeof(struct mvneta_port), txq_number, rxq_number);
+	dev = devm_alloc_etherdev_mqs(&pdev->dev, sizeof(struct mvneta_port),
+				      txq_number, rxq_number);
 	if (!dev)
 		return -ENOMEM;
 
 	dev->irq = irq_of_parse_and_map(dn, 0);
-	if (dev->irq == 0) {
-		err = -EINVAL;
-		goto err_free_netdev;
-	}
+	if (dev->irq == 0)
+		return -EINVAL;
 
 	phy_mode = of_get_phy_mode(dn);
 	if (phy_mode < 0) {
@@ -4500,8 +4507,14 @@ static int mvneta_probe(struct platform_device *pdev)
 		comphy = NULL;
 	}
 
-	phylink = phylink_create(dev, pdev->dev.fwnode, phy_mode,
-				 &mvneta_phylink_ops);
+	pp = netdev_priv(dev);
+	spin_lock_init(&pp->lock);
+
+	pp->phylink_config.dev = &dev->dev;
+	pp->phylink_config.type = PHYLINK_NETDEV;
+
+	phylink = phylink_create(&pp->phylink_config, pdev->dev.fwnode,
+				 phy_mode, &mvneta_phylink_ops);
 	if (IS_ERR(phylink)) {
 		err = PTR_ERR(phylink);
 		goto err_free_irq;
@@ -4513,8 +4526,6 @@ static int mvneta_probe(struct platform_device *pdev)
 
 	dev->ethtool_ops = &mvneta_eth_tool_ops;
 
-	pp = netdev_priv(dev);
-	spin_lock_init(&pp->lock);
 	pp->phylink = phylink;
 	pp->comphy = comphy;
 	pp->phy_interface = phy_mode;
@@ -4541,8 +4552,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	if (!IS_ERR(pp->clk_bus))
 		clk_prepare_enable(pp->clk_bus);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pp->base = devm_ioremap_resource(&pdev->dev, res);
+	pp->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pp->base)) {
 		err = PTR_ERR(pp->base);
 		goto err_clk;
@@ -4563,9 +4573,9 @@ static int mvneta_probe(struct platform_device *pdev)
 	}
 
 	dt_mac_addr = of_get_mac_address(dn);
-	if (dt_mac_addr) {
+	if (!IS_ERR(dt_mac_addr)) {
 		mac_from = "device tree";
-		memcpy(dev->dev_addr, dt_mac_addr, ETH_ALEN);
+		ether_addr_copy(dev->dev_addr, dt_mac_addr);
 	} else {
 		mvneta_get_mac_addr(pp, hw_mac_addr);
 		if (is_valid_ether_addr(hw_mac_addr)) {
@@ -4674,7 +4684,7 @@ static int mvneta_probe(struct platform_device *pdev)
 	err = register_netdev(dev);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to register\n");
-		goto err_free_stats;
+		goto err_netdev;
 	}
 
 	netdev_info(dev, "Using %s mac address %pM\n", mac_from,
@@ -4685,14 +4695,12 @@ static int mvneta_probe(struct platform_device *pdev)
 	return 0;
 
 err_netdev:
-	unregister_netdev(dev);
 	if (pp->bm_priv) {
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_short,
 				       1 << pp->id);
 		mvneta_bm_put(pp->bm_priv);
 	}
-err_free_stats:
 	free_percpu(pp->stats);
 err_free_ports:
 	free_percpu(pp->ports);
@@ -4704,8 +4712,6 @@ err_free_phylink:
 		phylink_destroy(pp->phylink);
 err_free_irq:
 	irq_dispose_mapping(dev->irq);
-err_free_netdev:
-	free_netdev(dev);
 	return err;
 }
 
@@ -4722,7 +4728,6 @@ static int mvneta_remove(struct platform_device *pdev)
 	free_percpu(pp->stats);
 	irq_dispose_mapping(dev->irq);
 	phylink_destroy(pp->phylink);
-	free_netdev(dev);
 
 	if (pp->bm_priv) {
 		mvneta_bm_pool_destroy(pp->bm_priv, pp->pool_long, 1 << pp->id);

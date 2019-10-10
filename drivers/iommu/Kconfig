@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# The IOVA library may also be used by non-IOMMU_API users
+config IOMMU_IOVA
+	tristate
+
 # IOMMU_API always gets selected by whoever wants it.
 config IOMMU_API
 	bool
@@ -81,9 +86,6 @@ config IOMMU_DEFAULT_PASSTHROUGH
 
 	  If unsure, say N here.
 
-config IOMMU_IOVA
-	tristate
-
 config OF_IOMMU
        def_bool y
        depends on OF && IOMMU_API
@@ -93,6 +95,7 @@ config IOMMU_DMA
 	bool
 	select IOMMU_API
 	select IOMMU_IOVA
+	select IRQ_MSI_IOMMU
 	select NEED_SG_DMA_LENGTH
 
 config FSL_PAMU
@@ -174,11 +177,12 @@ config DMAR_TABLE
 
 config INTEL_IOMMU
 	bool "Support for Intel IOMMU using DMA Remapping Devices"
-	depends on PCI_MSI && ACPI && (X86 || IA64_GENERIC)
+	depends on PCI_MSI && ACPI && (X86 || IA64)
 	select IOMMU_API
 	select IOMMU_IOVA
 	select NEED_DMA_MAP_STATE
 	select DMAR_TABLE
+	select SWIOTLB
 	help
 	  DMA remapping (DMAR) devices support enables independent address
 	  translations for Direct Memory Access (DMA) from devices.
@@ -282,6 +286,7 @@ config ROCKCHIP_IOMMU
 config TEGRA_IOMMU_GART
 	bool "Tegra GART IOMMU Support"
 	depends on ARCH_TEGRA_2x_SOC
+	depends on TEGRA_MC
 	select IOMMU_API
 	help
 	  Enables support for remapping discontiguous physical memory
@@ -356,6 +361,31 @@ config ARM_SMMU
 
 	  Say Y here if your SoC includes an IOMMU device implementing
 	  the ARM SMMU architecture.
+
+config ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT
+	bool "Default to disabling bypass on ARM SMMU v1 and v2"
+	depends on ARM_SMMU
+	default y
+	help
+	  Say Y here to (by default) disable bypass streams such that
+	  incoming transactions from devices that are not attached to
+	  an iommu domain will report an abort back to the device and
+	  will not be allowed to pass through the SMMU.
+
+	  Any old kernels that existed before this KConfig was
+	  introduced would default to _allowing_ bypass (AKA the
+	  equivalent of NO for this config).  However the default for
+	  this option is YES because the old behavior is insecure.
+
+	  There are few reasons to allow unmatched stream bypass, and
+	  even fewer good ones.  If saying YES here breaks your board
+	  you should work on fixing your board.  This KConfig option
+	  is expected to be removed in the future and we'll simply
+	  hardcode the bypass disable in the code.
+
+	  NOTE: the kernel command line parameter
+	  'arm-smmu.disable_bypass' will continue to override this
+	  config.
 
 config ARM_SMMU_V3
 	bool "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
@@ -434,5 +464,25 @@ config QCOM_IOMMU
 	select ARM_DMA_USE_IOMMU
 	help
 	  Support for IOMMU on certain Qualcomm SoCs.
+
+config HYPERV_IOMMU
+	bool "Hyper-V x2APIC IRQ Handling"
+	depends on HYPERV
+	select IOMMU_API
+	default HYPERV
+	help
+	  Stub IOMMU driver to handle IRQs as to allow Hyper-V Linux
+	  guests to run with x2APIC mode enabled.
+
+config VIRTIO_IOMMU
+	bool "Virtio IOMMU driver"
+	depends on VIRTIO=y
+	depends on ARM64
+	select IOMMU_API
+	select INTERVAL_TREE
+	help
+	  Para-virtualised IOMMU driver with virtio.
+
+	  Say Y here if you intend to run this kernel as a guest.
 
 endif # IOMMU_SUPPORT

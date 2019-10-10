@@ -500,6 +500,9 @@ struct iwl_he_pkt_ext {
  *	enabled AGG, i.e. both BACK and non-BACK frames in a single AGG
  * @STA_CTXT_HE_MU_EDCA_CW: indicates that there is an element of MU EDCA
  *	parameter set, i.e. the backoff counters for trig-based ACs
+ * @STA_CTXT_HE_RU_2MHZ_BLOCK: indicates that 26-tone RU OFDMA transmission are
+ *      not allowed (as there are OBSS that might classify such transmissions as
+ *      radar pulses).
  */
 enum iwl_he_sta_ctxt_flags {
 	STA_CTXT_HE_REF_BSSID_VALID		= BIT(4),
@@ -511,6 +514,7 @@ enum iwl_he_sta_ctxt_flags {
 	STA_CTXT_HE_CONST_TRIG_RND_ALLOC	= BIT(10),
 	STA_CTXT_HE_ACK_ENABLED			= BIT(11),
 	STA_CTXT_HE_MU_EDCA_CW			= BIT(12),
+	STA_CTXT_HE_RU_2MHZ_BLOCK		= BIT(14),
 };
 
 /**
@@ -542,6 +546,66 @@ enum iwl_he_htc_flags {
 #define IWL_HE_HTC_LINK_ADAP_BOTH		(3 << IWL_HE_HTC_LINK_ADAP_POS)
 
 /**
+ * struct iwl_he_sta_context_cmd_v1 - configure FW to work with HE AP
+ * @sta_id: STA id
+ * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
+ *	0 - bad value, 1 - multi-tid not supported, 2..8 - tid limit
+ * @reserved1: reserved byte for future use
+ * @reserved2: reserved byte for future use
+ * @flags: see %iwl_11ax_sta_ctxt_flags
+ * @ref_bssid_addr: reference BSSID used by the AP
+ * @reserved0: reserved 2 bytes for aligning the ref_bssid_addr field to 8 bytes
+ * @htc_flags: which features are supported in HTC
+ * @frag_flags: frag support in A-MSDU
+ * @frag_level: frag support level
+ * @frag_max_num: max num of "open" MSDUs in the receiver (in power of 2)
+ * @frag_min_size: min frag size (except last frag)
+ * @pkt_ext: optional, exists according to PPE-present bit in the HE-PHY capa
+ * @bss_color: 11ax AP ID that is used in the HE SIG-A to mark inter BSS frame
+ * @htc_trig_based_pkt_ext: default PE in 4us units
+ * @frame_time_rts_th: HE duration RTS threshold, in units of 32us
+ * @rand_alloc_ecwmin: random CWmin = 2**ECWmin-1
+ * @rand_alloc_ecwmax: random CWmax = 2**ECWmax-1
+ * @reserved3: reserved byte for future use
+ * @trig_based_txf: MU EDCA Parameter set for the trigger based traffic queues
+ */
+struct iwl_he_sta_context_cmd_v1 {
+	u8 sta_id;
+	u8 tid_limit;
+	u8 reserved1;
+	u8 reserved2;
+	__le32 flags;
+
+	/* The below fields are set via Multiple BSSID IE */
+	u8 ref_bssid_addr[6];
+	__le16 reserved0;
+
+	/* The below fields are set via HE-capabilities IE */
+	__le32 htc_flags;
+
+	u8 frag_flags;
+	u8 frag_level;
+	u8 frag_max_num;
+	u8 frag_min_size;
+
+	/* The below fields are set via PPE thresholds element */
+	struct iwl_he_pkt_ext pkt_ext;
+
+	/* The below fields are set via HE-Operation IE */
+	u8 bss_color;
+	u8 htc_trig_based_pkt_ext;
+	__le16 frame_time_rts_th;
+
+	/* Random access parameter set (i.e. RAPS) */
+	u8 rand_alloc_ecwmin;
+	u8 rand_alloc_ecwmax;
+	__le16 reserved3;
+
+	/* The below fields are set via MU EDCA parameter set element */
+	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
+} __packed; /* STA_CONTEXT_DOT11AX_API_S_VER_1 */
+
+/**
  * struct iwl_he_sta_context_cmd - configure FW to work with HE AP
  * @sta_id: STA id
  * @tid_limit: max num of TIDs in TX HE-SU multi-TID agg
@@ -564,6 +628,14 @@ enum iwl_he_htc_flags {
  * @rand_alloc_ecwmax: random CWmax = 2**ECWmax-1
  * @reserved3: reserved byte for future use
  * @trig_based_txf: MU EDCA Parameter set for the trigger based traffic queues
+ * @max_bssid_indicator: indicator of the max bssid supported on the associated
+ *	bss
+ * @bssid_index: index of the associated VAP
+ * @ema_ap: AP supports enhanced Multi BSSID advertisement
+ * @profile_periodicity: number of Beacon periods that are needed to receive the
+ *	complete VAPs info
+ * @bssid_count: actual number of VAPs in the MultiBSS Set
+ * @reserved4: alignment
  */
 struct iwl_he_sta_context_cmd {
 	u8 sta_id;
@@ -599,7 +671,14 @@ struct iwl_he_sta_context_cmd {
 
 	/* The below fields are set via MU EDCA parameter set element */
 	struct iwl_he_backoff_conf trig_based_txf[AC_NUM];
-} __packed; /* STA_CONTEXT_DOT11AX_API_S */
+
+	u8 max_bssid_indicator;
+	u8 bssid_index;
+	u8 ema_ap;
+	u8 profile_periodicity;
+	u8 bssid_count;
+	u8 reserved4[3];
+} __packed; /* STA_CONTEXT_DOT11AX_API_S_VER_2 */
 
 /**
  * struct iwl_he_monitor_cmd - configure air sniffer for HE

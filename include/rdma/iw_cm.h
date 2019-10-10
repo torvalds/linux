@@ -94,7 +94,8 @@ struct iw_cm_id {
 	void (*add_ref)(struct iw_cm_id *);
 	void (*rem_ref)(struct iw_cm_id *);
 	u8  tos;
-	bool mapped;
+	bool tos_set:1;
+	bool mapped:1;
 };
 
 struct iw_cm_conn_param {
@@ -105,28 +106,16 @@ struct iw_cm_conn_param {
 	u32 qpn;
 };
 
-struct iw_cm_verbs {
-	void		(*add_ref)(struct ib_qp *qp);
+enum iw_flags {
 
-	void		(*rem_ref)(struct ib_qp *qp);
-
-	struct ib_qp *	(*get_qp)(struct ib_device *device,
-				  int qpn);
-
-	int		(*connect)(struct iw_cm_id *cm_id,
-				   struct iw_cm_conn_param *conn_param);
-
-	int		(*accept)(struct iw_cm_id *cm_id,
-				  struct iw_cm_conn_param *conn_param);
-
-	int		(*reject)(struct iw_cm_id *cm_id,
-				  const void *pdata, u8 pdata_len);
-
-	int		(*create_listen)(struct iw_cm_id *cm_id,
-					 int backlog);
-
-	int		(*destroy_listen)(struct iw_cm_id *cm_id);
-	char		ifname[IFNAMSIZ];
+	/*
+	 * This flag allows the iwcm and iwpmd to still advertise
+	 * mappings but the real and mapped port numbers are the
+	 * same.  Further, iwpmd will not bind any user socket to
+	 * reserve the port.  This is required for soft iwarp
+	 * to play in the port mapped iwarp space.
+	 */
+	IW_F_NO_PORT_MAP = (1 << 0),
 };
 
 /**

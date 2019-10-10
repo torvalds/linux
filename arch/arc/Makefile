@@ -1,12 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
-#
 
 KBUILD_DEFCONFIG := nsim_hs_defconfig
+
+ifeq ($(CROSS_COMPILE),)
+CROSS_COMPILE := $(call cc-cross-prefix, arc-linux- arceb-linux-)
+endif
 
 cflags-y	+= -fno-common -pipe -fno-builtin -mmedium-calls -D__linux__
 cflags-$(CONFIG_ISA_ARCOMPACT)	+= -mA7
@@ -18,7 +19,7 @@ ifdef CONFIG_ARC_CURR_IN_REG
 # any kernel headers, and missing the r25 global register
 # Can't do unconditionally because of recursive include issues
 # due to <linux/thread_info.h>
-LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/current.h
+LINUXINCLUDE	+=  -include $(srctree)/arch/arc/include/asm/current.h
 endif
 
 cflags-y				+= -fsection-anchors
@@ -27,6 +28,12 @@ cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
 
 ifdef CONFIG_ISA_ARCV2
+
+ifdef CONFIG_ARC_USE_UNALIGNED_MEM_ACCESS
+cflags-y				+= -munaligned-access
+else
+cflags-y				+= -mno-unaligned-access
+endif
 
 ifndef CONFIG_ARC_HAS_LL64
 cflags-y				+= -mno-ll64
@@ -40,14 +47,6 @@ endif
 
 cfi := $(call as-instr,.cfi_startproc\n.cfi_endproc,-DARC_DW2_UNWIND_AS_CFI)
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables $(cfi)
-
-ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
-# Generic build system uses -O2, we want -O3
-# Note: No need to add to cflags-y as that happens anyways
-#
-# Disable the false maybe-uninitialized warings gcc spits out at -O3
-ARCH_CFLAGS += -O3 $(call cc-disable-warning,maybe-uninitialized,)
-endif
 
 # small data is default for elf32 tool-chain. If not usable, disable it
 # This also allows repurposing GP as scratch reg to gcc reg allocator

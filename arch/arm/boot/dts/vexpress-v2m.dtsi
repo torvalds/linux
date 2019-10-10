@@ -35,6 +35,9 @@
 				reg = <0 0x00000000 0x04000000>,
 				      <1 0x00000000 0x04000000>;
 				bank-width = <4>;
+				partitions {
+					compatible = "arm,arm-firmware-suite";
+				};
 			};
 
 			psram@2,00000000 {
@@ -133,7 +136,7 @@
 				mmci@5000 {
 					compatible = "arm,pl180", "arm,primecell";
 					reg = <0x05000 0x1000>;
-					interrupts = <9 10>;
+					interrupts = <9>, <10>;
 					cd-gpios = <&v2m_mmc_gpios 0 0>;
 					wp-gpios = <&v2m_mmc_gpios 1 0>;
 					max-frequency = <12000000>;

@@ -74,7 +74,7 @@ struct ht16k33_priv {
 	struct ht16k33_fbdev fbdev;
 };
 
-static struct fb_fix_screeninfo ht16k33_fb_fix = {
+static const struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.id		= DRIVER_NAME,
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_MONO10,
@@ -85,7 +85,7 @@ static struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo ht16k33_fb_var = {
+static const struct fb_var_screeninfo ht16k33_fb_var = {
 	.xres = HT16K33_MATRIX_LED_MAX_ROWS,
 	.yres = HT16K33_MATRIX_LED_MAX_COLS,
 	.xres_virtual = HT16K33_MATRIX_LED_MAX_ROWS,
@@ -223,9 +223,9 @@ static const struct backlight_ops ht16k33_bl_ops = {
 static int ht16k33_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct ht16k33_priv *priv = info->par;
+	struct page *pages = virt_to_page(priv->fbdev.buffer);
 
-	return vm_insert_page(vma, vma->vm_start,
-			      virt_to_page(priv->fbdev.buffer));
+	return vm_map_pages_zero(vma, &pages, 1);
 }
 
 static struct fb_ops ht16k33_fb_ops = {

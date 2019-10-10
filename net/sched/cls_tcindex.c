@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/cls_tcindex.c	Packet classifier for skb->tc_index
  *
@@ -510,7 +511,8 @@ tcindex_change(struct net *net, struct sk_buff *in_skb,
 	if (!opt)
 		return 0;
 
-	err = nla_parse_nested(tb, TCA_TCINDEX_MAX, opt, tcindex_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_TCINDEX_MAX, opt,
+					  tcindex_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -601,7 +603,7 @@ static int tcindex_dump(struct net *net, struct tcf_proto *tp, void *fh,
 		 tp, fh, skb, t, p, r);
 	pr_debug("p->perfect %p p->h %p\n", p->perfect, p->h);
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 

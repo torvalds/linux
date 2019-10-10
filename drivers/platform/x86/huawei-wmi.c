@@ -166,7 +166,7 @@ static int huawei_wmi_input_setup(struct wmi_device *wdev)
 	return input_register_device(priv->idev);
 }
 
-static int huawei_wmi_probe(struct wmi_device *wdev)
+static int huawei_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct huawei_wmi_priv *priv;
 	int err;
@@ -201,8 +201,7 @@ static struct wmi_driver huawei_wmi_driver = {
 
 module_wmi_driver(huawei_wmi_driver);
 
-MODULE_ALIAS("wmi:"WMI0_EVENT_GUID);
-MODULE_ALIAS("wmi:"AMW0_EVENT_GUID);
+MODULE_DEVICE_TABLE(wmi, huawei_wmi_id_table);
 MODULE_AUTHOR("Ayman Bagabas <ayman.bagabas@gmail.com>");
 MODULE_DESCRIPTION("Huawei WMI hotkeys");
 MODULE_LICENSE("GPL v2");

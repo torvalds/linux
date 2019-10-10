@@ -139,7 +139,6 @@ struct b53_device {
 	unsigned int num_vlans;
 	struct b53_vlan *vlans;
 	bool vlan_enabled;
-	bool vlan_filtering_enabled;
 	unsigned int num_ports;
 	struct b53_port *ports;
 };
@@ -320,6 +319,8 @@ int b53_br_join(struct dsa_switch *ds, int port, struct net_device *bridge);
 void b53_br_leave(struct dsa_switch *ds, int port, struct net_device *bridge);
 void b53_br_set_stp_state(struct dsa_switch *ds, int port, u8 state);
 void b53_br_fast_age(struct dsa_switch *ds, int port);
+int b53_br_egress_floods(struct dsa_switch *ds, int port,
+			 bool unicast, bool multicast);
 void b53_port_event(struct dsa_switch *ds, int port);
 void b53_phylink_validate(struct dsa_switch *ds, int port,
 			  unsigned long *supported,

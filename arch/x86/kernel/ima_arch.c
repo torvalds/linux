@@ -3,6 +3,7 @@
  * Copyright (C) 2018 IBM Corporation
  */
 #include <linux/efi.h>
+#include <linux/module.h>
 #include <linux/ima.h>
 
 extern struct boot_params boot_params;
@@ -10,12 +11,18 @@ extern struct boot_params boot_params;
 static enum efi_secureboot_mode get_sb_mode(void)
 {
 	efi_char16_t efi_SecureBoot_name[] = L"SecureBoot";
+	efi_char16_t efi_SetupMode_name[] = L"SecureBoot";
 	efi_guid_t efi_variable_guid = EFI_GLOBAL_VARIABLE_GUID;
 	efi_status_t status;
 	unsigned long size;
-	u8 secboot;
+	u8 secboot, setupmode;
 
 	size = sizeof(secboot);
+
+	if (!efi_enabled(EFI_RUNTIME_SERVICES)) {
+		pr_info("ima: secureboot mode unknown, no efi\n");
+		return efi_secureboot_mode_unknown;
+	}
 
 	/* Get variable contents into buffer */
 	status = efi.get_variable(efi_SecureBoot_name, &efi_variable_guid,
@@ -30,7 +37,14 @@ static enum efi_secureboot_mode get_sb_mode(void)
 		return efi_secureboot_mode_unknown;
 	}
 
-	if (secboot == 0) {
+	size = sizeof(setupmode);
+	status = efi.get_variable(efi_SetupMode_name, &efi_variable_guid,
+				  NULL, &size, &setupmode);
+
+	if (status != EFI_SUCCESS)	/* ignore unknown SetupMode */
+		setupmode = 0;
+
+	if (secboot == 0 || setupmode == 1) {
 		pr_info("ima: secureboot mode disabled\n");
 		return efi_secureboot_mode_disabled;
 	}
@@ -60,16 +74,23 @@ bool arch_ima_get_secureboot(void)
 
 /* secureboot arch rules */
 static const char * const sb_arch_rules[] = {
-#if !IS_ENABLED(CONFIG_KEXEC_VERIFY_SIG)
+#if !IS_ENABLED(CONFIG_KEXEC_SIG)
 	"appraise func=KEXEC_KERNEL_CHECK appraise_type=imasig",
-#endif /* CONFIG_KEXEC_VERIFY_SIG */
+#endif /* CONFIG_KEXEC_SIG */
 	"measure func=KEXEC_KERNEL_CHECK",
+#if !IS_ENABLED(CONFIG_MODULE_SIG)
+	"appraise func=MODULE_CHECK appraise_type=imasig",
+#endif
+	"measure func=MODULE_CHECK",
 	NULL
 };
 
 const char * const *arch_get_ima_policy(void)
 {
-	if (IS_ENABLED(CONFIG_IMA_ARCH_POLICY) && arch_ima_get_secureboot())
+	if (IS_ENABLED(CONFIG_IMA_ARCH_POLICY) && arch_ima_get_secureboot()) {
+		if (IS_ENABLED(CONFIG_MODULE_SIG))
+			set_module_sig_enforced();
 		return sb_arch_rules;
+	}
 	return NULL;
 }

@@ -10,25 +10,6 @@ graphics subsystem useful as newbie projects. Or for slow rainy days.
 Subsystem-wide refactorings
 ===========================
 
-De-midlayer drivers
--------------------
-
-With the recent ``drm_bus`` cleanup patches for 3.17 it is no longer required
-to have a ``drm_bus`` structure set up. Drivers can directly set up the
-``drm_device`` structure instead of relying on bus methods in ``drm_usb.c``
-and ``drm_pci.c``. The goal is to get rid of the driver's ``->load`` /
-``->unload`` callbacks and open-code the load/unload sequence properly, using
-the new two-stage ``drm_device`` setup/teardown.
-
-Once all existing drivers are converted we can also remove those bus support
-files for USB and platform devices.
-
-All you need is a GPU for a non-converted driver (currently almost all of
-them, but also all the virtual ones used by KVM, so everyone qualifies).
-
-Contact: Daniel Vetter, Thierry Reding, respective driver maintainers
-
-
 Remove custom dumb_map_offset implementations
 ---------------------------------------------
 
@@ -81,30 +62,6 @@ One issue with the helpers is that they require that drivers handle completion
 events for atomic commits correctly. But fixing these bugs is good anyway.
 
 Contact: Daniel Vetter, respective driver maintainers
-
-Better manual-upload support for atomic
----------------------------------------
-
-This would be especially useful for tinydrm:
-
-- Add a struct drm_rect dirty_clip to drm_crtc_state. When duplicating the
-  crtc state, clear that to the max values, x/y = 0 and w/h = MAX_INT, in
-  __drm_atomic_helper_crtc_duplicate_state().
-
-- Move tinydrm_merge_clips into drm_framebuffer.c, dropping the tinydrm\_
-  prefix ofc and using drm_fb\_. drm_framebuffer.c makes sense since this
-  is a function useful to implement the fb->dirty function.
-
-- Create a new drm_fb_dirty function which does essentially what e.g.
-  mipi_dbi_fb_dirty does. You can use e.g. drm_atomic_helper_update_plane as the
-  template. But instead of doing a simple full-screen plane update, this new
-  helper also sets crtc_state->dirty_clip to the right coordinates. And of
-  course it needs to check whether the fb is actually active (and maybe where),
-  so there's some book-keeping involved. There's also some good fun involved in
-  scaling things appropriately. For that case we might simply give up and
-  declare the entire area covered by the plane as dirty.
-
-Contact: Noralf Trønnes, Daniel Vetter
 
 Fallout from atomic KMS
 -----------------------
@@ -205,18 +162,39 @@ Clean up mmap forwarding
 
 A lot of drivers forward gem mmap calls to dma-buf mmap for imported buffers.
 And also a lot of them forward dma-buf mmap to the gem mmap implementations.
-Would be great to refactor this all into a set of small common helpers.
+There's drm_gem_prime_mmap() for this now, but still needs to be rolled out.
 
 Contact: Daniel Vetter
 
-Put a reservation_object into drm_gem_object
---------------------------------------------
+Generic fbdev defio support
+---------------------------
 
-This would remove the need for the ->gem_prime_res_obj callback. It would also
-allow us to implement generic helpers for waiting for a bo, allowing for quite a
-bit of refactoring in the various wait ioctl implementations.
+The defio support code in the fbdev core has some very specific requirements,
+which means drivers need to have a special framebuffer for fbdev. Which prevents
+us from using the generic fbdev emulation code everywhere. The main issue is
+that it uses some fields in struct page itself, which breaks shmem gem objects
+(and other things).
 
-Contact: Daniel Vetter
+Possible solution would be to write our own defio mmap code in the drm fbdev
+emulation. It would need to fully wrap the existing mmap ops, forwarding
+everything after it has done the write-protect/mkwrite trickery:
+
+- In the drm_fbdev_fb_mmap helper, if we need defio, change the
+  default page prots to write-protected with something like this::
+
+      vma->vm_page_prot = pgprot_wrprotect(vma->vm_page_prot);
+
+- Set the mkwrite and fsync callbacks with similar implementions to the core
+  fbdev defio stuff. These should all work on plain ptes, they don't actually
+  require a struct page.  uff. These should all work on plain ptes, they don't
+  actually require a struct page.
+
+- Track the dirty pages in a separate structure (bitfield with one bit per page
+  should work) to avoid clobbering struct page.
+
+Might be good to also have some igt testcases for this.
+
+Contact: Daniel Vetter, Noralf Tronnes
 
 idr_init_base()
 ---------------
@@ -228,18 +206,15 @@ efficient.
 
 Contact: Daniel Vetter
 
-Defaults for .gem_prime_import and export
------------------------------------------
-
-Most drivers don't need to set drm_driver->gem_prime_import and
-->gem_prime_export now that drm_gem_prime_import() and drm_gem_prime_export()
-are the default.
-
 struct drm_gem_object_funcs
 ---------------------------
 
 GEM objects can now have a function table instead of having the callbacks on the
 DRM driver struct. This is now the preferred way and drivers can be moved over.
+
+We also need a 2nd version of the CMA define that doesn't require the
+vmapping to be present (different hook for prime importing). Plus this needs to
+be rolled out to all drivers using their own implementations, too.
 
 Use DRM_MODESET_LOCK_ALL_* helpers instead of boilerplate
 ---------------------------------------------------------
@@ -256,6 +231,59 @@ As a reference, take a look at the conversions already completed in drm core.
 
 Contact: Sean Paul, respective driver maintainers
 
+Rename CMA helpers to DMA helpers
+---------------------------------
+
+CMA (standing for contiguous memory allocator) is really a bit an accident of
+what these were used for first, a much better name would be DMA helpers. In the
+text these should even be called coherent DMA memory helpers (so maybe CDM, but
+no one knows what that means) since underneath they just use dma_alloc_coherent.
+
+Contact: Laurent Pinchart, Daniel Vetter
+
+Convert direct mode.vrefresh accesses to use drm_mode_vrefresh()
+----------------------------------------------------------------
+
+drm_display_mode.vrefresh isn't guaranteed to be populated. As such, using it
+is risky and has been known to cause div-by-zero bugs. Fortunately, drm core
+has helper which will use mode.vrefresh if it's !0 and will calculate it from
+the timings when it's 0.
+
+Use simple search/replace, or (more fun) cocci to replace instances of direct
+vrefresh access with a call to the helper. Check out
+https://lists.freedesktop.org/archives/dri-devel/2019-January/205186.html for
+inspiration.
+
+Once all instances of vrefresh have been converted, remove vrefresh from
+drm_display_mode to avoid future use.
+
+Contact: Sean Paul
+
+Remove drm_display_mode.hsync
+-----------------------------
+
+We have drm_mode_hsync() to calculate this from hsync_start/end, since drivers
+shouldn't/don't use this, remove this member to avoid any temptations to use it
+in the future. If there is any debug code using drm_display_mode.hsync, convert
+it to use drm_mode_hsync() instead.
+
+Contact: Sean Paul
+
+drm_fb_helper tasks
+-------------------
+
+- drm_fb_helper_restore_fbdev_mode_unlocked() should call restore_fbdev_mode()
+  not the _force variant so it can bail out if there is a master. But first
+  these igt tests need to be fixed: kms_fbcon_fbt@psr and
+  kms_fbcon_fbt@psr-suspend.
+
+- The max connector argument for drm_fb_helper_init() and
+  drm_fb_helper_fbdev_setup() isn't used anymore and can be removed.
+
+- The helper doesn't keep an array of connectors anymore so these can be
+  removed: drm_fb_helper_single_add_all_connectors(),
+  drm_fb_helper_add_one_connector() and drm_fb_helper_remove_one_connector().
+
 Core refactorings
 =================
 
@@ -268,19 +296,6 @@ the cleanup work here is to replace any ``#include <drm/drmP.h>`` by only the
 headers needed (and fixing up any missing pre-declarations in the headers).
 
 In the end no .c file should need to include ``drmP.h`` anymore.
-
-Contact: Daniel Vetter
-
-Add missing kerneldoc for exported functions
---------------------------------------------
-
-The DRM reference documentation is still lacking kerneldoc in a few areas. The
-task would be to clean up interfaces like moving functions around between
-files to better group them and improving the interfaces like dropping return
-values for functions that never fail. Then write kerneldoc for all exported
-functions and an overview section and integrate it all into the drm book.
-
-See https://dri.freedesktop.org/docs/drm/ for what's there already.
 
 Contact: Daniel Vetter
 
@@ -347,19 +362,15 @@ There's a bunch of issues with it:
   this (together with the drm_minor->drm_device move) would allow us to remove
   debugfs_init.
 
+- Drop the return code and error checking from all debugfs functions. Greg KH is
+  working on this already.
+
 Contact: Daniel Vetter
 
 KMS cleanups
 ------------
 
 Some of these date from the very introduction of KMS in 2008 ...
-
-- drm_mode_config.crtc_idr is misnamed, since it contains all KMS object. Should
-  be renamed to drm_mode_config.object_idr.
-
-- drm_display_mode doesn't need to be derived from drm_mode_object. That's
-  leftovers from older (never merged into upstream) KMS designs where modes
-  where set using their ID, including support to add/remove modes.
 
 - Make ->funcs and ->helper_private vtables optional. There's a bunch of empty
   function tables in drivers, but before we can remove them we need to make sure
@@ -401,53 +412,21 @@ fit the available time.
 
 Contact: Daniel Vetter
 
+Backlight Refactoring
+---------------------
+
+Backlight drivers have a triple enable/disable state, which is a bit overkill.
+Plan to fix this:
+
+1. Roll out backlight_enable() and backlight_disable() helpers everywhere. This
+   has started already.
+2. In all, only look at one of the three status bits set by the above helpers.
+3. Remove the other two status bits.
+
+Contact: Daniel Vetter
+
 Driver Specific
 ===============
-
-tinydrm
--------
-
-Tinydrm is the helper driver for really simple fb drivers. The goal is to make
-those drivers as simple as possible, so lots of room for refactoring:
-
-- backlight helpers, probably best to put them into a new drm_backlight.c.
-  This is because drivers/video is de-facto unmaintained. We could also
-  move drivers/video/backlight to drivers/gpu/backlight and take it all
-  over within drm-misc, but that's more work. Backlight helpers require a fair
-  bit of reworking and refactoring. A simple example is the enabling of a backlight.
-  Tinydrm has helpers for this. It would be good if other drivers can also use the
-  helper. However, there are various cases we need to consider i.e different
-  drivers seem to have different ways of enabling/disabling a backlight.
-  We also need to consider the backlight drivers (like gpio_backlight). The situation
-  is further complicated by the fact that the backlight is tied to fbdev
-  via fb_notifier_callback() which has complicated logic. For further details, refer
-  to the following discussion thread:
-  https://groups.google.com/forum/#!topic/outreachy-kernel/8rBe30lwtdA
-
-- spi helpers, probably best put into spi core/helper code. Thierry said
-  the spi maintainer is fast&reactive, so shouldn't be a big issue.
-
-- extract the mipi-dbi helper (well, the non-tinydrm specific parts at
-  least) into a separate helper, like we have for mipi-dsi already. Or follow
-  one of the ideas for having a shared dsi/dbi helper, abstracting away the
-  transport details more.
-
-- tinydrm_gem_cma_prime_import_sg_table should probably go into the cma
-  helpers, as a _vmapped variant (since not every driver needs the vmap).
-  And tinydrm_gem_cma_free_object could the be merged into
-  drm_gem_cma_free_object().
-
-- tinydrm_fb_create we could move into drm_simple_pipe, only need to add
-  the fb_create hook to drm_simple_pipe_funcs, which would again simplify a
-  bunch of things (since it gives you a one-stop vfunc for simple drivers).
-
-- Quick aside: The unregister devm stuff is kinda getting the lifetimes of
-  a drm_device wrong. Doesn't matter, since everyone else gets it wrong
-  too :-)
-
-- also rework the drm_framebuffer_funcs->dirty hook wire-up, see above.
-
-Contact: Noralf Trønnes, Daniel Vetter
 
 AMD DC Display Driver
 ---------------------
@@ -465,6 +444,21 @@ i915
 - Our early/late pm callbacks could be removed in favour of using
   device_link_add to model the dependency between i915 and snd_had. See
   https://dri.freedesktop.org/docs/drm/driver-api/device_link.html
+
+Bootsplash
+==========
+
+There is support in place now for writing internal DRM clients making it
+possible to pick up the bootsplash work that was rejected because it was written
+for fbdev.
+
+- [v6,8/8] drm/client: Hack: Add bootsplash example
+  https://patchwork.freedesktop.org/patch/306579/
+
+- [RFC PATCH v2 00/13] Kernel based bootsplash
+  https://lkml.org/lkml/2017/12/13/764
+
+Contact: Sam Ravnborg
 
 Outside DRM
 ===========

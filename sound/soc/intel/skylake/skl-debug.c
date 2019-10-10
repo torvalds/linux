@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  skl-debug.c - Debugfs for skl driver
  *
  *  Copyright (C) 2016-17 Intel Corp
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  */
 
 #include <linux/pci.h>
@@ -28,7 +20,7 @@
 #define FW_REG_SIZE	0x60
 
 struct skl_debug {
-	struct skl *skl;
+	struct skl_dev *skl;
 	struct device *dev;
 
 	struct dentry *fs;
@@ -74,6 +66,8 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			   size_t count, loff_t *ppos)
 {
 	struct skl_module_cfg *mconfig = file->private_data;
+	struct skl_module *module = mconfig->module;
+	struct skl_module_res *res = &module->resources[mconfig->res_idx];
 	char *buf;
 	ssize_t ret;
 
@@ -87,8 +81,8 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			mconfig->id.pvt_id);
 
 	ret += snprintf(buf + ret, MOD_BUF - ret,
-			"Resources:\n\tMCPS %#x\n\tIBS %#x\n\tOBS %#x\t\n",
-			mconfig->mcps, mconfig->ibs, mconfig->obs);
+			"Resources:\n\tCPC %#x\n\tIBS %#x\n\tOBS %#x\t\n",
+			res->cpc, res->ibs, res->obs);
 
 	ret += snprintf(buf + ret, MOD_BUF - ret,
 			"Module data:\n\tCore %d\n\tIn queue %d\n\t"
@@ -170,17 +164,15 @@ void skl_debug_init_module(struct skl_debug *d,
 			struct snd_soc_dapm_widget *w,
 			struct skl_module_cfg *mconfig)
 {
-	if (!debugfs_create_file(w->name, 0444,
-				d->modules, mconfig,
-				&mcfg_fops))
-		dev_err(d->dev, "%s: module debugfs init failed\n", w->name);
+	debugfs_create_file(w->name, 0444, d->modules, mconfig,
+			    &mcfg_fops);
 }
 
 static ssize_t fw_softreg_read(struct file *file, char __user *user_buf,
 			       size_t count, loff_t *ppos)
 {
 	struct skl_debug *d = file->private_data;
-	struct sst_dsp *sst = d->skl->skl_sst->dsp;
+	struct sst_dsp *sst = d->skl->dsp;
 	size_t w0_stat_sz = sst->addr.w0_stat_sz;
 	void __iomem *in_base = sst->mailbox.in_base;
 	void __iomem *fw_reg_addr;
@@ -196,7 +188,7 @@ static ssize_t fw_softreg_read(struct file *file, char __user *user_buf,
 	memset(d->fw_read_buff, 0, FW_REG_BUF);
 
 	if (w0_stat_sz > 0)
-		__iowrite32_copy(d->fw_read_buff, fw_reg_addr, w0_stat_sz >> 2);
+		__ioread32_copy(d->fw_read_buff, fw_reg_addr, w0_stat_sz >> 2);
 
 	for (offset = 0; offset < FW_REG_SIZE; offset += 16) {
 		ret += snprintf(tmp + ret, FW_REG_BUF - ret, "%#.4x: ", offset);
@@ -221,7 +213,7 @@ static const struct file_operations soft_regs_ctrl_fops = {
 	.llseek = default_llseek,
 };
 
-struct skl_debug *skl_debugfs_init(struct skl *skl)
+struct skl_debug *skl_debugfs_init(struct skl_dev *skl)
 {
 	struct skl_debug *d;
 
@@ -230,32 +222,25 @@ struct skl_debug *skl_debugfs_init(struct skl *skl)
 		return NULL;
 
 	/* create the debugfs dir with platform component's debugfs as parent */
-	d->fs = debugfs_create_dir("dsp",
-				   skl->component->debugfs_root);
-	if (IS_ERR(d->fs) || !d->fs) {
-		dev_err(&skl->pci->dev, "debugfs root creation failed\n");
-		return NULL;
-	}
+	d->fs = debugfs_create_dir("dsp", skl->component->debugfs_root);
 
 	d->skl = skl;
 	d->dev = &skl->pci->dev;
 
 	/* now create the module dir */
 	d->modules = debugfs_create_dir("modules", d->fs);
-	if (IS_ERR(d->modules) || !d->modules) {
-		dev_err(&skl->pci->dev, "modules debugfs create failed\n");
-		goto err;
-	}
 
-	if (!debugfs_create_file("fw_soft_regs_rd", 0444, d->fs, d,
-				 &soft_regs_ctrl_fops)) {
-		dev_err(d->dev, "fw soft regs control debugfs init failed\n");
-		goto err;
-	}
+	debugfs_create_file("fw_soft_regs_rd", 0444, d->fs, d,
+			    &soft_regs_ctrl_fops);
 
 	return d;
+}
 
-err:
+void skl_debugfs_exit(struct skl_dev *skl)
+{
+	struct skl_debug *d = skl->debugfs;
+
 	debugfs_remove_recursive(d->fs);
-	return NULL;
+
+	d = NULL;
 }

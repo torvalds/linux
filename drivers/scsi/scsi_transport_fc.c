@@ -1,29 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  FiberChannel transport specific attributes exported to sysfs.
  *
  *  Copyright (c) 2003 Silicon Graphics, Inc.  All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- *  ========
- *
  *  Copyright (C) 2004-2007   James Smart, Emulex Corporation
  *    Rewrite for host, target, device, and remote port attributes,
  *    statistics, and service functions...
  *    Add vports, etc
- *
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -147,6 +130,7 @@ static const struct {
 	{ FCH_EVT_PORT_OFFLINE,		"port_offline" },
 	{ FCH_EVT_PORT_FABRIC,		"port_fabric" },
 	{ FCH_EVT_LINK_UNKNOWN,		"link_unknown" },
+	{ FCH_EVT_LINK_FPIN,		"link_FPIN" },
 	{ FCH_EVT_VENDOR_UNIQUE,	"vendor_unique" },
 };
 fc_enum_name_search(host_event_code, fc_host_event_code,
@@ -295,6 +279,9 @@ static const struct {
 	{ FC_PORT_ROLE_FCP_INITIATOR,		"FCP Initiator" },
 	{ FC_PORT_ROLE_IP_PORT,			"IP Port" },
 	{ FC_PORT_ROLE_FCP_DUMMY_INITIATOR,	"FCP Dummy Initiator" },
+	{ FC_PORT_ROLE_NVME_INITIATOR,		"NVMe Initiator" },
+	{ FC_PORT_ROLE_NVME_TARGET,		"NVMe Target" },
+	{ FC_PORT_ROLE_NVME_DISCOVERY,		"NVMe Discovery" },
 };
 fc_bitfield_name_search(port_roles, fc_port_role_names)
 
@@ -523,20 +510,23 @@ fc_get_event_number(void)
 }
 EXPORT_SYMBOL(fc_get_event_number);
 
-
 /**
- * fc_host_post_event - called to post an even on an fc_host.
+ * fc_host_post_fc_event - routine to do the work of posting an event
+ *                      on an fc_host.
  * @shost:		host the event occurred on
  * @event_number:	fc event number obtained from get_fc_event_number()
  * @event_code:		fc_host event being posted
- * @event_data:		32bits of data for the event being posted
+ * @data_len:		amount, in bytes, of event data
+ * @data_buf:		pointer to event data
+ * @vendor_id:          value for Vendor id
  *
  * Notes:
  *	This routine assumes no locks are held on entry.
  */
 void
-fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
-		enum fc_host_event_code event_code, u32 event_data)
+fc_host_post_fc_event(struct Scsi_Host *shost, u32 event_number,
+		enum fc_host_event_code event_code,
+		u32 data_len, char *data_buf, u64 vendor_id)
 {
 	struct sk_buff *skb;
 	struct nlmsghdr	*nlh;
@@ -545,12 +535,15 @@ fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
 	u32 len;
 	int err;
 
+	if (!data_buf || data_len < 4)
+		data_len = 0;
+
 	if (!scsi_nl_sock) {
 		err = -ENOENT;
 		goto send_fail;
 	}
 
-	len = FC_NL_MSGALIGN(sizeof(*event));
+	len = FC_NL_MSGALIGN(sizeof(*event) + data_len);
 
 	skb = nlmsg_new(len, GFP_KERNEL);
 	if (!skb) {
@@ -568,12 +561,13 @@ fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
 	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
 				FC_NL_ASYNC_EVENT, len);
 	event->seconds = ktime_get_real_seconds();
-	event->vendor_id = 0;
+	event->vendor_id = vendor_id;
 	event->host_no = shost->host_no;
-	event->event_datalen = sizeof(u32);	/* bytes */
+	event->event_datalen = data_len;	/* bytes */
 	event->event_num = event_number;
 	event->event_code = event_code;
-	event->event_data = event_data;
+	if (data_len)
+		memcpy(&event->event_data, data_buf, data_len);
 
 	nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
 			GFP_KERNEL);
@@ -586,14 +580,35 @@ send_fail:
 	printk(KERN_WARNING
 		"%s: Dropped Event : host %d %s data 0x%08x - err %d\n",
 		__func__, shost->host_no,
-		(name) ? name : "<unknown>", event_data, err);
+		(name) ? name : "<unknown>",
+		(data_len) ? *((u32 *)data_buf) : 0xFFFFFFFF, err);
 	return;
+}
+EXPORT_SYMBOL(fc_host_post_fc_event);
+
+/**
+ * fc_host_post_event - called to post an even on an fc_host.
+ * @shost:		host the event occurred on
+ * @event_number:	fc event number obtained from get_fc_event_number()
+ * @event_code:		fc_host event being posted
+ * @event_data:		32bits of data for the event being posted
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ */
+void
+fc_host_post_event(struct Scsi_Host *shost, u32 event_number,
+		enum fc_host_event_code event_code, u32 event_data)
+{
+	fc_host_post_fc_event(shost, event_number, event_code,
+		(u32)sizeof(u32), (char *)&event_data, 0);
 }
 EXPORT_SYMBOL(fc_host_post_event);
 
 
 /**
- * fc_host_post_vendor_event - called to post a vendor unique event on an fc_host
+ * fc_host_post_vendor_event - called to post a vendor unique event
+ *                      on an fc_host
  * @shost:		host the event occurred on
  * @event_number:	fc event number obtained from get_fc_event_number()
  * @data_len:		amount, in bytes, of vendor unique data
@@ -607,56 +622,27 @@ void
 fc_host_post_vendor_event(struct Scsi_Host *shost, u32 event_number,
 		u32 data_len, char * data_buf, u64 vendor_id)
 {
-	struct sk_buff *skb;
-	struct nlmsghdr	*nlh;
-	struct fc_nl_event *event;
-	u32 len;
-	int err;
-
-	if (!scsi_nl_sock) {
-		err = -ENOENT;
-		goto send_vendor_fail;
-	}
-
-	len = FC_NL_MSGALIGN(sizeof(*event) + data_len);
-
-	skb = nlmsg_new(len, GFP_KERNEL);
-	if (!skb) {
-		err = -ENOBUFS;
-		goto send_vendor_fail;
-	}
-
-	nlh = nlmsg_put(skb, 0, 0, SCSI_TRANSPORT_MSG, len, 0);
-	if (!nlh) {
-		err = -ENOBUFS;
-		goto send_vendor_fail_skb;
-	}
-	event = nlmsg_data(nlh);
-
-	INIT_SCSI_NL_HDR(&event->snlh, SCSI_NL_TRANSPORT_FC,
-				FC_NL_ASYNC_EVENT, len);
-	event->seconds = ktime_get_real_seconds();
-	event->vendor_id = vendor_id;
-	event->host_no = shost->host_no;
-	event->event_datalen = data_len;	/* bytes */
-	event->event_num = event_number;
-	event->event_code = FCH_EVT_VENDOR_UNIQUE;
-	memcpy(&event->event_data, data_buf, data_len);
-
-	nlmsg_multicast(scsi_nl_sock, skb, 0, SCSI_NL_GRP_FC_EVENTS,
-			GFP_KERNEL);
-	return;
-
-send_vendor_fail_skb:
-	kfree_skb(skb);
-send_vendor_fail:
-	printk(KERN_WARNING
-		"%s: Dropped Event : host %d vendor_unique - err %d\n",
-		__func__, shost->host_no, err);
-	return;
+	fc_host_post_fc_event(shost, event_number, FCH_EVT_VENDOR_UNIQUE,
+		data_len, data_buf, vendor_id);
 }
 EXPORT_SYMBOL(fc_host_post_vendor_event);
 
+/**
+ * fc_host_rcv_fpin - routine to process a received FPIN.
+ * @shost:		host the FPIN was received on
+ * @fpin_len:		length of FPIN payload, in bytes
+ * @fpin_buf:		pointer to FPIN payload
+ *
+ * Notes:
+ *	This routine assumes no locks are held on entry.
+ */
+void
+fc_host_fpin_rcv(struct Scsi_Host *shost, u32 fpin_len, char *fpin_buf)
+{
+	fc_host_post_fc_event(shost, fc_get_event_number(),
+				FCH_EVT_LINK_FPIN, fpin_len, fpin_buf, 0);
+}
+EXPORT_SYMBOL(fc_host_fpin_rcv);
 
 
 static __init int fc_transport_init(void)

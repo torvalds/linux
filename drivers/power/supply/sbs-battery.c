@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Gas Gauge driver for SBS Compliant Batteries
  *
  * Copyright (c) 2010, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/delay.h>
@@ -323,17 +314,22 @@ static int sbs_get_battery_presence_and_health(
 {
 	int ret;
 
-	if (psp == POWER_SUPPLY_PROP_PRESENT) {
-		/* Dummy command; if it succeeds, battery is present. */
-		ret = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
-		if (ret < 0)
-			val->intval = 0; /* battery disconnected */
-		else
-			val->intval = 1; /* battery present */
-	} else { /* POWER_SUPPLY_PROP_HEALTH */
+	/* Dummy command; if it succeeds, battery is present. */
+	ret = sbs_read_word_data(client, sbs_data[REG_STATUS].addr);
+
+	if (ret < 0) { /* battery not present*/
+		if (psp == POWER_SUPPLY_PROP_PRESENT) {
+			val->intval = 0;
+			return 0;
+		}
+		return ret;
+	}
+
+	if (psp == POWER_SUPPLY_PROP_PRESENT)
+		val->intval = 1; /* battery present */
+	else /* POWER_SUPPLY_PROP_HEALTH */
 		/* SBS spec doesn't have a general health command. */
 		val->intval = POWER_SUPPLY_HEALTH_UNKNOWN;
-	}
 
 	return 0;
 }
@@ -629,12 +625,14 @@ static int sbs_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_PRESENT:
 	case POWER_SUPPLY_PROP_HEALTH:
-		if (client->flags & SBS_FLAGS_TI_BQ20Z75)
+		if (chip->flags & SBS_FLAGS_TI_BQ20Z75)
 			ret = sbs_get_ti_battery_presence_and_health(client,
 								     psp, val);
 		else
 			ret = sbs_get_battery_presence_and_health(client, psp,
 								  val);
+
+		/* this can only be true if no gpio is used */
 		if (psp == POWER_SUPPLY_PROP_PRESENT)
 			return 0;
 		break;

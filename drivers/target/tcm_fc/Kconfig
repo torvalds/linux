@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config TCM_FC
 	tristate "TCM_FC fabric Plugin"
 	depends on LIBFC

@@ -100,9 +100,7 @@ void restore_fpu(struct task_struct *tsk)
 
 asmlinkage void do_fpu_error(unsigned long ex, struct pt_regs *regs)
 {
-	struct task_struct *tsk = current;
-
 	regs->pc += 4;
 
-	force_sig(SIGFPE, tsk);
+	force_sig(SIGFPE);
 }

@@ -32,10 +32,9 @@ PHDRS {
 SECTIONS
 {
 	. = 0x100000;
-	_stext = .;		/* Start of text section */
 	.text : {
-		/* Text and read-only data */
-		_text = .;
+		_stext = .;		/* Start of text section */
+		_text = .;		/* Text and read-only data */
 		HEAD_TEXT
 		TEXT_TEXT
 		SCHED_TEXT
@@ -47,10 +46,9 @@ SECTIONS
 		*(.text.*_indirect_*)
 		*(.fixup)
 		*(.gnu.warning)
+		. = ALIGN(PAGE_SIZE);
+		_etext = .;		/* End of text section */
 	} :text = 0x0700
-
-	. = ALIGN(PAGE_SIZE);
-	_etext = .;		/* End of text section */
 
 	NOTES :text :note
 
@@ -72,6 +70,7 @@ SECTIONS
 	__end_ro_after_init = .;
 
 	RW_DATA_SECTION(0x100, PAGE_SIZE, THREAD_SIZE)
+	BOOT_DATA_PRESERVED
 
 	_edata = .;		/* End of data section */
 
@@ -143,6 +142,18 @@ SECTIONS
 	INIT_DATA_SECTION(0x100)
 
 	PERCPU_SECTION(0x100)
+
+	.dynsym ALIGN(8) : {
+		__dynsym_start = .;
+		*(.dynsym)
+		__dynsym_end = .;
+	}
+	.rela.dyn ALIGN(8) : {
+		__rela_dyn_start = .;
+		*(.rela*)
+		__rela_dyn_end = .;
+	}
+
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
 
@@ -161,6 +172,12 @@ SECTIONS
 		QUAD(__bss_stop - __bss_start)			/* bss_size */
 		QUAD(__boot_data_start)				/* bootdata_off */
 		QUAD(__boot_data_end - __boot_data_start)	/* bootdata_size */
+		QUAD(__boot_data_preserved_start)		/* bootdata_preserved_off */
+		QUAD(__boot_data_preserved_end -
+		     __boot_data_preserved_start)		/* bootdata_preserved_size */
+		QUAD(__dynsym_start)				/* dynsym_start */
+		QUAD(__rela_dyn_start)				/* rela_dyn_start */
+		QUAD(__rela_dyn_end)				/* rela_dyn_end */
 	} :NONE
 
 	/* Debugging sections.	*/

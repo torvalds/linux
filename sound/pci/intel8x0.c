@@ -1,29 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   ALSA driver for Intel ICH (i8x0) chipsets
  *
  *	Copyright (c) 2000 Jaroslav Kysela <perex@perex.cz>
  *
- *
  *   This code also contains alpha support for SiS 735 chipsets provided
  *   by Mike Pieper <mptei@users.sourceforge.net>. We have no datasheet
  *   for SiS735, so the code is not fully functional.
  *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 
- *
  */      
 
 #include <linux/io.h>
@@ -2614,8 +2599,6 @@ static int intel8x0_suspend(struct device *dev)
 	int i;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	for (i = 0; i < chip->pcm_devs; i++)
-		snd_pcm_suspend_all(chip->pcm[i]);
 	for (i = 0; i < chip->ncodecs; i++)
 		snd_ac97_suspend(chip->ac97[i]);
 	if (chip->device_type == DEVICE_INTEL_ICH4)
@@ -2865,10 +2848,8 @@ static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 
 static void snd_intel8x0_proc_init(struct intel8x0 *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(chip->card, "intel8x0", &entry))
-		snd_info_set_text_ops(entry, chip, snd_intel8x0_proc_read);
+	snd_card_ro_proc_new(chip->card, "intel8x0", chip,
+			     snd_intel8x0_proc_read);
 }
 
 static int snd_intel8x0_dev_free(struct snd_device *device)

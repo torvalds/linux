@@ -81,15 +81,13 @@ enum dot11AuthAlgrthmNum {
 };
 
 /*  Scan type including active and passive scan. */
-typedef enum _RT_SCAN_TYPE
-{
+typedef enum _RT_SCAN_TYPE {
 	SCAN_PASSIVE,
 	SCAN_ACTIVE,
 	SCAN_MIX,
 }RT_SCAN_TYPE, *PRT_SCAN_TYPE;
 
-enum  _BAND
-{
+enum  _BAND {
 	GHZ24_50 = 0,
 	GHZ_50,
 	GHZ_24,
@@ -454,33 +452,6 @@ struct mlme_priv {
 	_lock	bcn_update_lock;
 	u8 update_bcn;
 
-#ifdef CONFIG_INTEL_WIDI
-	int	widi_state;
-	int	listen_state;
-	_timer	listen_timer;
-	atomic_t	rx_probe_rsp; /*  1:receive probe respone from RDS source. */
-	u8 *l2sdTaBuffer;
-	u8 channel_idx;
-	u8 group_cnt;	/* In WiDi 3.5, they specified another scan algo. for WFD/RDS co-existed */
-	u8 sa_ext[L2SDTA_SERVICE_VE_LEN];
-
-	u8 widi_enable;
-	/**
-	 * For WiDi 4; upper layer would set
-	 * p2p_primary_device_type_category_id
-	 * p2p_primary_device_type_sub_category_id
-	 * p2p_secondary_device_type_category_id
-	 * p2p_secondary_device_type_sub_category_id
-	 */
-	u16 p2p_pdt_cid;
-	u16 p2p_pdt_scid;
-	u8 num_p2p_sdt;
-	u16 p2p_sdt_cid[MAX_NUM_P2P_SDT];
-	u16 p2p_sdt_scid[MAX_NUM_P2P_SDT];
-	u8 p2p_reject_disable;	/* When starting NL80211 wpa_supplicant/hostapd, it will call netdev_close */
-							/* such that it will cause p2p disabled. Use this flag to reject. */
-#endif /*  CONFIG_INTEL_WIDI */
-
 	u8 NumOfBcnInfoChkFail;
 	unsigned long	timeBcnInfoChkStart;
 };
@@ -525,13 +496,13 @@ extern sint rtw_select_and_join_from_scanned_queue(struct mlme_priv *pmlmepriv);
 extern sint rtw_set_key(struct adapter *adapter, struct security_priv *psecuritypriv, sint keyid, u8 set_tx, bool enqueue);
 extern sint rtw_set_auth(struct adapter *adapter, struct security_priv *psecuritypriv);
 
-__inline static u8 *get_bssid(struct mlme_priv *pmlmepriv)
+static inline u8 *get_bssid(struct mlme_priv *pmlmepriv)
 {	/* if sta_mode:pmlmepriv->cur_network.network.MacAddress => bssid */
 	/*  if adhoc_mode:pmlmepriv->cur_network.network.MacAddress => ibss mac address */
 	return pmlmepriv->cur_network.network.MacAddress;
 }
 
-__inline static sint check_fwstate(struct mlme_priv *pmlmepriv, sint state)
+static inline sint check_fwstate(struct mlme_priv *pmlmepriv, sint state)
 {
 	if (pmlmepriv->fw_state & state)
 		return true;
@@ -539,7 +510,7 @@ __inline static sint check_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	return false;
 }
 
-__inline static sint get_fwstate(struct mlme_priv *pmlmepriv)
+static inline sint get_fwstate(struct mlme_priv *pmlmepriv)
 {
 	return pmlmepriv->fw_state;
 }
@@ -551,7 +522,7 @@ __inline static sint get_fwstate(struct mlme_priv *pmlmepriv)
  * ### NOTE:#### (!!!!)
  * MUST TAKE CARE THAT BEFORE CALLING THIS FUNC, YOU SHOULD HAVE LOCKED pmlmepriv->lock
  */
-__inline static void set_fwstate(struct mlme_priv *pmlmepriv, sint state)
+static inline void set_fwstate(struct mlme_priv *pmlmepriv, sint state)
 {
 	pmlmepriv->fw_state |= state;
 	/* FOR HW integration */
@@ -560,7 +531,7 @@ __inline static void set_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	}
 }
 
-__inline static void _clr_fwstate_(struct mlme_priv *pmlmepriv, sint state)
+static inline void _clr_fwstate_(struct mlme_priv *pmlmepriv, sint state)
 {
 	pmlmepriv->fw_state &= ~state;
 	/* FOR HW integration */
@@ -573,7 +544,7 @@ __inline static void _clr_fwstate_(struct mlme_priv *pmlmepriv, sint state)
  * No Limit on the calling context,
  * therefore set it to be the critical section...
  */
-__inline static void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
+static inline void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 {
 	spin_lock_bh(&pmlmepriv->lock);
 	if (check_fwstate(pmlmepriv, state) == true)
@@ -581,7 +552,7 @@ __inline static void clr_fwstate(struct mlme_priv *pmlmepriv, sint state)
 	spin_unlock_bh(&pmlmepriv->lock);
 }
 
-__inline static void set_scanned_network_val(struct mlme_priv *pmlmepriv, sint val)
+static inline void set_scanned_network_val(struct mlme_priv *pmlmepriv, sint val)
 {
 	spin_lock_bh(&pmlmepriv->lock);
 	pmlmepriv->num_of_scanned = val;
@@ -616,10 +587,7 @@ extern void rtw_scan_timeout_handler(struct timer_list *t);
 extern void rtw_dynamic_check_timer_handler(struct adapter *adapter);
 bool rtw_is_scan_deny(struct adapter *adapter);
 void rtw_clear_scan_deny(struct adapter *adapter);
-void rtw_set_scan_deny_timer_hdl(struct adapter *adapter);
 void rtw_set_scan_deny(struct adapter *adapter, u32 ms);
-
-extern int _rtw_init_mlme_priv(struct adapter *padapter);
 
 void rtw_free_mlme_priv_ie_data(struct mlme_priv *pmlmepriv);
 
@@ -627,7 +595,7 @@ extern void _rtw_free_mlme_priv(struct mlme_priv *pmlmepriv);
 
 /* extern struct wlan_network* _rtw_dequeue_network(struct __queue *queue); */
 
-extern struct wlan_network* _rtw_alloc_network(struct mlme_priv *pmlmepriv);
+extern struct wlan_network *rtw_alloc_network(struct mlme_priv *pmlmepriv);
 
 
 extern void _rtw_free_network(struct mlme_priv *pmlmepriv, struct wlan_network *pnetwork, u8 isfreeall);
@@ -635,8 +603,6 @@ extern void _rtw_free_network_nolock(struct mlme_priv *pmlmepriv, struct wlan_ne
 
 
 extern struct wlan_network* _rtw_find_network(struct __queue *scanned_queue, u8 *addr);
-
-extern void _rtw_free_network_queue(struct adapter *padapter, u8 isfreeall);
 
 extern sint rtw_if_up(struct adapter *padapter);
 

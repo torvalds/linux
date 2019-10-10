@@ -1055,7 +1055,7 @@ static int ov2659_get_fmt(struct v4l2_subdev *sd,
 		mutex_unlock(&ov2659->lock);
 		return 0;
 #else
-	return -ENOTTY;
+		return -EINVAL;
 #endif
 	}
 
@@ -1117,8 +1117,10 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 		if (ov2659_formats[index].code == mf->code)
 			break;
 
-	if (index < 0)
-		return -EINVAL;
+	if (index < 0) {
+		index = 0;
+		mf->code = ov2659_formats[index].code;
+	}
 
 	mf->colorspace = V4L2_COLORSPACE_SRGB;
 	mf->field = V4L2_FIELD_NONE;
@@ -1129,8 +1131,6 @@ static int ov2659_set_fmt(struct v4l2_subdev *sd,
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 		mf = v4l2_subdev_get_try_format(sd, cfg, fmt->pad);
 		*mf = fmt->format;
-#else
-		return -ENOTTY;
 #endif
 	} else {
 		s64 val;
@@ -1384,8 +1384,7 @@ done:
 	return pdata;
 }
 
-static int ov2659_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int ov2659_probe(struct i2c_client *client)
 {
 	const struct ov2659_platform_data *pdata = ov2659_get_pdata(client);
 	struct v4l2_subdev *sd;
@@ -1513,7 +1512,7 @@ static struct i2c_driver ov2659_i2c_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table = of_match_ptr(ov2659_of_match),
 	},
-	.probe		= ov2659_probe,
+	.probe_new	= ov2659_probe,
 	.remove		= ov2659_remove,
 	.id_table	= ov2659_id,
 };

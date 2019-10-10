@@ -163,7 +163,7 @@ static int ar7_wdt_open(struct inode *inode, struct file *file)
 	ar7_wdt_enable_wdt();
 	expect_close = 0;
 
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static int ar7_wdt_release(struct inode *inode, struct file *file)
@@ -235,6 +235,7 @@ static long ar7_wdt_ioctl(struct file *file,
 		ar7_wdt_update_margin(new_margin);
 		ar7_wdt_kick(1);
 		spin_unlock(&wdt_lock);
+		/* Fall through */
 
 	case WDIOC_GETTIMEOUT:
 		if (put_user(margin, (int *)arg))

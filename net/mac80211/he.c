@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HE handling
  *
  * Copyright(c) 2017 Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "ieee80211_i.h"
@@ -52,4 +49,44 @@ ieee80211_he_cap_ie_to_sta_he_cap(struct ieee80211_sub_if_data *sdata,
 		       he_ppe_size);
 
 	he_cap->has_he = true;
+}
+
+void
+ieee80211_he_op_ie_to_bss_conf(struct ieee80211_vif *vif,
+			const struct ieee80211_he_operation *he_op_ie_elem)
+{
+	struct ieee80211_he_operation *he_operation =
+					&vif->bss_conf.he_operation;
+
+	if (!he_op_ie_elem) {
+		memset(he_operation, 0, sizeof(*he_operation));
+		return;
+	}
+
+	vif->bss_conf.he_operation = *he_op_ie_elem;
+}
+
+void
+ieee80211_he_spr_ie_to_bss_conf(struct ieee80211_vif *vif,
+				const struct ieee80211_he_spr *he_spr_ie_elem)
+{
+	struct ieee80211_he_obss_pd *he_obss_pd =
+					&vif->bss_conf.he_obss_pd;
+	const u8 *data;
+
+	memset(he_obss_pd, 0, sizeof(*he_obss_pd));
+
+	if (!he_spr_ie_elem)
+		return;
+	data = he_spr_ie_elem->optional;
+
+	if (he_spr_ie_elem->he_sr_control &
+	    IEEE80211_HE_SPR_NON_SRG_OFFSET_PRESENT)
+		data++;
+	if (he_spr_ie_elem->he_sr_control &
+	    IEEE80211_HE_SPR_SRG_INFORMATION_PRESENT) {
+		he_obss_pd->max_offset = *data++;
+		he_obss_pd->min_offset = *data++;
+		he_obss_pd->enable = true;
+	}
 }

@@ -9,7 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/vmalloc.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/spi/spi.h>
 #include <linux/delay.h>
 
@@ -521,7 +521,7 @@ static int flexfb_verify_gpios_dc(struct fbtft_par *par)
 {
 	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
 
-	if (par->gpio.dc < 0) {
+	if (!par->gpio.dc) {
 		dev_err(par->info->device,
 			"Missing info about 'dc' gpio. Aborting.\n");
 		return -EINVAL;
@@ -537,22 +537,22 @@ static int flexfb_verify_gpios_db(struct fbtft_par *par)
 
 	fbtft_par_dbg(DEBUG_VERIFY_GPIOS, par, "%s()\n", __func__);
 
-	if (par->gpio.dc < 0) {
+	if (!par->gpio.dc) {
 		dev_err(par->info->device, "Missing info about 'dc' gpio. Aborting.\n");
 		return -EINVAL;
 	}
-	if (par->gpio.wr < 0) {
+	if (!par->gpio.wr) {
 		dev_err(par->info->device, "Missing info about 'wr' gpio. Aborting.\n");
 		return -EINVAL;
 	}
-	if (latched && (par->gpio.latch < 0)) {
+	if (latched && !par->gpio.latch) {
 		dev_err(par->info->device, "Missing info about 'latch' gpio. Aborting.\n");
 		return -EINVAL;
 	}
 	if (latched)
 		num_db = buswidth / 2;
 	for (i = 0; i < num_db; i++) {
-		if (par->gpio.db[i] < 0) {
+		if (!par->gpio.db[i]) {
 			dev_err(par->info->device,
 				"Missing info about 'db%02d' gpio. Aborting.\n",
 				i);
@@ -671,7 +671,8 @@ static int flexfb_probe_common(struct spi_device *sdev,
 			break;
 		case 9:
 			if (regwidth == 16) {
-				dev_err(dev, "argument 'regwidth': %d is not supported with buswidth=%d and SPI.\n", regwidth, buswidth);
+				dev_err(dev, "argument 'regwidth': %d is not supported with buswidth=%d and SPI.\n",
+					regwidth, buswidth);
 				return -EINVAL;
 			}
 			par->fbtftops.write_register = fbtft_write_reg8_bus9;
@@ -718,7 +719,9 @@ static int flexfb_probe_common(struct spi_device *sdev,
 			par->fbtftops.write_vmem = fbtft_write_vmem16_bus16;
 			break;
 		default:
-			dev_err(dev, "argument 'buswidth': %d is not supported with parallel.\n", buswidth);
+			dev_err(dev,
+				"argument 'buswidth': %d is not supported with parallel.\n",
+				buswidth);
 			return -EINVAL;
 		}
 	}

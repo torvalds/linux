@@ -53,6 +53,7 @@
 #include <asm/sigp.h>
 #include <asm/idle.h>
 #include <asm/nmi.h>
+#include <asm/stacktrace.h>
 #include <asm/topology.h>
 #include "entry.h"
 
@@ -231,8 +232,6 @@ out:
 	return -ENOMEM;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 static void pcpu_free_lowcore(struct pcpu *pcpu)
 {
 	unsigned long async_stack, nodat_stack, lowcore;
@@ -252,8 +251,6 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 	free_pages(lowcore, LC_ORDER);
 }
 
-#endif /* CONFIG_HOTPLUG_CPU */
-
 static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 {
 	struct lowcore *lc = pcpu->lowcore;
@@ -266,7 +263,8 @@ static void pcpu_prepare_secondary(struct pcpu *pcpu, int cpu)
 	lc->percpu_offset = __per_cpu_offset[cpu];
 	lc->kernel_asce = S390_lowcore.kernel_asce;
 	lc->machine_flags = S390_lowcore.machine_flags;
-	lc->user_timer = lc->system_timer = lc->steal_timer = 0;
+	lc->user_timer = lc->system_timer =
+		lc->steal_timer = lc->avg_steal_timer = 0;
 	__ctl_store(lc->cregs_save_area, 0, 15);
 	save_access_regs((unsigned int *) lc->access_regs_save_area);
 	memcpy(lc->stfle_fac_list, S390_lowcore.stfle_fac_list,
@@ -416,7 +414,7 @@ void smp_yield_cpu(int cpu)
 		diag_stat_inc_norecursion(DIAG_STAT_X09C);
 		asm volatile("diag %0,0,0x9c"
 			     : : "d" (pcpu_devices[cpu].address));
-	} else if (MACHINE_HAS_DIAG44) {
+	} else if (MACHINE_HAS_DIAG44 && !smp_cpu_mtid) {
 		diag_stat_inc_norecursion(DIAG_STAT_X044);
 		asm volatile("diag 0,0,0x44");
 	}
@@ -656,7 +654,11 @@ void __init smp_save_dump_cpus(void)
 		/* No previous system present, normal boot. */
 		return;
 	/* Allocate a page as dumping area for the store status sigps */
-	page = memblock_alloc_base(PAGE_SIZE, PAGE_SIZE, 1UL << 31);
+	page = memblock_phys_alloc_range(PAGE_SIZE, PAGE_SIZE, 0, 1UL << 31);
+	if (!page)
+		panic("ERROR: Failed to allocate %lx bytes below %lx\n",
+		      PAGE_SIZE, 1UL << 31);
+
 	/* Set multi-threading state to the previous system. */
 	pcpu_set_smt(sclp.mtid_prev);
 	boot_cpu_addr = stap();
@@ -684,7 +686,7 @@ void __init smp_save_dump_cpus(void)
 			smp_save_cpu_regs(sa, addr, is_boot_cpu, page);
 	}
 	memblock_free(page, PAGE_SIZE);
-	diag308_reset();
+	diag_dma_ops.diag308_reset();
 	pcpu_set_smt(0);
 }
 #endif /* CONFIG_CRASH_DUMP */
@@ -766,6 +768,9 @@ void __init smp_detect_cpus(void)
 
 	/* Get CPU information */
 	info = memblock_alloc(sizeof(*info), 8);
+	if (!info)
+		panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+		      __func__, sizeof(*info), 8);
 	smp_get_core_info(info, 1);
 	/* Find boot CPU type */
 	if (sclp.has_core_type) {
@@ -886,8 +891,6 @@ static int __init _setup_possible_cpus(char *s)
 }
 early_param("possible_cpus", _setup_possible_cpus);
 
-#ifdef CONFIG_HOTPLUG_CPU
-
 int __cpu_disable(void)
 {
 	unsigned long cregs[16];
@@ -927,8 +930,6 @@ void __noreturn cpu_die(void)
 	pcpu_sigp_retry(pcpu_devices + smp_processor_id(), SIGP_STOP, 0);
 	for (;;) ;
 }
-
-#endif /* CONFIG_HOTPLUG_CPU */
 
 void __init smp_fill_possible_mask(void)
 {
@@ -987,7 +988,6 @@ int setup_profiling_timer(unsigned int multiplier)
 	return 0;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static ssize_t cpu_configure_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
 {
@@ -1064,7 +1064,6 @@ out:
 	return rc ? rc : count;
 }
 static DEVICE_ATTR(configure, 0644, cpu_configure_show, cpu_configure_store);
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static ssize_t show_cpu_address(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1074,9 +1073,7 @@ static ssize_t show_cpu_address(struct device *dev,
 static DEVICE_ATTR(address, 0444, show_cpu_address, NULL);
 
 static struct attribute *cpu_common_attrs[] = {
-#ifdef CONFIG_HOTPLUG_CPU
 	&dev_attr_configure.attr,
-#endif
 	&dev_attr_address.attr,
 	NULL,
 };
@@ -1135,14 +1132,10 @@ static int smp_add_present_cpu(int cpu)
 out_topology:
 	sysfs_remove_group(&s->kobj, &cpu_common_attr_group);
 out_cpu:
-#ifdef CONFIG_HOTPLUG_CPU
 	unregister_cpu(c);
-#endif
 out:
 	return rc;
 }
-
-#ifdef CONFIG_HOTPLUG_CPU
 
 int __ref smp_rescan_cpus(void)
 {
@@ -1179,17 +1172,14 @@ static ssize_t __ref rescan_store(struct device *dev,
 	return rc ? rc : count;
 }
 static DEVICE_ATTR_WO(rescan);
-#endif /* CONFIG_HOTPLUG_CPU */
 
 static int __init s390_smp_init(void)
 {
 	int cpu, rc = 0;
 
-#ifdef CONFIG_HOTPLUG_CPU
 	rc = device_create_file(cpu_subsys.dev_root, &dev_attr_rescan);
 	if (rc)
 		return rc;
-#endif
 	for_each_present_cpu(cpu) {
 		rc = smp_add_present_cpu(cpu);
 		if (rc)

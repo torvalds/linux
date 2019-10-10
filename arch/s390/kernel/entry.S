@@ -224,6 +224,7 @@ ENTRY(__bpon)
 	.globl __bpon
 	BPON
 	BR_EX	%r14
+ENDPROC(__bpon)
 
 /*
  * Scheduler resume function, called by switch_to
@@ -248,6 +249,7 @@ ENTRY(__switch_to)
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
 	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
 	BR_EX	%r14
+ENDPROC(__switch_to)
 
 .L__critical_start:
 
@@ -324,6 +326,7 @@ sie_exit:
 	EX_TABLE(.Lrewind_pad4,.Lsie_fault)
 	EX_TABLE(.Lrewind_pad2,.Lsie_fault)
 	EX_TABLE(sie_exit,.Lsie_fault)
+ENDPROC(sie64a)
 EXPORT_SYMBOL(sie64a)
 EXPORT_SYMBOL(sie_exit)
 #endif
@@ -358,19 +361,19 @@ ENTRY(system_call)
 	# load address of system call table
 	lg	%r10,__THREAD_sysc_table(%r13,%r12)
 	llgh	%r8,__PT_INT_CODE+2(%r11)
-	slag	%r8,%r8,2			# shift and test for svc 0
+	slag	%r8,%r8,3			# shift and test for svc 0
 	jnz	.Lsysc_nr_ok
 	# svc 0: system call number in %r1
 	llgfr	%r1,%r1				# clear high word in r1
 	cghi	%r1,NR_syscalls
 	jnl	.Lsysc_nr_ok
 	sth	%r1,__PT_INT_CODE+2(%r11)
-	slag	%r8,%r1,2
+	slag	%r8,%r1,3
 .Lsysc_nr_ok:
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	stg	%r2,__PT_ORIG_GPR2(%r11)
 	stg	%r7,STACK_FRAME_OVERHEAD(%r15)
-	lgf	%r9,0(%r8,%r10)			# get system call add.
+	lg	%r9,0(%r8,%r10)			# get system call add.
 	TSTMSK	__TI_flags(%r12),_TIF_TRACE
 	jnz	.Lsysc_tracesys
 	BASR_EX	%r14,%r9			# call sys_xxxx
@@ -556,8 +559,8 @@ ENTRY(system_call)
 	lghi	%r0,NR_syscalls
 	clgr	%r0,%r2
 	jnh	.Lsysc_tracenogo
-	sllg	%r8,%r2,2
-	lgf	%r9,0(%r8,%r10)
+	sllg	%r8,%r2,3
+	lg	%r9,0(%r8,%r10)
 .Lsysc_tracego:
 	lmg	%r3,%r7,__PT_R3(%r11)
 	stg	%r7,STACK_FRAME_OVERHEAD(%r15)
@@ -570,6 +573,7 @@ ENTRY(system_call)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	larl	%r14,.Lsysc_return
 	jg	do_syscall_trace_exit
+ENDPROC(system_call)
 
 #
 # a new process exits the kernel with ret_from_fork
@@ -584,10 +588,16 @@ ENTRY(ret_from_fork)
 	jne	.Lsysc_tracenogo
 	# it's a kernel thread
 	lmg	%r9,%r10,__PT_R9(%r11)	# load gprs
+	la	%r2,0(%r10)
+	BASR_EX	%r14,%r9
+	j	.Lsysc_tracenogo
+ENDPROC(ret_from_fork)
+
 ENTRY(kernel_thread_starter)
 	la	%r2,0(%r10)
 	BASR_EX	%r14,%r9
 	j	.Lsysc_tracenogo
+ENDPROC(kernel_thread_starter)
 
 /*
  * Program check handler routine
@@ -665,9 +675,9 @@ ENTRY(pgm_check_handler)
 	larl	%r1,pgm_check_table
 	llgh	%r10,__PT_INT_CODE+2(%r11)
 	nill	%r10,0x007f
-	sll	%r10,2
+	sll	%r10,3
 	je	.Lpgm_return
-	lgf	%r9,0(%r10,%r1)		# load address of handler routine
+	lg	%r9,0(%r10,%r1)		# load address of handler routine
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	BASR_EX	%r14,%r9		# branch to interrupt-handler
 .Lpgm_return:
@@ -698,6 +708,7 @@ ENTRY(pgm_check_handler)
 	stg	%r14,__LC_RETURN_PSW+8
 	lghi	%r14,_PIF_SYSCALL | _PIF_PER_TRAP
 	lpswe	__LC_RETURN_PSW		# branch to .Lsysc_per and enable irqs
+ENDPROC(pgm_check_handler)
 
 /*
  * IO interrupt handler routine
@@ -926,6 +937,7 @@ ENTRY(io_int_handler)
 	ssm	__LC_PGM_NEW_PSW	# disable I/O and ext. interrupts
 	TRACE_IRQS_OFF
 	j	.Lio_return
+ENDPROC(io_int_handler)
 
 /*
  * External interrupt handler routine
@@ -965,6 +977,7 @@ ENTRY(ext_int_handler)
 	lghi	%r3,EXT_INTERRUPT
 	brasl	%r14,do_IRQ
 	j	.Lio_return
+ENDPROC(ext_int_handler)
 
 /*
  * Load idle PSW. The second "half" of this function is in .Lcleanup_idle.
@@ -973,14 +986,12 @@ ENTRY(psw_idle)
 	stg	%r3,__SF_EMPTY(%r15)
 	larl	%r1,.Lpsw_idle_lpsw+4
 	stg	%r1,__SF_EMPTY+8(%r15)
-#ifdef CONFIG_SMP
 	larl	%r1,smp_cpu_mtid
 	llgf	%r1,0(%r1)
 	ltgr	%r1,%r1
 	jz	.Lpsw_idle_stcctm
 	.insn	rsy,0xeb0000000017,%r1,5,__SF_EMPTY+16(%r15)
 .Lpsw_idle_stcctm:
-#endif
 	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
 	BPON
 	STCK	__CLOCK_IDLE_ENTER(%r2)
@@ -989,6 +1000,7 @@ ENTRY(psw_idle)
 	lpswe	__SF_EMPTY(%r15)
 	BR_EX	%r14
 .Lpsw_idle_end:
+ENDPROC(psw_idle)
 
 /*
  * Store floating-point controls and floating-point or vector register
@@ -1031,6 +1043,7 @@ ENTRY(save_fpu_regs)
 .Lsave_fpu_regs_exit:
 	BR_EX	%r14
 .Lsave_fpu_regs_end:
+ENDPROC(save_fpu_regs)
 EXPORT_SYMBOL(save_fpu_regs)
 
 /*
@@ -1077,6 +1090,7 @@ load_fpu_regs:
 .Lload_fpu_regs_exit:
 	BR_EX	%r14
 .Lload_fpu_regs_end:
+ENDPROC(load_fpu_regs)
 
 .L__critical_end:
 
@@ -1206,6 +1220,7 @@ ENTRY(mcck_int_handler)
 	lg	%r15,__LC_NODAT_STACK
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	j	.Lmcck_skip
+ENDPROC(mcck_int_handler)
 
 #
 # PSW restart interrupt handler
@@ -1232,6 +1247,7 @@ ENTRY(restart_int_handler)
 2:	sigp	%r4,%r3,SIGP_STOP		# sigp stop to current cpu
 	brc	2,2b
 3:	j	3b
+ENDPROC(restart_int_handler)
 
 	.section .kprobes.text, "ax"
 
@@ -1241,7 +1257,7 @@ ENTRY(restart_int_handler)
  * No need to properly save the registers, we are going to panic anyway.
  * Setup a pt_regs so that show_trace can provide a good call trace.
  */
-stack_overflow:
+ENTRY(stack_overflow)
 	lg	%r15,__LC_NODAT_STACK	# change to panic stack
 	la	%r11,STACK_FRAME_OVERHEAD(%r15)
 	stmg	%r0,%r7,__PT_R0(%r11)
@@ -1251,9 +1267,10 @@ stack_overflow:
 	xc	__SF_BACKCHAIN(8,%r15),__SF_BACKCHAIN(%r15)
 	lgr	%r2,%r11		# pass pointer to pt_regs
 	jg	kernel_stack_overflow
+ENDPROC(stack_overflow)
 #endif
 
-cleanup_critical:
+ENTRY(cleanup_critical)
 #if IS_ENABLED(CONFIG_KVM)
 	clg	%r9,BASED(.Lcleanup_table_sie)	# .Lsie_gmap
 	jl	0f
@@ -1289,6 +1306,7 @@ cleanup_critical:
 	clg	%r9,BASED(.Lcleanup_table+104)	# .Lload_fpu_regs_end
 	jl	.Lcleanup_load_fpu_regs
 0:	BR_EX	%r14,%r11
+ENDPROC(cleanup_critical)
 
 	.align	8
 .Lcleanup_table:
@@ -1448,7 +1466,6 @@ cleanup_critical:
 	mvc	__CLOCK_IDLE_ENTER(8,%r2),__CLOCK_IDLE_EXIT(%r2)
 	mvc	__TIMER_IDLE_ENTER(8,%r2),__TIMER_IDLE_EXIT(%r2)
 1:	# calculate idle cycles
-#ifdef CONFIG_SMP
 	clg	%r9,BASED(.Lcleanup_idle_insn)
 	jl	3f
 	larl	%r1,smp_cpu_mtid
@@ -1466,7 +1483,6 @@ cleanup_critical:
 	la	%r3,8(%r3)
 	la	%r4,8(%r4)
 	brct	%r1,2b
-#endif
 3:	# account system time going idle
 	lg	%r9,__LC_STEAL_TIMER
 	alg	%r9,__CLOCK_IDLE_ENTER(%r2)
@@ -1512,7 +1528,7 @@ cleanup_critical:
 	.quad   .Lsie_skip - .Lsie_entry
 #endif
 	.section .rodata, "a"
-#define SYSCALL(esame,emu)	.long __s390x_ ## esame
+#define SYSCALL(esame,emu)	.quad __s390x_ ## esame
 	.globl	sys_call_table
 sys_call_table:
 #include "asm/syscall_table.h"
@@ -1520,7 +1536,7 @@ sys_call_table:
 
 #ifdef CONFIG_COMPAT
 
-#define SYSCALL(esame,emu)	.long __s390_ ## emu
+#define SYSCALL(esame,emu)	.quad __s390_ ## emu
 	.globl	sys_call_table_emu
 sys_call_table_emu:
 #include "asm/syscall_table.h"

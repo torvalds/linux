@@ -3,7 +3,7 @@
  *
  * Module Name: apfiles - File-related functions for acpidump utility
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -29,18 +29,24 @@ static int ap_is_existing_file(char *pathname)
 {
 #if !defined(_GNU_EFI) && !defined(_EDK2_EFI)
 	struct stat stat_info;
+	int in_char;
 
 	if (!stat(pathname, &stat_info)) {
 		fprintf(stderr,
 			"Target path already exists, overwrite? [y|n] ");
 
-		if (getchar() != 'y') {
+		in_char = fgetc(stdin);
+		if (in_char == '\n') {
+			in_char = fgetc(stdin);
+		}
+
+		if (in_char != 'y' && in_char != 'Y') {
 			return (-1);
 		}
 	}
 #endif
 
-	return 0;
+	return (0);
 }
 
 /******************************************************************************
@@ -97,7 +103,7 @@ int ap_open_output_file(char *pathname)
 
 int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 {
-	char filename[ACPI_NAME_SIZE + 16];
+	char filename[ACPI_NAMESEG_SIZE + 16];
 	char instance_str[16];
 	ACPI_FILE file;
 	acpi_size actual;
@@ -110,16 +116,16 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	/* Construct lower-case filename from the table local signature */
 
 	if (ACPI_VALIDATE_RSDP_SIG(table->signature)) {
-		ACPI_MOVE_NAME(filename, ACPI_RSDP_NAME);
+		ACPI_COPY_NAMESEG(filename, ACPI_RSDP_NAME);
 	} else {
-		ACPI_MOVE_NAME(filename, table->signature);
+		ACPI_COPY_NAMESEG(filename, table->signature);
 	}
 
 	filename[0] = (char)tolower((int)filename[0]);
 	filename[1] = (char)tolower((int)filename[1]);
 	filename[2] = (char)tolower((int)filename[2]);
 	filename[3] = (char)tolower((int)filename[3]);
-	filename[ACPI_NAME_SIZE] = 0;
+	filename[ACPI_NAMESEG_SIZE] = 0;
 
 	/* Handle multiple SSDts - create different filenames for each */
 

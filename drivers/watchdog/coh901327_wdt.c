@@ -6,7 +6,7 @@
  * Watchdog driver for the ST-Ericsson AB COH 901 327 IP core
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
-#include <linux/module.h>
+#include <linux/moduleparam.h>
 #include <linux/mod_devicetable.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
@@ -243,27 +243,15 @@ static struct watchdog_device coh901327_wdt = {
 	.timeout = U300_WDOG_DEFAULT_TIMEOUT,
 };
 
-static int __exit coh901327_remove(struct platform_device *pdev)
-{
-	watchdog_unregister_device(&coh901327_wdt);
-	coh901327_disable();
-	free_irq(irq, pdev);
-	clk_disable_unprepare(clk);
-	clk_put(clk);
-	return 0;
-}
-
 static int __init coh901327_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
 	u16 val;
-	struct resource *res;
 
 	parent = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	virtbase = devm_ioremap_resource(dev, res);
+	virtbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(virtbase))
 		return PTR_ERR(virtbase);
 
@@ -408,19 +396,13 @@ static struct platform_driver coh901327_driver = {
 	.driver = {
 		.name	= "coh901327_wdog",
 		.of_match_table = coh901327_dt_match,
+		.suppress_bind_attrs = true,
 	},
-	.remove		= __exit_p(coh901327_remove),
 	.suspend	= coh901327_suspend,
 	.resume		= coh901327_resume,
 };
+builtin_platform_driver_probe(coh901327_driver, coh901327_probe);
 
-module_platform_driver_probe(coh901327_driver, coh901327_probe);
-
-MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
-MODULE_DESCRIPTION("COH 901 327 Watchdog");
-
+/* not really modular, but ... */
 module_param(margin, uint, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds (default 60s)");
-
-MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:coh901327-watchdog");

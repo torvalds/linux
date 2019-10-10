@@ -7,22 +7,26 @@
  * This driver supports the Broadcom V3D 3.3 and 4.1 OpenGL ES GPUs.
  * For V3D 2.x support, see the VC4 driver.
  *
- * Currently only single-core rendering using the binner and renderer
- * is supported.  The TFU (texture formatting unit) and V3D 4.x's CSD
- * (compute shader dispatch) are not yet supported.
+ * The V3D GPU includes a tiled render (composed of a bin and render
+ * pipelines), the TFU (texture formatting unit), and the CSD (compute
+ * shader dispatch).
  */
 
 #include <linux/clk.h>
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
+
+#include <drm/drm_drv.h>
 #include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
+#include <uapi/drm/v3d_drm.h>
 
-#include "uapi/drm/v3d_drm.h"
 #include "v3d_drv.h"
 #include "v3d_regs.h"
 
@@ -101,6 +105,8 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 
 		ret = pm_runtime_get_sync(v3d->dev);
+		if (ret < 0)
+			return ret;
 		if (args->param >= DRM_V3D_PARAM_V3D_CORE0_IDENT0 &&
 		    args->param <= DRM_V3D_PARAM_V3D_CORE0_IDENT2) {
 			args->value = V3D_CORE_READ(0, offset);
@@ -116,6 +122,9 @@ static int v3d_get_param_ioctl(struct drm_device *dev, void *data,
 	switch (args->param) {
 	case DRM_V3D_PARAM_SUPPORTS_TFU:
 		args->value = 1;
+		return 0;
+	case DRM_V3D_PARAM_SUPPORTS_CSD:
+		args->value = v3d_has_csd(v3d);
 		return 0;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", args->param);
@@ -160,17 +169,7 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(v3d_priv);
 }
 
-static const struct file_operations v3d_drm_fops = {
-	.owner = THIS_MODULE,
-	.open = drm_open,
-	.release = drm_release,
-	.unlocked_ioctl = drm_ioctl,
-	.mmap = v3d_mmap,
-	.poll = drm_poll,
-	.read = drm_read,
-	.compat_ioctl = drm_compat_ioctl,
-	.llseek = noop_llseek,
-};
+DEFINE_DRM_GEM_SHMEM_FOPS(v3d_drm_fops);
 
 /* DRM_AUTH is required on SUBMIT_CL for now, while we don't have GMP
  * protection between clients.  Note that render nodes would be be
@@ -186,18 +185,12 @@ static const struct drm_ioctl_desc v3d_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(V3D_GET_PARAM, v3d_get_param_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_GET_BO_OFFSET, v3d_get_bo_offset_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_TFU, v3d_submit_tfu_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
-};
-
-static const struct vm_operations_struct v3d_vm_ops = {
-	.fault = v3d_gem_fault,
-	.open = drm_gem_vm_open,
-	.close = drm_gem_vm_close,
+	DRM_IOCTL_DEF_DRV(V3D_SUBMIT_CSD, v3d_submit_csd_ioctl, DRM_RENDER_ALLOW | DRM_AUTH),
 };
 
 static struct drm_driver v3d_drm_driver = {
 	.driver_features = (DRIVER_GEM |
 			    DRIVER_RENDER |
-			    DRIVER_PRIME |
 			    DRIVER_SYNCOBJ),
 
 	.open = v3d_open,
@@ -207,17 +200,11 @@ static struct drm_driver v3d_drm_driver = {
 	.debugfs_init = v3d_debugfs_init,
 #endif
 
-	.gem_free_object_unlocked = v3d_free_object,
-	.gem_vm_ops = &v3d_vm_ops,
-
+	.gem_create_object = v3d_create_object,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_res_obj = v3d_prime_res_obj,
-	.gem_prime_get_sg_table	= v3d_prime_get_sg_table,
 	.gem_prime_import_sg_table = v3d_prime_import_sg_table,
-	.gem_prime_mmap = v3d_prime_mmap,
+	.gem_prime_mmap = drm_gem_prime_mmap,
 
 	.ioctls = v3d_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(v3d_drm_ioctls),
@@ -254,9 +241,9 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	struct drm_device *drm;
 	struct v3d_dev *v3d;
 	int ret;
+	u32 mmu_debug;
 	u32 ident1;
 
-	dev->coherent_dma_mask = DMA_BIT_MASK(36);
 
 	v3d = kzalloc(sizeof(*v3d), GFP_KERNEL);
 	if (!v3d)
@@ -264,10 +251,6 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	v3d->dev = dev;
 	v3d->pdev = pdev;
 	drm = &v3d->drm;
-
-	ret = map_regs(v3d, &v3d->bridge_regs, "bridge");
-	if (ret)
-		goto dev_free;
 
 	ret = map_regs(v3d, &v3d->hub_regs, "hub");
 	if (ret)
@@ -277,11 +260,32 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto dev_free;
 
+	mmu_debug = V3D_READ(V3D_MMU_DEBUG_INFO);
+	dev->coherent_dma_mask =
+		DMA_BIT_MASK(30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_PA_WIDTH));
+	v3d->va_width = 30 + V3D_GET_FIELD(mmu_debug, V3D_MMU_VA_WIDTH);
+
 	ident1 = V3D_READ(V3D_HUB_IDENT1);
 	v3d->ver = (V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_TVER) * 10 +
 		    V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_REV));
 	v3d->cores = V3D_GET_FIELD(ident1, V3D_HUB_IDENT1_NCORES);
 	WARN_ON(v3d->cores > 1); /* multicore not yet implemented */
+
+	v3d->reset = devm_reset_control_get_exclusive(dev, NULL);
+	if (IS_ERR(v3d->reset)) {
+		ret = PTR_ERR(v3d->reset);
+
+		if (ret == -EPROBE_DEFER)
+			goto dev_free;
+
+		v3d->reset = NULL;
+		ret = map_regs(v3d, &v3d->bridge_regs, "bridge");
+		if (ret) {
+			dev_err(dev,
+				"Failed to get reset control or bridge regs\n");
+			goto dev_free;
+		}
+	}
 
 	if (v3d->ver < 41) {
 		ret = map_regs(v3d, &v3d->gca_regs, "gca");
@@ -312,14 +316,18 @@ static int v3d_platform_drm_probe(struct platform_device *pdev)
 	if (ret)
 		goto dev_destroy;
 
-	v3d_irq_init(v3d);
-
-	ret = drm_dev_register(drm, 0);
+	ret = v3d_irq_init(v3d);
 	if (ret)
 		goto gem_destroy;
 
+	ret = drm_dev_register(drm, 0);
+	if (ret)
+		goto irq_disable;
+
 	return 0;
 
+irq_disable:
+	v3d_irq_disable(v3d);
 gem_destroy:
 	v3d_gem_destroy(drm);
 dev_destroy:

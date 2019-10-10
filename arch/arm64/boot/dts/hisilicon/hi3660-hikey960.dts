@@ -581,8 +581,7 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	disable-wp;
-	cd-inverted;
-	cd-gpios = <&gpio25 3 0>;
+	cd-gpios = <&gpio25 3 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sd_pmx_func
 		     &sd_clk_cfg_func

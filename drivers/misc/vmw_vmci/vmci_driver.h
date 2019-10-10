@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * VMware VMCI Driver
  *
  * Copyright (C) 2012 VMware, Inc. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation version 2 and no later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
  */
 
 #ifndef _VMCI_DRIVER_H_
@@ -53,5 +45,7 @@ int vmci_guest_init(void);
 void vmci_guest_exit(void);
 bool vmci_guest_code_active(void);
 u32 vmci_get_vm_context_id(void);
+
+bool vmci_use_ppn64(void);
 
 #endif /* _VMCI_DRIVER_H_ */

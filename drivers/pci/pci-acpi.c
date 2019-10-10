@@ -14,7 +14,6 @@
 #include <linux/msi.h>
 #include <linux/pci_hotplug.h>
 #include <linux/module.h>
-#include <linux/pci-aspm.h>
 #include <linux/pci-acpi.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
@@ -118,8 +117,58 @@ phys_addr_t acpi_pci_root_get_mcfg_addr(acpi_handle handle)
 	return (phys_addr_t)mcfg_addr;
 }
 
+/* _HPX PCI Setting Record (Type 0); same as _HPP */
+struct hpx_type0 {
+	u32 revision;		/* Not present in _HPP */
+	u8  cache_line_size;	/* Not applicable to PCIe */
+	u8  latency_timer;	/* Not applicable to PCIe */
+	u8  enable_serr;
+	u8  enable_perr;
+};
+
+static struct hpx_type0 pci_default_type0 = {
+	.revision = 1,
+	.cache_line_size = 8,
+	.latency_timer = 0x40,
+	.enable_serr = 0,
+	.enable_perr = 0,
+};
+
+static void program_hpx_type0(struct pci_dev *dev, struct hpx_type0 *hpx)
+{
+	u16 pci_cmd, pci_bctl;
+
+	if (!hpx)
+		hpx = &pci_default_type0;
+
+	if (hpx->revision > 1) {
+		pci_warn(dev, "PCI settings rev %d not supported; using defaults\n",
+			 hpx->revision);
+		hpx = &pci_default_type0;
+	}
+
+	pci_write_config_byte(dev, PCI_CACHE_LINE_SIZE, hpx->cache_line_size);
+	pci_write_config_byte(dev, PCI_LATENCY_TIMER, hpx->latency_timer);
+	pci_read_config_word(dev, PCI_COMMAND, &pci_cmd);
+	if (hpx->enable_serr)
+		pci_cmd |= PCI_COMMAND_SERR;
+	if (hpx->enable_perr)
+		pci_cmd |= PCI_COMMAND_PARITY;
+	pci_write_config_word(dev, PCI_COMMAND, pci_cmd);
+
+	/* Program bridge control value */
+	if ((dev->class >> 8) == PCI_CLASS_BRIDGE_PCI) {
+		pci_write_config_byte(dev, PCI_SEC_LATENCY_TIMER,
+				      hpx->latency_timer);
+		pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &pci_bctl);
+		if (hpx->enable_perr)
+			pci_bctl |= PCI_BRIDGE_CTL_PARITY;
+		pci_write_config_word(dev, PCI_BRIDGE_CONTROL, pci_bctl);
+	}
+}
+
 static acpi_status decode_type0_hpx_record(union acpi_object *record,
-					   struct hotplug_params *hpx)
+					   struct hpx_type0 *hpx0)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -132,24 +181,44 @@ static acpi_status decode_type0_hpx_record(union acpi_object *record,
 		for (i = 2; i < 6; i++)
 			if (fields[i].type != ACPI_TYPE_INTEGER)
 				return AE_ERROR;
-		hpx->t0 = &hpx->type0_data;
-		hpx->t0->revision        = revision;
-		hpx->t0->cache_line_size = fields[2].integer.value;
-		hpx->t0->latency_timer   = fields[3].integer.value;
-		hpx->t0->enable_serr     = fields[4].integer.value;
-		hpx->t0->enable_perr     = fields[5].integer.value;
+		hpx0->revision        = revision;
+		hpx0->cache_line_size = fields[2].integer.value;
+		hpx0->latency_timer   = fields[3].integer.value;
+		hpx0->enable_serr     = fields[4].integer.value;
+		hpx0->enable_perr     = fields[5].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 0 Revision %d record not supported\n",
+		pr_warn("%s: Type 0 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
 	return AE_OK;
 }
 
+/* _HPX PCI-X Setting Record (Type 1) */
+struct hpx_type1 {
+	u32 revision;
+	u8  max_mem_read;
+	u8  avg_max_split;
+	u16 tot_max_split;
+};
+
+static void program_hpx_type1(struct pci_dev *dev, struct hpx_type1 *hpx)
+{
+	int pos;
+
+	if (!hpx)
+		return;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_PCIX);
+	if (!pos)
+		return;
+
+	pci_warn(dev, "PCI-X settings not supported\n");
+}
+
 static acpi_status decode_type1_hpx_record(union acpi_object *record,
-					   struct hotplug_params *hpx)
+					   struct hpx_type1 *hpx1)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -162,23 +231,143 @@ static acpi_status decode_type1_hpx_record(union acpi_object *record,
 		for (i = 2; i < 5; i++)
 			if (fields[i].type != ACPI_TYPE_INTEGER)
 				return AE_ERROR;
-		hpx->t1 = &hpx->type1_data;
-		hpx->t1->revision      = revision;
-		hpx->t1->max_mem_read  = fields[2].integer.value;
-		hpx->t1->avg_max_split = fields[3].integer.value;
-		hpx->t1->tot_max_split = fields[4].integer.value;
+		hpx1->revision      = revision;
+		hpx1->max_mem_read  = fields[2].integer.value;
+		hpx1->avg_max_split = fields[3].integer.value;
+		hpx1->tot_max_split = fields[4].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 1 Revision %d record not supported\n",
+		pr_warn("%s: Type 1 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
 	return AE_OK;
 }
 
+static bool pcie_root_rcb_set(struct pci_dev *dev)
+{
+	struct pci_dev *rp = pcie_find_root_port(dev);
+	u16 lnkctl;
+
+	if (!rp)
+		return false;
+
+	pcie_capability_read_word(rp, PCI_EXP_LNKCTL, &lnkctl);
+	if (lnkctl & PCI_EXP_LNKCTL_RCB)
+		return true;
+
+	return false;
+}
+
+/* _HPX PCI Express Setting Record (Type 2) */
+struct hpx_type2 {
+	u32 revision;
+	u32 unc_err_mask_and;
+	u32 unc_err_mask_or;
+	u32 unc_err_sever_and;
+	u32 unc_err_sever_or;
+	u32 cor_err_mask_and;
+	u32 cor_err_mask_or;
+	u32 adv_err_cap_and;
+	u32 adv_err_cap_or;
+	u16 pci_exp_devctl_and;
+	u16 pci_exp_devctl_or;
+	u16 pci_exp_lnkctl_and;
+	u16 pci_exp_lnkctl_or;
+	u32 sec_unc_err_sever_and;
+	u32 sec_unc_err_sever_or;
+	u32 sec_unc_err_mask_and;
+	u32 sec_unc_err_mask_or;
+};
+
+static void program_hpx_type2(struct pci_dev *dev, struct hpx_type2 *hpx)
+{
+	int pos;
+	u32 reg32;
+
+	if (!hpx)
+		return;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	if (hpx->revision > 1) {
+		pci_warn(dev, "PCIe settings rev %d not supported\n",
+			 hpx->revision);
+		return;
+	}
+
+	/*
+	 * Don't allow _HPX to change MPS or MRRS settings.  We manage
+	 * those to make sure they're consistent with the rest of the
+	 * platform.
+	 */
+	hpx->pci_exp_devctl_and |= PCI_EXP_DEVCTL_PAYLOAD |
+				    PCI_EXP_DEVCTL_READRQ;
+	hpx->pci_exp_devctl_or &= ~(PCI_EXP_DEVCTL_PAYLOAD |
+				    PCI_EXP_DEVCTL_READRQ);
+
+	/* Initialize Device Control Register */
+	pcie_capability_clear_and_set_word(dev, PCI_EXP_DEVCTL,
+			~hpx->pci_exp_devctl_and, hpx->pci_exp_devctl_or);
+
+	/* Initialize Link Control Register */
+	if (pcie_cap_has_lnkctl(dev)) {
+
+		/*
+		 * If the Root Port supports Read Completion Boundary of
+		 * 128, set RCB to 128.  Otherwise, clear it.
+		 */
+		hpx->pci_exp_lnkctl_and |= PCI_EXP_LNKCTL_RCB;
+		hpx->pci_exp_lnkctl_or &= ~PCI_EXP_LNKCTL_RCB;
+		if (pcie_root_rcb_set(dev))
+			hpx->pci_exp_lnkctl_or |= PCI_EXP_LNKCTL_RCB;
+
+		pcie_capability_clear_and_set_word(dev, PCI_EXP_LNKCTL,
+			~hpx->pci_exp_lnkctl_and, hpx->pci_exp_lnkctl_or);
+	}
+
+	/* Find Advanced Error Reporting Enhanced Capability */
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (!pos)
+		return;
+
+	/* Initialize Uncorrectable Error Mask Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, &reg32);
+	reg32 = (reg32 & hpx->unc_err_mask_and) | hpx->unc_err_mask_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, reg32);
+
+	/* Initialize Uncorrectable Error Severity Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, &reg32);
+	reg32 = (reg32 & hpx->unc_err_sever_and) | hpx->unc_err_sever_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, reg32);
+
+	/* Initialize Correctable Error Mask Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, &reg32);
+	reg32 = (reg32 & hpx->cor_err_mask_and) | hpx->cor_err_mask_or;
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, reg32);
+
+	/* Initialize Advanced Error Capabilities and Control Register */
+	pci_read_config_dword(dev, pos + PCI_ERR_CAP, &reg32);
+	reg32 = (reg32 & hpx->adv_err_cap_and) | hpx->adv_err_cap_or;
+
+	/* Don't enable ECRC generation or checking if unsupported */
+	if (!(reg32 & PCI_ERR_CAP_ECRC_GENC))
+		reg32 &= ~PCI_ERR_CAP_ECRC_GENE;
+	if (!(reg32 & PCI_ERR_CAP_ECRC_CHKC))
+		reg32 &= ~PCI_ERR_CAP_ECRC_CHKE;
+	pci_write_config_dword(dev, pos + PCI_ERR_CAP, reg32);
+
+	/*
+	 * FIXME: The following two registers are not supported yet.
+	 *
+	 *   o Secondary Uncorrectable Error Severity Register
+	 *   o Secondary Uncorrectable Error Mask Register
+	 */
+}
+
 static acpi_status decode_type2_hpx_record(union acpi_object *record,
-					   struct hotplug_params *hpx)
+					   struct hpx_type2 *hpx2)
 {
 	int i;
 	union acpi_object *fields = record->package.elements;
@@ -191,44 +380,257 @@ static acpi_status decode_type2_hpx_record(union acpi_object *record,
 		for (i = 2; i < 18; i++)
 			if (fields[i].type != ACPI_TYPE_INTEGER)
 				return AE_ERROR;
-		hpx->t2 = &hpx->type2_data;
-		hpx->t2->revision      = revision;
-		hpx->t2->unc_err_mask_and      = fields[2].integer.value;
-		hpx->t2->unc_err_mask_or       = fields[3].integer.value;
-		hpx->t2->unc_err_sever_and     = fields[4].integer.value;
-		hpx->t2->unc_err_sever_or      = fields[5].integer.value;
-		hpx->t2->cor_err_mask_and      = fields[6].integer.value;
-		hpx->t2->cor_err_mask_or       = fields[7].integer.value;
-		hpx->t2->adv_err_cap_and       = fields[8].integer.value;
-		hpx->t2->adv_err_cap_or        = fields[9].integer.value;
-		hpx->t2->pci_exp_devctl_and    = fields[10].integer.value;
-		hpx->t2->pci_exp_devctl_or     = fields[11].integer.value;
-		hpx->t2->pci_exp_lnkctl_and    = fields[12].integer.value;
-		hpx->t2->pci_exp_lnkctl_or     = fields[13].integer.value;
-		hpx->t2->sec_unc_err_sever_and = fields[14].integer.value;
-		hpx->t2->sec_unc_err_sever_or  = fields[15].integer.value;
-		hpx->t2->sec_unc_err_mask_and  = fields[16].integer.value;
-		hpx->t2->sec_unc_err_mask_or   = fields[17].integer.value;
+		hpx2->revision      = revision;
+		hpx2->unc_err_mask_and      = fields[2].integer.value;
+		hpx2->unc_err_mask_or       = fields[3].integer.value;
+		hpx2->unc_err_sever_and     = fields[4].integer.value;
+		hpx2->unc_err_sever_or      = fields[5].integer.value;
+		hpx2->cor_err_mask_and      = fields[6].integer.value;
+		hpx2->cor_err_mask_or       = fields[7].integer.value;
+		hpx2->adv_err_cap_and       = fields[8].integer.value;
+		hpx2->adv_err_cap_or        = fields[9].integer.value;
+		hpx2->pci_exp_devctl_and    = fields[10].integer.value;
+		hpx2->pci_exp_devctl_or     = fields[11].integer.value;
+		hpx2->pci_exp_lnkctl_and    = fields[12].integer.value;
+		hpx2->pci_exp_lnkctl_or     = fields[13].integer.value;
+		hpx2->sec_unc_err_sever_and = fields[14].integer.value;
+		hpx2->sec_unc_err_sever_or  = fields[15].integer.value;
+		hpx2->sec_unc_err_mask_and  = fields[16].integer.value;
+		hpx2->sec_unc_err_mask_or   = fields[17].integer.value;
 		break;
 	default:
-		printk(KERN_WARNING
-		       "%s: Type 2 Revision %d record not supported\n",
+		pr_warn("%s: Type 2 Revision %d record not supported\n",
 		       __func__, revision);
 		return AE_ERROR;
 	}
 	return AE_OK;
 }
 
-static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
+/* _HPX PCI Express Setting Record (Type 3) */
+struct hpx_type3 {
+	u16 device_type;
+	u16 function_type;
+	u16 config_space_location;
+	u16 pci_exp_cap_id;
+	u16 pci_exp_cap_ver;
+	u16 pci_exp_vendor_id;
+	u16 dvsec_id;
+	u16 dvsec_rev;
+	u16 match_offset;
+	u32 match_mask_and;
+	u32 match_value;
+	u16 reg_offset;
+	u32 reg_mask_and;
+	u32 reg_mask_or;
+};
+
+enum hpx_type3_dev_type {
+	HPX_TYPE_ENDPOINT	= BIT(0),
+	HPX_TYPE_LEG_END	= BIT(1),
+	HPX_TYPE_RC_END		= BIT(2),
+	HPX_TYPE_RC_EC		= BIT(3),
+	HPX_TYPE_ROOT_PORT	= BIT(4),
+	HPX_TYPE_UPSTREAM	= BIT(5),
+	HPX_TYPE_DOWNSTREAM	= BIT(6),
+	HPX_TYPE_PCI_BRIDGE	= BIT(7),
+	HPX_TYPE_PCIE_BRIDGE	= BIT(8),
+};
+
+static u16 hpx3_device_type(struct pci_dev *dev)
+{
+	u16 pcie_type = pci_pcie_type(dev);
+	const int pcie_to_hpx3_type[] = {
+		[PCI_EXP_TYPE_ENDPOINT]    = HPX_TYPE_ENDPOINT,
+		[PCI_EXP_TYPE_LEG_END]     = HPX_TYPE_LEG_END,
+		[PCI_EXP_TYPE_RC_END]      = HPX_TYPE_RC_END,
+		[PCI_EXP_TYPE_RC_EC]       = HPX_TYPE_RC_EC,
+		[PCI_EXP_TYPE_ROOT_PORT]   = HPX_TYPE_ROOT_PORT,
+		[PCI_EXP_TYPE_UPSTREAM]    = HPX_TYPE_UPSTREAM,
+		[PCI_EXP_TYPE_DOWNSTREAM]  = HPX_TYPE_DOWNSTREAM,
+		[PCI_EXP_TYPE_PCI_BRIDGE]  = HPX_TYPE_PCI_BRIDGE,
+		[PCI_EXP_TYPE_PCIE_BRIDGE] = HPX_TYPE_PCIE_BRIDGE,
+	};
+
+	if (pcie_type >= ARRAY_SIZE(pcie_to_hpx3_type))
+		return 0;
+
+	return pcie_to_hpx3_type[pcie_type];
+}
+
+enum hpx_type3_fn_type {
+	HPX_FN_NORMAL		= BIT(0),
+	HPX_FN_SRIOV_PHYS	= BIT(1),
+	HPX_FN_SRIOV_VIRT	= BIT(2),
+};
+
+static u8 hpx3_function_type(struct pci_dev *dev)
+{
+	if (dev->is_virtfn)
+		return HPX_FN_SRIOV_VIRT;
+	else if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_SRIOV) > 0)
+		return HPX_FN_SRIOV_PHYS;
+	else
+		return HPX_FN_NORMAL;
+}
+
+static bool hpx3_cap_ver_matches(u8 pcie_cap_id, u8 hpx3_cap_id)
+{
+	u8 cap_ver = hpx3_cap_id & 0xf;
+
+	if ((hpx3_cap_id & BIT(4)) && cap_ver >= pcie_cap_id)
+		return true;
+	else if (cap_ver == pcie_cap_id)
+		return true;
+
+	return false;
+}
+
+enum hpx_type3_cfg_loc {
+	HPX_CFG_PCICFG		= 0,
+	HPX_CFG_PCIE_CAP	= 1,
+	HPX_CFG_PCIE_CAP_EXT	= 2,
+	HPX_CFG_VEND_CAP	= 3,
+	HPX_CFG_DVSEC		= 4,
+	HPX_CFG_MAX,
+};
+
+static void program_hpx_type3_register(struct pci_dev *dev,
+				       const struct hpx_type3 *reg)
+{
+	u32 match_reg, write_reg, header, orig_value;
+	u16 pos;
+
+	if (!(hpx3_device_type(dev) & reg->device_type))
+		return;
+
+	if (!(hpx3_function_type(dev) & reg->function_type))
+		return;
+
+	switch (reg->config_space_location) {
+	case HPX_CFG_PCICFG:
+		pos = 0;
+		break;
+	case HPX_CFG_PCIE_CAP:
+		pos = pci_find_capability(dev, reg->pci_exp_cap_id);
+		if (pos == 0)
+			return;
+
+		break;
+	case HPX_CFG_PCIE_CAP_EXT:
+		pos = pci_find_ext_capability(dev, reg->pci_exp_cap_id);
+		if (pos == 0)
+			return;
+
+		pci_read_config_dword(dev, pos, &header);
+		if (!hpx3_cap_ver_matches(PCI_EXT_CAP_VER(header),
+					  reg->pci_exp_cap_ver))
+			return;
+
+		break;
+	case HPX_CFG_VEND_CAP:	/* Fall through */
+	case HPX_CFG_DVSEC:	/* Fall through */
+	default:
+		pci_warn(dev, "Encountered _HPX type 3 with unsupported config space location");
+		return;
+	}
+
+	pci_read_config_dword(dev, pos + reg->match_offset, &match_reg);
+
+	if ((match_reg & reg->match_mask_and) != reg->match_value)
+		return;
+
+	pci_read_config_dword(dev, pos + reg->reg_offset, &write_reg);
+	orig_value = write_reg;
+	write_reg &= reg->reg_mask_and;
+	write_reg |= reg->reg_mask_or;
+
+	if (orig_value == write_reg)
+		return;
+
+	pci_write_config_dword(dev, pos + reg->reg_offset, write_reg);
+
+	pci_dbg(dev, "Applied _HPX3 at [0x%x]: 0x%08x -> 0x%08x",
+		pos, orig_value, write_reg);
+}
+
+static void program_hpx_type3(struct pci_dev *dev, struct hpx_type3 *hpx)
+{
+	if (!hpx)
+		return;
+
+	if (!pci_is_pcie(dev))
+		return;
+
+	program_hpx_type3_register(dev, hpx);
+}
+
+static void parse_hpx3_register(struct hpx_type3 *hpx3_reg,
+				union acpi_object *reg_fields)
+{
+	hpx3_reg->device_type            = reg_fields[0].integer.value;
+	hpx3_reg->function_type          = reg_fields[1].integer.value;
+	hpx3_reg->config_space_location  = reg_fields[2].integer.value;
+	hpx3_reg->pci_exp_cap_id         = reg_fields[3].integer.value;
+	hpx3_reg->pci_exp_cap_ver        = reg_fields[4].integer.value;
+	hpx3_reg->pci_exp_vendor_id      = reg_fields[5].integer.value;
+	hpx3_reg->dvsec_id               = reg_fields[6].integer.value;
+	hpx3_reg->dvsec_rev              = reg_fields[7].integer.value;
+	hpx3_reg->match_offset           = reg_fields[8].integer.value;
+	hpx3_reg->match_mask_and         = reg_fields[9].integer.value;
+	hpx3_reg->match_value            = reg_fields[10].integer.value;
+	hpx3_reg->reg_offset             = reg_fields[11].integer.value;
+	hpx3_reg->reg_mask_and           = reg_fields[12].integer.value;
+	hpx3_reg->reg_mask_or            = reg_fields[13].integer.value;
+}
+
+static acpi_status program_type3_hpx_record(struct pci_dev *dev,
+					   union acpi_object *record)
+{
+	union acpi_object *fields = record->package.elements;
+	u32 desc_count, expected_length, revision;
+	union acpi_object *reg_fields;
+	struct hpx_type3 hpx3;
+	int i;
+
+	revision = fields[1].integer.value;
+	switch (revision) {
+	case 1:
+		desc_count = fields[2].integer.value;
+		expected_length = 3 + desc_count * 14;
+
+		if (record->package.count != expected_length)
+			return AE_ERROR;
+
+		for (i = 2; i < expected_length; i++)
+			if (fields[i].type != ACPI_TYPE_INTEGER)
+				return AE_ERROR;
+
+		for (i = 0; i < desc_count; i++) {
+			reg_fields = fields + 3 + i * 14;
+			parse_hpx3_register(&hpx3, reg_fields);
+			program_hpx_type3(dev, &hpx3);
+		}
+
+		break;
+	default:
+		printk(KERN_WARNING
+			"%s: Type 3 Revision %d record not supported\n",
+			__func__, revision);
+		return AE_ERROR;
+	}
+	return AE_OK;
+}
+
+static acpi_status acpi_run_hpx(struct pci_dev *dev, acpi_handle handle)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = {ACPI_ALLOCATE_BUFFER, NULL};
 	union acpi_object *package, *record, *fields;
+	struct hpx_type0 hpx0;
+	struct hpx_type1 hpx1;
+	struct hpx_type2 hpx2;
 	u32 type;
 	int i;
-
-	/* Clear the return buffer with zeros */
-	memset(hpx, 0, sizeof(struct hotplug_params));
 
 	status = acpi_evaluate_object(handle, "_HPX", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -257,22 +659,33 @@ static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 		type = fields[0].integer.value;
 		switch (type) {
 		case 0:
-			status = decode_type0_hpx_record(record, hpx);
+			memset(&hpx0, 0, sizeof(hpx0));
+			status = decode_type0_hpx_record(record, &hpx0);
 			if (ACPI_FAILURE(status))
 				goto exit;
+			program_hpx_type0(dev, &hpx0);
 			break;
 		case 1:
-			status = decode_type1_hpx_record(record, hpx);
+			memset(&hpx1, 0, sizeof(hpx1));
+			status = decode_type1_hpx_record(record, &hpx1);
 			if (ACPI_FAILURE(status))
 				goto exit;
+			program_hpx_type1(dev, &hpx1);
 			break;
 		case 2:
-			status = decode_type2_hpx_record(record, hpx);
+			memset(&hpx2, 0, sizeof(hpx2));
+			status = decode_type2_hpx_record(record, &hpx2);
+			if (ACPI_FAILURE(status))
+				goto exit;
+			program_hpx_type2(dev, &hpx2);
+			break;
+		case 3:
+			status = program_type3_hpx_record(dev, record);
 			if (ACPI_FAILURE(status))
 				goto exit;
 			break;
 		default:
-			printk(KERN_ERR "%s: Type %d record not supported\n",
+			pr_err("%s: Type %d record not supported\n",
 			       __func__, type);
 			status = AE_ERROR;
 			goto exit;
@@ -283,14 +696,15 @@ static acpi_status acpi_run_hpx(acpi_handle handle, struct hotplug_params *hpx)
 	return status;
 }
 
-static acpi_status acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
+static acpi_status acpi_run_hpp(struct pci_dev *dev, acpi_handle handle)
 {
 	acpi_status status;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	union acpi_object *package, *fields;
+	struct hpx_type0 hpx0;
 	int i;
 
-	memset(hpp, 0, sizeof(struct hotplug_params));
+	memset(&hpx0, 0, sizeof(hpx0));
 
 	status = acpi_evaluate_object(handle, "_HPP", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -311,24 +725,24 @@ static acpi_status acpi_run_hpp(acpi_handle handle, struct hotplug_params *hpp)
 		}
 	}
 
-	hpp->t0 = &hpp->type0_data;
-	hpp->t0->revision        = 1;
-	hpp->t0->cache_line_size = fields[0].integer.value;
-	hpp->t0->latency_timer   = fields[1].integer.value;
-	hpp->t0->enable_serr     = fields[2].integer.value;
-	hpp->t0->enable_perr     = fields[3].integer.value;
+	hpx0.revision        = 1;
+	hpx0.cache_line_size = fields[0].integer.value;
+	hpx0.latency_timer   = fields[1].integer.value;
+	hpx0.enable_serr     = fields[2].integer.value;
+	hpx0.enable_perr     = fields[3].integer.value;
+
+	program_hpx_type0(dev, &hpx0);
 
 exit:
 	kfree(buffer.pointer);
 	return status;
 }
 
-/* pci_get_hp_params
+/* pci_acpi_program_hp_params
  *
  * @dev - the pci_dev for which we want parameters
- * @hpp - allocated by the caller
  */
-int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
+int pci_acpi_program_hp_params(struct pci_dev *dev)
 {
 	acpi_status status;
 	acpi_handle handle, phandle;
@@ -351,10 +765,10 @@ int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 	 * this pci dev.
 	 */
 	while (handle) {
-		status = acpi_run_hpx(handle, hpp);
+		status = acpi_run_hpx(dev, handle);
 		if (ACPI_SUCCESS(status))
 			return 0;
-		status = acpi_run_hpp(handle, hpp);
+		status = acpi_run_hpp(dev, handle);
 		if (ACPI_SUCCESS(status))
 			return 0;
 		if (acpi_is_root_bridge(handle))
@@ -366,7 +780,6 @@ int pci_get_hp_params(struct pci_dev *dev, struct hotplug_params *hpp)
 	}
 	return -ENODEV;
 }
-EXPORT_SYMBOL_GPL(pci_get_hp_params);
 
 /**
  * pciehp_is_native - Check whether a hotplug port is handled by the OS
@@ -618,10 +1031,19 @@ static pci_power_t acpi_pci_get_power_state(struct pci_dev *dev)
 	if (!adev || !acpi_device_power_manageable(adev))
 		return PCI_UNKNOWN;
 
-	if (acpi_device_get_power(adev, &state) || state == ACPI_STATE_UNKNOWN)
+	state = adev->power.state;
+	if (state == ACPI_STATE_UNKNOWN)
 		return PCI_UNKNOWN;
 
 	return state_conv[state];
+}
+
+static void acpi_pci_refresh_power_state(struct pci_dev *dev)
+{
+	struct acpi_device *adev = ACPI_COMPANION(&dev->dev);
+
+	if (adev && acpi_device_power_manageable(adev))
+		acpi_device_update_power(adev, NULL);
 }
 
 static int acpi_pci_propagate_wakeup(struct pci_bus *bus, bool enable)
@@ -666,7 +1088,8 @@ static bool acpi_pci_need_resume(struct pci_dev *dev)
 	if (!adev || !acpi_device_power_manageable(adev))
 		return false;
 
-	if (device_may_wakeup(&dev->dev) != !!adev->wakeup.prepare_count)
+	if (adev->wakeup.flags.valid &&
+	    device_may_wakeup(&dev->dev) != !!adev->wakeup.prepare_count)
 		return true;
 
 	if (acpi_target_system_state() == ACPI_STATE_S0)
@@ -680,6 +1103,7 @@ static const struct pci_platform_pm_ops acpi_pci_platform_pm = {
 	.is_manageable = acpi_pci_power_manageable,
 	.set_state = acpi_pci_set_power_state,
 	.get_state = acpi_pci_get_power_state,
+	.refresh_state = acpi_pci_refresh_power_state,
 	.choose_state = acpi_pci_choose_state,
 	.set_wakeup = acpi_pci_wakeup,
 	.need_resume = acpi_pci_need_resume,
@@ -833,6 +1257,7 @@ static void pci_acpi_setup(struct device *dev)
 		device_wakeup_enable(dev);
 
 	acpi_pci_wakeup(pci_dev, false);
+	acpi_device_power_add_dependent(adev, dev);
 }
 
 static void pci_acpi_cleanup(struct device *dev)
@@ -845,6 +1270,7 @@ static void pci_acpi_cleanup(struct device *dev)
 
 	pci_acpi_remove_pm_notifier(adev);
 	if (adev->wakeup.flags.valid) {
+		acpi_device_power_remove_dependent(adev, dev);
 		if (pci_dev->bridge_d3)
 			device_wakeup_disable(dev);
 

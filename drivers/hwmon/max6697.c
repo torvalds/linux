@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2012 Guenter Roeck <linux@roeck-us.net>
  *
  * based on max1668.c
  * Copyright (c) 2011 David George <david.george@ska.ac.za>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -650,7 +641,7 @@ static const struct i2c_device_id max6697_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, max6697_id);
 
-static const struct of_device_id max6697_of_match[] = {
+static const struct of_device_id __maybe_unused max6697_of_match[] = {
 	{
 		.compatible = "maxim,max6581",
 		.data = (void *)max6581

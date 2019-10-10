@@ -17,8 +17,8 @@
  *	see Documentation/perf.data-file-format.txt.
  * PERF_RECORD_AUXTRACE_INFO:
  *	Defines a table of contains for PERF_RECORD_AUXTRACE records. This
- *	record is generated during 'perf record' command. Each record contains up
- *	to 256 entries describing offset and size of the AUXTRACE data in the
+ *	record is generated during 'perf record' command. Each record contains
+ *	up to 256 entries describing offset and size of the AUXTRACE data in the
  *	perf.data file.
  * PERF_RECORD_AUXTRACE_ERROR:
  *	Indicates an error during AUXTRACE collection such as buffer overflow.
@@ -146,22 +146,22 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/log2.h>
+#include <linux/zalloc.h>
 
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "cpumap.h"
 #include "color.h"
 #include "evsel.h"
 #include "evlist.h"
 #include "machine.h"
 #include "session.h"
-#include "util.h"
-#include "thread.h"
+#include "tool.h"
 #include "debug.h"
 #include "auxtrace.h"
 #include "s390-cpumsf.h"
 #include "s390-cpumsf-kernel.h"
+#include "s390-cpumcf-kernel.h"
 #include "config.h"
 
 struct s390_cpumsf {
@@ -184,12 +184,85 @@ struct s390_cpumsf_queue {
 	struct auxtrace_buffer	*buffer;
 	int			cpu;
 	FILE			*logfile;
+	FILE			*logfile_ctr;
 };
 
-/* Display s390 CPU measurement facility basic-sampling data entry */
-static bool s390_cpumsf_basic_show(const char *color, size_t pos,
-				   struct hws_basic_entry *basic)
+/* Check if the raw data should be dumped to file. If this is the case and
+ * the file to dump to has not been opened for writing, do so.
+ *
+ * Return 0 on success and greater zero on error so processing continues.
+ */
+static int s390_cpumcf_dumpctr(struct s390_cpumsf *sf,
+			       struct perf_sample *sample)
 {
+	struct s390_cpumsf_queue *sfq;
+	struct auxtrace_queue *q;
+	int rc = 0;
+
+	if (!sf->use_logfile || sf->queues.nr_queues <= sample->cpu)
+		return rc;
+
+	q = &sf->queues.queue_array[sample->cpu];
+	sfq = q->priv;
+	if (!sfq)		/* Queue not yet allocated */
+		return rc;
+
+	if (!sfq->logfile_ctr) {
+		char *name;
+
+		rc = (sf->logdir)
+			? asprintf(&name, "%s/aux.ctr.%02x",
+				 sf->logdir, sample->cpu)
+			: asprintf(&name, "aux.ctr.%02x", sample->cpu);
+		if (rc > 0)
+			sfq->logfile_ctr = fopen(name, "w");
+		if (sfq->logfile_ctr == NULL) {
+			pr_err("Failed to open counter set log file %s, "
+			       "continue...\n", name);
+			rc = 1;
+		}
+		free(name);
+	}
+
+	if (sfq->logfile_ctr) {
+		/* See comment above for -4 */
+		size_t n = fwrite(sample->raw_data, sample->raw_size - 4, 1,
+				  sfq->logfile_ctr);
+		if (n != 1) {
+			pr_err("Failed to write counter set data\n");
+			rc = 1;
+		}
+	}
+	return rc;
+}
+
+/* Display s390 CPU measurement facility basic-sampling data entry
+ * Data written on s390 in big endian byte order and contains bit
+ * fields across byte boundaries.
+ */
+static bool s390_cpumsf_basic_show(const char *color, size_t pos,
+				   struct hws_basic_entry *basicp)
+{
+	struct hws_basic_entry *basic = basicp;
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	struct hws_basic_entry local;
+	unsigned long long word = be64toh(*(unsigned long long *)basicp);
+
+	memset(&local, 0, sizeof(local));
+	local.def = be16toh(basicp->def);
+	local.prim_asn = word & 0xffff;
+	local.CL = word >> 30 & 0x3;
+	local.I = word >> 32 & 0x1;
+	local.AS = word >> 33 & 0x3;
+	local.P = word >> 35 & 0x1;
+	local.W = word >> 36 & 0x1;
+	local.T = word >> 37 & 0x1;
+	local.U = word >> 40 & 0xf;
+	local.ia = be64toh(basicp->ia);
+	local.gpp = be64toh(basicp->gpp);
+	local.hpp = be64toh(basicp->hpp);
+	basic = &local;
+#endif
 	if (basic->def != 1) {
 		pr_err("Invalid AUX trace basic entry [%#08zx]\n", pos);
 		return false;
@@ -207,10 +280,22 @@ static bool s390_cpumsf_basic_show(const char *color, size_t pos,
 	return true;
 }
 
-/* Display s390 CPU measurement facility diagnostic-sampling data entry */
+/* Display s390 CPU measurement facility diagnostic-sampling data entry.
+ * Data written on s390 in big endian byte order and contains bit
+ * fields across byte boundaries.
+ */
 static bool s390_cpumsf_diag_show(const char *color, size_t pos,
-				  struct hws_diag_entry *diag)
+				  struct hws_diag_entry *diagp)
 {
+	struct hws_diag_entry *diag = diagp;
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	struct hws_diag_entry local;
+	unsigned long long word = be64toh(*(unsigned long long *)diagp);
+
+	local.def = be16toh(diagp->def);
+	local.I = word >> 32 & 0x1;
+	diag = &local;
+#endif
 	if (diag->def < S390_CPUMSF_DIAG_DEF_FIRST) {
 		pr_err("Invalid AUX trace diagnostic entry [%#08zx]\n", pos);
 		return false;
@@ -221,35 +306,52 @@ static bool s390_cpumsf_diag_show(const char *color, size_t pos,
 }
 
 /* Return TOD timestamp contained in an trailer entry */
-static unsigned long long trailer_timestamp(struct hws_trailer_entry *te)
+static unsigned long long trailer_timestamp(struct hws_trailer_entry *te,
+					    int idx)
 {
 	/* te->t set: TOD in STCKE format, bytes 8-15
 	 * to->t not set: TOD in STCK format, bytes 0-7
 	 */
 	unsigned long long ts;
 
-	memcpy(&ts, &te->timestamp[te->t], sizeof(ts));
-	return ts;
+	memcpy(&ts, &te->timestamp[idx], sizeof(ts));
+	return be64toh(ts);
 }
 
 /* Display s390 CPU measurement facility trailer entry */
 static bool s390_cpumsf_trailer_show(const char *color, size_t pos,
 				     struct hws_trailer_entry *te)
 {
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	struct hws_trailer_entry local;
+	const unsigned long long flags = be64toh(te->flags);
+
+	memset(&local, 0, sizeof(local));
+	local.f = flags >> 63 & 0x1;
+	local.a = flags >> 62 & 0x1;
+	local.t = flags >> 61 & 0x1;
+	local.bsdes = be16toh((flags >> 16 & 0xffff));
+	local.dsdes = be16toh((flags & 0xffff));
+	memcpy(&local.timestamp, te->timestamp, sizeof(te->timestamp));
+	local.overflow = be64toh(te->overflow);
+	local.clock_base = be64toh(te->progusage[0]) >> 63 & 1;
+	local.progusage2 = be64toh(te->progusage2);
+	te = &local;
+#endif
 	if (te->bsdes != sizeof(struct hws_basic_entry)) {
 		pr_err("Invalid AUX trace trailer entry [%#08zx]\n", pos);
 		return false;
 	}
 	color_fprintf(stdout, color, "    [%#08zx] Trailer %c%c%c bsdes:%d"
 		      " dsdes:%d Overflow:%lld Time:%#llx\n"
-		      "\t\tC:%d TOD:%#lx 1:%#llx 2:%#llx\n",
+		      "\t\tC:%d TOD:%#lx\n",
 		      pos,
 		      te->f ? 'F' : ' ',
 		      te->a ? 'A' : ' ',
 		      te->t ? 'T' : ' ',
 		      te->bsdes, te->dsdes, te->overflow,
-		      trailer_timestamp(te), te->clock_base, te->progusage2,
-		      te->progusage[0], te->progusage[1]);
+		      trailer_timestamp(te, te->clock_base),
+		      te->clock_base, te->progusage2);
 	return true;
 }
 
@@ -276,13 +378,13 @@ static bool s390_cpumsf_validate(int machine_type,
 	*dsdes = *bsdes = 0;
 	if (len & (S390_CPUMSF_PAGESZ - 1))	/* Illegal size */
 		return false;
-	if (basic->def != 1)		/* No basic set entry, must be first */
+	if (be16toh(basic->def) != 1)	/* No basic set entry, must be first */
 		return false;
 	/* Check for trailer entry at end of SDB */
 	te = (struct hws_trailer_entry *)(buf + S390_CPUMSF_PAGESZ
 					      - sizeof(*te));
-	*bsdes = te->bsdes;
-	*dsdes = te->dsdes;
+	*bsdes = be16toh(te->bsdes);
+	*dsdes = be16toh(te->dsdes);
 	if (!te->bsdes && !te->dsdes) {
 		/* Very old hardware, use CPUID */
 		switch (machine_type) {
@@ -299,6 +401,11 @@ static bool s390_cpumsf_validate(int machine_type,
 		case 2827:
 		case 2828:
 			*dsdes = 85;
+			*bsdes = 32;
+			break;
+		case 2964:
+		case 2965:
+			*dsdes = 112;
 			*bsdes = 32;
 			break;
 		default:
@@ -439,19 +546,27 @@ static bool s390_cpumsf_make_event(size_t pos,
 static unsigned long long get_trailer_time(const unsigned char *buf)
 {
 	struct hws_trailer_entry *te;
-	unsigned long long aux_time;
+	unsigned long long aux_time, progusage2;
+	bool clock_base;
 
 	te = (struct hws_trailer_entry *)(buf + S390_CPUMSF_PAGESZ
 					      - sizeof(*te));
 
-	if (!te->clock_base)	/* TOD_CLOCK_BASE value missing */
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+	clock_base = be64toh(te->progusage[0]) >> 63 & 0x1;
+	progusage2 = be64toh(te->progusage[1]);
+#else
+	clock_base = te->clock_base;
+	progusage2 = te->progusage2;
+#endif
+	if (!clock_base)	/* TOD_CLOCK_BASE value missing */
 		return 0;
 
 	/* Correct calculation to convert time stamp in trailer entry to
 	 * nano seconds (taken from arch/s390 function tod_to_ns()).
 	 * TOD_CLOCK_BASE is stored in trailer entry member progusage2.
 	 */
-	aux_time = trailer_timestamp(te) - te->progusage2;
+	aux_time = trailer_timestamp(te, clock_base) - progusage2;
 	aux_time = (aux_time >> 9) * 125 + (((aux_time & 0x1ff) * 125) >> 9);
 	return aux_time;
 }
@@ -640,7 +755,7 @@ static int s390_cpumsf_run_decoder(struct s390_cpumsf_queue *sfq,
 	 */
 	if (err) {
 		sfq->buffer = NULL;
-		list_del(&buffer->list);
+		list_del_init(&buffer->list);
 		auxtrace_buffer__free(buffer);
 		if (err > 0)		/* Buffer done, no error */
 			err = 0;
@@ -768,7 +883,7 @@ static int s390_cpumsf_process_queues(struct s390_cpumsf *sf, u64 timestamp)
 }
 
 static int s390_cpumsf_synth_error(struct s390_cpumsf *sf, int code, int cpu,
-				   pid_t pid, pid_t tid, u64 ip)
+				   pid_t pid, pid_t tid, u64 ip, u64 timestamp)
 {
 	char msg[MAX_AUXTRACE_ERROR_MSG];
 	union perf_event event;
@@ -776,7 +891,7 @@ static int s390_cpumsf_synth_error(struct s390_cpumsf *sf, int code, int cpu,
 
 	strncpy(msg, "Lost Auxiliary Trace Buffer", sizeof(msg) - 1);
 	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
-			     code, cpu, pid, tid, ip, msg);
+			     code, cpu, pid, tid, ip, msg, timestamp);
 
 	err = perf_session__deliver_synth_event(sf->session, &event, NULL);
 	if (err)
@@ -788,11 +903,12 @@ static int s390_cpumsf_synth_error(struct s390_cpumsf *sf, int code, int cpu,
 static int s390_cpumsf_lost(struct s390_cpumsf *sf, struct perf_sample *sample)
 {
 	return s390_cpumsf_synth_error(sf, 1, sample->cpu,
-				       sample->pid, sample->tid, 0);
+				       sample->pid, sample->tid, 0,
+				       sample->time);
 }
 
 static int
-s390_cpumsf_process_event(struct perf_session *session __maybe_unused,
+s390_cpumsf_process_event(struct perf_session *session,
 			  union perf_event *event,
 			  struct perf_sample *sample,
 			  struct perf_tool *tool)
@@ -801,6 +917,8 @@ s390_cpumsf_process_event(struct perf_session *session __maybe_unused,
 					      struct s390_cpumsf,
 					      auxtrace);
 	u64 timestamp = sample->time;
+	struct evsel *ev_bc000;
+
 	int err = 0;
 
 	if (dump_trace)
@@ -809,6 +927,16 @@ s390_cpumsf_process_event(struct perf_session *session __maybe_unused,
 	if (!tool->ordered_events) {
 		pr_err("s390 Auxiliary Trace requires ordered events\n");
 		return -EINVAL;
+	}
+
+	if (event->header.type == PERF_RECORD_SAMPLE &&
+	    sample->raw_size) {
+		/* Handle event with raw data */
+		ev_bc000 = perf_evlist__event2evsel(session->evlist, event);
+		if (ev_bc000 &&
+		    ev_bc000->core.attr.config == PERF_EVENT_CPUM_CF_DIAG)
+			err = s390_cpumcf_dumpctr(sf, sample);
+		return err;
 	}
 
 	if (event->header.type == PERF_RECORD_AUX &&
@@ -891,9 +1019,15 @@ static void s390_cpumsf_free_queues(struct perf_session *session)
 		struct s390_cpumsf_queue *sfq = (struct s390_cpumsf_queue *)
 						queues->queue_array[i].priv;
 
-		if (sfq != NULL && sfq->logfile) {
-			fclose(sfq->logfile);
-			sfq->logfile = NULL;
+		if (sfq != NULL) {
+			if (sfq->logfile) {
+				fclose(sfq->logfile);
+				sfq->logfile = NULL;
+			}
+			if (sfq->logfile_ctr) {
+				fclose(sfq->logfile_ctr);
+				sfq->logfile_ctr = NULL;
+			}
 		}
 		zfree(&queues->queue_array[i].priv);
 	}
@@ -909,7 +1043,7 @@ static void s390_cpumsf_free(struct perf_session *session)
 	auxtrace_heap__free(&sf->heap);
 	s390_cpumsf_free_queues(session);
 	session->auxtrace = NULL;
-	free(sf->logdir);
+	zfree(&sf->logdir);
 	free(sf);
 }
 
@@ -966,8 +1100,7 @@ static int s390_cpumsf__config(const char *var, const char *value, void *cb)
 	if (rc == -1 || !S_ISDIR(stbuf.st_mode)) {
 		pr_err("Missing auxtrace log directory %s,"
 		       " continue with current directory...\n", value);
-		free(sf->logdir);
-		sf->logdir = NULL;
+		zfree(&sf->logdir);
 	}
 	return 1;
 }
@@ -975,11 +1108,11 @@ static int s390_cpumsf__config(const char *var, const char *value, void *cb)
 int s390_cpumsf_process_auxtrace_info(union perf_event *event,
 				      struct perf_session *session)
 {
-	struct auxtrace_info_event *auxtrace_info = &event->auxtrace_info;
+	struct perf_record_auxtrace_info *auxtrace_info = &event->auxtrace_info;
 	struct s390_cpumsf *sf;
 	int err;
 
-	if (auxtrace_info->header.size < sizeof(struct auxtrace_info_event))
+	if (auxtrace_info->header.size < sizeof(struct perf_record_auxtrace_info))
 		return -EINVAL;
 
 	sf = zalloc(sizeof(struct s390_cpumsf));
@@ -1027,7 +1160,7 @@ err_free_queues:
 	auxtrace_queues__free(&sf->queues);
 	session->auxtrace = NULL;
 err_free:
-	free(sf->logdir);
+	zfree(&sf->logdir);
 	free(sf);
 	return err;
 }

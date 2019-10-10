@@ -134,27 +134,34 @@ static inline bool pte_user(pte_t pte)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 #define USER_PTRS_PER_PGD	(TASK_SIZE / PGDIR_SIZE)
+
+#ifndef __ASSEMBLY__
+
+int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
+
+#endif /* !__ASSEMBLY__ */
+
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
  * value (for now) on others, from where we can start layout kernel
  * virtual space that goes below PKMAP and FIXMAP
  */
-#ifdef CONFIG_HIGHMEM
-#define KVIRT_TOP	PKMAP_BASE
-#else
-#define KVIRT_TOP	(0xfe000000UL)	/* for now, could be FIXMAP_BASE ? */
-#endif
+#include <asm/fixmap.h>
 
 /*
  * ioremap_bot starts at that address. Early ioremaps move down from there,
  * until mem_init() at which point this becomes the top of the vmalloc
  * and ioremap space
  */
-#ifdef CONFIG_NOT_COHERENT_CACHE
-#define IOREMAP_TOP	((KVIRT_TOP - CONFIG_CONSISTENT_SIZE) & PAGE_MASK)
+#ifdef CONFIG_HIGHMEM
+#define IOREMAP_TOP	PKMAP_BASE
 #else
-#define IOREMAP_TOP	KVIRT_TOP
+#define IOREMAP_TOP	FIXADDR_START
 #endif
+
+/* PPC32 shares vmalloc area with ioremap */
+#define IOREMAP_START	VMALLOC_START
+#define IOREMAP_END	VMALLOC_END
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
@@ -174,14 +181,23 @@ static inline bool pte_user(pte_t pte)
  * of RAM.  -- Cort
  */
 #define VMALLOC_OFFSET (0x1000000) /* 16M */
+
+/*
+ * With CONFIG_STRICT_KERNEL_RWX, kernel segments are set NX. But when modules
+ * are used, NX cannot be set on VMALLOC space. So vmalloc VM space and linear
+ * memory shall not share segments.
+ */
+#if defined(CONFIG_STRICT_KERNEL_RWX) && defined(CONFIG_MODULES)
+#define VMALLOC_START ((_ALIGN((long)high_memory, 256L << 20) + VMALLOC_OFFSET) & \
+		       ~(VMALLOC_OFFSET - 1))
+#else
 #define VMALLOC_START ((((long)high_memory + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1)))
+#endif
 #define VMALLOC_END	ioremap_bot
 
 #ifndef __ASSEMBLY__
 #include <linux/sched.h>
 #include <linux/threads.h>
-
-extern unsigned long ioremap_bot;
 
 /* Bits to mask out from a PGD to get to the PUD page */
 #define PGD_MASKED_BITS		0
@@ -361,8 +377,6 @@ static inline void __ptep_set_access_flags(struct vm_area_struct *vma,
 #define __swp_entry(type, offset)	((swp_entry_t) { (type) | ((offset) << 5) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
-
-int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 
 /* Generic accessors to PTE bits */
 static inline int pte_write(pte_t pte)		{ return !!(pte_val(pte) & _PAGE_RW);}

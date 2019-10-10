@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Driver for A2 audio system used in SGI machines
  *  Copyright (c) 2008 Thomas Bogendoerfer <tsbogend@alpha.fanken.de>
  *
  *  Based on OSS code from Ladislav Michl <ladis@linux-mips.org>, which
  *  was based on code from Ulf Carlsson
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -454,21 +441,22 @@ static inline void hal2_stop_adc(struct snd_hal2 *hal2)
 	hal2->adc.pbus.pbus->pbdma_ctrl = HPC3_PDMACTRL_LD;
 }
 
-static int hal2_alloc_dmabuf(struct hal2_codec *codec)
+static int hal2_alloc_dmabuf(struct snd_hal2 *hal2, struct hal2_codec *codec)
 {
+	struct device *dev = hal2->card->dev;
 	struct hal2_desc *desc;
 	dma_addr_t desc_dma, buffer_dma;
 	int count = H2_BUF_SIZE / H2_BLOCK_SIZE;
 	int i;
 
-	codec->buffer = dma_alloc_attrs(NULL, H2_BUF_SIZE, &buffer_dma,
+	codec->buffer = dma_alloc_attrs(dev, H2_BUF_SIZE, &buffer_dma,
 					GFP_KERNEL, DMA_ATTR_NON_CONSISTENT);
 	if (!codec->buffer)
 		return -ENOMEM;
-	desc = dma_alloc_attrs(NULL, count * sizeof(struct hal2_desc),
+	desc = dma_alloc_attrs(dev, count * sizeof(struct hal2_desc),
 			       &desc_dma, GFP_KERNEL, DMA_ATTR_NON_CONSISTENT);
 	if (!desc) {
-		dma_free_attrs(NULL, H2_BUF_SIZE, codec->buffer, buffer_dma,
+		dma_free_attrs(dev, H2_BUF_SIZE, codec->buffer, buffer_dma,
 			       DMA_ATTR_NON_CONSISTENT);
 		return -ENOMEM;
 	}
@@ -482,17 +470,19 @@ static int hal2_alloc_dmabuf(struct hal2_codec *codec)
 		      desc_dma : desc_dma + (i + 1) * sizeof(struct hal2_desc);
 		desc++;
 	}
-	dma_cache_sync(NULL, codec->desc, count * sizeof(struct hal2_desc),
+	dma_cache_sync(dev, codec->desc, count * sizeof(struct hal2_desc),
 		       DMA_TO_DEVICE);
 	codec->desc_count = count;
 	return 0;
 }
 
-static void hal2_free_dmabuf(struct hal2_codec *codec)
+static void hal2_free_dmabuf(struct snd_hal2 *hal2, struct hal2_codec *codec)
 {
-	dma_free_attrs(NULL, codec->desc_count * sizeof(struct hal2_desc),
+	struct device *dev = hal2->card->dev;
+
+	dma_free_attrs(dev, codec->desc_count * sizeof(struct hal2_desc),
 		       codec->desc, codec->desc_dma, DMA_ATTR_NON_CONSISTENT);
-	dma_free_attrs(NULL, H2_BUF_SIZE, codec->buffer, codec->buffer_dma,
+	dma_free_attrs(dev, H2_BUF_SIZE, codec->buffer, codec->buffer_dma,
 		       DMA_ATTR_NON_CONSISTENT);
 }
 
@@ -540,7 +530,7 @@ static int hal2_playback_open(struct snd_pcm_substream *substream)
 
 	runtime->hw = hal2_pcm_hw;
 
-	err = hal2_alloc_dmabuf(&hal2->dac);
+	err = hal2_alloc_dmabuf(hal2, &hal2->dac);
 	if (err)
 		return err;
 	return 0;
@@ -550,7 +540,7 @@ static int hal2_playback_close(struct snd_pcm_substream *substream)
 {
 	struct snd_hal2 *hal2 = snd_pcm_substream_chip(substream);
 
-	hal2_free_dmabuf(&hal2->dac);
+	hal2_free_dmabuf(hal2, &hal2->dac);
 	return 0;
 }
 
@@ -606,7 +596,7 @@ static void hal2_playback_transfer(struct snd_pcm_substream *substream,
 	unsigned char *buf = hal2->dac.buffer + rec->hw_data;
 
 	memcpy(buf, substream->runtime->dma_area + rec->sw_data, bytes);
-	dma_cache_sync(NULL, buf, bytes, DMA_TO_DEVICE);
+	dma_cache_sync(hal2->card->dev, buf, bytes, DMA_TO_DEVICE);
 
 }
 
@@ -629,7 +619,7 @@ static int hal2_capture_open(struct snd_pcm_substream *substream)
 
 	runtime->hw = hal2_pcm_hw;
 
-	err = hal2_alloc_dmabuf(adc);
+	err = hal2_alloc_dmabuf(hal2, adc);
 	if (err)
 		return err;
 	return 0;
@@ -639,7 +629,7 @@ static int hal2_capture_close(struct snd_pcm_substream *substream)
 {
 	struct snd_hal2 *hal2 = snd_pcm_substream_chip(substream);
 
-	hal2_free_dmabuf(&hal2->adc);
+	hal2_free_dmabuf(hal2, &hal2->adc);
 	return 0;
 }
 
@@ -694,7 +684,7 @@ static void hal2_capture_transfer(struct snd_pcm_substream *substream,
 	struct snd_hal2 *hal2 = snd_pcm_substream_chip(substream);
 	unsigned char *buf = hal2->adc.buffer + rec->hw_data;
 
-	dma_cache_sync(NULL, buf, bytes, DMA_FROM_DEVICE);
+	dma_cache_sync(hal2->card->dev, buf, bytes, DMA_FROM_DEVICE);
 	memcpy(substream->runtime->dma_area + rec->sw_data, buf, bytes);
 }
 

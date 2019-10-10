@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RAM Oops/Panic logger
  *
  * Copyright (C) 2010 Marco Stornelli <marco.stornelli@gmail.com>
  * Copyright (C) 2011 Kees Cook <keescook@chromium.org>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -110,7 +96,6 @@ struct ramoops_context {
 };
 
 static struct platform_device *dummy;
-static struct ramoops_platform_data *dummy_data;
 
 static int ramoops_pstore_open(struct pstore_info *psi)
 {
@@ -159,6 +144,7 @@ static int ramoops_read_kmsg_hdr(char *buffer, struct timespec64 *time,
 	if (sscanf(buffer, RAMOOPS_KERNMSG_HDR "%lld.%lu-%c\n%n",
 		   (time64_t *)&time->tv_sec, &time->tv_nsec, &data_type,
 		   &header_length) == 3) {
+		time->tv_nsec *= 1000;
 		if (data_type == 'C')
 			*compressed = true;
 		else
@@ -166,6 +152,7 @@ static int ramoops_read_kmsg_hdr(char *buffer, struct timespec64 *time,
 	} else if (sscanf(buffer, RAMOOPS_KERNMSG_HDR "%lld.%lu\n%n",
 			  (time64_t *)&time->tv_sec, &time->tv_nsec,
 			  &header_length) == 2) {
+		time->tv_nsec *= 1000;
 		*compressed = false;
 	} else {
 		time->tv_sec = 0;
@@ -346,17 +333,15 @@ out:
 static size_t ramoops_write_kmsg_hdr(struct persistent_ram_zone *prz,
 				     struct pstore_record *record)
 {
-	char *hdr;
+	char hdr[36]; /* "===="(4), %lld(20), "."(1), %06lu(6), "-%c\n"(3) */
 	size_t len;
 
-	hdr = kasprintf(GFP_ATOMIC, RAMOOPS_KERNMSG_HDR "%lld.%06lu-%c\n",
+	len = scnprintf(hdr, sizeof(hdr),
+		RAMOOPS_KERNMSG_HDR "%lld.%06lu-%c\n",
 		(time64_t)record->time.tv_sec,
 		record->time.tv_nsec / 1000,
 		record->compressed ? 'C' : 'D');
-	WARN_ON_ONCE(!hdr);
-	len = hdr ? strlen(hdr) : 0;
 	persistent_ram_write(prz, hdr, len);
-	kfree(hdr);
 
 	return len;
 }
@@ -424,6 +409,9 @@ static int notrace ramoops_pstore_write(struct pstore_record *record)
 
 	/* Build header and append record contents. */
 	hlen = ramoops_write_kmsg_hdr(prz, record);
+	if (!hlen)
+		return -ENOMEM;
+
 	size = record->size;
 	if (size + hlen > prz->buffer_size)
 		size = prz->buffer_size - hlen;
@@ -669,6 +657,7 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 			    struct ramoops_platform_data *pdata)
 {
 	struct device_node *of_node = pdev->dev.of_node;
+	struct device_node *parent_node;
 	struct resource *res;
 	u32 value;
 	int ret;
@@ -703,6 +692,26 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 
 #undef parse_size
 
+	/*
+	 * Some old Chromebooks relied on the kernel setting the
+	 * console_size and pmsg_size to the record size since that's
+	 * what the downstream kernel did.  These same Chromebooks had
+	 * "ramoops" straight under the root node which isn't
+	 * according to the current upstream bindings (though it was
+	 * arguably acceptable under a prior version of the bindings).
+	 * Let's make those old Chromebooks work by detecting that
+	 * we're not a child of "reserved-memory" and mimicking the
+	 * expected behavior.
+	 */
+	parent_node = of_get_parent(of_node);
+	if (!of_node_name_eq(parent_node, "reserved-memory") &&
+	    !pdata->console_size && !pdata->ftrace_size &&
+	    !pdata->pmsg_size && !pdata->ecc_info.ecc_size) {
+		pdata->console_size = pdata->record_size;
+		pdata->pmsg_size = pdata->record_size;
+	}
+	of_node_put(parent_node);
+
 	return 0;
 }
 
@@ -716,15 +725,6 @@ static int ramoops_probe(struct platform_device *pdev)
 	phys_addr_t paddr;
 	int err = -EINVAL;
 
-	if (dev_of_node(dev) && !pdata) {
-		pdata = &pdata_local;
-		memset(pdata, 0, sizeof(*pdata));
-
-		err = ramoops_parse_dt(pdev, pdata);
-		if (err < 0)
-			goto fail_out;
-	}
-
 	/*
 	 * Only a single ramoops area allowed at a time, so fail extra
 	 * probes.
@@ -732,6 +732,15 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (cxt->max_dump_cnt) {
 		pr_err("already initialized\n");
 		goto fail_out;
+	}
+
+	if (dev_of_node(dev) && !pdata) {
+		pdata = &pdata_local;
+		memset(pdata, 0, sizeof(*pdata));
+
+		err = ramoops_parse_dt(pdev, pdata);
+		if (err < 0)
+			goto fail_out;
 	}
 
 	/* Make sure we didn't get bogus platform data pointer. */
@@ -800,25 +809,35 @@ static int ramoops_probe(struct platform_device *pdev)
 
 	cxt->pstore.data = cxt;
 	/*
+	 * Prepare frontend flags based on which areas are initialized.
+	 * For ramoops_init_przs() cases, the "max count" variable tells
+	 * if there are regions present. For ramoops_init_prz() cases,
+	 * the single region size is how to check.
+	 */
+	cxt->pstore.flags = 0;
+	if (cxt->max_dump_cnt)
+		cxt->pstore.flags |= PSTORE_FLAGS_DMESG;
+	if (cxt->console_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_CONSOLE;
+	if (cxt->max_ftrace_cnt)
+		cxt->pstore.flags |= PSTORE_FLAGS_FTRACE;
+	if (cxt->pmsg_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_PMSG;
+
+	/*
 	 * Since bufsize is only used for dmesg crash dumps, it
 	 * must match the size of the dprz record (after PRZ header
 	 * and ECC bytes have been accounted for).
 	 */
-	cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
-	cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
-	if (!cxt->pstore.buf) {
-		pr_err("cannot allocate pstore crash dump buffer\n");
-		err = -ENOMEM;
-		goto fail_clear;
+	if (cxt->pstore.flags & PSTORE_FLAGS_DMESG) {
+		cxt->pstore.bufsize = cxt->dprzs[0]->buffer_size;
+		cxt->pstore.buf = kzalloc(cxt->pstore.bufsize, GFP_KERNEL);
+		if (!cxt->pstore.buf) {
+			pr_err("cannot allocate pstore crash dump buffer\n");
+			err = -ENOMEM;
+			goto fail_clear;
+		}
 	}
-
-	cxt->pstore.flags = PSTORE_FLAGS_DMESG;
-	if (cxt->console_size)
-		cxt->pstore.flags |= PSTORE_FLAGS_CONSOLE;
-	if (cxt->ftrace_size)
-		cxt->pstore.flags |= PSTORE_FLAGS_FTRACE;
-	if (cxt->pmsg_size)
-		cxt->pstore.flags |= PSTORE_FLAGS_PMSG;
 
 	err = pstore_register(&cxt->pstore);
 	if (err) {
@@ -892,13 +911,12 @@ static inline void ramoops_unregister_dummy(void)
 {
 	platform_device_unregister(dummy);
 	dummy = NULL;
-
-	kfree(dummy_data);
-	dummy_data = NULL;
 }
 
 static void __init ramoops_register_dummy(void)
 {
+	struct ramoops_platform_data pdata;
+
 	/*
 	 * Prepare a dummy platform data structure to carry the module
 	 * parameters. If mem_size isn't set, then there are no module
@@ -909,30 +927,25 @@ static void __init ramoops_register_dummy(void)
 
 	pr_info("using module parameters\n");
 
-	dummy_data = kzalloc(sizeof(*dummy_data), GFP_KERNEL);
-	if (!dummy_data) {
-		pr_info("could not allocate pdata\n");
-		return;
-	}
-
-	dummy_data->mem_size = mem_size;
-	dummy_data->mem_address = mem_address;
-	dummy_data->mem_type = mem_type;
-	dummy_data->record_size = record_size;
-	dummy_data->console_size = ramoops_console_size;
-	dummy_data->ftrace_size = ramoops_ftrace_size;
-	dummy_data->pmsg_size = ramoops_pmsg_size;
-	dummy_data->dump_oops = dump_oops;
-	dummy_data->flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
+	memset(&pdata, 0, sizeof(pdata));
+	pdata.mem_size = mem_size;
+	pdata.mem_address = mem_address;
+	pdata.mem_type = mem_type;
+	pdata.record_size = record_size;
+	pdata.console_size = ramoops_console_size;
+	pdata.ftrace_size = ramoops_ftrace_size;
+	pdata.pmsg_size = ramoops_pmsg_size;
+	pdata.dump_oops = dump_oops;
+	pdata.flags = RAMOOPS_FLAG_FTRACE_PER_CPU;
 
 	/*
 	 * For backwards compatibility ramoops.ecc=1 means 16 bytes ECC
 	 * (using 1 byte for ECC isn't much of use anyway).
 	 */
-	dummy_data->ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
+	pdata.ecc_info.ecc_size = ramoops_ecc == 1 ? 16 : ramoops_ecc;
 
 	dummy = platform_device_register_data(NULL, "ramoops", -1,
-			dummy_data, sizeof(struct ramoops_platform_data));
+			&pdata, sizeof(pdata));
 	if (IS_ERR(dummy)) {
 		pr_info("could not create platform device: %ld\n",
 			PTR_ERR(dummy));

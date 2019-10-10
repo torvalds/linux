@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Support code for Analog Devices Sigma-Delta ADCs
  *
  * Copyright 2012 Analog Devices Inc.
  *  Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2.
  */
 #ifndef __AD_SIGMA_DELTA_H__
 #define __AD_SIGMA_DELTA_H__
@@ -69,6 +68,7 @@ struct ad_sigma_delta {
 	bool			irq_dis;
 
 	bool			bus_locked;
+	bool			keep_cs_asserted;
 
 	uint8_t			comm;
 

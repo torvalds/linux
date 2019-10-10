@@ -44,15 +44,13 @@
 #define smnMP0_FW_INTF			0x30101c0
 #define smnMP1_PUB_CTRL			0x3010b14
 
-static bool vega20_is_smc_ram_running(struct pp_hwmgr *hwmgr)
+bool vega20_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t mp1_fw_flags;
 
-	WREG32_SOC15(NBIF, 0, mmPCIE_INDEX2,
-		     (MP1_Public | (smnMP1_FIRMWARE_FLAGS & 0xffffffff)));
-
-	mp1_fw_flags = RREG32_SOC15(NBIF, 0, mmPCIE_DATA2);
+	mp1_fw_flags = RREG32_PCIE(MP1_Public |
+				   (smnMP1_FIRMWARE_FLAGS & 0xffffffff));
 
 	if ((mp1_fw_flags & MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED_MASK) >>
 	    MP1_FIRMWARE_FLAGS__INTERRUPTS_ENABLED__SHIFT)
@@ -165,6 +163,7 @@ static int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 {
 	struct vega20_smumgr *priv =
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 	int ret = 0;
 
 	PP_ASSERT_WITH_CODE(table_id < TABLE_COUNT,
@@ -188,6 +187,9 @@ static int vega20_copy_table_from_smc(struct pp_hwmgr *hwmgr,
 			PPSMC_MSG_TransferTableSmu2Dram, table_id)) == 0,
 			"[CopyTableFromSMC] Attempt to Transfer Table From SMU Failed!",
 			return ret);
+
+	/* flush hdp cache */
+	adev->nbio_funcs->hdp_flush(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[table_id].table,
 			priv->smu_tables.entry[table_id].size);
@@ -268,6 +270,7 @@ int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 {
 	struct vega20_smumgr *priv =
 			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 	int ret = 0;
 
 	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
@@ -285,6 +288,9 @@ int vega20_get_activity_monitor_coeff(struct pp_hwmgr *hwmgr,
 			TABLE_ACTIVITY_MONITOR_COEFF | (workload_type << 16))) == 0,
 			"[GetActivityMonitor] Attempt to Transfer Table From SMU Failed!",
 			return ret);
+
+	/* flush hdp cache */
+	adev->nbio_funcs->hdp_flush(adev, NULL);
 
 	memcpy(table, priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].table,
 			priv->smu_tables.entry[TABLE_ACTIVITY_MONITOR_COEFF].size);
@@ -365,6 +371,26 @@ static int vega20_set_tools_address(struct pp_hwmgr *hwmgr)
 					PPSMC_MSG_SetToolsDramAddrLow,
 					lower_32_bits(priv->smu_tables.entry[TABLE_PMSTATUSLOG].mc_addr));
 	}
+
+	return ret;
+}
+
+int vega20_set_pptable_driver_address(struct pp_hwmgr *hwmgr)
+{
+	struct vega20_smumgr *priv =
+			(struct vega20_smumgr *)(hwmgr->smu_backend);
+	int ret = 0;
+
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrHigh,
+			upper_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr))) == 0,
+			"[SetPPtabeDriverAddress] Attempt to Set Dram Addr High Failed!",
+			return ret);
+	PP_ASSERT_WITH_CODE((ret = vega20_send_msg_to_smc_with_parameter(hwmgr,
+			PPSMC_MSG_SetDriverDramAddrLow,
+			lower_32_bits(priv->smu_tables.entry[TABLE_PPTABLE].mc_addr))) == 0,
+			"[SetPPtabeDriverAddress] Attempt to Set Dram Addr Low Failed!",
+			return ret);
 
 	return ret;
 }
@@ -574,6 +600,7 @@ static int vega20_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table,
 }
 
 const struct pp_smumgr_func vega20_smu_funcs = {
+	.name = "vega20_smu",
 	.smu_init = &vega20_smu_init,
 	.smu_fini = &vega20_smu_fini,
 	.start_smu = &vega20_start_smu,

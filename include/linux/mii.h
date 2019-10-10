@@ -455,6 +455,15 @@ static inline void mii_lpa_mod_linkmode_lpa_t(unsigned long *lp_advertising,
 			 lp_advertising, lpa & LPA_LPACK);
 }
 
+static inline void mii_ctrl1000_mod_linkmode_adv_t(unsigned long *advertising,
+						   u32 ctrl1000)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT, advertising,
+			 ctrl1000 & ADVERTISE_1000HALF);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT, advertising,
+			 ctrl1000 & ADVERTISE_1000FULL);
+}
+
 /**
  * linkmode_adv_to_lcl_adv_t
  * @advertising:pointer to linkmode advertising
@@ -469,7 +478,7 @@ static inline u32 linkmode_adv_to_lcl_adv_t(unsigned long *advertising)
 	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
 			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_CAP;
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
 			      advertising))
 		lcl_adv |= ADVERTISE_PAUSE_ASYM;
 

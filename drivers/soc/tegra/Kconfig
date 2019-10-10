@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_TEGRA
 
 # 32-bit ARM SoCs
@@ -108,6 +109,7 @@ config ARCH_TEGRA_186_SOC
 config ARCH_TEGRA_194_SOC
 	bool "NVIDIA Tegra194 SoC"
 	select MAILBOX
+	select PINCTRL_TEGRA194
 	select TEGRA_BPMP
 	select TEGRA_HSP_MBOX
 	select TEGRA_IVC

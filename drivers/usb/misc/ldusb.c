@@ -307,7 +307,7 @@ static int ld_usb_open(struct inode *inode, struct file *file)
 	int retval;
 	struct usb_interface *interface;
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&ld_usb_driver, subminor);

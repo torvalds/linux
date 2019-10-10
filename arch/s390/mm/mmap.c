@@ -24,8 +24,6 @@ static unsigned long stack_maxrandom_size(void)
 {
 	if (!(current->flags & PF_RANDOMIZE))
 		return 0;
-	if (current->personality & ADDR_NO_RANDOMIZE)
-		return 0;
 	return STACK_RND_MASK << PAGE_SHIFT;
 }
 

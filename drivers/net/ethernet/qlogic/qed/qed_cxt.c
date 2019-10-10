@@ -2351,7 +2351,8 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 	/* Write via DMAE since the PSWRQ2_REG_ILT_MEMORY line is a wide-bus */
 	qed_dmae_host2grc(p_hwfn, p_ptt, (u64) (uintptr_t)&ilt_hw_entry,
-			  reg_offset, sizeof(ilt_hw_entry) / sizeof(u32), 0);
+			  reg_offset, sizeof(ilt_hw_entry) / sizeof(u32),
+			  NULL);
 
 	if (elem_type == QED_ELEM_CXT) {
 		u32 last_cid_allocated = (1 + (iid / elems_per_p)) *
@@ -2457,7 +2458,7 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 				  (u64) (uintptr_t) &ilt_hw_entry,
 				  reg_offset,
 				  sizeof(ilt_hw_entry) / sizeof(u32),
-				  0);
+				  NULL);
 	}
 
 	qed_ptt_release(p_hwfn, p_ptt);

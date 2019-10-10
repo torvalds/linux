@@ -257,7 +257,7 @@ static void __init armada37xx_cpufreq_avs_configure(struct regmap *base,
 static void __init armada37xx_cpufreq_avs_setup(struct regmap *base,
 						struct armada_37xx_dvfs *dvfs)
 {
-	unsigned int avs_val = 0, freq;
+	unsigned int avs_val = 0;
 	int load_level = 0;
 
 	if (base == NULL)
@@ -275,8 +275,6 @@ static void __init armada37xx_cpufreq_avs_setup(struct regmap *base,
 
 
 	for (load_level = 1; load_level < LOAD_LEVEL_NR; load_level++) {
-		freq = dvfs->cpu_freq_max / dvfs->divider[load_level];
-
 		avs_val = dvfs->avs[load_level];
 		regmap_update_bits(base, ARMADA_37XX_AVS_VSET(load_level-1),
 		    ARMADA_37XX_AVS_VDD_MASK << ARMADA_37XX_AVS_HIGH_VDD_LIMIT |
@@ -359,11 +357,11 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	struct armada_37xx_dvfs *dvfs;
 	struct platform_device *pdev;
 	unsigned long freq;
-	unsigned int cur_frequency;
+	unsigned int cur_frequency, base_frequency;
 	struct regmap *nb_pm_base, *avs_base;
 	struct device *cpu_dev;
 	int load_lvl, ret;
-	struct clk *clk;
+	struct clk *clk, *parent;
 
 	nb_pm_base =
 		syscon_regmap_lookup_by_compatible("marvell,armada-3700-nb-pm");
@@ -399,6 +397,22 @@ static int __init armada37xx_cpufreq_driver_init(void)
 		return PTR_ERR(clk);
 	}
 
+	parent = clk_get_parent(clk);
+	if (IS_ERR(parent)) {
+		dev_err(cpu_dev, "Cannot get parent clock for CPU0\n");
+		clk_put(clk);
+		return PTR_ERR(parent);
+	}
+
+	/* Get parent CPU frequency */
+	base_frequency =  clk_get_rate(parent);
+
+	if (!base_frequency) {
+		dev_err(cpu_dev, "Failed to get parent clock rate for CPU\n");
+		clk_put(clk);
+		return -EINVAL;
+	}
+
 	/* Get nominal (current) CPU frequency */
 	cur_frequency = clk_get_rate(clk);
 	if (!cur_frequency) {
@@ -431,7 +445,7 @@ static int __init armada37xx_cpufreq_driver_init(void)
 	for (load_lvl = ARMADA_37XX_DVFS_LOAD_0; load_lvl < LOAD_LEVEL_NR;
 	     load_lvl++) {
 		unsigned long u_volt = avs_map[dvfs->avs[load_lvl]] * 1000;
-		freq = cur_frequency / dvfs->divider[load_lvl];
+		freq = base_frequency / dvfs->divider[load_lvl];
 		ret = dev_pm_opp_add(cpu_dev, freq, u_volt);
 		if (ret)
 			goto remove_opp;

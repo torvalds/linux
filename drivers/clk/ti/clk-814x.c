@@ -1,8 +1,4 @@
-/*
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- */
+// SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
@@ -70,6 +66,7 @@ static int __init dm814x_adpll_early_init(void)
 	}
 
 	of_platform_populate(np, NULL, NULL, NULL);
+	of_node_put(np);
 
 	return 0;
 }

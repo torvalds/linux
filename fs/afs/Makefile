@@ -13,6 +13,7 @@ kafs-y := \
 	cmservice.o \
 	dir.o \
 	dir_edit.o \
+	dir_silly.o \
 	dynroot.o \
 	file.o \
 	flock.o \
@@ -28,7 +29,6 @@ kafs-y := \
 	server.o \
 	server_list.o \
 	super.o \
-	netdevices.o \
 	vlclient.o \
 	vl_list.o \
 	vl_probe.o \

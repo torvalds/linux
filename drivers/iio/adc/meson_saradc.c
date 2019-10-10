@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Amlogic Meson Successive Approximation Register (SAR) A/D Converter
  *
  * Copyright (C) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/bitfield.h>
@@ -26,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <linux/mfd/syscon.h>
 
 #define MESON_SAR_ADC_REG0					0x00
 	#define MESON_SAR_ADC_REG0_PANEL_DETECT			BIT(31)
@@ -174,6 +169,9 @@
 #define MESON_SAR_ADC_EFUSE_BYTE3_UPPER_ADC_VAL			GENMASK(6, 0)
 #define MESON_SAR_ADC_EFUSE_BYTE3_IS_CALIBRATED			BIT(7)
 
+#define MESON_HHI_DPLL_TOP_0					0x318
+#define MESON_HHI_DPLL_TOP_0_TSC_BIT4				BIT(9)
+
 /* for use with IIO_VAL_INT_PLUS_MICRO */
 #define MILLION							1000000
 
@@ -280,6 +278,7 @@ struct meson_sar_adc_priv {
 	struct completion			done;
 	int					calibbias;
 	int					calibscale;
+	struct regmap				*tsc_regmap;
 	bool					temperature_sensor_calibrated;
 	u8					temperature_sensor_coefficient;
 	u16					temperature_sensor_adc_val;
@@ -727,6 +726,15 @@ static int meson_sar_adc_temp_sensor_init(struct iio_dev *indio_dev)
 		return ret;
 	}
 
+	priv->tsc_regmap =
+		syscon_regmap_lookup_by_phandle(indio_dev->dev.parent->of_node,
+						"amlogic,hhi-sysctrl");
+	if (IS_ERR(priv->tsc_regmap)) {
+		dev_err(indio_dev->dev.parent,
+			"failed to get amlogic,hhi-sysctrl regmap\n");
+		return PTR_ERR(priv->tsc_regmap);
+	}
+
 	read_len = MESON_SAR_ADC_EFUSE_BYTES;
 	buf = nvmem_cell_read(temperature_calib, &read_len);
 	if (IS_ERR(buf)) {
@@ -861,6 +869,22 @@ static int meson_sar_adc_init(struct iio_dev *indio_dev)
 				    priv->temperature_sensor_coefficient);
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELTA_10,
 				   MESON_SAR_ADC_DELTA_10_TS_C_MASK, regval);
+
+		if (priv->param->temperature_trimming_bits == 5) {
+			if (priv->temperature_sensor_coefficient & BIT(4))
+				regval = MESON_HHI_DPLL_TOP_0_TSC_BIT4;
+			else
+				regval = 0;
+
+			/*
+			 * bit [4] (the 5th bit when starting to count at 1)
+			 * of the TSC is located in the HHI register area.
+			 */
+			regmap_update_bits(priv->tsc_regmap,
+					   MESON_HHI_DPLL_TOP_0,
+					   MESON_HHI_DPLL_TOP_0_TSC_BIT4,
+					   regval);
+		}
 	} else {
 		regmap_update_bits(priv->regmap, MESON_SAR_ADC_DELTA_10,
 				   MESON_SAR_ADC_DELTA_10_TS_REVE1, 0);
@@ -1064,6 +1088,9 @@ static const struct meson_sar_adc_param meson_sar_adc_meson8b_param = {
 	.bandgap_reg = MESON_SAR_ADC_DELTA_10,
 	.regmap_config = &meson_sar_adc_regmap_config_meson8,
 	.resolution = 10,
+	.temperature_trimming_bits = 5,
+	.temperature_multiplier = 10,
+	.temperature_divider = 32,
 };
 
 static const struct meson_sar_adc_param meson_sar_adc_gxbb_param = {
@@ -1117,6 +1144,11 @@ static const struct meson_sar_adc_data meson_sar_adc_axg_data = {
 	.name = "meson-axg-saradc",
 };
 
+static const struct meson_sar_adc_data meson_sar_adc_g12a_data = {
+	.param = &meson_sar_adc_gxl_param,
+	.name = "meson-g12a-saradc",
+};
+
 static const struct of_device_id meson_sar_adc_of_match[] = {
 	{
 		.compatible = "amlogic,meson8-saradc",
@@ -1142,6 +1174,9 @@ static const struct of_device_id meson_sar_adc_of_match[] = {
 	}, {
 		.compatible = "amlogic,meson-axg-saradc",
 		.data = &meson_sar_adc_axg_data,
+	}, {
+		.compatible = "amlogic,meson-g12a-saradc",
+		.data = &meson_sar_adc_g12a_data,
 	},
 	{},
 };

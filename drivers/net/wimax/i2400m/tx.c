@@ -640,8 +640,7 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	 * figure out where the next TX message starts (and where the
 	 * offset to the moved header is).
 	 */
-	hdr_size = sizeof(*tx_msg)
-		+ le16_to_cpu(tx_msg->num_pls) * sizeof(tx_msg->pld[0]);
+	hdr_size = struct_size(tx_msg, pld, le16_to_cpu(tx_msg->num_pls));
 	hdr_size = ALIGN(hdr_size, I2400M_PL_ALIGN);
 	tx_msg->offset = I2400M_TX_PLD_SIZE - hdr_size;
 	tx_msg_moved = (void *) tx_msg + tx_msg->offset;
@@ -655,8 +654,7 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	padding = aligned_size - tx_msg_moved->size;
 	if (padding > 0) {
 		pad_buf = i2400m_tx_fifo_push(i2400m, padding, 0, 0);
-		if (unlikely(WARN_ON(pad_buf == NULL
-				     || pad_buf == TAIL_FULL))) {
+		if (WARN_ON(pad_buf == NULL || pad_buf == TAIL_FULL)) {
 			/* This should not happen -- append should verify
 			 * there is always space left at least to append
 			 * tx_block_size */

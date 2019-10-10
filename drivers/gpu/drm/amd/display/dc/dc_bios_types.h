@@ -61,9 +61,6 @@ struct dc_vbios_funcs {
 		struct graphics_object_id connector_object_id,
 		uint32_t device_tag_index,
 		struct connector_device_tag_info *info);
-	enum bp_result (*get_firmware_info)(
-		struct dc_bios *bios,
-		struct dc_firmware_info *info);
 	enum bp_result (*get_spread_spectrum_info)(
 		struct dc_bios *bios,
 		enum as_signal_type signal,
@@ -86,10 +83,6 @@ struct dc_vbios_funcs {
 
 	bool (*is_accelerated_mode)(
 		struct dc_bios *bios);
-	bool (*is_active_display)(
-		struct dc_bios *bios,
-		enum signal_type signal,
-		const struct connector_device_tag_info *device_tag);
 	void (*set_scratch_critical_state)(
 		struct dc_bios *bios,
 		bool state);
@@ -125,10 +118,6 @@ struct dc_vbios_funcs {
 	enum bp_result (*program_crtc_timing)(
 		struct dc_bios *bios,
 		struct bp_hw_crtc_timing_parameters *bp_params);
-
-	enum bp_result (*crtc_source_select)(
-		struct dc_bios *bios,
-		struct bp_crtc_source_select *bp_params);
 	enum bp_result (*program_display_engine_pll)(
 		struct dc_bios *bios,
 		struct bp_pixel_clock_parameters *bp_params);
@@ -145,7 +134,6 @@ struct dc_vbios_funcs {
 };
 
 struct bios_registers {
-	uint32_t BIOS_SCRATCH_0;
 	uint32_t BIOS_SCRATCH_3;
 	uint32_t BIOS_SCRATCH_6;
 };
@@ -161,6 +149,8 @@ struct dc_bios {
 	struct dc_context *ctx;
 	const struct bios_registers *regs;
 	struct integrated_info *integrated_info;
+	struct dc_firmware_info fw_info;
+	bool fw_info_valid;
 };
 
 #endif /* DC_BIOS_TYPES_H */

@@ -3,7 +3,7 @@
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -75,7 +75,7 @@ acpi_ns_load_table(u32 table_index, struct acpi_namespace_node *node)
 		/*
 		 * On error, delete any namespace objects created by this table.
 		 * We cannot initialize these objects, so delete them. There are
-		 * a couple of expecially bad cases:
+		 * a couple of especially bad cases:
 		 * AE_ALREADY_EXISTS - namespace collision.
 		 * AE_NOT_FOUND - the target of a Scope operator does not
 		 * exist. This target of Scope must already exist in the
@@ -109,18 +109,6 @@ unlock:
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "**** Completed Table Object Initialization\n"));
 
-	/*
-	 * This case handles the legacy option that groups all module-level
-	 * code blocks together and defers execution until all of the tables
-	 * are loaded. Execute all of these blocks at this time.
-	 * Execute any module-level code that was detected during the table
-	 * load phase.
-	 *
-	 * Note: this option is deprecated and will be eliminated in the
-	 * future. Use of this option can cause problems with AML code that
-	 * depends upon in-order immediate execution of module-level code.
-	 */
-	acpi_ns_exec_module_code_list();
 	return_ACPI_STATUS(status);
 }
 

@@ -313,6 +313,9 @@ static void __ref create_core_to_node_map(void)
 	int i;
 
 	emu_cores = memblock_alloc(sizeof(*emu_cores), 8);
+	if (!emu_cores)
+		panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+		      __func__, sizeof(*emu_cores), 8);
 	for (i = 0; i < ARRAY_SIZE(emu_cores->to_node_id); i++)
 		emu_cores->to_node_id[i] = NODE_ID_FREE;
 }
@@ -555,9 +558,7 @@ static int __init early_parse_emu_nodes(char *p)
 {
 	int count;
 
-	if (kstrtoint(p, 0, &count) != 0 || count <= 0)
-		return 0;
-	if (count <= 0)
+	if (!p || kstrtoint(p, 0, &count) != 0 || count <= 0)
 		return 0;
 	emu_nodes = min(count, MAX_NUMNODES);
 	return 0;
@@ -569,7 +570,8 @@ early_param("emu_nodes", early_parse_emu_nodes);
  */
 static int __init early_parse_emu_size(char *p)
 {
-	emu_size = memparse(p, NULL);
+	if (p)
+		emu_size = memparse(p, NULL);
 	return 0;
 }
 early_param("emu_size", early_parse_emu_size);

@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016 Rockchip Electronics Co. Ltd.
  * Author: Lin Huang <hl@rock-chips.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/arm-smccc.h>
@@ -82,7 +73,7 @@ static u8 rockchip_ddrclk_get_parent(struct clk_hw *hw)
 	struct rockchip_ddrclk *ddrclk = to_rockchip_ddrclk_hw(hw);
 	u32 val;
 
-	val = clk_readl(ddrclk->reg_base +
+	val = readl(ddrclk->reg_base +
 			ddrclk->mux_offset) >> ddrclk->mux_shift;
 	val &= GENMASK(ddrclk->mux_width - 1, 0);
 

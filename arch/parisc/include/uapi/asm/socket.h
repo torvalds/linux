@@ -2,8 +2,8 @@
 #ifndef _UAPI_ASM_SOCKET_H
 #define _UAPI_ASM_SOCKET_H
 
+#include <linux/posix_types.h>
 #include <asm/sockios.h>
-#include <asm/bitsperlong.h>
 
 /* For setsockopt(2) */
 #define SOL_SOCKET	0xffff
@@ -113,6 +113,8 @@
 
 #define SO_RCVTIMEO_NEW         0x4040
 #define SO_SNDTIMEO_NEW         0x4041
+
+#define SO_DETACH_REUSEPORT_BPF 0x4042
 
 #if !defined(__KERNEL__)
 

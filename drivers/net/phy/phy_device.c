@@ -56,19 +56,19 @@ EXPORT_SYMBOL_GPL(phy_10gbit_features);
 __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
 EXPORT_SYMBOL_GPL(phy_10gbit_fec_features);
 
-static const int phy_basic_ports_array[] = {
+const int phy_basic_ports_array[3] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_TP_BIT,
 	ETHTOOL_LINK_MODE_MII_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_basic_ports_array);
 
-static const int phy_fibre_port_array[] = {
+const int phy_fibre_port_array[1] = {
 	ETHTOOL_LINK_MODE_FIBRE_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_fibre_port_array);
 
-static const int phy_all_ports_features_array[] = {
+const int phy_all_ports_features_array[7] = {
 	ETHTOOL_LINK_MODE_Autoneg_BIT,
 	ETHTOOL_LINK_MODE_TP_BIT,
 	ETHTOOL_LINK_MODE_MII_BIT,
@@ -89,7 +89,7 @@ EXPORT_SYMBOL_GPL(phy_10_100_features_array);
 
 const int phy_basic_t1_features_array[2] = {
 	ETHTOOL_LINK_MODE_TP_BIT,
-	ETHTOOL_LINK_MODE_100baseT_Full_BIT,
+	ETHTOOL_LINK_MODE_100baseT1_Full_BIT,
 };
 EXPORT_SYMBOL_GPL(phy_basic_t1_features_array);
 
@@ -225,7 +225,7 @@ static void phy_mdio_device_remove(struct mdio_device *mdiodev)
 }
 
 static struct phy_driver genphy_driver;
-extern struct phy_driver genphy_10g_driver;
+extern struct phy_driver genphy_c45_driver;
 
 static LIST_HEAD(phy_fixup_list);
 static DEFINE_MUTEX(phy_fixup_lock);
@@ -948,6 +948,9 @@ int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
 {
 	int rc;
 
+	if (!dev)
+		return -EINVAL;
+
 	rc = phy_attach_direct(dev, phydev, phydev->dev_flags, interface);
 	if (rc)
 		return rc;
@@ -1013,7 +1016,7 @@ void phy_disconnect(struct phy_device *phydev)
 		phy_stop(phydev);
 
 	if (phy_interrupt_is_valid(phydev))
-		free_irq(phydev->irq, phydev);
+		phy_free_interrupt(phydev);
 
 	phydev->adjust_link = NULL;
 
@@ -1133,6 +1136,44 @@ void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 }
 EXPORT_SYMBOL(phy_attached_print);
 
+static void phy_sysfs_create_links(struct phy_device *phydev)
+{
+	struct net_device *dev = phydev->attached_dev;
+	int err;
+
+	if (!dev)
+		return;
+
+	err = sysfs_create_link(&phydev->mdio.dev.kobj, &dev->dev.kobj,
+				"attached_dev");
+	if (err)
+		return;
+
+	err = sysfs_create_link_nowarn(&dev->dev.kobj,
+				       &phydev->mdio.dev.kobj,
+				       "phydev");
+	if (err) {
+		dev_err(&dev->dev, "could not add device link to %s err %d\n",
+			kobject_name(&phydev->mdio.dev.kobj),
+			err);
+		/* non-fatal - some net drivers can use one netdevice
+		 * with more then one phy
+		 */
+	}
+
+	phydev->sysfs_links = true;
+}
+
+static ssize_t
+phy_standalone_show(struct device *dev, struct device_attribute *attr,
+		    char *buf)
+{
+	struct phy_device *phydev = to_phy_device(dev);
+
+	return sprintf(buf, "%d\n", !phydev->attached_dev);
+}
+static DEVICE_ATTR_RO(phy_standalone);
+
 /**
  * phy_attach_direct - attach a network device to a given PHY device pointer
  * @dev: network device to attach
@@ -1151,9 +1192,9 @@ EXPORT_SYMBOL(phy_attached_print);
 int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		      u32 flags, phy_interface_t interface)
 {
-	struct module *ndev_owner = dev->dev.parent->driver->owner;
 	struct mii_bus *bus = phydev->mdio.bus;
 	struct device *d = &phydev->mdio.dev;
+	struct module *ndev_owner = NULL;
 	bool using_genphy = false;
 	int err;
 
@@ -1162,8 +1203,10 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 * our own module->refcnt here, otherwise we would not be able to
 	 * unload later on.
 	 */
+	if (dev)
+		ndev_owner = dev->dev.parent->driver->owner;
 	if (ndev_owner != bus->owner && !try_module_get(bus->owner)) {
-		dev_err(&dev->dev, "failed to get the bus module\n");
+		phydev_err(phydev, "failed to get the bus module\n");
 		return -EIO;
 	}
 
@@ -1174,7 +1217,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 */
 	if (!d->driver) {
 		if (phydev->is_c45)
-			d->driver = &genphy_10g_driver.mdiodrv.driver;
+			d->driver = &genphy_c45_driver.mdiodrv.driver;
 		else
 			d->driver = &genphy_driver.mdiodrv.driver;
 
@@ -1182,7 +1225,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	}
 
 	if (!try_module_get(d->driver->owner)) {
-		dev_err(&dev->dev, "failed to get the device driver module\n");
+		phydev_err(phydev, "failed to get the device driver module\n");
 		err = -EIO;
 		goto error_put_device;
 	}
@@ -1203,8 +1246,10 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	}
 
 	phydev->phy_link_change = phy_link_change;
-	phydev->attached_dev = dev;
-	dev->phydev = phydev;
+	if (dev) {
+		phydev->attached_dev = dev;
+		dev->phydev = phydev;
+	}
 
 	/* Some Ethernet drivers try to connect to a PHY device before
 	 * calling register_netdevice() -> netdev_register_kobject() and
@@ -1216,22 +1261,13 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	 */
 	phydev->sysfs_links = false;
 
-	err = sysfs_create_link(&phydev->mdio.dev.kobj, &dev->dev.kobj,
-				"attached_dev");
-	if (!err) {
-		err = sysfs_create_link_nowarn(&dev->dev.kobj,
-					       &phydev->mdio.dev.kobj,
-					       "phydev");
-		if (err) {
-			dev_err(&dev->dev, "could not add device link to %s err %d\n",
-				kobject_name(&phydev->mdio.dev.kobj),
-				err);
-			/* non-fatal - some net drivers can use one netdevice
-			 * with more then one phy
-			 */
-		}
+	phy_sysfs_create_links(phydev);
 
-		phydev->sysfs_links = true;
+	if (!phydev->attached_dev) {
+		err = sysfs_create_file(&phydev->mdio.dev.kobj,
+					&dev_attr_phy_standalone.attr);
+		if (err)
+			phydev_err(phydev, "error creating 'phy_standalone' sysfs entry\n");
 	}
 
 	phydev->dev_flags = flags;
@@ -1243,7 +1279,8 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	/* Initial carrier state is off as the phy is about to be
 	 * (re)initialized.
 	 */
-	netif_carrier_off(phydev->attached_dev);
+	if (dev)
+		netif_carrier_off(phydev->attached_dev);
 
 	/* Do initial configuration here, now that
 	 * we have certain key parameters
@@ -1290,6 +1327,9 @@ struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 	struct device *d;
 	int rc;
 
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
 	/* Search the list of PHY devices on the mdio bus for the
 	 * PHY with the requested name
 	 */
@@ -1335,7 +1375,7 @@ EXPORT_SYMBOL_GPL(phy_driver_is_genphy);
 bool phy_driver_is_genphy_10g(struct phy_device *phydev)
 {
 	return phy_driver_is_genphy_kind(phydev,
-					 &genphy_10g_driver.mdiodrv.driver);
+					 &genphy_c45_driver.mdiodrv.driver);
 }
 EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
 
@@ -1349,16 +1389,24 @@ EXPORT_SYMBOL_GPL(phy_driver_is_genphy_10g);
 void phy_detach(struct phy_device *phydev)
 {
 	struct net_device *dev = phydev->attached_dev;
-	struct module *ndev_owner = dev->dev.parent->driver->owner;
+	struct module *ndev_owner = NULL;
 	struct mii_bus *bus;
 
 	if (phydev->sysfs_links) {
-		sysfs_remove_link(&dev->dev.kobj, "phydev");
+		if (dev)
+			sysfs_remove_link(&dev->dev.kobj, "phydev");
 		sysfs_remove_link(&phydev->mdio.dev.kobj, "attached_dev");
 	}
+
+	if (!phydev->attached_dev)
+		sysfs_remove_file(&phydev->mdio.dev.kobj,
+				  &dev_attr_phy_standalone.attr);
+
 	phy_suspend(phydev);
-	phydev->attached_dev->phydev = NULL;
-	phydev->attached_dev = NULL;
+	if (dev) {
+		phydev->attached_dev->phydev = NULL;
+		phydev->attached_dev = NULL;
+	}
 	phydev->phylink = NULL;
 
 	phy_led_triggers_unregister(phydev);
@@ -1381,6 +1429,8 @@ void phy_detach(struct phy_device *phydev)
 	bus = phydev->mdio.bus;
 
 	put_device(&phydev->mdio.dev);
+	if (dev)
+		ndev_owner = dev->dev.parent->driver->owner;
 	if (ndev_owner != bus->owner)
 		module_put(bus->owner);
 
@@ -1514,24 +1564,20 @@ EXPORT_SYMBOL(phy_reset_after_clk_enable);
  */
 static int genphy_config_advert(struct phy_device *phydev)
 {
-	u32 advertise;
-	int bmsr, adv;
-	int err, changed = 0;
+	int err, bmsr, changed = 0;
+	u32 adv;
 
 	/* Only allow advertising what this PHY supports */
 	linkmode_and(phydev->advertising, phydev->advertising,
 		     phydev->supported);
-	if (!ethtool_convert_link_mode_to_legacy_u32(&advertise,
-						     phydev->advertising))
-		phydev_warn(phydev, "PHY advertising (%*pb) more modes than genphy supports, some modes not advertised.\n",
-			    __ETHTOOL_LINK_MODE_MASK_NBITS,
-			    phydev->advertising);
+
+	adv = linkmode_adv_to_mii_adv_t(phydev->advertising);
 
 	/* Setup standard advertisement */
 	err = phy_modify_changed(phydev, MII_ADVERTISE,
 				 ADVERTISE_ALL | ADVERTISE_100BASE4 |
 				 ADVERTISE_PAUSE_CAP | ADVERTISE_PAUSE_ASYM,
-				 ethtool_adv_to_mii_adv_t(advertise));
+				 adv);
 	if (err < 0)
 		return err;
 	if (err > 0)
@@ -1548,13 +1594,7 @@ static int genphy_config_advert(struct phy_device *phydev)
 	if (!(bmsr & BMSR_ESTATEN))
 		return changed;
 
-	/* Configure gigabit if it's supported */
-	adv = 0;
-	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-			      phydev->supported) ||
-	    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-			      phydev->supported))
-		adv = ethtool_adv_to_mii_ctrl1000_t(advertise);
+	adv = linkmode_adv_to_mii_ctrl1000_t(phydev->advertising);
 
 	err = phy_modify_changed(phydev, MII_CTRL1000,
 				 ADVERTISE_1000FULL | ADVERTISE_1000HALF,
@@ -1631,18 +1671,20 @@ int genphy_restart_aneg(struct phy_device *phydev)
 EXPORT_SYMBOL(genphy_restart_aneg);
 
 /**
- * genphy_config_aneg - restart auto-negotiation or write BMCR
+ * __genphy_config_aneg - restart auto-negotiation or write BMCR
  * @phydev: target phy_device struct
+ * @changed: whether autoneg is requested
  *
  * Description: If auto-negotiation is enabled, we configure the
  *   advertising, and then restart auto-negotiation.  If it is not
  *   enabled, then we write the BMCR.
  */
-int genphy_config_aneg(struct phy_device *phydev)
+int __genphy_config_aneg(struct phy_device *phydev, bool changed)
 {
-	int err, changed;
+	int err;
 
-	changed = genphy_config_eee_advert(phydev);
+	if (genphy_config_eee_advert(phydev))
+		changed = true;
 
 	if (AUTONEG_ENABLE != phydev->autoneg)
 		return genphy_setup_forced(phydev);
@@ -1650,10 +1692,10 @@ int genphy_config_aneg(struct phy_device *phydev)
 	err = genphy_config_advert(phydev);
 	if (err < 0) /* error */
 		return err;
+	else if (err)
+		changed = true;
 
-	changed |= err;
-
-	if (changed == 0) {
+	if (!changed) {
 		/* Advertisement hasn't changed, but maybe aneg was never on to
 		 * begin with?  Or maybe phy was isolated?
 		 */
@@ -1663,18 +1705,15 @@ int genphy_config_aneg(struct phy_device *phydev)
 			return ctl;
 
 		if (!(ctl & BMCR_ANENABLE) || (ctl & BMCR_ISOLATE))
-			changed = 1; /* do restart aneg */
+			changed = true; /* do restart aneg */
 	}
 
 	/* Only restart aneg if we are advertising something different
 	 * than we were before.
 	 */
-	if (changed > 0)
-		return genphy_restart_aneg(phydev);
-
-	return 0;
+	return changed ? genphy_restart_aneg(phydev) : 0;
 }
-EXPORT_SYMBOL(genphy_config_aneg);
+EXPORT_SYMBOL(__genphy_config_aneg);
 
 /**
  * genphy_aneg_done - return auto-negotiation status
@@ -1702,7 +1741,17 @@ EXPORT_SYMBOL(genphy_aneg_done);
  */
 int genphy_update_link(struct phy_device *phydev)
 {
-	int status;
+	int status = 0, bmcr;
+
+	bmcr = phy_read(phydev, MII_BMCR);
+	if (bmcr < 0)
+		return bmcr;
+
+	/* Autoneg is being started, therefore disregard BMSR value and
+	 * report link as down.
+	 */
+	if (bmcr & BMCR_ANRESTART)
+		goto done;
 
 	/* The link state is latched low so that momentary link
 	 * drops can be detected. Do not double-read the status
@@ -1710,65 +1759,46 @@ int genphy_update_link(struct phy_device *phydev)
 	 */
 	if (!phy_polling_mode(phydev)) {
 		status = phy_read(phydev, MII_BMSR);
-		if (status < 0) {
+		if (status < 0)
 			return status;
-		} else if (status & BMSR_LSTATUS) {
-			phydev->link = 1;
-			return 0;
-		}
+		else if (status & BMSR_LSTATUS)
+			goto done;
 	}
 
 	/* Read link and autonegotiation status */
 	status = phy_read(phydev, MII_BMSR);
 	if (status < 0)
 		return status;
+done:
+	phydev->link = status & BMSR_LSTATUS ? 1 : 0;
+	phydev->autoneg_complete = status & BMSR_ANEGCOMPLETE ? 1 : 0;
 
-	if ((status & BMSR_LSTATUS) == 0)
+	/* Consider the case that autoneg was started and "aneg complete"
+	 * bit has been reset, but "link up" bit not yet.
+	 */
+	if (phydev->autoneg == AUTONEG_ENABLE && !phydev->autoneg_complete)
 		phydev->link = 0;
-	else
-		phydev->link = 1;
 
 	return 0;
 }
 EXPORT_SYMBOL(genphy_update_link);
 
-/**
- * genphy_read_status - check the link status and update current link state
- * @phydev: target phy_device struct
- *
- * Description: Check the link, then figure out the current state
- *   by comparing what we advertise with what the link partner
- *   advertises.  Start by checking the gigabit possibilities,
- *   then move on to 10/100.
- */
-int genphy_read_status(struct phy_device *phydev)
+int genphy_read_lpa(struct phy_device *phydev)
 {
-	int adv;
-	int err;
-	int lpa;
-	int lpagb = 0;
+	int lpa, lpagb;
 
-	/* Update the link, but return if there was an error */
-	err = genphy_update_link(phydev);
-	if (err)
-		return err;
-
-	linkmode_zero(phydev->lp_advertising);
-
-	if (AUTONEG_ENABLE == phydev->autoneg) {
-		if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-				      phydev->supported) ||
-		    linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-				      phydev->supported)) {
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
+		if (phydev->is_gigabit_capable) {
 			lpagb = phy_read(phydev, MII_STAT1000);
 			if (lpagb < 0)
 				return lpagb;
 
-			adv = phy_read(phydev, MII_CTRL1000);
-			if (adv < 0)
-				return adv;
-
 			if (lpagb & LPA_1000MSFAIL) {
+				int adv = phy_read(phydev, MII_CTRL1000);
+
+				if (adv < 0)
+					return adv;
+
 				if (adv & CTL1000_ENABLE_MASTER)
 					phydev_err(phydev, "Master/Slave resolution failed, maybe conflicting manual settings?\n");
 				else
@@ -1785,14 +1815,46 @@ int genphy_read_status(struct phy_device *phydev)
 			return lpa;
 
 		mii_lpa_mod_linkmode_lpa_t(phydev->lp_advertising, lpa);
+	}
 
-		phydev->speed = SPEED_UNKNOWN;
-		phydev->duplex = DUPLEX_UNKNOWN;
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
+	return 0;
+}
+EXPORT_SYMBOL(genphy_read_lpa);
 
+/**
+ * genphy_read_status - check the link status and update current link state
+ * @phydev: target phy_device struct
+ *
+ * Description: Check the link, then figure out the current state
+ *   by comparing what we advertise with what the link partner
+ *   advertises.  Start by checking the gigabit possibilities,
+ *   then move on to 10/100.
+ */
+int genphy_read_status(struct phy_device *phydev)
+{
+	int err, old_link = phydev->link;
+
+	/* Update the link, but return if there was an error */
+	err = genphy_update_link(phydev);
+	if (err)
+		return err;
+
+	/* why bother the PHY if nothing can have changed */
+	if (phydev->autoneg == AUTONEG_ENABLE && old_link && phydev->link)
+		return 0;
+
+	phydev->speed = SPEED_UNKNOWN;
+	phydev->duplex = DUPLEX_UNKNOWN;
+	phydev->pause = 0;
+	phydev->asym_pause = 0;
+
+	err = genphy_read_lpa(phydev);
+	if (err < 0)
+		return err;
+
+	if (phydev->autoneg == AUTONEG_ENABLE && phydev->autoneg_complete) {
 		phy_resolve_aneg_linkmode(phydev);
-	} else {
+	} else if (phydev->autoneg == AUTONEG_DISABLE) {
 		int bmcr = phy_read(phydev, MII_BMCR);
 
 		if (bmcr < 0)
@@ -1809,9 +1871,6 @@ int genphy_read_status(struct phy_device *phydev)
 			phydev->speed = SPEED_100;
 		else
 			phydev->speed = SPEED_10;
-
-		phydev->pause = 0;
-		phydev->asym_pause = 0;
 	}
 
 	return 0;
@@ -1829,63 +1888,77 @@ EXPORT_SYMBOL(genphy_read_status);
  */
 int genphy_soft_reset(struct phy_device *phydev)
 {
+	u16 res = BMCR_RESET;
 	int ret;
 
-	ret = phy_write(phydev, MII_BMCR, BMCR_RESET);
+	if (phydev->autoneg == AUTONEG_ENABLE)
+		res |= BMCR_ANRESTART;
+
+	ret = phy_modify(phydev, MII_BMCR, BMCR_ISOLATE, res);
 	if (ret < 0)
 		return ret;
 
-	return phy_poll_reset(phydev);
+	ret = phy_poll_reset(phydev);
+	if (ret)
+		return ret;
+
+	/* BMCR may be reset to defaults */
+	if (phydev->autoneg == AUTONEG_DISABLE)
+		ret = genphy_setup_forced(phydev);
+
+	return ret;
 }
 EXPORT_SYMBOL(genphy_soft_reset);
 
-int genphy_config_init(struct phy_device *phydev)
+/**
+ * genphy_read_abilities - read PHY abilities from Clause 22 registers
+ * @phydev: target phy_device struct
+ *
+ * Description: Reads the PHY's abilities and populates
+ * phydev->supported accordingly.
+ *
+ * Returns: 0 on success, < 0 on failure
+ */
+int genphy_read_abilities(struct phy_device *phydev)
 {
 	int val;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(features) = { 0, };
 
 	linkmode_set_bit_array(phy_basic_ports_array,
 			       ARRAY_SIZE(phy_basic_ports_array),
-			       features);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, features);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, features);
+			       phydev->supported);
 
-	/* Do we support autonegotiation? */
 	val = phy_read(phydev, MII_BMSR);
 	if (val < 0)
 		return val;
 
-	if (val & BMSR_ANEGCAPABLE)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, features);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Autoneg_BIT, phydev->supported,
+			 val & BMSR_ANEGCAPABLE);
 
-	if (val & BMSR_100FULL)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, features);
-	if (val & BMSR_100HALF)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, features);
-	if (val & BMSR_10FULL)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, features);
-	if (val & BMSR_10HALF)
-		linkmode_set_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, features);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Full_BIT, phydev->supported,
+			 val & BMSR_100FULL);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_100baseT_Half_BIT, phydev->supported,
+			 val & BMSR_100HALF);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Full_BIT, phydev->supported,
+			 val & BMSR_10FULL);
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_10baseT_Half_BIT, phydev->supported,
+			 val & BMSR_10HALF);
 
 	if (val & BMSR_ESTATEN) {
 		val = phy_read(phydev, MII_ESTATUS);
 		if (val < 0)
 			return val;
 
-		if (val & ESTATUS_1000_TFULL)
-			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-					 features);
-		if (val & ESTATUS_1000_THALF)
-			linkmode_set_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-					 features);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+				 phydev->supported, val & ESTATUS_1000_TFULL);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+				 phydev->supported, val & ESTATUS_1000_THALF);
+		linkmode_mod_bit(ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
+				 phydev->supported, val & ESTATUS_1000_XFULL);
 	}
-
-	linkmode_and(phydev->supported, phydev->supported, features);
-	linkmode_and(phydev->advertising, phydev->advertising, features);
 
 	return 0;
 }
-EXPORT_SYMBOL(genphy_config_init);
+EXPORT_SYMBOL(genphy_read_abilities);
 
 /* This is used for the phy device which doesn't support the MMD extended
  * register access, but it does have side effect when we are trying to access
@@ -1935,9 +2008,34 @@ EXPORT_SYMBOL(genphy_loopback);
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode)
 {
 	linkmode_clear_bit(link_mode, phydev->supported);
-	linkmode_copy(phydev->advertising, phydev->supported);
+	phy_advertise_supported(phydev);
 }
 EXPORT_SYMBOL(phy_remove_link_mode);
+
+static void phy_copy_pause_bits(unsigned long *dst, unsigned long *src)
+{
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, dst,
+		linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, src));
+	linkmode_mod_bit(ETHTOOL_LINK_MODE_Pause_BIT, dst,
+		linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT, src));
+}
+
+/**
+ * phy_advertise_supported - Advertise all supported modes
+ * @phydev: target phy_device struct
+ *
+ * Description: Called to advertise all supported modes, doesn't touch
+ * pause mode advertising.
+ */
+void phy_advertise_supported(struct phy_device *phydev)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(new);
+
+	linkmode_copy(new, phydev->supported);
+	phy_copy_pause_bits(new, phydev->advertising);
+	linkmode_copy(phydev->advertising, new);
+}
+EXPORT_SYMBOL(phy_advertise_supported);
 
 /**
  * phy_support_sym_pause - Enable support of symmetrical pause
@@ -1949,8 +2047,7 @@ EXPORT_SYMBOL(phy_remove_link_mode);
 void phy_support_sym_pause(struct phy_device *phydev)
 {
 	linkmode_clear_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->supported);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
-	linkmode_copy(phydev->advertising, phydev->supported);
+	phy_copy_pause_bits(phydev->advertising, phydev->supported);
 }
 EXPORT_SYMBOL(phy_support_sym_pause);
 
@@ -1962,9 +2059,7 @@ EXPORT_SYMBOL(phy_support_sym_pause);
  */
 void phy_support_asym_pause(struct phy_device *phydev)
 {
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Pause_BIT, phydev->supported);
-	linkmode_set_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT, phydev->supported);
-	linkmode_copy(phydev->advertising, phydev->supported);
+	phy_copy_pause_bits(phydev->advertising, phydev->supported);
 }
 EXPORT_SYMBOL(phy_support_asym_pause);
 
@@ -2044,11 +2139,14 @@ bool phy_validate_pause(struct phy_device *phydev,
 			struct ethtool_pauseparam *pp)
 {
 	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-			       phydev->supported) ||
-	    (!linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-				phydev->supported) &&
-	     pp->rx_pause != pp->tx_pause))
+			       phydev->supported) && pp->rx_pause)
 		return false;
+
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			       phydev->supported) &&
+	    pp->rx_pause != pp->tx_pause)
+		return false;
+
 	return true;
 }
 EXPORT_SYMBOL(phy_validate_pause);
@@ -2104,14 +2202,30 @@ static int phy_probe(struct device *dev)
 	 */
 	if (phydrv->features) {
 		linkmode_copy(phydev->supported, phydrv->features);
-	} else {
+	} else if (phydrv->get_features) {
 		err = phydrv->get_features(phydev);
-		if (err)
-			goto out;
+	} else if (phydev->is_c45) {
+		err = genphy_c45_pma_read_abilities(phydev);
+	} else {
+		err = genphy_read_abilities(phydev);
 	}
 
+	if (err)
+		goto out;
+
+	if (!linkmode_test_bit(ETHTOOL_LINK_MODE_Autoneg_BIT,
+			       phydev->supported))
+		phydev->autoneg = 0;
+
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
+			      phydev->supported))
+		phydev->is_gigabit_capable = 1;
+	if (linkmode_test_bit(ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
+			      phydev->supported))
+		phydev->is_gigabit_capable = 1;
+
 	of_set_phy_supported(phydev);
-	linkmode_copy(phydev->advertising, phydev->supported);
+	phy_advertise_supported(phydev);
 
 	/* Get the EEE modes we want to prohibit. We will ask
 	 * the PHY stop advertising these mode later on
@@ -2177,11 +2291,11 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner)
 	int retval;
 
 	/* Either the features are hard coded, or dynamically
-	 * determine. It cannot be both or neither
+	 * determined. It cannot be both.
 	 */
-	if (WARN_ON((!new_driver->features && !new_driver->get_features) ||
-		    (new_driver->features && new_driver->get_features))) {
-		pr_err("%s: Driver features are missing\n", new_driver->name);
+	if (WARN_ON(new_driver->features && new_driver->get_features)) {
+		pr_err("%s: features and get_features must not both be set\n",
+		       new_driver->name);
 		return -EINVAL;
 	}
 
@@ -2243,8 +2357,7 @@ static struct phy_driver genphy_driver = {
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Generic PHY",
 	.soft_reset	= genphy_no_soft_reset,
-	.config_init	= genphy_config_init,
-	.features	= PHY_GBIT_ALL_PORTS_FEATURES,
+	.get_features	= genphy_read_abilities,
 	.aneg_done	= genphy_aneg_done,
 	.suspend	= genphy_suspend,
 	.resume		= genphy_resume,
@@ -2261,14 +2374,14 @@ static int __init phy_init(void)
 
 	features_init();
 
-	rc = phy_driver_register(&genphy_10g_driver, THIS_MODULE);
+	rc = phy_driver_register(&genphy_c45_driver, THIS_MODULE);
 	if (rc)
-		goto err_10g;
+		goto err_c45;
 
 	rc = phy_driver_register(&genphy_driver, THIS_MODULE);
 	if (rc) {
-		phy_driver_unregister(&genphy_10g_driver);
-err_10g:
+		phy_driver_unregister(&genphy_c45_driver);
+err_c45:
 		mdio_bus_exit();
 	}
 
@@ -2277,7 +2390,7 @@ err_10g:
 
 static void __exit phy_exit(void)
 {
-	phy_driver_unregister(&genphy_10g_driver);
+	phy_driver_unregister(&genphy_c45_driver);
 	phy_driver_unregister(&genphy_driver);
 	mdio_bus_exit();
 }

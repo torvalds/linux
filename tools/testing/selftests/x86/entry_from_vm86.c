@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * entry_from_vm86.c - tests kernel entries from vm86 mode
  * Copyright (c) 2014-2015 Andrew Lutomirski
  *
  * This exercises a few paths that need to special-case vm86 mode.
- *
- * GPL v2.
  */
 
 #define _GNU_SOURCE

@@ -36,6 +36,7 @@ acpi_status acpi_ns_root_initialize(void)
 	acpi_status status;
 	const struct acpi_predefined_names *init_val = NULL;
 	struct acpi_namespace_node *new_node;
+	struct acpi_namespace_node *prev_node = NULL;
 	union acpi_operand_object *obj_desc;
 	acpi_string val = NULL;
 
@@ -61,12 +62,28 @@ acpi_status acpi_ns_root_initialize(void)
 	 */
 	acpi_gbl_root_node = &acpi_gbl_root_node_struct;
 
-	/* Enter the pre-defined names in the name table */
+	/* Enter the predefined names in the name table */
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "Entering predefined entries into namespace\n"));
 
+	/*
+	 * Create the initial (default) namespace.
+	 * This namespace looks like something similar to this:
+	 *
+	 *   ACPI Namespace (from Namespace Root):
+	 *    0  _GPE Scope        00203160 00
+	 *    0  _PR_ Scope        002031D0 00
+	 *    0  _SB_ Device       00203240 00 Notify Object: 0020ADD8
+	 *    0  _SI_ Scope        002032B0 00
+	 *    0  _TZ_ Device       00203320 00
+	 *    0  _REV Integer      00203390 00 = 0000000000000002
+	 *    0  _OS_ String       00203488 00 Len 14 "Microsoft Windows NT"
+	 *    0  _GL_ Mutex        00203580 00 Object 002035F0
+	 *    0  _OSI Method       00203678 00 Args 1 Len 0000 Aml 00000000
+	 */
 	for (init_val = acpi_gbl_pre_defined_names; init_val->name; init_val++) {
+		status = AE_OK;
 
 		/* _OSI is optional for now, will be permanent later */
 
@@ -75,16 +92,31 @@ acpi_status acpi_ns_root_initialize(void)
 			continue;
 		}
 
-		status =
-		    acpi_ns_lookup(NULL, ACPI_CAST_PTR(char, init_val->name),
-				   init_val->type, ACPI_IMODE_LOAD_PASS2,
-				   ACPI_NS_NO_UPSEARCH, NULL, &new_node);
-		if (ACPI_FAILURE(status)) {
-			ACPI_EXCEPTION((AE_INFO, status,
-					"Could not create predefined name %s",
-					init_val->name));
-			continue;
+		/*
+		 * Create, init, and link the new predefined name
+		 * Note: No need to use acpi_ns_lookup here because all the
+		 * predefined names are at the root level. It is much easier to
+		 * just create and link the new node(s) here.
+		 */
+		new_node =
+		    ACPI_ALLOCATE_ZEROED(sizeof(struct acpi_namespace_node));
+		if (!new_node) {
+			status = AE_NO_MEMORY;
+			goto unlock_and_exit;
 		}
+
+		ACPI_COPY_NAMESEG(new_node->name.ascii, init_val->name);
+		new_node->descriptor_type = ACPI_DESC_TYPE_NAMED;
+		new_node->type = init_val->type;
+
+		if (!prev_node) {
+			acpi_gbl_root_node_struct.child = new_node;
+		} else {
+			prev_node->peer = new_node;
+		}
+
+		new_node->parent = &acpi_gbl_root_node_struct;
+		prev_node = new_node;
 
 		/*
 		 * Name entered successfully. If entry in pre_defined_names[] specifies
@@ -131,7 +163,7 @@ acpi_status acpi_ns_root_initialize(void)
 
 				new_node->value = obj_desc->method.param_count;
 #else
-				/* Mark this as a very SPECIAL method */
+				/* Mark this as a very SPECIAL method (_OSI) */
 
 				obj_desc->method.info_flags =
 				    ACPI_METHOD_INTERNAL_ONLY;
@@ -566,7 +598,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 				if (flags & ACPI_NS_PREFIX_MUST_EXIST) {
 					acpi_os_printf(ACPI_MSG_BIOS_ERROR
 						       "Object does not exist: %4.4s\n",
-						       &simple_name);
+						       (char *)&simple_name);
 				}
 #endif
 				/* Name not found in ACPI namespace */
@@ -683,7 +715,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 		/* Point to next name segment and make this node current */
 
-		path += ACPI_NAME_SIZE;
+		path += ACPI_NAMESEG_SIZE;
 		current_node = this_node;
 	}
 

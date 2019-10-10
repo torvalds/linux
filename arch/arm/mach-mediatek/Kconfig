@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_MEDIATEK
 	bool "MediaTek SoC Support"
 	depends on ARCH_MULTI_V7
@@ -24,6 +25,10 @@ config MACH_MT6592
 
 config MACH_MT7623
 	bool "MediaTek MT7623 SoCs support"
+	default ARCH_MEDIATEK
+
+config MACH_MT7629
+	bool "MediaTek MT7629 SoCs support"
 	default ARCH_MEDIATEK
 
 config MACH_MT8127

@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * Copyright (C) 2012 Invensense, Inc.
-*
-* This software is licensed under the terms of the GNU General Public
-* License version 2, as published by the Free Software Foundation, and
-* may be copied, distributed, and modified under those terms.
-*
-* This program is distributed in the hope that it will be useful,
-* but WITHOUT ANY WARRANTY; without even the implied warranty of
-* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-* GNU General Public License for more details.
 */
 
 #include <linux/acpi.h>
@@ -127,6 +119,7 @@ static int inv_mpu_probe(struct i2c_client *client,
 	st = iio_priv(dev_get_drvdata(&client->dev));
 	switch (st->chip_type) {
 	case INV_ICM20608:
+	case INV_ICM20602:
 		/* no i2c auxiliary bus on the chip */
 		break;
 	default:
@@ -179,6 +172,7 @@ static const struct i2c_device_id inv_mpu_id[] = {
 	{"mpu9250", INV_MPU9250},
 	{"mpu9255", INV_MPU9255},
 	{"icm20608", INV_ICM20608},
+	{"icm20602", INV_ICM20602},
 	{}
 };
 
@@ -212,6 +206,10 @@ static const struct of_device_id inv_of_match[] = {
 	{
 		.compatible = "invensense,icm20608",
 		.data = (void *)INV_ICM20608
+	},
+	{
+		.compatible = "invensense,icm20602",
+		.data = (void *)INV_ICM20602
 	},
 	{ }
 };

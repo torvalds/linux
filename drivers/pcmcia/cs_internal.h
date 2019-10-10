@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * cs_internal.h -- definitions internal to the PCMCIA core modules
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The initial developer of the original code is David A. Hinds
  * <dahinds@users.sourceforge.net>.  Portions created by David A. Hinds
@@ -11,7 +8,6 @@
  *
  * (C) 1999		David A. Hinds
  * (C) 2003 - 2010	Dominik Brodowski
- *
  *
  * This file contains definitions _only_ needed by the PCMCIA core modules.
  * It must not be included by PCMCIA socket drivers or by PCMCIA device

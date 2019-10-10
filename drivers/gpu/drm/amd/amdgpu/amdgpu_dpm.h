@@ -75,6 +75,20 @@ struct amdgpu_dpm_thermal {
 	int                min_temp;
 	/* high temperature threshold */
 	int                max_temp;
+	/* edge max emergency(shutdown) temp */
+	int                max_edge_emergency_temp;
+	/* hotspot low temperature threshold */
+	int                min_hotspot_temp;
+	/* hotspot high temperature critical threshold */
+	int                max_hotspot_crit_temp;
+	/* hotspot max emergency(shutdown) temp */
+	int                max_hotspot_emergency_temp;
+	/* memory low temperature threshold */
+	int                min_mem_temp;
+	/* memory high temperature critical threshold */
+	int                max_mem_crit_temp;
+	/* memory max emergency(shutdown) temp */
+	int                max_mem_emergency_temp;
 	/* was last interrupt low to high or high to low */
 	bool               high_to_low;
 	/* interrupt source */
@@ -260,9 +274,6 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_enable_bapm(adev, e) \
 		((adev)->powerplay.pp_funcs->enable_bapm((adev)->powerplay.pp_handle, (e)))
 
-#define amdgpu_dpm_read_sensor(adev, idx, value, size) \
-		((adev)->powerplay.pp_funcs->read_sensor((adev)->powerplay.pp_handle, (idx), (value), (size)))
-
 #define amdgpu_dpm_set_fan_control_mode(adev, m) \
 		((adev)->powerplay.pp_funcs->set_fan_control_mode((adev)->powerplay.pp_handle, (m)))
 
@@ -281,17 +292,17 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_set_fan_speed_rpm(adev, s) \
 		((adev)->powerplay.pp_funcs->set_fan_speed_rpm)((adev)->powerplay.pp_handle, (s))
 
-#define amdgpu_dpm_get_sclk(adev, l) \
-		((adev)->powerplay.pp_funcs->get_sclk((adev)->powerplay.pp_handle, (l)))
-
-#define amdgpu_dpm_get_mclk(adev, l)  \
-		((adev)->powerplay.pp_funcs->get_mclk((adev)->powerplay.pp_handle, (l)))
-
 #define amdgpu_dpm_force_performance_level(adev, l) \
 		((adev)->powerplay.pp_funcs->force_performance_level((adev)->powerplay.pp_handle, (l)))
 
 #define amdgpu_dpm_get_current_power_state(adev) \
 		((adev)->powerplay.pp_funcs->get_current_power_state((adev)->powerplay.pp_handle))
+
+#define amdgpu_smu_get_current_power_state(adev) \
+		((adev)->smu.ppt_funcs->get_current_power_state(&((adev)->smu)))
+
+#define amdgpu_smu_set_power_state(adev) \
+		((adev)->smu.ppt_funcs->set_power_state(&((adev)->smu)))
 
 #define amdgpu_dpm_get_pp_num_states(adev, data) \
 		((adev)->powerplay.pp_funcs->get_pp_num_states((adev)->powerplay.pp_handle, data))
@@ -344,10 +355,6 @@ enum amdgpu_pcie_gen {
 		((adev)->powerplay.pp_funcs->set_clockgating_by_smu(\
 			(adev)->powerplay.pp_handle, msg_id))
 
-#define amdgpu_dpm_set_powergating_by_smu(adev, block_type, gate) \
-		((adev)->powerplay.pp_funcs->set_powergating_by_smu(\
-			(adev)->powerplay.pp_handle, block_type, gate))
-
 #define amdgpu_dpm_get_power_profile_mode(adev, buf) \
 		((adev)->powerplay.pp_funcs->get_power_profile_mode(\
 			(adev)->powerplay.pp_handle, buf))
@@ -363,6 +370,14 @@ enum amdgpu_pcie_gen {
 #define amdgpu_dpm_enable_mgpu_fan_boost(adev) \
 		((adev)->powerplay.pp_funcs->enable_mgpu_fan_boost(\
 			(adev)->powerplay.pp_handle))
+
+#define amdgpu_dpm_get_ppfeature_status(adev, buf) \
+		((adev)->powerplay.pp_funcs->get_ppfeature_status(\
+			(adev)->powerplay.pp_handle, (buf)))
+
+#define amdgpu_dpm_set_ppfeature_status(adev, ppfeatures) \
+		((adev)->powerplay.pp_funcs->set_ppfeature_status(\
+			(adev)->powerplay.pp_handle, (ppfeatures)))
 
 struct amdgpu_dpm {
 	struct amdgpu_ps        *ps;
@@ -440,6 +455,9 @@ struct amdgpu_pm {
 	uint32_t                smu_prv_buffer_size;
 	struct amdgpu_bo        *smu_prv_buffer;
 	bool ac_power;
+	/* powerplay feature */
+	uint32_t pp_feature;
+
 };
 
 #define R600_SSTU_DFLT                               0
@@ -478,10 +496,8 @@ void amdgpu_dpm_print_ps_status(struct amdgpu_device *adev,
 u32 amdgpu_dpm_get_vblank_time(struct amdgpu_device *adev);
 u32 amdgpu_dpm_get_vrefresh(struct amdgpu_device *adev);
 void amdgpu_dpm_get_active_displays(struct amdgpu_device *adev);
-bool amdgpu_is_uvd_state(u32 class, u32 class2);
-void amdgpu_calculate_u_and_p(u32 i, u32 r_c, u32 p_b,
-			      u32 *p, u32 *u);
-int amdgpu_calculate_at(u32 t, u32 h, u32 fh, u32 fl, u32 *tl, u32 *th);
+int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,
+			   void *data, uint32_t *size);
 
 bool amdgpu_is_internal_thermal_sensor(enum amdgpu_int_thermal_type sensor);
 
@@ -497,12 +513,14 @@ enum amdgpu_pcie_gen amdgpu_get_pcie_gen_support(struct amdgpu_device *adev,
 						 enum amdgpu_pcie_gen asic_gen,
 						 enum amdgpu_pcie_gen default_gen);
 
-u16 amdgpu_get_pcie_lane_support(struct amdgpu_device *adev,
-				 u16 asic_lanes,
-				 u16 default_lanes);
-u8 amdgpu_encode_pci_lane_width(u32 lanes);
-
 struct amd_vce_state*
 amdgpu_get_vce_clock_state(void *handle, u32 idx);
+
+int amdgpu_dpm_set_powergating_by_smu(struct amdgpu_device *adev,
+				      uint32_t block_type, bool gate);
+
+extern int amdgpu_dpm_get_sclk(struct amdgpu_device *adev, bool low);
+
+extern int amdgpu_dpm_get_mclk(struct amdgpu_device *adev, bool low);
 
 #endif

@@ -1,21 +1,12 @@
-/* -------------------------------------------------------------------------
- * i2c-algo-bit.c i2c driver algorithms for bit-shift adapters
- * -------------------------------------------------------------------------
+// SPDX-License-Identifier: GPL-2.0+
+/*
+ * i2c-algo-bit.c: i2c driver algorithms for bit-shift adapters
+ *
  *   Copyright (C) 1995-2000 Simon G. Vogl
-
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
- * ------------------------------------------------------------------------- */
-
-/* With some changes from Frodo Looijaard <frodol@dds.nl>, Kyösti Mälkki
-   <kmalkki@cc.hut.fi> and Jean Delvare <jdelvare@suse.de> */
+ *
+ * With some changes from Frodo Looijaard <frodol@dds.nl>, Kyösti Mälkki
+ * <kmalkki@cc.hut.fi> and Jean Delvare <jdelvare@suse.de>
+ */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -612,6 +603,23 @@ bailout:
 	return ret;
 }
 
+/*
+ * We print a warning when we are not flagged to support atomic transfers but
+ * will try anyhow. That's what the I2C core would do as well. Sadly, we can't
+ * modify the algorithm struct at probe time because this struct is exported
+ * 'const'.
+ */
+static int bit_xfer_atomic(struct i2c_adapter *i2c_adap, struct i2c_msg msgs[],
+			   int num)
+{
+	struct i2c_algo_bit_data *adap = i2c_adap->algo_data;
+
+	if (!adap->can_do_atomic)
+		dev_warn(&i2c_adap->dev, "not flagged for atomic transfers\n");
+
+	return bit_xfer(i2c_adap, msgs, num);
+}
+
 static u32 bit_func(struct i2c_adapter *adap)
 {
 	return I2C_FUNC_I2C | I2C_FUNC_NOSTART | I2C_FUNC_SMBUS_EMUL |
@@ -624,8 +632,9 @@ static u32 bit_func(struct i2c_adapter *adap)
 /* -----exported algorithm data: -------------------------------------	*/
 
 const struct i2c_algorithm i2c_bit_algo = {
-	.master_xfer	= bit_xfer,
-	.functionality	= bit_func,
+	.master_xfer = bit_xfer,
+	.master_xfer_atomic = bit_xfer_atomic,
+	.functionality = bit_func,
 };
 EXPORT_SYMBOL(i2c_bit_algo);
 

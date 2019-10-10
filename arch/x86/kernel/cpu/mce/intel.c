@@ -479,7 +479,7 @@ static void intel_ppin_init(struct cpuinfo_x86 *c)
 	switch (c->x86_model) {
 	case INTEL_FAM6_IVYBRIDGE_X:
 	case INTEL_FAM6_HASWELL_X:
-	case INTEL_FAM6_BROADWELL_XEON_D:
+	case INTEL_FAM6_BROADWELL_D:
 	case INTEL_FAM6_BROADWELL_X:
 	case INTEL_FAM6_SKYLAKE_X:
 	case INTEL_FAM6_XEON_PHI_KNL:

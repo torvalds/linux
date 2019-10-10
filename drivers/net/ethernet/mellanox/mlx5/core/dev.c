@@ -213,7 +213,7 @@ void mlx5_unregister_device(struct mlx5_core_dev *dev)
 	struct mlx5_interface *intf;
 
 	mutex_lock(&mlx5_intf_mutex);
-	list_for_each_entry(intf, &intf_list, list)
+	list_for_each_entry_reverse(intf, &intf_list, list)
 		mlx5_remove_device(intf, priv);
 	list_del(&priv->dev_list);
 	mutex_unlock(&mlx5_intf_mutex);
@@ -248,11 +248,32 @@ void mlx5_unregister_interface(struct mlx5_interface *intf)
 }
 EXPORT_SYMBOL(mlx5_unregister_interface);
 
+/* Must be called with intf_mutex held */
+static bool mlx5_has_added_dev_by_protocol(struct mlx5_core_dev *mdev, int protocol)
+{
+	struct mlx5_device_context *dev_ctx;
+	struct mlx5_interface *intf;
+	bool found = false;
+
+	list_for_each_entry(intf, &intf_list, list) {
+		if (intf->protocol == protocol) {
+			dev_ctx = mlx5_get_device(intf, &mdev->priv);
+			if (dev_ctx && test_bit(MLX5_INTERFACE_ADDED, &dev_ctx->state))
+				found = true;
+			break;
+		}
+	}
+
+	return found;
+}
+
 void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol)
 {
 	mutex_lock(&mlx5_intf_mutex);
-	mlx5_remove_dev_by_protocol(mdev, protocol);
-	mlx5_add_dev_by_protocol(mdev, protocol);
+	if (mlx5_has_added_dev_by_protocol(mdev, protocol)) {
+		mlx5_remove_dev_by_protocol(mdev, protocol);
+		mlx5_add_dev_by_protocol(mdev, protocol);
+	}
 	mutex_unlock(&mlx5_intf_mutex);
 }
 
@@ -290,13 +311,20 @@ static u32 mlx5_gen_pci_id(struct mlx5_core_dev *dev)
 /* Must be called with intf_mutex held */
 struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev)
 {
-	u32 pci_id = mlx5_gen_pci_id(dev);
 	struct mlx5_core_dev *res = NULL;
 	struct mlx5_core_dev *tmp_dev;
 	struct mlx5_priv *priv;
+	u32 pci_id;
 
+	if (!mlx5_core_is_pf(dev))
+		return NULL;
+
+	pci_id = mlx5_gen_pci_id(dev);
 	list_for_each_entry(priv, &mlx5_dev_list, dev_list) {
 		tmp_dev = container_of(priv, struct mlx5_core_dev, priv);
+		if (!mlx5_core_is_pf(tmp_dev))
+			continue;
+
 		if ((dev != tmp_dev) && (mlx5_gen_pci_id(tmp_dev) == pci_id)) {
 			res = tmp_dev;
 			break;

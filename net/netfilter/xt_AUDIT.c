@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Creates audit record for dropped/accepted packets
  *
  * (C) 2010-2011 Thomas Graf <tgraf@redhat.com>
  * (C) 2010-2011 Red Hat, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

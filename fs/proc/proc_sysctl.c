@@ -13,6 +13,7 @@
 #include <linux/namei.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/bpf-cgroup.h>
 #include "internal.h"
 
 static const struct dentry_operations proc_sys_dentry_operations;
@@ -20,6 +21,10 @@ static const struct file_operations proc_sys_file_operations;
 static const struct inode_operations proc_sys_inode_operations;
 static const struct file_operations proc_sys_dir_file_operations;
 static const struct inode_operations proc_sys_dir_operations;
+
+/* shared constants to be used in various sysctls */
+const int sysctl_vals[] = { 0, 1, INT_MAX };
+EXPORT_SYMBOL(sysctl_vals);
 
 /* Support for permanently empty directories */
 
@@ -498,6 +503,10 @@ static struct inode *proc_sys_make_inode(struct super_block *sb,
 
 	if (root->set_ownership)
 		root->set_ownership(head, table, &inode->i_uid, &inode->i_gid);
+	else {
+		inode->i_uid = GLOBAL_ROOT_UID;
+		inode->i_gid = GLOBAL_ROOT_GID;
+	}
 
 	return inode;
 }
@@ -569,8 +578,8 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 	struct inode *inode = file_inode(filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
+	void *new_buf = NULL;
 	ssize_t error;
-	size_t res;
 
 	if (IS_ERR(head))
 		return PTR_ERR(head);
@@ -588,11 +597,27 @@ static ssize_t proc_sys_call_handler(struct file *filp, void __user *buf,
 	if (!table->proc_handler)
 		goto out;
 
+	error = BPF_CGROUP_RUN_PROG_SYSCTL(head, table, write, buf, &count,
+					   ppos, &new_buf);
+	if (error)
+		goto out;
+
 	/* careful: calling conventions are nasty here */
-	res = count;
-	error = table->proc_handler(table, write, buf, &res, ppos);
+	if (new_buf) {
+		mm_segment_t old_fs;
+
+		old_fs = get_fs();
+		set_fs(KERNEL_DS);
+		error = table->proc_handler(table, write, (void __user *)new_buf,
+					    &count, ppos);
+		set_fs(old_fs);
+		kfree(new_buf);
+	} else {
+		error = table->proc_handler(table, write, buf, &count, ppos);
+	}
+
 	if (!error)
-		error = res;
+		error = count;
 out:
 	sysctl_head_finish(head);
 
@@ -1626,8 +1651,11 @@ static void drop_sysctl_table(struct ctl_table_header *header)
 	if (--header->nreg)
 		return;
 
-	put_links(header);
-	start_unregistering(header);
+	if (parent) {
+		put_links(header);
+		start_unregistering(header);
+	}
+
 	if (!--header->count)
 		kfree_rcu(header, rcu);
 

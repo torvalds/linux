@@ -269,56 +269,6 @@ static struct irq_chip ep93xx_gpio_irq_chip = {
 	.irq_set_type	= ep93xx_gpio_irq_type,
 };
 
-static int ep93xx_gpio_init_irq(struct platform_device *pdev,
-				struct ep93xx_gpio *epg)
-{
-	int ab_parent_irq = platform_get_irq(pdev, 0);
-	struct device *dev = &pdev->dev;
-	int gpio_irq;
-	int ret;
-	int i;
-
-	/* The A bank */
-	ret = gpiochip_irqchip_add(&epg->gc[0], &ep93xx_gpio_irq_chip,
-                                   64, handle_level_irq,
-                                   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(dev, "Could not add irqchip 0\n");
-		return ret;
-	}
-	gpiochip_set_chained_irqchip(&epg->gc[0], &ep93xx_gpio_irq_chip,
-				     ab_parent_irq,
-				     ep93xx_gpio_ab_irq_handler);
-
-	/* The B bank */
-	ret = gpiochip_irqchip_add(&epg->gc[1], &ep93xx_gpio_irq_chip,
-                                   72, handle_level_irq,
-                                   IRQ_TYPE_NONE);
-	if (ret) {
-		dev_err(dev, "Could not add irqchip 1\n");
-		return ret;
-	}
-	gpiochip_set_chained_irqchip(&epg->gc[1], &ep93xx_gpio_irq_chip,
-				     ab_parent_irq,
-				     ep93xx_gpio_ab_irq_handler);
-
-	/* The F bank */
-	for (i = 0; i < 8; i++) {
-		gpio_irq = EP93XX_GPIO_F_IRQ_BASE + i;
-		irq_set_chip_data(gpio_irq, &epg->gc[5]);
-		irq_set_chip_and_handler(gpio_irq, &ep93xx_gpio_irq_chip,
-					 handle_level_irq);
-		irq_clear_status_flags(gpio_irq, IRQ_NOREQUEST);
-	}
-
-	for (i = 1; i <= 8; i++)
-		irq_set_chained_handler_and_data(platform_get_irq(pdev, i),
-						 ep93xx_gpio_f_irq_handler,
-						 &epg->gc[i]);
-	return 0;
-}
-
-
 /*************************************************************************
  * gpiolib interface for EP93xx on-chip GPIOs
  *************************************************************************/
@@ -328,26 +278,33 @@ struct ep93xx_gpio_bank {
 	int		dir;
 	int		base;
 	bool		has_irq;
+	bool		has_hierarchical_irq;
+	unsigned int	irq_base;
 };
 
-#define EP93XX_GPIO_BANK(_label, _data, _dir, _base, _has_irq)	\
+#define EP93XX_GPIO_BANK(_label, _data, _dir, _base, _has_irq, _has_hier, _irq_base) \
 	{							\
 		.label		= _label,			\
 		.data		= _data,			\
 		.dir		= _dir,				\
 		.base		= _base,			\
 		.has_irq	= _has_irq,			\
+		.has_hierarchical_irq = _has_hier,		\
+		.irq_base	= _irq_base,			\
 	}
 
 static struct ep93xx_gpio_bank ep93xx_gpio_banks[] = {
-	EP93XX_GPIO_BANK("A", 0x00, 0x10, 0, true), /* Bank A has 8 IRQs */
-	EP93XX_GPIO_BANK("B", 0x04, 0x14, 8, true), /* Bank B has 8 IRQs */
-	EP93XX_GPIO_BANK("C", 0x08, 0x18, 40, false),
-	EP93XX_GPIO_BANK("D", 0x0c, 0x1c, 24, false),
-	EP93XX_GPIO_BANK("E", 0x20, 0x24, 32, false),
-	EP93XX_GPIO_BANK("F", 0x30, 0x34, 16, true), /* Bank F has 8 IRQs */
-	EP93XX_GPIO_BANK("G", 0x38, 0x3c, 48, false),
-	EP93XX_GPIO_BANK("H", 0x40, 0x44, 56, false),
+	/* Bank A has 8 IRQs */
+	EP93XX_GPIO_BANK("A", 0x00, 0x10, 0, true, false, 64),
+	/* Bank B has 8 IRQs */
+	EP93XX_GPIO_BANK("B", 0x04, 0x14, 8, true, false, 72),
+	EP93XX_GPIO_BANK("C", 0x08, 0x18, 40, false, false, 0),
+	EP93XX_GPIO_BANK("D", 0x0c, 0x1c, 24, false, false, 0),
+	EP93XX_GPIO_BANK("E", 0x20, 0x24, 32, false, false, 0),
+	/* Bank F has 8 IRQs */
+	EP93XX_GPIO_BANK("F", 0x30, 0x34, 16, false, true, 0),
+	EP93XX_GPIO_BANK("G", 0x38, 0x3c, 48, false, false, 0),
+	EP93XX_GPIO_BANK("H", 0x40, 0x44, 56, false, false, 0),
 };
 
 static int ep93xx_gpio_set_config(struct gpio_chip *gc, unsigned offset,
@@ -369,12 +326,15 @@ static int ep93xx_gpio_f_to_irq(struct gpio_chip *gc, unsigned offset)
 	return EP93XX_GPIO_F_IRQ_BASE + offset;
 }
 
-static int ep93xx_gpio_add_bank(struct gpio_chip *gc, struct device *dev,
+static int ep93xx_gpio_add_bank(struct gpio_chip *gc,
+				struct platform_device *pdev,
 				struct ep93xx_gpio *epg,
 				struct ep93xx_gpio_bank *bank)
 {
 	void __iomem *data = epg->base + bank->data;
 	void __iomem *dir = epg->base + bank->dir;
+	struct device *dev = &pdev->dev;
+	struct gpio_irq_chip *girq;
 	int err;
 
 	err = bgpio_init(gc, dev, 1, data, NULL, NULL, dir, NULL, 0);
@@ -384,8 +344,59 @@ static int ep93xx_gpio_add_bank(struct gpio_chip *gc, struct device *dev,
 	gc->label = bank->label;
 	gc->base = bank->base;
 
-	if (bank->has_irq)
+	girq = &gc->irq;
+	if (bank->has_irq || bank->has_hierarchical_irq) {
 		gc->set_config = ep93xx_gpio_set_config;
+		girq->chip = &ep93xx_gpio_irq_chip;
+	}
+
+	if (bank->has_irq) {
+		int ab_parent_irq = platform_get_irq(pdev, 0);
+
+		girq->parent_handler = ep93xx_gpio_ab_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
+		girq->parents[0] = ab_parent_irq;
+		girq->first = bank->irq_base;
+	}
+
+	/* Only bank F has especially funky IRQ handling */
+	if (bank->has_hierarchical_irq) {
+		int gpio_irq;
+		int i;
+
+		/*
+		 * FIXME: convert this to use hierarchical IRQ support!
+		 * this requires fixing the root irqchip to be hierarchial.
+		 */
+		girq->parent_handler = ep93xx_gpio_f_irq_handler;
+		girq->num_parents = 8;
+		girq->parents = devm_kcalloc(dev, 8,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		/* Pick resources 1..8 for these IRQs */
+		for (i = 1; i <= 8; i++)
+			girq->parents[i - 1] = platform_get_irq(pdev, i);
+		for (i = 0; i < 8; i++) {
+			gpio_irq = EP93XX_GPIO_F_IRQ_BASE + i;
+			irq_set_chip_data(gpio_irq, &epg->gc[5]);
+			irq_set_chip_and_handler(gpio_irq,
+						 &ep93xx_gpio_irq_chip,
+						 handle_level_irq);
+			irq_clear_status_flags(gpio_irq, IRQ_NOREQUEST);
+		}
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
+		gc->to_irq = ep93xx_gpio_f_to_irq;
+	}
 
 	return devm_gpiochip_add_data(dev, gc, epg);
 }
@@ -393,16 +404,13 @@ static int ep93xx_gpio_add_bank(struct gpio_chip *gc, struct device *dev,
 static int ep93xx_gpio_probe(struct platform_device *pdev)
 {
 	struct ep93xx_gpio *epg;
-	struct resource *res;
 	int i;
-	struct device *dev = &pdev->dev;
 
-	epg = devm_kzalloc(dev, sizeof(*epg), GFP_KERNEL);
+	epg = devm_kzalloc(&pdev->dev, sizeof(*epg), GFP_KERNEL);
 	if (!epg)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	epg->base = devm_ioremap_resource(dev, res);
+	epg->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(epg->base))
 		return PTR_ERR(epg->base);
 
@@ -410,15 +418,10 @@ static int ep93xx_gpio_probe(struct platform_device *pdev)
 		struct gpio_chip *gc = &epg->gc[i];
 		struct ep93xx_gpio_bank *bank = &ep93xx_gpio_banks[i];
 
-		if (ep93xx_gpio_add_bank(gc, &pdev->dev, epg, bank))
+		if (ep93xx_gpio_add_bank(gc, pdev, epg, bank))
 			dev_warn(&pdev->dev, "Unable to add gpio bank %s\n",
 				 bank->label);
-		/* Only bank F has especially funky IRQ handling */
-		if (i == 5)
-			gc->to_irq = ep93xx_gpio_f_to_irq;
 	}
-
-	ep93xx_gpio_init_irq(pdev, epg);
 
 	return 0;
 }

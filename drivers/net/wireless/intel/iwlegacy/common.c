@@ -1,25 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * GPL LICENSE SUMMARY
- *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
- * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -4960,8 +4942,7 @@ EXPORT_SYMBOL(il_add_beacon_time);
 static int
 il_pci_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct il_priv *il = pci_get_drvdata(pdev);
+	struct il_priv *il = dev_get_drvdata(device);
 
 	/*
 	 * This function is called when system goes into suspend state

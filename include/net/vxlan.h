@@ -8,6 +8,8 @@
 #include <net/rtnetlink.h>
 #include <net/switchdev.h>
 
+#define IANA_VXLAN_UDP_PORT     4789
+
 /* VXLAN protocol (RFC 7348) header:
  * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
  * |R|R|R|R|I|R|R|R|               Reserved                        |
@@ -240,7 +242,7 @@ struct vxlan_dev {
 	struct vxlan_rdst default_dst;	/* default destination */
 
 	struct timer_list age_timer;
-	spinlock_t	  hash_lock;
+	spinlock_t	  hash_lock[FDB_HASH_SIZE];
 	unsigned int	  addrcnt;
 	struct gro_cells  gro_cells;
 
@@ -389,7 +391,7 @@ static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 	if (ipa->sa.sa_family == AF_INET6)
 		return ipv6_addr_is_multicast(&ipa->sin6.sin6_addr);
 	else
-		return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+		return ipv4_is_multicast(ipa->sin.sin_addr.s_addr);
 }
 
 #else /* !IS_ENABLED(CONFIG_IPV6) */
@@ -401,7 +403,7 @@ static inline bool vxlan_addr_any(const union vxlan_addr *ipa)
 
 static inline bool vxlan_addr_multicast(const union vxlan_addr *ipa)
 {
-	return IN_MULTICAST(ntohl(ipa->sin.sin_addr.s_addr));
+	return ipv4_is_multicast(ipa->sin.sin_addr.s_addr);
 }
 
 #endif /* IS_ENABLED(CONFIG_IPV6) */

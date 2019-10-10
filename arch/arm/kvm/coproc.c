@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 - Virtual Open Systems and Columbia University
  * Authors: Rusty Russell <rusty@rustcorp.com.au>
  *          Christoffer Dall <c.dall@virtualopensystems.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #include <linux/bsearch.h>
@@ -293,15 +281,16 @@ static bool access_cntp_tval(struct kvm_vcpu *vcpu,
 			     const struct coproc_params *p,
 			     const struct coproc_reg *r)
 {
-	u64 now = kvm_phys_timer_read();
-	u64 val;
+	u32 val;
 
 	if (p->is_write) {
 		val = *vcpu_reg(vcpu, p->Rt1);
-		kvm_arm_timer_set_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL, val + now);
+		kvm_arm_timer_write_sysreg(vcpu,
+					   TIMER_PTIMER, TIMER_REG_TVAL, val);
 	} else {
-		val = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL);
-		*vcpu_reg(vcpu, p->Rt1) = val - now;
+		val = kvm_arm_timer_read_sysreg(vcpu,
+						TIMER_PTIMER, TIMER_REG_TVAL);
+		*vcpu_reg(vcpu, p->Rt1) = val;
 	}
 
 	return true;
@@ -315,9 +304,11 @@ static bool access_cntp_ctl(struct kvm_vcpu *vcpu,
 
 	if (p->is_write) {
 		val = *vcpu_reg(vcpu, p->Rt1);
-		kvm_arm_timer_set_reg(vcpu, KVM_REG_ARM_PTIMER_CTL, val);
+		kvm_arm_timer_write_sysreg(vcpu,
+					   TIMER_PTIMER, TIMER_REG_CTL, val);
 	} else {
-		val = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_PTIMER_CTL);
+		val = kvm_arm_timer_read_sysreg(vcpu,
+						TIMER_PTIMER, TIMER_REG_CTL);
 		*vcpu_reg(vcpu, p->Rt1) = val;
 	}
 
@@ -333,9 +324,11 @@ static bool access_cntp_cval(struct kvm_vcpu *vcpu,
 	if (p->is_write) {
 		val = (u64)*vcpu_reg(vcpu, p->Rt2) << 32;
 		val |= *vcpu_reg(vcpu, p->Rt1);
-		kvm_arm_timer_set_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL, val);
+		kvm_arm_timer_write_sysreg(vcpu,
+					   TIMER_PTIMER, TIMER_REG_CVAL, val);
 	} else {
-		val = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_PTIMER_CVAL);
+		val = kvm_arm_timer_read_sysreg(vcpu,
+						TIMER_PTIMER, TIMER_REG_CVAL);
 		*vcpu_reg(vcpu, p->Rt1) = val;
 		*vcpu_reg(vcpu, p->Rt2) = val >> 32;
 	}
@@ -658,13 +651,22 @@ int kvm_handle_cp14_64(struct kvm_vcpu *vcpu, struct kvm_run *run)
 }
 
 static void reset_coproc_regs(struct kvm_vcpu *vcpu,
-			      const struct coproc_reg *table, size_t num)
+			      const struct coproc_reg *table, size_t num,
+			      unsigned long *bmap)
 {
 	unsigned long i;
 
 	for (i = 0; i < num; i++)
-		if (table[i].reset)
+		if (table[i].reset) {
+			int reg = table[i].reg;
+
 			table[i].reset(vcpu, &table[i]);
+			if (reg > 0 && reg < NR_CP15_REGS) {
+				set_bit(reg, bmap);
+				if (table[i].is_64bit)
+					set_bit(reg + 1, bmap);
+			}
+		}
 }
 
 static struct coproc_params decode_32bit_hsr(struct kvm_vcpu *vcpu)
@@ -1439,17 +1441,15 @@ void kvm_reset_coprocs(struct kvm_vcpu *vcpu)
 {
 	size_t num;
 	const struct coproc_reg *table;
-
-	/* Catch someone adding a register without putting in reset entry. */
-	memset(vcpu->arch.ctxt.cp15, 0x42, sizeof(vcpu->arch.ctxt.cp15));
+	DECLARE_BITMAP(bmap, NR_CP15_REGS) = { 0, };
 
 	/* Generic chip reset first (so target could override). */
-	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs));
+	reset_coproc_regs(vcpu, cp15_regs, ARRAY_SIZE(cp15_regs), bmap);
 
 	table = get_target_table(vcpu->arch.target, &num);
-	reset_coproc_regs(vcpu, table, num);
+	reset_coproc_regs(vcpu, table, num, bmap);
 
 	for (num = 1; num < NR_CP15_REGS; num++)
-		WARN(vcpu_cp15(vcpu, num) == 0x42424242,
+		WARN(!test_bit(num, bmap),
 		     "Didn't reset vcpu_cp15(vcpu, %zi)", num);
 }

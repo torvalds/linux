@@ -36,6 +36,7 @@
 #include <linux/bitops.h>
 
 #define HNS_ROCE_VF_QPC_BT_NUM			256
+#define HNS_ROCE_VF_SCCC_BT_NUM			64
 #define HNS_ROCE_VF_SRQC_BT_NUM			64
 #define HNS_ROCE_VF_CQC_BT_NUM			64
 #define HNS_ROCE_VF_MPT_BT_NUM			64
@@ -44,14 +45,16 @@
 #define HNS_ROCE_VF_SGID_NUM			32
 #define HNS_ROCE_VF_SL_NUM			8
 
-#define HNS_ROCE_V2_MAX_QP_NUM			0x2000
+#define HNS_ROCE_V2_MAX_QP_NUM			0x100000
+#define HNS_ROCE_V2_MAX_QPC_TIMER_NUM		0x200
 #define HNS_ROCE_V2_MAX_WQE_NUM			0x8000
 #define	HNS_ROCE_V2_MAX_SRQ			0x100000
 #define HNS_ROCE_V2_MAX_SRQ_WR			0x8000
 #define HNS_ROCE_V2_MAX_SRQ_SGE			0x100
-#define HNS_ROCE_V2_MAX_CQ_NUM			0x8000
+#define HNS_ROCE_V2_MAX_CQ_NUM			0x100000
+#define HNS_ROCE_V2_MAX_CQC_TIMER_NUM		0x100
 #define HNS_ROCE_V2_MAX_SRQ_NUM			0x100000
-#define HNS_ROCE_V2_MAX_CQE_NUM			0x10000
+#define HNS_ROCE_V2_MAX_CQE_NUM			0x400000
 #define HNS_ROCE_V2_MAX_SRQWQE_NUM		0x8000
 #define HNS_ROCE_V2_MAX_RQ_SGE_NUM		0x100
 #define HNS_ROCE_V2_MAX_SQ_SGE_NUM		0xff
@@ -64,7 +67,7 @@
 #define HNS_ROCE_V2_COMP_VEC_NUM		63
 #define HNS_ROCE_V2_AEQE_VEC_NUM		1
 #define HNS_ROCE_V2_ABNORMAL_VEC_NUM		1
-#define HNS_ROCE_V2_MAX_MTPT_NUM		0x8000
+#define HNS_ROCE_V2_MAX_MTPT_NUM		0x100000
 #define HNS_ROCE_V2_MAX_MTT_SEGS		0x1000000
 #define HNS_ROCE_V2_MAX_CQE_SEGS		0x1000000
 #define HNS_ROCE_V2_MAX_SRQWQE_SEGS		0x1000000
@@ -83,6 +86,9 @@
 #define HNS_ROCE_V2_MTPT_ENTRY_SZ		64
 #define HNS_ROCE_V2_MTT_ENTRY_SZ		64
 #define HNS_ROCE_V2_CQE_ENTRY_SIZE		32
+#define HNS_ROCE_V2_SCCC_ENTRY_SZ		32
+#define HNS_ROCE_V2_QPC_TIMER_ENTRY_SZ		4096
+#define HNS_ROCE_V2_CQC_TIMER_ENTRY_SZ		4096
 #define HNS_ROCE_V2_PAGE_SIZE_SUPPORTED		0xFFFFF000
 #define HNS_ROCE_V2_MAX_INNER_MTPT_NUM		2
 #define HNS_ROCE_INVALID_LKEY			0x100
@@ -90,7 +96,13 @@
 #define HNS_ROCE_V2_UC_RC_SGE_NUM_IN_WQE	2
 #define HNS_ROCE_V2_RSV_QPS			8
 
+#define HNS_ROCE_V2_HW_RST_TIMEOUT		1000
+#define HNS_ROCE_V2_HW_RST_UNINT_DELAY		100
+
+#define HNS_ROCE_V2_HW_RST_COMPLETION_WAIT	20
+
 #define HNS_ROCE_CONTEXT_HOP_NUM		1
+#define HNS_ROCE_SCCC_HOP_NUM			1
 #define HNS_ROCE_MTT_HOP_NUM			1
 #define HNS_ROCE_CQE_HOP_NUM			1
 #define HNS_ROCE_SRQWQE_HOP_NUM			1
@@ -117,8 +129,8 @@
 #define HNS_ROCE_CMD_FLAG_ERR_INTR	BIT(HNS_ROCE_CMD_FLAG_ERR_INTR_SHIFT)
 
 #define HNS_ROCE_CMQ_DESC_NUM_S		3
-#define HNS_ROCE_CMQ_EN_B		16
-#define HNS_ROCE_CMQ_ENABLE		BIT(HNS_ROCE_CMQ_EN_B)
+
+#define HNS_ROCE_CMQ_SCC_CLR_DONE_CNT		5
 
 #define check_whether_last_step(hop_num, step_idx) \
 	((step_idx == 0 && hop_num == HNS_ROCE_HOP_NUM_0) || \
@@ -224,11 +236,16 @@ enum hns_roce_opcode_type {
 	HNS_ROCE_OPC_ALLOC_VF_RES			= 0x8401,
 	HNS_ROCE_OPC_CFG_EXT_LLM			= 0x8403,
 	HNS_ROCE_OPC_CFG_TMOUT_LLM			= 0x8404,
+	HNS_ROCE_OPC_QUERY_PF_TIMER_RES			= 0x8406,
 	HNS_ROCE_OPC_CFG_SGID_TB			= 0x8500,
 	HNS_ROCE_OPC_CFG_SMAC_TB			= 0x8501,
 	HNS_ROCE_OPC_POST_MB				= 0x8504,
 	HNS_ROCE_OPC_QUERY_MB_ST			= 0x8505,
 	HNS_ROCE_OPC_CFG_BT_ATTR			= 0x8506,
+	HNS_ROCE_OPC_FUNC_CLEAR				= 0x8508,
+	HNS_ROCE_OPC_CLR_SCCC				= 0x8509,
+	HNS_ROCE_OPC_QUERY_SCCC				= 0x850a,
+	HNS_ROCE_OPC_RESET_SCCC				= 0x850b,
 	HNS_SWITCH_PARAMETER_CFG			= 0x1033,
 };
 
@@ -704,8 +721,8 @@ struct hns_roce_v2_qp_context {
 #define	V2_QPC_BYTE_148_RAQ_SYNDROME_S 24
 #define V2_QPC_BYTE_148_RAQ_SYNDROME_M GENMASK(31, 24)
 
-#define	V2_QPC_BYTE_152_RAQ_PSN_S 8
-#define V2_QPC_BYTE_152_RAQ_PSN_M GENMASK(31, 8)
+#define	V2_QPC_BYTE_152_RAQ_PSN_S 0
+#define V2_QPC_BYTE_152_RAQ_PSN_M GENMASK(23, 0)
 
 #define	V2_QPC_BYTE_152_RAQ_TRRL_RTY_HEAD_S 24
 #define V2_QPC_BYTE_152_RAQ_TRRL_RTY_HEAD_M GENMASK(31, 24)
@@ -870,6 +887,10 @@ struct hns_roce_v2_qp_context {
 
 #define	V2_QPC_BYTE_256_SQ_FLUSH_IDX_S 16
 #define V2_QPC_BYTE_256_SQ_FLUSH_IDX_M GENMASK(31, 16)
+
+#define	V2_QP_RWE_S 1 /* rdma write enable */
+#define	V2_QP_RRE_S 2 /* rdma read enable */
+#define	V2_QP_ATE_S 3 /* rdma atomic enable */
 
 struct hns_roce_v2_cqe {
 	__le32	byte_4;
@@ -1211,6 +1232,22 @@ struct hns_roce_query_fw_info {
 	__le32 rsv[5];
 };
 
+struct hns_roce_func_clear {
+	__le32 rst_funcid_en;
+	__le32 func_done;
+	__le32 rsv[4];
+};
+
+#define FUNC_CLEAR_RST_FUN_DONE_S 0
+/* Each physical function manages up to 248 virtual functions；
+ * it takes up to 100ms for each function to execute clear；
+ * if an abnormal reset occurs, it is executed twice at most;
+ * so it takes up to 249 * 2 * 100ms.
+ */
+#define HNS_ROCE_V2_FUNC_CLEAR_TIMEOUT_MSECS	(249 * 2 * 100)
+#define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_INTERVAL	40
+#define HNS_ROCE_V2_READ_FUNC_CLEAR_FLAG_FAIL_WAIT	20
+
 struct hns_roce_cfg_llm_a {
 	__le32 base_addr_l;
 	__le32 base_addr_h;
@@ -1300,7 +1337,8 @@ struct hns_roce_pf_res_b {
 	__le32	smac_idx_num;
 	__le32	sgid_idx_num;
 	__le32	qid_idx_sl_num;
-	__le32	rsv[2];
+	__le32	sccc_bt_idx_num;
+	__le32	rsv;
 };
 
 #define PF_RES_DATA_1_PF_SMAC_IDX_S 0
@@ -1320,6 +1358,31 @@ struct hns_roce_pf_res_b {
 
 #define PF_RES_DATA_3_PF_SL_NUM_S 16
 #define PF_RES_DATA_3_PF_SL_NUM_M GENMASK(26, 16)
+
+#define PF_RES_DATA_4_PF_SCCC_BT_IDX_S 0
+#define PF_RES_DATA_4_PF_SCCC_BT_IDX_M GENMASK(8, 0)
+
+#define PF_RES_DATA_4_PF_SCCC_BT_NUM_S 9
+#define PF_RES_DATA_4_PF_SCCC_BT_NUM_M GENMASK(17, 9)
+
+struct hns_roce_pf_timer_res_a {
+	__le32	rsv0;
+	__le32	qpc_timer_bt_idx_num;
+	__le32	cqc_timer_bt_idx_num;
+	__le32	rsv[3];
+};
+
+#define PF_RES_DATA_1_PF_QPC_TIMER_BT_IDX_S 0
+#define PF_RES_DATA_1_PF_QPC_TIMER_BT_IDX_M GENMASK(11, 0)
+
+#define PF_RES_DATA_1_PF_QPC_TIMER_BT_NUM_S 16
+#define PF_RES_DATA_1_PF_QPC_TIMER_BT_NUM_M GENMASK(28, 16)
+
+#define PF_RES_DATA_2_PF_CQC_TIMER_BT_IDX_S 0
+#define PF_RES_DATA_2_PF_CQC_TIMER_BT_IDX_M GENMASK(10, 0)
+
+#define PF_RES_DATA_2_PF_CQC_TIMER_BT_NUM_S 16
+#define PF_RES_DATA_2_PF_CQC_TIMER_BT_NUM_M GENMASK(27, 16)
 
 struct hns_roce_vf_res_a {
 	__le32 vf_id;
@@ -1365,7 +1428,8 @@ struct hns_roce_vf_res_b {
 	__le32 vf_smac_idx_num;
 	__le32 vf_sgid_idx_num;
 	__le32 vf_qid_idx_sl_num;
-	__le32 rsv[2];
+	__le32 vf_sccc_idx_num;
+	__le32 rsv1;
 };
 
 #define VF_RES_B_DATA_0_VF_ID_S 0
@@ -1388,6 +1452,12 @@ struct hns_roce_vf_res_b {
 
 #define VF_RES_B_DATA_3_VF_SL_NUM_S 16
 #define VF_RES_B_DATA_3_VF_SL_NUM_M GENMASK(19, 16)
+
+#define VF_RES_B_DATA_4_VF_SCCC_BT_IDX_S 0
+#define VF_RES_B_DATA_4_VF_SCCC_BT_IDX_M GENMASK(8, 0)
+
+#define VF_RES_B_DATA_4_VF_SCCC_BT_NUM_S 9
+#define VF_RES_B_DATA_4_VF_SCCC_BT_NUM_M GENMASK(17, 9)
 
 struct hns_roce_vf_switch {
 	__le32 rocee_sel;
@@ -1424,7 +1494,8 @@ struct hns_roce_cfg_bt_attr {
 	__le32 vf_srqc_cfg;
 	__le32 vf_cqc_cfg;
 	__le32 vf_mpt_cfg;
-	__le32 rsv[2];
+	__le32 vf_sccc_cfg;
+	__le32 rsv;
 };
 
 #define CFG_BT_ATTR_DATA_0_VF_QPC_BA_PGSZ_S 0
@@ -1462,6 +1533,15 @@ struct hns_roce_cfg_bt_attr {
 
 #define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_S 8
 #define CFG_BT_ATTR_DATA_3_VF_MPT_HOPNUM_M GENMASK(9, 8)
+
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_S 0
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BA_PGSZ_M GENMASK(3, 0)
+
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_S 4
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_BUF_PGSZ_M GENMASK(7, 4)
+
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_S 8
+#define CFG_BT_ATTR_DATA_4_VF_SCCC_HOPNUM_M GENMASK(9, 8)
 
 struct hns_roce_cfg_sgid_tb {
 	__le32	table_idx_rsv;
@@ -1546,6 +1626,7 @@ struct hns_roce_link_table_entry {
 #define HNS_ROCE_LINK_TABLE_NXT_PTR_M GENMASK(31, 20)
 
 struct hns_roce_v2_priv {
+	struct hnae3_handle *handle;
 	struct hns_roce_v2_cmq cmq;
 	struct hns_roce_link_table tsq;
 	struct hns_roce_link_table tpq;
@@ -1729,5 +1810,29 @@ struct hns_roce_wqe_atomic_seg {
 	__le64          fetchadd_swap_data;
 	__le64          cmp_data;
 };
+
+struct hns_roce_sccc_clr {
+	__le32 qpn;
+	__le32 rsv[5];
+};
+
+struct hns_roce_sccc_clr_done {
+	__le32 clr_done;
+	__le32 rsv[5];
+};
+
+int hns_roce_v2_query_cqc_info(struct hns_roce_dev *hr_dev, u32 cqn,
+			       int *buffer);
+
+static inline void hns_roce_write64(struct hns_roce_dev *hr_dev, __le32 val[2],
+				    void __iomem *dest)
+{
+	struct hns_roce_v2_priv *priv = (struct hns_roce_v2_priv *)hr_dev->priv;
+	struct hnae3_handle *handle = priv->handle;
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+
+	if (!hr_dev->dis_db && !ops->get_hw_reset_stat(handle))
+		hns_roce_write64_k(val, dest);
+}
 
 #endif

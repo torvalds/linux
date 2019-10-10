@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for MT9M111/MT9M112/MT9M131 CMOS Image Sensor from Micron/Aptina
  *
  * Copyright (C) 2008, Robert Jarzmik <robert.jarzmik@free.fr>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/videodev2.h>
 #include <linux/slab.h>
@@ -13,6 +10,7 @@
 #include <linux/log2.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 #include <linux/v4l2-mediabus.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -243,6 +241,7 @@ struct mt9m111 {
 	int power_count;
 	const struct mt9m111_datafmt *fmt;
 	int lastpage;	/* PageMap cache value */
+	struct regulator *regulator;
 	bool is_streaming;
 	/* user point of view - 0: falling 1: rising edge */
 	unsigned int pclk_sample:1;
@@ -528,11 +527,24 @@ static int mt9m111_get_fmt(struct v4l2_subdev *sd,
 	if (format->pad)
 		return -EINVAL;
 
+	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+		mf = v4l2_subdev_get_try_format(sd, cfg, format->pad);
+		format->format = *mf;
+		return 0;
+#else
+		return -EINVAL;
+#endif
+	}
+
 	mf->width	= mt9m111->width;
 	mf->height	= mt9m111->height;
 	mf->code	= mt9m111->fmt->code;
 	mf->colorspace	= mt9m111->fmt->colorspace;
 	mf->field	= V4L2_FIELD_NONE;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization	= V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	return 0;
 }
@@ -660,6 +672,10 @@ static int mt9m111_set_fmt(struct v4l2_subdev *sd,
 
 	mf->code = fmt->code;
 	mf->colorspace = fmt->colorspace;
+	mf->field	= V4L2_FIELD_NONE;
+	mf->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	mf->quantization	= V4L2_QUANTIZATION_DEFAULT;
+	mf->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY) {
 		cfg->try_fmt = *mf;
@@ -965,11 +981,23 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 	if (ret < 0)
 		return ret;
 
+	ret = regulator_enable(mt9m111->regulator);
+	if (ret < 0)
+		goto out_clk_disable;
+
 	ret = mt9m111_resume(mt9m111);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
-		v4l2_clk_disable(mt9m111->clk);
-	}
+	if (ret < 0)
+		goto out_regulator_disable;
+
+	return 0;
+
+out_regulator_disable:
+	regulator_disable(mt9m111->regulator);
+
+out_clk_disable:
+	v4l2_clk_disable(mt9m111->clk);
+
+	dev_err(&client->dev, "Failed to resume the sensor: %d\n", ret);
 
 	return ret;
 }
@@ -977,6 +1005,7 @@ static int mt9m111_power_on(struct mt9m111 *mt9m111)
 static void mt9m111_power_off(struct mt9m111 *mt9m111)
 {
 	mt9m111_suspend(mt9m111);
+	regulator_disable(mt9m111->regulator);
 	v4l2_clk_disable(mt9m111->clk);
 }
 
@@ -1089,6 +1118,25 @@ static int mt9m111_s_stream(struct v4l2_subdev *sd, int enable)
 	return 0;
 }
 
+static int mt9m111_init_cfg(struct v4l2_subdev *sd,
+			    struct v4l2_subdev_pad_config *cfg)
+{
+#ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
+	struct v4l2_mbus_framefmt *format =
+		v4l2_subdev_get_try_format(sd, cfg, 0);
+
+	format->width	= MT9M111_MAX_WIDTH;
+	format->height	= MT9M111_MAX_HEIGHT;
+	format->code	= mt9m111_colour_fmts[0].code;
+	format->colorspace	= mt9m111_colour_fmts[0].colorspace;
+	format->field	= V4L2_FIELD_NONE;
+	format->ycbcr_enc	= V4L2_YCBCR_ENC_DEFAULT;
+	format->quantization	= V4L2_QUANTIZATION_DEFAULT;
+	format->xfer_func	= V4L2_XFER_FUNC_DEFAULT;
+#endif
+	return 0;
+}
+
 static int mt9m111_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
@@ -1114,6 +1162,7 @@ static const struct v4l2_subdev_video_ops mt9m111_subdev_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mt9m111_subdev_pad_ops = {
+	.init_cfg	= mt9m111_init_cfg,
 	.enum_mbus_code = mt9m111_enum_mbus_code,
 	.get_selection	= mt9m111_get_selection,
 	.set_selection	= mt9m111_set_selection,
@@ -1194,11 +1243,10 @@ out_put_fw:
 	return ret;
 }
 
-static int mt9m111_probe(struct i2c_client *client,
-			 const struct i2c_device_id *did)
+static int mt9m111_probe(struct i2c_client *client)
 {
 	struct mt9m111 *mt9m111;
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	int ret;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_WORD_DATA)) {
@@ -1211,13 +1259,22 @@ static int mt9m111_probe(struct i2c_client *client,
 	if (!mt9m111)
 		return -ENOMEM;
 
-	ret = mt9m111_probe_fw(client, mt9m111);
-	if (ret)
-		return ret;
+	if (dev_fwnode(&client->dev)) {
+		ret = mt9m111_probe_fw(client, mt9m111);
+		if (ret)
+			return ret;
+	}
 
 	mt9m111->clk = v4l2_clk_get(&client->dev, "mclk");
 	if (IS_ERR(mt9m111->clk))
 		return PTR_ERR(mt9m111->clk);
+
+	mt9m111->regulator = devm_regulator_get(&client->dev, "vdd");
+	if (IS_ERR(mt9m111->regulator)) {
+		dev_err(&client->dev, "regulator not found: %ld\n",
+			PTR_ERR(mt9m111->regulator));
+		return PTR_ERR(mt9m111->regulator);
+	}
 
 	/* Default HIGHPOWER context */
 	mt9m111->ctx = &context_b;
@@ -1273,6 +1330,8 @@ static int mt9m111_probe(struct i2c_client *client,
 	mt9m111->rect.top	= MT9M111_MIN_DARK_ROWS;
 	mt9m111->rect.width	= MT9M111_MAX_WIDTH;
 	mt9m111->rect.height	= MT9M111_MAX_HEIGHT;
+	mt9m111->width		= mt9m111->rect.width;
+	mt9m111->height		= mt9m111->rect.height;
 	mt9m111->fmt		= &mt9m111_colour_fmts[0];
 	mt9m111->lastpage	= -1;
 	mutex_init(&mt9m111->power_lock);
@@ -1328,7 +1387,7 @@ static struct i2c_driver mt9m111_i2c_driver = {
 		.name = "mt9m111",
 		.of_match_table = of_match_ptr(mt9m111_of_match),
 	},
-	.probe		= mt9m111_probe,
+	.probe_new	= mt9m111_probe,
 	.remove		= mt9m111_remove,
 	.id_table	= mt9m111_id,
 };

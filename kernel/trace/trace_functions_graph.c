@@ -137,6 +137,13 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	if (trace_recursion_test(TRACE_GRAPH_NOTRACE_BIT))
 		return 0;
 
+	/*
+	 * Do not trace a function if it's filtered by set_graph_notrace.
+	 * Make the index of ret stack negative to indicate that it should
+	 * ignore further functions.  But it needs its own ret stack entry
+	 * to recover the original index in order to continue tracing after
+	 * returning from the function.
+	 */
 	if (ftrace_graph_notrace_addr(trace->func)) {
 		trace_recursion_set(TRACE_GRAPH_NOTRACE_BIT);
 		/*
@@ -154,16 +161,6 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 
 	if (ftrace_graph_ignore_irqs())
 		return 0;
-
-	/*
-	 * Do not trace a function if it's filtered by set_graph_notrace.
-	 * Make the index of ret stack negative to indicate that it should
-	 * ignore further functions.  But it needs its own ret stack entry
-	 * to recover the original index in order to continue tracing after
-	 * returning from the function.
-	 */
-	if (ftrace_graph_notrace_addr(trace->func))
-		return 1;
 
 	/*
 	 * Stop here if tracing_threshold is set. We only write function return
@@ -380,6 +377,7 @@ static void print_graph_lat_fmt(struct trace_seq *s, struct trace_entry *entry)
 {
 	trace_seq_putc(s, ' ');
 	trace_print_lat_fmt(s, entry);
+	trace_seq_puts(s, " | ");
 }
 
 /* If the pid changed since the last trace, output this event */
@@ -501,6 +499,17 @@ static void print_graph_abs_time(u64 t, struct trace_seq *s)
 }
 
 static void
+print_graph_rel_time(struct trace_iterator *iter, struct trace_seq *s)
+{
+	unsigned long long usecs;
+
+	usecs = iter->ts - iter->trace_buffer->time_start;
+	do_div(usecs, NSEC_PER_USEC);
+
+	trace_seq_printf(s, "%9llu us |  ", usecs);
+}
+
+static void
 print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 		enum trace_type type, int cpu, pid_t pid, u32 flags)
 {
@@ -516,6 +525,10 @@ print_graph_irq(struct trace_iterator *iter, unsigned long addr,
 		/* Absolute time */
 		if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 			print_graph_abs_time(iter->ts, s);
+
+		/* Relative time */
+		if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+			print_graph_rel_time(iter, s);
 
 		/* Cpu */
 		if (flags & TRACE_GRAPH_PRINT_CPU)
@@ -724,6 +737,10 @@ print_graph_prologue(struct trace_iterator *iter, struct trace_seq *s,
 	/* Absolute time */
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 		print_graph_abs_time(iter->ts, s);
+
+	/* Relative time */
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+		print_graph_rel_time(iter, s);
 
 	/* Cpu */
 	if (flags & TRACE_GRAPH_PRINT_CPU)
@@ -1101,6 +1118,8 @@ static void print_lat_header(struct seq_file *s, u32 flags)
 
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 		size += 16;
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+		size += 16;
 	if (flags & TRACE_GRAPH_PRINT_CPU)
 		size += 4;
 	if (flags & TRACE_GRAPH_PRINT_PROC)
@@ -1125,12 +1144,14 @@ static void __print_graph_headers_flags(struct trace_array *tr,
 	seq_putc(s, '#');
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 		seq_puts(s, "     TIME       ");
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+		seq_puts(s, "   REL TIME     ");
 	if (flags & TRACE_GRAPH_PRINT_CPU)
 		seq_puts(s, " CPU");
 	if (flags & TRACE_GRAPH_PRINT_PROC)
 		seq_puts(s, "  TASK/PID       ");
 	if (lat)
-		seq_puts(s, "||||");
+		seq_puts(s, "||||   ");
 	if (flags & TRACE_GRAPH_PRINT_DURATION)
 		seq_puts(s, "  DURATION   ");
 	seq_puts(s, "               FUNCTION CALLS\n");
@@ -1139,12 +1160,14 @@ static void __print_graph_headers_flags(struct trace_array *tr,
 	seq_putc(s, '#');
 	if (flags & TRACE_GRAPH_PRINT_ABS_TIME)
 		seq_puts(s, "      |         ");
+	if (flags & TRACE_GRAPH_PRINT_REL_TIME)
+		seq_puts(s, "      |         ");
 	if (flags & TRACE_GRAPH_PRINT_CPU)
 		seq_puts(s, " |  ");
 	if (flags & TRACE_GRAPH_PRINT_PROC)
 		seq_puts(s, "   |    |        ");
 	if (lat)
-		seq_puts(s, "||||");
+		seq_puts(s, "||||   ");
 	if (flags & TRACE_GRAPH_PRINT_DURATION)
 		seq_puts(s, "   |   |      ");
 	seq_puts(s, "               |   |   |   |\n");

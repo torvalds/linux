@@ -247,7 +247,7 @@ int nfp_abm_setup_tc_mq(struct net_device *netdev, struct nfp_abm_link *alink,
 int nfp_abm_setup_tc_gred(struct net_device *netdev, struct nfp_abm_link *alink,
 			  struct tc_gred_qopt_offload *opt);
 int nfp_abm_setup_cls_block(struct net_device *netdev, struct nfp_repr *repr,
-			    struct tc_block_offload *opt);
+			    struct flow_block_offload *opt);
 
 int nfp_abm_ctrl_read_params(struct nfp_abm_link *alink);
 int nfp_abm_ctrl_find_addrs(struct nfp_abm *abm);

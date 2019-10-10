@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Amlogic Meson6 and Meson8 DWMAC glue layer
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/device.h>
@@ -52,7 +46,6 @@ static int meson6_dwmac_probe(struct platform_device *pdev)
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
 	struct meson_dwmac *dwmac;
-	struct resource *res;
 	int ret;
 
 	ret = stmmac_get_platform_resources(pdev, &stmmac_res);
@@ -69,8 +62,7 @@ static int meson6_dwmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dwmac->reg = devm_ioremap_resource(&pdev->dev, res);
+	dwmac->reg = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwmac->reg)) {
 		ret = PTR_ERR(dwmac->reg);
 		goto err_remove_config_dt;

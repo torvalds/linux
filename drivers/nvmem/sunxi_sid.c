@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Allwinner sunXi SoCs Security ID support.
  *
  * Copyright (c) 2013 Oliver Schinagl <oliver@schinagl.nl>
  * Copyright (C) 2014 Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/device.h>
@@ -35,13 +26,6 @@
 #define SUN8I_SID_OP_LOCK	(0xAC << 8)
 #define SUN8I_SID_READ		BIT(1)
 
-static struct nvmem_config econfig = {
-	.name = "sunxi-sid",
-	.read_only = true,
-	.stride = 4,
-	.word_size = 1,
-};
-
 struct sunxi_sid_cfg {
 	u32	value_offset;
 	u32	size;
@@ -53,33 +37,12 @@ struct sunxi_sid {
 	u32			value_offset;
 };
 
-/* We read the entire key, due to a 32 bit read alignment requirement. Since we
- * want to return the requested byte, this results in somewhat slower code and
- * uses 4 times more reads as needed but keeps code simpler. Since the SID is
- * only very rarely probed, this is not really an issue.
- */
-static u8 sunxi_sid_read_byte(const struct sunxi_sid *sid,
-			      const unsigned int offset)
-{
-	u32 sid_key;
-
-	sid_key = ioread32be(sid->base + round_down(offset, 4));
-	sid_key >>= (offset % 4) * 8;
-
-	return sid_key; /* Only return the last byte */
-}
-
 static int sunxi_sid_read(void *context, unsigned int offset,
 			  void *val, size_t bytes)
 {
 	struct sunxi_sid *sid = context;
-	u8 *buf = val;
 
-	/* Offset the read operation to the real position of SID */
-	offset += sid->value_offset;
-
-	while (bytes--)
-		*buf++ = sunxi_sid_read_byte(sid, offset++);
+	memcpy_fromio(val, sid->base + sid->value_offset + offset, bytes);
 
 	return 0;
 }
@@ -115,35 +78,33 @@ static int sun8i_sid_register_readout(const struct sunxi_sid *sid,
  * to be not reliable at all.
  * Read by the registers instead.
  */
-static int sun8i_sid_read_byte_by_reg(const struct sunxi_sid *sid,
-				      const unsigned int offset,
-				      u8 *out)
-{
-	u32 word;
-	int ret;
-
-	ret = sun8i_sid_register_readout(sid, offset & ~0x03, &word);
-
-	if (ret)
-		return ret;
-
-	*out = (word >> ((offset & 0x3) * 8)) & 0xff;
-
-	return 0;
-}
-
 static int sun8i_sid_read_by_reg(void *context, unsigned int offset,
 				 void *val, size_t bytes)
 {
 	struct sunxi_sid *sid = context;
-	u8 *buf = val;
+	u32 word;
 	int ret;
 
-	while (bytes--) {
-		ret = sun8i_sid_read_byte_by_reg(sid, offset++, buf++);
+	/* .stride = 4 so offset is guaranteed to be aligned */
+	while (bytes >= 4) {
+		ret = sun8i_sid_register_readout(sid, offset, val);
 		if (ret)
 			return ret;
+
+		val += 4;
+		offset += 4;
+		bytes -= 4;
 	}
+
+	if (!bytes)
+		return 0;
+
+	/* Handle any trailing bytes */
+	ret = sun8i_sid_register_readout(sid, offset, &word);
+	if (ret)
+		return ret;
+
+	memcpy(val, &word, bytes);
 
 	return 0;
 }
@@ -152,9 +113,10 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct resource *res;
+	struct nvmem_config *nvmem_cfg;
 	struct nvmem_device *nvmem;
 	struct sunxi_sid *sid;
-	int i, size;
+	int size;
 	char *randomness;
 	const struct sunxi_sid_cfg *cfg;
 
@@ -174,14 +136,23 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 
 	size = cfg->size;
 
-	econfig.size = size;
-	econfig.dev = dev;
+	nvmem_cfg = devm_kzalloc(dev, sizeof(*nvmem_cfg), GFP_KERNEL);
+	if (!nvmem_cfg)
+		return -ENOMEM;
+
+	nvmem_cfg->dev = dev;
+	nvmem_cfg->name = "sunxi-sid";
+	nvmem_cfg->read_only = true;
+	nvmem_cfg->size = cfg->size;
+	nvmem_cfg->word_size = 1;
+	nvmem_cfg->stride = 4;
+	nvmem_cfg->priv = sid;
 	if (cfg->need_register_readout)
-		econfig.reg_read = sun8i_sid_read_by_reg;
+		nvmem_cfg->reg_read = sun8i_sid_read_by_reg;
 	else
-		econfig.reg_read = sunxi_sid_read;
-	econfig.priv = sid;
-	nvmem = devm_nvmem_register(dev, &econfig);
+		nvmem_cfg->reg_read = sunxi_sid_read;
+
+	nvmem = devm_nvmem_register(dev, nvmem_cfg);
 	if (IS_ERR(nvmem))
 		return PTR_ERR(nvmem);
 
@@ -189,9 +160,7 @@ static int sunxi_sid_probe(struct platform_device *pdev)
 	if (!randomness)
 		return -ENOMEM;
 
-	for (i = 0; i < size; i++)
-		econfig.reg_read(sid, i, &randomness[i], 1);
-
+	nvmem_cfg->reg_read(sid, 0, randomness, size);
 	add_device_randomness(randomness, size);
 	kfree(randomness);
 
@@ -217,13 +186,22 @@ static const struct sunxi_sid_cfg sun8i_h3_cfg = {
 static const struct sunxi_sid_cfg sun50i_a64_cfg = {
 	.value_offset = 0x200,
 	.size = 0x100,
+	.need_register_readout = true,
+};
+
+static const struct sunxi_sid_cfg sun50i_h6_cfg = {
+	.value_offset = 0x200,
+	.size = 0x200,
 };
 
 static const struct of_device_id sunxi_sid_of_match[] = {
 	{ .compatible = "allwinner,sun4i-a10-sid", .data = &sun4i_a10_cfg },
 	{ .compatible = "allwinner,sun7i-a20-sid", .data = &sun7i_a20_cfg },
+	{ .compatible = "allwinner,sun8i-a83t-sid", .data = &sun50i_a64_cfg },
 	{ .compatible = "allwinner,sun8i-h3-sid", .data = &sun8i_h3_cfg },
 	{ .compatible = "allwinner,sun50i-a64-sid", .data = &sun50i_a64_cfg },
+	{ .compatible = "allwinner,sun50i-h5-sid", .data = &sun50i_a64_cfg },
+	{ .compatible = "allwinner,sun50i-h6-sid", .data = &sun50i_h6_cfg },
 	{/* sentinel */},
 };
 MODULE_DEVICE_TABLE(of, sunxi_sid_of_match);

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IPMI device configuration
 #
@@ -18,6 +19,10 @@ menuconfig IPMI_HANDLER
 	 If unsure, say N.
 
 config IPMI_DMI_DECODE
+       select IPMI_PLAT_DATA
+       bool
+
+config IPMI_PLAT_DATA
        bool
 
 if IPMI_HANDLER
@@ -56,6 +61,7 @@ config IPMI_DEVICE_INTERFACE
 
 config IPMI_SI
        tristate 'IPMI System Interface handler'
+       select IPMI_PLAT_DATA
        help
          Provides a driver for System Interfaces (KCS, SMIC, BT).
 	 Currently, only KCS and SMIC are supported.  If
@@ -126,3 +132,12 @@ config ASPEED_BT_IPMI_BMC
 	  Provides a driver for the BT (Block Transfer) IPMI interface
 	  found on Aspeed SOCs (AST2400 and AST2500). The driver
 	  implements the BMC side of the BT interface.
+
+config IPMB_DEVICE_INTERFACE
+	tristate 'IPMB Interface handler'
+	depends on I2C
+	depends on I2C_SLAVE
+	help
+	  Provides a driver for a device (Satellite MC) to
+	  receive requests and send responses back to the BMC via
+	  the IPMB interface. This module requires I2C support.

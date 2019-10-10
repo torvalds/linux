@@ -1943,7 +1943,7 @@ qede_parse_flow_attr(struct qede_dev *edev, __be16 proto,
 }
 
 int qede_add_tc_flower_fltr(struct qede_dev *edev, __be16 proto,
-			    struct tc_cls_flower_offload *f)
+			    struct flow_cls_offload *f)
 {
 	struct qede_arfs_fltr_node *n;
 	int min_hlen, rc = -EINVAL;

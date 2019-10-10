@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Oleksij Rempel <linux@rempel-privat.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License,
- * or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -261,10 +257,8 @@ static int asm9260_rtc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, priv);
 
 	irq_alarm = platform_get_irq(pdev, 0);
-	if (irq_alarm < 0) {
-		dev_err(dev, "No alarm IRQ resource defined\n");
+	if (irq_alarm < 0)
 		return irq_alarm;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	priv->iobase = devm_ioremap_resource(dev, res);

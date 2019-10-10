@@ -10,15 +10,9 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_da_format.h"
 #include "xfs_inode.h"
 #include "xfs_btree.h"
-#include "xfs_trans.h"
-#include "xfs_bit.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
-#include "scrub/common.h"
 
 /* Figure out which block the btree cursor was pointing to. */
 static inline xfs_fsblock_t

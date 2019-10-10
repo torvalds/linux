@@ -30,6 +30,10 @@
 #include "dal_asic_id.h"
 #include "dm_pp_smu.h"
 
+#define MEMORY_TYPE_MULTIPLIER_CZ 4
+#define MEMORY_TYPE_HBM 2
+
+
 enum dce_version resource_parse_asic_id(
 		struct hw_asic_id asic_id);
 
@@ -42,6 +46,12 @@ struct resource_caps {
 	int num_pll;
 	int num_dwb;
 	int num_ddc;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	int num_vmid;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	int num_dsc;
+#endif
+#endif
 };
 
 struct resource_straps {
@@ -70,11 +80,9 @@ bool resource_construct(
 	struct resource_pool *pool,
 	const struct resource_create_funcs *create_funcs);
 
-struct resource_pool *dc_create_resource_pool(
-				struct dc *dc,
-				int num_virtual_links,
-				enum dce_version dc_version,
-				struct hw_asic_id asic_id);
+struct resource_pool *dc_create_resource_pool(struct dc  *dc,
+					      const struct dc_init_data *init_data,
+					      enum dce_version dc_version);
 
 void dc_destroy_resource_pool(struct dc *dc);
 
@@ -131,7 +139,8 @@ bool resource_attach_surfaces_to_context(
 
 struct pipe_ctx *find_idle_secondary_pipe(
 		struct resource_context *res_ctx,
-		const struct resource_pool *pool);
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe);
 
 bool resource_is_stream_unchanged(
 	struct dc_state *old_context, struct dc_stream_state *stream);

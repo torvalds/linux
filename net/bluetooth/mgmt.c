@@ -2301,8 +2301,7 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 				       MGMT_STATUS_INVALID_PARAMS);
 	}
 
-	expected_len = sizeof(*cp) + key_count *
-					sizeof(struct mgmt_link_key_info);
+	expected_len = struct_size(cp, keys, key_count);
 	if (expected_len != len) {
 		bt_dev_err(hdev, "load_link_keys: expected %u bytes, got %u bytes",
 			   expected_len, len);
@@ -2589,7 +2588,6 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 {
 	struct mgmt_rp_get_connections *rp;
 	struct hci_conn *c;
-	size_t rp_len;
 	int err;
 	u16 i;
 
@@ -2609,8 +2607,7 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 			i++;
 	}
 
-	rp_len = sizeof(*rp) + (i * sizeof(struct mgmt_addr_info));
-	rp = kmalloc(rp_len, GFP_KERNEL);
+	rp = kmalloc(struct_size(rp, addr, i), GFP_KERNEL);
 	if (!rp) {
 		err = -ENOMEM;
 		goto unlock;
@@ -2630,10 +2627,8 @@ static int get_connections(struct sock *sk, struct hci_dev *hdev, void *data,
 	rp->conn_count = cpu_to_le16(i);
 
 	/* Recalculate length in case of filtered SCO connections, etc */
-	rp_len = sizeof(*rp) + (i * sizeof(struct mgmt_addr_info));
-
 	err = mgmt_cmd_complete(sk, hdev->id, MGMT_OP_GET_CONNECTIONS, 0, rp,
-				rp_len);
+				struct_size(rp, addr, i));
 
 	kfree(rp);
 
@@ -5030,7 +5025,7 @@ static int load_irks(struct sock *sk, struct hci_dev *hdev, void *cp_data,
 				       MGMT_STATUS_INVALID_PARAMS);
 	}
 
-	expected_len = sizeof(*cp) + irk_count * sizeof(struct mgmt_irk_info);
+	expected_len = struct_size(cp, irks, irk_count);
 	if (expected_len != len) {
 		bt_dev_err(hdev, "load_irks: expected %u bytes, got %u bytes",
 			   expected_len, len);
@@ -5112,8 +5107,7 @@ static int load_long_term_keys(struct sock *sk, struct hci_dev *hdev,
 				       MGMT_STATUS_INVALID_PARAMS);
 	}
 
-	expected_len = sizeof(*cp) + key_count *
-					sizeof(struct mgmt_ltk_info);
+	expected_len = struct_size(cp, keys, key_count);
 	if (expected_len != len) {
 		bt_dev_err(hdev, "load_keys: expected %u bytes, got %u bytes",
 			   expected_len, len);
@@ -5847,8 +5841,7 @@ static int load_conn_param(struct sock *sk, struct hci_dev *hdev, void *data,
 				       MGMT_STATUS_INVALID_PARAMS);
 	}
 
-	expected_len = sizeof(*cp) + param_count *
-					sizeof(struct mgmt_conn_param);
+	expected_len = struct_size(cp, params, param_count);
 	if (expected_len != len) {
 		bt_dev_err(hdev, "load_conn_param: expected %u bytes, got %u bytes",
 			   expected_len, len);

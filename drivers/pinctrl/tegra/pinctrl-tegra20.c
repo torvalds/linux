@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Pinctrl data for the NVIDIA Tegra20 pinmux
  *
@@ -8,15 +9,6 @@
  * Derived from code:
  * Copyright (C) 2010 Google, Inc.
  * Copyright (C) 2010 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/clk-provider.h>
@@ -1997,13 +1989,13 @@ static struct tegra_function tegra20_functions[] = {
 		.tri_reg = ((tri_r) - TRISTATE_REG_A),		\
 		.tri_bank = 0,					\
 		.tri_bit = tri_b,				\
-		.parked_bit = -1,				\
 		.einput_bit = -1,				\
 		.odrain_bit = -1,				\
 		.lock_bit = -1,					\
 		.ioreset_bit = -1,				\
 		.rcv_sel_bit = -1,				\
 		.drv_reg = -1,					\
+		.parked_bitmask = 0,				\
 	}
 
 /* Pin groups with only pull up and pull down control */
@@ -2017,7 +2009,7 @@ static struct tegra_function tegra20_functions[] = {
 		.pupd_bank = 2,					\
 		.pupd_bit = pupd_b,				\
 		.drv_reg = -1,					\
-		.parked_bit = -1,				\
+		.parked_bitmask = 0,				\
 	}
 
 /* Pin groups for drive strength registers (configurable version) */
@@ -2033,7 +2025,7 @@ static struct tegra_function tegra20_functions[] = {
 		.tri_reg = -1,					\
 		.drv_reg = ((r) - PINGROUP_REG_A),		\
 		.drv_bank = 3,					\
-		.parked_bit = -1,				\
+		.parked_bitmask = 0,				\
 		.hsm_bit = hsm_b,				\
 		.schmitt_bit = schmitt_b,			\
 		.lpmd_bit = lpmd_b,				\

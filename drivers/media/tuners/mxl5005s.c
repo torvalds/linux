@@ -3584,7 +3584,7 @@ static u32 MXL_Ceiling(u32 value, u32 resolution)
 	return value / resolution + (value % resolution > 0 ? 1 : 0);
 }
 
-/* Retrieve the Initialzation Registers */
+/* Retrieve the Initialization Registers */
 static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count)
 {

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2013 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/efi.h>
@@ -711,7 +700,6 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 	size_t mp_path_len;
 	u32 i, j;
 	char end = '\0';
-	size_t reqsz;
 
 	for (i = 0; i < table_size; i++) {
 		if (mapping_table[i].chipid == chip &&
@@ -726,8 +714,7 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 		return NULL;
 	}
 
-	reqsz = sizeof(*fwreq) + n_fwnames * sizeof(struct brcmf_fw_item);
-	fwreq = kzalloc(reqsz, GFP_KERNEL);
+	fwreq = kzalloc(struct_size(fwreq, items, n_fwnames), GFP_KERNEL);
 	if (!fwreq)
 		return NULL;
 
@@ -743,6 +730,7 @@ brcmf_fw_alloc_request(u32 chip, u32 chiprev,
 
 	for (j = 0; j < n_fwnames; j++) {
 		fwreq->items[j].path = fwnames[j].path;
+		fwnames[j].path[0] = '\0';
 		/* check if firmware path is provided by module parameter */
 		if (brcmf_mp_global.firmware_path[0] != '\0') {
 			strlcpy(fwnames[j].path, mp_path,

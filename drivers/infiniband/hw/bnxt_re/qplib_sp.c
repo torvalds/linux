@@ -119,7 +119,8 @@ int bnxt_qplib_get_dev_attr(struct bnxt_qplib_rcfw *rcfw,
 	 * reporting the max number
 	 */
 	attr->max_qp_wqes -= BNXT_QPLIB_RESERVED_QP_WRS;
-	attr->max_qp_sges = sb->max_sge;
+	attr->max_qp_sges = bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx) ?
+			    6 : sb->max_sge;
 	attr->max_cq = le32_to_cpu(sb->max_cq);
 	attr->max_cq_wqes = le32_to_cpu(sb->max_cqe);
 	attr->max_cq_sges = attr->max_qp_sges;
@@ -212,12 +213,12 @@ int bnxt_qplib_get_sgid(struct bnxt_qplib_res *res,
 			index, sgid_tbl->max);
 		return -EINVAL;
 	}
-	memcpy(gid, &sgid_tbl->tbl[index], sizeof(*gid));
+	memcpy(gid, &sgid_tbl->tbl[index].gid, sizeof(*gid));
 	return 0;
 }
 
 int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
-			struct bnxt_qplib_gid *gid, bool update)
+			struct bnxt_qplib_gid *gid, u16 vlan_id, bool update)
 {
 	struct bnxt_qplib_res *res = to_bnxt_qplib(sgid_tbl,
 						   struct bnxt_qplib_res,
@@ -235,7 +236,8 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		return -ENOMEM;
 	}
 	for (index = 0; index < sgid_tbl->max; index++) {
-		if (!memcmp(&sgid_tbl->tbl[index], gid, sizeof(*gid)))
+		if (!memcmp(&sgid_tbl->tbl[index].gid, gid, sizeof(*gid)) &&
+		    vlan_id == sgid_tbl->tbl[index].vlan_id)
 			break;
 	}
 	if (index == sgid_tbl->max) {
@@ -261,8 +263,9 @@ int bnxt_qplib_del_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 		if (rc)
 			return rc;
 	}
-	memcpy(&sgid_tbl->tbl[index], &bnxt_qplib_gid_zero,
+	memcpy(&sgid_tbl->tbl[index].gid, &bnxt_qplib_gid_zero,
 	       sizeof(bnxt_qplib_gid_zero));
+	sgid_tbl->tbl[index].vlan_id = 0xFFFF;
 	sgid_tbl->vlan[index] = 0;
 	sgid_tbl->active--;
 	dev_dbg(&res->pdev->dev,
@@ -295,7 +298,8 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	}
 	free_idx = sgid_tbl->max;
 	for (i = 0; i < sgid_tbl->max; i++) {
-		if (!memcmp(&sgid_tbl->tbl[i], gid, sizeof(*gid))) {
+		if (!memcmp(&sgid_tbl->tbl[i], gid, sizeof(*gid)) &&
+		    sgid_tbl->tbl[i].vlan_id == vlan_id) {
 			dev_dbg(&res->pdev->dev,
 				"SGID entry already exist in entry %d!\n", i);
 			*index = i;
@@ -350,6 +354,7 @@ int bnxt_qplib_add_sgid(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 	}
 	/* Add GID to the sgid_tbl */
 	memcpy(&sgid_tbl->tbl[free_idx], gid, sizeof(*gid));
+	sgid_tbl->tbl[free_idx].vlan_id = vlan_id;
 	sgid_tbl->active++;
 	if (vlan_id != 0xFFFF)
 		sgid_tbl->vlan[free_idx] = 1;
@@ -531,25 +536,21 @@ int bnxt_qplib_create_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
 	return 0;
 }
 
-int bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
-			  bool block)
+void bnxt_qplib_destroy_ah(struct bnxt_qplib_res *res, struct bnxt_qplib_ah *ah,
+			   bool block)
 {
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_destroy_ah req;
 	struct creq_destroy_ah_resp resp;
 	u16 cmd_flags = 0;
-	int rc;
 
 	/* Clean up the AH table in the device */
 	RCFW_CMD_PREP(req, DESTROY_AH, cmd_flags);
 
 	req.ah_cid = cpu_to_le32(ah->id);
 
-	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
-					  NULL, block);
-	if (rc)
-		return rc;
-	return 0;
+	bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp, NULL,
+				     block);
 }
 
 /* MRW */
@@ -683,7 +684,7 @@ int bnxt_qplib_reg_mr(struct bnxt_qplib_res *res, struct bnxt_qplib_mrw *mr,
 
 		mr->hwq.max_elements = pages;
 		/* Use system PAGE_SIZE */
-		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL, 0,
+		rc = bnxt_qplib_alloc_init_hwq(res->pdev, &mr->hwq, NULL,
 					       &mr->hwq.max_elements,
 					       PAGE_SIZE, 0, PAGE_SIZE,
 					       HWQ_TYPE_CTX);
@@ -753,7 +754,7 @@ int bnxt_qplib_alloc_fast_reg_page_list(struct bnxt_qplib_res *res,
 		return -ENOMEM;
 
 	frpl->hwq.max_elements = pages;
-	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &frpl->hwq, NULL, 0,
+	rc = bnxt_qplib_alloc_init_hwq(res->pdev, &frpl->hwq, NULL,
 				       &frpl->hwq.max_elements, PAGE_SIZE, 0,
 				       PAGE_SIZE, HWQ_TYPE_CTX);
 	if (!rc)

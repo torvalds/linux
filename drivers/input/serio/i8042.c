@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  i8042 keyboard and mouse controller driver for Linux
  *
  *  Copyright (c) 1999-2004 Vojtech Pavlik
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -436,6 +432,20 @@ static int i8042_start(struct serio *serio)
 {
 	struct i8042_port *port = serio->port_data;
 
+	device_set_wakeup_capable(&serio->dev, true);
+
+	/*
+	 * On platforms using suspend-to-idle, allow the keyboard to
+	 * wake up the system from sleep by enabling keyboard wakeups
+	 * by default.  This is consistent with keyboard wakeup
+	 * behavior on many platforms using suspend-to-RAM (ACPI S3)
+	 * by default.
+	 */
+	if (pm_suspend_default_s2idle() &&
+	    serio == i8042_ports[I8042_KBD_PORT_NO].serio) {
+		device_set_wakeup_enable(&serio->dev, true);
+	}
+
 	spin_lock_irq(&i8042_lock);
 	port->exists = true;
 	spin_unlock_irq(&i8042_lock);
@@ -572,9 +582,6 @@ static irqreturn_t i8042_interrupt(int irq, void *dev_id)
 
 	port = &i8042_ports[port_no];
 	serio = port->exists ? port->serio : NULL;
-
-	if (irq && serio)
-		pm_wakeup_event(&serio->dev, 0);
 
 	filter_dbg(port->driver_bound, data, "<- i8042 (interrupt, %d, %d%s%s)\n",
 		   port_no, irq,
@@ -1404,17 +1411,6 @@ static void __init i8042_register_ports(void)
 			(unsigned long) I8042_COMMAND_REG,
 			i8042_ports[i].irq);
 		serio_register_port(serio);
-		device_set_wakeup_capable(&serio->dev, true);
-
-		/*
-		 * On platforms using suspend-to-idle, allow the keyboard to
-		 * wake up the system from sleep by enabling keyboard wakeups
-		 * by default.  This is consistent with keyboard wakeup
-		 * behavior on many platforms using suspend-to-RAM (ACPI S3)
-		 * by default.
-		 */
-		if (pm_suspend_via_s2idle() && i == I8042_KBD_PORT_NO)
-			device_set_wakeup_enable(&serio->dev, true);
 	}
 }
 

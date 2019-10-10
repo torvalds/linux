@@ -4101,9 +4101,13 @@ def_access_ibp_counter(rc_dupreq);
 def_access_ibp_counter(rdma_seq);
 def_access_ibp_counter(unaligned);
 def_access_ibp_counter(seq_naks);
+def_access_ibp_counter(rc_crwaits);
 
 static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 [C_RCV_OVF] = RXE32_DEV_CNTR_ELEM(RcvOverflow, RCV_BUF_OVFL_CNT, CNTR_SYNTH),
+[C_RX_LEN_ERR] = RXE32_DEV_CNTR_ELEM(RxLenErr, RCV_LENGTH_ERR_CNT, CNTR_SYNTH),
+[C_RX_ICRC_ERR] = RXE32_DEV_CNTR_ELEM(RxICrcErr, RCV_ICRC_ERR_CNT, CNTR_SYNTH),
+[C_RX_EBP] = RXE32_DEV_CNTR_ELEM(RxEbpCnt, RCV_EBP_CNT, CNTR_SYNTH),
 [C_RX_TID_FULL] = RXE32_DEV_CNTR_ELEM(RxTIDFullEr, RCV_TID_FULL_ERR_CNT,
 			CNTR_NORMAL),
 [C_RX_TID_INVALID] = RXE32_DEV_CNTR_ELEM(RxTIDInvalid, RCV_TID_VALID_ERR_CNT,
@@ -4253,6 +4257,8 @@ static struct cntr_entry dev_cntrs[DEV_CNTR_LAST] = {
 			    access_sw_pio_drain),
 [C_SW_KMEM_WAIT] = CNTR_ELEM("KmemWait", 0, 0, CNTR_NORMAL,
 			    access_sw_kmem_wait),
+[C_SW_TID_WAIT] = CNTR_ELEM("TidWait", 0, 0, CNTR_NORMAL,
+			    hfi1_access_sw_tid_wait),
 [C_SW_SEND_SCHED] = CNTR_ELEM("SendSched", 0, 0, CNTR_NORMAL,
 			    access_sw_send_schedule),
 [C_SDMA_DESC_FETCHED_CNT] = CNTR_ELEM("SDEDscFdCn",
@@ -5114,6 +5120,7 @@ static struct cntr_entry port_cntrs[PORT_CNTR_LAST] = {
 [C_SW_IBP_RDMA_SEQ] = SW_IBP_CNTR(RdmaSeq, rdma_seq),
 [C_SW_IBP_UNALIGNED] = SW_IBP_CNTR(Unaligned, unaligned),
 [C_SW_IBP_SEQ_NAK] = SW_IBP_CNTR(SeqNak, seq_naks),
+[C_SW_IBP_RC_CRWAITS] = SW_IBP_CNTR(RcCrWait, rc_crwaits),
 [C_SW_CPU_RC_ACKS] = CNTR_ELEM("RcAcks", 0, 0, CNTR_NORMAL,
 			       access_sw_cpu_rc_acks),
 [C_SW_CPU_RC_QACKS] = CNTR_ELEM("RcQacks", 0, 0, CNTR_NORMAL,
@@ -5220,6 +5227,17 @@ int is_bx(struct hfi1_devdata *dd)
 		dd->revision >> CCE_REVISION_CHIP_REV_MINOR_SHIFT
 			& CCE_REVISION_CHIP_REV_MINOR_MASK;
 	return (chip_rev_minor & 0xF0) == 0x10;
+}
+
+/* return true is kernel urg disabled for rcd */
+bool is_urg_masked(struct hfi1_ctxtdata *rcd)
+{
+	u64 mask;
+	u32 is = IS_RCVURGENT_START + rcd->ctxt;
+	u8 bit = is % 64;
+
+	mask = read_csr(rcd->dd, CCE_INT_MASK + (8 * (is / 64)));
+	return !(mask & BIT_ULL(bit));
 }
 
 /*
@@ -8352,7 +8370,6 @@ static inline void clear_recv_intr(struct hfi1_ctxtdata *rcd)
 	struct hfi1_devdata *dd = rcd->dd;
 	u32 addr = CCE_INT_CLEAR + (8 * rcd->ireg);
 
-	mmiowb();	/* make sure everything before is written */
 	write_csr(dd, addr, rcd->imask);
 	/* force the above write on the chip and get a value back */
 	(void)read_csr(dd, addr);
@@ -9835,6 +9852,7 @@ void hfi1_quiet_serdes(struct hfi1_pportdata *ppd)
 
 	/* disable the port */
 	clear_rcvctrl(dd, RCV_CTRL_RCV_PORT_ENABLE_SMASK);
+	cancel_work_sync(&ppd->freeze_work);
 }
 
 static inline int init_cpu_counters(struct hfi1_devdata *dd)
@@ -11790,12 +11808,10 @@ void update_usrhead(struct hfi1_ctxtdata *rcd, u32 hd, u32 updegr, u32 egrhd,
 			<< RCV_EGR_INDEX_HEAD_HEAD_SHIFT;
 		write_uctxt_csr(dd, ctxt, RCV_EGR_INDEX_HEAD, reg);
 	}
-	mmiowb();
 	reg = ((u64)rcv_intr_count << RCV_HDR_HEAD_COUNTER_SHIFT) |
 		(((u64)hd & RCV_HDR_HEAD_HEAD_MASK)
 			<< RCV_HDR_HEAD_HEAD_SHIFT);
 	write_uctxt_csr(dd, ctxt, RCV_HDR_HEAD, reg);
-	mmiowb();
 }
 
 u32 hdrqempty(struct hfi1_ctxtdata *rcd)
@@ -13219,7 +13235,7 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 	int total_contexts;
 	int ret;
 	unsigned ngroups;
-	int qos_rmt_count;
+	int rmt_count;
 	int user_rmt_reduced;
 	u32 n_usr_ctxts;
 	u32 send_contexts = chip_send_contexts(dd);
@@ -13281,10 +13297,23 @@ static int set_up_context_variables(struct hfi1_devdata *dd)
 		n_usr_ctxts = rcv_contexts - total_contexts;
 	}
 
-	/* each user context requires an entry in the RMT */
-	qos_rmt_count = qos_rmt_entries(dd, NULL, NULL);
-	if (qos_rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
-		user_rmt_reduced = NUM_MAP_ENTRIES - qos_rmt_count;
+	/*
+	 * The RMT entries are currently allocated as shown below:
+	 * 1. QOS (0 to 128 entries);
+	 * 2. FECN (num_kernel_context - 1 + num_user_contexts +
+	 *    num_vnic_contexts);
+	 * 3. VNIC (num_vnic_contexts).
+	 * It should be noted that FECN oversubscribe num_vnic_contexts
+	 * entries of RMT because both VNIC and PSM could allocate any receive
+	 * context between dd->first_dyn_alloc_text and dd->num_rcv_contexts,
+	 * and PSM FECN must reserve an RMT entry for each possible PSM receive
+	 * context.
+	 */
+	rmt_count = qos_rmt_entries(dd, NULL, NULL) + (num_vnic_contexts * 2);
+	if (HFI1_CAP_IS_KSET(TID_RDMA))
+		rmt_count += num_kernel_contexts - 1;
+	if (rmt_count + n_usr_ctxts > NUM_MAP_ENTRIES) {
+		user_rmt_reduced = NUM_MAP_ENTRIES - rmt_count;
 		dd_dev_err(dd,
 			   "RMT size is reducing the number of user receive contexts from %u to %d\n",
 			   n_usr_ctxts,
@@ -14005,6 +14034,19 @@ static void init_kdeth_qp(struct hfi1_devdata *dd)
 }
 
 /**
+ * hfi1_get_qp_map
+ * @dd: device data
+ * @idx: index to read
+ */
+u8 hfi1_get_qp_map(struct hfi1_devdata *dd, u8 idx)
+{
+	u64 reg = read_csr(dd, RCV_QP_MAP_TABLE + (idx / 8) * 8);
+
+	reg >>= (idx % 8) * 8;
+	return reg;
+}
+
+/**
  * init_qpmap_table
  * @dd - device data
  * @first_ctxt - first context
@@ -14265,35 +14307,43 @@ bail:
 	init_qpmap_table(dd, FIRST_KERNEL_KCTXT, dd->n_krcv_queues - 1);
 }
 
-static void init_user_fecn_handling(struct hfi1_devdata *dd,
-				    struct rsm_map_table *rmt)
+static void init_fecn_handling(struct hfi1_devdata *dd,
+			       struct rsm_map_table *rmt)
 {
 	struct rsm_rule_data rrd;
 	u64 reg;
-	int i, idx, regoff, regidx;
+	int i, idx, regoff, regidx, start;
 	u8 offset;
+	u32 total_cnt;
+
+	if (HFI1_CAP_IS_KSET(TID_RDMA))
+		/* Exclude context 0 */
+		start = 1;
+	else
+		start = dd->first_dyn_alloc_ctxt;
+
+	total_cnt = dd->num_rcv_contexts - start;
 
 	/* there needs to be enough room in the map table */
-	if (rmt->used + dd->num_user_contexts >= NUM_MAP_ENTRIES) {
-		dd_dev_err(dd, "User FECN handling disabled - too many user contexts allocated\n");
+	if (rmt->used + total_cnt >= NUM_MAP_ENTRIES) {
+		dd_dev_err(dd, "FECN handling disabled - too many contexts allocated\n");
 		return;
 	}
 
 	/*
 	 * RSM will extract the destination context as an index into the
 	 * map table.  The destination contexts are a sequential block
-	 * in the range first_dyn_alloc_ctxt...num_rcv_contexts-1 (inclusive).
+	 * in the range start...num_rcv_contexts-1 (inclusive).
 	 * Map entries are accessed as offset + extracted value.  Adjust
 	 * the added offset so this sequence can be placed anywhere in
 	 * the table - as long as the entries themselves do not wrap.
 	 * There are only enough bits in offset for the table size, so
 	 * start with that to allow for a "negative" offset.
 	 */
-	offset = (u8)(NUM_MAP_ENTRIES + (int)rmt->used -
-						(int)dd->first_dyn_alloc_ctxt);
+	offset = (u8)(NUM_MAP_ENTRIES + rmt->used - start);
 
-	for (i = dd->first_dyn_alloc_ctxt, idx = rmt->used;
-				i < dd->num_rcv_contexts; i++, idx++) {
+	for (i = start, idx = rmt->used; i < dd->num_rcv_contexts;
+	     i++, idx++) {
 		/* replace with identity mapping */
 		regoff = (idx % 8) * 8;
 		regidx = idx / 8;
@@ -14328,7 +14378,7 @@ static void init_user_fecn_handling(struct hfi1_devdata *dd,
 	/* add rule 1 */
 	add_rsm_rule(dd, RSM_INS_FECN, &rrd);
 
-	rmt->used += dd->num_user_contexts;
+	rmt->used += total_cnt;
 }
 
 /* Initialize RSM for VNIC */
@@ -14404,7 +14454,7 @@ void hfi1_deinit_vnic_rsm(struct hfi1_devdata *dd)
 		clear_rcvctrl(dd, RCV_CTRL_RCV_RSM_ENABLE_SMASK);
 }
 
-static void init_rxe(struct hfi1_devdata *dd)
+static int init_rxe(struct hfi1_devdata *dd)
 {
 	struct rsm_map_table *rmt;
 	u64 val;
@@ -14413,9 +14463,12 @@ static void init_rxe(struct hfi1_devdata *dd)
 	write_csr(dd, RCV_ERR_MASK, ~0ull);
 
 	rmt = alloc_rsm_map_table(dd);
+	if (!rmt)
+		return -ENOMEM;
+
 	/* set up QOS, including the QPN map table */
 	init_qos(dd, rmt);
-	init_user_fecn_handling(dd, rmt);
+	init_fecn_handling(dd, rmt);
 	complete_rsm_map_table(dd, rmt);
 	/* record number of used rsm map entries for vnic */
 	dd->vnic.rmt_start = rmt->used;
@@ -14439,6 +14492,7 @@ static void init_rxe(struct hfi1_devdata *dd)
 	val |= ((4ull & RCV_BYPASS_HDR_SIZE_MASK) <<
 		RCV_BYPASS_HDR_SIZE_SHIFT);
 	write_csr(dd, RCV_BYPASS, val);
+	return 0;
 }
 
 static void init_other(struct hfi1_devdata *dd)
@@ -14641,8 +14695,8 @@ void hfi1_start_cleanup(struct hfi1_devdata *dd)
  */
 static int init_asic_data(struct hfi1_devdata *dd)
 {
-	unsigned long flags;
-	struct hfi1_devdata *tmp, *peer = NULL;
+	unsigned long index;
+	struct hfi1_devdata *peer;
 	struct hfi1_asic_data *asic_data;
 	int ret = 0;
 
@@ -14651,14 +14705,12 @@ static int init_asic_data(struct hfi1_devdata *dd)
 	if (!asic_data)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&hfi1_devs_lock, flags);
+	xa_lock_irq(&hfi1_dev_table);
 	/* Find our peer device */
-	list_for_each_entry(tmp, &hfi1_dev_list, list) {
-		if ((HFI_BASE_GUID(dd) == HFI_BASE_GUID(tmp)) &&
-		    dd->unit != tmp->unit) {
-			peer = tmp;
+	xa_for_each(&hfi1_dev_table, index, peer) {
+		if ((HFI_BASE_GUID(dd) == HFI_BASE_GUID(peer)) &&
+		    dd->unit != peer->unit)
 			break;
-		}
 	}
 
 	if (peer) {
@@ -14670,7 +14722,7 @@ static int init_asic_data(struct hfi1_devdata *dd)
 		mutex_init(&dd->asic_data->asic_resource_mutex);
 	}
 	dd->asic_data->dds[dd->hfi1_id] = dd; /* self back-pointer */
-	spin_unlock_irqrestore(&hfi1_devs_lock, flags);
+	xa_unlock_irq(&hfi1_dev_table);
 
 	/* first one through - set up i2c devices */
 	if (!peer)
@@ -14978,7 +15030,10 @@ int hfi1_init_dd(struct hfi1_devdata *dd)
 		goto bail_cleanup;
 
 	/* set initial RXE CSRs */
-	init_rxe(dd);
+	ret = init_rxe(dd);
+	if (ret)
+		goto bail_cleanup;
+
 	/* set initial TXE CSRs */
 	init_txe(dd);
 	/* set initial non-RXE, non-TXE CSRs */

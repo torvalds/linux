@@ -5,13 +5,12 @@
 #include <linux/types.h>
 #include <stdio.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/wait.h>
-#include "xyarray.h"
 #include "rblist.h"
-#include "perf.h"
-#include "event.h"
+
+struct perf_cpu_map;
+struct perf_stat_config;
+struct timespec;
 
 struct stats {
 	double n, mean, M2;
@@ -44,6 +43,7 @@ enum aggr_mode {
 	AGGR_NONE,
 	AGGR_GLOBAL,
 	AGGR_SOCKET,
+	AGGR_DIE,
 	AGGR_CORE,
 	AGGR_THREAD,
 	AGGR_UNSET,
@@ -91,7 +91,7 @@ struct runtime_stat {
 };
 
 typedef int (*aggr_get_id_t)(struct perf_stat_config *config,
-			     struct cpu_map *m, int cpu);
+			     struct perf_cpu_map *m, int cpu);
 
 struct perf_stat_config {
 	enum aggr_mode		 aggr_mode;
@@ -121,9 +121,9 @@ struct perf_stat_config {
 	const char		*csv_sep;
 	struct stats		*walltime_nsecs_stats;
 	struct rusage		 ru_data;
-	struct cpu_map		*aggr_map;
+	struct perf_cpu_map		*aggr_map;
 	aggr_get_id_t		 aggr_get_id;
-	struct cpu_map		*cpus_aggr_map;
+	struct perf_cpu_map		*cpus_aggr_map;
 	u64			*walltime_run;
 	struct rblist		 metric_events;
 };
@@ -142,11 +142,11 @@ static inline void init_stats(struct stats *stats)
 	stats->max  = 0;
 }
 
-struct perf_evsel;
-struct perf_evlist;
+struct evsel;
+struct evlist;
 
 struct perf_aggr_thread_value {
-	struct perf_evsel *counter;
+	struct evsel *counter;
 	int id;
 	double uval;
 	u64 val;
@@ -154,7 +154,7 @@ struct perf_aggr_thread_value {
 	u64 ena;
 };
 
-bool __perf_evsel_stat__is(struct perf_evsel *evsel,
+bool __perf_evsel_stat__is(struct evsel *evsel,
 			   enum perf_stat_evsel_id id);
 
 #define perf_stat_evsel__is(evsel, id) \
@@ -173,7 +173,7 @@ void runtime_stat__exit(struct runtime_stat *st);
 void perf_stat__init_shadow_stats(void);
 void perf_stat__reset_shadow_stats(void);
 void perf_stat__reset_shadow_per_stat(struct runtime_stat *st);
-void perf_stat__update_shadow_stats(struct perf_evsel *counter, u64 count,
+void perf_stat__update_shadow_stats(struct evsel *counter, u64 count,
 				    int cpu, struct runtime_stat *st);
 struct perf_stat_output_ctx {
 	void *ctx;
@@ -183,22 +183,25 @@ struct perf_stat_output_ctx {
 };
 
 void perf_stat__print_shadow_stats(struct perf_stat_config *config,
-				   struct perf_evsel *evsel,
+				   struct evsel *evsel,
 				   double avg, int cpu,
 				   struct perf_stat_output_ctx *out,
 				   struct rblist *metric_events,
 				   struct runtime_stat *st);
-void perf_stat__collect_metric_expr(struct perf_evlist *);
+void perf_stat__collect_metric_expr(struct evlist *);
 
-int perf_evlist__alloc_stats(struct perf_evlist *evlist, bool alloc_raw);
-void perf_evlist__free_stats(struct perf_evlist *evlist);
-void perf_evlist__reset_stats(struct perf_evlist *evlist);
+int perf_evlist__alloc_stats(struct evlist *evlist, bool alloc_raw);
+void perf_evlist__free_stats(struct evlist *evlist);
+void perf_evlist__reset_stats(struct evlist *evlist);
+void perf_evlist__reset_prev_raw_counts(struct evlist *evlist);
 
 int perf_stat_process_counter(struct perf_stat_config *config,
-			      struct perf_evsel *counter);
+			      struct evsel *counter);
 struct perf_tool;
 union perf_event;
 struct perf_session;
+struct target;
+
 int perf_event__process_stat_event(struct perf_session *session,
 				   union perf_event *event);
 
@@ -206,16 +209,11 @@ size_t perf_event__fprintf_stat(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_stat_round(union perf_event *event, FILE *fp);
 size_t perf_event__fprintf_stat_config(union perf_event *event, FILE *fp);
 
-int create_perf_stat_counter(struct perf_evsel *evsel,
+int create_perf_stat_counter(struct evsel *evsel,
 			     struct perf_stat_config *config,
 			     struct target *target);
-int perf_stat_synthesize_config(struct perf_stat_config *config,
-				struct perf_tool *tool,
-				struct perf_evlist *evlist,
-				perf_event__handler_t process,
-				bool attrs);
 void
-perf_evlist__print_counters(struct perf_evlist *evlist,
+perf_evlist__print_counters(struct evlist *evlist,
 			    struct perf_stat_config *config,
 			    struct target *_target,
 			    struct timespec *ts,

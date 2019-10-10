@@ -50,6 +50,7 @@
 #include <linux/compat.h>
 #include <linux/start_kernel.h>
 
+#include <asm/boot_data.h>
 #include <asm/ipl.h>
 #include <asm/facility.h>
 #include <asm/smp.h>
@@ -65,11 +66,13 @@
 #include <asm/diag.h>
 #include <asm/os_info.h>
 #include <asm/sclp.h>
+#include <asm/stacktrace.h>
 #include <asm/sysinfo.h>
 #include <asm/numa.h>
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
 #include <asm/mem_detect.h>
+#include <asm/uv.h>
 #include "entry.h"
 
 /*
@@ -89,11 +92,25 @@ char elf_platform[ELF_PLATFORM_SIZE];
 
 unsigned long int_hwcap = 0;
 
+#ifdef CONFIG_PROTECTED_VIRTUALIZATION_GUEST
+int __bootdata_preserved(prot_virt_guest);
+#endif
+
 int __bootdata(noexec_disabled);
 int __bootdata(memory_end_set);
 unsigned long __bootdata(memory_end);
+unsigned long __bootdata(vmalloc_size);
 unsigned long __bootdata(max_physmem_end);
 struct mem_detect_info __bootdata(mem_detect);
+
+struct exception_table_entry *__bootdata_preserved(__start_dma_ex_table);
+struct exception_table_entry *__bootdata_preserved(__stop_dma_ex_table);
+unsigned long __bootdata_preserved(__swsusp_reset_dma);
+unsigned long __bootdata_preserved(__stext_dma);
+unsigned long __bootdata_preserved(__etext_dma);
+unsigned long __bootdata_preserved(__sdma);
+unsigned long __bootdata_preserved(__edma);
+unsigned long __bootdata_preserved(__kaslr_offset);
 
 unsigned long VMALLOC_START;
 EXPORT_SYMBOL(VMALLOC_START);
@@ -152,15 +169,15 @@ static void __init set_preferred_console(void)
 static int __init conmode_setup(char *str)
 {
 #if defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
-	if (strncmp(str, "hwc", 4) == 0 || strncmp(str, "sclp", 5) == 0)
+	if (!strcmp(str, "hwc") || !strcmp(str, "sclp"))
                 SET_CONSOLE_SCLP;
 #endif
 #if defined(CONFIG_TN3215_CONSOLE)
-	if (strncmp(str, "3215", 5) == 0)
+	if (!strcmp(str, "3215"))
 		SET_CONSOLE_3215;
 #endif
 #if defined(CONFIG_TN3270_CONSOLE)
-	if (strncmp(str, "3270", 5) == 0)
+	if (!strcmp(str, "3270"))
 		SET_CONSOLE_3270;
 #endif
 	set_preferred_console();
@@ -195,7 +212,7 @@ static void __init conmode_default(void)
 #endif
 			return;
 		}
-		if (strncmp(ptr + 8, "3270", 4) == 0) {
+		if (str_has_prefix(ptr + 8, "3270")) {
 #if defined(CONFIG_TN3270_CONSOLE)
 			SET_CONSOLE_3270;
 #elif defined(CONFIG_TN3215_CONSOLE)
@@ -203,7 +220,7 @@ static void __init conmode_default(void)
 #elif defined(CONFIG_SCLP_CONSOLE) || defined(CONFIG_SCLP_VT220_CONSOLE)
 			SET_CONSOLE_SCLP;
 #endif
-		} else if (strncmp(ptr + 8, "3215", 4) == 0) {
+		} else if (str_has_prefix(ptr + 8, "3215")) {
 #if defined(CONFIG_TN3215_CONSOLE)
 			SET_CONSOLE_3215;
 #elif defined(CONFIG_TN3270_CONSOLE)
@@ -285,15 +302,6 @@ void machine_power_off(void)
  */
 void (*pm_power_off)(void) = machine_power_off;
 EXPORT_SYMBOL_GPL(pm_power_off);
-
-static int __init parse_vmalloc(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-	VMALLOC_END = (memparse(arg, &arg) + PAGE_SIZE - 1) & PAGE_MASK;
-	return 0;
-}
-early_param("vmalloc", parse_vmalloc);
 
 void *restart_stack __section(.data);
 
@@ -378,6 +386,10 @@ static void __init setup_lowcore_dat_off(void)
 	 */
 	BUILD_BUG_ON(sizeof(struct lowcore) != LC_PAGES * PAGE_SIZE);
 	lc = memblock_alloc_low(sizeof(*lc), sizeof(*lc));
+	if (!lc)
+		panic("%s: Failed to allocate %zu bytes align=%zx\n",
+		      __func__, sizeof(*lc), sizeof(*lc));
+
 	lc->restart_psw.mask = PSW_KERNEL_BITS;
 	lc->restart_psw.addr = (unsigned long) restart_int_handler;
 	lc->external_new_psw.mask = PSW_KERNEL_BITS | PSW_MASK_MCHECK;
@@ -419,6 +431,9 @@ static void __init setup_lowcore_dat_off(void)
 	 * all CPUs in cast *one* of them does a PSW restart.
 	 */
 	restart_stack = memblock_alloc(THREAD_SIZE, THREAD_SIZE);
+	if (!restart_stack)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, THREAD_SIZE, THREAD_SIZE);
 	restart_stack += STACK_INIT_OFFSET;
 
 	/*
@@ -438,11 +453,9 @@ static void __init setup_lowcore_dat_off(void)
 	mem_assign_absolute(S390_lowcore.restart_source, lc->restart_source);
 	mem_assign_absolute(S390_lowcore.restart_psw, lc->restart_psw);
 
-#ifdef CONFIG_SMP
 	lc->spinlock_lockval = arch_spin_lockval(0);
 	lc->spinlock_index = 0;
 	arch_spin_lock_setup(0);
-#endif
 	lc->br_r1_trampoline = 0x07f1;	/* br %r1 */
 
 	set_prefix((u32)(unsigned long) lc);
@@ -495,6 +508,9 @@ static void __init setup_resources(void)
 
 	for_each_memblock(memory, reg) {
 		res = memblock_alloc(sizeof(*res), 8);
+		if (!res)
+			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+			      __func__, sizeof(*res), 8);
 		res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
 
 		res->name = "System RAM";
@@ -509,6 +525,9 @@ static void __init setup_resources(void)
 				continue;
 			if (std_res->end > res->end) {
 				sub_res = memblock_alloc(sizeof(*sub_res), 8);
+				if (!sub_res)
+					panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+					      __func__, sizeof(*sub_res), 8);
 				*sub_res = *std_res;
 				sub_res->end = res->end;
 				std_res->start = res->end + 1;
@@ -536,10 +555,9 @@ static void __init setup_resources(void)
 
 static void __init setup_memory_end(void)
 {
-	unsigned long vmax, vmalloc_size, tmp;
+	unsigned long vmax, tmp;
 
 	/* Choose kernel address space layout: 3 or 4 levels. */
-	vmalloc_size = VMALLOC_END ?: (128UL << 30) - MODULES_LEN;
 	if (IS_ENABLED(CONFIG_KASAN)) {
 		vmax = IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)
 			   ? _REGION1_SIZE
@@ -723,6 +741,15 @@ static void __init reserve_initrd(void)
 #endif
 }
 
+/*
+ * Reserve the memory area used to pass the certificate lists
+ */
+static void __init reserve_certificate_list(void)
+{
+	if (ipl_cert_list_addr)
+		memblock_reserve(ipl_cert_list_addr, ipl_cert_list_size);
+}
+
 static void __init reserve_mem_detect_info(void)
 {
 	unsigned long start, size;
@@ -801,9 +828,10 @@ static void __init reserve_kernel(void)
 {
 	unsigned long start_pfn = PFN_UP(__pa(_end));
 
-	memblock_reserve(0, PARMAREA_END);
+	memblock_reserve(0, HEAD_END);
 	memblock_reserve((unsigned long)_stext, PFN_PHYS(start_pfn)
 			 - (unsigned long)_stext);
+	memblock_reserve(__sdma, __edma - __sdma);
 }
 
 static void __init setup_memory(void)
@@ -901,7 +929,15 @@ static int __init setup_hwcaps(void)
 			elf_hwcap |= HWCAP_S390_VXRS_EXT;
 		if (test_facility(135))
 			elf_hwcap |= HWCAP_S390_VXRS_BCD;
+		if (test_facility(148))
+			elf_hwcap |= HWCAP_S390_VXRS_EXT2;
+		if (test_facility(152))
+			elf_hwcap |= HWCAP_S390_VXRS_PDE;
 	}
+	if (test_facility(150))
+		elf_hwcap |= HWCAP_S390_SORT;
+	if (test_facility(151))
+		elf_hwcap |= HWCAP_S390_DFLT;
 
 	/*
 	 * Guarded storage support HWCAP_S390_GS is bit 12.
@@ -945,6 +981,10 @@ static int __init setup_hwcaps(void)
 	case 0x3907:
 		strcpy(elf_platform, "z14");
 		break;
+	case 0x8561:
+	case 0x8562:
+		strcpy(elf_platform, "z15");
+		break;
 	}
 
 	/*
@@ -966,6 +1006,9 @@ static void __init setup_randomness(void)
 
 	vmms = (struct sysinfo_3_2_2 *) memblock_phys_alloc(PAGE_SIZE,
 							    PAGE_SIZE);
+	if (!vmms)
+		panic("Failed to allocate memory for sysinfo structure\n");
+
 	if (stsi(vmms, 3, 2, 2) == 0 && vmms->count)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free((unsigned long) vmms, PAGE_SIZE);
@@ -1007,6 +1050,38 @@ static void __init setup_control_program_code(void)
 }
 
 /*
+ * Print the component list from the IPL report
+ */
+static void __init log_component_list(void)
+{
+	struct ipl_rb_component_entry *ptr, *end;
+	char *str;
+
+	if (!early_ipl_comp_list_addr)
+		return;
+	if (ipl_block.hdr.flags & IPL_PL_FLAG_IPLSR)
+		pr_info("Linux is running with Secure-IPL enabled\n");
+	else
+		pr_info("Linux is running with Secure-IPL disabled\n");
+	ptr = (void *) early_ipl_comp_list_addr;
+	end = (void *) ptr + early_ipl_comp_list_size;
+	pr_info("The IPL report contains the following components:\n");
+	while (ptr < end) {
+		if (ptr->flags & IPL_RB_COMPONENT_FLAG_SIGNED) {
+			if (ptr->flags & IPL_RB_COMPONENT_FLAG_VERIFIED)
+				str = "signed, verified";
+			else
+				str = "signed, verification failed";
+		} else {
+			str = "not signed";
+		}
+		pr_info("%016llx - %016llx (%s)\n",
+			ptr->addr, ptr->addr + ptr->len, str);
+		ptr++;
+	}
+}
+
+/*
  * Setup function called from init/main.c just after the banner
  * was printed.
  */
@@ -1026,14 +1101,15 @@ void __init setup_arch(char **cmdline_p)
 	else
 		pr_info("Linux is running as a guest in 64-bit mode\n");
 
+	log_component_list();
+
 	/* Have one command line that is parsed and saved in /proc/cmdline */
 	/* boot_command_line has been already set up in early.c */
 	*cmdline_p = boot_command_line;
 
         ROOT_DEV = Root_RAM0;
 
-	/* Is init_mm really needed? */
-	init_mm.start_code = PAGE_OFFSET;
+	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code = (unsigned long) _etext;
 	init_mm.end_data = (unsigned long) _edata;
 	init_mm.brk = (unsigned long) _end;
@@ -1057,6 +1133,7 @@ void __init setup_arch(char **cmdline_p)
 	reserve_oldmem();
 	reserve_kernel();
 	reserve_initrd();
+	reserve_certificate_list();
 	reserve_mem_detect_info();
 	memblock_allow_resize();
 

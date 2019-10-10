@@ -78,7 +78,6 @@ static void atari_heartbeat(int on);
 
 /* atari specific timer functions (in time.c) */
 extern void atari_sched_init(irq_handler_t);
-extern u32 atari_gettimeoffset(void);
 extern int atari_mste_hwclk (int, struct rtc_time *);
 extern int atari_tt_hwclk (int, struct rtc_time *);
 
@@ -205,7 +204,6 @@ void __init config_atari(void)
 	mach_init_IRQ        = atari_init_IRQ;
 	mach_get_model	 = atari_get_model;
 	mach_get_hardware_list = atari_get_hardware_list;
-	arch_gettimeoffset   = atari_gettimeoffset;
 	mach_reset           = atari_reset;
 	mach_max_dma_address = 0xffffff;
 #if IS_ENABLED(CONFIG_INPUT_M68K_BEEP)
@@ -248,9 +246,9 @@ void __init config_atari(void)
 	} else if (hwreg_present(tt_palette)) {
 		ATARIHW_SET(TT_SHIFTER);
 		pr_cont(" TT_SHIFTER");
-	} else if (hwreg_present(&shifter.bas_hi)) {
-		if (hwreg_present(&shifter.bas_lo) &&
-		    (shifter.bas_lo = 0x0aau, shifter.bas_lo == 0x0aau)) {
+	} else if (hwreg_present(&shifter_st.bas_hi)) {
+		if (hwreg_present(&shifter_st.bas_lo) &&
+		    (shifter_st.bas_lo = 0x0aau, shifter_st.bas_lo == 0x0aau)) {
 			ATARIHW_SET(EXTD_SHIFTER);
 			pr_cont(" EXTD_SHIFTER");
 		} else {

@@ -27,14 +27,28 @@
 struct amdgpu_hive_info {
 	uint64_t		hive_id;
 	struct list_head	device_list;
-	struct psp_xgmi_topology_info	topology_info;
 	int number_devices;
-	struct mutex hive_lock;
+	struct mutex hive_lock, reset_lock;
+	struct kobject *kobj;
+	struct device_attribute dev_attr;
+	struct amdgpu_device *adev;
+	int pstate; /*0 -- low , 1 -- high , -1 unknown*/
 };
 
-struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev);
+struct amdgpu_hive_info *amdgpu_get_xgmi_hive(struct amdgpu_device *adev, int lock);
 int amdgpu_xgmi_update_topology(struct amdgpu_hive_info *hive, struct amdgpu_device *adev);
 int amdgpu_xgmi_add_device(struct amdgpu_device *adev);
 void amdgpu_xgmi_remove_device(struct amdgpu_device *adev);
+int amdgpu_xgmi_set_pstate(struct amdgpu_device *adev, int pstate);
+int amdgpu_xgmi_get_hops_count(struct amdgpu_device *adev,
+		struct amdgpu_device *peer_adev);
+
+static inline bool amdgpu_xgmi_same_hive(struct amdgpu_device *adev,
+		struct amdgpu_device *bo_adev)
+{
+	return (adev != bo_adev &&
+		adev->gmc.xgmi.hive_id &&
+		adev->gmc.xgmi.hive_id == bo_adev->gmc.xgmi.hive_id);
+}
 
 #endif

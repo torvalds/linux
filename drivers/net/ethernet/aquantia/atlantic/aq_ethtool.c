@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_ethtool.c: Definition of ethertool related functions. */
@@ -405,8 +402,10 @@ static int aq_ethtool_get_eee(struct net_device *ndev, struct ethtool_eee *eee)
 	if (!aq_nic->aq_fw_ops->get_eee_rate)
 		return -EOPNOTSUPP;
 
+	mutex_lock(&aq_nic->fwreq_mutex);
 	err = aq_nic->aq_fw_ops->get_eee_rate(aq_nic->aq_hw, &rate,
 					      &supported_rates);
+	mutex_unlock(&aq_nic->fwreq_mutex);
 	if (err < 0)
 		return err;
 
@@ -439,8 +438,10 @@ static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_eee *eee)
 		     !aq_nic->aq_fw_ops->set_eee_rate))
 		return -EOPNOTSUPP;
 
+	mutex_lock(&aq_nic->fwreq_mutex);
 	err = aq_nic->aq_fw_ops->get_eee_rate(aq_nic->aq_hw, &rate,
 					      &supported_rates);
+	mutex_unlock(&aq_nic->fwreq_mutex);
 	if (err < 0)
 		return err;
 
@@ -452,20 +453,28 @@ static int aq_ethtool_set_eee(struct net_device *ndev, struct ethtool_eee *eee)
 		cfg->eee_speeds = 0;
 	}
 
-	return aq_nic->aq_fw_ops->set_eee_rate(aq_nic->aq_hw, rate);
+	mutex_lock(&aq_nic->fwreq_mutex);
+	err = aq_nic->aq_fw_ops->set_eee_rate(aq_nic->aq_hw, rate);
+	mutex_unlock(&aq_nic->fwreq_mutex);
+
+	return err;
 }
 
 static int aq_ethtool_nway_reset(struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
+	int err = 0;
 
 	if (unlikely(!aq_nic->aq_fw_ops->renegotiate))
 		return -EOPNOTSUPP;
 
-	if (netif_running(ndev))
-		return aq_nic->aq_fw_ops->renegotiate(aq_nic->aq_hw);
+	if (netif_running(ndev)) {
+		mutex_lock(&aq_nic->fwreq_mutex);
+		err = aq_nic->aq_fw_ops->renegotiate(aq_nic->aq_hw);
+		mutex_unlock(&aq_nic->fwreq_mutex);
+	}
 
-	return 0;
+	return err;
 }
 
 static void aq_ethtool_get_pauseparam(struct net_device *ndev,
@@ -503,7 +512,9 @@ static int aq_ethtool_set_pauseparam(struct net_device *ndev,
 	else
 		aq_nic->aq_hw->aq_nic_cfg->flow_control &= ~AQ_NIC_FC_TX;
 
+	mutex_lock(&aq_nic->fwreq_mutex);
 	err = aq_nic->aq_fw_ops->set_flow_control(aq_nic->aq_hw);
+	mutex_unlock(&aq_nic->fwreq_mutex);
 
 	return err;
 }

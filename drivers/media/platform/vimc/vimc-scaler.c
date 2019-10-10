@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vimc-scaler.c Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/component.h>
@@ -217,7 +207,6 @@ static const struct v4l2_subdev_pad_ops vimc_sca_pad_ops = {
 static int vimc_sca_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct vimc_sca_device *vsca = v4l2_get_subdevdata(sd);
-	int ret;
 
 	if (enable) {
 		const struct vimc_pix_map *vpix;
@@ -245,21 +234,9 @@ static int vimc_sca_s_stream(struct v4l2_subdev *sd, int enable)
 		if (!vsca->src_frame)
 			return -ENOMEM;
 
-		/* Turn the stream on in the subdevices directly connected */
-		ret = vimc_pipeline_s_stream(&vsca->sd.entity, 1);
-		if (ret) {
-			vfree(vsca->src_frame);
-			vsca->src_frame = NULL;
-			return ret;
-		}
 	} else {
 		if (!vsca->src_frame)
 			return 0;
-
-		/* Disable streaming from the pipe */
-		ret = vimc_pipeline_s_stream(&vsca->sd.entity, 0);
-		if (ret)
-			return ret;
 
 		vfree(vsca->src_frame);
 		vsca->src_frame = NULL;
@@ -346,26 +323,31 @@ static void vimc_sca_fill_src_frame(const struct vimc_sca_device *const vsca,
 			vimc_sca_scale_pix(vsca, i, j, sink_frame);
 }
 
-static void vimc_sca_process_frame(struct vimc_ent_device *ved,
-				   struct media_pad *sink,
-				   const void *sink_frame)
+static void *vimc_sca_process_frame(struct vimc_ent_device *ved,
+				    const void *sink_frame)
 {
 	struct vimc_sca_device *vsca = container_of(ved, struct vimc_sca_device,
 						    ved);
-	unsigned int i;
 
 	/* If the stream in this node is not active, just return */
 	if (!vsca->src_frame)
-		return;
+		return ERR_PTR(-EINVAL);
 
 	vimc_sca_fill_src_frame(vsca, sink_frame);
 
-	/* Propagate the frame through all source pads */
-	for (i = 1; i < vsca->sd.entity.num_pads; i++) {
-		struct media_pad *pad = &vsca->sd.entity.pads[i];
+	return vsca->src_frame;
+};
 
-		vimc_propagate_frame(pad, vsca->src_frame);
-	}
+static void vimc_sca_release(struct v4l2_subdev *sd)
+{
+	struct vimc_sca_device *vsca =
+				container_of(sd, struct vimc_sca_device, sd);
+
+	kfree(vsca);
+}
+
+static const struct v4l2_subdev_internal_ops vimc_sca_int_ops = {
+	.release = vimc_sca_release,
 };
 
 static void vimc_sca_comp_unbind(struct device *comp, struct device *master,
@@ -376,7 +358,6 @@ static void vimc_sca_comp_unbind(struct device *comp, struct device *master,
 						    ved);
 
 	vimc_ent_sd_unregister(ved, &vsca->sd);
-	kfree(vsca);
 }
 
 
@@ -399,7 +380,7 @@ static int vimc_sca_comp_bind(struct device *comp, struct device *master,
 				   MEDIA_ENT_F_PROC_VIDEO_SCALER, 2,
 				   (const unsigned long[2]) {MEDIA_PAD_FL_SINK,
 				   MEDIA_PAD_FL_SOURCE},
-				   &vimc_sca_ops);
+				   &vimc_sca_int_ops, &vimc_sca_ops);
 	if (ret) {
 		kfree(vsca);
 		return ret;

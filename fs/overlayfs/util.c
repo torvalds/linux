@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Novell Inc.
  * Copyright (C) 2016 Red Hat, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/fs.h>
@@ -652,6 +649,18 @@ void ovl_inuse_unlock(struct dentry *dentry)
 	}
 }
 
+bool ovl_is_inuse(struct dentry *dentry)
+{
+	struct inode *inode = d_inode(dentry);
+	bool inuse;
+
+	spin_lock(&inode->i_lock);
+	inuse = (inode->i_state & I_OVL_INUSE);
+	spin_unlock(&inode->i_lock);
+
+	return inuse;
+}
+
 /*
  * Does this overlay dentry need to be indexed on copy up?
  */
@@ -863,28 +872,49 @@ bool ovl_is_metacopy_dentry(struct dentry *dentry)
 	return (oe->numlower > 1);
 }
 
+ssize_t ovl_getxattr(struct dentry *dentry, char *name, char **value,
+		     size_t padding)
+{
+	ssize_t res;
+	char *buf = NULL;
+
+	res = vfs_getxattr(dentry, name, NULL, 0);
+	if (res < 0) {
+		if (res == -ENODATA || res == -EOPNOTSUPP)
+			return -ENODATA;
+		goto fail;
+	}
+
+	if (res != 0) {
+		buf = kzalloc(res + padding, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+
+		res = vfs_getxattr(dentry, name, buf, res);
+		if (res < 0)
+			goto fail;
+	}
+	*value = buf;
+
+	return res;
+
+fail:
+	pr_warn_ratelimited("overlayfs: failed to get xattr %s: err=%zi)\n",
+			    name, res);
+	kfree(buf);
+	return res;
+}
+
 char *ovl_get_redirect_xattr(struct dentry *dentry, int padding)
 {
 	int res;
 	char *s, *next, *buf = NULL;
 
-	res = vfs_getxattr(dentry, OVL_XATTR_REDIRECT, NULL, 0);
-	if (res < 0) {
-		if (res == -ENODATA || res == -EOPNOTSUPP)
-			return NULL;
-		goto fail;
-	}
-
-	buf = kzalloc(res + padding + 1, GFP_KERNEL);
-	if (!buf)
-		return ERR_PTR(-ENOMEM);
-
-	if (res == 0)
-		goto invalid;
-
-	res = vfs_getxattr(dentry, OVL_XATTR_REDIRECT, buf, res);
+	res = ovl_getxattr(dentry, OVL_XATTR_REDIRECT, &buf, padding + 1);
+	if (res == -ENODATA)
+		return NULL;
 	if (res < 0)
-		goto fail;
+		return ERR_PTR(res);
 	if (res == 0)
 		goto invalid;
 
@@ -900,15 +930,9 @@ char *ovl_get_redirect_xattr(struct dentry *dentry, int padding)
 	}
 
 	return buf;
-
-err_free:
-	kfree(buf);
-	return ERR_PTR(res);
-fail:
-	pr_warn_ratelimited("overlayfs: failed to get redirect (%i)\n", res);
-	goto err_free;
 invalid:
 	pr_warn_ratelimited("overlayfs: invalid redirect (%s)\n", buf);
 	res = -EINVAL;
-	goto err_free;
+	kfree(buf);
+	return ERR_PTR(res);
 }

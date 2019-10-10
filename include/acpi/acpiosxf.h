@@ -5,7 +5,7 @@
  *                    interfaces must be implemented by OSL to interface the
  *                    ACPI components to the host operating system.
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -330,6 +330,7 @@ acpi_status acpi_os_enter_sleep(u8 sleep_state, u32 rega_value, u32 regb_value);
  * Debug print routines
  */
 #ifndef ACPI_USE_ALTERNATE_PROTOTYPE_acpi_os_printf
+ACPI_PRINTF_LIKE(1)
 void ACPI_INTERNAL_VAR_XFACE acpi_os_printf(const char *format, ...);
 #endif
 

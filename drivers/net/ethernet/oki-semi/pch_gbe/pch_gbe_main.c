@@ -1,20 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 1999 - 2010 Intel Corporation.
  * Copyright (C) 2010 - 2012 LAPIS SEMICONDUCTOR CO., LTD.
  *
  * This code was derived from the Intel e1000e Linux driver.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "pch_gbe.h"
@@ -27,7 +16,6 @@
 #define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
 
-#define PCI_DEVICE_ID_INTEL_IOH1_GBE	0x8802		/* Pci device ID */
 #define PCH_GBE_MAR_ENTRIES		16
 #define PCH_GBE_SHORT_PKT		64
 #define DSC_INIT16			0xC000
@@ -37,11 +25,9 @@ const char pch_driver_version[] = DRV_VERSION;
 #define PCH_GBE_PCI_BAR			1
 #define PCH_GBE_RESERVE_MEMORY		0x200000	/* 2MB */
 
-/* Macros for ML7223 */
-#define PCI_VENDOR_ID_ROHM			0x10db
-#define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
+#define PCI_DEVICE_ID_INTEL_IOH1_GBE		0x8802
 
-/* Macros for ML7831 */
+#define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
 #define PCI_DEVICE_ID_ROHM_ML7831_GBE		0x8802
 
 #define PCH_GBE_TX_WEIGHT         64

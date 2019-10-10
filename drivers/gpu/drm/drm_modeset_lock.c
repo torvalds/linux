@@ -21,8 +21,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_atomic.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_modeset_lock.h>
 
 /**
@@ -35,7 +36,7 @@
  * of extra utility/tracking out of our acquire-ctx.  This is provided
  * by &struct drm_modeset_lock and &struct drm_modeset_acquire_ctx.
  *
- * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.txt
+ * For basic principles of &ww_mutex, see: Documentation/locking/ww-mutex-design.rst
  *
  * The basic usage pattern is to::
  *
@@ -394,6 +395,7 @@ EXPORT_SYMBOL(drm_modeset_unlock);
 int drm_modeset_lock_all_ctx(struct drm_device *dev,
 			     struct drm_modeset_acquire_ctx *ctx)
 {
+	struct drm_private_obj *privobj;
 	struct drm_crtc *crtc;
 	struct drm_plane *plane;
 	int ret;
@@ -410,6 +412,12 @@ int drm_modeset_lock_all_ctx(struct drm_device *dev,
 
 	drm_for_each_plane(plane, dev) {
 		ret = drm_modeset_lock(&plane->mutex, ctx);
+		if (ret)
+			return ret;
+	}
+
+	drm_for_each_privobj(privobj, dev) {
+		ret = drm_modeset_lock(&privobj->lock, ctx);
 		if (ret)
 			return ret;
 	}

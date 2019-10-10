@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /* 
  * Copyright (C) 2000, 2002 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 #include <linux/fs.h>
@@ -12,7 +12,6 @@
 #include <linux/console.h>
 #include <asm/termbits.h>
 #include <asm/irq.h>
-#include "ssl.h"
 #include "chan.h"
 #include <init.h>
 #include <irq_user.h>

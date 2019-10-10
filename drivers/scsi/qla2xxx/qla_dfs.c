@@ -41,6 +41,7 @@ static int
 qla2x00_dfs_tgt_sess_open(struct inode *inode, struct file *file)
 {
 	scsi_qla_host_t *vha = inode->i_private;
+
 	return single_open(file, qla2x00_dfs_tgt_sess_show, vha);
 }
 
@@ -56,10 +57,9 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 {
 	scsi_qla_host_t *vha = s->private;
 	struct qla_hw_data *ha = vha->hw;
-	struct gid_list_info *gid_list;
+	struct gid_list_info *gid_list, *gid;
 	dma_addr_t gid_list_dma;
 	fc_port_t fc_port;
-	char *id_iter;
 	int rc, i;
 	uint16_t entries, loop_id;
 	struct qla_tgt *tgt = vha->vha_tgt.qla_tgt;
@@ -81,13 +81,11 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 		if (rc != QLA_SUCCESS)
 			goto out_free_id_list;
 
-		id_iter = (char *)gid_list;
+		gid = gid_list;
 
 		seq_puts(s, "Port Name	Port ID 	Loop ID\n");
 
 		for (i = 0; i < entries; i++) {
-			struct gid_list_info *gid =
-			    (struct gid_list_info *)id_iter;
 			loop_id = le16_to_cpu(gid->loop_id);
 			memset(&fc_port, 0, sizeof(fc_port_t));
 
@@ -98,7 +96,7 @@ qla2x00_dfs_tgt_port_database_show(struct seq_file *s, void *unused)
 				fc_port.port_name, fc_port.d_id.b.domain,
 				fc_port.d_id.b.area, fc_port.d_id.b.al_pa,
 				fc_port.loop_id);
-			id_iter += ha->gid_list_info_size;
+			gid = (void *)gid + ha->gid_list_info_size;
 		}
 out_free_id_list:
 		dma_free_coherent(&ha->pdev->dev, qla2x00_gid_list_size(ha),
@@ -161,6 +159,7 @@ static int
 qla_dfs_fw_resource_cnt_open(struct inode *inode, struct file *file)
 {
 	struct scsi_qla_host *vha = inode->i_private;
+
 	return single_open(file, qla_dfs_fw_resource_cnt_show, vha);
 }
 
@@ -193,6 +192,8 @@ qla_dfs_tgt_counters_show(struct seq_file *s, void *unused)
 
 	for (i = 0; i < vha->hw->max_qpairs; i++) {
 		qpair = vha->hw->queue_pair_map[i];
+		if (!qpair)
+			continue;
 		qla_core_sbt_cmd += qpair->tgt_counters.qla_core_sbt_cmd;
 		core_qla_que_buf += qpair->tgt_counters.core_qla_que_buf;
 		qla_core_ret_ctio += qpair->tgt_counters.qla_core_ret_ctio;
@@ -248,6 +249,7 @@ static int
 qla_dfs_tgt_counters_open(struct inode *inode, struct file *file)
 {
 	struct scsi_qla_host *vha = inode->i_private;
+
 	return single_open(file, qla_dfs_tgt_counters_show, vha);
 }
 
@@ -384,7 +386,7 @@ qla_dfs_naqp_write(struct file *file, const char __user *buffer,
 	int rc = 0;
 	unsigned long num_act_qp;
 
-	if (!(IS_QLA27XX(ha) || IS_QLA83XX(ha))) {
+	if (!(IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))) {
 		pr_err("host%ld: this adapter does not support Multi Q.",
 		    vha->host_no);
 		return -EINVAL;
@@ -436,7 +438,7 @@ qla2x00_dfs_setup(scsi_qla_host_t *vha)
 	struct qla_hw_data *ha = vha->hw;
 
 	if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha) &&
-	    !IS_QLA27XX(ha))
+	    !IS_QLA27XX(ha) && !IS_QLA28XX(ha))
 		goto out;
 	if (!ha->fce)
 		goto out;
@@ -446,11 +448,6 @@ qla2x00_dfs_setup(scsi_qla_host_t *vha)
 
 	atomic_set(&qla2x00_dfs_root_count, 0);
 	qla2x00_dfs_root = debugfs_create_dir(QLA2XXX_DRIVER_NAME, NULL);
-	if (!qla2x00_dfs_root) {
-		ql_log(ql_log_warn, vha, 0x00f7,
-		    "Unable to create debugfs root directory.\n");
-		goto out;
-	}
 
 create_dir:
 	if (ha->dfs_dir)
@@ -458,64 +455,28 @@ create_dir:
 
 	mutex_init(&ha->fce_mutex);
 	ha->dfs_dir = debugfs_create_dir(vha->host_str, qla2x00_dfs_root);
-	if (!ha->dfs_dir) {
-		ql_log(ql_log_warn, vha, 0x00f8,
-		    "Unable to create debugfs ha directory.\n");
-		goto out;
-	}
 
 	atomic_inc(&qla2x00_dfs_root_count);
 
 create_nodes:
 	ha->dfs_fw_resource_cnt = debugfs_create_file("fw_resource_count",
 	    S_IRUSR, ha->dfs_dir, vha, &dfs_fw_resource_cnt_ops);
-	if (!ha->dfs_fw_resource_cnt) {
-		ql_log(ql_log_warn, vha, 0x00fd,
-		    "Unable to create debugFS fw_resource_count node.\n");
-		goto out;
-	}
 
 	ha->dfs_tgt_counters = debugfs_create_file("tgt_counters", S_IRUSR,
 	    ha->dfs_dir, vha, &dfs_tgt_counters_ops);
-	if (!ha->dfs_tgt_counters) {
-		ql_log(ql_log_warn, vha, 0xd301,
-		    "Unable to create debugFS tgt_counters node.\n");
-		goto out;
-	}
 
 	ha->tgt.dfs_tgt_port_database = debugfs_create_file("tgt_port_database",
 	    S_IRUSR,  ha->dfs_dir, vha, &dfs_tgt_port_database_ops);
-	if (!ha->tgt.dfs_tgt_port_database) {
-		ql_log(ql_log_warn, vha, 0xd03f,
-		    "Unable to create debugFS tgt_port_database node.\n");
-		goto out;
-	}
 
 	ha->dfs_fce = debugfs_create_file("fce", S_IRUSR, ha->dfs_dir, vha,
 	    &dfs_fce_ops);
-	if (!ha->dfs_fce) {
-		ql_log(ql_log_warn, vha, 0x00f9,
-		    "Unable to create debugfs fce node.\n");
-		goto out;
-	}
 
 	ha->tgt.dfs_tgt_sess = debugfs_create_file("tgt_sess",
 		S_IRUSR, ha->dfs_dir, vha, &dfs_tgt_sess_ops);
-	if (!ha->tgt.dfs_tgt_sess) {
-		ql_log(ql_log_warn, vha, 0xd040,
-		    "Unable to create debugFS tgt_sess node.\n");
-		goto out;
-	}
 
-	if (IS_QLA27XX(ha) || IS_QLA83XX(ha)) {
+	if (IS_QLA27XX(ha) || IS_QLA83XX(ha) || IS_QLA28XX(ha))
 		ha->tgt.dfs_naqp = debugfs_create_file("naqp",
 		    0400, ha->dfs_dir, vha, &dfs_naqp_ops);
-		if (!ha->tgt.dfs_naqp) {
-			ql_log(ql_log_warn, vha, 0xd011,
-			    "Unable to create debugFS naqp node.\n");
-			goto out;
-		}
-	}
 out:
 	return 0;
 }

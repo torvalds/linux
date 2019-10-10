@@ -186,7 +186,7 @@ void __init setup_per_cpu_areas(void)
 	unsigned long base_offset;
 	unsigned int cpu;
 	ssize_t static_size, reserved_size, dyn_size;
-	int node, prev_node, unit, nr_units, rc;
+	int node, prev_node, unit, nr_units;
 
 	ai = pcpu_alloc_alloc_info(MAX_NUMNODES, nr_cpu_ids);
 	if (!ai)
@@ -227,7 +227,7 @@ void __init setup_per_cpu_areas(void)
 	 * CPUs are put into groups according to node.  Walk cpu_map
 	 * and create new groups at node boundaries.
 	 */
-	prev_node = -1;
+	prev_node = NUMA_NO_NODE;
 	ai->nr_groups = 0;
 	for (unit = 0; unit < nr_units; unit++) {
 		cpu = cpu_map[unit];
@@ -245,10 +245,7 @@ void __init setup_per_cpu_areas(void)
 		gi->cpu_map		= &cpu_map[unit];
 	}
 
-	rc = pcpu_setup_first_chunk(ai, base);
-	if (rc)
-		panic("failed to setup percpu area (err=%d)", rc);
-
+	pcpu_setup_first_chunk(ai, base);
 	pcpu_free_alloc_info(ai);
 }
 #endif
@@ -396,8 +393,7 @@ static void __meminit scatter_node_data(void)
  *
  * Each node's per-node area has a copy of the global pg_data_t list, so
  * we copy that to each node here, as well as setting the per-cpu pointer
- * to the local node data structure.  The active_cpus field of the per-node
- * structure gets setup by the platform_cpu_init() function later.
+ * to the local node data structure.
  */
 static void __init initialize_pernode_data(void)
 {
@@ -435,7 +431,7 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 {
 	void *ptr = NULL;
 	u8 best = 0xff;
-	int bestnode = -1, node, anynode = 0;
+	int bestnode = NUMA_NO_NODE, node, anynode = 0;
 
 	for_each_online_node(node) {
 		if (node_isset(node, memory_less_mask))
@@ -447,13 +443,17 @@ static void __init *memory_less_node_alloc(int nid, unsigned long pernodesize)
 		anynode = node;
 	}
 
-	if (bestnode == -1)
+	if (bestnode == NUMA_NO_NODE)
 		bestnode = anynode;
 
 	ptr = memblock_alloc_try_nid(pernodesize, PERCPU_PAGE_SIZE,
 				     __pa(MAX_DMA_ADDRESS),
 				     MEMBLOCK_ALLOC_ACCESSIBLE,
 				     bestnode);
+	if (!ptr)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx nid=%d from=%lx\n",
+		      __func__, pernodesize, PERCPU_PAGE_SIZE, bestnode,
+		      __pa(MAX_DMA_ADDRESS));
 
 	return ptr;
 }

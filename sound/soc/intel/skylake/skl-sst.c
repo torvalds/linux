@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * skl-sst.c - HDA DSP library functions for SKL platform
  *
@@ -5,15 +6,6 @@
  * Author:Rafal Redzimski <rafal.f.redzimski@intel.com>
  *	Jeeja KP <jeeja.kp@intel.com>
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -24,7 +16,7 @@
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
 #include "../common/sst-ipc.h"
-#include "skl-sst-ipc.h"
+#include "skl.h"
 
 #define SKL_BASEFW_TIMEOUT	300
 #define SKL_INIT_TIMEOUT	1000
@@ -74,7 +66,7 @@ static int skl_transfer_firmware(struct sst_dsp *ctx,
 static int skl_load_base_firmware(struct sst_dsp *ctx)
 {
 	int ret = 0, i;
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	struct firmware stripped_fw;
 	u32 reg;
 
@@ -169,7 +161,7 @@ static int skl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret;
 	struct skl_ipc_dxstate_info dx;
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 
 	/* If core0 is being turned on, we need to load the FW */
@@ -223,7 +215,7 @@ static int skl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret;
 	struct skl_ipc_dxstate_info dx;
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 
 	dx.core_mask = core_mask;
@@ -340,7 +332,7 @@ static int skl_transfer_module(struct sst_dsp *ctx, const void *data,
 			u32 size, u16 mod_id, u8 table_id, bool is_module)
 {
 	int ret, bytes_left, curr_pos;
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	skl->mod_load_complete = false;
 
 	bytes_left = ctx->cl_dev.ops.cl_copy_to_dmabuf(ctx, data, size, false);
@@ -392,7 +384,7 @@ out:
 static int
 skl_load_library(struct sst_dsp *ctx, struct skl_lib_info *linfo, int lib_count)
 {
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	struct firmware stripped_fw;
 	int ret, i;
 
@@ -420,11 +412,8 @@ static int skl_load_module(struct sst_dsp *ctx, u16 mod_id, u8 *guid)
 	struct skl_module_table *module_entry = NULL;
 	int ret = 0;
 	char mod_name[64]; /* guid str = 32 chars + 4 hyphens */
-	uuid_le *uuid_mod;
 
-	uuid_mod = (uuid_le *)guid;
-	snprintf(mod_name, sizeof(mod_name), "%s%pUL%s",
-				"intel/dsp_fw_", uuid_mod, ".bin");
+	snprintf(mod_name, sizeof(mod_name), "intel/dsp_fw_%pUL.bin", guid);
 
 	module_entry = skl_module_get_from_id(ctx, mod_id);
 	if (module_entry == NULL) {
@@ -453,7 +442,7 @@ static int skl_load_module(struct sst_dsp *ctx, u16 mod_id, u8 *guid)
 static int skl_unload_module(struct sst_dsp *ctx, u16 mod_id)
 {
 	int usage_cnt;
-	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dev *skl = ctx->thread_context;
 	int ret = 0;
 
 	usage_cnt = skl_put_module(ctx, mod_id);
@@ -528,9 +517,10 @@ static struct sst_dsp_device skl_dev = {
 };
 
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
-		const char *fw_name, struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
+		const char *fw_name, struct skl_dsp_loader_ops dsp_ops,
+		struct skl_dev **dsp)
 {
-	struct skl_sst *skl;
+	struct skl_dev *skl;
 	struct sst_dsp *sst;
 	int ret;
 
@@ -564,10 +554,10 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
 
-int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
+int skl_sst_init_fw(struct device *dev, struct skl_dev *skl)
 {
 	int ret;
-	struct sst_dsp *sst = ctx->dsp;
+	struct sst_dsp *sst = skl->dsp;
 
 	ret = sst->fw_ops.load_fw(sst);
 	if (ret < 0) {
@@ -577,32 +567,32 @@ int skl_sst_init_fw(struct device *dev, struct skl_sst *ctx)
 
 	skl_dsp_init_core_state(sst);
 
-	if (ctx->lib_count > 1) {
-		ret = sst->fw_ops.load_library(sst, ctx->lib_info,
-						ctx->lib_count);
+	if (skl->lib_count > 1) {
+		ret = sst->fw_ops.load_library(sst, skl->lib_info,
+						skl->lib_count);
 		if (ret < 0) {
 			dev_err(dev, "Load Library failed : %x\n", ret);
 			return ret;
 		}
 	}
-	ctx->is_first_boot = false;
+	skl->is_first_boot = false;
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(skl_sst_init_fw);
 
-void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
+void skl_sst_dsp_cleanup(struct device *dev, struct skl_dev *skl)
 {
 
-	if (ctx->dsp->fw)
-		release_firmware(ctx->dsp->fw);
-	skl_clear_module_table(ctx->dsp);
-	skl_freeup_uuid_list(ctx);
-	skl_ipc_free(&ctx->ipc);
-	ctx->dsp->ops->free(ctx->dsp);
-	if (ctx->boot_complete) {
-		ctx->dsp->cl_dev.ops.cl_cleanup_controller(ctx->dsp);
-		skl_cldma_int_disable(ctx->dsp);
+	if (skl->dsp->fw)
+		release_firmware(skl->dsp->fw);
+	skl_clear_module_table(skl->dsp);
+	skl_freeup_uuid_list(skl);
+	skl_ipc_free(&skl->ipc);
+	skl->dsp->ops->free(skl->dsp);
+	if (skl->boot_complete) {
+		skl->dsp->cl_dev.ops.cl_cleanup_controller(skl->dsp);
+		skl_cldma_int_disable(skl->dsp);
 	}
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_cleanup);

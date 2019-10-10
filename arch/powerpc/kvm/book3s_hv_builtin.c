@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2011 Paul Mackerras, IBM Corp. <paulus@au1.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpu.h>
@@ -257,7 +254,7 @@ void kvmhv_rm_send_ipi(int cpu)
 	}
 
 	/* We should never reach this */
-	if (WARN_ON_ONCE(xive_enabled()))
+	if (WARN_ON_ONCE(xics_on_xive()))
 	    return;
 
 	/* Else poke the target with an IPI */
@@ -577,7 +574,7 @@ unsigned long kvmppc_rm_h_xirr(struct kvm_vcpu *vcpu)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);
 		if (unlikely(!__xive_vm_h_xirr))
@@ -592,7 +589,7 @@ unsigned long kvmppc_rm_h_xirr_x(struct kvm_vcpu *vcpu)
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
 	vcpu->arch.regs.gpr[5] = get_tb();
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_xirr(vcpu);
 		if (unlikely(!__xive_vm_h_xirr))
@@ -606,7 +603,7 @@ unsigned long kvmppc_rm_h_ipoll(struct kvm_vcpu *vcpu, unsigned long server)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_ipoll(vcpu, server);
 		if (unlikely(!__xive_vm_h_ipoll))
@@ -621,7 +618,7 @@ int kvmppc_rm_h_ipi(struct kvm_vcpu *vcpu, unsigned long server,
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_ipi(vcpu, server, mfrr);
 		if (unlikely(!__xive_vm_h_ipi))
@@ -635,7 +632,7 @@ int kvmppc_rm_h_cppr(struct kvm_vcpu *vcpu, unsigned long cppr)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_cppr(vcpu, cppr);
 		if (unlikely(!__xive_vm_h_cppr))
@@ -649,7 +646,7 @@ int kvmppc_rm_h_eoi(struct kvm_vcpu *vcpu, unsigned long xirr)
 {
 	if (!kvmppc_xics_enabled(vcpu))
 		return H_TOO_HARD;
-	if (xive_enabled()) {
+	if (xics_on_xive()) {
 		if (is_rm())
 			return xive_rm_h_eoi(vcpu, xirr);
 		if (unlikely(!__xive_vm_h_eoi))
@@ -805,3 +802,63 @@ void kvmppc_guest_entry_inject_int(struct kvm_vcpu *vcpu)
 		vcpu->arch.doorbell_request = 0;
 	}
 }
+
+static void flush_guest_tlb(struct kvm *kvm)
+{
+	unsigned long rb, set;
+
+	rb = PPC_BIT(52);	/* IS = 2 */
+	if (kvm_is_radix(kvm)) {
+		/* R=1 PRS=1 RIC=2 */
+		asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+			     : : "r" (rb), "i" (1), "i" (1), "i" (2),
+			       "r" (0) : "memory");
+		for (set = 1; set < kvm->arch.tlb_sets; ++set) {
+			rb += PPC_BIT(51);	/* increment set number */
+			/* R=1 PRS=1 RIC=0 */
+			asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+				     : : "r" (rb), "i" (1), "i" (1), "i" (0),
+				       "r" (0) : "memory");
+		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_RADIX_INVALIDATE_ERAT_GUEST : : :"memory");
+	} else {
+		for (set = 0; set < kvm->arch.tlb_sets; ++set) {
+			/* R=0 PRS=0 RIC=0 */
+			asm volatile(PPC_TLBIEL(%0, %4, %3, %2, %1)
+				     : : "r" (rb), "i" (0), "i" (0), "i" (0),
+				       "r" (0) : "memory");
+			rb += PPC_BIT(51);	/* increment set number */
+		}
+		asm volatile("ptesync": : :"memory");
+		asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT : : :"memory");
+	}
+}
+
+void kvmppc_check_need_tlb_flush(struct kvm *kvm, int pcpu,
+				 struct kvm_nested_guest *nested)
+{
+	cpumask_t *need_tlb_flush;
+
+	/*
+	 * On POWER9, individual threads can come in here, but the
+	 * TLB is shared between the 4 threads in a core, hence
+	 * invalidating on one thread invalidates for all.
+	 * Thus we make all 4 threads use the same bit.
+	 */
+	if (cpu_has_feature(CPU_FTR_ARCH_300))
+		pcpu = cpu_first_thread_sibling(pcpu);
+
+	if (nested)
+		need_tlb_flush = &nested->need_tlb_flush;
+	else
+		need_tlb_flush = &kvm->arch.need_tlb_flush;
+
+	if (cpumask_test_cpu(pcpu, need_tlb_flush)) {
+		flush_guest_tlb(kvm);
+
+		/* Clear the bit after the TLB flush */
+		cpumask_clear_cpu(pcpu, need_tlb_flush);
+	}
+}
+EXPORT_SYMBOL_GPL(kvmppc_check_need_tlb_flush);

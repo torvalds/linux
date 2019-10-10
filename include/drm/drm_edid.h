@@ -25,6 +25,7 @@
 
 #include <linux/types.h>
 #include <linux/hdmi.h>
+#include <drm/drm_mode.h>
 
 struct drm_device;
 struct i2c_adapter;
@@ -176,21 +177,23 @@ struct detailed_timing {
 #define DRM_EDID_INPUT_BLANK_TO_BLACK  (1 << 4)
 #define DRM_EDID_INPUT_VIDEO_LEVEL     (3 << 5)
 #define DRM_EDID_INPUT_DIGITAL         (1 << 7)
-#define DRM_EDID_DIGITAL_DEPTH_MASK    (7 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_UNDEF   (0 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_6       (1 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_8       (2 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_10      (3 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_12      (4 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_14      (5 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_16      (6 << 4)
-#define DRM_EDID_DIGITAL_DEPTH_RSVD    (7 << 4)
-#define DRM_EDID_DIGITAL_TYPE_UNDEF    (0)
-#define DRM_EDID_DIGITAL_TYPE_DVI      (1)
-#define DRM_EDID_DIGITAL_TYPE_HDMI_A   (2)
-#define DRM_EDID_DIGITAL_TYPE_HDMI_B   (3)
-#define DRM_EDID_DIGITAL_TYPE_MDDI     (4)
-#define DRM_EDID_DIGITAL_TYPE_DP       (5)
+#define DRM_EDID_DIGITAL_DEPTH_MASK    (7 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_UNDEF   (0 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_6       (1 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_8       (2 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_10      (3 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_12      (4 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_14      (5 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_16      (6 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_DEPTH_RSVD    (7 << 4) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_MASK     (7 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_UNDEF    (0 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_DVI      (1 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_HDMI_A   (2 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_HDMI_B   (3 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_MDDI     (4 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_TYPE_DP       (5 << 0) /* 1.4 */
+#define DRM_EDID_DIGITAL_DFP_1_X       (1 << 0) /* 1.3 */
 
 #define DRM_EDID_FEATURE_DEFAULT_GTF      (1 << 0)
 #define DRM_EDID_FEATURE_PREFERRED_TIMING (1 << 1)
@@ -331,6 +334,7 @@ struct cea_sad {
 
 struct drm_encoder;
 struct drm_connector;
+struct drm_connector_state;
 struct drm_display_mode;
 
 int drm_edid_to_sad(struct edid *edid, struct cea_sad **sads);
@@ -352,18 +356,26 @@ drm_load_edid_firmware(struct drm_connector *connector)
 
 int
 drm_hdmi_avi_infoframe_from_display_mode(struct hdmi_avi_infoframe *frame,
-					 const struct drm_display_mode *mode,
-					 bool is_hdmi2_sink);
+					 struct drm_connector *connector,
+					 const struct drm_display_mode *mode);
 int
 drm_hdmi_vendor_infoframe_from_display_mode(struct hdmi_vendor_infoframe *frame,
 					    struct drm_connector *connector,
 					    const struct drm_display_mode *mode);
+
+void
+drm_hdmi_avi_infoframe_colorspace(struct hdmi_avi_infoframe *frame,
+				  const struct drm_connector_state *conn_state);
+
 void
 drm_hdmi_avi_infoframe_quant_range(struct hdmi_avi_infoframe *frame,
+				   struct drm_connector *connector,
 				   const struct drm_display_mode *mode,
-				   enum hdmi_quantization_range rgb_quant_range,
-				   bool rgb_quant_range_selectable,
-				   bool is_hdmi2_sink);
+				   enum hdmi_quantization_range rgb_quant_range);
+
+int
+drm_hdmi_infoframe_set_hdr_metadata(struct hdmi_drm_infoframe *frame,
+				    const struct drm_connector_state *conn_state);
 
 /**
  * drm_eld_mnl - Get ELD monitor name length in bytes.
@@ -466,12 +478,12 @@ struct edid *drm_get_edid_switcheroo(struct drm_connector *connector,
 				     struct i2c_adapter *adapter);
 struct edid *drm_edid_duplicate(const struct edid *edid);
 int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid);
+int drm_add_override_edid_modes(struct drm_connector *connector);
 
 u8 drm_match_cea_mode(const struct drm_display_mode *to_match);
 enum hdmi_picture_aspect drm_get_cea_aspect_ratio(const u8 video_code);
 bool drm_detect_hdmi_monitor(struct edid *edid);
 bool drm_detect_monitor_audio(struct edid *edid);
-bool drm_rgb_quant_range_selectable(struct edid *edid);
 enum hdmi_quantization_range
 drm_default_rgb_quant_range(const struct drm_display_mode *mode);
 int drm_add_modes_noedid(struct drm_connector *connector,

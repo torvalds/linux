@@ -1,26 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * udl_dmabuf.c
  *
  * Copyright (c) 2014 The Chromium OS Authors
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <drm/drmP.h>
-#include "udl_drv.h"
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
+
+#include <drm/drm_prime.h>
+
+#include "udl_drv.h"
 
 struct udl_drm_dmabuf_attachment {
 	struct sg_table sgt;
@@ -182,8 +172,7 @@ static const struct dma_buf_ops udl_dmabuf_ops = {
 	.release		= drm_gem_dmabuf_release,
 };
 
-struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
-				     struct drm_gem_object *obj, int flags)
+struct dma_buf *udl_gem_prime_export(struct drm_gem_object *obj, int flags)
 {
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
@@ -192,7 +181,7 @@ struct dma_buf *udl_gem_prime_export(struct drm_device *dev,
 	exp_info.flags = flags;
 	exp_info.priv = obj;
 
-	return drm_gem_dmabuf_export(dev, &exp_info);
+	return drm_gem_dmabuf_export(obj->dev, &exp_info);
 }
 
 static int udl_prime_create(struct drm_device *dev,

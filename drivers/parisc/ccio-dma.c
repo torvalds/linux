@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 ** ccio-dma.c:
 **	DMA management routines for first generation cache-coherent machines.
@@ -7,10 +8,6 @@
 **	(c) Copyright 2000 Ryan Bradetich
 **	(c) Copyright 2000 Hewlett-Packard Company
 **
-** This program is free software; you can redistribute it and/or modify
-** it under the terms of the GNU General Public License as published by
-** the Free Software Foundation; either version 2 of the License, or
-** (at your option) any later version.
 **
 **
 **  "Real Mode" operation refers to U2/Uturn chip operation.
@@ -565,14 +562,12 @@ ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	/* We currently only support kernel addresses */
 	BUG_ON(sid != KERNEL_SPACE);
 
-	mtsp(sid,1);
-
 	/*
 	** WORD 1 - low order word
 	** "hints" parm includes the VALID bit!
 	** "dep" clobbers the physical address offset bits as well.
 	*/
-	pa = virt_to_phys(vba);
+	pa = lpa(vba);
 	asm volatile("depw  %1,31,12,%0" : "+r" (pa) : "r" (hints));
 	((u32 *)pdir_ptr)[1] = (u32) pa;
 
@@ -597,7 +592,7 @@ ccio_io_pdir_entry(u64 *pdir_ptr, space_t sid, unsigned long vba,
 	** Grab virtual index [0:11]
 	** Deposit virt_idx bits into I/O PDIR word
 	*/
-	asm volatile ("lci %%r0(%%sr1, %1), %0" : "=r" (ci) : "r" (vba));
+	asm volatile ("lci %%r0(%1), %0" : "=r" (ci) : "r" (vba));
 	asm volatile ("extru %1,19,12,%0" : "+r" (ci) : "r" (ci));
 	asm volatile ("depw  %1,15,12,%0" : "+r" (pa) : "r" (ci));
 
@@ -712,8 +707,8 @@ ccio_dma_supported(struct device *dev, u64 mask)
 		return 0;
 	}
 
-	/* only support 32-bit devices (ie PCI/GSC) */
-	return (int)(mask == 0xffffffffUL);
+	/* only support 32-bit or better devices (ie PCI/GSC) */
+	return (int)(mask >= 0xffffffffUL);
 }
 
 /**
@@ -1029,6 +1024,7 @@ static const struct dma_map_ops ccio_ops = {
 	.unmap_page =		ccio_unmap_page,
 	.map_sg = 		ccio_map_sg,
 	.unmap_sg = 		ccio_unmap_sg,
+	.get_sgtable =		dma_common_get_sgtable,
 };
 
 #ifdef CONFIG_PROC_FS

@@ -1,6 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig MTD_SPI_NOR
 	tristate "SPI-NOR device support"
 	depends on MTD
+	depends on MTD && SPI_MASTER
+	select SPI_MEM
 	help
 	  This is the framework for the SPI NOR which can be used by the SPI
 	  device drivers and the SPI-NOR device driver.
@@ -103,12 +106,5 @@ config SPI_INTEL_SPI_PLATFORM
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called intel-spi-platform.
-
-config SPI_STM32_QUADSPI
-	tristate "STM32 Quad SPI controller"
-	depends on ARCH_STM32 || COMPILE_TEST
-	help
-	  This enables support for the STM32 Quad SPI controller.
-	  We only connect the NOR to this controller.
 
 endif # MTD_SPI_NOR

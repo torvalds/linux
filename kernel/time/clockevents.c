@@ -611,6 +611,22 @@ void clockevents_resume(void)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
+
+# ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+/**
+ * tick_offline_cpu - Take CPU out of the broadcast mechanism
+ * @cpu:	The outgoing CPU
+ *
+ * Called on the outgoing CPU after it took itself offline.
+ */
+void tick_offline_cpu(unsigned int cpu)
+{
+	raw_spin_lock(&clockevents_lock);
+	tick_broadcast_offline(cpu);
+	raw_spin_unlock(&clockevents_lock);
+}
+# endif
+
 /**
  * tick_cleanup_dead_cpu - Cleanup the tick and clockevents of a dead cpu
  */
@@ -621,8 +637,6 @@ void tick_cleanup_dead_cpu(int cpu)
 
 	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
-	tick_shutdown_broadcast_oneshot(cpu);
-	tick_shutdown_broadcast(cpu);
 	tick_shutdown(cpu);
 	/*
 	 * Unregister the clock event devices which were

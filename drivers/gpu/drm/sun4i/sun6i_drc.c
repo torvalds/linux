@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 Free Electrons
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -101,6 +97,7 @@ static int sun6i_drc_remove(struct platform_device *pdev)
 static const struct of_device_id sun6i_drc_of_table[] = {
 	{ .compatible = "allwinner,sun6i-a31-drc" },
 	{ .compatible = "allwinner,sun6i-a31s-drc" },
+	{ .compatible = "allwinner,sun8i-a23-drc" },
 	{ .compatible = "allwinner,sun8i-a33-drc" },
 	{ .compatible = "allwinner,sun9i-a80-drc" },
 	{ }

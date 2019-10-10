@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  * This file contains error recovery level zero functions used by
  * the iSCSI Target driver.
@@ -6,15 +7,6 @@
  *
  * Author: Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ******************************************************************************/
 
 #include <linux/sched/signal.h>
@@ -802,13 +794,12 @@ void iscsit_start_time2retain_handler(struct iscsi_session *sess)
 		  jiffies + sess->sess_ops->DefaultTime2Retain * HZ);
 }
 
-/*
- *	Called with spin_lock_bh(&struct se_portal_group->session_lock) held
- */
 int iscsit_stop_time2retain_timer(struct iscsi_session *sess)
 {
 	struct iscsi_portal_group *tpg = sess->tpg;
 	struct se_portal_group *se_tpg = &tpg->tpg_se_tpg;
+
+	lockdep_assert_held(&se_tpg->session_lock);
 
 	if (sess->time2retain_timer_flags & ISCSI_TF_EXPIRED)
 		return -1;

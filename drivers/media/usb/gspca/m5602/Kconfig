@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config USB_M5602
 	tristate "ALi USB m5602 Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA

@@ -15,6 +15,7 @@ Required properties:
 		"maxim,max31725",
 		"maxim,max31726",
 		"maxim,mcp980x",
+		"nxp,pct2075",
 		"st,stds75",
 		"st,stlm75",
 		"microchip,tcn75",
@@ -25,6 +26,7 @@ Required properties:
 		"ti,tmp175",
 		"ti,tmp275",
 		"ti,tmp75",
+		"ti,tmp75b",
 		"ti,tmp75c",
 
 - reg: I2C bus address of the device

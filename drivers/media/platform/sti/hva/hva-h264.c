@@ -626,7 +626,7 @@ static int hva_h264_prepare_task(struct hva_ctx *pctx,
 	td->frame_width = frame_width;
 	td->frame_height = frame_height;
 
-	/* set frame alignement */
+	/* set frame alignment */
 	td->window_width =  frame_width;
 	td->window_height = frame_height;
 	td->window_horizontal_offset = 0;

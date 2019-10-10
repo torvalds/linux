@@ -53,7 +53,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		fmc: flash-controller@1e620000 {
+		fmc: spi@1e620000 {
 			reg = < 0x1e620000 0x94
 				0x20000000 0x10000000 >;
 			#address-cells = <1>;
@@ -67,9 +67,29 @@
 				compatible = "jedec,spi-nor";
 				status = "disabled";
 			};
+			flash@1 {
+				reg = < 1 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@2 {
+				reg = < 2 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@3 {
+				reg = < 3 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
+			flash@4 {
+				reg = < 4 >;
+				compatible = "jedec,spi-nor";
+				status = "disabled";
+			};
 		};
 
-		spi: flash-controller@1e630000 {
+		spi: spi@1e630000 {
 			reg = < 0x1e630000 0x18
 				0x30000000 0x10000000 >;
 			#address-cells = <1>;
@@ -165,6 +185,10 @@
 					compatible = "aspeed,g4-pinctrl";
 				};
 
+				p2a: p2a-control {
+					compatible = "aspeed,ast2400-p2a-ctrl";
+					status = "disabled";
+				};
 			};
 
 			rng: hwrng@1e6e2078 {
@@ -188,6 +212,34 @@
 				reg = <0x1e720000 0x8000>;	// 32K
 			};
 
+			sdmmc: sd-controller@1e740000 {
+				compatible = "aspeed,ast2400-sd-controller";
+				reg = <0x1e740000 0x100>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+				ranges = <0 0x1e740000 0x10000>;
+				clocks = <&syscon ASPEED_CLK_GATE_SDCLK>;
+				status = "disabled";
+
+				sdhci0: sdhci@100 {
+					compatible = "aspeed,ast2400-sdhci";
+					reg = <0x100 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+
+				sdhci1: sdhci@200 {
+					compatible = "aspeed,ast2400-sdhci";
+					reg = <0x200 0x100>;
+					interrupts = <26>;
+					sdhci,auto-cmd12;
+					clocks = <&syscon ASPEED_CLK_SDIO>;
+					status = "disabled";
+				};
+			};
+
 			gpio: gpio@1e780000 {
 				#gpio-cells = <2>;
 				gpio-controller;
@@ -197,6 +249,7 @@
 				gpio-ranges = <&pinctrl 0 0 220>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				interrupt-controller;
+				#interrupt-cells = <2>;
 			};
 
 			timer: timer@1e782000 {
@@ -206,6 +259,12 @@
 				interrupts = <16 17 18 35 36 37 38 39>;
 				clocks = <&syscon ASPEED_CLK_APB>;
 				clock-names = "PCLK";
+			};
+
+			rtc: rtc@1e781000 {
+				compatible = "aspeed,ast2400-rtc";
+				reg = <0x1e781000 0x18>;
+				status = "disabled";
 			};
 
 			uart1: serial@1e783000 {

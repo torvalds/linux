@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	DDP:	An implementation of the AppleTalk DDP protocol for
  *		Ethernet 'ELAP'.
@@ -43,12 +44,6 @@
  *						shared skb support 8)
  *		Arnaldo C. de Melo	:	Move proc stuff to atalk_proc.c,
  *						use seq_file
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/capability.h>
@@ -958,8 +953,8 @@ static unsigned long atalk_sum_skb(const struct sk_buff *skb, int offset,
 			if (copy > len)
 				copy = len;
 			vaddr = kmap_atomic(skb_frag_page(frag));
-			sum = atalk_sum_partial(vaddr + frag->page_offset +
-						  offset - start, copy, sum);
+			sum = atalk_sum_partial(vaddr + skb_frag_off(frag) +
+						offset - start, copy, sum);
 			kunmap_atomic(vaddr);
 
 			if (!(len -= copy))
@@ -1028,6 +1023,11 @@ static int atalk_create(struct net *net, struct socket *sock, int protocol,
 	 */
 	if (sock->type != SOCK_RAW && sock->type != SOCK_DGRAM)
 		goto out;
+
+	rc = -EPERM;
+	if (sock->type == SOCK_RAW && !kern && !capable(CAP_NET_RAW))
+		goto out;
+
 	rc = -ENOMEM;
 	sk = sk_alloc(net, PF_APPLETALK, GFP_KERNEL, &ddp_proto, kern);
 	if (!sk)
@@ -1806,12 +1806,6 @@ static int atalk_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		rc = put_user(amount, (int __user *)argp);
 		break;
 	}
-	case SIOCGSTAMP:
-		rc = sock_get_timestamp(sk, argp);
-		break;
-	case SIOCGSTAMPNS:
-		rc = sock_get_timestampns(sk, argp);
-		break;
 	/* Routing */
 	case SIOCADDRT:
 	case SIOCDELRT:
@@ -1871,6 +1865,7 @@ static const struct proto_ops atalk_dgram_ops = {
 	.getname	= atalk_getname,
 	.poll		= datagram_poll,
 	.ioctl		= atalk_ioctl,
+	.gettstamp	= sock_gettstamp,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= atalk_compat_ioctl,
 #endif
@@ -1904,9 +1899,6 @@ static unsigned char ddp_snap_id[] = { 0x08, 0x00, 0x07, 0x80, 0x9B };
 EXPORT_SYMBOL(atrtr_get_dev);
 EXPORT_SYMBOL(atalk_find_dev_addr);
 
-static const char atalk_err_snap[] __initconst =
-	KERN_CRIT "Unable to register DDP with SNAP.\n";
-
 /* Called by proto.c on kernel start up */
 static int __init atalk_init(void)
 {
@@ -1921,17 +1913,23 @@ static int __init atalk_init(void)
 		goto out_proto;
 
 	ddp_dl = register_snap_client(ddp_snap_id, atalk_rcv);
-	if (!ddp_dl)
-		printk(atalk_err_snap);
+	if (!ddp_dl) {
+		pr_crit("Unable to register DDP with SNAP.\n");
+		rc = -ENOMEM;
+		goto out_sock;
+	}
 
 	dev_add_pack(&ltalk_packet_type);
 	dev_add_pack(&ppptalk_packet_type);
 
 	rc = register_netdevice_notifier(&ddp_notifier);
 	if (rc)
-		goto out_sock;
+		goto out_snap;
 
-	aarp_proto_init();
+	rc = aarp_proto_init();
+	if (rc)
+		goto out_dev;
+
 	rc = atalk_proc_init();
 	if (rc)
 		goto out_aarp;
@@ -1945,11 +1943,13 @@ out_proc:
 	atalk_proc_exit();
 out_aarp:
 	aarp_cleanup_module();
+out_dev:
 	unregister_netdevice_notifier(&ddp_notifier);
-out_sock:
+out_snap:
 	dev_remove_pack(&ppptalk_packet_type);
 	dev_remove_pack(&ltalk_packet_type);
 	unregister_snap_client(ddp_dl);
+out_sock:
 	sock_unregister(PF_APPLETALK);
 out_proto:
 	proto_unregister(&ddp_proto);

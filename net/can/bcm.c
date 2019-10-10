@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-3-Clause)
 /*
  * bcm.c - Broadcast Manager to filter/send (cyclic) CAN content
  *
@@ -105,7 +106,6 @@ struct bcm_op {
 	unsigned long frames_abs, frames_filtered;
 	struct bcm_timeval ival1, ival2;
 	struct hrtimer timer, thrtimer;
-	struct tasklet_struct tsklet, thrtsklet;
 	ktime_t rx_stamp, kt_ival1, kt_ival2, kt_lastmsg;
 	int rx_ifindex;
 	int cfsiz;
@@ -370,25 +370,34 @@ static void bcm_send_to_user(struct bcm_op *op, struct bcm_msg_head *head,
 	}
 }
 
-static void bcm_tx_start_timer(struct bcm_op *op)
+static bool bcm_tx_set_expiry(struct bcm_op *op, struct hrtimer *hrt)
 {
+	ktime_t ival;
+
 	if (op->kt_ival1 && op->count)
-		hrtimer_start(&op->timer,
-			      ktime_add(ktime_get(), op->kt_ival1),
-			      HRTIMER_MODE_ABS);
+		ival = op->kt_ival1;
 	else if (op->kt_ival2)
-		hrtimer_start(&op->timer,
-			      ktime_add(ktime_get(), op->kt_ival2),
-			      HRTIMER_MODE_ABS);
+		ival = op->kt_ival2;
+	else
+		return false;
+
+	hrtimer_set_expires(hrt, ktime_add(ktime_get(), ival));
+	return true;
 }
 
-static void bcm_tx_timeout_tsklet(unsigned long data)
+static void bcm_tx_start_timer(struct bcm_op *op)
 {
-	struct bcm_op *op = (struct bcm_op *)data;
+	if (bcm_tx_set_expiry(op, &op->timer))
+		hrtimer_start_expires(&op->timer, HRTIMER_MODE_ABS_SOFT);
+}
+
+/* bcm_tx_timeout_handler - performs cyclic CAN frame transmissions */
+static enum hrtimer_restart bcm_tx_timeout_handler(struct hrtimer *hrtimer)
+{
+	struct bcm_op *op = container_of(hrtimer, struct bcm_op, timer);
 	struct bcm_msg_head msg_head;
 
 	if (op->kt_ival1 && (op->count > 0)) {
-
 		op->count--;
 		if (!op->count && (op->flags & TX_COUNTEVT)) {
 
@@ -405,22 +414,12 @@ static void bcm_tx_timeout_tsklet(unsigned long data)
 		}
 		bcm_can_tx(op);
 
-	} else if (op->kt_ival2)
+	} else if (op->kt_ival2) {
 		bcm_can_tx(op);
+	}
 
-	bcm_tx_start_timer(op);
-}
-
-/*
- * bcm_tx_timeout_handler - performs cyclic CAN frame transmissions
- */
-static enum hrtimer_restart bcm_tx_timeout_handler(struct hrtimer *hrtimer)
-{
-	struct bcm_op *op = container_of(hrtimer, struct bcm_op, timer);
-
-	tasklet_schedule(&op->tsklet);
-
-	return HRTIMER_NORESTART;
+	return bcm_tx_set_expiry(op, &op->timer) ?
+		HRTIMER_RESTART : HRTIMER_NORESTART;
 }
 
 /*
@@ -486,7 +485,7 @@ static void bcm_rx_update_and_send(struct bcm_op *op,
 		/* do not send the saved data - only start throttle timer */
 		hrtimer_start(&op->thrtimer,
 			      ktime_add(op->kt_lastmsg, op->kt_ival2),
-			      HRTIMER_MODE_ABS);
+			      HRTIMER_MODE_ABS_SOFT);
 		return;
 	}
 
@@ -545,13 +544,20 @@ static void bcm_rx_starttimer(struct bcm_op *op)
 		return;
 
 	if (op->kt_ival1)
-		hrtimer_start(&op->timer, op->kt_ival1, HRTIMER_MODE_REL);
+		hrtimer_start(&op->timer, op->kt_ival1, HRTIMER_MODE_REL_SOFT);
 }
 
-static void bcm_rx_timeout_tsklet(unsigned long data)
+/* bcm_rx_timeout_handler - when the (cyclic) CAN frame reception timed out */
+static enum hrtimer_restart bcm_rx_timeout_handler(struct hrtimer *hrtimer)
 {
-	struct bcm_op *op = (struct bcm_op *)data;
+	struct bcm_op *op = container_of(hrtimer, struct bcm_op, timer);
 	struct bcm_msg_head msg_head;
+
+	/* if user wants to be informed, when cyclic CAN-Messages come back */
+	if ((op->flags & RX_ANNOUNCE_RESUME) && op->last_frames) {
+		/* clear received CAN frames to indicate 'nothing received' */
+		memset(op->last_frames, 0, op->nframes * op->cfsiz);
+	}
 
 	/* create notification to user */
 	msg_head.opcode  = RX_TIMEOUT;
@@ -563,25 +569,6 @@ static void bcm_rx_timeout_tsklet(unsigned long data)
 	msg_head.nframes = 0;
 
 	bcm_send_to_user(op, &msg_head, NULL, 0);
-}
-
-/*
- * bcm_rx_timeout_handler - when the (cyclic) CAN frame reception timed out
- */
-static enum hrtimer_restart bcm_rx_timeout_handler(struct hrtimer *hrtimer)
-{
-	struct bcm_op *op = container_of(hrtimer, struct bcm_op, timer);
-
-	/* schedule before NET_RX_SOFTIRQ */
-	tasklet_hi_schedule(&op->tsklet);
-
-	/* no restart of the timer is done here! */
-
-	/* if user wants to be informed, when cyclic CAN-Messages come back */
-	if ((op->flags & RX_ANNOUNCE_RESUME) && op->last_frames) {
-		/* clear received CAN frames to indicate 'nothing received' */
-		memset(op->last_frames, 0, op->nframes * op->cfsiz);
-	}
 
 	return HRTIMER_NORESTART;
 }
@@ -589,14 +576,12 @@ static enum hrtimer_restart bcm_rx_timeout_handler(struct hrtimer *hrtimer)
 /*
  * bcm_rx_do_flush - helper for bcm_rx_thr_flush
  */
-static inline int bcm_rx_do_flush(struct bcm_op *op, int update,
-				  unsigned int index)
+static inline int bcm_rx_do_flush(struct bcm_op *op, unsigned int index)
 {
 	struct canfd_frame *lcf = op->last_frames + op->cfsiz * index;
 
 	if ((op->last_frames) && (lcf->flags & RX_THR)) {
-		if (update)
-			bcm_rx_changed(op, lcf);
+		bcm_rx_changed(op, lcf);
 		return 1;
 	}
 	return 0;
@@ -604,11 +589,8 @@ static inline int bcm_rx_do_flush(struct bcm_op *op, int update,
 
 /*
  * bcm_rx_thr_flush - Check for throttled data and send it to the userspace
- *
- * update == 0 : just check if throttled data is available  (any irq context)
- * update == 1 : check and send throttled data to userspace (soft_irq context)
  */
-static int bcm_rx_thr_flush(struct bcm_op *op, int update)
+static int bcm_rx_thr_flush(struct bcm_op *op)
 {
 	int updated = 0;
 
@@ -617,22 +599,14 @@ static int bcm_rx_thr_flush(struct bcm_op *op, int update)
 
 		/* for MUX filter we start at index 1 */
 		for (i = 1; i < op->nframes; i++)
-			updated += bcm_rx_do_flush(op, update, i);
+			updated += bcm_rx_do_flush(op, i);
 
 	} else {
 		/* for RX_FILTER_ID and simple filter */
-		updated += bcm_rx_do_flush(op, update, 0);
+		updated += bcm_rx_do_flush(op, 0);
 	}
 
 	return updated;
-}
-
-static void bcm_rx_thr_tsklet(unsigned long data)
-{
-	struct bcm_op *op = (struct bcm_op *)data;
-
-	/* push the changed data to the userspace */
-	bcm_rx_thr_flush(op, 1);
 }
 
 /*
@@ -643,9 +617,7 @@ static enum hrtimer_restart bcm_rx_thr_handler(struct hrtimer *hrtimer)
 {
 	struct bcm_op *op = container_of(hrtimer, struct bcm_op, thrtimer);
 
-	tasklet_schedule(&op->thrtsklet);
-
-	if (bcm_rx_thr_flush(op, 0)) {
+	if (bcm_rx_thr_flush(op)) {
 		hrtimer_forward(hrtimer, ktime_get(), op->kt_ival2);
 		return HRTIMER_RESTART;
 	} else {
@@ -741,23 +713,8 @@ static struct bcm_op *bcm_find_op(struct list_head *ops,
 
 static void bcm_remove_op(struct bcm_op *op)
 {
-	if (op->tsklet.func) {
-		while (test_bit(TASKLET_STATE_SCHED, &op->tsklet.state) ||
-		       test_bit(TASKLET_STATE_RUN, &op->tsklet.state) ||
-		       hrtimer_active(&op->timer)) {
-			hrtimer_cancel(&op->timer);
-			tasklet_kill(&op->tsklet);
-		}
-	}
-
-	if (op->thrtsklet.func) {
-		while (test_bit(TASKLET_STATE_SCHED, &op->thrtsklet.state) ||
-		       test_bit(TASKLET_STATE_RUN, &op->thrtsklet.state) ||
-		       hrtimer_active(&op->thrtimer)) {
-			hrtimer_cancel(&op->thrtimer);
-			tasklet_kill(&op->thrtsklet);
-		}
-	}
+	hrtimer_cancel(&op->timer);
+	hrtimer_cancel(&op->thrtimer);
 
 	if ((op->frames) && (op->frames != &op->sframe))
 		kfree(op->frames);
@@ -990,15 +947,13 @@ static int bcm_tx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		op->ifindex = ifindex;
 
 		/* initialize uninitialized (kzalloc) structure */
-		hrtimer_init(&op->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&op->timer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL_SOFT);
 		op->timer.function = bcm_tx_timeout_handler;
 
-		/* initialize tasklet for tx countevent notification */
-		tasklet_init(&op->tsklet, bcm_tx_timeout_tsklet,
-			     (unsigned long) op);
-
 		/* currently unused in tx_ops */
-		hrtimer_init(&op->thrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&op->thrtimer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL_SOFT);
 
 		/* add this bcm_op to the list of the tx_ops */
 		list_add(&op->list, &bo->tx_ops);
@@ -1167,19 +1122,13 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 		op->rx_ifindex = ifindex;
 
 		/* initialize uninitialized (kzalloc) structure */
-		hrtimer_init(&op->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&op->timer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL_SOFT);
 		op->timer.function = bcm_rx_timeout_handler;
 
-		/* initialize tasklet for rx timeout notification */
-		tasklet_init(&op->tsklet, bcm_rx_timeout_tsklet,
-			     (unsigned long) op);
-
-		hrtimer_init(&op->thrtimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+		hrtimer_init(&op->thrtimer, CLOCK_MONOTONIC,
+			     HRTIMER_MODE_REL_SOFT);
 		op->thrtimer.function = bcm_rx_thr_handler;
-
-		/* initialize tasklet for rx throttle handling */
-		tasklet_init(&op->thrtsklet, bcm_rx_thr_tsklet,
-			     (unsigned long) op);
 
 		/* add this bcm_op to the list of the rx_ops */
 		list_add(&op->list, &bo->rx_ops);
@@ -1226,12 +1175,12 @@ static int bcm_rx_setup(struct bcm_msg_head *msg_head, struct msghdr *msg,
 			 */
 			op->kt_lastmsg = 0;
 			hrtimer_cancel(&op->thrtimer);
-			bcm_rx_thr_flush(op, 1);
+			bcm_rx_thr_flush(op);
 		}
 
 		if ((op->flags & STARTTIMER) && op->kt_ival1)
 			hrtimer_start(&op->timer, op->kt_ival1,
-				      HRTIMER_MODE_REL);
+				      HRTIMER_MODE_REL_SOFT);
 	}
 
 	/* now we can register for can_ids, if we added a new bcm_op */
@@ -1345,7 +1294,7 @@ static int bcm_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 		/* no bound device as default => check msg_name */
 		DECLARE_SOCKADDR(struct sockaddr_can *, addr, msg->msg_name);
 
-		if (msg->msg_namelen < sizeof(*addr))
+		if (msg->msg_namelen < CAN_REQUIRED_SIZE(*addr, can_ifindex))
 			return -EINVAL;
 
 		if (addr->can_family != AF_CAN)
@@ -1587,7 +1536,7 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 	struct net *net = sock_net(sk);
 	int ret = 0;
 
-	if (len < sizeof(*addr))
+	if (len < CAN_REQUIRED_SIZE(*addr, can_ifindex))
 		return -EINVAL;
 
 	lock_sock(sk);
@@ -1679,6 +1628,13 @@ static int bcm_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	return size;
 }
 
+static int bcm_sock_no_ioctlcmd(struct socket *sock, unsigned int cmd,
+				unsigned long arg)
+{
+	/* no ioctls for socket layer -> hand it down to NIC layer */
+	return -ENOIOCTLCMD;
+}
+
 static const struct proto_ops bcm_ops = {
 	.family        = PF_CAN,
 	.release       = bcm_release,
@@ -1688,7 +1644,8 @@ static const struct proto_ops bcm_ops = {
 	.accept        = sock_no_accept,
 	.getname       = sock_no_getname,
 	.poll          = datagram_poll,
-	.ioctl         = can_ioctl,	/* use can_ioctl() from af_can.c */
+	.ioctl         = bcm_sock_no_ioctlcmd,
+	.gettstamp     = sock_gettstamp,
 	.listen        = sock_no_listen,
 	.shutdown      = sock_no_shutdown,
 	.setsockopt    = sock_no_setsockopt,

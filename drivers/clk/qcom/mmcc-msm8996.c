@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*x
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -3347,6 +3339,8 @@ static const struct qcom_cc_desc mmcc_msm8996_desc = {
 	.num_resets = ARRAY_SIZE(mmcc_msm8996_resets),
 	.gdscs = mmcc_msm8996_gdscs,
 	.num_gdscs = ARRAY_SIZE(mmcc_msm8996_gdscs),
+	.clk_hws = mmcc_msm8996_hws,
+	.num_clk_hws = ARRAY_SIZE(mmcc_msm8996_hws),
 };
 
 static const struct of_device_id mmcc_msm8996_match_table[] = {
@@ -3357,8 +3351,6 @@ MODULE_DEVICE_TABLE(of, mmcc_msm8996_match_table);
 
 static int mmcc_msm8996_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	int i, ret;
 	struct regmap *regmap;
 
 	regmap = qcom_cc_map(pdev, &mmcc_msm8996_desc);
@@ -3369,12 +3361,6 @@ static int mmcc_msm8996_probe(struct platform_device *pdev)
 	regmap_update_bits(regmap, 0x50d8, BIT(31), 0);
 	/* Disable the NoC FSM for mmss_mmagic_cfg_ahb_clk */
 	regmap_update_bits(regmap, 0x5054, BIT(15), 0);
-
-	for (i = 0; i < ARRAY_SIZE(mmcc_msm8996_hws); i++) {
-		ret = devm_clk_hw_register(dev, mmcc_msm8996_hws[i]);
-		if (ret)
-			return ret;
-	}
 
 	return qcom_cc_really_probe(pdev, &mmcc_msm8996_desc, regmap);
 }

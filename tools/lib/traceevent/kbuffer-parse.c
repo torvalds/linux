@@ -727,3 +727,52 @@ int kbuffer_start_of_data(struct kbuffer *kbuf)
 {
 	return kbuf->start;
 }
+
+/**
+ * kbuffer_raw_get - get raw buffer info
+ * @kbuf:	The kbuffer
+ * @subbuf:	Start of mapped subbuffer
+ * @info:	Info descriptor to fill in
+ *
+ * For debugging. This can return internals of the ring buffer.
+ * Expects to have info->next set to what it will read.
+ * The type, length and timestamp delta will be filled in, and
+ * @info->next will be updated to the next element.
+ * The @subbuf is used to know if the info is passed the end of
+ * data and NULL will be returned if it is.
+ */
+struct kbuffer_raw_info *
+kbuffer_raw_get(struct kbuffer *kbuf, void *subbuf, struct kbuffer_raw_info *info)
+{
+	unsigned long long flags;
+	unsigned long long delta;
+	unsigned int type_len;
+	unsigned int size;
+	int start;
+	int length;
+	void *ptr = info->next;
+
+	if (!kbuf || !subbuf)
+		return NULL;
+
+	if (kbuf->flags & KBUFFER_FL_LONG_8)
+		start = 16;
+	else
+		start = 12;
+
+	flags = read_long(kbuf, subbuf + 8);
+	size = (unsigned int)flags & COMMIT_MASK;
+
+	if (ptr < subbuf || ptr >= subbuf + start + size)
+		return NULL;
+
+	type_len = translate_data(kbuf, ptr, &ptr, &delta, &length);
+
+	info->next = ptr + length;
+
+	info->type = type_len;
+	info->delta = delta;
+	info->length = length;
+
+	return info;
+}

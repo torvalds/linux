@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Berkeley Packet Filter based traffic classifier
  *
@@ -6,10 +7,6 @@
  * ematches.
  *
  * (C) 2013 Daniel Borkmann <dborkman@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -157,8 +154,7 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	skip_sw = prog && tc_skip_sw(prog->gen_flags);
 	obj = prog ?: oldprog;
 
-	tc_cls_common_offload_init(&cls_bpf.common, tp, obj->gen_flags,
-				   extack);
+	tc_cls_common_offload_init(&cls_bpf.common, tp, obj->gen_flags, extack);
 	cls_bpf.command = TC_CLSBPF_OFFLOAD;
 	cls_bpf.exts = &obj->exts;
 	cls_bpf.prog = prog ? prog->filter : NULL;
@@ -167,17 +163,19 @@ static int cls_bpf_offload_cmd(struct tcf_proto *tp, struct cls_bpf_prog *prog,
 	cls_bpf.exts_integrated = obj->exts_integrated;
 
 	if (oldprog)
-		tcf_block_offload_dec(block, &oldprog->gen_flags);
+		err = tc_setup_cb_replace(block, tp, TC_SETUP_CLSBPF, &cls_bpf,
+					  skip_sw, &oldprog->gen_flags,
+					  &oldprog->in_hw_count,
+					  &prog->gen_flags, &prog->in_hw_count,
+					  true);
+	else
+		err = tc_setup_cb_add(block, tp, TC_SETUP_CLSBPF, &cls_bpf,
+				      skip_sw, &prog->gen_flags,
+				      &prog->in_hw_count, true);
 
-	err = tc_setup_cb_call(block, TC_SETUP_CLSBPF, &cls_bpf, skip_sw);
-	if (prog) {
-		if (err < 0) {
-			cls_bpf_offload_cmd(tp, oldprog, prog, extack);
-			return err;
-		} else if (err > 0) {
-			prog->in_hw_count = err;
-			tcf_block_offload_inc(block, &prog->gen_flags);
-		}
+	if (prog && err) {
+		cls_bpf_offload_cmd(tp, oldprog, prog, extack);
+		return err;
 	}
 
 	if (prog && skip_sw && !(prog->gen_flags & TCA_CLS_FLAGS_IN_HW))
@@ -234,7 +232,7 @@ static void cls_bpf_offload_update_stats(struct tcf_proto *tp,
 	cls_bpf.name = prog->bpf_name;
 	cls_bpf.exts_integrated = prog->exts_integrated;
 
-	tc_setup_cb_call(block, TC_SETUP_CLSBPF, &cls_bpf, false);
+	tc_setup_cb_call(block, TC_SETUP_CLSBPF, &cls_bpf, false, true);
 }
 
 static int cls_bpf_init(struct tcf_proto *tp)
@@ -468,8 +466,8 @@ static int cls_bpf_change(struct net *net, struct sk_buff *in_skb,
 	if (tca[TCA_OPTIONS] == NULL)
 		return -EINVAL;
 
-	ret = nla_parse_nested(tb, TCA_BPF_MAX, tca[TCA_OPTIONS], bpf_policy,
-			       NULL);
+	ret = nla_parse_nested_deprecated(tb, TCA_BPF_MAX, tca[TCA_OPTIONS],
+					  bpf_policy, NULL);
 	if (ret < 0)
 		return ret;
 
@@ -591,7 +589,7 @@ static int cls_bpf_dump(struct net *net, struct tcf_proto *tp, void *fh,
 
 	cls_bpf_offload_update_stats(tp, prog);
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 
@@ -655,7 +653,7 @@ skip:
 	}
 }
 
-static int cls_bpf_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
+static int cls_bpf_reoffload(struct tcf_proto *tp, bool add, flow_setup_cb_t *cb,
 			     void *cb_priv, struct netlink_ext_ack *extack)
 {
 	struct cls_bpf_head *head = rtnl_dereference(tp->root);
@@ -677,15 +675,11 @@ static int cls_bpf_reoffload(struct tcf_proto *tp, bool add, tc_setup_cb_t *cb,
 		cls_bpf.name = prog->bpf_name;
 		cls_bpf.exts_integrated = prog->exts_integrated;
 
-		err = cb(TC_SETUP_CLSBPF, &cls_bpf, cb_priv);
-		if (err) {
-			if (add && tc_skip_sw(prog->gen_flags))
-				return err;
-			continue;
-		}
-
-		tc_cls_offload_cnt_update(block, &prog->in_hw_count,
-					  &prog->gen_flags, add);
+		err = tc_setup_cb_reoffload(block, tp, add, cb, TC_SETUP_CLSBPF,
+					    &cls_bpf, cb_priv, &prog->gen_flags,
+					    &prog->in_hw_count);
+		if (err)
+			return err;
 	}
 
 	return 0;

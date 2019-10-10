@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * V4L2 Capture IC Preprocess Subdev for Freescale i.MX5/6 SOC
  *
@@ -6,11 +7,6 @@
  * for resizing, colorspace conversion, and rotation.
  *
  * Copyright (c) 2012-2017 Mentor Graphics Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/delay.h>
 #include <linux/interrupt.h>
@@ -39,15 +35,11 @@
 #define S_ALIGN    1 /* multiple of 2 */
 
 struct prp_priv {
-	struct imx_media_dev *md;
 	struct imx_ic_priv *ic_priv;
 	struct media_pad pad[PRP_NUM_PADS];
 
 	/* lock to protect all members below */
 	struct mutex lock;
-
-	/* IPU units we require */
-	struct ipu_soc *ipu;
 
 	struct v4l2_subdev *src_sd;
 	struct v4l2_subdev *sink_sd_prpenc;
@@ -66,7 +58,7 @@ static inline struct prp_priv *sd_to_priv(struct v4l2_subdev *sd)
 {
 	struct imx_ic_priv *ic_priv = v4l2_get_subdevdata(sd);
 
-	return ic_priv->prp_priv;
+	return ic_priv->task_priv;
 }
 
 static int prp_start(struct prp_priv *priv)
@@ -74,12 +66,10 @@ static int prp_start(struct prp_priv *priv)
 	struct imx_ic_priv *ic_priv = priv->ic_priv;
 	bool src_is_vdic;
 
-	priv->ipu = priv->md->ipu[ic_priv->ipu_id];
-
 	/* set IC to receive from CSI or VDI depending on source */
-	src_is_vdic = !!(priv->src_sd->grp_id & IMX_MEDIA_GRP_ID_VDIC);
+	src_is_vdic = !!(priv->src_sd->grp_id & IMX_MEDIA_GRP_ID_IPU_VDIC);
 
-	ipu_set_ic_src_mux(priv->ipu, priv->csi_id, src_is_vdic);
+	ipu_set_ic_src_mux(ic_priv->ipu, priv->csi_id, src_is_vdic);
 
 	return 0;
 }
@@ -197,8 +187,8 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 			sdformat->format.code = cc->codes[0];
 		}
 
-		imx_media_fill_default_mbus_fields(&sdformat->format, infmt,
-						   true);
+		if (sdformat->format.field == V4L2_FIELD_ANY)
+			sdformat->format.field = V4L2_FIELD_NONE;
 		break;
 	case PRP_SRC_PAD_PRPENC:
 	case PRP_SRC_PAD_PRPVF:
@@ -206,6 +196,8 @@ static int prp_set_fmt(struct v4l2_subdev *sd,
 		sdformat->format = *infmt;
 		break;
 	}
+
+	imx_media_try_colorimetry(&sdformat->format, true);
 
 	fmt = __prp_get_fmt(priv, cfg, sdformat->pad, sdformat->which);
 	*fmt = sdformat->format;
@@ -220,12 +212,12 @@ static int prp_link_setup(struct media_entity *entity,
 {
 	struct v4l2_subdev *sd = media_entity_to_v4l2_subdev(entity);
 	struct imx_ic_priv *ic_priv = v4l2_get_subdevdata(sd);
-	struct prp_priv *priv = ic_priv->prp_priv;
+	struct prp_priv *priv = ic_priv->task_priv;
 	struct v4l2_subdev *remote_sd;
 	int ret = 0;
 
-	dev_dbg(ic_priv->dev, "link setup %s -> %s", remote->entity->name,
-		local->entity->name);
+	dev_dbg(ic_priv->ipu_dev, "%s: link setup %s -> %s",
+		ic_priv->sd.name, remote->entity->name, local->entity->name);
 
 	remote_sd = media_entity_to_v4l2_subdev(remote->entity);
 
@@ -237,8 +229,8 @@ static int prp_link_setup(struct media_entity *entity,
 				ret = -EBUSY;
 				goto out;
 			}
-			if (priv->sink_sd_prpenc && (remote_sd->grp_id &
-						     IMX_MEDIA_GRP_ID_VDIC)) {
+			if (priv->sink_sd_prpenc &&
+			    (remote_sd->grp_id & IMX_MEDIA_GRP_ID_IPU_VDIC)) {
 				ret = -EINVAL;
 				goto out;
 			}
@@ -259,7 +251,7 @@ static int prp_link_setup(struct media_entity *entity,
 				goto out;
 			}
 			if (priv->src_sd && (priv->src_sd->grp_id &
-					     IMX_MEDIA_GRP_ID_VDIC)) {
+					     IMX_MEDIA_GRP_ID_IPU_VDIC)) {
 				ret = -EINVAL;
 				goto out;
 			}
@@ -299,7 +291,7 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 			     struct v4l2_subdev_format *sink_fmt)
 {
 	struct imx_ic_priv *ic_priv = v4l2_get_subdevdata(sd);
-	struct prp_priv *priv = ic_priv->prp_priv;
+	struct prp_priv *priv = ic_priv->task_priv;
 	struct v4l2_subdev *csi;
 	int ret;
 
@@ -308,14 +300,14 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 	if (ret)
 		return ret;
 
-	csi = imx_media_find_upstream_subdev(priv->md, &ic_priv->sd.entity,
-					     IMX_MEDIA_GRP_ID_CSI);
+	csi = imx_media_pipeline_subdev(&ic_priv->sd.entity,
+					IMX_MEDIA_GRP_ID_IPU_CSI, true);
 	if (IS_ERR(csi))
 		csi = NULL;
 
 	mutex_lock(&priv->lock);
 
-	if (priv->src_sd->grp_id & IMX_MEDIA_GRP_ID_VDIC) {
+	if (priv->src_sd->grp_id & IMX_MEDIA_GRP_ID_IPU_VDIC) {
 		/*
 		 * the ->PRPENC link cannot be enabled if the source
 		 * is the VDIC
@@ -334,10 +326,10 @@ static int prp_link_validate(struct v4l2_subdev *sd,
 
 	if (csi) {
 		switch (csi->grp_id) {
-		case IMX_MEDIA_GRP_ID_CSI0:
+		case IMX_MEDIA_GRP_ID_IPU_CSI0:
 			priv->csi_id = 0;
 			break;
-		case IMX_MEDIA_GRP_ID_CSI1:
+		case IMX_MEDIA_GRP_ID_IPU_CSI1:
 			priv->csi_id = 1;
 			break;
 		default:
@@ -355,7 +347,7 @@ out:
 static int prp_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct imx_ic_priv *ic_priv = v4l2_get_subdevdata(sd);
-	struct prp_priv *priv = ic_priv->prp_priv;
+	struct prp_priv *priv = ic_priv->task_priv;
 	int ret = 0;
 
 	mutex_lock(&priv->lock);
@@ -372,7 +364,8 @@ static int prp_s_stream(struct v4l2_subdev *sd, int enable)
 	if (priv->stream_count != !enable)
 		goto update_count;
 
-	dev_dbg(ic_priv->dev, "stream %s\n", enable ? "ON" : "OFF");
+	dev_dbg(ic_priv->ipu_dev, "%s: stream %s\n", sd->name,
+		enable ? "ON" : "OFF");
 
 	if (enable)
 		ret = prp_start(priv);
@@ -422,9 +415,14 @@ static int prp_s_frame_interval(struct v4l2_subdev *sd,
 	if (fi->pad >= PRP_NUM_PADS)
 		return -EINVAL;
 
-	/* No limits on frame interval */
 	mutex_lock(&priv->lock);
-	priv->frame_interval = fi->interval;
+
+	/* No limits on valid frame intervals */
+	if (fi->interval.numerator == 0 || fi->interval.denominator == 0)
+		fi->interval = priv->frame_interval;
+	else
+		priv->frame_interval = fi->interval;
+
 	mutex_unlock(&priv->lock);
 
 	return 0;
@@ -438,9 +436,6 @@ static int prp_registered(struct v4l2_subdev *sd)
 	struct prp_priv *priv = sd_to_priv(sd);
 	int i, ret;
 	u32 code;
-
-	/* get media device */
-	priv->md = dev_get_drvdata(sd->v4l2_dev->dev);
 
 	for (i = 0; i < PRP_NUM_PADS; i++) {
 		priv->pad[i].flags = (i == PRP_SINK_PAD) ?
@@ -493,12 +488,12 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 {
 	struct prp_priv *priv;
 
-	priv = devm_kzalloc(ic_priv->dev, sizeof(*priv), GFP_KERNEL);
+	priv = devm_kzalloc(ic_priv->ipu_dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	mutex_init(&priv->lock);
-	ic_priv->prp_priv = priv;
+	ic_priv->task_priv = priv;
 	priv->ic_priv = ic_priv;
 
 	return 0;
@@ -506,7 +501,7 @@ static int prp_init(struct imx_ic_priv *ic_priv)
 
 static void prp_remove(struct imx_ic_priv *ic_priv)
 {
-	struct prp_priv *priv = ic_priv->prp_priv;
+	struct prp_priv *priv = ic_priv->task_priv;
 
 	mutex_destroy(&priv->lock);
 }

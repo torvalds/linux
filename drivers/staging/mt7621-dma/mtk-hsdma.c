@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *  Copyright (C) 2015, Michael Lee <igvtee@gmail.com>
  *  MTK HSDMA support
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/dmaengine.h>
@@ -191,7 +186,7 @@ static inline u32 mtk_hsdma_read(struct mtk_hsdam_engine *hsdma, u32 reg)
 }
 
 static inline void mtk_hsdma_write(struct mtk_hsdam_engine *hsdma,
-				   unsigned reg, u32 val)
+				   unsigned int reg, u32 val)
 {
 	writel(val, hsdma->base + reg);
 }
@@ -242,7 +237,7 @@ static void hsdma_dump_desc(struct mtk_hsdam_engine *hsdma,
 	int i;
 
 	dev_dbg(hsdma->ddev.dev, "tx idx: %d, rx idx: %d\n",
-			chan->tx_idx, chan->rx_idx);
+		chan->tx_idx, chan->rx_idx);
 
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		tx_desc = &chan->tx_ring[i];
@@ -269,8 +264,7 @@ static void mtk_hsdma_reset(struct mtk_hsdam_engine *hsdma,
 	/* init desc value */
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		chan->tx_ring[i].addr0 = 0;
-		chan->tx_ring[i].flags = HSDMA_DESC_LS0 |
-			HSDMA_DESC_DONE;
+		chan->tx_ring[i].flags = HSDMA_DESC_LS0 | HSDMA_DESC_DONE;
 	}
 	for (i = 0; i < HSDMA_DESCS_NUM; i++) {
 		chan->rx_ring[i].addr0 = 0;
@@ -440,8 +434,7 @@ static irqreturn_t mtk_hsdma_irq(int irq, void *devid)
 	if (likely(status & HSDMA_INT_RX_Q0))
 		tasklet_schedule(&hsdma->task);
 	else
-		dev_dbg(hsdma->ddev.dev, "unhandle irq status %08x\n",
-			status);
+		dev_dbg(hsdma->ddev.dev, "unhandle irq status %08x\n", status);
 	/* clean intr bits */
 	mtk_hsdma_write(hsdma, HSDMA_REG_INT_STATUS, status);
 
@@ -475,7 +468,7 @@ static struct dma_async_tx_descriptor *mtk_hsdma_prep_dma_memcpy(
 	if (len <= 0)
 		return NULL;
 
-	desc = kzalloc(sizeof(struct mtk_hsdma_desc), GFP_ATOMIC);
+	desc = kzalloc(sizeof(*desc), GFP_ATOMIC);
 	if (!desc) {
 		dev_err(c->device->dev, "alloc memcpy decs error\n");
 		return NULL;
@@ -671,10 +664,8 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	hsdma = devm_kzalloc(&pdev->dev, sizeof(*hsdma), GFP_KERNEL);
-	if (!hsdma) {
-		dev_err(&pdev->dev, "alloc dma device failed\n");
+	if (!hsdma)
 		return -EINVAL;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
@@ -684,10 +675,8 @@ static int mtk_hsdma_probe(struct platform_device *pdev)
 	tasklet_init(&hsdma->task, mtk_hsdma_tasklet, (unsigned long)hsdma);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "failed to get irq\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 	ret = devm_request_irq(&pdev->dev, irq, mtk_hsdma_irq,
 			       0, dev_name(&pdev->dev), hsdma);
 	if (ret) {

@@ -20,6 +20,7 @@
 #include <asm/cmpxchg.h>
 #include <asm/io.h>
 #include <asm/pgtable-bits.h>
+#include <asm/cpu-features.h>
 
 struct mm_struct;
 struct vm_area_struct;
@@ -198,7 +199,7 @@ static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *pt
 static inline void set_pte(pte_t *ptep, pte_t pteval)
 {
 	*ptep = pteval;
-#if !defined(CONFIG_CPU_R3000) && !defined(CONFIG_CPU_TX39XX)
+#if !defined(CONFIG_CPU_R3K_TLB)
 	if (pte_val(pteval) & _PAGE_GLOBAL) {
 		pte_t *buddy = ptep_buddy(ptep);
 		/*
@@ -217,7 +218,7 @@ static inline void set_pte(pte_t *ptep, pte_t pteval)
 static inline void pte_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	htw_stop();
-#if !defined(CONFIG_CPU_R3000) && !defined(CONFIG_CPU_TX39XX)
+#if !defined(CONFIG_CPU_R3K_TLB)
 	/* Preserve global status for the pair */
 	if (pte_val(*ptep_buddy(ptep)) & _PAGE_GLOBAL)
 		set_pte_at(mm, addr, ptep, __pte(_PAGE_GLOBAL));
@@ -276,6 +277,7 @@ extern pgd_t swapper_pg_dir[];
 static inline int pte_write(pte_t pte)	{ return pte.pte_low & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte.pte_low & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte.pte_low & _PAGE_ACCESSED; }
+static inline int pte_special(pte_t pte) { return pte.pte_low & _PAGE_SPECIAL; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -336,10 +338,17 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	}
 	return pte;
 }
+
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte.pte_low |= _PAGE_SPECIAL;
+	return pte;
+}
 #else
 static inline int pte_write(pte_t pte)	{ return pte_val(pte) & _PAGE_WRITE; }
 static inline int pte_dirty(pte_t pte)	{ return pte_val(pte) & _PAGE_MODIFIED; }
 static inline int pte_young(pte_t pte)	{ return pte_val(pte) & _PAGE_ACCESSED; }
+static inline int pte_special(pte_t pte) { return pte_val(pte) & _PAGE_SPECIAL; }
 
 static inline pte_t pte_wrprotect(pte_t pte)
 {
@@ -383,6 +392,12 @@ static inline pte_t pte_mkyoung(pte_t pte)
 	return pte;
 }
 
+static inline pte_t pte_mkspecial(pte_t pte)
+{
+	pte_val(pte) |= _PAGE_SPECIAL;
+	return pte;
+}
+
 #ifdef CONFIG_MIPS_HUGE_TLB_SUPPORT
 static inline int pte_huge(pte_t pte)	{ return pte_val(pte) & _PAGE_HUGE; }
 
@@ -393,8 +408,6 @@ static inline pte_t pte_mkhuge(pte_t pte)
 }
 #endif /* CONFIG_MIPS_HUGE_TLB_SUPPORT */
 #endif
-static inline int pte_special(pte_t pte)	{ return 0; }
-static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 
 /*
  * Macro to make mark a page protection value as "uncacheable".	 Note
@@ -626,6 +639,8 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
 
 #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
 
+#define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
+
 #include <asm-generic/pgtable.h>
 
 /*
@@ -645,10 +660,5 @@ pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
  */
 #define HAVE_ARCH_UNMAPPED_AREA
 #define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do { } while (0)
 
 #endif /* _ASM_PGTABLE_H */

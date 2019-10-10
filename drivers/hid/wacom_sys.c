@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/input/tablet/wacom_sys.c
  *
@@ -5,10 +6,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include "wacom_wac.h"
@@ -91,7 +88,7 @@ static void wacom_wac_queue_flush(struct hid_device *hdev,
 }
 
 static int wacom_wac_pen_serial_enforce(struct hid_device *hdev,
-		struct hid_report *report, u8 *raw_data, int size)
+		struct hid_report *report, u8 *raw_data, int report_size)
 {
 	struct wacom *wacom = hid_get_drvdata(hdev);
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
@@ -152,7 +149,8 @@ static int wacom_wac_pen_serial_enforce(struct hid_device *hdev,
 	if (flush)
 		wacom_wac_queue_flush(hdev, &wacom_wac->pen_fifo);
 	else if (insert)
-		wacom_wac_queue_insert(hdev, &wacom_wac->pen_fifo, raw_data, size);
+		wacom_wac_queue_insert(hdev, &wacom_wac->pen_fifo,
+				       raw_data, report_size);
 
 	return insert && !flush;
 }
@@ -252,6 +250,38 @@ static void wacom_hid_usage_quirk(struct hid_device *hdev,
 		}
 	}
 
+	/*
+	 * Wacom's AES devices use different vendor-defined usages to
+	 * report serial number information compared to their branded
+	 * hardware. The usages are also sometimes ill-defined and do
+	 * not have the correct logical min/max values set. Lets patch
+	 * the descriptor to use the branded usage convention and fix
+	 * the errors.
+	 */
+	if (usage->hid == WACOM_HID_WT_SERIALNUMBER &&
+	    field->report_size == 16 &&
+	    field->index + 2 < field->report->maxfield) {
+		struct hid_field *a = field->report->field[field->index + 1];
+		struct hid_field *b = field->report->field[field->index + 2];
+
+		if (a->maxusage > 0 &&
+		    a->usage[0].hid == HID_DG_TOOLSERIALNUMBER &&
+		    a->report_size == 32 &&
+		    b->maxusage > 0 &&
+		    b->usage[0].hid == 0xFF000000 &&
+		    b->report_size == 8) {
+			features->quirks |= WACOM_QUIRK_AESPEN;
+			usage->hid = WACOM_HID_WD_TOOLTYPE;
+			field->logical_minimum = S16_MIN;
+			field->logical_maximum = S16_MAX;
+			a->logical_minimum = S32_MIN;
+			a->logical_maximum = S32_MAX;
+			b->usage[0].hid = WACOM_HID_WD_SERIALHI;
+			b->logical_minimum = 0;
+			b->logical_maximum = U8_MAX;
+		}
+	}
+
 	/* 2nd-generation Intuos Pro Large has incorrect Y maximum */
 	if (hdev->vendor == USB_VENDOR_ID_WACOM &&
 	    hdev->product == 0x0358 &&
@@ -275,18 +305,23 @@ static void wacom_feature_mapping(struct hid_device *hdev,
 	wacom_hid_usage_quirk(hdev, field, usage);
 
 	switch (equivalent_usage) {
+	case WACOM_HID_WD_TOUCH_RING_SETTING:
+		wacom->generic_has_leds = true;
+		break;
 	case HID_DG_CONTACTMAX:
 		/* leave touch_max as is if predefined */
 		if (!features->touch_max) {
 			/* read manually */
-			data = kzalloc(2, GFP_KERNEL);
+			n = hid_report_len(field->report);
+			data = hid_alloc_report_buf(field->report, GFP_KERNEL);
 			if (!data)
 				break;
 			data[0] = field->report->id;
 			ret = wacom_get_report(hdev, HID_FEATURE_REPORT,
-						data, 2, WAC_CMD_RETRIES);
-			if (ret == 2) {
-				features->touch_max = data[1];
+					       data, n, WAC_CMD_RETRIES);
+			if (ret == n) {
+				ret = hid_report_raw_event(hdev,
+					HID_FEATURE_REPORT, data, n, 0);
 			} else {
 				features->touch_max = 16;
 				hid_warn(hdev, "wacom_feature_mapping: "
@@ -2142,7 +2177,7 @@ static void wacom_update_name(struct wacom *wacom, const char *suffix)
 {
 	struct wacom_wac *wacom_wac = &wacom->wacom_wac;
 	struct wacom_features *features = &wacom_wac->features;
-	char name[WACOM_NAME_MAX];
+	char name[WACOM_NAME_MAX - 20]; /* Leave some room for suffixes */
 
 	/* Generic devices name unspecified */
 	if ((features->type == HID_GENERIC) && !strcmp("Wacom HID", features->name)) {
@@ -2684,14 +2719,12 @@ static int wacom_probe(struct hid_device *hdev,
 	wacom_wac->features = *((struct wacom_features *)id->driver_data);
 	features = &wacom_wac->features;
 
-	if (features->check_for_hid_type && features->hid_type != hdev->type) {
-		error = -ENODEV;
-		goto fail;
-	}
+	if (features->check_for_hid_type && features->hid_type != hdev->type)
+		return -ENODEV;
 
 	error = kfifo_alloc(&wacom_wac->pen_fifo, WACOM_PKGLEN_MAX, GFP_KERNEL);
 	if (error)
-		goto fail;
+		return error;
 
 	wacom_wac->hid_data.inputmode = -1;
 	wacom_wac->mode_report = -1;
@@ -2709,12 +2742,12 @@ static int wacom_probe(struct hid_device *hdev,
 	error = hid_parse(hdev);
 	if (error) {
 		hid_err(hdev, "parse failed\n");
-		goto fail;
+		return error;
 	}
 
 	error = wacom_parse_and_register(wacom, false);
 	if (error)
-		goto fail;
+		return error;
 
 	if (hdev->bus == BUS_BLUETOOTH) {
 		error = device_create_file(&hdev->dev, &dev_attr_speed);
@@ -2725,10 +2758,6 @@ static int wacom_probe(struct hid_device *hdev,
 	}
 
 	return 0;
-
-fail:
-	hid_set_drvdata(hdev, NULL);
-	return error;
 }
 
 static void wacom_remove(struct hid_device *hdev)
@@ -2757,8 +2786,6 @@ static void wacom_remove(struct hid_device *hdev)
 		wacom_release_resources(wacom);
 
 	kfifo_free(&wacom_wac->pen_fifo);
-
-	hid_set_drvdata(hdev, NULL);
 }
 
 #ifdef CONFIG_PM

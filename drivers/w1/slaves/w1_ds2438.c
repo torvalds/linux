@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 1-Wire implementation for the ds2438 chip
  *
  * Copyright (c) 2017 Mariusz Bialonczyk <manio@skyboo.net>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2. See the file COPYING for more details.
  */
 
 #include <linux/kernel.h>

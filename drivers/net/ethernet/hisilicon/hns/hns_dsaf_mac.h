@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _HNS_DSAF_MAC_H
@@ -187,7 +183,7 @@ struct mac_statistics {
 /*mac para struct ,mac get param from nic or dsaf when initialize*/
 struct mac_params {
 	char addr[ETH_ALEN];
-	void *vaddr; /*virtual address*/
+	u8 __iomem *vaddr; /*virtual address*/
 	struct device *dev;
 	u8 mac_id;
 	/**< Ethernet operation mode (MAC-PHY interface and speed) */
@@ -402,7 +398,7 @@ struct mac_driver {
 	enum mac_mode mac_mode;
 	u8 mac_id;
 	struct hns_mac_cb *mac_cb;
-	void __iomem *io_base;
+	u8 __iomem *io_base;
 	unsigned int mac_en_flg;/*you'd better don't enable mac twice*/
 	unsigned int virt_dev_num;
 	struct device *dev;

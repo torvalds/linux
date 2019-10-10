@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* YFS protocol bits
  *
  * Copyright (C) 2018 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define YFS_FS_SERVICE	2500
@@ -31,9 +27,9 @@ enum YFS_CM_Operations {
 };
 
 enum YFS_FS_Operations {
-	YFSFETCHACL		= 64131, /* YFS Fetch file ACL */
+	YFSFETCHACL		= 64131, /* YFS Fetch file AFS3 ACL */
 	YFSFETCHSTATUS		= 64132, /* YFS Fetch file status */
-	YFSSTOREACL		= 64134, /* YFS Store file ACL */
+	YFSSTOREACL		= 64134, /* YFS Store file AFS3 ACL */
 	YFSSTORESTATUS		= 64135, /* YFS Store file status */
 	YFSREMOVEFILE		= 64136, /* YFS Remove a file */
 	YFSCREATEFILE		= 64137, /* YFS Create a file */
@@ -49,7 +45,7 @@ enum YFS_FS_Operations {
 	YFSRELEASELOCK		= 64158, /* YFS Release a file lock */
 	YFSLOOKUP		= 64161, /* YFS lookup file in directory */
 	YFSFLUSHCPS		= 64165,
-	YFSFETCHOPAQUEACL	= 64168,
+	YFSFETCHOPAQUEACL	= 64168, /* YFS Fetch file YFS ACL */
 	YFSWHOAMI		= 64170,
 	YFSREMOVEACL		= 64171,
 	YFSREMOVEFILE2		= 64173,

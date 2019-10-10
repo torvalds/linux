@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-rc6-decoder.c - A decoder for the RC6 IR protocol
  *
  * Copyright (C) 2010 by David Härdeman <david@hardeman.nu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "rc-core-priv.h"
@@ -40,6 +32,7 @@
 #define RC6_6A_MCE_TOGGLE_MASK	0x8000	/* for the body bits */
 #define RC6_6A_LCC_MASK		0xffff0000 /* RC6-6A-32 long customer code mask */
 #define RC6_6A_MCE_CC		0x800f0000 /* MCE customer code */
+#define RC6_6A_ZOTAC_CC		0x80340000 /* Zotac customer code */
 #define RC6_6A_KATHREIN_CC	0x80460000 /* Kathrein RCU-676 customer code */
 #ifndef CHAR_BIT
 #define CHAR_BIT 8	/* Normally in <limits.h> */
@@ -246,6 +239,7 @@ again:
 				switch (scancode & RC6_6A_LCC_MASK) {
 				case RC6_6A_MCE_CC:
 				case RC6_6A_KATHREIN_CC:
+				case RC6_6A_ZOTAC_CC:
 					protocol = RC_PROTO_RC6_MCE;
 					toggle = !!(scancode & RC6_6A_MCE_TOGGLE_MASK);
 					scancode &= ~RC6_6A_MCE_TOGGLE_MASK;

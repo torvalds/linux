@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drm gem CMA (contiguous memory allocator) helper functions
  *
@@ -6,26 +7,18 @@
  * Based on Samsung Exynos code
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
-#include <linux/mm.h>
-#include <linux/slab.h>
-#include <linux/mutex.h>
-#include <linux/export.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-mapping.h>
+#include <linux/export.h>
+#include <linux/mm.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
+#include <drm/drm_device.h>
+#include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_vma_manager.h>
 
@@ -186,13 +179,13 @@ void drm_gem_cma_free_object(struct drm_gem_object *gem_obj)
 
 	cma_obj = to_drm_gem_cma_obj(gem_obj);
 
-	if (cma_obj->vaddr) {
-		dma_free_wc(gem_obj->dev->dev, cma_obj->base.size,
-			    cma_obj->vaddr, cma_obj->paddr);
-	} else if (gem_obj->import_attach) {
+	if (gem_obj->import_attach) {
 		if (cma_obj->vaddr)
 			dma_buf_vunmap(gem_obj->import_attach->dmabuf, cma_obj->vaddr);
 		drm_prime_gem_destroy(gem_obj, cma_obj->sgt);
+	} else if (cma_obj->vaddr) {
+		dma_free_wc(gem_obj->dev->dev, cma_obj->base.size,
+			    cma_obj->vaddr, cma_obj->paddr);
 	}
 
 	drm_gem_object_release(gem_obj);

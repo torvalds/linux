@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant linux driver for
  *
  * DM04/QQBOX DVB-S USB BOX	LME2510C + SHARP:BS2F7HZ7395
@@ -33,21 +34,10 @@
  * 0xd0 - STV0299	- Demodulator
  * 0xc0 - IX2410	- Tuner
  *
- *
  * VID = 3344  PID LME2510=1122 LME2510C=1120
  *
  * Copyright (C) 2010 Malcolm Priestley (tvboxspy@gmail.com)
  * LME2510(C)(C) Leaguerme (Shenzhen) MicroElectronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License Version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  *
  * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  *
@@ -308,7 +298,7 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 		switch (ibuf[0]) {
 		case 0xaa:
-			debug_data_snipet(1, "INT Remote data snipet", ibuf);
+			debug_data_snipet(1, "INT Remote data snippet", ibuf);
 			if (!adap_to_d(adap)->rc_dev)
 				break;
 
@@ -358,13 +348,13 @@ static void lme2510_int_response(struct urb *lme_urb)
 
 			lme2510_update_stats(adap);
 
-			debug_data_snipet(5, "INT Remote data snipet in", ibuf);
+			debug_data_snipet(5, "INT Remote data snippet in", ibuf);
 		break;
 		case 0xcc:
-			debug_data_snipet(1, "INT Control data snipet", ibuf);
+			debug_data_snipet(1, "INT Control data snippet", ibuf);
 			break;
 		default:
-			debug_data_snipet(1, "INT Unknown data snipet", ibuf);
+			debug_data_snipet(1, "INT Unknown data snippet", ibuf);
 		break;
 		}
 	}

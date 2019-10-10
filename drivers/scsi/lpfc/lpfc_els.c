@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -30,6 +30,8 @@
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_transport_fc.h>
+#include <uapi/scsi/fc/fc_fs.h>
+#include <uapi/scsi/fc/fc_els.h>
 
 #include "lpfc_hw4.h"
 #include "lpfc_hw.h"
@@ -1050,16 +1052,17 @@ stop_rr_fcf_flogi:
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
 			goto out;
 
+		lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
+				 "0150 FLOGI failure Status:x%x/x%x "
+				 "xri x%x TMO:x%x\n",
+				 irsp->ulpStatus, irsp->un.ulpWord[4],
+				 cmdiocb->sli4_xritag, irsp->ulpTimeout);
+
 		/* If this is not a loop open failure, bail out */
 		if (!(irsp->ulpStatus == IOSTAT_LOCAL_REJECT &&
 		      ((irsp->un.ulpWord[4] & IOERR_PARAM_MASK) ==
 					IOERR_LOOP_OPEN_FAILURE)))
 			goto flogifail;
-
-		lpfc_printf_vlog(vport, KERN_WARNING, LOG_ELS,
-				 "0150 FLOGI failure Status:x%x/x%x xri x%x TMO:x%x\n",
-				 irsp->ulpStatus, irsp->un.ulpWord[4],
-				 cmdiocb->sli4_xritag, irsp->ulpTimeout);
 
 		/* FLOGI failed, so there is no fabric */
 		spin_lock_irq(shost->host_lock);
@@ -1201,6 +1204,39 @@ flogifail:
 		lpfc_issue_clear_la(phba, vport);
 	}
 out:
+	lpfc_els_free_iocb(phba, cmdiocb);
+}
+
+/**
+ * lpfc_cmpl_els_link_down - Completion callback function for ELS command
+ *                           aborted during a link down
+ * @phba: pointer to lpfc hba data structure.
+ * @cmdiocb: pointer to lpfc command iocb data structure.
+ * @rspiocb: pointer to lpfc response iocb data structure.
+ *
+ */
+static void
+lpfc_cmpl_els_link_down(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
+			struct lpfc_iocbq *rspiocb)
+{
+	IOCB_t *irsp;
+	uint32_t *pcmd;
+	uint32_t cmd;
+
+	pcmd = (uint32_t *)(((struct lpfc_dmabuf *)cmdiocb->context2)->virt);
+	cmd = *pcmd;
+	irsp = &rspiocb->iocb;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
+			"6445 ELS completes after LINK_DOWN: "
+			" Status %x/%x cmd x%x flg x%x\n",
+			irsp->ulpStatus, irsp->un.ulpWord[4], cmd,
+			cmdiocb->iocb_flag);
+
+	if (cmdiocb->iocb_flag & LPFC_IO_FABRIC) {
+		cmdiocb->iocb_flag &= ~LPFC_IO_FABRIC;
+		atomic_dec(&phba->fabric_iocb_count);
+	}
 	lpfc_els_free_iocb(phba, cmdiocb);
 }
 
@@ -1961,7 +1997,7 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	IOCB_t *irsp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_dmabuf *prsp;
-	int disc, rc;
+	int disc;
 
 	/* we pass cmdiocb to state machine which needs rspiocb as well */
 	cmdiocb->context_un.rsp_iocb = rspiocb;
@@ -1990,7 +2026,6 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	disc = (ndlp->nlp_flag & NLP_NPR_2B_DISC);
 	ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 	spin_unlock_irq(shost->host_lock);
-	rc = 0;
 
 	/* PLOGI completes to NPort <nlp_DID> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
@@ -2029,18 +2064,16 @@ lpfc_cmpl_els_plogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 ndlp->nlp_DID, irsp->ulpStatus,
 				 irsp->un.ulpWord[4]);
 		/* Do not call DSM for lpfc_els_abort'ed ELS cmds */
-		if (lpfc_error_lost_link(irsp))
-			rc = NLP_STE_FREED_NODE;
-		else
-			rc = lpfc_disc_state_machine(vport, ndlp, cmdiocb,
-						     NLP_EVT_CMPL_PLOGI);
+		if (!lpfc_error_lost_link(irsp))
+			lpfc_disc_state_machine(vport, ndlp, cmdiocb,
+						NLP_EVT_CMPL_PLOGI);
 	} else {
 		/* Good status, call state machine */
 		prsp = list_entry(((struct lpfc_dmabuf *)
 				   cmdiocb->context2)->list.next,
 				  struct lpfc_dmabuf, list);
 		ndlp = lpfc_plogi_confirm_nport(phba, prsp->virt, ndlp);
-		rc = lpfc_disc_state_machine(vport, ndlp, cmdiocb,
+		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					     NLP_EVT_CMPL_PLOGI);
 	}
 
@@ -2108,7 +2141,7 @@ lpfc_issue_els_plogi(struct lpfc_vport *vport, uint32_t did, uint8_t retry)
 		    !(vport->fc_flag & FC_OFFLINE_MODE)) {
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
 					 "4110 Issue PLOGI x%x deferred "
-					 "on NPort x%x rpi x%x Data: %p\n",
+					 "on NPort x%x rpi x%x Data: x%px\n",
 					 ndlp->nlp_defer_did, ndlp->nlp_DID,
 					 ndlp->nlp_rpi, ndlp);
 
@@ -2402,6 +2435,10 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		npr_nvme = (struct lpfc_nvme_prli *)pcmd;
 		bf_set(prli_type_code, npr_nvme, PRLI_NVME_TYPE);
 		bf_set(prli_estabImagePair, npr_nvme, 0);  /* Should be 0 */
+		if (phba->nsler) {
+			bf_set(prli_nsler, npr_nvme, 1);
+			bf_set(prli_conf, npr_nvme, 1);
+		}
 
 		/* Only initiators request first burst. */
 		if ((phba->cfg_nvme_enable_fb) &&
@@ -2827,8 +2864,8 @@ out:
 		!(vport->fc_flag & FC_PT2PT_PLOGI)) {
 		phba->pport->fc_myDID = 0;
 
-		if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
-		    (phba->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
+		if ((vport->cfg_enable_fc4_type == LPFC_ENABLE_BOTH) ||
+		    (vport->cfg_enable_fc4_type == LPFC_ENABLE_NVME)) {
 			if (phba->nvmet_support)
 				lpfc_nvmet_update_targetport(phba);
 			else
@@ -3078,6 +3115,116 @@ lpfc_issue_els_scr(struct lpfc_vport *vport, uint32_t nportid, uint8_t retry)
 	 */
 	if (!(vport->fc_flag & FC_PT2PT))
 		lpfc_nlp_put(ndlp);
+	return 0;
+}
+
+/**
+ * lpfc_issue_els_rscn - Issue an RSCN to the Fabric Controller (Fabric)
+ *   or the other nport (pt2pt).
+ * @vport: pointer to a host virtual N_Port data structure.
+ * @retry: number of retries to the command IOCB.
+ *
+ * This routine issues a RSCN to the Fabric Controller (DID 0xFFFFFD)
+ *  when connected to a fabric, or to the remote port when connected
+ *  in point-to-point mode. When sent to the Fabric Controller, it will
+ *  replay the RSCN to registered recipients.
+ *
+ * Note that, in lpfc_prep_els_iocb() routine, the reference count of ndlp
+ * will be incremented by 1 for holding the ndlp and the reference to ndlp
+ * will be stored into the context1 field of the IOCB for the completion
+ * callback function to the RSCN ELS command.
+ *
+ * Return code
+ *   0 - Successfully issued RSCN command
+ *   1 - Failed to issue RSCN command
+ **/
+int
+lpfc_issue_els_rscn(struct lpfc_vport *vport, uint8_t retry)
+{
+	struct lpfc_hba *phba = vport->phba;
+	struct lpfc_iocbq *elsiocb;
+	struct lpfc_nodelist *ndlp;
+	struct {
+		struct fc_els_rscn rscn;
+		struct fc_els_rscn_page portid;
+	} *event;
+	uint32_t nportid;
+	uint16_t cmdsize = sizeof(*event);
+
+	/* Not supported for private loop */
+	if (phba->fc_topology == LPFC_TOPOLOGY_LOOP &&
+	    !(vport->fc_flag & FC_PUBLIC_LOOP))
+		return 1;
+
+	if (vport->fc_flag & FC_PT2PT) {
+		/* find any mapped nport - that would be the other nport */
+		ndlp = lpfc_findnode_mapped(vport);
+		if (!ndlp)
+			return 1;
+	} else {
+		nportid = FC_FID_FCTRL;
+		/* find the fabric controller node */
+		ndlp = lpfc_findnode_did(vport, nportid);
+		if (!ndlp) {
+			/* if one didn't exist, make one */
+			ndlp = lpfc_nlp_init(vport, nportid);
+			if (!ndlp)
+				return 1;
+			lpfc_enqueue_node(vport, ndlp);
+		} else if (!NLP_CHK_NODE_ACT(ndlp)) {
+			ndlp = lpfc_enable_node(vport, ndlp,
+						NLP_STE_UNUSED_NODE);
+			if (!ndlp)
+				return 1;
+		}
+	}
+
+	elsiocb = lpfc_prep_els_iocb(vport, 1, cmdsize, retry, ndlp,
+				     ndlp->nlp_DID, ELS_CMD_RSCN_XMT);
+
+	if (!elsiocb) {
+		/* This will trigger the release of the node just
+		 * allocated
+		 */
+		lpfc_nlp_put(ndlp);
+		return 1;
+	}
+
+	event = ((struct lpfc_dmabuf *)elsiocb->context2)->virt;
+
+	event->rscn.rscn_cmd = ELS_RSCN;
+	event->rscn.rscn_page_len = sizeof(struct fc_els_rscn_page);
+	event->rscn.rscn_plen = cpu_to_be16(cmdsize);
+
+	nportid = vport->fc_myDID;
+	/* appears that page flags must be 0 for fabric to broadcast RSCN */
+	event->portid.rscn_page_flags = 0;
+	event->portid.rscn_fid[0] = (nportid & 0x00FF0000) >> 16;
+	event->portid.rscn_fid[1] = (nportid & 0x0000FF00) >> 8;
+	event->portid.rscn_fid[2] = nportid & 0x000000FF;
+
+	lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_CMD,
+			      "Issue RSCN:       did:x%x",
+			      ndlp->nlp_DID, 0, 0);
+
+	phba->fc_stat.elsXmitRSCN++;
+	elsiocb->iocb_cmpl = lpfc_cmpl_els_cmd;
+	if (lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, elsiocb, 0) ==
+	    IOCB_ERROR) {
+		/* The additional lpfc_nlp_put will cause the following
+		 * lpfc_els_free_iocb routine to trigger the rlease of
+		 * the node.
+		 */
+		lpfc_nlp_put(ndlp);
+		lpfc_els_free_iocb(phba, elsiocb);
+		return 1;
+	}
+	/* This will cause the callback-function lpfc_cmpl_els_cmd to
+	 * trigger the release of node.
+	 */
+	if (!(vport->fc_flag & FC_PT2PT))
+		lpfc_nlp_put(ndlp);
+
 	return 0;
 }
 
@@ -4094,7 +4241,7 @@ lpfc_mbx_cmpl_dflt_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mempool_free(pmb, phba->mbox_mem_pool);
 	if (ndlp) {
 		lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
-				 "0006 rpi%x DID:%x flg:%x %d map:%x %p\n",
+				 "0006 rpi%x DID:%x flg:%x %d map:%x x%px\n",
 				 ndlp->nlp_rpi, ndlp->nlp_DID, ndlp->nlp_flag,
 				 kref_read(&ndlp->kref),
 				 ndlp->nlp_usg_map, ndlp);
@@ -4199,6 +4346,7 @@ lpfc_cmpl_els_rsp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		if ((rspiocb->iocb.ulpStatus == 0)
 		    && (ndlp->nlp_flag & NLP_ACC_REGLOGIN)) {
 			if (!lpfc_unreg_rpi(vport, ndlp) &&
+			    (!(vport->fc_flag & FC_PT2PT)) &&
 			    (ndlp->nlp_state ==  NLP_STE_PLOGI_ISSUE ||
 			     ndlp->nlp_state == NLP_STE_REG_LOGIN_ISSUE)) {
 				lpfc_printf_vlog(vport, KERN_INFO,
@@ -5524,16 +5672,16 @@ lpfc_rdp_res_attach_port_names(struct fc_rdp_port_name_desc *desc,
 	desc->tag = cpu_to_be32(RDP_PORT_NAMES_DESC_TAG);
 	if (vport->fc_flag & FC_FABRIC) {
 		memcpy(desc->port_names.wwnn, &vport->fabric_nodename,
-				sizeof(desc->port_names.wwnn));
+		       sizeof(desc->port_names.wwnn));
 
 		memcpy(desc->port_names.wwpn, &vport->fabric_portname,
-				sizeof(desc->port_names.wwpn));
+		       sizeof(desc->port_names.wwpn));
 	} else {  /* Point to Point */
 		memcpy(desc->port_names.wwnn, &ndlp->nlp_nodename,
-				sizeof(desc->port_names.wwnn));
+		       sizeof(desc->port_names.wwnn));
 
-		memcpy(desc->port_names.wwnn, &ndlp->nlp_portname,
-				sizeof(desc->port_names.wwpn));
+		memcpy(desc->port_names.wwpn, &ndlp->nlp_portname,
+		       sizeof(desc->port_names.wwpn));
 	}
 
 	desc->length = cpu_to_be32(sizeof(desc->port_names));
@@ -6217,6 +6365,12 @@ lpfc_rscn_recovery_check(struct lpfc_vport *vport)
 			continue;
 		}
 
+		/* Check to see if we need to NVME rescan this target
+		 * remoteport.
+		 */
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME &&
+		    ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_DISCOVERY))
+			lpfc_nvme_rescan_port(vport, ndlp);
 
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					NLP_EVT_DEVICE_RECOVERY);
@@ -6320,6 +6474,23 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	for (i = 0; i < payload_len/sizeof(uint32_t); i++)
 		fc_host_post_event(shost, fc_get_event_number(),
 			FCH_EVT_RSCN, lp[i]);
+
+	/* Check if RSCN is coming from a direct-connected remote NPort */
+	if (vport->fc_flag & FC_PT2PT) {
+		/* If so, just ACC it, no other action needed for now */
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
+				 "2024 pt2pt RSCN %08x Data: x%x x%x\n",
+				 *lp, vport->fc_flag, payload_len);
+		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
+
+		/* Check to see if we need to NVME rescan this target
+		 * remoteport.
+		 */
+		if (ndlp->nlp_fc4_type & NLP_FC4_NVME &&
+		    ndlp->nlp_type & (NLP_NVME_TARGET | NLP_NVME_DISCOVERY))
+			lpfc_nvme_rescan_port(vport, ndlp);
+		return 0;
+	}
 
 	/* If we are about to begin discovery, just ACC the RSCN.
 	 * Discovery processing will satisfy it.
@@ -6744,12 +6915,11 @@ lpfc_els_rcv_rnid(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	uint32_t *lp;
 	RNID *rn;
 	struct ls_rjt stat;
-	uint32_t cmd;
 
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
 
-	cmd = *lp++;
+	lp++;
 	rn = (RNID *) lp;
 
 	/* RNID received */
@@ -7338,7 +7508,10 @@ int
 lpfc_send_rrq(struct lpfc_hba *phba, struct lpfc_node_rrq *rrq)
 {
 	struct lpfc_nodelist *ndlp = lpfc_findnode_did(rrq->vport,
-							rrq->nlp_DID);
+						       rrq->nlp_DID);
+	if (!ndlp)
+		return 1;
+
 	if (lpfc_test_rrq_active(phba, ndlp, rrq->xritag))
 		return lpfc_issue_els_rrq(rrq->vport, ndlp,
 					 rrq->nlp_DID, rrq);
@@ -7508,14 +7681,14 @@ lpfc_els_rcv_farp(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	uint32_t *lp;
 	IOCB_t *icmd;
 	FARP *fp;
-	uint32_t cmd, cnt, did;
+	uint32_t cnt, did;
 
 	icmd = &cmdiocb->iocb;
 	did = icmd->un.elsreq64.remoteID;
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
 
-	cmd = *lp++;
+	lp++;
 	fp = (FARP *) lp;
 	/* FARP-REQ received from DID <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
@@ -7580,14 +7753,14 @@ lpfc_els_rcv_farpr(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_dmabuf *pcmd;
 	uint32_t *lp;
 	IOCB_t *icmd;
-	uint32_t cmd, did;
+	uint32_t did;
 
 	icmd = &cmdiocb->iocb;
 	did = icmd->un.elsreq64.remoteID;
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
 
-	cmd = *lp++;
+	lp++;
 	/* FARP-RSP received from DID <did> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "0600 FARP-RSP received from DID x%x\n", did);
@@ -7833,18 +8006,40 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
+	/* First we need to issue aborts to outstanding cmds on txcmpl */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txcmplq, list) {
 		if (piocb->iocb_flag & LPFC_IO_LIBDFC)
 			continue;
 
 		if (piocb->vport != vport)
 			continue;
-		list_add_tail(&piocb->dlist, &abort_list);
+
+		/* On the ELS ring we can have ELS_REQUESTs or
+		 * GEN_REQUESTs waiting for a response.
+		 */
+		cmd = &piocb->iocb;
+		if (cmd->ulpCommand == CMD_ELS_REQUEST64_CR) {
+			list_add_tail(&piocb->dlist, &abort_list);
+
+			/* If the link is down when flushing ELS commands
+			 * the firmware will not complete them till after
+			 * the link comes back up. This may confuse
+			 * discovery for the new link up, so we need to
+			 * change the compl routine to just clean up the iocb
+			 * and avoid any retry logic.
+			 */
+			if (phba->link_state == LPFC_LINK_DOWN)
+				piocb->iocb_cmpl = lpfc_cmpl_els_link_down;
+		}
+		if (cmd->ulpCommand == CMD_GEN_REQUEST64_CR)
+			list_add_tail(&piocb->dlist, &abort_list);
 	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
-	/* Abort each iocb on the aborted list and remove the dlist links. */
+
+	/* Abort each txcmpl iocb on aborted list and remove the dlist links. */
 	list_for_each_entry_safe(piocb, tmp_iocb, &abort_list, dlist) {
 		spin_lock_irq(&phba->hbalock);
 		list_del_init(&piocb->dlist);
@@ -7860,6 +8055,9 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_lock(&pring->ring_lock);
 
+	/* No need to abort the txq list,
+	 * just queue them up for lpfc_sli_cancel_iocbs
+	 */
 	list_for_each_entry_safe(piocb, tmp_iocb, &pring->txq, list) {
 		cmd = &piocb->iocb;
 
@@ -7880,11 +8078,22 @@ lpfc_els_flush_cmd(struct lpfc_vport *vport)
 		list_del_init(&piocb->list);
 		list_add_tail(&piocb->list, &abort_list);
 	}
+
+	/* The same holds true for any FLOGI/FDISC on the fabric_iocb_list */
+	if (vport == phba->pport) {
+		list_for_each_entry_safe(piocb, tmp_iocb,
+					 &phba->fabric_iocb_list, list) {
+			cmd = &piocb->iocb;
+			list_del_init(&piocb->list);
+			list_add_tail(&piocb->list, &abort_list);
+		}
+	}
+
 	if (phba->sli_rev == LPFC_SLI_REV4)
 		spin_unlock(&pring->ring_lock);
 	spin_unlock_irq(&phba->hbalock);
 
-	/* Cancell all the IOCBs from the completions list */
+	/* Cancel all the IOCBs from the completions list */
 	lpfc_sli_cancel_iocbs(phba, &abort_list,
 			      IOSTAT_LOCAL_REJECT, IOERR_SLI_ABORTED);
 
@@ -8454,6 +8663,14 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		rjt_err = LSRJT_UNABLE_TPC;
 		rjt_exp = LSEXP_INVALID_OX_RX;
 		break;
+	case ELS_CMD_FPIN:
+		/*
+		 * Received FPIN from fabric - pass it to the
+		 * transport FPIN handler.
+		 */
+		fc_host_fpin_rcv(shost, elsiocb->iocb.unsli3.rcvsli3.acc_len,
+				(char *)payload);
+		break;
 	default:
 		lpfc_debugfs_disc_trc(vport, LPFC_DISC_TRC_ELS_UNSOL,
 			"RCV ELS cmd:     cmd:x%x did:x%x/ste:x%x",
@@ -8775,7 +8992,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				lpfc_nlp_put(ndlp);
 				return;
 			}
-
+			/* fall through */
 		default:
 			/* Try to recover from this error */
 			if (phba->sli_rev == LPFC_SLI_REV4)

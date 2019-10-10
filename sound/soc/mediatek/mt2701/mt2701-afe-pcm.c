@@ -60,6 +60,27 @@ static const struct mt2701_afe_rate mt2701_afe_i2s_rates[] = {
 	{ .rate = 352800, .regvalue = 24 },
 };
 
+static const unsigned int mt2701_afe_backup_list[] = {
+	AUDIO_TOP_CON0,
+	AUDIO_TOP_CON4,
+	AUDIO_TOP_CON5,
+	ASYS_TOP_CON,
+	AFE_CONN0,
+	AFE_CONN1,
+	AFE_CONN2,
+	AFE_CONN3,
+	AFE_CONN15,
+	AFE_CONN16,
+	AFE_CONN17,
+	AFE_CONN18,
+	AFE_CONN19,
+	AFE_CONN20,
+	AFE_CONN21,
+	AFE_CONN22,
+	AFE_DAC_CON0,
+	AFE_MEMIF_PBUF_SIZE,
+};
+
 static int mt2701_dai_num_to_i2s(struct mtk_base_afe *afe, int num)
 {
 	struct mt2701_afe_private *afe_priv = afe->platform_priv;
@@ -796,14 +817,6 @@ static const struct snd_kcontrol_new mt2701_afe_o22_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I19 Switch", AFE_CONN22, 19, 1, 0),
 };
 
-static const struct snd_kcontrol_new mt2701_afe_o23_mix[] = {
-	SOC_DAPM_SINGLE_AUTODISABLE("I20 Switch", AFE_CONN23, 20, 1, 0),
-};
-
-static const struct snd_kcontrol_new mt2701_afe_o24_mix[] = {
-	SOC_DAPM_SINGLE_AUTODISABLE("I21 Switch", AFE_CONN24, 21, 1, 0),
-};
-
 static const struct snd_kcontrol_new mt2701_afe_o31_mix[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("I35 Switch", AFE_CONN41, 9, 1, 0),
 };
@@ -830,11 +843,6 @@ static const struct snd_kcontrol_new mt2701_afe_multi_ch_out_i2s2[] = {
 static const struct snd_kcontrol_new mt2701_afe_multi_ch_out_i2s3[] = {
 	SOC_DAPM_SINGLE_AUTODISABLE("Multich I2S3 Out Switch",
 				    PWR2_TOP_CON, 18, 1, 0),
-};
-
-static const struct snd_kcontrol_new mt2701_afe_multi_ch_out_i2s4[] = {
-	SOC_DAPM_SINGLE_AUTODISABLE("Multich I2S4 Out Switch",
-				    PWR2_TOP_CON, 19, 1, 0),
 };
 
 static const struct snd_soc_dapm_widget mt2701_afe_pcm_widgets[] = {
@@ -994,7 +1002,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 6,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL2",
@@ -1013,7 +1020,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 7,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL3",
@@ -1032,7 +1038,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 8,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL4",
@@ -1051,7 +1056,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 9,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DL5",
@@ -1070,7 +1074,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 10,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DLM",
@@ -1089,7 +1092,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 12,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL1",
@@ -1108,7 +1110,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 0,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL2",
@@ -1127,7 +1128,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 1,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL3",
@@ -1146,7 +1146,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 2,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL4",
@@ -1165,7 +1164,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 3,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "UL5",
@@ -1184,7 +1182,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 4,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "DLBT",
@@ -1203,7 +1200,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 13,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 	{
 		.name = "ULBT",
@@ -1222,7 +1218,6 @@ static const struct mtk_base_memif_data memif_data[MT2701_MEMIF_NUM] = {
 		.agent_disable_reg = AUDIO_TOP_CON5,
 		.agent_disable_shift = 16,
 		.msb_reg = -1,
-		.msb_shift = -1,
 	},
 };
 
@@ -1355,10 +1350,8 @@ static int mt2701_afe_pcm_dev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	irq_id = platform_get_irq_byname(pdev, "asys");
-	if (irq_id < 0) {
-		dev_err(dev, "unable to get ASYS IRQ\n");
+	if (irq_id < 0)
 		return irq_id;
-	}
 
 	ret = devm_request_irq(dev, irq_id, mt2701_asys_isr,
 			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);

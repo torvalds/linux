@@ -103,7 +103,7 @@ extern unsigned int ptrs_per_p4d;
 #define PGDIR_MASK	(~(PGDIR_SIZE - 1))
 
 /*
- * See Documentation/x86/x86_64/mm.txt for a description of the memory map.
+ * See Documentation/x86/x86_64/mm.rst for a description of the memory map.
  *
  * Be very careful vs. KASLR when changing anything here. The KASLR address
  * range must not overlap with anything except the KASAN shadow area, which

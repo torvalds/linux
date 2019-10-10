@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET  is implemented using the  BSD Socket
@@ -15,11 +16,6 @@
  *		Alexey Kuznetsov:	Major changes for new routing code.
  *		Mike McLagan    :	Routing by source
  *		Robert Olsson   :	Added rt_cache statistics
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _ROUTE_H
 #define _ROUTE_H
@@ -29,6 +25,8 @@
 #include <net/flow.h>
 #include <net/inet_sock.h>
 #include <net/ip_fib.h>
+#include <net/arp.h>
+#include <net/ndisc.h>
 #include <linux/in_route.h>
 #include <linux/rtnetlink.h>
 #include <linux/rcupdate.h>
@@ -59,8 +57,12 @@ struct rtable {
 
 	int			rt_iif;
 
+	u8			rt_gw_family;
 	/* Info on neighbour */
-	__be32			rt_gateway;
+	union {
+		__be32		rt_gw4;
+		struct in6_addr	rt_gw6;
+	};
 
 	/* Miscellaneous cached information */
 	u32			rt_mtu_locked:1,
@@ -82,8 +84,8 @@ static inline bool rt_is_output_route(const struct rtable *rt)
 
 static inline __be32 rt_nexthop(const struct rtable *rt, __be32 daddr)
 {
-	if (rt->rt_gateway)
-		return rt->rt_gateway;
+	if (rt->rt_gw_family == AF_INET)
+		return rt->rt_gw4;
 	return daddr;
 }
 
@@ -220,6 +222,7 @@ void ip_rt_get_source(u8 *src, struct sk_buff *skb, struct rtable *rt);
 struct rtable *rt_dst_alloc(struct net_device *dev,
 			     unsigned int flags, u16 type,
 			     bool nopolicy, bool noxfrm, bool will_cache);
+struct rtable *rt_dst_clone(struct net_device *dev, struct rtable *rt);
 
 struct in_ifaddr;
 void fib_add_ifaddr(struct in_ifaddr *);
@@ -228,6 +231,10 @@ void fib_modify_prefix_metric(struct in_ifaddr *ifa, u32 new_metric);
 
 void rt_add_uncached_list(struct rtable *rt);
 void rt_del_uncached_list(struct rtable *rt);
+
+int fib_dump_info_fnhe(struct sk_buff *skb, struct netlink_callback *cb,
+		       u32 table_id, struct fib_info *fi,
+		       int *fa_index, int fa_start, unsigned int flags);
 
 static inline void ip_rt_put(struct rtable *rt)
 {
@@ -345,6 +352,36 @@ static inline int ip4_dst_hoplimit(const struct dst_entry *dst)
 	if (hoplimit == 0)
 		hoplimit = net->ipv4.sysctl_ip_default_ttl;
 	return hoplimit;
+}
+
+static inline struct neighbour *ip_neigh_gw4(struct net_device *dev,
+					     __be32 daddr)
+{
+	struct neighbour *neigh;
+
+	neigh = __ipv4_neigh_lookup_noref(dev, daddr);
+	if (unlikely(!neigh))
+		neigh = __neigh_create(&arp_tbl, &daddr, dev, false);
+
+	return neigh;
+}
+
+static inline struct neighbour *ip_neigh_for_gw(struct rtable *rt,
+						struct sk_buff *skb,
+						bool *is_v6gw)
+{
+	struct net_device *dev = rt->dst.dev;
+	struct neighbour *neigh;
+
+	if (likely(rt->rt_gw_family == AF_INET)) {
+		neigh = ip_neigh_gw4(dev, rt->rt_gw4);
+	} else if (rt->rt_gw_family == AF_INET6) {
+		neigh = ip_neigh_gw6(dev, &rt->rt_gw6);
+		*is_v6gw = true;
+	} else {
+		neigh = ip_neigh_gw4(dev, ip_hdr(skb)->daddr);
+	}
+	return neigh;
 }
 
 #endif	/* _ROUTE_H */

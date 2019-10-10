@@ -52,7 +52,7 @@ void rcu_qs(void)
 	local_irq_save(flags);
 	if (rcu_ctrlblk.donetail != rcu_ctrlblk.curtail) {
 		rcu_ctrlblk.donetail = rcu_ctrlblk.curtail;
-		raise_softirq(RCU_SOFTIRQ);
+		raise_softirq_irqoff(RCU_SOFTIRQ);
 	}
 	local_irq_restore(flags);
 }

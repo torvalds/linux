@@ -60,4 +60,10 @@
 		clock-frequency = <20000000>;
 	};
 
+	enet0: ethoc@92000000 {
+		compatible = "opencores,ethoc";
+		reg = <0x92000000 0x800>;
+		interrupts = <4>;
+		big-endian;
+	};
 };

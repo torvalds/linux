@@ -1,11 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * syscalls.h - Linux syscall interfaces (non-arch-specific)
  *
  * Copyright (c) 2004 Randy Dunlap
  * Copyright (c) 2004 Open Source Development Labs
- *
- * This file is released under the GPLv2.
- * See the file COPYING for more details.
  */
 
 #ifndef _LINUX_SYSCALLS_H
@@ -69,6 +67,8 @@ struct file_handle;
 struct sigaltstack;
 struct rseq;
 union bpf_attr;
+struct io_uring_params;
+struct clone_args;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
@@ -265,7 +265,7 @@ static inline void addr_limit_user_check(void)
 
 	if (CHECK_DATA_CORRUPTION(!segment_eq(get_fs(), USER_DS),
 				  "Invalid address limit on user-mode return"))
-		force_sig(SIGKILL, current);
+		force_sig(SIGKILL);
 
 #ifdef TIF_FSCHECK
 	clear_thread_flag(TIF_FSCHECK);
@@ -314,6 +314,13 @@ asmlinkage long sys_io_pgetevents_time32(aio_context_t ctx_id,
 				struct io_event __user *events,
 				struct old_timespec32 __user *timeout,
 				const struct __aio_sigset *sig);
+asmlinkage long sys_io_uring_setup(u32 entries,
+				struct io_uring_params __user *p);
+asmlinkage long sys_io_uring_enter(unsigned int fd, u32 to_submit,
+				u32 min_complete, u32 flags,
+				const sigset_t __user *sig, size_t sigsz);
+asmlinkage long sys_io_uring_register(unsigned int fd, unsigned int op,
+				void __user *arg, unsigned int nr_args);
 
 /* fs/xattr.c */
 asmlinkage long sys_setxattr(const char __user *path, const char __user *name,
@@ -844,6 +851,9 @@ asmlinkage long sys_clone(unsigned long, unsigned long, int __user *,
 	       int __user *, unsigned long);
 #endif
 #endif
+
+asmlinkage long sys_clone3(struct clone_args __user *uargs, size_t size);
+
 asmlinkage long sys_execve(const char __user *filename,
 		const char __user *const __user *argv,
 		const char __user *const __user *envp);
@@ -921,6 +931,7 @@ asmlinkage long sys_clock_adjtime32(clockid_t which_clock,
 				struct old_timex32 __user *tx);
 asmlinkage long sys_syncfs(int fd);
 asmlinkage long sys_setns(int fd, int nstype);
+asmlinkage long sys_pidfd_open(pid_t pid, unsigned int flags);
 asmlinkage long sys_sendmmsg(int fd, struct mmsghdr __user *msg,
 			     unsigned int vlen, unsigned flags);
 asmlinkage long sys_process_vm_readv(pid_t pid,
@@ -977,6 +988,18 @@ asmlinkage long sys_statx(int dfd, const char __user *path, unsigned flags,
 			  unsigned mask, struct statx __user *buffer);
 asmlinkage long sys_rseq(struct rseq __user *rseq, uint32_t rseq_len,
 			 int flags, uint32_t sig);
+asmlinkage long sys_open_tree(int dfd, const char __user *path, unsigned flags);
+asmlinkage long sys_move_mount(int from_dfd, const char __user *from_path,
+			       int to_dfd, const char __user *to_path,
+			       unsigned int ms_flags);
+asmlinkage long sys_fsopen(const char __user *fs_name, unsigned int flags);
+asmlinkage long sys_fsconfig(int fs_fd, unsigned int cmd, const char __user *key,
+			     const void __user *value, int aux);
+asmlinkage long sys_fsmount(int fs_fd, unsigned int flags, unsigned int ms_flags);
+asmlinkage long sys_fspick(int dfd, const char __user *path, unsigned int flags);
+asmlinkage long sys_pidfd_send_signal(int pidfd, int sig,
+				       siginfo_t __user *info,
+				       unsigned int flags);
 
 /*
  * Architecture-specific system calls
@@ -1208,8 +1231,8 @@ asmlinkage long sys_ni_syscall(void);
  * the ksys_xyzyyz() functions prototyped below.
  */
 
-int ksys_mount(char __user *dev_name, char __user *dir_name, char __user *type,
-	       unsigned long flags, void __user *data);
+int ksys_mount(const char __user *dev_name, const char __user *dir_name,
+	       const char __user *type, unsigned long flags, void __user *data);
 int ksys_umount(char __user *name, int flags);
 int ksys_dup(unsigned int fildes);
 int ksys_chroot(const char __user *filename);
@@ -1378,5 +1401,24 @@ static inline unsigned int ksys_personality(unsigned int personality)
 
 	return old;
 }
+
+/* for __ARCH_WANT_SYS_IPC */
+long ksys_semtimedop(int semid, struct sembuf __user *tsops,
+		     unsigned int nsops,
+		     const struct __kernel_timespec __user *timeout);
+long ksys_semget(key_t key, int nsems, int semflg);
+long ksys_old_semctl(int semid, int semnum, int cmd, unsigned long arg);
+long ksys_msgget(key_t key, int msgflg);
+long ksys_old_msgctl(int msqid, int cmd, struct msqid_ds __user *buf);
+long ksys_msgrcv(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 long msgtyp, int msgflg);
+long ksys_msgsnd(int msqid, struct msgbuf __user *msgp, size_t msgsz,
+		 int msgflg);
+long ksys_shmget(key_t key, size_t size, int shmflg);
+long ksys_shmdt(char __user *shmaddr);
+long ksys_old_shmctl(int shmid, int cmd, struct shmid_ds __user *buf);
+long compat_ksys_semtimedop(int semid, struct sembuf __user *tsems,
+			    unsigned int nsops,
+			    const struct old_timespec32 __user *timeout);
 
 #endif

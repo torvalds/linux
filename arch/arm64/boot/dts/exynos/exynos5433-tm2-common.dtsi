@@ -289,6 +289,12 @@
 	assigned-clock-parents = <&cmu_top CLK_ACLK_MFC_400>;
 };
 
+&cmu_mif {
+	assigned-clocks = <&cmu_mif CLK_MOUT_SCLK_DSD_A>, <&cmu_mif CLK_DIV_SCLK_DSD>;
+	assigned-clock-parents = <&cmu_mif CLK_MOUT_MFC_PLL_DIV2>;
+	assigned-clock-rates = <0>, <333000000>;
+};
+
 &cmu_mscl {
 	assigned-clocks = <&cmu_mscl CLK_MOUT_ACLK_MSCL_400_USER>,
 			  <&cmu_mscl CLK_MOUT_SCLK_JPEG_USER>,
@@ -342,6 +348,11 @@
 	samsung,pll-clock-frequency = <24000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&te_irq>;
+};
+
+&gpu {
+	mali-supply = <&buck6_reg>;
+	status = "okay";
 };
 
 &hdmi {

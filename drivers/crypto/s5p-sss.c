@@ -241,7 +241,7 @@
 struct samsung_aes_variant {
 	unsigned int			aes_offset;
 	unsigned int			hash_offset;
-	const char			*clk_names[];
+	const char			*clk_names[2];
 };
 
 struct s5p_aes_reqctx {
@@ -1534,7 +1534,6 @@ static int s5p_hash_shash_digest(struct crypto_shash *tfm, u32 flags,
 	SHASH_DESC_ON_STACK(shash, tfm);
 
 	shash->tfm = tfm;
-	shash->flags = flags & ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_digest(shash, data, len, out);
 }
@@ -2057,9 +2056,12 @@ static int s5p_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 	struct s5p_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 	struct s5p_aes_dev *dev = ctx->dev;
 
+	if (!req->nbytes)
+		return 0;
+
 	if (!IS_ALIGNED(req->nbytes, AES_BLOCK_SIZE) &&
 			((mode & FLAGS_AES_MODE_MASK) != FLAGS_AES_CTR)) {
-		dev_err(dev->dev, "request size is not exact amount of AES blocks\n");
+		dev_dbg(dev->dev, "request size is not exact amount of AES blocks\n");
 		return -EINVAL;
 	}
 
@@ -2171,7 +2173,7 @@ static struct crypto_alg algs[] = {
 		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
 					  CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_KERN_DRIVER_ONLY,
-		.cra_blocksize		= AES_BLOCK_SIZE,
+		.cra_blocksize		= 1,
 		.cra_ctxsize		= sizeof(struct s5p_aes_ctx),
 		.cra_alignmask		= 0x0f,
 		.cra_type		= &crypto_ablkcipher_type,

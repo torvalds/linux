@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ATMEL I2C TPM AT97SC3204T
  *
@@ -13,19 +14,6 @@
  *
  * TGC status/locality/etc functions seen in the LPC implementation do not
  * seem to be present.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see http://www.gnu.org/licenses/>.
  */
 #include <linux/init.h>
 #include <linux/module.h>
@@ -46,7 +34,7 @@ struct priv_data {
 	/* This is the amount we read on the first try. 25 was chosen to fit a
 	 * fair number of read responses in the buffer so a 2nd retry can be
 	 * avoided in small message cases. */
-	u8 buffer[sizeof(struct tpm_output_header) + 25];
+	u8 buffer[sizeof(struct tpm_header) + 25];
 };
 
 static int i2c_atmel_send(struct tpm_chip *chip, u8 *buf, size_t len)
@@ -65,15 +53,22 @@ static int i2c_atmel_send(struct tpm_chip *chip, u8 *buf, size_t len)
 	dev_dbg(&chip->dev,
 		"%s(buf=%*ph len=%0zx) -> sts=%d\n", __func__,
 		(int)min_t(size_t, 64, len), buf, len, status);
-	return status;
+
+	if (status < 0)
+		return status;
+
+	/* The upper layer does not support incomplete sends. */
+	if (status != len)
+		return -E2BIG;
+
+	return 0;
 }
 
 static int i2c_atmel_recv(struct tpm_chip *chip, u8 *buf, size_t count)
 {
 	struct priv_data *priv = dev_get_drvdata(&chip->dev);
 	struct i2c_client *client = to_i2c_client(chip->dev.parent);
-	struct tpm_output_header *hdr =
-		(struct tpm_output_header *)priv->buffer;
+	struct tpm_header *hdr = (struct tpm_header *)priv->buffer;
 	u32 expected_len;
 	int rc;
 

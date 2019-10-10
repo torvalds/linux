@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2008  by Andreas Eversberg <andreas@eversberg.eu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Quick API description:
  *
@@ -30,7 +22,6 @@
  *
  * To get current clock, call mISDN_clock_get. The signed short value
  * counts the number of samples since. Time since last clock event is added.
- *
  */
 
 #include <linux/slab.h>

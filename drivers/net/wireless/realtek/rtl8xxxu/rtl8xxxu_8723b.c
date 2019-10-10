@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RTL8XXXU mac80211 USB driver - 8723b specific subdriver
  *
@@ -10,15 +11,6 @@
  * rtl8723au driver. As the Realtek 8xxx chips are very similar in
  * their programming interface, I have started adding support for
  * additional 8xxx chips like the 8192cu, 8188cus, etc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/init.h>
@@ -1533,7 +1525,7 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	/*
 	 * WLAN action by PTA
 	 */
-	rtl8xxxu_write8(priv, REG_WLAN_ACT_CONTROL_8723B, 0x04);
+	rtl8xxxu_write8(priv, REG_WLAN_ACT_CONTROL_8723B, 0x0c);
 
 	/*
 	 * BT select S0/S1 controlled by WiFi
@@ -1576,9 +1568,14 @@ static void rtl8723b_enable_rf(struct rtl8xxxu_priv *priv)
 	rtl8xxxu_gen2_h2c_cmd(priv, &h2c, sizeof(h2c.ant_sel_rsv));
 
 	/*
-	 * 0x280, 0x00, 0x200, 0x80 - not clear
+	 * Different settings per different antenna position.
+	 *      Antenna Position:   | Normal   Inverse
+	 * --------------------------------------------------
+	 * Antenna switch to BT:    |  0x280,   0x00
+	 * Antenna switch to WiFi:  |  0x0,     0x280
+	 * Antenna switch to PTA:   |  0x200,   0x80
 	 */
-	rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x00);
+	rtl8xxxu_write32(priv, REG_S0S1_PATH_SWITCH, 0x80);
 
 	/*
 	 * Software control, antenna at WiFi side

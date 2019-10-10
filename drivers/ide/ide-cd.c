@@ -9,7 +9,7 @@
  * May be copied or modified under the terms of the GNU General Public
  * License.  See linux/COPYING for more information.
  *
- * See Documentation/cdrom/ide-cd for usage information.
+ * See Documentation/cdrom/ide-cd.rst for usage information.
  *
  * Suggestions are welcome. Patches that work are more welcome though. ;-)
  *
@@ -1797,6 +1797,7 @@ static int ide_cd_probe(ide_drive_t *drive)
 	ide_cd_read_toc(drive);
 	g->fops = &idecd_ops;
 	g->flags |= GENHD_FL_REMOVABLE | GENHD_FL_BLOCK_EVENTS_ON_EXCL_WRITE;
+	g->events = DISK_EVENT_MEDIA_CHANGE;
 	device_add_disk(&drive->gendev, g, NULL);
 	return 0;
 

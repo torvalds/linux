@@ -137,13 +137,12 @@ static int uldrx_handler(struct sge_rspq *q, const __be64 *rsp,
 static int alloc_uld_rxqs(struct adapter *adap,
 			  struct sge_uld_rxq_info *rxq_info, bool lro)
 {
-	struct sge *s = &adap->sge;
 	unsigned int nq = rxq_info->nrxq + rxq_info->nciq;
+	int i, err, msi_idx, que_idx = 0, bmap_idx = 0;
 	struct sge_ofld_rxq *q = rxq_info->uldrxq;
 	unsigned short *ids = rxq_info->rspq_id;
-	unsigned int bmap_idx = 0;
+	struct sge *s = &adap->sge;
 	unsigned int per_chan;
-	int i, err, msi_idx, que_idx = 0;
 
 	per_chan = rxq_info->nrxq / adap->params.nports;
 
@@ -161,6 +160,10 @@ static int alloc_uld_rxqs(struct adapter *adap,
 
 		if (msi_idx >= 0) {
 			bmap_idx = get_msix_idx_from_bmap(adap);
+			if (bmap_idx < 0) {
+				err = -ENOSPC;
+				goto freeout;
+			}
 			msi_idx = adap->msix_info_ulds[bmap_idx].idx;
 		}
 		err = t4_sge_alloc_rxq(adap, &q->rspq, false,
@@ -352,25 +355,32 @@ static int
 request_msix_queue_irqs_uld(struct adapter *adap, unsigned int uld_type)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
+	struct uld_msix_info *minfo;
 	int err = 0;
 	unsigned int idx, bmap_idx;
 
 	for_each_uldrxq(rxq_info, idx) {
 		bmap_idx = rxq_info->msix_tbl[idx];
-		err = request_irq(adap->msix_info_ulds[bmap_idx].vec,
+		minfo = &adap->msix_info_ulds[bmap_idx];
+		err = request_irq(minfo->vec,
 				  t4_sge_intr_msix, 0,
-				  adap->msix_info_ulds[bmap_idx].desc,
+				  minfo->desc,
 				  &rxq_info->uldrxq[idx].rspq);
 		if (err)
 			goto unwind;
+
+		cxgb4_set_msix_aff(adap, minfo->vec,
+				   &minfo->aff_mask, idx);
 	}
 	return 0;
+
 unwind:
 	while (idx-- > 0) {
 		bmap_idx = rxq_info->msix_tbl[idx];
+		minfo = &adap->msix_info_ulds[bmap_idx];
+		cxgb4_clear_msix_aff(minfo->vec, minfo->aff_mask);
 		free_msix_idx_in_bmap(adap, bmap_idx);
-		free_irq(adap->msix_info_ulds[bmap_idx].vec,
-			 &rxq_info->uldrxq[idx].rspq);
+		free_irq(minfo->vec, &rxq_info->uldrxq[idx].rspq);
 	}
 	return err;
 }
@@ -379,14 +389,16 @@ static void
 free_msix_queue_irqs_uld(struct adapter *adap, unsigned int uld_type)
 {
 	struct sge_uld_rxq_info *rxq_info = adap->sge.uld_rxq_info[uld_type];
+	struct uld_msix_info *minfo;
 	unsigned int idx, bmap_idx;
 
 	for_each_uldrxq(rxq_info, idx) {
 		bmap_idx = rxq_info->msix_tbl[idx];
+		minfo = &adap->msix_info_ulds[bmap_idx];
 
+		cxgb4_clear_msix_aff(minfo->vec, minfo->aff_mask);
 		free_msix_idx_in_bmap(adap, bmap_idx);
-		free_irq(adap->msix_info_ulds[bmap_idx].vec,
-			 &rxq_info->uldrxq[idx].rspq);
+		free_irq(minfo->vec, &rxq_info->uldrxq[idx].rspq);
 	}
 }
 

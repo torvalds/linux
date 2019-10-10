@@ -35,7 +35,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
-#include <linux/idr.h>
+#include <linux/xarray.h>
 #include <linux/workqueue.h>
 
 #include <rdma/ib_verbs.h>
@@ -106,10 +106,9 @@ struct iwch_dev {
 	struct cxio_rdev rdev;
 	u32 device_cap_flags;
 	struct iwch_rnic_attributes attr;
-	struct idr cqidr;
-	struct idr qpidr;
-	struct idr mmidr;
-	spinlock_t lock;
+	struct xarray cqs;
+	struct xarray qps;
+	struct xarray mrs;
 	struct list_head entry;
 	struct delayed_work db_drop_task;
 };
@@ -136,40 +135,17 @@ static inline int t3a_device(const struct iwch_dev *rhp)
 
 static inline struct iwch_cq *get_chp(struct iwch_dev *rhp, u32 cqid)
 {
-	return idr_find(&rhp->cqidr, cqid);
+	return xa_load(&rhp->cqs, cqid);
 }
 
 static inline struct iwch_qp *get_qhp(struct iwch_dev *rhp, u32 qpid)
 {
-	return idr_find(&rhp->qpidr, qpid);
+	return xa_load(&rhp->qps, qpid);
 }
 
 static inline struct iwch_mr *get_mhp(struct iwch_dev *rhp, u32 mmid)
 {
-	return idr_find(&rhp->mmidr, mmid);
-}
-
-static inline int insert_handle(struct iwch_dev *rhp, struct idr *idr,
-				void *handle, u32 id)
-{
-	int ret;
-
-	idr_preload(GFP_KERNEL);
-	spin_lock_irq(&rhp->lock);
-
-	ret = idr_alloc(idr, handle, id, id + 1, GFP_NOWAIT);
-
-	spin_unlock_irq(&rhp->lock);
-	idr_preload_end();
-
-	return ret < 0 ? ret : 0;
-}
-
-static inline void remove_handle(struct iwch_dev *rhp, struct idr *idr, u32 id)
-{
-	spin_lock_irq(&rhp->lock);
-	idr_remove(idr, id);
-	spin_unlock_irq(&rhp->lock);
+	return xa_load(&rhp->mrs, mmid);
 }
 
 extern struct cxgb3_client t3c_client;

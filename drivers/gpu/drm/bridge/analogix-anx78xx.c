@@ -1,39 +1,29 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright(c) 2016, Analogix Semiconductor.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Based on anx7808 driver obtained from chromeos with copyright:
  * Copyright(c) 2013, Google Inc.
- *
  */
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/interrupt.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_gpio.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/regmap.h>
-#include <linux/types.h>
-#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
+#include <linux/types.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #include "analogix-anx78xx.h"
 
@@ -1082,8 +1072,8 @@ static void anx78xx_bridge_disable(struct drm_bridge *bridge)
 }
 
 static void anx78xx_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *mode,
-				    struct drm_display_mode *adjusted_mode)
+				const struct drm_display_mode *mode,
+				const struct drm_display_mode *adjusted_mode)
 {
 	struct anx78xx *anx78xx = bridge_to_anx78xx(bridge);
 	struct hdmi_avi_infoframe frame;
@@ -1094,8 +1084,9 @@ static void anx78xx_bridge_mode_set(struct drm_bridge *bridge,
 
 	mutex_lock(&anx78xx->lock);
 
-	err = drm_hdmi_avi_infoframe_from_display_mode(&frame, adjusted_mode,
-						       false);
+	err = drm_hdmi_avi_infoframe_from_display_mode(&frame,
+						       &anx78xx->connector,
+						       adjusted_mode);
 	if (err) {
 		DRM_ERROR("Failed to setup AVI infoframe: %d\n", err);
 		goto unlock;

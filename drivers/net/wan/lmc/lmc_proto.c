@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 1997-2000 LAN Media Corporation (LMC)
   * All rights reserved.  www.lanmedia.com
@@ -12,9 +13,6 @@
   * David Boggs
   * Ron Crane
   * Allan Cox
-  *
-  * This software may be used and distributed according to the terms
-  * of the GNU General Public License version 2, incorporated herein by reference.
   *
   * Driver for the LanMedia LMC5200, LMC5245, LMC1000, LMC1200 cards.
   */

@@ -22,7 +22,6 @@ config HEXAGON
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_KGDB
 	select HAVE_ARCH_TRACEHOOK
-	select ARCH_DISCARD_MEMBLOCK
 	select NEED_SG_DMA_LENGTH
 	select NO_IOPORT_MAP
 	select GENERIC_IOMAP
@@ -63,12 +62,6 @@ config GENERIC_CSUM
 # Use the generic interrupt handling code in kernel/irq/:
 #
 config GENERIC_IRQ_PROBE
-	def_bool y
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool n
-
-config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
 config GENERIC_HWEIGHT

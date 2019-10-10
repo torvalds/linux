@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_MMU_PRIV_H__
 #define __NVKM_MMU_PRIV_H__
 #define nvkm_mmu(p) container_of((p), struct nvkm_mmu, subdev)
@@ -28,7 +28,7 @@ struct nvkm_mmu_func {
 
 	struct {
 		struct nvkm_sclass user;
-		int (*ctor)(struct nvkm_mmu *, u64 addr, u64 size,
+		int (*ctor)(struct nvkm_mmu *, bool managed, u64 addr, u64 size,
 			    void *argv, u32 argc, struct lock_class_key *,
 			    const char *name, struct nvkm_vmm **);
 		bool global;

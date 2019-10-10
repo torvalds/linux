@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _ASM_POWERPC_ASM_PROTOTYPES_H
 #define _ASM_POWERPC_ASM_PROTOTYPES_H
 /*
@@ -5,11 +6,6 @@
  * from asm, and any associated variables.
  *
  * Copyright 2016, Daniel Axtens, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -19,12 +15,13 @@
 #include <asm/epapr_hcalls.h>
 #include <asm/dcr.h>
 #include <asm/mmu_context.h>
+#include <asm/ultravisor-api.h>
 
 #include <uapi/asm/ucontext.h>
 
 /* SMP */
-extern struct thread_info *current_set[NR_CPUS];
-extern struct thread_info *secondary_ti;
+extern struct task_struct *current_set[NR_CPUS];
+extern struct task_struct *secondary_current;
 void start_secondary(void *unused);
 
 /* kexec */
@@ -37,13 +34,21 @@ void kexec_copy_flush(struct kimage *image);
 extern struct static_key hcall_tracepoint_key;
 void __trace_hcall_entry(unsigned long opcode, unsigned long *args);
 void __trace_hcall_exit(long opcode, long retval, unsigned long *retbuf);
-/* OPAL tracing */
-#ifdef CONFIG_JUMP_LABEL
-extern struct static_key opal_tracepoint_key;
+
+/* Ultravisor */
+#if defined(CONFIG_PPC_POWERNV) || defined(CONFIG_PPC_SVM)
+long ucall_norets(unsigned long opcode, ...);
+#else
+static inline long ucall_norets(unsigned long opcode, ...)
+{
+	return U_NOT_AVAILABLE;
+}
 #endif
 
-void __trace_opal_entry(unsigned long opcode, unsigned long *args);
-void __trace_opal_exit(long opcode, unsigned long retval);
+/* OPAL */
+int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
+		    int64_t a4, int64_t a5, int64_t a6, int64_t a7,
+		    int64_t opcode, uint64_t msr);
 
 /* VMX copying */
 int enter_vmx_usercopy(void);
@@ -129,7 +134,8 @@ extern int __ucmpdi2(u64, u64);
 
 /* tracing */
 void _mcount(void);
-unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip);
+unsigned long prepare_ftrace_return(unsigned long parent, unsigned long ip,
+						unsigned long sp);
 
 void pnv_power9_force_smt4_catch(void);
 void pnv_power9_force_smt4_release(void);

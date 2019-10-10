@@ -1,11 +1,12 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0-only
 # Generate tags or cscope files
 # Usage tags.sh <mode>
 #
 # mode may be any of: tags, TAGS, cscope
 #
 # Uses the following environment variables:
-# ARCH, SUBARCH, SRCARCH, srctree, src, obj
+# SUBARCH, SRCARCH, srctree
 
 if [ "$KBUILD_VERBOSE" = "1" ]; then
 	set -x
@@ -16,10 +17,9 @@ ignore="$(echo "$RCS_FIND_IGNORE" | sed 's|\\||g' )"
 # tags and cscope files should also ignore MODVERSION *.mod.c files
 ignore="$ignore ( -name *.mod.c ) -prune -o"
 
-# Do not use full path if we do not use O=.. builds
-# Use make O=. {tags|cscope}
+# Use make KBUILD_ABS_SRCTREE=1 {tags|cscope}
 # to force full paths for a non-O= build
-if [ "${KBUILD_SRC}" = "" ]; then
+if [ "${srctree}" = "." -o -z "${srctree}" ]; then
 	tree=
 else
 	tree=${srctree}/
@@ -35,21 +35,19 @@ elif [ "${ALLSOURCE_ARCHS}" = "all" ]; then
 	ALLSOURCE_ARCHS=$(find ${tree}arch/ -mindepth 1 -maxdepth 1 -type d -printf '%f ')
 fi
 
-# find sources in arch/$ARCH
+# find sources in arch/$1
 find_arch_sources()
 {
 	for i in $archincludedir; do
 		prune="$prune -wholename $i -prune -o"
 	done
-	find ${tree}arch/$1 $ignore $subarchprune $prune -name "$2" \
-		-not -type l -print;
+	find ${tree}arch/$1 $ignore $prune -name "$2" -not -type l -print;
 }
 
 # find sources in arch/$1/include
 find_arch_include_sources()
 {
-	include=$(find ${tree}arch/$1/ $subarchprune \
-					-name include -type d -print);
+	include=$(find ${tree}arch/$1/ -name include -type d -print);
 	if [ -n "$include" ]; then
 		archincludedir="$archincludedir $include"
 		find $include $ignore -name "$2" -not -type l -print;
@@ -305,36 +303,6 @@ if [ "${ARCH}" = "um" ]; then
 	else
 		archinclude=${SUBARCH}
 	fi
-elif [ "${SRCARCH}" = "arm" -a "${SUBARCH}" != "" ]; then
-	subarchdir=$(find ${tree}arch/$SRCARCH/ -name "mach-*" -type d -o \
-							-name "plat-*" -type d);
-	mach_suffix=$SUBARCH
-	plat_suffix=$SUBARCH
-
-	# Special cases when $plat_suffix != $mach_suffix
-	case $mach_suffix in
-		"omap1" | "omap2")
-			plat_suffix="omap"
-			;;
-	esac
-
-	if [ ! -d ${tree}arch/$SRCARCH/mach-$mach_suffix ]; then
-		echo "Warning: arch/arm/mach-$mach_suffix/ not found." >&2
-		echo "         Fix your \$SUBARCH appropriately" >&2
-	fi
-
-	for i in $subarchdir; do
-		case "$i" in
-			*"mach-"${mach_suffix})
-				;;
-			*"plat-"${plat_suffix})
-				;;
-			*)
-				subarchprune="$subarchprune \
-						-wholename $i -prune -o"
-				;;
-		esac
-	done
 fi
 
 remove_structs=

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation (the "GPL").
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License version 2 (GPLv2) for more details.
- *
- * You should have received a copy of the GNU General Public License
- * version 2 (GPLv2) along with this source code.
  */
 
 #include <linux/err.h>
@@ -35,7 +24,7 @@
 #include <crypto/aead.h>
 #include <crypto/internal/aead.h>
 #include <crypto/aes.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/hmac.h>
 #include <crypto/sha.h>
 #include <crypto/md5.h>
@@ -96,7 +85,7 @@ MODULE_PARM_DESC(aead_pri, "Priority for AEAD algos");
  * 0x70 - ring 2
  * 0x78 - ring 3
  */
-char BCMHEADER[] = { 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28 };
+static char BCMHEADER[] = { 0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x28 };
 /*
  * Some SPU hw does not use BCM header on SPU messages. So BCM_HDR_LEN
  * is set dynamically after reading SPU type from device tree.
@@ -1813,24 +1802,13 @@ static int des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		      unsigned int keylen)
 {
 	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
-	u32 tmp[DES_EXPKEY_WORDS];
+	int err;
 
-	if (keylen == DES_KEY_SIZE) {
-		if (des_ekey(tmp, key) == 0) {
-			if (crypto_ablkcipher_get_flags(cipher) &
-			    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
-				u32 flags = CRYPTO_TFM_RES_WEAK_KEY;
+	err = verify_ablkcipher_des_key(cipher, key);
+	if (err)
+		return err;
 
-				crypto_ablkcipher_set_flags(cipher, flags);
-				return -EINVAL;
-			}
-		}
-
-		ctx->cipher_type = CIPHER_TYPE_DES;
-	} else {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
+	ctx->cipher_type = CIPHER_TYPE_DES;
 	return 0;
 }
 
@@ -1838,22 +1816,13 @@ static int threedes_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 			   unsigned int keylen)
 {
 	struct iproc_ctx_s *ctx = crypto_ablkcipher_ctx(cipher);
+	int err;
 
-	if (keylen == (DES_KEY_SIZE * 3)) {
-		const u32 *K = (const u32 *)key;
-		u32 flags = CRYPTO_TFM_RES_BAD_KEY_SCHED;
+	err = verify_ablkcipher_des3_key(cipher, key);
+	if (err)
+		return err;
 
-		if (!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-		    !((K[2] ^ K[4]) | (K[3] ^ K[5]))) {
-			crypto_ablkcipher_set_flags(cipher, flags);
-			return -EINVAL;
-		}
-
-		ctx->cipher_type = CIPHER_TYPE_3DES;
-	} else {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
+	ctx->cipher_type = CIPHER_TYPE_3DES;
 	return 0;
 }
 
@@ -2093,7 +2062,7 @@ static int __ahash_init(struct ahash_request *req)
  * Return: true if incremental hashing is not supported
  *         false otherwise
  */
-bool spu_no_incr_hash(struct iproc_ctx_s *ctx)
+static bool spu_no_incr_hash(struct iproc_ctx_s *ctx)
 {
 	struct spu_hw *spu = &iproc_priv.spu;
 
@@ -2139,7 +2108,6 @@ static int ahash_init(struct ahash_request *req)
 			goto err_hash;
 		}
 		ctx->shash->tfm = hash;
-		ctx->shash->flags = 0;
 
 		/* Set the key using data we already have from setkey */
 		if (ctx->authkeylen > 0) {
@@ -2640,6 +2608,19 @@ static int aead_need_fallback(struct aead_request *req)
 		return 1;
 	}
 
+	/*
+	 * RFC4106 and RFC4543 cannot handle the case where AAD is other than
+	 * 16 or 20 bytes long. So use fallback in this case.
+	 */
+	if (ctx->cipher.mode == CIPHER_MODE_GCM &&
+	    ctx->cipher.alg == CIPHER_ALG_AES &&
+	    rctx->iv_ctr_len == GCM_RFC4106_IV_SIZE &&
+	    req->assoclen != 16 && req->assoclen != 20) {
+		flow_log("RFC4106/RFC4543 needs fallback for assoclen"
+			 " other than 16 or 20 bytes\n");
+		return 1;
+	}
+
 	payload_len = req->cryptlen;
 	if (spu->spu_type == SPU_TYPE_SPUM)
 		payload_len += req->assoclen;
@@ -2866,40 +2847,16 @@ static int aead_authenc_setkey(struct crypto_aead *cipher,
 
 	switch (ctx->alg->cipher_info.alg) {
 	case CIPHER_ALG_DES:
-		if (ctx->enckeylen == DES_KEY_SIZE) {
-			u32 tmp[DES_EXPKEY_WORDS];
-			u32 flags = CRYPTO_TFM_RES_WEAK_KEY;
+		if (verify_aead_des_key(cipher, keys.enckey, keys.enckeylen))
+			return -EINVAL;
 
-			if (des_ekey(tmp, keys.enckey) == 0) {
-				if (crypto_aead_get_flags(cipher) &
-				    CRYPTO_TFM_REQ_FORBID_WEAK_KEYS) {
-					crypto_aead_set_flags(cipher, flags);
-					return -EINVAL;
-				}
-			}
-
-			ctx->cipher_type = CIPHER_TYPE_DES;
-		} else {
-			goto badkey;
-		}
+		ctx->cipher_type = CIPHER_TYPE_DES;
 		break;
 	case CIPHER_ALG_3DES:
-		if (ctx->enckeylen == (DES_KEY_SIZE * 3)) {
-			const u32 *K = (const u32 *)keys.enckey;
-			u32 flags = CRYPTO_TFM_RES_BAD_KEY_SCHED;
-
-			if (!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-			    !((K[2] ^ K[4]) | (K[3] ^ K[5]))) {
-				crypto_aead_set_flags(cipher, flags);
-				return -EINVAL;
-			}
-
-			ctx->cipher_type = CIPHER_TYPE_3DES;
-		} else {
-			crypto_aead_set_flags(cipher,
-					      CRYPTO_TFM_RES_BAD_KEY_LEN);
+		if (verify_aead_des3_key(cipher, keys.enckey, keys.enckeylen))
 			return -EINVAL;
-		}
+
+		ctx->cipher_type = CIPHER_TYPE_3DES;
 		break;
 	case CIPHER_ALG_AES:
 		switch (ctx->enckeylen) {
@@ -4820,7 +4777,7 @@ static int spu_dt_read(struct platform_device *pdev)
 	return 0;
 }
 
-int bcm_spu_probe(struct platform_device *pdev)
+static int bcm_spu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct spu_hw *spu = &iproc_priv.spu;
@@ -4864,7 +4821,7 @@ failure:
 	return err;
 }
 
-int bcm_spu_remove(struct platform_device *pdev)
+static int bcm_spu_remove(struct platform_device *pdev)
 {
 	int i;
 	struct device *dev = &pdev->dev;

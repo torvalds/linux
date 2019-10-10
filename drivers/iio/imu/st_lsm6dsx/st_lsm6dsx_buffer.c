@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics st_lsm6dsx FIFO buffer library driver
  *
- * LSM6DS3/LSM6DS3H/LSM6DSL/LSM6DSM/ISM330DLC: The FIFO buffer can be
- * configured to store data from gyroscope and accelerometer. Samples are
- * queued without any tag according to a specific pattern based on
- * 'FIFO data sets' (6 bytes each):
+ * LSM6DS3/LSM6DS3H/LSM6DSL/LSM6DSM/ISM330DLC/LSM6DS3TR-C:
+ * The FIFO buffer can be configured to store data from gyroscope and
+ * accelerometer. Samples are queued without any tag according to a
+ * specific pattern based on 'FIFO data sets' (6 bytes each):
  *  - 1st data set is reserved for gyroscope data
  *  - 2nd data set is reserved for accelerometer data
  * The FIFO pattern changes depending on the ODRs and decimation factors
@@ -13,9 +14,10 @@
  * (e.g. Gx, Gy, Gz, Ax, Ay, Az), then data are repeated depending on the
  * value of the decimation factor and ODR set for each FIFO data set.
  *
- * LSM6DSO: The FIFO buffer can be configured to store data from gyroscope and
- * accelerometer. Each sample is queued with a tag (1B) indicating data source
- * (gyroscope, accelerometer, hw timer).
+ * LSM6DSO/LSM6DSOX/ASM330LHH/LSM6DSR/ISM330DHCX: The FIFO buffer can be
+ * configured to store data from gyroscope and accelerometer. Each sample
+ * is queued with a tag (1B) indicating data source (gyroscope, accelerometer,
+ * hw timer).
  *
  * FIFO supported modes:
  *  - BYPASS: FIFO disabled
@@ -26,8 +28,6 @@
  *
  * Lorenzo Bianconi <lorenzo.bianconi@st.com>
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 #include <linux/module.h>
 #include <linux/interrupt.h>
@@ -506,7 +506,7 @@ st_lsm6dsx_push_tagged_data(struct st_lsm6dsx_hw *hw, u8 tag,
 }
 
 /**
- * st_lsm6dsx_read_tagged_fifo() - LSM6DSO read FIFO routine
+ * st_lsm6dsx_read_tagged_fifo() - tagged hw FIFO read routine
  * @hw: Pointer to instance of struct st_lsm6dsx_hw.
  *
  * Read samples from the hw FIFO and push them to IIO buffers.
@@ -517,7 +517,6 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw)
 {
 	u16 pattern_len = hw->sip * ST_LSM6DSX_TAGGED_SAMPLE_SIZE;
 	u16 fifo_len, fifo_diff_mask;
-	struct st_lsm6dsx_sensor *acc_sensor, *gyro_sensor;
 	u8 iio_buff[ST_LSM6DSX_IIO_BUFF_SIZE], tag;
 	bool reset_ts = false;
 	int i, err, read_len;
@@ -538,9 +537,6 @@ int st_lsm6dsx_read_tagged_fifo(struct st_lsm6dsx_hw *hw)
 		   ST_LSM6DSX_TAGGED_SAMPLE_SIZE;
 	if (!fifo_len)
 		return 0;
-
-	acc_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_ACC]);
-	gyro_sensor = iio_priv(hw->iio_devs[ST_LSM6DSX_ID_GYRO]);
 
 	for (read_len = 0; read_len < fifo_len; read_len += pattern_len) {
 		err = st_lsm6dsx_read_block(hw,
@@ -606,9 +602,8 @@ int st_lsm6dsx_flush_fifo(struct st_lsm6dsx_hw *hw)
 	return err;
 }
 
-static int st_lsm6dsx_update_fifo(struct iio_dev *iio_dev, bool enable)
+int st_lsm6dsx_update_fifo(struct st_lsm6dsx_sensor *sensor, bool enable)
 {
-	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int err;
 
@@ -675,17 +670,29 @@ static irqreturn_t st_lsm6dsx_handler_thread(int irq, void *private)
 	count = hw->settings->fifo_ops.read_fifo(hw);
 	mutex_unlock(&hw->fifo_lock);
 
-	return !count ? IRQ_NONE : IRQ_HANDLED;
+	return count ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static int st_lsm6dsx_buffer_preenable(struct iio_dev *iio_dev)
 {
-	return st_lsm6dsx_update_fifo(iio_dev, true);
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+
+	if (!hw->settings->fifo_ops.update_fifo)
+		return -ENOTSUPP;
+
+	return hw->settings->fifo_ops.update_fifo(sensor, true);
 }
 
 static int st_lsm6dsx_buffer_postdisable(struct iio_dev *iio_dev)
 {
-	return st_lsm6dsx_update_fifo(iio_dev, false);
+	struct st_lsm6dsx_sensor *sensor = iio_priv(iio_dev);
+	struct st_lsm6dsx_hw *hw = sensor->hw;
+
+	if (!hw->settings->fifo_ops.update_fifo)
+		return -ENOTSUPP;
+
+	return hw->settings->fifo_ops.update_fifo(sensor, false);
 }
 
 static const struct iio_buffer_setup_ops st_lsm6dsx_buffer_ops = {

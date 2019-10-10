@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * The file intends to implement the platform dependent EEH operations on pseries.
  * Actually, the pseries platform is built based on RTAS heavily. That means the
@@ -9,20 +10,6 @@
  * Copyright IBM Corporation 2001, 2005, 2006
  * Copyright Dave Engebretsen & Todd Inglett 2001
  * Copyright Linas Vepstas 2005, 2006
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/atomic.h>
@@ -55,42 +42,44 @@ static int ibm_get_config_addr_info;
 static int ibm_get_config_addr_info2;
 static int ibm_configure_pe;
 
-#ifdef CONFIG_PCI_IOV
 void pseries_pcibios_bus_add_device(struct pci_dev *pdev)
 {
 	struct pci_dn *pdn = pci_get_pdn(pdev);
-	struct pci_dn *physfn_pdn;
-	struct eeh_dev *edev;
 
-	if (!pdev->is_virtfn)
+	if (eeh_has_flag(EEH_FORCE_DISABLED))
 		return;
 
-	pdn->device_id  =  pdev->device;
-	pdn->vendor_id  =  pdev->vendor;
-	pdn->class_code =  pdev->class;
-	/*
-	 * Last allow unfreeze return code used for retrieval
-	 * by user space in eeh-sysfs to show the last command
-	 * completion from platform.
-	 */
-	pdn->last_allow_rc =  0;
-	physfn_pdn      =  pci_get_pdn(pdev->physfn);
-	pdn->pe_number  =  physfn_pdn->pe_num_map[pdn->vf_index];
-	edev = pdn_to_eeh_dev(pdn);
+	dev_dbg(&pdev->dev, "EEH: Setting up device\n");
+#ifdef CONFIG_PCI_IOV
+	if (pdev->is_virtfn) {
+		struct pci_dn *physfn_pdn;
 
-	/*
-	 * The following operations will fail if VF's sysfs files
-	 * aren't created or its resources aren't finalized.
-	 */
+		pdn->device_id  =  pdev->device;
+		pdn->vendor_id  =  pdev->vendor;
+		pdn->class_code =  pdev->class;
+		/*
+		 * Last allow unfreeze return code used for retrieval
+		 * by user space in eeh-sysfs to show the last command
+		 * completion from platform.
+		 */
+		pdn->last_allow_rc =  0;
+		physfn_pdn      =  pci_get_pdn(pdev->physfn);
+		pdn->pe_number  =  physfn_pdn->pe_num_map[pdn->vf_index];
+	}
+#endif
 	eeh_add_device_early(pdn);
 	eeh_add_device_late(pdev);
-	edev->pe_config_addr =  (pdn->busno << 16) | (pdn->devfn << 8);
-	eeh_rmv_from_parent_pe(edev); /* Remove as it is adding to bus pe */
-	eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
-	eeh_sysfs_add_device(pdev);
+#ifdef CONFIG_PCI_IOV
+	if (pdev->is_virtfn) {
+		struct eeh_dev *edev = pdn_to_eeh_dev(pdn);
 
-}
+		edev->pe_config_addr =  (pdn->busno << 16) | (pdn->devfn << 8);
+		eeh_rmv_from_parent_pe(edev); /* Remove as it is adding to bus pe */
+		eeh_add_to_parent_pe(edev);   /* Add as VF PE type */
+	}
 #endif
+	eeh_sysfs_add_device(pdev);
+}
 
 /*
  * Buffer for reporting slot-error-detail rtas calls. Its here
@@ -157,10 +146,8 @@ static int pseries_eeh_init(void)
 	/* Set EEH probe mode */
 	eeh_add_flag(EEH_PROBE_MODE_DEVTREE | EEH_ENABLE_IO_FOR_LOG);
 
-#ifdef CONFIG_PCI_IOV
 	/* Set EEH machine dependent code */
 	ppc_md.pcibios_bus_add_device = pseries_pcibios_bus_add_device;
-#endif
 
 	return 0;
 }
@@ -264,6 +251,8 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
         if ((pdn->class_code >> 8) == PCI_CLASS_BRIDGE_ISA)
 		return NULL;
 
+	eeh_edev_dbg(edev, "Probing device\n");
+
 	/*
 	 * Update class code and mode of eeh device. We need
 	 * correctly reflects that current device is root port
@@ -293,8 +282,11 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 	pe.config_addr = (pdn->busno << 16) | (pdn->devfn << 8);
 
 	/* Enable EEH on the device */
+	eeh_edev_dbg(edev, "Enabling EEH on device\n");
 	ret = eeh_ops->set_option(&pe, EEH_OPT_ENABLE);
-	if (!ret) {
+	if (ret) {
+		eeh_edev_dbg(edev, "EEH failed to enable on device (code %d)\n", ret);
+	} else {
 		/* Retrieve PE address */
 		edev->pe_config_addr = eeh_ops->get_pe_addr(&pe);
 		pe.addr = edev->pe_config_addr;
@@ -310,11 +302,6 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 		if (enable) {
 			eeh_add_flag(EEH_ENABLED);
 			eeh_add_to_parent_pe(edev);
-
-			pr_debug("%s: EEH enabled on %02x:%02x.%01x PHB#%x-PE#%x\n",
-				__func__, pdn->busno, PCI_SLOT(pdn->devfn),
-				PCI_FUNC(pdn->devfn), pe.phb->global_number,
-				pe.addr);
 		} else if (pdn->parent && pdn_to_eeh_dev(pdn->parent) &&
 			   (pdn_to_eeh_dev(pdn->parent))->pe) {
 			/* This device doesn't support EEH, but it may have an
@@ -323,6 +310,8 @@ static void *pseries_eeh_probe(struct pci_dn *pdn, void *data)
 			edev->pe_config_addr = pdn_to_eeh_dev(pdn->parent)->pe_config_addr;
 			eeh_add_to_parent_pe(edev);
 		}
+		eeh_edev_dbg(edev, "EEH is %s on device (code %d)\n",
+			     (enable ? "enabled" : "unsupported"), ret);
 	}
 
 	/* Save memory bars */

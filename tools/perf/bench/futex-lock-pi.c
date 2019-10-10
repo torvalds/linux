@@ -12,10 +12,12 @@
 #include <subcmd/parse-options.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <errno.h>
+#include <internal/cpumap.h>
+#include <perf/cpumap.h>
 #include "bench.h"
 #include "futex.h"
-#include "cpumap.h"
 
 #include <err.h>
 #include <stdlib.h>
@@ -115,7 +117,7 @@ static void *workerfn(void *arg)
 }
 
 static void create_threads(struct worker *w, pthread_attr_t thread_attr,
-			   struct cpu_map *cpu)
+			   struct perf_cpu_map *cpu)
 {
 	cpu_set_t cpuset;
 	unsigned int i;
@@ -149,13 +151,13 @@ int bench_futex_lock_pi(int argc, const char **argv)
 	unsigned int i;
 	struct sigaction act;
 	pthread_attr_t thread_attr;
-	struct cpu_map *cpu;
+	struct perf_cpu_map *cpu;
 
 	argc = parse_options(argc, argv, options, bench_futex_lock_pi_usage, 0);
 	if (argc)
 		goto err;
 
-	cpu = cpu_map__new(NULL);
+	cpu = perf_cpu_map__new(NULL);
 	if (!cpu)
 		err(EXIT_FAILURE, "calloc");
 
@@ -217,7 +219,7 @@ int bench_futex_lock_pi(int argc, const char **argv)
 			       worker[i].tid, worker[i].futex, t);
 
 		if (multi)
-			free(worker[i].futex);
+			zfree(&worker[i].futex);
 	}
 
 	print_summary();

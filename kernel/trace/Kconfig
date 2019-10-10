@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Architectures that offer an FUNCTION_TRACER implementation should
 #  select HAVE_FUNCTION_TRACER:
@@ -145,7 +146,7 @@ config FUNCTION_TRACER
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	select GLOB
-	select TASKS_RCU if PREEMPT
+	select TASKS_RCU if PREEMPTION
 	help
 	  Enable the kernel to trace every kernel function. This is done
 	  by using a compiler feature to insert a small, 5-byte No-Operation
@@ -178,7 +179,7 @@ config TRACE_PREEMPT_TOGGLE
 config PREEMPTIRQ_EVENTS
 	bool "Enable trace events for preempt and irq disable/enable"
 	select TRACE_IRQFLAGS
-	select TRACE_PREEMPT_TOGGLE if PREEMPT
+	select TRACE_PREEMPT_TOGGLE if PREEMPTION
 	select GENERIC_TRACER
 	default n
 	help
@@ -213,7 +214,7 @@ config PREEMPT_TRACER
 	bool "Preemption-off Latency Tracer"
 	default n
 	depends on !ARCH_USES_GETTIMEOFFSET
-	depends on PREEMPT
+	depends on PREEMPTION
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	select RING_BUFFER_ALLOW_SWAP
@@ -370,6 +371,7 @@ config PROFILE_ANNOTATED_BRANCHES
 config PROFILE_ALL_BRANCHES
 	bool "Profile all if conditionals" if !FORTIFY_SOURCE
 	select TRACE_BRANCH_PROFILING
+	imply CC_DISABLE_WARN_MAYBE_UNINITIALIZED  # avoid false positives
 	help
 	  This tracer profiles all branch conditions. Every if ()
 	  taken in the kernel is recorded whether it hit or miss.
@@ -518,7 +520,8 @@ config BPF_EVENTS
 	bool
 	default y
 	help
-	  This allows the user to attach BPF programs to kprobe events.
+	  This allows the user to attach BPF programs to kprobe, uprobe, and
+	  tracepoint events.
 
 config DYNAMIC_EVENTS
 	def_bool n
@@ -595,9 +598,19 @@ config FTRACE_STARTUP_TEST
 	  functioning properly. It will do tests on all the configured
 	  tracers of ftrace.
 
+config EVENT_TRACE_STARTUP_TEST
+	bool "Run selftest on trace events"
+	depends on FTRACE_STARTUP_TEST
+	default y
+	help
+	  This option performs a test on all trace events in the system.
+	  It basically just enables each event and runs some code that
+	  will trigger events (not necessarily the event it enables)
+	  This may take some time run as there are a lot of events.
+
 config EVENT_TRACE_TEST_SYSCALLS
 	bool "Run selftest on syscall events"
-	depends on FTRACE_STARTUP_TEST
+	depends on EVENT_TRACE_STARTUP_TEST
 	help
 	 This option will also enable testing every syscall event.
 	 It only enables the event and disables it and runs various loads
@@ -772,13 +785,6 @@ config TRACE_EVAL_MAP_FILE
 	increase the memory footprint of the running kernel.
 
 	If unsure, say N
-
-config TRACING_EVENTS_GPIO
-	bool "Trace gpio events"
-	depends on GPIOLIB
-	default y
-	help
-	  Enable tracing events for gpio subsystem
 
 config GCOV_PROFILE_FTRACE
 	bool "Enable GCOV profiling on ftrace subsystem"

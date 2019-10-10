@@ -131,21 +131,14 @@ static struct inode *vxfs_alloc_inode(struct super_block *sb)
 	return &vi->vfs_inode;
 }
 
-static void vxfs_i_callback(struct rcu_head *head)
+static void vxfs_free_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-
 	kmem_cache_free(vxfs_inode_cachep, VXFS_INO(inode));
-}
-
-static void vxfs_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, vxfs_i_callback);
 }
 
 static const struct super_operations vxfs_super_ops = {
 	.alloc_inode		= vxfs_alloc_inode,
-	.destroy_inode		= vxfs_destroy_inode,
+	.free_inode		= vxfs_free_inode,
 	.evict_inode		= vxfs_evict_inode,
 	.put_super		= vxfs_put_super,
 	.statfs			= vxfs_statfs,
@@ -236,6 +229,8 @@ static int vxfs_fill_super(struct super_block *sbp, void *dp, int silent)
 
 	sbp->s_op = &vxfs_super_ops;
 	sbp->s_fs_info = infp;
+	sbp->s_time_min = 0;
+	sbp->s_time_max = U32_MAX;
 
 	if (!vxfs_try_sb_magic(sbp, silent, 1,
 			(__force __fs32)cpu_to_le32(VXFS_SUPER_MAGIC))) {

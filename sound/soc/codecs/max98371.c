@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * max98371.c -- ALSA SoC Stereo MAX98371 driver
  *
  * Copyright 2015-16 Maxim Integrated Products
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/i2c.h>
@@ -155,10 +152,6 @@ static bool max98371_readable_register(struct device *dev, unsigned int reg)
 static const DECLARE_TLV_DB_RANGE(max98371_gain_tlv,
 	0, 7, TLV_DB_SCALE_ITEM(0, 50, 0),
 	8, 10, TLV_DB_SCALE_ITEM(400, 100, 0)
-);
-
-static const DECLARE_TLV_DB_RANGE(max98371_noload_gain_tlv,
-	0, 11, TLV_DB_SCALE_ITEM(950, 100, 0),
 );
 
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -6300, 50, 1);

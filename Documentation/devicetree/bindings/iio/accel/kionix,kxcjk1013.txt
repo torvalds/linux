@@ -1,0 +1,17 @@
+Kionix KXCJK-1013 Accelerometer device tree bindings
+
+Required properties:
+
+- compatible: Must be one of:
+    "kionix,kxcjk1013"
+    "kionix,kxcj91008"
+    "kionix,kxtj21009"
+    "kionix,kxtf9"
+ - reg: i2c slave address
+
+Example:
+
+kxtf9@f {
+	compatible = "kionix,kxtf9";
+	reg = <0x0F>;
+};

@@ -20,12 +20,16 @@ that litmus test to be exercised within the Linux kernel.
 REQUIREMENTS
 ============
 
-Version 7.49 of the "herd7" and "klitmus7" tools must be downloaded
-separately:
+Version 7.52 or higher of the "herd7" and "klitmus7" tools must be
+downloaded separately:
 
   https://github.com/herd/herdtools7
 
 See "herdtools7/INSTALL.md" for installation instructions.
+
+Note that although these tools usually provide backwards compatibility,
+this is not absolutely guaranteed.  Therefore, if a later version does
+not work, please try using the exact version called out above.
 
 
 ==================
@@ -163,15 +167,15 @@ scripts	Various scripts, see scripts/README.
 LIMITATIONS
 ===========
 
-The Linux-kernel memory model has the following limitations:
+The Linux-kernel memory model (LKMM) has the following limitations:
 
-1.	Compiler optimizations are not modeled.  Of course, the use
-	of READ_ONCE() and WRITE_ONCE() limits the compiler's ability
-	to optimize, but there is Linux-kernel code that uses bare C
-	memory accesses.  Handling this code is on the to-do list.
-	For more information, see Documentation/explanation.txt (in
-	particular, the "THE PROGRAM ORDER RELATION: po AND po-loc"
-	and "A WARNING" sections).
+1.	Compiler optimizations are not accurately modeled.  Of course,
+	the use of READ_ONCE() and WRITE_ONCE() limits the compiler's
+	ability to optimize, but under some circumstances it is possible
+	for the compiler to undermine the memory model.  For more
+	information, see Documentation/explanation.txt (in particular,
+	the "THE PROGRAM ORDER RELATION: po AND po-loc" and "A WARNING"
+	sections).
 
 	Note that this limitation in turn limits LKMM's ability to
 	accurately model address, control, and data dependencies.
@@ -221,8 +225,29 @@ The Linux-kernel memory model has the following limitations:
 		additional call_rcu() process to the site of the
 		emulated rcu-barrier().
 
-	e.	Sleepable RCU (SRCU) is not modeled.  It can be
-		emulated, but perhaps not simply.
+	e.	Although sleepable RCU (SRCU) is now modeled, there
+		are some subtle differences between its semantics and
+		those in the Linux kernel.  For example, the kernel
+		might interpret the following sequence as two partially
+		overlapping SRCU read-side critical sections:
+
+			 1  r1 = srcu_read_lock(&my_srcu);
+			 2  do_something_1();
+			 3  r2 = srcu_read_lock(&my_srcu);
+			 4  do_something_2();
+			 5  srcu_read_unlock(&my_srcu, r1);
+			 6  do_something_3();
+			 7  srcu_read_unlock(&my_srcu, r2);
+
+		In contrast, LKMM will interpret this as a nested pair of
+		SRCU read-side critical sections, with the outer critical
+		section spanning lines 1-7 and the inner critical section
+		spanning lines 3-5.
+
+		This difference would be more of a concern had anyone
+		identified a reasonable use case for partially overlapping
+		SRCU read-side critical sections.  For more information,
+		please see: https://paulmck.livejournal.com/40593.html
 
 	f.	Reader-writer locking is not modeled.  It can be
 		emulated in litmus tests using atomic read-modify-write

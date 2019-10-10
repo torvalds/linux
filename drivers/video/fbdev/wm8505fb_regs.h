@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  GOVR registers list for WM8505 chips
  *
@@ -5,15 +6,6 @@
  *   Based on VIA/WonderMedia wm8510-govrh-reg.h
  *   http://github.com/projectgus/kernel_wm8505/blob/wm8505_2.6.29/
  *         drivers/video/wmt/register/wm8510/wm8510-govrh-reg.h
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _WM8505FB_REGS_H

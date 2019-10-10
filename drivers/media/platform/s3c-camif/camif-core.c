@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * s3c24xx/s3c64xx SoC series Camera Interface (CAMIF) driver
  *
  * Copyright (C) 2012 Sylwester Nawrocki <sylvester.nawrocki@gmail.com>
  * Copyright (C) 2012 Tomasz Figa <tomasz.figa@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published
- * by the Free Software Foundation, either version 2 of the License,
- * or (at your option) any later version.
  */
 #define pr_fmt(fmt) "%s:%d " fmt, __func__, __LINE__
 
@@ -46,7 +42,6 @@ static char *camif_clocks[CLK_MAX_NUM] = {
 
 static const struct camif_fmt camif_formats[] = {
 	{
-		.name		= "YUV 4:2:2 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV422P,
 		.depth		= 16,
 		.ybpp		= 1,
@@ -55,7 +50,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "YUV 4:2:0 planar, Y/Cb/Cr",
 		.fourcc		= V4L2_PIX_FMT_YUV420,
 		.depth		= 12,
 		.ybpp		= 1,
@@ -64,7 +58,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "YVU 4:2:0 planar, Y/Cr/Cb",
 		.fourcc		= V4L2_PIX_FMT_YVU420,
 		.depth		= 12,
 		.ybpp		= 1,
@@ -73,7 +66,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_CODEC |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "RGB565, 16 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB565X,
 		.depth		= 16,
 		.ybpp		= 2,
@@ -82,7 +74,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_PREVIEW |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "XRGB8888, 32 bpp",
 		.fourcc		= V4L2_PIX_FMT_RGB32,
 		.depth		= 32,
 		.ybpp		= 4,
@@ -91,7 +82,6 @@ static const struct camif_fmt camif_formats[] = {
 		.flags		= FMT_FL_S3C24XX_PREVIEW |
 				  FMT_FL_S3C64XX,
 	}, {
-		.name		= "BGR666",
 		.fourcc		= V4L2_PIX_FMT_BGR666,
 		.depth		= 32,
 		.ybpp		= 4,
@@ -390,10 +380,8 @@ static int camif_request_irqs(struct platform_device *pdev,
 		init_waitqueue_head(&vp->irq_queue);
 
 		irq = platform_get_irq(pdev, i);
-		if (irq <= 0) {
-			dev_err(&pdev->dev, "failed to get IRQ %d\n", i);
+		if (irq <= 0)
 			return -ENXIO;
-		}
 
 		ret = devm_request_irq(&pdev->dev, irq, s3c_camif_irq_handler,
 				       0, dev_name(&pdev->dev), vp);

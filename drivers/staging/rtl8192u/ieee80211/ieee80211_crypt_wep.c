@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Host AP crypt: host-based WEP encryption implementation for Host AP driver
  *
  * Copyright (c) 2002-2004, Jouni Malinen <jkmaline@cc.hut.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 #include <linux/module.h>
@@ -139,7 +135,7 @@ static int prism2_wep_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		icv[3] = crc >> 24;
 
 		crypto_sync_skcipher_setkey(wep->tx_tfm, key, klen);
-		sg_init_one(&sg, pos, len+4);
+		sg_init_one(&sg, pos, len + 4);
 
 		skcipher_request_set_sync_tfm(req, wep->tx_tfm);
 		skcipher_request_set_callback(req, 0, NULL, NULL);
@@ -196,7 +192,7 @@ static int prism2_wep_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		SYNC_SKCIPHER_REQUEST_ON_STACK(req, wep->rx_tfm);
 
 		crypto_sync_skcipher_setkey(wep->rx_tfm, key, klen);
-		sg_init_one(&sg, pos, plen+4);
+		sg_init_one(&sg, pos, plen + 4);
 
 		skcipher_request_set_sync_tfm(req, wep->rx_tfm);
 		skcipher_request_set_callback(req, 0, NULL, NULL);

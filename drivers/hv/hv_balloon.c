@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012, Microsoft Corporation.
  *
  * Author:
  *   K. Y. Srinivasan <kys@microsoft.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, GOOD TITLE or
- * NON INFRINGEMENT.  See the GNU General Public License for more
- * details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -504,7 +494,7 @@ enum hv_dm_state {
 
 
 static __u8 recv_buffer[PAGE_SIZE];
-static __u8 *send_buffer;
+static __u8 balloon_up_send_buffer[PAGE_SIZE];
 #define PAGES_IN_2M	512
 #define HA_CHUNK (32 * 1024)
 
@@ -681,8 +671,13 @@ static struct notifier_block hv_memory_nb = {
 /* Check if the particular page is backed and can be onlined and online it. */
 static void hv_page_online_one(struct hv_hotadd_state *has, struct page *pg)
 {
-	if (!has_pfn_is_backed(has, page_to_pfn(pg)))
+	if (!has_pfn_is_backed(has, page_to_pfn(pg))) {
+		if (!PageOffline(pg))
+			__SetPageOffline(pg);
 		return;
+	}
+	if (PageOffline(pg))
+		__ClearPageOffline(pg);
 
 	/* This frame is currently backed; online the page. */
 	__online_page_set_limits(pg);
@@ -771,7 +766,7 @@ static void hv_mem_hot_add(unsigned long start, unsigned long size,
 	}
 }
 
-static void hv_online_page(struct page *pg)
+static void hv_online_page(struct page *pg, unsigned int order)
 {
 	struct hv_hotadd_state *has;
 	unsigned long flags;
@@ -780,10 +775,11 @@ static void hv_online_page(struct page *pg)
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
 	list_for_each_entry(has, &dm_device.ha_region_list, list) {
 		/* The page belongs to a different HAS. */
-		if ((pfn < has->start_pfn) || (pfn >= has->end_pfn))
+		if ((pfn < has->start_pfn) ||
+				(pfn + (1UL << order) > has->end_pfn))
 			continue;
 
-		hv_page_online_one(has, pg);
+		hv_bring_pgs_online(has, pfn, 1UL << order);
 		break;
 	}
 	spin_unlock_irqrestore(&dm_device.ha_lock, flags);
@@ -1201,6 +1197,7 @@ static void free_balloon_pages(struct hv_dynmem_device *dm,
 
 	for (i = 0; i < num_pages; i++) {
 		pg = pfn_to_page(i + start_frame);
+		__ClearPageOffline(pg);
 		__free_page(pg);
 		dm->num_pages_ballooned--;
 	}
@@ -1213,7 +1210,7 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
 					struct dm_balloon_response *bl_resp,
 					int alloc_unit)
 {
-	unsigned int i = 0;
+	unsigned int i, j;
 	struct page *pg;
 
 	if (num_pages < alloc_unit)
@@ -1244,6 +1241,10 @@ static unsigned int alloc_balloon_pages(struct hv_dynmem_device *dm,
 
 		if (alloc_unit != 1)
 			split_page(pg, get_order(alloc_unit << PAGE_SHIFT));
+
+		/* mark all pages offline */
+		for (j = 0; j < (1 << get_order(alloc_unit << PAGE_SHIFT)); j++)
+			__SetPageOffline(pg + j);
 
 		bl_resp->range_count++;
 		bl_resp->range_array[i].finfo.start_page =
@@ -1291,8 +1292,8 @@ static void balloon_up(struct work_struct *dummy)
 	}
 
 	while (!done) {
-		bl_resp = (struct dm_balloon_response *)send_buffer;
-		memset(send_buffer, 0, PAGE_SIZE);
+		memset(balloon_up_send_buffer, 0, PAGE_SIZE);
+		bl_resp = (struct dm_balloon_response *)balloon_up_send_buffer;
 		bl_resp->hdr.type = DM_BALLOON_RESPONSE;
 		bl_resp->hdr.size = sizeof(struct dm_balloon_response);
 		bl_resp->more_pages = 1;
@@ -1563,58 +1564,18 @@ static void balloon_onchannelcallback(void *context)
 
 }
 
-static int balloon_probe(struct hv_device *dev,
-			const struct hv_vmbus_device_id *dev_id)
+static int balloon_connect_vsp(struct hv_device *dev)
 {
-	int ret;
-	unsigned long t;
 	struct dm_version_request version_req;
 	struct dm_capabilities cap_msg;
-
-#ifdef CONFIG_MEMORY_HOTPLUG
-	do_hot_add = hot_add;
-#else
-	do_hot_add = false;
-#endif
-
-	/*
-	 * First allocate a send buffer.
-	 */
-
-	send_buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	if (!send_buffer)
-		return -ENOMEM;
+	unsigned long t;
+	int ret;
 
 	ret = vmbus_open(dev->channel, dm_ring_size, dm_ring_size, NULL, 0,
-			balloon_onchannelcallback, dev);
-
+			 balloon_onchannelcallback, dev);
 	if (ret)
-		goto probe_error0;
+		return ret;
 
-	dm_device.dev = dev;
-	dm_device.state = DM_INITIALIZING;
-	dm_device.next_version = DYNMEM_PROTOCOL_VERSION_WIN8;
-	init_completion(&dm_device.host_event);
-	init_completion(&dm_device.config_event);
-	INIT_LIST_HEAD(&dm_device.ha_region_list);
-	spin_lock_init(&dm_device.ha_lock);
-	INIT_WORK(&dm_device.balloon_wrk.wrk, balloon_up);
-	INIT_WORK(&dm_device.ha_wrk.wrk, hot_add_req);
-	dm_device.host_specified_ha_region = false;
-
-	dm_device.thread =
-		 kthread_run(dm_thread_func, &dm_device, "hv_balloon");
-	if (IS_ERR(dm_device.thread)) {
-		ret = PTR_ERR(dm_device.thread);
-		goto probe_error1;
-	}
-
-#ifdef CONFIG_MEMORY_HOTPLUG
-	set_online_page_callback(&hv_online_page);
-	register_memory_notifier(&hv_memory_nb);
-#endif
-
-	hv_set_drvdata(dev, &dm_device);
 	/*
 	 * Initiate the hand shake with the host and negotiate
 	 * a version that the host can support. We start with the
@@ -1630,16 +1591,15 @@ static int balloon_probe(struct hv_device *dev,
 	dm_device.version = version_req.version.version;
 
 	ret = vmbus_sendpacket(dev->channel, &version_req,
-				sizeof(struct dm_version_request),
-				(unsigned long)NULL,
-				VM_PKT_DATA_INBAND, 0);
+			       sizeof(struct dm_version_request),
+			       (unsigned long)NULL, VM_PKT_DATA_INBAND, 0);
 	if (ret)
-		goto probe_error2;
+		goto out;
 
 	t = wait_for_completion_timeout(&dm_device.host_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
-		goto probe_error2;
+		goto out;
 	}
 
 	/*
@@ -1647,8 +1607,8 @@ static int balloon_probe(struct hv_device *dev,
 	 * fail the probe function.
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
-		ret = -ETIMEDOUT;
-		goto probe_error2;
+		ret = -EPROTO;
+		goto out;
 	}
 
 	pr_info("Using Dynamic Memory protocol version %u.%u\n",
@@ -1681,16 +1641,15 @@ static int balloon_probe(struct hv_device *dev,
 	cap_msg.max_page_number = -1;
 
 	ret = vmbus_sendpacket(dev->channel, &cap_msg,
-				sizeof(struct dm_capabilities),
-				(unsigned long)NULL,
-				VM_PKT_DATA_INBAND, 0);
+			       sizeof(struct dm_capabilities),
+			       (unsigned long)NULL, VM_PKT_DATA_INBAND, 0);
 	if (ret)
-		goto probe_error2;
+		goto out;
 
 	t = wait_for_completion_timeout(&dm_device.host_event, 5*HZ);
 	if (t == 0) {
 		ret = -ETIMEDOUT;
-		goto probe_error2;
+		goto out;
 	}
 
 	/*
@@ -1698,25 +1657,65 @@ static int balloon_probe(struct hv_device *dev,
 	 * fail the probe function.
 	 */
 	if (dm_device.state == DM_INIT_ERROR) {
-		ret = -ETIMEDOUT;
-		goto probe_error2;
+		ret = -EPROTO;
+		goto out;
 	}
 
+	return 0;
+out:
+	vmbus_close(dev->channel);
+	return ret;
+}
+
+static int balloon_probe(struct hv_device *dev,
+			 const struct hv_vmbus_device_id *dev_id)
+{
+	int ret;
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	do_hot_add = hot_add;
+#else
+	do_hot_add = false;
+#endif
+	dm_device.dev = dev;
+	dm_device.state = DM_INITIALIZING;
+	dm_device.next_version = DYNMEM_PROTOCOL_VERSION_WIN8;
+	init_completion(&dm_device.host_event);
+	init_completion(&dm_device.config_event);
+	INIT_LIST_HEAD(&dm_device.ha_region_list);
+	spin_lock_init(&dm_device.ha_lock);
+	INIT_WORK(&dm_device.balloon_wrk.wrk, balloon_up);
+	INIT_WORK(&dm_device.ha_wrk.wrk, hot_add_req);
+	dm_device.host_specified_ha_region = false;
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	set_online_page_callback(&hv_online_page);
+	register_memory_notifier(&hv_memory_nb);
+#endif
+
+	hv_set_drvdata(dev, &dm_device);
+
+	ret = balloon_connect_vsp(dev);
+	if (ret != 0)
+		return ret;
+
 	dm_device.state = DM_INITIALIZED;
-	last_post_time = jiffies;
+
+	dm_device.thread =
+		 kthread_run(dm_thread_func, &dm_device, "hv_balloon");
+	if (IS_ERR(dm_device.thread)) {
+		ret = PTR_ERR(dm_device.thread);
+		goto probe_error;
+	}
 
 	return 0;
 
-probe_error2:
+probe_error:
+	vmbus_close(dev->channel);
 #ifdef CONFIG_MEMORY_HOTPLUG
+	unregister_memory_notifier(&hv_memory_nb);
 	restore_online_page_callback(&hv_online_page);
 #endif
-	kthread_stop(dm_device.thread);
-
-probe_error1:
-	vmbus_close(dev->channel);
-probe_error0:
-	kfree(send_buffer);
 	return ret;
 }
 
@@ -1733,12 +1732,11 @@ static int balloon_remove(struct hv_device *dev)
 	cancel_work_sync(&dm->balloon_wrk.wrk);
 	cancel_work_sync(&dm->ha_wrk.wrk);
 
-	vmbus_close(dev->channel);
 	kthread_stop(dm->thread);
-	kfree(send_buffer);
+	vmbus_close(dev->channel);
 #ifdef CONFIG_MEMORY_HOTPLUG
-	restore_online_page_callback(&hv_online_page);
 	unregister_memory_notifier(&hv_memory_nb);
+	restore_online_page_callback(&hv_online_page);
 #endif
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
 	list_for_each_entry_safe(has, tmp, &dm->ha_region_list, list) {

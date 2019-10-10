@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
   * Copyright (C) 2014 Linaro Ltd
  *
  * Author: Ulf Hansson <ulf.hansson@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #ifndef _MMC_CORE_SLOTGPIO_H
 #define _MMC_CORE_SLOTGPIO_H

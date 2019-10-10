@@ -31,7 +31,7 @@
 #include "dml/display_mode_structs.h"
 
 struct dchub_init_data;
-struct cstate_pstate_watermarks_st1 {
+struct cstate_pstate_watermarks_st {
 	uint32_t cstate_exit_ns;
 	uint32_t cstate_enter_plus_exit_ns;
 	uint32_t pstate_change_ns;
@@ -40,7 +40,11 @@ struct cstate_pstate_watermarks_st1 {
 struct dcn_watermarks {
 	uint32_t pte_meta_urgent_ns;
 	uint32_t urgent_ns;
-	struct cstate_pstate_watermarks_st1 cstate_pstate;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+	uint32_t frac_urg_bw_nom;
+	uint32_t frac_urg_bw_flip;
+#endif
+	struct cstate_pstate_watermarks_st cstate_pstate;
 };
 
 struct dcn_watermark_set {
@@ -149,7 +153,7 @@ struct mem_input_funcs {
 		struct mem_input *mem_input,
 		enum surface_pixel_format format,
 		union dc_tiling_info *tiling_info,
-		union plane_size *plane_size,
+		struct plane_size *plane_size,
 		enum dc_rotation_angle rotation,
 		struct dc_plane_dcc_param *dcc,
 		bool horizontal_mirror);

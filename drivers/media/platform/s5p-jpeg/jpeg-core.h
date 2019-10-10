@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* linux/drivers/media/platform/s5p-jpeg/jpeg-core.h
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
- * Author: Andrzej Pietrasiewicz <andrzej.p@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Author: Andrzej Pietrasiewicz <andrzejtp2010@gmail.com>
  */
 
 #ifndef JPEG_CORE_H_
@@ -153,7 +150,6 @@ struct s5p_jpeg_variant {
 
 /**
  * struct jpeg_fmt - driver's internal color format data
- * @name:	format descritpion
  * @fourcc:	the fourcc code, 0 if not applicable
  * @depth:	number of bits per pixel
  * @colplanes:	number of color planes (1 for packed formats)
@@ -162,7 +158,6 @@ struct s5p_jpeg_variant {
  * @flags:	flags describing format applicability
  */
 struct s5p_jpeg_fmt {
-	char	*name;
 	u32	fourcc;
 	int	depth;
 	int	colplanes;
@@ -193,7 +188,7 @@ struct s5p_jpeg_marker {
  * @sos:	SOS marker's position relative to the buffer beginning
  * @dht:	DHT markers' positions relative to the buffer beginning
  * @dqt:	DQT markers' positions relative to the buffer beginning
- * @sof:	SOF0 marker's postition relative to the buffer beginning
+ * @sof:	SOF0 marker's position relative to the buffer beginning
  * @sof_len:	SOF0 marker's payload length (without length field itself)
  * @components:	number of image components
  * @size:	image buffer size in bytes

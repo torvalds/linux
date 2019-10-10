@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /**
  *
  * GSPCA sub driver for W996[78]CF JPEG USB Dual Mode Camera Chip.
@@ -7,17 +8,6 @@
  * This module is adapted from the in kernel v4l1 w9968cf driver:
  *
  * Copyright (C) 2002-2004 by Luca Risolia <luca.risolia@studio.unibo.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 
 /* Note this is not a stand alone driver, it gets included in ov519.c, this
@@ -143,6 +133,11 @@ static int w9968cf_read_sb(struct sd *sd)
 	} else {
 		pr_err("Read SB reg [01] failed\n");
 		sd->gspca_dev.usb_err = ret;
+		/*
+		 * Make sure the buffer is zeroed to avoid uninitialized
+		 * values.
+		 */
+		memset(sd->gspca_dev.usb_buf, 0, 2);
 	}
 
 	udelay(W9968CF_I2C_BUS_DELAY);
@@ -431,7 +426,7 @@ static void w9968cf_set_crop_window(struct sd *sd)
 		start_cropy = 35;
 	}
 
-	/* Work around to avoid FP arithmetics */
+	/* Work around to avoid FP arithmetic */
 	#define SC(x) ((x) << 10)
 
 	/* Scaling factors */

@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright SUSE Linux Products GmbH 2009
  *
@@ -47,6 +36,7 @@
 #define OP_31_XOP_SLBMFEV	851
 #define OP_31_XOP_EIOIO		854
 #define OP_31_XOP_SLBMFEE	915
+#define OP_31_XOP_SLBFEE	979
 
 #define OP_31_XOP_TBEGIN	654
 #define OP_31_XOP_TABORT	910
@@ -415,6 +405,23 @@ int kvmppc_core_emulate_op_pr(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				return EMULATE_FAIL;
 
 			vcpu->arch.mmu.slbia(vcpu);
+			break;
+		case OP_31_XOP_SLBFEE:
+			if (!(inst & 1) || !vcpu->arch.mmu.slbfee) {
+				return EMULATE_FAIL;
+			} else {
+				ulong b, t;
+				ulong cr = kvmppc_get_cr(vcpu) & ~CR0_MASK;
+
+				b = kvmppc_get_gpr(vcpu, rb);
+				if (!vcpu->arch.mmu.slbfee(vcpu, b, &t))
+					cr |= 2 << CR0_SHIFT;
+				kvmppc_set_gpr(vcpu, rt, t);
+				/* copy XER[SO] bit to CR0[SO] */
+				cr |= (vcpu->arch.regs.xer & 0x80000000) >>
+					(31 - CR0_SHIFT);
+				kvmppc_set_cr(vcpu, cr);
+			}
 			break;
 		case OP_31_XOP_SLBMFEE:
 			if (!vcpu->arch.mmu.slbmfee) {

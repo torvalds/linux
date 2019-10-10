@@ -145,17 +145,12 @@ struct _adapter {
 	struct	hal_priv	halpriv;
 	struct	led_priv	ledpriv;
 	struct mp_priv  mppriv;
-	s32	bDriverStopped;
-	s32	bSurpriseRemoved;
-	s32	bSuspended;
-	u32	IsrContent;
-	u32	ImrContent;
-	u8	EepromAddressSize;
+	bool	driver_stopped;
+	bool	surprise_removed;
+	bool	suspended;
+	u8	eeprom_address_size;
 	u8	hw_init_completed;
-	struct task_struct *cmdThread;
-	pid_t evtThread;
-	struct task_struct *xmitThread;
-	pid_t recvThread;
+	struct task_struct *cmd_thread;
 	uint (*dvobj_init)(struct _adapter *adapter);
 	void (*dvobj_deinit)(struct _adapter *adapter);
 	struct net_device *pnetdev;
@@ -163,9 +158,9 @@ struct _adapter {
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
 	int pid; /*process id from UI*/
-	struct work_struct wkFilterRxFF0;
+	struct work_struct wk_filter_rx_ff0;
 	u8 blnEnableRxFF0Filter;
-	spinlock_t lockRxFF0Filter;
+	spinlock_t lock_rx_ff0_filter;
 	const struct firmware *fw;
 	struct usb_interface *pusb_intf;
 	struct mutex mutex_start;

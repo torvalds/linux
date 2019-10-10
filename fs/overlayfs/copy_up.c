@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Copyright (C) 2011 Novell Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -37,7 +34,7 @@ static int ovl_ccup_get(char *buf, const struct kernel_param *param)
 }
 
 module_param_call(check_copy_up, ovl_ccup_set, ovl_ccup_get, NULL, 0644);
-MODULE_PARM_DESC(ovl_check_copy_up, "Obsolete; does nothing");
+MODULE_PARM_DESC(check_copy_up, "Obsolete; does nothing");
 
 int ovl_copy_xattr(struct dentry *old, struct dentry *new)
 {
@@ -443,6 +440,24 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 {
 	int err;
 
+	/*
+	 * Copy up data first and then xattrs. Writing data after
+	 * xattrs will remove security.capability xattr automatically.
+	 */
+	if (S_ISREG(c->stat.mode) && !c->metacopy) {
+		struct path upperpath, datapath;
+
+		ovl_path_upper(c->dentry, &upperpath);
+		if (WARN_ON(upperpath.dentry != NULL))
+			return -EIO;
+		upperpath.dentry = temp;
+
+		ovl_path_lowerdata(c->dentry, &datapath);
+		err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
+		if (err)
+			return err;
+	}
+
 	err = ovl_copy_xattr(c->lowerpath.dentry, temp);
 	if (err)
 		return err;
@@ -456,19 +471,6 @@ static int ovl_copy_up_inode(struct ovl_copy_up_ctx *c, struct dentry *temp)
 	 */
 	if (c->origin) {
 		err = ovl_set_origin(c->dentry, c->lowerpath.dentry, temp);
-		if (err)
-			return err;
-	}
-
-	if (S_ISREG(c->stat.mode) && !c->metacopy) {
-		struct path upperpath, datapath;
-
-		ovl_path_upper(c->dentry, &upperpath);
-		BUG_ON(upperpath.dentry != NULL);
-		upperpath.dentry = temp;
-
-		ovl_path_lowerdata(c->dentry, &datapath);
-		err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
 		if (err)
 			return err;
 	}
@@ -737,6 +739,8 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 {
 	struct path upperpath, datapath;
 	int err;
+	char *capability = NULL;
+	ssize_t uninitialized_var(cap_size);
 
 	ovl_path_upper(c->dentry, &upperpath);
 	if (WARN_ON(upperpath.dentry == NULL))
@@ -746,15 +750,37 @@ static int ovl_copy_up_meta_inode_data(struct ovl_copy_up_ctx *c)
 	if (WARN_ON(datapath.dentry == NULL))
 		return -EIO;
 
+	if (c->stat.size) {
+		err = cap_size = ovl_getxattr(upperpath.dentry, XATTR_NAME_CAPS,
+					      &capability, 0);
+		if (err < 0 && err != -ENODATA)
+			goto out;
+	}
+
 	err = ovl_copy_up_data(&datapath, &upperpath, c->stat.size);
 	if (err)
-		return err;
+		goto out_free;
+
+	/*
+	 * Writing to upper file will clear security.capability xattr. We
+	 * don't want that to happen for normal copy-up operation.
+	 */
+	if (capability) {
+		err = ovl_do_setxattr(upperpath.dentry, XATTR_NAME_CAPS,
+				      capability, cap_size, 0);
+		if (err)
+			goto out_free;
+	}
+
 
 	err = vfs_removexattr(upperpath.dentry, OVL_XATTR_METACOPY);
 	if (err)
-		return err;
+		goto out_free;
 
 	ovl_set_upperdata(d_inode(c->dentry));
+out_free:
+	kfree(capability);
+out:
 	return err;
 }
 
@@ -880,14 +906,14 @@ static bool ovl_open_need_copy_up(struct dentry *dentry, int flags)
 	return true;
 }
 
-int ovl_open_maybe_copy_up(struct dentry *dentry, unsigned int file_flags)
+int ovl_maybe_copy_up(struct dentry *dentry, int flags)
 {
 	int err = 0;
 
-	if (ovl_open_need_copy_up(dentry, file_flags)) {
+	if (ovl_open_need_copy_up(dentry, flags)) {
 		err = ovl_want_write(dentry);
 		if (!err) {
-			err = ovl_copy_up_flags(dentry, file_flags);
+			err = ovl_copy_up_flags(dentry, flags);
 			ovl_drop_write(dentry);
 		}
 	}

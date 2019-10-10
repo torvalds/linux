@@ -54,6 +54,9 @@
             "actions",
             "bpf"
         ],
+        "plugins": {
+                "requires": "buildebpfPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action bpf",
@@ -78,6 +81,9 @@
             "actions",
             "bpf"
         ],
+        "plugins": {
+                "requires": "buildebpfPlugin"
+        },
         "setup": [
             [
                 "$TC action flush action bpf",
@@ -282,6 +288,31 @@
         "expExitCode": "0",
         "verifyCmd": "$TC action list action bpf",
         "matchPattern": "action order [0-9]*: bpf.*cookie d0d0d0d0d0d0d0",
+        "matchCount": "1",
+        "teardown": [
+            "$TC action flush action bpf"
+        ]
+    },
+    {
+        "id": "b8a1",
+        "name": "Replace bpf action with invalid goto_chain control",
+        "category": [
+            "actions",
+            "bpf"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action bpf",
+                0,
+                1,
+                255
+            ],
+            "$TC action add action bpf bytecode '1,6 0 0 4294967295' pass index 90"
+        ],
+        "cmdUnderTest": "$TC action replace action bpf bytecode '1,6 0 0 4294967295' goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC action list action bpf",
+        "matchPattern": "action order [0-9]*: bpf.* default-action pass.*index 90",
         "matchCount": "1",
         "teardown": [
             "$TC action flush action bpf"

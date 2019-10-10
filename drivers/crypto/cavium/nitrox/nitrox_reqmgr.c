@@ -303,8 +303,6 @@ static void post_se_instr(struct nitrox_softreq *sr,
 
 	/* Ring doorbell with count 1 */
 	writeq(1, cmdq->dbell_csr_addr);
-	/* orders the doorbell rings */
-	mmiowb();
 
 	cmdq->write_idx = incr_index(idx, 1, ndev->qlen);
 
@@ -599,8 +597,6 @@ void pkt_slc_resp_tasklet(unsigned long data)
 	 * MSI-X interrupt generates if Completion count > Threshold
 	 */
 	writeq(slc_cnts.value, cmdq->compl_cnt_csr_addr);
-	/* order the writes */
-	mmiowb();
 
 	if (atomic_read(&cmdq->backlog_count))
 		schedule_work(&cmdq->backlog_qflush);

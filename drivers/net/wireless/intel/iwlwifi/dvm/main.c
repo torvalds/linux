@@ -1,23 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018 - 2019 Intel Corporation
  *
  * Portions of this file are derived from the ipw3945 project, as well
  * as portions of the ieee80211 subsystem header files.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -1278,7 +1267,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	priv->cfg = cfg;
 	priv->fw = fw;
 
-	switch (priv->cfg->device_family) {
+	switch (priv->trans->trans_cfg->device_family) {
 	case IWL_DEVICE_FAMILY_1000:
 	case IWL_DEVICE_FAMILY_100:
 		priv->lib = &iwl_dvm_1000_cfg;
@@ -1353,7 +1342,7 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 					  driver_data[2]);
 
 	WARN_ON(sizeof(priv->transport_queue_stop) * BITS_PER_BYTE <
-		priv->cfg->base_params->num_of_queues);
+		priv->trans->trans_cfg->base_params->num_of_queues);
 
 	ucode_flags = fw->ucode_capa.flags;
 
@@ -1416,9 +1405,9 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	/* Reset chip to save power until we load uCode during "up". */
 	iwl_trans_stop_device(priv->trans);
 
-	priv->nvm_data = iwl_parse_eeprom_data(priv->trans->dev, priv->cfg,
-						  priv->eeprom_blob,
-						  priv->eeprom_blob_size);
+	priv->nvm_data = iwl_parse_eeprom_data(priv->trans, priv->cfg,
+					       priv->eeprom_blob,
+					       priv->eeprom_blob_size);
 	if (!priv->nvm_data)
 		goto out_free_eeprom_blob;
 

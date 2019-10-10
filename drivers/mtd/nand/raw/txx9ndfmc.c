@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TXx9 NAND flash memory controller driver
  * Based on RBTX49xx patch from CELF patch archive.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * (C) Copyright TOSHIBA CORPORATION 2004-2007
  * All Rights Reserved.
@@ -159,7 +156,6 @@ static void txx9ndfmc_cmd_ctrl(struct nand_chip *chip, int cmd,
 		if ((ctrl & NAND_CTRL_CHANGE) && cmd == NAND_CMD_NONE)
 			txx9ndfmc_write(dev, 0, TXX9_NDFDTR);
 	}
-	mmiowb();
 }
 
 static int txx9ndfmc_dev_ready(struct nand_chip *chip)

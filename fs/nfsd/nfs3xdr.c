@@ -27,6 +27,7 @@ static u32	nfs3_ftypes[] = {
 	NF3SOCK, NF3BAD,  NF3LNK, NF3BAD,
 };
 
+
 /*
  * XDR functions for basic NFS types
  */
@@ -96,7 +97,7 @@ decode_filename(__be32 *p, char **namp, unsigned int *lenp)
 }
 
 static __be32 *
-decode_sattr3(__be32 *p, struct iattr *iap)
+decode_sattr3(__be32 *p, struct iattr *iap, struct user_namespace *userns)
 {
 	u32	tmp;
 
@@ -107,12 +108,12 @@ decode_sattr3(__be32 *p, struct iattr *iap)
 		iap->ia_mode = ntohl(*p++);
 	}
 	if (*p++) {
-		iap->ia_uid = make_kuid(&init_user_ns, ntohl(*p++));
+		iap->ia_uid = make_kuid(userns, ntohl(*p++));
 		if (uid_valid(iap->ia_uid))
 			iap->ia_valid |= ATTR_UID;
 	}
 	if (*p++) {
-		iap->ia_gid = make_kgid(&init_user_ns, ntohl(*p++));
+		iap->ia_gid = make_kgid(userns, ntohl(*p++));
 		if (gid_valid(iap->ia_gid))
 			iap->ia_valid |= ATTR_GID;
 	}
@@ -165,12 +166,13 @@ static __be32 *
 encode_fattr3(struct svc_rqst *rqstp, __be32 *p, struct svc_fh *fhp,
 	      struct kstat *stat)
 {
+	struct user_namespace *userns = nfsd_user_namespace(rqstp);
 	struct timespec ts;
 	*p++ = htonl(nfs3_ftypes[(stat->mode & S_IFMT) >> 12]);
 	*p++ = htonl((u32) (stat->mode & S_IALLUGO));
 	*p++ = htonl((u32) stat->nlink);
-	*p++ = htonl((u32) from_kuid(&init_user_ns, stat->uid));
-	*p++ = htonl((u32) from_kgid(&init_user_ns, stat->gid));
+	*p++ = htonl((u32) from_kuid_munged(userns, stat->uid));
+	*p++ = htonl((u32) from_kgid_munged(userns, stat->gid));
 	if (S_ISLNK(stat->mode) && stat->size > NFS3_MAXPATHLEN) {
 		p = xdr_encode_hyper(p, (u64) NFS3_MAXPATHLEN);
 	} else {
@@ -325,7 +327,7 @@ nfs3svc_decode_sattrargs(struct svc_rqst *rqstp, __be32 *p)
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
-	p = decode_sattr3(p, &args->attrs);
+	p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
 
 	if ((args->check_guard = ntohl(*p++)) != 0) { 
 		struct timespec time; 
@@ -455,7 +457,7 @@ nfs3svc_decode_createargs(struct svc_rqst *rqstp, __be32 *p)
 	switch (args->createmode = ntohl(*p++)) {
 	case NFS3_CREATE_UNCHECKED:
 	case NFS3_CREATE_GUARDED:
-		p = decode_sattr3(p, &args->attrs);
+		p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
 		break;
 	case NFS3_CREATE_EXCLUSIVE:
 		args->verf = p;
@@ -476,7 +478,7 @@ nfs3svc_decode_mkdirargs(struct svc_rqst *rqstp, __be32 *p)
 	if (!(p = decode_fh(p, &args->fh)) ||
 	    !(p = decode_filename(p, &args->name, &args->len)))
 		return 0;
-	p = decode_sattr3(p, &args->attrs);
+	p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -491,7 +493,7 @@ nfs3svc_decode_symlinkargs(struct svc_rqst *rqstp, __be32 *p)
 	if (!(p = decode_fh(p, &args->ffh)) ||
 	    !(p = decode_filename(p, &args->fname, &args->flen)))
 		return 0;
-	p = decode_sattr3(p, &args->attrs);
+	p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
 
 	args->tlen = ntohl(*p++);
 
@@ -519,7 +521,7 @@ nfs3svc_decode_mknodargs(struct svc_rqst *rqstp, __be32 *p)
 
 	if (args->ftype == NF3BLK  || args->ftype == NF3CHR
 	 || args->ftype == NF3SOCK || args->ftype == NF3FIFO)
-		p = decode_sattr3(p, &args->attrs);
+		p = decode_sattr3(p, &args->attrs, nfsd_user_namespace(rqstp));
 
 	if (args->ftype == NF3BLK || args->ftype == NF3CHR) {
 		args->major = ntohl(*p++);
@@ -573,6 +575,9 @@ int
 nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_readdirargs *args = rqstp->rq_argp;
+	int len;
+	u32 max_blocksize = svc_max_payload(rqstp);
+
 	p = decode_fh(p, &args->fh);
 	if (!p)
 		return 0;
@@ -580,8 +585,14 @@ nfs3svc_decode_readdirargs(struct svc_rqst *rqstp, __be32 *p)
 	args->verf   = p; p += 2;
 	args->dircount = ~0;
 	args->count  = ntohl(*p++);
-	args->count  = min_t(u32, args->count, PAGE_SIZE);
-	args->buffer = page_address(*(rqstp->rq_next_page++));
+	len = args->count  = min_t(u32, args->count, max_blocksize);
+
+	while (len > 0) {
+		struct page *p = *(rqstp->rq_next_page++);
+		if (!args->buffer)
+			args->buffer = page_address(p);
+		len -= PAGE_SIZE;
+	}
 
 	return xdr_argsize_check(rqstp, p);
 }
@@ -741,14 +752,16 @@ nfs3svc_encode_writeres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_writeres *resp = rqstp->rq_resp;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
+	__be32 verf[2];
 
 	p = encode_wcc_data(rqstp, p, &resp->fh);
 	if (resp->status == 0) {
 		*p++ = htonl(resp->count);
 		*p++ = htonl(resp->committed);
 		/* unique identifier, y2038 overflow can be ignored */
-		*p++ = htonl((u32)nn->nfssvc_boot.tv_sec);
-		*p++ = htonl(nn->nfssvc_boot.tv_nsec);
+		nfsd_copy_boot_verifier(verf, nn);
+		*p++ = verf[0];
+		*p++ = verf[1];
 	}
 	return xdr_ressize_check(rqstp, p);
 }
@@ -921,6 +934,7 @@ encode_entry(struct readdir_cd *ccd, const char *name, int namlen,
 		} else {
 			xdr_encode_hyper(cd->offset, offset64);
 		}
+		cd->offset = NULL;
 	}
 
 	/*
@@ -1114,13 +1128,15 @@ nfs3svc_encode_commitres(struct svc_rqst *rqstp, __be32 *p)
 {
 	struct nfsd3_commitres *resp = rqstp->rq_resp;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
+	__be32 verf[2];
 
 	p = encode_wcc_data(rqstp, p, &resp->fh);
 	/* Write verifier */
 	if (resp->status == 0) {
 		/* unique identifier, y2038 overflow can be ignored */
-		*p++ = htonl((u32)nn->nfssvc_boot.tv_sec);
-		*p++ = htonl(nn->nfssvc_boot.tv_nsec);
+		nfsd_copy_boot_verifier(verf, nn);
+		*p++ = verf[0];
+		*p++ = verf[1];
 	}
 	return xdr_ressize_check(rqstp, p);
 }

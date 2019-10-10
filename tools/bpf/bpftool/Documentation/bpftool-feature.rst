@@ -63,7 +63,7 @@ OPTIONS
 	-h, --help
 		  Print short generic help message (similar to **bpftool help**).
 
-	-v, --version
+	-V, --version
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
@@ -72,6 +72,10 @@ OPTIONS
 
 	-p, --pretty
 		  Generate human-readable JSON output. Implies **-j**.
+
+	-d, --debug
+		  Print all logs available from libbpf, including debug-level
+		  information.
 
 SEE ALSO
 ========
@@ -82,4 +86,5 @@ SEE ALSO
 	**bpftool-map**\ (8),
 	**bpftool-cgroup**\ (8),
 	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8)
+	**bpftool-perf**\ (8),
+	**bpftool-btf**\ (8)

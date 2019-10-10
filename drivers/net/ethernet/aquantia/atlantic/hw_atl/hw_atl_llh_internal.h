@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File hw_atl_llh_internal.h: Preprocessor definitions
@@ -58,9 +55,6 @@
 /* preprocessor definitions for msm rx unicast octets counter register 0 */
 #define HW_ATL_MAC_MSM_RX_UCST_OCTETS_COUNTER0_ADR 0x000001b8u
 
-/* preprocessor definitions for rx dma statistics counter 7 */
-#define HW_ATL_RX_DMA_STAT_COUNTER7_ADR 0x00006818u
-
 /* preprocessor definitions for msm tx unicast frames counter register */
 #define HW_ATL_MAC_MSM_TX_UCST_FRM_CNT_ADR 0x00000108u
 
@@ -95,6 +89,19 @@
 #define HW_ATL_ITR_RES_MSK 0x80000000
 /* lower bit position of bitfield itr_reset */
 #define HW_ATL_ITR_RES_SHIFT 31
+
+/* register address for bitfield  rsc_en */
+#define HW_ATL_ITR_RSC_EN_ADR 0x00002200
+
+/* register address for bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_ADR 0x00002204
+/* bitmask for bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_MSK 0x0000000f
+/* width of bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_WIDTH 4
+/* lower bit position of bitfield  rsc_delay */
+#define HW_ATL_ITR_RSC_DELAY_SHIFT 0
+
 /* register address for bitfield dca{d}_cpuid[7:0] */
 #define HW_ATL_RDM_DCADCPUID_ADR(dca) (0x00006100 + (dca) * 0x4)
 /* bitmask for bitfield dca{d}_cpuid[7:0] */
@@ -1375,6 +1382,24 @@
 #define HW_ATL_RPOL4CHK_EN_WIDTH 1
 /* default value of bitfield l4_chk_en */
 #define HW_ATL_RPOL4CHK_EN_DEFAULT 0x0
+
+/* RX outer_vl_ins_mode Bitfield Definitions
+ * Preprocessor definitions for the bitfield "outer_vl_ins_mode".
+ * PORT="pif_rpo_outer_vl_mode_i"
+ */
+
+/* Register address for bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_ADR 0x00005580
+/* Bitmask for bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_MSK 0x00000004
+/* Inverted bitmask for bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_MSKN 0xFFFFFFFB
+/* Lower bit position of bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_SHIFT 2
+/* Width of bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_WIDTH 1
+/* Default value of bitfield outer_vl_ins_mode */
+#define HW_ATL_RPO_OUTER_VL_INS_MODE_DEFAULT 0x0
 
 /* rx reg_res_dsbl bitfield definitions
  * preprocessor definitions for the bitfield "reg_res_dsbl".

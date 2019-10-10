@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /***************************************************************************
                           dpti.c  -  description
                              -------------------
@@ -13,10 +14,6 @@
 
 /***************************************************************************
  *                                                                         *
- *   This program is free software; you can redistribute it and/or modify  *
- *   it under the terms of the GNU General Public License as published by  *
- *   the Free Software Foundation; either version 2 of the License, or     *
- *   (at your option) any later version.                                   *
  *                                                                         *
  ***************************************************************************/
 /***************************************************************************
@@ -589,46 +586,6 @@ static int adpt_show_info(struct seq_file *m, struct Scsi_Host *host)
 }
 
 /*
- *	Turn a struct scsi_cmnd * into a unique 32 bit 'context'.
- */
-static u32 adpt_cmd_to_context(struct scsi_cmnd *cmd)
-{
-	return (u32)cmd->serial_number;
-}
-
-/*
- *	Go from a u32 'context' to a struct scsi_cmnd * .
- *	This could probably be made more efficient.
- */
-static struct scsi_cmnd *
-	adpt_cmd_from_context(adpt_hba * pHba, u32 context)
-{
-	struct scsi_cmnd * cmd;
-	struct scsi_device * d;
-
-	if (context == 0)
-		return NULL;
-
-	spin_unlock(pHba->host->host_lock);
-	shost_for_each_device(d, pHba->host) {
-		unsigned long flags;
-		spin_lock_irqsave(&d->list_lock, flags);
-		list_for_each_entry(cmd, &d->cmd_list, list) {
-			if (((u32)cmd->serial_number == context)) {
-				spin_unlock_irqrestore(&d->list_lock, flags);
-				scsi_device_put(d);
-				spin_lock(pHba->host->host_lock);
-				return cmd;
-			}
-		}
-		spin_unlock_irqrestore(&d->list_lock, flags);
-	}
-	spin_lock(pHba->host->host_lock);
-
-	return NULL;
-}
-
-/*
  *	Turn a pointer to ioctl reply data into an u32 'context'
  */
 static u32 adpt_ioctl_to_context(adpt_hba * pHba, void *reply)
@@ -685,9 +642,6 @@ static int adpt_abort(struct scsi_cmnd * cmd)
 	u32 msg[5];
 	int rcode;
 
-	if(cmd->serial_number == 0){
-		return FAILED;
-	}
 	pHba = (adpt_hba*) cmd->device->host->hostdata[0];
 	printk(KERN_INFO"%s: Trying to Abort\n",pHba->name);
 	if ((dptdevice = (void*) (cmd->device->hostdata)) == NULL) {
@@ -699,8 +653,9 @@ static int adpt_abort(struct scsi_cmnd * cmd)
 	msg[0] = FIVE_WORD_MSG_SIZE|SGL_OFFSET_0;
 	msg[1] = I2O_CMD_SCSI_ABORT<<24|HOST_TID<<12|dptdevice->tid;
 	msg[2] = 0;
-	msg[3]= 0; 
-	msg[4] = adpt_cmd_to_context(cmd);
+	msg[3]= 0;
+	/* Add 1 to avoid firmware treating it as invalid command */
+	msg[4] = cmd->request->tag + 1;
 	if (pHba->host)
 		spin_lock_irq(pHba->host->host_lock);
 	rcode = adpt_i2o_post_wait(pHba, msg, sizeof(msg), FOREVER);
@@ -877,8 +832,8 @@ static void adpt_i2o_sys_shutdown(void)
 	adpt_hba *pHba, *pNext;
 	struct adpt_i2o_post_wait_data *p1, *old;
 
-	 printk(KERN_INFO"Shutting down Adaptec I2O controllers.\n");
-	 printk(KERN_INFO"   This could take a few minutes if there are many devices attached\n");
+	printk(KERN_INFO "Shutting down Adaptec I2O controllers.\n");
+	printk(KERN_INFO "   This could take a few minutes if there are many devices attached\n");
 	/* Delete all IOPs from the controller chain */
 	/* They should have already been released by the
 	 * scsi-core
@@ -901,7 +856,7 @@ static void adpt_i2o_sys_shutdown(void)
 //	spin_unlock_irqrestore(&adpt_post_wait_lock, flags);
 	adpt_post_wait_queue = NULL;
 
-	 printk(KERN_INFO "Adaptec I2O controllers down.\n");
+	printk(KERN_INFO "Adaptec I2O controllers down.\n");
 }
 
 static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev)
@@ -2198,20 +2153,27 @@ static irqreturn_t adpt_isr(int irq, void *dev_id)
 				status = I2O_POST_WAIT_OK;
 			}
 			if(!(context & 0x40000000)) {
-				cmd = adpt_cmd_from_context(pHba,
-							readl(reply+12));
+				/*
+				 * The request tag is one less than the command tag
+				 * as the firmware might treat a 0 tag as invalid
+				 */
+				cmd = scsi_host_find_tag(pHba->host,
+							 readl(reply + 12) - 1);
 				if(cmd != NULL) {
 					printk(KERN_WARNING"%s: Apparent SCSI cmd in Post Wait Context - cmd=%p context=%x\n", pHba->name, cmd, context);
 				}
 			}
 			adpt_i2o_post_wait_complete(context, status);
 		} else { // SCSI message
-			cmd = adpt_cmd_from_context (pHba, readl(reply+12));
+			/*
+			 * The request tag is one less than the command tag
+			 * as the firmware might treat a 0 tag as invalid
+			 */
+			cmd = scsi_host_find_tag(pHba->host,
+						 readl(reply + 12) - 1);
 			if(cmd != NULL){
 				scsi_dma_unmap(cmd);
-				if(cmd->serial_number != 0) { // If not timedout
-					adpt_i2o_to_scsi(reply, cmd);
-				}
+				adpt_i2o_to_scsi(reply, cmd);
 			}
 		}
 		writel(m, pHba->reply_port);
@@ -2277,7 +2239,8 @@ static s32 adpt_scsi_to_i2o(adpt_hba* pHba, struct scsi_cmnd* cmd, struct adpt_d
 	// I2O_CMD_SCSI_EXEC
 	msg[1] = ((0xff<<24)|(HOST_TID<<12)|d->tid);
 	msg[2] = 0;
-	msg[3] = adpt_cmd_to_context(cmd);  /* Want SCSI control block back */
+	/* Add 1 to avoid firmware treating it as invalid command */
+	msg[3] = cmd->request->tag + 1;
 	// Our cards use the transaction context as the tag for queueing
 	// Adaptec/DPT Private stuff 
 	msg[4] = I2O_CMD_SCSI_EXEC|(DPT_ORGANIZATION_ID<<16);
@@ -2693,9 +2656,6 @@ static void adpt_fail_posted_scbs(adpt_hba* pHba)
 		unsigned long flags;
 		spin_lock_irqsave(&d->list_lock, flags);
 		list_for_each_entry(cmd, &d->cmd_list, list) {
-			if(cmd->serial_number == 0){
-				continue;
-			}
 			cmd->result = (DID_OK << 16) | (QUEUE_FULL <<1);
 			cmd->scsi_done(cmd);
 		}
@@ -3427,7 +3387,7 @@ static int adpt_i2o_issue_params(int cmd, adpt_hba* pHba, int tid,
 		return -((res[1] >> 16) & 0xFF); /* -BlockStatus */
 	}
 
-	 return 4 + ((res[1] & 0x0000FFFF) << 2); /* bytes used in resblk */ 
+	return 4 + ((res[1] & 0x0000FFFF) << 2); /* bytes used in resblk */
 }
 
 
@@ -3500,8 +3460,8 @@ static int adpt_i2o_enable_hba(adpt_hba* pHba)
 
 static int adpt_i2o_systab_send(adpt_hba* pHba)
 {
-	 u32 msg[12];
-	 int ret;
+	u32 msg[12];
+	int ret;
 
 	msg[0] = I2O_MESSAGE_SIZE(12) | SGL_OFFSET_6;
 	msg[1] = I2O_CMD_SYS_TAB_SET<<24 | HOST_TID<<12 | ADAPTER_TID;

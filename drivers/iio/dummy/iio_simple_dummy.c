@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (c) 2011 Jonathan Cameron
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  *
  * A reference industrial I/O driver to illustrate the functionality available.
  *
@@ -696,9 +693,9 @@ static int iio_dummy_remove(struct iio_sw_device *swd)
  * Varies depending on bus type of the device. As there is no device
  * here, call probe directly. For information on device registration
  * i2c:
- * Documentation/i2c/writing-clients
+ * Documentation/i2c/writing-clients.rst
  * spi:
- * Documentation/spi/spi-summary
+ * Documentation/spi/spi-summary.rst
  */
 static const struct iio_sw_device_ops iio_dummy_device_ops = {
 	.probe = iio_dummy_probe,

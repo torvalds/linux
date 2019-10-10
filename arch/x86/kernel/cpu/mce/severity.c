@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MCE grading rules.
  * Copyright 2008, 2009 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  *
  * Author: Andi Kleen
  */
@@ -111,11 +107,11 @@ static struct severity {
 	 */
 	MCESEV(
 		AO, "Action optional: memory scrubbing error",
-		SER, MASK(MCI_STATUS_OVER|MCI_UC_AR|MCACOD_SCRUBMSK, MCI_STATUS_UC|MCACOD_SCRUB)
+		SER, MASK(MCI_UC_AR|MCACOD_SCRUBMSK, MCI_STATUS_UC|MCACOD_SCRUB)
 		),
 	MCESEV(
 		AO, "Action optional: last level cache writeback error",
-		SER, MASK(MCI_STATUS_OVER|MCI_UC_AR|MCACOD, MCI_STATUS_UC|MCACOD_L3WB)
+		SER, MASK(MCI_UC_AR|MCACOD, MCI_STATUS_UC|MCACOD_L3WB)
 		),
 
 	/* ignore OVER for UCNA */
@@ -163,6 +159,11 @@ static struct severity {
 	MCESEV(
 		PANIC, "Data load in unrecoverable area of kernel",
 		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_DATA),
+		KERNEL
+		),
+	MCESEV(
+		PANIC, "Instruction fetch error in kernel",
+		SER, MASK(MCI_STATUS_OVER|MCI_UC_SAR|MCI_ADDR|MCACOD, MCI_UC_SAR|MCI_ADDR|MCACOD_INSTR),
 		KERNEL
 		),
 #endif
@@ -399,21 +400,13 @@ static const struct file_operations severities_coverage_fops = {
 
 static int __init severities_debugfs_init(void)
 {
-	struct dentry *dmce, *fsev;
+	struct dentry *dmce;
 
 	dmce = mce_get_debugfs_dir();
-	if (!dmce)
-		goto err_out;
 
-	fsev = debugfs_create_file("severities-coverage", 0444, dmce, NULL,
-				   &severities_coverage_fops);
-	if (!fsev)
-		goto err_out;
-
+	debugfs_create_file("severities-coverage", 0444, dmce, NULL,
+			    &severities_coverage_fops);
 	return 0;
-
-err_out:
-	return -ENOMEM;
 }
 late_initcall(severities_debugfs_init);
 #endif /* CONFIG_DEBUG_FS */

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, Sony Mobile Communications AB.
  * Copyright (c) 2013, The Linux Foundation. All rights reserved.
  * Author: Bjorn Andersson <bjorn.andersson@sonymobile.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -569,22 +561,16 @@ static int qcom_rpm_probe(struct platform_device *pdev)
 	clk_prepare_enable(rpm->ramclk); /* Accepts NULL */
 
 	irq_ack = platform_get_irq_byname(pdev, "ack");
-	if (irq_ack < 0) {
-		dev_err(&pdev->dev, "required ack interrupt missing\n");
+	if (irq_ack < 0)
 		return irq_ack;
-	}
 
 	irq_err = platform_get_irq_byname(pdev, "err");
-	if (irq_err < 0) {
-		dev_err(&pdev->dev, "required err interrupt missing\n");
+	if (irq_err < 0)
 		return irq_err;
-	}
 
 	irq_wakeup = platform_get_irq_byname(pdev, "wakeup");
-	if (irq_wakeup < 0) {
-		dev_err(&pdev->dev, "required wakeup interrupt missing\n");
+	if (irq_wakeup < 0)
 		return irq_wakeup;
-	}
 
 	match = of_match_device(qcom_rpm_of_match, &pdev->dev);
 	if (!match)

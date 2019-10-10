@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * NVIDIA Tegra DRM GEM helper functions
  *
@@ -7,14 +8,13 @@
  * Based on the GEM/CMA helpers
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/dma-buf.h>
 #include <linux/iommu.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_prime.h>
 #include <drm/tegra_drm.h>
 
 #include "drm.h"
@@ -204,7 +204,7 @@ static void tegra_bo_free(struct drm_device *drm, struct tegra_bo *bo)
 {
 	if (bo->pages) {
 		dma_unmap_sg(drm->dev, bo->sgt->sgl, bo->sgt->nents,
-			     DMA_BIDIRECTIONAL);
+			     DMA_FROM_DEVICE);
 		drm_gem_put_pages(&bo->gem, bo->pages, true, true);
 		sg_free_table(bo->sgt);
 		kfree(bo->sgt);
@@ -230,7 +230,7 @@ static int tegra_bo_get_pages(struct drm_device *drm, struct tegra_bo *bo)
 	}
 
 	err = dma_map_sg(drm->dev, bo->sgt->sgl, bo->sgt->nents,
-			 DMA_BIDIRECTIONAL);
+			 DMA_FROM_DEVICE);
 	if (err == 0) {
 		err = -EFAULT;
 		goto free_sgt;
@@ -629,20 +629,19 @@ static const struct dma_buf_ops tegra_gem_prime_dmabuf_ops = {
 	.vunmap = tegra_gem_prime_vunmap,
 };
 
-struct dma_buf *tegra_gem_prime_export(struct drm_device *drm,
-				       struct drm_gem_object *gem,
+struct dma_buf *tegra_gem_prime_export(struct drm_gem_object *gem,
 				       int flags)
 {
 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
 
 	exp_info.exp_name = KBUILD_MODNAME;
-	exp_info.owner = drm->driver->fops->owner;
+	exp_info.owner = gem->dev->driver->fops->owner;
 	exp_info.ops = &tegra_gem_prime_dmabuf_ops;
 	exp_info.size = gem->size;
 	exp_info.flags = flags;
 	exp_info.priv = gem;
 
-	return drm_gem_dmabuf_export(drm, &exp_info);
+	return drm_gem_dmabuf_export(gem->dev, &exp_info);
 }
 
 struct drm_gem_object *tegra_gem_prime_import(struct drm_device *drm,

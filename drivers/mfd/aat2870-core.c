@@ -1,26 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/mfd/aat2870-core.c
  *
  * Copyright (c) 2011, NVIDIA Corporation.
  * Author: Jin Park <jinyoungp@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/slab.h>
@@ -335,30 +321,13 @@ static const struct file_operations aat2870_reg_fops = {
 static void aat2870_init_debugfs(struct aat2870_data *aat2870)
 {
 	aat2870->dentry_root = debugfs_create_dir("aat2870", NULL);
-	if (!aat2870->dentry_root) {
-		dev_warn(aat2870->dev,
-			 "Failed to create debugfs root directory\n");
-		return;
-	}
 
-	aat2870->dentry_reg = debugfs_create_file("regs", 0644,
-						  aat2870->dentry_root,
-						  aat2870, &aat2870_reg_fops);
-	if (!aat2870->dentry_reg)
-		dev_warn(aat2870->dev,
-			 "Failed to create debugfs register file\n");
+	debugfs_create_file("regs", 0644, aat2870->dentry_root, aat2870,
+			    &aat2870_reg_fops);
 }
 
-static void aat2870_uninit_debugfs(struct aat2870_data *aat2870)
-{
-	debugfs_remove_recursive(aat2870->dentry_root);
-}
 #else
 static inline void aat2870_init_debugfs(struct aat2870_data *aat2870)
-{
-}
-
-static inline void aat2870_uninit_debugfs(struct aat2870_data *aat2870)
 {
 }
 #endif /* CONFIG_DEBUG_FS */
@@ -440,20 +409,6 @@ out_disable:
 	return ret;
 }
 
-static int aat2870_i2c_remove(struct i2c_client *client)
-{
-	struct aat2870_data *aat2870 = i2c_get_clientdata(client);
-
-	aat2870_uninit_debugfs(aat2870);
-
-	mfd_remove_devices(aat2870->dev);
-	aat2870_disable(aat2870);
-	if (aat2870->uninit)
-		aat2870->uninit(aat2870);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM_SLEEP
 static int aat2870_i2c_suspend(struct device *dev)
 {
@@ -492,15 +447,14 @@ static const struct i2c_device_id aat2870_i2c_id_table[] = {
 	{ "aat2870", 0 },
 	{ }
 };
-MODULE_DEVICE_TABLE(i2c, aat2870_i2c_id_table);
 
 static struct i2c_driver aat2870_i2c_driver = {
 	.driver = {
-		.name	= "aat2870",
-		.pm	= &aat2870_pm_ops,
+		.name			= "aat2870",
+		.pm			= &aat2870_pm_ops,
+		.suppress_bind_attrs	= true,
 	},
 	.probe		= aat2870_i2c_probe,
-	.remove		= aat2870_i2c_remove,
 	.id_table	= aat2870_i2c_id_table,
 };
 
@@ -509,13 +463,3 @@ static int __init aat2870_init(void)
 	return i2c_add_driver(&aat2870_i2c_driver);
 }
 subsys_initcall(aat2870_init);
-
-static void __exit aat2870_exit(void)
-{
-	i2c_del_driver(&aat2870_i2c_driver);
-}
-module_exit(aat2870_exit);
-
-MODULE_DESCRIPTION("Core support for the AnalogicTech AAT2870");
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jin Park <jinyoungp@nvidia.com>");

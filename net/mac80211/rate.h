@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005, Devicescape Software, Inc.
  * Copyright (c) 2006 Jiri Benc <jbenc@suse.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef IEEE80211_RATE_H
@@ -60,15 +57,6 @@ static inline void rate_control_add_sta_debugfs(struct sta_info *sta)
 	if (ref && sta->debugfs_dir && ref->ops->add_sta_debugfs)
 		ref->ops->add_sta_debugfs(ref->priv, sta->rate_ctrl_priv,
 					  sta->debugfs_dir);
-#endif
-}
-
-static inline void rate_control_remove_sta_debugfs(struct sta_info *sta)
-{
-#ifdef CONFIG_MAC80211_DEBUGFS
-	struct rate_control_ref *ref = sta->rate_ctrl;
-	if (ref && ref->ops->remove_sta_debugfs)
-		ref->ops->remove_sta_debugfs(ref->priv, sta->rate_ctrl_priv);
 #endif
 }
 

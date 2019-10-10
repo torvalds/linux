@@ -148,7 +148,6 @@ static struct irq_chip cdns_gpio_irqchip = {
 static int cdns_gpio_probe(struct platform_device *pdev)
 {
 	struct cdns_gpio_chip *cgpio;
-	struct resource *res;
 	int ret, irq;
 	u32 dir_prev;
 	u32 num_gpios = 32;
@@ -157,8 +156,7 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 	if (!cgpio)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cgpio->regs = devm_ioremap_resource(&pdev->dev, res);
+	cgpio->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cgpio->regs))
 		return PTR_ERR(cgpio->regs);
 
@@ -216,27 +214,33 @@ static int cdns_gpio_probe(struct platform_device *pdev)
 		goto err_revert_dir;
 	}
 
+	/*
+	 * Optional irq_chip support
+	 */
+	irq = platform_get_irq(pdev, 0);
+	if (irq >= 0) {
+		struct gpio_irq_chip *girq;
+
+		girq = &cgpio->gc.irq;
+		girq->chip = &cdns_gpio_irqchip;
+		girq->parent_handler = cdns_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, 1,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents) {
+			ret = -ENOMEM;
+			goto err_disable_clk;
+		}
+		girq->parents[0] = irq;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_level_irq;
+	}
+
 	ret = devm_gpiochip_add_data(&pdev->dev, &cgpio->gc, cgpio);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Could not register gpiochip, %d\n", ret);
 		goto err_disable_clk;
-	}
-
-	/*
-	 * irq_chip support
-	 */
-	irq = platform_get_irq(pdev, 0);
-	if (irq >= 0) {
-		ret = gpiochip_irqchip_add(&cgpio->gc, &cdns_gpio_irqchip,
-					   0, handle_level_irq,
-					   IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(&pdev->dev, "Could not add irqchip, %d\n",
-				ret);
-			goto err_disable_clk;
-		}
-		gpiochip_set_chained_irqchip(&cgpio->gc, &cdns_gpio_irqchip,
-					     irq, cdns_gpio_irq_handler);
 	}
 
 	cgpio->bypass_orig = ioread32(cgpio->regs + CDNS_GPIO_BYPASS_MODE);

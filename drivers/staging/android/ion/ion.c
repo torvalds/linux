@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/staging/android/ion/ion.c
+ * ION Memory Allocator
  *
  * Copyright (C) 2011 Google, Inc.
  */
 
-#include <linux/anon_inodes.h>
 #include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
@@ -14,10 +13,8 @@
 #include <linux/file.h>
 #include <linux/freezer.h>
 #include <linux/fs.h>
-#include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/list.h>
-#include <linux/memblock.h>
 #include <linux/miscdevice.h>
 #include <linux/mm.h>
 #include <linux/mm_types.h>
@@ -31,32 +28,6 @@
 
 static struct ion_device *internal_dev;
 static int heap_id;
-
-/* this function should only be called while dev->lock is held */
-static void ion_buffer_add(struct ion_device *dev,
-			   struct ion_buffer *buffer)
-{
-	struct rb_node **p = &dev->buffers.rb_node;
-	struct rb_node *parent = NULL;
-	struct ion_buffer *entry;
-
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct ion_buffer, node);
-
-		if (buffer < entry) {
-			p = &(*p)->rb_left;
-		} else if (buffer > entry) {
-			p = &(*p)->rb_right;
-		} else {
-			pr_err("%s: buffer already found.", __func__);
-			BUG();
-		}
-	}
-
-	rb_link_node(&buffer->node, parent, p);
-	rb_insert_color(&buffer->node, &dev->buffers);
-}
 
 /* this function should only be called while dev->lock is held */
 static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
@@ -103,9 +74,6 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 
 	INIT_LIST_HEAD(&buffer->attachments);
 	mutex_init(&buffer->lock);
-	mutex_lock(&dev->buffer_lock);
-	ion_buffer_add(dev, buffer);
-	mutex_unlock(&dev->buffer_lock);
 	return buffer;
 
 err1:
@@ -134,11 +102,6 @@ void ion_buffer_destroy(struct ion_buffer *buffer)
 static void _ion_buffer_destroy(struct ion_buffer *buffer)
 {
 	struct ion_heap *heap = buffer->heap;
-	struct ion_device *dev = buffer->dev;
-
-	mutex_lock(&dev->buffer_lock);
-	rb_erase(&buffer->node, &dev->buffers);
-	mutex_unlock(&dev->buffer_lock);
 
 	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
 		ion_heap_freelist_add(heap, buffer);
@@ -390,7 +353,7 @@ static const struct dma_buf_ops dma_buf_ops = {
 	.unmap = ion_dma_buf_kunmap,
 };
 
-int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 {
 	struct ion_device *dev = internal_dev;
 	struct ion_buffer *buffer = NULL;
@@ -447,7 +410,7 @@ int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
 	return fd;
 }
 
-int ion_query_heaps(struct ion_heap_query *query)
+static int ion_query_heaps(struct ion_heap_query *query)
 {
 	struct ion_device *dev = internal_dev;
 	struct ion_heap_data __user *buffer = u64_to_user_ptr(query->heaps);
@@ -489,6 +452,81 @@ int ion_query_heaps(struct ion_heap_query *query)
 	ret = 0;
 out:
 	up_read(&dev->lock);
+	return ret;
+}
+
+union ion_ioctl_arg {
+	struct ion_allocation_data allocation;
+	struct ion_heap_query query;
+};
+
+static int validate_ioctl_arg(unsigned int cmd, union ion_ioctl_arg *arg)
+{
+	switch (cmd) {
+	case ION_IOC_HEAP_QUERY:
+		if (arg->query.reserved0 ||
+		    arg->query.reserved1 ||
+		    arg->query.reserved2)
+			return -EINVAL;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	union ion_ioctl_arg data;
+
+	if (_IOC_SIZE(cmd) > sizeof(data))
+		return -EINVAL;
+
+	/*
+	 * The copy_from_user is unconditional here for both read and write
+	 * to do the validate. If there is no write for the ioctl, the
+	 * buffer is cleared
+	 */
+	if (copy_from_user(&data, (void __user *)arg, _IOC_SIZE(cmd)))
+		return -EFAULT;
+
+	ret = validate_ioctl_arg(cmd, &data);
+	if (ret) {
+		pr_warn_once("%s: ioctl validate failed\n", __func__);
+		return ret;
+	}
+
+	if (!(_IOC_DIR(cmd) & _IOC_WRITE))
+		memset(&data, 0, sizeof(data));
+
+	switch (cmd) {
+	case ION_IOC_ALLOC:
+	{
+		int fd;
+
+		fd = ion_alloc(data.allocation.len,
+			       data.allocation.heap_id_mask,
+			       data.allocation.flags);
+		if (fd < 0)
+			return fd;
+
+		data.allocation.fd = fd;
+
+		break;
+	}
+	case ION_IOC_HEAP_QUERY:
+		ret = ion_query_heaps(&data.query);
+		break;
+	default:
+		return -ENOTTY;
+	}
+
+	if (_IOC_DIR(cmd) & _IOC_READ) {
+		if (copy_to_user((void __user *)arg, &data, _IOC_SIZE(cmd)))
+			return -EFAULT;
+	}
 	return ret;
 }
 
@@ -622,8 +660,6 @@ static int ion_device_create(void)
 	}
 
 	idev->debug_root = debugfs_create_dir("ion", NULL);
-	idev->buffers = RB_ROOT;
-	mutex_init(&idev->buffer_lock);
 	init_rwsem(&idev->lock);
 	plist_head_init(&idev->heaps);
 	internal_dev = idev;

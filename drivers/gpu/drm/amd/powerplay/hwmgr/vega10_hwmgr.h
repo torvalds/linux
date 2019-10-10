@@ -199,6 +199,7 @@ struct vega10_smc_state_table {
 	uint32_t        vce_boot_level;
 	uint32_t        gfx_max_level;
 	uint32_t        mem_max_level;
+	uint32_t        soc_max_level;
 	uint8_t         vr_hot_gpio;
 	uint8_t         ac_dc_gpio;
 	uint8_t         therm_out_gpio;

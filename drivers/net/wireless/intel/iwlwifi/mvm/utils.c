@@ -88,16 +88,10 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 	 * the mutex, this ensures we don't try to send two
 	 * (or more) synchronous commands at a time.
 	 */
-	if (!(cmd->flags & CMD_ASYNC)) {
+	if (!(cmd->flags & CMD_ASYNC))
 		lockdep_assert_held(&mvm->mutex);
-		if (!(cmd->flags & CMD_SEND_IN_IDLE))
-			iwl_mvm_ref(mvm, IWL_MVM_REF_SENDING_CMD);
-	}
 
 	ret = iwl_trans_send_cmd(mvm->trans, cmd);
-
-	if (!(cmd->flags & (CMD_ASYNC | CMD_SEND_IN_IDLE)))
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SENDING_CMD);
 
 	/*
 	 * If the caller wants the SKB, then don't hide any problems, the
@@ -236,6 +230,18 @@ u8 iwl_mvm_mac80211_idx_to_hwrate(int rate_idx)
 {
 	/* Get PLCP rate for tx_cmd->rate_n_flags */
 	return fw_rate_idx_to_plcp[rate_idx];
+}
+
+u8 iwl_mvm_mac80211_ac_to_ucode_ac(enum ieee80211_ac_numbers ac)
+{
+	static const u8 mac80211_ac_to_ucode_ac[] = {
+		AC_VO,
+		AC_VI,
+		AC_BE,
+		AC_BK
+	};
+
+	return mac80211_ac_to_ucode_ac[ac];
 }
 
 void iwl_mvm_rx_fw_error(struct iwl_mvm *mvm, struct iwl_rx_cmd_buffer *rxb)
@@ -457,10 +463,10 @@ static void iwl_mvm_dump_umac_error_log(struct iwl_mvm *mvm)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_umac_error_event_table table;
-	u32 base = mvm->trans->umac_error_event_table;
+	u32 base = mvm->trans->dbg.umac_error_event_table;
 
 	if (!mvm->support_umac_log &&
-	    !(mvm->trans->error_event_table_tlv_status &
+	    !(mvm->trans->dbg.error_event_table_tlv_status &
 	      IWL_ERROR_EVENT_TABLE_UMAC))
 		return;
 
@@ -496,7 +502,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 {
 	struct iwl_trans *trans = mvm->trans;
 	struct iwl_error_event_table table;
-	u32 val, base = mvm->trans->lmac_error_event_table[lmac_num];
+	u32 val, base = mvm->trans->dbg.lmac_error_event_table[lmac_num];
 
 	if (mvm->fwrt.cur_fw_img == IWL_UCODE_INIT) {
 		if (!base)
@@ -525,7 +531,7 @@ static void iwl_mvm_dump_lmac_error_log(struct iwl_mvm *mvm, u8 lmac_num)
 		/* reset the device */
 		iwl_trans_sw_reset(trans);
 
-		err = iwl_finish_nic_init(trans);
+		err = iwl_finish_nic_init(trans, trans->trans_cfg);
 		if (err)
 			return;
 	}
@@ -592,10 +598,12 @@ void iwl_mvm_dump_nic_error_log(struct iwl_mvm *mvm)
 
 	iwl_mvm_dump_lmac_error_log(mvm, 0);
 
-	if (mvm->trans->lmac_error_event_table[1])
+	if (mvm->trans->dbg.lmac_error_event_table[1])
 		iwl_mvm_dump_lmac_error_log(mvm, 1);
 
 	iwl_mvm_dump_umac_error_log(mvm);
+
+	iwl_fw_error_print_fseq_regs(&mvm->fwrt);
 }
 
 int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
@@ -639,12 +647,12 @@ int iwl_mvm_reconfig_scd(struct iwl_mvm *mvm, int queue, int fifo, int sta_id,
  * this case to clear the state indicating that station creation is in
  * progress.
  */
-int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq, bool sync)
+int iwl_mvm_send_lq_cmd(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq)
 {
 	struct iwl_host_cmd cmd = {
 		.id = LQ_CMD,
 		.len = { sizeof(struct iwl_lq_cmd), },
-		.flags = sync ? 0 : CMD_ASYNC,
+		.flags = CMD_ASYNC,
 		.data = { lq, },
 	};
 
@@ -931,8 +939,9 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 {
 	struct iwl_fw_dbg_trigger_tlv *trigger;
 	struct iwl_fw_dbg_trigger_txq_timer *txq_timer;
-	unsigned int default_timeout =
-		cmd_q ? IWL_DEF_WD_TIMEOUT : mvm->cfg->base_params->wd_timeout;
+	unsigned int default_timeout = cmd_q ?
+		IWL_DEF_WD_TIMEOUT :
+		mvm->trans->trans_cfg->base_params->wd_timeout;
 
 	if (!iwl_fw_dbg_trigger_enabled(mvm->fw, FW_DBG_TRIGGER_TXQ_TIMERS)) {
 		/*
@@ -976,7 +985,7 @@ unsigned int iwl_mvm_get_wd_timeout(struct iwl_mvm *mvm,
 		return default_timeout;
 	default:
 		WARN_ON(1);
-		return mvm->cfg->base_params->wd_timeout;
+		return mvm->trans->trans_cfg->base_params->wd_timeout;
 	}
 }
 
@@ -1418,6 +1427,16 @@ void iwl_mvm_tcm_rm_vif(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	cancel_delayed_work_sync(&mvmvif->uapsd_nonagg_detected_wk);
 }
 
+u32 iwl_mvm_get_systime(struct iwl_mvm *mvm)
+{
+	u32 reg_addr = DEVICE_SYSTEM_TIME_REG;
+
+	if (mvm->trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_22000 &&
+	    mvm->trans->cfg->gp2_reg_addr)
+		reg_addr = mvm->trans->cfg->gp2_reg_addr;
+
+	return iwl_read_prph(mvm->trans, reg_addr);
+}
 
 void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 {
@@ -1432,8 +1451,8 @@ void iwl_mvm_get_sync_time(struct iwl_mvm *mvm, u32 *gp2, u64 *boottime)
 		iwl_mvm_power_update_device(mvm);
 	}
 
-	*gp2 = iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
-	*boottime = ktime_get_boot_ns();
+	*gp2 = iwl_mvm_get_systime(mvm);
+	*boottime = ktime_get_boottime_ns();
 
 	if (!ps_disabled) {
 		mvm->ps_disabled = ps_disabled;

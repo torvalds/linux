@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef __ASM_SPINLOCK_H
 #define __ASM_SPINLOCK_H
 #ifdef __KERNEL__
@@ -11,11 +12,6 @@
  *	Rework to support virtual processors
  *
  * Type of int is used as a full 64b word is not necessary.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * (the type definitions are in asm/spinlock_types.h)
  */
@@ -37,19 +33,6 @@
 #endif
 #else
 #define LOCK_TOKEN	1
-#endif
-
-#if defined(CONFIG_PPC64) && defined(CONFIG_SMP)
-#define CLEAR_IO_SYNC	(get_paca()->io_sync = 0)
-#define SYNC_IO		do {						\
-				if (unlikely(get_paca()->io_sync)) {	\
-					mb();				\
-					get_paca()->io_sync = 0;	\
-				}					\
-			} while (0)
-#else
-#define CLEAR_IO_SYNC
-#define SYNC_IO
 #endif
 
 #ifdef CONFIG_PPC_PSERIES
@@ -99,7 +82,6 @@ static inline unsigned long __arch_spin_trylock(arch_spinlock_t *lock)
 
 static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
-	CLEAR_IO_SYNC;
 	return __arch_spin_trylock(lock) == 0;
 }
 
@@ -119,25 +101,52 @@ static inline int arch_spin_trylock(arch_spinlock_t *lock)
 
 #if defined(CONFIG_PPC_SPLPAR)
 /* We only yield to the hypervisor if we are in shared processor mode */
-#define SHARED_PROCESSOR (lppaca_shared_proc(local_paca->lppaca_ptr))
-extern void __spin_yield(arch_spinlock_t *lock);
-extern void __rw_yield(arch_rwlock_t *lock);
+void splpar_spin_yield(arch_spinlock_t *lock);
+void splpar_rw_yield(arch_rwlock_t *lock);
 #else /* SPLPAR */
-#define __spin_yield(x)	barrier()
-#define __rw_yield(x)	barrier()
-#define SHARED_PROCESSOR	0
+static inline void splpar_spin_yield(arch_spinlock_t *lock) {};
+static inline void splpar_rw_yield(arch_rwlock_t *lock) {};
 #endif
+
+static inline bool is_shared_processor(void)
+{
+/*
+ * LPPACA is only available on Pseries so guard anything LPPACA related to
+ * allow other platforms (which include this common header) to compile.
+ */
+#ifdef CONFIG_PPC_PSERIES
+	return (IS_ENABLED(CONFIG_PPC_SPLPAR) &&
+		lppaca_shared_proc(local_paca->lppaca_ptr));
+#else
+	return false;
+#endif
+}
+
+static inline void spin_yield(arch_spinlock_t *lock)
+{
+	if (is_shared_processor())
+		splpar_spin_yield(lock);
+	else
+		barrier();
+}
+
+static inline void rw_yield(arch_rwlock_t *lock)
+{
+	if (is_shared_processor())
+		splpar_rw_yield(lock);
+	else
+		barrier();
+}
 
 static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
-	CLEAR_IO_SYNC;
 	while (1) {
 		if (likely(__arch_spin_trylock(lock) == 0))
 			break;
 		do {
 			HMT_low();
-			if (SHARED_PROCESSOR)
-				__spin_yield(lock);
+			if (is_shared_processor())
+				splpar_spin_yield(lock);
 		} while (unlikely(lock->slock != 0));
 		HMT_medium();
 	}
@@ -148,7 +157,6 @@ void arch_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 {
 	unsigned long flags_dis;
 
-	CLEAR_IO_SYNC;
 	while (1) {
 		if (likely(__arch_spin_trylock(lock) == 0))
 			break;
@@ -156,8 +164,8 @@ void arch_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 		local_irq_restore(flags);
 		do {
 			HMT_low();
-			if (SHARED_PROCESSOR)
-				__spin_yield(lock);
+			if (is_shared_processor())
+				splpar_spin_yield(lock);
 		} while (unlikely(lock->slock != 0));
 		HMT_medium();
 		local_irq_restore(flags_dis);
@@ -167,7 +175,6 @@ void arch_spin_lock_flags(arch_spinlock_t *lock, unsigned long flags)
 
 static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
-	SYNC_IO;
 	__asm__ __volatile__("# arch_spin_unlock\n\t"
 				PPC_RELEASE_BARRIER: : :"memory");
 	lock->slock = 0;
@@ -247,8 +254,8 @@ static inline void arch_read_lock(arch_rwlock_t *rw)
 			break;
 		do {
 			HMT_low();
-			if (SHARED_PROCESSOR)
-				__rw_yield(rw);
+			if (is_shared_processor())
+				splpar_rw_yield(rw);
 		} while (unlikely(rw->lock < 0));
 		HMT_medium();
 	}
@@ -261,8 +268,8 @@ static inline void arch_write_lock(arch_rwlock_t *rw)
 			break;
 		do {
 			HMT_low();
-			if (SHARED_PROCESSOR)
-				__rw_yield(rw);
+			if (is_shared_processor())
+				splpar_rw_yield(rw);
 		} while (unlikely(rw->lock != 0));
 		HMT_medium();
 	}
@@ -302,9 +309,9 @@ static inline void arch_write_unlock(arch_rwlock_t *rw)
 	rw->lock = 0;
 }
 
-#define arch_spin_relax(lock)	__spin_yield(lock)
-#define arch_read_relax(lock)	__rw_yield(lock)
-#define arch_write_relax(lock)	__rw_yield(lock)
+#define arch_spin_relax(lock)	spin_yield(lock)
+#define arch_read_relax(lock)	rw_yield(lock)
+#define arch_write_relax(lock)	rw_yield(lock)
 
 /* See include/linux/spinlock.h */
 #define smp_mb__after_spinlock()   smp_mb()

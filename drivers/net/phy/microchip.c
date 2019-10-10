@@ -305,7 +305,6 @@ static int lan88xx_config_init(struct phy_device *phydev)
 {
 	int val;
 
-	genphy_config_init(phydev);
 	/*Zerodetect delay enable */
 	val = phy_read_mmd(phydev, MDIO_MMD_PCS,
 			   PHY_ARDENNES_MMD_DEV_3_PHY_CFG);
@@ -333,7 +332,7 @@ static struct phy_driver microchip_phy_driver[] = {
 	.phy_id_mask	= 0xfffffff0,
 	.name		= "Microchip LAN88xx",
 
-	.features	= PHY_GBIT_FEATURES,
+	/* PHY_GBIT_FEATURES */
 
 	.probe		= lan88xx_probe,
 	.remove		= lan88xx_remove,

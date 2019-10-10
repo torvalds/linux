@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dm1105.c - driver for DVB cards based on SDMC DM1105 PCI chip
  *
  * Copyright (C) 2008 Igor M. Liplianin <liplianin@me.by>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/i2c.h>
@@ -517,7 +507,7 @@ static int dm1105_i2c_xfer(struct i2c_adapter *i2c_adap,
 				msgs[i].buf[byte] = rc;
 			}
 		} else if ((msgs[i].buf[0] == 0xf7) && (msgs[i].addr == 0x55)) {
-			/* prepaired for cx24116 firmware */
+			/* prepared for cx24116 firmware */
 			/* Write in small blocks */
 			len = msgs[i].len - 1;
 			k = 1;

@@ -3305,8 +3305,6 @@ next_rx:
 
 	BNX2_WR(bp, rxr->rx_bseq_addr, rxr->rx_prod_bseq);
 
-	mmiowb();
-
 	return rx_pkt;
 
 }
@@ -6723,8 +6721,6 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	BNX2_WR16(bp, txr->tx_bidx_addr, prod);
 	BNX2_WR(bp, txr->tx_bseq_addr, txr->tx_prod_bseq);
 
-	mmiowb();
-
 	txr->tx_prod = prod;
 
 	if (unlikely(bnx2_tx_avail(bp, txr) <= MAX_SKB_FRAGS)) {
@@ -8677,8 +8673,7 @@ bnx2_remove_one(struct pci_dev *pdev)
 static int
 bnx2_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (netif_running(dev)) {
@@ -8697,8 +8692,7 @@ bnx2_suspend(struct device *device)
 static int
 bnx2_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct net_device *dev = pci_get_drvdata(pdev);
+	struct net_device *dev = dev_get_drvdata(device);
 	struct bnx2 *bp = netdev_priv(dev);
 
 	if (!netif_running(dev))

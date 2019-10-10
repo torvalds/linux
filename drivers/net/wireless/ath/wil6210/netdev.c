@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2012-2017 Qualcomm Atheros, Inc.
- * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -27,7 +27,7 @@ bool wil_has_other_active_ifaces(struct wil6210_priv *wil,
 	struct wil6210_vif *vif;
 	struct net_device *ndev_i;
 
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		vif = wil->vifs[i];
 		if (vif) {
 			ndev_i = vif_to_ndev(vif);
@@ -155,7 +155,7 @@ static int wil6210_netdev_poll_tx(struct napi_struct *napi, int budget)
 		struct wil6210_vif *vif;
 
 		if (!ring->va || !txdata->enabled ||
-		    txdata->mid >= wil->max_vifs)
+		    txdata->mid >= GET_MAX_VIFS(wil))
 			continue;
 
 		vif = wil->vifs[txdata->mid];
@@ -218,6 +218,7 @@ static void wil_vif_deinit(struct wil6210_vif *vif)
 	cancel_work_sync(&vif->p2p.delayed_listen_work);
 	wil_probe_client_flush(vif);
 	cancel_work_sync(&vif->probe_client_worker);
+	cancel_work_sync(&vif->enable_tx_key_worker);
 }
 
 void wil_vif_free(struct wil6210_vif *vif)
@@ -283,7 +284,9 @@ static void wil_vif_init(struct wil6210_vif *vif)
 
 	INIT_WORK(&vif->probe_client_worker, wil_probe_client_worker);
 	INIT_WORK(&vif->disconnect_worker, wil_disconnect_worker);
+	INIT_WORK(&vif->p2p.discovery_expired_work, wil_p2p_listen_expired);
 	INIT_WORK(&vif->p2p.delayed_listen_work, wil_p2p_delayed_listen_work);
+	INIT_WORK(&vif->enable_tx_key_worker, wil_enable_tx_key_worker);
 
 	INIT_LIST_HEAD(&vif->probe_client_pending);
 
@@ -294,7 +297,7 @@ static u8 wil_vif_find_free_mid(struct wil6210_priv *wil)
 {
 	u8 i;
 
-	for (i = 0; i < wil->max_vifs; i++) {
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
 		if (!wil->vifs[i])
 			return i;
 	}
@@ -500,7 +503,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	bool any_active = wil_has_active_ifaces(wil, true, false);
 
 	ASSERT_RTNL();
-	if (mid >= wil->max_vifs) {
+	if (mid >= GET_MAX_VIFS(wil)) {
 		wil_err(wil, "invalid MID: %d\n", mid);
 		return;
 	}
@@ -540,6 +543,7 @@ void wil_vif_remove(struct wil6210_priv *wil, u8 mid)
 	cancel_work_sync(&vif->disconnect_worker);
 	wil_probe_client_flush(vif);
 	cancel_work_sync(&vif->probe_client_worker);
+	cancel_work_sync(&vif->enable_tx_key_worker);
 	/* for VIFs, ndev will be freed by destructor after RTNL is unlocked.
 	 * the main interface will be freed in wil_if_free, we need to keep it
 	 * a bit longer so logging macros will work.

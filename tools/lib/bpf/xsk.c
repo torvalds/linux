@@ -29,7 +29,7 @@
 
 #include "bpf.h"
 #include "libbpf.h"
-#include "libbpf_util.h"
+#include "libbpf_internal.h"
 #include "xsk.h"
 
 #ifndef SOL_XDP
@@ -60,10 +60,8 @@ struct xsk_socket {
 	struct xsk_umem *umem;
 	struct xsk_socket_config config;
 	int fd;
-	int xsks_map;
 	int ifindex;
 	int prog_fd;
-	int qidconf_map_fd;
 	int xsks_map_fd;
 	__u32 queue_id;
 	char ifname[IFNAMSIZ];
@@ -74,23 +72,6 @@ struct xsk_nl_info {
 	int ifindex;
 	int fd;
 };
-
-/* For 32-bit systems, we need to use mmap2 as the offsets are 64-bit.
- * Unfortunately, it is not part of glibc.
- */
-static inline void *xsk_mmap(void *addr, size_t length, int prot, int flags,
-			     int fd, __u64 offset)
-{
-#ifdef __NR_mmap2
-	unsigned int page_shift = __builtin_ffs(getpagesize()) - 1;
-	long ret = syscall(__NR_mmap2, addr, length, prot, flags, fd,
-			   (off_t)(offset >> page_shift));
-
-	return (void *)ret;
-#else
-	return mmap(addr, length, prot, flags, fd, offset);
-#endif
-}
 
 int xsk_umem__fd(const struct xsk_umem *umem)
 {
@@ -117,6 +98,7 @@ static void xsk_set_umem_config(struct xsk_umem_config *cfg,
 		cfg->comp_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
 		cfg->frame_size = XSK_UMEM__DEFAULT_FRAME_SIZE;
 		cfg->frame_headroom = XSK_UMEM__DEFAULT_FRAME_HEADROOM;
+		cfg->flags = XSK_UMEM__DEFAULT_FLAGS;
 		return;
 	}
 
@@ -124,10 +106,11 @@ static void xsk_set_umem_config(struct xsk_umem_config *cfg,
 	cfg->comp_size = usr_cfg->comp_size;
 	cfg->frame_size = usr_cfg->frame_size;
 	cfg->frame_headroom = usr_cfg->frame_headroom;
+	cfg->flags = usr_cfg->flags;
 }
 
-static void xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
-				      const struct xsk_socket_config *usr_cfg)
+static int xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
+				     const struct xsk_socket_config *usr_cfg)
 {
 	if (!usr_cfg) {
 		cfg->rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -135,19 +118,25 @@ static void xsk_set_xdp_socket_config(struct xsk_socket_config *cfg,
 		cfg->libbpf_flags = 0;
 		cfg->xdp_flags = 0;
 		cfg->bind_flags = 0;
-		return;
+		return 0;
 	}
+
+	if (usr_cfg->libbpf_flags & ~XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)
+		return -EINVAL;
 
 	cfg->rx_size = usr_cfg->rx_size;
 	cfg->tx_size = usr_cfg->tx_size;
 	cfg->libbpf_flags = usr_cfg->libbpf_flags;
 	cfg->xdp_flags = usr_cfg->xdp_flags;
 	cfg->bind_flags = usr_cfg->bind_flags;
+
+	return 0;
 }
 
-int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
-		     struct xsk_ring_prod *fill, struct xsk_ring_cons *comp,
-		     const struct xsk_umem_config *usr_config)
+int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
+			    __u64 size, struct xsk_ring_prod *fill,
+			    struct xsk_ring_cons *comp,
+			    const struct xsk_umem_config *usr_config)
 {
 	struct xdp_mmap_offsets off;
 	struct xdp_umem_reg mr;
@@ -178,6 +167,7 @@ int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
 	mr.len = size;
 	mr.chunk_size = umem->config.frame_size;
 	mr.headroom = umem->config.frame_headroom;
+	mr.flags = umem->config.flags;
 
 	err = setsockopt(umem->fd, SOL_XDP, XDP_UMEM_REG, &mr, sizeof(mr));
 	if (err) {
@@ -206,10 +196,9 @@ int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
 		goto out_socket;
 	}
 
-	map = xsk_mmap(NULL, off.fr.desc +
-		       umem->config.fill_size * sizeof(__u64),
-		       PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
-		       umem->fd, XDP_UMEM_PGOFF_FILL_RING);
+	map = mmap(NULL, off.fr.desc + umem->config.fill_size * sizeof(__u64),
+		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, umem->fd,
+		   XDP_UMEM_PGOFF_FILL_RING);
 	if (map == MAP_FAILED) {
 		err = -errno;
 		goto out_socket;
@@ -220,13 +209,13 @@ int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
 	fill->size = umem->config.fill_size;
 	fill->producer = map + off.fr.producer;
 	fill->consumer = map + off.fr.consumer;
+	fill->flags = map + off.fr.flags;
 	fill->ring = map + off.fr.desc;
 	fill->cached_cons = umem->config.fill_size;
 
-	map = xsk_mmap(NULL,
-		       off.cr.desc + umem->config.comp_size * sizeof(__u64),
-		       PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
-		       umem->fd, XDP_UMEM_PGOFF_COMPLETION_RING);
+	map = mmap(NULL, off.cr.desc + umem->config.comp_size * sizeof(__u64),
+		   PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE, umem->fd,
+		   XDP_UMEM_PGOFF_COMPLETION_RING);
 	if (map == MAP_FAILED) {
 		err = -errno;
 		goto out_mmap;
@@ -237,14 +226,14 @@ int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area, __u64 size,
 	comp->size = umem->config.comp_size;
 	comp->producer = map + off.cr.producer;
 	comp->consumer = map + off.cr.consumer;
+	comp->flags = map + off.cr.flags;
 	comp->ring = map + off.cr.desc;
 
 	*umem_ptr = umem;
 	return 0;
 
 out_mmap:
-	munmap(umem->fill,
-	       off.fr.desc + umem->config.fill_size * sizeof(__u64));
+	munmap(map, off.fr.desc + umem->config.fill_size * sizeof(__u64));
 out_socket:
 	close(umem->fd);
 out_umem_alloc:
@@ -252,23 +241,43 @@ out_umem_alloc:
 	return err;
 }
 
+struct xsk_umem_config_v1 {
+	__u32 fill_size;
+	__u32 comp_size;
+	__u32 frame_size;
+	__u32 frame_headroom;
+};
+
+int xsk_umem__create_v0_0_2(struct xsk_umem **umem_ptr, void *umem_area,
+			    __u64 size, struct xsk_ring_prod *fill,
+			    struct xsk_ring_cons *comp,
+			    const struct xsk_umem_config *usr_config)
+{
+	struct xsk_umem_config config;
+
+	memcpy(&config, usr_config, sizeof(struct xsk_umem_config_v1));
+	config.flags = 0;
+
+	return xsk_umem__create_v0_0_4(umem_ptr, umem_area, size, fill, comp,
+					&config);
+}
+asm(".symver xsk_umem__create_v0_0_2, xsk_umem__create@LIBBPF_0.0.2");
+asm(".symver xsk_umem__create_v0_0_4, xsk_umem__create@@LIBBPF_0.0.4");
+
 static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 {
-	char bpf_log_buf[BPF_LOG_BUF_SIZE];
+	static const int log_buf_size = 16 * 1024;
+	char log_buf[log_buf_size];
 	int err, prog_fd;
 
 	/* This is the C-program:
 	 * SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
 	 * {
-	 *     int *qidconf, index = ctx->rx_queue_index;
+	 *     int index = ctx->rx_queue_index;
 	 *
 	 *     // A set entry here means that the correspnding queue_id
 	 *     // has an active AF_XDP socket bound to it.
-	 *     qidconf = bpf_map_lookup_elem(&qidconf_map, &index);
-	 *     if (!qidconf)
-	 *         return XDP_ABORTED;
-	 *
-	 *     if (*qidconf)
+	 *     if (bpf_map_lookup_elem(&xsks_map, &index))
 	 *         return bpf_redirect_map(&xsks_map, index, 0);
 	 *
 	 *     return XDP_PASS;
@@ -281,15 +290,10 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_1, -4),
 		BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
 		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
-		BPF_LD_MAP_FD(BPF_REG_1, xsk->qidconf_map_fd),
+		BPF_LD_MAP_FD(BPF_REG_1, xsk->xsks_map_fd),
 		BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
 		BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
-		BPF_MOV32_IMM(BPF_REG_0, 0),
-		/* if r1 == 0 goto +8 */
-		BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 8),
 		BPF_MOV32_IMM(BPF_REG_0, 2),
-		/* r1 = *(u32 *)(r1 + 0) */
-		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_1, 0),
 		/* if r1 == 0 goto +5 */
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 5),
 		/* r2 = *(u32 *)(r10 - 4) */
@@ -303,10 +307,10 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
 
 	prog_fd = bpf_load_program(BPF_PROG_TYPE_XDP, prog, insns_cnt,
-				   "LGPL-2.1 or BSD-2-Clause", 0, bpf_log_buf,
-				   BPF_LOG_BUF_SIZE);
+				   "LGPL-2.1 or BSD-2-Clause", 0, log_buf,
+				   log_buf_size);
 	if (prog_fd < 0) {
-		pr_warning("BPF log buffer:\n%s", bpf_log_buf);
+		pr_warning("BPF log buffer:\n%s", log_buf);
 		return prog_fd;
 	}
 
@@ -322,24 +326,24 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 
 static int xsk_get_max_queues(struct xsk_socket *xsk)
 {
-	struct ethtool_channels channels;
-	struct ifreq ifr;
+	struct ethtool_channels channels = { .cmd = ETHTOOL_GCHANNELS };
+	struct ifreq ifr = {};
 	int fd, err, ret;
 
 	fd = socket(AF_INET, SOCK_DGRAM, 0);
 	if (fd < 0)
 		return -errno;
 
-	channels.cmd = ETHTOOL_GCHANNELS;
 	ifr.ifr_data = (void *)&channels;
-	strncpy(ifr.ifr_name, xsk->ifname, IFNAMSIZ);
+	memcpy(ifr.ifr_name, xsk->ifname, IFNAMSIZ - 1);
+	ifr.ifr_name[IFNAMSIZ - 1] = '\0';
 	err = ioctl(fd, SIOCETHTOOL, &ifr);
 	if (err && errno != EOPNOTSUPP) {
 		ret = -errno;
 		goto out;
 	}
 
-	if (channels.max_combined == 0 || errno == EOPNOTSUPP)
+	if (err || channels.max_combined == 0)
 		/* If the device says it has no channels, then all traffic
 		 * is sent to a single stream, so max queues = 1.
 		 */
@@ -361,18 +365,11 @@ static int xsk_create_bpf_maps(struct xsk_socket *xsk)
 	if (max_queues < 0)
 		return max_queues;
 
-	fd = bpf_create_map_name(BPF_MAP_TYPE_ARRAY, "qidconf_map",
+	fd = bpf_create_map_name(BPF_MAP_TYPE_XSKMAP, "xsks_map",
 				 sizeof(int), sizeof(int), max_queues, 0);
 	if (fd < 0)
 		return fd;
-	xsk->qidconf_map_fd = fd;
 
-	fd = bpf_create_map_name(BPF_MAP_TYPE_XSKMAP, "xsks_map",
-				 sizeof(int), sizeof(int), max_queues, 0);
-	if (fd < 0) {
-		close(xsk->qidconf_map_fd);
-		return fd;
-	}
 	xsk->xsks_map_fd = fd;
 
 	return 0;
@@ -380,23 +377,17 @@ static int xsk_create_bpf_maps(struct xsk_socket *xsk)
 
 static void xsk_delete_bpf_maps(struct xsk_socket *xsk)
 {
-	close(xsk->qidconf_map_fd);
+	bpf_map_delete_elem(xsk->xsks_map_fd, &xsk->queue_id);
 	close(xsk->xsks_map_fd);
 }
 
-static int xsk_update_bpf_maps(struct xsk_socket *xsk, int qidconf_value,
-			       int xsks_value)
+static int xsk_lookup_bpf_maps(struct xsk_socket *xsk)
 {
-	bool qidconf_map_updated = false, xsks_map_updated = false;
+	__u32 i, *map_ids, num_maps, prog_len = sizeof(struct bpf_prog_info);
+	__u32 map_len = sizeof(struct bpf_map_info);
 	struct bpf_prog_info prog_info = {};
-	__u32 prog_len = sizeof(prog_info);
 	struct bpf_map_info map_info;
-	__u32 map_len = sizeof(map_info);
-	__u32 *map_ids;
-	int reset_value = 0;
-	__u32 num_maps;
-	unsigned int i;
-	int err;
+	int fd, err;
 
 	err = bpf_obj_get_info_by_fd(xsk->prog_fd, &prog_info, &prog_len);
 	if (err)
@@ -416,67 +407,44 @@ static int xsk_update_bpf_maps(struct xsk_socket *xsk, int qidconf_value,
 	if (err)
 		goto out_map_ids;
 
-	for (i = 0; i < prog_info.nr_map_ids; i++) {
-		int fd;
+	xsk->xsks_map_fd = -1;
 
+	for (i = 0; i < prog_info.nr_map_ids; i++) {
 		fd = bpf_map_get_fd_by_id(map_ids[i]);
-		if (fd < 0) {
-			err = -errno;
-			goto out_maps;
-		}
+		if (fd < 0)
+			continue;
 
 		err = bpf_obj_get_info_by_fd(fd, &map_info, &map_len);
-		if (err)
-			goto out_maps;
-
-		if (!strcmp(map_info.name, "qidconf_map")) {
-			err = bpf_map_update_elem(fd, &xsk->queue_id,
-						  &qidconf_value, 0);
-			if (err)
-				goto out_maps;
-			qidconf_map_updated = true;
-			xsk->qidconf_map_fd = fd;
-		} else if (!strcmp(map_info.name, "xsks_map")) {
-			err = bpf_map_update_elem(fd, &xsk->queue_id,
-						  &xsks_value, 0);
-			if (err)
-				goto out_maps;
-			xsks_map_updated = true;
-			xsk->xsks_map_fd = fd;
+		if (err) {
+			close(fd);
+			continue;
 		}
 
-		if (qidconf_map_updated && xsks_map_updated)
-			break;
-	}
+		if (!strcmp(map_info.name, "xsks_map")) {
+			xsk->xsks_map_fd = fd;
+			continue;
+		}
 
-	if (!(qidconf_map_updated && xsks_map_updated)) {
-		err = -ENOENT;
-		goto out_maps;
+		close(fd);
 	}
 
 	err = 0;
-	goto out_success;
+	if (xsk->xsks_map_fd == -1)
+		err = -ENOENT;
 
-out_maps:
-	if (qidconf_map_updated)
-		(void)bpf_map_update_elem(xsk->qidconf_map_fd, &xsk->queue_id,
-					  &reset_value, 0);
-	if (xsks_map_updated)
-		(void)bpf_map_update_elem(xsk->xsks_map_fd, &xsk->queue_id,
-					  &reset_value, 0);
-out_success:
-	if (qidconf_map_updated)
-		close(xsk->qidconf_map_fd);
-	if (xsks_map_updated)
-		close(xsk->xsks_map_fd);
 out_map_ids:
 	free(map_ids);
 	return err;
 }
 
+static int xsk_set_bpf_maps(struct xsk_socket *xsk)
+{
+	return bpf_map_update_elem(xsk->xsks_map_fd, &xsk->queue_id,
+				   &xsk->fd, 0);
+}
+
 static int xsk_setup_xdp_prog(struct xsk_socket *xsk)
 {
-	bool prog_attached = false;
 	__u32 prog_id = 0;
 	int err;
 
@@ -486,31 +454,32 @@ static int xsk_setup_xdp_prog(struct xsk_socket *xsk)
 		return err;
 
 	if (!prog_id) {
-		prog_attached = true;
 		err = xsk_create_bpf_maps(xsk);
 		if (err)
 			return err;
 
 		err = xsk_load_xdp_prog(xsk);
-		if (err)
-			goto out_maps;
+		if (err) {
+			xsk_delete_bpf_maps(xsk);
+			return err;
+		}
 	} else {
 		xsk->prog_fd = bpf_prog_get_fd_by_id(prog_id);
+		err = xsk_lookup_bpf_maps(xsk);
+		if (err) {
+			close(xsk->prog_fd);
+			return err;
+		}
 	}
 
-	err = xsk_update_bpf_maps(xsk, true, xsk->fd);
-	if (err)
-		goto out_load;
+	err = xsk_set_bpf_maps(xsk);
+	if (err) {
+		xsk_delete_bpf_maps(xsk);
+		close(xsk->prog_fd);
+		return err;
+	}
 
 	return 0;
-
-out_load:
-	if (prog_attached)
-		close(xsk->prog_fd);
-out_maps:
-	if (prog_attached)
-		xsk_delete_bpf_maps(xsk);
-	return err;
 }
 
 int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
@@ -518,11 +487,11 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 		       struct xsk_ring_cons *rx, struct xsk_ring_prod *tx,
 		       const struct xsk_socket_config *usr_config)
 {
+	void *rx_map = NULL, *tx_map = NULL;
 	struct sockaddr_xdp sxdp = {};
 	struct xdp_mmap_offsets off;
 	struct xsk_socket *xsk;
 	socklen_t optlen;
-	void *map;
 	int err;
 
 	if (!umem || !xsk_ptr || !rx || !tx)
@@ -555,9 +524,12 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 		err = -errno;
 		goto out_socket;
 	}
-	strncpy(xsk->ifname, ifname, IFNAMSIZ);
+	memcpy(xsk->ifname, ifname, IFNAMSIZ - 1);
+	xsk->ifname[IFNAMSIZ - 1] = '\0';
 
-	xsk_set_xdp_socket_config(&xsk->config, usr_config);
+	err = xsk_set_xdp_socket_config(&xsk->config, usr_config);
+	if (err)
+		goto out_socket;
 
 	if (rx) {
 		err = setsockopt(xsk->fd, SOL_XDP, XDP_RX_RING,
@@ -586,40 +558,40 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 	}
 
 	if (rx) {
-		map = xsk_mmap(NULL, off.rx.desc +
-			       xsk->config.rx_size * sizeof(struct xdp_desc),
-			       PROT_READ | PROT_WRITE,
-			       MAP_SHARED | MAP_POPULATE,
-			       xsk->fd, XDP_PGOFF_RX_RING);
-		if (map == MAP_FAILED) {
+		rx_map = mmap(NULL, off.rx.desc +
+			      xsk->config.rx_size * sizeof(struct xdp_desc),
+			      PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
+			      xsk->fd, XDP_PGOFF_RX_RING);
+		if (rx_map == MAP_FAILED) {
 			err = -errno;
 			goto out_socket;
 		}
 
 		rx->mask = xsk->config.rx_size - 1;
 		rx->size = xsk->config.rx_size;
-		rx->producer = map + off.rx.producer;
-		rx->consumer = map + off.rx.consumer;
-		rx->ring = map + off.rx.desc;
+		rx->producer = rx_map + off.rx.producer;
+		rx->consumer = rx_map + off.rx.consumer;
+		rx->flags = rx_map + off.rx.flags;
+		rx->ring = rx_map + off.rx.desc;
 	}
 	xsk->rx = rx;
 
 	if (tx) {
-		map = xsk_mmap(NULL, off.tx.desc +
-			       xsk->config.tx_size * sizeof(struct xdp_desc),
-			       PROT_READ | PROT_WRITE,
-			       MAP_SHARED | MAP_POPULATE,
-			       xsk->fd, XDP_PGOFF_TX_RING);
-		if (map == MAP_FAILED) {
+		tx_map = mmap(NULL, off.tx.desc +
+			      xsk->config.tx_size * sizeof(struct xdp_desc),
+			      PROT_READ | PROT_WRITE, MAP_SHARED | MAP_POPULATE,
+			      xsk->fd, XDP_PGOFF_TX_RING);
+		if (tx_map == MAP_FAILED) {
 			err = -errno;
 			goto out_mmap_rx;
 		}
 
 		tx->mask = xsk->config.tx_size - 1;
 		tx->size = xsk->config.tx_size;
-		tx->producer = map + off.tx.producer;
-		tx->consumer = map + off.tx.consumer;
-		tx->ring = map + off.tx.desc;
+		tx->producer = tx_map + off.tx.producer;
+		tx->consumer = tx_map + off.tx.consumer;
+		tx->flags = tx_map + off.tx.flags;
+		tx->ring = tx_map + off.tx.desc;
 		tx->cached_cons = xsk->config.tx_size;
 	}
 	xsk->tx = tx;
@@ -635,6 +607,8 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 		goto out_mmap_tx;
 	}
 
+	xsk->prog_fd = -1;
+
 	if (!(xsk->config.libbpf_flags & XSK_LIBBPF_FLAGS__INHIBIT_PROG_LOAD)) {
 		err = xsk_setup_xdp_prog(xsk);
 		if (err)
@@ -646,13 +620,11 @@ int xsk_socket__create(struct xsk_socket **xsk_ptr, const char *ifname,
 
 out_mmap_tx:
 	if (tx)
-		munmap(xsk->tx,
-		       off.tx.desc +
+		munmap(tx_map, off.tx.desc +
 		       xsk->config.tx_size * sizeof(struct xdp_desc));
 out_mmap_rx:
 	if (rx)
-		munmap(xsk->rx,
-		       off.rx.desc +
+		munmap(rx_map, off.rx.desc +
 		       xsk->config.rx_size * sizeof(struct xdp_desc));
 out_socket:
 	if (--umem->refcount)
@@ -677,9 +649,9 @@ int xsk_umem__delete(struct xsk_umem *umem)
 	optlen = sizeof(off);
 	err = getsockopt(umem->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
 	if (!err) {
-		munmap(umem->fill->ring,
+		munmap(umem->fill->ring - off.fr.desc,
 		       off.fr.desc + umem->config.fill_size * sizeof(__u64));
-		munmap(umem->comp->ring,
+		munmap(umem->comp->ring - off.cr.desc,
 		       off.cr.desc + umem->config.comp_size * sizeof(__u64));
 	}
 
@@ -691,6 +663,7 @@ int xsk_umem__delete(struct xsk_umem *umem)
 
 void xsk_socket__delete(struct xsk_socket *xsk)
 {
+	size_t desc_sz = sizeof(struct xdp_desc);
 	struct xdp_mmap_offsets off;
 	socklen_t optlen;
 	int err;
@@ -698,19 +671,23 @@ void xsk_socket__delete(struct xsk_socket *xsk)
 	if (!xsk)
 		return;
 
-	(void)xsk_update_bpf_maps(xsk, 0, 0);
+	if (xsk->prog_fd != -1) {
+		xsk_delete_bpf_maps(xsk);
+		close(xsk->prog_fd);
+	}
 
 	optlen = sizeof(off);
 	err = getsockopt(xsk->fd, SOL_XDP, XDP_MMAP_OFFSETS, &off, &optlen);
 	if (!err) {
-		if (xsk->rx)
-			munmap(xsk->rx->ring,
-			       off.rx.desc +
-			       xsk->config.rx_size * sizeof(struct xdp_desc));
-		if (xsk->tx)
-			munmap(xsk->tx->ring,
-			       off.tx.desc +
-			       xsk->config.tx_size * sizeof(struct xdp_desc));
+		if (xsk->rx) {
+			munmap(xsk->rx->ring - off.rx.desc,
+			       off.rx.desc + xsk->config.rx_size * desc_sz);
+		}
+		if (xsk->tx) {
+			munmap(xsk->tx->ring - off.tx.desc,
+			       off.tx.desc + xsk->config.tx_size * desc_sz);
+		}
+
 	}
 
 	xsk->umem->refcount--;

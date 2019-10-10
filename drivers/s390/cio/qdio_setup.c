@@ -113,7 +113,7 @@ static void set_impl_params(struct qdio_irq *irq_ptr,
 	irq_ptr->qib.pfmt = qib_param_field_format;
 	if (qib_param_field)
 		memcpy(irq_ptr->qib.parm, qib_param_field,
-		       QDIO_MAX_BUFFERS_PER_Q);
+		       sizeof(irq_ptr->qib.parm));
 
 	if (!input_slib_elements)
 		goto output;
@@ -150,6 +150,7 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 			return -ENOMEM;
 		}
 		irq_ptr_qs[i] = q;
+		INIT_LIST_HEAD(&q->entry);
 	}
 	return 0;
 }
@@ -178,6 +179,7 @@ static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	q->mask = 1 << (31 - i);
 	q->nr = i;
 	q->handler = handler;
+	INIT_LIST_HEAD(&q->entry);
 }
 
 static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
@@ -246,7 +248,6 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 		output_sbal_state_array += QDIO_MAX_BUFFERS_PER_Q;
 
 		q->is_input_q = 0;
-		q->u.out.scan_threshold = qdio_init->scan_threshold;
 		setup_storage_lists(q, irq_ptr, output_sbal_array, i);
 		output_sbal_array += QDIO_MAX_BUFFERS_PER_Q;
 
@@ -472,6 +473,7 @@ int qdio_setup_irq(struct qdio_initialize *init_data)
 	irq_ptr->nr_input_qs = init_data->no_input_qs;
 	irq_ptr->nr_output_qs = init_data->no_output_qs;
 	irq_ptr->cdev = init_data->cdev;
+	irq_ptr->scan_threshold = init_data->scan_threshold;
 	ccw_device_get_schid(irq_ptr->cdev, &irq_ptr->schid);
 	setup_queues(irq_ptr, init_data);
 
@@ -523,7 +525,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 		 irq_ptr->schid.sch_no,
 		 is_thinint_irq(irq_ptr),
 		 (irq_ptr->sch_token) ? 1 : 0,
-		 (irq_ptr->qib.ac & QIB_AC_OUTBOUND_PCI_SUPPORTED) ? 1 : 0,
+		 pci_out_supported(irq_ptr) ? 1 : 0,
 		 css_general_characteristics.aif_tdd,
 		 (irq_ptr->siga_flag.input) ? "R" : " ",
 		 (irq_ptr->siga_flag.output) ? "W" : " ",

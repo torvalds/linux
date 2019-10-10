@@ -59,8 +59,13 @@ process_fetch_insn(struct fetch_insn *code, struct pt_regs *regs,
 static nokprobe_inline int fetch_store_strlen(unsigned long addr);
 static nokprobe_inline int
 fetch_store_string(unsigned long addr, void *dest, void *base);
+static nokprobe_inline int fetch_store_strlen_user(unsigned long addr);
+static nokprobe_inline int
+fetch_store_string_user(unsigned long addr, void *dest, void *base);
 static nokprobe_inline int
 probe_mem_read(void *dest, void *src, size_t size);
+static nokprobe_inline int
+probe_mem_read_user(void *dest, void *src, size_t size);
 
 /* From the 2nd stage, routine is same */
 static nokprobe_inline int
@@ -74,21 +79,32 @@ process_fetch_insn_bottom(struct fetch_insn *code, unsigned long val,
 
 stage2:
 	/* 2nd stage: dereference memory if needed */
-	while (code->op == FETCH_OP_DEREF) {
-		lval = val;
-		ret = probe_mem_read(&val, (void *)val + code->offset,
-					sizeof(val));
+	do {
+		if (code->op == FETCH_OP_DEREF) {
+			lval = val;
+			ret = probe_mem_read(&val, (void *)val + code->offset,
+					     sizeof(val));
+		} else if (code->op == FETCH_OP_UDEREF) {
+			lval = val;
+			ret = probe_mem_read_user(&val,
+				 (void *)val + code->offset, sizeof(val));
+		} else
+			break;
 		if (ret)
 			return ret;
 		code++;
-	}
+	} while (1);
 
 	s3 = code;
 stage3:
 	/* 3rd stage: store value to buffer */
 	if (unlikely(!dest)) {
 		if (code->op == FETCH_OP_ST_STRING) {
-			ret += fetch_store_strlen(val + code->offset);
+			ret = fetch_store_strlen(val + code->offset);
+			code++;
+			goto array;
+		} else if (code->op == FETCH_OP_ST_USTRING) {
+			ret += fetch_store_strlen_user(val + code->offset);
 			code++;
 			goto array;
 		} else
@@ -102,9 +118,16 @@ stage3:
 	case FETCH_OP_ST_MEM:
 		probe_mem_read(dest, (void *)val + code->offset, code->size);
 		break;
+	case FETCH_OP_ST_UMEM:
+		probe_mem_read_user(dest, (void *)val + code->offset, code->size);
+		break;
 	case FETCH_OP_ST_STRING:
 		loc = *(u32 *)dest;
 		ret = fetch_store_string(val + code->offset, dest, base);
+		break;
+	case FETCH_OP_ST_USTRING:
+		loc = *(u32 *)dest;
+		ret = fetch_store_string_user(val + code->offset, dest, base);
 		break;
 	default:
 		return -EILSEQ;
@@ -123,7 +146,8 @@ array:
 		total += ret;
 		if (++i < code->param) {
 			code = s3;
-			if (s3->op != FETCH_OP_ST_STRING) {
+			if (s3->op != FETCH_OP_ST_STRING &&
+			    s3->op != FETCH_OP_ST_USTRING) {
 				dest += s3->size;
 				val += s3->size;
 				goto stage3;

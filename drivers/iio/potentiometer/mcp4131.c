@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Industrial I/O driver for Microchip digital potentiometers
  *
@@ -23,10 +24,6 @@
  * mcp4252	2	257		5, 10, 50, 100
  * mcp4261	2	257		5, 10, 50, 100
  * mcp4262	2	257		5, 10, 50, 100
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 /*

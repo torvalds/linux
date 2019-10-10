@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* qlogicpti.c: Performance Technologies QlogicISP sbus card driver.
  *
  * Copyright (C) 1996, 2006, 2008 David S. Miller (davem@davemloft.net)
@@ -199,10 +200,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Write mailbox command registers. */
 	switch (mbox_param[param[0]] >> 4) {
 	case 6: sbus_writew(param[5], qpti->qregs + MBOX5);
+		/* Fall through */
 	case 5: sbus_writew(param[4], qpti->qregs + MBOX4);
+		/* Fall through */
 	case 4: sbus_writew(param[3], qpti->qregs + MBOX3);
+		/* Fall through */
 	case 3: sbus_writew(param[2], qpti->qregs + MBOX2);
+		/* Fall through */
 	case 2: sbus_writew(param[1], qpti->qregs + MBOX1);
+		/* Fall through */
 	case 1: sbus_writew(param[0], qpti->qregs + MBOX0);
 	}
 
@@ -253,10 +259,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Read back output parameters. */
 	switch (mbox_param[param[0]] & 0xf) {
 	case 6: param[5] = sbus_readw(qpti->qregs + MBOX5);
+		/* Fall through */
 	case 5: param[4] = sbus_readw(qpti->qregs + MBOX4);
+		/* Fall through */
 	case 4: param[3] = sbus_readw(qpti->qregs + MBOX3);
+		/* Fall through */
 	case 3: param[2] = sbus_readw(qpti->qregs + MBOX2);
+		/* Fall through */
 	case 2: param[1] = sbus_readw(qpti->qregs + MBOX1);
+		/* Fall through */
 	case 1: param[0] = sbus_readw(qpti->qregs + MBOX0);
 	}
 
@@ -1314,8 +1325,7 @@ static int qpti_sbus_probe(struct platform_device *op)
 	qpti->qhost = host;
 	qpti->op = op;
 	qpti->qpti_id = nqptis;
-	strcpy(qpti->prom_name, op->dev.of_node->name);
-	qpti->is_pti = strcmp(qpti->prom_name, "QLGC,isp");
+	qpti->is_pti = !of_node_name_eq(op->dev.of_node, "QLGC,isp");
 
 	if (qpti_map_regs(qpti) < 0)
 		goto fail_unlink;

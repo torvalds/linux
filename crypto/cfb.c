@@ -243,7 +243,7 @@ static void __exit crypto_cfb_module_exit(void)
 	crypto_unregister_template(&crypto_cfb_tmpl);
 }
 
-module_init(crypto_cfb_module_init);
+subsys_initcall(crypto_cfb_module_init);
 module_exit(crypto_cfb_module_exit);
 
 MODULE_LICENSE("GPL");

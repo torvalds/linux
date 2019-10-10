@@ -152,6 +152,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 			ap_msg->receive(aq, ap_msg, aq->reply);
 			break;
 		}
+		/* fall through */
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (!status.queue_empty || aq->queue_count <= 0)
 			break;
@@ -418,6 +419,10 @@ static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 	},
 	[AP_STATE_SUSPEND_WAIT] = {
 		[AP_EVENT_POLL] = ap_sm_suspend_read,
+		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+	},
+	[AP_STATE_REMOVE] = {
+		[AP_EVENT_POLL] = ap_sm_nop,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
 	},
 	[AP_STATE_UNBOUND] = {
@@ -740,18 +745,31 @@ void ap_flush_queue(struct ap_queue *aq)
 }
 EXPORT_SYMBOL(ap_flush_queue);
 
+void ap_queue_prepare_remove(struct ap_queue *aq)
+{
+	spin_lock_bh(&aq->lock);
+	/* flush queue */
+	__ap_flush_queue(aq);
+	/* set REMOVE state to prevent new messages are queued in */
+	aq->state = AP_STATE_REMOVE;
+	spin_unlock_bh(&aq->lock);
+	del_timer_sync(&aq->timeout);
+}
+
 void ap_queue_remove(struct ap_queue *aq)
 {
-	ap_flush_queue(aq);
-	del_timer_sync(&aq->timeout);
-
-	/* reset with zero, also clears irq registration */
+	/*
+	 * all messages have been flushed and the state is
+	 * AP_STATE_REMOVE. Now reset with zero which also
+	 * clears the irq registration and move the state
+	 * to AP_STATE_UNBOUND to signal that this queue
+	 * is not used by any driver currently.
+	 */
 	spin_lock_bh(&aq->lock);
 	ap_zapq(aq->qid);
 	aq->state = AP_STATE_UNBOUND;
 	spin_unlock_bh(&aq->lock);
 }
-EXPORT_SYMBOL(ap_queue_remove);
 
 void ap_queue_reinit_state(struct ap_queue *aq)
 {
@@ -760,4 +778,3 @@ void ap_queue_reinit_state(struct ap_queue *aq)
 	ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
 	spin_unlock_bh(&aq->lock);
 }
-EXPORT_SYMBOL(ap_queue_reinit_state);

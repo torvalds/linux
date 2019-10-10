@@ -1142,7 +1142,7 @@ static __poll_t qib_poll(struct file *fp, struct poll_table_struct *pt)
 static void assign_ctxt_affinity(struct file *fp, struct qib_devdata *dd)
 {
 	struct qib_filedata *fd = fp->private_data;
-	const unsigned int weight = cpumask_weight(&current->cpus_allowed);
+	const unsigned int weight = current->nr_cpus_allowed;
 	const struct cpumask *local_mask = cpumask_of_pcibus(dd->pcidev->bus);
 	int local_cpu;
 
@@ -1623,9 +1623,8 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 		ret = find_free_ctxt(i_minor - 1, fp, uinfo);
 	else {
 		int unit;
-		const unsigned int cpu = cpumask_first(&current->cpus_allowed);
-		const unsigned int weight =
-			cpumask_weight(&current->cpus_allowed);
+		const unsigned int cpu = cpumask_first(current->cpus_ptr);
+		const unsigned int weight = current->nr_cpus_allowed;
 
 		if (weight == 1 && !test_bit(cpu, qib_cpulist))
 			if (!find_hca(cpu, &unit) && unit >= 0)
@@ -1790,7 +1789,6 @@ static void unlock_expected_tids(struct qib_ctxtdata *rcd)
 
 static int qib_close(struct inode *in, struct file *fp)
 {
-	int ret = 0;
 	struct qib_filedata *fd;
 	struct qib_ctxtdata *rcd;
 	struct qib_devdata *dd;
@@ -1874,7 +1872,7 @@ static int qib_close(struct inode *in, struct file *fp)
 
 bail:
 	kfree(fd);
-	return ret;
+	return 0;
 }
 
 static int qib_ctxt_info(struct file *fp, struct qib_ctxt_info __user *uinfo)

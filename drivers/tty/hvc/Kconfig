@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 if TTY
 
 config HVC_DRIVER
@@ -24,7 +25,6 @@ config HVC_CONSOLE
 config HVC_OLD_HVSI
 	bool "Old driver for pSeries serial port (/dev/hvsi*)"
 	depends on HVC_CONSOLE
-	default n
 
 config HVC_OPAL
 	bool "OPAL Console support"
@@ -73,7 +73,6 @@ config HVC_UDBG
        bool "udbg based fake hypervisor console"
        depends on PPC
        select HVC_DRIVER
-       default n
        help
          This is meant to be used during HW bring up or debugging when
 	 no other console mechanism exist but udbg, to get you a quick

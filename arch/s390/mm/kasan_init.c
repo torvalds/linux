@@ -28,7 +28,7 @@ static void __init kasan_early_panic(const char *reason)
 {
 	sclp_early_printk("The Linux kernel failed to boot with the KernelAddressSanitizer:\n");
 	sclp_early_printk(reason);
-	disabled_wait(0);
+	disabled_wait();
 }
 
 static void * __init kasan_early_alloc_segment(void)
@@ -236,18 +236,6 @@ static void __init kasan_early_detect_facilities(void)
 	}
 }
 
-static unsigned long __init get_mem_detect_end(void)
-{
-	unsigned long start;
-	unsigned long end;
-
-	if (mem_detect.count) {
-		__get_mem_detect_block(mem_detect.count - 1, &start, &end);
-		return end;
-	}
-	return 0;
-}
-
 void __init kasan_early_init(void)
 {
 	unsigned long untracked_mem_end;
@@ -273,6 +261,8 @@ void __init kasan_early_init(void)
 	/* respect mem= cmdline parameter */
 	if (memory_end_set && memsize > memory_end)
 		memsize = memory_end;
+	if (IS_ENABLED(CONFIG_CRASH_DUMP) && OLDMEM_BASE)
+		memsize = min(memsize, OLDMEM_SIZE);
 	memsize = min(memsize, KASAN_SHADOW_START);
 
 	if (IS_ENABLED(CONFIG_KASAN_S390_4_LEVEL_PAGING)) {

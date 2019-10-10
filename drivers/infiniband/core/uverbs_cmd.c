@@ -162,7 +162,7 @@ static const void __user *uverbs_request_next_ptr(struct uverbs_req_iter *iter,
 	const void __user *res = iter->cur;
 
 	if (iter->cur + len > iter->end)
-		return ERR_PTR(-ENOSPC);
+		return (void __force __user *)ERR_PTR(-ENOSPC);
 	iter->cur += len;
 	return res;
 }
@@ -174,8 +174,19 @@ static int uverbs_request_finish(struct uverbs_req_iter *iter)
 	return 0;
 }
 
+/*
+ * When calling a destroy function during an error unwind we need to pass in
+ * the udata that is sanitized of all user arguments. Ie from the driver
+ * perspective it looks like no udata was passed.
+ */
+struct ib_udata *uverbs_get_cleared_udata(struct uverbs_attr_bundle *attrs)
+{
+	attrs->driver_udata = (struct ib_udata){};
+	return &attrs->driver_udata;
+}
+
 static struct ib_uverbs_completion_event_file *
-_ib_uverbs_lookup_comp_file(s32 fd, const struct uverbs_attr_bundle *attrs)
+_ib_uverbs_lookup_comp_file(s32 fd, struct uverbs_attr_bundle *attrs)
 {
 	struct ib_uobject *uobj = ufd_get_read(UVERBS_OBJECT_COMP_CHANNEL,
 					       fd, attrs);
@@ -224,12 +235,15 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 	if (ret)
 		goto err;
 
-	ucontext = ib_dev->ops.alloc_ucontext(ib_dev, &attrs->driver_udata);
-	if (IS_ERR(ucontext)) {
-		ret = PTR_ERR(ucontext);
+	ucontext = rdma_zalloc_drv_obj(ib_dev, ib_ucontext);
+	if (!ucontext) {
+		ret = -ENOMEM;
 		goto err_alloc;
 	}
 
+	attrs->context = ucontext;
+
+	ucontext->res.type = RDMA_RESTRACK_CTX;
 	ucontext->device = ib_dev;
 	ucontext->cg_obj = cg_obj;
 	/* ufile is required when some objects are released */
@@ -237,16 +251,6 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 
 	ucontext->closing = false;
 	ucontext->cleanup_retryable = false;
-
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
-	mutex_init(&ucontext->per_mm_list_lock);
-	INIT_LIST_HEAD(&ucontext->per_mm_list);
-	if (!(ib_dev->attrs.device_cap_flags & IB_DEVICE_ON_DEMAND_PAGING))
-		ucontext->invalidate_range = NULL;
-
-#endif
-
-	resp.num_comp_vectors = file->device->num_comp_vectors;
 
 	ret = get_unused_fd_flags(O_CLOEXEC);
 	if (ret < 0)
@@ -259,14 +263,19 @@ static int ib_uverbs_get_context(struct uverbs_attr_bundle *attrs)
 		goto err_fd;
 	}
 
+	resp.num_comp_vectors = file->device->num_comp_vectors;
+
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
 		goto err_file;
 
-	fd_install(resp.async_fd, filp);
+	ret = ib_dev->ops.alloc_ucontext(ucontext, &attrs->driver_udata);
+	if (ret)
+		goto err_file;
 
-	ucontext->res.type = RDMA_RESTRACK_CTX;
 	rdma_restrack_uadd(&ucontext->res);
+
+	fd_install(resp.async_fd, filp);
 
 	/*
 	 * Make sure that ib_uverbs_get_ucontext() sees the pointer update
@@ -286,7 +295,7 @@ err_fd:
 	put_unused_fd(resp.async_fd);
 
 err_free:
-	ib_dev->ops.dealloc_ucontext(ucontext);
+	kfree(ucontext);
 
 err_alloc:
 	ib_rdmacg_uncharge(&cg_obj, ib_dev, RDMACG_RESOURCE_HCA_HANDLE);
@@ -410,9 +419,9 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	if (IS_ERR(uobj))
 		return PTR_ERR(uobj);
 
-	pd = ib_dev->ops.alloc_pd(ib_dev, uobj->context, &attrs->driver_udata);
-	if (IS_ERR(pd)) {
-		ret = PTR_ERR(pd);
+	pd = rdma_zalloc_drv_obj(ib_dev, ib_pd);
+	if (!pd) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
@@ -420,24 +429,30 @@ static int ib_uverbs_alloc_pd(struct uverbs_attr_bundle *attrs)
 	pd->uobject = uobj;
 	pd->__internal_mr = NULL;
 	atomic_set(&pd->usecnt, 0);
+	pd->res.type = RDMA_RESTRACK_PD;
+
+	ret = ib_dev->ops.alloc_pd(pd, &attrs->driver_udata);
+	if (ret)
+		goto err_alloc;
 
 	uobj->object = pd;
 	memset(&resp, 0, sizeof resp);
 	resp.pd_handle = uobj->id;
-	pd->res.type = RDMA_RESTRACK_PD;
 	rdma_restrack_uadd(&pd->res);
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret)
 		goto err_copy;
 
-	return uobj_alloc_commit(uobj);
+	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	ib_dealloc_pd(pd);
-
+	ib_dealloc_pd_user(pd, uverbs_get_cleared_udata(attrs));
+	pd = NULL;
+err_alloc:
+	kfree(pd);
 err:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(uobj, attrs);
 	return ret;
 }
 
@@ -587,8 +602,7 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 	}
 
 	if (!xrcd) {
-		xrcd = ib_dev->ops.alloc_xrcd(ib_dev, obj->uobject.context,
-					      &attrs->driver_udata);
+		xrcd = ib_dev->ops.alloc_xrcd(ib_dev, &attrs->driver_udata);
 		if (IS_ERR(xrcd)) {
 			ret = PTR_ERR(xrcd);
 			goto err;
@@ -626,7 +640,7 @@ static int ib_uverbs_open_xrcd(struct uverbs_attr_bundle *attrs)
 
 	mutex_unlock(&ibudev->xrcd_tree_mutex);
 
-	return uobj_alloc_commit(&obj->uobject);
+	return uobj_alloc_commit(&obj->uobject, attrs);
 
 err_copy:
 	if (inode) {
@@ -636,10 +650,10 @@ err_copy:
 	}
 
 err_dealloc_xrcd:
-	ib_dealloc_xrcd(xrcd);
+	ib_dealloc_xrcd(xrcd, uverbs_get_cleared_udata(attrs));
 
 err:
-	uobj_alloc_abort(&obj->uobject);
+	uobj_alloc_abort(&obj->uobject, attrs);
 
 err_tree_mutex_unlock:
 	if (f.file)
@@ -662,19 +676,19 @@ static int ib_uverbs_close_xrcd(struct uverbs_attr_bundle *attrs)
 	return uobj_perform_destroy(UVERBS_OBJECT_XRCD, cmd.xrcd_handle, attrs);
 }
 
-int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject,
-			   struct ib_xrcd *xrcd,
-			   enum rdma_remove_reason why)
+int ib_uverbs_dealloc_xrcd(struct ib_uobject *uobject, struct ib_xrcd *xrcd,
+			   enum rdma_remove_reason why,
+			   struct uverbs_attr_bundle *attrs)
 {
 	struct inode *inode;
 	int ret;
-	struct ib_uverbs_device *dev = uobject->context->ufile->device;
+	struct ib_uverbs_device *dev = attrs->ufile->device;
 
 	inode = xrcd->inode;
 	if (inode && !atomic_dec_and_test(&xrcd->usecnt))
 		return 0;
 
-	ret = ib_dealloc_xrcd(xrcd);
+	ret = ib_dealloc_xrcd(xrcd, &attrs->driver_udata);
 
 	if (ib_is_destroy_retryable(ret, why, uobject)) {
 		atomic_inc(&xrcd->usecnt);
@@ -737,7 +751,9 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 
 	mr->device  = pd->device;
 	mr->pd      = pd;
+	mr->type    = IB_MR_TYPE_USER;
 	mr->dm	    = NULL;
+	mr->sig_attrs = NULL;
 	mr->uobject = uobj;
 	atomic_inc(&pd->usecnt);
 	mr->res.type = RDMA_RESTRACK_MR;
@@ -756,16 +772,16 @@ static int ib_uverbs_reg_mr(struct uverbs_attr_bundle *attrs)
 
 	uobj_put_obj_read(pd);
 
-	return uobj_alloc_commit(uobj);
+	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	ib_dereg_mr(mr);
+	ib_dereg_mr_user(mr, uverbs_get_cleared_udata(attrs));
 
 err_put:
 	uobj_put_obj_read(pd);
 
 err_free:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(uobj, attrs);
 	return ret;
 }
 
@@ -822,14 +838,13 @@ static int ib_uverbs_rereg_mr(struct uverbs_attr_bundle *attrs)
 					    cmd.length, cmd.hca_va,
 					    cmd.access_flags, pd,
 					    &attrs->driver_udata);
-	if (!ret) {
-		if (cmd.flags & IB_MR_REREG_PD) {
-			atomic_inc(&pd->usecnt);
-			mr->pd = pd;
-			atomic_dec(&old_pd->usecnt);
-		}
-	} else {
+	if (ret)
 		goto put_uobj_pd;
+
+	if (cmd.flags & IB_MR_REREG_PD) {
+		atomic_inc(&pd->usecnt);
+		mr->pd = pd;
+		atomic_dec(&old_pd->usecnt);
 	}
 
 	memset(&resp, 0, sizeof(resp));
@@ -884,6 +899,11 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 		goto err_free;
 	}
 
+	if (cmd.mw_type != IB_MW_TYPE_1 && cmd.mw_type != IB_MW_TYPE_2) {
+		ret = -EINVAL;
+		goto err_put;
+	}
+
 	mw = pd->device->ops.alloc_mw(pd, cmd.mw_type, &attrs->driver_udata);
 	if (IS_ERR(mw)) {
 		ret = PTR_ERR(mw);
@@ -906,14 +926,14 @@ static int ib_uverbs_alloc_mw(struct uverbs_attr_bundle *attrs)
 		goto err_copy;
 
 	uobj_put_obj_read(pd);
-	return uobj_alloc_commit(uobj);
+	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
 	uverbs_dealloc_mw(mw);
 err_put:
 	uobj_put_obj_read(pd);
 err_free:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(uobj, attrs);
 	return ret;
 }
 
@@ -954,11 +974,11 @@ static int ib_uverbs_create_comp_channel(struct uverbs_attr_bundle *attrs)
 
 	ret = uverbs_response(attrs, &resp, sizeof(resp));
 	if (ret) {
-		uobj_alloc_abort(uobj);
+		uobj_alloc_abort(uobj, attrs);
 		return ret;
 	}
 
-	return uobj_alloc_commit(uobj);
+	return uobj_alloc_commit(uobj, attrs);
 }
 
 static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
@@ -998,19 +1018,21 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	attr.comp_vector = cmd->comp_vector;
 	attr.flags = cmd->flags;
 
-	cq = ib_dev->ops.create_cq(ib_dev, &attr, obj->uobject.context,
-				   &attrs->driver_udata);
-	if (IS_ERR(cq)) {
-		ret = PTR_ERR(cq);
+	cq = rdma_zalloc_drv_obj(ib_dev, ib_cq);
+	if (!cq) {
+		ret = -ENOMEM;
 		goto err_file;
 	}
-
 	cq->device        = ib_dev;
 	cq->uobject       = &obj->uobject;
 	cq->comp_handler  = ib_uverbs_comp_handler;
 	cq->event_handler = ib_uverbs_cq_event_handler;
 	cq->cq_context    = ev_file ? &ev_file->ev_queue : NULL;
 	atomic_set(&cq->usecnt, 0);
+
+	ret = ib_dev->ops.create_cq(cq, &attr, &attrs->driver_udata);
+	if (ret)
+		goto err_free;
 
 	obj->uobject.object = cq;
 	memset(&resp, 0, sizeof resp);
@@ -1025,20 +1047,22 @@ static struct ib_ucq_object *create_cq(struct uverbs_attr_bundle *attrs,
 	if (ret)
 		goto err_cb;
 
-	ret = uobj_alloc_commit(&obj->uobject);
+	ret = uobj_alloc_commit(&obj->uobject, attrs);
 	if (ret)
 		return ERR_PTR(ret);
 	return obj;
 
 err_cb:
-	ib_destroy_cq(cq);
-
+	ib_destroy_cq_user(cq, uverbs_get_cleared_udata(attrs));
+	cq = NULL;
+err_free:
+	kfree(cq);
 err_file:
 	if (ev_file)
 		ib_uverbs_release_ucq(attrs->ufile, ev_file, obj);
 
 err:
-	uobj_alloc_abort(&obj->uobject);
+	uobj_alloc_abort(&obj->uobject, attrs);
 
 	return ERR_PTR(ret);
 }
@@ -1184,11 +1208,10 @@ static int ib_uverbs_poll_cq(struct uverbs_attr_bundle *attrs)
 		ret = -EFAULT;
 		goto out_put;
 	}
+	ret = 0;
 
 	if (uverbs_attr_is_valid(attrs, UVERBS_ATTR_CORE_OUT))
 		ret = uverbs_output_written(attrs, UVERBS_ATTR_CORE_OUT);
-
-	ret = 0;
 
 out_put:
 	uobj_put_obj_read(cq);
@@ -1408,7 +1431,6 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 		if (ret)
 			goto err_cb;
 
-		qp->real_qp	  = qp;
 		qp->pd		  = pd;
 		qp->send_cq	  = attr.send_cq;
 		qp->recv_cq	  = attr.recv_cq;
@@ -1467,9 +1489,9 @@ static int create_qp(struct uverbs_attr_bundle *attrs,
 	if (ind_tbl)
 		uobj_put_obj_read(ind_tbl);
 
-	return uobj_alloc_commit(&obj->uevent.uobject);
+	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 err_cb:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 
 err_put:
 	if (!IS_ERR(xrcd_uobj))
@@ -1485,7 +1507,7 @@ err_put:
 	if (ind_tbl)
 		uobj_put_obj_read(ind_tbl);
 
-	uobj_alloc_abort(&obj->uevent.uobject);
+	uobj_alloc_abort(&obj->uevent.uobject, attrs);
 	return ret;
 }
 
@@ -1599,14 +1621,14 @@ static int ib_uverbs_open_qp(struct uverbs_attr_bundle *attrs)
 	qp->uobject = &obj->uevent.uobject;
 	uobj_put_read(xrcd_uobj);
 
-	return uobj_alloc_commit(&obj->uevent.uobject);
+	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_destroy:
-	ib_destroy_qp(qp);
+	ib_destroy_qp_user(qp, uverbs_get_cleared_udata(attrs));
 err_xrcd:
 	uobj_put_read(xrcd_uobj);
 err_put:
-	uobj_alloc_abort(&obj->uevent.uobject);
+	uobj_alloc_abort(&obj->uevent.uobject, attrs);
 	return ret;
 }
 
@@ -2441,16 +2463,17 @@ static int ib_uverbs_create_ah(struct uverbs_attr_bundle *attrs)
 		goto err_copy;
 
 	uobj_put_obj_read(pd);
-	return uobj_alloc_commit(uobj);
+	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
-	rdma_destroy_ah(ah, RDMA_DESTROY_AH_SLEEPABLE);
+	rdma_destroy_ah_user(ah, RDMA_DESTROY_AH_SLEEPABLE,
+			     uverbs_get_cleared_udata(attrs));
 
 err_put:
 	uobj_put_obj_read(pd);
 
 err:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(uobj, attrs);
 	return ret;
 }
 
@@ -2520,7 +2543,7 @@ static int ib_uverbs_detach_mcast(struct uverbs_attr_bundle *attrs)
 	struct ib_uqp_object         *obj;
 	struct ib_qp                 *qp;
 	struct ib_uverbs_mcast_entry *mcast;
-	int                           ret = -EINVAL;
+	int                           ret;
 	bool                          found = false;
 
 	ret = uverbs_request(attrs, &cmd, sizeof(cmd));
@@ -2632,7 +2655,7 @@ void flow_resources_add(struct ib_uflow_resources *uflow_res,
 }
 EXPORT_SYMBOL(flow_resources_add);
 
-static int kern_spec_to_ib_spec_action(const struct uverbs_attr_bundle *attrs,
+static int kern_spec_to_ib_spec_action(struct uverbs_attr_bundle *attrs,
 				       struct ib_uverbs_flow_spec *kern_spec,
 				       union ib_flow_spec *ib_spec,
 				       struct ib_uflow_resources *uflow_res)
@@ -2952,16 +2975,16 @@ static int ib_uverbs_ex_create_wq(struct uverbs_attr_bundle *attrs)
 
 	uobj_put_obj_read(pd);
 	uobj_put_obj_read(cq);
-	return uobj_alloc_commit(&obj->uevent.uobject);
+	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_copy:
-	ib_destroy_wq(wq);
+	ib_destroy_wq(wq, uverbs_get_cleared_udata(attrs));
 err_put_cq:
 	uobj_put_obj_read(cq);
 err_put_pd:
 	uobj_put_obj_read(pd);
 err_uobj:
-	uobj_alloc_abort(&obj->uevent.uobject);
+	uobj_alloc_abort(&obj->uevent.uobject, attrs);
 
 	return err;
 }
@@ -3126,12 +3149,12 @@ static int ib_uverbs_ex_create_rwq_ind_table(struct uverbs_attr_bundle *attrs)
 	for (j = 0; j < num_read_wqs; j++)
 		uobj_put_obj_read(wqs[j]);
 
-	return uobj_alloc_commit(uobj);
+	return uobj_alloc_commit(uobj, attrs);
 
 err_copy:
 	ib_destroy_rwq_ind_table(rwq_ind_tbl);
 err_uobj:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(uobj, attrs);
 put_wqs:
 	for (j = 0; j < num_read_wqs; j++)
 		uobj_put_obj_read(wqs[j]);
@@ -3304,7 +3327,7 @@ static int ib_uverbs_ex_create_flow(struct uverbs_attr_bundle *attrs)
 	kfree(flow_attr);
 	if (cmd.flow_attr.num_of_specs)
 		kfree(kern_flow_attr);
-	return uobj_alloc_commit(uobj);
+	return uobj_alloc_commit(uobj, attrs);
 err_copy:
 	if (!qp->device->ops.destroy_flow(flow_id))
 		atomic_dec(&qp->usecnt);
@@ -3315,7 +3338,7 @@ err_free_flow_attr:
 err_put:
 	uobj_put_obj_read(qp);
 err_uobj:
-	uobj_alloc_abort(uobj);
+	uobj_alloc_abort(uobj, attrs);
 err_free_attr:
 	if (cmd.flow_attr.num_of_specs)
 		kfree(kern_flow_attr);
@@ -3401,9 +3424,9 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	obj->uevent.events_reported = 0;
 	INIT_LIST_HEAD(&obj->uevent.event_list);
 
-	srq = pd->device->ops.create_srq(pd, &attr, udata);
-	if (IS_ERR(srq)) {
-		ret = PTR_ERR(srq);
+	srq = rdma_zalloc_drv_obj(ib_dev, ib_srq);
+	if (!srq) {
+		ret = -ENOMEM;
 		goto err_put;
 	}
 
@@ -3413,6 +3436,10 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 	srq->uobject       = &obj->uevent.uobject;
 	srq->event_handler = attr.event_handler;
 	srq->srq_context   = attr.srq_context;
+
+	ret = pd->device->ops.create_srq(srq, &attr, udata);
+	if (ret)
+		goto err_free;
 
 	if (ib_srq_has_cq(cmd->srq_type)) {
 		srq->ext.cq       = attr.ext.cq;
@@ -3448,11 +3475,14 @@ static int __uverbs_create_xsrq(struct uverbs_attr_bundle *attrs,
 		uobj_put_obj_read(attr.ext.cq);
 
 	uobj_put_obj_read(pd);
-	return uobj_alloc_commit(&obj->uevent.uobject);
+	return uobj_alloc_commit(&obj->uevent.uobject, attrs);
 
 err_copy:
-	ib_destroy_srq(srq);
-
+	ib_destroy_srq_user(srq, uverbs_get_cleared_udata(attrs));
+	/* It was released in ib_destroy_srq_user */
+	srq = NULL;
+err_free:
+	kfree(srq);
 err_put:
 	uobj_put_obj_read(pd);
 
@@ -3467,7 +3497,7 @@ err_put_xrcd:
 	}
 
 err:
-	uobj_alloc_abort(&obj->uevent.uobject);
+	uobj_alloc_abort(&obj->uevent.uobject, attrs);
 	return ret;
 }
 
@@ -3618,7 +3648,6 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs)
 
 	copy_query_dev_fields(ucontext, &resp.base, &attr);
 
-#ifdef CONFIG_INFINIBAND_ON_DEMAND_PAGING
 	resp.odp_caps.general_caps = attr.odp_caps.general_caps;
 	resp.odp_caps.per_transport_caps.rc_odp_caps =
 		attr.odp_caps.per_transport_caps.rc_odp_caps;
@@ -3626,7 +3655,7 @@ static int ib_uverbs_ex_query_device(struct uverbs_attr_bundle *attrs)
 		attr.odp_caps.per_transport_caps.uc_odp_caps;
 	resp.odp_caps.per_transport_caps.ud_odp_caps =
 		attr.odp_caps.per_transport_caps.ud_odp_caps;
-#endif
+	resp.xrc_odp_caps = attr.odp_caps.per_transport_caps.xrc_odp_caps;
 
 	resp.timestamp_mask = attr.timestamp_mask;
 	resp.hca_core_clock = attr.hca_core_clock;
@@ -3689,9 +3718,6 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
  * trailing driver_data flex array. In this case the size of the base struct
  * cannot be changed.
  */
-#define offsetof_after(_struct, _member)                                       \
-	(offsetof(_struct, _member) + sizeof(((_struct *)NULL)->_member))
-
 #define UAPI_DEF_WRITE_IO(req, resp)                                           \
 	.write.has_resp = 1 +                                                  \
 			  BUILD_BUG_ON_ZERO(offsetof(req, response) != 0) +    \
@@ -3722,11 +3748,11 @@ static int ib_uverbs_ex_modify_cq(struct uverbs_attr_bundle *attrs)
  */
 #define UAPI_DEF_WRITE_IO_EX(req, req_last_member, resp, resp_last_member)     \
 	.write.has_resp = 1,                                                   \
-	.write.req_size = offsetof_after(req, req_last_member),                \
-	.write.resp_size = offsetof_after(resp, resp_last_member)
+	.write.req_size = offsetofend(req, req_last_member),                   \
+	.write.resp_size = offsetofend(resp, resp_last_member)
 
 #define UAPI_DEF_WRITE_I_EX(req, req_last_member)                              \
-	.write.req_size = offsetof_after(req, req_last_member)
+	.write.req_size = offsetofend(req, req_last_member)
 
 const struct uapi_definition uverbs_def_write_intf[] = {
 	DECLARE_UVERBS_OBJECT(

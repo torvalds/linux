@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * System call callback functions for SPUs
  */
@@ -34,7 +35,7 @@
  */
 
 static void *spu_syscall_table[] = {
-#define __SYSCALL(nr, entry, nargs) entry,
+#define __SYSCALL(nr, entry)	entry,
 #include <asm/syscall_table_spu.h>
 #undef __SYSCALL
 };

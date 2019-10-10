@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ALSA driver for Echoaudio soundcards.
  *  Copyright (C) 2003-2004 Giuliano Pochini <pochini@shiny.it>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -884,17 +872,15 @@ static const struct snd_pcm_ops digital_capture_ops = {
 static int snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
 {
 	struct snd_pcm_substream *ss;
-	int stream, err;
+	int stream;
 
 	for (stream = 0; stream < 2; stream++)
-		for (ss = pcm->streams[stream].substream; ss; ss = ss->next) {
-			err = snd_pcm_lib_preallocate_pages(ss, SNDRV_DMA_TYPE_DEV_SG,
-							    dev,
-							    ss->number ? 0 : 128<<10,
-							    256<<10);
-			if (err < 0)
-				return err;
-		}
+		for (ss = pcm->streams[stream].substream; ss; ss = ss->next)
+			snd_pcm_lib_preallocate_pages(ss, SNDRV_DMA_TYPE_DEV_SG,
+						      dev,
+						      ss->number ? 0 : 128<<10,
+						      256<<10);
+
 	return 0;
 }
 
@@ -1954,6 +1940,11 @@ static int snd_echo_create(struct snd_card *card,
 	}
 	chip->dsp_registers = (volatile u32 __iomem *)
 		ioremap_nocache(chip->dsp_registers_phys, sz);
+	if (!chip->dsp_registers) {
+		dev_err(chip->card->dev, "ioremap failed\n");
+		snd_echo_free(chip);
+		return -ENOMEM;
+	}
 
 	if (request_irq(pci->irq, snd_echo_interrupt, IRQF_SHARED,
 			KBUILD_MODNAME, chip)) {
@@ -2165,9 +2156,6 @@ static int snd_echo_suspend(struct device *dev)
 {
 	struct echoaudio *chip = dev_get_drvdata(dev);
 
-	snd_pcm_suspend_all(chip->analog_pcm);
-	snd_pcm_suspend_all(chip->digital_pcm);
-
 #ifdef ECHOCARD_HAS_MIDI
 	/* This call can sleep */
 	if (chip->midi_out)
@@ -2201,11 +2189,10 @@ static int snd_echo_resume(struct device *dev)
 	u32 pipe_alloc_mask;
 	int err;
 
-	commpage_bak = kmalloc(sizeof(*commpage), GFP_KERNEL);
+	commpage = chip->comm_page;
+	commpage_bak = kmemdup(commpage, sizeof(*commpage), GFP_KERNEL);
 	if (commpage_bak == NULL)
 		return -ENOMEM;
-	commpage = chip->comm_page;
-	memcpy(commpage_bak, commpage, sizeof(*commpage));
 
 	err = init_hw(chip, chip->pci->device, chip->pci->subsystem_device);
 	if (err < 0) {

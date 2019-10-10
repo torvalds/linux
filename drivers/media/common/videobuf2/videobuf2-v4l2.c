@@ -122,9 +122,9 @@ static int __verify_length(struct vb2_buffer *vb, const struct v4l2_buffer *b)
 }
 
 /*
- * __init_v4l2_vb2_buffer() - initialize the v4l2_vb2_buffer struct
+ * __init_vb2_v4l2_buffer() - initialize the vb2_v4l2_buffer struct
  */
-static void __init_v4l2_vb2_buffer(struct vb2_buffer *vb)
+static void __init_vb2_v4l2_buffer(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 
@@ -143,7 +143,7 @@ static void __copy_timestamp(struct vb2_buffer *vb, const void *pb)
 		 * and the timecode field and flag if needed.
 		 */
 		if (q->copy_timestamp)
-			vb->timestamp = timeval_to_ns(&b->timestamp);
+			vb->timestamp = v4l2_timeval_to_ns(&b->timestamp);
 		vbuf->flags |= b->flags & V4L2_BUF_FLAG_TIMECODE;
 		if (b->flags & V4L2_BUF_FLAG_TIMECODE)
 			vbuf->timecode = b->timecode;
@@ -368,6 +368,12 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	if (ret)
 		return ret;
 
+	if (!is_prepare && (b->flags & V4L2_BUF_FLAG_REQUEST_FD) &&
+	    vb->state != VB2_BUF_STATE_DEQUEUED) {
+		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
+		return -EINVAL;
+	}
+
 	if (!vb->prepared) {
 		/* Copy relevant information provided by the userspace */
 		memset(vbuf->planes, 0,
@@ -381,6 +387,10 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		return 0;
 
 	if (!(b->flags & V4L2_BUF_FLAG_REQUEST_FD)) {
+		if (q->requires_requests) {
+			dprintk(1, "%s: queue requires requests\n", opname);
+			return -EBADR;
+		}
 		if (q->uses_requests) {
 			dprintk(1, "%s: queue uses requests\n", opname);
 			return -EBUSY;
@@ -388,7 +398,7 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 		return 0;
 	} else if (!q->supports_requests) {
 		dprintk(1, "%s: queue does not support requests\n", opname);
-		return -EACCES;
+		return -EBADR;
 	} else if (q->uses_qbuf) {
 		dprintk(1, "%s: queue does not use requests\n", opname);
 		return -EBUSY;
@@ -409,11 +419,15 @@ static int vb2_queue_or_prepare_buf(struct vb2_queue *q, struct media_device *md
 	 */
 	if (WARN_ON(!q->ops->buf_request_complete))
 		return -EINVAL;
-
-	if (vb->state != VB2_BUF_STATE_DEQUEUED) {
-		dprintk(1, "%s: buffer is not in dequeued state\n", opname);
+	/*
+	 * Make sure this op is implemented by the driver for the output queue.
+	 * It's easy to forget this callback, but is it important to correctly
+	 * validate the 'field' value at QBUF time.
+	 */
+	if (WARN_ON((q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT ||
+		     q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) &&
+		    !q->ops->buf_out_validate))
 		return -EINVAL;
-	}
 
 	if (b->request_fd < 0) {
 		dprintk(1, "%s: request_fd < 0\n", opname);
@@ -534,7 +548,6 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		break;
 	case VB2_BUF_STATE_PREPARING:
 	case VB2_BUF_STATE_DEQUEUED:
-	case VB2_BUF_STATE_REQUEUEING:
 		/* nothing */
 		break;
 	}
@@ -550,11 +563,6 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, void *pb)
 		b->flags |= V4L2_BUF_FLAG_REQUEST_FD;
 		b->request_fd = vbuf->request_fd;
 	}
-
-	if (!q->is_output &&
-		b->flags & V4L2_BUF_FLAG_DONE &&
-		b->flags & V4L2_BUF_FLAG_LAST)
-		q->last_buffer_dequeued = true;
 }
 
 /*
@@ -567,7 +575,7 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	unsigned int plane;
 
-	if (!vb->vb2_queue->is_output || !vb->vb2_queue->copy_timestamp)
+	if (!vb->vb2_queue->copy_timestamp)
 		vb->timestamp = 0;
 
 	for (plane = 0; plane < vb->num_planes; ++plane) {
@@ -583,11 +591,24 @@ static int __fill_vb2_buffer(struct vb2_buffer *vb, struct vb2_plane *planes)
 
 static const struct vb2_buf_ops v4l2_buf_ops = {
 	.verify_planes_array	= __verify_planes_array_core,
-	.init_buffer		= __init_v4l2_vb2_buffer,
+	.init_buffer		= __init_vb2_v4l2_buffer,
 	.fill_user_buffer	= __fill_v4l2_buffer,
 	.fill_vb2_buffer	= __fill_vb2_buffer,
 	.copy_timestamp		= __copy_timestamp,
 };
+
+int vb2_find_timestamp(const struct vb2_queue *q, u64 timestamp,
+		       unsigned int start_idx)
+{
+	unsigned int i;
+
+	for (i = start_idx; i < q->num_buffers; i++)
+		if (q->bufs[i]->copied_timestamp &&
+		    q->bufs[i]->timestamp == timestamp)
+			return i;
+	return -1;
+}
+EXPORT_SYMBOL_GPL(vb2_find_timestamp);
 
 /*
  * vb2_querybuf() - query video buffer information
@@ -760,6 +781,11 @@ int vb2_dqbuf(struct vb2_queue *q, struct v4l2_buffer *b, bool nonblocking)
 
 	ret = vb2_core_dqbuf(q, NULL, b, nonblocking);
 
+	if (!q->is_output &&
+	    b->flags & V4L2_BUF_FLAG_DONE &&
+	    b->flags & V4L2_BUF_FLAG_LAST)
+		q->last_buffer_dequeued = true;
+
 	/*
 	 *  After calling the VIDIOC_DQBUF V4L2_BUF_FLAG_DONE must be
 	 *  cleared.
@@ -846,19 +872,19 @@ EXPORT_SYMBOL_GPL(vb2_queue_release);
 __poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait)
 {
 	struct video_device *vfd = video_devdata(file);
-	__poll_t req_events = poll_requested_events(wait);
-	__poll_t res = 0;
+	__poll_t res;
+
+	res = vb2_core_poll(q, file, wait);
 
 	if (test_bit(V4L2_FL_USES_V4L2_FH, &vfd->flags)) {
 		struct v4l2_fh *fh = file->private_data;
 
+		poll_wait(file, &fh->wait, wait);
 		if (v4l2_event_pending(fh))
-			res = EPOLLPRI;
-		else if (req_events & EPOLLPRI)
-			poll_wait(file, &fh->wait, wait);
+			res |= EPOLLPRI;
 	}
 
-	return res | vb2_core_poll(q, file, wait);
+	return res;
 }
 EXPORT_SYMBOL_GPL(vb2_poll);
 

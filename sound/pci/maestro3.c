@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for ESS Maestro3/Allegro (ES1988) soundcards.
  * Copyright (c) 2000 by Zach Brown <zab@zabbo.net>
@@ -6,26 +7,10 @@
  * Most of the hardware init stuffs are based on maestro3 driver for
  * OSS/Free by Zach Brown.  Many thanks to Zach!
  *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
- *
  * ChangeLog:
  * Aug. 27, 2001
  *     - Fixed deadlock on capture
  *     - Added Canyon3D-2 support by Rob Riggs <rob@pangalactic.org>
- *
  */
  
 #define CARD_NAME "ESS Maestro3/Allegro/Canyon3D-2"
@@ -2422,7 +2407,6 @@ static int m3_suspend(struct device *dev)
 	chip->in_suspend = 1;
 	cancel_work_sync(&chip->hwvol_work);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
-	snd_pcm_suspend_all(chip->pcm);
 	snd_ac97_suspend(chip->ac97);
 
 	msleep(10); /* give the assp a chance to idle.. */

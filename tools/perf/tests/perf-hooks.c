@@ -4,7 +4,6 @@
 
 #include "tests.h"
 #include "debug.h"
-#include "util.h"
 #include "perf-hooks.h"
 
 static void sigsegv_handler(int sig __maybe_unused)

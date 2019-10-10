@@ -9,24 +9,14 @@
 #include "xfs_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_btree.h"
-#include "xfs_bit.h"
 #include "xfs_log_format.h"
 #include "xfs_trans.h"
-#include "xfs_sb.h"
 #include "xfs_inode.h"
 #include "xfs_icache.h"
-#include "xfs_itable.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
-#include "xfs_ialloc.h"
-#include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
-#include "scrub/trace.h"
 #include "scrub/dabtree.h"
 
 /* Set us up to scrub directories. */
@@ -125,6 +115,12 @@ xchk_dir_actor(
 
 	/* Does this inode number make sense? */
 	if (!xfs_verify_dir_ino(mp, ino)) {
+		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
+		goto out;
+	}
+
+	/* Does this name make sense? */
+	if (!xfs_dir2_namecheck(name, namelen)) {
 		xchk_fblock_set_corrupt(sdc->sc, XFS_DATA_FORK, offset);
 		goto out;
 	}

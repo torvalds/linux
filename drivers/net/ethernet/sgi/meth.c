@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * meth.c -- O2 Builtin 10/100 Ethernet driver
  *
  * Copyright (C) 2001-2003 Ilya Volynets
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
@@ -251,8 +247,7 @@ static void meth_free_tx_ring(struct meth_private *priv)
 
 	/* Remove any pending skb */
 	for (i = 0; i < TX_RING_ENTRIES; i++) {
-		if (priv->tx_skbs[i])
-			dev_kfree_skb(priv->tx_skbs[i]);
+		dev_kfree_skb(priv->tx_skbs[i]);
 		priv->tx_skbs[i] = NULL;
 	}
 	dma_free_coherent(&priv->pdev->dev, TX_RING_BUFFER_SIZE, priv->tx_ring,

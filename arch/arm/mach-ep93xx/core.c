@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/arm/mach-ep93xx/core.c
  * Core routines for Cirrus EP93xx chips.
@@ -7,11 +8,6 @@
  *
  * Thanks go to Michael Burian and Ray Lehtiniemi for their key
  * role in the ep93xx linux community.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #define pr_fmt(fmt) "ep93xx " KBUILD_MODNAME ": " fmt
@@ -39,11 +35,13 @@
 #include <linux/usb/ohci_pdriver.h>
 #include <linux/random.h>
 
-#include <mach/hardware.h>
+#include "hardware.h"
 #include <linux/platform_data/video-ep93xx.h>
 #include <linux/platform_data/keypad-ep93xx.h>
 #include <linux/platform_data/spi-ep93xx.h>
-#include <mach/gpio-ep93xx.h>
+#include <linux/soc/cirrus/ep93xx.h>
+
+#include "gpio-ep93xx.h"
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -123,7 +121,7 @@ void ep93xx_devcfg_set_clear(unsigned int set_bits, unsigned int clear_bits)
 /**
  * ep93xx_chip_revision() - returns the EP93xx chip revision
  *
- * See <mach/platform.h> for more information.
+ * See "platform.h" for more information.
  */
 unsigned int ep93xx_chip_revision(void)
 {

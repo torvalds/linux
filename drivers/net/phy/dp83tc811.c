@@ -277,10 +277,6 @@ static int dp83811_config_init(struct phy_device *phydev)
 {
 	int value, err;
 
-	err = genphy_config_init(phydev);
-	if (err < 0)
-		return err;
-
 	value = phy_read(phydev, MII_DP83811_SGMII_CTRL);
 	if (phydev->interface == PHY_INTERFACE_MODE_SGMII) {
 		err = phy_write(phydev, MII_DP83811_SGMII_CTRL,
@@ -338,7 +334,7 @@ static struct phy_driver dp83811_driver[] = {
 		.phy_id = DP83TC811_PHY_ID,
 		.phy_id_mask = 0xfffffff0,
 		.name = "TI DP83TC811",
-		.features = PHY_BASIC_FEATURES,
+		/* PHY_BASIC_FEATURES */
 		.config_init = dp83811_config_init,
 		.config_aneg = dp83811_config_aneg,
 		.soft_reset = dp83811_phy_reset,

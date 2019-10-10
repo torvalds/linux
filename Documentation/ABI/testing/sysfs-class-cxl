@@ -1,6 +1,6 @@
-Note: Attributes that are shared between devices are stored in the directory
-pointed to by the symlink device/.
-Example: The real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
+Please note that attributes that are shared between devices are stored in
+the directory pointed to by the symlink device/.
+For example, the real path of the attribute /sys/class/cxl/afu0.0s/irqs_max is
 /sys/class/cxl/afu0.0s/device/irqs_max, i.e. /sys/class/cxl/afu0.0/irqs_max.
 
 

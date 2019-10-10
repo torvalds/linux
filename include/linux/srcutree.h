@@ -120,9 +120,17 @@ struct srcu_struct {
  *
  * See include/linux/percpu-defs.h for the rules on per-CPU variables.
  */
-#define __DEFINE_SRCU(name, is_static)					\
-	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);\
-	is_static struct srcu_struct name = __SRCU_STRUCT_INIT(name, name##_srcu_data)
+#ifdef MODULE
+# define __DEFINE_SRCU(name, is_static)					\
+	is_static struct srcu_struct name;				\
+	struct srcu_struct * const __srcu_struct_##name			\
+		__section("___srcu_struct_ptrs") = &name
+#else
+# define __DEFINE_SRCU(name, is_static)					\
+	static DEFINE_PER_CPU(struct srcu_data, name##_srcu_data);	\
+	is_static struct srcu_struct name =				\
+		__SRCU_STRUCT_INIT(name, name##_srcu_data)
+#endif
 #define DEFINE_SRCU(name)		__DEFINE_SRCU(name, /* not static */)
 #define DEFINE_STATIC_SRCU(name)	__DEFINE_SRCU(name, static)
 

@@ -2,8 +2,8 @@
 Core elements
 =============
 
-The Industrial I/O core offers a unified framework for writing drivers for
-many different types of embedded sensors. a standard interface to user space
+The Industrial I/O core offers both a unified framework for writing drivers for
+many different types of embedded sensors and a standard interface to user space
 applications manipulating sensors. The implementation can be found under
 :file:`drivers/iio/industrialio-*`
 
@@ -11,7 +11,7 @@ Industrial I/O Devices
 ----------------------
 
 * struct :c:type:`iio_dev` - industrial I/O device
-* :c:func:`iio_device_alloc()` - alocate an :c:type:`iio_dev` from a driver
+* :c:func:`iio_device_alloc()` - allocate an :c:type:`iio_dev` from a driver
 * :c:func:`iio_device_free()` - free an :c:type:`iio_dev` from a driver
 * :c:func:`iio_device_register()` - register a device with the IIO subsystem
 * :c:func:`iio_device_unregister()` - unregister a device from the IIO

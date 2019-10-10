@@ -2,18 +2,6 @@
 /* Copyright (C) 2011-2019  B.A.T.M.A.N. contributors:
  *
  * Antonio Quartulli
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef _NET_BATMAN_ADV_DISTRIBUTED_ARP_TABLE_H_
@@ -23,14 +11,13 @@
 
 #include <linux/compiler.h>
 #include <linux/netdevice.h>
+#include <linux/netlink.h>
+#include <linux/seq_file.h>
+#include <linux/skbuff.h>
 #include <linux/types.h>
 #include <uapi/linux/batadv_packet.h>
 
 #include "originator.h"
-
-struct netlink_callback;
-struct seq_file;
-struct sk_buff;
 
 #ifdef CONFIG_BATMAN_ADV_DAT
 

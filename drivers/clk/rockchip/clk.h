@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
@@ -11,16 +12,6 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Copyright (c) 2013 Linaro Ltd.
  * Author: Thomas Abraham <thomas.ab@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef CLK_ROCKCHIP_CLK_H
@@ -129,6 +120,19 @@ struct clk;
 #define RK3288_SDIO1_CON1		0x214
 #define RK3288_EMMC_CON0		0x218
 #define RK3288_EMMC_CON1		0x21c
+
+#define RK3308_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3308_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3308_CLKGATE_CON(x)		((x) * 0x4 + 0x300)
+#define RK3308_GLB_SRST_FST		0xb8
+#define RK3308_SOFTRST_CON(x)		((x) * 0x4 + 0x400)
+#define RK3308_MODE_CON			0xa0
+#define RK3308_SDMMC_CON0		0x480
+#define RK3308_SDMMC_CON1		0x484
+#define RK3308_SDIO_CON0		0x488
+#define RK3308_SDIO_CON1		0x48c
+#define RK3308_EMMC_CON0		0x490
+#define RK3308_EMMC_CON1		0x494
 
 #define RK3328_PLL_CON(x)		RK2928_PLL_CON(x)
 #define RK3328_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
@@ -407,6 +411,7 @@ struct rockchip_clk_branch {
 	u8				mux_shift;
 	u8				mux_width;
 	u8				mux_flags;
+	int				div_offset;
 	u8				div_shift;
 	u8				div_width;
 	u8				div_flags;
@@ -430,6 +435,28 @@ struct rockchip_clk_branch {
 		.mux_shift	= ms,				\
 		.mux_width	= mw,				\
 		.mux_flags	= mf,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_DIV_OFFSET(_id, cname, pnames, f, mo, ms, mw,	\
+			     mf, do, ds, dw, df, go, gs, gf)	\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_offset	= do,				\
 		.div_shift	= ds,				\
 		.div_width	= dw,				\
 		.div_flags	= df,				\
@@ -796,6 +823,10 @@ struct rockchip_clk_branch {
 		.div_flags	= df,				\
 		.gate_offset	= -1,				\
 	}
+
+/* SGRF clocks are only accessible from secure mode, so not controllable */
+#define SGRF_GATE(_id, cname, pname)				\
+		FACTOR(_id, cname, pname, 0, 1, 1)
 
 struct rockchip_clk_provider *rockchip_clk_init(struct device_node *np,
 			void __iomem *base, unsigned long nr_clks);

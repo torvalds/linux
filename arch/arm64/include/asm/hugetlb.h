@@ -1,24 +1,21 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm64/include/asm/hugetlb.h
  *
  * Copyright (C) 2013 Linaro Ltd.
  *
  * Based on arch/x86/include/asm/hugetlb.h
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __ASM_HUGETLB_H
 #define __ASM_HUGETLB_H
 
 #include <asm/page.h>
+
+#ifdef CONFIG_ARCH_ENABLE_HUGEPAGE_MIGRATION
+#define arch_hugetlb_migration_supported arch_hugetlb_migration_supported
+extern bool arch_hugetlb_migration_supported(struct hstate *h);
+#endif
 
 #define __HAVE_ARCH_HUGE_PTEP_GET
 static inline pte_t huge_ptep_get(pte_t *ptep)
@@ -64,9 +61,5 @@ extern void set_huge_swap_pte_at(struct mm_struct *mm, unsigned long addr,
 #define set_huge_swap_pte_at set_huge_swap_pte_at
 
 #include <asm-generic/hugetlb.h>
-
-#ifdef CONFIG_ARCH_HAS_GIGANTIC_PAGE
-static inline bool gigantic_page_supported(void) { return true; }
-#endif
 
 #endif /* __ASM_HUGETLB_H */

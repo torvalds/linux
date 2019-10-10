@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/sch_api.c	Packet scheduler API.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *
@@ -479,7 +475,8 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt,
 	u16 *tab = NULL;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_STAB_MAX, opt, stab_policy, extack);
+	err = nla_parse_nested_deprecated(tb, TCA_STAB_MAX, opt, stab_policy,
+					  extack);
 	if (err < 0)
 		return ERR_PTR(err);
 	if (!tb[TCA_STAB_BASE]) {
@@ -542,7 +539,7 @@ static int qdisc_dump_stab(struct sk_buff *skb, struct qdisc_size_table *stab)
 {
 	struct nlattr *nest;
 
-	nest = nla_nest_start(skb, TCA_STAB);
+	nest = nla_nest_start_noflag(skb, TCA_STAB);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put(skb, TCA_STAB_BASE, sizeof(stab->szopts), &stab->szopts))
@@ -998,6 +995,19 @@ static void notify_and_destroy(struct net *net, struct sk_buff *skb,
 		qdisc_put(old);
 }
 
+static void qdisc_clear_nolock(struct Qdisc *sch)
+{
+	sch->flags &= ~TCQ_F_NOLOCK;
+	if (!(sch->flags & TCQ_F_CPUSTATS))
+		return;
+
+	free_percpu(sch->cpu_bstats);
+	free_percpu(sch->cpu_qstats);
+	sch->cpu_bstats = NULL;
+	sch->cpu_qstats = NULL;
+	sch->flags &= ~TCQ_F_CPUSTATS;
+}
+
 /* Graft qdisc "new" to class "classid" of qdisc "parent" or
  * to device "dev".
  *
@@ -1076,7 +1086,7 @@ skip:
 		/* Only support running class lockless if parent is lockless */
 		if (new && (new->flags & TCQ_F_NOLOCK) &&
 		    parent && !(parent->flags & TCQ_F_NOLOCK))
-			new->flags &= ~TCQ_F_NOLOCK;
+			qdisc_clear_nolock(new);
 
 		if (!cops || !cops->graft)
 			return -EOPNOTSUPP;
@@ -1380,7 +1390,8 @@ check_loop_fn(struct Qdisc *q, unsigned long cl, struct qdisc_walker *w)
 }
 
 const struct nla_policy rtm_tca_policy[TCA_MAX + 1] = {
-	[TCA_KIND]		= { .type = NLA_STRING },
+	[TCA_KIND]		= { .type = NLA_NUL_STRING,
+				    .len = IFNAMSIZ - 1 },
 	[TCA_RATE]		= { .type = NLA_BINARY,
 				    .len = sizeof(struct tc_estimator) },
 	[TCA_STAB]		= { .type = NLA_NESTED },
@@ -1410,8 +1421,8 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, rtm_tca_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(n, sizeof(*tcm), tca, TCA_MAX,
+				     rtm_tca_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -1495,8 +1506,8 @@ static int tc_modify_qdisc(struct sk_buff *skb, struct nlmsghdr *n,
 
 replay:
 	/* Reinit, just in case something touches this. */
-	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, rtm_tca_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(n, sizeof(*tcm), tca, TCA_MAX,
+				     rtm_tca_policy, extack);
 	if (err < 0)
 		return err;
 
@@ -1730,8 +1741,8 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 	idx = 0;
 	ASSERT_RTNL();
 
-	err = nlmsg_parse(nlh, sizeof(struct tcmsg), tca, TCA_MAX,
-			  rtm_tca_policy, cb->extack);
+	err = nlmsg_parse_deprecated(nlh, sizeof(struct tcmsg), tca, TCA_MAX,
+				     rtm_tca_policy, cb->extack);
 	if (err < 0)
 		return err;
 
@@ -1824,6 +1835,7 @@ static int tclass_notify(struct net *net, struct sk_buff *oskb,
 {
 	struct sk_buff *skb;
 	u32 portid = oskb ? NETLINK_CB(oskb).portid : 0;
+	int err = 0;
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb)
@@ -1834,8 +1846,11 @@ static int tclass_notify(struct net *net, struct sk_buff *oskb,
 		return -EINVAL;
 	}
 
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			      n->nlmsg_flags & NLM_F_ECHO);
+	err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+			     n->nlmsg_flags & NLM_F_ECHO);
+	if (err > 0)
+		err = 0;
+	return err;
 }
 
 static int tclass_del_notify(struct net *net,
@@ -1866,8 +1881,11 @@ static int tclass_del_notify(struct net *net,
 		return err;
 	}
 
-	return rtnetlink_send(skb, net, portid, RTNLGRP_TC,
-			      n->nlmsg_flags & NLM_F_ECHO);
+	err = rtnetlink_send(skb, net, portid, RTNLGRP_TC,
+			     n->nlmsg_flags & NLM_F_ECHO);
+	if (err > 0)
+		err = 0;
+	return err;
 }
 
 #ifdef CONFIG_NET_CLS
@@ -1902,6 +1920,8 @@ static void tc_bind_tclass(struct Qdisc *q, u32 portid, u32 clid,
 
 	cl = cops->find(q, portid);
 	if (!cl)
+		return;
+	if (!cops->tcf_block)
 		return;
 	block = cops->tcf_block(q, cl, NULL);
 	if (!block)
@@ -1952,8 +1972,8 @@ static int tc_ctl_tclass(struct sk_buff *skb, struct nlmsghdr *n,
 	    !netlink_ns_capable(skb, net->user_ns, CAP_NET_ADMIN))
 		return -EPERM;
 
-	err = nlmsg_parse(n, sizeof(*tcm), tca, TCA_MAX, rtm_tca_policy,
-			  extack);
+	err = nlmsg_parse_deprecated(n, sizeof(*tcm), tca, TCA_MAX,
+				     rtm_tca_policy, extack);
 	if (err < 0)
 		return err;
 

@@ -4,22 +4,26 @@
  *
  * Copyright (C) 2011 Sascha Hauer, Pengutronix
  */
+
 #include <linux/component.h>
 #include <linux/device.h>
 #include <linux/dma-buf.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <drm/drmP.h>
+
+#include <video/imx-ipu-v3.h>
+
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_of.h>
-#include <video/imx-ipu-v3.h>
+#include <drm/drm_plane_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "imx-drm.h"
 #include "ipuv3-plane.h"
@@ -49,11 +53,7 @@ static int imx_drm_atomic_check(struct drm_device *dev,
 {
 	int ret;
 
-	ret = drm_atomic_helper_check_modeset(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_helper_check_planes(dev, state);
+	ret = drm_atomic_helper_check(dev, state);
 	if (ret)
 		return ret;
 
@@ -151,16 +151,13 @@ static const struct drm_ioctl_desc imx_drm_ioctls[] = {
 };
 
 static struct drm_driver imx_drm_driver = {
-	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME |
-				  DRIVER_ATOMIC,
+	.driver_features	= DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops		= &drm_gem_cma_vm_ops,
 	.dumb_create		= drm_gem_cma_dumb_create,
 
 	.prime_handle_to_fd	= drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle	= drm_gem_prime_fd_to_handle,
-	.gem_prime_import	= drm_gem_prime_import,
-	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
 	.gem_prime_vmap		= drm_gem_cma_prime_vmap,
@@ -189,7 +186,7 @@ static int compare_of(struct device *dev, void *data)
 	}
 
 	/* Special case for LDB, one device for two channels */
-	if (of_node_cmp(np->name, "lvds-channel") == 0) {
+	if (of_node_name_eq(np, "lvds-channel")) {
 		np = of_get_parent(np);
 		of_node_put(np);
 	}
@@ -229,6 +226,7 @@ static int imx_drm_bind(struct device *dev)
 	drm->mode_config.funcs = &imx_drm_mode_config_funcs;
 	drm->mode_config.helper_private = &imx_drm_mode_config_helpers;
 	drm->mode_config.allow_fb_modifiers = true;
+	drm->mode_config.normalize_zpos = true;
 
 	drm_mode_config_init(drm);
 

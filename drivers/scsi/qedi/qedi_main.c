@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * QLogic iSCSI Offload Driver
  * Copyright (c) 2016 Cavium Inc.
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #include <linux/module.h>
@@ -990,6 +987,9 @@ static int qedi_find_boot_info(struct qedi_ctx *qedi,
 		if (!iscsi_is_session_online(cls_sess))
 			continue;
 
+		if (!sess->targetname)
+			continue;
+
 		if (pri_ctrl_flags) {
 			if (!strcmp(pri_tgt->iscsi_name, sess->targetname) &&
 			    !strcmp(pri_tgt->ip_addr, ep_ip_addr)) {
@@ -1313,13 +1313,20 @@ static void qedi_simd_int_handler(void *cookie)
 static void qedi_sync_free_irqs(struct qedi_ctx *qedi)
 {
 	int i;
+	u16 idx;
 
 	if (qedi->int_info.msix_cnt) {
 		for (i = 0; i < qedi->int_info.used_cnt; i++) {
-			synchronize_irq(qedi->int_info.msix[i].vector);
-			irq_set_affinity_hint(qedi->int_info.msix[i].vector,
+			idx = i * qedi->dev_info.common.num_hwfns +
+			qedi_ops->common->get_affin_hwfn_idx(qedi->cdev);
+
+			QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+				  "Freeing IRQ #%d vector_idx=%d.\n", i, idx);
+
+			synchronize_irq(qedi->int_info.msix[idx].vector);
+			irq_set_affinity_hint(qedi->int_info.msix[idx].vector,
 					      NULL);
-			free_irq(qedi->int_info.msix[i].vector,
+			free_irq(qedi->int_info.msix[idx].vector,
 				 &qedi->fp_array[i]);
 		}
 	} else {
@@ -1334,20 +1341,28 @@ static void qedi_sync_free_irqs(struct qedi_ctx *qedi)
 static int qedi_request_msix_irq(struct qedi_ctx *qedi)
 {
 	int i, rc, cpu;
+	u16 idx;
 
 	cpu = cpumask_first(cpu_online_mask);
-	for (i = 0; i < qedi->int_info.msix_cnt; i++) {
-		rc = request_irq(qedi->int_info.msix[i].vector,
+	for (i = 0; i < MIN_NUM_CPUS_MSIX(qedi); i++) {
+		idx = i * qedi->dev_info.common.num_hwfns +
+			  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev);
+
+		QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+			  "dev_info: num_hwfns=%d affin_hwfn_idx=%d.\n",
+			  qedi->dev_info.common.num_hwfns,
+			  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev));
+
+		rc = request_irq(qedi->int_info.msix[idx].vector,
 				 qedi_msix_handler, 0, "qedi",
 				 &qedi->fp_array[i]);
-
 		if (rc) {
 			QEDI_WARN(&qedi->dbg_ctx, "request_irq failed.\n");
 			qedi_sync_free_irqs(qedi);
 			return rc;
 		}
 		qedi->int_info.used_cnt++;
-		rc = irq_set_affinity_hint(qedi->int_info.msix[i].vector,
+		rc = irq_set_affinity_hint(qedi->int_info.msix[idx].vector,
 					   get_cpu_mask(cpu));
 		cpu = cpumask_next(cpu, cpu_online_mask);
 	}
@@ -1392,10 +1407,8 @@ static void qedi_free_nvm_iscsi_cfg(struct qedi_ctx *qedi)
 
 static int qedi_alloc_nvm_iscsi_cfg(struct qedi_ctx *qedi)
 {
-	struct qedi_nvm_iscsi_image nvm_image;
-
 	qedi->iscsi_image = dma_alloc_coherent(&qedi->pdev->dev,
-					       sizeof(nvm_image),
+					       sizeof(struct qedi_nvm_iscsi_image),
 					       &qedi->nvm_buf_dma, GFP_KERNEL);
 	if (!qedi->iscsi_image) {
 		QEDI_ERR(&qedi->dbg_ctx, "Could not allocate NVM BUF.\n");
@@ -2236,14 +2249,13 @@ static void qedi_boot_release(void *data)
 static int qedi_get_boot_info(struct qedi_ctx *qedi)
 {
 	int ret = 1;
-	struct qedi_nvm_iscsi_image nvm_image;
 
 	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
 		  "Get NVM iSCSI CFG image\n");
 	ret = qedi_ops->common->nvm_get_image(qedi->cdev,
 					      QED_NVM_IMAGE_ISCSI_CFG,
 					      (char *)qedi->iscsi_image,
-					      sizeof(nvm_image));
+					      sizeof(struct qedi_nvm_iscsi_image));
 	if (ret)
 		QEDI_ERR(&qedi->dbg_ctx,
 			 "Could not get NVM image. ret = %d\n", ret);
@@ -2417,6 +2429,11 @@ static int __qedi_probe(struct pci_dev *pdev, int mode)
 	rc = qedi_ops->fill_dev_info(qedi->cdev, &qedi->dev_info);
 	if (rc)
 		goto free_host;
+
+	QEDI_INFO(&qedi->dbg_ctx, QEDI_LOG_INFO,
+		  "dev_info: num_hwfns=%d affin_hwfn_idx=%d.\n",
+		  qedi->dev_info.common.num_hwfns,
+		  qedi_ops->common->get_affin_hwfn_idx(qedi->cdev));
 
 	if (mode != QEDI_MODE_RECOVERY) {
 		rc = qedi_set_iscsi_pf_param(qedi);

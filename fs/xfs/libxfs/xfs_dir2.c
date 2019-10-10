@@ -5,20 +5,16 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
-#include "xfs_ialloc.h"
 #include "xfs_errortag.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
@@ -114,9 +110,9 @@ xfs_da_mount(
 
 	nodehdr_size = mp->m_dir_inode_ops->node_hdr_size;
 	mp->m_dir_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
-				    KM_SLEEP | KM_MAYFAIL);
+				    KM_MAYFAIL);
 	mp->m_attr_geo = kmem_zalloc(sizeof(struct xfs_da_geometry),
-				     KM_SLEEP | KM_MAYFAIL);
+				     KM_MAYFAIL);
 	if (!mp->m_dir_geo || !mp->m_attr_geo) {
 		kmem_free(mp->m_dir_geo);
 		kmem_free(mp->m_attr_geo);
@@ -221,7 +217,7 @@ xfs_dir_init(
 	if (error)
 		return error;
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -258,7 +254,7 @@ xfs_dir_createname(
 		XFS_STATS_INC(dp->i_mount, xs_dir_create);
 	}
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -357,7 +353,7 @@ xfs_dir_lookup(
 	 * lockdep Doing this avoids having to add a bunch of lockdep class
 	 * annotations into the reclaim path for the ilock.
 	 */
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	args->geo = dp->i_mount->m_dir_geo;
 	args->name = name->name;
 	args->namelen = name->len;
@@ -426,7 +422,7 @@ xfs_dir_removename(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	XFS_STATS_INC(dp->i_mount, xs_dir_remove);
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -487,7 +483,7 @@ xfs_dir_replace(
 	if (rval)
 		return rval;
 
-	args = kmem_zalloc(sizeof(*args), KM_SLEEP | KM_NOFS);
+	args = kmem_zalloc(sizeof(*args), KM_NOFS);
 	if (!args)
 		return -ENOMEM;
 
@@ -702,4 +698,21 @@ xfs_dir2_shrink_inode(
 	dp->i_d.di_size = XFS_FSB_TO_B(mp, bno);
 	xfs_trans_log_inode(tp, dp, XFS_ILOG_CORE);
 	return 0;
+}
+
+/* Returns true if the directory entry name is valid. */
+bool
+xfs_dir2_namecheck(
+	const void	*name,
+	size_t		length)
+{
+	/*
+	 * MAXNAMELEN includes the trailing null, but (name/length) leave it
+	 * out, so use >= for the length check.
+	 */
+	if (length >= MAXNAMELEN)
+		return false;
+
+	/* There shouldn't be any slashes or nulls here */
+	return !memchr(name, '/', length) && !memchr(name, 0, length);
 }

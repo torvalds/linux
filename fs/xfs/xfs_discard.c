@@ -4,19 +4,17 @@
  * All Rights Reserved.
  */
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
-#include "xfs_quota.h"
-#include "xfs_inode.h"
 #include "xfs_btree.h"
 #include "xfs_alloc_btree.h"
 #include "xfs_alloc.h"
 #include "xfs_error.h"
 #include "xfs_extent_busy.h"
-#include "xfs_discard.h"
 #include "xfs_trace.h"
 #include "xfs_log.h"
 
@@ -161,9 +159,19 @@ xfs_ioc_trim(
 		return -EPERM;
 	if (!blk_queue_discard(q))
 		return -EOPNOTSUPP;
+
+	/*
+	 * We haven't recovered the log, so we cannot use our bnobt-guided
+	 * storage zapping commands.
+	 */
+	if (mp->m_flags & XFS_MOUNT_NORECOVERY)
+		return -EROFS;
+
 	if (copy_from_user(&range, urange, sizeof(range)))
 		return -EFAULT;
 
+	range.minlen = max_t(u64, granularity, range.minlen);
+	minlen = BTOBB(range.minlen);
 	/*
 	 * Truncating down the len isn't actually quite correct, but using
 	 * BBTOB would mean we trivially get overflows for values
@@ -178,7 +186,6 @@ xfs_ioc_trim(
 
 	start = BTOBB(range.start);
 	end = start + BTOBBT(range.len) - 1;
-	minlen = BTOBB(max_t(u64, granularity, range.minlen));
 
 	if (end > XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks) - 1)
 		end = XFS_FSB_TO_BB(mp, mp->m_sb.sb_dblocks)- 1;

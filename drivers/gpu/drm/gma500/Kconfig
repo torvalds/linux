@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_GMA500
 	tristate "Intel GMA5/600 KMS Framebuffer"
 	depends on DRM && PCI && X86 && MMU

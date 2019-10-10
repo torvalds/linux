@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: PC Chen <pc.chen@mediatek.com>
  *         Tiffany Lin <tiffany.lin@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _MTK_VCODEC_DEC_H_
@@ -45,7 +37,6 @@ struct vdec_fb {
  * @list:	link list
  * @used:	Capture buffer contain decoded frame data and keep in
  *			codec data structure
- * @ready_to_display:	Capture buffer not display yet
  * @queued_in_vb2:	Capture buffer is queue in vb2
  * @queued_in_v4l2:	Capture buffer is in v4l2 driver, but not in vb2
  *			queue yet
@@ -60,7 +51,6 @@ struct mtk_video_dec_buf {
 	struct list_head	list;
 
 	bool	used;
-	bool	ready_to_display;
 	bool	queued_in_vb2;
 	bool	queued_in_v4l2;
 	bool	lastframe;

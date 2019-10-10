@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ti-dac082s085.c - Texas Instruments 8/10/12-bit 2/4-channel DAC driver
  *
@@ -9,10 +10,6 @@
  * http://www.ti.com/lit/ds/symlink/dac084s085.pdf
  * http://www.ti.com/lit/ds/symlink/dac104s085.pdf
  * http://www.ti.com/lit/ds/symlink/dac124s085.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2) as
- * published by the Free Software Foundation.
  */
 
 #include <linux/iio/iio.h>

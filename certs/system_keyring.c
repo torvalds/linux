@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* System trusted keyring for trusted public keys
  *
  * Copyright (C) 2012 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/export.h>
@@ -23,6 +19,9 @@
 static struct key *builtin_trusted_keys;
 #ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
 static struct key *secondary_trusted_keys;
+#endif
+#ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
+static struct key *platform_trusted_keys;
 #endif
 
 extern __initconst const u8 system_certificate_list[];
@@ -191,6 +190,84 @@ late_initcall(load_system_certificate_list);
 #ifdef CONFIG_SYSTEM_DATA_VERIFICATION
 
 /**
+ * verify_pkcs7_message_sig - Verify a PKCS#7-based signature on system data.
+ * @data: The data to be verified (NULL if expecting internal data).
+ * @len: Size of @data.
+ * @pkcs7: The PKCS#7 message that is the signature.
+ * @trusted_keys: Trusted keys to use (NULL for builtin trusted keys only,
+ *					(void *)1UL for all trusted keys).
+ * @usage: The use to which the key is being put.
+ * @view_content: Callback to gain access to content.
+ * @ctx: Context for callback.
+ */
+int verify_pkcs7_message_sig(const void *data, size_t len,
+			     struct pkcs7_message *pkcs7,
+			     struct key *trusted_keys,
+			     enum key_being_used_for usage,
+			     int (*view_content)(void *ctx,
+						 const void *data, size_t len,
+						 size_t asn1hdrlen),
+			     void *ctx)
+{
+	int ret;
+
+	/* The data should be detached - so we need to supply it. */
+	if (data && pkcs7_supply_detached_data(pkcs7, data, len) < 0) {
+		pr_err("PKCS#7 signature with non-detached data\n");
+		ret = -EBADMSG;
+		goto error;
+	}
+
+	ret = pkcs7_verify(pkcs7, usage);
+	if (ret < 0)
+		goto error;
+
+	if (!trusted_keys) {
+		trusted_keys = builtin_trusted_keys;
+	} else if (trusted_keys == VERIFY_USE_SECONDARY_KEYRING) {
+#ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
+		trusted_keys = secondary_trusted_keys;
+#else
+		trusted_keys = builtin_trusted_keys;
+#endif
+	} else if (trusted_keys == VERIFY_USE_PLATFORM_KEYRING) {
+#ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
+		trusted_keys = platform_trusted_keys;
+#else
+		trusted_keys = NULL;
+#endif
+		if (!trusted_keys) {
+			ret = -ENOKEY;
+			pr_devel("PKCS#7 platform keyring is not available\n");
+			goto error;
+		}
+	}
+	ret = pkcs7_validate_trust(pkcs7, trusted_keys);
+	if (ret < 0) {
+		if (ret == -ENOKEY)
+			pr_devel("PKCS#7 signature not signed with a trusted key\n");
+		goto error;
+	}
+
+	if (view_content) {
+		size_t asn1hdrlen;
+
+		ret = pkcs7_get_content_data(pkcs7, &data, &len, &asn1hdrlen);
+		if (ret < 0) {
+			if (ret == -ENODATA)
+				pr_devel("PKCS#7 message does not contain data\n");
+			goto error;
+		}
+
+		ret = view_content(ctx, data, len, asn1hdrlen);
+	}
+
+error:
+	pr_devel("<==%s() = %d\n", __func__, ret);
+	return ret;
+}
+
+/**
  * verify_pkcs7_signature - Verify a PKCS#7-based signature on system data.
  * @data: The data to be verified (NULL if expecting internal data).
  * @len: Size of @data.
@@ -218,47 +295,9 @@ int verify_pkcs7_signature(const void *data, size_t len,
 	if (IS_ERR(pkcs7))
 		return PTR_ERR(pkcs7);
 
-	/* The data should be detached - so we need to supply it. */
-	if (data && pkcs7_supply_detached_data(pkcs7, data, len) < 0) {
-		pr_err("PKCS#7 signature with non-detached data\n");
-		ret = -EBADMSG;
-		goto error;
-	}
+	ret = verify_pkcs7_message_sig(data, len, pkcs7, trusted_keys, usage,
+				       view_content, ctx);
 
-	ret = pkcs7_verify(pkcs7, usage);
-	if (ret < 0)
-		goto error;
-
-	if (!trusted_keys) {
-		trusted_keys = builtin_trusted_keys;
-	} else if (trusted_keys == VERIFY_USE_SECONDARY_KEYRING) {
-#ifdef CONFIG_SECONDARY_TRUSTED_KEYRING
-		trusted_keys = secondary_trusted_keys;
-#else
-		trusted_keys = builtin_trusted_keys;
-#endif
-	}
-	ret = pkcs7_validate_trust(pkcs7, trusted_keys);
-	if (ret < 0) {
-		if (ret == -ENOKEY)
-			pr_err("PKCS#7 signature not signed with a trusted key\n");
-		goto error;
-	}
-
-	if (view_content) {
-		size_t asn1hdrlen;
-
-		ret = pkcs7_get_content_data(pkcs7, &data, &len, &asn1hdrlen);
-		if (ret < 0) {
-			if (ret == -ENODATA)
-				pr_devel("PKCS#7 message does not contain data\n");
-			goto error;
-		}
-
-		ret = view_content(ctx, data, len, asn1hdrlen);
-	}
-
-error:
 	pkcs7_free_message(pkcs7);
 	pr_devel("<==%s() = %d\n", __func__, ret);
 	return ret;
@@ -266,3 +305,10 @@ error:
 EXPORT_SYMBOL_GPL(verify_pkcs7_signature);
 
 #endif /* CONFIG_SYSTEM_DATA_VERIFICATION */
+
+#ifdef CONFIG_INTEGRITY_PLATFORM_KEYRING
+void __init set_platform_trusted_keys(struct key *keyring)
+{
+	platform_trusted_keys = keyring;
+}
+#endif

@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright 2008-2009 Freescale Semiconductor, Inc. All Rights Reserved.
  * Copyright 2010 Orex Computed Radiography
  */
-
-/*
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
-
-/* based on rtc-mc13892.c */
 
 /*
  * This driver uses the 47-bit 32 kHz counter in the Freescale DryIce block
@@ -552,7 +542,7 @@ static int dryice_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	unsigned long now;
 
 	now = readl(imxdi->ioaddr + DTCMR);
-	rtc_time_to_tm(now, tm);
+	rtc_time64_to_tm(now, tm);
 
 	return 0;
 }
@@ -561,7 +551,7 @@ static int dryice_rtc_read_time(struct device *dev, struct rtc_time *tm)
  * set the seconds portion of dryice time counter and clear the
  * fractional part.
  */
-static int dryice_rtc_set_mmss(struct device *dev, unsigned long secs)
+static int dryice_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
 	u32 dcr, dsr;
@@ -588,7 +578,7 @@ static int dryice_rtc_set_mmss(struct device *dev, unsigned long secs)
 	if (rc != 0)
 		return rc;
 
-	rc = di_write_wait(imxdi, secs, DTCMR);
+	rc = di_write_wait(imxdi, rtc_tm_to_time64(tm), DTCMR);
 	if (rc != 0)
 		return rc;
 
@@ -618,7 +608,7 @@ static int dryice_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	u32 dcamr;
 
 	dcamr = readl(imxdi->ioaddr + DCAMR);
-	rtc_time_to_tm(dcamr, &alarm->time);
+	rtc_time64_to_tm(dcamr, &alarm->time);
 
 	/* alarm is enabled if the interrupt is enabled */
 	alarm->enabled = (readl(imxdi->ioaddr + DIER) & DIER_CAIE) != 0;
@@ -640,21 +630,10 @@ static int dryice_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct imxdi_dev *imxdi = dev_get_drvdata(dev);
-	unsigned long now;
-	unsigned long alarm_time;
 	int rc;
 
-	rc = rtc_tm_to_time(&alarm->time, &alarm_time);
-	if (rc)
-		return rc;
-
-	/* don't allow setting alarm in the past */
-	now = readl(imxdi->ioaddr + DTCMR);
-	if (alarm_time < now)
-		return -EINVAL;
-
 	/* write the new alarm time */
-	rc = di_write_wait(imxdi, (u32)alarm_time, DCAMR);
+	rc = di_write_wait(imxdi, rtc_tm_to_time64(&alarm->time), DCAMR);
 	if (rc)
 		return rc;
 
@@ -668,7 +647,7 @@ static int dryice_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 
 static const struct rtc_class_ops dryice_rtc_ops = {
 	.read_time		= dryice_rtc_read_time,
-	.set_mmss		= dryice_rtc_set_mmss,
+	.set_time		= dryice_rtc_set_time,
 	.alarm_irq_enable	= dryice_rtc_alarm_irq_enable,
 	.read_alarm		= dryice_rtc_read_alarm,
 	.set_alarm		= dryice_rtc_set_alarm,
@@ -761,7 +740,6 @@ static void dryice_work(struct work_struct *work)
  */
 static int __init dryice_rtc_probe(struct platform_device *pdev)
 {
-	struct resource *res;
 	struct imxdi_dev *imxdi;
 	int norm_irq, sec_irq;
 	int rc;
@@ -772,8 +750,7 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 
 	imxdi->pdev = pdev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	imxdi->ioaddr = devm_ioremap_resource(&pdev->dev, res);
+	imxdi->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(imxdi->ioaddr))
 		return PTR_ERR(imxdi->ioaddr);
 
@@ -795,6 +772,10 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	INIT_WORK(&imxdi->work, dryice_work);
 
 	mutex_init(&imxdi->write_mutex);
+
+	imxdi->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(imxdi->rtc))
+		return PTR_ERR(imxdi->rtc);
 
 	imxdi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(imxdi->clk))
@@ -829,12 +810,13 @@ static int __init dryice_rtc_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, imxdi);
-	imxdi->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-				  &dryice_rtc_ops, THIS_MODULE);
-	if (IS_ERR(imxdi->rtc)) {
-		rc = PTR_ERR(imxdi->rtc);
+
+	imxdi->rtc->ops = &dryice_rtc_ops;
+	imxdi->rtc->range_max = U32_MAX;
+
+	rc = rtc_register_device(imxdi->rtc);
+	if (rc)
 		goto err;
-	}
 
 	return 0;
 

@@ -34,7 +34,9 @@
 #include <linux/kref.h>
 #include <linux/slab.h>
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_debugfs.h>
+
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 
@@ -136,8 +138,9 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_fence *fence;
-	struct dma_fence *old, **ptr;
+	struct dma_fence __rcu **ptr;
 	uint32_t seq;
+	int r;
 
 	fence = kmem_cache_alloc(amdgpu_fence_slab, GFP_KERNEL);
 	if (fence == NULL)
@@ -153,15 +156,24 @@ int amdgpu_fence_emit(struct amdgpu_ring *ring, struct dma_fence **f,
 			       seq, flags | AMDGPU_FENCE_FLAG_INT);
 
 	ptr = &ring->fence_drv.fences[seq & ring->fence_drv.num_fences_mask];
+	if (unlikely(rcu_dereference_protected(*ptr, 1))) {
+		struct dma_fence *old;
+
+		rcu_read_lock();
+		old = dma_fence_get_rcu_safe(ptr);
+		rcu_read_unlock();
+
+		if (old) {
+			r = dma_fence_wait(old, false);
+			dma_fence_put(old);
+			if (r)
+				return r;
+		}
+	}
+
 	/* This function can't be called concurrently anyway, otherwise
 	 * emitting the fence would mess up the hardware ring buffer.
 	 */
-	old = rcu_dereference_protected(*ptr, 1);
-	if (old && !dma_fence_is_signaled(old)) {
-		DRM_INFO("rcu slot is busy\n");
-		dma_fence_wait(old, false);
-	}
-
 	rcu_assign_pointer(*ptr, dma_fence_get(&fence->base));
 
 	*f = &fence->base;
@@ -417,8 +429,12 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 				  unsigned num_hw_submission)
 {
+	struct amdgpu_device *adev = ring->adev;
 	long timeout;
 	int r;
+
+	if (!adev)
+		return -EINVAL;
 
 	/* Check that num_hw_submission is a power of two */
 	if ((num_hw_submission & (num_hw_submission - 1)) != 0)
@@ -441,12 +457,31 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 
 	/* No need to setup the GPU scheduler for KIQ ring */
 	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ) {
-		/* for non-sriov case, no timeout enforce on compute ring */
-		if ((ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE)
-				&& !amdgpu_sriov_vf(ring->adev))
-			timeout = MAX_SCHEDULE_TIMEOUT;
-		else
-			timeout = msecs_to_jiffies(amdgpu_lockup_timeout);
+		switch (ring->funcs->type) {
+		case AMDGPU_RING_TYPE_GFX:
+			timeout = adev->gfx_timeout;
+			break;
+		case AMDGPU_RING_TYPE_COMPUTE:
+			/*
+			 * For non-sriov case, no timeout enforce
+			 * on compute ring by default. Unless user
+			 * specifies a timeout for compute ring.
+			 *
+			 * For sriov case, always use the timeout
+			 * as gfx ring
+			 */
+			if (!amdgpu_sriov_vf(ring->adev))
+				timeout = adev->compute_timeout;
+			else
+				timeout = adev->gfx_timeout;
+			break;
+		case AMDGPU_RING_TYPE_SDMA:
+			timeout = adev->sdma_timeout;
+			break;
+		default:
+			timeout = adev->video_timeout;
+			break;
+		}
 
 		r = drm_sched_init(&ring->sched, &amdgpu_sched_ops,
 				   num_hw_submission, amdgpu_job_hang_limit,
@@ -674,22 +709,30 @@ static int amdgpu_debugfs_fence_info(struct seq_file *m, void *data)
 		amdgpu_fence_process(ring);
 
 		seq_printf(m, "--- ring %d (%s) ---\n", i, ring->name);
-		seq_printf(m, "Last signaled fence 0x%08x\n",
+		seq_printf(m, "Last signaled fence          0x%08x\n",
 			   atomic_read(&ring->fence_drv.last_seq));
-		seq_printf(m, "Last emitted        0x%08x\n",
+		seq_printf(m, "Last emitted                 0x%08x\n",
 			   ring->fence_drv.sync_seq);
+
+		if (ring->funcs->type == AMDGPU_RING_TYPE_GFX ||
+		    ring->funcs->type == AMDGPU_RING_TYPE_SDMA) {
+			seq_printf(m, "Last signaled trailing fence 0x%08x\n",
+				   le32_to_cpu(*ring->trail_fence_cpu_addr));
+			seq_printf(m, "Last emitted                 0x%08x\n",
+				   ring->trail_seq);
+		}
 
 		if (ring->funcs->type != AMDGPU_RING_TYPE_GFX)
 			continue;
 
 		/* set in CP_VMID_PREEMPT and preemption occurred */
-		seq_printf(m, "Last preempted      0x%08x\n",
+		seq_printf(m, "Last preempted               0x%08x\n",
 			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 2)));
 		/* set in CP_VMID_RESET and reset occurred */
-		seq_printf(m, "Last reset          0x%08x\n",
+		seq_printf(m, "Last reset                   0x%08x\n",
 			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 4)));
 		/* Both preemption and reset occurred */
-		seq_printf(m, "Last both           0x%08x\n",
+		seq_printf(m, "Last both                    0x%08x\n",
 			   le32_to_cpu(*(ring->fence_drv.cpu_addr + 6)));
 	}
 	return 0;

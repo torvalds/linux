@@ -1,22 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  The driver for the Cirrus Logic's Sound Fusion CS46XX based soundcards
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #ifndef __CS46XX_DSP_SPOS_H__
@@ -177,22 +162,16 @@ struct dsp_spos_instance {
 	/* proc fs */  
 	struct snd_card *snd_card;
 	struct snd_info_entry * proc_dsp_dir;
-	struct snd_info_entry * proc_sym_info_entry;
-	struct snd_info_entry * proc_modules_info_entry;
-	struct snd_info_entry * proc_parameter_dump_info_entry;
-	struct snd_info_entry * proc_sample_dump_info_entry;
 
 	/* SCB's descriptors */
 	int nscb;
 	int scb_highest_frag_index;
 	struct dsp_scb_descriptor scbs[DSP_MAX_SCB_DESC];
-	struct snd_info_entry * proc_scb_info_entry;
 	struct dsp_scb_descriptor * the_null_scb;
 
 	/* Task's descriptors */
 	int ntask;
 	struct dsp_task_descriptor tasks[DSP_MAX_TASK_DESC];
-	struct snd_info_entry * proc_task_info_entry;
 
 	/* SPDIF status */
 	int spdif_status_out;

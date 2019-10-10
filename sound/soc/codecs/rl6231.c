@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rl6231.c - RL6231 class device shared support
  *
  * Copyright 2014 Realtek Semiconductor Corp.
  *
  * Author: Oder Chiou <oder_chiou@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

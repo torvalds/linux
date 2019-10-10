@@ -25,7 +25,7 @@ static void *mem_detect_alloc_extended(void)
 {
 	unsigned long offset = ALIGN(mem_safe_offset(), sizeof(u64));
 
-	if (IS_ENABLED(BLK_DEV_INITRD) && INITRD_START && INITRD_SIZE &&
+	if (IS_ENABLED(CONFIG_BLK_DEV_INITRD) && INITRD_START && INITRD_SIZE &&
 	    INITRD_START < offset + ENTRIES_EXTENDED_MAX)
 		offset = ALIGN(INITRD_START + INITRD_SIZE, sizeof(u64));
 
@@ -61,13 +61,6 @@ void add_mem_detect_block(u64 start, u64 end)
 	block->start = start;
 	block->end = end;
 	mem_detect.count++;
-}
-
-static unsigned long get_mem_detect_end(void)
-{
-	if (mem_detect.count)
-		return __get_mem_detect_block_ptr(mem_detect.count - 1)->end;
-	return 0;
 }
 
 static int __diag260(unsigned long rx1, unsigned long rx2)

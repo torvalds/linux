@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * blk-integrity.c - Block layer data integrity extensions
  *
  * Copyright (C) 2007, 2008 Oracle Corporation
  * Written by: Martin K. Petersen <martin.petersen@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
- * USA.
- *
  */
 
 #include <linux/blkdev.h>
@@ -365,6 +351,7 @@ static struct attribute *integrity_attrs[] = {
 	&integrity_device_entry.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(integrity);
 
 static const struct sysfs_ops integrity_ops = {
 	.show	= &integrity_attr_show,
@@ -372,7 +359,7 @@ static const struct sysfs_ops integrity_ops = {
 };
 
 static struct kobj_type integrity_ktype = {
-	.default_attrs	= integrity_attrs,
+	.default_groups = integrity_groups,
 	.sysfs_ops	= &integrity_ops,
 };
 
@@ -381,10 +368,21 @@ static blk_status_t blk_integrity_nop_fn(struct blk_integrity_iter *iter)
 	return BLK_STS_OK;
 }
 
+static void blk_integrity_nop_prepare(struct request *rq)
+{
+}
+
+static void blk_integrity_nop_complete(struct request *rq,
+		unsigned int nr_bytes)
+{
+}
+
 static const struct blk_integrity_profile nop_profile = {
 	.name = "nop",
 	.generate_fn = blk_integrity_nop_fn,
 	.verify_fn = blk_integrity_nop_fn,
+	.prepare_fn = blk_integrity_nop_prepare,
+	.complete_fn = blk_integrity_nop_complete,
 };
 
 /**
@@ -396,7 +394,7 @@ static const struct blk_integrity_profile nop_profile = {
  * send/receive integrity metadata it must use this function to register
  * the capability with the block layer. The template is a blk_integrity
  * struct with values appropriate for the underlying hardware. See
- * Documentation/block/data-integrity.txt.
+ * Documentation/block/data-integrity.rst.
  */
 void blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 {

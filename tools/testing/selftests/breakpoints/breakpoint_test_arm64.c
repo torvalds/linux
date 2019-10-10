@@ -1,20 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Original Code by Pavel Labath <labath@google.com>
  *
  * Code modified by Pratyush Anand <panand@redhat.com>
  * for testing different byte select for each access size.
- *
  */
 
 #define _GNU_SOURCE
@@ -118,7 +109,7 @@ static bool set_watchpoint(pid_t pid, int size, int wp)
 	return false;
 }
 
-static bool run_test(int wr_size, int wp_size, int wr, int wp)
+static bool arun_test(int wr_size, int wp_size, int wr, int wp)
 {
 	int status;
 	siginfo_t siginfo;
@@ -214,6 +205,7 @@ int main(int argc, char **argv)
 	bool result;
 
 	ksft_print_header();
+	ksft_set_plan(213);
 
 	act.sa_handler = sigalrm;
 	sigemptyset(&act.sa_mask);

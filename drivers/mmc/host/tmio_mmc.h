@@ -4,8 +4,8 @@
  *
  * TC6393XB TC6391XB TC6387XB T7L66XB ASIC3
  *
- * Copyright (C) 2015-17 Renesas Electronics Corporation
- * Copyright (C) 2016-17 Sang Engineering, Wolfram Sang
+ * Copyright (C) 2015-19 Renesas Electronics Corporation
+ * Copyright (C) 2016-19 Sang Engineering, Wolfram Sang
  * Copyright (C) 2016-17 Horms Solutions, Simon Horman
  * Copyright (C) 2007 Ian Molton
  * Copyright (C) 2004 Ian Molton
@@ -105,6 +105,8 @@
 		TMIO_STAT_CARD_REMOVE | TMIO_STAT_CARD_INSERT)
 #define TMIO_MASK_IRQ     (TMIO_MASK_READOP | TMIO_MASK_WRITEOP | TMIO_MASK_CMD)
 
+#define TMIO_MAX_BLK_SIZE 512
+
 struct tmio_mmc_data;
 struct tmio_mmc_host;
 
@@ -161,6 +163,7 @@ struct tmio_mmc_host {
 	unsigned long		last_req_ts;
 	struct mutex		ios_lock;	/* protect set_ios() context */
 	bool			native_hotplug;
+	bool			runtime_synced;
 	bool			sdio_irq_enabled;
 
 	/* Mandatory callback */

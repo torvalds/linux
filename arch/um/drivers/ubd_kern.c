@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2018 Cambridge Greys Ltd
  * Copyright (C) 2015-2016 Anton Ivanov (aivanov@brocade.com)
  * Copyright (C) 2000 Jeff Dike (jdike@karaya.com)
- * Licensed under the GPL
  */
 
 /* 2001-09-28...2002-04-17
@@ -276,14 +276,14 @@ static int ubd_setup_common(char *str, int *index_out, char **error_out)
 		str++;
 		if(!strcmp(str, "sync")){
 			global_openflags = of_sync(global_openflags);
-			goto out1;
+			return err;
 		}
 
 		err = -EINVAL;
 		major = simple_strtoul(str, &end, 0);
 		if((*end != '\0') || (end == str)){
 			*error_out = "Didn't parse major number";
-			goto out1;
+			return err;
 		}
 
 		mutex_lock(&ubd_lock);
@@ -938,7 +938,7 @@ static int ubd_add(int n, char **error_out)
 	ubd_dev->queue = blk_mq_init_queue(&ubd_dev->tag_set);
 	if (IS_ERR(ubd_dev->queue)) {
 		err = PTR_ERR(ubd_dev->queue);
-		goto out_cleanup;
+		goto out_cleanup_tags;
 	}
 
 	ubd_dev->queue->queuedata = ubd_dev;
@@ -968,8 +968,8 @@ out:
 
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
-out_cleanup:
-	blk_cleanup_queue(ubd_dev->queue);
+	if (!(IS_ERR(ubd_dev->queue)))
+		blk_cleanup_queue(ubd_dev->queue);
 	goto out;
 }
 

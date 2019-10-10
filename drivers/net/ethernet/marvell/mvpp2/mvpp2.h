@@ -14,6 +14,7 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
+#include <net/flow_offload.h>
 
 /* Fifo Registers */
 #define MVPP2_RX_DATA_FIFO_SIZE_REG(port)	(0x00 + 4 * (port))
@@ -101,6 +102,7 @@
 #define MVPP2_CLS_FLOW_TBL1_REG			0x1828
 #define     MVPP2_CLS_FLOW_TBL1_N_FIELDS_MASK	0x7
 #define     MVPP2_CLS_FLOW_TBL1_N_FIELDS(x)	(x)
+#define     MVPP2_CLS_FLOW_TBL1_LU_TYPE(lu)	(((lu) & 0x3f) << 3)
 #define     MVPP2_CLS_FLOW_TBL1_PRIO_MASK	0x3f
 #define     MVPP2_CLS_FLOW_TBL1_PRIO(x)		((x) << 9)
 #define     MVPP2_CLS_FLOW_TBL1_SEQ_MASK	0x7
@@ -123,13 +125,18 @@
 #define MVPP22_CLS_C2_TCAM_DATA2		0x1b18
 #define MVPP22_CLS_C2_TCAM_DATA3		0x1b1c
 #define MVPP22_CLS_C2_TCAM_DATA4		0x1b20
+#define     MVPP22_CLS_C2_LU_TYPE(lu)		((lu) & 0x3f)
 #define     MVPP22_CLS_C2_PORT_ID(port)		((port) << 8)
+#define     MVPP22_CLS_C2_PORT_MASK		(0xff << 8)
+#define MVPP22_CLS_C2_TCAM_INV			0x1b24
+#define     MVPP22_CLS_C2_TCAM_INV_BIT		BIT(31)
 #define MVPP22_CLS_C2_HIT_CTR			0x1b50
 #define MVPP22_CLS_C2_ACT			0x1b60
 #define     MVPP22_CLS_C2_ACT_RSS_EN(act)	(((act) & 0x3) << 19)
 #define     MVPP22_CLS_C2_ACT_FWD(act)		(((act) & 0x7) << 13)
 #define     MVPP22_CLS_C2_ACT_QHIGH(act)	(((act) & 0x3) << 11)
 #define     MVPP22_CLS_C2_ACT_QLOW(act)		(((act) & 0x3) << 9)
+#define     MVPP22_CLS_C2_ACT_COLOR(act)	((act) & 0x7)
 #define MVPP22_CLS_C2_ATTR0			0x1b64
 #define     MVPP22_CLS_C2_ATTR0_QHIGH(qh)	(((qh) & 0x1f) << 24)
 #define     MVPP22_CLS_C2_ATTR0_QHIGH_MASK	0x1f
@@ -141,6 +148,8 @@
 #define MVPP22_CLS_C2_ATTR2			0x1b6c
 #define     MVPP22_CLS_C2_ATTR2_RSS_EN		BIT(30)
 #define MVPP22_CLS_C2_ATTR3			0x1b70
+#define MVPP22_CLS_C2_TCAM_CTRL			0x1b90
+#define     MVPP22_CLS_C2_TCAM_BYPASS_FIFO	BIT(0)
 
 /* Descriptor Manager Top Registers */
 #define MVPP2_RXQ_NUM_REG			0x2040
@@ -320,8 +329,26 @@
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_MASK	0xff00
 #define     MVPP22_BM_ADDR_HIGH_VIRT_RLS_SHIFT	8
 
+/* Packet Processor per-port counters */
+#define MVPP2_OVERRUN_ETH_DROP			0x7000
+#define MVPP2_CLS_ETH_DROP			0x7020
+
 /* Hit counters registers */
 #define MVPP2_CTRS_IDX				0x7040
+#define     MVPP22_CTRS_TX_CTR(port, txq)	((txq) | ((port) << 3) | BIT(7))
+#define MVPP2_TX_DESC_ENQ_CTR			0x7100
+#define MVPP2_TX_DESC_ENQ_TO_DDR_CTR		0x7104
+#define MVPP2_TX_BUFF_ENQ_TO_DDR_CTR		0x7108
+#define MVPP2_TX_DESC_ENQ_HW_FWD_CTR		0x710c
+#define MVPP2_RX_DESC_ENQ_CTR			0x7120
+#define MVPP2_TX_PKTS_DEQ_CTR			0x7130
+#define MVPP2_TX_PKTS_FULL_QUEUE_DROP_CTR	0x7200
+#define MVPP2_TX_PKTS_EARLY_DROP_CTR		0x7204
+#define MVPP2_TX_PKTS_BM_DROP_CTR		0x7208
+#define MVPP2_TX_PKTS_BM_MC_DROP_CTR		0x720c
+#define MVPP2_RX_PKTS_FULL_QUEUE_DROP_CTR	0x7220
+#define MVPP2_RX_PKTS_EARLY_DROP_CTR		0x7224
+#define MVPP2_RX_PKTS_BM_DROP_CTR		0x7228
 #define MVPP2_CLS_DEC_TBL_HIT_CTR		0x7700
 #define MVPP2_CLS_FLOW_TBL_HIT_CTR		0x7704
 
@@ -610,7 +637,14 @@
 #define MVPP2_BIT_TO_WORD(bit)		((bit) / 32)
 #define MVPP2_BIT_IN_WORD(bit)		((bit) % 32)
 
+#define MVPP2_N_PRS_FLOWS		52
+#define MVPP2_N_RFS_ENTRIES_PER_FLOW	4
+
+/* There are 7 supported high-level flows */
+#define MVPP2_N_RFS_RULES		(MVPP2_N_RFS_ENTRIES_PER_FLOW * 7)
+
 /* RSS constants */
+#define MVPP22_N_RSS_TABLES		8
 #define MVPP22_RSS_TABLE_ENTRIES	32
 
 /* IPv6 max L3 address size */
@@ -649,6 +683,7 @@ enum mvpp2_prs_l3_cast {
 #define MVPP2_BM_SHORT_BUF_NUM		2048
 #define MVPP2_BM_POOL_SIZE_MAX		(16*1024 - MVPP2_BM_POOL_PTR_ALIGN/4)
 #define MVPP2_BM_POOL_PTR_ALIGN		128
+#define MVPP2_BM_MAX_POOLS		8
 
 /* BM cookie (32 bits) definition */
 #define MVPP2_BM_COOKIE_POOL_OFFS	8
@@ -710,6 +745,11 @@ enum mvpp2_prs_l3_cast {
 #define MVPP2_DESC_DMA_MASK	DMA_BIT_MASK(40)
 
 /* Definitions */
+struct mvpp2_dbgfs_entries;
+
+struct mvpp2_rss_table {
+	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
+};
 
 /* Shared Packet Processor resources */
 struct mvpp2 {
@@ -748,6 +788,9 @@ struct mvpp2 {
 	/* Aggregated TXQs */
 	struct mvpp2_tx_queue *aggr_txqs;
 
+	/* Are we using page_pool with per-cpu pools? */
+	int percpu_pools;
+
 	/* BM pools */
 	struct mvpp2_bm_pool *bm_pools;
 
@@ -771,6 +814,12 @@ struct mvpp2 {
 
 	/* Debugfs root entry */
 	struct dentry *dbgfs_dir;
+
+	/* Debugfs entries private data */
+	struct mvpp2_dbgfs_entries *dbgfs_entries;
+
+	/* RSS Indirection tables */
+	struct mvpp2_rss_table *rss_tables[MVPP22_N_RSS_TABLES];
 };
 
 struct mvpp2_pcpu_stats {
@@ -784,9 +833,8 @@ struct mvpp2_pcpu_stats {
 /* Per-CPU port control */
 struct mvpp2_port_pcpu {
 	struct hrtimer tx_done_timer;
+	struct net_device *dev;
 	bool timer_scheduled;
-	/* Tasklet for egress finalization */
-	struct tasklet_struct tx_done_tasklet;
 };
 
 struct mvpp2_queue_vector {
@@ -800,6 +848,37 @@ struct mvpp2_queue_vector {
 	u32 pending_cause_rx;
 	struct mvpp2_port *port;
 	struct cpumask *mask;
+};
+
+/* Internal represention of a Flow Steering rule */
+struct mvpp2_rfs_rule {
+	/* Rule location inside the flow*/
+	int loc;
+
+	/* Flow type, such as TCP_V4_FLOW, IP6_FLOW, etc. */
+	int flow_type;
+
+	/* Index of the C2 TCAM entry handling this rule */
+	int c2_index;
+
+	/* Header fields that needs to be extracted to match this flow */
+	u16 hek_fields;
+
+	/* CLS engine : only c2 is supported for now. */
+	u8 engine;
+
+	/* TCAM key and mask for C2-based steering. These fields should be
+	 * encapsulated in a union should we add more engines.
+	 */
+	u64 c2_tcam;
+	u64 c2_tcam_mask;
+
+	struct flow_rule *flow;
+};
+
+struct mvpp2_ethtool_fs {
+	struct mvpp2_rfs_rule rule;
+	struct ethtool_rxnfc rxnfc;
 };
 
 struct mvpp2_port {
@@ -857,6 +936,7 @@ struct mvpp2_port {
 
 	phy_interface_t phy_interface;
 	struct phylink *phylink;
+	struct phylink_config phylink_config;
 	struct phy *comphy;
 
 	struct mvpp2_bm_pool *pool_long;
@@ -871,8 +951,14 @@ struct mvpp2_port {
 
 	u32 tx_time_coal;
 
-	/* RSS indirection table */
-	u32 indir[MVPP22_RSS_TABLE_ENTRIES];
+	/* List of steering rules active on that port */
+	struct mvpp2_ethtool_fs *rfs_rules[MVPP2_N_RFS_ENTRIES_PER_FLOW];
+	int n_rfs_rules;
+
+	/* Each port has its own view of the rss contexts, so that it can number
+	 * them from 0
+	 */
+	int rss_ctx[MVPP22_N_RSS_TABLES];
 };
 
 /* The mvpp2_tx_desc and mvpp2_rx_desc structures describe the

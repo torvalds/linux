@@ -11,8 +11,6 @@
 #include <asm/mmu.h>			/* For sub-arch specific PPC_PIN_SIZE */
 #include <asm/asm-405.h>
 
-extern unsigned long ioremap_bot;
-
 #ifdef CONFIG_44x
 extern int icache_44x_need_flush;
 #endif
@@ -64,27 +62,34 @@ extern int icache_44x_need_flush;
 #define pgd_ERROR(e) \
 	pr_err("%s:%d: bad pgd %08lx.\n", __FILE__, __LINE__, pgd_val(e))
 
+#ifndef __ASSEMBLY__
+
+int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
+
+#endif /* !__ASSEMBLY__ */
+
+
 /*
  * This is the bottom of the PKMAP area with HIGHMEM or an arbitrary
  * value (for now) on others, from where we can start layout kernel
  * virtual space that goes below PKMAP and FIXMAP
  */
-#ifdef CONFIG_HIGHMEM
-#define KVIRT_TOP	PKMAP_BASE
-#else
-#define KVIRT_TOP	(0xfe000000UL)	/* for now, could be FIXMAP_BASE ? */
-#endif
+#include <asm/fixmap.h>
 
 /*
  * ioremap_bot starts at that address. Early ioremaps move down from there,
  * until mem_init() at which point this becomes the top of the vmalloc
  * and ioremap space
  */
-#ifdef CONFIG_NOT_COHERENT_CACHE
-#define IOREMAP_TOP	((KVIRT_TOP - CONFIG_CONSISTENT_SIZE) & PAGE_MASK)
+#ifdef CONFIG_HIGHMEM
+#define IOREMAP_TOP	PKMAP_BASE
 #else
-#define IOREMAP_TOP	KVIRT_TOP
+#define IOREMAP_TOP	FIXADDR_START
 #endif
+
+/* PPC32 shares vmalloc area with ioremap */
+#define IOREMAP_START	VMALLOC_START
+#define IOREMAP_END	VMALLOC_END
 
 /*
  * Just any arbitrary offset to the start of the vmalloc VM area: the
@@ -378,8 +383,6 @@ static inline int pte_young(pte_t pte)
 #define __swp_entry(type, offset)	((swp_entry_t) { (type) | ((offset) << 5) })
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) >> 3 })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val << 3 })
-
-int map_kernel_page(unsigned long va, phys_addr_t pa, pgprot_t prot);
 
 #endif /* !__ASSEMBLY__ */
 

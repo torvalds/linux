@@ -282,6 +282,7 @@ enum {
 	HCI_FORCE_BREDR_SMP,
 	HCI_FORCE_STATIC_ADDR,
 	HCI_LL_RPA_RESOLUTION,
+	HCI_CMD_PENDING,
 
 	__HCI_NUM_FLAGS,
 };
@@ -1140,6 +1141,26 @@ struct hci_rp_read_sc_support {
 #define HCI_OP_WRITE_SC_SUPPORT		0x0c7a
 struct hci_cp_write_sc_support {
 	__u8	support;
+} __packed;
+
+#define HCI_OP_READ_AUTH_PAYLOAD_TO    0x0c7b
+struct hci_cp_read_auth_payload_to {
+	__le16  handle;
+} __packed;
+struct hci_rp_read_auth_payload_to {
+	__u8    status;
+	__le16  handle;
+	__le16  timeout;
+} __packed;
+
+#define HCI_OP_WRITE_AUTH_PAYLOAD_TO    0x0c7c
+struct hci_cp_write_auth_payload_to {
+	__le16  handle;
+	__le16  timeout;
+} __packed;
+struct hci_rp_write_auth_payload_to {
+	__u8    status;
+	__le16  handle;
 } __packed;
 
 #define HCI_OP_READ_LOCAL_OOB_EXT_DATA	0x0c7d

@@ -25,10 +25,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
-#include <drm/virtgpu_drm.h>
-#include <drm/ttm/ttm_execbuf_util.h>
+#include <linux/file.h>
 #include <linux/sync_file.h>
+
+#include <drm/drm_file.h>
+#include <drm/ttm/ttm_execbuf_util.h>
+#include <drm/virtgpu_drm.h>
 
 #include "virtgpu_drv.h"
 
@@ -54,8 +56,8 @@ static int virtio_gpu_map_ioctl(struct drm_device *dev, void *data,
 					 &virtio_gpu_map->offset);
 }
 
-static int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
-					   struct list_head *head)
+int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
+				    struct list_head *head)
 {
 	struct ttm_operation_ctx ctx = { false, false };
 	struct ttm_validate_buffer *buf;
@@ -63,7 +65,7 @@ static int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 	struct virtio_gpu_object *qobj;
 	int ret;
 
-	ret = ttm_eu_reserve_buffers(ticket, head, true, NULL);
+	ret = ttm_eu_reserve_buffers(ticket, head, true, NULL, true);
 	if (ret != 0)
 		return ret;
 
@@ -79,7 +81,7 @@ static int virtio_gpu_object_list_validate(struct ww_acquire_ctx *ticket,
 	return 0;
 }
 
-static void virtio_gpu_unref_list(struct list_head *head)
+void virtio_gpu_unref_list(struct list_head *head)
 {
 	struct ttm_validate_buffer *buf;
 	struct ttm_buffer_object *bo;
@@ -168,7 +170,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 			goto out_unused_fd;
 		}
 
-		user_bo_handles = (void __user *)(uintptr_t)exbuf->bo_handles;
+		user_bo_handles = u64_to_user_ptr(exbuf->bo_handles);
 		if (copy_from_user(bo_handles, user_bo_handles,
 				   exbuf->num_bo_handles * sizeof(uint32_t))) {
 			ret = -EFAULT;
@@ -195,8 +197,7 @@ static int virtio_gpu_execbuffer_ioctl(struct drm_device *dev, void *data,
 	if (ret)
 		goto out_free;
 
-	buf = memdup_user((void __user *)(uintptr_t)exbuf->command,
-			  exbuf->size);
+	buf = memdup_user(u64_to_user_ptr(exbuf->command), exbuf->size);
 	if (IS_ERR(buf)) {
 		ret = PTR_ERR(buf);
 		goto out_unresv;
@@ -263,10 +264,9 @@ static int virtio_gpu_getparam_ioctl(struct drm_device *dev, void *data,
 	default:
 		return -EINVAL;
 	}
-	if (copy_to_user((void __user *)(unsigned long)param->value,
-			 &value, sizeof(int))) {
+	if (copy_to_user(u64_to_user_ptr(param->value), &value, sizeof(int)))
 		return -EFAULT;
-	}
+
 	return 0;
 }
 
@@ -275,16 +275,12 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 {
 	struct virtio_gpu_device *vgdev = dev->dev_private;
 	struct drm_virtgpu_resource_create *rc = data;
+	struct virtio_gpu_fence *fence;
 	int ret;
 	struct virtio_gpu_object *qobj;
 	struct drm_gem_object *obj;
 	uint32_t handle = 0;
-	uint32_t size;
-	struct list_head validate_list;
-	struct ttm_validate_buffer mainbuf;
-	struct virtio_gpu_fence *fence = NULL;
-	struct ww_acquire_ctx ticket;
-	struct virtio_gpu_resource_create_3d rc_3d;
+	struct virtio_gpu_object_params params = { 0 };
 
 	if (vgdev->has_virgl_3d == false) {
 		if (rc->depth > 1)
@@ -299,94 +295,43 @@ static int virtio_gpu_resource_create_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 	}
 
-	INIT_LIST_HEAD(&validate_list);
-	memset(&mainbuf, 0, sizeof(struct ttm_validate_buffer));
-
-	size = rc->size;
-
+	params.format = rc->format;
+	params.width = rc->width;
+	params.height = rc->height;
+	params.size = rc->size;
+	if (vgdev->has_virgl_3d) {
+		params.virgl = true;
+		params.target = rc->target;
+		params.bind = rc->bind;
+		params.depth = rc->depth;
+		params.array_size = rc->array_size;
+		params.last_level = rc->last_level;
+		params.nr_samples = rc->nr_samples;
+		params.flags = rc->flags;
+	}
 	/* allocate a single page size object */
-	if (size == 0)
-		size = PAGE_SIZE;
+	if (params.size == 0)
+		params.size = PAGE_SIZE;
 
-	qobj = virtio_gpu_alloc_object(dev, size, false, false);
+	fence = virtio_gpu_fence_alloc(vgdev);
+	if (!fence)
+		return -ENOMEM;
+	qobj = virtio_gpu_alloc_object(dev, &params, fence);
+	dma_fence_put(&fence->f);
 	if (IS_ERR(qobj))
 		return PTR_ERR(qobj);
 	obj = &qobj->gem_base;
 
-	if (!vgdev->has_virgl_3d) {
-		virtio_gpu_cmd_create_resource(vgdev, qobj, rc->format,
-					       rc->width, rc->height);
-
-		ret = virtio_gpu_object_attach(vgdev, qobj, NULL);
-	} else {
-		/* use a gem reference since unref list undoes them */
-		drm_gem_object_get(&qobj->gem_base);
-		mainbuf.bo = &qobj->tbo;
-		list_add(&mainbuf.head, &validate_list);
-
-		ret = virtio_gpu_object_list_validate(&ticket, &validate_list);
-		if (ret) {
-			DRM_DEBUG("failed to validate\n");
-			goto fail_unref;
-		}
-
-		rc_3d.resource_id = cpu_to_le32(qobj->hw_res_handle);
-		rc_3d.target = cpu_to_le32(rc->target);
-		rc_3d.format = cpu_to_le32(rc->format);
-		rc_3d.bind = cpu_to_le32(rc->bind);
-		rc_3d.width = cpu_to_le32(rc->width);
-		rc_3d.height = cpu_to_le32(rc->height);
-		rc_3d.depth = cpu_to_le32(rc->depth);
-		rc_3d.array_size = cpu_to_le32(rc->array_size);
-		rc_3d.last_level = cpu_to_le32(rc->last_level);
-		rc_3d.nr_samples = cpu_to_le32(rc->nr_samples);
-		rc_3d.flags = cpu_to_le32(rc->flags);
-
-		fence = virtio_gpu_fence_alloc(vgdev);
-		if (!fence) {
-			ret = -ENOMEM;
-			goto fail_backoff;
-		}
-
-		virtio_gpu_cmd_resource_create_3d(vgdev, qobj, &rc_3d);
-		ret = virtio_gpu_object_attach(vgdev, qobj, fence);
-		if (ret) {
-			virtio_gpu_fence_cleanup(fence);
-			goto fail_backoff;
-		}
-		ttm_eu_fence_buffer_objects(&ticket, &validate_list, &fence->f);
-	}
-
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
 	if (ret) {
-
 		drm_gem_object_release(obj);
-		if (vgdev->has_virgl_3d) {
-			virtio_gpu_unref_list(&validate_list);
-			dma_fence_put(&fence->f);
-		}
 		return ret;
 	}
 	drm_gem_object_put_unlocked(obj);
 
 	rc->res_handle = qobj->hw_res_handle; /* similiar to a VM address */
 	rc->bo_handle = handle;
-
-	if (vgdev->has_virgl_3d) {
-		virtio_gpu_unref_list(&validate_list);
-		dma_fence_put(&fence->f);
-	}
 	return 0;
-fail_backoff:
-	ttm_eu_backoff_reservation(&ticket, &validate_list);
-fail_unref:
-	if (vgdev->has_virgl_3d) {
-		virtio_gpu_unref_list(&validate_list);
-		dma_fence_put(&fence->f);
-	}
-//fail_obj:
-//	drm_gem_object_handle_unreference_unlocked(obj);
-	return ret;
 }
 
 static int virtio_gpu_resource_info_ioctl(struct drm_device *dev, void *data,
@@ -451,7 +396,7 @@ static int virtio_gpu_transfer_from_host_ioctl(struct drm_device *dev,
 		(vgdev, qobj->hw_res_handle,
 		 vfpriv->ctx_id, offset, args->level,
 		 &box, fence);
-	reservation_object_add_excl_fence(qobj->tbo.resv,
+	dma_resv_add_excl_fence(qobj->tbo.base.resv,
 					  &fence->f);
 
 	dma_fence_put(&fence->f);
@@ -505,7 +450,7 @@ static int virtio_gpu_transfer_to_host_ioctl(struct drm_device *dev, void *data,
 			(vgdev, qobj,
 			 vfpriv ? vfpriv->ctx_id : 0, offset,
 			 args->level, &box, fence);
-		reservation_object_add_excl_fence(qobj->tbo.resv,
+		dma_resv_add_excl_fence(qobj->tbo.base.resv,
 						  &fence->f);
 		dma_fence_put(&fence->f);
 	}
@@ -581,7 +526,6 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	list_for_each_entry(cache_ent, &vgdev->cap_cache, head) {
 		if (cache_ent->id == args->cap_set_id &&
 		    cache_ent->version == args->cap_set_ver) {
-			ptr = cache_ent->caps_cache;
 			spin_unlock(&vgdev->display_info_lock);
 			goto copy_exit;
 		}
@@ -592,15 +536,18 @@ static int virtio_gpu_get_caps_ioctl(struct drm_device *dev,
 	virtio_gpu_cmd_get_capset(vgdev, found_valid, args->cap_set_ver,
 				  &cache_ent);
 
+copy_exit:
 	ret = wait_event_timeout(vgdev->resp_wq,
 				 atomic_read(&cache_ent->is_valid), 5 * HZ);
 	if (!ret)
 		return -EBUSY;
 
+	/* is_valid check must proceed before copy of the cache entry. */
+	smp_rmb();
+
 	ptr = cache_ent->caps_cache;
 
-copy_exit:
-	if (copy_to_user((void __user *)(unsigned long)args->addr, ptr, size))
+	if (copy_to_user(u64_to_user_ptr(args->addr), ptr, size))
 		return -EFAULT;
 
 	return 0;
@@ -608,34 +555,34 @@ copy_exit:
 
 struct drm_ioctl_desc virtio_gpu_ioctls[DRM_VIRTIO_NUM_IOCTLS] = {
 	DRM_IOCTL_DEF_DRV(VIRTGPU_MAP, virtio_gpu_map_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_EXECBUFFER, virtio_gpu_execbuffer_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_GETPARAM, virtio_gpu_getparam_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_RESOURCE_CREATE,
 			  virtio_gpu_resource_create_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_RESOURCE_INFO, virtio_gpu_resource_info_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 
 	/* make transfer async to the main ring? - no sure, can we
 	 * thread these in the underlying GL
 	 */
 	DRM_IOCTL_DEF_DRV(VIRTGPU_TRANSFER_FROM_HOST,
 			  virtio_gpu_transfer_from_host_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(VIRTGPU_TRANSFER_TO_HOST,
 			  virtio_gpu_transfer_to_host_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_WAIT, virtio_gpu_wait_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 
 	DRM_IOCTL_DEF_DRV(VIRTGPU_GET_CAPS, virtio_gpu_get_caps_ioctl,
-			  DRM_AUTH | DRM_UNLOCKED | DRM_RENDER_ALLOW),
+			  DRM_RENDER_ALLOW),
 };

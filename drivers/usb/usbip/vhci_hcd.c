@@ -508,6 +508,7 @@ static int vhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		case USB_PORT_FEAT_U1_TIMEOUT:
 			usbip_dbg_vhci_rh(
 				" SetPortFeature: USB_PORT_FEAT_U1_TIMEOUT\n");
+			/* Fall through */
 		case USB_PORT_FEAT_U2_TIMEOUT:
 			usbip_dbg_vhci_rh(
 				" SetPortFeature: USB_PORT_FEAT_U2_TIMEOUT\n");
@@ -654,14 +655,8 @@ error:
 static void vhci_tx_urb(struct urb *urb, struct vhci_device *vdev)
 {
 	struct vhci_priv *priv;
-	struct vhci_hcd *vhci_hcd;
+	struct vhci_hcd *vhci_hcd = vdev_to_vhci_hcd(vdev);
 	unsigned long flags;
-
-	if (!vdev) {
-		pr_err("could not get virtual device");
-		return;
-	}
-	vhci_hcd = vdev_to_vhci_hcd(vdev);
 
 	priv = kzalloc(sizeof(struct vhci_priv), GFP_ATOMIC);
 	if (!priv) {
@@ -702,8 +697,11 @@ static int vhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flag
 	}
 	vdev = &vhci_hcd->vdev[portnum-1];
 
-	/* patch to usb_sg_init() is in 2.5.60 */
-	BUG_ON(!urb->transfer_buffer && urb->transfer_buffer_length);
+	if (!urb->transfer_buffer && !urb->num_sgs &&
+	     urb->transfer_buffer_length) {
+		dev_dbg(dev, "Null URB transfer buffer\n");
+		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&vhci->lock, flags);
 
@@ -1146,6 +1144,15 @@ static int vhci_setup(struct usb_hcd *hcd)
 		hcd->speed = HCD_USB3;
 		hcd->self.root_hub->speed = USB_SPEED_SUPER;
 	}
+
+	/*
+	 * Support SG.
+	 * sg_tablesize is an arbitrary value to alleviate memory pressure
+	 * on the host.
+	 */
+	hcd->self.sg_tablesize = 32;
+	hcd->self.no_sg_constraint = 1;
+
 	return 0;
 }
 

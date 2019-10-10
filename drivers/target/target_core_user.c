@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Shaohua Li <shli@kernel.org>
  * Copyright (C) 2014 Red Hat, Inc.
  * Copyright (C) 2015 Arrikto, Inc.
  * Copyright (C) 2017 Chinamobile, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include <linux/spinlock.h>
@@ -441,26 +429,26 @@ static int tcmu_genl_set_features(struct sk_buff *skb, struct genl_info *info)
 static const struct genl_ops tcmu_genl_ops[] = {
 	{
 		.cmd	= TCMU_CMD_SET_FEATURES,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_set_features,
 	},
 	{
 		.cmd	= TCMU_CMD_ADDED_DEVICE_DONE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_add_dev_done,
 	},
 	{
 		.cmd	= TCMU_CMD_REMOVED_DEVICE_DONE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_rm_dev_done,
 	},
 	{
 		.cmd	= TCMU_CMD_RECONFIG_DEVICE_DONE,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags	= GENL_ADMIN_PERM,
-		.policy	= tcmu_attr_policy,
 		.doit	= tcmu_genl_reconfig_dev_done,
 	},
 };
@@ -472,6 +460,7 @@ static struct genl_family tcmu_genl_family __ro_after_init = {
 	.name = "TCM-USER",
 	.version = 2,
 	.maxattr = TCMU_ATTR_MAX,
+	.policy = tcmu_attr_policy,
 	.mcgrps = tcmu_mcgrps,
 	.n_mcgrps = ARRAY_SIZE(tcmu_mcgrps),
 	.netnsok = true,
@@ -1143,14 +1132,16 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 	struct se_cmd *se_cmd = cmd->se_cmd;
 	struct tcmu_dev *udev = cmd->tcmu_dev;
 	bool read_len_valid = false;
-	uint32_t read_len = se_cmd->data_length;
+	uint32_t read_len;
 
 	/*
 	 * cmd has been completed already from timeout, just reclaim
 	 * data area space and free cmd
 	 */
-	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags))
+	if (test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
+		WARN_ON_ONCE(se_cmd);
 		goto out;
+	}
 
 	list_del_init(&cmd->queue_entry);
 
@@ -1163,6 +1154,7 @@ static void tcmu_handle_completion(struct tcmu_cmd *cmd, struct tcmu_cmd_entry *
 		goto done;
 	}
 
+	read_len = se_cmd->data_length;
 	if (se_cmd->data_direction == DMA_FROM_DEVICE &&
 	    (entry->hdr.uflags & TCMU_UFLAG_READ_LEN) && entry->rsp.read_len) {
 		read_len_valid = true;
@@ -1318,6 +1310,7 @@ static int tcmu_check_expired_cmd(int id, void *p, void *data)
 		 */
 		scsi_status = SAM_STAT_CHECK_CONDITION;
 		list_del_init(&cmd->queue_entry);
+		cmd->se_cmd = NULL;
 	} else {
 		list_del_init(&cmd->queue_entry);
 		idr_remove(&udev->commands, id);
@@ -1663,7 +1656,7 @@ static void tcmu_dev_kref_release(struct kref *kref)
 	WARN_ON(!all_expired);
 
 	tcmu_blocks_release(&udev->data_blocks, 0, udev->dbi_max + 1);
-	kfree(udev->data_bitmap);
+	bitmap_free(udev->data_bitmap);
 	mutex_unlock(&udev->cmdr_lock);
 
 	call_rcu(&dev->rcu_head, tcmu_dev_call_rcu);
@@ -1717,6 +1710,24 @@ static int tcmu_init_genl_cmd_reply(struct tcmu_dev *udev, int cmd)
 
 	mutex_unlock(&tcmu_nl_cmd_mutex);
 	return 0;
+}
+
+static void tcmu_destroy_genl_cmd_reply(struct tcmu_dev *udev)
+{
+	struct tcmu_nl_cmd *nl_cmd = &udev->curr_nl_cmd;
+
+	if (!tcmu_kern_cmd_reply_supported)
+		return;
+
+	if (udev->nl_reply_supported <= 0)
+		return;
+
+	mutex_lock(&tcmu_nl_cmd_mutex);
+
+	list_del(&nl_cmd->nl_list);
+	memset(nl_cmd, 0, sizeof(*nl_cmd));
+
+	mutex_unlock(&tcmu_nl_cmd_mutex);
 }
 
 static int tcmu_wait_genl_cmd_reply(struct tcmu_dev *udev)
@@ -1794,11 +1805,14 @@ static int tcmu_netlink_event_send(struct tcmu_dev *udev,
 
 	ret = genlmsg_multicast_allns(&tcmu_genl_family, skb, 0,
 				      TCMU_MCGRP_CONFIG, GFP_KERNEL);
-	/* We don't care if no one is listening */
-	if (ret == -ESRCH)
-		ret = 0;
-	if (!ret)
-		ret = tcmu_wait_genl_cmd_reply(udev);
+
+	/* Wait during an add as the listener may not be up yet */
+	if (ret == 0 ||
+	   (ret == -ESRCH && cmd == TCMU_CMD_ADDED_DEVICE))
+		return tcmu_wait_genl_cmd_reply(udev);
+	else
+		tcmu_destroy_genl_cmd_reply(udev);
+
 	return ret;
 }
 
@@ -1834,20 +1848,18 @@ static int tcmu_update_uio_info(struct tcmu_dev *udev)
 {
 	struct tcmu_hba *hba = udev->hba->hba_ptr;
 	struct uio_info *info;
-	size_t size, used;
 	char *str;
 
 	info = &udev->uio_info;
-	size = snprintf(NULL, 0, "tcm-user/%u/%s/%s", hba->host_id, udev->name,
-			udev->dev_config);
-	size += 1; /* for \0 */
-	str = kmalloc(size, GFP_KERNEL);
+
+	if (udev->dev_config[0])
+		str = kasprintf(GFP_KERNEL, "tcm-user/%u/%s/%s", hba->host_id,
+				udev->name, udev->dev_config);
+	else
+		str = kasprintf(GFP_KERNEL, "tcm-user/%u/%s", hba->host_id,
+				udev->name);
 	if (!str)
 		return -ENOMEM;
-
-	used = snprintf(str, size, "tcm-user/%u/%s", hba->host_id, udev->name);
-	if (udev->dev_config[0])
-		snprintf(str + used, size - used, "/%s", udev->dev_config);
 
 	/* If the old string exists, free it */
 	kfree(info->name);
@@ -1870,9 +1882,7 @@ static int tcmu_configure_device(struct se_device *dev)
 	info = &udev->uio_info;
 
 	mutex_lock(&udev->cmdr_lock);
-	udev->data_bitmap = kcalloc(BITS_TO_LONGS(udev->max_blocks),
-				    sizeof(unsigned long),
-				    GFP_KERNEL);
+	udev->data_bitmap = bitmap_zalloc(udev->max_blocks, GFP_KERNEL);
 	mutex_unlock(&udev->cmdr_lock);
 	if (!udev->data_bitmap) {
 		ret = -ENOMEM;
@@ -1959,7 +1969,7 @@ err_register:
 	vfree(udev->mb_addr);
 	udev->mb_addr = NULL;
 err_vzalloc:
-	kfree(udev->data_bitmap);
+	bitmap_free(udev->data_bitmap);
 	udev->data_bitmap = NULL;
 err_bitmap_alloc:
 	kfree(info->name);
@@ -2036,6 +2046,7 @@ static void tcmu_reset_ring(struct tcmu_dev *udev, u8 err_level)
 
 		idr_remove(&udev->commands, i);
 		if (!test_bit(TCMU_CMD_BIT_EXPIRED, &cmd->flags)) {
+			WARN_ON(!cmd->se_cmd);
 			list_del_init(&cmd->queue_entry);
 			if (err_level == 1) {
 				/*

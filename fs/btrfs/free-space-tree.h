@@ -6,6 +6,8 @@
 #ifndef BTRFS_FREE_SPACE_TREE_H
 #define BTRFS_FREE_SPACE_TREE_H
 
+struct btrfs_caching_control;
+
 /*
  * The default size for new free space bitmap items. The last bitmap in a block
  * group may be truncated, and none of the free space tree code assumes that
@@ -30,7 +32,6 @@ int remove_from_free_space_tree(struct btrfs_trans_handle *trans,
 #ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
 struct btrfs_free_space_info *
 search_free_space_info(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info,
 		       struct btrfs_block_group_cache *block_group,
 		       struct btrfs_path *path, int cow);
 int __add_to_free_space_tree(struct btrfs_trans_handle *trans,

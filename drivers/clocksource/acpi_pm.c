@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/clocksource/acpi_pm.c
  *
@@ -12,8 +13,6 @@
  *
  * Based on parts of linux/drivers/acpi/hardware/hwtimer.c, timer_pit.c,
  * timer_hpet.c, and on Arjan van de Ven's implementation for 2.4.
- *
- * This file is licensed under the GPL v2.
  */
 
 #include <linux/acpi_pmtmr.h>

@@ -25,19 +25,21 @@
  * Epson QCIF display.
  *
  */
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
 
 #include <linux/bitops.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
 #include <video/of_videomode.h>
 #include <video/videomode.h>
+
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 /*
  * This configuration register in the Versatile and RealView
@@ -191,7 +193,7 @@ static const struct versatile_panel_type versatile_panels[] = {
 			.vrefresh = 390,
 			.flags = DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 	},
 	/*
 	 * Sanyo ALR252RGT 240x320 portrait display found on the
@@ -215,7 +217,7 @@ static const struct versatile_panel_type versatile_panels[] = {
 			.vrefresh = 116,
 			.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
 		},
-		.bus_flags = DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+		.bus_flags = DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 		.ib2 = true,
 	},
 };
@@ -264,8 +266,6 @@ static int versatile_panel_get_modes(struct drm_panel *panel)
 	struct versatile_panel *vpanel = to_versatile_panel(panel);
 	struct drm_display_mode *mode;
 
-	strncpy(connector->display_info.name, vpanel->panel_type->name,
-		DRM_DISPLAY_INFO_LEN);
 	connector->display_info.width_mm = vpanel->panel_type->width_mm;
 	connector->display_info.height_mm = vpanel->panel_type->height_mm;
 	connector->display_info.bus_flags = vpanel->panel_type->bus_flags;

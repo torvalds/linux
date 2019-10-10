@@ -139,7 +139,7 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	if (chan->ntfy) {
 		nouveau_vma_del(&chan->ntfy_vma);
 		nouveau_bo_unpin(chan->ntfy);
-		drm_gem_object_put_unlocked(&chan->ntfy->gem);
+		drm_gem_object_put_unlocked(&chan->ntfy->bo.base);
 	}
 
 	if (chan->heap.block_size)
@@ -214,6 +214,7 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 			WARN_ON(1);
 			break;
 		}
+		break;
 	case NOUVEAU_GETPARAM_FB_SIZE:
 		getparam->value = drm->gem.vram_available;
 		break;
@@ -241,12 +242,6 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	}
 
 	return 0;
-}
-
-int
-nouveau_abi16_ioctl_setparam(ABI16_IOCTL_ARGS)
-{
-	return -EINVAL;
 }
 
 int
@@ -338,12 +333,13 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 		goto done;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_TESLA) {
-		ret = nouveau_vma_new(chan->ntfy, &cli->vmm, &chan->ntfy_vma);
+		ret = nouveau_vma_new(chan->ntfy, chan->chan->vmm,
+				      &chan->ntfy_vma);
 		if (ret)
 			goto done;
 	}
 
-	ret = drm_gem_handle_create(file_priv, &chan->ntfy->gem,
+	ret = drm_gem_handle_create(file_priv, &chan->ntfy->bo.base,
 				    &init->notifier_handle);
 	if (ret)
 		goto done;

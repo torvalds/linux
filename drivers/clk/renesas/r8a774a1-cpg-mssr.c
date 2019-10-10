@@ -21,7 +21,7 @@
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
-	LAST_DT_CORE_CLK = R8A774A1_CLK_OSC,
+	LAST_DT_CORE_CLK = R8A774A1_CLK_CANFD,
 
 	/* External Input Clocks */
 	CLK_EXTAL,
@@ -71,8 +71,8 @@ static const struct cpg_core_clk r8a774a1_core_clks[] __initconst = {
 	DEF_GEN3_OSC(".r",      CLK_RINT,          CLK_EXTAL,      32),
 
 	/* Core Clock Outputs */
-	DEF_BASE("z",           R8A774A1_CLK_Z,     CLK_TYPE_GEN3_Z, CLK_PLL0),
-	DEF_BASE("z2",          R8A774A1_CLK_Z2,    CLK_TYPE_GEN3_Z2, CLK_PLL2),
+	DEF_GEN3_Z("z",		R8A774A1_CLK_Z,     CLK_TYPE_GEN3_Z,  CLK_PLL0, 2, 8),
+	DEF_GEN3_Z("z2",	R8A774A1_CLK_Z2,    CLK_TYPE_GEN3_Z,  CLK_PLL2, 2, 0),
 	DEF_FIXED("ztr",        R8A774A1_CLK_ZTR,   CLK_PLL1_DIV2,  6, 1),
 	DEF_FIXED("ztrd2",      R8A774A1_CLK_ZTRD2, CLK_PLL1_DIV2, 12, 1),
 	DEF_FIXED("zt",         R8A774A1_CLK_ZT,    CLK_PLL1_DIV2,  4, 1),
@@ -102,6 +102,7 @@ static const struct cpg_core_clk r8a774a1_core_clks[] __initconst = {
 	DEF_FIXED("cp",         R8A774A1_CLK_CP,    CLK_EXTAL,      2, 1),
 	DEF_FIXED("cpex",       R8A774A1_CLK_CPEX,  CLK_EXTAL,      2, 1),
 
+	DEF_DIV6P1("canfd",     R8A774A1_CLK_CANFD, CLK_PLL1_DIV4, 0x244),
 	DEF_DIV6P1("csi0",      R8A774A1_CLK_CSI0,  CLK_PLL1_DIV4, 0x00c),
 	DEF_DIV6P1("mso",       R8A774A1_CLK_MSO,   CLK_PLL1_DIV4, 0x014),
 	DEF_DIV6P1("hdmi",      R8A774A1_CLK_HDMI,  CLK_PLL1_DIV4, 0x250),
@@ -112,6 +113,11 @@ static const struct cpg_core_clk r8a774a1_core_clks[] __initconst = {
 };
 
 static const struct mssr_mod_clk r8a774a1_mod_clks[] __initconst = {
+	DEF_MOD("tmu4",			 121,	R8A774A1_CLK_S0D6),
+	DEF_MOD("tmu3",			 122,	R8A774A1_CLK_S3D2),
+	DEF_MOD("tmu2",			 123,	R8A774A1_CLK_S3D2),
+	DEF_MOD("tmu1",			 124,	R8A774A1_CLK_S3D2),
+	DEF_MOD("tmu0",			 125,	R8A774A1_CLK_CP),
 	DEF_MOD("fdp1-0",		 119,	R8A774A1_CLK_S0D1),
 	DEF_MOD("scif5",		 202,	R8A774A1_CLK_S3D4),
 	DEF_MOD("scif4",		 203,	R8A774A1_CLK_S3D4),
@@ -122,8 +128,8 @@ static const struct mssr_mod_clk r8a774a1_mod_clks[] __initconst = {
 	DEF_MOD("msiof2",		 209,	R8A774A1_CLK_MSO),
 	DEF_MOD("msiof1",		 210,	R8A774A1_CLK_MSO),
 	DEF_MOD("msiof0",		 211,	R8A774A1_CLK_MSO),
-	DEF_MOD("sys-dmac2",		 217,	R8A774A1_CLK_S0D3),
-	DEF_MOD("sys-dmac1",		 218,	R8A774A1_CLK_S0D3),
+	DEF_MOD("sys-dmac2",		 217,	R8A774A1_CLK_S3D1),
+	DEF_MOD("sys-dmac1",		 218,	R8A774A1_CLK_S3D1),
 	DEF_MOD("sys-dmac0",		 219,	R8A774A1_CLK_S0D3),
 	DEF_MOD("cmt3",			 300,	R8A774A1_CLK_R),
 	DEF_MOD("cmt2",			 301,	R8A774A1_CLK_R),
@@ -142,8 +148,8 @@ static const struct mssr_mod_clk r8a774a1_mod_clks[] __initconst = {
 	DEF_MOD("rwdt",			 402,	R8A774A1_CLK_R),
 	DEF_MOD("intc-ex",		 407,	R8A774A1_CLK_CP),
 	DEF_MOD("intc-ap",		 408,	R8A774A1_CLK_S0D3),
-	DEF_MOD("audmac1",		 501,	R8A774A1_CLK_S0D3),
-	DEF_MOD("audmac0",		 502,	R8A774A1_CLK_S0D3),
+	DEF_MOD("audmac1",		 501,	R8A774A1_CLK_S1D2),
+	DEF_MOD("audmac0",		 502,	R8A774A1_CLK_S1D2),
 	DEF_MOD("hscif4",		 516,	R8A774A1_CLK_S3D1),
 	DEF_MOD("hscif3",		 517,	R8A774A1_CLK_S3D1),
 	DEF_MOD("hscif2",		 518,	R8A774A1_CLK_S3D1),
@@ -164,9 +170,9 @@ static const struct mssr_mod_clk r8a774a1_mod_clks[] __initconst = {
 	DEF_MOD("vspd0",		 623,	R8A774A1_CLK_S0D2),
 	DEF_MOD("vspb",			 626,	R8A774A1_CLK_S0D1),
 	DEF_MOD("vspi0",		 631,	R8A774A1_CLK_S0D1),
-	DEF_MOD("ehci1",		 702,	R8A774A1_CLK_S3D4),
-	DEF_MOD("ehci0",		 703,	R8A774A1_CLK_S3D4),
-	DEF_MOD("hsusb",		 704,	R8A774A1_CLK_S3D4),
+	DEF_MOD("ehci1",		 702,	R8A774A1_CLK_S3D2),
+	DEF_MOD("ehci0",		 703,	R8A774A1_CLK_S3D2),
+	DEF_MOD("hsusb",		 704,	R8A774A1_CLK_S3D2),
 	DEF_MOD("csi20",		 714,	R8A774A1_CLK_CSI0),
 	DEF_MOD("csi40",		 716,	R8A774A1_CLK_CSI0),
 	DEF_MOD("du2",			 722,	R8A774A1_CLK_S2D1),
@@ -191,6 +197,7 @@ static const struct mssr_mod_clk r8a774a1_mod_clks[] __initconst = {
 	DEF_MOD("gpio2",		 910,	R8A774A1_CLK_S3D4),
 	DEF_MOD("gpio1",		 911,	R8A774A1_CLK_S3D4),
 	DEF_MOD("gpio0",		 912,	R8A774A1_CLK_S3D4),
+	DEF_MOD("can-fd",		 914,	R8A774A1_CLK_S3D2),
 	DEF_MOD("can-if1",		 915,	R8A774A1_CLK_S3D4),
 	DEF_MOD("can-if0",		 916,	R8A774A1_CLK_S3D4),
 	DEF_MOD("i2c6",			 918,	R8A774A1_CLK_S0D6),

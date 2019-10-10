@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ISC */
+// SPDX-License-Identifier: ISC
 
 #include <linux/etherdevice.h>
 #include "mt7603.h"
@@ -112,7 +112,7 @@ static void
 mt7603_phy_init(struct mt7603_dev *dev)
 {
 	int rx_chains = dev->mt76.antenna_mask;
-	int tx_chains = __sw_hweight8(rx_chains) - 1;
+	int tx_chains = hweight8(rx_chains) - 1;
 
 	mt76_rmw(dev, MT_WF_RMAC_RMCR,
 		 (MT_WF_RMAC_RMCR_SMPS_MODE |
@@ -167,7 +167,8 @@ mt7603_mac_init(struct mt7603_dev *dev)
 		FIELD_PREP(MT_AGG_RETRY_CONTROL_BAR_LIMIT, 1) |
 		FIELD_PREP(MT_AGG_RETRY_CONTROL_RTS_LIMIT, 15));
 
-	mt76_rmw(dev, MT_DMA_DCR0, ~0xfffc, 4096);
+	mt76_wr(dev, MT_DMA_DCR0, MT_DMA_DCR0_RX_VEC_DROP |
+		FIELD_PREP(MT_DMA_DCR0_MAX_RX_LEN, 4096));
 
 	mt76_rmw(dev, MT_DMA_VCFR0, BIT(0), BIT(13));
 	mt76_rmw(dev, MT_DMA_TMCFR0, BIT(0) | BIT(1), BIT(13));
@@ -226,11 +227,19 @@ mt7603_mac_init(struct mt7603_dev *dev)
 	mt76_rmw_field(dev, MT_LPON_BTEIR, MT_LPON_BTEIR_MBSS_MODE, 2);
 	mt76_rmw_field(dev, MT_WF_RMACDR, MT_WF_RMACDR_MBSSID_MASK, 2);
 
-	mt76_wr(dev, MT_AGG_ARUCR, FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7));
+	mt76_wr(dev, MT_AGG_ARUCR,
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 7) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), 2) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(5), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(6), 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), 1));
+
 	mt76_wr(dev, MT_AGG_ARDCR,
-		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), 0) |
-		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1),
-			   max_t(int, 0, MT7603_RATE_RETRY - 2)) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(0), MT7603_RATE_RETRY - 1) |
+		FIELD_PREP(MT_AGG_ARxCR_LIMIT(1), MT7603_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(2), MT7603_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(3), MT7603_RATE_RETRY - 1) |
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(4), MT7603_RATE_RETRY - 1) |
@@ -239,8 +248,7 @@ mt7603_mac_init(struct mt7603_dev *dev)
 		FIELD_PREP(MT_AGG_ARxCR_LIMIT(7), MT7603_RATE_RETRY - 1));
 
 	mt76_wr(dev, MT_AGG_ARCR,
-		(MT_AGG_ARCR_INIT_RATE1 |
-		 FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
+		(FIELD_PREP(MT_AGG_ARCR_RTS_RATE_THR, 2) |
 		 MT_AGG_ARCR_RATE_DOWN_RATIO_EN |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_DOWN_RATIO, 1) |
 		 FIELD_PREP(MT_AGG_ARCR_RATE_UP_EXTRA_TH, 4)));
@@ -436,7 +444,9 @@ mt7603_regd_notifier(struct wiphy *wiphy,
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct mt7603_dev *dev = hw->priv;
 
-	dev->ed_monitor = request->dfs_region == NL80211_DFS_ETSI;
+	dev->mt76.region = request->dfs_region;
+	dev->ed_monitor = dev->ed_monitor_enabled &&
+			  dev->mt76.region == NL80211_DFS_ETSI;
 }
 
 static int
@@ -462,8 +472,12 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 	u8 *eeprom = (u8 *)dev->mt76.eeprom.data;
 	int target_power = eeprom[MT_EE_TX_POWER_0_START_2G + 2] & ~BIT(7);
 	u8 *rate_power = &eeprom[MT_EE_TX_POWER_CCK];
+	bool ext_pa = eeprom[MT_EE_NIC_CONF_0 + 1] & BIT(1);
 	int max_offset, cur_offset;
 	int i;
+
+	if (ext_pa && is_mt7603(dev))
+		target_power = eeprom[MT_EE_TX_POWER_TSSI_OFF] & ~BIT(7);
 
 	if (target_power & BIT(6))
 		target_power = -(target_power & GENMASK(5, 0));
@@ -487,10 +501,10 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 
 	for (i = 0; i < sband->n_channels; i++) {
 		chan = &sband->channels[i];
-		chan->max_power = target_power;
+		chan->max_power = min_t(int, chan->max_reg_power, target_power);
+		chan->orig_mpwr = target_power;
 	}
 }
-
 
 int mt7603_register_device(struct mt7603_dev *dev)
 {
@@ -510,8 +524,10 @@ int mt7603_register_device(struct mt7603_dev *dev)
 	bus_ops->rmw = mt7603_rmw;
 	dev->mt76.bus = bus_ops;
 
-	INIT_DELAYED_WORK(&dev->mac_work, mt7603_mac_work);
-	tasklet_init(&dev->pre_tbtt_tasklet, mt7603_pre_tbtt_tasklet,
+	spin_lock_init(&dev->ps_lock);
+
+	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7603_mac_work);
+	tasklet_init(&dev->mt76.pre_tbtt_tasklet, mt7603_pre_tbtt_tasklet,
 		     (unsigned long)dev);
 
 	/* Check for 7688, which only has 1SS */
@@ -570,9 +586,9 @@ int mt7603_register_device(struct mt7603_dev *dev)
 
 void mt7603_unregister_device(struct mt7603_dev *dev)
 {
-	tasklet_disable(&dev->pre_tbtt_tasklet);
+	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	mt76_unregister_device(&dev->mt76);
 	mt7603_mcu_exit(dev);
 	mt7603_dma_cleanup(dev);
-	ieee80211_free_hw(mt76_hw(dev));
+	mt76_free_device(&dev->mt76);
 }

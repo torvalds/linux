@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/dsa/dsa.c - Hardware switch handling
  * Copyright (c) 2008-2009 Marvell Semiconductor
  * Copyright (c) 2013 Florian Fainelli <florian@openwrt.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/device.h>
@@ -27,6 +23,9 @@
 
 #include "dsa_priv.h"
 
+static LIST_HEAD(dsa_tag_drivers_list);
+static DEFINE_MUTEX(dsa_tag_drivers_lock);
+
 static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 					    struct net_device *dev)
 {
@@ -35,104 +34,101 @@ static struct sk_buff *dsa_slave_notag_xmit(struct sk_buff *skb,
 }
 
 static const struct dsa_device_ops none_ops = {
+	.name	= "none",
+	.proto	= DSA_TAG_PROTO_NONE,
 	.xmit	= dsa_slave_notag_xmit,
 	.rcv	= NULL,
 };
 
-const struct dsa_device_ops *dsa_device_ops[DSA_TAG_LAST] = {
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-	[DSA_TAG_PROTO_BRCM] = &brcm_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
-	[DSA_TAG_PROTO_BRCM_PREPEND] = &brcm_prepend_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_DSA
-	[DSA_TAG_PROTO_DSA] = &dsa_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-	[DSA_TAG_PROTO_EDSA] = &edsa_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_GSWIP
-	[DSA_TAG_PROTO_GSWIP] = &gswip_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_KSZ9477
-	[DSA_TAG_PROTO_KSZ9477] = &ksz9477_netdev_ops,
-	[DSA_TAG_PROTO_KSZ9893] = &ksz9893_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_LAN9303
-	[DSA_TAG_PROTO_LAN9303] = &lan9303_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_MTK
-	[DSA_TAG_PROTO_MTK] = &mtk_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_QCA
-	[DSA_TAG_PROTO_QCA] = &qca_netdev_ops,
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-	[DSA_TAG_PROTO_TRAILER] = &trailer_netdev_ops,
-#endif
-	[DSA_TAG_PROTO_NONE] = &none_ops,
-};
+DSA_TAG_DRIVER(none_ops);
+
+static void dsa_tag_driver_register(struct dsa_tag_driver *dsa_tag_driver,
+				    struct module *owner)
+{
+	dsa_tag_driver->owner = owner;
+
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_add_tail(&dsa_tag_driver->list, &dsa_tag_drivers_list);
+	mutex_unlock(&dsa_tag_drivers_lock);
+}
+
+void dsa_tag_drivers_register(struct dsa_tag_driver *dsa_tag_driver_array[],
+			      unsigned int count, struct module *owner)
+{
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		dsa_tag_driver_register(dsa_tag_driver_array[i], owner);
+}
+
+static void dsa_tag_driver_unregister(struct dsa_tag_driver *dsa_tag_driver)
+{
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_del(&dsa_tag_driver->list);
+	mutex_unlock(&dsa_tag_drivers_lock);
+}
+EXPORT_SYMBOL_GPL(dsa_tag_drivers_register);
+
+void dsa_tag_drivers_unregister(struct dsa_tag_driver *dsa_tag_driver_array[],
+				unsigned int count)
+{
+	unsigned int i;
+
+	for (i = 0; i < count; i++)
+		dsa_tag_driver_unregister(dsa_tag_driver_array[i]);
+}
+EXPORT_SYMBOL_GPL(dsa_tag_drivers_unregister);
 
 const char *dsa_tag_protocol_to_str(const struct dsa_device_ops *ops)
 {
-	const char *protocol_name[DSA_TAG_LAST] = {
-#ifdef CONFIG_NET_DSA_TAG_BRCM
-		[DSA_TAG_PROTO_BRCM] = "brcm",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_BRCM_PREPEND
-		[DSA_TAG_PROTO_BRCM_PREPEND] = "brcm-prepend",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_DSA
-		[DSA_TAG_PROTO_DSA] = "dsa",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_EDSA
-		[DSA_TAG_PROTO_EDSA] = "edsa",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_GSWIP
-		[DSA_TAG_PROTO_GSWIP] = "gswip",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_KSZ9477
-		[DSA_TAG_PROTO_KSZ9477] = "ksz9477",
-		[DSA_TAG_PROTO_KSZ9893] = "ksz9893",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_LAN9303
-		[DSA_TAG_PROTO_LAN9303] = "lan9303",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_MTK
-		[DSA_TAG_PROTO_MTK] = "mtk",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_QCA
-		[DSA_TAG_PROTO_QCA] = "qca",
-#endif
-#ifdef CONFIG_NET_DSA_TAG_TRAILER
-		[DSA_TAG_PROTO_TRAILER] = "trailer",
-#endif
-		[DSA_TAG_PROTO_NONE] = "none",
-	};
-	unsigned int i;
-
-	BUILD_BUG_ON(ARRAY_SIZE(protocol_name) != DSA_TAG_LAST);
-
-	for (i = 0; i < ARRAY_SIZE(dsa_device_ops); i++)
-		if (ops == dsa_device_ops[i])
-			return protocol_name[i];
-
-	return protocol_name[DSA_TAG_PROTO_NONE];
+	return ops->name;
 };
 
-const struct dsa_device_ops *dsa_resolve_tag_protocol(int tag_protocol)
+const struct dsa_device_ops *dsa_tag_driver_get(int tag_protocol)
 {
+	struct dsa_tag_driver *dsa_tag_driver;
 	const struct dsa_device_ops *ops;
+	char module_name[128];
+	bool found = false;
 
-	if (tag_protocol >= DSA_TAG_LAST)
-		return ERR_PTR(-EINVAL);
-	ops = dsa_device_ops[tag_protocol];
+	snprintf(module_name, 127, "%s%d", DSA_TAG_DRIVER_ALIAS,
+		 tag_protocol);
 
-	if (!ops)
-		return ERR_PTR(-ENOPROTOOPT);
+	request_module(module_name);
+
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
+		ops = dsa_tag_driver->ops;
+		if (ops->proto == tag_protocol) {
+			found = true;
+			break;
+		}
+	}
+
+	if (found) {
+		if (!try_module_get(dsa_tag_driver->owner))
+			ops = ERR_PTR(-ENOPROTOOPT);
+	} else {
+		ops = ERR_PTR(-ENOPROTOOPT);
+	}
+
+	mutex_unlock(&dsa_tag_drivers_lock);
 
 	return ops;
+}
+
+void dsa_tag_driver_put(const struct dsa_device_ops *ops)
+{
+	struct dsa_tag_driver *dsa_tag_driver;
+
+	mutex_lock(&dsa_tag_drivers_lock);
+	list_for_each_entry(dsa_tag_driver, &dsa_tag_drivers_list, list) {
+		if (dsa_tag_driver->ops == ops) {
+			module_put(dsa_tag_driver->owner);
+			break;
+		}
+	}
+	mutex_unlock(&dsa_tag_drivers_lock);
 }
 
 static int dev_is_class(struct device *dev, void *class)
@@ -344,23 +340,28 @@ static int __init dsa_init_module(void)
 
 	rc = dsa_slave_register_notifier();
 	if (rc)
-		return rc;
-
-	rc = dsa_legacy_register();
-	if (rc)
-		return rc;
+		goto register_notifier_fail;
 
 	dev_add_pack(&dsa_pack_type);
 
+	dsa_tag_driver_register(&DSA_TAG_DRIVER_NAME(none_ops),
+				THIS_MODULE);
+
 	return 0;
+
+register_notifier_fail:
+	destroy_workqueue(dsa_owq);
+
+	return rc;
 }
 module_init(dsa_init_module);
 
 static void __exit dsa_cleanup_module(void)
 {
+	dsa_tag_driver_unregister(&DSA_TAG_DRIVER_NAME(none_ops));
+
 	dsa_slave_unregister_notifier();
 	dev_remove_pack(&dsa_pack_type);
-	dsa_legacy_unregister();
 	destroy_workqueue(dsa_owq);
 }
 module_exit(dsa_cleanup_module);

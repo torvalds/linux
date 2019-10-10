@@ -837,8 +837,7 @@ qcaspi_netdev_uninit(struct net_device *dev)
 
 	kfree(qca->rx_buffer);
 	qca->buffer_size = 0;
-	if (qca->rx_skb)
-		dev_kfree_skb(qca->rx_skb);
+	dev_kfree_skb(qca->rx_skb);
 }
 
 static const struct net_device_ops qcaspi_netdev_ops = {
@@ -966,7 +965,7 @@ qca_spi_probe(struct spi_device *spi)
 
 	mac = of_get_mac_address(spi->dev.of_node);
 
-	if (mac)
+	if (!IS_ERR(mac))
 		ether_addr_copy(qca->net_dev->dev_addr, mac);
 
 	if (!is_valid_ether_addr(qca->net_dev->dev_addr)) {

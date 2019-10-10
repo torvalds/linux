@@ -1,10 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * tools/testing/selftests/kvm/include/x86_64/processor.h
  *
  * Copyright (C) 2018, Google LLC.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.
- *
  */
 
 #ifndef SELFTEST_KVM_PROCESSOR_H
@@ -303,6 +301,8 @@ static inline unsigned long get_xmm(int n)
 	return 0;
 }
 
+bool is_intel_cpu(void);
+
 struct kvm_x86_state;
 struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
 void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
@@ -324,6 +324,9 @@ kvm_get_supported_cpuid_entry(uint32_t function)
 uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
 void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 	  	  uint64_t msr_value);
+
+uint32_t kvm_get_cpuid_max(void);
+void kvm_get_cpu_address_width(unsigned int *pa_bits, unsigned int *va_bits);
 
 /*
  * Basic CPU control in CR0
@@ -778,6 +781,33 @@ void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 #define MSR_IA32_APICBASE_ENABLE	(1<<11)
 #define MSR_IA32_APICBASE_BASE		(0xfffff<<12)
 
+#define APIC_BASE_MSR	0x800
+#define X2APIC_ENABLE	(1UL << 10)
+#define	APIC_ICR	0x300
+#define		APIC_DEST_SELF		0x40000
+#define		APIC_DEST_ALLINC	0x80000
+#define		APIC_DEST_ALLBUT	0xC0000
+#define		APIC_ICR_RR_MASK	0x30000
+#define		APIC_ICR_RR_INVALID	0x00000
+#define		APIC_ICR_RR_INPROG	0x10000
+#define		APIC_ICR_RR_VALID	0x20000
+#define		APIC_INT_LEVELTRIG	0x08000
+#define		APIC_INT_ASSERT		0x04000
+#define		APIC_ICR_BUSY		0x01000
+#define		APIC_DEST_LOGICAL	0x00800
+#define		APIC_DEST_PHYSICAL	0x00000
+#define		APIC_DM_FIXED		0x00000
+#define		APIC_DM_FIXED_MASK	0x00700
+#define		APIC_DM_LOWEST		0x00100
+#define		APIC_DM_SMI		0x00200
+#define		APIC_DM_REMRD		0x00300
+#define		APIC_DM_NMI		0x00400
+#define		APIC_DM_INIT		0x00500
+#define		APIC_DM_STARTUP		0x00600
+#define		APIC_DM_EXTINT		0x00700
+#define		APIC_VECTOR_MASK	0x000FF
+#define	APIC_ICR2	0x310
+
 #define MSR_IA32_TSCDEADLINE		0x000006e0
 
 #define MSR_IA32_UCODE_WRITE		0x00000079
@@ -1052,6 +1082,9 @@ void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 #define VMX_BASIC_MEM_TYPE_MASK	0x003c000000000000LLU
 #define VMX_BASIC_MEM_TYPE_WB	6LLU
 #define VMX_BASIC_INOUT		0x0040000000000000LLU
+
+/* VMX_EPT_VPID_CAP bits */
+#define VMX_EPT_VPID_CAP_AD_BITS	(1ULL << 21)
 
 /* MSR_IA32_VMX_MISC bits */
 #define MSR_IA32_VMX_MISC_VMWRITE_SHADOW_RO_FIELDS (1ULL << 29)

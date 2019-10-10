@@ -167,7 +167,7 @@ struct tlb_state {
 	 */
 	struct mm_struct *loaded_mm;
 
-#define LOADED_MM_SWITCHING ((struct mm_struct *)1)
+#define LOADED_MM_SWITCHING ((struct mm_struct *)1UL)
 
 	/* Last user mm for optimizing IBPB */
 	union {
@@ -274,6 +274,8 @@ static inline bool nmi_uaccess_okay(void)
 	return true;
 }
 
+#define nmi_uaccess_okay nmi_uaccess_okay
+
 /* Initialize cr4 shadow for this CPU. */
 static inline void cr4_init_shadow(void)
 {
@@ -288,26 +290,42 @@ static inline void __cr4_set(unsigned long cr4)
 }
 
 /* Set in this cpu's CR4. */
-static inline void cr4_set_bits(unsigned long mask)
+static inline void cr4_set_bits_irqsoff(unsigned long mask)
 {
-	unsigned long cr4, flags;
+	unsigned long cr4;
 
-	local_irq_save(flags);
 	cr4 = this_cpu_read(cpu_tlbstate.cr4);
 	if ((cr4 | mask) != cr4)
 		__cr4_set(cr4 | mask);
+}
+
+/* Clear in this cpu's CR4. */
+static inline void cr4_clear_bits_irqsoff(unsigned long mask)
+{
+	unsigned long cr4;
+
+	cr4 = this_cpu_read(cpu_tlbstate.cr4);
+	if ((cr4 & ~mask) != cr4)
+		__cr4_set(cr4 & ~mask);
+}
+
+/* Set in this cpu's CR4. */
+static inline void cr4_set_bits(unsigned long mask)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	cr4_set_bits_irqsoff(mask);
 	local_irq_restore(flags);
 }
 
 /* Clear in this cpu's CR4. */
 static inline void cr4_clear_bits(unsigned long mask)
 {
-	unsigned long cr4, flags;
+	unsigned long flags;
 
 	local_irq_save(flags);
-	cr4 = this_cpu_read(cpu_tlbstate.cr4);
-	if ((cr4 & ~mask) != cr4)
-		__cr4_set(cr4 & ~mask);
+	cr4_clear_bits_irqsoff(mask);
 	local_irq_restore(flags);
 }
 

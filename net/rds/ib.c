@@ -87,7 +87,7 @@ static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
 
 	spin_lock_irqsave(&rds_ibdev->spinlock, flags);
 	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_node)
-		rds_conn_drop(ic->conn);
+		rds_conn_path_drop(&ic->conn->c_path[0], true);
 	spin_unlock_irqrestore(&rds_ibdev->spinlock, flags);
 }
 
@@ -142,6 +142,9 @@ static void rds_ib_add_one(struct ib_device *device)
 	spin_lock_init(&rds_ibdev->spinlock);
 	refcount_set(&rds_ibdev->refcount, 1);
 	INIT_WORK(&rds_ibdev->free_work, rds_ib_dev_free);
+
+	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
+	INIT_LIST_HEAD(&rds_ibdev->conn_list);
 
 	rds_ibdev->max_wrs = device->attrs.max_qp_wr;
 	rds_ibdev->max_sge = min(device->attrs.max_send_sge, RDS_IB_MAX_SGE);
@@ -202,9 +205,6 @@ static void rds_ib_add_one(struct ib_device *device)
 	pr_info("RDS/IB: %s: %s supported and preferred\n",
 		device->name,
 		rds_ibdev->use_fastreg ? "FRMR" : "FMR");
-
-	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
-	INIT_LIST_HEAD(&rds_ibdev->conn_list);
 
 	down_write(&rds_ib_devices_lock);
 	list_add_tail_rcu(&rds_ibdev->list, &rds_ib_devices);
@@ -291,7 +291,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 				    void *buffer)
 {
 	struct rds_info_rdma_connection *iinfo = buffer;
-	struct rds_ib_connection *ic;
+	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	/* We will only ever look at IB transports */
 	if (conn->c_trans != &rds_ib_transport)
@@ -301,14 +301,15 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 
 	iinfo->src_addr = conn->c_laddr.s6_addr32[3];
 	iinfo->dst_addr = conn->c_faddr.s6_addr32[3];
-	iinfo->tos = conn->c_tos;
+	if (ic) {
+		iinfo->tos = conn->c_tos;
+		iinfo->sl = ic->i_sl;
+	}
 
 	memset(&iinfo->src_gid, 0, sizeof(iinfo->src_gid));
 	memset(&iinfo->dst_gid, 0, sizeof(iinfo->dst_gid));
 	if (rds_conn_state(conn) == RDS_CONN_UP) {
 		struct rds_ib_device *rds_ibdev;
-
-		ic = conn->c_transport_data;
 
 		rdma_read_gids(ic->i_cm_id, (union ib_gid *)&iinfo->src_gid,
 			       (union ib_gid *)&iinfo->dst_gid);
@@ -318,6 +319,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 		iinfo->max_recv_wr = ic->i_recv_ring.w_nr;
 		iinfo->max_send_sge = rds_ibdev->max_sge;
 		rds_ib_get_mr_info(rds_ibdev, iinfo);
+		iinfo->cache_allocs = atomic_read(&ic->i_cache_allocs);
 	}
 	return 1;
 }
@@ -328,7 +330,7 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 				     void *buffer)
 {
 	struct rds6_info_rdma_connection *iinfo6 = buffer;
-	struct rds_ib_connection *ic;
+	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	/* We will only ever look at IB transports */
 	if (conn->c_trans != &rds_ib_transport)
@@ -336,6 +338,10 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 
 	iinfo6->src_addr = conn->c_laddr;
 	iinfo6->dst_addr = conn->c_faddr;
+	if (ic) {
+		iinfo6->tos = conn->c_tos;
+		iinfo6->sl = ic->i_sl;
+	}
 
 	memset(&iinfo6->src_gid, 0, sizeof(iinfo6->src_gid));
 	memset(&iinfo6->dst_gid, 0, sizeof(iinfo6->dst_gid));
@@ -343,7 +349,6 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 	if (rds_conn_state(conn) == RDS_CONN_UP) {
 		struct rds_ib_device *rds_ibdev;
 
-		ic = conn->c_transport_data;
 		rdma_read_gids(ic->i_cm_id, (union ib_gid *)&iinfo6->src_gid,
 			       (union ib_gid *)&iinfo6->dst_gid);
 		rds_ibdev = ic->rds_ibdev;
@@ -351,6 +356,7 @@ static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
 		iinfo6->max_recv_wr = ic->i_recv_ring.w_nr;
 		iinfo6->max_send_sge = rds_ibdev->max_sge;
 		rds6_ib_get_mr_info(rds_ibdev, iinfo6);
+		iinfo6->cache_allocs = atomic_read(&ic->i_cache_allocs);
 	}
 	return 1;
 }

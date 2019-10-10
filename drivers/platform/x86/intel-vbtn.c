@@ -76,12 +76,24 @@ static void notify_handler(acpi_handle handle, u32 event, void *context)
 	struct platform_device *device = context;
 	struct intel_vbtn_priv *priv = dev_get_drvdata(&device->dev);
 	unsigned int val = !(event & 1); /* Even=press, Odd=release */
-	const struct key_entry *ke_rel;
+	const struct key_entry *ke, *ke_rel;
 	bool autorelease;
 
 	if (priv->wakeup_mode) {
-		if (sparse_keymap_entry_from_scancode(priv->input_dev, event)) {
+		ke = sparse_keymap_entry_from_scancode(priv->input_dev, event);
+		if (ke) {
 			pm_wakeup_hard_event(&device->dev);
+
+			/*
+			 * Switch events like tablet mode will wake the device
+			 * and report the new switch position to the input
+			 * subsystem.
+			 */
+			if (ke->type == KE_SW)
+				sparse_keymap_report_event(priv->input_dev,
+							   event,
+							   val,
+							   0);
 			return;
 		}
 		goto out_unknown;
@@ -164,6 +176,12 @@ static int intel_vbtn_probe(struct platform_device *device)
 		return -EBUSY;
 
 	device_init_wakeup(&device->dev, true);
+	/*
+	 * In order for system wakeup to work, the EC GPE has to be marked as
+	 * a wakeup one, so do that here (this setting will persist, but it has
+	 * no effect until the wakeup mask is set for the EC GPE).
+	 */
+	acpi_ec_mark_gpe_for_wake();
 	return 0;
 }
 
@@ -183,22 +201,30 @@ static int intel_vbtn_remove(struct platform_device *device)
 
 static int intel_vbtn_pm_prepare(struct device *dev)
 {
-	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
+	if (device_may_wakeup(dev)) {
+		struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
 
-	priv->wakeup_mode = true;
+		priv->wakeup_mode = true;
+	}
 	return 0;
 }
 
-static int intel_vbtn_pm_resume(struct device *dev)
+static void intel_vbtn_pm_complete(struct device *dev)
 {
 	struct intel_vbtn_priv *priv = dev_get_drvdata(dev);
 
 	priv->wakeup_mode = false;
+}
+
+static int intel_vbtn_pm_resume(struct device *dev)
+{
+	intel_vbtn_pm_complete(dev);
 	return 0;
 }
 
 static const struct dev_pm_ops intel_vbtn_pm_ops = {
 	.prepare = intel_vbtn_pm_prepare,
+	.complete = intel_vbtn_pm_complete,
 	.resume = intel_vbtn_pm_resume,
 	.restore = intel_vbtn_pm_resume,
 	.thaw = intel_vbtn_pm_resume,

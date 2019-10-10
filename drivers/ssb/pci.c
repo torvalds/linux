@@ -305,7 +305,6 @@ static int sprom_do_write(struct ssb_bus *bus, const u16 *sprom)
 		else if (i % 2)
 			pr_cont(".");
 		writew(sprom[i], bus->mmio + bus->sprom_offset + (i * 2));
-		mmiowb();
 		msleep(20);
 	}
 	err = pci_read_config_dword(pdev, SSB_SPROMCTL, &spromctl);
@@ -596,7 +595,7 @@ static void sprom_extract_r8(struct ssb_sprom *out, const u16 *in)
 {
 	int i;
 	u16 o;
-	u16 pwr_info_offset[] = {
+	static const u16 pwr_info_offset[] = {
 		SSB_SROM8_PWR_INFO_CORE0, SSB_SROM8_PWR_INFO_CORE1,
 		SSB_SROM8_PWR_INFO_CORE2, SSB_SROM8_PWR_INFO_CORE3
 	};

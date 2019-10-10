@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Motorola PCAP2 touchscreen as found in the EZX phone platform.
  *
  *  Copyright (C) 2006 Harald Welte <laforge@openezx.org>
  *  Copyright (C) 2009 Daniel Ribeiro <drwyrm@gmail.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>

@@ -476,7 +476,7 @@ static inline int get_buf_size(struct adapter *adapter,
 		break;
 
 	default:
-		BUG_ON(1);
+		BUG();
 	}
 
 	return buf_size;

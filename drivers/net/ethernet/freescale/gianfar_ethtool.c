@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  drivers/net/ethernet/freescale/gianfar_ethtool.c
  *
@@ -10,10 +11,6 @@
  *  Modifier: Sandeep Gopalpet <sandeep.kumar@freescale.com>
  *
  *  Copyright 2003-2006, 2008-2009, 2011 Freescale Semiconductor, Inc.
- *
- *  This software may be used and distributed according to
- *  the terms of the GNU Public License, Version 2, incorporated herein
- *  by reference.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -48,19 +45,6 @@
 
 #define GFAR_MAX_COAL_USECS 0xffff
 #define GFAR_MAX_COAL_FRAMES 0xff
-static void gfar_fill_stats(struct net_device *dev, struct ethtool_stats *dummy,
-			    u64 *buf);
-static void gfar_gstrings(struct net_device *dev, u32 stringset, u8 * buf);
-static int gfar_gcoalesce(struct net_device *dev,
-			  struct ethtool_coalesce *cvals);
-static int gfar_scoalesce(struct net_device *dev,
-			  struct ethtool_coalesce *cvals);
-static void gfar_gringparam(struct net_device *dev,
-			    struct ethtool_ringparam *rvals);
-static int gfar_sringparam(struct net_device *dev,
-			   struct ethtool_ringparam *rvals);
-static void gfar_gdrvinfo(struct net_device *dev,
-			  struct ethtool_drvinfo *drvinfo);
 
 static const char stat_gstrings[][ETH_GSTRING_LEN] = {
 	/* extra stats */

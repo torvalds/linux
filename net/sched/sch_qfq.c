@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/sch_qfq.c         Quick Fair Queueing Plus Scheduler.
  *
  * Copyright (c) 2009 Fabio Checconi, Luigi Rizzo, and Paolo Valente.
  * Copyright (c) 2012 Paolo Valente.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -217,15 +214,6 @@ static struct qfq_class *qfq_find_class(struct Qdisc *sch, u32 classid)
 	return container_of(clc, struct qfq_class, common);
 }
 
-static void qfq_purge_queue(struct qfq_class *cl)
-{
-	unsigned int len = cl->qdisc->q.qlen;
-	unsigned int backlog = cl->qdisc->qstats.backlog;
-
-	qdisc_reset(cl->qdisc);
-	qdisc_tree_reduce_backlog(cl->qdisc, len, backlog);
-}
-
 static const struct nla_policy qfq_policy[TCA_QFQ_MAX + 1] = {
 	[TCA_QFQ_WEIGHT] = { .type = NLA_U32 },
 	[TCA_QFQ_LMAX] = { .type = NLA_U32 },
@@ -419,8 +407,8 @@ static int qfq_change_class(struct Qdisc *sch, u32 classid, u32 parentid,
 		return -EINVAL;
 	}
 
-	err = nla_parse_nested(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS], qfq_policy,
-			       NULL);
+	err = nla_parse_nested_deprecated(tb, TCA_QFQ_MAX, tca[TCA_OPTIONS],
+					  qfq_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -551,7 +539,7 @@ static int qfq_delete_class(struct Qdisc *sch, unsigned long arg)
 
 	sch_tree_lock(sch);
 
-	qfq_purge_queue(cl);
+	qdisc_purge_queue(cl->qdisc);
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
 
 	sch_tree_unlock(sch);
@@ -628,7 +616,7 @@ static int qfq_dump_class(struct Qdisc *sch, unsigned long arg,
 	tcm->tcm_handle	= cl->common.classid;
 	tcm->tcm_info	= cl->qdisc->handle;
 
-	nest = nla_nest_start(skb, TCA_OPTIONS);
+	nest = nla_nest_start_noflag(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
 	if (nla_put_u32(skb, TCA_QFQ_WEIGHT, cl->agg->class_weight) ||
@@ -655,8 +643,7 @@ static int qfq_dump_class_stats(struct Qdisc *sch, unsigned long arg,
 	if (gnet_stats_copy_basic(qdisc_root_sleeping_running(sch),
 				  d, NULL, &cl->bstats) < 0 ||
 	    gnet_stats_copy_rate_est(d, &cl->rate_est) < 0 ||
-	    gnet_stats_copy_queue(d, NULL,
-				  &cl->qdisc->qstats, cl->qdisc->q.qlen) < 0)
+	    qdisc_qstats_copy(d, cl->qdisc) < 0)
 		return -1;
 
 	return gnet_stats_copy_app(d, &xstats, sizeof(xstats));

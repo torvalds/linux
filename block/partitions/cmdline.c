@@ -11,7 +11,7 @@
  *
  * The format for the command line is just like mtdparts.
  *
- * For further information, see "Documentation/block/cmdline-partition.txt"
+ * For further information, see "Documentation/block/cmdline-partition.rst"
  *
  */
 

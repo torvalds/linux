@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Core driver for the pin control subsystem
  *
@@ -8,8 +9,6 @@
  * Author: Linus Walleij <linus.walleij@linaro.org>
  *
  * Copyright (C) 2012 NVIDIA CORPORATION. All rights reserved.
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 #define pr_fmt(fmt) "pinctrl core: " fmt
 
@@ -99,7 +98,7 @@ EXPORT_SYMBOL_GPL(pinctrl_dev_get_drvdata);
  */
 struct pinctrl_dev *get_pinctrl_dev_from_devname(const char *devname)
 {
-	struct pinctrl_dev *pctldev = NULL;
+	struct pinctrl_dev *pctldev;
 
 	if (!devname)
 		return NULL;
@@ -177,29 +176,6 @@ const char *pin_get_name(struct pinctrl_dev *pctldev, const unsigned pin)
 
 	return desc->name;
 }
-
-/**
- * pin_is_valid() - check if pin exists on controller
- * @pctldev: the pin control device to check the pin on
- * @pin: pin to check, use the local pin controller index number
- *
- * This tells us whether a certain pin exist on a certain pin controller or
- * not. Pin lists may be sparse, so some pins may not exist.
- */
-bool pin_is_valid(struct pinctrl_dev *pctldev, int pin)
-{
-	struct pin_desc *pindesc;
-
-	if (pin < 0)
-		return false;
-
-	mutex_lock(&pctldev->mutex);
-	pindesc = pin_desc_get(pctldev, pin);
-	mutex_unlock(&pctldev->mutex);
-
-	return pindesc != NULL;
-}
-EXPORT_SYMBOL_GPL(pin_is_valid);
 
 /* Deletes a range of pin descriptors */
 static void pinctrl_free_pindescs(struct pinctrl_dev *pctldev,
@@ -312,7 +288,7 @@ static inline int gpio_to_pin(struct pinctrl_gpio_range *range,
 static struct pinctrl_gpio_range *
 pinctrl_match_gpio_range(struct pinctrl_dev *pctldev, unsigned gpio)
 {
-	struct pinctrl_gpio_range *range = NULL;
+	struct pinctrl_gpio_range *range;
 
 	mutex_lock(&pctldev->mutex);
 	/* Loop over the ranges */
@@ -392,7 +368,7 @@ static int pinctrl_get_device_gpio_range(unsigned gpio,
 					 struct pinctrl_dev **outdev,
 					 struct pinctrl_gpio_range **outrange)
 {
-	struct pinctrl_dev *pctldev = NULL;
+	struct pinctrl_dev *pctldev;
 
 	mutex_lock(&pinctrldev_list_mutex);
 
@@ -759,6 +735,34 @@ int pinctrl_get_group_selector(struct pinctrl_dev *pctldev,
 
 	return -EINVAL;
 }
+
+bool pinctrl_gpio_can_use_line(unsigned gpio)
+{
+	struct pinctrl_dev *pctldev;
+	struct pinctrl_gpio_range *range;
+	bool result;
+	int pin;
+
+	/*
+	 * Try to obtain GPIO range, if it fails
+	 * we're probably dealing with GPIO driver
+	 * without a backing pin controller - bail out.
+	 */
+	if (pinctrl_get_device_gpio_range(gpio, &pctldev, &range))
+		return true;
+
+	mutex_lock(&pctldev->mutex);
+
+	/* Convert to the pin controllers number space */
+	pin = gpio_to_pin(range, gpio);
+
+	result = pinmux_can_be_used_for_gpio(pctldev, pin);
+
+	mutex_unlock(&pctldev->mutex);
+
+	return result;
+}
+EXPORT_SYMBOL_GPL(pinctrl_gpio_can_use_line);
 
 /**
  * pinctrl_gpio_request() - request a single pin to be used as GPIO
@@ -1216,6 +1220,15 @@ struct pinctrl_state *pinctrl_lookup_state(struct pinctrl *p,
 }
 EXPORT_SYMBOL_GPL(pinctrl_lookup_state);
 
+static void pinctrl_link_add(struct pinctrl_dev *pctldev,
+			     struct device *consumer)
+{
+	if (pctldev->desc->link_consumers)
+		device_link_add(consumer, pctldev->dev,
+				DL_FLAG_PM_RUNTIME |
+				DL_FLAG_AUTOREMOVE_CONSUMER);
+}
+
 /**
  * pinctrl_commit_state() - select/activate/program a pinctrl state to HW
  * @p: the pinctrl handle for the device that requests configuration
@@ -1261,6 +1274,10 @@ static int pinctrl_commit_state(struct pinctrl *p, struct pinctrl_state *state)
 		if (ret < 0) {
 			goto unapply_new_state;
 		}
+
+		/* Do not link hogs (circular dependency) */
+		if (p != setting->pctldev->p)
+			pinctrl_link_add(setting->pctldev, p->dev);
 	}
 
 	p->state = state;
@@ -1666,7 +1683,7 @@ DEFINE_SHOW_ATTRIBUTE(pinctrl_groups);
 static int pinctrl_gpioranges_show(struct seq_file *s, void *what)
 {
 	struct pinctrl_dev *pctldev = s->private;
-	struct pinctrl_gpio_range *range = NULL;
+	struct pinctrl_gpio_range *range;
 
 	seq_puts(s, "GPIO ranges handled:\n");
 

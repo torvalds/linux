@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 comment "VME Bridge Drivers"
 
 config VME_CA91CX42

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig NVMEM
 	bool "NVMEM Support"
 	help
@@ -13,6 +14,16 @@ menuconfig NVMEM
 
 if NVMEM
 
+config NVMEM_SYSFS
+	bool "/sys/bus/nvmem/devices/*/nvmem (sysfs interface)"
+	depends on SYSFS
+	default y
+	help
+	 Say Y here to add a sysfs interface for NVMEM.
+
+	 This interface is mostly used by userspace applications to
+	 read/write directly into nvmem.
+
 config NVMEM_IMX_IIM
 	tristate "i.MX IC Identification Module support"
 	depends on ARCH_MXC || COMPILE_TEST
@@ -25,8 +36,8 @@ config NVMEM_IMX_IIM
 	  will be called nvmem-imx-iim.
 
 config NVMEM_IMX_OCOTP
-	tristate "i.MX6 On-Chip OTP Controller support"
-	depends on SOC_IMX6 || COMPILE_TEST
+	tristate "i.MX 6/7/8 On-Chip OTP Controller support"
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on HAS_IOMEM
 	help
 	  This is a driver for the On-Chip OTP Controller (OCOTP) available on
@@ -35,6 +46,13 @@ config NVMEM_IMX_OCOTP
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-imx-ocotp.
+
+config NVMEM_IMX_OCOTP_SCU
+	tristate "i.MX8 SCU On-Chip OTP Controller support"
+	depends on IMX_SCU
+	help
+	  This is a driver for the SCU On-Chip OTP Controller (OCOTP)
+	  available on i.MX8 SoCs.
 
 config NVMEM_LPC18XX_EEPROM
 	tristate "NXP LPC18XX EEPROM Memory Support"
@@ -113,6 +131,16 @@ config NVMEM_BCM_OCOTP
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-bcm-ocotp.
 
+config NVMEM_STM32_ROMEM
+	tristate "STMicroelectronics STM32 factory-programmed memory support"
+	depends on ARCH_STM32 || COMPILE_TEST
+	help
+	  Say y here to enable read-only access for STMicroelectronics STM32
+	  factory-programmed memory area.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nvmem-stm32-romem.
+
 config NVMEM_SUNXI_SID
 	tristate "Allwinner SoCs SID support"
 	depends on ARCH_SUNXI
@@ -167,7 +195,7 @@ config MESON_MX_EFUSE
 
 config NVMEM_SNVS_LPGPR
 	tristate "Support for Low Power General Purpose Register"
-	depends on SOC_IMX6 || SOC_IMX7D || COMPILE_TEST
+	depends on ARCH_MXC || COMPILE_TEST
 	help
 	  This is a driver for Low Power General Purpose Register (LPGPR) available on
 	  i.MX6 and i.MX7 SoCs in Secure Non-Volatile Storage (SNVS) of this chip.
@@ -191,5 +219,15 @@ config SC27XX_EFUSE
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-sc27xx-efuse.
+
+config NVMEM_ZYNQMP
+	bool "Xilinx ZYNQMP SoC nvmem firmware support"
+	depends on ARCH_ZYNQMP
+	help
+	  This is a driver to access hardware related data like
+	  soc revision, IDCODE... etc by using the firmware
+	  interface.
+
+	  If sure, say yes. If unsure, say no.
 
 endif

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NET		An implementation of the SOCKET network access protocol.
  *
@@ -45,13 +46,6 @@
  *		Tigran Aivazian	:	Made listen(2) backlog sanity checks
  *					protocol-independent
  *
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
- *
  *	This module is effectively the top level interface to the BSD socket
  *	paradigm.
  *
@@ -79,6 +73,7 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/compat.h>
@@ -90,6 +85,7 @@
 #include <linux/slab.h>
 #include <linux/xattr.h>
 #include <linux/nospec.h>
+#include <linux/indirect_call_wrapper.h>
 
 #include <linux/uaccess.h>
 #include <asm/unistd.h>
@@ -239,20 +235,13 @@ static struct kmem_cache *sock_inode_cachep __ro_after_init;
 static struct inode *sock_alloc_inode(struct super_block *sb)
 {
 	struct socket_alloc *ei;
-	struct socket_wq *wq;
 
 	ei = kmem_cache_alloc(sock_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	wq = kmalloc(sizeof(*wq), GFP_KERNEL);
-	if (!wq) {
-		kmem_cache_free(sock_inode_cachep, ei);
-		return NULL;
-	}
-	init_waitqueue_head(&wq->wait);
-	wq->fasync_list = NULL;
-	wq->flags = 0;
-	ei->socket.wq = wq;
+	init_waitqueue_head(&ei->socket.wq.wait);
+	ei->socket.wq.fasync_list = NULL;
+	ei->socket.wq.flags = 0;
 
 	ei->socket.state = SS_UNCONNECTED;
 	ei->socket.flags = 0;
@@ -263,12 +252,11 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void sock_destroy_inode(struct inode *inode)
+static void sock_free_inode(struct inode *inode)
 {
 	struct socket_alloc *ei;
 
 	ei = container_of(inode, struct socket_alloc, vfs_inode);
-	kfree_rcu(ei->socket.wq, rcu);
 	kmem_cache_free(sock_inode_cachep, ei);
 }
 
@@ -293,7 +281,7 @@ static void init_inodecache(void)
 
 static const struct super_operations sockfs_ops = {
 	.alloc_inode	= sock_alloc_inode,
-	.destroy_inode	= sock_destroy_inode,
+	.free_inode	= sock_free_inode,
 	.statfs		= simple_statfs,
 };
 
@@ -351,19 +339,22 @@ static const struct xattr_handler *sockfs_xattr_handlers[] = {
 	NULL
 };
 
-static struct dentry *sockfs_mount(struct file_system_type *fs_type,
-			 int flags, const char *dev_name, void *data)
+static int sockfs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo_xattr(fs_type, "socket:", &sockfs_ops,
-				  sockfs_xattr_handlers,
-				  &sockfs_dentry_operations, SOCKFS_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, SOCKFS_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->ops = &sockfs_ops;
+	ctx->dops = &sockfs_dentry_operations;
+	ctx->xattr = sockfs_xattr_handlers;
+	return 0;
 }
 
 static struct vfsmount *sock_mnt __read_mostly;
 
 static struct file_system_type sock_fs_type = {
 	.name =		"sockfs",
-	.mount =	sockfs_mount,
+	.init_fs_context = sockfs_init_fs_context,
 	.kill_sb =	kill_anon_super,
 };
 
@@ -382,6 +373,18 @@ static struct file_system_type sock_fs_type = {
  *	This race condition is unavoidable
  *	with shared fd spaces, we cannot solve it inside kernel,
  *	but we take care of internal coherence yet.
+ */
+
+/**
+ *	sock_alloc_file - Bind a &socket to a &file
+ *	@sock: socket
+ *	@flags: file status flags
+ *	@dname: protocol name
+ *
+ *	Returns the &file bound with @sock, implicitly storing it
+ *	in sock->file. If dname is %NULL, sets to "".
+ *	On failure the return is a ERR pointer (see linux/err.h).
+ *	This function uses GFP_KERNEL internally.
  */
 
 struct file *sock_alloc_file(struct socket *sock, int flags, const char *dname)
@@ -415,7 +418,7 @@ static int sock_map_fd(struct socket *sock, int flags)
 	}
 
 	newfile = sock_alloc_file(sock, flags, NULL);
-	if (likely(!IS_ERR(newfile))) {
+	if (!IS_ERR(newfile)) {
 		fd_install(fd, newfile);
 		return fd;
 	}
@@ -423,6 +426,14 @@ static int sock_map_fd(struct socket *sock, int flags)
 	put_unused_fd(fd);
 	return PTR_ERR(newfile);
 }
+
+/**
+ *	sock_from_file - Return the &socket bounded to @file.
+ *	@file: file
+ *	@err: pointer to an error code return
+ *
+ *	On failure returns %NULL and assigns -ENOTSOCK to @err.
+ */
 
 struct socket *sock_from_file(struct file *file, int *err)
 {
@@ -532,11 +543,11 @@ static const struct inode_operations sockfs_inode_ops = {
 };
 
 /**
- *	sock_alloc	-	allocate a socket
+ *	sock_alloc - allocate a socket
  *
  *	Allocate a new inode and socket object. The two are bound together
  *	and initialised. The socket is then returned. If we are out of inodes
- *	NULL is returned.
+ *	NULL is returned. This functions uses GFP_KERNEL internally.
  */
 
 struct socket *sock_alloc(void)
@@ -561,7 +572,7 @@ struct socket *sock_alloc(void)
 EXPORT_SYMBOL(sock_alloc);
 
 /**
- *	sock_release	-	close a socket
+ *	sock_release - close a socket
  *	@sock: socket to close
  *
  *	The socket is released from the protocol stack if it has a release
@@ -584,7 +595,7 @@ static void __sock_release(struct socket *sock, struct inode *inode)
 		module_put(owner);
 	}
 
-	if (sock->wq->fasync_list)
+	if (sock->wq.fasync_list)
 		pr_err("%s: fasync list not empty!\n", __func__);
 
 	if (!sock->file) {
@@ -617,13 +628,27 @@ void __sock_tx_timestamp(__u16 tsflags, __u8 *tx_flags)
 }
 EXPORT_SYMBOL(__sock_tx_timestamp);
 
+INDIRECT_CALLABLE_DECLARE(int inet_sendmsg(struct socket *, struct msghdr *,
+					   size_t));
+INDIRECT_CALLABLE_DECLARE(int inet6_sendmsg(struct socket *, struct msghdr *,
+					    size_t));
 static inline int sock_sendmsg_nosec(struct socket *sock, struct msghdr *msg)
 {
-	int ret = sock->ops->sendmsg(sock, msg, msg_data_left(msg));
+	int ret = INDIRECT_CALL_INET(sock->ops->sendmsg, inet6_sendmsg,
+				     inet_sendmsg, sock, msg,
+				     msg_data_left(msg));
 	BUG_ON(ret == -EIOCBQUEUED);
 	return ret;
 }
 
+/**
+ *	sock_sendmsg - send a message through @sock
+ *	@sock: socket
+ *	@msg: message to send
+ *
+ *	Sends @msg through @sock, passing through LSM.
+ *	Returns the number of bytes sent, or an error code.
+ */
 int sock_sendmsg(struct socket *sock, struct msghdr *msg)
 {
 	int err = security_socket_sendmsg(sock, msg,
@@ -633,6 +658,18 @@ int sock_sendmsg(struct socket *sock, struct msghdr *msg)
 }
 EXPORT_SYMBOL(sock_sendmsg);
 
+/**
+ *	kernel_sendmsg - send a message through @sock (kernel-space)
+ *	@sock: socket
+ *	@msg: message header
+ *	@vec: kernel vec
+ *	@num: vec array length
+ *	@size: total message data size
+ *
+ *	Builds the message data with @vec and sends it through @sock.
+ *	Returns the number of bytes sent, or an error code.
+ */
+
 int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 		   struct kvec *vec, size_t num, size_t size)
 {
@@ -640,6 +677,19 @@ int kernel_sendmsg(struct socket *sock, struct msghdr *msg,
 	return sock_sendmsg(sock, msg);
 }
 EXPORT_SYMBOL(kernel_sendmsg);
+
+/**
+ *	kernel_sendmsg_locked - send a message through @sock (kernel-space)
+ *	@sk: sock
+ *	@msg: message header
+ *	@vec: output s/g array
+ *	@num: output s/g array length
+ *	@size: total message data size
+ *
+ *	Builds the message data with @vec and sends it through @sock.
+ *	Returns the number of bytes sent, or an error code.
+ *	Caller must hold @sk.
+ */
 
 int kernel_sendmsg_locked(struct sock *sk, struct msghdr *msg,
 			  struct kvec *vec, size_t num, size_t size)
@@ -811,12 +861,27 @@ void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 }
 EXPORT_SYMBOL_GPL(__sock_recv_ts_and_drops);
 
+INDIRECT_CALLABLE_DECLARE(int inet_recvmsg(struct socket *, struct msghdr *,
+					   size_t, int));
+INDIRECT_CALLABLE_DECLARE(int inet6_recvmsg(struct socket *, struct msghdr *,
+					    size_t, int));
 static inline int sock_recvmsg_nosec(struct socket *sock, struct msghdr *msg,
 				     int flags)
 {
-	return sock->ops->recvmsg(sock, msg, msg_data_left(msg), flags);
+	return INDIRECT_CALL_INET(sock->ops->recvmsg, inet6_recvmsg,
+				  inet_recvmsg, sock, msg, msg_data_left(msg),
+				  flags);
 }
 
+/**
+ *	sock_recvmsg - receive a message from @sock
+ *	@sock: socket
+ *	@msg: message to receive
+ *	@flags: message flags
+ *
+ *	Receives @msg from @sock, passing through LSM. Returns the total number
+ *	of bytes received, or an error.
+ */
 int sock_recvmsg(struct socket *sock, struct msghdr *msg, int flags)
 {
 	int err = security_socket_recvmsg(sock, msg, msg_data_left(msg), flags);
@@ -826,20 +891,21 @@ int sock_recvmsg(struct socket *sock, struct msghdr *msg, int flags)
 EXPORT_SYMBOL(sock_recvmsg);
 
 /**
- * kernel_recvmsg - Receive a message from a socket (kernel space)
- * @sock:       The socket to receive the message from
- * @msg:        Received message
- * @vec:        Input s/g array for message data
- * @num:        Size of input s/g array
- * @size:       Number of bytes to read
- * @flags:      Message flags (MSG_DONTWAIT, etc...)
+ *	kernel_recvmsg - Receive a message from a socket (kernel space)
+ *	@sock: The socket to receive the message from
+ *	@msg: Received message
+ *	@vec: Input s/g array for message data
+ *	@num: Size of input s/g array
+ *	@size: Number of bytes to read
+ *	@flags: Message flags (MSG_DONTWAIT, etc...)
  *
- * On return the msg structure contains the scatter/gather array passed in the
- * vec argument. The array is modified so that it consists of the unfilled
- * portion of the original array.
+ *	On return the msg structure contains the scatter/gather array passed in the
+ *	vec argument. The array is modified so that it consists of the unfilled
+ *	portion of the original array.
  *
- * The returned value is the total number of bytes received, or an error.
+ *	The returned value is the total number of bytes received, or an error.
  */
+
 int kernel_recvmsg(struct socket *sock, struct msghdr *msg,
 		   struct kvec *vec, size_t num, size_t size, int flags)
 {
@@ -1005,6 +1071,13 @@ static long sock_do_ioctl(struct net *net, struct socket *sock,
  *	what to do with it - that's up to the protocol still.
  */
 
+/**
+ *	get_net_ns - increment the refcount of the network namespace
+ *	@ns: common namespace (net)
+ *
+ *	Returns the net's common namespace.
+ */
+
 struct ns_common *get_net_ns(struct ns_common *ns)
 {
 	return &get_net(container_of(ns, struct net, ns))->ns;
@@ -1092,12 +1165,45 @@ static long sock_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 
 			err = open_related_ns(&net->ns, get_net_ns);
 			break;
+		case SIOCGSTAMP_OLD:
+		case SIOCGSTAMPNS_OLD:
+			if (!sock->ops->gettstamp) {
+				err = -ENOIOCTLCMD;
+				break;
+			}
+			err = sock->ops->gettstamp(sock, argp,
+						   cmd == SIOCGSTAMP_OLD,
+						   !IS_ENABLED(CONFIG_64BIT));
+			break;
+		case SIOCGSTAMP_NEW:
+		case SIOCGSTAMPNS_NEW:
+			if (!sock->ops->gettstamp) {
+				err = -ENOIOCTLCMD;
+				break;
+			}
+			err = sock->ops->gettstamp(sock, argp,
+						   cmd == SIOCGSTAMP_NEW,
+						   false);
+			break;
 		default:
 			err = sock_do_ioctl(net, sock, cmd, arg);
 			break;
 		}
 	return err;
 }
+
+/**
+ *	sock_create_lite - creates a socket
+ *	@family: protocol family (AF_INET, ...)
+ *	@type: communication type (SOCK_STREAM, ...)
+ *	@protocol: protocol (0, ...)
+ *	@res: new socket
+ *
+ *	Creates a new socket and assigns it to @res, passing through LSM.
+ *	The new socket initialization is not complete, see kernel_accept().
+ *	Returns 0 or an error. On failure @res is set to %NULL.
+ *	This function internally uses GFP_KERNEL.
+ */
 
 int sock_create_lite(int family, int type, int protocol, struct socket **res)
 {
@@ -1178,13 +1284,12 @@ static int sock_fasync(int fd, struct file *filp, int on)
 {
 	struct socket *sock = filp->private_data;
 	struct sock *sk = sock->sk;
-	struct socket_wq *wq;
+	struct socket_wq *wq = &sock->wq;
 
 	if (sk == NULL)
 		return -EINVAL;
 
 	lock_sock(sk);
-	wq = sock->wq;
 	fasync_helper(fd, filp, on, &wq->fasync_list);
 
 	if (!wq->fasync_list)
@@ -1223,6 +1328,21 @@ call_kill:
 	return 0;
 }
 EXPORT_SYMBOL(sock_wake_async);
+
+/**
+ *	__sock_create - creates a socket
+ *	@net: net namespace
+ *	@family: protocol family (AF_INET, ...)
+ *	@type: communication type (SOCK_STREAM, ...)
+ *	@protocol: protocol (0, ...)
+ *	@res: new socket
+ *	@kern: boolean for kernel space sockets
+ *
+ *	Creates a new socket and assigns it to @res, passing through LSM.
+ *	Returns 0 or an error. On failure @res is set to %NULL. @kern must
+ *	be set to true if the socket resides in kernel space.
+ *	This function internally uses GFP_KERNEL.
+ */
 
 int __sock_create(struct net *net, int family, int type, int protocol,
 			 struct socket **res, int kern)
@@ -1333,11 +1453,34 @@ out_release:
 }
 EXPORT_SYMBOL(__sock_create);
 
+/**
+ *	sock_create - creates a socket
+ *	@family: protocol family (AF_INET, ...)
+ *	@type: communication type (SOCK_STREAM, ...)
+ *	@protocol: protocol (0, ...)
+ *	@res: new socket
+ *
+ *	A wrapper around __sock_create().
+ *	Returns 0 or an error. This function internally uses GFP_KERNEL.
+ */
+
 int sock_create(int family, int type, int protocol, struct socket **res)
 {
 	return __sock_create(current->nsproxy->net_ns, family, type, protocol, res, 0);
 }
 EXPORT_SYMBOL(sock_create);
+
+/**
+ *	sock_create_kern - creates a socket (kernel space)
+ *	@net: net namespace
+ *	@family: protocol family (AF_INET, ...)
+ *	@type: communication type (SOCK_STREAM, ...)
+ *	@protocol: protocol (0, ...)
+ *	@res: new socket
+ *
+ *	A wrapper around __sock_create().
+ *	Returns 0 or an error. This function internally uses GFP_KERNEL.
+ */
 
 int sock_create_kern(struct net *net, int family, int type, int protocol, struct socket **res)
 {
@@ -1902,6 +2045,8 @@ SYSCALL_DEFINE4(recv, int, fd, void __user *, ubuf, size_t, size,
 static int __sys_setsockopt(int fd, int level, int optname,
 			    char __user *optval, int optlen)
 {
+	mm_segment_t oldfs = get_fs();
+	char *kernel_optval = NULL;
 	int err, fput_needed;
 	struct socket *sock;
 
@@ -1914,6 +2059,22 @@ static int __sys_setsockopt(int fd, int level, int optname,
 		if (err)
 			goto out_put;
 
+		err = BPF_CGROUP_RUN_PROG_SETSOCKOPT(sock->sk, &level,
+						     &optname, optval, &optlen,
+						     &kernel_optval);
+
+		if (err < 0) {
+			goto out_put;
+		} else if (err > 0) {
+			err = 0;
+			goto out_put;
+		}
+
+		if (kernel_optval) {
+			set_fs(KERNEL_DS);
+			optval = (char __user __force *)kernel_optval;
+		}
+
 		if (level == SOL_SOCKET)
 			err =
 			    sock_setsockopt(sock, level, optname, optval,
@@ -1922,6 +2083,11 @@ static int __sys_setsockopt(int fd, int level, int optname,
 			err =
 			    sock->ops->setsockopt(sock, level, optname, optval,
 						  optlen);
+
+		if (kernel_optval) {
+			set_fs(oldfs);
+			kfree(kernel_optval);
+		}
 out_put:
 		fput_light(sock->file, fput_needed);
 	}
@@ -1944,12 +2110,15 @@ static int __sys_getsockopt(int fd, int level, int optname,
 {
 	int err, fput_needed;
 	struct socket *sock;
+	int max_optlen;
 
 	sock = sockfd_lookup_light(fd, &err, &fput_needed);
 	if (sock != NULL) {
 		err = security_socket_getsockopt(sock, level, optname);
 		if (err)
 			goto out_put;
+
+		max_optlen = BPF_CGROUP_GETSOCKOPT_MAX_OPTLEN(optlen);
 
 		if (level == SOL_SOCKET)
 			err =
@@ -1959,6 +2128,10 @@ static int __sys_getsockopt(int fd, int level, int optname,
 			err =
 			    sock->ops->getsockopt(sock, level, optname, optval,
 						  optlen);
+
+		err = BPF_CGROUP_RUN_PROG_GETSOCKOPT(sock->sk, level, optname,
+						     optval, optlen,
+						     max_optlen, err);
 out_put:
 		fput_light(sock->file, fput_needed);
 	}
@@ -2053,9 +2226,10 @@ static int copy_msghdr_from_user(struct msghdr *kmsg,
 
 	kmsg->msg_iocb = NULL;
 
-	return import_iovec(save_addr ? READ : WRITE,
+	err = import_iovec(save_addr ? READ : WRITE,
 			    msg.msg_iov, msg.msg_iovlen,
 			    UIO_FASTIOV, iov, &kmsg->msg_iter);
+	return err < 0 ? err : 0;
 }
 
 static int ___sys_sendmsg(struct socket *sock, struct user_msghdr __user *msg,
@@ -2157,6 +2331,13 @@ out_freeiov:
 /*
  *	BSD sendmsg interface
  */
+long __sys_sendmsg_sock(struct socket *sock, struct user_msghdr __user *msg,
+			unsigned int flags)
+{
+	struct msghdr msg_sys;
+
+	return ___sys_sendmsg(sock, msg, &msg_sys, flags, NULL, 0);
+}
 
 long __sys_sendmsg(int fd, struct user_msghdr __user *msg, unsigned int flags,
 		   bool forbid_cmsg_compat)
@@ -2330,6 +2511,14 @@ out_freeiov:
 /*
  *	BSD recvmsg interface
  */
+
+long __sys_recvmsg_sock(struct socket *sock, struct user_msghdr __user *msg,
+			unsigned int flags)
+{
+	struct msghdr msg_sys;
+
+	return ___sys_recvmsg(sock, msg, &msg_sys, flags, 0);
+}
 
 long __sys_recvmsg(int fd, struct user_msghdr __user *msg, unsigned int flags,
 		   bool forbid_cmsg_compat)
@@ -2793,38 +2982,6 @@ void socket_seq_show(struct seq_file *seq)
 #endif				/* CONFIG_PROC_FS */
 
 #ifdef CONFIG_COMPAT
-static int do_siocgstamp(struct net *net, struct socket *sock,
-			 unsigned int cmd, void __user *up)
-{
-	mm_segment_t old_fs = get_fs();
-	struct timeval ktv;
-	int err;
-
-	set_fs(KERNEL_DS);
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&ktv);
-	set_fs(old_fs);
-	if (!err)
-		err = compat_put_timeval(&ktv, up);
-
-	return err;
-}
-
-static int do_siocgstampns(struct net *net, struct socket *sock,
-			   unsigned int cmd, void __user *up)
-{
-	mm_segment_t old_fs = get_fs();
-	struct timespec kts;
-	int err;
-
-	set_fs(KERNEL_DS);
-	err = sock_do_ioctl(net, sock, cmd, (unsigned long)&kts);
-	set_fs(old_fs);
-	if (!err)
-		err = compat_put_timespec(&kts, up);
-
-	return err;
-}
-
 static int compat_dev_ifconf(struct net *net, struct compat_ifconf __user *uifc32)
 {
 	struct compat_ifconf ifc32;
@@ -3224,10 +3381,13 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCADDRT:
 	case SIOCDELRT:
 		return routing_ioctl(net, sock, cmd, argp);
-	case SIOCGSTAMP:
-		return do_siocgstamp(net, sock, cmd, argp);
-	case SIOCGSTAMPNS:
-		return do_siocgstampns(net, sock, cmd, argp);
+	case SIOCGSTAMP_OLD:
+	case SIOCGSTAMPNS_OLD:
+		if (!sock->ops->gettstamp)
+			return -ENOIOCTLCMD;
+		return sock->ops->gettstamp(sock, argp, cmd == SIOCGSTAMP_OLD,
+					    !COMPAT_USE_64BIT_TIME);
+
 	case SIOCBONDSLAVEINFOQUERY:
 	case SIOCBONDINFOQUERY:
 	case SIOCSHWTSTAMP:
@@ -3245,6 +3405,8 @@ static int compat_sock_ioctl_trans(struct file *file, struct socket *sock,
 	case SIOCADDDLCI:
 	case SIOCDELDLCI:
 	case SIOCGSKNS:
+	case SIOCGSTAMP_NEW:
+	case SIOCGSTAMPNS_NEW:
 		return sock_ioctl(file, cmd, arg);
 
 	case SIOCGIFFLAGS:
@@ -3322,17 +3484,45 @@ static long compat_sock_ioctl(struct file *file, unsigned int cmd,
 }
 #endif
 
+/**
+ *	kernel_bind - bind an address to a socket (kernel space)
+ *	@sock: socket
+ *	@addr: address
+ *	@addrlen: length of address
+ *
+ *	Returns 0 or an error.
+ */
+
 int kernel_bind(struct socket *sock, struct sockaddr *addr, int addrlen)
 {
 	return sock->ops->bind(sock, addr, addrlen);
 }
 EXPORT_SYMBOL(kernel_bind);
 
+/**
+ *	kernel_listen - move socket to listening state (kernel space)
+ *	@sock: socket
+ *	@backlog: pending connections queue size
+ *
+ *	Returns 0 or an error.
+ */
+
 int kernel_listen(struct socket *sock, int backlog)
 {
 	return sock->ops->listen(sock, backlog);
 }
 EXPORT_SYMBOL(kernel_listen);
+
+/**
+ *	kernel_accept - accept a connection (kernel space)
+ *	@sock: listening socket
+ *	@newsock: new connected socket
+ *	@flags: flags
+ *
+ *	@flags must be SOCK_CLOEXEC, SOCK_NONBLOCK or 0.
+ *	If it fails, @newsock is guaranteed to be %NULL.
+ *	Returns 0 or an error.
+ */
 
 int kernel_accept(struct socket *sock, struct socket **newsock, int flags)
 {
@@ -3359,6 +3549,19 @@ done:
 }
 EXPORT_SYMBOL(kernel_accept);
 
+/**
+ *	kernel_connect - connect a socket (kernel space)
+ *	@sock: socket
+ *	@addr: address
+ *	@addrlen: address length
+ *	@flags: flags (O_NONBLOCK, ...)
+ *
+ *	For datagram sockets, @addr is the addres to which datagrams are sent
+ *	by default, and the only address from which datagrams are received.
+ *	For stream sockets, attempts to connect to @addr.
+ *	Returns 0 or an error code.
+ */
+
 int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,
 		   int flags)
 {
@@ -3366,17 +3569,47 @@ int kernel_connect(struct socket *sock, struct sockaddr *addr, int addrlen,
 }
 EXPORT_SYMBOL(kernel_connect);
 
+/**
+ *	kernel_getsockname - get the address which the socket is bound (kernel space)
+ *	@sock: socket
+ *	@addr: address holder
+ *
+ * 	Fills the @addr pointer with the address which the socket is bound.
+ *	Returns 0 or an error code.
+ */
+
 int kernel_getsockname(struct socket *sock, struct sockaddr *addr)
 {
 	return sock->ops->getname(sock, addr, 0);
 }
 EXPORT_SYMBOL(kernel_getsockname);
 
+/**
+ *	kernel_peername - get the address which the socket is connected (kernel space)
+ *	@sock: socket
+ *	@addr: address holder
+ *
+ * 	Fills the @addr pointer with the address which the socket is connected.
+ *	Returns 0 or an error code.
+ */
+
 int kernel_getpeername(struct socket *sock, struct sockaddr *addr)
 {
 	return sock->ops->getname(sock, addr, 1);
 }
 EXPORT_SYMBOL(kernel_getpeername);
+
+/**
+ *	kernel_getsockopt - get a socket option (kernel space)
+ *	@sock: socket
+ *	@level: API level (SOL_SOCKET, ...)
+ *	@optname: option tag
+ *	@optval: option value
+ *	@optlen: option length
+ *
+ *	Assigns the option length to @optlen.
+ *	Returns 0 or an error.
+ */
 
 int kernel_getsockopt(struct socket *sock, int level, int optname,
 			char *optval, int *optlen)
@@ -3400,6 +3633,17 @@ int kernel_getsockopt(struct socket *sock, int level, int optname,
 }
 EXPORT_SYMBOL(kernel_getsockopt);
 
+/**
+ *	kernel_setsockopt - set a socket option (kernel space)
+ *	@sock: socket
+ *	@level: API level (SOL_SOCKET, ...)
+ *	@optname: option tag
+ *	@optval: option value
+ *	@optlen: option length
+ *
+ *	Returns 0 or an error.
+ */
+
 int kernel_setsockopt(struct socket *sock, int level, int optname,
 			char *optval, unsigned int optlen)
 {
@@ -3420,6 +3664,17 @@ int kernel_setsockopt(struct socket *sock, int level, int optname,
 }
 EXPORT_SYMBOL(kernel_setsockopt);
 
+/**
+ *	kernel_sendpage - send a &page through a socket (kernel space)
+ *	@sock: socket
+ *	@page: page
+ *	@offset: page offset
+ *	@size: total size in bytes
+ *	@flags: flags (MSG_DONTWAIT, ...)
+ *
+ *	Returns the total amount sent in bytes or an error.
+ */
+
 int kernel_sendpage(struct socket *sock, struct page *page, int offset,
 		    size_t size, int flags)
 {
@@ -3429,6 +3684,18 @@ int kernel_sendpage(struct socket *sock, struct page *page, int offset,
 	return sock_no_sendpage(sock, page, offset, size, flags);
 }
 EXPORT_SYMBOL(kernel_sendpage);
+
+/**
+ *	kernel_sendpage_locked - send a &page through the locked sock (kernel space)
+ *	@sk: sock
+ *	@page: page
+ *	@offset: page offset
+ *	@size: total size in bytes
+ *	@flags: flags (MSG_DONTWAIT, ...)
+ *
+ *	Returns the total amount sent in bytes or an error.
+ *	Caller must hold @sk.
+ */
 
 int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
 			   size_t size, int flags)
@@ -3443,17 +3710,30 @@ int kernel_sendpage_locked(struct sock *sk, struct page *page, int offset,
 }
 EXPORT_SYMBOL(kernel_sendpage_locked);
 
+/**
+ *	kernel_shutdown - shut down part of a full-duplex connection (kernel space)
+ *	@sock: socket
+ *	@how: connection part
+ *
+ *	Returns 0 or an error.
+ */
+
 int kernel_sock_shutdown(struct socket *sock, enum sock_shutdown_cmd how)
 {
 	return sock->ops->shutdown(sock, how);
 }
 EXPORT_SYMBOL(kernel_sock_shutdown);
 
-/* This routine returns the IP overhead imposed by a socket i.e.
- * the length of the underlying IP header, depending on whether
- * this is an IPv4 or IPv6 socket and the length from IP options turned
- * on at the socket. Assumes that the caller has a lock on the socket.
+/**
+ *	kernel_sock_ip_overhead - returns the IP overhead imposed by a socket
+ *	@sk: socket
+ *
+ *	This routine returns the IP overhead imposed by a socket i.e.
+ *	the length of the underlying IP header, depending on whether
+ *	this is an IPv4 or IPv6 socket and the length from IP options turned
+ *	on at the socket. Assumes that the caller has a lock on the socket.
  */
+
 u32 kernel_sock_ip_overhead(struct sock *sk)
 {
 	struct inet_sock *inet;

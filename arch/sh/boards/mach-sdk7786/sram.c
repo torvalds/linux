@@ -13,7 +13,7 @@
 #include <linux/string.h>
 #include <mach/fpga.h>
 #include <asm/sram.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 static int __init fpga_sram_init(void)
 {

@@ -12,7 +12,7 @@
 
 #define HCLGE_TM_PORT_BASE_MODE_MSK	BIT(0)
 
-#define HCLGE_DEFAULT_PAUSE_TRANS_GAP	0xFF
+#define HCLGE_DEFAULT_PAUSE_TRANS_GAP	0x7F
 #define HCLGE_DEFAULT_PAUSE_TRANS_TIME	0xFFFF
 
 /* SP or DWRR */
@@ -147,6 +147,7 @@ int hclge_pause_setup_hw(struct hclge_dev *hdev, bool init);
 int hclge_tm_schd_setup_hw(struct hclge_dev *hdev);
 void hclge_tm_prio_tc_info_update(struct hclge_dev *hdev, u8 *prio_tc);
 void hclge_tm_schd_info_update(struct hclge_dev *hdev, u8 num_tc);
+void hclge_tm_pfc_info_update(struct hclge_dev *hdev);
 int hclge_tm_dwrr_cfg(struct hclge_dev *hdev);
 int hclge_tm_init_hw(struct hclge_dev *hdev, bool init);
 int hclge_mac_pause_en_cfg(struct hclge_dev *hdev, bool tx, bool rx);

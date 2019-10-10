@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD ALSA SoC PCM Driver for ACP 2.x
  *
  * Copyright 2014-2015 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -1142,7 +1134,6 @@ static int acp_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 
 static int acp_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
-	int ret;
 	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd,
 								    DRV_NAME);
 	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
@@ -1150,24 +1141,21 @@ static int acp_dma_new(struct snd_soc_pcm_runtime *rtd)
 
 	switch (adata->asic_type) {
 	case CHIP_STONEY:
-		ret = snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
-							    SNDRV_DMA_TYPE_DEV,
-							    parent,
-							    ST_MIN_BUFFER,
-							    ST_MAX_BUFFER);
+		snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
+						      SNDRV_DMA_TYPE_DEV,
+						      parent,
+						      ST_MIN_BUFFER,
+						      ST_MAX_BUFFER);
 		break;
 	default:
-		ret = snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
-							    SNDRV_DMA_TYPE_DEV,
-							    parent,
-							    MIN_BUFFER,
-							    MAX_BUFFER);
+		snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
+						      SNDRV_DMA_TYPE_DEV,
+						      parent,
+						      MIN_BUFFER,
+						      MAX_BUFFER);
 		break;
 	}
-	if (ret < 0)
-		dev_err(component->dev,
-			"buffer preallocation failure error:%d\n", ret);
-	return ret;
+	return 0;
 }
 
 static int acp_dma_close(struct snd_pcm_substream *substream)
@@ -1263,8 +1251,7 @@ static int acp_audio_probe(struct platform_device *pdev)
 	if (!audio_drv_data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	audio_drv_data->acp_mmio = devm_ioremap_resource(&pdev->dev, res);
+	audio_drv_data->acp_mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(audio_drv_data->acp_mmio))
 		return PTR_ERR(audio_drv_data->acp_mmio);
 

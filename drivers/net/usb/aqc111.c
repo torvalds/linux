@@ -437,7 +437,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_MEDIUM_STATUS_MODE,
 			   2, &reg16);
 
-	if (dev->net->mtu > 12500 && dev->net->mtu <= 16334) {
+	if (dev->net->mtu > 12500) {
 		memcpy(buf, &AQC111_BULKIN_SIZE[2], 5);
 		/* RX bulk configuration */
 		aqc111_write_cmd(dev, AQ_ACCESS_MAC, SFR_RX_BULKIN_QCTRL,
@@ -451,7 +451,7 @@ static int aqc111_change_mtu(struct net_device *net, int new_mtu)
 		reg16 = 0x1020;
 	else if (dev->net->mtu <= 12500)
 		reg16 = 0x1420;
-	else if (dev->net->mtu <= 16334)
+	else
 		reg16 = 0x1A20;
 
 	aqc111_write16_cmd(dev, AQ_ACCESS_MAC, SFR_PAUSE_WATERLVL_LOW,
@@ -1301,6 +1301,20 @@ static const struct driver_info trendnet_info = {
 	.tx_fixup	= aqc111_tx_fixup,
 };
 
+static const struct driver_info qnap_info = {
+	.description	= "QNAP QNA-UC5G1T USB to 5GbE Adapter",
+	.bind		= aqc111_bind,
+	.unbind		= aqc111_unbind,
+	.status		= aqc111_status,
+	.link_reset	= aqc111_link_reset,
+	.reset		= aqc111_reset,
+	.stop		= aqc111_stop,
+	.flags		= FLAG_ETHER | FLAG_FRAMING_AX |
+			  FLAG_AVOID_UNLINK_URBS | FLAG_MULTI_PACKET,
+	.rx_fixup	= aqc111_rx_fixup,
+	.tx_fixup	= aqc111_tx_fixup,
+};
+
 static int aqc111_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usbnet *dev = usb_get_intfdata(intf);
@@ -1455,6 +1469,7 @@ static const struct usb_device_id products[] = {
 	{AQC111_USB_ETH_DEV(0x0b95, 0x2790, asix111_info)},
 	{AQC111_USB_ETH_DEV(0x0b95, 0x2791, asix112_info)},
 	{AQC111_USB_ETH_DEV(0x20f4, 0xe05a, trendnet_info)},
+	{AQC111_USB_ETH_DEV(0x1c04, 0x0015, qnap_info)},
 	{ },/* END */
 };
 MODULE_DEVICE_TABLE(usb, products);

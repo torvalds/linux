@@ -48,6 +48,9 @@ COND_SYSCALL(io_pgetevents_time32);
 COND_SYSCALL(io_pgetevents);
 COND_SYSCALL_COMPAT(io_pgetevents_time32);
 COND_SYSCALL_COMPAT(io_pgetevents);
+COND_SYSCALL(io_uring_setup);
+COND_SYSCALL(io_uring_enter);
+COND_SYSCALL(io_uring_register);
 
 /* fs/xattr.c */
 
@@ -134,6 +137,8 @@ COND_SYSCALL(capset);
 /* kernel/exit.c */
 
 /* kernel/fork.c */
+/* __ARCH_WANT_SYS_CLONE3 */
+COND_SYSCALL(clone3);
 
 /* kernel/futex.c */
 COND_SYSCALL(futex);
@@ -163,8 +168,6 @@ COND_SYSCALL(syslog);
 /* kernel/ptrace.c */
 
 /* kernel/sched/core.c */
-
-/* kernel/signal.c */
 
 /* kernel/sys.c */
 COND_SYSCALL(setregid);
@@ -202,6 +205,7 @@ COND_SYSCALL(msgget);
 COND_SYSCALL(old_msgctl);
 COND_SYSCALL(msgctl);
 COND_SYSCALL_COMPAT(msgctl);
+COND_SYSCALL_COMPAT(old_msgctl);
 COND_SYSCALL(msgrcv);
 COND_SYSCALL_COMPAT(msgrcv);
 COND_SYSCALL(msgsnd);
@@ -212,6 +216,7 @@ COND_SYSCALL(semget);
 COND_SYSCALL(old_semctl);
 COND_SYSCALL(semctl);
 COND_SYSCALL_COMPAT(semctl);
+COND_SYSCALL_COMPAT(old_semctl);
 COND_SYSCALL(semtimedop);
 COND_SYSCALL(semtimedop_time32);
 COND_SYSCALL(semop);
@@ -221,6 +226,7 @@ COND_SYSCALL(shmget);
 COND_SYSCALL(old_shmctl);
 COND_SYSCALL(shmctl);
 COND_SYSCALL_COMPAT(shmctl);
+COND_SYSCALL_COMPAT(old_shmctl);
 COND_SYSCALL(shmat);
 COND_SYSCALL_COMPAT(shmat);
 COND_SYSCALL(shmdt);

@@ -24,11 +24,14 @@
 
 #include <linux/module.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_pciids.h>
 #include <drm/via_drm.h>
+
 #include "via_drv.h"
 
-#include <drm/drm_pciids.h>
 
 static int via_driver_open(struct drm_device *dev, struct drm_file *file)
 {
@@ -70,8 +73,7 @@ static const struct file_operations via_driver_fops = {
 
 static struct drm_driver driver = {
 	.driver_features =
-	    DRIVER_USE_AGP | DRIVER_HAVE_IRQ | DRIVER_LEGACY |
-	    DRIVER_IRQ_SHARED,
+	    DRIVER_USE_AGP | DRIVER_HAVE_IRQ | DRIVER_LEGACY,
 	.load = via_driver_load,
 	.unload = via_driver_unload,
 	.open = via_driver_open,

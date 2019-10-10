@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -5,22 +6,6 @@
  * Copyright (c) 2001 Intel Corp.
  *
  * This file is part of the SCTP kernel implementation
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *		   ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email addresses:
@@ -48,6 +33,7 @@
 #define __sctp_structs_h__
 
 #include <linux/ktime.h>
+#include <linux/generic-radix-tree.h>
 #include <linux/rhashtable-types.h>
 #include <linux/socket.h>	/* linux/in.h needs this!!    */
 #include <linux/in.h>		/* We get struct sockaddr_in. */
@@ -57,7 +43,6 @@
 #include <linux/atomic.h>		/* This gets us atomic counters.  */
 #include <linux/skbuff.h>	/* We need sk_buff_head. */
 #include <linux/workqueue.h>	/* We need tq_struct.	 */
-#include <linux/flex_array.h>	/* We need flex_array.   */
 #include <linux/sctp.h>		/* We need sctp* header structs.  */
 #include <net/sctp/auth.h>	/* We need auth specific structs */
 #include <net/ip.h>		/* For inet_skb_parm */
@@ -234,7 +219,6 @@ struct sctp_sock {
 		disable_fragments:1,
 		v4mapped:1,
 		frag_interleave:1,
-		strm_interleave:1,
 		recvrcvinfo:1,
 		recvnxtinfo:1,
 		data_ready_signalled:1;
@@ -1338,8 +1322,11 @@ struct sctp_endpoint {
 	/* SCTP-AUTH: endpoint shared keys */
 	struct list_head endpoint_shared_keys;
 	__u16 active_key_id;
-	__u8  auth_enable:1,
+	__u8  ecn_enable:1,
+	      auth_enable:1,
+	      intl_enable:1,
 	      prsctp_enable:1,
+	      asconf_enable:1,
 	      reconf_enable:1;
 
 	__u8  strreset_enable;
@@ -1449,8 +1436,9 @@ struct sctp_stream_in {
 };
 
 struct sctp_stream {
-	struct flex_array *out;
-	struct flex_array *in;
+	GENRADIX(struct sctp_stream_out) out;
+	GENRADIX(struct sctp_stream_in)	in;
+
 	__u16 outcnt;
 	__u16 incnt;
 	/* Current stream being sent, if any */
@@ -1473,17 +1461,17 @@ struct sctp_stream {
 };
 
 static inline struct sctp_stream_out *sctp_stream_out(
-	const struct sctp_stream *stream,
+	struct sctp_stream *stream,
 	__u16 sid)
 {
-	return flex_array_get(stream->out, sid);
+	return genradix_ptr(&stream->out, sid);
 }
 
 static inline struct sctp_stream_in *sctp_stream_in(
-	const struct sctp_stream *stream,
+	struct sctp_stream *stream,
 	__u16 sid)
 {
-	return flex_array_get(stream->in, sid);
+	return genradix_ptr(&stream->in, sid);
 }
 
 #define SCTP_SO(s, i) sctp_stream_out((s), (i))
@@ -1693,28 +1681,30 @@ struct sctp_association {
 		__be16 addip_disabled_mask;
 
 		/* These are capabilities which our peer advertised.  */
-		__u8	ecn_capable:1,      /* Can peer do ECN? */
+		__u16	ecn_capable:1,      /* Can peer do ECN? */
 			ipv4_address:1,     /* Peer understands IPv4 addresses? */
 			ipv6_address:1,     /* Peer understands IPv6 addresses? */
 			hostname_address:1, /* Peer understands DNS addresses? */
 			asconf_capable:1,   /* Does peer support ADDIP? */
 			prsctp_capable:1,   /* Can peer do PR-SCTP? */
 			reconf_capable:1,   /* Can peer do RE-CONFIG? */
-			auth_capable:1;     /* Is peer doing SCTP-AUTH? */
-
-		/* sack_needed : This flag indicates if the next received
-		 *             : packet is to be responded to with a
-		 *             : SACK. This is initialized to 0.  When a packet
-		 *             : is received sack_cnt is incremented. If this value
-		 *             : reaches 2 or more, a SACK is sent and the
-		 *             : value is reset to 0. Note: This is used only
-		 *             : when no DATA chunks are received out of
-		 *             : order.  When DATA chunks are out of order,
-		 *             : SACK's are not delayed (see Section 6).
-		 */
-		__u8    sack_needed:1,     /* Do we need to sack the peer? */
+			intl_capable:1,     /* Can peer do INTERLEAVE */
+			auth_capable:1,     /* Is peer doing SCTP-AUTH? */
+			/* sack_needed:
+			 *   This flag indicates if the next received
+			 *   packet is to be responded to with a
+			 *   SACK. This is initialized to 0.  When a packet
+			 *   is received sack_cnt is incremented. If this value
+			 *   reaches 2 or more, a SACK is sent and the
+			 *   value is reset to 0. Note: This is used only
+			 *   when no DATA chunks are received out of
+			 *   order.  When DATA chunks are out of order,
+			 *   SACK's are not delayed (see Section 6).
+			 */
+			sack_needed:1,     /* Do we need to sack the peer? */
 			sack_generation:1,
 			zero_window_announced:1;
+
 		__u32	sack_cnt;
 
 		__u32   adaptation_ind;	 /* Adaptation Code point. */
@@ -2063,10 +2053,7 @@ struct sctp_association {
 
 	__u8 need_ecne:1,	/* Need to send an ECNE Chunk? */
 	     temp:1,		/* Is it a temporary association? */
-	     force_delay:1,
-	     intl_enable:1,
-	     prsctp_enable:1,
-	     reconf_enable:1;
+	     force_delay:1;
 
 	__u8 strreset_enable;
 	__u8 strreset_outstanding; /* request param count on the fly */

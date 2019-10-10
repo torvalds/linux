@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * V4L2 fwnode binding parsing library
  *
@@ -12,10 +13,6 @@
  *
  * Copyright (C) 2012 Renesas Electronics Corp.
  * Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
  */
 #include <linux/acpi.h>
 #include <linux/kernel.h>
@@ -46,7 +43,7 @@ static const struct v4l2_fwnode_bus_conv {
 	enum v4l2_fwnode_bus_type fwnode_bus_type;
 	enum v4l2_mbus_type mbus_type;
 	const char *name;
-} busses[] = {
+} buses[] = {
 	{
 		V4L2_FWNODE_BUS_TYPE_GUESS,
 		V4L2_MBUS_UNKNOWN,
@@ -83,9 +80,9 @@ get_v4l2_fwnode_bus_conv_by_fwnode_bus(enum v4l2_fwnode_bus_type type)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(busses); i++)
-		if (busses[i].fwnode_bus_type == type)
-			return &busses[i];
+	for (i = 0; i < ARRAY_SIZE(buses); i++)
+		if (buses[i].fwnode_bus_type == type)
+			return &buses[i];
 
 	return NULL;
 }
@@ -113,9 +110,9 @@ get_v4l2_fwnode_bus_conv_by_mbus(enum v4l2_mbus_type type)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(busses); i++)
-		if (busses[i].mbus_type == type)
-			return &busses[i];
+	for (i = 0; i < ARRAY_SIZE(buses); i++)
+		if (buses[i].mbus_type == type)
+			return &buses[i];
 
 	return NULL;
 }
@@ -163,10 +160,10 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		}
 
 		if (use_default_lane_mapping)
-			pr_debug("using default lane mapping\n");
+			pr_debug("no lane mapping given, using defaults\n");
 	}
 
-	rval = fwnode_property_read_u32_array(fwnode, "data-lanes", NULL, 0);
+	rval = fwnode_property_count_u32(fwnode, "data-lanes");
 	if (rval > 0) {
 		num_data_lanes =
 			min_t(int, V4L2_FWNODE_CSI2_MAX_DATA_LANES, rval);
@@ -175,6 +172,10 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 					       num_data_lanes);
 
 		have_data_lanes = true;
+		if (use_default_lane_mapping) {
+			pr_debug("data-lanes property exists; disabling default mapping\n");
+			use_default_lane_mapping = false;
+		}
 	}
 
 	for (i = 0; i < num_data_lanes; i++) {
@@ -190,8 +191,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 			pr_debug("lane %u position %u\n", i, array[i]);
 	}
 
-	rval = fwnode_property_read_u32_array(fwnode, "lane-polarities", NULL,
-					      0);
+	rval = fwnode_property_count_u32(fwnode, "lane-polarities");
 	if (rval > 0) {
 		if (rval != 1 + num_data_lanes /* clock+data */) {
 			pr_warn("invalid number of lane-polarities entries (need %u, got %u)\n",
@@ -208,10 +208,10 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		have_clk_lane = true;
 	}
 
-	if (lanes_used & BIT(clock_lane)) {
-		if (have_clk_lane || !use_default_lane_mapping)
-			pr_warn("duplicated lane %u in clock-lanes, using defaults\n",
-				v);
+	if (have_clk_lane && lanes_used & BIT(clock_lane) &&
+	    !use_default_lane_mapping) {
+		pr_warn("duplicated lane %u in clock-lanes, using defaults\n",
+			v);
 		use_default_lane_mapping = true;
 	}
 
@@ -225,6 +225,10 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 	if (bus_type == V4L2_MBUS_CSI2_DPHY ||
 	    bus_type == V4L2_MBUS_CSI2_CPHY || lanes_used ||
 	    have_clk_lane || (flags & ~V4L2_MBUS_CSI2_CONTINUOUS_CLOCK)) {
+		/* Only D-PHY has a clock lane. */
+		unsigned int dfl_data_lane_index =
+			bus_type == V4L2_MBUS_CSI2_DPHY;
+
 		bus->flags = flags;
 		if (bus_type == V4L2_MBUS_UNKNOWN)
 			vep->bus_type = V4L2_MBUS_CSI2_DPHY;
@@ -233,7 +237,7 @@ static int v4l2_fwnode_endpoint_parse_csi2_bus(struct fwnode_handle *fwnode,
 		if (use_default_lane_mapping) {
 			bus->clock_lane = 0;
 			for (i = 0; i < num_data_lanes; i++)
-				bus->data_lanes[i] = 1 + i;
+				bus->data_lanes[i] = dfl_data_lane_index + i;
 		} else {
 			bus->clock_lane = clock_lane;
 			for (i = 0; i < num_data_lanes; i++)
@@ -520,8 +524,7 @@ int v4l2_fwnode_endpoint_alloc_parse(struct fwnode_handle *fwnode,
 	if (rval < 0)
 		return rval;
 
-	rval = fwnode_property_read_u64_array(fwnode, "link-frequencies",
-					      NULL, 0);
+	rval = fwnode_property_count_u64(fwnode, "link-frequencies");
 	if (rval > 0) {
 		unsigned int i;
 
@@ -772,23 +775,17 @@ static int v4l2_fwnode_reference_parse(struct device *dev,
 		asd = v4l2_async_notifier_add_fwnode_subdev(notifier,
 							    args.fwnode,
 							    sizeof(*asd));
+		fwnode_handle_put(args.fwnode);
 		if (IS_ERR(asd)) {
-			ret = PTR_ERR(asd);
 			/* not an error if asd already exists */
-			if (ret == -EEXIST) {
-				fwnode_handle_put(args.fwnode);
+			if (PTR_ERR(asd) == -EEXIST)
 				continue;
-			}
 
-			goto error;
+			return PTR_ERR(asd);
 		}
 	}
 
 	return 0;
-
-error:
-	fwnode_handle_put(args.fwnode);
-	return ret;
 }
 
 /*
@@ -809,7 +806,7 @@ error:
  * root node and the value of that property matching with the integer argument
  * of the reference, at the same index.
  *
- * The child fwnode reched at the end of the iteration is then returned to the
+ * The child fwnode reached at the end of the iteration is then returned to the
  * caller.
  *
  * The core reason for this is that you cannot refer to just any node in ACPI.
@@ -820,7 +817,10 @@ error:
  * underneath the fwnode identified by the previous tuple, etc. until you
  * reached the fwnode you need.
  *
- * An example with a graph, as defined in Documentation/acpi/dsd/graph.txt:
+ * THIS EXAMPLE EXISTS MERELY TO DOCUMENT THIS FUNCTION. DO NOT USE IT AS A
+ * REFERENCE IN HOW ACPI TABLES SHOULD BE WRITTEN!! See documentation under
+ * Documentation/acpi/dsd instead and especially graph.txt,
+ * data-node-references.txt and leds.txt .
  *
  *	Scope (\_SB.PCI0.I2C2)
  *	{
@@ -1075,23 +1075,18 @@ v4l2_fwnode_reference_parse_int_props(struct device *dev,
 
 		asd = v4l2_async_notifier_add_fwnode_subdev(notifier, fwnode,
 							    sizeof(*asd));
+		fwnode_handle_put(fwnode);
 		if (IS_ERR(asd)) {
 			ret = PTR_ERR(asd);
 			/* not an error if asd already exists */
-			if (ret == -EEXIST) {
-				fwnode_handle_put(fwnode);
+			if (ret == -EEXIST)
 				continue;
-			}
 
-			goto error;
+			return PTR_ERR(asd);
 		}
 	}
 
-	return PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
-
-error:
-	fwnode_handle_put(fwnode);
-	return ret;
+	return !fwnode || PTR_ERR(fwnode) == -ENOENT ? 0 : PTR_ERR(fwnode);
 }
 
 int v4l2_async_notifier_parse_fwnode_sensor_common(struct device *dev,

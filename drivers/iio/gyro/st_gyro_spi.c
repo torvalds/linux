@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics gyroscopes driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -70,19 +69,31 @@ MODULE_DEVICE_TABLE(of, st_gyro_of_match);
 
 static int st_gyro_spi_probe(struct spi_device *spi)
 {
-	struct iio_dev *indio_dev;
+	const struct st_sensor_settings *settings;
 	struct st_sensor_data *gdata;
+	struct iio_dev *indio_dev;
 	int err;
+
+	st_sensors_of_name_probe(&spi->dev, st_gyro_of_match,
+				 spi->modalias, sizeof(spi->modalias));
+
+	settings = st_gyro_get_settings(spi->modalias);
+	if (!settings) {
+		dev_err(&spi->dev, "device name %s not recognized.\n",
+			spi->modalias);
+		return -ENODEV;
+	}
 
 	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*gdata));
 	if (!indio_dev)
 		return -ENOMEM;
 
 	gdata = iio_priv(indio_dev);
+	gdata->sensor_settings = (struct st_sensor_settings *)settings;
 
-	st_sensors_of_name_probe(&spi->dev, st_gyro_of_match,
-				 spi->modalias, sizeof(spi->modalias));
-	st_sensors_spi_configure(indio_dev, spi, gdata);
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_gyro_common_probe(indio_dev);
 	if (err < 0)

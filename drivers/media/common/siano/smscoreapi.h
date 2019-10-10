@@ -1,21 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /****************************************************************
 
 Siano Mobile Silicon, Inc.
 MDTV receiver kernel modules.
 Copyright (C) 2006-2008, Uri Shkolnik, Anatoly Greenblat
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 2 of the License, or
-(at your option) any later version.
-
- This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 ****************************************************************/
 
@@ -750,7 +739,7 @@ struct sms_stats {
 	u32 num_of_corrected_mpe_tlbs;/* Number of MPE tables which were
 	corrected by MPE RS decoding */
 	/* Common params */
-	u32 ber_error_count;	/* Number of errornous SYNC bits. */
+	u32 ber_error_count;	/* Number of erroneous SYNC bits. */
 	u32 ber_bit_count;	/* Total number of SYNC bits. */
 
 	/* Interface information */

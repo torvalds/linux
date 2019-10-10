@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Nokia Corporation
  * Author: Tomi Valkeinen <tomi.valkeinen@ti.com>
  *
  * Some code and ideas taken from drivers/video/omap/ driver
  * by Imre Deak.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define DSS_SUBSYS_NAME "DPI"
@@ -47,8 +36,8 @@ struct dpi_data {
 
 	struct mutex lock;
 
-	struct videomode vm;
 	struct dss_lcd_mgr_config mgr_config;
+	unsigned long pixelclock;
 	int data_lines;
 
 	struct omap_dss_device output;
@@ -347,16 +336,15 @@ static int dpi_set_dispc_clk(struct dpi_data *dpi, unsigned long pck_req,
 
 static int dpi_set_mode(struct dpi_data *dpi)
 {
-	const struct videomode *vm = &dpi->vm;
 	int lck_div = 0, pck_div = 0;
 	unsigned long fck = 0;
 	int r = 0;
 
 	if (dpi->pll)
 		r = dpi_set_pll_clk(dpi, dpi->output.dispc_channel,
-				    vm->pixelclock, &fck, &lck_div, &pck_div);
+				    dpi->pixelclock, &fck, &lck_div, &pck_div);
 	else
-		r = dpi_set_dispc_clk(dpi, vm->pixelclock, &fck,
+		r = dpi_set_dispc_clk(dpi, dpi->pixelclock, &fck,
 				&lck_div, &pck_div);
 	if (r)
 		return r;
@@ -378,19 +366,13 @@ static void dpi_config_lcd_manager(struct dpi_data *dpi)
 	dss_mgr_set_lcd_config(&dpi->output, &dpi->mgr_config);
 }
 
-static int dpi_display_enable(struct omap_dss_device *dssdev)
+static void dpi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	struct omap_dss_device *out = &dpi->output;
 	int r;
 
 	mutex_lock(&dpi->lock);
-
-	if (!out->dispc_channel_connected) {
-		DSSERR("failed to enable display: no output/manager\n");
-		r = -ENODEV;
-		goto err_no_out_mgr;
-	}
 
 	if (dpi->vdds_dsi_reg) {
 		r = regulator_enable(dpi->vdds_dsi_reg);
@@ -426,7 +408,7 @@ static int dpi_display_enable(struct omap_dss_device *dssdev)
 
 	mutex_unlock(&dpi->lock);
 
-	return 0;
+	return;
 
 err_mgr_enable:
 err_set_mode:
@@ -439,9 +421,7 @@ err_get_dispc:
 	if (dpi->vdds_dsi_reg)
 		regulator_disable(dpi->vdds_dsi_reg);
 err_reg_enable:
-err_no_out_mgr:
 	mutex_unlock(&dpi->lock);
-	return r;
 }
 
 static void dpi_display_disable(struct omap_dss_device *dssdev)
@@ -467,7 +447,7 @@ static void dpi_display_disable(struct omap_dss_device *dssdev)
 }
 
 static void dpi_set_timings(struct omap_dss_device *dssdev,
-			    const struct videomode *vm)
+			    const struct drm_display_mode *mode)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 
@@ -475,13 +455,13 @@ static void dpi_set_timings(struct omap_dss_device *dssdev,
 
 	mutex_lock(&dpi->lock);
 
-	dpi->vm = *vm;
+	dpi->pixelclock = mode->clock * 1000;
 
 	mutex_unlock(&dpi->lock);
 }
 
 static int dpi_check_timings(struct omap_dss_device *dssdev,
-			     struct videomode *vm)
+			     struct drm_display_mode *mode)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dssdev);
 	int lck_div, pck_div;
@@ -490,20 +470,20 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 	struct dpi_clk_calc_ctx ctx;
 	bool ok;
 
-	if (vm->hactive % 8 != 0)
+	if (mode->hdisplay % 8 != 0)
 		return -EINVAL;
 
-	if (vm->pixelclock == 0)
+	if (mode->clock == 0)
 		return -EINVAL;
 
 	if (dpi->pll) {
-		ok = dpi_pll_clk_calc(dpi, vm->pixelclock, &ctx);
+		ok = dpi_pll_clk_calc(dpi, mode->clock * 1000, &ctx);
 		if (!ok)
 			return -EINVAL;
 
 		fck = ctx.pll_cinfo.clkout[ctx.clkout_idx];
 	} else {
-		ok = dpi_dss_clk_calc(dpi, vm->pixelclock, &ctx);
+		ok = dpi_dss_clk_calc(dpi, mode->clock * 1000, &ctx);
 		if (!ok)
 			return -EINVAL;
 
@@ -515,7 +495,7 @@ static int dpi_check_timings(struct omap_dss_device *dssdev,
 
 	pck = fck / lck_div / pck_div;
 
-	vm->pixelclock = pck;
+	mode->clock = pck / 1000;
 
 	return 0;
 }
@@ -596,23 +576,15 @@ static int dpi_connect(struct omap_dss_device *src,
 		       struct omap_dss_device *dst)
 {
 	struct dpi_data *dpi = dpi_get_data_from_dssdev(dst);
-	int r;
 
 	dpi_init_pll(dpi);
 
-	r = omapdss_device_connect(dst->dss, dst, dst->next);
-	if (r)
-		return r;
-
-	dst->dispc_channel_connected = true;
-	return 0;
+	return omapdss_device_connect(dst->dss, dst, dst->next);
 }
 
 static void dpi_disconnect(struct omap_dss_device *src,
 			   struct omap_dss_device *dst)
 {
-	dst->dispc_channel_connected = false;
-
 	omapdss_device_disconnect(dst, dst->next);
 }
 
@@ -651,25 +623,15 @@ static int dpi_init_output_port(struct dpi_data *dpi, struct device_node *port)
 
 	out->dev = &dpi->pdev->dev;
 	out->id = OMAP_DSS_OUTPUT_DPI;
-	out->output_type = OMAP_DISPLAY_TYPE_DPI;
+	out->type = OMAP_DISPLAY_TYPE_DPI;
 	out->dispc_channel = dpi_get_channel(dpi);
 	out->of_ports = BIT(port_num);
 	out->ops = &dpi_ops;
 	out->owner = THIS_MODULE;
 
-	out->next = omapdss_of_find_connected_device(out->dev->of_node, 0);
-	if (IS_ERR(out->next)) {
-		if (PTR_ERR(out->next) != -EPROBE_DEFER)
-			dev_err(out->dev, "failed to find video sink\n");
-		return PTR_ERR(out->next);
-	}
-
-	r = omapdss_output_validate(out);
-	if (r) {
-		omapdss_device_put(out->next);
-		out->next = NULL;
+	r = omapdss_device_init_output(out);
+	if (r < 0)
 		return r;
-	}
 
 	omapdss_device_register(out);
 
@@ -681,9 +643,8 @@ static void dpi_uninit_output_port(struct device_node *port)
 	struct dpi_data *dpi = port->data;
 	struct omap_dss_device *out = &dpi->output;
 
-	if (out->next)
-		omapdss_device_put(out->next);
 	omapdss_device_unregister(out);
+	omapdss_device_cleanup_output(out);
 }
 
 static const struct soc_device_attribute dpi_soc_devices[] = {

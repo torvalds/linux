@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -9,12 +10,6 @@
  * The null cipher is compliant with RFC2410.
  *
  * Copyright (c) 2002 James Morris <jmorris@intercode.com.au>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <crypto/null.h>
@@ -105,6 +100,7 @@ static struct shash_alg digest_null = {
 	.final  		=	null_final,
 	.base			=	{
 		.cra_name		=	"digest_null",
+		.cra_driver_name	=	"digest_null-generic",
 		.cra_blocksize		=	NULL_BLOCK_SIZE,
 		.cra_module		=	THIS_MODULE,
 	}
@@ -127,6 +123,7 @@ static struct skcipher_alg skcipher_null = {
 
 static struct crypto_alg null_algs[] = { {
 	.cra_name		=	"cipher_null",
+	.cra_driver_name	=	"cipher_null-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_CIPHER,
 	.cra_blocksize		=	NULL_BLOCK_SIZE,
 	.cra_ctxsize		=	0,
@@ -139,6 +136,7 @@ static struct crypto_alg null_algs[] = { {
 	.cia_decrypt		=	null_crypt } }
 }, {
 	.cra_name		=	"compress_null",
+	.cra_driver_name	=	"compress_null-generic",
 	.cra_flags		=	CRYPTO_ALG_TYPE_COMPRESS,
 	.cra_blocksize		=	NULL_BLOCK_SIZE,
 	.cra_ctxsize		=	0,
@@ -220,7 +218,7 @@ static void __exit crypto_null_mod_fini(void)
 	crypto_unregister_skcipher(&skcipher_null);
 }
 
-module_init(crypto_null_mod_init);
+subsys_initcall(crypto_null_mod_init);
 module_exit(crypto_null_mod_fini);
 
 MODULE_LICENSE("GPL");

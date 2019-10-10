@@ -1612,7 +1612,7 @@ static int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
 	/* PTP v2, UDP, any kind of event packet */
 	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
-	/* PTP v1, UDP, any kind of event packet */
+		/* Fall through - to PTP v1, UDP, any kind of event packet */
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
@@ -1623,7 +1623,7 @@ static int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
 	/* PTP v2, UDP, Sync packet */
 	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
-	/* PTP v1, UDP, Sync packet */
+		/* Fall through - to PTP v1, UDP, Sync packet */
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
@@ -1634,7 +1634,7 @@ static int xgbe_set_hwtstamp_settings(struct xgbe_prv_data *pdata,
 	/* PTP v2, UDP, Delay_req packet */
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSVER2ENA, 1);
-	/* PTP v1, UDP, Delay_req packet */
+		/* Fall through - to PTP v1, UDP, Delay_req packet */
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV4ENA, 1);
 		XGMAC_SET_BITS(mac_tscr, MAC_TSCR, TSIPV6ENA, 1);
@@ -1833,7 +1833,7 @@ static void xgbe_packet_info(struct xgbe_prv_data *pdata,
 			     struct xgbe_ring *ring, struct sk_buff *skb,
 			     struct xgbe_packet_data *packet)
 {
-	struct skb_frag_struct *frag;
+	skb_frag_t *frag;
 	unsigned int context_desc;
 	unsigned int len;
 	unsigned int i;

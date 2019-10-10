@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2018 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2009-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -194,7 +194,7 @@ struct lpfc_sli_intf {
 #define LPFC_ACT_INTR_CNT	4
 
 /* Algrithmns for scheduling FCP commands to WQs */
-#define	LPFC_FCP_SCHED_ROUND_ROBIN	0
+#define	LPFC_FCP_SCHED_BY_HDWQ		0
 #define	LPFC_FCP_SCHED_BY_CPU		1
 
 /* Algrithmns for NameServer Query after RSCN */
@@ -208,12 +208,18 @@ struct lpfc_sli_intf {
 /* Configuration of Interrupts / sec for entire HBA port */
 #define LPFC_MIN_IMAX          5000
 #define LPFC_MAX_IMAX          5000000
-#define LPFC_DEF_IMAX          150000
+#define LPFC_DEF_IMAX          0
+
+#define LPFC_IMAX_THRESHOLD    1000
+#define LPFC_MAX_AUTO_EQ_DELAY 120
+#define LPFC_EQ_DELAY_STEP     15
+#define LPFC_EQD_ISR_TRIGGER   20000
+/* 1s intervals */
+#define LPFC_EQ_DELAY_MSECS    1000
 
 #define LPFC_MIN_CPU_MAP       0
-#define LPFC_MAX_CPU_MAP       2
+#define LPFC_MAX_CPU_MAP       1
 #define LPFC_HBA_CPU_MAP       1
-#define LPFC_DRIVER_CPU_MAP    2  /* Default */
 
 /* PORT_CAPABILITIES constants. */
 #define LPFC_MAX_SUPPORTED_PAGES	8
@@ -1888,18 +1894,19 @@ struct lpfc_mbx_set_link_diag_loopback {
 	union {
 		struct {
 			uint32_t word0;
-#define lpfc_mbx_set_diag_lpbk_type_SHIFT	0
-#define lpfc_mbx_set_diag_lpbk_type_MASK	0x00000003
-#define lpfc_mbx_set_diag_lpbk_type_WORD	word0
-#define LPFC_DIAG_LOOPBACK_TYPE_DISABLE		0x0
-#define LPFC_DIAG_LOOPBACK_TYPE_INTERNAL	0x1
-#define LPFC_DIAG_LOOPBACK_TYPE_SERDES		0x2
-#define lpfc_mbx_set_diag_lpbk_link_num_SHIFT	16
-#define lpfc_mbx_set_diag_lpbk_link_num_MASK	0x0000003F
-#define lpfc_mbx_set_diag_lpbk_link_num_WORD	word0
-#define lpfc_mbx_set_diag_lpbk_link_type_SHIFT	22
-#define lpfc_mbx_set_diag_lpbk_link_type_MASK	0x00000003
-#define lpfc_mbx_set_diag_lpbk_link_type_WORD	word0
+#define lpfc_mbx_set_diag_lpbk_type_SHIFT		0
+#define lpfc_mbx_set_diag_lpbk_type_MASK		0x00000003
+#define lpfc_mbx_set_diag_lpbk_type_WORD		word0
+#define LPFC_DIAG_LOOPBACK_TYPE_DISABLE			0x0
+#define LPFC_DIAG_LOOPBACK_TYPE_INTERNAL		0x1
+#define LPFC_DIAG_LOOPBACK_TYPE_SERDES			0x2
+#define LPFC_DIAG_LOOPBACK_TYPE_EXTERNAL_TRUNKED	0x3
+#define lpfc_mbx_set_diag_lpbk_link_num_SHIFT		16
+#define lpfc_mbx_set_diag_lpbk_link_num_MASK		0x0000003F
+#define lpfc_mbx_set_diag_lpbk_link_num_WORD		word0
+#define lpfc_mbx_set_diag_lpbk_link_type_SHIFT		22
+#define lpfc_mbx_set_diag_lpbk_link_type_MASK		0x00000003
+#define lpfc_mbx_set_diag_lpbk_link_type_WORD		word0
 		} req;
 		struct {
 			uint32_t word0;
@@ -2041,6 +2048,23 @@ struct sli4_sge {	/* SLI-4 */
 #define lpfc_sli4_sge_last_MASK		0x00000001
 #define lpfc_sli4_sge_last_WORD		word2
 	uint32_t sge_len;
+};
+
+struct sli4_hybrid_sgl {
+	struct list_head list_node;
+	struct sli4_sge *dma_sgl;
+	dma_addr_t dma_phys_sgl;
+};
+
+struct fcp_cmd_rsp_buf {
+	struct list_head list_node;
+
+	/* for storing cmd/rsp dma alloc'ed virt_addr */
+	struct fcp_cmnd *fcp_cmnd;
+	struct fcp_rsp *fcp_rsp;
+
+	/* for storing this cmd/rsp's dma mapped phys addr from per CPU pool */
+	dma_addr_t fcp_cmd_rsp_dma_handle;
 };
 
 struct sli4_sge_diseed {	/* SLI-4 */
@@ -3442,6 +3466,9 @@ struct lpfc_sli4_parameters {
 #define cfg_xib_SHIFT				4
 #define cfg_xib_MASK				0x00000001
 #define cfg_xib_WORD				word19
+#define cfg_xpsgl_SHIFT				6
+#define cfg_xpsgl_MASK				0x00000001
+#define cfg_xpsgl_WORD				word19
 #define cfg_eqdr_SHIFT				8
 #define cfg_eqdr_MASK				0x00000001
 #define cfg_eqdr_WORD				word19
@@ -3452,6 +3479,10 @@ struct lpfc_sli4_parameters {
 #define cfg_bv1s_SHIFT                          10
 #define cfg_bv1s_MASK                           0x00000001
 #define cfg_bv1s_WORD                           word19
+
+#define cfg_nsler_SHIFT                         12
+#define cfg_nsler_MASK                          0x00000001
+#define cfg_nsler_WORD                          word19
 
 	uint32_t word20;
 #define cfg_max_tow_xri_SHIFT			0
@@ -4077,22 +4108,7 @@ struct lpfc_acqe_grp5 {
 	uint32_t trailer;
 };
 
-static char *const trunk_errmsg[] = {	/* map errcode */
-	"",	/* There is no such error code at index 0*/
-	"link negotiated speed does not match existing"
-		" trunk - link was \"low\" speed",
-	"link negotiated speed does not match"
-		" existing trunk - link was \"middle\" speed",
-	"link negotiated speed does not match existing"
-		" trunk - link was \"high\" speed",
-	"Attached to non-trunking port - F_Port",
-	"Attached to non-trunking port - N_Port",
-	"FLOGI response timeout",
-	"non-FLOGI frame received",
-	"Invalid FLOGI response",
-	"Trunking initialization protocol",
-	"Trunk peer device mismatch",
-};
+extern const char *const trunk_errmsg[];
 
 struct lpfc_acqe_fc_la {
 	uint32_t word0;
@@ -4322,6 +4338,12 @@ struct wqe_common {
 #define wqe_rcvoxid_SHIFT     16
 #define wqe_rcvoxid_MASK      0x0000FFFF
 #define wqe_rcvoxid_WORD      word9
+#define wqe_sof_SHIFT         24
+#define wqe_sof_MASK          0x000000FF
+#define wqe_sof_WORD          word9
+#define wqe_eof_SHIFT         16
+#define wqe_eof_MASK          0x000000FF
+#define wqe_eof_WORD          word9
 	uint32_t word10;
 #define wqe_ebde_cnt_SHIFT    0
 #define wqe_ebde_cnt_MASK     0x0000000f
@@ -4603,6 +4625,7 @@ struct lpfc_nvme_prli {
 #define prli_type_code_WORD             word1
 	uint32_t word_rsvd2;
 	uint32_t word_rsvd3;
+
 	uint32_t word4;
 #define prli_fba_SHIFT                  0
 #define prli_fba_MASK                   0x00000001
@@ -4619,6 +4642,9 @@ struct lpfc_nvme_prli {
 #define prli_conf_SHIFT                 7
 #define prli_conf_MASK                  0x00000001
 #define prli_conf_WORD                  word4
+#define prli_nsler_SHIFT		8
+#define prli_nsler_MASK			0x00000001
+#define prli_nsler_WORD			word4
 	uint32_t word5;
 #define prli_fb_sz_SHIFT                0
 #define prli_fb_sz_MASK                 0x0000ffff

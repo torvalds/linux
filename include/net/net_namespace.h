@@ -19,6 +19,7 @@
 #include <net/netns/packet.h>
 #include <net/netns/ipv4.h>
 #include <net/netns/ipv6.h>
+#include <net/netns/nexthop.h>
 #include <net/netns/ieee802154_6lowpan.h>
 #include <net/netns/sctp.h>
 #include <net/netns/dccp.h>
@@ -51,7 +52,7 @@ struct bpf_prog;
 #define NETDEV_HASHENTRIES (1 << NETDEV_HASHBITS)
 
 struct net {
-	refcount_t		passive;	/* To decided when the network
+	refcount_t		passive;	/* To decide when the network
 						 * namespace should be freed.
 						 */
 	refcount_t		count;		/* To decided when the network
@@ -59,7 +60,7 @@ struct net {
 						 */
 	spinlock_t		rules_mod_lock;
 
-	atomic64_t		cookie_gen;
+	u32			hash_mix;
 
 	struct list_head	list;		/* list of network namespaces */
 	struct list_head	exit_list;	/* To linked to call pernet exit
@@ -70,6 +71,9 @@ struct net {
 						 */
 	struct llist_node	cleanup_list;	/* namespaces on death row */
 
+#ifdef CONFIG_KEYS
+	struct key_tag		*key_domain;	/* Key domain of operation tag */
+#endif
 	struct user_namespace   *user_ns;	/* Owning user namespace */
 	struct ucounts		*ucounts;
 	spinlock_t		nsid_lock;
@@ -99,14 +103,12 @@ struct net {
 	/* core fib_rules */
 	struct list_head	rules_ops;
 
-	struct list_head	fib_notifier_ops;  /* Populated by
-						    * register_pernet_subsys()
-						    */
 	struct net_device       *loopback_dev;          /* The loopback */
 	struct netns_core	core;
 	struct netns_mib	mib;
 	struct netns_packet	packet;
 	struct netns_unix	unx;
+	struct netns_nexthop	nexthop;
 	struct netns_ipv4	ipv4;
 #if IS_ENABLED(CONFIG_IPV6)
 	struct netns_ipv6	ipv6;
@@ -164,6 +166,9 @@ struct net {
 #endif
 #ifdef CONFIG_XDP_SOCKETS
 	struct netns_xdp	xdp;
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_USER)
+	struct sock		*crypto_nlsk;
 #endif
 	struct sock		*diag_nlsk;
 	atomic_t		fnhe_genid;
@@ -352,8 +357,13 @@ struct pernet_operations {
 	 * synchronize_rcu() related to these pernet_operations,
 	 * instead of separate synchronize_rcu() for every net.
 	 * Please, avoid synchronize_rcu() at all, where it's possible.
+	 *
+	 * Note that a combination of pre_exit() and exit() can
+	 * be used, since a synchronize_rcu() is guaranteed between
+	 * the calls.
 	 */
 	int (*init)(struct net *net);
+	void (*pre_exit)(struct net *net);
 	void (*exit)(struct net *net);
 	void (*exit_batch)(struct list_head *net_exit_list);
 	unsigned int *id;

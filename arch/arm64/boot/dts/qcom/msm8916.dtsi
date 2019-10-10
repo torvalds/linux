@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -106,48 +98,48 @@
 
 		CPU0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0>;
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SPC>;
-			clocks = <&apcs 0>;
+			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&apcs>;
 			operating-points-v2 = <&cpu_opp_table>;
 			#cooling-cells = <2>;
 		};
 
 		CPU1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x1>;
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SPC>;
-			clocks = <&apcs 0>;
+			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&apcs>;
 			operating-points-v2 = <&cpu_opp_table>;
 			#cooling-cells = <2>;
 		};
 
 		CPU2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x2>;
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SPC>;
-			clocks = <&apcs 0>;
+			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&apcs>;
 			operating-points-v2 = <&cpu_opp_table>;
 			#cooling-cells = <2>;
 		};
 
 		CPU3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x3>;
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
-			cpu-idle-states = <&CPU_SPC>;
-			clocks = <&apcs 0>;
+			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&apcs>;
 			operating-points-v2 = <&cpu_opp_table>;
 			#cooling-cells = <2>;
 		};
@@ -158,8 +150,11 @@
 		};
 
 		idle-states {
-			CPU_SPC: spc {
+			entry-method = "psci";
+
+			CPU_SLEEP_0: cpu-sleep-0 {
 				compatible = "arm,idle-state";
+				idle-state-name = "standalone-power-collapse";
 				arm,psci-suspend-param = <0x40000002>;
 				entry-latency-us = <130>;
 				exit-latency-us = <150>;
@@ -180,19 +175,19 @@
 	};
 
 	thermal-zones {
-		cpu-thermal0 {
+		cpu0_1-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 4>;
 
 			trips {
-				cpu_alert0: trip0 {
+				cpu0_1_alert0: trip-point@0 {
 					temperature = <75000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu_crit0: trip1 {
+				cpu0_1_crit: cpu_crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -201,7 +196,7 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&cpu_alert0>;
+					trip = <&cpu0_1_alert0>;
 					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
@@ -210,19 +205,19 @@
 			};
 		};
 
-		cpu-thermal1 {
+		cpu2_3-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
 			thermal-sensors = <&tsens 3>;
 
 			trips {
-				cpu_alert1: trip0 {
+				cpu2_3_alert0: trip-point@0 {
 					temperature = <75000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				cpu_crit1: trip1 {
+				cpu2_3_crit: cpu_crit {
 					temperature = <110000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -231,7 +226,7 @@
 
 			cooling-maps {
 				map0 {
-					trip = <&cpu_alert1>;
+					trip = <&cpu2_3_alert0>;
 					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
 							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
@@ -247,12 +242,12 @@
 			thermal-sensors = <&tsens 2>;
 
 			trips {
-				gpu_alert: trip0 {
+				gpu_alert0: trip-point@0 {
 					temperature = <75000>;
 					hysteresis = <2000>;
 					type = "passive";
 				};
-				gpu_crit: trip1 {
+				gpu_crit: gpu_crit {
 					temperature = <95000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -267,18 +262,27 @@
 			thermal-sensors = <&tsens 1>;
 
 			trips {
-				cam_alert: trip0 {
+				cam_alert0: trip-point@0 {
 					temperature = <75000>;
 					hysteresis = <2000>;
-					type = "passive";
-				};
-				cam_crit: trip1 {
-					temperature = <95000>;
-					hysteresis = <2000>;
-					type = "critical";
+					type = "hot";
 				};
 			};
+		};
 
+		modem-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&tsens 0>;
+
+			trips {
+				modem_alert0: trip-point@0 {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "hot";
+				};
+			};
 		};
 
 	};
@@ -1015,8 +1019,9 @@
 				#clock-cells = <1>;
 				#phy-cells = <0>;
 
-				clocks = <&gcc GCC_MDSS_AHB_CLK>;
-				clock-names = "iface";
+				clocks = <&gcc GCC_MDSS_AHB_CLK>,
+					 <&xo_board>;
+				clock-names = "iface", "ref";
 			};
 		};
 
@@ -1162,7 +1167,7 @@
 		};
 
 		funnel@821000 {
-			compatible = "arm,coresight-funnel", "arm,primecell";
+			compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 			reg = <0x821000 0x1000>;
 
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;
@@ -1275,7 +1280,7 @@
 		};
 
 		funnel@841000 {	/* APSS funnel only 4 inputs are used */
-			compatible = "arm,coresight-funnel", "arm,primecell";
+			compatible = "arm,coresight-dynamic-funnel", "arm,primecell";
 			reg = <0x841000 0x1000>;
 
 			clocks = <&rpmcc RPM_QDSS_CLK>, <&rpmcc RPM_QDSS_A_CLK>;

@@ -125,7 +125,7 @@ static bool chromeos_laptop_match_adapter_devid(struct device *dev, u32 devid)
 		return false;
 
 	pdev = to_pci_dev(dev);
-	return devid == PCI_DEVID(pdev->bus->number, pdev->devfn);
+	return devid == pci_dev_id(pdev);
 }
 
 static void chromeos_laptop_check_adapter(struct i2c_adapter *adapter)
@@ -838,18 +838,14 @@ static void chromeos_laptop_destroy(const struct chromeos_laptop *cros_laptop)
 		i2c_dev = &cros_laptop->i2c_peripherals[i];
 		info = &i2c_dev->board_info;
 
-		if (i2c_dev->client)
-			i2c_unregister_device(i2c_dev->client);
-
-		if (info->properties)
-			property_entries_free(info->properties);
+		i2c_unregister_device(i2c_dev->client);
+		property_entries_free(info->properties);
 	}
 
 	for (i = 0; i < cros_laptop->num_acpi_peripherals; i++) {
 		acpi_dev = &cros_laptop->acpi_peripherals[i];
 
-		if (acpi_dev->properties)
-			property_entries_free(acpi_dev->properties);
+		property_entries_free(acpi_dev->properties);
 	}
 
 	kfree(cros_laptop->i2c_peripherals);

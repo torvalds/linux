@@ -360,8 +360,14 @@ static unsigned long srcu_get_delay(struct srcu_struct *ssp)
 	return SRCU_INTERVAL;
 }
 
-/* Helper for cleanup_srcu_struct() and cleanup_srcu_struct_quiesced(). */
-void _cleanup_srcu_struct(struct srcu_struct *ssp, bool quiesced)
+/**
+ * cleanup_srcu_struct - deconstruct a sleep-RCU structure
+ * @ssp: structure to clean up.
+ *
+ * Must invoke this after you are finished using a given srcu_struct that
+ * was initialized via init_srcu_struct(), else you leak memory.
+ */
+void cleanup_srcu_struct(struct srcu_struct *ssp)
 {
 	int cpu;
 
@@ -369,24 +375,14 @@ void _cleanup_srcu_struct(struct srcu_struct *ssp, bool quiesced)
 		return; /* Just leak it! */
 	if (WARN_ON(srcu_readers_active(ssp)))
 		return; /* Just leak it! */
-	if (quiesced) {
-		if (WARN_ON(delayed_work_pending(&ssp->work)))
-			return; /* Just leak it! */
-	} else {
-		flush_delayed_work(&ssp->work);
-	}
+	flush_delayed_work(&ssp->work);
 	for_each_possible_cpu(cpu) {
 		struct srcu_data *sdp = per_cpu_ptr(ssp->sda, cpu);
 
-		if (quiesced) {
-			if (WARN_ON(timer_pending(&sdp->delay_work)))
-				return; /* Just leak it! */
-			if (WARN_ON(work_pending(&sdp->work)))
-				return; /* Just leak it! */
-		} else {
-			del_timer_sync(&sdp->delay_work);
-			flush_work(&sdp->work);
-		}
+		del_timer_sync(&sdp->delay_work);
+		flush_work(&sdp->work);
+		if (WARN_ON(rcu_segcblist_n_cbs(&sdp->srcu_cblist)))
+			return; /* Forgot srcu_barrier(), so just leak it! */
 	}
 	if (WARN_ON(rcu_seq_state(READ_ONCE(ssp->srcu_gp_seq)) != SRCU_STATE_IDLE) ||
 	    WARN_ON(srcu_readers_active(ssp))) {
@@ -397,7 +393,7 @@ void _cleanup_srcu_struct(struct srcu_struct *ssp, bool quiesced)
 	free_percpu(ssp->sda);
 	ssp->sda = NULL;
 }
-EXPORT_SYMBOL_GPL(_cleanup_srcu_struct);
+EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
 /*
  * Counts the new reader in the appropriate per-CPU element of the
@@ -835,8 +831,8 @@ static void srcu_leak_callback(struct rcu_head *rhp)
  * srcu_read_lock(), and srcu_read_unlock() that are all passed the same
  * srcu_struct structure.
  */
-void __call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
-		 rcu_callback_t func, bool do_norm)
+static void __call_srcu(struct srcu_struct *ssp, struct rcu_head *rhp,
+			rcu_callback_t func, bool do_norm)
 {
 	unsigned long flags;
 	int idx;
@@ -1283,8 +1279,9 @@ void srcu_torture_stats_print(struct srcu_struct *ssp, char *tt, char *tf)
 
 		c0 = l0 - u0;
 		c1 = l1 - u1;
-		pr_cont(" %d(%ld,%ld %1p)",
-			cpu, c0, c1, rcu_segcblist_head(&sdp->srcu_cblist));
+		pr_cont(" %d(%ld,%ld %c)",
+			cpu, c0, c1,
+			"C."[rcu_segcblist_empty(&sdp->srcu_cblist)]);
 		s0 += c0;
 		s1 += c1;
 	}
@@ -1314,3 +1311,68 @@ void __init srcu_init(void)
 		queue_work(rcu_gp_wq, &ssp->work.work);
 	}
 }
+
+#ifdef CONFIG_MODULES
+
+/* Initialize any global-scope srcu_struct structures used by this module. */
+static int srcu_module_coming(struct module *mod)
+{
+	int i;
+	struct srcu_struct **sspp = mod->srcu_struct_ptrs;
+	int ret;
+
+	for (i = 0; i < mod->num_srcu_structs; i++) {
+		ret = init_srcu_struct(*(sspp++));
+		if (WARN_ON_ONCE(ret))
+			return ret;
+	}
+	return 0;
+}
+
+/* Clean up any global-scope srcu_struct structures used by this module. */
+static void srcu_module_going(struct module *mod)
+{
+	int i;
+	struct srcu_struct **sspp = mod->srcu_struct_ptrs;
+
+	for (i = 0; i < mod->num_srcu_structs; i++)
+		cleanup_srcu_struct(*(sspp++));
+}
+
+/* Handle one module, either coming or going. */
+static int srcu_module_notify(struct notifier_block *self,
+			      unsigned long val, void *data)
+{
+	struct module *mod = data;
+	int ret = 0;
+
+	switch (val) {
+	case MODULE_STATE_COMING:
+		ret = srcu_module_coming(mod);
+		break;
+	case MODULE_STATE_GOING:
+		srcu_module_going(mod);
+		break;
+	default:
+		break;
+	}
+	return ret;
+}
+
+static struct notifier_block srcu_module_nb = {
+	.notifier_call = srcu_module_notify,
+	.priority = 0,
+};
+
+static __init int init_srcu_module_notifier(void)
+{
+	int ret;
+
+	ret = register_module_notifier(&srcu_module_nb);
+	if (ret)
+		pr_warn("Failed to register srcu module notifier\n");
+	return ret;
+}
+late_initcall(init_srcu_module_notifier);
+
+#endif /* #ifdef CONFIG_MODULES */

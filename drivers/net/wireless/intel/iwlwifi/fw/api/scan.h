@@ -93,6 +93,8 @@ struct iwl_ssid_ie {
 #define IWL_SCAN_SHORT_BLACKLIST_LEN	16
 #define IWL_SCAN_MAX_PROFILES		11
 #define SCAN_OFFLOAD_PROBE_REQ_SIZE	512
+#define SCAN_NUM_BAND_PROBE_DATA_V_1	2
+#define SCAN_NUM_BAND_PROBE_DATA_V_2	3
 
 /* Default watchdog (in MS) for scheduled scan iteration */
 #define IWL_SCHED_SCAN_WATCHDOG cpu_to_le16(15000)
@@ -251,9 +253,22 @@ struct iwl_scan_probe_segment {
  * @common_data: last (and common) part of the probe
  * @buf: raw data block
  */
+struct iwl_scan_probe_req_v1 {
+	struct iwl_scan_probe_segment mac_header;
+	struct iwl_scan_probe_segment band_data[SCAN_NUM_BAND_PROBE_DATA_V_1];
+	struct iwl_scan_probe_segment common_data;
+	u8 buf[SCAN_OFFLOAD_PROBE_REQ_SIZE];
+} __packed;
+
+/* iwl_scan_probe_req - PROBE_REQUEST_FRAME_API_S_VER_v2
+ * @mac_header: first (and common) part of the probe
+ * @band_data: band specific data
+ * @common_data: last (and common) part of the probe
+ * @buf: raw data block
+ */
 struct iwl_scan_probe_req {
 	struct iwl_scan_probe_segment mac_header;
-	struct iwl_scan_probe_segment band_data[2];
+	struct iwl_scan_probe_segment band_data[SCAN_NUM_BAND_PROBE_DATA_V_2];
 	struct iwl_scan_probe_segment common_data;
 	u8 buf[SCAN_OFFLOAD_PROBE_REQ_SIZE];
 } __packed;
@@ -608,15 +623,29 @@ enum iwl_umac_scan_general_flags2 {
  * struct iwl_scan_channel_cfg_umac
  * @flags:		bitmap - 0-19:	directed scan to i'th ssid.
  * @channel_num:	channel number 1-13 etc.
+ * @band:		band of channel: 0 for 2GHz, 1 for 5GHz
  * @iter_count:		repetition count for the channel.
  * @iter_interval:	interval between two scan iterations on one channel.
  */
-struct iwl_scan_channel_cfg_umac {
+struct  iwl_scan_channel_cfg_umac {
 	__le32 flags;
-	u8 channel_num;
-	u8 iter_count;
-	__le16 iter_interval;
-} __packed; /* SCAN_CHANNEL_CFG_S_VER2 */
+	/* Both versions are of the same size, so use a union without adjusting
+	 * the command size later
+	 */
+	union {
+		struct {
+			u8 channel_num;
+			u8 iter_count;
+			__le16 iter_interval;
+		} v1;  /* SCAN_CHANNEL_CFG_S_VER1 */
+		struct {
+			u8 channel_num;
+			u8 band;
+			u8 iter_count;
+			u8 iter_interval;
+		 } v2; /* SCAN_CHANNEL_CFG_S_VER2 */
+	};
+} __packed;
 
 /**
  * struct iwl_scan_umac_schedule
@@ -630,6 +659,16 @@ struct iwl_scan_umac_schedule {
 	u8 reserved;
 } __packed; /* SCAN_SCHED_PARAM_API_S_VER_1 */
 
+struct iwl_scan_req_umac_tail_v1 {
+	/* SCAN_PERIODIC_PARAMS_API_S_VER_1 */
+	struct iwl_scan_umac_schedule schedule[IWL_MAX_SCHED_SCAN_PLANS];
+	__le16 delay;
+	__le16 reserved;
+	/* SCAN_PROBE_PARAMS_API_S_VER_1 */
+	struct iwl_scan_probe_req_v1 preq;
+	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
+} __packed;
+
 /**
  * struct iwl_scan_req_umac_tail - the rest of the UMAC scan request command
  *      parameters following channels configuration array.
@@ -639,12 +678,12 @@ struct iwl_scan_umac_schedule {
  * @preq: probe request with IEs blocks
  * @direct_scan: list of SSIDs for directed active scan
  */
-struct iwl_scan_req_umac_tail {
+struct iwl_scan_req_umac_tail_v2 {
 	/* SCAN_PERIODIC_PARAMS_API_S_VER_1 */
 	struct iwl_scan_umac_schedule schedule[IWL_MAX_SCHED_SCAN_PLANS];
 	__le16 delay;
 	__le16 reserved;
-	/* SCAN_PROBE_PARAMS_API_S_VER_1 */
+	/* SCAN_PROBE_PARAMS_API_S_VER_2 */
 	struct iwl_scan_probe_req preq;
 	struct iwl_ssid_ie direct_scan[PROBE_OPTION_MAX];
 } __packed;
@@ -750,6 +789,21 @@ struct iwl_scan_req_umac {
 			struct iwl_scan_umac_chan_param channel;
 			u8 data[];
 		} v8; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_8 */
+		struct {
+			u8 active_dwell[SCAN_TWO_LMACS];
+			u8 adwell_default_hb_n_aps;
+			u8 adwell_default_lb_n_aps;
+			u8 adwell_default_n_aps_social;
+			u8 general_flags2;
+			__le16 adwell_max_budget;
+			__le32 max_out_time[SCAN_TWO_LMACS];
+			__le32 suspend_time[SCAN_TWO_LMACS];
+			__le32 scan_priority;
+			u8 passive_dwell[SCAN_TWO_LMACS];
+			u8 num_of_fragments[SCAN_TWO_LMACS];
+			struct iwl_scan_umac_chan_param channel;
+			u8 data[];
+		} v9; /* SCAN_REQUEST_CMD_UMAC_API_S_VER_9 */
 	};
 } __packed;
 
@@ -788,7 +842,53 @@ struct iwl_umac_scan_complete {
 	__le32 reserved;
 } __packed; /* SCAN_COMPLETE_NTF_UMAC_API_S_VER_1 */
 
-#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN 5
+#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1 5
+#define SCAN_OFFLOAD_MATCHING_CHANNELS_LEN    7
+
+/**
+ * struct iwl_scan_offload_profile_match_v1 - match information
+ * @bssid: matched bssid
+ * @reserved: reserved
+ * @channel: channel where the match occurred
+ * @energy: energy
+ * @matching_feature: feature matches
+ * @matching_channels: bitmap of channels that matched, referencing
+ *	the channels passed in the scan offload request.
+ */
+struct iwl_scan_offload_profile_match_v1 {
+	u8 bssid[ETH_ALEN];
+	__le16 reserved;
+	u8 channel;
+	u8 energy;
+	u8 matching_feature;
+	u8 matching_channels[SCAN_OFFLOAD_MATCHING_CHANNELS_LEN_V1];
+} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_1 */
+
+/**
+ * struct iwl_scan_offload_profiles_query_v1 - match results query response
+ * @matched_profiles: bitmap of matched profiles, referencing the
+ *	matches passed in the scan offload request
+ * @last_scan_age: age of the last offloaded scan
+ * @n_scans_done: number of offloaded scans done
+ * @gp2_d0u: GP2 when D0U occurred
+ * @gp2_invoked: GP2 when scan offload was invoked
+ * @resume_while_scanning: not used
+ * @self_recovery: obsolete
+ * @reserved: reserved
+ * @matches: array of match information, one for each match
+ */
+struct iwl_scan_offload_profiles_query_v1 {
+	__le32 matched_profiles;
+	__le32 last_scan_age;
+	__le32 n_scans_done;
+	__le32 gp2_d0u;
+	__le32 gp2_invoked;
+	u8 resume_while_scanning;
+	u8 self_recovery;
+	__le16 reserved;
+	struct iwl_scan_offload_profile_match_v1 matches[IWL_SCAN_MAX_PROFILES];
+} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
+
 /**
  * struct iwl_scan_offload_profile_match - match information
  * @bssid: matched bssid
@@ -797,7 +897,7 @@ struct iwl_umac_scan_complete {
  * @energy: energy
  * @matching_feature: feature matches
  * @matching_channels: bitmap of channels that matched, referencing
- *	the channels passed in tue scan offload request
+ *	the channels passed in the scan offload request.
  */
 struct iwl_scan_offload_profile_match {
 	u8 bssid[ETH_ALEN];
@@ -806,7 +906,7 @@ struct iwl_scan_offload_profile_match {
 	u8 energy;
 	u8 matching_feature;
 	u8 matching_channels[SCAN_OFFLOAD_MATCHING_CHANNELS_LEN];
-} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_1 */
+} __packed; /* SCAN_OFFLOAD_PROFILE_MATCH_RESULTS_S_VER_2 */
 
 /**
  * struct iwl_scan_offload_profiles_query - match results query response
@@ -831,7 +931,7 @@ struct iwl_scan_offload_profiles_query {
 	u8 self_recovery;
 	__le16 reserved;
 	struct iwl_scan_offload_profile_match matches[IWL_SCAN_MAX_PROFILES];
-} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
+} __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 */
 
 /**
  * struct iwl_umac_scan_iter_complete_notif - notifies end of scanning iteration

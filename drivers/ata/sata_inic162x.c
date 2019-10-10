@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * sata_inic162x.c - Driver for Initio 162x SATA controllers
  *
  * Copyright 2006  SUSE Linux Products GmbH
  * Copyright 2006  Tejun Heo <teheo@novell.com>
- *
- * This file is released under GPL v2.
  *
  * **** WARNING ****
  *
@@ -863,15 +862,9 @@ static int inic_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	}
 
 	/* Set dma_mask.  This devices doesn't support 64bit addressing. */
-	rc = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (rc) {
 		dev_err(&pdev->dev, "32-bit DMA enable failed\n");
-		return rc;
-	}
-
-	rc = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-	if (rc) {
-		dev_err(&pdev->dev, "32-bit consistent DMA enable failed\n");
 		return rc;
 	}
 

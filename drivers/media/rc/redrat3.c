@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * USB RedRat3 IR Transceiver rc-core driver
  *
@@ -28,17 +29,6 @@
  * It uses its own little protocol to communicate, the required
  * parts of which are embedded within this driver.
  * --
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <asm/unaligned.h>
@@ -140,7 +130,7 @@ MODULE_PARM_DESC(length_fuzz, "Length Fuzz (0-127)");
  * When receiving a continuous ir stream (for example when a user is
  * holding a button down on a remote), this specifies the minimum size
  * of a space when the redrat3 sends a irdata packet to the host. Specified
- * in miliseconds. Default value 18ms.
+ * in milliseconds. Default value 18ms.
  * The value can be between 2 and 30 inclusive.
  */
 static int minimum_pause = 18;

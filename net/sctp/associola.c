@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -8,22 +9,6 @@
  * This file is part of the SCTP kernel implementation
  *
  * This module provides the abstraction for an SCTP association.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -69,7 +54,6 @@ static struct sctp_association *sctp_association_init(
 					const struct sock *sk,
 					enum sctp_scope scope, gfp_t gfp)
 {
-	struct net *net = sock_net(sk);
 	struct sctp_sock *sp;
 	struct sctp_paramhdr *p;
 	int i;
@@ -229,14 +213,6 @@ static struct sctp_association *sctp_association_init(
 	asoc->peer.sack_needed = 1;
 	asoc->peer.sack_generation = 1;
 
-	/* Assume that the peer will tell us if he recognizes ASCONF
-	 * as part of INIT exchange.
-	 * The sctp_addip_noauth option is there for backward compatibility
-	 * and will revert old behavior.
-	 */
-	if (net->sctp.addip_noauth)
-		asoc->peer.asconf_capable = 1;
-
 	/* Create an input queue.  */
 	sctp_inq_init(&asoc->base.inqueue);
 	sctp_inq_set_th_handler(&asoc->base.inqueue, sctp_assoc_bh_rcv);
@@ -276,8 +252,6 @@ static struct sctp_association *sctp_association_init(
 		goto stream_free;
 
 	asoc->active_key_id = ep->active_key_id;
-	asoc->prsctp_enable = ep->prsctp_enable;
-	asoc->reconf_enable = ep->reconf_enable;
 	asoc->strreset_enable = ep->strreset_enable;
 
 	/* Save the hmacs and chunks list into this association */

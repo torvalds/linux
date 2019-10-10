@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2013 Texas Instruments Inc.
  *
  * David Griego, <dagriego@biglakesoftware.com>
  * Dale Farnsworth, <dale@farnsworth.org>
  * Archit Taneja, <archit@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #ifndef __TI_VPE_REGS_H
@@ -51,24 +48,24 @@
 #define VPE_INT0_ENABLE0_SET		0x0030
 #define VPE_INT0_ENABLE0		VPE_INT0_ENABLE0_SET
 #define VPE_INT0_ENABLE0_CLR		0x0038
-#define VPE_INT0_LIST0_COMPLETE		(1 << 0)
-#define VPE_INT0_LIST0_NOTIFY		(1 << 1)
-#define VPE_INT0_LIST1_COMPLETE		(1 << 2)
-#define VPE_INT0_LIST1_NOTIFY		(1 << 3)
-#define VPE_INT0_LIST2_COMPLETE		(1 << 4)
-#define VPE_INT0_LIST2_NOTIFY		(1 << 5)
-#define VPE_INT0_LIST3_COMPLETE		(1 << 6)
-#define VPE_INT0_LIST3_NOTIFY		(1 << 7)
-#define VPE_INT0_LIST4_COMPLETE		(1 << 8)
-#define VPE_INT0_LIST4_NOTIFY		(1 << 9)
-#define VPE_INT0_LIST5_COMPLETE		(1 << 10)
-#define VPE_INT0_LIST5_NOTIFY		(1 << 11)
-#define VPE_INT0_LIST6_COMPLETE		(1 << 12)
-#define VPE_INT0_LIST6_NOTIFY		(1 << 13)
-#define VPE_INT0_LIST7_COMPLETE		(1 << 14)
-#define VPE_INT0_LIST7_NOTIFY		(1 << 15)
-#define VPE_INT0_DESCRIPTOR		(1 << 16)
-#define VPE_DEI_FMD_INT			(1 << 18)
+#define VPE_INT0_LIST0_COMPLETE		BIT(0)
+#define VPE_INT0_LIST0_NOTIFY		BIT(1)
+#define VPE_INT0_LIST1_COMPLETE		BIT(2)
+#define VPE_INT0_LIST1_NOTIFY		BIT(3)
+#define VPE_INT0_LIST2_COMPLETE		BIT(4)
+#define VPE_INT0_LIST2_NOTIFY		BIT(5)
+#define VPE_INT0_LIST3_COMPLETE		BIT(6)
+#define VPE_INT0_LIST3_NOTIFY		BIT(7)
+#define VPE_INT0_LIST4_COMPLETE		BIT(8)
+#define VPE_INT0_LIST4_NOTIFY		BIT(9)
+#define VPE_INT0_LIST5_COMPLETE		BIT(10)
+#define VPE_INT0_LIST5_NOTIFY		BIT(11)
+#define VPE_INT0_LIST6_COMPLETE		BIT(12)
+#define VPE_INT0_LIST6_NOTIFY		BIT(13)
+#define VPE_INT0_LIST7_COMPLETE		BIT(14)
+#define VPE_INT0_LIST7_NOTIFY		BIT(15)
+#define VPE_INT0_DESCRIPTOR		BIT(16)
+#define VPE_DEI_FMD_INT			BIT(18)
 
 #define VPE_INT0_STATUS1_RAW_SET	0x0024
 #define VPE_INT0_STATUS1_RAW		VPE_INT0_STATUS1_RAW_SET
@@ -77,21 +74,21 @@
 #define VPE_INT0_ENABLE1_SET		0x0034
 #define VPE_INT0_ENABLE1		VPE_INT0_ENABLE1_SET
 #define VPE_INT0_ENABLE1_CLR		0x003c
-#define VPE_INT0_CHANNEL_GROUP0		(1 << 0)
-#define VPE_INT0_CHANNEL_GROUP1		(1 << 1)
-#define VPE_INT0_CHANNEL_GROUP2		(1 << 2)
-#define VPE_INT0_CHANNEL_GROUP3		(1 << 3)
-#define VPE_INT0_CHANNEL_GROUP4		(1 << 4)
-#define VPE_INT0_CHANNEL_GROUP5		(1 << 5)
-#define VPE_INT0_CLIENT			(1 << 7)
-#define VPE_DEI_ERROR_INT		(1 << 16)
-#define VPE_DS1_UV_ERROR_INT		(1 << 22)
+#define VPE_INT0_CHANNEL_GROUP0		BIT(0)
+#define VPE_INT0_CHANNEL_GROUP1		BIT(1)
+#define VPE_INT0_CHANNEL_GROUP2		BIT(2)
+#define VPE_INT0_CHANNEL_GROUP3		BIT(3)
+#define VPE_INT0_CHANNEL_GROUP4		BIT(4)
+#define VPE_INT0_CHANNEL_GROUP5		BIT(5)
+#define VPE_INT0_CLIENT			BIT(7)
+#define VPE_DEI_ERROR_INT		BIT(16)
+#define VPE_DS1_UV_ERROR_INT		BIT(22)
 
 #define VPE_INTC_EOI			0x00a0
 
 #define VPE_CLK_ENABLE			0x0100
-#define VPE_VPEDMA_CLK_ENABLE		(1 << 0)
-#define VPE_DATA_PATH_CLK_ENABLE	(1 << 1)
+#define VPE_VPEDMA_CLK_ENABLE		BIT(0)
+#define VPE_DATA_PATH_CLK_ENABLE	BIT(1)
 
 #define VPE_CLK_RESET			0x0104
 #define VPE_VPDMA_CLK_RESET_MASK	0x1
@@ -104,11 +101,11 @@
 #define VPE_CLK_FORMAT_SELECT		0x010c
 #define VPE_CSC_SRC_SELECT_MASK		0x03
 #define VPE_CSC_SRC_SELECT_SHIFT	0
-#define VPE_RGB_OUT_SELECT		(1 << 8)
+#define VPE_RGB_OUT_SELECT		BIT(8)
 #define VPE_DS_SRC_SELECT_MASK		0x07
 #define VPE_DS_SRC_SELECT_SHIFT		9
-#define VPE_DS_BYPASS			(1 << 16)
-#define VPE_COLOR_SEPARATE_422		(1 << 18)
+#define VPE_DS_BYPASS			BIT(16)
+#define VPE_COLOR_SEPARATE_422		BIT(18)
 
 #define VPE_DS_SRC_DEI_SCALER		(5 << VPE_DS_SRC_SELECT_SHIFT)
 #define VPE_CSC_SRC_DEI_SCALER		(3 << VPE_CSC_SRC_SELECT_SHIFT)
@@ -118,8 +115,8 @@
 #define VPE_RANGE_RANGE_MAP_Y_SHIFT	0
 #define VPE_RANGE_RANGE_MAP_UV_MASK	0x07
 #define VPE_RANGE_RANGE_MAP_UV_SHIFT	3
-#define VPE_RANGE_MAP_ON		(1 << 6)
-#define VPE_RANGE_REDUCTION_ON		(1 << 28)
+#define VPE_RANGE_MAP_ON		BIT(6)
+#define VPE_RANGE_REDUCTION_ON		BIT(28)
 
 /* VPE chrominance upsampler regs */
 #define VPE_US1_R0			0x0304
@@ -198,13 +195,13 @@
 #define VPE_DEI_WIDTH_SHIFT		0
 #define VPE_DEI_HEIGHT_MASK		0x07ff
 #define VPE_DEI_HEIGHT_SHIFT		16
-#define VPE_DEI_INTERLACE_BYPASS	(1 << 29)
-#define VPE_DEI_FIELD_FLUSH		(1 << 30)
-#define VPE_DEI_PROGRESSIVE		(1 << 31)
+#define VPE_DEI_INTERLACE_BYPASS	BIT(29)
+#define VPE_DEI_FIELD_FLUSH		BIT(30)
+#define VPE_DEI_PROGRESSIVE		BIT(31)
 
 #define VPE_MDT_BYPASS			0x0604
-#define VPE_MDT_TEMPMAX_BYPASS		(1 << 0)
-#define VPE_MDT_SPATMAX_BYPASS		(1 << 1)
+#define VPE_MDT_TEMPMAX_BYPASS		BIT(0)
+#define VPE_MDT_SPATMAX_BYPASS		BIT(1)
 
 #define VPE_MDT_SF_THRESHOLD		0x0608
 #define VPE_MDT_SF_SC_THR1_MASK		0xff
@@ -217,8 +214,8 @@
 #define VPE_EDI_CONFIG			0x060c
 #define VPE_EDI_INP_MODE_MASK		0x03
 #define VPE_EDI_INP_MODE_SHIFT		0
-#define VPE_EDI_ENABLE_3D		(1 << 2)
-#define VPE_EDI_ENABLE_CHROMA_3D	(1 << 3)
+#define VPE_EDI_ENABLE_3D		BIT(2)
+#define VPE_EDI_ENABLE_CHROMA_3D	BIT(3)
 #define VPE_EDI_CHROMA3D_COR_THR_MASK	0xff
 #define VPE_EDI_CHROMA3D_COR_THR_SHIFT	8
 #define VPE_EDI_DIR_COR_LOWER_THR_MASK	0xff
@@ -271,7 +268,7 @@
 #define VPE_FMD_WINDOW_MINX_SHIFT	0
 #define VPE_FMD_WINDOW_MAXX_MASK	0x07ff
 #define VPE_FMD_WINDOW_MAXX_SHIFT	16
-#define VPE_FMD_WINDOW_ENABLE		(1 << 31)
+#define VPE_FMD_WINDOW_ENABLE		BIT(31)
 
 #define VPE_DEI_FMD_WINDOW_R1		0x0624
 #define VPE_FMD_WINDOW_MINY_MASK	0x07ff
@@ -280,10 +277,10 @@
 #define VPE_FMD_WINDOW_MAXY_SHIFT	16
 
 #define VPE_DEI_FMD_CONTROL_R0		0x0628
-#define VPE_FMD_ENABLE			(1 << 0)
-#define VPE_FMD_LOCK			(1 << 1)
-#define VPE_FMD_JAM_DIR			(1 << 2)
-#define VPE_FMD_BED_ENABLE		(1 << 3)
+#define VPE_FMD_ENABLE			BIT(0)
+#define VPE_FMD_LOCK			BIT(1)
+#define VPE_FMD_JAM_DIR			BIT(2)
+#define VPE_FMD_BED_ENABLE		BIT(3)
 #define VPE_FMD_CAF_FIELD_THR_MASK	0xff
 #define VPE_FMD_CAF_FIELD_THR_SHIFT	16
 #define VPE_FMD_CAF_LINE_THR_MASK	0xff
@@ -296,7 +293,7 @@
 #define VPE_DEI_FMD_STATUS_R0		0x0630
 #define VPE_FMD_CAF_MASK		0x000fffff
 #define VPE_FMD_CAF_SHIFT		0
-#define VPE_FMD_RESET			(1 << 24)
+#define VPE_FMD_RESET			BIT(24)
 
 #define VPE_DEI_FMD_STATUS_R1		0x0634
 #define VPE_FMD_FIELD_DIFF_MASK		0x0fffffff

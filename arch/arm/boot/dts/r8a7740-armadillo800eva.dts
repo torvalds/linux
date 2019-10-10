@@ -21,7 +21,7 @@
 	};
 
 	chosen {
-		bootargs = "earlyprintk ignore_loglevel root=/dev/nfs ip=dhcp rw";
+		bootargs = "earlyprintk ignore_loglevel root=/dev/nfs ip=on rw";
 		stdout-path = "serial0:115200n8";
 	};
 

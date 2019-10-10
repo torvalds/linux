@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Corenet based SoC DS Setup
  *
  * Maintained by Kumar Gala (see MAINTAINERS for contact information)
  *
  * Copyright 2009-2011 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -27,6 +23,7 @@
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/ehv_pic.h>
+#include <asm/swiotlb.h>
 #include <soc/fsl/qe/qe_ic.h>
 
 #include <linux/of_platform.h>
@@ -223,7 +220,3 @@ define_machine(corenet_generic) {
 };
 
 machine_arch_initcall(corenet_generic, corenet_gen_publish_devices);
-
-#ifdef CONFIG_SWIOTLB
-machine_arch_initcall(corenet_generic, swiotlb_setup_bus_notifier);
-#endif

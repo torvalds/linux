@@ -25,10 +25,14 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include "virtgpu_drv.h"
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+
+#include "virtgpu_drv.h"
 
 #define XRES_MIN    32
 #define YRES_MIN    32
@@ -49,23 +53,10 @@ static const struct drm_crtc_funcs virtio_gpu_crtc_funcs = {
 	.atomic_destroy_state   = drm_atomic_helper_crtc_destroy_state,
 };
 
-static int
-virtio_gpu_framebuffer_surface_dirty(struct drm_framebuffer *fb,
-				     struct drm_file *file_priv,
-				     unsigned int flags, unsigned int color,
-				     struct drm_clip_rect *clips,
-				     unsigned int num_clips)
-{
-	struct virtio_gpu_framebuffer *virtio_gpu_fb
-		= to_virtio_gpu_framebuffer(fb);
-
-	return virtio_gpu_surface_dirty(virtio_gpu_fb, clips, num_clips);
-}
-
 static const struct drm_framebuffer_funcs virtio_gpu_fb_funcs = {
 	.create_handle = drm_gem_fb_create_handle,
 	.destroy = drm_gem_fb_destroy,
-	.dirty = virtio_gpu_framebuffer_surface_dirty,
+	.dirty = drm_atomic_helper_dirtyfb,
 };
 
 int
@@ -85,10 +76,6 @@ virtio_gpu_framebuffer_init(struct drm_device *dev,
 		vgfb->base.obj[0] = NULL;
 		return ret;
 	}
-
-	spin_lock_init(&vgfb->dirty_lock);
-	vgfb->x1 = vgfb->y1 = INT_MAX;
-	vgfb->x2 = vgfb->y2 = 0;
 	return 0;
 }
 
@@ -243,12 +230,8 @@ static enum drm_connector_status virtio_gpu_conn_detect(
 
 static void virtio_gpu_conn_destroy(struct drm_connector *connector)
 {
-	struct virtio_gpu_output *virtio_gpu_output =
-		drm_connector_to_virtio_gpu_output(connector);
-
 	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(virtio_gpu_output);
 }
 
 static const struct drm_connector_funcs virtio_gpu_connector_funcs = {
@@ -362,7 +345,7 @@ static const struct drm_mode_config_funcs virtio_gpu_mode_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
+void virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 {
 	int i;
 
@@ -381,7 +364,6 @@ int virtio_gpu_modeset_init(struct virtio_gpu_device *vgdev)
 		vgdev_output_init(vgdev, i);
 
 	drm_mode_config_reset(vgdev->ddev);
-	return 0;
 }
 
 void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
@@ -390,6 +372,6 @@ void virtio_gpu_modeset_fini(struct virtio_gpu_device *vgdev)
 
 	for (i = 0 ; i < vgdev->num_scanouts; ++i)
 		kfree(vgdev->outputs[i].edid);
-	virtio_gpu_fbdev_fini(vgdev);
+	drm_atomic_helper_shutdown(vgdev->ddev);
 	drm_mode_config_cleanup(vgdev->ddev);
 }

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AD7291 8-Channel, I2C, 12-Bit SAR ADC with Temperature Sensor
  *
  * Copyright 2010-2011 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/device.h>

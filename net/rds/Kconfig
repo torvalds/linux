@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config RDS
 	tristate "The Reliable Datagram Sockets Protocol"
@@ -22,6 +23,6 @@ config RDS_TCP
 	  This transport does not support RDMA operations.
 
 config RDS_DEBUG
-        bool "RDS debugging messages"
+	bool "RDS debugging messages"
 	depends on RDS
-        default n
+	default n

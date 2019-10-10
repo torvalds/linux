@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  * Debug helper to dump the current kernel pagetables of the system
@@ -7,11 +8,6 @@
  * (C) Copyright 2008 Intel Corporation
  *
  * Author: Arjan van de Ven <arjan@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #include <linux/debugfs.h>
 #include <linux/errno.h>
@@ -29,9 +25,20 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/ptdump.h>
 
-static const struct addr_marker address_markers[] = {
+
+enum address_markers_idx {
+	PAGE_OFFSET_NR = 0,
+	PAGE_END_NR,
 #ifdef CONFIG_KASAN
-	{ KASAN_SHADOW_START,		"Kasan shadow start" },
+	KASAN_START_NR,
+#endif
+};
+
+static struct addr_marker address_markers[] = {
+	{ PAGE_OFFSET,			"Linear Mapping start" },
+	{ 0 /* PAGE_END */,		"Linear Mapping end" },
+#ifdef CONFIG_KASAN
+	{ 0 /* KASAN_SHADOW_START */,	"Kasan shadow start" },
 	{ KASAN_SHADOW_END,		"Kasan shadow end" },
 #endif
 	{ MODULES_VADDR,		"Modules start" },
@@ -46,7 +53,6 @@ static const struct addr_marker address_markers[] = {
 	{ VMEMMAP_START,		"vmemmap start" },
 	{ VMEMMAP_START + VMEMMAP_SIZE,	"vmemmap end" },
 #endif
-	{ PAGE_OFFSET,			"Linear mapping" },
 	{ -1,				NULL },
 };
 
@@ -380,7 +386,7 @@ static void ptdump_initialize(void)
 static struct ptdump_info kernel_ptdump_info = {
 	.mm		= &init_mm,
 	.markers	= address_markers,
-	.base_addr	= VA_START,
+	.base_addr	= PAGE_OFFSET,
 };
 
 void ptdump_check_wx(void)
@@ -394,7 +400,7 @@ void ptdump_check_wx(void)
 		.check_wx = true,
 	};
 
-	walk_pgd(&st, &init_mm, VA_START);
+	walk_pgd(&st, &init_mm, PAGE_OFFSET);
 	note_page(&st, 0, 0, 0);
 	if (st.wx_pages || st.uxn_pages)
 		pr_warn("Checked W+X mappings: FAILED, %lu W+X pages found, %lu non-UXN pages found\n",
@@ -405,8 +411,12 @@ void ptdump_check_wx(void)
 
 static int ptdump_init(void)
 {
+	address_markers[PAGE_END_NR].start_address = PAGE_END;
+#ifdef CONFIG_KASAN
+	address_markers[KASAN_START_NR].start_address = KASAN_SHADOW_START;
+#endif
 	ptdump_initialize();
-	return ptdump_debugfs_register(&kernel_ptdump_info,
-					"kernel_page_tables");
+	ptdump_debugfs_register(&kernel_ptdump_info, "kernel_page_tables");
+	return 0;
 }
 device_initcall(ptdump_init);

@@ -150,34 +150,39 @@ nfp_net_pf_init_vnic(struct nfp_pf *pf, struct nfp_net *nn, unsigned int id)
 
 	nn->id = id;
 
-	err = nfp_net_init(nn);
-	if (err)
-		return err;
-
-	nfp_net_debugfs_vnic_add(nn, pf->ddir);
-
 	if (nn->port) {
 		err = nfp_devlink_port_register(pf->app, nn->port);
 		if (err)
-			goto err_dfs_clean;
+			return err;
 	}
+
+	err = nfp_net_init(nn);
+	if (err)
+		goto err_devlink_port_clean;
+
+	nfp_net_debugfs_vnic_add(nn, pf->ddir);
+
+	if (nn->port)
+		nfp_devlink_port_type_eth_set(nn->port);
 
 	nfp_net_info(nn);
 
 	if (nfp_net_is_data_vnic(nn)) {
 		err = nfp_app_vnic_init(pf->app, nn);
 		if (err)
-			goto err_devlink_port_clean;
+			goto err_devlink_port_type_clean;
 	}
 
 	return 0;
 
+err_devlink_port_type_clean:
+	if (nn->port)
+		nfp_devlink_port_type_clear(nn->port);
+	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
+	nfp_net_clean(nn);
 err_devlink_port_clean:
 	if (nn->port)
 		nfp_devlink_port_unregister(nn->port);
-err_dfs_clean:
-	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
-	nfp_net_clean(nn);
 	return err;
 }
 
@@ -200,10 +205,8 @@ nfp_net_pf_alloc_vnics(struct nfp_pf *pf, void __iomem *ctrl_bar,
 		ctrl_bar += NFP_PF_CSR_SLICE_SIZE;
 
 		/* Kill the vNIC if app init marked it as invalid */
-		if (nn->port && nn->port->type == NFP_PORT_INVALID) {
+		if (nn->port && nn->port->type == NFP_PORT_INVALID)
 			nfp_net_pf_free_vnic(pf, nn);
-			continue;
-		}
 	}
 
 	if (list_empty(&pf->vnics))
@@ -221,9 +224,11 @@ static void nfp_net_pf_clean_vnic(struct nfp_pf *pf, struct nfp_net *nn)
 	if (nfp_net_is_data_vnic(nn))
 		nfp_app_vnic_clean(pf->app, nn);
 	if (nn->port)
-		nfp_devlink_port_unregister(nn->port);
+		nfp_devlink_port_type_clear(nn->port);
 	nfp_net_debugfs_dir_clean(&nn->debugfs_dir);
 	nfp_net_clean(nn);
+	if (nn->port)
+		nfp_devlink_port_unregister(nn->port);
 }
 
 static int nfp_net_pf_alloc_irqs(struct nfp_pf *pf)
@@ -704,6 +709,10 @@ int nfp_net_pci_probe(struct nfp_pf *pf)
 	if (err)
 		goto err_devlink_unreg;
 
+	err = nfp_devlink_params_register(pf);
+	if (err)
+		goto err_shared_buf_unreg;
+
 	mutex_lock(&pf->lock);
 	pf->ddir = nfp_net_debugfs_device_add(pf->pdev);
 
@@ -737,6 +746,8 @@ err_free_vnics:
 err_clean_ddir:
 	nfp_net_debugfs_dir_clean(&pf->ddir);
 	mutex_unlock(&pf->lock);
+	nfp_devlink_params_unregister(pf);
+err_shared_buf_unreg:
 	nfp_shared_buf_unregister(pf);
 err_devlink_unreg:
 	cancel_work_sync(&pf->port_refresh_work);
@@ -766,6 +777,7 @@ void nfp_net_pci_remove(struct nfp_pf *pf)
 
 	mutex_unlock(&pf->lock);
 
+	nfp_devlink_params_unregister(pf);
 	nfp_shared_buf_unregister(pf);
 	devlink_unregister(priv_to_devlink(pf));
 

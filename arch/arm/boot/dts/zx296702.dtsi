@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 
-#include "skeleton.dtsi"
 #include <dt-bindings/clock/zx296702-clock.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

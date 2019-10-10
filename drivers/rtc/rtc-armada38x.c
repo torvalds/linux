@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * RTC driver for the Armada 38x Marvell SoCs
  *
  * Copyright (C) 2015 Marvell
  *
  * Gregory Clement <gregory.clement@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
  */
 
 #include <linux/delay.h>
@@ -507,7 +502,6 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct armada38x_rtc *rtc;
 	const struct of_device_id *match;
-	int ret;
 
 	match = of_match_device(armada38x_rtc_of_match_table, &pdev->dev);
 	if (!match)
@@ -535,11 +529,8 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(rtc->regs_soc);
 
 	rtc->irq = platform_get_irq(pdev, 0);
-
-	if (rtc->irq < 0) {
-		dev_err(&pdev->dev, "no irq\n");
+	if (rtc->irq < 0)
 		return rtc->irq;
-	}
 
 	rtc->rtc_dev = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(rtc->rtc_dev))
@@ -569,11 +560,7 @@ static __init int armada38x_rtc_probe(struct platform_device *pdev)
 
 	rtc->rtc_dev->range_max = U32_MAX;
 
-	ret = rtc_register_device(rtc->rtc_dev);
-	if (ret)
-		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
-
-	return ret;
+	return rtc_register_device(rtc->rtc_dev);
 }
 
 #ifdef CONFIG_PM_SLEEP

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/pci.h>
@@ -105,20 +102,19 @@ static inline struct pgcache *nicvf_alloc_page(struct nicvf *nic,
 	/* Check if page can be recycled */
 	if (page) {
 		ref_count = page_ref_count(page);
-		/* Check if this page has been used once i.e 'put_page'
-		 * called after packet transmission i.e internal ref_count
-		 * and page's ref_count are equal i.e page can be recycled.
+		/* This page can be recycled if internal ref_count and page's
+		 * ref_count are equal, indicating that the page has been used
+		 * once for packet transmission. For non-XDP mode, internal
+		 * ref_count is always '1'.
 		 */
-		if (rbdr->is_xdp && (ref_count == pgcache->ref_count))
-			pgcache->ref_count--;
-		else
+		if (rbdr->is_xdp) {
+			if (ref_count == pgcache->ref_count)
+				pgcache->ref_count--;
+			else
+				page = NULL;
+		} else if (ref_count != 1) {
 			page = NULL;
-
-		/* In non-XDP mode, page's ref_count needs to be '1' for it
-		 * to be recycled.
-		 */
-		if (!rbdr->is_xdp && (ref_count != 1))
-			page = NULL;
+		}
 	}
 
 	if (!page) {
@@ -365,11 +361,10 @@ static void nicvf_free_rbdr(struct nicvf *nic, struct rbdr *rbdr)
 	while (head < rbdr->pgcnt) {
 		pgcache = &rbdr->pgcache[head];
 		if (pgcache->page && page_ref_count(pgcache->page) != 0) {
-			if (!rbdr->is_xdp) {
-				put_page(pgcache->page);
-				continue;
+			if (rbdr->is_xdp) {
+				page_ref_sub(pgcache->page,
+					     pgcache->ref_count - 1);
 			}
-			page_ref_sub(pgcache->page, pgcache->ref_count - 1);
 			put_page(pgcache->page);
 		}
 		head++;
@@ -1593,15 +1588,13 @@ int nicvf_sq_append_skb(struct nicvf *nic, struct snd_queue *sq,
 		goto doorbell;
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag;
-
-		frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		qentry = nicvf_get_nxt_sqentry(sq, qentry);
 		size = skb_frag_size(frag);
 		dma_addr = dma_map_page_attrs(&nic->pdev->dev,
 					      skb_frag_page(frag),
-					      frag->page_offset, size,
+					      skb_frag_off(frag), size,
 					      DMA_TO_DEVICE,
 					      DMA_ATTR_SKIP_CPU_SYNC);
 		if (dma_mapping_error(&nic->pdev->dev, dma_addr)) {

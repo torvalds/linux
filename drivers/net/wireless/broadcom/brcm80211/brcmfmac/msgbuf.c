@@ -1,16 +1,6 @@
-/* Copyright (c) 2014 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+// SPDX-License-Identifier: ISC
+/*
+ * Copyright (c) 2014 Broadcom Corporation
  */
 
 /*******************************************************************************
@@ -375,7 +365,7 @@ brcmf_msgbuf_get_pktid(struct device *dev, struct brcmf_msgbuf_pktids *pktids,
 	struct brcmf_msgbuf_pktid *pktid;
 	struct sk_buff *skb;
 
-	if (idx >= pktids->array_size) {
+	if (idx < 0 || idx >= pktids->array_size) {
 		brcmf_err("Invalid packet id %d (max %d)\n", idx,
 			  pktids->array_size);
 		return NULL;
@@ -747,7 +737,7 @@ static void brcmf_msgbuf_txflow(struct brcmf_msgbuf *msgbuf, u16 flowid)
 		tx_msghdr = (struct msgbuf_tx_msghdr *)ret_ptr;
 
 		tx_msghdr->msg.msgtype = MSGBUF_TYPE_TX_POST;
-		tx_msghdr->msg.request_id = cpu_to_le32(pktid);
+		tx_msghdr->msg.request_id = cpu_to_le32(pktid + 1);
 		tx_msghdr->msg.ifidx = brcmf_flowring_ifidx_get(flow, flowid);
 		tx_msghdr->flags = BRCMF_MSGBUF_PKT_FLAGS_FRAME_802_3;
 		tx_msghdr->flags |= (skb->priority & 0x07) <<
@@ -884,7 +874,7 @@ brcmf_msgbuf_process_txstatus(struct brcmf_msgbuf *msgbuf, void *buf)
 	u16 flowid;
 
 	tx_status = (struct msgbuf_tx_status *)buf;
-	idx = le32_to_cpu(tx_status->msg.request_id);
+	idx = le32_to_cpu(tx_status->msg.request_id) - 1;
 	flowid = le16_to_cpu(tx_status->compl_hdr.flow_ring_id);
 	flowid -= BRCMF_H2D_MSGRING_FLOWRING_IDSTART;
 	skb = brcmf_msgbuf_get_pktid(msgbuf->drvr->bus_if->dev,
@@ -1408,6 +1398,13 @@ void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u16 flowid)
 	u8 ifidx;
 	int err;
 
+	/* no need to submit if firmware can not be reached */
+	if (drvr->bus_if->state != BRCMF_BUS_UP) {
+		brcmf_dbg(MSGBUF, "bus down, flowring will be removed\n");
+		brcmf_msgbuf_remove_flowring(msgbuf, flowid);
+		return;
+	}
+
 	commonring = msgbuf->commonrings[BRCMF_H2D_MSGRING_CONTROL_SUBMIT];
 	brcmf_commonring_lock(commonring);
 	ret_ptr = brcmf_commonring_reserve_for_write(commonring);
@@ -1471,7 +1468,6 @@ static int brcmf_msgbuf_stats_read(struct seq_file *seq, void *data)
 	seq_printf(seq, "\nh2d_flowrings: depth %u\n",
 		   BRCMF_H2D_TXFLOWRING_MAX_ITEM);
 	seq_puts(seq, "Active flowrings:\n");
-	hash = msgbuf->flow->hash;
 	for (i = 0; i < msgbuf->flow->nrofrings; i++) {
 		if (!msgbuf->flow->rings[i])
 			continue;

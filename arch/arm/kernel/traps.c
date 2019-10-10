@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/kernel/traps.c
  *
  *  Copyright (C) 1995-2009 Russell King
  *  Fragments that appear the same as linux/arch/i386/kernel/traps.c (C) Linus Torvalds
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  'traps.c' handles hardware exceptions after we have saved some state in
  *  'linux/arch/arm/lib/traps.S'.  Mostly a debugging aid, but will probably
@@ -372,7 +369,7 @@ void arm_notify_die(const char *str, struct pt_regs *regs,
 		current->thread.error_code = err;
 		current->thread.trap_no = trap;
 
-		force_sig_fault(signo, si_code, addr, current);
+		force_sig_fault(signo, si_code, addr);
 	} else {
 		die(str, regs, err);
 	}
@@ -606,7 +603,7 @@ asmlinkage int arm_syscall(int no, struct pt_regs *regs)
 
 	case NR(breakpoint): /* SWI BREAK_POINT */
 		regs->ARM_pc -= thumb_mode(regs) ? 2 : 4;
-		ptrace_break(current, regs);
+		ptrace_break(regs);
 		return regs->ARM_r0;
 
 	/*
@@ -725,10 +722,11 @@ baddataabort(int code, unsigned long instr, struct pt_regs *regs)
 
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_BADABORT) {
+		pr_err("8<--- cut here ---\n");
 		pr_err("[%d] %s: bad data abort: code %d instr 0x%08lx\n",
 		       task_pid_nr(current), current->comm, code, instr);
 		dump_instr(KERN_ERR, regs);
-		show_pte(current->mm, addr);
+		show_pte(KERN_ERR, current->mm, addr);
 	}
 #endif
 

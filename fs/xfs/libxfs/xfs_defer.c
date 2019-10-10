@@ -9,8 +9,6 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_bit.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
@@ -274,13 +272,15 @@ xfs_defer_trans_roll(
 
 	trace_xfs_defer_trans_roll(tp, _RET_IP_);
 
-	/* Roll the transaction. */
+	/*
+	 * Roll the transaction.  Rolling always given a new transaction (even
+	 * if committing the old one fails!) to hand back to the caller, so we
+	 * join the held resources to the new transaction so that we always
+	 * return with the held resources joined to @tpp, no matter what
+	 * happened.
+	 */
 	error = xfs_trans_roll(tpp);
 	tp = *tpp;
-	if (error) {
-		trace_xfs_defer_trans_roll_error(tp, error);
-		return error;
-	}
 
 	/* Rejoin the joined inodes. */
 	for (i = 0; i < ipcount; i++)
@@ -292,6 +292,8 @@ xfs_defer_trans_roll(
 		xfs_trans_bhold(tp, bplist[i]);
 	}
 
+	if (error)
+		trace_xfs_defer_trans_roll_error(tp, error);
 	return error;
 }
 
@@ -515,7 +517,7 @@ xfs_defer_add(
 	}
 	if (!dfp) {
 		dfp = kmem_alloc(sizeof(struct xfs_defer_pending),
-				KM_SLEEP | KM_NOFS);
+				KM_NOFS);
 		dfp->dfp_type = type;
 		dfp->dfp_intent = NULL;
 		dfp->dfp_done = NULL;

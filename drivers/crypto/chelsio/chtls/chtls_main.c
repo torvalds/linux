@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Written by: Atul Gupta (atul.gupta@chelsio.com)
  */
@@ -477,7 +474,8 @@ static int chtls_getsockopt(struct sock *sk, int level, int optname,
 	struct tls_context *ctx = tls_get_ctx(sk);
 
 	if (level != SOL_TLS)
-		return ctx->getsockopt(sk, level, optname, optval, optlen);
+		return ctx->sk_proto->getsockopt(sk, level,
+						 optname, optval, optlen);
 
 	return do_chtls_getsockopt(sk, optval, optlen);
 }
@@ -544,7 +542,8 @@ static int chtls_setsockopt(struct sock *sk, int level, int optname,
 	struct tls_context *ctx = tls_get_ctx(sk);
 
 	if (level != SOL_TLS)
-		return ctx->setsockopt(sk, level, optname, optval, optlen);
+		return ctx->sk_proto->setsockopt(sk, level,
+						 optname, optval, optlen);
 
 	return do_chtls_setsockopt(sk, optname, optval, optlen);
 }

@@ -1,16 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
+ * DB8500 PRCM Unit driver
+ *
  * Copyright (C) STMicroelectronics 2009
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License Terms: GNU General Public License v2
  * Author: Kumar Sanghvi <kumar.sanghvi@stericsson.com>
  * Author: Sundar Iyer <sundar.iyer@stericsson.com>
  * Author: Mattias Nilsson <mattias.i.nilsson@stericsson.com>
  *
  * U8500 PRCM Unit interface driver
- *
  */
-#include <linux/module.h>
+#include <linux/init.h>
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
@@ -34,7 +36,6 @@
 #include <linux/regulator/db8500-prcmu.h>
 #include <linux/regulator/machine.h>
 #include <linux/platform_data/ux500_wdt.h>
-#include <linux/platform_data/db8500_thermal.h>
 #include "dbx500-prcmu-regs.h"
 
 /* Index of different voltages to be used when accessing AVSData */
@@ -1588,8 +1589,10 @@ static unsigned long dsiclk_rate(u8 n)
 	switch (divsel) {
 	case PRCM_DSI_PLLOUT_SEL_PHI_4:
 		div *= 2;
+		/* Fall through */
 	case PRCM_DSI_PLLOUT_SEL_PHI_2:
 		div *= 2;
+		/* Fall through */
 	case PRCM_DSI_PLLOUT_SEL_PHI:
 		return pll_rate(PRCM_PLLDSI_FREQ, clock_rate(PRCMU_HDMICLK),
 			PLL_RAW) / div;
@@ -1691,21 +1694,41 @@ static long round_clock_rate(u8 clock, unsigned long rate)
 	return rounded_rate;
 }
 
-static const unsigned long armss_freqs[] = {
+static const unsigned long db8500_armss_freqs[] = {
 	200000000,
 	400000000,
 	800000000,
 	998400000
 };
 
+/* The DB8520 has slightly higher ARMSS max frequency */
+static const unsigned long db8520_armss_freqs[] = {
+	200000000,
+	400000000,
+	800000000,
+	1152000000
+};
+
+
+
 static long round_armss_rate(unsigned long rate)
 {
 	unsigned long freq = 0;
+	const unsigned long *freqs;
+	int nfreqs;
 	int i;
 
+	if (fw_info.version.project == PRCMU_FW_PROJECT_U8520) {
+		freqs = db8520_armss_freqs;
+		nfreqs = ARRAY_SIZE(db8520_armss_freqs);
+	} else {
+		freqs = db8500_armss_freqs;
+		nfreqs = ARRAY_SIZE(db8500_armss_freqs);
+	}
+
 	/* Find the corresponding arm opp from the cpufreq table. */
-	for (i = 0; i < ARRAY_SIZE(armss_freqs); i++) {
-		freq = armss_freqs[i];
+	for (i = 0; i < nfreqs; i++) {
+		freq = freqs[i];
 		if (rate <= freq)
 			break;
 	}
@@ -1850,11 +1873,21 @@ static int set_armss_rate(unsigned long rate)
 {
 	unsigned long freq;
 	u8 opps[] = { ARM_EXTCLK, ARM_50_OPP, ARM_100_OPP, ARM_MAX_OPP };
+	const unsigned long *freqs;
+	int nfreqs;
 	int i;
 
+	if (fw_info.version.project == PRCMU_FW_PROJECT_U8520) {
+		freqs = db8520_armss_freqs;
+		nfreqs = ARRAY_SIZE(db8520_armss_freqs);
+	} else {
+		freqs = db8500_armss_freqs;
+		nfreqs = ARRAY_SIZE(db8500_armss_freqs);
+	}
+
 	/* Find the corresponding arm opp from the cpufreq table. */
-	for (i = 0; i < ARRAY_SIZE(armss_freqs); i++) {
-		freq = armss_freqs[i];
+	for (i = 0; i < nfreqs; i++) {
+		freq = freqs[i];
 		if (rate == freq)
 			break;
 	}
@@ -2980,53 +3013,6 @@ static struct ux500_wdt_data db8500_wdt_pdata = {
 	.timeout = 600, /* 10 minutes */
 	.has_28_bits_resolution = true,
 };
-/*
- * Thermal Sensor
- */
-
-static struct resource db8500_thsens_resources[] = {
-	{
-		.name = "IRQ_HOTMON_LOW",
-		.start  = IRQ_PRCMU_HOTMON_LOW,
-		.end    = IRQ_PRCMU_HOTMON_LOW,
-		.flags  = IORESOURCE_IRQ,
-	},
-	{
-		.name = "IRQ_HOTMON_HIGH",
-		.start  = IRQ_PRCMU_HOTMON_HIGH,
-		.end    = IRQ_PRCMU_HOTMON_HIGH,
-		.flags  = IORESOURCE_IRQ,
-	},
-};
-
-static struct db8500_thsens_platform_data db8500_thsens_data = {
-	.trip_points[0] = {
-		.temp = 70000,
-		.type = THERMAL_TRIP_ACTIVE,
-		.cdev_name = {
-			[0] = "thermal-cpufreq-0",
-		},
-	},
-	.trip_points[1] = {
-		.temp = 75000,
-		.type = THERMAL_TRIP_ACTIVE,
-		.cdev_name = {
-			[0] = "thermal-cpufreq-0",
-		},
-	},
-	.trip_points[2] = {
-		.temp = 80000,
-		.type = THERMAL_TRIP_ACTIVE,
-		.cdev_name = {
-			[0] = "thermal-cpufreq-0",
-		},
-	},
-	.trip_points[3] = {
-		.temp = 85000,
-		.type = THERMAL_TRIP_CRITICAL,
-	},
-	.num_trips = 4,
-};
 
 static const struct mfd_cell common_prcmu_devs[] = {
 	{
@@ -3050,10 +3036,7 @@ static const struct mfd_cell db8500_prcmu_devs[] = {
 	},
 	{
 		.name = "db8500-thermal",
-		.num_resources = ARRAY_SIZE(db8500_thsens_resources),
-		.resources = db8500_thsens_resources,
-		.platform_data = &db8500_thsens_data,
-		.pdata_size = sizeof(db8500_thsens_data),
+		.of_compatible = "stericsson,db8500-thermal",
 	},
 };
 
@@ -3126,10 +3109,8 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 	writel(ALL_MBOX_BITS, PRCM_ARM_IT1_CLR);
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(&pdev->dev, "no prcmu irq provided\n");
+	if (irq <= 0)
 		return irq;
-	}
 
 	err = request_threaded_irq(irq, prcmu_irq_handler,
 	        prcmu_irq_thread_fn, IRQF_NO_SUSPEND, "prcmu", NULL);
@@ -3188,9 +3169,4 @@ static int __init db8500_prcmu_init(void)
 {
 	return platform_driver_register(&db8500_prcmu_driver);
 }
-
 core_initcall(db8500_prcmu_init);
-
-MODULE_AUTHOR("Mattias Nilsson <mattias.i.nilsson@stericsson.com>");
-MODULE_DESCRIPTION("DB8500 PRCM Unit driver");
-MODULE_LICENSE("GPL v2");

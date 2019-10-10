@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  sst_dsp.c - Intel SST Driver for audio engine
  *
@@ -7,15 +8,6 @@
  *		Dharageswari R <dharageswari.r@intel.com>
  *		KP Jeeja <jeeja.kp@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
@@ -269,7 +261,7 @@ static void sst_do_memcpy(struct list_head *memcpy_list)
 	struct sst_memcpy_list *listnode;
 
 	list_for_each_entry(listnode, memcpy_list, memcpylist) {
-		if (listnode->is_io == true)
+		if (listnode->is_io)
 			memcpy32_toio((void __iomem *)listnode->dstn,
 					listnode->src, listnode->size);
 		else

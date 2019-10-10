@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* Qualcomm Technologies, Inc. EMAC Ethernet Controller MAC layer support
@@ -1393,15 +1385,13 @@ static void emac_tx_fill_tpd(struct emac_adapter *adpt,
 	}
 
 	for (i = 0; i < nr_frags; i++) {
-		struct skb_frag_struct *frag;
-
-		frag = &skb_shinfo(skb)->frags[i];
+		skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 
 		tpbuf = GET_TPD_BUFFER(tx_q, tx_q->tpd.produce_idx);
-		tpbuf->length = frag->size;
-		tpbuf->dma_addr = dma_map_page(adpt->netdev->dev.parent,
-					       frag->page.p, frag->page_offset,
-					       tpbuf->length, DMA_TO_DEVICE);
+		tpbuf->length = skb_frag_size(frag);
+		tpbuf->dma_addr = skb_frag_dma_map(adpt->netdev->dev.parent,
+						   frag, 0, tpbuf->length,
+						   DMA_TO_DEVICE);
 		ret = dma_mapping_error(adpt->netdev->dev.parent,
 					tpbuf->dma_addr);
 		if (ret)

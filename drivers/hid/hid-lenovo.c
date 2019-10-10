@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  HID driver for Lenovo:
  *  - ThinkPad USB Keyboard with TrackPoint (tpkbd)
@@ -20,10 +21,6 @@
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/module.h>
@@ -869,8 +866,6 @@ static void lenovo_remove_tpkbd(struct hid_device *hdev)
 
 	led_classdev_unregister(&data_pointer->led_micmute);
 	led_classdev_unregister(&data_pointer->led_mute);
-
-	hid_set_drvdata(hdev, NULL);
 }
 
 static void lenovo_remove_cptkbd(struct hid_device *hdev)

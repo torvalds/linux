@@ -1,4 +1,4 @@
-.. _memory-allocation:
+.. _memory_allocation:
 
 =======================
 Memory Allocation Guide
@@ -98,6 +98,10 @@ limited. The actual limit depends on the hardware and the kernel
 configuration, but it is a good practice to use `kmalloc` for objects
 smaller than page size.
 
+The address of a chunk allocated with `kmalloc` is aligned to at least
+ARCH_KMALLOC_MINALIGN bytes.  For sizes which are a power of two, the
+alignment is also guaranteed to be at least the respective size.
+
 For large allocations you can use :c:func:`vmalloc` and
 :c:func:`vzalloc`, or directly request pages from the page
 allocator. The memory allocated by `vmalloc` and related functions is
@@ -113,9 +117,11 @@ see :c:func:`kvmalloc_node` reference documentation. Note that
 
 If you need to allocate many identical objects you can use the slab
 cache allocator. The cache should be set up with
-:c:func:`kmem_cache_create` before it can be used. Afterwards
-:c:func:`kmem_cache_alloc` and its convenience wrappers can allocate
-memory from that cache.
+:c:func:`kmem_cache_create` or :c:func:`kmem_cache_create_usercopy`
+before it can be used. The second function should be used if a part of
+the cache might be copied to the userspace.  After the cache is
+created :c:func:`kmem_cache_alloc` and its convenience wrappers can
+allocate memory from that cache.
 
 When the allocated memory is no longer needed it must be freed. You
 can use :c:func:`kvfree` for the memory allocated with `kmalloc`,

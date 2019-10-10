@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016 PLUMgrid
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 #include <linux/bpf.h>
 #include <linux/if_link.h>
@@ -18,8 +15,8 @@
 #include <net/if.h>
 
 #include "bpf_util.h"
-#include "bpf/bpf.h"
-#include "bpf/libbpf.h"
+#include "bpf.h"
+#include "libbpf.h"
 
 static int ifindex;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Texas Instruments TMP103 SMBus temperature sensor driver
  * Copyright (C) 2014 Heiko Schocher <hs@denx.de>
@@ -6,17 +7,6 @@
  * Texas Instruments TMP102 SMBus temperature sensor driver
  *
  * Copyright (C) 2010 Steven King <sfking@fdwdc.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/module.h>
@@ -170,7 +160,7 @@ static const struct i2c_device_id tmp103_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, tmp103_id);
 
-static const struct of_device_id tmp103_of_match[] = {
+static const struct of_device_id __maybe_unused tmp103_of_match[] = {
 	{ .compatible = "ti,tmp103" },
 	{ },
 };

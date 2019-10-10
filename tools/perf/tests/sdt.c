@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <errno.h>
+#include <limits.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/epoll.h>
-#include <util/evlist.h>
+#include <util/symbol.h>
 #include <linux/filter.h>
 #include "tests.h"
 #include "debug.h"
 #include "probe-file.h"
 #include "build-id.h"
+#include "util.h"
 
 /* To test SDT event, we need libelf support to scan elf binary */
 #if defined(HAVE_SDT_EVENT) && defined(HAVE_LIBELF_SUPPORT)

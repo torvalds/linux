@@ -1,20 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012-2013 Avionic Design GmbH
  * Copyright (C) 2012 NVIDIA CORPORATION.  All rights reserved.
  *
  * Based on the KMS/FB CMA helpers
  *   Copyright (C) 2012 Analog Device Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/console.h>
 
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_modeset_helper.h>
+
 #include "drm.h"
 #include "gem.h"
-#include <drm/drm_gem_framebuffer_helper.h>
 
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 static inline struct tegra_fbdev *to_tegra_fbdev(struct drm_fb_helper *helper)
@@ -130,18 +130,16 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 					struct drm_file *file,
 					const struct drm_mode_fb_cmd2 *cmd)
 {
-	unsigned int hsub, vsub, i;
+	const struct drm_format_info *info = drm_get_format_info(drm, cmd);
 	struct tegra_bo *planes[4];
 	struct drm_gem_object *gem;
 	struct drm_framebuffer *fb;
+	unsigned int i;
 	int err;
 
-	hsub = drm_format_horz_chroma_subsampling(cmd->pixel_format);
-	vsub = drm_format_vert_chroma_subsampling(cmd->pixel_format);
-
-	for (i = 0; i < drm_format_num_planes(cmd->pixel_format); i++) {
-		unsigned int width = cmd->width / (i ? hsub : 1);
-		unsigned int height = cmd->height / (i ? vsub : 1);
+	for (i = 0; i < info->num_planes; i++) {
+		unsigned int width = cmd->width / (i ? info->hsub : 1);
+		unsigned int height = cmd->height / (i ? info->vsub : 1);
 		unsigned int size, bpp;
 
 		gem = drm_gem_object_lookup(file, cmd->handles[i]);
@@ -150,7 +148,7 @@ struct drm_framebuffer *tegra_fb_create(struct drm_device *drm,
 			goto unreference;
 		}
 
-		bpp = drm_format_plane_cpp(cmd->pixel_format, i);
+		bpp = info->cpp[i];
 
 		size = (height - 1) * cmd->pitches[i] +
 		       width * bpp + cmd->offsets[i];
@@ -254,12 +252,9 @@ static int tegra_fbdev_probe(struct drm_fb_helper *helper,
 	helper->fb = fb;
 	helper->fbdev = info;
 
-	info->par = helper;
-	info->flags = FBINFO_FLAG_DEFAULT;
 	info->fbops = &tegra_fb_ops;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(info, helper, fb->width, fb->height);
+	drm_fb_helper_fill_info(info, helper, sizes);
 
 	offset = info->var.xoffset * bytes_per_pixel +
 		 info->var.yoffset * fb->pitches[0];

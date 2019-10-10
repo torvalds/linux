@@ -60,7 +60,8 @@ struct scsi_host_template {
 	 *
 	 * Status: OPTIONAL
 	 */
-	int (* ioctl)(struct scsi_device *dev, int cmd, void __user *arg);
+	int (*ioctl)(struct scsi_device *dev, unsigned int cmd,
+		     void __user *arg);
 
 
 #ifdef CONFIG_COMPAT
@@ -70,7 +71,8 @@ struct scsi_host_template {
 	 *
 	 * Status: OPTIONAL
 	 */
-	int (* compat_ioctl)(struct scsi_device *dev, int cmd, void __user *arg);
+	int (*compat_ioctl)(struct scsi_device *dev, unsigned int cmd,
+			    void __user *arg);
 #endif
 
 	/*
@@ -78,8 +80,10 @@ struct scsi_host_template {
 	 * command block to the LLDD.  When the driver finished
 	 * processing the command the done callback is invoked.
 	 *
-	 * If queuecommand returns 0, then the HBA has accepted the
-	 * command.  The done() function must be called on the command
+	 * If queuecommand returns 0, then the driver has accepted the
+	 * command.  It must also push it to the HBA if the scsi_cmnd
+	 * flag SCMD_LAST is set, or if the driver does not implement
+	 * commit_rqs.  The done() function must be called on the command
 	 * when the driver has finished with it. (you may call done on the
 	 * command before queuecommand returns, but in this case you
 	 * *must* return 0 from queuecommand).
@@ -106,6 +110,16 @@ struct scsi_host_template {
 	 * STATUS: REQUIRED
 	 */
 	int (* queuecommand)(struct Scsi_Host *, struct scsi_cmnd *);
+
+	/*
+	 * The commit_rqs function is used to trigger a hardware
+	 * doorbell after some requests have been queued with
+	 * queuecommand, when an error is encountered before sending
+	 * the request with SCMD_LAST set.
+	 *
+	 * STATUS: OPTIONAL
+	 */
+	void (*commit_rqs)(struct Scsi_Host *, u16);
 
 	/*
 	 * This is an error handling strategy routine.  You don't need to
@@ -298,11 +312,7 @@ struct scsi_host_template {
 	/*
 	 * This is an optional routine that allows the transport to become
 	 * involved when a scsi io timer fires. The return value tells the
-	 * timer routine how to finish the io timeout handling:
-	 * EH_HANDLED:		I fixed the error, please complete the command
-	 * EH_RESET_TIMER:	I need more time, reset the timer and
-	 *			begin counting again
-	 * EH_DONE:		Begin normal error recovery
+	 * timer routine how to finish the io timeout handling.
 	 *
 	 * Status: OPTIONAL
 	 */
@@ -370,6 +380,8 @@ struct scsi_host_template {
 	 * boundary will be split in two.
 	 */
 	unsigned long dma_boundary;
+
+	unsigned long virt_boundary_mask;
 
 	/*
 	 * This specifies "machine infinity" for host templates which don't
@@ -488,7 +500,6 @@ struct scsi_host_template {
 		unsigned long irq_flags;				\
 		int rc;							\
 		spin_lock_irqsave(shost->host_lock, irq_flags);		\
-		scsi_cmd_get_serial(shost, cmd);			\
 		rc = func_name##_lck (cmd, cmd->scsi_done);			\
 		spin_unlock_irqrestore(shost->host_lock, irq_flags);	\
 		return rc;						\
@@ -590,6 +601,7 @@ struct Scsi_Host {
 	unsigned int max_sectors;
 	unsigned int max_segment_size;
 	unsigned long dma_boundary;
+	unsigned long virt_boundary_mask;
 	/*
 	 * In scsi-mq mode, the number of hardware queues supported by the LLD.
 	 *
@@ -598,12 +610,6 @@ struct Scsi_Host {
 	 * is nr_hw_queues * can_queue.
 	 */
 	unsigned nr_hw_queues;
-	/* 
-	 * Used to assign serial numbers to the cmds.
-	 * Protected by the host lock.
-	 */
-	unsigned long cmd_serial_number;
-	
 	unsigned active_mode:2;
 	unsigned unchecked_isa_dma:1;
 
@@ -637,6 +643,9 @@ struct Scsi_Host {
 	/* Host responded with short (<36 bytes) INQUIRY result */
 	unsigned short_inquiry:1;
 
+	/* The transport requires the LUN bits NOT to be stored in CDB[1] */
+	unsigned no_scsi2_lun_in_cdb:1;
+
 	/*
 	 * Optional work queue to be utilized by the transport
 	 */
@@ -647,9 +656,6 @@ struct Scsi_Host {
 	 * Task management function work queue
 	 */
 	struct workqueue_struct *tmf_work_q;
-
-	/* The transport requires the LUN bits NOT to be stored in CDB[1] */
-	unsigned no_scsi2_lun_in_cdb:1;
 
 	/*
 	 * Value host_blocked counts down from
@@ -740,7 +746,6 @@ extern int scsi_host_busy(struct Scsi_Host *shost);
 extern void scsi_host_put(struct Scsi_Host *t);
 extern struct Scsi_Host *scsi_host_lookup(unsigned short);
 extern const char *scsi_host_state_name(enum scsi_host_state);
-extern void scsi_cmd_get_serial(struct Scsi_Host *, struct scsi_cmnd *);
 
 static inline int __must_check scsi_add_host(struct Scsi_Host *host,
 					     struct device *dev)

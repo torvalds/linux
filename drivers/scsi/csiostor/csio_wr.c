@@ -808,6 +808,7 @@ csio_wr_destroy_queues(struct csio_hw *hw, bool cmd)
 
 				csio_q_eqid(hw, i) = CSIO_MAX_QID;
 			}
+			/* fall through */
 		case CSIO_INGRESS:
 			if (csio_q_iqid(hw, i) != CSIO_MAX_QID) {
 				csio_wr_cleanup_iq_ftr(hw, i);
@@ -1315,7 +1316,6 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 	u32 fl_align = clsz < 32 ? 32 : clsz;
 	u32 pack_align;
 	u32 ingpad, ingpack;
-	int pcie_cap;
 
 	csio_wr_reg32(hw, HOSTPAGESIZEPF0_V(s_hps) | HOSTPAGESIZEPF1_V(s_hps) |
 		      HOSTPAGESIZEPF2_V(s_hps) | HOSTPAGESIZEPF3_V(s_hps) |
@@ -1346,8 +1346,7 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 	 * multiple of the Maximum Payload Size.
 	 */
 	pack_align = fl_align;
-	pcie_cap = pci_find_capability(hw->pdev, PCI_CAP_ID_EXP);
-	if (pcie_cap) {
+	if (pci_is_pcie(hw->pdev)) {
 		u32 mps, mps_log;
 		u16 devctl;
 
@@ -1355,9 +1354,7 @@ csio_wr_fixup_host_params(struct csio_hw *hw)
 		 * [bits 7:5] encodes sizes as powers of 2 starting at
 		 * 128 bytes.
 		 */
-		pci_read_config_word(hw->pdev,
-				     pcie_cap + PCI_EXP_DEVCTL,
-				     &devctl);
+		pcie_capability_read_word(hw->pdev, PCI_EXP_DEVCTL, &devctl);
 		mps_log = ((devctl & PCI_EXP_DEVCTL_PAYLOAD) >> 5) + 7;
 		mps = 1 << mps_log;
 		if (mps > pack_align)

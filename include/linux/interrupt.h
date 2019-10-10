@@ -52,7 +52,7 @@
  *                irq line disabled until the threaded handler has been run.
  * IRQF_NO_SUSPEND - Do not disable this IRQ during suspend.  Does not guarantee
  *                   that this interrupt will wake the system from a suspended
- *                   state.  See Documentation/power/suspend-and-interrupts.txt
+ *                   state.  See Documentation/power/suspend-and-interrupts.rst
  * IRQF_FORCE_RESUME - Force enable it on resume even if IRQF_NO_SUSPEND is set
  * IRQF_NO_THREAD - Interrupt cannot be threaded
  * IRQF_EARLY_RESUME - Resume IRQ early during syscore instead of at device
@@ -238,6 +238,7 @@ extern void teardown_percpu_nmi(unsigned int irq);
 /* The following three functions are for the core kernel use only. */
 extern void suspend_device_irqs(void);
 extern void resume_device_irqs(void);
+extern void rearm_wake_irq(unsigned int irq);
 
 /**
  * struct irq_affinity_notify - context for notification of IRQ affinity changes
@@ -472,7 +473,11 @@ extern int irq_set_irqchip_state(unsigned int irq, enum irqchip_irq_state which,
 				 bool state);
 
 #ifdef CONFIG_IRQ_FORCED_THREADING
+# ifdef CONFIG_PREEMPT_RT
+#  define force_irqthreads	(true)
+# else
 extern bool force_irqthreads;
+# endif
 #else
 #define force_irqthreads	(0)
 #endif
@@ -667,31 +672,6 @@ extern void tasklet_kill(struct tasklet_struct *t);
 extern void tasklet_kill_immediate(struct tasklet_struct *t, unsigned int cpu);
 extern void tasklet_init(struct tasklet_struct *t,
 			 void (*func)(unsigned long), unsigned long data);
-
-struct tasklet_hrtimer {
-	struct hrtimer		timer;
-	struct tasklet_struct	tasklet;
-	enum hrtimer_restart	(*function)(struct hrtimer *);
-};
-
-extern void
-tasklet_hrtimer_init(struct tasklet_hrtimer *ttimer,
-		     enum hrtimer_restart (*function)(struct hrtimer *),
-		     clockid_t which_clock, enum hrtimer_mode mode);
-
-static inline
-void tasklet_hrtimer_start(struct tasklet_hrtimer *ttimer, ktime_t time,
-			   const enum hrtimer_mode mode)
-{
-	hrtimer_start(&ttimer->timer, time, mode);
-}
-
-static inline
-void tasklet_hrtimer_cancel(struct tasklet_hrtimer *ttimer)
-{
-	hrtimer_cancel(&ttimer->timer);
-	tasklet_kill(&ttimer->tasklet);
-}
 
 /*
  * Autoprobing for irqs:

@@ -38,6 +38,7 @@ static __poll_t cec_poll(struct file *filp,
 	struct cec_adapter *adap = fh->adap;
 	__poll_t res = 0;
 
+	poll_wait(filp, &fh->wait, poll);
 	if (!cec_is_registered(adap))
 		return EPOLLERR | EPOLLHUP;
 	mutex_lock(&adap->lock);
@@ -48,7 +49,6 @@ static __poll_t cec_poll(struct file *filp,
 		res |= EPOLLIN | EPOLLRDNORM;
 	if (fh->total_queued_events)
 		res |= EPOLLPRI;
-	poll_wait(filp, &fh->wait, poll);
 	mutex_unlock(&adap->lock);
 	return res;
 }
@@ -198,18 +198,10 @@ static long cec_transmit(struct cec_adapter *adap, struct cec_fh *fh,
 	if (copy_from_user(&msg, parg, sizeof(msg)))
 		return -EFAULT;
 
-	/* A CDC-Only device can only send CDC messages */
-	if ((adap->log_addrs.flags & CEC_LOG_ADDRS_FL_CDC_ONLY) &&
-	    (msg.len == 1 || msg.msg[1] != CEC_MSG_CDC_MESSAGE))
-		return -EINVAL;
-
 	mutex_lock(&adap->lock);
 	if (adap->log_addrs.num_log_addrs == 0)
 		err = -EPERM;
 	else if (adap->is_configuring)
-		err = -ENONET;
-	else if (!adap->is_configured &&
-		 (adap->needs_hpd || msg.msg[0] != 0xf0))
 		err = -ENONET;
 	else if (cec_is_busy(adap, fh))
 		err = -EBUSY;

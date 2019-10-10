@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2015-2016 HGST, a Western Digital Company.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef _NVMET_H
@@ -148,6 +140,7 @@ struct nvmet_port {
 	void				*priv;
 	bool				enabled;
 	int				inline_data_size;
+	const struct nvmet_fabrics_ops	*tr_ops;
 };
 
 static inline struct nvmet_port *to_nvmet_port(struct config_item *item)
@@ -285,6 +278,7 @@ struct nvmet_fabrics_ops {
 	void (*disc_traddr)(struct nvmet_req *req,
 			struct nvmet_port *port, char *traddr);
 	u16 (*install_queue)(struct nvmet_sq *nvme_sq);
+	void (*discovery_chg)(struct nvmet_port *port);
 };
 
 #define NVMET_MAX_INLINE_BIOVEC	8
@@ -292,7 +286,7 @@ struct nvmet_fabrics_ops {
 
 struct nvmet_req {
 	struct nvme_command	*cmd;
-	struct nvme_completion	*rsp;
+	struct nvme_completion	*cqe;
 	struct nvmet_sq		*sq;
 	struct nvmet_cq		*cq;
 	struct nvmet_ns		*ns;
@@ -330,7 +324,7 @@ extern struct workqueue_struct *buffered_io_wq;
 
 static inline void nvmet_set_result(struct nvmet_req *req, u32 result)
 {
-	req->rsp->result.u32 = cpu_to_le32(result);
+	req->cqe->result.u32 = cpu_to_le32(result);
 }
 
 /*
@@ -371,6 +365,7 @@ u16 nvmet_set_feat_async_event(struct nvmet_req *req, u32 mask);
 void nvmet_execute_async_event(struct nvmet_req *req);
 
 u16 nvmet_parse_connect_cmd(struct nvmet_req *req);
+void nvmet_bdev_set_limits(struct block_device *bdev, struct nvme_id_ns *id);
 u16 nvmet_bdev_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_file_parse_io_cmd(struct nvmet_req *req);
 u16 nvmet_parse_admin_cmd(struct nvmet_req *req);
@@ -423,6 +418,9 @@ void nvmet_port_send_ana_event(struct nvmet_port *port);
 int nvmet_register_transport(const struct nvmet_fabrics_ops *ops);
 void nvmet_unregister_transport(const struct nvmet_fabrics_ops *ops);
 
+void nvmet_port_del_ctrls(struct nvmet_port *port,
+			  struct nvmet_subsys *subsys);
+
 int nvmet_enable_port(struct nvmet_port *port);
 void nvmet_disable_port(struct nvmet_port *port);
 
@@ -436,6 +434,7 @@ u16 nvmet_copy_from_sgl(struct nvmet_req *req, off_t off, void *buf,
 u16 nvmet_zero_sgl(struct nvmet_req *req, off_t off, size_t len);
 
 u32 nvmet_get_log_page_len(struct nvme_command *cmd);
+u64 nvmet_get_log_page_offset(struct nvme_command *cmd);
 
 extern struct list_head *nvmet_ports;
 void nvmet_port_disc_changed(struct nvmet_port *port,
@@ -497,4 +496,11 @@ static inline u32 nvmet_rw_len(struct nvmet_req *req)
 }
 
 u16 errno_to_nvme_status(struct nvmet_req *req, int errno);
+
+/* Convert a 32-bit number to a 16-bit 0's based number */
+static inline __le16 to0based(u32 a)
+{
+	return cpu_to_le16(max(1U, min(1U << 16, a)) - 1);
+}
+
 #endif /* _NVMET_H */

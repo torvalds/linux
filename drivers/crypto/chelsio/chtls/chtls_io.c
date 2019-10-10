@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018 Chelsio Communications, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Written by: Atul Gupta (atul.gupta@chelsio.com)
  */
@@ -1081,7 +1078,7 @@ new_buf:
 			bool merge;
 
 			if (page)
-				pg_size <<= compound_order(page);
+				pg_size = page_size(page);
 			if (off < pg_size &&
 			    skb_can_coalesce(skb, i, page, off)) {
 				merge = 1;
@@ -1108,8 +1105,7 @@ new_buf:
 							   __GFP_NORETRY,
 							   order);
 					if (page)
-						pg_size <<=
-							compound_order(page);
+						pg_size <<= order;
 				}
 				if (!page) {
 					page = alloc_page(gfp);
@@ -1137,7 +1133,9 @@ copy:
 			}
 			/* Update the skb. */
 			if (merge) {
-				skb_shinfo(skb)->frags[i - 1].size += copy;
+				skb_frag_size_add(
+						&skb_shinfo(skb)->frags[i - 1],
+						copy);
 			} else {
 				skb_fill_page_desc(skb, i, page, off, copy);
 				if (off + copy < pg_size) {
@@ -1250,7 +1248,7 @@ new_buf:
 
 		i = skb_shinfo(skb)->nr_frags;
 		if (skb_can_coalesce(skb, i, page, offset)) {
-			skb_shinfo(skb)->frags[i - 1].size += copy;
+			skb_frag_size_add(&skb_shinfo(skb)->frags[i - 1], copy);
 		} else if (i < MAX_SKB_FRAGS) {
 			get_page(page);
 			skb_fill_page_desc(skb, i, page, offset, copy);

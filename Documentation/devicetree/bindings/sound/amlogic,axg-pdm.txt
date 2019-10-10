@@ -1,7 +1,9 @@
 * Amlogic Audio PDM input
 
 Required properties:
-- compatible: 'amlogic,axg-pdm'
+- compatible: 'amlogic,axg-pdm' or
+	      'amlogic,g12a-pdm' or
+	      'amlogic,sm1-pdm'
 - reg: physical base address of the controller and length of memory
        mapped region.
 - clocks: list of clock phandle, one for each entry clock-names.
@@ -10,6 +12,9 @@ Required properties:
   * "dclk"   : pdm digital clock
   * "sysclk" : dsp system clock
 - #sound-dai-cells: must be 0.
+
+Optional property:
+- resets: phandle to the dedicated reset line of the pdm input.
 
 Example of PDM on the A113 SoC:
 

@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Intel Sandy Bridge -EN/-EP/-EX Memory Controller kernel module
  *
  * This driver supports the memory controllers found on the Intel
  * processor family Sandy Bridge.
- *
- * This file may be distributed under the terms of the
- * GNU General Public License version 2 only.
  *
  * Copyright (c) 2011 by:
  *	 Mauro Carvalho Chehab
@@ -1513,7 +1511,6 @@ static int knl_get_dimm_capacity(struct sbridge_pvt *pvt, u64 *mc_sizes)
 						sad_actual_size[mc] += tad_size;
 					}
 				}
-				tad_base = tad_limit+1;
 			}
 		}
 
@@ -3432,7 +3429,7 @@ static const struct x86_cpu_id sbridge_cpuids[] = {
 	INTEL_CPU_FAM6(IVYBRIDGE_X,	  pci_dev_descr_ibridge_table),
 	INTEL_CPU_FAM6(HASWELL_X,	  pci_dev_descr_haswell_table),
 	INTEL_CPU_FAM6(BROADWELL_X,	  pci_dev_descr_broadwell_table),
-	INTEL_CPU_FAM6(BROADWELL_XEON_D,  pci_dev_descr_broadwell_table),
+	INTEL_CPU_FAM6(BROADWELL_D,	  pci_dev_descr_broadwell_table),
 	INTEL_CPU_FAM6(XEON_PHI_KNL,	  pci_dev_descr_knl_table),
 	INTEL_CPU_FAM6(XEON_PHI_KNM,	  pci_dev_descr_knl_table),
 	{ }

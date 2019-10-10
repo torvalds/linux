@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  iptables module to match inet_addr_type() of an ip.
  *
  *  Copyright (c) 2004 Patrick McHardy <kaber@trash.net>
  *  (C) 2007 Laszlo Attila Toth <panther@balabit.hu>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kernel.h>

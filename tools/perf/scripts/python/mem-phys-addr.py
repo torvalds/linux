@@ -4,6 +4,8 @@
 # Copyright (c) 2018, Intel Corporation.
 
 from __future__ import division
+from __future__ import print_function
+
 import os
 import sys
 import struct
@@ -31,21 +33,24 @@ def parse_iomem():
 	for i, j in enumerate(f):
 		m = re.split('-|:',j,2)
 		if m[2].strip() == 'System RAM':
-			system_ram.append(long(m[0], 16))
-			system_ram.append(long(m[1], 16))
+			system_ram.append(int(m[0], 16))
+			system_ram.append(int(m[1], 16))
 		if m[2].strip() == 'Persistent Memory':
-			pmem.append(long(m[0], 16))
-			pmem.append(long(m[1], 16))
+			pmem.append(int(m[0], 16))
+			pmem.append(int(m[1], 16))
 
 def print_memory_type():
-	print "Event: %s" % (event_name)
-	print "%-40s  %10s  %10s\n" % ("Memory type", "count", "percentage"),
-	print "%-40s  %10s  %10s\n" % ("----------------------------------------", \
+	print("Event: %s" % (event_name))
+	print("%-40s  %10s  %10s\n" % ("Memory type", "count", "percentage"), end='')
+	print("%-40s  %10s  %10s\n" % ("----------------------------------------",
 					"-----------", "-----------"),
+					end='');
 	total = sum(load_mem_type_cnt.values())
 	for mem_type, count in sorted(load_mem_type_cnt.most_common(), \
-					key = lambda(k, v): (v, k), reverse = True):
-		print "%-40s  %10d  %10.1f%%\n" % (mem_type, count, 100 * count / total),
+					key = lambda kv: (kv[1], kv[0]), reverse = True):
+		print("%-40s  %10d  %10.1f%%\n" %
+			(mem_type, count, 100 * count / total),
+			end='')
 
 def trace_begin():
 	parse_iomem()
@@ -80,7 +85,7 @@ def find_memory_type(phys_addr):
 	f.seek(0, 0)
 	for j in f:
 		m = re.split('-|:',j,2)
-		if long(m[0], 16) <= phys_addr <= long(m[1], 16):
+		if int(m[0], 16) <= phys_addr <= int(m[1], 16):
 			return m[2]
 	return "N/A"
 

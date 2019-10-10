@@ -1,29 +1,50 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <test_progs.h>
 
+static __u64 read_perf_max_sample_freq(void)
+{
+	__u64 sample_freq = 5000; /* fallback to 5000 on error */
+	FILE *f;
+
+	f = fopen("/proc/sys/kernel/perf_event_max_sample_rate", "r");
+	if (f == NULL)
+		return sample_freq;
+	fscanf(f, "%llu", &sample_freq);
+	fclose(f);
+	return sample_freq;
+}
+
 void test_stacktrace_build_id_nmi(void)
 {
 	int control_map_fd, stackid_hmap_fd, stackmap_fd, stack_amap_fd;
+	const char *prog_name = "tracepoint/random/urandom_read";
 	const char *file = "./test_stacktrace_build_id.o";
 	int err, pmu_fd, prog_fd;
 	struct perf_event_attr attr = {
-		.sample_freq = 5000,
 		.freq = 1,
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
 	__u32 key, previous_key, val, duration = 0;
+	struct bpf_program *prog;
 	struct bpf_object *obj;
+	struct bpf_link *link;
 	char buf[256];
 	int i, j;
 	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
 	int build_id_matches = 0;
 	int retry = 1;
 
+	attr.sample_freq = read_perf_max_sample_freq();
+
 retry:
 	err = bpf_prog_load(file, BPF_PROG_TYPE_PERF_EVENT, &obj, &prog_fd);
 	if (CHECK(err, "prog_load", "err %d errno %d\n", err, errno))
 		return;
+
+	prog = bpf_object__find_program_by_title(obj, prog_name);
+	if (CHECK(!prog, "find_prog", "prog '%s' not found\n", prog_name))
+		goto close_prog;
 
 	pmu_fd = syscall(__NR_perf_event_open, &attr, -1 /* pid */,
 			 0 /* cpu 0 */, -1 /* group id */,
@@ -33,15 +54,12 @@ retry:
 		  pmu_fd, errno))
 		goto close_prog;
 
-	err = ioctl(pmu_fd, PERF_EVENT_IOC_ENABLE, 0);
-	if (CHECK(err, "perf_event_ioc_enable", "err %d errno %d\n",
-		  err, errno))
-		goto close_pmu;
-
-	err = ioctl(pmu_fd, PERF_EVENT_IOC_SET_BPF, prog_fd);
-	if (CHECK(err, "perf_event_ioc_set_bpf", "err %d errno %d\n",
-		  err, errno))
-		goto disable_pmu;
+	link = bpf_program__attach_perf_event(prog, pmu_fd);
+	if (CHECK(IS_ERR(link), "attach_perf_event",
+		  "err %ld\n", PTR_ERR(link))) {
+		close(pmu_fd);
+		goto close_prog;
+	}
 
 	/* find map fds */
 	control_map_fd = bpf_find_map(__func__, obj, "control_map");
@@ -64,9 +82,10 @@ retry:
 		  "err %d errno %d\n", err, errno))
 		goto disable_pmu;
 
-	assert(system("dd if=/dev/urandom of=/dev/zero count=4 2> /dev/null")
-	       == 0);
-	assert(system("taskset 0x1 ./urandom_read 100000") == 0);
+	if (CHECK_FAIL(system("dd if=/dev/urandom of=/dev/zero count=4 2> /dev/null")))
+		goto disable_pmu;
+	if (CHECK_FAIL(system("taskset 0x1 ./urandom_read 100000")))
+		goto disable_pmu;
 	/* disable stack trace collection */
 	key = 0;
 	val = 1;
@@ -120,8 +139,7 @@ retry:
 	 * try it one more time.
 	 */
 	if (build_id_matches < 1 && retry--) {
-		ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
-		close(pmu_fd);
+		bpf_link__destroy(link);
 		bpf_object__close(obj);
 		printf("%s:WARN:Didn't find expected build ID from the map, retrying\n",
 		       __func__);
@@ -140,11 +158,7 @@ retry:
 	 */
 
 disable_pmu:
-	ioctl(pmu_fd, PERF_EVENT_IOC_DISABLE);
-
-close_pmu:
-	close(pmu_fd);
-
+	bpf_link__destroy(link);
 close_prog:
 	bpf_object__close(obj);
 }

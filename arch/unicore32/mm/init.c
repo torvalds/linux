@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/unicore32/mm/init.c
  *
  *  Copyright (C) 2010 GUAN Xue-tao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -23,7 +20,7 @@
 
 #include <asm/sections.h>
 #include <asm/setup.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/tlb.h>
 #include <asm/memblock.h>
 #include <mach/map.h>
@@ -274,30 +271,6 @@ void __init mem_init(void)
 	memblock_free_all();
 
 	mem_init_print_info(NULL);
-	printk(KERN_NOTICE "Virtual kernel memory layout:\n"
-		"    vector  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
-		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-		"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-		"    modules : 0x%08lx - 0x%08lx   (%4ld MB)\n"
-		"      .init : 0x%p" " - 0x%p" "   (%4d kB)\n"
-		"      .text : 0x%p" " - 0x%p" "   (%4d kB)\n"
-		"      .data : 0x%p" " - 0x%p" "   (%4d kB)\n",
-
-		VECTORS_BASE, VECTORS_BASE + PAGE_SIZE,
-		DIV_ROUND_UP(PAGE_SIZE, SZ_1K),
-		VMALLOC_START, VMALLOC_END,
-		DIV_ROUND_UP((VMALLOC_END - VMALLOC_START), SZ_1M),
-		PAGE_OFFSET, (unsigned long)high_memory,
-		DIV_ROUND_UP(((unsigned long)high_memory - PAGE_OFFSET), SZ_1M),
-		MODULES_VADDR, MODULES_END,
-		DIV_ROUND_UP((MODULES_END - MODULES_VADDR), SZ_1M),
-
-		__init_begin, __init_end,
-		DIV_ROUND_UP((__init_end - __init_begin), SZ_1K),
-		_stext, _etext,
-		DIV_ROUND_UP((_etext - _stext), SZ_1K),
-		_sdata, _edata,
-		DIV_ROUND_UP((_edata - _sdata), SZ_1K));
 
 	BUILD_BUG_ON(TASK_SIZE				> MODULES_VADDR);
 	BUG_ON(TASK_SIZE				> MODULES_VADDR);
@@ -311,27 +284,3 @@ void __init mem_init(void)
 		sysctl_overcommit_memory = OVERCOMMIT_ALWAYS;
 	}
 }
-
-void free_initmem(void)
-{
-	free_initmem_default(-1);
-}
-
-#ifdef CONFIG_BLK_DEV_INITRD
-
-static int keep_initrd;
-
-void free_initrd_mem(unsigned long start, unsigned long end)
-{
-	if (!keep_initrd)
-		free_reserved_area((void *)start, (void *)end, -1, "initrd");
-}
-
-static int __init keepinitrd_setup(char *__unused)
-{
-	keep_initrd = 1;
-	return 1;
-}
-
-__setup("keepinitrd", keepinitrd_setup);
-#endif

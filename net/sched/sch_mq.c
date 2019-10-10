@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * net/sched/sch_mq.c		Classful multiqueue dummy scheduler
  *
  * Copyright (c) 2009 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -249,7 +246,7 @@ static int mq_dump_class_stats(struct Qdisc *sch, unsigned long cl,
 
 	sch = dev_queue->qdisc_sleeping;
 	if (gnet_stats_copy_basic(&sch->running, d, NULL, &sch->bstats) < 0 ||
-	    gnet_stats_copy_queue(d, NULL, &sch->qstats, sch->q.qlen) < 0)
+	    qdisc_qstats_copy(d, sch) < 0)
 		return -1;
 	return 0;
 }

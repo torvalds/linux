@@ -1,24 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <linux/dma-buf.h>
+
+#include <drm/drm_prime.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"
-
-#include <linux/dma-buf.h>
 
 struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
@@ -69,11 +60,4 @@ void msm_gem_prime_unpin(struct drm_gem_object *obj)
 {
 	if (!obj->import_attach)
 		msm_gem_put_pages(obj);
-}
-
-struct reservation_object *msm_gem_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-
-	return msm_obj->resv;
 }

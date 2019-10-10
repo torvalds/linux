@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014-2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/acpi.h>
@@ -370,7 +366,7 @@ int hns_mac_clr_multicast(struct hns_mac_cb *mac_cb, int vfn)
 static void hns_mac_param_get(struct mac_params *param,
 			      struct hns_mac_cb *mac_cb)
 {
-	param->vaddr = (void *)mac_cb->vaddr;
+	param->vaddr = mac_cb->vaddr;
 	param->mac_mode = hns_get_enet_interface(mac_cb);
 	ether_addr_copy(param->addr, mac_cb->addr_entry_idx[0].addr);
 	param->mac_id = mac_cb->mac_id;

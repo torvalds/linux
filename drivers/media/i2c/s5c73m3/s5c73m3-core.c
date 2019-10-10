@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Samsung LSI S5C73M3 8M pixel camera driver
  *
  * Copyright (C) 2012, Samsung Electronics, Co., Ltd.
  * Sylwester Nawrocki <s.nawrocki@samsung.com>
  * Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -1431,7 +1423,7 @@ err:
 	for (++i; i < S5C73M3_MAX_SUPPLIES; i++) {
 		int r = regulator_enable(state->supplies[i].consumer);
 		if (r < 0)
-			v4l2_err(&state->oif_sd, "Failed to reenable %s: %d\n",
+			v4l2_err(&state->oif_sd, "Failed to re-enable %s: %d\n",
 				 state->supplies[i].supply, r);
 	}
 
@@ -1658,8 +1650,7 @@ static int s5c73m3_get_platform_data(struct s5c73m3 *state)
 	return 0;
 }
 
-static int s5c73m3_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int s5c73m3_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct v4l2_subdev *sd;
@@ -1814,7 +1805,7 @@ static struct i2c_driver s5c73m3_i2c_driver = {
 		.of_match_table = of_match_ptr(s5c73m3_of_match),
 		.name	= DRIVER_NAME,
 	},
-	.probe		= s5c73m3_probe,
+	.probe_new	= s5c73m3_probe,
 	.remove		= s5c73m3_remove,
 	.id_table	= s5c73m3_id,
 };

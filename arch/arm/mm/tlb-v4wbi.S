@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/arch/arm/mm/tlbv4wbi.S
  *
  *  Copyright (C) 1997-2002 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  *  ARM architecture version 4 and version 5 TLB handling functions.
  *  These assume a split I/D TLBs, with a write buffer.

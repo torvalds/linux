@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (C) 2017 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 #include <linux/bpf.h>
 #include <linux/netlink.h>
@@ -24,7 +21,7 @@
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include "bpf_util.h"
-#include "bpf/libbpf.h"
+#include "libbpf.h"
 #include <sys/resource.h>
 #include <libgen.h>
 

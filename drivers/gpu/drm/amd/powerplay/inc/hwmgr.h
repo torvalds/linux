@@ -47,6 +47,11 @@ enum DISPLAY_GAP {
 };
 typedef enum DISPLAY_GAP DISPLAY_GAP;
 
+enum BACO_STATE {
+	BACO_STATE_OUT = 0,
+	BACO_STATE_IN,
+};
+
 struct vi_dpm_level {
 	bool enabled;
 	uint32_t value;
@@ -184,7 +189,16 @@ struct phm_vce_clock_voltage_dependency_table {
 	struct phm_vce_clock_voltage_dependency_record entries[1];
 };
 
+
+enum SMU_ASIC_RESET_MODE
+{
+    SMU_ASIC_RESET_MODE_0,
+    SMU_ASIC_RESET_MODE_1,
+    SMU_ASIC_RESET_MODE_2,
+};
+
 struct pp_smumgr_func {
+	char *name;
 	int (*smu_init)(struct pp_hwmgr  *hwmgr);
 	int (*smu_fini)(struct pp_hwmgr  *hwmgr);
 	int (*start_smu)(struct pp_hwmgr  *hwmgr);
@@ -251,7 +265,6 @@ struct pp_hwmgr_func {
 	uint32_t (*get_sclk)(struct pp_hwmgr *hwmgr, bool low);
 	int (*power_state_set)(struct pp_hwmgr *hwmgr,
 						const void *state);
-	int (*enable_clock_power_gating)(struct pp_hwmgr *hwmgr);
 	int (*notify_smc_display_config_after_ps_adjustment)(struct pp_hwmgr *hwmgr);
 	int (*pre_display_config_changed)(struct pp_hwmgr *hwmgr);
 	int (*display_config_changed)(struct pp_hwmgr *hwmgr);
@@ -334,6 +347,14 @@ struct pp_hwmgr_func {
 	int (*enable_mgpu_fan_boost)(struct pp_hwmgr *hwmgr);
 	int (*set_hard_min_dcefclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
 	int (*set_hard_min_fclk_by_freq)(struct pp_hwmgr *hwmgr, uint32_t clock);
+	int (*get_asic_baco_capability)(struct pp_hwmgr *hwmgr, bool *cap);
+	int (*get_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE *state);
+	int (*set_asic_baco_state)(struct pp_hwmgr *hwmgr, enum BACO_STATE state);
+	int (*get_ppfeature_status)(struct pp_hwmgr *hwmgr, char *buf);
+	int (*set_ppfeature_status)(struct pp_hwmgr *hwmgr, uint64_t ppfeature_masks);
+	int (*set_mp1_state)(struct pp_hwmgr *hwmgr, enum pp_mp1_state mp1_state);
+	int (*asic_reset)(struct pp_hwmgr *hwmgr, enum SMU_ASIC_RESET_MODE mode);
+	int (*smu_i2c_bus_access)(struct pp_hwmgr *hwmgr, bool aquire);
 };
 
 struct pp_table_func {
@@ -678,12 +699,14 @@ struct pp_advance_fan_control_parameters {
 	uint32_t  ulTargetGfxClk;
 	uint16_t  usZeroRPMStartTemperature;
 	uint16_t  usZeroRPMStopTemperature;
+	uint16_t  usMGpuThrottlingRPMLimit;
 };
 
 struct pp_thermal_controller_info {
 	uint8_t ucType;
 	uint8_t ucI2cLine;
 	uint8_t ucI2cAddress;
+	uint8_t use_hw_fan_control;
 	struct pp_fan_info fanInfo;
 	struct pp_advance_fan_control_parameters advanceFanControlParameters;
 };
@@ -772,6 +795,7 @@ struct pp_hwmgr {
 	uint32_t workload_mask;
 	uint32_t workload_prority[Workload_Policy_Max];
 	uint32_t workload_setting[Workload_Policy_Max];
+	bool gfxoff_state_changed_by_workload;
 };
 
 int hwmgr_early_init(struct pp_hwmgr *hwmgr);

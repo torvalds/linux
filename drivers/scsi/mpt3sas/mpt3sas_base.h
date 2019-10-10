@@ -67,6 +67,7 @@
 #include <scsi/scsi_eh.h>
 #include <linux/pci.h>
 #include <linux/poll.h>
+#include <linux/irq_poll.h>
 
 #include "mpt3sas_debug.h"
 #include "mpt3sas_trigger_diag.h"
@@ -75,9 +76,9 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"27.101.00.00"
-#define MPT3SAS_MAJOR_VERSION		27
-#define MPT3SAS_MINOR_VERSION		101
+#define MPT3SAS_DRIVER_VERSION		"31.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		31
+#define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
 
@@ -192,6 +193,9 @@ struct mpt3sas_nvme_cmd {
 
 #define SAS2_PCI_DEVICE_B0_REVISION	(0x01)
 #define SAS3_PCI_DEVICE_C0_REVISION	(0x02)
+
+/* Atlas PCIe Switch Management Port */
+#define MPI26_ATLAS_PCIe_SWITCH_DEVID	(0x00B2)
 
 /*
  * Intel HBA branding
@@ -350,6 +354,12 @@ struct mpt3sas_nvme_cmd {
 #define MFG10_GF0_SINGLE_DRIVE_R0              (0x00000010)
 
 #define VIRTUAL_IO_FAILED_RETRY			(0x32010081)
+
+/* High IOPs definitions */
+#define MPT3SAS_DEVICE_HIGH_IOPS_DEPTH		8
+#define MPT3SAS_HIGH_IOPS_REPLY_QUEUES		8
+#define MPT3SAS_HIGH_IOPS_BATCH_COUNT		16
+#define MPT3SAS_GEN35_MAX_MSIX_QUEUES		128
 
 /* OEM Specific Flags will come from OEM specific header files */
 struct Mpi2ManufacturingPage10_t {
@@ -573,6 +583,7 @@ static inline void sas_device_put(struct _sas_device *s)
  * @enclosure_level: The level of device's enclosure from the controller
  * @connector_name: ASCII value of the Connector's name
  * @serial_number: pointer of serial number string allocated runtime
+ * @access_status: Device's Access Status
  * @refcount: reference count for deletion
  */
 struct _pcie_device {
@@ -594,6 +605,7 @@ struct _pcie_device {
 	u8	connector_name[4];
 	u8	*serial_number;
 	u8	reset_timeout;
+	u8	access_status;
 	struct kref refcount;
 };
 /**
@@ -820,6 +832,7 @@ struct chain_lookup {
  */
 struct scsiio_tracker {
 	u16	smid;
+	struct scsi_cmnd *scmd;
 	u8	cb_idx;
 	u8	direct_io;
 	struct pcie_sg_list pcie_sg_list;
@@ -879,6 +892,9 @@ struct _event_ack_list {
  * @reply_post_free: reply post base virt address
  * @name: the name registered to request_irq()
  * @busy: isr is actively processing replies on another cpu
+ * @os_irq: irq number
+ * @irqpoll: irq_poll object
+ * @irq_poll_scheduled: Tells whether irq poll is scheduled or not
  * @list: this list
 */
 struct adapter_reply_queue {
@@ -888,6 +904,10 @@ struct adapter_reply_queue {
 	Mpi2ReplyDescriptorsUnion_t *reply_post_free;
 	char			name[MPT_NAME_LENGTH];
 	atomic_t		busy;
+	u32			os_irq;
+	struct irq_poll         irqpoll;
+	bool			irq_poll_scheduled;
+	bool			irq_line_enable;
 	struct list_head	list;
 };
 
@@ -913,6 +933,12 @@ typedef void (*PUT_SMID_IO_FP_HIP) (struct MPT3SAS_ADAPTER *ioc, u16 smid,
 	u16 funcdep);
 typedef void (*PUT_SMID_DEFAULT) (struct MPT3SAS_ADAPTER *ioc, u16 smid);
 typedef u32 (*BASE_READ_REG) (const volatile void __iomem *addr);
+/*
+ * To get high iops reply queue's msix index when high iops mode is enabled
+ * else get the msix index of general reply queues.
+ */
+typedef u8 (*GET_MSIX_INDEX) (struct MPT3SAS_ADAPTER *ioc,
+	struct scsi_cmnd *scmd);
 
 /* IOC Facts and Port Facts converted from little endian to cpu */
 union mpi3_version_union {
@@ -1013,7 +1039,15 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @msix_vector_count: number msix vectors
  * @cpu_msix_table: table for mapping cpus to msix index
  * @cpu_msix_table_sz: table size
+ * @total_io_cnt: Gives total IO count, used to load balance the interrupts
+ * @high_iops_outstanding: used to load balance the interrupts
+ *				within high iops reply queues
+ * @msix_load_balance: Enables load balancing of interrupts across
+ * the multiple MSIXs
  * @schedule_dead_ioc_flush_running_cmds: callback to flush pending commands
+ * @thresh_hold: Max number of reply descriptors processed
+ *				before updating Host Index
+ * @drv_support_bitmap: driver's supported feature bit map
  * @scsi_io_cb_idx: shost generated commands
  * @tm_cb_idx: task management commands
  * @scsih_cb_idx: scsih internal commands
@@ -1035,6 +1069,7 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  * @event_log: event log pointer
  * @event_masks: events that are masked
  * @facts: static facts data
+ * @prev_fw_facts: previous fw facts data
  * @pfacts: static port facts data
  * @manu_pg0: static manufacturing page 0
  * @manu_pg10: static manufacturing page 10
@@ -1131,6 +1166,8 @@ typedef void (*MPT3SAS_FLUSH_RUNNING_CMDS)(struct MPT3SAS_ADAPTER *ioc);
  *	path functions resulting in Null pointer reference followed by kernel
  *	crash. To avoid the above race condition we use mutex syncrhonization
  *	which ensures the syncrhonization between cli/sysfs_show path.
+ * @atomic_desc_capable: Atomic Request Descriptor support.
+ * @GET_MSIX_INDEX: Get the msix index of high iops queues.
  */
 struct MPT3SAS_ADAPTER {
 	struct list_head list;
@@ -1189,6 +1226,13 @@ struct MPT3SAS_ADAPTER {
 	u32		ioc_reset_count;
 	MPT3SAS_FLUSH_RUNNING_CMDS schedule_dead_ioc_flush_running_cmds;
 	u32             non_operational_loop;
+	atomic64_t      total_io_cnt;
+	atomic64_t	high_iops_outstanding;
+	bool            msix_load_balance;
+	u16		thresh_hold;
+	u8		high_iops_queues;
+	u32		drv_support_bitmap;
+	bool		enable_sdev_max_qd;
 
 	/* internal commands, callback index */
 	u8		scsi_io_cb_idx;
@@ -1238,6 +1282,7 @@ struct MPT3SAS_ADAPTER {
 
 	/* static config pages */
 	struct mpt3sas_facts facts;
+	struct mpt3sas_facts prev_fw_facts;
 	struct mpt3sas_port_facts *pfacts;
 	Mpi2ManufacturingPage0_t manu_pg0;
 	struct Mpi2ManufacturingPage10_t manu_pg10;
@@ -1248,6 +1293,7 @@ struct MPT3SAS_ADAPTER {
 	Mpi2IOUnitPage0_t iounit_pg0;
 	Mpi2IOUnitPage1_t iounit_pg1;
 	Mpi2IOUnitPage8_t iounit_pg8;
+	Mpi2IOCPage1_t	ioc_pg1_copy;
 
 	struct _boot_device req_boot_device;
 	struct _boot_device req_alt_boot_device;
@@ -1366,6 +1412,7 @@ struct MPT3SAS_ADAPTER {
 
 	u8		combined_reply_queue;
 	u8		combined_reply_index_count;
+	u8		smp_affinity_enable;
 	/* reply post register index */
 	resource_size_t	**replyPostRegisterIndex;
 
@@ -1393,6 +1440,7 @@ struct MPT3SAS_ADAPTER {
 	u8		hide_drives;
 	spinlock_t	diag_trigger_lock;
 	u8		diag_trigger_active;
+	u8		atomic_desc_capable;
 	BASE_READ_REG	base_readl;
 	struct SL_WH_MASTER_TRIGGER_T diag_trigger_master;
 	struct SL_WH_EVENT_TRIGGERS_T diag_trigger_event;
@@ -1403,8 +1451,13 @@ struct MPT3SAS_ADAPTER {
 	u8		is_gen35_ioc;
 	u8		is_aero_ioc;
 	PUT_SMID_IO_FP_HIP put_smid_scsi_io;
-
+	PUT_SMID_IO_FP_HIP put_smid_fast_path;
+	PUT_SMID_IO_FP_HIP put_smid_hi_priority;
+	PUT_SMID_DEFAULT put_smid_default;
+	GET_MSIX_INDEX get_msix_index_for_smlio;
 };
+
+#define MPT_DRV_SUPPORT_BITMAP_MEMMOVE 0x00000001
 
 typedef u8 (*MPT_CALLBACK)(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
 	u32 reply);
@@ -1535,6 +1588,7 @@ struct _pcie_device *mpt3sas_get_pdev_by_handle(struct MPT3SAS_ADAPTER *ioc,
 void mpt3sas_port_enable_complete(struct MPT3SAS_ADAPTER *ioc);
 struct _raid_device *
 mpt3sas_raid_device_find_by_handle(struct MPT3SAS_ADAPTER *ioc, u16 handle);
+void mpt3sas_scsih_change_queue_depth(struct scsi_device *sdev, int qdepth);
 
 /* config shared API */
 u8 mpt3sas_config_done(struct MPT3SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
@@ -1592,6 +1646,10 @@ int mpt3sas_config_get_sas_iounit_pg1(struct MPT3SAS_ADAPTER *ioc,
 int mpt3sas_config_set_sas_iounit_pg1(struct MPT3SAS_ADAPTER *ioc,
 	Mpi2ConfigReply_t *mpi_reply, Mpi2SasIOUnitPage1_t *config_page,
 	u16 sz);
+int mpt3sas_config_get_ioc_pg1(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
+	*mpi_reply, Mpi2IOCPage1_t *config_page);
+int mpt3sas_config_set_ioc_pg1(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
+	*mpi_reply, Mpi2IOCPage1_t *config_page);
 int mpt3sas_config_get_ioc_pg8(struct MPT3SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	*mpi_reply, Mpi2IOCPage8_t *config_page);
 int mpt3sas_config_get_expander_pg0(struct MPT3SAS_ADAPTER *ioc,
@@ -1685,4 +1743,20 @@ mpt3sas_setup_direct_io(struct MPT3SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 /* NCQ Prio Handling Check */
 bool scsih_ncq_prio_supp(struct scsi_device *sdev);
 
+/**
+ * _scsih_is_pcie_scsi_device - determines if device is an pcie scsi device
+ * @device_info: bitfield providing information about the device.
+ * Context: none
+ *
+ * Returns 1 if scsi device.
+ */
+static inline int
+mpt3sas_scsih_is_pcie_scsi_device(u32 device_info)
+{
+	if ((device_info &
+	    MPI26_PCIE_DEVINFO_MASK_DEVICE_TYPE) == MPI26_PCIE_DEVINFO_SCSI)
+		return 1;
+	else
+		return 0;
+}
 #endif /* MPT3SAS_BASE_H_INCLUDED */

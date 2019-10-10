@@ -1,24 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/spinlock.h>
 #include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
 #include <linux/pfn_t.h>
+
+#include <drm/drm_prime.h>
 
 #include "msm_drv.h"
 #include "msm_fence.h"
@@ -41,6 +32,46 @@ static bool use_pages(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	return !msm_obj->vram_node;
+}
+
+/*
+ * Cache sync.. this is a bit over-complicated, to fit dma-mapping
+ * API.  Really GPU cache is out of scope here (handled on cmdstream)
+ * and all we need to do is invalidate newly allocated pages before
+ * mapping to CPU as uncached/writecombine.
+ *
+ * On top of this, we have the added headache, that depending on
+ * display generation, the display's iommu may be wired up to either
+ * the toplevel drm device (mdss), or to the mdp sub-node, meaning
+ * that here we either have dma-direct or iommu ops.
+ *
+ * Let this be a cautionary tail of abstraction gone wrong.
+ */
+
+static void sync_for_device(struct msm_gem_object *msm_obj)
+{
+	struct device *dev = msm_obj->base.dev->dev;
+
+	if (get_dma_ops(dev) && IS_ENABLED(CONFIG_ARM64)) {
+		dma_sync_sg_for_device(dev, msm_obj->sgt->sgl,
+			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
+	} else {
+		dma_map_sg(dev, msm_obj->sgt->sgl,
+			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
+	}
+}
+
+static void sync_for_cpu(struct msm_gem_object *msm_obj)
+{
+	struct device *dev = msm_obj->base.dev->dev;
+
+	if (get_dma_ops(dev) && IS_ENABLED(CONFIG_ARM64)) {
+		dma_sync_sg_for_cpu(dev, msm_obj->sgt->sgl,
+			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
+	} else {
+		dma_unmap_sg(dev, msm_obj->sgt->sgl,
+			msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
+	}
 }
 
 /* allocate pages from VRAM carveout, used when no IOMMU: */
@@ -108,8 +139,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		 * because display controller, GPU, etc. are not coherent:
 		 */
 		if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
-			dma_map_sg(dev->dev, msm_obj->sgt->sgl,
-					msm_obj->sgt->nents, DMA_BIDIRECTIONAL);
+			sync_for_device(msm_obj);
 	}
 
 	return msm_obj->pages;
@@ -138,9 +168,7 @@ static void put_pages(struct drm_gem_object *obj)
 			 * GPU, etc. are not coherent:
 			 */
 			if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
-				dma_unmap_sg(obj->dev->dev, msm_obj->sgt->sgl,
-					     msm_obj->sgt->nents,
-					     DMA_BIDIRECTIONAL);
+				sync_for_cpu(msm_obj);
 
 			sg_free_table(msm_obj->sgt);
 			kfree(msm_obj->sgt);
@@ -352,8 +380,10 @@ put_iova(struct drm_gem_object *obj)
 	WARN_ON(!mutex_is_locked(&msm_obj->lock));
 
 	list_for_each_entry_safe(vma, tmp, &msm_obj->vmas, list) {
-		msm_gem_purge_vma(vma->aspace, vma);
-		msm_gem_close_vma(vma->aspace, vma);
+		if (vma->aspace) {
+			msm_gem_purge_vma(vma->aspace, vma);
+			msm_gem_close_vma(vma->aspace, vma);
+		}
 		del_vma(vma);
 	}
 }
@@ -672,14 +702,13 @@ void msm_gem_vunmap(struct drm_gem_object *obj, enum msm_gem_lock subclass)
 int msm_gem_sync_object(struct drm_gem_object *obj,
 		struct msm_fence_context *fctx, bool exclusive)
 {
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	struct reservation_object_list *fobj;
+	struct dma_resv_list *fobj;
 	struct dma_fence *fence;
 	int i, ret;
 
-	fobj = reservation_object_get_list(msm_obj->resv);
+	fobj = dma_resv_get_list(obj->resv);
 	if (!fobj || (fobj->shared_count == 0)) {
-		fence = reservation_object_get_excl(msm_obj->resv);
+		fence = dma_resv_get_excl(obj->resv);
 		/* don't need to wait on our own fences, since ring is fifo */
 		if (fence && (fence->context != fctx->context)) {
 			ret = dma_fence_wait(fence, true);
@@ -693,7 +722,7 @@ int msm_gem_sync_object(struct drm_gem_object *obj,
 
 	for (i = 0; i < fobj->shared_count; i++) {
 		fence = rcu_dereference_protected(fobj->shared[i],
-						reservation_object_held(msm_obj->resv));
+						dma_resv_held(obj->resv));
 		if (fence->context != fctx->context) {
 			ret = dma_fence_wait(fence, true);
 			if (ret)
@@ -711,9 +740,9 @@ void msm_gem_move_to_active(struct drm_gem_object *obj,
 	WARN_ON(msm_obj->madv != MSM_MADV_WILLNEED);
 	msm_obj->gpu = gpu;
 	if (exclusive)
-		reservation_object_add_excl_fence(msm_obj->resv, fence);
+		dma_resv_add_excl_fence(obj->resv, fence);
 	else
-		reservation_object_add_shared_fence(msm_obj->resv, fence);
+		dma_resv_add_shared_fence(obj->resv, fence);
 	list_del_init(&msm_obj->mm_list);
 	list_add_tail(&msm_obj->mm_list, &gpu->active_list);
 }
@@ -733,13 +762,12 @@ void msm_gem_move_to_inactive(struct drm_gem_object *obj)
 
 int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 {
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 	bool write = !!(op & MSM_PREP_WRITE);
 	unsigned long remain =
 		op & MSM_PREP_NOSYNC ? 0 : timeout_to_jiffies(timeout);
 	long ret;
 
-	ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
+	ret = dma_resv_wait_timeout_rcu(obj->resv, write,
 						  true,  remain);
 	if (ret == 0)
 		return remain == 0 ? -EBUSY : -ETIMEDOUT;
@@ -762,7 +790,7 @@ static void describe_fence(struct dma_fence *fence, const char *type,
 		struct seq_file *m)
 {
 	if (!dma_fence_is_signaled(fence))
-		seq_printf(m, "\t%9s: %s %s seq %u\n", type,
+		seq_printf(m, "\t%9s: %s %s seq %llu\n", type,
 				fence->ops->get_driver_name(fence),
 				fence->ops->get_timeline_name(fence),
 				fence->seqno);
@@ -771,8 +799,8 @@ static void describe_fence(struct dma_fence *fence, const char *type,
 void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	struct reservation_object *robj = msm_obj->resv;
-	struct reservation_object_list *fobj;
+	struct dma_resv *robj = obj->resv;
+	struct dma_resv_list *fobj;
 	struct dma_fence *fence;
 	struct msm_gem_vma *vma;
 	uint64_t off = drm_vma_node_start(&obj->vma_node);
@@ -805,7 +833,8 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m)
 		seq_puts(m, "      vmas:");
 
 		list_for_each_entry(vma, &msm_obj->vmas, list)
-			seq_printf(m, " [%s: %08llx,%s,inuse=%d]", vma->aspace->name,
+			seq_printf(m, " [%s: %08llx,%s,inuse=%d]",
+				vma->aspace != NULL ? vma->aspace->name : NULL,
 				vma->iova, vma->mapped ? "mapped" : "unmapped",
 				vma->inuse);
 
@@ -853,8 +882,18 @@ void msm_gem_describe_objects(struct list_head *list, struct seq_file *m)
 /* don't call directly!  Use drm_gem_object_put() and friends */
 void msm_gem_free_object(struct drm_gem_object *obj)
 {
-	struct drm_device *dev = obj->dev;
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct drm_device *dev = obj->dev;
+	struct msm_drm_private *priv = dev->dev_private;
+
+	if (llist_add(&msm_obj->freed, &priv->free_list))
+		queue_work(priv->wq, &priv->free_work);
+}
+
+static void free_object(struct msm_gem_object *msm_obj)
+{
+	struct drm_gem_object *obj = &msm_obj->base;
+	struct drm_device *dev = obj->dev;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
 
@@ -883,13 +922,33 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 		put_pages(obj);
 	}
 
-	if (msm_obj->resv == &msm_obj->_resv)
-		reservation_object_fini(msm_obj->resv);
-
 	drm_gem_object_release(obj);
 
 	mutex_unlock(&msm_obj->lock);
 	kfree(msm_obj);
+}
+
+void msm_gem_free_work(struct work_struct *work)
+{
+	struct msm_drm_private *priv =
+		container_of(work, struct msm_drm_private, free_work);
+	struct drm_device *dev = priv->dev;
+	struct llist_node *freed;
+	struct msm_gem_object *msm_obj, *next;
+
+	while ((freed = llist_del_all(&priv->free_list))) {
+
+		mutex_lock(&dev->struct_mutex);
+
+		llist_for_each_entry_safe(msm_obj, next,
+					  freed, freed)
+			free_object(msm_obj);
+
+		mutex_unlock(&dev->struct_mutex);
+
+		if (need_resched())
+			break;
+	}
 }
 
 /* convenience method to construct a GEM buffer object, and userspace handle */
@@ -918,7 +977,6 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 static int msm_gem_new_impl(struct drm_device *dev,
 		uint32_t size, uint32_t flags,
-		struct reservation_object *resv,
 		struct drm_gem_object **obj,
 		bool struct_mutex_locked)
 {
@@ -944,13 +1002,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;
-
-	if (resv) {
-		msm_obj->resv = resv;
-	} else {
-		msm_obj->resv = &msm_obj->_resv;
-		reservation_object_init(msm_obj->resv);
-	}
 
 	INIT_LIST_HEAD(&msm_obj->submit_entry);
 	INIT_LIST_HEAD(&msm_obj->vmas);
@@ -993,7 +1044,7 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
 
-	ret = msm_gem_new_impl(dev, size, flags, NULL, &obj, struct_mutex_locked);
+	ret = msm_gem_new_impl(dev, size, flags, &obj, struct_mutex_locked);
 	if (ret)
 		goto fail;
 
@@ -1026,6 +1077,13 @@ static struct drm_gem_object *_msm_gem_new(struct drm_device *dev,
 		ret = drm_gem_object_init(dev, obj, size);
 		if (ret)
 			goto fail;
+		/*
+		 * Our buffers are kept pinned, so allocating them from the
+		 * MOVABLE zone is a really bad idea, and conflicts with CMA.
+		 * See comments above new_inode() why this is required _and_
+		 * expected if you're going to pin these pages.
+		 */
+		mapping_set_gfp_mask(obj->filp->f_mapping, GFP_HIGHUSER);
 	}
 
 	return obj;
@@ -1063,7 +1121,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 
 	size = PAGE_ALIGN(dmabuf->size);
 
-	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, dmabuf->resv, &obj, false);
+	ret = msm_gem_new_impl(dev, size, MSM_BO_WC, &obj, false);
 	if (ret)
 		goto fail;
 

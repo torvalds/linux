@@ -409,8 +409,7 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 static int __maybe_unused pch_gpio_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pch_gpio *chip = pci_get_drvdata(pdev);
+	struct pch_gpio *chip = dev_get_drvdata(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -422,8 +421,7 @@ static int __maybe_unused pch_gpio_suspend(struct device *dev)
 
 static int __maybe_unused pch_gpio_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct pch_gpio *chip = pci_get_drvdata(pdev);
+	struct pch_gpio *chip = dev_get_drvdata(dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&chip->spinlock, flags);
@@ -437,7 +435,6 @@ static int __maybe_unused pch_gpio_resume(struct device *dev)
 
 static SIMPLE_DEV_PM_OPS(pch_gpio_pm_ops, pch_gpio_suspend, pch_gpio_resume);
 
-#define PCI_VENDOR_ID_ROHM             0x10DB
 static const struct pci_device_id pch_gpio_pcidev_id[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8803) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8014) },

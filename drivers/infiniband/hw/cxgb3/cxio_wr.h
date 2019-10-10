@@ -64,7 +64,7 @@ enum t3_wr_flags {
 	T3_SOLICITED_EVENT_FLAG = 0x04,
 	T3_READ_FENCE_FLAG = 0x08,
 	T3_LOCAL_FENCE_FLAG = 0x10
-} __attribute__ ((packed));
+} __packed;
 
 enum t3_wr_opcode {
 	T3_WR_BP = FW_WROPCODE_RI_BYPASS,
@@ -77,7 +77,7 @@ enum t3_wr_opcode {
 	T3_WR_INIT = FW_WROPCODE_RI_RDMA_INIT,
 	T3_WR_QP_MOD = FW_WROPCODE_RI_MODIFY_QP,
 	T3_WR_FASTREG = FW_WROPCODE_RI_FASTREGISTER_MR
-} __attribute__ ((packed));
+} __packed;
 
 enum t3_rdma_opcode {
 	T3_RDMA_WRITE,		/* IETF RDMAP v1.0 ... */
@@ -95,7 +95,7 @@ enum t3_rdma_opcode {
 	T3_QP_MOD,
 	T3_BYPASS,
 	T3_RDMA_READ_REQ_WITH_INV,
-} __attribute__ ((packed));
+} __packed;
 
 static inline enum t3_rdma_opcode wr2opcode(enum t3_wr_opcode wrop)
 {
@@ -306,7 +306,7 @@ enum t3_mpa_attrs {
 	uP_RI_MPA_TX_MARKER_ENABLE = 0x2,
 	uP_RI_MPA_CRC_ENABLE = 0x4,
 	uP_RI_MPA_IETF_ENABLE = 0x8
-} __attribute__ ((packed));
+} __packed;
 
 enum t3_qp_caps {
 	uP_RI_QP_RDMA_READ_ENABLE = 0x01,
@@ -314,7 +314,7 @@ enum t3_qp_caps {
 	uP_RI_QP_BIND_ENABLE = 0x04,
 	uP_RI_QP_FAST_REGISTER_ENABLE = 0x08,
 	uP_RI_QP_STAG0_ENABLE = 0x10
-} __attribute__ ((packed));
+} __packed;
 
 enum rdma_init_rtr_types {
 	RTR_READ = 1,

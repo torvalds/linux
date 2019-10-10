@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/core/ethtool.c - Ethtool ioctl handler
  * Copyright (c) 2003 Matthew Wilcox <matthew@wil.cx>
  *
  * This file is where we call all the ethtool_ops commands to get
  * the information ethtool needs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -136,6 +132,8 @@ static const char
 phy_tunable_strings[__ETHTOOL_PHY_TUNABLE_COUNT][ETH_GSTRING_LEN] = {
 	[ETHTOOL_ID_UNSPEC]     = "Unspec",
 	[ETHTOOL_PHY_DOWNSHIFT]	= "phy-downshift",
+	[ETHTOOL_PHY_FAST_LINK_DOWN] = "phy-fast-link-down",
+	[ETHTOOL_PHY_EDPD]	= "phy-energy-detect-power-down",
 };
 
 static int ethtool_get_features(struct net_device *dev, void __user *useraddr)
@@ -1358,13 +1356,16 @@ static int ethtool_get_regs(struct net_device *dev, char __user *useraddr)
 	if (!regbuf)
 		return -ENOMEM;
 
+	if (regs.len < reglen)
+		reglen = regs.len;
+
 	ops->get_regs(dev, &regs, regbuf);
 
 	ret = -EFAULT;
 	if (copy_to_user(useraddr, &regs, sizeof(regs)))
 		goto out;
 	useraddr += offsetof(struct ethtool_regs, data);
-	if (regbuf && copy_to_user(useraddr, regbuf, regs.len))
+	if (copy_to_user(useraddr, regbuf, reglen))
 		goto out;
 	ret = 0;
 
@@ -1797,11 +1798,16 @@ static int ethtool_get_strings(struct net_device *dev, void __user *useraddr)
 	WARN_ON_ONCE(!ret);
 
 	gstrings.len = ret;
-	data = vzalloc(array_size(gstrings.len, ETH_GSTRING_LEN));
-	if (gstrings.len && !data)
-		return -ENOMEM;
 
-	__ethtool_get_strings(dev, gstrings.string_set, data);
+	if (gstrings.len) {
+		data = vzalloc(array_size(gstrings.len, ETH_GSTRING_LEN));
+		if (!data)
+			return -ENOMEM;
+
+		__ethtool_get_strings(dev, gstrings.string_set, data);
+	} else {
+		data = NULL;
+	}
 
 	ret = -EFAULT;
 	if (copy_to_user(useraddr, &gstrings, sizeof(gstrings)))
@@ -1897,11 +1903,15 @@ static int ethtool_get_stats(struct net_device *dev, void __user *useraddr)
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
-	data = vzalloc(array_size(n_stats, sizeof(u64)));
-	if (n_stats && !data)
-		return -ENOMEM;
 
-	ops->get_ethtool_stats(dev, &stats, data);
+	if (n_stats) {
+		data = vzalloc(array_size(n_stats, sizeof(u64)));
+		if (!data)
+			return -ENOMEM;
+		ops->get_ethtool_stats(dev, &stats, data);
+	} else {
+		data = NULL;
+	}
 
 	ret = -EFAULT;
 	if (copy_to_user(useraddr, &stats, sizeof(stats)))
@@ -1941,16 +1951,21 @@ static int ethtool_get_phy_stats(struct net_device *dev, void __user *useraddr)
 		return -EFAULT;
 
 	stats.n_stats = n_stats;
-	data = vzalloc(array_size(n_stats, sizeof(u64)));
-	if (n_stats && !data)
-		return -ENOMEM;
 
-	if (dev->phydev && !ops->get_ethtool_phy_stats) {
-		ret = phy_ethtool_get_stats(dev->phydev, &stats, data);
-		if (ret < 0)
-			return ret;
+	if (n_stats) {
+		data = vzalloc(array_size(n_stats, sizeof(u64)));
+		if (!data)
+			return -ENOMEM;
+
+		if (dev->phydev && !ops->get_ethtool_phy_stats) {
+			ret = phy_ethtool_get_stats(dev->phydev, &stats, data);
+			if (ret < 0)
+				goto out;
+		} else {
+			ops->get_ethtool_phy_stats(dev, &stats, data);
+		}
 	} else {
-		ops->get_ethtool_phy_stats(dev, &stats, data);
+		data = NULL;
 	}
 
 	ret = -EFAULT;
@@ -2319,9 +2334,10 @@ static int ethtool_set_tunable(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static int ethtool_get_per_queue_coalesce(struct net_device *dev,
-					  void __user *useraddr,
-					  struct ethtool_per_queue_op *per_queue_opt)
+static noinline_for_stack int
+ethtool_get_per_queue_coalesce(struct net_device *dev,
+			       void __user *useraddr,
+			       struct ethtool_per_queue_op *per_queue_opt)
 {
 	u32 bit;
 	int ret;
@@ -2349,9 +2365,10 @@ static int ethtool_get_per_queue_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static int ethtool_set_per_queue_coalesce(struct net_device *dev,
-					  void __user *useraddr,
-					  struct ethtool_per_queue_op *per_queue_opt)
+static noinline_for_stack int
+ethtool_set_per_queue_coalesce(struct net_device *dev,
+			       void __user *useraddr,
+			       struct ethtool_per_queue_op *per_queue_opt)
 {
 	u32 bit;
 	int i, ret = 0;
@@ -2405,7 +2422,7 @@ roll_back:
 	return ret;
 }
 
-static int ethtool_set_per_queue(struct net_device *dev,
+static int noinline_for_stack ethtool_set_per_queue(struct net_device *dev,
 				 void __user *useraddr, u32 sub_cmd)
 {
 	struct ethtool_per_queue_op per_queue_opt;
@@ -2430,8 +2447,14 @@ static int ethtool_phy_tunable_valid(const struct ethtool_tunable *tuna)
 {
 	switch (tuna->id) {
 	case ETHTOOL_PHY_DOWNSHIFT:
+	case ETHTOOL_PHY_FAST_LINK_DOWN:
 		if (tuna->len != sizeof(u8) ||
 		    tuna->type_id != ETHTOOL_TUNABLE_U8)
+			return -EINVAL;
+		break;
+	case ETHTOOL_PHY_EDPD:
+		if (tuna->len != sizeof(u16) ||
+		    tuna->type_id != ETHTOOL_TUNABLE_U16)
 			return -EINVAL;
 		break;
 	default:
@@ -2866,6 +2889,30 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 	match->mask.basic.n_proto = htons(0xffff);
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT | FLOW_RSS)) {
+	case ETHER_FLOW: {
+		const struct ethhdr *ether_spec, *ether_m_spec;
+
+		ether_spec = &fs->h_u.ether_spec;
+		ether_m_spec = &fs->m_u.ether_spec;
+
+		if (!is_zero_ether_addr(ether_m_spec->h_source)) {
+			ether_addr_copy(match->key.eth_addrs.src,
+					ether_spec->h_source);
+			ether_addr_copy(match->mask.eth_addrs.src,
+					ether_m_spec->h_source);
+		}
+		if (!is_zero_ether_addr(ether_m_spec->h_dest)) {
+			ether_addr_copy(match->key.eth_addrs.dst,
+					ether_spec->h_dest);
+			ether_addr_copy(match->mask.eth_addrs.dst,
+					ether_m_spec->h_dest);
+		}
+		if (ether_m_spec->h_proto) {
+			match->key.basic.n_proto = ether_spec->h_proto;
+			match->mask.basic.n_proto = ether_m_spec->h_proto;
+		}
+		}
+		break;
 	case TCP_V4_FLOW:
 	case UDP_V4_FLOW: {
 		const struct ethtool_tcpip4_spec *v4_spec, *v4_m_spec;
@@ -2992,21 +3039,30 @@ ethtool_rx_flow_rule_create(const struct ethtool_rx_flow_spec_input *input)
 		const struct ethtool_flow_ext *ext_h_spec = &fs->h_ext;
 		const struct ethtool_flow_ext *ext_m_spec = &fs->m_ext;
 
-		if (ext_m_spec->vlan_etype &&
-		    ext_m_spec->vlan_tci) {
+		if (ext_m_spec->vlan_etype) {
 			match->key.vlan.vlan_tpid = ext_h_spec->vlan_etype;
 			match->mask.vlan.vlan_tpid = ext_m_spec->vlan_etype;
+		}
 
+		if (ext_m_spec->vlan_tci) {
 			match->key.vlan.vlan_id =
 				ntohs(ext_h_spec->vlan_tci) & 0x0fff;
 			match->mask.vlan.vlan_id =
 				ntohs(ext_m_spec->vlan_tci) & 0x0fff;
 
+			match->key.vlan.vlan_dei =
+				!!(ext_h_spec->vlan_tci & htons(0x1000));
+			match->mask.vlan.vlan_dei =
+				!!(ext_m_spec->vlan_tci & htons(0x1000));
+
 			match->key.vlan.vlan_priority =
 				(ntohs(ext_h_spec->vlan_tci) & 0xe000) >> 13;
 			match->mask.vlan.vlan_priority =
 				(ntohs(ext_m_spec->vlan_tci) & 0xe000) >> 13;
+		}
 
+		if (ext_m_spec->vlan_etype ||
+		    ext_m_spec->vlan_tci) {
 			match->dissector.used_keys |=
 				BIT(FLOW_DISSECTOR_KEY_VLAN);
 			match->dissector.offset[FLOW_DISSECTOR_KEY_VLAN] =

@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -106,10 +106,8 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	 * in the case that the time event actually completed in the firmware
 	 * (which is handled in iwl_mvm_te_handle_notif).
 	 */
-	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status))
-		iwl_mvm_unref(mvm, IWL_MVM_REF_ROC);
-	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status))
-		iwl_mvm_unref(mvm, IWL_MVM_REF_ROC_AUX);
+	clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
+	clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
 
 	synchronize_net();
 
@@ -234,6 +232,7 @@ iwl_mvm_te_handle_notify_csa(struct iwl_mvm *mvm,
 			break;
 		}
 		iwl_mvm_csa_client_absent(mvm, te_data->vif);
+		cancel_delayed_work(&mvmvif->csa_work);
 		ieee80211_chswitch_done(te_data->vif, true);
 		break;
 	default:
@@ -356,7 +355,6 @@ static void iwl_mvm_te_handle_notif(struct iwl_mvm *mvm,
 
 		if (te_data->vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 			set_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
-			iwl_mvm_ref(mvm, IWL_MVM_REF_ROC);
 			ieee80211_ready_on_channel(mvm->hw);
 		} else if (te_data->id == TE_CHANNEL_SWITCH_PERIOD) {
 			iwl_mvm_te_handle_notify_csa(mvm, te_data, notif);
@@ -404,7 +402,6 @@ static int iwl_mvm_aux_roc_te_handle_notif(struct iwl_mvm *mvm,
 	} else if (le32_to_cpu(notif->action) == TE_V2_NOTIF_HOST_EVENT_START) {
 		set_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
 		te_data->running = true;
-		iwl_mvm_ref(mvm, IWL_MVM_REF_ROC_AUX);
 		ieee80211_ready_on_channel(mvm->hw); /* Start TE */
 	} else {
 		IWL_DEBUG_TE(mvm,

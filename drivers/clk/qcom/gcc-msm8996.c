@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -138,22 +130,6 @@ static const char * const gcc_xo_gpll0_gpll4_gpll0_early_div[] = {
 	"gpll0_early_div"
 };
 
-static const struct parent_map gcc_xo_gpll0_gpll2_gpll3_gpll0_early_div_map[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_GPLL2, 2 },
-	{ P_GPLL3, 3 },
-	{ P_GPLL0_EARLY_DIV, 6 }
-};
-
-static const char * const gcc_xo_gpll0_gpll2_gpll3_gpll0_early_div[] = {
-	"xo",
-	"gpll0",
-	"gpll2",
-	"gpll3",
-	"gpll0_early_div"
-};
-
 static const struct parent_map gcc_xo_gpll0_gpll1_early_div_gpll1_gpll4_gpll0_early_div_map[] = {
 	{ P_XO, 0 },
 	{ P_GPLL0, 1 },
@@ -189,26 +165,6 @@ static const char * const gcc_xo_gpll0_gpll2_gpll3_gpll1_gpll2_early_gpll0_early
 	"gpll3",
 	"gpll1",
 	"gpll2_early",
-	"gpll0_early_div"
-};
-
-static const struct parent_map gcc_xo_gpll0_gpll2_gpll3_gpll1_gpll4_gpll0_early_div_map[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 1 },
-	{ P_GPLL2, 2 },
-	{ P_GPLL3, 3 },
-	{ P_GPLL1, 4 },
-	{ P_GPLL4, 5 },
-	{ P_GPLL0_EARLY_DIV, 6 }
-};
-
-static const char * const gcc_xo_gpll0_gpll2_gpll3_gpll1_gpll4_gpll0_early_div[] = {
-	"xo",
-	"gpll0",
-	"gpll2",
-	"gpll3",
-	"gpll1",
-	"gpll4",
 	"gpll0_early_div"
 };
 
@@ -3656,6 +3612,8 @@ static const struct qcom_cc_desc gcc_msm8996_desc = {
 	.num_resets = ARRAY_SIZE(gcc_msm8996_resets),
 	.gdscs = gcc_msm8996_gdscs,
 	.num_gdscs = ARRAY_SIZE(gcc_msm8996_gdscs),
+	.clk_hws = gcc_msm8996_hws,
+	.num_clk_hws = ARRAY_SIZE(gcc_msm8996_hws),
 };
 
 static const struct of_device_id gcc_msm8996_match_table[] = {
@@ -3666,8 +3624,6 @@ MODULE_DEVICE_TABLE(of, gcc_msm8996_match_table);
 
 static int gcc_msm8996_probe(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
-	int i, ret;
 	struct regmap *regmap;
 
 	regmap = qcom_cc_map(pdev, &gcc_msm8996_desc);
@@ -3679,12 +3635,6 @@ static int gcc_msm8996_probe(struct platform_device *pdev)
 	 * turned off by hardware during certain apps low power modes.
 	 */
 	regmap_update_bits(regmap, 0x52008, BIT(21), BIT(21));
-
-	for (i = 0; i < ARRAY_SIZE(gcc_msm8996_hws); i++) {
-		ret = devm_clk_hw_register(dev, gcc_msm8996_hws[i]);
-		if (ret)
-			return ret;
-	}
 
 	return qcom_cc_really_probe(pdev, &gcc_msm8996_desc, regmap);
 }

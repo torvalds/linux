@@ -5,7 +5,7 @@
  *	Copyright (C) 1999 - 2003
  *	    Greg Kroah-Hartman (greg@kroah.com)
  *
- * See Documentation/usb/usb-serial.txt for more information on using this
+ * See Documentation/usb/usb-serial.rst for more information on using this
  * driver.
  *
  */

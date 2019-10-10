@@ -8,6 +8,8 @@
 
 #include <linux/tracepoint.h>
 
+#include "vde.h"
+
 DECLARE_EVENT_CLASS(register_access,
 	TP_PROTO(struct tegra_vde *vde, void __iomem *base,
 		 u32 offset, u32 value),

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* cpwd.c - driver implementation for hardware watchdog
  * timers found on Sun Microsystems CP1400 and CP1500 boards.
  *
@@ -394,7 +395,7 @@ static int cpwd_open(struct inode *inode, struct file *f)
 
 	mutex_unlock(&cpwd_mutex);
 
-	return nonseekable_open(inode, f);
+	return stream_open(inode, f);
 }
 
 static int cpwd_release(struct inode *inode, struct file *file)
@@ -472,29 +473,6 @@ static long cpwd_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return 0;
 }
 
-static long cpwd_compat_ioctl(struct file *file, unsigned int cmd,
-			      unsigned long arg)
-{
-	int rval = -ENOIOCTLCMD;
-
-	switch (cmd) {
-	/* solaris ioctls are specific to this driver */
-	case WIOCSTART:
-	case WIOCSTOP:
-	case WIOCGSTAT:
-		mutex_lock(&cpwd_mutex);
-		rval = cpwd_ioctl(file, cmd, arg);
-		mutex_unlock(&cpwd_mutex);
-		break;
-
-	/* everything else is handled by the generic compat layer */
-	default:
-		break;
-	}
-
-	return rval;
-}
-
 static ssize_t cpwd_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
@@ -519,7 +497,7 @@ static ssize_t cpwd_read(struct file *file, char __user *buffer,
 static const struct file_operations cpwd_fops = {
 	.owner =		THIS_MODULE,
 	.unlocked_ioctl =	cpwd_ioctl,
-	.compat_ioctl =		cpwd_compat_ioctl,
+	.compat_ioctl =		compat_ptr_ioctl,
 	.open =			cpwd_open,
 	.write =		cpwd_write,
 	.read =			cpwd_read,

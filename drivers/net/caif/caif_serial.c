@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:	Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/hardirq.h>
@@ -94,26 +94,20 @@ static inline void update_tty_status(struct ser_device *ser)
 }
 static inline void debugfs_init(struct ser_device *ser, struct tty_struct *tty)
 {
-	ser->debugfs_tty_dir =
-			debugfs_create_dir(tty->name, debugfsdir);
-	if (!IS_ERR(ser->debugfs_tty_dir)) {
-		debugfs_create_blob("last_tx_msg", 0400,
-				    ser->debugfs_tty_dir,
-				    &ser->tx_blob);
+	ser->debugfs_tty_dir = debugfs_create_dir(tty->name, debugfsdir);
 
-		debugfs_create_blob("last_rx_msg", 0400,
-				    ser->debugfs_tty_dir,
-				    &ser->rx_blob);
+	debugfs_create_blob("last_tx_msg", 0400, ser->debugfs_tty_dir,
+			    &ser->tx_blob);
 
-		debugfs_create_x32("ser_state", 0400,
-				   ser->debugfs_tty_dir,
-				   (u32 *)&ser->state);
+	debugfs_create_blob("last_rx_msg", 0400, ser->debugfs_tty_dir,
+			    &ser->rx_blob);
 
-		debugfs_create_x8("tty_status", 0400,
-				  ser->debugfs_tty_dir,
-				  &ser->tty_status);
+	debugfs_create_x32("ser_state", 0400, ser->debugfs_tty_dir,
+			   (u32 *)&ser->state);
 
-	}
+	debugfs_create_x8("tty_status", 0400, ser->debugfs_tty_dir,
+			  &ser->tty_status);
+
 	ser->tx_blob.data = ser->tx_data;
 	ser->tx_blob.size = 0;
 	ser->rx_blob.data = ser->rx_data;

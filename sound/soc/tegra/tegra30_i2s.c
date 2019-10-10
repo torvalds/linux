@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tegra30_i2s.c - Tegra30 I2S driver
  *
@@ -11,18 +12,6 @@
  *
  * Copyright (C) 2010 Google, Inc.
  * Iliyan Malchev <malchev@google.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -379,7 +368,6 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 	struct tegra30_i2s *i2s;
 	const struct of_device_id *match;
 	u32 cif_ids[2];
-	struct resource *mem;
 	void __iomem *regs;
 	int ret;
 
@@ -417,8 +405,7 @@ static int tegra30_i2s_platform_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, mem);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs)) {
 		ret = PTR_ERR(regs);
 		goto err_clk_put;

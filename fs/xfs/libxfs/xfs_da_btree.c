@@ -12,20 +12,14 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
-#include "xfs_alloc.h"
 #include "xfs_bmap.h"
-#include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
-#include "xfs_cksum.h"
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
 
@@ -116,35 +110,52 @@ xfs_da_state_free(xfs_da_state_t *state)
 	kmem_zone_free(xfs_da_state_zone, state);
 }
 
+/*
+ * Verify an xfs_da3_blkinfo structure. Note that the da3 fields are only
+ * accessible on v5 filesystems. This header format is common across da node,
+ * attr leaf and dir leaf blocks.
+ */
+xfs_failaddr_t
+xfs_da3_blkinfo_verify(
+	struct xfs_buf		*bp,
+	struct xfs_da3_blkinfo	*hdr3)
+{
+	struct xfs_mount	*mp = bp->b_mount;
+	struct xfs_da_blkinfo	*hdr = &hdr3->hdr;
+
+	if (!xfs_verify_magic16(bp, hdr->magic))
+		return __this_address;
+
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
+			return __this_address;
+		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
+			return __this_address;
+		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
+			return __this_address;
+	}
+
+	return NULL;
+}
+
 static xfs_failaddr_t
 xfs_da3_node_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_da_intnode	*hdr = bp->b_addr;
 	struct xfs_da3_icnode_hdr ichdr;
 	const struct xfs_dir_ops *ops;
+	xfs_failaddr_t		fa;
 
 	ops = xfs_dir_get_ops(mp, NULL);
 
 	ops->node_hdr_from_disk(&ichdr, hdr);
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
+	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
+	if (fa)
+		return fa;
 
-		if (ichdr.magic != XFS_DA3_NODE_MAGIC)
-			return __this_address;
-
-		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return __this_address;
-		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
-			return __this_address;
-		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
-			return __this_address;
-	} else {
-		if (ichdr.magic != XFS_DA_NODE_MAGIC)
-			return __this_address;
-	}
 	if (ichdr.level == 0)
 		return __this_address;
 	if (ichdr.level > XFS_DA_NODE_MAXDEPTH)
@@ -169,7 +180,7 @@ static void
 xfs_da3_node_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;
@@ -257,6 +268,8 @@ xfs_da3_node_verify_struct(
 
 const struct xfs_buf_ops xfs_da3_node_buf_ops = {
 	.name = "xfs_da3_node",
+	.magic16 = { cpu_to_be16(XFS_DA_NODE_MAGIC),
+		     cpu_to_be16(XFS_DA3_NODE_MAGIC) },
 	.verify_read = xfs_da3_node_read_verify,
 	.verify_write = xfs_da3_node_write_verify,
 	.verify_struct = xfs_da3_node_verify_struct,
@@ -474,10 +487,8 @@ xfs_da3_split(
 	ASSERT(state->path.active == 0);
 	oldblk = &state->path.blk[0];
 	error = xfs_da3_root_split(state, oldblk, addblk);
-	if (error) {
-		addblk->bp = NULL;
-		return error;	/* GROT: dir is inconsistent */
-	}
+	if (error)
+		goto out;
 
 	/*
 	 * Update pointers to the node which used to be block 0 and just got
@@ -492,7 +503,10 @@ xfs_da3_split(
 	 */
 	node = oldblk->bp->b_addr;
 	if (node->hdr.info.forw) {
-		ASSERT(be32_to_cpu(node->hdr.info.forw) == addblk->blkno);
+		if (be32_to_cpu(node->hdr.info.forw) != addblk->blkno) {
+			error = -EFSCORRUPTED;
+			goto out;
+		}
 		node = addblk->bp->b_addr;
 		node->hdr.info.back = cpu_to_be32(oldblk->blkno);
 		xfs_trans_log_buf(state->args->trans, addblk->bp,
@@ -501,15 +515,19 @@ xfs_da3_split(
 	}
 	node = oldblk->bp->b_addr;
 	if (node->hdr.info.back) {
-		ASSERT(be32_to_cpu(node->hdr.info.back) == addblk->blkno);
+		if (be32_to_cpu(node->hdr.info.back) != addblk->blkno) {
+			error = -EFSCORRUPTED;
+			goto out;
+		}
 		node = addblk->bp->b_addr;
 		node->hdr.info.forw = cpu_to_be32(oldblk->blkno);
 		xfs_trans_log_buf(state->args->trans, addblk->bp,
 				  XFS_DA_LOGRANGE(node, &node->hdr.info,
 				  sizeof(node->hdr.info)));
 	}
+out:
 	addblk->bp = NULL;
-	return 0;
+	return error;
 }
 
 /*
@@ -2080,7 +2098,7 @@ xfs_da_grow_inode_int(
 		 * If we didn't get it and the block might work if fragmented,
 		 * try without the CONTIG flag.  Loop until we get it all.
 		 */
-		mapp = kmem_alloc(sizeof(*mapp) * count, KM_SLEEP);
+		mapp = kmem_alloc(sizeof(*mapp) * count, 0);
 		for (b = *bno, mapi = 0; b < *bno + count; ) {
 			nmap = min(XFS_BMAP_MAX_NMAP, count);
 			c = (int)(*bno + count - b);
@@ -2462,7 +2480,7 @@ xfs_buf_map_from_irec(
 
 	if (nirecs > 1) {
 		map = kmem_zalloc(nirecs * sizeof(struct xfs_buf_map),
-				  KM_SLEEP | KM_NOFS);
+				  KM_NOFS);
 		if (!map)
 			return -ENOMEM;
 		*mapp = map;
@@ -2521,7 +2539,7 @@ xfs_dabuf_map(
 		 */
 		if (nfsb != 1)
 			irecs = kmem_zalloc(sizeof(irec) * nfsb,
-					    KM_SLEEP | KM_NOFS);
+					    KM_NOFS);
 
 		nirecs = nfsb;
 		error = xfs_bmapi_read(dp, (xfs_fileoff_t)bno, nfsb, irecs,

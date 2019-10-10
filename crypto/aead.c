@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AEAD: Authenticated Encryption with Associated Data
  *
  * This file provides API support for AEAD algorithms.
  *
  * Copyright (c) 2007-2015 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/geniv.h>
@@ -75,7 +70,8 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
 	int err;
 
-	if (authsize > crypto_aead_maxauthsize(tfm))
+	if ((!authsize && crypto_aead_maxauthsize(tfm)) ||
+	    authsize > crypto_aead_maxauthsize(tfm))
 		return -EINVAL;
 
 	if (crypto_aead_alg(tfm)->setauthsize) {
@@ -88,6 +84,42 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setauthsize);
+
+int crypto_aead_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_alg *alg = aead->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
+	int ret;
+
+	crypto_stats_get(alg);
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		ret = -ENOKEY;
+	else
+		ret = crypto_aead_alg(aead)->encrypt(req);
+	crypto_stats_aead_encrypt(cryptlen, alg, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_aead_encrypt);
+
+int crypto_aead_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_alg *alg = aead->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
+	int ret;
+
+	crypto_stats_get(alg);
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		ret = -ENOKEY;
+	else if (req->cryptlen < crypto_aead_authsize(aead))
+		ret = -EINVAL;
+	else
+		ret = crypto_aead_alg(aead)->decrypt(req);
+	crypto_stats_aead_decrypt(cryptlen, alg, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_aead_decrypt);
 
 static void crypto_aead_exit_tfm(struct crypto_tfm *tfm)
 {

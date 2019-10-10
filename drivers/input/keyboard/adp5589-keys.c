@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Description:  keypad driver for ADP5589, ADP5585
  *		 I2C QWERTY Keypad and IO Expander
  * Bugs: Enter bugs at http://blackfin.uclinux.org/
  *
  * Copyright (C) 2010-2011 Analog Devices Inc.
- * Licensed under the GPL-2.
  */
 
 #include <linux/module.h>
@@ -505,6 +505,7 @@ static int adp5589_gpio_add(struct adp5589_kpad *kpad)
 	if (!gpio_data)
 		return 0;
 
+	kpad->gc.parent = dev;
 	kpad->gc.ngpio = adp5589_build_gpiomap(kpad, pdata);
 	if (kpad->gc.ngpio == 0) {
 		dev_info(dev, "No unused gpios left to export\n");

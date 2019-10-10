@@ -127,13 +127,8 @@ typedef s64			int64_t;
  *
  * blkcnt_t is the type of the inode's block count.
  */
-#ifdef CONFIG_LBDAF
 typedef u64 sector_t;
 typedef u64 blkcnt_t;
-#else
-typedef unsigned long sector_t;
-typedef unsigned long blkcnt_t;
-#endif
 
 /*
  * The type of an index into the pagecache.
@@ -155,9 +150,9 @@ typedef u64 dma_addr_t;
 typedef u32 dma_addr_t;
 #endif
 
-typedef unsigned __bitwise gfp_t;
-typedef unsigned __bitwise slab_flags_t;
-typedef unsigned __bitwise fmode_t;
+typedef unsigned int __bitwise gfp_t;
+typedef unsigned int __bitwise slab_flags_t;
+typedef unsigned int __bitwise fmode_t;
 
 #ifdef CONFIG_PHYS_ADDR_T_64BIT
 typedef u64 phys_addr_t;
@@ -179,7 +174,7 @@ typedef struct {
 
 #ifdef CONFIG_64BIT
 typedef struct {
-	long counter;
+	s64 counter;
 } atomic64_t;
 #endif
 

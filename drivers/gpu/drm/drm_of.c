@@ -1,13 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/component.h>
 #include <linux/export.h>
 #include <linux/list.h>
 #include <linux/of_graph.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_of.h>
+#include <drm/drm_panel.h>
 
 /**
  * DOC: overview
@@ -217,9 +219,11 @@ int drm_of_encoder_active_endpoint(struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(drm_of_encoder_active_endpoint);
 
-/*
+/**
  * drm_of_find_panel_or_bridge - return connected panel or bridge device
  * @np: device tree node containing encoder output ports
+ * @port: port in the device tree node
+ * @endpoint: endpoint in the device tree node
  * @panel: pointer to hold returned drm_panel
  * @bridge: pointer to hold returned drm_bridge
  *

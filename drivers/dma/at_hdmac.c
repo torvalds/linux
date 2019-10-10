@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the Atmel AHB DMA Controller (aka HDMA or DMAC on AT91 systems)
  *
  * Copyright (C) 2008 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  *
  * This supports the Atmel AHB DMA Controller found in several Atmel SoCs.
  * The only Atmel DMA Controller that is not covered by this driver is the one
@@ -134,7 +129,6 @@ static struct at_desc *atc_desc_get(struct at_dma_chan *atchan)
 	struct at_desc *ret = NULL;
 	unsigned long flags;
 	unsigned int i = 0;
-	LIST_HEAD(tmp_list);
 
 	spin_lock_irqsave(&atchan->lock, flags);
 	list_for_each_entry_safe(desc, _desc, &atchan->free_list, desc_node) {
@@ -1387,8 +1381,6 @@ static int atc_pause(struct dma_chan *chan)
 	int			chan_id = atchan->chan_common.chan_id;
 	unsigned long		flags;
 
-	LIST_HEAD(list);
-
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 
 	spin_lock_irqsave(&atchan->lock, flags);
@@ -1407,8 +1399,6 @@ static int atc_resume(struct dma_chan *chan)
 	struct at_dma		*atdma = to_at_dma(chan->device);
 	int			chan_id = atchan->chan_common.chan_id;
 	unsigned long		flags;
-
-	LIST_HEAD(list);
 
 	dev_vdbg(chan2dev(chan), "%s\n", __func__);
 

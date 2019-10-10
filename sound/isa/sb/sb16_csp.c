@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 1999 by Uros Bizjak <uros@kss-loka.si>
  *                        Takashi Iwai <tiwai@suse.de>
@@ -6,21 +7,6 @@
  *
  *  CSP microcode loader:
  *   alsa-tools/sb16_csp/ 
- *
- *   This program is free software; you can redistribute it and/or modify 
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -1126,10 +1112,9 @@ static int snd_sb_csp_qsound_transfer(struct snd_sb_csp * p)
 static int init_proc_entry(struct snd_sb_csp * p, int device)
 {
 	char name[16];
-	struct snd_info_entry *entry;
+
 	sprintf(name, "cspD%d", device);
-	if (! snd_card_proc_new(p->chip->card, name, &entry))
-		snd_info_set_text_ops(entry, p, info_read);
+	snd_card_ro_proc_new(p->chip->card, name, p, info_read);
 	return 0;
 }
 

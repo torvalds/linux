@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <stddef.h>
 #include <string.h>
+#include <netinet/in.h>
 #include <linux/bpf.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
@@ -9,24 +10,23 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/tcp.h>
-#include <netinet/in.h>
 #include "bpf_helpers.h"
 #include "bpf_endian.h"
 #include "test_tcpbpf.h"
 
-struct bpf_map_def SEC("maps") global_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(struct tcpbpf_globals),
-	.max_entries = 4,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 4);
+	__type(key, __u32);
+	__type(value, struct tcpbpf_globals);
+} global_map SEC(".maps");
 
-struct bpf_map_def SEC("maps") sockopt_results = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(int),
-	.max_entries = 2,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(max_entries, 2);
+	__type(key, __u32);
+	__type(value, int);
+} sockopt_results SEC(".maps");
 
 static inline void update_event_map(int event)
 {

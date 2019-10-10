@@ -28,6 +28,8 @@ unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core);
 
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
+bool mlxsw_core_res_query_enabled(const struct mlxsw_core *mlxsw_core);
+
 int mlxsw_core_driver_register(struct mlxsw_driver *mlxsw_driver);
 void mlxsw_core_driver_unregister(struct mlxsw_driver *mlxsw_driver);
 
@@ -46,6 +48,8 @@ bool mlxsw_core_skb_transmit_busy(struct mlxsw_core *mlxsw_core,
 				  const struct mlxsw_tx_info *tx_info);
 int mlxsw_core_skb_transmit(struct mlxsw_core *mlxsw_core, struct sk_buff *skb,
 			    const struct mlxsw_tx_info *tx_info);
+void mlxsw_core_ptp_transmitted(struct mlxsw_core *mlxsw_core,
+				struct sk_buff *skb, u8 local_port);
 
 struct mlxsw_rx_listener {
 	void (*func)(struct sk_buff *skb, u8 local_port, void *priv);
@@ -124,6 +128,9 @@ int mlxsw_core_trap_register(struct mlxsw_core *mlxsw_core,
 void mlxsw_core_trap_unregister(struct mlxsw_core *mlxsw_core,
 				const struct mlxsw_listener *listener,
 				void *priv);
+int mlxsw_core_trap_action_set(struct mlxsw_core *mlxsw_core,
+			       const struct mlxsw_listener *listener,
+			       enum mlxsw_reg_hpkt_action action);
 
 typedef void mlxsw_reg_trans_cb_t(struct mlxsw_core *mlxsw_core, char *payload,
 				  size_t payload_len, unsigned long cb_priv);
@@ -164,20 +171,28 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 				  u16 lag_id, u8 local_port);
 
 void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port);
-int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port);
+int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u8 local_port,
+			 u32 port_number, bool split,
+			 u32 split_port_subnumber,
+			 const unsigned char *switch_id,
+			 unsigned char switch_id_len);
 void mlxsw_core_port_fini(struct mlxsw_core *mlxsw_core, u8 local_port);
+int mlxsw_core_cpu_port_init(struct mlxsw_core *mlxsw_core,
+			     void *port_driver_priv,
+			     const unsigned char *switch_id,
+			     unsigned char switch_id_len);
+void mlxsw_core_cpu_port_fini(struct mlxsw_core *mlxsw_core);
 void mlxsw_core_port_eth_set(struct mlxsw_core *mlxsw_core, u8 local_port,
-			     void *port_driver_priv, struct net_device *dev,
-			     u32 port_number, bool split,
-			     u32 split_port_subnumber);
+			     void *port_driver_priv, struct net_device *dev);
 void mlxsw_core_port_ib_set(struct mlxsw_core *mlxsw_core, u8 local_port,
 			    void *port_driver_priv);
 void mlxsw_core_port_clear(struct mlxsw_core *mlxsw_core, u8 local_port,
 			   void *port_driver_priv);
 enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 						u8 local_port);
-int mlxsw_core_port_get_phys_port_name(struct mlxsw_core *mlxsw_core,
-				       u8 local_port, char *name, size_t len);
+struct devlink_port *
+mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
+				 u8 local_port);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
 bool mlxsw_core_schedule_work(struct work_struct *work);
@@ -251,13 +266,14 @@ struct mlxsw_driver {
 			   struct devlink_sb_pool_info *pool_info);
 	int (*sb_pool_set)(struct mlxsw_core *mlxsw_core,
 			   unsigned int sb_index, u16 pool_index, u32 size,
-			   enum devlink_sb_threshold_type threshold_type);
+			   enum devlink_sb_threshold_type threshold_type,
+			   struct netlink_ext_ack *extack);
 	int (*sb_port_pool_get)(struct mlxsw_core_port *mlxsw_core_port,
 				unsigned int sb_index, u16 pool_index,
 				u32 *p_threshold);
 	int (*sb_port_pool_set)(struct mlxsw_core_port *mlxsw_core_port,
 				unsigned int sb_index, u16 pool_index,
-				u32 threshold);
+				u32 threshold, struct netlink_ext_ack *extack);
 	int (*sb_tc_pool_bind_get)(struct mlxsw_core_port *mlxsw_core_port,
 				   unsigned int sb_index, u16 tc_index,
 				   enum devlink_sb_pool_type pool_type,
@@ -265,7 +281,8 @@ struct mlxsw_driver {
 	int (*sb_tc_pool_bind_set)(struct mlxsw_core_port *mlxsw_core_port,
 				   unsigned int sb_index, u16 tc_index,
 				   enum devlink_sb_pool_type pool_type,
-				   u16 pool_index, u32 threshold);
+				   u16 pool_index, u32 threshold,
+				   struct netlink_ext_ack *extack);
 	int (*sb_occ_snapshot)(struct mlxsw_core *mlxsw_core,
 			       unsigned int sb_index);
 	int (*sb_occ_max_clear)(struct mlxsw_core *mlxsw_core,
@@ -277,6 +294,18 @@ struct mlxsw_driver {
 				       unsigned int sb_index, u16 tc_index,
 				       enum devlink_sb_pool_type pool_type,
 				       u32 *p_cur, u32 *p_max);
+	int (*flash_update)(struct mlxsw_core *mlxsw_core,
+			    const char *file_name, const char *component,
+			    struct netlink_ext_ack *extack);
+	int (*trap_init)(struct mlxsw_core *mlxsw_core,
+			 const struct devlink_trap *trap, void *trap_ctx);
+	void (*trap_fini)(struct mlxsw_core *mlxsw_core,
+			  const struct devlink_trap *trap, void *trap_ctx);
+	int (*trap_action_set)(struct mlxsw_core *mlxsw_core,
+			       const struct devlink_trap *trap,
+			       enum devlink_trap_action action);
+	int (*trap_group_init)(struct mlxsw_core *mlxsw_core,
+			       const struct devlink_trap_group *group);
 	void (*txhdr_construct)(struct sk_buff *skb,
 				const struct mlxsw_tx_info *tx_info);
 	int (*resources_register)(struct mlxsw_core *mlxsw_core);
@@ -286,6 +315,13 @@ struct mlxsw_driver {
 			     u64 *p_linear_size);
 	int (*params_register)(struct mlxsw_core *mlxsw_core);
 	void (*params_unregister)(struct mlxsw_core *mlxsw_core);
+
+	/* Notify a driver that a timestamped packet was transmitted. Driver
+	 * is responsible for freeing the passed-in SKB.
+	 */
+	void (*ptp_transmitted)(struct mlxsw_core *mlxsw_core,
+				struct sk_buff *skb, u8 local_port);
+
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
 	bool res_query_enabled;
@@ -298,6 +334,9 @@ int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 
 void mlxsw_core_fw_flash_start(struct mlxsw_core *mlxsw_core);
 void mlxsw_core_fw_flash_end(struct mlxsw_core *mlxsw_core);
+
+u32 mlxsw_core_read_frc_h(struct mlxsw_core *mlxsw_core);
+u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core);
 
 bool mlxsw_core_res_valid(struct mlxsw_core *mlxsw_core,
 			  enum mlxsw_res_id res_id);
@@ -329,6 +368,8 @@ struct mlxsw_bus {
 			char *in_mbox, size_t in_mbox_size,
 			char *out_mbox, size_t out_mbox_size,
 			u8 *p_status);
+	u32 (*read_frc_h)(void *bus_priv);
+	u32 (*read_frc_l)(void *bus_priv);
 	u8 features;
 };
 
@@ -346,7 +387,8 @@ struct mlxsw_bus_info {
 	struct mlxsw_fw_rev fw_rev;
 	u8 vsd[MLXSW_CMD_BOARDINFO_VSD_LEN];
 	u8 psid[MLXSW_CMD_BOARDINFO_PSID_LEN];
-	u8 low_frequency;
+	u8 low_frequency:1,
+	   read_frc_capable:1;
 };
 
 struct mlxsw_hwmon;
@@ -401,5 +443,15 @@ enum mlxsw_devlink_param_id {
 	MLXSW_DEVLINK_PARAM_ID_BASE = DEVLINK_PARAM_GENERIC_ID_MAX,
 	MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
 };
+
+struct mlxsw_skb_cb {
+	struct mlxsw_tx_info tx_info;
+};
+
+static inline struct mlxsw_skb_cb *mlxsw_skb_cb(struct sk_buff *skb)
+{
+	BUILD_BUG_ON(sizeof(mlxsw_skb_cb) > sizeof(skb->cb));
+	return (struct mlxsw_skb_cb *) skb->cb;
+}
 
 #endif

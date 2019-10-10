@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * pcm_local.h - a local header file for snd-pcm module.
  *
  * Copyright (c) Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef __SOUND_CORE_PCM_LOCAL_H
@@ -66,5 +65,6 @@ static inline void snd_pcm_timer_done(struct snd_pcm_substream *substream) {}
 #endif
 
 void __snd_pcm_xrun(struct snd_pcm_substream *substream);
+void snd_pcm_group_init(struct snd_pcm_group *group);
 
 #endif	/* __SOUND_CORE_PCM_LOCAL_H */

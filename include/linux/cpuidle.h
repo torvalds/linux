@@ -69,11 +69,9 @@ struct cpuidle_state {
 
 /* Idle State Flags */
 #define CPUIDLE_FLAG_NONE       (0x00)
-#define CPUIDLE_FLAG_POLLING	(0x01) /* polling state */
-#define CPUIDLE_FLAG_COUPLED	(0x02) /* state applies to multiple cpus */
-#define CPUIDLE_FLAG_TIMER_STOP (0x04)  /* timer is stopped on this state */
-
-#define CPUIDLE_DRIVER_FLAGS_MASK (0xFFFF0000)
+#define CPUIDLE_FLAG_POLLING	BIT(0) /* polling state */
+#define CPUIDLE_FLAG_COUPLED	BIT(1) /* state applies to multiple cpus */
+#define CPUIDLE_FLAG_TIMER_STOP BIT(2) /* timer is stopped on this state */
 
 struct cpuidle_device_kobj;
 struct cpuidle_state_kobj;
@@ -85,8 +83,11 @@ struct cpuidle_device {
 	unsigned int		use_deepest_state:1;
 	unsigned int		poll_time_limit:1;
 	unsigned int		cpu;
+	ktime_t			next_hrtimer;
 
+	int			last_state_idx;
 	int			last_residency;
+	u64			poll_limit_ns;
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];
 	struct cpuidle_state_kobj *kobjs[CPUIDLE_STATE_MAX];
 	struct cpuidle_driver_kobj *kobj_driver;
@@ -120,6 +121,9 @@ struct cpuidle_driver {
 
 	/* the driver handles the cpus in cpumask */
 	struct cpumask		*cpumask;
+
+	/* preferred governor to switch at register time */
+	const char		*governor;
 };
 
 #ifdef CONFIG_CPU_IDLE
@@ -133,6 +137,8 @@ extern int cpuidle_select(struct cpuidle_driver *drv,
 extern int cpuidle_enter(struct cpuidle_driver *drv,
 			 struct cpuidle_device *dev, int index);
 extern void cpuidle_reflect(struct cpuidle_device *dev, int index);
+extern u64 cpuidle_poll_time(struct cpuidle_driver *drv,
+			     struct cpuidle_device *dev);
 
 extern int cpuidle_register_driver(struct cpuidle_driver *drv);
 extern struct cpuidle_driver *cpuidle_get_driver(void);
@@ -167,6 +173,9 @@ static inline int cpuidle_enter(struct cpuidle_driver *drv,
 				struct cpuidle_device *dev, int index)
 {return -ENODEV; }
 static inline void cpuidle_reflect(struct cpuidle_device *dev, int index) { }
+static inline u64 cpuidle_poll_time(struct cpuidle_driver *drv,
+			     struct cpuidle_device *dev)
+{return 0; }
 static inline int cpuidle_register_driver(struct cpuidle_driver *drv)
 {return -ENODEV; }
 static inline struct cpuidle_driver *cpuidle_get_driver(void) {return NULL; }
@@ -257,7 +266,10 @@ static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 {return 0;}
 #endif
 
-#define __CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, is_retention) \
+#define __CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter,			\
+				idx,					\
+				state,					\
+				is_retention)				\
 ({									\
 	int __ret = 0;							\
 									\
@@ -269,7 +281,7 @@ static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 	if (!is_retention)						\
 		__ret =  cpu_pm_enter();				\
 	if (!__ret) {							\
-		__ret = low_level_idle_enter(idx);			\
+		__ret = low_level_idle_enter(state);			\
 		if (!is_retention)					\
 			cpu_pm_exit();					\
 	}								\
@@ -278,9 +290,15 @@ static inline int cpuidle_register_governor(struct cpuidle_governor *gov)
 })
 
 #define CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx)	\
-	__CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, 0)
+	__CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, idx, 0)
 
 #define CPU_PM_CPU_IDLE_ENTER_RETENTION(low_level_idle_enter, idx)	\
-	__CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, 1)
+	__CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, idx, 1)
+
+#define CPU_PM_CPU_IDLE_ENTER_PARAM(low_level_idle_enter, idx, state)	\
+	__CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, state, 0)
+
+#define CPU_PM_CPU_IDLE_ENTER_RETENTION_PARAM(low_level_idle_enter, idx, state)	\
+	__CPU_PM_CPU_IDLE_ENTER(low_level_idle_enter, idx, state, 1)
 
 #endif /* _LINUX_CPUIDLE_H */

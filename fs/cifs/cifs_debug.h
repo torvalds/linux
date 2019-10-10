@@ -1,22 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *
  *   Copyright (c) International Business Machines  Corp., 2000,2002
  *   Modified by Steve French (sfrench@us.ibm.com)
- *
- *   This program is free software;  you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY;  without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See
- *   the GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program;  if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
 */
 
 #ifndef _H_CIFS_DEBUG
@@ -94,6 +80,60 @@ do {							\
 			type, fmt, ##__VA_ARGS__);	\
 } while (0)
 
+#define cifs_server_dbg_func(ratefunc, type, fmt, ...)		\
+do {								\
+	const char *sn = "";					\
+	if (server && server->hostname)				\
+		sn = server->hostname;				\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
+		pr_debug_ ## ratefunc("%s: \\\\%s "	fmt,	\
+			__FILE__, sn, ##__VA_ARGS__);		\
+	} else if ((type) & VFS) {				\
+		pr_err_ ## ratefunc("CIFS VFS: \\\\%s " fmt,	\
+			sn, ##__VA_ARGS__);			\
+	} else if ((type) & NOISY && (NOISY != 0)) {		\
+		pr_debug_ ## ratefunc("\\\\%s " fmt,		\
+			sn, ##__VA_ARGS__);			\
+	}							\
+} while (0)
+
+#define cifs_server_dbg(type, fmt, ...)			\
+do {							\
+	if ((type) & ONCE)				\
+		cifs_server_dbg_func(once,		\
+			type, fmt, ##__VA_ARGS__);	\
+	else						\
+		cifs_server_dbg_func(ratelimited,	\
+			type, fmt, ##__VA_ARGS__);	\
+} while (0)
+
+#define cifs_tcon_dbg_func(ratefunc, type, fmt, ...)		\
+do {								\
+	const char *tn = "";					\
+	if (tcon && tcon->treeName)				\
+		tn = tcon->treeName;				\
+	if ((type) & FYI && cifsFYI & CIFS_INFO) {		\
+		pr_debug_ ## ratefunc("%s: %s "	fmt,		\
+			__FILE__, tn, ##__VA_ARGS__);		\
+	} else if ((type) & VFS) {				\
+		pr_err_ ## ratefunc("CIFS VFS: %s " fmt,	\
+			tn, ##__VA_ARGS__);			\
+	} else if ((type) & NOISY && (NOISY != 0)) {		\
+		pr_debug_ ## ratefunc("%s " fmt,		\
+			tn, ##__VA_ARGS__);			\
+	}							\
+} while (0)
+
+#define cifs_tcon_dbg(type, fmt, ...)			\
+do {							\
+	if ((type) & ONCE)				\
+		cifs_tcon_dbg_func(once,		\
+			type, fmt, ##__VA_ARGS__);	\
+	else						\
+		cifs_tcon_dbg_func(ratelimited,	\
+			type, fmt, ##__VA_ARGS__);	\
+} while (0)
+
 /*
  *	debug OFF
  *	---------
@@ -103,6 +143,19 @@ do {							\
 do {									\
 	if (0)								\
 		pr_debug(fmt, ##__VA_ARGS__);				\
+} while (0)
+
+#define cifs_server_dbg(type, fmt, ...)					\
+do {									\
+	if (0)								\
+		pr_debug("\\\\%s " fmt,					\
+			 server->hostname, ##__VA_ARGS__);		\
+} while (0)
+
+#define cifs_tcon_dbg(type, fmt, ...)					\
+do {									\
+	if (0)								\
+		pr_debug("%s " fmt, tcon->treeName, ##__VA_ARGS__);	\
 } while (0)
 
 #define cifs_info(fmt, ...)						\

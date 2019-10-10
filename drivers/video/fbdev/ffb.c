@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ffb.c: Creator/Elite3D frame buffer driver
  *
  * Copyright (C) 2003, 2006 David S. Miller (davem@davemloft.net)
@@ -944,7 +945,7 @@ static int ffb_probe(struct platform_device *op)
 
 	info->var.accel_flags = FB_ACCELF_TEXT;
 
-	if (!strcmp(dp->name, "SUNW,afb"))
+	if (of_node_name_eq(dp, "SUNW,afb"))
 		par->flags |= FFB_FLAG_AFB;
 
 	par->board_type = of_getintprop_default(dp, "board_type", 0);

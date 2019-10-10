@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Freescale DataPath Acceleration Architecture Gen2 (DPAA2) drivers
 #
@@ -5,7 +6,7 @@
 config FSL_DPAA2
 	bool "Freescale DPAA2 devices"
 	depends on FSL_MC_BUS
-	---help---
+	help
 	  Build drivers for Freescale DataPath Acceleration
 	  Architecture (DPAA2) family of SoCs.
 
@@ -13,6 +14,6 @@ config FSL_DPAA2_ETHSW
 	tristate "Freescale DPAA2 Ethernet Switch"
 	depends on FSL_DPAA2
 	depends on NET_SWITCHDEV
-	---help---
-	Driver for Freescale DPAA2 Ethernet Switch. Select
-	BRIDGE to have support for bridge tools.
+	help
+	  Driver for Freescale DPAA2 Ethernet Switch. Select
+	  BRIDGE to have support for bridge tools.

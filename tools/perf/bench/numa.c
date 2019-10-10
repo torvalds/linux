@@ -9,9 +9,6 @@
 /* For the CLR_() macros */
 #include <pthread.h>
 
-#include "../perf.h"
-#include "../builtin.h"
-#include "../util/util.h"
 #include <subcmd/parse-options.h>
 #include "../util/cloexec.h"
 
@@ -34,9 +31,15 @@
 #include <sys/types.h>
 #include <linux/kernel.h>
 #include <linux/time64.h>
+#include <linux/numa.h>
+#include <linux/zalloc.h>
 
 #include <numa.h>
 #include <numaif.h>
+
+#ifndef RUSAGE_THREAD
+# define RUSAGE_THREAD 1
+#endif
 
 /*
  * Regular printout to the terminal, supressed if -q is specified:
@@ -298,7 +301,7 @@ static cpu_set_t bind_to_node(int target_node)
 
 	CPU_ZERO(&mask);
 
-	if (target_node == -1) {
+	if (target_node == NUMA_NO_NODE) {
 		for (cpu = 0; cpu < g->p.nr_cpus; cpu++)
 			CPU_SET(cpu, &mask);
 	} else {
@@ -339,7 +342,7 @@ static void bind_to_memnode(int node)
 	unsigned long nodemask;
 	int ret;
 
-	if (node == -1)
+	if (node == NUMA_NO_NODE)
 		return;
 
 	BUG_ON(g->p.nr_nodes > (int)sizeof(nodemask)*8);
@@ -374,8 +377,10 @@ static u8 *alloc_data(ssize_t bytes0, int map_flags,
 
 	/* Allocate and initialize all memory on CPU#0: */
 	if (init_cpu0) {
-		orig_mask = bind_to_node(0);
-		bind_to_memnode(0);
+		int node = numa_node_of_cpu(0);
+
+		orig_mask = bind_to_node(node);
+		bind_to_memnode(node);
 	}
 
 	bytes = bytes0 + HPSIZE;
@@ -1363,7 +1368,7 @@ static void init_thread_data(void)
 		int cpu;
 
 		/* Allow all nodes by default: */
-		td->bind_node = -1;
+		td->bind_node = NUMA_NO_NODE;
 
 		/* Allow all CPUs by default: */
 		CPU_ZERO(&td->bind_cpumask);

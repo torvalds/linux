@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PWM framework driver for Cirrus Logic EP93xx
  *
@@ -13,16 +14,6 @@
  * EP9312/15 have two channels:
  *   platform device ep93xx-pwm.0 - PWMOUT
  *   platform device ep93xx-pwm.1 - PWMOUT1 (EGPIO14)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -35,7 +26,7 @@
 
 #include <asm/div64.h>
 
-#include <mach/platform.h>	/* for ep93xx_pwm_{acquire,release}_gpio() */
+#include <linux/soc/cirrus/ep93xx.h>	/* for ep93xx_pwm_{acquire,release}_gpio() */
 
 #define EP93XX_PWMx_TERM_COUNT	0x00
 #define EP93XX_PWMx_DUTY_CYCLE	0x04

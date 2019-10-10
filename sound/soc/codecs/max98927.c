@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max98927.c  --  MAX98927 ALSA Soc Audio driver
  *
  * Copyright (C) 2016-2017 Maxim Integrated Products
  * Author: Ryan Lee <ryans.lee@maximintegrated.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/acpi.h>
@@ -505,7 +501,7 @@ static int max98927_dac_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		max98927->tdm_mode = 0;
+		max98927->tdm_mode = false;
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		regmap_update_bits(max98927->regmap,
@@ -886,11 +882,11 @@ static int max98927_i2c_probe(struct i2c_client *i2c,
 	if (!of_property_read_u32(i2c->dev.of_node,
 		"interleave_mode", &value)) {
 		if (value > 0)
-			max98927->interleave_mode = 1;
+			max98927->interleave_mode = true;
 		else
-			max98927->interleave_mode = 0;
+			max98927->interleave_mode = false;
 	} else
-		max98927->interleave_mode = 0;
+		max98927->interleave_mode = false;
 
 	/* regmap initialization */
 	max98927->regmap

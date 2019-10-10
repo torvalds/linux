@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Cryptographic API.
  *
  * Copyright (c) 2013 Chanho Min <chanho.min@lge.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
- *
  */
 
 #include <linux/init.h>
@@ -119,6 +106,7 @@ static int lz4_decompress_crypto(struct crypto_tfm *tfm, const u8 *src,
 
 static struct crypto_alg alg_lz4 = {
 	.cra_name		= "lz4",
+	.cra_driver_name	= "lz4-generic",
 	.cra_flags		= CRYPTO_ALG_TYPE_COMPRESS,
 	.cra_ctxsize		= sizeof(struct lz4_ctx),
 	.cra_module		= THIS_MODULE,
@@ -164,7 +152,7 @@ static void __exit lz4_mod_fini(void)
 	crypto_unregister_scomp(&scomp);
 }
 
-module_init(lz4_mod_init);
+subsys_initcall(lz4_mod_init);
 module_exit(lz4_mod_fini);
 
 MODULE_LICENSE("GPL");

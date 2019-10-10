@@ -186,11 +186,11 @@
 172	i386	prctl			sys_prctl			__ia32_sys_prctl
 173	i386	rt_sigreturn		sys_rt_sigreturn		sys32_rt_sigreturn
 174	i386	rt_sigaction		sys_rt_sigaction		__ia32_compat_sys_rt_sigaction
-175	i386	rt_sigprocmask		sys_rt_sigprocmask		__ia32_sys_rt_sigprocmask
+175	i386	rt_sigprocmask		sys_rt_sigprocmask		__ia32_compat_sys_rt_sigprocmask
 176	i386	rt_sigpending		sys_rt_sigpending		__ia32_compat_sys_rt_sigpending
 177	i386	rt_sigtimedwait		sys_rt_sigtimedwait_time32	__ia32_compat_sys_rt_sigtimedwait_time32
 178	i386	rt_sigqueueinfo		sys_rt_sigqueueinfo		__ia32_compat_sys_rt_sigqueueinfo
-179	i386	rt_sigsuspend		sys_rt_sigsuspend		__ia32_sys_rt_sigsuspend
+179	i386	rt_sigsuspend		sys_rt_sigsuspend		__ia32_compat_sys_rt_sigsuspend
 180	i386	pread64			sys_pread64			__ia32_compat_sys_x86_pread
 181	i386	pwrite64		sys_pwrite64			__ia32_compat_sys_x86_pwrite
 182	i386	chown			sys_chown16			__ia32_sys_chown16
@@ -398,7 +398,6 @@
 384	i386	arch_prctl		sys_arch_prctl			__ia32_compat_sys_arch_prctl
 385	i386	io_pgetevents		sys_io_pgetevents_time32	__ia32_compat_sys_io_pgetevents
 386	i386	rseq			sys_rseq			__ia32_sys_rseq
-# don't use numbers 387 through 392, add new calls at the end
 393	i386	semget			sys_semget    			__ia32_sys_semget
 394	i386	semctl			sys_semctl    			__ia32_compat_sys_semctl
 395	i386	shmget			sys_shmget    			__ia32_sys_shmget
@@ -429,3 +428,15 @@
 421	i386	rt_sigtimedwait_time64	sys_rt_sigtimedwait		__ia32_compat_sys_rt_sigtimedwait_time64
 422	i386	futex_time64		sys_futex			__ia32_sys_futex
 423	i386	sched_rr_get_interval_time64	sys_sched_rr_get_interval	__ia32_sys_sched_rr_get_interval
+424	i386	pidfd_send_signal	sys_pidfd_send_signal		__ia32_sys_pidfd_send_signal
+425	i386	io_uring_setup		sys_io_uring_setup		__ia32_sys_io_uring_setup
+426	i386	io_uring_enter		sys_io_uring_enter		__ia32_sys_io_uring_enter
+427	i386	io_uring_register	sys_io_uring_register		__ia32_sys_io_uring_register
+428	i386	open_tree		sys_open_tree			__ia32_sys_open_tree
+429	i386	move_mount		sys_move_mount			__ia32_sys_move_mount
+430	i386	fsopen			sys_fsopen			__ia32_sys_fsopen
+431	i386	fsconfig		sys_fsconfig			__ia32_sys_fsconfig
+432	i386	fsmount			sys_fsmount			__ia32_sys_fsmount
+433	i386	fspick			sys_fspick			__ia32_sys_fspick
+434	i386	pidfd_open		sys_pidfd_open			__ia32_sys_pidfd_open
+435	i386	clone3			sys_clone3			__ia32_sys_clone3

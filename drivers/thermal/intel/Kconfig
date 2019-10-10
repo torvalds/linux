@@ -1,6 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INTEL_POWERCLAMP
 	tristate "Intel PowerClamp idle injection driver"
-	depends on THERMAL
 	depends on X86
 	depends on CPU_SUP_INTEL
 	help

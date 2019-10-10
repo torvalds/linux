@@ -5,15 +5,16 @@
  * Copyright (C) 2013 Philipp Zabel, Pengutronix
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_plane_helper.h>
 
-#include "video/imx-ipu-v3.h"
+#include <video/imx-ipu-v3.h>
+
 #include "imx-drm.h"
 #include "ipuv3-plane.h"
 
@@ -115,8 +116,8 @@ drm_plane_state_to_ubo(struct drm_plane_state *state)
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 1);
 	BUG_ON(!cma_obj);
 
-	x /= drm_format_horz_chroma_subsampling(fb->format->format);
-	y /= drm_format_vert_chroma_subsampling(fb->format->format);
+	x /= fb->format->hsub;
+	y /= fb->format->vsub;
 
 	return cma_obj->paddr + fb->offsets[1] + fb->pitches[1] * y +
 	       fb->format->cpp[1] * x - eba;
@@ -134,8 +135,8 @@ drm_plane_state_to_vbo(struct drm_plane_state *state)
 	cma_obj = drm_fb_cma_get_gem_obj(fb, 2);
 	BUG_ON(!cma_obj);
 
-	x /= drm_format_horz_chroma_subsampling(fb->format->format);
-	y /= drm_format_vert_chroma_subsampling(fb->format->format);
+	x /= fb->format->hsub;
+	y /= fb->format->vsub;
 
 	return cma_obj->paddr + fb->offsets[2] + fb->pitches[2] * y +
 	       fb->format->cpp[2] * x - eba;
@@ -273,6 +274,7 @@ static void ipu_plane_destroy(struct drm_plane *plane)
 
 static void ipu_plane_state_reset(struct drm_plane *plane)
 {
+	unsigned int zpos = (plane->type == DRM_PLANE_TYPE_PRIMARY) ? 0 : 1;
 	struct ipu_plane_state *ipu_state;
 
 	if (plane->state) {
@@ -284,8 +286,11 @@ static void ipu_plane_state_reset(struct drm_plane *plane)
 
 	ipu_state = kzalloc(sizeof(*ipu_state), GFP_KERNEL);
 
-	if (ipu_state)
+	if (ipu_state) {
 		__drm_atomic_helper_plane_reset(plane, &ipu_state->base);
+		ipu_state->base.zpos = zpos;
+		ipu_state->base.normalized_zpos = zpos;
+	}
 }
 
 static struct drm_plane_state *
@@ -348,7 +353,6 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *old_fb = old_state->fb;
 	unsigned long eba, ubo, vbo, old_ubo, old_vbo, alpha_eba;
 	bool can_position = (plane->type == DRM_PLANE_TYPE_OVERLAY);
-	int hsub, vsub;
 	int ret;
 
 	/* Ok to disable */
@@ -467,10 +471,8 @@ static int ipu_plane_atomic_check(struct drm_plane *plane,
 		 * The x/y offsets must be even in case of horizontal/vertical
 		 * chroma subsampling.
 		 */
-		hsub = drm_format_horz_chroma_subsampling(fb->format->format);
-		vsub = drm_format_vert_chroma_subsampling(fb->format->format);
-		if (((state->src.x1 >> 16) & (hsub - 1)) ||
-		    ((state->src.y1 >> 16) & (vsub - 1)))
+		if (((state->src.x1 >> 16) & (fb->format->hsub - 1)) ||
+		    ((state->src.y1 >> 16) & (fb->format->vsub - 1)))
 			return -EINVAL;
 		break;
 	case DRM_FORMAT_RGB565_A8:
@@ -560,6 +562,25 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	if (ipu_plane->dp_flow == IPU_DP_FLOW_SYNC_FG)
 		ipu_dp_set_window_pos(ipu_plane->dp, dst->x1, dst->y1);
 
+	switch (ipu_plane->dp_flow) {
+	case IPU_DP_FLOW_SYNC_BG:
+		if (state->normalized_zpos == 1) {
+			ipu_dp_set_global_alpha(ipu_plane->dp,
+						!fb->format->has_alpha, 0xff,
+						true);
+		} else {
+			ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
+		}
+		break;
+	case IPU_DP_FLOW_SYNC_FG:
+		if (state->normalized_zpos == 1) {
+			ipu_dp_set_global_alpha(ipu_plane->dp,
+						!fb->format->has_alpha, 0xff,
+						false);
+		}
+		break;
+	}
+
 	eba = drm_plane_state_to_eba(state, 0);
 
 	/*
@@ -595,34 +616,11 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	switch (ipu_plane->dp_flow) {
 	case IPU_DP_FLOW_SYNC_BG:
 		ipu_dp_setup_channel(ipu_plane->dp, ics, IPUV3_COLORSPACE_RGB);
-		ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
 		break;
 	case IPU_DP_FLOW_SYNC_FG:
 		ipu_dp_setup_channel(ipu_plane->dp, ics,
 					IPUV3_COLORSPACE_UNKNOWN);
-		/* Enable local alpha on partial plane */
-		switch (fb->format->format) {
-		case DRM_FORMAT_ARGB1555:
-		case DRM_FORMAT_ABGR1555:
-		case DRM_FORMAT_RGBA5551:
-		case DRM_FORMAT_BGRA5551:
-		case DRM_FORMAT_ARGB4444:
-		case DRM_FORMAT_ARGB8888:
-		case DRM_FORMAT_ABGR8888:
-		case DRM_FORMAT_RGBA8888:
-		case DRM_FORMAT_BGRA8888:
-		case DRM_FORMAT_RGB565_A8:
-		case DRM_FORMAT_BGR565_A8:
-		case DRM_FORMAT_RGB888_A8:
-		case DRM_FORMAT_BGR888_A8:
-		case DRM_FORMAT_RGBX8888_A8:
-		case DRM_FORMAT_BGRX8888_A8:
-			ipu_dp_set_global_alpha(ipu_plane->dp, false, 0, false);
-			break;
-		default:
-			ipu_dp_set_global_alpha(ipu_plane->dp, true, 0, true);
-			break;
-		}
+		break;
 	}
 
 	ipu_dmfc_config_wait4eot(ipu_plane->dmfc, drm_rect_width(dst));
@@ -638,6 +636,7 @@ static void ipu_plane_atomic_update(struct drm_plane *plane,
 	ipu_cpmem_set_fmt(ipu_plane->ipu_ch, fb->format->format);
 	ipu_cpmem_set_burstsize(ipu_plane->ipu_ch, burstsize);
 	ipu_cpmem_set_high_priority(ipu_plane->ipu_ch);
+	ipu_idmac_enable_watermark(ipu_plane->ipu_ch, true);
 	ipu_idmac_set_double_buffer(ipu_plane->ipu_ch, 1);
 	ipu_cpmem_set_stride(ipu_plane->ipu_ch, fb->pitches[0]);
 	ipu_cpmem_set_axi_id(ipu_plane->ipu_ch, axi_id);
@@ -718,6 +717,29 @@ static const struct drm_plane_helper_funcs ipu_plane_helper_funcs = {
 	.atomic_update = ipu_plane_atomic_update,
 };
 
+bool ipu_plane_atomic_update_pending(struct drm_plane *plane)
+{
+	struct ipu_plane *ipu_plane = to_ipu_plane(plane);
+	struct drm_plane_state *state = plane->state;
+	struct ipu_plane_state *ipu_state = to_ipu_plane_state(state);
+
+	/* disabled crtcs must not block the update */
+	if (!state->crtc)
+		return false;
+
+	if (ipu_state->use_pre)
+		return ipu_prg_channel_configure_pending(ipu_plane->ipu_ch);
+
+	/*
+	 * Pretend no update is pending in the non-PRE/PRG case. For this to
+	 * happen, an atomic update would have to be deferred until after the
+	 * start of the next frame and simultaneously interrupt latency would
+	 * have to be high enough to let the atomic update finish and issue an
+	 * event before the previous end of frame interrupt handler can be
+	 * executed.
+	 */
+	return false;
+}
 int ipu_planes_assign_pre(struct drm_device *dev,
 			  struct drm_atomic_state *state)
 {
@@ -806,6 +828,7 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 {
 	struct ipu_plane *ipu_plane;
 	const uint64_t *modifiers = ipu_format_modifiers;
+	unsigned int zpos = (type == DRM_PLANE_TYPE_PRIMARY) ? 0 : 1;
 	int ret;
 
 	DRM_DEBUG_KMS("channel %d, dp flow %d, possible_crtcs=0x%x\n",
@@ -835,6 +858,11 @@ struct ipu_plane *ipu_plane_init(struct drm_device *dev, struct ipu_soc *ipu,
 	}
 
 	drm_plane_helper_add(&ipu_plane->base, &ipu_plane_helper_funcs);
+
+	if (dp == IPU_DP_FLOW_SYNC_BG || dp == IPU_DP_FLOW_SYNC_FG)
+		drm_plane_create_zpos_property(&ipu_plane->base, zpos, 0, 1);
+	else
+		drm_plane_create_zpos_immutable_property(&ipu_plane->base, 0);
 
 	return ipu_plane;
 }

@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OpenCores Keyboard Controller Driver
  * http://www.opencores.org/project,keyboardcontroller
  *
  * Copyright 2007-2009 HV Sistemas S.L.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/input.h>
@@ -50,10 +49,8 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "missing board IRQ resource\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
 
 	opencores_kbd = devm_kzalloc(&pdev->dev, sizeof(*opencores_kbd),
 				     GFP_KERNEL);

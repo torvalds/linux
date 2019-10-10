@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hierarchical Budget Worst-case Fair Weighted Fair Queueing
  * (B-WF2Q+): hierarchical scheduling algorithm by which the BFQ I/O
  * scheduler schedules generic entities. The latter can represent
  * either single bfq queues (associated with processes) or groups of
  * bfq queues (associated with cgroups).
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License as
- *  published by the Free Software Foundation; either version 2 of the
- *  License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
  */
 #include "bfq-iosched.h"
 
@@ -44,6 +35,12 @@ static unsigned int bfq_class_idx(struct bfq_entity *entity)
 		BFQ_DEFAULT_GRP_CLASS - 1;
 }
 
+unsigned int bfq_tot_busy_queues(struct bfq_data *bfqd)
+{
+	return bfqd->busy_queues[0] + bfqd->busy_queues[1] +
+		bfqd->busy_queues[2];
+}
+
 static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 						 bool expiration);
 
@@ -53,7 +50,7 @@ static bool bfq_update_parent_budget(struct bfq_entity *next_in_service);
  * bfq_update_next_in_service - update sd->next_in_service
  * @sd: sched_data for which to perform the update.
  * @new_entity: if not NULL, pointer to the entity whose activation,
- *		requeueing or repositionig triggered the invocation of
+ *		requeueing or repositioning triggered the invocation of
  *		this function.
  * @expiration: id true, this function is being invoked after the
  *             expiration of the in-service entity
@@ -84,7 +81,7 @@ static bool bfq_update_next_in_service(struct bfq_sched_data *sd,
 
 	/*
 	 * If this update is triggered by the activation, requeueing
-	 * or repositiong of an entity that does not coincide with
+	 * or repositioning of an entity that does not coincide with
 	 * sd->next_in_service, then a full lookup in the active tree
 	 * can be avoided. In fact, it is enough to check whether the
 	 * just-modified entity has the same priority as
@@ -731,7 +728,7 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 		struct bfq_queue *bfqq = bfq_entity_to_bfqq(entity);
 		unsigned int prev_weight, new_weight;
 		struct bfq_data *bfqd = NULL;
-		struct rb_root *root;
+		struct rb_root_cached *root;
 #ifdef CONFIG_BFQ_GROUP_IOSCHED
 		struct bfq_sched_data *sd;
 		struct bfq_group *bfqg;
@@ -747,6 +744,8 @@ __bfq_entity_update_weight_prio(struct bfq_service_tree *old_st,
 		}
 #endif
 
+		/* Matches the smp_wmb() in bfq_group_set_weight. */
+		smp_rmb();
 		old_st->wsum -= entity->weight;
 
 		if (entity->new_weight != entity->orig_weight) {
@@ -1006,7 +1005,7 @@ static void __bfq_activate_entity(struct bfq_entity *entity,
 		entity->on_st = true;
 	}
 
-#ifdef BFQ_GROUP_IOSCHED_ENABLED
+#ifdef CONFIG_BFQ_GROUP_IOSCHED
 	if (!bfq_entity_to_bfqq(entity)) { /* bfq_group */
 		struct bfq_group *bfqg =
 			container_of(entity, struct bfq_group, entity);
@@ -1390,7 +1389,7 @@ left:
  * In this first case, update the virtual time in @st too (see the
  * comments on this update inside the function).
  *
- * In constrast, if there is an in-service entity, then return the
+ * In contrast, if there is an in-service entity, then return the
  * entity that would be set in service if not only the above
  * conditions, but also the next one held true: the currently
  * in-service entity, on expiration,
@@ -1473,12 +1472,12 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 		 * is being invoked as a part of the expiration path
 		 * of the in-service queue. In this case, even if
 		 * sd->in_service_entity is not NULL,
-		 * sd->in_service_entiy at this point is actually not
+		 * sd->in_service_entity at this point is actually not
 		 * in service any more, and, if needed, has already
 		 * been properly queued or requeued into the right
 		 * tree. The reason why sd->in_service_entity is still
 		 * not NULL here, even if expiration is true, is that
-		 * sd->in_service_entiy is reset as a last step in the
+		 * sd->in_service_entity is reset as a last step in the
 		 * expiration path. So, if expiration is true, tell
 		 * __bfq_lookup_next_entity that there is no
 		 * sd->in_service_entity.
@@ -1513,7 +1512,7 @@ struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 	struct bfq_sched_data *sd;
 	struct bfq_queue *bfqq;
 
-	if (bfqd->busy_queues == 0)
+	if (bfq_tot_busy_queues(bfqd) == 0)
 		return NULL;
 
 	/*
@@ -1599,7 +1598,8 @@ struct bfq_queue *bfq_get_next_queue(struct bfq_data *bfqd)
 	return bfqq;
 }
 
-void __bfq_bfqd_reset_in_service(struct bfq_data *bfqd)
+/* returns true if the in-service queue gets freed */
+bool __bfq_bfqd_reset_in_service(struct bfq_data *bfqd)
 {
 	struct bfq_queue *in_serv_bfqq = bfqd->in_service_queue;
 	struct bfq_entity *in_serv_entity = &in_serv_bfqq->entity;
@@ -1623,8 +1623,20 @@ void __bfq_bfqd_reset_in_service(struct bfq_data *bfqd)
 	 * service tree either, then release the service reference to
 	 * the queue it represents (taken with bfq_get_entity).
 	 */
-	if (!in_serv_entity->on_st)
+	if (!in_serv_entity->on_st) {
+		/*
+		 * If no process is referencing in_serv_bfqq any
+		 * longer, then the service reference may be the only
+		 * reference to the queue. If this is the case, then
+		 * bfqq gets freed here.
+		 */
+		int ref = in_serv_bfqq->ref;
 		bfq_put_queue(in_serv_bfqq);
+		if (ref == 1)
+			return true;
+	}
+
+	return false;
 }
 
 void bfq_deactivate_bfqq(struct bfq_data *bfqd, struct bfq_queue *bfqq,
@@ -1665,10 +1677,7 @@ void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 
 	bfq_clear_bfqq_busy(bfqq);
 
-	bfqd->busy_queues--;
-
-	if (!bfqq->dispatched)
-		bfq_weights_tree_remove(bfqd, bfqq);
+	bfqd->busy_queues[bfqq->ioprio_class - 1]--;
 
 	if (bfqq->wr_coeff > 1)
 		bfqd->wr_busy_queues--;
@@ -1676,6 +1685,9 @@ void bfq_del_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq,
 	bfqg_stats_update_dequeue(bfqq_group(bfqq));
 
 	bfq_deactivate_bfqq(bfqd, bfqq, true, expiration);
+
+	if (!bfqq->dispatched)
+		bfq_weights_tree_remove(bfqd, bfqq);
 }
 
 /*
@@ -1688,7 +1700,7 @@ void bfq_add_bfqq_busy(struct bfq_data *bfqd, struct bfq_queue *bfqq)
 	bfq_activate_bfqq(bfqd, bfqq);
 
 	bfq_mark_bfqq_busy(bfqq);
-	bfqd->busy_queues++;
+	bfqd->busy_queues[bfqq->ioprio_class - 1]++;
 
 	if (!bfqq->dispatched)
 		if (bfqq->wr_coeff == 1)

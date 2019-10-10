@@ -1238,13 +1238,6 @@ static const struct attribute_group cyapa_sysfs_group = {
 	.attrs = cyapa_sysfs_entries,
 };
 
-static void cyapa_remove_sysfs_group(void *data)
-{
-	struct cyapa *cyapa = data;
-
-	sysfs_remove_group(&cyapa->client->dev.kobj, &cyapa_sysfs_group);
-}
-
 static void cyapa_disable_regulator(void *data)
 {
 	struct cyapa *cyapa = data;
@@ -1312,16 +1305,9 @@ static int cyapa_probe(struct i2c_client *client,
 		return error;
 	}
 
-	error = sysfs_create_group(&dev->kobj, &cyapa_sysfs_group);
+	error = devm_device_add_group(dev, &cyapa_sysfs_group);
 	if (error) {
 		dev_err(dev, "failed to create sysfs entries: %d\n", error);
-		return error;
-	}
-
-	error = devm_add_action(dev, cyapa_remove_sysfs_group, cyapa);
-	if (error) {
-		cyapa_remove_sysfs_group(cyapa);
-		dev_err(dev, "failed to add sysfs cleanup action: %d\n", error);
 		return error;
 	}
 

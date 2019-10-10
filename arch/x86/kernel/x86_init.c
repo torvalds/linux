@@ -29,8 +29,8 @@ void x86_init_noop(void) { }
 void __init x86_init_uint_noop(unsigned int unused) { }
 static int __init iommu_init_noop(void) { return 0; }
 static void iommu_shutdown_noop(void) { }
-static bool __init bool_x86_init_noop(void) { return false; }
-static void x86_op_int_noop(int cpu) { }
+bool __init bool_x86_init_noop(void) { return false; }
+void x86_op_int_noop(int cpu) { }
 
 /*
  * The platform setup functions are preset with the default functions
@@ -95,6 +95,7 @@ struct x86_init_ops x86_init __initdata = {
 	},
 
 	.acpi = {
+		.set_root_pointer	= x86_default_set_root_pointer,
 		.get_root_pointer	= x86_default_get_root_pointer,
 		.reduced_hw_early_init	= acpi_generic_reduced_hw_init,
 	},

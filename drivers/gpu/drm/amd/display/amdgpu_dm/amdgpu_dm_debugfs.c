@@ -23,12 +23,15 @@
  *
  */
 
-#include <linux/debugfs.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_debugfs.h>
 
 #include "dc.h"
 #include "amdgpu.h"
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_debugfs.h"
+#include "dm_helpers.h"
 
 /* function description
  * get/ set DP configuration: lane_count, link_rate, spread_spectrum
@@ -672,6 +675,71 @@ static ssize_t dp_phy_test_pattern_debugfs_write(struct file *f, const char __us
 }
 
 /*
+ * Returns the current and maximum output bpc for the connector.
+ * Example usage: cat /sys/kernel/debug/dri/0/DP-1/output_bpc
+ */
+static int output_bpc_show(struct seq_file *m, void *data)
+{
+	struct drm_connector *connector = m->private;
+	struct drm_device *dev = connector->dev;
+	struct drm_crtc *crtc = NULL;
+	struct dm_crtc_state *dm_crtc_state = NULL;
+	int res = -ENODEV;
+	unsigned int bpc;
+
+	mutex_lock(&dev->mode_config.mutex);
+	drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
+
+	if (connector->state == NULL)
+		goto unlock;
+
+	crtc = connector->state->crtc;
+	if (crtc == NULL)
+		goto unlock;
+
+	drm_modeset_lock(&crtc->mutex, NULL);
+	if (crtc->state == NULL)
+		goto unlock;
+
+	dm_crtc_state = to_dm_crtc_state(crtc->state);
+	if (dm_crtc_state->stream == NULL)
+		goto unlock;
+
+	switch (dm_crtc_state->stream->timing.display_color_depth) {
+	case COLOR_DEPTH_666:
+		bpc = 6;
+		break;
+	case COLOR_DEPTH_888:
+		bpc = 8;
+		break;
+	case COLOR_DEPTH_101010:
+		bpc = 10;
+		break;
+	case COLOR_DEPTH_121212:
+		bpc = 12;
+		break;
+	case COLOR_DEPTH_161616:
+		bpc = 16;
+		break;
+	default:
+		goto unlock;
+	}
+
+	seq_printf(m, "Current: %u\n", bpc);
+	seq_printf(m, "Maximum: %u\n", connector->display_info.bpc);
+	res = 0;
+
+unlock:
+	if (crtc)
+		drm_modeset_unlock(&crtc->mutex);
+
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
+	mutex_unlock(&dev->mode_config.mutex);
+
+	return res;
+}
+
+/*
  * Returns the min and max vrr vfreq through the connector's debugfs file.
  * Example usage: cat /sys/kernel/debug/dri/0/DP-1/vrr_range
  */
@@ -688,6 +756,130 @@ static int vrr_range_show(struct seq_file *m, void *data)
 
 	return 0;
 }
+
+/* function description
+ *
+ * generic SDP message access for testing
+ *
+ * debugfs sdp_message is located at /syskernel/debug/dri/0/DP-x
+ *
+ * SDP header
+ * Hb0 : Secondary-Data Packet ID
+ * Hb1 : Secondary-Data Packet type
+ * Hb2 : Secondary-Data-packet-specific header, Byte 0
+ * Hb3 : Secondary-Data-packet-specific header, Byte 1
+ *
+ * for using custom sdp message: input 4 bytes SDP header and 32 bytes raw data
+ */
+static ssize_t dp_sdp_message_debugfs_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	uint8_t data[36];
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dm_crtc_state *acrtc_state;
+	uint32_t write_size = 36;
+
+	if (connector->base.status != connector_status_connected)
+		return -ENODEV;
+
+	if (size == 0)
+		return 0;
+
+	acrtc_state = to_dm_crtc_state(connector->base.state->crtc->state);
+
+	r = copy_from_user(data, buf, write_size);
+
+	write_size -= r;
+
+	dc_stream_send_dp_sdp(acrtc_state->stream, data, write_size);
+
+	return write_size;
+}
+
+static ssize_t dp_dpcd_address_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+
+	if (size < sizeof(connector->debugfs_dpcd_address))
+		return 0;
+
+	r = copy_from_user(&connector->debugfs_dpcd_address,
+			buf, sizeof(connector->debugfs_dpcd_address));
+
+	return size - r;
+}
+
+static ssize_t dp_dpcd_size_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+
+	if (size < sizeof(connector->debugfs_dpcd_size))
+		return 0;
+
+	r = copy_from_user(&connector->debugfs_dpcd_size,
+			buf, sizeof(connector->debugfs_dpcd_size));
+
+	if (connector->debugfs_dpcd_size > 256)
+		connector->debugfs_dpcd_size = 0;
+
+	return size - r;
+}
+
+static ssize_t dp_dpcd_data_write(struct file *f, const char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	char *data;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	uint32_t write_size = connector->debugfs_dpcd_size;
+
+	if (size < write_size)
+		return 0;
+
+	data = kzalloc(write_size, GFP_KERNEL);
+	if (!data)
+		return 0;
+
+	r = copy_from_user(data, buf, write_size);
+
+	dm_helpers_dp_write_dpcd(link->ctx, link,
+			connector->debugfs_dpcd_address, data, write_size - r);
+	kfree(data);
+	return write_size - r;
+}
+
+static ssize_t dp_dpcd_data_read(struct file *f, char __user *buf,
+				 size_t size, loff_t *pos)
+{
+	int r;
+	char *data;
+	struct amdgpu_dm_connector *connector = file_inode(f)->i_private;
+	struct dc_link *link = connector->dc_link;
+	uint32_t read_size = connector->debugfs_dpcd_size;
+
+	if (size < read_size)
+		return 0;
+
+	data = kzalloc(read_size, GFP_KERNEL);
+	if (!data)
+		return 0;
+
+	dm_helpers_dp_read_dpcd(link->ctx, link,
+			connector->debugfs_dpcd_address, data, read_size);
+
+	r = copy_to_user(buf, data, read_size);
+
+	kfree(data);
+	return read_size - r;
+}
+
+DEFINE_SHOW_ATTRIBUTE(output_bpc);
 DEFINE_SHOW_ATTRIBUTE(vrr_range);
 
 static const struct file_operations dp_link_settings_debugfs_fops = {
@@ -710,6 +902,31 @@ static const struct file_operations dp_phy_test_pattern_fops = {
 	.llseek = default_llseek
 };
 
+static const struct file_operations sdp_message_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_sdp_message_debugfs_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dpcd_address_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_dpcd_address_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dpcd_size_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.write = dp_dpcd_size_write,
+	.llseek = default_llseek
+};
+
+static const struct file_operations dp_dpcd_data_debugfs_fops = {
+	.owner = THIS_MODULE,
+	.read = dp_dpcd_data_read,
+	.write = dp_dpcd_data_write,
+	.llseek = default_llseek
+};
+
 static const struct {
 	char *name;
 	const struct file_operations *fops;
@@ -717,28 +934,27 @@ static const struct {
 		{"link_settings", &dp_link_settings_debugfs_fops},
 		{"phy_settings", &dp_phy_settings_debugfs_fop},
 		{"test_pattern", &dp_phy_test_pattern_fops},
-		{"vrr_range", &vrr_range_fops}
+		{"output_bpc", &output_bpc_fops},
+		{"vrr_range", &vrr_range_fops},
+		{"sdp_message", &sdp_message_fops},
+		{"aux_dpcd_address", &dp_dpcd_address_debugfs_fops},
+		{"aux_dpcd_size", &dp_dpcd_size_debugfs_fops},
+		{"aux_dpcd_data", &dp_dpcd_data_debugfs_fops}
 };
 
-int connector_debugfs_init(struct amdgpu_dm_connector *connector)
+void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 {
 	int i;
-	struct dentry *ent, *dir = connector->base.debugfs_entry;
+	struct dentry *dir = connector->base.debugfs_entry;
 
 	if (connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector->base.connector_type == DRM_MODE_CONNECTOR_eDP) {
 		for (i = 0; i < ARRAY_SIZE(dp_debugfs_entries); i++) {
-			ent = debugfs_create_file(dp_debugfs_entries[i].name,
-						  0644,
-						  dir,
-						  connector,
-						  dp_debugfs_entries[i].fops);
-			if (IS_ERR(ent))
-				return PTR_ERR(ent);
+			debugfs_create_file(dp_debugfs_entries[i].name,
+					    0644, dir, connector,
+					    dp_debugfs_entries[i].fops);
 		}
 	}
-
-	return 0;
 }
 
 /*
@@ -803,6 +1019,98 @@ static ssize_t dtn_log_write(
 	return size;
 }
 
+/*
+ * Backlight at this moment.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ */
+static int current_backlight_read(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	unsigned int backlight = dc_get_current_backlight_pwm(dc);
+
+	seq_printf(m, "0x%x\n", backlight);
+	return 0;
+}
+
+/*
+ * Backlight value that is being approached.  Read only.
+ * As written to display, taking ABM and backlight lut into account.
+ * Ranges from 0x0 to 0x10000 (= 100% PWM)
+ */
+static int target_backlight_read(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct amdgpu_device *adev = dev->dev_private;
+	struct dc *dc = adev->dm.dc;
+	unsigned int backlight = dc_get_target_backlight_pwm(dc);
+
+	seq_printf(m, "0x%x\n", backlight);
+	return 0;
+}
+
+static int mst_topo(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *)m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct amdgpu_dm_connector *aconnector;
+
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+			continue;
+
+		aconnector = to_amdgpu_dm_connector(connector);
+
+		seq_printf(m, "\nMST topology for connector %d\n", aconnector->connector_id);
+		drm_dp_mst_dump_topology(m, &aconnector->mst_mgr);
+	}
+	drm_connector_list_iter_end(&conn_iter);
+
+	return 0;
+}
+
+static const struct drm_info_list amdgpu_dm_debugfs_list[] = {
+	{"amdgpu_current_backlight_pwm", &current_backlight_read},
+	{"amdgpu_target_backlight_pwm", &target_backlight_read},
+	{"amdgpu_mst_topology", &mst_topo},
+};
+
+/*
+ * Sets the DC visual confirm debug option from the given string.
+ * Example usage: echo 1 > /sys/kernel/debug/dri/0/amdgpu_visual_confirm
+ */
+static int visual_confirm_set(void *data, u64 val)
+{
+	struct amdgpu_device *adev = data;
+
+	adev->dm.dc->debug.visual_confirm = (enum visual_confirm)val;
+
+	return 0;
+}
+
+/*
+ * Reads the DC visual confirm debug option value into the given buffer.
+ * Example usage: cat /sys/kernel/debug/dri/0/amdgpu_dm_visual_confirm
+ */
+static int visual_confirm_get(void *data, u64 *val)
+{
+	struct amdgpu_device *adev = data;
+
+	*val = adev->dm.dc->debug.visual_confirm;
+
+	return 0;
+}
+
+DEFINE_DEBUGFS_ATTRIBUTE(visual_confirm_fops, visual_confirm_get,
+			 visual_confirm_set, "%llu\n");
+
 int dtn_debugfs_init(struct amdgpu_device *adev)
 {
 	static const struct file_operations dtn_log_fops = {
@@ -814,13 +1122,18 @@ int dtn_debugfs_init(struct amdgpu_device *adev)
 
 	struct drm_minor *minor = adev->ddev->primary;
 	struct dentry *root = minor->debugfs_root;
+	int ret;
 
-	struct dentry *ent = debugfs_create_file(
-		"amdgpu_dm_dtn_log",
-		0644,
-		root,
-		adev,
-		&dtn_log_fops);
+	ret = amdgpu_debugfs_add_files(adev, amdgpu_dm_debugfs_list,
+				ARRAY_SIZE(amdgpu_dm_debugfs_list));
+	if (ret)
+		return ret;
 
-	return PTR_ERR_OR_ZERO(ent);
+	debugfs_create_file("amdgpu_dm_dtn_log", 0644, root, adev,
+			    &dtn_log_fops);
+
+	debugfs_create_file_unsafe("amdgpu_dm_visual_confirm", 0644, root, adev,
+				   &visual_confirm_fops);
+
+	return 0;
 }

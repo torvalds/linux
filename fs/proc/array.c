@@ -343,28 +343,28 @@ static inline void task_seccomp(struct seq_file *m, struct task_struct *p)
 #ifdef CONFIG_SECCOMP
 	seq_put_decimal_ull(m, "\nSeccomp:\t", p->seccomp.mode);
 #endif
-	seq_printf(m, "\nSpeculation_Store_Bypass:\t");
+	seq_puts(m, "\nSpeculation_Store_Bypass:\t");
 	switch (arch_prctl_spec_ctrl_get(p, PR_SPEC_STORE_BYPASS)) {
 	case -EINVAL:
-		seq_printf(m, "unknown");
+		seq_puts(m, "unknown");
 		break;
 	case PR_SPEC_NOT_AFFECTED:
-		seq_printf(m, "not vulnerable");
+		seq_puts(m, "not vulnerable");
 		break;
 	case PR_SPEC_PRCTL | PR_SPEC_FORCE_DISABLE:
-		seq_printf(m, "thread force mitigated");
+		seq_puts(m, "thread force mitigated");
 		break;
 	case PR_SPEC_PRCTL | PR_SPEC_DISABLE:
-		seq_printf(m, "thread mitigated");
+		seq_puts(m, "thread mitigated");
 		break;
 	case PR_SPEC_PRCTL | PR_SPEC_ENABLE:
-		seq_printf(m, "thread vulnerable");
+		seq_puts(m, "thread vulnerable");
 		break;
 	case PR_SPEC_DISABLE:
-		seq_printf(m, "globally mitigated");
+		seq_puts(m, "globally mitigated");
 		break;
 	default:
-		seq_printf(m, "vulnerable");
+		seq_puts(m, "vulnerable");
 		break;
 	}
 	seq_putc(m, '\n');
@@ -381,9 +381,9 @@ static inline void task_context_switch_counts(struct seq_file *m,
 static void task_cpus_allowed(struct seq_file *m, struct task_struct *task)
 {
 	seq_printf(m, "Cpus_allowed:\t%*pb\n",
-		   cpumask_pr_args(&task->cpus_allowed));
+		   cpumask_pr_args(task->cpus_ptr));
 	seq_printf(m, "Cpus_allowed_list:\t%*pbl\n",
-		   cpumask_pr_args(&task->cpus_allowed));
+		   cpumask_pr_args(task->cpus_ptr));
 }
 
 static inline void task_core_dumping(struct seq_file *m, struct mm_struct *mm)
@@ -462,7 +462,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		 * a program is not able to use ptrace(2) in that case. It is
 		 * safe because the task has stopped executing permanently.
 		 */
-		if (permitted && (task->flags & PF_DUMPCORE)) {
+		if (permitted && (task->flags & (PF_EXITING|PF_DUMPCORE))) {
 			if (try_get_task_stack(task)) {
 				eip = KSTK_EIP(task);
 				esp = KSTK_ESP(task);

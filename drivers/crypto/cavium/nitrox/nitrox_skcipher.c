@@ -7,7 +7,7 @@
 #include <crypto/aes.h>
 #include <crypto/skcipher.h>
 #include <crypto/ctr.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/xts.h>
 
 #include "nitrox_dev.h"
@@ -257,12 +257,8 @@ static int nitrox_aes_decrypt(struct skcipher_request *skreq)
 static int nitrox_3des_setkey(struct crypto_skcipher *cipher,
 			      const u8 *key, unsigned int keylen)
 {
-	if (keylen != DES3_EDE_KEY_SIZE) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
-
-	return nitrox_skcipher_setkey(cipher, 0, key, keylen);
+	return verify_skcipher_des3_key(cipher, key) ?:
+	       nitrox_skcipher_setkey(cipher, 0, key, keylen);
 }
 
 static int nitrox_3des_encrypt(struct skcipher_request *skreq)

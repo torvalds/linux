@@ -18,12 +18,15 @@ obj-$(CONFIG_MXC_CLK) += \
 	clk-pllv2.o \
 	clk-pllv3.o \
 	clk-pllv4.o \
-	clk-sccg-pll.o
+	clk-sccg-pll.o \
+	clk-pll14xx.o
 
 obj-$(CONFIG_MXC_CLK_SCU) += \
 	clk-scu.o \
 	clk-lpcg-scu.o
 
+obj-$(CONFIG_CLK_IMX8MM) += clk-imx8mm.o
+obj-$(CONFIG_CLK_IMX8MN) += clk-imx8mn.o
 obj-$(CONFIG_CLK_IMX8MQ) += clk-imx8mq.o
 obj-$(CONFIG_CLK_IMX8QXP) += clk-imx8qxp.o clk-imx8qxp-lpcg.o
 
@@ -33,7 +36,7 @@ obj-$(CONFIG_SOC_IMX25)  += clk-imx25.o
 obj-$(CONFIG_SOC_IMX27)  += clk-imx27.o
 obj-$(CONFIG_SOC_IMX31)  += clk-imx31.o
 obj-$(CONFIG_SOC_IMX35)  += clk-imx35.o
-obj-$(CONFIG_SOC_IMX5)   += clk-imx51-imx53.o
+obj-$(CONFIG_SOC_IMX5)   += clk-imx5.o
 obj-$(CONFIG_SOC_IMX6Q)  += clk-imx6q.o
 obj-$(CONFIG_SOC_IMX6SL) += clk-imx6sl.o
 obj-$(CONFIG_SOC_IMX6SLL) += clk-imx6sll.o

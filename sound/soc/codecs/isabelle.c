@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isabelle.c - Low power high fidelity audio codec driver
  *
  * Copyright (c) 2012 Texas Instruments, Inc
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- *
  * Initially based on sound/soc/codecs/twl6040.c
- *
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>

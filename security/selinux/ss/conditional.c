@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Authors: Karl MacMillan <kmacmillan@tresys.com>
  *	    Frank Mayer <mayerf@tresys.com>
  *
  * Copyright (C) 2003 - 2004 Tresys Technology, LLC
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation, version 2.
  */
 
 #include <linux/kernel.h>
@@ -195,7 +193,6 @@ int cond_index_bool(void *key, void *datum, void *datap)
 {
 	struct policydb *p;
 	struct cond_bool_datum *booldatum;
-	struct flex_array *fa;
 
 	booldatum = datum;
 	p = datap;
@@ -203,10 +200,7 @@ int cond_index_bool(void *key, void *datum, void *datap)
 	if (!booldatum->value || booldatum->value > p->p_bools.nprim)
 		return -EINVAL;
 
-	fa = p->sym_val_to_name[SYM_BOOLS];
-	if (flex_array_put_ptr(fa, booldatum->value - 1, key,
-			       GFP_KERNEL | __GFP_ZERO))
-		BUG();
+	p->sym_val_to_name[SYM_BOOLS][booldatum->value - 1] = key;
 	p->bool_val_to_struct[booldatum->value - 1] = booldatum;
 
 	return 0;

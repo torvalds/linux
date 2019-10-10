@@ -104,11 +104,9 @@ static inline void debug_stack_usage_dec(void)
 {
 	__this_cpu_dec(debug_stack_usage);
 }
-int is_debug_stack(unsigned long addr);
 void debug_stack_set_zero(void);
 void debug_stack_reset(void);
 #else /* !X86_64 */
-static inline int is_debug_stack(unsigned long addr) { return 0; }
 static inline void debug_stack_set_zero(void) { }
 static inline void debug_stack_reset(void) { }
 static inline void debug_stack_usage_inc(void) { }

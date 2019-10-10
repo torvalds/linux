@@ -177,6 +177,7 @@
  * @base: IO registers pointer
  * @cmd_complete: tx completion indicator
  * @clk: input reference clock
+ * @pclk: clock required to access the registers
  * @slave: represent an I2C slave device
  * @cmd_err: run time hadware error code
  * @msgs: points to an array of messages currently being transferred
@@ -215,6 +216,7 @@
  * @disable_int: function to disable all interrupts
  * @init: function to initialize the I2C hardware
  * @mode: operation mode - DW_IC_MASTER or DW_IC_SLAVE
+ * @suspended: set to true if the controller is suspended
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -226,6 +228,7 @@ struct dw_i2c_dev {
 	void __iomem		*ext;
 	struct completion	cmd_complete;
 	struct clk		*clk;
+	struct clk		*pclk;
 	struct reset_control	*rst;
 	struct i2c_client		*slave;
 	u32			(*get_clk_rate_khz) (struct dw_i2c_dev *dev);
@@ -270,6 +273,7 @@ struct dw_i2c_dev {
 	int			(*set_sda_hold_time)(struct dw_i2c_dev *dev);
 	int			mode;
 	struct i2c_bus_recovery_info rinfo;
+	bool			suspended;
 };
 
 #define ACCESS_SWAP		0x00000001

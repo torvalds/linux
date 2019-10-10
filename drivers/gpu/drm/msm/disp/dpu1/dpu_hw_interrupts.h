@@ -1,13 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DPU_HW_INTERRUPTS_H
@@ -19,13 +11,6 @@
 #include "dpu_hw_catalog.h"
 #include "dpu_hw_util.h"
 #include "dpu_hw_mdss.h"
-
-#define IRQ_SOURCE_MDP		BIT(0)
-#define IRQ_SOURCE_DSI0		BIT(4)
-#define IRQ_SOURCE_DSI1		BIT(5)
-#define IRQ_SOURCE_HDMI		BIT(8)
-#define IRQ_SOURCE_EDP		BIT(12)
-#define IRQ_SOURCE_MHL		BIT(16)
 
 /**
  * dpu_intr_type - HW Interrupt Type
@@ -96,18 +81,6 @@ struct dpu_hw_intr;
  */
 struct dpu_hw_intr_ops {
 	/**
-	 * set_mask - Programs the given interrupt register with the
-	 *            given interrupt mask. Register value will get overwritten.
-	 * @intr:	HW interrupt handle
-	 * @reg_off:	MDSS HW register offset
-	 * @irqmask:	IRQ mask value
-	 */
-	void (*set_mask)(
-			struct dpu_hw_intr *intr,
-			uint32_t reg,
-			uint32_t irqmask);
-
-	/**
 	 * irq_idx_lookup - Lookup IRQ index on the HW interrupt type
 	 *                 Used for all irq related ops
 	 * @intr_type:		Interrupt type defined in dpu_intr_type
@@ -177,16 +150,6 @@ struct dpu_hw_intr_ops {
 			struct dpu_hw_intr *intr);
 
 	/**
-	 * clear_interrupt_status - Clears HW interrupt status based on given
-	 *                          lookup IRQ index.
-	 * @intr:	HW interrupt handle
-	 * @irq_idx:	Lookup irq index return from irq_idx_lookup
-	 */
-	void (*clear_interrupt_status)(
-			struct dpu_hw_intr *intr,
-			int irq_idx);
-
-	/**
 	 * clear_intr_status_nolock() - clears the HW interrupts without lock
 	 * @intr:	HW interrupt handle
 	 * @irq_idx:	Lookup irq index return from irq_idx_lookup
@@ -206,21 +169,6 @@ struct dpu_hw_intr_ops {
 			struct dpu_hw_intr *intr,
 			int irq_idx,
 			bool clear);
-
-	/**
-	 * get_valid_interrupts - Gets a mask of all valid interrupt sources
-	 *                        within DPU. These are actually status bits
-	 *                        within interrupt registers that specify the
-	 *                        source of the interrupt in IRQs. For example,
-	 *                        valid interrupt sources can be MDP, DSI,
-	 *                        HDMI etc.
-	 * @intr:	HW interrupt handle
-	 * @mask:	Returning the interrupt source MASK
-	 * @return:	0 for success, otherwise failure
-	 */
-	int (*get_valid_interrupts)(
-			struct dpu_hw_intr *intr,
-			uint32_t *mask);
 };
 
 /**

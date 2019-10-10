@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * cros_ec_sensors_core - Common function for Chrome OS EC sensor driver.
  *
  * Copyright (C) 2016 Google, Inc
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/delay.h>
@@ -22,10 +14,10 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/kernel.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/sysfs.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 
 static char *cros_ec_loc[] = {
@@ -33,6 +25,62 @@ static char *cros_ec_loc[] = {
 	[MOTIONSENSE_LOC_LID] = "lid",
 	[MOTIONSENSE_LOC_MAX] = "unknown",
 };
+
+static int cros_ec_get_host_cmd_version_mask(struct cros_ec_device *ec_dev,
+					     u16 cmd_offset, u16 cmd, u32 *mask)
+{
+	int ret;
+	struct {
+		struct cros_ec_command msg;
+		union {
+			struct ec_params_get_cmd_versions params;
+			struct ec_response_get_cmd_versions resp;
+		};
+	} __packed buf = {
+		.msg = {
+			.command = EC_CMD_GET_CMD_VERSIONS + cmd_offset,
+			.insize = sizeof(struct ec_response_get_cmd_versions),
+			.outsize = sizeof(struct ec_params_get_cmd_versions)
+			},
+		.params = {.cmd = cmd}
+	};
+
+	ret = cros_ec_cmd_xfer_status(ec_dev, &buf.msg);
+	if (ret >= 0)
+		*mask = buf.resp.version_mask;
+	return ret;
+}
+
+static void get_default_min_max_freq(enum motionsensor_type type,
+				     u32 *min_freq,
+				     u32 *max_freq)
+{
+	switch (type) {
+	case MOTIONSENSE_TYPE_ACCEL:
+	case MOTIONSENSE_TYPE_GYRO:
+		*min_freq = 12500;
+		*max_freq = 100000;
+		break;
+	case MOTIONSENSE_TYPE_MAG:
+		*min_freq = 5000;
+		*max_freq = 25000;
+		break;
+	case MOTIONSENSE_TYPE_PROX:
+	case MOTIONSENSE_TYPE_LIGHT:
+		*min_freq = 100;
+		*max_freq = 50000;
+		break;
+	case MOTIONSENSE_TYPE_BARO:
+		*min_freq = 250;
+		*max_freq = 20000;
+		break;
+	case MOTIONSENSE_TYPE_ACTIVITY:
+	default:
+		*min_freq = 0;
+		*max_freq = 0;
+		break;
+	}
+}
 
 int cros_ec_sensors_core_init(struct platform_device *pdev,
 			      struct iio_dev *indio_dev,
@@ -42,6 +90,8 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 	struct cros_ec_sensors_core_state *state = iio_priv(indio_dev);
 	struct cros_ec_dev *ec = dev_get_drvdata(pdev->dev.parent);
 	struct cros_ec_sensor_platform *sensor_platform = dev_get_platdata(dev);
+	u32 ver_mask;
+	int ret, i;
 
 	platform_set_drvdata(pdev, indio_dev);
 
@@ -56,8 +106,15 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 
 	mutex_init(&state->cmd_lock);
 
+	ret = cros_ec_get_host_cmd_version_mask(state->ec,
+						ec->cmd_offset,
+						EC_CMD_MOTION_SENSE_CMD,
+						&ver_mask);
+	if (ret < 0)
+		return ret;
+
 	/* Set up the host command structure. */
-	state->msg->version = 2;
+	state->msg->version = fls(ver_mask) - 1;
 	state->msg->command = EC_CMD_MOTION_SENSE_CMD + ec->cmd_offset;
 	state->msg->outsize = sizeof(struct ec_params_motion_sense);
 
@@ -69,12 +126,32 @@ int cros_ec_sensors_core_init(struct platform_device *pdev,
 
 		state->param.cmd = MOTIONSENSE_CMD_INFO;
 		state->param.info.sensor_num = sensor_platform->sensor_num;
-		if (cros_ec_motion_send_host_cmd(state, 0)) {
+		ret = cros_ec_motion_send_host_cmd(state, 0);
+		if (ret) {
 			dev_warn(dev, "Can not access sensor info\n");
-			return -EIO;
+			return ret;
 		}
 		state->type = state->resp->info.type;
 		state->loc = state->resp->info.location;
+
+		/* Set sign vector, only used for backward compatibility. */
+		memset(state->sign, 1, CROS_EC_SENSOR_MAX_AXIS);
+
+		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
+			state->calib[i].scale = MOTION_SENSE_DEFAULT_SCALE;
+
+		/* 0 is a correct value used to stop the device */
+		state->frequencies[0] = 0;
+		if (state->msg->version < 3) {
+			get_default_min_max_freq(state->resp->info.type,
+						 &state->frequencies[1],
+						 &state->frequencies[2]);
+		} else {
+			state->frequencies[1] =
+			    state->resp->info_3.min_frequency;
+			state->frequencies[2] =
+			    state->resp->info_3.max_frequency;
+		}
 	}
 
 	return 0;
@@ -95,7 +172,7 @@ int cros_ec_motion_send_host_cmd(struct cros_ec_sensors_core_state *state,
 
 	ret = cros_ec_cmd_xfer_status(state->ec, state->msg);
 	if (ret < 0)
-		return -EIO;
+		return ret;
 
 	if (ret &&
 	    state->resp != (struct ec_response_motion_sense *)state->msg->data)
@@ -127,11 +204,20 @@ static ssize_t cros_ec_sensors_calibrate(struct iio_dev *indio_dev,
 	} else {
 		/* Save values */
 		for (i = CROS_EC_SENSOR_X; i < CROS_EC_SENSOR_MAX_AXIS; i++)
-			st->calib[i] = st->resp->perform_calib.offset[i];
+			st->calib[i].offset = st->resp->perform_calib.offset[i];
 	}
 	mutex_unlock(&st->cmd_lock);
 
 	return ret ? ret : len;
+}
+
+static ssize_t cros_ec_sensors_id(struct iio_dev *indio_dev,
+				  uintptr_t private,
+				  const struct iio_chan_spec *chan, char *buf)
+{
+	struct cros_ec_sensors_core_state *st = iio_priv(indio_dev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", st->param.info.sensor_num);
 }
 
 static ssize_t cros_ec_sensors_loc(struct iio_dev *indio_dev,
@@ -148,6 +234,11 @@ const struct iio_chan_spec_ext_info cros_ec_sensors_ext_info[] = {
 		.name = "calibrate",
 		.shared = IIO_SHARED_BY_ALL,
 		.write = cros_ec_sensors_calibrate
+	},
+	{
+		.name = "id",
+		.shared = IIO_SHARED_BY_ALL,
+		.read = cros_ec_sensors_id
 	},
 	{
 		.name = "location",
@@ -263,12 +354,24 @@ static int cros_ec_sensors_read_data_unsafe(struct iio_dev *indio_dev,
 		if (ret < 0)
 			return ret;
 
+		*data *= st->sign[i];
 		data++;
 	}
 
 	return 0;
 }
 
+/**
+ * cros_ec_sensors_read_lpc() - read acceleration data from EC shared memory.
+ * @indio_dev: pointer to IIO device.
+ * @scan_mask: bitmap of the sensor indices to scan.
+ * @data: location to store data.
+ *
+ * Note: this is the safe function for reading the EC data. It guarantees
+ * that the data sampled was not modified by the EC while being read.
+ *
+ * Return: 0 on success, -errno on failure.
+ */
 int cros_ec_sensors_read_lpc(struct iio_dev *indio_dev,
 			     unsigned long scan_mask, s16 *data)
 {
@@ -380,7 +483,7 @@ int cros_ec_sensors_core_read(struct cros_ec_sensors_core_state *st,
 			  struct iio_chan_spec const *chan,
 			  int *val, int *val2, long mask)
 {
-	int ret = IIO_VAL_INT;
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_SAMP_FREQ:
@@ -388,22 +491,27 @@ int cros_ec_sensors_core_read(struct cros_ec_sensors_core_state *st,
 		st->param.ec_rate.data =
 			EC_MOTION_SENSE_NO_VALUE;
 
-		if (cros_ec_motion_send_host_cmd(st, 0))
-			ret = -EIO;
-		else
-			*val = st->resp->ec_rate.ret;
+		ret = cros_ec_motion_send_host_cmd(st, 0);
+		if (ret)
+			break;
+
+		*val = st->resp->ec_rate.ret;
+		ret = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_FREQUENCY:
 		st->param.cmd = MOTIONSENSE_CMD_SENSOR_ODR;
 		st->param.sensor_odr.data =
 			EC_MOTION_SENSE_NO_VALUE;
 
-		if (cros_ec_motion_send_host_cmd(st, 0))
-			ret = -EIO;
-		else
-			*val = st->resp->sensor_odr.ret;
+		ret = cros_ec_motion_send_host_cmd(st, 0);
+		if (ret)
+			break;
+
+		*val = st->resp->sensor_odr.ret;
+		ret = IIO_VAL_INT;
 		break;
 	default:
+		ret = -EINVAL;
 		break;
 	}
 
@@ -411,11 +519,32 @@ int cros_ec_sensors_core_read(struct cros_ec_sensors_core_state *st,
 }
 EXPORT_SYMBOL_GPL(cros_ec_sensors_core_read);
 
+int cros_ec_sensors_core_read_avail(struct iio_dev *indio_dev,
+				    struct iio_chan_spec const *chan,
+				    const int **vals,
+				    int *type,
+				    int *length,
+				    long mask)
+{
+	struct cros_ec_sensors_core_state *state = iio_priv(indio_dev);
+
+	switch (mask) {
+	case IIO_CHAN_INFO_SAMP_FREQ:
+		*length = ARRAY_SIZE(state->frequencies);
+		*vals = (const int *)&state->frequencies;
+		*type = IIO_VAL_INT;
+		return IIO_AVAIL_LIST;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(cros_ec_sensors_core_read_avail);
+
 int cros_ec_sensors_core_write(struct cros_ec_sensors_core_state *st,
 			       struct iio_chan_spec const *chan,
 			       int val, int val2, long mask)
 {
-	int ret = 0;
+	int ret;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_FREQUENCY:
@@ -425,17 +554,16 @@ int cros_ec_sensors_core_write(struct cros_ec_sensors_core_state *st,
 		/* Always roundup, so caller gets at least what it asks for. */
 		st->param.sensor_odr.roundup = 1;
 
-		if (cros_ec_motion_send_host_cmd(st, 0))
-			ret = -EIO;
+		ret = cros_ec_motion_send_host_cmd(st, 0);
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		st->param.cmd = MOTIONSENSE_CMD_EC_RATE;
 		st->param.ec_rate.data = val;
 
-		if (cros_ec_motion_send_host_cmd(st, 0))
-			ret = -EIO;
-		else
-			st->curr_sampl_freq = val;
+		ret = cros_ec_motion_send_host_cmd(st, 0);
+		if (ret)
+			break;
+		st->curr_sampl_freq = val;
 		break;
 	default:
 		ret = -EINVAL;

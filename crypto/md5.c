@@ -228,9 +228,10 @@ static struct shash_alg alg = {
 	.descsize	=	sizeof(struct md5_state),
 	.statesize	=	sizeof(struct md5_state),
 	.base		=	{
-		.cra_name	=	"md5",
-		.cra_blocksize	=	MD5_HMAC_BLOCK_SIZE,
-		.cra_module	=	THIS_MODULE,
+		.cra_name	 =	"md5",
+		.cra_driver_name =	"md5-generic",
+		.cra_blocksize	 =	MD5_HMAC_BLOCK_SIZE,
+		.cra_module	 =	THIS_MODULE,
 	}
 };
 
@@ -244,7 +245,7 @@ static void __exit md5_mod_fini(void)
 	crypto_unregister_shash(&alg);
 }
 
-module_init(md5_mod_init);
+subsys_initcall(md5_mod_init);
 module_exit(md5_mod_fini);
 
 MODULE_LICENSE("GPL");

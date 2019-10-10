@@ -747,7 +747,6 @@ static int init_shared_mem(struct s2io_nic *nic)
 				return -ENOMEM;
 			}
 			mem_allocated += size;
-			memset(tmp_v_addr, 0, size);
 
 			size = sizeof(struct rxd_info) *
 				rxd_count[nic->rxd_mode];
@@ -4152,8 +4151,6 @@ static netdev_tx_t s2io_xmit(struct sk_buff *skb, struct net_device *dev)
 		val64 |= TX_FIFO_SPECIAL_FUNC;
 
 	writeq(val64, &tx_fifo->List_Control);
-
-	mmiowb();
 
 	put_off++;
 	if (put_off == fifo->tx_curr_put_info.fifo_len + 1)

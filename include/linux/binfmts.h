@@ -15,7 +15,6 @@ struct filename;
  * This structure is used to hold the arguments that are used when loading binaries.
  */
 struct linux_binprm {
-	char buf[BINPRM_BUF_SIZE];
 #ifdef CONFIG_MMU
 	struct vm_area_struct *vma;
 	unsigned long vma_pages;
@@ -64,6 +63,8 @@ struct linux_binprm {
 	unsigned long loader, exec;
 
 	struct rlimit rlim_stack; /* Saved RLIMIT_STACK used during exec. */
+
+	char buf[BINPRM_BUF_SIZE];
 } __randomize_layout;
 
 #define BINPRM_FLAGS_ENFORCE_NONDUMP_BIT 0

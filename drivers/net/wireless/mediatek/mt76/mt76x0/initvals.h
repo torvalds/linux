@@ -1,17 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * (c) Copyright 2002-2010, Ralink Technology, Inc.
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
  * Copyright (C) 2018 Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef __MT76X0U_INITVALS_H
@@ -46,7 +38,7 @@ static const struct mt76_reg_pair common_mac_reg_table[] = {
 	{ MT_MM20_PROT_CFG,		0x01742004 },
 	{ MT_MM40_PROT_CFG,		0x03f42084 },
 	{ MT_TXOP_CTRL_CFG,		0x0000583f },
-	{ MT_TX_RTS_CFG,		0x00092b20 },
+	{ MT_TX_RTS_CFG,		0x00ffff20 },
 	{ MT_EXP_ACK_TIME,		0x002400ca },
 	{ MT_TXOP_HLDR_ET,		0x00000002 },
 	{ MT_XIFS_TIME_CFG,		0x33a41010 },

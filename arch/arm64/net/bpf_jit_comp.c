@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * BPF JIT compiler for ARM64
  *
  * Copyright (C) 2014-2016 Zi Shen Lim <zlim.lnx@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #define pr_fmt(fmt) "bpf_jit: " fmt
@@ -365,7 +354,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	const bool is64 = BPF_CLASS(code) == BPF_ALU64 ||
 			  BPF_CLASS(code) == BPF_JMP;
 	const bool isdw = BPF_SIZE(code) == BPF_DW;
-	u8 jmp_cond;
+	u8 jmp_cond, reg;
 	s32 jmp_offset;
 
 #define check_imm(bits, imm) do {				\
@@ -420,8 +409,7 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 			break;
 		case BPF_MOD:
 			emit(A64_UDIV(is64, tmp, dst, src), ctx);
-			emit(A64_MUL(is64, tmp, tmp, src), ctx);
-			emit(A64_SUB(is64, dst, dst, tmp), ctx);
+			emit(A64_MSUB(is64, dst, dst, tmp, src), ctx);
 			break;
 		}
 		break;
@@ -527,8 +515,7 @@ emit_bswap_uxt:
 	case BPF_ALU64 | BPF_MOD | BPF_K:
 		emit_a64_mov_i(is64, tmp2, imm, ctx);
 		emit(A64_UDIV(is64, tmp, dst, tmp2), ctx);
-		emit(A64_MUL(is64, tmp, tmp, tmp2), ctx);
-		emit(A64_SUB(is64, dst, dst, tmp), ctx);
+		emit(A64_MSUB(is64, dst, dst, tmp, tmp2), ctx);
 		break;
 	case BPF_ALU | BPF_LSH | BPF_K:
 	case BPF_ALU64 | BPF_LSH | BPF_K:
@@ -756,19 +743,28 @@ emit_cond_jmp:
 			break;
 		}
 		break;
+
 	/* STX XADD: lock *(u32 *)(dst + off) += src */
 	case BPF_STX | BPF_XADD | BPF_W:
 	/* STX XADD: lock *(u64 *)(dst + off) += src */
 	case BPF_STX | BPF_XADD | BPF_DW:
-		emit_a64_mov_i(1, tmp, off, ctx);
-		emit(A64_ADD(1, tmp, tmp, dst), ctx);
-		emit(A64_PRFM(tmp, PST, L1, STRM), ctx);
-		emit(A64_LDXR(isdw, tmp2, tmp), ctx);
-		emit(A64_ADD(isdw, tmp2, tmp2, src), ctx);
-		emit(A64_STXR(isdw, tmp2, tmp, tmp3), ctx);
-		jmp_offset = -3;
-		check_imm19(jmp_offset);
-		emit(A64_CBNZ(0, tmp3, jmp_offset), ctx);
+		if (!off) {
+			reg = dst;
+		} else {
+			emit_a64_mov_i(1, tmp, off, ctx);
+			emit(A64_ADD(1, tmp, tmp, dst), ctx);
+			reg = tmp;
+		}
+		if (cpus_have_cap(ARM64_HAS_LSE_ATOMICS)) {
+			emit(A64_STADD(isdw, reg, src), ctx);
+		} else {
+			emit(A64_LDXR(isdw, tmp2, reg), ctx);
+			emit(A64_ADD(isdw, tmp2, tmp2, src), ctx);
+			emit(A64_STXR(isdw, tmp2, reg, tmp3), ctx);
+			jmp_offset = -3;
+			check_imm19(jmp_offset);
+			emit(A64_CBNZ(0, tmp3, jmp_offset), ctx);
+		}
 		break;
 
 	default:
@@ -972,7 +968,7 @@ void *bpf_jit_alloc_exec(unsigned long size)
 {
 	return __vmalloc_node_range(size, PAGE_SIZE, BPF_JIT_REGION_START,
 				    BPF_JIT_REGION_END, GFP_KERNEL,
-				    PAGE_KERNEL_EXEC, 0, NUMA_NO_NODE,
+				    PAGE_KERNEL, 0, NUMA_NO_NODE,
 				    __builtin_return_address(0));
 }
 

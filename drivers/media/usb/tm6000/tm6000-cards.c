@@ -1328,7 +1328,7 @@ put_device:
 
 /*
  * tm6000_usb_disconnect()
- * called when the device gets diconencted
+ * called when the device gets disconnected
  * video device will be unregistered on v4l2_close in case it is still open
  */
 static void tm6000_usb_disconnect(struct usb_interface *interface)

@@ -26,28 +26,6 @@ config DEVKMEM
 	  kind of kernel debugging operations.
 	  When in doubt, say "N".
 
-config SGI_SNSC
-	bool "SGI Altix system controller communication support"
-	depends on (IA64_SGI_SN2 || IA64_GENERIC)
-	help
-	  If you have an SGI Altix and you want to enable system
-	  controller communication from user space (you want this!),
-	  say Y.  Otherwise, say N.
-
-config SGI_TIOCX
-       bool "SGI TIO CX driver support"
-       depends on (IA64_SGI_SN2 || IA64_GENERIC)
-       help
-         If you have an SGI Altix and you have fpga devices attached
-         to your TIO, say Y here, otherwise say N.
-
-config SGI_MBCS
-       tristate "SGI FPGA Core Services driver support"
-       depends on SGI_TIOCX
-       help
-         If you have an SGI Altix with an attached SABrick
-         say Y or M here, otherwise say N.
-
 source "drivers/tty/serial/Kconfig"
 source "drivers/tty/serdev/Kconfig"
 
@@ -244,26 +222,23 @@ source "drivers/char/hw_random/Kconfig"
 
 config NVRAM
 	tristate "/dev/nvram support"
-	depends on ATARI || X86 || GENERIC_NVRAM
+	depends on X86 || HAVE_ARCH_NVRAM_OPS
+	default M68K || PPC
 	---help---
 	  If you say Y here and create a character special file /dev/nvram
 	  with major number 10 and minor number 144 using mknod ("man mknod"),
-	  you get read and write access to the extra bytes of non-volatile
-	  memory in the real time clock (RTC), which is contained in every PC
-	  and most Ataris.  The actual number of bytes varies, depending on the
-	  nvram in the system, but is usually 114 (128-14 for the RTC).
+	  you get read and write access to the non-volatile memory.
 
-	  This memory is conventionally called "CMOS RAM" on PCs and "NVRAM"
-	  on Ataris. /dev/nvram may be used to view settings there, or to
-	  change them (with some utility). It could also be used to frequently
+	  /dev/nvram may be used to view settings in NVRAM or to change them
+	  (with some utility). It could also be used to frequently
 	  save a few bits of very important data that may not be lost over
 	  power-off and for which writing to disk is too insecure. Note
 	  however that most NVRAM space in a PC belongs to the BIOS and you
 	  should NEVER idly tamper with it. See Ralf Brown's interrupt list
 	  for a guide to the use of CMOS bytes by your BIOS.
 
-	  On Atari machines, /dev/nvram is always configured and does not need
-	  to be selected.
+	  This memory is conventionally called "NVRAM" on PowerPC machines,
+	  "CMOS RAM" on PCs, "NVRAM" on Ataris and "PRAM" on Macintoshes.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvram.
@@ -294,7 +269,7 @@ config RTC
 	  and set the RTC in an SMP compatible fashion.
 
 	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
 	  for details.
 
 	  To compile this driver as a module, choose M here: the
@@ -316,7 +291,7 @@ config JS_RTC
 	  /dev/rtc.
 
 	  If you think you have a use for such a device (such as periodic data
-	  sampling), then say Y here, and read <file:Documentation/rtc.txt>
+	  sampling), then say Y here, and read <file:Documentation/admin-guide/rtc.rst>
 	  for details.
 
 	  To compile this driver as a module, choose M here: the
@@ -351,7 +326,7 @@ config XILINX_HWICAP
 
 config R3964
 	tristate "Siemens R3964 line discipline"
-	depends on TTY
+	depends on TTY && BROKEN
 	---help---
 	  This driver allows synchronous communication with devices using the
 	  Siemens R3964 packet protocol. Unless you are dealing with special
@@ -385,7 +360,7 @@ config SONYPI
 	  Device which can be found in many (all ?) Sony Vaio laptops.
 
 	  If you have one of those laptops, read
-	  <file:Documentation/laptops/sonypi.txt>, and say Y or M here.
+	  <file:Documentation/admin-guide/laptops/sonypi.rst>, and say Y or M here.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sonypi.
@@ -576,3 +551,12 @@ config RANDOM_TRUST_CPU
 	has not installed a hidden back door to compromise the CPU's
 	random number generation facilities. This can also be configured
 	at boot with "random.trust_cpu=on/off".
+
+config RANDOM_TRUST_BOOTLOADER
+	bool "Trust the bootloader to initialize Linux's CRNG"
+	help
+	Some bootloaders can provide entropy to increase the kernel's initial
+	device randomness. Say Y here to assume the entropy provided by the
+	booloader is trustworthy so it will be added to the kernel's entropy
+	pool. Otherwise, say N here so it will be regarded as device input that
+	only mixes the entropy pool.

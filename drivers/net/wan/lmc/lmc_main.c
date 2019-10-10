@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
  /*
   * Copyright (c) 1997-2000 LAN Media Corporation (LMC)
   * All rights reserved.  www.lanmedia.com
@@ -13,9 +14,6 @@
   * David Boggs
   * Ron Crane
   * Alan Cox
-  *
-  * This software may be used and distributed according to the terms
-  * of the GNU General Public License version 2, incorporated herein by reference.
   *
   * Driver for the LanMedia LMC5200, LMC5245, LMC1000, LMC1200 cards.
   *
@@ -34,7 +32,6 @@
   * we still have link, and that the timing source is what we expected
   * it to be.  If link is lost, the interface is marked down, and
   * we no longer can transmit.
-  *
   */
 
 #include <linux/kernel.h>
@@ -1118,7 +1115,7 @@ static void lmc_running_reset (struct net_device *dev) /*fold00*/
     sc->lmc_cmdmode |= (TULIP_CMD_TXRUN | TULIP_CMD_RXRUN);
     LMC_CSR_WRITE (sc, csr_command, sc->lmc_cmdmode);
 
-    lmc_trace(dev, "lmc_runnin_reset_out");
+    lmc_trace(dev, "lmc_running_reset_out");
 }
 
 

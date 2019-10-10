@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PINCTRL_OWL
 	bool "Actions Semi OWL pinctrl driver"
 	depends on (ARCH_ACTIONS || COMPILE_TEST) && OF

@@ -10,8 +10,8 @@
 #ifndef _UAPI_ASM_SOCKET_H
 #define _UAPI_ASM_SOCKET_H
 
+#include <linux/posix_types.h>
 #include <asm/sockios.h>
-#include <asm/bitsperlong.h>
 
 /*
  * For setsockopt(2)
@@ -132,6 +132,8 @@
 
 #define SO_RCVTIMEO_NEW         66
 #define SO_SNDTIMEO_NEW         67
+
+#define SO_DETACH_REUSEPORT_BPF 68
 
 #if !defined(__KERNEL__)
 

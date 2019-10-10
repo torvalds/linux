@@ -917,10 +917,11 @@ static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 		/* Configure igu sb in CAU which were marked valid */
 		qed_init_cau_sb_entry(p_hwfn, &sb_entry,
 				      p_hwfn->rel_pf_id, vf->abs_vf_id, 1);
+
 		qed_dmae_host2grc(p_hwfn, p_ptt,
 				  (u64)(uintptr_t)&sb_entry,
 				  CAU_REG_SB_VAR_MEMORY +
-				  p_block->igu_sb_id * sizeof(u64), 2, 0);
+				  p_block->igu_sb_id * sizeof(u64), 2, NULL);
 	}
 
 	vf->num_sbs = (u8) num_rx_queues;
@@ -1591,7 +1592,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 			p_vfdev->eth_fp_hsi_minor = ETH_HSI_VER_NO_PKT_LEN_TUNN;
 		} else {
 			DP_INFO(p_hwfn,
-				"VF[%d] needs fastpath HSI %02x.%02x, which is incompatible with loaded FW's faspath HSI %02x.%02x\n",
+				"VF[%d] needs fastpath HSI %02x.%02x, which is incompatible with loaded FW's fastpath HSI %02x.%02x\n",
 				vf->abs_vf_id,
 				req->vfdev_info.eth_fp_hsi_major,
 				req->vfdev_info.eth_fp_hsi_minor,

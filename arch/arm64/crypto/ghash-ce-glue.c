@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Accelerated GHASH implementation with ARMv8 PMULL instructions.
  *
  * Copyright (C) 2014 - 2018 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <asm/neon.h>
@@ -17,6 +14,7 @@
 #include <crypto/gf128mul.h>
 #include <crypto/internal/aead.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
 #include <linux/cpufeature.h>
@@ -72,8 +70,6 @@ asmlinkage void pmull_gcm_decrypt(int blocks, u64 dg[], u8 dst[],
 asmlinkage void pmull_gcm_encrypt_block(u8 dst[], u8 const src[],
 					u32 const rk[], int rounds);
 
-asmlinkage void __aes_arm64_encrypt(u32 *rk, u8 *out, const u8 *in, int rounds);
-
 static int ghash_init(struct shash_desc *desc)
 {
 	struct ghash_desc_ctx *ctx = shash_desc_ctx(desc);
@@ -89,7 +85,7 @@ static void ghash_do_update(int blocks, u64 dg[], const char *src,
 						struct ghash_key const *k,
 						const char *head))
 {
-	if (likely(may_use_simd())) {
+	if (likely(crypto_simd_usable())) {
 		kernel_neon_begin();
 		simd_update(blocks, dg, src, key, head);
 		kernel_neon_end();
@@ -311,14 +307,13 @@ static int gcm_setkey(struct crypto_aead *tfm, const u8 *inkey,
 	u8 key[GHASH_BLOCK_SIZE];
 	int ret;
 
-	ret = crypto_aes_expand_key(&ctx->aes_key, inkey, keylen);
+	ret = aes_expandkey(&ctx->aes_key, inkey, keylen);
 	if (ret) {
 		tfm->base.crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
 	}
 
-	__aes_arm64_encrypt(ctx->aes_key.key_enc, key, (u8[AES_BLOCK_SIZE]){},
-			    num_rounds(&ctx->aes_key));
+	aes_encrypt(&ctx->aes_key, key, (u8[AES_BLOCK_SIZE]){});
 
 	return __ghash_setkey(&ctx->ghash_key, key, sizeof(be128));
 }
@@ -441,7 +436,7 @@ static int gcm_encrypt(struct aead_request *req)
 
 	err = skcipher_walk_aead_encrypt(&walk, req, false);
 
-	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+	if (likely(crypto_simd_usable() && walk.total >= 2 * AES_BLOCK_SIZE)) {
 		u32 const *rk = NULL;
 
 		kernel_neon_begin();
@@ -469,25 +464,26 @@ static int gcm_encrypt(struct aead_request *req)
 			rk = ctx->aes_key.key_enc;
 		} while (walk.nbytes >= 2 * AES_BLOCK_SIZE);
 	} else {
-		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv, nrounds);
+		aes_encrypt(&ctx->aes_key, tag, iv);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
 		while (walk.nbytes >= (2 * AES_BLOCK_SIZE)) {
-			int blocks = walk.nbytes / AES_BLOCK_SIZE;
+			const int blocks =
+				walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
 			u8 *dst = walk.dst.virt.addr;
 			u8 *src = walk.src.virt.addr;
+			int remaining = blocks;
 
 			do {
-				__aes_arm64_encrypt(ctx->aes_key.key_enc,
-						    ks, iv, nrounds);
+				aes_encrypt(&ctx->aes_key, ks, iv);
 				crypto_xor_cpy(dst, src, ks, AES_BLOCK_SIZE);
 				crypto_inc(iv, AES_BLOCK_SIZE);
 
 				dst += AES_BLOCK_SIZE;
 				src += AES_BLOCK_SIZE;
-			} while (--blocks > 0);
+			} while (--remaining > 0);
 
-			ghash_do_update(walk.nbytes / AES_BLOCK_SIZE, dg,
+			ghash_do_update(blocks, dg,
 					walk.dst.virt.addr, &ctx->ghash_key,
 					NULL, pmull_ghash_update_p64);
 
@@ -495,13 +491,10 @@ static int gcm_encrypt(struct aead_request *req)
 						 walk.nbytes % (2 * AES_BLOCK_SIZE));
 		}
 		if (walk.nbytes) {
-			__aes_arm64_encrypt(ctx->aes_key.key_enc, ks, iv,
-					    nrounds);
+			aes_encrypt(&ctx->aes_key, ks, iv);
 			if (walk.nbytes > AES_BLOCK_SIZE) {
 				crypto_inc(iv, AES_BLOCK_SIZE);
-				__aes_arm64_encrypt(ctx->aes_key.key_enc,
-					            ks + AES_BLOCK_SIZE, iv,
-						    nrounds);
+				aes_encrypt(&ctx->aes_key, ks + AES_BLOCK_SIZE, iv);
 			}
 		}
 	}
@@ -563,7 +556,7 @@ static int gcm_decrypt(struct aead_request *req)
 
 	err = skcipher_walk_aead_decrypt(&walk, req, false);
 
-	if (likely(may_use_simd() && walk.total >= 2 * AES_BLOCK_SIZE)) {
+	if (likely(crypto_simd_usable() && walk.total >= 2 * AES_BLOCK_SIZE)) {
 		u32 const *rk = NULL;
 
 		kernel_neon_begin();
@@ -605,11 +598,11 @@ static int gcm_decrypt(struct aead_request *req)
 			rk = ctx->aes_key.key_enc;
 		} while (walk.nbytes >= 2 * AES_BLOCK_SIZE);
 	} else {
-		__aes_arm64_encrypt(ctx->aes_key.key_enc, tag, iv, nrounds);
+		aes_encrypt(&ctx->aes_key, tag, iv);
 		put_unaligned_be32(2, iv + GCM_IV_SIZE);
 
 		while (walk.nbytes >= (2 * AES_BLOCK_SIZE)) {
-			int blocks = walk.nbytes / AES_BLOCK_SIZE;
+			int blocks = walk.nbytes / (2 * AES_BLOCK_SIZE) * 2;
 			u8 *dst = walk.dst.virt.addr;
 			u8 *src = walk.src.virt.addr;
 
@@ -618,8 +611,7 @@ static int gcm_decrypt(struct aead_request *req)
 					pmull_ghash_update_p64);
 
 			do {
-				__aes_arm64_encrypt(ctx->aes_key.key_enc,
-						    buf, iv, nrounds);
+				aes_encrypt(&ctx->aes_key, buf, iv);
 				crypto_xor_cpy(dst, src, buf, AES_BLOCK_SIZE);
 				crypto_inc(iv, AES_BLOCK_SIZE);
 
@@ -637,11 +629,9 @@ static int gcm_decrypt(struct aead_request *req)
 				memcpy(iv2, iv, AES_BLOCK_SIZE);
 				crypto_inc(iv2, AES_BLOCK_SIZE);
 
-				__aes_arm64_encrypt(ctx->aes_key.key_enc, iv2,
-						    iv2, nrounds);
+				aes_encrypt(&ctx->aes_key, iv2, iv2);
 			}
-			__aes_arm64_encrypt(ctx->aes_key.key_enc, iv, iv,
-					    nrounds);
+			aes_encrypt(&ctx->aes_key, iv, iv);
 		}
 	}
 
@@ -704,10 +694,10 @@ static int __init ghash_ce_mod_init(void)
 {
 	int ret;
 
-	if (!(elf_hwcap & HWCAP_ASIMD))
+	if (!cpu_have_named_feature(ASIMD))
 		return -ENODEV;
 
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		ret = crypto_register_shashes(ghash_alg,
 					      ARRAY_SIZE(ghash_alg));
 	else
@@ -717,7 +707,7 @@ static int __init ghash_ce_mod_init(void)
 	if (ret)
 		return ret;
 
-	if (elf_hwcap & HWCAP_PMULL) {
+	if (cpu_have_named_feature(PMULL)) {
 		ret = crypto_register_aead(&gcm_aes_alg);
 		if (ret)
 			crypto_unregister_shashes(ghash_alg,
@@ -728,7 +718,7 @@ static int __init ghash_ce_mod_init(void)
 
 static void __exit ghash_ce_mod_exit(void)
 {
-	if (elf_hwcap & HWCAP_PMULL)
+	if (cpu_have_named_feature(PMULL))
 		crypto_unregister_shashes(ghash_alg, ARRAY_SIZE(ghash_alg));
 	else
 		crypto_unregister_shash(ghash_alg);

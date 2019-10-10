@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005 - 2016 Broadcom
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation.  The full GNU General
- * Public License is included in this distribution in the file called COPYING.
  *
  * Contact Information:
  * linux-drivers@emulex.com
@@ -1018,7 +1014,7 @@ static u32 be_xmit_enqueue(struct be_adapter *adapter, struct be_tx_obj *txo,
 	}
 
 	for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
-		const struct skb_frag_struct *frag = &skb_shinfo(skb)->frags[i];
+		const skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
 		len = skb_frag_size(frag);
 
 		busaddr = skb_frag_dma_map(dev, frag, 0, len, DMA_TO_DEVICE);
@@ -1376,7 +1372,7 @@ static netdev_tx_t be_xmit(struct sk_buff *skb, struct net_device *netdev)
 	u16 q_idx = skb_get_queue_mapping(skb);
 	struct be_tx_obj *txo = &adapter->tx_obj[q_idx];
 	struct be_wrb_params wrb_params = { 0 };
-	bool flush = !skb->xmit_more;
+	bool flush = !netdev_xmit_more();
 	u16 wrb_cnt;
 
 	skb = be_xmit_workarounds(adapter, skb, &wrb_params);
@@ -2151,7 +2147,7 @@ static int be_get_new_eqd(struct be_eq_obj *eqo)
 	int i;
 
 	aic = &adapter->aic_obj[eqo->idx];
-	if (!aic->enable) {
+	if (!adapter->aic_enabled) {
 		if (aic->jiffies)
 			aic->jiffies = 0;
 		eqd = aic->et_eqd;
@@ -2208,7 +2204,7 @@ static u32 be_get_eq_delay_mult_enc(struct be_eq_obj *eqo)
 	int eqd;
 	u32 mult_enc;
 
-	if (!aic->enable)
+	if (!adapter->aic_enabled)
 		return 0;
 
 	if (jiffies_to_msecs(now - aic->jiffies) < 1)
@@ -2350,8 +2346,8 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 		memcpy(skb->data, start, hdr_len);
 		skb_shinfo(skb)->nr_frags = 1;
 		skb_frag_set_page(skb, 0, page_info->page);
-		skb_shinfo(skb)->frags[0].page_offset =
-					page_info->page_offset + hdr_len;
+		skb_frag_off_set(&skb_shinfo(skb)->frags[0],
+				 page_info->page_offset + hdr_len);
 		skb_frag_size_set(&skb_shinfo(skb)->frags[0],
 				  curr_frag_len - hdr_len);
 		skb->data_len = curr_frag_len - hdr_len;
@@ -2376,8 +2372,8 @@ static void skb_fill_rx_data(struct be_rx_obj *rxo, struct sk_buff *skb,
 			/* Fresh page */
 			j++;
 			skb_frag_set_page(skb, j, page_info->page);
-			skb_shinfo(skb)->frags[j].page_offset =
-							page_info->page_offset;
+			skb_frag_off_set(&skb_shinfo(skb)->frags[j],
+					 page_info->page_offset);
 			skb_frag_size_set(&skb_shinfo(skb)->frags[j], 0);
 			skb_shinfo(skb)->nr_frags++;
 		} else {
@@ -2458,8 +2454,8 @@ static void be_rx_compl_process_gro(struct be_rx_obj *rxo,
 			/* First frag or Fresh page */
 			j++;
 			skb_frag_set_page(skb, j, page_info->page);
-			skb_shinfo(skb)->frags[j].page_offset =
-							page_info->page_offset;
+			skb_frag_off_set(&skb_shinfo(skb)->frags[j],
+					 page_info->page_offset);
 			skb_frag_size_set(&skb_shinfo(skb)->frags[j], 0);
 		} else {
 			put_page(page_info->page);
@@ -2963,6 +2959,8 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 				    max(adapter->cfg_num_rx_irqs,
 					adapter->cfg_num_tx_irqs));
 
+	adapter->aic_enabled = true;
+
 	for_all_evt_queues(adapter, eqo, i) {
 		int numa_node = dev_to_node(&adapter->pdev->dev);
 
@@ -2970,7 +2968,6 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 		eqo->adapter = adapter;
 		eqo->idx = i;
 		aic->max_eqd = BE_MAX_EQD;
-		aic->enable = true;
 
 		eq = &eqo->q;
 		rc = be_queue_alloc(adapter, eq, EVNT_Q_LEN,
@@ -4701,8 +4698,17 @@ int be_update_queues(struct be_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 	int status;
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
+		/* be_tx_timeout() must not run concurrently with this
+		 * function, synchronize with an already-running dev_watchdog
+		 */
+		netif_tx_lock_bh(netdev);
+		/* device cannot transmit now, avoid dev_watchdog timeouts */
+		netif_carrier_off(netdev);
+		netif_tx_unlock_bh(netdev);
+
 		be_close(netdev);
+	}
 
 	be_cancel_worker(adapter);
 
@@ -5625,9 +5631,7 @@ static void be_worker(struct work_struct *work)
 	 * mcc completions
 	 */
 	if (!netif_running(adapter->netdev)) {
-		local_bh_disable();
 		be_process_mcc(adapter);
-		local_bh_enable();
 		goto reschedule;
 	}
 

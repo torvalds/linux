@@ -83,7 +83,7 @@ do{\
 
 #define TXDESC_OFFSET TXDESC_SIZE
 
-enum TXDESC_SC{
+enum TXDESC_SC {
 	SC_DONT_CARE = 0x00,
 	SC_UPPER = 0x01,
 	SC_LOWER = 0x02,
@@ -487,7 +487,7 @@ s32 _rtw_init_xmit_priv(struct xmit_priv *pxmitpriv, struct adapter *padapter);
 void _rtw_free_xmit_priv (struct xmit_priv *pxmitpriv);
 
 
-void rtw_alloc_hwxmits(struct adapter *padapter);
+s32 rtw_alloc_hwxmits(struct adapter *padapter);
 void rtw_free_hwxmits(struct adapter *padapter);
 
 

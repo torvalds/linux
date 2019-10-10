@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * bpf_jit64.h: BPF JIT compiler for PPC64
  *
  * Copyright 2016 Naveen N. Rao <naveen.n.rao@linux.vnet.ibm.com>
  *		  IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2
- * of the License.
  */
 #ifndef _BPF_JIT64_H
 #define _BPF_JIT64_H
@@ -67,6 +63,26 @@ static const int b2p[] = {
 
 /* PPC NVR range -- update this if we ever use NVRs below r27 */
 #define BPF_PPC_NVR_MIN		27
+
+/*
+ * WARNING: These can use TMP_REG_2 if the offset is not at word boundary,
+ * so ensure that it isn't in use already.
+ */
+#define PPC_BPF_LL(r, base, i) do {					      \
+				if ((i) % 4) {				      \
+					PPC_LI(b2p[TMP_REG_2], (i));	      \
+					PPC_LDX(r, base, b2p[TMP_REG_2]);     \
+				} else					      \
+					PPC_LD(r, base, i);		      \
+				} while(0)
+#define PPC_BPF_STL(r, base, i) do {					      \
+				if ((i) % 4) {				      \
+					PPC_LI(b2p[TMP_REG_2], (i));	      \
+					PPC_STDX(r, base, b2p[TMP_REG_2]);    \
+				} else					      \
+					PPC_STD(r, base, i);		      \
+				} while(0)
+#define PPC_BPF_STLU(r, base, i) do { PPC_STDU(r, base, i); } while(0)
 
 #define SEEN_FUNC	0x1000 /* might call external helpers */
 #define SEEN_STACK	0x2000 /* uses BPF stack */

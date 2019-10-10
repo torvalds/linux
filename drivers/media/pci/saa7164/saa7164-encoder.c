@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the NXP SAA7164 PCIe bridge
  *
  *  Copyright (c) 2010-2015 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "saa7164.h"
@@ -501,16 +491,9 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strscpy(cap->card, saa7164_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-
-	cap->device_caps =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_TUNER;
-
-	cap->capabilities = cap->device_caps |
-		V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_DEVICE_CAPS;
-
+	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			    V4L2_CAP_TUNER | V4L2_CAP_VBI_CAPTURE |
+			    V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -520,7 +503,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void  *priv,
 	if (f->index != 0)
 		return -EINVAL;
 
-	strscpy(f->description, "MPEG", sizeof(f->description));
 	f->pixelformat = V4L2_PIX_FMT_MPEG;
 
 	return 0;
@@ -983,6 +965,8 @@ static struct video_device saa7164_mpeg_template = {
 	.ioctl_ops     = &mpeg_ioctl_ops,
 	.minor         = -1,
 	.tvnorms       = SAA7164_NORMS,
+	.device_caps   = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+			 V4L2_CAP_TUNER,
 };
 
 static struct video_device *saa7164_encoder_alloc(

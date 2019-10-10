@@ -3,6 +3,7 @@
 # Makefile for memory devices
 #
 
+obj-$(CONFIG_DDR)		+= jedec_ddr_data.o
 ifeq ($(CONFIG_DDR),y)
 obj-$(CONFIG_OF)		+= of_memory.o
 endif
@@ -28,6 +29,10 @@ ti-emif-sram-objs		:= ti-emif-pm.o ti-emif-sram-pm.o
 
 AFLAGS_ti-emif-sram-pm.o	:=-Wa,-march=armv7-a
 
-include drivers/memory/Makefile.asm-offsets
+$(obj)/ti-emif-sram-pm.o: $(obj)/ti-emif-asm-offsets.h
 
-drivers/memory/ti-emif-sram-pm.o: include/generated/ti-emif-asm-offsets.h
+$(obj)/ti-emif-asm-offsets.h: $(obj)/emif-asm-offsets.s FORCE
+	$(call filechk,offsets,__TI_EMIF_ASM_OFFSETS_H__)
+
+targets += emif-asm-offsets.s
+clean-files += ti-emif-asm-offsets.h

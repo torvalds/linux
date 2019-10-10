@@ -15,20 +15,34 @@
 #include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
+#include <linux/dmi.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
+#include <linux/suspend.h>
 #include <linux/uaccess.h>
 
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/msr.h>
+#include <asm/tsc.h>
 
 #include "intel_pmc_core.h"
 
-#define ICPU(model, data) \
-	{ X86_VENDOR_INTEL, 6, model, X86_FEATURE_MWAIT, (kernel_ulong_t)data }
-
 static struct pmc_dev pmc;
+
+/* PKGC MSRs are common across Intel Core SoCs */
+static const struct pmc_bit_map msr_map[] = {
+	{"Package C2",                  MSR_PKG_C2_RESIDENCY},
+	{"Package C3",                  MSR_PKG_C3_RESIDENCY},
+	{"Package C6",                  MSR_PKG_C6_RESIDENCY},
+	{"Package C7",                  MSR_PKG_C7_RESIDENCY},
+	{"Package C8",                  MSR_PKG_C8_RESIDENCY},
+	{"Package C9",                  MSR_PKG_C9_RESIDENCY},
+	{"Package C10",                 MSR_PKG_C10_RESIDENCY},
+	{}
+};
 
 static const struct pmc_bit_map spt_pll_map[] = {
 	{"MIPI PLL",			SPT_PMC_BIT_MPHY_CMN_LANE0},
@@ -108,6 +122,7 @@ static const struct pmc_bit_map spt_ltr_show_map[] = {
 	{"SATA",		SPT_PMC_LTR_SATA},
 	{"GIGABIT_ETHERNET",	SPT_PMC_LTR_GBE},
 	{"XHCI",		SPT_PMC_LTR_XHCI},
+	{"Reserved",		SPT_PMC_LTR_RESERVED},
 	{"ME",			SPT_PMC_LTR_ME},
 	/* EVA is Enterprise Value Add, doesn't really exist on PCH */
 	{"EVA",			SPT_PMC_LTR_EVA},
@@ -131,6 +146,7 @@ static const struct pmc_reg_map spt_reg_map = {
 	.mphy_sts = spt_mphy_map,
 	.pll_sts = spt_pll_map,
 	.ltr_show_sts = spt_ltr_show_map,
+	.msr_sts = msr_map,
 	.slp_s0_offset = SPT_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.ltr_ignore_offset = SPT_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = SPT_PMC_MMIO_REG_LEN,
@@ -139,6 +155,7 @@ static const struct pmc_reg_map spt_reg_map = {
 	.pm_cfg_offset = SPT_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = SPT_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = SPT_NUM_IP_IGN_ALLOWED,
+	.pm_vric1_offset = SPT_PMC_VRIC1_OFFSET,
 };
 
 /* Cannonlake: PGD PFET Enable Ack Status Register(s) bitmap */
@@ -168,25 +185,26 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"SDX",                 BIT(4)},
 	{"SPE",                 BIT(5)},
 	{"Fuse",                BIT(6)},
-	{"Res_23",              BIT(7)},
+	/* Reserved for Cannonlake but valid for Icelake */
+	{"SBR8",		BIT(7)},
 
 	{"CSME_FSC",            BIT(0)},
 	{"USB3_OTG",            BIT(1)},
 	{"EXI",                 BIT(2)},
 	{"CSE",                 BIT(3)},
-	{"csme_kvm",            BIT(4)},
-	{"csme_pmt",            BIT(5)},
-	{"csme_clink",          BIT(6)},
-	{"csme_ptio",           BIT(7)},
+	{"CSME_KVM",            BIT(4)},
+	{"CSME_PMT",            BIT(5)},
+	{"CSME_CLINK",          BIT(6)},
+	{"CSME_PTIO",           BIT(7)},
 
-	{"csme_usbr",           BIT(0)},
-	{"csme_susram",         BIT(1)},
-	{"csme_smt1",           BIT(2)},
+	{"CSME_USBR",           BIT(0)},
+	{"CSME_SUSRAM",         BIT(1)},
+	{"CSME_SMT1",           BIT(2)},
 	{"CSME_SMT4",           BIT(3)},
-	{"csme_sms2",           BIT(4)},
-	{"csme_sms1",           BIT(5)},
-	{"csme_rtc",            BIT(6)},
-	{"csme_psf",            BIT(7)},
+	{"CSME_SMS2",           BIT(4)},
+	{"CSME_SMS1",           BIT(5)},
+	{"CSME_RTC",            BIT(6)},
+	{"CSME_PSF",            BIT(7)},
 
 	{"SBR0",                BIT(0)},
 	{"SBR1",                BIT(1)},
@@ -203,7 +221,7 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"CNVI",                BIT(3)},
 	{"UFS0",                BIT(4)},
 	{"EMMC",                BIT(5)},
-	{"Res_6",               BIT(6)},
+	{"SPF",			BIT(6)},
 	{"SBR6",                BIT(7)},
 
 	{"SBR7",                BIT(0)},
@@ -211,6 +229,20 @@ static const struct pmc_bit_map cnp_pfear_map[] = {
 	{"HDA_PGD4",            BIT(2)},
 	{"HDA_PGD5",            BIT(3)},
 	{"HDA_PGD6",            BIT(4)},
+	/* Reserved for Cannonlake but valid for Icelake */
+	{"PSF6",		BIT(5)},
+	{"PSF7",		BIT(6)},
+	{"PSF8",		BIT(7)},
+
+	/* Icelake generation onwards only */
+	{"RES_65",		BIT(0)},
+	{"RES_66",		BIT(1)},
+	{"RES_67",		BIT(2)},
+	{"TAM",			BIT(3)},
+	{"GBETSN",		BIT(4)},
+	{"TBTLSX",		BIT(5)},
+	{"RES_71",		BIT(6)},
+	{"RES_72",		BIT(7)},
 	{}
 };
 
@@ -276,6 +308,7 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	{"SATA",		CNP_PMC_LTR_SATA},
 	{"GIGABIT_ETHERNET",	CNP_PMC_LTR_GBE},
 	{"XHCI",		CNP_PMC_LTR_XHCI},
+	{"Reserved",		CNP_PMC_LTR_RESERVED},
 	{"ME",			CNP_PMC_LTR_ME},
 	/* EVA is Enterprise Value Add, doesn't really exist on PCH */
 	{"EVA",			CNP_PMC_LTR_EVA},
@@ -291,6 +324,8 @@ static const struct pmc_bit_map cnp_ltr_show_map[] = {
 	{"ISH",			CNP_PMC_LTR_ISH},
 	{"UFSX2",		CNP_PMC_LTR_UFSX2},
 	{"EMMC",		CNP_PMC_LTR_EMMC},
+	/* Reserved for Cannonlake but valid for Icelake */
+	{"WIGIG",		ICL_PMC_LTR_WIGIG},
 	/* Below two cannot be used for LTR_IGNORE */
 	{"CURRENT_PLATFORM",	CNP_PMC_LTR_CUR_PLT},
 	{"AGGREGATED_SYSTEM",	CNP_PMC_LTR_CUR_ASLT},
@@ -302,6 +337,7 @@ static const struct pmc_reg_map cnp_reg_map = {
 	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
 	.slps0_dbg_maps = cnp_slps0_dbg_maps,
 	.ltr_show_sts = cnp_ltr_show_map,
+	.msr_sts = msr_map,
 	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
 	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
 	.regmap_length = CNP_PMC_MMIO_REG_LEN,
@@ -310,6 +346,22 @@ static const struct pmc_reg_map cnp_reg_map = {
 	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
 	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
 	.ltr_ignore_max = CNP_NUM_IP_IGN_ALLOWED,
+};
+
+static const struct pmc_reg_map icl_reg_map = {
+	.pfear_sts = cnp_pfear_map,
+	.slp_s0_offset = CNP_PMC_SLP_S0_RES_COUNTER_OFFSET,
+	.slps0_dbg_maps = cnp_slps0_dbg_maps,
+	.ltr_show_sts = cnp_ltr_show_map,
+	.msr_sts = msr_map,
+	.slps0_dbg_offset = CNP_PMC_SLPS0_DBG_OFFSET,
+	.ltr_ignore_offset = CNP_PMC_LTR_IGNORE_OFFSET,
+	.regmap_length = CNP_PMC_MMIO_REG_LEN,
+	.ppfear0_offset = CNP_PMC_HOST_PPFEAR0A,
+	.ppfear_buckets = ICL_PPFEAR_NUM_ENTRIES,
+	.pm_cfg_offset = CNP_PMC_PM_CFG_OFFSET,
+	.pm_read_disable_bit = CNP_PMC_READ_DISABLE_BIT,
+	.ltr_ignore_max = ICL_NUM_IP_IGN_ALLOWED,
 };
 
 static inline u8 pmc_core_reg_read_byte(struct pmc_dev *pmcdev, int offset)
@@ -328,9 +380,9 @@ static inline void pmc_core_reg_write(struct pmc_dev *pmcdev, int
 	writel(val, pmcdev->regbase + reg_offset);
 }
 
-static inline u32 pmc_core_adjust_slp_s0_step(u32 value)
+static inline u64 pmc_core_adjust_slp_s0_step(u32 value)
 {
-	return value * SPT_PMC_SLP_S0_RES_COUNTER_STEP;
+	return (u64)value * SPT_PMC_SLP_S0_RES_COUNTER_STEP;
 }
 
 static int pmc_core_dev_state_get(void *data, u64 *val)
@@ -380,7 +432,8 @@ static int pmc_core_ppfear_show(struct seq_file *s, void *unused)
 	     index < PPFEAR_MAX_NUM_ENTRIES; index++, iter++)
 		pf_regs[index] = pmc_core_reg_read_byte(pmcdev, iter);
 
-	for (index = 0; map[index].name; index++)
+	for (index = 0; map[index].name &&
+	     index < pmcdev->map->ppfear_buckets * 8; index++)
 		pmc_core_display_map(s, index, pf_regs[index / 8], map);
 
 	return 0;
@@ -677,19 +730,37 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
 
+static int pmc_core_pkgc_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	const struct pmc_bit_map *map = pmcdev->map->msr_sts;
+	u64 pcstate_count;
+	int index;
+
+	for (index = 0; map[index].name ; index++) {
+		if (rdmsrl_safe(map[index].bit_mask, &pcstate_count))
+			continue;
+
+		pcstate_count *= 1000;
+		do_div(pcstate_count, tsc_khz);
+		seq_printf(s, "%-8s : %llu\n", map[index].name,
+			   pcstate_count);
+	}
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_pkgc);
+
 static void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 {
 	debugfs_remove_recursive(pmcdev->dbgfs_dir);
 }
 
-static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
+static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 {
 	struct dentry *dir;
 
 	dir = debugfs_create_dir("pmc_core", NULL);
-	if (!dir)
-		return -ENOMEM;
-
 	pmcdev->dbgfs_dir = dir;
 
 	debugfs_create_file("slp_s0_residency_usec", 0444, dir, pmcdev,
@@ -701,7 +772,10 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 	debugfs_create_file("ltr_ignore", 0644, dir, pmcdev,
 			    &pmc_core_ltr_ignore_ops);
 
-	debugfs_create_file("ltr_show", 0644, dir, pmcdev, &pmc_core_ltr_fops);
+	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
+
+	debugfs_create_file("package_cstate_show", 0444, dir, pmcdev,
+			    &pmc_core_pkgc_fops);
 
 	if (pmcdev->map->pll_sts)
 		debugfs_create_file("pll_status", 0444, dir, pmcdev,
@@ -720,13 +794,10 @@ static int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 		debugfs_create_bool("slp_s0_dbg_latch", 0644,
 				    dir, &slps0_dbg_latch);
 	}
-
-	return 0;
 }
 #else
-static inline int pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
+static inline void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 {
-	return 0;
 }
 
 static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
@@ -735,11 +806,13 @@ static inline void pmc_core_dbgfs_unregister(struct pmc_dev *pmcdev)
 #endif /* CONFIG_DEBUG_FS */
 
 static const struct x86_cpu_id intel_pmc_core_ids[] = {
-	ICPU(INTEL_FAM6_SKYLAKE_MOBILE, &spt_reg_map),
-	ICPU(INTEL_FAM6_SKYLAKE_DESKTOP, &spt_reg_map),
-	ICPU(INTEL_FAM6_KABYLAKE_MOBILE, &spt_reg_map),
-	ICPU(INTEL_FAM6_KABYLAKE_DESKTOP, &spt_reg_map),
-	ICPU(INTEL_FAM6_CANNONLAKE_MOBILE, &cnp_reg_map),
+	INTEL_CPU_FAM6(SKYLAKE_L, spt_reg_map),
+	INTEL_CPU_FAM6(SKYLAKE, spt_reg_map),
+	INTEL_CPU_FAM6(KABYLAKE_L, spt_reg_map),
+	INTEL_CPU_FAM6(KABYLAKE, spt_reg_map),
+	INTEL_CPU_FAM6(CANNONLAKE_L, cnp_reg_map),
+	INTEL_CPU_FAM6(ICELAKE_L, icl_reg_map),
+	INTEL_CPU_FAM6(ICELAKE_NNPI, icl_reg_map),
 	{}
 };
 
@@ -750,12 +823,46 @@ static const struct pci_device_id pmc_pci_ids[] = {
 	{ 0, },
 };
 
-static int __init pmc_core_probe(void)
+/*
+ * This quirk can be used on those platforms where
+ * the platform BIOS enforces 24Mhx Crystal to shutdown
+ * before PMC can assert SLP_S0#.
+ */
+static int quirk_xtal_ignore(const struct dmi_system_id *id)
 {
+	struct pmc_dev *pmcdev = &pmc;
+	u32 value;
+
+	value = pmc_core_reg_read(pmcdev, pmcdev->map->pm_vric1_offset);
+	/* 24MHz Crystal Shutdown Qualification Disable */
+	value |= SPT_PMC_VRIC1_XTALSDQDIS;
+	/* Low Voltage Mode Enable */
+	value &= ~SPT_PMC_VRIC1_SLPS0LVEN;
+	pmc_core_reg_write(pmcdev, pmcdev->map->pm_vric1_offset, value);
+	return 0;
+}
+
+static const struct dmi_system_id pmc_core_dmi_table[]  = {
+	{
+	.callback = quirk_xtal_ignore,
+	.ident = "HP Elite x2 1013 G3",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "HP Elite x2 1013 G3"),
+		},
+	},
+	{}
+};
+
+static int pmc_core_probe(struct platform_device *pdev)
+{
+	static bool device_initialized;
 	struct pmc_dev *pmcdev = &pmc;
 	const struct x86_cpu_id *cpu_id;
 	u64 slp_s0_addr;
-	int err;
+
+	if (device_initialized)
+		return -ENODEV;
 
 	cpu_id = x86_match_cpu(intel_pmc_core_ids);
 	if (!cpu_id)
@@ -768,13 +875,17 @@ static int __init pmc_core_probe(void)
 	 * Sunrisepoint PCH regmap can't be used. Use Cannonlake PCH regmap
 	 * in this case.
 	 */
-	if (!pci_dev_present(pmc_pci_ids))
+	if (pmcdev->map == &spt_reg_map && !pci_dev_present(pmc_pci_ids))
 		pmcdev->map = &cnp_reg_map;
 
-	if (lpit_read_residency_count_address(&slp_s0_addr))
+	if (lpit_read_residency_count_address(&slp_s0_addr)) {
 		pmcdev->base_addr = PMC_BASE_ADDR_DEFAULT;
-	else
+
+		if (page_is_ram(PHYS_PFN(pmcdev->base_addr)))
+			return -ENODEV;
+	} else {
 		pmcdev->base_addr = slp_s0_addr - pmcdev->map->slp_s0_offset;
+	}
 
 	pmcdev->regbase = ioremap(pmcdev->base_addr,
 				  pmcdev->map->regmap_length);
@@ -782,29 +893,149 @@ static int __init pmc_core_probe(void)
 		return -ENOMEM;
 
 	mutex_init(&pmcdev->lock);
+	platform_set_drvdata(pdev, pmcdev);
 	pmcdev->pmc_xram_read_bit = pmc_core_check_read_lock_bit();
+	dmi_check_system(pmc_core_dmi_table);
 
-	err = pmc_core_dbgfs_register(pmcdev);
-	if (err < 0) {
-		pr_warn(" debugfs register failed.\n");
-		iounmap(pmcdev->regbase);
-		return err;
-	}
+	pmc_core_dbgfs_register(pmcdev);
 
-	pr_info(" initialized\n");
+	device_initialized = true;
+	dev_info(&pdev->dev, " initialized\n");
+
 	return 0;
 }
-module_init(pmc_core_probe)
 
-static void __exit pmc_core_remove(void)
+static int pmc_core_remove(struct platform_device *pdev)
 {
-	struct pmc_dev *pmcdev = &pmc;
+	struct pmc_dev *pmcdev = platform_get_drvdata(pdev);
 
 	pmc_core_dbgfs_unregister(pmcdev);
+	platform_set_drvdata(pdev, NULL);
 	mutex_destroy(&pmcdev->lock);
 	iounmap(pmcdev->regbase);
+	return 0;
 }
-module_exit(pmc_core_remove)
+
+#ifdef CONFIG_PM_SLEEP
+
+static bool warn_on_s0ix_failures;
+module_param(warn_on_s0ix_failures, bool, 0644);
+MODULE_PARM_DESC(warn_on_s0ix_failures, "Check and warn for S0ix failures");
+
+static int pmc_core_suspend(struct device *dev)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+
+	pmcdev->check_counters = false;
+
+	/* No warnings on S0ix failures */
+	if (!warn_on_s0ix_failures)
+		return 0;
+
+	/* Check if the syspend will actually use S0ix */
+	if (pm_suspend_via_firmware())
+		return 0;
+
+	/* Save PC10 residency for checking later */
+	if (rdmsrl_safe(MSR_PKG_C10_RESIDENCY, &pmcdev->pc10_counter))
+		return -EIO;
+
+	/* Save S0ix residency for checking later */
+	if (pmc_core_dev_state_get(pmcdev, &pmcdev->s0ix_counter))
+		return -EIO;
+
+	pmcdev->check_counters = true;
+	return 0;
+}
+
+static inline bool pmc_core_is_pc10_failed(struct pmc_dev *pmcdev)
+{
+	u64 pc10_counter;
+
+	if (rdmsrl_safe(MSR_PKG_C10_RESIDENCY, &pc10_counter))
+		return false;
+
+	if (pc10_counter == pmcdev->pc10_counter)
+		return true;
+
+	return false;
+}
+
+static inline bool pmc_core_is_s0ix_failed(struct pmc_dev *pmcdev)
+{
+	u64 s0ix_counter;
+
+	if (pmc_core_dev_state_get(pmcdev, &s0ix_counter))
+		return false;
+
+	if (s0ix_counter == pmcdev->s0ix_counter)
+		return true;
+
+	return false;
+}
+
+static int pmc_core_resume(struct device *dev)
+{
+	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
+	const struct pmc_bit_map **maps = pmcdev->map->slps0_dbg_maps;
+	int offset = pmcdev->map->slps0_dbg_offset;
+	const struct pmc_bit_map *map;
+	u32 data;
+
+	if (!pmcdev->check_counters)
+		return 0;
+
+	if (!pmc_core_is_s0ix_failed(pmcdev))
+		return 0;
+
+	if (pmc_core_is_pc10_failed(pmcdev)) {
+		/* S0ix failed because of PC10 entry failure */
+		dev_info(dev, "CPU did not enter PC10!!! (PC10 cnt=0x%llx)\n",
+			 pmcdev->pc10_counter);
+		return 0;
+	}
+
+	/* The real interesting case - S0ix failed - lets ask PMC why. */
+	dev_warn(dev, "CPU did not enter SLP_S0!!! (S0ix cnt=%llu)\n",
+		 pmcdev->s0ix_counter);
+	while (*maps) {
+		map = *maps;
+		data = pmc_core_reg_read(pmcdev, offset);
+		offset += 4;
+		while (map->name) {
+			dev_dbg(dev, "SLP_S0_DBG: %-32s\tState: %s\n",
+				map->name,
+				data & map->bit_mask ? "Yes" : "No");
+			map++;
+		}
+		maps++;
+	}
+	return 0;
+}
+
+#endif
+
+static const struct dev_pm_ops pmc_core_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(pmc_core_suspend, pmc_core_resume)
+};
+
+static const struct acpi_device_id pmc_core_acpi_ids[] = {
+	{"INT33A1", 0}, /* _HID for Intel Power Engine, _CID PNP0D80*/
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, pmc_core_acpi_ids);
+
+static struct platform_driver pmc_core_driver = {
+	.driver = {
+		.name = "intel_pmc_core",
+		.acpi_match_table = ACPI_PTR(pmc_core_acpi_ids),
+		.pm = &pmc_core_pm_ops,
+	},
+	.probe = pmc_core_probe,
+	.remove = pmc_core_remove,
+};
+
+module_platform_driver(pmc_core_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Intel PMC Core Driver");

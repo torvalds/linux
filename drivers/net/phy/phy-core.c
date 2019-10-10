@@ -8,6 +8,11 @@
 
 const char *phy_speed_to_str(int speed)
 {
+	BUILD_BUG_ON_MSG(__ETHTOOL_LINK_MODE_MASK_NBITS != 69,
+		"Enum ethtool_link_mode_bit_indices and phylib are out of sync. "
+		"If a speed or mode has been added please update phy_speed_to_str "
+		"and the PHY settings array.\n");
+
 	switch (speed) {
 	case SPEED_10:
 		return "10Mbps";
@@ -35,6 +40,8 @@ const char *phy_speed_to_str(int speed)
 		return "56Gbps";
 	case SPEED_100000:
 		return "100Gbps";
+	case SPEED_200000:
+		return "200Gbps";
 	case SPEED_UNKNOWN:
 		return "Unknown";
 	default:
@@ -58,222 +65,83 @@ EXPORT_SYMBOL_GPL(phy_duplex_to_str);
 /* A mapping of all SUPPORTED settings to speed/duplex.  This table
  * must be grouped by speed and sorted in descending match priority
  * - iow, descending speed. */
+
+#define PHY_SETTING(s, d, b) { .speed = SPEED_ ## s, .duplex = DUPLEX_ ## d, \
+			       .bit = ETHTOOL_LINK_MODE_ ## b ## _BIT}
+
 static const struct phy_setting settings[] = {
+	/* 200G */
+	PHY_SETTING( 200000, FULL, 200000baseCR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseKR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseLR4_ER4_FR4_Full	),
+	PHY_SETTING( 200000, FULL, 200000baseDR4_Full		),
+	PHY_SETTING( 200000, FULL, 200000baseSR4_Full		),
 	/* 100G */
-	{
-		.speed = SPEED_100000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_100000baseCR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_100000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_100000baseKR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_100000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_100000baseLR4_ER4_Full_BIT,
-	},
-	{
-		.speed = SPEED_100000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_100000baseSR4_Full_BIT,
-	},
+	PHY_SETTING( 100000, FULL, 100000baseCR4_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseKR4_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseLR4_ER4_Full	),
+	PHY_SETTING( 100000, FULL, 100000baseSR4_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseCR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseKR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseLR2_ER2_FR2_Full	),
+	PHY_SETTING( 100000, FULL, 100000baseDR2_Full		),
+	PHY_SETTING( 100000, FULL, 100000baseSR2_Full		),
 	/* 56G */
-	{
-		.speed = SPEED_56000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_56000baseCR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_56000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_56000baseKR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_56000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_56000baseLR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_56000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_56000baseSR4_Full_BIT,
-	},
+	PHY_SETTING(  56000, FULL,  56000baseCR4_Full	  	),
+	PHY_SETTING(  56000, FULL,  56000baseKR4_Full	  	),
+	PHY_SETTING(  56000, FULL,  56000baseLR4_Full	  	),
+	PHY_SETTING(  56000, FULL,  56000baseSR4_Full	  	),
 	/* 50G */
-	{
-		.speed = SPEED_50000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_50000baseCR2_Full_BIT,
-	},
-	{
-		.speed = SPEED_50000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_50000baseKR2_Full_BIT,
-	},
-	{
-		.speed = SPEED_50000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_50000baseSR2_Full_BIT,
-	},
+	PHY_SETTING(  50000, FULL,  50000baseCR2_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseKR2_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseSR2_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseCR_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseKR_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseLR_ER_FR_Full	),
+	PHY_SETTING(  50000, FULL,  50000baseDR_Full		),
+	PHY_SETTING(  50000, FULL,  50000baseSR_Full		),
 	/* 40G */
-	{
-		.speed = SPEED_40000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_40000baseCR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_40000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_40000baseKR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_40000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_40000baseLR4_Full_BIT,
-	},
-	{
-		.speed = SPEED_40000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_40000baseSR4_Full_BIT,
-	},
+	PHY_SETTING(  40000, FULL,  40000baseCR4_Full		),
+	PHY_SETTING(  40000, FULL,  40000baseKR4_Full		),
+	PHY_SETTING(  40000, FULL,  40000baseLR4_Full		),
+	PHY_SETTING(  40000, FULL,  40000baseSR4_Full		),
 	/* 25G */
-	{
-		.speed = SPEED_25000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_25000baseCR_Full_BIT,
-	},
-	{
-		.speed = SPEED_25000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_25000baseKR_Full_BIT,
-	},
-	{
-		.speed = SPEED_25000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_25000baseSR_Full_BIT,
-	},
-
+	PHY_SETTING(  25000, FULL,  25000baseCR_Full		),
+	PHY_SETTING(  25000, FULL,  25000baseKR_Full		),
+	PHY_SETTING(  25000, FULL,  25000baseSR_Full		),
 	/* 20G */
-	{
-		.speed = SPEED_20000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_20000baseKR2_Full_BIT,
-	},
-	{
-		.speed = SPEED_20000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_20000baseMLD2_Full_BIT,
-	},
+	PHY_SETTING(  20000, FULL,  20000baseKR2_Full		),
+	PHY_SETTING(  20000, FULL,  20000baseMLD2_Full		),
 	/* 10G */
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseCR_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseER_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseKR_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseKX4_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseLR_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseLRM_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseR_FEC_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseSR_Full_BIT,
-	},
-	{
-		.speed = SPEED_10000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10000baseT_Full_BIT,
-	},
+	PHY_SETTING(  10000, FULL,  10000baseCR_Full		),
+	PHY_SETTING(  10000, FULL,  10000baseER_Full		),
+	PHY_SETTING(  10000, FULL,  10000baseKR_Full		),
+	PHY_SETTING(  10000, FULL,  10000baseKX4_Full		),
+	PHY_SETTING(  10000, FULL,  10000baseLR_Full		),
+	PHY_SETTING(  10000, FULL,  10000baseLRM_Full		),
+	PHY_SETTING(  10000, FULL,  10000baseR_FEC		),
+	PHY_SETTING(  10000, FULL,  10000baseSR_Full		),
+	PHY_SETTING(  10000, FULL,  10000baseT_Full		),
 	/* 5G */
-	{
-		.speed = SPEED_5000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_5000baseT_Full_BIT,
-	},
-
+	PHY_SETTING(   5000, FULL,   5000baseT_Full		),
 	/* 2.5G */
-	{
-		.speed = SPEED_2500,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_2500baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_2500,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_2500baseX_Full_BIT,
-	},
+	PHY_SETTING(   2500, FULL,   2500baseT_Full		),
+	PHY_SETTING(   2500, FULL,   2500baseX_Full		),
 	/* 1G */
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_1000baseKX_Full_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_1000baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_HALF,
-		.bit = ETHTOOL_LINK_MODE_1000baseT_Half_BIT,
-	},
-	{
-		.speed = SPEED_1000,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_1000baseX_Full_BIT,
-	},
+	PHY_SETTING(   1000, FULL,   1000baseKX_Full		),
+	PHY_SETTING(   1000, FULL,   1000baseT_Full		),
+	PHY_SETTING(   1000, HALF,   1000baseT_Half		),
+	PHY_SETTING(   1000, FULL,   1000baseT1_Full		),
+	PHY_SETTING(   1000, FULL,   1000baseX_Full		),
 	/* 100M */
-	{
-		.speed = SPEED_100,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_100baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_100,
-		.duplex = DUPLEX_HALF,
-		.bit = ETHTOOL_LINK_MODE_100baseT_Half_BIT,
-	},
+	PHY_SETTING(    100, FULL,    100baseT_Full		),
+	PHY_SETTING(    100, FULL,    100baseT1_Full		),
+	PHY_SETTING(    100, HALF,    100baseT_Half		),
 	/* 10M */
-	{
-		.speed = SPEED_10,
-		.duplex = DUPLEX_FULL,
-		.bit = ETHTOOL_LINK_MODE_10baseT_Full_BIT,
-	},
-	{
-		.speed = SPEED_10,
-		.duplex = DUPLEX_HALF,
-		.bit = ETHTOOL_LINK_MODE_10baseT_Half_BIT,
-	},
+	PHY_SETTING(     10, FULL,     10baseT_Full		),
+	PHY_SETTING(     10, HALF,     10baseT_Half		),
 };
+#undef PHY_SETTING
 
 /**
  * phy_lookup_setting - lookup a PHY setting
@@ -339,19 +207,24 @@ size_t phy_speeds(unsigned int *speeds, size_t size,
 	return count;
 }
 
-static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+static int __set_linkmode_max_speed(u32 max_speed, unsigned long *addr)
 {
 	const struct phy_setting *p;
 	int i;
 
 	for (i = 0, p = settings; i < ARRAY_SIZE(settings); i++, p++) {
 		if (p->speed > max_speed)
-			linkmode_clear_bit(p->bit, phydev->supported);
+			linkmode_clear_bit(p->bit, addr);
 		else
 			break;
 	}
 
 	return 0;
+}
+
+static int __set_phy_supported(struct phy_device *phydev, u32 max_speed)
+{
+	return __set_linkmode_max_speed(max_speed, phydev->supported);
 }
 
 int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
@@ -362,7 +235,7 @@ int phy_set_max_speed(struct phy_device *phydev, u32 max_speed)
 	if (err)
 		return err;
 
-	linkmode_copy(phydev->advertising, phydev->supported);
+	phy_advertise_supported(phydev);
 
 	return 0;
 }
@@ -410,6 +283,18 @@ void of_set_phy_eee_broken(struct phy_device *phydev)
 	phydev->eee_broken_modes = broken;
 }
 
+void phy_resolve_aneg_pause(struct phy_device *phydev)
+{
+	if (phydev->duplex == DUPLEX_FULL) {
+		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
+						  phydev->lp_advertising);
+		phydev->asym_pause = linkmode_test_bit(
+			ETHTOOL_LINK_MODE_Asym_Pause_BIT,
+			phydev->lp_advertising);
+	}
+}
+EXPORT_SYMBOL_GPL(phy_resolve_aneg_pause);
+
 /**
  * phy_resolve_aneg_linkmode - resolve the advertisements into phy settings
  * @phydev: The phy_device struct
@@ -432,15 +317,37 @@ void phy_resolve_aneg_linkmode(struct phy_device *phydev)
 			break;
 		}
 
-	if (phydev->duplex == DUPLEX_FULL) {
-		phydev->pause = linkmode_test_bit(ETHTOOL_LINK_MODE_Pause_BIT,
-						  phydev->lp_advertising);
-		phydev->asym_pause = linkmode_test_bit(
-			ETHTOOL_LINK_MODE_Asym_Pause_BIT,
-			phydev->lp_advertising);
-	}
+	phy_resolve_aneg_pause(phydev);
 }
 EXPORT_SYMBOL_GPL(phy_resolve_aneg_linkmode);
+
+static int phy_resolve_min_speed(struct phy_device *phydev, bool fdx_only)
+{
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(common);
+	int i = ARRAY_SIZE(settings);
+
+	linkmode_and(common, phydev->lp_advertising, phydev->advertising);
+
+	while (--i >= 0) {
+		if (test_bit(settings[i].bit, common)) {
+			if (fdx_only && settings[i].duplex != DUPLEX_FULL)
+				continue;
+			return settings[i].speed;
+		}
+	}
+
+	return SPEED_UNKNOWN;
+}
+
+int phy_speed_down_core(struct phy_device *phydev)
+{
+	int min_common_speed = phy_resolve_min_speed(phydev, true);
+
+	if (min_common_speed == SPEED_UNKNOWN)
+		return -EINVAL;
+
+	return __set_linkmode_max_speed(min_common_speed, phydev->advertising);
+}
 
 static void mmd_phy_indirect(struct mii_bus *bus, int phy_addr, int devad,
 			     u16 regnum)
@@ -915,6 +822,29 @@ int phy_write_paged(struct phy_device *phydev, int page, u32 regnum, u16 val)
 EXPORT_SYMBOL(phy_write_paged);
 
 /**
+ * phy_modify_paged_changed() - Function for modifying a paged register
+ * @phydev: a pointer to a &struct phy_device
+ * @page: the page for the phy
+ * @regnum: register number
+ * @mask: bit mask of bits to clear
+ * @set: bit mask of bits to set
+ *
+ * Returns negative errno, 0 if there was no change, and 1 in case of change
+ */
+int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
+			     u16 mask, u16 set)
+{
+	int ret = 0, oldpage;
+
+	oldpage = phy_select_page(phydev, page);
+	if (oldpage >= 0)
+		ret = __phy_modify_changed(phydev, regnum, mask, set);
+
+	return phy_restore_page(phydev, oldpage, ret);
+}
+EXPORT_SYMBOL(phy_modify_paged_changed);
+
+/**
  * phy_modify_paged() - Convenience function for modifying a paged register
  * @phydev: a pointer to a &struct phy_device
  * @page: the page for the phy
@@ -927,12 +857,8 @@ EXPORT_SYMBOL(phy_write_paged);
 int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
 		     u16 mask, u16 set)
 {
-	int ret = 0, oldpage;
+	int ret = phy_modify_paged_changed(phydev, page, regnum, mask, set);
 
-	oldpage = phy_select_page(phydev, page);
-	if (oldpage >= 0)
-		ret = __phy_modify(phydev, regnum, mask, set);
-
-	return phy_restore_page(phydev, oldpage, ret);
+	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL(phy_modify_paged);

@@ -1,42 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Xenbus code for netif backend
  *
  * Copyright (C) 2005 Rusty Russell <rusty@rustcorp.com.au>
  * Copyright (C) 2005 XenSource Ltd
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
 */
 
 #include "common.h"
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
-
-struct backend_info {
-	struct xenbus_device *dev;
-	struct xenvif *vif;
-
-	/* This is the state that will be reflected in xenstore when any
-	 * active hotplug script completes.
-	 */
-	enum xenbus_state state;
-
-	enum xenbus_state frontend_state;
-	struct xenbus_watch hotplug_status_watch;
-	u8 have_hotplug_status_watch:1;
-
-	const char *hotplug_script;
-};
 
 static int connect_data_rings(struct backend_info *be,
 			      struct xenvif_queue *queue);
@@ -198,50 +170,26 @@ DEFINE_SHOW_ATTRIBUTE(xenvif_ctrl);
 
 static void xenvif_debugfs_addif(struct xenvif *vif)
 {
-	struct dentry *pfile;
 	int i;
-
-	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
-		return;
 
 	vif->xenvif_dbg_root = debugfs_create_dir(vif->dev->name,
 						  xen_netback_dbg_root);
-	if (!IS_ERR_OR_NULL(vif->xenvif_dbg_root)) {
-		for (i = 0; i < vif->num_queues; ++i) {
-			char filename[sizeof("io_ring_q") + 4];
+	for (i = 0; i < vif->num_queues; ++i) {
+		char filename[sizeof("io_ring_q") + 4];
 
-			snprintf(filename, sizeof(filename), "io_ring_q%d", i);
-			pfile = debugfs_create_file(filename,
-						    0600,
-						    vif->xenvif_dbg_root,
-						    &vif->queues[i],
-						    &xenvif_dbg_io_ring_ops_fops);
-			if (IS_ERR_OR_NULL(pfile))
-				pr_warn("Creation of io_ring file returned %ld!\n",
-					PTR_ERR(pfile));
-		}
+		snprintf(filename, sizeof(filename), "io_ring_q%d", i);
+		debugfs_create_file(filename, 0600, vif->xenvif_dbg_root,
+				    &vif->queues[i],
+				    &xenvif_dbg_io_ring_ops_fops);
+	}
 
-		if (vif->ctrl_irq) {
-			pfile = debugfs_create_file("ctrl",
-						    0400,
-						    vif->xenvif_dbg_root,
-						    vif,
-						    &xenvif_ctrl_fops);
-			if (IS_ERR_OR_NULL(pfile))
-				pr_warn("Creation of ctrl file returned %ld!\n",
-					PTR_ERR(pfile));
-		}
-	} else
-		netdev_warn(vif->dev,
-			    "Creation of vif debugfs dir returned %ld!\n",
-			    PTR_ERR(vif->xenvif_dbg_root));
+	if (vif->ctrl_irq)
+		debugfs_create_file("ctrl", 0400, vif->xenvif_dbg_root, vif,
+				    &xenvif_ctrl_fops);
 }
 
 static void xenvif_debugfs_delif(struct xenvif *vif)
 {
-	if (IS_ERR_OR_NULL(xen_netback_dbg_root))
-		return;
-
 	debugfs_remove_recursive(vif->xenvif_dbg_root);
 	vif->xenvif_dbg_root = NULL;
 }
@@ -472,6 +420,7 @@ static int backend_create_xenvif(struct backend_info *be)
 		return err;
 	}
 	be->vif = vif;
+	vif->be = be;
 
 	kobject_uevent(&dev->dev.kobj, KOBJ_ONLINE);
 	return 0;

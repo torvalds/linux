@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Derived from "arch/i386/kernel/process.c"
  *    Copyright (C) 1995  Linus Torvalds
@@ -7,11 +8,6 @@
  *
  *  PowerPC version
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -67,6 +63,7 @@
 #include <asm/cpu_has_feature.h>
 #include <asm/asm-prototypes.h>
 #include <asm/stacktrace.h>
+#include <asm/hw_breakpoint.h>
 
 #include <linux/kprobes.h>
 #include <linux/kdebug.h>
@@ -104,21 +101,8 @@ static void check_if_tm_restore_required(struct task_struct *tsk)
 	}
 }
 
-static bool tm_active_with_fp(struct task_struct *tsk)
-{
-	return MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
-		(tsk->thread.ckpt_regs.msr & MSR_FP);
-}
-
-static bool tm_active_with_altivec(struct task_struct *tsk)
-{
-	return MSR_TM_ACTIVE(tsk->thread.regs->msr) &&
-		(tsk->thread.ckpt_regs.msr & MSR_VEC);
-}
 #else
 static inline void check_if_tm_restore_required(struct task_struct *tsk) { }
-static inline bool tm_active_with_fp(struct task_struct *tsk) { return false; }
-static inline bool tm_active_with_altivec(struct task_struct *tsk) { return false; }
 #endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 
 bool strict_msr_control;
@@ -133,7 +117,8 @@ static int __init enable_strict_msr_control(char *str)
 }
 early_param("ppc_strict_facility_enable", enable_strict_msr_control);
 
-unsigned long msr_check_and_set(unsigned long bits)
+/* notrace because it's called by restore_math */
+unsigned long notrace msr_check_and_set(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -152,7 +137,8 @@ unsigned long msr_check_and_set(unsigned long bits)
 }
 EXPORT_SYMBOL_GPL(msr_check_and_set);
 
-void __msr_check_and_clear(unsigned long bits)
+/* notrace because it's called by restore_math */
+void notrace __msr_check_and_clear(unsigned long bits)
 {
 	unsigned long oldmsr = mfmsr();
 	unsigned long newmsr;
@@ -176,7 +162,7 @@ static void __giveup_fpu(struct task_struct *tsk)
 
 	save_fpu(tsk);
 	msr = tsk->thread.regs->msr;
-	msr &= ~MSR_FP;
+	msr &= ~(MSR_FP|MSR_FE0|MSR_FE1);
 #ifdef CONFIG_VSX
 	if (cpu_has_feature(CPU_FTR_VSX))
 		msr &= ~MSR_VSX;
@@ -253,7 +239,7 @@ EXPORT_SYMBOL(enable_kernel_fp);
 
 static int restore_fp(struct task_struct *tsk)
 {
-	if (tsk->thread.load_fp || tm_active_with_fp(tsk)) {
+	if (tsk->thread.load_fp) {
 		load_fp_state(&current->thread.fp_state);
 		current->thread.load_fp++;
 		return 1;
@@ -335,8 +321,7 @@ EXPORT_SYMBOL_GPL(flush_altivec_to_thread);
 
 static int restore_altivec(struct task_struct *tsk)
 {
-	if (cpu_has_feature(CPU_FTR_ALTIVEC) &&
-		(tsk->thread.load_vec || tm_active_with_altivec(tsk))) {
+	if (cpu_has_feature(CPU_FTR_ALTIVEC) && (tsk->thread.load_vec)) {
 		load_vr_state(&tsk->thread.vr_state);
 		tsk->thread.used_vr = 1;
 		tsk->thread.load_vec++;
@@ -498,13 +483,14 @@ void giveup_all(struct task_struct *tsk)
 	if (!tsk->thread.regs)
 		return;
 
+	check_if_tm_restore_required(tsk);
+
 	usermsr = tsk->thread.regs->msr;
 
 	if ((usermsr & msr_all_available) == 0)
 		return;
 
 	msr_check_and_set(msr_all_available);
-	check_if_tm_restore_required(tsk);
 
 	WARN_ON((usermsr & MSR_VSX) && !((usermsr & MSR_FP) && (usermsr & MSR_VEC)));
 
@@ -525,7 +511,17 @@ void giveup_all(struct task_struct *tsk)
 }
 EXPORT_SYMBOL(giveup_all);
 
-void restore_math(struct pt_regs *regs)
+/*
+ * The exception exit path calls restore_math() with interrupts hard disabled
+ * but the soft irq state not "reconciled". ftrace code that calls
+ * local_irq_save/restore causes warnings.
+ *
+ * Rather than complicate the exit path, just don't trace restore_math. This
+ * could be done by having ftrace entry code check for this un-reconciled
+ * condition where MSR[EE]=0 and PACA_IRQ_HARD_DIS is not set, and
+ * temporarily fix it up for the duration of the ftrace call.
+ */
+void notrace restore_math(struct pt_regs *regs)
 {
 	unsigned long msr;
 
@@ -630,7 +626,7 @@ void do_break (struct pt_regs *regs, unsigned long address,
 	hw_breakpoint_disable();
 
 	/* Deliver the signal to userspace */
-	force_sig_fault(SIGTRAP, TRAP_HWBKPT, (void __user *)address, current);
+	force_sig_fault(SIGTRAP, TRAP_HWBKPT, (void __user *)address);
 }
 #endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
@@ -784,39 +780,11 @@ static inline int set_dabr(struct arch_hw_breakpoint *brk)
 	return __set_dabr(dabr, dabrx);
 }
 
-static inline int set_dawr(struct arch_hw_breakpoint *brk)
-{
-	unsigned long dawr, dawrx, mrd;
-
-	dawr = brk->address;
-
-	dawrx  = (brk->type & (HW_BRK_TYPE_READ | HW_BRK_TYPE_WRITE)) \
-		                   << (63 - 58); //* read/write bits */
-	dawrx |= ((brk->type & (HW_BRK_TYPE_TRANSLATE)) >> 2) \
-		                   << (63 - 59); //* translate */
-	dawrx |= (brk->type & (HW_BRK_TYPE_PRIV_ALL)) \
-		                   >> 3; //* PRIM bits */
-	/* dawr length is stored in field MDR bits 48:53.  Matches range in
-	   doublewords (64 bits) baised by -1 eg. 0b000000=1DW and
-	   0b111111=64DW.
-	   brk->len is in bytes.
-	   This aligns up to double word size, shifts and does the bias.
-	*/
-	mrd = ((brk->len + 7) >> 3) - 1;
-	dawrx |= (mrd & 0x3f) << (63 - 53);
-
-	if (ppc_md.set_dawr)
-		return ppc_md.set_dawr(dawr, dawrx);
-	mtspr(SPRN_DAWR, dawr);
-	mtspr(SPRN_DAWRX, dawrx);
-	return 0;
-}
-
 void __set_breakpoint(struct arch_hw_breakpoint *brk)
 {
 	memcpy(this_cpu_ptr(&current_brk), brk, sizeof(*brk));
 
-	if (cpu_has_feature(CPU_FTR_DAWR))
+	if (dawr_enabled())
 		// Power8 or later
 		set_dawr(brk);
 	else if (!cpu_has_feature(CPU_FTR_ARCH_207S))
@@ -830,8 +798,8 @@ void __set_breakpoint(struct arch_hw_breakpoint *brk)
 /* Check if we have DAWR or DABR hardware */
 bool ppc_breakpoint_available(void)
 {
-	if (cpu_has_feature(CPU_FTR_DAWR))
-		return true; /* POWER8 DAWR */
+	if (dawr_enabled())
+		return true; /* POWER8 DAWR or POWER9 forced DAWR */
 	if (cpu_has_feature(CPU_FTR_ARCH_207S))
 		return false; /* POWER9 with DAWR disabled */
 	/* DABR: Everything but POWER8 and POWER9 */
@@ -1151,11 +1119,6 @@ static inline void restore_sprs(struct thread_struct *old_thread,
 	thread_pkey_regs_restore(new_thread, old_thread);
 }
 
-#ifdef CONFIG_PPC_BOOK3S_64
-#define CP_SIZE 128
-static const u8 dummy_copy_buffer[CP_SIZE] __attribute__((aligned(CP_SIZE)));
-#endif
-
 struct task_struct *__switch_to(struct task_struct *prev,
 	struct task_struct *new)
 {
@@ -1231,8 +1194,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		batch->active = 1;
 	}
 
-	if (current_thread_info()->task->thread.regs) {
-		restore_math(current_thread_info()->task->thread.regs);
+	if (current->thread.regs) {
+		restore_math(current->thread.regs);
 
 		/*
 		 * The copy-paste buffer can only store into foreign real
@@ -1242,7 +1205,7 @@ struct task_struct *__switch_to(struct task_struct *prev,
 		 * mappings, we must issue a cp_abort to clear any state and
 		 * prevent snooping, corruption or a covert channel.
 		 */
-		if (current_thread_info()->task->thread.used_vas)
+		if (current->thread.used_vas)
 			asm volatile(PPC_CP_ABORT);
 	}
 #endif /* CONFIG_PPC_BOOK3S_64 */
@@ -1624,8 +1587,9 @@ static void setup_ksp_vsid(struct task_struct *p, unsigned long sp)
 /*
  * Copy architecture-specific thread state
  */
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long kthread_arg, struct task_struct *p)
+int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
+		unsigned long kthread_arg, struct task_struct *p,
+		unsigned long tls)
 {
 	struct pt_regs *childregs, *kregs;
 	extern void ret_from_fork(void);
@@ -1634,7 +1598,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	unsigned long sp = (unsigned long)task_stack_page(p) + THREAD_SIZE;
 	struct thread_info *ti = task_thread_info(p);
 
-	klp_init_thread_info(ti);
+	klp_init_thread_info(p);
 
 	/* Copy registers */
 	sp -= sizeof(struct pt_regs);
@@ -1666,10 +1630,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 		if (clone_flags & CLONE_SETTLS) {
 #ifdef CONFIG_PPC64
 			if (!is_32bit_task())
-				childregs->gpr[13] = childregs->gpr[6];
+				childregs->gpr[13] = tls;
 			else
 #endif
-				childregs->gpr[2] = childregs->gpr[6];
+				childregs->gpr[2] = tls;
 		}
 
 		f = ret_from_fork;
@@ -1691,8 +1655,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	sp -= STACK_FRAME_OVERHEAD;
 	p->thread.ksp = sp;
 #ifdef CONFIG_PPC32
-	p->thread.ksp_limit = (unsigned long)task_stack_page(p) +
-				_ALIGN_UP(sizeof(struct thread_info), 16);
+	p->thread.ksp_limit = (unsigned long)end_of_stack(p);
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	p->thread.ptrace_bps[0] = NULL;
@@ -1730,7 +1693,8 @@ void start_thread(struct pt_regs *regs, unsigned long start, unsigned long sp)
 	unsigned long load_addr = regs->gpr[2];	/* saved by ELF_PLAT_INIT */
 
 #ifdef CONFIG_PPC_BOOK3S_64
-	preload_new_slb_context(start, sp);
+	if (!radix_enabled())
+		preload_new_slb_context(start, sp);
 #endif
 #endif
 
@@ -1995,21 +1959,14 @@ static inline int valid_irq_stack(unsigned long sp, struct task_struct *p,
 	unsigned long stack_page;
 	unsigned long cpu = task_cpu(p);
 
-	/*
-	 * Avoid crashing if the stack has overflowed and corrupted
-	 * task_cpu(p), which is in the thread_info struct.
-	 */
-	if (cpu < NR_CPUS && cpu_possible(cpu)) {
-		stack_page = (unsigned long) hardirq_ctx[cpu];
-		if (sp >= stack_page + sizeof(struct thread_struct)
-		    && sp <= stack_page + THREAD_SIZE - nbytes)
-			return 1;
+	stack_page = (unsigned long)hardirq_ctx[cpu];
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
+		return 1;
 
-		stack_page = (unsigned long) softirq_ctx[cpu];
-		if (sp >= stack_page + sizeof(struct thread_struct)
-		    && sp <= stack_page + THREAD_SIZE - nbytes)
-			return 1;
-	}
+	stack_page = (unsigned long)softirq_ctx[cpu];
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
+		return 1;
+
 	return 0;
 }
 
@@ -2018,8 +1975,10 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 {
 	unsigned long stack_page = (unsigned long)task_stack_page(p);
 
-	if (sp >= stack_page + sizeof(struct thread_struct)
-	    && sp <= stack_page + THREAD_SIZE - nbytes)
+	if (sp < THREAD_SIZE)
+		return 0;
+
+	if (sp >= stack_page && sp <= stack_page + THREAD_SIZE - nbytes)
 		return 1;
 
 	return valid_irq_stack(sp, p, nbytes);
@@ -2027,7 +1986,7 @@ int validate_sp(unsigned long sp, struct task_struct *p,
 
 EXPORT_SYMBOL(validate_sp);
 
-unsigned long get_wchan(struct task_struct *p)
+static unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long ip, sp;
 	int count = 0;
@@ -2053,6 +2012,20 @@ unsigned long get_wchan(struct task_struct *p)
 	return 0;
 }
 
+unsigned long get_wchan(struct task_struct *p)
+{
+	unsigned long ret;
+
+	if (!try_get_task_stack(p))
+		return 0;
+
+	ret = __get_wchan(p);
+
+	put_task_stack(p);
+
+	return ret;
+}
+
 static int kstack_depth_to_print = CONFIG_PRINT_STACK_DEPTH;
 
 void show_stack(struct task_struct *tsk, unsigned long *stack)
@@ -2061,15 +2034,17 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	int count = 0;
 	int firstframe = 1;
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	struct ftrace_ret_stack *ret_stack;
-	extern void return_to_handler(void);
-	unsigned long rth = (unsigned long)return_to_handler;
-	int curr_frame = 0;
+	unsigned long ret_addr;
+	int ftrace_idx = 0;
 #endif
 
-	sp = (unsigned long) stack;
 	if (tsk == NULL)
 		tsk = current;
+
+	if (!try_get_task_stack(tsk))
+		return;
+
+	sp = (unsigned long) stack;
 	if (sp == 0) {
 		if (tsk == current)
 			sp = current_stack_pointer();
@@ -2081,7 +2056,7 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 	printk("Call Trace:\n");
 	do {
 		if (!validate_sp(sp, tsk, STACK_FRAME_OVERHEAD))
-			return;
+			break;
 
 		stack = (unsigned long *) sp;
 		newsp = stack[0];
@@ -2089,15 +2064,10 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		if (!firstframe || ip != lr) {
 			printk("["REG"] ["REG"] %pS", sp, ip, (void *)ip);
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-			if ((ip == rth) && curr_frame >= 0) {
-				ret_stack = ftrace_graph_get_ret_stack(current,
-								  curr_frame++);
-				if (ret_stack)
-					pr_cont(" (%pS)",
-						(void *)ret_stack->ret);
-				else
-					curr_frame = -1;
-			}
+			ret_addr = ftrace_graph_ret_addr(current,
+						&ftrace_idx, ip, stack);
+			if (ret_addr != ip)
+				pr_cont(" (%pS)", (void *)ret_addr);
 #endif
 			if (firstframe)
 				pr_cont(" (unreliable)");
@@ -2121,6 +2091,8 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 
 		sp = newsp;
 	} while (count++ < kstack_depth_to_print);
+
+	put_task_stack(tsk);
 }
 
 #ifdef CONFIG_PPC64

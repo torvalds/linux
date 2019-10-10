@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm Technologies HIDMA DMA engine Management interface
  *
  * Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/dmaengine.h>
@@ -191,7 +183,6 @@ static int hidma_mgmt_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "irq resources not found\n");
 		rc = irq;
 		goto out;
 	}
@@ -396,7 +387,6 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 			ret = PTR_ERR(new_pdev);
 			goto out;
 		}
-		of_node_get(child);
 		new_pdev->dev.of_node = child;
 		of_dma_configure(&new_pdev->dev, child, true);
 		/*
@@ -404,9 +394,14 @@ static int __init hidma_mgmt_of_populate_channels(struct device_node *np)
 		 * platforms with or without MSI support.
 		 */
 		of_msi_configure(&new_pdev->dev, child);
-		of_node_put(child);
 	}
+
+	kfree(res);
+
+	return ret;
+
 out:
+	of_node_put(child);
 	kfree(res);
 
 	return ret;
@@ -423,9 +418,8 @@ static int __init hidma_mgmt_init(void)
 		hidma_mgmt_of_populate_channels(child);
 	}
 #endif
-	platform_driver_register(&hidma_mgmt_driver);
+	return platform_driver_register(&hidma_mgmt_driver);
 
-	return 0;
 }
 module_init(hidma_mgmt_init);
 MODULE_LICENSE("GPL v2");

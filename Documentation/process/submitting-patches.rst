@@ -60,8 +60,8 @@ not in any lower subdirectory.
 
 To create a patch for a single file, it is often sufficient to do::
 
-	SRCTREE= linux
-	MYFILE=  drivers/net/mydriver.c
+	SRCTREE=linux
+	MYFILE=drivers/net/mydriver.c
 
 	cd $SRCTREE
 	cp $MYFILE $MYFILE.orig
@@ -73,7 +73,7 @@ To create a patch for multiple files, you should unpack a "vanilla",
 or unmodified kernel source tree, and generate a ``diff`` against your
 own source tree.  For example::
 
-	MYSRC= /devel/linux
+	MYSRC=/devel/linux
 
 	tar xvfz linux-3.19.tar.gz
 	mv linux-3.19 linux-3.19-vanilla
@@ -182,9 +182,11 @@ change five years from now.
 
 If your patch fixes a bug in a specific commit, e.g. you found an issue using
 ``git bisect``, please use the 'Fixes:' tag with the first 12 characters of
-the SHA-1 ID, and the one line summary.  For example::
+the SHA-1 ID, and the one line summary.  Do not split the tag across multiple
+lines, tags are exempt from the "wrap at 75 columns" rule in order to simplify
+parsing scripts.  For example::
 
-	Fixes: e21d2170f366 ("video: remove unnecessary platform_set_drvdata()")
+	Fixes: 54a4f0239f2e ("KVM: MMU: make kvm_mmu_zap_page() return the number of pages it actually freed")
 
 The following ``git config`` settings can be used to add a pretty format for
 outputting the above style in the ``git log`` or ``git show`` commands::
@@ -543,10 +545,40 @@ person it names - but it should indicate that this person was copied on the
 patch.  This tag documents that potentially interested parties
 have been included in the discussion.
 
-A Co-developed-by: states that the patch was also created by another developer
-along with the original author.  This is useful at times when multiple people
-work on a single patch.  Note, this person also needs to have a Signed-off-by:
-line in the patch as well.
+Co-developed-by: states that the patch was co-created by multiple developers;
+it is a used to give attribution to co-authors (in addition to the author
+attributed by the From: tag) when several people work on a single patch.  Since
+Co-developed-by: denotes authorship, every Co-developed-by: must be immediately
+followed by a Signed-off-by: of the associated co-author.  Standard sign-off
+procedure applies, i.e. the ordering of Signed-off-by: tags should reflect the
+chronological history of the patch insofar as possible, regardless of whether
+the author is attributed via From: or Co-developed-by:.  Notably, the last
+Signed-off-by: must always be that of the developer submitting the patch.
+
+Note, the From: tag is optional when the From: author is also the person (and
+email) listed in the From: line of the email header.
+
+Example of a patch submitted by the From: author::
+
+	<changelog>
+
+	Co-developed-by: First Co-Author <first@coauthor.example.org>
+	Signed-off-by: First Co-Author <first@coauthor.example.org>
+	Co-developed-by: Second Co-Author <second@coauthor.example.org>
+	Signed-off-by: Second Co-Author <second@coauthor.example.org>
+	Signed-off-by: From Author <from@author.example.org>
+
+Example of a patch submitted by a Co-developed-by: author::
+
+	From: From Author <from@author.example.org>
+
+	<changelog>
+
+	Co-developed-by: Random Co-Author <random@coauthor.example.org>
+	Signed-off-by: Random Co-Author <random@coauthor.example.org>
+	Signed-off-by: From Author <from@author.example.org>
+	Co-developed-by: Submitting Co-Author <sub@coauthor.example.org>
+	Signed-off-by: Submitting Co-Author <sub@coauthor.example.org>
 
 
 13) Using Reported-by:, Tested-by:, Reviewed-by:, Suggested-by: and Fixes:
@@ -694,7 +726,7 @@ A couple of example Subjects::
 The ``from`` line must be the very first line in the message body,
 and has the form:
 
-        From: Original Author <author@example.com>
+        From: Patch Author <author@example.com>
 
 The ``from`` line specifies who will be credited as the author of the
 patch in the permanent changelog.  If the ``from`` line is missing,
@@ -812,7 +844,7 @@ Andrew Morton, "The perfect patch" (tpp).
   <http://www.ozlabs.org/~akpm/stuff/tpp.txt>
 
 Jeff Garzik, "Linux kernel patch submission format".
-  <http://linux.yyz.us/patch-format.html>
+  <https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html>
 
 Greg Kroah-Hartman, "How to piss off a kernel subsystem maintainer".
   <http://www.kroah.com/log/linux/maintainer.html>

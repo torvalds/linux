@@ -79,7 +79,7 @@ MODULE_PARM_DESC(gpioa_freq,
 /* ----- begin of gipo a chip -------------------------------------------- */
 
 static int vprbrd_gpioa_get(struct gpio_chip *chip,
-		unsigned offset)
+		unsigned int offset)
 {
 	int ret, answer, error = 0;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -129,7 +129,7 @@ static int vprbrd_gpioa_get(struct gpio_chip *chip,
 }
 
 static void vprbrd_gpioa_set(struct gpio_chip *chip,
-		unsigned offset, int value)
+		unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -170,7 +170,7 @@ static void vprbrd_gpioa_set(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpioa_direction_input(struct gpio_chip *chip,
-			unsigned offset)
+			unsigned int offset)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -207,7 +207,7 @@ static int vprbrd_gpioa_direction_input(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpioa_direction_output(struct gpio_chip *chip,
-			unsigned offset, int value)
+			unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -251,8 +251,8 @@ static int vprbrd_gpioa_direction_output(struct gpio_chip *chip,
 
 /* ----- begin of gipo b chip -------------------------------------------- */
 
-static int vprbrd_gpiob_setdir(struct vprbrd *vb, unsigned offset,
-	unsigned dir)
+static int vprbrd_gpiob_setdir(struct vprbrd *vb, unsigned int offset,
+	unsigned int dir)
 {
 	struct vprbrd_gpiob_msg *gbmsg = (struct vprbrd_gpiob_msg *)vb->buf;
 	int ret;
@@ -273,7 +273,7 @@ static int vprbrd_gpiob_setdir(struct vprbrd *vb, unsigned offset,
 }
 
 static int vprbrd_gpiob_get(struct gpio_chip *chip,
-		unsigned offset)
+		unsigned int offset)
 {
 	int ret;
 	u16 val;
@@ -305,7 +305,7 @@ static int vprbrd_gpiob_get(struct gpio_chip *chip,
 }
 
 static void vprbrd_gpiob_set(struct gpio_chip *chip,
-		unsigned offset, int value)
+		unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -338,7 +338,7 @@ static void vprbrd_gpiob_set(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpiob_direction_input(struct gpio_chip *chip,
-			unsigned offset)
+			unsigned int offset)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);
@@ -359,7 +359,7 @@ static int vprbrd_gpiob_direction_input(struct gpio_chip *chip,
 }
 
 static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
-			unsigned offset, int value)
+			unsigned int offset, int value)
 {
 	int ret;
 	struct vprbrd_gpio *gpio = gpiochip_get_data(chip);

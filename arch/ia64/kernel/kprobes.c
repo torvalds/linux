@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Kernel Probes (KProbes)
  *  arch/ia64/kernel/kprobes.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2002, 2004
  * Copyright (C) Intel Corporation, 2005
@@ -990,32 +977,6 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 		break;
 	}
 	return ret;
-}
-
-struct param_bsp_cfm {
-	unsigned long ip;
-	unsigned long *bsp;
-	unsigned long cfm;
-};
-
-static void ia64_get_bsp_cfm(struct unw_frame_info *info, void *arg)
-{
-	unsigned long ip;
-	struct param_bsp_cfm *lp = arg;
-
-	do {
-		unw_get_ip(info, &ip);
-		if (ip == 0)
-			break;
-		if (ip == lp->ip) {
-			unw_get_bsp(info, (unsigned long*)&lp->bsp);
-			unw_get_cfm(info, (unsigned long*)&lp->cfm);
-			return;
-		}
-	} while (unw_unwind(info) >= 0);
-	lp->bsp = NULL;
-	lp->cfm = 0;
-	return;
 }
 
 unsigned long arch_deref_entry_point(void *entry)

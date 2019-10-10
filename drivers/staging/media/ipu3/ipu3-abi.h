@@ -1510,7 +1510,7 @@ struct imgu_abi_blob_info {
 					/* offset wrt hdr in bytes */
 	u32 prog_name_offset;		/* offset wrt hdr in bytes */
 	u32 size;			/* Size of blob */
-	u32 padding_size;		/* total cummulative of bytes added
+	u32 padding_size;		/* total cumulative of bytes added
 					 * due to section alignment
 					 */
 	u32 icache_source;		/* Position of icache in blob */

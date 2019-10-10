@@ -34,6 +34,7 @@
 #define HUBP_REG_LIST_DCN(id)\
 	SRI(DCHUBP_CNTL, HUBP, id),\
 	SRI(HUBPREQ_DEBUG_DB, HUBP, id),\
+	SRI(HUBPREQ_DEBUG, HUBP, id),\
 	SRI(DCSURF_ADDR_CONFIG, HUBP, id),\
 	SRI(DCSURF_TILING_CONFIG, HUBP, id),\
 	SRI(DCSURF_SURFACE_PITCH, HUBPREQ, id),\
@@ -124,8 +125,6 @@
 	SRI(DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, HUBPREQ, id),\
 	SRI(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, HUBPREQ, id),\
 	SRI(DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, HUBPREQ, id),\
-	SR(DCHUBBUB_SDPIF_FB_BASE),\
-	SR(DCHUBBUB_SDPIF_FB_OFFSET),\
 	SRI(CURSOR_SETTINS, HUBPREQ, id), \
 	SRI(CURSOR_SURFACE_ADDRESS_HIGH, CURSOR, id), \
 	SRI(CURSOR_SURFACE_ADDRESS, CURSOR, id), \
@@ -138,6 +137,7 @@
 #define HUBP_COMMON_REG_VARIABLE_LIST \
 	uint32_t DCHUBP_CNTL; \
 	uint32_t HUBPREQ_DEBUG_DB; \
+	uint32_t HUBPREQ_DEBUG; \
 	uint32_t DCSURF_ADDR_CONFIG; \
 	uint32_t DCSURF_TILING_CONFIG; \
 	uint32_t DCSURF_SURFACE_PITCH; \
@@ -224,14 +224,6 @@
 	uint32_t DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB; \
 	uint32_t DCN_VM_SYSTEM_APERTURE_LOW_ADDR; \
 	uint32_t DCN_VM_SYSTEM_APERTURE_HIGH_ADDR; \
-	uint32_t DCHUBBUB_SDPIF_FB_BASE; \
-	uint32_t DCHUBBUB_SDPIF_FB_OFFSET; \
-	uint32_t DCN_VM_FB_LOCATION_TOP; \
-	uint32_t DCN_VM_FB_LOCATION_BASE; \
-	uint32_t DCN_VM_FB_OFFSET; \
-	uint32_t DCN_VM_AGP_BASE; \
-	uint32_t DCN_VM_AGP_BOT; \
-	uint32_t DCN_VM_AGP_TOP; \
 	uint32_t CURSOR_SETTINS; \
 	uint32_t CURSOR_SETTINGS; \
 	uint32_t CURSOR_SURFACE_ADDRESS_HIGH; \
@@ -247,7 +239,8 @@
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
 /* Mask/shift struct generation macro for all ASICs (including those with reduced functionality) */
-#define HUBP_MASK_SH_LIST_DCN(mask_sh)\
+/*1.x, 2.x, and 3.x*/
+#define HUBP_MASK_SH_LIST_DCN_SHARE_COMMON(mask_sh)\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_BLANK_EN, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_TTU_DISABLE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_CNTL, HUBP_UNDERFLOW_STATUS, mask_sh),\
@@ -263,7 +256,6 @@
 	HUBP_SF(HUBP0_DCSURF_ADDR_CONFIG, MAX_COMPRESSED_FRAGS, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, SW_MODE, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, META_LINEAR, mask_sh),\
-	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, RB_ALIGNED, mask_sh),\
 	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, PIPE_ALIGNED, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_PITCH, PITCH, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCSURF_SURFACE_PITCH, META_PITCH, mask_sh),\
@@ -331,7 +323,6 @@
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, META_CHUNK_SIZE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MIN_META_CHUNK_SIZE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, DPTE_GROUP_SIZE, mask_sh),\
-	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MPTE_GROUP_SIZE, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, SWATH_HEIGHT, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, PTE_ROW_HEIGHT_LINEAR, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, CHUNK_SIZE_C, mask_sh),\
@@ -339,7 +330,6 @@
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, META_CHUNK_SIZE_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MIN_META_CHUNK_SIZE_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, DPTE_GROUP_SIZE_C, mask_sh),\
-	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MPTE_GROUP_SIZE_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, SWATH_HEIGHT_C, mask_sh),\
 	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, PTE_ROW_HEIGHT_LINEAR_C, mask_sh),\
 	HUBP_SF(HUBPREQ0_BLANK_OFFSET_0, REFCYC_H_BLANK_END, mask_sh),\
@@ -372,6 +362,16 @@
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL0, QoS_RAMP_DISABLE, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_SURF0_TTU_CNTL1, REFCYC_PER_REQ_DELIVERY_PRE, mask_sh),\
 	HUBP_SF(HUBP0_HUBP_CLK_CNTL, HUBP_CLOCK_ENABLE, mask_sh)
+/*2.x and 1.x only*/
+#define HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN_SHARE_COMMON(mask_sh),\
+	HUBP_SF(HUBP0_DCSURF_TILING_CONFIG, RB_ALIGNED, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG, MPTE_GROUP_SIZE, mask_sh),\
+	HUBP_SF(HUBP0_DCHUBP_REQ_SIZE_CONFIG_C, MPTE_GROUP_SIZE_C, mask_sh)
+
+/*2.x and 1.x only*/
+#define HUBP_MASK_SH_LIST_DCN(mask_sh)\
+	HUBP_MASK_SH_LIST_DCN_COMMON(mask_sh)
 
 /* Mask/shift struct generation macro for ASICs with VM */
 #define HUBP_MASK_SH_LIST_DCN_VM(mask_sh)\
@@ -407,8 +407,6 @@
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, MC_VM_SYSTEM_APERTURE_LOW_ADDR_LSB, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, MC_VM_SYSTEM_APERTURE_HIGH_ADDR_MSB, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, MC_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB, mask_sh),\
-	HUBP_SF(DCHUBBUB_SDPIF_FB_BASE, SDPIF_FB_BASE, mask_sh),\
-	HUBP_SF(DCHUBBUB_SDPIF_FB_OFFSET, SDPIF_FB_OFFSET, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, MC_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB, mask_sh),\
 	HUBP_SF(HUBPREQ0_DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, MC_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB, mask_sh),\
@@ -429,7 +427,7 @@
 	HUBP_SF(CURSOR0_CURSOR_HOT_SPOT, CURSOR_HOT_SPOT_Y, mask_sh), \
 	HUBP_SF(CURSOR0_CURSOR_DST_OFFSET, CURSOR_DST_X_OFFSET, mask_sh)
 
-#define DCN_HUBP_REG_FIELD_LIST(type) \
+#define DCN_HUBP_REG_FIELD_BASE_LIST(type) \
 	type HUBP_BLANK_EN;\
 	type HUBP_DISABLE;\
 	type HUBP_TTU_DISABLE;\
@@ -583,18 +581,9 @@
 	type MC_VM_SYSTEM_APERTURE_HIGH_ADDR_LSB;\
 	type MC_VM_SYSTEM_APERTURE_LOW_ADDR;\
 	type MC_VM_SYSTEM_APERTURE_HIGH_ADDR;\
-	type SDPIF_FB_TOP;\
-	type SDPIF_FB_BASE;\
-	type SDPIF_FB_OFFSET;\
-	type SDPIF_AGP_BASE;\
-	type SDPIF_AGP_BOT;\
-	type SDPIF_AGP_TOP;\
-	type FB_TOP;\
-	type FB_BASE;\
-	type FB_OFFSET;\
-	type AGP_BASE;\
-	type AGP_BOT;\
-	type AGP_TOP;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_SYSTEM;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_MSB;\
+	type DCN_VM_SYSTEM_APERTURE_DEFAULT_ADDR_LSB;\
 	/* todo:  get these from GVM instead of reading registers ourselves */\
 	type PAGE_DIRECTORY_ENTRY_HI32;\
 	type PAGE_DIRECTORY_ENTRY_LO32;\
@@ -622,6 +611,10 @@
 	type CURSOR_HOT_SPOT_Y; \
 	type CURSOR_DST_X_OFFSET; \
 	type OUTPUT_FP
+
+#define DCN_HUBP_REG_FIELD_LIST(type) \
+	DCN_HUBP_REG_FIELD_BASE_LIST(type);\
+	type ALPHA_PLANE_EN
 
 struct dcn_mi_registers {
 	HUBP_COMMON_REG_VARIABLE_LIST;
@@ -668,7 +661,7 @@ void hubp1_program_surface_config(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
 	union dc_tiling_info *tiling_info,
-	union plane_size *plane_size,
+	struct plane_size *plane_size,
 	enum dc_rotation_angle rotation,
 	struct dc_plane_dcc_param *dcc,
 	bool horizontal_mirror,
@@ -690,7 +683,7 @@ void hubp1_program_pixel_format(
 void hubp1_program_size(
 	struct hubp *hubp,
 	enum surface_pixel_format format,
-	const union plane_size *plane_size,
+	const struct plane_size *plane_size,
 	struct dc_plane_dcc_param *dcc);
 
 void hubp1_program_rotation(
@@ -705,13 +698,15 @@ void hubp1_program_tiling(
 
 void hubp1_dcc_control(struct hubp *hubp,
 		bool enable,
-		bool independent_64b_blks);
+		enum hubp_ind_block_size independent_64b_blks);
 
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
 bool hubp1_program_surface_flip_and_addr(
 	struct hubp *hubp,
 	const struct dc_plane_address *address,
 	bool flip_immediate);
 
+#endif
 bool hubp1_is_flip_pending(struct hubp *hubp);
 
 void hubp1_cursor_set_attributes(
@@ -745,5 +740,10 @@ void hubp1_clear_underflow(struct hubp *hubp);
 
 enum cursor_pitch hubp1_get_cursor_pitch(unsigned int pitch);
 
+void hubp1_vready_workaround(struct hubp *hubp,
+		struct _vcs_dpi_display_pipe_dest_params_st *pipe_dest);
+
+void hubp1_init(struct hubp *hubp);
+void hubp1_read_state_common(struct hubp *hubp);
 
 #endif

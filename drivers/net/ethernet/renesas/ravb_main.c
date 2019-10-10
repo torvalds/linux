@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Renesas Ethernet AVB device driver
  *
- * Copyright (C) 2014-2015 Renesas Electronics Corporation
+ * Copyright (C) 2014-2019 Renesas Electronics Corporation
  * Copyright (C) 2015 Renesas Solutions Corp.
  * Copyright (C) 2015-2016 Cogent Embedded, Inc. <source@cogentembedded.com>
  *
@@ -111,7 +111,7 @@ static void ravb_set_buffer_align(struct sk_buff *skb)
  */
 static void ravb_read_mac_address(struct net_device *ndev, const u8 *mac)
 {
-	if (mac) {
+	if (!IS_ERR(mac)) {
 		ether_addr_copy(ndev->dev_addr, mac);
 	} else {
 		u32 mahr = ravb_read(ndev, MAHR);
@@ -447,18 +447,12 @@ static int ravb_dmac_init(struct net_device *ndev)
 	ravb_ring_format(ndev, RAVB_BE);
 	ravb_ring_format(ndev, RAVB_NC);
 
-#if defined(__LITTLE_ENDIAN)
-	ravb_modify(ndev, CCC, CCC_BOC, 0);
-#else
-	ravb_modify(ndev, CCC, CCC_BOC, CCC_BOC);
-#endif
-
 	/* Set AVB RX */
 	ravb_write(ndev,
 		   RCR_EFFS | RCR_ENCF | RCR_ETS0 | RCR_ESF | 0x18000000, RCR);
 
 	/* Set FIFO size */
-	ravb_write(ndev, TGC_TQP_AVBMODE1 | 0x00222200, TGC);
+	ravb_write(ndev, TGC_TQP_AVBMODE1 | 0x00112200, TGC);
 
 	/* Timestamp enable */
 	ravb_write(ndev, TCCR_TFEN, TCCR);
@@ -513,7 +507,10 @@ static void ravb_get_tx_tstamp(struct net_device *ndev)
 			kfree(ts_skb);
 			if (tag == tfa_tag) {
 				skb_tstamp_tx(skb, &shhwtstamps);
+				dev_consume_skb_any(skb);
 				break;
+			} else {
+				dev_kfree_skb_any(skb);
 			}
 		}
 		ravb_modify(ndev, TCCR, TCCR_TFR, TCCR_TFR);
@@ -728,7 +725,6 @@ static irqreturn_t ravb_emac_interrupt(int irq, void *dev_id)
 
 	spin_lock(&priv->lock);
 	ravb_emac_interrupt_unlocked(ndev);
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return IRQ_HANDLED;
 }
@@ -848,7 +844,6 @@ static irqreturn_t ravb_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -881,7 +876,6 @@ static irqreturn_t ravb_multi_interrupt(int irq, void *dev_id)
 		result = IRQ_HANDLED;
 	}
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -898,7 +892,6 @@ static irqreturn_t ravb_dma_interrupt(int irq, void *dev_id, int q)
 	if (ravb_queue_interrupt(ndev, q))
 		result = IRQ_HANDLED;
 
-	mmiowb();
 	spin_unlock(&priv->lock);
 	return result;
 }
@@ -943,7 +936,6 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 			ravb_write(ndev, ~(mask | TIS_RESERVED), TIS);
 			ravb_tx_free(ndev, q, true);
 			netif_wake_subqueue(ndev, q);
-			mmiowb();
 			spin_unlock_irqrestore(&priv->lock, flags);
 		}
 	}
@@ -959,7 +951,6 @@ static int ravb_poll(struct napi_struct *napi, int budget)
 		ravb_write(ndev, mask, RIE0);
 		ravb_write(ndev, mask, TIE);
 	}
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Receive error message handling */
@@ -1008,7 +999,6 @@ static void ravb_adjust_link(struct net_device *ndev)
 	if (priv->no_avb_link && phydev->link)
 		ravb_rcv_snd_enable(ndev);
 
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	if (new_state && netif_msg_link(priv))
@@ -1571,7 +1561,7 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 			}
 			goto unmap;
 		}
-		ts_skb->skb = skb;
+		ts_skb->skb = skb_get(skb);
 		ts_skb->tag = priv->ts_skb_tag++;
 		priv->ts_skb_tag &= 0x3ff;
 		list_add_tail(&ts_skb->list, &priv->ts_skb_list);
@@ -1601,7 +1591,6 @@ static netdev_tx_t ravb_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		netif_stop_subqueue(ndev, q);
 
 exit:
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 	return NETDEV_TX_OK;
 
@@ -1615,8 +1604,7 @@ drop:
 }
 
 static u16 ravb_select_queue(struct net_device *ndev, struct sk_buff *skb,
-			     struct net_device *sb_dev,
-			     select_queue_fallback_t fallback)
+			     struct net_device *sb_dev)
 {
 	/* If skb needs TX timestamp, it is handled in network control queue */
 	return (skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) ? RAVB_NC :
@@ -1633,17 +1621,10 @@ static struct net_device_stats *ravb_get_stats(struct net_device *ndev)
 	stats0 = &priv->stats[RAVB_BE];
 	stats1 = &priv->stats[RAVB_NC];
 
-	nstats->tx_dropped += ravb_read(ndev, TROCR);
-	ravb_write(ndev, 0, TROCR);	/* (write clear) */
-	nstats->collisions += ravb_read(ndev, CDCR);
-	ravb_write(ndev, 0, CDCR);	/* (write clear) */
-	nstats->tx_carrier_errors += ravb_read(ndev, LCCR);
-	ravb_write(ndev, 0, LCCR);	/* (write clear) */
-
-	nstats->tx_carrier_errors += ravb_read(ndev, CERCR);
-	ravb_write(ndev, 0, CERCR);	/* (write clear) */
-	nstats->tx_carrier_errors += ravb_read(ndev, CEECR);
-	ravb_write(ndev, 0, CEECR);	/* (write clear) */
+	if (priv->chip_id == RCAR_GEN3) {
+		nstats->tx_dropped += ravb_read(ndev, TROCR);
+		ravb_write(ndev, 0, TROCR);	/* (write clear) */
+	}
 
 	nstats->rx_packets = stats0->rx_packets + stats1->rx_packets;
 	nstats->tx_packets = stats0->tx_packets + stats1->tx_packets;
@@ -1673,7 +1654,6 @@ static void ravb_set_rx_mode(struct net_device *ndev)
 	spin_lock_irqsave(&priv->lock, flags);
 	ravb_modify(ndev, ECMR, ECMR_PRM,
 		    ndev->flags & IFF_PROMISC ? ECMR_PRM : 0);
-	mmiowb();
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 
@@ -1703,6 +1683,7 @@ static int ravb_close(struct net_device *ndev)
 	/* Clear the timestamp list */
 	list_for_each_entry_safe(ts_skb, ts_skb2, &priv->ts_skb_list, list) {
 		list_del(&ts_skb->list);
+		kfree_skb(ts_skb->skb);
 		kfree(ts_skb);
 	}
 
@@ -1970,6 +1951,13 @@ static void ravb_set_config_mode(struct net_device *ndev)
 	}
 }
 
+static const struct soc_device_attribute ravb_delay_mode_quirk_match[] = {
+	{ .soc_id = "r8a774c0" },
+	{ .soc_id = "r8a77990" },
+	{ .soc_id = "r8a77995" },
+	{ /* sentinel */ }
+};
+
 /* Set tx and rx clock internal delay modes */
 static void ravb_set_delay_mode(struct net_device *ndev)
 {
@@ -1981,8 +1969,12 @@ static void ravb_set_delay_mode(struct net_device *ndev)
 		set |= APSR_DM_RDM;
 
 	if (priv->phy_interface == PHY_INTERFACE_MODE_RGMII_ID ||
-	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID)
-		set |= APSR_DM_TDM;
+	    priv->phy_interface == PHY_INTERFACE_MODE_RGMII_TXID) {
+		if (!WARN(soc_device_match(ravb_delay_mode_quirk_match),
+			  "phy-mode %s requires TX clock internal delay mode which is not supported by this hardware revision. Please update device tree",
+			  phy_modes(priv->phy_interface)))
+			set |= APSR_DM_TDM;
+	}
 
 	ravb_modify(ndev, APSR, APSR_DM, set);
 }

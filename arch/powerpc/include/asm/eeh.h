@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2001  Dave Engebretsen & Todd Inglett IBM Corporation.
  * Copyright 2001-2012 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #ifndef _POWERPC_EEH_H
@@ -101,6 +88,19 @@ struct eeh_pe {
 	struct list_head child_list;	/* List of PEs below this PE	*/
 	struct list_head child;		/* Memb. child_list/eeh_phb_pe	*/
 	struct list_head edevs;		/* List of eeh_dev in this PE	*/
+
+#ifdef CONFIG_STACKTRACE
+	/*
+	 * Saved stack trace. When we find a PE freeze in eeh_dev_check_failure
+	 * the stack trace is saved here so we can print it in the recovery
+	 * thread if it turns out to due to a real problem rather than
+	 * a hot-remove.
+	 *
+	 * A max of 64 entries might be overkill, but it also might not be.
+	 */
+	unsigned long stack_trace[64];
+	int trace_entries;
+#endif /* CONFIG_STACKTRACE */
 };
 
 #define eeh_pe_for_each_dev(pe, edev, tmp) \
@@ -134,6 +134,8 @@ static inline bool eeh_pe_passed(struct eeh_pe *pe)
 struct eeh_dev {
 	int mode;			/* EEH mode			*/
 	int class_code;			/* Class code of the device	*/
+	int bdfn;			/* bdfn of device (for cfg ops) */
+	struct pci_controller *controller;
 	int pe_config_addr;		/* PE config address		*/
 	u32 config_space[16];		/* Saved PCI config space	*/
 	int pcix_cap;			/* Saved PCIx capability	*/
@@ -148,6 +150,17 @@ struct eeh_dev {
 	bool in_error;			/* Error flag for edev		*/
 	struct pci_dev *physfn;		/* Associated SRIOV PF		*/
 };
+
+/* "fmt" must be a simple literal string */
+#define EEH_EDEV_PRINT(level, edev, fmt, ...) \
+	pr_##level("PCI %04x:%02x:%02x.%x#%04x: EEH: " fmt, \
+	(edev)->controller->global_number, PCI_BUSNO((edev)->bdfn), \
+	PCI_SLOT((edev)->bdfn), PCI_FUNC((edev)->bdfn), \
+	((edev)->pe ? (edev)->pe_config_addr : 0xffff), ##__VA_ARGS__)
+#define eeh_edev_dbg(edev, fmt, ...) EEH_EDEV_PRINT(debug, (edev), fmt, ##__VA_ARGS__)
+#define eeh_edev_info(edev, fmt, ...) EEH_EDEV_PRINT(info, (edev), fmt, ##__VA_ARGS__)
+#define eeh_edev_warn(edev, fmt, ...) EEH_EDEV_PRINT(warn, (edev), fmt, ##__VA_ARGS__)
+#define eeh_edev_err(edev, fmt, ...) EEH_EDEV_PRINT(err, (edev), fmt, ##__VA_ARGS__)
 
 static inline struct pci_dn *eeh_dev_to_pdn(struct eeh_dev *edev)
 {
@@ -219,7 +232,8 @@ struct eeh_ops {
 };
 
 extern int eeh_subsystem_flags;
-extern int eeh_max_freezes;
+extern u32 eeh_max_freezes;
+extern bool eeh_debugfs_no_recover;
 extern struct eeh_ops *eeh_ops;
 extern raw_spinlock_t confirm_error_lock;
 
@@ -259,7 +273,7 @@ static inline bool eeh_state_active(int state)
 	== (EEH_STATE_MMIO_ACTIVE | EEH_STATE_DMA_ACTIVE);
 }
 
-typedef void *(*eeh_edev_traverse_func)(struct eeh_dev *edev, void *flag);
+typedef void (*eeh_edev_traverse_func)(struct eeh_dev *edev, void *flag);
 typedef void *(*eeh_pe_traverse_func)(struct eeh_pe *pe, void *flag);
 void eeh_set_pe_aux_size(int size);
 int eeh_phb_pe_create(struct pci_controller *phb);
@@ -273,34 +287,34 @@ int eeh_rmv_from_parent_pe(struct eeh_dev *edev);
 void eeh_pe_update_time_stamp(struct eeh_pe *pe);
 void *eeh_pe_traverse(struct eeh_pe *root,
 		      eeh_pe_traverse_func fn, void *flag);
-void *eeh_pe_dev_traverse(struct eeh_pe *root,
-			  eeh_edev_traverse_func fn, void *flag);
+void eeh_pe_dev_traverse(struct eeh_pe *root,
+			 eeh_edev_traverse_func fn, void *flag);
 void eeh_pe_restore_bars(struct eeh_pe *pe);
 const char *eeh_pe_loc_get(struct eeh_pe *pe);
 struct pci_bus *eeh_pe_bus_get(struct eeh_pe *pe);
 
 struct eeh_dev *eeh_dev_init(struct pci_dn *pdn);
 void eeh_dev_phb_init_dynamic(struct pci_controller *phb);
-void eeh_probe_devices(void);
+void eeh_show_enabled(void);
 int __init eeh_ops_register(struct eeh_ops *ops);
 int __exit eeh_ops_unregister(const char *name);
 int eeh_check_failure(const volatile void __iomem *token);
 int eeh_dev_check_failure(struct eeh_dev *edev);
-void eeh_addr_cache_build(void);
+void eeh_addr_cache_init(void);
 void eeh_add_device_early(struct pci_dn *);
 void eeh_add_device_tree_early(struct pci_dn *);
 void eeh_add_device_late(struct pci_dev *);
 void eeh_add_device_tree_late(struct pci_bus *);
 void eeh_add_sysfs_files(struct pci_bus *);
 void eeh_remove_device(struct pci_dev *);
-int eeh_unfreeze_pe(struct eeh_pe *pe, bool sw_state);
+int eeh_unfreeze_pe(struct eeh_pe *pe);
 int eeh_pe_reset_and_recover(struct eeh_pe *pe);
 int eeh_dev_open(struct pci_dev *pdev);
 void eeh_dev_release(struct pci_dev *pdev);
 struct eeh_pe *eeh_iommu_group_to_pe(struct iommu_group *group);
 int eeh_pe_set_option(struct eeh_pe *pe, int option);
 int eeh_pe_get_state(struct eeh_pe *pe);
-int eeh_pe_reset(struct eeh_pe *pe, int option);
+int eeh_pe_reset(struct eeh_pe *pe, int option, bool include_passed);
 int eeh_pe_configure(struct eeh_pe *pe);
 int eeh_pe_inject_err(struct eeh_pe *pe, int type, int func,
 		      unsigned long addr, unsigned long mask);
@@ -328,7 +342,7 @@ static inline bool eeh_enabled(void)
         return false;
 }
 
-static inline void eeh_probe_devices(void) { }
+static inline void eeh_show_enabled(void) { }
 
 static inline void *eeh_dev_init(struct pci_dn *pdn, void *data)
 {
@@ -344,7 +358,7 @@ static inline int eeh_check_failure(const volatile void __iomem *token)
 
 #define eeh_dev_check_failure(x) (0)
 
-static inline void eeh_addr_cache_build(void) { }
+static inline void eeh_addr_cache_init(void) { }
 
 static inline void eeh_add_device_early(struct pci_dn *pdn) { }
 
@@ -459,6 +473,9 @@ static inline void eeh_readsl(const volatile void __iomem *addr, void * buf,
 	if (EEH_POSSIBLE_ERROR((*(((u32*)buf)+nl-1)), u32))
 		eeh_check_failure(addr);
 }
+
+
+void eeh_cache_debugfs_init(void);
 
 #endif /* CONFIG_PPC64 */
 #endif /* __KERNEL__ */

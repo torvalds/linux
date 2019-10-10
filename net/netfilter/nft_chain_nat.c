@@ -74,6 +74,36 @@ static const struct nft_chain_type nft_chain_nat_ipv6 = {
 };
 #endif
 
+#ifdef CONFIG_NF_TABLES_INET
+static int nft_nat_inet_reg(struct net *net, const struct nf_hook_ops *ops)
+{
+	return nf_nat_inet_register_fn(net, ops);
+}
+
+static void nft_nat_inet_unreg(struct net *net, const struct nf_hook_ops *ops)
+{
+	nf_nat_inet_unregister_fn(net, ops);
+}
+
+static const struct nft_chain_type nft_chain_nat_inet = {
+	.name		= "nat",
+	.type		= NFT_CHAIN_T_NAT,
+	.family		= NFPROTO_INET,
+	.hook_mask	= (1 << NF_INET_PRE_ROUTING) |
+			  (1 << NF_INET_LOCAL_IN) |
+			  (1 << NF_INET_LOCAL_OUT) |
+			  (1 << NF_INET_POST_ROUTING),
+	.hooks		= {
+		[NF_INET_PRE_ROUTING]	= nft_nat_do_chain,
+		[NF_INET_LOCAL_IN]	= nft_nat_do_chain,
+		[NF_INET_LOCAL_OUT]	= nft_nat_do_chain,
+		[NF_INET_POST_ROUTING]	= nft_nat_do_chain,
+	},
+	.ops_register		= nft_nat_inet_reg,
+	.ops_unregister		= nft_nat_inet_unreg,
+};
+#endif
+
 static int __init nft_chain_nat_init(void)
 {
 #ifdef CONFIG_NF_TABLES_IPV6
@@ -81,6 +111,9 @@ static int __init nft_chain_nat_init(void)
 #endif
 #ifdef CONFIG_NF_TABLES_IPV4
 	nft_register_chain_type(&nft_chain_nat_ipv4);
+#endif
+#ifdef CONFIG_NF_TABLES_INET
+	nft_register_chain_type(&nft_chain_nat_inet);
 #endif
 
 	return 0;
@@ -94,6 +127,9 @@ static void __exit nft_chain_nat_exit(void)
 #ifdef CONFIG_NF_TABLES_IPV6
 	nft_unregister_chain_type(&nft_chain_nat_ipv6);
 #endif
+#ifdef CONFIG_NF_TABLES_INET
+	nft_unregister_chain_type(&nft_chain_nat_inet);
+#endif
 }
 
 module_init(nft_chain_nat_init);
@@ -105,4 +141,7 @@ MODULE_ALIAS_NFT_CHAIN(AF_INET, "nat");
 #endif
 #ifdef CONFIG_NF_TABLES_IPV6
 MODULE_ALIAS_NFT_CHAIN(AF_INET6, "nat");
+#endif
+#ifdef CONFIG_NF_TABLES_INET
+MODULE_ALIAS_NFT_CHAIN(1, "nat");	/* NFPROTO_INET */
 #endif

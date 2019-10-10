@@ -35,6 +35,22 @@
 
 #define RBIO_CACHE_SIZE 1024
 
+#define BTRFS_STRIPE_HASH_TABLE_BITS				11
+
+/* Used by the raid56 code to lock stripes for read/modify/write */
+struct btrfs_stripe_hash {
+	struct list_head hash_list;
+	spinlock_t lock;
+};
+
+/* Used by the raid56 code to lock stripes for read/modify/write */
+struct btrfs_stripe_hash_table {
+	struct list_head stripe_cache;
+	spinlock_t cache_lock;
+	int cache_size;
+	struct btrfs_stripe_hash table[];
+};
+
 enum btrfs_rbio_ops {
 	BTRFS_RBIO_WRITE,
 	BTRFS_RBIO_READ_REBUILD,
@@ -1442,11 +1458,11 @@ static int fail_bio_stripe(struct btrfs_raid_bio *rbio,
 static void set_bio_pages_uptodate(struct bio *bio)
 {
 	struct bio_vec *bvec;
-	int i;
+	struct bvec_iter_all iter_all;
 
 	ASSERT(!bio_flagged(bio, BIO_CLONED));
 
-	bio_for_each_segment_all(bvec, bio, i)
+	bio_for_each_segment_all(bvec, bio, iter_all)
 		SetPageUptodate(bvec->bv_page);
 }
 
@@ -2429,8 +2445,9 @@ static noinline void finish_parity_scrub(struct btrfs_raid_bio *rbio,
 			bitmap_clear(rbio->dbitmap, pagenr, 1);
 		kunmap(p);
 
-		for (stripe = 0; stripe < rbio->real_stripes; stripe++)
+		for (stripe = 0; stripe < nr_data; stripe++)
 			kunmap(page_in_rbio(rbio, stripe, pagenr, 0));
+		kunmap(p_page);
 	}
 
 	__free_page(p_page);

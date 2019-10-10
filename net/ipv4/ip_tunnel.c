@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -515,9 +502,10 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 		mtu = dst_mtu(&rt->dst) - dev->hard_header_len
 					- sizeof(struct iphdr) - tunnel_hlen;
 	else
-		mtu = skb_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
+		mtu = skb_valid_dst(skb) ? dst_mtu(skb_dst(skb)) : dev->mtu;
 
-	skb_dst_update_pmtu(skb, mtu);
+	if (skb_valid_dst(skb))
+		skb_dst_update_pmtu(skb, mtu);
 
 	if (skb->protocol == htons(ETH_P_IP)) {
 		if (!skb_is_gso(skb) &&
@@ -530,9 +518,11 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 	}
 #if IS_ENABLED(CONFIG_IPV6)
 	else if (skb->protocol == htons(ETH_P_IPV6)) {
-		struct rt6_info *rt6 = (struct rt6_info *)skb_dst(skb);
+		struct rt6_info *rt6;
 		__be32 daddr;
 
+		rt6 = skb_valid_dst(skb) ? (struct rt6_info *)skb_dst(skb) :
+					   NULL;
 		daddr = md ? dst : tunnel->parms.iph.daddr;
 
 		if (rt6 && mtu < dst_mtu(skb_dst(skb)) &&

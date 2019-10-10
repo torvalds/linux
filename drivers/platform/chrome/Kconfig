@@ -1,6 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Platform support for Chrome OS hardware (Chromebooks and Chromeboxes)
 #
+
+config MFD_CROS_EC
+	tristate "Platform support for Chrome hardware (transitional)"
+	select CHROME_PLATFORMS
+	select CROS_EC
+	select CONFIG_MFD_CROS_EC_DEV
+	depends on X86 || ARM || ARM64 || COMPILE_TEST
+	help
+	  This is a transitional Kconfig option and will be removed after
+	  everyone enables the parts individually.
 
 menuconfig CHROME_PLATFORMS
 	bool "Platform support for Chrome hardware"
@@ -49,12 +60,22 @@ config CHROMEOS_TBMC
 	  To compile this driver as a module, choose M here: the
 	  module will be called chromeos_tbmc.
 
-config CROS_EC_CTL
-        tristate
+config CROS_EC
+	tristate "ChromeOS Embedded Controller"
+	select CROS_EC_PROTO
+	depends on X86 || ARM || ARM64 || COMPILE_TEST
+	help
+	  If you say Y here you get support for the ChromeOS Embedded
+	  Controller (EC) providing keyboard, battery and power services.
+	  You also need to enable the driver for the bus you are using. The
+	  protocol for talking to the EC is defined by the bus driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec.
 
 config CROS_EC_I2C
 	tristate "ChromeOS Embedded Controller (I2C)"
-	depends on MFD_CROS_EC && I2C
+	depends on CROS_EC && I2C
 
 	help
 	  If you say Y here, you get support for talking to the ChromeOS
@@ -62,9 +83,34 @@ config CROS_EC_I2C
 	  a checksum. Failing accesses will be retried three times to
 	  improve reliability.
 
+config CROS_EC_RPMSG
+	tristate "ChromeOS Embedded Controller (rpmsg)"
+	depends on CROS_EC && RPMSG && OF
+	help
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  through rpmsg. This uses a simple byte-level protocol with a
+	  checksum. Also since there's no addition EC-to-host interrupt, this
+	  use a byte in message to distinguish host event from host command.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_rpmsg.
+
+config CROS_EC_ISHTP
+	tristate "ChromeOS Embedded Controller (ISHTP)"
+	depends on CROS_EC
+	depends on INTEL_ISH_HID
+	help
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  firmware running on Intel Integrated Sensor Hub (ISH), using the
+	  ISH Transport protocol (ISH-TP). This uses a simple byte-level
+	  protocol with a checksum.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_ishtp.
+
 config CROS_EC_SPI
 	tristate "ChromeOS Embedded Controller (SPI)"
-	depends on MFD_CROS_EC && SPI
+	depends on CROS_EC && SPI
 
 	---help---
 	  If you say Y here, you get support for talking to the ChromeOS EC
@@ -73,28 +119,17 @@ config CROS_EC_SPI
 	  'pre-amble' bytes before the response actually starts.
 
 config CROS_EC_LPC
-        tristate "ChromeOS Embedded Controller (LPC)"
-        depends on MFD_CROS_EC && ACPI && (X86 || COMPILE_TEST)
-        help
-          If you say Y here, you get support for talking to the ChromeOS EC
-          over an LPC bus. This uses a simple byte-level protocol with a
-          checksum. This is used for userspace access only. The kernel
-          typically has its own communication methods.
-
-          To compile this driver as a module, choose M here: the
-          module will be called cros_ec_lpc.
-
-config CROS_EC_LPC_MEC
-	bool "ChromeOS Embedded Controller LPC Microchip EC (MEC) variant"
-	depends on CROS_EC_LPC
-	default n
+	tristate "ChromeOS Embedded Controller (LPC)"
+	depends on CROS_EC && ACPI && (X86 || COMPILE_TEST)
 	help
-	  If you say Y here, a variant LPC protocol for the Microchip EC
-	  will be used. Note that this variant is not backward compatible
-	  with non-Microchip ECs.
+	  If you say Y here, you get support for talking to the ChromeOS EC
+	  over an LPC bus, including the LPC Microchip EC (MEC) variant.
+	  This uses a simple byte-level protocol with a checksum. This is
+	  used for userspace access only. The kernel typically has its own
+	  communication methods.
 
-	  If you have a ChromeOS Embedded Controller Microchip EC variant
-	  choose Y here.
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_lpcs.
 
 config CROS_EC_PROTO
         bool
@@ -110,5 +145,74 @@ config CROS_KBD_LED_BACKLIGHT
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_kbd_led_backlight.
+
+config CROS_EC_CHARDEV
+	tristate "ChromeOS EC miscdevice"
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
+	help
+	  This driver adds file operations support to talk with the
+	  ChromeOS EC from userspace via a character device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_chardev.
+
+config CROS_EC_LIGHTBAR
+	tristate "Chromebook Pixel's lightbar support"
+	depends on MFD_CROS_EC_DEV
+	default MFD_CROS_EC_DEV
+	help
+	  This option exposes the Chromebook Pixel's lightbar to
+	  userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_lightbar.
+
+config CROS_EC_VBC
+	tristate "ChromeOS EC vboot context support"
+	depends on MFD_CROS_EC_DEV && OF
+	default MFD_CROS_EC_DEV
+	help
+	  This option exposes the ChromeOS EC vboot context nvram to
+	  userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_vbc.
+
+config CROS_EC_DEBUGFS
+	tristate "Export ChromeOS EC internals in DebugFS"
+	depends on MFD_CROS_EC_DEV && DEBUG_FS
+	default MFD_CROS_EC_DEV
+	help
+	  This option exposes the ChromeOS EC device internals to
+	  userspace.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_debugfs.
+
+config CROS_EC_SYSFS
+	tristate "ChromeOS EC control and information through sysfs"
+	depends on MFD_CROS_EC_DEV && SYSFS
+	default MFD_CROS_EC_DEV
+	help
+	  This option exposes some sysfs attributes to control and get
+	  information from ChromeOS EC.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_ec_sysfs.
+
+config CROS_USBPD_LOGGER
+	tristate "Logging driver for USB PD charger"
+	depends on CHARGER_CROS_USBPD
+	default y
+	select RTC_LIB
+	help
+	  This option enables support for logging event data for the USB PD charger
+	  available in the Embedded Controller on ChromeOS systems.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cros_usbpd_logger.
+
+source "drivers/platform/chrome/wilco_ec/Kconfig"
 
 endif # CHROMEOS_PLATFORMS

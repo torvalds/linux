@@ -211,8 +211,8 @@ struct bp_pixel_clock_parameters {
 	/* signal_type -> Encoder Mode - needed by VBIOS Exec table */
 	enum signal_type signal_type;
 	/* Adjusted Pixel Clock (after VBIOS exec table)
-	 * that becomes Target Pixel Clock (KHz) */
-	uint32_t target_pixel_clock;
+	 * that becomes Target Pixel Clock (100 Hz units) */
+	uint32_t target_pixel_clock_100hz;
 	/* Calculated Reference divider of Display PLL */
 	uint32_t reference_divider;
 	/* Calculated Feedback divider of Display PLL */
@@ -307,7 +307,8 @@ struct bp_encoder_cap_info {
 	uint32_t DP_HBR2_EN:1;
 	uint32_t DP_HBR3_EN:1;
 	uint32_t HDMI_6GB_EN:1;
-	uint32_t RESERVED:30;
+	uint32_t DP_IS_USB_C:1;
+	uint32_t RESERVED:27;
 };
 
 #endif /*__DAL_BIOS_PARSER_TYPES_H__ */

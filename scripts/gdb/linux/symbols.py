@@ -77,12 +77,12 @@ lx-symbols command."""
             gdb.write("scanning for modules in {0}\n".format(path))
             for root, dirs, files in os.walk(path):
                 for name in files:
-                    if name.endswith(".ko"):
+                    if name.endswith(".ko") or name.endswith(".ko.debug"):
                         self.module_files.append(root + "/" + name)
         self.module_files_updated = True
 
     def _get_module_file(self, module_name):
-        module_pattern = ".*/{0}\.ko$".format(
+        module_pattern = ".*/{0}\.ko(?:.debug)?$".format(
             module_name.replace("_", r"[_\-]"))
         for name in self.module_files:
             if re.match(module_pattern, name) and os.path.exists(name):
@@ -139,8 +139,12 @@ lx-symbols command."""
                 saved_states.append({'breakpoint': bp, 'enabled': bp.enabled})
 
         # drop all current symbols and reload vmlinux
+        orig_vmlinux = 'vmlinux'
+        for obj in gdb.objfiles():
+            if obj.filename.endswith('vmlinux'):
+                orig_vmlinux = obj.filename
         gdb.execute("symbol-file", to_string=True)
-        gdb.execute("symbol-file vmlinux")
+        gdb.execute("symbol-file {0}".format(orig_vmlinux))
 
         self.loaded_modules = []
         module_list = modules.module_list()

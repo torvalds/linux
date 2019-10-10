@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * drivers/net/ethernet/rocker/rocker.c - Rocker switch device driver
  * Copyright (c) 2014-2016 Jiri Pirko <jiri@mellanox.com>
  * Copyright (c) 2014 Scott Feldman <sfeldma@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -2193,6 +2189,9 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	struct rocker_fib_event_work *fib_work;
 	struct fib_notifier_info *info = ptr;
 
+	if (!net_eq(info->net, &init_net))
+		return NOTIFY_DONE;
+
 	if (info->family != AF_INET)
 		return NOTIFY_DONE;
 
@@ -2207,6 +2206,21 @@ static int rocker_router_fib_event(struct notifier_block *nb,
 	switch (event) {
 	case FIB_EVENT_ENTRY_ADD: /* fall through */
 	case FIB_EVENT_ENTRY_DEL:
+		if (info->family == AF_INET) {
+			struct fib_entry_notifier_info *fen_info = ptr;
+
+			if (fen_info->fi->fib_nh_is_v6) {
+				NL_SET_ERR_MSG_MOD(info->extack, "IPv6 gateway with IPv4 route is not supported");
+				kfree(fib_work);
+				return notifier_from_errno(-EINVAL);
+			}
+			if (fen_info->fi->nh) {
+				NL_SET_ERR_MSG_MOD(info->extack, "IPv4 route with nexthop objects is not supported");
+				kfree(fib_work);
+				return notifier_from_errno(-EINVAL);
+			}
+		}
+
 		memcpy(&fib_work->fen_info, ptr, sizeof(fib_work->fen_info));
 		/* Take referece on fib_info to prevent it from being
 		 * freed while work is queued. Release it afterwards.
@@ -2805,6 +2819,11 @@ static int rocker_switchdev_event(struct notifier_block *unused,
 		memcpy(&switchdev_work->fdb_info, ptr,
 		       sizeof(switchdev_work->fdb_info));
 		switchdev_work->fdb_info.addr = kzalloc(ETH_ALEN, GFP_ATOMIC);
+		if (unlikely(!switchdev_work->fdb_info.addr)) {
+			kfree(switchdev_work);
+			return NOTIFY_BAD;
+		}
+
 		ether_addr_copy((u8 *)switchdev_work->fdb_info.addr,
 				fdb_info->addr);
 		/* Take a reference on the rocker device */

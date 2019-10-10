@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # ACPI INT340x thermal drivers configuration
 #
@@ -39,4 +40,10 @@ config INT3406_THERMAL
 	  brightness in order to address a thermal condition or to reduce
 	  power consumed by display device.
 
+config PROC_THERMAL_MMIO_RAPL
+	bool
+	depends on 64BIT
+	depends on POWERCAP
+	select INTEL_RAPL_CORE
+	default y
 endif

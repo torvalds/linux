@@ -62,12 +62,26 @@ struct xfs_scrub {
 	struct xfs_inode		*ip;
 	void				*buf;
 	uint				ilock_flags;
-	bool				try_harder;
-	bool				has_quotaofflock;
+
+	/* See the XCHK/XREP state flags below. */
+	unsigned int			flags;
+
+	/*
+	 * The XFS_SICK_* flags that correspond to the metadata being scrubbed
+	 * or repaired.  We will use this mask to update the in-core fs health
+	 * status with whatever we find.
+	 */
+	unsigned int			sick_mask;
 
 	/* State tracking for single-AG operations. */
 	struct xchk_ag			sa;
 };
+
+/* XCHK state flags grow up from zero, XREP state flags grown down from 2^31 */
+#define XCHK_TRY_HARDER		(1 << 0)  /* can't get resources, try again */
+#define XCHK_HAS_QUOTAOFFLOCK	(1 << 1)  /* we hold the quotaoff lock */
+#define XCHK_REAPING_DISABLED	(1 << 2)  /* background block reaping paused */
+#define XREP_ALREADY_FIXED	(1 << 31) /* checking our repair work */
 
 /* Metadata scrubbers */
 int xchk_tester(struct xfs_scrub *sc);
@@ -113,6 +127,7 @@ xchk_quota(struct xfs_scrub *sc)
 	return -ENOENT;
 }
 #endif
+int xchk_fscounters(struct xfs_scrub *sc);
 
 /* cross-referencing helpers */
 void xchk_xref_is_used_space(struct xfs_scrub *sc, xfs_agblock_t agbno,
@@ -137,5 +152,13 @@ void xchk_xref_is_used_rt_space(struct xfs_scrub *sc, xfs_rtblock_t rtbno,
 #else
 # define xchk_xref_is_used_rt_space(sc, rtbno, len) do { } while (0)
 #endif
+
+struct xchk_fscounters {
+	uint64_t		icount;
+	uint64_t		ifree;
+	uint64_t		fdblocks;
+	unsigned long long	icount_min;
+	unsigned long long	icount_max;
+};
 
 #endif	/* __XFS_SCRUB_SCRUB_H__ */

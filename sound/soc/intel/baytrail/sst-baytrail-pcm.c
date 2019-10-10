@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Baytrail SST PCM Support
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -188,7 +180,7 @@ static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		sst_byt_stream_start(byt, pcm_data->stream, 0);
 		break;
 	case SNDRV_PCM_TRIGGER_RESUME:
-		if (pdata->restore_stream == true)
+		if (pdata->restore_stream)
 			schedule_work(&pcm_data->work);
 		else
 			sst_byt_stream_resume(byt, pcm_data->stream);
@@ -201,6 +193,7 @@ static int sst_byt_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		pdata->restore_stream = false;
+		/* fallthrough */
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		sst_byt_stream_pause(byt, pcm_data->stream);
 		break;
@@ -327,23 +320,16 @@ static int sst_byt_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	size_t size;
 	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct sst_pdata *pdata = dev_get_platdata(component->dev);
-	int ret = 0;
 
 	if (pcm->streams[SNDRV_PCM_STREAM_PLAYBACK].substream ||
 	    pcm->streams[SNDRV_PCM_STREAM_CAPTURE].substream) {
 		size = sst_byt_pcm_hardware.buffer_bytes_max;
-		ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
-							    SNDRV_DMA_TYPE_DEV,
-							    pdata->dma_dev,
-							    size, size);
-		if (ret) {
-			dev_err(rtd->dev, "dma buffer allocation failed %d\n",
-				ret);
-			return ret;
-		}
+		snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+						      pdata->dma_dev,
+						      size, size);
 	}
 
-	return ret;
+	return 0;
 }
 
 static struct snd_soc_dai_driver byt_dais[] = {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  * Device driver for GPIO attached remote control interfaces
@@ -6,16 +7,6 @@
  * Copyright (c) 2003 Pavel Machek
  * Copyright (c) 2004 Gerd Knorr
  * Copyright (c) 2004, 2005 Chris Pascoe
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "cx88.h"
@@ -176,14 +167,14 @@ static void cx88_ir_handle_key(struct cx88_IR *ir)
 
 static enum hrtimer_restart cx88_ir_work(struct hrtimer *timer)
 {
-	unsigned long missed;
+	u64 missed;
 	struct cx88_IR *ir = container_of(timer, struct cx88_IR, timer);
 
 	cx88_ir_handle_key(ir);
 	missed = hrtimer_forward_now(&ir->timer,
 				     ktime_set(0, ir->polling * 1000000));
 	if (missed > 1)
-		ir_dprintk("Missed ticks %ld\n", missed - 1);
+		ir_dprintk("Missed ticks %llu\n", missed - 1);
 
 	return HRTIMER_RESTART;
 }

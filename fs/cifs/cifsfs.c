@@ -56,6 +56,15 @@
 #include "dfs_cache.h"
 #endif
 
+/*
+ * DOS dates from 1980/1/1 through 2107/12/31
+ * Protocol specifications indicate the range should be to 119, which
+ * limits maximum year to 2099. But this range has not been checked.
+ */
+#define SMB_DATE_MAX (127<<9 | 12<<5 | 31)
+#define SMB_DATE_MIN (0<<9 | 1<<5 | 1)
+#define SMB_TIME_MAX (23<<11 | 59<<5 | 29)
+
 int cifsFYI = 0;
 bool traceSMB;
 bool enable_oplocks = true;
@@ -109,6 +118,7 @@ extern mempool_t *cifs_req_poolp;
 extern mempool_t *cifs_mid_poolp;
 
 struct workqueue_struct	*cifsiod_wq;
+struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*cifsoplockd_wq;
 __u32 cifs_lock_secret;
 
@@ -142,6 +152,7 @@ cifs_read_super(struct super_block *sb)
 	struct inode *inode;
 	struct cifs_sb_info *cifs_sb;
 	struct cifs_tcon *tcon;
+	struct timespec64 ts;
 	int rc = 0;
 
 	cifs_sb = CIFS_SB(sb);
@@ -160,6 +171,18 @@ cifs_read_super(struct super_block *sb)
 
 	/* BB FIXME fix time_gran to be larger for LANMAN sessions */
 	sb->s_time_gran = 100;
+
+	if (tcon->unix_ext) {
+		ts = cifs_NTtimeToUnix(0);
+		sb->s_time_min = ts.tv_sec;
+		ts = cifs_NTtimeToUnix(cpu_to_le64(S64_MAX));
+		sb->s_time_max = ts.tv_sec;
+	} else {
+		ts = cnvrtDosUnixTm(cpu_to_le16(SMB_DATE_MIN), 0, 0);
+		sb->s_time_min = ts.tv_sec;
+		ts = cnvrtDosUnixTm(cpu_to_le16(SMB_DATE_MAX), cpu_to_le16(SMB_TIME_MAX), 0);
+		sb->s_time_max = ts.tv_sec;
+	}
 
 	sb->s_magic = CIFS_MAGIC_NUMBER;
 	sb->s_op = &cifs_super_ops;
@@ -303,6 +326,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->uniqueid = 0;
 	cifs_inode->createtime = 0;
 	cifs_inode->epoch = 0;
+	spin_lock_init(&cifs_inode->open_file_lock);
 	generate_random_uuid(cifs_inode->lease_key);
 
 	/*
@@ -315,16 +339,10 @@ cifs_alloc_inode(struct super_block *sb)
 	return &cifs_inode->vfs_inode;
 }
 
-static void cifs_i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	kmem_cache_free(cifs_inode_cachep, CIFS_I(inode));
-}
-
 static void
-cifs_destroy_inode(struct inode *inode)
+cifs_free_inode(struct inode *inode)
 {
-	call_rcu(&inode->i_rcu, cifs_i_callback);
+	kmem_cache_free(cifs_inode_cachep, CIFS_I(inode));
 }
 
 static void
@@ -381,7 +399,7 @@ cifs_show_security(struct seq_file *s, struct cifs_ses *ses)
 		seq_puts(s, "ntlm");
 		break;
 	case Kerberos:
-		seq_puts(s, "krb5");
+		seq_printf(s, "krb5,cruid=%u", from_kuid_munged(&init_user_ns,ses->cred_uid));
 		break;
 	case RawNTLMSSP:
 		seq_puts(s, "ntlmssp");
@@ -405,6 +423,10 @@ cifs_show_cache_flavor(struct seq_file *s, struct cifs_sb_info *cifs_sb)
 		seq_puts(s, "strict");
 	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DIRECT_IO)
 		seq_puts(s, "none");
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RW_CACHE)
+		seq_puts(s, "singleclient"); /* assume only one client access */
+	else if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_RO_CACHE)
+		seq_puts(s, "ro"); /* read only caching assumed */
 	else
 		seq_puts(s, "loose");
 }
@@ -438,6 +460,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 	cifs_show_security(s, tcon->ses);
 	cifs_show_cache_flavor(s, cifs_sb);
 
+	if (tcon->no_lease)
+		seq_puts(s, ",nolease");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MULTIUSER)
 		seq_puts(s, ",multiuser");
 	else if (tcon->ses->user_name)
@@ -489,6 +513,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",seal");
 	if (tcon->nocase)
 		seq_puts(s, ",nocase");
+	if (tcon->local_lease)
+		seq_puts(s, ",locallease");
 	if (tcon->retry)
 		seq_puts(s, ",hard");
 	else
@@ -529,6 +555,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",nobrl");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_HANDLE_CACHE)
 		seq_puts(s, ",nohandlecache");
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MODE_FROM_SID)
+		seq_puts(s, ",modefromsid");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_CIFS_ACL)
 		seq_puts(s, ",cifsacl");
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)
@@ -554,10 +582,20 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 
 	seq_printf(s, ",rsize=%u", cifs_sb->rsize);
 	seq_printf(s, ",wsize=%u", cifs_sb->wsize);
+	seq_printf(s, ",bsize=%u", cifs_sb->bsize);
+	if (tcon->ses->server->min_offload)
+		seq_printf(s, ",esize=%u", tcon->ses->server->min_offload);
 	seq_printf(s, ",echo_interval=%lu",
 			tcon->ses->server->echo_interval / HZ);
+
+	/* Only display max_credits if it was overridden on mount */
+	if (tcon->ses->server->max_credits != SMB2_MAX_CREDITS_AVAILABLE)
+		seq_printf(s, ",max_credits=%u", tcon->ses->server->max_credits);
+
 	if (tcon->snapshot_time)
 		seq_printf(s, ",snapshot=%llu", tcon->snapshot_time);
+	if (tcon->handle_timeout)
+		seq_printf(s, ",handletimeout=%u", tcon->handle_timeout);
 	/* convert actimeo and display it in seconds */
 	seq_printf(s, ",actimeo=%lu", cifs_sb->actimeo / HZ);
 
@@ -627,7 +665,7 @@ static int cifs_drop_inode(struct inode *inode)
 static const struct super_operations cifs_super_ops = {
 	.statfs = cifs_statfs,
 	.alloc_inode = cifs_alloc_inode,
-	.destroy_inode = cifs_destroy_inode,
+	.free_inode = cifs_free_inode,
 	.drop_inode	= cifs_drop_inode,
 	.evict_inode	= cifs_evict_inode,
 /*	.delete_inode	= cifs_delete_inode,  */  /* Do not need above
@@ -879,6 +917,9 @@ out:
 
 static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 {
+	struct cifsFileInfo *cfile = file->private_data;
+	struct cifs_tcon *tcon;
+
 	/*
 	 * whence == SEEK_END || SEEK_DATA || SEEK_HOLE => we must revalidate
 	 * the cached file length
@@ -909,6 +950,12 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int whence)
 		rc = cifs_revalidate_file_attr(file);
 		if (rc < 0)
 			return (loff_t)rc;
+	}
+	if (cfile && cfile->tlink) {
+		tcon = tlink_tcon(cfile->tlink);
+		if (tcon->ses->server->ops->llseek)
+			return tcon->ses->server->ops->llseek(file, tcon,
+							      offset, whence);
 	}
 	return generic_file_llseek(file, offset, whence);
 }
@@ -987,6 +1034,7 @@ const struct inode_operations cifs_file_inode_ops = {
 	.getattr = cifs_getattr,
 	.permission = cifs_permission,
 	.listxattr = cifs_listxattr,
+	.fiemap = cifs_fiemap,
 };
 
 const struct inode_operations cifs_symlink_inode_ops = {
@@ -1007,7 +1055,7 @@ static loff_t cifs_remap_file_range(struct file *src_file, loff_t off,
 	unsigned int xid;
 	int rc;
 
-	if (remap_flags & ~REMAP_FILE_ADVISORY)
+	if (remap_flags & ~(REMAP_FILE_DEDUP | REMAP_FILE_ADVISORY))
 		return -EINVAL;
 
 	cifs_dbg(FYI, "clone range\n");
@@ -1070,11 +1118,6 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 
 	cifs_dbg(FYI, "copychunk range\n");
 
-	if (src_inode == target_inode) {
-		rc = -EINVAL;
-		goto out;
-	}
-
 	if (!src_file->private_data || !dst_file->private_data) {
 		rc = -EBADF;
 		cifs_dbg(VFS, "missing cifsFileInfo on copy range src file\n");
@@ -1092,6 +1135,10 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 		goto out;
 	}
 
+	rc = -EOPNOTSUPP;
+	if (!target_tcon->ses->server->ops->copychunk_range)
+		goto out;
+
 	/*
 	 * Note: cifs case is easier than btrfs since server responsible for
 	 * checks for proper open modes and file type and if it wants
@@ -1103,11 +1150,12 @@ ssize_t cifs_file_copychunk_range(unsigned int xid,
 	/* should we flush first and last page first */
 	truncate_inode_pages(&target_inode->i_data, 0);
 
-	if (target_tcon->ses->server->ops->copychunk_range)
+	rc = file_modified(dst_file);
+	if (!rc)
 		rc = target_tcon->ses->server->ops->copychunk_range(xid,
 			smb_file_src, smb_file_target, off, len, destoff);
-	else
-		rc = -EOPNOTSUPP;
+
+	file_accessed(src_file);
 
 	/* force revalidate of size and timestamps of target file now
 	 * that target is updated on the server
@@ -1144,6 +1192,10 @@ static ssize_t cifs_copy_file_range(struct file *src_file, loff_t off,
 	rc = cifs_file_copychunk_range(xid, src_file, off, dst_file, destoff,
 					len, flags);
 	free_xid(xid);
+
+	if (rc == -EOPNOTSUPP || rc == -EXDEV)
+		rc = generic_copy_file_range(src_file, off, dst_file,
+					     destoff, len, flags);
 	return rc;
 }
 
@@ -1474,11 +1526,25 @@ init_cifs(void)
 		goto out_clean_proc;
 	}
 
+	/*
+	 * Consider in future setting limit!=0 maybe to min(num_of_cores - 1, 3)
+	 * so that we don't launch too many worker threads but
+	 * Documentation/workqueue.txt recommends setting it to 0
+	 */
+
+	/* WQ_UNBOUND allows decrypt tasks to run on any CPU */
+	decrypt_wq = alloc_workqueue("smb3decryptd",
+				     WQ_UNBOUND|WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
+	if (!decrypt_wq) {
+		rc = -ENOMEM;
+		goto out_destroy_cifsiod_wq;
+	}
+
 	cifsoplockd_wq = alloc_workqueue("cifsoplockd",
 					 WQ_FREEZABLE|WQ_MEM_RECLAIM, 0);
 	if (!cifsoplockd_wq) {
 		rc = -ENOMEM;
-		goto out_destroy_cifsiod_wq;
+		goto out_destroy_decrypt_wq;
 	}
 
 	rc = cifs_fscache_register();
@@ -1508,11 +1574,9 @@ init_cifs(void)
 		goto out_destroy_dfs_cache;
 #endif /* CONFIG_CIFS_UPCALL */
 
-#ifdef CONFIG_CIFS_ACL
 	rc = init_cifs_idmap();
 	if (rc)
 		goto out_register_key_type;
-#endif /* CONFIG_CIFS_ACL */
 
 	rc = register_filesystem(&cifs_fs_type);
 	if (rc)
@@ -1527,10 +1591,8 @@ init_cifs(void)
 	return 0;
 
 out_init_cifs_idmap:
-#ifdef CONFIG_CIFS_ACL
 	exit_cifs_idmap();
 out_register_key_type:
-#endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
 out_destroy_dfs_cache:
@@ -1548,6 +1610,8 @@ out_unreg_fscache:
 	cifs_fscache_unregister();
 out_destroy_cifsoplockd_wq:
 	destroy_workqueue(cifsoplockd_wq);
+out_destroy_decrypt_wq:
+	destroy_workqueue(decrypt_wq);
 out_destroy_cifsiod_wq:
 	destroy_workqueue(cifsiod_wq);
 out_clean_proc:
@@ -1562,9 +1626,7 @@ exit_cifs(void)
 	unregister_filesystem(&cifs_fs_type);
 	unregister_filesystem(&smb3_fs_type);
 	cifs_dfs_release_automount_timer();
-#ifdef CONFIG_CIFS_ACL
 	exit_cifs_idmap();
-#endif
 #ifdef CONFIG_CIFS_UPCALL
 	exit_cifs_spnego();
 #endif
@@ -1576,6 +1638,7 @@ exit_cifs(void)
 	cifs_destroy_inodecache();
 	cifs_fscache_unregister();
 	destroy_workqueue(cifsoplockd_wq);
+	destroy_workqueue(decrypt_wq);
 	destroy_workqueue(cifsiod_wq);
 	cifs_proc_clean();
 }
@@ -1586,8 +1649,6 @@ MODULE_DESCRIPTION
 	("VFS to access SMB3 servers e.g. Samba, Macs, Azure and Windows (and "
 	"also older servers complying with the SNIA CIFS Specification)");
 MODULE_VERSION(CIFS_VERSION);
-MODULE_SOFTDEP("pre: arc4");
-MODULE_SOFTDEP("pre: des");
 MODULE_SOFTDEP("pre: ecb");
 MODULE_SOFTDEP("pre: hmac");
 MODULE_SOFTDEP("pre: md4");
@@ -1599,5 +1660,6 @@ MODULE_SOFTDEP("pre: sha256");
 MODULE_SOFTDEP("pre: sha512");
 MODULE_SOFTDEP("pre: aead2");
 MODULE_SOFTDEP("pre: ccm");
+MODULE_SOFTDEP("pre: gcm");
 module_init(init_cifs)
 module_exit(exit_cifs)

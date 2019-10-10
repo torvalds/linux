@@ -7,6 +7,8 @@
 
 #define _GNU_SOURCE /* for program_invocation_name */
 
+#include <linux/compiler.h>
+
 #include "kvm_util.h"
 #include "../kvm_util_internal.h"
 #include "processor.h"
@@ -67,15 +69,13 @@ static uint64_t ptrs_per_pgd(struct kvm_vm *vm)
 	return 1 << (vm->va_bits - shift);
 }
 
-static uint64_t ptrs_per_pte(struct kvm_vm *vm)
+static uint64_t __maybe_unused ptrs_per_pte(struct kvm_vm *vm)
 {
 	return 1 << (vm->page_shift - 3);
 }
 
 void virt_pgd_alloc(struct kvm_vm *vm, uint32_t pgd_memslot)
 {
-	int rc;
-
 	if (!vm->pgd_created) {
 		vm_paddr_t paddr = vm_phy_pages_alloc(vm,
 			page_align(vm, ptrs_per_pgd(vm) * 8) / vm->page_size,
@@ -181,6 +181,7 @@ vm_paddr_t addr_gva2gpa(struct kvm_vm *vm, vm_vaddr_t gva)
 unmapped_gva:
 	TEST_ASSERT(false, "No mapping for vm virtual address, "
 		    "gva: 0x%lx", gva);
+	exit(1);
 }
 
 static void pte_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent, uint64_t page, int level)
@@ -226,7 +227,7 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	uint64_t extra_pg_pages = (extra_mem_pages / ptrs_per_4k_pte) * 2;
 	struct kvm_vm *vm;
 
-	vm = vm_create(VM_MODE_P52V48_4K, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
+	vm = vm_create(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES + extra_pg_pages, O_RDWR);
 
 	kvm_vm_elf_load(vm, program_invocation_name, 0, 0);
 	vm_vcpu_add_default(vm, vcpuid, guest_code);
@@ -234,28 +235,21 @@ struct kvm_vm *vm_create_default(uint32_t vcpuid, uint64_t extra_mem_pages,
 	return vm;
 }
 
-void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+void aarch64_vcpu_setup(struct kvm_vm *vm, int vcpuid, struct kvm_vcpu_init *init)
 {
-	size_t stack_size = vm->page_size == 4096 ?
-					DEFAULT_STACK_PGS * vm->page_size :
-					vm->page_size;
-	uint64_t stack_vaddr = vm_vaddr_alloc(vm, stack_size,
-					DEFAULT_ARM64_GUEST_STACK_VADDR_MIN, 0, 0);
-
-	vm_vcpu_add(vm, vcpuid, 0, 0);
-
-	set_reg(vm, vcpuid, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
-	set_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), (uint64_t)guest_code);
-}
-
-void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
-{
-	struct kvm_vcpu_init init;
+	struct kvm_vcpu_init default_init = { .target = -1, };
 	uint64_t sctlr_el1, tcr_el1;
 
-	memset(&init, 0, sizeof(init));
-	init.target = KVM_ARM_TARGET_GENERIC_V8;
-	vcpu_ioctl(vm, vcpuid, KVM_ARM_VCPU_INIT, &init);
+	if (!init)
+		init = &default_init;
+
+	if (init->target == -1) {
+		struct kvm_vcpu_init preferred;
+		vm_ioctl(vm, KVM_ARM_PREFERRED_TARGET, &preferred);
+		init->target = preferred.target;
+	}
+
+	vcpu_ioctl(vm, vcpuid, KVM_ARM_VCPU_INIT, init);
 
 	/*
 	 * Enable FP/ASIMD to avoid trapping when accessing Q0-Q15
@@ -270,6 +264,9 @@ void vcpu_setup(struct kvm_vm *vm, int vcpuid, int pgd_memslot, int gdt_memslot)
 	case VM_MODE_P52V48_4K:
 		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
 				   "with 52-bit physical address ranges");
+	case VM_MODE_PXXV48_4K:
+		TEST_ASSERT(false, "AArch64 does not support 4K sized pages "
+				   "with ANY-bit physical address ranges");
 	case VM_MODE_P52V48_64K:
 		tcr_el1 |= 1ul << 14; /* TG0 = 64KB */
 		tcr_el1 |= 6ul << 32; /* IPS = 52 bits */
@@ -312,6 +309,27 @@ void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
 	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pstate), &pstate);
 	get_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), &pc);
 
-	fprintf(stream, "%*spstate: 0x%.16llx pc: 0x%.16llx\n",
+	fprintf(stream, "%*spstate: 0x%.16lx pc: 0x%.16lx\n",
 		indent, "", pstate, pc);
+}
+
+void aarch64_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid,
+			      struct kvm_vcpu_init *init, void *guest_code)
+{
+	size_t stack_size = vm->page_size == 4096 ?
+					DEFAULT_STACK_PGS * vm->page_size :
+					vm->page_size;
+	uint64_t stack_vaddr = vm_vaddr_alloc(vm, stack_size,
+					DEFAULT_ARM64_GUEST_STACK_VADDR_MIN, 0, 0);
+
+	vm_vcpu_add(vm, vcpuid);
+	aarch64_vcpu_setup(vm, vcpuid, init);
+
+	set_reg(vm, vcpuid, ARM64_CORE_REG(sp_el1), stack_vaddr + stack_size);
+	set_reg(vm, vcpuid, ARM64_CORE_REG(regs.pc), (uint64_t)guest_code);
+}
+
+void vm_vcpu_add_default(struct kvm_vm *vm, uint32_t vcpuid, void *guest_code)
+{
+	aarch64_vcpu_add_default(vm, vcpuid, NULL, guest_code);
 }

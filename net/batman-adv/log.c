@@ -2,18 +2,6 @@
 /* Copyright (C) 2010-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "log.h"
@@ -102,7 +90,7 @@ static int batadv_log_open(struct inode *inode, struct file *file)
 	batadv_debugfs_deprecated(file,
 				  "Use tracepoint batadv:batadv_dbg instead\n");
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 	file->private_data = inode->i_private;
 	return 0;
 }
@@ -202,27 +190,16 @@ static const struct file_operations batadv_log_fops = {
  */
 int batadv_debug_log_setup(struct batadv_priv *bat_priv)
 {
-	struct dentry *d;
-
-	if (!bat_priv->debug_dir)
-		goto err;
-
 	bat_priv->debug_log = kzalloc(sizeof(*bat_priv->debug_log), GFP_ATOMIC);
 	if (!bat_priv->debug_log)
-		goto err;
+		return -ENOMEM;
 
 	spin_lock_init(&bat_priv->debug_log->lock);
 	init_waitqueue_head(&bat_priv->debug_log->queue_wait);
 
-	d = debugfs_create_file("log", 0400, bat_priv->debug_dir, bat_priv,
-				&batadv_log_fops);
-	if (!d)
-		goto err;
-
+	debugfs_create_file("log", 0400, bat_priv->debug_dir, bat_priv,
+			    &batadv_log_fops);
 	return 0;
-
-err:
-	return -ENOMEM;
 }
 
 /**

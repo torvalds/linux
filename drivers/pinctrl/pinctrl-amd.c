@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO driver for AMD
  *
@@ -5,13 +6,8 @@
  * Authors: Ken Xue <Ken.Xue@amd.com>
  *      Wu, Jeff <Jeff.Wu@amd.com>
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  * Contact Information: Nehal Shah <Nehal-bakulchandra.Shah@amd.com>
  *			Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
- *
  */
 
 #include <linux/err.h>
@@ -489,7 +485,7 @@ static int amd_gpio_irq_set_type(struct irq_data *d, unsigned int type)
 	/*
 	 * If WAKE_INT_MASTER_REG.MaskStsEn is set, a software write to the
 	 * debounce registers of any GPIO will block wake/interrupt status
-	 * generation for *all* GPIOs for a lenght of time that depends on
+	 * generation for *all* GPIOs for a length of time that depends on
 	 * WAKE_INT_MASTER_REG.MaskStsLength[11:0].  During this period the
 	 * INTERRUPT_ENABLE bit will read as 0.
 	 *
@@ -569,15 +565,25 @@ static irqreturn_t amd_gpio_irq_handler(int irq, void *dev_id)
 			    !(regval & BIT(INTERRUPT_MASK_OFF)))
 				continue;
 			irq = irq_find_mapping(gc->irq.domain, irqnr + i);
-			generic_handle_irq(irq);
+			if (irq != 0)
+				generic_handle_irq(irq);
 
 			/* Clear interrupt.
 			 * We must read the pin register again, in case the
 			 * value was changed while executing
 			 * generic_handle_irq() above.
+			 * If we didn't find a mapping for the interrupt,
+			 * disable it in order to avoid a system hang caused
+			 * by an interrupt storm.
 			 */
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 			regval = readl(regs + i);
+			if (irq == 0) {
+				regval &= ~BIT(INTERRUPT_ENABLE_OFF);
+				dev_dbg(&gpio_dev->pdev->dev,
+					"Disabling spurious GPIO IRQ %d\n",
+					irqnr + i);
+			}
 			writel(regval, regs + i);
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
 			ret = IRQ_HANDLED;
@@ -865,10 +871,8 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	irq_base = platform_get_irq(pdev, 0);
-	if (irq_base < 0) {
-		dev_err(&pdev->dev, "Failed to get gpio IRQ: %d\n", irq_base);
+	if (irq_base < 0)
 		return irq_base;
-	}
 
 #ifdef CONFIG_PM_SLEEP
 	gpio_dev->saved_regs = devm_kcalloc(&pdev->dev, amd_pinctrl_desc.npins,
@@ -930,8 +934,8 @@ static int amd_gpio_probe(struct platform_device *pdev)
 		goto out2;
 	}
 
-	ret = devm_request_irq(&pdev->dev, irq_base, amd_gpio_irq_handler, 0,
-			       KBUILD_MODNAME, gpio_dev);
+	ret = devm_request_irq(&pdev->dev, irq_base, amd_gpio_irq_handler,
+			       IRQF_SHARED, KBUILD_MODNAME, gpio_dev);
 	if (ret)
 		goto out2;
 

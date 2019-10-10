@@ -311,7 +311,8 @@ int arch_update_cpu_topology(void)
 	on_each_cpu(__arch_update_dedicated_flag, NULL, 0);
 	for_each_online_cpu(cpu) {
 		dev = get_cpu_device(cpu);
-		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+		if (dev)
+			kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
 	return rc;
 }
@@ -520,6 +521,9 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 	nr_masks = max(nr_masks, 1);
 	for (i = 0; i < nr_masks; i++) {
 		mask->next = memblock_alloc(sizeof(*mask->next), 8);
+		if (!mask->next)
+			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+			      __func__, sizeof(*mask->next), 8);
 		mask = mask->next;
 	}
 }
@@ -538,6 +542,9 @@ void __init topology_init_early(void)
 	if (!MACHINE_HAS_TOPOLOGY)
 		goto out;
 	tl_info = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	if (!tl_info)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, PAGE_SIZE, PAGE_SIZE);
 	info = tl_info;
 	store_topology(info);
 	pr_info("The CPU configuration topology of the machine is: %d %d %d %d %d %d / %d\n",
@@ -581,15 +588,13 @@ static int topology_ctl_handler(struct ctl_table *ctl, int write,
 {
 	int enabled = topology_is_enabled();
 	int new_mode;
-	int zero = 0;
-	int one = 1;
 	int rc;
 	struct ctl_table ctl_entry = {
 		.procname	= ctl->procname,
 		.data		= &enabled,
 		.maxlen		= sizeof(int),
-		.extra1		= &zero,
-		.extra2		= &one,
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
 	};
 
 	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);

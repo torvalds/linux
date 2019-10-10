@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0+
 
 #include <linux/shmem_fs.h>
+#include <linux/vmalloc.h>
 
 #include "vkms_drv.h"
 
@@ -111,11 +112,8 @@ struct drm_gem_object *vkms_gem_create(struct drm_device *dev,
 
 	ret = drm_gem_handle_create(file, &obj->gem, handle);
 	drm_gem_object_put_unlocked(&obj->gem);
-	if (ret) {
-		drm_gem_object_release(&obj->gem);
-		kfree(obj);
+	if (ret)
 		return ERR_PTR(ret);
-	}
 
 	return &obj->gem;
 }

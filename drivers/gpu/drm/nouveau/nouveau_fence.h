@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NOUVEAU_FENCE_H__
 #define __NOUVEAU_FENCE_H__
 
@@ -81,8 +81,6 @@ void nv17_fence_resume(struct nouveau_drm *drm);
 int nv50_fence_create(struct nouveau_drm *);
 int nv84_fence_create(struct nouveau_drm *);
 int nvc0_fence_create(struct nouveau_drm *);
-
-int nouveau_flip_complete(struct nvif_notify *);
 
 struct nv84_fence_chan {
 	struct nouveau_fence_chan base;

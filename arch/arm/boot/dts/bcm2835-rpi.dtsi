@@ -1,11 +1,6 @@
 #include <dt-bindings/power/raspberrypi-power.h>
 
 / {
-	memory {
-		device_type = "memory";
-		reg = <0 0x10000000>;
-	};
-
 	leds {
 		compatible = "gpio-leds";
 
@@ -19,8 +14,6 @@
 	soc {
 		firmware: firmware {
 			compatible = "raspberrypi,bcm2835-firmware", "simple-bus";
-			#address-cells = <0>;
-			#size-cells = <0>;
 			mboxes = <&mailbox>;
 		};
 
@@ -70,30 +63,8 @@
 	status = "okay";
 };
 
-&sdhci {
-	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_gpio48>;
-	bus-width = <4>;
-};
-
-&sdhost {
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdhost_gpio48>;
-	status = "okay";
-	bus-width = <4>;
-};
-
 &usb {
 	power-domains = <&power RPI_POWER_DOMAIN_USB>;
-};
-
-&v3d {
-	power-domains = <&power RPI_POWER_DOMAIN_V3D>;
-};
-
-&hdmi {
-	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
-	status = "okay";
 };
 
 &vec {

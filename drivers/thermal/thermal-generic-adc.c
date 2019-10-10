@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic ADC thermal driver
  *
  * Copyright (C) 2016 NVIDIA CORPORATION. All rights reserved.
  *
  * Author: Laxman Dewangan <ldewangan@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/iio/consumer.h>
 #include <linux/kernel.h>
@@ -28,6 +25,9 @@ static int gadc_thermal_adc_to_temp(struct gadc_thermal_info *gti, int val)
 {
 	int temp, temp_hi, temp_lo, adc_hi, adc_lo;
 	int i;
+
+	if (!gti->lookup_table)
+		return val;
 
 	for (i = 0; i < gti->nlookup_table; i++) {
 		if (val >= gti->lookup_table[2 * i + 1])
@@ -81,9 +81,9 @@ static int gadc_thermal_read_linear_lookup_table(struct device *dev,
 
 	ntable = of_property_count_elems_of_size(np, "temperature-lookup-table",
 						 sizeof(u32));
-	if (ntable < 0) {
-		dev_err(dev, "Lookup table is not provided\n");
-		return ntable;
+	if (ntable <= 0) {
+		dev_notice(dev, "no lookup table, assuming DAC channel returns milliCelcius\n");
+		return 0;
 	}
 
 	if (ntable % 2) {

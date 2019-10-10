@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/sch_generic.c	Generic packet scheduler routines.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *              Jamal Hadi Salim, <hadi@cyberus.ca> 990601
@@ -32,6 +28,7 @@
 #include <net/pkt_sched.h>
 #include <net/dst.h>
 #include <trace/events/qdisc.h>
+#include <trace/events/net.h>
 #include <net/xfrm.h>
 
 /* Qdisc to use by default */
@@ -48,6 +45,8 @@ EXPORT_SYMBOL(default_qdisc_ops);
  * - ingress filtering is also serialized via qdisc root lock
  * - updates to tree and tree walking are only done under the rtnl mutex.
  */
+
+#define SKB_XOFF_MAGIC ((struct sk_buff *)1UL)
 
 static inline struct sk_buff *__skb_dequeue_bad_txq(struct Qdisc *q)
 {
@@ -68,13 +67,13 @@ static inline struct sk_buff *__skb_dequeue_bad_txq(struct Qdisc *q)
 			skb = __skb_dequeue(&q->skb_bad_txq);
 			if (qdisc_is_percpu_stats(q)) {
 				qdisc_qstats_cpu_backlog_dec(q, skb);
-				qdisc_qstats_atomic_qlen_dec(q);
+				qdisc_qstats_cpu_qlen_dec(q);
 			} else {
 				qdisc_qstats_backlog_dec(q, skb);
 				q->q.qlen--;
 			}
 		} else {
-			skb = NULL;
+			skb = SKB_XOFF_MAGIC;
 		}
 	}
 
@@ -108,7 +107,7 @@ static inline void qdisc_enqueue_skb_bad_txq(struct Qdisc *q,
 
 	if (qdisc_is_percpu_stats(q)) {
 		qdisc_qstats_cpu_backlog_inc(q, skb);
-		qdisc_qstats_atomic_qlen_inc(q);
+		qdisc_qstats_cpu_qlen_inc(q);
 	} else {
 		qdisc_qstats_backlog_inc(q, skb);
 		q->q.qlen++;
@@ -118,52 +117,36 @@ static inline void qdisc_enqueue_skb_bad_txq(struct Qdisc *q,
 		spin_unlock(lock);
 }
 
-static inline int __dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
+static inline void dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
 {
-	while (skb) {
-		struct sk_buff *next = skb->next;
+	spinlock_t *lock = NULL;
 
-		__skb_queue_tail(&q->gso_skb, skb);
-		q->qstats.requeues++;
-		qdisc_qstats_backlog_inc(q, skb);
-		q->q.qlen++;	/* it's still part of the queue */
-
-		skb = next;
+	if (q->flags & TCQ_F_NOLOCK) {
+		lock = qdisc_lock(q);
+		spin_lock(lock);
 	}
-	__netif_schedule(q);
 
-	return 0;
-}
-
-static inline int dev_requeue_skb_locked(struct sk_buff *skb, struct Qdisc *q)
-{
-	spinlock_t *lock = qdisc_lock(q);
-
-	spin_lock(lock);
 	while (skb) {
 		struct sk_buff *next = skb->next;
 
 		__skb_queue_tail(&q->gso_skb, skb);
 
-		qdisc_qstats_cpu_requeues_inc(q);
-		qdisc_qstats_cpu_backlog_inc(q, skb);
-		qdisc_qstats_atomic_qlen_inc(q);
+		/* it's still part of the queue */
+		if (qdisc_is_percpu_stats(q)) {
+			qdisc_qstats_cpu_requeues_inc(q);
+			qdisc_qstats_cpu_backlog_inc(q, skb);
+			qdisc_qstats_cpu_qlen_inc(q);
+		} else {
+			q->qstats.requeues++;
+			qdisc_qstats_backlog_inc(q, skb);
+			q->q.qlen++;
+		}
 
 		skb = next;
 	}
-	spin_unlock(lock);
-
+	if (lock)
+		spin_unlock(lock);
 	__netif_schedule(q);
-
-	return 0;
-}
-
-static inline int dev_requeue_skb(struct sk_buff *skb, struct Qdisc *q)
-{
-	if (q->flags & TCQ_F_NOLOCK)
-		return dev_requeue_skb_locked(skb, q);
-	else
-		return __dev_requeue_skb(skb, q);
 }
 
 static void try_bulk_dequeue_skb(struct Qdisc *q,
@@ -252,7 +235,7 @@ static struct sk_buff *dequeue_skb(struct Qdisc *q, bool *validate,
 			skb = __skb_dequeue(&q->gso_skb);
 			if (qdisc_is_percpu_stats(q)) {
 				qdisc_qstats_cpu_backlog_dec(q, skb);
-				qdisc_qstats_atomic_qlen_dec(q);
+				qdisc_qstats_cpu_qlen_dec(q);
 			} else {
 				qdisc_qstats_backlog_dec(q, skb);
 				q->q.qlen--;
@@ -272,8 +255,11 @@ validate:
 		return skb;
 
 	skb = qdisc_dequeue_skb_bad_txq(q);
-	if (unlikely(skb))
+	if (unlikely(skb)) {
+		if (skb == SKB_XOFF_MAGIC)
+			return NULL;
 		goto bulk;
+	}
 	skb = q->dequeue(q);
 	if (skb) {
 bulk:
@@ -457,6 +443,7 @@ static void dev_watchdog(struct timer_list *t)
 			}
 
 			if (some_queue_timedout) {
+				trace_net_dev_xmit_timeout(dev, i);
 				WARN_ONCE(1, KERN_INFO "NETDEV WATCHDOG: %s (%s): transmit queue %u timed out\n",
 				       dev->name, netdev_drivername(dev), i);
 				dev->netdev_ops->ndo_tx_timeout(dev);
@@ -642,14 +629,14 @@ static int pfifo_fast_enqueue(struct sk_buff *skb, struct Qdisc *qdisc,
 
 	err = skb_array_produce(q, skb);
 
-	if (unlikely(err))
-		return qdisc_drop_cpu(skb, qdisc, to_free);
+	if (unlikely(err)) {
+		if (qdisc_is_percpu_stats(qdisc))
+			return qdisc_drop_cpu(skb, qdisc, to_free);
+		else
+			return qdisc_drop(skb, qdisc, to_free);
+	}
 
-	qdisc_qstats_atomic_qlen_inc(qdisc);
-	/* Note: skb can not be used after skb_array_produce(),
-	 * so we better not use qdisc_qstats_cpu_backlog_inc()
-	 */
-	this_cpu_add(qdisc->cpu_qstats->backlog, pkt_len);
+	qdisc_update_stats_at_enqueue(qdisc, pkt_len);
 	return NET_XMIT_SUCCESS;
 }
 
@@ -668,9 +655,9 @@ static struct sk_buff *pfifo_fast_dequeue(struct Qdisc *qdisc)
 		skb = __skb_array_consume(q);
 	}
 	if (likely(skb)) {
-		qdisc_qstats_cpu_backlog_dec(qdisc, skb);
-		qdisc_bstats_cpu_update(qdisc, skb);
-		qdisc_qstats_atomic_qlen_dec(qdisc);
+		qdisc_update_stats_at_dequeue(qdisc, skb);
+	} else {
+		qdisc->empty = true;
 	}
 
 	return skb;
@@ -710,10 +697,14 @@ static void pfifo_fast_reset(struct Qdisc *qdisc)
 			kfree_skb(skb);
 	}
 
-	for_each_possible_cpu(i) {
-		struct gnet_stats_queue *q = per_cpu_ptr(qdisc->cpu_qstats, i);
+	if (qdisc_is_percpu_stats(qdisc)) {
+		for_each_possible_cpu(i) {
+			struct gnet_stats_queue *q;
 
-		q->backlog = 0;
+			q = per_cpu_ptr(qdisc->cpu_qstats, i);
+			q->backlog = 0;
+			q->qlen = 0;
+		}
 	}
 }
 
@@ -880,6 +871,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
 	sch->dev_queue = dev_queue;
+	sch->empty = true;
 	dev_hold(dev);
 	refcount_set(&sch->refcnt, 1);
 
@@ -993,6 +985,9 @@ static void qdisc_destroy(struct Qdisc *qdisc)
 
 void qdisc_put(struct Qdisc *qdisc)
 {
+	if (!qdisc)
+		return;
+
 	if (qdisc->flags & TCQ_F_BUILTIN ||
 	    !refcount_dec_and_test(&qdisc->refcnt))
 		return;

@@ -6,7 +6,7 @@ that are provided by the hardware platform it is running on, including power
 and performance functions.
 
 This binding is intended to define the interface the firmware implementing
-the SCMI as described in ARM document number ARM DUI 0922B ("ARM System Control
+the SCMI as described in ARM document number ARM DEN 0056A ("ARM System Control
 and Management Interface Platform Design Document")[0] provide for OSPM in
 the device tree.
 
@@ -73,6 +73,16 @@ Required properties:
 			 as used by the firmware. Refer to  platform details
 			 for your implementation for the IDs to use.
 
+Reset signal bindings for the reset domains based on SCMI Message Protocol
+------------------------------------------------------------
+
+This binding for the SCMI reset domain providers uses the generic reset
+signal binding[5].
+
+Required properties:
+ - #reset-cells : Should be 1. Contains the reset domain ID value used
+		  by SCMI commands.
+
 SRAM and Shared Memory for SCMI
 -------------------------------
 
@@ -93,6 +103,7 @@ Required sub-node properties:
 [2] Documentation/devicetree/bindings/power/power_domain.txt
 [3] Documentation/devicetree/bindings/thermal/thermal.txt
 [4] Documentation/devicetree/bindings/sram/sram.txt
+[5] Documentation/devicetree/bindings/reset/reset.txt
 
 Example:
 
@@ -152,6 +163,11 @@ firmware {
 			reg = <0x15>;
 			#thermal-sensor-cells = <1>;
 		};
+
+		scmi_reset: protocol@16 {
+			reg = <0x16>;
+			#reset-cells = <1>;
+		};
 	};
 };
 
@@ -166,6 +182,7 @@ hdlcd@7ff60000 {
 	reg = <0 0x7ff60000 0 0x1000>;
 	clocks = <&scmi_clk 4>;
 	power-domains = <&scmi_devpd 1>;
+	resets = <&scmi_reset 10>;
 };
 
 thermal-zones {

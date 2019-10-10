@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Connection tracking support for PPTP (Point to Point Tunneling Protocol).
  * PPTP is a a protocol for creating virtual private networks.
@@ -233,9 +234,9 @@ static int exp_gre(struct nf_conn *ct, __be16 callid, __be16 peer_callid)
 	nf_nat_pptp_exp_gre = rcu_dereference(nf_nat_pptp_hook_exp_gre);
 	if (nf_nat_pptp_exp_gre && ct->status & IPS_NAT_MASK)
 		nf_nat_pptp_exp_gre(exp_orig, exp_reply);
-	if (nf_ct_expect_related(exp_orig) != 0)
+	if (nf_ct_expect_related(exp_orig, 0) != 0)
 		goto out_put_both;
-	if (nf_ct_expect_related(exp_reply) != 0)
+	if (nf_ct_expect_related(exp_reply, 0) != 0)
 		goto out_unexpect_orig;
 
 	/* Add GRE keymap entries */

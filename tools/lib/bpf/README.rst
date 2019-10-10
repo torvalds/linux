@@ -9,7 +9,8 @@ described here. It's recommended to follow these conventions whenever a
 new function or type is added to keep libbpf API clean and consistent.
 
 All types and functions provided by libbpf API should have one of the
-following prefixes: ``bpf_``, ``btf_``, ``libbpf_``, ``xsk_``.
+following prefixes: ``bpf_``, ``btf_``, ``libbpf_``, ``xsk_``,
+``perf_buffer_``.
 
 System call wrappers
 --------------------
@@ -111,6 +112,7 @@ starting from ``0.0.1``.
 
 Every time ABI is being changed, e.g. because a new symbol is added or
 semantic of existing symbol is changed, ABI version should be bumped.
+This bump in ABI version is at most once per kernel development cycle.
 
 For example, if current state of ``libbpf.map`` is:
 

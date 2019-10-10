@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell 88E6xxx SERDES manipulation, via SMI bus
  *
  * Copyright (c) 2008 Marvell Semiconductor
  *
  * Copyright (c) 2017 Andrew Lunn <andrew@lunn.ch>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/interrupt.h>
@@ -53,7 +49,8 @@ static int mv88e6390_serdes_write(struct mv88e6xxx_chip *chip,
 	return mv88e6xxx_phy_write(chip, lane, reg_c45, val);
 }
 
-static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
+int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool up)
 {
 	u16 val, new_val;
 	int err;
@@ -62,7 +59,7 @@ static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
 	if (err)
 		return err;
 
-	if (on)
+	if (up)
 		new_val = val & ~BMCR_PDOWN;
 	else
 		new_val = val | BMCR_PDOWN;
@@ -73,29 +70,25 @@ static int mv88e6352_serdes_power_set(struct mv88e6xxx_chip *chip, bool on)
 	return err;
 }
 
-static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+u8 mv88e6352_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
+	u8 lane = 0;
 
-	if ((cmode == MV88E6XXX_PORT_STS_CMODE_100BASE_X) ||
-	    (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X) ||
+	if ((cmode == MV88E6XXX_PORT_STS_CMODE_100BASEX) ||
+	    (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASEX) ||
 	    (cmode == MV88E6XXX_PORT_STS_CMODE_SGMII))
+		lane = 0xff; /* Unused */
+
+	return lane;
+}
+
+static bool mv88e6352_port_has_serdes(struct mv88e6xxx_chip *chip, int port)
+{
+	if (mv88e6xxx_serdes_get_lane(chip, port))
 		return true;
 
 	return false;
-}
-
-int mv88e6352_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
-{
-	int err;
-
-	if (mv88e6352_port_has_serdes(chip, port)) {
-		err = mv88e6352_serdes_power_set(chip, on);
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
 }
 
 struct mv88e6352_serdes_hw_stat {
@@ -190,214 +183,178 @@ static void mv88e6352_serdes_irq_link(struct mv88e6xxx_chip *chip, int port)
 	struct dsa_switch *ds = chip->ds;
 	u16 status;
 	bool up;
+	int err;
 
-	mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	if (err)
+		return;
 
 	/* Status must be read twice in order to give the current link
 	 * status. Otherwise the change in link status since the last
 	 * read of the register is returned.
 	 */
-	mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	err = mv88e6352_serdes_read(chip, MII_BMSR, &status);
+	if (err)
+		return;
 
 	up = status & BMSR_LSTATUS;
 
 	dsa_port_phylink_mac_change(ds, port, up);
 }
 
-static irqreturn_t mv88e6352_serdes_thread_fn(int irq, void *dev_id)
+irqreturn_t mv88e6352_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane)
 {
-	struct mv88e6xxx_port *port = dev_id;
-	struct mv88e6xxx_chip *chip = port->chip;
 	irqreturn_t ret = IRQ_NONE;
 	u16 status;
 	int err;
 
-	mutex_lock(&chip->reg_lock);
-
 	err = mv88e6352_serdes_read(chip, MV88E6352_SERDES_INT_STATUS, &status);
 	if (err)
-		goto out;
+		return ret;
 
 	if (status & MV88E6352_SERDES_INT_LINK_CHANGE) {
 		ret = IRQ_HANDLED;
-		mv88e6352_serdes_irq_link(chip, port->port);
+		mv88e6352_serdes_irq_link(chip, port);
 	}
-out:
-	mutex_unlock(&chip->reg_lock);
 
 	return ret;
 }
 
-static int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip)
+int mv88e6352_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
+				bool enable)
 {
-	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE,
-				      MV88E6352_SERDES_INT_LINK_CHANGE);
+	u16 val = 0;
+
+	if (enable)
+		val |= MV88E6352_SERDES_INT_LINK_CHANGE;
+
+	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE, val);
 }
 
-static int mv88e6352_serdes_irq_disable(struct mv88e6xxx_chip *chip)
+unsigned int mv88e6352_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
-	return mv88e6352_serdes_write(chip, MV88E6352_SERDES_INT_ENABLE, 0);
+	return irq_find_mapping(chip->g2_irq.domain, MV88E6352_SERDES_IRQ);
 }
 
-int mv88e6352_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
-{
-	int err;
-
-	if (!mv88e6352_port_has_serdes(chip, port))
-		return 0;
-
-	chip->ports[port].serdes_irq = irq_find_mapping(chip->g2_irq.domain,
-							MV88E6352_SERDES_IRQ);
-	if (chip->ports[port].serdes_irq < 0) {
-		dev_err(chip->dev, "Unable to map SERDES irq: %d\n",
-			chip->ports[port].serdes_irq);
-		return chip->ports[port].serdes_irq;
-	}
-
-	/* Requesting the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mutex_unlock(&chip->reg_lock);
-	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
-				   mv88e6352_serdes_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-serdes",
-				   &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
-
-	if (err) {
-		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
-			err);
-		return err;
-	}
-
-	return mv88e6352_serdes_irq_enable(chip);
-}
-
-void mv88e6352_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
-{
-	if (!mv88e6352_port_has_serdes(chip, port))
-		return;
-
-	mv88e6352_serdes_irq_disable(chip);
-
-	/* Freeing the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mutex_unlock(&chip->reg_lock);
-	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
-
-	chip->ports[port].serdes_irq = 0;
-}
-
-/* Return the SERDES lane address a port is using. Only Ports 9 and 10
- * have SERDES lanes. Returns -ENODEV if a port does not have a lane.
- */
-static int mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+u8 mv88e6341_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
 	u8 cmode = chip->ports[port].cmode;
+	u8 lane = 0;
+
+	switch (port) {
+	case 5:
+		if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
+		    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
+		    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+			lane = MV88E6341_PORT5_LANE;
+		break;
+	}
+
+	return lane;
+}
+
+u8 mv88e6390_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+{
+	u8 cmode = chip->ports[port].cmode;
+	u8 lane = 0;
 
 	switch (port) {
 	case 9:
-		if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-			return MV88E6390_PORT9_LANE0;
-		return -ENODEV;
+			lane = MV88E6390_PORT9_LANE0;
+		break;
 	case 10:
-		if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-			return MV88E6390_PORT10_LANE0;
-		return -ENODEV;
-	default:
-		return -ENODEV;
+			lane = MV88E6390_PORT10_LANE0;
+		break;
 	}
+
+	return lane;
 }
 
-/* Return the SERDES lane address a port is using. Ports 9 and 10 can
- * use multiple lanes. If so, return the first lane the port uses.
- * Returns -ENODEV if a port does not have a lane.
- */
-int mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
+u8 mv88e6390x_serdes_get_lane(struct mv88e6xxx_chip *chip, int port)
 {
-	u8 cmode_port9, cmode_port10, cmode_port;
-
-	cmode_port9 = chip->ports[9].cmode;
-	cmode_port10 = chip->ports[10].cmode;
-	cmode_port = chip->ports[port].cmode;
+	u8 cmode_port = chip->ports[port].cmode;
+	u8 cmode_port10 = chip->ports[10].cmode;
+	u8 cmode_port9 = chip->ports[9].cmode;
+	u8 lane = 0;
 
 	switch (port) {
 	case 2:
-		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASE_X)
-				return MV88E6390_PORT9_LANE1;
-		return -ENODEV;
+			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASEX)
+				lane = MV88E6390_PORT9_LANE1;
+		break;
 	case 3:
-		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_2500BASEX ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_RXAUI)
-			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASE_X)
-				return MV88E6390_PORT9_LANE2;
-		return -ENODEV;
+			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASEX)
+				lane = MV88E6390_PORT9_LANE2;
+		break;
 	case 4:
-		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_2500BASEX ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_RXAUI)
-			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASE_X)
-				return MV88E6390_PORT9_LANE3;
-		return -ENODEV;
+			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASEX)
+				lane = MV88E6390_PORT9_LANE3;
+		break;
 	case 5:
-		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASE_X)
-				return MV88E6390_PORT10_LANE1;
-		return -ENODEV;
+			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASEX)
+				lane = MV88E6390_PORT10_LANE1;
+		break;
 	case 6:
-		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_2500BASEX ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_RXAUI)
-			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASE_X)
-				return MV88E6390_PORT10_LANE2;
-		return -ENODEV;
+			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASEX)
+				lane = MV88E6390_PORT10_LANE2;
+		break;
 	case 7:
-		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_2500BASEX ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_RXAUI)
-			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASE_X)
-				return MV88E6390_PORT10_LANE3;
-		return -ENODEV;
+			if (cmode_port == MV88E6XXX_PORT_STS_CMODE_1000BASEX)
+				lane = MV88E6390_PORT10_LANE3;
+		break;
 	case 9:
-		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port9 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_2500BASEX ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_XAUI ||
 		    cmode_port9 == MV88E6XXX_PORT_STS_CMODE_RXAUI)
-			return MV88E6390_PORT9_LANE0;
-		return -ENODEV;
+			lane = MV88E6390_PORT9_LANE0;
+		break;
 	case 10:
-		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
+		if (cmode_port10 == MV88E6XXX_PORT_STS_CMODE_1000BASEX ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_SGMII ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_2500BASEX ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_XAUI ||
 		    cmode_port10 == MV88E6XXX_PORT_STS_CMODE_RXAUI)
-			return MV88E6390_PORT10_LANE0;
-		return -ENODEV;
-	default:
-		return -ENODEV;
+			lane = MV88E6390_PORT10_LANE0;
+		break;
 	}
+
+	return lane;
 }
 
-/* Set the power on/off for 10GBASE-R and 10GBASE-X4/X2 */
-static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, int lane,
-				      bool on)
+/* Set power up/down for 10GBASE-R and 10GBASE-X4/X2 */
+static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, u8 lane,
+				      bool up)
 {
 	u16 val, new_val;
 	int err;
@@ -408,7 +365,7 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, int lane,
 	if (err)
 		return err;
 
-	if (on)
+	if (up)
 		new_val = val & ~(MV88E6390_PCS_CONTROL_1_RESET |
 				  MV88E6390_PCS_CONTROL_1_LOOPBACK |
 				  MV88E6390_PCS_CONTROL_1_PDOWN);
@@ -422,9 +379,9 @@ static int mv88e6390_serdes_power_10g(struct mv88e6xxx_chip *chip, int lane,
 	return err;
 }
 
-/* Set the power on/off for SGMII and 1000Base-X */
-static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, int lane,
-					bool on)
+/* Set power up/down for SGMII and 1000Base-X */
+static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, u8 lane,
+					bool up)
 {
 	u16 val, new_val;
 	int err;
@@ -434,7 +391,7 @@ static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, int lane,
 	if (err)
 		return err;
 
-	if (on)
+	if (up)
 		new_val = val & ~(MV88E6390_SGMII_CONTROL_RESET |
 				  MV88E6390_SGMII_CONTROL_LOOPBACK |
 				  MV88E6390_SGMII_CONTROL_PDOWN);
@@ -448,70 +405,32 @@ static int mv88e6390_serdes_power_sgmii(struct mv88e6xxx_chip *chip, int lane,
 	return err;
 }
 
-static int mv88e6390_serdes_power_lane(struct mv88e6xxx_chip *chip, int port,
-				       int lane, bool on)
+int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, u8 lane,
+			   bool up)
 {
 	u8 cmode = chip->ports[port].cmode;
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
-	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		return mv88e6390_serdes_power_sgmii(chip, lane, on);
+		return mv88e6390_serdes_power_sgmii(chip, lane, up);
 	case MV88E6XXX_PORT_STS_CMODE_XAUI:
 	case MV88E6XXX_PORT_STS_CMODE_RXAUI:
-		return mv88e6390_serdes_power_10g(chip, lane, on);
-	}
-
-	return 0;
-}
-
-int mv88e6390_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
-{
-	int lane;
-
-	lane = mv88e6390_serdes_get_lane(chip, port);
-	if (lane == -ENODEV)
-		return 0;
-
-	if (lane < 0)
-		return lane;
-
-	switch (port) {
-	case 9 ... 10:
-		return mv88e6390_serdes_power_lane(chip, port, lane, on);
-	}
-
-	return 0;
-}
-
-int mv88e6390x_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
-{
-	int lane;
-
-	lane = mv88e6390x_serdes_get_lane(chip, port);
-	if (lane == -ENODEV)
-		return 0;
-
-	if (lane < 0)
-		return lane;
-
-	switch (port) {
-	case 2 ... 4:
-	case 5 ... 7:
-	case 9 ... 10:
-		return mv88e6390_serdes_power_lane(chip, port, lane, on);
+		return mv88e6390_serdes_power_10g(chip, lane, up);
 	}
 
 	return 0;
 }
 
 static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
-					    int port, int lane)
+					    int port, u8 lane)
 {
+	u8 cmode = chip->ports[port].cmode;
 	struct dsa_switch *ds = chip->ds;
 	int duplex = DUPLEX_UNKNOWN;
 	int speed = SPEED_UNKNOWN;
+	phy_interface_t mode;
 	int link, err;
 	u16 status;
 
@@ -531,7 +450,10 @@ static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 
 		switch (status & MV88E6390_SGMII_PHY_STATUS_SPEED_MASK) {
 		case MV88E6390_SGMII_PHY_STATUS_SPEED_1000:
-			speed = SPEED_1000;
+			if (cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
+				speed = SPEED_2500;
+			else
+				speed = SPEED_1000;
 			break;
 		case MV88E6390_SGMII_PHY_STATUS_SPEED_100:
 			speed = SPEED_100;
@@ -545,8 +467,22 @@ static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 		}
 	}
 
+	switch (cmode) {
+	case MV88E6XXX_PORT_STS_CMODE_SGMII:
+		mode = PHY_INTERFACE_MODE_SGMII;
+		break;
+	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
+		mode = PHY_INTERFACE_MODE_1000BASEX;
+		break;
+	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
+		mode = PHY_INTERFACE_MODE_2500BASEX;
+		break;
+	default:
+		mode = PHY_INTERFACE_MODE_NA;
+	}
+
 	err = mv88e6xxx_port_setup_mac(chip, port, link, speed, duplex,
-				       PAUSE_OFF, PHY_INTERFACE_MODE_NA);
+				       PAUSE_OFF, mode);
 	if (err)
 		dev_err(chip->dev, "can't propagate PHY settings to MAC: %d\n",
 			err);
@@ -555,55 +491,35 @@ static void mv88e6390_serdes_irq_link_sgmii(struct mv88e6xxx_chip *chip,
 }
 
 static int mv88e6390_serdes_irq_enable_sgmii(struct mv88e6xxx_chip *chip,
-					     int lane)
+					     u8 lane, bool enable)
 {
+	u16 val = 0;
+
+	if (enable)
+		val |= MV88E6390_SGMII_INT_LINK_DOWN |
+			MV88E6390_SGMII_INT_LINK_UP;
+
 	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-				      MV88E6390_SGMII_INT_ENABLE,
-				      MV88E6390_SGMII_INT_LINK_DOWN |
-				      MV88E6390_SGMII_INT_LINK_UP);
+				      MV88E6390_SGMII_INT_ENABLE, val);
 }
 
-static int mv88e6390_serdes_irq_disable_sgmii(struct mv88e6xxx_chip *chip,
-					      int lane)
-{
-	return mv88e6390_serdes_write(chip, lane, MDIO_MMD_PHYXS,
-				      MV88E6390_SGMII_INT_ENABLE, 0);
-}
-
-int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port,
-				int lane)
+int mv88e6390_serdes_irq_enable(struct mv88e6xxx_chip *chip, int port, u8 lane,
+				bool enable)
 {
 	u8 cmode = chip->ports[port].cmode;
-	int err = 0;
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
-	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		err = mv88e6390_serdes_irq_enable_sgmii(chip, lane);
+		return mv88e6390_serdes_irq_enable_sgmii(chip, lane, enable);
 	}
 
-	return err;
-}
-
-int mv88e6390_serdes_irq_disable(struct mv88e6xxx_chip *chip, int port,
-				 int lane)
-{
-	u8 cmode = chip->ports[port].cmode;
-	int err = 0;
-
-	switch (cmode) {
-	case MV88E6XXX_PORT_STS_CMODE_SGMII:
-	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
-	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
-		err = mv88e6390_serdes_irq_disable_sgmii(chip, lane);
-	}
-
-	return err;
+	return 0;
 }
 
 static int mv88e6390_serdes_irq_status_sgmii(struct mv88e6xxx_chip *chip,
-					     int lane, u16 *status)
+					     u8 lane, u16 *status)
 {
 	int err;
 
@@ -613,129 +529,32 @@ static int mv88e6390_serdes_irq_status_sgmii(struct mv88e6xxx_chip *chip,
 	return err;
 }
 
-static irqreturn_t mv88e6390_serdes_thread_fn(int irq, void *dev_id)
+irqreturn_t mv88e6390_serdes_irq_status(struct mv88e6xxx_chip *chip, int port,
+					u8 lane)
 {
-	struct mv88e6xxx_port *port = dev_id;
-	struct mv88e6xxx_chip *chip = port->chip;
+	u8 cmode = chip->ports[port].cmode;
 	irqreturn_t ret = IRQ_NONE;
-	u8 cmode = port->cmode;
 	u16 status;
-	int lane;
 	int err;
-
-	lane = mv88e6390x_serdes_get_lane(chip, port->port);
-
-	mutex_lock(&chip->reg_lock);
 
 	switch (cmode) {
 	case MV88E6XXX_PORT_STS_CMODE_SGMII:
-	case MV88E6XXX_PORT_STS_CMODE_1000BASE_X:
+	case MV88E6XXX_PORT_STS_CMODE_1000BASEX:
 	case MV88E6XXX_PORT_STS_CMODE_2500BASEX:
 		err = mv88e6390_serdes_irq_status_sgmii(chip, lane, &status);
 		if (err)
-			goto out;
+			return ret;
 		if (status & (MV88E6390_SGMII_INT_LINK_DOWN |
 			      MV88E6390_SGMII_INT_LINK_UP)) {
 			ret = IRQ_HANDLED;
-			mv88e6390_serdes_irq_link_sgmii(chip, port->port, lane);
+			mv88e6390_serdes_irq_link_sgmii(chip, port, lane);
 		}
 	}
-out:
-	mutex_unlock(&chip->reg_lock);
 
 	return ret;
 }
 
-int mv88e6390x_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
+unsigned int mv88e6390_serdes_irq_mapping(struct mv88e6xxx_chip *chip, int port)
 {
-	int lane;
-	int err;
-
-	lane = mv88e6390x_serdes_get_lane(chip, port);
-
-	if (lane == -ENODEV)
-		return 0;
-
-	if (lane < 0)
-		return lane;
-
-	chip->ports[port].serdes_irq = irq_find_mapping(chip->g2_irq.domain,
-							port);
-	if (chip->ports[port].serdes_irq < 0) {
-		dev_err(chip->dev, "Unable to map SERDES irq: %d\n",
-			chip->ports[port].serdes_irq);
-		return chip->ports[port].serdes_irq;
-	}
-
-	/* Requesting the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mutex_unlock(&chip->reg_lock);
-	err = request_threaded_irq(chip->ports[port].serdes_irq, NULL,
-				   mv88e6390_serdes_thread_fn,
-				   IRQF_ONESHOT, "mv88e6xxx-serdes",
-				   &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
-
-	if (err) {
-		dev_err(chip->dev, "Unable to request SERDES interrupt: %d\n",
-			err);
-		return err;
-	}
-
-	return mv88e6390_serdes_irq_enable(chip, port, lane);
-}
-
-int mv88e6390_serdes_irq_setup(struct mv88e6xxx_chip *chip, int port)
-{
-	if (port < 9)
-		return 0;
-
-	return mv88e6390x_serdes_irq_setup(chip, port);
-}
-
-void mv88e6390x_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
-{
-	int lane = mv88e6390x_serdes_get_lane(chip, port);
-
-	if (lane == -ENODEV)
-		return;
-
-	if (lane < 0)
-		return;
-
-	mv88e6390_serdes_irq_disable(chip, port, lane);
-
-	/* Freeing the IRQ will trigger irq callbacks. So we cannot
-	 * hold the reg_lock.
-	 */
-	mutex_unlock(&chip->reg_lock);
-	free_irq(chip->ports[port].serdes_irq, &chip->ports[port]);
-	mutex_lock(&chip->reg_lock);
-
-	chip->ports[port].serdes_irq = 0;
-}
-
-void mv88e6390_serdes_irq_free(struct mv88e6xxx_chip *chip, int port)
-{
-	if (port < 9)
-		return;
-
-	mv88e6390x_serdes_irq_free(chip, port);
-}
-
-int mv88e6341_serdes_power(struct mv88e6xxx_chip *chip, int port, bool on)
-{
-	u8 cmode = chip->ports[port].cmode;
-
-	if (port != 5)
-		return 0;
-
-	if (cmode == MV88E6XXX_PORT_STS_CMODE_1000BASE_X ||
-	    cmode == MV88E6XXX_PORT_STS_CMODE_SGMII ||
-	    cmode == MV88E6XXX_PORT_STS_CMODE_2500BASEX)
-		return mv88e6390_serdes_power_sgmii(chip, MV88E6341_ADDR_SERDES,
-						    on);
-
-	return 0;
+	return irq_find_mapping(chip->g2_irq.domain, port);
 }

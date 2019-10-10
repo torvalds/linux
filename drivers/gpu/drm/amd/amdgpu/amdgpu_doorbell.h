@@ -51,14 +51,8 @@ struct amdgpu_doorbell_index {
 	uint32_t userqueue_start;
 	uint32_t userqueue_end;
 	uint32_t gfx_ring0;
-	uint32_t sdma_engine0;
-	uint32_t sdma_engine1;
-	uint32_t sdma_engine2;
-	uint32_t sdma_engine3;
-	uint32_t sdma_engine4;
-	uint32_t sdma_engine5;
-	uint32_t sdma_engine6;
-	uint32_t sdma_engine7;
+	uint32_t gfx_ring1;
+	uint32_t sdma_engine[8];
 	uint32_t ih;
 	union {
 		struct {
@@ -78,7 +72,11 @@ struct amdgpu_doorbell_index {
 			uint32_t vce_ring6_7;
 		} uvd_vce;
 	};
+	uint32_t first_non_cp;
+	uint32_t last_non_cp;
 	uint32_t max_assignment;
+	/* Per engine SDMA doorbell size in dword */
+	uint32_t sdma_doorbell_range;
 };
 
 typedef enum _AMDGPU_DOORBELL_ASSIGNMENT
@@ -132,12 +130,17 @@ typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
 	AMDGPU_VEGA20_DOORBELL_IH                      = 0x178,
 	/* MMSCH: 392~407
 	 * overlap the doorbell assignment with VCN as they are  mutually exclusive
-	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
+	 * VCN engine's doorbell is 32 bit and two VCN ring share one QWORD
 	 */
-	AMDGPU_VEGA20_DOORBELL64_VCN0_1                  = 0x188, /* lower 32 bits for VNC0 and upper 32 bits for VNC1 */
+	AMDGPU_VEGA20_DOORBELL64_VCN0_1                  = 0x188, /* VNC0 */
 	AMDGPU_VEGA20_DOORBELL64_VCN2_3                  = 0x189,
 	AMDGPU_VEGA20_DOORBELL64_VCN4_5                  = 0x18A,
 	AMDGPU_VEGA20_DOORBELL64_VCN6_7                  = 0x18B,
+
+	AMDGPU_VEGA20_DOORBELL64_VCN8_9                  = 0x18C, /* VNC1 */
+	AMDGPU_VEGA20_DOORBELL64_VCNa_b                  = 0x18D,
+	AMDGPU_VEGA20_DOORBELL64_VCNc_d                  = 0x18E,
+	AMDGPU_VEGA20_DOORBELL64_VCNe_f                  = 0x18F,
 
 	AMDGPU_VEGA20_DOORBELL64_UVD_RING0_1             = 0x188,
 	AMDGPU_VEGA20_DOORBELL64_UVD_RING2_3             = 0x189,
@@ -148,9 +151,52 @@ typedef enum _AMDGPU_VEGA20_DOORBELL_ASSIGNMENT
 	AMDGPU_VEGA20_DOORBELL64_VCE_RING2_3             = 0x18D,
 	AMDGPU_VEGA20_DOORBELL64_VCE_RING4_5             = 0x18E,
 	AMDGPU_VEGA20_DOORBELL64_VCE_RING6_7             = 0x18F,
+
+	AMDGPU_VEGA20_DOORBELL64_FIRST_NON_CP            = AMDGPU_VEGA20_DOORBELL_sDMA_ENGINE0,
+	AMDGPU_VEGA20_DOORBELL64_LAST_NON_CP             = AMDGPU_VEGA20_DOORBELL64_VCE_RING6_7,
+
 	AMDGPU_VEGA20_DOORBELL_MAX_ASSIGNMENT            = 0x18F,
 	AMDGPU_VEGA20_DOORBELL_INVALID                   = 0xFFFF
 } AMDGPU_VEGA20_DOORBELL_ASSIGNMENT;
+
+typedef enum _AMDGPU_NAVI10_DOORBELL_ASSIGNMENT
+{
+	/* Compute + GFX: 0~255 */
+	AMDGPU_NAVI10_DOORBELL_KIQ			= 0x000,
+	AMDGPU_NAVI10_DOORBELL_HIQ			= 0x001,
+	AMDGPU_NAVI10_DOORBELL_DIQ			= 0x002,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING0		= 0x003,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING1		= 0x004,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING2		= 0x005,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING3		= 0x006,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING4		= 0x007,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING5		= 0x008,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING6		= 0x009,
+	AMDGPU_NAVI10_DOORBELL_MEC_RING7		= 0x00A,
+	AMDGPU_NAVI10_DOORBELL_USERQUEUE_START		= 0x00B,
+	AMDGPU_NAVI10_DOORBELL_USERQUEUE_END		= 0x08A,
+	AMDGPU_NAVI10_DOORBELL_GFX_RING0		= 0x08B,
+	AMDGPU_NAVI10_DOORBELL_GFX_RING1		= 0x08C,
+	/* SDMA:256~335*/
+	AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE0		= 0x100,
+	AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE1		= 0x10A,
+	/* IH: 376~391 */
+	AMDGPU_NAVI10_DOORBELL_IH			= 0x178,
+	/* MMSCH: 392~407
+	 * overlap the doorbell assignment with VCN as they are  mutually exclusive
+	 * VCE engine's doorbell is 32 bit and two VCE ring share one QWORD
+	 */
+	AMDGPU_NAVI10_DOORBELL64_VCN0_1			= 0x188, /* lower 32 bits for VNC0 and upper 32 bits for VNC1 */
+	AMDGPU_NAVI10_DOORBELL64_VCN2_3			= 0x189,
+	AMDGPU_NAVI10_DOORBELL64_VCN4_5			= 0x18A,
+	AMDGPU_NAVI10_DOORBELL64_VCN6_7			= 0x18B,
+
+	AMDGPU_NAVI10_DOORBELL64_FIRST_NON_CP		= AMDGPU_NAVI10_DOORBELL_sDMA_ENGINE0,
+	AMDGPU_NAVI10_DOORBELL64_LAST_NON_CP		= AMDGPU_NAVI10_DOORBELL64_VCN6_7,
+
+	AMDGPU_NAVI10_DOORBELL_MAX_ASSIGNMENT		= 0x18F,
+	AMDGPU_NAVI10_DOORBELL_INVALID			= 0xFFFF
+} AMDGPU_NAVI10_DOORBELL_ASSIGNMENT;
 
 /*
  * 64bit doorbell, offset are in QWORD, occupy 2KB doorbell space
@@ -226,6 +272,9 @@ typedef enum _AMDGPU_DOORBELL64_ASSIGNMENT
 	AMDGPU_DOORBELL64_VCE_RING2_3             = 0xFD,
 	AMDGPU_DOORBELL64_VCE_RING4_5             = 0xFE,
 	AMDGPU_DOORBELL64_VCE_RING6_7             = 0xFF,
+
+	AMDGPU_DOORBELL64_FIRST_NON_CP            = AMDGPU_DOORBELL64_sDMA_ENGINE0,
+	AMDGPU_DOORBELL64_LAST_NON_CP             = AMDGPU_DOORBELL64_VCE_RING6_7,
 
 	AMDGPU_DOORBELL64_MAX_ASSIGNMENT          = 0xFF,
 	AMDGPU_DOORBELL64_INVALID                 = 0xFFFF

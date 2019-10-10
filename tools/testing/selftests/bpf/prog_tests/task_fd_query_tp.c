@@ -9,7 +9,7 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 	struct perf_event_attr attr = {};
 	__u64 probe_offset, probe_addr;
 	__u32 len, prog_id, fd_type;
-	struct bpf_object *obj;
+	struct bpf_object *obj = NULL;
 	__u32 duration = 0;
 	char buf[256];
 
@@ -62,14 +62,9 @@ static void test_task_fd_query_tp_core(const char *probe_name,
 		  fd_type, buf))
 		goto close_pmu;
 
-	close(pmu_fd);
-	goto close_prog_noerr;
-
 close_pmu:
 	close(pmu_fd);
 close_prog:
-	error_cnt++;
-close_prog_noerr:
 	bpf_object__close(obj);
 }
 

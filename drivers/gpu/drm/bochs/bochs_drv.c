@@ -1,24 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
-#include <linux/mm.h>
 #include <linux/module.h>
-#include <linux/slab.h>
-#include <drm/drm_fb_helper.h>
+#include <linux/pci.h>
+
+#include <drm/drm_drv.h>
+#include <drm/drm_atomic_helper.h>
 
 #include "bochs.h"
 
 static int bochs_modeset = -1;
 module_param_named(modeset, bochs_modeset, int, 0444);
 MODULE_PARM_DESC(modeset, "enable/disable kernel modesetting");
-
-static bool enable_fbdev = true;
-module_param_named(fbdev, enable_fbdev, bool, 0444);
-MODULE_PARM_DESC(fbdev, "register fbdev device");
 
 /* ---------------------------------------------------------------------- */
 /* drm interface                                                          */
@@ -27,7 +21,6 @@ static void bochs_unload(struct drm_device *dev)
 {
 	struct bochs_device *bochs = dev->dev_private;
 
-	bochs_fbdev_fini(bochs);
 	bochs_kms_fini(bochs);
 	bochs_mm_fini(bochs);
 	bochs_hw_fini(dev);
@@ -58,9 +51,6 @@ static int bochs_load(struct drm_device *dev)
 	if (ret)
 		goto err;
 
-	if (enable_fbdev)
-		bochs_fbdev_init(bochs);
-
 	return 0;
 
 err:
@@ -70,27 +60,18 @@ err:
 
 static const struct file_operations bochs_fops = {
 	.owner		= THIS_MODULE,
-	.open		= drm_open,
-	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
-	.compat_ioctl	= drm_compat_ioctl,
-	.poll		= drm_poll,
-	.read		= drm_read,
-	.llseek		= no_llseek,
-	.mmap           = bochs_mmap,
+	DRM_VRAM_MM_FILE_OPERATIONS
 };
 
 static struct drm_driver bochs_driver = {
-	.driver_features	= DRIVER_GEM | DRIVER_MODESET,
+	.driver_features	= DRIVER_GEM | DRIVER_MODESET | DRIVER_ATOMIC,
 	.fops			= &bochs_fops,
 	.name			= "bochs-drm",
 	.desc			= "bochs dispi vga interface (qemu stdvga)",
 	.date			= "20130925",
 	.major			= 1,
 	.minor			= 0,
-	.gem_free_object_unlocked = bochs_gem_free_object,
-	.dumb_create            = bochs_dumb_create,
-	.dumb_map_offset        = bochs_dumb_mmap_offset,
+	DRM_GEM_VRAM_DRIVER,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -99,29 +80,16 @@ static struct drm_driver bochs_driver = {
 #ifdef CONFIG_PM_SLEEP
 static int bochs_pm_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct bochs_device *bochs = drm_dev->dev_private;
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	drm_kms_helper_poll_disable(drm_dev);
-
-	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 1);
-
-	return 0;
+	return drm_mode_config_helper_suspend(drm_dev);
 }
 
 static int bochs_pm_resume(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	struct bochs_device *bochs = drm_dev->dev_private;
+	struct drm_device *drm_dev = dev_get_drvdata(dev);
 
-	drm_helper_resume_force_mode(drm_dev);
-
-	drm_fb_helper_set_suspend_unlocked(&bochs->fb.helper, 0);
-
-	drm_kms_helper_poll_enable(drm_dev);
-	return 0;
+	return drm_mode_config_helper_resume(drm_dev);
 }
 #endif
 
@@ -169,6 +137,7 @@ static int bochs_pci_probe(struct pci_dev *pdev,
 	if (ret)
 		goto err_unload;
 
+	drm_fbdev_generic_setup(dev, 32);
 	return ret;
 
 err_unload:
@@ -182,6 +151,7 @@ static void bochs_pci_remove(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
 
+	drm_atomic_helper_shutdown(dev);
 	drm_dev_unregister(dev);
 	bochs_unload(dev);
 	drm_dev_put(dev);

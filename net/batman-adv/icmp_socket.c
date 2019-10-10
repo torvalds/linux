@@ -2,18 +2,6 @@
 /* Copyright (C) 2007-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "icmp_socket.h"
@@ -77,7 +65,7 @@ static int batadv_socket_open(struct inode *inode, struct file *file)
 
 	batadv_debugfs_deprecated(file, "");
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	socket_client = kmalloc(sizeof(*socket_client), GFP_KERNEL);
 	if (!socket_client) {
@@ -326,25 +314,11 @@ static const struct file_operations batadv_fops = {
 /**
  * batadv_socket_setup() - Create debugfs "socket" file
  * @bat_priv: the bat priv with all the soft interface information
- *
- * Return: 0 on success or negative error number in case of failure
  */
-int batadv_socket_setup(struct batadv_priv *bat_priv)
+void batadv_socket_setup(struct batadv_priv *bat_priv)
 {
-	struct dentry *d;
-
-	if (!bat_priv->debug_dir)
-		goto err;
-
-	d = debugfs_create_file(BATADV_ICMP_SOCKET, 0600, bat_priv->debug_dir,
-				bat_priv, &batadv_fops);
-	if (!d)
-		goto err;
-
-	return 0;
-
-err:
-	return -ENOMEM;
+	debugfs_create_file(BATADV_ICMP_SOCKET, 0600, bat_priv->debug_dir,
+			    bat_priv, &batadv_fops);
 }
 
 /**

@@ -160,35 +160,19 @@ static int nfp_bpf_setup_tc_block_cb(enum tc_setup_type type,
 	return 0;
 }
 
-static int nfp_bpf_setup_tc_block(struct net_device *netdev,
-				  struct tc_block_offload *f)
-{
-	struct nfp_net *nn = netdev_priv(netdev);
-
-	if (f->binder_type != TCF_BLOCK_BINDER_TYPE_CLSACT_INGRESS)
-		return -EOPNOTSUPP;
-
-	switch (f->command) {
-	case TC_BLOCK_BIND:
-		return tcf_block_cb_register(f->block,
-					     nfp_bpf_setup_tc_block_cb,
-					     nn, nn, f->extack);
-	case TC_BLOCK_UNBIND:
-		tcf_block_cb_unregister(f->block,
-					nfp_bpf_setup_tc_block_cb,
-					nn);
-		return 0;
-	default:
-		return -EOPNOTSUPP;
-	}
-}
+static LIST_HEAD(nfp_bpf_block_cb_list);
 
 static int nfp_bpf_setup_tc(struct nfp_app *app, struct net_device *netdev,
 			    enum tc_setup_type type, void *type_data)
 {
+	struct nfp_net *nn = netdev_priv(netdev);
+
 	switch (type) {
 	case TC_SETUP_BLOCK:
-		return nfp_bpf_setup_tc_block(netdev, type_data);
+		return flow_block_cb_setup_simple(type_data,
+						  &nfp_bpf_block_cb_list,
+						  nfp_bpf_setup_tc_block_cb,
+						  nn, nn, true);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -316,6 +300,14 @@ nfp_bpf_parse_cap_adjust_tail(struct nfp_app_bpf *bpf, void __iomem *value,
 }
 
 static int
+nfp_bpf_parse_cap_cmsg_multi_ent(struct nfp_app_bpf *bpf, void __iomem *value,
+				 u32 length)
+{
+	bpf->cmsg_multi_ent = true;
+	return 0;
+}
+
+static int
 nfp_bpf_parse_cap_abi_version(struct nfp_app_bpf *bpf, void __iomem *value,
 			      u32 length)
 {
@@ -391,6 +383,11 @@ static int nfp_bpf_parse_capabilities(struct nfp_app *app)
 							  length))
 				goto err_release_free;
 			break;
+		case NFP_BPF_CAP_TYPE_CMSG_MULTI_ENT:
+			if (nfp_bpf_parse_cap_cmsg_multi_ent(app->priv, value,
+							     length))
+				goto err_release_free;
+			break;
 		default:
 			nfp_dbg(cpp, "unknown BPF capability: %d\n", type);
 			break;
@@ -431,6 +428,25 @@ static void nfp_bpf_ndo_uninit(struct nfp_app *app, struct net_device *netdev)
 	bpf_offload_dev_netdev_unregister(bpf->bpf_dev, netdev);
 }
 
+static int nfp_bpf_start(struct nfp_app *app)
+{
+	struct nfp_app_bpf *bpf = app->priv;
+
+	if (app->ctrl->dp.mtu < nfp_bpf_ctrl_cmsg_min_mtu(bpf)) {
+		nfp_err(bpf->app->cpp,
+			"ctrl channel MTU below min required %u < %u\n",
+			app->ctrl->dp.mtu, nfp_bpf_ctrl_cmsg_min_mtu(bpf));
+		return -EINVAL;
+	}
+
+	if (bpf->cmsg_multi_ent)
+		bpf->cmsg_cache_cnt = nfp_bpf_ctrl_cmsg_cache_cnt(bpf);
+	else
+		bpf->cmsg_cache_cnt = 1;
+
+	return 0;
+}
+
 static int nfp_bpf_init(struct nfp_app *app)
 {
 	struct nfp_app_bpf *bpf;
@@ -442,13 +458,15 @@ static int nfp_bpf_init(struct nfp_app *app)
 	bpf->app = app;
 	app->priv = bpf;
 
-	skb_queue_head_init(&bpf->cmsg_replies);
-	init_waitqueue_head(&bpf->cmsg_wq);
 	INIT_LIST_HEAD(&bpf->map_list);
+
+	err = nfp_ccm_init(&bpf->ccm, app);
+	if (err)
+		goto err_free_bpf;
 
 	err = rhashtable_init(&bpf->maps_neutral, &nfp_bpf_maps_neutral_params);
 	if (err)
-		goto err_free_bpf;
+		goto err_clean_ccm;
 
 	nfp_bpf_init_capabilities(bpf);
 
@@ -474,6 +492,8 @@ static int nfp_bpf_init(struct nfp_app *app)
 
 err_free_neutral_maps:
 	rhashtable_destroy(&bpf->maps_neutral);
+err_clean_ccm:
+	nfp_ccm_clean(&bpf->ccm);
 err_free_bpf:
 	kfree(bpf);
 	return err;
@@ -484,7 +504,7 @@ static void nfp_bpf_clean(struct nfp_app *app)
 	struct nfp_app_bpf *bpf = app->priv;
 
 	bpf_offload_dev_destroy(bpf->bpf_dev);
-	WARN_ON(!skb_queue_empty(&bpf->cmsg_replies));
+	nfp_ccm_clean(&bpf->ccm);
 	WARN_ON(!list_empty(&bpf->map_list));
 	WARN_ON(bpf->maps_in_use || bpf->map_elems_in_use);
 	rhashtable_free_and_destroy(&bpf->maps_neutral,
@@ -500,6 +520,7 @@ const struct nfp_app_type app_bpf = {
 
 	.init		= nfp_bpf_init,
 	.clean		= nfp_bpf_clean,
+	.start		= nfp_bpf_start,
 
 	.check_mtu	= nfp_bpf_check_mtu,
 

@@ -24,12 +24,12 @@
 #include "odm.h"
 #include "odm_hwconfig.h"
 #include "odm_debug.h"
-#include "../../rtlwifi/phydm/phydm_regdefine11n.h"
+#include "phydm_regdefine11n.h"
 
 #include "hal8188e_rate_adaptive.h" /* for RA,Power training */
 #include "rtl8188e_hal.h"
 
-#include "../../rtlwifi/phydm/phydm_reg.h"
+#include "phydm_reg.h"
 
 #include "odm_rtl8188e.h"
 
@@ -59,9 +59,7 @@ void odm_RefreshRateAdaptiveMaskCE(struct odm_dm_struct *pDM_Odm);
 void odm_RefreshRateAdaptiveMaskAPADSL(struct odm_dm_struct *pDM_Odm);
 void odm_DynamicTxPowerNIC(struct odm_dm_struct *pDM_Odm);
 void odm_RSSIMonitorCheckCE(struct odm_dm_struct *pDM_Odm);
-void odm_TXPowerTrackingThermalMeterInit(struct odm_dm_struct *pDM_Odm);
 void odm_EdcaTurboCheckCE(struct odm_dm_struct *pDM_Odm);
-void odm_TXPowerTrackingCheckCE(struct odm_dm_struct *pDM_Odm);
 void odm_SwAntDivChkAntSwitchCallback(void *FunctionContext);
 void odm_InitHybridAntDiv(struct odm_dm_struct *pDM_Odm);
 void odm_HwAntDiv(struct odm_dm_struct *pDM_Odm);

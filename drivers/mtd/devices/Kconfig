@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Self-contained MTD device drivers"
 	depends on MTD!=n
 	depends on HAS_IOMEM
@@ -47,7 +48,7 @@ config MTD_MS02NV
 
 	  If you want to compile this driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.
+	  say M here and read <file:Documentation/kbuild/modules.rst>.
 	  The module will be called ms02-nv.
 
 config MTD_DATAFLASH
@@ -77,24 +78,6 @@ config MTD_DATAFLASH_OTP
 	  (once) with up to 64 bytes of data, such as a serial number or
 	  other key product data.  The second half is programmed with a
 	  unique-to-each-chip bit pattern at the factory.
-
-config MTD_M25P80
-	tristate "Support most SPI Flash chips (AT26DF, M25P, W25X, ...)"
-	depends on SPI_MASTER && MTD_SPI_NOR
-	select SPI_MEM
-	help
-	  This enables access to most modern SPI flash chips, used for
-	  program and data storage.   Series supported include Atmel AT26DF,
-	  Spansion S25SL, SST 25VF, ST M25P, and Winbond W25X.  Other chips
-	  are supported as well.  See the driver source for the current list,
-	  or to add other chips.
-
-	  Note that the original DataFlash chips (AT45 series, not AT26DF),
-	  need an entirely different driver.
-
-	  Set up your spi devices with the right board-specific platform data,
-	  if you want to specify device partitioning or to use a device which
-	  doesn't support the JEDEC ID instruction.
 
 config MTD_MCHP23K256
 	tristate "Microchip 23K256 SRAM"
@@ -207,7 +190,7 @@ comment "Disk-On-Chip Device Drivers"
 config MTD_DOCG3
 	tristate "M-Systems Disk-On-Chip G3"
 	select BCH
-	select BCH_CONST_PARAMS if !MTD_NAND_BCH
+	select BCH_CONST_PARAMS if !MTD_NAND_ECC_SW_BCH
 	select BITREVERSE
 	help
 	  This provides an MTD device driver for the M-Systems DiskOnChip

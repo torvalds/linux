@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python
 # SPDX-License-Identifier: GPL-2.0
 # exported-sql-viewer.py: view data from sql database
 # Copyright (c) 2014-2018, Intel Corporation.
@@ -88,19 +88,52 @@
 #                                                                              7fab593ea956 48 89 15 3b 13 22 00                            movq  %rdx, 0x22133b(%rip)
 # 8107675243232  2    ls       22011  22011  hardware interrupt     No         7fab593ea956 _dl_start+0x26 (ld-2.19.so) -> ffffffff86a012e0 page_fault ([kernel])
 
+from __future__ import print_function
+
 import sys
+import argparse
 import weakref
 import threading
 import string
-import cPickle
+try:
+	# Python2
+	import cPickle as pickle
+	# size of pickled integer big enough for record size
+	glb_nsz = 8
+except ImportError:
+	import pickle
+	glb_nsz = 16
 import re
 import os
-from PySide.QtCore import *
-from PySide.QtGui import *
-from PySide.QtSql import *
+
+pyside_version_1 = True
+if not "--pyside-version-1" in sys.argv:
+	try:
+		from PySide2.QtCore import *
+		from PySide2.QtGui import *
+		from PySide2.QtSql import *
+		from PySide2.QtWidgets import *
+		pyside_version_1 = False
+	except:
+		pass
+
+if pyside_version_1:
+	from PySide.QtCore import *
+	from PySide.QtGui import *
+	from PySide.QtSql import *
+
 from decimal import *
 from ctypes import *
 from multiprocessing import Process, Array, Value, Event
+
+# xrange is range in Python3
+try:
+	xrange
+except NameError:
+	xrange = range
+
+def printerr(*args, **keyword_args):
+	print(*args, file=sys.stderr, **keyword_args)
 
 # Data formatting helpers
 
@@ -167,9 +200,11 @@ class Thread(QThread):
 
 class TreeModel(QAbstractItemModel):
 
-	def __init__(self, root, parent=None):
+	def __init__(self, glb, params, parent=None):
 		super(TreeModel, self).__init__(parent)
-		self.root = root
+		self.glb = glb
+		self.params = params
+		self.root = self.GetRoot()
 		self.last_row_read = 0
 
 	def Item(self, parent):
@@ -357,7 +392,7 @@ class FindBar():
 		self.hbox.addWidget(self.close_button)
 
 		self.bar = QWidget()
-		self.bar.setLayout(self.hbox);
+		self.bar.setLayout(self.hbox)
 		self.bar.hide()
 
 	def Widget(self):
@@ -365,6 +400,7 @@ class FindBar():
 
 	def Activate(self):
 		self.bar.show()
+		self.textbox.lineEdit().selectAll()
 		self.textbox.setFocus()
 
 	def Deactivate(self):
@@ -429,13 +465,18 @@ class FindBar():
 
 class CallGraphLevelItemBase(object):
 
-	def __init__(self, glb, row, parent_item):
+	def __init__(self, glb, params, row, parent_item):
 		self.glb = glb
+		self.params = params
 		self.row = row
 		self.parent_item = parent_item
-		self.query_done = False;
+		self.query_done = False
 		self.child_count = 0
 		self.child_items = []
+		if parent_item:
+			self.level = parent_item.level + 1
+		else:
+			self.level = 0
 
 	def getChildItem(self, row):
 		return self.child_items[row]
@@ -465,18 +506,24 @@ class CallGraphLevelItemBase(object):
 
 class CallGraphLevelTwoPlusItemBase(CallGraphLevelItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, call_path_id, time, branch_count, parent_item):
-		super(CallGraphLevelTwoPlusItemBase, self).__init__(glb, row, parent_item)
+	def __init__(self, glb, params, row, comm_id, thread_id, call_path_id, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallGraphLevelTwoPlusItemBase, self).__init__(glb, params, row, parent_item)
 		self.comm_id = comm_id
 		self.thread_id = thread_id
 		self.call_path_id = call_path_id
+		self.insn_cnt = insn_cnt
+		self.cyc_cnt = cyc_cnt
 		self.branch_count = branch_count
 		self.time = time
 
 	def Select(self):
-		self.query_done = True;
+		self.query_done = True
 		query = QSqlQuery(self.glb.db)
-		QueryExec(query, "SELECT call_path_id, name, short_name, COUNT(calls.id), SUM(return_time - call_time), SUM(branch_count)"
+		if self.params.have_ipc:
+			ipc_str = ", SUM(insn_count), SUM(cyc_count)"
+		else:
+			ipc_str = ""
+		QueryExec(query, "SELECT call_path_id, name, short_name, COUNT(calls.id), SUM(return_time - call_time)" + ipc_str + ", SUM(branch_count)"
 					" FROM calls"
 					" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
 					" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
@@ -487,7 +534,15 @@ class CallGraphLevelTwoPlusItemBase(CallGraphLevelItemBase):
 					" GROUP BY call_path_id, name, short_name"
 					" ORDER BY call_path_id")
 		while query.next():
-			child_item = CallGraphLevelThreeItem(self.glb, self.child_count, self.comm_id, self.thread_id, query.value(0), query.value(1), query.value(2), query.value(3), int(query.value(4)), int(query.value(5)), self)
+			if self.params.have_ipc:
+				insn_cnt = int(query.value(5))
+				cyc_cnt = int(query.value(6))
+				branch_count = int(query.value(7))
+			else:
+				insn_cnt = 0
+				cyc_cnt = 0
+				branch_count = int(query.value(5))
+			child_item = CallGraphLevelThreeItem(self.glb, self.params, self.child_count, self.comm_id, self.thread_id, query.value(0), query.value(1), query.value(2), query.value(3), int(query.value(4)), insn_cnt, cyc_cnt, branch_count, self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
@@ -495,48 +550,68 @@ class CallGraphLevelTwoPlusItemBase(CallGraphLevelItemBase):
 
 class CallGraphLevelThreeItem(CallGraphLevelTwoPlusItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, call_path_id, name, dso, count, time, branch_count, parent_item):
-		super(CallGraphLevelThreeItem, self).__init__(glb, row, comm_id, thread_id, call_path_id, time, branch_count, parent_item)
+	def __init__(self, glb, params, row, comm_id, thread_id, call_path_id, name, dso, count, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallGraphLevelThreeItem, self).__init__(glb, params, row, comm_id, thread_id, call_path_id, time, insn_cnt, cyc_cnt, branch_count, parent_item)
 		dso = dsoname(dso)
-		self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(branch_count), PercentToOneDP(branch_count, parent_item.branch_count) ]
+		if self.params.have_ipc:
+			insn_pcnt = PercentToOneDP(insn_cnt, parent_item.insn_cnt)
+			cyc_pcnt = PercentToOneDP(cyc_cnt, parent_item.cyc_cnt)
+			br_pcnt = PercentToOneDP(branch_count, parent_item.branch_count)
+			ipc = CalcIPC(cyc_cnt, insn_cnt)
+			self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(insn_cnt), insn_pcnt, str(cyc_cnt), cyc_pcnt, ipc, str(branch_count), br_pcnt ]
+		else:
+			self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(branch_count), PercentToOneDP(branch_count, parent_item.branch_count) ]
 		self.dbid = call_path_id
 
 # Context-sensitive call graph data model level two item
 
 class CallGraphLevelTwoItem(CallGraphLevelTwoPlusItemBase):
 
-	def __init__(self, glb, row, comm_id, thread_id, pid, tid, parent_item):
-		super(CallGraphLevelTwoItem, self).__init__(glb, row, comm_id, thread_id, 1, 0, 0, parent_item)
-		self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", ""]
+	def __init__(self, glb, params, row, comm_id, thread_id, pid, tid, parent_item):
+		super(CallGraphLevelTwoItem, self).__init__(glb, params, row, comm_id, thread_id, 1, 0, 0, 0, 0, parent_item)
+		if self.params.have_ipc:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", ""]
 		self.dbid = thread_id
 
 	def Select(self):
 		super(CallGraphLevelTwoItem, self).Select()
 		for child_item in self.child_items:
 			self.time += child_item.time
+			self.insn_cnt += child_item.insn_cnt
+			self.cyc_cnt += child_item.cyc_cnt
 			self.branch_count += child_item.branch_count
 		for child_item in self.child_items:
 			child_item.data[4] = PercentToOneDP(child_item.time, self.time)
-			child_item.data[6] = PercentToOneDP(child_item.branch_count, self.branch_count)
+			if self.params.have_ipc:
+				child_item.data[6] = PercentToOneDP(child_item.insn_cnt, self.insn_cnt)
+				child_item.data[8] = PercentToOneDP(child_item.cyc_cnt, self.cyc_cnt)
+				child_item.data[11] = PercentToOneDP(child_item.branch_count, self.branch_count)
+			else:
+				child_item.data[6] = PercentToOneDP(child_item.branch_count, self.branch_count)
 
 # Context-sensitive call graph data model level one item
 
 class CallGraphLevelOneItem(CallGraphLevelItemBase):
 
-	def __init__(self, glb, row, comm_id, comm, parent_item):
-		super(CallGraphLevelOneItem, self).__init__(glb, row, parent_item)
-		self.data = [comm, "", "", "", "", "", ""]
+	def __init__(self, glb, params, row, comm_id, comm, parent_item):
+		super(CallGraphLevelOneItem, self).__init__(glb, params, row, parent_item)
+		if self.params.have_ipc:
+			self.data = [comm, "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [comm, "", "", "", "", "", ""]
 		self.dbid = comm_id
 
 	def Select(self):
-		self.query_done = True;
+		self.query_done = True
 		query = QSqlQuery(self.glb.db)
 		QueryExec(query, "SELECT thread_id, pid, tid"
 					" FROM comm_threads"
 					" INNER JOIN threads ON thread_id = threads.id"
 					" WHERE comm_id = " + str(self.dbid))
 		while query.next():
-			child_item = CallGraphLevelTwoItem(self.glb, self.child_count, self.dbid, query.value(0), query.value(1), query.value(2), self)
+			child_item = CallGraphLevelTwoItem(self.glb, self.params, self.child_count, self.dbid, query.value(0), query.value(1), query.value(2), self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
@@ -544,37 +619,35 @@ class CallGraphLevelOneItem(CallGraphLevelItemBase):
 
 class CallGraphRootItem(CallGraphLevelItemBase):
 
-	def __init__(self, glb):
-		super(CallGraphRootItem, self).__init__(glb, 0, None)
+	def __init__(self, glb, params):
+		super(CallGraphRootItem, self).__init__(glb, params, 0, None)
 		self.dbid = 0
-		self.query_done = True;
+		self.query_done = True
+		if_has_calls = ""
+		if IsSelectable(glb.db, "comms", columns = "has_calls"):
+			if_has_calls = " WHERE has_calls = TRUE"
 		query = QSqlQuery(glb.db)
-		QueryExec(query, "SELECT id, comm FROM comms")
+		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
 		while query.next():
 			if not query.value(0):
 				continue
-			child_item = CallGraphLevelOneItem(glb, self.child_count, query.value(0), query.value(1), self)
+			child_item = CallGraphLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
 			self.child_items.append(child_item)
 			self.child_count += 1
 
-# Context-sensitive call graph data model
+# Call graph model parameters
 
-class CallGraphModel(TreeModel):
+class CallGraphModelParams():
 
 	def __init__(self, glb, parent=None):
-		super(CallGraphModel, self).__init__(CallGraphRootItem(glb), parent)
-		self.glb = glb
+		self.have_ipc = IsSelectable(glb.db, "calls", columns = "insn_count, cyc_count")
 
-	def columnCount(self, parent=None):
-		return 7
+# Context-sensitive call graph data model base
 
-	def columnHeader(self, column):
-		headers = ["Call Path", "Object", "Count ", "Time (ns) ", "Time (%) ", "Branch Count ", "Branch Count (%) "]
-		return headers[column]
+class CallGraphModelBase(TreeModel):
 
-	def columnAlignment(self, column):
-		alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
-		return alignment[column]
+	def __init__(self, glb, parent=None):
+		super(CallGraphModelBase, self).__init__(glb, CallGraphModelParams(glb), parent)
 
 	def FindSelect(self, value, pattern, query):
 		if pattern:
@@ -594,34 +667,7 @@ class CallGraphModel(TreeModel):
 				match = " GLOB '" + str(value) + "'"
 		else:
 			match = " = '" + str(value) + "'"
-		QueryExec(query, "SELECT call_path_id, comm_id, thread_id"
-						" FROM calls"
-						" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
-						" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
-						" WHERE symbols.name" + match +
-						" GROUP BY comm_id, thread_id, call_path_id"
-						" ORDER BY comm_id, thread_id, call_path_id")
-
-	def FindPath(self, query):
-		# Turn the query result into a list of ids that the tree view can walk
-		# to open the tree at the right place.
-		ids = []
-		parent_id = query.value(0)
-		while parent_id:
-			ids.insert(0, parent_id)
-			q2 = QSqlQuery(self.glb.db)
-			QueryExec(q2, "SELECT parent_id"
-					" FROM call_paths"
-					" WHERE id = " + str(parent_id))
-			if not q2.next():
-				break
-			parent_id = q2.value(0)
-		# The call path root is not used
-		if ids[0] == 1:
-			del ids[0]
-		ids.insert(0, query.value(2))
-		ids.insert(0, query.value(1))
-		return ids
+		self.DoFindSelect(query, match)
 
 	def Found(self, query, found):
 		if found:
@@ -675,13 +721,263 @@ class CallGraphModel(TreeModel):
 	def FindDone(self, thread, callback, ids):
 		callback(ids)
 
+# Context-sensitive call graph data model
+
+class CallGraphModel(CallGraphModelBase):
+
+	def __init__(self, glb, parent=None):
+		super(CallGraphModel, self).__init__(glb, parent)
+
+	def GetRoot(self):
+		return CallGraphRootItem(self.glb, self.params)
+
+	def columnCount(self, parent=None):
+		if self.params.have_ipc:
+			return 12
+		else:
+			return 7
+
+	def columnHeader(self, column):
+		if self.params.have_ipc:
+			headers = ["Call Path", "Object", "Count ", "Time (ns) ", "Time (%) ", "Insn Cnt", "Insn Cnt (%)", "Cyc Cnt", "Cyc Cnt (%)", "IPC", "Branch Count ", "Branch Count (%) "]
+		else:
+			headers = ["Call Path", "Object", "Count ", "Time (ns) ", "Time (%) ", "Branch Count ", "Branch Count (%) "]
+		return headers[column]
+
+	def columnAlignment(self, column):
+		if self.params.have_ipc:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		else:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		return alignment[column]
+
+	def DoFindSelect(self, query, match):
+		QueryExec(query, "SELECT call_path_id, comm_id, thread_id"
+						" FROM calls"
+						" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
+						" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
+						" WHERE symbols.name" + match +
+						" GROUP BY comm_id, thread_id, call_path_id"
+						" ORDER BY comm_id, thread_id, call_path_id")
+
+	def FindPath(self, query):
+		# Turn the query result into a list of ids that the tree view can walk
+		# to open the tree at the right place.
+		ids = []
+		parent_id = query.value(0)
+		while parent_id:
+			ids.insert(0, parent_id)
+			q2 = QSqlQuery(self.glb.db)
+			QueryExec(q2, "SELECT parent_id"
+					" FROM call_paths"
+					" WHERE id = " + str(parent_id))
+			if not q2.next():
+				break
+			parent_id = q2.value(0)
+		# The call path root is not used
+		if ids[0] == 1:
+			del ids[0]
+		ids.insert(0, query.value(2))
+		ids.insert(0, query.value(1))
+		return ids
+
+# Call tree data model level 2+ item base
+
+class CallTreeLevelTwoPlusItemBase(CallGraphLevelItemBase):
+
+	def __init__(self, glb, params, row, comm_id, thread_id, calls_id, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallTreeLevelTwoPlusItemBase, self).__init__(glb, params, row, parent_item)
+		self.comm_id = comm_id
+		self.thread_id = thread_id
+		self.calls_id = calls_id
+		self.insn_cnt = insn_cnt
+		self.cyc_cnt = cyc_cnt
+		self.branch_count = branch_count
+		self.time = time
+
+	def Select(self):
+		self.query_done = True
+		if self.calls_id == 0:
+			comm_thread = " AND comm_id = " + str(self.comm_id) + " AND thread_id = " + str(self.thread_id)
+		else:
+			comm_thread = ""
+		if self.params.have_ipc:
+			ipc_str = ", insn_count, cyc_count"
+		else:
+			ipc_str = ""
+		query = QSqlQuery(self.glb.db)
+		QueryExec(query, "SELECT calls.id, name, short_name, call_time, return_time - call_time" + ipc_str + ", branch_count"
+					" FROM calls"
+					" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
+					" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
+					" INNER JOIN dsos ON symbols.dso_id = dsos.id"
+					" WHERE calls.parent_id = " + str(self.calls_id) + comm_thread +
+					" ORDER BY call_time, calls.id")
+		while query.next():
+			if self.params.have_ipc:
+				insn_cnt = int(query.value(5))
+				cyc_cnt = int(query.value(6))
+				branch_count = int(query.value(7))
+			else:
+				insn_cnt = 0
+				cyc_cnt = 0
+				branch_count = int(query.value(5))
+			child_item = CallTreeLevelThreeItem(self.glb, self.params, self.child_count, self.comm_id, self.thread_id, query.value(0), query.value(1), query.value(2), query.value(3), int(query.value(4)), insn_cnt, cyc_cnt, branch_count, self)
+			self.child_items.append(child_item)
+			self.child_count += 1
+
+# Call tree data model level three item
+
+class CallTreeLevelThreeItem(CallTreeLevelTwoPlusItemBase):
+
+	def __init__(self, glb, params, row, comm_id, thread_id, calls_id, name, dso, count, time, insn_cnt, cyc_cnt, branch_count, parent_item):
+		super(CallTreeLevelThreeItem, self).__init__(glb, params, row, comm_id, thread_id, calls_id, time, insn_cnt, cyc_cnt, branch_count, parent_item)
+		dso = dsoname(dso)
+		if self.params.have_ipc:
+			insn_pcnt = PercentToOneDP(insn_cnt, parent_item.insn_cnt)
+			cyc_pcnt = PercentToOneDP(cyc_cnt, parent_item.cyc_cnt)
+			br_pcnt = PercentToOneDP(branch_count, parent_item.branch_count)
+			ipc = CalcIPC(cyc_cnt, insn_cnt)
+			self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(insn_cnt), insn_pcnt, str(cyc_cnt), cyc_pcnt, ipc, str(branch_count), br_pcnt ]
+		else:
+			self.data = [ name, dso, str(count), str(time), PercentToOneDP(time, parent_item.time), str(branch_count), PercentToOneDP(branch_count, parent_item.branch_count) ]
+		self.dbid = calls_id
+
+# Call tree data model level two item
+
+class CallTreeLevelTwoItem(CallTreeLevelTwoPlusItemBase):
+
+	def __init__(self, glb, params, row, comm_id, thread_id, pid, tid, parent_item):
+		super(CallTreeLevelTwoItem, self).__init__(glb, params, row, comm_id, thread_id, 0, 0, 0, 0, 0, parent_item)
+		if self.params.have_ipc:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [str(pid) + ":" + str(tid), "", "", "", "", "", ""]
+		self.dbid = thread_id
+
+	def Select(self):
+		super(CallTreeLevelTwoItem, self).Select()
+		for child_item in self.child_items:
+			self.time += child_item.time
+			self.insn_cnt += child_item.insn_cnt
+			self.cyc_cnt += child_item.cyc_cnt
+			self.branch_count += child_item.branch_count
+		for child_item in self.child_items:
+			child_item.data[4] = PercentToOneDP(child_item.time, self.time)
+			if self.params.have_ipc:
+				child_item.data[6] = PercentToOneDP(child_item.insn_cnt, self.insn_cnt)
+				child_item.data[8] = PercentToOneDP(child_item.cyc_cnt, self.cyc_cnt)
+				child_item.data[11] = PercentToOneDP(child_item.branch_count, self.branch_count)
+			else:
+				child_item.data[6] = PercentToOneDP(child_item.branch_count, self.branch_count)
+
+# Call tree data model level one item
+
+class CallTreeLevelOneItem(CallGraphLevelItemBase):
+
+	def __init__(self, glb, params, row, comm_id, comm, parent_item):
+		super(CallTreeLevelOneItem, self).__init__(glb, params, row, parent_item)
+		if self.params.have_ipc:
+			self.data = [comm, "", "", "", "", "", "", "", "", "", "", ""]
+		else:
+			self.data = [comm, "", "", "", "", "", ""]
+		self.dbid = comm_id
+
+	def Select(self):
+		self.query_done = True
+		query = QSqlQuery(self.glb.db)
+		QueryExec(query, "SELECT thread_id, pid, tid"
+					" FROM comm_threads"
+					" INNER JOIN threads ON thread_id = threads.id"
+					" WHERE comm_id = " + str(self.dbid))
+		while query.next():
+			child_item = CallTreeLevelTwoItem(self.glb, self.params, self.child_count, self.dbid, query.value(0), query.value(1), query.value(2), self)
+			self.child_items.append(child_item)
+			self.child_count += 1
+
+# Call tree data model root item
+
+class CallTreeRootItem(CallGraphLevelItemBase):
+
+	def __init__(self, glb, params):
+		super(CallTreeRootItem, self).__init__(glb, params, 0, None)
+		self.dbid = 0
+		self.query_done = True
+		if_has_calls = ""
+		if IsSelectable(glb.db, "comms", columns = "has_calls"):
+			if_has_calls = " WHERE has_calls = TRUE"
+		query = QSqlQuery(glb.db)
+		QueryExec(query, "SELECT id, comm FROM comms" + if_has_calls)
+		while query.next():
+			if not query.value(0):
+				continue
+			child_item = CallTreeLevelOneItem(glb, params, self.child_count, query.value(0), query.value(1), self)
+			self.child_items.append(child_item)
+			self.child_count += 1
+
+# Call Tree data model
+
+class CallTreeModel(CallGraphModelBase):
+
+	def __init__(self, glb, parent=None):
+		super(CallTreeModel, self).__init__(glb, parent)
+
+	def GetRoot(self):
+		return CallTreeRootItem(self.glb, self.params)
+
+	def columnCount(self, parent=None):
+		if self.params.have_ipc:
+			return 12
+		else:
+			return 7
+
+	def columnHeader(self, column):
+		if self.params.have_ipc:
+			headers = ["Call Path", "Object", "Call Time", "Time (ns) ", "Time (%) ", "Insn Cnt", "Insn Cnt (%)", "Cyc Cnt", "Cyc Cnt (%)", "IPC", "Branch Count ", "Branch Count (%) "]
+		else:
+			headers = ["Call Path", "Object", "Call Time", "Time (ns) ", "Time (%) ", "Branch Count ", "Branch Count (%) "]
+		return headers[column]
+
+	def columnAlignment(self, column):
+		if self.params.have_ipc:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		else:
+			alignment = [ Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight, Qt.AlignRight ]
+		return alignment[column]
+
+	def DoFindSelect(self, query, match):
+		QueryExec(query, "SELECT calls.id, comm_id, thread_id"
+						" FROM calls"
+						" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
+						" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
+						" WHERE symbols.name" + match +
+						" ORDER BY comm_id, thread_id, call_time, calls.id")
+
+	def FindPath(self, query):
+		# Turn the query result into a list of ids that the tree view can walk
+		# to open the tree at the right place.
+		ids = []
+		parent_id = query.value(0)
+		while parent_id:
+			ids.insert(0, parent_id)
+			q2 = QSqlQuery(self.glb.db)
+			QueryExec(q2, "SELECT parent_id"
+					" FROM calls"
+					" WHERE id = " + str(parent_id))
+			if not q2.next():
+				break
+			parent_id = q2.value(0)
+		ids.insert(0, query.value(2))
+		ids.insert(0, query.value(1))
+		return ids
+
 # Vertical widget layout
 
 class VBox():
 
 	def __init__(self, w1, w2, w3=None):
 		self.vbox = QWidget()
-		self.vbox.setLayout(QVBoxLayout());
+		self.vbox.setLayout(QVBoxLayout())
 
 		self.vbox.layout().setContentsMargins(0, 0, 0, 0)
 
@@ -693,28 +989,21 @@ class VBox():
 	def Widget(self):
 		return self.vbox
 
-# Context-sensitive call graph window
+# Tree window base
 
-class CallGraphWindow(QMdiSubWindow):
+class TreeWindowBase(QMdiSubWindow):
 
-	def __init__(self, glb, parent=None):
-		super(CallGraphWindow, self).__init__(parent)
+	def __init__(self, parent=None):
+		super(TreeWindowBase, self).__init__(parent)
 
-		self.model = LookupCreateModel("Context-Sensitive Call Graph", lambda x=glb: CallGraphModel(x))
+		self.model = None
+		self.find_bar = None
 
 		self.view = QTreeView()
-		self.view.setModel(self.model)
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTreeCellsToClipboard
 
-		for c, w in ((0, 250), (1, 100), (2, 60), (3, 70), (4, 70), (5, 100)):
-			self.view.setColumnWidth(c, w)
-
-		self.find_bar = FindBar(self, self)
-
-		self.vbox = VBox(self.view, self.find_bar.Widget())
-
-		self.setWidget(self.vbox.Widget())
-
-		AddSubWindow(glb.mainwindow.mdi_area, self, "Context-Sensitive Call Graph")
+		self.context_menu = TreeContextMenu(self.view)
 
 	def DisplayFound(self, ids):
 		if not len(ids):
@@ -746,6 +1035,51 @@ class CallGraphWindow(QMdiSubWindow):
 		self.find_bar.Idle()
 		if not found:
 			self.find_bar.NotFound()
+
+
+# Context-sensitive call graph window
+
+class CallGraphWindow(TreeWindowBase):
+
+	def __init__(self, glb, parent=None):
+		super(CallGraphWindow, self).__init__(parent)
+
+		self.model = LookupCreateModel("Context-Sensitive Call Graph", lambda x=glb: CallGraphModel(x))
+
+		self.view.setModel(self.model)
+
+		for c, w in ((0, 250), (1, 100), (2, 60), (3, 70), (4, 70), (5, 100)):
+			self.view.setColumnWidth(c, w)
+
+		self.find_bar = FindBar(self, self)
+
+		self.vbox = VBox(self.view, self.find_bar.Widget())
+
+		self.setWidget(self.vbox.Widget())
+
+		AddSubWindow(glb.mainwindow.mdi_area, self, "Context-Sensitive Call Graph")
+
+# Call tree window
+
+class CallTreeWindow(TreeWindowBase):
+
+	def __init__(self, glb, parent=None):
+		super(CallTreeWindow, self).__init__(parent)
+
+		self.model = LookupCreateModel("Call Tree", lambda x=glb: CallTreeModel(x))
+
+		self.view.setModel(self.model)
+
+		for c, w in ((0, 230), (1, 100), (2, 100), (3, 70), (4, 70), (5, 100)):
+			self.view.setColumnWidth(c, w)
+
+		self.find_bar = FindBar(self, self)
+
+		self.vbox = VBox(self.view, self.find_bar.Widget())
+
+		self.setWidget(self.vbox.Widget())
+
+		AddSubWindow(glb.mainwindow.mdi_area, self, "Call Tree")
 
 # Child data item  finder
 
@@ -812,10 +1146,6 @@ class ChildDataItemFinder():
 
 glb_chunk_sz = 10000
 
-# size of pickled integer big enough for record size
-
-glb_nsz = 8
-
 # Background process for SQL data fetcher
 
 class SQLFetcherProcess():
@@ -874,7 +1204,7 @@ class SQLFetcherProcess():
 				return True
 			if space >= glb_nsz:
 				# Use 0 (or space < glb_nsz) to mean there is no more at the top of the buffer
-				nd = cPickle.dumps(0, cPickle.HIGHEST_PROTOCOL)
+				nd = pickle.dumps(0, pickle.HIGHEST_PROTOCOL)
 				self.buffer[self.local_head : self.local_head + len(nd)] = nd
 			self.local_head = 0
 		if self.local_tail - self.local_head > sz:
@@ -892,9 +1222,9 @@ class SQLFetcherProcess():
 			self.wait_event.wait()
 
 	def AddToBuffer(self, obj):
-		d = cPickle.dumps(obj, cPickle.HIGHEST_PROTOCOL)
+		d = pickle.dumps(obj, pickle.HIGHEST_PROTOCOL)
 		n = len(d)
-		nd = cPickle.dumps(n, cPickle.HIGHEST_PROTOCOL)
+		nd = pickle.dumps(n, pickle.HIGHEST_PROTOCOL)
 		sz = n + glb_nsz
 		self.WaitForSpace(sz)
 		pos = self.local_head
@@ -1006,12 +1336,12 @@ class SQLFetcher(QObject):
 		pos = self.local_tail
 		if len(self.buffer) - pos < glb_nsz:
 			pos = 0
-		n = cPickle.loads(self.buffer[pos : pos + glb_nsz])
+		n = pickle.loads(self.buffer[pos : pos + glb_nsz])
 		if n == 0:
 			pos = 0
-			n = cPickle.loads(self.buffer[0 : glb_nsz])
+			n = pickle.loads(self.buffer[0 : glb_nsz])
 		pos += glb_nsz
-		obj = cPickle.loads(self.buffer[pos : pos + n])
+		obj = pickle.loads(self.buffer[pos : pos + n])
 		self.local_tail = pos + n
 		return obj
 
@@ -1067,7 +1397,7 @@ class FetchMoreRecordsBar():
 		self.hbox.addWidget(self.close_button)
 
 		self.bar = QWidget()
-		self.bar.setLayout(self.hbox);
+		self.bar.setLayout(self.hbox)
 		self.bar.show()
 
 		self.in_progress = False
@@ -1141,11 +1471,11 @@ class FetchMoreRecordsBar():
 
 class BranchLevelTwoItem():
 
-	def __init__(self, row, text, parent_item):
+	def __init__(self, row, col, text, parent_item):
 		self.row = row
 		self.parent_item = parent_item
-		self.data = [""] * 8
-		self.data[7] = text
+		self.data = [""] * (col + 1)
+		self.data[col] = text
 		self.level = 2
 
 	def getParentItem(self):
@@ -1177,6 +1507,7 @@ class BranchLevelOneItem():
 		self.dbid = data[0]
 		self.level = 1
 		self.query_done = False
+		self.br_col = len(self.data) - 1
 
 	def getChildItem(self, row):
 		return self.child_items[row]
@@ -1257,7 +1588,7 @@ class BranchLevelOneItem():
 				while k < 15:
 					byte_str += "   "
 					k += 1
-				self.child_items.append(BranchLevelTwoItem(0, byte_str + " " + text, self))
+				self.child_items.append(BranchLevelTwoItem(0, self.br_col, byte_str + " " + text, self))
 				self.child_count += 1
 			else:
 				return
@@ -1308,16 +1639,66 @@ class BranchRootItem():
 	def getData(self, column):
 		return ""
 
+# Calculate instructions per cycle
+
+def CalcIPC(cyc_cnt, insn_cnt):
+	if cyc_cnt and insn_cnt:
+		ipc = Decimal(float(insn_cnt) / cyc_cnt)
+		ipc = str(ipc.quantize(Decimal(".01"), rounding=ROUND_HALF_UP))
+	else:
+		ipc = "0"
+	return ipc
+
 # Branch data preparation
+
+def BranchDataPrepBr(query, data):
+	data.append(tohex(query.value(8)).rjust(16) + " " + query.value(9) + offstr(query.value(10)) +
+			" (" + dsoname(query.value(11)) + ")" + " -> " +
+			tohex(query.value(12)) + " " + query.value(13) + offstr(query.value(14)) +
+			" (" + dsoname(query.value(15)) + ")")
+
+def BranchDataPrepIPC(query, data):
+	insn_cnt = query.value(16)
+	cyc_cnt = query.value(17)
+	ipc = CalcIPC(cyc_cnt, insn_cnt)
+	data.append(insn_cnt)
+	data.append(cyc_cnt)
+	data.append(ipc)
 
 def BranchDataPrep(query):
 	data = []
 	for i in xrange(0, 8):
 		data.append(query.value(i))
-	data.append(tohex(query.value(8)).rjust(16) + " " + query.value(9) + offstr(query.value(10)) +
-			" (" + dsoname(query.value(11)) + ")" + " -> " +
-			tohex(query.value(12)) + " " + query.value(13) + offstr(query.value(14)) +
-			" (" + dsoname(query.value(15)) + ")")
+	BranchDataPrepBr(query, data)
+	return data
+
+def BranchDataPrepWA(query):
+	data = []
+	data.append(query.value(0))
+	# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+	data.append("{:>19}".format(query.value(1)))
+	for i in xrange(2, 8):
+		data.append(query.value(i))
+	BranchDataPrepBr(query, data)
+	return data
+
+def BranchDataWithIPCPrep(query):
+	data = []
+	for i in xrange(0, 8):
+		data.append(query.value(i))
+	BranchDataPrepIPC(query, data)
+	BranchDataPrepBr(query, data)
+	return data
+
+def BranchDataWithIPCPrepWA(query):
+	data = []
+	data.append(query.value(0))
+	# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+	data.append("{:>19}".format(query.value(1)))
+	for i in xrange(2, 8):
+		data.append(query.value(i))
+	BranchDataPrepIPC(query, data)
+	BranchDataPrepBr(query, data)
 	return data
 
 # Branch data model
@@ -1327,15 +1708,24 @@ class BranchModel(TreeModel):
 	progress = Signal(object)
 
 	def __init__(self, glb, event_id, where_clause, parent=None):
-		super(BranchModel, self).__init__(BranchRootItem(), parent)
-		self.glb = glb
+		super(BranchModel, self).__init__(glb, None, parent)
 		self.event_id = event_id
 		self.more = True
 		self.populated = 0
+		self.have_ipc = IsSelectable(glb.db, "samples", columns = "insn_count, cyc_count")
+		if self.have_ipc:
+			select_ipc = ", insn_count, cyc_count"
+			prep_fn = BranchDataWithIPCPrep
+			prep_wa_fn = BranchDataWithIPCPrepWA
+		else:
+			select_ipc = ""
+			prep_fn = BranchDataPrep
+			prep_wa_fn = BranchDataPrepWA
 		sql = ("SELECT samples.id, time, cpu, comm, pid, tid, branch_types.name,"
 			" CASE WHEN in_tx = '0' THEN 'No' ELSE 'Yes' END,"
 			" ip, symbols.name, sym_offset, dsos.short_name,"
 			" to_ip, to_symbols.name, to_sym_offset, to_dsos.short_name"
+			+ select_ipc +
 			" FROM samples"
 			" INNER JOIN comms ON comm_id = comms.id"
 			" INNER JOIN threads ON thread_id = threads.id"
@@ -1348,18 +1738,35 @@ class BranchModel(TreeModel):
 			" AND evsel_id = " + str(self.event_id) +
 			" ORDER BY samples.id"
 			" LIMIT " + str(glb_chunk_sz))
-		self.fetcher = SQLFetcher(glb, sql, BranchDataPrep, self.AddSample)
+		if pyside_version_1 and sys.version_info[0] == 3:
+			prep = prep_fn
+		else:
+			prep = prep_wa_fn
+		self.fetcher = SQLFetcher(glb, sql, prep, self.AddSample)
 		self.fetcher.done.connect(self.Update)
 		self.fetcher.Fetch(glb_chunk_sz)
 
+	def GetRoot(self):
+		return BranchRootItem()
+
 	def columnCount(self, parent=None):
-		return 8
+		if self.have_ipc:
+			return 11
+		else:
+			return 8
 
 	def columnHeader(self, column):
-		return ("Time", "CPU", "Command", "PID", "TID", "Branch Type", "In Tx", "Branch")[column]
+		if self.have_ipc:
+			return ("Time", "CPU", "Command", "PID", "TID", "Branch Type", "In Tx", "Insn Cnt", "Cyc Cnt", "IPC", "Branch")[column]
+		else:
+			return ("Time", "CPU", "Command", "PID", "TID", "Branch Type", "In Tx", "Branch")[column]
 
 	def columnFont(self, column):
-		if column != 7:
+		if self.have_ipc:
+			br_col = 10
+		else:
+			br_col = 7
+		if column != br_col:
 			return None
 		return QFont("Monospace")
 
@@ -1398,24 +1805,38 @@ class BranchModel(TreeModel):
 	def HasMoreRecords(self):
 		return self.more
 
+# Report Variables
+
+class ReportVars():
+
+	def __init__(self, name = "", where_clause = "", limit = ""):
+		self.name = name
+		self.where_clause = where_clause
+		self.limit = limit
+
+	def UniqueId(self):
+		return str(self.where_clause + ";" + self.limit)
+
 # Branch window
 
 class BranchWindow(QMdiSubWindow):
 
-	def __init__(self, glb, event_id, name, where_clause, parent=None):
+	def __init__(self, glb, event_id, report_vars, parent=None):
 		super(BranchWindow, self).__init__(parent)
 
-		model_name = "Branch Events " + str(event_id)
-		if len(where_clause):
-			model_name = where_clause + " " + model_name
+		model_name = "Branch Events " + str(event_id) +  " " + report_vars.UniqueId()
 
-		self.model = LookupCreateModel(model_name, lambda: BranchModel(glb, event_id, where_clause))
+		self.model = LookupCreateModel(model_name, lambda: BranchModel(glb, event_id, report_vars.where_clause))
 
 		self.view = QTreeView()
 		self.view.setUniformRowHeights(True)
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTreeCellsToClipboard
 		self.view.setModel(self.model)
 
 		self.ResizeColumnsToContents()
+
+		self.context_menu = TreeContextMenu(self.view)
 
 		self.find_bar = FindBar(self, self, True)
 
@@ -1427,7 +1848,7 @@ class BranchWindow(QMdiSubWindow):
 
 		self.setWidget(self.vbox.Widget())
 
-		AddSubWindow(glb.mainwindow.mdi_area, self, name + " Branch Events")
+		AddSubWindow(glb.mainwindow.mdi_area, self, report_vars.name + " Branch Events")
 
 	def ResizeColumnToContents(self, column, n):
 		# Using the view's resizeColumnToContents() here is extrememly slow
@@ -1472,46 +1893,133 @@ class BranchWindow(QMdiSubWindow):
 		else:
 			self.find_bar.NotFound()
 
-# Dialog data item converted and validated using a SQL table
+# Line edit data item
 
-class SQLTableDialogDataItem():
+class LineEditDataItem(object):
 
-	def __init__(self, glb, label, placeholder_text, table_name, match_column, column_name1, column_name2, parent):
+	def __init__(self, glb, label, placeholder_text, parent, id = "", default = ""):
 		self.glb = glb
 		self.label = label
 		self.placeholder_text = placeholder_text
-		self.table_name = table_name
-		self.match_column = match_column
-		self.column_name1 = column_name1
-		self.column_name2 = column_name2
 		self.parent = parent
+		self.id = id
 
-		self.value = ""
+		self.value = default
 
-		self.widget = QLineEdit()
+		self.widget = QLineEdit(default)
 		self.widget.editingFinished.connect(self.Validate)
 		self.widget.textChanged.connect(self.Invalidate)
 		self.red = False
 		self.error = ""
 		self.validated = True
 
-		self.last_id = 0
-		self.first_time = 0
-		self.last_time = 2 ** 64
-		if self.table_name == "<timeranges>":
-			query = QSqlQuery(self.glb.db)
-			QueryExec(query, "SELECT id, time FROM samples ORDER BY id DESC LIMIT 1")
-			if query.next():
-				self.last_id = int(query.value(0))
-				self.last_time = int(query.value(1))
-			QueryExec(query, "SELECT time FROM samples WHERE time != 0 ORDER BY id LIMIT 1")
-			if query.next():
-				self.first_time = int(query.value(0))
-			if placeholder_text:
-				placeholder_text += ", between " + str(self.first_time) + " and " + str(self.last_time)
-
 		if placeholder_text:
 			self.widget.setPlaceholderText(placeholder_text)
+
+	def TurnTextRed(self):
+		if not self.red:
+			palette = QPalette()
+			palette.setColor(QPalette.Text,Qt.red)
+			self.widget.setPalette(palette)
+			self.red = True
+
+	def TurnTextNormal(self):
+		if self.red:
+			palette = QPalette()
+			self.widget.setPalette(palette)
+			self.red = False
+
+	def InvalidValue(self, value):
+		self.value = ""
+		self.TurnTextRed()
+		self.error = self.label + " invalid value '" + value + "'"
+		self.parent.ShowMessage(self.error)
+
+	def Invalidate(self):
+		self.validated = False
+
+	def DoValidate(self, input_string):
+		self.value = input_string.strip()
+
+	def Validate(self):
+		self.validated = True
+		self.error = ""
+		self.TurnTextNormal()
+		self.parent.ClearMessage()
+		input_string = self.widget.text()
+		if not len(input_string.strip()):
+			self.value = ""
+			return
+		self.DoValidate(input_string)
+
+	def IsValid(self):
+		if not self.validated:
+			self.Validate()
+		if len(self.error):
+			self.parent.ShowMessage(self.error)
+			return False
+		return True
+
+	def IsNumber(self, value):
+		try:
+			x = int(value)
+		except:
+			x = 0
+		return str(x) == value
+
+# Non-negative integer ranges dialog data item
+
+class NonNegativeIntegerRangesDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, column_name, parent):
+		super(NonNegativeIntegerRangesDataItem, self).__init__(glb, label, placeholder_text, parent)
+
+		self.column_name = column_name
+
+	def DoValidate(self, input_string):
+		singles = []
+		ranges = []
+		for value in [x.strip() for x in input_string.split(",")]:
+			if "-" in value:
+				vrange = value.split("-")
+				if len(vrange) != 2 or not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
+					return self.InvalidValue(value)
+				ranges.append(vrange)
+			else:
+				if not self.IsNumber(value):
+					return self.InvalidValue(value)
+				singles.append(value)
+		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
+		if len(singles):
+			ranges.append(self.column_name + " IN (" + ",".join(singles) + ")")
+		self.value = " OR ".join(ranges)
+
+# Positive integer dialog data item
+
+class PositiveIntegerDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, parent, id = "", default = ""):
+		super(PositiveIntegerDataItem, self).__init__(glb, label, placeholder_text, parent, id, default)
+
+	def DoValidate(self, input_string):
+		if not self.IsNumber(input_string.strip()):
+			return self.InvalidValue(input_string)
+		value = int(input_string.strip())
+		if value <= 0:
+			return self.InvalidValue(input_string)
+		self.value = str(value)
+
+# Dialog data item converted and validated using a SQL table
+
+class SQLTableDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, table_name, match_column, column_name1, column_name2, parent):
+		super(SQLTableDataItem, self).__init__(glb, label, placeholder_text, parent)
+
+		self.table_name = table_name
+		self.match_column = match_column
+		self.column_name1 = column_name1
+		self.column_name2 = column_name2
 
 	def ValueToIds(self, value):
 		ids = []
@@ -1522,6 +2030,42 @@ class SQLTableDialogDataItem():
 			while query.next():
 				ids.append(str(query.value(0)))
 		return ids
+
+	def DoValidate(self, input_string):
+		all_ids = []
+		for value in [x.strip() for x in input_string.split(",")]:
+			ids = self.ValueToIds(value)
+			if len(ids):
+				all_ids.extend(ids)
+			else:
+				return self.InvalidValue(value)
+		self.value = self.column_name1 + " IN (" + ",".join(all_ids) + ")"
+		if self.column_name2:
+			self.value = "( " + self.value + " OR " + self.column_name2 + " IN (" + ",".join(all_ids) + ") )"
+
+# Sample time ranges dialog data item converted and validated using 'samples' SQL table
+
+class SampleTimeRangesDataItem(LineEditDataItem):
+
+	def __init__(self, glb, label, placeholder_text, column_name, parent):
+		self.column_name = column_name
+
+		self.last_id = 0
+		self.first_time = 0
+		self.last_time = 2 ** 64
+
+		query = QSqlQuery(glb.db)
+		QueryExec(query, "SELECT id, time FROM samples ORDER BY id DESC LIMIT 1")
+		if query.next():
+			self.last_id = int(query.value(0))
+			self.last_time = int(query.value(1))
+		QueryExec(query, "SELECT time FROM samples WHERE time != 0 ORDER BY id LIMIT 1")
+		if query.next():
+			self.first_time = int(query.value(0))
+		if placeholder_text:
+			placeholder_text += ", between " + str(self.first_time) + " and " + str(self.last_time)
+
+		super(SampleTimeRangesDataItem, self).__init__(glb, label, placeholder_text, parent)
 
 	def IdBetween(self, query, lower_id, higher_id, order):
 		QueryExec(query, "SELECT id FROM samples WHERE id > " + str(lower_id) + " AND id < " + str(higher_id) + " ORDER BY id " + order + " LIMIT 1")
@@ -1560,7 +2104,6 @@ class SQLTableDialogDataItem():
 					return str(lower_id)
 
 	def ConvertRelativeTime(self, val):
-		print "val ", val
 		mult = 1
 		suffix = val[-2:]
 		if suffix == "ms":
@@ -1582,29 +2125,23 @@ class SQLTableDialogDataItem():
 		return str(val)
 
 	def ConvertTimeRange(self, vrange):
-		print "vrange ", vrange
 		if vrange[0] == "":
 			vrange[0] = str(self.first_time)
 		if vrange[1] == "":
 			vrange[1] = str(self.last_time)
 		vrange[0] = self.ConvertRelativeTime(vrange[0])
 		vrange[1] = self.ConvertRelativeTime(vrange[1])
-		print "vrange2 ", vrange
 		if not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
 			return False
-		print "ok1"
 		beg_range = max(int(vrange[0]), self.first_time)
 		end_range = min(int(vrange[1]), self.last_time)
 		if beg_range > self.last_time or end_range < self.first_time:
 			return False
-		print "ok2"
 		vrange[0] = self.BinarySearchTime(0, self.last_id, beg_range, True)
 		vrange[1] = self.BinarySearchTime(1, self.last_id + 1, end_range, False)
-		print "vrange3 ", vrange
 		return True
 
 	def AddTimeRange(self, value, ranges):
-		print "value ", value
 		n = value.count("-")
 		if n == 1:
 			pass
@@ -1622,111 +2159,31 @@ class SQLTableDialogDataItem():
 			return True
 		return False
 
-	def InvalidValue(self, value):
-		self.value = ""
-		palette = QPalette()
-		palette.setColor(QPalette.Text,Qt.red)
-		self.widget.setPalette(palette)
-		self.red = True
-		self.error = self.label + " invalid value '" + value + "'"
-		self.parent.ShowMessage(self.error)
+	def DoValidate(self, input_string):
+		ranges = []
+		for value in [x.strip() for x in input_string.split(",")]:
+			if not self.AddTimeRange(value, ranges):
+				return self.InvalidValue(value)
+		ranges = [("(" + self.column_name + " >= " + r[0] + " AND " + self.column_name + " <= " + r[1] + ")") for r in ranges]
+		self.value = " OR ".join(ranges)
 
-	def IsNumber(self, value):
-		try:
-			x = int(value)
-		except:
-			x = 0
-		return str(x) == value
+# Report Dialog Base
 
-	def Invalidate(self):
-		self.validated = False
+class ReportDialogBase(QDialog):
 
-	def Validate(self):
-		input_string = self.widget.text()
-		self.validated = True
-		if self.red:
-			palette = QPalette()
-			self.widget.setPalette(palette)
-			self.red = False
-		if not len(input_string.strip()):
-			self.error = ""
-			self.value = ""
-			return
-		if self.table_name == "<timeranges>":
-			ranges = []
-			for value in [x.strip() for x in input_string.split(",")]:
-				if not self.AddTimeRange(value, ranges):
-					return self.InvalidValue(value)
-			ranges = [("(" + self.column_name1 + " >= " + r[0] + " AND " + self.column_name1 + " <= " + r[1] + ")") for r in ranges]
-			self.value = " OR ".join(ranges)
-		elif self.table_name == "<ranges>":
-			singles = []
-			ranges = []
-			for value in [x.strip() for x in input_string.split(",")]:
-				if "-" in value:
-					vrange = value.split("-")
-					if len(vrange) != 2 or not self.IsNumber(vrange[0]) or not self.IsNumber(vrange[1]):
-						return self.InvalidValue(value)
-					ranges.append(vrange)
-				else:
-					if not self.IsNumber(value):
-						return self.InvalidValue(value)
-					singles.append(value)
-			ranges = [("(" + self.column_name1 + " >= " + r[0] + " AND " + self.column_name1 + " <= " + r[1] + ")") for r in ranges]
-			if len(singles):
-				ranges.append(self.column_name1 + " IN (" + ",".join(singles) + ")")
-			self.value = " OR ".join(ranges)
-		elif self.table_name:
-			all_ids = []
-			for value in [x.strip() for x in input_string.split(",")]:
-				ids = self.ValueToIds(value)
-				if len(ids):
-					all_ids.extend(ids)
-				else:
-					return self.InvalidValue(value)
-			self.value = self.column_name1 + " IN (" + ",".join(all_ids) + ")"
-			if self.column_name2:
-				self.value = "( " + self.value + " OR " + self.column_name2 + " IN (" + ",".join(all_ids) + ") )"
-		else:
-			self.value = input_string.strip()
-		self.error = ""
-		self.parent.ClearMessage()
-
-	def IsValid(self):
-		if not self.validated:
-			self.Validate()
-		if len(self.error):
-			self.parent.ShowMessage(self.error)
-			return False
-		return True
-
-# Selected branch report creation dialog
-
-class SelectedBranchDialog(QDialog):
-
-	def __init__(self, glb, parent=None):
-		super(SelectedBranchDialog, self).__init__(parent)
+	def __init__(self, glb, title, items, partial, parent=None):
+		super(ReportDialogBase, self).__init__(parent)
 
 		self.glb = glb
 
-		self.name = ""
-		self.where_clause = ""
+		self.report_vars = ReportVars()
 
-		self.setWindowTitle("Selected Branches")
+		self.setWindowTitle(title)
 		self.setMinimumWidth(600)
 
-		items = (
-			("Report name:", "Enter a name to appear in the window title bar", "", "", "", ""),
-			("Time ranges:", "Enter time ranges", "<timeranges>", "", "samples.id", ""),
-			("CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "<ranges>", "", "cpu", ""),
-			("Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", ""),
-			("PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", ""),
-			("TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", ""),
-			("DSOs:", "Only branches with these DSOs will be included", "dsos", "short_name", "samples.dso_id", "to_dso_id"),
-			("Symbols:", "Only branches with these symbols will be included", "symbols", "name", "symbol_id", "to_symbol_id"),
-			("Raw SQL clause: ", "Enter a raw SQL WHERE clause", "", "", "", ""),
-			)
-		self.data_items = [SQLTableDialogDataItem(glb, *x, parent=self) for x in items]
+		self.data_items = [x(glb, self) for x in items]
+
+		self.partial = partial
 
 		self.grid = QGridLayout()
 
@@ -1755,26 +2212,31 @@ class SelectedBranchDialog(QDialog):
 		self.vbox.addLayout(self.grid)
 		self.vbox.addLayout(self.hbox)
 
-		self.setLayout(self.vbox);
+		self.setLayout(self.vbox)
 
 	def Ok(self):
-		self.name = self.data_items[0].value
-		if not self.name:
+		vars = self.report_vars
+		for d in self.data_items:
+			if d.id == "REPORTNAME":
+				vars.name = d.value
+		if not vars.name:
 			self.ShowMessage("Report name is required")
 			return
 		for d in self.data_items:
 			if not d.IsValid():
 				return
 		for d in self.data_items[1:]:
-			if len(d.value):
-				if len(self.where_clause):
-					self.where_clause += " AND "
-				self.where_clause += d.value
-		if len(self.where_clause):
-			self.where_clause = " AND ( " + self.where_clause + " ) "
-		else:
-			self.ShowMessage("No selection")
-			return
+			if d.id == "LIMIT":
+				vars.limit = d.value
+			elif len(d.value):
+				if len(vars.where_clause):
+					vars.where_clause += " AND "
+				vars.where_clause += d.value
+		if len(vars.where_clause):
+			if self.partial:
+				vars.where_clause = " AND ( " + vars.where_clause + " ) "
+			else:
+				vars.where_clause = " WHERE " + vars.where_clause + " "
 		self.accept()
 
 	def ShowMessage(self, msg):
@@ -1782,6 +2244,23 @@ class SelectedBranchDialog(QDialog):
 
 	def ClearMessage(self):
 		self.status.setText("")
+
+# Selected branch report creation dialog
+
+class SelectedBranchDialog(ReportDialogBase):
+
+	def __init__(self, glb, parent=None):
+		title = "Selected Branches"
+		items = (lambda g, p: LineEditDataItem(g, "Report name:", "Enter a name to appear in the window title bar", p, "REPORTNAME"),
+			 lambda g, p: SampleTimeRangesDataItem(g, "Time ranges:", "Enter time ranges", "samples.id", p),
+			 lambda g, p: NonNegativeIntegerRangesDataItem(g, "CPUs:", "Enter CPUs or ranges e.g. 0,5-6", "cpu", p),
+			 lambda g, p: SQLTableDataItem(g, "Commands:", "Only branches with these commands will be included", "comms", "comm", "comm_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "PIDs:", "Only branches with these process IDs will be included", "threads", "pid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "TIDs:", "Only branches with these thread IDs will be included", "threads", "tid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "DSOs:", "Only branches with these DSOs will be included", "dsos", "short_name", "samples.dso_id", "to_dso_id", p),
+			 lambda g, p: SQLTableDataItem(g, "Symbols:", "Only branches with these symbols will be included", "symbols", "name", "symbol_id", "to_symbol_id", p),
+			 lambda g, p: LineEditDataItem(g, "Raw SQL clause: ", "Enter a raw SQL WHERE clause", p))
+		super(SelectedBranchDialog, self).__init__(glb, title, items, True, parent)
 
 # Event list
 
@@ -1793,13 +2272,15 @@ def GetEventList(db):
 		events.append(query.value(0))
 	return events
 
-# SQL data preparation
+# Is a table selectable
 
-def SQLTableDataPrep(query, count):
-	data = []
-	for i in xrange(count):
-		data.append(query.value(i))
-	return data
+def IsSelectable(db, table, sql = "", columns = "*"):
+	query = QSqlQuery(db)
+	try:
+		QueryExec(query, "SELECT " + columns + " FROM " + table + " " + sql + " LIMIT 1")
+	except:
+		return False
+	return True
 
 # SQL table data model item
 
@@ -1818,12 +2299,13 @@ class SQLTableModel(TableModel):
 
 	progress = Signal(object)
 
-	def __init__(self, glb, sql, column_count, parent=None):
+	def __init__(self, glb, sql, column_headers, parent=None):
 		super(SQLTableModel, self).__init__(parent)
 		self.glb = glb
 		self.more = True
 		self.populated = 0
-		self.fetcher = SQLFetcher(glb, sql, lambda x, y=column_count: SQLTableDataPrep(x, y), self.AddSample)
+		self.column_headers = column_headers
+		self.fetcher = SQLFetcher(glb, sql, lambda x, y=len(column_headers): self.SQLTableDataPrep(x, y), self.AddSample)
 		self.fetcher.done.connect(self.Update)
 		self.fetcher.Fetch(glb_chunk_sz)
 
@@ -1861,6 +2343,18 @@ class SQLTableModel(TableModel):
 	def HasMoreRecords(self):
 		return self.more
 
+	def columnCount(self, parent=None):
+		return len(self.column_headers)
+
+	def columnHeader(self, column):
+		return self.column_headers[column]
+
+	def SQLTableDataPrep(self, query, count):
+		data = []
+		for i in xrange(count):
+			data.append(query.value(i))
+		return data
+
 # SQL automatic table data model
 
 class SQLAutoTableModel(SQLTableModel):
@@ -1870,12 +2364,12 @@ class SQLAutoTableModel(SQLTableModel):
 		if table_name == "comm_threads_view":
 			# For now, comm_threads_view has no id column
 			sql = "SELECT * FROM " + table_name + " WHERE comm_id > $$last_id$$ ORDER BY comm_id LIMIT " + str(glb_chunk_sz)
-		self.column_headers = []
+		column_headers = []
 		query = QSqlQuery(glb.db)
 		if glb.dbref.is_sqlite3:
 			QueryExec(query, "PRAGMA table_info(" + table_name + ")")
 			while query.next():
-				self.column_headers.append(query.value(1))
+				column_headers.append(query.value(1))
 			if table_name == "sqlite_master":
 				sql = "SELECT * FROM " + table_name
 		else:
@@ -1888,14 +2382,32 @@ class SQLAutoTableModel(SQLTableModel):
 				schema = "public"
 			QueryExec(query, "SELECT column_name FROM information_schema.columns WHERE table_schema = '" + schema + "' and table_name = '" + select_table_name + "'")
 			while query.next():
-				self.column_headers.append(query.value(0))
-		super(SQLAutoTableModel, self).__init__(glb, sql, len(self.column_headers), parent)
+				column_headers.append(query.value(0))
+		if pyside_version_1 and sys.version_info[0] == 3:
+			if table_name == "samples_view":
+				self.SQLTableDataPrep = self.samples_view_DataPrep
+			if table_name == "samples":
+				self.SQLTableDataPrep = self.samples_DataPrep
+		super(SQLAutoTableModel, self).__init__(glb, sql, column_headers, parent)
 
-	def columnCount(self, parent=None):
-		return len(self.column_headers)
+	def samples_view_DataPrep(self, query, count):
+		data = []
+		data.append(query.value(0))
+		# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+		data.append("{:>19}".format(query.value(1)))
+		for i in xrange(2, count):
+			data.append(query.value(i))
+		return data
 
-	def columnHeader(self, column):
-		return self.column_headers[column]
+	def samples_DataPrep(self, query, count):
+		data = []
+		for i in xrange(9):
+			data.append(query.value(i))
+		# Workaround pyside failing to handle large integers (i.e. time) in python3 by converting to a string
+		data.append("{:>19}".format(query.value(9)))
+		for i in xrange(10, count):
+			data.append(query.value(i))
+		return data
 
 # Base class for custom ResizeColumnsToContents
 
@@ -1934,6 +2446,240 @@ class ResizeColumnsToContentsBase(QObject):
 		self.data_model.rowsInserted.disconnect(self.UpdateColumnWidths)
 		self.ResizeColumnsToContents()
 
+# Convert value to CSV
+
+def ToCSValue(val):
+	if '"' in val:
+		val = val.replace('"', '""')
+	if "," in val or '"' in val:
+		val = '"' + val + '"'
+	return val
+
+# Key to sort table model indexes by row / column, assuming fewer than 1000 columns
+
+glb_max_cols = 1000
+
+def RowColumnKey(a):
+	return a.row() * glb_max_cols + a.column()
+
+# Copy selected table cells to clipboard
+
+def CopyTableCellsToClipboard(view, as_csv=False, with_hdr=False):
+	indexes = sorted(view.selectedIndexes(), key=RowColumnKey)
+	idx_cnt = len(indexes)
+	if not idx_cnt:
+		return
+	if idx_cnt == 1:
+		with_hdr=False
+	min_row = indexes[0].row()
+	max_row = indexes[0].row()
+	min_col = indexes[0].column()
+	max_col = indexes[0].column()
+	for i in indexes:
+		min_row = min(min_row, i.row())
+		max_row = max(max_row, i.row())
+		min_col = min(min_col, i.column())
+		max_col = max(max_col, i.column())
+	if max_col > glb_max_cols:
+		raise RuntimeError("glb_max_cols is too low")
+	max_width = [0] * (1 + max_col - min_col)
+	for i in indexes:
+		c = i.column() - min_col
+		max_width[c] = max(max_width[c], len(str(i.data())))
+	text = ""
+	pad = ""
+	sep = ""
+	if with_hdr:
+		model = indexes[0].model()
+		for col in range(min_col, max_col + 1):
+			val = model.headerData(col, Qt.Horizontal)
+			if as_csv:
+				text += sep + ToCSValue(val)
+				sep = ","
+			else:
+				c = col - min_col
+				max_width[c] = max(max_width[c], len(val))
+				width = max_width[c]
+				align = model.headerData(col, Qt.Horizontal, Qt.TextAlignmentRole)
+				if align & Qt.AlignRight:
+					val = val.rjust(width)
+				text += pad + sep + val
+				pad = " " * (width - len(val))
+				sep = "  "
+		text += "\n"
+		pad = ""
+		sep = ""
+	last_row = min_row
+	for i in indexes:
+		if i.row() > last_row:
+			last_row = i.row()
+			text += "\n"
+			pad = ""
+			sep = ""
+		if as_csv:
+			text += sep + ToCSValue(str(i.data()))
+			sep = ","
+		else:
+			width = max_width[i.column() - min_col]
+			if i.data(Qt.TextAlignmentRole) & Qt.AlignRight:
+				val = str(i.data()).rjust(width)
+			else:
+				val = str(i.data())
+			text += pad + sep + val
+			pad = " " * (width - len(val))
+			sep = "  "
+	QApplication.clipboard().setText(text)
+
+def CopyTreeCellsToClipboard(view, as_csv=False, with_hdr=False):
+	indexes = view.selectedIndexes()
+	if not len(indexes):
+		return
+
+	selection = view.selectionModel()
+
+	first = None
+	for i in indexes:
+		above = view.indexAbove(i)
+		if not selection.isSelected(above):
+			first = i
+			break
+
+	if first is None:
+		raise RuntimeError("CopyTreeCellsToClipboard internal error")
+
+	model = first.model()
+	row_cnt = 0
+	col_cnt = model.columnCount(first)
+	max_width = [0] * col_cnt
+
+	indent_sz = 2
+	indent_str = " " * indent_sz
+
+	expanded_mark_sz = 2
+	if sys.version_info[0] == 3:
+		expanded_mark = "\u25BC "
+		not_expanded_mark = "\u25B6 "
+	else:
+		expanded_mark = unicode(chr(0xE2) + chr(0x96) + chr(0xBC) + " ", "utf-8")
+		not_expanded_mark =  unicode(chr(0xE2) + chr(0x96) + chr(0xB6) + " ", "utf-8")
+	leaf_mark = "  "
+
+	if not as_csv:
+		pos = first
+		while True:
+			row_cnt += 1
+			row = pos.row()
+			for c in range(col_cnt):
+				i = pos.sibling(row, c)
+				if c:
+					n = len(str(i.data()))
+				else:
+					n = len(str(i.data()).strip())
+					n += (i.internalPointer().level - 1) * indent_sz
+					n += expanded_mark_sz
+				max_width[c] = max(max_width[c], n)
+			pos = view.indexBelow(pos)
+			if not selection.isSelected(pos):
+				break
+
+	text = ""
+	pad = ""
+	sep = ""
+	if with_hdr:
+		for c in range(col_cnt):
+			val = model.headerData(c, Qt.Horizontal, Qt.DisplayRole).strip()
+			if as_csv:
+				text += sep + ToCSValue(val)
+				sep = ","
+			else:
+				max_width[c] = max(max_width[c], len(val))
+				width = max_width[c]
+				align = model.headerData(c, Qt.Horizontal, Qt.TextAlignmentRole)
+				if align & Qt.AlignRight:
+					val = val.rjust(width)
+				text += pad + sep + val
+				pad = " " * (width - len(val))
+				sep = "   "
+		text += "\n"
+		pad = ""
+		sep = ""
+
+	pos = first
+	while True:
+		row = pos.row()
+		for c in range(col_cnt):
+			i = pos.sibling(row, c)
+			val = str(i.data())
+			if not c:
+				if model.hasChildren(i):
+					if view.isExpanded(i):
+						mark = expanded_mark
+					else:
+						mark = not_expanded_mark
+				else:
+					mark = leaf_mark
+				val = indent_str * (i.internalPointer().level - 1) + mark + val.strip()
+			if as_csv:
+				text += sep + ToCSValue(val)
+				sep = ","
+			else:
+				width = max_width[c]
+				if c and i.data(Qt.TextAlignmentRole) & Qt.AlignRight:
+					val = val.rjust(width)
+				text += pad + sep + val
+				pad = " " * (width - len(val))
+				sep = "   "
+		pos = view.indexBelow(pos)
+		if not selection.isSelected(pos):
+			break
+		text = text.rstrip() + "\n"
+		pad = ""
+		sep = ""
+
+	QApplication.clipboard().setText(text)
+
+def CopyCellsToClipboard(view, as_csv=False, with_hdr=False):
+	view.CopyCellsToClipboard(view, as_csv, with_hdr)
+
+def CopyCellsToClipboardHdr(view):
+	CopyCellsToClipboard(view, False, True)
+
+def CopyCellsToClipboardCSV(view):
+	CopyCellsToClipboard(view, True, True)
+
+# Context menu
+
+class ContextMenu(object):
+
+	def __init__(self, view):
+		self.view = view
+		self.view.setContextMenuPolicy(Qt.CustomContextMenu)
+		self.view.customContextMenuRequested.connect(self.ShowContextMenu)
+
+	def ShowContextMenu(self, pos):
+		menu = QMenu(self.view)
+		self.AddActions(menu)
+		menu.exec_(self.view.mapToGlobal(pos))
+
+	def AddCopy(self, menu):
+		menu.addAction(CreateAction("&Copy selection", "Copy to clipboard", lambda: CopyCellsToClipboardHdr(self.view), self.view))
+		menu.addAction(CreateAction("Copy selection as CS&V", "Copy to clipboard as CSV", lambda: CopyCellsToClipboardCSV(self.view), self.view))
+
+	def AddActions(self, menu):
+		self.AddCopy(menu)
+
+class TreeContextMenu(ContextMenu):
+
+	def __init__(self, view):
+		super(TreeContextMenu, self).__init__(view)
+
+	def AddActions(self, menu):
+		i = self.view.currentIndex()
+		text = str(i.data()).strip()
+		if len(text):
+			menu.addAction(CreateAction('Copy "' + text + '"', "Copy to clipboard", lambda: QApplication.clipboard().setText(text), self.view))
+		self.AddCopy(menu)
+
 # Table window
 
 class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
@@ -1952,8 +2698,12 @@ class TableWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
 		self.view.verticalHeader().setVisible(False)
 		self.view.sortByColumn(-1, Qt.AscendingOrder)
 		self.view.setSortingEnabled(True)
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTableCellsToClipboard
 
 		self.ResizeColumnsToContents()
+
+		self.context_menu = ContextMenu(self.view)
 
 		self.find_bar = FindBar(self, self, True)
 
@@ -1997,6 +2747,107 @@ def GetTableList(glb):
 		tables.append("information_schema.views")
 		tables.append("information_schema.columns")
 	return tables
+
+# Top Calls data model
+
+class TopCallsModel(SQLTableModel):
+
+	def __init__(self, glb, report_vars, parent=None):
+		text = ""
+		if not glb.dbref.is_sqlite3:
+			text = "::text"
+		limit = ""
+		if len(report_vars.limit):
+			limit = " LIMIT " + report_vars.limit
+		sql = ("SELECT comm, pid, tid, name,"
+			" CASE"
+			" WHEN (short_name = '[kernel.kallsyms]') THEN '[kernel]'" + text +
+			" ELSE short_name"
+			" END AS dso,"
+			" call_time, return_time, (return_time - call_time) AS elapsed_time, branch_count, "
+			" CASE"
+			" WHEN (calls.flags = 1) THEN 'no call'" + text +
+			" WHEN (calls.flags = 2) THEN 'no return'" + text +
+			" WHEN (calls.flags = 3) THEN 'no call/return'" + text +
+			" ELSE ''" + text +
+			" END AS flags"
+			" FROM calls"
+			" INNER JOIN call_paths ON calls.call_path_id = call_paths.id"
+			" INNER JOIN symbols ON call_paths.symbol_id = symbols.id"
+			" INNER JOIN dsos ON symbols.dso_id = dsos.id"
+			" INNER JOIN comms ON calls.comm_id = comms.id"
+			" INNER JOIN threads ON calls.thread_id = threads.id" +
+			report_vars.where_clause +
+			" ORDER BY elapsed_time DESC" +
+			limit
+			)
+		column_headers = ("Command", "PID", "TID", "Symbol", "Object", "Call Time", "Return Time", "Elapsed Time (ns)", "Branch Count", "Flags")
+		self.alignment = (Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignLeft, Qt.AlignRight, Qt.AlignRight, Qt.AlignLeft)
+		super(TopCallsModel, self).__init__(glb, sql, column_headers, parent)
+
+	def columnAlignment(self, column):
+		return self.alignment[column]
+
+# Top Calls report creation dialog
+
+class TopCallsDialog(ReportDialogBase):
+
+	def __init__(self, glb, parent=None):
+		title = "Top Calls by Elapsed Time"
+		items = (lambda g, p: LineEditDataItem(g, "Report name:", "Enter a name to appear in the window title bar", p, "REPORTNAME"),
+			 lambda g, p: SQLTableDataItem(g, "Commands:", "Only calls with these commands will be included", "comms", "comm", "comm_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "PIDs:", "Only calls with these process IDs will be included", "threads", "pid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "TIDs:", "Only calls with these thread IDs will be included", "threads", "tid", "thread_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "DSOs:", "Only calls with these DSOs will be included", "dsos", "short_name", "dso_id", "", p),
+			 lambda g, p: SQLTableDataItem(g, "Symbols:", "Only calls with these symbols will be included", "symbols", "name", "symbol_id", "", p),
+			 lambda g, p: LineEditDataItem(g, "Raw SQL clause: ", "Enter a raw SQL WHERE clause", p),
+			 lambda g, p: PositiveIntegerDataItem(g, "Record limit:", "Limit selection to this number of records", p, "LIMIT", "100"))
+		super(TopCallsDialog, self).__init__(glb, title, items, False, parent)
+
+# Top Calls window
+
+class TopCallsWindow(QMdiSubWindow, ResizeColumnsToContentsBase):
+
+	def __init__(self, glb, report_vars, parent=None):
+		super(TopCallsWindow, self).__init__(parent)
+
+		self.data_model = LookupCreateModel("Top Calls " + report_vars.UniqueId(), lambda: TopCallsModel(glb, report_vars))
+		self.model = self.data_model
+
+		self.view = QTableView()
+		self.view.setModel(self.model)
+		self.view.setEditTriggers(QAbstractItemView.NoEditTriggers)
+		self.view.verticalHeader().setVisible(False)
+		self.view.setSelectionMode(QAbstractItemView.ContiguousSelection)
+		self.view.CopyCellsToClipboard = CopyTableCellsToClipboard
+
+		self.context_menu = ContextMenu(self.view)
+
+		self.ResizeColumnsToContents()
+
+		self.find_bar = FindBar(self, self, True)
+
+		self.finder = ChildDataItemFinder(self.model)
+
+		self.fetch_bar = FetchMoreRecordsBar(self.data_model, self)
+
+		self.vbox = VBox(self.view, self.find_bar.Widget(), self.fetch_bar.Widget())
+
+		self.setWidget(self.vbox.Widget())
+
+		AddSubWindow(glb.mainwindow.mdi_area, self, report_vars.name)
+
+	def Find(self, value, direction, pattern, context):
+		self.view.setFocus()
+		self.find_bar.Busy()
+		self.finder.Find(value, direction, pattern, context, self.FindDone)
+
+	def FindDone(self, row):
+		self.find_bar.Idle()
+		if row >= 0:
+			self.view.setCurrentIndex(self.model.index(row, 0, QModelIndex()))
+		else:
+			self.find_bar.NotFound()
 
 # Action Definition
 
@@ -2077,7 +2928,7 @@ class WindowMenu():
 			action = self.window_menu.addAction(label)
 			action.setCheckable(True)
 			action.setChecked(sub_window == self.mdi_area.activeSubWindow())
-			action.triggered.connect(lambda x=nr: self.setActiveSubWindow(x))
+			action.triggered.connect(lambda a=None,x=nr: self.setActiveSubWindow(x))
 			self.window_menu.addAction(action)
 			nr += 1
 
@@ -2099,8 +2950,10 @@ p.c2 {
 </style>
 <p class=c1><a href=#reports>1. Reports</a></p>
 <p class=c2><a href=#callgraph>1.1 Context-Sensitive Call Graph</a></p>
-<p class=c2><a href=#allbranches>1.2 All branches</a></p>
-<p class=c2><a href=#selectedbranches>1.3 Selected branches</a></p>
+<p class=c2><a href=#calltree>1.2 Call Tree</a></p>
+<p class=c2><a href=#allbranches>1.3 All branches</a></p>
+<p class=c2><a href=#selectedbranches>1.4 Selected branches</a></p>
+<p class=c2><a href=#topcallsbyelapsedtime>1.5 Top calls by elapsed time</a></p>
 <p class=c1><a href=#tables>2. Tables</a></p>
 <h1 id=reports>1. Reports</h1>
 <h2 id=callgraph>1.1 Context-Sensitive Call Graph</h2>
@@ -2136,7 +2989,10 @@ v- ls
 <h3>Find</h3>
 Ctrl-F displays a Find bar which finds function names by either an exact match or a pattern match.
 The pattern matching symbols are ? for any character and * for zero or more characters.
-<h2 id=allbranches>1.2 All branches</h2>
+<h2 id=calltree>1.2 Call Tree</h2>
+The Call Tree report is very similar to the Context-Sensitive Call Graph, but the data is not aggregated.
+Also the 'Count' column, which would be always 1, is replaced by the 'Call Time'.
+<h2 id=allbranches>1.3 All branches</h2>
 The All branches report displays all branches in chronological order.
 Not all data is fetched immediately. More records can be fetched using the Fetch bar provided.
 <h3>Disassembly</h3>
@@ -2158,14 +3014,20 @@ cd xed
 sudo ./mfile.py --prefix=/usr/local install
 sudo ldconfig
 </pre>
+<h3>Instructions per Cycle (IPC)</h3>
+If available, IPC information is displayed in columns 'insn_cnt', 'cyc_cnt' and 'IPC'.
+<p><b>Intel PT note:</b> The information applies to the blocks of code ending with, and including, that branch.
+Due to the granularity of timing information, the number of cycles for some code blocks will not be known.
+In that case, 'insn_cnt', 'cyc_cnt' and 'IPC' are zero, but when 'IPC' is displayed it covers the period
+since the previous displayed 'IPC'.
 <h3>Find</h3>
 Ctrl-F displays a Find bar which finds substrings by either an exact match or a regular expression match.
 Refer to Python documentation for the regular expression syntax.
 All columns are searched, but only currently fetched rows are searched.
-<h2 id=selectedbranches>1.3 Selected branches</h2>
+<h2 id=selectedbranches>1.4 Selected branches</h2>
 This is the same as the <a href=#allbranches>All branches</a> report but with the data reduced
 by various selection criteria. A dialog box displays available criteria which are AND'ed together.
-<h3>1.3.1 Time ranges</h3>
+<h3>1.4.1 Time ranges</h3>
 The time ranges hint text shows the total time range. Relative time ranges can also be entered in
 ms, us or ns. Also, negative values are relative to the end of trace.  Examples:
 <pre>
@@ -2176,6 +3038,10 @@ ms, us or ns. Also, negative values are relative to the end of trace.  Examples:
 	-10ms-			The last 10ms
 </pre>
 N.B. Due to the granularity of timestamps, there could be no branches in any given time range.
+<h2 id=topcallsbyelapsedtime>1.5 Top calls by elapsed time</h2>
+The Top calls by elapsed time report displays calls in descending order of time elapsed between when the function was called and when it returned.
+The data is reduced by various selection criteria. A dialog box displays available criteria which are AND'ed together.
+If not all data is fetched, a Fetch bar is provided. Ctrl-F displays a Find bar.
 <h1 id=tables>2. Tables</h1>
 The Tables menu shows all tables and views in the database. Most tables have an associated view
 which displays the information in a more friendly way. Not all data for large tables is fetched
@@ -2226,6 +3092,60 @@ class HelpOnlyWindow(QMainWindow):
 		self.text.setOpenExternalLinks(True)
 
 		self.setCentralWidget(self.text)
+
+# PostqreSQL server version
+
+def PostqreSQLServerVersion(db):
+	query = QSqlQuery(db)
+	QueryExec(query, "SELECT VERSION()")
+	if query.next():
+		v_str = query.value(0)
+		v_list = v_str.strip().split(" ")
+		if v_list[0] == "PostgreSQL" and v_list[2] == "on":
+			return v_list[1]
+		return v_str
+	return "Unknown"
+
+# SQLite version
+
+def SQLiteVersion(db):
+	query = QSqlQuery(db)
+	QueryExec(query, "SELECT sqlite_version()")
+	if query.next():
+		return query.value(0)
+	return "Unknown"
+
+# About dialog
+
+class AboutDialog(QDialog):
+
+	def __init__(self, glb, parent=None):
+		super(AboutDialog, self).__init__(parent)
+
+		self.setWindowTitle("About Exported SQL Viewer")
+		self.setMinimumWidth(300)
+
+		pyside_version = "1" if pyside_version_1 else "2"
+
+		text = "<pre>"
+		text += "Python version:     " + sys.version.split(" ")[0] + "\n"
+		text += "PySide version:     " + pyside_version + "\n"
+		text += "Qt version:         " + qVersion() + "\n"
+		if glb.dbref.is_sqlite3:
+			text += "SQLite version:     " + SQLiteVersion(glb.db) + "\n"
+		else:
+			text += "PostqreSQL version: " + PostqreSQLServerVersion(glb.db) + "\n"
+		text += "</pre>"
+
+		self.text = QTextBrowser()
+		self.text.setHtml(text)
+		self.text.setReadOnly(True)
+		self.text.setOpenExternalLinks(True)
+
+		self.vbox = QVBoxLayout()
+		self.vbox.addWidget(self.text)
+
+		self.setLayout(self.vbox)
 
 # Font resize
 
@@ -2299,15 +3219,24 @@ class MainWindow(QMainWindow):
 		file_menu.addAction(CreateExitAction(glb.app, self))
 
 		edit_menu = menu.addMenu("&Edit")
+		edit_menu.addAction(CreateAction("&Copy", "Copy to clipboard", self.CopyToClipboard, self, QKeySequence.Copy))
+		edit_menu.addAction(CreateAction("Copy as CS&V", "Copy to clipboard as CSV", self.CopyToClipboardCSV, self))
 		edit_menu.addAction(CreateAction("&Find...", "Find items", self.Find, self, QKeySequence.Find))
 		edit_menu.addAction(CreateAction("Fetch &more records...", "Fetch more records", self.FetchMoreRecords, self, [QKeySequence(Qt.Key_F8)]))
 		edit_menu.addAction(CreateAction("&Shrink Font", "Make text smaller", self.ShrinkFont, self, [QKeySequence("Ctrl+-")]))
 		edit_menu.addAction(CreateAction("&Enlarge Font", "Make text bigger", self.EnlargeFont, self, [QKeySequence("Ctrl++")]))
 
 		reports_menu = menu.addMenu("&Reports")
-		reports_menu.addAction(CreateAction("Context-Sensitive Call &Graph", "Create a new window containing a context-sensitive call graph", self.NewCallGraph, self))
+		if IsSelectable(glb.db, "calls"):
+			reports_menu.addAction(CreateAction("Context-Sensitive Call &Graph", "Create a new window containing a context-sensitive call graph", self.NewCallGraph, self))
+
+		if IsSelectable(glb.db, "calls", "WHERE parent_id >= 0"):
+			reports_menu.addAction(CreateAction("Call &Tree", "Create a new window containing a call tree", self.NewCallTree, self))
 
 		self.EventMenu(GetEventList(glb.db), reports_menu)
+
+		if IsSelectable(glb.db, "calls"):
+			reports_menu.addAction(CreateAction("&Top calls by elapsed time", "Create a new window displaying top calls by elapsed time", self.NewTopCalls, self))
 
 		self.TableMenu(GetTableList(glb), menu)
 
@@ -2315,6 +3244,21 @@ class MainWindow(QMainWindow):
 
 		help_menu = menu.addMenu("&Help")
 		help_menu.addAction(CreateAction("&Exported SQL Viewer Help", "Helpful information", self.Help, self, QKeySequence.HelpContents))
+		help_menu.addAction(CreateAction("&About Exported SQL Viewer", "About this application", self.About, self))
+
+	def Try(self, fn):
+		win = self.mdi_area.activeSubWindow()
+		if win:
+			try:
+				fn(win.view)
+			except:
+				pass
+
+	def CopyToClipboard(self):
+		self.Try(CopyCellsToClipboardHdr)
+
+	def CopyToClipboardCSV(self):
+		self.Try(CopyCellsToClipboardCSV)
 
 	def Find(self):
 		win = self.mdi_area.activeSubWindow()
@@ -2333,12 +3277,10 @@ class MainWindow(QMainWindow):
 				pass
 
 	def ShrinkFont(self):
-		win = self.mdi_area.activeSubWindow()
-		ShrinkFont(win.view)
+		self.Try(ShrinkFont)
 
 	def EnlargeFont(self):
-		win = self.mdi_area.activeSubWindow()
-		EnlargeFont(win.view)
+		self.Try(EnlargeFont)
 
 	def EventMenu(self, events, reports_menu):
 		branches_events = 0
@@ -2352,32 +3294,45 @@ class MainWindow(QMainWindow):
 			event = event.split(":")[0]
 			if event == "branches":
 				label = "All branches" if branches_events == 1 else "All branches " + "(id=" + dbid + ")"
-				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda x=dbid: self.NewBranchView(x), self))
+				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=None,x=dbid: self.NewBranchView(x), self))
 				label = "Selected branches" if branches_events == 1 else "Selected branches " + "(id=" + dbid + ")"
-				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda x=dbid: self.NewSelectedBranchView(x), self))
+				reports_menu.addAction(CreateAction(label, "Create a new window displaying branch events", lambda a=None,x=dbid: self.NewSelectedBranchView(x), self))
 
 	def TableMenu(self, tables, menu):
 		table_menu = menu.addMenu("&Tables")
 		for table in tables:
-			table_menu.addAction(CreateAction(table, "Create a new window containing a table view", lambda t=table: self.NewTableView(t), self))
+			table_menu.addAction(CreateAction(table, "Create a new window containing a table view", lambda a=None,t=table: self.NewTableView(t), self))
 
 	def NewCallGraph(self):
 		CallGraphWindow(self.glb, self)
 
+	def NewCallTree(self):
+		CallTreeWindow(self.glb, self)
+
+	def NewTopCalls(self):
+		dialog = TopCallsDialog(self.glb, self)
+		ret = dialog.exec_()
+		if ret:
+			TopCallsWindow(self.glb, dialog.report_vars, self)
+
 	def NewBranchView(self, event_id):
-		BranchWindow(self.glb, event_id, "", "", self)
+		BranchWindow(self.glb, event_id, ReportVars(), self)
 
 	def NewSelectedBranchView(self, event_id):
 		dialog = SelectedBranchDialog(self.glb, self)
 		ret = dialog.exec_()
 		if ret:
-			BranchWindow(self.glb, event_id, dialog.name, dialog.where_clause, self)
+			BranchWindow(self.glb, event_id, dialog.report_vars, self)
 
 	def NewTableView(self, table_name):
 		TableWindow(self.glb, table_name, self)
 
 	def Help(self):
 		HelpWindow(self.glb, self)
+
+	def About(self):
+		dialog = AboutDialog(self.glb, self)
+		dialog.exec_()
 
 # XED Disassembler
 
@@ -2459,9 +3414,13 @@ class LibXED():
 		ok = self.xed_format_context(2, inst.xedp, inst.bufferp, sizeof(inst.buffer), ip, 0, 0)
 		if not ok:
 			return 0, ""
+		if sys.version_info[0] == 2:
+			result = inst.buffer.value
+		else:
+			result = inst.buffer.value.decode()
 		# Return instruction length and the disassembled instruction text
 		# For now, assume the length is in byte 166
-		return inst.xedd[166], inst.buffer.value
+		return inst.xedd[166], result
 
 def TryOpen(file_name):
 	try:
@@ -2477,9 +3436,14 @@ def Is64Bit(f):
 	header = f.read(7)
 	f.seek(pos)
 	magic = header[0:4]
-	eclass = ord(header[4])
-	encoding = ord(header[5])
-	version = ord(header[6])
+	if sys.version_info[0] == 2:
+		eclass = ord(header[4])
+		encoding = ord(header[5])
+		version = ord(header[6])
+	else:
+		eclass = header[4]
+		encoding = header[5]
+		version = header[6]
 	if magic == chr(127) + "ELF" and eclass > 0 and eclass < 3 and encoding > 0 and encoding < 3 and version == 1:
 		result = True if eclass == 2 else False
 	return result
@@ -2577,22 +3541,31 @@ class DBRef():
 # Main
 
 def Main():
-	if (len(sys.argv) < 2):
-		print >> sys.stderr, "Usage is: exported-sql-viewer.py {<database name> | --help-only}"
-		raise Exception("Too few arguments")
+	usage_str =	"exported-sql-viewer.py [--pyside-version-1] <database name>\n" \
+			"   or: exported-sql-viewer.py --help-only"
+	ap = argparse.ArgumentParser(usage = usage_str, add_help = False)
+	ap.add_argument("--pyside-version-1", action='store_true')
+	ap.add_argument("dbname", nargs="?")
+	ap.add_argument("--help-only", action='store_true')
+	args = ap.parse_args()
 
-	dbname = sys.argv[1]
-	if dbname == "--help-only":
+	if args.help_only:
 		app = QApplication(sys.argv)
 		mainwindow = HelpOnlyWindow()
 		mainwindow.show()
 		err = app.exec_()
 		sys.exit(err)
 
+	dbname = args.dbname
+	if dbname is None:
+		ap.print_usage()
+		print("Too few arguments")
+		sys.exit(1)
+
 	is_sqlite3 = False
 	try:
-		f = open(dbname)
-		if f.read(15) == "SQLite format 3":
+		f = open(dbname, "rb")
+		if f.read(15) == b'SQLite format 3':
 			is_sqlite3 = True
 		f.close()
 	except:

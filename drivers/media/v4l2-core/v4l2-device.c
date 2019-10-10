@@ -1,31 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
     V4L2 device support.
 
     Copyright (C) 2008  Hans Verkuil <hverkuil@xs4all.nl>
 
-    This program is free software; you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
-    the Free Software Foundation; either version 2 of the License, or
-    (at your option) any later version.
-
-    This program is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
-    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License
-    along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/slab.h>
-#if defined(CONFIG_SPI)
-#include <linux/spi/spi.h>
-#endif
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -114,37 +98,10 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 	/* Unregister subdevs */
 	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list) {
 		v4l2_device_unregister_subdev(sd);
-#if IS_ENABLED(CONFIG_I2C)
-		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C) {
-			struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-			/*
-			 * We need to unregister the i2c client
-			 * explicitly. We cannot rely on
-			 * i2c_del_adapter to always unregister
-			 * clients for us, since if the i2c bus is a
-			 * platform bus, then it is never deleted.
-			 *
-			 * Device tree or ACPI based devices must not
-			 * be unregistered as they have not been
-			 * registered by us, and would not be
-			 * re-created by just probing the V4L2 driver.
-			 */
-			if (client &&
-			    !client->dev.of_node && !client->dev.fwnode)
-				i2c_unregister_device(client);
-			continue;
-		}
-#endif
-#if defined(CONFIG_SPI)
-		if (sd->flags & V4L2_SUBDEV_FL_IS_SPI) {
-			struct spi_device *spi = v4l2_get_subdevdata(sd);
-
-			if (spi && !spi->dev.of_node && !spi->dev.fwnode)
-				spi_unregister_device(spi);
-			continue;
-		}
-#endif
+		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C)
+			v4l2_i2c_subdev_unregister(sd);
+		else if (sd->flags & V4L2_SUBDEV_FL_IS_SPI)
+			v4l2_spi_subdev_unregister(sd);
 	}
 	/* Mark as unregistered, thus preventing duplicate unregistrations */
 	v4l2_dev->name[0] = '\0';
@@ -216,10 +173,18 @@ error_module:
 }
 EXPORT_SYMBOL_GPL(v4l2_device_register_subdev);
 
+static void v4l2_subdev_release(struct v4l2_subdev *sd)
+{
+	struct module *owner = !sd->owner_v4l2_dev ? sd->owner : NULL;
+
+	if (sd->internal_ops && sd->internal_ops->release)
+		sd->internal_ops->release(sd);
+	module_put(owner);
+}
+
 static void v4l2_device_release_subdev_node(struct video_device *vdev)
 {
-	struct v4l2_subdev *sd = video_get_drvdata(vdev);
-	sd->devnode = NULL;
+	v4l2_subdev_release(video_get_drvdata(vdev));
 	kfree(vdev);
 }
 
@@ -318,8 +283,9 @@ void v4l2_device_unregister_subdev(struct v4l2_subdev *sd)
 		media_device_unregister_entity(&sd->entity);
 	}
 #endif
-	video_unregister_device(sd->devnode);
-	if (!sd->owner_v4l2_dev)
-		module_put(sd->owner);
+	if (sd->devnode)
+		video_unregister_device(sd->devnode);
+	else
+		v4l2_subdev_release(sd);
 }
 EXPORT_SYMBOL_GPL(v4l2_device_unregister_subdev);

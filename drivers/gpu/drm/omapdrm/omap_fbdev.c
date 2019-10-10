@@ -1,22 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_util.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_file.h>
+#include <drm/drm_fourcc.h>
 
 #include "omap_drv.h"
 
@@ -86,8 +78,6 @@ static struct fb_ops omap_fb_ops = {
 	.fb_setcmap	= drm_fb_helper_setcmap,
 	.fb_blank	= drm_fb_helper_blank,
 	.fb_pan_display = omap_fbdev_pan_display,
-	.fb_debug_enter = drm_fb_helper_debug_enter,
-	.fb_debug_leave = drm_fb_helper_debug_leave,
 	.fb_ioctl	= drm_fb_helper_ioctl,
 
 	.fb_read = drm_fb_helper_sys_read,
@@ -182,13 +172,9 @@ static int omap_fbdev_create(struct drm_fb_helper *helper,
 	fbdev->fb = fb;
 	helper->fb = fb;
 
-	fbi->par = helper;
 	fbi->fbops = &omap_fb_ops;
 
-	strcpy(fbi->fix.id, MODULE_NAME);
-
-	drm_fb_helper_fill_fix(fbi, fb->pitches[0], fb->format->depth);
-	drm_fb_helper_fill_var(fbi, helper, sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(fbi, helper, sizes);
 
 	dev->mode_config.fb_base = dma_addr;
 

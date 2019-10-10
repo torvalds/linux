@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * i2c-mux-gpio interface to platform code
  *
  * Peter Korsgaard <peter.korsgaard@barco.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _LINUX_I2C_MUX_GPIO_H
@@ -22,10 +19,6 @@
  *	position
  * @n_values: Number of multiplexer positions (busses to instantiate)
  * @classes: Optional I2C auto-detection classes
- * @gpio_chip: Optional GPIO chip name; if set, GPIO pin numbers are given
- *	relative to the base GPIO number of that chip
- * @gpios: Array of GPIO numbers used to control MUX
- * @n_gpios: Number of GPIOs used to control MUX
  * @idle: Bitmask to write to MUX when idle or GPIO_I2CMUX_NO_IDLE if not used
  */
 struct i2c_mux_gpio_platform_data {
@@ -34,9 +27,6 @@ struct i2c_mux_gpio_platform_data {
 	const unsigned *values;
 	int n_values;
 	const unsigned *classes;
-	char *gpio_chip;
-	const unsigned *gpios;
-	int n_gpios;
 	unsigned idle;
 };
 

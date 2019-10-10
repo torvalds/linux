@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "EEPROM support"
 
 config EEPROM_AT24
 	tristate "I2C EEPROMs / RAMs / ROMs from most vendors"
 	depends on I2C && SYSFS
 	select NVMEM
+	select NVMEM_SYSFS
 	select REGMAP_I2C
 	help
 	  Enable this driver to get read/write support to most I2C EEPROMs
@@ -33,6 +35,7 @@ config EEPROM_AT25
 	tristate "SPI EEPROMs from most vendors"
 	depends on SPI && SYSFS
 	select NVMEM
+	select NVMEM_SYSFS
 	help
 	  Enable this driver to get read/write support to most SPI EEPROMs,
 	  after you configure the board init code to know about each eeprom
@@ -42,12 +45,15 @@ config EEPROM_AT25
 	  will be called at25.
 
 config EEPROM_LEGACY
-	tristate "Old I2C EEPROM reader"
+	tristate "Old I2C EEPROM reader (DEPRECATED)"
 	depends on I2C && SYSFS
 	help
 	  If you say yes here you get read-only access to the EEPROM data
 	  available on modern memory DIMMs and Sony Vaio laptops via I2C. Such
 	  EEPROMs could theoretically be available on other devices as well.
+
+	  This driver is deprecated and will be removed soon, please use the
+	  better at24 driver instead.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called eeprom.
@@ -79,6 +85,7 @@ config EEPROM_93XX46
 	depends on SPI && SYSFS
 	select REGMAP
 	select NVMEM
+	select NVMEM_SYSFS
 	help
 	  Driver for the microwire EEPROM chipsets 93xx46x. The driver
 	  supports both read and write commands and also the command to

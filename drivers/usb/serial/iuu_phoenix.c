@@ -942,9 +942,7 @@ static void iuu_close(struct usb_serial_port *port)
 
 static void iuu_init_termios(struct tty_struct *tty)
 {
-	tty->termios = tty_std_termios;
-	tty->termios.c_cflag = CLOCAL | CREAD | CS8 | B9600
-				| TIOCM_CTS | CSTOPB | PARENB;
+	tty->termios.c_cflag = B9600 | CS8 | CSTOPB | CREAD | PARENB | CLOCAL;
 	tty->termios.c_ispeed = 9600;
 	tty->termios.c_ospeed = 9600;
 	tty->termios.c_lflag = 0;

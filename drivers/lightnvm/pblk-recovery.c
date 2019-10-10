@@ -93,10 +93,24 @@ static int pblk_recov_l2p_from_emeta(struct pblk *pblk, struct pblk_line *line)
 static void pblk_update_line_wp(struct pblk *pblk, struct pblk_line *line,
 				u64 written_secs)
 {
+	struct pblk_line_mgmt *l_mg = &pblk->l_mg;
 	int i;
 
 	for (i = 0; i < written_secs; i += pblk->min_write_pgs)
-		pblk_alloc_page(pblk, line, pblk->min_write_pgs);
+		__pblk_alloc_page(pblk, line, pblk->min_write_pgs);
+
+	spin_lock(&l_mg->free_lock);
+	if (written_secs > line->left_msecs) {
+		/*
+		 * We have all data sectors written
+		 * and some emeta sectors written too.
+		 */
+		line->left_msecs = 0;
+	} else {
+		/* We have only some data sectors written. */
+		line->left_msecs -= written_secs;
+	}
+	spin_unlock(&l_mg->free_lock);
 }
 
 static u64 pblk_sec_in_open_line(struct pblk *pblk, struct pblk_line *line)
@@ -164,11 +178,11 @@ static int pblk_recov_pad_line(struct pblk *pblk, struct pblk_line *line,
 	void *meta_list;
 	struct pblk_pad_rq *pad_rq;
 	struct nvm_rq *rqd;
-	struct bio *bio;
+	struct ppa_addr *ppa_list;
 	void *data;
 	__le64 *lba_list = emeta_to_lbas(pblk, line->emeta->buf);
 	u64 w_ptr = line->cur_sec;
-	int left_line_ppas, rq_ppas, rq_len;
+	int left_line_ppas, rq_ppas;
 	int i, j;
 	int ret = 0;
 
@@ -194,34 +208,25 @@ next_pad_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0, false);
 	if (rq_ppas < pblk->min_write_pgs) {
 		pblk_err(pblk, "corrupted pad line %d\n", line->id);
-		goto fail_free_pad;
+		goto fail_complete;
 	}
-
-	rq_len = rq_ppas * geo->csecs;
-
-	bio = pblk_bio_map_addr(pblk, data, rq_ppas, rq_len,
-						PBLK_VMALLOC_META, GFP_KERNEL);
-	if (IS_ERR(bio)) {
-		ret = PTR_ERR(bio);
-		goto fail_free_pad;
-	}
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 	rqd = pblk_alloc_rqd(pblk, PBLK_WRITE_INT);
 
 	ret = pblk_alloc_rqd_meta(pblk, rqd);
-	if (ret)
-		goto fail_free_rqd;
+	if (ret) {
+		pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
+		goto fail_complete;
+	}
 
-	rqd->bio = bio;
+	rqd->bio = NULL;
 	rqd->opcode = NVM_OP_PWRITE;
 	rqd->is_seq = 1;
 	rqd->nr_ppas = rq_ppas;
 	rqd->end_io = pblk_end_io_recov;
 	rqd->private = pad_rq;
 
+	ppa_list = nvm_rq_to_ppa_list(rqd);
 	meta_list = rqd->meta_list;
 
 	for (i = 0; i < rqd->nr_ppas; ) {
@@ -249,18 +254,20 @@ next_pad_rq:
 			lba_list[w_ptr] = addr_empty;
 			meta = pblk_get_meta(pblk, meta_list, i);
 			meta->lba = addr_empty;
-			rqd->ppa_list[i] = dev_ppa;
+			ppa_list[i] = dev_ppa;
 		}
 	}
 
 	kref_get(&pad_rq->ref);
-	pblk_down_chunk(pblk, rqd->ppa_list[0]);
+	pblk_down_chunk(pblk, ppa_list[0]);
 
-	ret = pblk_submit_io(pblk, rqd);
+	ret = pblk_submit_io(pblk, rqd, data);
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
-		pblk_up_chunk(pblk, rqd->ppa_list[0]);
-		goto fail_free_rqd;
+		pblk_up_chunk(pblk, ppa_list[0]);
+		kref_put(&pad_rq->ref, pblk_recov_complete);
+		pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
+		goto fail_complete;
 	}
 
 	left_line_ppas -= rq_ppas;
@@ -268,13 +275,9 @@ next_pad_rq:
 	if (left_ppas && left_line_ppas)
 		goto next_pad_rq;
 
+fail_complete:
 	kref_put(&pad_rq->ref, pblk_recov_complete);
-
-	if (!wait_for_completion_io_timeout(&pad_rq->wait,
-				msecs_to_jiffies(PBLK_COMMAND_TIMEOUT_MS))) {
-		pblk_err(pblk, "pad write timed out\n");
-		ret = -ETIME;
-	}
+	wait_for_completion(&pad_rq->wait);
 
 	if (!pblk_line_is_full(line))
 		pblk_err(pblk, "corrupted padded line: %d\n", line->id);
@@ -282,14 +285,6 @@ next_pad_rq:
 	vfree(data);
 free_rq:
 	kfree(pad_rq);
-	return ret;
-
-fail_free_rqd:
-	pblk_free_rqd(pblk, rqd, PBLK_WRITE_INT);
-	bio_put(bio);
-fail_free_pad:
-	kfree(pad_rq);
-	vfree(data);
 	return ret;
 }
 
@@ -302,35 +297,55 @@ static int pblk_pad_distance(struct pblk *pblk, struct pblk_line *line)
 	return (distance > line->left_msecs) ? line->left_msecs : distance;
 }
 
-static int pblk_line_wp_is_unbalanced(struct pblk *pblk,
-				      struct pblk_line *line)
+/* Return a chunk belonging to a line by stripe(write order) index */
+static struct nvm_chk_meta *pblk_get_stripe_chunk(struct pblk *pblk,
+						  struct pblk_line *line,
+						  int index)
 {
 	struct nvm_tgt_dev *dev = pblk->dev;
 	struct nvm_geo *geo = &dev->geo;
-	struct pblk_line_meta *lm = &pblk->lm;
 	struct pblk_lun *rlun;
-	struct nvm_chk_meta *chunk;
 	struct ppa_addr ppa;
-	u64 line_wp;
-	int pos, i;
+	int pos;
 
-	rlun = &pblk->luns[0];
+	rlun = &pblk->luns[index];
 	ppa = rlun->bppa;
 	pos = pblk_ppa_to_pos(geo, ppa);
-	chunk = &line->chks[pos];
 
-	line_wp = chunk->wp;
+	return &line->chks[pos];
+}
 
-	for (i = 1; i < lm->blk_per_line; i++) {
-		rlun = &pblk->luns[i];
-		ppa = rlun->bppa;
-		pos = pblk_ppa_to_pos(geo, ppa);
-		chunk = &line->chks[pos];
+static int pblk_line_wps_are_unbalanced(struct pblk *pblk,
+				      struct pblk_line *line)
+{
+	struct pblk_line_meta *lm = &pblk->lm;
+	int blk_in_line = lm->blk_per_line;
+	struct nvm_chk_meta *chunk;
+	u64 max_wp, min_wp;
+	int i;
 
-		if (chunk->wp > line_wp)
+	i = find_first_zero_bit(line->blk_bitmap, blk_in_line);
+
+	/* If there is one or zero good chunks in the line,
+	 * the write pointers can't be unbalanced.
+	 */
+	if (i >= (blk_in_line - 1))
+		return 0;
+
+	chunk = pblk_get_stripe_chunk(pblk, line, i);
+	max_wp = chunk->wp;
+	if (max_wp > pblk->max_write_pgs)
+		min_wp = max_wp - pblk->max_write_pgs;
+	else
+		min_wp = 0;
+
+	i = find_next_zero_bit(line->blk_bitmap, blk_in_line, i + 1);
+	while (i < blk_in_line) {
+		chunk = pblk_get_stripe_chunk(pblk, line, i);
+		if (chunk->wp > max_wp || chunk->wp < min_wp)
 			return 1;
-		else if (chunk->wp < line_wp)
-			line_wp = chunk->wp;
+
+		i = find_next_zero_bit(line->blk_bitmap, blk_in_line, i + 1);
 	}
 
 	return 0;
@@ -345,18 +360,17 @@ static int pblk_recov_scan_oob(struct pblk *pblk, struct pblk_line *line,
 	struct ppa_addr *ppa_list;
 	void *meta_list;
 	struct nvm_rq *rqd;
-	struct bio *bio;
 	void *data;
 	dma_addr_t dma_ppa_list, dma_meta_list;
 	__le64 *lba_list;
 	u64 paddr = pblk_line_smeta_start(pblk, line) + lm->smeta_sec;
 	bool padded = false;
-	int rq_ppas, rq_len;
+	int rq_ppas;
 	int i, j;
 	int ret;
 	u64 left_ppas = pblk_sec_in_open_line(pblk, line) - lm->smeta_sec;
 
-	if (pblk_line_wp_is_unbalanced(pblk, line))
+	if (pblk_line_wps_are_unbalanced(pblk, line))
 		pblk_warn(pblk, "recovering unbalanced line (%d)\n", line->id);
 
 	ppa_list = p.ppa_list;
@@ -374,24 +388,16 @@ next_rq:
 	rq_ppas = pblk_calc_secs(pblk, left_ppas, 0, false);
 	if (!rq_ppas)
 		rq_ppas = pblk->min_write_pgs;
-	rq_len = rq_ppas * geo->csecs;
 
 retry_rq:
-	bio = bio_map_kern(dev->q, data, rq_len, GFP_KERNEL);
-	if (IS_ERR(bio))
-		return PTR_ERR(bio);
-
-	bio->bi_iter.bi_sector = 0; /* internal bio */
-	bio_set_op_attrs(bio, REQ_OP_READ, 0);
-	bio_get(bio);
-
-	rqd->bio = bio;
+	rqd->bio = NULL;
 	rqd->opcode = NVM_OP_PREAD;
 	rqd->meta_list = meta_list;
 	rqd->nr_ppas = rq_ppas;
 	rqd->ppa_list = ppa_list;
 	rqd->dma_ppa_list = dma_ppa_list;
 	rqd->dma_meta_list = dma_meta_list;
+	ppa_list = nvm_rq_to_ppa_list(rqd);
 
 	if (pblk_io_aligned(pblk, rq_ppas))
 		rqd->is_seq = 1;
@@ -410,43 +416,38 @@ retry_rq:
 		}
 
 		for (j = 0; j < pblk->min_write_pgs; j++, i++)
-			rqd->ppa_list[i] =
+			ppa_list[i] =
 				addr_to_gen_ppa(pblk, paddr + j, line->id);
 	}
 
-	ret = pblk_submit_io_sync(pblk, rqd);
+	ret = pblk_submit_io_sync(pblk, rqd, data);
 	if (ret) {
 		pblk_err(pblk, "I/O submission failed: %d\n", ret);
-		bio_put(bio);
 		return ret;
 	}
 
 	atomic_dec(&pblk->inflight_io);
 
 	/* If a read fails, do a best effort by padding the line and retrying */
-	if (rqd->error) {
+	if (rqd->error && rqd->error != NVM_RSP_WARN_HIGHECC) {
 		int pad_distance, ret;
 
 		if (padded) {
 			pblk_log_read_err(pblk, rqd);
-			bio_put(bio);
 			return -EINTR;
 		}
 
 		pad_distance = pblk_pad_distance(pblk, line);
 		ret = pblk_recov_pad_line(pblk, line, pad_distance);
 		if (ret) {
-			bio_put(bio);
 			return ret;
 		}
 
 		padded = true;
-		bio_put(bio);
 		goto retry_rq;
 	}
 
 	pblk_get_packed_meta(pblk, rqd);
-	bio_put(bio);
 
 	for (i = 0; i < rqd->nr_ppas; i++) {
 		struct pblk_sec_meta *meta = pblk_get_meta(pblk, meta_list, i);
@@ -454,11 +455,11 @@ retry_rq:
 
 		lba_list[paddr++] = cpu_to_le64(lba);
 
-		if (lba == ADDR_EMPTY || lba > pblk->rl.nr_secs)
+		if (lba == ADDR_EMPTY || lba >= pblk->capacity)
 			continue;
 
 		line->nr_valid_lbas++;
-		pblk_update_map(pblk, lba, rqd->ppa_list[i]);
+		pblk_update_map(pblk, lba, ppa_list[i]);
 	}
 
 	left_ppas -= rq_ppas;
@@ -627,10 +628,12 @@ static int pblk_line_was_written(struct pblk_line *line,
 	bppa = pblk->luns[smeta_blk].bppa;
 	chunk = &line->chks[pblk_ppa_to_pos(geo, bppa)];
 
-	if (chunk->state & NVM_CHK_ST_FREE)
-		return 0;
+	if (chunk->state & NVM_CHK_ST_CLOSED ||
+	    (chunk->state & NVM_CHK_ST_OPEN
+	     && chunk->wp >= lm->smeta_sec))
+		return 1;
 
-	return 1;
+	return 0;
 }
 
 static bool pblk_line_is_open(struct pblk *pblk, struct pblk_line *line)
@@ -703,11 +706,13 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 
 		/* The first valid instance uuid is used for initialization */
 		if (!valid_uuid) {
-			memcpy(pblk->instance_uuid, smeta_buf->header.uuid, 16);
+			guid_copy(&pblk->instance_uuid,
+				  (guid_t *)&smeta_buf->header.uuid);
 			valid_uuid = 1;
 		}
 
-		if (memcmp(pblk->instance_uuid, smeta_buf->header.uuid, 16)) {
+		if (!guid_equal(&pblk->instance_uuid,
+				(guid_t *)&smeta_buf->header.uuid)) {
 			pblk_debug(pblk, "ignore line %u due to uuid mismatch\n",
 					i);
 			continue;
@@ -737,7 +742,7 @@ struct pblk_line *pblk_recov_l2p(struct pblk *pblk)
 	}
 
 	if (!found_lines) {
-		pblk_setup_uuid(pblk);
+		guid_gen(&pblk->instance_uuid);
 
 		spin_lock(&l_mg->free_lock);
 		WARN_ON_ONCE(!test_and_clear_bit(meta_line,
@@ -822,6 +827,7 @@ next:
 		spin_unlock(&l_mg->free_lock);
 	} else {
 		spin_lock(&l_mg->free_lock);
+		l_mg->data_line = data_line;
 		/* Allocate next line for preparation */
 		l_mg->data_next = pblk_line_get(pblk);
 		if (l_mg->data_next) {

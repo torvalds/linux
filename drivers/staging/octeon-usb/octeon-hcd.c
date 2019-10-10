@@ -521,8 +521,7 @@ static void octeon_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb)
  */
 static inline u32 cvmx_usb_read_csr32(struct octeon_hcd *usb, u64 address)
 {
-	u32 result = cvmx_read64_uint32(address ^ 4);
-	return result;
+	return cvmx_read64_uint32(address ^ 4);
 }
 
 /**
@@ -2385,13 +2384,11 @@ static int cvmx_usb_close_pipe(struct octeon_hcd *usb,
  */
 static int cvmx_usb_get_frame_number(struct octeon_hcd *usb)
 {
-	int frame_number;
 	union cvmx_usbcx_hfnum usbc_hfnum;
 
 	usbc_hfnum.u32 = cvmx_usb_read_csr32(usb, CVMX_USBCX_HFNUM(usb->index));
-	frame_number = usbc_hfnum.s.frnum;
 
-	return frame_number;
+	return usbc_hfnum.s.frnum;
 }
 
 static void cvmx_usb_transfer_control(struct octeon_hcd *usb,
@@ -3515,7 +3512,7 @@ static const struct hc_driver octeon_hc_driver = {
 	.product_desc		= "Octeon Host Controller",
 	.hcd_priv_size		= sizeof(struct octeon_hcd),
 	.irq			= octeon_usb_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
+	.flags			= HCD_MEMORY | HCD_DMA | HCD_USB2,
 	.start			= octeon_usb_start,
 	.stop			= octeon_usb_stop,
 	.urb_enqueue		= octeon_usb_urb_enqueue,

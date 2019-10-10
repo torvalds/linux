@@ -3,7 +3,7 @@
  *
  * Module Name: tbdata - Table manager data structure functions
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -480,7 +480,8 @@ acpi_tb_verify_temp_table(struct acpi_table_desc *table_desc,
 
 	/* If a particular signature is expected (DSDT/FACS), it must match */
 
-	if (signature && !ACPI_COMPARE_NAME(&table_desc->signature, signature)) {
+	if (signature &&
+	    !ACPI_COMPARE_NAMESEG(&table_desc->signature, signature)) {
 		ACPI_BIOS_ERROR((AE_INFO,
 				 "Invalid signature 0x%X for ACPI table, expected [%s]",
 				 table_desc->signature.integer, signature));
@@ -749,6 +750,7 @@ acpi_status acpi_tb_delete_namespace_by_owner(u32 table_index)
 	if (ACPI_FAILURE(status)) {
 		return_ACPI_STATUS(status);
 	}
+
 	acpi_ns_delete_namespace_by_owner(owner_id);
 	acpi_ut_release_write_lock(&acpi_gbl_namespace_rw_lock);
 	return_ACPI_STATUS(status);
@@ -931,19 +933,6 @@ acpi_tb_load_table(u32 table_index, struct acpi_namespace_node *parent_node)
 	}
 
 	status = acpi_ns_load_table(table_index, parent_node);
-
-	/*
-	 * This case handles the legacy option that groups all module-level
-	 * code blocks together and defers execution until all of the tables
-	 * are loaded. Execute all of these blocks at this time.
-	 * Execute any module-level code that was detected during the table
-	 * load phase.
-	 *
-	 * Note: this option is deprecated and will be eliminated in the
-	 * future. Use of this option can cause problems with AML code that
-	 * depends upon in-order immediate execution of module-level code.
-	 */
-	acpi_ns_exec_module_code_list();
 
 	/*
 	 * Update GPEs for any new _Lxx/_Exx methods. Ignore errors. The host is

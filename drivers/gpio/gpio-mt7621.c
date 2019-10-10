@@ -241,13 +241,6 @@ mediatek_gpio_bank_probe(struct device *dev,
 	if (!rg->chip.label)
 		return -ENOMEM;
 
-	ret = devm_gpiochip_add_data(dev, &rg->chip, mtk);
-	if (ret < 0) {
-		dev_err(dev, "Could not register gpio %d, ret=%d\n",
-			rg->chip.ngpio, ret);
-		return ret;
-	}
-
 	rg->irq_chip.name = dev_name(dev);
 	rg->irq_chip.parent_device = dev;
 	rg->irq_chip.irq_unmask = mediatek_gpio_irq_unmask;
@@ -256,8 +249,10 @@ mediatek_gpio_bank_probe(struct device *dev,
 	rg->irq_chip.irq_set_type = mediatek_gpio_irq_type;
 
 	if (mtk->gpio_irq) {
+		struct gpio_irq_chip *girq;
+
 		/*
-		 * Manually request the irq here instead of passing
+		 * Directly request the irq here instead of passing
 		 * a flow-handler to gpiochip_set_chained_irqchip,
 		 * because the irq is shared.
 		 */
@@ -271,15 +266,21 @@ mediatek_gpio_bank_probe(struct device *dev,
 			return ret;
 		}
 
-		ret = gpiochip_irqchip_add(&rg->chip, &rg->irq_chip,
-					   0, handle_simple_irq, IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(dev, "failed to add gpiochip_irqchip\n");
-			return ret;
-		}
+		girq = &rg->chip.irq;
+		girq->chip = &rg->irq_chip;
+		/* This will let us handle the parent IRQ in the driver */
+		girq->parent_handler = NULL;
+		girq->num_parents = 0;
+		girq->parents = NULL;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_simple_irq;
+	}
 
-		gpiochip_set_chained_irqchip(&rg->chip, &rg->irq_chip,
-					     mtk->gpio_irq, NULL);
+	ret = devm_gpiochip_add_data(dev, &rg->chip, mtk);
+	if (ret < 0) {
+		dev_err(dev, "Could not register gpio %d, ret=%d\n",
+			rg->chip.ngpio, ret);
+		return ret;
 	}
 
 	/* set polarity to low for all gpios */
@@ -293,7 +294,6 @@ mediatek_gpio_bank_probe(struct device *dev,
 static int
 mediatek_gpio_probe(struct platform_device *pdev)
 {
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct mtk *mtk;
@@ -304,7 +304,7 @@ mediatek_gpio_probe(struct platform_device *pdev)
 	if (!mtk)
 		return -ENOMEM;
 
-	mtk->base = devm_ioremap_resource(dev, res);
+	mtk->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mtk->base))
 		return PTR_ERR(mtk->base);
 

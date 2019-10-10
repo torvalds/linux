@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung S5P G2D - 2D Graphics Accelerator Driver
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Kamil Debski, <k.debski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version
  */
 
 #include <linux/module.h>
@@ -33,31 +29,26 @@
 
 static struct g2d_fmt formats[] = {
 	{
-		.name	= "XRGB_8888",
 		.fourcc	= V4L2_PIX_FMT_RGB32,
 		.depth	= 32,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_8888),
 	},
 	{
-		.name	= "RGB_565",
 		.fourcc	= V4L2_PIX_FMT_RGB565X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_RGB_565),
 	},
 	{
-		.name	= "XRGB_1555",
 		.fourcc	= V4L2_PIX_FMT_RGB555X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_1555),
 	},
 	{
-		.name	= "XRGB_4444",
 		.fourcc	= V4L2_PIX_FMT_RGB444,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_4444),
 	},
 	{
-		.name	= "PACKED_RGB_888",
 		.fourcc	= V4L2_PIX_FMT_RGB24,
 		.depth	= 24,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_PACKED_RGB_888),
@@ -297,22 +288,17 @@ static int g2d_release(struct file *file)
 static int vidioc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *cap)
 {
-	strncpy(cap->driver, G2D_NAME, sizeof(cap->driver) - 1);
-	strncpy(cap->card, G2D_NAME, sizeof(cap->card) - 1);
+	strscpy(cap->driver, G2D_NAME, sizeof(cap->driver));
+	strscpy(cap->card, G2D_NAME, sizeof(cap->card));
 	cap->bus_info[0] = 0;
-	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
 static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 {
-	struct g2d_fmt *fmt;
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
-	fmt = &formats[f->index];
-	f->pixelformat = fmt->fourcc;
-	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
+	f->pixelformat = formats[f->index].fourcc;
 	return 0;
 }
 
@@ -513,7 +499,7 @@ static void device_run(void *prv)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
-	struct vb2_buffer *src, *dst;
+	struct vb2_v4l2_buffer *src, *dst;
 	unsigned long flags;
 	u32 cmd = 0;
 
@@ -528,10 +514,10 @@ static void device_run(void *prv)
 	spin_lock_irqsave(&dev->ctrl_lock, flags);
 
 	g2d_set_src_size(dev, &ctx->in);
-	g2d_set_src_addr(dev, vb2_dma_contig_plane_dma_addr(src, 0));
+	g2d_set_src_addr(dev, vb2_dma_contig_plane_dma_addr(&src->vb2_buf, 0));
 
 	g2d_set_dst_size(dev, &ctx->out);
-	g2d_set_dst_addr(dev, vb2_dma_contig_plane_dma_addr(dst, 0));
+	g2d_set_dst_addr(dev, vb2_dma_contig_plane_dma_addr(&dst->vb2_buf, 0));
 
 	g2d_set_rop4(dev, ctx->rop);
 	g2d_set_flip(dev, ctx->flip);
@@ -708,6 +694,7 @@ static int g2d_probe(struct platform_device *pdev)
 	set_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags);
 	vfd->lock = &dev->mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");

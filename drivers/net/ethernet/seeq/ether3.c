@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/acorn/net/ether3.c
  *
  *  Copyright (C) 1995-2000 Russell King
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * SEEQ nq8005 ethernet driver for Acorn/ANT Ether3 card
  *  for Acorn machines

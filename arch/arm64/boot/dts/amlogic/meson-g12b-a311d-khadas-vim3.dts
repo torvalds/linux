@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 BayLibre, SAS
+ * Author: Neil Armstrong <narmstrong@baylibre.com>
+ * Copyright (c) 2019 Christian Hewitt <christianshewitt@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "meson-g12b-a311d.dtsi"
+#include "meson-khadas-vim3.dtsi"
+#include "meson-g12b-khadas-vim3.dtsi"
+
+/ {
+	compatible = "khadas,vim3", "amlogic,a311d", "amlogic,g12b";
+};

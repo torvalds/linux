@@ -569,6 +569,7 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
  * relative to that node.
  */
 static u64 __of_translate_address(struct device_node *dev,
+				  struct device_node *(*get_parent)(const struct device_node *),
 				  const __be32 *in_addr, const char *rprop,
 				  struct device_node **host)
 {
@@ -585,7 +586,7 @@ static u64 __of_translate_address(struct device_node *dev,
 
 	*host = NULL;
 	/* Get parent & match bus type */
-	parent = of_get_parent(dev);
+	parent = get_parent(dev);
 	if (parent == NULL)
 		goto bail;
 	bus = of_match_bus(parent);
@@ -609,7 +610,7 @@ static u64 __of_translate_address(struct device_node *dev,
 		/* Switch to parent bus */
 		of_node_put(dev);
 		dev = parent;
-		parent = of_get_parent(dev);
+		parent = get_parent(dev);
 
 		/* If root, we have finished */
 		if (parent == NULL) {
@@ -665,7 +666,8 @@ u64 of_translate_address(struct device_node *dev, const __be32 *in_addr)
 	struct device_node *host;
 	u64 ret;
 
-	ret = __of_translate_address(dev, in_addr, "ranges", &host);
+	ret = __of_translate_address(dev, of_get_parent,
+				     in_addr, "ranges", &host);
 	if (host) {
 		of_node_put(host);
 		return OF_BAD_ADDR;
@@ -675,12 +677,31 @@ u64 of_translate_address(struct device_node *dev, const __be32 *in_addr)
 }
 EXPORT_SYMBOL(of_translate_address);
 
+static struct device_node *__of_get_dma_parent(const struct device_node *np)
+{
+	struct of_phandle_args args;
+	int ret, index;
+
+	index = of_property_match_string(np, "interconnect-names", "dma-mem");
+	if (index < 0)
+		return of_get_parent(np);
+
+	ret = of_parse_phandle_with_args(np, "interconnects",
+					 "#interconnect-cells",
+					 index, &args);
+	if (ret < 0)
+		return of_get_parent(np);
+
+	return of_node_get(args.np);
+}
+
 u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 {
 	struct device_node *host;
 	u64 ret;
 
-	ret = __of_translate_address(dev, in_addr, "dma-ranges", &host);
+	ret = __of_translate_address(dev, __of_get_dma_parent,
+				     in_addr, "dma-ranges", &host);
 
 	if (host) {
 		of_node_put(host);
@@ -736,7 +757,8 @@ static u64 of_translate_ioport(struct device_node *dev, const __be32 *in_addr,
 	unsigned long port;
 	struct device_node *host;
 
-	taddr = __of_translate_address(dev, in_addr, "ranges", &host);
+	taddr = __of_translate_address(dev, of_get_parent,
+				       in_addr, "ranges", &host);
 	if (host) {
 		/* host-specific port access */
 		port = logic_pio_trans_hwaddr(&host->fwnode, taddr, size);
@@ -908,9 +930,15 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 		return -EINVAL;
 
 	while (1) {
+		struct device_node *parent;
+
 		naddr = of_n_addr_cells(node);
 		nsize = of_n_size_cells(node);
-		node = of_get_next_parent(node);
+
+		parent = __of_get_dma_parent(node);
+		of_node_put(node);
+
+		node = parent;
 		if (!node)
 			break;
 

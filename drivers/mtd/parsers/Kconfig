@@ -1,3 +1,99 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config MTD_AR7_PARTS
+	tristate "TI AR7 partitioning parser"
+	help
+	  TI AR7 partitioning parser support
+
+config MTD_BCM47XX_PARTS
+	tristate "BCM47XX partitioning parser"
+	depends on BCM47XX || ARCH_BCM_5301X
+	help
+	  This provides partitions parser for devices based on BCM47xx
+	  boards.
+
+config MTD_BCM63XX_PARTS
+	tristate "BCM63XX CFE partitioning parser"
+	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
+	select CRC32
+	select MTD_PARSER_IMAGETAG
+	help
+	  This provides partition parsing for BCM63xx devices with CFE
+	  bootloaders.
+
+config MTD_CMDLINE_PARTS
+	tristate "Command line partition table parsing"
+	depends on MTD
+	help
+	  Allow generic configuration of the MTD partition tables via the kernel
+	  command line. Multiple flash resources are supported for hardware where
+	  different kinds of flash memory are available.
+
+	  You will still need the parsing functions to be called by the driver
+	  for your particular device. It won't happen automatically. The
+	  SA1100 map driver (CONFIG_MTD_SA1100) has an option for this, for
+	  example.
+
+	  The format for the command line is as follows:
+
+	  mtdparts=<mtddef>[;<mtddef]
+	  <mtddef>  := <mtd-id>:<partdef>[,<partdef>]
+	  <partdef> := <size>[@offset][<name>][ro]
+	  <mtd-id>  := unique id used in mapping driver/device
+	  <size>    := standard linux memsize OR "-" to denote all
+	  remaining space
+	  <name>    := (NAME)
+
+	  Due to the way Linux handles the command line, no spaces are
+	  allowed in the partition definition, including mtd id's and partition
+	  names.
+
+	  Examples:
+
+	  1 flash resource (mtd-id "sa1100"), with 1 single writable partition:
+	  mtdparts=sa1100:-
+
+	  Same flash, but 2 named partitions, the first one being read-only:
+	  mtdparts=sa1100:256k(ARMboot)ro,-(root)
+
+	  If unsure, say 'N'.
+
+config MTD_OF_PARTS
+	tristate "OpenFirmware (device tree) partitioning parser"
+	default y
+	depends on OF
+	help
+	  This provides a open firmware device tree partition parser
+	  which derives the partition map from the children of the
+	  flash memory node, as described in
+	  Documentation/devicetree/bindings/mtd/partition.txt.
+
+config MTD_PARSER_IMAGETAG
+	tristate "Parser for BCM963XX Image Tag format partitions"
+	depends on BCM63XX || BMIPS_GENERIC || COMPILE_TEST
+	select CRC32
+	help
+	  Image Tag is the firmware header used by broadcom on their xDSL line
+	  of devices. It is used to describe the offsets and lengths of kernel
+	  and rootfs partitions.
+	  This driver adds support for parsing a partition with an Image Tag
+	  header and creates up to two partitions, kernel and rootfs.
+
+config MTD_AFS_PARTS
+	tristate "ARM Firmware Suite partition parsing"
+	depends on (ARM || ARM64)
+	help
+	  The ARM Firmware Suite allows the user to divide flash devices into
+	  multiple 'images'. Each such image has a header containing its name
+	  and offset/size etc.
+
+	  If you need code which can detect and parse these tables, and
+	  register MTD 'partitions' corresponding to each image detected,
+	  enable this option.
+
+	  You will still need the parsing functions to be called by the driver
+	  for your particular device. It won't happen automatically. The
+	  'physmap' map driver (CONFIG_MTD_PHYSMAP) does this, for example.
+
 config MTD_PARSER_TRX
 	tristate "Parser for TRX format partitions"
 	depends on MTD && (BCM47XX || ARCH_BCM_5301X || COMPILE_TEST)

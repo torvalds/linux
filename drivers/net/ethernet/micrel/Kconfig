@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Micrel device configuration
 #
@@ -5,8 +6,7 @@
 config NET_VENDOR_MICREL
 	bool "Micrel devices"
 	default y
-	depends on (HAS_IOMEM && DMA_ENGINE) || SPI || PCI || HAS_IOMEM || \
-		   (ARM && ARCH_KS8695)
+	depends on (HAS_IOMEM && DMA_ENGINE) || SPI || PCI || HAS_IOMEM
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -16,14 +16,6 @@ config NET_VENDOR_MICREL
 	  for your specific card in the following questions.
 
 if NET_VENDOR_MICREL
-
-config ARM_KS8695_ETHER
-	tristate "KS8695 Ethernet support"
-	depends on ARM && ARCH_KS8695
-	select MII
-	---help---
-	  If you wish to compile a kernel for the KS8695 and want to
-	  use the internal ethernet then you should answer Y to this.
 
 config KS8842
 	tristate "Micrel KSZ8841/42 with generic bus interface"

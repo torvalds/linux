@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -43,7 +31,6 @@
 #include <crypto/hash.h>
 #include <crypto/algapi.h>
 
-#define __FS_HAS_ENCRYPTION IS_ENABLED(CONFIG_UBIFS_FS_ENCRYPTION)
 #include <linux/fscrypt.h>
 
 #include "ubifs-media.h"
@@ -142,7 +129,7 @@
  */
 #define WORST_COMPR_FACTOR 2
 
-#ifdef CONFIG_UBIFS_FS_ENCRYPTION
+#ifdef CONFIG_FS_ENCRYPTION
 #define UBIFS_CIPHER_BLOCK_SIZE FS_CRYPTO_BLOCK_SIZE
 #else
 #define UBIFS_CIPHER_BLOCK_SIZE 0
@@ -925,6 +912,8 @@ struct ubifs_budget_req {
  * @rb: rb-tree node of rb-tree of orphans sorted by inode number
  * @list: list head of list of orphans in order added
  * @new_list: list head of list of orphans added since the last commit
+ * @child_list: list of xattr childs if this orphan hosts xattrs, list head
+ * if this orphan is a xattr, not used otherwise.
  * @cnext: next orphan to commit
  * @dnext: next orphan to delete
  * @inum: inode number
@@ -936,6 +925,7 @@ struct ubifs_orphan {
 	struct rb_node rb;
 	struct list_head list;
 	struct list_head new_list;
+	struct list_head child_list;
 	struct ubifs_orphan *cnext;
 	struct ubifs_orphan *dnext;
 	ino_t inum;
@@ -1114,7 +1104,6 @@ struct ubifs_debug_info;
  *                used to store indexing nodes (@leb_size - @max_idx_node_sz)
  * @leb_cnt: count of logical eraseblocks
  * @max_leb_cnt: maximum count of logical eraseblocks
- * @old_leb_cnt: count of logical eraseblocks before re-size
  * @ro_media: the underlying UBI volume is read-only
  * @ro_mount: the file-system was mounted as read-only
  * @ro_error: UBIFS switched to R/O mode because an error happened
@@ -1305,6 +1294,7 @@ struct ubifs_info {
 	unsigned int rw_incompat:1;
 	unsigned int assert_action:2;
 	unsigned int authenticated:1;
+	unsigned int superblock_need_write:1;
 
 	struct mutex tnc_mutex;
 	struct ubifs_zbranch zroot;
@@ -1362,7 +1352,6 @@ struct ubifs_info {
 	int idx_leb_size;
 	int leb_cnt;
 	int max_leb_cnt;
-	int old_leb_cnt;
 	unsigned int ro_media:1;
 	unsigned int ro_mount:1;
 	unsigned int ro_error:1;
@@ -1690,6 +1679,9 @@ static inline int ubifs_auth_node_sz(const struct ubifs_info *c)
 	else
 		return 0;
 }
+int ubifs_sb_verify_signature(struct ubifs_info *c,
+			      const struct ubifs_sb_node *sup);
+bool ubifs_hmac_zero(struct ubifs_info *c, const u8 *hmac);
 
 int ubifs_hmac_wkm(struct ubifs_info *c, u8 *hmac);
 
@@ -1997,9 +1989,7 @@ int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 /* file.c */
 int ubifs_fsync(struct file *file, loff_t start, loff_t end, int datasync);
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr);
-#ifdef CONFIG_UBIFS_ATIME_SUPPORT
 int ubifs_update_time(struct inode *inode, struct timespec64 *time, int flags);
-#endif
 
 /* dir.c */
 struct inode *ubifs_new_inode(struct ubifs_info *c, struct inode *dir,
@@ -2018,9 +2008,14 @@ ssize_t ubifs_xattr_get(struct inode *host, const char *name, void *buf,
 
 #ifdef CONFIG_UBIFS_FS_XATTR
 void ubifs_evict_xattr_inode(struct ubifs_info *c, ino_t xattr_inum);
+int ubifs_purge_xattrs(struct inode *host);
 #else
 static inline void ubifs_evict_xattr_inode(struct ubifs_info *c,
 					   ino_t xattr_inum) { }
+static inline int ubifs_purge_xattrs(struct inode *host)
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_UBIFS_FS_SECURITY
@@ -2072,7 +2067,7 @@ int ubifs_decompress(const struct ubifs_info *c, const void *buf, int len,
 #include "misc.h"
 #include "key.h"
 
-#ifndef CONFIG_UBIFS_FS_ENCRYPTION
+#ifndef CONFIG_FS_ENCRYPTION
 static inline int ubifs_encrypt(const struct inode *inode,
 				struct ubifs_data_node *dn,
 				unsigned int in_len, unsigned int *out_len,

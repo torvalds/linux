@@ -1,20 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/delay.h>
+
+#include <drm/drm_vblank.h>
 
 #include "msm_drv.h"
 #include "msm_gem.h"
@@ -104,40 +96,51 @@ out:
 	return ret;
 }
 
-static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+static void mdp4_enable_commit(struct msm_kms *kms)
 {
 	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	mdp4_enable(mdp4_kms);
+}
+
+static void mdp4_disable_commit(struct msm_kms *kms)
+{
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	mdp4_disable(mdp4_kms);
+}
+
+static void mdp4_prepare_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+{
 	int i;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
-
-	mdp4_enable(mdp4_kms);
 
 	/* see 119ecb7fd */
 	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
 		drm_crtc_vblank_get(crtc);
 }
 
-static void mdp4_complete_commit(struct msm_kms *kms, struct drm_atomic_state *state)
+static void mdp4_flush_commit(struct msm_kms *kms, unsigned crtc_mask)
 {
-	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
-	int i;
-	struct drm_crtc *crtc;
-	struct drm_crtc_state *crtc_state;
-
-	drm_atomic_helper_wait_for_vblanks(mdp4_kms->dev, state);
-
-	/* see 119ecb7fd */
-	for_each_new_crtc_in_state(state, crtc, crtc_state, i)
-		drm_crtc_vblank_put(crtc);
-
-	mdp4_disable(mdp4_kms);
+	/* TODO */
 }
 
-static void mdp4_wait_for_crtc_commit_done(struct msm_kms *kms,
-						struct drm_crtc *crtc)
+static void mdp4_wait_flush(struct msm_kms *kms, unsigned crtc_mask)
 {
-	mdp4_crtc_wait_for_commit_done(crtc);
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	struct drm_crtc *crtc;
+
+	for_each_crtc_mask(mdp4_kms->dev, crtc, crtc_mask)
+		mdp4_crtc_wait_for_commit_done(crtc);
+}
+
+static void mdp4_complete_commit(struct msm_kms *kms, unsigned crtc_mask)
+{
+	struct mdp4_kms *mdp4_kms = to_mdp4_kms(to_mdp_kms(kms));
+	struct drm_crtc *crtc;
+
+	/* see 119ecb7fd */
+	for_each_crtc_mask(mdp4_kms->dev, crtc, crtc_mask)
+		drm_crtc_vblank_put(crtc);
 }
 
 static long mdp4_round_pixclk(struct msm_kms *kms, unsigned long rate,
@@ -189,9 +192,12 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.irq             = mdp4_irq,
 		.enable_vblank   = mdp4_enable_vblank,
 		.disable_vblank  = mdp4_disable_vblank,
+		.enable_commit   = mdp4_enable_commit,
+		.disable_commit  = mdp4_disable_commit,
 		.prepare_commit  = mdp4_prepare_commit,
+		.flush_commit    = mdp4_flush_commit,
+		.wait_flush      = mdp4_wait_flush,
 		.complete_commit = mdp4_complete_commit,
-		.wait_for_crtc_commit_done = mdp4_wait_for_crtc_commit_done,
 		.get_format      = mdp_get_format,
 		.round_pixclk    = mdp4_round_pixclk,
 		.destroy         = mdp4_destroy,

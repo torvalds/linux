@@ -7,7 +7,7 @@
  *         Title:  MPI Configuration messages and pages
  * Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.46
+ *    mpi2_cnfg.h Version:  02.00.47
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -244,6 +244,11 @@
  *                     Added DMDReport Delay Time defines to
  *                     PCIeIOUnitPage1
  * --------------------------------------------------------------------------
+ * 08-02-18  02.00.44  Added Slotx2, Slotx4 to ManPage 7.
+ * 08-15-18  02.00.45  Added ProductSpecific field at end of IOC Page 1
+ * 08-28-18  02.00.46  Added NVMs Write Cache flag to IOUnitPage1
+ *                     Added DMDReport Delay Time defines to PCIeIOUnitPage1
+ * 12-17-18  02.00.47  Swap locations of Slotx2 and Slotx4 in ManPage 7.
  */
 
 #ifndef MPI2_CNFG_H
@@ -548,7 +553,8 @@ typedef struct _MPI2_CONFIG_REPLY {
 #define MPI2_MFGPAGE_DEVID_SAS2308_1                (0x0086)
 #define MPI2_MFGPAGE_DEVID_SAS2308_2                (0x0087)
 #define MPI2_MFGPAGE_DEVID_SAS2308_3                (0x006E)
-#define MPI2_MFGPAGE_DEVID_SAS2308_MPI_EP           (0x02B0)
+#define MPI2_MFGPAGE_DEVID_SWITCH_MPI_EP            (0x02B0)
+#define MPI2_MFGPAGE_DEVID_SWITCH_MPI_EP_1          (0x02B1)
 
 /*MPI v2.5 SAS products */
 #define MPI25_MFGPAGE_DEVID_SAS3004                 (0x0096)
@@ -809,7 +815,8 @@ typedef struct _MPI2_MANPAGE7_CONNECTOR_INFO {
 	U8                          Location;               /*0x14 */
 	U8                          ReceptacleID;           /*0x15 */
 	U16                         Slot;                   /*0x16 */
-	U32                         Reserved2;              /*0x18 */
+	U16                         Slotx2;                 /*0x18 */
+	U16                         Slotx4;                 /*0x1A */
 } MPI2_MANPAGE7_CONNECTOR_INFO,
 	*PTR_MPI2_MANPAGE7_CONNECTOR_INFO,
 	Mpi2ManPage7ConnectorInfo_t,
@@ -1397,7 +1404,7 @@ typedef struct _MPI2_CONFIG_PAGE_IOC_1 {
 	U8                      PCIBusNum;                  /*0x0E */
 	U8                      PCIDomainSegment;           /*0x0F */
 	U32                     Reserved1;                  /*0x10 */
-	U32                     Reserved2;                  /*0x14 */
+	U32                     ProductSpecific;            /* 0x14 */
 } MPI2_CONFIG_PAGE_IOC_1,
 	*PTR_MPI2_CONFIG_PAGE_IOC_1,
 	Mpi2IOCPage1_t, *pMpi2IOCPage1_t;

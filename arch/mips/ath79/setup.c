@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Atheros AR71XX/AR724X/AR913X specific setup
  *
@@ -6,14 +7,11 @@
  *  Copyright (C) 2008 Imre Kaloz <kaloz@openwrt.org>
  *
  *  Parts of this file are based on Atheros' 2.6.15/2.6.31 BSP
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License version 2 as published
- *  by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/memblock.h>
 #include <linux/err.h>
 #include <linux/clk.h>
@@ -155,7 +153,7 @@ static void __init ath79_detect_sys_type(void)
 	case REV_ID_MAJOR_QCA9533_V2:
 		ver = 2;
 		ath79_soc_rev = 2;
-		/* drop through */
+		/* fall through */
 
 	case REV_ID_MAJOR_QCA9533:
 		ath79_soc = ATH79_SOC_QCA9533;
@@ -209,12 +207,6 @@ const char *get_system_type(void)
 {
 	return ath79_sys_type;
 }
-
-int get_c0_perfcount_int(void)
-{
-	return ATH79_MISC_IRQ(5);
-}
-EXPORT_SYMBOL_GPL(get_c0_perfcount_int);
 
 unsigned int get_c0_compare_int(void)
 {

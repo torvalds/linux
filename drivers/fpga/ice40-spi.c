@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * FPGA Manager Driver for Lattice iCE40.
  *
  *  Copyright (c) 2016 Joel Holdsworth
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * This driver adds support to the FPGA manager for configuring the SRAM of
  * Lattice iCE40 FPGAs through slave SPI.

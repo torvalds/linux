@@ -63,21 +63,11 @@
  * instruction, so the lower 16 bits must be zero.  Should be true on
  * on any sane architecture; generic code does not use this assumption.
  */
-extern const unsigned long mips_io_port_base;
+extern unsigned long mips_io_port_base;
 
-/*
- * Gcc will generate code to load the value of mips_io_port_base after each
- * function call which may be fairly wasteful in some cases.  So we don't
- * play quite by the book.  We tell gcc mips_io_port_base is a long variable
- * which solves the code generation issue.  Now we need to violate the
- * aliasing rules a little to make initialization possible and finally we
- * will need the barrier() to fight side effects of the aliasing chat.
- * This trickery will eventually collapse under gcc's optimizer.  Oh well.
- */
 static inline void set_io_port_base(unsigned long base)
 {
-	* (unsigned long *) &mips_io_port_base = base;
-	barrier();
+	mips_io_port_base = base;
 }
 
 /*
@@ -101,9 +91,6 @@ static inline void set_io_port_base(unsigned long base)
 #define iobarrier_r() rmb()
 #define iobarrier_w() wmb()
 #define iobarrier_sync() iob()
-
-/* Some callers use this older API instead.  */
-#define mmiowb() iobarrier_w()
 
 /*
  *     virt_to_phys    -       map virtual addresses to physical
@@ -151,8 +138,6 @@ static inline void *isa_bus_to_virt(unsigned long address)
 {
 	return phys_to_virt(address);
 }
-
-#define isa_page_to_bus page_to_phys
 
 /*
  * However PCI ones are not necessarily 1:1 and therefore these interfaces
@@ -267,11 +252,11 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
 #define ioremap_uc ioremap_nocache
 
 /*
- * ioremap_cachable -	map bus memory into CPU space
+ * ioremap_cache -	map bus memory into CPU space
  * @offset:	    bus address of the memory
  * @size:	    size of the resource to map
  *
- * ioremap_nocache performs a platform specific sequence of operations to
+ * ioremap_cache performs a platform specific sequence of operations to
  * make bus memory CPU accessible via the readb/readw/readl/writeb/
  * writew/writel functions and the other mmio helpers. The returned
  * address is not guaranteed to be usable directly as a virtual
@@ -281,9 +266,8 @@ static inline void __iomem *ioremap_prot(phys_addr_t offset,
  * the CPU.  Also enables full write-combining.	 Useful for some
  * memory-like regions on I/O busses.
  */
-#define ioremap_cachable(offset, size)					\
+#define ioremap_cache(offset, size)					\
 	__ioremap_mode((offset), (size), _page_cachable_default)
-#define ioremap_cache ioremap_cachable
 
 /*
  * ioremap_wc     -   map bus memory into CPU space
@@ -465,7 +449,12 @@ __BUILD_MEMORY_PFX(, bwlq, type, 0)
 BUILDIO_MEM(b, u8)
 BUILDIO_MEM(w, u16)
 BUILDIO_MEM(l, u32)
+#ifdef CONFIG_64BIT
 BUILDIO_MEM(q, u64)
+#else
+__BUILD_MEMORY_PFX(__raw_, q, u64, 0)
+__BUILD_MEMORY_PFX(__mem_, q, u64, 0)
+#endif
 
 #define __BUILD_IOPORT_PFX(bus, bwlq, type)				\
 	__BUILD_IOPORT_SINGLE(bus, bwlq, type, 1, 0,)			\
@@ -491,12 +480,16 @@ __BUILDIO(q, u64)
 #define readb_relaxed			__relaxed_readb
 #define readw_relaxed			__relaxed_readw
 #define readl_relaxed			__relaxed_readl
+#ifdef CONFIG_64BIT
 #define readq_relaxed			__relaxed_readq
+#endif
 
 #define writeb_relaxed			__relaxed_writeb
 #define writew_relaxed			__relaxed_writew
 #define writel_relaxed			__relaxed_writel
+#ifdef CONFIG_64BIT
 #define writeq_relaxed			__relaxed_writeq
+#endif
 
 #define readb_be(addr)							\
 	__raw_readb((__force unsigned *)(addr))
@@ -519,8 +512,10 @@ __BUILDIO(q, u64)
 /*
  * Some code tests for these symbols
  */
+#ifdef CONFIG_64BIT
 #define readq				readq
 #define writeq				writeq
+#endif
 
 #define __BUILD_MEMORY_STRING(bwlq, type)				\
 									\

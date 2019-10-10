@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* radio-cadet.c - A video4linux driver for the ADS Cadet AM/FM Radio Card
  *
  * by Fred Gleason <fredg@wava.com>
@@ -356,9 +357,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	strscpy(v->driver, "ADS Cadet", sizeof(v->driver));
 	strscpy(v->card, "ADS Cadet", sizeof(v->card));
 	strscpy(v->bus_info, "ISA:radio-cadet", sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
-			  V4L2_CAP_READWRITE | V4L2_CAP_RDS_CAPTURE;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -645,6 +643,8 @@ static int __init cadet_init(void)
 	dev->vdev.ioctl_ops = &cadet_ioctl_ops;
 	dev->vdev.release = video_device_release_empty;
 	dev->vdev.lock = &dev->lock;
+	dev->vdev.device_caps = V4L2_CAP_TUNER | V4L2_CAP_RADIO |
+				V4L2_CAP_READWRITE | V4L2_CAP_RDS_CAPTURE;
 	video_set_drvdata(&dev->vdev, dev);
 
 	res = video_register_device(&dev->vdev, VFL_TYPE_RADIO, radio_nr);

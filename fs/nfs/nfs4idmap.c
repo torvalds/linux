@@ -69,7 +69,15 @@ struct idmap {
 	struct rpc_pipe		*idmap_pipe;
 	struct idmap_legacy_upcalldata *idmap_upcall_data;
 	struct mutex		idmap_mutex;
+	const struct cred	*cred;
 };
+
+static struct user_namespace *idmap_userns(const struct idmap *idmap)
+{
+	if (idmap && idmap->cred)
+		return idmap->cred->user_ns;
+	return &init_user_ns;
+}
 
 /**
  * nfs_fattr_init_names - initialise the nfs_fattr owner_name/group_name fields
@@ -271,18 +279,19 @@ static struct key *nfs_idmap_request_key(const char *name, size_t namelen,
 					 const char *type, struct idmap *idmap)
 {
 	char *desc;
-	struct key *rkey;
+	struct key *rkey = ERR_PTR(-EAGAIN);
 	ssize_t ret;
 
 	ret = nfs_idmap_get_desc(name, namelen, type, strlen(type), &desc);
 	if (ret < 0)
 		return ERR_PTR(ret);
 
-	rkey = request_key(&key_type_id_resolver, desc, "");
+	if (!idmap->cred || idmap->cred->user_ns == &init_user_ns)
+		rkey = request_key(&key_type_id_resolver, desc, "");
 	if (IS_ERR(rkey)) {
 		mutex_lock(&idmap->idmap_mutex);
 		rkey = request_key_with_auxdata(&key_type_id_resolver_legacy,
-						desc, "", 0, idmap);
+						desc, NULL, "", 0, idmap);
 		mutex_unlock(&idmap->idmap_mutex);
 	}
 	if (!IS_ERR(rkey))
@@ -452,6 +461,9 @@ nfs_idmap_new(struct nfs_client *clp)
 	if (idmap == NULL)
 		return -ENOMEM;
 
+	mutex_init(&idmap->idmap_mutex);
+	idmap->cred = get_cred(clp->cl_rpcclient->cl_cred);
+
 	rpc_init_pipe_dir_object(&idmap->idmap_pdo,
 			&nfs_idmap_pipe_dir_object_ops,
 			idmap);
@@ -462,7 +474,6 @@ nfs_idmap_new(struct nfs_client *clp)
 		goto err;
 	}
 	idmap->idmap_pipe = pipe;
-	mutex_init(&idmap->idmap_mutex);
 
 	error = rpc_add_pipe_dir_object(clp->cl_net,
 			&clp->cl_rpcclient->cl_pipedir_objects,
@@ -475,6 +486,7 @@ nfs_idmap_new(struct nfs_client *clp)
 err_destroy_pipe:
 	rpc_destroy_pipe_data(idmap->idmap_pipe);
 err:
+	put_cred(idmap->cred);
 	kfree(idmap);
 	return error;
 }
@@ -491,6 +503,7 @@ nfs_idmap_delete(struct nfs_client *clp)
 			&clp->cl_rpcclient->cl_pipedir_objects,
 			&idmap->idmap_pdo);
 	rpc_destroy_pipe_data(idmap->idmap_pipe);
+	put_cred(idmap->cred);
 	kfree(idmap);
 }
 
@@ -735,7 +748,7 @@ int nfs_map_name_to_uid(const struct nfs_server *server, const char *name, size_
 	if (!nfs_map_string_to_numeric(name, namelen, &id))
 		ret = nfs_idmap_lookup_id(name, namelen, "uid", &id, idmap);
 	if (ret == 0) {
-		*uid = make_kuid(&init_user_ns, id);
+		*uid = make_kuid(idmap_userns(idmap), id);
 		if (!uid_valid(*uid))
 			ret = -ERANGE;
 	}
@@ -752,7 +765,7 @@ int nfs_map_group_to_gid(const struct nfs_server *server, const char *name, size
 	if (!nfs_map_string_to_numeric(name, namelen, &id))
 		ret = nfs_idmap_lookup_id(name, namelen, "gid", &id, idmap);
 	if (ret == 0) {
-		*gid = make_kgid(&init_user_ns, id);
+		*gid = make_kgid(idmap_userns(idmap), id);
 		if (!gid_valid(*gid))
 			ret = -ERANGE;
 	}
@@ -766,7 +779,7 @@ int nfs_map_uid_to_name(const struct nfs_server *server, kuid_t uid, char *buf, 
 	int ret = -EINVAL;
 	__u32 id;
 
-	id = from_kuid(&init_user_ns, uid);
+	id = from_kuid_munged(idmap_userns(idmap), uid);
 	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
 		ret = nfs_idmap_lookup_name(id, "user", buf, buflen, idmap);
 	if (ret < 0)
@@ -780,7 +793,7 @@ int nfs_map_gid_to_group(const struct nfs_server *server, kgid_t gid, char *buf,
 	int ret = -EINVAL;
 	__u32 id;
 
-	id = from_kgid(&init_user_ns, gid);
+	id = from_kgid_munged(idmap_userns(idmap), gid);
 	if (!(server->caps & NFS_CAP_UIDGID_NOMAP))
 		ret = nfs_idmap_lookup_name(id, "group", buf, buflen, idmap);
 	if (ret < 0)

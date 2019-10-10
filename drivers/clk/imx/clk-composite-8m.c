@@ -3,9 +3,10 @@
  * Copyright 2018 NXP
  */
 
-#include <linux/errno.h>
-#include <linux/slab.h>
 #include <linux/clk-provider.h>
+#include <linux/errno.h>
+#include <linux/io.h>
+#include <linux/slab.h>
 
 #include "clk.h"
 
@@ -123,7 +124,7 @@ static const struct clk_ops imx8m_clk_composite_divider_ops = {
 };
 
 struct clk *imx8m_clk_composite_flags(const char *name,
-					const char **parent_names,
+					const char * const *parent_names,
 					int num_parents, void __iomem *reg,
 					unsigned long flags)
 {

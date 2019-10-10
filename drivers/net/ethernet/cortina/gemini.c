@@ -1182,9 +1182,8 @@ static int gmac_map_tx_bufs(struct net_device *netdev, struct sk_buff *skb,
 			buflen = skb_headlen(skb);
 		} else {
 			skb_frag = skb_si->frags + frag;
-			buffer = page_address(skb_frag_page(skb_frag)) +
-				 skb_frag->page_offset;
-			buflen = skb_frag->size;
+			buffer = skb_frag_address(skb_frag);
+			buflen = skb_frag_size(skb_frag);
 		}
 
 		if (frag == last_frag) {
@@ -1234,8 +1233,6 @@ static int gmac_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 	struct gmac_txq *txq;
 	int txq_num, nfrags;
 	union dma_rwptr rw;
-
-	SKB_FRAG_ASSERT(skb);
 
 	if (skb->len >= 0x10000)
 		goto out_drop_free;
@@ -2425,10 +2422,8 @@ static int gemini_ethernet_port_probe(struct platform_device *pdev)
 
 	/* Interrupt */
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0) {
-		dev_err(dev, "no IRQ\n");
+	if (irq <= 0)
 		return irq ? irq : -ENODEV;
-	}
 	port->irq = irq;
 
 	/* Clock the port */

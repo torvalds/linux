@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config LOOPBACK_TARGET
 	tristate "TCM Virtual SAS target and Linux/SCSI LDD fabric loopback module"
 	depends on SCSI

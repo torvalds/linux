@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IP Virtual Server configuration
 #
@@ -134,7 +135,7 @@ config	IP_VS_WRR
 	  module, choose M here. If unsure, say N.
 
 config	IP_VS_LC
-        tristate "least-connection scheduling"
+	tristate "least-connection scheduling"
 	---help---
 	  The least-connection scheduling algorithm directs network
 	  connections to the server with the least number of active 
@@ -144,7 +145,7 @@ config	IP_VS_LC
 	  module, choose M here. If unsure, say N.
 
 config	IP_VS_WLC
-        tristate "weighted least-connection scheduling"
+	tristate "weighted least-connection scheduling"
 	---help---
 	  The weighted least-connection scheduling algorithm directs network
 	  connections to the server with the least active connections
@@ -332,7 +333,7 @@ config	IP_VS_NFCT
 
 config	IP_VS_PE_SIP
 	tristate "SIP persistence engine"
-        depends on IP_VS_PROTO_UDP
+	depends on IP_VS_PROTO_UDP
 	depends on NF_CONNTRACK_SIP
 	---help---
 	  Allow persistence based on the SIP Call-ID

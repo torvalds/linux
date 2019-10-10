@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * This file contains the table of syscall-handling functions.
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
@@ -7,11 +8,6 @@
  *
  * Adapted for iSeries by Mike Corrigan (mikejc@us.ibm.com)
  * PPC64 updates by Dave Engebretsen (engebret@us.ibm.com) 
- * 
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <asm/ppc_asm.h>
@@ -25,11 +21,11 @@
 .globl sys_call_table
 sys_call_table:
 #ifdef CONFIG_PPC64
-#define __SYSCALL(nr, entry, nargs) .8byte DOTSYM(entry)
+#define __SYSCALL(nr, entry)	.8byte DOTSYM(entry)
 #include <asm/syscall_table_64.h>
 #undef __SYSCALL
 #else
-#define __SYSCALL(nr, entry, nargs) .long entry
+#define __SYSCALL(nr, entry)	.long entry
 #include <asm/syscall_table_32.h>
 #undef __SYSCALL
 #endif
@@ -38,7 +34,7 @@ sys_call_table:
 .globl compat_sys_call_table
 compat_sys_call_table:
 #define compat_sys_sigsuspend	sys_sigsuspend
-#define __SYSCALL(nr, entry, nargs) .8byte DOTSYM(entry)
+#define __SYSCALL(nr, entry)	.8byte DOTSYM(entry)
 #include <asm/syscall_table_c32.h>
 #undef __SYSCALL
 #endif

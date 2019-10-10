@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/ife.c	Inter-FE action based on ForCES WG InterFE LFB
  *
@@ -9,13 +10,7 @@
  *		Subsystem"
  *		Authors: Jamal Hadi Salim and Damascene M. Joachimpillai
  *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
- *
  * copyright Jamal Hadi Salim (2015)
- *
 */
 
 #include <linux/types.h>
@@ -29,6 +24,7 @@
 #include <net/net_namespace.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
+#include <net/pkt_cls.h>
 #include <uapi/linux/tc_act/tc_ife.h>
 #include <net/tc_act/tc_ife.h>
 #include <linux/etherdevice.h>
@@ -386,7 +382,7 @@ static int dump_metalist(struct sk_buff *skb, struct tcf_ife_info *ife)
 	if (list_empty(&ife->metalist))
 		return 0;
 
-	nest = nla_nest_start(skb, TCA_IFE_METALST);
+	nest = nla_nest_start_noflag(skb, TCA_IFE_METALST);
 	if (!nest)
 		goto out_nlmsg_trim;
 
@@ -469,11 +465,12 @@ static int populate_metalist(struct tcf_ife_info *ife, struct nlattr **tb,
 static int tcf_ife_init(struct net *net, struct nlattr *nla,
 			struct nlattr *est, struct tc_action **a,
 			int ovr, int bind, bool rtnl_held,
-			struct netlink_ext_ack *extack)
+			struct tcf_proto *tp, struct netlink_ext_ack *extack)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 	struct nlattr *tb[TCA_IFE_MAX + 1];
 	struct nlattr *tb2[IFE_META_MAX + 1];
+	struct tcf_chain *goto_ch = NULL;
 	struct tcf_ife_params *p;
 	struct tcf_ife_info *ife;
 	u16 ife_type = ETH_P_IFE;
@@ -482,9 +479,16 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	u8 *saddr = NULL;
 	bool exists = false;
 	int ret = 0;
+	u32 index;
 	int err;
 
-	err = nla_parse_nested(tb, TCA_IFE_MAX, nla, ife_policy, NULL);
+	if (!nla) {
+		NL_SET_ERR_MSG_MOD(extack, "IFE requires attributes to be passed");
+		return -EINVAL;
+	}
+
+	err = nla_parse_nested_deprecated(tb, TCA_IFE_MAX, nla, ife_policy,
+					  NULL);
 	if (err < 0)
 		return err;
 
@@ -504,7 +508,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	if (!p)
 		return -ENOMEM;
 
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0) {
 		kfree(p);
 		return err;
@@ -516,10 +521,10 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, est, a, &act_ife_ops,
+		ret = tcf_idr_create(tn, index, est, a, &act_ife_ops,
 				     bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			kfree(p);
 			return ret;
 		}
@@ -531,6 +536,10 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	}
 
 	ife = to_ife(*a);
+	err = tcf_action_check_ctrlact(parm->action, tp, &goto_ch, extack);
+	if (err < 0)
+		goto release_idr;
+
 	p->flags = parm->flags;
 
 	if (parm->flags & IFE_ENCODE) {
@@ -561,15 +570,11 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 		INIT_LIST_HEAD(&ife->metalist);
 
 	if (tb[TCA_IFE_METALST]) {
-		err = nla_parse_nested(tb2, IFE_META_MAX, tb[TCA_IFE_METALST],
-				       NULL, NULL);
-		if (err) {
-metadata_parse_err:
-			tcf_idr_release(*a, bind);
-			kfree(p);
-			return err;
-		}
-
+		err = nla_parse_nested_deprecated(tb2, IFE_META_MAX,
+						  tb[TCA_IFE_METALST], NULL,
+						  NULL);
+		if (err)
+			goto metadata_parse_err;
 		err = populate_metalist(ife, tb2, exists, rtnl_held);
 		if (err)
 			goto metadata_parse_err;
@@ -581,21 +586,20 @@ metadata_parse_err:
 		 * going to bail out
 		 */
 		err = use_all_metadata(ife, exists);
-		if (err) {
-			tcf_idr_release(*a, bind);
-			kfree(p);
-			return err;
-		}
+		if (err)
+			goto metadata_parse_err;
 	}
 
 	if (exists)
 		spin_lock_bh(&ife->tcf_lock);
-	ife->tcf_action = parm->action;
 	/* protected by tcf_lock when modifying existing action */
+	goto_ch = tcf_action_set_ctrlact(*a, parm->action, goto_ch);
 	rcu_swap_protected(ife->params, p, 1);
 
 	if (exists)
 		spin_unlock_bh(&ife->tcf_lock);
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
 	if (p)
 		kfree_rcu(p, rcu);
 
@@ -603,6 +607,13 @@ metadata_parse_err:
 		tcf_idr_insert(tn, *a);
 
 	return ret;
+metadata_parse_err:
+	if (goto_ch)
+		tcf_chain_put_by_act(goto_ch);
+release_idr:
+	kfree(p);
+	tcf_idr_release(*a, bind);
+	return err;
 }
 
 static int tcf_ife_dump(struct sk_buff *skb, struct tc_action *a, int bind,
@@ -879,7 +890,7 @@ static __net_init int ife_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 
-	return tc_action_net_init(tn, &act_ife_ops);
+	return tc_action_net_init(net, tn, &act_ife_ops);
 }
 
 static void __net_exit ife_exit_net(struct list_head *net_list)

@@ -11,17 +11,11 @@
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
 #include "xfs_mount.h"
-#include "xfs_defer.h"
 #include "xfs_inode.h"
 #include "xfs_bmap.h"
-#include "xfs_bmap_util.h"
 #include "xfs_bmap_btree.h"
-#include "xfs_alloc.h"
-#include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_trans_space.h"
-#include "xfs_trace.h"
-#include "xfs_buf.h"
 #include "xfs_icache.h"
 #include "xfs_rtalloc.h"
 
@@ -871,7 +865,7 @@ xfs_alloc_rsum_cache(
 	 * lower bound on the minimum level with any free extents. We can
 	 * continue without the cache if it couldn't be allocated.
 	 */
-	mp->m_rsum_cache = kmem_zalloc_large(rbmblocks, KM_SLEEP);
+	mp->m_rsum_cache = kmem_zalloc_large(rbmblocks, 0);
 	if (!mp->m_rsum_cache)
 		xfs_warn(mp, "could not allocate realtime summary cache");
 }
@@ -969,7 +963,7 @@ xfs_growfs_rt(
 	/*
 	 * Allocate a new (fake) mount/sb.
 	 */
-	nmp = kmem_alloc(sizeof(*nmp), KM_SLEEP);
+	nmp = kmem_alloc(sizeof(*nmp), 0);
 	/*
 	 * Loop over the bitmap blocks.
 	 * We will do everything one bitmap block at a time.

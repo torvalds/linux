@@ -10,11 +10,14 @@
 #include <linux/kernel.h>
 
 #include "vdso.h"
-#include "util.h"
+#include "dso.h"
+#include <internal/lib.h>
+#include "map.h"
 #include "symbol.h"
 #include "machine.h"
 #include "thread.h"
 #include "linux/string.h"
+#include <linux/zalloc.h>
 #include "debug.h"
 
 /*

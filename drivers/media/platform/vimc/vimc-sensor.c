@@ -1,23 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vimc-sensor.c Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/component.h>
-#include <linux/freezer.h>
-#include <linux/kthread.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
@@ -201,38 +189,20 @@ static const struct v4l2_subdev_pad_ops vimc_sen_pad_ops = {
 	.set_fmt		= vimc_sen_set_fmt,
 };
 
-static int vimc_sen_tpg_thread(void *data)
+static void *vimc_sen_process_frame(struct vimc_ent_device *ved,
+				    const void *sink_frame)
 {
-	struct vimc_sen_device *vsen = data;
-	unsigned int i;
+	struct vimc_sen_device *vsen = container_of(ved, struct vimc_sen_device,
+						    ved);
 
-	set_freezable();
-	set_current_state(TASK_UNINTERRUPTIBLE);
-
-	for (;;) {
-		try_to_freeze();
-		if (kthread_should_stop())
-			break;
-
-		tpg_fill_plane_buffer(&vsen->tpg, 0, 0, vsen->frame);
-
-		/* Send the frame to all source pads */
-		for (i = 0; i < vsen->sd.entity.num_pads; i++)
-			vimc_propagate_frame(&vsen->sd.entity.pads[i],
-					     vsen->frame);
-
-		/* 60 frames per second */
-		schedule_timeout(HZ/60);
-	}
-
-	return 0;
+	tpg_fill_plane_buffer(&vsen->tpg, 0, 0, vsen->frame);
+	return vsen->frame;
 }
 
 static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct vimc_sen_device *vsen =
 				container_of(sd, struct vimc_sen_device, sd);
-	int ret;
 
 	if (enable) {
 		const struct vimc_pix_map *vpix;
@@ -258,29 +228,10 @@ static int vimc_sen_s_stream(struct v4l2_subdev *sd, int enable)
 		/* configure the test pattern generator */
 		vimc_sen_tpg_s_format(vsen);
 
-		/* Initialize the image generator thread */
-		vsen->kthread_sen = kthread_run(vimc_sen_tpg_thread, vsen,
-					"%s-sen", vsen->sd.v4l2_dev->name);
-		if (IS_ERR(vsen->kthread_sen)) {
-			dev_err(vsen->dev, "%s: kernel_thread() failed\n",
-				vsen->sd.name);
-			vfree(vsen->frame);
-			vsen->frame = NULL;
-			return PTR_ERR(vsen->kthread_sen);
-		}
 	} else {
-		if (!vsen->kthread_sen)
-			return 0;
 
-		/* Stop image generator */
-		ret = kthread_stop(vsen->kthread_sen);
-		if (ret)
-			return ret;
-
-		vsen->kthread_sen = NULL;
 		vfree(vsen->frame);
 		vsen->frame = NULL;
-		return 0;
 	}
 
 	return 0;
@@ -339,6 +290,20 @@ static const struct v4l2_ctrl_ops vimc_sen_ctrl_ops = {
 	.s_ctrl = vimc_sen_s_ctrl,
 };
 
+static void vimc_sen_release(struct v4l2_subdev *sd)
+{
+	struct vimc_sen_device *vsen =
+				container_of(sd, struct vimc_sen_device, sd);
+
+	v4l2_ctrl_handler_free(&vsen->hdl);
+	tpg_free(&vsen->tpg);
+	kfree(vsen);
+}
+
+static const struct v4l2_subdev_internal_ops vimc_sen_int_ops = {
+	.release = vimc_sen_release,
+};
+
 static void vimc_sen_comp_unbind(struct device *comp, struct device *master,
 				 void *master_data)
 {
@@ -347,9 +312,6 @@ static void vimc_sen_comp_unbind(struct device *comp, struct device *master,
 				container_of(ved, struct vimc_sen_device, ved);
 
 	vimc_ent_sd_unregister(ved, &vsen->sd);
-	v4l2_ctrl_handler_free(&vsen->hdl);
-	tpg_free(&vsen->tpg);
-	kfree(vsen);
 }
 
 /* Image Processing Controls */
@@ -409,10 +371,11 @@ static int vimc_sen_comp_bind(struct device *comp, struct device *master,
 				   pdata->entity_name,
 				   MEDIA_ENT_F_CAM_SENSOR, 1,
 				   (const unsigned long[1]) {MEDIA_PAD_FL_SOURCE},
-				   &vimc_sen_ops);
+				   &vimc_sen_int_ops, &vimc_sen_ops);
 	if (ret)
 		goto err_free_hdl;
 
+	vsen->ved.process_frame = vimc_sen_process_frame;
 	dev_set_drvdata(comp, &vsen->ved);
 	vsen->dev = comp;
 

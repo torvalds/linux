@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2010 Cisco Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 /* XXX TBD some includes may be extraneous */
@@ -182,13 +170,6 @@ int ft_queue_status(struct se_cmd *se_cmd)
 	 */
 	target_put_sess_cmd(&cmd->se_cmd);
 	return 0;
-}
-
-int ft_write_pending_status(struct se_cmd *se_cmd)
-{
-	struct ft_cmd *cmd = container_of(se_cmd, struct ft_cmd, se_cmd);
-
-	return cmd->write_data_len != se_cmd->data_length;
 }
 
 /*

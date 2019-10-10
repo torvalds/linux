@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2008 Red Hat, Inc., Eric Paris <eparis@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/dcache.h>
@@ -179,10 +166,10 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 		take_dentry_name_snapshot(&name, dentry);
 		if (path)
 			ret = fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
-				       name.name, 0);
+				       &name.name, 0);
 		else
 			ret = fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
-				       name.name, 0);
+				       &name.name, 0);
 		release_dentry_name_snapshot(&name);
 	}
 
@@ -195,7 +182,7 @@ EXPORT_SYMBOL_GPL(__fsnotify_parent);
 static int send_to_group(struct inode *to_tell,
 			 __u32 mask, const void *data,
 			 int data_is, u32 cookie,
-			 const unsigned char *file_name,
+			 const struct qstr *file_name,
 			 struct fsnotify_iter_info *iter_info)
 {
 	struct fsnotify_group *group = NULL;
@@ -325,19 +312,18 @@ static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
  * notification event in whatever means they feel necessary.
  */
 int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-	     const unsigned char *file_name, u32 cookie)
+	     const struct qstr *file_name, u32 cookie)
 {
 	struct fsnotify_iter_info iter_info = {};
-	struct super_block *sb = NULL;
+	struct super_block *sb = to_tell->i_sb;
 	struct mount *mnt = NULL;
-	__u32 mnt_or_sb_mask = 0;
+	__u32 mnt_or_sb_mask = sb->s_fsnotify_mask;
 	int ret = 0;
 	__u32 test_mask = (mask & ALL_FSNOTIFY_EVENTS);
 
 	if (data_is == FSNOTIFY_EVENT_PATH) {
 		mnt = real_mount(((const struct path *)data)->mnt);
-		sb = mnt->mnt.mnt_sb;
-		mnt_or_sb_mask = mnt->mnt_fsnotify_mask | sb->s_fsnotify_mask;
+		mnt_or_sb_mask |= mnt->mnt_fsnotify_mask;
 	}
 	/* An event "on child" is not intended for a mount/sb mark */
 	if (mask & FS_EVENT_ON_CHILD)
@@ -350,8 +336,8 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	 * SRCU because we have no references to any objects and do not
 	 * need SRCU to keep them "alive".
 	 */
-	if (!to_tell->i_fsnotify_marks &&
-	    (!mnt || (!mnt->mnt_fsnotify_marks && !sb->s_fsnotify_marks)))
+	if (!to_tell->i_fsnotify_marks && !sb->s_fsnotify_marks &&
+	    (!mnt || !mnt->mnt_fsnotify_marks))
 		return 0;
 	/*
 	 * if this is a modify event we may need to clear the ignored masks
@@ -366,11 +352,11 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 
 	iter_info.marks[FSNOTIFY_OBJ_TYPE_INODE] =
 		fsnotify_first_mark(&to_tell->i_fsnotify_marks);
+	iter_info.marks[FSNOTIFY_OBJ_TYPE_SB] =
+		fsnotify_first_mark(&sb->s_fsnotify_marks);
 	if (mnt) {
 		iter_info.marks[FSNOTIFY_OBJ_TYPE_VFSMOUNT] =
 			fsnotify_first_mark(&mnt->mnt_fsnotify_marks);
-		iter_info.marks[FSNOTIFY_OBJ_TYPE_SB] =
-			fsnotify_first_mark(&sb->s_fsnotify_marks);
 	}
 
 	/*

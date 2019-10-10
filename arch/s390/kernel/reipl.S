@@ -73,6 +73,7 @@ ENTRY(store_status)
 	lgr	%r9,%r2
 	lgr	%r2,%r3
 	BR_EX	%r9
+ENDPROC(store_status)
 
 	.section .bss
 	.align	8

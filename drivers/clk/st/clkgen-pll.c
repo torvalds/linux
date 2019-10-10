@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2014 STMicroelectronics (R&D) Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 /*
@@ -65,19 +60,6 @@ struct clkgen_pll_data {
 static const struct clk_ops stm_pll3200c32_ops;
 static const struct clk_ops stm_pll3200c32_a9_ops;
 static const struct clk_ops stm_pll4600c28_ops;
-
-static const struct clkgen_pll_data st_pll3200c32_407_a0 = {
-	/* 407 A0 */
-	.pdn_status	= CLKGEN_FIELD(0x2a0,	0x1,			8),
-	.pdn_ctrl	= CLKGEN_FIELD(0x2a0,	0x1,			8),
-	.locked_status	= CLKGEN_FIELD(0x2a0,	0x1,			24),
-	.ndiv		= CLKGEN_FIELD(0x2a4,	C32_NDIV_MASK,		16),
-	.idf		= CLKGEN_FIELD(0x2a4,	C32_IDF_MASK,		0x0),
-	.num_odfs = 1,
-	.odf		= { CLKGEN_FIELD(0x2b4, C32_ODF_MASK,		0) },
-	.odf_gate	= { CLKGEN_FIELD(0x2b4,	0x1,			6) },
-	.ops		= &stm_pll3200c32_ops,
-};
 
 static const struct clkgen_pll_data st_pll3200c32_cx_0 = {
 	/* 407 C0 PLL0 */

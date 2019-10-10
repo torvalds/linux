@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>
@@ -404,8 +396,12 @@ static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
 
 	ret = devm_regulator_bulk_get(dev, num, s);
 	if (ret < 0) {
-		DRM_DEV_ERROR(dev, "%s: failed to init regulator, ret=%d\n",
-						__func__, ret);
+		if (ret != -EPROBE_DEFER) {
+			DRM_DEV_ERROR(dev,
+				      "%s: failed to init regulator, ret=%d\n",
+				      __func__, ret);
+		}
+
 		return ret;
 	}
 
@@ -507,6 +503,8 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 #ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
 	{ .compatible = "qcom,dsi-phy-10nm",
 	  .data = &dsi_phy_10nm_cfgs },
+	{ .compatible = "qcom,dsi-phy-10nm-8998",
+	  .data = &dsi_phy_10nm_8998_cfgs },
 #endif
 	{}
 };
@@ -590,10 +588,8 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	}
 
 	ret = dsi_phy_regulator_init(phy);
-	if (ret) {
-		DRM_DEV_ERROR(dev, "%s: failed to init regulator\n", __func__);
+	if (ret)
 		goto fail;
-	}
 
 	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk)) {
@@ -616,10 +612,12 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
-	if (IS_ERR_OR_NULL(phy->pll))
+	if (IS_ERR_OR_NULL(phy->pll)) {
 		DRM_DEV_INFO(dev,
 			"%s: pll init failed: %ld, need separate pll clk driver\n",
 			__func__, PTR_ERR(phy->pll));
+		phy->pll = NULL;
+	}
 
 	dsi_phy_disable_resource(phy);
 

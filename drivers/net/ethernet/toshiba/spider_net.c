@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Network device driver for Cell Processor-Based Blade and Celleb platform
  *
@@ -6,20 +7,6 @@
  *
  * Authors : Utz Bacher <utz.bacher@de.ibm.com>
  *           Jens Osterkamp <Jens.Osterkamp@de.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/compiler.h>
@@ -801,6 +788,7 @@ spider_net_release_tx_chain(struct spider_net_card *card, int brutal)
 			/* fallthrough, if we release the descriptors
 			 * brutally (then we don't care about
 			 * SPIDER_NET_DESCR_CARDOWNED) */
+			/* Fall through */
 
 		case SPIDER_NET_DESCR_RESPONSE_ERROR:
 		case SPIDER_NET_DESCR_PROTECTION_ERROR:
@@ -2323,11 +2311,9 @@ spider_net_alloc_card(void)
 {
 	struct net_device *netdev;
 	struct spider_net_card *card;
-	size_t alloc_size;
 
-	alloc_size = sizeof(struct spider_net_card) +
-	   (tx_descriptors + rx_descriptors) * sizeof(struct spider_net_descr);
-	netdev = alloc_etherdev(alloc_size);
+	netdev = alloc_etherdev(struct_size(card, darray,
+					    tx_descriptors + rx_descriptors));
 	if (!netdev)
 		return NULL;
 

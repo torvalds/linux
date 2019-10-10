@@ -172,9 +172,10 @@ static void svc_rdma_recv_ctxt_destroy(struct svcxprt_rdma *rdma,
 void svc_rdma_recv_ctxts_destroy(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_recv_ctxt *ctxt;
+	struct llist_node *node;
 
-	while ((ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_recv_ctxts))) {
-		list_del(&ctxt->rc_list);
+	while ((node = llist_del_first(&rdma->sc_recv_ctxts))) {
+		ctxt = llist_entry(node, struct svc_rdma_recv_ctxt, rc_node);
 		svc_rdma_recv_ctxt_destroy(rdma, ctxt);
 	}
 }
@@ -183,21 +184,18 @@ static struct svc_rdma_recv_ctxt *
 svc_rdma_recv_ctxt_get(struct svcxprt_rdma *rdma)
 {
 	struct svc_rdma_recv_ctxt *ctxt;
+	struct llist_node *node;
 
-	spin_lock(&rdma->sc_recv_lock);
-	ctxt = svc_rdma_next_recv_ctxt(&rdma->sc_recv_ctxts);
-	if (!ctxt)
+	node = llist_del_first(&rdma->sc_recv_ctxts);
+	if (!node)
 		goto out_empty;
-	list_del(&ctxt->rc_list);
-	spin_unlock(&rdma->sc_recv_lock);
+	ctxt = llist_entry(node, struct svc_rdma_recv_ctxt, rc_node);
 
 out:
 	ctxt->rc_page_count = 0;
 	return ctxt;
 
 out_empty:
-	spin_unlock(&rdma->sc_recv_lock);
-
 	ctxt = svc_rdma_recv_ctxt_alloc(rdma);
 	if (!ctxt)
 		return NULL;
@@ -218,11 +216,9 @@ void svc_rdma_recv_ctxt_put(struct svcxprt_rdma *rdma,
 	for (i = 0; i < ctxt->rc_page_count; i++)
 		put_page(ctxt->rc_pages[i]);
 
-	if (!ctxt->rc_temp) {
-		spin_lock(&rdma->sc_recv_lock);
-		list_add(&ctxt->rc_list, &rdma->sc_recv_ctxts);
-		spin_unlock(&rdma->sc_recv_lock);
-	} else
+	if (!ctxt->rc_temp)
+		llist_add(&ctxt->rc_node, &rdma->sc_recv_ctxts);
+	else
 		svc_rdma_recv_ctxt_destroy(rdma, ctxt);
 }
 
@@ -272,11 +268,8 @@ bool svc_rdma_post_recvs(struct svcxprt_rdma *rdma)
 			return false;
 		ctxt->rc_temp = true;
 		ret = __svc_rdma_post_recv(rdma, ctxt);
-		if (ret) {
-			pr_err("svcrdma: failure posting recv buffers: %d\n",
-			       ret);
+		if (ret)
 			return false;
-		}
 	}
 	return true;
 }
@@ -314,17 +307,14 @@ static void svc_rdma_wc_receive(struct ib_cq *cq, struct ib_wc *wc)
 
 	spin_lock(&rdma->sc_rq_dto_lock);
 	list_add_tail(&ctxt->rc_list, &rdma->sc_rq_dto_q);
-	spin_unlock(&rdma->sc_rq_dto_lock);
+	/* Note the unlock pairs with the smp_rmb in svc_xprt_ready: */
 	set_bit(XPT_DATA, &rdma->sc_xprt.xpt_flags);
+	spin_unlock(&rdma->sc_rq_dto_lock);
 	if (!test_bit(RDMAXPRT_CONN_PENDING, &rdma->sc_flags))
 		svc_xprt_enqueue(&rdma->sc_xprt);
 	goto out;
 
 flushed:
-	if (wc->status != IB_WC_WR_FLUSH_ERR)
-		pr_err("svcrdma: Recv: %s (%u/0x%x)\n",
-		       ib_wc_status_msg(wc->status),
-		       wc->status, wc->vendor_err);
 post_err:
 	svc_rdma_recv_ctxt_put(rdma, ctxt);
 	set_bit(XPT_CLOSE, &rdma->sc_xprt.xpt_flags);

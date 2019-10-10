@@ -680,7 +680,7 @@ static void mlx5e_dcbnl_getpermhwaddr(struct net_device *netdev,
 
 	memset(perm_addr, 0xff, MAX_ADDR_LEN);
 
-	mlx5_query_nic_vport_mac_address(priv->mdev, 0, perm_addr);
+	mlx5_query_mac_address(priv->mdev, perm_addr);
 }
 
 static void mlx5e_dcbnl_setpgtccfgtx(struct net_device *netdev,
@@ -1101,7 +1101,7 @@ void mlx5e_dcbnl_delete_app(struct mlx5e_priv *priv)
 static void mlx5e_trust_update_tx_min_inline_mode(struct mlx5e_priv *priv,
 						  struct mlx5e_params *params)
 {
-	params->tx_min_inline_mode = mlx5e_params_calculate_tx_min_inline(priv->mdev);
+	mlx5_query_min_inline(priv->mdev, &params->tx_min_inline_mode);
 	if (priv->dcbx_dp.trust_state == MLX5_QPTS_TRUST_DSCP &&
 	    params->tx_min_inline_mode == MLX5_INLINE_MODE_L2)
 		params->tx_min_inline_mode = MLX5_INLINE_MODE_IP;

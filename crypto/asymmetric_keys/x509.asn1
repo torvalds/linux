@@ -22,7 +22,7 @@ CertificateSerialNumber ::= INTEGER
 
 AlgorithmIdentifier ::= SEQUENCE {
 	algorithm		OBJECT IDENTIFIER ({ x509_note_OID }),
-	parameters		ANY OPTIONAL
+	parameters		ANY OPTIONAL ({ x509_note_params })
 }
 
 Name ::= SEQUENCE OF RelativeDistinguishedName

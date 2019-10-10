@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* mac_esp.c: ESP front-end for Macintosh Quadra systems.
  *
  * Adapted from jazz_esp.c and the old mac_esp.c.

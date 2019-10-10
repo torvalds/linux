@@ -305,8 +305,8 @@ static void mlx5_do_bond(struct mlx5_lag *ldev)
 			   !mlx5_sriov_is_enabled(dev1);
 
 #ifdef CONFIG_MLX5_ESWITCH
-		roce_lag &= dev0->priv.eswitch->mode == SRIOV_NONE &&
-			    dev1->priv.eswitch->mode == SRIOV_NONE;
+		roce_lag &= dev0->priv.eswitch->mode == MLX5_ESWITCH_NONE &&
+			    dev1->priv.eswitch->mode == MLX5_ESWITCH_NONE;
 #endif
 
 		if (roce_lag)
@@ -593,27 +593,6 @@ void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev)
 	if (err)
 		mlx5_core_err(dev, "Failed to init multipath lag err=%d\n",
 			      err);
-}
-
-int mlx5_lag_get_pf_num(struct mlx5_core_dev *dev, int *pf_num)
-{
-	struct mlx5_lag *ldev;
-	int n;
-
-	ldev = mlx5_lag_dev_get(dev);
-	if (!ldev) {
-		mlx5_core_warn(dev, "no lag device, can't get pf num\n");
-		return -EINVAL;
-	}
-
-	for (n = 0; n < MLX5_MAX_PORTS; n++)
-		if (ldev->pf[n].dev == dev) {
-			*pf_num = n;
-			return 0;
-		}
-
-	mlx5_core_warn(dev, "wasn't able to locate pf in the lag device\n");
-	return -EINVAL;
 }
 
 /* Must be called with intf_mutex held */

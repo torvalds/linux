@@ -233,6 +233,10 @@
 #define MT_WF_DMA(ofs)			(MT_WF_DMA_BASE + (ofs))
 
 #define MT_DMA_DCR0			MT_WF_DMA(0x000)
+#define MT_DMA_DCR0_MAX_RX_LEN		GENMASK(15, 0)
+#define MT_DMA_DCR0_DAMSDU		BIT(16)
+#define MT_DMA_DCR0_RX_VEC_DROP		BIT(17)
+
 #define MT_DMA_DCR1			MT_WF_DMA(0x004)
 
 #define MT_DMA_FQCR0			MT_WF_DMA(0x008)
@@ -475,6 +479,12 @@ enum {
 
 #define MT_LPON_BASE			0x24000
 #define MT_LPON(n)			(MT_LPON_BASE + (n))
+
+#define MT_LPON_T0CR			MT_LPON(0x010)
+#define MT_LPON_T0CR_MODE		GENMASK(1, 0)
+
+#define MT_LPON_UTTR0			MT_LPON(0x018)
+#define MT_LPON_UTTR1			MT_LPON(0x01c)
 
 #define MT_LPON_BTEIR			MT_LPON(0x020)
 #define MT_LPON_BTEIR_MBSS_MODE		GENMASK(31, 29)

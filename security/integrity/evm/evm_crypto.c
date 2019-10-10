@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2010 IBM Corporation
  *
  * Authors:
  * Mimi Zohar <zohar@us.ibm.com>
  * Kylene Hall <kjhall@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
  *
  * File: evm_crypto.c
  *	 Using root's kernel master key (kmk), calculate the HMAC
@@ -89,6 +86,9 @@ static struct shash_desc *init_desc(char type, uint8_t hash_algo)
 		tfm = &hmac_tfm;
 		algo = evm_hmac;
 	} else {
+		if (hash_algo >= HASH_ALGO__LAST)
+			return ERR_PTR(-EINVAL);
+
 		tfm = &evm_tfm[hash_algo];
 		algo = hash_algo_name[hash_algo];
 	}
@@ -124,7 +124,6 @@ out:
 		return ERR_PTR(-ENOMEM);
 
 	desc->tfm = *tfm;
-	desc->flags = CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	rc = crypto_shash_init(desc);
 	if (rc) {
@@ -173,8 +172,7 @@ static void hmac_add_misc(struct shash_desc *desc, struct inode *inode,
 	crypto_shash_update(desc, (const u8 *)&hmac_misc, sizeof(hmac_misc));
 	if ((evm_hmac_attrs & EVM_ATTR_FSUUID) &&
 	    type != EVM_XATTR_PORTABLE_DIGSIG)
-		crypto_shash_update(desc, &inode->i_sb->s_uuid.b[0],
-				    sizeof(inode->i_sb->s_uuid));
+		crypto_shash_update(desc, (u8 *)&inode->i_sb->s_uuid, UUID_SIZE);
 	crypto_shash_final(desc, digest);
 }
 

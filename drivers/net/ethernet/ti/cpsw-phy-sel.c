@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Texas Instruments Ethernet Switch Driver
  *
  * Copyright (C) 2013 Texas Instruments
  *
  * Module Author: Mugunthan V N <mugunthanvnm@ti.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>
@@ -158,9 +151,9 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 }
 
 static struct platform_driver cpsw_phy_sel_driver;
-static int match(struct device *dev, void *data)
+static int match(struct device *dev, const void *data)
 {
-	struct device_node *node = (struct device_node *)data;
+	const struct device_node *node = (const struct device_node *)data;
 	return dev->of_node == node &&
 		dev->driver == &cpsw_phy_sel_driver.driver;
 }

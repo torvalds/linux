@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * gpio-fan.c - Hwmon driver for fans connected to GPIO lines.
  *
  * Copyright (C) 2010 LaCie
  *
  * Author: Simon Guinot <sguinot@lacie.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/module.h>
@@ -67,8 +54,8 @@ static void fan_alarm_notify(struct work_struct *ws)
 	struct gpio_fan_data *fan_data =
 		container_of(ws, struct gpio_fan_data, alarm_work);
 
-	sysfs_notify(&fan_data->dev->kobj, NULL, "fan1_alarm");
-	kobject_uevent(&fan_data->dev->kobj, KOBJ_CHANGE);
+	sysfs_notify(&fan_data->hwmon_dev->kobj, NULL, "fan1_alarm");
+	kobject_uevent(&fan_data->hwmon_dev->kobj, KOBJ_CHANGE);
 }
 
 static irqreturn_t fan_alarm_irq_handler(int irq, void *dev_id)
@@ -498,6 +485,11 @@ static const struct of_device_id of_gpio_fan_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_gpio_fan_match);
 
+static void gpio_fan_stop(void *data)
+{
+	set_fan_speed(data, 0);
+}
+
 static int gpio_fan_probe(struct platform_device *pdev)
 {
 	int err;
@@ -518,18 +510,14 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, fan_data);
 	mutex_init(&fan_data->lock);
 
-	/* Configure alarm GPIO if available. */
-	if (fan_data->alarm_gpio) {
-		err = fan_alarm_init(fan_data);
-		if (err)
-			return err;
-	}
-
 	/* Configure control GPIOs if available. */
 	if (fan_data->gpios && fan_data->num_gpios > 0) {
 		if (!fan_data->speed || fan_data->num_speed <= 1)
 			return -EINVAL;
 		err = fan_ctrl_init(fan_data);
+		if (err)
+			return err;
+		err = devm_add_action_or_reset(dev, gpio_fan_stop, fan_data);
 		if (err)
 			return err;
 	}
@@ -542,33 +530,28 @@ static int gpio_fan_probe(struct platform_device *pdev)
 	if (IS_ERR(fan_data->hwmon_dev))
 		return PTR_ERR(fan_data->hwmon_dev);
 
+	/* Configure alarm GPIO if available. */
+	if (fan_data->alarm_gpio) {
+		err = fan_alarm_init(fan_data);
+		if (err)
+			return err;
+	}
+
 	/* Optional cooling device register for Device tree platforms */
-	fan_data->cdev = thermal_of_cooling_device_register(np,
-							    "gpio-fan",
-							    fan_data,
-							    &gpio_fan_cool_ops);
+	fan_data->cdev = devm_thermal_of_cooling_device_register(dev, np,
+				"gpio-fan", fan_data, &gpio_fan_cool_ops);
 
 	dev_info(dev, "GPIO fan initialized\n");
 
 	return 0;
 }
 
-static int gpio_fan_remove(struct platform_device *pdev)
+static void gpio_fan_shutdown(struct platform_device *pdev)
 {
 	struct gpio_fan_data *fan_data = platform_get_drvdata(pdev);
 
-	if (!IS_ERR(fan_data->cdev))
-		thermal_cooling_device_unregister(fan_data->cdev);
-
 	if (fan_data->gpios)
 		set_fan_speed(fan_data, 0);
-
-	return 0;
-}
-
-static void gpio_fan_shutdown(struct platform_device *pdev)
-{
-	gpio_fan_remove(pdev);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -602,7 +585,6 @@ static SIMPLE_DEV_PM_OPS(gpio_fan_pm, gpio_fan_suspend, gpio_fan_resume);
 
 static struct platform_driver gpio_fan_driver = {
 	.probe		= gpio_fan_probe,
-	.remove		= gpio_fan_remove,
 	.shutdown	= gpio_fan_shutdown,
 	.driver	= {
 		.name	= "gpio-fan",

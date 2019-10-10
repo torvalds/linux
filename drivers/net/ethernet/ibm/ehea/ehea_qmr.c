@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  linux/drivers/net/ethernet/ibm/ehea/ehea_qmr.c
  *
@@ -9,21 +10,6 @@
  *       Christoph Raisch <raisch@de.ibm.com>
  *       Jan-Bernd Themann <themann@de.ibm.com>
  *       Thomas Klein <tklein@de.ibm.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -123,8 +109,7 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 			       int nr_of_cqe, u64 eq_handle, u32 cq_token)
 {
 	struct ehea_cq *cq;
-	struct h_epa epa;
-	u64 *cq_handle_ref, hret, rpage;
+	u64 hret, rpage;
 	u32 counter;
 	int ret;
 	void *vpage;
@@ -138,8 +123,6 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	cq->attr.eq_handle = eq_handle;
 
 	cq->adapter = adapter;
-
-	cq_handle_ref = &cq->fw_handle;
 
 	hret = ehea_h_alloc_resource_cq(adapter->handle, &cq->attr,
 					&cq->fw_handle, &cq->epas);
@@ -188,7 +171,6 @@ struct ehea_cq *ehea_create_cq(struct ehea_adapter *adapter,
 	}
 
 	hw_qeit_reset(&cq->hw_queue);
-	epa = cq->epas.kernel;
 	ehea_reset_cq_ep(cq);
 	ehea_reset_cq_n1(cq);
 

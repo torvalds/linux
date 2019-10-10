@@ -31,7 +31,7 @@
 #include "cifs_fs_sb.h"
 #include "cifs_unicode.h"
 
-#define MAX_EA_VALUE_SIZE 65535
+#define MAX_EA_VALUE_SIZE CIFSMaxBufSize
 #define CIFS_XATTR_CIFS_ACL "system.cifs_acl"
 #define CIFS_XATTR_ATTRIB "cifs.dosattrib"  /* full name: user.cifs.dosattrib */
 #define CIFS_XATTR_CREATETIME "cifs.creationtime"  /* user.cifs.creationtime */
@@ -96,7 +96,6 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 		break;
 
 	case XATTR_CIFS_ACL: {
-#ifdef CONFIG_CIFS_ACL
 		struct cifs_ntsd *pacl;
 
 		if (!value)
@@ -117,7 +116,6 @@ static int cifs_xattr_set(const struct xattr_handler *handler,
 				CIFS_I(inode)->time = 0;
 			kfree(pacl);
 		}
-#endif /* CONFIG_CIFS_ACL */
 		break;
 	}
 
@@ -247,7 +245,6 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 		break;
 
 	case XATTR_CIFS_ACL: {
-#ifdef CONFIG_CIFS_ACL
 		u32 acllen;
 		struct cifs_ntsd *pacl;
 
@@ -270,7 +267,6 @@ static int cifs_xattr_get(const struct xattr_handler *handler,
 			rc = acllen;
 			kfree(pacl);
 		}
-#endif  /* CONFIG_CIFS_ACL */
 		break;
 	}
 

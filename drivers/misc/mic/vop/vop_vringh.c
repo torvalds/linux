@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2016 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel Virtio Over PCIe (VOP) driver.
- *
  */
 #include <linux/sched.h>
 #include <linux/poll.h>
@@ -80,7 +68,7 @@ static void vop_virtio_init_post(struct vop_vdev *vdev)
 			continue;
 		}
 		vdev->vvr[i].vrh.vring.used =
-			(void __force *)vpdev->hw_ops->ioremap(
+			(void __force *)vpdev->hw_ops->remap(
 			vpdev,
 			le64_to_cpu(vqconfig[i].used_address),
 			used_size);
@@ -528,15 +516,15 @@ static int vop_virtio_copy_to_user(struct vop_vdev *vdev, void __user *ubuf,
 				   int vr_idx)
 {
 	struct vop_device *vpdev = vdev->vpdev;
-	void __iomem *dbuf = vpdev->hw_ops->ioremap(vpdev, daddr, len);
+	void __iomem *dbuf = vpdev->hw_ops->remap(vpdev, daddr, len);
 	struct vop_vringh *vvr = &vdev->vvr[vr_idx];
 	struct vop_info *vi = dev_get_drvdata(&vpdev->dev);
-	size_t dma_alignment = 1 << vi->dma_ch->device->copy_align;
-	bool x200 = is_dma_copy_aligned(vi->dma_ch->device, 1, 1, 1);
+	size_t dma_alignment;
+	bool x200;
 	size_t dma_offset, partlen;
 	int err;
 
-	if (!VOP_USE_DMA) {
+	if (!VOP_USE_DMA || !vi->dma_ch) {
 		if (copy_to_user(ubuf, (void __force *)dbuf, len)) {
 			err = -EFAULT;
 			dev_err(vop_dev(vdev), "%s %d err %d\n",
@@ -547,6 +535,9 @@ static int vop_virtio_copy_to_user(struct vop_vdev *vdev, void __user *ubuf,
 		err = 0;
 		goto err;
 	}
+
+	dma_alignment = 1 << vi->dma_ch->device->copy_align;
+	x200 = is_dma_copy_aligned(vi->dma_ch->device, 1, 1, 1);
 
 	dma_offset = daddr - round_down(daddr, dma_alignment);
 	daddr -= dma_offset;
@@ -585,9 +576,9 @@ static int vop_virtio_copy_to_user(struct vop_vdev *vdev, void __user *ubuf,
 	}
 	err = 0;
 err:
-	vpdev->hw_ops->iounmap(vpdev, dbuf);
+	vpdev->hw_ops->unmap(vpdev, dbuf);
 	dev_dbg(vop_dev(vdev),
-		"%s: ubuf %p dbuf %p len 0x%lx vr_idx 0x%x\n",
+		"%s: ubuf %p dbuf %p len 0x%zx vr_idx 0x%x\n",
 		__func__, ubuf, dbuf, len, vr_idx);
 	return err;
 }
@@ -603,21 +594,26 @@ static int vop_virtio_copy_from_user(struct vop_vdev *vdev, void __user *ubuf,
 				     int vr_idx)
 {
 	struct vop_device *vpdev = vdev->vpdev;
-	void __iomem *dbuf = vpdev->hw_ops->ioremap(vpdev, daddr, len);
+	void __iomem *dbuf = vpdev->hw_ops->remap(vpdev, daddr, len);
 	struct vop_vringh *vvr = &vdev->vvr[vr_idx];
 	struct vop_info *vi = dev_get_drvdata(&vdev->vpdev->dev);
-	size_t dma_alignment = 1 << vi->dma_ch->device->copy_align;
-	bool x200 = is_dma_copy_aligned(vi->dma_ch->device, 1, 1, 1);
+	size_t dma_alignment;
+	bool x200;
 	size_t partlen;
-	bool dma = VOP_USE_DMA;
+	bool dma = VOP_USE_DMA && vi->dma_ch;
 	int err = 0;
 
-	if (daddr & (dma_alignment - 1)) {
-		vdev->tx_dst_unaligned += len;
-		dma = false;
-	} else if (ALIGN(len, dma_alignment) > dlen) {
-		vdev->tx_len_unaligned += len;
-		dma = false;
+	if (dma) {
+		dma_alignment = 1 << vi->dma_ch->device->copy_align;
+		x200 = is_dma_copy_aligned(vi->dma_ch->device, 1, 1, 1);
+
+		if (daddr & (dma_alignment - 1)) {
+			vdev->tx_dst_unaligned += len;
+			dma = false;
+		} else if (ALIGN(len, dma_alignment) > dlen) {
+			vdev->tx_len_unaligned += len;
+			dma = false;
+		}
 	}
 
 	if (!dma)
@@ -668,9 +664,9 @@ memcpy:
 	vdev->out_bytes += len;
 	err = 0;
 err:
-	vpdev->hw_ops->iounmap(vpdev, dbuf);
+	vpdev->hw_ops->unmap(vpdev, dbuf);
 	dev_dbg(vop_dev(vdev),
-		"%s: ubuf %p dbuf %p len 0x%lx vr_idx 0x%x\n",
+		"%s: ubuf %p dbuf %p len 0x%zx vr_idx 0x%x\n",
 		__func__, ubuf, dbuf, len, vr_idx);
 	return err;
 }
@@ -704,16 +700,17 @@ static int vop_vringh_copy(struct vop_vdev *vdev, struct vringh_kiov *iov,
 
 	while (len && iov->i < iov->used) {
 		struct kvec *kiov = &iov->iov[iov->i];
+		unsigned long daddr = (unsigned long)kiov->iov_base;
 
 		partlen = min(kiov->iov_len, len);
 		if (read)
 			ret = vop_virtio_copy_to_user(vdev, ubuf, partlen,
-						      (u64)kiov->iov_base,
+						      daddr,
 						      kiov->iov_len,
 						      vr_idx);
 		else
 			ret = vop_virtio_copy_from_user(vdev, ubuf, partlen,
-							(u64)kiov->iov_base,
+							daddr,
 							kiov->iov_len,
 							vr_idx);
 		if (ret) {

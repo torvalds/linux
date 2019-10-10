@@ -75,6 +75,12 @@ bool nf_conntrack_invert_icmp_tuple(struct nf_conntrack_tuple *tuple,
 bool nf_conntrack_invert_icmpv6_tuple(struct nf_conntrack_tuple *tuple,
 				      const struct nf_conntrack_tuple *orig);
 
+int nf_conntrack_inet_error(struct nf_conn *tmpl, struct sk_buff *skb,
+			    unsigned int dataoff,
+			    const struct nf_hook_state *state,
+			    u8 l4proto,
+			    union nf_inet_addr *outer_daddr);
+
 int nf_conntrack_icmpv4_error(struct nf_conn *tmpl,
 			      struct sk_buff *skb,
 			      unsigned int dataoff,
@@ -170,42 +176,44 @@ void nf_ct_l4proto_log_invalid(const struct sk_buff *skb,
 			       const char *fmt, ...) { }
 #endif /* CONFIG_SYSCTL */
 
+#if IS_ENABLED(CONFIG_NF_CONNTRACK)
 static inline struct nf_generic_net *nf_generic_pernet(struct net *net)
 {
-       return &net->ct.nf_ct_proto.generic;
+	return &net->ct.nf_ct_proto.generic;
 }
 
 static inline struct nf_tcp_net *nf_tcp_pernet(struct net *net)
 {
-       return &net->ct.nf_ct_proto.tcp;
+	return &net->ct.nf_ct_proto.tcp;
 }
 
 static inline struct nf_udp_net *nf_udp_pernet(struct net *net)
 {
-       return &net->ct.nf_ct_proto.udp;
+	return &net->ct.nf_ct_proto.udp;
 }
 
 static inline struct nf_icmp_net *nf_icmp_pernet(struct net *net)
 {
-       return &net->ct.nf_ct_proto.icmp;
+	return &net->ct.nf_ct_proto.icmp;
 }
 
 static inline struct nf_icmp_net *nf_icmpv6_pernet(struct net *net)
 {
-       return &net->ct.nf_ct_proto.icmpv6;
+	return &net->ct.nf_ct_proto.icmpv6;
 }
+#endif
 
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 static inline struct nf_dccp_net *nf_dccp_pernet(struct net *net)
 {
-       return &net->ct.nf_ct_proto.dccp;
+	return &net->ct.nf_ct_proto.dccp;
 }
 #endif
 
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 static inline struct nf_sctp_net *nf_sctp_pernet(struct net *net)
 {
-       return &net->ct.nf_ct_proto.sctp;
+	return &net->ct.nf_ct_proto.sctp;
 }
 #endif
 

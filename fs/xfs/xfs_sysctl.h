@@ -82,9 +82,13 @@ enum {
 extern xfs_param_t	xfs_params;
 
 struct xfs_globals {
+#ifdef DEBUG
+	int	pwork_threads;		/* parallel workqueue threads */
+#endif
 	int	log_recovery_delay;	/* log recovery delay (secs) */
 	int	mount_delay;		/* mount setup delay (secs) */
 	bool	bug_on_assert;		/* BUG() the kernel on assert failure */
+	bool	always_cow;		/* use COW fork for all overwrites */
 };
 extern struct xfs_globals	xfs_globals;
 

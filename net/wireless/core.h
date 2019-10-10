@@ -28,7 +28,7 @@ struct cfg80211_registered_device {
 	/* rfkill support */
 	struct rfkill_ops rfkill_ops;
 	struct rfkill *rfkill;
-	struct work_struct rfkill_sync;
+	struct work_struct rfkill_block;
 
 	/* ISO / IEC 3166 alpha2 for which this device is receiving
 	 * country IEs on, this can help disregard country IEs from APs
@@ -306,6 +306,8 @@ void ieee80211_set_bitrate_flags(struct wiphy *wiphy);
 void cfg80211_bss_expire(struct cfg80211_registered_device *rdev);
 void cfg80211_bss_age(struct cfg80211_registered_device *rdev,
                       unsigned long age_secs);
+void cfg80211_update_assoc_bss_entry(struct wireless_dev *wdev,
+				     struct ieee80211_channel *channel);
 
 /* IBSS */
 int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
@@ -531,6 +533,10 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 void cfg80211_stop_nan(struct cfg80211_registered_device *rdev,
 		       struct wireless_dev *wdev);
 
+struct cfg80211_internal_bss *
+cfg80211_bss_update(struct cfg80211_registered_device *rdev,
+		    struct cfg80211_internal_bss *tmp,
+		    bool signal_valid, unsigned long ts);
 #ifdef CONFIG_CFG80211_DEVELOPER_WARNINGS
 #define CFG80211_DEV_WARN_ON(cond)	WARN_ON(cond)
 #else

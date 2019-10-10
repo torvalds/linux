@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright (C) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2018-2019 Intel Corporation
  */
 
 #include <linux/module.h>
@@ -347,6 +344,15 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->sta.max_rx_aggregation_subframes =
 		local->hw.max_rx_aggregation_subframes;
 
+	/* Extended Key ID needs to install keys for keyid 0 and 1 Rx-only.
+	 * The Tx path starts to use a key as soon as the key slot ptk_idx
+	 * references to is not NULL. To not use the initial Rx-only key
+	 * prematurely for Tx initialize ptk_idx to an impossible PTK keyid
+	 * which always will refer to a NULL key.
+	 */
+	BUILD_BUG_ON(ARRAY_SIZE(sta->ptk) <= INVALID_PTK_KEYIDX);
+	sta->ptk_idx = INVALID_PTK_KEYIDX;
+
 	sta->local = local;
 	sta->sdata = sdata;
 	sta->rx_stats.last_rx = jiffies;
@@ -394,6 +400,47 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	for (i = 0; i < IEEE80211_NUM_TIDS; i++)
 		sta->last_seq_ctrl[i] = cpu_to_le16(USHRT_MAX);
+
+	for (i = 0; i < NUM_NL80211_BANDS; i++) {
+		u32 mandatory = 0;
+		int r;
+
+		if (!hw->wiphy->bands[i])
+			continue;
+
+		switch (i) {
+		case NL80211_BAND_2GHZ:
+			/*
+			 * We use both here, even if we cannot really know for
+			 * sure the station will support both, but the only use
+			 * for this is when we don't know anything yet and send
+			 * management frames, and then we'll pick the lowest
+			 * possible rate anyway.
+			 * If we don't include _G here, we cannot find a rate
+			 * in P2P, and thus trigger the WARN_ONCE() in rate.c
+			 */
+			mandatory = IEEE80211_RATE_MANDATORY_B |
+				    IEEE80211_RATE_MANDATORY_G;
+			break;
+		case NL80211_BAND_5GHZ:
+			mandatory = IEEE80211_RATE_MANDATORY_A;
+			break;
+		case NL80211_BAND_60GHZ:
+			WARN_ON(1);
+			mandatory = 0;
+			break;
+		}
+
+		for (r = 0; r < hw->wiphy->bands[i]->n_bitrates; r++) {
+			struct ieee80211_rate *rate;
+
+			rate = &hw->wiphy->bands[i]->bitrates[r];
+
+			if (!(rate->flags & mandatory))
+				continue;
+			sta->sta.supp_rates[i] |= BIT(r);
+		}
+	}
 
 	sta->sta.smps_mode = IEEE80211_SMPS_OFF;
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -1018,7 +1065,6 @@ static void __sta_info_destroy_part2(struct sta_info *sta)
 	cfg80211_del_sta_sinfo(sdata->dev, sta->sta.addr, sinfo, GFP_KERNEL);
 	kfree(sinfo);
 
-	rate_control_remove_sta_debugfs(sta);
 	ieee80211_sta_debugfs_remove(sta);
 
 	cleanup_single_sta(sta);
@@ -1915,6 +1961,7 @@ int sta_info_move_state(struct sta_info *sta,
 	case IEEE80211_STA_ASSOC:
 		if (sta->sta_state == IEEE80211_STA_AUTH) {
 			set_bit(WLAN_STA_ASSOC, &sta->_flags);
+			sta->assoc_at = ktime_get_boottime_ns();
 			ieee80211_recalc_min_chandef(sta->sdata);
 			if (!sta->sta.support_p2p_ps)
 				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
@@ -1932,6 +1979,10 @@ int sta_info_move_state(struct sta_info *sta,
 			ieee80211_check_fast_xmit(sta);
 			ieee80211_check_fast_rx(sta);
 		}
+		if (sta->sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
+		    sta->sdata->vif.type == NL80211_IFTYPE_AP)
+			cfg80211_send_layer2_update(sta->sdata->dev,
+						    sta->sta.addr);
 		break;
 	default:
 		break;
@@ -2144,6 +2195,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 			 BIT_ULL(NL80211_STA_INFO_STA_FLAGS) |
 			 BIT_ULL(NL80211_STA_INFO_BSS_PARAM) |
 			 BIT_ULL(NL80211_STA_INFO_CONNECTED_TIME) |
+			 BIT_ULL(NL80211_STA_INFO_ASSOC_AT_BOOTTIME) |
 			 BIT_ULL(NL80211_STA_INFO_RX_DROP_MISC);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION) {
@@ -2152,6 +2204,7 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 	}
 
 	sinfo->connected_time = ktime_get_seconds() - sta->last_connected;
+	sinfo->assoc_at = sta->assoc_at;
 	sinfo->inactive_time =
 		jiffies_to_msecs(jiffies - ieee80211_sta_last_active(sta));
 
@@ -2372,6 +2425,12 @@ void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo,
 				&sta->status_stats.avg_ack_signal);
 		sinfo->filled |=
 			BIT_ULL(NL80211_STA_INFO_ACK_SIGNAL_AVG);
+	}
+
+	if (ieee80211_vif_is_mesh(&sdata->vif)) {
+		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_AIRTIME_LINK_METRIC);
+		sinfo->airtime_link_metric =
+			airtime_link_metric_get(local, sta);
 	}
 }
 

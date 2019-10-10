@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* n2_core.c: Niagara2 Stream Processing Unit (SPU) crypto support.
  *
  * Copyright (C) 2010, 2011 David S. Miller <davem@davemloft.net>
@@ -16,7 +17,7 @@
 #include <crypto/md5.h>
 #include <crypto/sha.h>
 #include <crypto/aes.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
@@ -469,8 +470,6 @@ static int n2_hmac_async_setkey(struct crypto_ahash *tfm, const u8 *key,
 		return err;
 
 	shash->tfm = child_shash;
-	shash->flags = crypto_ahash_get_flags(tfm) &
-		CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	bs = crypto_shash_blocksize(child_shash);
 	ds = crypto_shash_digestsize(child_shash);
@@ -761,21 +760,13 @@ static int n2_des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 	struct n2_cipher_context *ctx = crypto_tfm_ctx(tfm);
 	struct n2_cipher_alg *n2alg = n2_cipher_alg(tfm);
-	u32 tmp[DES_EXPKEY_WORDS];
 	int err;
 
+	err = verify_ablkcipher_des_key(cipher, key);
+	if (err)
+		return err;
+
 	ctx->enc_type = n2alg->enc_type;
-
-	if (keylen != DES_KEY_SIZE) {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
-
-	err = des_ekey(tmp, key);
-	if (err == 0 && (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
-		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
 
 	ctx->key_len = keylen;
 	memcpy(ctx->key.des, key, keylen);
@@ -788,13 +779,14 @@ static int n2_3des_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 	struct n2_cipher_context *ctx = crypto_tfm_ctx(tfm);
 	struct n2_cipher_alg *n2alg = n2_cipher_alg(tfm);
+	int err;
+
+	err = verify_ablkcipher_des3_key(cipher, key);
+	if (err)
+		return err;
 
 	ctx->enc_type = n2alg->enc_type;
 
-	if (keylen != (3 * DES_KEY_SIZE)) {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
 	ctx->key_len = keylen;
 	memcpy(ctx->key.des3, key, keylen);
 	return 0;
@@ -1291,20 +1283,20 @@ struct n2_hash_tmpl {
 	u8		hmac_type;
 };
 
-static const u32 md5_init[MD5_HASH_WORDS] = {
+static const u32 n2_md5_init[MD5_HASH_WORDS] = {
 	cpu_to_le32(MD5_H0),
 	cpu_to_le32(MD5_H1),
 	cpu_to_le32(MD5_H2),
 	cpu_to_le32(MD5_H3),
 };
-static const u32 sha1_init[SHA1_DIGEST_SIZE / 4] = {
+static const u32 n2_sha1_init[SHA1_DIGEST_SIZE / 4] = {
 	SHA1_H0, SHA1_H1, SHA1_H2, SHA1_H3, SHA1_H4,
 };
-static const u32 sha256_init[SHA256_DIGEST_SIZE / 4] = {
+static const u32 n2_sha256_init[SHA256_DIGEST_SIZE / 4] = {
 	SHA256_H0, SHA256_H1, SHA256_H2, SHA256_H3,
 	SHA256_H4, SHA256_H5, SHA256_H6, SHA256_H7,
 };
-static const u32 sha224_init[SHA256_DIGEST_SIZE / 4] = {
+static const u32 n2_sha224_init[SHA256_DIGEST_SIZE / 4] = {
 	SHA224_H0, SHA224_H1, SHA224_H2, SHA224_H3,
 	SHA224_H4, SHA224_H5, SHA224_H6, SHA224_H7,
 };
@@ -1312,7 +1304,7 @@ static const u32 sha224_init[SHA256_DIGEST_SIZE / 4] = {
 static const struct n2_hash_tmpl hash_tmpls[] = {
 	{ .name		= "md5",
 	  .hash_zero	= md5_zero_message_hash,
-	  .hash_init	= md5_init,
+	  .hash_init	= n2_md5_init,
 	  .auth_type	= AUTH_TYPE_MD5,
 	  .hmac_type	= AUTH_TYPE_HMAC_MD5,
 	  .hw_op_hashsz	= MD5_DIGEST_SIZE,
@@ -1320,7 +1312,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .block_size	= MD5_HMAC_BLOCK_SIZE },
 	{ .name		= "sha1",
 	  .hash_zero	= sha1_zero_message_hash,
-	  .hash_init	= sha1_init,
+	  .hash_init	= n2_sha1_init,
 	  .auth_type	= AUTH_TYPE_SHA1,
 	  .hmac_type	= AUTH_TYPE_HMAC_SHA1,
 	  .hw_op_hashsz	= SHA1_DIGEST_SIZE,
@@ -1328,7 +1320,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .block_size	= SHA1_BLOCK_SIZE },
 	{ .name		= "sha256",
 	  .hash_zero	= sha256_zero_message_hash,
-	  .hash_init	= sha256_init,
+	  .hash_init	= n2_sha256_init,
 	  .auth_type	= AUTH_TYPE_SHA256,
 	  .hmac_type	= AUTH_TYPE_HMAC_SHA256,
 	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,
@@ -1336,7 +1328,7 @@ static const struct n2_hash_tmpl hash_tmpls[] = {
 	  .block_size	= SHA256_BLOCK_SIZE },
 	{ .name		= "sha224",
 	  .hash_zero	= sha224_zero_message_hash,
-	  .hash_init	= sha224_init,
+	  .hash_init	= n2_sha224_init,
 	  .auth_type	= AUTH_TYPE_SHA256,
 	  .hmac_type	= AUTH_TYPE_RESERVED,
 	  .hw_op_hashsz	= SHA256_DIGEST_SIZE,

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (c) Copyright 2002-2010, Ralink Technology, Inc.
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
  * Copyright (C) 2018 Stanislaw Gruszka <stf_xl@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "mt76x0.h"
@@ -259,7 +251,6 @@ int mt76x0_init_hardware(struct mt76x02_dev *dev)
 		return ret;
 
 	mt76x0_phy_init(dev);
-	mt76x02_init_beacon_config(dev);
 
 	return 0;
 }
@@ -280,7 +271,9 @@ mt76x0_init_txpower(struct mt76x02_dev *dev,
 		mt76x0_get_tx_power_per_rate(dev, chan, &t);
 		mt76x0_get_power_info(dev, chan, &tp);
 
-		chan->max_power = (mt76x02_get_max_rate_power(&t) + tp) / 2;
+		chan->orig_mpwr = (mt76x02_get_max_rate_power(&t) + tp) / 2;
+		chan->max_power = min_t(int, chan->max_reg_power,
+					chan->orig_mpwr);
 	}
 }
 

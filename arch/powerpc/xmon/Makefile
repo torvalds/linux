@@ -5,7 +5,9 @@
 subdir-ccflags-y := $(call cc-disable-warning, builtin-requires-header)
 
 GCOV_PROFILE := n
+KCOV_INSTRUMENT := n
 UBSAN_SANITIZE := n
+KASAN_SANITIZE := n
 
 # Disable ftrace for the entire directory
 ORIG_CFLAGS := $(KBUILD_CFLAGS)

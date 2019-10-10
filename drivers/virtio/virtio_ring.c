@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Virtio ring implementation.
  *
  *  Copyright 2007 Rusty Russell IBM Corporation
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/virtio.h>
 #include <linux/virtio_ring.h>
@@ -270,6 +257,17 @@ static bool vring_use_dma_api(struct virtio_device *vdev)
 
 	return false;
 }
+
+size_t virtio_max_dma_size(struct virtio_device *vdev)
+{
+	size_t max_segment_size = SIZE_MAX;
+
+	if (vring_use_dma_api(vdev))
+		max_segment_size = dma_max_mapping_size(&vdev->dev);
+
+	return max_segment_size;
+}
+EXPORT_SYMBOL_GPL(virtio_max_dma_size);
 
 static void *vring_alloc_queue(struct virtio_device *vdev, size_t size,
 			      dma_addr_t *dma_handle, gfp_t flag)
@@ -568,13 +566,17 @@ static inline int virtqueue_add_split(struct virtqueue *_vq,
 
 unmap_release:
 	err_idx = i;
-	i = head;
+
+	if (indirect)
+		i = 0;
+	else
+		i = head;
 
 	for (n = 0; n < total_sg; n++) {
 		if (i == err_idx)
 			break;
 		vring_unmap_one_split(vq, &desc[i]);
-		i = virtio16_to_cpu(_vq->vdev, vq->split.vring.desc[i].next);
+		i = virtio16_to_cpu(_vq->vdev, desc[i].next);
 	}
 
 	if (indirect)
@@ -871,6 +873,8 @@ static struct virtqueue *vring_create_virtqueue_split(
 					  GFP_KERNEL|__GFP_NOWARN|__GFP_ZERO);
 		if (queue)
 			break;
+		if (!may_reduce_num)
+			return NULL;
 	}
 
 	if (!num)
@@ -991,6 +995,7 @@ static int virtqueue_add_indirect_packed(struct vring_virtqueue *vq,
 
 	if (unlikely(vq->vq.num_free < 1)) {
 		pr_debug("Can't add buf len 1 - avail = 0\n");
+		kfree(desc);
 		END_USE(vq);
 		return -ENOSPC;
 	}
@@ -1705,10 +1710,10 @@ static inline int virtqueue_add(struct virtqueue *_vq,
 
 /**
  * virtqueue_add_sgs - expose buffers to other end
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  * @sgs: array of terminated scatterlists.
- * @out_num: the number of scatterlists readable by other side
- * @in_num: the number of scatterlists which are writable (after readable ones)
+ * @out_sgs: the number of scatterlists readable by other side
+ * @in_sgs: the number of scatterlists which are writable (after readable ones)
  * @data: the token identifying the buffer.
  * @gfp: how to do memory allocations (if necessary).
  *
@@ -1808,7 +1813,7 @@ EXPORT_SYMBOL_GPL(virtqueue_add_inbuf_ctx);
 
 /**
  * virtqueue_kick_prepare - first half of split virtqueue_kick call.
- * @vq: the struct virtqueue
+ * @_vq: the struct virtqueue
  *
  * Instead of virtqueue_kick(), you can do:
  *	if (virtqueue_kick_prepare(vq))
@@ -1828,7 +1833,7 @@ EXPORT_SYMBOL_GPL(virtqueue_kick_prepare);
 
 /**
  * virtqueue_notify - second half of split virtqueue_kick call.
- * @vq: the struct virtqueue
+ * @_vq: the struct virtqueue
  *
  * This does not need to be serialized.
  *
@@ -1872,8 +1877,9 @@ EXPORT_SYMBOL_GPL(virtqueue_kick);
 
 /**
  * virtqueue_get_buf - get the next used buffer
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  * @len: the length written into the buffer
+ * @ctx: extra context for the token
  *
  * If the device wrote data into the buffer, @len will be set to the
  * amount written.  This means you don't need to clear the buffer
@@ -1903,7 +1909,7 @@ void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 EXPORT_SYMBOL_GPL(virtqueue_get_buf);
 /**
  * virtqueue_disable_cb - disable callbacks
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  *
  * Note that this is not necessarily synchronous, hence unreliable and only
  * useful as an optimization.
@@ -1923,7 +1929,7 @@ EXPORT_SYMBOL_GPL(virtqueue_disable_cb);
 
 /**
  * virtqueue_enable_cb_prepare - restart callbacks after disable_cb
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  *
  * This re-enables callbacks; it returns current queue state
  * in an opaque unsigned value. This value should be later tested by
@@ -1944,7 +1950,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb_prepare);
 
 /**
  * virtqueue_poll - query pending used buffers
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  * @last_used_idx: virtqueue state (from call to virtqueue_enable_cb_prepare).
  *
  * Returns "true" if there are pending used buffers in the queue.
@@ -1963,7 +1969,7 @@ EXPORT_SYMBOL_GPL(virtqueue_poll);
 
 /**
  * virtqueue_enable_cb - restart callbacks after disable_cb.
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  *
  * This re-enables callbacks; it returns "false" if there are pending
  * buffers in the queue, to detect a possible race between the driver
@@ -1982,7 +1988,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb);
 
 /**
  * virtqueue_enable_cb_delayed - restart callbacks after disable_cb.
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  *
  * This re-enables callbacks but hints to the other side to delay
  * interrupts until most of the available buffers have been processed;
@@ -2004,7 +2010,7 @@ EXPORT_SYMBOL_GPL(virtqueue_enable_cb_delayed);
 
 /**
  * virtqueue_detach_unused_buf - detach first unused buffer
- * @vq: the struct virtqueue we're talking about.
+ * @_vq: the struct virtqueue we're talking about.
  *
  * Returns NULL or the "data" token handed to virtqueue_add_*().
  * This is not valid on an active queue; it is useful only for device
@@ -2236,7 +2242,7 @@ EXPORT_SYMBOL_GPL(vring_transport_features);
 
 /**
  * virtqueue_get_vring_size - return the size of the virtqueue's vring
- * @vq: the struct virtqueue containing the vring of interest.
+ * @_vq: the struct virtqueue containing the vring of interest.
  *
  * Returns the size of the vring.  This is mainly used for boasting to
  * userspace.  Unlike other operations, this need not be serialized.

@@ -10,14 +10,12 @@
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_bit.h"
 #include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_bmap.h"
 #include "xfs_attr_sf.h"
@@ -27,7 +25,6 @@
 #include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_buf_item.h"
-#include "xfs_cksum.h"
 #include "xfs_dir2.h"
 #include "xfs_log.h"
 
@@ -240,30 +237,19 @@ xfs_attr3_leaf_verify(
 	struct xfs_buf			*bp)
 {
 	struct xfs_attr3_icleaf_hdr	ichdr;
-	struct xfs_mount		*mp = bp->b_target->bt_mount;
+	struct xfs_mount		*mp = bp->b_mount;
 	struct xfs_attr_leafblock	*leaf = bp->b_addr;
 	struct xfs_attr_leaf_entry	*entries;
 	uint32_t			end;	/* must be 32bit - see below */
 	int				i;
+	xfs_failaddr_t			fa;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, leaf);
 
-	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		struct xfs_da3_node_hdr *hdr3 = bp->b_addr;
+	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
+	if (fa)
+		return fa;
 
-		if (ichdr.magic != XFS_ATTR3_LEAF_MAGIC)
-			return __this_address;
-
-		if (!uuid_equal(&hdr3->info.uuid, &mp->m_sb.sb_meta_uuid))
-			return __this_address;
-		if (be64_to_cpu(hdr3->info.blkno) != bp->b_bn)
-			return __this_address;
-		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->info.lsn)))
-			return __this_address;
-	} else {
-		if (ichdr.magic != XFS_ATTR_LEAF_MAGIC)
-			return __this_address;
-	}
 	/*
 	 * In recovery there is a transient state where count == 0 is valid
 	 * because we may have transitioned an empty shortform attr to a leaf
@@ -324,7 +310,7 @@ static void
 xfs_attr3_leaf_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_attr3_leaf_hdr *hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;
@@ -354,7 +340,7 @@ static void
 xfs_attr3_leaf_read_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	xfs_failaddr_t		fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
@@ -369,6 +355,8 @@ xfs_attr3_leaf_read_verify(
 
 const struct xfs_buf_ops xfs_attr3_leaf_buf_ops = {
 	.name = "xfs_attr3_leaf",
+	.magic16 = { cpu_to_be16(XFS_ATTR_LEAF_MAGIC),
+		     cpu_to_be16(XFS_ATTR3_LEAF_MAGIC) },
 	.verify_read = xfs_attr3_leaf_read_verify,
 	.verify_write = xfs_attr3_leaf_write_verify,
 	.verify_struct = xfs_attr3_leaf_verify,
@@ -405,6 +393,50 @@ xfs_attr_namesp_match(int arg_flags, int ondisk_flags)
 	return XFS_ATTR_NSP_ONDISK(ondisk_flags) == XFS_ATTR_NSP_ARGS_TO_ONDISK(arg_flags);
 }
 
+static int
+xfs_attr_copy_value(
+	struct xfs_da_args	*args,
+	unsigned char		*value,
+	int			valuelen)
+{
+	/*
+	 * No copy if all we have to do is get the length
+	 */
+	if (args->flags & ATTR_KERNOVAL) {
+		args->valuelen = valuelen;
+		return 0;
+	}
+
+	/*
+	 * No copy if the length of the existing buffer is too small
+	 */
+	if (args->valuelen < valuelen) {
+		args->valuelen = valuelen;
+		return -ERANGE;
+	}
+
+	if (args->op_flags & XFS_DA_OP_ALLOCVAL) {
+		args->value = kmem_alloc_large(valuelen, 0);
+		if (!args->value)
+			return -ENOMEM;
+	}
+	args->valuelen = valuelen;
+
+	/* remote block xattr requires IO for copy-in */
+	if (args->rmtblkno)
+		return xfs_attr_rmtval_get(args);
+
+	/*
+	 * This is to prevent a GCC warning because the remote xattr case
+	 * doesn't have a value to pass in. In that case, we never reach here,
+	 * but GCC can't work that out and so throws a "passing NULL to
+	 * memcpy" warning.
+	 */
+	if (!value)
+		return -EINVAL;
+	memcpy(args->value, value, valuelen);
+	return 0;
+}
 
 /*========================================================================
  * External routines when attribute fork size < XFS_LITINO(mp).
@@ -732,15 +764,19 @@ xfs_attr_shortform_lookup(xfs_da_args_t *args)
 }
 
 /*
- * Look up a name in a shortform attribute list structure.
+ * Retreive the attribute value and length.
+ *
+ * If ATTR_KERNOVAL is specified, only the length needs to be returned.
+ * Unlike a lookup, we only return an error if the attribute does not
+ * exist or we can't retrieve the value.
  */
-/*ARGSUSED*/
 int
-xfs_attr_shortform_getvalue(xfs_da_args_t *args)
+xfs_attr_shortform_getvalue(
+	struct xfs_da_args	*args)
 {
-	xfs_attr_shortform_t *sf;
-	xfs_attr_sf_entry_t *sfe;
-	int i;
+	struct xfs_attr_shortform *sf;
+	struct xfs_attr_sf_entry *sfe;
+	int			i;
 
 	ASSERT(args->dp->i_afp->if_flags == XFS_IFINLINE);
 	sf = (xfs_attr_shortform_t *)args->dp->i_afp->if_u1.if_data;
@@ -753,18 +789,8 @@ xfs_attr_shortform_getvalue(xfs_da_args_t *args)
 			continue;
 		if (!xfs_attr_namesp_match(args->flags, sfe->flags))
 			continue;
-		if (args->flags & ATTR_KERNOVAL) {
-			args->valuelen = sfe->valuelen;
-			return -EEXIST;
-		}
-		if (args->valuelen < sfe->valuelen) {
-			args->valuelen = sfe->valuelen;
-			return -ERANGE;
-		}
-		args->valuelen = sfe->valuelen;
-		memcpy(args->value, &sfe->nameval[args->namelen],
-						    args->valuelen);
-		return -EEXIST;
+		return xfs_attr_copy_value(args, &sfe->nameval[args->namelen],
+						sfe->valuelen);
 	}
 	return -ENOATTR;
 }
@@ -794,38 +820,23 @@ xfs_attr_shortform_to_leaf(
 	ifp = dp->i_afp;
 	sf = (xfs_attr_shortform_t *)ifp->if_u1.if_data;
 	size = be16_to_cpu(sf->hdr.totsize);
-	tmpbuffer = kmem_alloc(size, KM_SLEEP);
+	tmpbuffer = kmem_alloc(size, 0);
 	ASSERT(tmpbuffer != NULL);
 	memcpy(tmpbuffer, ifp->if_u1.if_data, size);
 	sf = (xfs_attr_shortform_t *)tmpbuffer;
 
 	xfs_idata_realloc(dp, -size, XFS_ATTR_FORK);
-	xfs_bmap_local_to_extents_empty(dp, XFS_ATTR_FORK);
+	xfs_bmap_local_to_extents_empty(args->trans, dp, XFS_ATTR_FORK);
 
 	bp = NULL;
 	error = xfs_da_grow_inode(args, &blkno);
-	if (error) {
-		/*
-		 * If we hit an IO error middle of the transaction inside
-		 * grow_inode(), we may have inconsistent data. Bail out.
-		 */
-		if (error == -EIO)
-			goto out;
-		xfs_idata_realloc(dp, size, XFS_ATTR_FORK);	/* try to put */
-		memcpy(ifp->if_u1.if_data, tmpbuffer, size);	/* it back */
+	if (error)
 		goto out;
-	}
 
 	ASSERT(blkno == 0);
 	error = xfs_attr3_leaf_create(args, blkno, &bp);
-	if (error) {
-		/* xfs_attr3_leaf_create may not have instantiated a block */
-		if (bp && (xfs_da_shrink_inode(args, 0, bp) != 0))
-			goto out;
-		xfs_idata_realloc(dp, size, XFS_ATTR_FORK);	/* try to put */
-		memcpy(ifp->if_u1.if_data, tmpbuffer, size);	/* it back */
+	if (error)
 		goto out;
-	}
 
 	memset((char *)&nargs, 0, sizeof(nargs));
 	nargs.dp = dp;
@@ -874,7 +885,7 @@ xfs_attr_shortform_allfit(
 	struct xfs_attr3_icleaf_hdr leafhdr;
 	int			bytes;
 	int			i;
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 
 	leaf = bp->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &leafhdr, leaf);
@@ -997,7 +1008,7 @@ xfs_attr3_leaf_to_shortform(
 
 	trace_xfs_attr_leaf_to_sf(args);
 
-	tmpbuffer = kmem_alloc(args->geo->blksize, KM_SLEEP);
+	tmpbuffer = kmem_alloc(args->geo->blksize, 0);
 	if (!tmpbuffer)
 		return -ENOMEM;
 
@@ -1460,7 +1471,7 @@ xfs_attr3_leaf_compact(
 
 	trace_xfs_attr_leaf_compact(args);
 
-	tmpbuffer = kmem_alloc(args->geo->blksize, KM_SLEEP);
+	tmpbuffer = kmem_alloc(args->geo->blksize, 0);
 	memcpy(tmpbuffer, bp->b_addr, args->geo->blksize);
 	memset(bp->b_addr, 0, args->geo->blksize);
 	leaf_src = (xfs_attr_leafblock_t *)tmpbuffer;
@@ -1534,7 +1545,7 @@ xfs_attr_leaf_order(
 {
 	struct xfs_attr3_icleaf_hdr ichdr1;
 	struct xfs_attr3_icleaf_hdr ichdr2;
-	struct xfs_mount *mp = leaf1_bp->b_target->bt_mount;
+	struct xfs_mount *mp = leaf1_bp->b_mount;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr1, leaf1_bp->b_addr);
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr2, leaf2_bp->b_addr);
@@ -2179,7 +2190,7 @@ xfs_attr3_leaf_unbalance(
 		struct xfs_attr_leafblock *tmp_leaf;
 		struct xfs_attr3_icleaf_hdr tmphdr;
 
-		tmp_leaf = kmem_zalloc(state->args->geo->blksize, KM_SLEEP);
+		tmp_leaf = kmem_zalloc(state->args->geo->blksize, 0);
 
 		/*
 		 * Copy the header into the temp leaf so that all the stuff
@@ -2362,6 +2373,10 @@ xfs_attr3_leaf_lookup_int(
 /*
  * Get the value associated with an attribute name from a leaf attribute
  * list structure.
+ *
+ * If ATTR_KERNOVAL is specified, only the length needs to be returned.
+ * Unlike a lookup, we only return an error if the attribute does not
+ * exist or we can't retrieve the value.
  */
 int
 xfs_attr3_leaf_getvalue(
@@ -2373,7 +2388,6 @@ xfs_attr3_leaf_getvalue(
 	struct xfs_attr_leaf_entry *entry;
 	struct xfs_attr_leaf_name_local *name_loc;
 	struct xfs_attr_leaf_name_remote *name_rmt;
-	int			valuelen;
 
 	leaf = bp->b_addr;
 	xfs_attr3_leaf_hdr_from_disk(args->geo, &ichdr, leaf);
@@ -2385,36 +2399,19 @@ xfs_attr3_leaf_getvalue(
 		name_loc = xfs_attr3_leaf_name_local(leaf, args->index);
 		ASSERT(name_loc->namelen == args->namelen);
 		ASSERT(memcmp(args->name, name_loc->nameval, args->namelen) == 0);
-		valuelen = be16_to_cpu(name_loc->valuelen);
-		if (args->flags & ATTR_KERNOVAL) {
-			args->valuelen = valuelen;
-			return 0;
-		}
-		if (args->valuelen < valuelen) {
-			args->valuelen = valuelen;
-			return -ERANGE;
-		}
-		args->valuelen = valuelen;
-		memcpy(args->value, &name_loc->nameval[args->namelen], valuelen);
-	} else {
-		name_rmt = xfs_attr3_leaf_name_remote(leaf, args->index);
-		ASSERT(name_rmt->namelen == args->namelen);
-		ASSERT(memcmp(args->name, name_rmt->name, args->namelen) == 0);
-		args->rmtvaluelen = be32_to_cpu(name_rmt->valuelen);
-		args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
-		args->rmtblkcnt = xfs_attr3_rmt_blocks(args->dp->i_mount,
-						       args->rmtvaluelen);
-		if (args->flags & ATTR_KERNOVAL) {
-			args->valuelen = args->rmtvaluelen;
-			return 0;
-		}
-		if (args->valuelen < args->rmtvaluelen) {
-			args->valuelen = args->rmtvaluelen;
-			return -ERANGE;
-		}
-		args->valuelen = args->rmtvaluelen;
+		return xfs_attr_copy_value(args,
+					&name_loc->nameval[args->namelen],
+					be16_to_cpu(name_loc->valuelen));
 	}
-	return 0;
+
+	name_rmt = xfs_attr3_leaf_name_remote(leaf, args->index);
+	ASSERT(name_rmt->namelen == args->namelen);
+	ASSERT(memcmp(args->name, name_rmt->name, args->namelen) == 0);
+	args->rmtvaluelen = be32_to_cpu(name_rmt->valuelen);
+	args->rmtblkno = be32_to_cpu(name_rmt->valueblk);
+	args->rmtblkcnt = xfs_attr3_rmt_blocks(args->dp->i_mount,
+					       args->rmtvaluelen);
+	return xfs_attr_copy_value(args, NULL, args->rmtvaluelen);
 }
 
 /*========================================================================
@@ -2577,7 +2574,7 @@ xfs_attr_leaf_lasthash(
 {
 	struct xfs_attr3_icleaf_hdr ichdr;
 	struct xfs_attr_leaf_entry *entries;
-	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_mount *mp = bp->b_mount;
 
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &ichdr, bp->b_addr);
 	entries = xfs_attr3_leaf_entryp(bp->b_addr);

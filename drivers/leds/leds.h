@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * LED Core
  *
  * Copyright 2005 Openedhand Ltd.
  *
  * Author: Richard Purdie <rpurdie@openedhand.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #ifndef __LEDS_H_INCLUDED
 #define __LEDS_H_INCLUDED
@@ -31,5 +27,6 @@ void led_set_brightness_nosleep(struct led_classdev *led_cdev,
 extern struct rw_semaphore leds_list_lock;
 extern struct list_head leds_list;
 extern struct list_head trigger_list;
+extern const char * const led_colors[LED_COLOR_ID_MAX];
 
 #endif	/* __LEDS_H_INCLUDED */

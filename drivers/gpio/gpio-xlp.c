@@ -290,22 +290,18 @@ MODULE_DEVICE_TABLE(of, xlp_gpio_of_ids);
 static int xlp_gpio_probe(struct platform_device *pdev)
 {
 	struct gpio_chip *gc;
-	struct resource *iores;
+	struct gpio_irq_chip *girq;
 	struct xlp_gpio_priv *priv;
 	void __iomem *gpio_base;
 	int irq_base, irq, err;
 	int ngpio;
 	u32 soc_type;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iores)
-		return -ENODEV;
-
 	priv = devm_kzalloc(&pdev->dev,	sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	gpio_base = devm_ioremap_resource(&pdev->dev, iores);
+	gpio_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(gpio_base))
 		return PTR_ERR(gpio_base);
 
@@ -400,27 +396,27 @@ static int xlp_gpio_probe(struct platform_device *pdev)
 		irq_base = 0;
 	}
 
+	girq = &gc->irq;
+	girq->chip = &xlp_gpio_irq_chip;
+	girq->parent_handler = xlp_gpio_generic_handler;
+	girq->num_parents = 1;
+	girq->parents = devm_kcalloc(&pdev->dev, 1,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	girq->parents[0] = irq;
+	girq->first = irq_base;
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
+
 	err = gpiochip_add_data(gc, priv);
 	if (err < 0)
 		return err;
 
-	err = gpiochip_irqchip_add(gc, &xlp_gpio_irq_chip, irq_base,
-				handle_level_irq, IRQ_TYPE_NONE);
-	if (err) {
-		dev_err(&pdev->dev, "Could not connect irqchip to gpiochip!\n");
-		goto out_gpio_remove;
-	}
-
-	gpiochip_set_chained_irqchip(gc, &xlp_gpio_irq_chip, irq,
-			xlp_gpio_generic_handler);
-
 	dev_info(&pdev->dev, "registered %d GPIOs\n", gc->ngpio);
 
 	return 0;
-
-out_gpio_remove:
-	gpiochip_remove(gc);
-	return err;
 }
 
 #ifdef CONFIG_ACPI

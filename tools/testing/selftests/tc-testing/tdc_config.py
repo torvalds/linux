@@ -10,10 +10,13 @@ Copyright (C) 2017 Lucas Bates <lucasb@mojatatu.com>
 NAMES = {
           # Substitute your own tc path here
           'TC': '/sbin/tc',
+          # Substitute your own ip path here
+          'IP': '/sbin/ip',
           # Name of veth devices to be created for the namespace
           'DEV0': 'v0p0',
           'DEV1': 'v0p1',
           'DEV2': '',
+          'DUMMY': 'dummy1',
           'BATCH_FILE': './batch.txt',
           'BATCH_DIR': 'tmp',
           # Length of time in seconds to wait before terminating a command

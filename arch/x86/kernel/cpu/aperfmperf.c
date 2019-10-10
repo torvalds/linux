@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * x86 APERF/MPERF KHz calculation for
  * /sys/.../cpufreq/scaling_cur_freq
  *
  * Copyright (C) 2017 Intel Corp.
  * Author: Len Brown <len.brown@intel.com>
- *
- * This file is licensed under GPLv2.
  */
 
 #include <linux/delay.h>
@@ -14,6 +13,7 @@
 #include <linux/percpu.h>
 #include <linux/cpufreq.h>
 #include <linux/smp.h>
+#include <linux/sched/isolation.h>
 
 #include "cpu.h"
 
@@ -83,7 +83,10 @@ unsigned int aperfmperf_get_khz(int cpu)
 	if (!cpu_khz)
 		return 0;
 
-	if (!static_cpu_has(X86_FEATURE_APERFMPERF))
+	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
+		return 0;
+
+	if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
 		return 0;
 
 	aperfmperf_snapshot_cpu(cpu, ktime_get(), true);
@@ -99,12 +102,15 @@ void arch_freq_prepare_all(void)
 	if (!cpu_khz)
 		return;
 
-	if (!static_cpu_has(X86_FEATURE_APERFMPERF))
+	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
 		return;
 
-	for_each_online_cpu(cpu)
+	for_each_online_cpu(cpu) {
+		if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
+			continue;
 		if (!aperfmperf_snapshot_cpu(cpu, now, false))
 			wait = true;
+	}
 
 	if (wait)
 		msleep(APERFMPERF_REFRESH_DELAY_MS);
@@ -115,7 +121,10 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 	if (!cpu_khz)
 		return 0;
 
-	if (!static_cpu_has(X86_FEATURE_APERFMPERF))
+	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
+		return 0;
+
+	if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
 		return 0;
 
 	if (aperfmperf_snapshot_cpu(cpu, ktime_get(), true))

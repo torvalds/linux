@@ -207,8 +207,8 @@ static const char * const tp_qmenu[] = {
 	"Vertical Stripe (555h / 000h)",
 	"Vertical Stripe (000h / FFFh)",
 	"Vertical Stripe (FFFh / 000h)",
-	"Horizontal Color Bars",
 	"Vertical Color Bars",
+	"Horizontal Color Bars",
 };
 
 /*
@@ -405,12 +405,12 @@ static const struct reg_8 imx274_start_2[] = {
  */
 static const struct reg_8 imx274_start_3[] = {
 	{0x30F4, 0x00},
-	{0x3018, 0xA2}, /* XHS VHS OUTUPT */
+	{0x3018, 0xA2}, /* XHS VHS OUTPUT */
 	{IMX274_TABLE_END, 0x00}
 };
 
 /*
- * imx274 register configuration for stoping stream
+ * imx274 register configuration for stopping stream
  */
 static const struct reg_8 imx274_stop[] = {
 	{IMX274_STANDBY_REG, 0x01},
@@ -615,24 +615,6 @@ static int imx274_write_table(struct stimx274 *priv, const struct reg_8 table[])
 		range_vals[range_count++] = val;
 	}
 	return 0;
-}
-
-static inline int imx274_read_reg(struct stimx274 *priv, u16 addr, u8 *val)
-{
-	unsigned int uint_val;
-	int err;
-
-	err = regmap_read(priv->regmap, addr, &uint_val);
-	if (err)
-		dev_err(&priv->client->dev,
-			"%s : i2c read failed, addr = %x\n", __func__, addr);
-	else
-		dev_dbg(&priv->client->dev,
-			"%s : addr 0x%x, val=0x%x\n", __func__,
-			addr, uint_val);
-
-	*val = uint_val;
-	return err;
 }
 
 static inline int imx274_write_reg(struct stimx274 *priv, u16 addr, u8 val)
@@ -1839,8 +1821,7 @@ static const struct i2c_device_id imx274_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, imx274_id);
 
-static int imx274_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int imx274_probe(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd;
 	struct stimx274 *imx274;
@@ -2002,7 +1983,7 @@ static struct i2c_driver imx274_i2c_driver = {
 		.name	= DRIVER_NAME,
 		.of_match_table	= imx274_of_id_table,
 	},
-	.probe		= imx274_probe,
+	.probe_new	= imx274_probe,
 	.remove		= imx274_remove,
 	.id_table	= imx274_id,
 };

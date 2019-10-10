@@ -135,17 +135,8 @@
  */
 #define TO_PHYS_MASK	_CONST64_(0x07ffffffffffffff)	/* 2^^59 - 1 */
 
-#ifndef CONFIG_CPU_R8000
-
-/*
- * The R8000 doesn't have the 32-bit compat spaces so we don't define them
- * in order to catch bugs in the source code.
- */
-
 #define COMPAT_K1BASE32		_CONST64_(0xffffffffa0000000)
 #define PHYS_TO_COMPATK1(x)	((x) | COMPAT_K1BASE32) /* 32-bit compat k1 */
-
-#endif
 
 #define KDM_TO_PHYS(x)		(_ACAST64_ (x) & TO_PHYS_MASK)
 #define PHYS_TO_K0(x)		(_ACAST64_ (x) | CAC_BASE)

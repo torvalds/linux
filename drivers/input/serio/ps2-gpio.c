@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * GPIO based serio bus driver for bit banging the PS/2 protocol
  *
  * Author: Danilo Krummrich <danilokrummrich@dk-develop.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/gpio/consumer.h>
@@ -372,8 +369,6 @@ static int ps2_gpio_probe(struct platform_device *pdev)
 
 	drvdata->irq = platform_get_irq(pdev, 0);
 	if (drvdata->irq < 0) {
-		dev_err(dev, "failed to get irq from platform resource: %d\n",
-			drvdata->irq);
 		error = drvdata->irq;
 		goto err_free_serio;
 	}

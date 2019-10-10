@@ -8,16 +8,18 @@
 #include <linux/sched/jobctl.h>
 #include <linux/sched/task.h>
 #include <linux/cred.h>
+#include <linux/refcount.h>
+#include <linux/posix-timers.h>
 
 /*
  * Types defining task->signal and task->sighand and APIs using them:
  */
 
 struct sighand_struct {
-	atomic_t		count;
-	struct k_sigaction	action[_NSIG];
 	spinlock_t		siglock;
+	refcount_t		count;
 	wait_queue_head_t	signalfd_wqh;
+	struct k_sigaction	action[_NSIG];
 };
 
 /*
@@ -55,18 +57,12 @@ struct task_cputime_atomic {
 /**
  * struct thread_group_cputimer - thread group interval timer counts
  * @cputime_atomic:	atomic thread group interval timers.
- * @running:		true when there are timers running and
- *			@cputime_atomic receives updates.
- * @checking_timer:	true when a thread in the group is in the
- *			process of checking for thread group timers.
  *
  * This structure contains the version of task_cputime, above, that is
  * used for thread group CPU timer calculations.
  */
 struct thread_group_cputimer {
 	struct task_cputime_atomic cputime_atomic;
-	bool running;
-	bool checking_timer;
 };
 
 struct multiprocess_signals {
@@ -82,7 +78,7 @@ struct multiprocess_signals {
  * the locking of signal_struct.
  */
 struct signal_struct {
-	atomic_t		sigcnt;
+	refcount_t		sigcnt;
 	atomic_t		live;
 	int			nr_threads;
 	struct list_head	thread_head;
@@ -147,12 +143,9 @@ struct signal_struct {
 	 */
 	struct thread_group_cputimer cputimer;
 
-	/* Earliest-expiration cache. */
-	struct task_cputime cputime_expires;
-
-	struct list_head cpu_timers[3];
-
 #endif
+	/* Empty if CONFIG_POSIX_TIMERS=n */
+	struct posix_cputimers posix_cputimers;
 
 	/* PID/PID hash table linkage. */
 	struct pid *pids[PIDTYPE_MAX];
@@ -270,17 +263,18 @@ static inline int signal_group_exit(const struct signal_struct *sig)
 extern void flush_signals(struct task_struct *);
 extern void ignore_signals(struct task_struct *);
 extern void flush_signal_handlers(struct task_struct *, int force_default);
-extern int dequeue_signal(struct task_struct *tsk, sigset_t *mask, kernel_siginfo_t *info);
+extern int dequeue_signal(struct task_struct *task,
+			  sigset_t *mask, kernel_siginfo_t *info);
 
 static inline int kernel_dequeue_signal(void)
 {
-	struct task_struct *tsk = current;
+	struct task_struct *task = current;
 	kernel_siginfo_t __info;
 	int ret;
 
-	spin_lock_irq(&tsk->sighand->siglock);
-	ret = dequeue_signal(tsk, &tsk->blocked, &__info);
-	spin_unlock_irq(&tsk->sighand->siglock);
+	spin_lock_irq(&task->sighand->siglock);
+	ret = dequeue_signal(task, &task->blocked, &__info);
+	spin_unlock_irq(&task->sighand->siglock);
 
 	return ret;
 }
@@ -305,16 +299,19 @@ static inline void kernel_signal_stop(void)
 # define ___ARCH_SI_IA64(_a1, _a2, _a3)
 #endif
 
-int force_sig_fault(int sig, int code, void __user *addr
+int force_sig_fault_to_task(int sig, int code, void __user *addr
 	___ARCH_SI_TRAPNO(int trapno)
 	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
 	, struct task_struct *t);
+int force_sig_fault(int sig, int code, void __user *addr
+	___ARCH_SI_TRAPNO(int trapno)
+	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr));
 int send_sig_fault(int sig, int code, void __user *addr
 	___ARCH_SI_TRAPNO(int trapno)
 	___ARCH_SI_IA64(int imm, unsigned int flags, unsigned long isr)
 	, struct task_struct *t);
 
-int force_sig_mceerr(int code, void __user *, short, struct task_struct *);
+int force_sig_mceerr(int code, void __user *, short);
 int send_sig_mceerr(int code, void __user *, short, struct task_struct *);
 
 int force_sig_bnderr(void __user *addr, void __user *lower, void __user *upper);
@@ -323,17 +320,17 @@ int force_sig_pkuerr(void __user *addr, u32 pkey);
 int force_sig_ptrace_errno_trap(int errno, void __user *addr);
 
 extern int send_sig_info(int, struct kernel_siginfo *, struct task_struct *);
-extern void force_sigsegv(int sig, struct task_struct *p);
-extern int force_sig_info(int, struct kernel_siginfo *, struct task_struct *);
+extern void force_sigsegv(int sig);
+extern int force_sig_info(struct kernel_siginfo *);
 extern int __kill_pgrp_info(int sig, struct kernel_siginfo *info, struct pid *pgrp);
 extern int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid);
-extern int kill_pid_info_as_cred(int, struct kernel_siginfo *, struct pid *,
+extern int kill_pid_usb_asyncio(int sig, int errno, sigval_t addr, struct pid *,
 				const struct cred *);
 extern int kill_pgrp(struct pid *pid, int sig, int priv);
 extern int kill_pid(struct pid *pid, int sig, int priv);
 extern __must_check bool do_notify_parent(struct task_struct *, int);
 extern void __wake_up_parent(struct task_struct *p, struct task_struct *parent);
-extern void force_sig(int, struct task_struct *);
+extern void force_sig(int);
 extern int send_sig(int, struct task_struct *, int);
 extern int zap_other_threads(struct task_struct *p);
 extern struct sigqueue *sigqueue_alloc(void);
@@ -415,11 +412,20 @@ void task_join_group_stop(struct task_struct *task);
 static inline void set_restore_sigmask(void)
 {
 	set_thread_flag(TIF_RESTORE_SIGMASK);
-	WARN_ON(!test_thread_flag(TIF_SIGPENDING));
 }
+
+static inline void clear_tsk_restore_sigmask(struct task_struct *task)
+{
+	clear_tsk_thread_flag(task, TIF_RESTORE_SIGMASK);
+}
+
 static inline void clear_restore_sigmask(void)
 {
 	clear_thread_flag(TIF_RESTORE_SIGMASK);
+}
+static inline bool test_tsk_restore_sigmask(struct task_struct *task)
+{
+	return test_tsk_thread_flag(task, TIF_RESTORE_SIGMASK);
 }
 static inline bool test_restore_sigmask(void)
 {
@@ -436,7 +442,10 @@ static inline bool test_and_clear_restore_sigmask(void)
 static inline void set_restore_sigmask(void)
 {
 	current->restore_sigmask = true;
-	WARN_ON(!test_thread_flag(TIF_SIGPENDING));
+}
+static inline void clear_tsk_restore_sigmask(struct task_struct *task)
+{
+	task->restore_sigmask = false;
 }
 static inline void clear_restore_sigmask(void)
 {
@@ -445,6 +454,10 @@ static inline void clear_restore_sigmask(void)
 static inline bool test_restore_sigmask(void)
 {
 	return current->restore_sigmask;
+}
+static inline bool test_tsk_restore_sigmask(struct task_struct *task)
+{
+	return task->restore_sigmask;
 }
 static inline bool test_and_clear_restore_sigmask(void)
 {
@@ -459,6 +472,16 @@ static inline void restore_saved_sigmask(void)
 {
 	if (test_and_clear_restore_sigmask())
 		__set_current_blocked(&current->saved_sigmask);
+}
+
+extern int set_user_sigmask(const sigset_t __user *umask, size_t sigsetsize);
+
+static inline void restore_saved_sigmask_unless(bool interrupted)
+{
+	if (interrupted)
+		WARN_ON(!test_thread_flag(TIF_SIGPENDING));
+	else
+		restore_saved_sigmask();
 }
 
 static inline sigset_t *sigmask_to_save(void)
@@ -598,9 +621,9 @@ static inline struct pid *task_session(struct task_struct *task)
 	return task->signal->pids[PIDTYPE_SID];
 }
 
-static inline int get_nr_threads(struct task_struct *tsk)
+static inline int get_nr_threads(struct task_struct *task)
 {
-	return tsk->signal->nr_threads;
+	return task->signal->nr_threads;
 }
 
 static inline bool thread_group_leader(struct task_struct *p)
@@ -639,35 +662,35 @@ static inline int thread_group_empty(struct task_struct *p)
 #define delay_group_leader(p) \
 		(thread_group_leader(p) && !thread_group_empty(p))
 
-extern struct sighand_struct *__lock_task_sighand(struct task_struct *tsk,
+extern struct sighand_struct *__lock_task_sighand(struct task_struct *task,
 							unsigned long *flags);
 
-static inline struct sighand_struct *lock_task_sighand(struct task_struct *tsk,
+static inline struct sighand_struct *lock_task_sighand(struct task_struct *task,
 						       unsigned long *flags)
 {
 	struct sighand_struct *ret;
 
-	ret = __lock_task_sighand(tsk, flags);
-	(void)__cond_lock(&tsk->sighand->siglock, ret);
+	ret = __lock_task_sighand(task, flags);
+	(void)__cond_lock(&task->sighand->siglock, ret);
 	return ret;
 }
 
-static inline void unlock_task_sighand(struct task_struct *tsk,
+static inline void unlock_task_sighand(struct task_struct *task,
 						unsigned long *flags)
 {
-	spin_unlock_irqrestore(&tsk->sighand->siglock, *flags);
+	spin_unlock_irqrestore(&task->sighand->siglock, *flags);
 }
 
-static inline unsigned long task_rlimit(const struct task_struct *tsk,
+static inline unsigned long task_rlimit(const struct task_struct *task,
 		unsigned int limit)
 {
-	return READ_ONCE(tsk->signal->rlim[limit].rlim_cur);
+	return READ_ONCE(task->signal->rlim[limit].rlim_cur);
 }
 
-static inline unsigned long task_rlimit_max(const struct task_struct *tsk,
+static inline unsigned long task_rlimit_max(const struct task_struct *task,
 		unsigned int limit)
 {
-	return READ_ONCE(tsk->signal->rlim[limit].rlim_max);
+	return READ_ONCE(task->signal->rlim[limit].rlim_max);
 }
 
 static inline unsigned long rlimit(unsigned int limit)

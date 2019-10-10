@@ -131,21 +131,45 @@
 #define INTERNAL_REV_RAVEN_A0             0x00    /* First spin of Raven */
 #define RAVEN_A0 0x01
 #define RAVEN_B0 0x21
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
+#define PICASSO_A0 0x41
 /* DCN1_01 */
 #define RAVEN2_A0 0x81
-#endif
+#define RAVEN1_F0 0xF0
 #define RAVEN_UNKNOWN 0xFF
 
-#if defined(CONFIG_DRM_AMD_DC_DCN1_01)
-#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < 0xF0))
-#endif /* DCN1_01 */
-#define ASIC_REV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
-#define RAVEN1_F0 0xF0
+#define PICASSO_15D8_REV_E3 0xE3
+#define PICASSO_15D8_REV_E4 0xE4
+
+#define ASICREV_IS_RAVEN(eChipRev) ((eChipRev >= RAVEN_A0) && eChipRev < RAVEN_UNKNOWN)
+#define ASICREV_IS_PICASSO(eChipRev) ((eChipRev >= PICASSO_A0) && (eChipRev < RAVEN2_A0))
+#define ASICREV_IS_RAVEN2(eChipRev) ((eChipRev >= RAVEN2_A0) && (eChipRev < PICASSO_15D8_REV_E3))
+#define ASICREV_IS_DALI(eChipRev) ((eChipRev >= PICASSO_15D8_REV_E3) && (eChipRev < RAVEN1_F0))
+
 #define ASICREV_IS_RV1_F0(eChipRev) ((eChipRev >= RAVEN1_F0) && (eChipRev < RAVEN_UNKNOWN))
 
 
 #define FAMILY_RV 142 /* DCN 1*/
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+
+#define FAMILY_NV 143 /* DCN 2*/
+
+enum {
+	NV_NAVI10_P_A0      = 1,
+	NV_NAVI12_P_A0      = 10,
+	NV_NAVI14_M_A0      = 20,
+	NV_UNKNOWN          = 0xFF
+};
+
+#define ASICREV_IS_NAVI10_P(eChipRev)        (eChipRev < NV_NAVI12_P_A0)
+#define ASICREV_IS_NAVI12_P(eChipRev)        ((eChipRev >= NV_NAVI12_P_A0) && (eChipRev < NV_NAVI14_M_A0))
+#define ASICREV_IS_NAVI14_M(eChipRev)        ((eChipRev >= NV_NAVI14_M_A0) && (eChipRev < NV_UNKNOWN))
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN2_1)
+#define RENOIR_A0 0x91
+#define DEVICE_ID_RENOIR_1636 0x1636   // Renoir
+#define ASICREV_IS_RENOIR(eChipRev) ((eChipRev >= RENOIR_A0) && (eChipRev < 0xFF))
+#endif
 
 /*
  * ASIC chip ID
@@ -164,5 +188,7 @@
 #define FAMILY_AI 141
 
 #define	FAMILY_UNKNOWN 0xFF
+
+
 
 #endif /* __DAL_ASIC_ID_H__ */

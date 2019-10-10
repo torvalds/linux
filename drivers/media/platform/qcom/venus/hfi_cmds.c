@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #include <linux/errno.h>
 #include <linux/hash.h>
@@ -1214,6 +1205,8 @@ pkt_session_set_property_4xx(struct hfi_session_set_property_pkt *pkt,
 		break;
 	}
 	case HFI_PROPERTY_CONFIG_VENC_MAX_BITRATE:
+	case HFI_PROPERTY_CONFIG_VDEC_POST_LOOP_DEBLOCKER:
+	case HFI_PROPERTY_PARAM_BUFFER_ALLOC_MODE:
 		/* not implemented on Venus 4xx */
 		return -ENOTSUPP;
 	default:

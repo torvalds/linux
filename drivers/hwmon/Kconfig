@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Hardware monitoring chip drivers configuration
 #
@@ -17,7 +18,7 @@ menuconfig HWMON
 
 	  To find out which specific driver(s) you need, use the
 	  sensors-detect script from the lm_sensors package.  Read
-	  <file:Documentation/hwmon/userspace-tools> for details.
+	  <file:Documentation/hwmon/userspace-tools.rst> for details.
 
 	  This support can also be built as a module. If so, the module
 	  will be called hwmon.
@@ -59,7 +60,7 @@ config SENSORS_ABITUGURU
 	  chip can be found on Abit uGuru featuring motherboards (most modern
 	  Abit motherboards from before end 2005). For more info and a list
 	  of which motherboards have which revision see
-	  Documentation/hwmon/abituguru
+	  Documentation/hwmon/abituguru.rst
 
 	  This driver can also be built as a module. If so, the module
 	  will be called abituguru.
@@ -73,7 +74,7 @@ config SENSORS_ABITUGURU3
 	  and their settings is supported. The third revision of the Abit
 	  uGuru chip can be found on recent Abit motherboards (since end
 	  2005). For more info and a list of which motherboards have which
-	  revision see Documentation/hwmon/abituguru3
+	  revision see Documentation/hwmon/abituguru3.rst
 
 	  This driver can also be built as a module. If so, the module
 	  will be called abituguru3.
@@ -244,6 +245,16 @@ config SENSORS_ADT7475
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7475.
+
+config SENSORS_AS370
+	tristate "Synaptics AS370 SoC hardware monitoring driver"
+	help
+	  If you say yes here you get support for the PVT sensors of
+	  the Synaptics AS370 SoC
+
+	  This driver can also be built as a module. If so, the module
+	  will be called as370-hwmon.
+
 
 config SENSORS_ASC7621
 	tristate "Andigilog aSC7621"
@@ -643,7 +654,7 @@ config SENSORS_CORETEMP
 	help
 	  If you say yes here you get support for the temperature
 	  sensor inside your CPU. Most of the family 6 CPUs
-	  are supported. Check Documentation/hwmon/coretemp for details.
+	  are supported. Check Documentation/hwmon/coretemp.rst for details.
 
 config SENSORS_IT87
 	tristate "ITE IT87xx and compatibles"
@@ -658,16 +669,6 @@ config SENSORS_IT87
 
 	  This driver can also be built as a module. If so, the module
 	  will be called it87.
-
-config SENSORS_JZ4740
-	tristate "Ingenic JZ4740 SoC ADC driver"
-	depends on MACH_JZ4740 && MFD_JZ4740_ADC
-	help
-	  If you say yes here you get support for reading adc values from the ADCIN
-	  pin on Ingenic JZ4740 SoC based boards.
-
-	  This driver can also be built as a module. If so, the module will be
-	  called jz4740-hwmon.
 
 config SENSORS_JC42
 	tristate "JEDEC JC42.4 compliant memory module temperature sensors"
@@ -704,6 +705,16 @@ config SENSORS_LINEAGE
 
 	  This driver can also be built as a module. If so, the module
 	  will be called lineage-pem.
+
+config SENSORS_LOCHNAGAR
+	tristate "Lochnagar Hardware Monitor"
+	depends on MFD_LOCHNAGAR
+	help
+	  If you say yes here you get support for Lochnagar 2 temperature,
+	  voltage and current sensors abilities.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called lochnagar-hwmon.
 
 config SENSORS_LTC2945
 	tristate "Linear Technology LTC2945"
@@ -898,6 +909,7 @@ config SENSORS_MAX6642
 config SENSORS_MAX6650
 	tristate "Maxim MAX6650 sensor chip"
 	depends on I2C
+	depends on THERMAL || THERMAL=n
 	help
 	  If you say yes here you get support for the MAX6650 / MAX6651
 	  sensor chips.
@@ -1370,8 +1382,8 @@ config SENSORS_SHTC1
 	tristate "Sensiron humidity and temperature sensors. SHTC1 and compat."
 	depends on I2C
 	help
-	  If you say yes here you get support for the Sensiron SHTC1 and SHTW1
-	  humidity and temperature sensors.
+	  If you say yes here you get support for the Sensiron SHTC1, SHTW1,
+	  and SHTC3 humidity and temperature sensors.
 
 	  This driver can also be built as a module. If so, the module
 	  will be called shtc1.
@@ -1557,16 +1569,6 @@ config SENSORS_ADC128D818
 
 	  This driver can also be built as a module. If so, the module
 	  will be called adc128d818.
-
-config SENSORS_ADS1015
-	tristate "Texas Instruments ADS1015"
-	depends on I2C
-	help
-	  If you say yes here you get support for Texas Instruments
-	  ADS1015/ADS1115 12/16-bit 4-input ADC device.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called ads1015.
 
 config SENSORS_ADS7828
 	tristate "Texas Instruments ADS7828 and compatibles"
@@ -1759,6 +1761,7 @@ config SENSORS_VT8231
 config SENSORS_W83773G
 	tristate "Nuvoton W83773G"
 	depends on I2C
+	select REGMAP_I2C
 	help
 	  If you say yes here you get support for the Nuvoton W83773G hardware
 	  monitoring chip.
@@ -1821,16 +1824,11 @@ config SENSORS_W83795
 	  will be called w83795.
 
 config SENSORS_W83795_FANCTRL
-	bool "Include automatic fan control support (DANGEROUS)"
+	bool "Include automatic fan control support"
 	depends on SENSORS_W83795
 	help
 	  If you say yes here, support for automatic fan speed control
 	  will be included in the driver.
-
-	  This part of the code wasn't carefully reviewed and tested yet,
-	  so enabling this option is strongly discouraged on production
-	  servers. Only developers and testers should enable it for the
-	  time being.
 
 	  Please also note that this option will create sysfs attribute
 	  files which may change in the future, so you shouldn't rely

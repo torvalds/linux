@@ -49,6 +49,7 @@
 #define U3D_QCR1		(SSUSB_DEV_BASE + 0x0404)
 #define U3D_QCR2		(SSUSB_DEV_BASE + 0x0408)
 #define U3D_QCR3		(SSUSB_DEV_BASE + 0x040C)
+#define U3D_QFCR		(SSUSB_DEV_BASE + 0x0428)
 #define U3D_TXQHIAR1		(SSUSB_DEV_BASE + 0x0484)
 #define U3D_RXQHIAR1		(SSUSB_DEV_BASE + 0x04C4)
 
@@ -133,11 +134,23 @@
 #define TX_W1C_BITS		(~(TX_SENTSTALL))
 
 /* U3D_TX1CSR1 */
-#define TX_MULT(x)		(((x) & 0x3) << 22)
-#define TX_MAX_PKT(x)		(((x) & 0x3f) << 16)
+#define TX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define TX_MULT_G2(x)		(((x) & 0x7) << 21)
+#define TX_MULT_OG(x)		(((x) & 0x3) << 22)
+#define TX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)
 #define TX_SLOT(x)		(((x) & 0x3f) << 8)
 #define TX_TYPE(x)		(((x) & 0x3) << 4)
 #define TX_SS_BURST(x)		(((x) & 0xf) << 0)
+#define TX_MULT(g2c, x)		\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? TX_MULT_G2(x_) : TX_MULT_OG(x_);	\
+})
+#define TX_MAX_PKT(g2c, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? TX_MAX_PKT_G2(x_) : TX_MAX_PKT_OG(x_);	\
+})
 
 /* for TX_TYPE & RX_TYPE */
 #define TYPE_BULK		(0x0)
@@ -160,11 +173,23 @@
 #define RX_W1C_BITS		(~(RX_SENTSTALL | RX_RXPKTRDY))
 
 /* U3D_RX1CSR1 */
-#define RX_MULT(x)		(((x) & 0x3) << 22)
-#define RX_MAX_PKT(x)		(((x) & 0x3f) << 16)
+#define RX_MAX_PKT_G2(x)	(((x) & 0x7f) << 24)
+#define RX_MULT_G2(x)		(((x) & 0x7) << 21)
+#define RX_MULT_OG(x)		(((x) & 0x3) << 22)
+#define RX_MAX_PKT_OG(x)	(((x) & 0x3f) << 16)
 #define RX_SLOT(x)		(((x) & 0x3f) << 8)
 #define RX_TYPE(x)		(((x) & 0x3) << 4)
 #define RX_SS_BURST(x)		(((x) & 0xf) << 0)
+#define RX_MULT(g2c, x)		\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? RX_MULT_G2(x_) : RX_MULT_OG(x_);	\
+})
+#define RX_MAX_PKT(g2c, x)	\
+({				\
+	typeof(x) x_ = (x);	\
+	(g2c) ? RX_MAX_PKT_G2(x_) : RX_MAX_PKT_OG(x_);	\
+})
 
 /* U3D_RX1CSR2 */
 #define RX_BINTERVAL(x)		(((x) & 0xff) << 24)
@@ -265,6 +290,7 @@
 #define U3D_LTSSM_CTRL		(SSUSB_USB3_MAC_CSR_BASE + 0x0010)
 #define U3D_USB3_CONFIG		(SSUSB_USB3_MAC_CSR_BASE + 0x001C)
 
+#define U3D_LINK_STATE_MACHINE	(SSUSB_USB3_MAC_CSR_BASE + 0x0134)
 #define U3D_LTSSM_INTR_ENABLE	(SSUSB_USB3_MAC_CSR_BASE + 0x013C)
 #define U3D_LTSSM_INTR		(SSUSB_USB3_MAC_CSR_BASE + 0x0140)
 
@@ -281,6 +307,9 @@
 
 /* U3D_USB3_CONFIG */
 #define USB3_EN			BIT(0)
+
+/* U3D_LINK_STATE_MACHINE */
+#define LTSSM_STATE(x)	((x) & 0x1f)
 
 /* U3D_LTSSM_INTR_ENABLE */
 /* U3D_LTSSM_INTR */
@@ -347,6 +376,7 @@
 #define U3D_USB20_FRAME_NUM		(SSUSB_USB2_CSR_BASE + 0x003C)
 #define U3D_USB20_LPM_PARAMETER		(SSUSB_USB2_CSR_BASE + 0x0044)
 #define U3D_USB20_MISC_CONTROL		(SSUSB_USB2_CSR_BASE + 0x004C)
+#define U3D_USB20_OPSTATE		(SSUSB_USB2_CSR_BASE + 0x0060)
 
 /*---------------- SSUSB_USB2_CSR FIELD DEFINITION ----------------*/
 
@@ -419,6 +449,13 @@
 #define U3D_SSUSB_DEV_RST_CTRL	(SSUSB_SIFSLV_IPPC_BASE + 0x0098)
 #define U3D_SSUSB_HW_ID		(SSUSB_SIFSLV_IPPC_BASE + 0x00A0)
 #define U3D_SSUSB_HW_SUB_ID	(SSUSB_SIFSLV_IPPC_BASE + 0x00A4)
+#define U3D_SSUSB_IP_TRUNK_VERS	(U3D_SSUSB_HW_SUB_ID)
+#define U3D_SSUSB_PRB_CTRL0	(SSUSB_SIFSLV_IPPC_BASE + 0x00B0)
+#define U3D_SSUSB_PRB_CTRL1	(SSUSB_SIFSLV_IPPC_BASE + 0x00B4)
+#define U3D_SSUSB_PRB_CTRL2	(SSUSB_SIFSLV_IPPC_BASE + 0x00B8)
+#define U3D_SSUSB_PRB_CTRL3	(SSUSB_SIFSLV_IPPC_BASE + 0x00BC)
+#define U3D_SSUSB_PRB_CTRL4	(SSUSB_SIFSLV_IPPC_BASE + 0x00C0)
+#define U3D_SSUSB_PRB_CTRL5	(SSUSB_SIFSLV_IPPC_BASE + 0x00C4)
 #define U3D_SSUSB_IP_SPARE0	(SSUSB_SIFSLV_IPPC_BASE + 0x00C8)
 
 /*---------------- SSUSB_SIFSLV_IPPC FIELD DEFINITION ----------------*/
@@ -482,5 +519,8 @@
 
 /* U3D_SSUSB_DEV_RST_CTRL */
 #define SSUSB_DEV_SW_RST		BIT(0)
+
+/* U3D_SSUSB_IP_TRUNK_VERS */
+#define IP_TRUNK_VERS(x)		(((x) >> 16) & 0xffff)
 
 #endif	/* _SSUSB_HW_REGS_H_ */

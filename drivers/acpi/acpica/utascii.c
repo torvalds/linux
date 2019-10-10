@@ -3,7 +3,7 @@
  *
  * Module Name: utascii - Utility ascii functions
  *
- * Copyright (C) 2000 - 2018, Intel Corp.
+ * Copyright (C) 2000 - 2019, Intel Corp.
  *
  *****************************************************************************/
 
@@ -30,7 +30,7 @@ u8 acpi_ut_valid_nameseg(char *name)
 
 	/* Validate each character in the signature */
 
-	for (i = 0; i < ACPI_NAME_SIZE; i++) {
+	for (i = 0; i < ACPI_NAMESEG_SIZE; i++) {
 		if (!acpi_ut_valid_name_char(name[i], i)) {
 			return (FALSE);
 		}

@@ -187,9 +187,7 @@ static void max63xx_mmap_set(struct max63xx_wdt *wdt, u8 set)
 
 static int max63xx_mmap_init(struct platform_device *p, struct max63xx_wdt *wdt)
 {
-	struct resource *mem = platform_get_resource(p, IORESOURCE_MEM, 0);
-
-	wdt->base = devm_ioremap_resource(&p->dev, mem);
+	wdt->base = devm_platform_ioremap_resource(p, 0);
 	if (IS_ERR(wdt->base))
 		return PTR_ERR(wdt->base);
 
@@ -202,11 +200,12 @@ static int max63xx_mmap_init(struct platform_device *p, struct max63xx_wdt *wdt)
 
 static int max63xx_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct max63xx_wdt *wdt;
 	struct max63xx_timeout *table;
 	int err;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -217,7 +216,7 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 
 	wdt->timeout = max63xx_select_timeout(table, heartbeat);
 	if (!wdt->timeout) {
-		dev_err(&pdev->dev, "unable to satisfy %ds heartbeat request\n",
+		dev_err(dev, "unable to satisfy %ds heartbeat request\n",
 			heartbeat);
 		return -EINVAL;
 	}
@@ -229,27 +228,19 @@ static int max63xx_wdt_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, &wdt->wdd);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 
-	wdt->wdd.parent = &pdev->dev;
+	wdt->wdd.parent = dev;
 	wdt->wdd.timeout = wdt->timeout->twd;
 	wdt->wdd.info = &max63xx_wdt_info;
 	wdt->wdd.ops = &max63xx_wdt_ops;
 
 	watchdog_set_nowayout(&wdt->wdd, nowayout);
 
-	err = watchdog_register_device(&wdt->wdd);
+	err = devm_watchdog_register_device(dev, &wdt->wdd);
 	if (err)
 		return err;
 
-	dev_info(&pdev->dev, "using %ds heartbeat with %ds initial delay\n",
+	dev_info(dev, "using %ds heartbeat with %ds initial delay\n",
 		 wdt->timeout->twd, wdt->timeout->tdelay);
-	return 0;
-}
-
-static int max63xx_wdt_remove(struct platform_device *pdev)
-{
-	struct watchdog_device *wdd = platform_get_drvdata(pdev);
-
-	watchdog_unregister_device(wdd);
 	return 0;
 }
 
@@ -266,7 +257,6 @@ MODULE_DEVICE_TABLE(platform, max63xx_id_table);
 
 static struct platform_driver max63xx_wdt_driver = {
 	.probe		= max63xx_wdt_probe,
-	.remove		= max63xx_wdt_remove,
 	.id_table	= max63xx_id_table,
 	.driver		= {
 		.name	= "max63xx_wdt",

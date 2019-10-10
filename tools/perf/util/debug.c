@@ -1,27 +1,27 @@
 // SPDX-License-Identifier: GPL-2.0
 /* For general debugging purposes */
 
-#include "../perf.h"
-
 #include <inttypes.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/wait.h>
 #include <api/debug.h>
+#include <linux/kernel.h>
 #include <linux/time64.h>
 #ifdef HAVE_BACKTRACE_SUPPORT
 #include <execinfo.h>
 #endif
-#include "cache.h"
 #include "color.h"
 #include "event.h"
 #include "debug.h"
 #include "print_binary.h"
-#include "util.h"
 #include "target.h"
+#include "ui/helpline.h"
+#include "ui/ui.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
 
 int verbose;
 bool dump_trace = false, quiet = false;

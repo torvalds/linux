@@ -216,7 +216,6 @@ struct mlxsw_sp_acl_tcam_vregion {
 		struct mlxsw_sp_acl_tcam_rehash_ctx ctx;
 	} rehash;
 	struct mlxsw_sp *mlxsw_sp;
-	bool failed_rollback; /* Indicates failed rollback during migration */
 	unsigned int ref_count;
 };
 
@@ -1256,11 +1255,8 @@ mlxsw_sp_acl_tcam_vchunk_migrate_start(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_chunk *new_chunk;
 
 	new_chunk = mlxsw_sp_acl_tcam_chunk_create(mlxsw_sp, vchunk, region);
-	if (IS_ERR(new_chunk)) {
-		if (ctx->this_is_rollback)
-			vchunk->vregion->failed_rollback = true;
+	if (IS_ERR(new_chunk))
 		return PTR_ERR(new_chunk);
-	}
 	vchunk->chunk2 = vchunk->chunk;
 	vchunk->chunk = new_chunk;
 	ctx->current_vchunk = vchunk;
@@ -1318,8 +1314,13 @@ mlxsw_sp_acl_tcam_vchunk_migrate_one(struct mlxsw_sp *mlxsw_sp,
 		err = mlxsw_sp_acl_tcam_ventry_migrate(mlxsw_sp, ventry,
 						       vchunk->chunk, credits);
 		if (err) {
-			if (ctx->this_is_rollback)
+			if (ctx->this_is_rollback) {
+				/* Save the ventry which we ended with and try
+				 * to continue later on.
+				 */
+				ctx->start_ventry = ventry;
 				return err;
+			}
 			/* Swap the chunk and chunk2 pointers so the follow-up
 			 * rollback call will see the original chunk pointer
 			 * in vchunk->chunk.
@@ -1397,8 +1398,12 @@ mlxsw_sp_acl_tcam_vregion_migrate(struct mlxsw_sp *mlxsw_sp,
 		ctx->this_is_rollback = true;
 		err2 = mlxsw_sp_acl_tcam_vchunk_migrate_all(mlxsw_sp, vregion,
 							    ctx, credits);
-		if (err2)
-			vregion->failed_rollback = true;
+		if (err2) {
+			trace_mlxsw_sp_acl_tcam_vregion_rehash_rollback_failed(mlxsw_sp,
+									       vregion);
+			dev_err(mlxsw_sp->bus_info->dev, "Failed to rollback during vregion migration fail\n");
+			/* Let the rollback to be continued later on. */
+		}
 	}
 	mutex_unlock(&vregion->lock);
 	trace_mlxsw_sp_acl_tcam_vregion_migrate_end(mlxsw_sp, vregion);
@@ -1423,8 +1428,6 @@ mlxsw_sp_acl_tcam_vregion_rehash_start(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	trace_mlxsw_sp_acl_tcam_vregion_rehash(mlxsw_sp, vregion);
-	if (vregion->failed_rollback)
-		return -EBUSY;
 
 	hints_priv = ops->region_rehash_hints_get(vregion->region->priv);
 	if (IS_ERR(hints_priv))
@@ -1471,11 +1474,9 @@ mlxsw_sp_acl_tcam_vregion_rehash_end(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_acl_tcam_region *unused_region = vregion->region2;
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 
-	if (!vregion->failed_rollback) {
-		vregion->region2 = NULL;
-		mlxsw_sp_acl_tcam_group_region_detach(mlxsw_sp, unused_region);
-		mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, unused_region);
-	}
+	vregion->region2 = NULL;
+	mlxsw_sp_acl_tcam_group_region_detach(mlxsw_sp, unused_region);
+	mlxsw_sp_acl_tcam_region_destroy(mlxsw_sp, unused_region);
 	ops->region_rehash_hints_put(ctx->hints_priv);
 	ctx->hints_priv = NULL;
 }
@@ -1506,11 +1507,6 @@ mlxsw_sp_acl_tcam_vregion_rehash(struct mlxsw_sp *mlxsw_sp,
 						ctx, credits);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to migrate vregion\n");
-		if (vregion->failed_rollback) {
-			trace_mlxsw_sp_acl_tcam_vregion_rehash_dis(mlxsw_sp,
-								   vregion);
-			dev_err(mlxsw_sp->bus_info->dev, "Failed to rollback during vregion migration fail\n");
-		}
 	}
 
 	if (*credits >= 0)

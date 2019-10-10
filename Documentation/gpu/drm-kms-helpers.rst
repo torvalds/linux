@@ -107,6 +107,12 @@ fbdev Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fb_helper.c
    :export:
 
+format Helper Functions Reference
+=================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_format_helper.c
+   :export:
+
 Framebuffer CMA Helper Functions Reference
 ==========================================
 
@@ -116,8 +122,6 @@ Framebuffer CMA Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_fb_cma_helper.c
    :export:
 
-.. _drm_bridges:
-
 Framebuffer GEM Helper Reference
 ================================
 
@@ -126,6 +130,8 @@ Framebuffer GEM Helper Reference
 
 .. kernel-doc:: drivers/gpu/drm/drm_gem_framebuffer_helper.c
    :export:
+
+.. _drm_bridges:
 
 Bridges
 =======
@@ -175,6 +181,21 @@ Panel Helper Reference
 .. kernel-doc:: drivers/gpu/drm/drm_panel_orientation_quirks.c
    :export:
 
+Panel Self Refresh Helper Reference
+===================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_self_refresh_helper.c
+   :doc: overview
+
+.. kernel-doc:: drivers/gpu/drm/drm_self_refresh_helper.c
+   :export:
+
+HDCP Helper Functions Reference
+===============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_hdcp.c
+   :export:
+
 Display Port Helper Functions Reference
 =======================================
 
@@ -208,16 +229,50 @@ Display Port Dual Mode Adaptor Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_dp_dual_mode_helper.c
    :export:
 
-Display Port MST Helper Functions Reference
-===========================================
+Display Port MST Helpers
+========================
+
+Overview
+--------
 
 .. kernel-doc:: drivers/gpu/drm/drm_dp_mst_topology.c
    :doc: dp mst helper
+
+.. kernel-doc:: drivers/gpu/drm/drm_dp_mst_topology.c
+   :doc: Branch device and port refcounting
+
+Functions Reference
+-------------------
 
 .. kernel-doc:: include/drm/drm_dp_mst_helper.h
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_dp_mst_topology.c
+   :export:
+
+Topology Lifetime Internals
+---------------------------
+
+These functions aren't exported to drivers, but are documented here to help make
+the MST topology helpers easier to understand
+
+.. kernel-doc:: drivers/gpu/drm/drm_dp_mst_topology.c
+   :functions: drm_dp_mst_topology_try_get_mstb drm_dp_mst_topology_get_mstb
+               drm_dp_mst_topology_put_mstb
+               drm_dp_mst_topology_try_get_port drm_dp_mst_topology_get_port
+               drm_dp_mst_topology_put_port
+               drm_dp_mst_get_mstb_malloc drm_dp_mst_put_mstb_malloc
+
+MIPI DBI Helper Functions Reference
+===================================
+
+.. kernel-doc:: drivers/gpu/drm/drm_mipi_dbi.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_mipi_dbi.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_mipi_dbi.c
    :export:
 
 MIPI DSI Helper Functions Reference
@@ -274,18 +329,6 @@ SCDC Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_scdc_helper.c
    :export:
 
-Rectangle Utilities Reference
-=============================
-
-.. kernel-doc:: include/drm/drm_rect.h
-   :doc: rect utils
-
-.. kernel-doc:: include/drm/drm_rect.h
-   :internal:
-
-.. kernel-doc:: drivers/gpu/drm/drm_rect.c
-   :export:
-
 HDMI Infoframes Helper Reference
 ================================
 
@@ -298,6 +341,18 @@ libraries and hence is also included here.
    :internal:
 
 .. kernel-doc:: drivers/video/hdmi.c
+   :export:
+
+Rectangle Utilities Reference
+=============================
+
+.. kernel-doc:: include/drm/drm_rect.h
+   :doc: rect utils
+
+.. kernel-doc:: include/drm/drm_rect.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_rect.c
    :export:
 
 Flip-work Helper Reference
@@ -346,4 +401,16 @@ Legacy CRTC/Modeset Helper Functions Reference
    :doc: overview
 
 .. kernel-doc:: drivers/gpu/drm/drm_crtc_helper.c
+   :export:
+
+SHMEM GEM Helper Reference
+==========================
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_shmem_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_gem_shmem_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_shmem_helper.c
    :export:

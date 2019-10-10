@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* acpi_thermal_rel.c driver for exporting ACPI thermal relationship
  *
  * Copyright (c) 2014 Intel Corp
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
  */
 
 /*
@@ -80,9 +76,6 @@ int acpi_parse_trt(acpi_handle handle, int *trt_count, struct trt **trtp,
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer element = { 0, NULL };
 	struct acpi_buffer trt_format = { sizeof("RRNNNNNN"), "RRNNNNNN" };
-
-	if (!acpi_has_method(handle, "_TRT"))
-		return -ENODEV;
 
 	status = acpi_evaluate_object(handle, "_TRT", NULL, &buffer);
 	if (ACPI_FAILURE(status))
@@ -162,9 +155,6 @@ int acpi_parse_art(acpi_handle handle, int *art_count, struct art **artp,
 	struct acpi_buffer art_format =	{
 		sizeof("RRNNNNNNNNNNN"), "RRNNNNNNNNNNN" };
 
-	if (!acpi_has_method(handle, "_ART"))
-		return -ENODEV;
-
 	status = acpi_evaluate_object(handle, "_ART", NULL, &buffer);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
@@ -230,7 +220,7 @@ static void get_single_name(acpi_handle handle, char *name)
 	if (ACPI_FAILURE(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)))
 		pr_warn("Failed to get device name from acpi handle\n");
 	else {
-		memcpy(name, buffer.pointer, ACPI_NAME_SIZE);
+		memcpy(name, buffer.pointer, ACPI_NAMESEG_SIZE);
 		kfree(buffer.pointer);
 	}
 }

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * drivers/base/power/clock_ops.c - Generic clock manipulation PM callbacks
  *
  * Copyright (c) 2011 Rafael J. Wysocki <rjw@sisk.pl>, Renesas Electronics Corp.
- *
- * This file is released under the GPLv2.
  */
 
 #include <linux/kernel.h>
@@ -13,6 +12,7 @@
 #include <linux/pm_clock.h>
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/of_clk.h>
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/pm_domain.h>
@@ -65,10 +65,15 @@ static void pm_clk_acquire(struct device *dev, struct pm_clock_entry *ce)
 	if (IS_ERR(ce->clk)) {
 		ce->status = PCE_STATUS_ERROR;
 	} else {
-		clk_prepare(ce->clk);
-		ce->status = PCE_STATUS_ACQUIRED;
-		dev_dbg(dev, "Clock %pC con_id %s managed by runtime PM.\n",
-			ce->clk, ce->con_id);
+		if (clk_prepare(ce->clk)) {
+			ce->status = PCE_STATUS_ERROR;
+			dev_err(dev, "clk_prepare() failed\n");
+		} else {
+			ce->status = PCE_STATUS_ACQUIRED;
+			dev_dbg(dev,
+				"Clock %pC con_id %s managed by runtime PM.\n",
+				ce->clk, ce->con_id);
+		}
 	}
 }
 
@@ -88,8 +93,6 @@ static int __pm_clk_add(struct device *dev, const char *con_id,
 	if (con_id) {
 		ce->con_id = kstrdup(con_id, GFP_KERNEL);
 		if (!ce->con_id) {
-			dev_err(dev,
-				"Not enough memory for clock connection ID.\n");
 			kfree(ce);
 			return -ENOMEM;
 		}
@@ -191,8 +194,7 @@ int of_pm_clk_add_clks(struct device *dev)
 	if (!dev || !dev->of_node)
 		return -EINVAL;
 
-	count = of_count_phandle_with_args(dev->of_node, "clocks",
-					   "#clock-cells");
+	count = of_clk_get_parent_count(dev->of_node);
 	if (count <= 0)
 		return -ENODEV;
 

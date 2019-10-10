@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Baytrail SST MAX98090 machine driver
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/init.h>
@@ -117,17 +109,19 @@ static int byt_max98090_init(struct snd_soc_pcm_runtime *runtime)
 				       hs_jack_gpios);
 }
 
+SND_SOC_DAILINK_DEFS(baytrail,
+	DAILINK_COMP_ARRAY(COMP_CPU("baytrail-pcm-audio")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-193C9890:00", "HiFi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("baytrail-pcm-audio")));
+
 static struct snd_soc_dai_link byt_max98090_dais[] = {
 	{
 		.name = "Baytrail Audio",
 		.stream_name = "Audio",
-		.cpu_dai_name = "baytrail-pcm-audio",
-		.codec_dai_name = "HiFi",
-		.codec_name = "i2c-193C9890:00",
-		.platform_name = "baytrail-pcm-audio",
 		.init = byt_max98090_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			   SND_SOC_DAIFMT_CBS_CFS,
+		SND_SOC_DAILINK_REG(baytrail),
 	},
 };
 

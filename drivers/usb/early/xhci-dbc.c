@@ -94,7 +94,7 @@ static void * __init xdbc_get_page(dma_addr_t *dma_addr)
 {
 	void *virt;
 
-	virt = memblock_alloc_nopanic(PAGE_SIZE, PAGE_SIZE);
+	virt = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
 	if (!virt)
 		return NULL;
 
@@ -533,8 +533,6 @@ static int xdbc_handle_external_reset(void)
 
 	xdbc_mem_init();
 
-	mmiowb();
-
 	ret = xdbc_start();
 	if (ret < 0)
 		goto reset_out;
@@ -586,8 +584,6 @@ static int __init xdbc_early_setup(void)
 		return ret;
 
 	xdbc_mem_init();
-
-	mmiowb();
 
 	ret = xdbc_start();
 	if (ret < 0) {

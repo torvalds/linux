@@ -170,10 +170,10 @@ static int bnxt_tc_parse_actions(struct bnxt *bp,
 }
 
 static int bnxt_tc_parse_flow(struct bnxt *bp,
-			      struct tc_cls_flower_offload *tc_flow_cmd,
+			      struct flow_cls_offload *tc_flow_cmd,
 			      struct bnxt_tc_flow *flow)
 {
-	struct flow_rule *rule = tc_cls_flower_offload_flow_rule(tc_flow_cmd);
+	struct flow_rule *rule = flow_cls_offload_flow_rule(tc_flow_cmd);
 	struct flow_dissector *dissector = rule->match.dissector;
 
 	/* KEY_CONTROL and KEY_BASIC are needed for forming a meaningful key */
@@ -319,8 +319,6 @@ static int bnxt_hwrm_cfa_flow_free(struct bnxt *bp,
 	if (rc)
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -515,11 +513,6 @@ static int bnxt_hwrm_cfa_flow_alloc(struct bnxt *bp, struct bnxt_tc_flow *flow,
 		}
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
-
-	if (rc == HWRM_ERR_CODE_RESOURCE_ALLOC_ERROR)
-		rc = -ENOSPC;
-	else if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -591,8 +584,6 @@ static int hwrm_cfa_decap_filter_alloc(struct bnxt *bp,
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -609,8 +600,6 @@ static int hwrm_cfa_decap_filter_free(struct bnxt *bp,
 	if (rc)
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -660,8 +649,6 @@ static int hwrm_cfa_encap_record_alloc(struct bnxt *bp,
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -678,8 +665,6 @@ static int hwrm_cfa_encap_record_free(struct bnxt *bp,
 	if (rc)
 		netdev_info(bp->dev, "%s: Error rc=%d", __func__, rc);
 
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -1236,7 +1221,7 @@ static int __bnxt_tc_del_flow(struct bnxt *bp,
 static void bnxt_tc_set_flow_dir(struct bnxt *bp, struct bnxt_tc_flow *flow,
 				 u16 src_fid)
 {
-	flow->dir = (bp->pf.fw_fid == src_fid) ? BNXT_DIR_RX : BNXT_DIR_TX;
+	flow->l2_key.dir = (bp->pf.fw_fid == src_fid) ? BNXT_DIR_RX : BNXT_DIR_TX;
 }
 
 static void bnxt_tc_set_src_fid(struct bnxt *bp, struct bnxt_tc_flow *flow,
@@ -1262,7 +1247,7 @@ static void bnxt_tc_set_src_fid(struct bnxt *bp, struct bnxt_tc_flow *flow,
  * The hash-tables are already protected by the rhashtable API.
  */
 static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
-			    struct tc_cls_flower_offload *tc_flow_cmd)
+			    struct flow_cls_offload *tc_flow_cmd)
 {
 	struct bnxt_tc_flow_node *new_node, *old_node;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
@@ -1285,9 +1270,7 @@ static int bnxt_tc_add_flow(struct bnxt *bp, u16 src_fid,
 		goto free_node;
 
 	bnxt_tc_set_src_fid(bp, flow, src_fid);
-
-	if (bp->fw_cap & BNXT_FW_CAP_OVS_64BIT_HANDLE)
-		bnxt_tc_set_flow_dir(bp, flow, src_fid);
+	bnxt_tc_set_flow_dir(bp, flow, flow->src_fid);
 
 	if (!bnxt_tc_can_offload(bp, flow)) {
 		rc = -EOPNOTSUPP;
@@ -1348,7 +1331,7 @@ done:
 }
 
 static int bnxt_tc_del_flow(struct bnxt *bp,
-			    struct tc_cls_flower_offload *tc_flow_cmd)
+			    struct flow_cls_offload *tc_flow_cmd)
 {
 	struct bnxt_tc_info *tc_info = bp->tc_info;
 	struct bnxt_tc_flow_node *flow_node;
@@ -1363,7 +1346,7 @@ static int bnxt_tc_del_flow(struct bnxt *bp,
 }
 
 static int bnxt_tc_get_flow_stats(struct bnxt *bp,
-				  struct tc_cls_flower_offload *tc_flow_cmd)
+				  struct flow_cls_offload *tc_flow_cmd)
 {
 	struct bnxt_tc_flow_stats stats, *curr_stats, *prev_stats;
 	struct bnxt_tc_info *tc_info = bp->tc_info;
@@ -1407,7 +1390,7 @@ static void bnxt_fill_cfa_stats_req(struct bnxt *bp,
 		 * 2. 15th bit of flow_handle must specify the flow
 		 *    direction (TX/RX).
 		 */
-		if (flow_node->flow.dir == BNXT_DIR_RX)
+		if (flow_node->flow.l2_key.dir == BNXT_DIR_RX)
 			handle = CFA_FLOW_INFO_REQ_FLOW_HANDLE_DIR_RX |
 				 CFA_FLOW_INFO_REQ_FLOW_HANDLE_MAX_MASK;
 		else
@@ -1459,8 +1442,6 @@ bnxt_hwrm_cfa_flow_stats_get(struct bnxt *bp, int num_flows,
 	}
 	mutex_unlock(&bp->hwrm_cmd_lock);
 
-	if (rc)
-		rc = -EIO;
 	return rc;
 }
 
@@ -1585,14 +1566,14 @@ void bnxt_tc_flow_stats_work(struct bnxt *bp)
 }
 
 int bnxt_tc_setup_flower(struct bnxt *bp, u16 src_fid,
-			 struct tc_cls_flower_offload *cls_flower)
+			 struct flow_cls_offload *cls_flower)
 {
 	switch (cls_flower->command) {
-	case TC_CLSFLOWER_REPLACE:
+	case FLOW_CLS_REPLACE:
 		return bnxt_tc_add_flow(bp, src_fid, cls_flower);
-	case TC_CLSFLOWER_DESTROY:
+	case FLOW_CLS_DESTROY:
 		return bnxt_tc_del_flow(bp, cls_flower);
-	case TC_CLSFLOWER_STATS:
+	case FLOW_CLS_STATS:
 		return bnxt_tc_get_flow_stats(bp, cls_flower);
 	default:
 		return -EOPNOTSUPP;

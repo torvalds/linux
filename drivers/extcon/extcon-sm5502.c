@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * extcon-sm5502.c - Silicon Mitus SM5502 extcon drvier to support USB switches
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd
  * Author: Chanwoo Choi <cw00.choi@samsung.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/err.h>
@@ -601,7 +597,7 @@ static int sm5022_muic_i2c_probe(struct i2c_client *i2c,
 
 		ret = devm_request_threaded_irq(info->dev, virq, NULL,
 						sm5502_muic_irq_handler,
-						IRQF_NO_SUSPEND,
+						IRQF_NO_SUSPEND | IRQF_ONESHOT,
 						muic_irq->name, info);
 		if (ret) {
 			dev_err(info->dev,

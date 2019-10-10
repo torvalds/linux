@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # ARM CPU Idle drivers
 #
@@ -11,6 +12,16 @@ config ARM_CPUIDLE
           at run-time through DT nodes. The CPUidle suspend backend is
           initialized by calling the CPU operations init idle hook
           provided by architecture code.
+
+config ARM_PSCI_CPUIDLE
+	bool "PSCI CPU idle Driver"
+	depends on ARM_PSCI_FW
+	select DT_IDLE_STATES
+	select CPU_IDLE_MULTIPLE_DRIVERS
+	help
+	  Select this to enable PSCI firmware based CPUidle driver for ARM.
+	  It provides an idle driver that is capable of detecting and
+	  managing idle states through the PSCI firmware interface.
 
 config ARM_BIG_LITTLE_CPUIDLE
 	bool "Support for ARM big.LITTLE processors"

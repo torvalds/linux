@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
  * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ADRENO_GPU_H__
@@ -61,6 +50,7 @@ enum {
 enum adreno_quirks {
 	ADRENO_QUIRK_TWO_PASS_USE_WFI = 1,
 	ADRENO_QUIRK_FAULT_DETECT_MASK = 2,
+	ADRENO_QUIRK_LMLOADKILL_DISABLE = 3,
 };
 
 struct adreno_rev {
@@ -221,6 +211,11 @@ static inline int adreno_is_a530(struct adreno_gpu *gpu)
 	return gpu->revn == 530;
 }
 
+static inline int adreno_is_a540(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 540;
+}
+
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 const struct firmware *adreno_request_fw(struct adreno_gpu *adreno_gpu,
 		const char *fwname);
@@ -251,6 +246,12 @@ void adreno_gpu_state_destroy(struct msm_gpu_state *state);
 
 int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state);
 int adreno_gpu_state_put(struct msm_gpu_state *state);
+
+/*
+ * For a5xx and a6xx targets load the zap shader that is used to pull the GPU
+ * out of secure mode
+ */
+int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid);
 
 /* ringbuffer helpers (the parts that are adreno specific) */
 

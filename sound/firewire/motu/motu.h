@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * motu.h - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef SOUND_FIREWIRE_MOTU_H_INCLUDED
@@ -60,8 +59,7 @@ struct snd_motu {
 	struct amdtp_stream rx_stream;
 	struct fw_iso_resources tx_resources;
 	struct fw_iso_resources rx_resources;
-	unsigned int capture_substreams;
-	unsigned int playback_substreams;
+	unsigned int substreams_counter;
 
 	/* For notification. */
 	struct fw_address_handler async_handler;
@@ -71,6 +69,8 @@ struct snd_motu {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	struct amdtp_domain domain;
 };
 
 enum snd_motu_spec_flags {
@@ -130,6 +130,7 @@ extern const struct snd_motu_protocol snd_motu_protocol_v2;
 extern const struct snd_motu_protocol snd_motu_protocol_v3;
 
 extern const struct snd_motu_spec snd_motu_spec_traveler;
+extern const struct snd_motu_spec snd_motu_spec_8pre;
 
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
@@ -153,7 +154,8 @@ void snd_motu_transaction_unregister(struct snd_motu *motu);
 int snd_motu_stream_init_duplex(struct snd_motu *motu);
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
 int snd_motu_stream_cache_packet_formats(struct snd_motu *motu);
-int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
+int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate);
+int snd_motu_stream_start_duplex(struct snd_motu *motu);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 int snd_motu_stream_lock_try(struct snd_motu *motu);
 void snd_motu_stream_lock_release(struct snd_motu *motu);

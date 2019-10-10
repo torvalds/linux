@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -9,11 +10,6 @@
  *
  * Authors:	David S. Miller (davem@caip.rutgers.edu)
  *		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #include <linux/socket.h>
 #include <linux/net.h>
@@ -48,8 +44,8 @@ static int sockstat6_seq_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "RAW6: inuse %d\n",
 		       sock_prot_inuse_get(net, &rawv6_prot));
 	seq_printf(seq, "FRAG6: inuse %u memory %lu\n",
-		   atomic_read(&net->ipv6.frags.rhashtable.nelems),
-		   frag_mem_limit(&net->ipv6.frags));
+		   atomic_read(&net->ipv6.fqdir->rhashtable.nelems),
+		   frag_mem_limit(net->ipv6.fqdir));
 	return 0;
 }
 

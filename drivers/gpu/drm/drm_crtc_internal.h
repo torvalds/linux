@@ -31,14 +31,32 @@
  * and are not exported to drivers.
  */
 
-enum drm_mode_status;
-enum drm_connector_force;
+#include <linux/types.h>
 
-struct drm_display_mode;
-struct work_struct;
-struct drm_connector;
+enum drm_color_encoding;
+enum drm_color_range;
+enum drm_connector_force;
+enum drm_mode_status;
+
+struct drm_atomic_state;
 struct drm_bridge;
+struct drm_connector;
+struct drm_crtc;
+struct drm_device;
+struct drm_display_mode;
+struct drm_file;
+struct drm_framebuffer;
+struct drm_mode_create_dumb;
+struct drm_mode_fb_cmd2;
+struct drm_mode_fb_cmd;
+struct drm_mode_object;
+struct drm_mode_set;
+struct drm_plane;
+struct drm_plane_state;
+struct drm_property;
 struct edid;
+struct kref;
+struct work_struct;
 
 /* drm_crtc.c */
 int drm_mode_crtc_set_obj_prop(struct drm_mode_object *obj,
@@ -50,6 +68,7 @@ int drm_crtc_check_viewport(const struct drm_crtc *crtc,
 			    const struct drm_framebuffer *fb);
 int drm_crtc_register_all(struct drm_device *dev);
 void drm_crtc_unregister_all(struct drm_device *dev);
+int drm_crtc_force_disable(struct drm_crtc *crtc);
 
 struct dma_fence *drm_crtc_create_fence(struct drm_crtc *crtc);
 
@@ -206,6 +225,11 @@ struct drm_minor;
 int drm_atomic_debugfs_init(struct drm_minor *minor);
 #endif
 
+int __drm_atomic_helper_disable_plane(struct drm_plane *plane,
+				      struct drm_plane_state *plane_state);
+int __drm_atomic_helper_set_config(struct drm_mode_set *set,
+				   struct drm_atomic_state *state);
+
 void drm_atomic_print_state(const struct drm_atomic_state *state);
 
 /* drm_atomic_uapi.c */
@@ -213,6 +237,7 @@ int drm_atomic_connector_commit_dpms(struct drm_atomic_state *state,
 				     struct drm_connector *connector,
 				     int mode);
 int drm_atomic_set_property(struct drm_atomic_state *state,
+			    struct drm_file *file_priv,
 			    struct drm_mode_object *obj,
 			    struct drm_property *prop,
 			    uint64_t prop_value);

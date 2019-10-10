@@ -17,7 +17,8 @@
 
 #include "ufshcd-pltfrm.h"
 
-#define CDNS_UFS_REG_HCLKDIV 0xFC
+#define CDNS_UFS_REG_HCLKDIV	0xFC
+#define CDNS_UFS_REG_PHY_XCFGD1	0x113C
 
 /**
  * Sets HCLKDIV register value based on the core_clk
@@ -61,26 +62,107 @@ static int cdns_ufs_set_hclkdiv(struct ufs_hba *hba)
 }
 
 /**
- * Sets clocks used by the controller
+ * Called before and after HCE enable bit is set.
  * @hba: host controller instance
- * @on: if true, enable clocks, otherwise disable
  * @status: notify stage (pre, post change)
  *
  * Return zero for success and non-zero for failure
  */
-static int cdns_ufs_setup_clocks(struct ufs_hba *hba, bool on,
-				 enum ufs_notify_change_status status)
+static int cdns_ufs_hce_enable_notify(struct ufs_hba *hba,
+				      enum ufs_notify_change_status status)
 {
-	if ((!on) || (status == PRE_CHANGE))
+	if (status != PRE_CHANGE)
 		return 0;
 
 	return cdns_ufs_set_hclkdiv(hba);
 }
 
-static struct ufs_hba_variant_ops cdns_pltfm_hba_vops = {
+/**
+ * Called before and after Link startup is carried out.
+ * @hba: host controller instance
+ * @status: notify stage (pre, post change)
+ *
+ * Return zero for success and non-zero for failure
+ */
+static int cdns_ufs_link_startup_notify(struct ufs_hba *hba,
+					enum ufs_notify_change_status status)
+{
+	if (status != PRE_CHANGE)
+		return 0;
+
+	/*
+	 * Some UFS devices have issues if LCC is enabled.
+	 * So we are setting PA_Local_TX_LCC_Enable to 0
+	 * before link startup which will make sure that both host
+	 * and device TX LCC are disabled once link startup is
+	 * completed.
+	 */
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_LOCAL_TX_LCC_ENABLE), 0);
+
+	return 0;
+}
+
+/**
+ * cdns_ufs_init - performs additional ufs initialization
+ * @hba: host controller instance
+ *
+ * Returns status of initialization
+ */
+static int cdns_ufs_init(struct ufs_hba *hba)
+{
+	int status = 0;
+
+	if (hba->vops && hba->vops->phy_initialization)
+		status = hba->vops->phy_initialization(hba);
+
+	return status;
+}
+
+/**
+ * cdns_ufs_m31_16nm_phy_initialization - performs m31 phy initialization
+ * @hba: host controller instance
+ *
+ * Always returns 0
+ */
+static int cdns_ufs_m31_16nm_phy_initialization(struct ufs_hba *hba)
+{
+	u32 data;
+
+	/* Increase RX_Advanced_Min_ActivateTime_Capability */
+	data = ufshcd_readl(hba, CDNS_UFS_REG_PHY_XCFGD1);
+	data |= BIT(24);
+	ufshcd_writel(hba, data, CDNS_UFS_REG_PHY_XCFGD1);
+
+	return 0;
+}
+
+static const struct ufs_hba_variant_ops cdns_ufs_pltfm_hba_vops = {
 	.name = "cdns-ufs-pltfm",
-	.setup_clocks = cdns_ufs_setup_clocks,
+	.hce_enable_notify = cdns_ufs_hce_enable_notify,
+	.link_startup_notify = cdns_ufs_link_startup_notify,
 };
+
+static const struct ufs_hba_variant_ops cdns_ufs_m31_16nm_pltfm_hba_vops = {
+	.name = "cdns-ufs-pltfm",
+	.init = cdns_ufs_init,
+	.hce_enable_notify = cdns_ufs_hce_enable_notify,
+	.link_startup_notify = cdns_ufs_link_startup_notify,
+	.phy_initialization = cdns_ufs_m31_16nm_phy_initialization,
+};
+
+static const struct of_device_id cdns_ufs_of_match[] = {
+	{
+		.compatible = "cdns,ufshc",
+		.data =  &cdns_ufs_pltfm_hba_vops,
+	},
+	{
+		.compatible = "cdns,ufshc-m31-16nm",
+		.data =  &cdns_ufs_m31_16nm_pltfm_hba_vops,
+	},
+	{ },
+};
+
+MODULE_DEVICE_TABLE(of, cdns_ufs_of_match);
 
 /**
  * cdns_ufs_pltfrm_probe - probe routine of the driver
@@ -91,10 +173,15 @@ static struct ufs_hba_variant_ops cdns_pltfm_hba_vops = {
 static int cdns_ufs_pltfrm_probe(struct platform_device *pdev)
 {
 	int err;
+	const struct of_device_id *of_id;
+	struct ufs_hba_variant_ops *vops;
 	struct device *dev = &pdev->dev;
 
+	of_id = of_match_node(cdns_ufs_of_match, dev->of_node);
+	vops = (struct ufs_hba_variant_ops *)of_id->data;
+
 	/* Perform generic probe */
-	err = ufshcd_pltfrm_init(pdev, &cdns_pltfm_hba_vops);
+	err = ufshcd_pltfrm_init(pdev, vops);
 	if (err)
 		dev_err(dev, "ufshcd_pltfrm_init() failed %d\n", err);
 
@@ -114,13 +201,6 @@ static int cdns_ufs_pltfrm_remove(struct platform_device *pdev)
 	ufshcd_remove(hba);
 	return 0;
 }
-
-static const struct of_device_id cdns_ufs_of_match[] = {
-	{ .compatible = "cdns,ufshc" },
-	{},
-};
-
-MODULE_DEVICE_TABLE(of, cdns_ufs_of_match);
 
 static const struct dev_pm_ops cdns_ufs_dev_pm_ops = {
 	.suspend         = ufshcd_pltfrm_suspend,

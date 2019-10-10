@@ -35,6 +35,7 @@ struct meson_canvas {
 	void __iomem *reg_base;
 	spinlock_t lock; /* canvas device lock */
 	u8 used[NUM_CANVAS];
+	bool supports_endianness;
 };
 
 static void canvas_write(struct meson_canvas *canvas, u32 reg, u32 val)
@@ -51,16 +52,30 @@ struct meson_canvas *meson_canvas_get(struct device *dev)
 {
 	struct device_node *canvas_node;
 	struct platform_device *canvas_pdev;
+	struct meson_canvas *canvas;
 
 	canvas_node = of_parse_phandle(dev->of_node, "amlogic,canvas", 0);
 	if (!canvas_node)
 		return ERR_PTR(-ENODEV);
 
 	canvas_pdev = of_find_device_by_node(canvas_node);
-	if (!canvas_pdev)
+	if (!canvas_pdev) {
+		of_node_put(canvas_node);
 		return ERR_PTR(-EPROBE_DEFER);
+	}
 
-	return dev_get_drvdata(&canvas_pdev->dev);
+	of_node_put(canvas_node);
+
+	/*
+	 * If priv is NULL, it's probably because the canvas hasn't
+	 * properly initialized. Bail out with -EINVAL because, in the
+	 * current state, this driver probe cannot return -EPROBE_DEFER
+	 */
+	canvas = dev_get_drvdata(&canvas_pdev->dev);
+	if (!canvas)
+		return ERR_PTR(-EINVAL);
+
+	return canvas;
 }
 EXPORT_SYMBOL_GPL(meson_canvas_get);
 
@@ -71,6 +86,12 @@ int meson_canvas_config(struct meson_canvas *canvas, u8 canvas_index,
 			unsigned int endian)
 {
 	unsigned long flags;
+
+	if (endian && !canvas->supports_endianness) {
+		dev_err(canvas->dev,
+			"Endianness is not supported on this SoC\n");
+		return -EINVAL;
+	}
 
 	spin_lock_irqsave(&canvas->lock, flags);
 	if (!canvas->used[canvas_index]) {
@@ -158,6 +179,8 @@ static int meson_canvas_probe(struct platform_device *pdev)
 	if (IS_ERR(canvas->reg_base))
 		return PTR_ERR(canvas->reg_base);
 
+	canvas->supports_endianness = of_device_get_match_data(dev);
+
 	canvas->dev = dev;
 	spin_lock_init(&canvas->lock);
 	dev_set_drvdata(dev, canvas);
@@ -166,7 +189,10 @@ static int meson_canvas_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id canvas_dt_match[] = {
-	{ .compatible = "amlogic,canvas" },
+	{ .compatible = "amlogic,meson8-canvas", .data = (void *)false, },
+	{ .compatible = "amlogic,meson8b-canvas", .data = (void *)false, },
+	{ .compatible = "amlogic,meson8m2-canvas", .data = (void *)false, },
+	{ .compatible = "amlogic,canvas", .data = (void *)true, },
 	{}
 };
 MODULE_DEVICE_TABLE(of, canvas_dt_match);

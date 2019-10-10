@@ -1,13 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Cryptographic API for algorithms (i.e., low-level API).
  *
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option) 
- * any later version.
- *
  */
 #ifndef _CRYPTO_ALGAPI_H
 #define _CRYPTO_ALGAPI_H
@@ -194,7 +189,6 @@ void crypto_init_queue(struct crypto_queue *queue, unsigned int max_qlen);
 int crypto_enqueue_request(struct crypto_queue *queue,
 			   struct crypto_async_request *request);
 struct crypto_async_request *crypto_dequeue_request(struct crypto_queue *queue);
-int crypto_tfm_in_queue(struct crypto_queue *queue, struct crypto_tfm *tfm);
 static inline unsigned int crypto_queue_len(struct crypto_queue *queue)
 {
 	return queue->qlen;
@@ -376,12 +370,6 @@ static inline void *ablkcipher_request_ctx(struct ablkcipher_request *req)
 	return req->__ctx;
 }
 
-static inline int ablkcipher_tfm_in_queue(struct crypto_queue *queue,
-					  struct crypto_ablkcipher *tfm)
-{
-	return crypto_tfm_in_queue(queue, crypto_ablkcipher_tfm(tfm));
-}
-
 static inline struct crypto_alg *crypto_get_attr_alg(struct rtattr **tb,
 						     u32 type, u32 mask)
 {
@@ -421,10 +409,8 @@ static inline int crypto_memneq(const void *a, const void *b, size_t size)
 
 static inline void crypto_yield(u32 flags)
 {
-#if !defined(CONFIG_PREEMPT) || defined(CONFIG_PREEMPT_VOLUNTARY)
 	if (flags & CRYPTO_TFM_REQ_MAY_SLEEP)
 		cond_resched();
-#endif
 }
 
 int crypto_register_notifier(struct notifier_block *nb);

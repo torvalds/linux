@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/trace/events/host1x.h
  *
  * host1x event logging to ftrace.
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #undef TRACE_SYSTEM
@@ -78,6 +65,32 @@ TRACE_EVENT(host1x_cdma_push,
 
 	TP_printk("name=%s, op1=%08x, op2=%08x",
 		__entry->name, __entry->op1, __entry->op2)
+);
+
+TRACE_EVENT(host1x_cdma_push_wide,
+	TP_PROTO(const char *name, u32 op1, u32 op2, u32 op3, u32 op4),
+
+	TP_ARGS(name, op1, op2, op3, op4),
+
+	TP_STRUCT__entry(
+		__field(const char *, name)
+		__field(u32, op1)
+		__field(u32, op2)
+		__field(u32, op3)
+		__field(u32, op4)
+	),
+
+	TP_fast_assign(
+		__entry->name = name;
+		__entry->op1 = op1;
+		__entry->op2 = op2;
+		__entry->op3 = op3;
+		__entry->op4 = op4;
+	),
+
+	TP_printk("name=%s, op1=%08x, op2=%08x, op3=%08x op4=%08x",
+		__entry->name, __entry->op1, __entry->op2, __entry->op3,
+		__entry->op4)
 );
 
 TRACE_EVENT(host1x_cdma_push_gather,

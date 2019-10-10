@@ -77,4 +77,12 @@ xfs_set_dmattrs(
 	uint			evmask,
 	uint16_t		state);
 
+struct xfs_ibulk;
+struct xfs_bstat;
+struct xfs_inogrp;
+
+int xfs_fsbulkstat_one_fmt(struct xfs_ibulk *breq,
+			   const struct xfs_bulkstat *bstat);
+int xfs_fsinumbers_fmt(struct xfs_ibulk *breq, const struct xfs_inumbers *igrp);
+
 #endif

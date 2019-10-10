@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #ifndef HINIC_HW_WQE_H
@@ -219,6 +210,57 @@
 #define HINIC_MSS_DEFAULT		        0x3E00
 #define HINIC_MSS_MIN		                0x50
 
+#define RQ_CQE_STATUS_NUM_LRO_SHIFT		16
+#define RQ_CQE_STATUS_NUM_LRO_MASK		0xFFU
+
+#define RQ_CQE_STATUS_GET(val, member)		(((val) >> \
+			RQ_CQE_STATUS_##member##_SHIFT) & \
+			RQ_CQE_STATUS_##member##_MASK)
+
+#define HINIC_GET_RX_NUM_LRO(status)	\
+		RQ_CQE_STATUS_GET(status, NUM_LRO)
+
+#define RQ_CQE_OFFOLAD_TYPE_PKT_TYPE_SHIFT		0
+#define RQ_CQE_OFFOLAD_TYPE_PKT_TYPE_MASK		0xFFFU
+#define RQ_CQE_OFFOLAD_TYPE_VLAN_EN_SHIFT		21
+#define RQ_CQE_OFFOLAD_TYPE_VLAN_EN_MASK		0x1U
+
+#define RQ_CQE_OFFOLAD_TYPE_GET(val, member)		(((val) >> \
+				RQ_CQE_OFFOLAD_TYPE_##member##_SHIFT) & \
+				RQ_CQE_OFFOLAD_TYPE_##member##_MASK)
+
+#define HINIC_GET_RX_PKT_TYPE(offload_type)	\
+			RQ_CQE_OFFOLAD_TYPE_GET(offload_type, PKT_TYPE)
+
+#define HINIC_GET_RX_VLAN_OFFLOAD_EN(offload_type)	\
+			RQ_CQE_OFFOLAD_TYPE_GET(offload_type, VLAN_EN)
+
+#define RQ_CQE_SGE_VLAN_MASK				0xFFFFU
+#define RQ_CQE_SGE_VLAN_SHIFT				0
+
+#define RQ_CQE_SGE_GET(val, member)			(((val) >> \
+					RQ_CQE_SGE_##member##_SHIFT) & \
+					RQ_CQE_SGE_##member##_MASK)
+
+#define HINIC_GET_RX_VLAN_TAG(vlan_len)	\
+		RQ_CQE_SGE_GET(vlan_len, VLAN)
+
+#define HINIC_RSS_TYPE_VALID_SHIFT			23
+#define HINIC_RSS_TYPE_TCP_IPV6_EXT_SHIFT		24
+#define HINIC_RSS_TYPE_IPV6_EXT_SHIFT			25
+#define HINIC_RSS_TYPE_TCP_IPV6_SHIFT			26
+#define HINIC_RSS_TYPE_IPV6_SHIFT			27
+#define HINIC_RSS_TYPE_TCP_IPV4_SHIFT			28
+#define HINIC_RSS_TYPE_IPV4_SHIFT			29
+#define HINIC_RSS_TYPE_UDP_IPV6_SHIFT			30
+#define HINIC_RSS_TYPE_UDP_IPV4_SHIFT			31
+
+#define HINIC_RSS_TYPE_SET(val, member)                        \
+		(((u32)(val) & 0x1) << HINIC_RSS_TYPE_##member##_SHIFT)
+
+#define HINIC_RSS_TYPE_GET(val, member)                        \
+		(((u32)(val) >> HINIC_RSS_TYPE_##member##_SHIFT) & 0x1)
+
 enum hinic_l4offload_type {
 	HINIC_L4_OFF_DISABLE            = 0,
 	HINIC_TCP_OFFLOAD_ENABLE        = 1,
@@ -372,7 +414,7 @@ struct hinic_rq_cqe {
 	u32     status;
 	u32     len;
 
-	u32     rsvd2;
+	u32     offload_type;
 	u32     rsvd3;
 	u32     rsvd4;
 	u32     rsvd5;

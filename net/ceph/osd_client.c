@@ -171,14 +171,6 @@ static void ceph_osd_data_bvecs_init(struct ceph_osd_data *osd_data,
 	osd_data->num_bvecs = num_bvecs;
 }
 
-#define osd_req_op_data(oreq, whch, typ, fld)				\
-({									\
-	struct ceph_osd_request *__oreq = (oreq);			\
-	unsigned int __whch = (whch);					\
-	BUG_ON(__whch >= __oreq->r_num_ops);				\
-	&__oreq->r_ops[__whch].typ.fld;					\
-})
-
 static struct ceph_osd_data *
 osd_req_op_raw_data_in(struct ceph_osd_request *osd_req, unsigned int which)
 {
@@ -478,7 +470,7 @@ static void request_release_checks(struct ceph_osd_request *req)
 {
 	WARN_ON(!RB_EMPTY_NODE(&req->r_node));
 	WARN_ON(!RB_EMPTY_NODE(&req->r_mc_node));
-	WARN_ON(!list_empty(&req->r_unsafe_item));
+	WARN_ON(!list_empty(&req->r_private_item));
 	WARN_ON(req->r_osd);
 }
 
@@ -538,7 +530,7 @@ static void request_init(struct ceph_osd_request *req)
 	init_completion(&req->r_completion);
 	RB_CLEAR_NODE(&req->r_node);
 	RB_CLEAR_NODE(&req->r_mc_node);
-	INIT_LIST_HEAD(&req->r_unsafe_item);
+	INIT_LIST_HEAD(&req->r_private_item);
 
 	target_init(&req->r_t);
 }
@@ -849,6 +841,7 @@ int osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 	struct ceph_pagelist *pagelist;
 	size_t payload_len = 0;
 	size_t size;
+	int ret;
 
 	op = _osd_req_op_init(osd_req, which, CEPH_OSD_OP_CALL, 0);
 
@@ -860,20 +853,27 @@ int osd_req_op_cls_init(struct ceph_osd_request *osd_req, unsigned int which,
 	size = strlen(class);
 	BUG_ON(size > (size_t) U8_MAX);
 	op->cls.class_len = size;
-	ceph_pagelist_append(pagelist, class, size);
+	ret = ceph_pagelist_append(pagelist, class, size);
+	if (ret)
+		goto err_pagelist_free;
 	payload_len += size;
 
 	op->cls.method_name = method;
 	size = strlen(method);
 	BUG_ON(size > (size_t) U8_MAX);
 	op->cls.method_len = size;
-	ceph_pagelist_append(pagelist, method, size);
+	ret = ceph_pagelist_append(pagelist, method, size);
+	if (ret)
+		goto err_pagelist_free;
 	payload_len += size;
 
 	osd_req_op_cls_request_info_pagelist(osd_req, which, pagelist);
-
 	op->indata_len = payload_len;
 	return 0;
+
+err_pagelist_free:
+	ceph_pagelist_release(pagelist);
+	return ret;
 }
 EXPORT_SYMBOL(osd_req_op_cls_init);
 
@@ -885,6 +885,7 @@ int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
 						      opcode, 0);
 	struct ceph_pagelist *pagelist;
 	size_t payload_len;
+	int ret;
 
 	BUG_ON(opcode != CEPH_OSD_OP_SETXATTR && opcode != CEPH_OSD_OP_CMPXATTR);
 
@@ -894,10 +895,14 @@ int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
 
 	payload_len = strlen(name);
 	op->xattr.name_len = payload_len;
-	ceph_pagelist_append(pagelist, name, payload_len);
+	ret = ceph_pagelist_append(pagelist, name, payload_len);
+	if (ret)
+		goto err_pagelist_free;
 
 	op->xattr.value_len = size;
-	ceph_pagelist_append(pagelist, value, size);
+	ret = ceph_pagelist_append(pagelist, value, size);
+	if (ret)
+		goto err_pagelist_free;
 	payload_len += size;
 
 	op->xattr.cmp_op = cmp_op;
@@ -906,6 +911,10 @@ int osd_req_op_xattr_init(struct ceph_osd_request *osd_req, unsigned int which,
 	ceph_osd_data_pagelist_init(&op->xattr.osd_data, pagelist);
 	op->indata_len = payload_len;
 	return 0;
+
+err_pagelist_free:
+	ceph_pagelist_release(pagelist);
+	return ret;
 }
 EXPORT_SYMBOL(osd_req_op_xattr_init);
 
@@ -1496,7 +1505,6 @@ enum calc_target_result {
 
 static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 					   struct ceph_osd_request_target *t,
-					   struct ceph_connection *con,
 					   bool any_change)
 {
 	struct ceph_pg_pool_info *pi;
@@ -1504,7 +1512,7 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 	struct ceph_osds up, acting;
 	bool force_resend = false;
 	bool unpaused = false;
-	bool legacy_change;
+	bool legacy_change = false;
 	bool split = false;
 	bool sort_bitwise = ceph_osdmap_flag(osdc, CEPH_OSDMAP_SORTBITWISE);
 	bool recovery_deletes = ceph_osdmap_flag(osdc,
@@ -1592,15 +1600,14 @@ static enum calc_target_result calc_target(struct ceph_osd_client *osdc,
 		t->osd = acting.primary;
 	}
 
-	if (unpaused || legacy_change || force_resend ||
-	    (split && con && CEPH_HAVE_FEATURE(con->peer_features,
-					       RESEND_ON_SPLIT)))
+	if (unpaused || legacy_change || force_resend || split)
 		ct_res = CALC_TARGET_NEED_RESEND;
 	else
 		ct_res = CALC_TARGET_NO_ACTION;
 
 out:
-	dout("%s t %p -> ct_res %d osd %d\n", __func__, t, ct_res, t->osd);
+	dout("%s t %p -> %d%d%d%d ct_res %d osd%d\n", __func__, t, unpaused,
+	     legacy_change, force_resend, split, ct_res, t->osd);
 	return ct_res;
 }
 
@@ -2281,7 +2288,7 @@ static void __submit_request(struct ceph_osd_request *req, bool wrlocked)
 	dout("%s req %p wrlocked %d\n", __func__, req, wrlocked);
 
 again:
-	ct_res = calc_target(osdc, &req->r_t, NULL, false);
+	ct_res = calc_target(osdc, &req->r_t, false);
 	if (ct_res == CALC_TARGET_POOL_DNE && !wrlocked)
 		goto promote;
 
@@ -2398,7 +2405,7 @@ static void finish_request(struct ceph_osd_request *req)
 
 static void __complete_request(struct ceph_osd_request *req)
 {
-	dout("%s req %p tid %llu cb %pf result %d\n", __func__, req,
+	dout("%s req %p tid %llu cb %ps result %d\n", __func__, req,
 	     req->r_tid, req->r_callback, req->r_result);
 
 	if (req->r_callback)
@@ -2484,6 +2491,14 @@ void ceph_osdc_abort_requests(struct ceph_osd_client *osdc, int err)
 	up_write(&osdc->lock);
 }
 EXPORT_SYMBOL(ceph_osdc_abort_requests);
+
+void ceph_osdc_clear_abort_err(struct ceph_osd_client *osdc)
+{
+	down_write(&osdc->lock);
+	osdc->abort_err = 0;
+	up_write(&osdc->lock);
+}
+EXPORT_SYMBOL(ceph_osdc_clear_abort_err);
 
 static void update_epoch_barrier(struct ceph_osd_client *osdc, u32 eb)
 {
@@ -3096,7 +3111,7 @@ static void linger_submit(struct ceph_osd_linger_request *lreq)
 		lreq->reg_req->r_ops[0].notify.cookie = lreq->linger_id;
 	}
 
-	calc_target(osdc, &lreq->t, NULL, false);
+	calc_target(osdc, &lreq->t, false);
 	osd = lookup_create_osd(osdc, lreq->t.osd, true);
 	link_linger(osd, lreq);
 
@@ -3713,7 +3728,7 @@ recalc_linger_target(struct ceph_osd_linger_request *lreq)
 	struct ceph_osd_client *osdc = lreq->osdc;
 	enum calc_target_result ct_res;
 
-	ct_res = calc_target(osdc, &lreq->t, NULL, true);
+	ct_res = calc_target(osdc, &lreq->t, true);
 	if (ct_res == CALC_TARGET_NEED_RESEND) {
 		struct ceph_osd *osd;
 
@@ -3785,8 +3800,7 @@ static void scan_requests(struct ceph_osd *osd,
 		n = rb_next(n); /* unlink_request(), check_pool_dne() */
 
 		dout("%s req %p tid %llu\n", __func__, req, req->r_tid);
-		ct_res = calc_target(osdc, &req->r_t, &req->r_osd->o_con,
-				     false);
+		ct_res = calc_target(osdc, &req->r_t, false);
 		switch (ct_res) {
 		case CALC_TARGET_NO_ACTION:
 			force_resend_writes = cleared_full ||
@@ -3895,7 +3909,7 @@ static void kick_requests(struct ceph_osd_client *osdc,
 		n = rb_next(n);
 
 		if (req->r_t.epoch < osdc->osdmap->epoch) {
-			ct_res = calc_target(osdc, &req->r_t, NULL, false);
+			ct_res = calc_target(osdc, &req->r_t, false);
 			if (ct_res == CALC_TARGET_POOL_DNE) {
 				erase_request(need_resend, req);
 				check_pool_dne(req);
@@ -4914,20 +4928,26 @@ static int decode_watcher(void **p, void *end, struct ceph_watch_item *item)
 	ret = ceph_start_decoding(p, end, 2, "watch_item_t",
 				  &struct_v, &struct_len);
 	if (ret)
-		return ret;
+		goto bad;
 
-	ceph_decode_copy(p, &item->name, sizeof(item->name));
-	item->cookie = ceph_decode_64(p);
-	*p += 4; /* skip timeout_seconds */
+	ret = -EINVAL;
+	ceph_decode_copy_safe(p, end, &item->name, sizeof(item->name), bad);
+	ceph_decode_64_safe(p, end, item->cookie, bad);
+	ceph_decode_skip_32(p, end, bad); /* skip timeout seconds */
+
 	if (struct_v >= 2) {
-		ceph_decode_copy(p, &item->addr, sizeof(item->addr));
-		ceph_decode_addr(&item->addr);
+		ret = ceph_decode_entity_addr(p, end, &item->addr);
+		if (ret)
+			goto bad;
+	} else {
+		ret = 0;
 	}
 
 	dout("%s %s%llu cookie %llu addr %s\n", __func__,
 	     ENTITY_NAME(item->name), item->cookie,
-	     ceph_pr_addr(&item->addr.in_addr));
-	return 0;
+	     ceph_pr_addr(&item->addr));
+bad:
+	return ret;
 }
 
 static int decode_watchers(void **p, void *end,
@@ -5044,12 +5064,12 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 		   const char *class, const char *method,
 		   unsigned int flags,
 		   struct page *req_page, size_t req_len,
-		   struct page *resp_page, size_t *resp_len)
+		   struct page **resp_pages, size_t *resp_len)
 {
 	struct ceph_osd_request *req;
 	int ret;
 
-	if (req_len > PAGE_SIZE || (resp_page && *resp_len > PAGE_SIZE))
+	if (req_len > PAGE_SIZE)
 		return -E2BIG;
 
 	req = ceph_osdc_alloc_request(osdc, NULL, 1, false, GFP_NOIO);
@@ -5067,8 +5087,8 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 	if (req_page)
 		osd_req_op_cls_request_data_pages(req, 0, &req_page, req_len,
 						  0, false, false);
-	if (resp_page)
-		osd_req_op_cls_response_data_pages(req, 0, &resp_page,
+	if (resp_pages)
+		osd_req_op_cls_response_data_pages(req, 0, resp_pages,
 						   *resp_len, 0, false, false);
 
 	ret = ceph_osdc_alloc_messages(req, GFP_NOIO);
@@ -5079,7 +5099,7 @@ int ceph_osdc_call(struct ceph_osd_client *osdc,
 	ret = ceph_osdc_wait_request(osdc, req);
 	if (ret >= 0) {
 		ret = req->r_ops[0].rval;
-		if (resp_page)
+		if (resp_pages)
 			*resp_len = req->r_ops[0].outdata_len;
 	}
 
@@ -5088,6 +5108,24 @@ out_put_req:
 	return ret;
 }
 EXPORT_SYMBOL(ceph_osdc_call);
+
+/*
+ * reset all osd connections
+ */
+void ceph_osdc_reopen_osds(struct ceph_osd_client *osdc)
+{
+	struct rb_node *n;
+
+	down_write(&osdc->lock);
+	for (n = rb_first(&osdc->osds); n; ) {
+		struct ceph_osd *osd = rb_entry(n, struct ceph_osd, o_node);
+
+		n = rb_next(n);
+		if (!reopen_osd(osd))
+			kick_osd_requests(osd);
+	}
+	up_write(&osdc->lock);
+}
 
 /*
  * init, shutdown

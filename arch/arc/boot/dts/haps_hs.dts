@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016-2014 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 /dts-v1/;
 
@@ -64,6 +61,36 @@
 			compatible = "snps,archs-pct";
 			#interrupt-cells = <1>;
 			interrupts = <20>;
+		};
+
+		virtio0: virtio@f0100000 {
+			compatible = "virtio,mmio";
+			reg = <0xf0100000 0x2000>;
+			interrupts = <31>;
+		};
+
+		virtio1: virtio@f0102000 {
+			compatible = "virtio,mmio";
+			reg = <0xf0102000 0x2000>;
+			interrupts = <32>;
+		};
+
+		virtio2: virtio@f0104000 {
+			compatible = "virtio,mmio";
+			reg = <0xf0104000 0x2000>;
+			interrupts = <33>;
+		};
+
+		virtio3: virtio@f0106000 {
+			compatible = "virtio,mmio";
+			reg = <0xf0106000 0x2000>;
+			interrupts = <34>;
+		};
+
+		virtio4: virtio@f0108000 {
+			compatible = "virtio,mmio";
+			reg = <0xf0108000 0x2000>;
+			interrupts = <35>;
 		};
 	};
 };

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -129,9 +117,10 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 		goto out_ino;
 
 	inode->i_flags |= S_NOCMTIME;
-#ifndef CONFIG_UBIFS_ATIME_SUPPORT
-	inode->i_flags |= S_NOATIME;
-#endif
+
+	if (!IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
+		inode->i_flags |= S_NOATIME;
+
 	set_nlink(inode, le32_to_cpu(ino->nlink));
 	i_uid_write(inode, le32_to_cpu(ino->uid));
 	i_gid_write(inode, le32_to_cpu(ino->gid));
@@ -272,19 +261,14 @@ static struct inode *ubifs_alloc_inode(struct super_block *sb)
 	return &ui->vfs_inode;
 };
 
-static void ubifs_i_callback(struct rcu_head *head)
-{
-	struct inode *inode = container_of(head, struct inode, i_rcu);
-	struct ubifs_inode *ui = ubifs_inode(inode);
-	kmem_cache_free(ubifs_inode_slab, ui);
-}
-
-static void ubifs_destroy_inode(struct inode *inode)
+static void ubifs_free_inode(struct inode *inode)
 {
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	kfree(ui->data);
-	call_rcu(&inode->i_rcu, ubifs_i_callback);
+	fscrypt_free_inode(inode);
+
+	kmem_cache_free(ubifs_inode_slab, ui);
 }
 
 /*
@@ -332,6 +316,16 @@ static int ubifs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	mutex_unlock(&ui->ui_mutex);
 	ubifs_release_dirty_inode_budget(c, ui);
 	return err;
+}
+
+static int ubifs_drop_inode(struct inode *inode)
+{
+	int drop = generic_drop_inode(inode);
+
+	if (!drop)
+		drop = fscrypt_drop_inode(inode);
+
+	return drop;
 }
 
 static void ubifs_evict_inode(struct inode *inode)
@@ -582,6 +576,8 @@ static int init_constants_early(struct ubifs_info *c)
 	c->ranges[UBIFS_AUTH_NODE].min_len = UBIFS_AUTH_NODE_SZ;
 	c->ranges[UBIFS_AUTH_NODE].max_len = UBIFS_AUTH_NODE_SZ +
 				UBIFS_MAX_HMAC_LEN;
+	c->ranges[UBIFS_SIG_NODE].min_len = UBIFS_SIG_NODE_SZ;
+	c->ranges[UBIFS_SIG_NODE].max_len = c->leb_size - UBIFS_SB_NODE_SZ;
 
 	c->ranges[UBIFS_INO_NODE].min_len  = UBIFS_INO_NODE_SZ;
 	c->ranges[UBIFS_INO_NODE].max_len  = UBIFS_MAX_INO_NODE_SZ;
@@ -623,6 +619,10 @@ static int init_constants_early(struct ubifs_info *c)
 	c->max_bu_buf_len = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
 	if (c->max_bu_buf_len > c->leb_size)
 		c->max_bu_buf_len = c->leb_size;
+
+	/* Log is ready, preserve one LEB for commits. */
+	c->min_log_bytes = c->leb_size;
+
 	return 0;
 }
 
@@ -1059,6 +1059,8 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 				c->mount_opts.compr_type = UBIFS_COMPR_LZO;
 			else if (!strcmp(name, "zlib"))
 				c->mount_opts.compr_type = UBIFS_COMPR_ZLIB;
+			else if (!strcmp(name, "zstd"))
+				c->mount_opts.compr_type = UBIFS_COMPR_ZSTD;
 			else {
 				ubifs_err(c, "unknown compressor \"%s\"", name); //FIXME: is c ready?
 				kfree(name);
@@ -1312,8 +1314,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_free;
 
-	sz = ALIGN(c->max_idx_node_sz, c->min_io_size);
-	sz = ALIGN(sz + c->max_idx_node_sz, c->min_io_size);
+	sz = ALIGN(c->max_idx_node_sz, c->min_io_size) * 2;
 	c->cbuf = kmalloc(sz, GFP_NOFS);
 	if (!c->cbuf) {
 		err = -ENOMEM;
@@ -1374,6 +1375,26 @@ static int mount_ubifs(struct ubifs_info *c)
 		err = ubifs_write_master(c);
 		if (err)
 			goto out_lpt;
+	}
+
+	/*
+	 * Handle offline signed images: Now that the master node is
+	 * written and its validation no longer depends on the hash
+	 * in the superblock, we can update the offline signed
+	 * superblock with a HMAC version,
+	 */
+	if (ubifs_authenticated(c) && ubifs_hmac_zero(c, c->sup_node->hmac)) {
+		err = ubifs_hmac_wkm(c, c->sup_node->hmac_wkm);
+		if (err)
+			goto out_lpt;
+		c->superblock_need_write = 1;
+	}
+
+	if (!c->ro_mount && c->superblock_need_write) {
+		err = ubifs_write_sb_node(c, c->sup_node);
+		if (err)
+			goto out_lpt;
+		c->superblock_need_write = 0;
 	}
 
 	err = dbg_check_idx_size(c, c->bi.old_idx_sz);
@@ -1481,9 +1502,7 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
-	err = dbg_debugfs_init_fs(c);
-	if (err)
-		goto out_infos;
+	dbg_debugfs_init_fs(c);
 
 	c->mounting = 0;
 
@@ -1550,6 +1569,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		c->bud_bytes, c->bud_bytes >> 10, c->bud_bytes >> 20);
 	dbg_gen("max. seq. number:    %llu", c->max_sqnum);
 	dbg_gen("commit number:       %llu", c->cmt_no);
+	dbg_gen("max. xattrs per inode: %d", ubifs_xattr_max_cnt(c));
+	dbg_gen("max orphans:           %d", c->max_orphans);
 
 	return 0;
 
@@ -1658,15 +1679,6 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	if (err)
 		goto out;
 
-	if (c->old_leb_cnt != c->leb_cnt) {
-		struct ubifs_sb_node *sup = c->sup_node;
-
-		sup->leb_cnt = cpu_to_le32(c->leb_cnt);
-		err = ubifs_write_sb_node(c, sup);
-		if (err)
-			goto out;
-	}
-
 	if (c->need_recovery) {
 		ubifs_msg(c, "completing deferred recovery");
 		err = ubifs_write_rcvrd_mst_node(c);
@@ -1696,6 +1708,16 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		err = ubifs_write_master(c);
 		if (err)
 			goto out;
+	}
+
+	if (c->superblock_need_write) {
+		struct ubifs_sb_node *sup = c->sup_node;
+
+		err = ubifs_write_sb_node(c, sup);
+		if (err)
+			goto out;
+
+		c->superblock_need_write = 0;
 	}
 
 	c->ileb_buf = vmalloc(c->leb_size);
@@ -1979,9 +2001,10 @@ static int ubifs_remount_fs(struct super_block *sb, int *flags, char *data)
 
 const struct super_operations ubifs_super_operations = {
 	.alloc_inode   = ubifs_alloc_inode,
-	.destroy_inode = ubifs_destroy_inode,
+	.free_inode    = ubifs_free_inode,
 	.put_super     = ubifs_put_super,
 	.write_inode   = ubifs_write_inode,
+	.drop_inode    = ubifs_drop_inode,
 	.evict_inode   = ubifs_evict_inode,
 	.statfs        = ubifs_statfs,
 	.dirty_inode   = ubifs_dirty_inode,
@@ -2146,9 +2169,7 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 #ifdef CONFIG_UBIFS_FS_XATTR
 	sb->s_xattr = ubifs_xattr_handlers;
 #endif
-#ifdef CONFIG_UBIFS_FS_ENCRYPTION
-	sb->s_cop = &ubifs_crypt_operations;
-#endif
+	fscrypt_set_ops(sb, &ubifs_crypt_operations);
 
 	mutex_lock(&c->umount_mutex);
 	err = mount_ubifs(c);
@@ -2246,15 +2267,16 @@ static struct dentry *ubifs_mount(struct file_system_type *fs_type, int flags,
 		}
 	} else {
 		err = ubifs_fill_super(sb, data, flags & SB_SILENT ? 1 : 0);
-		if (err)
+		if (err) {
+			kfree(c);
 			goto out_deact;
+		}
 		/* We do not support atime */
 		sb->s_flags |= SB_ACTIVE;
-#ifndef CONFIG_UBIFS_ATIME_SUPPORT
-		sb->s_flags |= SB_NOATIME;
-#else
-		ubifs_msg(c, "full atime support is enabled.");
-#endif
+		if (IS_ENABLED(CONFIG_UBIFS_ATIME_SUPPORT))
+			ubifs_msg(c, "full atime support is enabled.");
+		else
+			sb->s_flags |= SB_NOATIME;
 	}
 
 	/* 'fill_super()' opens ubi again so we must close it here */
@@ -2369,9 +2391,7 @@ static int __init ubifs_init(void)
 	if (err)
 		goto out_shrinker;
 
-	err = dbg_debugfs_init();
-	if (err)
-		goto out_compr;
+	dbg_debugfs_init();
 
 	err = register_filesystem(&ubifs_fs_type);
 	if (err) {
@@ -2383,7 +2403,6 @@ static int __init ubifs_init(void)
 
 out_dbg:
 	dbg_debugfs_exit();
-out_compr:
 	ubifs_compressors_exit();
 out_shrinker:
 	unregister_shrinker(&ubifs_shrinker_info);

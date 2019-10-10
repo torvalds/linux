@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Intel CPU Microcode Update Driver for Linux
  *
@@ -8,11 +9,6 @@
  *
  * Copyright (C) 2012 Fenghua Yu <fenghua.yu@intel.com>
  *		      H Peter Anvin" <hpa@zytor.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -31,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
+#include <linux/uio.h>
 #include <linux/mm.h>
 
 #include <asm/microcode_intel.h>
@@ -861,32 +858,33 @@ out:
 	return ret;
 }
 
-static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
-				int (*get_ucode_data)(void *, const void *, size_t))
+static enum ucode_state generic_load_microcode(int cpu, struct iov_iter *iter)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	u8 *ucode_ptr = data, *new_mc = NULL, *mc = NULL;
-	int new_rev = uci->cpu_sig.rev;
-	unsigned int leftover = size;
 	unsigned int curr_mc_size = 0, new_mc_size = 0;
-	unsigned int csig, cpf;
 	enum ucode_state ret = UCODE_OK;
+	int new_rev = uci->cpu_sig.rev;
+	u8 *new_mc = NULL, *mc = NULL;
+	unsigned int csig, cpf;
 
-	while (leftover) {
+	while (iov_iter_count(iter)) {
 		struct microcode_header_intel mc_header;
-		unsigned int mc_size;
+		unsigned int mc_size, data_size;
+		u8 *data;
 
-		if (leftover < sizeof(mc_header)) {
-			pr_err("error! Truncated header in microcode data file\n");
+		if (!copy_from_iter_full(&mc_header, sizeof(mc_header), iter)) {
+			pr_err("error! Truncated or inaccessible header in microcode data file\n");
 			break;
 		}
 
-		if (get_ucode_data(&mc_header, ucode_ptr, sizeof(mc_header)))
-			break;
-
 		mc_size = get_totalsize(&mc_header);
-		if (!mc_size || mc_size > leftover) {
-			pr_err("error! Bad data in microcode data file\n");
+		if (mc_size < sizeof(mc_header)) {
+			pr_err("error! Bad data in microcode data file (totalsize too small)\n");
+			break;
+		}
+		data_size = mc_size - sizeof(mc_header);
+		if (data_size > iov_iter_count(iter)) {
+			pr_err("error! Bad data in microcode data file (truncated file?)\n");
 			break;
 		}
 
@@ -899,7 +897,9 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 			curr_mc_size = mc_size;
 		}
 
-		if (get_ucode_data(mc, ucode_ptr, mc_size) ||
+		memcpy(mc, &mc_header, sizeof(mc_header));
+		data = mc + sizeof(mc_header);
+		if (!copy_from_iter_full(data, data_size, iter) ||
 		    microcode_sanity_check(mc, 1) < 0) {
 			break;
 		}
@@ -914,14 +914,11 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 			mc = NULL;	/* trigger new vmalloc */
 			ret = UCODE_NEW;
 		}
-
-		ucode_ptr += mc_size;
-		leftover  -= mc_size;
 	}
 
 	vfree(mc);
 
-	if (leftover) {
+	if (iov_iter_count(iter)) {
 		vfree(new_mc);
 		return UCODE_ERROR;
 	}
@@ -943,12 +940,6 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 		 cpu, new_rev, uci->cpu_sig.rev);
 
 	return ret;
-}
-
-static int get_ucode_fw(void *to, const void *from, size_t n)
-{
-	memcpy(to, from, n);
-	return 0;
 }
 
 static bool is_blacklisted(unsigned int cpu)
@@ -977,10 +968,12 @@ static bool is_blacklisted(unsigned int cpu)
 static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 					     bool refresh_fw)
 {
-	char name[30];
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
+	struct iov_iter iter;
 	enum ucode_state ret;
+	struct kvec kvec;
+	char name[30];
 
 	if (is_blacklisted(cpu))
 		return UCODE_NFOUND;
@@ -993,26 +986,30 @@ static enum ucode_state request_microcode_fw(int cpu, struct device *device,
 		return UCODE_NFOUND;
 	}
 
-	ret = generic_load_microcode(cpu, (void *)firmware->data,
-				     firmware->size, &get_ucode_fw);
+	kvec.iov_base = (void *)firmware->data;
+	kvec.iov_len = firmware->size;
+	iov_iter_kvec(&iter, WRITE, &kvec, 1, firmware->size);
+	ret = generic_load_microcode(cpu, &iter);
 
 	release_firmware(firmware);
 
 	return ret;
 }
 
-static int get_ucode_user(void *to, const void *from, size_t n)
-{
-	return copy_from_user(to, from, n);
-}
-
 static enum ucode_state
 request_microcode_user(int cpu, const void __user *buf, size_t size)
 {
+	struct iov_iter iter;
+	struct iovec iov;
+
 	if (is_blacklisted(cpu))
 		return UCODE_NFOUND;
 
-	return generic_load_microcode(cpu, (void *)buf, size, &get_ucode_user);
+	iov.iov_base = (void __user *)buf;
+	iov.iov_len = size;
+	iov_iter_init(&iter, WRITE, &iov, 1, size);
+
+	return generic_load_microcode(cpu, &iter);
 }
 
 static struct microcode_ops microcode_intel_ops = {

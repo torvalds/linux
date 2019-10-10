@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MAXIM MAX77620 GPIO driver
  *
  * Copyright (c) 2016, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/gpio/driver.h>
@@ -195,13 +192,13 @@ static int max77620_gpio_set_debounce(struct max77620_gpio *mgpio,
 	case 0:
 		val = MAX77620_CNFG_GPIO_DBNC_None;
 		break;
-	case 1 ... 8:
+	case 1000 ... 8000:
 		val = MAX77620_CNFG_GPIO_DBNC_8ms;
 		break;
-	case 9 ... 16:
+	case 9000 ... 16000:
 		val = MAX77620_CNFG_GPIO_DBNC_16ms;
 		break;
-	case 17 ... 32:
+	case 17000 ... 32000:
 		val = MAX77620_CNFG_GPIO_DBNC_32ms;
 		break;
 	default:
@@ -273,10 +270,8 @@ static int max77620_gpio_probe(struct platform_device *pdev)
 	int ret;
 
 	gpio_irq = platform_get_irq(pdev, 0);
-	if (gpio_irq <= 0) {
-		dev_err(&pdev->dev, "GPIO irq not available %d\n", gpio_irq);
+	if (gpio_irq <= 0)
 		return -ENODEV;
-	}
 
 	mgpio = devm_kzalloc(&pdev->dev, sizeof(*mgpio), GFP_KERNEL);
 	if (!mgpio)

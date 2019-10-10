@@ -50,8 +50,10 @@
 #include <linux/ratelimit.h>
 #include <linux/vmalloc.h>
 
-
-/* number of characters left in xmit buffer before select has we have room */
+/*
+ * Until this number of characters is queued in the xmit buffer, select will
+ * return "we have room for writes".
+ */
 #define WAKEUP_CHARS 256
 
 /*
@@ -548,9 +550,9 @@ static ssize_t process_output_block(struct tty_struct *tty,
 	mutex_lock(&ldata->output_lock);
 
 	space = tty_write_room(tty);
-	if (!space) {
+	if (space <= 0) {
 		mutex_unlock(&ldata->output_lock);
-		return 0;
+		return space;
 	}
 	if (nr > space)
 		nr = space;

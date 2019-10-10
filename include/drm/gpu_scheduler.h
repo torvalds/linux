@@ -138,10 +138,6 @@ struct drm_sched_fence {
 	struct dma_fence		finished;
 
         /**
-         * @cb: the callback for the parent fence below.
-         */
-	struct dma_fence_cb		cb;
-        /**
          * @parent: the fence returned by &drm_sched_backend_ops.run_job
          * when scheduling the job on hardware. We signal the
          * &drm_sched_fence.finished fence once parent is signalled.
@@ -171,9 +167,6 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  * @sched: the scheduler instance on which this job is scheduled.
  * @s_fence: contains the fences for the scheduling of job.
  * @finish_cb: the callback for the finished fence.
- * @finish_work: schedules the function @drm_sched_job_finish once the job has
- *               finished to remove the job from the
- *               @drm_gpu_scheduler.ring_mirror_list.
  * @node: used to append this struct to the @drm_gpu_scheduler.ring_mirror_list.
  * @id: a unique id assigned to each job scheduled on the scheduler.
  * @karma: increment on every hang caused by this job. If this exceeds the hang
@@ -181,6 +174,7 @@ struct drm_sched_fence *to_drm_sched_fence(struct dma_fence *f);
  *         be scheduled further.
  * @s_priority: the priority of the job.
  * @entity: the entity to which this job belongs.
+ * @cb: the callback for the parent fence in s_fence.
  *
  * A job is created by the driver using drm_sched_job_init(), and
  * should call drm_sched_entity_push_job() once it wants the scheduler
@@ -191,12 +185,12 @@ struct drm_sched_job {
 	struct drm_gpu_scheduler	*sched;
 	struct drm_sched_fence		*s_fence;
 	struct dma_fence_cb		finish_cb;
-	struct work_struct		finish_work;
 	struct list_head		node;
 	uint64_t			id;
 	atomic_t			karma;
 	enum drm_sched_priority		s_priority;
 	struct drm_sched_entity  *entity;
+	struct dma_fence_cb		cb;
 };
 
 static inline bool drm_sched_invalidate_job(struct drm_sched_job *s_job,
@@ -265,6 +259,7 @@ struct drm_sched_backend_ops {
  *              guilty and it will be considered for scheduling further.
  * @num_jobs: the number of jobs in queue in the scheduler
  * @ready: marks if the underlying HW is ready to work
+ * @free_guilty: A hit to time out handler to free the guilty job.
  *
  * One scheduler is implemented for each hardware ring.
  */
@@ -285,6 +280,7 @@ struct drm_gpu_scheduler {
 	int				hang_limit;
 	atomic_t                        num_jobs;
 	bool			ready;
+	bool				free_guilty;
 };
 
 int drm_sched_init(struct drm_gpu_scheduler *sched,
@@ -298,9 +294,10 @@ int drm_sched_job_init(struct drm_sched_job *job,
 		       void *owner);
 void drm_sched_job_cleanup(struct drm_sched_job *job);
 void drm_sched_wakeup(struct drm_gpu_scheduler *sched);
-void drm_sched_hw_job_reset(struct drm_gpu_scheduler *sched,
-			    struct drm_sched_job *job);
-void drm_sched_job_recovery(struct drm_gpu_scheduler *sched);
+void drm_sched_stop(struct drm_gpu_scheduler *sched, struct drm_sched_job *bad);
+void drm_sched_start(struct drm_gpu_scheduler *sched, bool full_recovery);
+void drm_sched_resubmit_jobs(struct drm_gpu_scheduler *sched);
+void drm_sched_increase_karma(struct drm_sched_job *bad);
 bool drm_sched_dependency_optimized(struct dma_fence* fence,
 				    struct drm_sched_entity *entity);
 void drm_sched_fault(struct drm_gpu_scheduler *sched);

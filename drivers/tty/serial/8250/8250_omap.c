@@ -12,6 +12,7 @@
 #define SUPPORT_SYSRQ
 #endif
 
+#include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
@@ -140,18 +141,20 @@ static void omap8250_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 	serial8250_do_set_mctrl(port, mctrl);
 
-	/*
-	 * Turn off autoRTS if RTS is lowered and restore autoRTS setting
-	 * if RTS is raised
-	 */
-	lcr = serial_in(up, UART_LCR);
-	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
-	if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
-		priv->efr |= UART_EFR_RTS;
-	else
-		priv->efr &= ~UART_EFR_RTS;
-	serial_out(up, UART_EFR, priv->efr);
-	serial_out(up, UART_LCR, lcr);
+	if (!up->gpios) {
+		/*
+		 * Turn off autoRTS if RTS is lowered and restore autoRTS
+		 * setting if RTS is raised
+		 */
+		lcr = serial_in(up, UART_LCR);
+		serial_out(up, UART_LCR, UART_LCR_CONF_MODE_B);
+		if ((mctrl & TIOCM_RTS) && (port->status & UPSTAT_AUTORTS))
+			priv->efr |= UART_EFR_RTS;
+		else
+			priv->efr &= ~UART_EFR_RTS;
+		serial_out(up, UART_EFR, priv->efr);
+		serial_out(up, UART_LCR, lcr);
+	}
 }
 
 /*
@@ -452,7 +455,8 @@ static void omap_8250_set_termios(struct uart_port *port,
 	priv->efr = 0;
 	up->port.status &= ~(UPSTAT_AUTOCTS | UPSTAT_AUTORTS | UPSTAT_AUTOXOFF);
 
-	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW) {
+	if (termios->c_cflag & CRTSCTS && up->port.flags & UPF_HARD_FLOW &&
+	    !up->gpios) {
 		/* Enable AUTOCTS (autoRTS is enabled when RTS is raised) */
 		up->port.status |= UPSTAT_AUTOCTS | UPSTAT_AUTORTS;
 		priv->efr |= UART_EFR_CTS;
@@ -922,15 +926,13 @@ static void omap_8250_dma_tx_complete(void *param)
 		ret = omap_8250_tx_dma(p);
 		if (ret)
 			en_thri = true;
-
 	} else if (p->capabilities & UART_CAP_RPM) {
 		en_thri = true;
 	}
 
 	if (en_thri) {
 		dma->tx_err = 1;
-		p->ier |= UART_IER_THRI;
-		serial_port_out(&p->port, UART_IER, p->ier);
+		serial8250_set_THRI(p);
 	}
 
 	spin_unlock_irqrestore(&p->port.lock, flags);
@@ -958,10 +960,7 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 			ret = -EBUSY;
 			goto err;
 		}
-		if (p->ier & UART_IER_THRI) {
-			p->ier &= ~UART_IER_THRI;
-			serial_out(p, UART_IER, p->ier);
-		}
+		serial8250_clear_THRI(p);
 		return 0;
 	}
 
@@ -1019,10 +1018,7 @@ static int omap_8250_tx_dma(struct uart_8250_port *p)
 	if (dma->tx_err)
 		dma->tx_err = 0;
 
-	if (p->ier & UART_IER_THRI) {
-		p->ier &= ~UART_IER_THRI;
-		serial_out(p, UART_IER, p->ier);
-	}
+	serial8250_clear_THRI(p);
 	if (skip_byte)
 		serial_out(p, UART_TX, xmit->buf[xmit->tail]);
 	return 0;
@@ -1134,10 +1130,12 @@ static int omap8250_probe(struct platform_device *pdev)
 {
 	struct resource *regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	struct resource *irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	struct device_node *np = pdev->dev.of_node;
 	struct omap8250_priv *priv;
 	struct uart_8250_port up;
 	int ret;
 	void __iomem *membase;
+	const struct of_device_id *id;
 
 	if (!regs || !irq) {
 		dev_err(&pdev->dev, "missing registers or irq\n");
@@ -1194,26 +1192,30 @@ static int omap8250_probe(struct platform_device *pdev)
 	up.port.unthrottle = omap_8250_unthrottle;
 	up.port.rs485_config = omap_8250_rs485_config;
 
-	if (pdev->dev.of_node) {
-		const struct of_device_id *id;
-
-		ret = of_alias_get_id(pdev->dev.of_node, "serial");
-
-		of_property_read_u32(pdev->dev.of_node, "clock-frequency",
-				     &up.port.uartclk);
-		priv->wakeirq = irq_of_parse_and_map(pdev->dev.of_node, 1);
-
-		id = of_match_device(of_match_ptr(omap8250_dt_ids), &pdev->dev);
-		if (id && id->data)
-			priv->habit |= *(u8 *)id->data;
-	} else {
-		ret = pdev->id;
-	}
+	ret = of_alias_get_id(np, "serial");
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to get alias/pdev id\n");
+		dev_err(&pdev->dev, "failed to get alias\n");
 		return ret;
 	}
 	up.port.line = ret;
+
+	if (of_property_read_u32(np, "clock-frequency", &up.port.uartclk)) {
+		struct clk *clk;
+
+		clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(clk)) {
+			if (PTR_ERR(clk) == -EPROBE_DEFER)
+				return -EPROBE_DEFER;
+		} else {
+			up.port.uartclk = clk_get_rate(clk);
+		}
+	}
+
+	priv->wakeirq = irq_of_parse_and_map(np, 1);
+
+	id = of_match_device(of_match_ptr(omap8250_dt_ids), &pdev->dev);
+	if (id && id->data)
+		priv->habit |= *(u8 *)id->data;
 
 	if (!up.port.uartclk) {
 		up.port.uartclk = DEFAULT_CLK_SPEED;
@@ -1232,7 +1234,16 @@ static int omap8250_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, true);
 	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
+
+	/*
+	 * Disable runtime PM until autosuspend delay unless specifically
+	 * enabled by the user via sysfs. This is the historic way to
+	 * prevent an unsafe default policy with lossy characters on wake-up.
+	 * For serdev devices this is not needed, the policy can be managed by
+	 * the serdev driver.
+	 */
+	if (!of_get_available_child_count(pdev->dev.of_node))
+		pm_runtime_set_autosuspend_delay(&pdev->dev, -1);
 
 	pm_runtime_irq_safe(&pdev->dev);
 	pm_runtime_enable(&pdev->dev);
@@ -1242,25 +1253,23 @@ static int omap8250_probe(struct platform_device *pdev)
 	omap_serial_fill_features_erratas(&up, priv);
 	up.port.handle_irq = omap8250_no_handle_irq;
 #ifdef CONFIG_SERIAL_8250_DMA
-	if (pdev->dev.of_node) {
-		/*
-		 * Oh DMA support. If there are no DMA properties in the DT then
-		 * we will fall back to a generic DMA channel which does not
-		 * really work here. To ensure that we do not get a generic DMA
-		 * channel assigned, we have the the_no_dma_filter_fn() here.
-		 * To avoid "failed to request DMA" messages we check for DMA
-		 * properties in DT.
-		 */
-		ret = of_property_count_strings(pdev->dev.of_node, "dma-names");
-		if (ret == 2) {
-			up.dma = &priv->omap8250_dma;
-			priv->omap8250_dma.fn = the_no_dma_filter_fn;
-			priv->omap8250_dma.tx_dma = omap_8250_tx_dma;
-			priv->omap8250_dma.rx_dma = omap_8250_rx_dma;
-			priv->omap8250_dma.rx_size = RX_TRIGGER;
-			priv->omap8250_dma.rxconf.src_maxburst = RX_TRIGGER;
-			priv->omap8250_dma.txconf.dst_maxburst = TX_TRIGGER;
-		}
+	/*
+	 * Oh DMA support. If there are no DMA properties in the DT then
+	 * we will fall back to a generic DMA channel which does not
+	 * really work here. To ensure that we do not get a generic DMA
+	 * channel assigned, we have the the_no_dma_filter_fn() here.
+	 * To avoid "failed to request DMA" messages we check for DMA
+	 * properties in DT.
+	 */
+	ret = of_property_count_strings(np, "dma-names");
+	if (ret == 2) {
+		up.dma = &priv->omap8250_dma;
+		priv->omap8250_dma.fn = the_no_dma_filter_fn;
+		priv->omap8250_dma.tx_dma = omap_8250_tx_dma;
+		priv->omap8250_dma.rx_dma = omap_8250_rx_dma;
+		priv->omap8250_dma.rx_size = RX_TRIGGER;
+		priv->omap8250_dma.rxconf.src_maxburst = RX_TRIGGER;
+		priv->omap8250_dma.txconf.dst_maxburst = TX_TRIGGER;
 	}
 #endif
 	ret = serial8250_register_8250_port(&up);

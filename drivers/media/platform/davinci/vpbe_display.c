@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation version 2.
- *
- * This program is distributed WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -26,10 +18,6 @@
 #include <linux/slab.h>
 
 #include <asm/pgtable.h>
-
-#ifdef CONFIG_ARCH_DAVINCI
-#include <mach/cputype.h>
-#endif
 
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
@@ -641,8 +629,6 @@ static int vpbe_display_querycap(struct file *file, void  *priv,
 	struct vpbe_layer *layer = video_drvdata(file);
 	struct vpbe_device *vpbe_dev = layer->disp_dev->vpbe_dev;
 
-	cap->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	snprintf(cap->driver, sizeof(cap->driver), "%s",
 		dev_name(vpbe_dev->pdev));
 	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
@@ -800,7 +786,6 @@ static int vpbe_display_enum_fmt(struct file *file, void  *priv,
 {
 	struct vpbe_layer *layer = video_drvdata(file);
 	struct vpbe_device *vpbe_dev = layer->disp_dev->vpbe_dev;
-	unsigned int index = 0;
 
 	v4l2_dbg(1, debug, &vpbe_dev->v4l2_dev,
 				"VIDIOC_ENUM_FMT, layer id = %d\n",
@@ -811,19 +796,10 @@ static int vpbe_display_enum_fmt(struct file *file, void  *priv,
 	}
 
 	/* Fill in the information about format */
-	index = fmt->index;
-	memset(fmt, 0, sizeof(*fmt));
-	fmt->index = index;
-	fmt->type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-	if (index == 0) {
-		strscpy(fmt->description, "YUV 4:2:2 - UYVY",
-			sizeof(fmt->description));
+	if (fmt->index == 0)
 		fmt->pixelformat = V4L2_PIX_FMT_UYVY;
-	} else {
-		strscpy(fmt->description, "Y/CbCr 4:2:0",
-			sizeof(fmt->description));
+	else
 		fmt->pixelformat = V4L2_PIX_FMT_NV12;
-	}
 
 	return 0;
 }
@@ -1327,6 +1303,7 @@ static int init_vpbe_layer(int i, struct vpbe_display *disp_dev,
 	vbd->v4l2_dev   = &disp_dev->vpbe_dev->v4l2_dev;
 	vbd->lock	= &vpbe_display_layer->opslock;
 	vbd->vfl_dir	= VFL_DIR_TX;
+	vbd->device_caps = V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_STREAMING;
 
 	if (disp_dev->vpbe_dev->current_timings.timings_type &
 			VPBE_ENC_STD)

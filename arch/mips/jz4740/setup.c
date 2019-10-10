@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2009-2010, Lars-Peter Clausen <lars@metafoo.de>
  *  Copyright (C) 2011, Maarten ter Huurne <maarten@treewalker.org>
  *  JZ4740 setup code
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under  the terms of the GNU General	 Public License as published by the
- *  Free Software Foundation;  either version 2 of the License, or (at your
- *  option) any later version.
- *
- *  You should have received a copy of the GNU General Public License along
- *  with this program; if not, write to the Free Software Foundation, Inc.,
- *  675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/init.h>
@@ -24,10 +15,9 @@
 #include <asm/bootinfo.h>
 #include <asm/prom.h>
 
-#include <asm/mach-jz4740/base.h>
-
 #include "reset.h"
 
+#define JZ4740_EMC_BASE_ADDR 0x13010000
 
 #define JZ4740_EMC_SDRAM_CTRL 0x80
 
@@ -54,6 +44,8 @@ static void __init jz4740_detect_mem(void)
 
 static unsigned long __init get_board_mach_type(const void *fdt)
 {
+	if (!fdt_node_check_compatible(fdt, 0, "ingenic,x1000"))
+		return MACH_INGENIC_X1000;
 	if (!fdt_node_check_compatible(fdt, 0, "ingenic,jz4780"))
 		return MACH_INGENIC_JZ4780;
 	if (!fdt_node_check_compatible(fdt, 0, "ingenic,jz4770"))
@@ -94,6 +86,8 @@ void __init device_tree_init(void)
 const char *get_system_type(void)
 {
 	switch (mips_machtype) {
+	case MACH_INGENIC_X1000:
+		return "X1000";
 	case MACH_INGENIC_JZ4780:
 		return "JZ4780";
 	case MACH_INGENIC_JZ4770:

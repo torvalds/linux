@@ -18,6 +18,9 @@
 
 #define IGC_DEV_ID_I225_LM			0x15F2
 #define IGC_DEV_ID_I225_V			0x15F3
+#define IGC_DEV_ID_I225_I			0x15F8
+#define IGC_DEV_ID_I220_V			0x15F7
+#define IGC_DEV_ID_I225_K			0x3100
 
 #define IGC_FUNC_0				0
 
@@ -114,11 +117,8 @@ struct igc_nvm_operations {
 
 struct igc_phy_operations {
 	s32 (*acquire)(struct igc_hw *hw);
-	s32 (*check_polarity)(struct igc_hw *hw);
 	s32 (*check_reset_block)(struct igc_hw *hw);
 	s32 (*force_speed_duplex)(struct igc_hw *hw);
-	s32 (*get_cfg_done)(struct igc_hw *hw);
-	s32 (*get_cable_length)(struct igc_hw *hw);
 	s32 (*get_phy_info)(struct igc_hw *hw);
 	s32 (*read_reg)(struct igc_hw *hw, u32 address, u16 *data);
 	void (*release)(struct igc_hw *hw);
@@ -154,16 +154,10 @@ struct igc_phy_info {
 
 	u16 autoneg_advertised;
 	u16 autoneg_mask;
-	u16 cable_length;
-	u16 max_cable_length;
-	u16 min_cable_length;
-	u16 pair_length[4];
 
 	u8 mdix;
 
-	bool disable_polarity_correction;
 	bool is_mdix;
-	bool polarity_correction;
 	bool reset_disable;
 	bool speed_downgraded;
 	bool autoneg_wait_to_complete;
@@ -193,12 +187,7 @@ struct igc_fc_info {
 };
 
 struct igc_dev_spec_base {
-	bool global_device_reset;
-	bool eee_disable;
 	bool clear_semaphore_once;
-	bool module_plugged;
-	u8 media_port;
-	bool mas_capable;
 };
 
 struct igc_hw {

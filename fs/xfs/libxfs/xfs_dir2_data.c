@@ -6,19 +6,16 @@
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_dir2.h"
-#include "xfs_dir2_priv.h"
 #include "xfs_error.h"
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
-#include "xfs_cksum.h"
 #include "xfs_log.h"
 
 static xfs_failaddr_t xfs_dir2_data_freefind_verify(
@@ -50,14 +47,13 @@ __xfs_dir3_data_check(
 	int			i;		/* leaf index */
 	int			lastfree;	/* last entry was unused */
 	xfs_dir2_leaf_entry_t	*lep=NULL;	/* block leaf entries */
-	xfs_mount_t		*mp;		/* filesystem mount point */
+	struct xfs_mount	*mp = bp->b_mount;
 	char			*p;		/* current data position */
 	int			stale;		/* count of stale leaves */
 	struct xfs_name		name;
 	const struct xfs_dir_ops *ops;
 	struct xfs_da_geometry	*geo;
 
-	mp = bp->b_target->bt_mount;
 	geo = mp->m_dir_geo;
 
 	/*
@@ -249,20 +245,18 @@ static xfs_failaddr_t
 xfs_dir3_data_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
+	if (!xfs_verify_magic(bp, hdr3->magic))
+		return __this_address;
+
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		if (hdr3->magic != cpu_to_be32(XFS_DIR3_DATA_MAGIC))
-			return __this_address;
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
-			return __this_address;
-	} else {
-		if (hdr3->magic != cpu_to_be32(XFS_DIR2_DATA_MAGIC))
 			return __this_address;
 	}
 	return __xfs_dir3_data_check(NULL, bp);
@@ -300,7 +294,7 @@ static void
 xfs_dir3_data_read_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	xfs_failaddr_t		fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
@@ -317,7 +311,7 @@ static void
 xfs_dir3_data_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;
@@ -339,6 +333,8 @@ xfs_dir3_data_write_verify(
 
 const struct xfs_buf_ops xfs_dir3_data_buf_ops = {
 	.name = "xfs_dir3_data",
+	.magic = { cpu_to_be32(XFS_DIR2_DATA_MAGIC),
+		   cpu_to_be32(XFS_DIR3_DATA_MAGIC) },
 	.verify_read = xfs_dir3_data_read_verify,
 	.verify_write = xfs_dir3_data_write_verify,
 	.verify_struct = xfs_dir3_data_verify,
@@ -346,6 +342,8 @@ const struct xfs_buf_ops xfs_dir3_data_buf_ops = {
 
 static const struct xfs_buf_ops xfs_dir3_data_reada_buf_ops = {
 	.name = "xfs_dir3_data_reada",
+	.magic = { cpu_to_be32(XFS_DIR2_DATA_MAGIC),
+		   cpu_to_be32(XFS_DIR3_DATA_MAGIC) },
 	.verify_read = xfs_dir3_data_reada_verify,
 	.verify_write = xfs_dir3_data_write_verify,
 };

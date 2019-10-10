@@ -23,6 +23,7 @@
 #include <linux/slab.h>
 #include <linux/soc/ti/ti_sci_protocol.h>
 #include <linux/bsearch.h>
+#include <linux/list_sort.h>
 
 #define SCI_CLK_SSC_ENABLE		BIT(0)
 #define SCI_CLK_ALLOW_FREQ_CHANGE	BIT(1)
@@ -52,14 +53,16 @@ struct sci_clk_provider {
  * @num_parents: Number of parents for this clock
  * @provider:	 Master clock provider
  * @flags:	 Flags for the clock
+ * @node:	 Link for handling clocks probed via DT
  */
 struct sci_clk {
 	struct clk_hw hw;
 	u16 dev_id;
-	u8 clk_id;
-	u8 num_parents;
+	u32 clk_id;
+	u32 num_parents;
 	struct sci_clk_provider *provider;
 	u8 flags;
+	struct list_head node;
 };
 
 #define to_sci_clk(_hw) container_of(_hw, struct sci_clk, hw)
@@ -218,11 +221,11 @@ static int sci_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 static u8 sci_clk_get_parent(struct clk_hw *hw)
 {
 	struct sci_clk *clk = to_sci_clk(hw);
-	u8 parent_id;
+	u32 parent_id = 0;
 	int ret;
 
 	ret = clk->provider->ops->get_parent(clk->provider->sci, clk->dev_id,
-					     clk->clk_id, &parent_id);
+					     clk->clk_id, (void *)&parent_id);
 	if (ret) {
 		dev_err(clk->provider->dev,
 			"get-parent failed for dev=%d, clk=%d, ret=%d\n",
@@ -230,7 +233,9 @@ static u8 sci_clk_get_parent(struct clk_hw *hw)
 		return 0;
 	}
 
-	return parent_id - clk->clk_id - 1;
+	parent_id = parent_id - clk->clk_id - 1;
+
+	return (u8)parent_id;
 }
 
 /**
@@ -280,8 +285,8 @@ static int _sci_clk_build(struct sci_clk_provider *provider,
 	int i;
 	int ret = 0;
 
-	name = kasprintf(GFP_KERNEL, "%s:%d:%d", dev_name(provider->dev),
-			 sci_clk->dev_id, sci_clk->clk_id);
+	name = kasprintf(GFP_KERNEL, "clk:%d:%d", sci_clk->dev_id,
+			 sci_clk->clk_id);
 
 	init.name = name;
 
@@ -306,8 +311,7 @@ static int _sci_clk_build(struct sci_clk_provider *provider,
 		for (i = 0; i < sci_clk->num_parents; i++) {
 			char *parent_name;
 
-			parent_name = kasprintf(GFP_KERNEL, "%s:%d:%d",
-						dev_name(provider->dev),
+			parent_name = kasprintf(GFP_KERNEL, "clk:%d:%d",
 						sci_clk->dev_id,
 						sci_clk->clk_id + 1 + i);
 			if (!parent_name) {
@@ -404,22 +408,9 @@ static const struct of_device_id ti_sci_clk_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ti_sci_clk_of_match);
 
-/**
- * ti_sci_clk_probe - Probe function for the TI SCI clock driver
- * @pdev: platform device pointer to be probed
- *
- * Probes the TI SCI clock device. Allocates a new clock provider
- * and registers this to the common clock framework. Also applies
- * any required flags to the identified clocks via clock lists
- * supplied from DT. Returns 0 for success, negative error value
- * for failure.
- */
-static int ti_sci_clk_probe(struct platform_device *pdev)
+#ifdef CONFIG_TI_SCI_CLK_PROBE_FROM_FW
+static int ti_sci_scan_clocks_from_fw(struct sci_clk_provider *provider)
 {
-	struct device *dev = &pdev->dev;
-	struct device_node *np = dev->of_node;
-	struct sci_clk_provider *provider;
-	const struct ti_sci_handle *handle;
 	int ret;
 	int num_clks = 0;
 	struct sci_clk **clks = NULL;
@@ -428,24 +419,14 @@ static int ti_sci_clk_probe(struct platform_device *pdev)
 	int max_clks = 0;
 	int clk_id = 0;
 	int dev_id = 0;
-	u8 num_parents;
+	u32 num_parents = 0;
 	int gap_size = 0;
-
-	handle = devm_ti_sci_get_handle(dev);
-	if (IS_ERR(handle))
-		return PTR_ERR(handle);
-
-	provider = devm_kzalloc(dev, sizeof(*provider), GFP_KERNEL);
-	if (!provider)
-		return -ENOMEM;
-
-	provider->sci = handle;
-	provider->ops = &handle->ops.clk_ops;
-	provider->dev = dev;
+	struct device *dev = provider->dev;
 
 	while (1) {
 		ret = provider->ops->get_num_parents(provider->sci, dev_id,
-						     clk_id, &num_parents);
+						     clk_id,
+						     (void *)&num_parents);
 		if (ret) {
 			gap_size++;
 			if (!clk_id) {
@@ -501,6 +482,188 @@ static int ti_sci_clk_probe(struct platform_device *pdev)
 	provider->num_clocks = num_clks;
 
 	devm_kfree(dev, clks);
+
+	return 0;
+}
+
+#else
+
+static int _cmp_sci_clk_list(void *priv, struct list_head *a,
+			     struct list_head *b)
+{
+	struct sci_clk *ca = container_of(a, struct sci_clk, node);
+	struct sci_clk *cb = container_of(b, struct sci_clk, node);
+
+	return _cmp_sci_clk(ca, &cb);
+}
+
+static int ti_sci_scan_clocks_from_dt(struct sci_clk_provider *provider)
+{
+	struct device *dev = provider->dev;
+	struct device_node *np = NULL;
+	int ret;
+	int index;
+	struct of_phandle_args args;
+	struct list_head clks;
+	struct sci_clk *sci_clk, *prev;
+	int num_clks = 0;
+	int num_parents;
+	int clk_id;
+	const char * const clk_names[] = {
+		"clocks", "assigned-clocks", "assigned-clock-parents", NULL
+	};
+	const char * const *clk_name;
+
+	INIT_LIST_HEAD(&clks);
+
+	clk_name = clk_names;
+
+	while (*clk_name) {
+		np = of_find_node_with_property(np, *clk_name);
+		if (!np) {
+			clk_name++;
+			break;
+		}
+
+		if (!of_device_is_available(np))
+			continue;
+
+		index = 0;
+
+		do {
+			ret = of_parse_phandle_with_args(np, *clk_name,
+							 "#clock-cells", index,
+							 &args);
+			if (ret)
+				break;
+
+			if (args.args_count == 2 && args.np == dev->of_node) {
+				sci_clk = devm_kzalloc(dev, sizeof(*sci_clk),
+						       GFP_KERNEL);
+				if (!sci_clk)
+					return -ENOMEM;
+
+				sci_clk->dev_id = args.args[0];
+				sci_clk->clk_id = args.args[1];
+				sci_clk->provider = provider;
+				provider->ops->get_num_parents(provider->sci,
+							       sci_clk->dev_id,
+							       sci_clk->clk_id,
+							       (void *)&sci_clk->num_parents);
+				list_add_tail(&sci_clk->node, &clks);
+
+				num_clks++;
+
+				num_parents = sci_clk->num_parents;
+				if (num_parents == 1)
+					num_parents = 0;
+
+				/*
+				 * Linux kernel has inherent limitation
+				 * of 255 clock parents at the moment.
+				 * Right now, it is not expected that
+				 * any mux clock from sci-clk driver
+				 * would exceed that limit either, but
+				 * the ABI basically provides that
+				 * possibility. Print out a warning if
+				 * this happens for any clock.
+				 */
+				if (num_parents >= 255) {
+					dev_warn(dev, "too many parents for dev=%d, clk=%d (%d), cropping to 255.\n",
+						 sci_clk->dev_id,
+						 sci_clk->clk_id, num_parents);
+					num_parents = 255;
+				}
+
+				clk_id = args.args[1] + 1;
+
+				while (num_parents--) {
+					sci_clk = devm_kzalloc(dev,
+							       sizeof(*sci_clk),
+							       GFP_KERNEL);
+					if (!sci_clk)
+						return -ENOMEM;
+					sci_clk->dev_id = args.args[0];
+					sci_clk->clk_id = clk_id++;
+					sci_clk->provider = provider;
+					list_add_tail(&sci_clk->node, &clks);
+
+					num_clks++;
+				}
+			}
+
+			index++;
+		} while (args.np);
+	}
+
+	list_sort(NULL, &clks, _cmp_sci_clk_list);
+
+	provider->clocks = devm_kmalloc_array(dev, num_clks, sizeof(sci_clk),
+					      GFP_KERNEL);
+	if (!provider->clocks)
+		return -ENOMEM;
+
+	num_clks = 0;
+	prev = NULL;
+
+	list_for_each_entry(sci_clk, &clks, node) {
+		if (prev && prev->dev_id == sci_clk->dev_id &&
+		    prev->clk_id == sci_clk->clk_id)
+			continue;
+
+		provider->clocks[num_clks++] = sci_clk;
+		prev = sci_clk;
+	}
+
+	provider->num_clocks = num_clks;
+
+	return 0;
+}
+#endif
+
+/**
+ * ti_sci_clk_probe - Probe function for the TI SCI clock driver
+ * @pdev: platform device pointer to be probed
+ *
+ * Probes the TI SCI clock device. Allocates a new clock provider
+ * and registers this to the common clock framework. Also applies
+ * any required flags to the identified clocks via clock lists
+ * supplied from DT. Returns 0 for success, negative error value
+ * for failure.
+ */
+static int ti_sci_clk_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct sci_clk_provider *provider;
+	const struct ti_sci_handle *handle;
+	int ret;
+
+	handle = devm_ti_sci_get_handle(dev);
+	if (IS_ERR(handle))
+		return PTR_ERR(handle);
+
+	provider = devm_kzalloc(dev, sizeof(*provider), GFP_KERNEL);
+	if (!provider)
+		return -ENOMEM;
+
+	provider->sci = handle;
+	provider->ops = &handle->ops.clk_ops;
+	provider->dev = dev;
+
+#ifdef CONFIG_TI_SCI_CLK_PROBE_FROM_FW
+	ret = ti_sci_scan_clocks_from_fw(provider);
+	if (ret) {
+		dev_err(dev, "scan clocks from FW failed: %d\n", ret);
+		return ret;
+	}
+#else
+	ret = ti_sci_scan_clocks_from_dt(provider);
+	if (ret) {
+		dev_err(dev, "scan clocks from DT failed: %d\n", ret);
+		return ret;
+	}
+#endif
 
 	ret = ti_sci_init_clocks(provider);
 	if (ret) {

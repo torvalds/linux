@@ -1,9 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _NF_NAT_H
 #define _NF_NAT_H
+
+#include <linux/list.h>
 #include <linux/netfilter_ipv4.h>
-#include <linux/netfilter/nf_nat.h>
+#include <linux/netfilter/nf_conntrack_pptp.h>
+#include <net/netfilter/nf_conntrack.h>
+#include <net/netfilter/nf_conntrack_extend.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+#include <uapi/linux/netfilter/nf_nat.h>
 
 enum nf_nat_manip_type {
 	NF_NAT_MANIP_SRC,
@@ -14,19 +19,13 @@ enum nf_nat_manip_type {
 #define HOOK2MANIP(hooknum) ((hooknum) != NF_INET_POST_ROUTING && \
 			     (hooknum) != NF_INET_LOCAL_IN)
 
-#include <linux/list.h>
-#include <linux/netfilter/nf_conntrack_pptp.h>
-#include <net/netfilter/nf_conntrack_extend.h>
-
 /* per conntrack: nat application helper private data */
 union nf_conntrack_nat_help {
 	/* insert nat helper private data here */
-#if defined(CONFIG_NF_NAT_PPTP) || defined(CONFIG_NF_NAT_PPTP_MODULE)
+#if IS_ENABLED(CONFIG_NF_NAT_PPTP)
 	struct nf_nat_pptp nat_pptp_info;
 #endif
 };
-
-struct nf_conn;
 
 /* The structure embedded in the conntrack structure. */
 struct nf_conn_nat {
@@ -48,7 +47,7 @@ struct nf_conn_nat *nf_ct_nat_ext_add(struct nf_conn *ct);
 
 static inline struct nf_conn_nat *nfct_nat(const struct nf_conn *ct)
 {
-#if defined(CONFIG_NF_NAT) || defined(CONFIG_NF_NAT_MODULE)
+#if IS_ENABLED(CONFIG_NF_NAT)
 	return nf_ct_ext_find(ct, NF_CT_EXT_NAT);
 #else
 	return NULL;
@@ -69,9 +68,9 @@ static inline bool nf_nat_oif_changed(unsigned int hooknum,
 #endif
 }
 
-int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
+int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 		       const struct nf_hook_ops *nat_ops, unsigned int ops_count);
-void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
+void nf_nat_unregister_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 			  unsigned int ops_count);
 
 unsigned int nf_nat_packet(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
@@ -97,6 +96,9 @@ void nf_nat_ipv4_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 
 int nf_nat_ipv6_register_fn(struct net *net, const struct nf_hook_ops *ops);
 void nf_nat_ipv6_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
+
+int nf_nat_inet_register_fn(struct net *net, const struct nf_hook_ops *ops);
+void nf_nat_inet_unregister_fn(struct net *net, const struct nf_hook_ops *ops);
 
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,

@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi_thermal.c - ACPI Thermal Zone Driver ($Revision: 41 $)
  *
  *  Copyright (C) 2001, 2002 Andy Grover <andrew.grover@intel.com>
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or (at
- *  your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
  *  This driver fully implements the ACPI thermal policy as described in the
  *  ACPI 2.0 Specification.
@@ -24,7 +11,6 @@
  *  TBD: 1. Implement passive cooling hysteresis.
  *       2. Enhance passive cooling (CPU) states/limit interface to support
  *          concepts of 'multiple limiters', upper/lower limits, etc.
- *
  */
 
 #include <linux/kernel.h>
@@ -239,13 +225,9 @@ static int acpi_thermal_set_cooling_mode(struct acpi_thermal *tz, int mode)
 	if (!tz)
 		return -EINVAL;
 
-	if (!acpi_has_method(tz->device->handle, "_SCP")) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "_SCP not present\n"));
+	if (ACPI_FAILURE(acpi_execute_simple_method(tz->device->handle,
+						    "_SCP", mode)))
 		return -ENODEV;
-	} else if (ACPI_FAILURE(acpi_execute_simple_method(tz->device->handle,
-							   "_SCP", mode))) {
-		return -ENODEV;
-	}
 
 	return 0;
 }
@@ -477,8 +459,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 			break;
 	}
 
-	if ((flag & ACPI_TRIPS_DEVICES)
-	    && acpi_has_method(tz->device->handle, "_TZD")) {
+	if (flag & ACPI_TRIPS_DEVICES) {
 		memset(&devices, 0, sizeof(devices));
 		status = acpi_evaluate_reference(tz->device->handle, "_TZD",
 						NULL, &devices);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * An hwmon driver for the Analog Devices AD7416/17/18
  * Copyright (C) 2006-07 Tower Technologies
@@ -6,10 +7,6 @@
  *
  * Based on lm75.c
  * Copyright (C) 1998-99 Frodo Looijaard <frodol@dds.nl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License,
- * as published by the Free Software Foundation - version 2.
  */
 
 #include <linux/module.h>

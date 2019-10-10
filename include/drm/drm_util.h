@@ -26,7 +26,58 @@
 #ifndef _DRM_UTIL_H_
 #define _DRM_UTIL_H_
 
-/* helper for handling conditionals in various for_each macros */
+/**
+ * DOC: drm utils
+ *
+ * Macros and inline functions that does not naturally belong in other places
+ */
+
+#include <linux/interrupt.h>
+#include <linux/kgdb.h>
+#include <linux/preempt.h>
+#include <linux/smp.h>
+
+/*
+ * Use EXPORT_SYMBOL_FOR_TESTS_ONLY() for functions that shall
+ * only be visible for drmselftests.
+ */
+#if defined(CONFIG_DRM_DEBUG_SELFTEST_MODULE)
+#define EXPORT_SYMBOL_FOR_TESTS_ONLY(x) EXPORT_SYMBOL(x)
+#else
+#define EXPORT_SYMBOL_FOR_TESTS_ONLY(x)
+#endif
+
+/**
+ * for_each_if - helper for handling conditionals in various for_each macros
+ * @condition: The condition to check
+ *
+ * Typical use::
+ *
+ *	#define for_each_foo_bar(x, y) \'
+ *		list_for_each_entry(x, y->list, head) \'
+ *			for_each_if(x->something == SOMETHING)
+ *
+ * The for_each_if() macro makes the use of for_each_foo_bar() less error
+ * prone.
+ */
 #define for_each_if(condition) if (!(condition)) {} else
+
+/**
+ * drm_can_sleep - returns true if currently okay to sleep
+ *
+ * This function shall not be used in new code.
+ * The check for running in atomic context may not work - see linux/preempt.h.
+ *
+ * FIXME: All users of drm_can_sleep should be removed (see todo.rst)
+ *
+ * Returns:
+ * False if kgdb is active, we are in atomic context or irqs are disabled.
+ */
+static inline bool drm_can_sleep(void)
+{
+	if (in_atomic() || in_dbg_master() || irqs_disabled())
+		return false;
+	return true;
+}
 
 #endif

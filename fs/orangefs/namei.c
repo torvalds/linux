@@ -76,19 +76,16 @@ static int orangefs_create(struct inode *dir,
 
 	d_instantiate_new(dentry, inode);
 	orangefs_set_timeout(dentry);
-	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
-	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "%s: dentry instantiated for %pd\n",
 		     __func__,
 		     dentry);
 
-	dir->i_mtime = dir->i_ctime = current_time(dir);
 	memset(&iattr, 0, sizeof iattr);
-	iattr.ia_valid |= ATTR_MTIME;
-	orangefs_inode_setattr(dir, &iattr);
-	mark_inode_dirty_sync(dir);
+	iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
+	iattr.ia_mtime = iattr.ia_ctime = current_time(dir);
+	__orangefs_setattr(dir, &iattr);
 	ret = 0;
 out:
 	op_release(new_op);
@@ -210,11 +207,10 @@ static int orangefs_unlink(struct inode *dir, struct dentry *dentry)
 	if (!ret) {
 		drop_nlink(inode);
 
-		dir->i_mtime = dir->i_ctime = current_time(dir);
 		memset(&iattr, 0, sizeof iattr);
-		iattr.ia_valid |= ATTR_MTIME;
-		orangefs_inode_setattr(dir, &iattr);
-		mark_inode_dirty_sync(dir);
+		iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
+		iattr.ia_mtime = iattr.ia_ctime = current_time(dir);
+		__orangefs_setattr(dir, &iattr);
 	}
 	return ret;
 }
@@ -228,7 +224,7 @@ static int orangefs_symlink(struct inode *dir,
 	struct orangefs_object_kref ref;
 	struct inode *inode;
 	struct iattr iattr;
-	int mode = 755;
+	int mode = 0755;
 	int ret;
 
 	gossip_debug(GOSSIP_NAME_DEBUG, "%s: called\n", __func__);
@@ -291,19 +287,16 @@ static int orangefs_symlink(struct inode *dir,
 
 	d_instantiate_new(dentry, inode);
 	orangefs_set_timeout(dentry);
-	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
-	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Inode (Symlink) %pU -> %pd\n",
 		     get_khandle_from_ino(inode),
 		     dentry);
 
-	dir->i_mtime = dir->i_ctime = current_time(dir);
 	memset(&iattr, 0, sizeof iattr);
-	iattr.ia_valid |= ATTR_MTIME;
-	orangefs_inode_setattr(dir, &iattr);
-	mark_inode_dirty_sync(dir);
+	iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
+	iattr.ia_mtime = iattr.ia_ctime = current_time(dir);
+	__orangefs_setattr(dir, &iattr);
 	ret = 0;
 out:
 	op_release(new_op);
@@ -360,8 +353,6 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 
 	d_instantiate_new(dentry, inode);
 	orangefs_set_timeout(dentry);
-	ORANGEFS_I(inode)->getattr_time = jiffies - 1;
-	ORANGEFS_I(inode)->getattr_mask = STATX_BASIC_STATS;
 
 	gossip_debug(GOSSIP_NAME_DEBUG,
 		     "Inode (Directory) %pU -> %pd\n",
@@ -372,11 +363,10 @@ static int orangefs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode
 	 * NOTE: we have no good way to keep nlink consistent for directories
 	 * across clients; keep constant at 1.
 	 */
-	dir->i_mtime = dir->i_ctime = current_time(dir);
 	memset(&iattr, 0, sizeof iattr);
-	iattr.ia_valid |= ATTR_MTIME;
-	orangefs_inode_setattr(dir, &iattr);
-	mark_inode_dirty_sync(dir);
+	iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
+	iattr.ia_mtime = iattr.ia_ctime = current_time(dir);
+	__orangefs_setattr(dir, &iattr);
 out:
 	op_release(new_op);
 	return ret;
@@ -389,6 +379,7 @@ static int orangefs_rename(struct inode *old_dir,
 			unsigned int flags)
 {
 	struct orangefs_kernel_op_s *new_op;
+	struct iattr iattr;
 	int ret;
 
 	if (flags)
@@ -398,7 +389,10 @@ static int orangefs_rename(struct inode *old_dir,
 		     "orangefs_rename: called (%pd2 => %pd2) ct=%d\n",
 		     old_dentry, new_dentry, d_count(new_dentry));
 
-	ORANGEFS_I(new_dentry->d_parent->d_inode)->getattr_time = jiffies - 1;
+	memset(&iattr, 0, sizeof iattr);
+	iattr.ia_valid |= ATTR_MTIME | ATTR_CTIME;
+	iattr.ia_mtime = iattr.ia_ctime = current_time(new_dir);
+	__orangefs_setattr(new_dir, &iattr);
 
 	new_op = op_alloc(ORANGEFS_VFS_OP_RENAME);
 	if (!new_op)

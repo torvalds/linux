@@ -56,9 +56,9 @@ The Y value in the CIE XYZ colorspace corresponds to luminance. Often
 the CIE XYZ colorspace is transformed to the normalized CIE xyY
 colorspace:
 
-x = X / (X + Y + Z)
+	x = X / (X + Y + Z)
 
-y = Y / (X + Y + Z)
+	y = Y / (X + Y + Z)
 
 The x and y values are the chromaticity coordinates and can be used to
 define a color without the luminance component Y. It is very confusing

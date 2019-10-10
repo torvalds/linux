@@ -14,13 +14,16 @@
 #define _NF_CONNTRACK_CORE_H
 
 #include <linux/netfilter.h>
-#include <net/netfilter/nf_conntrack_l4proto.h>
+#include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
+#include <net/netfilter/nf_conntrack_l4proto.h>
 
 /* This header is used to share core functionality between the
    standalone connection tracking module, and the compatibility layer's use
    of connection tracking. */
-unsigned int nf_conntrack_in(struct sk_buff *skb, const struct nf_hook_state *state);
+
+unsigned int nf_conntrack_in(struct sk_buff *skb,
+			     const struct nf_hook_state *state);
 
 int nf_conntrack_init_net(struct net *net);
 void nf_conntrack_cleanup_net(struct net *net);
@@ -63,6 +66,9 @@ static inline int nf_conntrack_confirm(struct sk_buff *skb)
 	}
 	return ret;
 }
+
+unsigned int nf_confirm(struct sk_buff *skb, unsigned int protoff,
+			struct nf_conn *ct, enum ip_conntrack_info ctinfo);
 
 void print_tuple(struct seq_file *s, const struct nf_conntrack_tuple *tuple,
 		 const struct nf_conntrack_l4proto *proto);

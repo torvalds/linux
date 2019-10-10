@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Silicon Image SiI8620 HDMI/MHL bridge driver
  *
  * Copyright (C) 2015, Samsung Electronics Co., Ltd.
  * Andrzej Hajda <a.hajda@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <asm/unaligned.h>
@@ -1104,8 +1101,7 @@ static void sii8620_set_infoframes(struct sii8620 *ctx,
 	int ret;
 
 	ret = drm_hdmi_avi_infoframe_from_display_mode(&frm.avi,
-						       mode,
-						       true);
+						       NULL, mode);
 	if (ctx->use_packed_pixel)
 		frm.avi.colorspace = HDMI_COLORSPACE_YUV422;
 

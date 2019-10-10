@@ -195,7 +195,7 @@ static netdev_tx_t nfp_repr_xmit(struct sk_buff *skb, struct net_device *netdev)
 	ret = dev_queue_xmit(skb);
 	nfp_repr_inc_tx_stats(netdev, len, ret);
 
-	return ret;
+	return NETDEV_TX_OK;
 }
 
 static int nfp_repr_stop(struct net_device *netdev)
@@ -267,13 +267,14 @@ const struct net_device_ops nfp_repr_netdev_ops = {
 	.ndo_set_vf_mac		= nfp_app_set_vf_mac,
 	.ndo_set_vf_vlan	= nfp_app_set_vf_vlan,
 	.ndo_set_vf_spoofchk	= nfp_app_set_vf_spoofchk,
+	.ndo_set_vf_trust	= nfp_app_set_vf_trust,
 	.ndo_get_vf_config	= nfp_app_get_vf_config,
 	.ndo_set_vf_link_state	= nfp_app_set_vf_link_state,
 	.ndo_fix_features	= nfp_repr_fix_features,
 	.ndo_set_features	= nfp_port_set_features,
 	.ndo_set_mac_address    = eth_mac_addr,
 	.ndo_get_port_parent_id	= nfp_port_get_port_parent_id,
-	.ndo_get_devlink	= nfp_devlink_get_devlink,
+	.ndo_get_devlink_port	= nfp_devlink_get_devlink_port,
 };
 
 void
@@ -383,7 +384,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
 	netdev->gso_max_segs = NFP_NET_LSO_MAX_SEGS;
 
-	netdev->priv_flags |= IFF_NO_QUEUE;
+	netdev->priv_flags |= IFF_NO_QUEUE | IFF_DISABLE_NETPOLL;
 	netdev->features |= NETIF_F_LLTX;
 
 	if (nfp_app_has_tc(app)) {

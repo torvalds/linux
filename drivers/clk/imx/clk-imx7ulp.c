@@ -42,14 +42,27 @@ static const struct clk_div_table ulp_div_table[] = {
 	{ .val = 7, .div = 64, },
 };
 
+static const int pcc2_uart_clk_ids[] __initconst = {
+	IMX7ULP_CLK_LPUART4,
+	IMX7ULP_CLK_LPUART5,
+};
+
+static const int pcc3_uart_clk_ids[] __initconst = {
+	IMX7ULP_CLK_LPUART6,
+	IMX7ULP_CLK_LPUART7,
+};
+
+static struct clk **pcc2_uart_clks[ARRAY_SIZE(pcc2_uart_clk_ids) + 1] __initdata;
+static struct clk **pcc3_uart_clks[ARRAY_SIZE(pcc3_uart_clk_ids) + 1] __initdata;
+
 static void __init imx7ulp_clk_scg1_init(struct device_node *np)
 {
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
 	void __iomem *base;
 
-	clk_data = kzalloc(sizeof(*clk_data) + sizeof(*clk_data->hws) *
-			   IMX7ULP_CLK_SCG1_END, GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_SCG1_END),
+			   GFP_KERNEL);
 	if (!clk_data)
 		return;
 
@@ -115,7 +128,7 @@ static void __init imx7ulp_clk_scg1_init(struct device_node *np)
 
 	clks[IMX7ULP_CLK_NIC0_DIV]	= imx_clk_hw_divider_flags("nic0_clk",		"nic_sel",  base + 0x40, 24, 4, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
 	clks[IMX7ULP_CLK_NIC1_DIV]	= imx_clk_hw_divider_flags("nic1_clk",		"nic0_clk", base + 0x40, 16, 4, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
-	clks[IMX7ULP_CLK_NIC1_BUS_DIV]	= imx_clk_hw_divider_flags("nic1_bus_clk",	"nic1_clk", base + 0x40, 4,  4, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
+	clks[IMX7ULP_CLK_NIC1_BUS_DIV]	= imx_clk_hw_divider_flags("nic1_bus_clk",	"nic0_clk", base + 0x40, 4,  4, CLK_SET_RATE_PARENT | CLK_IS_CRITICAL);
 
 	clks[IMX7ULP_CLK_GPU_DIV]	= imx_clk_hw_divider("gpu_clk", "nic0_clk", base + 0x40, 20, 4);
 
@@ -135,9 +148,10 @@ static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
 	void __iomem *base;
+	int i;
 
-	clk_data = kzalloc(sizeof(*clk_data) + sizeof(*clk_data->hws) *
-			   IMX7ULP_CLK_PCC2_END, GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_PCC2_END),
+			   GFP_KERNEL);
 	if (!clk_data)
 		return;
 
@@ -151,7 +165,6 @@ static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
 	clks[IMX7ULP_CLK_DMA1]		= imx_clk_hw_gate("dma1", "nic1_clk", base + 0x20, 30);
 	clks[IMX7ULP_CLK_RGPIO2P1]	= imx_clk_hw_gate("rgpio2p1", "nic1_bus_clk", base + 0x3c, 30);
 	clks[IMX7ULP_CLK_DMA_MUX1]	= imx_clk_hw_gate("dma_mux1", "nic1_bus_clk", base + 0x84, 30);
-	clks[IMX7ULP_CLK_SNVS]		= imx_clk_hw_gate("snvs", "nic1_bus_clk", base + 0x8c, 30);
 	clks[IMX7ULP_CLK_CAAM]		= imx_clk_hw_gate("caam", "nic1_clk", base + 0x90, 30);
 	clks[IMX7ULP_CLK_LPTPM4]	= imx7ulp_clk_composite("lptpm4",  periph_bus_sels, ARRAY_SIZE(periph_bus_sels), true, false, true, base + 0x94);
 	clks[IMX7ULP_CLK_LPTPM5]	= imx7ulp_clk_composite("lptpm5",  periph_bus_sels, ARRAY_SIZE(periph_bus_sels), true, false, true, base + 0x98);
@@ -174,6 +187,14 @@ static void __init imx7ulp_clk_pcc2_init(struct device_node *np)
 	imx_check_clk_hws(clks, clk_data->num);
 
 	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
+
+	for (i = 0; i < ARRAY_SIZE(pcc2_uart_clk_ids); i++) {
+		int index = pcc2_uart_clk_ids[i];
+
+		pcc2_uart_clks[i] = &clks[index]->clk;
+	}
+
+	imx_register_uart_clocks(pcc2_uart_clks);
 }
 CLK_OF_DECLARE(imx7ulp_clk_pcc2, "fsl,imx7ulp-pcc2", imx7ulp_clk_pcc2_init);
 
@@ -182,9 +203,10 @@ static void __init imx7ulp_clk_pcc3_init(struct device_node *np)
 	struct clk_hw_onecell_data *clk_data;
 	struct clk_hw **clks;
 	void __iomem *base;
+	int i;
 
-	clk_data = kzalloc(sizeof(*clk_data) + sizeof(*clk_data->hws) *
-			   IMX7ULP_CLK_PCC3_END, GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_PCC3_END),
+			   GFP_KERNEL);
 	if (!clk_data)
 		return;
 
@@ -219,6 +241,14 @@ static void __init imx7ulp_clk_pcc3_init(struct device_node *np)
 	imx_check_clk_hws(clks, clk_data->num);
 
 	of_clk_add_hw_provider(np, of_clk_hw_onecell_get, clk_data);
+
+	for (i = 0; i < ARRAY_SIZE(pcc3_uart_clk_ids); i++) {
+		int index = pcc3_uart_clk_ids[i];
+
+		pcc3_uart_clks[i] = &clks[index]->clk;
+	}
+
+	imx_register_uart_clocks(pcc3_uart_clks);
 }
 CLK_OF_DECLARE(imx7ulp_clk_pcc3, "fsl,imx7ulp-pcc3", imx7ulp_clk_pcc3_init);
 
@@ -228,8 +258,8 @@ static void __init imx7ulp_clk_smc1_init(struct device_node *np)
 	struct clk_hw **clks;
 	void __iomem *base;
 
-	clk_data = kzalloc(sizeof(*clk_data) + sizeof(*clk_data->hws) *
-			   IMX7ULP_CLK_SMC1_END, GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, IMX7ULP_CLK_SMC1_END),
+			   GFP_KERNEL);
 	if (!clk_data)
 		return;
 

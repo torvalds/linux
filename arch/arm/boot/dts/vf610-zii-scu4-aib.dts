@@ -505,14 +505,14 @@
 	pinctrl-0 = <&pinctrl_i2c0>;
 	status = "okay";
 
-	gpio5: pca9554@20 {
+	gpio5: io-expander@20 {
 		compatible = "nxp,pca9554";
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
 	};
 
-	gpio6: pca9554@22 {
+	gpio6: io-expander@22 {
 		compatible = "nxp,pca9554";
 		reg = <0x22>;
 		gpio-controller;
@@ -524,12 +524,12 @@
 		reg = <0x48>;
 	};
 
-	at24c04@50 {
+	eeprom@50 {
 		compatible = "atmel,24c04";
 		reg = <0x50>;
 	};
 
-	at24c04@52 {
+	eeprom@52 {
 		compatible = "atmel,24c04";
 		reg = <0x52>;
 	};
@@ -565,6 +565,8 @@
 		#gpio-cells = <2>;
 		reg = <0x20>;
 		gpio-controller;
+		interrupt-parent = <&gpio1>;
+		interrupts = <31 IRQ_TYPE_EDGE_FALLING>;
 	};
 
 	lm75@4e {
@@ -577,7 +579,7 @@
 		reg = <0x4f>;
 	};
 
-	gpio7: pca9555@23 {
+	gpio7: io-expander@23 {
 		compatible = "nxp,pca9555";
 		gpio-controller;
 		#gpio-cells = <2>;
@@ -669,6 +671,10 @@
 			reg = <5>;
 		};
 	};
+};
+
+&snvsrtc {
+	status = "disabled";
 };
 
 &uart0 {
@@ -773,7 +779,8 @@
 			VF610_PAD_PTB15__I2C0_SDA		0x37ff
 		>;
 	};
-		pinctrl_i2c1: i2c1grp {
+
+	pinctrl_i2c1: i2c1grp {
 		fsl,pins = <
 			VF610_PAD_PTB16__I2C1_SCL		0x37ff
 			VF610_PAD_PTB17__I2C1_SDA		0x37ff
@@ -784,13 +791,6 @@
 		fsl,pins = <
 			VF610_PAD_PTA22__I2C2_SCL		0x37ff
 			VF610_PAD_PTA23__I2C2_SDA		0x37ff
-		>;
-	};
-
-	pinctrl_i2c3: i2c3grp {
-		fsl,pins = <
-			VF610_PAD_PTA30__I2C3_SCL		0x37ff
-			VF610_PAD_PTA31__I2C3_SDA		0x37ff
 		>;
 	};
 

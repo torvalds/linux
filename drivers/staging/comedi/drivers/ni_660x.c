@@ -320,7 +320,6 @@ static inline void ni_660x_set_dma_channel(struct comedi_device *dev,
 	ni_660x_write(dev, chip, devpriv->dma_cfg[chip] |
 		      NI660X_DMA_CFG_RESET(mite_channel),
 		      NI660X_DMA_CFG);
-	mmiowb();
 }
 
 static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
@@ -333,7 +332,6 @@ static inline void ni_660x_unset_dma_channel(struct comedi_device *dev,
 	devpriv->dma_cfg[chip] &= ~NI660X_DMA_CFG_SEL_MASK(mite_channel);
 	devpriv->dma_cfg[chip] |= NI660X_DMA_CFG_SEL_NONE(mite_channel);
 	ni_660x_write(dev, chip, devpriv->dma_cfg[chip], NI660X_DMA_CFG);
-	mmiowb();
 }
 
 static int ni_660x_request_mite_channel(struct comedi_device *dev,
@@ -656,6 +654,7 @@ static int ni_660x_set_pfi_routing(struct comedi_device *dev,
 	case NI_660X_PFI_OUTPUT_DIO:
 		if (chan > 31)
 			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}

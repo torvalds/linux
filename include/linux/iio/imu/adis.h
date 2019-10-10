@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Common library for ADIS16XXX devices
  *
  * Copyright 2012 Analog Devices Inc.
  *   Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #ifndef __IIO_ADIS_H__
@@ -21,11 +20,13 @@
 #define ADIS_REG_PAGE_ID 0x00
 
 struct adis;
+struct adis_burst;
 
 /**
  * struct adis_data - ADIS chip variant specific data
  * @read_delay: SPI delay for read operations in us
  * @write_delay: SPI delay for write operations in us
+ * @cs_change_delay: SPI delay between CS changes in us
  * @glob_cmd_reg: Register address of the GLOB_CMD register
  * @msc_ctrl_reg: Register address of the MSC_CTRL register
  * @diag_stat_reg: Register address of the DIAG_STAT register
@@ -35,6 +36,7 @@ struct adis;
 struct adis_data {
 	unsigned int read_delay;
 	unsigned int write_delay;
+	unsigned int cs_change_delay;
 
 	unsigned int glob_cmd_reg;
 	unsigned int msc_ctrl_reg;
@@ -57,6 +59,7 @@ struct adis {
 	struct iio_trigger	*trig;
 
 	const struct adis_data	*data;
+	struct adis_burst	*burst;
 
 	struct mutex		txrx_lock;
 	struct spi_message	msg;
@@ -231,6 +234,18 @@ int adis_single_conversion(struct iio_dev *indio_dev,
 	ADIS_MOD_CHAN(IIO_ROT, mod, addr, si, info_sep, info_all, bits)
 
 #ifdef CONFIG_IIO_ADIS_LIB_BUFFER
+
+/**
+ * struct adis_burst - ADIS data for burst transfers
+ * @en			burst mode enabled
+ * @reg_cmd		register command that triggers burst
+ * @extra_len		extra length to account in the SPI RX buffer
+ */
+struct adis_burst {
+	bool		en;
+	unsigned int	reg_cmd;
+	unsigned int	extra_len;
+};
 
 int adis_setup_buffer_and_trigger(struct adis *adis,
 	struct iio_dev *indio_dev, irqreturn_t (*trigger_handler)(int, void *));

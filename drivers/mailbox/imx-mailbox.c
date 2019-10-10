@@ -187,8 +187,8 @@ static int imx_mu_startup(struct mbox_chan *chan)
 		return 0;
 	}
 
-	ret = request_irq(priv->irq, imx_mu_isr, IRQF_SHARED, cp->irq_desc,
-			  chan);
+	ret = request_irq(priv->irq, imx_mu_isr, IRQF_SHARED |
+			  IRQF_NO_SUSPEND, cp->irq_desc, chan);
 	if (ret) {
 		dev_err(priv->dev,
 			"Unable to acquire IRQ %d\n", priv->irq);
@@ -217,8 +217,8 @@ static void imx_mu_shutdown(struct mbox_chan *chan)
 	if (cp->type == IMX_MU_TYPE_TXDB)
 		tasklet_kill(&cp->txdb_tasklet);
 
-	imx_mu_xcr_rmw(priv, 0,
-		   IMX_MU_xCR_TIEn(cp->idx) | IMX_MU_xCR_RIEn(cp->idx));
+	imx_mu_xcr_rmw(priv, 0, IMX_MU_xCR_TIEn(cp->idx) |
+		       IMX_MU_xCR_RIEn(cp->idx) | IMX_MU_xCR_GIEn(cp->idx));
 
 	free_irq(priv->irq, chan);
 }
@@ -264,7 +264,6 @@ static int imx_mu_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct resource *iomem;
 	struct imx_mu_priv *priv;
 	unsigned int i;
 	int ret;
@@ -275,8 +274,7 @@ static int imx_mu_probe(struct platform_device *pdev)
 
 	priv->dev = dev;
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, iomem);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

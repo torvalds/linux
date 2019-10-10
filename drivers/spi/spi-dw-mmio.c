@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Memory-mapped interface driver for DW SPI Core
  *
  * Copyright (c) 2010, Octasic semiconductor.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -30,6 +27,7 @@
 struct dw_spi_mmio {
 	struct dw_spi  dws;
 	struct clk     *clk;
+	struct clk     *pclk;
 	void           *priv;
 };
 
@@ -81,14 +79,12 @@ static int dw_spi_mscc_init(struct platform_device *pdev,
 			    const char *cpu_syscon, u32 if_si_owner_offset)
 {
 	struct dw_spi_mscc *dwsmscc;
-	struct resource *res;
 
 	dwsmscc = devm_kzalloc(&pdev->dev, sizeof(*dwsmscc), GFP_KERNEL);
 	if (!dwsmscc)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dwsmscc->spi_mst = devm_ioremap_resource(&pdev->dev, res);
+	dwsmscc->spi_mst = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwsmscc->spi_mst)) {
 		dev_err(&pdev->dev, "SPI_MST region map failed\n");
 		return PTR_ERR(dwsmscc->spi_mst);
@@ -140,7 +136,6 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 			 struct dw_spi_mmio *dwsmmio);
 	struct dw_spi_mmio *dwsmmio;
 	struct dw_spi *dws;
-	struct resource *mem;
 	int ret;
 	int num_cs;
 
@@ -152,18 +147,15 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	dws = &dwsmmio->dws;
 
 	/* Get basic io resource and map it */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	dws->regs = devm_ioremap_resource(&pdev->dev, mem);
+	dws->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dws->regs)) {
 		dev_err(&pdev->dev, "SPI region map failed\n");
 		return PTR_ERR(dws->regs);
 	}
 
 	dws->irq = platform_get_irq(pdev, 0);
-	if (dws->irq < 0) {
-		dev_err(&pdev->dev, "no irq resource?\n");
+	if (dws->irq < 0)
 		return dws->irq; /* -ENXIO */
-	}
 
 	dwsmmio->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dwsmmio->clk))
@@ -171,6 +163,16 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(dwsmmio->clk);
 	if (ret)
 		return ret;
+
+	/* Optional clock needed to access the registers */
+	dwsmmio->pclk = devm_clk_get_optional(&pdev->dev, "pclk");
+	if (IS_ERR(dwsmmio->pclk)) {
+		ret = PTR_ERR(dwsmmio->pclk);
+		goto out_clk;
+	}
+	ret = clk_prepare_enable(dwsmmio->pclk);
+	if (ret)
+		goto out_clk;
 
 	dws->bus_num = pdev->id;
 
@@ -199,6 +201,8 @@ static int dw_spi_mmio_probe(struct platform_device *pdev)
 	return 0;
 
 out:
+	clk_disable_unprepare(dwsmmio->pclk);
+out_clk:
 	clk_disable_unprepare(dwsmmio->clk);
 	return ret;
 }
@@ -208,6 +212,7 @@ static int dw_spi_mmio_remove(struct platform_device *pdev)
 	struct dw_spi_mmio *dwsmmio = platform_get_drvdata(pdev);
 
 	dw_spi_remove_host(&dwsmmio->dws);
+	clk_disable_unprepare(dwsmmio->pclk);
 	clk_disable_unprepare(dwsmmio->clk);
 
 	return 0;

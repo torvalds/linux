@@ -511,7 +511,7 @@ static inline void max17042_override_por(struct regmap *map,
 		regmap_write(map, reg, value);
 }
 
-static inline void max10742_unlock_model(struct max17042_chip *chip)
+static inline void max17042_unlock_model(struct max17042_chip *chip)
 {
 	struct regmap *map = chip->regmap;
 
@@ -519,7 +519,7 @@ static inline void max10742_unlock_model(struct max17042_chip *chip)
 	regmap_write(map, MAX17042_MLOCKReg2, MODEL_UNLOCK2);
 }
 
-static inline void max10742_lock_model(struct max17042_chip *chip)
+static inline void max17042_lock_model(struct max17042_chip *chip)
 {
 	struct regmap *map = chip->regmap;
 
@@ -577,7 +577,7 @@ static int max17042_init_model(struct max17042_chip *chip)
 	if (!temp_data)
 		return -ENOMEM;
 
-	max10742_unlock_model(chip);
+	max17042_unlock_model(chip);
 	max17042_write_model_data(chip, MAX17042_MODELChrTbl,
 				table_size);
 	max17042_read_model_data(chip, MAX17042_MODELChrTbl, temp_data,
@@ -589,7 +589,7 @@ static int max17042_init_model(struct max17042_chip *chip)
 		temp_data,
 		table_size);
 
-	max10742_lock_model(chip);
+	max17042_lock_model(chip);
 	kfree(temp_data);
 
 	return ret;
@@ -995,10 +995,17 @@ static const struct power_supply_desc max17042_no_current_sense_psy_desc = {
 	.num_properties	= ARRAY_SIZE(max17042_battery_props) - 2,
 };
 
+static void max17042_stop_work(void *data)
+{
+	struct max17042_chip *chip = data;
+
+	cancel_work_sync(&chip->work);
+}
+
 static int max17042_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
-	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
+	struct i2c_adapter *adapter = client->adapter;
 	const struct power_supply_desc *max17042_desc = &max17042_psy_desc;
 	struct power_supply_config psy_cfg = {};
 	const struct acpi_device_id *acpi_id = NULL;
@@ -1101,6 +1108,9 @@ static int max17042_probe(struct i2c_client *client,
 	regmap_read(chip->regmap, MAX17042_STATUS, &val);
 	if (val & STATUS_POR_BIT) {
 		INIT_WORK(&chip->work, max17042_init_worker);
+		ret = devm_add_action(&client->dev, max17042_stop_work, chip);
+		if (ret)
+			return ret;
 		schedule_work(&chip->work);
 	} else {
 		chip->init_complete = 1;

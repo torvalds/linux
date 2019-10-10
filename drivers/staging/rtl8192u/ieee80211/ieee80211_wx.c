@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
 
   Copyright(c) 2004 Intel Corporation. All rights reserved.
@@ -7,22 +8,6 @@
   Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
   <jkmaline@cc.hut.fi>
   Copyright (c) 2002-2003, Jouni Malinen <jkmaline@cc.hut.fi>
-
-  This program is free software; you can redistribute it and/or modify it
-  under the terms of version 2 of the GNU General Public License as
-  published by the Free Software Foundation.
-
-  This program is distributed in the hope that it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  You should have received a copy of the GNU General Public License along with
-  this program; if not, write to the Free Software Foundation, Inc., 59
-  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
-
-  The full GNU General Public License is included in this distribution in the
-  file called LICENSE.
 
   Contact Information:
   James P. Ketrenos <ipw2100-admin@linux.intel.com>
@@ -85,10 +70,10 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 	}
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
-	for(i=0; i<ARRAY_SIZE(ieee80211_modes); i++) {
-		if(network->mode&(1<<i)) {
-			sprintf(pname,ieee80211_modes[i].mode_string,ieee80211_modes[i].mode_size);
-			pname +=ieee80211_modes[i].mode_size;
+	for (i = 0; i < ARRAY_SIZE(ieee80211_modes); i++) {
+		if (network->mode & BIT(i)) {
+			sprintf(pname, ieee80211_modes[i].mode_string, ieee80211_modes[i].mode_size);
+			pname += ieee80211_modes[i].mode_size;
 		}
 	}
 	*pname = '\0';
@@ -145,8 +130,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 			max_rate = rate;
 	}
 
-	if (network->mode >= IEEE_N_24G)//add N rate here;
-	{
+	if (network->mode >= IEEE_N_24G) /* add N rate here */ {
 		struct ht_capability_ele *ht_cap = NULL;
 		bool is40M = false, isShortGI = false;
 		u8 max_mcs = 0;
@@ -154,13 +138,13 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[4];
 		else
 			ht_cap = (struct ht_capability_ele *)&network->bssht.bdHTCapBuf[0];
-		is40M = (ht_cap->ChlWidth)?1:0;
-		isShortGI = (ht_cap->ChlWidth)?
-						((ht_cap->ShortGI40Mhz)?1:0):
-						((ht_cap->ShortGI20Mhz)?1:0);
+		is40M = (ht_cap->ChlWidth) ? 1 : 0;
+		isShortGI = (ht_cap->ChlWidth) ?
+					((ht_cap->ShortGI40Mhz) ? 1 : 0) :
+					((ht_cap->ShortGI20Mhz) ? 1 : 0);
 
 		max_mcs = HTGetHighestMCSRate(ieee, ht_cap->MCS, MCS_FILTER_ALL);
-		rate = MCS_DATA_RATE[is40M][isShortGI][max_mcs&0x7f];
+		rate = MCS_DATA_RATE[is40M][isShortGI][max_mcs & 0x7f];
 		if (rate > max_rate)
 			max_rate = rate;
 	}
@@ -193,9 +177,9 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-	    start = iwe_stream_add_point(info, start, stop, &iwe, custom);
+		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 
-	if (ieee->wpa_enabled && network->wpa_ie_len){
+	if (ieee->wpa_enabled && network->wpa_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 	//	printk("WPA IE\n");
 		u8 *p = buf;
@@ -210,7 +194,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
 
-	if (ieee->wpa_enabled && network->rsn_ie_len){
+	if (ieee->wpa_enabled && network->rsn_ie_len) {
 		char buf[MAX_WPA_IE_LEN * 2 + 30];
 
 		u8 *p = buf;
@@ -234,7 +218,7 @@ static inline char *rtl819x_translate_scan(struct ieee80211_device *ieee,
 		      " Last beacon: %lums ago", (jiffies - network->last_scanned) / (HZ / 100));
 	iwe.u.data.length = p - custom;
 	if (iwe.u.data.length)
-	    start = iwe_stream_add_point(info, start, stop, &iwe, custom);
+		start = iwe_stream_add_point(info, start, stop, &iwe, custom);
 
 	return start;
 }
@@ -258,8 +242,7 @@ int ieee80211_wx_get_scan(struct ieee80211_device *ieee,
 
 	list_for_each_entry(network, &ieee->network_list, list) {
 		i++;
-		if((stop-ev)<200)
-		{
+		if ((stop - ev) < 200) {
 			err = -E2BIG;
 			break;
 		}
@@ -327,7 +310,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all */
 		for (i = 0; i < WEP_KEYS; i++) {
-			if (ieee->crypt[i] != NULL) {
+			if (ieee->crypt[i]) {
 				if (key_provided)
 					break;
 				ieee80211_crypt_delayed_deinit(
@@ -349,14 +332,14 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 	sec.enabled = 1;
 	sec.flags |= SEC_ENABLED;
 
-	if (*crypt != NULL && (*crypt)->ops != NULL &&
+	if (*crypt && (*crypt)->ops &&
 	    strcmp((*crypt)->ops->name, "WEP") != 0) {
 		/* changing to use WEP; deinit previously used algorithm
 		 * on this key */
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
 	}
 
-	if (*crypt == NULL) {
+	if (!*crypt) {
 		struct ieee80211_crypt_data *new_crypt;
 
 		/* take WEP into use */
@@ -394,9 +377,10 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 		sec.key_sizes[key] = len;
 		(*crypt)->ops->set_key(sec.keys[key], len, NULL,
 				       (*crypt)->priv);
-		sec.flags |= (1 << key);
+		sec.flags |= BIT(key);
 		/* This ensures a key will be activated if no key is
-		 * explicitely set */
+		 * explicitly set
+		 */
 		if (key == sec.active_key)
 			sec.flags |= SEC_ACTIVE_KEY;
 		ieee->tx_keyidx = key;
@@ -415,7 +399,7 @@ int ieee80211_wx_set_encode(struct ieee80211_device *ieee,
 			(*crypt)->ops->set_key(sec.keys[key], 13, NULL,
 					       (*crypt)->priv);
 			sec.key_sizes[key] = 13;
-			sec.flags |= (1 << key);
+			sec.flags |= BIT(key);
 		}
 
 		/* No key data - just set the default TX key index */
@@ -469,7 +453,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 
 	IEEE80211_DEBUG_WX("GET_ENCODE\n");
 
-	if(ieee->iw_mode == IW_MODE_MONITOR)
+	if (ieee->iw_mode == IW_MODE_MONITOR)
 		return -1;
 
 	key = erq->flags & IW_ENCODE_INDEX;
@@ -483,7 +467,7 @@ int ieee80211_wx_get_encode(struct ieee80211_device *ieee,
 	crypt = ieee->crypt[key];
 	erq->flags = key + 1;
 
-	if (crypt == NULL || crypt->ops == NULL) {
+	if (!crypt || !crypt->ops) {
 		erq->length = 0;
 		erq->flags |= IW_ENCODE_DISABLED;
 		return 0;
@@ -552,7 +536,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 
 		for (i = 0; i < WEP_KEYS; i++)
 
-			if (ieee->crypt[i] != NULL)
+			if (ieee->crypt[i])
 
 				break;
 
@@ -586,7 +570,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		ret = -EINVAL;
 		goto done;
 	}
-	printk("alg name:%s\n",alg);
+	printk("alg name:%s\n", alg);
 
 	ops = try_then_request_module(ieee80211_get_crypto_ops(alg), module);
 	if (!ops) {
@@ -597,7 +581,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		goto done;
 	}
 
-	if (*crypt == NULL || (*crypt)->ops != ops) {
+	if (!*crypt || (*crypt)->ops != ops) {
 		struct ieee80211_crypt_data *new_crypt;
 
 		ieee80211_crypt_delayed_deinit(ieee, crypt);
@@ -610,7 +594,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 		new_crypt->ops = ops;
 		if (new_crypt->ops && try_module_get(new_crypt->ops->owner))
 			new_crypt->priv = new_crypt->ops->init(idx);
-		if (new_crypt->priv == NULL) {
+		if (!new_crypt->priv) {
 			kfree(new_crypt);
 			ret = -EINVAL;
 			goto done;
@@ -636,7 +620,7 @@ int ieee80211_wx_set_encode_ext(struct ieee80211_device *ieee,
 	if (ext->alg != IW_ENCODE_ALG_NONE) {
 		//memcpy(sec.keys[idx], ext->key, ext->key_len);
 		sec.key_sizes[idx] = ext->key_len;
-		sec.flags |= (1 << idx);
+		sec.flags |= BIT(idx);
 		if (ext->alg == IW_ENCODE_ALG_WEP) {
 		      //  sec.encode_alg[idx] = SEC_ALG_WEP;
 			sec.flags |= SEC_LEVEL;
@@ -698,12 +682,12 @@ int ieee80211_wx_get_encode_ext(struct ieee80211_device *ieee,
 	encoding->flags = idx + 1;
 	memset(ext, 0, sizeof(*ext));
 
-	if (crypt == NULL || crypt->ops == NULL ) {
+	if (!crypt || !crypt->ops) {
 		ext->alg = IW_ENCODE_ALG_NONE;
 		ext->key_len = 0;
 		encoding->flags |= IW_ENCODE_DISABLED;
 	} else {
-		if (strcmp(crypt->ops->name, "WEP") == 0 )
+		if (strcmp(crypt->ops->name, "WEP") == 0)
 			ext->alg = IW_ENCODE_ALG_WEP;
 		else if (strcmp(crypt->ops->name, "TKIP"))
 			ext->alg = IW_ENCODE_ALG_TKIP;
@@ -727,7 +711,7 @@ int ieee80211_wx_set_mlme(struct ieee80211_device *ieee,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
-	struct iw_mlme *mlme = (struct iw_mlme *) extra;
+	struct iw_mlme *mlme = (struct iw_mlme *)extra;
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 	case IW_MLME_DISASSOC:
@@ -766,24 +750,21 @@ int ieee80211_wx_set_auth(struct ieee80211_device *ieee,
 	case IW_AUTH_80211_AUTH_ALG:
 		//printk("======>%s():data->value is %d\n",__func__,data->value);
 	//	ieee->open_wep = (data->value&IW_AUTH_ALG_OPEN_SYSTEM)?1:0;
-		if(data->value & IW_AUTH_ALG_SHARED_KEY){
+		if (data->value & IW_AUTH_ALG_SHARED_KEY) {
 			ieee->open_wep = 0;
 			ieee->auth_mode = 1;
-		}
-		else if(data->value & IW_AUTH_ALG_OPEN_SYSTEM){
+		} else if (data->value & IW_AUTH_ALG_OPEN_SYSTEM) {
 			ieee->open_wep = 1;
 			ieee->auth_mode = 0;
-		}
-		else if(data->value & IW_AUTH_ALG_LEAP){
+		} else if (data->value & IW_AUTH_ALG_LEAP) {
 			ieee->open_wep = 1;
 			ieee->auth_mode = 2;
-		}
-		else
+		} else
 			return -EINVAL;
 		break;
 
 	case IW_AUTH_WPA_ENABLED:
-		ieee->wpa_enabled = (data->value)?1:0;
+		ieee->wpa_enabled = (data->value) ? 1 : 0;
 		break;
 
 	case IW_AUTH_RX_UNENCRYPTED_EAPOL:
@@ -803,28 +784,24 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 {
 	u8 *buf;
 
-	if (len>MAX_WPA_IE_LEN || (len && ie == NULL))
-	{
-	//	printk("return error out, len:%d\n", len);
-	return -EINVAL;
+	if (len > MAX_WPA_IE_LEN || (len && !ie)) {
+		//printk("return error out, len:%d\n", len);
+		return -EINVAL;
 	}
 
 
-	if (len)
-	{
-		if (len != ie[1]+2)
-		{
+	if (len) {
+		if (len != ie[1] + 2) {
 			printk("len:%zu, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
 		buf = kmemdup(ie, len, GFP_KERNEL);
-		if (buf == NULL)
+		if (!buf)
 			return -ENOMEM;
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;
-	}
-	else{
+	} else {
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = NULL;
 		ieee->wpa_ie_len = 0;

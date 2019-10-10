@@ -37,6 +37,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_ARRAY_OF_MAPS]		= "array_of_maps",
 	[BPF_MAP_TYPE_HASH_OF_MAPS]		= "hash_of_maps",
 	[BPF_MAP_TYPE_DEVMAP]			= "devmap",
+	[BPF_MAP_TYPE_DEVMAP_HASH]		= "devmap_hash",
 	[BPF_MAP_TYPE_SOCKMAP]			= "sockmap",
 	[BPF_MAP_TYPE_CPUMAP]			= "cpumap",
 	[BPF_MAP_TYPE_XSKMAP]			= "xskmap",
@@ -46,6 +47,7 @@ const char * const map_type_name[] = {
 	[BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE]	= "percpu_cgroup_storage",
 	[BPF_MAP_TYPE_QUEUE]			= "queue",
 	[BPF_MAP_TYPE_STACK]			= "stack",
+	[BPF_MAP_TYPE_SK_STORAGE]		= "sk_storage",
 };
 
 const size_t map_type_name_size = ARRAY_SIZE(map_type_name);
@@ -153,11 +155,13 @@ static int do_dump_btf(const struct btf_dumper *d,
 	/* start of key-value pair */
 	jsonw_start_object(d->jw);
 
-	jsonw_name(d->jw, "key");
+	if (map_info->btf_key_type_id) {
+		jsonw_name(d->jw, "key");
 
-	ret = btf_dumper_type(d, map_info->btf_key_type_id, key);
-	if (ret)
-		goto err_end_obj;
+		ret = btf_dumper_type(d, map_info->btf_key_type_id, key);
+		if (ret)
+			goto err_end_obj;
+	}
 
 	if (!map_is_per_cpu(map_info->type)) {
 		jsonw_name(d->jw, "value");
@@ -259,20 +263,20 @@ static void print_entry_json(struct bpf_map_info *info, unsigned char *key,
 }
 
 static void print_entry_error(struct bpf_map_info *info, unsigned char *key,
-			      const char *value)
+			      const char *error_msg)
 {
-	int value_size = strlen(value);
+	int msg_size = strlen(error_msg);
 	bool single_line, break_names;
 
-	break_names = info->key_size > 16 || value_size > 16;
-	single_line = info->key_size + value_size <= 24 && !break_names;
+	break_names = info->key_size > 16 || msg_size > 16;
+	single_line = info->key_size + msg_size <= 24 && !break_names;
 
 	printf("key:%c", break_names ? '\n' : ' ');
 	fprint_hex(stdout, key, info->key_size, " ");
 
 	printf(single_line ? "  " : "\n");
 
-	printf("value:%c%s", break_names ? '\n' : ' ', value);
+	printf("value:%c%s", break_names ? '\n' : ' ', error_msg);
 
 	printf("\n");
 }
@@ -296,11 +300,7 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 
 		if (info->value_size) {
 			printf("value:%c", break_names ? '\n' : ' ');
-			if (value)
-				fprint_hex(stdout, value, info->value_size,
-					   " ");
-			else
-				printf("<no entry>");
+			fprint_hex(stdout, value, info->value_size, " ");
 		}
 
 		printf("\n");
@@ -319,11 +319,8 @@ static void print_entry_plain(struct bpf_map_info *info, unsigned char *key,
 			for (i = 0; i < n; i++) {
 				printf("value (CPU %02d):%c",
 				       i, info->value_size > 16 ? '\n' : ' ');
-				if (value)
-					fprint_hex(stdout, value + i * step,
-						   info->value_size, " ");
-				else
-					printf("<no entry>");
+				fprint_hex(stdout, value + i * step,
+					   info->value_size, " ");
 				printf("\n");
 			}
 		}
@@ -484,9 +481,11 @@ static int parse_elem(char **argv, struct bpf_map_info *info,
 
 static int show_map_close_json(int fd, struct bpf_map_info *info)
 {
-	char *memlock;
+	char *memlock, *frozen_str;
+	int frozen = 0;
 
 	memlock = get_fdinfo(fd, "memlock");
+	frozen_str = get_fdinfo(fd, "frozen");
 
 	jsonw_start_object(json_wtr);
 
@@ -536,6 +535,15 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 	}
 	close(fd);
 
+	if (frozen_str) {
+		frozen = atoi(frozen_str);
+		free(frozen_str);
+	}
+	jsonw_int_field(json_wtr, "frozen", frozen);
+
+	if (info->btf_id)
+		jsonw_int_field(json_wtr, "btf_id", info->btf_id);
+
 	if (!hash_empty(map_table.table)) {
 		struct pinned_obj *obj;
 
@@ -555,9 +563,11 @@ static int show_map_close_json(int fd, struct bpf_map_info *info)
 
 static int show_map_close_plain(int fd, struct bpf_map_info *info)
 {
-	char *memlock;
+	char *memlock, *frozen_str;
+	int frozen = 0;
 
 	memlock = get_fdinfo(fd, "memlock");
+	frozen_str = get_fdinfo(fd, "frozen");
 
 	printf("%u: ", info->id);
 	if (info->type < ARRAY_SIZE(map_type_name))
@@ -602,15 +612,33 @@ static int show_map_close_plain(int fd, struct bpf_map_info *info)
 	}
 	close(fd);
 
-	printf("\n");
 	if (!hash_empty(map_table.table)) {
 		struct pinned_obj *obj;
 
 		hash_for_each_possible(map_table.table, obj, hash, info->id) {
 			if (obj->id == info->id)
-				printf("\tpinned %s\n", obj->path);
+				printf("\n\tpinned %s", obj->path);
 		}
 	}
+	printf("\n");
+
+	if (frozen_str) {
+		frozen = atoi(frozen_str);
+		free(frozen_str);
+	}
+
+	if (!info->btf_id && !frozen)
+		return 0;
+
+	printf("\t");
+
+	if (info->btf_id)
+		printf("btf_id %d", info->btf_id);
+
+	if (frozen)
+		printf("%sfrozen", info->btf_id ? "  " : "");
+
+	printf("\n");
 	return 0;
 }
 
@@ -713,18 +741,25 @@ static int dump_map_elem(int fd, void *key, void *value,
 		return 0;
 
 	if (json_output) {
+		jsonw_start_object(json_wtr);
 		jsonw_name(json_wtr, "key");
 		print_hex_data_json(key, map_info->key_size);
 		jsonw_name(json_wtr, "value");
 		jsonw_start_object(json_wtr);
 		jsonw_string_field(json_wtr, "error", strerror(lookup_errno));
 		jsonw_end_object(json_wtr);
+		jsonw_end_object(json_wtr);
 	} else {
-		if (errno == ENOENT)
-			print_entry_plain(map_info, key, NULL);
-		else
-			print_entry_error(map_info, key,
-					  strerror(lookup_errno));
+		const char *msg = NULL;
+
+		if (lookup_errno == ENOENT)
+			msg = "<no entry>";
+		else if (lookup_errno == ENOSPC &&
+			 map_info->type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY)
+			msg = "<cannot read>";
+
+		print_entry_error(map_info, key,
+				  msg ? : strerror(lookup_errno));
 	}
 
 	return 0;
@@ -778,6 +813,10 @@ static int do_dump(int argc, char **argv)
 			}
 		}
 
+	if (info.type == BPF_MAP_TYPE_REUSEPORT_SOCKARRAY &&
+	    info.value_size != 8)
+		p_info("Warning: cannot read values from %s map with value_size != 8",
+		       map_type_name[info.type]);
 	while (true) {
 		err = bpf_map_get_next_key(fd, prev_key, key);
 		if (err) {
@@ -1151,6 +1190,9 @@ static int do_create(int argc, char **argv)
 				return -1;
 			}
 			NEXT_ARG();
+		} else {
+			p_err("unknown arg %s", *argv);
+			return -1;
 		}
 	}
 
@@ -1220,6 +1262,35 @@ exit_free:
 	return err;
 }
 
+static int do_freeze(int argc, char **argv)
+{
+	int err, fd;
+
+	if (!REQ_ARGS(2))
+		return -1;
+
+	fd = map_parse_fd(&argc, &argv);
+	if (fd < 0)
+		return -1;
+
+	if (argc) {
+		close(fd);
+		return BAD_ARG();
+	}
+
+	err = bpf_map_freeze(fd);
+	close(fd);
+	if (err) {
+		p_err("failed to freeze map: %s", strerror(errno));
+		return err;
+	}
+
+	if (json_output)
+		jsonw_null(json_wtr);
+
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1244,6 +1315,7 @@ static int do_help(int argc, char **argv)
 		"       %s %s pop        MAP\n"
 		"       %s %s enqueue    MAP value VALUE\n"
 		"       %s %s dequeue    MAP\n"
+		"       %s %s freeze     MAP\n"
 		"       %s %s help\n"
 		"\n"
 		"       " HELP_SPEC_MAP "\n"
@@ -1254,7 +1326,7 @@ static int do_help(int argc, char **argv)
 		"       TYPE := { hash | array | prog_array | perf_event_array | percpu_hash |\n"
 		"                 percpu_array | stack_trace | cgroup_array | lru_hash |\n"
 		"                 lru_percpu_hash | lpm_trie | array_of_maps | hash_of_maps |\n"
-		"                 devmap | sockmap | cpumap | xskmap | sockhash |\n"
+		"                 devmap | devmap_hash | sockmap | cpumap | xskmap | sockhash |\n"
 		"                 cgroup_storage | reuseport_sockarray | percpu_cgroup_storage }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
@@ -1262,7 +1334,8 @@ static int do_help(int argc, char **argv)
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
 		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
-		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2]);
+		bin_name, argv[-2], bin_name, argv[-2], bin_name, argv[-2],
+		bin_name, argv[-2]);
 
 	return 0;
 }
@@ -1284,6 +1357,7 @@ static const struct cmd cmds[] = {
 	{ "enqueue",	do_update },
 	{ "pop",	do_pop_dequeue },
 	{ "dequeue",	do_pop_dequeue },
+	{ "freeze",	do_freeze },
 	{ 0 }
 };
 

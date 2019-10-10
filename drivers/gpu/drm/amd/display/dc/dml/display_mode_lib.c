@@ -25,40 +25,95 @@
 
 #include "display_mode_lib.h"
 #include "dc_features.h"
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#include "dcn20/display_mode_vba_20.h"
+#include "dcn20/display_rq_dlg_calc_20.h"
+#include "dcn20/display_mode_vba_20v2.h"
+#include "dcn20/display_rq_dlg_calc_20v2.h"
+#endif
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+#include "dcn21/display_mode_vba_21.h"
+#include "dcn21/display_rq_dlg_calc_21.h"
+#endif
 
-extern const struct _vcs_dpi_ip_params_st dcn1_0_ip;
-extern const struct _vcs_dpi_soc_bounding_box_st dcn1_0_soc;
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+const struct dml_funcs dml20_funcs = {
+	.validate = dml20_ModeSupportAndSystemConfigurationFull,
+	.recalculate = dml20_recalculate,
+	.rq_dlg_get_dlg_reg = dml20_rq_dlg_get_dlg_reg,
+	.rq_dlg_get_rq_reg = dml20_rq_dlg_get_rq_reg
+};
 
-static void set_soc_bounding_box(struct _vcs_dpi_soc_bounding_box_st *soc, enum dml_project project)
+const struct dml_funcs dml20v2_funcs = {
+	.validate = dml20v2_ModeSupportAndSystemConfigurationFull,
+	.recalculate = dml20v2_recalculate,
+	.rq_dlg_get_dlg_reg = dml20v2_rq_dlg_get_dlg_reg,
+	.rq_dlg_get_rq_reg = dml20v2_rq_dlg_get_rq_reg
+};
+#endif
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+const struct dml_funcs dml21_funcs = {
+        .validate = dml21_ModeSupportAndSystemConfigurationFull,
+        .recalculate = dml21_recalculate,
+        .rq_dlg_get_dlg_reg = dml21_rq_dlg_get_dlg_reg,
+        .rq_dlg_get_rq_reg = dml21_rq_dlg_get_rq_reg
+};
+#endif
+
+void dml_init_instance(struct display_mode_lib *lib,
+		const struct _vcs_dpi_soc_bounding_box_st *soc_bb,
+		const struct _vcs_dpi_ip_params_st *ip_params,
+		enum dml_project project)
 {
+	lib->soc = *soc_bb;
+	lib->ip = *ip_params;
+	lib->project = project;
 	switch (project) {
-	case DML_PROJECT_RAVEN1:
-		*soc = dcn1_0_soc;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	case DML_PROJECT_NAVI10:
+		lib->funcs = dml20_funcs;
 		break;
+	case DML_PROJECT_NAVI10v2:
+		lib->funcs = dml20v2_funcs;
+		break;
+#endif
+#ifdef CONFIG_DRM_AMD_DC_DCN2_1
+        case DML_PROJECT_DCN21:
+                lib->funcs = dml21_funcs;
+                break;
+#endif
+
 	default:
-		ASSERT(0);
 		break;
 	}
 }
 
-static void set_ip_params(struct _vcs_dpi_ip_params_st *ip, enum dml_project project)
+const char *dml_get_status_message(enum dm_validation_status status)
 {
-	switch (project) {
-	case DML_PROJECT_RAVEN1:
-		*ip = dcn1_0_ip;
-		break;
-	default:
-		ASSERT(0);
-		break;
+	switch (status) {
+	case DML_VALIDATION_OK:                   return "Validation OK";
+	case DML_FAIL_SCALE_RATIO_TAP:            return "Scale ratio/tap";
+	case DML_FAIL_SOURCE_PIXEL_FORMAT:        return "Source pixel format";
+	case DML_FAIL_VIEWPORT_SIZE:              return "Viewport size";
+	case DML_FAIL_TOTAL_V_ACTIVE_BW:          return "Total vertical active bandwidth";
+	case DML_FAIL_DIO_SUPPORT:                return "DIO support";
+	case DML_FAIL_NOT_ENOUGH_DSC:             return "Not enough DSC Units";
+	case DML_FAIL_DSC_CLK_REQUIRED:           return "DSC clock required";
+	case DML_FAIL_URGENT_LATENCY:             return "Urgent latency";
+	case DML_FAIL_REORDERING_BUFFER:          return "Re-ordering buffer";
+	case DML_FAIL_DISPCLK_DPPCLK:             return "Dispclk and Dppclk";
+	case DML_FAIL_TOTAL_AVAILABLE_PIPES:      return "Total available pipes";
+	case DML_FAIL_NUM_OTG:                    return "Number of OTG";
+	case DML_FAIL_WRITEBACK_MODE:             return "Writeback mode";
+	case DML_FAIL_WRITEBACK_LATENCY:          return "Writeback latency";
+	case DML_FAIL_WRITEBACK_SCALE_RATIO_TAP:  return "Writeback scale ratio/tap";
+	case DML_FAIL_CURSOR_SUPPORT:             return "Cursor support";
+	case DML_FAIL_PITCH_SUPPORT:              return "Pitch support";
+	case DML_FAIL_PTE_BUFFER_SIZE:            return "PTE buffer size";
+	case DML_FAIL_DSC_INPUT_BPC:              return "DSC input bpc";
+	case DML_FAIL_PREFETCH_SUPPORT:           return "Prefetch support";
+	case DML_FAIL_V_RATIO_PREFETCH:           return "Vertical ratio prefetch";
+	default:                                  return "Unknown Status";
 	}
 }
-
-void dml_init_instance(struct display_mode_lib *lib, enum dml_project project)
-{
-	if (lib->project != project) {
-		set_soc_bounding_box(&lib->soc, project);
-		set_ip_params(&lib->ip, project);
-		lib->project = project;
-	}
-}
-

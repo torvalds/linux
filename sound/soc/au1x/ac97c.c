@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Au1000/Au1500/Au1100 AC97C controller driver for ASoC
  *

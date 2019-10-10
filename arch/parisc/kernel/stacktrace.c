@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Stack trace management functions
  *
@@ -29,22 +30,17 @@ static void dump_trace(struct task_struct *task, struct stack_trace *trace)
 	}
 }
 
-
 /*
  * Save stack-backtrace addresses into a stack_trace buffer.
  */
 void save_stack_trace(struct stack_trace *trace)
 {
 	dump_trace(current, trace);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace);
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
 	dump_trace(tsk, trace);
-	if (trace->nr_entries < trace->max_entries)
-		trace->entries[trace->nr_entries++] = ULONG_MAX;
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

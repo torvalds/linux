@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define PRISM2_PCI
 
 /* Host AP driver's support for Intersil Prism2.5 PCI cards is based on

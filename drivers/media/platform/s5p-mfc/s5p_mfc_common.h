@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Samsung S5P Multi Format Codec v 5.0
  *
@@ -6,11 +7,6 @@
  *
  * Copyright (C) 2011 Samsung Electronics Co., Ltd.
  * Kamil Debski, <k.debski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version
  */
 
 #ifndef S5P_MFC_COMMON_H_
@@ -268,7 +264,7 @@ struct s5p_mfc_priv_buf {
  * @enc_ctrl_handler:	control framework handler for encoding
  * @pm:			power management control
  * @variant:		MFC hardware variant information
- * @num_inst:		couter of active MFC instances
+ * @num_inst:		counter of active MFC instances
  * @irqlock:		lock for operations on videobuf2 queues
  * @condlock:		lock for changing/checking if a context is ready to be
  *			processed
@@ -722,7 +718,6 @@ struct s5p_mfc_ctx {
  *			used by the MFC
  */
 struct s5p_mfc_fmt {
-	char *name;
 	u32 fourcc;
 	u32 codec_mode;
 	enum s5p_mfc_fmt_type type;

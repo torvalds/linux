@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2008-2009 Texas Instruments Inc
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  * Image Sensor Interface (ISIF) driver
  *
@@ -328,7 +319,7 @@ static void isif_config_bclamp(struct isif_black_clamp *bc)
 	if (bc->en) {
 		val = bc->bc_mode_color << ISIF_BC_MODE_COLOR_SHIFT;
 
-		/* Enable BC and horizontal clamp caculation paramaters */
+		/* Enable BC and horizontal clamp calculation parameters */
 		val = val | 1 | (bc->horz.mode << ISIF_HORZ_BC_MODE_SHIFT);
 
 		regw(val, CLAMPCFG);
@@ -358,7 +349,7 @@ static void isif_config_bclamp(struct isif_black_clamp *bc)
 			regw(bc->horz.win_start_v_calc, CLHWIN2);
 		}
 
-		/* vertical clamp caculation paramaters */
+		/* vertical clamp calculation parameters */
 
 		/* Reset clamp value sel for previous line */
 		val |=
@@ -884,9 +875,7 @@ static int isif_set_hw_if_params(struct vpfe_hw_if_param *params)
 static int isif_config_ycbcr(void)
 {
 	struct isif_ycbcr_config *params = &isif_cfg.ycbcr;
-	struct vpss_pg_frame_size frame_size;
 	u32 modeset = 0, ccdcfg = 0;
-	struct vpss_sync_pol sync;
 
 	dev_dbg(isif_cfg.dev, "\nStarting isif_config_ycbcr...");
 
@@ -974,13 +963,6 @@ static int isif_config_ycbcr(void)
 		/* two fields are interleaved in memory */
 		regw(0x00000249, SDOFST);
 
-	/* Setup test pattern if enabled */
-	if (isif_cfg.bayer.config_params.test_pat_gen) {
-		sync.ccdpg_hdpol = params->hd_pol;
-		sync.ccdpg_vdpol = params->vd_pol;
-		dm365_vpss_set_sync_pol(sync);
-		dm365_vpss_set_pg_frame_size(frame_size);
-	}
 	return 0;
 }
 

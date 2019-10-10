@@ -46,4 +46,7 @@
 #define mmTHM_TCON_THERM_TRIP                                                                          0x0002
 #define mmTHM_TCON_THERM_TRIP_BASE_IDX                                                                 0
 
+#define mmTHM_BACO_CNTL                                                                                0x0081
+#define mmTHM_BACO_CNTL_BASE_IDX                                                                       0
+
 #endif

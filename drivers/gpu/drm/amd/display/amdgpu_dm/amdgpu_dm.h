@@ -26,8 +26,11 @@
 #ifndef __AMDGPU_DM_H__
 #define __AMDGPU_DM_H__
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_dp_mst_helper.h>
+#include <drm/drm_plane.h>
 
 /*
  * This file contains the definition for amdgpu_display_manager
@@ -47,6 +50,7 @@
 
 #include "irq_types.h"
 #include "signal_types.h"
+#include "amdgpu_dm_crc.h"
 
 /* Forward declarations */
 struct amdgpu_device;
@@ -132,8 +136,6 @@ struct amdgpu_display_manager {
 	 */
 	struct drm_private_obj atomic_obj;
 
-	struct drm_modeset_lock atomic_obj_lock;
-
 	/**
 	 * @dc_lock:
 	 *
@@ -141,6 +143,28 @@ struct amdgpu_display_manager {
 	 * sequences.
 	 */
 	struct mutex dc_lock;
+
+	/**
+	 * @audio_lock:
+	 *
+	 * Guards access to audio instance changes.
+	 */
+	struct mutex audio_lock;
+
+	/**
+	 * @audio_component:
+	 *
+	 * Used to notify ELD changes to sound driver.
+	 */
+	struct drm_audio_component *audio_component;
+
+	/**
+	 * @audio_registered:
+	 *
+	 * True if the audio component has been registered
+	 * successfully, false otherwise.
+	 */
+	bool audio_registered;
 
 	/**
 	 * @irq_handler_list_low_tab:
@@ -184,6 +208,15 @@ struct amdgpu_display_manager {
 	struct common_irq_params
 	vblank_params[DC_IRQ_SOURCE_VBLANK6 - DC_IRQ_SOURCE_VBLANK1 + 1];
 
+	/**
+	 * @vupdate_params:
+	 *
+	 * Vertical update IRQ parameters, passed to registered handlers when
+	 * triggered.
+	 */
+	struct common_irq_params
+	vupdate_params[DC_IRQ_SOURCE_VUPDATE6 - DC_IRQ_SOURCE_VUPDATE1 + 1];
+
 	spinlock_t irq_handler_list_table_lock;
 
 	struct backlight_device *backlight_dev;
@@ -199,6 +232,13 @@ struct amdgpu_display_manager {
 
 	const struct firmware *fw_dmcu;
 	uint32_t dmcu_fw_version;
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	/**
+	 * gpu_info FW provided soc bounding box struct or 0 if not
+	 * available in FW
+	 */
+	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
+#endif
 };
 
 struct amdgpu_dm_connector {
@@ -237,9 +277,16 @@ struct amdgpu_dm_connector {
 	int max_vfreq ;
 	int pixel_clock_mhz;
 
+	/* Audio instance - protected by audio_lock. */
+	int audio_inst;
+
 	struct mutex hpd_lock;
 
 	bool fake_enable;
+#ifdef CONFIG_DEBUG_FS
+	uint32_t debugfs_dpcd_address;
+	uint32_t debugfs_dpcd_size;
+#endif
 };
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
@@ -260,8 +307,15 @@ struct dm_crtc_state {
 	struct drm_crtc_state base;
 	struct dc_stream_state *stream;
 
+	bool cm_has_degamma;
+	bool cm_is_degamma_srgb;
+
+	int update_type;
+	int active_planes;
+	bool interrupts_enabled;
+
 	int crc_skip_count;
-	bool crc_enabled;
+	enum amdgpu_dm_pipe_crc_source crc_src;
 
 	bool freesync_timing_changed;
 	bool freesync_vrr_info_changed;
@@ -290,7 +344,6 @@ struct dm_connector_state {
 	enum amdgpu_rmx_type scaling;
 	uint8_t underscan_vborder;
 	uint8_t underscan_hborder;
-	uint8_t max_bpc;
 	bool underscan_enable;
 	bool freesync_capable;
 	uint8_t abm_level;
@@ -329,28 +382,14 @@ void dm_restore_drm_connector_state(struct drm_device *dev,
 void amdgpu_dm_update_freesync_caps(struct drm_connector *connector,
 					struct edid *edid);
 
-/* amdgpu_dm_crc.c */
-#ifdef CONFIG_DEBUG_FS
-int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name);
-int amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc,
-				     const char *src_name,
-				     size_t *values_cnt);
-void amdgpu_dm_crtc_handle_crc_irq(struct drm_crtc *crtc);
-#else
-#define amdgpu_dm_crtc_set_crc_source NULL
-#define amdgpu_dm_crtc_verify_crc_source NULL
-#define amdgpu_dm_crtc_handle_crc_irq(x)
-#endif
-
 #define MAX_COLOR_LUT_ENTRIES 4096
 /* Legacy gamm LUT users such as X doesn't like large LUT sizes */
 #define MAX_COLOR_LEGACY_LUT_ENTRIES 256
 
 void amdgpu_dm_init_color_mod(void);
-int amdgpu_dm_set_degamma_lut(struct drm_crtc_state *crtc_state,
-			      struct dc_plane_state *dc_plane_state);
-void amdgpu_dm_set_ctm(struct dm_crtc_state *crtc);
-int amdgpu_dm_set_regamma_lut(struct dm_crtc_state *crtc);
+int amdgpu_dm_update_crtc_color_mgmt(struct dm_crtc_state *crtc);
+int amdgpu_dm_update_plane_color_mgmt(struct dm_crtc_state *crtc,
+				      struct dc_plane_state *dc_plane_state);
 
 extern const struct drm_encoder_helper_funcs amdgpu_dm_encoder_helper_funcs;
 

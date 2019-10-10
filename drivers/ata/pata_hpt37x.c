@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Libata driver for the highpoint 37x and 30x UDMA66 ATA controllers.
  *

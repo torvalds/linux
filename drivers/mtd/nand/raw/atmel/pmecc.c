@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright 2017 ATMEL
  * Copyright 2017 Free Electrons
@@ -27,10 +28,6 @@
  *
  *   Add Nand Flash Controller support for SAMA5 SoC
  *	Copyright 2013 ATMEL, Josh Wu (josh.wu@atmel.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * The PMECC is an hardware assisted BCH engine, which means part of the
  * ECC algorithm is left to the software. The hardware/software repartition

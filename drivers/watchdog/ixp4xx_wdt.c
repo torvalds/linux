@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
+#include <linux/of.h>
 #include <linux/watchdog.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
@@ -65,7 +66,7 @@ static int ixp4xx_wdt_open(struct inode *inode, struct file *file)
 
 	clear_bit(WDT_OK_TO_CLOSE, &wdt_status);
 	wdt_enable();
-	return nonseekable_open(inode, file);
+	return stream_open(inode, file);
 }
 
 static ssize_t
@@ -176,6 +177,14 @@ static int __init ixp4xx_wdt_init(void)
 {
 	int ret;
 
+	/*
+	 * FIXME: we bail out on device tree boot but this really needs
+	 * to be fixed in a nicer way: this registers the MDIO bus before
+	 * even matching the driver infrastructure, we should only probe
+	 * detected hardware.
+	 */
+	if (of_have_populated_dt())
+		return -ENODEV;
 	if (!(read_cpuid_id() & 0xf) && !cpu_is_ixp46x()) {
 		pr_err("Rev. A0 IXP42x CPU detected - watchdog disabled\n");
 

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS security handling
  *
  * Copyright (C) 2007, 2017 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/init.h>
@@ -31,8 +27,37 @@ struct key *afs_request_key(struct afs_cell *cell)
 	_enter("{%x}", key_serial(cell->anonymous_key));
 
 	_debug("key %s", cell->anonymous_key->description);
-	key = request_key(&key_type_rxrpc, cell->anonymous_key->description,
-			  NULL);
+	key = request_key_net(&key_type_rxrpc, cell->anonymous_key->description,
+			      cell->net->net, NULL);
+	if (IS_ERR(key)) {
+		if (PTR_ERR(key) != -ENOKEY) {
+			_leave(" = %ld", PTR_ERR(key));
+			return key;
+		}
+
+		/* act as anonymous user */
+		_leave(" = {%x} [anon]", key_serial(cell->anonymous_key));
+		return key_get(cell->anonymous_key);
+	} else {
+		/* act as authorised user */
+		_leave(" = {%x} [auth]", key_serial(key));
+		return key;
+	}
+}
+
+/*
+ * Get a key when pathwalk is in rcuwalk mode.
+ */
+struct key *afs_request_key_rcu(struct afs_cell *cell)
+{
+	struct key *key;
+
+	_enter("{%x}", key_serial(cell->anonymous_key));
+
+	_debug("key %s", cell->anonymous_key->description);
+	key = request_key_net_rcu(&key_type_rxrpc,
+				  cell->anonymous_key->description,
+				  cell->net->net);
 	if (IS_ERR(key)) {
 		if (PTR_ERR(key) != -ENOKEY) {
 			_leave(" = %ld", PTR_ERR(key));
@@ -87,11 +112,9 @@ void afs_clear_permits(struct afs_vnode *vnode)
 	permits = rcu_dereference_protected(vnode->permit_cache,
 					    lockdep_is_held(&vnode->lock));
 	RCU_INIT_POINTER(vnode->permit_cache, NULL);
-	vnode->cb_break++;
 	spin_unlock(&vnode->lock);
 
-	if (permits)
-		afs_put_permits(permits);
+	afs_put_permits(permits);
 }
 
 /*
@@ -118,10 +141,10 @@ static void afs_hash_permits(struct afs_permits *permits)
  * as the ACL *may* have changed.
  */
 void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
-		      unsigned int cb_break)
+		      unsigned int cb_break, struct afs_status_cb *scb)
 {
 	struct afs_permits *permits, *xpermits, *replacement, *zap, *new = NULL;
-	afs_access_t caller_access = READ_ONCE(vnode->status.caller_access);
+	afs_access_t caller_access = scb->status.caller_access;
 	size_t size = 0;
 	bool changed = false;
 	int i, j;
@@ -148,7 +171,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 				}
 
 				if (afs_cb_is_broken(cb_break, vnode,
-						     vnode->cb_interest)) {
+						     rcu_dereference(vnode->cb_interest))) {
 					changed = true;
 					break;
 				}
@@ -178,7 +201,7 @@ void afs_cache_permit(struct afs_vnode *vnode, struct key *key,
 		}
 	}
 
-	if (afs_cb_is_broken(cb_break, vnode, vnode->cb_interest))
+	if (afs_cb_is_broken(cb_break, vnode, rcu_dereference(vnode->cb_interest)))
 		goto someone_else_changed_it;
 
 	/* We need a ref on any permits list we want to copy as we'll have to
@@ -255,14 +278,16 @@ found:
 
 	kfree(new);
 
+	rcu_read_lock();
 	spin_lock(&vnode->lock);
 	zap = rcu_access_pointer(vnode->permit_cache);
-	if (!afs_cb_is_broken(cb_break, vnode, vnode->cb_interest) &&
+	if (!afs_cb_is_broken(cb_break, vnode, rcu_dereference(vnode->cb_interest)) &&
 	    zap == permits)
 		rcu_assign_pointer(vnode->permit_cache, replacement);
 	else
 		zap = replacement;
 	spin_unlock(&vnode->lock);
+	rcu_read_unlock();
 	afs_put_permits(zap);
 out_put:
 	afs_put_permits(permits);
@@ -276,6 +301,40 @@ someone_else_changed_it:
 	 */
 	rcu_read_unlock();
 	return;
+}
+
+static bool afs_check_permit_rcu(struct afs_vnode *vnode, struct key *key,
+				 afs_access_t *_access)
+{
+	const struct afs_permits *permits;
+	int i;
+
+	_enter("{%llx:%llu},%x",
+	       vnode->fid.vid, vnode->fid.vnode, key_serial(key));
+
+	/* check the permits to see if we've got one yet */
+	if (key == vnode->volume->cell->anonymous_key) {
+		*_access = vnode->status.anon_access;
+		_leave(" = t [anon %x]", *_access);
+		return true;
+	}
+
+	permits = rcu_dereference(vnode->permit_cache);
+	if (permits) {
+		for (i = 0; i < permits->nr_permits; i++) {
+			if (permits->permits[i].key < key)
+				continue;
+			if (permits->permits[i].key > key)
+				break;
+
+			*_access = permits->permits[i].access;
+			_leave(" = %u [perm %x]", !permits->invalidated, *_access);
+			return !permits->invalidated;
+		}
+	}
+
+	_leave(" = f");
+	return false;
 }
 
 /*
@@ -322,13 +381,12 @@ int afs_check_permit(struct afs_vnode *vnode, struct key *key,
 		 */
 		_debug("no valid permit");
 
-		ret = afs_fetch_status(vnode, key, false);
+		ret = afs_fetch_status(vnode, key, false, _access);
 		if (ret < 0) {
 			*_access = 0;
 			_leave(" = %d", ret);
 			return ret;
 		}
-		*_access = vnode->status.caller_access;
 	}
 
 	_leave(" = 0 [access %x]", *_access);
@@ -345,33 +403,42 @@ int afs_permission(struct inode *inode, int mask)
 	struct afs_vnode *vnode = AFS_FS_I(inode);
 	afs_access_t uninitialized_var(access);
 	struct key *key;
-	int ret;
-
-	if (mask & MAY_NOT_BLOCK)
-		return -ECHILD;
+	int ret = 0;
 
 	_enter("{{%llx:%llu},%lx},%x,",
 	       vnode->fid.vid, vnode->fid.vnode, vnode->flags, mask);
 
-	key = afs_request_key(vnode->volume->cell);
-	if (IS_ERR(key)) {
-		_leave(" = %ld [key]", PTR_ERR(key));
-		return PTR_ERR(key);
+	if (mask & MAY_NOT_BLOCK) {
+		key = afs_request_key_rcu(vnode->volume->cell);
+		if (IS_ERR(key))
+			return -ECHILD;
+
+		ret = -ECHILD;
+		if (!afs_check_validity(vnode) ||
+		    !afs_check_permit_rcu(vnode, key, &access))
+			goto error;
+	} else {
+		key = afs_request_key(vnode->volume->cell);
+		if (IS_ERR(key)) {
+			_leave(" = %ld [key]", PTR_ERR(key));
+			return PTR_ERR(key);
+		}
+
+		ret = afs_validate(vnode, key);
+		if (ret < 0)
+			goto error;
+
+		/* check the permits to see if we've got one yet */
+		ret = afs_check_permit(vnode, key, &access);
+		if (ret < 0)
+			goto error;
 	}
-
-	ret = afs_validate(vnode, key);
-	if (ret < 0)
-		goto error;
-
-	/* check the permits to see if we've got one yet */
-	ret = afs_check_permit(vnode, key, &access);
-	if (ret < 0)
-		goto error;
 
 	/* interpret the access mask */
 	_debug("REQ %x ACC %x on %s",
 	       mask, access, S_ISDIR(inode->i_mode) ? "dir" : "file");
 
+	ret = 0;
 	if (S_ISDIR(inode->i_mode)) {
 		if (mask & (MAY_EXEC | MAY_READ | MAY_CHDIR)) {
 			if (!(access & AFS_ACE_LOOKUP))

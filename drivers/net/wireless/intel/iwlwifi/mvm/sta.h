@@ -8,7 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -31,7 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2014 Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2016 Intel Deutschland GmbH
- * Copyright(c) 2018 Intel Corporation
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -343,9 +343,17 @@ struct iwl_mvm_delba_data {
 	u32 baid;
 } __packed;
 
-struct iwl_mvm_delba_notif {
+struct iwl_mvm_nssn_sync_data {
+	u32 baid;
+	u32 nssn;
+} __packed;
+
+struct iwl_mvm_rss_sync_notif {
 	struct iwl_mvm_internal_rxq_notif metadata;
-	struct iwl_mvm_delba_data delba;
+	union {
+		struct iwl_mvm_delba_data delba;
+		struct iwl_mvm_nssn_sync_data nssn_sync;
+	};
 } __packed;
 
 /**
@@ -386,6 +394,9 @@ struct iwl_mvm_rxq_dup_data {
  * @amsdu_enabled: bitmap of TX AMSDU allowed TIDs.
  *	In case TLC offload is not active it is either 0xFFFF or 0.
  * @max_amsdu_len: max AMSDU length
+ * @orig_amsdu_len: used to save the original amsdu_len when it is changed via
+ *      debugfs.  If it's set to 0, it means that it is it's not set via
+ *      debugfs.
  * @agg_tids: bitmap of tids whose status is operational aggregated (IWL_AGG_ON)
  * @sleep_tx_count: the number of frames that we told the firmware to let out
  *	even when that station is asleep. This is useful in case the queue
@@ -394,7 +405,6 @@ struct iwl_mvm_rxq_dup_data {
  *	the BA window. To be used for UAPSD only.
  * @ptk_pn: per-queue PTK PN data structures
  * @dup_data: per queue duplicate packet detection data
- * @wep_key: used in AP mode. Is a duplicate of the WEP key.
  * @deferred_traffic_tid_map: indication bitmap of deferred traffic per-TID
  * @tx_ant: the index of the antenna to use for data tx to this station. Only
  *	used during connection establishment (e.g. for the 4 way handshake
@@ -426,8 +436,6 @@ struct iwl_mvm_sta {
 	struct iwl_mvm_key_pn __rcu *ptk_pn[4];
 	struct iwl_mvm_rxq_dup_data *dup_data;
 
-	struct ieee80211_key_conf *wep_key;
-
 	u8 reserved_queue;
 
 	/* Temporary, until the new TLC will control the Tx protection */
@@ -437,6 +445,7 @@ struct iwl_mvm_sta {
 	bool disable_tx;
 	u16 amsdu_enabled;
 	u16 max_amsdu_len;
+	u16 orig_amsdu_len;
 	bool sleeping;
 	u8 agg_tids;
 	u8 sleep_tx_count;

@@ -1,1 +1,1 @@
-include include/uapi/asm-generic/Kbuild.asm
+# SPDX-License-Identifier: GPL-2.0

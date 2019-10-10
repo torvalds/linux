@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Platform Security Processor (PSP) interface
  *
  * Copyright (C) 2016,2018 Advanced Micro Devices, Inc.
  *
  * Author: Brijesh Singh <brijesh.singh@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -27,10 +24,6 @@
 #include "sp-dev.h"
 #include "psp-dev.h"
 
-#define SEV_VERSION_GREATER_OR_EQUAL(_maj, _min)	\
-		((psp_master->api_major) >= _maj &&	\
-		 (psp_master->api_minor) >= _min)
-
 #define DEVICE_NAME		"sev"
 #define SEV_FW_FILE		"amd/sev.fw"
 #define SEV_FW_NAME_SIZE	64
@@ -49,6 +42,15 @@ MODULE_PARM_DESC(psp_probe_timeout, " default timeout value, in seconds, during 
 
 static bool psp_dead;
 static int psp_timeout;
+
+static inline bool sev_version_greater_or_equal(u8 maj, u8 min)
+{
+	if (psp_master->api_major > maj)
+		return true;
+	if (psp_master->api_major == maj && psp_master->api_minor >= min)
+		return true;
+	return false;
+}
 
 static struct psp_device *psp_alloc_struct(struct sp_device *sp)
 {
@@ -583,6 +585,69 @@ e_free:
 	return ret;
 }
 
+static int sev_ioctl_do_get_id2(struct sev_issue_cmd *argp)
+{
+	struct sev_user_data_get_id2 input;
+	struct sev_data_get_id *data;
+	void *id_blob = NULL;
+	int ret;
+
+	/* SEV GET_ID is available from SEV API v0.16 and up */
+	if (!sev_version_greater_or_equal(0, 16))
+		return -ENOTSUPP;
+
+	if (copy_from_user(&input, (void __user *)argp->data, sizeof(input)))
+		return -EFAULT;
+
+	/* Check if we have write access to the userspace buffer */
+	if (input.address &&
+	    input.length &&
+	    !access_ok(input.address, input.length))
+		return -EFAULT;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	if (input.address && input.length) {
+		id_blob = kmalloc(input.length, GFP_KERNEL);
+		if (!id_blob) {
+			kfree(data);
+			return -ENOMEM;
+		}
+
+		data->address = __psp_pa(id_blob);
+		data->len = input.length;
+	}
+
+	ret = __sev_do_cmd_locked(SEV_CMD_GET_ID, data, &argp->error);
+
+	/*
+	 * Firmware will return the length of the ID value (either the minimum
+	 * required length or the actual length written), return it to the user.
+	 */
+	input.length = data->len;
+
+	if (copy_to_user((void __user *)argp->data, &input, sizeof(input))) {
+		ret = -EFAULT;
+		goto e_free;
+	}
+
+	if (id_blob) {
+		if (copy_to_user((void __user *)input.address,
+				 id_blob, data->len)) {
+			ret = -EFAULT;
+			goto e_free;
+		}
+	}
+
+e_free:
+	kfree(id_blob);
+	kfree(data);
+
+	return ret;
+}
+
 static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
 {
 	struct sev_data_get_id *data;
@@ -591,7 +656,7 @@ static int sev_ioctl_do_get_id(struct sev_issue_cmd *argp)
 	int ret;
 
 	/* SEV GET_ID available from SEV API v0.16 and up */
-	if (!SEV_VERSION_GREATER_OR_EQUAL(0, 16))
+	if (!sev_version_greater_or_equal(0, 16))
 		return -ENOTSUPP;
 
 	/* SEV FW expects the buffer it fills with the ID to be
@@ -761,7 +826,11 @@ static long sev_ioctl(struct file *file, unsigned int ioctl, unsigned long arg)
 		ret = sev_ioctl_do_pdh_export(&input);
 		break;
 	case SEV_GET_ID:
+		pr_warn_once("SEV_GET_ID command is deprecated, use SEV_GET_ID2\n");
 		ret = sev_ioctl_do_get_id(&input);
+		break;
+	case SEV_GET_ID2:
+		ret = sev_ioctl_do_get_id2(&input);
 		break;
 	default:
 		ret = -EINVAL;
@@ -989,7 +1058,7 @@ void psp_pci_init(void)
 		psp_master->sev_state = SEV_STATE_UNINIT;
 	}
 
-	if (SEV_VERSION_GREATER_OR_EQUAL(0, 15) &&
+	if (sev_version_greater_or_equal(0, 15) &&
 	    sev_update_firmware(psp_master->dev) == 0)
 		sev_get_api_version();
 
@@ -997,7 +1066,7 @@ void psp_pci_init(void)
 	rc = sev_platform_init(&error);
 	if (rc) {
 		dev_err(sp->dev, "SEV: failed to INIT error %#x\n", error);
-		goto err;
+		return;
 	}
 
 	dev_info(sp->dev, "SEV API:%d.%d build:%d\n", psp_master->api_major,

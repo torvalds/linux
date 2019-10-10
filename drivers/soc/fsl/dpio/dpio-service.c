@@ -305,8 +305,6 @@ void dpaa2_io_service_deregister(struct dpaa2_io *service,
 	list_del(&ctx->node);
 	spin_unlock_irqrestore(&d->lock_notifications, irqflags);
 
-	if (dev)
-		device_link_remove(dev, d->dev);
 }
 EXPORT_SYMBOL_GPL(dpaa2_io_service_deregister);
 
@@ -473,7 +471,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_enqueue_qd);
  * Return 0 for success, and negative error code for failure.
  */
 int dpaa2_io_service_release(struct dpaa2_io *d,
-			     u32 bpid,
+			     u16 bpid,
 			     const u64 *buffers,
 			     unsigned int num_buffers)
 {
@@ -502,7 +500,7 @@ EXPORT_SYMBOL_GPL(dpaa2_io_service_release);
  * Eg. if the buffer pool is empty, this will return zero.
  */
 int dpaa2_io_service_acquire(struct dpaa2_io *d,
-			     u32 bpid,
+			     u16 bpid,
 			     u64 *buffers,
 			     unsigned int num_buffers)
 {
@@ -630,6 +628,7 @@ struct dpaa2_dq *dpaa2_io_store_next(struct dpaa2_io_store *s, int *is_last)
 		if (!(dpaa2_dq_flags(ret) & DPAA2_DQ_STAT_VALIDFRAME))
 			ret = NULL;
 	} else {
+		prefetch(&s->vaddr[s->idx]);
 		*is_last = 0;
 	}
 

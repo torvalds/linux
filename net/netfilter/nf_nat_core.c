@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2011 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,12 +18,12 @@
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
-#include <net/netfilter/nf_nat.h>
-#include <net/netfilter/nf_nat_helper.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_seqadj.h>
 #include <net/netfilter/nf_conntrack_zones.h>
-#include <linux/netfilter/nf_nat.h>
+#include <net/netfilter/nf_nat.h>
+#include <net/netfilter/nf_nat_helper.h>
+#include <uapi/linux/netfilter/nf_nat.h>
 
 #include "nf_internals.h"
 
@@ -415,9 +412,14 @@ static void nf_nat_l4proto_unique_tuple(struct nf_conntrack_tuple *tuple,
 	case IPPROTO_ICMPV6:
 		/* id is same for either direction... */
 		keyptr = &tuple->src.u.icmp.id;
-		min = range->min_proto.icmp.id;
-		range_size = ntohs(range->max_proto.icmp.id) -
-			     ntohs(range->min_proto.icmp.id) + 1;
+		if (!(range->flags & NF_NAT_RANGE_PROTO_SPECIFIED)) {
+			min = 0;
+			range_size = 65536;
+		} else {
+			min = ntohs(range->min_proto.icmp.id);
+			range_size = ntohs(range->max_proto.icmp.id) -
+				     ntohs(range->min_proto.icmp.id) + 1;
+		}
 		goto find_free_id;
 #if IS_ENABLED(CONFIG_NF_CT_PROTO_GRE)
 	case IPPROTO_GRE:
@@ -517,7 +519,7 @@ another_round:
  * and NF_INET_LOCAL_OUT, we change the destination to map into the
  * range. It might not be possible to get a unique tuple, but we try.
  * At worst (or if we race), we will end up with a final duplicate in
- * __ip_conntrack_confirm and drop the packet. */
+ * __nf_conntrack_confirm and drop the packet. */
 static void
 get_unique_tuple(struct nf_conntrack_tuple *tuple,
 		 const struct nf_conntrack_tuple *orig_tuple,
@@ -885,8 +887,8 @@ static int nfnetlink_parse_nat_proto(struct nlattr *attr,
 	struct nlattr *tb[CTA_PROTONAT_MAX+1];
 	int err;
 
-	err = nla_parse_nested(tb, CTA_PROTONAT_MAX, attr,
-			       protonat_nla_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, CTA_PROTONAT_MAX, attr,
+					  protonat_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -944,7 +946,8 @@ nfnetlink_parse_nat(const struct nlattr *nat,
 
 	memset(range, 0, sizeof(*range));
 
-	err = nla_parse_nested(tb, CTA_NAT_MAX, nat, nat_nla_policy, NULL);
+	err = nla_parse_nested_deprecated(tb, CTA_NAT_MAX, nat,
+					  nat_nla_policy, NULL);
 	if (err < 0)
 		return err;
 
@@ -1009,7 +1012,7 @@ static struct nf_ct_helper_expectfn follow_master_nat = {
 	.expectfn	= nf_nat_follow_master,
 };
 
-int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
+int nf_nat_register_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
 		       const struct nf_hook_ops *orig_nat_ops, unsigned int ops_count)
 {
 	struct nat_net *nat_net = net_generic(net, nat_net_id);
@@ -1019,14 +1022,12 @@ int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
 	struct nf_hook_ops *nat_ops;
 	int i, ret;
 
-	if (WARN_ON_ONCE(ops->pf >= ARRAY_SIZE(nat_net->nat_proto_net)))
+	if (WARN_ON_ONCE(pf >= ARRAY_SIZE(nat_net->nat_proto_net)))
 		return -EINVAL;
 
-	nat_proto_net = &nat_net->nat_proto_net[ops->pf];
+	nat_proto_net = &nat_net->nat_proto_net[pf];
 
 	for (i = 0; i < ops_count; i++) {
-		if (WARN_ON(orig_nat_ops[i].pf != ops->pf))
-			return -EINVAL;
 		if (orig_nat_ops[i].hooknum == hooknum) {
 			hooknum = i;
 			break;
@@ -1086,8 +1087,8 @@ int nf_nat_register_fn(struct net *net, const struct nf_hook_ops *ops,
 	return ret;
 }
 
-void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
-		          unsigned int ops_count)
+void nf_nat_unregister_fn(struct net *net, u8 pf, const struct nf_hook_ops *ops,
+			  unsigned int ops_count)
 {
 	struct nat_net *nat_net = net_generic(net, nat_net_id);
 	struct nf_nat_hooks_net *nat_proto_net;
@@ -1096,10 +1097,10 @@ void nf_nat_unregister_fn(struct net *net, const struct nf_hook_ops *ops,
 	int hooknum = ops->hooknum;
 	int i;
 
-	if (ops->pf >= ARRAY_SIZE(nat_net->nat_proto_net))
+	if (pf >= ARRAY_SIZE(nat_net->nat_proto_net))
 		return;
 
-	nat_proto_net = &nat_net->nat_proto_net[ops->pf];
+	nat_proto_net = &nat_net->nat_proto_net[pf];
 
 	mutex_lock(&nf_nat_proto_mutex);
 	if (WARN_ON(nat_proto_net->users == 0))

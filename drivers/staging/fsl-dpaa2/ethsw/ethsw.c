@@ -22,7 +22,7 @@ static struct workqueue_struct *ethsw_owq;
 
 /* Minimal supported DPSW version */
 #define DPSW_MIN_VER_MAJOR		8
-#define DPSW_MIN_VER_MINOR		0
+#define DPSW_MIN_VER_MINOR		1
 
 #define DEFAULT_VLAN_ID			1
 
@@ -33,11 +33,6 @@ static int ethsw_add_vlan(struct ethsw_core *ethsw, u16 vid)
 	struct dpsw_vlan_cfg	vcfg = {
 		.fdb_id = 0,
 	};
-
-	if (ethsw->vlans[vid]) {
-		dev_err(ethsw->dev, "VLAN already configured\n");
-		return -EEXIST;
-	}
 
 	err = dpsw_vlan_add(ethsw->mc_io, 0,
 			    ethsw->dpsw_handle, vid, &vcfg);
@@ -149,12 +144,12 @@ static int ethsw_port_add_vlan(struct ethsw_port_priv *port_priv,
 	return 0;
 }
 
-static int ethsw_set_learning(struct ethsw_core *ethsw, u8 flag)
+static int ethsw_set_learning(struct ethsw_core *ethsw, bool enable)
 {
 	enum dpsw_fdb_learning_mode learn_mode;
 	int err;
 
-	if (flag)
+	if (enable)
 		learn_mode = DPSW_FDB_LEARNING_MODE_HW;
 	else
 		learn_mode = DPSW_FDB_LEARNING_MODE_DIS;
@@ -165,24 +160,24 @@ static int ethsw_set_learning(struct ethsw_core *ethsw, u8 flag)
 		dev_err(ethsw->dev, "dpsw_fdb_set_learning_mode err %d\n", err);
 		return err;
 	}
-	ethsw->learning = !!flag;
+	ethsw->learning = enable;
 
 	return 0;
 }
 
-static int ethsw_port_set_flood(struct ethsw_port_priv *port_priv, u8 flag)
+static int ethsw_port_set_flood(struct ethsw_port_priv *port_priv, bool enable)
 {
 	int err;
 
 	err = dpsw_if_set_flooding(port_priv->ethsw_data->mc_io, 0,
 				   port_priv->ethsw_data->dpsw_handle,
-				   port_priv->idx, flag);
+				   port_priv->idx, enable);
 	if (err) {
 		netdev_err(port_priv->netdev,
 			   "dpsw_if_set_flooding err %d\n", err);
 		return err;
 	}
-	port_priv->flood = !!flag;
+	port_priv->flood = enable;
 
 	return 0;
 }
@@ -314,6 +309,31 @@ static int ethsw_port_fdb_del_mc(struct ethsw_port_priv *port_priv,
 		netdev_err(port_priv->netdev,
 			   "dpsw_fdb_remove_multicast err %d\n", err);
 	return err;
+}
+
+static int port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+			struct net_device *dev, const unsigned char *addr,
+			u16 vid, u16 flags,
+			struct netlink_ext_ack *extack)
+{
+	if (is_unicast_ether_addr(addr))
+		return ethsw_port_fdb_add_uc(netdev_priv(dev),
+					     addr);
+	else
+		return ethsw_port_fdb_add_mc(netdev_priv(dev),
+					     addr);
+}
+
+static int port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
+			struct net_device *dev,
+			const unsigned char *addr, u16 vid)
+{
+	if (is_unicast_ether_addr(addr))
+		return ethsw_port_fdb_del_uc(netdev_priv(dev),
+					     addr);
+	else
+		return ethsw_port_fdb_del_mc(netdev_priv(dev),
+					     addr);
 }
 
 static void port_get_stats(struct net_device *netdev,
@@ -516,17 +536,165 @@ static int swdev_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static int port_get_phys_name(struct net_device *netdev, char *name,
+			      size_t len)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(netdev);
+	int err;
+
+	err = snprintf(name, len, "p%d", port_priv->idx);
+	if (err >= len)
+		return -EINVAL;
+
+	return 0;
+}
+
+struct ethsw_dump_ctx {
+	struct net_device *dev;
+	struct sk_buff *skb;
+	struct netlink_callback *cb;
+	int idx;
+};
+
+static int ethsw_fdb_do_dump(struct fdb_dump_entry *entry,
+			     struct ethsw_dump_ctx *dump)
+{
+	int is_dynamic = entry->type & DPSW_FDB_ENTRY_DINAMIC;
+	u32 portid = NETLINK_CB(dump->cb->skb).portid;
+	u32 seq = dump->cb->nlh->nlmsg_seq;
+	struct nlmsghdr *nlh;
+	struct ndmsg *ndm;
+
+	if (dump->idx < dump->cb->args[2])
+		goto skip;
+
+	nlh = nlmsg_put(dump->skb, portid, seq, RTM_NEWNEIGH,
+			sizeof(*ndm), NLM_F_MULTI);
+	if (!nlh)
+		return -EMSGSIZE;
+
+	ndm = nlmsg_data(nlh);
+	ndm->ndm_family  = AF_BRIDGE;
+	ndm->ndm_pad1    = 0;
+	ndm->ndm_pad2    = 0;
+	ndm->ndm_flags   = NTF_SELF;
+	ndm->ndm_type    = 0;
+	ndm->ndm_ifindex = dump->dev->ifindex;
+	ndm->ndm_state   = is_dynamic ? NUD_REACHABLE : NUD_NOARP;
+
+	if (nla_put(dump->skb, NDA_LLADDR, ETH_ALEN, entry->mac_addr))
+		goto nla_put_failure;
+
+	nlmsg_end(dump->skb, nlh);
+
+skip:
+	dump->idx++;
+	return 0;
+
+nla_put_failure:
+	nlmsg_cancel(dump->skb, nlh);
+	return -EMSGSIZE;
+}
+
+static int port_fdb_valid_entry(struct fdb_dump_entry *entry,
+				struct ethsw_port_priv *port_priv)
+{
+	int idx = port_priv->idx;
+	int valid;
+
+	if (entry->type & DPSW_FDB_ENTRY_TYPE_UNICAST)
+		valid = entry->if_info == port_priv->idx;
+	else
+		valid = entry->if_mask[idx / 8] & BIT(idx % 8);
+
+	return valid;
+}
+
+static int port_fdb_dump(struct sk_buff *skb, struct netlink_callback *cb,
+			 struct net_device *net_dev,
+			 struct net_device *filter_dev, int *idx)
+{
+	struct ethsw_port_priv *port_priv = netdev_priv(net_dev);
+	struct ethsw_core *ethsw = port_priv->ethsw_data;
+	struct device *dev = net_dev->dev.parent;
+	struct fdb_dump_entry *fdb_entries;
+	struct fdb_dump_entry fdb_entry;
+	struct ethsw_dump_ctx dump = {
+		.dev = net_dev,
+		.skb = skb,
+		.cb = cb,
+		.idx = *idx,
+	};
+	dma_addr_t fdb_dump_iova;
+	u16 num_fdb_entries;
+	u32 fdb_dump_size;
+	int err = 0, i;
+	u8 *dma_mem;
+
+	fdb_dump_size = ethsw->sw_attr.max_fdb_entries * sizeof(fdb_entry);
+	dma_mem = kzalloc(fdb_dump_size, GFP_KERNEL);
+	if (!dma_mem)
+		return -ENOMEM;
+
+	fdb_dump_iova = dma_map_single(dev, dma_mem, fdb_dump_size,
+				       DMA_FROM_DEVICE);
+	if (dma_mapping_error(dev, fdb_dump_iova)) {
+		netdev_err(net_dev, "dma_map_single() failed\n");
+		err = -ENOMEM;
+		goto err_map;
+	}
+
+	err = dpsw_fdb_dump(ethsw->mc_io, 0, ethsw->dpsw_handle, 0,
+			    fdb_dump_iova, fdb_dump_size, &num_fdb_entries);
+	if (err) {
+		netdev_err(net_dev, "dpsw_fdb_dump() = %d\n", err);
+		goto err_dump;
+	}
+
+	dma_unmap_single(dev, fdb_dump_iova, fdb_dump_size, DMA_FROM_DEVICE);
+
+	fdb_entries = (struct fdb_dump_entry *)dma_mem;
+	for (i = 0; i < num_fdb_entries; i++) {
+		fdb_entry = fdb_entries[i];
+
+		if (!port_fdb_valid_entry(&fdb_entry, port_priv))
+			continue;
+
+		err = ethsw_fdb_do_dump(&fdb_entry, &dump);
+		if (err)
+			goto end;
+	}
+
+end:
+	*idx = dump.idx;
+
+	kfree(dma_mem);
+
+	return 0;
+
+err_dump:
+	dma_unmap_single(dev, fdb_dump_iova, fdb_dump_size, DMA_TO_DEVICE);
+err_map:
+	kfree(dma_mem);
+	return err;
+}
+
 static const struct net_device_ops ethsw_port_ops = {
 	.ndo_open		= port_open,
 	.ndo_stop		= port_stop,
 
 	.ndo_set_mac_address	= eth_mac_addr,
+	.ndo_get_stats64	= port_get_stats,
 	.ndo_change_mtu		= port_change_mtu,
 	.ndo_has_offload_stats	= port_has_offload_stats,
 	.ndo_get_offload_stats	= port_get_offload_stats,
+	.ndo_fdb_add		= port_fdb_add,
+	.ndo_fdb_del		= port_fdb_del,
+	.ndo_fdb_dump		= port_fdb_dump,
 
 	.ndo_start_xmit		= port_dropframe,
 	.ndo_get_port_parent_id	= swdev_get_port_parent_id,
+	.ndo_get_phys_port_name = port_get_phys_name,
 };
 
 static void ethsw_links_state_update(struct ethsw_core *ethsw)
@@ -549,12 +717,12 @@ static irqreturn_t ethsw_irq0_handler_thread(int irq_num, void *arg)
 	err = dpsw_get_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, &status);
 	if (err) {
-		dev_err(dev, "Can't get irq status (err %d)", err);
+		dev_err(dev, "Can't get irq status (err %d)\n", err);
 
 		err = dpsw_clear_irq_status(ethsw->mc_io, 0, ethsw->dpsw_handle,
 					    DPSW_IRQ_INDEX_IF, 0xFFFFFFFF);
 		if (err)
-			dev_err(dev, "Can't clear irq status (err %d)", err);
+			dev_err(dev, "Can't clear irq status (err %d)\n", err);
 		goto out;
 	}
 
@@ -599,21 +767,21 @@ static int ethsw_setup_irqs(struct fsl_mc_device *sw_dev)
 					IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					dev_name(dev), dev);
 	if (err) {
-		dev_err(dev, "devm_request_threaded_irq(): %d", err);
+		dev_err(dev, "devm_request_threaded_irq(): %d\n", err);
 		goto free_irq;
 	}
 
 	err = dpsw_set_irq_mask(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				DPSW_IRQ_INDEX_IF, mask);
 	if (err) {
-		dev_err(dev, "dpsw_set_irq_mask(): %d", err);
+		dev_err(dev, "dpsw_set_irq_mask(): %d\n", err);
 		goto free_devm_irq;
 	}
 
 	err = dpsw_set_irq_enable(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DPSW_IRQ_INDEX_IF, 1);
 	if (err) {
-		dev_err(dev, "dpsw_set_irq_enable(): %d", err);
+		dev_err(dev, "dpsw_set_irq_enable(): %d\n", err);
 		goto free_devm_irq;
 	}
 
@@ -673,11 +841,12 @@ static int port_attr_br_flags_set(struct net_device *netdev,
 		return 0;
 
 	/* Learning is enabled per switch */
-	err = ethsw_set_learning(port_priv->ethsw_data, flags & BR_LEARNING);
+	err = ethsw_set_learning(port_priv->ethsw_data,
+				 !!(flags & BR_LEARNING));
 	if (err)
 		goto exit;
 
-	err = ethsw_port_set_flood(port_priv, flags & BR_FLOOD);
+	err = ethsw_port_set_flood(port_priv, !!(flags & BR_FLOOD));
 
 exit:
 	return err;
@@ -950,8 +1119,7 @@ static int port_bridge_join(struct net_device *netdev,
 		if (ethsw->ports[i]->bridge_dev &&
 		    (ethsw->ports[i]->bridge_dev != upper_dev)) {
 			netdev_err(netdev,
-				   "Another switch port is connected to %s\n",
-				   ethsw->ports[i]->bridge_dev->name);
+				   "Only one bridge supported per DPSW object!\n");
 			return -EINVAL;
 		}
 
@@ -1023,18 +1191,30 @@ static void ethsw_switchdev_event_work(struct work_struct *work)
 		container_of(work, struct ethsw_switchdev_event_work, work);
 	struct net_device *dev = switchdev_work->dev;
 	struct switchdev_notifier_fdb_info *fdb_info;
+	int err;
 
 	rtnl_lock();
 	fdb_info = &switchdev_work->fdb_info;
 
 	switch (switchdev_work->event) {
 	case SWITCHDEV_FDB_ADD_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
 		if (is_unicast_ether_addr(fdb_info->addr))
-			ethsw_port_fdb_add_uc(netdev_priv(dev), fdb_info->addr);
+			err = ethsw_port_fdb_add_uc(netdev_priv(dev),
+						    fdb_info->addr);
 		else
-			ethsw_port_fdb_add_mc(netdev_priv(dev), fdb_info->addr);
+			err = ethsw_port_fdb_add_mc(netdev_priv(dev),
+						    fdb_info->addr);
+		if (err)
+			break;
+		fdb_info->offloaded = true;
+		call_switchdev_notifiers(SWITCHDEV_FDB_OFFLOADED, dev,
+					 &fdb_info->info, NULL);
 		break;
 	case SWITCHDEV_FDB_DEL_TO_DEVICE:
+		if (!fdb_info->added_by_user)
+			break;
 		if (is_unicast_ether_addr(fdb_info->addr))
 			ethsw_port_fdb_del_uc(netdev_priv(dev), fdb_info->addr);
 		else
@@ -1086,6 +1266,7 @@ static int port_switchdev_event(struct notifier_block *unused,
 		dev_hold(dev);
 		break;
 	default:
+		kfree(switchdev_work);
 		return NOTIFY_DONE;
 	}
 
@@ -1174,48 +1355,6 @@ err_switchdev_blocking_nb:
 err_switchdev_nb:
 	unregister_netdevice_notifier(&port_nb);
 	return err;
-}
-
-static int ethsw_open(struct ethsw_core *ethsw)
-{
-	struct ethsw_port_priv *port_priv = NULL;
-	int i, err;
-
-	err = dpsw_enable(ethsw->mc_io, 0, ethsw->dpsw_handle);
-	if (err) {
-		dev_err(ethsw->dev, "dpsw_enable err %d\n", err);
-		return err;
-	}
-
-	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
-		port_priv = ethsw->ports[i];
-		err = dev_open(port_priv->netdev, NULL);
-		if (err) {
-			netdev_err(port_priv->netdev, "dev_open err %d\n", err);
-			return err;
-		}
-	}
-
-	return 0;
-}
-
-static int ethsw_stop(struct ethsw_core *ethsw)
-{
-	struct ethsw_port_priv *port_priv = NULL;
-	int i, err;
-
-	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
-		port_priv = ethsw->ports[i];
-		dev_close(port_priv->netdev);
-	}
-
-	err = dpsw_disable(ethsw->mc_io, 0, ethsw->dpsw_handle);
-	if (err) {
-		dev_err(ethsw->dev, "dpsw_disable err %d\n", err);
-		return err;
-	}
-
-	return 0;
 }
 
 static int ethsw_init(struct fsl_mc_device *sw_dev)
@@ -1319,7 +1458,6 @@ err_close:
 
 static int ethsw_port_init(struct ethsw_port_priv *port_priv, u16 port)
 {
-	const char def_mcast[ETH_ALEN] = {0x01, 0x00, 0x5e, 0x00, 0x00, 0x01};
 	struct net_device *netdev = port_priv->netdev;
 	struct ethsw_core *ethsw = port_priv->ethsw_data;
 	struct dpsw_vlan_if_cfg vcfg;
@@ -1345,12 +1483,8 @@ static int ethsw_port_init(struct ethsw_port_priv *port_priv, u16 port)
 
 	err = dpsw_vlan_remove_if(ethsw->mc_io, 0, ethsw->dpsw_handle,
 				  DEFAULT_VLAN_ID, &vcfg);
-	if (err) {
+	if (err)
 		netdev_err(netdev, "dpsw_vlan_remove_if err %d\n", err);
-		return err;
-	}
-
-	err = ethsw_port_fdb_add_mc(port_priv, def_mcast);
 
 	return err;
 }
@@ -1404,9 +1538,7 @@ static int ethsw_remove(struct fsl_mc_device *sw_dev)
 
 	destroy_workqueue(ethsw_owq);
 
-	rtnl_lock();
-	ethsw_stop(ethsw);
-	rtnl_unlock();
+	dpsw_disable(ethsw->mc_io, 0, ethsw->dpsw_handle);
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		port_priv = ethsw->ports[i];
@@ -1456,16 +1588,24 @@ static int ethsw_probe_port(struct ethsw_core *ethsw, u16 port_idx)
 	port_netdev->min_mtu = ETH_MIN_MTU;
 	port_netdev->max_mtu = ETHSW_MAX_FRAME_LENGTH;
 
+	err = ethsw_port_init(port_priv, port_idx);
+	if (err)
+		goto err_port_probe;
+
 	err = register_netdev(port_netdev);
 	if (err < 0) {
 		dev_err(dev, "register_netdev error %d\n", err);
-		free_netdev(port_netdev);
-		return err;
+		goto err_port_probe;
 	}
 
 	ethsw->ports[port_idx] = port_priv;
 
-	return ethsw_port_init(port_priv, port_idx);
+	return 0;
+
+err_port_probe:
+	free_netdev(port_netdev);
+
+	return err;
 }
 
 static int ethsw_probe(struct fsl_mc_device *sw_dev)
@@ -1483,7 +1623,8 @@ static int ethsw_probe(struct fsl_mc_device *sw_dev)
 	ethsw->dev = dev;
 	dev_set_drvdata(dev, ethsw);
 
-	err = fsl_mc_portal_allocate(sw_dev, 0, &ethsw->mc_io);
+	err = fsl_mc_portal_allocate(sw_dev, FSL_MC_IO_ATOMIC_CONTEXT_PORTAL,
+				     &ethsw->mc_io);
 	if (err) {
 		if (err == -ENXIO)
 			err = -EPROBE_DEFER;
@@ -1515,12 +1656,11 @@ static int ethsw_probe(struct fsl_mc_device *sw_dev)
 			goto err_free_ports;
 	}
 
-	/* Switch starts up enabled */
-	rtnl_lock();
-	err = ethsw_open(ethsw);
-	rtnl_unlock();
-	if (err)
+	err = dpsw_enable(ethsw->mc_io, 0, ethsw->dpsw_handle);
+	if (err) {
+		dev_err(ethsw->dev, "dpsw_enable err %d\n", err);
 		goto err_free_ports;
+	}
 
 	/* Setup IRQs */
 	err = ethsw_setup_irqs(sw_dev);
@@ -1531,9 +1671,7 @@ static int ethsw_probe(struct fsl_mc_device *sw_dev)
 	return 0;
 
 err_stop:
-	rtnl_lock();
-	ethsw_stop(ethsw);
-	rtnl_unlock();
+	dpsw_disable(ethsw->mc_io, 0, ethsw->dpsw_handle);
 
 err_free_ports:
 	/* Cleanup registered ports only */

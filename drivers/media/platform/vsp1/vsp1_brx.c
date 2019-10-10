@@ -283,6 +283,7 @@ static const struct v4l2_subdev_ops brx_ops = {
 
 static void brx_configure_stream(struct vsp1_entity *entity,
 				 struct vsp1_pipeline *pipe,
+				 struct vsp1_dl_list *dl,
 				 struct vsp1_dl_body *dlb)
 {
 	struct vsp1_brx *brx = to_brx(&entity->subdev);
@@ -296,7 +297,7 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 	/*
 	 * The hardware is extremely flexible but we have no userspace API to
 	 * expose all the parameters, nor is it clear whether we would have use
-	 * cases for all the supported modes. Let's just harcode the parameters
+	 * cases for all the supported modes. Let's just hardcode the parameters
 	 * to sane default values for now.
 	 */
 
@@ -373,7 +374,7 @@ static void brx_configure_stream(struct vsp1_entity *entity,
 		vsp1_brx_write(brx, dlb, VI6_BRU_CTRL(i), ctrl);
 
 		/*
-		 * Harcode the blending formula to
+		 * Hardcode the blending formula to
 		 *
 		 *	DSTc = DSTc * (1 - SRCa) + SRCc * SRCa
 		 *	DSTa = DSTa * (1 - SRCa) + SRCa

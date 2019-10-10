@@ -21,7 +21,7 @@
  *
  * Authors: Alex Deucher
  */
-#include <drm/drmP.h>
+
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "si.h"
@@ -63,7 +63,7 @@ static void si_dma_ring_set_wptr(struct amdgpu_ring *ring)
 static void si_dma_ring_emit_ib(struct amdgpu_ring *ring,
 				struct amdgpu_job *job,
 				struct amdgpu_ib *ib,
-				bool ctx_switch)
+				uint32_t flags)
 {
 	unsigned vmid = AMDGPU_JOB_GET_VMID(job);
 	/* The indirect buffer packet must end on an 8 DW boundary in the DMA ring.
@@ -230,7 +230,7 @@ static int si_dma_ring_test_ring(struct amdgpu_ring *ring)
 		tmp = le32_to_cpu(adev->wb.wb[index]);
 		if (tmp == 0xDEADBEEF)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
 	if (i >= adev->usec_timeout)
@@ -503,8 +503,8 @@ static int si_dma_sw_init(void *handle)
 		r = amdgpu_ring_init(adev, ring, 1024,
 				     &adev->sdma.trap_irq,
 				     (i == 0) ?
-				     AMDGPU_SDMA_IRQ_TRAP0 :
-				     AMDGPU_SDMA_IRQ_TRAP1);
+				     AMDGPU_SDMA_IRQ_INSTANCE0 :
+				     AMDGPU_SDMA_IRQ_INSTANCE1);
 		if (r)
 			return r;
 	}
@@ -591,7 +591,7 @@ static int si_dma_set_trap_irq_state(struct amdgpu_device *adev,
 	u32 sdma_cntl;
 
 	switch (type) {
-	case AMDGPU_SDMA_IRQ_TRAP0:
+	case AMDGPU_SDMA_IRQ_INSTANCE0:
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			sdma_cntl = RREG32(DMA_CNTL + DMA0_REGISTER_OFFSET);
@@ -607,7 +607,7 @@ static int si_dma_set_trap_irq_state(struct amdgpu_device *adev,
 			break;
 		}
 		break;
-	case AMDGPU_SDMA_IRQ_TRAP1:
+	case AMDGPU_SDMA_IRQ_INSTANCE1:
 		switch (state) {
 		case AMDGPU_IRQ_STATE_DISABLE:
 			sdma_cntl = RREG32(DMA_CNTL + DMA1_REGISTER_OFFSET);

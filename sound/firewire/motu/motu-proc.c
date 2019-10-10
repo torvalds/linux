@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * motu-proc.c - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "./motu.h"
@@ -87,12 +86,8 @@ static void add_node(struct snd_motu *motu, struct snd_info_entry *root,
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(motu->card, name, root);
-	if (entry == NULL)
-		return;
-
-	snd_info_set_text_ops(entry, motu, op);
-	if (snd_info_register(entry) < 0)
-		snd_info_free_entry(entry);
+	if (entry)
+		snd_info_set_text_ops(entry, motu, op);
 }
 
 void snd_motu_proc_init(struct snd_motu *motu)
@@ -108,10 +103,6 @@ void snd_motu_proc_init(struct snd_motu *motu)
 	if (root == NULL)
 		return;
 	root->mode = S_IFDIR | 0555;
-	if (snd_info_register(root) < 0) {
-		snd_info_free_entry(root);
-		return;
-	}
 
 	add_node(motu, root, "clock", proc_read_clock);
 	add_node(motu, root, "format", proc_read_format);

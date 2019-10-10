@@ -49,7 +49,7 @@ OPTIONS
 	-h, --help
 		  Print short help message (similar to **bpftool help**).
 
-	-v, --version
+	-V, --version
 		  Print version number (similar to **bpftool version**).
 
 	-j, --json
@@ -66,6 +66,10 @@ OPTIONS
 		  Do not automatically attempt to mount any virtual file system
 		  (such as tracefs or BPF virtual file system) when necessary.
 
+	-d, --debug
+		  Print all logs available, even debug-level information. This
+		  includes logs from libbpf as well as from the verifier, when
+		  attempting to load programs.
 
 SEE ALSO
 ========
@@ -76,4 +80,5 @@ SEE ALSO
 	**bpftool-cgroup**\ (8),
 	**bpftool-feature**\ (8),
 	**bpftool-net**\ (8),
-	**bpftool-perf**\ (8)
+	**bpftool-perf**\ (8),
+	**bpftool-btf**\ (8)

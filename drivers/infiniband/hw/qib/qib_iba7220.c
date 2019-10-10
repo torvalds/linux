@@ -2175,7 +2175,6 @@ static void qib_7220_put_tid(struct qib_devdata *dd, u64 __iomem *tidptr,
 		pa = chippa;
 	}
 	writeq(pa, tidptr);
-	mmiowb();
 }
 
 /**
@@ -2704,9 +2703,7 @@ static void qib_update_7220_usrhead(struct qib_ctxtdata *rcd, u64 hd,
 {
 	if (updegr)
 		qib_write_ureg(rcd->dd, ur_rcvegrindexhead, egrhd, rcd->ctxt);
-	mmiowb();
 	qib_write_ureg(rcd->dd, ur_rcvhdrhead, hd, rcd->ctxt);
-	mmiowb();
 }
 
 static u32 qib_7220_hdrqempty(struct qib_ctxtdata *rcd)

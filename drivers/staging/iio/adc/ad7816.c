@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * AD7816 digital temperature sensor driver supporting AD7816/7/8
  *
  * Copyright 2010 Analog Devices Inc.
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/interrupt.h>
@@ -65,7 +64,7 @@ enum ad7816_type {
 static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 {
 	struct spi_device *spi_dev = chip->spi_dev;
-	int ret = 0;
+	int ret;
 	__be16 buf;
 
 	gpiod_set_value(chip->rdwr_pin, 1);
@@ -106,7 +105,7 @@ static int ad7816_spi_read(struct ad7816_chip_info *chip, u16 *data)
 static int ad7816_spi_write(struct ad7816_chip_info *chip, u8 data)
 {
 	struct spi_device *spi_dev = chip->spi_dev;
-	int ret = 0;
+	int ret;
 
 	gpiod_set_value(chip->rdwr_pin, 1);
 	gpiod_set_value(chip->rdwr_pin, 0);
@@ -231,7 +230,7 @@ static ssize_t ad7816_show_value(struct device *dev,
 		value = (s8)((data >> AD7816_TEMP_FLOAT_OFFSET) - 103);
 		data &= AD7816_TEMP_FLOAT_MASK;
 		if (value < 0)
-			data = (1 << AD7816_TEMP_FLOAT_OFFSET) - data;
+			data = BIT(AD7816_TEMP_FLOAT_OFFSET) - data;
 		return sprintf(buf, "%d.%.2d\n", value, data * 25);
 	}
 	return sprintf(buf, "%u\n", data);
@@ -354,8 +353,7 @@ static int ad7816_probe(struct spi_device *spi_dev)
 {
 	struct ad7816_chip_info *chip;
 	struct iio_dev *indio_dev;
-	int ret = 0;
-	int i;
+	int i, ret;
 
 	indio_dev = devm_iio_device_alloc(&spi_dev->dev, sizeof(*chip));
 	if (!indio_dev)

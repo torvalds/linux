@@ -140,8 +140,7 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
-	vma_priv = kzalloc(sizeof(*vma_priv) + count * sizeof(void *),
-			   GFP_KERNEL);
+	vma_priv = kzalloc(struct_size(vma_priv, pages, count), GFP_KERNEL);
 	if (!vma_priv)
 		return -ENOMEM;
 
@@ -166,12 +165,8 @@ static int privcmd_buf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (vma_priv->n_pages != count)
 		ret = -ENOMEM;
 	else
-		for (i = 0; i < vma_priv->n_pages; i++) {
-			ret = vm_insert_page(vma, vma->vm_start + i * PAGE_SIZE,
-					     vma_priv->pages[i]);
-			if (ret)
-				break;
-		}
+		ret = vm_map_pages_zero(vma, vma_priv->pages,
+						vma_priv->n_pages);
 
 	if (ret)
 		privcmd_buf_vmapriv_free(vma_priv);

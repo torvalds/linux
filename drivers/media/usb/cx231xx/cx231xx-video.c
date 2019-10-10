@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
    cx231xx-video.c - driver for Conexant Cx23100/101/102
 		     USB video capture devices
@@ -7,19 +8,6 @@
 	Based on cx23885 driver
 	Based on cx88 driver
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx231xx.h"
@@ -92,7 +80,6 @@ MODULE_PARM_DESC(video_debug, "enable debug messages [video]");
 /* supported video standards */
 static struct cx231xx_fmt format[] = {
 	{
-	 .name = "16bpp YUY2, 4:2:2, packed",
 	 .fourcc = V4L2_PIX_FMT_YUYV,
 	 .depth = 16,
 	 .reg = 0,
@@ -182,7 +169,7 @@ static inline void buffer_filled(struct cx231xx *dev,
 	cx231xx_isocdbg("[%p/%d] wakeup\n", buf, buf->vb.i);
 	buf->vb.state = VIDEOBUF_DONE;
 	buf->vb.field_count++;
-	v4l2_get_timestamp(&buf->vb.ts);
+	buf->vb.ts = ktime_get_ns();
 
 	if (dev->USE_ISO)
 		dev->video_mode.isoc_ctl.buf = NULL;
@@ -1567,30 +1554,19 @@ static int vidioc_streamoff(struct file *file, void *priv,
 int cx231xx_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	struct video_device *vdev = video_devdata(file);
 	struct cx231xx_fh *fh = priv;
 	struct cx231xx *dev = fh->dev;
 
 	strscpy(cap->driver, "cx231xx", sizeof(cap->driver));
 	strscpy(cap->card, cx231xx_boards[dev->model].name, sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-
-	if (vdev->vfl_type == VFL_TYPE_RADIO)
-		cap->device_caps = V4L2_CAP_RADIO;
-	else {
-		cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-		if (vdev->vfl_type == VFL_TYPE_VBI)
-			cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
-		else
-			cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
-	}
-	if (dev->tuner_type != TUNER_ABSENT)
-		cap->device_caps |= V4L2_CAP_TUNER;
-	cap->capabilities = cap->device_caps | V4L2_CAP_READWRITE |
+	cap->capabilities = V4L2_CAP_READWRITE |
 		V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE |
 		V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
 	if (video_is_registered(&dev->radio_dev))
 		cap->capabilities |= V4L2_CAP_RADIO;
+	if (dev->tuner_type != TUNER_ABSENT)
+		cap->capabilities |= V4L2_CAP_TUNER;
 
 	return 0;
 }
@@ -1601,7 +1577,6 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 	if (unlikely(f->index >= ARRAY_SIZE(format)))
 		return -EINVAL;
 
-	strscpy(f->description, format[f->index].name, sizeof(f->description));
 	f->pixelformat = format[f->index].fourcc;
 
 	return 0;
@@ -1862,7 +1837,7 @@ static int cx231xx_v4l2_open(struct file *filp)
 /*
  * cx231xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
 */
 void cx231xx_release_analog_resources(struct cx231xx *dev)
 {
@@ -2246,6 +2221,11 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		dev_err(dev->dev, "failed to initialize video media entity!\n");
 #endif
 	dev->vdev.ctrl_handler = &dev->ctrl_handler;
+	dev->vdev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				V4L2_CAP_VIDEO_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT)
+		dev->vdev.device_caps |= V4L2_CAP_TUNER;
+
 	/* register v4l2 video video_device */
 	ret = video_register_device(&dev->vdev, VFL_TYPE_GRABBER,
 				    video_nr[dev->devno]);
@@ -2274,6 +2254,11 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		dev_err(dev->dev, "failed to initialize vbi media entity!\n");
 #endif
 	dev->vbi_dev.ctrl_handler = &dev->ctrl_handler;
+	dev->vbi_dev.device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
+				   V4L2_CAP_VBI_CAPTURE;
+	if (dev->tuner_type != TUNER_ABSENT)
+		dev->vbi_dev.device_caps |= V4L2_CAP_TUNER;
+
 	/* register v4l2 vbi video_device */
 	ret = video_register_device(&dev->vbi_dev, VFL_TYPE_VBI,
 				    vbi_nr[dev->devno]);
@@ -2289,6 +2274,7 @@ int cx231xx_register_analog_devices(struct cx231xx *dev)
 		cx231xx_vdev_init(dev, &dev->radio_dev,
 				&cx231xx_radio_template, "radio");
 		dev->radio_dev.ctrl_handler = &dev->radio_ctrl_handler;
+		dev->radio_dev.device_caps = V4L2_CAP_RADIO | V4L2_CAP_TUNER;
 		ret = video_register_device(&dev->radio_dev, VFL_TYPE_RADIO,
 					    radio_nr[dev->devno]);
 		if (ret < 0) {

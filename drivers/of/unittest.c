@@ -344,7 +344,7 @@ static void __init of_unittest_check_phandles(void)
 		}
 
 		nh = kzalloc(sizeof(*nh), GFP_KERNEL);
-		if (WARN_ON(!nh))
+		if (!nh)
 			return;
 
 		nh->np = np;
@@ -1044,8 +1044,10 @@ static void __init of_unittest_platform_populate(void)
 	test_bus = platform_device_register_full(&test_bus_info);
 	rc = PTR_ERR_OR_ZERO(test_bus);
 	unittest(!rc, "testbus registration failed; rc=%i\n", rc);
-	if (rc)
+	if (rc) {
+		of_node_put(np);
 		return;
+	}
 	test_bus->dev.of_node = np;
 
 	/*
@@ -1116,15 +1118,22 @@ static void update_node_properties(struct device_node *np,
 	for (prop = np->properties; prop != NULL; prop = save_next) {
 		save_next = prop->next;
 		ret = of_add_property(dup, prop);
-		if (ret)
+		if (ret) {
+			if (ret == -EEXIST && !strcmp(prop->name, "name"))
+				continue;
 			pr_err("unittest internal error: unable to add testdata property %pOF/%s",
 			       np, prop->name);
+		}
 	}
 }
 
 /**
  *	attach_node_and_children - attaches nodes
- *	and its children to live tree
+ *	and its children to live tree.
+ *	CAUTION: misleading function name - if node @np already exists in
+ *	the live tree then children of @np are *not* attached to the live
+ *	tree.  This works for the current test devicetree nodes because such
+ *	nodes do not have child nodes.
  *
  *	@np:	Node to attach to live tree
  */
@@ -1192,12 +1201,9 @@ static int __init unittest_data_add(void)
 
 	/* creating copy */
 	unittest_data = kmemdup(__dtb_testcases_begin, size, GFP_KERNEL);
-
-	if (!unittest_data) {
-		pr_warn("%s: Failed to allocate memory for unittest_data; "
-			"not running tests\n", __func__);
+	if (!unittest_data)
 		return -ENOMEM;
-	}
+
 	of_fdt_unflatten_tree(unittest_data, NULL, &unittest_data_node);
 	if (!unittest_data_node) {
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
@@ -1838,10 +1844,8 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 
 	std = devm_kzalloc(dev, sizeof(*std), GFP_KERNEL);
-	if (!std) {
-		dev_err(dev, "Failed to allocate unittest i2c data\n");
+	if (!std)
 		return -ENOMEM;
-	}
 
 	/* link them together */
 	std->pdev = pdev;
@@ -1944,7 +1948,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 {
 	int i, nchans;
 	struct device *dev = &client->dev;
-	struct i2c_adapter *adap = to_i2c_adapter(dev->parent);
+	struct i2c_adapter *adap = client->adapter;
 	struct device_node *np = client->dev.of_node, *child;
 	struct i2c_mux_core *muxc;
 	u32 reg, max_reg;
@@ -2234,7 +2238,13 @@ static struct device_node *overlay_base_root;
 
 static void * __init dt_alloc_memory(u64 size, u64 align)
 {
-	return memblock_alloc(size, align);
+	void *ptr = memblock_alloc(size, align);
+
+	if (!ptr)
+		panic("%s: Failed to allocate %llu bytes align=0x%llx\n",
+		      __func__, size, align);
+
+	return ptr;
 }
 
 /*
@@ -2514,6 +2524,10 @@ static int __init of_unittest(void)
 	int res;
 
 	/* adding data for unittest */
+
+	if (IS_ENABLED(CONFIG_UML))
+		unittest_unflatten_overlay_base();
+
 	res = unittest_data_add();
 	if (res)
 		return res;

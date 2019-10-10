@@ -258,6 +258,16 @@ static inline pgprot_t pgprot_noncached(pgprot_t _prot)
 {
 	unsigned long prot = pgprot_val(_prot);
 
+	prot = (prot & ~_CACHE_MASK) | _CACHE_UNCACHED | _PAGE_SO;
+
+	return __pgprot(prot);
+}
+
+#define pgprot_writecombine pgprot_writecombine
+static inline pgprot_t pgprot_writecombine(pgprot_t _prot)
+{
+	unsigned long prot = pgprot_val(_prot);
+
 	prot = (prot & ~_CACHE_MASK) | _CACHE_UNCACHED;
 
 	return __pgprot(prot);
@@ -290,18 +300,11 @@ static inline pte_t *pte_offset(pmd_t *dir, unsigned long address)
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 extern void paging_init(void);
 
-extern void show_jtlb_table(void);
-
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
 		      pte_t *pte);
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
-
-/*
- * No page table caches to initialise
- */
-#define pgtable_cache_init()	do {} while (0)
 
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot) \
 	remap_pfn_range(vma, vaddr, pfn, size, prot)

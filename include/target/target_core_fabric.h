@@ -74,7 +74,6 @@ struct target_core_fabric_ops {
 	u32 (*sess_get_initiator_sid)(struct se_session *,
 				      unsigned char *, u32);
 	int (*write_pending)(struct se_cmd *);
-	int (*write_pending_status)(struct se_cmd *);
 	void (*set_default_node_attributes)(struct se_node_acl *);
 	int (*get_cmd_state)(struct se_cmd *);
 	int (*queue_data_in)(struct se_cmd *);
@@ -143,6 +142,7 @@ void	transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 ssize_t	target_show_dynamic_sessions(struct se_portal_group *, char *);
 void	transport_free_session(struct se_session *);
+void	target_spc2_release(struct se_node_acl *nacl);
 void	target_put_nacl(struct se_node_acl *);
 void	transport_deregister_session_configfs(struct se_session *);
 void	transport_deregister_session(struct se_session *);
@@ -174,6 +174,7 @@ int	transport_generic_free_cmd(struct se_cmd *, int);
 bool	transport_wait_for_tasks(struct se_cmd *);
 int	transport_send_check_condition_and_sense(struct se_cmd *,
 		sense_reason_t, int);
+int	target_send_busy(struct se_cmd *cmd);
 int	target_get_sess_cmd(struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_cmd *);
 void	target_sess_cmd_list_set_waiting(struct se_session *);

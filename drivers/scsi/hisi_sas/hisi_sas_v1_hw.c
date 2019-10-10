@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2015 Linaro Ltd.
  * Copyright (c) 2015 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include "hisi_sas.h"
@@ -406,8 +401,6 @@ enum {
 	TRANS_RX_SMP_RESP_TIMEOUT_ERR, /* 0x31a */
 };
 
-#define HISI_SAS_COMMAND_ENTRIES_V1_HW 8192
-
 #define HISI_SAS_PHY_MAX_INT_NR (HISI_SAS_PHY_INT_NR * HISI_SAS_MAX_PHYS)
 #define HISI_SAS_CQ_MAX_INT_NR (HISI_SAS_MAX_QUEUES)
 #define HISI_SAS_FATAL_INT_NR (2)
@@ -421,13 +414,6 @@ static u32 hisi_sas_read32(struct hisi_hba *hisi_hba, u32 off)
 	void __iomem *regs = hisi_hba->regs + off;
 
 	return readl(regs);
-}
-
-static u32 hisi_sas_read32_relaxed(struct hisi_hba *hisi_hba, u32 off)
-{
-	void __iomem *regs = hisi_hba->regs + off;
-
-	return readl_relaxed(regs);
 }
 
 static void hisi_sas_write32(struct hisi_hba *hisi_hba,
@@ -798,16 +784,11 @@ static void start_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 	enable_phy_v1_hw(hisi_hba, phy_no);
 }
 
-static void stop_phy_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
-{
-	disable_phy_v1_hw(hisi_hba, phy_no);
-}
-
 static void phy_hard_reset_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
-	stop_phy_v1_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 0);
 	msleep(100);
-	start_phy_v1_hw(hisi_hba, phy_no);
+	hisi_sas_phy_enable(hisi_hba, phy_no, 1);
 }
 
 static void start_phys_v1_hw(struct timer_list *t)
@@ -817,7 +798,7 @@ static void start_phys_v1_hw(struct timer_list *t)
 
 	for (i = 0; i < hisi_hba->n_phy; i++) {
 		hisi_sas_phy_write32(hisi_hba, i, CHL_INT2_MSK, 0x12a);
-		start_phy_v1_hw(hisi_hba, i);
+		hisi_sas_phy_enable(hisi_hba, i, 1);
 	}
 }
 
@@ -835,7 +816,7 @@ static void phys_init_v1_hw(struct hisi_hba *hisi_hba)
 	mod_timer(timer, jiffies + HZ);
 }
 
-static void sl_notify_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
+static void sl_notify_ssp_v1_hw(struct hisi_hba *hisi_hba, int phy_no)
 {
 	u32 sl_control;
 
@@ -874,30 +855,6 @@ static int get_wideport_bitmap_v1_hw(struct hisi_hba *hisi_hba, int port_id)
 			bitmap |= 1 << i;
 
 	return bitmap;
-}
-
-/*
- * The callpath to this function and upto writing the write
- * queue pointer should be safe from interruption.
- */
-static int
-get_free_slot_v1_hw(struct hisi_hba *hisi_hba, struct hisi_sas_dq *dq)
-{
-	struct device *dev = hisi_hba->dev;
-	int queue = dq->id;
-	u32 r, w;
-
-	w = dq->wr_point;
-	r = hisi_sas_read32_relaxed(hisi_hba,
-				DLVRY_Q_0_RD_PTR + (queue * 0x14));
-	if (r == (w+1) % HISI_SAS_QUEUE_SLOTS) {
-		dev_warn(dev, "could not find free slot\n");
-		return -EAGAIN;
-	}
-
-	dq->wr_point = (dq->wr_point + 1) % HISI_SAS_QUEUE_SLOTS;
-
-	return w;
 }
 
 /* DQ lock must be taken here */
@@ -1318,21 +1275,17 @@ static int slot_complete_v1_hw(struct hisi_hba *hisi_hba,
 	}
 	case SAS_PROTOCOL_SMP:
 	{
-		void *to;
 		struct scatterlist *sg_resp = &task->smp_task.smp_resp;
+		void *to = page_address(sg_page(sg_resp));
 
 		ts->stat = SAM_STAT_GOOD;
-		to = kmap_atomic(sg_page(sg_resp));
 
-		dma_unmap_sg(dev, &task->smp_task.smp_resp, 1,
-			     DMA_FROM_DEVICE);
 		dma_unmap_sg(dev, &task->smp_task.smp_req, 1,
 			     DMA_TO_DEVICE);
 		memcpy(to + sg_resp->offset,
 		       hisi_sas_status_buf_addr_mem(slot) +
 		       sizeof(struct hisi_sas_err_record),
-		       sg_dma_len(sg_resp));
-		kunmap_atomic(to);
+		       sg_resp->length);
 		break;
 	}
 	case SAS_PROTOCOL_SATA:
@@ -1544,11 +1497,9 @@ static irqreturn_t cq_interrupt_v1_hw(int irq, void *p)
 	struct hisi_sas_complete_v1_hdr *complete_queue =
 			(struct hisi_sas_complete_v1_hdr *)
 			hisi_hba->complete_hdr[queue];
-	u32 irq_value, rd_point = cq->rd_point, wr_point;
+	u32 rd_point = cq->rd_point, wr_point;
 
 	spin_lock(&hisi_hba->lock);
-	irq_value = hisi_sas_read32(hisi_hba, OQ_INT_SRC);
-
 	hisi_sas_write32(hisi_hba, OQ_INT_SRC, 1 << queue);
 	wr_point = hisi_sas_read32(hisi_hba,
 			COMPL_Q_0_WR_PTR + (0x14 * queue));
@@ -1695,8 +1646,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		for (j = 0; j < HISI_SAS_PHY_INT_NR; j++, idx++) {
 			irq = platform_get_irq(pdev, idx);
 			if (!irq) {
-				dev_err(dev,
-					"irq init: fail map phy interrupt %d\n",
+				dev_err(dev, "irq init: fail map phy interrupt %d\n",
 					idx);
 				return -ENOENT;
 			}
@@ -1704,8 +1654,7 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 			rc = devm_request_irq(dev, irq, phy_interrupts[j], 0,
 					      DRV_NAME " phy", phy);
 			if (rc) {
-				dev_err(dev, "irq init: could not request "
-					"phy interrupt %d, rc=%d\n",
+				dev_err(dev, "irq init: could not request phy interrupt %d, rc=%d\n",
 					irq, rc);
 				return -ENOENT;
 			}
@@ -1742,12 +1691,13 @@ static int interrupt_init_v1_hw(struct hisi_hba *hisi_hba)
 		rc = devm_request_irq(dev, irq, fatal_interrupts[i], 0,
 				      DRV_NAME " fatal", hisi_hba);
 		if (rc) {
-			dev_err(dev,
-				"irq init: could not request fatal interrupt %d, rc=%d\n",
+			dev_err(dev, "irq init: could not request fatal interrupt %d, rc=%d\n",
 				irq, rc);
 			return -ENOENT;
 		}
 	}
+
+	hisi_hba->cq_nvecs = hisi_hba->queue_count;
 
 	return 0;
 }
@@ -1821,18 +1771,17 @@ static struct scsi_host_template sht_v1_hw = {
 	.target_destroy		= sas_target_destroy,
 	.ioctl			= sas_ioctl,
 	.shost_attrs		= host_attrs_v1_hw,
+	.host_reset             = hisi_sas_host_reset,
 };
 
 static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.hw_init = hisi_sas_v1_init,
 	.setup_itct = setup_itct_v1_hw,
-	.sl_notify = sl_notify_v1_hw,
+	.sl_notify_ssp = sl_notify_ssp_v1_hw,
 	.clear_itct = clear_itct_v1_hw,
 	.prep_smp = prep_smp_v1_hw,
 	.prep_ssp = prep_ssp_v1_hw,
-	.get_free_slot = get_free_slot_v1_hw,
 	.start_delivery = start_delivery_v1_hw,
-	.slot_complete = slot_complete_v1_hw,
 	.phys_init = phys_init_v1_hw,
 	.phy_start = start_phy_v1_hw,
 	.phy_disable = disable_phy_v1_hw,
@@ -1840,7 +1789,6 @@ static const struct hisi_sas_hw hisi_sas_v1_hw = {
 	.phy_set_linkrate = phy_set_linkrate_v1_hw,
 	.phy_get_max_linkrate = phy_get_max_linkrate_v1_hw,
 	.get_wideport_bitmap = get_wideport_bitmap_v1_hw,
-	.max_command_entries = HISI_SAS_COMMAND_ENTRIES_V1_HW,
 	.complete_hdr_size = sizeof(struct hisi_sas_complete_v1_hdr),
 	.sht = &sht_v1_hw,
 };

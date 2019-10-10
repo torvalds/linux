@@ -54,7 +54,6 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -65,6 +64,7 @@
 #include <linux/kthread.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/xarray.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
@@ -73,6 +73,7 @@
 
 #include "chip_registers.h"
 #include "common.h"
+#include "opfn.h"
 #include "verbs.h"
 #include "pio.h"
 #include "chip.h"
@@ -97,6 +98,8 @@
 
 #define NEIGHBOR_TYPE_HFI		0
 #define NEIGHBOR_TYPE_SWITCH	1
+
+#define HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES 5
 
 extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_KGET_MASK(mask, cap) ((mask) & HFI1_CAP_##cap)
@@ -195,6 +198,14 @@ struct exp_tid_set {
 };
 
 typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
+
+struct tid_queue {
+	struct list_head queue_head;
+			/* queue head for QP TID resource waiters */
+	u32 enqueue;	/* count of tid enqueues */
+	u32 dequeue;	/* count of tid dequeues */
+};
+
 struct hfi1_ctxtdata {
 	/* rcvhdrq base, needs mmap before useful */
 	void *rcvhdrq;
@@ -288,6 +299,12 @@ struct hfi1_ctxtdata {
 	/* PSM Specific fields */
 	/* lock protecting all Expected TID data */
 	struct mutex exp_mutex;
+	/* lock protecting all Expected TID data of kernel contexts */
+	spinlock_t exp_lock;
+	/* Queue for QP's waiting for HW TID flows */
+	struct tid_queue flow_queue;
+	/* Queue for QP's waiting for HW receive array entries */
+	struct tid_queue rarr_queue;
 	/* when waiting for rcv or pioavail */
 	wait_queue_head_t wait;
 	/* uuid from PSM */
@@ -320,6 +337,9 @@ struct hfi1_ctxtdata {
 	 */
 	u8 subctxt_cnt;
 
+	/* Bit mask to track free TID RDMA HW flows */
+	unsigned long flow_mask;
+	struct tid_flow_state flows[RXE_NUM_TID_FLOWS];
 };
 
 /**
@@ -517,6 +537,37 @@ static inline void hfi1_16B_set_qpn(struct opa_16b_mgmt *mgmt,
 {
 	mgmt->dest_qpn = cpu_to_be32(dest_qp & OPA_16B_MGMT_QPN_MASK);
 	mgmt->src_qpn = cpu_to_be32(src_qp & OPA_16B_MGMT_QPN_MASK);
+}
+
+/**
+ * hfi1_get_rc_ohdr - get extended header
+ * @opah - the opaheader
+ */
+static inline struct ib_other_headers *
+hfi1_get_rc_ohdr(struct hfi1_opa_header *opah)
+{
+	struct ib_other_headers *ohdr;
+	struct ib_header *hdr = NULL;
+	struct hfi1_16b_header *hdr_16b = NULL;
+
+	/* Find out where the BTH is */
+	if (opah->hdr_type == HFI1_PKT_TYPE_9B) {
+		hdr = &opah->ibh;
+		if (ib_get_lnh(hdr) == HFI1_LRH_BTH)
+			ohdr = &hdr->u.oth;
+		else
+			ohdr = &hdr->u.l.oth;
+	} else {
+		u8 l4;
+
+		hdr_16b = &opah->opah;
+		l4  = hfi1_16B_get_l4(hdr_16b);
+		if (l4 == OPA_16B_L4_IB_LOCAL)
+			ohdr = &hdr_16b->u.oth;
+		else
+			ohdr = &hdr_16b->u.l.oth;
+	}
+	return ohdr;
 }
 
 struct rvt_sge_state;
@@ -1001,8 +1052,8 @@ struct hfi1_asic_data {
 struct hfi1_vnic_data {
 	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
 	struct kmem_cache *txreq_cache;
+	struct xarray vesws;
 	u8 num_vports;
-	struct idr vesw_idr;
 	u8 rmt_start;
 	u8 num_ctxt;
 };
@@ -1021,7 +1072,6 @@ struct sdma_vl_map;
 typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
-	struct list_head list;
 	/* pointers to related structs for this device */
 	/* pci access data structure */
 	struct pci_dev *pcidev;
@@ -1406,8 +1456,7 @@ struct hfi1_filedata {
 	struct mm_struct *mm;
 };
 
-extern struct list_head hfi1_dev_list;
-extern spinlock_t hfi1_devs_lock;
+extern struct xarray hfi1_dev_table;
 struct hfi1_devdata *hfi1_lookup(int unit);
 
 static inline unsigned long uctxt_offset(struct hfi1_ctxtdata *uctxt)
@@ -1435,7 +1484,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
-void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
 						 u16 ctxt);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
@@ -2100,7 +2149,7 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 			SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_TEST_SMASK |
 #endif
 			HFI1_PKT_USER_SC_INTEGRITY;
-	else
+	else if (ctxt_type != SC_KERNEL)
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
 	/* turn on send-side job key checks if !A0 */

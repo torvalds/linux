@@ -392,5 +392,30 @@
         "teardown": [
             "$TC actions flush action skbmod"
         ]
+    },
+    {
+        "id": "b651",
+        "name": "Replace skbmod action with invalid goto_chain control",
+        "category": [
+            "actions",
+            "skbmod"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action skbmod",
+                0,
+                1,
+                255
+            ],
+            "$TC actions add action skbmod set etype 0x1111 pass index 90"
+        ],
+        "cmdUnderTest": "$TC actions replace action skbmod set etype 0x1111 goto chain 42 index 90 cookie c1a0c1a0",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions ls action skbmod",
+        "matchPattern": "action order [0-9]*: skbmod pass set etype 0x1111\\s+index 90 ref",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action skbmod"
+        ]
     }
 ]

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Performance counter support for POWER6 processors.
  *
  * Copyright 2008-2009 Paul Mackerras, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/kernel.h>
 #include <linux/perf_event.h>
@@ -540,7 +536,7 @@ static struct power_pmu power6_pmu = {
 	.cache_events		= &power6_cache_events,
 };
 
-static int __init init_power6_pmu(void)
+int init_power6_pmu(void)
 {
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power6"))
@@ -548,5 +544,3 @@ static int __init init_power6_pmu(void)
 
 	return register_power_pmu(&power6_pmu);
 }
-
-early_initcall(init_power6_pmu);

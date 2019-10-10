@@ -45,8 +45,6 @@
 
 /dts-v1/;
 
-/include/ "skeleton.dtsi"
-
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/clock/qcom,gcc-mdm9615.h>
 #include <dt-bindings/reset/qcom,gcc-mdm9615.h>
@@ -54,6 +52,8 @@
 #include <dt-bindings/soc/qcom,gsbi.h>
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	model = "Qualcomm MDM9615";
 	compatible = "qcom,mdm9615";
 	interrupt-parent = <&intc>;
@@ -323,14 +323,10 @@
 
 				pmicgpio: gpio@150 {
 					compatible = "qcom,pm8018-gpio", "qcom,ssbi-gpio";
-					interrupt-parent = <&pmicintc>;
-					interrupts = <24 IRQ_TYPE_NONE>,
-						     <25 IRQ_TYPE_NONE>,
-						     <26 IRQ_TYPE_NONE>,
-						     <27 IRQ_TYPE_NONE>,
-						     <28 IRQ_TYPE_NONE>,
-						     <29 IRQ_TYPE_NONE>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
 					gpio-controller;
+					gpio-ranges = <&pmicgpio 0 0 6>;
 					#gpio-cells = <2>;
 				};
 			};

@@ -17,19 +17,23 @@ struct percpu_rw_semaphore {
 	int			readers_block;
 };
 
-#define DEFINE_STATIC_PERCPU_RWSEM(name)				\
+#define __DEFINE_PERCPU_RWSEM(name, is_static)				\
 static DEFINE_PER_CPU(unsigned int, __percpu_rwsem_rc_##name);		\
-static struct percpu_rw_semaphore name = {				\
-	.rss = __RCU_SYNC_INITIALIZER(name.rss, RCU_SCHED_SYNC),	\
+is_static struct percpu_rw_semaphore name = {				\
+	.rss = __RCU_SYNC_INITIALIZER(name.rss),			\
 	.read_count = &__percpu_rwsem_rc_##name,			\
 	.rw_sem = __RWSEM_INITIALIZER(name.rw_sem),			\
 	.writer = __RCUWAIT_INITIALIZER(name.writer),			\
 }
+#define DEFINE_PERCPU_RWSEM(name)		\
+	__DEFINE_PERCPU_RWSEM(name, /* not static */)
+#define DEFINE_STATIC_PERCPU_RWSEM(name)	\
+	__DEFINE_PERCPU_RWSEM(name, static)
 
 extern int __percpu_down_read(struct percpu_rw_semaphore *, int);
 extern void __percpu_up_read(struct percpu_rw_semaphore *);
 
-static inline void percpu_down_read_preempt_disable(struct percpu_rw_semaphore *sem)
+static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
 {
 	might_sleep();
 
@@ -47,16 +51,10 @@ static inline void percpu_down_read_preempt_disable(struct percpu_rw_semaphore *
 	__this_cpu_inc(*sem->read_count);
 	if (unlikely(!rcu_sync_is_idle(&sem->rss)))
 		__percpu_down_read(sem, false); /* Unconditional memory barrier */
-	barrier();
 	/*
-	 * The barrier() prevents the compiler from
+	 * The preempt_enable() prevents the compiler from
 	 * bleeding the critical section out.
 	 */
-}
-
-static inline void percpu_down_read(struct percpu_rw_semaphore *sem)
-{
-	percpu_down_read_preempt_disable(sem);
 	preempt_enable();
 }
 
@@ -83,13 +81,9 @@ static inline int percpu_down_read_trylock(struct percpu_rw_semaphore *sem)
 	return ret;
 }
 
-static inline void percpu_up_read_preempt_enable(struct percpu_rw_semaphore *sem)
+static inline void percpu_up_read(struct percpu_rw_semaphore *sem)
 {
-	/*
-	 * The barrier() prevents the compiler from
-	 * bleeding the critical section out.
-	 */
-	barrier();
+	preempt_disable();
 	/*
 	 * Same as in percpu_down_read().
 	 */
@@ -100,12 +94,6 @@ static inline void percpu_up_read_preempt_enable(struct percpu_rw_semaphore *sem
 	preempt_enable();
 
 	rwsem_release(&sem->rw_sem.dep_map, 1, _RET_IP_);
-}
-
-static inline void percpu_up_read(struct percpu_rw_semaphore *sem)
-{
-	preempt_disable();
-	percpu_up_read_preempt_enable(sem);
 }
 
 extern void percpu_down_write(struct percpu_rw_semaphore *);
@@ -133,7 +121,7 @@ static inline void percpu_rwsem_release(struct percpu_rw_semaphore *sem,
 	lock_release(&sem->rw_sem.dep_map, 1, ip);
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 	if (!read)
-		sem->rw_sem.owner = RWSEM_OWNER_UNKNOWN;
+		atomic_long_set(&sem->rw_sem.owner, RWSEM_OWNER_UNKNOWN);
 #endif
 }
 
@@ -143,7 +131,7 @@ static inline void percpu_rwsem_acquire(struct percpu_rw_semaphore *sem,
 	lock_acquire(&sem->rw_sem.dep_map, 0, 1, read, 1, NULL, ip);
 #ifdef CONFIG_RWSEM_SPIN_ON_OWNER
 	if (!read)
-		sem->rw_sem.owner = current;
+		atomic_long_set(&sem->rw_sem.owner, (long)current);
 #endif
 }
 

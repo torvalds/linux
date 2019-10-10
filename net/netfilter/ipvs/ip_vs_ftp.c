@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ip_vs_ftp.c: IPVS ftp application module
  *
  * Authors:	Wensong Zhang <wensong@linuxvirtualserver.org>
  *
  * Changes:
- *
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  * Most code here is taken from ip_masq_ftp.c in kernel 2.2. The difference
  * is that ip_vs_ftp module handles the reverse direction to ip_masq_ftp.
@@ -19,7 +14,6 @@
  * Version:	@(#)ip_masq_ftp.c 0.04   02/05/96
  *
  * Author:	Wouter Gadeyne
- *
  */
 
 #define KMSG_COMPONENT "IPVS"
@@ -273,7 +267,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		return 1;
 
 	/* Linear packets are much easier to deal with. */
-	if (!skb_make_writable(skb, skb->len))
+	if (skb_ensure_writable(skb, skb->len))
 		return 0;
 
 	if (cp->app_data == (void *) IP_VS_FTP_PASV) {
@@ -439,7 +433,7 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		return 1;
 
 	/* Linear packets are much easier to deal with. */
-	if (!skb_make_writable(skb, skb->len))
+	if (skb_ensure_writable(skb, skb->len))
 		return 0;
 
 	data = data_start = ip_vs_ftp_data_ptr(skb, ipvsh);

@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Wireless WiMAX Connection 2400m
  * Debugfs interfaces to manipulate driver and device information
  *
- *
  * Copyright (C) 2007 Intel Corporation <linux-wimax@intel.com>
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
  */
 
 #include <linux/debugfs.h>
@@ -43,15 +29,6 @@ int debugfs_netdev_queue_stopped_get(void *data, u64 *val)
 DEFINE_SIMPLE_ATTRIBUTE(fops_netdev_queue_stopped,
 			debugfs_netdev_queue_stopped_get,
 			NULL, "%llu\n");
-
-
-static
-struct dentry *debugfs_create_netdev_queue_stopped(
-	const char *name, struct dentry *parent, struct i2400m *i2400m)
-{
-	return debugfs_create_file(name, 0400, parent, i2400m,
-				   &fops_netdev_queue_stopped);
-}
 
 /*
  * We don't allow partial reads of this file, as then the reader would
@@ -181,15 +158,6 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_i2400m_suspend,
 			NULL, debugfs_i2400m_suspend_set,
 			"%llu\n");
 
-static
-struct dentry *debugfs_create_i2400m_suspend(
-	const char *name, struct dentry *parent, struct i2400m *i2400m)
-{
-	return debugfs_create_file(name, 0200, parent, i2400m,
-				   &fops_i2400m_suspend);
-}
-
-
 /*
  * Reset the device
  *
@@ -219,73 +187,25 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_i2400m_reset,
 			NULL, debugfs_i2400m_reset_set,
 			"%llu\n");
 
-static
-struct dentry *debugfs_create_i2400m_reset(
-	const char *name, struct dentry *parent, struct i2400m *i2400m)
+void i2400m_debugfs_add(struct i2400m *i2400m)
 {
-	return debugfs_create_file(name, 0200, parent, i2400m,
-				   &fops_i2400m_reset);
-}
-
-
-#define __debugfs_register(prefix, name, parent)			\
-do {									\
-	result = d_level_register_debugfs(prefix, name, parent);	\
-	if (result < 0)							\
-		goto error;						\
-} while (0)
-
-
-int i2400m_debugfs_add(struct i2400m *i2400m)
-{
-	int result;
-	struct device *dev = i2400m_dev(i2400m);
 	struct dentry *dentry = i2400m->wimax_dev.debugfs_dentry;
-	struct dentry *fd;
 
 	dentry = debugfs_create_dir("i2400m", dentry);
-	result = PTR_ERR(dentry);
-	if (IS_ERR(dentry)) {
-		if (result == -ENODEV)
-			result = 0;	/* No debugfs support */
-		goto error;
-	}
 	i2400m->debugfs_dentry = dentry;
-	__debugfs_register("dl_", control, dentry);
-	__debugfs_register("dl_", driver, dentry);
-	__debugfs_register("dl_", debugfs, dentry);
-	__debugfs_register("dl_", fw, dentry);
-	__debugfs_register("dl_", netdev, dentry);
-	__debugfs_register("dl_", rfkill, dentry);
-	__debugfs_register("dl_", rx, dentry);
-	__debugfs_register("dl_", tx, dentry);
 
-	fd = debugfs_create_size_t("tx_in", 0400, dentry,
-				   &i2400m->tx_in);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"tx_in: %d\n", result);
-		goto error;
-	}
+	d_level_register_debugfs("dl_", control, dentry);
+	d_level_register_debugfs("dl_", driver, dentry);
+	d_level_register_debugfs("dl_", debugfs, dentry);
+	d_level_register_debugfs("dl_", fw, dentry);
+	d_level_register_debugfs("dl_", netdev, dentry);
+	d_level_register_debugfs("dl_", rfkill, dentry);
+	d_level_register_debugfs("dl_", rx, dentry);
+	d_level_register_debugfs("dl_", tx, dentry);
 
-	fd = debugfs_create_size_t("tx_out", 0400, dentry,
-				   &i2400m->tx_out);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"tx_out: %d\n", result);
-		goto error;
-	}
-
-	fd = debugfs_create_u32("state", 0600, dentry,
-				&i2400m->state);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"state: %d\n", result);
-		goto error;
-	}
+	debugfs_create_size_t("tx_in", 0400, dentry, &i2400m->tx_in);
+	debugfs_create_size_t("tx_out", 0400, dentry, &i2400m->tx_out);
+	debugfs_create_u32("state", 0600, dentry, &i2400m->state);
 
 	/*
 	 * Trace received messages from user space
@@ -309,60 +229,22 @@ int i2400m_debugfs_add(struct i2400m *i2400m)
 	 * It is not really very atomic, but it is also not too
 	 * critical.
 	 */
-	fd = debugfs_create_u8("trace_msg_from_user", 0600, dentry,
-			       &i2400m->trace_msg_from_user);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"trace_msg_from_user: %d\n", result);
-		goto error;
-	}
+	debugfs_create_u8("trace_msg_from_user", 0600, dentry,
+			  &i2400m->trace_msg_from_user);
 
-	fd = debugfs_create_netdev_queue_stopped("netdev_queue_stopped",
-						 dentry, i2400m);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"netdev_queue_stopped: %d\n", result);
-		goto error;
-	}
+	debugfs_create_file("netdev_queue_stopped", 0400, dentry, i2400m,
+			    &fops_netdev_queue_stopped);
 
-	fd = debugfs_create_file("rx_stats", 0600, dentry, i2400m,
-				 &i2400m_rx_stats_fops);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"rx_stats: %d\n", result);
-		goto error;
-	}
+	debugfs_create_file("rx_stats", 0600, dentry, i2400m,
+			    &i2400m_rx_stats_fops);
 
-	fd = debugfs_create_file("tx_stats", 0600, dentry, i2400m,
-				 &i2400m_tx_stats_fops);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry "
-			"tx_stats: %d\n", result);
-		goto error;
-	}
+	debugfs_create_file("tx_stats", 0600, dentry, i2400m,
+			    &i2400m_tx_stats_fops);
 
-	fd = debugfs_create_i2400m_suspend("suspend", dentry, i2400m);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry suspend: %d\n",
-			result);
-		goto error;
-	}
+	debugfs_create_file("suspend", 0200, dentry, i2400m,
+			    &fops_i2400m_suspend);
 
-	fd = debugfs_create_i2400m_reset("reset", dentry, i2400m);
-	result = PTR_ERR(fd);
-	if (IS_ERR(fd) && result != -ENODEV) {
-		dev_err(dev, "Can't create debugfs entry reset: %d\n", result);
-		goto error;
-	}
-
-	result = 0;
-error:
-	return result;
+	debugfs_create_file("reset", 0200, dentry, i2400m, &fops_i2400m_reset);
 }
 
 void i2400m_debugfs_rm(struct i2400m *i2400m)

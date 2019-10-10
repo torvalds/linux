@@ -425,7 +425,7 @@ static int comp_tx_completion(struct most_interface *iface, int channel_id)
  * Returns 0 on success or error code otherwise.
  */
 static int comp_probe(struct most_interface *iface, int channel_id,
-		      struct most_channel_config *cfg, char *name)
+		      struct most_channel_config *cfg, char *name, char *args)
 {
 	struct comp_channel *c;
 	unsigned long cl_flags;
@@ -453,7 +453,9 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	c->devno = MKDEV(comp.major, current_minor);
 	cdev_init(&c->cdev, &channel_fops);
 	c->cdev.owner = THIS_MODULE;
-	cdev_add(&c->cdev, c->devno, 1);
+	retval = cdev_add(&c->cdev, c->devno, 1);
+	if (retval < 0)
+		goto err_free_c;
 	c->iface = iface;
 	c->cfg = cfg;
 	c->channel_id = channel_id;
@@ -461,10 +463,8 @@ static int comp_probe(struct most_interface *iface, int channel_id,
 	spin_lock_init(&c->unlink);
 	INIT_KFIFO(c->fifo);
 	retval = kfifo_alloc(&c->fifo, cfg->num_buffers, GFP_KERNEL);
-	if (retval) {
-		pr_info("failed to alloc channel kfifo");
+	if (retval)
 		goto err_del_cdev_and_free_channel;
-	}
 	init_waitqueue_head(&c->wq);
 	mutex_init(&c->io_mutex);
 	spin_lock_irqsave(&ch_list_lock, cl_flags);
@@ -485,6 +485,7 @@ err_free_kfifo_and_del_list:
 	list_del(&c->list);
 err_del_cdev_and_free_channel:
 	cdev_del(&c->cdev);
+err_free_c:
 	kfree(c);
 err_remove_ida:
 	ida_simple_remove(&comp.minor_id, current_minor);
@@ -524,8 +525,13 @@ static int __init mod_init(void)
 	err = most_register_component(&comp.cc);
 	if (err)
 		goto free_cdev;
+	err = most_register_configfs_subsys(&comp.cc);
+	if (err)
+		goto deregister_comp;
 	return 0;
 
+deregister_comp:
+	most_deregister_component(&comp.cc);
 free_cdev:
 	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
 dest_ida:
@@ -540,13 +546,14 @@ static void __exit mod_exit(void)
 
 	pr_info("exit module\n");
 
+	most_deregister_configfs_subsys(&comp.cc);
 	most_deregister_component(&comp.cc);
 
 	list_for_each_entry_safe(c, tmp, &channel_list, list) {
 		destroy_cdev(c);
 		destroy_channel(c);
 	}
-	unregister_chrdev_region(comp.devno, 1);
+	unregister_chrdev_region(comp.devno, CHRDEV_REGION_SIZE);
 	ida_destroy(&comp.minor_id);
 	class_destroy(comp.class);
 }

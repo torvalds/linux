@@ -4,8 +4,8 @@
 # All Rights Reserved.
 #
 
-ccflags-y += -I$(src)			# needed for trace events
-ccflags-y += -I$(src)/libxfs
+ccflags-y += -I $(srctree)/$(src)		# needed for trace events
+ccflags-y += -I $(srctree)/$(src)/libxfs
 
 ccflags-$(CONFIG_XFS_DEBUG) += -g
 
@@ -49,6 +49,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_refcount_btree.o \
 				   xfs_sb.o \
 				   xfs_symlink_remote.o \
+				   xfs_trans_inode.o \
 				   xfs_trans_resv.o \
 				   xfs_types.o \
 				   )
@@ -62,6 +63,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_attr_inactive.o \
 				   xfs_attr_list.o \
 				   xfs_bmap_util.o \
+				   xfs_bio_io.o \
 				   xfs_buf.o \
 				   xfs_dir2_readdir.o \
 				   xfs_discard.o \
@@ -73,15 +75,18 @@ xfs-y				+= xfs_aops.o \
 				   xfs_fsmap.o \
 				   xfs_fsops.o \
 				   xfs_globals.o \
+				   xfs_health.o \
 				   xfs_icache.o \
 				   xfs_ioctl.o \
 				   xfs_iomap.o \
 				   xfs_iops.o \
 				   xfs_inode.o \
 				   xfs_itable.o \
+				   xfs_iwalk.o \
 				   xfs_message.o \
 				   xfs_mount.o \
 				   xfs_mru_cache.o \
+				   xfs_pwork.o \
 				   xfs_reflink.o \
 				   xfs_stats.o \
 				   xfs_super.o \
@@ -103,12 +108,7 @@ xfs-y				+= xfs_log.o \
 				   xfs_rmap_item.o \
 				   xfs_log_recover.o \
 				   xfs_trans_ail.o \
-				   xfs_trans_bmap.o \
-				   xfs_trans_buf.o \
-				   xfs_trans_extfree.o \
-				   xfs_trans_inode.o \
-				   xfs_trans_refcount.o \
-				   xfs_trans_rmap.o \
+				   xfs_trans_buf.o
 
 # optional features
 xfs-$(CONFIG_XFS_QUOTA)		+= xfs_dquot.o \
@@ -142,6 +142,8 @@ xfs-y				+= $(addprefix scrub/, \
 				   common.o \
 				   dabtree.o \
 				   dir.o \
+				   fscounters.o \
+				   health.o \
 				   ialloc.o \
 				   inode.o \
 				   parent.o \

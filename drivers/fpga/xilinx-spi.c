@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xilinx Spartan6 Slave Serial SPI Driver
  *
  * Copyright (C) 2017 DENX Software Engineering
  *
  * Anatolij Gustschin <agust@denx.de>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  *
  * Manage Xilinx FPGA firmware that is loaded over SPI using
  * the slave serial configuration interface.

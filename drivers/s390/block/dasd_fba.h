@@ -9,6 +9,11 @@
 #ifndef DASD_FBA_H
 #define DASD_FBA_H
 
+/*
+ * Maximum number of blocks to be chained
+ */
+#define DASD_FBA_MAX_BLOCKS		96
+
 struct DE_fba_data {
 	struct {
 		unsigned char perm:2;	/* Permissions on this extent */

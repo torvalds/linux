@@ -2,11 +2,13 @@
 // Copyright IBM Corp 2019
 
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/math64.h>
+#include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/sysfs.h>
 #include <asm/unaligned.h>
@@ -122,12 +124,12 @@ struct extended_sensor {
 static int occ_poll(struct occ *occ)
 {
 	int rc;
-	u16 checksum = occ->poll_cmd_data + 1;
+	u16 checksum = occ->poll_cmd_data + occ->seq_no + 1;
 	u8 cmd[8];
 	struct occ_poll_response_header *header;
 
 	/* big endian */
-	cmd[0] = 0;			/* sequence number */
+	cmd[0] = occ->seq_no++;		/* sequence number */
 	cmd[1] = 0;			/* cmd type */
 	cmd[2] = 0;			/* data length msb */
 	cmd[3] = 1;			/* data length lsb */
@@ -139,6 +141,7 @@ static int occ_poll(struct occ *occ)
 	/* mutex should already be locked if necessary */
 	rc = occ->send_cmd(occ, cmd);
 	if (rc) {
+		occ->last_error = rc;
 		if (occ->error_count++ > OCC_ERROR_COUNT_THRESHOLD)
 			occ->error = rc;
 
@@ -147,6 +150,7 @@ static int occ_poll(struct occ *occ)
 
 	/* clear error since communication was successful */
 	occ->error_count = 0;
+	occ->last_error = 0;
 	occ->error = 0;
 
 	/* check for safe state */
@@ -208,6 +212,8 @@ int occ_update_response(struct occ *occ)
 	if (time_after(jiffies, occ->last_update + OCC_UPDATE_FREQUENCY)) {
 		rc = occ_poll(occ);
 		occ->last_update = jiffies;
+	} else {
+		rc = occ->last_error;
 	}
 
 	mutex_unlock(&occ->lock);
@@ -235,6 +241,12 @@ static ssize_t occ_show_temp_1(struct device *dev,
 		val = get_unaligned_be16(&temp->sensor_id);
 		break;
 	case 1:
+		/*
+		 * If a sensor reading has expired and couldn't be refreshed,
+		 * OCC returns 0xFFFF for that sensor.
+		 */
+		if (temp->value == 0xFFFF)
+			return -EREMOTEIO;
 		val = get_unaligned_be16(&temp->value) * 1000;
 		break;
 	default:
@@ -396,8 +408,10 @@ static ssize_t occ_show_power_1(struct device *dev,
 
 static u64 occ_get_powr_avg(u64 *accum, u32 *samples)
 {
-	return div64_u64(get_unaligned_be64(accum) * 1000000ULL,
-			 get_unaligned_be32(samples));
+	u64 divisor = get_unaligned_be32(samples);
+
+	return (divisor == 0) ? 0 :
+		div64_u64(get_unaligned_be64(accum) * 1000000ULL, divisor);
 }
 
 static ssize_t occ_show_power_2(struct device *dev,
@@ -890,6 +904,8 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 				s++;
 			}
 		}
+
+		s = (sensors->power.num_sensors * 4) + 1;
 	} else {
 		for (i = 0; i < sensors->power.num_sensors; ++i) {
 			s = i + 1;
@@ -918,11 +934,11 @@ static int occ_setup_sensor_attrs(struct occ *occ)
 						     show_power, NULL, 3, i);
 			attr++;
 		}
+
+		s = sensors->power.num_sensors + 1;
 	}
 
 	if (sensors->caps.num_sensors >= 1) {
-		s = sensors->power.num_sensors + 1;
-
 		snprintf(attr->name, sizeof(attr->name), "power%d_label", s);
 		attr->sensor = OCC_INIT_ATTR(attr->name, 0444, show_caps, NULL,
 					     0, 0);
@@ -1097,3 +1113,8 @@ int occ_setup(struct occ *occ, const char *name)
 
 	return rc;
 }
+EXPORT_SYMBOL_GPL(occ_setup);
+
+MODULE_AUTHOR("Eddie James <eajames@linux.ibm.com>");
+MODULE_DESCRIPTION("Common OCC hwmon code");
+MODULE_LICENSE("GPL");

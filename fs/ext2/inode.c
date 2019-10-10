@@ -451,7 +451,9 @@ failed_out:
 /**
  *	ext2_alloc_branch - allocate and set up a chain of blocks.
  *	@inode: owner
- *	@num: depth of the chain (number of blocks to allocate)
+ *	@indirect_blks: depth of the chain (number of blocks to allocate)
+ *	@blks: number of allocated direct blocks
+ *	@goal: preferred place for allocation
  *	@offsets: offsets (in the blocks) to store the pointers to next.
  *	@branch: place to store the chain in.
  *
@@ -717,7 +719,7 @@ static int ext2_get_blocks(struct inode *inode,
 	/* the number of blocks need to allocate for [d,t]indirect blocks */
 	indirect_blks = (chain + depth) - partial - 1;
 	/*
-	 * Next look up the indirect map to count the totoal number of
+	 * Next look up the indirect map to count the total number of
 	 * direct blocks to allocate for this branch.
 	 */
 	count = ext2_blks_to_allocate(partial, indirect_blks,
@@ -1239,6 +1241,7 @@ do_indirects:
 				mark_inode_dirty(inode);
 				ext2_free_branches(inode, &nr, &nr+1, 1);
 			}
+			/* fall through */
 		case EXT2_IND_BLOCK:
 			nr = i_data[EXT2_DIND_BLOCK];
 			if (nr) {
@@ -1246,6 +1249,7 @@ do_indirects:
 				mark_inode_dirty(inode);
 				ext2_free_branches(inode, &nr, &nr+1, 2);
 			}
+			/* fall through */
 		case EXT2_DIND_BLOCK:
 			nr = i_data[EXT2_TIND_BLOCK];
 			if (nr) {
@@ -1396,7 +1400,7 @@ void ext2_set_file_ops(struct inode *inode)
 struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 {
 	struct ext2_inode_info *ei;
-	struct buffer_head * bh;
+	struct buffer_head * bh = NULL;
 	struct ext2_inode *raw_inode;
 	struct inode *inode;
 	long ret = -EIO;
@@ -1442,7 +1446,6 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	 */
 	if (inode->i_nlink == 0 && (inode->i_mode == 0 || ei->i_dtime)) {
 		/* this inode is deleted */
-		brelse (bh);
 		ret = -ESTALE;
 		goto bad_inode;
 	}
@@ -1459,7 +1462,6 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	    !ext2_data_block_valid(EXT2_SB(sb), ei->i_file_acl, 1)) {
 		ext2_error(sb, "ext2_iget", "bad extended attribute block %u",
 			   ei->i_file_acl);
-		brelse(bh);
 		ret = -EFSCORRUPTED;
 		goto bad_inode;
 	}
@@ -1522,6 +1524,7 @@ struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 	return inode;
 	
 bad_inode:
+	brelse(bh);
 	iget_failed(inode);
 	return ERR_PTR(ret);
 }
@@ -1633,6 +1636,32 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	return __ext2_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+}
+
+int ext2_getattr(const struct path *path, struct kstat *stat,
+		u32 request_mask, unsigned int query_flags)
+{
+	struct inode *inode = d_inode(path->dentry);
+	struct ext2_inode_info *ei = EXT2_I(inode);
+	unsigned int flags;
+
+	flags = ei->i_flags & EXT2_FL_USER_VISIBLE;
+	if (flags & EXT2_APPEND_FL)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (flags & EXT2_COMPR_FL)
+		stat->attributes |= STATX_ATTR_COMPRESSED;
+	if (flags & EXT2_IMMUTABLE_FL)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (flags & EXT2_NODUMP_FL)
+		stat->attributes |= STATX_ATTR_NODUMP;
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+			STATX_ATTR_COMPRESSED |
+			STATX_ATTR_ENCRYPTED |
+			STATX_ATTR_IMMUTABLE |
+			STATX_ATTR_NODUMP);
+
+	generic_fillattr(inode, stat);
+	return 0;
 }
 
 int ext2_setattr(struct dentry *dentry, struct iattr *iattr)

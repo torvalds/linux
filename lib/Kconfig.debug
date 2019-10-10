@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Kernel hacking"
 
 menu "printk and dmesg options"
@@ -16,6 +17,23 @@ config PRINTK_TIME
 
 	  The behavior is also controlled by the kernel command line
 	  parameter printk.time=1. See Documentation/admin-guide/kernel-parameters.rst
+
+config PRINTK_CALLER
+	bool "Show caller information on printks"
+	depends on PRINTK
+	help
+	  Selecting this option causes printk() to add a caller "thread id" (if
+	  in task context) or a caller "processor id" (if not in task context)
+	  to every message.
+
+	  This option is intended for environments where multiple threads
+	  concurrently call printk() for many times, for it is difficult to
+	  interpret without knowing where these lines (or sometimes individual
+	  line which was divided into multiple lines due to race) came from.
+
+	  Since toggling after boot makes the code racy, currently there is
+	  no option to enable/disable at the kernel command line parameter or
+	  sysfs interface.
 
 config CONSOLE_LOGLEVEL_DEFAULT
 	int "Default console loglevel (1-15)"
@@ -179,6 +197,7 @@ config DEBUG_INFO_REDUCED
 config DEBUG_INFO_SPLIT
 	bool "Produce split debuginfo in .dwo files"
 	depends on DEBUG_INFO
+	depends on $(cc-option,-gsplit-dwarf)
 	help
 	  Generate debug info into separate .dwo files. This significantly
 	  reduces the build directory size for builds with DEBUG_INFO,
@@ -194,11 +213,20 @@ config DEBUG_INFO_SPLIT
 config DEBUG_INFO_DWARF4
 	bool "Generate dwarf4 debuginfo"
 	depends on DEBUG_INFO
+	depends on $(cc-option,-gdwarf-4)
 	help
 	  Generate dwarf4 debug info. This requires recent versions
 	  of gcc and gdb. It makes the debug information larger.
 	  But it significantly improves the success of resolving
 	  variables in gdb on optimized code.
+
+config DEBUG_INFO_BTF
+	bool "Generate BTF typeinfo"
+	depends on DEBUG_INFO
+	help
+	  Generate deduplicated BTF type information from DWARF debug info.
+	  Turning this on expects presence of pahole tool, which will convert
+	  DWARF type info into equivalent deduplicated BTF type info.
 
 config GDB_SCRIPTS
 	bool "Provide GDB scripts for kernel debugging"
@@ -222,7 +250,6 @@ config ENABLE_MUST_CHECK
 config FRAME_WARN
 	int "Warn for stack frames larger than (needs gcc 4.4)"
 	range 0 8192
-	default 3072 if KASAN_EXTRA
 	default 2048 if GCC_PLUGIN_LATENT_ENTROPY
 	default 1280 if (!64BIT && PARISC)
 	default 1024 if (!64BIT && !PARISC)
@@ -250,39 +277,6 @@ config READABLE_ASM
           to keep kernel developers who have to stare a lot at assembler listings
           sane.
 
-config UNUSED_SYMBOLS
-	bool "Enable unused/obsolete exported symbols"
-	default y if X86
-	help
-	  Unused but exported symbols make the kernel needlessly bigger.  For
-	  that reason most of these unused exports will soon be removed.  This
-	  option is provided temporarily to provide a transition period in case
-	  some external kernel module needs one of these symbols anyway. If you
-	  encounter such a case in your module, consider if you are actually
-	  using the right API.  (rationale: since nobody in the kernel is using
-	  this in a module, there is a pretty good chance it's actually the
-	  wrong interface to use).  If you really need the symbol, please send a
-	  mail to the linux kernel mailing list mentioning the symbol and why
-	  you really need it, and what the merge plan to the mainline kernel for
-	  your module is.
-
-config PAGE_OWNER
-	bool "Track page owner"
-	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
-	select DEBUG_FS
-	select STACKTRACE
-	select STACKDEPOT
-	select PAGE_EXTENSION
-	help
-	  This keeps track of what call chain is the owner of a page, may
-	  help to find bare alloc_page(s) leaks. Even if you include this
-	  feature on your build, it is disabled in default. You should pass
-	  "page_owner=on" to boot parameter in order to enable it. Eats
-	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
-	  for user-space helper.
-
-	  If unsure, say N.
-
 config DEBUG_FS
 	bool "Debug Filesystem"
 	help
@@ -295,19 +289,38 @@ config DEBUG_FS
 
 	  If unsure, say N.
 
-config HEADERS_CHECK
-	bool "Run 'make headers_check' when building vmlinux"
+config HEADERS_INSTALL
+	bool "Install uapi headers to usr/include"
 	depends on !UML
 	help
-	  This option will extract the user-visible kernel headers whenever
-	  building the kernel, and will run basic sanity checks on them to
-	  ensure that exported files do not attempt to include files which
-	  were not exported, etc.
+	  This option will install uapi headers (headers exported to user-space)
+	  into the usr/include directory for use during the kernel build.
+	  This is unneeded for building the kernel itself, but needed for some
+	  user-space program samples. It is also needed by some features such
+	  as uapi header sanity checks.
+
+config HEADERS_CHECK
+	bool "Run sanity checks on uapi headers when building 'all'"
+	depends on HEADERS_INSTALL
+	help
+	  This option will run basic sanity checks on uapi headers when
+	  building the 'all' target, for example, ensure that they do not
+	  attempt to include files which were not exported, etc.
 
 	  If you're making modifications to header files which are
-	  relevant for userspace, say 'Y', and check the headers
-	  exported to $(INSTALL_HDR_PATH) (usually 'usr/include' in
-	  your build tree), to make sure they're suitable.
+	  relevant for userspace, say 'Y'.
+
+config OPTIMIZE_INLINING
+	def_bool y
+	help
+	  This option determines if the kernel forces gcc to inline the functions
+	  developers have marked 'inline'. Doing so takes away freedom from gcc to
+	  do what it thinks is best, which is desirable for the gcc 3.x series of
+	  compilers. The gcc 4.x series have a rewritten inlining algorithm and
+	  enabling this option will generate a smaller kernel there. Hopefully
+	  this algorithm is so good that allowing gcc 4.x and above to make the
+	  decision will become the default in the future. Until then this option
+	  is there to test gcc for this.
 
 config DEBUG_SECTION_MISMATCH
 	bool "Enable full Section mismatch analysis"
@@ -322,23 +335,13 @@ config DEBUG_SECTION_MISMATCH
 	  which results in the code/data being placed in specific sections.
 	  The section mismatch analysis is always performed after a full
 	  kernel build, and enabling this option causes the following
-	  additional steps to occur:
+	  additional step to occur:
 	  - Add the option -fno-inline-functions-called-once to gcc commands.
 	    When inlining a function annotated with __init in a non-init
 	    function, we would lose the section information and thus
 	    the analysis would not catch the illegal reference.
 	    This option tells gcc to inline less (but it does result in
 	    a larger kernel).
-	  - Run the section mismatch analysis for each module/built-in.a file.
-	    When we run the section mismatch analysis on vmlinux.o, we
-	    lose valuable information about where the mismatch was
-	    introduced.
-	    Running the analysis for each module/built-in.a file
-	    tells where the mismatch happens much closer to the
-	    source. The drawback is that the same mismatch is
-	    reported at least twice.
-	  - Enable verbose reporting from modpost in order to help resolve
-	    the section mismatches that are reported.
 
 config SECTION_MISMATCH_WARN_ONLY
 	bool "Make section mismatch errors non-fatal"
@@ -437,6 +440,15 @@ config DEBUG_KERNEL
 	  Say Y here if you are developing drivers or trying to debug and
 	  identify kernel problems.
 
+config DEBUG_MISC
+	bool "Miscellaneous debug code"
+	default DEBUG_KERNEL
+	depends on DEBUG_KERNEL
+	help
+	  Say Y here if you need to enable miscellaneous debug code that should
+	  be under a more specific debug option but isn't.
+
+
 menu "Memory Debugging"
 
 source "mm/Kconfig.debug"
@@ -510,10 +522,6 @@ config DEBUG_SLAB
 	  allocation as well as poisoning memory on free to catch use of freed
 	  memory. This can make kmalloc/kfree-intensive workloads much slower.
 
-config DEBUG_SLAB_LEAK
-	bool "Memory leak debugging"
-	depends on DEBUG_SLAB
-
 config SLUB_DEBUG_ON
 	bool "SLUB debugging on by default"
 	depends on SLUB && SLUB_DEBUG
@@ -566,17 +574,18 @@ config DEBUG_KMEMLEAK
 	  In order to access the kmemleak file, debugfs needs to be
 	  mounted (usually at /sys/kernel/debug).
 
-config DEBUG_KMEMLEAK_EARLY_LOG_SIZE
-	int "Maximum kmemleak early log entries"
+config DEBUG_KMEMLEAK_MEM_POOL_SIZE
+	int "Kmemleak memory pool size"
 	depends on DEBUG_KMEMLEAK
-	range 200 40000
-	default 400
+	range 200 1000000
+	default 16000
 	help
 	  Kmemleak must track all the memory allocations to avoid
 	  reporting false positives. Since memory may be allocated or
-	  freed before kmemleak is initialised, an early log buffer is
-	  used to store these actions. If kmemleak reports "early log
-	  buffer exceeded", please increase this value.
+	  freed before kmemleak is fully initialised, use a static pool
+	  of metadata objects to track such callbacks. After kmemleak is
+	  fully initialised, this memory pool acts as an emergency one
+	  if slab allocations fail.
 
 config DEBUG_KMEMLEAK_TEST
 	tristate "Simple test for the kernel memory leak detector"
@@ -752,9 +761,9 @@ endmenu # "Memory Debugging"
 config ARCH_HAS_KCOV
 	bool
 	help
-	  KCOV does not have any arch-specific code, but currently it is enabled
-	  only for x86_64. KCOV requires testing on other archs, and most likely
-	  disabling of instrumentation for some early boot code.
+	  An architecture should select this when it can successfully
+	  build and run with CONFIG_KCOV. This typically requires
+	  disabling instrumentation for some early boot code.
 
 config CC_HAS_SANCOV_TRACE_PC
 	def_bool $(cc-option,-fsanitize-coverage=trace-pc)
@@ -1066,7 +1075,7 @@ config PROVE_LOCKING
 	select DEBUG_SPINLOCK
 	select DEBUG_MUTEXES
 	select DEBUG_RT_MUTEXES if RT_MUTEXES
-	select DEBUG_RWSEMS if RWSEM_SPIN_ON_OWNER
+	select DEBUG_RWSEMS
 	select DEBUG_WW_MUTEX_SLOWPATH
 	select DEBUG_LOCK_ALLOC
 	select TRACE_IRQFLAGS
@@ -1103,7 +1112,7 @@ config PROVE_LOCKING
 	 the proof of observed correctness is also maintained for an
 	 arbitrary combination of these separate locking variants.
 
-	 For more details, see Documentation/locking/lockdep-design.txt.
+	 For more details, see Documentation/locking/lockdep-design.rst.
 
 config LOCK_STAT
 	bool "Lock usage statistics"
@@ -1117,7 +1126,7 @@ config LOCK_STAT
 	help
 	 This feature enables tracking lock contention points
 
-	 For more details, see Documentation/locking/lockstat.txt
+	 For more details, see Documentation/locking/lockstat.rst
 
 	 This also enables lock events required by "perf lock",
 	 subcommand of perf.
@@ -1170,10 +1179,10 @@ config DEBUG_WW_MUTEX_SLOWPATH
 
 config DEBUG_RWSEMS
 	bool "RW Semaphore debugging: basic checks"
-	depends on DEBUG_KERNEL && RWSEM_SPIN_ON_OWNER
+	depends on DEBUG_KERNEL
 	help
-	  This debugging feature allows mismatched rw semaphore locks and unlocks
-	  to be detected and reported.
+	  This debugging feature allows mismatched rw semaphore locks
+	  and unlocks to be detected and reported.
 
 config DEBUG_LOCK_ALLOC
 	bool "Lock debugging: detect incorrect freeing of live locks"
@@ -1349,7 +1358,7 @@ config DEBUG_LIST
 
 	  If unsure, say N.
 
-config DEBUG_PI_LIST
+config DEBUG_PLIST
 	bool "Debug priority linked list manipulation"
 	depends on DEBUG_KERNEL
 	help
@@ -1655,42 +1664,6 @@ config PROVIDE_OHCI1394_DMA_INIT
 
 	  See Documentation/debugging-via-ohci1394.txt for more information.
 
-config DMA_API_DEBUG
-	bool "Enable debugging of DMA-API usage"
-	select NEED_DMA_MAP_STATE
-	help
-	  Enable this option to debug the use of the DMA API by device drivers.
-	  With this option you will be able to detect common bugs in device
-	  drivers like double-freeing of DMA mappings or freeing mappings that
-	  were never allocated.
-
-	  This also attempts to catch cases where a page owned by DMA is
-	  accessed by the cpu in a way that could cause data corruption.  For
-	  example, this enables cow_user_page() to check that the source page is
-	  not undergoing DMA.
-
-	  This option causes a performance degradation.  Use only if you want to
-	  debug device drivers and dma interactions.
-
-	  If unsure, say N.
-
-config DMA_API_DEBUG_SG
-	bool "Debug DMA scatter-gather usage"
-	default y
-	depends on DMA_API_DEBUG
-	help
-	  Perform extra checking that callers of dma_map_sg() have respected the
-	  appropriate segment length/boundary limits for the given device when
-	  preparing DMA scatterlists.
-
-	  This is particularly likely to have been overlooked in cases where the
-	  dma_map_sg() API is used for general bulk mapping of pages rather than
-	  preparing literal scatter-gather descriptors, where there is a risk of
-	  unexpected behaviour from DMA API implementations if the scatterlist
-	  is technically out-of-spec.
-
-	  If unsure, say N.
-
 menuconfig RUNTIME_TESTING_MENU
 	bool "Runtime Testing"
 	def_bool y
@@ -1700,7 +1673,6 @@ if RUNTIME_TESTING_MENU
 config LKDTM
 	tristate "Linux Kernel Dump Test Tool Module"
 	depends on DEBUG_FS
-	depends on BLOCK
 	help
 	This module enables testing of the different dumping mechanisms by
 	inducing system failures at predefined crash points.
@@ -1709,7 +1681,7 @@ config LKDTM
 	called lkdtm.
 
 	Documentation on how to use the module can be found in
-	Documentation/fault-injection/provoke-crashes.txt
+	Documentation/fault-injection/provoke-crashes.rst
 
 config TEST_LIST_SORT
 	tristate "Linked list sorting test"
@@ -1762,6 +1734,18 @@ config RBTREE_TEST
 	  A benchmark measuring the performance of the rbtree library.
 	  Also includes rbtree invariant checks.
 
+config REED_SOLOMON_TEST
+	tristate "Reed-Solomon library test"
+	depends on DEBUG_KERNEL || m
+	select REED_SOLOMON
+	select REED_SOLOMON_ENC16
+	select REED_SOLOMON_DEC16
+	help
+	  This option enables the self-test function of rslib at boot,
+	  or at module load time.
+
+	  If unsure, say N.
+
 config INTERVAL_TREE_TEST
 	tristate "Interval tree test"
 	depends on DEBUG_KERNEL
@@ -1804,6 +1788,9 @@ config TEST_HEXDUMP
 
 config TEST_STRING_HELPERS
 	tristate "Test functions located in the string_helpers module at runtime"
+
+config TEST_STRSCPY
+	tristate "Test strscpy*() family of functions at runtime"
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"
@@ -1863,6 +1850,14 @@ config TEST_PARMAN
 
 	  If unsure, say N.
 
+config TEST_IRQ_TIMINGS
+	bool "IRQ timings selftest"
+	depends on IRQ_TIMINGS
+	help
+	  Enable this option to test the irq timings code on boot.
+
+	  If unsure, say N.
+
 config TEST_LKM
 	tristate "Test module loading with 'hello world' module"
 	depends on m
@@ -1873,6 +1868,19 @@ config TEST_LKM
 	  validating module verification). It lacks any extra dependencies,
 	  and will not normally be loaded by the system unless explicitly
 	  requested by name.
+
+	  If unsure, say N.
+
+config TEST_VMALLOC
+	tristate "Test module for stress/performance analysis of vmalloc allocator"
+	default n
+       depends on MMU
+	depends on m
+	help
+	  This builds the "test_vmalloc" module that should be used for
+	  stress and performance analysis. So, any new change for vmalloc
+	  subsystem can be evaluated from performance and stability point
+	  of view.
 
 	  If unsure, say N.
 
@@ -1898,6 +1906,15 @@ config TEST_BPF
 	  development, but also to run regression tests against changes in
 	  the interpreter code. It also enables test stubs for eBPF maps and
 	  verifier used by user space verifier testsuite.
+
+	  If unsure, say N.
+
+config TEST_BLACKHOLE_DEV
+	tristate "Test blackhole netdev functionality"
+	depends on m && NET
+	help
+	  This builds the "test_blackhole_dev" module that validates the
+	  data path through this blackhole netdev.
 
 	  If unsure, say N.
 
@@ -1950,8 +1967,8 @@ config TEST_STATIC_KEYS
 config TEST_KMOD
 	tristate "kmod stress tester"
 	depends on m
-	depends on BLOCK && (64BIT || LBDAF)	  # for XFS, BTRFS
 	depends on NETDEVICES && NET_CORE && INET # for TUN
+	depends on BLOCK
 	select TEST_LKM
 	select XFS_FS
 	select TUN
@@ -1991,6 +2008,28 @@ config TEST_MEMCAT_P
 
 	  If unsure, say N.
 
+config TEST_LIVEPATCH
+	tristate "Test livepatching"
+	default n
+	depends on DYNAMIC_DEBUG
+	depends on LIVEPATCH
+	depends on m
+	help
+	  Test kernel livepatching features for correctness.  The tests will
+	  load test modules that will be livepatched in various scenarios.
+
+	  To run all the livepatching tests:
+
+	  make -C tools/testing/selftests TARGETS=livepatch run_tests
+
+	  Alternatively, individual tests may be invoked:
+
+	  tools/testing/selftests/livepatch/test-callbacks.sh
+	  tools/testing/selftests/livepatch/test-livepatch.sh
+	  tools/testing/selftests/livepatch/test-shadow-vars.sh
+
+	  If unsure, say N.
+
 config TEST_OBJAGG
 	tristate "Perform selftest on object aggreration manager"
 	default n
@@ -1998,6 +2037,23 @@ config TEST_OBJAGG
 	help
 	  Enable this option to test object aggregation manager on boot
 	  (or module load).
+
+
+config TEST_STACKINIT
+	tristate "Test level of stack variable initialization"
+	help
+	  Test if the kernel is zero-initializing stack variables and
+	  padding. Coverage is controlled by compiler flags,
+	  CONFIG_GCC_PLUGIN_STRUCTLEAK, CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF,
+	  or CONFIG_GCC_PLUGIN_STRUCTLEAK_BYREF_ALL.
+
+	  If unsure, say N.
+
+config TEST_MEMINIT
+	tristate "Test heap/page initialization"
+	help
+	  Test if the kernel is zero-initializing heap and page allocations.
+	  This can be useful to test init_on_alloc and init_on_free features.
 
 	  If unsure, say N.
 

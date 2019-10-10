@@ -104,10 +104,11 @@ enum icm_pkg_code {
 };
 
 enum icm_event_code {
-	ICM_EVENT_DEVICE_CONNECTED = 3,
-	ICM_EVENT_DEVICE_DISCONNECTED = 4,
-	ICM_EVENT_XDOMAIN_CONNECTED = 6,
-	ICM_EVENT_XDOMAIN_DISCONNECTED = 7,
+	ICM_EVENT_DEVICE_CONNECTED = 0x3,
+	ICM_EVENT_DEVICE_DISCONNECTED = 0x4,
+	ICM_EVENT_XDOMAIN_CONNECTED = 0x6,
+	ICM_EVENT_XDOMAIN_DISCONNECTED = 0x7,
+	ICM_EVENT_RTD3_VETO = 0xa,
 };
 
 struct icm_pkg_header {
@@ -463,6 +464,13 @@ struct icm_tr_pkg_disconnect_xdomain_response {
 	uuid_t remote_uuid;
 };
 
+/* Ice Lake messages */
+
+struct icm_icl_event_rtd3_veto {
+	struct icm_pkg_header hdr;
+	u32 veto_reason;
+};
+
 /* XDomain messages */
 
 struct tb_xdomain_header {
@@ -490,6 +498,17 @@ struct tb_xdp_header {
 	struct tb_xdomain_header xd_hdr;
 	uuid_t uuid;
 	u32 type;
+};
+
+struct tb_xdp_uuid {
+	struct tb_xdp_header hdr;
+};
+
+struct tb_xdp_uuid_response {
+	struct tb_xdp_header hdr;
+	uuid_t src_uuid;
+	u32 src_route_hi;
+	u32 src_route_lo;
 };
 
 struct tb_xdp_properties {

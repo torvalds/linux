@@ -58,6 +58,9 @@ static struct facility_def facility_defs[] = {
 #ifdef CONFIG_HAVE_MARCH_Z14_FEATURES
 			58, /* miscellaneous-instruction-extension 2 */
 #endif
+#ifdef CONFIG_HAVE_MARCH_Z15_FEATURES
+			61, /* miscellaneous-instruction-extension 3 */
+#endif
 			-1 /* END */
 		}
 	},
@@ -93,6 +96,9 @@ static struct facility_def facility_defs[] = {
 			131, /* enhanced-SOP 2 and side-effect */
 			139, /* multiple epoch facility */
 			146, /* msa extension 8 */
+			150, /* enhanced sort */
+			151, /* deflate conversion */
+			155, /* msa extension 9 */
 			-1  /* END */
 		}
 	},

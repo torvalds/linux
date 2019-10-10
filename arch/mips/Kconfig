@@ -5,8 +5,6 @@ config MIPS
 	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_BINFMT_ELF_STATE if MIPS_FP_SUPPORT
 	select ARCH_CLOCKSOURCE_DATA
-	select ARCH_DISCARD_MEMBLOCK
-	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_TICK_BROADCAST if GENERIC_CLOCKEVENTS_BROADCAST
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_SUPPORTS_UPROBES
@@ -14,6 +12,7 @@ config MIPS
 	select ARCH_USE_CMPXCHG_LOCKREF if 64BIT
 	select ARCH_USE_QUEUED_RWLOCKS
 	select ARCH_USE_QUEUED_SPINLOCKS
+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
 	select ARCH_WANT_IPC_PARSE_VERSION
 	select BUILDTIME_EXTABLE_SORT
 	select CLONE_BACKWARDS
@@ -23,6 +22,7 @@ config MIPS
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select GENERIC_CPU_AUTOPROBE
+	select GENERIC_GETTIMEOFDAY
 	select GENERIC_IOMAP
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
@@ -35,6 +35,7 @@ config MIPS
 	select GENERIC_SCHED_CLOCK if !CAVIUM_OCTEON_SOC
 	select GENERIC_SMP_IDLE_THREAD
 	select GENERIC_TIME_VSYSCALL
+	select GUP_GET_PTE_LOW_HIGH if CPU_MIPS32 && PHYS_ADDR_T_64BIT
 	select HANDLE_DOMAIN_IRQ
 	select HAVE_ARCH_COMPILER_H
 	select HAVE_ARCH_JUMP_LABEL
@@ -43,9 +44,9 @@ config MIPS
 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if MMU && COMPAT
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
-	select HAVE_CBPF_JIT if (!64BIT && !CPU_MICROMIPS)
-	select HAVE_EBPF_JIT if (64BIT && !CPU_MICROMIPS)
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES
+	select HAVE_ASM_MODVERSIONS
+	select HAVE_EBPF_JIT if (!CPU_MICROMIPS)
 	select HAVE_CONTEXT_TRACKING
 	select HAVE_COPY_THREAD_TLS
 	select HAVE_C_RECORDMCOUNT
@@ -54,10 +55,10 @@ config MIPS
 	select HAVE_DMA_CONTIGUOUS
 	select HAVE_DYNAMIC_FTRACE
 	select HAVE_EXIT_THREAD
+	select HAVE_FAST_GUP
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
-	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_IDE
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK
@@ -75,6 +76,7 @@ config MIPS
 	select HAVE_STACKPROTECTOR
 	select HAVE_SYSCALL_TRACEPOINTS
 	select HAVE_VIRT_CPU_ACCOUNTING_GEN if 64BIT || !SMP
+	select HAVE_GENERIC_VDSO
 	select IRQ_FORCED_THREADING
 	select ISA if EISA
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
@@ -83,6 +85,7 @@ config MIPS
 	select RTC_LIB
 	select SYSCTL_EXCEPTION_TRACE
 	select VIRT_TO_BUS
+	select ARCH_HAS_PTE_SPECIAL if !(32BIT && CPU_HAS_RIXI)
 
 menu "Machine selection"
 
@@ -277,7 +280,7 @@ config BCM47XX
 	select BCM47XX_SPROM
 	select BCM47XX_SSB if !BCM47XX_BCMA
 	help
-	 Support for BCM47XX based boards
+	  Support for BCM47XX based boards
 
 config BCM63XX
 	bool "Broadcom BCM63XX based boards"
@@ -296,7 +299,7 @@ config BCM63XX
 	select MIPS_L1_CACHE_SHIFT_4
 	select CLKDEV_LOOKUP
 	help
-	 Support for BCM63XX based boards
+	  Support for BCM63XX based boards
 
 config MIPS_COBALT
 	bool "Cobalt Server"
@@ -375,16 +378,17 @@ config MACH_JAZZ
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_100HZ
 	help
-	 This a family of machines based on the MIPS R4030 chipset which was
-	 used by several vendors to build RISC/os and Windows NT workstations.
-	 Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
-	 Olivetti M700-10 workstations.
+	  This a family of machines based on the MIPS R4030 chipset which was
+	  used by several vendors to build RISC/os and Windows NT workstations.
+	  Members include the Acer PICA, MIPS Magnum 4000, MIPS Millennium and
+	  Olivetti M700-10 workstations.
 
 config MACH_INGENIC
 	bool "Ingenic SoC based machines"
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT_UART16550
+	select CPU_SUPPORTS_HUGEPAGES
 	select DMA_NONCOHERENT
 	select IRQ_MIPS_CPU
 	select PINCTRL
@@ -574,14 +578,14 @@ config NXP_STB220
 	bool "NXP STB220 board"
 	select SOC_PNX833X
 	help
-	 Support for NXP Semiconductors STB220 Development Board.
+	  Support for NXP Semiconductors STB220 Development Board.
 
 config NXP_STB225
 	bool "NXP 225 board"
 	select SOC_PNX833X
 	select SOC_PNX8335
 	help
-	 Support for NXP Semiconductors STB225 Development Board.
+	  Support for NXP Semiconductors STB225 Development Board.
 
 config PMC_MSP
 	bool "PMC-Sierra MSP chipsets"
@@ -677,7 +681,10 @@ config SGI_IP27
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PCI
 	select IRQ_MIPS_CPU
+	select IRQ_DOMAIN_HIERARCHY
 	select NR_CPUS_DEFAULT_64
+	select PCI_DRIVERS_GENERIC
+	select PCI_XTALK_BRIDGE
 	select SYS_HAS_CPU_R10000
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
@@ -723,9 +730,9 @@ config SGI_IP28
 	select SYS_SUPPORTS_64BIT_KERNEL
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select MIPS_L1_CACHE_SHIFT_7
-      help
-        This is the SGI Indigo2 with R10000 processor.  To compile a Linux
-        kernel that runs on these, say Y here.
+	help
+	  This is the SGI Indigo2 with R10000 processor.  To compile a Linux
+	  kernel that runs on these, say Y here.
 
 config SGI_IP32
 	bool "SGI IP32 (O2)"
@@ -1038,13 +1045,6 @@ source "arch/mips/paravirt/Kconfig"
 
 endmenu
 
-config RWSEM_GENERIC_SPINLOCK
-	bool
-	default y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
-
 config GENERIC_HWEIGHT
 	bool
 	default y
@@ -1119,12 +1119,21 @@ config DMA_MAYBE_COHERENT
 
 config DMA_PERDEV_COHERENT
 	bool
+	select ARCH_HAS_SETUP_DMA_OPS
 	select DMA_NONCOHERENT
 
 config DMA_NONCOHERENT
 	bool
-	select ARCH_HAS_DMA_MMAP_PGPROT
+	#
+	# MIPS allows mixing "slightly different" Cacheability and Coherency
+	# Attribute bits.  It is believed that the uncached access through
+	# KSEG1 and the implementation specific "uncached accelerated" used
+	# by pgprot_writcombine can be mixed, and the latter sometimes provides
+	# significant advantages.
+	#
+	select ARCH_HAS_DMA_WRITE_COMBINE
 	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select ARCH_HAS_UNCACHED_SEGMENT
 	select NEED_DMA_MAP_STATE
 	select ARCH_HAS_DMA_COHERENT_TO_PFN
 	select DMA_NONCOHERENT_CACHE_SYNC
@@ -1175,9 +1184,9 @@ config HOLES_IN_ZONE
 config SYS_SUPPORTS_RELOCATABLE
 	bool
 	help
-	 Selected if the platform supports relocating the kernel.
-	 The platform must provide plat_get_fdt() if it selects CONFIG_USE_OF
-	 to allow access to command line and entropy sources.
+	  Selected if the platform supports relocating the kernel.
+	  The platform must provide plat_get_fdt() if it selects CONFIG_USE_OF
+	  to allow access to command line and entropy sources.
 
 config MIPS_CBPF_JIT
 	def_bool y
@@ -1226,7 +1235,7 @@ config SYS_SUPPORTS_LITTLE_ENDIAN
 
 config SYS_SUPPORTS_HUGETLBFS
 	bool
-	depends on CPU_SUPPORTS_HUGEPAGES && 64BIT
+	depends on CPU_SUPPORTS_HUGEPAGES
 	default y
 
 config MIPS_HUGE_TLB_SUPPORT
@@ -1248,6 +1257,9 @@ config IRQ_GT641XX
 	bool
 
 config PCI_GT64XXX_PCI0
+	bool
+
+config PCI_XTALK_BRIDGE
 	bool
 
 config NO_EXCEPT_FILL
@@ -1571,6 +1583,7 @@ config CPU_R3000
 	depends on SYS_HAS_CPU_R3000
 	select CPU_HAS_WB
 	select CPU_HAS_LOAD_STORE_LR
+	select CPU_R3K_TLB
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
 	help
@@ -1586,6 +1599,7 @@ config CPU_TX39XX
 	depends on SYS_HAS_CPU_TX39XX
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_HAS_LOAD_STORE_LR
+	select CPU_R3K_TLB
 
 config CPU_VR41XX
 	bool "R41xx"
@@ -1598,15 +1612,6 @@ config CPU_VR41XX
 	  Only choose this option if you have one of these processors as a
 	  kernel built with this option will not run on any other type of
 	  processor or vice versa.
-
-config CPU_R4300
-	bool "R4300"
-	depends on SYS_HAS_CPU_R4300
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_HAS_LOAD_STORE_LR
-	help
-	  MIPS Technologies R4300-series processors.
 
 config CPU_R4X00
 	bool "R4x00"
@@ -1638,14 +1643,6 @@ config CPU_R5000
 	help
 	  MIPS Technologies R5000-series processors other than the Nevada.
 
-config CPU_R5432
-	bool "R5432"
-	depends on SYS_HAS_CPU_R5432
-	select CPU_SUPPORTS_32BIT_KERNEL
-	select CPU_SUPPORTS_64BIT_KERNEL
-	select CPU_SUPPORTS_HUGEPAGES
-	select CPU_HAS_LOAD_STORE_LR
-
 config CPU_R5500
 	bool "R5500"
 	depends on SYS_HAS_CPU_R5500
@@ -1666,16 +1663,6 @@ config CPU_NEVADA
 	select CPU_HAS_LOAD_STORE_LR
 	help
 	  QED / PMC-Sierra RM52xx-series ("Nevada") processors.
-
-config CPU_R8000
-	bool "R8000"
-	depends on SYS_HAS_CPU_R8000
-	select CPU_HAS_PREFETCH
-	select CPU_HAS_LOAD_STORE_LR
-	select CPU_SUPPORTS_64BIT_KERNEL
-	help
-	  MIPS Technologies R8000 processors.  Note these processors are
-	  uncommon and the support for them is incomplete.
 
 config CPU_R10000
 	bool "R10000"
@@ -1969,9 +1956,6 @@ config SYS_HAS_CPU_TX39XX
 config SYS_HAS_CPU_VR41XX
 	bool
 
-config SYS_HAS_CPU_R4300
-	bool
-
 config SYS_HAS_CPU_R4X00
 	bool
 
@@ -1981,16 +1965,10 @@ config SYS_HAS_CPU_TX49XX
 config SYS_HAS_CPU_R5000
 	bool
 
-config SYS_HAS_CPU_R5432
-	bool
-
 config SYS_HAS_CPU_R5500
 	bool
 
 config SYS_HAS_CPU_NEVADA
-	bool
-
-config SYS_HAS_CPU_R8000
 	bool
 
 config SYS_HAS_CPU_R10000
@@ -2110,6 +2088,7 @@ config CPU_SUPPORTS_ADDRWINCFG
 	bool
 config CPU_SUPPORTS_HUGEPAGES
 	bool
+	depends on !(32BIT && (ARCH_PHYS_ADDR_T_64BIT || EVA))
 config CPU_SUPPORTS_UNCACHED_ACCELERATED
 	bool
 config MIPS_PGD_C0_CONTEXT
@@ -2120,8 +2099,8 @@ config MIPS_PGD_C0_CONTEXT
 # Set to y for ptrace access to watch registers.
 #
 config HARDWARE_WATCHPOINTS
-       bool
-       default y if CPU_MIPSR1 || CPU_MIPSR2 || CPU_MIPSR6
+	bool
+	default y if CPU_MIPSR1 || CPU_MIPSR2 || CPU_MIPSR6
 
 menu "Kernel type"
 
@@ -2185,20 +2164,20 @@ config PAGE_SIZE_4KB
 	bool "4kB"
 	depends on !CPU_LOONGSON2 && !CPU_LOONGSON3
 	help
-	 This option select the standard 4kB Linux page size.  On some
-	 R3000-family processors this is the only available page size.  Using
-	 4kB page size will minimize memory consumption and is therefore
-	 recommended for low memory systems.
+	  This option select the standard 4kB Linux page size.  On some
+	  R3000-family processors this is the only available page size.  Using
+	  4kB page size will minimize memory consumption and is therefore
+	  recommended for low memory systems.
 
 config PAGE_SIZE_8KB
 	bool "8kB"
-	depends on CPU_R8000 || CPU_CAVIUM_OCTEON
+	depends on CPU_CAVIUM_OCTEON
 	depends on !MIPS_VA_BITS_48
 	help
 	  Using 8kB page size will result in higher performance kernel at
 	  the price of higher memory consumption.  This option is available
-	  only on R8000 and cnMIPS processors.  Note that you will need a
-	  suitable Linux distribution to support this.
+	  only on cnMIPS processors.  Note that you will need a suitable Linux
+	  distribution to support this.
 
 config PAGE_SIZE_16KB
 	bool "16kB"
@@ -2289,7 +2268,7 @@ config CPU_HAS_PREFETCH
 
 config CPU_GENERIC_DUMP_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R8000 || CPU_TX39XX)
+	default y if !(CPU_R3000 || CPU_TX39XX)
 
 config MIPS_FP_SUPPORT
 	bool "Floating Point support" if EXPERT
@@ -2311,6 +2290,9 @@ config CPU_R2300_FPU
 	depends on MIPS_FP_SUPPORT
 	default y if CPU_R3000 || CPU_TX39XX
 
+config CPU_R3K_TLB
+	bool
+
 config CPU_R4K_FPU
 	bool
 	depends on MIPS_FP_SUPPORT
@@ -2318,7 +2300,7 @@ config CPU_R4K_FPU
 
 config CPU_R4K_CACHE_TLB
 	bool
-	default y if !(CPU_R3000 || CPU_R8000 || CPU_SB1 || CPU_TX39XX || CPU_CAVIUM_OCTEON)
+	default y if !(CPU_R3K_TLB || CPU_SB1 || CPU_CAVIUM_OCTEON)
 
 config MIPS_MT_SMP
 	bool "MIPS MT SMP support (1 TC on each available VPE)"
@@ -2481,7 +2463,6 @@ config SB1_PASS_2_1_WORKAROUNDS
 	depends on CPU_SB1 && CPU_SB1_PASS_2
 	default y
 
-
 choice
 	prompt "SmartMIPS or microMIPS ASE support"
 
@@ -2576,7 +2557,6 @@ config CPU_R4400_WORKAROUNDS
 config MIPS_ASID_SHIFT
 	int
 	default 6 if CPU_R3000 || CPU_TX39XX
-	default 4 if CPU_R8000
 	default 0
 
 config MIPS_ASID_BITS
@@ -2689,16 +2669,16 @@ config RANDOMIZE_BASE
 	bool "Randomize the address of the kernel image"
 	depends on RELOCATABLE
 	---help---
-	   Randomizes the physical and virtual address at which the
-	   kernel image is loaded, as a security feature that
-	   deters exploit attempts relying on knowledge of the location
-	   of kernel internals.
+	  Randomizes the physical and virtual address at which the
+	  kernel image is loaded, as a security feature that
+	  deters exploit attempts relying on knowledge of the location
+	  of kernel internals.
 
-	   Entropy is generated using any coprocessor 0 registers available.
+	  Entropy is generated using any coprocessor 0 registers available.
 
-	   The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET.
+	  The kernel will be offset by up to RANDOMIZE_BASE_MAX_OFFSET.
 
-	   If unsure, say N.
+	  If unsure, say N.
 
 config RANDOMIZE_BASE_MAX_OFFSET
 	hex "Maximum kASLR offset" if EXPERT
@@ -2828,7 +2808,7 @@ choice
 	prompt "Timer frequency"
 	default HZ_250
 	help
-	 Allows the configuration of the timer frequency.
+	  Allows the configuration of the timer frequency.
 
 	config HZ_24
 		bool "24 HZ" if SYS_SUPPORTS_24HZ || SYS_SUPPORTS_ARBIT_HZ
@@ -3070,10 +3050,6 @@ config STACKTRACE_SUPPORT
 	bool
 	default y
 
-config HAVE_LATENCYTOP_SUPPORT
-	bool
-	default y
-
 config PGTABLE_LEVELS
 	int
 	default 4 if PAGE_SIZE_4KB && MIPS_VA_BITS_48
@@ -3128,10 +3104,10 @@ config ARCH_MMAP_RND_BITS_MAX
 	default 15
 
 config ARCH_MMAP_RND_COMPAT_BITS_MIN
-       default 8
+	default 8
 
 config ARCH_MMAP_RND_COMPAT_BITS_MAX
-       default 15
+	default 15
 
 config I8253
 	bool

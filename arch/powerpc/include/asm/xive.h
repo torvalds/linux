@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2016,2017 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #ifndef _ASM_POWERPC_XIVE_H
 #define _ASM_POWERPC_XIVE_H
@@ -23,6 +19,7 @@
  * same offset regardless of where the code is executing
  */
 extern void __iomem *xive_tima;
+extern unsigned long xive_tima_os;
 
 /*
  * Offset in the TM area of our current execution level (provided by
@@ -49,7 +46,15 @@ struct xive_irq_data {
 
 	/* Setup/used by frontend */
 	int target;
+	/*
+	 * saved_p means that there is a queue entry for this interrupt
+	 * in some CPU's queue (not including guest vcpu queues), even
+	 * if P is not set in the source ESB.
+	 * stale_p means that there is no queue entry for this interrupt
+	 * in some CPU's queue, even if P is set in the source ESB.
+	 */
 	bool saved_p;
+	bool stale_p;
 };
 #define XIVE_IRQ_FLAG_STORE_EOI	0x01
 #define XIVE_IRQ_FLAG_LSI	0x02
@@ -73,6 +78,8 @@ struct xive_q {
 	u32			esc_irq;
 	atomic_t		count;
 	atomic_t		pending_count;
+	u64			guest_qaddr;
+	u32			guest_qshift;
 };
 
 /* Global enable flags for the XIVE support */
@@ -92,6 +99,7 @@ extern void xive_flush_interrupt(void);
 
 /* xmon hook */
 extern void xmon_xive_do_dump(int cpu);
+extern int xmon_xive_get_irq_config(u32 hw_irq, struct irq_data *d);
 
 /* APIs used by KVM */
 extern u32 xive_native_default_eq_shift(void);
@@ -109,11 +117,26 @@ extern int xive_native_configure_queue(u32 vp_id, struct xive_q *q, u8 prio,
 extern void xive_native_disable_queue(u32 vp_id, struct xive_q *q, u8 prio);
 
 extern void xive_native_sync_source(u32 hw_irq);
+extern void xive_native_sync_queue(u32 hw_irq);
 extern bool is_xive_irq(struct irq_chip *chip);
 extern int xive_native_enable_vp(u32 vp_id, bool single_escalation);
 extern int xive_native_disable_vp(u32 vp_id);
 extern int xive_native_get_vp_info(u32 vp_id, u32 *out_cam_id, u32 *out_chip_id);
 extern bool xive_native_has_single_escalation(void);
+
+extern int xive_native_get_queue_info(u32 vp_id, uint32_t prio,
+				      u64 *out_qpage,
+				      u64 *out_qsize,
+				      u64 *out_qeoi_page,
+				      u32 *out_escalate_irq,
+				      u64 *out_qflags);
+
+extern int xive_native_get_queue_state(u32 vp_id, uint32_t prio, u32 *qtoggle,
+				       u32 *qindex);
+extern int xive_native_set_queue_state(u32 vp_id, uint32_t prio, u32 qtoggle,
+				       u32 qindex);
+extern int xive_native_get_vp_state(u32 vp_id, u64 *out_state);
+extern bool xive_native_has_queue_state_support(void);
 
 #else
 

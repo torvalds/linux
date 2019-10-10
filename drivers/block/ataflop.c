@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  drivers/block/ataflop.c
  *
@@ -1725,6 +1726,7 @@ static int fd_locked_ioctl(struct block_device *bdev, fmode_t mode,
 		/* MSch: invalidate default_params */
 		default_params[drive].blocks  = 0;
 		set_capacity(floppy->disk, MAX_DISK_SIZE * 2);
+		/* Fall through */
 	case FDFMTEND:
 	case FDFLUSH:
 		/* invalidate the buffer track to force a reread */
@@ -2028,6 +2030,7 @@ static int __init atari_floppy_init (void)
 		unit[i].disk->first_minor = i;
 		sprintf(unit[i].disk->disk_name, "fd%d", i);
 		unit[i].disk->fops = &floppy_fops;
+		unit[i].disk->events = DISK_EVENT_MEDIA_CHANGE;
 		unit[i].disk->private_data = &unit[i];
 		set_capacity(unit[i].disk, MAX_DISK_SIZE * 2);
 		add_disk(unit[i].disk);

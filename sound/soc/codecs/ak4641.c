@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ak4641.c  --  AK4641 ALSA Soc Audio driver
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2011 Dmitry Artamonow <mad_soft@inbox.ru>
  *
  * Based on ak4535.c by Richard Purdie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>

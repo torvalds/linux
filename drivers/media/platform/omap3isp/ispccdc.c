@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ispccdc.c
  *
@@ -8,10 +9,6 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -1594,7 +1591,7 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		return 0;
 
 	/* We're in continuous mode, and memory writes were disabled due to a
-	 * buffer underrun. Reenable them now that we have a buffer. The buffer
+	 * buffer underrun. Re-enable them now that we have a buffer. The buffer
 	 * address has been set in ccdc_video_queue.
 	 */
 	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS && ccdc->underrun) {
@@ -1712,7 +1709,7 @@ static void ccdc_vd1_isr(struct isp_ccdc_device *ccdc)
 	 * data to memory the CCDC and LSC are stopped immediately but
 	 * without change the CCDC stopping state machine. The CCDC
 	 * stopping state machine should be used only when user request
-	 * for stopping is received (SINGLESHOT is an exeption).
+	 * for stopping is received (SINGLESHOT is an exception).
 	 */
 	switch (ccdc->state) {
 	case ISP_PIPELINE_STREAM_SINGLESHOT:
@@ -2605,6 +2602,7 @@ int omap3isp_ccdc_register_entities(struct isp_ccdc_device *ccdc,
 	int ret;
 
 	/* Register the subdev and video node. */
+	ccdc->subdev.dev = vdev->mdev->dev;
 	ret = v4l2_device_register_subdev(vdev, &ccdc->subdev);
 	if (ret < 0)
 		goto error;

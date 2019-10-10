@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2001 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
  * Copyright (C) 2001 Lennert Buytenhek (buytenh@gnu.org) and
  * James Leu (jleu@mindspring.net).
  * Copyright (C) 2001 by various other people who didn't put their name here.
- * Licensed under the GPL.
  */
 
 #include <linux/memblock.h>
@@ -649,6 +649,9 @@ static int __init eth_setup(char *str)
 	}
 
 	new = memblock_alloc(sizeof(*new), SMP_CACHE_BYTES);
+	if (!new)
+		panic("%s: Failed to allocate %zu bytes\n", __func__,
+		      sizeof(*new));
 
 	INIT_LIST_HEAD(&new->list);
 	new->index = n;

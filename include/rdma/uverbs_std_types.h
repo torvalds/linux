@@ -50,12 +50,13 @@
 
 #define uobj_get_read(_type, _id, _attrs)                                      \
 	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
-				_uobj_check_id(_id), UVERBS_LOOKUP_READ)
+				_uobj_check_id(_id), UVERBS_LOOKUP_READ,       \
+				_attrs)
 
 #define ufd_get_read(_type, _fdnum, _attrs)                                    \
 	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
 				(_fdnum)*typecheck(s32, _fdnum),               \
-				UVERBS_LOOKUP_READ)
+				UVERBS_LOOKUP_READ, _attrs)
 
 static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 {
@@ -69,17 +70,17 @@ static inline void *_uobj_get_obj_read(struct ib_uobject *uobj)
 
 #define uobj_get_write(_type, _id, _attrs)                                     \
 	rdma_lookup_get_uobject(uobj_get_type(_attrs, _type), (_attrs)->ufile, \
-				_uobj_check_id(_id), UVERBS_LOOKUP_WRITE)
+				_uobj_check_id(_id), UVERBS_LOOKUP_WRITE,      \
+				_attrs)
 
 int __uobj_perform_destroy(const struct uverbs_api_object *obj, u32 id,
-			   const struct uverbs_attr_bundle *attrs);
+			   struct uverbs_attr_bundle *attrs);
 #define uobj_perform_destroy(_type, _id, _attrs)                               \
 	__uobj_perform_destroy(uobj_get_type(_attrs, _type),                   \
 			       _uobj_check_id(_id), _attrs)
 
 struct ib_uobject *__uobj_get_destroy(const struct uverbs_api_object *obj,
-				      u32 id,
-				      const struct uverbs_attr_bundle *attrs);
+				      u32 id, struct uverbs_attr_bundle *attrs);
 
 #define uobj_get_destroy(_type, _id, _attrs)                                   \
 	__uobj_get_destroy(uobj_get_type(_attrs, _type), _uobj_check_id(_id),  \
@@ -103,28 +104,31 @@ static inline void uobj_put_write(struct ib_uobject *uobj)
 	rdma_lookup_put_uobject(uobj, UVERBS_LOOKUP_WRITE);
 }
 
-static inline int __must_check uobj_alloc_commit(struct ib_uobject *uobj)
+static inline int __must_check
+uobj_alloc_commit(struct ib_uobject *uobj, struct uverbs_attr_bundle *attrs)
 {
-	int ret = rdma_alloc_commit_uobject(uobj);
+	int ret = rdma_alloc_commit_uobject(uobj, attrs);
 
 	if (ret)
 		return ret;
 	return 0;
 }
 
-static inline void uobj_alloc_abort(struct ib_uobject *uobj)
+static inline void uobj_alloc_abort(struct ib_uobject *uobj,
+				    struct uverbs_attr_bundle *attrs)
 {
-	rdma_alloc_abort_uobject(uobj);
+	rdma_alloc_abort_uobject(uobj, attrs);
 }
 
 static inline struct ib_uobject *
 __uobj_alloc(const struct uverbs_api_object *obj,
 	     struct uverbs_attr_bundle *attrs, struct ib_device **ib_dev)
 {
-	struct ib_uobject *uobj = rdma_alloc_begin_uobject(obj, attrs->ufile);
+	struct ib_uobject *uobj =
+		rdma_alloc_begin_uobject(obj, attrs->ufile, attrs);
 
 	if (!IS_ERR(uobj))
-		*ib_dev = uobj->context->device;
+		*ib_dev = attrs->context->device;
 	return uobj;
 }
 

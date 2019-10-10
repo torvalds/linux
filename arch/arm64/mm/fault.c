@@ -1,23 +1,14 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Based on arch/arm/mm/fault.c
  *
  * Copyright (C) 1995  Linus Torvalds
  * Copyright (C) 1995-2004 Russell King
  * Copyright (C) 2012 ARM Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/acpi.h>
+#include <linux/bitfield.h>
 #include <linux/extable.h>
 #include <linux/signal.h>
 #include <linux/mm.h>
@@ -33,6 +24,7 @@
 #include <linux/preempt.h>
 #include <linux/hugetlb.h>
 
+#include <asm/acpi.h>
 #include <asm/bug.h>
 #include <asm/cmpxchg.h>
 #include <asm/cpufeature.h>
@@ -46,8 +38,6 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 #include <asm/traps.h>
-
-#include <acpi/ghes.h>
 
 struct fault_info {
 	int	(*fn)(unsigned long addr, unsigned int esr,
@@ -69,28 +59,6 @@ static inline const struct fault_info *esr_to_debug_fault_info(unsigned int esr)
 {
 	return debug_fault_info + DBG_ESR_EVT(esr);
 }
-
-#ifdef CONFIG_KPROBES
-static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
-{
-	int ret = 0;
-
-	/* kprobe_running() needs smp_processor_id() */
-	if (!user_mode(regs)) {
-		preempt_disable();
-		if (kprobe_running() && kprobe_fault_handler(regs, esr))
-			ret = 1;
-		preempt_enable();
-	}
-
-	return ret;
-}
-#else
-static inline int notify_page_fault(struct pt_regs *regs, unsigned int esr)
-{
-	return 0;
-}
-#endif
 
 static void data_abort_decode(unsigned int esr)
 {
@@ -119,8 +87,8 @@ static void mem_abort_decode(unsigned int esr)
 	pr_alert("Mem abort info:\n");
 
 	pr_alert("  ESR = 0x%08x\n", esr);
-	pr_alert("  Exception class = %s, IL = %u bits\n",
-		 esr_get_class_string(esr),
+	pr_alert("  EC = 0x%02lx: %s, IL = %u bits\n",
+		 ESR_ELx_EC(esr), esr_get_class_string(esr),
 		 (esr & ESR_ELx_IL) ? 32 : 16);
 	pr_alert("  SET = %lu, FnV = %lu\n",
 		 (esr & ESR_ELx_SET_MASK) >> ESR_ELx_SET_SHIFT,
@@ -142,13 +110,22 @@ static inline bool is_ttbr0_addr(unsigned long addr)
 static inline bool is_ttbr1_addr(unsigned long addr)
 {
 	/* TTBR1 addresses may have a tag if KASAN_SW_TAGS is in use */
-	return arch_kasan_reset_tag(addr) >= VA_START;
+	return arch_kasan_reset_tag(addr) >= PAGE_OFFSET;
+}
+
+static inline unsigned long mm_to_pgd_phys(struct mm_struct *mm)
+{
+	/* Either init_pg_dir or swapper_pg_dir */
+	if (mm == &init_mm)
+		return __pa_symbol(mm->pgd);
+
+	return (unsigned long)virt_to_phys(mm->pgd);
 }
 
 /*
  * Dump out the page tables associated with 'addr' in the currently active mm.
  */
-void show_pte(unsigned long addr)
+static void show_pte(unsigned long addr)
 {
 	struct mm_struct *mm;
 	pgd_t *pgdp;
@@ -171,9 +148,9 @@ void show_pte(unsigned long addr)
 		return;
 	}
 
-	pr_alert("%s pgtable: %luk pages, %u-bit VAs, pgdp = %p\n",
+	pr_alert("%s pgtable: %luk pages, %llu-bit VAs, pgdp=%016lx\n",
 		 mm == &init_mm ? "swapper" : "user", PAGE_SIZE / SZ_1K,
-		 mm == &init_mm ? VA_BITS : (int) vabits_user, mm->pgd);
+		 vabits_actual, mm_to_pgd_phys(mm));
 	pgdp = pgd_offset(mm, addr);
 	pgd = READ_ONCE(*pgdp);
 	pr_alert("[%016lx] pgd=%016llx", addr, pgd_val(pgd));
@@ -274,6 +251,34 @@ static inline bool is_el1_permission_fault(unsigned long addr, unsigned int esr,
 	return false;
 }
 
+static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
+							unsigned int esr,
+							struct pt_regs *regs)
+{
+	unsigned long flags;
+	u64 par, dfsc;
+
+	if (ESR_ELx_EC(esr) != ESR_ELx_EC_DABT_CUR ||
+	    (esr & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT)
+		return false;
+
+	local_irq_save(flags);
+	asm volatile("at s1e1r, %0" :: "r" (addr));
+	isb();
+	par = read_sysreg(par_el1);
+	local_irq_restore(flags);
+
+	if (!(par & SYS_PAR_EL1_F))
+		return false;
+
+	/*
+	 * If we got a different type of fault from the AT instruction,
+	 * treat the translation fault as spurious.
+	 */
+	dfsc = FIELD_GET(SYS_PAR_EL1_FST, par);
+	return (dfsc & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT;
+}
+
 static void die_kernel_fault(const char *msg, unsigned long addr,
 			     unsigned int esr, struct pt_regs *regs)
 {
@@ -300,6 +305,10 @@ static void __do_kernel_fault(unsigned long addr, unsigned int esr,
 	 * We are almost certainly not prepared to handle instruction faults.
 	 */
 	if (!is_el1_instruction_abort(esr) && fixup_exception(regs))
+		return;
+
+	if (WARN_RATELIMIT(is_spurious_el1_translation_fault(addr, esr, regs),
+	    "Ignoring spurious kernel translation fault at virtual address %016lx\n", addr))
 		return;
 
 	if (is_el1_permission_fault(addr, esr, regs)) {
@@ -394,40 +403,31 @@ static void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *re
 #define VM_FAULT_BADACCESS	0x020000
 
 static vm_fault_t __do_page_fault(struct mm_struct *mm, unsigned long addr,
-			   unsigned int mm_flags, unsigned long vm_flags,
-			   struct task_struct *tsk)
+			   unsigned int mm_flags, unsigned long vm_flags)
 {
-	struct vm_area_struct *vma;
-	vm_fault_t fault;
+	struct vm_area_struct *vma = find_vma(mm, addr);
 
-	vma = find_vma(mm, addr);
-	fault = VM_FAULT_BADMAP;
 	if (unlikely(!vma))
-		goto out;
-	if (unlikely(vma->vm_start > addr))
-		goto check_stack;
+		return VM_FAULT_BADMAP;
 
 	/*
 	 * Ok, we have a good vm_area for this memory access, so we can handle
 	 * it.
 	 */
-good_area:
+	if (unlikely(vma->vm_start > addr)) {
+		if (!(vma->vm_flags & VM_GROWSDOWN))
+			return VM_FAULT_BADMAP;
+		if (expand_stack(vma, addr))
+			return VM_FAULT_BADMAP;
+	}
+
 	/*
 	 * Check that the permissions on the VMA allow for the fault which
 	 * occurred.
 	 */
-	if (!(vma->vm_flags & vm_flags)) {
-		fault = VM_FAULT_BADACCESS;
-		goto out;
-	}
-
+	if (!(vma->vm_flags & vm_flags))
+		return VM_FAULT_BADACCESS;
 	return handle_mm_fault(vma, addr & PAGE_MASK, mm_flags);
-
-check_stack:
-	if (vma->vm_flags & VM_GROWSDOWN && !expand_stack(vma, addr))
-		goto good_area;
-out:
-	return fault;
 }
 
 static bool is_el0_instruction_abort(unsigned int esr)
@@ -435,21 +435,26 @@ static bool is_el0_instruction_abort(unsigned int esr)
 	return ESR_ELx_EC(esr) == ESR_ELx_EC_IABT_LOW;
 }
 
+/*
+ * Note: not valid for EL1 DC IVAC, but we never use that such that it
+ * should fault. EL0 cannot issue DC IVAC (undef).
+ */
+static bool is_write_abort(unsigned int esr)
+{
+	return (esr & ESR_ELx_WNR) && !(esr & ESR_ELx_CM);
+}
+
 static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 				   struct pt_regs *regs)
 {
 	const struct fault_info *inf;
-	struct task_struct *tsk;
-	struct mm_struct *mm;
+	struct mm_struct *mm = current->mm;
 	vm_fault_t fault, major = 0;
 	unsigned long vm_flags = VM_READ | VM_WRITE;
 	unsigned int mm_flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE;
 
-	if (notify_page_fault(regs, esr))
+	if (kprobe_page_fault(regs, esr))
 		return 0;
-
-	tsk = current;
-	mm  = tsk->mm;
 
 	/*
 	 * If we're in an interrupt or have no user context, we must not take
@@ -463,7 +468,8 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 
 	if (is_el0_instruction_abort(esr)) {
 		vm_flags = VM_EXEC;
-	} else if ((esr & ESR_ELx_WNR) && !(esr & ESR_ELx_CM)) {
+		mm_flags |= FAULT_FLAG_INSTRUCTION;
+	} else if (is_write_abort(esr)) {
 		vm_flags = VM_WRITE;
 		mm_flags |= FAULT_FLAG_WRITE;
 	}
@@ -502,12 +508,14 @@ retry:
 		 */
 		might_sleep();
 #ifdef CONFIG_DEBUG_VM
-		if (!user_mode(regs) && !search_exception_tables(regs->pc))
+		if (!user_mode(regs) && !search_exception_tables(regs->pc)) {
+			up_read(&mm->mmap_sem);
 			goto no_context;
+		}
 #endif
 	}
 
-	fault = __do_page_fault(mm, addr, mm_flags, vm_flags, tsk);
+	fault = __do_page_fault(mm, addr, mm_flags, vm_flags);
 	major |= fault & VM_FAULT_MAJOR;
 
 	if (fault & VM_FAULT_RETRY) {
@@ -547,11 +555,11 @@ retry:
 		 * that point.
 		 */
 		if (major) {
-			tsk->maj_flt++;
+			current->maj_flt++;
 			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MAJ, 1, regs,
 				      addr);
 		} else {
-			tsk->min_flt++;
+			current->min_flt++;
 			perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS_MIN, 1, regs,
 				      addr);
 		}
@@ -643,19 +651,10 @@ static int do_sea(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 	inf = esr_to_fault_info(esr);
 
 	/*
-	 * Synchronous aborts may interrupt code which had interrupts masked.
-	 * Before calling out into the wider kernel tell the interested
-	 * subsystems.
+	 * Return value ignored as we rely on signal merging.
+	 * Future patches will make this more robust.
 	 */
-	if (IS_ENABLED(CONFIG_ACPI_APEI_SEA)) {
-		if (interrupts_enabled(regs))
-			nmi_enter();
-
-		ghes_notify_sea();
-
-		if (interrupts_enabled(regs))
-			nmi_exit();
-	}
+	apei_claim_sea(regs);
 
 	if (esr & ESR_ELx_FnV)
 		siaddr = NULL;
@@ -732,11 +731,6 @@ static const struct fault_info fault_info[] = {
 	{ do_bad,		SIGKILL, SI_KERNEL,	"page domain fault"		},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 63"			},
 };
-
-int handle_guest_sea(phys_addr_t addr, unsigned int esr)
-{
-	return ghes_notify_sea();
-}
 
 asmlinkage void __exception do_mem_abort(unsigned long addr, unsigned int esr,
 					 struct pt_regs *regs)
@@ -824,13 +818,15 @@ void __init hook_debug_fault_code(int nr,
 	debug_fault_info[nr].name	= name;
 }
 
-asmlinkage int __exception do_debug_exception(unsigned long addr,
-					      unsigned int esr,
-					      struct pt_regs *regs)
+/*
+ * In debug exception context, we explicitly disable preemption despite
+ * having interrupts disabled.
+ * This serves two purposes: it makes it much less likely that we would
+ * accidentally schedule in exception context and it will force a warning
+ * if we somehow manage to schedule by accident.
+ */
+static void debug_exception_enter(struct pt_regs *regs)
 {
-	const struct fault_info *inf = esr_to_debug_fault_info(esr);
-	int rv;
-
 	/*
 	 * Tell lockdep we disabled irqs in entry.S. Do nothing if they were
 	 * already disabled to preserve the last enabled/disabled addresses.
@@ -838,20 +834,87 @@ asmlinkage int __exception do_debug_exception(unsigned long addr,
 	if (interrupts_enabled(regs))
 		trace_hardirqs_off();
 
-	if (user_mode(regs) && !is_ttbr0_addr(instruction_pointer(regs)))
-		arm64_apply_bp_hardening();
-
-	if (!inf->fn(addr, esr, regs)) {
-		rv = 1;
+	if (user_mode(regs)) {
+		RCU_LOCKDEP_WARN(!rcu_is_watching(), "entry code didn't wake RCU");
 	} else {
-		arm64_notify_die(inf->name, regs,
-				 inf->sig, inf->code, (void __user *)addr, esr);
-		rv = 0;
+		/*
+		 * We might have interrupted pretty much anything.  In
+		 * fact, if we're a debug exception, we can even interrupt
+		 * NMI processing. We don't want this code makes in_nmi()
+		 * to return true, but we need to notify RCU.
+		 */
+		rcu_nmi_enter();
 	}
+
+	preempt_disable();
+
+	/* This code is a bit fragile.  Test it. */
+	RCU_LOCKDEP_WARN(!rcu_is_watching(), "exception_enter didn't work");
+}
+NOKPROBE_SYMBOL(debug_exception_enter);
+
+static void debug_exception_exit(struct pt_regs *regs)
+{
+	preempt_enable_no_resched();
+
+	if (!user_mode(regs))
+		rcu_nmi_exit();
 
 	if (interrupts_enabled(regs))
 		trace_hardirqs_on();
+}
+NOKPROBE_SYMBOL(debug_exception_exit);
 
-	return rv;
+#ifdef CONFIG_ARM64_ERRATUM_1463225
+DECLARE_PER_CPU(int, __in_cortex_a76_erratum_1463225_wa);
+
+static int __exception
+cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
+{
+	if (user_mode(regs))
+		return 0;
+
+	if (!__this_cpu_read(__in_cortex_a76_erratum_1463225_wa))
+		return 0;
+
+	/*
+	 * We've taken a dummy step exception from the kernel to ensure
+	 * that interrupts are re-enabled on the syscall path. Return back
+	 * to cortex_a76_erratum_1463225_svc_handler() with debug exceptions
+	 * masked so that we can safely restore the mdscr and get on with
+	 * handling the syscall.
+	 */
+	regs->pstate |= PSR_D_BIT;
+	return 1;
+}
+#else
+static int __exception
+cortex_a76_erratum_1463225_debug_handler(struct pt_regs *regs)
+{
+	return 0;
+}
+#endif /* CONFIG_ARM64_ERRATUM_1463225 */
+
+asmlinkage void __exception do_debug_exception(unsigned long addr_if_watchpoint,
+					       unsigned int esr,
+					       struct pt_regs *regs)
+{
+	const struct fault_info *inf = esr_to_debug_fault_info(esr);
+	unsigned long pc = instruction_pointer(regs);
+
+	if (cortex_a76_erratum_1463225_debug_handler(regs))
+		return;
+
+	debug_exception_enter(regs);
+
+	if (user_mode(regs) && !is_ttbr0_addr(pc))
+		arm64_apply_bp_hardening();
+
+	if (inf->fn(addr_if_watchpoint, esr, regs)) {
+		arm64_notify_die(inf->name, regs,
+				 inf->sig, inf->code, (void __user *)pc, esr);
+	}
+
+	debug_exception_exit(regs);
 }
 NOKPROBE_SYMBOL(do_debug_exception);

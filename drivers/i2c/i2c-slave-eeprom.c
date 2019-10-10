@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * I2C slave mode EEPROM simulator
  *
  * Copyright (C) 2014 by Wolfram Sang, Sang Engineering <wsa@sang-engineering.com>
  * Copyright (C) 2014 by Renesas Electronics Corporation
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; version 2 of the License.
  *
  * Because most IP blocks can only detect one I2C slave address anyhow, this
  * driver does not support simulating EEPROM types which take more than one
@@ -14,6 +11,13 @@
  * pointer, yet implementation is deferred until the need actually arises.
  */
 
+/*
+ * FIXME: What to do if only 8 bits of a 16 bit address are sent?
+ * The ST-M24C64 sends only 0xff then. Needs verification with other
+ * EEPROMs, though. We currently use the 8 bit as a valid address.
+ */
+
+#include <linux/bitfield.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -24,11 +28,19 @@
 
 struct eeprom_data {
 	struct bin_attribute bin;
-	bool first_write;
 	spinlock_t buffer_lock;
-	u8 buffer_idx;
+	u16 buffer_idx;
+	u16 address_mask;
+	u8 num_address_bytes;
+	u8 idx_write_cnt;
+	bool read_only;
 	u8 buffer[];
 };
+
+#define I2C_SLAVE_BYTELEN GENMASK(15, 0)
+#define I2C_SLAVE_FLAG_ADDR16 BIT(16)
+#define I2C_SLAVE_FLAG_RO BIT(17)
+#define I2C_SLAVE_DEVICE_MAGIC(_len, _flags) ((_flags) | (_len))
 
 static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 				     enum i2c_slave_event event, u8 *val)
@@ -37,13 +49,17 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 
 	switch (event) {
 	case I2C_SLAVE_WRITE_RECEIVED:
-		if (eeprom->first_write) {
-			eeprom->buffer_idx = *val;
-			eeprom->first_write = false;
+		if (eeprom->idx_write_cnt < eeprom->num_address_bytes) {
+			if (eeprom->idx_write_cnt == 0)
+				eeprom->buffer_idx = 0;
+			eeprom->buffer_idx = *val | (eeprom->buffer_idx << 8);
+			eeprom->idx_write_cnt++;
 		} else {
-			spin_lock(&eeprom->buffer_lock);
-			eeprom->buffer[eeprom->buffer_idx++] = *val;
-			spin_unlock(&eeprom->buffer_lock);
+			if (!eeprom->read_only) {
+				spin_lock(&eeprom->buffer_lock);
+				eeprom->buffer[eeprom->buffer_idx++ & eeprom->address_mask] = *val;
+				spin_unlock(&eeprom->buffer_lock);
+			}
 		}
 		break;
 
@@ -53,7 +69,7 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 		/* fallthrough */
 	case I2C_SLAVE_READ_REQUESTED:
 		spin_lock(&eeprom->buffer_lock);
-		*val = eeprom->buffer[eeprom->buffer_idx];
+		*val = eeprom->buffer[eeprom->buffer_idx & eeprom->address_mask];
 		spin_unlock(&eeprom->buffer_lock);
 		/*
 		 * Do not increment buffer_idx here, because we don't know if
@@ -64,7 +80,7 @@ static int i2c_slave_eeprom_slave_cb(struct i2c_client *client,
 
 	case I2C_SLAVE_STOP:
 	case I2C_SLAVE_WRITE_REQUESTED:
-		eeprom->first_write = true;
+		eeprom->idx_write_cnt = 0;
 		break;
 
 	default:
@@ -108,13 +124,17 @@ static int i2c_slave_eeprom_probe(struct i2c_client *client, const struct i2c_de
 {
 	struct eeprom_data *eeprom;
 	int ret;
-	unsigned size = id->driver_data;
+	unsigned int size = FIELD_GET(I2C_SLAVE_BYTELEN, id->driver_data);
+	unsigned int flag_addr16 = FIELD_GET(I2C_SLAVE_FLAG_ADDR16, id->driver_data);
 
 	eeprom = devm_kzalloc(&client->dev, sizeof(struct eeprom_data) + size, GFP_KERNEL);
 	if (!eeprom)
 		return -ENOMEM;
 
-	eeprom->first_write = true;
+	eeprom->idx_write_cnt = 0;
+	eeprom->num_address_bytes = flag_addr16 ? 2 : 1;
+	eeprom->address_mask = size - 1;
+	eeprom->read_only = FIELD_GET(I2C_SLAVE_FLAG_RO, id->driver_data);
 	spin_lock_init(&eeprom->buffer_lock);
 	i2c_set_clientdata(client, eeprom);
 
@@ -149,7 +169,12 @@ static int i2c_slave_eeprom_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id i2c_slave_eeprom_id[] = {
-	{ "slave-24c02", 2048 / 8 },
+	{ "slave-24c02", I2C_SLAVE_DEVICE_MAGIC(2048 / 8,  0) },
+	{ "slave-24c02ro", I2C_SLAVE_DEVICE_MAGIC(2048 / 8,  I2C_SLAVE_FLAG_RO) },
+	{ "slave-24c32", I2C_SLAVE_DEVICE_MAGIC(32768 / 8, I2C_SLAVE_FLAG_ADDR16) },
+	{ "slave-24c32ro", I2C_SLAVE_DEVICE_MAGIC(32768 / 8, I2C_SLAVE_FLAG_ADDR16 | I2C_SLAVE_FLAG_RO) },
+	{ "slave-24c64", I2C_SLAVE_DEVICE_MAGIC(65536 / 8, I2C_SLAVE_FLAG_ADDR16) },
+	{ "slave-24c64ro", I2C_SLAVE_DEVICE_MAGIC(65536 / 8, I2C_SLAVE_FLAG_ADDR16 | I2C_SLAVE_FLAG_RO) },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, i2c_slave_eeprom_id);

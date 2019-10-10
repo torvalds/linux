@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Power key driver for SiRF PrimaII
  *
  * Copyright (c) 2013 - 2014 Cambridge Silicon Radio Limited, a CSR plc group
  * company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/module.h>

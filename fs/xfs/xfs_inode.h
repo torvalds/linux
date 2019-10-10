@@ -45,10 +45,18 @@ typedef struct xfs_inode {
 	mrlock_t		i_lock;		/* inode lock */
 	mrlock_t		i_mmaplock;	/* inode mmap IO lock */
 	atomic_t		i_pincount;	/* inode pin count */
+
+	/*
+	 * Bitsets of inode metadata that have been checked and/or are sick.
+	 * Callers must hold i_flags_lock before accessing this field.
+	 */
+	uint16_t		i_checked;
+	uint16_t		i_sick;
+
 	spinlock_t		i_flags_lock;	/* inode i_flags lock */
 	/* Miscellaneous state. */
 	unsigned long		i_flags;	/* see defined flags below */
-	unsigned int		i_delayed_blks;	/* count of delay alloc blks */
+	uint64_t		i_delayed_blks;	/* count of delay alloc blks */
 
 	struct xfs_icdinode	i_d;		/* most of ondisk inode */
 
@@ -57,6 +65,11 @@ typedef struct xfs_inode {
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
+
+	/* pending io completions */
+	spinlock_t		i_ioend_lock;
+	struct work_struct	i_ioend_work;
+	struct list_head	i_ioend_list;
 } xfs_inode_t;
 
 /* Convert from vfs inode to xfs inode */
@@ -499,5 +512,10 @@ extern struct kmem_zone	*xfs_inode_zone;
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
 
 bool xfs_inode_verify_forks(struct xfs_inode *ip);
+
+int xfs_iunlink_init(struct xfs_perag *pag);
+void xfs_iunlink_destroy(struct xfs_perag *pag);
+
+void xfs_end_io(struct work_struct *work);
 
 #endif	/* __XFS_INODE_H__ */

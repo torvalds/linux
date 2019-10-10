@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* request_key authorisation token key type
  *
  * Copyright (C) 2005 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #ifndef _KEYS_REQUEST_KEY_AUTH_TYPE_H
@@ -18,6 +14,7 @@
  * Authorisation record for request_key().
  */
 struct request_key_auth {
+	struct rcu_head		rcu;
 	struct key		*target_key;
 	struct key		*dest_keyring;
 	const struct cred	*cred;

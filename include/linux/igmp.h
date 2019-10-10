@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	Linux NET3:	Internet Group Management Protocol  [IGMP]
  *
@@ -5,12 +6,6 @@
  *		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	Extended to talk the BSD extended IGMP protocol of mrouted 3.6
- *
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  */
 #ifndef _LINUX_IGMP_H
 #define _LINUX_IGMP_H
@@ -65,8 +60,8 @@ struct ip_mc_socklist {
 
 struct ip_sf_list {
 	struct ip_sf_list	*sf_next;
-	__be32			sf_inaddr;
 	unsigned long		sf_count[2];	/* include/exclude counts */
+	__be32			sf_inaddr;
 	unsigned char		sf_gsresp;	/* include in g & s response? */
 	unsigned char		sf_oldin;	/* change state */
 	unsigned char		sf_crcount;	/* retrans. left to send */
@@ -110,7 +105,7 @@ struct ip_mc_list {
 static inline int ip_mc_may_pull(struct sk_buff *skb, unsigned int len)
 {
 	if (skb_transport_offset(skb) + ip_transport_len(skb) < len)
-		return -EINVAL;
+		return 0;
 
 	return pskb_may_pull(skb, len);
 }

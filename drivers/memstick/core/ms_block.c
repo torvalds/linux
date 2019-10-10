@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ms_block.c - Sony MemoryStick (legacy) storage support
 
  *  Copyright (C) 2013 Maxim Levitsky <maximlevitsky@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Minor portions of the driver were copied from mspro_block.c which is
  * Copyright (C) 2007 Alex Dubov <oakad@yahoo.com>
- *
  */
 #define DRIVER_NAME "ms_block"
 #define pr_fmt(fmt) DRIVER_NAME ": " fmt
@@ -1091,7 +1087,7 @@ static u16 msb_get_free_block(struct msb_data *msb, int zone)
 
 	pos %= msb->free_block_count[zone];
 
-	dbg_verbose("have %d choices for a free block, selected randomally: %d",
+	dbg_verbose("have %d choices for a free block, selected randomly: %d",
 		msb->free_block_count[zone], pos);
 
 	pba = find_next_zero_bit(msb->used_blocks_bitmap,

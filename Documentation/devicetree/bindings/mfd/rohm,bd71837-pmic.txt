@@ -8,6 +8,8 @@ and 6 LDOs.
 
 Datasheet for BD71837 is available at:
 https://www.rohm.com/datasheet/BD71837MWV/bd71837mwv-e
+Datasheet for BD71847 is available at:
+https://www.rohm.com/datasheet/BD71847AMWV/bd71847amwv-e
 
 Required properties:
  - compatible		: Should be "rohm,bd71837" for bd71837
@@ -37,6 +39,14 @@ outputs will be returned to HW control by OTP loading. Thus the reset
 target state is set to READY by default. If SNVS state is used the boot
 crucial regulators must have the regulator-always-on and regulator-boot-on
 properties set in regulator node.
+
+- rohm,short-press-ms	: Short press duration in milliseconds
+- rohm,long-press-ms	: Long press duration in milliseconds
+
+Configure the "short press" and "long press" timers for the power button.
+Values are rounded to what hardware supports (500ms multiple for short and
+1000ms multiple for long). If these properties are not present the existing
+configuration (from bootloader or OTP) is not touched.
 
 Example:
 

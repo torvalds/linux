@@ -952,6 +952,22 @@ void sc_disable(struct send_context *sc)
 		}
 	}
 	spin_unlock(&sc->release_lock);
+
+	write_seqlock(&sc->waitlock);
+	while (!list_empty(&sc->piowait)) {
+		struct iowait *wait;
+		struct rvt_qp *qp;
+		struct hfi1_qp_priv *priv;
+
+		wait = list_first_entry(&sc->piowait, struct iowait, list);
+		qp = iowait_to_qp(wait);
+		priv = qp->priv;
+		list_del_init(&priv->s_iowait.list);
+		priv->s_iowait.lock = NULL;
+		hfi1_qp_wakeup(qp, RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
+	}
+	write_sequnlock(&sc->waitlock);
+
 	spin_unlock_irq(&sc->alloc_lock);
 }
 
@@ -1427,7 +1443,8 @@ void sc_stop(struct send_context *sc, int flag)
  * @cb: optional callback to call when the buffer is finished sending
  * @arg: argument for cb
  *
- * Return a pointer to a PIO buffer if successful, NULL if not enough room.
+ * Return a pointer to a PIO buffer, NULL if not enough room, -ECOMM
+ * when link is down.
  */
 struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
 				pio_release_cb cb, void *arg)
@@ -1443,7 +1460,7 @@ struct pio_buf *sc_buffer_alloc(struct send_context *sc, u32 dw_len,
 	spin_lock_irqsave(&sc->alloc_lock, flags);
 	if (!(sc->flags & SCF_ENABLED)) {
 		spin_unlock_irqrestore(&sc->alloc_lock, flags);
-		goto done;
+		return ERR_PTR(-ECOMM);
 	}
 
 retry:
@@ -1577,10 +1594,8 @@ void hfi1_sc_wantpiobuf_intr(struct send_context *sc, u32 needint)
 	else
 		sc_del_credit_return_intr(sc);
 	trace_hfi1_wantpiointr(sc, needint, sc->credit_ctrl);
-	if (needint) {
-		mmiowb();
+	if (needint)
 		sc_return_credits(sc);
-	}
 }
 
 /**
@@ -1599,8 +1614,7 @@ static void sc_piobufavail(struct send_context *sc)
 	struct rvt_qp *qp;
 	struct hfi1_qp_priv *priv;
 	unsigned long flags;
-	uint i, n = 0, max_idx = 0;
-	u8 max_starved_cnt = 0;
+	uint i, n = 0, top_idx = 0;
 
 	if (dd->send_contexts[sc->sw_index].type != SC_KERNEL &&
 	    dd->send_contexts[sc->sw_index].type != SC_VL15)
@@ -1619,11 +1633,18 @@ static void sc_piobufavail(struct send_context *sc)
 		if (n == ARRAY_SIZE(qps))
 			break;
 		wait = list_first_entry(list, struct iowait, list);
+		iowait_get_priority(wait);
 		qp = iowait_to_qp(wait);
 		priv = qp->priv;
 		list_del_init(&priv->s_iowait.list);
 		priv->s_iowait.lock = NULL;
-		iowait_starve_find_max(wait, &max_starved_cnt, n, &max_idx);
+		if (n) {
+			priv = qps[top_idx]->priv;
+			top_idx = iowait_priority_update_top(wait,
+							     &priv->s_iowait,
+							     n, top_idx);
+		}
+
 		/* refcount held until actual wake up */
 		qps[n++] = qp;
 	}
@@ -1638,12 +1659,12 @@ static void sc_piobufavail(struct send_context *sc)
 	}
 	write_sequnlock_irqrestore(&sc->waitlock, flags);
 
-	/* Wake up the most starved one first */
+	/* Wake up the top-priority one first */
 	if (n)
-		hfi1_qp_wakeup(qps[max_idx],
+		hfi1_qp_wakeup(qps[top_idx],
 			       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 	for (i = 0; i < n; i++)
-		if (i != max_idx)
+		if (i != top_idx)
 			hfi1_qp_wakeup(qps[i],
 				       RVT_S_WAIT_PIO | HFI1_S_WAIT_PIO_DRAIN);
 }

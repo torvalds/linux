@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PMC551 PCI Mezzanine Ram Device
  *
  * Author:
  *	Mark Ferrell <mferrell@mvista.com>
  *	Copyright 1999,2000 Nortel Networks
- *
- * License:
- *	As part of this driver was derived from the slram.c driver it
- *	falls under the same license, which is GNU General Public
- *	License v2
  *
  * Description:
  *	This driver is intended to support the PMC551 PCI Ram device
@@ -139,7 +135,7 @@ static int pmc551_point(struct mtd_info *mtd, loff_t from, size_t len,
 static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct mypriv *priv = mtd->priv;
-	u32 soff_hi, soff_lo;	/* start address offset hi/lo */
+	u32 soff_hi;		/* start address offset hi */
 	u32 eoff_hi, eoff_lo;	/* end address offset hi/lo */
 	unsigned long end;
 	u_char *ptr;
@@ -154,7 +150,6 @@ static int pmc551_erase(struct mtd_info *mtd, struct erase_info *instr)
 	eoff_hi = end & ~(priv->asize - 1);
 	soff_hi = instr->addr & ~(priv->asize - 1);
 	eoff_lo = end & (priv->asize - 1);
-	soff_lo = instr->addr & (priv->asize - 1);
 
 	pmc551_point(mtd, instr->addr, instr->len, &retlen,
 		     (void **)&ptr, NULL);
@@ -229,7 +224,7 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 			size_t * retlen, u_char * buf)
 {
 	struct mypriv *priv = mtd->priv;
-	u32 soff_hi, soff_lo;	/* start address offset hi/lo */
+	u32 soff_hi;		/* start address offset hi */
 	u32 eoff_hi, eoff_lo;	/* end address offset hi/lo */
 	unsigned long end;
 	u_char *ptr;
@@ -243,7 +238,6 @@ static int pmc551_read(struct mtd_info *mtd, loff_t from, size_t len,
 	end = from + len - 1;
 	soff_hi = from & ~(priv->asize - 1);
 	eoff_hi = end & ~(priv->asize - 1);
-	soff_lo = from & (priv->asize - 1);
 	eoff_lo = end & (priv->asize - 1);
 
 	pmc551_point(mtd, from, len, retlen, (void **)&ptr, NULL);
@@ -286,7 +280,7 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 			size_t * retlen, const u_char * buf)
 {
 	struct mypriv *priv = mtd->priv;
-	u32 soff_hi, soff_lo;	/* start address offset hi/lo */
+	u32 soff_hi;		/* start address offset hi */
 	u32 eoff_hi, eoff_lo;	/* end address offset hi/lo */
 	unsigned long end;
 	u_char *ptr;
@@ -300,7 +294,6 @@ static int pmc551_write(struct mtd_info *mtd, loff_t to, size_t len,
 	end = to + len - 1;
 	soff_hi = to & ~(priv->asize - 1);
 	eoff_hi = end & ~(priv->asize - 1);
-	soff_lo = to & (priv->asize - 1);
 	eoff_lo = end & (priv->asize - 1);
 
 	pmc551_point(mtd, to, len, retlen, (void **)&ptr, NULL);

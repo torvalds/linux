@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Surface2.0/SUR40/PixelSense input driver
  *
@@ -14,11 +15,6 @@
  *
  * and from the v4l2-pci-skeleton driver,
  * Copyright (c) Copyright 2014 Cisco Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -190,7 +186,7 @@ static const struct v4l2_pix_format sur40_pix_format[] = {
 		.width  = SENSOR_RES_X / 2,
 		.height = SENSOR_RES_Y / 2,
 		.field = V4L2_FIELD_NONE,
-		.colorspace = V4L2_COLORSPACE_SRGB,
+		.colorspace = V4L2_COLORSPACE_RAW,
 		.bytesperline = SENSOR_RES_X / 2,
 		.sizeimage = (SENSOR_RES_X/2) * (SENSOR_RES_Y/2),
 	},
@@ -199,7 +195,7 @@ static const struct v4l2_pix_format sur40_pix_format[] = {
 		.width  = SENSOR_RES_X / 2,
 		.height = SENSOR_RES_Y / 2,
 		.field = V4L2_FIELD_NONE,
-		.colorspace = V4L2_COLORSPACE_SRGB,
+		.colorspace = V4L2_COLORSPACE_RAW,
 		.bytesperline = SENSOR_RES_X / 2,
 		.sizeimage = (SENSOR_RES_X/2) * (SENSOR_RES_Y/2),
 	}
@@ -933,10 +929,6 @@ static int sur40_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->driver, DRIVER_SHORT, sizeof(cap->driver));
 	strlcpy(cap->card, DRIVER_LONG, sizeof(cap->card));
 	usb_make_path(sur40->usbdev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1166,6 +1158,8 @@ static const struct video_device sur40_video_device = {
 	.fops = &sur40_video_fops,
 	.ioctl_ops = &sur40_video_ioctl_ops,
 	.release = video_device_release_empty,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
+		       V4L2_CAP_READWRITE | V4L2_CAP_STREAMING,
 };
 
 /* USB-specific object needed to register this driver with the USB subsystem. */

@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* Copyright (c)  2018 Intel Corporation */
 
-#ifndef _IGC_BASE_H
-#define _IGC_BASE_H
+#ifndef _IGC_BASE_H_
+#define _IGC_BASE_H_
 
 /* forward declaration */
 void igc_rx_fifo_flush_base(struct igc_hw *hw);
@@ -20,6 +20,14 @@ union igc_adv_tx_desc {
 		__le32 nxtseq_seed;
 		__le32 status;
 	} wb;
+};
+
+/* Context descriptors */
+struct igc_adv_tx_context_desc {
+	__le32 vlan_macip_lens;
+	__le32 launch_time;
+	__le32 type_tucmd_mlhl;
+	__le32 mss_l4len_idx;
 };
 
 /* Adv Transmit Descriptor Config Masks */

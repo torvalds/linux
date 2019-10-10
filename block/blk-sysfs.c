@@ -360,8 +360,8 @@ static ssize_t queue_poll_delay_show(struct request_queue *q, char *page)
 {
 	int val;
 
-	if (q->poll_nsec == -1)
-		val = -1;
+	if (q->poll_nsec == BLK_MQ_POLL_CLASSIC)
+		val = BLK_MQ_POLL_CLASSIC;
 	else
 		val = q->poll_nsec / 1000;
 
@@ -380,10 +380,12 @@ static ssize_t queue_poll_delay_store(struct request_queue *q, const char *page,
 	if (err < 0)
 		return err;
 
-	if (val == -1)
-		q->poll_nsec = -1;
-	else
+	if (val == BLK_MQ_POLL_CLASSIC)
+		q->poll_nsec = BLK_MQ_POLL_CLASSIC;
+	else if (val >= 0)
 		q->poll_nsec = val * 1000;
+	else
+		return -EINVAL;
 
 	return count;
 }
@@ -468,6 +470,9 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	else if (val >= 0)
 		val *= 1000ULL;
 
+	if (wbt_get_min_lat(q) == val)
+		return count;
+
 	/*
 	 * Ensure that the queue is idled, in case the latency update
 	 * ends up either enabling or disabling wbt completely. We can't
@@ -477,7 +482,6 @@ static ssize_t queue_wb_lat_store(struct request_queue *q, const char *page,
 	blk_mq_quiesce_queue(q);
 
 	wbt_set_min_lat(q, val);
-	wbt_update_limits(q);
 
 	blk_mq_unquiesce_queue(q);
 	blk_mq_unfreeze_queue(q);
@@ -723,7 +727,7 @@ static struct queue_sysfs_entry throtl_sample_time_entry = {
 };
 #endif
 
-static struct attribute *default_attrs[] = {
+static struct attribute *queue_attrs[] = {
 	&queue_requests_entry.attr,
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
@@ -764,6 +768,25 @@ static struct attribute *default_attrs[] = {
 #endif
 	NULL,
 };
+
+static umode_t queue_attr_visible(struct kobject *kobj, struct attribute *attr,
+				int n)
+{
+	struct request_queue *q =
+		container_of(kobj, struct request_queue, kobj);
+
+	if (attr == &queue_io_timeout_entry.attr &&
+		(!q->mq_ops || !q->mq_ops->timeout))
+			return 0;
+
+	return attr->mode;
+}
+
+static struct attribute_group queue_attr_group = {
+	.attrs = queue_attrs,
+	.is_visible = queue_attr_visible,
+};
+
 
 #define to_queue(atr) container_of((atr), struct queue_sysfs_entry, attr)
 
@@ -816,22 +839,47 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
 	kmem_cache_free(blk_requestq_cachep, q);
 }
 
+/* Unconfigure the I/O scheduler and dissociate from the cgroup controller. */
+static void blk_exit_queue(struct request_queue *q)
+{
+	/*
+	 * Since the I/O scheduler exit code may access cgroup information,
+	 * perform I/O scheduler exit before disassociating from the block
+	 * cgroup controller.
+	 */
+	if (q->elevator) {
+		ioc_clear_queue(q);
+		__elevator_exit(q, q->elevator);
+		q->elevator = NULL;
+	}
+
+	/*
+	 * Remove all references to @q from the block cgroup controller before
+	 * restoring @q->queue_lock to avoid that restoring this pointer causes
+	 * e.g. blkcg_print_blkgs() to crash.
+	 */
+	blkcg_exit_queue(q);
+
+	/*
+	 * Since the cgroup code may dereference the @q->backing_dev_info
+	 * pointer, only decrease its reference count after having removed the
+	 * association with the block cgroup controller.
+	 */
+	bdi_put(q->backing_dev_info);
+}
+
+
 /**
- * __blk_release_queue - release a request queue when it is no longer needed
+ * __blk_release_queue - release a request queue
  * @work: pointer to the release_work member of the request queue to be released
  *
  * Description:
- *     blk_release_queue is the counterpart of blk_init_queue(). It should be
- *     called when a request queue is being released; typically when a block
- *     device is being de-registered. Its primary task it to free the queue
- *     itself.
- *
- * Notes:
- *     The low level driver must have finished any outstanding requests first
- *     via blk_cleanup_queue().
- *
- *     Although blk_release_queue() may be called with preemption disabled,
- *     __blk_release_queue() may sleep.
+ *     This function is called when a block device is being unregistered. The
+ *     process of releasing a request queue starts with blk_cleanup_queue, which
+ *     set the appropriate flags and then calls blk_put_queue, that decrements
+ *     the reference counter of the request queue. Once the reference counter
+ *     of the request queue reaches zero, blk_release_queue is called to release
+ *     all allocated resources of the request queue.
  */
 static void __blk_release_queue(struct work_struct *work)
 {
@@ -841,22 +889,12 @@ static void __blk_release_queue(struct work_struct *work)
 		blk_stat_remove_callback(q, q->poll_cb);
 	blk_stat_free_callback(q->poll_cb);
 
-	if (!blk_queue_dead(q)) {
-		/*
-		 * Last reference was dropped without having called
-		 * blk_cleanup_queue().
-		 */
-		WARN_ONCE(blk_queue_init_done(q),
-			  "request queue %p has been registered but blk_cleanup_queue() has not been called for that queue\n",
-			  q);
-		blk_exit_queue(q);
-	}
-
-	WARN(blk_queue_root_blkg(q),
-	     "request queue %p is being released but it has not yet been removed from the blkcg controller\n",
-	     q);
-
 	blk_free_queue_stats(q->stats);
+
+	if (queue_is_mq(q))
+		cancel_delayed_work_sync(&q->requeue_work);
+
+	blk_exit_queue(q);
 
 	blk_queue_free_zone_bitmaps(q);
 
@@ -890,7 +928,6 @@ static const struct sysfs_ops queue_sysfs_ops = {
 
 struct kobj_type blk_queue_ktype = {
 	.sysfs_ops	= &queue_sysfs_ops,
-	.default_attrs	= default_attrs,
 	.release	= blk_release_queue,
 };
 
@@ -903,14 +940,14 @@ int blk_register_queue(struct gendisk *disk)
 	int ret;
 	struct device *dev = disk_to_dev(disk);
 	struct request_queue *q = disk->queue;
+	bool has_elevator = false;
 
 	if (WARN_ON(!q))
 		return -ENXIO;
 
-	WARN_ONCE(test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags),
+	WARN_ONCE(blk_queue_registered(q),
 		  "%s is registering an already registered queue\n",
 		  kobject_name(&dev->kobj));
-	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
 
 	/*
 	 * SCSI probing may synchronously create and destroy a lot of
@@ -930,12 +967,19 @@ int blk_register_queue(struct gendisk *disk)
 	if (ret)
 		return ret;
 
-	/* Prevent changes through sysfs until registration is completed. */
-	mutex_lock(&q->sysfs_lock);
+	mutex_lock(&q->sysfs_dir_lock);
 
 	ret = kobject_add(&q->kobj, kobject_get(&dev->kobj), "%s", "queue");
 	if (ret < 0) {
 		blk_trace_remove_sysfs(dev);
+		goto unlock;
+	}
+
+	ret = sysfs_create_group(&q->kobj, &queue_attr_group);
+	if (ret) {
+		blk_trace_remove_sysfs(dev);
+		kobject_del(&q->kobj);
+		kobject_put(&dev->kobj);
 		goto unlock;
 	}
 
@@ -944,26 +988,33 @@ int blk_register_queue(struct gendisk *disk)
 		blk_mq_debugfs_register(q);
 	}
 
-	kobject_uevent(&q->kobj, KOBJ_ADD);
-
-	wbt_enable_default(q);
-
-	blk_throtl_register_queue(q);
-
+	mutex_lock(&q->sysfs_lock);
 	if (q->elevator) {
-		ret = elv_register_queue(q);
+		ret = elv_register_queue(q, false);
 		if (ret) {
 			mutex_unlock(&q->sysfs_lock);
-			kobject_uevent(&q->kobj, KOBJ_REMOVE);
+			mutex_unlock(&q->sysfs_dir_lock);
 			kobject_del(&q->kobj);
 			blk_trace_remove_sysfs(dev);
 			kobject_put(&dev->kobj);
 			return ret;
 		}
+		has_elevator = true;
 	}
+
+	blk_queue_flag_set(QUEUE_FLAG_REGISTERED, q);
+	wbt_enable_default(q);
+	blk_throtl_register_queue(q);
+
+	/* Now everything is ready and send out KOBJ_ADD uevent */
+	kobject_uevent(&q->kobj, KOBJ_ADD);
+	if (has_elevator)
+		kobject_uevent(&q->elevator->kobj, KOBJ_ADD);
+	mutex_unlock(&q->sysfs_lock);
+
 	ret = 0;
 unlock:
-	mutex_unlock(&q->sysfs_lock);
+	mutex_unlock(&q->sysfs_dir_lock);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(blk_register_queue);
@@ -983,7 +1034,7 @@ void blk_unregister_queue(struct gendisk *disk)
 		return;
 
 	/* Return early if disk->queue was never registered. */
-	if (!test_bit(QUEUE_FLAG_REGISTERED, &q->queue_flags))
+	if (!blk_queue_registered(q))
 		return;
 
 	/*
@@ -992,16 +1043,16 @@ void blk_unregister_queue(struct gendisk *disk)
 	 * concurrent elv_iosched_store() calls.
 	 */
 	mutex_lock(&q->sysfs_lock);
-
 	blk_queue_flag_clear(QUEUE_FLAG_REGISTERED, q);
+	mutex_unlock(&q->sysfs_lock);
 
+	mutex_lock(&q->sysfs_dir_lock);
 	/*
 	 * Remove the sysfs attributes before unregistering the queue data
 	 * structures that can be modified through sysfs.
 	 */
 	if (queue_is_mq(q))
 		blk_mq_unregister_dev(disk_to_dev(disk), q);
-	mutex_unlock(&q->sysfs_lock);
 
 	kobject_uevent(&q->kobj, KOBJ_REMOVE);
 	kobject_del(&q->kobj);
@@ -1011,6 +1062,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	if (q->elevator)
 		elv_unregister_queue(q);
 	mutex_unlock(&q->sysfs_lock);
+	mutex_unlock(&q->sysfs_dir_lock);
 
 	kobject_put(&disk_to_dev(disk)->kobj);
 }

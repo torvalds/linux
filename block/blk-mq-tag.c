@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Tag allocation using scalable bitmaps. Uses active queue tracking to support
  * fairer distribution of tags between multiple submitters when a shared tag map
@@ -9,6 +10,7 @@
 #include <linux/module.h>
 
 #include <linux/blk-mq.h>
+#include <linux/delay.h>
 #include "blk.h"
 #include "blk-mq.h"
 #include "blk-mq-tag.h"
@@ -112,7 +114,6 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 	struct sbq_wait_state *ws;
 	DEFINE_SBQ_WAIT(wait);
 	unsigned int tag_offset;
-	bool drop_ctx;
 	int tag;
 
 	if (data->flags & BLK_MQ_REQ_RESERVED) {
@@ -135,7 +136,6 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		return BLK_MQ_TAG_FAIL;
 
 	ws = bt_wait_ptr(bt, data->hctx);
-	drop_ctx = data->ctx == NULL;
 	do {
 		struct sbitmap_queue *bt_prev;
 
@@ -160,9 +160,6 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 		if (tag != -1)
 			break;
 
-		if (data->ctx)
-			blk_mq_put_ctx(data->ctx);
-
 		bt_prev = bt;
 		io_schedule();
 
@@ -170,7 +167,7 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 
 		data->ctx = blk_mq_get_ctx(data->q);
 		data->hctx = blk_mq_map_queue(data->q, data->cmd_flags,
-						data->ctx->cpu);
+						data->ctx);
 		tags = blk_mq_tags_from_data(data);
 		if (data->flags & BLK_MQ_REQ_RESERVED)
 			bt = &tags->breserved_tags;
@@ -187,9 +184,6 @@ unsigned int blk_mq_get_tag(struct blk_mq_alloc_data *data)
 
 		ws = bt_wait_ptr(bt, data->hctx);
 	} while (1);
-
-	if (drop_ctx && data->ctx)
-		blk_mq_put_ctx(data->ctx);
 
 	sbitmap_finish_wait(bt, ws, &wait);
 
@@ -360,6 +354,37 @@ void blk_mq_tagset_busy_iter(struct blk_mq_tag_set *tagset,
 	}
 }
 EXPORT_SYMBOL(blk_mq_tagset_busy_iter);
+
+static bool blk_mq_tagset_count_completed_rqs(struct request *rq,
+		void *data, bool reserved)
+{
+	unsigned *count = data;
+
+	if (blk_mq_request_completed(rq))
+		(*count)++;
+	return true;
+}
+
+/**
+ * blk_mq_tagset_wait_completed_request - wait until all completed req's
+ * complete funtion is run
+ * @tagset:	Tag set to drain completed request
+ *
+ * Note: This function has to be run after all IO queues are shutdown
+ */
+void blk_mq_tagset_wait_completed_request(struct blk_mq_tag_set *tagset)
+{
+	while (true) {
+		unsigned count = 0;
+
+		blk_mq_tagset_busy_iter(tagset,
+				blk_mq_tagset_count_completed_rqs, &count);
+		if (!count)
+			break;
+		msleep(5);
+	}
+}
+EXPORT_SYMBOL(blk_mq_tagset_wait_completed_request);
 
 /**
  * blk_mq_queue_tag_busy_iter - iterate over all requests with a driver tag

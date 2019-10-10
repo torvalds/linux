@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-/* Copyright (C) 2012-2018 ARM Limited or its affiliates. */
+/* Copyright (C) 2012-2019 ARM Limited (or its affiliates). */
 
 /* \file cc_driver.h
  * ARM CryptoCell Linux Crypto Driver
@@ -53,6 +53,9 @@ enum cc_std_body {
 
 #define CC_COHERENT_CACHE_PARAMS 0xEEE
 
+#define CC_PINS_FULL	0x0
+#define CC_PINS_SLIM	0x9F
+
 /* Maximum DMA mask supported by IP */
 #define DMA_BIT_MASK_LEN 48
 
@@ -65,9 +68,33 @@ enum cc_std_body {
 
 #define CC_COMP_IRQ_MASK BIT(CC_HOST_IRR_AXIM_COMP_INT_BIT_SHIFT)
 
+#define CC_SECURITY_DISABLED_MASK BIT(CC_SECURITY_DISABLED_VALUE_BIT_SHIFT)
+
+#define CC_NVM_IS_IDLE_MASK BIT(CC_NVM_IS_IDLE_VALUE_BIT_SHIFT)
+
 #define AXIM_MON_COMP_VALUE GENMASK(CC_AXIM_MON_COMP_VALUE_BIT_SIZE + \
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT, \
 				    CC_AXIM_MON_COMP_VALUE_BIT_SHIFT)
+
+#define CC_CPP_AES_ABORT_MASK ( \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_0_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_1_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_2_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_3_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_4_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_5_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_6_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_AES_7_MASK_BIT_SHIFT))
+
+#define CC_CPP_SM4_ABORT_MASK ( \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_0_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_1_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_2_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_3_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_4_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_5_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_6_MASK_BIT_SHIFT) | \
+	BIT(CC_HOST_IMR_REE_OP_ABORTED_SM_7_MASK_BIT_SHIFT))
 
 /* Register name mangling macro */
 #define CC_REG(reg_name) CC_ ## reg_name ## _REG_OFFSET
@@ -81,7 +108,6 @@ enum cc_std_body {
 
 #define MAX_REQUEST_QUEUE_SIZE 4096
 #define MAX_MLLI_BUFF_SIZE 2080
-#define MAX_ICV_NENTS_SUPPORTED 2
 
 /* Definitions for HW descriptors DIN/DOUT fields */
 #define NS_BIT 1
@@ -90,20 +116,18 @@ enum cc_std_body {
  * field in the HW descriptor. The DMA engine +8 that value.
  */
 
+struct cc_cpp_req {
+	bool is_cpp;
+	enum cc_cpp_alg alg;
+	u8 slot;
+};
+
 #define CC_MAX_IVGEN_DMA_ADDRESSES	3
 struct cc_crypto_req {
 	void (*user_cb)(struct device *dev, void *req, int err);
 	void *user_arg;
-	dma_addr_t ivgen_dma_addr[CC_MAX_IVGEN_DMA_ADDRESSES];
-	/* For the first 'ivgen_dma_addr_len' addresses of this array,
-	 * generated IV would be placed in it by send_request().
-	 * Same generated IV for all addresses!
-	 */
-	/* Amount of 'ivgen_dma_addr' elements to be filled. */
-	unsigned int ivgen_dma_addr_len;
-	/* The generated IV size required, 8/16 B allowed. */
-	unsigned int ivgen_size;
 	struct completion seq_compl; /* request completion */
+	struct cc_cpp_req cpp;
 };
 
 /**
@@ -125,7 +149,6 @@ struct cc_drvdata {
 	void *aead_handle;
 	void *request_mgr_handle;
 	void *fips_handle;
-	void *ivgen_handle;
 	void *sram_mgr_handle;
 	void *debugfs;
 	struct clk *clk;
@@ -136,6 +159,8 @@ struct cc_drvdata {
 	u32 sig_offset;
 	u32 ver_offset;
 	int std_bodies;
+	bool sec_disabled;
+	u32 comp_mask;
 };
 
 struct cc_crypto_alg {
@@ -162,12 +187,14 @@ struct cc_alg_template {
 	int auth_mode;
 	u32 min_hw_rev;
 	enum cc_std_body std_body;
+	bool sec_func;
 	unsigned int data_unit;
 	struct cc_drvdata *drvdata;
 };
 
 struct async_gen_req_ctx {
 	dma_addr_t iv_dma_addr;
+	u8 *iv;
 	enum drv_crypto_direction op_type;
 };
 
@@ -184,6 +211,7 @@ static inline void dump_byte_array(const char *name, const u8 *the_array,
 		__dump_byte_array(name, the_array, size);
 }
 
+bool cc_wait_for_reset_completion(struct cc_drvdata *drvdata);
 int init_cc_regs(struct cc_drvdata *drvdata, bool is_probe);
 void fini_cc_regs(struct cc_drvdata *drvdata);
 int cc_clk_on(struct cc_drvdata *drvdata);

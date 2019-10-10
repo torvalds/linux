@@ -16,8 +16,6 @@ endif
 KBUILD_AFLAGS_MODULE += -fPIC
 KBUILD_CFLAGS_MODULE += -fPIC
 
-KBUILD_DEFCONFIG = defconfig
-
 export BITS
 ifeq ($(CONFIG_ARCH_RV64I),y)
 	BITS := 64
@@ -36,12 +34,9 @@ else
 	KBUILD_LDFLAGS += -melf32lriscv
 endif
 
-KBUILD_CFLAGS += -Wall
-
 # ISA string setting
-riscv-march-$(CONFIG_ARCH_RV32I)	:= rv32im
-riscv-march-$(CONFIG_ARCH_RV64I)	:= rv64im
-riscv-march-$(CONFIG_RISCV_ISA_A)	:= $(riscv-march-y)a
+riscv-march-$(CONFIG_ARCH_RV32I)	:= rv32ima
+riscv-march-$(CONFIG_ARCH_RV64I)	:= rv64ima
 riscv-march-$(CONFIG_FPU)		:= $(riscv-march-y)fd
 riscv-march-$(CONFIG_RISCV_ISA_C)	:= $(riscv-march-y)c
 KBUILD_CFLAGS += -march=$(subst fd,,$(riscv-march-y))
@@ -57,7 +52,10 @@ ifeq ($(CONFIG_CMODEL_MEDANY),y)
 	KBUILD_CFLAGS += -mcmodel=medany
 endif
 ifeq ($(CONFIG_MODULE_SECTIONS),y)
-	KBUILD_LDFLAGS_MODULE += -T $(srctree)/arch/riscv/kernel/module.lds
+	KBUILD_LDS_MODULE += $(srctree)/arch/riscv/kernel/module.lds
+endif
+ifeq ($(CONFIG_PERF_EVENTS),y)
+        KBUILD_CFLAGS += -fno-omit-frame-pointer
 endif
 
 KBUILD_CFLAGS_MODULE += $(call cc-option,-mno-relax)
@@ -77,7 +75,7 @@ KBUILD_IMAGE	:= $(boot)/Image.gz
 
 head-y := arch/riscv/kernel/head.o
 
-core-y += arch/riscv/kernel/ arch/riscv/mm/ arch/riscv/net/
+core-y += arch/riscv/
 
 libs-y += arch/riscv/lib/
 

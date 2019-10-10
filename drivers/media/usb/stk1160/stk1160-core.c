@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * STK1160 driver
  *
@@ -8,20 +9,9 @@
  *	Copyright (C) 2010 R.M. Thomas
  *	<rmthomas--a.t--sciolus.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * TODO:
  *
  * 1. Support stream at lower speed: lower frame rate or lower frame size.
- *
  */
 
 #include <linux/module.h>
@@ -297,7 +287,7 @@ static int stk1160_probe(struct usb_interface *interface,
 		return -ENOMEM;
 
 	/*
-	 * Scan usb posibilities and populate alt_max_pkt_size array.
+	 * Scan usb possibilities and populate alt_max_pkt_size array.
 	 * Also, check if device speed is fast enough.
 	 */
 	rc = stk1160_scan_usb(interface, udev, alt_max_pkt_size);
@@ -426,7 +416,7 @@ static void stk1160_disconnect(struct usb_interface *interface)
 
 	/*
 	 * This calls stk1160_release if it's the last reference.
-	 * Otherwise, release is posponed until there are no users left.
+	 * Otherwise, release is postponed until there are no users left.
 	 */
 	v4l2_device_put(&dev->v4l2_dev);
 }

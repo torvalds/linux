@@ -176,6 +176,15 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	only at exit time or when a syscall is interrupted, i.e. in those cases this
 	option is equivalent to the number of lines printed.
 
+--switch-on EVENT_NAME::
+	Only consider events after this event is found.
+
+--switch-off EVENT_NAME::
+	Stop considering events after this event is found.
+
+--show-on-off-events::
+	Show the --switch-on/off events too.
+
 --max-stack::
         Set the stack depth limit when parsing the callchain, anything
         beyond the specified depth will be ignored. Note that at this point
@@ -209,6 +218,14 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Do sorting on batches of events, use when noticing out of order events that
 	may happen, for instance, when a thread gets migrated to a different CPU
 	while processing a syscall.
+
+--map-dump::
+	Dump BPF maps setup by events passed via -e, for instance the augmented_raw_syscalls
+	living in tools/perf/examples/bpf/augmented_raw_syscalls.c. For now this
+	dumps just boolean map values and integer keys, in time this will print in hex
+	by default and use BTF when available, as well as use functions to do pretty
+	printing using the existing 'perf trace' syscall arg beautifiers to map integer
+	arguments to strings (pid to comm, syscall id to syscall name, etc).
 
 
 PAGEFAULTS

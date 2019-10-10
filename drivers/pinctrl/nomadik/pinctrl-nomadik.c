@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Generic GPIO driver for logic cells found in the Nomadik SoC
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2009 Alessandro Rubini <rubini@unipv.it>
  *   Rewritten based on work by Prafulla WADASKAR <prafulla.wadaskar@st.com>
  * Copyright (C) 2011-2013 Linus Walleij <linus.walleij@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -1056,17 +1053,22 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 	}
 	if (of_property_read_u32(np, "gpio-bank", &id)) {
 		dev_err(&pdev->dev, "populate: gpio-bank property not found\n");
+		platform_device_put(gpio_pdev);
 		return ERR_PTR(-EINVAL);
 	}
 
 	/* Already populated? */
 	nmk_chip = nmk_gpio_chips[id];
-	if (nmk_chip)
+	if (nmk_chip) {
+		platform_device_put(gpio_pdev);
 		return nmk_chip;
+	}
 
 	nmk_chip = devm_kzalloc(&pdev->dev, sizeof(*nmk_chip), GFP_KERNEL);
-	if (!nmk_chip)
+	if (!nmk_chip) {
+		platform_device_put(gpio_pdev);
 		return ERR_PTR(-ENOMEM);
+	}
 
 	nmk_chip->bank = id;
 	chip = &nmk_chip->chip;
@@ -1077,13 +1079,17 @@ static struct nmk_gpio_chip *nmk_gpio_populate_chip(struct device_node *np,
 
 	res = platform_get_resource(gpio_pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(base))
+	if (IS_ERR(base)) {
+		platform_device_put(gpio_pdev);
 		return ERR_CAST(base);
+	}
 	nmk_chip->addr = base;
 
 	clk = clk_get(&gpio_pdev->dev, NULL);
-	if (IS_ERR(clk))
+	if (IS_ERR(clk)) {
+		platform_device_put(gpio_pdev);
 		return (void *) clk;
+	}
 	clk_prepare(clk);
 	nmk_chip->clk = clk;
 
@@ -1502,6 +1508,7 @@ static int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 				&reserved_maps, num_maps);
 		if (ret < 0) {
 			pinctrl_utils_free_map(pctldev, *map, *num_maps);
+			of_node_put(np);
 			return ret;
 		}
 	}

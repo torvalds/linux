@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Atmel AT32 and AT91 SPI Controllers
  *
  * Copyright (C) 2006 Atmel Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -26,6 +23,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/pm_runtime.h>
+#include <trace/events/spi.h>
 
 /* SPI register offsets */
 #define SPI_CR					0x0000
@@ -1412,9 +1410,13 @@ static int atmel_spi_transfer_one_message(struct spi_master *master,
 	msg->actual_length = 0;
 
 	list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+		trace_spi_transfer_start(msg, xfer);
+
 		ret = atmel_spi_one_transfer(master, msg, xfer);
 		if (ret)
 			goto msg_done;
+
+		trace_spi_transfer_stop(msg, xfer);
 	}
 
 	if (as->use_pdc)

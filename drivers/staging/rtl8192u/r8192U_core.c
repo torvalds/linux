@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  * Linux device driver for RTL8192U
  *
  * Based on the r8187 driver, which is:
  * Copyright 2004-2005 Andrea Merello <andrea.merello@gmail.com>, et al.
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
  *
  * Contact Information:
  * Jerry chuang <wlanfae@realtek.com>
@@ -727,7 +713,7 @@ static u32 get_rxpacket_shiftbytes_819xusb(struct ieee80211_rx_stats *pstats)
 		+ pstats->RxBufShift);
 }
 
-static int rtl8192_rx_initiate(struct net_device *dev)
+void rtl8192_rx_enable(struct net_device *dev)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 	struct urb *entry;
@@ -777,8 +763,6 @@ static int rtl8192_rx_initiate(struct net_device *dev)
 		skb_queue_tail(&priv->rx_queue, skb);
 		usb_submit_urb(entry, GFP_KERNEL);
 	}
-
-	return 0;
 }
 
 void rtl8192_set_rxconf(struct net_device *dev)
@@ -822,12 +806,6 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	rxconf = rxconf | RCR_ONLYERLPKT;
 
 	write_nic_dword(dev, RCR, rxconf);
-}
-
-/* wait to be removed */
-void rtl8192_rx_enable(struct net_device *dev)
-{
-	rtl8192_rx_initiate(dev);
 }
 
 void rtl8192_rtx_disable(struct net_device *dev)
@@ -2098,14 +2076,6 @@ static void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST
-	/* TODO: this function doesn't work well at this time,
-	 * we should wait for FPGA
-	 */
-	ActUpdateChannelAccessSetting(
-			pAdapter, pHalData->CurrentWirelessMode,
-			&pAdapter->MgntInfo.Info8185.ChannelAccessSetting);
-#endif
 	priv->ieee80211->mode = wireless_mode;
 
 	if (wireless_mode == WIRELESS_MODE_N_24G ||
@@ -2118,7 +2088,7 @@ static void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 }
 
 /* init priv variables here. only non_zero value should be initialized here. */
-static void rtl8192_init_priv_variable(struct net_device *dev)
+static int rtl8192_init_priv_variable(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 i;
@@ -2181,12 +2151,6 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 
 	priv->ieee80211->InitialGainHandler = InitialGain819xUsb;
 	priv->card_type = USB;
-#ifdef TO_DO_LIST
-	if (Adapter->bInHctTest) {
-		pHalData->ShortRetryLimit = 7;
-		pHalData->LongRetryLimit = 7;
-	}
-#endif
 	priv->ShortRetryLimit = 0x30;
 	priv->LongRetryLimit = 0x30;
 	priv->EarlyRxThreshold = 7;
@@ -2202,34 +2166,6 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 		 * TRUE: SW provides them
 		 */
 		(false ? TCR_SAT : 0);
-#ifdef TO_DO_LIST
-	if (Adapter->bInHctTest)
-		pHalData->ReceiveConfig =
-			pHalData->CSMethod |
-			/* accept management/data */
-			RCR_AMF | RCR_ADF |
-			/* accept control frame for SW
-			 * AP needs PS-poll
-			 */
-			RCR_ACF |
-			/* accept BC/MC/UC */
-			RCR_AB | RCR_AM | RCR_APM |
-			/* accept ICV/CRC error
-			 * packet
-			 */
-			RCR_AICV | RCR_ACRC32 |
-			/* Max DMA Burst Size per Tx
-			 * DMA Burst, 7: unlimited.
-			 */
-			((u32)7 << RCR_MXDMA_OFFSET) |
-			/* Rx FIFO Threshold,
-			 * 7: No Rx threshold.
-			 */
-			(pHalData->EarlyRxThreshold << RCR_FIFO_OFFSET) |
-			(pHalData->EarlyRxThreshold == 7 ? RCR_OnlyErlPkt : 0);
-	else
-
-#endif
 	priv->ReceiveConfig	=
 		/* accept management/data */
 		RCR_AMF | RCR_ADF |
@@ -2245,6 +2181,8 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 
 	priv->AcmControl = 0;
 	priv->pFirmware = kzalloc(sizeof(rt_firmware), GFP_KERNEL);
+	if (!priv->pFirmware)
+		return -ENOMEM;
 
 	/* rx related queue */
 	skb_queue_head_init(&priv->rx_queue);
@@ -2258,6 +2196,8 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	for (i = 0; i < MAX_QUEUE_SIZE; i++)
 		skb_queue_head_init(&priv->ieee80211->skb_drv_aggQ[i]);
 	priv->rf_set_chan = rtl8192_phy_SwChnl;
+
+	return 0;
 }
 
 /* init lock here */
@@ -2627,7 +2567,10 @@ static short rtl8192_init(struct net_device *dev)
 		memcpy(priv->txqueue_to_outpipemap, queuetopipe, 9);
 	}
 #endif
-	rtl8192_init_priv_variable(dev);
+	err = rtl8192_init_priv_variable(dev);
+	if (err)
+		return err;
+
 	rtl8192_init_priv_lock(priv);
 	rtl8192_init_priv_task(dev);
 	rtl8192_get_eeprom_size(dev);
@@ -2680,19 +2623,10 @@ static void rtl8192_hwconfig(struct net_device *dev)
 		regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 		break;
 	case WIRELESS_MODE_AUTO:
-#ifdef TO_DO_LIST
-		if (Adapter->bInHctTest) {
-			regBwOpMode = BW_OPMODE_20MHZ;
-			regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-			regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		} else
-#endif
-		{
-			regBwOpMode = BW_OPMODE_20MHZ;
-			regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG |
-				  RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
-			regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
-		}
+		regBwOpMode = BW_OPMODE_20MHZ;
+		regRATR = RATE_ALL_CCK | RATE_ALL_OFDM_AG |
+			  RATE_ALL_OFDM_1SS | RATE_ALL_OFDM_2SS;
+		regRRSR = RATE_ALL_CCK | RATE_ALL_OFDM_AG;
 		break;
 	case WIRELESS_MODE_N_24G:
 		/* It support CCK rate by default. CCK rate will be filtered
@@ -2863,48 +2797,6 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 	}
 	RT_TRACE(COMP_INIT, "%s():after firmware download\n", __func__);
 
-#ifdef TO_DO_LIST
-	if (Adapter->ResetProgress == RESET_TYPE_NORESET) {
-		if (pMgntInfo->RegRfOff) { /* User disable RF via registry. */
-			RT_TRACE((COMP_INIT | COMP_RF), DBG_LOUD,
-				 ("InitializeAdapter819xUsb(): Turn off RF for RegRfOff ----------\n"));
-			MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_SW);
-			/* Those actions will be discard in MgntActSet_RF_State
-			 * because of the same state
-			 */
-			for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
-				PHY_SetRFReg(Adapter,
-					     (enum rf90_radio_path_e)eRFPath,
-					     0x4, 0xC00, 0x0);
-		} else if (pMgntInfo->RfOffReason > RF_CHANGE_BY_PS) {
-			/* H/W or S/W RF OFF before sleep. */
-			RT_TRACE((COMP_INIT | COMP_RF), DBG_LOUD,
-				 ("InitializeAdapter819xUsb(): Turn off RF for RfOffReason(%d) ----------\n",
-				  pMgntInfo->RfOffReason));
-			MgntActSet_RF_State(Adapter,
-					    eRfOff,
-					    pMgntInfo->RfOffReason);
-		} else {
-			pHalData->eRFPowerState = eRfOn;
-			pMgntInfo->RfOffReason = 0;
-			RT_TRACE((COMP_INIT | COMP_RF), DBG_LOUD,
-				 ("InitializeAdapter819xUsb(): RF is on ----------\n"));
-		}
-	} else {
-		if (pHalData->eRFPowerState == eRfOff) {
-			MgntActSet_RF_State(Adapter,
-					    eRfOff,
-					    pMgntInfo->RfOffReason);
-			/* Those actions will be discard in MgntActSet_RF_State
-			 * because of the same state
-			 */
-			for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++)
-				PHY_SetRFReg(Adapter,
-					     (enum rf90_radio_path_e)eRFPath,
-					     0x4, 0xC00, 0x0);
-		}
-	}
-#endif
 	/* config RF. */
 	if (priv->ResetProgress == RESET_TYPE_NORESET) {
 		rtl8192_phy_RFConfig(dev);
@@ -4957,20 +4849,18 @@ static void rtl8192_usb_disconnect(struct usb_interface *intf)
 	struct net_device *dev = usb_get_intfdata(intf);
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (dev) {
-		unregister_netdev(dev);
+	unregister_netdev(dev);
 
-		RT_TRACE(COMP_DOWN,
-			 "=============>wlan driver to be removed\n");
-		rtl8192_proc_remove_one(dev);
+	RT_TRACE(COMP_DOWN, "=============>wlan driver to be removed\n");
+	rtl8192_proc_remove_one(dev);
 
-		rtl8192_down(dev);
-		kfree(priv->pFirmware);
-		priv->pFirmware = NULL;
-		rtl8192_usb_deleteendpoints(dev);
-		usleep_range(10000, 11000);
-	}
+	rtl8192_down(dev);
+	kfree(priv->pFirmware);
+	priv->pFirmware = NULL;
+	rtl8192_usb_deleteendpoints(dev);
+	usleep_range(10000, 11000);
 	free_ieee80211(dev);
+
 	RT_TRACE(COMP_DOWN, "wlan driver removed\n");
 }
 

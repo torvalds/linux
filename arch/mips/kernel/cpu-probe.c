@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Processor capabilities determination functions.
  *
@@ -5,11 +6,6 @@
  * Copyright (C) 1994 - 2006 Ralf Baechle
  * Copyright (C) 2003, 2004  Maciej W. Rozycki
  * Copyright (C) 2001, 2004, 2011, 2012	 MIPS Technologies, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -1388,15 +1384,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			break;
 		}
 		break;
-	case PRID_IMP_R4300:
-		c->cputype = CPU_R4300;
-		__cpu_name[cpu] = "R4300";
-		set_isa(c, MIPS_CPU_ISA_III);
-		c->fpu_msk31 |= FPU_CSR_CONDX;
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 32;
-		break;
 	case PRID_IMP_R4600:
 		c->cputype = CPU_R4600;
 		__cpu_name[cpu] = "R4600";
@@ -1472,14 +1459,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			     MIPS_CPU_LLSC;
 		c->tlbsize = 48;
 		break;
-	case PRID_IMP_R5432:
-		c->cputype = CPU_R5432;
-		__cpu_name[cpu] = "R5432";
-		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = R4K_OPTS | MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_WATCH | MIPS_CPU_LLSC;
-		c->tlbsize = 48;
-		break;
 	case PRID_IMP_R5500:
 		c->cputype = CPU_R5500;
 		__cpu_name[cpu] = "R5500";
@@ -1511,15 +1490,6 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 		 *	   0 =>	   48 entry JTLB
 		 */
 		c->tlbsize = (read_c0_info() & (1 << 29)) ? 64 : 48;
-		break;
-	case PRID_IMP_R8000:
-		c->cputype = CPU_R8000;
-		__cpu_name[cpu] = "RM8000";
-		set_isa(c, MIPS_CPU_ISA_IV);
-		c->options = MIPS_CPU_TLB | MIPS_CPU_4KEX |
-			     MIPS_CPU_FPU | MIPS_CPU_32FPR |
-			     MIPS_CPU_LLSC;
-		c->tlbsize = 384;      /* has weird TLB: 3-way x 128 */
 		break;
 	case PRID_IMP_R10000:
 		c->cputype = CPU_R10000;
@@ -1577,6 +1547,8 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3a");
 			set_isa(c, MIPS_CPU_ISA_M64R1);
+			c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
+				MIPS_ASE_LOONGSON_EXT);
 			break;
 		case PRID_REV_LOONGSON3B_R1:
 		case PRID_REV_LOONGSON3B_R2:
@@ -1584,6 +1556,8 @@ static inline void cpu_probe_legacy(struct cpuinfo_mips *c, unsigned int cpu)
 			__cpu_name[cpu] = "ICT Loongson-3";
 			set_elf_platform(cpu, "loongson3b");
 			set_isa(c, MIPS_CPU_ISA_M64R1);
+			c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
+				MIPS_ASE_LOONGSON_EXT);
 			break;
 		}
 
@@ -1950,6 +1924,8 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 		decode_configs(c);
 		c->options |= MIPS_CPU_FTLB | MIPS_CPU_TLBINV | MIPS_CPU_LDPTE;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
+		c->ases |= (MIPS_ASE_LOONGSON_MMI | MIPS_ASE_LOONGSON_CAM |
+			MIPS_ASE_LOONGSON_EXT | MIPS_ASE_LOONGSON_EXT2);
 		break;
 	default:
 		panic("Unknown Loongson Processor ID!");
@@ -1960,19 +1936,42 @@ static inline void cpu_probe_loongson(struct cpuinfo_mips *c, unsigned int cpu)
 static inline void cpu_probe_ingenic(struct cpuinfo_mips *c, unsigned int cpu)
 {
 	decode_configs(c);
-	/* JZRISC does not implement the CP0 counter. */
+
+	/*
+	 * XBurst misses a config2 register, so config3 decode was skipped in
+	 * decode_configs().
+	 */
+	decode_config3(c);
+
+	/* XBurst does not implement the CP0 counter. */
 	c->options &= ~MIPS_CPU_COUNTER;
 	BUG_ON(!__builtin_constant_p(cpu_has_counter) || cpu_has_counter);
+
 	switch (c->processor_id & PRID_IMP_MASK) {
-	case PRID_IMP_JZRISC:
-		c->cputype = CPU_JZRISC;
+	case PRID_IMP_XBURST:
+		c->cputype = CPU_XBURST;
 		c->writecombine = _CACHE_UNCACHED_ACCELERATED;
 		__cpu_name[cpu] = "Ingenic JZRISC";
+		/*
+		 * The XBurst core by default attempts to avoid branch target
+		 * buffer lookups by detecting & special casing loops. This
+		 * feature will cause BogoMIPS and lpj calculate in error.
+		 * Set cp0 config7 bit 4 to disable this feature.
+		 */
+		set_c0_config7(MIPS_CONF7_BTB_LOOP_EN);
 		break;
 	default:
 		panic("Unknown Ingenic Processor ID!");
 		break;
 	}
+
+	/*
+	 * The config0 register in the Xburst CPUs with a processor ID of
+	 * PRID_COMP_INGENIC_D0 report themselves as MIPS32r2 compatible,
+	 * but they don't actually support this ISA.
+	 */
+	if ((c->processor_id & PRID_COMP_MASK) == PRID_COMP_INGENIC_D0)
+		c->isa_level &= ~MIPS_CPU_ISA_M32R2;
 }
 
 static inline void cpu_probe_netlogic(struct cpuinfo_mips *c, int cpu)

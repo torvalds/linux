@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ISHTP bus driver
  *
  * Copyright (c) 2012-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 
 #include <linux/module.h>
@@ -119,7 +111,7 @@ int ishtp_send_msg(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
  * Return: This returns IPC send message status.
  */
 int ishtp_write_message(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
-			unsigned char *buf)
+			void *buf)
 {
 	return ishtp_send_msg(dev, hdr, buf, NULL, NULL);
 }
@@ -133,18 +125,15 @@ int ishtp_write_message(struct ishtp_device *dev, struct ishtp_msg_hdr *hdr,
  *
  * Return: fw client index or -ENOENT if not found
  */
-int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const uuid_le *uuid)
+int ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *uuid)
 {
-	int i, res = -ENOENT;
+	unsigned int i;
 
 	for (i = 0; i < dev->fw_clients_num; ++i) {
-		if (uuid_le_cmp(*uuid, dev->fw_clients[i].props.protocol_name)
-				== 0) {
-			res = i;
-			break;
-		}
+		if (guid_equal(uuid, &dev->fw_clients[i].props.protocol_name))
+			return i;
 	}
-	return res;
+	return -ENOENT;
 }
 EXPORT_SYMBOL(ishtp_fw_cl_by_uuid);
 
@@ -158,7 +147,7 @@ EXPORT_SYMBOL(ishtp_fw_cl_by_uuid);
  * Return: pointer of client information on success, NULL on failure.
  */
 struct ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
-						const uuid_le *uuid)
+					       const guid_t *uuid)
 {
 	int i;
 	unsigned long flags;
@@ -172,6 +161,19 @@ struct ishtp_fw_client *ishtp_fw_cl_get_client(struct ishtp_device *dev,
 	return &dev->fw_clients[i];
 }
 EXPORT_SYMBOL(ishtp_fw_cl_get_client);
+
+/**
+ * ishtp_get_fw_client_id() - Get fw client id
+ *
+ * This interface is used to reset HW get FW client id.
+ *
+ * Return: firmware client id.
+ */
+int ishtp_get_fw_client_id(struct ishtp_fw_client *fw_client)
+{
+	return fw_client->client_id;
+}
+EXPORT_SYMBOL(ishtp_get_fw_client_id);
 
 /**
  * ishtp_fw_cl_by_id() - return index to fw_clients for client_id
@@ -220,6 +222,26 @@ static int ishtp_cl_device_probe(struct device *dev)
 		return -ENODEV;
 
 	return driver->probe(device);
+}
+
+/**
+ * ishtp_cl_bus_match() - Bus match() callback
+ * @dev: the device structure
+ * @drv: the driver structure
+ *
+ * This is a bus match callback, called when a new ishtp_cl_device is
+ * registered during ishtp bus client enumeration. Use the guid_t in
+ * drv and dev to decide whether they match or not.
+ *
+ * Return: 1 if dev & drv matches, 0 otherwise.
+ */
+static int ishtp_cl_bus_match(struct device *dev, struct device_driver *drv)
+{
+	struct ishtp_cl_device *device = to_ishtp_cl_device(dev);
+	struct ishtp_cl_driver *driver = to_ishtp_cl_driver(drv);
+
+	return guid_equal(driver->guid,
+			  &device->fw_client->props.protocol_name);
 }
 
 /**
@@ -375,6 +397,7 @@ static struct bus_type ishtp_cl_bus_type = {
 	.name		= "ishtp",
 	.dev_groups	= ishtp_cl_dev_groups,
 	.probe		= ishtp_cl_device_probe,
+	.match		= ishtp_cl_bus_match,
 	.remove		= ishtp_cl_device_remove,
 	.pm		= &ishtp_cl_bus_dev_pm_ops,
 	.uevent		= ishtp_cl_uevent,
@@ -401,7 +424,7 @@ static const struct device_type ishtp_cl_device_type = {
  * Return: ishtp_cl_device pointer or NULL on failure
  */
 static struct ishtp_cl_device *ishtp_bus_add_device(struct ishtp_device *dev,
-						    uuid_le uuid, char *name)
+						    guid_t uuid, char *name)
 {
 	struct ishtp_cl_device *device;
 	int status;
@@ -467,7 +490,7 @@ static void ishtp_bus_remove_device(struct ishtp_cl_device *device)
 }
 
 /**
- * __ishtp_cl_driver_register() - Client driver register
+ * ishtp_cl_driver_register() - Client driver register
  * @driver:	the client driver instance
  * @owner:	Owner of this driver module
  *
@@ -476,8 +499,8 @@ static void ishtp_bus_remove_device(struct ishtp_cl_device *device)
  *
  * Return: Return value of driver_register or -ENODEV if not ready
  */
-int __ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
-			       struct module *owner)
+int ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
+			     struct module *owner)
 {
 	int err;
 
@@ -494,7 +517,7 @@ int __ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
 
 	return 0;
 }
-EXPORT_SYMBOL(__ishtp_cl_driver_register);
+EXPORT_SYMBOL(ishtp_cl_driver_register);
 
 /**
  * ishtp_cl_driver_unregister() - Client driver unregister
@@ -616,6 +639,20 @@ void *ishtp_get_drvdata(struct ishtp_cl_device *cl_device)
 EXPORT_SYMBOL(ishtp_get_drvdata);
 
 /**
+ * ishtp_dev_to_cl_device() - get ishtp_cl_device instance from device instance
+ * @device: device instance
+ *
+ * Get ish_cl_device instance which embeds device instance in it.
+ *
+ * Return: pointer to ishtp_cl_device instance
+ */
+struct ishtp_cl_device *ishtp_dev_to_cl_device(struct device *device)
+{
+	return to_ishtp_cl_device(device);
+}
+EXPORT_SYMBOL(ishtp_dev_to_cl_device);
+
+/**
  * ishtp_bus_new_client() - Create a new client
  * @dev:	ISHTP device instance
  *
@@ -629,7 +666,7 @@ int ishtp_bus_new_client(struct ishtp_device *dev)
 	int	i;
 	char	*dev_name;
 	struct ishtp_cl_device	*cl_device;
-	uuid_le	device_uuid;
+	guid_t	device_uuid;
 
 	/*
 	 * For all reported clients, create an unconnected client and add its
@@ -639,7 +676,7 @@ int ishtp_bus_new_client(struct ishtp_device *dev)
 	 */
 	i = dev->fw_client_presentation_num - 1;
 	device_uuid = dev->fw_clients[i].props.protocol_name;
-	dev_name = kasprintf(GFP_KERNEL, "{%pUL}", device_uuid.b);
+	dev_name = kasprintf(GFP_KERNEL, "{%pUL}", &device_uuid);
 	if (!dev_name)
 		return	-ENOMEM;
 
@@ -675,7 +712,8 @@ int ishtp_cl_device_bind(struct ishtp_cl *cl)
 	spin_lock_irqsave(&cl->dev->device_list_lock, flags);
 	list_for_each_entry(cl_device, &cl->dev->device_list,
 			device_link) {
-		if (cl_device->fw_client->client_id == cl->fw_client_id) {
+		if (cl_device->fw_client &&
+		    cl_device->fw_client->client_id == cl->fw_client_id) {
 			cl->device = cl_device;
 			rv = 0;
 			break;
@@ -735,6 +773,7 @@ void ishtp_bus_remove_all_clients(struct ishtp_device *ishtp_dev,
 	spin_lock_irqsave(&ishtp_dev->device_list_lock, flags);
 	list_for_each_entry_safe(cl_device, n, &ishtp_dev->device_list,
 				 device_link) {
+		cl_device->fw_client = NULL;
 		if (warm_reset && cl_device->reference_count)
 			continue;
 
@@ -806,6 +845,59 @@ int ishtp_use_dma_transfer(void)
 {
 	return ishtp_use_dma;
 }
+
+/**
+ * ishtp_device() - Return device pointer
+ *
+ * This interface is used to return device pointer from ishtp_cl_device
+ * instance.
+ *
+ * Return: device *.
+ */
+struct device *ishtp_device(struct ishtp_cl_device *device)
+{
+	return &device->dev;
+}
+EXPORT_SYMBOL(ishtp_device);
+
+/**
+ * ishtp_get_pci_device() - Return PCI device dev pointer
+ * This interface is used to return PCI device pointer
+ * from ishtp_cl_device instance.
+ *
+ * Return: device *.
+ */
+struct device *ishtp_get_pci_device(struct ishtp_cl_device *device)
+{
+	return device->ishtp_dev->devc;
+}
+EXPORT_SYMBOL(ishtp_get_pci_device);
+
+/**
+ * ishtp_trace_callback() - Return trace callback
+ *
+ * This interface is used to return trace callback function pointer.
+ *
+ * Return: void *.
+ */
+void *ishtp_trace_callback(struct ishtp_cl_device *cl_device)
+{
+	return cl_device->ishtp_dev->print_log;
+}
+EXPORT_SYMBOL(ishtp_trace_callback);
+
+/**
+ * ish_hw_reset() - Call HW reset IPC callback
+ *
+ * This interface is used to reset HW in case of error.
+ *
+ * Return: value from IPC hw_reset callback
+ */
+int ish_hw_reset(struct ishtp_device *dev)
+{
+	return dev->ops->hw_reset(dev);
+}
+EXPORT_SYMBOL(ish_hw_reset);
 
 /**
  * ishtp_bus_register() - Function to register bus

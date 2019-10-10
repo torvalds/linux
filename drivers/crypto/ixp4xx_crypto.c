@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel IXP4xx NPE-C crypto driver
  *
  * Copyright (C) 2008 Christian Hohnstaedt <chohnstaedt@innominate.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
  */
 
 #include <linux/platform_device.h>
@@ -21,7 +17,7 @@
 #include <linux/module.h>
 
 #include <crypto/ctr.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/aes.h>
 #include <crypto/hmac.h>
 #include <crypto/sha.h>
@@ -30,8 +26,8 @@
 #include <crypto/authenc.h>
 #include <crypto/scatterwalk.h>
 
-#include <mach/npe.h>
-#include <mach/qmgr.h>
+#include <linux/soc/ixp4xx/npe.h>
+#include <linux/soc/ixp4xx/qmgr.h>
 
 #define MAX_KEYLEN 32
 
@@ -104,7 +100,7 @@ struct buffer_desc {
 	u16 pkt_len;
 	u16 buf_len;
 #endif
-	u32 phys_addr;
+	dma_addr_t phys_addr;
 	u32 __reserved[4];
 	struct buffer_desc *next;
 	enum dma_data_direction dir;
@@ -121,9 +117,9 @@ struct crypt_ctl {
 	u8 mode;		/* NPE_OP_*  operation mode */
 #endif
 	u8 iv[MAX_IVLEN];	/* IV for CBC mode or CTR IV for CTR mode */
-	u32 icv_rev_aes;	/* icv or rev aes */
-	u32 src_buf;
-	u32 dst_buf;
+	dma_addr_t icv_rev_aes;	/* icv or rev aes */
+	dma_addr_t src_buf;
+	dma_addr_t dst_buf;
 #ifdef __ARMEB__
 	u16 auth_offs;		/* Authentication start offset */
 	u16 auth_len;		/* Authentication data length */
@@ -324,7 +320,8 @@ static struct crypt_ctl *get_crypt_desc_emerg(void)
 	}
 }
 
-static void free_buf_chain(struct device *dev, struct buffer_desc *buf,u32 phys)
+static void free_buf_chain(struct device *dev, struct buffer_desc *buf,
+			   dma_addr_t phys)
 {
 	while (buf) {
 		struct buffer_desc *buf1;
@@ -606,7 +603,7 @@ static int register_chain_var(struct crypto_tfm *tfm, u8 xpad, u32 target,
 	struct buffer_desc *buf;
 	int i;
 	u8 *pad;
-	u32 pad_phys, buf_phys;
+	dma_addr_t pad_phys, buf_phys;
 
 	BUILD_BUG_ON(NPE_CTX_LEN < HMAC_PAD_BLOCKLEN);
 	pad = dma_pool_alloc(ctx_pool, GFP_KERNEL, &pad_phys);
@@ -758,19 +755,8 @@ static int setup_cipher(struct crypto_tfm *tfm, int encrypt,
 			return -EINVAL;
 		}
 		cipher_cfg |= keylen_cfg;
-	} else if (cipher_cfg & MOD_3DES) {
-		const u32 *K = (const u32 *)key;
-		if (unlikely(!((K[0] ^ K[2]) | (K[1] ^ K[3])) ||
-			     !((K[2] ^ K[4]) | (K[3] ^ K[5]))))
-		{
-			*flags |= CRYPTO_TFM_RES_BAD_KEY_SCHED;
-			return -EINVAL;
-		}
 	} else {
-		u32 tmp[DES_EXPKEY_WORDS];
-		if (des_ekey(tmp, key) == 0) {
-			*flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		}
+		crypto_des_verify_key(tfm, key);
 	}
 	/* write cfg word to cryptinfo */
 	*(u32*)cinfo = cpu_to_be32(cipher_cfg);
@@ -799,7 +785,7 @@ static struct buffer_desc *chainup_buffers(struct device *dev,
 	for (; nbytes > 0; sg = sg_next(sg)) {
 		unsigned len = min(nbytes, sg->length);
 		struct buffer_desc *next_buf;
-		u32 next_buf_phys;
+		dma_addr_t next_buf_phys;
 		void *ptr;
 
 		nbytes -= len;
@@ -857,6 +843,13 @@ out:
 	if (!atomic_dec_and_test(&ctx->configuring))
 		wait_for_completion(&ctx->completion);
 	return ret;
+}
+
+static int ablk_des3_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
+			    unsigned int key_len)
+{
+	return verify_ablkcipher_des3_key(tfm, key) ?:
+	       ablk_setkey(tfm, key, key_len);
 }
 
 static int ablk_rfc3686_setkey(struct crypto_ablkcipher *tfm, const u8 *key,
@@ -1175,6 +1168,37 @@ badkey:
 	return -EINVAL;
 }
 
+static int des3_aead_setkey(struct crypto_aead *tfm, const u8 *key,
+			    unsigned int keylen)
+{
+	struct ixp_ctx *ctx = crypto_aead_ctx(tfm);
+	struct crypto_authenc_keys keys;
+	int err;
+
+	err = crypto_authenc_extractkeys(&keys, key, keylen);
+	if (unlikely(err))
+		goto badkey;
+
+	err = -EINVAL;
+	if (keys.authkeylen > sizeof(ctx->authkey))
+		goto badkey;
+
+	err = verify_aead_des3_key(tfm, keys.enckey, keys.enckeylen);
+	if (err)
+		goto badkey;
+
+	memcpy(ctx->authkey, keys.authkey, keys.authkeylen);
+	memcpy(ctx->enckey, keys.enckey, keys.enckeylen);
+	ctx->authkey_len = keys.authkeylen;
+	ctx->enckey_len = keys.enckeylen;
+
+	memzero_explicit(&keys, sizeof(keys));
+	return aead_setup(tfm, crypto_aead_authsize(tfm));
+badkey:
+	memzero_explicit(&keys, sizeof(keys));
+	return err;
+}
+
 static int aead_encrypt(struct aead_request *req)
 {
 	return aead_perform(req, 1, req->assoclen, req->cryptlen, req->iv);
@@ -1220,6 +1244,7 @@ static struct ixp_alg ixp4xx_algos[] = {
 			.min_keysize	= DES3_EDE_KEY_SIZE,
 			.max_keysize	= DES3_EDE_KEY_SIZE,
 			.ivsize		= DES3_EDE_BLOCK_SIZE,
+			.setkey		= ablk_des3_setkey,
 			}
 		}
 	},
@@ -1232,6 +1257,7 @@ static struct ixp_alg ixp4xx_algos[] = {
 		.cra_u		= { .ablkcipher = {
 			.min_keysize	= DES3_EDE_KEY_SIZE,
 			.max_keysize	= DES3_EDE_KEY_SIZE,
+			.setkey		= ablk_des3_setkey,
 			}
 		}
 	},
@@ -1313,6 +1339,7 @@ static struct ixp_aead_alg ixp4xx_aeads[] = {
 		},
 		.ivsize		= DES3_EDE_BLOCK_SIZE,
 		.maxauthsize	= MD5_DIGEST_SIZE,
+		.setkey		= des3_aead_setkey,
 	},
 	.hash = &hash_alg_md5,
 	.cfg_enc = CIPH_ENCR | MOD_3DES | MOD_CBC_ENC | KEYLEN_192,
@@ -1337,6 +1364,7 @@ static struct ixp_aead_alg ixp4xx_aeads[] = {
 		},
 		.ivsize		= DES3_EDE_BLOCK_SIZE,
 		.maxauthsize	= SHA1_DIGEST_SIZE,
+		.setkey		= des3_aead_setkey,
 	},
 	.hash = &hash_alg_sha1,
 	.cfg_enc = CIPH_ENCR | MOD_3DES | MOD_CBC_ENC | KEYLEN_192,
@@ -1443,7 +1471,7 @@ static int __init ixp_module_init(void)
 		/* authenc */
 		cra->base.cra_flags = CRYPTO_ALG_KERN_DRIVER_ONLY |
 				      CRYPTO_ALG_ASYNC;
-		cra->setkey = aead_setkey;
+		cra->setkey = cra->setkey ?: aead_setkey;
 		cra->setauthsize = aead_setauthsize;
 		cra->encrypt = aead_encrypt;
 		cra->decrypt = aead_decrypt;

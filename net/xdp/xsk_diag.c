@@ -56,7 +56,7 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	du.id = umem->id;
 	du.size = umem->size;
 	du.num_pages = umem->npgs;
-	du.chunk_size = (__u32)(~umem->chunk_mask + 1);
+	du.chunk_size = umem->chunk_size_nohr + umem->headroom;
 	du.headroom = umem->headroom;
 	du.ifindex = umem->dev ? umem->dev->ifindex : 0;
 	du.queue_id = umem->queue_id;
@@ -68,9 +68,9 @@ static int xsk_diag_put_umem(const struct xdp_sock *xs, struct sk_buff *nlskb)
 	err = nla_put(nlskb, XDP_DIAG_UMEM, sizeof(du), &du);
 
 	if (!err && umem->fq)
-		err = xsk_diag_put_ring(xs->tx, XDP_DIAG_UMEM_FILL_RING, nlskb);
+		err = xsk_diag_put_ring(umem->fq, XDP_DIAG_UMEM_FILL_RING, nlskb);
 	if (!err && umem->cq) {
-		err = xsk_diag_put_ring(xs->tx, XDP_DIAG_UMEM_COMPLETION_RING,
+		err = xsk_diag_put_ring(umem->cq, XDP_DIAG_UMEM_COMPLETION_RING,
 					nlskb);
 	}
 	return err;
@@ -97,6 +97,7 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 	msg->xdiag_ino = sk_ino;
 	sock_diag_save_cookie(sk, msg->xdiag_cookie);
 
+	mutex_lock(&xs->mutex);
 	if ((req->xdiag_show & XDP_SHOW_INFO) && xsk_diag_put_info(xs, nlskb))
 		goto out_nlmsg_trim;
 
@@ -117,10 +118,12 @@ static int xsk_diag_fill(struct sock *sk, struct sk_buff *nlskb,
 	    sock_diag_put_meminfo(sk, nlskb, XDP_DIAG_MEMINFO))
 		goto out_nlmsg_trim;
 
+	mutex_unlock(&xs->mutex);
 	nlmsg_end(nlskb, nlh);
 	return 0;
 
 out_nlmsg_trim:
+	mutex_unlock(&xs->mutex);
 	nlmsg_cancel(nlskb, nlh);
 	return -EMSGSIZE;
 }

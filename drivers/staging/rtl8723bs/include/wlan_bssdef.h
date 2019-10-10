@@ -129,15 +129,15 @@ struct ndis_801_11_ai_resfi {
 
 typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION
 {
-    u32                   Length;
-    u16                  AvailableRequestFixedIEs;
-    struct ndis_802_11_ai_reqfi    RequestFixedIEs;
-    u32                   RequestIELength;
-    u32                   OffsetRequestIEs;
-    u16                  AvailableResponseFixedIEs;
-    struct ndis_801_11_ai_resfi    ResponseFixedIEs;
-    u32                   ResponseIELength;
-    u32                   OffsetResponseIEs;
+	u32                   Length;
+	u16                  AvailableRequestFixedIEs;
+	struct ndis_802_11_ai_reqfi    RequestFixedIEs;
+	u32                   RequestIELength;
+	u32                   OffsetRequestIEs;
+	u16                  AvailableResponseFixedIEs;
+	struct ndis_801_11_ai_resfi    ResponseFixedIEs;
+	u32                   ResponseIELength;
+	u32                   OffsetResponseIEs;
 } NDIS_802_11_ASSOCIATION_INFORMATION, *PNDIS_802_11_ASSOCIATION_INFORMATION;
 
 enum NDIS_802_11_RELOAD_DEFAULTS {
@@ -148,19 +148,19 @@ enum NDIS_802_11_RELOAD_DEFAULTS {
 /*  Key mapping keys require a BSSID */
 typedef struct _NDIS_802_11_KEY
 {
-    u32           Length;             /*  Length of this structure */
-    u32           KeyIndex;
-    u32           KeyLength;          /*  length of key in bytes */
-    NDIS_802_11_MAC_ADDRESS BSSID;
-    unsigned long long KeyRSC;
-    u8           KeyMaterial[32];     /*  variable length depending on above field */
+	u32           Length;             /*  Length of this structure */
+	u32           KeyIndex;
+	u32           KeyLength;          /*  length of key in bytes */
+	NDIS_802_11_MAC_ADDRESS BSSID;
+	unsigned long long KeyRSC;
+	u8           KeyMaterial[32];     /*  variable length depending on above field */
 } NDIS_802_11_KEY, *PNDIS_802_11_KEY;
 
 typedef struct _NDIS_802_11_REMOVE_KEY
 {
-    u32                   Length;        /*  Length of this structure */
-    u32                   KeyIndex;
-    NDIS_802_11_MAC_ADDRESS BSSID;
+	u32                   Length;        /*  Length of this structure */
+	u32                   KeyIndex;
+	NDIS_802_11_MAC_ADDRESS BSSID;
 } NDIS_802_11_REMOVE_KEY, *PNDIS_802_11_REMOVE_KEY;
 
 struct ndis_802_11_wep {
@@ -181,7 +181,7 @@ struct ndis_802_11_wep {
 #define MIC_CHECK_TIME	60000000
 
 #ifndef Ndis802_11APMode
-#define Ndis802_11APMode (Ndis802_11InfrastructureMax+1)
+#define Ndis802_11APMode (Ndis802_11InfrastructureMax + 1)
 #endif
 
 struct wlan_phy_info {
@@ -223,7 +223,7 @@ struct wlan_bssid_ex {
 	u8  IEs[MAX_IE_SZ];	/* timestamp, beacon interval, and capability information) */
 } __packed;
 
-__inline  static uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
+static inline uint get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss)
 {
 	return (sizeof(struct wlan_bssid_ex) - MAX_IE_SZ + bss->IELength);
 }
@@ -240,15 +240,15 @@ struct	wlan_network {
 };
 
 enum VRTL_CARRIER_SENSE {
-    DISABLE_VCS,
-    ENABLE_VCS,
-    AUTO_VCS
+	DISABLE_VCS,
+	ENABLE_VCS,
+	AUTO_VCS
 };
 
 enum VCS_TYPE {
-    NONE_VCS,
-    RTS_CTS,
-    CTS_TO_SELF
+	NONE_VCS,
+	RTS_CTS,
+	CTS_TO_SELF
 };
 
 #define PWR_CAM 0
@@ -259,9 +259,9 @@ enum VCS_TYPE {
 
 enum UAPSD_MAX_SP {
 	NO_LIMIT,
-       TWO_MSDU,
-       FOUR_MSDU,
-       SIX_MSDU
+	TWO_MSDU,
+	FOUR_MSDU,
+	SIX_MSDU
 };
 
 #define NUM_PRE_AUTH_KEY 16
