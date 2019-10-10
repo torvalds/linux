@@ -1339,6 +1339,19 @@ config PCENGINES_APU2
 
 source "drivers/platform/x86/intel_speed_select_if/Kconfig"
 
+config SYSTEM76_ACPI
+	tristate "System76 ACPI Driver"
+	depends on ACPI
+	select NEW_LEDS
+	select LEDS_CLASS
+	select LEDS_TRIGGERS
+	help
+	  This is a driver for System76 laptops running open firmware. It adds
+	  support for Fn-Fx key combinations, keyboard backlight, and airplane mode
+	  LEDs.
+
+	  If you have a System76 laptop running open firmware, say Y or M here.
+
 endif # X86_PLATFORM_DEVICES
 
 config PMC_ATOM
