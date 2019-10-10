@@ -465,3 +465,29 @@
 
 #include "am33xx-l4.dtsi"
 #include "am33xx-clocks.dtsi"
+
+&prcm {
+	prm_per: prm@c00 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0xc00 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_wkup: prm@d00 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0xd00 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_device: prm@f00 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0xf00 0x100>;
+		#reset-cells = <1>;
+	};
+
+	prm_gfx: prm@1100 {
+		compatible = "ti,am3-prm-inst", "ti,omap-prm-inst";
+		reg = <0x1100 0x100>;
+		#reset-cells = <1>;
+	};
+};
