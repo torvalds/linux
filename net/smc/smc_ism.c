@@ -286,7 +286,9 @@ struct smcd_dev *smcd_alloc_dev(struct device *parent, const char *name,
 	smc_pnetid_by_dev_port(parent, 0, smcd->pnetid);
 
 	spin_lock_init(&smcd->lock);
+	spin_lock_init(&smcd->lgr_lock);
 	INIT_LIST_HEAD(&smcd->vlan);
+	INIT_LIST_HEAD(&smcd->lgr_list);
 	smcd->event_wq = alloc_ordered_workqueue("ism_evt_wq-%s)",
 						 WQ_MEM_RECLAIM, name);
 	if (!smcd->event_wq) {
@@ -313,6 +315,7 @@ void smcd_unregister_dev(struct smcd_dev *smcd)
 	spin_lock(&smcd_dev_list.lock);
 	list_del(&smcd->list);
 	spin_unlock(&smcd_dev_list.lock);
+	smcd->going_away = 1;
 	flush_workqueue(smcd->event_wq);
 	destroy_workqueue(smcd->event_wq);
 	smc_smcd_terminate(smcd, 0, VLAN_VID_MASK);
@@ -342,6 +345,8 @@ void smcd_handle_event(struct smcd_dev *smcd, struct smcd_event *event)
 {
 	struct smc_ism_event_work *wrk;
 
+	if (smcd->going_away)
+		return;
 	/* copy event to event work queue, and let it be handled there */
 	wrk = kmalloc(sizeof(*wrk), GFP_ATOMIC);
 	if (!wrk)

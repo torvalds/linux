@@ -47,6 +47,7 @@ struct smc_ib_device {				/* ib-device infos for smc */
 	u8			initialized : 1; /* ib dev CQ, evthdl done */
 	struct work_struct	port_event_work;
 	unsigned long		port_event_mask;
+	DECLARE_BITMAP(ports_going_away, SMC_MAX_PORTS);
 };
 
 struct smc_buf_desc;
