@@ -1235,6 +1235,9 @@ static void ax88179_get_mac_addr(struct usbnet *dev)
 		netdev_info(dev->net, "invalid MAC address, using random\n");
 		eth_hw_addr_random(dev->net);
 	}
+
+	ax88179_write_cmd(dev, AX_ACCESS_MAC, AX_NODE_ID, ETH_ALEN, ETH_ALEN,
+			  dev->net->dev_addr);
 }
 
 static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
