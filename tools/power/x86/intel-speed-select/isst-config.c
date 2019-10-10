@@ -1005,6 +1005,26 @@ static void set_tdp_level(int arg)
 	isst_ctdp_display_information_end(outf);
 }
 
+static void clx_n_dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2,
+				       void *arg3, void *arg4)
+{
+	int ret;
+
+	ret = clx_n_config(cpu);
+	if (ret) {
+		perror("isst_get_process_ctdp");
+	} else {
+		struct isst_pkg_ctdp_level_info *ctdp_level;
+		struct isst_pbf_info *pbf_info;
+
+		ctdp_level = &clx_n_pkg_dev.ctdp_level[0];
+		pbf_info = &ctdp_level->pbf_info;
+		isst_pbf_display_information(cpu, outf, tdp_level, pbf_info);
+		free_cpu_set(ctdp_level->core_cpumask);
+		free_cpu_set(pbf_info->core_cpumask);
+	}
+}
+
 static void dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 				    void *arg4)
 {
@@ -1022,6 +1042,8 @@ static void dump_pbf_config_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 
 static void dump_pbf_config(int arg)
 {
+	void *fn;
+
 	if (cmd_help) {
 		fprintf(stderr,
 			"Print Intel(R) Speed Select Technology base frequency configuration for a TDP level\n");
@@ -1035,13 +1057,18 @@ static void dump_pbf_config(int arg)
 		exit(1);
 	}
 
-	isst_ctdp_display_information_start(outf);
-	if (max_target_cpus)
-		for_each_online_target_cpu_in_set(dump_pbf_config_for_cpu, NULL,
-						  NULL, NULL, NULL);
+	if (!is_clx_n_platform())
+		fn = dump_pbf_config_for_cpu;
 	else
-		for_each_online_package_in_set(dump_pbf_config_for_cpu, NULL,
-					       NULL, NULL, NULL);
+		fn = clx_n_dump_pbf_config_for_cpu;
+
+	isst_ctdp_display_information_start(outf);
+
+	if (max_target_cpus)
+		for_each_online_target_cpu_in_set(fn, NULL, NULL, NULL, NULL);
+	else
+		for_each_online_package_in_set(fn, NULL, NULL, NULL, NULL);
+
 	isst_ctdp_display_information_end(outf);
 }
 
@@ -1234,6 +1261,19 @@ static void set_pbf_for_cpu(int cpu, void *arg1, void *arg2, void *arg3,
 {
 	int ret;
 	int status = *(int *)arg4;
+
+	if (is_clx_n_platform()) {
+		if (status == 0) {
+			ret = -1;
+			if (auto_mode)
+				set_scaling_min_to_cpuinfo_min(cpu);
+		} else {
+			ret = 0;
+			if (auto_mode)
+				set_scaling_min_to_cpuinfo_max(cpu);
+		}
+		goto disp_result;
+	}
 
 	if (auto_mode) {
 		if (status) {
@@ -1763,6 +1803,9 @@ static void get_clos_assoc(int arg)
 
 static struct process_cmd_struct clx_n_cmds[] = {
 	{ "perf-profile", "info", dump_isst_config, 0 },
+	{ "base-freq", "info", dump_pbf_config, 0 },
+	{ "base-freq", "enable", set_pbf_enable, 1 },
+	{ "base-freq", "disable", set_pbf_enable, 0 },
 	{ NULL, NULL, NULL, 0 }
 };
 
