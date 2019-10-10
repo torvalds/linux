@@ -118,6 +118,11 @@ static int si2157_init(struct dvb_frontend *fe)
 			goto err;
 	}
 
+	if (dev->dont_load_firmware) {
+		dev_info(&client->dev, "device is buggy, skipping firmware download\n");
+		goto skip_fw_download;
+	}
+
 	/* query chip revision */
 	memcpy(cmd.args, "\x02", 1);
 	cmd.wlen = 1;
@@ -440,6 +445,7 @@ static int si2157_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, dev);
 	dev->fe = cfg->fe;
 	dev->inversion = cfg->inversion;
+	dev->dont_load_firmware = cfg->dont_load_firmware;
 	dev->if_port = cfg->if_port;
 	dev->chiptype = (u8)id->driver_data;
 	dev->if_frequency = 5000000; /* default value of property 0x0706 */
