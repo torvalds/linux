@@ -910,7 +910,6 @@ static const struct pci_device_id iwl_hw_card_ids[] = {
 	{IWL_PCI_DEVICE(0x2720, 0x0074, iwl_ax201_cfg_qu_hr)},
 	{IWL_PCI_DEVICE(0x2720, 0x0078, iwl_ax201_cfg_qu_hr)},
 	{IWL_PCI_DEVICE(0x2720, 0x007C, iwl_ax201_cfg_qu_hr)},
-	{IWL_PCI_DEVICE(0x2720, 0x0090, iwl22000_2ac_cfg_hr_cdb)},
 	{IWL_PCI_DEVICE(0x2720, 0x0244, iwl_ax101_cfg_qu_hr)},
 	{IWL_PCI_DEVICE(0x2720, 0x0310, iwl_ax201_cfg_qu_hr)},
 	{IWL_PCI_DEVICE(0x2720, 0x0A10, iwl_ax201_cfg_qu_hr)},
@@ -1083,11 +1082,6 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		else if ((hw_status & UMAG_GEN_HW_IS_FPGA) &&
 			 CSR_HW_RF_STEP(iwl_trans->hw_rf_id) == SILICON_A_STEP) {
 			cfg = &iwl22000_2ax_cfg_qnj_hr_a0_f0;
-		} else {
-			/*
-			 * a step no FPGA
-			 */
-			cfg = &iwl22000_2ac_cfg_hr;
 		}
 	}
 

@@ -247,28 +247,6 @@ static const struct iwl_ht_params iwl_22000_ht_params = {
 #define IWL_NUM_RBDS_22000_HE		2048
 #define IWL_NUM_RBDS_AX210_HE		4096
 
-const struct iwl_cfg iwl22000_2ac_cfg_hr = {
-	.name = "Intel(R) Dual Band Wireless AC 22000",
-	.fw_name_pre = IWL_22000_HR_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl22000_2ac_cfg_hr_cdb = {
-	.name = "Intel(R) Dual Band Wireless AC 22000",
-	.fw_name_pre = IWL_22000_HR_CDB_FW_PRE,
-	IWL_DEVICE_22500,
-	.cdb = true,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
-const struct iwl_cfg iwl22000_2ac_cfg_jf = {
-	.name = "Intel(R) Dual Band Wireless AC 22000",
-	.fw_name_pre = IWL_22000_JF_FW_PRE,
-	IWL_DEVICE_22500,
-	.num_rbds = IWL_NUM_RBDS_NON_HE,
-};
-
 const struct iwl_cfg iwl_ax101_cfg_qu_hr = {
 	.name = "Intel(R) Wi-Fi 6 AX101",
 	.fw_name_pre = IWL_22000_QU_B_HR_B_FW_PRE,
