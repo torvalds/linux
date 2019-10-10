@@ -1009,6 +1009,7 @@ static void calculate_wm_set_for_vlevel(
 #if defined(CONFIG_DRM_AMD_DC_DCN2_1)
 	wm_set->frac_urg_bw_nom = get_fraction_of_urgent_bandwidth(dml, pipes, pipe_cnt) * 1000;
 	wm_set->frac_urg_bw_flip = get_fraction_of_urgent_bandwidth_imm_flip(dml, pipes, pipe_cnt) * 1000;
+	wm_set->urgent_latency_ns = get_urgent_latency(dml, pipes, pipe_cnt) * 1000;
 #endif
 	dml->soc.dram_clock_change_latency_us = dram_clock_change_latency_cached;
 
