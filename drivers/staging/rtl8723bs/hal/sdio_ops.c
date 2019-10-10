@@ -15,7 +15,7 @@
 
 /*  */
 /*  Description: */
-/* 	The following mapping is for SDIO host local register space. */
+/*	The following mapping is for SDIO host local register space. */
 /*  */
 /*  Creadted by Roger, 2011.01.31. */
 /*  */
@@ -723,13 +723,13 @@ static s32 ReadInterrupt8723BSdio(struct adapter *adapter, u32 *phisr)
 }
 
 /*  */
-/* 	Description: */
-/* 		Initialize SDIO Host Interrupt Mask configuration variables for future use. */
+/*	Description: */
+/*		Initialize SDIO Host Interrupt Mask configuration variables for future use. */
 /*  */
-/* 	Assumption: */
-/* 		Using SDIO Local register ONLY for configuration. */
+/*	Assumption: */
+/*		Using SDIO Local register ONLY for configuration. */
 /*  */
-/* 	Created by Roger, 2011.02.11. */
+/*	Created by Roger, 2011.02.11. */
 /*  */
 void InitInterrupt8723BSdio(struct adapter *adapter)
 {
@@ -743,10 +743,10 @@ void InitInterrupt8723BSdio(struct adapter *adapter)
 }
 
 /*  */
-/* 	Description: */
-/* 		Initialize System Host Interrupt Mask configuration variables for future use. */
+/*	Description: */
+/*		Initialize System Host Interrupt Mask configuration variables for future use. */
 /*  */
-/* 	Created by Roger, 2011.08.03. */
+/*	Created by Roger, 2011.08.03. */
 /*  */
 void InitSysInterrupt8723BSdio(struct adapter *adapter)
 {
@@ -759,14 +759,14 @@ void InitSysInterrupt8723BSdio(struct adapter *adapter)
 }
 
 /*  */
-/* 	Description: */
-/* 		Enalbe SDIO Host Interrupt Mask configuration on SDIO local domain. */
+/*	Description: */
+/*		Enalbe SDIO Host Interrupt Mask configuration on SDIO local domain. */
 /*  */
-/* 	Assumption: */
-/* 		1. Using SDIO Local register ONLY for configuration. */
-/* 		2. PASSIVE LEVEL */
+/*	Assumption: */
+/*		1. Using SDIO Local register ONLY for configuration. */
+/*		2. PASSIVE LEVEL */
 /*  */
-/* 	Created by Roger, 2011.02.11. */
+/*	Created by Roger, 2011.02.11. */
 /*  */
 void EnableInterrupt8723BSdio(struct adapter *adapter)
 {
@@ -812,13 +812,13 @@ void EnableInterrupt8723BSdio(struct adapter *adapter)
 }
 
 /*  */
-/* 	Description: */
-/* 		Disable SDIO Host IMR configuration to mask unnecessary interrupt service. */
+/*	Description: */
+/*		Disable SDIO Host IMR configuration to mask unnecessary interrupt service. */
 /*  */
-/* 	Assumption: */
-/* 		Using SDIO Local register ONLY for configuration. */
+/*	Assumption: */
+/*		Using SDIO Local register ONLY for configuration. */
 /*  */
-/* 	Created by Roger, 2011.02.11. */
+/*	Created by Roger, 2011.02.11. */
 /*  */
 void DisableInterrupt8723BSdio(struct adapter *adapter)
 {
@@ -829,13 +829,13 @@ void DisableInterrupt8723BSdio(struct adapter *adapter)
 }
 
 /*  */
-/* 	Description: */
-/* 		Using 0x100 to check the power status of FW. */
+/*	Description: */
+/*		Using 0x100 to check the power status of FW. */
 /*  */
-/* 	Assumption: */
-/* 		Using SDIO Local register ONLY for configuration. */
+/*	Assumption: */
+/*		Using SDIO Local register ONLY for configuration. */
 /*  */
-/* 	Created by Isaac, 2013.09.10. */
+/*	Created by Isaac, 2013.09.10. */
 /*  */
 u8 CheckIPSStatus(struct adapter *adapter)
 {
@@ -1076,14 +1076,14 @@ void sd_int_hdl(struct adapter *adapter)
 }
 
 /*  */
-/* 	Description: */
-/* 		Query SDIO Local register to query current the number of Free TxPacketBuffer page. */
+/*	Description: */
+/*		Query SDIO Local register to query current the number of Free TxPacketBuffer page. */
 /*  */
-/* 	Assumption: */
-/* 		1. Running at PASSIVE_LEVEL */
-/* 		2. RT_TX_SPINLOCK is NOT acquired. */
+/*	Assumption: */
+/*		1. Running at PASSIVE_LEVEL */
+/*		2. RT_TX_SPINLOCK is NOT acquired. */
 /*  */
-/* 	Created by Roger, 2011.01.28. */
+/*	Created by Roger, 2011.01.28. */
 /*  */
 u8 HalQueryTxBufferStatus8723BSdio(struct adapter *adapter)
 {
@@ -1107,8 +1107,8 @@ u8 HalQueryTxBufferStatus8723BSdio(struct adapter *adapter)
 }
 
 /*  */
-/* 	Description: */
-/* 		Query SDIO Local register to get the current number of TX OQT Free Space. */
+/*	Description: */
+/*		Query SDIO Local register to get the current number of TX OQT Free Space. */
 /*  */
 void HalQueryTxOQTBufferStatus8723BSdio(struct adapter *adapter)
 {
