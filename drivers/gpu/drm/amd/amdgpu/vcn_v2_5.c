@@ -25,6 +25,7 @@
 
 #include "amdgpu.h"
 #include "amdgpu_vcn.h"
+#include "amdgpu_pm.h"
 #include "soc15.h"
 #include "soc15d.h"
 #include "vcn_v2_0.h"
@@ -709,6 +710,9 @@ static int vcn_v2_5_start(struct amdgpu_device *adev)
 	uint32_t rb_bufsz, tmp;
 	int i, j, k, r;
 
+	if (adev->pm.dpm_enabled)
+		amdgpu_dpm_enable_uvd(adev, true);
+
 	for (i = 0; i < adev->vcn.num_vcn_inst; ++i) {
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
@@ -938,6 +942,9 @@ static int vcn_v2_5_stop(struct amdgpu_device *adev)
 			UVD_POWER_STATUS__UVD_POWER_STATUS_MASK,
 			~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK);
 	}
+
+	if (adev->pm.dpm_enabled)
+		amdgpu_dpm_enable_uvd(adev, false);
 
 	return 0;
 }
