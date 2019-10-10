@@ -452,9 +452,19 @@ struct iwl_cfg {
 	const struct iwl_fw_mon_regs mon_smem_regs;
 };
 
+#define IWL_CFG_ANY (~0)
+
+struct iwl_dev_info {
+	u16 device;
+	u16 subdevice;
+	const struct iwl_cfg *cfg;
+};
+
 /*
  * This list declares the config structures for all devices.
  */
+extern const struct iwl_cfg_trans_params iwl9000_trans_cfg;
+
 #if IS_ENABLED(CONFIG_IWLDVM)
 extern const struct iwl_cfg iwl5300_agn_cfg;
 extern const struct iwl_cfg iwl5100_agn_cfg;
