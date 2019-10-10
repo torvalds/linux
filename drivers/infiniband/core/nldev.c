@@ -722,9 +722,6 @@ static int fill_stat_counter_qps(struct sk_buff *msg,
 	rt = &counter->device->res[RDMA_RESTRACK_QP];
 	xa_lock(&rt->xa);
 	xa_for_each(&rt->xa, id, res) {
-		if (!rdma_is_visible_in_pid_ns(res))
-			continue;
-
 		qp = container_of(res, struct ib_qp, res);
 		if (qp->qp_type == IB_QPT_RAW_PACKET && !capable(CAP_NET_RAW))
 			continue;
@@ -1258,15 +1255,10 @@ static int res_get_common_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 		goto err;
 	}
 
-	if (!rdma_is_visible_in_pid_ns(res)) {
-		ret = -ENOENT;
-		goto err_get;
-	}
-
 	msg = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!msg) {
 		ret = -ENOMEM;
-		goto err;
+		goto err_get;
 	}
 
 	nlh = nlmsg_put(msg, NETLINK_CB(skb).portid, nlh->nlmsg_seq,
@@ -1373,9 +1365,6 @@ static int res_get_common_dumpit(struct sk_buff *skb,
 	 * objects.
 	 */
 	xa_for_each(&rt->xa, id, res) {
-		if (!rdma_is_visible_in_pid_ns(res))
-			continue;
-
 		if (idx < start || !rdma_restrack_get(res))
 			goto next;
 

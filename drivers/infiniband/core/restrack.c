@@ -116,11 +116,8 @@ int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type)
 	u32 cnt = 0;
 
 	xa_lock(&rt->xa);
-	xas_for_each(&xas, e, U32_MAX) {
-		if (!rdma_is_visible_in_pid_ns(e))
-			continue;
+	xas_for_each(&xas, e, U32_MAX)
 		cnt++;
-	}
 	xa_unlock(&rt->xa);
 	return cnt;
 }
@@ -346,18 +343,3 @@ out:
 	}
 }
 EXPORT_SYMBOL(rdma_restrack_del);
-
-bool rdma_is_visible_in_pid_ns(struct rdma_restrack_entry *res)
-{
-	/*
-	 * 1. Kern resources should be visible in init
-	 *    namespace only
-	 * 2. Present only resources visible in the current
-	 *     namespace
-	 */
-	if (rdma_is_kernel_res(res))
-		return task_active_pid_ns(current) == &init_pid_ns;
-
-	/* PID 0 means that resource is not found in current namespace */
-	return task_pid_vnr(res->task);
-}
