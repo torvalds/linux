@@ -19,6 +19,33 @@
 #include "gem/selftests/igt_gem_utils.h"
 #include "gem/selftests/mock_context.h"
 
+static struct i915_vma *create_scratch(struct intel_gt *gt)
+{
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int err;
+
+	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return ERR_CAST(obj);
+
+	i915_gem_object_set_cache_coherency(obj, I915_CACHING_CACHED);
+
+	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
+	if (IS_ERR(vma)) {
+		i915_gem_object_put(obj);
+		return vma;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+	if (err) {
+		i915_gem_object_put(obj);
+		return ERR_PTR(err);
+	}
+
+	return vma;
+}
+
 static int live_sanitycheck(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
@@ -2076,6 +2103,158 @@ static int live_virtual_mask(void *arg)
 	return 0;
 }
 
+static int preserved_virtual_engine(struct drm_i915_private *i915,
+				    struct intel_engine_cs **siblings,
+				    unsigned int nsibling)
+{
+#define CS_GPR(engine, n) ((engine)->mmio_base + 0x600 + (n) * 4)
+
+	struct i915_request *last = NULL;
+	struct i915_gem_context *ctx;
+	struct intel_context *ve;
+	struct i915_vma *scratch;
+	struct igt_live_test t;
+	const int num_gpr = 16 * 2; /* each GPR is 2 dwords */
+	unsigned int n;
+	int err = 0;
+
+	ctx = kernel_context(i915);
+	if (!ctx)
+		return -ENOMEM;
+
+	scratch = create_scratch(siblings[0]->gt);
+	if (IS_ERR(scratch)) {
+		err = PTR_ERR(scratch);
+		goto out_close;
+	}
+
+	ve = intel_execlists_create_virtual(ctx, siblings, nsibling);
+	if (IS_ERR(ve)) {
+		err = PTR_ERR(ve);
+		goto out_scratch;
+	}
+
+	err = intel_context_pin(ve);
+	if (err)
+		goto out_put;
+
+	err = igt_live_test_begin(&t, i915, __func__, ve->engine->name);
+	if (err)
+		goto out_unpin;
+
+	for (n = 0; n < num_gpr; n++) {
+		struct intel_engine_cs *engine = siblings[n % nsibling];
+		struct i915_request *rq;
+		u32 *cs;
+
+		rq = i915_request_create(ve);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto out_end;
+		}
+
+		i915_request_put(last);
+		last = i915_request_get(rq);
+
+		cs = intel_ring_begin(rq, 8);
+		if (IS_ERR(cs)) {
+			i915_request_add(rq);
+			err = PTR_ERR(cs);
+			goto out_end;
+		}
+
+		*cs++ = MI_STORE_REGISTER_MEM_GEN8 | MI_USE_GGTT;
+		*cs++ = CS_GPR(engine, n);
+		*cs++ = i915_ggtt_offset(scratch) + n * sizeof(u32);
+		*cs++ = 0;
+
+		*cs++ = MI_LOAD_REGISTER_IMM(1);
+		*cs++ = CS_GPR(engine, (n + 1) % num_gpr);
+		*cs++ = n + 1;
+
+		*cs++ = MI_NOOP;
+		intel_ring_advance(rq, cs);
+
+		/* Restrict this request to run on a particular engine */
+		rq->execution_mask = engine->mask;
+		i915_request_add(rq);
+	}
+
+	if (i915_request_wait(last, 0, HZ / 5) < 0) {
+		err = -ETIME;
+	} else {
+		u32 *map = i915_gem_object_pin_map(scratch->obj, I915_MAP_WB);
+
+		for (n = 0; n < num_gpr; n++) {
+			if (map[n] != n) {
+				pr_err("Incorrect value[%d] found for GPR[%d]\n",
+				       map[n], n);
+				err = -EINVAL;
+				break;
+			}
+		}
+
+		i915_gem_object_unpin_map(scratch->obj);
+	}
+
+out_end:
+	if (igt_live_test_end(&t))
+		err = -EIO;
+	i915_request_put(last);
+out_unpin:
+	intel_context_unpin(ve);
+out_put:
+	intel_context_put(ve);
+out_scratch:
+	i915_vma_unpin_and_release(&scratch, 0);
+out_close:
+	kernel_context_close(ctx);
+	return err;
+
+#undef CS_GPR
+}
+
+static int live_virtual_preserved(void *arg)
+{
+	struct drm_i915_private *i915 = arg;
+	struct intel_engine_cs *siblings[MAX_ENGINE_INSTANCE + 1];
+	struct intel_gt *gt = &i915->gt;
+	unsigned int class, inst;
+
+	/*
+	 * Check that the context image retains non-privileged (user) registers
+	 * from one engine to the next. For this we check that the CS_GPR
+	 * are preserved.
+	 */
+
+	if (USES_GUC_SUBMISSION(i915))
+		return 0;
+
+	/* As we use CS_GPR we cannot run before they existed on all engines. */
+	if (INTEL_GEN(i915) < 9)
+		return 0;
+
+	for (class = 0; class <= MAX_ENGINE_CLASS; class++) {
+		int nsibling, err;
+
+		nsibling = 0;
+		for (inst = 0; inst <= MAX_ENGINE_INSTANCE; inst++) {
+			if (!gt->engine_class[class][inst])
+				continue;
+
+			siblings[nsibling++] = gt->engine_class[class][inst];
+		}
+		if (nsibling < 2)
+			continue;
+
+		err = preserved_virtual_engine(i915, siblings, nsibling);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
 static int bond_virtual_engine(struct drm_i915_private *i915,
 			       unsigned int class,
 			       struct intel_engine_cs **siblings,
@@ -2277,6 +2456,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_preempt_smoke),
 		SUBTEST(live_virtual_engine),
 		SUBTEST(live_virtual_mask),
+		SUBTEST(live_virtual_preserved),
 		SUBTEST(live_virtual_bond),
 	};
 
