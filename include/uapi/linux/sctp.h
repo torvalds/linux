@@ -449,6 +449,16 @@ struct sctp_send_failed {
 	__u8 ssf_data[0];
 };
 
+struct sctp_send_failed_event {
+	__u16 ssf_type;
+	__u16 ssf_flags;
+	__u32 ssf_length;
+	__u32 ssf_error;
+	struct sctp_sndinfo ssfe_info;
+	sctp_assoc_t ssf_assoc_id;
+	__u8 ssf_data[0];
+};
+
 /*
  *   ssf_flags: 16 bits (unsigned integer)
  *
@@ -605,6 +615,7 @@ struct sctp_event_subscribe {
 	__u8 sctp_stream_reset_event;
 	__u8 sctp_assoc_reset_event;
 	__u8 sctp_stream_change_event;
+	__u8 sctp_send_failure_event_event;
 };
 
 /*
@@ -632,6 +643,7 @@ union sctp_notification {
 	struct sctp_stream_reset_event sn_strreset_event;
 	struct sctp_assoc_reset_event sn_assocreset_event;
 	struct sctp_stream_change_event sn_strchange_event;
+	struct sctp_send_failed_event sn_send_failed_event;
 };
 
 /* Section 5.3.1
@@ -667,7 +679,9 @@ enum sctp_sn_type {
 #define SCTP_ASSOC_RESET_EVENT		SCTP_ASSOC_RESET_EVENT
 	SCTP_STREAM_CHANGE_EVENT,
 #define SCTP_STREAM_CHANGE_EVENT	SCTP_STREAM_CHANGE_EVENT
-	SCTP_SN_TYPE_MAX	= SCTP_STREAM_CHANGE_EVENT,
+	SCTP_SEND_FAILED_EVENT,
+#define SCTP_SEND_FAILED_EVENT		SCTP_SEND_FAILED_EVENT
+	SCTP_SN_TYPE_MAX	= SCTP_SEND_FAILED_EVENT,
 #define SCTP_SN_TYPE_MAX		SCTP_SN_TYPE_MAX
 };
 
