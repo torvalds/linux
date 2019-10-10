@@ -35,13 +35,18 @@
 			reg = <0x0 0x0 0x0 0x0>;
 		};
 
+		ramoops: ramoops@110000 {
+			compatible = "ramoops";
+			reg = <0x0 0x110000 0x0 0xf0000>;
+			record-size = <0x20000>;
+			console-size = <0x80000>;
+			ftrace-size = <0x00000>;
+			pmsg-size = <0x50000>;
+		};
+
 		secure_memory: secure-memory@20000000 {
 			compatible = "rockchip,secure-memory";
 			reg = <0x0 0x20000000 0x0 0x0>;
-		};
-
-		ramoops_mem: ramoops@68000000 {
-			reg = <0x0 0x110000 0x0 0xf0000>;
 		};
 
 		/* global autoconfigured region for contiguous allocations */
@@ -51,15 +56,6 @@
 			size = <0x0 0x2000000>;
 			linux,cma-default;
 		};
-	};
-
-	ramoops {
-		compatible = "ramoops";
-		record-size = <0x0 0x20000>;
-		console-size = <0x0 0x80000>;
-		ftrace-size = <0x0 0x00000>;
-		pmsg-size = <0x0 0x50000>;
-		memory-region = <&ramoops_mem>;
 	};
 };
 

@@ -63,20 +63,6 @@
 		nvmem-cell-names = "id";
 	};
 
-	ramoops_mem: ramoops_mem {
-		reg = <0x0 0x110000 0x0 0xf0000>;
-		reg-names = "ramoops_mem";
-	};
-
-	ramoops {
-		compatible = "ramoops";
-		record-size = <0x0 0x20000>;
-		console-size = <0x0 0x80000>;
-		ftrace-size = <0x0 0x00000>;
-		pmsg-size = <0x0 0x50000>;
-		memory-region = <&ramoops_mem>;
-	};
-
 	backlight: backlight {
 		compatible = "pwm-backlight";
 		pwms = <&pwm0 0 25000 0>;
@@ -172,6 +158,15 @@
 		stb_devinfo: stb-devinfo@00000000 {
 			compatible = "rockchip,stb-devinfo";
 			reg = <0x0 0x0 0x0 0x0>;
+		};
+
+		ramoops: ramoops@110000 {
+			compatible = "ramoops";
+			reg = <0x0 0x110000 0x0 0xf0000>;
+			record-size = <0x20000>;
+			console-size = <0x80000>;
+			ftrace-size = <0x00000>;
+			pmsg-size = <0x50000>;
 		};
 	};
 

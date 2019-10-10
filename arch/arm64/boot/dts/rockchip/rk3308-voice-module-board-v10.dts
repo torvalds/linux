@@ -12,11 +12,8 @@
 	compatible = "rockchip,rk3308-voice-module-board-v10", "rockchip,rk3308";
 };
 
-&ramoops_mem {
-	reg = <0x0 0x110000 0x0 0xf0000>;
-};
-
 &ramoops {
-	record-size = <0x0 0x30000>;
-	console-size = <0x0 0xc0000>;
+	reg = <0x0 0x110000 0x0 0xf0000>;
+	record-size = <0x30000>;
+	console-size = <0xc0000>;
 };
