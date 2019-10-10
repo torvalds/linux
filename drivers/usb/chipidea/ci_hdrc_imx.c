@@ -359,7 +359,8 @@ static int ci_hdrc_imx_probe(struct platform_device *pdev)
 			return PTR_ERR(data->pinctrl_hsic_active);
 		}
 
-		data->hsic_pad_regulator = devm_regulator_get(dev, "hsic");
+		data->hsic_pad_regulator =
+				devm_regulator_get_optional(dev, "hsic");
 		if (PTR_ERR(data->hsic_pad_regulator) == -EPROBE_DEFER) {
 			return -EPROBE_DEFER;
 		} else if (PTR_ERR(data->hsic_pad_regulator) == -ENODEV) {
