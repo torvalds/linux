@@ -4851,6 +4851,9 @@ devlink_health_reporter_recover(struct devlink_health_reporter *reporter,
 {
 	int err;
 
+	if (reporter->health_state == DEVLINK_HEALTH_REPORTER_STATE_HEALTHY)
+		return 0;
+
 	if (!reporter->ops->recover)
 		return -EOPNOTSUPP;
 
