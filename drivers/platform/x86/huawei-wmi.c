@@ -144,15 +144,16 @@ static const struct dmi_system_id huawei_quirks[] = {
 
 /* Utils */
 
-static int huawei_wmi_call(struct acpi_buffer *in, struct acpi_buffer *out)
+static int huawei_wmi_call(struct huawei_wmi *huawei,
+			   struct acpi_buffer *in, struct acpi_buffer *out)
 {
 	acpi_status status;
 
-	mutex_lock(&huawei_wmi->wmi_lock);
+	mutex_lock(&huawei->wmi_lock);
 	status = wmi_evaluate_method(HWMI_METHOD_GUID, 0, 1, in, out);
-	mutex_unlock(&huawei_wmi->wmi_lock);
+	mutex_unlock(&huawei->wmi_lock);
 	if (ACPI_FAILURE(status)) {
-		dev_err(huawei_wmi->dev, "Failed to evaluate wmi method\n");
+		dev_err(huawei->dev, "Failed to evaluate wmi method\n");
 		return -ENODEV;
 	}
 
@@ -169,6 +170,7 @@ static int huawei_wmi_call(struct acpi_buffer *in, struct acpi_buffer *out)
  */
 static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 {
+	struct huawei_wmi *huawei = huawei_wmi;
 	struct acpi_buffer out = { ACPI_ALLOCATE_BUFFER, NULL };
 	struct acpi_buffer in;
 	union acpi_object *obj;
@@ -182,7 +184,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 	 * HWMI and if we get a non-zero return status we evaluate it again.
 	 */
 	for (i = 0; i < 2; i++) {
-		err = huawei_wmi_call(&in, &out);
+		err = huawei_wmi_call(huawei, &in, &out);
 		if (err)
 			goto fail_cmd;
 
@@ -202,7 +204,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 				obj->buffer.pointer += 4;
 				len = 0x100;
 			} else {
-				dev_err(huawei_wmi->dev, "Bad buffer length, got %d\n", obj->buffer.length);
+				dev_err(huawei->dev, "Bad buffer length, got %d\n", obj->buffer.length);
 				err = -EIO;
 				goto fail_cmd;
 			}
@@ -213,14 +215,14 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 		 */
 		case ACPI_TYPE_PACKAGE:
 			if (obj->package.count != 2) {
-				dev_err(huawei_wmi->dev, "Bad package count, got %d\n", obj->package.count);
+				dev_err(huawei->dev, "Bad package count, got %d\n", obj->package.count);
 				err = -EIO;
 				goto fail_cmd;
 			}
 
 			obj = &obj->package.elements[1];
 			if (obj->type != ACPI_TYPE_BUFFER) {
-				dev_err(huawei_wmi->dev, "Bad package element type, got %d\n", obj->type);
+				dev_err(huawei->dev, "Bad package element type, got %d\n", obj->type);
 				err = -EIO;
 				goto fail_cmd;
 			}
@@ -229,7 +231,7 @@ static int huawei_wmi_cmd(u64 arg, u8 *buf, size_t buflen)
 			break;
 		/* Shouldn't get here! */
 		default:
-			dev_err(huawei_wmi->dev, "Unexpected obj type, got: %d\n", obj->type);
+			dev_err(huawei->dev, "Unexpected obj type, got: %d\n", obj->type);
 			err = -EIO;
 			goto fail_cmd;
 		}
@@ -595,7 +597,9 @@ static void huawei_wmi_fn_lock_setup(struct device *dev)
 
 static void huawei_wmi_fn_lock_exit(struct device *dev)
 {
-	if (huawei_wmi->fn_lock_available)
+	struct huawei_wmi *huawei = dev_get_drvdata(dev);
+
+	if (huawei->fn_lock_available)
 		device_remove_file(dev, &dev_attr_fn_lock_state);
 }
 
@@ -649,7 +653,7 @@ static int huawei_wmi_debugfs_call_show(struct seq_file *m, void *data)
 	in.length = sizeof(u64);
 	in.pointer = &huawei->debug.arg;
 
-	err = huawei_wmi_call(&in, &out);
+	err = huawei_wmi_call(huawei, &in, &out);
 	if (err)
 		return err;
 
