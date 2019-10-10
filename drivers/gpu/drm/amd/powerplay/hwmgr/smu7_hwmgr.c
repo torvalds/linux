@@ -1994,7 +1994,6 @@ static int smu7_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		struct phm_ppt_v1_voltage_lookup_table *lookup_table)
 {
 	uint32_t table_size, i, j;
-	struct phm_ppt_v1_voltage_lookup_record tmp_voltage_lookup_record;
 	table_size = lookup_table->count;
 
 	PP_ASSERT_WITH_CODE(0 != lookup_table->count,
@@ -2005,9 +2004,8 @@ static int smu7_sort_lookup_table(struct pp_hwmgr *hwmgr,
 		for (j = i + 1; j > 0; j--) {
 			if (lookup_table->entries[j].us_vdd <
 					lookup_table->entries[j - 1].us_vdd) {
-				tmp_voltage_lookup_record = lookup_table->entries[j - 1];
-				lookup_table->entries[j - 1] = lookup_table->entries[j];
-				lookup_table->entries[j] = tmp_voltage_lookup_record;
+				swap(lookup_table->entries[j - 1],
+				     lookup_table->entries[j]);
 			}
 		}
 	}
