@@ -311,7 +311,7 @@ struct iser_comp {
 };
 
 /**
- * struct iser_device - Memory registration operations
+ * struct iser_reg_ops - Memory registration operations
  *     per-device registration schemes
  *
  * @alloc_reg_res:     Allocate registration resources
@@ -365,7 +365,7 @@ struct iser_device {
 };
 
 /**
- * struct iser_reg_resources - Fast registration recources
+ * struct iser_reg_resources - Fast registration resources
  *
  * @mr:         memory region
  * @fmr_pool:   pool of fmrs
@@ -398,7 +398,7 @@ struct iser_fr_desc {
 };
 
 /**
- * struct iser_fr_pool: connection fast registration pool
+ * struct iser_fr_pool - connection fast registration pool
  *
  * @list:                list of fastreg descriptors
  * @lock:                protects fmr/fastreg pool
@@ -521,7 +521,7 @@ struct iser_page_vec {
 };
 
 /**
- * struct iser_global: iSER global context
+ * struct iser_global - iSER global context
  *
  * @device_list_mutex:    protects device_list
  * @device_list:          iser devices global list

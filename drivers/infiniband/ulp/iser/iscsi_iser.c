@@ -786,7 +786,7 @@ static int iscsi_iser_get_ep_param(struct iscsi_endpoint *ep,
  * iscsi_iser_ep_connect() - Initiate iSER connection establishment
  * @shost:          scsi_host
  * @dst_addr:       destination address
- * @non-blocking:   indicate if routine can block
+ * @non_blocking:   indicate if routine can block
  *
  * Allocate an iscsi endpoint, an iser_conn structure and bind them.
  * After that start RDMA connection establishment via rdma_cm. We
