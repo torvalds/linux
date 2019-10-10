@@ -88,13 +88,16 @@ enum hl_device_status {
  *                         internal engine.
  * HL_INFO_DEVICE_STATUS - Retrieve the device's status. This opcode doesn't
  *                         require an open context.
- * HL_INFO_DEVICE_UTILIZATION - Retrieve the total utilization of the device
- *                              over the last period specified by the user.
- *                              The period can be between 100ms to 1s, in
- *                              resolution of 100ms. The return value is a
- *                              percentage of the utilization rate.
+ * HL_INFO_DEVICE_UTILIZATION  - Retrieve the total utilization of the device
+ *                               over the last period specified by the user.
+ *                               The period can be between 100ms to 1s, in
+ *                               resolution of 100ms. The return value is a
+ *                               percentage of the utilization rate.
  * HL_INFO_HW_EVENTS_AGGREGATE - Receive an array describing how many times each
  *                               event occurred since the driver was loaded.
+ * HL_INFO_CLK_RATE            - Retrieve the current and maximum clock rate
+ *                               of the device in MHz. The maximum clock rate is
+ *                               configurable via sysfs parameter
  */
 #define HL_INFO_HW_IP_INFO		0
 #define HL_INFO_HW_EVENTS		1
@@ -103,6 +106,7 @@ enum hl_device_status {
 #define HL_INFO_DEVICE_STATUS		4
 #define HL_INFO_DEVICE_UTILIZATION	6
 #define HL_INFO_HW_EVENTS_AGGREGATE	7
+#define HL_INFO_CLK_RATE		8
 
 #define HL_INFO_VERSION_MAX_LEN	128
 
@@ -147,6 +151,11 @@ struct hl_info_device_status {
 struct hl_info_device_utilization {
 	__u32 utilization;
 	__u32 pad;
+};
+
+struct hl_info_clk_rate {
+	__u32 cur_clk_rate_mhz;
+	__u32 max_clk_rate_mhz;
 };
 
 struct hl_info_args {

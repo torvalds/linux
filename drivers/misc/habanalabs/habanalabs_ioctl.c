@@ -221,6 +221,25 @@ static int device_utilization(struct hl_device *hdev, struct hl_info_args *args)
 		min((size_t) max_size, sizeof(device_util))) ? -EFAULT : 0;
 }
 
+static int get_clk_rate(struct hl_device *hdev, struct hl_info_args *args)
+{
+	struct hl_info_clk_rate clk_rate = {0};
+	u32 max_size = args->return_size;
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	int rc;
+
+	if ((!max_size) || (!out))
+		return -EINVAL;
+
+	rc = hdev->asic_funcs->get_clk_rate(hdev, &clk_rate.cur_clk_rate_mhz,
+						&clk_rate.max_clk_rate_mhz);
+	if (rc)
+		return rc;
+
+	return copy_to_user(out, &clk_rate,
+		min((size_t) max_size, sizeof(clk_rate))) ? -EFAULT : 0;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -269,6 +288,10 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_HW_EVENTS_AGGREGATE:
 		rc = hw_events_info(hdev, true, args);
+		break;
+
+	case HL_INFO_CLK_RATE:
+		rc = get_clk_rate(hdev, args);
 		break;
 
 	default:

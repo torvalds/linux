@@ -5148,7 +5148,8 @@ static const struct hl_asic_funcs goya_funcs = {
 	.init_iatu = goya_init_iatu,
 	.rreg = hl_rreg,
 	.wreg = hl_wreg,
-	.halt_coresight = goya_halt_coresight
+	.halt_coresight = goya_halt_coresight,
+	.get_clk_rate = goya_get_clk_rate
 };
 
 /*
