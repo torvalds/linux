@@ -128,20 +128,21 @@ again:
 	read_lock(&eb->lock);
 	BUG_ON(eb->blocking_writers == 0 &&
 	       current->pid == eb->lock_owner);
-	if (eb->blocking_writers && current->pid == eb->lock_owner) {
-		/*
-		 * This extent is already write-locked by our thread. We allow
-		 * an additional read lock to be added because it's for the same
-		 * thread. btrfs_find_all_roots() depends on this as it may be
-		 * called on a partly (write-)locked tree.
-		 */
-		BUG_ON(eb->lock_nested);
-		eb->lock_nested = true;
-		read_unlock(&eb->lock);
-		trace_btrfs_tree_read_lock(eb, start_ns);
-		return;
-	}
 	if (eb->blocking_writers) {
+		if (current->pid == eb->lock_owner) {
+			/*
+			 * This extent is already write-locked by our thread.
+			 * We allow an additional read lock to be added because
+			 * it's for the same thread. btrfs_find_all_roots()
+			 * depends on this as it may be called on a partly
+			 * (write-)locked tree.
+			 */
+			BUG_ON(eb->lock_nested);
+			eb->lock_nested = true;
+			read_unlock(&eb->lock);
+			trace_btrfs_tree_read_lock(eb, start_ns);
+			return;
+		}
 		read_unlock(&eb->lock);
 		wait_event(eb->write_lock_wq,
 			   eb->blocking_writers == 0);
