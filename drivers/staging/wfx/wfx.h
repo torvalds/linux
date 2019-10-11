@@ -13,6 +13,7 @@
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/nospec.h>
 #include <net/mac80211.h>
 
 #include "bh.h"
@@ -138,6 +139,7 @@ static inline struct wfx_vif *wdev_to_wvif(struct wfx_dev *wdev, int vif_id)
 		dev_dbg(wdev->dev, "requesting non-existent vif: %d\n", vif_id);
 		return NULL;
 	}
+	vif_id = array_index_nospec(vif_id, ARRAY_SIZE(wdev->vif));
 	if (!wdev->vif[vif_id]) {
 		dev_dbg(wdev->dev, "requesting non-allocated vif: %d\n", vif_id);
 		return NULL;
