@@ -421,6 +421,8 @@ struct dc_debug_options {
 	bool cm_in_bypass;
 #endif
 	int force_clock_mode;/*every mode change.*/
+
+	bool nv12_iflip_vm_wa;
 };
 
 struct dc_debug_data {
