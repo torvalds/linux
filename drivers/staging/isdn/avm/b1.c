@@ -261,9 +261,10 @@ int b1_loaded(avmcard *card)
 	b1_put_byte(base, SEND_POLL);
 	for (stop = jiffies + tout * HZ; time_before(jiffies, stop);) {
 		if (b1_rx_full(base)) {
-			if ((ans = b1_get_byte(base)) == RECEIVE_POLL) {
+			ans = b1_get_byte(base);
+			if (ans == RECEIVE_POLL)
 				return 1;
-			}
+
 			printk(KERN_ERR "%s: b1_loaded: got 0x%x, firmware not running\n",
 			       card->name, ans);
 			return 0;
@@ -284,8 +285,9 @@ int b1_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 	int retval;
 
 	b1_reset(port);
+	retval = b1_load_t4file(card, &data->firmware);
 
-	if ((retval = b1_load_t4file(card, &data->firmware))) {
+	if (retval) {
 		b1_reset(port);
 		printk(KERN_ERR "%s: failed to load t4file!!\n",
 		       card->name);
@@ -295,7 +297,8 @@ int b1_load_firmware(struct capi_ctr *ctrl, capiloaddata *data)
 	b1_disable_irq(port);
 
 	if (data->configuration.len > 0 && data->configuration.data) {
-		if ((retval = b1_load_config(card, &data->configuration))) {
+		retval = b1_load_config(card, &data->configuration);
+		if (retval) {
 			b1_reset(port);
 			printk(KERN_ERR "%s: failed to load config!!\n",
 			       card->name);
@@ -525,7 +528,9 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 			MsgLen = 30;
 			CAPIMSG_SETLEN(card->msgbuf, 30);
 		}
-		if (!(skb = alloc_skb(DataB3Len + MsgLen, GFP_ATOMIC))) {
+
+		skb = alloc_skb(DataB3Len + MsgLen, GFP_ATOMIC);
+		if (!skb) {
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 		} else {
@@ -539,7 +544,9 @@ irqreturn_t b1_interrupt(int interrupt, void *devptr)
 
 		ApplId = (unsigned) b1_get_word(card->port);
 		MsgLen = b1_get_slice(card->port, card->msgbuf);
-		if (!(skb = alloc_skb(MsgLen, GFP_ATOMIC))) {
+		skb = alloc_skb(MsgLen, GFP_ATOMIC);
+
+		if (!skb) {
 			printk(KERN_ERR "%s: incoming packet dropped\n",
 			       card->name);
 			spin_unlock_irqrestore(&card->lock, flags);
@@ -663,11 +670,17 @@ int b1_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "%-16s %s\n", "type", s);
 	if (card->cardtype == avm_t1isa)
 		seq_printf(m, "%-16s %d\n", "cardnr", card->cardnr);
-	if ((s = cinfo->version[VER_DRIVER]) != NULL)
+
+	s = cinfo->version[VER_DRIVER];
+	if (s)
 		seq_printf(m, "%-16s %s\n", "ver_driver", s);
-	if ((s = cinfo->version[VER_CARDTYPE]) != NULL)
+
+	s = cinfo->version[VER_CARDTYPE];
+	if (s)
 		seq_printf(m, "%-16s %s\n", "ver_cardtype", s);
-	if ((s = cinfo->version[VER_SERIAL]) != NULL)
+
+	s = cinfo->version[VER_SERIAL];
+	if (s)
 		seq_printf(m, "%-16s %s\n", "ver_serial", s);
 
 	if (card->cardtype != avm_m1) {
@@ -784,13 +797,15 @@ static int __init b1_init(void)
 	char *p;
 	char rev[32];
 
-	if ((p = strchr(revision, ':')) != NULL && p[1]) {
+	p = strchr(revision, ':');
+	if (p && p[1]) {
 		strlcpy(rev, p + 2, 32);
-		if ((p = strchr(rev, '$')) != NULL && p > rev)
+		p = strchr(rev, '$');
+		if (p && p > rev)
 			*(p - 1) = 0;
-	} else
+	} else {
 		strcpy(rev, "1.0");
-
+	}
 	printk(KERN_INFO "b1: revision %s\n", rev);
 
 	return 0;
