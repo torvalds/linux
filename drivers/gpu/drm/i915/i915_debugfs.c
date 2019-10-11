@@ -3599,6 +3599,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 #define DROP_IDLE	BIT(6)
 #define DROP_RESET_ACTIVE	BIT(7)
 #define DROP_RESET_SEQNO	BIT(8)
+#define DROP_RCU	BIT(9)
 #define DROP_ALL (DROP_UNBOUND	| \
 		  DROP_BOUND	| \
 		  DROP_RETIRE	| \
@@ -3607,7 +3608,8 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 		  DROP_SHRINK_ALL |\
 		  DROP_IDLE	| \
 		  DROP_RESET_ACTIVE | \
-		  DROP_RESET_SEQNO)
+		  DROP_RESET_SEQNO | \
+		  DROP_RCU)
 static int
 i915_drop_caches_get(void *data, u64 *val)
 {
@@ -3658,6 +3660,9 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(i915);
 	fs_reclaim_release(GFP_KERNEL);
+
+	if (val & DROP_RCU)
+		rcu_barrier();
 
 	if (val & DROP_FREED)
 		i915_gem_drain_freed_objects(i915);
