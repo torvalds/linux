@@ -252,7 +252,6 @@
 				regulator-name = "vbus_otg";
 				interrupts = <IT_OCP_OTG 0>;
 				interrupt-parent = <&pmic>;
-				regulator-active-discharge = <1>;
 			};
 
 			vbus_sw: pwr_sw2 {
