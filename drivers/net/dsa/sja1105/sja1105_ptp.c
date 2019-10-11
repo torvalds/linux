@@ -59,10 +59,6 @@
 #define ptp_data_to_sja1105(d) \
 		container_of((d), struct sja1105_private, ptp_data)
 
-struct sja1105_ptp_cmd {
-	u64 resptp;       /* reset */
-};
-
 static int sja1105_init_avb_params(struct sja1105_private *priv,
 				   bool on)
 {
@@ -212,10 +208,10 @@ int sja1105_get_ts_info(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-int sja1105et_ptp_cmd(const struct dsa_switch *ds, const void *data)
+int sja1105et_ptp_cmd(const struct dsa_switch *ds,
+		      const struct sja1105_ptp_cmd *cmd)
 {
 	const struct sja1105_private *priv = ds->priv;
-	const struct sja1105_ptp_cmd *cmd = data;
 	const struct sja1105_regs *regs = priv->info->regs;
 	const int size = SJA1105_SIZE_PTP_CMD;
 	u8 buf[SJA1105_SIZE_PTP_CMD] = {0};
@@ -229,10 +225,10 @@ int sja1105et_ptp_cmd(const struct dsa_switch *ds, const void *data)
 				SJA1105_SIZE_PTP_CMD);
 }
 
-int sja1105pqrs_ptp_cmd(const struct dsa_switch *ds, const void *data)
+int sja1105pqrs_ptp_cmd(const struct dsa_switch *ds,
+			const struct sja1105_ptp_cmd *cmd)
 {
 	const struct sja1105_private *priv = ds->priv;
-	const struct sja1105_ptp_cmd *cmd = data;
 	const struct sja1105_regs *regs = priv->info->regs;
 	const int size = SJA1105_SIZE_PTP_CMD;
 	u8 buf[SJA1105_SIZE_PTP_CMD] = {0};
@@ -422,7 +418,7 @@ int sja1105_ptp_reset(struct dsa_switch *ds)
 {
 	struct sja1105_private *priv = ds->priv;
 	struct sja1105_ptp_data *ptp_data = &priv->ptp_data;
-	struct sja1105_ptp_cmd cmd = {0};
+	struct sja1105_ptp_cmd cmd = ptp_data->cmd;
 	int rc;
 
 	mutex_lock(&ptp_data->lock);

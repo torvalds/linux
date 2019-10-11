@@ -6,9 +6,14 @@
 
 #if IS_ENABLED(CONFIG_NET_DSA_SJA1105_PTP)
 
+struct sja1105_ptp_cmd {
+	u64 resptp;		/* reset */
+};
+
 struct sja1105_ptp_data {
 	struct ptp_clock_info caps;
 	struct ptp_clock *clock;
+	struct sja1105_ptp_cmd cmd;
 	/* The cycle counter translates the PTP timestamps (based on
 	 * a free-running counter) into a software time domain.
 	 */
@@ -23,9 +28,11 @@ int sja1105_ptp_clock_register(struct dsa_switch *ds);
 
 void sja1105_ptp_clock_unregister(struct dsa_switch *ds);
 
-int sja1105et_ptp_cmd(const struct dsa_switch *ds, const void *data);
+int sja1105et_ptp_cmd(const struct dsa_switch *ds,
+		      const struct sja1105_ptp_cmd *cmd);
 
-int sja1105pqrs_ptp_cmd(const struct dsa_switch *ds, const void *data);
+int sja1105pqrs_ptp_cmd(const struct dsa_switch *ds,
+			const struct sja1105_ptp_cmd *cmd);
 
 int sja1105_get_ts_info(struct dsa_switch *ds, int port,
 			struct ethtool_ts_info *ts);
@@ -46,6 +53,8 @@ int sja1105_hwtstamp_get(struct dsa_switch *ds, int port, struct ifreq *ifr);
 int sja1105_hwtstamp_set(struct dsa_switch *ds, int port, struct ifreq *ifr);
 
 #else
+
+struct sja1105_ptp_cmd;
 
 /* Structures cannot be empty in C. Bah!
  * Keep the mutex as the only element, which is a bit more difficult to
