@@ -99,12 +99,12 @@ ENTRY(efi64_thunk)
 	ret
 ENDPROC(efi64_thunk)
 
-ENTRY(efi_exit32)
+SYM_FUNC_START_LOCAL(efi_exit32)
 	movq	func_rt_ptr(%rip), %rax
 	push	%rax
 	mov	%rdi, %rax
 	ret
-ENDPROC(efi_exit32)
+SYM_FUNC_END(efi_exit32)
 
 	.code32
 /*
@@ -112,7 +112,7 @@ ENDPROC(efi_exit32)
  *
  * The stack should represent the 32-bit calling convention.
  */
-ENTRY(efi_enter32)
+SYM_FUNC_START_LOCAL(efi_enter32)
 	movl	$__KERNEL_DS, %eax
 	movl	%eax, %ds
 	movl	%eax, %es
@@ -172,7 +172,7 @@ ENTRY(efi_enter32)
 	btsl	$X86_CR0_PG_BIT, %eax
 	movl	%eax, %cr0
 	lret
-ENDPROC(efi_enter32)
+SYM_FUNC_END(efi_enter32)
 
 	.data
 	.balign	8

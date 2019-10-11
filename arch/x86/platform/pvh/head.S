@@ -50,7 +50,7 @@
 #define PVH_DS_SEL		(PVH_GDT_ENTRY_DS * 8)
 #define PVH_CANARY_SEL		(PVH_GDT_ENTRY_CANARY * 8)
 
-ENTRY(pvh_start_xen)
+SYM_CODE_START_LOCAL(pvh_start_xen)
 	cld
 
 	lgdt (_pa(gdt))
@@ -146,7 +146,7 @@ ENTRY(pvh_start_xen)
 
 	ljmp $PVH_CS_SEL, $_pa(startup_32)
 #endif
-END(pvh_start_xen)
+SYM_CODE_END(pvh_start_xen)
 
 	.section ".init.data","aw"
 	.balign 8

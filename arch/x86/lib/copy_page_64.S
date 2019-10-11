@@ -21,7 +21,7 @@ ENTRY(copy_page)
 ENDPROC(copy_page)
 EXPORT_SYMBOL(copy_page)
 
-ENTRY(copy_page_regs)
+SYM_FUNC_START_LOCAL(copy_page_regs)
 	subq	$2*8,	%rsp
 	movq	%rbx,	(%rsp)
 	movq	%r12,	1*8(%rsp)
@@ -86,4 +86,4 @@ ENTRY(copy_page_regs)
 	movq	1*8(%rsp), %r12
 	addq	$2*8, %rsp
 	ret
-ENDPROC(copy_page_regs)
+SYM_FUNC_END(copy_page_regs)
