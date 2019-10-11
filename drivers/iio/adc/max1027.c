@@ -63,12 +63,18 @@ enum max1027_id {
 	max1027,
 	max1029,
 	max1031,
+	max1227,
+	max1229,
+	max1231,
 };
 
 static const struct spi_device_id max1027_id[] = {
 	{"max1027", max1027},
 	{"max1029", max1029},
 	{"max1031", max1031},
+	{"max1227", max1227},
+	{"max1229", max1229},
+	{"max1231", max1231},
 	{}
 };
 MODULE_DEVICE_TABLE(spi, max1027_id);
@@ -78,6 +84,9 @@ static const struct of_device_id max1027_adc_dt_ids[] = {
 	{ .compatible = "maxim,max1027" },
 	{ .compatible = "maxim,max1029" },
 	{ .compatible = "maxim,max1031" },
+	{ .compatible = "maxim,max1227" },
+	{ .compatible = "maxim,max1229" },
+	{ .compatible = "maxim,max1231" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, max1027_adc_dt_ids);
@@ -153,6 +162,18 @@ static const struct iio_chan_spec max1031_channels[] = {
 	MAX1X31_CHANNELS(10),
 };
 
+static const struct iio_chan_spec max1227_channels[] = {
+	MAX1X27_CHANNELS(12),
+};
+
+static const struct iio_chan_spec max1229_channels[] = {
+	MAX1X29_CHANNELS(12),
+};
+
+static const struct iio_chan_spec max1231_channels[] = {
+	MAX1X31_CHANNELS(12),
+};
+
 static const unsigned long max1027_available_scan_masks[] = {
 	0x000001ff,
 	0x00000000,
@@ -188,6 +209,21 @@ static const struct max1027_chip_info max1027_chip_info_tbl[] = {
 	[max1031] = {
 		.channels = max1031_channels,
 		.num_channels = ARRAY_SIZE(max1031_channels),
+		.available_scan_masks = max1031_available_scan_masks,
+	},
+	[max1227] = {
+		.channels = max1227_channels,
+		.num_channels = ARRAY_SIZE(max1227_channels),
+		.available_scan_masks = max1027_available_scan_masks,
+	},
+	[max1229] = {
+		.channels = max1229_channels,
+		.num_channels = ARRAY_SIZE(max1229_channels),
+		.available_scan_masks = max1029_available_scan_masks,
+	},
+	[max1231] = {
+		.channels = max1231_channels,
+		.num_channels = ARRAY_SIZE(max1231_channels),
 		.available_scan_masks = max1031_available_scan_masks,
 	},
 };
@@ -486,5 +522,5 @@ static struct spi_driver max1027_driver = {
 module_spi_driver(max1027_driver);
 
 MODULE_AUTHOR("Philippe Reynes <tremyfr@yahoo.fr>");
-MODULE_DESCRIPTION("MAX1027/MAX1029/MAX1031 ADC");
+MODULE_DESCRIPTION("MAX1X27/MAX1X29/MAX1X31 ADC");
 MODULE_LICENSE("GPL v2");
