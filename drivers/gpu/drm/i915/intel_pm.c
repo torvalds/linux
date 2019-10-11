@@ -5360,7 +5360,7 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 		if (ret)
 			return ret;
 
-		state->active_pipe_changes = ~0;
+		state->active_pipe_changes = INTEL_INFO(dev_priv)->pipe_mask;
 
 		/*
 		 * We usually only initialize state->active_pipes if we
@@ -5386,7 +5386,7 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 	 * to grab the lock on *all* CRTC's.
 	 */
 	if (state->active_pipe_changes || state->modeset) {
-		state->wm_results.dirty_pipes = ~0;
+		state->wm_results.dirty_pipes = INTEL_INFO(dev_priv)->pipe_mask;
 
 		ret = intel_add_all_pipes(state);
 		if (ret)
