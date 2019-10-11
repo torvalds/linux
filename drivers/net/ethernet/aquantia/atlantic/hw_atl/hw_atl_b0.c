@@ -968,14 +968,26 @@ static int hw_atl_b0_hw_interrupt_moderation_set(struct aq_hw_s *self)
 
 static int hw_atl_b0_hw_stop(struct aq_hw_s *self)
 {
+	int err;
+	u32 val;
+
 	hw_atl_b0_hw_irq_disable(self, HW_ATL_B0_INT_MASK);
 
 	/* Invalidate Descriptor Cache to prevent writing to the cached
 	 * descriptors and to the data pointer of those descriptors
 	 */
-	hw_atl_rdm_rx_dma_desc_cache_init_set(self, 1);
+	hw_atl_rdm_rx_dma_desc_cache_init_tgl(self);
 
-	return aq_hw_err_from_flags(self);
+	err = aq_hw_err_from_flags(self);
+
+	if (err)
+		goto err_exit;
+
+	readx_poll_timeout_atomic(hw_atl_rdm_rx_dma_desc_cache_init_done_get,
+				  self, val, val == 1, 1000U, 10000U);
+
+err_exit:
+	return err;
 }
 
 static int hw_atl_b0_hw_ring_tx_stop(struct aq_hw_s *self,
