@@ -177,6 +177,9 @@ enum mt76_wcid_flags {
 
 #define MT76_N_WCIDS 128
 
+/* stored in ieee80211_tx_info::hw_queue */
+#define MT_TX_HW_QUEUE_EXT_PHY		BIT(3)
+
 DECLARE_EWMA(signal, 10, 8);
 
 #define MT_WCID_TX_INFO_RATE		GENMASK(15, 0)
@@ -793,6 +796,20 @@ u32 mt76_calc_tx_airtime(struct mt76_dev *dev, struct ieee80211_tx_info *info,
 			 int len);
 
 /* internal */
+static inline struct ieee80211_hw *
+mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
+{
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hw *hw = dev->phy.hw;
+
+	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->phy2)
+		hw = dev->phy2->hw;
+
+	info->hw_queue &= ~MT_TX_HW_QUEUE_EXT_PHY;
+
+	return hw;
+}
+
 void mt76_tx_free(struct mt76_dev *dev);
 struct mt76_txwi_cache *mt76_get_txwi(struct mt76_dev *dev);
 void mt76_put_txwi(struct mt76_dev *dev, struct mt76_txwi_cache *t);

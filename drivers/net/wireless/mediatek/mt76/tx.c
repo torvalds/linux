@@ -109,13 +109,17 @@ void
 mt76_tx_status_unlock(struct mt76_dev *dev, struct sk_buff_head *list)
 		      __releases(&dev->status_list.unlock)
 {
+	struct ieee80211_hw *hw;
 	struct sk_buff *skb;
 
 	spin_unlock_bh(&dev->status_list.lock);
 	__release(&dev->status_list.unlock);
 
-	while ((skb = __skb_dequeue(list)) != NULL)
-		ieee80211_tx_status(dev->hw, skb);
+	while ((skb = __skb_dequeue(list)) != NULL) {
+		hw = mt76_tx_status_get_hw(dev, skb);
+		ieee80211_tx_status(hw, skb);
+	}
+
 }
 EXPORT_SYMBOL_GPL(mt76_tx_status_unlock);
 
@@ -231,10 +235,12 @@ EXPORT_SYMBOL_GPL(mt76_tx_status_check);
 
 void mt76_tx_complete_skb(struct mt76_dev *dev, struct sk_buff *skb)
 {
+	struct ieee80211_hw *hw;
 	struct sk_buff_head list;
 
 	if (!skb->prev) {
-		ieee80211_free_txskb(dev->hw, skb);
+		hw = mt76_tx_status_get_hw(dev, skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 
@@ -253,6 +259,7 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct mt76_queue *q;
 	int qid = skb_get_queue_mapping(skb);
+	bool ext_phy = phy != &dev->phy;
 
 	if (WARN_ON(qid >= MT_TXQ_PSD)) {
 		qid = MT_TXQ_BE;
@@ -276,6 +283,9 @@ mt76_tx(struct mt76_phy *phy, struct ieee80211_sta *sta,
 			mt76_check_agg_ssn(mtxq, skb);
 	}
 
+	if (ext_phy)
+		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
+
 	q = dev->q_tx[qid].q;
 
 	spin_lock_bh(&q->lock);
@@ -295,6 +305,8 @@ static struct sk_buff *
 mt76_txq_dequeue(struct mt76_phy *phy, struct mt76_txq *mtxq, bool ps)
 {
 	struct ieee80211_txq *txq = mtxq_to_txq(mtxq);
+	struct ieee80211_tx_info *info;
+	bool ext_phy = phy != &phy->dev->phy;
 	struct sk_buff *skb;
 
 	skb = skb_dequeue(&mtxq->retry_q);
@@ -310,6 +322,10 @@ mt76_txq_dequeue(struct mt76_phy *phy, struct mt76_txq *mtxq, bool ps)
 	skb = ieee80211_tx_dequeue(phy->hw, txq);
 	if (!skb)
 		return NULL;
+
+	info = IEEE80211_SKB_CB(skb);
+	if (ext_phy)
+		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
 
 	return skb;
 }
@@ -597,6 +613,7 @@ EXPORT_SYMBOL_GPL(mt76_wake_tx_queue);
 
 void mt76_txq_remove(struct mt76_dev *dev, struct ieee80211_txq *txq)
 {
+	struct ieee80211_hw *hw;
 	struct mt76_txq *mtxq;
 	struct sk_buff *skb;
 
@@ -605,8 +622,10 @@ void mt76_txq_remove(struct mt76_dev *dev, struct ieee80211_txq *txq)
 
 	mtxq = (struct mt76_txq *)txq->drv_priv;
 
-	while ((skb = skb_dequeue(&mtxq->retry_q)) != NULL)
-		ieee80211_free_txskb(dev->hw, skb);
+	while ((skb = skb_dequeue(&mtxq->retry_q)) != NULL) {
+		hw = mt76_tx_status_get_hw(dev, skb);
+		ieee80211_free_txskb(hw, skb);
+	}
 }
 EXPORT_SYMBOL_GPL(mt76_txq_remove);
 
