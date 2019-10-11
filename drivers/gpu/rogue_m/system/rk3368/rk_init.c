@@ -987,7 +987,6 @@ static IMG_BOOL rk33_dvfs_get_freq_table(struct rk_context *platform)
 
 	RGX_DVFS_STEP = 0;
 
-	rcu_read_lock();
 	length = dev_pm_opp_get_opp_count(&gpsPVRLDMDev->dev);
 	if (length <= 0) {
 		PVR_DPF((PVR_DBG_ERROR,
@@ -1003,13 +1002,13 @@ static IMG_BOOL rk33_dvfs_get_freq_table(struct rk_context *platform)
 			break;
 		}
 		rgx_dvfs_infotbl[i].voltage = dev_pm_opp_get_voltage(opp);
+		dev_pm_opp_put(opp);
 		rgx_dvfs_infotbl[i].clock =
 		    clk_round_rate(platform->sclk_gpu_core, rate) / ONE_MHZ;
 		PVR_DPF((PVR_DBG_WARNING, "%dM,%dMv", rgx_dvfs_infotbl[i].clock,
 			 rgx_dvfs_infotbl[i].voltage));
 		RGX_DVFS_STEP++;
 	}
-	rcu_read_unlock();
 
 	if (RGX_DVFS_STEP > 1)
 		div_dvfs =
