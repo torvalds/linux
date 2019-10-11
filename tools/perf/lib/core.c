@@ -5,11 +5,12 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <unistd.h>
+#include <linux/compiler.h>
 #include <perf/core.h>
 #include <internal/lib.h>
 #include "internal.h"
 
-static int __base_pr(enum libperf_print_level level, const char *format,
+static int __base_pr(enum libperf_print_level level __maybe_unused, const char *format,
 		     va_list args)
 {
 	return vfprintf(stderr, format, args);
