@@ -109,8 +109,8 @@ struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
 				    struct dentry *parent, unsigned long *value);
 struct dentry *debugfs_create_x8(const char *name, umode_t mode,
 				 struct dentry *parent, u8 *value);
-struct dentry *debugfs_create_x16(const char *name, umode_t mode,
-				  struct dentry *parent, u16 *value);
+void debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent,
+			u16 *value);
 struct dentry *debugfs_create_x32(const char *name, umode_t mode,
 				  struct dentry *parent, u32 *value);
 struct dentry *debugfs_create_x64(const char *name, umode_t mode,
@@ -275,12 +275,8 @@ static inline struct dentry *debugfs_create_x8(const char *name, umode_t mode,
 	return ERR_PTR(-ENODEV);
 }
 
-static inline struct dentry *debugfs_create_x16(const char *name, umode_t mode,
-						struct dentry *parent,
-						u16 *value)
-{
-	return ERR_PTR(-ENODEV);
-}
+static inline void debugfs_create_x16(const char *name, umode_t mode,
+				      struct dentry *parent, u16 *value) { }
 
 static inline struct dentry *debugfs_create_x32(const char *name, umode_t mode,
 						struct dentry *parent,
