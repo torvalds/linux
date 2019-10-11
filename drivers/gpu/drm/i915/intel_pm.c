@@ -5424,35 +5424,14 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 }
 
 static int
-skl_ddb_add_affected_pipes(struct intel_atomic_state *state, bool *changed)
+skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 {
 	struct drm_device *dev = state->base.dev;
 	const struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc *crtc;
 	struct intel_crtc_state *crtc_state;
 	u32 realloc_pipes = pipes_modified(state);
-	int ret, i;
-
-	/*
-	 * When we distrust bios wm we always need to recompute to set the
-	 * expected DDB allocations for each CRTC.
-	 */
-	if (dev_priv->wm.distrust_bios_wm)
-		(*changed) = true;
-
-	/*
-	 * If this transaction isn't actually touching any CRTC's, don't
-	 * bother with watermark calculation.  Note that if we pass this
-	 * test, we're guaranteed to hold at least one CRTC state mutex,
-	 * which means we can safely use values like dev_priv->active_pipes
-	 * since any racing commits that want to update them would need to
-	 * hold _all_ CRTC state mutexes.
-	 */
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
-		(*changed) = true;
-
-	if (!*changed)
-		return 0;
+	int ret;
 
 	/*
 	 * If this is our first atomic update following hardware readout,
@@ -5576,14 +5555,13 @@ skl_compute_wm(struct intel_atomic_state *state)
 	struct intel_crtc_state *new_crtc_state;
 	struct intel_crtc_state *old_crtc_state;
 	struct skl_ddb_values *results = &state->wm_results;
-	bool changed = false;
 	int ret, i;
 
 	/* Clear all dirty flags */
 	results->dirty_pipes = 0;
 
-	ret = skl_ddb_add_affected_pipes(state, &changed);
-	if (ret || !changed)
+	ret = skl_ddb_add_affected_pipes(state);
+	if (ret)
 		return ret;
 
 	/*
