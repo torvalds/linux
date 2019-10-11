@@ -1,5 +1,5 @@
 Package: linux-libc-dev
-Architecture: amd64 armhf arm64 i386 ppc64el riscv64 s390x
+Architecture: amd64 armhf arm64 ppc64el riscv64 s390x
 Depends: ${misc:Depends}
 Conflicts: linux-kernel-headers
 Replaces: linux-kernel-headers
