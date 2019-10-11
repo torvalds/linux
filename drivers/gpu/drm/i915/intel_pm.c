@@ -5235,19 +5235,6 @@ bool skl_ddb_allocation_overlaps(const struct skl_ddb_entry *ddb,
 	return false;
 }
 
-static u32
-pipes_modified(struct intel_atomic_state *state)
-{
-	struct intel_crtc *crtc;
-	struct intel_crtc_state *crtc_state;
-	u32 i, ret = 0;
-
-	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i)
-		ret |= drm_crtc_mask(&crtc->base);
-
-	return ret;
-}
-
 static int
 skl_ddb_add_affected_planes(const struct intel_crtc_state *old_crtc_state,
 			    struct intel_crtc_state *new_crtc_state)
@@ -5423,14 +5410,26 @@ skl_print_wm_changes(struct intel_atomic_state *state)
 	}
 }
 
+static int intel_add_all_pipes(struct intel_atomic_state *state)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(&dev_priv->drm, crtc) {
+		struct intel_crtc_state *crtc_state;
+
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+	}
+
+	return 0;
+}
+
 static int
 skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 {
-	struct drm_device *dev = state->base.dev;
-	const struct drm_i915_private *dev_priv = to_i915(dev);
-	struct intel_crtc *crtc;
-	struct intel_crtc_state *crtc_state;
-	u32 realloc_pipes = pipes_modified(state);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	int ret;
 
 	/*
@@ -5440,7 +5439,7 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 	 * ensure a full DDB recompute.
 	 */
 	if (dev_priv->wm.distrust_bios_wm) {
-		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+		ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
 				       state->base.acquire_ctx);
 		if (ret)
 			return ret;
@@ -5471,18 +5470,11 @@ skl_ddb_add_affected_pipes(struct intel_atomic_state *state)
 	 * to grab the lock on *all* CRTC's.
 	 */
 	if (state->active_pipe_changes || state->modeset) {
-		realloc_pipes = ~0;
 		state->wm_results.dirty_pipes = ~0;
-	}
 
-	/*
-	 * We're not recomputing for the pipes not included in the commit, so
-	 * make sure we start with the current state.
-	 */
-	for_each_intel_crtc_mask(dev, crtc, realloc_pipes) {
-		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
+		ret = intel_add_all_pipes(state);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
