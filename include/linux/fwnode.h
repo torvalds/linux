@@ -71,8 +71,25 @@ struct fwnode_reference_args {
  *		links to all the suppliers of the device that are available at
  *		the time this function is called.  The function must NOT stop
  *		at the first failed device link if other unlinked supplier
- *		devices are present in the system.  If some suppliers are not
- *		yet available, this function will be called again when other
+ *		devices are present in the system.  This is necessary for the
+ *		driver/bus sync_state() callbacks to work correctly.
+ *
+ *		For example, say Device-C depends on suppliers Device-S1 and
+ *		Device-S2 and the dependency is listed in that order in the
+ *		firmware.  Say, S1 gets populated from the firmware after
+ *		late_initcall_sync().  Say S2 is populated and probed way
+ *		before that in device_initcall(). When C is populated, if this
+ *		add_links() function doesn't continue past a "failed linking to
+ *		S1" and continue linking C to S2, then S2 will get a
+ *		sync_state() callback before C is probed. This is because from
+ *		the perspective of S2, C was never a consumer when its
+ *		sync_state() evaluation is done. To avoid this, the add_links()
+ *		function has to go through all available suppliers of the
+ *		device (that corresponds to this fwnode) and link to them
+ *		before returning.
+ *
+ *		If some suppliers are not yet available (indicated by an error
+ *		return value), this function will be called again when other
  *		devices are added to allow creating device links to any newly
  *		available suppliers.
  *
