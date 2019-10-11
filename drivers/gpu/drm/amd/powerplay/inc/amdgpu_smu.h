@@ -469,6 +469,7 @@ struct pptable_funcs {
 	int (*get_dpm_clk_limited)(struct smu_context *smu, enum smu_clk_type clk_type,
 				   uint32_t dpm_level, uint32_t *freq);
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
+	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
 };
 
 struct smu_funcs
@@ -551,6 +552,7 @@ struct smu_funcs
 	int (*mode2_reset)(struct smu_context *smu);
 	int (*get_dpm_ultimate_freq)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t *min, uint32_t *max);
 	int (*set_soft_freq_limited_range)(struct smu_context *smu, enum smu_clk_type clk_type, uint32_t min, uint32_t max);
+	int (*override_pcie_parameters)(struct smu_context *smu);
 };
 
 #define smu_init_microcode(smu) \
@@ -782,6 +784,12 @@ struct smu_funcs
 
 #define smu_set_soft_freq_limited_range(smu, clk_type, min, max) \
 		((smu)->funcs->set_soft_freq_limited_range ? (smu)->funcs->set_soft_freq_limited_range((smu), (clk_type), (min), (max)) : -EINVAL)
+
+#define smu_override_pcie_parameters(smu) \
+		((smu)->funcs->override_pcie_parameters ? (smu)->funcs->override_pcie_parameters((smu)) : 0)
+
+#define smu_update_pcie_parameters(smu, pcie_gen_cap, pcie_width_cap) \
+		((smu)->ppt_funcs->update_pcie_parameters ? (smu)->ppt_funcs->update_pcie_parameters((smu), (pcie_gen_cap), (pcie_width_cap)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
