@@ -9639,6 +9639,7 @@ F:	drivers/hwmon/ltc2947-core.c
 F:	drivers/hwmon/ltc2947-spi.c
 F:	drivers/hwmon/ltc2947-i2c.c
 F:	drivers/hwmon/ltc2947.h
+F:	Documentation/devicetree/bindings/hwmon/adi,ltc2947.yaml
 
 LTC4306 I2C MULTIPLEXER DRIVER
 M:	Michael Hennerich <michael.hennerich@analog.com>
