@@ -88,11 +88,11 @@
 	read_fn((void *)(dst), sizeof(*(dst)), &((src_type)(src))->accessor)
 
 /* "recursively" read a sequence of inner pointers using local __t var */
+#define ___rd_first(src, a) ___read(bpf_core_read, &__t, ___type(src), src, a);
 #define ___rd_last(...)							    \
 	___read(bpf_core_read, &__t,					    \
 		___type(___nolast(__VA_ARGS__)), __t, ___last(__VA_ARGS__));
-#define ___rd_p0(src) const void *__t = src;
-#define ___rd_p1(...) ___rd_p0(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
+#define ___rd_p1(...) const void *__t; ___rd_first(__VA_ARGS__)
 #define ___rd_p2(...) ___rd_p1(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
 #define ___rd_p3(...) ___rd_p2(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
 #define ___rd_p4(...) ___rd_p3(___nolast(__VA_ARGS__)) ___rd_last(__VA_ARGS__)
