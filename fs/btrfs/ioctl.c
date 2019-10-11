@@ -479,10 +479,9 @@ static int btrfs_ioctl_getversion(struct file *file, int __user *arg)
 	return put_user(inode->i_generation, arg);
 }
 
-static noinline int btrfs_ioctl_fitrim(struct file *file, void __user *arg)
+static noinline int btrfs_ioctl_fitrim(struct btrfs_fs_info *fs_info,
+					void __user *arg)
 {
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_device *device;
 	struct request_queue *q;
 	struct fstrim_range range;
@@ -4952,10 +4951,9 @@ drop_write:
 	return ret;
 }
 
-static long btrfs_ioctl_quota_rescan_status(struct file *file, void __user *arg)
+static long btrfs_ioctl_quota_rescan_status(struct btrfs_fs_info *fs_info,
+						void __user *arg)
 {
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_ioctl_quota_rescan_args *qsa;
 	int ret = 0;
 
@@ -4978,11 +4976,9 @@ static long btrfs_ioctl_quota_rescan_status(struct file *file, void __user *arg)
 	return ret;
 }
 
-static long btrfs_ioctl_quota_rescan_wait(struct file *file, void __user *arg)
+static long btrfs_ioctl_quota_rescan_wait(struct btrfs_fs_info *fs_info,
+						void __user *arg)
 {
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
@@ -5154,10 +5150,9 @@ out:
 	return ret;
 }
 
-static int btrfs_ioctl_get_fslabel(struct file *file, void __user *arg)
+static int btrfs_ioctl_get_fslabel(struct btrfs_fs_info *fs_info,
+					void __user *arg)
 {
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	size_t len;
 	int ret;
 	char label[BTRFS_LABEL_SIZE];
@@ -5241,10 +5236,9 @@ int btrfs_ioctl_get_supported_features(void __user *arg)
 	return 0;
 }
 
-static int btrfs_ioctl_get_features(struct file *file, void __user *arg)
+static int btrfs_ioctl_get_features(struct btrfs_fs_info *fs_info,
+					void __user *arg)
 {
-	struct inode *inode = file_inode(file);
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_super_block *super_block = fs_info->super_copy;
 	struct btrfs_ioctl_feature_flags features;
 
@@ -5445,11 +5439,11 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case FS_IOC_GETVERSION:
 		return btrfs_ioctl_getversion(file, argp);
 	case FS_IOC_GETFSLABEL:
-		return btrfs_ioctl_get_fslabel(file, argp);
+		return btrfs_ioctl_get_fslabel(fs_info, argp);
 	case FS_IOC_SETFSLABEL:
 		return btrfs_ioctl_set_fslabel(file, argp);
 	case FITRIM:
-		return btrfs_ioctl_fitrim(file, argp);
+		return btrfs_ioctl_fitrim(fs_info, argp);
 	case BTRFS_IOC_SNAP_CREATE:
 		return btrfs_ioctl_snap_create(file, argp, 0);
 	case BTRFS_IOC_SNAP_CREATE_V2:
@@ -5554,15 +5548,15 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_QUOTA_RESCAN:
 		return btrfs_ioctl_quota_rescan(file, argp);
 	case BTRFS_IOC_QUOTA_RESCAN_STATUS:
-		return btrfs_ioctl_quota_rescan_status(file, argp);
+		return btrfs_ioctl_quota_rescan_status(fs_info, argp);
 	case BTRFS_IOC_QUOTA_RESCAN_WAIT:
-		return btrfs_ioctl_quota_rescan_wait(file, argp);
+		return btrfs_ioctl_quota_rescan_wait(fs_info, argp);
 	case BTRFS_IOC_DEV_REPLACE:
 		return btrfs_ioctl_dev_replace(fs_info, argp);
 	case BTRFS_IOC_GET_SUPPORTED_FEATURES:
 		return btrfs_ioctl_get_supported_features(argp);
 	case BTRFS_IOC_GET_FEATURES:
-		return btrfs_ioctl_get_features(file, argp);
+		return btrfs_ioctl_get_features(fs_info, argp);
 	case BTRFS_IOC_SET_FEATURES:
 		return btrfs_ioctl_set_features(file, argp);
 	case FS_IOC_FSGETXATTR:
