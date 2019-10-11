@@ -16,7 +16,6 @@
 #include <linux/string.h>
 
 #include <drm/drm_encoder.h>
-#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_vram_helper.h>
 
@@ -54,8 +53,6 @@ struct vbox_framebuffer {
 struct vbox_private {
 	/* Must be first; or we must define our own release callback */
 	struct drm_device ddev;
-	struct drm_fb_helper fb_helper;
-	struct vbox_framebuffer afb;
 
 	u8 __iomem *guest_heap;
 	u8 __iomem *vbva_buffers;
@@ -154,10 +151,6 @@ int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
 			  const struct drm_mode_fb_cmd2 *mode_cmd,
 			  struct drm_gem_object *obj);
-
-int vboxfb_create(struct drm_fb_helper *helper,
-		  struct drm_fb_helper_surface_size *sizes);
-void vbox_fbdev_fini(struct vbox_private *vbox);
 
 int vbox_mm_init(struct vbox_private *vbox);
 void vbox_mm_fini(struct vbox_private *vbox);
