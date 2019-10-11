@@ -1888,6 +1888,12 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
+	uint32_t hw_supported, supported;
+
+	amdgpu_ras_check_supported(adev, &hw_supported, &supported);
+	if (!hw_supported)
+		return;
+
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
 		DRM_WARN("RAS event of type ERREVENT_ATHUB_INTERRUPT detected!\n");
 
