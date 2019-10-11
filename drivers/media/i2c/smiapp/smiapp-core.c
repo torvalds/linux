@@ -1565,8 +1565,11 @@ static int smiapp_set_stream(struct v4l2_subdev *subdev, int enable)
 	sensor->streaming = true;
 
 	rval = smiapp_start_streaming(sensor);
-	if (rval < 0)
+	if (rval < 0) {
 		sensor->streaming = false;
+		pm_runtime_mark_last_busy(&client->dev);
+		pm_runtime_put_autosuspend(&client->dev);
+	}
 
 	return rval;
 }
