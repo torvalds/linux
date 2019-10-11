@@ -367,18 +367,25 @@ static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 	return d_splice_alias(vinode, dentry);
 }
 
-static int bch2_create(struct mnt_idmap *idmap,
-		       struct inode *vdir, struct dentry *dentry,
-		       umode_t mode, bool excl)
+static int bch2_mknod(struct mnt_idmap *idmap,
+		      struct inode *vdir, struct dentry *dentry,
+		      umode_t mode, dev_t rdev)
 {
 	struct bch_inode_info *inode =
-		__bch2_create(idmap, to_bch_ei(vdir), dentry, mode|S_IFREG, 0, false);
+		__bch2_create(idmap, to_bch_ei(vdir), dentry, mode, rdev, false);
 
 	if (IS_ERR(inode))
 		return PTR_ERR(inode);
 
 	d_instantiate(dentry, &inode->v);
 	return 0;
+}
+
+static int bch2_create(struct mnt_idmap *idmap,
+		       struct inode *vdir, struct dentry *dentry,
+		       umode_t mode, bool excl)
+{
+	return bch2_mknod(idmap, vdir, dentry, mode|S_IFREG, 0);
 }
 
 static int __bch2_link(struct bch_fs *c,
@@ -512,33 +519,7 @@ err:
 static int bch2_mkdir(struct mnt_idmap *idmap,
 		      struct inode *vdir, struct dentry *dentry, umode_t mode)
 {
-	struct bch_inode_info *inode =
-		__bch2_create(idmap, to_bch_ei(vdir), dentry, mode|S_IFDIR, 0, false);
-
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
-
-	d_instantiate(dentry, &inode->v);
-	return 0;
-}
-
-static int bch2_rmdir(struct inode *vdir, struct dentry *dentry)
-{
-	return bch2_unlink(vdir, dentry);
-}
-
-static int bch2_mknod(struct mnt_idmap *idmap,
-		      struct inode *vdir, struct dentry *dentry,
-		      umode_t mode, dev_t rdev)
-{
-	struct bch_inode_info *inode =
-		__bch2_create(idmap, to_bch_ei(vdir), dentry, mode, rdev, false);
-
-	if (IS_ERR(inode))
-		return PTR_ERR(inode);
-
-	d_instantiate(dentry, &inode->v);
-	return 0;
+	return bch2_mknod(idmap, vdir, dentry, mode|S_IFDIR, 0);
 }
 
 static int bch2_rename2(struct mnt_idmap *idmap,
@@ -1034,7 +1015,7 @@ static const struct inode_operations bch_dir_inode_operations = {
 	.unlink		= bch2_unlink,
 	.symlink	= bch2_symlink,
 	.mkdir		= bch2_mkdir,
-	.rmdir		= bch2_rmdir,
+	.rmdir		= bch2_unlink,
 	.mknod		= bch2_mknod,
 	.rename		= bch2_rename2,
 	.getattr	= bch2_getattr,
