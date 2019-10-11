@@ -36,6 +36,8 @@
 #include <asm/tls.h>
 #include <asm/vdso.h>
 
+#include "signal.h"
+
 #if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 #include <linux/stackprotector.h>
 unsigned long __stack_chk_guard __read_mostly;
