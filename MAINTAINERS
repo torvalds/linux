@@ -10911,6 +10911,13 @@ F:	arch/arm/boot/dts/mmp*
 F:	arch/arm/mach-mmp/
 F:	linux/soc/mmp/
 
+MMP USB PHY DRIVERS
+R:	Lubomir Rintel <lkundrak@v3.sk>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	drivers/phy/marvell/phy-mmp3-usb.c
+F:	drivers/phy/marvell/phy-pxa-usb.c
+
 MMU GATHER AND TLB INVALIDATION
 M:	Will Deacon <will@kernel.org>
 M:	"Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
