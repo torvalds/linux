@@ -975,6 +975,17 @@ static void btf_dump_emit_typedef_def(struct btf_dump *d, __u32 id,
 {
 	const char *name = btf_dump_ident_name(d, id);
 
+	/*
+	 * Old GCC versions are emitting invalid typedef for __gnuc_va_list
+	 * pointing to VOID. This generates warnings from btf_dump() and
+	 * results in uncompilable header file, so we are fixing it up here
+	 * with valid typedef into __builtin_va_list.
+	 */
+	if (t->type == 0 && strcmp(name, "__gnuc_va_list") == 0) {
+		btf_dump_printf(d, "typedef __builtin_va_list __gnuc_va_list");
+		return;
+	}
+
 	btf_dump_printf(d, "typedef ");
 	btf_dump_emit_type_decl(d, t->type, name, lvl);
 }
