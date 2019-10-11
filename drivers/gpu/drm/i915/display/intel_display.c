@@ -13934,7 +13934,6 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	unsigned int updated = 0;
 	bool progress;
-	enum pipe pipe;
 	int i;
 	u8 hw_enabled_slices = dev_priv->wm.skl_hw.ddb.enabled_slices;
 	u8 required_slices = state->wm_results.ddb.enabled_slices;
@@ -13959,12 +13958,10 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		progress = false;
 
 		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
+			enum pipe pipe = crtc->pipe;
 			bool vbl_wait = false;
-			unsigned int cmask = drm_crtc_mask(&crtc->base);
 
-			pipe = crtc->pipe;
-
-			if (updated & cmask || !new_crtc_state->base.active)
+			if (updated & BIT(crtc->pipe) || !new_crtc_state->base.active)
 				continue;
 
 			if (skl_ddb_allocation_overlaps(&new_crtc_state->wm.skl.ddb,
@@ -13972,7 +13969,7 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 							INTEL_NUM_PIPES(dev_priv), i))
 				continue;
 
-			updated |= cmask;
+			updated |= BIT(pipe);
 			entries[i] = new_crtc_state->wm.skl.ddb;
 
 			/*

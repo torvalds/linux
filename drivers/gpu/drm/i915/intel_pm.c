@@ -5575,7 +5575,7 @@ skl_compute_wm(struct intel_atomic_state *state)
 		if (!skl_pipe_wm_equals(crtc,
 					&old_crtc_state->wm.skl.optimal,
 					&new_crtc_state->wm.skl.optimal))
-			results->dirty_pipes |= drm_crtc_mask(&crtc->base);
+			results->dirty_pipes |= BIT(crtc->pipe);
 	}
 
 	ret = skl_compute_ddb(state);
@@ -5595,7 +5595,7 @@ static void skl_atomic_update_crtc_wm(struct intel_atomic_state *state,
 	struct skl_pipe_wm *pipe_wm = &crtc_state->wm.skl.optimal;
 	enum pipe pipe = crtc->pipe;
 
-	if (!(state->wm_results.dirty_pipes & drm_crtc_mask(&crtc->base)))
+	if ((state->wm_results.dirty_pipes & BIT(crtc->pipe)) == 0)
 		return;
 
 	I915_WRITE(PIPE_WM_LINETIME(pipe), pipe_wm->linetime);
@@ -5604,12 +5604,11 @@ static void skl_atomic_update_crtc_wm(struct intel_atomic_state *state,
 static void skl_initial_wm(struct intel_atomic_state *state,
 			   struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_device *dev = intel_crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct skl_ddb_values *results = &state->wm_results;
 
-	if ((results->dirty_pipes & drm_crtc_mask(&intel_crtc->base)) == 0)
+	if ((results->dirty_pipes & BIT(crtc->pipe)) == 0)
 		return;
 
 	mutex_lock(&dev_priv->wm.wm_mutex);
@@ -5758,7 +5757,7 @@ void skl_wm_get_hw_state(struct drm_i915_private *dev_priv)
 		skl_pipe_wm_get_hw_state(crtc, &crtc_state->wm.skl.optimal);
 
 		if (crtc->active)
-			hw->dirty_pipes |= drm_crtc_mask(&crtc->base);
+			hw->dirty_pipes |= BIT(crtc->pipe);
 	}
 
 	if (dev_priv->active_pipes) {
