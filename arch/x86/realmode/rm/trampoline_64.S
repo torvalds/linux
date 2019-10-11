@@ -149,26 +149,25 @@ ENTRY(startup_64)
 	# Duplicate the global descriptor table
 	# so the kernel can live anywhere
 	.balign	16
-	.globl tr_gdt
-tr_gdt:
+SYM_DATA_START(tr_gdt)
 	.short	tr_gdt_end - tr_gdt - 1	# gdt limit
 	.long	pa_tr_gdt
 	.short	0
 	.quad	0x00cf9b000000ffff	# __KERNEL32_CS
 	.quad	0x00af9b000000ffff	# __KERNEL_CS
 	.quad	0x00cf93000000ffff	# __KERNEL_DS
-tr_gdt_end:
+SYM_DATA_END_LABEL(tr_gdt, SYM_L_LOCAL, tr_gdt_end)
 
 	.bss
 	.balign	PAGE_SIZE
-GLOBAL(trampoline_pgd)		.space	PAGE_SIZE
+SYM_DATA(trampoline_pgd, .space PAGE_SIZE)
 
 	.balign	8
-GLOBAL(trampoline_header)
-	tr_start:		.space	8
-	GLOBAL(tr_efer)		.space	8
-	GLOBAL(tr_cr4)		.space	4
-	GLOBAL(tr_flags)	.space	4
-END(trampoline_header)
+SYM_DATA_START(trampoline_header)
+	SYM_DATA_LOCAL(tr_start,	.space 8)
+	SYM_DATA(tr_efer,		.space 8)
+	SYM_DATA(tr_cr4,		.space 4)
+	SYM_DATA(tr_flags,		.space 4)
+SYM_DATA_END(trampoline_header)
 
 #include "trampoline_common.S"

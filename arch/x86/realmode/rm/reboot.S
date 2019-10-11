@@ -127,13 +127,13 @@ bios:
 	.section ".rodata", "a"
 
 	.balign	16
-GLOBAL(machine_real_restart_idt)
+SYM_DATA_START(machine_real_restart_idt)
 	.word	0xffff		/* Length - real mode default value */
 	.long	0		/* Base - real mode default value */
-END(machine_real_restart_idt)
+SYM_DATA_END(machine_real_restart_idt)
 
 	.balign	16
-GLOBAL(machine_real_restart_gdt)
+SYM_DATA_START(machine_real_restart_gdt)
 	/* Self-pointer */
 	.word	0xffff		/* Length - real mode default value */
 	.long	pa_machine_real_restart_gdt
@@ -153,4 +153,4 @@ GLOBAL(machine_real_restart_gdt)
 	 * semantics we don't have to reload the segments once CR0.PE = 0.
 	 */
 	.quad	GDT_ENTRY(0x0093, 0x100, 0xffff)
-END(machine_real_restart_gdt)
+SYM_DATA_END(machine_real_restart_gdt)
