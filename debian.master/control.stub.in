@@ -92,3 +92,83 @@ Description: Linux kernel version specific cloud tools for version PKGVER-ABINUM
  version locked tools for cloud tools for version PKGVER-ABINUM on
  =HUMAN=.
  You probably want to install linux-cloud-tools-PKGVER-ABINUM-<flavour>.
+
+# linux-meta {
+
+Package: SRCPKGNAME-headers-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Depends:
+ ${misc:Depends},
+ linux-headers-PKGVER-ABINUM-generic (= ${source:Version})
+Description: Generic Linux kernel headers
+ This package will always depend on the latest generic kernel headers
+ available.
+
+Package: SRCPKGNAME-image-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Depends:
+ ${misc:Depends},
+ linux-image-PKGVER-ABINUM-generic (= ${source:Version}),
+ linux-firmware,
+ intel-microcode [amd64],
+ amd64-microcode [amd64]
+Recommends: thermald [amd64]
+Description: Generic Linux kernel image
+ This package will always depend on the latest generic kernel image
+ available.
+
+Package: SRCPKGNAME-tools-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Provides: linux-tools
+Depends:
+ ${misc:Depends},
+ linux-tools-PKGVER-ABINUM-generic (= ${source:Version})
+Description: Generic Linux kernel tools
+ This package will always depend on the latest generic kernel tools
+ available.
+
+Package: SRCPKGNAME-cloud-tools-generic
+Build-Profiles: <!stage1>
+Architecture: amd64
+Section: kernel
+Provides: linux-cloud-tools
+Depends:
+ ${misc:Depends},
+ linux-cloud-tools-PKGVER-ABINUM-generic (= ${source:Version})
+Description: Generic Linux kernel cloud tools
+ This package will always depend on the latest generic kernel cloud tools
+ available.
+
+Package: SRCPKGNAME-generic
+Build-Profiles: <!stage1>
+Architecture: amd64 armhf arm64 powerpc ppc64el s390x
+Section: kernel
+Depends:
+ ${misc:Depends},
+ SRCPKGNAME-image-generic (= ${binary:Version}),
+ SRCPKGNAME-headers-generic (= ${binary:Version})
+Description: Complete Generic Linux kernel and headers
+ This package will always depend on the latest complete generic Linux kernel
+ and headers.
+
+# } linux-meta
+
+# linux-system76 {
+
+Package: SRCPKGNAME-system76
+Build-Profiles: <!stage1>
+Architecture: amd64
+Section: kernel
+Depends:
+ ${misc:Depends},
+ SRCPKGNAME-generic (= ${binary:Version})
+Description: System76 recommended Linux kernel
+ This package depends upon the recommended kernel for System76 users.
+
+# } linux-system76

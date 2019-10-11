@@ -105,7 +105,6 @@ endif
 # Being used to build a mainline build -- turn off things which do not work.
 ifeq ($(do_mainline_build),true)
 	do_extras_package=false
-	do_tools=false
 	no_dumpfile=1
 $(foreach _m,$(all_dkms_modules),$(eval do_$(_m) = false))
 	do_skip_checks=true

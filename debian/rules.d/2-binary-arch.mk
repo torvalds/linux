@@ -733,8 +733,46 @@ ifeq ($(do_cloud_tools),true)
 	$(call dh_all,$(cloudpkg))
 endif
 
-.PHONY: binary-debs
-binary-debs: binary-perarch $(addprefix binary-,$(flavours))
+meta_version=$(release).$(revision)
+define dh_all_meta
+	dh_installchangelogs -p$(1)
+	dh_installdocs -p$(1)
+	dh_compress -p$(1)
+	dh_fixperms -p$(1) -X/boot/
+	dh_shlibdeps -p$(1) $(shlibdeps_opts)
+	dh_installdeb -p$(1)
+	dh_installdebconf -p$(1)
+	$(lockme) dh_gencontrol -p$(1) -- -Vlinux:rprovides='$(rprovides)' -v$(meta_version)
+	dh_md5sums -p$(1)
+	dh_builddeb -p$(1)
+endef
+
+binary-meta:
+	@echo Debug: $@
+
+ifeq ($(do_flavour_image_package),true)
+	$(call dh_all_meta,$(src_pkg_name)-headers-generic)
+endif # do_flavour_image_package
+ifeq ($(do_flavour_header_package),true)
+	$(call dh_all_meta,$(src_pkg_name)-image-generic)
+endif # do_flavour_header_package
+ifeq ($(do_linux_tools),true)
+	$(call dh_all_meta,$(src_pkg_name)-tools-generic)
+endif # do_linux_tools
+ifeq ($(do_cloud_tools),true)
+	$(call dh_all_meta,$(src_pkg_name)-cloud-tools-generic)
+endif # do_cloud_tools
+ifeq ($(do_flavour_image_package),true)
+ifeq ($(do_flavour_header_package),true)
+	$(call dh_all_meta,$(src_pkg_name)-generic)
+	$(call dh_all_meta,$(src_pkg_name)-system76)
+endif # do_flavour_header_package
+endif # do_flavour_image_package
+
+binary-debs: signing = $(CURDIR)/debian/$(bin_pkg_name)-signing
+binary-debs: signingv = $(CURDIR)/debian/$(bin_pkg_name)-signing/$(release)-$(revision)
+binary-debs: signing_tar = $(src_pkg_name)_$(release)-$(revision)_$(arch).tar.gz
+binary-debs: binary-perarch binary-meta $(addprefix binary-,$(flavours))
 	@echo Debug: $@
 
 build-arch-deps-$(do_flavour_image_package) += $(addprefix $(stampdir)/stamp-install-,$(flavours))
