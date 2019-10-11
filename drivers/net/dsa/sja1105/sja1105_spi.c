@@ -13,36 +13,6 @@
 #define SJA1105_SIZE_SPI_TRANSFER_MAX	\
 	(SJA1105_SIZE_SPI_MSG_HEADER + SJA1105_SIZE_SPI_MSG_MAXLEN)
 
-static int sja1105_spi_transfer(const struct sja1105_private *priv,
-				const void *tx, void *rx, int size)
-{
-	struct spi_device *spi = priv->spidev;
-	struct spi_transfer transfer = {
-		.tx_buf = tx,
-		.rx_buf = rx,
-		.len = size,
-	};
-	struct spi_message msg;
-	int rc;
-
-	if (size > SJA1105_SIZE_SPI_TRANSFER_MAX) {
-		dev_err(&spi->dev, "SPI message (%d) longer than max of %d\n",
-			size, SJA1105_SIZE_SPI_TRANSFER_MAX);
-		return -EMSGSIZE;
-	}
-
-	spi_message_init(&msg);
-	spi_message_add_tail(&transfer, &msg);
-
-	rc = spi_sync(spi, &msg);
-	if (rc < 0) {
-		dev_err(&spi->dev, "SPI transfer failed: %d\n", rc);
-		return rc;
-	}
-
-	return rc;
-}
-
 static void
 sja1105_spi_message_pack(void *buf, const struct sja1105_spi_message *msg)
 {
@@ -69,10 +39,17 @@ int sja1105_xfer_buf(const struct sja1105_private *priv,
 		     sja1105_spi_rw_mode_t rw, u64 reg_addr,
 		     void *packed_buf, size_t size_bytes)
 {
+	const int msg_len = size_bytes + SJA1105_SIZE_SPI_MSG_HEADER;
 	u8 tx_buf[SJA1105_SIZE_SPI_TRANSFER_MAX] = {0};
 	u8 rx_buf[SJA1105_SIZE_SPI_TRANSFER_MAX] = {0};
-	const int msg_len = size_bytes + SJA1105_SIZE_SPI_MSG_HEADER;
+	struct spi_device *spi = priv->spidev;
 	struct sja1105_spi_message msg = {0};
+	struct spi_transfer xfer = {
+		.tx_buf = tx_buf,
+		.rx_buf = rx_buf,
+		.len = msg_len,
+	};
+	struct spi_message m;
 	int rc;
 
 	if (msg_len > SJA1105_SIZE_SPI_TRANSFER_MAX)
@@ -89,9 +66,14 @@ int sja1105_xfer_buf(const struct sja1105_private *priv,
 		memcpy(tx_buf + SJA1105_SIZE_SPI_MSG_HEADER,
 		       packed_buf, size_bytes);
 
-	rc = sja1105_spi_transfer(priv, tx_buf, rx_buf, msg_len);
-	if (rc < 0)
+	spi_message_init(&m);
+	spi_message_add_tail(&xfer, &m);
+
+	rc = spi_sync(spi, &m);
+	if (rc < 0) {
+		dev_err(&spi->dev, "SPI transfer failed: %d\n", rc);
 		return rc;
+	}
 
 	if (rw == SPI_READ)
 		memcpy(packed_buf, rx_buf + SJA1105_SIZE_SPI_MSG_HEADER,
