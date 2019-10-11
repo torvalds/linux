@@ -284,10 +284,43 @@ static void vbox_primary_atomic_update(struct drm_plane *plane,
 {
 	struct drm_crtc *crtc = plane->state->crtc;
 	struct drm_framebuffer *fb = plane->state->fb;
+	struct vbox_private *vbox = fb->dev->dev_private;
+	struct drm_mode_rect *clips;
+	uint32_t num_clips, i;
 
 	vbox_crtc_set_base_and_mode(crtc, fb,
 				    plane->state->src_x >> 16,
 				    plane->state->src_y >> 16);
+
+	/* Send information about dirty rectangles to VBVA. */
+
+	clips = drm_plane_get_damage_clips(plane->state);
+	num_clips = drm_plane_get_damage_clips_count(plane->state);
+
+	if (!num_clips)
+		return;
+
+	mutex_lock(&vbox->hw_mutex);
+
+	for (i = 0; i < num_clips; ++i, ++clips) {
+		struct vbva_cmd_hdr cmd_hdr;
+		unsigned int crtc_id = to_vbox_crtc(crtc)->crtc_id;
+
+		cmd_hdr.x = (s16)clips->x1;
+		cmd_hdr.y = (s16)clips->y1;
+		cmd_hdr.w = (u16)clips->x2 - clips->x1;
+		cmd_hdr.h = (u16)clips->y2 - clips->y1;
+
+		if (!vbva_buffer_begin_update(&vbox->vbva_info[crtc_id],
+					      vbox->guest_pool))
+			continue;
+
+		vbva_write(&vbox->vbva_info[crtc_id], vbox->guest_pool,
+			   &cmd_hdr, sizeof(cmd_hdr));
+		vbva_buffer_end_update(&vbox->vbva_info[crtc_id]);
+	}
+
+	mutex_unlock(&vbox->hw_mutex);
 }
 
 static void vbox_primary_atomic_disable(struct drm_plane *plane,

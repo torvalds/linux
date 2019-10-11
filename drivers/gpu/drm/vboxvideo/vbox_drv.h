@@ -143,10 +143,6 @@ void vbox_mode_fini(struct vbox_private *vbox);
 
 void vbox_report_caps(struct vbox_private *vbox);
 
-void vbox_framebuffer_dirty_rectangles(struct drm_framebuffer *fb,
-				       struct drm_clip_rect *rects,
-				       unsigned int num_rects);
-
 int vbox_framebuffer_init(struct vbox_private *vbox,
 			  struct vbox_framebuffer *vbox_fb,
 			  const struct drm_mode_fb_cmd2 *mode_cmd,
