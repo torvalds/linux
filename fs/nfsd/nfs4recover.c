@@ -1850,19 +1850,14 @@ nfsd4_umh_cltrack_upcall(char *cmd, char *arg, char *env0, char *env1)
 static char *
 bin_to_hex_dup(const unsigned char *src, int srclen)
 {
-	int i;
-	char *buf, *hex;
+	char *buf;
 
 	/* +1 for terminating NULL */
-	buf = kmalloc((srclen * 2) + 1, GFP_KERNEL);
+	buf = kzalloc((srclen * 2) + 1, GFP_KERNEL);
 	if (!buf)
 		return buf;
 
-	hex = buf;
-	for (i = 0; i < srclen; i++) {
-		sprintf(hex, "%2.2x", *src++);
-		hex += 2;
-	}
+	bin2hex(buf, src, srclen);
 	return buf;
 }
 
