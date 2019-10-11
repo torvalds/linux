@@ -19,7 +19,7 @@
  */
 	.section ".text32", "ax"
 	.code32
-ENTRY(machine_real_restart_asm)
+SYM_CODE_START(machine_real_restart_asm)
 
 #ifdef CONFIG_X86_64
 	/* Switch to trampoline GDT as it is guaranteed < 4 GiB */
@@ -63,6 +63,7 @@ SYM_INNER_LABEL(machine_real_restart_paging_off, SYM_L_GLOBAL)
 	movl	%ecx, %gs
 	movl	%ecx, %ss
 	ljmpw	$8, $1f
+SYM_CODE_END(machine_real_restart_asm)
 
 /*
  * This is 16-bit protected mode code to disable paging and the cache,

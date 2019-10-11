@@ -85,11 +85,12 @@ hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
  *	r11		}<-- pushed by hypercall page
  * rsp->rax		}
  */
-ENTRY(xen_iret)
+SYM_CODE_START(xen_iret)
 	pushq $0
 	jmp hypercall_iret
+SYM_CODE_END(xen_iret)
 
-ENTRY(xen_sysret64)
+SYM_CODE_START(xen_sysret64)
 	/*
 	 * We're already on the usermode stack at this point, but
 	 * still with the kernel gs, so we can easily switch back.
@@ -107,6 +108,7 @@ ENTRY(xen_sysret64)
 
 	pushq $VGCF_in_syscall
 	jmp hypercall_iret
+SYM_CODE_END(xen_sysret64)
 
 /*
  * Xen handles syscall callbacks much like ordinary exceptions, which

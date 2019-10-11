@@ -38,7 +38,7 @@
 	.code16
 
 	.balign	PAGE_SIZE
-ENTRY(trampoline_start)
+SYM_CODE_START(trampoline_start)
 	cli			# We should be safe anyway
 	wbinvd
 
@@ -78,12 +78,14 @@ ENTRY(trampoline_start)
 no_longmode:
 	hlt
 	jmp no_longmode
+SYM_CODE_END(trampoline_start)
+
 #include "../kernel/verify_cpu.S"
 
 	.section ".text32","ax"
 	.code32
 	.balign 4
-ENTRY(startup_32)
+SYM_CODE_START(startup_32)
 	movl	%edx, %ss
 	addl	$pa_real_mode_base, %esp
 	movl	%edx, %ds
@@ -137,13 +139,15 @@ ENTRY(startup_32)
 	 * the new gdt/idt that has __KERNEL_CS with CS.L = 1.
 	 */
 	ljmpl	$__KERNEL_CS, $pa_startup_64
+SYM_CODE_END(startup_32)
 
 	.section ".text64","ax"
 	.code64
 	.balign 4
-ENTRY(startup_64)
+SYM_CODE_START(startup_64)
 	# Now jump into the kernel using virtual addresses
 	jmpq	*tr_start(%rip)
+SYM_CODE_END(startup_64)
 
 	.section ".rodata","a"
 	# Duplicate the global descriptor table

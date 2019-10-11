@@ -37,7 +37,7 @@ SYM_DATA_END(wakeup_header)
 	.code16
 
 	.balign	16
-ENTRY(wakeup_start)
+SYM_CODE_START(wakeup_start)
 	cli
 	cld
 
@@ -135,6 +135,7 @@ ENTRY(wakeup_start)
 #else
 	jmp	trampoline_start
 #endif
+SYM_CODE_END(wakeup_start)
 
 bogus_real_magic:
 1:
