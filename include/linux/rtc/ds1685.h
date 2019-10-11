@@ -43,13 +43,10 @@ struct ds1685_priv {
 	struct rtc_device *dev;
 	void __iomem *regs;
 	u32 regstep;
-	resource_size_t baseaddr;
 	size_t size;
 	int irq_num;
 	bool bcd_mode;
 	bool no_irq;
-	bool uie_unsupported;
-	bool alloc_io_resources;
 	u8 (*read)(struct ds1685_priv *, int);
 	void (*write)(struct ds1685_priv *, int, u8);
 	void (*prepare_poweroff)(void);

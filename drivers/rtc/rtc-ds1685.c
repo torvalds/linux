@@ -1086,12 +1086,10 @@ ds1685_rtc_probe(struct platform_device *pdev)
 		 * Set the base address for the rtc, and ioremap its
 		 * registers.
 		 */
-		rtc->baseaddr = res->start;
 		rtc->regs = devm_ioremap(&pdev->dev, res->start, rtc->size);
 		if (!rtc->regs)
 			return -ENOMEM;
 	}
-	rtc->alloc_io_resources = pdata->alloc_io_resources;
 
 	/* Get the register step size. */
 	if (pdata->regstep > 0)
@@ -1271,7 +1269,6 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	/* See if the platform doesn't support UIE. */
 	if (pdata->uie_unsupported)
 		rtc_dev->uie_unsupported = 1;
-	rtc->uie_unsupported = pdata->uie_unsupported;
 
 	rtc->dev = rtc_dev;
 
