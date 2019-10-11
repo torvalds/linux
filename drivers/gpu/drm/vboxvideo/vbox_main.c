@@ -17,17 +17,6 @@
 #include "vboxvideo_guest.h"
 #include "vboxvideo_vbe.h"
 
-static void vbox_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct vbox_framebuffer *vbox_fb = to_vbox_framebuffer(fb);
-
-	if (vbox_fb->obj)
-		drm_gem_object_put_unlocked(vbox_fb->obj);
-
-	drm_framebuffer_cleanup(fb);
-	kfree(fb);
-}
-
 void vbox_report_caps(struct vbox_private *vbox)
 {
 	u32 caps = VBVACAPS_DISABLE_CURSOR_INTEGRATION |
@@ -37,29 +26,6 @@ void vbox_report_caps(struct vbox_private *vbox)
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
 	caps |= VBVACAPS_VIDEO_MODE_HINTS;
 	hgsmi_send_caps_info(vbox->guest_pool, caps);
-}
-
-static const struct drm_framebuffer_funcs vbox_fb_funcs = {
-	.destroy = vbox_user_framebuffer_destroy,
-	.dirty = drm_atomic_helper_dirtyfb,
-};
-
-int vbox_framebuffer_init(struct vbox_private *vbox,
-			  struct vbox_framebuffer *vbox_fb,
-			  const struct drm_mode_fb_cmd2 *mode_cmd,
-			  struct drm_gem_object *obj)
-{
-	int ret;
-
-	drm_helper_mode_fill_fb_struct(&vbox->ddev, &vbox_fb->base, mode_cmd);
-	vbox_fb->obj = obj;
-	ret = drm_framebuffer_init(&vbox->ddev, &vbox_fb->base, &vbox_fb_funcs);
-	if (ret) {
-		DRM_ERROR("framebuffer init failed %d\n", ret);
-		return ret;
-	}
-
-	return 0;
 }
 
 static int vbox_accel_init(struct vbox_private *vbox)
@@ -212,30 +178,4 @@ void vbox_hw_fini(struct vbox_private *vbox)
 	vbox_accel_fini(vbox);
 	gen_pool_destroy(vbox->guest_pool);
 	pci_iounmap(vbox->ddev.pdev, vbox->guest_heap);
-}
-
-int vbox_gem_create(struct vbox_private *vbox,
-		    u32 size, bool iskernel, struct drm_gem_object **obj)
-{
-	struct drm_gem_vram_object *gbo;
-	int ret;
-
-	*obj = NULL;
-
-	size = roundup(size, PAGE_SIZE);
-	if (size == 0)
-		return -EINVAL;
-
-	gbo = drm_gem_vram_create(&vbox->ddev, &vbox->ddev.vram_mm->bdev,
-				  size, 0, false);
-	if (IS_ERR(gbo)) {
-		ret = PTR_ERR(gbo);
-		if (ret != -ERESTARTSYS)
-			DRM_ERROR("failed to allocate GEM object\n");
-		return ret;
-	}
-
-	*obj = &gbo->bo.base;
-
-	return 0;
 }

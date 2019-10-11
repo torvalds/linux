@@ -45,11 +45,6 @@
 				sizeof(struct hgsmi_host_flags))
 #define HOST_FLAGS_OFFSET GUEST_HEAP_USABLE_SIZE
 
-struct vbox_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
-};
-
 struct vbox_private {
 	/* Must be first; or we must define our own release callback */
 	struct drm_device ddev;
@@ -132,7 +127,6 @@ struct vbox_encoder {
 #define to_vbox_crtc(x) container_of(x, struct vbox_crtc, base)
 #define to_vbox_connector(x) container_of(x, struct vbox_connector, base)
 #define to_vbox_encoder(x) container_of(x, struct vbox_encoder, base)
-#define to_vbox_framebuffer(x) container_of(x, struct vbox_framebuffer, base)
 
 bool vbox_check_supported(u16 id);
 int vbox_hw_init(struct vbox_private *vbox);
@@ -143,16 +137,8 @@ void vbox_mode_fini(struct vbox_private *vbox);
 
 void vbox_report_caps(struct vbox_private *vbox);
 
-int vbox_framebuffer_init(struct vbox_private *vbox,
-			  struct vbox_framebuffer *vbox_fb,
-			  const struct drm_mode_fb_cmd2 *mode_cmd,
-			  struct drm_gem_object *obj);
-
 int vbox_mm_init(struct vbox_private *vbox);
 void vbox_mm_fini(struct vbox_private *vbox);
-
-int vbox_gem_create(struct vbox_private *vbox,
-		    u32 size, bool iskernel, struct drm_gem_object **obj);
 
 /* vbox_irq.c */
 int vbox_irq_init(struct vbox_private *vbox);
