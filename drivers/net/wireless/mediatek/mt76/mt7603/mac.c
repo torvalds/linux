@@ -1392,7 +1392,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	/* lock/unlock all queues to ensure that no tx is pending */
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 
 	tasklet_disable(&dev->mt76.tx_tasklet);
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
@@ -1456,7 +1456,7 @@ skip_dma_reset:
 	napi_schedule(&dev->mt76.napi[1]);
 
 	ieee80211_wake_queues(dev->mt76.hw);
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 }
 
 static u32 mt7603_dma_debug(struct mt7603_dev *dev, u8 index)

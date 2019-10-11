@@ -63,7 +63,7 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	tasklet_enable(&dev->dfs_pd.dfs_tasklet);
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 
 	return ret;
 }

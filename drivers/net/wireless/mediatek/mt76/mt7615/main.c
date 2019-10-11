@@ -171,7 +171,7 @@ out:
 	clear_bit(MT76_RESET, &dev->mt76.state);
 	mutex_unlock(&dev->mt76.mutex);
 
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT7615_WATCHDOG_TIME);
 	return ret;
@@ -458,7 +458,7 @@ static void mt7615_tx(struct ieee80211_hw *hw,
 		wcid = &mvif->sta.wcid;
 	}
 
-	mt76_tx(&dev->mt76, control->sta, wcid, skb);
+	mt76_tx(&dev->mphy, control->sta, wcid, skb);
 }
 
 static int mt7615_set_rts_threshold(struct ieee80211_hw *hw, u32 val)

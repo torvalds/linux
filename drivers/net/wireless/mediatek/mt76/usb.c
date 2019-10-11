@@ -694,7 +694,7 @@ static void mt76u_tx_tasklet(unsigned long data)
 
 		spin_unlock_bh(&q->lock);
 
-		mt76_txq_schedule(dev, i);
+		mt76_txq_schedule(&dev->phy, i);
 
 		if (!test_and_set_bit(MT76_READING_STATS, &dev->state))
 			queue_work(dev->usb.stat_wq, &dev->usb.stat_work);

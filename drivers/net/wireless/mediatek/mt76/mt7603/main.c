@@ -178,7 +178,7 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 
 	clear_bit(MT76_RESET, &dev->mt76.state);
 
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     msecs_to_jiffies(MT7603_WATCHDOG_TIME));
@@ -667,7 +667,7 @@ static void mt7603_tx(struct ieee80211_hw *hw,
 		wcid = &mvif->sta.wcid;
 	}
 
-	mt76_tx(&dev->mt76, control->sta, wcid, skb);
+	mt76_tx(&dev->mphy, control->sta, wcid, skb);
 }
 
 const struct ieee80211_ops mt7603_ops = {

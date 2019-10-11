@@ -28,7 +28,7 @@ void mt76x02_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 		wcid = &mvif->group_wcid;
 	}
 
-	mt76_tx(&dev->mt76, control->sta, wcid, skb);
+	mt76_tx(&dev->mphy, control->sta, wcid, skb);
 }
 EXPORT_SYMBOL_GPL(mt76x02_tx);
 

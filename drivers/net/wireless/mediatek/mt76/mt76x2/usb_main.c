@@ -56,7 +56,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76x02_pre_tbtt_enable(dev, true);
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 
 	return err;
 }

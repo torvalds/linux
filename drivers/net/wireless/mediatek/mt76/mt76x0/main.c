@@ -28,7 +28,7 @@ mt76x0_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	}
 	mt76x02_pre_tbtt_enable(dev, true);
 
-	mt76_txq_schedule_all(&dev->mt76);
+	mt76_txq_schedule_all(&dev->mphy);
 }
 
 int mt76x0_config(struct ieee80211_hw *hw, u32 changed)
