@@ -5282,6 +5282,9 @@ static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
 {
 	enum port port = intel_dig_port->base.port;
 
+	if (HAS_PCH_MCC(dev_priv) && port == PORT_C)
+		return I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(PORT_TC1);
+
 	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
 }
 

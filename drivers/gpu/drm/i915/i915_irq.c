@@ -2249,8 +2249,8 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		tc_port_hotplug_long_detect = tgp_tc_port_hotplug_long_detect;
 		pins = hpd_tgp;
 	} else if (HAS_PCH_MCC(dev_priv)) {
-		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
-		tc_hotplug_trigger = 0;
+		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
+		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(PORT_TC1);
 		pins = hpd_icp;
 	} else {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
@@ -3377,8 +3377,8 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	icp_hpd_irq_setup(dev_priv,
-			  SDE_DDI_MASK_TGP, 0,
-			  TGP_DDI_HPD_ENABLE_MASK, 0,
+			  SDE_DDI_MASK_ICP, SDE_TC_HOTPLUG_ICP(PORT_TC1),
+			  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE(PORT_TC1),
 			  hpd_icp);
 }
 
