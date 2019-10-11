@@ -344,29 +344,28 @@ static void sja1105_ptp_overflow_check(struct work_struct *work)
 	schedule_delayed_work(&priv->refresh_work, SJA1105_REFRESH_INTERVAL);
 }
 
-static const struct ptp_clock_info sja1105_ptp_caps = {
-	.owner		= THIS_MODULE,
-	.name		= "SJA1105 PHC",
-	.adjfine	= sja1105_ptp_adjfine,
-	.adjtime	= sja1105_ptp_adjtime,
-	.gettime64	= sja1105_ptp_gettime,
-	.settime64	= sja1105_ptp_settime,
-	.max_adj	= SJA1105_MAX_ADJ_PPB,
-};
-
 int sja1105_ptp_clock_register(struct sja1105_private *priv)
 {
 	struct dsa_switch *ds = priv->ds;
 
 	/* Set up the cycle counter */
 	priv->tstamp_cc = (struct cyclecounter) {
-		.read = sja1105_ptptsclk_read,
-		.mask = CYCLECOUNTER_MASK(64),
-		.shift = SJA1105_CC_SHIFT,
-		.mult = SJA1105_CC_MULT,
+		.read		= sja1105_ptptsclk_read,
+		.mask		= CYCLECOUNTER_MASK(64),
+		.shift		= SJA1105_CC_SHIFT,
+		.mult		= SJA1105_CC_MULT,
 	};
+	priv->ptp_caps = (struct ptp_clock_info) {
+		.owner		= THIS_MODULE,
+		.name		= "SJA1105 PHC",
+		.adjfine	= sja1105_ptp_adjfine,
+		.adjtime	= sja1105_ptp_adjtime,
+		.gettime64	= sja1105_ptp_gettime,
+		.settime64	= sja1105_ptp_settime,
+		.max_adj	= SJA1105_MAX_ADJ_PPB,
+	};
+
 	mutex_init(&priv->ptp_lock);
-	priv->ptp_caps = sja1105_ptp_caps;
 
 	priv->clock = ptp_clock_register(&priv->ptp_caps, ds->dev);
 	if (IS_ERR_OR_NULL(priv->clock))
