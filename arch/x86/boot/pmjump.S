@@ -46,7 +46,7 @@ ENDPROC(protected_mode_jump)
 
 	.code32
 	.section ".text32","ax"
-.Lin_pm32:
+SYM_FUNC_START_LOCAL_NOALIGN(.Lin_pm32)
 	# Set up data segments for flat 32-bit mode
 	movl	%ecx, %ds
 	movl	%ecx, %es
@@ -72,4 +72,4 @@ ENDPROC(protected_mode_jump)
 	lldt	%cx
 
 	jmpl	*%eax			# Jump to the 32-bit entrypoint
-ENDPROC(.Lin_pm32)
+SYM_FUNC_END(.Lin_pm32)
