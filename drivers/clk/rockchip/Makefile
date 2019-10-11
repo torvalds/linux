@@ -26,3 +26,5 @@ obj-$(CONFIG_CPU_RK3308)	+= clk-rk3308.o
 obj-$(CONFIG_CPU_RK3328)	+= clk-rk3328.o
 obj-$(CONFIG_CPU_RK3368)	+= clk-rk3368.o
 obj-$(CONFIG_CPU_RK3399)	+= clk-rk3399.o
+
+obj-$(CONFIG_MFD_RK618)		+= rk618/

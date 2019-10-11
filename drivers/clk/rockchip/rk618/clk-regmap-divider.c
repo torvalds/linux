@@ -34,7 +34,7 @@ clk_regmap_divider_recalc_rate(struct clk_hw *hw, unsigned long parent_rate)
 	div &= div_mask(divider->width);
 
 	return divider_recalc_rate(hw, parent_rate, div, NULL,
-				   CLK_DIVIDER_ROUND_CLOSEST);
+				   CLK_DIVIDER_ROUND_CLOSEST, divider->width);
 }
 
 static long
