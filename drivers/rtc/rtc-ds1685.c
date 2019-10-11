@@ -1040,7 +1040,6 @@ static int
 ds1685_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc_dev;
-	struct resource *res;
 	struct ds1685_priv *rtc;
 	struct ds1685_rtc_platform_data *pdata;
 	u8 ctrla, ctrlb, hours;
@@ -1070,25 +1069,9 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	 * that sits behind the IOC3 PCI metadevice.
 	 */
 	if (pdata->alloc_io_resources) {
-		/* Get the platform resources. */
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-		if (!res)
-			return -ENXIO;
-		rtc->size = resource_size(res);
-
-		/* Request a memory region. */
-		/* XXX: mmio-only for now. */
-		if (!devm_request_mem_region(&pdev->dev, res->start, rtc->size,
-					     pdev->name))
-			return -EBUSY;
-
-		/*
-		 * Set the base address for the rtc, and ioremap its
-		 * registers.
-		 */
-		rtc->regs = devm_ioremap(&pdev->dev, res->start, rtc->size);
-		if (!rtc->regs)
-			return -ENOMEM;
+		rtc->regs = devm_platform_ioremap_resource(pdev, 0);
+		if (IS_ERR(rtc->regs))
+			return PTR_ERR(rtc->regs);
 	}
 
 	/* Get the register step size. */

@@ -43,7 +43,6 @@ struct ds1685_priv {
 	struct rtc_device *dev;
 	void __iomem *regs;
 	u32 regstep;
-	size_t size;
 	int irq_num;
 	bool bcd_mode;
 	bool no_irq;
