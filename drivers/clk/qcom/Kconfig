@@ -248,6 +248,14 @@ config QCS_TURING_404
 	  Support for the Turing Clock Controller on QCS404, provides clocks
 	  and resets for the Turing subsystem.
 
+config QCS_Q6SSTOP_404
+	tristate "QCS404 Q6SSTOP Clock Controller"
+	select QCS_GCC_404
+	help
+	  Support for the Q6SSTOP clock controller on QCS404 devices.
+	  Say Y if you want to use the Q6SSTOP branch clocks of the WCSS clock
+	  controller to reset the Q6SSTOP subsystem.
+
 config SDM_GCC_845
 	tristate "SDM845 Global Clock Controller"
 	select QCOM_GDSC
