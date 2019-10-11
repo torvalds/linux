@@ -183,6 +183,9 @@ static int vega20_set_features_platform_caps(struct pp_hwmgr *hwmgr)
 			PHM_PlatformCaps_TablelessHardwareInterface);
 
 	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
+			PHM_PlatformCaps_BACO);
+
+	phm_cap_set(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_EnableSMU7ThermalManagement);
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_UVD)
