@@ -483,6 +483,9 @@ genl_family_rcv_msg_attrs_parse(const struct genl_family *family,
 	struct nlattr **attrbuf;
 	int err;
 
+	if (!family->maxattr)
+		return NULL;
+
 	if (parallel) {
 		attrbuf = kmalloc_array(family->maxattr + 1,
 					sizeof(struct nlattr *), GFP_KERNEL);
@@ -582,9 +585,6 @@ static int genl_family_rcv_msg_dumpit(const struct genl_family *family,
 	if (nlh->nlmsg_len < nlmsg_msg_size(hdrlen))
 		return -EINVAL;
 
-	if (!family->maxattr)
-		goto no_attrs;
-
 	attrs = genl_family_rcv_msg_attrs_parse(family, nlh, extack,
 						ops, hdrlen,
 						GENL_DONT_VALIDATE_DUMP_STRICT,
@@ -649,7 +649,6 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 	attrbuf = genl_family_rcv_msg_attrs_parse(family, nlh, extack,
 						  ops, hdrlen,
 						  GENL_DONT_VALIDATE_STRICT,
-						  family->maxattr &&
 						  family->parallel_ops);
 	if (IS_ERR(attrbuf))
 		return PTR_ERR(attrbuf);
@@ -676,8 +675,7 @@ static int genl_family_rcv_msg_doit(const struct genl_family *family,
 		family->post_doit(ops, skb, &info);
 
 out:
-	genl_family_rcv_msg_attrs_free(family, attrbuf,
-				       family->maxattr && family->parallel_ops);
+	genl_family_rcv_msg_attrs_free(family, attrbuf, family->parallel_ops);
 
 	return err;
 }
