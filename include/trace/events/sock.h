@@ -115,7 +115,7 @@ TRACE_EVENT(sock_exceed_buf_limit,
 		__entry->rmem_alloc = atomic_read(&sk->sk_rmem_alloc);
 		__entry->sysctl_wmem = sk_get_wmem0(sk, prot);
 		__entry->wmem_alloc = refcount_read(&sk->sk_wmem_alloc);
-		__entry->wmem_queued = sk->sk_wmem_queued;
+		__entry->wmem_queued = READ_ONCE(sk->sk_wmem_queued);
 		__entry->kind = kind;
 	),
 
