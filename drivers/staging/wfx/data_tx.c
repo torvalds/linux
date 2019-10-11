@@ -17,6 +17,7 @@
 #include "hif_tx_mib.h"
 
 #define WFX_INVALID_RATE_ID (0xFF)
+#define WFX_LINK_ID_NO_ASSOC   15
 #define WFX_LINK_ID_GC_TIMEOUT ((unsigned long)(10 * HZ))
 
 static int wfx_get_hw_rate(struct wfx_dev *wdev, const struct ieee80211_tx_rate *rate)
@@ -480,7 +481,7 @@ static uint8_t wfx_tx_get_raw_link_id(struct wfx_vif *wvif, struct ieee80211_sta
 		ret = wfx_alloc_link_id(wvif, da);
 	if (!ret) {
 		dev_err(wvif->wdev->dev, "no more link-id available\n");
-		return -ENOENT;
+		return WFX_LINK_ID_NO_ASSOC;
 	}
 	return ret;
 }
