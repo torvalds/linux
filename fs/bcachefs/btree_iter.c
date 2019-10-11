@@ -833,8 +833,6 @@ void bch2_btree_iter_node_replace(struct btree_iter *iter, struct btree *b)
 
 			btree_iter_node_set(linked, b);
 		}
-
-	six_unlock_intent(&b->c.lock);
 }
 
 void bch2_btree_iter_node_drop(struct btree_iter *iter, struct btree *b)

@@ -1042,10 +1042,11 @@ next:
 			old_nodes[i] = new_nodes[i];
 		} else {
 			old_nodes[i] = NULL;
-			if (new_nodes[i])
-				six_unlock_intent(&new_nodes[i]->c.lock);
 		}
 	}
+
+	for (i = 0; i < nr_new_nodes; i++)
+		six_unlock_intent(&new_nodes[i]->c.lock);
 
 	bch2_btree_update_done(as);
 	bch2_keylist_free(&keylist, NULL);

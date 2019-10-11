@@ -1446,7 +1446,19 @@ static void btree_split(struct btree_update *as, struct btree *b,
 		bch2_btree_iter_node_replace(iter, n2);
 	bch2_btree_iter_node_replace(iter, n1);
 
+	/*
+	 * The old node must be freed (in memory) _before_ unlocking the new
+	 * nodes - else another thread could re-acquire a read lock on the old
+	 * node after another thread has locked and updated the new node, thus
+	 * seeing stale data:
+	 */
 	bch2_btree_node_free_inmem(c, b, iter);
+
+	if (n3)
+		six_unlock_intent(&n3->c.lock);
+	if (n2)
+		six_unlock_intent(&n2->c.lock);
+	six_unlock_intent(&n1->c.lock);
 
 	bch2_btree_trans_verify_locks(iter->trans);
 
@@ -1761,6 +1773,8 @@ retry:
 	bch2_btree_node_free_inmem(c, b, iter);
 	bch2_btree_node_free_inmem(c, m, iter);
 
+	six_unlock_intent(&n->c.lock);
+
 	bch2_btree_update_done(as);
 
 	if (!(flags & BTREE_INSERT_GC_LOCK_HELD))
@@ -1855,6 +1869,7 @@ static int __btree_node_rewrite(struct bch_fs *c, struct btree_iter *iter,
 	bch2_btree_iter_node_drop(iter, b);
 	bch2_btree_iter_node_replace(iter, n);
 	bch2_btree_node_free_inmem(c, b, iter);
+	six_unlock_intent(&n->c.lock);
 
 	bch2_btree_update_done(as);
 	return 0;
