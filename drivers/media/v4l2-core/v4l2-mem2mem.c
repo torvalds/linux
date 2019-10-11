@@ -319,8 +319,10 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 		goto job_unlock;
 	}
 
-	if (src && dst &&
-	    dst->is_held && dst->vb2_buf.copied_timestamp &&
+	m2m_ctx->new_frame = true;
+
+	if (src && dst && dst->is_held &&
+	    dst->vb2_buf.copied_timestamp &&
 	    dst->vb2_buf.timestamp != src->vb2_buf.timestamp) {
 		dst->is_held = false;
 		v4l2_m2m_dst_buf_remove(m2m_ctx);
@@ -332,6 +334,11 @@ static void __v4l2_m2m_try_queue(struct v4l2_m2m_dev *m2m_dev,
 			goto job_unlock;
 		}
 	}
+
+	if (src && dst && (m2m_ctx->cap_q_ctx.q.subsystem_flags &
+			   VB2_V4L2_FL_SUPPORTS_M2M_HOLD_CAPTURE_BUF))
+		m2m_ctx->new_frame = !dst->vb2_buf.copied_timestamp ||
+			dst->vb2_buf.timestamp != src->vb2_buf.timestamp;
 
 	if (m2m_dev->m2m_ops->job_ready
 		&& (!m2m_dev->m2m_ops->job_ready(m2m_ctx->priv))) {
