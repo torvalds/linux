@@ -89,10 +89,15 @@ int vega20_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 			data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL);
 			data |= 0x80000000;
 			WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
-		}
 
-		if(smum_send_msg_to_smc_with_parameter(hwmgr, PPSMC_MSG_EnterBaco, 0))
-			return -EINVAL;
+			if(smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_EnterBaco, 0))
+				return -EINVAL;
+		} else {
+			if(smum_send_msg_to_smc_with_parameter(hwmgr,
+					PPSMC_MSG_EnterBaco, 1))
+				return -EINVAL;
+		}
 
 	} else if (state == BACO_STATE_OUT) {
 		if (smum_send_msg_to_smc(hwmgr, PPSMC_MSG_ExitBaco))
