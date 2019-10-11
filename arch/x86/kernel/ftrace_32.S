@@ -25,7 +25,7 @@ SYM_FUNC_START(function_hook)
 	ret
 SYM_FUNC_END(function_hook)
 
-ENTRY(ftrace_caller)
+SYM_CODE_START(ftrace_caller)
 
 #ifdef CONFIG_FRAME_POINTER
 	/*
@@ -87,7 +87,7 @@ ftrace_graph_call:
 /* This is weak to keep gas from relaxing the jumps */
 WEAK(ftrace_stub)
 	ret
-END(ftrace_caller)
+SYM_CODE_END(ftrace_caller)
 
 SYM_CODE_START(ftrace_regs_caller)
 	/*
@@ -166,7 +166,7 @@ SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 SYM_CODE_END(ftrace_regs_caller)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-ENTRY(ftrace_graph_caller)
+SYM_CODE_START(ftrace_graph_caller)
 	pushl	%eax
 	pushl	%ecx
 	pushl	%edx
@@ -180,7 +180,7 @@ ENTRY(ftrace_graph_caller)
 	popl	%ecx
 	popl	%eax
 	ret
-END(ftrace_graph_caller)
+SYM_CODE_END(ftrace_graph_caller)
 
 .globl return_to_handler
 return_to_handler:

@@ -129,11 +129,13 @@
 	SYM_FUNC_START_WEAK(name)
 #endif
 
+#ifndef CONFIG_X86
 #ifndef END
 /* deprecated, use SYM_FUNC_END, SYM_DATA_END, or SYM_END */
 #define END(name) \
 	.size name, .-name
 #endif
+#endif /* CONFIG_X86 */
 
 #ifndef CONFIG_X86_64
 /* If symbol 'name' is treated as a subroutine (gets called, and returns)
