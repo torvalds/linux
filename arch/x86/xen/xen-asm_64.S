@@ -20,11 +20,11 @@
 #include <linux/linkage.h>
 
 .macro xen_pv_trap name
-ENTRY(xen_\name)
+SYM_CODE_START(xen_\name)
 	pop %rcx
 	pop %r11
 	jmp  \name
-END(xen_\name)
+SYM_CODE_END(xen_\name)
 _ASM_NOKPROBE(xen_\name)
 .endm
 
@@ -57,7 +57,7 @@ xen_pv_trap entry_INT80_compat
 xen_pv_trap hypervisor_callback
 
 	__INIT
-ENTRY(xen_early_idt_handler_array)
+SYM_CODE_START(xen_early_idt_handler_array)
 	i = 0
 	.rept NUM_EXCEPTION_VECTORS
 	pop %rcx
@@ -66,7 +66,7 @@ ENTRY(xen_early_idt_handler_array)
 	i = i + 1
 	.fill xen_early_idt_handler_array + i*XEN_EARLY_IDT_HANDLER_SIZE - ., 1, 0xcc
 	.endr
-END(xen_early_idt_handler_array)
+SYM_CODE_END(xen_early_idt_handler_array)
 	__FINIT
 
 hypercall_iret = hypercall_page + __HYPERVISOR_iret * 32
