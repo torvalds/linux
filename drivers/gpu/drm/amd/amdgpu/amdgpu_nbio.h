@@ -67,6 +67,8 @@ struct amdgpu_nbio_funcs {
 						  bool enable);
 	void (*ih_doorbell_range)(struct amdgpu_device *adev,
 				  bool use_doorbell, int doorbell_index);
+	void (*enable_doorbell_interrupt)(struct amdgpu_device *adev,
+					  bool enable);
 	void (*update_medium_grain_clock_gating)(struct amdgpu_device *adev,
 						 bool enable);
 	void (*update_medium_grain_light_sleep)(struct amdgpu_device *adev,

@@ -493,9 +493,14 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 {
 	void *pp_handle = adev->powerplay.pp_handle;
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
+	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	if (!pp_funcs ||!pp_funcs->get_asic_baco_state ||!pp_funcs->set_asic_baco_state)
 		return -ENOENT;
+
+	/* avoid NBIF got stuck when do RAS recovery in BACO reset */
+	if (ras && ras->supported)
+		adev->nbio.funcs->enable_doorbell_interrupt(adev, false);
 
 	/* enter BACO state */
 	if (pp_funcs->set_asic_baco_state(pp_handle, 1))
@@ -504,6 +509,10 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 	/* exit BACO state */
 	if (pp_funcs->set_asic_baco_state(pp_handle, 0))
 		return -EIO;
+
+	/* re-enable doorbell interrupt after BACO exit */
+	if (ras && ras->supported)
+		adev->nbio.funcs->enable_doorbell_interrupt(adev, true);
 
 	dev_info(adev->dev, "GPU BACO reset\n");
 
