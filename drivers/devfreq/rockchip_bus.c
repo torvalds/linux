@@ -134,17 +134,13 @@ static int rockchip_bus_clkfreq_target(struct device *dev, unsigned long freq,
 	struct dev_pm_opp *opp;
 	unsigned long target_volt, target_rate = freq;
 
-	rcu_read_lock();
-
 	opp = devfreq_recommended_opp(dev, &target_rate, flags);
 	if (IS_ERR(opp)) {
 		dev_err(dev, "failed to recommended opp %lu\n", target_rate);
-		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
 	target_volt = dev_pm_opp_get_voltage(opp);
-
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	if (bus->cur_volt != target_volt) {
 		dev_dbg(bus->dev, "target_volt: %lu\n", target_volt);
@@ -239,17 +235,13 @@ static int rockchip_bus_cpufreq_target(struct device *dev, unsigned long freq,
 		return ret;
 	}
 
-	rcu_read_lock();
-
 	opp = devfreq_recommended_opp(dev, &target_rate, flags);
 	if (IS_ERR(opp)) {
 		dev_err(dev, "failed to recommended opp %lu\n", target_rate);
-		rcu_read_unlock();
 		return PTR_ERR(opp);
 	}
 	target_volt = dev_pm_opp_get_voltage(opp);
-
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	if (bus->cur_rate == target_rate) {
 		if (bus->cur_volt == target_volt)
