@@ -4758,46 +4758,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		intel_encoder->update_complete = intel_ddi_update_complete;
 	}
 
-	switch (port) {
-	case PORT_A:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_A_IO;
-		break;
-	case PORT_B:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_B_IO;
-		break;
-	case PORT_C:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_C_IO;
-		break;
-	case PORT_D:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_D_IO;
-		break;
-	case PORT_E:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_E_IO;
-		break;
-	case PORT_F:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_F_IO;
-		break;
-	case PORT_G:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_G_IO;
-		break;
-	case PORT_H:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_H_IO;
-		break;
-	case PORT_I:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_I_IO;
-		break;
-	default:
-		MISSING_CASE(port);
-	}
+	WARN_ON(port > PORT_I);
+	intel_dig_port->ddi_io_power_domain = POWER_DOMAIN_PORT_DDI_A_IO +
+					      port - PORT_A;
 
 	if (init_dp) {
 		if (!intel_ddi_init_dp_connector(intel_dig_port))
