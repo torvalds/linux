@@ -1218,6 +1218,59 @@ int v4l2_m2m_ioctl_try_decoder_cmd(struct file *file, void *fh,
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_try_decoder_cmd);
 
+int v4l2_m2m_ioctl_stateless_try_decoder_cmd(struct file *file, void *fh,
+					     struct v4l2_decoder_cmd *dc)
+{
+	if (dc->cmd != V4L2_DEC_CMD_FLUSH)
+		return -EINVAL;
+
+	dc->flags = 0;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_stateless_try_decoder_cmd);
+
+int v4l2_m2m_ioctl_stateless_decoder_cmd(struct file *file, void *priv,
+					 struct v4l2_decoder_cmd *dc)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct vb2_v4l2_buffer *out_vb, *cap_vb;
+	struct v4l2_m2m_dev *m2m_dev = fh->m2m_ctx->m2m_dev;
+	unsigned long flags;
+	int ret;
+
+	ret = v4l2_m2m_ioctl_stateless_try_decoder_cmd(file, priv, dc);
+	if (ret < 0)
+		return ret;
+
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags);
+	out_vb = v4l2_m2m_last_src_buf(fh->m2m_ctx);
+	cap_vb = v4l2_m2m_last_dst_buf(fh->m2m_ctx);
+
+	/*
+	 * If there is an out buffer pending, then clear any HOLD flag.
+	 *
+	 * By clearing this flag we ensure that when this output
+	 * buffer is processed any held capture buffer will be released.
+	 */
+	if (out_vb) {
+		out_vb->flags &= ~V4L2_BUF_FLAG_M2M_HOLD_CAPTURE_BUF;
+	} else if (cap_vb && cap_vb->is_held) {
+		/*
+		 * If there were no output buffers, but there is a
+		 * capture buffer that is held, then release that
+		 * buffer.
+		 */
+		cap_vb->is_held = false;
+		v4l2_m2m_dst_buf_remove(fh->m2m_ctx);
+		v4l2_m2m_buf_done(cap_vb, VB2_BUF_STATE_DONE);
+	}
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_ioctl_stateless_decoder_cmd);
+
 /*
  * v4l2_file_operations helpers. It is assumed here same lock is used
  * for the output and the capture buffer queue.
