@@ -2114,20 +2114,6 @@ int serial8250_do_startup(struct uart_port *port)
 	enable_rsa(up);
 #endif
 
-	if (port->type == PORT_XR17V35X) {
-		/*
-		 * First enable access to IER [7:5], ISR [5:4], FCR [5:4],
-		 * MCR [7:5] and MSR [7:0]
-		 */
-		serial_port_out(port, UART_XR_EFR, UART_EFR_ECB);
-
-		/*
-		 * Make sure all interrups are masked until initialization is
-		 * complete and the FIFOs are cleared
-		 */
-		serial_port_out(port, UART_IER, 0);
-	}
-
 	/*
 	 * Clear the FIFO buffers and disable them.
 	 * (they will be reenabled in set_termios())

@@ -166,6 +166,23 @@ static void xr17v35x_set_divisor(struct uart_port *p, unsigned int baud,
 	serial_port_out(p, 0x2, quot_frac);
 }
 
+static int xr17v35x_startup(struct uart_port *port)
+{
+	/*
+	 * First enable access to IER [7:5], ISR [5:4], FCR [5:4],
+	 * MCR [7:5] and MSR [7:0]
+	 */
+	serial_port_out(port, UART_XR_EFR, UART_EFR_ECB);
+
+	/*
+	 * Make sure all interrups are masked until initialization is
+	 * complete and the FIFOs are cleared
+	 */
+	serial_port_out(port, UART_IER, 0);
+
+	return serial8250_do_startup(port);
+}
+
 static void exar_shutdown(struct uart_port *port)
 {
 	unsigned char lsr;
@@ -212,6 +229,8 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 
 		port->port.get_divisor = xr17v35x_get_divisor;
 		port->port.set_divisor = xr17v35x_set_divisor;
+
+		port->port.startup = xr17v35x_startup;
 	} else {
 		port->port.type = PORT_XR17D15X;
 	}
