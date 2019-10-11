@@ -3547,7 +3547,7 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
-	if (tr && trace_array_get(tr) < 0)
+	if (tracing_check_open_get_tr(tr))
 		return -ENODEV;
 
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
@@ -6546,8 +6546,9 @@ ftrace_pid_open(struct inode *inode, struct file *file)
 	struct seq_file *m;
 	int ret = 0;
 
-	if (trace_array_get(tr) < 0)
-		return -ENODEV;
+	ret = tracing_check_open_get_tr(tr);
+	if (ret)
+		return ret;
 
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC))
