@@ -757,7 +757,7 @@ SYM_CODE_END(__switch_to_asm)
  * asmlinkage function so its argument has to be pushed on the stack.  This
  * wrapper creates a proper "end of stack" frame header before the call.
  */
-ENTRY(schedule_tail_wrapper)
+SYM_FUNC_START(schedule_tail_wrapper)
 	FRAME_BEGIN
 
 	pushl	%eax
@@ -766,7 +766,7 @@ ENTRY(schedule_tail_wrapper)
 
 	FRAME_END
 	ret
-ENDPROC(schedule_tail_wrapper)
+SYM_FUNC_END(schedule_tail_wrapper)
 /*
  * A newly forked process directly context switches into this address.
  *
@@ -885,7 +885,7 @@ SYM_CODE_END(xen_sysenter_target)
  * ebp  user stack
  * 0(%ebp) arg6
  */
-ENTRY(entry_SYSENTER_32)
+SYM_FUNC_START(entry_SYSENTER_32)
 	/*
 	 * On entry-stack with all userspace-regs live - save and
 	 * restore eflags and %eax to use it as scratch-reg for the cr3
@@ -1013,7 +1013,7 @@ ENTRY(entry_SYSENTER_32)
 	popfl
 	jmp	.Lsysenter_flags_fixed
 SYM_ENTRY(__end_SYSENTER_singlestep_region, SYM_L_GLOBAL, SYM_A_NONE)
-ENDPROC(entry_SYSENTER_32)
+SYM_FUNC_END(entry_SYSENTER_32)
 
 /*
  * 32-bit legacy system call entry.
@@ -1043,7 +1043,7 @@ ENDPROC(entry_SYSENTER_32)
  * edi  arg5
  * ebp  arg6
  */
-ENTRY(entry_INT80_32)
+SYM_FUNC_START(entry_INT80_32)
 	ASM_CLAC
 	pushl	%eax			/* pt_regs->orig_ax */
 
@@ -1120,7 +1120,7 @@ SYM_CODE_START(iret_exc)
 SYM_CODE_END(iret_exc)
 .previous
 	_ASM_EXTABLE(.Lirq_return, iret_exc)
-ENDPROC(entry_INT80_32)
+SYM_FUNC_END(entry_INT80_32)
 
 .macro FIXUP_ESPFIX_STACK
 /*
@@ -1213,7 +1213,7 @@ SYM_CODE_START_LOCAL(common_interrupt)
 SYM_CODE_END(common_interrupt)
 
 #define BUILD_INTERRUPT3(name, nr, fn)			\
-ENTRY(name)						\
+SYM_FUNC_START(name)					\
 	ASM_CLAC;					\
 	pushl	$~(nr);					\
 	SAVE_ALL switch_stacks=1;			\
@@ -1222,7 +1222,7 @@ ENTRY(name)						\
 	movl	%esp, %eax;				\
 	call	fn;					\
 	jmp	ret_from_intr;				\
-ENDPROC(name)
+SYM_FUNC_END(name)
 
 #define BUILD_INTERRUPT(name, nr)		\
 	BUILD_INTERRUPT3(name, nr, smp_##name);	\
@@ -1341,7 +1341,7 @@ SYM_CODE_START(spurious_interrupt_bug)
 SYM_CODE_END(spurious_interrupt_bug)
 
 #ifdef CONFIG_XEN_PV
-ENTRY(xen_hypervisor_callback)
+SYM_FUNC_START(xen_hypervisor_callback)
 	pushl	$-1				/* orig_ax = -1 => not a system call */
 	SAVE_ALL
 	ENCODE_FRAME_POINTER
@@ -1369,7 +1369,7 @@ SYM_INNER_LABEL_ALIGN(xen_do_upcall, SYM_L_GLOBAL)
 	call	xen_maybe_preempt_hcall
 #endif
 	jmp	ret_from_intr
-ENDPROC(xen_hypervisor_callback)
+SYM_FUNC_END(xen_hypervisor_callback)
 
 /*
  * Hypervisor uses this for application faults while it executes.
@@ -1383,7 +1383,7 @@ ENDPROC(xen_hypervisor_callback)
  * to pop the stack frame we end up in an infinite loop of failsafe callbacks.
  * We distinguish between categories by maintaining a status value in EAX.
  */
-ENTRY(xen_failsafe_callback)
+SYM_FUNC_START(xen_failsafe_callback)
 	pushl	%eax
 	movl	$1, %eax
 1:	mov	4(%esp), %ds
@@ -1420,7 +1420,7 @@ ENTRY(xen_failsafe_callback)
 	_ASM_EXTABLE(2b, 7b)
 	_ASM_EXTABLE(3b, 8b)
 	_ASM_EXTABLE(4b, 9b)
-ENDPROC(xen_failsafe_callback)
+SYM_FUNC_END(xen_failsafe_callback)
 #endif /* CONFIG_XEN_PV */
 
 #ifdef CONFIG_XEN_PVHVM

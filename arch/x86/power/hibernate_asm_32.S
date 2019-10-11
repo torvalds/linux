@@ -16,7 +16,7 @@
 
 .text
 
-ENTRY(swsusp_arch_suspend)
+SYM_FUNC_START(swsusp_arch_suspend)
 	movl %esp, saved_context_esp
 	movl %ebx, saved_context_ebx
 	movl %ebp, saved_context_ebp
@@ -33,7 +33,7 @@ ENTRY(swsusp_arch_suspend)
 	call swsusp_save
 	FRAME_END
 	ret
-ENDPROC(swsusp_arch_suspend)
+SYM_FUNC_END(swsusp_arch_suspend)
 
 SYM_CODE_START(restore_image)
 	/* prepare to jump to the image kernel */
@@ -82,7 +82,7 @@ SYM_CODE_END(core_restore_code)
 
 	/* code below belongs to the image kernel */
 	.align PAGE_SIZE
-ENTRY(restore_registers)
+SYM_FUNC_START(restore_registers)
 	/* go back to the original page tables */
 	movl	%ebp, %cr3
 	movl	mmu_cr4_features, %ecx
@@ -109,4 +109,4 @@ ENTRY(restore_registers)
 	movl	%eax, in_suspend
 
 	ret
-ENDPROC(restore_registers)
+SYM_FUNC_END(restore_registers)

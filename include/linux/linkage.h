@@ -112,15 +112,13 @@
 	.globl name ASM_NL \
 	name:
 #endif
-#endif
 
-#ifndef CONFIG_X86_64
 #ifndef ENTRY
 /* deprecated, use SYM_FUNC_START */
 #define ENTRY(name) \
 	SYM_FUNC_START(name)
 #endif
-#endif /* CONFIG_X86_64 */
+#endif /* CONFIG_X86 */
 #endif /* LINKER_SCRIPT */
 
 #ifndef WEAK
@@ -135,9 +133,7 @@
 #define END(name) \
 	.size name, .-name
 #endif
-#endif /* CONFIG_X86 */
 
-#ifndef CONFIG_X86_64
 /* If symbol 'name' is treated as a subroutine (gets called, and returns)
  * then please use ENDPROC to mark 'name' as STT_FUNC for the benefit of
  * static analysis tools such as stack depth analyzer.
@@ -147,7 +143,7 @@
 #define ENDPROC(name) \
 	SYM_FUNC_END(name)
 #endif
-#endif /* CONFIG_X86_64 */
+#endif /* CONFIG_X86 */
 
 /* === generic annotations === */
 
