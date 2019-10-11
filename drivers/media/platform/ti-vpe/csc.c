@@ -238,7 +238,7 @@ void csc_set_coeff(struct csc_data *csc, u32 *csc_reg0,
 				coeff = csc_coeffs.r2y.r709.limited.coeff;
 		} else {
 			/* Should never reach this, but it keeps gcc happy */
-			coeff = csc_coeffs.y2r.r601.full.coeff;
+			coeff = csc_coeffs.r2y.r601.full.coeff;
 		}
 	} else {
 		*csc_reg5 |= CSC_BYPASS;
