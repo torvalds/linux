@@ -4478,7 +4478,7 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 		&dp_to_dig_port(intel_dp)->base;
 	bool sink_can_mst = intel_dp_sink_can_mst(intel_dp);
 
-	DRM_DEBUG_KMS("[ENCODER:%d:%s] MST support? port: %s, sink: %s, modparam: %s\n",
+	DRM_DEBUG_KMS("[ENCODER:%d:%s] MST support: port: %s, sink: %s, modparam: %s\n",
 		      encoder->base.base.id, encoder->base.name,
 		      yesno(intel_dp->can_mst), yesno(sink_can_mst),
 		      yesno(i915_modparams.enable_dp_mst));
