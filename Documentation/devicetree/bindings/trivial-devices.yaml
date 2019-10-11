@@ -120,6 +120,12 @@ properties:
           - maxim,max1029
             # 10-bit 16 channels 300ks/s SPI ADC with temperature sensor
           - maxim,max1031
+            # 12-bit 8 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1227
+            # 12-bit 12 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1229
+            # 12-bit 16 channels 300ks/s SPI ADC with temperature sensor
+          - maxim,max1231
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
           - maxim,max1237
             # PECI-to-I2C translator for PECI-to-SMBus/I2C protocol conversion
