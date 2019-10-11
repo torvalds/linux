@@ -393,6 +393,8 @@ struct smu_context
 
 };
 
+struct i2c_adapter;
+
 struct pptable_funcs {
 	int (*alloc_dpm_context)(struct smu_context *smu);
 	int (*store_powerplay_table)(struct smu_context *smu);
@@ -469,6 +471,8 @@ struct pptable_funcs {
 				   uint32_t dpm_level, uint32_t *freq);
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
 	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
+	int (*i2c_eeprom_init)(struct i2c_adapter *control);
+	void (*i2c_eeprom_fini)(struct i2c_adapter *control);
 	int (*get_dpm_clock_table)(struct smu_context *smu, struct dpm_clocks *clock_table);
 	int (*init_microcode)(struct smu_context *smu);
 	int (*load_microcode)(struct smu_context *smu);
@@ -551,6 +555,11 @@ int smu_load_microcode(struct smu_context *smu);
 int smu_check_fw_status(struct smu_context *smu);
 
 int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
+
+#define smu_i2c_eeprom_init(smu, control) \
+		((smu)->ppt_funcs->i2c_eeprom_init ? (smu)->ppt_funcs->i2c_eeprom_init((control)) : -EINVAL)
+#define smu_i2c_eeprom_fini(smu, control) \
+		((smu)->ppt_funcs->i2c_eeprom_fini ? (smu)->ppt_funcs->i2c_eeprom_fini((control)) : -EINVAL)
 
 int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 
