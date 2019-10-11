@@ -57,15 +57,13 @@ mali_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 
 	freq = *target_freq;
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &freq, flags);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		MALI_PRINT_ERROR(("Failed to get opp (%ld)\n", PTR_ERR(opp)));
 		return PTR_ERR(opp);
 	}
 	voltage = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	MALI_DEBUG_PRINT(2, ("mali_devfreq_target:set_freq = %lld flags = 0x%x\n", freq, flags));
 	/*
@@ -180,13 +178,10 @@ static int mali_devfreq_init_freq_table(struct mali_device *mdev,
 	if (err)
 		return err;
 
-	rcu_read_lock();
 	count = dev_pm_opp_get_opp_count(mdev->dev);
 	if (count < 0) {
-		rcu_read_unlock();
 		return count;
 	}
-	rcu_read_unlock();
 
 	MALI_DEBUG_PRINT(2, ("mali devfreq table count %d\n", count));
 
@@ -195,16 +190,15 @@ static int mali_devfreq_init_freq_table(struct mali_device *mdev,
 	if (!dp->freq_table)
 		return -ENOMEM;
 
-	rcu_read_lock();
 	for (i = 0; i < count; i++, freq++) {
 		opp = dev_pm_opp_find_freq_ceil(mdev->dev, &freq);
 		if (IS_ERR(opp))
 			break;
+		dev_pm_opp_put(opp);
 
 		dp->freq_table[i] = freq;
 		MALI_DEBUG_PRINT(2, ("mali devfreq table array[%d] = %d\n", i, freq));
 	}
-	rcu_read_unlock();
 
 	if (count != i)
 		MALI_PRINT_ERROR(("Unable to enumerate all OPPs (%d!=%d)\n",
@@ -237,6 +231,7 @@ int mali_devfreq_init(struct mali_device *mdev)
 	_mali_osk_device_data data;
 #endif
 	struct devfreq_dev_profile *dp;
+	struct dev_pm_opp *opp;
 	unsigned long opp_rate;
 	int err;
 
@@ -273,9 +268,9 @@ int mali_devfreq_init(struct mali_device *mdev)
 	}
 
 	opp_rate = mdev->current_freq;
-	rcu_read_lock();
-	devfreq_recommended_opp(mdev->dev, &opp_rate, 0);
-	rcu_read_unlock();
+	opp = devfreq_recommended_opp(mdev->dev, &opp_rate, 0);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 	mdev->devfreq->last_status.current_frequency = opp_rate;
 
 	mali_mdevp.data = mdev->devfreq;

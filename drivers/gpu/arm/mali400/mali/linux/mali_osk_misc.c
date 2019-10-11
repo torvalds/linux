@@ -46,7 +46,7 @@ void _mali_osk_abort(void)
 {
 	/* make a simple fault by dereferencing a NULL pointer */
 	dump_stack();
-	*(int *)0 = 0;
+	*(volatile int *)0 = 0;
 }
 
 void _mali_osk_break(void)
