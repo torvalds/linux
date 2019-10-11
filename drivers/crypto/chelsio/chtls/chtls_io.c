@@ -1841,8 +1841,7 @@ skip_copy:
 			tp->urg_data = 0;
 
 		if (avail + offset >= skb->len) {
-			if (likely(skb))
-				chtls_free_skb(sk, skb);
+			chtls_free_skb(sk, skb);
 			buffers_freed++;
 
 			if  (copied >= target &&
