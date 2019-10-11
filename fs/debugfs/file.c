@@ -633,10 +633,10 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_x64_wo, NULL, debugfs_u64_set, "0x%016llx\n");
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_x8(const char *name, umode_t mode,
-				 struct dentry *parent, u8 *value)
+void debugfs_create_x8(const char *name, umode_t mode, struct dentry *parent,
+		       u8 *value)
 {
-	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x8,
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x8,
 				   &fops_x8_ro, &fops_x8_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x8);
