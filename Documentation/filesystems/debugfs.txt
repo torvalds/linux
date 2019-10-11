@@ -74,8 +74,8 @@ created with any of:
 			    struct dentry *parent, u16 *value);
     struct dentry *debugfs_create_u32(const char *name, umode_t mode,
 				      struct dentry *parent, u32 *value);
-    struct dentry *debugfs_create_u64(const char *name, umode_t mode,
-				      struct dentry *parent, u64 *value);
+    void debugfs_create_u64(const char *name, umode_t mode,
+			    struct dentry *parent, u64 *value);
 
 These files support both reading and writing the given value; if a specific
 file should not be written to, simply set the mode bits accordingly.  The
