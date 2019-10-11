@@ -800,8 +800,8 @@ static void ti_close(struct usb_serial_port *port)
 							, __func__, status);
 
 	mutex_lock(&tdev->td_open_close_lock);
-	--tport->tp_tdev->td_open_port_count;
-	if (tport->tp_tdev->td_open_port_count == 0) {
+	--tdev->td_open_port_count;
+	if (tdev->td_open_port_count == 0) {
 		/* last port is closed, shut down interrupt urb */
 		usb_kill_urb(port->serial->port[0]->interrupt_in_urb);
 	}
