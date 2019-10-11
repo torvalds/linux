@@ -1686,7 +1686,7 @@ static int sja1105_setup(struct dsa_switch *ds)
 		return rc;
 	}
 
-	rc = sja1105_ptp_clock_register(priv);
+	rc = sja1105_ptp_clock_register(ds);
 	if (rc < 0) {
 		dev_err(ds->dev, "Failed to register PTP clock: %d\n", rc);
 		return rc;
@@ -1730,7 +1730,7 @@ static void sja1105_teardown(struct dsa_switch *ds)
 	sja1105_tas_teardown(ds);
 	cancel_work_sync(&priv->tagger_data.rxtstamp_work);
 	skb_queue_purge(&priv->tagger_data.skb_rxtstamp_queue);
-	sja1105_ptp_clock_unregister(priv);
+	sja1105_ptp_clock_unregister(ds);
 	sja1105_static_config_free(&priv->static_config);
 }
 
@@ -1852,14 +1852,14 @@ static netdev_tx_t sja1105_port_deferred_xmit(struct dsa_switch *ds, int port,
 
 	now = priv->tstamp_cc.read(&priv->tstamp_cc);
 
-	rc = sja1105_ptpegr_ts_poll(priv, slot, &ts);
+	rc = sja1105_ptpegr_ts_poll(ds, slot, &ts);
 	if (rc < 0) {
 		dev_err(ds->dev, "xmit: timed out polling for tstamp\n");
 		kfree_skb(clone);
 		goto out_unlock_ptp;
 	}
 
-	ts = sja1105_tstamp_reconstruct(priv, now, ts);
+	ts = sja1105_tstamp_reconstruct(ds, now, ts);
 	ts = timecounter_cyc2time(&priv->tstamp_tc, ts);
 
 	shwt.hwtstamp = ns_to_ktime(ts);
@@ -2002,6 +2002,7 @@ static void sja1105_rxtstamp_work(struct work_struct *work)
 {
 	struct sja1105_tagger_data *data = to_tagger(work);
 	struct sja1105_private *priv = to_sja1105(data);
+	struct dsa_switch *ds = priv->ds;
 	struct sk_buff *skb;
 	u64 now;
 
@@ -2016,7 +2017,7 @@ static void sja1105_rxtstamp_work(struct work_struct *work)
 		*shwt = (struct skb_shared_hwtstamps) {0};
 
 		ts = SJA1105_SKB_CB(skb)->meta_tstamp;
-		ts = sja1105_tstamp_reconstruct(priv, now, ts);
+		ts = sja1105_tstamp_reconstruct(ds, now, ts);
 		ts = timecounter_cyc2time(&priv->tstamp_tc, ts);
 
 		shwt->hwtstamp = ns_to_ktime(ts);
