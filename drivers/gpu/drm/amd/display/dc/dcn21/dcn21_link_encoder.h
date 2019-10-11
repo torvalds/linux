@@ -33,6 +33,16 @@ struct dcn21_link_encoder {
 	struct dpcssys_phy_seq_cfg phy_seq_cfg;
 };
 
+#define LINK_ENCODER_MASK_SH_LIST_DCN21(mask_sh)\
+	LINK_ENCODER_MASK_SH_LIST_DCN20(mask_sh),\
+	LE_SF(UNIPHYA_CHANNEL_XBAR_CNTL, UNIPHY_CHANNEL0_XBAR_SOURCE, mask_sh),\
+	LE_SF(UNIPHYA_CHANNEL_XBAR_CNTL, UNIPHY_CHANNEL1_XBAR_SOURCE, mask_sh),\
+	LE_SF(UNIPHYA_CHANNEL_XBAR_CNTL, UNIPHY_CHANNEL2_XBAR_SOURCE, mask_sh),\
+	LE_SF(UNIPHYA_CHANNEL_XBAR_CNTL, UNIPHY_CHANNEL3_XBAR_SOURCE, mask_sh), \
+	SRI(RDPCSTX_PHY_FUSE2, RDPCSTX, id), \
+	SRI(RDPCSTX_PHY_FUSE3, RDPCSTX, id), \
+	SR(RDPCSTX0_RDPCSTX_SCRATCH)
+
 void dcn21_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,

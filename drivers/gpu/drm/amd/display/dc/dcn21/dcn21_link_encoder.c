@@ -203,6 +203,77 @@ static bool update_cfg_data(
 	return true;
 }
 
+void dcn21_link_encoder_get_max_link_cap(struct link_encoder *enc,
+	struct dc_link_settings *link_settings)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+
+	REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DP4, &value);
+
+	if (!value && link_settings->lane_count > LANE_COUNT_TWO)
+		link_settings->lane_count = LANE_COUNT_TWO;
+}
+
+bool dcn21_link_encoder_is_in_alt_mode(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	uint32_t value;
+
+	REG_GET(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DPALT_DISABLE, &value);
+
+	// if value == 1 alt mode is disabled, otherwise it is enabled
+	return !value;
+}
+
+bool dcn21_link_encoder_acquire_phy(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+	int value;
+
+	if (enc->features.flags.bits.DP_IS_USB_C) {
+		REG_GET(RDPCSTX_PHY_CNTL6,
+				RDPCS_PHY_DPALT_DISABLE, &value);
+
+		if (value == 1) {
+			ASSERT(0);
+			return false;
+		}
+		REG_UPDATE(RDPCSTX_PHY_CNTL6,
+				RDPCS_PHY_DPALT_DISABLE_ACK, 0);
+
+		udelay(40);
+
+		REG_GET(RDPCSTX_PHY_CNTL6,
+						RDPCS_PHY_DPALT_DISABLE, &value);
+		if (value == 1) {
+			ASSERT(0);
+			REG_UPDATE(RDPCSTX_PHY_CNTL6,
+					RDPCS_PHY_DPALT_DISABLE_ACK, 1);
+			return false;
+		}
+	}
+
+	REG_UPDATE(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DP_REF_CLK_EN, 1);
+
+	return true;
+}
+
+
+
+static void dcn21_link_encoder_release_phy(struct link_encoder *enc)
+{
+	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
+
+	if (enc->features.flags.bits.DP_IS_USB_C) {
+		REG_UPDATE(RDPCSTX_PHY_CNTL6,
+				RDPCS_PHY_DPALT_DISABLE_ACK, 1);
+	}
+
+	REG_UPDATE(RDPCSTX_PHY_CNTL6, RDPCS_PHY_DP_REF_CLK_EN, 0);
+
+}
+
 void dcn21_link_encoder_enable_dp_output(
 	struct link_encoder *enc,
 	const struct dc_link_settings *link_settings,
@@ -211,6 +282,9 @@ void dcn21_link_encoder_enable_dp_output(
 	struct dcn10_link_encoder *enc10 = TO_DCN10_LINK_ENC(enc);
 	struct dcn21_link_encoder *enc21 = (struct dcn21_link_encoder *) enc10;
 	struct dpcssys_phy_seq_cfg *cfg = &enc21->phy_seq_cfg;
+
+	if (!dcn21_link_encoder_acquire_phy(enc))
+		return;
 
 	if (!enc->ctx->dc->debug.avoid_vbios_exec_table) {
 		dcn10_link_encoder_enable_dp_output(enc, link_settings, clock_source);
@@ -226,13 +300,28 @@ void dcn21_link_encoder_enable_dp_output(
 
 }
 
+void dcn21_link_encoder_enable_dp_mst_output(
+	struct link_encoder *enc,
+	const struct dc_link_settings *link_settings,
+	enum clock_source_id clock_source)
+{
+	if (!dcn21_link_encoder_acquire_phy(enc))
+		return;
+
+	dcn10_link_encoder_enable_dp_mst_output(enc, link_settings, clock_source);
+}
+
 void dcn21_link_encoder_disable_output(
 	struct link_encoder *enc,
 	enum signal_type signal)
 {
 	dcn10_link_encoder_disable_output(enc, signal);
 
+	if (dc_is_dp_signal(signal))
+		dcn21_link_encoder_release_phy(enc);
 }
+
+
 static const struct link_encoder_funcs dcn21_link_enc_funcs = {
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 	.read_state = link_enc2_read_state,
@@ -243,7 +332,7 @@ static const struct link_encoder_funcs dcn21_link_enc_funcs = {
 	.setup = dcn10_link_encoder_setup,
 	.enable_tmds_output = dcn10_link_encoder_enable_tmds_output,
 	.enable_dp_output = dcn21_link_encoder_enable_dp_output,
-	.enable_dp_mst_output = dcn10_link_encoder_enable_dp_mst_output,
+	.enable_dp_mst_output = dcn21_link_encoder_enable_dp_mst_output,
 	.disable_output = dcn21_link_encoder_disable_output,
 	.dp_set_lane_settings = dcn10_link_encoder_dp_set_lane_settings,
 	.dp_set_phy_pattern = dcn10_link_encoder_dp_set_phy_pattern,
@@ -261,6 +350,8 @@ static const struct link_encoder_funcs dcn21_link_enc_funcs = {
 	.fec_set_ready = enc2_fec_set_ready,
 	.fec_is_active = enc2_fec_is_active,
 	.get_dig_frontend = dcn10_get_dig_frontend,
+	.is_in_alt_mode = dcn21_link_encoder_is_in_alt_mode,
+	.get_max_link_cap = dcn21_link_encoder_get_max_link_cap,
 };
 
 void dcn21_link_encoder_construct(
