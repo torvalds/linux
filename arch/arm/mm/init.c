@@ -593,8 +593,8 @@ static inline bool arch_has_strict_perms(void)
 	return !!(get_cr() & CR_XP);
 }
 
-void set_section_perms(struct section_perm *perms, int n, bool set,
-			struct mm_struct *mm)
+static void set_section_perms(struct section_perm *perms, int n, bool set,
+			      struct mm_struct *mm)
 {
 	size_t i;
 	unsigned long addr;
