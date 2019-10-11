@@ -16,6 +16,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/gpio/consumer.h>
+#include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/rk618.h>
