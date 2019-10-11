@@ -5356,7 +5356,7 @@ static void tcp_check_urg(struct sock *sk, const struct tcphdr *th)
 	}
 
 	tp->urg_data = TCP_URG_NOTYET;
-	tp->urg_seq = ptr;
+	WRITE_ONCE(tp->urg_seq, ptr);
 
 	/* Disable header prediction. */
 	tp->pred_flags = 0;

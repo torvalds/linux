@@ -546,7 +546,7 @@ __poll_t tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	    (state != TCP_SYN_RECV || rcu_access_pointer(tp->fastopen_rsk))) {
 		int target = sock_rcvlowat(sk, 0, INT_MAX);
 
-		if (tp->urg_seq == READ_ONCE(tp->copied_seq) &&
+		if (READ_ONCE(tp->urg_seq) == READ_ONCE(tp->copied_seq) &&
 		    !sock_flag(sk, SOCK_URGINLINE) &&
 		    tp->urg_data)
 			target++;
@@ -607,7 +607,8 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		unlock_sock_fast(sk, slow);
 		break;
 	case SIOCATMARK:
-		answ = tp->urg_data && tp->urg_seq == READ_ONCE(tp->copied_seq);
+		answ = tp->urg_data &&
+		       READ_ONCE(tp->urg_seq) == READ_ONCE(tp->copied_seq);
 		break;
 	case SIOCOUTQ:
 		if (sk->sk_state == TCP_LISTEN)
