@@ -3165,17 +3165,14 @@ static int devfreq_vcodec_target(struct device *dev, unsigned long *freq,
 	unsigned int clk_event;
 	int ret = 0;
 
-	rcu_read_lock();
-
 	opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+		dev_err(dev, "Failed to find opp for %lu Hz\n", *freq);
 		return PTR_ERR(opp);
 	}
 	target_rate = dev_pm_opp_get_freq(opp);
 	target_volt = dev_pm_opp_get_voltage(opp);
-
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	if (target_rate < req_rate) {
 		clk_event = EVENT_THERMAL;
