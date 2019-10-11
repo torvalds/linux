@@ -196,7 +196,7 @@
 #include <linux/uuid.h>
 
 #include "gem/i915_gem_context.h"
-#include "gem/i915_gem_pm.h"
+#include "gt/intel_engine_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_lrc_reg.h"
 
@@ -1353,7 +1353,7 @@ static void i915_oa_stream_destroy(struct i915_perf_stream *stream)
 	free_oa_buffer(stream);
 
 	intel_uncore_forcewake_put(stream->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(stream->uncore->rpm, stream->wakeref);
+	intel_engine_pm_put(stream->engine);
 
 	if (stream->ctx)
 		oa_put_render_ctx_id(stream);
@@ -2218,7 +2218,7 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	 *   In our case we are expecting that taking pm + FORCEWAKE
 	 *   references will effectively disable RC6.
 	 */
-	stream->wakeref = intel_runtime_pm_get(stream->uncore->rpm);
+	intel_engine_pm_get(stream->engine);
 	intel_uncore_forcewake_get(stream->uncore, FORCEWAKE_ALL);
 
 	ret = alloc_oa_buffer(stream);
@@ -2252,7 +2252,7 @@ err_oa_buf_alloc:
 	put_oa_config(stream->oa_config);
 
 	intel_uncore_forcewake_put(stream->uncore, FORCEWAKE_ALL);
-	intel_runtime_pm_put(stream->uncore->rpm, stream->wakeref);
+	intel_engine_pm_put(stream->engine);
 
 err_config:
 	if (stream->ctx)

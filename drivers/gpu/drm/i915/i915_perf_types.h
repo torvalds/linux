@@ -135,12 +135,6 @@ struct i915_perf_stream {
 	struct intel_uncore *uncore;
 
 	/**
-	 * @wakeref: As we keep the device awake while the perf stream is
-	 * active, we track our runtime pm reference for later release.
-	 */
-	intel_wakeref_t wakeref;
-
-	/**
 	 * @engine: Engine associated with this performance stream.
 	 */
 	struct intel_engine_cs *engine;
