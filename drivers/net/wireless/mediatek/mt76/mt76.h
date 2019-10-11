@@ -433,6 +433,7 @@ struct mt76_rx_status {
 
 	u8 iv[6];
 
+	u8 ext_phy:1;
 	u8 aggr:1;
 	u8 tid;
 	u16 seqno;
@@ -456,6 +457,8 @@ struct mt76_phy {
 
 struct mt76_dev {
 	struct mt76_phy phy; /* must be first */
+
+	struct mt76_phy *phy2;
 
 	struct ieee80211_hw *hw;
 	struct cfg80211_chan_def chandef;
@@ -639,6 +642,14 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
 
 int mt76_eeprom_init(struct mt76_dev *dev, int len);
 void mt76_eeprom_override(struct mt76_dev *dev);
+
+static inline struct ieee80211_hw *
+mt76_phy_hw(struct mt76_dev *dev, bool phy_ext)
+{
+	if (phy_ext && dev->phy2)
+		return dev->phy2->hw;
+	return dev->phy.hw;
+}
 
 static inline u8 *
 mt76_get_txwi_ptr(struct mt76_dev *dev, struct mt76_txwi_cache *t)

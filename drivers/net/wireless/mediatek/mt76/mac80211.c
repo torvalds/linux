@@ -564,8 +564,12 @@ void mt76_wcid_key_setup(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 EXPORT_SYMBOL(mt76_wcid_key_setup);
 
-static struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
+static void
+mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
+		struct ieee80211_hw **hw,
+		struct ieee80211_sta **sta)
 {
+
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct mt76_rx_status mstat;
 
@@ -590,7 +594,8 @@ static struct ieee80211_sta *mt76_rx_convert(struct sk_buff *skb)
 	memcpy(status->chain_signal, mstat.chain_signal,
 	       sizeof(mstat.chain_signal));
 
-	return wcid_to_sta(mstat.wcid);
+	*sta = wcid_to_sta(mstat.wcid);
+	*hw = mt76_phy_hw(dev, mstat.ext_phy);
 }
 
 static int
@@ -716,12 +721,14 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_sta *sta;
+	struct ieee80211_hw *hw;
 	struct mt76_wcid *wcid = status->wcid;
 	bool ps;
 	int i;
 
+	hw = mt76_phy_hw(dev, status->ext_phy);
 	if (ieee80211_is_pspoll(hdr->frame_control) && !wcid) {
-		sta = ieee80211_find_sta_by_ifaddr(dev->hw, hdr->addr2, NULL);
+		sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr2, NULL);
 		if (sta)
 			wcid = status->wcid = (struct mt76_wcid *)sta->drv_priv;
 	}
@@ -779,7 +786,7 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 
 		mtxq = (struct mt76_txq *)sta->txq[i]->drv_priv;
 		if (!skb_queue_empty(&mtxq->retry_q))
-			ieee80211_schedule_txq(dev->hw, sta->txq[i]);
+			ieee80211_schedule_txq(hw, sta->txq[i]);
 	}
 }
 
@@ -787,6 +794,7 @@ void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 		      struct napi_struct *napi)
 {
 	struct ieee80211_sta *sta;
+	struct ieee80211_hw *hw;
 	struct sk_buff *skb;
 
 	spin_lock(&dev->rx_lock);
@@ -796,8 +804,8 @@ void mt76_rx_complete(struct mt76_dev *dev, struct sk_buff_head *frames,
 			continue;
 		}
 
-		sta = mt76_rx_convert(skb);
-		ieee80211_rx_napi(dev->hw, sta, skb, napi);
+		mt76_rx_convert(dev, skb, &hw, &sta);
+		ieee80211_rx_napi(hw, sta, skb, napi);
 	}
 	spin_unlock(&dev->rx_lock);
 }
