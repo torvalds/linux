@@ -23,7 +23,7 @@
 
 	.code64
 	.text
-ENTRY(efi64_thunk)
+SYM_FUNC_START(efi64_thunk)
 	push	%rbp
 	push	%rbx
 
@@ -97,7 +97,7 @@ ENTRY(efi64_thunk)
 	pop	%rbx
 	pop	%rbp
 	ret
-ENDPROC(efi64_thunk)
+SYM_FUNC_END(efi64_thunk)
 
 SYM_FUNC_START_LOCAL(efi_exit32)
 	movq	func_rt_ptr(%rip), %rax

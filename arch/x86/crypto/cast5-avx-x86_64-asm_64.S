@@ -359,7 +359,7 @@ SYM_FUNC_START_LOCAL(__cast5_dec_blk16)
 	jmp .L__dec_tail;
 SYM_FUNC_END(__cast5_dec_blk16)
 
-ENTRY(cast5_ecb_enc_16way)
+SYM_FUNC_START(cast5_ecb_enc_16way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -394,9 +394,9 @@ ENTRY(cast5_ecb_enc_16way)
 	popq %r15;
 	FRAME_END
 	ret;
-ENDPROC(cast5_ecb_enc_16way)
+SYM_FUNC_END(cast5_ecb_enc_16way)
 
-ENTRY(cast5_ecb_dec_16way)
+SYM_FUNC_START(cast5_ecb_dec_16way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -432,9 +432,9 @@ ENTRY(cast5_ecb_dec_16way)
 	popq %r15;
 	FRAME_END
 	ret;
-ENDPROC(cast5_ecb_dec_16way)
+SYM_FUNC_END(cast5_ecb_dec_16way)
 
-ENTRY(cast5_cbc_dec_16way)
+SYM_FUNC_START(cast5_cbc_dec_16way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -484,9 +484,9 @@ ENTRY(cast5_cbc_dec_16way)
 	popq %r12;
 	FRAME_END
 	ret;
-ENDPROC(cast5_cbc_dec_16way)
+SYM_FUNC_END(cast5_cbc_dec_16way)
 
-ENTRY(cast5_ctr_16way)
+SYM_FUNC_START(cast5_ctr_16way)
 	/* input:
 	 *	%rdi: ctx
 	 *	%rsi: dst
@@ -560,4 +560,4 @@ ENTRY(cast5_ctr_16way)
 	popq %r12;
 	FRAME_END
 	ret;
-ENDPROC(cast5_ctr_16way)
+SYM_FUNC_END(cast5_ctr_16way)

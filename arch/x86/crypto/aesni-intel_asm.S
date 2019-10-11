@@ -1592,7 +1592,7 @@ _esb_loop_\@:
 * poly = x^128 + x^127 + x^126 + x^121 + 1
 *
 *****************************************************************************/
-ENTRY(aesni_gcm_dec)
+SYM_FUNC_START(aesni_gcm_dec)
 	FUNC_SAVE
 
 	GCM_INIT %arg6, arg7, arg8, arg9
@@ -1600,7 +1600,7 @@ ENTRY(aesni_gcm_dec)
 	GCM_COMPLETE arg10, arg11
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_dec)
+SYM_FUNC_END(aesni_gcm_dec)
 
 
 /*****************************************************************************
@@ -1680,7 +1680,7 @@ ENDPROC(aesni_gcm_dec)
 *
 * poly = x^128 + x^127 + x^126 + x^121 + 1
 ***************************************************************************/
-ENTRY(aesni_gcm_enc)
+SYM_FUNC_START(aesni_gcm_enc)
 	FUNC_SAVE
 
 	GCM_INIT %arg6, arg7, arg8, arg9
@@ -1689,7 +1689,7 @@ ENTRY(aesni_gcm_enc)
 	GCM_COMPLETE arg10, arg11
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_enc)
+SYM_FUNC_END(aesni_gcm_enc)
 
 /*****************************************************************************
 * void aesni_gcm_init(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1702,12 +1702,12 @@ ENDPROC(aesni_gcm_enc)
 *                     const u8 *aad,      // Additional Authentication Data (AAD)
 *                     u64 aad_len)        // Length of AAD in bytes.
 */
-ENTRY(aesni_gcm_init)
+SYM_FUNC_START(aesni_gcm_init)
 	FUNC_SAVE
 	GCM_INIT %arg3, %arg4,%arg5, %arg6
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_init)
+SYM_FUNC_END(aesni_gcm_init)
 
 /*****************************************************************************
 * void aesni_gcm_enc_update(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1717,12 +1717,12 @@ ENDPROC(aesni_gcm_init)
 *                    const u8 *in,       // Plaintext input
 *                    u64 plaintext_len,  // Length of data in bytes for encryption.
 */
-ENTRY(aesni_gcm_enc_update)
+SYM_FUNC_START(aesni_gcm_enc_update)
 	FUNC_SAVE
 	GCM_ENC_DEC enc
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_enc_update)
+SYM_FUNC_END(aesni_gcm_enc_update)
 
 /*****************************************************************************
 * void aesni_gcm_dec_update(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1732,12 +1732,12 @@ ENDPROC(aesni_gcm_enc_update)
 *                    const u8 *in,       // Plaintext input
 *                    u64 plaintext_len,  // Length of data in bytes for encryption.
 */
-ENTRY(aesni_gcm_dec_update)
+SYM_FUNC_START(aesni_gcm_dec_update)
 	FUNC_SAVE
 	GCM_ENC_DEC dec
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_dec_update)
+SYM_FUNC_END(aesni_gcm_dec_update)
 
 /*****************************************************************************
 * void aesni_gcm_finalize(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
@@ -1747,12 +1747,12 @@ ENDPROC(aesni_gcm_dec_update)
 *                    u64 auth_tag_len);  // Authenticated Tag Length in bytes. Valid values are 16 (most likely),
 *                                        // 12 or 8.
 */
-ENTRY(aesni_gcm_finalize)
+SYM_FUNC_START(aesni_gcm_finalize)
 	FUNC_SAVE
 	GCM_COMPLETE %arg3 %arg4
 	FUNC_RESTORE
 	ret
-ENDPROC(aesni_gcm_finalize)
+SYM_FUNC_END(aesni_gcm_finalize)
 
 #endif
 
@@ -1830,7 +1830,7 @@ SYM_FUNC_END(_key_expansion_256b)
  * int aesni_set_key(struct crypto_aes_ctx *ctx, const u8 *in_key,
  *                   unsigned int key_len)
  */
-ENTRY(aesni_set_key)
+SYM_FUNC_START(aesni_set_key)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
@@ -1939,12 +1939,12 @@ ENTRY(aesni_set_key)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_set_key)
+SYM_FUNC_END(aesni_set_key)
 
 /*
  * void aesni_enc(struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
  */
-ENTRY(aesni_enc)
+SYM_FUNC_START(aesni_enc)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
@@ -1963,7 +1963,7 @@ ENTRY(aesni_enc)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_enc)
+SYM_FUNC_END(aesni_enc)
 
 /*
  * _aesni_enc1:		internal ABI
@@ -2133,7 +2133,7 @@ SYM_FUNC_END(_aesni_enc4)
 /*
  * void aesni_dec (struct crypto_aes_ctx *ctx, u8 *dst, const u8 *src)
  */
-ENTRY(aesni_dec)
+SYM_FUNC_START(aesni_dec)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl KEYP
@@ -2153,7 +2153,7 @@ ENTRY(aesni_dec)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_dec)
+SYM_FUNC_END(aesni_dec)
 
 /*
  * _aesni_dec1:		internal ABI
@@ -2324,7 +2324,7 @@ SYM_FUNC_END(_aesni_dec4)
  * void aesni_ecb_enc(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len)
  */
-ENTRY(aesni_ecb_enc)
+SYM_FUNC_START(aesni_ecb_enc)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl LEN
@@ -2378,13 +2378,13 @@ ENTRY(aesni_ecb_enc)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_ecb_enc)
+SYM_FUNC_END(aesni_ecb_enc)
 
 /*
  * void aesni_ecb_dec(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len);
  */
-ENTRY(aesni_ecb_dec)
+SYM_FUNC_START(aesni_ecb_dec)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl LEN
@@ -2439,13 +2439,13 @@ ENTRY(aesni_ecb_dec)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_ecb_dec)
+SYM_FUNC_END(aesni_ecb_dec)
 
 /*
  * void aesni_cbc_enc(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len, u8 *iv)
  */
-ENTRY(aesni_cbc_enc)
+SYM_FUNC_START(aesni_cbc_enc)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl IVP
@@ -2483,13 +2483,13 @@ ENTRY(aesni_cbc_enc)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_cbc_enc)
+SYM_FUNC_END(aesni_cbc_enc)
 
 /*
  * void aesni_cbc_dec(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len, u8 *iv)
  */
-ENTRY(aesni_cbc_dec)
+SYM_FUNC_START(aesni_cbc_dec)
 	FRAME_BEGIN
 #ifndef __x86_64__
 	pushl IVP
@@ -2576,7 +2576,7 @@ ENTRY(aesni_cbc_dec)
 #endif
 	FRAME_END
 	ret
-ENDPROC(aesni_cbc_dec)
+SYM_FUNC_END(aesni_cbc_dec)
 
 #ifdef __x86_64__
 .pushsection .rodata
@@ -2638,7 +2638,7 @@ SYM_FUNC_END(_aesni_inc)
  * void aesni_ctr_enc(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *		      size_t len, u8 *iv)
  */
-ENTRY(aesni_ctr_enc)
+SYM_FUNC_START(aesni_ctr_enc)
 	FRAME_BEGIN
 	cmp $16, LEN
 	jb .Lctr_enc_just_ret
@@ -2695,7 +2695,7 @@ ENTRY(aesni_ctr_enc)
 .Lctr_enc_just_ret:
 	FRAME_END
 	ret
-ENDPROC(aesni_ctr_enc)
+SYM_FUNC_END(aesni_ctr_enc)
 
 /*
  * _aesni_gf128mul_x_ble:		internal ABI
@@ -2719,7 +2719,7 @@ ENDPROC(aesni_ctr_enc)
  * void aesni_xts_crypt8(struct crypto_aes_ctx *ctx, const u8 *dst, u8 *src,
  *			 bool enc, u8 *iv)
  */
-ENTRY(aesni_xts_crypt8)
+SYM_FUNC_START(aesni_xts_crypt8)
 	FRAME_BEGIN
 	cmpb $0, %cl
 	movl $0, %ecx
@@ -2823,6 +2823,6 @@ ENTRY(aesni_xts_crypt8)
 
 	FRAME_END
 	ret
-ENDPROC(aesni_xts_crypt8)
+SYM_FUNC_END(aesni_xts_crypt8)
 
 #endif

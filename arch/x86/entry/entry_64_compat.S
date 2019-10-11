@@ -46,7 +46,7 @@
  * ebp  user stack
  * 0(%ebp) arg6
  */
-ENTRY(entry_SYSENTER_compat)
+SYM_FUNC_START(entry_SYSENTER_compat)
 	/* Interrupts are off on entry. */
 	SWAPGS
 
@@ -147,7 +147,7 @@ ENTRY(entry_SYSENTER_compat)
 	popfq
 	jmp	.Lsysenter_flags_fixed
 SYM_INNER_LABEL(__end_entry_SYSENTER_compat, SYM_L_GLOBAL)
-ENDPROC(entry_SYSENTER_compat)
+SYM_FUNC_END(entry_SYSENTER_compat)
 
 /*
  * 32-bit SYSCALL entry.

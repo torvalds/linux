@@ -619,7 +619,7 @@
 	pxor t0,		x3; \
 	movdqu x3,		(3*4*4)(out);
 
-ENTRY(__serpent_enc_blk_8way)
+SYM_FUNC_START(__serpent_enc_blk_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -682,9 +682,9 @@ ENTRY(__serpent_enc_blk_8way)
 	xor_blocks(%rax, RA2, RB2, RC2, RD2, RK0, RK1, RK2);
 
 	ret;
-ENDPROC(__serpent_enc_blk_8way)
+SYM_FUNC_END(__serpent_enc_blk_8way)
 
-ENTRY(serpent_dec_blk_8way)
+SYM_FUNC_START(serpent_dec_blk_8way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst
@@ -736,4 +736,4 @@ ENTRY(serpent_dec_blk_8way)
 	write_blocks(%rax, RC2, RD2, RB2, RE2, RK0, RK1, RK2);
 
 	ret;
-ENDPROC(serpent_dec_blk_8way)
+SYM_FUNC_END(serpent_dec_blk_8way)

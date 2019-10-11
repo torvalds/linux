@@ -46,7 +46,7 @@ ORMASK:	.octa 0x00000000010000000000000001000000
 #define d3 %r11
 #define d4 %r12
 
-ENTRY(poly1305_block_sse2)
+SYM_FUNC_START(poly1305_block_sse2)
 	# %rdi: Accumulator h[5]
 	# %rsi: 16 byte input block m
 	# %rdx: Poly1305 key r[5]
@@ -276,7 +276,7 @@ ENTRY(poly1305_block_sse2)
 	pop		%r12
 	pop		%rbx
 	ret
-ENDPROC(poly1305_block_sse2)
+SYM_FUNC_END(poly1305_block_sse2)
 
 
 #define u0 0x00(%r8)
@@ -301,7 +301,7 @@ ENDPROC(poly1305_block_sse2)
 #undef d0
 #define d0 %r13
 
-ENTRY(poly1305_2block_sse2)
+SYM_FUNC_START(poly1305_2block_sse2)
 	# %rdi: Accumulator h[5]
 	# %rsi: 16 byte input block m
 	# %rdx: Poly1305 key r[5]
@@ -587,4 +587,4 @@ ENTRY(poly1305_2block_sse2)
 	pop		%r12
 	pop		%rbx
 	ret
-ENDPROC(poly1305_2block_sse2)
+SYM_FUNC_END(poly1305_2block_sse2)

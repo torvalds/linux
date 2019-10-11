@@ -22,7 +22,7 @@
 #include <asm/processor-flags.h>
 #include <asm/frame.h>
 
-ENTRY(swsusp_arch_suspend)
+SYM_FUNC_START(swsusp_arch_suspend)
 	movq	$saved_context, %rax
 	movq	%rsp, pt_regs_sp(%rax)
 	movq	%rbp, pt_regs_bp(%rax)
@@ -50,7 +50,7 @@ ENTRY(swsusp_arch_suspend)
 	call swsusp_save
 	FRAME_END
 	ret
-ENDPROC(swsusp_arch_suspend)
+SYM_FUNC_END(swsusp_arch_suspend)
 
 SYM_CODE_START(restore_image)
 	/* prepare to jump to the image kernel */
@@ -102,7 +102,7 @@ SYM_CODE_END(core_restore_code)
 
 	 /* code below belongs to the image kernel */
 	.align PAGE_SIZE
-ENTRY(restore_registers)
+SYM_FUNC_START(restore_registers)
 	/* go back to the original page tables */
 	movq    %r9, %cr3
 
@@ -144,4 +144,4 @@ ENTRY(restore_registers)
 	movq	%rax, in_suspend(%rip)
 
 	ret
-ENDPROC(restore_registers)
+SYM_FUNC_END(restore_registers)

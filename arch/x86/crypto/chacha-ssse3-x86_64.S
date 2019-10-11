@@ -111,7 +111,7 @@ SYM_FUNC_START_LOCAL(chacha_permute)
 	ret
 SYM_FUNC_END(chacha_permute)
 
-ENTRY(chacha_block_xor_ssse3)
+SYM_FUNC_START(chacha_block_xor_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 1 data block output, o
 	# %rdx: up to 1 data block input, i
@@ -197,9 +197,9 @@ ENTRY(chacha_block_xor_ssse3)
 	lea		-8(%r10),%rsp
 	jmp		.Ldone
 
-ENDPROC(chacha_block_xor_ssse3)
+SYM_FUNC_END(chacha_block_xor_ssse3)
 
-ENTRY(hchacha_block_ssse3)
+SYM_FUNC_START(hchacha_block_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: output (8 32-bit words)
 	# %edx: nrounds
@@ -218,9 +218,9 @@ ENTRY(hchacha_block_ssse3)
 
 	FRAME_END
 	ret
-ENDPROC(hchacha_block_ssse3)
+SYM_FUNC_END(hchacha_block_ssse3)
 
-ENTRY(chacha_4block_xor_ssse3)
+SYM_FUNC_START(chacha_4block_xor_ssse3)
 	# %rdi: Input state matrix, s
 	# %rsi: up to 4 data blocks output, o
 	# %rdx: up to 4 data blocks input, i
@@ -788,4 +788,4 @@ ENTRY(chacha_4block_xor_ssse3)
 
 	jmp		.Ldone4
 
-ENDPROC(chacha_4block_xor_ssse3)
+SYM_FUNC_END(chacha_4block_xor_ssse3)

@@ -15,7 +15,7 @@
  *			at the top of the kernel process stack.
  *
  * Some macro usage:
- * - ENTRY/END:		Define functions in the symbol table.
+ * - SYM_FUNC_START/END:Define functions in the symbol table.
  * - TRACE_IRQ_*:	Trace hardirq state for lock debugging.
  * - idtentry:		Define exception entry points.
  */
@@ -1040,7 +1040,7 @@ idtentry simd_coprocessor_error		do_simd_coprocessor_error	has_error_code=0
 	 * Reload gs selector with exception handling
 	 * edi:  new selector
 	 */
-ENTRY(native_load_gs_index)
+SYM_FUNC_START(native_load_gs_index)
 	FRAME_BEGIN
 	pushfq
 	DISABLE_INTERRUPTS(CLBR_ANY & ~CLBR_RDI)
@@ -1054,7 +1054,7 @@ ENTRY(native_load_gs_index)
 	popfq
 	FRAME_END
 	ret
-ENDPROC(native_load_gs_index)
+SYM_FUNC_END(native_load_gs_index)
 EXPORT_SYMBOL(native_load_gs_index)
 
 	_ASM_EXTABLE(.Lgs_change, .Lbad_gs)
@@ -1075,7 +1075,7 @@ SYM_CODE_END(.Lbad_gs)
 	.previous
 
 /* Call softirq on interrupt stack. Interrupts are off. */
-ENTRY(do_softirq_own_stack)
+SYM_FUNC_START(do_softirq_own_stack)
 	pushq	%rbp
 	mov	%rsp, %rbp
 	ENTER_IRQ_STACK regs=0 old_rsp=%r11
@@ -1083,7 +1083,7 @@ ENTRY(do_softirq_own_stack)
 	LEAVE_IRQ_STACK regs=0
 	leaveq
 	ret
-ENDPROC(do_softirq_own_stack)
+SYM_FUNC_END(do_softirq_own_stack)
 
 #ifdef CONFIG_XEN_PV
 idtentry hypervisor_callback xen_do_hypervisor_callback has_error_code=0

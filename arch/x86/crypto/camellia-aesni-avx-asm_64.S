@@ -893,7 +893,7 @@ SYM_FUNC_START_LOCAL(__camellia_dec_blk16)
 	jmp .Ldec_max24;
 SYM_FUNC_END(__camellia_dec_blk16)
 
-ENTRY(camellia_ecb_enc_16way)
+SYM_FUNC_START(camellia_ecb_enc_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -916,9 +916,9 @@ ENTRY(camellia_ecb_enc_16way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_ecb_enc_16way)
+SYM_FUNC_END(camellia_ecb_enc_16way)
 
-ENTRY(camellia_ecb_dec_16way)
+SYM_FUNC_START(camellia_ecb_dec_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -946,9 +946,9 @@ ENTRY(camellia_ecb_dec_16way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_ecb_dec_16way)
+SYM_FUNC_END(camellia_ecb_dec_16way)
 
-ENTRY(camellia_cbc_dec_16way)
+SYM_FUNC_START(camellia_cbc_dec_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -997,7 +997,7 @@ ENTRY(camellia_cbc_dec_16way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_cbc_dec_16way)
+SYM_FUNC_END(camellia_cbc_dec_16way)
 
 #define inc_le128(x, minus_one, tmp) \
 	vpcmpeqq minus_one, x, tmp; \
@@ -1005,7 +1005,7 @@ ENDPROC(camellia_cbc_dec_16way)
 	vpslldq $8, tmp, tmp; \
 	vpsubq tmp, x, x;
 
-ENTRY(camellia_ctr_16way)
+SYM_FUNC_START(camellia_ctr_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -1110,7 +1110,7 @@ ENTRY(camellia_ctr_16way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_ctr_16way)
+SYM_FUNC_END(camellia_ctr_16way)
 
 #define gf128mul_x_ble(iv, mask, tmp) \
 	vpsrad $31, iv, tmp; \
@@ -1256,7 +1256,7 @@ SYM_FUNC_START_LOCAL(camellia_xts_crypt_16way)
 	ret;
 SYM_FUNC_END(camellia_xts_crypt_16way)
 
-ENTRY(camellia_xts_enc_16way)
+SYM_FUNC_START(camellia_xts_enc_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -1268,9 +1268,9 @@ ENTRY(camellia_xts_enc_16way)
 	leaq __camellia_enc_blk16, %r9;
 
 	jmp camellia_xts_crypt_16way;
-ENDPROC(camellia_xts_enc_16way)
+SYM_FUNC_END(camellia_xts_enc_16way)
 
-ENTRY(camellia_xts_dec_16way)
+SYM_FUNC_START(camellia_xts_dec_16way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (16 blocks)
@@ -1286,4 +1286,4 @@ ENTRY(camellia_xts_dec_16way)
 	leaq __camellia_dec_blk16, %r9;
 
 	jmp camellia_xts_crypt_16way;
-ENDPROC(camellia_xts_dec_16way)
+SYM_FUNC_END(camellia_xts_dec_16way)

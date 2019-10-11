@@ -931,7 +931,7 @@ SYM_FUNC_START_LOCAL(__camellia_dec_blk32)
 	jmp .Ldec_max24;
 SYM_FUNC_END(__camellia_dec_blk32)
 
-ENTRY(camellia_ecb_enc_32way)
+SYM_FUNC_START(camellia_ecb_enc_32way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (32 blocks)
@@ -958,9 +958,9 @@ ENTRY(camellia_ecb_enc_32way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_ecb_enc_32way)
+SYM_FUNC_END(camellia_ecb_enc_32way)
 
-ENTRY(camellia_ecb_dec_32way)
+SYM_FUNC_START(camellia_ecb_dec_32way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (32 blocks)
@@ -992,9 +992,9 @@ ENTRY(camellia_ecb_dec_32way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_ecb_dec_32way)
+SYM_FUNC_END(camellia_ecb_dec_32way)
 
-ENTRY(camellia_cbc_dec_32way)
+SYM_FUNC_START(camellia_cbc_dec_32way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (32 blocks)
@@ -1060,7 +1060,7 @@ ENTRY(camellia_cbc_dec_32way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_cbc_dec_32way)
+SYM_FUNC_END(camellia_cbc_dec_32way)
 
 #define inc_le128(x, minus_one, tmp) \
 	vpcmpeqq minus_one, x, tmp; \
@@ -1076,7 +1076,7 @@ ENDPROC(camellia_cbc_dec_32way)
 	vpslldq $8, tmp1, tmp1; \
 	vpsubq tmp1, x, x;
 
-ENTRY(camellia_ctr_32way)
+SYM_FUNC_START(camellia_ctr_32way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (32 blocks)
@@ -1200,7 +1200,7 @@ ENTRY(camellia_ctr_32way)
 
 	FRAME_END
 	ret;
-ENDPROC(camellia_ctr_32way)
+SYM_FUNC_END(camellia_ctr_32way)
 
 #define gf128mul_x_ble(iv, mask, tmp) \
 	vpsrad $31, iv, tmp; \
@@ -1369,7 +1369,7 @@ SYM_FUNC_START_LOCAL(camellia_xts_crypt_32way)
 	ret;
 SYM_FUNC_END(camellia_xts_crypt_32way)
 
-ENTRY(camellia_xts_enc_32way)
+SYM_FUNC_START(camellia_xts_enc_32way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (32 blocks)
@@ -1382,9 +1382,9 @@ ENTRY(camellia_xts_enc_32way)
 	leaq __camellia_enc_blk32, %r9;
 
 	jmp camellia_xts_crypt_32way;
-ENDPROC(camellia_xts_enc_32way)
+SYM_FUNC_END(camellia_xts_enc_32way)
 
-ENTRY(camellia_xts_dec_32way)
+SYM_FUNC_START(camellia_xts_dec_32way)
 	/* input:
 	 *	%rdi: ctx, CTX
 	 *	%rsi: dst (32 blocks)
@@ -1400,4 +1400,4 @@ ENTRY(camellia_xts_dec_32way)
 	leaq __camellia_dec_blk32, %r9;
 
 	jmp camellia_xts_crypt_32way;
-ENDPROC(camellia_xts_dec_32way)
+SYM_FUNC_END(camellia_xts_dec_32way)

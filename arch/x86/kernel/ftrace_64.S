@@ -132,11 +132,11 @@ EXPORT_SYMBOL(__fentry__)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
-ENTRY(function_hook)
+SYM_FUNC_START(function_hook)
 	retq
-ENDPROC(function_hook)
+SYM_FUNC_END(function_hook)
 
-ENTRY(ftrace_caller)
+SYM_FUNC_START(ftrace_caller)
 	/* save_mcount_regs fills in first two parameters */
 	save_mcount_regs
 
@@ -170,9 +170,9 @@ SYM_INNER_LABEL(ftrace_graph_call, SYM_L_GLOBAL)
  */
 WEAK(ftrace_stub)
 	retq
-ENDPROC(ftrace_caller)
+SYM_FUNC_END(ftrace_caller)
 
-ENTRY(ftrace_regs_caller)
+SYM_FUNC_START(ftrace_regs_caller)
 	/* Save the current flags before any operations that can change them */
 	pushfq
 
@@ -243,12 +243,12 @@ SYM_INNER_LABEL(ftrace_regs_caller_end, SYM_L_GLOBAL)
 
 	jmp ftrace_epilogue
 
-ENDPROC(ftrace_regs_caller)
+SYM_FUNC_END(ftrace_regs_caller)
 
 
 #else /* ! CONFIG_DYNAMIC_FTRACE */
 
-ENTRY(function_hook)
+SYM_FUNC_START(function_hook)
 	cmpq $ftrace_stub, ftrace_trace_function
 	jnz trace
 
@@ -279,11 +279,11 @@ trace:
 	restore_mcount_regs
 
 	jmp fgraph_trace
-ENDPROC(function_hook)
+SYM_FUNC_END(function_hook)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-ENTRY(ftrace_graph_caller)
+SYM_FUNC_START(ftrace_graph_caller)
 	/* Saves rbp into %rdx and fills first parameter  */
 	save_mcount_regs
 
@@ -294,7 +294,7 @@ ENTRY(ftrace_graph_caller)
 	restore_mcount_regs
 
 	retq
-ENDPROC(ftrace_graph_caller)
+SYM_FUNC_END(ftrace_graph_caller)
 
 SYM_CODE_START(return_to_handler)
 	UNWIND_HINT_EMPTY

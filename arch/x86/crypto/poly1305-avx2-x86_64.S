@@ -79,7 +79,7 @@ ORMASK:	.octa 0x00000000010000000000000001000000
 #define d3 %r12
 #define d4 %r13
 
-ENTRY(poly1305_4block_avx2)
+SYM_FUNC_START(poly1305_4block_avx2)
 	# %rdi: Accumulator h[5]
 	# %rsi: 64 byte input block m
 	# %rdx: Poly1305 key r[5]
@@ -387,4 +387,4 @@ ENTRY(poly1305_4block_avx2)
 	pop		%r12
 	pop		%rbx
 	ret
-ENDPROC(poly1305_4block_avx2)
+SYM_FUNC_END(poly1305_4block_avx2)

@@ -202,7 +202,7 @@
 	xor	%r8d,		d ## D;\
 	ror	$1,		d ## D;
 
-ENTRY(twofish_enc_blk)
+SYM_FUNC_START(twofish_enc_blk)
 	pushq    R1
 
 	/* %rdi contains the ctx address */
@@ -253,9 +253,9 @@ ENTRY(twofish_enc_blk)
 	popq	R1
 	movl	$1,%eax
 	ret
-ENDPROC(twofish_enc_blk)
+SYM_FUNC_END(twofish_enc_blk)
 
-ENTRY(twofish_dec_blk)
+SYM_FUNC_START(twofish_dec_blk)
 	pushq    R1
 
 	/* %rdi contains the ctx address */
@@ -305,4 +305,4 @@ ENTRY(twofish_dec_blk)
 	popq	R1
 	movl	$1,%eax
 	ret
-ENDPROC(twofish_dec_blk)
+SYM_FUNC_END(twofish_dec_blk)

@@ -280,7 +280,7 @@ unsigned int csum_partial_copy_generic (const char *src, char *dst,
 #define ARGBASE 16		
 #define FP		12
 		
-ENTRY(csum_partial_copy_generic)
+SYM_FUNC_START(csum_partial_copy_generic)
 	subl  $4,%esp	
 	pushl %edi
 	pushl %esi
@@ -398,7 +398,7 @@ DST(	movb %cl, (%edi)	)
 	popl %edi
 	popl %ecx			# equivalent to addl $4,%esp
 	ret	
-ENDPROC(csum_partial_copy_generic)
+SYM_FUNC_END(csum_partial_copy_generic)
 
 #else
 
@@ -416,7 +416,7 @@ ENDPROC(csum_partial_copy_generic)
 
 #define ARGBASE 12
 		
-ENTRY(csum_partial_copy_generic)
+SYM_FUNC_START(csum_partial_copy_generic)
 	pushl %ebx
 	pushl %edi
 	pushl %esi
@@ -483,7 +483,7 @@ DST(	movb %dl, (%edi)         )
 	popl %edi
 	popl %ebx
 	ret
-ENDPROC(csum_partial_copy_generic)
+SYM_FUNC_END(csum_partial_copy_generic)
 				
 #undef ROUND
 #undef ROUND1		

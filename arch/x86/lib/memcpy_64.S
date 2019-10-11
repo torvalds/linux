@@ -193,7 +193,7 @@ MCSAFE_TEST_CTL
  * Note that we only catch machine checks when reading the source addresses.
  * Writes to target are posted and don't generate machine checks.
  */
-ENTRY(__memcpy_mcsafe)
+SYM_FUNC_START(__memcpy_mcsafe)
 	cmpl $8, %edx
 	/* Less than 8 bytes? Go to byte copy loop */
 	jb .L_no_whole_words
@@ -260,7 +260,7 @@ ENTRY(__memcpy_mcsafe)
 	xorl %eax, %eax
 .L_done:
 	ret
-ENDPROC(__memcpy_mcsafe)
+SYM_FUNC_END(__memcpy_mcsafe)
 EXPORT_SYMBOL_GPL(__memcpy_mcsafe)
 
 	.section .fixup, "ax"

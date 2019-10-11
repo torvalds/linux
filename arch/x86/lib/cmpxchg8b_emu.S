@@ -13,7 +13,7 @@
  * %ebx : low 32 bits of new value
  * %ecx : high 32 bits of new value
  */
-ENTRY(cmpxchg8b_emu)
+SYM_FUNC_START(cmpxchg8b_emu)
 
 #
 # Emulate 'cmpxchg8b (%esi)' on UP except we don't
@@ -42,5 +42,5 @@ ENTRY(cmpxchg8b_emu)
 	popfl
 	ret
 
-ENDPROC(cmpxchg8b_emu)
+SYM_FUNC_END(cmpxchg8b_emu)
 EXPORT_SYMBOL(cmpxchg8b_emu)
