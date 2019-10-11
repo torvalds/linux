@@ -1380,14 +1380,14 @@ static inline int tcp_win_from_space(const struct sock *sk, int space)
 /* Note: caller must be prepared to deal with negative returns */
 static inline int tcp_space(const struct sock *sk)
 {
-	return tcp_win_from_space(sk, sk->sk_rcvbuf -
+	return tcp_win_from_space(sk, READ_ONCE(sk->sk_rcvbuf) -
 				  READ_ONCE(sk->sk_backlog.len) -
 				  atomic_read(&sk->sk_rmem_alloc));
 }
 
 static inline int tcp_full_space(const struct sock *sk)
 {
-	return tcp_win_from_space(sk, sk->sk_rcvbuf);
+	return tcp_win_from_space(sk, READ_ONCE(sk->sk_rcvbuf));
 }
 
 extern void tcp_openreq_init_rwin(struct request_sock *req,
