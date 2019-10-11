@@ -625,7 +625,8 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
 			answ = 0;
 		else
-			answ = READ_ONCE(tp->write_seq) - tp->snd_nxt;
+			answ = READ_ONCE(tp->write_seq) -
+			       READ_ONCE(tp->snd_nxt);
 		break;
 	default:
 		return -ENOIOCTLCMD;
