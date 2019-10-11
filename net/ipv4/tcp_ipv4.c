@@ -164,9 +164,11 @@ int tcp_twsk_unique(struct sock *sk, struct sock *sktw, void *twp)
 		 * without appearing to create any others.
 		 */
 		if (likely(!tp->repair)) {
-			tp->write_seq = tcptw->tw_snd_nxt + 65535 + 2;
-			if (tp->write_seq == 0)
-				tp->write_seq = 1;
+			u32 seq = tcptw->tw_snd_nxt + 65535 + 2;
+
+			if (!seq)
+				seq = 1;
+			WRITE_ONCE(tp->write_seq, seq);
 			tp->rx_opt.ts_recent	   = tcptw->tw_ts_recent;
 			tp->rx_opt.ts_recent_stamp = tcptw->tw_ts_recent_stamp;
 		}
@@ -253,7 +255,7 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 		tp->rx_opt.ts_recent	   = 0;
 		tp->rx_opt.ts_recent_stamp = 0;
 		if (likely(!tp->repair))
-			tp->write_seq	   = 0;
+			WRITE_ONCE(tp->write_seq, 0);
 	}
 
 	inet->inet_dport = usin->sin_port;
@@ -291,10 +293,11 @@ int tcp_v4_connect(struct sock *sk, struct sockaddr *uaddr, int addr_len)
 
 	if (likely(!tp->repair)) {
 		if (!tp->write_seq)
-			tp->write_seq = secure_tcp_seq(inet->inet_saddr,
-						       inet->inet_daddr,
-						       inet->inet_sport,
-						       usin->sin_port);
+			WRITE_ONCE(tp->write_seq,
+				   secure_tcp_seq(inet->inet_saddr,
+						  inet->inet_daddr,
+						  inet->inet_sport,
+						  usin->sin_port));
 		tp->tsoffset = secure_tcp_ts_off(sock_net(sk),
 						 inet->inet_saddr,
 						 inet->inet_daddr);
@@ -2461,7 +2464,7 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i)
 	seq_printf(f, "%4d: %08X:%04X %08X:%04X %02X %08X:%08X %02X:%08lX "
 			"%08X %5u %8d %lu %d %pK %lu %lu %u %u %d",
 		i, src, srcp, dest, destp, state,
-		tp->write_seq - tp->snd_una,
+		READ_ONCE(tp->write_seq) - tp->snd_una,
 		rx_queue,
 		timer_active,
 		jiffies_delta_to_clock_t(timer_expires - jiffies),

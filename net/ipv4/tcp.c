@@ -616,7 +616,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
 			answ = 0;
 		else
-			answ = tp->write_seq - tp->snd_una;
+			answ = READ_ONCE(tp->write_seq) - tp->snd_una;
 		break;
 	case SIOCOUTQNSD:
 		if (sk->sk_state == TCP_LISTEN)
@@ -625,7 +625,7 @@ int tcp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 		if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV))
 			answ = 0;
 		else
-			answ = tp->write_seq - tp->snd_nxt;
+			answ = READ_ONCE(tp->write_seq) - tp->snd_nxt;
 		break;
 	default:
 		return -ENOIOCTLCMD;
@@ -1035,7 +1035,7 @@ new_segment:
 		sk->sk_wmem_queued += copy;
 		sk_mem_charge(sk, copy);
 		skb->ip_summed = CHECKSUM_PARTIAL;
-		tp->write_seq += copy;
+		WRITE_ONCE(tp->write_seq, tp->write_seq + copy);
 		TCP_SKB_CB(skb)->end_seq += copy;
 		tcp_skb_pcount_set(skb, 0);
 
@@ -1362,7 +1362,7 @@ new_segment:
 		if (!copied)
 			TCP_SKB_CB(skb)->tcp_flags &= ~TCPHDR_PSH;
 
-		tp->write_seq += copy;
+		WRITE_ONCE(tp->write_seq, tp->write_seq + copy);
 		TCP_SKB_CB(skb)->end_seq += copy;
 		tcp_skb_pcount_set(skb, 0);
 
@@ -2562,6 +2562,7 @@ int tcp_disconnect(struct sock *sk, int flags)
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	int old_state = sk->sk_state;
+	u32 seq;
 
 	if (old_state != TCP_CLOSE)
 		tcp_set_state(sk, TCP_CLOSE);
@@ -2604,9 +2605,12 @@ int tcp_disconnect(struct sock *sk, int flags)
 	tp->srtt_us = 0;
 	tp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
 	tp->rcv_rtt_last_tsecr = 0;
-	tp->write_seq += tp->max_window + 2;
-	if (tp->write_seq == 0)
-		tp->write_seq = 1;
+
+	seq = tp->write_seq + tp->max_window + 2;
+	if (!seq)
+		seq = 1;
+	WRITE_ONCE(tp->write_seq, seq);
+
 	icsk->icsk_backoff = 0;
 	tp->snd_cwnd = 2;
 	icsk->icsk_probes_out = 0;
@@ -2933,7 +2937,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		if (sk->sk_state != TCP_CLOSE)
 			err = -EPERM;
 		else if (tp->repair_queue == TCP_SEND_QUEUE)
-			tp->write_seq = val;
+			WRITE_ONCE(tp->write_seq, val);
 		else if (tp->repair_queue == TCP_RECV_QUEUE)
 			WRITE_ONCE(tp->rcv_nxt, val);
 		else
