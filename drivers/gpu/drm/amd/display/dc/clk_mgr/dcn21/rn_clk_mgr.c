@@ -656,7 +656,7 @@ void rn_clk_mgr_construct(
 
 	clk_mgr->base.bw_params = &rn_bw_params;
 
-	if (pp_smu) {
+	if (pp_smu && pp_smu->rn_funcs.get_dpm_clock_table) {
 		pp_smu->rn_funcs.get_dpm_clock_table(&pp_smu->rn_funcs.pp_smu, &clock_table);
 		rn_clk_mgr_helper_populate_bw_params(clk_mgr->base.bw_params, &clock_table, &ctx->asic_id);
 	}
