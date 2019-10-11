@@ -1306,16 +1306,13 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 	bool is_cpufreq_changed = false;
 	int err = 0;
 
-	rcu_read_lock();
-
 	opp = devfreq_recommended_opp(dev, freq, flags);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+		dev_err(dev, "Failed to find opp for %lu Hz\n", *freq);
 		return PTR_ERR(opp);
 	}
 	target_volt = dev_pm_opp_get_voltage(opp);
-
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	target_rate = clk_round_rate(dmcfreq->dmc_clk, *freq);
 	if ((long)target_rate <= 0)
@@ -3312,14 +3309,13 @@ static int rockchip_dmcfreq_set_volt_only(struct rockchip_dmcfreq *dmcfreq)
 	unsigned long opp_volt, opp_rate = dmcfreq->rate;
 	int ret;
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &opp_rate, 0);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+		dev_err(dev, "Failed to find opp for %lu Hz\n", opp_rate);
 		return PTR_ERR(opp);
 	}
 	opp_volt = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	ret = regulator_set_voltage(dmcfreq->vdd_center, opp_volt, INT_MAX);
 	if (ret) {
@@ -3337,13 +3333,12 @@ static int rockchip_dmcfreq_add_devfreq(struct rockchip_dmcfreq *dmcfreq)
 	struct dev_pm_opp *opp;
 	unsigned long opp_rate = dmcfreq->rate;
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &opp_rate, 0);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
+		dev_err(dev, "Failed to find opp for %lu Hz\n", opp_rate);
 		return PTR_ERR(opp);
 	}
-	rcu_read_unlock();
+	dev_pm_opp_put(opp);
 
 	devp->initial_freq = dmcfreq->rate;
 	dmcfreq->devfreq = devm_devfreq_add_device(dev, devp,
