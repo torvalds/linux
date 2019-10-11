@@ -138,7 +138,7 @@ ENTRY(ftrace_regs_caller)
 	movl	function_trace_op, %ecx	# 3rd argument: ftrace_pos
 	pushl	%esp			# 4th argument: pt_regs
 
-GLOBAL(ftrace_regs_call)
+SYM_INNER_LABEL(ftrace_regs_call, SYM_L_GLOBAL)
 	call	ftrace_stub
 
 	addl	$4, %esp		# skip 4th argument
