@@ -320,6 +320,18 @@ static void mcp251x_write_reg(struct spi_device *spi, u8 reg, u8 val)
 	mcp251x_spi_trans(spi, 3);
 }
 
+static void mcp251x_write_2regs(struct spi_device *spi, u8 reg, u8 v1, u8 v2)
+{
+	struct mcp251x_priv *priv = spi_get_drvdata(spi);
+
+	priv->spi_tx_buf[0] = INSTRUCTION_WRITE;
+	priv->spi_tx_buf[1] = reg;
+	priv->spi_tx_buf[2] = v1;
+	priv->spi_tx_buf[3] = v2;
+
+	mcp251x_spi_trans(spi, 4);
+}
+
 static void mcp251x_write_bits(struct spi_device *spi, u8 reg,
 			       u8 mask, u8 val)
 {
@@ -645,8 +657,7 @@ static int mcp251x_stop(struct net_device *net)
 	mutex_lock(&priv->mcp_lock);
 
 	/* Disable and clear pending interrupts */
-	mcp251x_write_reg(spi, CANINTE, 0x00);
-	mcp251x_write_reg(spi, CANINTF, 0x00);
+	mcp251x_write_2regs(spi, CANINTE, 0x00, 0x00);
 
 	mcp251x_write_reg(spi, TXBCTRL(0), 0);
 	mcp251x_clean(net);
