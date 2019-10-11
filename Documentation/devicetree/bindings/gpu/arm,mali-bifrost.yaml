@@ -37,8 +37,7 @@ properties:
   clocks:
     maxItems: 1
 
-  mali-supply:
-    maxItems: 1
+  mali-supply: true
 
   operating-points-v2: true
 
