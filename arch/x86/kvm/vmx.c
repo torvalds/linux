@@ -8801,7 +8801,7 @@ static int handle_vmread(struct kvm_vcpu *vcpu)
 		/* _system ok, nested_vmx_check_permission has verified cpl=0 */
 		if (kvm_write_guest_virt_system(vcpu, gva, &field_value,
 						(is_long_mode(vcpu) ? 8 : 4),
-						NULL))
+						&e))
 			kvm_inject_page_fault(vcpu, &e);
 	}
 
@@ -12574,7 +12574,7 @@ static int check_vmentry_prereqs(struct kvm_vcpu *vcpu, struct vmcs12 *vmcs12)
 
 		/* VM-entry exception error code */
 		if (has_error_code &&
-		    vmcs12->vm_entry_exception_error_code & GENMASK(31, 15))
+		    vmcs12->vm_entry_exception_error_code & GENMASK(31, 16))
 			return VMXERR_ENTRY_INVALID_CONTROL_FIELD;
 
 		/* VM-entry interruption-info field: reserved bits */

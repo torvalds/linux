@@ -31,6 +31,9 @@
 #define PCI_REG_VMLOCK		0x70
 #define MB2_SHADOW_EN(vmlock)	(vmlock & 0x2)
 
+#define MB2_SHADOW_OFFSET	0x2000
+#define MB2_SHADOW_SIZE		16
+
 enum vmd_features {
 	/*
 	 * Device may contain registers which hint the physical location of the
@@ -600,7 +603,7 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 		u32 vmlock;
 		int ret;
 
-		membar2_offset = 0x2018;
+		membar2_offset = MB2_SHADOW_OFFSET + MB2_SHADOW_SIZE;
 		ret = pci_read_config_dword(vmd->dev, PCI_REG_VMLOCK, &vmlock);
 		if (ret || vmlock == ~0)
 			return -ENODEV;
@@ -612,9 +615,9 @@ static int vmd_enable_domain(struct vmd_dev *vmd, unsigned long features)
 			if (!membar2)
 				return -ENOMEM;
 			offset[0] = vmd->dev->resource[VMD_MEMBAR1].start -
-						readq(membar2 + 0x2008);
+					readq(membar2 + MB2_SHADOW_OFFSET);
 			offset[1] = vmd->dev->resource[VMD_MEMBAR2].start -
-						readq(membar2 + 0x2010);
+					readq(membar2 + MB2_SHADOW_OFFSET + 8);
 			pci_iounmap(vmd->dev, membar2);
 		}
 	}
