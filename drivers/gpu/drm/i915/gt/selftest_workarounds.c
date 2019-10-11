@@ -786,6 +786,14 @@ static int read_whitelisted_registers(struct i915_gem_context *ctx,
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
 
+	i915_vma_lock(results);
+	err = i915_request_await_object(rq, results->obj, true);
+	if (err == 0)
+		err = i915_vma_move_to_active(results, rq, EXEC_OBJECT_WRITE);
+	i915_vma_unlock(results);
+	if (err)
+		goto err_req;
+
 	srm = MI_STORE_REGISTER_MEM;
 	if (INTEL_GEN(ctx->i915) >= 8)
 		srm++;
