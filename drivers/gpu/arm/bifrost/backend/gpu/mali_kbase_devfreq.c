@@ -348,6 +348,7 @@ static int kbase_devfreq_init_core_mask_table(struct kbase_device *kbdev)
 int kbase_devfreq_init(struct kbase_device *kbdev)
 {
 	struct devfreq_dev_profile *dp;
+	struct dev_pm_opp *opp;
 	unsigned long opp_rate;
 	int err;
 
@@ -400,9 +401,9 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	}
 
 	opp_rate = kbdev->current_freq;
-	rcu_read_lock();
-	devfreq_recommended_opp(kbdev->dev, &opp_rate, 0);
-	rcu_read_unlock();
+	opp = devfreq_recommended_opp(kbdev->dev, &opp_rate, 0);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 	kbdev->devfreq->last_status.current_frequency = opp_rate;
 
 	mali_mdevp.data = kbdev->devfreq;
