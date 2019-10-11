@@ -97,8 +97,8 @@ ssize_t debugfs_attr_write(struct file *file, const char __user *buf,
 struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
                 struct dentry *new_dir, const char *new_name);
 
-struct dentry *debugfs_create_u8(const char *name, umode_t mode,
-				 struct dentry *parent, u8 *value);
+void debugfs_create_u8(const char *name, umode_t mode, struct dentry *parent,
+		       u8 *value);
 struct dentry *debugfs_create_u16(const char *name, umode_t mode,
 				  struct dentry *parent, u16 *value);
 struct dentry *debugfs_create_u32(const char *name, umode_t mode,
@@ -244,12 +244,8 @@ static inline struct dentry *debugfs_rename(struct dentry *old_dir, struct dentr
 	return ERR_PTR(-ENODEV);
 }
 
-static inline struct dentry *debugfs_create_u8(const char *name, umode_t mode,
-					       struct dentry *parent,
-					       u8 *value)
-{
-	return ERR_PTR(-ENODEV);
-}
+static inline void debugfs_create_u8(const char *name, umode_t mode,
+				     struct dentry *parent, u8 *value) { }
 
 static inline struct dentry *debugfs_create_u16(const char *name, umode_t mode,
 						struct dentry *parent,

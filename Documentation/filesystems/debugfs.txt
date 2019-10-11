@@ -68,8 +68,8 @@ actually necessary; the debugfs code provides a number of helper functions
 for simple situations.  Files containing a single integer value can be
 created with any of:
 
-    struct dentry *debugfs_create_u8(const char *name, umode_t mode,
-				     struct dentry *parent, u8 *value);
+    void debugfs_create_u8(const char *name, umode_t mode,
+			   struct dentry *parent, u8 *value);
     struct dentry *debugfs_create_u16(const char *name, umode_t mode,
 				      struct dentry *parent, u16 *value);
     struct dentry *debugfs_create_u32(const char *name, umode_t mode,
