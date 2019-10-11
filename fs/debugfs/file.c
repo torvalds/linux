@@ -669,10 +669,10 @@ EXPORT_SYMBOL_GPL(debugfs_create_x16);
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_x32(const char *name, umode_t mode,
-				 struct dentry *parent, u32 *value)
+void debugfs_create_x32(const char *name, umode_t mode, struct dentry *parent,
+			u32 *value)
 {
-	return debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x32,
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_x32,
 				   &fops_x32_ro, &fops_x32_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x32);
