@@ -1309,9 +1309,6 @@ static int adv7180_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	v4l_info(client, "chip found @ 0x%02x (%s)\n",
-		 client->addr, client->adapter->name);
-
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
@@ -1381,6 +1378,9 @@ static int adv7180_probe(struct i2c_client *client,
 	ret = v4l2_async_register_subdev(sd);
 	if (ret)
 		goto err_free_irq;
+
+	v4l_info(client, "chip found @ 0x%02x (%s)\n",
+		 client->addr, client->adapter->name);
 
 	return 0;
 
