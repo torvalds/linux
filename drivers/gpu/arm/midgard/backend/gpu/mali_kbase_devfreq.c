@@ -101,15 +101,12 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 
 	freq = *target_freq;
 
-	rcu_read_lock();
 	opp = devfreq_recommended_opp(dev, &freq, flags);
 	if (IS_ERR(opp)) {
-		rcu_read_unlock();
 		dev_err(dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
 		return PTR_ERR(opp);
 	}
 	voltage = dev_pm_opp_get_voltage(opp);
-	rcu_read_unlock();
 
 	nominal_freq = freq;
 
@@ -214,28 +211,24 @@ static int kbase_devfreq_init_freq_table(struct kbase_device *kbdev,
 	unsigned long freq;
 	struct dev_pm_opp *opp;
 
-	rcu_read_lock();
 	count = dev_pm_opp_get_opp_count(kbdev->dev);
 	if (count < 0) {
-		rcu_read_unlock();
 		return count;
 	}
-	rcu_read_unlock();
 
 	dp->freq_table = kmalloc_array(count, sizeof(dp->freq_table[0]),
 				GFP_KERNEL);
 	if (!dp->freq_table)
 		return -ENOMEM;
 
-	rcu_read_lock();
 	for (i = 0, freq = ULONG_MAX; i < count; i++, freq--) {
 		opp = dev_pm_opp_find_freq_floor(kbdev->dev, &freq);
 		if (IS_ERR(opp))
 			break;
+		dev_pm_opp_put(opp);
 
 		dp->freq_table[i] = freq;
 	}
-	rcu_read_unlock();
 
 	if (count != i)
 		dev_warn(kbdev->dev, "Unable to enumerate all OPPs (%d!=%d\n",
@@ -338,6 +331,7 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 {
 	struct device_node *np = kbdev->dev->of_node;
 	struct devfreq_dev_profile *dp;
+	struct dev_pm_opp *opp;
 	unsigned long opp_rate;
 	int err;
 
@@ -390,9 +384,9 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 	}
 
 	opp_rate = kbdev->current_freq;
-	rcu_read_lock();
-	devfreq_recommended_opp(kbdev->dev, &opp_rate, 0);
-	rcu_read_unlock();
+	opp = devfreq_recommended_opp(kbdev->dev, &opp_rate, 0);
+	if (!IS_ERR(opp))
+		dev_pm_opp_put(opp);
 	kbdev->devfreq->last_status.current_frequency = opp_rate;
 
 	mali_mdevp.data = kbdev->devfreq;
