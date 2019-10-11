@@ -113,8 +113,8 @@ void debugfs_create_x16(const char *name, umode_t mode, struct dentry *parent,
 			u16 *value);
 void debugfs_create_x32(const char *name, umode_t mode, struct dentry *parent,
 			u32 *value);
-struct dentry *debugfs_create_x64(const char *name, umode_t mode,
-				  struct dentry *parent, u64 *value);
+void debugfs_create_x64(const char *name, umode_t mode, struct dentry *parent,
+			u64 *value);
 void debugfs_create_size_t(const char *name, umode_t mode,
 			   struct dentry *parent, size_t *value);
 struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
@@ -281,12 +281,8 @@ static inline void debugfs_create_x16(const char *name, umode_t mode,
 static inline void debugfs_create_x32(const char *name, umode_t mode,
 				      struct dentry *parent, u32 *value) { }
 
-static inline struct dentry *debugfs_create_x64(const char *name, umode_t mode,
-						struct dentry *parent,
-						u64 *value)
-{
-	return ERR_PTR(-ENODEV);
-}
+static inline void debugfs_create_x64(const char *name, umode_t mode,
+				      struct dentry *parent, u64 *value) { }
 
 static inline void debugfs_create_size_t(const char *name, umode_t mode,
 					 struct dentry *parent, size_t *value)
