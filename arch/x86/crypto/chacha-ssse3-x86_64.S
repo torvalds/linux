@@ -33,7 +33,7 @@ CTRINC:	.octa 0x00000003000000020000000100000000
  *
  * Clobbers: %r8d, %xmm4-%xmm7
  */
-chacha_permute:
+SYM_FUNC_START_LOCAL(chacha_permute)
 
 	movdqa		ROT8(%rip),%xmm4
 	movdqa		ROT16(%rip),%xmm5
@@ -109,7 +109,7 @@ chacha_permute:
 	jnz		.Ldoubleround
 
 	ret
-ENDPROC(chacha_permute)
+SYM_FUNC_END(chacha_permute)
 
 ENTRY(chacha_block_xor_ssse3)
 	# %rdi: Input state matrix, s
