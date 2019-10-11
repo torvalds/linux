@@ -1467,18 +1467,47 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 	uint32_t sclk_freq = 0, uclk_freq = 0;
 	uint32_t uclk_level = 0;
 
-	switch (adev->pdev->revision) {
-	case 0xf0: /* XTX */
-	case 0xc0:
-		sclk_freq = NAVI10_PEAK_SCLK_XTX;
+	switch (adev->asic_type) {
+	case CHIP_NAVI10:
+		switch (adev->pdev->revision) {
+		case 0xf0: /* XTX */
+		case 0xc0:
+			sclk_freq = NAVI10_PEAK_SCLK_XTX;
+			break;
+		case 0xf1: /* XT */
+		case 0xc1:
+			sclk_freq = NAVI10_PEAK_SCLK_XT;
+			break;
+		default: /* XL */
+			sclk_freq = NAVI10_PEAK_SCLK_XL;
+			break;
+		}
 		break;
-	case 0xf1: /* XT */
-	case 0xc1:
-		sclk_freq = NAVI10_PEAK_SCLK_XT;
+	case CHIP_NAVI14:
+		switch (adev->pdev->revision) {
+		case 0xc7: /* XT */
+		case 0xf4:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XT_GFXCLK;
+			break;
+		case 0xc1: /* XTM */
+		case 0xf2:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XTM_GFXCLK;
+			break;
+		case 0xc3: /* XLM */
+		case 0xf3:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XLM_GFXCLK;
+			break;
+		case 0xc5: /* XTX */
+		case 0xf6:
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XLM_GFXCLK;
+			break;
+		default: /* XL */
+			sclk_freq = NAVI14_UMD_PSTATE_PEAK_XL_GFXCLK;
+			break;
+		}
 		break;
-	default: /* XL */
-		sclk_freq = NAVI10_PEAK_SCLK_XL;
-		break;
+	default:
+		return -EINVAL;
 	}
 
 	ret = smu_get_dpm_level_count(smu, SMU_UCLK, &uclk_level);
@@ -1501,10 +1530,6 @@ static int navi10_set_peak_clock_by_device(struct smu_context *smu)
 static int navi10_set_performance_level(struct smu_context *smu, enum amd_dpm_forced_level level)
 {
 	int ret = 0;
-	struct amdgpu_device *adev = smu->adev;
-
-	if (adev->asic_type != CHIP_NAVI10)
-		return -EINVAL;
 
 	switch (level) {
 	case AMD_DPM_FORCED_LEVEL_PROFILE_PEAK:

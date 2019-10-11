@@ -27,6 +27,12 @@
 #define NAVI10_PEAK_SCLK_XT  		(1755)
 #define NAVI10_PEAK_SCLK_XL  		(1625)
 
+#define NAVI14_UMD_PSTATE_PEAK_XT_GFXCLK      (1670)
+#define NAVI14_UMD_PSTATE_PEAK_XTM_GFXCLK     (1448)
+#define NAVI14_UMD_PSTATE_PEAK_XLM_GFXCLK     (1181)
+#define NAVI14_UMD_PSTATE_PEAK_XTX_GFXCLK     (1717)
+#define NAVI14_UMD_PSTATE_PEAK_XL_GFXCLK      (1448)
+
 extern void navi10_set_ppt_funcs(struct smu_context *smu);
 
 #endif
