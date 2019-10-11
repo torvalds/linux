@@ -115,21 +115,23 @@ ENDPROC(__get_user_8)
 EXPORT_SYMBOL(__get_user_8)
 
 
-.Lbad_get_user_clac:
+SYM_CODE_START_LOCAL(.Lbad_get_user_clac)
 	ASM_CLAC
 bad_get_user:
 	xor %edx,%edx
 	mov $(-EFAULT),%_ASM_AX
 	ret
+SYM_CODE_END(.Lbad_get_user_clac)
 
 #ifdef CONFIG_X86_32
-.Lbad_get_user_8_clac:
+SYM_CODE_START_LOCAL(.Lbad_get_user_8_clac)
 	ASM_CLAC
 bad_get_user_8:
 	xor %edx,%edx
 	xor %ecx,%ecx
 	mov $(-EFAULT),%_ASM_AX
 	ret
+SYM_CODE_END(.Lbad_get_user_8_clac)
 #endif
 
 	_ASM_EXTABLE_UA(1b, .Lbad_get_user_clac)

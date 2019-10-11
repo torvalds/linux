@@ -91,11 +91,12 @@ ENTRY(__put_user_8)
 ENDPROC(__put_user_8)
 EXPORT_SYMBOL(__put_user_8)
 
-.Lbad_put_user_clac:
+SYM_CODE_START_LOCAL(.Lbad_put_user_clac)
 	ASM_CLAC
 .Lbad_put_user:
 	movl $-EFAULT,%eax
 	RET
+SYM_CODE_END(.Lbad_put_user_clac)
 
 	_ASM_EXTABLE_UA(1b, .Lbad_put_user_clac)
 	_ASM_EXTABLE_UA(2b, .Lbad_put_user_clac)
