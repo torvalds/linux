@@ -430,35 +430,40 @@ static int max1027_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 
-	ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
-					&iio_pollfunc_store_time,
-					&max1027_trigger_handler, NULL);
-	if (ret < 0) {
-		dev_err(&indio_dev->dev, "Failed to setup buffer\n");
-		return ret;
-	}
+	if (spi->irq) {
+		ret = devm_iio_triggered_buffer_setup(&spi->dev, indio_dev,
+						      &iio_pollfunc_store_time,
+						      &max1027_trigger_handler,
+						      NULL);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev, "Failed to setup buffer\n");
+			return ret;
+		}
 
-	st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-trigger",
-							indio_dev->name);
-	if (st->trig == NULL) {
-		ret = -ENOMEM;
-		dev_err(&indio_dev->dev, "Failed to allocate iio trigger\n");
-		return ret;
-	}
+		st->trig = devm_iio_trigger_alloc(&spi->dev, "%s-trigger",
+						  indio_dev->name);
+		if (st->trig == NULL) {
+			ret = -ENOMEM;
+			dev_err(&indio_dev->dev,
+				"Failed to allocate iio trigger\n");
+			return ret;
+		}
 
-	st->trig->ops = &max1027_trigger_ops;
-	st->trig->dev.parent = &spi->dev;
-	iio_trigger_set_drvdata(st->trig, indio_dev);
-	iio_trigger_register(st->trig);
+		st->trig->ops = &max1027_trigger_ops;
+		st->trig->dev.parent = &spi->dev;
+		iio_trigger_set_drvdata(st->trig, indio_dev);
+		iio_trigger_register(st->trig);
 
-	ret = devm_request_threaded_irq(&spi->dev, spi->irq,
-					iio_trigger_generic_data_rdy_poll,
-					NULL,
-					IRQF_TRIGGER_FALLING,
-					spi->dev.driver->name, st->trig);
-	if (ret < 0) {
-		dev_err(&indio_dev->dev, "Failed to allocate IRQ.\n");
-		return ret;
+		ret = devm_request_threaded_irq(&spi->dev, spi->irq,
+						iio_trigger_generic_data_rdy_poll,
+						NULL,
+						IRQF_TRIGGER_FALLING,
+						spi->dev.driver->name,
+						st->trig);
+		if (ret < 0) {
+			dev_err(&indio_dev->dev, "Failed to allocate IRQ.\n");
+			return ret;
+		}
 	}
 
 	/* Disable averaging */
