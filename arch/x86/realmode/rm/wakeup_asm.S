@@ -171,8 +171,8 @@ END(wakeup_gdt)
 
 	/* This is the standard real-mode IDT */
 	.balign	16
-.Lwakeup_idt:
+SYM_DATA_START_LOCAL(.Lwakeup_idt)
 	.word	0xffff		/* limit */
 	.long	0		/* address */
 	.word	0
-END(.Lwakeup_idt)
+SYM_DATA_END(.Lwakeup_idt)
