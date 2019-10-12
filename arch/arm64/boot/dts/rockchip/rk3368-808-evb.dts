@@ -1,0 +1,183 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include "rk3368-808.dtsi"
+
+/ {
+	model = "Rockchip rk3368 808 evb board";
+	compatible = "rockchip,rk3368-808-evb", "rockchip,rk3368";
+};
+
+&firmware_android {
+	compatible = "android,firmware";
+	boot_devices = "ff0f0000.dwmmc,ff400000.nandc";
+	vbmeta {
+		compatible = "android,vbmeta";
+		parts = "vbmeta,dtbo";
+	};
+	fstab {
+		compatible = "android,fstab";
+		vendor {
+			compatible = "android,vendor";
+			dev = "/dev/block/by-name/vendor";
+			type = "ext4";
+			mnt_flags = "ro,barrier=1,inode_readahead_blks=8";
+			fsmgr_flags = "wait,avb";
+		};
+	};
+};
+
+&chosen {
+	bootargs = "earlycon=uart8250,mmio32,0xff690000 swiotlb=1 console=ttyFIQ0 androidboot.baseband=N/A androidboot.veritymode=enforcing androidboot.hardware=rk30board androidboot.console=ttyFIQ0 androidboot.selinux=permissive init=/init kpti=0";
+};
+
+&fiq_debugger {
+	status = "okay";
+};
+
+&cif {
+	status = "disabled";
+};
+
+&cif_clkout {
+	/* cif_clkout */
+	rockchip,pins = <1 11 RK_FUNC_1 &pcfg_pull_none_4ma>;
+};
+
+&isp_dvp_d2d9 {
+	rockchip,pins =
+			/* cif_data4 ... cif_data9 */
+			<1 2 RK_FUNC_1 &pcfg_pull_down>,
+			<1 3 RK_FUNC_1 &pcfg_pull_down>,
+			<1 4 RK_FUNC_1 &pcfg_pull_down>,
+			<1 5 RK_FUNC_1 &pcfg_pull_down>,
+			<1 6 RK_FUNC_1 &pcfg_pull_down>,
+			<1 7 RK_FUNC_1 &pcfg_pull_down>,
+			/* cif_sync, cif_href */
+			<1 8 RK_FUNC_1 &pcfg_pull_down>,
+			<1 9 RK_FUNC_1 &pcfg_pull_down>,
+			/* cif_clkin */
+			<1 10 RK_FUNC_1 &pcfg_pull_down>;
+};
+
+&isp_dvp_d10d11 {
+	rockchip,pins =
+			/* cif_data10, cif_data11 */
+			<1 14 RK_FUNC_1 &pcfg_pull_down>,
+			<1 15 RK_FUNC_1 &pcfg_pull_down>;
+};
+
+&i2c3 {
+	status = "okay";
+
+	gc2145: gc2145@3c {
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&cru SCLK_VIP_OUT>;
+		clock-names = "xvclk";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&isp_dvp_d2d9 &isp_dvp_d10d11 &cif_clkout>;
+		power-gpio = <&gpio0 RK_PD4 GPIO_ACTIVE_HIGH>;
+		pwdn-gpios = <&gpio1 RK_PB4 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&isp_dvp_in>;
+			};
+		};
+	};
+
+	ov5695: ov5695@36 {
+		compatible = "ovti,ov5695";
+		reg = <0x36>;
+		clocks = <&cru SCLK_VIP_OUT>;
+		clock-names = "xvclk";
+		pwdn-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clkout>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "TongJu";
+		rockchip,camera-module-lens-name = "CHT842-MD";
+		port {
+			ov5695_out: endpoint {
+				remote-endpoint = <&mipi_in>;
+				data-lanes = <1 2>;
+			};
+		};
+	};
+
+};
+
+&isp {
+	status = "disabled";
+};
+
+&isp_mmu {
+	status = "okay";
+};
+
+&mipi_dphy_rx0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			dphy_rx_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&isp_mipi_in>;
+			};
+		};
+	};
+};
+
+&pinctrl {
+	pcfg_pull_none_4ma: pcfg-pull-none-4ma {
+		bias-disable;
+		drive-strength = <4>;
+	};
+};
+
+&rkisp1 {
+	status = "okay";
+	port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		isp_dvp_in: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&gc2145_out>;
+		};
+
+		isp_mipi_in: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dphy_rx_out>;
+		};
+
+	};
+};
