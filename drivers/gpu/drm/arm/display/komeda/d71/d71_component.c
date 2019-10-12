@@ -1041,6 +1041,7 @@ static void d71_improc_update(struct komeda_component *c,
 			       to_d71_input_id(state, index));
 
 	malidp_write32(reg, BLK_SIZE, HV_SIZE(st->hsize, st->vsize));
+	malidp_write32(reg, IPS_DEPTH, st->color_depth);
 }
 
 static void d71_improc_dump(struct komeda_component *c, struct seq_file *sf)

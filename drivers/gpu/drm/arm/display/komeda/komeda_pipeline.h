@@ -325,6 +325,7 @@ struct komeda_improc {
 
 struct komeda_improc_state {
 	struct komeda_component_state base;
+	u8 color_depth;
 	u16 hsize, vsize;
 };
 
