@@ -551,6 +551,8 @@ static void __init bootcmdline_append(const char *s, size_t max)
 	strlcat(boot_command_line, s, max);
 }
 
+#ifdef CONFIG_OF_EARLY_FLATTREE
+
 static int __init bootcmdline_scan_chosen(unsigned long node, const char *uname,
 					  int depth, void *data)
 {
@@ -570,6 +572,8 @@ static int __init bootcmdline_scan_chosen(unsigned long node, const char *uname,
 
 	return 1;
 }
+
+#endif /* CONFIG_OF_EARLY_FLATTREE */
 
 static void __init bootcmdline_init(char **cmdline_p)
 {
@@ -597,12 +601,14 @@ static void __init bootcmdline_init(char **cmdline_p)
 	else
 		boot_command_line[0] = 0;
 
+#ifdef CONFIG_OF_EARLY_FLATTREE
 	/*
 	 * If we're configured to take boot arguments from DT, look for those
 	 * now.
 	 */
 	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_FROM_DTB))
 		of_scan_flat_dt(bootcmdline_scan_chosen, &dt_bootargs);
+#endif
 
 	/*
 	 * If we didn't get any arguments from DT (regardless of whether that's
