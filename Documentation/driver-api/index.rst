@@ -73,7 +73,6 @@ available subsections can be seen below.
    connector
    console
    dcdbas
-   dell_rbu
    edid
    eisa
    ipmb

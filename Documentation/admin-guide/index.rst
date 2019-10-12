@@ -72,6 +72,7 @@ configure specific aspects of kernel behavior to your liking.
    clearing-warn-once
    cpu-load
    cputopology
+   dell_rbu
    device-mapper/index
    efi-stub
    ext4

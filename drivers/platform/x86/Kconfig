@@ -259,7 +259,7 @@ config DELL_RBU
 	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
 	 supporting application to communicate with the BIOS regarding the new
 	 image for the image update to take effect.
-	 See <file:Documentation/driver-api/dell_rbu.rst> for more details on the driver.
+	 See <file:Documentation/admin-guide/dell_rbu.rst> for more details on the driver.
 
 
 config FUJITSU_LAPTOP
