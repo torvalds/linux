@@ -107,6 +107,7 @@ enum jz4740_mmc_version {
 	JZ_MMC_JZ4725B,
 	JZ_MMC_JZ4760,
 	JZ_MMC_JZ4780,
+	JZ_MMC_X1000,
 };
 
 enum jz4740_mmc_state {
@@ -934,6 +935,7 @@ static const struct of_device_id jz4740_mmc_of_match[] = {
 	{ .compatible = "ingenic,jz4725b-mmc", .data = (void *)JZ_MMC_JZ4725B },
 	{ .compatible = "ingenic,jz4760-mmc", .data = (void *) JZ_MMC_JZ4760 },
 	{ .compatible = "ingenic,jz4780-mmc", .data = (void *) JZ_MMC_JZ4780 },
+	{ .compatible = "ingenic,x1000-mmc", .data = (void *) JZ_MMC_X1000 },
 	{},
 };
 MODULE_DEVICE_TABLE(of, jz4740_mmc_of_match);
@@ -1034,7 +1036,7 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 		dev_err(&pdev->dev, "Failed to add mmc host: %d\n", ret);
 		goto err_release_dma;
 	}
-	dev_info(&pdev->dev, "JZ SD/MMC card driver registered\n");
+	dev_info(&pdev->dev, "Ingenic SD/MMC card driver registered\n");
 
 	dev_info(&pdev->dev, "Using %s, %d-bit mode\n",
 		 host->use_dma ? "DMA" : "PIO",
