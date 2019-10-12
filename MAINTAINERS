@@ -9126,7 +9126,7 @@ F:	drivers/auxdisplay/ks0108.c
 F:	include/linux/ks0108.h
 
 L3MDEV
-M:	David Ahern <dsa@cumulusnetworks.com>
+M:	David Ahern <dsahern@kernel.org>
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	net/l3mdev
@@ -17439,7 +17439,7 @@ F:	include/linux/regulator/
 K:	regulator_get_optional
 
 VRF
-M:	David Ahern <dsa@cumulusnetworks.com>
+M:	David Ahern <dsahern@kernel.org>
 M:	Shrijeet Mukherjee <shrijeet@gmail.com>
 L:	netdev@vger.kernel.org
 S:	Maintained
