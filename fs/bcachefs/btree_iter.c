@@ -1359,6 +1359,13 @@ static inline struct bkey_s_c btree_iter_peek_uptodate(struct btree_iter *iter)
 
 		if (debug_check_iterators(iter->trans->c)) {
 			struct bkey k = bkey_unpack_key(l->b, _k);
+
+			/*
+			 * this flag is internal to the btree code,
+			 * we don't care if it doesn't match - if it's now set
+			 * it just means the key has been written out to disk:
+			 */
+			k.needs_whiteout = iter->k.needs_whiteout;
 			BUG_ON(memcmp(&k, &iter->k, sizeof(k)));
 		}
 
