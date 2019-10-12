@@ -77,6 +77,8 @@
 
 #define JZ_MMC_CMDAT_IO_ABORT BIT(11)
 #define JZ_MMC_CMDAT_BUS_WIDTH_4BIT BIT(10)
+#define JZ_MMC_CMDAT_BUS_WIDTH_8BIT (BIT(10) | BIT(9))
+#define	JZ_MMC_CMDAT_BUS_WIDTH_MASK (BIT(10) | BIT(9))
 #define JZ_MMC_CMDAT_DMA_EN BIT(8)
 #define JZ_MMC_CMDAT_INIT BIT(7)
 #define JZ_MMC_CMDAT_BUSY BIT(6)
@@ -895,10 +897,15 @@ static void jz4740_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_1:
-		host->cmdat &= ~JZ_MMC_CMDAT_BUS_WIDTH_4BIT;
+		host->cmdat &= ~JZ_MMC_CMDAT_BUS_WIDTH_MASK;
 		break;
 	case MMC_BUS_WIDTH_4:
+		host->cmdat &= ~JZ_MMC_CMDAT_BUS_WIDTH_MASK;
 		host->cmdat |= JZ_MMC_CMDAT_BUS_WIDTH_4BIT;
+		break;
+	case MMC_BUS_WIDTH_8:
+		host->cmdat &= ~JZ_MMC_CMDAT_BUS_WIDTH_MASK;
+		host->cmdat |= JZ_MMC_CMDAT_BUS_WIDTH_8BIT;
 		break;
 	default:
 		break;
@@ -1029,7 +1036,8 @@ static int jz4740_mmc_probe(struct platform_device* pdev)
 
 	dev_info(&pdev->dev, "Using %s, %d-bit mode\n",
 		 host->use_dma ? "DMA" : "PIO",
-		 (mmc->caps & MMC_CAP_4_BIT_DATA) ? 4 : 1);
+		 (mmc->caps & MMC_CAP_8_BIT_DATA) ? 8 :
+		 ((mmc->caps & MMC_CAP_4_BIT_DATA) ? 4 : 1));
 
 	return 0;
 
