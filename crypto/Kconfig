@@ -1275,6 +1275,7 @@ config CRYPTO_CAMELLIA_SPARC64
 	depends on SPARC64
 	depends on CRYPTO
 	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	help
 	  Camellia cipher algorithm module (SPARC64).
 
