@@ -2187,6 +2187,7 @@ void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 	bch2_bset_init_first(b, &b->data->keys);
 	bch2_btree_build_aux_trees(b);
 
+	b->data->flags = 0;
 	b->data->min_key = POS_MIN;
 	b->data->max_key = POS_MAX;
 	b->data->format = bch2_btree_calc_format(b);
