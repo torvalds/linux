@@ -1903,6 +1903,11 @@ err_vma_put:
 	return err;
 }
 
+static struct intel_context *oa_context(struct i915_perf_stream *stream)
+{
+	return stream->pinned_ctx ?: stream->engine->kernel_context;
+}
+
 static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 {
 	struct intel_uncore *uncore = stream->uncore;
@@ -1922,7 +1927,7 @@ static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 	intel_uncore_rmw(uncore, GEN6_UCGCTL1,
 			 0, GEN6_CSUNIT_CLOCK_GATE_DISABLE);
 
-	return emit_oa_config(stream, stream->engine->kernel_context);
+	return emit_oa_config(stream, oa_context(stream));
 }
 
 static void hsw_disable_metric_set(struct i915_perf_stream *stream)
@@ -2286,7 +2291,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 	if (ret)
 		return ret;
 
-	return emit_oa_config(stream, stream->engine->kernel_context);
+	return emit_oa_config(stream, oa_context(stream));
 }
 
 static void gen8_disable_metric_set(struct i915_perf_stream *stream)
