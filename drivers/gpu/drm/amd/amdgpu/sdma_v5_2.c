@@ -1165,6 +1165,40 @@ static int sdma_v5_2_early_init(void *handle)
 	return 0;
 }
 
+static unsigned sdma_v5_2_seq_to_irq_id(int seq_num)
+{
+	switch (seq_num) {
+	case 0:
+		return SOC15_IH_CLIENTID_SDMA0;
+	case 1:
+		return SOC15_IH_CLIENTID_SDMA1;
+	case 2:
+		return SOC15_IH_CLIENTID_SDMA2;
+	case 3:
+		return SOC15_IH_CLIENTID_SDMA3_Sienna_Cichlid;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
+static unsigned sdma_v5_2_seq_to_trap_id(int seq_num)
+{
+	switch (seq_num) {
+	case 0:
+		return SDMA0_5_0__SRCID__SDMA_TRAP;
+	case 1:
+		return SDMA1_5_0__SRCID__SDMA_TRAP;
+	case 2:
+		return SDMA2_5_0__SRCID__SDMA_TRAP;
+	case 3:
+		return SDMA3_5_0__SRCID__SDMA_TRAP;
+	default:
+		break;
+	}
+	return -EINVAL;
+}
+
 static int sdma_v5_2_sw_init(void *handle)
 {
 	struct amdgpu_ring *ring;
@@ -1172,32 +1206,13 @@ static int sdma_v5_2_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA0,
-			      SDMA0_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA1,
-			      SDMA1_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA2,
-			      SDMA2_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
-
-	/* SDMA trap event */
-	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_SDMA3_Sienna_Cichlid,
-			      SDMA3_5_0__SRCID__SDMA_TRAP,
-			      &adev->sdma.trap_irq);
-	if (r)
-		return r;
+	for (i = 0; i < adev->sdma.num_instances; i++) {
+		r = amdgpu_irq_add_id(adev, sdma_v5_2_seq_to_irq_id(i),
+				      sdma_v5_2_seq_to_trap_id(i),
+				      &adev->sdma.trap_irq);
+		if (r)
+			return r;
+	}
 
 	r = sdma_v5_2_init_microcode(adev);
 	if (r) {
