@@ -959,7 +959,8 @@ static int count_iters_for_insert(struct btree_trans *trans,
 	case KEY_TYPE_reflink_p: {
 		struct bkey_s_c_reflink_p p = bkey_s_c_to_reflink_p(k);
 		u64 idx = le64_to_cpu(p.v->idx);
-		unsigned sectors = end->offset - bkey_start_offset(p.k);
+		unsigned sectors = bpos_min(*end, p.k->p).offset -
+			bkey_start_offset(p.k);
 		struct btree_iter *iter;
 		struct bkey_s_c r_k;
 
