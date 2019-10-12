@@ -1438,6 +1438,9 @@ again:
 	cond_resched();
 	nodes_unwritten = false;
 
+	if (bch2_journal_error(&c->journal))
+		return true;
+
 	rcu_read_lock();
 	for_each_cached_btree(b, c, tbl, i, pos)
 		if (btree_node_need_write(b)) {
