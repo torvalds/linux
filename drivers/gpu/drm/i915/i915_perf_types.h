@@ -9,7 +9,7 @@
 #include <linux/atomic.h>
 #include <linux/device.h>
 #include <linux/hrtimer.h>
-#include <linux/list.h>
+#include <linux/llist.h>
 #include <linux/poll.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
@@ -22,6 +22,7 @@
 struct drm_i915_private;
 struct file;
 struct i915_gem_context;
+struct i915_perf;
 struct i915_vma;
 struct intel_context;
 struct intel_engine_cs;
@@ -37,6 +38,8 @@ struct i915_oa_reg {
 };
 
 struct i915_oa_config {
+	struct i915_perf *perf;
+
 	char uuid[UUID_STRING_LEN + 1];
 	int id;
 
@@ -51,7 +54,8 @@ struct i915_oa_config {
 	struct attribute *attrs[2];
 	struct device_attribute sysfs_metric_id;
 
-	atomic_t ref_count;
+	struct kref ref;
+	struct rcu_head rcu;
 };
 
 struct i915_perf_stream;
@@ -176,6 +180,12 @@ struct i915_perf_stream {
 	 * @oa_config: The OA configuration used by the stream.
 	 */
 	struct i915_oa_config *oa_config;
+
+	/**
+	 * @oa_config_bos: A list of struct i915_oa_config_bo allocated lazily
+	 * each time @oa_config changes.
+	 */
+	struct llist_head oa_config_bos;
 
 	/**
 	 * @pinned_ctx: The OA context specific information.
@@ -331,13 +341,13 @@ struct i915_perf {
 
 	/*
 	 * Lock associated with adding/modifying/removing OA configs
-	 * in dev_priv->perf.metrics_idr.
+	 * in perf->metrics_idr.
 	 */
 	struct mutex metrics_lock;
 
 	/*
-	 * List of dynamic configurations, you need to hold
-	 * dev_priv->perf.metrics_lock to access it.
+	 * List of dynamic configurations (struct i915_oa_config), you
+	 * need to hold perf->metrics_lock to access it.
 	 */
 	struct idr metrics_idr;
 
@@ -350,8 +360,7 @@ struct i915_perf {
 	/*
 	 * The stream currently using the OA unit. If accessed
 	 * outside a syscall associated to its file
-	 * descriptor, you need to hold
-	 * dev_priv->drm.struct_mutex.
+	 * descriptor.
 	 */
 	struct i915_perf_stream *exclusive_stream;
 
