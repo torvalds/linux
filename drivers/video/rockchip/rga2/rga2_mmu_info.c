@@ -281,7 +281,6 @@ static int rga2_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr, uns
         case RGA2_FORMAT_YCbCr_420_SP_10B:
         case RGA2_FORMAT_YCrCb_420_SP_10B:
             stride = (w + 3) & (~3);
-            stride = stride;
             size_yrgb = stride * h;
             size_uv = (stride * (h >> 1));
             start = MIN(yrgb_addr, uv_addr);
