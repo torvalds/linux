@@ -67,6 +67,8 @@ struct soc15_allowed_register_entry {
 #define SOC15_REG_GOLDEN_VALUE(ip, inst, reg, and_mask, or_mask) \
 	{ ip##_HWIP, inst, reg##_BASE_IDX, reg, and_mask, or_mask }
 
+#define SOC15_REG_FIELD(reg, field) reg##__##field##_MASK, reg##__##field##__SHIFT
+
 void soc15_grbm_select(struct amdgpu_device *adev,
 		    u32 me, u32 pipe, u32 queue, u32 vmid);
 int soc15_set_ip_blocks(struct amdgpu_device *adev);
