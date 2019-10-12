@@ -504,6 +504,7 @@ struct mt76_dev {
 	struct sk_buff_head status_list;
 
 	unsigned long wcid_mask[MT76_N_WCIDS / BITS_PER_LONG];
+	unsigned long wcid_phy_mask[MT76_N_WCIDS / BITS_PER_LONG];
 
 	struct mt76_wcid global_wcid;
 	struct mt76_wcid __rcu *wcid[MT76_N_WCIDS];
@@ -595,6 +596,16 @@ enum mt76_phy_type {
 	__mt76_rmw(_dev, _reg, _field, FIELD_PREP(_field, _val))
 
 #define mt76_hw(dev) (dev)->mphy.hw
+
+static inline struct ieee80211_hw *
+mt76_wcid_hw(struct mt76_dev *dev, u8 wcid)
+{
+	if (wcid <= MT76_N_WCIDS &&
+	    mt76_wcid_mask_test(dev->wcid_phy_mask, wcid))
+		return dev->phy2->hw;
+
+	return dev->phy.hw;
+}
 
 bool __mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 		 int timeout);

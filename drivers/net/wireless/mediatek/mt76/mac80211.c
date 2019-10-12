@@ -829,7 +829,7 @@ EXPORT_SYMBOL_GPL(mt76_rx_poll_complete);
 
 static int
 mt76_sta_add(struct mt76_dev *dev, struct ieee80211_vif *vif,
-	     struct ieee80211_sta *sta)
+	     struct ieee80211_sta *sta, bool ext_phy)
 {
 	struct mt76_wcid *wcid = (struct mt76_wcid *)sta->drv_priv;
 	int ret;
@@ -854,6 +854,8 @@ mt76_sta_add(struct mt76_dev *dev, struct ieee80211_vif *vif,
 	}
 
 	ewma_signal_init(&wcid->rssi);
+	if (ext_phy)
+		mt76_wcid_mask_set(dev->wcid_phy_mask, wcid->idx);
 	rcu_assign_pointer(dev->wcid[wcid->idx], wcid);
 
 out:
@@ -880,7 +882,8 @@ void __mt76_sta_remove(struct mt76_dev *dev, struct ieee80211_vif *vif,
 	mt76_tx_status_check(dev, wcid, true);
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		mt76_txq_remove(dev, sta->txq[i]);
-	mt76_wcid_free(dev->wcid_mask, idx);
+	mt76_wcid_mask_clear(dev->wcid_mask, idx);
+	mt76_wcid_mask_clear(dev->wcid_phy_mask, idx);
 }
 EXPORT_SYMBOL_GPL(__mt76_sta_remove);
 
@@ -898,11 +901,13 @@ int mt76_sta_state(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   enum ieee80211_sta_state old_state,
 		   enum ieee80211_sta_state new_state)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt76_phy *phy = hw->priv;
+	struct mt76_dev *dev = phy->dev;
+	bool ext_phy = phy != &dev->phy;
 
 	if (old_state == IEEE80211_STA_NOTEXIST &&
 	    new_state == IEEE80211_STA_NONE)
-		return mt76_sta_add(dev, vif, sta);
+		return mt76_sta_add(dev, vif, sta, ext_phy);
 
 	if (old_state == IEEE80211_STA_AUTH &&
 	    new_state == IEEE80211_STA_ASSOC &&
