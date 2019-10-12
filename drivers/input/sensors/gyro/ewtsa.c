@@ -383,7 +383,7 @@ static int sensor_report_value(struct i2c_client *client)
 	z = (short) (((buffer[4]) << 8) | buffer[5]);
 
 	//printk("%s: x=%d  y=%d z=%d \n",__func__, x,y,z);
-	if(pdata && pdata->orientation)
+	if (pdata)
 	{
 		axis.x = (pdata->orientation[0])*x + (pdata->orientation[1])*y + (pdata->orientation[2])*z;
 		axis.y = (pdata->orientation[3])*x + (pdata->orientation[4])*y + (pdata->orientation[5])*z;
