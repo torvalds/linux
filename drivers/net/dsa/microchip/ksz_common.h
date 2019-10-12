@@ -1,5 +1,5 @@
-/* SPDX-License-Identifier: GPL-2.0
- * Microchip switch driver common header
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Microchip switch driver common header
  *
  * Copyright (C) 2017-2019 Microchip Technology Inc.
  */
