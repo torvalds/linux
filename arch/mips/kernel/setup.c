@@ -67,7 +67,7 @@ static char __initdata command_line[COMMAND_LINE_SIZE];
 char __initdata arcs_cmdline[COMMAND_LINE_SIZE];
 
 #ifdef CONFIG_CMDLINE_BOOL
-static char __initdata builtin_cmdline[COMMAND_LINE_SIZE] = CONFIG_CMDLINE;
+static const char builtin_cmdline[] __initconst = CONFIG_CMDLINE;
 #else
 static const char builtin_cmdline[] __initconst = "";
 #endif
