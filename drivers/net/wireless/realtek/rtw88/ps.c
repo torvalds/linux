@@ -69,24 +69,26 @@ void rtw_power_mode_change(struct rtw_dev *rtwdev, bool enter)
 	u8 polling_cnt;
 	u8 retry_cnt = 0;
 
-retry:
-	request = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
-	confirm = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
+	for (retry_cnt = 0; retry_cnt < 3; retry_cnt++) {
+		request = rtw_read8(rtwdev, rtwdev->hci.rpwm_addr);
+		confirm = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
 
-	/* toggle to request power mode, others remain 0 */
-	request ^= request | BIT_RPWM_TOGGLE;
-	if (!enter) {
-		request |= POWER_MODE_ACK;
-	} else {
-		request |= POWER_MODE_LCLK;
-		if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
-			request |= POWER_MODE_PG;
-	}
+		/* toggle to request power mode, others remain 0 */
+		request ^= request | BIT_RPWM_TOGGLE;
+		if (!enter) {
+			request |= POWER_MODE_ACK;
+		} else {
+			request |= POWER_MODE_LCLK;
+			if (rtw_fw_lps_deep_mode == LPS_DEEP_MODE_PG)
+				request |= POWER_MODE_PG;
+		}
 
-	rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
+		rtw_write8(rtwdev, rtwdev->hci.rpwm_addr, request);
 
-	/* check confirm power mode has left power save state */
-	if (!enter) {
+		if (enter)
+			return;
+
+		/* check confirm power mode has left power save state */
 		for (polling_cnt = 0; polling_cnt < 3; polling_cnt++) {
 			polling = rtw_read8(rtwdev, rtwdev->hci.cpwm_addr);
 			if ((polling ^ confirm) & BIT_RPWM_TOGGLE)
@@ -94,23 +96,18 @@ retry:
 			mdelay(20);
 		}
 
-		/* in case of fw/hw missed the request, retry 3 times */
-		if (retry_cnt < 3) {
-			rtw_warn(rtwdev, "failed to leave deep PS, retry=%d\n",
-				 retry_cnt);
-			retry_cnt++;
-			goto retry;
-		}
-
-		/* Hit here means that driver failed to change hardware
-		 * power mode to active state after retry 3 times.
-		 * If the power state is locked at Deep sleep, most of
-		 * the hardware circuits is not working, even register
-		 * read/write. It should be treated as fatal error and
-		 * requires an entire analysis about the firmware/hardware
-		 */
-		WARN(1, "Hardware power state locked\n");
+		/* in case of fw/hw missed the request, retry */
+		rtw_warn(rtwdev, "failed to leave deep PS, retry=%d\n",
+			 retry_cnt);
 	}
+
+	/* Hit here means that driver failed to change hardware power mode to
+	 * active state after retry 3 times. If the power state is locked at
+	 * Deep sleep, most of the hardware circuits is not working, even
+	 * register read/write. It should be treated as fatal error and
+	 * requires an entire analysis about the firmware/hardware
+	 */
+	WARN(1, "Hardware power state locked\n");
 }
 EXPORT_SYMBOL(rtw_power_mode_change);
 
