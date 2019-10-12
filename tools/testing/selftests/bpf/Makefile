@@ -15,8 +15,6 @@ endif
 CLANG		?= clang
 LLC		?= llc
 LLVM_OBJCOPY	?= llvm-objcopy
-LLVM_READELF	?= llvm-readelf
-BTF_PAHOLE	?= pahole
 BPF_GCC		?= $(shell command -v bpf-gcc;)
 CFLAGS += -g -Wall -O2 -I$(APIDIR) -I$(LIBDIR) -I$(BPFDIR) -I$(GENDIR) $(GENFLAGS) -I../../../include \
 	  -Dbpf_prog_load=bpf_prog_test_load \
@@ -126,16 +124,6 @@ force:
 $(BPFOBJ): force
 	$(MAKE) -C $(BPFDIR) OUTPUT=$(OUTPUT)/
 
-PROBE := $(shell $(LLC) -march=bpf -mcpu=probe -filetype=null /dev/null 2>&1)
-
-# Let newer LLVM versions transparently probe the kernel for availability
-# of full BPF instruction set.
-ifeq ($(PROBE),)
-  CPU ?= probe
-else
-  CPU ?= generic
-endif
-
 # Get Clang's default includes on this system, as opposed to those seen by
 # '-target bpf'. This fixes "missing" files on some architectures/distros,
 # such as asm/byteorder.h, asm/socket.h, asm/sockios.h, sys/cdefs.h etc.
@@ -147,8 +135,9 @@ $(shell $(1) -v -E - </dev/null 2>&1 \
 	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
 endef
 CLANG_SYS_INCLUDES = $(call get_sys_includes,$(CLANG))
-BPF_CFLAGS = -I. -I./include/uapi -I../../../include/uapi \
-	     -I$(BPFDIR) -I$(OUTPUT)/../usr/include -D__TARGET_ARCH_$(SRCARCH)
+BPF_CFLAGS = -g -D__TARGET_ARCH_$(SRCARCH) 				\
+	     -I. -I./include/uapi -I../../../include/uapi 		\
+	     -I$(BPFDIR) -I$(OUTPUT)/../usr/include
 
 CLANG_CFLAGS = $(CLANG_SYS_INCLUDES) \
 	       -Wno-compare-distinct-pointer-types
@@ -161,28 +150,6 @@ $(OUTPUT)/test_stack_map.o: test_queue_stack_map.h
 
 $(OUTPUT)/flow_dissector_load.o: flow_dissector_load.h
 $(OUTPUT)/test_progs.o: flow_dissector_load.h
-
-BTF_LLC_PROBE := $(shell $(LLC) -march=bpf -mattr=help 2>&1 | grep dwarfris)
-BTF_PAHOLE_PROBE := $(shell $(BTF_PAHOLE) --help 2>&1 | grep BTF)
-BTF_OBJCOPY_PROBE := $(shell $(LLVM_OBJCOPY) --help 2>&1 | grep -i 'usage.*llvm')
-BTF_LLVM_PROBE := $(shell echo "int main() { return 0; }" | \
-			  $(CLANG) -target bpf -O2 -g -c -x c - -o ./llvm_btf_verify.o; \
-			  $(LLVM_READELF) -S ./llvm_btf_verify.o | grep BTF; \
-			  /bin/rm -f ./llvm_btf_verify.o)
-
-ifneq ($(BTF_LLVM_PROBE),)
-	BPF_CFLAGS += -g
-else
-ifneq ($(BTF_LLC_PROBE),)
-ifneq ($(BTF_PAHOLE_PROBE),)
-ifneq ($(BTF_OBJCOPY_PROBE),)
-	BPF_CFLAGS += -g
-	LLC_FLAGS += -mattr=dwarfris
-	DWARF2BTF = y
-endif
-endif
-endif
-endif
 
 TEST_PROGS_CFLAGS := -I. -I$(OUTPUT)
 TEST_MAPS_CFLAGS := -I. -I$(OUTPUT)
@@ -212,11 +179,8 @@ $(ALU32_BUILD_DIR)/%.o: progs/%.c $(ALU32_BUILD_DIR)/test_progs_32 \
 					| $(ALU32_BUILD_DIR)
 	($(CLANG) $(BPF_CFLAGS) $(CLANG_CFLAGS) -O2 -target bpf -emit-llvm \
 		-c $< -o - || echo "clang failed") | \
-	$(LLC) -march=bpf -mattr=+alu32 -mcpu=$(CPU) $(LLC_FLAGS) \
+	$(LLC) -march=bpf -mcpu=probe -mattr=+alu32 $(LLC_FLAGS) \
 		-filetype=obj -o $@
-ifeq ($(DWARF2BTF),y)
-	$(BTF_PAHOLE) -J $@
-endif
 endif
 
 ifneq ($(BPF_GCC),)
@@ -251,18 +215,13 @@ endif
 $(OUTPUT)/test_xdp.o: progs/test_xdp.c
 	($(CLANG) $(BPF_CFLAGS) $(CLANG_CFLAGS) -O2 -emit-llvm -c $< -o - || \
 		echo "clang failed") | \
-	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
-ifeq ($(DWARF2BTF),y)
-	$(BTF_PAHOLE) -J $@
-endif
+	$(LLC) -march=bpf -mcpu=probe $(LLC_FLAGS) -filetype=obj -o $@
 
-$(OUTPUT)/%.o: progs/%.c
+# libbpf has to be built before BPF programs due to bpf_helper_defs.h
+$(OUTPUT)/%.o: progs/%.c | $(BPFOBJ)
 	($(CLANG) $(BPF_CFLAGS) $(CLANG_CFLAGS) -O2 -target bpf -emit-llvm \
 		-c $< -o - || echo "clang failed") | \
-	$(LLC) -march=bpf -mcpu=$(CPU) $(LLC_FLAGS) -filetype=obj -o $@
-ifeq ($(DWARF2BTF),y)
-	$(BTF_PAHOLE) -J $@
-endif
+	$(LLC) -march=bpf -mcpu=probe $(LLC_FLAGS) -filetype=obj -o $@
 
 PROG_TESTS_DIR = $(OUTPUT)/prog_tests
 $(PROG_TESTS_DIR):
