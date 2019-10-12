@@ -163,7 +163,8 @@
 #define MI_BATCH_BUFFER_START	MI_INSTR(0x31, 0)
 #define   MI_BATCH_GTT		    (2<<6) /* aliased with (1<<7) on gen4 */
 #define MI_BATCH_BUFFER_START_GEN8	MI_INSTR(0x31, 1)
-#define   MI_BATCH_RESOURCE_STREAMER (1<<10)
+#define   MI_BATCH_RESOURCE_STREAMER REG_BIT(10)
+#define   MI_BATCH_PREDICATE         REG_BIT(15) /* HSW+ on RCS only*/
 
 /*
  * 3D instructions used by the kernel
@@ -224,6 +225,7 @@
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
 #define   PIPE_CONTROL_TLB_INVALIDATE			(1<<18)
 #define   PIPE_CONTROL_MEDIA_STATE_CLEAR		(1<<16)
+#define   PIPE_CONTROL_WRITE_TIMESTAMP			(3<<14)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
 #define   PIPE_CONTROL_POST_SYNC_OP_MASK                (3<<14)
 #define   PIPE_CONTROL_DEPTH_STALL			(1<<13)

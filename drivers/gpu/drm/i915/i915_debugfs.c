@@ -3590,6 +3590,37 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
 			"%llu\n");
 
+static int
+i915_perf_noa_delay_set(void *data, u64 val)
+{
+	struct drm_i915_private *i915 = data;
+	const u32 clk = RUNTIME_INFO(i915)->cs_timestamp_frequency_khz;
+
+	/*
+	 * This would lead to infinite waits as we're doing timestamp
+	 * difference on the CS with only 32bits.
+	 */
+	if (val > mul_u32_u32(U32_MAX, clk))
+		return -EINVAL;
+
+	atomic64_set(&i915->perf.noa_programming_delay, val);
+	return 0;
+}
+
+static int
+i915_perf_noa_delay_get(void *data, u64 *val)
+{
+	struct drm_i915_private *i915 = data;
+
+	*val = atomic64_read(&i915->perf.noa_programming_delay);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_perf_noa_delay_fops,
+			i915_perf_noa_delay_get,
+			i915_perf_noa_delay_set,
+			"%llu\n");
+
 #define DROP_UNBOUND	BIT(0)
 #define DROP_BOUND	BIT(1)
 #define DROP_RETIRE	BIT(2)
@@ -4345,6 +4376,7 @@ static const struct i915_debugfs_files {
 	const char *name;
 	const struct file_operations *fops;
 } i915_debugfs_files[] = {
+	{"i915_perf_noa_delay", &i915_perf_noa_delay_fops},
 	{"i915_wedged", &i915_wedged_fops},
 	{"i915_cache_sharing", &i915_cache_sharing_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},

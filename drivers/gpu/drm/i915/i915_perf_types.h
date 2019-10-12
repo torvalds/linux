@@ -266,6 +266,12 @@ struct i915_perf_stream {
 		 */
 		u32 head;
 	} oa_buffer;
+
+	/**
+	 * A batch buffer doing a wait on the GPU for the NOA logic to be
+	 * reprogrammed.
+	 */
+	struct i915_vma *noa_wait;
 };
 
 /**
@@ -385,6 +391,8 @@ struct i915_perf {
 
 	struct i915_oa_ops ops;
 	const struct i915_oa_format *oa_formats;
+
+	atomic64_t noa_programming_delay;
 };
 
 #endif /* _I915_PERF_TYPES_H_ */

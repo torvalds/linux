@@ -109,6 +109,11 @@ enum intel_gt_scratch_field {
 	/* 8 bytes */
 	INTEL_GT_SCRATCH_FIELD_COHERENTL3_WA = 256,
 
+	/* 6 * 8 bytes */
+	INTEL_GT_SCRATCH_FIELD_PERF_CS_GPR = 2048,
+
+	/* 4 bytes */
+	INTEL_GT_SCRATCH_FIELD_PERF_PREDICATE_RESULT_1 = 2096,
 };
 
 #endif /* __INTEL_GT_TYPES_H__ */
