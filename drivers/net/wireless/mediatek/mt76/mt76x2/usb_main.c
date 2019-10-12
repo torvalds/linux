@@ -43,7 +43,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
-	mt76_set_channel(&dev->mt76);
+	mt76_set_channel(&dev->mphy);
 
 	mt76x2_mac_stop(dev, false);
 

@@ -22,6 +22,7 @@
 #define MT_SKB_HEAD_LEN     128
 
 struct mt76_dev;
+struct mt76_phy;
 struct mt76_wcid;
 
 struct mt76_reg_pair {
@@ -456,6 +457,15 @@ struct mt76_rx_status {
 struct mt76_phy {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;
+
+	struct cfg80211_chan_def chandef;
+	struct ieee80211_channel *main_chan;
+
+	struct mt76_channel_state *chan_state;
+	ktime_t survey_time;
+
+	struct mt76_sband sband_2g;
+	struct mt76_sband sband_5g;
 };
 
 struct mt76_dev {
@@ -464,10 +474,7 @@ struct mt76_dev {
 	struct mt76_phy *phy2;
 
 	struct ieee80211_hw *hw;
-	struct cfg80211_chan_def chandef;
-	struct ieee80211_channel *main_chan;
 
-	struct mt76_channel_state *chan_state;
 	spinlock_t lock;
 	spinlock_t cc_lock;
 
@@ -522,8 +529,6 @@ struct mt76_dev {
 	int beacon_int;
 	u8 beacon_mask;
 
-	struct mt76_sband sband_2g;
-	struct mt76_sband sband_5g;
 	struct debugfs_blob_wrapper eeprom;
 	struct debugfs_blob_wrapper otp;
 	struct mt76_hw_cap cap;
@@ -542,8 +547,6 @@ struct mt76_dev {
 	u8 led_pin;
 
 	u8 csa_complete;
-
-	ktime_t survey_time;
 
 	u32 rxfilter;
 
@@ -750,7 +753,7 @@ void mt76_release_buffered_frames(struct ieee80211_hw *hw,
 				  enum ieee80211_frame_release_type reason,
 				  bool more_data);
 bool mt76_has_tx_pending(struct mt76_dev *dev);
-void mt76_set_channel(struct mt76_dev *dev);
+void mt76_set_channel(struct mt76_phy *phy);
 void mt76_update_survey(struct mt76_dev *dev);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		    struct survey_info *survey);

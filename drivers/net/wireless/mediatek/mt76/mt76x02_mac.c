@@ -200,7 +200,7 @@ mt76x02_mac_tx_rate_val(struct mt76x02_dev *dev,
 			bw = 1;
 	} else {
 		const struct ieee80211_rate *r;
-		int band = dev->mt76.chandef.chan->band;
+		int band = dev->mphy.chandef.chan->band;
 		u16 val;
 
 		r = &dev->mt76.hw->wiphy->bands[band]->bitrates[rate->idx];
@@ -487,17 +487,17 @@ mt76x02_mac_fill_tx_status(struct mt76x02_dev *dev, struct mt76x02_sta *msta,
 		first_rate |= st->pktid & MT_PKTID_RATE;
 
 		mt76x02_mac_process_tx_rate(&rate[0], first_rate,
-					    dev->mt76.chandef.chan->band);
+					    dev->mphy.chandef.chan->band);
 	} else if (rate[0].idx < 0) {
 		if (!msta)
 			return;
 
 		mt76x02_mac_process_tx_rate(&rate[0], msta->wcid.tx_info,
-					    dev->mt76.chandef.chan->band);
+					    dev->mphy.chandef.chan->band);
 	}
 
 	mt76x02_mac_process_tx_rate(&last_rate, st->rate,
-				    dev->mt76.chandef.chan->band);
+				    dev->mphy.chandef.chan->band);
 
 	for (i = 0; i < ARRAY_SIZE(info->status.rates); i++) {
 		retry--;
@@ -853,8 +853,8 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 		signal = max_t(s8, signal, status->chain_signal[1]);
 	}
 	status->signal = signal;
-	status->freq = dev->mt76.chandef.chan->center_freq;
-	status->band = dev->mt76.chandef.chan->band;
+	status->freq = dev->mphy.chandef.chan->center_freq;
+	status->band = dev->mphy.chandef.chan->band;
 
 	status->tid = FIELD_GET(MT_RXWI_TID, tid_sn);
 	status->seqno = FIELD_GET(MT_RXWI_SN, tid_sn);
@@ -1018,7 +1018,7 @@ void mt76x02_update_channel(struct mt76_dev *mdev)
 	struct mt76x02_dev *dev = container_of(mdev, struct mt76x02_dev, mt76);
 	struct mt76_channel_state *state;
 
-	state = mdev->chan_state;
+	state = mdev->phy.chan_state;
 	state->cc_busy += mt76_rr(dev, MT_CH_BUSY);
 
 	spin_lock_bh(&dev->mt76.cc_lock);
@@ -1074,7 +1074,7 @@ void mt76x02_edcca_init(struct mt76x02_dev *dev)
 	dev->ed_silent = 0;
 
 	if (dev->ed_monitor) {
-		struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+		struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 		u8 ed_th = chan->band == NL80211_BAND_5GHZ ? 0x0e : 0x20;
 
 		mt76_clear(dev, MT_TX_LINK_CFG, MT_TX_CFACK_EN);
@@ -1184,7 +1184,7 @@ void mt76x02_mac_work(struct work_struct *work)
 
 void mt76x02_mac_cc_reset(struct mt76x02_dev *dev)
 {
-	dev->mt76.survey_time = ktime_get_boottime();
+	dev->mphy.survey_time = ktime_get_boottime();
 
 	mt76_wr(dev, MT_CH_TIME_CFG,
 		MT_CH_TIME_CFG_TIMER_EN |

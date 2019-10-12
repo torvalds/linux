@@ -247,7 +247,7 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct mt7615_dev *dev = hw->priv;
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 
 	if (request->dfs_region == dev->mt76.region)
 		return;
@@ -296,9 +296,9 @@ int mt7615_register_device(struct mt7615_dev *dev)
 
 	ieee80211_hw_set(hw, TX_STATUS_NO_AMPDU_LEN);
 
-	dev->mt76.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
-	dev->mt76.sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
-	dev->mt76.sband_5g.sband.vht_cap.cap |=
+	dev->mphy.sband_2g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
+	dev->mphy.sband_5g.sband.ht_cap.cap |= IEEE80211_HT_CAP_LDPC_CODING;
+	dev->mphy.sband_5g.sband.vht_cap.cap |=
 			IEEE80211_VHT_CAP_SHORT_GI_160 |
 			IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454 |
 			IEEE80211_VHT_CAP_MAX_A_MPDU_LENGTH_EXPONENT_MASK |
@@ -310,8 +310,8 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	mt7615_init_txpower(dev, &dev->mt76.sband_2g.sband);
-	mt7615_init_txpower(dev, &dev->mt76.sband_5g.sband);
+	mt7615_init_txpower(dev, &dev->mphy.sband_2g.sband);
+	mt7615_init_txpower(dev, &dev->mphy.sband_5g.sband);
 
 	hw->max_tx_fragments = MT_TXP_MAX_BUF_NUM;
 

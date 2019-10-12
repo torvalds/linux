@@ -289,8 +289,8 @@ int mt76x2_register_device(struct mt76x02_dev *dev)
 		goto fail;
 
 	mt76x02_init_debugfs(dev);
-	mt76x2_init_txpower(dev, &dev->mt76.sband_2g.sband);
-	mt76x2_init_txpower(dev, &dev->mt76.sband_5g.sband);
+	mt76x2_init_txpower(dev, &dev->mphy.sband_2g.sband);
+	mt76x2_init_txpower(dev, &dev->mphy.sband_5g.sband);
 
 	return 0;
 

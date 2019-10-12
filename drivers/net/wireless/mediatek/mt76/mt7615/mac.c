@@ -92,12 +92,12 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	}
 
 	/* TODO: properly support DBDC */
-	status->freq = dev->mt76.chandef.chan->center_freq;
-	status->band = dev->mt76.chandef.chan->band;
+	status->freq = dev->mphy.chandef.chan->center_freq;
+	status->band = dev->mphy.chandef.chan->band;
 	if (status->band == NL80211_BAND_5GHZ)
-		sband = &dev->mt76.sband_5g.sband;
+		sband = &dev->mphy.sband_5g.sband;
 	else
-		sband = &dev->mt76.sband_2g.sband;
+		sband = &dev->mphy.sband_2g.sband;
 
 	if (rxd2 & MT_RXD2_NORMAL_FCS_ERR)
 		status->flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -319,7 +319,7 @@ mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 			*bw = 1;
 	} else {
 		const struct ieee80211_rate *r;
-		int band = dev->mt76.chandef.chan->band;
+		int band = dev->mphy.chandef.chan->band;
 		u16 val;
 
 		nss = 1;
@@ -1059,10 +1059,10 @@ out:
 		cck = true;
 		/* fall through */
 	case MT_PHY_TYPE_OFDM:
-		if (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ)
-			sband = &dev->mt76.sband_5g.sband;
+		if (dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ)
+			sband = &dev->mphy.sband_5g.sband;
 		else
-			sband = &dev->mt76.sband_2g.sband;
+			sband = &dev->mphy.sband_2g.sband;
 		final_rate &= MT_TX_RATE_IDX;
 		final_rate = mt76_get_rate(&dev->mt76, sband, final_rate,
 					   cck);
@@ -1383,7 +1383,7 @@ void mt7615_update_channel(struct mt76_dev *mdev)
 	obss_time = mt76_get_field(dev, MT_WF_RMAC_MIB_TIME5,
 				   MT_MIB_OBSSTIME_MASK);
 
-	state = mdev->chan_state;
+	state = mdev->phy.chan_state;
 	state->cc_busy += busy_time;
 	state->cc_tx += tx_time;
 	state->cc_rx += rx_time + obss_time;
@@ -1423,7 +1423,7 @@ void mt7615_mac_work(struct work_struct *work)
 
 int mt7615_dfs_stop_radar_detector(struct mt7615_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	int err;
 
 	err = mt7615_mcu_rdd_cmd(dev, RDD_STOP, MT_HW_RDD0,
@@ -1452,7 +1452,7 @@ static int mt7615_dfs_start_rdd(struct mt7615_dev *dev, int chain)
 
 int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	int err;
 
 	/* start CAC */
@@ -1479,7 +1479,7 @@ int mt7615_dfs_start_radar_detector(struct mt7615_dev *dev)
 
 int mt7615_dfs_init_radar_detector(struct mt7615_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	int err;
 
 	if (dev->mt76.region == NL80211_DFS_UNSET)

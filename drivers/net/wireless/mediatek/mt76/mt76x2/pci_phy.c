@@ -12,7 +12,7 @@
 static bool
 mt76x2_phy_tssi_init_cal(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	u32 flag = 0;
 
 	if (!mt76x2_tssi_enabled(dev))
@@ -35,7 +35,7 @@ mt76x2_phy_tssi_init_cal(struct mt76x02_dev *dev)
 static void
 mt76x2_phy_channel_calibrate(struct mt76x02_dev *dev, bool mac_stopped)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	bool is_5ghz = chan->band == NL80211_BAND_5GHZ;
 
 	if (dev->cal.channel_cal_done)

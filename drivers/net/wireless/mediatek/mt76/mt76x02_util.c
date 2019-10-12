@@ -188,9 +188,9 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 	dev->slottime = 9;
 
 	if (is_mt76x2(dev)) {
-		dev->mt76.sband_2g.sband.ht_cap.cap |=
+		dev->mphy.sband_2g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
-		dev->mt76.sband_5g.sband.ht_cap.cap |=
+		dev->mphy.sband_5g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
 		dev->mt76.chainmask = 0x202;
 		dev->mt76.antenna_mask = 3;

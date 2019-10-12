@@ -15,7 +15,7 @@ mt7603_start(struct ieee80211_hw *hw)
 
 	mt7603_mac_reset_counters(dev);
 	mt7603_mac_start(dev);
-	dev->mt76.survey_time = ktime_get_boottime();
+	dev->mphy.survey_time = ktime_get_boottime();
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	mt7603_mac_work(&dev->mt76.mac_work.work);
 
@@ -146,13 +146,13 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 	set_bit(MT76_RESET, &dev->mt76.state);
 
 	mt7603_beacon_set_timer(dev, -1, 0);
-	mt76_set_channel(&dev->mt76);
+	mt76_set_channel(&dev->mphy);
 	mt7603_mac_stop(dev);
 
 	if (def->width == NL80211_CHAN_WIDTH_40)
 		bw = MT_BW_40;
 
-	dev->mt76.chandef = *def;
+	dev->mphy.chandef = *def;
 	mt76_rmw_field(dev, MT_AGG_BWCR, MT_AGG_BWCR_BW, bw);
 	ret = mt7603_mcu_set_channel(dev);
 	if (ret) {
@@ -190,7 +190,7 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 	mt76_rr(dev, MT_MIB_STAT_PSCCA);
 	mt7603_cca_stats_reset(dev);
 
-	dev->mt76.survey_time = ktime_get_boottime();
+	dev->mphy.survey_time = ktime_get_boottime();
 
 	mt7603_init_edcca(dev);
 

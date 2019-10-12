@@ -47,7 +47,7 @@ mt76x2_set_channel(struct mt76x02_dev *dev, struct cfg80211_chan_def *chandef)
 	mutex_lock(&dev->mt76.mutex);
 	set_bit(MT76_RESET, &dev->mt76.state);
 
-	mt76_set_channel(&dev->mt76);
+	mt76_set_channel(&dev->mphy);
 
 	mt76x2_mac_stop(dev, true);
 	ret = mt76x2_phy_set_channel(dev, chandef);

@@ -221,8 +221,8 @@ static inline bool is_mt7622(struct mt76_dev *dev)
 
 static inline void mt7615_dfs_check_channel(struct mt7615_dev *dev)
 {
-	enum nl80211_chan_width width = dev->mt76.chandef.width;
-	u32 freq = dev->mt76.chandef.chan->center_freq;
+	enum nl80211_chan_width width = dev->mphy.chandef.width;
+	u32 freq = dev->mphy.chandef.chan->center_freq;
 	struct ieee80211_hw *hw = mt76_hw(dev);
 
 	if (hw->conf.chandef.chan->center_freq != freq ||

@@ -573,7 +573,7 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		return ret;
 
 	mt7603_init_debugfs(dev);
-	mt7603_init_txpower(dev, &dev->mt76.sband_2g.sband);
+	mt7603_init_txpower(dev, &dev->mphy.sband_2g.sband);
 
 	return 0;
 }

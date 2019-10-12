@@ -53,7 +53,7 @@ void mt7603_mac_set_timing(struct mt7603_dev *dev)
 	int sifs;
 	u32 val;
 
-	if (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ)
+	if (dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ)
 		sifs = 16;
 	else
 		sifs = 10;
@@ -456,7 +456,7 @@ void mt7603_mac_sta_poll(struct mt7603_dev *dev)
 		return;
 
 	spin_lock_bh(&dev->mt76.cc_lock);
-	dev->mt76.chan_state->cc_tx += total_airtime;
+	dev->mphy.chan_state->cc_tx += total_airtime;
 	spin_unlock_bh(&dev->mt76.cc_lock);
 }
 
@@ -502,7 +502,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 	memset(status, 0, sizeof(*status));
 
 	i = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
-	sband = (i & 1) ? &dev->mt76.sband_5g.sband : &dev->mt76.sband_2g.sband;
+	sband = (i & 1) ? &dev->mphy.sband_5g.sband : &dev->mphy.sband_2g.sband;
 	i >>= 1;
 
 	idx = FIELD_GET(MT_RXD2_NORMAL_WLAN_IDX, rxd2);
@@ -668,7 +668,7 @@ mt7603_mac_tx_rate_val(struct mt7603_dev *dev,
 			*bw = 1;
 	} else {
 		const struct ieee80211_rate *r;
-		int band = dev->mt76.chandef.chan->band;
+		int band = dev->mphy.chandef.chan->band;
 		u16 val;
 
 		nss = 1;
@@ -1156,10 +1156,10 @@ out:
 		cck = true;
 		/* fall through */
 	case MT_PHY_TYPE_OFDM:
-		if (dev->mt76.chandef.chan->band == NL80211_BAND_5GHZ)
-			sband = &dev->mt76.sband_5g.sband;
+		if (dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ)
+			sband = &dev->mphy.sband_5g.sband;
 		else
-			sband = &dev->mt76.sband_2g.sband;
+			sband = &dev->mphy.sband_2g.sband;
 		final_rate &= GENMASK(5, 0);
 		final_rate = mt76_get_rate(&dev->mt76, sband, final_rate,
 					   cck);
@@ -1574,7 +1574,7 @@ void mt7603_update_channel(struct mt76_dev *mdev)
 	struct mt7603_dev *dev = container_of(mdev, struct mt7603_dev, mt76);
 	struct mt76_channel_state *state;
 
-	state = mdev->chan_state;
+	state = mdev->phy.chan_state;
 	state->cc_busy += mt76_rr(dev, MT_MIB_STAT_CCA);
 }
 

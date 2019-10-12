@@ -18,7 +18,7 @@ static int mt7615_start(struct ieee80211_hw *hw)
 
 	mt7615_mac_reset_counters(dev);
 
-	dev->mt76.survey_time = ktime_get_boottime();
+	dev->mphy.survey_time = ktime_get_boottime();
 	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT7615_WATCHDOG_TIME);
@@ -155,7 +155,7 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 
 	mt7615_dfs_check_channel(dev);
 
-	mt76_set_channel(&dev->mt76);
+	mt76_set_channel(&dev->mphy);
 
 	ret = mt7615_mcu_set_channel(dev);
 	if (ret)
@@ -163,7 +163,7 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 
 	ret = mt7615_dfs_init_radar_detector(dev);
 	mt7615_mac_cca_stats_reset(dev);
-	dev->mt76.survey_time = ktime_get_boottime();
+	dev->mphy.survey_time = ktime_get_boottime();
 
 	mt7615_mac_reset_counters(dev);
 

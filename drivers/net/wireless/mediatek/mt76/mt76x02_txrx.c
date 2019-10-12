@@ -74,7 +74,7 @@ s8 mt76x02_tx_get_max_txpwr_adj(struct mt76x02_dev *dev,
 	} else if (rate->flags & IEEE80211_TX_RC_MCS) {
 		max_txpwr = dev->mt76.rate_power.ht[rate->idx & 0xf];
 	} else {
-		enum nl80211_band band = dev->mt76.chandef.chan->band;
+		enum nl80211_band band = dev->mphy.chandef.chan->band;
 
 		if (band == NL80211_BAND_2GHZ) {
 			const struct ieee80211_rate *r;

@@ -502,7 +502,7 @@ mt76x0_phy_bbp_set_bw(struct mt76x02_dev *dev, enum nl80211_chan_width width)
 
 static void mt76x0_phy_tssi_dc_calibrate(struct mt76x02_dev *dev)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	u32 val;
 
 	if (chan->band == NL80211_BAND_5GHZ)
@@ -543,7 +543,7 @@ static int
 mt76x0_phy_tssi_adc_calibrate(struct mt76x02_dev *dev, s16 *ltssi,
 			      u8 *info)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	u32 val;
 
 	val = (chan->band == NL80211_BAND_5GHZ) ? 0x80055 : 0x80050;
@@ -696,7 +696,7 @@ mt76x0_phy_get_delta_power(struct mt76x02_dev *dev, u8 tx_mode,
 			   s8 target_power, s8 target_pa_power,
 			   s16 ltssi)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	int tssi_target = target_power << 12, tssi_slope;
 	int tssi_offset, tssi_db, ret;
 	u32 data;
@@ -844,8 +844,8 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 	struct mt76_rate_power *t = &dev->mt76.rate_power;
 	s8 info;
 
-	mt76x0_get_tx_power_per_rate(dev, dev->mt76.chandef.chan, t);
-	mt76x0_get_power_info(dev, dev->mt76.chandef.chan, &info);
+	mt76x0_get_tx_power_per_rate(dev, dev->mphy.chandef.chan, t);
+	mt76x0_get_power_info(dev, dev->mphy.chandef.chan, &info);
 
 	mt76x02_add_rate_power_offset(t, info);
 	mt76x02_limit_rate_power(t, dev->mt76.txpower_conf);
@@ -858,7 +858,7 @@ void mt76x0_phy_set_txpower(struct mt76x02_dev *dev)
 
 void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 {
-	struct ieee80211_channel *chan = dev->mt76.chandef.chan;
+	struct ieee80211_channel *chan = dev->mphy.chandef.chan;
 	int is_5ghz = (chan->band == NL80211_BAND_5GHZ) ? 1 : 0;
 	u32 val, tx_alc, reg_val;
 
@@ -1037,7 +1037,7 @@ static void mt76x0_phy_temp_sensor(struct mt76x02_dev *dev)
 
 	if (abs(val - dev->cal.temp_vco) > 20) {
 		mt76x02_mcu_calibrate(dev, MCU_CAL_VCO,
-				      dev->mt76.chandef.chan->hw_value);
+				      dev->mphy.chandef.chan->hw_value);
 		dev->cal.temp_vco = val;
 	}
 	if (abs(val - dev->cal.temp) > 30) {
@@ -1057,7 +1057,7 @@ static void mt76x0_phy_set_gain_val(struct mt76x02_dev *dev)
 
 	mt76_rmw_field(dev, MT_BBP(AGC, 8), MT_BBP_AGC_GAIN, gain);
 
-	if ((dev->mt76.chandef.chan->flags & IEEE80211_CHAN_RADAR) &&
+	if ((dev->mphy.chandef.chan->flags & IEEE80211_CHAN_RADAR) &&
 	    !is_mt7630(dev))
 		mt76x02_phy_dfs_adjust_agc(dev);
 }

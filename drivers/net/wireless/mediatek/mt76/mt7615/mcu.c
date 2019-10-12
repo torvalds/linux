@@ -1159,7 +1159,7 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 {
 	int i, ret, n_chains = hweight8(dev->mt76.antenna_mask);
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	int freq = chandef->center_freq1, len, target_chains;
 	u8 *req, *data, *eep = (u8 *)dev->mt76.eeprom.data;
 	enum nl80211_band band = chandef->chan->band;
@@ -1276,7 +1276,7 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 
 int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 {
-	struct cfg80211_chan_def *chandef = &dev->mt76.chandef;
+	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
 	struct {
 		u8 control_chan;
@@ -1313,7 +1313,7 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 	else
 		req.switch_reason = CH_SWITCH_NORMAL;
 
-	switch (dev->mt76.chandef.width) {
+	switch (dev->mphy.chandef.width) {
 	case NL80211_CHAN_WIDTH_40:
 		req.bw = CMD_CBW_40MHZ;
 		break;
