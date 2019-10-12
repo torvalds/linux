@@ -18,6 +18,16 @@
 		stdout-path = "serial0";
 	};
 
+	reserved-memory {
+		// wcnss.mdt is not relocatable, so it must be loaded at 0x8b600000
+		/delete-node/ wcnss@89300000;
+
+		wcnss_mem: wcnss@8b600000 {
+			reg = <0x0 0x8b600000 0x0 0x600000>;
+			no-map;
+		};
+	};
+
 	soc {
 		sdhci@7824000 {
 			status = "okay";
@@ -66,6 +76,10 @@
 					v3p3-supply = <&pm8916_l13>;
 				};
 			};
+		};
+
+		wcnss@a21b000 {
+			status = "okay";
 		};
 
 		/*
