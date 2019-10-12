@@ -730,12 +730,18 @@ static int nsim_dev_reload_create(struct nsim_dev *nsim_dev,
 	if (err)
 		goto err_dummy_region_exit;
 
-	err = nsim_dev_port_add_all(nsim_dev, nsim_bus_dev->port_count);
+	err = nsim_dev_health_init(nsim_dev, devlink);
 	if (err)
 		goto err_traps_exit;
 
+	err = nsim_dev_port_add_all(nsim_dev, nsim_bus_dev->port_count);
+	if (err)
+		goto err_health_exit;
+
 	return 0;
 
+err_health_exit:
+	nsim_dev_health_exit(nsim_dev);
 err_traps_exit:
 	nsim_dev_traps_exit(devlink);
 err_dummy_region_exit:
@@ -797,9 +803,13 @@ static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
 	if (err)
 		goto err_traps_exit;
 
-	err = nsim_bpf_dev_init(nsim_dev);
+	err = nsim_dev_health_init(nsim_dev, devlink);
 	if (err)
 		goto err_debugfs_exit;
+
+	err = nsim_bpf_dev_init(nsim_dev);
+	if (err)
+		goto err_health_exit;
 
 	err = nsim_dev_port_add_all(nsim_dev, nsim_bus_dev->port_count);
 	if (err)
@@ -810,6 +820,8 @@ static struct nsim_dev *nsim_dev_create(struct nsim_bus_dev *nsim_bus_dev)
 
 err_bpf_dev_exit:
 	nsim_bpf_dev_exit(nsim_dev);
+err_health_exit:
+	nsim_dev_health_exit(nsim_dev);
 err_debugfs_exit:
 	nsim_dev_debugfs_exit(nsim_dev);
 err_traps_exit:
@@ -837,6 +849,7 @@ static void nsim_dev_reload_destroy(struct nsim_dev *nsim_dev)
 	if (devlink_is_reload_failed(devlink))
 		return;
 	nsim_dev_port_del_all(nsim_dev);
+	nsim_dev_health_exit(nsim_dev);
 	nsim_dev_traps_exit(devlink);
 	nsim_dev_dummy_region_exit(nsim_dev);
 	mutex_destroy(&nsim_dev->port_list_lock);
