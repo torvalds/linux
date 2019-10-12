@@ -41,6 +41,7 @@
 #define JZ_REG_MMC_RESP_FIFO	0x34
 #define JZ_REG_MMC_RXFIFO	0x38
 #define JZ_REG_MMC_TXFIFO	0x3C
+#define JZ_REG_MMC_LPM		0x40
 #define JZ_REG_MMC_DMAC		0x44
 
 #define JZ_MMC_STRPCL_EXIT_MULTIPLE BIT(7)
@@ -99,6 +100,12 @@
 
 #define JZ_MMC_DMAC_DMA_SEL BIT(1)
 #define JZ_MMC_DMAC_DMA_EN BIT(0)
+
+#define	JZ_MMC_LPM_DRV_RISING BIT(31)
+#define	JZ_MMC_LPM_DRV_RISING_QTR_PHASE_DLY BIT(31)
+#define	JZ_MMC_LPM_DRV_RISING_1NS_DLY BIT(30)
+#define	JZ_MMC_LPM_SMP_RISING_QTR_OR_HALF_PHASE_DLY BIT(29)
+#define	JZ_MMC_LPM_LOW_POWER_MODE_EN BIT(0)
 
 #define JZ_MMC_CLK_RATE 24000000
 
@@ -856,6 +863,22 @@ static int jz4740_mmc_set_clock_rate(struct jz4740_mmc_host *host, int rate)
 	}
 
 	writew(div, host->base + JZ_REG_MMC_CLKRT);
+
+	if (real_rate > 25000000) {
+		if (host->version >= JZ_MMC_X1000) {
+			writel(JZ_MMC_LPM_DRV_RISING_QTR_PHASE_DLY |
+				   JZ_MMC_LPM_SMP_RISING_QTR_OR_HALF_PHASE_DLY |
+				   JZ_MMC_LPM_LOW_POWER_MODE_EN,
+				   host->base + JZ_REG_MMC_LPM);
+		} else if (host->version >= JZ_MMC_JZ4760) {
+			writel(JZ_MMC_LPM_DRV_RISING |
+				   JZ_MMC_LPM_LOW_POWER_MODE_EN,
+				   host->base + JZ_REG_MMC_LPM);
+		} else if (host->version >= JZ_MMC_JZ4725B)
+			writel(JZ_MMC_LPM_LOW_POWER_MODE_EN,
+				   host->base + JZ_REG_MMC_LPM);
+	}
+
 	return real_rate;
 }
 
