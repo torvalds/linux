@@ -95,6 +95,7 @@ void bch2_inode_pack(struct bkey_inode_buf *packed,
 	u8 *end = (void *) &packed[1];
 	u8 *last_nonzero_field = out;
 	unsigned nr_fields = 0, last_nonzero_fieldnr = 0;
+	unsigned bytes;
 
 	bkey_inode_init(&packed->inode.k_i);
 	packed->inode.k.p.inode		= inode->bi_inum;
@@ -117,10 +118,9 @@ void bch2_inode_pack(struct bkey_inode_buf *packed,
 	out = last_nonzero_field;
 	nr_fields = last_nonzero_fieldnr;
 
-	set_bkey_val_bytes(&packed->inode.k, out - (u8 *) &packed->inode.v);
-	memset(out, 0,
-	       (u8 *) &packed->inode.v +
-	       bkey_val_bytes(&packed->inode.k) - out);
+	bytes = out - (u8 *) &packed->inode.v;
+	set_bkey_val_bytes(&packed->inode.k, bytes);
+	memset_u64s_tail(&packed->inode.v, 0, bytes);
 
 	SET_INODE_NR_FIELDS(&packed->inode.v, nr_fields);
 

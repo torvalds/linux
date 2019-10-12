@@ -152,6 +152,7 @@ void bch2_alloc_pack(struct bkey_i_alloc *dst,
 {
 	unsigned idx = 0;
 	void *d = dst->v.data;
+	unsigned bytes;
 
 	dst->v.fields	= 0;
 	dst->v.gen	= src.gen;
@@ -160,7 +161,9 @@ void bch2_alloc_pack(struct bkey_i_alloc *dst,
 	BCH_ALLOC_FIELDS()
 #undef  x
 
-	set_bkey_val_bytes(&dst->k, (void *) d - (void *) &dst->v);
+	bytes = (void *) d - (void *) &dst->v;
+	set_bkey_val_bytes(&dst->k, bytes);
+	memset_u64s_tail(&dst->v, 0, bytes);
 }
 
 static unsigned bch_alloc_val_u64s(const struct bch_alloc *a)

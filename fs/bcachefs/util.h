@@ -648,6 +648,14 @@ static inline void memmove_u64s(void *dst, const void *src,
 		__memmove_u64s_up(dst, src, u64s);
 }
 
+/* Set the last few bytes up to a u64 boundary given an offset into a buffer. */
+static inline void memset_u64s_tail(void *s, int c, unsigned bytes)
+{
+	unsigned rem = round_up(bytes, sizeof(u64)) - bytes;
+
+	memset(s + bytes, c, rem);
+}
+
 void sort_cmp_size(void *base, size_t num, size_t size,
 	  int (*cmp_func)(const void *, const void *, size_t),
 	  void (*swap_func)(void *, void *, size_t));
