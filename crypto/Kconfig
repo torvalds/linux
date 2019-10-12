@@ -1098,8 +1098,7 @@ config CRYPTO_AES_NI_INTEL
 config CRYPTO_AES_SPARC64
 	tristate "AES cipher algorithms (SPARC64)"
 	depends on SPARC64
-	select CRYPTO_CRYPTD
-	select CRYPTO_ALGAPI
+	select CRYPTO_BLKCIPHER
 	help
 	  Use SPARC64 crypto opcodes for AES algorithm.
 
