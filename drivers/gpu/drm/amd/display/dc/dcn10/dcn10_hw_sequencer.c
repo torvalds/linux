@@ -1285,7 +1285,7 @@ static void dcn10_init_hw(struct dc *dc)
 		abm->funcs->abm_init(abm);
 	}
 
-	if (dmcu != NULL)
+	if (dmcu != NULL && !dmcu->auto_load_dmcu)
 		dmcu->funcs->dmcu_init(dmcu);
 
 	if (abm != NULL && dmcu != NULL)

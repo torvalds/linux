@@ -350,7 +350,7 @@ static const struct bios_registers bios_regs = {
 };
 
 static const struct dce_dmcu_registers dmcu_regs = {
-		DMCU_DCN10_REG_LIST()
+		DMCU_DCN20_REG_LIST()
 };
 
 static const struct dce_dmcu_shift dmcu_shift = {
@@ -1727,7 +1727,7 @@ static bool construct(
 		goto create_fail;
 	}
 
-	pool->base.dmcu = dcn20_dmcu_create(ctx,
+	pool->base.dmcu = dcn21_dmcu_create(ctx,
 			&dmcu_regs,
 			&dmcu_shift,
 			&dmcu_mask);

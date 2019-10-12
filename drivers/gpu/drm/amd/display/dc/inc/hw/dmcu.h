@@ -52,6 +52,8 @@ struct dmcu {
 	enum dmcu_state dmcu_state;
 	struct dmcu_version dmcu_version;
 	unsigned int cached_wait_loop_number;
+	uint32_t psp_version;
+	bool auto_load_dmcu;
 };
 
 struct dmcu_funcs {
