@@ -1208,7 +1208,8 @@ static bool can_merge_rq(const struct i915_request *prev,
 	if (i915_request_completed(next))
 		return true;
 
-	if (unlikely(prev->flags ^ next->flags) & I915_REQUEST_NOPREEMPT)
+	if (unlikely((prev->flags ^ next->flags) &
+		     (I915_REQUEST_NOPREEMPT | I915_REQUEST_SENTINEL)))
 		return false;
 
 	if (!can_merge_ctx(prev->hw_context, next->hw_context))
@@ -1657,6 +1658,9 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 				 * contexts if we submit 2 ELSP.
 				 */
 				if (last->hw_context == rq->hw_context)
+					goto done;
+
+				if (i915_request_has_sentinel(last))
 					goto done;
 
 				/*
