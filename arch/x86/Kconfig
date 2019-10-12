@@ -1000,8 +1000,8 @@ config NR_CPUS_RANGE_END
 config NR_CPUS_RANGE_END
 	int
 	depends on X86_64
-	default 8192 if  SMP && ( MAXSMP ||  CPUMASK_OFFSTACK)
-	default  512 if  SMP && (!MAXSMP && !CPUMASK_OFFSTACK)
+	default 8192 if  SMP && CPUMASK_OFFSTACK
+	default  512 if  SMP && !CPUMASK_OFFSTACK
 	default    1 if !SMP
 
 config NR_CPUS_DEFAULT
