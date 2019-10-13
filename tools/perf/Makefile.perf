@@ -114,6 +114,8 @@ include ../scripts/utilities.mak
 # Define NO_LIBZSTD if you do not want support of Zstandard based runtime
 # trace compression in record mode.
 #
+# Define TCMALLOC to enable tcmalloc heap profiling.
+#
 
 # As per kernel Makefile, avoid funny character set dependencies
 unexport LC_ALL
