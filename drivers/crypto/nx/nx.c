@@ -517,6 +517,12 @@ static int nx_register_alg(struct crypto_alg *alg, u32 fc, u32 mode)
 	       crypto_register_alg(alg) : 0;
 }
 
+static int nx_register_skcipher(struct skcipher_alg *alg, u32 fc, u32 mode)
+{
+	return nx_check_props(&nx_driver.viodev->dev, fc, mode) ?
+	       crypto_register_skcipher(alg) : 0;
+}
+
 static int nx_register_aead(struct aead_alg *alg, u32 fc, u32 mode)
 {
 	return nx_check_props(&nx_driver.viodev->dev, fc, mode) ?
@@ -535,6 +541,12 @@ static void nx_unregister_alg(struct crypto_alg *alg, u32 fc, u32 mode)
 {
 	if (nx_check_props(NULL, fc, mode))
 		crypto_unregister_alg(alg);
+}
+
+static void nx_unregister_skcipher(struct skcipher_alg *alg, u32 fc, u32 mode)
+{
+	if (nx_check_props(NULL, fc, mode))
+		crypto_unregister_skcipher(alg);
 }
 
 static void nx_unregister_aead(struct aead_alg *alg, u32 fc, u32 mode)
@@ -573,7 +585,7 @@ static int nx_register_algs(void)
 
 	nx_driver.of.status = NX_OKAY;
 
-	rc = nx_register_alg(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
+	rc = nx_register_skcipher(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
 	if (rc)
 		goto out;
 
@@ -637,7 +649,7 @@ out_unreg_ctr3686:
 out_unreg_cbc:
 	nx_unregister_alg(&nx_cbc_aes_alg, NX_FC_AES, NX_MODE_AES_CBC);
 out_unreg_ecb:
-	nx_unregister_alg(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
+	nx_unregister_skcipher(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
 out:
 	return rc;
 }
@@ -716,9 +728,9 @@ int nx_crypto_ctx_aes_cbc_init(struct crypto_tfm *tfm)
 				  NX_MODE_AES_CBC);
 }
 
-int nx_crypto_ctx_aes_ecb_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_aes_ecb_init(struct crypto_skcipher *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
+	return nx_crypto_ctx_init(crypto_skcipher_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_ECB);
 }
 
@@ -750,6 +762,11 @@ void nx_crypto_ctx_exit(struct crypto_tfm *tfm)
 	nx_ctx->csbcpb_aead = NULL;
 	nx_ctx->in_sg = NULL;
 	nx_ctx->out_sg = NULL;
+}
+
+void nx_crypto_ctx_skcipher_exit(struct crypto_skcipher *tfm)
+{
+	nx_crypto_ctx_exit(crypto_skcipher_ctx(tfm));
 }
 
 void nx_crypto_ctx_aead_exit(struct crypto_aead *tfm)
@@ -801,7 +818,8 @@ static int nx_remove(struct vio_dev *viodev)
 		nx_unregister_alg(&nx_ctr3686_aes_alg,
 				  NX_FC_AES, NX_MODE_AES_CTR);
 		nx_unregister_alg(&nx_cbc_aes_alg, NX_FC_AES, NX_MODE_AES_CBC);
-		nx_unregister_alg(&nx_ecb_aes_alg, NX_FC_AES, NX_MODE_AES_ECB);
+		nx_unregister_skcipher(&nx_ecb_aes_alg, NX_FC_AES,
+				       NX_MODE_AES_ECB);
 	}
 
 	return 0;
