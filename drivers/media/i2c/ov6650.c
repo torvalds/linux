@@ -545,18 +545,7 @@ static bool is_unscaled_ok(int width, int height, struct v4l2_rect *rect)
 	return width > rect->width >> 1 || height > rect->height >> 1;
 }
 
-static u8 to_clkrc(struct v4l2_fract *timeperframe, unsigned long pclk_max)
-{
-	unsigned long pclk;
-
-	if (timeperframe->numerator && timeperframe->denominator)
-		pclk = pclk_max * timeperframe->denominator /
-				(FRAME_RATE_MAX * timeperframe->numerator);
-	else
-		pclk = pclk_max;
-
-	return (pclk_max - 1) / pclk;
-}
+#define to_clkrc(div)	((div) - 1)
 
 /* set the format we will capture in */
 static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
@@ -650,7 +639,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 	mclk = 12000000;
 	dev_dbg(&client->dev, "using 12MHz input clock\n");
 
-	clkrc |= to_clkrc(&priv->tpf, priv->pclk_max);
+	clkrc |= to_clkrc(priv->tpf.numerator);
 
 	pclk = priv->pclk_max / GET_CLKRC_DIV(clkrc);
 	dev_dbg(&client->dev, "pixel clock divider: %ld.%ld\n",
@@ -749,9 +738,7 @@ static int ov6650_g_frame_interval(struct v4l2_subdev *sd,
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
 
-	ival->interval.numerator = GET_CLKRC_DIV(to_clkrc(&priv->tpf,
-							  priv->pclk_max));
-	ival->interval.denominator = FRAME_RATE_MAX;
+	ival->interval = priv->tpf;
 
 	dev_dbg(&client->dev, "Frame interval: %u/%u s\n",
 		ival->interval.numerator, ival->interval.denominator);
@@ -766,7 +753,6 @@ static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
 	struct ov6650 *priv = to_ov6650(client);
 	struct v4l2_fract *tpf = &ival->interval;
 	int div, ret;
-	u8 clkrc;
 
 	if (tpf->numerator == 0 || tpf->denominator == 0)
 		div = 1;  /* Reset to full rate */
@@ -778,14 +764,9 @@ static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
 	else if (div > GET_CLKRC_DIV(CLKRC_DIV_MASK))
 		div = GET_CLKRC_DIV(CLKRC_DIV_MASK);
 
-	tpf->numerator = div;
-	tpf->denominator = FRAME_RATE_MAX;
-
-	clkrc = to_clkrc(tpf, priv->pclk_max);
-
-	ret = ov6650_reg_rmw(client, REG_CLKRC, clkrc, CLKRC_DIV_MASK);
+	ret = ov6650_reg_rmw(client, REG_CLKRC, to_clkrc(div), CLKRC_DIV_MASK);
 	if (!ret) {
-		priv->tpf.numerator = GET_CLKRC_DIV(clkrc);
+		priv->tpf.numerator = div;
 		priv->tpf.denominator = FRAME_RATE_MAX;
 
 		*tpf = priv->tpf;
