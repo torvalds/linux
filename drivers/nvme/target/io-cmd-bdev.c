@@ -261,12 +261,10 @@ static void nvmet_bdev_execute_discard(struct nvmet_req *req)
 	if (bio) {
 		bio->bi_private = req;
 		bio->bi_end_io = nvmet_bio_done;
-		if (status) {
-			bio->bi_status = BLK_STS_IOERR;
-			bio_endio(bio);
-		} else {
+		if (status)
+			bio_io_error(bio);
+		else
 			submit_bio(bio);
-		}
 	} else {
 		nvmet_req_complete(req, status);
 	}
