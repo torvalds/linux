@@ -148,6 +148,8 @@ static int bmp280_read_calib(struct bmp280_data *data,
 {
 	int ret;
 	unsigned int tmp;
+	__le16 l16;
+	__be16 b16;
 	struct device *dev = data->dev;
 	__le16 t_buf[BMP280_COMP_TEMP_REG_COUNT / 2];
 	__le16 p_buf[BMP280_COMP_PRESS_REG_COUNT / 2];
@@ -207,12 +209,12 @@ static int bmp280_read_calib(struct bmp280_data *data,
 	}
 	calib->H1 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H2, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H2, &l16, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H2 comp value\n");
 		return ret;
 	}
-	calib->H2 = sign_extend32(le16_to_cpu(tmp), 15);
+	calib->H2 = sign_extend32(le16_to_cpu(l16), 15);
 
 	ret = regmap_read(data->regmap, BMP280_REG_COMP_H3, &tmp);
 	if (ret < 0) {
@@ -221,20 +223,20 @@ static int bmp280_read_calib(struct bmp280_data *data,
 	}
 	calib->H3 = tmp;
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H4, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H4, &b16, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H4 comp value\n");
 		return ret;
 	}
-	calib->H4 = sign_extend32(((be16_to_cpu(tmp) >> 4) & 0xff0) |
-				  (be16_to_cpu(tmp) & 0xf), 11);
+	calib->H4 = sign_extend32(((be16_to_cpu(b16) >> 4) & 0xff0) |
+				  (be16_to_cpu(b16) & 0xf), 11);
 
-	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H5, &tmp, 2);
+	ret = regmap_bulk_read(data->regmap, BMP280_REG_COMP_H5, &l16, 2);
 	if (ret < 0) {
 		dev_err(dev, "failed to read H5 comp value\n");
 		return ret;
 	}
-	calib->H5 = sign_extend32(((le16_to_cpu(tmp) >> 4) & 0xfff), 11);
+	calib->H5 = sign_extend32(((le16_to_cpu(l16) >> 4) & 0xfff), 11);
 
 	ret = regmap_read(data->regmap, BMP280_REG_COMP_H6, &tmp);
 	if (ret < 0) {
