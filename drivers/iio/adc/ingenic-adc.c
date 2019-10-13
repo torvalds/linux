@@ -428,7 +428,6 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct iio_dev *iio_dev;
 	struct ingenic_adc *adc;
-	struct resource *mem_base;
 	const struct ingenic_adc_soc_data *soc_data;
 	int ret;
 
@@ -445,8 +444,7 @@ static int ingenic_adc_probe(struct platform_device *pdev)
 	mutex_init(&adc->aux_lock);
 	adc->soc_data = soc_data;
 
-	mem_base = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adc->base = devm_ioremap_resource(dev, mem_base);
+	adc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc->base))
 		return PTR_ERR(adc->base);
 
