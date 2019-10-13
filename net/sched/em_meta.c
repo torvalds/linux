@@ -446,7 +446,7 @@ META_COLLECTOR(int_sk_wmem_queued)
 		*err = -1;
 		return;
 	}
-	dst->value = sk->sk_wmem_queued;
+	dst->value = READ_ONCE(sk->sk_wmem_queued);
 }
 
 META_COLLECTOR(int_sk_fwd_alloc)
