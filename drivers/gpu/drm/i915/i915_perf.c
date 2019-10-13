@@ -384,12 +384,9 @@ void i915_oa_config_release(struct kref *ref)
 	struct i915_oa_config *oa_config =
 		container_of(ref, typeof(*oa_config), ref);
 
-	if (!PTR_ERR(oa_config->flex_regs))
-		kfree(oa_config->flex_regs);
-	if (!PTR_ERR(oa_config->b_counter_regs))
-		kfree(oa_config->b_counter_regs);
-	if (!PTR_ERR(oa_config->mux_regs))
-		kfree(oa_config->mux_regs);
+	kfree(oa_config->flex_regs);
+	kfree(oa_config->b_counter_regs);
+	kfree(oa_config->mux_regs);
 
 	kfree_rcu(oa_config, rcu);
 }
@@ -3631,6 +3628,7 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	struct i915_perf *perf = &to_i915(dev)->perf;
 	struct drm_i915_perf_oa_config *args = data;
 	struct i915_oa_config *oa_config, *tmp;
+	static struct i915_oa_reg *regs;
 	int err, id;
 
 	if (!perf->i915) {
@@ -3676,30 +3674,30 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 	memcpy(oa_config->uuid, args->uuid, sizeof(args->uuid));
 
 	oa_config->mux_regs_len = args->n_mux_regs;
-	oa_config->mux_regs =
-		alloc_oa_regs(perf,
-			      perf->ops.is_valid_mux_reg,
-			      u64_to_user_ptr(args->mux_regs_ptr),
-			      args->n_mux_regs);
+	regs = alloc_oa_regs(perf,
+			     perf->ops.is_valid_mux_reg,
+			     u64_to_user_ptr(args->mux_regs_ptr),
+			     args->n_mux_regs);
 
-	if (IS_ERR(oa_config->mux_regs)) {
+	if (IS_ERR(regs)) {
 		DRM_DEBUG("Failed to create OA config for mux_regs\n");
-		err = PTR_ERR(oa_config->mux_regs);
+		err = PTR_ERR(regs);
 		goto reg_err;
 	}
+	oa_config->mux_regs = regs;
 
 	oa_config->b_counter_regs_len = args->n_boolean_regs;
-	oa_config->b_counter_regs =
-		alloc_oa_regs(perf,
-			      perf->ops.is_valid_b_counter_reg,
-			      u64_to_user_ptr(args->boolean_regs_ptr),
-			      args->n_boolean_regs);
+	regs = alloc_oa_regs(perf,
+			     perf->ops.is_valid_b_counter_reg,
+			     u64_to_user_ptr(args->boolean_regs_ptr),
+			     args->n_boolean_regs);
 
-	if (IS_ERR(oa_config->b_counter_regs)) {
+	if (IS_ERR(regs)) {
 		DRM_DEBUG("Failed to create OA config for b_counter_regs\n");
-		err = PTR_ERR(oa_config->b_counter_regs);
+		err = PTR_ERR(regs);
 		goto reg_err;
 	}
+	oa_config->b_counter_regs = regs;
 
 	if (INTEL_GEN(perf->i915) < 8) {
 		if (args->n_flex_regs != 0) {
@@ -3708,17 +3706,17 @@ int i915_perf_add_config_ioctl(struct drm_device *dev, void *data,
 		}
 	} else {
 		oa_config->flex_regs_len = args->n_flex_regs;
-		oa_config->flex_regs =
-			alloc_oa_regs(perf,
-				      perf->ops.is_valid_flex_reg,
-				      u64_to_user_ptr(args->flex_regs_ptr),
-				      args->n_flex_regs);
+		regs = alloc_oa_regs(perf,
+				     perf->ops.is_valid_flex_reg,
+				     u64_to_user_ptr(args->flex_regs_ptr),
+				     args->n_flex_regs);
 
-		if (IS_ERR(oa_config->flex_regs)) {
+		if (IS_ERR(regs)) {
 			DRM_DEBUG("Failed to create OA config for flex_regs\n");
-			err = PTR_ERR(oa_config->flex_regs);
+			err = PTR_ERR(regs);
 			goto reg_err;
 		}
+		oa_config->flex_regs = regs;
 	}
 
 	err = mutex_lock_interruptible(&perf->metrics_lock);
