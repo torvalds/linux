@@ -511,12 +511,6 @@ static bool nx_check_props(struct device *dev, u32 fc, u32 mode)
 	return true;
 }
 
-static int nx_register_alg(struct crypto_alg *alg, u32 fc, u32 mode)
-{
-	return nx_check_props(&nx_driver.viodev->dev, fc, mode) ?
-	       crypto_register_alg(alg) : 0;
-}
-
 static int nx_register_skcipher(struct skcipher_alg *alg, u32 fc, u32 mode)
 {
 	return nx_check_props(&nx_driver.viodev->dev, fc, mode) ?
@@ -535,12 +529,6 @@ static int nx_register_shash(struct shash_alg *alg, u32 fc, u32 mode, int slot)
 					  fc, mode, slot) :
 			    nx_check_props(&nx_driver.viodev->dev, fc, mode)) ?
 	       crypto_register_shash(alg) : 0;
-}
-
-static void nx_unregister_alg(struct crypto_alg *alg, u32 fc, u32 mode)
-{
-	if (nx_check_props(NULL, fc, mode))
-		crypto_unregister_alg(alg);
 }
 
 static void nx_unregister_skcipher(struct skcipher_alg *alg, u32 fc, u32 mode)
@@ -593,7 +581,8 @@ static int nx_register_algs(void)
 	if (rc)
 		goto out_unreg_ecb;
 
-	rc = nx_register_alg(&nx_ctr3686_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
+	rc = nx_register_skcipher(&nx_ctr3686_aes_alg, NX_FC_AES,
+				  NX_MODE_AES_CTR);
 	if (rc)
 		goto out_unreg_cbc;
 
@@ -645,7 +634,7 @@ out_unreg_gcm4106:
 out_unreg_gcm:
 	nx_unregister_aead(&nx_gcm_aes_alg, NX_FC_AES, NX_MODE_AES_GCM);
 out_unreg_ctr3686:
-	nx_unregister_alg(&nx_ctr3686_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
+	nx_unregister_skcipher(&nx_ctr3686_aes_alg, NX_FC_AES, NX_MODE_AES_CTR);
 out_unreg_cbc:
 	nx_unregister_skcipher(&nx_cbc_aes_alg, NX_FC_AES, NX_MODE_AES_CBC);
 out_unreg_ecb:
@@ -716,9 +705,9 @@ int nx_crypto_ctx_aes_gcm_init(struct crypto_aead *tfm)
 				  NX_MODE_AES_GCM);
 }
 
-int nx_crypto_ctx_aes_ctr_init(struct crypto_tfm *tfm)
+int nx_crypto_ctx_aes_ctr_init(struct crypto_skcipher *tfm)
 {
-	return nx_crypto_ctx_init(crypto_tfm_ctx(tfm), NX_FC_AES,
+	return nx_crypto_ctx_init(crypto_skcipher_ctx(tfm), NX_FC_AES,
 				  NX_MODE_AES_CTR);
 }
 
@@ -815,8 +804,8 @@ static int nx_remove(struct vio_dev *viodev)
 				   NX_FC_AES, NX_MODE_AES_GCM);
 		nx_unregister_aead(&nx_gcm_aes_alg,
 				   NX_FC_AES, NX_MODE_AES_GCM);
-		nx_unregister_alg(&nx_ctr3686_aes_alg,
-				  NX_FC_AES, NX_MODE_AES_CTR);
+		nx_unregister_skcipher(&nx_ctr3686_aes_alg,
+				       NX_FC_AES, NX_MODE_AES_CTR);
 		nx_unregister_skcipher(&nx_cbc_aes_alg, NX_FC_AES,
 				       NX_MODE_AES_CBC);
 		nx_unregister_skcipher(&nx_ecb_aes_alg, NX_FC_AES,
