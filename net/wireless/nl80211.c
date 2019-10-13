@@ -8265,10 +8265,8 @@ static int nl80211_start_sched_scan(struct sk_buff *skb,
 	/* leave request id zero for legacy request
 	 * or if driver does not support multi-scheduled scan
 	 */
-	if (want_multi && rdev->wiphy.max_sched_scan_reqs > 1) {
-		while (!sched_scan_req->reqid)
-			sched_scan_req->reqid = cfg80211_assign_cookie(rdev);
-	}
+	if (want_multi && rdev->wiphy.max_sched_scan_reqs > 1)
+		sched_scan_req->reqid = cfg80211_assign_cookie(rdev);
 
 	err = rdev_sched_scan_start(rdev, dev, sched_scan_req);
 	if (err)

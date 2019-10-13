@@ -90,8 +90,8 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%6u ", mr->perfect_tx_time);
 
 		tp_max = minstrel_get_tp_avg(mr, MINSTREL_FRAC(100,100));
-		tp_avg = minstrel_get_tp_avg(mr, mrs->prob_ewma);
-		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
+		tp_avg = minstrel_get_tp_avg(mr, mrs->prob_avg);
+		eprob = MINSTREL_TRUNC(mrs->prob_avg * 1000);
 
 		p += sprintf(p, "%4u.%1u    %4u.%1u     %3u.%1u"
 				"     %3u   %3u %-3u   "
@@ -147,8 +147,8 @@ minstrel_stats_csv_open(struct inode *inode, struct file *file)
 		p += sprintf(p, "%u,",mr->perfect_tx_time);
 
 		tp_max = minstrel_get_tp_avg(mr, MINSTREL_FRAC(100,100));
-		tp_avg = minstrel_get_tp_avg(mr, mrs->prob_ewma);
-		eprob = MINSTREL_TRUNC(mrs->prob_ewma * 1000);
+		tp_avg = minstrel_get_tp_avg(mr, mrs->prob_avg);
+		eprob = MINSTREL_TRUNC(mrs->prob_avg * 1000);
 
 		p += sprintf(p, "%u.%u,%u.%u,%u.%u,%u,%u,%u,"
 				"%llu,%llu,%d,%d\n",

@@ -571,6 +571,14 @@
  *	set of BSSID,frequency parameters is used (i.e., either the enforcing
  *	%NL80211_ATTR_MAC,%NL80211_ATTR_WIPHY_FREQ or the less strict
  *	%NL80211_ATTR_MAC_HINT and %NL80211_ATTR_WIPHY_FREQ_HINT).
+ *	Driver shall not modify the IEs specified through %NL80211_ATTR_IE if
+ *	%NL80211_ATTR_MAC is included. However, if %NL80211_ATTR_MAC_HINT is
+ *	included, these IEs through %NL80211_ATTR_IE are specified by the user
+ *	space based on the best possible BSS selected. Thus, if the driver ends
+ *	up selecting a different BSS, it can modify these IEs accordingly (e.g.
+ *	userspace asks the driver to perform PMKSA caching with BSS1 and the
+ *	driver ends up selecting BSS2 with different PMKSA cache entry; RSNIE
+ *	has to get updated with the apt PMKID).
  *	%NL80211_ATTR_PREV_BSSID can be used to request a reassociation within
  *	the ESS in case the device is already associated and an association with
  *	a different BSS is desired.
