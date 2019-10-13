@@ -2045,9 +2045,9 @@ void _rtw_roaming(struct adapter *padapter, struct wlan_network *tgt_network)
 
 		while (1) {
 			do_join_r = rtw_do_join(padapter);
-			if (do_join_r == _SUCCESS) {
+			if (do_join_r == _SUCCESS)
 				break;
-			}
+
 			DBG_88E("roaming do_join return %d\n", do_join_r);
 			pmlmepriv->to_roaming--;
 
