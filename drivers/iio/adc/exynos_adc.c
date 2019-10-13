@@ -651,7 +651,7 @@ static irqreturn_t exynos_ts_isr(int irq, void *dev_id)
 		input_sync(info->input);
 
 		usleep_range(1000, 1100);
-	};
+	}
 
 	writel(0, ADC_V1_CLRINTPNDNUP(info->regs));
 
