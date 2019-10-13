@@ -186,12 +186,11 @@ medusa_answer_t med_unlink_kclass(struct medusa_kclass_s * ptr)
  */
 void med_unregister_kclass(struct medusa_kclass_s * ptr)
 {
-	MED_PRINTF("Unregistering kclass %s\n", ptr->name);
+	med_pr_info("Unregistering kclass %s\n", ptr->name);
 	MED_LOCK_R(registry_lock);
 	MED_LOCK_R(usecount_lock);
 	if (ptr->use_count || ptr->next) { /* useless sanity check */
-		MED_PRINTF("l3/med_unregister_kclass: A fatal ERROR has occured; expect system crash.\n");
-		MED_PRINTF("If you're removing a file-related kclass, press reset. Otherwise save now.\n");
+		med_pr_crit("A fatal ERROR has occured; expect system crash. If you're removing a file-related kclass, press reset. Otherwise save now.\n");
 		MED_UNLOCK_R(usecount_lock);
 		MED_UNLOCK_R(registry_lock);
 		return;
@@ -215,11 +214,11 @@ int med_register_kclass(struct medusa_kclass_s * ptr)
 	struct medusa_kclass_s * p;
 
 	ptr->name[MEDUSA_KCLASSNAME_MAX-1] = '\0';
-	MED_PRINTF("Registering kclass %s\n", ptr->name);
+	med_pr_info("Registering kclass %s\n", ptr->name);
 	MED_LOCK_W(registry_lock);
 	for (p=kclasses; p; p=p->next)
 		if (ptr==p || !mystrcmp(p->name, ptr->name)) {
-			MED_PRINTF("Error: such kclass already exists.\n");
+			med_pr_err("Error: such kclass already exists.\n");
 			MED_UNLOCK_W(registry_lock);
 			return -1;
 		}
@@ -252,7 +251,7 @@ int med_register_evtype(struct medusa_evtype_s * ptr, int flags)
 	ptr->arg_name[0][MEDUSA_ATTRNAME_MAX-1] = '\0';
 	ptr->arg_name[1][MEDUSA_ATTRNAME_MAX-1] = '\0';
 	/* TODO: check whether kclasses are registered, maybe register automagically */
-	MED_PRINTF("Registering event type %s(%s:%s->%s:%s)\n", ptr->name,
+	med_pr_info("Registering event type %s(%s:%s->%s:%s)\n", ptr->name,
 		ptr->arg_name[0],ptr->arg_kclass[0]->name,
 		ptr->arg_name[1],ptr->arg_kclass[1]->name
 	);
@@ -260,7 +259,7 @@ int med_register_evtype(struct medusa_evtype_s * ptr, int flags)
 	for (p=evtypes; p; p=p->next)
 		if (!mystrcmp(p->name, ptr->name)) {
 			MED_UNLOCK_W(registry_lock);
-			MED_PRINTF("Error: such event type already exists.\n");
+			med_pr_err("Error: such event type already exists.\n");
 			return -1;
 		}
 	ptr->next = evtypes;
@@ -292,7 +291,7 @@ int med_register_evtype(struct medusa_evtype_s * ptr, int flags)
 void med_unregister_evtype(struct medusa_evtype_s * ptr)
 {
 	struct medusa_evtype_s * tmp;
-	MED_PRINTF("Unregistering event type %s\n", ptr->name);
+	med_pr_info("Unregistering event type %s\n", ptr->name);
 	MED_LOCK_W(registry_lock);
 	if (ptr == evtypes)
 		evtypes = ptr->next;
@@ -321,10 +320,10 @@ int med_register_authserver(struct medusa_authserver_s * ptr)
 	struct medusa_kclass_s * cp;
 	struct medusa_evtype_s * ap;
 
-	MED_PRINTF("Registering authentication server %s\n", ptr->name);
+	med_pr_info("Registering authentication server %s\n", ptr->name);
 	MED_LOCK_W(registry_lock);
 	if (authserver) {
-		MED_PRINTF("Registration of auth. server '%s' failed: '%s' already present!\n", ptr->name, authserver->name);
+		med_pr_err("Registration of auth. server '%s' failed: '%s' already present!\n", ptr->name, authserver->name);
 		MED_UNLOCK_W(registry_lock);
 		return -1;
 	}
@@ -361,7 +360,7 @@ int med_register_authserver(struct medusa_authserver_s * ptr)
  */
 void med_unregister_authserver(struct medusa_authserver_s * ptr)
 {
-	MED_PRINTF("Unregistering authserver %s\n", ptr->name);
+	med_pr_info("Unregistering authserver %s\n", ptr->name);
 	MED_LOCK_W(registry_lock);
 	/* the following code is a little bit useless, but we keep it here
 	 * to allow multiple different authentication servers some day

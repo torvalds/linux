@@ -69,6 +69,7 @@
 #include "../l2/kobject_socket.h"
 #include "../l0/init_medusa.h"
 #include "../../../ipc/util.h"
+#include <linux/medusa/l3/arch.h>
 
 int medusa_l1_inode_alloc_security(struct inode *inode);
 
@@ -131,7 +132,7 @@ static int medusa_l1_sb_kern_mount(struct super_block *sb)
 	struct inode *inode = sb->s_root->d_inode;
 
 	if (inode->i_security == NULL) {
-		printk("medusa: WARNING: l1_sb_kern_mount_inode->i_security is NULL");
+		med_pr_warn("WARNING: l1_sb_kern_mount_inode->i_security is NULL");
 		return medusa_l1_inode_alloc_security(inode);
 	}
 
@@ -199,7 +200,7 @@ static int medusa_l1_dentry_init_security(struct dentry *dentry, int mode,
 {
 	if (dentry->d_inode != NULL) {
 		if (dentry->d_inode->i_security == NULL) {
-			printk("medusa: WARNING l1_dentry_init_security dentry->d_inode->i_security is NULL");
+			med_pr_warn("WARNING l1_dentry_init_security dentry->d_inode->i_security is NULL");
 			return medusa_l1_inode_alloc_security(dentry->d_inode);
 		}
 
@@ -896,7 +897,6 @@ static int medusa_l1_sem_semop(struct kern_ipc_perm *sma, struct sembuf *sops,
 static int medusa_l1_unix_stream_connect(struct sock *sock, struct sock *other,
 				struct sock *newsk)
 {
-	//printk("medusa: unix_stream_connect called\n");
 	return 0;
 }
 */
@@ -1470,11 +1470,6 @@ static int medusa_l1_inode_removexattr(struct dentry *dentry, const char *name)
 	return cap_inode_removexattr(dentry, name);
 } 
 
-static int medusa_l1_inode_killpriv(struct dentry *dentry)
-{
-	return cap_inode_killpriv(dentry);
-}
-
 static struct security_hook_list medusa_l1_hooks[] = {
 	//LSM_HOOK_INIT(ptrace_access_check, medusa_l1_ptrace_access_check),
 	//LSM_HOOK_INIT(ptrace_traceme, medusa_l1_ptrace_traceme),
@@ -1787,7 +1782,7 @@ static int __init medusa_l1_init(void)
 	//security_replace_hooks(medusa_l0_hooks, medusa_l1_hooks_special, ARRAY_SIZE(medusa_l1_hooks_special));
 
 	//l1_initialized = true;
-	printk("medusa: l1 registered with the kernel\n");
+	med_pr_info("l1 registered with the kernel\n");
 	//mutex_unlock(&l0_mutex);
 
 	medusa_init();
@@ -1808,7 +1803,7 @@ static int __init medusa_l1_init(void)
 
 static void __exit medusa_l1_exit (void)
 {	
-	printk("medusa unload");
+	med_pr_info("medusa unload");
 	//security_delete_hooks(medusa_hooks, ARRAY_SIZE(medusa_hooks));
 	return;
 }

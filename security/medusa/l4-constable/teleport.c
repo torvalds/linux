@@ -89,7 +89,7 @@ ssize_t teleport_cycle(teleport_t * teleport, size_t userlimit)
 				teleport->remaining =
 					sizeof(struct medusa_comm_kclass_s);
 #ifdef DEBUG
-				MED_PRINTF("-> class %s [%p]\n", teleport->u.putkclass.cl.name,
+				med_pr_debug("-> class %s [%p]\n", teleport->u.putkclass.cl.name,
 						(void*)teleport->u.putkclass.cl.kclassid);
 #endif
 				break;
@@ -109,7 +109,7 @@ ssize_t teleport_cycle(teleport_t * teleport, size_t userlimit)
 					(MCPptr_t)teleport->ip->args.putevtype.evtypedef->arg_kclass[1]; // possibility for encryption ... JK note March 2015
 
 #ifdef DEBUG
-				MED_PRINTF("-> evtype %s [%p] with [%p] and [%p]\n", teleport->u.putevtype.ev.name,
+				med_pr_debug("-> evtype %s [%p] with [%p] and [%p]\n", teleport->u.putevtype.ev.name,
 					(void*)teleport->u.putevtype.ev.evid,
 					(void*)teleport->u.putevtype.ev.ev_kclass[0],
 					(void*)teleport->u.putevtype.ev.ev_kclass[1]
@@ -173,7 +173,7 @@ ssize_t teleport_cycle(teleport_t * teleport, size_t userlimit)
 				teleport->cycle = tpc_HALT;
 				break;
 			default:
-				MED_PRINTF("l4/teleport: unknown instruction (0x%2x) at %p\n", teleport->ip->opcode, teleport->ip);
+				med_pr_warn("Unknown instruction (0x%2x) at %p\n", teleport->ip->opcode, teleport->ip);
 				teleport->cycle = tpc_HALT;
 			}
 		}
@@ -195,7 +195,7 @@ static inline ssize_t place_to_user(teleport_t * teleport,
 		return 0;
 #ifdef PARANOIA_CHECKS
 	if (!_to_user) {
-		MED_PRINTF("teleport wrongly initialized!\n");
+		med_pr_warn("teleport wrongly initialized!\n");
 		return 0;
 	}
 #endif
