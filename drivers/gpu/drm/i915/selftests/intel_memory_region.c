@@ -128,9 +128,9 @@ static int igt_mock_contiguous(void *arg)
 	LIST_HEAD(objects);
 	LIST_HEAD(holes);
 	I915_RND_STATE(prng);
-	resource_size_t target;
 	resource_size_t total;
 	resource_size_t min;
+	u64 target;
 	int err = 0;
 
 	total = resource_size(&mem->region);
@@ -163,7 +163,9 @@ static int igt_mock_contiguous(void *arg)
 	igt_object_release(obj);
 
 	/* Internal fragmentation should not bleed into the object size */
-	target = round_up(prandom_u32_state(&prng) % total, PAGE_SIZE);
+	target = i915_prandom_u64_state(&prng);
+	div64_u64_rem(target, total, &target);
+	target = round_up(target, PAGE_SIZE);
 	target = max_t(u64, PAGE_SIZE, target);
 
 	obj = igt_object_create(mem, &objects, target,
@@ -172,8 +174,8 @@ static int igt_mock_contiguous(void *arg)
 		return PTR_ERR(obj);
 
 	if (obj->base.size != target) {
-		pr_err("%s obj->base.size(%llx) != target(%llx)\n", __func__,
-		       (u64)obj->base.size, (u64)target);
+		pr_err("%s obj->base.size(%zx) != target(%llx)\n", __func__,
+		       obj->base.size, target);
 		err = -EINVAL;
 		goto err_close_objects;
 	}
@@ -236,7 +238,7 @@ static int igt_mock_contiguous(void *arg)
 					I915_BO_ALLOC_CONTIGUOUS);
 		if (should_fail != IS_ERR(obj)) {
 			pr_err("%s target allocation(%llx) mismatch\n",
-			       __func__, (u64)target);
+			       __func__, target);
 			err = -EINVAL;
 			goto err_close_objects;
 		}
