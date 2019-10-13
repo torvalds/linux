@@ -966,7 +966,7 @@ int nvmet_req_alloc_sgl(struct nvmet_req *req)
 	}
 
 	req->sg = sgl_alloc(req->transfer_len, GFP_KERNEL, &req->sg_cnt);
-	if (!req->sg)
+	if (unlikely(!req->sg))
 		return -ENOMEM;
 
 	return 0;
