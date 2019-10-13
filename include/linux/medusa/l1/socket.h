@@ -15,8 +15,6 @@
 #include "../../../../security/medusa/l2/kobject_socket.h"
 #include <linux/types.h>
 
-#pragma GCC optimize ("Og")
-
 extern medusa_answer_t medusa_socket_create(int family, int type, int protocol);
 extern medusa_answer_t medusa_socket_bind(struct socket *sock, struct sockaddr *address, int addrlen);
 extern medusa_answer_t medusa_socket_connect(struct socket *sock, struct sockaddr *address, int addrlen);
