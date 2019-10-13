@@ -649,6 +649,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->gem_context = ce->gem_context;
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
+	rq->execution_mask = ce->engine->mask;
 
 	rcu_assign_pointer(rq->timeline, tl);
 	rq->hwsp_seqno = tl->hwsp_seqno;
@@ -671,7 +672,6 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->batch = NULL;
 	rq->capture_list = NULL;
 	rq->flags = 0;
-	rq->execution_mask = ALL_ENGINES;
 
 	INIT_LIST_HEAD(&rq->execute_cb);
 
