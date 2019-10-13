@@ -72,8 +72,8 @@ static int ecb_aes_nx_crypt(struct blkcipher_desc *desc,
 	do {
 		to_process = nbytes - processed;
 
-		rc = nx_build_sg_lists(nx_ctx, desc, dst, src, &to_process,
-				processed, NULL);
+		rc = nx_build_sg_lists(nx_ctx, NULL, dst, src, &to_process,
+				       processed, NULL);
 		if (rc)
 			goto out;
 

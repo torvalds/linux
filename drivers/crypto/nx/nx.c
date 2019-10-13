@@ -243,25 +243,25 @@ static long int trim_sg_list(struct nx_sg *sg,
  *                     scatterlists based on them.
  *
  * @nx_ctx: NX crypto context for the lists we're building
- * @desc: the block cipher descriptor for the operation
+ * @iv: iv data, if the algorithm requires it
  * @dst: destination scatterlist
  * @src: source scatterlist
  * @nbytes: length of data described in the scatterlists
  * @offset: number of bytes to fast-forward past at the beginning of
  *          scatterlists.
- * @iv: destination for the iv data, if the algorithm requires it
+ * @oiv: destination for the iv data, if the algorithm requires it
  *
- * This is common code shared by all the AES algorithms. It uses the block
- * cipher walk routines to traverse input and output scatterlists, building
+ * This is common code shared by all the AES algorithms. It uses the crypto
+ * scatterlist walk routines to traverse input and output scatterlists, building
  * corresponding NX scatterlists
  */
 int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
-		      struct blkcipher_desc *desc,
+		      const u8              *iv,
 		      struct scatterlist    *dst,
 		      struct scatterlist    *src,
 		      unsigned int          *nbytes,
 		      unsigned int           offset,
-		      u8                    *iv)
+		      u8                    *oiv)
 {
 	unsigned int delta = 0;
 	unsigned int total = *nbytes;
@@ -274,8 +274,8 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 	max_sg_len = min_t(u64, max_sg_len,
 			nx_ctx->ap->databytelen/NX_PAGE_SIZE);
 
-	if (iv)
-		memcpy(iv, desc->info, AES_BLOCK_SIZE);
+	if (oiv)
+		memcpy(oiv, iv, AES_BLOCK_SIZE);
 
 	*nbytes = min_t(u64, *nbytes, nx_ctx->ap->databytelen);
 
