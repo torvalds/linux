@@ -124,7 +124,7 @@
 
 #define DEF_AECH		0x4D
 
-#define CLKRC_6MHz		0x00
+#define CLKRC_8MHz		0x00
 #define CLKRC_12MHz		0x40
 #define CLKRC_16MHz		0x80
 #define CLKRC_24MHz		0xc0
@@ -201,6 +201,29 @@ struct ov6650 {
 	u32 code;
 };
 
+struct ov6650_xclk {
+	unsigned long	rate;
+	u8		clkrc;
+};
+
+static const struct ov6650_xclk ov6650_xclk[] = {
+{
+	.rate	= 8000000,
+	.clkrc	= CLKRC_8MHz,
+},
+{
+	.rate	= 12000000,
+	.clkrc	= CLKRC_12MHz,
+},
+{
+	.rate	= 16000000,
+	.clkrc	= CLKRC_16MHz,
+},
+{
+	.rate	= 24000000,
+	.clkrc	= CLKRC_24MHz,
+},
+};
 
 static u32 ov6650_codes[] = {
 	MEDIA_BUS_FMT_YUYV8_2X8,
@@ -774,7 +797,7 @@ static int ov6650_reset(struct i2c_client *client)
 }
 
 /* program default register values */
-static int ov6650_prog_dflt(struct i2c_client *client)
+static int ov6650_prog_dflt(struct i2c_client *client, u8 clkrc)
 {
 	int ret;
 
@@ -782,7 +805,7 @@ static int ov6650_prog_dflt(struct i2c_client *client)
 
 	ret = ov6650_reg_write(client, REG_COMA, 0);	/* ~COMA_RESET */
 	if (!ret)
-		ret = ov6650_reg_write(client, REG_CLKRC, CLKRC_12MHz);
+		ret = ov6650_reg_write(client, REG_CLKRC, clkrc);
 	if (!ret)
 		ret = ov6650_reg_rmw(client, REG_COMB, 0, COMB_BAND_FILTER);
 
@@ -793,14 +816,43 @@ static int ov6650_video_probe(struct v4l2_subdev *sd)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ov6650 *priv = to_ov6650(client);
-	u8		pidh, pidl, midh, midl;
-	int		ret;
+	const struct ov6650_xclk *xclk = NULL;
+	unsigned long rate;
+	u8 pidh, pidl, midh, midl;
+	int i, ret;
 
 	priv->clk = v4l2_clk_get(&client->dev, NULL);
 	if (IS_ERR(priv->clk)) {
 		ret = PTR_ERR(priv->clk);
 		dev_err(&client->dev, "v4l2_clk request err: %d\n", ret);
 		return ret;
+	}
+
+	rate = v4l2_clk_get_rate(priv->clk);
+	for (i = 0; rate && i < ARRAY_SIZE(ov6650_xclk); i++) {
+		if (rate != ov6650_xclk[i].rate)
+			continue;
+
+		xclk = &ov6650_xclk[i];
+		dev_info(&client->dev, "using host default clock rate %lukHz\n",
+			 rate / 1000);
+		break;
+	}
+	for (i = 0; !xclk && i < ARRAY_SIZE(ov6650_xclk); i++) {
+		ret = v4l2_clk_set_rate(priv->clk, ov6650_xclk[i].rate);
+		if (ret || v4l2_clk_get_rate(priv->clk) != ov6650_xclk[i].rate)
+			continue;
+
+		xclk = &ov6650_xclk[i];
+		dev_info(&client->dev, "using negotiated clock rate %lukHz\n",
+			 xclk->rate / 1000);
+		break;
+	}
+	if (!xclk) {
+		dev_err(&client->dev, "unable to get supported clock rate\n");
+		if (!ret)
+			ret = -EINVAL;
+		goto eclkput;
 	}
 
 	ret = ov6650_s_power(sd, 1);
@@ -836,7 +888,7 @@ static int ov6650_video_probe(struct v4l2_subdev *sd)
 
 	ret = ov6650_reset(client);
 	if (!ret)
-		ret = ov6650_prog_dflt(client);
+		ret = ov6650_prog_dflt(client, xclk->clkrc);
 	if (!ret) {
 		struct v4l2_mbus_framefmt mf = ov6650_def_fmt;
 
