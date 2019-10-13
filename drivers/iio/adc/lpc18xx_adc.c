@@ -119,7 +119,6 @@ static int lpc18xx_adc_probe(struct platform_device *pdev)
 {
 	struct iio_dev *indio_dev;
 	struct lpc18xx_adc *adc;
-	struct resource *res;
 	unsigned int clkdiv;
 	unsigned long rate;
 	int ret;
@@ -133,8 +132,7 @@ static int lpc18xx_adc_probe(struct platform_device *pdev)
 	adc->dev = &pdev->dev;
 	mutex_init(&adc->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adc->base = devm_ioremap_resource(&pdev->dev, res);
+	adc->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adc->base))
 		return PTR_ERR(adc->base);
 
