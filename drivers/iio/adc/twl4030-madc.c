@@ -495,7 +495,7 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 		ret = twl4030_madc_disable_irq(madc, i);
 		if (ret < 0)
 			dev_dbg(madc->dev, "Disable interrupt failed %d\n", i);
-		madc->requests[i].result_pending = 1;
+		madc->requests[i].result_pending = true;
 	}
 	for (i = 0; i < TWL4030_MADC_NUM_METHODS; i++) {
 		r = &madc->requests[i];
@@ -507,8 +507,8 @@ static irqreturn_t twl4030_madc_threaded_irq_handler(int irq, void *_madc)
 		len = twl4030_madc_read_channels(madc, method->rbase,
 						 r->channels, r->rbuf, r->raw);
 		/* Free request */
-		r->result_pending = 0;
-		r->active = 0;
+		r->result_pending = false;
+		r->active = false;
 	}
 	mutex_unlock(&madc->lock);
 
@@ -521,15 +521,15 @@ err_i2c:
 	 */
 	for (i = 0; i < TWL4030_MADC_NUM_METHODS; i++) {
 		r = &madc->requests[i];
-		if (r->active == 0)
+		if (!r->active)
 			continue;
 		method = &twl4030_conversion_methods[r->method];
 		/* Read results */
 		len = twl4030_madc_read_channels(madc, method->rbase,
 						 r->channels, r->rbuf, r->raw);
 		/* Free request */
-		r->result_pending = 0;
-		r->active = 0;
+		r->result_pending = false;
+		r->active = false;
 	}
 	mutex_unlock(&madc->lock);
 
@@ -652,16 +652,16 @@ static int twl4030_madc_conversion(struct twl4030_madc_request *req)
 	ret = twl4030_madc_start_conversion(twl4030_madc, req->method);
 	if (ret < 0)
 		goto out;
-	twl4030_madc->requests[req->method].active = 1;
+	twl4030_madc->requests[req->method].active = true;
 	/* Wait until conversion is ready (ctrl register returns EOC) */
 	ret = twl4030_madc_wait_conversion_ready(twl4030_madc, 5, method->ctrl);
 	if (ret) {
-		twl4030_madc->requests[req->method].active = 0;
+		twl4030_madc->requests[req->method].active = false;
 		goto out;
 	}
 	ret = twl4030_madc_read_channels(twl4030_madc, method->rbase,
 					 req->channels, req->rbuf, req->raw);
-	twl4030_madc->requests[req->method].active = 0;
+	twl4030_madc->requests[req->method].active = false;
 
 out:
 	mutex_unlock(&twl4030_madc->lock);
