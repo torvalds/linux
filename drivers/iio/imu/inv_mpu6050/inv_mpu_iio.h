@@ -2,6 +2,10 @@
 /*
 * Copyright (C) 2012 Invensense, Inc.
 */
+
+#ifndef INV_MPU_IIO_H_
+#define INV_MPU_IIO_H_
+
 #include <linux/i2c.h>
 #include <linux/i2c-mux.h>
 #include <linux/mutex.h>
@@ -82,6 +86,7 @@ enum inv_devices {
  *  @accl_fs:		accel full scale range.
  *  @accl_fifo_enable:	enable accel data output
  *  @gyro_fifo_enable:	enable gyro data output
+ *  @magn_fifo_enable:	enable magn data output
  *  @divider:		chip sample rate divider (sample rate divider - 1)
  */
 struct inv_mpu6050_chip_config {
@@ -90,6 +95,7 @@ struct inv_mpu6050_chip_config {
 	unsigned int accl_fs:2;
 	unsigned int accl_fifo_enable:1;
 	unsigned int gyro_fifo_enable:1;
+	unsigned int magn_fifo_enable:1;
 	u8 divider;
 	u8 user_ctrl;
 };
@@ -125,6 +131,9 @@ struct inv_mpu6050_hw {
  *  @it_timestamp:	timestamp from previous interrupt.
  *  @data_timestamp:	timestamp for next data sample.
  *  @vddio_supply	voltage regulator for the chip.
+ *  @magn_disabled:     magnetometer disabled for backward compatibility reason.
+ *  @magn_raw_to_gauss:	coefficient to convert mag raw value to Gauss.
+ *  @magn_orient:       magnetometer sensor chip orientation if available.
  */
 struct inv_mpu6050_state {
 	struct mutex lock;
@@ -146,6 +155,9 @@ struct inv_mpu6050_state {
 	s64 it_timestamp;
 	s64 data_timestamp;
 	struct regulator *vddio_supply;
+	bool magn_disabled;
+	s32 magn_raw_to_gauss[3];
+	struct iio_mount_matrix magn_orient;
 };
 
 /*register and associated bit definition*/
@@ -158,8 +170,40 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_ACCEL_CONFIG        0x1C
 
 #define INV_MPU6050_REG_FIFO_EN             0x23
+#define INV_MPU6050_BIT_SLAVE_0             0x01
+#define INV_MPU6050_BIT_SLAVE_1             0x02
+#define INV_MPU6050_BIT_SLAVE_2             0x04
 #define INV_MPU6050_BIT_ACCEL_OUT           0x08
 #define INV_MPU6050_BITS_GYRO_OUT           0x70
+
+#define INV_MPU6050_REG_I2C_MST_CTRL        0x24
+#define INV_MPU6050_BITS_I2C_MST_CLK_400KHZ 0x0D
+#define INV_MPU6050_BIT_I2C_MST_P_NSR       0x10
+#define INV_MPU6050_BIT_SLV3_FIFO_EN        0x20
+#define INV_MPU6050_BIT_WAIT_FOR_ES         0x40
+#define INV_MPU6050_BIT_MULT_MST_EN         0x80
+
+/* control I2C slaves from 0 to 3 */
+#define INV_MPU6050_REG_I2C_SLV_ADDR(_x)    (0x25 + 3 * (_x))
+#define INV_MPU6050_BIT_I2C_SLV_RNW         0x80
+
+#define INV_MPU6050_REG_I2C_SLV_REG(_x)     (0x26 + 3 * (_x))
+
+#define INV_MPU6050_REG_I2C_SLV_CTRL(_x)    (0x27 + 3 * (_x))
+#define INV_MPU6050_BIT_SLV_GRP             0x10
+#define INV_MPU6050_BIT_SLV_REG_DIS         0x20
+#define INV_MPU6050_BIT_SLV_BYTE_SW         0x40
+#define INV_MPU6050_BIT_SLV_EN              0x80
+
+/* I2C master delay register */
+#define INV_MPU6050_REG_I2C_SLV4_CTRL       0x34
+#define INV_MPU6050_BITS_I2C_MST_DLY(_x)    ((_x) & 0x1F)
+
+#define INV_MPU6050_REG_I2C_MST_STATUS      0x36
+#define INV_MPU6050_BIT_I2C_SLV0_NACK       0x01
+#define INV_MPU6050_BIT_I2C_SLV1_NACK       0x02
+#define INV_MPU6050_BIT_I2C_SLV2_NACK       0x04
+#define INV_MPU6050_BIT_I2C_SLV3_NACK       0x08
 
 #define INV_MPU6050_REG_INT_ENABLE          0x38
 #define INV_MPU6050_BIT_DATA_RDY_EN         0x01
@@ -172,6 +216,18 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_REG_INT_STATUS          0x3A
 #define INV_MPU6050_BIT_FIFO_OVERFLOW_INT   0x10
 #define INV_MPU6050_BIT_RAW_DATA_RDY_INT    0x01
+
+#define INV_MPU6050_REG_EXT_SENS_DATA       0x49
+
+/* I2C slaves data output from 0 to 3 */
+#define INV_MPU6050_REG_I2C_SLV_DO(_x)      (0x63 + (_x))
+
+#define INV_MPU6050_REG_I2C_MST_DELAY_CTRL  0x67
+#define INV_MPU6050_BIT_I2C_SLV0_DLY_EN     0x01
+#define INV_MPU6050_BIT_I2C_SLV1_DLY_EN     0x02
+#define INV_MPU6050_BIT_I2C_SLV2_DLY_EN     0x04
+#define INV_MPU6050_BIT_I2C_SLV3_DLY_EN     0x08
+#define INV_MPU6050_BIT_DELAY_ES_SHADOW     0x80
 
 #define INV_MPU6050_REG_USER_CTRL           0x6A
 #define INV_MPU6050_BIT_FIFO_RST            0x04
@@ -200,6 +256,9 @@ struct inv_mpu6050_state {
 #define INV_MPU6050_BYTES_PER_3AXIS_SENSOR   6
 #define INV_MPU6050_FIFO_COUNT_BYTE          2
 
+/* MPU9X50 9-axis magnetometer */
+#define INV_MPU9X50_BYTES_MAGN               7
+
 /* ICM20602 FIFO samples include temperature readings */
 #define INV_ICM20602_BYTES_PER_TEMP_SENSOR   2
 
@@ -227,8 +286,8 @@ struct inv_mpu6050_state {
 #define INV_ICM20602_TEMP_OFFSET	     8170
 #define INV_ICM20602_TEMP_SCALE		     3060
 
-/* 6 + 6 round up and plus 8 */
-#define INV_MPU6050_OUTPUT_DATA_SIZE         24
+/* 6 + 6 + 7 (for MPU9x50) = 19 round up to 24 and plus 8 */
+#define INV_MPU6050_OUTPUT_DATA_SIZE         32
 
 #define INV_MPU6050_REG_INT_PIN_CFG	0x37
 #define INV_MPU6050_ACTIVE_HIGH		0x00
@@ -277,6 +336,11 @@ enum inv_mpu6050_scan {
 	INV_MPU6050_SCAN_GYRO_Y,
 	INV_MPU6050_SCAN_GYRO_Z,
 	INV_MPU6050_SCAN_TIMESTAMP,
+
+	INV_MPU9X50_SCAN_MAGN_X = INV_MPU6050_SCAN_GYRO_Z + 1,
+	INV_MPU9X50_SCAN_MAGN_Y,
+	INV_MPU9X50_SCAN_MAGN_Z,
+	INV_MPU9X50_SCAN_TIMESTAMP,
 };
 
 /* scan element definition for ICM20602, which includes temperature */
@@ -342,3 +406,5 @@ void inv_mpu_acpi_delete_mux_client(struct i2c_client *client);
 int inv_mpu_core_probe(struct regmap *regmap, int irq, const char *name,
 		int (*inv_mpu_bus_setup)(struct iio_dev *), int chip_type);
 extern const struct dev_pm_ops inv_mpu_pmops;
+
+#endif

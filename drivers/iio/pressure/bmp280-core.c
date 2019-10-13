@@ -1130,7 +1130,6 @@ int bmp280_common_probe(struct device *dev,
 	if (ret)
 		goto out_runtime_pm_disable;
 
-
 	return 0;
 
 out_runtime_pm_disable:
