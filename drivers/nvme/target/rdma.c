@@ -672,13 +672,13 @@ static u16 nvmet_rdma_map_sgl_keyed(struct nvmet_rdma_rsp *rsp,
 		return 0;
 
 	ret = nvmet_req_alloc_sgl(&rsp->req);
-	if (ret < 0)
+	if (unlikely(ret < 0))
 		goto error_out;
 
 	ret = rdma_rw_ctx_init(&rsp->rw, cm_id->qp, cm_id->port_num,
 			rsp->req.sg, rsp->req.sg_cnt, 0, addr, key,
 			nvmet_data_dir(&rsp->req));
-	if (ret < 0)
+	if (unlikely(ret < 0))
 		goto error_out;
 	rsp->n_rdma += ret;
 
