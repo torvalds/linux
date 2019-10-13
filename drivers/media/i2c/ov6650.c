@@ -564,8 +564,7 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 		.r.height = mf->height << half_scale,
 	};
 	u32 code = mf->code;
-	unsigned long mclk, pclk;
-	u8 coma_set = 0, coma_mask = 0, coml_set, coml_mask, clkrc;
+	u8 coma_set = 0, coma_mask = 0, coml_set, coml_mask;
 	int ret;
 
 	/* select color matrix configuration for given color encoding */
@@ -635,21 +634,9 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 		coma_mask |= COMA_QCIF;
 	}
 
-	clkrc = CLKRC_12MHz;
-	mclk = 12000000;
-	dev_dbg(&client->dev, "using 12MHz input clock\n");
-
-	clkrc |= to_clkrc(priv->tpf.numerator);
-
-	pclk = priv->pclk_max / GET_CLKRC_DIV(clkrc);
-	dev_dbg(&client->dev, "pixel clock divider: %ld.%ld\n",
-			mclk / pclk, 10 * mclk % pclk / pclk);
-
 	ret = ov6650_set_selection(sd, NULL, &sel);
 	if (!ret)
 		ret = ov6650_reg_rmw(client, REG_COMA, coma_set, coma_mask);
-	if (!ret)
-		ret = ov6650_reg_write(client, REG_CLKRC, clkrc);
 	if (!ret) {
 		priv->half_scale = half_scale;
 
@@ -798,6 +785,8 @@ static int ov6650_prog_dflt(struct i2c_client *client)
 	dev_dbg(&client->dev, "initializing\n");
 
 	ret = ov6650_reg_write(client, REG_COMA, 0);	/* ~COMA_RESET */
+	if (!ret)
+		ret = ov6650_reg_write(client, REG_CLKRC, CLKRC_12MHz);
 	if (!ret)
 		ret = ov6650_reg_rmw(client, REG_COMB, 0, COMB_BAND_FILTER);
 
