@@ -197,7 +197,6 @@ struct ov6650 {
 	struct v4l2_clk		*clk;
 	bool			half_scale;	/* scale down output by 2 */
 	struct v4l2_rect	rect;		/* sensor cropping window */
-	unsigned long		pclk_limit;	/* from host */
 	unsigned long		pclk_max;	/* from resolution and format */
 	struct v4l2_fract	tpf;		/* as requested with s_frame_interval */
 	u32 code;
@@ -546,8 +545,7 @@ static bool is_unscaled_ok(int width, int height, struct v4l2_rect *rect)
 	return width > rect->width >> 1 || height > rect->height >> 1;
 }
 
-static u8 to_clkrc(struct v4l2_fract *timeperframe,
-		unsigned long pclk_limit, unsigned long pclk_max)
+static u8 to_clkrc(struct v4l2_fract *timeperframe, unsigned long pclk_max)
 {
 	unsigned long pclk;
 
@@ -556,9 +554,6 @@ static u8 to_clkrc(struct v4l2_fract *timeperframe,
 				(FRAME_RATE_MAX * timeperframe->numerator);
 	else
 		pclk = pclk_max;
-
-	if (pclk_limit && pclk_limit < pclk)
-		pclk = pclk_limit;
 
 	return (pclk_max - 1) / pclk;
 }
@@ -653,10 +648,9 @@ static int ov6650_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
 	clkrc = CLKRC_12MHz;
 	mclk = 12000000;
-	priv->pclk_limit = 1334000;
 	dev_dbg(&client->dev, "using 12MHz input clock\n");
 
-	clkrc |= to_clkrc(&priv->tpf, priv->pclk_limit, priv->pclk_max);
+	clkrc |= to_clkrc(&priv->tpf, priv->pclk_max);
 
 	pclk = priv->pclk_max / GET_CLKRC_DIV(clkrc);
 	dev_dbg(&client->dev, "pixel clock divider: %ld.%ld\n",
@@ -756,7 +750,7 @@ static int ov6650_g_frame_interval(struct v4l2_subdev *sd,
 	struct ov6650 *priv = to_ov6650(client);
 
 	ival->interval.numerator = GET_CLKRC_DIV(to_clkrc(&priv->tpf,
-			priv->pclk_limit, priv->pclk_max));
+							  priv->pclk_max));
 	ival->interval.denominator = FRAME_RATE_MAX;
 
 	dev_dbg(&client->dev, "Frame interval: %u/%u s\n",
@@ -787,7 +781,7 @@ static int ov6650_s_frame_interval(struct v4l2_subdev *sd,
 	tpf->numerator = div;
 	tpf->denominator = FRAME_RATE_MAX;
 
-	clkrc = to_clkrc(tpf, priv->pclk_limit, priv->pclk_max);
+	clkrc = to_clkrc(tpf, priv->pclk_max);
 
 	ret = ov6650_reg_rmw(client, REG_CLKRC, clkrc, CLKRC_DIV_MASK);
 	if (!ret) {
