@@ -117,7 +117,7 @@ static int sps30_do_cmd(struct sps30_state *state, u16 cmd, u8 *data, int size)
 		break;
 	case SPS30_READ_AUTO_CLEANING_PERIOD:
 		buf[0] = SPS30_AUTO_CLEANING_PERIOD >> 8;
-		buf[1] = (u8)SPS30_AUTO_CLEANING_PERIOD;
+		buf[1] = (u8)(SPS30_AUTO_CLEANING_PERIOD & 0xff);
 		/* fall through */
 	case SPS30_READ_DATA_READY_FLAG:
 	case SPS30_READ_DATA:
