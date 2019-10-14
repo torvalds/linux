@@ -45,7 +45,6 @@ enum xlog_iclog_state {
 	XLOG_STATE_WANT_SYNC,	/* Want to sync this iclog; no more writes */
 	XLOG_STATE_SYNCING,	/* This IC log is syncing */
 	XLOG_STATE_DONE_SYNC,	/* Done syncing to disk */
-	XLOG_STATE_DO_CALLBACK,	/* Process callback functions */
 	XLOG_STATE_CALLBACK,	/* Callback functions now */
 	XLOG_STATE_DIRTY,	/* Dirty IC log, not ready for ACTIVE status */
 	XLOG_STATE_IOERROR,	/* IO error happened in sync'ing log */
