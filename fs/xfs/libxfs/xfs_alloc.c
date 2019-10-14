@@ -875,6 +875,13 @@ xfs_alloc_cur_check(
 	acur->diff = diff;
 	*new = 1;
 
+	/*
+	 * We're done if we found a perfect allocation. This only deactivates
+	 * the current cursor, but this is just an optimization to terminate a
+	 * cntbt search that otherwise runs to the edge of the tree.
+	 */
+	if (acur->diff == 0 && acur->len == args->maxlen)
+		deactivate = true;
 out:
 	if (deactivate)
 		cur->bc_private.a.priv.abt.active = false;
@@ -1172,30 +1179,38 @@ error0:
 }
 
 /*
- * Search the btree in a given direction and check the records against the good
- * extent we've already found.
+ * Search a given number of btree records in a given direction. Check each
+ * record against the good extent we've already found.
  */
 STATIC int
-xfs_alloc_find_best_extent(
+xfs_alloc_walk_iter(
 	struct xfs_alloc_arg	*args,
 	struct xfs_alloc_cur	*acur,
 	struct xfs_btree_cur	*cur,
-	bool			increment)
+	bool			increment,
+	bool			find_one, /* quit on first candidate */
+	int			count,    /* rec count (-1 for infinite) */
+	int			*stat)
 {
 	int			error;
 	int			i;
+
+	*stat = 0;
 
 	/*
 	 * Search so long as the cursor is active or we find a better extent.
 	 * The cursor is deactivated if it extends beyond the range of the
 	 * current allocation candidate.
 	 */
-	while (xfs_alloc_cur_active(cur)) {
+	while (xfs_alloc_cur_active(cur) && count) {
 		error = xfs_alloc_cur_check(args, acur, cur, &i);
 		if (error)
 			return error;
-		if (i == 1)
-			break;
+		if (i == 1) {
+			*stat = 1;
+			if (find_one)
+				break;
+		}
 		if (!xfs_alloc_cur_active(cur))
 			break;
 
@@ -1207,6 +1222,9 @@ xfs_alloc_find_best_extent(
 			return error;
 		if (i == 0)
 			cur->bc_private.a.priv.abt.active = false;
+
+		if (count > 0)
+			count--;
 	}
 
 	return 0;
@@ -1226,7 +1244,6 @@ xfs_alloc_ag_vextent_near(
 	struct xfs_btree_cur	*fbcur = NULL;
 	int			error;		/* error code */
 	int			i;		/* result code, temporary */
-	int			j;		/* result code, temporary */
 	xfs_agblock_t		bno;
 	xfs_extlen_t		len;
 	bool			fbinc = false;
@@ -1313,19 +1330,12 @@ restart:
 			if (!i)
 				break;
 		}
-		i = acur.cnt->bc_ptrs[0];
-		for (j = 1;
-		     !error && j && xfs_alloc_cur_active(acur.cnt) &&
-		     (acur.len < args->maxlen || acur.diff > 0);
-		     error = xfs_btree_increment(acur.cnt, 0, &j)) {
-			/*
-			 * For each entry, decide if it's better than
-			 * the previous best entry.
-			 */
-			error = xfs_alloc_cur_check(args, &acur, acur.cnt, &i);
-			if (error)
-				goto out;
-		}
+
+		error = xfs_alloc_walk_iter(args, &acur, acur.cnt, true, false,
+					    -1, &i);
+		if (error)
+			goto out;
+
 		/*
 		 * It didn't work.  We COULD be in a case where
 		 * there's a good record somewhere, so try again.
@@ -1357,49 +1367,39 @@ restart:
 		goto out;
 
 	/*
-	 * Loop going left with the leftward cursor, right with the
-	 * rightward cursor, until either both directions give up or
-	 * we find an entry at least as big as minlen.
+	 * Loop going left with the leftward cursor, right with the rightward
+	 * cursor, until either both directions give up or we find an entry at
+	 * least as big as minlen.
 	 */
 	do {
-		if (xfs_alloc_cur_active(acur.bnolt)) {
-			error = xfs_alloc_cur_check(args, &acur, acur.bnolt, &i);
-			if (error)
-				goto out;
-			if (i == 1) {
-				trace_xfs_alloc_cur_left(args);
-				fbcur = acur.bnogt;
-				fbinc = true;
-				break;
-			}
-			error = xfs_btree_decrement(acur.bnolt, 0, &i);
-			if (error)
-				goto out;
-			if (!i)
-				acur.bnolt->bc_private.a.priv.abt.active = false;
+		error = xfs_alloc_walk_iter(args, &acur, acur.bnolt, false,
+					    true, 1, &i);
+		if (error)
+			goto out;
+		if (i == 1) {
+			trace_xfs_alloc_cur_left(args);
+			fbcur = acur.bnogt;
+			fbinc = true;
+			break;
 		}
-		if (xfs_alloc_cur_active(acur.bnogt)) {
-			error = xfs_alloc_cur_check(args, &acur, acur.bnogt, &i);
-			if (error)
-				goto out;
-			if (i == 1) {
-				trace_xfs_alloc_cur_right(args);
-				fbcur = acur.bnolt;
-				fbinc = false;
-				break;
-			}
-			error = xfs_btree_increment(acur.bnogt, 0, &i);
-			if (error)
-				goto out;
-			if (!i)
-				acur.bnogt->bc_private.a.priv.abt.active = false;
+
+		error = xfs_alloc_walk_iter(args, &acur, acur.bnogt, true, true,
+					    1, &i);
+		if (error)
+			goto out;
+		if (i == 1) {
+			trace_xfs_alloc_cur_right(args);
+			fbcur = acur.bnolt;
+			fbinc = false;
+			break;
 		}
 	} while (xfs_alloc_cur_active(acur.bnolt) ||
 		 xfs_alloc_cur_active(acur.bnogt));
 
 	/* search the opposite direction for a better entry */
 	if (fbcur) {
-		error = xfs_alloc_find_best_extent(args, &acur, fbcur, fbinc);
+		error = xfs_alloc_walk_iter(args, &acur, fbcur, fbinc, true, -1,
+					    &i);
 		if (error)
 			goto out;
 	}
