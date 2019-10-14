@@ -507,7 +507,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 		}
 		if (bytes_left < PAGE_SIZE) {
 			btrfs_info(fs_info,
-					"bytes left %lu compress len %lu nr %lu",
+					"bytes left %lu compress len %u nr %u",
 			       bytes_left, cb->compressed_len, cb->nr_pages);
 		}
 		bytes_left -= PAGE_SIZE;
