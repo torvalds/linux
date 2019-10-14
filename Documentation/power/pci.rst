@@ -600,17 +600,17 @@ using the following PCI bus type's callbacks::
 
 respectively.
 
-The first of them, pci_pm_thaw_noirq(), is analogous to pci_pm_resume_noirq(),
-but it doesn't put the device into the full power state and doesn't attempt to
-restore its standard configuration registers.  It also executes the device
-driver's pm->thaw_noirq() callback, if defined, instead of pm->resume_noirq().
+The first of them, pci_pm_thaw_noirq(), is analogous to pci_pm_resume_noirq().
+It puts the device into the full power state and restores its standard
+configuration registers.  It also executes the device driver's pm->thaw_noirq()
+callback, if defined, instead of pm->resume_noirq().
 
 The pci_pm_thaw() routine is similar to pci_pm_resume(), but it runs the device
 driver's pm->thaw() callback instead of pm->resume().  It is executed
 asynchronously for different PCI devices that don't depend on each other in a
 known way.
 
-The complete phase it the same as for system resume.
+The complete phase is the same as for system resume.
 
 After saving the image, devices need to be powered down before the system can
 enter the target sleep state (ACPI S4 for ACPI-based systems).  This is done in
