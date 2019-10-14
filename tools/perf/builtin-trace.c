@@ -1958,11 +1958,16 @@ out_cant_read:
 	return NULL;
 }
 
+struct syscall_stats {
+	struct stats stats;
+	u64	     nr_failures;
+};
+
 static void thread__update_stats(struct thread_trace *ttrace,
-				 int id, struct perf_sample *sample)
+				 int id, struct perf_sample *sample, long err)
 {
 	struct int_node *inode;
-	struct stats *stats;
+	struct syscall_stats *stats;
 	u64 duration = 0;
 
 	inode = intlist__findnew(ttrace->syscall_stats, id);
@@ -1971,17 +1976,22 @@ static void thread__update_stats(struct thread_trace *ttrace,
 
 	stats = inode->priv;
 	if (stats == NULL) {
-		stats = malloc(sizeof(struct stats));
+		stats = malloc(sizeof(*stats));
 		if (stats == NULL)
 			return;
-		init_stats(stats);
+
+		stats->nr_failures = 0;
+		init_stats(&stats->stats);
 		inode->priv = stats;
 	}
 
 	if (ttrace->entry_time && sample->time > ttrace->entry_time)
 		duration = sample->time - ttrace->entry_time;
 
-	update_stats(stats, duration);
+	update_stats(&stats->stats, duration);
+
+	if (err < 0)
+		++stats->nr_failures;
 }
 
 static int trace__printf_interrupted_entry(struct trace *trace)
@@ -2226,10 +2236,10 @@ static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 
 	trace__fprintf_sample(trace, evsel, sample, thread);
 
-	if (trace->summary)
-		thread__update_stats(ttrace, id, sample);
-
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
+
+	if (trace->summary)
+		thread__update_stats(ttrace, id, sample, ret);
 
 	if (!trace->fd_path_disabled && sc->is_open && ret >= 0 && ttrace->filename.pending_open) {
 		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
@@ -4016,17 +4026,17 @@ static size_t trace__fprintf_threads_header(FILE *fp)
 }
 
 DEFINE_RESORT_RB(syscall_stats, a->msecs > b->msecs,
-	struct stats 	*stats;
-	double		msecs;
-	int		syscall;
+	struct syscall_stats *stats;
+	double		     msecs;
+	int		     syscall;
 )
 {
 	struct int_node *source = rb_entry(nd, struct int_node, rb_node);
-	struct stats *stats = source->priv;
+	struct syscall_stats *stats = source->priv;
 
 	entry->syscall = source->i;
 	entry->stats   = stats;
-	entry->msecs   = stats ? (u64)stats->n * (avg_stats(stats) / NSEC_PER_MSEC) : 0;
+	entry->msecs   = stats ? (u64)stats->stats.n * (avg_stats(&stats->stats) / NSEC_PER_MSEC) : 0;
 }
 
 static size_t thread__dump_stats(struct thread_trace *ttrace,
@@ -4042,26 +4052,26 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 
 	printed += fprintf(fp, "\n");
 
-	printed += fprintf(fp, "   syscall            calls    total       min       avg       max      stddev\n");
-	printed += fprintf(fp, "                               (msec)    (msec)    (msec)    (msec)        (%%)\n");
-	printed += fprintf(fp, "   --------------- -------- --------- --------- --------- ---------     ------\n");
+	printed += fprintf(fp, "   syscall            calls  errors  total       min       avg       max       stddev\n");
+	printed += fprintf(fp, "                                     (msec)    (msec)    (msec)    (msec)        (%%)\n");
+	printed += fprintf(fp, "   --------------- --------  ------ -------- --------- --------- ---------     ------\n");
 
 	resort_rb__for_each_entry(nd, syscall_stats) {
-		struct stats *stats = syscall_stats_entry->stats;
+		struct syscall_stats *stats = syscall_stats_entry->stats;
 		if (stats) {
-			double min = (double)(stats->min) / NSEC_PER_MSEC;
-			double max = (double)(stats->max) / NSEC_PER_MSEC;
-			double avg = avg_stats(stats);
+			double min = (double)(stats->stats.min) / NSEC_PER_MSEC;
+			double max = (double)(stats->stats.max) / NSEC_PER_MSEC;
+			double avg = avg_stats(&stats->stats);
 			double pct;
-			u64 n = (u64) stats->n;
+			u64 n = (u64)stats->stats.n;
 
-			pct = avg ? 100.0 * stddev_stats(stats)/avg : 0.0;
+			pct = avg ? 100.0 * stddev_stats(&stats->stats) / avg : 0.0;
 			avg /= NSEC_PER_MSEC;
 
 			sc = &trace->syscalls.table[syscall_stats_entry->syscall];
 			printed += fprintf(fp, "   %-15s", sc->name);
-			printed += fprintf(fp, " %8" PRIu64 " %9.3f %9.3f %9.3f",
-					   n, syscall_stats_entry->msecs, min, avg);
+			printed += fprintf(fp, " %8" PRIu64 " %6" PRIu64 " %9.3f %9.3f %9.3f",
+					   n, stats->nr_failures, syscall_stats_entry->msecs, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
 		}
 	}
