@@ -117,7 +117,7 @@ SECTIONS
     SCHED_TEXT
     CPUIDLE_TEXT
     LOCK_TEXT
-
+    *(.fixup)
   }
   _etext = .;
   PROVIDE (etext = .);
@@ -125,10 +125,6 @@ SECTIONS
   . = ALIGN(16);
 
   RODATA
-
-  /*  Relocation table */
-
-  .fixup   : { *(.fixup) }
 
   EXCEPTION_TABLE(16)
   NOTES
