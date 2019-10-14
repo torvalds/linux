@@ -891,6 +891,36 @@ out:
 }
 
 /*
+ * Complete an allocation of a candidate extent. Remove the extent from both
+ * trees and update the args structure.
+ */
+STATIC int
+xfs_alloc_cur_finish(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur)
+{
+	int			error;
+
+	ASSERT(acur->cnt && acur->bnolt);
+	ASSERT(acur->bno >= acur->rec_bno);
+	ASSERT(acur->bno + acur->len <= acur->rec_bno + acur->rec_len);
+	ASSERT(acur->rec_bno + acur->rec_len <=
+	       be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
+
+	error = xfs_alloc_fixup_trees(acur->cnt, acur->bnolt, acur->rec_bno,
+				      acur->rec_len, acur->bno, acur->len, 0);
+	if (error)
+		return error;
+
+	args->agbno = acur->bno;
+	args->len = acur->len;
+	args->wasfromfl = 0;
+
+	trace_xfs_alloc_cur(args);
+	return 0;
+}
+
+/*
  * Deal with the case where only small freespaces remain. Either return the
  * contents of the last freespace record, or allocate space from the freelist if
  * there is nothing in the tree.
@@ -1359,7 +1389,6 @@ restart:
 	} else if (error) {
 		goto out;
 	}
-	args->wasfromfl = 0;
 
 	/*
 	 * First algorithm.
@@ -1440,15 +1469,8 @@ restart:
 	}
 
 alloc:
-	args->agbno = acur.bno;
-	args->len = acur.len;
-	ASSERT(acur.bno >= acur.rec_bno);
-	ASSERT(acur.bno + acur.len <= acur.rec_bno + acur.rec_len);
-	ASSERT(acur.rec_bno + acur.rec_len <=
-	       be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
-
-	error = xfs_alloc_fixup_trees(acur.cnt, acur.bnolt, acur.rec_bno,
-				      acur.rec_len, acur.bno, acur.len, 0);
+	/* fix up btrees on a successful allocation */
+	error = xfs_alloc_cur_finish(args, &acur);
 
 out:
 	xfs_alloc_cur_close(&acur, error);
