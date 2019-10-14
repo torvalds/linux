@@ -2599,10 +2599,136 @@ static int live_lrc_layout(void *arg)
 	return err;
 }
 
+static int __live_lrc_state(struct i915_gem_context *fixme,
+			    struct intel_engine_cs *engine,
+			    struct i915_vma *scratch)
+{
+	struct intel_context *ce;
+	struct i915_request *rq;
+	enum {
+		RING_START_IDX = 0,
+		RING_TAIL_IDX,
+		MAX_IDX
+	};
+	u32 expected[MAX_IDX];
+	u32 *cs;
+	int err;
+	int n;
+
+	ce = intel_context_create(fixme, engine);
+	if (IS_ERR(ce))
+		return PTR_ERR(ce);
+
+	err = intel_context_pin(ce);
+	if (err)
+		goto err_put;
+
+	rq = i915_request_create(ce);
+	if (IS_ERR(rq)) {
+		err = PTR_ERR(rq);
+		goto err_unpin;
+	}
+
+	cs = intel_ring_begin(rq, 4 * MAX_IDX);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		i915_request_add(rq);
+		goto err_unpin;
+	}
+
+	*cs++ = MI_STORE_REGISTER_MEM_GEN8 | MI_USE_GGTT;
+	*cs++ = i915_mmio_reg_offset(RING_START(engine->mmio_base));
+	*cs++ = i915_ggtt_offset(scratch) + RING_START_IDX * sizeof(u32);
+	*cs++ = 0;
+
+	expected[RING_START_IDX] = i915_ggtt_offset(ce->ring->vma);
+
+	*cs++ = MI_STORE_REGISTER_MEM_GEN8 | MI_USE_GGTT;
+	*cs++ = i915_mmio_reg_offset(RING_TAIL(engine->mmio_base));
+	*cs++ = i915_ggtt_offset(scratch) + RING_TAIL_IDX * sizeof(u32);
+	*cs++ = 0;
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+
+	intel_engine_flush_submission(engine);
+	expected[RING_TAIL_IDX] = ce->ring->tail;
+
+	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
+		err = -ETIME;
+		goto err_rq;
+	}
+
+	cs = i915_gem_object_pin_map(scratch->obj, I915_MAP_WB);
+	if (IS_ERR(cs)) {
+		err = PTR_ERR(cs);
+		goto err_rq;
+	}
+
+	for (n = 0; n < MAX_IDX; n++) {
+		if (cs[n] != expected[n]) {
+			pr_err("%s: Stored register[%d] value[0x%x] did not match expected[0x%x]\n",
+			       engine->name, n, cs[n], expected[n]);
+			err = -EINVAL;
+			break;
+		}
+	}
+
+	i915_gem_object_unpin_map(scratch->obj);
+
+err_rq:
+	i915_request_put(rq);
+err_unpin:
+	intel_context_unpin(ce);
+err_put:
+	intel_context_put(ce);
+	return err;
+}
+
+static int live_lrc_state(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct intel_engine_cs *engine;
+	struct i915_gem_context *fixme;
+	struct i915_vma *scratch;
+	enum intel_engine_id id;
+	int err = 0;
+
+	/*
+	 * Check the live register state matches what we expect for this
+	 * intel_context.
+	 */
+
+	fixme = kernel_context(gt->i915);
+	if (!fixme)
+		return -ENOMEM;
+
+	scratch = create_scratch(gt);
+	if (IS_ERR(scratch)) {
+		err = PTR_ERR(scratch);
+		goto out_close;
+	}
+
+	for_each_engine(engine, gt->i915, id) {
+		err = __live_lrc_state(fixme, engine, scratch);
+		if (err)
+			break;
+	}
+
+	if (igt_flush_test(gt->i915))
+		err = -EIO;
+
+	i915_vma_unpin_and_release(&scratch, 0);
+out_close:
+	kernel_context_close(fixme);
+	return err;
+}
+
 int intel_lrc_live_selftests(struct drm_i915_private *i915)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(live_lrc_layout),
+		SUBTEST(live_lrc_state),
 	};
 
 	if (!HAS_LOGICAL_RING_CONTEXTS(i915))
