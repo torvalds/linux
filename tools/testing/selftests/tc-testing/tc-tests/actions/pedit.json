@@ -349,6 +349,31 @@
         ]
     },
     {
+        "id": "a5a7",
+        "name": "Add pedit action with LAYERED_OP eth set src",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth src set 11:22:33:44:55:66",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 2.*key #0  at eth\\+4: val 00001122 mask ffff0000.*key #1  at eth\\+8: val 33445566 mask 00000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
         "id": "86d4",
         "name": "Add pedit action with LAYERED_OP eth set src & dst",
         "category": [
@@ -368,6 +393,31 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action pedit | grep 'key '",
         "matchPattern": "eth\\+4: val 00001122 mask ffff0000.*eth\\+8: val 33445566 mask 00000000.*eth\\+0: val ffeeddcc mask 00000000.*eth\\+4: val bbaa0000 mask 0000ffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "f8a9",
+        "name": "Add pedit action with LAYERED_OP eth set dst",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth dst set 11:22:33:44:55:66",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 2.*key #0  at eth\\+0: val 11223344 mask 00000000.*key #1  at eth\\+4: val 55660000 mask 0000ffff",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action pedit"
@@ -399,6 +449,31 @@
         ]
     },
     {
+        "id": "8131",
+        "name": "Add pedit action with LAYERED_OP eth set dst (INVALID)",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth dst set %e:11:m2:33:x4:-5",
+        "expExitCode": "255",
+        "verifyCmd": "/bin/true",
+        "matchPattern": " ",
+        "matchCount": "0",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
         "id": "ba22",
         "name": "Add pedit action with LAYERED_OP eth type set/clear sequence",
         "category": [
@@ -418,6 +493,129 @@
         "expExitCode": "0",
         "verifyCmd": "$TC actions list action pedit | grep 'key '",
         "matchPattern": "eth\\+12: val 00010000 mask 0000ffff.*eth\\+12: val 00000000 mask 0000ffff.*eth\\+12: val 00010000 mask 0000ffff.*eth\\+12: val 00000000 mask 0000ffff.*eth\\+12: val 00010000 mask 0000ffff.*eth\\+12: val 00000000 mask 0000ffff.*eth\\+12: val 00010000 mask 0000ffff.*eth\\+12: val 00000000 mask 0000ffff.*eth\\+12: val 00010000 mask 0000ffff.*eth\\+12: val 00000000 mask 0000ffff.*eth\\+12: val 00010000 mask 0000ffff.*eth\\+12: val 00000000 mask 0000ffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "dec4",
+        "name": "Add pedit action with LAYERED_OP eth set type (INVALID)",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth type set 0xabcdef",
+        "expExitCode": "255",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*key #0  at eth+12: val ",
+        "matchCount": "0",
+        "teardown": []
+    },
+    {
+        "id": "ab06",
+        "name": "Add pedit action with LAYERED_OP eth add type",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth type add 0x1",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*key #0  at eth\\+12: add 00010000 mask 0000ffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "918d",
+        "name": "Add pedit action with LAYERED_OP eth invert src",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth src invert",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 2.*key #0  at eth\\+4: val 0000ff00 mask ffff0000.*key #1  at eth\\+8: val 00000000 mask 00000000",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "a8d4",
+        "name": "Add pedit action with LAYERED_OP eth invert dst",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth dst invert",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 2.*key #0  at eth\\+0: val ff000000 mask 00000000.*key #1  at eth\\+4: val 00000000 mask 0000ffff",
+        "matchCount": "1",
+        "teardown": [
+            "$TC actions flush action pedit"
+        ]
+    },
+    {
+        "id": "ee13",
+        "name": "Add pedit action with LAYERED_OP eth invert type",
+        "category": [
+            "actions",
+            "pedit",
+            "layered_op"
+        ],
+        "setup": [
+            [
+                "$TC actions flush action pedit",
+                0,
+                1,
+                255
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action pedit ex munge eth type invert",
+        "expExitCode": "0",
+        "verifyCmd": "$TC actions list action pedit",
+        "matchPattern": "action order [0-9]+:  pedit action pass keys 1.*key #0  at eth\\+12: val ffff0000 mask ffffffff",
         "matchCount": "1",
         "teardown": [
             "$TC actions flush action pedit"
