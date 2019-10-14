@@ -4466,92 +4466,74 @@ enum mkbp_cec_event {
 
 /*****************************************************************************/
 
-/* Commands for I2S recording on audio codec. */
+/* Commands for I2S RX on audio codec. */
 
-#define EC_CMD_CODEC_I2S 0x00BC
-#define EC_WOV_I2S_SAMPLE_RATE 48000
+#define EC_CMD_EC_CODEC_I2S_RX 0x00BC
 
-enum ec_codec_i2s_subcmd {
-	EC_CODEC_SET_SAMPLE_DEPTH = 0x0,
-	EC_CODEC_SET_GAIN = 0x1,
-	EC_CODEC_GET_GAIN = 0x2,
-	EC_CODEC_I2S_ENABLE = 0x3,
-	EC_CODEC_I2S_SET_CONFIG = 0x4,
-	EC_CODEC_I2S_SET_TDM_CONFIG = 0x5,
-	EC_CODEC_I2S_SET_BCLK = 0x6,
-	EC_CODEC_I2S_SUBCMD_COUNT = 0x7,
+enum ec_codec_i2s_rx_subcmd {
+	EC_CODEC_I2S_RX_ENABLE = 0x0,
+	EC_CODEC_I2S_RX_DISABLE = 0x1,
+	EC_CODEC_I2S_RX_SET_GAIN = 0x2,
+	EC_CODEC_I2S_RX_GET_GAIN = 0x3,
+	EC_CODEC_I2S_RX_SET_SAMPLE_DEPTH = 0x4,
+	EC_CODEC_I2S_RX_SET_DAIFMT = 0x5,
+	EC_CODEC_I2S_RX_SET_BCLK = 0x6,
+	EC_CODEC_I2S_RX_SUBCMD_COUNT,
 };
 
-enum ec_sample_depth_value {
-	EC_CODEC_SAMPLE_DEPTH_16 = 0,
-	EC_CODEC_SAMPLE_DEPTH_24 = 1,
+enum ec_codec_i2s_rx_sample_depth {
+	EC_CODEC_I2S_RX_SAMPLE_DEPTH_16 = 0x0,
+	EC_CODEC_I2S_RX_SAMPLE_DEPTH_24 = 0x1,
+	EC_CODEC_I2S_RX_SAMPLE_DEPTH_COUNT,
 };
 
-enum ec_i2s_config {
-	EC_DAI_FMT_I2S = 0,
-	EC_DAI_FMT_RIGHT_J = 1,
-	EC_DAI_FMT_LEFT_J = 2,
-	EC_DAI_FMT_PCM_A = 3,
-	EC_DAI_FMT_PCM_B = 4,
-	EC_DAI_FMT_PCM_TDM = 5,
+enum ec_codec_i2s_rx_daifmt {
+	EC_CODEC_I2S_RX_DAIFMT_I2S = 0x0,
+	EC_CODEC_I2S_RX_DAIFMT_RIGHT_J = 0x1,
+	EC_CODEC_I2S_RX_DAIFMT_LEFT_J = 0x2,
+	EC_CODEC_I2S_RX_DAIFMT_COUNT,
 };
 
-/*
- * For subcommand EC_CODEC_GET_GAIN.
- */
-struct __ec_align1 ec_codec_i2s_gain {
+struct __ec_align1 ec_param_ec_codec_i2s_rx_set_sample_depth {
+	uint8_t depth;
+	uint8_t reserved[3];
+};
+
+struct __ec_align1 ec_param_ec_codec_i2s_rx_set_gain {
 	uint8_t left;
 	uint8_t right;
+	uint8_t reserved[2];
 };
 
-struct __ec_todo_unpacked ec_param_codec_i2s_tdm {
-	int16_t ch0_delay; /* 0 to 496 */
-	int16_t ch1_delay; /* -1 to 496 */
-	uint8_t adjacent_to_ch0;
-	uint8_t adjacent_to_ch1;
+struct __ec_align1 ec_param_ec_codec_i2s_rx_set_daifmt {
+	uint8_t daifmt;
+	uint8_t reserved[3];
 };
 
-struct __ec_todo_packed ec_param_codec_i2s {
-	/* enum ec_codec_i2s_subcmd */
-	uint8_t cmd;
+struct __ec_align4 ec_param_ec_codec_i2s_rx_set_bclk {
+	uint32_t bclk;
+};
+
+struct __ec_align4 ec_param_ec_codec_i2s_rx {
+	uint8_t cmd; /* enum ec_codec_i2s_rx_subcmd */
+	uint8_t reserved[3];
+
 	union {
-		/*
-		 * EC_CODEC_SET_SAMPLE_DEPTH
-		 * Value should be one of ec_sample_depth_value.
-		 */
-		uint8_t depth;
-
-		/*
-		 * EC_CODEC_SET_GAIN
-		 * Value should be 0~43 for both channels.
-		 */
-		struct ec_codec_i2s_gain gain;
-
-		/*
-		 * EC_CODEC_I2S_ENABLE
-		 * 1 to enable, 0 to disable.
-		 */
-		uint8_t i2s_enable;
-
-		/*
-		 * EC_CODEC_I2S_SET_CONFIG
-		 * Value should be one of ec_i2s_config.
-		 */
-		uint8_t i2s_config;
-
-		/*
-		 * EC_CODEC_I2S_SET_TDM_CONFIG
-		 * Value should be one of ec_i2s_config.
-		 */
-		struct ec_param_codec_i2s_tdm tdm_param;
-
-		/*
-		 * EC_CODEC_I2S_SET_BCLK
-		 */
-		uint32_t bclk;
+		struct ec_param_ec_codec_i2s_rx_set_sample_depth
+				set_sample_depth_param;
+		struct ec_param_ec_codec_i2s_rx_set_gain
+				set_gain_param;
+		struct ec_param_ec_codec_i2s_rx_set_daifmt
+				set_daifmt_param;
+		struct ec_param_ec_codec_i2s_rx_set_bclk
+				set_bclk_param;
 	};
 };
 
+struct __ec_align1 ec_response_ec_codec_i2s_rx_get_gain {
+	uint8_t left;
+	uint8_t right;
+};
 
 /*****************************************************************************/
 /* System commands */
