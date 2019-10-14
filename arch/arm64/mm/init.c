@@ -20,6 +20,7 @@
 #include <linux/sort.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
+#include <linux/dma-direct.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-contiguous.h>
 #include <linux/efi.h>
@@ -40,6 +41,8 @@
 #include <linux/sizes.h>
 #include <asm/tlb.h>
 #include <asm/alternative.h>
+
+#define ARM64_ZONE_DMA_BITS	30
 
 /*
  * We need to be able to catch inadvertent references to memstart_addr
@@ -440,8 +443,10 @@ void __init arm64_memblock_init(void)
 
 	early_init_fdt_scan_reserved_mem();
 
-	if (IS_ENABLED(CONFIG_ZONE_DMA))
-		arm64_dma_phys_limit = max_zone_phys(ARCH_ZONE_DMA_BITS);
+	if (IS_ENABLED(CONFIG_ZONE_DMA)) {
+		zone_dma_bits = ARM64_ZONE_DMA_BITS;
+		arm64_dma_phys_limit = max_zone_phys(ARM64_ZONE_DMA_BITS);
+	}
 
 	if (IS_ENABLED(CONFIG_ZONE_DMA32))
 		arm64_dma32_phys_limit = max_zone_phys(32);

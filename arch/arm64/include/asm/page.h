@@ -38,6 +38,4 @@ extern int pfn_valid(unsigned long);
 
 #include <asm-generic/getorder.h>
 
-#define ARCH_ZONE_DMA_BITS 30
-
 #endif
