@@ -744,7 +744,7 @@ xfs_alloc_cur_setup(
 	acur->rec_len = 0;
 	acur->bno = 0;
 	acur->len = 0;
-	acur->diff = 0;
+	acur->diff = -1;
 	acur->busy = false;
 	acur->busy_gen = 0;
 
@@ -789,6 +789,89 @@ xfs_alloc_cur_close(
 	if (acur->bnogt)
 		xfs_btree_del_cursor(acur->bnogt, cur_error);
 	acur->cnt = acur->bnolt = acur->bnogt = NULL;
+}
+
+/*
+ * Check an extent for allocation and track the best available candidate in the
+ * allocation structure. The cursor is deactivated if it has entered an out of
+ * range state based on allocation arguments. Optionally return the extent
+ * extent geometry and allocation status if requested by the caller.
+ */
+static int
+xfs_alloc_cur_check(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur,
+	struct xfs_btree_cur	*cur,
+	int			*new)
+{
+	int			error, i;
+	xfs_agblock_t		bno, bnoa, bnew;
+	xfs_extlen_t		len, lena, diff = -1;
+	bool			busy;
+	unsigned		busy_gen = 0;
+	bool			deactivate = false;
+
+	*new = 0;
+
+	error = xfs_alloc_get_rec(cur, &bno, &len, &i);
+	if (error)
+		return error;
+	XFS_WANT_CORRUPTED_RETURN(args->mp, i == 1);
+
+	/*
+	 * Check minlen and deactivate a cntbt cursor if out of acceptable size
+	 * range (i.e., walking backwards looking for a minlen extent).
+	 */
+	if (len < args->minlen) {
+		deactivate = true;
+		goto out;
+	}
+
+	busy = xfs_alloc_compute_aligned(args, bno, len, &bnoa, &lena,
+					 &busy_gen);
+	acur->busy |= busy;
+	if (busy)
+		acur->busy_gen = busy_gen;
+	/* deactivate a bnobt cursor outside of locality range */
+	if (bnoa < args->min_agbno || bnoa > args->max_agbno)
+		goto out;
+	if (lena < args->minlen)
+		goto out;
+
+	args->len = XFS_EXTLEN_MIN(lena, args->maxlen);
+	xfs_alloc_fix_len(args);
+	ASSERT(args->len >= args->minlen);
+	if (args->len < acur->len)
+		goto out;
+
+	/*
+	 * We have an aligned record that satisfies minlen and beats or matches
+	 * the candidate extent size. Compare locality for near allocation mode.
+	 */
+	ASSERT(args->type == XFS_ALLOCTYPE_NEAR_BNO);
+	diff = xfs_alloc_compute_diff(args->agbno, args->len,
+				      args->alignment, args->datatype,
+				      bnoa, lena, &bnew);
+	if (bnew == NULLAGBLOCK)
+		goto out;
+	if (diff > acur->diff)
+		goto out;
+
+	ASSERT(args->len > acur->len ||
+	       (args->len == acur->len && diff <= acur->diff));
+	acur->rec_bno = bno;
+	acur->rec_len = len;
+	acur->bno = bnew;
+	acur->len = args->len;
+	acur->diff = diff;
+	*new = 1;
+
+out:
+	if (deactivate)
+		cur->bc_private.a.priv.abt.active = false;
+	trace_xfs_alloc_cur_check(args->mp, cur->bc_btnum, bno, len, diff,
+				  *new);
+	return 0;
 }
 
 /*
@@ -1257,8 +1340,6 @@ restart:
 	 * but we never loop back to the top.
 	 */
 	while (xfs_btree_islastblock(acur.cnt, 0)) {
-		xfs_extlen_t	diff;
-
 #ifdef DEBUG
 		if (dofirst)
 			break;
@@ -1289,38 +1370,16 @@ restart:
 		}
 		i = acur.cnt->bc_ptrs[0];
 		for (j = 1;
-		     !error && j && (acur.len < args->maxlen || acur.diff > 0);
+		     !error && j && xfs_alloc_cur_active(acur.cnt) &&
+		     (acur.len < args->maxlen || acur.diff > 0);
 		     error = xfs_btree_increment(acur.cnt, 0, &j)) {
 			/*
 			 * For each entry, decide if it's better than
 			 * the previous best entry.
 			 */
-			error = xfs_alloc_get_rec(acur.cnt, &ltbno, &ltlen, &i);
+			error = xfs_alloc_cur_check(args, &acur, acur.cnt, &i);
 			if (error)
 				goto out;
-			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, out);
-			acur.busy = xfs_alloc_compute_aligned(args, ltbno, ltlen,
-					&ltbnoa, &ltlena, &acur.busy_gen);
-			if (ltlena < args->minlen)
-				continue;
-			if (ltbnoa < args->min_agbno || ltbnoa > args->max_agbno)
-				continue;
-			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
-			xfs_alloc_fix_len(args);
-			ASSERT(args->len >= args->minlen);
-			if (args->len < acur.len)
-				continue;
-			diff = xfs_alloc_compute_diff(args->agbno, args->len,
-				args->alignment, args->datatype, ltbnoa,
-				ltlena, &ltnew);
-			if (ltnew != NULLAGBLOCK &&
-			    (args->len > acur.len || diff < acur.diff)) {
-				acur.rec_bno = ltbno;
-				acur.rec_len = ltlen;
-				acur.diff = diff;
-				acur.bno = ltnew;
-				acur.len = args->len;
-			}
 		}
 		/*
 		 * It didn't work.  We COULD be in a case where
