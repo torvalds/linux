@@ -847,7 +847,7 @@ restart:
 		goto out_abort;
 
 	spin_lock(&commit_iclog->ic_callback_lock);
-	if (commit_iclog->ic_state & XLOG_STATE_IOERROR) {
+	if (commit_iclog->ic_state == XLOG_STATE_IOERROR) {
 		spin_unlock(&commit_iclog->ic_callback_lock);
 		goto out_abort;
 	}

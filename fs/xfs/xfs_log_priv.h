@@ -40,15 +40,16 @@ static inline uint xlog_get_client_id(__be32 i)
 /*
  * In core log state
  */
-#define XLOG_STATE_ACTIVE    0x0001 /* Current IC log being written to */
-#define XLOG_STATE_WANT_SYNC 0x0002 /* Want to sync this iclog; no more writes */
-#define XLOG_STATE_SYNCING   0x0004 /* This IC log is syncing */
-#define XLOG_STATE_DONE_SYNC 0x0008 /* Done syncing to disk */
-#define XLOG_STATE_DO_CALLBACK \
-			     0x0010 /* Process callback functions */
-#define XLOG_STATE_CALLBACK  0x0020 /* Callback functions now */
-#define XLOG_STATE_DIRTY     0x0040 /* Dirty IC log, not ready for ACTIVE status*/
-#define XLOG_STATE_IOERROR   0x0080 /* IO error happened in sync'ing log */
+enum xlog_iclog_state {
+	XLOG_STATE_ACTIVE,	/* Current IC log being written to */
+	XLOG_STATE_WANT_SYNC,	/* Want to sync this iclog; no more writes */
+	XLOG_STATE_SYNCING,	/* This IC log is syncing */
+	XLOG_STATE_DONE_SYNC,	/* Done syncing to disk */
+	XLOG_STATE_DO_CALLBACK,	/* Process callback functions */
+	XLOG_STATE_CALLBACK,	/* Callback functions now */
+	XLOG_STATE_DIRTY,	/* Dirty IC log, not ready for ACTIVE status */
+	XLOG_STATE_IOERROR,	/* IO error happened in sync'ing log */
+};
 
 /*
  * Flags to log ticket
@@ -202,7 +203,7 @@ typedef struct xlog_in_core {
 	struct xlog		*ic_log;
 	u32			ic_size;
 	u32			ic_offset;
-	unsigned short		ic_state;
+	enum xlog_iclog_state	ic_state;
 	char			*ic_datap;	/* pointer to iclog data */
 
 	/* Callback structures need their own cacheline */
