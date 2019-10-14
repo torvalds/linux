@@ -3842,8 +3842,12 @@ void tcp_done(struct sock *sk)
 {
 	struct request_sock *req;
 
-	req = rcu_dereference_protected(tcp_sk(sk)->fastopen_rsk,
-					lockdep_sock_is_held(sk));
+	/* We might be called with a new socket, after
+	 * inet_csk_prepare_forced_close() has been called
+	 * so we can not use lockdep_sock_is_held(sk)
+	 */
+	req = rcu_dereference_protected(tcp_sk(sk)->fastopen_rsk, 1);
+
 	if (sk->sk_state == TCP_SYN_SENT || sk->sk_state == TCP_SYN_RECV)
 		TCP_INC_STATS(sock_net(sk), TCP_MIB_ATTEMPTFAILS);
 
