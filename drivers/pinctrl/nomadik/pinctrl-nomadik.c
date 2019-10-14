@@ -799,12 +799,18 @@ static void nmk_gpio_irq_shutdown(struct irq_data *d)
 	clk_disable(nmk_chip->clk);
 }
 
-static void __nmk_gpio_irq_handler(struct irq_desc *desc, u32 status)
+static void nmk_gpio_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *host_chip = irq_desc_get_chip(desc);
 	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
+	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
+	u32 status;
 
 	chained_irq_enter(host_chip, desc);
+
+	clk_enable(nmk_chip->clk);
+	status = readl(nmk_chip->addr + NMK_GPIO_IS);
+	clk_disable(nmk_chip->clk);
 
 	while (status) {
 		int bit = __ffs(status);
@@ -814,19 +820,6 @@ static void __nmk_gpio_irq_handler(struct irq_desc *desc, u32 status)
 	}
 
 	chained_irq_exit(host_chip, desc);
-}
-
-static void nmk_gpio_irq_handler(struct irq_desc *desc)
-{
-	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
-	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
-	u32 status;
-
-	clk_enable(nmk_chip->clk);
-	status = readl(nmk_chip->addr + NMK_GPIO_IS);
-	clk_disable(nmk_chip->clk);
-
-	__nmk_gpio_irq_handler(desc, status);
 }
 
 /* I/O Functions */
