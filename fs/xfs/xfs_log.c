@@ -1735,7 +1735,7 @@ xlog_write_iclog(
 		 * the buffer manually, the code needs to be kept in sync
 		 * with the I/O completion path.
 		 */
-		xlog_state_done_syncing(iclog, XFS_LI_ABORTED);
+		xlog_state_done_syncing(iclog, true);
 		up(&iclog->ic_sema);
 		return;
 	}
