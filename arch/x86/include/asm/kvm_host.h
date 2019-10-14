@@ -219,13 +219,6 @@ enum {
 				 PFERR_WRITE_MASK |		\
 				 PFERR_PRESENT_MASK)
 
-/*
- * The mask used to denote special SPTEs, which can be either MMIO SPTEs or
- * Access Tracking SPTEs. We use bit 62 instead of bit 63 to avoid conflicting
- * with the SVE bit in EPT PTEs.
- */
-#define SPTE_SPECIAL_MASK (1ULL << 62)
-
 /* apic attention bits */
 #define KVM_APIC_CHECK_VAPIC	0
 /*

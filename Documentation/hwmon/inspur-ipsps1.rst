@@ -1,5 +1,5 @@
 Kernel driver inspur-ipsps1
-=======================
+===========================
 
 Supported chips:
 
