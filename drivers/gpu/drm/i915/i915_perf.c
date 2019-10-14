@@ -3806,8 +3806,7 @@ int i915_perf_remove_config_ioctl(struct drm_device *dev, void *data,
 
 	GEM_BUG_ON(*arg != oa_config->id);
 
-	sysfs_remove_group(perf->metrics_kobj,
-			   &oa_config->sysfs_metric);
+	sysfs_remove_group(perf->metrics_kobj, &oa_config->sysfs_metric);
 
 	idr_remove(&perf->metrics_idr, *arg);
 
