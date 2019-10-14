@@ -247,7 +247,7 @@ extern void led_set_brightness(struct led_classdev *led_cdev,
 /**
  * led_set_brightness_sync - set LED brightness synchronously
  * @led_cdev: the LED to set
- * @brightness: the brightness to set it to
+ * @value: the brightness to set it to
  *
  * Set an LED's brightness immediately. This function will block
  * the caller for the time required for accessing device registers,
@@ -301,8 +301,7 @@ extern void led_sysfs_enable(struct led_classdev *led_cdev);
 /**
  * led_compose_name - compose LED class device name
  * @dev: LED controller device object
- * @child: child fwnode_handle describing a LED or a group of synchronized LEDs;
- *	   it must be provided only for fwnode based LEDs
+ * @init_data: the LED class device initialization data
  * @led_classdev_name: composed LED class device name
  *
  * Create LED class device name basing on the provided init_data argument.

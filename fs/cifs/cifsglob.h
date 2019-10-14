@@ -1210,7 +1210,7 @@ struct cifs_search_info {
 	bool smallBuf:1; /* so we know which buf_release function to call */
 };
 
-#define ACL_NO_MODE	-1
+#define ACL_NO_MODE	((umode_t)(-1))
 struct cifs_open_parms {
 	struct cifs_tcon *tcon;
 	struct cifs_sb_info *cifs_sb;

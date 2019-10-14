@@ -57,19 +57,7 @@ static efi_system_table_t __init *xen_efi_probe(void)
 		return NULL;
 
 	/* Here we know that Xen runs on EFI platform. */
-
-	efi.get_time                 = xen_efi_get_time;
-	efi.set_time                 = xen_efi_set_time;
-	efi.get_wakeup_time          = xen_efi_get_wakeup_time;
-	efi.set_wakeup_time          = xen_efi_set_wakeup_time;
-	efi.get_variable             = xen_efi_get_variable;
-	efi.get_next_variable        = xen_efi_get_next_variable;
-	efi.set_variable             = xen_efi_set_variable;
-	efi.query_variable_info      = xen_efi_query_variable_info;
-	efi.update_capsule           = xen_efi_update_capsule;
-	efi.query_capsule_caps       = xen_efi_query_capsule_caps;
-	efi.get_next_high_mono_count = xen_efi_get_next_high_mono_count;
-	efi.reset_system             = xen_efi_reset_system;
+	xen_efi_runtime_setup();
 
 	efi_systab_xen.tables = info->cfg.addr;
 	efi_systab_xen.nr_tables = info->cfg.nent;

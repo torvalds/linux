@@ -3845,7 +3845,11 @@ static int alloc_profile_is_valid(u64 flags, int extended)
 		return !extended; /* "0" is valid for usual profiles */
 
 	/* true if exactly one bit set */
-	return is_power_of_2(flags);
+	/*
+	 * Don't use is_power_of_2(unsigned long) because it won't work
+	 * for the single profile (1ULL << 48) on 32-bit CPUs.
+	 */
+	return flags != 0 && (flags & (flags - 1)) == 0;
 }
 
 static inline int balance_need_close(struct btrfs_fs_info *fs_info)
