@@ -2,6 +2,7 @@
 #include <linux/export.h>
 #include <linux/generic-radix-tree.h>
 #include <linux/gfp.h>
+#include <linux/kmemleak.h>
 
 #define GENRADIX_ARY		(PAGE_SIZE / sizeof(struct genradix_node *))
 #define GENRADIX_ARY_SHIFT	ilog2(GENRADIX_ARY)
@@ -75,6 +76,27 @@ void *__genradix_ptr(struct __genradix *radix, size_t offset)
 }
 EXPORT_SYMBOL(__genradix_ptr);
 
+static inline struct genradix_node *genradix_alloc_node(gfp_t gfp_mask)
+{
+	struct genradix_node *node;
+
+	node = (struct genradix_node *)__get_free_page(gfp_mask|__GFP_ZERO);
+
+	/*
+	 * We're using pages (not slab allocations) directly for kernel data
+	 * structures, so we need to explicitly inform kmemleak of them in order
+	 * to avoid false positive memory leak reports.
+	 */
+	kmemleak_alloc(node, PAGE_SIZE, 1, gfp_mask);
+	return node;
+}
+
+static inline void genradix_free_node(struct genradix_node *node)
+{
+	kmemleak_free(node);
+	free_page((unsigned long)node);
+}
+
 /*
  * Returns pointer to the specified byte @offset within @radix, allocating it if
  * necessary - newly allocated slots are always zeroed out:
@@ -97,8 +119,7 @@ void *__genradix_ptr_alloc(struct __genradix *radix, size_t offset,
 			break;
 
 		if (!new_node) {
-			new_node = (void *)
-				__get_free_page(gfp_mask|__GFP_ZERO);
+			new_node = genradix_alloc_node(gfp_mask);
 			if (!new_node)
 				return NULL;
 		}
@@ -121,8 +142,7 @@ void *__genradix_ptr_alloc(struct __genradix *radix, size_t offset,
 		n = READ_ONCE(*p);
 		if (!n) {
 			if (!new_node) {
-				new_node = (void *)
-					__get_free_page(gfp_mask|__GFP_ZERO);
+				new_node = genradix_alloc_node(gfp_mask);
 				if (!new_node)
 					return NULL;
 			}
@@ -133,7 +153,7 @@ void *__genradix_ptr_alloc(struct __genradix *radix, size_t offset,
 	}
 
 	if (new_node)
-		free_page((unsigned long) new_node);
+		genradix_free_node(new_node);
 
 	return &n->data[offset];
 }
@@ -191,7 +211,7 @@ static void genradix_free_recurse(struct genradix_node *n, unsigned level)
 				genradix_free_recurse(n->children[i], level - 1);
 	}
 
-	free_page((unsigned long) n);
+	genradix_free_node(n);
 }
 
 int __genradix_prealloc(struct __genradix *radix, size_t size,
