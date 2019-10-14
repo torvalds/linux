@@ -1231,6 +1231,78 @@ xfs_alloc_walk_iter(
 }
 
 /*
+ * Search in the by-bno btree to the left and to the right simultaneously until
+ * in each case we find a large enough free extent or run into the edge of the
+ * tree. When we run into the edge of the tree, we deactivate that cursor.
+ */
+STATIC int
+xfs_alloc_ag_vextent_bnobt(
+	struct xfs_alloc_arg	*args,
+	struct xfs_alloc_cur	*acur,
+	int			*stat)
+{
+	struct xfs_btree_cur	*fbcur = NULL;
+	int			error;
+	int			i;
+	bool			fbinc;
+
+	ASSERT(acur->len == 0);
+	ASSERT(args->type == XFS_ALLOCTYPE_NEAR_BNO);
+
+	*stat = 0;
+
+	error = xfs_alloc_lookup_le(acur->bnolt, args->agbno, 0, &i);
+	if (error)
+		return error;
+	error = xfs_alloc_lookup_ge(acur->bnogt, args->agbno, 0, &i);
+	if (error)
+		return error;
+
+	/*
+	 * Loop going left with the leftward cursor, right with the rightward
+	 * cursor, until either both directions give up or we find an entry at
+	 * least as big as minlen.
+	 */
+	while (xfs_alloc_cur_active(acur->bnolt) ||
+	       xfs_alloc_cur_active(acur->bnogt)) {
+		error = xfs_alloc_walk_iter(args, acur, acur->bnolt, false,
+					    true, 1, &i);
+		if (error)
+			return error;
+		if (i == 1) {
+			trace_xfs_alloc_cur_left(args);
+			fbcur = acur->bnogt;
+			fbinc = true;
+			break;
+		}
+
+		error = xfs_alloc_walk_iter(args, acur, acur->bnogt, true, true,
+					    1, &i);
+		if (error)
+			return error;
+		if (i == 1) {
+			trace_xfs_alloc_cur_right(args);
+			fbcur = acur->bnolt;
+			fbinc = false;
+			break;
+		}
+	}
+
+	/* search the opposite direction for a better entry */
+	if (fbcur) {
+		error = xfs_alloc_walk_iter(args, acur, fbcur, fbinc, true, -1,
+					    &i);
+		if (error)
+			return error;
+	}
+
+	if (acur->len)
+		*stat = 1;
+
+	return 0;
+}
+
+/*
  * Allocate a variable extent near bno in the allocation group agno.
  * Extent's length (returned in len) will be between minlen and maxlen,
  * and of the form k * prod + mod unless there's nothing that large.
@@ -1241,12 +1313,10 @@ xfs_alloc_ag_vextent_near(
 	struct xfs_alloc_arg	*args)
 {
 	struct xfs_alloc_cur	acur = {};
-	struct xfs_btree_cur	*fbcur = NULL;
 	int			error;		/* error code */
 	int			i;		/* result code, temporary */
 	xfs_agblock_t		bno;
 	xfs_extlen_t		len;
-	bool			fbinc = false;
 #ifdef DEBUG
 	/*
 	 * Randomly don't execute the first algorithm.
@@ -1348,61 +1418,11 @@ restart:
 	}
 
 	/*
-	 * Second algorithm.
-	 * Search in the by-bno tree to the left and to the right
-	 * simultaneously, until in each case we find a space big enough,
-	 * or run into the edge of the tree.  When we run into the edge,
-	 * we deallocate that cursor.
-	 * If both searches succeed, we compare the two spaces and pick
-	 * the better one.
-	 * With alignment, it's possible for both to fail; the upper
-	 * level algorithm that picks allocation groups for allocations
-	 * is not supposed to do this.
+	 * Second algorithm. Search the bnobt left and right.
 	 */
-	error = xfs_alloc_lookup_le(acur.bnolt, args->agbno, 0, &i);
+	error = xfs_alloc_ag_vextent_bnobt(args, &acur, &i);
 	if (error)
 		goto out;
-	error = xfs_alloc_lookup_ge(acur.bnogt, args->agbno, 0, &i);
-	if (error)
-		goto out;
-
-	/*
-	 * Loop going left with the leftward cursor, right with the rightward
-	 * cursor, until either both directions give up or we find an entry at
-	 * least as big as minlen.
-	 */
-	do {
-		error = xfs_alloc_walk_iter(args, &acur, acur.bnolt, false,
-					    true, 1, &i);
-		if (error)
-			goto out;
-		if (i == 1) {
-			trace_xfs_alloc_cur_left(args);
-			fbcur = acur.bnogt;
-			fbinc = true;
-			break;
-		}
-
-		error = xfs_alloc_walk_iter(args, &acur, acur.bnogt, true, true,
-					    1, &i);
-		if (error)
-			goto out;
-		if (i == 1) {
-			trace_xfs_alloc_cur_right(args);
-			fbcur = acur.bnolt;
-			fbinc = false;
-			break;
-		}
-	} while (xfs_alloc_cur_active(acur.bnolt) ||
-		 xfs_alloc_cur_active(acur.bnogt));
-
-	/* search the opposite direction for a better entry */
-	if (fbcur) {
-		error = xfs_alloc_walk_iter(args, &acur, fbcur, fbinc, true, -1,
-					    &i);
-		if (error)
-			goto out;
-	}
 
 	/*
 	 * If we couldn't get anything, give up.
