@@ -799,9 +799,9 @@ fail:
 	return NULL;
 }
 
-static void perf_mmap_free_page(unsigned long addr)
+static void perf_mmap_free_page(void *addr)
 {
-	struct page *page = virt_to_page((void *)addr);
+	struct page *page = virt_to_page(addr);
 
 	page->mapping = NULL;
 	__free_page(page);
@@ -811,9 +811,9 @@ void rb_free(struct ring_buffer *rb)
 {
 	int i;
 
-	perf_mmap_free_page((unsigned long)rb->user_page);
+	perf_mmap_free_page(rb->user_page);
 	for (i = 0; i < rb->nr_pages; i++)
-		perf_mmap_free_page((unsigned long)rb->data_pages[i]);
+		perf_mmap_free_page(rb->data_pages[i]);
 	kfree(rb);
 }
 
