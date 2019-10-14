@@ -2862,6 +2862,40 @@ static void i915_perf_disable_locked(struct i915_perf_stream *stream)
 		stream->ops->disable(stream);
 }
 
+static long i915_perf_config_locked(struct i915_perf_stream *stream,
+				    unsigned long metrics_set)
+{
+	struct i915_oa_config *config;
+	long ret = stream->oa_config->id;
+
+	config = i915_perf_get_oa_config(stream->perf, metrics_set);
+	if (!config)
+		return -EINVAL;
+
+	if (config != stream->oa_config) {
+		int err;
+
+		/*
+		 * If OA is bound to a specific context, emit the
+		 * reconfiguration inline from that context. The update
+		 * will then be ordered with respect to submission on that
+		 * context.
+		 *
+		 * When set globally, we use a low priority kernel context,
+		 * so it will effectively take effect when idle.
+		 */
+		err = emit_oa_config(stream, oa_context(stream));
+		if (err == 0)
+			config = xchg(&stream->oa_config, config);
+		else
+			ret = err;
+	}
+
+	i915_oa_config_put(config);
+
+	return ret;
+}
+
 /**
  * i915_perf_ioctl - support ioctl() usage with i915 perf stream FDs
  * @stream: An i915 perf stream
@@ -2885,6 +2919,8 @@ static long i915_perf_ioctl_locked(struct i915_perf_stream *stream,
 	case I915_PERF_IOCTL_DISABLE:
 		i915_perf_disable_locked(stream);
 		return 0;
+	case I915_PERF_IOCTL_CONFIG:
+		return i915_perf_config_locked(stream, arg);
 	}
 
 	return -EINVAL;
@@ -4023,7 +4059,15 @@ void i915_perf_fini(struct drm_i915_private *i915)
  */
 int i915_perf_ioctl_version(void)
 {
-	return 1;
+	/*
+	 * 1: Initial version
+	 *   I915_PERF_IOCTL_ENABLE
+	 *   I915_PERF_IOCTL_DISABLE
+	 *
+	 * 2: Added runtime modification of OA config.
+	 *   I915_PERF_IOCTL_CONFIG
+	 */
+	return 2;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

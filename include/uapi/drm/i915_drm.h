@@ -1933,6 +1933,19 @@ struct drm_i915_perf_open_param {
 #define I915_PERF_IOCTL_DISABLE	_IO('i', 0x1)
 
 /**
+ * Change metrics_set captured by a stream.
+ *
+ * If the stream is bound to a specific context, the configuration change
+ * will performed inline with that context such that it takes effect before
+ * the next execbuf submission.
+ *
+ * Returns the previously bound metrics set id, or a negative error code.
+ *
+ * This ioctl is available in perf revision 2.
+ */
+#define I915_PERF_IOCTL_CONFIG	_IO('i', 0x2)
+
+/**
  * Common to all i915 perf records
  */
 struct drm_i915_perf_record_header {
