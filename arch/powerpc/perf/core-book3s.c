@@ -95,7 +95,7 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 {
 	return 0;
 }
-static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp) { }
+static inline void perf_get_data_addr(struct perf_event *event, struct pt_regs *regs, u64 *addrp) { }
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
 	return 0;
@@ -126,7 +126,7 @@ static unsigned long ebb_switch_in(bool ebb, struct cpu_hw_events *cpuhw)
 static inline void power_pmu_bhrb_enable(struct perf_event *event) {}
 static inline void power_pmu_bhrb_disable(struct perf_event *event) {}
 static void power_pmu_sched_task(struct perf_event_context *ctx, bool sched_in) {}
-static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
+static inline void power_pmu_bhrb_read(struct perf_event *event, struct cpu_hw_events *cpuhw) {}
 static void pmao_restore_workaround(bool ebb) { }
 #endif /* CONFIG_PPC32 */
 
@@ -170,7 +170,7 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
  * pointed to by SIAR; this is indicated by the [POWER6_]MMCRA_SDSYNC, the
  * [POWER7P_]MMCRA_SDAR_VALID bit in MMCRA, or the SDAR_VALID bit in SIER.
  */
-static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
+static inline void perf_get_data_addr(struct perf_event *event, struct pt_regs *regs, u64 *addrp)
 {
 	unsigned long mmcra = regs->dsisr;
 	bool sdar_valid;
@@ -195,8 +195,7 @@ static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
 	if (!(mmcra & MMCRA_SAMPLE_ENABLE) || sdar_valid)
 		*addrp = mfspr(SPRN_SDAR);
 
-	if (perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN) &&
-		is_kernel_addr(mfspr(SPRN_SDAR)))
+	if (is_kernel_addr(mfspr(SPRN_SDAR)) && perf_allow_kernel(&event->attr) != 0)
 		*addrp = 0;
 }
 
@@ -435,7 +434,7 @@ static __u64 power_pmu_bhrb_to(u64 addr)
 }
 
 /* Processing BHRB entries */
-static void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw)
+static void power_pmu_bhrb_read(struct perf_event *event, struct cpu_hw_events *cpuhw)
 {
 	u64 val;
 	u64 addr;
@@ -463,8 +462,7 @@ static void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw)
 			 * exporting it to userspace (avoid exposure of regions
 			 * where we could have speculative execution)
 			 */
-			if (perf_paranoid_kernel() && !capable(CAP_SYS_ADMIN) &&
-				is_kernel_addr(addr))
+			if (is_kernel_addr(addr) && perf_allow_kernel(&event->attr) != 0)
 				continue;
 
 			/* Branches are read most recent first (ie. mfbhrb 0 is
@@ -2068,12 +2066,12 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 
 		if (event->attr.sample_type &
 		    (PERF_SAMPLE_ADDR | PERF_SAMPLE_PHYS_ADDR))
-			perf_get_data_addr(regs, &data.addr);
+			perf_get_data_addr(event, regs, &data.addr);
 
 		if (event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK) {
 			struct cpu_hw_events *cpuhw;
 			cpuhw = this_cpu_ptr(&cpu_hw_events);
-			power_pmu_bhrb_read(cpuhw);
+			power_pmu_bhrb_read(event, cpuhw);
 			data.br_stack = &cpuhw->bhrb_stack;
 		}
 
