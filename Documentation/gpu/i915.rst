@@ -415,6 +415,15 @@ Object Tiling IOCTLs
 .. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_tiling.c
    :doc: buffer object tiling
 
+Microcontrollers
+================
+
+Starting from gen9, three microcontrollers are available on the HW: the
+graphics microcontroller (GuC), the HEVC/H.265 microcontroller (HuC) and the
+display microcontroller (DMC). The driver is responsible for loading the
+firmwares on the microcontrollers; the GuC and HuC firmwares are transferred
+to WOPCM using the DMA engine, while the DMC firmware is written through MMIO.
+
 WOPCM
 -----
 
@@ -453,6 +462,15 @@ GuC Address Space
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
    :doc: GuC Address Space
+
+HuC
+---
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc_fw.c
+   :doc: HuC Firmware
+
+DMC
+---
+See `CSR firmware support for DMC`_
 
 Tracing
 =======
