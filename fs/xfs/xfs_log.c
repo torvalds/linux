@@ -1740,8 +1740,6 @@ xlog_write_iclog(
 		return;
 	}
 
-	iclog->ic_io_size = count;
-
 	bio_init(&iclog->ic_bio, iclog->ic_bvec, howmany(count, PAGE_SIZE));
 	bio_set_dev(&iclog->ic_bio, log->l_targ->bt_bdev);
 	iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart + bno;
@@ -1751,9 +1749,9 @@ xlog_write_iclog(
 	if (need_flush)
 		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
 
-	xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, iclog->ic_io_size);
+	xlog_map_iclog_data(&iclog->ic_bio, iclog->ic_data, count);
 	if (is_vmalloc_addr(iclog->ic_data))
-		flush_kernel_vmap_range(iclog->ic_data, iclog->ic_io_size);
+		flush_kernel_vmap_range(iclog->ic_data, count);
 
 	/*
 	 * If this log buffer would straddle the end of the log we will have
