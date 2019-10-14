@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 
 #include "hwspinlock_internal.h"
@@ -133,23 +132,10 @@ static int sprd_hwspinlock_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, sprd_hwlock);
-	pm_runtime_enable(&pdev->dev);
 
-	ret = devm_hwspin_lock_register(&pdev->dev, &sprd_hwlock->bank,
-					&sprd_hwspinlock_ops, 0,
-					SPRD_HWLOCKS_NUM);
-	if (ret) {
-		pm_runtime_disable(&pdev->dev);
-		return ret;
-	}
-
-	return 0;
-}
-
-static int sprd_hwspinlock_remove(struct platform_device *pdev)
-{
-	pm_runtime_disable(&pdev->dev);
-	return 0;
+	return devm_hwspin_lock_register(&pdev->dev, &sprd_hwlock->bank,
+					 &sprd_hwspinlock_ops, 0,
+					 SPRD_HWLOCKS_NUM);
 }
 
 static const struct of_device_id sprd_hwspinlock_of_match[] = {
@@ -160,7 +146,6 @@ MODULE_DEVICE_TABLE(of, sprd_hwspinlock_of_match);
 
 static struct platform_driver sprd_hwspinlock_driver = {
 	.probe = sprd_hwspinlock_probe,
-	.remove = sprd_hwspinlock_remove,
 	.driver = {
 		.name = "sprd_hwspinlock",
 		.of_match_table = of_match_ptr(sprd_hwspinlock_of_match),
