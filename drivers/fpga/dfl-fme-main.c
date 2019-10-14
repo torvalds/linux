@@ -355,6 +355,209 @@ static const struct dfl_feature_ops fme_thermal_mgmt_ops = {
 	.init = fme_thermal_mgmt_init,
 };
 
+#define FME_PWR_STATUS		0x8
+#define FME_LATENCY_TOLERANCE	BIT_ULL(18)
+#define PWR_CONSUMED		GENMASK_ULL(17, 0)
+
+#define FME_PWR_THRESHOLD	0x10
+#define PWR_THRESHOLD1		GENMASK_ULL(6, 0)	/* in Watts */
+#define PWR_THRESHOLD2		GENMASK_ULL(14, 8)	/* in Watts */
+#define PWR_THRESHOLD_MAX	0x7f			/* in Watts */
+#define PWR_THRESHOLD1_STATUS	BIT_ULL(16)
+#define PWR_THRESHOLD2_STATUS	BIT_ULL(17)
+
+#define FME_PWR_XEON_LIMIT	0x18
+#define XEON_PWR_LIMIT		GENMASK_ULL(14, 0)	/* in 0.1 Watts */
+#define XEON_PWR_EN		BIT_ULL(15)
+#define FME_PWR_FPGA_LIMIT	0x20
+#define FPGA_PWR_LIMIT		GENMASK_ULL(14, 0)	/* in 0.1 Watts */
+#define FPGA_PWR_EN		BIT_ULL(15)
+
+static int power_hwmon_read(struct device *dev, enum hwmon_sensor_types type,
+			    u32 attr, int channel, long *val)
+{
+	struct dfl_feature *feature = dev_get_drvdata(dev);
+	u64 v;
+
+	switch (attr) {
+	case hwmon_power_input:
+		v = readq(feature->ioaddr + FME_PWR_STATUS);
+		*val = (long)(FIELD_GET(PWR_CONSUMED, v) * 1000000);
+		break;
+	case hwmon_power_max:
+		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
+		*val = (long)(FIELD_GET(PWR_THRESHOLD1, v) * 1000000);
+		break;
+	case hwmon_power_crit:
+		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
+		*val = (long)(FIELD_GET(PWR_THRESHOLD2, v) * 1000000);
+		break;
+	case hwmon_power_max_alarm:
+		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
+		*val = (long)FIELD_GET(PWR_THRESHOLD1_STATUS, v);
+		break;
+	case hwmon_power_crit_alarm:
+		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
+		*val = (long)FIELD_GET(PWR_THRESHOLD2_STATUS, v);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+static int power_hwmon_write(struct device *dev, enum hwmon_sensor_types type,
+			     u32 attr, int channel, long val)
+{
+	struct dfl_feature_platform_data *pdata = dev_get_platdata(dev->parent);
+	struct dfl_feature *feature = dev_get_drvdata(dev);
+	int ret = 0;
+	u64 v;
+
+	val = clamp_val(val / 1000000, 0, PWR_THRESHOLD_MAX);
+
+	mutex_lock(&pdata->lock);
+
+	switch (attr) {
+	case hwmon_power_max:
+		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
+		v &= ~PWR_THRESHOLD1;
+		v |= FIELD_PREP(PWR_THRESHOLD1, val);
+		writeq(v, feature->ioaddr + FME_PWR_THRESHOLD);
+		break;
+	case hwmon_power_crit:
+		v = readq(feature->ioaddr + FME_PWR_THRESHOLD);
+		v &= ~PWR_THRESHOLD2;
+		v |= FIELD_PREP(PWR_THRESHOLD2, val);
+		writeq(v, feature->ioaddr + FME_PWR_THRESHOLD);
+		break;
+	default:
+		ret = -EOPNOTSUPP;
+		break;
+	}
+
+	mutex_unlock(&pdata->lock);
+
+	return ret;
+}
+
+static umode_t power_hwmon_attrs_visible(const void *drvdata,
+					 enum hwmon_sensor_types type,
+					 u32 attr, int channel)
+{
+	switch (attr) {
+	case hwmon_power_input:
+	case hwmon_power_max_alarm:
+	case hwmon_power_crit_alarm:
+		return 0444;
+	case hwmon_power_max:
+	case hwmon_power_crit:
+		return 0644;
+	}
+
+	return 0;
+}
+
+static const struct hwmon_ops power_hwmon_ops = {
+	.is_visible = power_hwmon_attrs_visible,
+	.read = power_hwmon_read,
+	.write = power_hwmon_write,
+};
+
+static const struct hwmon_channel_info *power_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(power, HWMON_P_INPUT |
+				  HWMON_P_MAX   | HWMON_P_MAX_ALARM |
+				  HWMON_P_CRIT  | HWMON_P_CRIT_ALARM),
+	NULL
+};
+
+static const struct hwmon_chip_info power_hwmon_chip_info = {
+	.ops = &power_hwmon_ops,
+	.info = power_hwmon_info,
+};
+
+static ssize_t power1_xeon_limit_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct dfl_feature *feature = dev_get_drvdata(dev);
+	u16 xeon_limit = 0;
+	u64 v;
+
+	v = readq(feature->ioaddr + FME_PWR_XEON_LIMIT);
+
+	if (FIELD_GET(XEON_PWR_EN, v))
+		xeon_limit = FIELD_GET(XEON_PWR_LIMIT, v);
+
+	return sprintf(buf, "%u\n", xeon_limit * 100000);
+}
+
+static ssize_t power1_fpga_limit_show(struct device *dev,
+				      struct device_attribute *attr, char *buf)
+{
+	struct dfl_feature *feature = dev_get_drvdata(dev);
+	u16 fpga_limit = 0;
+	u64 v;
+
+	v = readq(feature->ioaddr + FME_PWR_FPGA_LIMIT);
+
+	if (FIELD_GET(FPGA_PWR_EN, v))
+		fpga_limit = FIELD_GET(FPGA_PWR_LIMIT, v);
+
+	return sprintf(buf, "%u\n", fpga_limit * 100000);
+}
+
+static ssize_t power1_ltr_show(struct device *dev,
+			       struct device_attribute *attr, char *buf)
+{
+	struct dfl_feature *feature = dev_get_drvdata(dev);
+	u64 v;
+
+	v = readq(feature->ioaddr + FME_PWR_STATUS);
+
+	return sprintf(buf, "%u\n",
+		       (unsigned int)FIELD_GET(FME_LATENCY_TOLERANCE, v));
+}
+
+static DEVICE_ATTR_RO(power1_xeon_limit);
+static DEVICE_ATTR_RO(power1_fpga_limit);
+static DEVICE_ATTR_RO(power1_ltr);
+
+static struct attribute *power_extra_attrs[] = {
+	&dev_attr_power1_xeon_limit.attr,
+	&dev_attr_power1_fpga_limit.attr,
+	&dev_attr_power1_ltr.attr,
+	NULL
+};
+
+ATTRIBUTE_GROUPS(power_extra);
+
+static int fme_power_mgmt_init(struct platform_device *pdev,
+			       struct dfl_feature *feature)
+{
+	struct device *hwmon;
+
+	hwmon = devm_hwmon_device_register_with_info(&pdev->dev,
+						     "dfl_fme_power", feature,
+						     &power_hwmon_chip_info,
+						     power_extra_groups);
+	if (IS_ERR(hwmon)) {
+		dev_err(&pdev->dev, "Fail to register power hwmon\n");
+		return PTR_ERR(hwmon);
+	}
+
+	return 0;
+}
+
+static const struct dfl_feature_id fme_power_mgmt_id_table[] = {
+	{.id = FME_FEATURE_ID_POWER_MGMT,},
+	{0,}
+};
+
+static const struct dfl_feature_ops fme_power_mgmt_ops = {
+	.init = fme_power_mgmt_init,
+};
+
 static struct dfl_feature_driver fme_feature_drvs[] = {
 	{
 		.id_table = fme_hdr_id_table,
@@ -371,6 +574,10 @@ static struct dfl_feature_driver fme_feature_drvs[] = {
 	{
 		.id_table = fme_thermal_mgmt_id_table,
 		.ops = &fme_thermal_mgmt_ops,
+	},
+	{
+		.id_table = fme_power_mgmt_id_table,
+		.ops = &fme_power_mgmt_ops,
 	},
 	{
 		.ops = NULL,

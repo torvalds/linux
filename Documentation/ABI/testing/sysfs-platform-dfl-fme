@@ -114,6 +114,7 @@ Contact:	Wu Hao <hao.wu@intel.com>
 Description:	Read-Only. Read this file to get the name of hwmon device, it
 		supports values:
 		    'dfl_fme_thermal' - thermal hwmon device name
+		    'dfl_fme_power'   - power hwmon device name
 
 What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/temp1_input
 Date:		October 2019
@@ -170,3 +171,70 @@ Description:	Read-Only. Read this file to get the policy of hardware threshold1
 		(see 'temp1_max'). It only supports two values (policies):
 		    0 - AP2 state (90% throttling)
 		    1 - AP1 state (50% throttling)
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_input
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Only. It returns current FPGA power consumption in uW.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_max
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Write. Read this file to get current hardware power
+		threshold1 in uW. If power consumption rises at or above
+		this threshold, hardware starts 50% throttling.
+		Write this file to set current hardware power threshold1 in uW.
+		As hardware only accepts values in Watts, so input value will
+		be round down per Watts (< 1 watts part will be discarded) and
+		clamped within the range from 0 to 127 Watts. Write fails with
+		-EINVAL if input parsing fails.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_crit
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Write. Read this file to get current hardware power
+		threshold2 in uW. If power consumption rises at or above
+		this threshold, hardware starts 90% throttling.
+		Write this file to set current hardware power threshold2 in uW.
+		As hardware only accepts values in Watts, so input value will
+		be round down per Watts (< 1 watts part will be discarded) and
+		clamped within the range from 0 to 127 Watts. Write fails with
+		-EINVAL if input parsing fails.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_max_alarm
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns 1 if power consumption is currently at or
+		above hardware threshold1 (see 'power1_max'), otherwise 0.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_crit_alarm
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns 1 if power consumption is currently at or
+		above hardware threshold2 (see 'power1_crit'), otherwise 0.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_xeon_limit
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Only. It returns power limit for XEON in uW.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_fpga_limit
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Only. It returns power limit for FPGA in uW.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/hwmon/hwmonX/power1_ltr
+Date:		October 2019
+KernelVersion:	5.5
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Read this file to get current Latency Tolerance
+		Reporting (ltr) value. It returns 1 if all Accelerated
+		Function Units (AFUs) can tolerate latency >= 40us for memory
+		access or 0 if any AFU is latency sensitive (< 40us).
