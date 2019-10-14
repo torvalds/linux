@@ -471,8 +471,20 @@ GuC-based command submission
 
 HuC
 ---
-.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc_fw.c
-   :doc: HuC Firmware
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c
+   :doc: HuC
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c
+   :functions: intel_huc_auth
+
+HuC Memory Management
+~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_huc.c
+   :doc: HuC Memory Management
+
+HuC Firmware Layout
+~~~~~~~~~~~~~~~~~~~
+The HuC FW layout is the same as the GuC one, see `GuC Firmware Layout`_
 
 DMC
 ---
