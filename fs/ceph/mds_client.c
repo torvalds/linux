@@ -2349,6 +2349,7 @@ static struct ceph_msg *create_request_message(struct ceph_mds_client *mdsc,
 	head->op = cpu_to_le32(req->r_op);
 	head->caller_uid = cpu_to_le32(from_kuid(&init_user_ns, req->r_uid));
 	head->caller_gid = cpu_to_le32(from_kgid(&init_user_ns, req->r_gid));
+	head->ino = 0;
 	head->args = req->r_args;
 
 	ceph_encode_filepath(&p, end, ino1, path1);
