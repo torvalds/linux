@@ -117,6 +117,9 @@ static int device_is_dependent(struct device *dev, void *target)
 		return ret;
 
 	list_for_each_entry(link, &dev->links.consumers, s_node) {
+		if (link->flags == DL_FLAG_SYNC_STATE_ONLY)
+			continue;
+
 		if (link->consumer == target)
 			return 1;
 
@@ -142,8 +145,11 @@ static int device_reorder_to_tail(struct device *dev, void *not_used)
 		device_pm_move_last(dev);
 
 	device_for_each_child(dev, NULL, device_reorder_to_tail);
-	list_for_each_entry(link, &dev->links.consumers, s_node)
+	list_for_each_entry(link, &dev->links.consumers, s_node) {
+		if (link->flags == DL_FLAG_SYNC_STATE_ONLY)
+			continue;
 		device_reorder_to_tail(link->consumer, NULL);
+	}
 
 	return 0;
 }
@@ -202,6 +208,8 @@ struct device_link *device_link_add(struct device *consumer,
 	struct device_link *link;
 
 	if (!consumer || !supplier ||
+	    (flags & DL_FLAG_SYNC_STATE_ONLY &&
+	     flags != DL_FLAG_SYNC_STATE_ONLY) ||
 	    ((flags & DL_FLAG_STATELESS) &&
 	     (flags & DL_FLAG_AUTOREMOVE_CONSUMER)))
 		return NULL;
@@ -211,11 +219,14 @@ struct device_link *device_link_add(struct device *consumer,
 
 	/*
 	 * If the supplier has not been fully registered yet or there is a
-	 * reverse dependency between the consumer and the supplier already in
-	 * the graph, return NULL.
+	 * reverse (non-SYNC_STATE_ONLY) dependency between the consumer and
+	 * the supplier already in the graph, return NULL. If the link is a
+	 * SYNC_STATE_ONLY link, we don't check for reverse dependencies
+	 * because it only affects sync_state() callbacks.
 	 */
 	if (!device_pm_initialized(supplier)
-	    || device_is_dependent(consumer, supplier)) {
+	    || (!(flags & DL_FLAG_SYNC_STATE_ONLY) &&
+		  device_is_dependent(consumer, supplier))) {
 		link = NULL;
 		goto out;
 	}
@@ -223,6 +234,11 @@ struct device_link *device_link_add(struct device *consumer,
 	list_for_each_entry(link, &supplier->links.consumers, s_node)
 		if (link->consumer == consumer) {
 			kref_get(&link->kref);
+			if (link->flags & DL_FLAG_SYNC_STATE_ONLY &&
+			    !(flags & DL_FLAG_SYNC_STATE_ONLY)) {
+				link->flags &= ~DL_FLAG_SYNC_STATE_ONLY;
+				goto reorder;
+			}
 			goto out;
 		}
 
@@ -293,6 +309,9 @@ struct device_link *device_link_add(struct device *consumer,
 		}
 	}
 
+	if (flags & DL_FLAG_SYNC_STATE_ONLY)
+		goto out;
+reorder:
 	/*
 	 * Move the consumer and all of the devices depending on it to the end
 	 * of dpm_list and the devices_kset list.
@@ -503,7 +522,8 @@ int device_links_check_suppliers(struct device *dev)
 	device_links_write_lock();
 
 	list_for_each_entry(link, &dev->links.suppliers, c_node) {
-		if (link->flags & DL_FLAG_STATELESS)
+		if (link->flags & DL_FLAG_STATELESS ||
+		    link->flags & DL_FLAG_SYNC_STATE_ONLY)
 			continue;
 
 		if (link->status != DL_STATE_AVAILABLE) {
@@ -766,7 +786,8 @@ void device_links_unbind_consumers(struct device *dev)
 	list_for_each_entry(link, &dev->links.consumers, s_node) {
 		enum device_link_state status;
 
-		if (link->flags & DL_FLAG_STATELESS)
+		if (link->flags & DL_FLAG_STATELESS ||
+		    link->flags & DL_FLAG_SYNC_STATE_ONLY)
 			continue;
 
 		status = link->status;
