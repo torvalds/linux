@@ -617,8 +617,7 @@ retry:
 			pasid, address, flags);
 		break;
 	case EVENT_TYPE_INV_PPR_REQ:
-		pasid = ((event[0] >> 16) & 0xFFFF)
-			| ((event[1] << 6) & 0xF0000);
+		pasid = PPR_PASID(*((u64 *)__evt));
 		tag = event[1] & 0x03FF;
 		dev_err(dev, "Event logged [INVALID_PPR_REQUEST device=%02x:%02x.%x pasid=0x%05x address=0x%llx flags=0x%04x tag=0x%03x]\n",
 			PCI_BUS_NUM(devid), PCI_SLOT(devid), PCI_FUNC(devid),
