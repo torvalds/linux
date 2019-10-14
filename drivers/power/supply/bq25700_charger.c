@@ -1321,7 +1321,7 @@ static void bq25700_pd_connect(struct bq25700_device *charger,
 	    charger->typec1_status == USB_STATUS_PD)
 		return;
 
-	if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_FAST) > 0) {
+	if (extcon_get_state(edev, EXTCON_CHG_USB_FAST) > 0) {
 		ret = extcon_get_property(edev, EXTCON_CHG_USB_FAST,
 					  EXTCON_PROP_USB_TYPEC_POLARITY,
 					  &prop_val);
@@ -1413,18 +1413,18 @@ static void bq25700_charger_evt_handel(struct bq25700_device *charger,
 		return;
 
 	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_SDP) > 0) {
+	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0) {
 		charger_state = USB_TYPE_USB_CHARGER;
 
 		bq25700_enable_charger(charger,
 				       charger->init_data.input_current_sdp);
 		DBG("USB_TYPE_USB_CHARGER\n");
-	} else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_DCP) > 0) {
+	} else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0) {
 		charger_state = USB_TYPE_AC_CHARGER;
 		bq25700_enable_charger(charger,
 				       charger->init_data.input_current_dcp);
 		DBG("USB_TYPE_AC_CHARGER\n");
-	} else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_CDP) > 0) {
+	} else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0) {
 		charger_state = USB_TYPE_CDP_CHARGER;
 		bq25700_enable_charger(charger,
 				       charger->init_data.input_current_cdp);
@@ -1528,13 +1528,13 @@ static void bq25700_host_evt_worker(struct work_struct *work)
 		container_of(work, struct bq25700_device, host_work.work);
 	struct extcon_dev *edev = charger->cable_edev;
 
-	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
+	/* Determine charger type */
+	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
 		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
 			gpiod_direction_output(charger->otg_mode_en_io, 1);
 		bq25700_field_write(charger, EN_OTG, 1);
 		DBG("OTG enable\n");
-	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
+	} else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
 		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
 			gpiod_direction_output(charger->otg_mode_en_io, 0);
 		bq25700_field_write(charger, EN_OTG, 0);
@@ -1548,13 +1548,13 @@ static void bq25700_host_evt_worker1(struct work_struct *work)
 		container_of(work, struct bq25700_device, host_work1.work);
 	struct extcon_dev *edev = charger->cable_edev_1;
 
-	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
+	/* Determine charger type */
+	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
 		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
 			gpiod_direction_output(charger->otg_mode_en_io, 1);
 		bq25700_field_write(charger, EN_OTG, 1);
 		DBG("OTG enable\n");
-	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
+	} else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
 		if (!IS_ERR_OR_NULL(charger->otg_mode_en_io))
 			gpiod_direction_output(charger->otg_mode_en_io, 0);
 		bq25700_field_write(charger, EN_OTG, 0);

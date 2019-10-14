@@ -1179,7 +1179,7 @@ static void rk818_cg_discnt_evt_worker(struct work_struct *work)
 	struct rk818_charger *cg = container_of(work,
 			struct rk818_charger, discnt_work.work);
 
-	if (extcon_get_cable_state_(cg->cable_edev, EXTCON_USB) == 0) {
+	if (extcon_get_state(cg->cable_edev, EXTCON_USB) == 0) {
 		CG_INFO("receive type-c notifier event: DISCNT...\n");
 		rk818_cg_set_chrg_param(cg, USB_TYPE_NONE_CHARGER);
 		rk818_cg_pr_info(cg);
@@ -1192,15 +1192,15 @@ static void rk818_cg_host_evt_worker(struct work_struct *work)
 			struct rk818_charger, host_work.work);
 	struct extcon_dev *edev = cg->cable_edev;
 
-	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
+	/* Determine charger type */
+	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
 		rk818_cg_set_otg_in(cg, ONLINE);
 		CG_INFO("receive type-c notifier event: OTG ON...\n");
 		if (cg->dc_in && cg->pdata->power_dc2otg)
 			CG_INFO("otg power from dc adapter\n");
 		else
 			rk818_cg_set_otg_power(cg, USB_OTG_POWER_ON);
-	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
+	} else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
 		CG_INFO("receive type-c notifier event: OTG OFF...\n");
 		rk818_cg_set_otg_in(cg, OFFLINE);
 		rk818_cg_set_otg_power(cg, USB_OTG_POWER_OFF);
@@ -1217,12 +1217,12 @@ static void rk818_cg_charger_evt_worker(struct work_struct *work)
 	enum charger_t charger = USB_TYPE_UNKNOWN_CHARGER;
 	const char *event[] = {"UN", "NONE", "USB", "AC", "CDP1.5A"};
 
-	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_SDP) > 0)
+	/* Determine charger type */
+	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0)
 		charger = USB_TYPE_USB_CHARGER;
-	else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_DCP) > 0)
+	else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0)
 		charger = USB_TYPE_AC_CHARGER;
-	else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_CDP) > 0)
+	else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0)
 		charger = USB_TYPE_CDP_CHARGER;
 
 	if (charger != USB_TYPE_UNKNOWN_CHARGER) {

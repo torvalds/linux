@@ -980,14 +980,14 @@ static void rk817_charge_host_evt_worker(struct work_struct *work)
 			struct rk817_charger, host_work.work);
 	struct extcon_dev *edev = charge->cable_edev;
 
-	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) > 0) {
+	/* Determine charger type */
+	if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) > 0) {
 		DBG("receive type-c notifier event: OTG ON...\n");
 		if (charge->dc_in && charge->pdata->power_dc2otg)
 			DBG("otg power from dc adapter\n");
 		else
 			rk817_charge_set_otg_state(charge, USB_OTG_POWER_ON);
-	} else if (extcon_get_cable_state_(edev, EXTCON_USB_VBUS_EN) == 0) {
+	} else if (extcon_get_state(edev, EXTCON_USB_VBUS_EN) == 0) {
 		DBG("receive type-c notifier event: OTG OFF...\n");
 		rk817_charge_set_otg_state(charge, USB_OTG_POWER_OFF);
 	}
@@ -1002,12 +1002,12 @@ static void rk817_charger_evt_worker(struct work_struct *work)
 	static const char * const event[] = {"UN", "NONE", "USB",
 					     "AC", "CDP1.5A"};
 
-	/* Determine cable/charger type */
-	if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_SDP) > 0)
+	/* Determine charger type */
+	if (extcon_get_state(edev, EXTCON_CHG_USB_SDP) > 0)
 		charger = USB_TYPE_USB_CHARGER;
-	else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_DCP) > 0)
+	else if (extcon_get_state(edev, EXTCON_CHG_USB_DCP) > 0)
 		charger = USB_TYPE_AC_CHARGER;
-	else if (extcon_get_cable_state_(edev, EXTCON_CHG_USB_CDP) > 0)
+	else if (extcon_get_state(edev, EXTCON_CHG_USB_CDP) > 0)
 		charger = USB_TYPE_CDP_CHARGER;
 
 	if (charger != USB_TYPE_UNKNOWN_CHARGER) {
@@ -1023,7 +1023,7 @@ static void rk817_charge_discnt_evt_worker(struct work_struct *work)
 	struct rk817_charger *charge = container_of(work,
 			struct rk817_charger, discnt_work.work);
 
-	if (extcon_get_cable_state_(charge->cable_edev, EXTCON_USB) == 0) {
+	if (extcon_get_state(charge->cable_edev, EXTCON_USB) == 0) {
 		DBG("receive type-c notifier event: DISCNT...\n");
 
 		rk817_charge_set_chrg_param(charge, USB_TYPE_NONE_CHARGER);
