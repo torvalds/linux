@@ -146,6 +146,10 @@ the thread executes on the designated CPUs. Default is to monitor all CPUs.
 	Show all syscalls followed by a summary by thread with min, max, and
     average times (in msec) and relative stddev.
 
+--errno-summary::
+	To be used with -s or -S, to show stats for the errnos experienced by
+	syscalls, using only this option will trigger --summary.
+
 --tool_stats::
 	Show tool stats such as number of times fd->pathname was discovered thru
 	hooking the open syscall return + vfs_getname or via reading /proc/pid/fd, etc.

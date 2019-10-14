@@ -175,6 +175,7 @@ struct trace {
 	bool			multiple_threads;
 	bool			summary;
 	bool			summary_only;
+	bool			errno_summary;
 	bool			failure_only;
 	bool			show_comm;
 	bool			print_sample;
@@ -1961,10 +1962,12 @@ out_cant_read:
 struct syscall_stats {
 	struct stats stats;
 	u64	     nr_failures;
+	int	     max_errno;
+	u32	     *errnos;
 };
 
-static void thread__update_stats(struct thread_trace *ttrace,
-				 int id, struct perf_sample *sample, long err)
+static void thread__update_stats(struct thread *thread, struct thread_trace *ttrace,
+				 int id, struct perf_sample *sample, long err, bool errno_summary)
 {
 	struct int_node *inode;
 	struct syscall_stats *stats;
@@ -1981,6 +1984,8 @@ static void thread__update_stats(struct thread_trace *ttrace,
 			return;
 
 		stats->nr_failures = 0;
+		stats->max_errno   = 0;
+		stats->errnos	   = NULL;
 		init_stats(&stats->stats);
 		inode->priv = stats;
 	}
@@ -1990,8 +1995,30 @@ static void thread__update_stats(struct thread_trace *ttrace,
 
 	update_stats(&stats->stats, duration);
 
-	if (err < 0)
+	if (err < 0) {
 		++stats->nr_failures;
+
+		if (!errno_summary)
+			return;
+
+		err = -err;
+		if (err > stats->max_errno) {
+			u32 *new_errnos = realloc(stats->errnos, err * sizeof(u32));
+
+			if (new_errnos) {
+				memset(new_errnos + stats->max_errno, 0, (err - stats->max_errno) * sizeof(u32));
+			} else {
+				pr_debug("Not enough memory for errno stats for thread \"%s\"(%d/%d), results will be incomplete\n",
+					 thread__comm_str(thread), thread->pid_, thread->tid);
+				return;
+			}
+
+			stats->errnos = new_errnos;
+			stats->max_errno = err;
+		}
+
+		++stats->errnos[err - 1];
+	}
 }
 
 static int trace__printf_interrupted_entry(struct trace *trace)
@@ -2239,7 +2266,7 @@ static int trace__sys_exit(struct trace *trace, struct evsel *evsel,
 	ret = perf_evsel__sc_tp_uint(evsel, ret, sample);
 
 	if (trace->summary)
-		thread__update_stats(ttrace, id, sample, ret);
+		thread__update_stats(thread, ttrace, id, sample, ret, trace->errno_summary);
 
 	if (!trace->fd_path_disabled && sc->is_open && ret >= 0 && ttrace->filename.pending_open) {
 		trace__set_fd_pathname(thread, ret, ttrace->filename.name);
@@ -4073,6 +4100,16 @@ static size_t thread__dump_stats(struct thread_trace *ttrace,
 			printed += fprintf(fp, " %8" PRIu64 " %6" PRIu64 " %9.3f %9.3f %9.3f",
 					   n, stats->nr_failures, syscall_stats_entry->msecs, min, avg);
 			printed += fprintf(fp, " %9.3f %9.2f%%\n", max, pct);
+
+			if (trace->errno_summary && stats->nr_failures) {
+				const char *arch_name = perf_env__arch(trace->host->env);
+				int e;
+
+				for (e = 0; e < stats->max_errno; ++e) {
+					if (stats->errnos[e] != 0)
+						fprintf(fp, "\t\t\t\t%s: %d\n", arch_syscalls__strerrno(arch_name, e + 1), stats->errnos[e]);
+				}
+			}
 		}
 	}
 
@@ -4511,6 +4548,8 @@ int cmd_trace(int argc, const char **argv)
 		    "Show only syscall summary with statistics"),
 	OPT_BOOLEAN('S', "with-summary", &trace.summary,
 		    "Show all syscalls and summary with statistics"),
+	OPT_BOOLEAN(0, "errno-summary", &trace.errno_summary,
+		    "Show errno stats per syscall, use with -s or -S"),
 	OPT_CALLBACK_DEFAULT('F', "pf", &trace.trace_pgfaults, "all|maj|min",
 		     "Trace pagefaults", parse_pagefaults, "maj"),
 	OPT_BOOLEAN(0, "syscalls", &trace.trace_syscalls, "Trace syscalls"),
@@ -4815,6 +4854,10 @@ init_augmented_syscall_tp:
 
 	if ((argc >= 1) && (strcmp(argv[0], "record") == 0))
 		return trace__record(&trace, argc-1, &argv[1]);
+
+	/* Using just --errno-summary will trigger --summary */
+	if (trace.errno_summary && !trace.summary && !trace.summary_only)
+		trace.summary_only = true;
 
 	/* summary_only implies summary option, but don't overwrite summary if set */
 	if (trace.summary_only)
