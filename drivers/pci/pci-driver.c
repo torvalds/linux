@@ -679,11 +679,11 @@ static bool pci_has_legacy_pm_support(struct pci_dev *pci_dev)
 
 static int pci_pm_prepare(struct device *dev)
 {
-	struct device_driver *drv = dev->driver;
 	struct pci_dev *pci_dev = to_pci_dev(dev);
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
-	if (drv && drv->pm && drv->pm->prepare) {
-		int error = drv->pm->prepare(dev);
+	if (pm && pm->prepare) {
+		int error = pm->prepare(dev);
 		if (error < 0)
 			return error;
 
@@ -917,8 +917,7 @@ Fixup:
 static int pci_pm_resume_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct device_driver *drv = dev->driver;
-	int error = 0;
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (dev_pm_may_skip_resume(dev))
 		return 0;
@@ -946,17 +945,16 @@ static int pci_pm_resume_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
 
-	if (drv && drv->pm && drv->pm->resume_noirq)
-		error = drv->pm->resume_noirq(dev);
+	if (pm && pm->resume_noirq)
+		return pm->resume_noirq(dev);
 
-	return error;
+	return 0;
 }
 
 static int pci_pm_resume(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-	int error = 0;
 
 	/*
 	 * This is necessary for the suspend error path in which resume is
@@ -972,12 +970,12 @@ static int pci_pm_resume(struct device *dev)
 
 	if (pm) {
 		if (pm->resume)
-			error = pm->resume(dev);
+			return pm->resume(dev);
 	} else {
 		pci_pm_reenable_device(pci_dev);
 	}
 
-	return error;
+	return 0;
 }
 
 #else /* !CONFIG_SUSPEND */
@@ -1037,16 +1035,16 @@ static int pci_pm_freeze(struct device *dev)
 static int pci_pm_freeze_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct device_driver *drv = dev->driver;
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_FREEZE);
 
-	if (drv && drv->pm && drv->pm->freeze_noirq) {
+	if (pm && pm->freeze_noirq) {
 		int error;
 
-		error = drv->pm->freeze_noirq(dev);
-		suspend_report_result(drv->pm->freeze_noirq, error);
+		error = pm->freeze_noirq(dev);
+		suspend_report_result(pm->freeze_noirq, error);
 		if (error)
 			return error;
 	}
@@ -1065,8 +1063,8 @@ static int pci_pm_freeze_noirq(struct device *dev)
 static int pci_pm_thaw_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct device_driver *drv = dev->driver;
-	int error = 0;
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int error;
 
 	if (pcibios_pm_ops.thaw_noirq) {
 		error = pcibios_pm_ops.thaw_noirq(dev);
@@ -1090,10 +1088,10 @@ static int pci_pm_thaw_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
 
-	if (drv && drv->pm && drv->pm->thaw_noirq)
-		error = drv->pm->thaw_noirq(dev);
+	if (pm && pm->thaw_noirq)
+		return pm->thaw_noirq(dev);
 
-	return error;
+	return 0;
 }
 
 static int pci_pm_thaw(struct device *dev)
@@ -1164,24 +1162,24 @@ static int pci_pm_poweroff_late(struct device *dev)
 static int pci_pm_poweroff_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct device_driver *drv = dev->driver;
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
 
 	if (dev_pm_smart_suspend_and_suspended(dev))
 		return 0;
 
-	if (pci_has_legacy_pm_support(to_pci_dev(dev)))
+	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_suspend_late(dev, PMSG_HIBERNATE);
 
-	if (!drv || !drv->pm) {
+	if (!pm) {
 		pci_fixup_device(pci_fixup_suspend_late, pci_dev);
 		return 0;
 	}
 
-	if (drv->pm->poweroff_noirq) {
+	if (pm->poweroff_noirq) {
 		int error;
 
-		error = drv->pm->poweroff_noirq(dev);
-		suspend_report_result(drv->pm->poweroff_noirq, error);
+		error = pm->poweroff_noirq(dev);
+		suspend_report_result(pm->poweroff_noirq, error);
 		if (error)
 			return error;
 	}
@@ -1207,8 +1205,8 @@ static int pci_pm_poweroff_noirq(struct device *dev)
 static int pci_pm_restore_noirq(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
-	struct device_driver *drv = dev->driver;
-	int error = 0;
+	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int error;
 
 	if (pcibios_pm_ops.restore_noirq) {
 		error = pcibios_pm_ops.restore_noirq(dev);
@@ -1222,17 +1220,16 @@ static int pci_pm_restore_noirq(struct device *dev)
 	if (pci_has_legacy_pm_support(pci_dev))
 		return pci_legacy_resume_early(dev);
 
-	if (drv && drv->pm && drv->pm->restore_noirq)
-		error = drv->pm->restore_noirq(dev);
+	if (pm && pm->restore_noirq)
+		return pm->restore_noirq(dev);
 
-	return error;
+	return 0;
 }
 
 static int pci_pm_restore(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-	int error = 0;
 
 	/*
 	 * This is necessary for the hibernation error path in which restore is
@@ -1248,12 +1245,12 @@ static int pci_pm_restore(struct device *dev)
 
 	if (pm) {
 		if (pm->restore)
-			error = pm->restore(dev);
+			return pm->restore(dev);
 	} else {
 		pci_pm_reenable_device(pci_dev);
 	}
 
-	return error;
+	return 0;
 }
 
 #else /* !CONFIG_HIBERNATE_CALLBACKS */
@@ -1329,9 +1326,9 @@ static int pci_pm_runtime_suspend(struct device *dev)
 
 static int pci_pm_runtime_resume(struct device *dev)
 {
-	int rc = 0;
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
+	int error = 0;
 
 	/*
 	 * Restoring config space is necessary even if the device is not bound
@@ -1347,18 +1344,17 @@ static int pci_pm_runtime_resume(struct device *dev)
 	pci_pm_default_resume(pci_dev);
 
 	if (pm && pm->runtime_resume)
-		rc = pm->runtime_resume(dev);
+		error = pm->runtime_resume(dev);
 
 	pci_dev->runtime_d3cold = false;
 
-	return rc;
+	return error;
 }
 
 static int pci_pm_runtime_idle(struct device *dev)
 {
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	const struct dev_pm_ops *pm = dev->driver ? dev->driver->pm : NULL;
-	int ret = 0;
 
 	/*
 	 * If pci_dev->driver is not set (unbound), the device should
@@ -1371,9 +1367,9 @@ static int pci_pm_runtime_idle(struct device *dev)
 		return -ENOSYS;
 
 	if (pm->runtime_idle)
-		ret = pm->runtime_idle(dev);
+		return pm->runtime_idle(dev);
 
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops pci_dev_pm_ops = {
