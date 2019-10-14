@@ -1333,23 +1333,8 @@ restart:
 		if (acur.len == 0)
 			break;
 
-		/*
-		 * Allocate at the bno/len tracked in the cursor.
-		 */
-		args->agbno = acur.bno;
-		args->len = acur.len;
-		ASSERT(acur.bno >= acur.rec_bno);
-		ASSERT(acur.bno + acur.len <= acur.rec_bno + acur.rec_len);
-		ASSERT(acur.rec_bno + acur.rec_len <=
-		       be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
-
-		error = xfs_alloc_fixup_trees(acur.cnt, acur.bnolt,
-				acur.rec_bno, acur.rec_len, acur.bno, acur.len,
-				0);
-		if (error)
-			goto out;
 		trace_xfs_alloc_near_first(args);
-		goto out;
+		goto alloc;
 	}
 
 	/*
@@ -1434,6 +1419,7 @@ restart:
 		goto out;
 	}
 
+alloc:
 	args->agbno = acur.bno;
 	args->len = acur.len;
 	ASSERT(acur.bno >= acur.rec_bno);
