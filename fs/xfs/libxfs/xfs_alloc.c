@@ -146,9 +146,13 @@ xfs_alloc_lookup_eq(
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat)	/* success/failure */
 {
+	int			error;
+
 	cur->bc_rec.a.ar_startblock = bno;
 	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
+	error = xfs_btree_lookup(cur, XFS_LOOKUP_EQ, stat);
+	cur->bc_private.a.priv.abt.active = (*stat == 1);
+	return error;
 }
 
 /*
@@ -162,9 +166,13 @@ xfs_alloc_lookup_ge(
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat)	/* success/failure */
 {
+	int			error;
+
 	cur->bc_rec.a.ar_startblock = bno;
 	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
+	error = xfs_btree_lookup(cur, XFS_LOOKUP_GE, stat);
+	cur->bc_private.a.priv.abt.active = (*stat == 1);
+	return error;
 }
 
 /*
@@ -178,9 +186,19 @@ xfs_alloc_lookup_le(
 	xfs_extlen_t		len,	/* length of extent */
 	int			*stat)	/* success/failure */
 {
+	int			error;
 	cur->bc_rec.a.ar_startblock = bno;
 	cur->bc_rec.a.ar_blockcount = len;
-	return xfs_btree_lookup(cur, XFS_LOOKUP_LE, stat);
+	error = xfs_btree_lookup(cur, XFS_LOOKUP_LE, stat);
+	cur->bc_private.a.priv.abt.active = (*stat == 1);
+	return error;
+}
+
+static inline bool
+xfs_alloc_cur_active(
+	struct xfs_btree_cur	*cur)
+{
+	return cur && cur->bc_private.a.priv.abt.active;
 }
 
 /*

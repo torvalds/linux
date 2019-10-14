@@ -183,6 +183,9 @@ union xfs_btree_cur_private {
 		unsigned long	nr_ops;		/* # record updates */
 		int		shape_changes;	/* # of extent splits */
 	} refc;
+	struct {
+		bool		active;		/* allocation cursor state */
+	} abt;
 };
 
 /*
