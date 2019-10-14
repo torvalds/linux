@@ -1233,9 +1233,6 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 	struct ceph_mon_client *monc = con->private;
 	int type = le16_to_cpu(msg->hdr.type);
 
-	if (!monc)
-		return;
-
 	switch (type) {
 	case CEPH_MSG_AUTH_REPLY:
 		handle_auth_reply(monc, msg);
