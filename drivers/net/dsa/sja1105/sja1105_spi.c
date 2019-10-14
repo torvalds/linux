@@ -495,7 +495,7 @@ int sja1105_static_config_upload(struct sja1105_private *priv)
 		dev_info(dev, "Succeeded after %d tried\n", RETRIES - retries);
 	}
 
-	rc = sja1105_ptp_reset(priv);
+	rc = sja1105_ptp_reset(priv->ds);
 	if (rc < 0)
 		dev_err(dev, "Failed to reset PTP clock: %d\n", rc);
 
