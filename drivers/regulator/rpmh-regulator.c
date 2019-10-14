@@ -1282,18 +1282,18 @@ rpmh_regulator_load_arc_level_mapping(struct rpmh_aggr_vreg *aggr_vreg)
 
 	buf = cmd_db_read_aux_data(aggr_vreg->resource_name, &len);
 	if (IS_ERR(buf)) {
-		aggr_vreg_err(aggr_vreg, "could not retrieve ARC aux data, rc=%d\n",
+		aggr_vreg_err(aggr_vreg, "could not retrieve ARC aux data, rc=%ld\n",
 				PTR_ERR(buf));
 		return PTR_ERR(buf);
 	} else if (len == 0) {
 		aggr_vreg_err(aggr_vreg, "ARC level mapping data missing in command db\n");
 		return -EINVAL;
 	} else if (len > RPMH_ARC_MAX_LEVELS * RPMH_ARC_LEVEL_SIZE) {
-		aggr_vreg_err(aggr_vreg, "more ARC levels defined than allowed: %d > %d\n",
+		aggr_vreg_err(aggr_vreg, "more ARC levels defined than allowed: %zd > %d\n",
 			len, RPMH_ARC_MAX_LEVELS * RPMH_ARC_LEVEL_SIZE);
 		return -EINVAL;
 	} else if (len % RPMH_ARC_LEVEL_SIZE) {
-		aggr_vreg_err(aggr_vreg, "invalid ARC aux data size: %d\n",
+		aggr_vreg_err(aggr_vreg, "invalid ARC aux data size: %zd\n",
 			len);
 		return -EINVAL;
 	}
