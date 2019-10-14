@@ -1457,9 +1457,9 @@ static void rk818_bat_init_coffset(struct rk818_battery *di)
 	    __func__, di->poffset, ioffset, rk818_bat_get_coffset(di));
 }
 
-static void rk818_bat_caltimer_isr(unsigned long data)
+static void rk818_bat_caltimer_isr(struct timer_list *t)
 {
-	struct rk818_battery *di = (struct rk818_battery *)data;
+	struct rk818_battery *di = from_timer(di, t, caltimer);
 
 	mod_timer(&di->caltimer, jiffies + MINUTE(8) * HZ);
 	queue_delayed_work(di->bat_monitor_wq, &di->calib_delay_work,
@@ -1490,7 +1490,7 @@ static void rk818_bat_internal_calib(struct work_struct *work)
 
 static void rk818_bat_init_caltimer(struct rk818_battery *di)
 {
-	setup_timer(&di->caltimer, rk818_bat_caltimer_isr, (unsigned long)di);
+	timer_setup(&di->caltimer, rk818_bat_caltimer_isr, 0);
 	di->caltimer.expires = jiffies + MINUTE(8) * HZ;
 	add_timer(&di->caltimer);
 	INIT_DELAYED_WORK(&di->calib_delay_work, rk818_bat_internal_calib);

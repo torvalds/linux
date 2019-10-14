@@ -1690,10 +1690,10 @@ static void rk817_bat_rsoc_init(struct rk817_battery_device *battery)
 	 rk817_bat_save_dsoc(battery, battery->dsoc);
 }
 
-static void rk817_bat_caltimer_isr(unsigned long data)
+static void rk817_bat_caltimer_isr(struct timer_list *t)
 {
 	struct rk817_battery_device *battery =
-		(struct rk817_battery_device *)data;
+		from_timer(battery, t, caltimer);
 
 	mod_timer(&battery->caltimer, jiffies + MINUTE(8) * HZ);
 	queue_delayed_work(battery->bat_monitor_wq,
@@ -1717,9 +1717,9 @@ static void rk817_bat_internal_calib(struct work_struct *work)
 
 static void rk817_bat_init_caltimer(struct rk817_battery_device *battery)
 {
-	setup_timer(&battery->caltimer,
+	timer_setup(&battery->caltimer,
 		    rk817_bat_caltimer_isr,
-		    (unsigned long)battery);
+		    0);
 	battery->caltimer.expires = jiffies + MINUTE(8) * HZ;
 	add_timer(&battery->caltimer);
 	INIT_DELAYED_WORK(&battery->calib_delay_work, rk817_bat_internal_calib);
