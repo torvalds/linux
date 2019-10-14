@@ -21,6 +21,7 @@
 #include "../perf.h"
 #include "asm/bug.h"
 #include "bpf-event.h"
+#include "util/string2.h"
 #include <signal.h>
 #include <unistd.h>
 #include <sched.h>
@@ -959,7 +960,7 @@ int perf_evlist__append_tp_filter(struct evlist *evlist, const char *filter)
 	return err;
 }
 
-static char *asprintf__tp_filter_pids(size_t npids, pid_t *pids)
+char *asprintf__tp_filter_pids(size_t npids, pid_t *pids)
 {
 	char *filter;
 	size_t i;
