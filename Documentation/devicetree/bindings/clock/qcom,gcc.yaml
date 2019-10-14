@@ -33,6 +33,7 @@ properties:
        - qcom,gcc-msm8998
        - qcom,gcc-mdm9615
        - qcom,gcc-qcs404
+       - qcom,gcc-sc7180
        - qcom,gcc-sdm630
        - qcom,gcc-sdm660
        - qcom,gcc-sdm845
@@ -118,6 +119,7 @@ else:
         contains:
           enum:
             - qcom,gcc-sm8150
+            - qcom,gcc-sc7180
   then:
     required:
        - clocks
@@ -171,4 +173,16 @@ examples:
       #reset-cells = <1>;
       #power-domain-cells = <1>;
      };
+
+  # Example of GCC with clock nodes properties for SC7180:
+  - |
+    clock-controller@100000 {
+      compatible = "qcom,gcc-sc7180";
+      reg = <0x100000 0x1f0000>;
+      clocks = <&rpmhcc 0>, <&rpmhcc 1>;
+      clock-names = "bi_tcxo", "bi_tcxo_ao";
+      #clock-cells = <1>;
+      #reset-cells = <1>;
+      #power-domain-cells = <1>;
+    };
 ...
