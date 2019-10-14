@@ -3461,16 +3461,10 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if (dn) {
+	if (dn)
 		macaddr = of_get_mac_address(dn);
-		if (IS_ERR(macaddr)) {
-			dev_err(&pdev->dev, "can't find MAC address\n");
-			err = -EINVAL;
-			goto err;
-		}
-	} else {
+	else
 		macaddr = pd->mac_address;
-	}
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {
@@ -3482,7 +3476,12 @@ static int bcmgenet_probe(struct platform_device *pdev)
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 	dev_set_drvdata(&pdev->dev, dev);
-	ether_addr_copy(dev->dev_addr, macaddr);
+	if (IS_ERR_OR_NULL(macaddr) || !is_valid_ether_addr(macaddr)) {
+		dev_warn(&pdev->dev, "using random Ethernet MAC\n");
+		eth_hw_addr_random(dev);
+	} else {
+		ether_addr_copy(dev->dev_addr, macaddr);
+	}
 	dev->watchdog_timeo = 2 * HZ;
 	dev->ethtool_ops = &bcmgenet_ethtool_ops;
 	dev->netdev_ops = &bcmgenet_netdev_ops;
