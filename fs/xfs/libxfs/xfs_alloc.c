@@ -716,6 +716,7 @@ struct xfs_alloc_cur {
 	struct xfs_btree_cur		*cnt;	/* btree cursors */
 	struct xfs_btree_cur		*bnolt;
 	struct xfs_btree_cur		*bnogt;
+	xfs_extlen_t			cur_len;/* current search length */
 	xfs_agblock_t			rec_bno;/* extent startblock */
 	xfs_extlen_t			rec_len;/* extent length */
 	xfs_agblock_t			bno;	/* alloc bno */
@@ -740,6 +741,7 @@ xfs_alloc_cur_setup(
 
 	ASSERT(args->alignment == 1 || args->type != XFS_ALLOCTYPE_THIS_BNO);
 
+	acur->cur_len = args->maxlen;
 	acur->rec_bno = 0;
 	acur->rec_len = 0;
 	acur->bno = 0;
@@ -918,6 +920,76 @@ xfs_alloc_cur_finish(
 
 	trace_xfs_alloc_cur(args);
 	return 0;
+}
+
+/*
+ * Locality allocation lookup algorithm. This expects a cntbt cursor and uses
+ * bno optimized lookup to search for extents with ideal size and locality.
+ */
+STATIC int
+xfs_alloc_cntbt_iter(
+	struct xfs_alloc_arg		*args,
+	struct xfs_alloc_cur		*acur)
+{
+	struct xfs_btree_cur	*cur = acur->cnt;
+	xfs_agblock_t		bno;
+	xfs_extlen_t		len, cur_len;
+	int			error;
+	int			i;
+
+	if (!xfs_alloc_cur_active(cur))
+		return 0;
+
+	/* locality optimized lookup */
+	cur_len = acur->cur_len;
+	error = xfs_alloc_lookup_ge(cur, args->agbno, cur_len, &i);
+	if (error)
+		return error;
+	if (i == 0)
+		return 0;
+	error = xfs_alloc_get_rec(cur, &bno, &len, &i);
+	if (error)
+		return error;
+
+	/* check the current record and update search length from it */
+	error = xfs_alloc_cur_check(args, acur, cur, &i);
+	if (error)
+		return error;
+	ASSERT(len >= acur->cur_len);
+	acur->cur_len = len;
+
+	/*
+	 * We looked up the first record >= [agbno, len] above. The agbno is a
+	 * secondary key and so the current record may lie just before or after
+	 * agbno. If it is past agbno, check the previous record too so long as
+	 * the length matches as it may be closer. Don't check a smaller record
+	 * because that could deactivate our cursor.
+	 */
+	if (bno > args->agbno) {
+		error = xfs_btree_decrement(cur, 0, &i);
+		if (!error && i) {
+			error = xfs_alloc_get_rec(cur, &bno, &len, &i);
+			if (!error && i && len == acur->cur_len)
+				error = xfs_alloc_cur_check(args, acur, cur,
+							    &i);
+		}
+		if (error)
+			return error;
+	}
+
+	/*
+	 * Increment the search key until we find at least one allocation
+	 * candidate or if the extent we found was larger. Otherwise, double the
+	 * search key to optimize the search. Efficiency is more important here
+	 * than absolute best locality.
+	 */
+	cur_len <<= 1;
+	if (!acur->len || acur->cur_len >= cur_len)
+		acur->cur_len++;
+	else
+		acur->cur_len = cur_len;
+
+	return error;
 }
 
 /*
@@ -1261,12 +1333,11 @@ xfs_alloc_walk_iter(
 }
 
 /*
- * Search in the by-bno btree to the left and to the right simultaneously until
- * in each case we find a large enough free extent or run into the edge of the
- * tree. When we run into the edge of the tree, we deactivate that cursor.
+ * Search the by-bno and by-size btrees in parallel in search of an extent with
+ * ideal locality based on the NEAR mode ->agbno locality hint.
  */
 STATIC int
-xfs_alloc_ag_vextent_bnobt(
+xfs_alloc_ag_vextent_locality(
 	struct xfs_alloc_arg	*args,
 	struct xfs_alloc_cur	*acur,
 	int			*stat)
@@ -1281,6 +1352,9 @@ xfs_alloc_ag_vextent_bnobt(
 
 	*stat = 0;
 
+	error = xfs_alloc_lookup_ge(acur->cnt, args->agbno, acur->cur_len, &i);
+	if (error)
+		return error;
 	error = xfs_alloc_lookup_le(acur->bnolt, args->agbno, 0, &i);
 	if (error)
 		return error;
@@ -1289,12 +1363,37 @@ xfs_alloc_ag_vextent_bnobt(
 		return error;
 
 	/*
-	 * Loop going left with the leftward cursor, right with the rightward
-	 * cursor, until either both directions give up or we find an entry at
-	 * least as big as minlen.
+	 * Search the bnobt and cntbt in parallel. Search the bnobt left and
+	 * right and lookup the closest extent to the locality hint for each
+	 * extent size key in the cntbt. The entire search terminates
+	 * immediately on a bnobt hit because that means we've found best case
+	 * locality. Otherwise the search continues until the cntbt cursor runs
+	 * off the end of the tree. If no allocation candidate is found at this
+	 * point, give up on locality, walk backwards from the end of the cntbt
+	 * and take the first available extent.
+	 *
+	 * The parallel tree searches balance each other out to provide fairly
+	 * consistent performance for various situations. The bnobt search can
+	 * have pathological behavior in the worst case scenario of larger
+	 * allocation requests and fragmented free space. On the other hand, the
+	 * bnobt is able to satisfy most smaller allocation requests much more
+	 * quickly than the cntbt. The cntbt search can sift through fragmented
+	 * free space and sets of free extents for larger allocation requests
+	 * more quickly than the bnobt. Since the locality hint is just a hint
+	 * and we don't want to scan the entire bnobt for perfect locality, the
+	 * cntbt search essentially bounds the bnobt search such that we can
+	 * find good enough locality at reasonable performance in most cases.
 	 */
 	while (xfs_alloc_cur_active(acur->bnolt) ||
-	       xfs_alloc_cur_active(acur->bnogt)) {
+	       xfs_alloc_cur_active(acur->bnogt) ||
+	       xfs_alloc_cur_active(acur->cnt)) {
+
+		trace_xfs_alloc_cur_lookup(args);
+
+		/*
+		 * Search the bnobt left and right. In the case of a hit, finish
+		 * the search in the opposite direction and we're done.
+		 */
 		error = xfs_alloc_walk_iter(args, acur, acur->bnolt, false,
 					    true, 1, &i);
 		if (error)
@@ -1305,7 +1404,6 @@ xfs_alloc_ag_vextent_bnobt(
 			fbinc = true;
 			break;
 		}
-
 		error = xfs_alloc_walk_iter(args, acur, acur->bnogt, true, true,
 					    1, &i);
 		if (error)
@@ -1316,9 +1414,40 @@ xfs_alloc_ag_vextent_bnobt(
 			fbinc = false;
 			break;
 		}
+
+		/*
+		 * Check the extent with best locality based on the current
+		 * extent size search key and keep track of the best candidate.
+		 */
+		error = xfs_alloc_cntbt_iter(args, acur);
+		if (error)
+			return error;
+		if (!xfs_alloc_cur_active(acur->cnt)) {
+			trace_xfs_alloc_cur_lookup_done(args);
+			break;
+		}
 	}
 
-	/* search the opposite direction for a better entry */
+	/*
+	 * If we failed to find anything due to busy extents, return empty
+	 * handed so the caller can flush and retry. If no busy extents were
+	 * found, walk backwards from the end of the cntbt as a last resort.
+	 */
+	if (!xfs_alloc_cur_active(acur->cnt) && !acur->len && !acur->busy) {
+		error = xfs_btree_decrement(acur->cnt, 0, &i);
+		if (error)
+			return error;
+		if (i) {
+			acur->cnt->bc_private.a.priv.abt.active = true;
+			fbcur = acur->cnt;
+			fbinc = false;
+		}
+	}
+
+	/*
+	 * Search in the opposite direction for a better entry in the case of
+	 * a bnobt hit or walk backwards from the end of the cntbt.
+	 */
 	if (fbcur) {
 		error = xfs_alloc_walk_iter(args, acur, fbcur, fbinc, true, -1,
 					    &i);
@@ -1447,9 +1576,10 @@ restart:
 	}
 
 	/*
-	 * Second algorithm. Search the bnobt left and right.
+	 * Second algorithm. Combined cntbt and bnobt search to find ideal
+	 * locality.
 	 */
-	error = xfs_alloc_ag_vextent_bnobt(args, &acur, &i);
+	error = xfs_alloc_ag_vextent_locality(args, &acur, &i);
 	if (error)
 		goto out;
 
