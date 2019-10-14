@@ -159,8 +159,9 @@ static int cdns3_pci_probe(struct pci_dev *pdev,
 		wrap->plat_dev = platform_device_register_full(&plat_info);
 		if (IS_ERR(wrap->plat_dev)) {
 			pci_disable_device(pdev);
+			err = PTR_ERR(wrap->plat_dev);
 			kfree(wrap);
-			return PTR_ERR(wrap->plat_dev);
+			return err;
 		}
 	}
 

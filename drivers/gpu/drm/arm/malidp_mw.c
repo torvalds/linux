@@ -131,7 +131,7 @@ malidp_mw_encoder_atomic_check(struct drm_encoder *encoder,
 	struct drm_framebuffer *fb;
 	int i, n_planes;
 
-	if (!conn_state->writeback_job || !conn_state->writeback_job->fb)
+	if (!conn_state->writeback_job)
 		return 0;
 
 	fb = conn_state->writeback_job->fb;
@@ -248,7 +248,7 @@ void malidp_mw_atomic_commit(struct drm_device *drm,
 
 	mw_state = to_mw_state(conn_state);
 
-	if (conn_state->writeback_job && conn_state->writeback_job->fb) {
+	if (conn_state->writeback_job) {
 		struct drm_framebuffer *fb = conn_state->writeback_job->fb;
 
 		DRM_DEV_DEBUG_DRIVER(drm->dev,
