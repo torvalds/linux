@@ -716,6 +716,11 @@ struct xfs_alloc_cur {
 	struct xfs_btree_cur		*cnt;	/* btree cursors */
 	struct xfs_btree_cur		*bnolt;
 	struct xfs_btree_cur		*bnogt;
+	xfs_agblock_t			rec_bno;/* extent startblock */
+	xfs_extlen_t			rec_len;/* extent length */
+	xfs_agblock_t			bno;	/* alloc bno */
+	xfs_extlen_t			len;	/* alloc len */
+	xfs_extlen_t			diff;	/* diff from search bno */
 	unsigned int			busy_gen;/* busy state */
 	bool				busy;
 };
@@ -735,6 +740,11 @@ xfs_alloc_cur_setup(
 
 	ASSERT(args->alignment == 1 || args->type != XFS_ALLOCTYPE_THIS_BNO);
 
+	acur->rec_bno = 0;
+	acur->rec_len = 0;
+	acur->bno = 0;
+	acur->len = 0;
+	acur->diff = 0;
 	acur->busy = false;
 	acur->busy_gen = 0;
 
@@ -1247,10 +1257,7 @@ restart:
 	 * but we never loop back to the top.
 	 */
 	while (xfs_btree_islastblock(acur.cnt, 0)) {
-		xfs_extlen_t	bdiff;
-		int		besti=0;
-		xfs_extlen_t	blen=0;
-		xfs_agblock_t	bnew=0;
+		xfs_extlen_t	diff;
 
 #ifdef DEBUG
 		if (dofirst)
@@ -1281,8 +1288,8 @@ restart:
 				break;
 		}
 		i = acur.cnt->bc_ptrs[0];
-		for (j = 1, blen = 0, bdiff = 0;
-		     !error && j && (blen < args->maxlen || bdiff > 0);
+		for (j = 1;
+		     !error && j && (acur.len < args->maxlen || acur.diff > 0);
 		     error = xfs_btree_increment(acur.cnt, 0, &j)) {
 			/*
 			 * For each entry, decide if it's better than
@@ -1301,44 +1308,40 @@ restart:
 			args->len = XFS_EXTLEN_MIN(ltlena, args->maxlen);
 			xfs_alloc_fix_len(args);
 			ASSERT(args->len >= args->minlen);
-			if (args->len < blen)
+			if (args->len < acur.len)
 				continue;
-			ltdiff = xfs_alloc_compute_diff(args->agbno, args->len,
+			diff = xfs_alloc_compute_diff(args->agbno, args->len,
 				args->alignment, args->datatype, ltbnoa,
 				ltlena, &ltnew);
 			if (ltnew != NULLAGBLOCK &&
-			    (args->len > blen || ltdiff < bdiff)) {
-				bdiff = ltdiff;
-				bnew = ltnew;
-				blen = args->len;
-				besti = acur.cnt->bc_ptrs[0];
+			    (args->len > acur.len || diff < acur.diff)) {
+				acur.rec_bno = ltbno;
+				acur.rec_len = ltlen;
+				acur.diff = diff;
+				acur.bno = ltnew;
+				acur.len = args->len;
 			}
 		}
 		/*
 		 * It didn't work.  We COULD be in a case where
 		 * there's a good record somewhere, so try again.
 		 */
-		if (blen == 0)
+		if (acur.len == 0)
 			break;
-		/*
-		 * Point at the best entry, and retrieve it again.
-		 */
-		acur.cnt->bc_ptrs[0] = besti;
-		error = xfs_alloc_get_rec(acur.cnt, &ltbno, &ltlen, &i);
-		if (error)
-			goto out;
-		XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, out);
-		ASSERT(ltbno + ltlen <= be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
-		args->len = blen;
 
 		/*
-		 * We are allocating starting at bnew for blen blocks.
+		 * Allocate at the bno/len tracked in the cursor.
 		 */
-		args->agbno = bnew;
-		ASSERT(bnew >= ltbno);
-		ASSERT(bnew + blen <= ltbno + ltlen);
-		error = xfs_alloc_fixup_trees(acur.cnt, acur.bnolt, ltbno,
-					ltlen, bnew, blen, XFSA_FIXUP_CNT_OK);
+		args->agbno = acur.bno;
+		args->len = acur.len;
+		ASSERT(acur.bno >= acur.rec_bno);
+		ASSERT(acur.bno + acur.len <= acur.rec_bno + acur.rec_len);
+		ASSERT(acur.rec_bno + acur.rec_len <=
+		       be32_to_cpu(XFS_BUF_TO_AGF(args->agbp)->agf_length));
+
+		error = xfs_alloc_fixup_trees(acur.cnt, acur.bnolt,
+				acur.rec_bno, acur.rec_len, acur.bno, acur.len,
+				0);
 		if (error)
 			goto out;
 		trace_xfs_alloc_near_first(args);
