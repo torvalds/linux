@@ -127,7 +127,7 @@ struct rtw_fw_hdr {
 	__le32 emem_size;
 	__le32 emem_addr;
 	__le32 imem_addr;
-};
+} __packed;
 
 /* C2H */
 #define GET_CCX_REPORT_SEQNUM(c2h_payload)	(c2h_payload[8] & 0xfc)
