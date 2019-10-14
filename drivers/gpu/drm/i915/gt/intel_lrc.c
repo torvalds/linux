@@ -1842,6 +1842,13 @@ static void process_csb(struct intel_engine_cs *engine)
 	const u8 num_entries = execlists->csb_size;
 	u8 head, tail;
 
+	/*
+	 * As we modify our execlists state tracking we require exclusive
+	 * access. Either we are inside the tasklet, or the tasklet is disabled
+	 * and we assume that is only inside the reset paths and so serialised.
+	 */
+	GEM_BUG_ON(!tasklet_is_locked(&execlists->tasklet) &&
+		   !reset_in_progress(execlists));
 	GEM_BUG_ON(USES_GUC_SUBMISSION(engine->i915));
 
 	/*

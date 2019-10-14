@@ -136,11 +136,18 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 
 	intel_uc_sanitize(&gt->uc);
 
-	if (!reset_engines(gt) && !force)
-		return;
+	for_each_engine(engine, gt->i915, id)
+		if (engine->reset.prepare)
+			engine->reset.prepare(engine);
+
+	if (reset_engines(gt) || force) {
+		for_each_engine(engine, gt->i915, id)
+			__intel_engine_reset(engine, false);
+	}
 
 	for_each_engine(engine, gt->i915, id)
-		__intel_engine_reset(engine, false);
+		if (engine->reset.finish)
+			engine->reset.finish(engine);
 }
 
 void intel_gt_pm_disable(struct intel_gt *gt)
