@@ -36,6 +36,7 @@ struct page_ext {
 	unsigned long flags;
 };
 
+extern unsigned long page_ext_size;
 extern void pgdat_page_ext_init(struct pglist_data *pgdat);
 
 #ifdef CONFIG_SPARSEMEM
@@ -51,6 +52,13 @@ static inline void page_ext_init(void)
 #endif
 
 struct page_ext *lookup_page_ext(const struct page *page);
+
+static inline struct page_ext *page_ext_next(struct page_ext *curr)
+{
+	void *next = curr;
+	next += page_ext_size;
+	return next;
+}
 
 #else /* !CONFIG_PAGE_EXTENSION */
 struct page_ext;
