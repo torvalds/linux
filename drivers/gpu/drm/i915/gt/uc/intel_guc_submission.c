@@ -29,6 +29,12 @@ enum {
 /**
  * DOC: GuC-based command submission
  *
+ * IMPORTANT NOTE: GuC submission is currently not supported in i915. The GuC
+ * firmware is moving to an updated submission interface and we plan to
+ * turn submission back on when that lands. The below documentation (and related
+ * code) matches the old submission model and will be updated as part of the
+ * upgrade to the new flow.
+ *
  * GuC client:
  * A intel_guc_client refers to a submission path through GuC. Currently, there
  * is only one client, which is charged with all submissions to the GuC. This

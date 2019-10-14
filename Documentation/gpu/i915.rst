@@ -436,11 +436,23 @@ WOPCM Layout
 GuC
 ---
 
-Firmware Layout
-~~~~~~~~~~~~~~~
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
+   :doc: GuC
+
+GuC Firmware Layout
+~~~~~~~~~~~~~~~~~~~
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_uc_fw_abi.h
    :doc: Firmware Layout
+
+GuC Memory Management
+~~~~~~~~~~~~~~~~~~~~~
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
+   :doc: GuC Memory Management
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
+   :functions: intel_guc_allocate_vma
+
 
 GuC-specific firmware loader
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -456,12 +468,6 @@ GuC-based command submission
 
 .. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :internal:
-
-GuC Address Space
-~~~~~~~~~~~~~~~~~
-
-.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
-   :doc: GuC Address Space
 
 HuC
 ---
