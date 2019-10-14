@@ -498,7 +498,7 @@ struct mt76_dev {
 	u32 ampdu_ref;
 
 	struct list_head txwi_cache;
-	struct mt76_sw_queue q_tx[__MT_TXQ_MAX];
+	struct mt76_sw_queue q_tx[2 * __MT_TXQ_MAX];
 	struct mt76_queue q_rx[__MT_RXQ_MAX];
 	const struct mt76_queue_ops *queue_ops;
 	int tx_dma_idx[4];
@@ -752,7 +752,7 @@ void mt76_release_buffered_frames(struct ieee80211_hw *hw,
 				  u16 tids, int nframes,
 				  enum ieee80211_frame_release_type reason,
 				  bool more_data);
-bool mt76_has_tx_pending(struct mt76_dev *dev);
+bool mt76_has_tx_pending(struct mt76_phy *phy);
 void mt76_set_channel(struct mt76_phy *phy);
 void mt76_update_survey(struct mt76_dev *dev);
 int mt76_get_survey(struct ieee80211_hw *hw, int idx,

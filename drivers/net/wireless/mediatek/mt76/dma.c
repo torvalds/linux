@@ -141,7 +141,7 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	struct mt76_sw_queue *sq = &dev->q_tx[qid];
 	struct mt76_queue *q = sq->q;
 	struct mt76_queue_entry entry;
-	unsigned int n_swq_queued[4] = {};
+	unsigned int n_swq_queued[8] = {};
 	unsigned int n_queued = 0;
 	bool wake = false;
 	int i, last;
@@ -178,11 +178,19 @@ mt76_dma_tx_cleanup(struct mt76_dev *dev, enum mt76_txq_id qid, bool flush)
 	spin_lock_bh(&q->lock);
 
 	q->queued -= n_queued;
-	for (i = 0; i < ARRAY_SIZE(n_swq_queued); i++) {
+	for (i = 0; i < 4; i++) {
 		if (!n_swq_queued[i])
 			continue;
 
 		dev->q_tx[i].swq_queued -= n_swq_queued[i];
+	}
+
+	/* ext PHY */
+	for (i = 0; i < 4; i++) {
+		if (!n_swq_queued[i])
+			continue;
+
+		dev->q_tx[__MT_TXQ_MAX + i].swq_queued -= n_swq_queued[4 + i];
 	}
 
 	if (flush)

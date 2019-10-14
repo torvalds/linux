@@ -412,13 +412,16 @@ void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(mt76_rx);
 
-bool mt76_has_tx_pending(struct mt76_dev *dev)
+bool mt76_has_tx_pending(struct mt76_phy *phy)
 {
+	struct mt76_dev *dev = phy->dev;
 	struct mt76_queue *q;
-	int i;
+	int i, offset;
 
-	for (i = 0; i < ARRAY_SIZE(dev->q_tx); i++) {
-		q = dev->q_tx[i].q;
+	offset = __MT_TXQ_MAX * (phy != &dev->phy);
+
+	for (i = 0; i < __MT_TXQ_MAX; i++) {
+		q = dev->q_tx[offset + i].q;
 		if (q && q->queued)
 			return true;
 	}
@@ -486,7 +489,7 @@ void mt76_set_channel(struct mt76_phy *phy)
 	bool offchannel = hw->conf.flags & IEEE80211_CONF_OFFCHANNEL;
 	int timeout = HZ / 5;
 
-	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(dev), timeout);
+	wait_event_timeout(dev->tx_wait, !mt76_has_tx_pending(phy), timeout);
 	mt76_update_survey(dev);
 
 	phy->chandef = *chandef;
