@@ -16,7 +16,6 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/hwspinlock.h>
@@ -89,7 +88,7 @@ static int u8500_hsem_probe(struct platform_device *pdev)
 	struct hwspinlock_device *bank;
 	struct hwspinlock *hwlock;
 	void __iomem *io_base;
-	int i, ret, num_locks = U8500_MAX_SEMAPHORE;
+	int i, num_locks = U8500_MAX_SEMAPHORE;
 	ulong val;
 
 	if (!pdata)
@@ -116,17 +115,9 @@ static int u8500_hsem_probe(struct platform_device *pdev)
 	for (i = 0, hwlock = &bank->lock[0]; i < num_locks; i++, hwlock++)
 		hwlock->priv = io_base + HSEM_REGISTER_OFFSET + sizeof(u32) * i;
 
-	/* no pm needed for HSem but required to comply with hwspilock core */
-	pm_runtime_enable(&pdev->dev);
-
-	ret = devm_hwspin_lock_register(&pdev->dev, bank, &u8500_hwspinlock_ops,
-					pdata->base_id, num_locks);
-	if (ret) {
-		pm_runtime_disable(&pdev->dev);
-		return ret;
-	}
-
-	return 0;
+	return devm_hwspin_lock_register(&pdev->dev, bank,
+					 &u8500_hwspinlock_ops,
+					 pdata->base_id, num_locks);
 }
 
 static int u8500_hsem_remove(struct platform_device *pdev)
@@ -136,8 +127,6 @@ static int u8500_hsem_remove(struct platform_device *pdev)
 
 	/* clear all interrupts */
 	writel(0xFFFF, io_base + HSEM_ICRALL);
-
-	pm_runtime_disable(&pdev->dev);
 
 	return 0;
 }
