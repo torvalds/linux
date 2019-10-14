@@ -3996,19 +3996,6 @@ xfs_log_force_umount(
 	spin_unlock(&log->l_cilp->xc_push_lock);
 	xlog_state_do_callback(log, true, NULL);
 
-#ifdef XFSERRORDEBUG
-	{
-		xlog_in_core_t	*iclog;
-
-		spin_lock(&log->l_icloglock);
-		iclog = log->l_iclog;
-		do {
-			ASSERT(iclog->ic_callback == 0);
-			iclog = iclog->ic_next;
-		} while (iclog != log->l_iclog);
-		spin_unlock(&log->l_icloglock);
-	}
-#endif
 	/* return non-zero if log IOERROR transition had already happened */
 	return retval;
 }
