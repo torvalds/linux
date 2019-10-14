@@ -1921,6 +1921,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 	mtspr	SPRN_PCR, r6
 18:
 	/* Signal secondary CPUs to continue */
+	li	r0, 0
 	stb	r0,VCORE_IN_GUEST(r5)
 19:	lis	r8,0x7fff		/* MAX_INT@h */
 	mtspr	SPRN_HDEC,r8

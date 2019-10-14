@@ -99,6 +99,8 @@ struct nct7904_data {
 	u8 enable_dts;
 	u8 has_dts;
 	u8 temp_mode; /* 0: TR mode, 1: TD mode */
+	u8 fan_alarm[2];
+	u8 vsen_alarm[3];
 };
 
 /* Access functions */
@@ -214,7 +216,15 @@ static int nct7904_read_fan(struct device *dev, u32 attr, int channel,
 				       SMI_STS5_REG + (channel >> 3));
 		if (ret < 0)
 			return ret;
-		*val = (ret >> (channel & 0x07)) & 1;
+		if (!data->fan_alarm[channel >> 3])
+			data->fan_alarm[channel >> 3] = ret & 0xff;
+		else
+			/* If there is new alarm showing up */
+			data->fan_alarm[channel >> 3] |= (ret & 0xff);
+		*val = (data->fan_alarm[channel >> 3] >> (channel & 0x07)) & 1;
+		/* Needs to clean the alarm if alarm existing */
+		if (*val)
+			data->fan_alarm[channel >> 3] ^= 1 << (channel & 0x07);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
@@ -298,7 +308,15 @@ static int nct7904_read_in(struct device *dev, u32 attr, int channel,
 				       SMI_STS1_REG + (index >> 3));
 		if (ret < 0)
 			return ret;
-		*val = (ret >> (index & 0x07)) & 1;
+		if (!data->vsen_alarm[index >> 3])
+			data->vsen_alarm[index >> 3] = ret & 0xff;
+		else
+			/* If there is new alarm showing up */
+			data->vsen_alarm[index >> 3] |= (ret & 0xff);
+		*val = (data->vsen_alarm[index >> 3] >> (index & 0x07)) & 1;
+		/* Needs to clean the alarm if alarm existing */
+		if (*val)
+			data->vsen_alarm[index >> 3] ^= 1 << (index & 0x07);
 		return 0;
 	default:
 		return -EOPNOTSUPP;
@@ -915,12 +933,15 @@ static int nct7904_probe(struct i2c_client *client,
 
 	data->temp_mode = 0;
 	for (i = 0; i < 4; i++) {
-		val = (ret & (0x03 << i)) >> (i * 2);
+		val = (ret >> (i * 2)) & 0x03;
 		bit = (1 << i);
-		if (val == 0)
+		if (val == 0) {
 			data->tcpu_mask &= ~bit;
-		else if (val == 0x1 || val == 0x2)
-			data->temp_mode |= bit;
+		} else {
+			if (val == 0x1 || val == 0x2)
+				data->temp_mode |= bit;
+			data->vsen_mask &= ~(0x06 << (i * 2));
+		}
 	}
 
 	/* PECI */

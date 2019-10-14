@@ -705,7 +705,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
  *   on error (e.g. currently no memory region using memslot as a KVM
  *   memory slot ID).
  */
-static struct userspace_mem_region *
+struct userspace_mem_region *
 memslot2region(struct kvm_vm *vm, uint32_t memslot)
 {
 	struct userspace_mem_region *region;
