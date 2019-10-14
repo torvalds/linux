@@ -129,7 +129,6 @@ static void probe_hcall_exit(void *ignored, unsigned long opcode, long retval,
 static int __init hcall_inst_init(void)
 {
 	struct dentry *hcall_root;
-	struct dentry *hcall_file;
 	char cpu_name_buf[CPU_NAME_BUF_SIZE];
 	int cpu;
 
@@ -145,17 +144,12 @@ static int __init hcall_inst_init(void)
 	}
 
 	hcall_root = debugfs_create_dir(HCALL_ROOT_DIR, NULL);
-	if (!hcall_root)
-		return -ENOMEM;
 
 	for_each_possible_cpu(cpu) {
 		snprintf(cpu_name_buf, CPU_NAME_BUF_SIZE, "cpu%d", cpu);
-		hcall_file = debugfs_create_file(cpu_name_buf, 0444,
-						 hcall_root,
-						 per_cpu(hcall_stats, cpu),
-						 &hcall_inst_seq_fops);
-		if (!hcall_file)
-			return -ENOMEM;
+		debugfs_create_file(cpu_name_buf, 0444, hcall_root,
+				    per_cpu(hcall_stats, cpu),
+				    &hcall_inst_seq_fops);
 	}
 
 	return 0;
