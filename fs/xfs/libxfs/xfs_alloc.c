@@ -716,6 +716,8 @@ struct xfs_alloc_cur {
 	struct xfs_btree_cur		*cnt;	/* btree cursors */
 	struct xfs_btree_cur		*bnolt;
 	struct xfs_btree_cur		*bnogt;
+	unsigned int			busy_gen;/* busy state */
+	bool				busy;
 };
 
 /*
@@ -732,6 +734,9 @@ xfs_alloc_cur_setup(
 	int			i;
 
 	ASSERT(args->alignment == 1 || args->type != XFS_ALLOCTYPE_THIS_BNO);
+
+	acur->busy = false;
+	acur->busy_gen = 0;
 
 	/*
 	 * Perform an initial cntbt lookup to check for availability of maxlen
@@ -1185,8 +1190,6 @@ xfs_alloc_ag_vextent_near(
 	xfs_extlen_t	ltlena;		/* aligned ... */
 	xfs_agblock_t	ltnew;		/* useful start bno of left side */
 	xfs_extlen_t	rlen;		/* length of returned extent */
-	bool		busy;
-	unsigned	busy_gen;
 #ifdef DEBUG
 	/*
 	 * Randomly don't execute the first algorithm.
@@ -1211,7 +1214,6 @@ restart:
 	ltlen = 0;
 	gtlena = 0;
 	ltlena = 0;
-	busy = false;
 
 	/*
 	 * Set up cursors and see if there are any free extents as big as
@@ -1290,8 +1292,8 @@ restart:
 			if (error)
 				goto out;
 			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, out);
-			busy = xfs_alloc_compute_aligned(args, ltbno, ltlen,
-					&ltbnoa, &ltlena, &busy_gen);
+			acur.busy = xfs_alloc_compute_aligned(args, ltbno, ltlen,
+					&ltbnoa, &ltlena, &acur.busy_gen);
 			if (ltlena < args->minlen)
 				continue;
 			if (ltbnoa < args->min_agbno || ltbnoa > args->max_agbno)
@@ -1373,8 +1375,8 @@ restart:
 			if (error)
 				goto out;
 			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, out);
-			busy |= xfs_alloc_compute_aligned(args, ltbno, ltlen,
-					&ltbnoa, &ltlena, &busy_gen);
+			acur.busy |= xfs_alloc_compute_aligned(args, ltbno,
+					ltlen, &ltbnoa, &ltlena, &acur.busy_gen);
 			if (ltlena >= args->minlen && ltbnoa >= args->min_agbno)
 				break;
 			error = xfs_btree_decrement(acur.bnolt, 0, &i);
@@ -1388,8 +1390,8 @@ restart:
 			if (error)
 				goto out;
 			XFS_WANT_CORRUPTED_GOTO(args->mp, i == 1, out);
-			busy |= xfs_alloc_compute_aligned(args, gtbno, gtlen,
-					&gtbnoa, &gtlena, &busy_gen);
+			acur.busy |= xfs_alloc_compute_aligned(args, gtbno,
+					gtlen, &gtbnoa, &gtlena, &acur.busy_gen);
 			if (gtlena >= args->minlen && gtbnoa <= args->max_agbno)
 				break;
 			error = xfs_btree_increment(acur.bnogt, 0, &i);
@@ -1449,9 +1451,10 @@ restart:
 	 */
 	if (!xfs_alloc_cur_active(acur.bnolt) &&
 	    !xfs_alloc_cur_active(acur.bnogt)) {
-		if (busy) {
+		if (acur.busy) {
 			trace_xfs_alloc_near_busy(args);
-			xfs_extent_busy_flush(args->mp, args->pag, busy_gen);
+			xfs_extent_busy_flush(args->mp, args->pag,
+					      acur.busy_gen);
 			goto restart;
 		}
 		trace_xfs_alloc_size_neither(args);
