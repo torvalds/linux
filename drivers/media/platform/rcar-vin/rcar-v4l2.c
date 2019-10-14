@@ -296,12 +296,22 @@ static int rvin_g_fmt_vid_cap(struct file *file, void *priv,
 static int rvin_enum_fmt_vid_cap(struct file *file, void *priv,
 				 struct v4l2_fmtdesc *f)
 {
-	if (f->index >= ARRAY_SIZE(rvin_formats))
-		return -EINVAL;
+	struct rvin_dev *vin = video_drvdata(file);
+	unsigned int i;
+	int matched;
 
-	f->pixelformat = rvin_formats[f->index].fourcc;
+	matched = -1;
+	for (i = 0; i < ARRAY_SIZE(rvin_formats); i++) {
+		if (rvin_format_from_pixel(vin, rvin_formats[i].fourcc))
+			matched++;
 
-	return 0;
+		if (matched == f->index) {
+			f->pixelformat = rvin_formats[i].fourcc;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
 }
 
 static int rvin_g_selection(struct file *file, void *fh,
