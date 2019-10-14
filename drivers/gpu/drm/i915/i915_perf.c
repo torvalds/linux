@@ -344,6 +344,8 @@ static const struct i915_oa_format gen8_plus_oa_formats[I915_OA_FORMAT_MAX] = {
  * struct perf_open_properties - for validated properties given to open a stream
  * @sample_flags: `DRM_I915_PERF_PROP_SAMPLE_*` properties are tracked as flags
  * @single_context: Whether a single or all gpu contexts should be monitored
+ * @hold_preemption: Whether the preemption is disabled for the filtered
+ *                   context
  * @ctx_handle: A gem ctx handle for use with @single_context
  * @metrics_set: An ID for an OA unit metric set advertised via sysfs
  * @oa_format: An OA unit HW report format
@@ -359,6 +361,7 @@ struct perf_open_properties {
 	u32 sample_flags;
 
 	u64 single_context:1;
+	u64 hold_preemption:1;
 	u64 ctx_handle;
 
 	/* OA sampling state */
@@ -2514,6 +2517,8 @@ static int i915_oa_stream_init(struct i915_perf_stream *stream,
 	if (WARN_ON(stream->oa_buffer.format_size == 0))
 		return -EINVAL;
 
+	stream->hold_preemption = props->hold_preemption;
+
 	stream->oa_buffer.format =
 		perf->oa_formats[props->oa_format].format;
 
@@ -2834,6 +2839,9 @@ static void i915_perf_enable_locked(struct i915_perf_stream *stream)
 
 	if (stream->ops->enable)
 		stream->ops->enable(stream);
+
+	if (stream->hold_preemption)
+		i915_gem_context_set_nopreempt(stream->ctx);
 }
 
 /**
@@ -2857,6 +2865,9 @@ static void i915_perf_disable_locked(struct i915_perf_stream *stream)
 
 	/* Allow stream->ops->disable() to refer to this */
 	stream->enabled = false;
+
+	if (stream->hold_preemption)
+		i915_gem_context_clear_nopreempt(stream->ctx);
 
 	if (stream->ops->disable)
 		stream->ops->disable(stream);
@@ -3067,6 +3078,15 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 		}
 	}
 
+	if (props->hold_preemption) {
+		if (!props->single_context) {
+			DRM_DEBUG("preemption disable with no context\n");
+			ret = -EINVAL;
+			goto err;
+		}
+		privileged_op = true;
+	}
+
 	/*
 	 * On Haswell the OA unit supports clock gating off for a specific
 	 * context and in this mode there's no visibility of metrics for the
@@ -3081,7 +3101,7 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	 * MI_REPORT_PERF_COUNT commands and so consider it a privileged op to
 	 * enable the OA unit by default.
 	 */
-	if (IS_HASWELL(perf->i915) && specific_ctx)
+	if (IS_HASWELL(perf->i915) && specific_ctx && !props->hold_preemption)
 		privileged_op = false;
 
 	/* Similar to perf's kernel.perf_paranoid_cpu sysctl option
@@ -3091,7 +3111,7 @@ i915_perf_open_ioctl_locked(struct i915_perf *perf,
 	 */
 	if (privileged_op &&
 	    i915_perf_stream_paranoid && !capable(CAP_SYS_ADMIN)) {
-		DRM_DEBUG("Insufficient privileges to open system-wide i915 perf stream\n");
+		DRM_DEBUG("Insufficient privileges to open i915 perf stream\n");
 		ret = -EACCES;
 		goto err_ctx;
 	}
@@ -3292,6 +3312,9 @@ static int read_properties_unlocked(struct i915_perf *perf,
 
 			props->oa_periodic = true;
 			props->oa_period_exponent = value;
+			break;
+		case DRM_I915_PERF_PROP_HOLD_PREEMPTION:
+			props->hold_preemption = !!value;
 			break;
 		case DRM_I915_PERF_PROP_MAX:
 			MISSING_CASE(id);
@@ -4066,8 +4089,13 @@ int i915_perf_ioctl_version(void)
 	 *
 	 * 2: Added runtime modification of OA config.
 	 *   I915_PERF_IOCTL_CONFIG
+	 *
+	 * 3: Add DRM_I915_PERF_PROP_HOLD_PREEMPTION parameter to hold
+	 *    preemption on a particular context so that performance data is
+	 *    accessible from a delta of MI_RPC reports without looking at the
+	 *    OA buffer.
 	 */
-	return 2;
+	return 3;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

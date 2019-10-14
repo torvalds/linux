@@ -146,6 +146,7 @@ struct i915_gem_context {
 #define CONTEXT_CLOSED			1
 #define CONTEXT_FORCE_SINGLE_SUBMISSION	2
 #define CONTEXT_USER_ENGINES		3
+#define CONTEXT_NOPREEMPT		4
 
 	struct mutex mutex;
 

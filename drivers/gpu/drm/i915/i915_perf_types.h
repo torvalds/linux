@@ -171,6 +171,14 @@ struct i915_perf_stream {
 	bool enabled;
 
 	/**
+	 * @hold_preemption: Whether preemption is put on hold for command
+	 * submissions done on the @ctx. This is useful for some drivers that
+	 * cannot easily post process the OA buffer context to subtract delta
+	 * of performance counters not associated with @ctx.
+	 */
+	bool hold_preemption;
+
+	/**
 	 * @ops: The callbacks providing the implementation of this specific
 	 * type of configured stream.
 	 */
