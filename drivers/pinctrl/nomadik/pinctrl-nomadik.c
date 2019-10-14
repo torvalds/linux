@@ -249,8 +249,6 @@ struct nmk_gpio_chip {
 	struct clk *clk;
 	unsigned int bank;
 	unsigned int parent_irq;
-	int latent_parent_irq;
-	u32 (*get_latent_status)(unsigned int bank);
 	void (*set_ioforce)(bool enable);
 	spinlock_t lock;
 	bool sleepmode;
@@ -832,15 +830,6 @@ static void nmk_gpio_irq_handler(struct irq_desc *desc)
 	__nmk_gpio_irq_handler(desc, status);
 }
 
-static void nmk_gpio_latent_irq_handler(struct irq_desc *desc)
-{
-	struct gpio_chip *chip = irq_desc_get_handler_data(desc);
-	struct nmk_gpio_chip *nmk_chip = gpiochip_get_data(chip);
-	u32 status = nmk_chip->get_latent_status(nmk_chip->bank);
-
-	__nmk_gpio_irq_handler(desc, status);
-}
-
 /* I/O Functions */
 
 static int nmk_gpio_get_dir(struct gpio_chip *chip, unsigned offset)
@@ -1104,7 +1093,6 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
 	struct irq_chip *irqchip;
-	int latent_irq;
 	bool supports_sleepmode;
 	int irq;
 	int ret;
@@ -1125,15 +1113,11 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	if (irq < 0)
 		return irq;
 
-	/* It's OK for this IRQ not to be present */
-	latent_irq = platform_get_irq(dev, 1);
-
 	/*
 	 * The virt address in nmk_chip->addr is in the nomadik register space,
 	 * so we can simply convert the resource address, without remapping
 	 */
 	nmk_chip->parent_irq = irq;
-	nmk_chip->latent_parent_irq = latent_irq;
 	nmk_chip->sleepmode = supports_sleepmode;
 	spin_lock_init(&nmk_chip->lock);
 
@@ -1194,11 +1178,6 @@ static int nmk_gpio_probe(struct platform_device *dev)
 				     irqchip,
 				     nmk_chip->parent_irq,
 				     nmk_gpio_irq_handler);
-	if (nmk_chip->latent_parent_irq > 0)
-		gpiochip_set_chained_irqchip(chip,
-					     irqchip,
-					     nmk_chip->latent_parent_irq,
-					     nmk_gpio_latent_irq_handler);
 
 	dev_info(&dev->dev, "at address %p\n", nmk_chip->addr);
 
