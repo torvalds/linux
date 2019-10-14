@@ -616,7 +616,7 @@ static void huawei_wmi_debugfs_call_dump(struct seq_file *m, void *data,
 		seq_printf(m, "0x%llx", obj->integer.value);
 		break;
 	case ACPI_TYPE_STRING:
-		seq_printf(m, "\"%*s\"", obj->string.length, obj->string.pointer);
+		seq_printf(m, "\"%.*s\"", obj->string.length, obj->string.pointer);
 		break;
 	case ACPI_TYPE_BUFFER:
 		seq_puts(m, "{");
