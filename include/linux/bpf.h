@@ -363,7 +363,7 @@ struct bpf_prog_stats {
 	u64 cnt;
 	u64 nsecs;
 	struct u64_stats_sync syncp;
-};
+} __aligned(2 * sizeof(u64));
 
 struct bpf_prog_aux {
 	atomic_t refcnt;

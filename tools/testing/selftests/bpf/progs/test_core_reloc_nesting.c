@@ -4,6 +4,7 @@
 #include <linux/bpf.h>
 #include <stdint.h>
 #include "bpf_helpers.h"
+#include "bpf_core_read.h"
 
 char _license[] SEC("license") = "GPL";
 
@@ -30,15 +31,17 @@ struct core_reloc_nesting {
 	} b;
 };
 
+#define CORE_READ(dst, src) bpf_core_read(dst, sizeof(*(dst)), src)
+
 SEC("raw_tracepoint/sys_enter")
 int test_core_nesting(void *ctx)
 {
 	struct core_reloc_nesting *in = (void *)&data.in;
 	struct core_reloc_nesting *out = (void *)&data.out;
 
-	if (BPF_CORE_READ(&out->a.a.a, &in->a.a.a))
+	if (CORE_READ(&out->a.a.a, &in->a.a.a))
 		return 1;
-	if (BPF_CORE_READ(&out->b.b.b, &in->b.b.b))
+	if (CORE_READ(&out->b.b.b, &in->b.b.b))
 		return 1;
 
 	return 0;

@@ -14,13 +14,12 @@ struct sockopt_sk {
 	__u8 val;
 };
 
-struct bpf_map_def SEC("maps") socket_storage_map = {
-	.type = BPF_MAP_TYPE_SK_STORAGE,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct sockopt_sk),
-	.map_flags = BPF_F_NO_PREALLOC,
-};
-BPF_ANNOTATE_KV_PAIR(socket_storage_map, int, struct sockopt_sk);
+struct {
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC);
+	__type(key, int);
+	__type(value, struct sockopt_sk);
+} socket_storage_map SEC(".maps");
 
 SEC("cgroup/getsockopt")
 int _getsockopt(struct bpf_sockopt *ctx)

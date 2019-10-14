@@ -23,6 +23,7 @@
 #include "libbpf.h"
 
 #define STATS_INTERVAL_S 2U
+#define MAX_PCKT_SIZE 600
 
 static int ifindex = -1;
 static __u32 xdp_flags = XDP_FLAGS_UPDATE_IF_NOEXIST;
@@ -72,6 +73,7 @@ static void usage(const char *cmd)
 	printf("Usage: %s [...]\n", cmd);
 	printf("    -i <ifname|ifindex> Interface\n");
 	printf("    -T <stop-after-X-seconds> Default: 0 (forever)\n");
+	printf("    -P <MAX_PCKT_SIZE> Default: %u\n", MAX_PCKT_SIZE);
 	printf("    -S use skb-mode\n");
 	printf("    -N enforce native mode\n");
 	printf("    -F force loading prog\n");
@@ -85,13 +87,14 @@ int main(int argc, char **argv)
 		.prog_type	= BPF_PROG_TYPE_XDP,
 	};
 	unsigned char opt_flags[256] = {};
-	const char *optstr = "i:T:SNFh";
+	const char *optstr = "i:T:P:SNFh";
 	struct bpf_prog_info info = {};
 	__u32 info_len = sizeof(info);
 	unsigned int kill_after_s = 0;
 	int i, prog_fd, map_fd, opt;
 	struct bpf_object *obj;
-	struct bpf_map *map;
+	__u32 max_pckt_size = 0;
+	__u32 key = 0;
 	char filename[256];
 	int err;
 
@@ -109,6 +112,9 @@ int main(int argc, char **argv)
 			break;
 		case 'T':
 			kill_after_s = atoi(optarg);
+			break;
+		case 'P':
+			max_pckt_size = atoi(optarg);
 			break;
 		case 'S':
 			xdp_flags |= XDP_FLAGS_SKB_MODE;
@@ -150,15 +156,20 @@ int main(int argc, char **argv)
 	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
 		return 1;
 
-	map = bpf_map__next(NULL, obj);
-	if (!map) {
-		printf("finding a map in obj file failed\n");
-		return 1;
+	/* static global var 'max_pcktsz' is accessible from .data section */
+	if (max_pckt_size) {
+		map_fd = bpf_object__find_map_fd_by_name(obj, "xdp_adju.data");
+		if (map_fd < 0) {
+			printf("finding a max_pcktsz map in obj file failed\n");
+			return 1;
+		}
+		bpf_map_update_elem(map_fd, &key, &max_pckt_size, BPF_ANY);
 	}
-	map_fd = bpf_map__fd(map);
 
-	if (!prog_fd) {
-		printf("load_bpf_file: %s\n", strerror(errno));
+	/* fetch icmpcnt map */
+	map_fd = bpf_object__find_map_fd_by_name(obj, "icmpcnt");
+	if (map_fd < 0) {
+		printf("finding a icmpcnt map in obj file failed\n");
 		return 1;
 	}
 
