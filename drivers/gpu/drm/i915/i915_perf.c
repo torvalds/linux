@@ -4017,6 +4017,16 @@ void i915_perf_fini(struct drm_i915_private *i915)
 	perf->i915 = NULL;
 }
 
+/**
+ * i915_perf_ioctl_version - Version of the i915-perf subsystem
+ *
+ * This version number is used by userspace to detect available features.
+ */
+int i915_perf_ioctl_version(void)
+{
+	return 1;
+}
+
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
 #include "selftests/i915_perf.c"
 #endif
