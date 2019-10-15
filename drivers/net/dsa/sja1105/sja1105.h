@@ -121,7 +121,7 @@ int sja1105_static_config_reload(struct sja1105_private *priv);
 /* From sja1105_spi.c */
 int sja1105_xfer_buf(const struct sja1105_private *priv,
 		     sja1105_spi_rw_mode_t rw, u64 reg_addr,
-		     void *packed_buf, size_t size_bytes);
+		     u8 *buf, size_t len);
 int sja1105_xfer_u32(const struct sja1105_private *priv,
 		     sja1105_spi_rw_mode_t rw, u64 reg_addr, u32 *value);
 int sja1105_xfer_u64(const struct sja1105_private *priv,
