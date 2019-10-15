@@ -342,6 +342,16 @@ config MCF_EDMA
 	  minimal intervention from a host processor.
 	  This module can be found on Freescale ColdFire mcf5441x SoCs.
 
+config MILBEAUT_HDMAC
+	tristate "Milbeaut AHB DMA support"
+	depends on ARCH_MILBEAUT || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Say yes here to support the Socionext Milbeaut
+	  HDMAC device.
+
 config MMP_PDMA
 	bool "MMP PDMA support"
 	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
