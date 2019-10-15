@@ -2917,7 +2917,7 @@ static int nested_vmx_check_vmentry_hw(struct kvm_vcpu *vcpu)
 static inline bool nested_vmx_prepare_msr_bitmap(struct kvm_vcpu *vcpu,
 						 struct vmcs12 *vmcs12);
 
-static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
+static bool nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 {
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
@@ -2937,19 +2937,18 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 			vmx->nested.apic_access_page = NULL;
 		}
 		page = kvm_vcpu_gpa_to_page(vcpu, vmcs12->apic_access_addr);
-		/*
-		 * If translation failed, no matter: This feature asks
-		 * to exit when accessing the given address, and if it
-		 * can never be accessed, this feature won't do
-		 * anything anyway.
-		 */
 		if (!is_error_page(page)) {
 			vmx->nested.apic_access_page = page;
 			hpa = page_to_phys(vmx->nested.apic_access_page);
 			vmcs_write64(APIC_ACCESS_ADDR, hpa);
 		} else {
-			secondary_exec_controls_clearbit(vmx,
-				SECONDARY_EXEC_VIRTUALIZE_APIC_ACCESSES);
+			pr_debug_ratelimited("%s: no backing 'struct page' for APIC-access address in vmcs12\n",
+					     __func__);
+			vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
+			vcpu->run->internal.suberror =
+				KVM_INTERNAL_ERROR_EMULATION;
+			vcpu->run->internal.ndata = 0;
+			return false;
 		}
 	}
 
@@ -2994,6 +2993,7 @@ static void nested_get_vmcs12_pages(struct kvm_vcpu *vcpu)
 		exec_controls_setbit(vmx, CPU_BASED_USE_MSR_BITMAPS);
 	else
 		exec_controls_clearbit(vmx, CPU_BASED_USE_MSR_BITMAPS);
+	return true;
 }
 
 /*
@@ -3032,13 +3032,15 @@ static void load_vmcs12_host_state(struct kvm_vcpu *vcpu,
 /*
  * If from_vmentry is false, this is being called from state restore (either RSM
  * or KVM_SET_NESTED_STATE).  Otherwise it's called from vmlaunch/vmresume.
-+ *
-+ * Returns:
-+ *   0 - success, i.e. proceed with actual VMEnter
-+ *   1 - consistency check VMExit
-+ *  -1 - consistency check VMFail
+ *
+ * Returns:
+ *	NVMX_ENTRY_SUCCESS: Entered VMX non-root mode
+ *	NVMX_ENTRY_VMFAIL:  Consistency check VMFail
+ *	NVMX_ENTRY_VMEXIT:  Consistency check VMExit
+ *	NVMX_ENTRY_KVM_INTERNAL_ERROR: KVM internal error
  */
-int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
+enum nvmx_vmentry_status nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu,
+							bool from_vmentry)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	struct vmcs12 *vmcs12 = get_vmcs12(vcpu);
@@ -3081,11 +3083,12 @@ int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	prepare_vmcs02_early(vmx, vmcs12);
 
 	if (from_vmentry) {
-		nested_get_vmcs12_pages(vcpu);
+		if (unlikely(!nested_get_vmcs12_pages(vcpu)))
+			return NVMX_VMENTRY_KVM_INTERNAL_ERROR;
 
 		if (nested_vmx_check_vmentry_hw(vcpu)) {
 			vmx_switch_vmcs(vcpu, &vmx->vmcs01);
-			return -1;
+			return NVMX_VMENTRY_VMFAIL;
 		}
 
 		if (nested_vmx_check_guest_state(vcpu, vmcs12, &exit_qual))
@@ -3149,7 +3152,7 @@ int nested_vmx_enter_non_root_mode(struct kvm_vcpu *vcpu, bool from_vmentry)
 	 * returned as far as L1 is concerned. It will only return (and set
 	 * the success flag) when L2 exits (see nested_vmx_vmexit()).
 	 */
-	return 0;
+	return NVMX_VMENTRY_SUCCESS;
 
 	/*
 	 * A failed consistency check that leads to a VMExit during L1's
@@ -3165,14 +3168,14 @@ vmentry_fail_vmexit:
 	vmx_switch_vmcs(vcpu, &vmx->vmcs01);
 
 	if (!from_vmentry)
-		return 1;
+		return NVMX_VMENTRY_VMEXIT;
 
 	load_vmcs12_host_state(vcpu, vmcs12);
 	vmcs12->vm_exit_reason = exit_reason | VMX_EXIT_REASONS_FAILED_VMENTRY;
 	vmcs12->exit_qualification = exit_qual;
 	if (enable_shadow_vmcs || vmx->nested.hv_evmcs)
 		vmx->nested.need_vmcs12_to_shadow_sync = true;
-	return 1;
+	return NVMX_VMENTRY_VMEXIT;
 }
 
 /*
@@ -3182,9 +3185,9 @@ vmentry_fail_vmexit:
 static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 {
 	struct vmcs12 *vmcs12;
+	enum nvmx_vmentry_status status;
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 interrupt_shadow = vmx_get_interrupt_shadow(vcpu);
-	int ret;
 
 	if (!nested_vmx_check_permission(vcpu))
 		return 1;
@@ -3244,13 +3247,9 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 	 * the nested entry.
 	 */
 	vmx->nested.nested_run_pending = 1;
-	ret = nested_vmx_enter_non_root_mode(vcpu, true);
-	vmx->nested.nested_run_pending = !ret;
-	if (ret > 0)
-		return 1;
-	else if (ret)
-		return nested_vmx_failValid(vcpu,
-			VMXERR_ENTRY_INVALID_CONTROL_FIELD);
+	status = nested_vmx_enter_non_root_mode(vcpu, true);
+	if (unlikely(status != NVMX_VMENTRY_SUCCESS))
+		goto vmentry_failed;
 
 	/* Hide L1D cache contents from the nested guest.  */
 	vmx->vcpu.arch.l1tf_flush_l1d = true;
@@ -3281,6 +3280,15 @@ static int nested_vmx_run(struct kvm_vcpu *vcpu, bool launch)
 		return kvm_vcpu_halt(vcpu);
 	}
 	return 1;
+
+vmentry_failed:
+	vmx->nested.nested_run_pending = 0;
+	if (status == NVMX_VMENTRY_KVM_INTERNAL_ERROR)
+		return 0;
+	if (status == NVMX_VMENTRY_VMEXIT)
+		return 1;
+	WARN_ON_ONCE(status != NVMX_VMENTRY_VMFAIL);
+	return nested_vmx_failValid(vcpu, VMXERR_ENTRY_INVALID_CONTROL_FIELD);
 }
 
 /*
