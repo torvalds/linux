@@ -2248,12 +2248,19 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_TGP;
 		tc_port_hotplug_long_detect = tgp_tc_port_hotplug_long_detect;
 		pins = hpd_tgp;
+	} else if (HAS_PCH_JSP(dev_priv)) {
+		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
+		tc_hotplug_trigger = 0;
+		pins = hpd_tgp;
 	} else if (HAS_PCH_MCC(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
 		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(PORT_TC1);
 		tc_port_hotplug_long_detect = icp_tc_port_hotplug_long_detect;
 		pins = hpd_icp;
 	} else {
+		WARN(!HAS_PCH_ICP(dev_priv),
+		     "Unrecognized PCH type 0x%x\n", INTEL_PCH_TYPE(dev_priv));
+
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
 		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
 		tc_port_hotplug_long_detect = icp_tc_port_hotplug_long_detect;
@@ -3383,6 +3390,19 @@ static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
 			  hpd_icp);
 }
 
+/*
+ * JSP behaves exactly the same as MCC above except that port C is mapped to
+ * the DDI-C pins instead of the TC1 pins.  This means we should follow TGP's
+ * masks & tables rather than ICP's masks & tables.
+ */
+static void jsp_hpd_irq_setup(struct drm_i915_private *dev_priv)
+{
+	icp_hpd_irq_setup(dev_priv,
+			  SDE_DDI_MASK_TGP, 0,
+			  TGP_DDI_HPD_ENABLE_MASK, 0,
+			  hpd_tgp);
+}
+
 static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
 {
 	u32 hotplug;
@@ -4314,7 +4334,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else {
-		if (HAS_PCH_MCC(dev_priv))
+		if (HAS_PCH_JSP(dev_priv))
+			dev_priv->display.hpd_irq_setup = jsp_hpd_irq_setup;
+		else if (HAS_PCH_MCC(dev_priv))
 			dev_priv->display.hpd_irq_setup = mcc_hpd_irq_setup;
 		else if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
