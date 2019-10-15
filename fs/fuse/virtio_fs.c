@@ -960,13 +960,6 @@ __releases(fiq->lock)
 
 	fpq = &fs->vqs[queue_id].fud->pq;
 	spin_lock(&fpq->lock);
-	if (!fpq->connected) {
-		spin_unlock(&fpq->lock);
-		req->out.h.error = -ENODEV;
-		pr_err("virtio-fs: %s disconnected\n", __func__);
-		fuse_request_end(fc, req);
-		return;
-	}
 	list_add_tail(&req->list, fpq->processing);
 	spin_unlock(&fpq->lock);
 	set_bit(FR_SENT, &req->flags);
