@@ -1079,7 +1079,9 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 	if (o == dev->output)
 		return 0;
 
-	if (vb2_is_busy(&dev->vb_vid_out_q) || vb2_is_busy(&dev->vb_vbi_out_q))
+	if (vb2_is_busy(&dev->vb_vid_out_q) ||
+	    vb2_is_busy(&dev->vb_vbi_out_q) ||
+	    vb2_is_busy(&dev->vb_meta_out_q))
 		return -EBUSY;
 
 	dev->output = o;
@@ -1090,6 +1092,7 @@ int vidioc_s_output(struct file *file, void *priv, unsigned o)
 		dev->vid_out_dev.tvnorms = 0;
 
 	dev->vbi_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
+	dev->meta_out_dev.tvnorms = dev->vid_out_dev.tvnorms;
 	vivid_update_format_out(dev);
 
 	v4l2_ctrl_activate(dev->ctrl_display_present, vivid_is_hdmi_out(dev));

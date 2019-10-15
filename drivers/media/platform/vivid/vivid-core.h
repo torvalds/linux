@@ -132,6 +132,7 @@ struct vivid_dev {
 	struct media_pad		vbi_out_pad;
 	struct media_pad		sdr_cap_pad;
 	struct media_pad		meta_cap_pad;
+	struct media_pad		meta_out_pad;
 #endif
 	struct v4l2_ctrl_handler	ctrl_hdl_user_gen;
 	struct v4l2_ctrl_handler	ctrl_hdl_user_vid;
@@ -156,6 +157,8 @@ struct vivid_dev {
 	struct v4l2_ctrl_handler	ctrl_hdl_sdr_cap;
 	struct video_device		meta_cap_dev;
 	struct v4l2_ctrl_handler	ctrl_hdl_meta_cap;
+	struct video_device		meta_out_dev;
+	struct v4l2_ctrl_handler	ctrl_hdl_meta_out;
 
 	spinlock_t			slock;
 	struct mutex			mutex;
@@ -169,6 +172,7 @@ struct vivid_dev {
 	u32				radio_rx_caps;
 	u32				radio_tx_caps;
 	u32				meta_cap_caps;
+	u32				meta_out_caps;
 
 	/* supported features */
 	bool				multiplanar;
@@ -195,6 +199,7 @@ struct vivid_dev {
 	bool				has_sdr_cap;
 	bool				has_fb;
 	bool				has_meta_cap;
+	bool				has_meta_out;
 
 	bool				can_loop_video;
 
@@ -432,6 +437,8 @@ struct vivid_dev {
 	struct list_head		vid_out_active;
 	struct vb2_queue		vb_vbi_out_q;
 	struct list_head		vbi_out_active;
+	struct vb2_queue		vb_meta_out_q;
+	struct list_head		meta_out_active;
 
 	/* video loop precalculated rectangles */
 
@@ -472,6 +479,9 @@ struct vivid_dev {
 	u32				vbi_out_seq_count;
 	bool				vbi_out_streaming;
 	bool				stream_sliced_vbi_out;
+	u32				meta_out_seq_start;
+	u32				meta_out_seq_count;
+	bool				meta_out_streaming;
 
 	/* SDR capture */
 	struct vb2_queue		vb_sdr_cap_q;

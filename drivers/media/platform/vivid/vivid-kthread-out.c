@@ -38,11 +38,13 @@
 #include "vivid-osd.h"
 #include "vivid-ctrls.h"
 #include "vivid-kthread-out.h"
+#include "vivid-meta-out.h"
 
 static void vivid_thread_vid_out_tick(struct vivid_dev *dev)
 {
 	struct vivid_buffer *vid_out_buf = NULL;
 	struct vivid_buffer *vbi_out_buf = NULL;
+	struct vivid_buffer *meta_out_buf = NULL;
 
 	dprintk(dev, 1, "Video Output Thread Tick\n");
 
@@ -69,9 +71,14 @@ static void vivid_thread_vid_out_tick(struct vivid_dev *dev)
 					 struct vivid_buffer, list);
 		list_del(&vbi_out_buf->list);
 	}
+	if (!list_empty(&dev->meta_out_active)) {
+		meta_out_buf = list_entry(dev->meta_out_active.next,
+					  struct vivid_buffer, list);
+		list_del(&meta_out_buf->list);
+	}
 	spin_unlock(&dev->slock);
 
-	if (!vid_out_buf && !vbi_out_buf)
+	if (!vid_out_buf && !vbi_out_buf && !meta_out_buf)
 		return;
 
 	if (vid_out_buf) {
@@ -111,6 +118,21 @@ static void vivid_thread_vid_out_tick(struct vivid_dev *dev)
 		dprintk(dev, 2, "vbi_out buffer %d done\n",
 			vbi_out_buf->vb.vb2_buf.index);
 	}
+	if (meta_out_buf) {
+		v4l2_ctrl_request_setup(meta_out_buf->vb.vb2_buf.req_obj.req,
+					&dev->ctrl_hdl_meta_out);
+		v4l2_ctrl_request_complete(meta_out_buf->vb.vb2_buf.req_obj.req,
+					   &dev->ctrl_hdl_meta_out);
+		vivid_meta_out_process(dev, meta_out_buf);
+		meta_out_buf->vb.sequence = dev->meta_out_seq_count;
+		meta_out_buf->vb.vb2_buf.timestamp =
+			ktime_get_ns() + dev->time_wrap_offset;
+		vb2_buffer_done(&meta_out_buf->vb.vb2_buf, dev->dqbuf_error ?
+				VB2_BUF_STATE_ERROR : VB2_BUF_STATE_DONE);
+		dprintk(dev, 2, "meta_out buffer %d done\n",
+			meta_out_buf->vb.vb2_buf.index);
+	}
+
 	dev->dqbuf_error = false;
 }
 
@@ -136,6 +158,7 @@ static int vivid_thread_vid_out(void *data)
 		dev->out_seq_count = 0xffffff80U;
 	dev->jiffies_vid_out = jiffies;
 	dev->vid_out_seq_start = dev->vbi_out_seq_start = 0;
+	dev->meta_out_seq_start = 0;
 	dev->out_seq_resync = false;
 
 	for (;;) {
@@ -178,6 +201,7 @@ static int vivid_thread_vid_out(void *data)
 		dev->out_seq_count = buffers_since_start + dev->out_seq_offset;
 		dev->vid_out_seq_count = dev->out_seq_count - dev->vid_out_seq_start;
 		dev->vbi_out_seq_count = dev->out_seq_count - dev->vbi_out_seq_start;
+		dev->meta_out_seq_count = dev->out_seq_count - dev->meta_out_seq_start;
 
 		vivid_thread_vid_out_tick(dev);
 		mutex_unlock(&dev->mutex);
@@ -229,8 +253,10 @@ int vivid_start_generating_vid_out(struct vivid_dev *dev, bool *pstreaming)
 
 		if (pstreaming == &dev->vid_out_streaming)
 			dev->vid_out_seq_start = seq_count;
-		else
+		else if (pstreaming == &dev->vbi_out_streaming)
 			dev->vbi_out_seq_start = seq_count;
+		else
+			dev->meta_out_seq_start = seq_count;
 		*pstreaming = true;
 		return 0;
 	}
@@ -239,6 +265,7 @@ int vivid_start_generating_vid_out(struct vivid_dev *dev, bool *pstreaming)
 	dev->jiffies_vid_out = jiffies;
 	dev->vid_out_seq_start = dev->seq_wrap * 128;
 	dev->vbi_out_seq_start = dev->seq_wrap * 128;
+	dev->meta_out_seq_start = dev->seq_wrap * 128;
 
 	dev->kthread_vid_out = kthread_run(vivid_thread_vid_out, dev,
 			"%s-vid-out", dev->v4l2_dev.name);
@@ -296,7 +323,23 @@ void vivid_stop_generating_vid_out(struct vivid_dev *dev, bool *pstreaming)
 		}
 	}
 
-	if (dev->vid_out_streaming || dev->vbi_out_streaming)
+	if (pstreaming == &dev->meta_out_streaming) {
+		while (!list_empty(&dev->meta_out_active)) {
+			struct vivid_buffer *buf;
+
+			buf = list_entry(dev->meta_out_active.next,
+					 struct vivid_buffer, list);
+			list_del(&buf->list);
+			v4l2_ctrl_request_complete(buf->vb.vb2_buf.req_obj.req,
+						   &dev->ctrl_hdl_meta_out);
+			vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+			dprintk(dev, 2, "meta_out buffer %d done\n",
+				buf->vb.vb2_buf.index);
+		}
+	}
+
+	if (dev->vid_out_streaming || dev->vbi_out_streaming ||
+	    dev->meta_out_streaming)
 		return;
 
 	/* shutdown control thread */
