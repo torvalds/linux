@@ -1316,6 +1316,16 @@ static u32 ivb_sprite_ctl_crtc(const struct intel_crtc_state *crtc_state)
 	return sprctl;
 }
 
+static bool ivb_need_sprite_gamma(const struct intel_plane_state *plane_state)
+{
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+
+	return fb->format->cpp[0] == 8 &&
+		(IS_IVYBRIDGE(dev_priv) || IS_HASWELL(dev_priv));
+}
+
 static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 			  const struct intel_plane_state *plane_state)
 {
@@ -1338,6 +1348,12 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_XRGB8888:
 		sprctl |= SPRITE_FORMAT_RGBX888;
 		break;
+	case DRM_FORMAT_XBGR16161616F:
+		sprctl |= SPRITE_FORMAT_RGBX161616 | SPRITE_RGB_ORDER_RGBX;
+		break;
+	case DRM_FORMAT_XRGB16161616F:
+		sprctl |= SPRITE_FORMAT_RGBX161616;
+		break;
 	case DRM_FORMAT_YUYV:
 		sprctl |= SPRITE_FORMAT_YUV422 | SPRITE_YUV_ORDER_YUYV;
 		break;
@@ -1355,7 +1371,8 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 		return 0;
 	}
 
-	sprctl |= SPRITE_INT_GAMMA_DISABLE;
+	if (!ivb_need_sprite_gamma(plane_state))
+		sprctl |= SPRITE_INT_GAMMA_DISABLE;
 
 	if (plane_state->base.color_encoding == DRM_COLOR_YCBCR_BT709)
 		sprctl |= SPRITE_YUV_TO_RGB_CSC_FORMAT_BT709;
@@ -1377,12 +1394,26 @@ static u32 ivb_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	return sprctl;
 }
 
-static void ivb_sprite_linear_gamma(u16 gamma[18])
+static void ivb_sprite_linear_gamma(const struct intel_plane_state *plane_state,
+				    u16 gamma[18])
 {
-	int i;
+	int scale, i;
 
-	for (i = 0; i < 17; i++)
-		gamma[i] = (i << 10) / 16;
+	/*
+	 * WaFP16GammaEnabling:ivb,hsw
+	 * "Workaround : When using the 64-bit format, the sprite output
+	 *  on each color channel has one quarter amplitude. It can be
+	 *  brought up to full amplitude by using sprite internal gamma
+	 *  correction, pipe gamma correction, or pipe color space
+	 *  conversion to multiply the sprite output by four."
+	 */
+	scale = 4;
+
+	for (i = 0; i < 16; i++)
+		gamma[i] = min((scale * i << 10) / 16, (1 << 10) - 1);
+
+	gamma[i] = min((scale * i << 10) / 16, 1 << 10);
+	i++;
 
 	gamma[i] = 3 << 10;
 	i++;
@@ -1396,7 +1427,10 @@ static void ivb_update_gamma(const struct intel_plane_state *plane_state)
 	u16 gamma[18];
 	int i;
 
-	ivb_sprite_linear_gamma(gamma);
+	if (!ivb_need_sprite_gamma(plane_state))
+		return;
+
+	ivb_sprite_linear_gamma(plane_state, gamma);
 
 	/* FIXME these register are single buffered :( */
 	for (i = 0; i < 16; i++)
@@ -2551,6 +2585,8 @@ static bool snb_sprite_format_mod_supported(struct drm_plane *_plane,
 	switch (format) {
 	case DRM_FORMAT_XRGB8888:
 	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_XRGB16161616F:
+	case DRM_FORMAT_XBGR16161616F:
 	case DRM_FORMAT_YUYV:
 	case DRM_FORMAT_YVYU:
 	case DRM_FORMAT_UYVY:
