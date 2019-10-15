@@ -192,10 +192,6 @@ static inline u32 hv_get_avail_to_write_percent(
 #define VERSION_WIN10	((4 << 16) | (0))
 #define VERSION_WIN10_V5 ((5 << 16) | (0))
 
-#define VERSION_INVAL -1
-
-#define VERSION_CURRENT VERSION_WIN10_V5
-
 /* Make maximum size of pipe payload of 16K */
 #define MAX_PIPE_DATA_PAYLOAD		(sizeof(u8) * 16384)
 

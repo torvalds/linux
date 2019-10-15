@@ -2220,8 +2220,7 @@ static int vmbus_bus_resume(struct device *dev)
 	 * We only use the 'vmbus_proto_version', which was in use before
 	 * hibernation, to re-negotiate with the host.
 	 */
-	if (vmbus_proto_version == VERSION_INVAL ||
-	    vmbus_proto_version == 0) {
+	if (!vmbus_proto_version) {
 		pr_err("Invalid proto version = 0x%x\n", vmbus_proto_version);
 		return -EINVAL;
 	}
