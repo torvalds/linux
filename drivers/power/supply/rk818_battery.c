@@ -1567,7 +1567,7 @@ static void rk818_bat_calc_zero_linek(struct rk818_battery *di)
 	int ocv_cap, dead_cap, xsoc;
 	int ocv_soc, dead_soc;
 	int pwroff_vol;
-	int i, cnt, vol_old, vol_now;
+	int i, cnt = 0, vol_old, vol_now;
 	int org_linek = 0, min_gap_xsoc;
 
 	if ((abs(di->current_avg) < 500) && (di->dsoc > 10))
@@ -3462,7 +3462,7 @@ static int rk818_battery_suspend(struct platform_device *dev,
 static int rk818_battery_resume(struct platform_device *dev)
 {
 	struct rk818_battery *di = platform_get_drvdata(dev);
-	int interval_sec, time_step, pwroff_vol;
+	int interval_sec, time_step = 0, pwroff_vol;
 	u8 val, st;
 
 	di->s2r = true;
