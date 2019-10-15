@@ -62,7 +62,7 @@
 	reg_3p3_main: regulator-3p3-main {
 		compatible = "regulator-fixed";
 		vin-supply = <&reg_12p0_main>;
-		regulator-name = "3V3V_MAIN";
+		regulator-name = "3V3_MAIN";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
