@@ -41,6 +41,7 @@
 void opp2_set_disp_pattern_generator(
 		struct output_pixel_processor *opp,
 		enum controller_dp_test_pattern test_pattern,
+		enum controller_dp_color_space color_space,
 		enum dc_color_depth color_depth,
 		const struct tg_color *solid_color,
 		int width,
@@ -100,9 +101,22 @@ void opp2_set_disp_pattern_generator(
 				TEST_PATTERN_DYN_RANGE_CEA :
 				TEST_PATTERN_DYN_RANGE_VESA);
 
+		switch (color_space) {
+		case CONTROLLER_DP_COLOR_SPACE_YCBCR601:
+			mode = TEST_PATTERN_MODE_COLORSQUARES_YCBCR601;
+		break;
+		case CONTROLLER_DP_COLOR_SPACE_YCBCR709:
+			mode = TEST_PATTERN_MODE_COLORSQUARES_YCBCR709;
+		break;
+		case CONTROLLER_DP_COLOR_SPACE_RGB:
+		default:
+			mode = TEST_PATTERN_MODE_COLORSQUARES_RGB;
+		break;
+		}
+
 		REG_UPDATE_6(DPG_CONTROL,
 			DPG_EN, 1,
-			DPG_MODE, TEST_PATTERN_MODE_COLORSQUARES_RGB,
+			DPG_MODE, mode,
 			DPG_DYNAMIC_RANGE, dyn_range,
 			DPG_BIT_DEPTH, bit_depth,
 			DPG_VRES, 6,

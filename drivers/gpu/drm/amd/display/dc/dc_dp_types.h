@@ -522,14 +522,14 @@ union link_test_pattern {
 
 union test_misc {
 	struct dpcd_test_misc_bits {
-		unsigned char SYNC_CLOCK :1;
+		unsigned char SYNC_CLOCK  :1;
 		/* dpcd_test_color_format */
-		unsigned char CLR_FORMAT :2;
+		unsigned char CLR_FORMAT  :2;
 		/* dpcd_test_dyn_range */
-		unsigned char DYN_RANGE  :1;
-		unsigned char YCBCR      :1;
+		unsigned char DYN_RANGE   :1;
+		unsigned char YCBCR_COEFS :1;
 		/* dpcd_test_bit_depth */
-		unsigned char BPC        :3;
+		unsigned char BPC         :3;
 	} bits;
 	unsigned char raw;
 };

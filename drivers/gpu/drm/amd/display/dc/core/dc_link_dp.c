@@ -2493,6 +2493,7 @@ static void dp_test_send_phy_test_pattern(struct dc_link *link)
 	dc_link_dp_set_test_pattern(
 		link,
 		test_pattern,
+		DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED,
 		&link_training_settings,
 		test_80_bit_pattern,
 		(DP_TEST_80BIT_CUSTOM_PATTERN_79_72 -
@@ -2504,6 +2505,8 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 	union link_test_pattern dpcd_test_pattern;
 	union test_misc dpcd_test_params;
 	enum dp_test_pattern test_pattern;
+	enum dp_test_pattern_color_space test_pattern_color_space =
+			DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED;
 
 	memset(&dpcd_test_pattern, 0, sizeof(dpcd_test_pattern));
 	memset(&dpcd_test_params, 0, sizeof(dpcd_test_params));
@@ -2538,9 +2541,14 @@ static void dp_test_send_link_test_pattern(struct dc_link *link)
 	break;
 	}
 
+	test_pattern_color_space = dpcd_test_params.bits.YCBCR_COEFS ?
+			DP_TEST_PATTERN_COLOR_SPACE_YCBCR709 :
+			DP_TEST_PATTERN_COLOR_SPACE_YCBCR601;
+
 	dc_link_dp_set_test_pattern(
 			link,
 			test_pattern,
+			test_pattern_color_space,
 			NULL,
 			NULL,
 			0);
@@ -3426,7 +3434,8 @@ static bool is_dp_phy_pattern(enum dp_test_pattern test_pattern)
 
 static void set_crtc_test_pattern(struct dc_link *link,
 				struct pipe_ctx *pipe_ctx,
-				enum dp_test_pattern test_pattern)
+				enum dp_test_pattern test_pattern,
+				enum dp_test_pattern_color_space test_pattern_color_space)
 {
 	enum controller_dp_test_pattern controller_test_pattern;
 	enum dc_color_depth color_depth = pipe_ctx->
@@ -3484,7 +3493,26 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				controller_test_pattern, color_depth);
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
 			struct pipe_ctx *odm_pipe;
+			enum controller_dp_color_space controller_color_space;
 			int opp_cnt = 1;
+
+			switch (test_pattern_color_space) {
+			case DP_TEST_PATTERN_COLOR_SPACE_RGB:
+				controller_color_space = CONTROLLER_DP_COLOR_SPACE_RGB;
+				break;
+			case DP_TEST_PATTERN_COLOR_SPACE_YCBCR601:
+				controller_color_space = CONTROLLER_DP_COLOR_SPACE_YCBCR601;
+				break;
+			case DP_TEST_PATTERN_COLOR_SPACE_YCBCR709:
+				controller_color_space = CONTROLLER_DP_COLOR_SPACE_YCBCR709;
+				break;
+			case DP_TEST_PATTERN_COLOR_SPACE_UNDEFINED:
+			default:
+				controller_color_space = CONTROLLER_DP_COLOR_SPACE_UDEFINED;
+				DC_LOG_ERROR("%s: Color space must be defined for test pattern", __func__);
+				ASSERT(0);
+				break;
+			}
 
 			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 				opp_cnt++;
@@ -3497,6 +3525,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					controller_test_pattern,
+					controller_color_space,
 					color_depth,
 					NULL,
 					width,
@@ -3504,6 +3533,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			}
 			opp->funcs->opp_set_disp_pattern_generator(opp,
 				controller_test_pattern,
+				controller_color_space,
 				color_depth,
 				NULL,
 				width,
@@ -3535,6 +3565,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
 				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+					CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 					color_depth,
 					NULL,
 					width,
@@ -3542,6 +3573,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 			}
 			opp->funcs->opp_set_disp_pattern_generator(opp,
 				CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
+				CONTROLLER_DP_COLOR_SPACE_UDEFINED,
 				color_depth,
 				NULL,
 				width,
@@ -3558,6 +3590,7 @@ static void set_crtc_test_pattern(struct dc_link *link,
 bool dc_link_dp_set_test_pattern(
 	struct dc_link *link,
 	enum dp_test_pattern test_pattern,
+	enum dp_test_pattern_color_space test_pattern_color_space,
 	const struct link_training_settings *p_link_settings,
 	const unsigned char *p_custom_pattern,
 	unsigned int cust_pattern_size)
@@ -3586,7 +3619,7 @@ bool dc_link_dp_set_test_pattern(
 	if (link->test_pattern_enabled && test_pattern ==
 			DP_TEST_PATTERN_VIDEO_MODE) {
 		/* Set CRTC Test Pattern */
-		set_crtc_test_pattern(link, pipe_ctx, test_pattern);
+		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
 		dp_set_hw_test_pattern(link, test_pattern,
 				(uint8_t *)p_custom_pattern,
 				(uint32_t)cust_pattern_size);
@@ -3701,7 +3734,7 @@ bool dc_link_dp_set_test_pattern(
 		}
 	} else {
 	/* CRTC Patterns */
-		set_crtc_test_pattern(link, pipe_ctx, test_pattern);
+		set_crtc_test_pattern(link, pipe_ctx, test_pattern, test_pattern_color_space);
 		/* Set Test Pattern state */
 		link->test_pattern_enabled = true;
 	}
