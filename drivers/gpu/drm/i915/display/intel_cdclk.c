@@ -2343,6 +2343,9 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 			return ret;
 
 		state->cdclk.pipe = pipe;
+
+		DRM_DEBUG_KMS("Can change cdclk with pipe %c active\n",
+			      pipe_name(pipe));
 	} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
 					     &state->cdclk.actual)) {
 		ret = intel_modeset_all_pipes(state);
@@ -2350,6 +2353,8 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 			return ret;
 
 		state->cdclk.pipe = INVALID_PIPE;
+
+		DRM_DEBUG_KMS("Modeset required for cdclk change\n");
 	}
 
 	DRM_DEBUG_KMS("New cdclk calculated to be logical %u kHz, actual %u kHz\n",
