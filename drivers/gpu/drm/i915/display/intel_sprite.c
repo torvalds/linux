@@ -2120,6 +2120,22 @@ static int skl_plane_check_nv12_rotation(const struct intel_plane_state *plane_s
 	return 0;
 }
 
+static int skl_plane_max_scale(struct drm_i915_private *dev_priv,
+			       const struct drm_framebuffer *fb)
+{
+	/*
+	 * We don't yet know the final source width nor
+	 * whether we can use the HQ scaler mode. Assume
+	 * the best case.
+	 * FIXME need to properly check this later.
+	 */
+	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
+	    !drm_format_info_is_yuv_semiplanar(fb->format))
+		return 0x30000 - 1;
+	else
+		return 0x20000 - 1;
+}
+
 static int skl_plane_check(struct intel_crtc_state *crtc_state,
 			   struct intel_plane_state *plane_state)
 {
@@ -2137,7 +2153,7 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	/* use scaler when colorkey is not required */
 	if (!plane_state->ckey.flags && intel_fb_scalable(fb)) {
 		min_scale = 1;
-		max_scale = skl_max_scale(crtc_state, fb->format);
+		max_scale = skl_plane_max_scale(dev_priv, fb);
 	}
 
 	ret = drm_atomic_helper_check_plane_state(&plane_state->base,

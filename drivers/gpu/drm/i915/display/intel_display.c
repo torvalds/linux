@@ -15145,44 +15145,6 @@ intel_cleanup_plane_fb(struct drm_plane *plane,
 	intel_plane_unpin_fb(old_plane_state);
 }
 
-int
-skl_max_scale(const struct intel_crtc_state *crtc_state,
-	      const struct drm_format_info *format)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	int max_scale;
-	int crtc_clock, max_dotclk, tmpclk1, tmpclk2;
-
-	if (!crtc_state->base.enable)
-		return DRM_PLANE_HELPER_NO_SCALING;
-
-	crtc_clock = crtc_state->base.adjusted_mode.crtc_clock;
-	max_dotclk = to_intel_atomic_state(crtc_state->base.state)->cdclk.logical.cdclk;
-
-	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 10)
-		max_dotclk *= 2;
-
-	if (WARN_ON_ONCE(!crtc_clock || max_dotclk < crtc_clock))
-		return DRM_PLANE_HELPER_NO_SCALING;
-
-	/*
-	 * skl max scale is lower of:
-	 *    close to 3 but not 3, -1 is for that purpose
-	 *            or
-	 *    cdclk/crtc_clock
-	 */
-	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv) ||
-	    !drm_format_info_is_yuv_semiplanar(format))
-		tmpclk1 = 0x30000 - 1;
-	else
-		tmpclk1 = 0x20000 - 1;
-	tmpclk2 = (1 << 8) * ((max_dotclk << 8) / crtc_clock);
-	max_scale = min(tmpclk1, tmpclk2);
-
-	return max_scale;
-}
-
 /**
  * intel_plane_destroy - destroy a plane
  * @plane: plane to destroy
