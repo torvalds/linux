@@ -1048,6 +1048,10 @@ static u64 execlists_update_context(const struct i915_request *rq)
 	desc = ce->lrc_desc;
 	ce->lrc_desc &= ~CTX_DESC_FORCE_RESTORE;
 
+	/* Wa_1607138340:tgl */
+	if (IS_TGL_REVID(rq->i915, TGL_REVID_A0, TGL_REVID_A0))
+		desc |= CTX_DESC_FORCE_RESTORE;
+
 	return desc;
 }
 
