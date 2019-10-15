@@ -1188,6 +1188,7 @@ static int smu_hw_init(void *handle)
 	if (adev->flags & AMD_IS_APU) {
 		smu_powergate_sdma(&adev->smu, false);
 		smu_powergate_vcn(&adev->smu, false);
+		smu_set_gfx_cgpg(&adev->smu, true);
 	}
 
 	if (!smu->pm_enabled)
@@ -1349,6 +1350,9 @@ static int smu_resume(void *handle)
 	ret = smu_start_thermal_control(smu);
 	if (ret)
 		goto failed;
+
+	if (smu->is_apu)
+		smu_set_gfx_cgpg(&adev->smu, true);
 
 	mutex_unlock(&smu->mutex);
 

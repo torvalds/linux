@@ -4287,9 +4287,6 @@ static void gfx_v9_0_update_gfx_cg_power_gating(struct amdgpu_device *adev,
 {
 	amdgpu_gfx_rlc_enter_safe_mode(adev);
 
-	if (is_support_sw_smu(adev) && !enable)
-		smu_set_gfx_cgpg(&adev->smu, enable);
-
 	if ((adev->pg_flags & AMD_PG_SUPPORT_GFX_PG) && enable) {
 		gfx_v9_0_enable_gfx_cg_power_gating(adev, true);
 		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_PIPELINE)
@@ -4566,8 +4563,6 @@ static int gfx_v9_0_set_powergating_state(void *handle,
 			gfx_v9_0_enable_cp_power_gating(adev, false);
 
 		/* update gfx cgpg state */
-		if (is_support_sw_smu(adev) && enable)
-			smu_set_gfx_cgpg(&adev->smu, enable);
 		gfx_v9_0_update_gfx_cg_power_gating(adev, enable);
 
 		/* update mgcg state */
