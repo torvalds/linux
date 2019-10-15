@@ -127,7 +127,6 @@ enum dpfe_msg_fields {
 	MSG_COMMAND,
 	MSG_ARG_COUNT,
 	MSG_ARG0,
-	MSG_CHKSUM,
 	MSG_FIELD_MAX	= 16 /* Max number of arguments */
 };
 
@@ -243,21 +242,18 @@ static const struct dpfe_api dpfe_api_v2 = {
 			[MSG_COMMAND] = 1,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 1,
-			[MSG_CHKSUM] = 4,
 		},
 		[DPFE_CMD_GET_REFRESH] = {
 			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
 			[MSG_COMMAND] = 2,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 1,
-			[MSG_CHKSUM] = 5,
 		},
 		[DPFE_CMD_GET_VENDOR] = {
 			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
 			[MSG_COMMAND] = 2,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 2,
-			[MSG_CHKSUM] = 6,
 		},
 	}
 };
@@ -273,18 +269,11 @@ static const struct dpfe_api dpfe_api_v3 = {
 			[MSG_COMMAND] = 0x0101,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 1,
-			[MSG_CHKSUM] = 0x104,
 		},
 		[DPFE_CMD_GET_REFRESH] = {
 			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
 			[MSG_COMMAND] = 0x0202,
 			[MSG_ARG_COUNT] = 0,
-			/*
-			 * This is a bit ugly. Without arguments, the checksum
-			 * follows right after the argument count and not at
-			 * offset MSG_CHKSUM.
-			 */
-			[MSG_ARG0] = 0x203,
 		},
 		/* There's no GET_VENDOR command in API v3. */
 	},
@@ -432,9 +421,17 @@ static int __send_command(struct brcmstb_dpfe_priv *priv, unsigned int cmd,
 		return -ETIMEDOUT;
 	}
 
+	/* Compute checksum over the message */
+	chksum_idx = msg[MSG_ARG_COUNT] + MSG_ARG_COUNT + 1;
+	chksum = get_msg_chksum(msg, chksum_idx);
+
 	/* Write command and arguments to message area */
-	for (i = 0; i < MSG_FIELD_MAX; i++)
-		writel_relaxed(msg[i], regs + DCPU_MSG_RAM(i));
+	for (i = 0; i < MSG_FIELD_MAX; i++) {
+		if (i == chksum_idx)
+			writel_relaxed(chksum, regs + DCPU_MSG_RAM(i));
+		else
+			writel_relaxed(msg[i], regs + DCPU_MSG_RAM(i));
+	}
 
 	/* Tell DCPU there is a command waiting */
 	writel_relaxed(1, regs + REG_TO_DCPU_MBOX);
