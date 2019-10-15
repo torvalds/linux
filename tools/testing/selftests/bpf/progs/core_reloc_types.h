@@ -674,3 +674,59 @@ struct core_reloc_misc_extensible {
 	int c;
 	int d;
 };
+
+/*
+ * EXISTENCE
+ */
+struct core_reloc_existence_output {
+	int a_exists;
+	int a_value;
+	int b_exists;
+	int b_value;
+	int c_exists;
+	int c_value;
+	int arr_exists;
+	int arr_value;
+	int s_exists;
+	int s_value;
+};
+
+struct core_reloc_existence {
+	int a;
+	struct {
+		int b;
+	};
+	int c;
+	int arr[1];
+	struct {
+		int x;
+	} s;
+};
+
+struct core_reloc_existence___minimal {
+	int a;
+};
+
+struct core_reloc_existence___err_wrong_int_sz {
+	short a;
+};
+
+struct core_reloc_existence___err_wrong_int_type {
+	int b[1];
+};
+
+struct core_reloc_existence___err_wrong_int_kind {
+	struct{ int x; } c;
+};
+
+struct core_reloc_existence___err_wrong_arr_kind {
+	int arr;
+};
+
+struct core_reloc_existence___err_wrong_arr_value_type {
+	short arr[1];
+};
+
+struct core_reloc_existence___err_wrong_struct_type {
+	int s;
+};
