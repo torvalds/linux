@@ -64,8 +64,6 @@ void skl_write_plane_wm(struct intel_plane *plane,
 void skl_write_cursor_wm(struct intel_plane *plane,
 			 const struct intel_crtc_state *crtc_state);
 bool ilk_disable_lp_wm(struct drm_device *dev);
-int skl_check_pipe_max_pixel_rate(struct intel_crtc *intel_crtc,
-				  struct intel_crtc_state *cstate);
 void intel_init_ipc(struct drm_i915_private *dev_priv);
 void intel_enable_ipc(struct drm_i915_private *dev_priv);
 

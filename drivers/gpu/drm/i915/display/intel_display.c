@@ -12122,8 +12122,6 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 		if (mode_changed || crtc_state->update_pipe)
 			ret = skl_update_scaler_crtc(crtc_state);
 		if (!ret)
-			ret = skl_check_pipe_max_pixel_rate(crtc, crtc_state);
-		if (!ret)
 			ret = intel_atomic_setup_scalers(dev_priv, crtc,
 							 crtc_state);
 	}
