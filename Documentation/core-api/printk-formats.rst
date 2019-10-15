@@ -79,6 +79,18 @@ has the added benefit of providing a unique identifier. On 64-bit machines
 the first 32 bits are zeroed. The kernel will print ``(ptrval)`` until it
 gathers enough entropy. If you *really* want the address see %px below.
 
+Error Pointers
+--------------
+
+::
+
+	%pe	-ENOSPC
+
+For printing error pointers (i.e. a pointer for which IS_ERR() is true)
+as a symbolic error name. Error values for which no symbolic name is
+known are printed in decimal, while a non-ERR_PTR passed as the
+argument to %pe gets treated as ordinary %p.
+
 Symbols/Function Pointers
 -------------------------
 
