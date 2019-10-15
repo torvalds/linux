@@ -185,8 +185,8 @@ static int get_children_props(struct device_node *dn, const int **drc_indexes,
 
 
 /* Verify the existence of 'drc_name' and/or 'drc_type' within the
- * current node.  First obtain it's my-drc-index property.  Next,
- * obtain the DRC info from it's parent.  Use the my-drc-index for
+ * current node.  First obtain its my-drc-index property.  Next,
+ * obtain the DRC info from its parent.  Use the my-drc-index for
  * correlation, and obtain/validate the requested properties.
  */
 
