@@ -1972,56 +1972,6 @@ static int read_backup_root(struct btrfs_fs_info *fs_info, u8 priority)
 	return backup_index;
 }
 
-/*
- * this copies info out of the root backup array and back into
- * the in-memory super block.  It is meant to help iterate through
- * the array, so you send it the number of backups you've already
- * tried and the last backup index you used.
- *
- * this returns -1 when it has tried all the backups
- */
-static noinline int next_root_backup(struct btrfs_fs_info *info,
-				     struct btrfs_super_block *super,
-				     int *num_backups_tried, int *backup_index)
-{
-	struct btrfs_root_backup *root_backup;
-	int newest = *backup_index;
-
-	if (*num_backups_tried == 0) {
-		newest = find_newest_super_backup(info);
-		if (newest == -1)
-			return -1;
-
-		*backup_index = newest;
-		*num_backups_tried = 1;
-	} else if (*num_backups_tried == BTRFS_NUM_BACKUP_ROOTS) {
-		/* we've tried all the backups, all done */
-		return -1;
-	} else {
-		/* jump to the next oldest backup */
-		newest = (*backup_index + BTRFS_NUM_BACKUP_ROOTS - 1) %
-			BTRFS_NUM_BACKUP_ROOTS;
-		*backup_index = newest;
-		*num_backups_tried += 1;
-	}
-	root_backup = super->super_roots + newest;
-
-	btrfs_set_super_generation(super,
-				   btrfs_backup_tree_root_gen(root_backup));
-	btrfs_set_super_root(super, btrfs_backup_tree_root(root_backup));
-	btrfs_set_super_root_level(super,
-				   btrfs_backup_tree_root_level(root_backup));
-	btrfs_set_super_bytes_used(super, btrfs_backup_bytes_used(root_backup));
-
-	/*
-	 * fixme: the total bytes and num_devices need to match or we should
-	 * need a fsck
-	 */
-	btrfs_set_super_total_bytes(super, btrfs_backup_total_bytes(root_backup));
-	btrfs_set_super_num_devices(super, btrfs_backup_num_devices(root_backup));
-	return 0;
-}
-
 /* helper to cleanup workers */
 static void btrfs_stop_all_workers(struct btrfs_fs_info *fs_info)
 {
