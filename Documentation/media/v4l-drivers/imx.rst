@@ -547,8 +547,6 @@ This example configures a pipeline to capture from the ADV7180
 video decoder, assuming PAL 720x576 input signals, with Motion
 Compensated de-interlacing. The adv7180 must output sequential or
 alternating fields (field type 'seq-tb' for PAL, or 'alternate').
-$outputfmt can be any format supported by the ipu1_ic_prpvf entity
-at its output pad:
 
 .. code-block:: none
 
@@ -565,7 +563,7 @@ at its output pad:
    media-ctl -V "'ipu1_csi0':1 [fmt:AYUV32/720x576]"
    media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:none]"
    media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:none]"
-   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:$outputfmt field:none]"
+   media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:none]"
 
 Streaming can then begin on the capture device node at
 "ipu1_ic_prpvf capture". The v4l2-ctl tool can be used to select any
