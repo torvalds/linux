@@ -802,8 +802,11 @@ static int __init audio_init(void)
 	if (ret)
 		pr_err("Failed to register %s\n", comp.name);
 	ret = most_register_configfs_subsys(&comp);
-	if (ret)
+	if (ret) {
 		pr_err("Failed to register %s configfs subsys\n", comp.name);
+		most_deregister_component(&comp);
+	}
+
 	return ret;
 }
 

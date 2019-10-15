@@ -25,18 +25,33 @@ u16 mlx5e_get_linear_rq_headroom(struct mlx5e_params *params,
 	return headroom;
 }
 
-u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params,
-				struct mlx5e_xsk_param *xsk)
+u32 mlx5e_rx_get_min_frag_sz(struct mlx5e_params *params,
+			     struct mlx5e_xsk_param *xsk)
 {
 	u32 hw_mtu = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	u16 linear_rq_headroom = mlx5e_get_linear_rq_headroom(params, xsk);
-	u32 frag_sz = linear_rq_headroom + hw_mtu;
+
+	return linear_rq_headroom + hw_mtu;
+}
+
+u32 mlx5e_rx_get_linear_frag_sz(struct mlx5e_params *params,
+				struct mlx5e_xsk_param *xsk)
+{
+	u32 frag_sz = mlx5e_rx_get_min_frag_sz(params, xsk);
 
 	/* AF_XDP doesn't build SKBs in place. */
 	if (!xsk)
 		frag_sz = MLX5_SKB_FRAG_SZ(frag_sz);
 
-	/* XDP in mlx5e doesn't support multiple packets per page. */
+	/* XDP in mlx5e doesn't support multiple packets per page. AF_XDP is a
+	 * special case. It can run with frames smaller than a page, as it
+	 * doesn't allocate pages dynamically. However, here we pretend that
+	 * fragments are page-sized: it allows to treat XSK frames like pages
+	 * by redirecting alloc and free operations to XSK rings and by using
+	 * the fact there are no multiple packets per "page" (which is a frame).
+	 * The latter is important, because frames may come in a random order,
+	 * and we will have trouble assemblying a real page of multiple frames.
+	 */
 	if (mlx5e_rx_is_xdp(params, xsk))
 		frag_sz = max_t(u32, frag_sz, PAGE_SIZE);
 

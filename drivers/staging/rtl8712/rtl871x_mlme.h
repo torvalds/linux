@@ -173,10 +173,10 @@ void r8712_free_network_queue(struct _adapter *adapter);
 int r8712_init_mlme_priv(struct _adapter *adapter);
 void r8712_free_mlme_priv(struct mlme_priv *pmlmepriv);
 int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv);
-sint r8712_set_key(struct _adapter *adapter,
-		   struct security_priv *psecuritypriv, sint keyid);
-sint r8712_set_auth(struct _adapter *adapter,
-		    struct security_priv *psecuritypriv);
+int r8712_set_key(struct _adapter *adapter,
+		  struct security_priv *psecuritypriv, sint keyid);
+int r8712_set_auth(struct _adapter *adapter,
+		   struct security_priv *psecuritypriv);
 uint r8712_get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss);
 void r8712_generate_random_ibss(u8 *pibss);
 u8 *r8712_get_capability_from_ie(u8 *ie);

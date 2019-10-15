@@ -35,6 +35,7 @@
 
 #include <net/ip_tunnels.h>
 #include <linux/rhashtable.h>
+#include <linux/mutex.h>
 #include "eswitch.h"
 #include "en.h"
 #include "lib/port_tun.h"
@@ -48,7 +49,7 @@ struct mlx5e_neigh_update_table {
 	 */
 	struct list_head	neigh_list;
 	/* protect lookup/remove operations */
-	spinlock_t              encap_lock;
+	struct mutex		encap_lock;
 	struct notifier_block   netevent_nb;
 	struct delayed_work     neigh_stats_work;
 	unsigned long           min_interval; /* jiffies */
@@ -75,6 +76,8 @@ struct mlx5_rep_uplink_priv {
 
 	struct mlx5_tun_entropy tun_entropy;
 
+	/* protects unready_flows */
+	struct mutex                unready_flows_lock;
 	struct list_head            unready_flows;
 	struct work_struct          reoffload_flows_work;
 };
@@ -86,6 +89,7 @@ struct mlx5e_rep_priv {
 	struct mlx5_flow_handle *vport_rx_rule;
 	struct list_head       vport_sqs_list;
 	struct mlx5_rep_uplink_priv uplink_priv; /* valid for uplink rep */
+	struct rtnl_link_stats64 prev_vf_vport_stats;
 	struct devlink_port dl_port;
 };
 
@@ -107,6 +111,7 @@ struct mlx5e_neigh {
 struct mlx5e_neigh_hash_entry {
 	struct rhash_head rhash_node;
 	struct mlx5e_neigh m_neigh;
+	struct mlx5e_priv *priv;
 
 	/* Save the neigh hash entry in a list on the representor in
 	 * addition to the hash table. In order to iterate easily over the
@@ -114,6 +119,8 @@ struct mlx5e_neigh_hash_entry {
 	 */
 	struct list_head neigh_list;
 
+	/* protects encap list */
+	spinlock_t encap_list_lock;
 	/* encap list sharing the same neigh */
 	struct list_head encap_list;
 
@@ -134,6 +141,8 @@ struct mlx5e_neigh_hash_entry {
 	 * 'used' value and avoid neigh deleting by the kernel.
 	 */
 	unsigned long reported_lastuse;
+
+	struct rcu_head rcu;
 };
 
 enum {
@@ -142,6 +151,8 @@ enum {
 };
 
 struct mlx5e_encap_entry {
+	/* attached neigh hash entry */
+	struct mlx5e_neigh_hash_entry *nhe;
 	/* neigh hash entry list of encaps sharing the same neigh */
 	struct list_head encap_list;
 	struct mlx5e_neigh m_neigh;
@@ -150,7 +161,7 @@ struct mlx5e_encap_entry {
 	 */
 	struct hlist_node encap_hlist;
 	struct list_head flows;
-	u32 encap_id;
+	struct mlx5_pkt_reformat *pkt_reformat;
 	const struct ip_tunnel_info *tun_info;
 	unsigned char h_dest[ETH_ALEN];	/* destination eth addr	*/
 
@@ -161,6 +172,10 @@ struct mlx5e_encap_entry {
 	u8 flags;
 	char *encap_header;
 	int encap_size;
+	refcount_t refcnt;
+	struct completion res_ready;
+	int compl_result;
+	struct rcu_head rcu;
 };
 
 struct mlx5e_rep_sq {
@@ -168,7 +183,6 @@ struct mlx5e_rep_sq {
 	struct list_head	 list;
 };
 
-void *mlx5e_alloc_nic_rep_priv(struct mlx5_core_dev *mdev);
 void mlx5e_rep_register_vport_reps(struct mlx5_core_dev *mdev);
 void mlx5e_rep_unregister_vport_reps(struct mlx5_core_dev *mdev);
 bool mlx5e_is_uplink_rep(struct mlx5e_priv *priv);

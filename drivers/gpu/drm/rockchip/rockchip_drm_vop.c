@@ -39,8 +39,6 @@
 #include "rockchip_drm_vop.h"
 #include "rockchip_rgb.h"
 
-#define VOP_SELF_REFRESH_ENTRY_DELAY_MS 100
-
 #define VOP_WIN_SET(vop, win, name, v) \
 		vop_reg_set(vop, &win->phy->name, win->base, ~0, v, #name)
 #define VOP_SCL_SET(vop, win, name, v) \
@@ -1563,8 +1561,7 @@ static int vop_create_crtc(struct vop *vop)
 	init_completion(&vop->line_flag_completion);
 	crtc->port = port;
 
-	ret = drm_self_refresh_helper_init(crtc,
-					   VOP_SELF_REFRESH_ENTRY_DELAY_MS);
+	ret = drm_self_refresh_helper_init(crtc);
 	if (ret)
 		DRM_DEV_DEBUG_KMS(vop->dev,
 			"Failed to init %s with SR helpers %d, ignoring\n",

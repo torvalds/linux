@@ -9,11 +9,7 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/module.h>
-#include <linux/i2c.h>
 #include <linux/slab.h>
-#if defined(CONFIG_SPI)
-#include <linux/spi/spi.h>
-#endif
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ctrls.h>
@@ -102,37 +98,10 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 	/* Unregister subdevs */
 	list_for_each_entry_safe(sd, next, &v4l2_dev->subdevs, list) {
 		v4l2_device_unregister_subdev(sd);
-#if IS_ENABLED(CONFIG_I2C)
-		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C) {
-			struct i2c_client *client = v4l2_get_subdevdata(sd);
-
-			/*
-			 * We need to unregister the i2c client
-			 * explicitly. We cannot rely on
-			 * i2c_del_adapter to always unregister
-			 * clients for us, since if the i2c bus is a
-			 * platform bus, then it is never deleted.
-			 *
-			 * Device tree or ACPI based devices must not
-			 * be unregistered as they have not been
-			 * registered by us, and would not be
-			 * re-created by just probing the V4L2 driver.
-			 */
-			if (client &&
-			    !client->dev.of_node && !client->dev.fwnode)
-				i2c_unregister_device(client);
-			continue;
-		}
-#endif
-#if defined(CONFIG_SPI)
-		if (sd->flags & V4L2_SUBDEV_FL_IS_SPI) {
-			struct spi_device *spi = v4l2_get_subdevdata(sd);
-
-			if (spi && !spi->dev.of_node && !spi->dev.fwnode)
-				spi_unregister_device(spi);
-			continue;
-		}
-#endif
+		if (sd->flags & V4L2_SUBDEV_FL_IS_I2C)
+			v4l2_i2c_subdev_unregister(sd);
+		else if (sd->flags & V4L2_SUBDEV_FL_IS_SPI)
+			v4l2_spi_subdev_unregister(sd);
 	}
 	/* Mark as unregistered, thus preventing duplicate unregistrations */
 	v4l2_dev->name[0] = '\0';

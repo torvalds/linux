@@ -89,7 +89,8 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
 	struct dsa_switch *ds = dp->ds;
 	u16 tx_vid = dsa_8021q_tx_vid(ds, dp->index);
-	u8 pcp = skb->priority;
+	u16 queue_mapping = skb_get_queue_mapping(skb);
+	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
 
 	/* Transmitting management traffic does not rely upon switch tagging,
 	 * but instead SPI-installed management routes. Part 2 of this
@@ -155,7 +156,11 @@ static struct sk_buff
 	/* Step 1: A timestampable frame was received.
 	 * Buffer it until we get its meta frame.
 	 */
-	if (is_link_local && sp->data->hwts_rx_en) {
+	if (is_link_local) {
+		if (!test_bit(SJA1105_HWTS_RX_EN, &sp->data->state))
+			/* Do normal processing. */
+			return skb;
+
 		spin_lock(&sp->data->meta_lock);
 		/* Was this a link-local frame instead of the meta
 		 * that we were expecting?
@@ -165,6 +170,7 @@ static struct sk_buff
 					    "Expected meta frame, is %12llx "
 					    "in the DSA master multicast filter?\n",
 					    SJA1105_META_DMAC);
+			kfree_skb(sp->data->stampable_skb);
 		}
 
 		/* Hold a reference to avoid dsa_switch_rcv
@@ -184,6 +190,12 @@ static struct sk_buff
 	 */
 	} else if (is_meta) {
 		struct sk_buff *stampable_skb;
+
+		/* Drop the meta frame if we're not in the right state
+		 * to process it.
+		 */
+		if (!test_bit(SJA1105_HWTS_RX_EN, &sp->data->state))
+			return NULL;
 
 		spin_lock(&sp->data->meta_lock);
 
@@ -211,17 +223,8 @@ static struct sk_buff
 		 * for further processing up the network stack.
 		 */
 		kfree_skb(skb);
-
-		skb = skb_copy(stampable_skb, GFP_ATOMIC);
-		if (!skb) {
-			dev_err_ratelimited(dp->ds->dev,
-					    "Failed to copy stampable skb\n");
-			spin_unlock(&sp->data->meta_lock);
-			return NULL;
-		}
+		skb = stampable_skb;
 		sja1105_transfer_meta(skb, meta);
-		/* The cached copy will be freed now */
-		skb_unref(stampable_skb);
 
 		spin_unlock(&sp->data->meta_lock);
 	}

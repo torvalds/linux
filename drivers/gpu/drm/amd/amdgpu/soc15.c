@@ -63,6 +63,7 @@
 #include "uvd_v7_0.h"
 #include "vce_v4_0.h"
 #include "vcn_v1_0.h"
+#include "vcn_v2_0.h"
 #include "vcn_v2_5.h"
 #include "dce_virtual.h"
 #include "mxgpu_ai.h"
@@ -508,6 +509,15 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 	return 0;
 }
 
+static int soc15_mode2_reset(struct amdgpu_device *adev)
+{
+	if (!adev->powerplay.pp_funcs ||
+	    !adev->powerplay.pp_funcs->asic_reset_mode_2)
+		return -ENOENT;
+
+	return adev->powerplay.pp_funcs->asic_reset_mode_2(adev->powerplay.pp_handle);
+}
+
 static enum amd_reset_method
 soc15_asic_reset_method(struct amdgpu_device *adev)
 {
@@ -546,14 +556,18 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 
 static int soc15_asic_reset(struct amdgpu_device *adev)
 {
-	int ret;
-
-	if (soc15_asic_reset_method(adev) == AMD_RESET_METHOD_BACO)
-		ret = soc15_asic_baco_reset(adev);
-	else
-		ret = soc15_asic_mode1_reset(adev);
-
-	return ret;
+	switch (soc15_asic_reset_method(adev)) {
+		case AMD_RESET_METHOD_BACO:
+			if (!adev->in_suspend)
+				amdgpu_inc_vram_lost(adev);
+			return soc15_asic_baco_reset(adev);
+		case AMD_RESET_METHOD_MODE2:
+			return soc15_mode2_reset(adev);
+		default:
+			if (!adev->in_suspend)
+				amdgpu_inc_vram_lost(adev);
+			return soc15_asic_mode1_reset(adev);
+	}
 }
 
 /*static int soc15_set_uvd_clock(struct amdgpu_device *adev, u32 clock,
@@ -637,6 +651,7 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 	case CHIP_VEGA10:
 	case CHIP_VEGA12:
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		vega10_reg_base_init(adev);
 		break;
 	case CHIP_VEGA20:
@@ -742,6 +757,24 @@ int soc15_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &smu_v11_0_ip_block);
 		amdgpu_device_ip_block_add(adev, &vcn_v2_5_ip_block);
+		break;
+	case CHIP_RENOIR:
+		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
+		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &vega10_ih_ip_block);
+		if (likely(adev->firmware.load_type == AMDGPU_FW_LOAD_PSP))
+			amdgpu_device_ip_block_add(adev, &psp_v12_0_ip_block);
+		if (is_support_sw_smu(adev))
+			amdgpu_device_ip_block_add(adev, &smu_v12_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
+		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
+		if (adev->enable_virtual_display || amdgpu_sriov_vf(adev))
+			amdgpu_device_ip_block_add(adev, &dce_virtual_ip_block);
+#if defined(CONFIG_DRM_AMD_DC)
+                else if (amdgpu_device_has_dc_support(adev))
+                        amdgpu_device_ip_block_add(adev, &dm_ip_block);
+#endif
+		amdgpu_device_ip_block_add(adev, &vcn_v2_0_ip_block);
 		break;
 	default:
 		return -EINVAL;
@@ -1111,17 +1144,53 @@ static int soc15_common_early_init(void *handle)
 
 			adev->pg_flags = AMD_PG_SUPPORT_SDMA | AMD_PG_SUPPORT_VCN;
 		}
+		break;
+	case CHIP_ARCTURUS:
+		adev->asic_funcs = &vega20_asic_funcs;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+			AMD_CG_SUPPORT_GFX_MGLS |
+			AMD_CG_SUPPORT_GFX_CGCG |
+			AMD_CG_SUPPORT_GFX_CGLS |
+			AMD_CG_SUPPORT_GFX_CP_LS |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
+			AMD_CG_SUPPORT_SDMA_MGCG |
+			AMD_CG_SUPPORT_SDMA_LS |
+			AMD_CG_SUPPORT_MC_MGCG |
+			AMD_CG_SUPPORT_MC_LS;
+		adev->pg_flags = 0;
+		adev->external_rev_id = adev->rev_id + 0x32;
+		break;
+	case CHIP_RENOIR:
+		adev->asic_funcs = &soc15_asic_funcs;
+		adev->cg_flags = AMD_CG_SUPPORT_GFX_MGCG |
+				 AMD_CG_SUPPORT_GFX_MGLS |
+				 AMD_CG_SUPPORT_GFX_3D_CGCG |
+				 AMD_CG_SUPPORT_GFX_3D_CGLS |
+				 AMD_CG_SUPPORT_GFX_CGCG |
+				 AMD_CG_SUPPORT_GFX_CGLS |
+				 AMD_CG_SUPPORT_GFX_CP_LS |
+				 AMD_CG_SUPPORT_MC_MGCG |
+				 AMD_CG_SUPPORT_MC_LS |
+				 AMD_CG_SUPPORT_SDMA_MGCG |
+				 AMD_CG_SUPPORT_SDMA_LS |
+				 AMD_CG_SUPPORT_BIF_LS |
+				 AMD_CG_SUPPORT_HDP_LS |
+				 AMD_CG_SUPPORT_ROM_MGCG |
+				 AMD_CG_SUPPORT_VCN_MGCG |
+				 AMD_CG_SUPPORT_IH_CG |
+				 AMD_CG_SUPPORT_ATHUB_LS |
+				 AMD_CG_SUPPORT_ATHUB_MGCG |
+				 AMD_CG_SUPPORT_DF_MGCG;
+		adev->pg_flags = AMD_PG_SUPPORT_SDMA |
+				 AMD_PG_SUPPORT_VCN |
+				 AMD_PG_SUPPORT_VCN_DPG;
+		adev->external_rev_id = adev->rev_id + 0x91;
 
 		if (adev->pm.pp_feature & PP_GFXOFF_MASK)
 			adev->pg_flags |= AMD_PG_SUPPORT_GFX_PG |
 				AMD_PG_SUPPORT_CP |
 				AMD_PG_SUPPORT_RLC_SMU_HS;
-		break;
-	case CHIP_ARCTURUS:
-		adev->asic_funcs = &vega20_asic_funcs;
-		adev->cg_flags = 0;
-		adev->pg_flags = 0;
-		adev->external_rev_id = adev->rev_id + 0x32;
 		break;
 	default:
 		/* FIXME: not supported yet */
@@ -1256,7 +1325,8 @@ static void soc15_update_hdp_light_sleep(struct amdgpu_device *adev, bool enable
 {
 	uint32_t def, data;
 
-	if (adev->asic_type == CHIP_VEGA20) {
+	if (adev->asic_type == CHIP_VEGA20 ||
+		adev->asic_type == CHIP_ARCTURUS) {
 		def = data = RREG32(SOC15_REG_OFFSET(HDP, 0, mmHDP_MEM_POWER_CTRL));
 
 		if (enable && (adev->cg_flags & AMD_CG_SUPPORT_HDP_LS))
@@ -1375,6 +1445,7 @@ static int soc15_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	case CHIP_RAVEN:
+	case CHIP_RENOIR:
 		adev->nbio_funcs->update_medium_grain_clock_gating(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		adev->nbio_funcs->update_medium_grain_light_sleep(adev,
@@ -1386,6 +1457,10 @@ static int soc15_common_set_clockgating_state(void *handle,
 		soc15_update_drm_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		soc15_update_rom_medium_grain_clock_gating(adev,
+				state == AMD_CG_STATE_GATE ? true : false);
+		break;
+	case CHIP_ARCTURUS:
+		soc15_update_hdp_light_sleep(adev,
 				state == AMD_CG_STATE_GATE ? true : false);
 		break;
 	default:

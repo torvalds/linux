@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (C) 2016 Felix Fietkau <nbd@nbd.name>
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include <linux/kernel.h>
@@ -66,7 +55,7 @@ mt76pci_load_rom_patch(struct mt76x02_dev *dev)
 
 	mt76_wr(dev, MT_MCU_PCIE_REMAP_BASE4, MT_MCU_ROM_PATCH_OFFSET);
 
-	cur = (__le32 *) (fw->data + sizeof(*hdr));
+	cur = (__le32 *)(fw->data + sizeof(*hdr));
 	len = fw->size - sizeof(*hdr);
 	mt76_wr_copy(dev, MT_MCU_ROM_PATCH_ADDR, cur, len);
 
@@ -121,7 +110,7 @@ mt76pci_load_firmware(struct mt76x02_dev *dev)
 	dev_info(dev->mt76.dev, "Build: %x\n", val);
 	dev_info(dev->mt76.dev, "Build Time: %.16s\n", hdr->build_time);
 
-	cur = (__le32 *) (fw->data + sizeof(*hdr));
+	cur = (__le32 *)(fw->data + sizeof(*hdr));
 	len = le32_to_cpu(hdr->ilm_len);
 
 	mt76_wr(dev, MT_MCU_PCIE_REMAP_BASE4, MT_MCU_ILM_OFFSET);

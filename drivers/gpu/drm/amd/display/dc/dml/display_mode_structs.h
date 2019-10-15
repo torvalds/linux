@@ -109,6 +109,9 @@ struct _vcs_dpi_soc_bounding_box_st {
 	int use_urgent_burst_bw;
 	unsigned int num_states;
 	struct _vcs_dpi_voltage_scaling_st clock_limits[MAX_CLOCK_LIMIT_STATES];
+	bool do_urgent_latency_adjustment;
+	double urgent_latency_adjustment_fabric_clock_component_us;
+	double urgent_latency_adjustment_fabric_clock_reference_mhz;
 };
 
 struct _vcs_dpi_ip_params_st {

@@ -23,7 +23,7 @@
  * with a battery powered AVR microcontroller and lots of goodies.  You
  * can use GCC to develop firmware for this.
  *
- * See Documentation/spi/butterfly for information about how to build
+ * See Documentation/spi/butterfly.rst for information about how to build
  * and use this custom parallel port cable.
  */
 

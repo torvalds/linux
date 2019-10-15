@@ -461,8 +461,8 @@
 
 			buck4_reg: BUCK4 {
 				regulator-name = "vdd_g3d";
-				regulator-min-microvolt = <1000000>;
-				regulator-max-microvolt = <1000000>;
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1300000>;
 				regulator-always-on;
 				regulator-boot-on;
 				op_mode = <1>;
@@ -540,6 +540,11 @@
 };
 
 &i2s0 {
+	status = "okay";
+};
+
+&mali {
+	mali-supply = <&buck4_reg>;
 	status = "okay";
 };
 

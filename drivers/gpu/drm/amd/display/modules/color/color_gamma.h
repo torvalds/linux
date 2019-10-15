@@ -92,6 +92,7 @@ struct translate_from_linear_space_args {
 };
 
 void setup_x_points_distribution(void);
+void log_x_points_distribution(struct dal_logger *logger);
 void precompute_pq(void);
 void precompute_de_pq(void);
 

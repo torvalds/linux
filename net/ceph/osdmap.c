@@ -973,11 +973,11 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
 				 struct ceph_pg_pool_info, node);
 		__remove_pg_pool(&map->pg_pools, pi);
 	}
-	kfree(map->osd_state);
-	kfree(map->osd_weight);
-	kfree(map->osd_addr);
-	kfree(map->osd_primary_affinity);
-	kfree(map->crush_workspace);
+	kvfree(map->osd_state);
+	kvfree(map->osd_weight);
+	kvfree(map->osd_addr);
+	kvfree(map->osd_primary_affinity);
+	kvfree(map->crush_workspace);
 	kfree(map);
 }
 
@@ -986,28 +986,41 @@ void ceph_osdmap_destroy(struct ceph_osdmap *map)
  *
  * The new elements are properly initialized.
  */
-static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
+static int osdmap_set_max_osd(struct ceph_osdmap *map, u32 max)
 {
 	u32 *state;
 	u32 *weight;
 	struct ceph_entity_addr *addr;
+	u32 to_copy;
 	int i;
 
-	state = krealloc(map->osd_state, max*sizeof(*state), GFP_NOFS);
-	if (!state)
+	dout("%s old %u new %u\n", __func__, map->max_osd, max);
+	if (max == map->max_osd)
+		return 0;
+
+	state = ceph_kvmalloc(array_size(max, sizeof(*state)), GFP_NOFS);
+	weight = ceph_kvmalloc(array_size(max, sizeof(*weight)), GFP_NOFS);
+	addr = ceph_kvmalloc(array_size(max, sizeof(*addr)), GFP_NOFS);
+	if (!state || !weight || !addr) {
+		kvfree(state);
+		kvfree(weight);
+		kvfree(addr);
 		return -ENOMEM;
+	}
+
+	to_copy = min(map->max_osd, max);
+	if (map->osd_state) {
+		memcpy(state, map->osd_state, to_copy * sizeof(*state));
+		memcpy(weight, map->osd_weight, to_copy * sizeof(*weight));
+		memcpy(addr, map->osd_addr, to_copy * sizeof(*addr));
+		kvfree(map->osd_state);
+		kvfree(map->osd_weight);
+		kvfree(map->osd_addr);
+	}
+
 	map->osd_state = state;
-
-	weight = krealloc(map->osd_weight, max*sizeof(*weight), GFP_NOFS);
-	if (!weight)
-		return -ENOMEM;
 	map->osd_weight = weight;
-
-	addr = krealloc(map->osd_addr, max*sizeof(*addr), GFP_NOFS);
-	if (!addr)
-		return -ENOMEM;
 	map->osd_addr = addr;
-
 	for (i = map->max_osd; i < max; i++) {
 		map->osd_state[i] = 0;
 		map->osd_weight[i] = CEPH_OSD_OUT;
@@ -1017,12 +1030,16 @@ static int osdmap_set_max_osd(struct ceph_osdmap *map, int max)
 	if (map->osd_primary_affinity) {
 		u32 *affinity;
 
-		affinity = krealloc(map->osd_primary_affinity,
-				    max*sizeof(*affinity), GFP_NOFS);
+		affinity = ceph_kvmalloc(array_size(max, sizeof(*affinity)),
+					 GFP_NOFS);
 		if (!affinity)
 			return -ENOMEM;
-		map->osd_primary_affinity = affinity;
 
+		memcpy(affinity, map->osd_primary_affinity,
+		       to_copy * sizeof(*affinity));
+		kvfree(map->osd_primary_affinity);
+
+		map->osd_primary_affinity = affinity;
 		for (i = map->max_osd; i < max; i++)
 			map->osd_primary_affinity[i] =
 			    CEPH_OSD_DEFAULT_PRIMARY_AFFINITY;
@@ -1043,7 +1060,7 @@ static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
 
 	work_size = crush_work_size(crush, CEPH_PG_MAX_SIZE);
 	dout("%s work_size %zu bytes\n", __func__, work_size);
-	workspace = kmalloc(work_size, GFP_NOIO);
+	workspace = ceph_kvmalloc(work_size, GFP_NOIO);
 	if (!workspace) {
 		crush_destroy(crush);
 		return -ENOMEM;
@@ -1052,7 +1069,7 @@ static int osdmap_set_crush(struct ceph_osdmap *map, struct crush_map *crush)
 
 	if (map->crush)
 		crush_destroy(map->crush);
-	kfree(map->crush_workspace);
+	kvfree(map->crush_workspace);
 	map->crush = crush;
 	map->crush_workspace = workspace;
 	return 0;
@@ -1298,9 +1315,9 @@ static int set_primary_affinity(struct ceph_osdmap *map, int osd, u32 aff)
 	if (!map->osd_primary_affinity) {
 		int i;
 
-		map->osd_primary_affinity = kmalloc_array(map->max_osd,
-							  sizeof(u32),
-							  GFP_NOFS);
+		map->osd_primary_affinity = ceph_kvmalloc(
+		    array_size(map->max_osd, sizeof(*map->osd_primary_affinity)),
+		    GFP_NOFS);
 		if (!map->osd_primary_affinity)
 			return -ENOMEM;
 
@@ -1321,7 +1338,7 @@ static int decode_primary_affinity(void **p, void *end,
 
 	ceph_decode_32_safe(p, end, len, e_inval);
 	if (len == 0) {
-		kfree(map->osd_primary_affinity);
+		kvfree(map->osd_primary_affinity);
 		map->osd_primary_affinity = NULL;
 		return 0;
 	}

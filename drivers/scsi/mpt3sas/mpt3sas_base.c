@@ -2260,6 +2260,11 @@ base_is_prp_possible(struct MPT3SAS_ADAPTER *ioc,
 	bool build_prp = true;
 
 	data_length = scsi_bufflen(scmd);
+	if (pcie_device &&
+	    (mpt3sas_scsih_is_pcie_scsi_device(pcie_device->device_info))) {
+		build_prp = false;
+		return build_prp;
+	}
 
 	/* If Datalenth is <= 16K and number of SGE’s entries are <= 2
 	 * we built IEEE SGL
@@ -3178,6 +3183,37 @@ mpt3sas_base_unmap_resources(struct MPT3SAS_ADAPTER *ioc)
 	}
 }
 
+static int
+_base_diag_reset(struct MPT3SAS_ADAPTER *ioc);
+
+/**
+ * _base_check_for_fault_and_issue_reset - check if IOC is in fault state
+ *     and if it is in fault state then issue diag reset.
+ * @ioc: per adapter object
+ *
+ * Returns: 0 for success, non-zero for failure.
+ */
+static int
+_base_check_for_fault_and_issue_reset(struct MPT3SAS_ADAPTER *ioc)
+{
+	u32 ioc_state;
+	int rc = -EFAULT;
+
+	dinitprintk(ioc, pr_info("%s\n", __func__));
+	if (ioc->pci_error_recovery)
+		return 0;
+	ioc_state = mpt3sas_base_get_iocstate(ioc, 0);
+	dhsprintk(ioc, pr_info("%s: ioc_state(0x%08x)\n", __func__, ioc_state));
+
+	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
+		mpt3sas_base_fault_info(ioc, ioc_state &
+		    MPI2_DOORBELL_DATA_MASK);
+		rc = _base_diag_reset(ioc);
+	}
+
+	return rc;
+}
+
 /**
  * mpt3sas_base_map_resources - map in controller resources (io/irq/memap)
  * @ioc: per adapter object
@@ -3190,7 +3226,7 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	struct pci_dev *pdev = ioc->pdev;
 	u32 memap_sz;
 	u32 pio_sz;
-	int i, r = 0;
+	int i, r = 0, rc;
 	u64 pio_chip = 0;
 	phys_addr_t chip_phys = 0;
 	struct adapter_reply_queue *reply_q;
@@ -3251,8 +3287,11 @@ mpt3sas_base_map_resources(struct MPT3SAS_ADAPTER *ioc)
 	_base_mask_interrupts(ioc);
 
 	r = _base_get_ioc_facts(ioc);
-	if (r)
-		goto out_fail;
+	if (r) {
+		rc = _base_check_for_fault_and_issue_reset(ioc);
+		if (rc || (_base_get_ioc_facts(ioc)))
+			goto out_fail;
+	}
 
 	if (!ioc->rdpq_array_enable_assigned) {
 		ioc->rdpq_array_enable = ioc->rdpq_array_capable;
@@ -5037,6 +5076,7 @@ _base_allocate_memory_pools(struct MPT3SAS_ADAPTER *ioc)
 		_base_release_memory_pools(ioc);
 		goto retry_allocation;
 	}
+	memset(ioc->request, 0, sz);
 
 	if (retry_sz)
 		ioc_err(ioc, "request pool: dma_alloc_coherent succeed: hba_depth(%d), chains_per_io(%d), frame_sz(%d), total(%d kb)\n",
@@ -5410,8 +5450,6 @@ _base_wait_on_iocstate(struct MPT3SAS_ADAPTER *ioc, u32 ioc_state, int timeout)
  *
  * Notes: MPI2_HIS_IOC2SYS_DB_STATUS - set to one when IOC writes to doorbell.
  */
-static int
-_base_diag_reset(struct MPT3SAS_ADAPTER *ioc);
 
 static int
 _base_wait_for_doorbell_int(struct MPT3SAS_ADAPTER *ioc, int timeout)
@@ -5868,6 +5906,7 @@ mpt3sas_base_scsi_enclosure_processor(struct MPT3SAS_ADAPTER *ioc,
 	ioc->base_cmds.status = MPT3_CMD_PENDING;
 	request = mpt3sas_base_get_msg_frame(ioc, smid);
 	ioc->base_cmds.smid = smid;
+	memset(request, 0, ioc->request_sz);
 	memcpy(request, mpi_request, sizeof(Mpi2SepReply_t));
 	init_completion(&ioc->base_cmds.done);
 	ioc->put_smid_default(ioc, smid);
@@ -6686,7 +6725,7 @@ _base_make_ioc_ready(struct MPT3SAS_ADAPTER *ioc, enum reset_type type)
 static int
 _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
 {
-	int r, i, index;
+	int r, i, index, rc;
 	unsigned long	flags;
 	u32 reply_address;
 	u16 smid;
@@ -6789,8 +6828,19 @@ _base_make_ioc_operational(struct MPT3SAS_ADAPTER *ioc)
  skip_init_reply_post_free_queue:
 
 	r = _base_send_ioc_init(ioc);
-	if (r)
-		return r;
+	if (r) {
+		/*
+		 * No need to check IOC state for fault state & issue
+		 * diag reset during host reset. This check is need
+		 * only during driver load time.
+		 */
+		if (!ioc->is_driver_loading)
+			return r;
+
+		rc = _base_check_for_fault_and_issue_reset(ioc);
+		if (rc || (_base_send_ioc_init(ioc)))
+			return r;
+	}
 
 	/* initialize reply free host index */
 	ioc->reply_free_host_index = ioc->reply_free_queue_depth - 1;
@@ -6882,7 +6932,7 @@ mpt3sas_base_free_resources(struct MPT3SAS_ADAPTER *ioc)
 int
 mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 {
-	int r, i;
+	int r, i, rc;
 	int cpu_id, last_cpu_id = 0;
 
 	dinitprintk(ioc, ioc_info(ioc, "%s\n", __func__));
@@ -6926,8 +6976,11 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 
 	pci_set_drvdata(ioc->pdev, ioc->shost);
 	r = _base_get_ioc_facts(ioc);
-	if (r)
-		goto out_free_resources;
+	if (r) {
+		rc = _base_check_for_fault_and_issue_reset(ioc);
+		if (rc || (_base_get_ioc_facts(ioc)))
+			goto out_free_resources;
+	}
 
 	switch (ioc->hba_mpi_version_belonged) {
 	case MPI2_VERSION:
@@ -6995,8 +7048,11 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 
 	for (i = 0 ; i < ioc->facts.NumberOfPorts; i++) {
 		r = _base_get_port_facts(ioc, i);
-		if (r)
-			goto out_free_resources;
+		if (r) {
+			rc = _base_check_for_fault_and_issue_reset(ioc);
+			if (rc || (_base_get_port_facts(ioc, i)))
+				goto out_free_resources;
+		}
 	}
 
 	r = _base_allocate_memory_pools(ioc);
@@ -7117,6 +7173,13 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	r = _base_make_ioc_operational(ioc);
 	if (r)
 		goto out_free_resources;
+
+	/*
+	 * Copy current copy of IOCFacts in prev_fw_facts
+	 * and it will be used during online firmware upgrade.
+	 */
+	memcpy(&ioc->prev_fw_facts, &ioc->facts,
+	    sizeof(struct mpt3sas_facts));
 
 	ioc->non_operational_loop = 0;
 	ioc->got_task_abort_from_ioctl = 0;
@@ -7280,6 +7343,85 @@ mpt3sas_wait_for_commands_to_complete(struct MPT3SAS_ADAPTER *ioc)
 }
 
 /**
+ * _base_check_ioc_facts_changes - Look for increase/decrease of IOCFacts
+ *     attributes during online firmware upgrade and update the corresponding
+ *     IOC variables accordingly.
+ *
+ * @ioc: Pointer to MPT_ADAPTER structure
+ */
+static int
+_base_check_ioc_facts_changes(struct MPT3SAS_ADAPTER *ioc)
+{
+	u16 pd_handles_sz;
+	void *pd_handles = NULL, *blocking_handles = NULL;
+	void *pend_os_device_add = NULL, *device_remove_in_progress = NULL;
+	struct mpt3sas_facts *old_facts = &ioc->prev_fw_facts;
+
+	if (ioc->facts.MaxDevHandle > old_facts->MaxDevHandle) {
+		pd_handles_sz = (ioc->facts.MaxDevHandle / 8);
+		if (ioc->facts.MaxDevHandle % 8)
+			pd_handles_sz++;
+
+		pd_handles = krealloc(ioc->pd_handles, pd_handles_sz,
+		    GFP_KERNEL);
+		if (!pd_handles) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for pd_handles of sz: %d\n",
+			    pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(pd_handles + ioc->pd_handles_sz, 0,
+		    (pd_handles_sz - ioc->pd_handles_sz));
+		ioc->pd_handles = pd_handles;
+
+		blocking_handles = krealloc(ioc->blocking_handles,
+		    pd_handles_sz, GFP_KERNEL);
+		if (!blocking_handles) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for "
+			    "blocking_handles of sz: %d\n",
+			    pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(blocking_handles + ioc->pd_handles_sz, 0,
+		    (pd_handles_sz - ioc->pd_handles_sz));
+		ioc->blocking_handles = blocking_handles;
+		ioc->pd_handles_sz = pd_handles_sz;
+
+		pend_os_device_add = krealloc(ioc->pend_os_device_add,
+		    pd_handles_sz, GFP_KERNEL);
+		if (!pend_os_device_add) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for pend_os_device_add of sz: %d\n",
+			    pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(pend_os_device_add + ioc->pend_os_device_add_sz, 0,
+		    (pd_handles_sz - ioc->pend_os_device_add_sz));
+		ioc->pend_os_device_add = pend_os_device_add;
+		ioc->pend_os_device_add_sz = pd_handles_sz;
+
+		device_remove_in_progress = krealloc(
+		    ioc->device_remove_in_progress, pd_handles_sz, GFP_KERNEL);
+		if (!device_remove_in_progress) {
+			ioc_info(ioc,
+			    "Unable to allocate the memory for "
+			    "device_remove_in_progress of sz: %d\n "
+			    , pd_handles_sz);
+			return -ENOMEM;
+		}
+		memset(device_remove_in_progress +
+		    ioc->device_remove_in_progress_sz, 0,
+		    (pd_handles_sz - ioc->device_remove_in_progress_sz));
+		ioc->device_remove_in_progress = device_remove_in_progress;
+		ioc->device_remove_in_progress_sz = pd_handles_sz;
+	}
+
+	memcpy(&ioc->prev_fw_facts, &ioc->facts, sizeof(struct mpt3sas_facts));
+	return 0;
+}
+
+/**
  * mpt3sas_base_hard_reset_handler - reset controller
  * @ioc: Pointer to MPT_ADAPTER structure
  * @type: FORCE_BIG_HAMMER or SOFT_RESET
@@ -7342,6 +7484,13 @@ mpt3sas_base_hard_reset_handler(struct MPT3SAS_ADAPTER *ioc,
 	if (r)
 		goto out;
 
+	r = _base_check_ioc_facts_changes(ioc);
+	if (r) {
+		ioc_info(ioc,
+		    "Some of the parameters got changed in this new firmware"
+		    " image and it requires system reboot\n");
+		goto out;
+	}
 	if (ioc->rdpq_array_enable && !ioc->rdpq_array_capable)
 		panic("%s: Issue occurred with flashing controller firmware."
 		      "Please reboot the system and ensure that the correct"

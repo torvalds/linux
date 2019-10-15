@@ -11,7 +11,7 @@ config NET_VENDOR_NI
 
 	  Note that the answer to this question doesn't directly affect the
 	  kernel: saying N will just cause the configurator to skip all
-	  the questions about National Instrument devices.
+	  the questions about National Instruments devices.
 	  If you say Y, you will be asked for your specific device in the
 	  following questions.
 

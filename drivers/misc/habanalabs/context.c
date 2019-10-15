@@ -26,12 +26,13 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 		dma_fence_put(ctx->cs_pending[i]);
 
 	if (ctx->asid != HL_KERNEL_ASID_ID) {
-		/*
-		 * The engines are stopped as there is no executing CS, but the
+		/* The engines are stopped as there is no executing CS, but the
 		 * Coresight might be still working by accessing addresses
 		 * related to the stopped engines. Hence stop it explicitly.
+		 * Stop only if this is the compute context, as there can be
+		 * only one compute context
 		 */
-		if (hdev->in_debug)
+		if ((hdev->in_debug) && (hdev->compute_ctx == ctx))
 			hl_device_set_debug_mode(hdev, false);
 
 		hl_vm_ctx_fini(ctx);
@@ -67,29 +68,36 @@ int hl_ctx_create(struct hl_device *hdev, struct hl_fpriv *hpriv)
 		goto out_err;
 	}
 
-	rc = hl_ctx_init(hdev, ctx, false);
-	if (rc)
-		goto free_ctx;
-
-	hl_hpriv_get(hpriv);
-	ctx->hpriv = hpriv;
-
-	/* TODO: remove for multiple contexts */
-	hpriv->ctx = ctx;
-	hdev->user_ctx = ctx;
-
 	mutex_lock(&mgr->ctx_lock);
 	rc = idr_alloc(&mgr->ctx_handles, ctx, 1, 0, GFP_KERNEL);
 	mutex_unlock(&mgr->ctx_lock);
 
 	if (rc < 0) {
 		dev_err(hdev->dev, "Failed to allocate IDR for a new CTX\n");
-		hl_ctx_free(hdev, ctx);
-		goto out_err;
+		goto free_ctx;
 	}
+
+	ctx->handle = rc;
+
+	rc = hl_ctx_init(hdev, ctx, false);
+	if (rc)
+		goto remove_from_idr;
+
+	hl_hpriv_get(hpriv);
+	ctx->hpriv = hpriv;
+
+	/* TODO: remove for multiple contexts per process */
+	hpriv->ctx = ctx;
+
+	/* TODO: remove the following line for multiple process support */
+	hdev->compute_ctx = ctx;
 
 	return 0;
 
+remove_from_idr:
+	mutex_lock(&mgr->ctx_lock);
+	idr_remove(&mgr->ctx_handles, ctx->handle);
+	mutex_unlock(&mgr->ctx_lock);
 free_ctx:
 	kfree(ctx);
 out_err:
@@ -120,7 +128,7 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 	ctx->thread_ctx_switch_wait_token = 0;
 
 	if (is_kernel_ctx) {
-		ctx->asid = HL_KERNEL_ASID_ID; /* KMD gets ASID 0 */
+		ctx->asid = HL_KERNEL_ASID_ID; /* Kernel driver gets ASID 0 */
 		rc = hl_mmu_ctx_init(ctx);
 		if (rc) {
 			dev_err(hdev->dev, "Failed to init mmu ctx module\n");

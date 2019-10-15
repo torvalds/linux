@@ -2145,7 +2145,7 @@ static int fn_trie_dump_leaf(struct key_vector *l, struct fib_table *tb,
 
 		if (filter->dump_exceptions) {
 			err = fib_dump_info_fnhe(skb, cb, tb->tb_id, fi,
-						 &i_fa, s_fa);
+						 &i_fa, s_fa, flags);
 			if (err < 0)
 				goto stop;
 		}

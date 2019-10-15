@@ -290,13 +290,15 @@ enum gpio_result dal_gpio_service_unlock(
 }
 
 enum gpio_result dal_gpio_service_open(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en,
-	enum gpio_mode mode,
-	struct hw_gpio_pin **ptr)
+	struct gpio *gpio)
 {
-	struct hw_gpio_pin *pin;
+	struct gpio_service *service = gpio->service;
+	enum gpio_id id = gpio->id;
+	uint32_t en = gpio->en;
+	enum gpio_mode mode = gpio->mode;
+
+	struct hw_gpio_pin **pin = &gpio->pin;
+
 
 	if (!service->busyness[id]) {
 		ASSERT_CRITICAL(false);
@@ -310,51 +312,43 @@ enum gpio_result dal_gpio_service_open(
 
 	switch (id) {
 	case GPIO_ID_DDC_DATA:
-		pin = service->factory.funcs->create_ddc_data(
-			service->ctx, id, en);
-		service->factory.funcs->define_ddc_registers(pin, en);
+		*pin = service->factory.funcs->get_ddc_pin(gpio);
+		service->factory.funcs->define_ddc_registers(*pin, en);
 	break;
 	case GPIO_ID_DDC_CLOCK:
-		pin = service->factory.funcs->create_ddc_clock(
-			service->ctx, id, en);
-		service->factory.funcs->define_ddc_registers(pin, en);
+		*pin = service->factory.funcs->get_ddc_pin(gpio);
+		service->factory.funcs->define_ddc_registers(*pin, en);
 	break;
 	case GPIO_ID_GENERIC:
-		pin = service->factory.funcs->create_generic(
-			service->ctx, id, en);
-		service->factory.funcs->define_generic_registers(pin, en);
+		*pin = service->factory.funcs->get_generic_pin(gpio);
+		service->factory.funcs->define_generic_registers(*pin, en);
 	break;
 	case GPIO_ID_HPD:
-		pin = service->factory.funcs->create_hpd(
-			service->ctx, id, en);
-		service->factory.funcs->define_hpd_registers(pin, en);
+		*pin = service->factory.funcs->get_hpd_pin(gpio);
+		service->factory.funcs->define_hpd_registers(*pin, en);
 	break;
+
+	//TODO: gsl and sync support? create_sync and create_gsl are NULL
 	case GPIO_ID_SYNC:
-		pin = service->factory.funcs->create_sync(
-			service->ctx, id, en);
-	break;
 	case GPIO_ID_GSL:
-		pin = service->factory.funcs->create_gsl(
-			service->ctx, id, en);
 	break;
 	default:
 		ASSERT_CRITICAL(false);
 		return GPIO_RESULT_NON_SPECIFIC_ERROR;
 	}
 
-	if (!pin) {
+	if (!*pin) {
 		ASSERT_CRITICAL(false);
 		return GPIO_RESULT_NON_SPECIFIC_ERROR;
 	}
 
-	if (!pin->funcs->open(pin, mode)) {
+	if (!(*pin)->funcs->open(*pin, mode)) {
 		ASSERT_CRITICAL(false);
-		dal_gpio_service_close(service, &pin);
+		dal_gpio_service_close(service, pin);
 		return GPIO_RESULT_OPEN_FAILED;
 	}
 
 	set_pin_busy(service, id, en);
-	*ptr = pin;
 	return GPIO_RESULT_OK;
 }
 
@@ -376,10 +370,9 @@ void dal_gpio_service_close(
 
 		pin->funcs->close(pin);
 
-		pin->funcs->destroy(ptr);
+		*ptr = NULL;
 	}
 }
-
 
 enum dc_irq_source dal_irq_get_source(
 	const struct gpio *irq)

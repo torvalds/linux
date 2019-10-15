@@ -212,12 +212,12 @@ static void define_generic_registers(struct hw_gpio_pin *pin, uint32_t en)
 
 /* fucntion table */
 static const struct hw_factory_funcs funcs = {
-	.create_ddc_data = dal_hw_ddc_create,
-	.create_ddc_clock = dal_hw_ddc_create,
-	.create_generic = dal_hw_generic_create,
-	.create_hpd = dal_hw_hpd_create,
-	.create_sync = NULL,
-	.create_gsl = NULL,
+	.init_ddc_data = dal_hw_ddc_init,
+	.init_generic = dal_hw_generic_init,
+	.init_hpd = dal_hw_hpd_init,
+	.get_ddc_pin = dal_hw_ddc_get_pin,
+	.get_hpd_pin = dal_hw_hpd_get_pin,
+	.get_generic_pin = dal_hw_generic_get_pin,
 	.define_hpd_registers = define_hpd_registers,
 	.define_ddc_registers = define_ddc_registers,
 	.define_generic_registers = define_generic_registers,

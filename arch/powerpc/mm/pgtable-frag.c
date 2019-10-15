@@ -25,7 +25,7 @@ void pte_frag_destroy(void *pte_frag)
 	count = ((unsigned long)pte_frag & ~PAGE_MASK) >> PTE_FRAG_SIZE_SHIFT;
 	/* We allow PTE_FRAG_NR fragments from a PTE page */
 	if (atomic_sub_and_test(PTE_FRAG_NR - count, &page->pt_frag_refcount)) {
-		pgtable_page_dtor(page);
+		pgtable_pte_page_dtor(page);
 		__free_page(page);
 	}
 }
@@ -61,7 +61,7 @@ static pte_t *__alloc_for_ptecache(struct mm_struct *mm, int kernel)
 		page = alloc_page(PGALLOC_GFP | __GFP_ACCOUNT);
 		if (!page)
 			return NULL;
-		if (!pgtable_page_ctor(page)) {
+		if (!pgtable_pte_page_ctor(page)) {
 			__free_page(page);
 			return NULL;
 		}
@@ -113,7 +113,7 @@ void pte_fragment_free(unsigned long *table, int kernel)
 	BUG_ON(atomic_read(&page->pt_frag_refcount) <= 0);
 	if (atomic_dec_and_test(&page->pt_frag_refcount)) {
 		if (!kernel)
-			pgtable_page_dtor(page);
+			pgtable_pte_page_dtor(page);
 		__free_page(page);
 	}
 }

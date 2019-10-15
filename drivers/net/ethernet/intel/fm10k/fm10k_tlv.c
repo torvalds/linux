@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright(c) 2013 - 2018 Intel Corporation. */
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k_tlv.h"
 
@@ -472,7 +472,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 				const struct fm10k_tlv_attr *tlv_attr)
 {
 	u32 i, attr_id, offset = 0;
-	s32 err = 0;
+	s32 err;
 	u16 len;
 
 	/* verify pointers are not NULL */
@@ -587,8 +587,9 @@ s32 fm10k_tlv_msg_parse(struct fm10k_hw *hw, u32 *msg,
  *  a minimum it just indicates that the message requested was
  *  unimplemented.
  **/
-s32 fm10k_tlv_msg_error(struct fm10k_hw *hw, u32 **results,
-			struct fm10k_mbx_info *mbx)
+s32 fm10k_tlv_msg_error(struct fm10k_hw __always_unused *hw,
+			u32 __always_unused **results,
+			struct fm10k_mbx_info __always_unused *mbx)
 {
 	return FM10K_NOT_IMPLEMENTED;
 }

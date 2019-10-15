@@ -529,6 +529,11 @@
 	status = "okay";
 };
 
+&mali {
+	mali-supply = <&buck4_reg>;
+	status = "okay";
+};
+
 &mixer {
 	status = "okay";
 };

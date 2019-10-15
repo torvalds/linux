@@ -6,6 +6,7 @@
 #include <string.h>
 #include <regex.h>
 
+#include "../../util/debug.h"
 #include "../../util/header.h"
 
 static inline void

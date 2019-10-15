@@ -101,6 +101,12 @@ config W1_SLAVE_DS2438
 	  Say Y here if you want to use a 1-wire
 	  DS2438 Smart Battery Monitor device support
 
+config W1_SLAVE_DS250X
+	tristate "512b/1kb/16kb EPROM family support"
+	help
+	  Say Y here if you want to use a 1-wire
+	  512b/1kb/16kb EPROM family device (DS250x).
+
 config W1_SLAVE_DS2780
 	tristate "Dallas 2780 battery monitor chip"
 	help

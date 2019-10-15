@@ -26,16 +26,15 @@ Prima di pensare d'avere trovato un baco, aggiornate i seguenti programmi
 usando, il comando indicato dovrebbe dirvelo.
 
 Questa lista presume che abbiate già un kernel Linux funzionante.  In aggiunta,
-non tutti gli strumenti sono necessari ovunque; ovviamente, se non avete un
-modem ISDN, per esempio, probabilmente non dovreste preoccuparvi di
-isdn4k-utils.
+non tutti gli strumenti sono necessari ovunque; ovviamente, se non avete una
+PC Card, per esempio, probabilmente non dovreste preoccuparvi di pcmciautils.
 
 ====================== =================  ========================================
         Programma       Versione minima       Comando per verificare la versione
 ====================== =================  ========================================
 GNU C                  4.6                gcc --version
 GNU make               3.81               make --version
-binutils               2.20               ld -v
+binutils               2.21               ld -v
 flex                   2.5.35             flex --version
 bison                  2.0                bison --version
 util-linux             2.10o              fdformat --version
@@ -49,7 +48,6 @@ btrfs-progs            0.18               btrfsck
 pcmciautils            004                pccardctl -V
 quota-tools            3.09               quota -V
 PPP                    2.4.0              pppd --version
-isdn4k-utils           3.1pre1            isdnctrl 2>&1|grep version
 nfs-utils              1.0.5              showmount --version
 procps                 3.2.0              ps --version
 oprofile               0.9                oprofiled --version
@@ -81,10 +79,7 @@ Per compilare il kernel vi servirà GNU make 3.81 o successivo.
 Binutils
 --------
 
-Il sistema di compilazione, dalla versione 4.13,  per la produzione dei passi
-intermedi, si è convertito all'uso di *thin archive* (`ar T`) piuttosto che
-all'uso del *linking* incrementale (`ld -r`). Questo richiede binutils 2.20 o
-successivo.
+Per generare il kernel è necessario avere Binutils 2.21 o superiore.
 
 pkg-config
 ----------
@@ -286,11 +281,6 @@ col seguente comando::
 
   mknod /dev/ppp c 108 0
 
-Isdn4k-utils
-------------
-
-Per via della modifica del campo per il numero di telefono, il pacchetto
-isdn4k-utils dev'essere ricompilato o (preferibilmente) aggiornato.
 
 NFS-utils
 ---------
@@ -456,10 +446,6 @@ PPP
 
 - <ftp://ftp.samba.org/pub/ppp/>
 
-Isdn4k-utils
-------------
-
-- <ftp://ftp.isdn4linux.de/pub/isdn4linux/utils/>
 
 NFS-utils
 ---------

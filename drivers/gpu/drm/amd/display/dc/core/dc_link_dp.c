@@ -965,6 +965,7 @@ static inline enum link_training_result perform_link_training_int(
 static void initialize_training_settings(
 	 struct dc_link *link,
 	const struct dc_link_settings *link_setting,
+	const struct dc_link_training_overrides *overrides,
 	struct link_training_settings *lt_settings)
 {
 	uint32_t lane;
@@ -997,23 +998,23 @@ static void initialize_training_settings(
 	/* Initialize link spread */
 	if (link->dp_ss_off)
 		lt_settings->link_settings.link_spread = LINK_SPREAD_DISABLED;
-	else if (link->preferred_training_settings.downspread != NULL)
+	else if (overrides->downspread != NULL)
 		lt_settings->link_settings.link_spread
-			= *link->preferred_training_settings.downspread
+			= *overrides->downspread
 			? LINK_SPREAD_05_DOWNSPREAD_30KHZ
 			: LINK_SPREAD_DISABLED;
 	else
 		lt_settings->link_settings.link_spread = LINK_SPREAD_05_DOWNSPREAD_30KHZ;
 
 	/* Initialize lane settings overrides */
-	if (link->preferred_training_settings.voltage_swing != NULL)
-		lt_settings->voltage_swing = link->preferred_training_settings.voltage_swing;
+	if (overrides->voltage_swing != NULL)
+		lt_settings->voltage_swing = overrides->voltage_swing;
 
-	if (link->preferred_training_settings.pre_emphasis != NULL)
-		lt_settings->pre_emphasis = link->preferred_training_settings.pre_emphasis;
+	if (overrides->pre_emphasis != NULL)
+		lt_settings->pre_emphasis = overrides->pre_emphasis;
 
-	if (link->preferred_training_settings.post_cursor2 != NULL)
-		lt_settings->post_cursor2 = link->preferred_training_settings.post_cursor2;
+	if (overrides->post_cursor2 != NULL)
+		lt_settings->post_cursor2 = overrides->post_cursor2;
 
 	/* Initialize lane settings (VS/PE/PC2) */
 	for (lane = 0; lane < LANE_COUNT_DP_MAX; lane++) {
@@ -1032,23 +1033,23 @@ static void initialize_training_settings(
 	}
 
 	/* Initialize training timings */
-	if (link->preferred_training_settings.cr_pattern_time != NULL)
-		lt_settings->cr_pattern_time = *link->preferred_training_settings.cr_pattern_time;
+	if (overrides->cr_pattern_time != NULL)
+		lt_settings->cr_pattern_time = *overrides->cr_pattern_time;
 	else
-		lt_settings->cr_pattern_time = 100;
+		lt_settings->cr_pattern_time = get_training_aux_rd_interval(link, 100);
 
-	if (link->preferred_training_settings.eq_pattern_time != NULL)
-		lt_settings->eq_pattern_time = *link->preferred_training_settings.eq_pattern_time;
+	if (overrides->eq_pattern_time != NULL)
+		lt_settings->eq_pattern_time = *overrides->eq_pattern_time;
 	else
 		lt_settings->eq_pattern_time = get_training_aux_rd_interval(link, 400);
 
-	if (link->preferred_training_settings.pattern_for_eq != NULL)
-		lt_settings->pattern_for_eq = *link->preferred_training_settings.pattern_for_eq;
+	if (overrides->pattern_for_eq != NULL)
+		lt_settings->pattern_for_eq = *overrides->pattern_for_eq;
 	else
 		lt_settings->pattern_for_eq = get_supported_tp(link);
 
-	if (link->preferred_training_settings.enhanced_framing != NULL)
-		lt_settings->enhanced_framing = *link->preferred_training_settings.enhanced_framing;
+	if (overrides->enhanced_framing != NULL)
+		lt_settings->enhanced_framing = *overrides->enhanced_framing;
 	else
 		lt_settings->enhanced_framing = 1;
 }
@@ -1139,7 +1140,11 @@ bool dc_link_dp_perform_link_training_skip_aux(
 	struct link_training_settings lt_settings;
 	enum dc_dp_training_pattern pattern_for_cr = DP_TRAINING_PATTERN_SEQUENCE_1;
 
-	initialize_training_settings(link, link_setting, &lt_settings);
+	initialize_training_settings(
+			link,
+			link_setting,
+			&link->preferred_training_settings,
+			&lt_settings);
 
 	/* 1. Perform_clock_recovery_sequence. */
 
@@ -1184,7 +1189,11 @@ enum link_training_result dc_link_dp_perform_link_training(
 	bool fec_enable;
 #endif
 
-	initialize_training_settings(link, link_setting, &lt_settings);
+	initialize_training_settings(
+			link,
+			link_setting,
+			&link->preferred_training_settings,
+			&lt_settings);
 
 	/* 1. set link rate, lane count and spread. */
 	dpcd_set_link_settings(link, &lt_settings);
@@ -1245,6 +1254,146 @@ bool perform_link_training_with_retries(
 	}
 
 	return false;
+}
+
+static enum clock_source_id get_clock_source_id(struct dc_link *link)
+{
+	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_UNDEFINED;
+	struct clock_source *dp_cs = link->dc->res_pool->dp_clock_source;
+
+	if (dp_cs != NULL) {
+		dp_cs_id = dp_cs->id;
+	} else {
+		/*
+		 * dp clock source is not initialized for some reason.
+		 * Should not happen, CLOCK_SOURCE_ID_EXTERNAL will be used
+		 */
+		ASSERT(dp_cs);
+	}
+
+	return dp_cs_id;
+}
+
+static void set_dp_mst_mode(struct dc_link *link, bool mst_enable)
+{
+	if (mst_enable == false &&
+		link->type == dc_connection_mst_branch) {
+		/* Disable MST on link. Use only local sink. */
+		dp_disable_link_phy_mst(link, link->connector_signal);
+
+		link->type = dc_connection_single;
+		link->local_sink = link->remote_sinks[0];
+		link->local_sink->sink_signal = SIGNAL_TYPE_DISPLAY_PORT;
+	} else if (mst_enable == true &&
+			link->type == dc_connection_single &&
+			link->remote_sinks[0] != NULL) {
+		/* Re-enable MST on link. */
+		dp_disable_link_phy(link, link->connector_signal);
+		dp_enable_mst_on_sink(link, true);
+
+		link->type = dc_connection_mst_branch;
+		link->local_sink->sink_signal = SIGNAL_TYPE_DISPLAY_PORT_MST;
+	}
+}
+
+bool dc_link_dp_sync_lt_begin(struct dc_link *link)
+{
+	/* Begin Sync LT. During this time,
+	 * DPCD:600h must not be powered down.
+	 */
+	link->sync_lt_in_progress = true;
+
+	/*Clear any existing preferred settings.*/
+	memset(&link->preferred_training_settings, 0,
+		sizeof(struct dc_link_training_overrides));
+	memset(&link->preferred_link_setting, 0,
+		sizeof(struct dc_link_settings));
+
+	return true;
+}
+
+enum link_training_result dc_link_dp_sync_lt_attempt(
+    struct dc_link *link,
+    struct dc_link_settings *link_settings,
+    struct dc_link_training_overrides *lt_overrides)
+{
+	struct link_training_settings lt_settings;
+	enum link_training_result lt_status = LINK_TRAINING_SUCCESS;
+	enum dp_panel_mode panel_mode = DP_PANEL_MODE_DEFAULT;
+	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	bool fec_enable = false;
+#endif
+
+	initialize_training_settings(
+		link,
+		link_settings,
+		lt_overrides,
+		&lt_settings);
+
+	/* Setup MST Mode */
+	if (lt_overrides->mst_enable)
+		set_dp_mst_mode(link, *lt_overrides->mst_enable);
+
+	/* Disable link */
+	dp_disable_link_phy(link, link->connector_signal);
+
+	/* Enable link */
+	dp_cs_id = get_clock_source_id(link);
+	dp_enable_link_phy(link, link->connector_signal,
+		dp_cs_id, link_settings);
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	/* Set FEC enable */
+	fec_enable = lt_overrides->fec_enable && *lt_overrides->fec_enable;
+	dp_set_fec_ready(link, fec_enable);
+#endif
+
+	if (lt_overrides->alternate_scrambler_reset) {
+		if (*lt_overrides->alternate_scrambler_reset)
+			panel_mode = DP_PANEL_MODE_EDP;
+		else
+			panel_mode = DP_PANEL_MODE_DEFAULT;
+	} else
+		panel_mode = dp_get_panel_mode(link);
+
+	dp_set_panel_mode(link, panel_mode);
+
+	/* Attempt to train with given link training settings */
+
+	/* Set link rate, lane count and spread. */
+	dpcd_set_link_settings(link, &lt_settings);
+
+	/* 2. perform link training (set link training done
+	 *  to false is done as well)
+	 */
+	lt_status = perform_clock_recovery_sequence(link, &lt_settings);
+	if (lt_status == LINK_TRAINING_SUCCESS) {
+		lt_status = perform_channel_equalization_sequence(link,
+						&lt_settings);
+	}
+
+	/* 3. Sync LT must skip TRAINING_PATTERN_SET:0 (video pattern)*/
+	/* 4. print status message*/
+	print_status_message(link, &lt_settings, lt_status);
+
+	return lt_status;
+}
+
+bool dc_link_dp_sync_lt_end(struct dc_link *link, bool link_down)
+{
+	/* If input parameter is set, shut down phy.
+	 * Still shouldn't turn off dp_receiver (DPCD:600h)
+	 */
+	if (link_down == true) {
+		dp_disable_link_phy(link, link->connector_signal);
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+		dp_set_fec_ready(link, false);
+#endif
+	}
+
+	link->sync_lt_in_progress = false;
+	return true;
 }
 
 static struct dc_link_settings get_max_link_cap(struct dc_link *link)
@@ -1401,7 +1550,6 @@ bool dp_verify_link_cap(
 	bool success;
 	bool skip_link_training;
 	bool skip_video_pattern;
-	struct clock_source *dp_cs;
 	enum clock_source_id dp_cs_id = CLOCK_SOURCE_ID_EXTERNAL;
 	enum link_training_result status;
 	union hpd_irq_data irq_data;
@@ -1425,17 +1573,7 @@ bool dp_verify_link_cap(
 	/* disable PHY done possible by BIOS, will be done by driver itself */
 	dp_disable_link_phy(link, link->connector_signal);
 
-	dp_cs = link->dc->res_pool->dp_clock_source;
-
-	if (dp_cs)
-		dp_cs_id = dp_cs->id;
-	else {
-		/*
-		 * dp clock source is not initialized for some reason.
-		 * Should not happen, CLOCK_SOURCE_ID_EXTERNAL will be used
-		 */
-		ASSERT(dp_cs);
-	}
+	dp_cs_id = get_clock_source_id(link);
 
 	/* link training starts with the maximum common settings
 	 * supported by both sink and ASIC.
@@ -1502,6 +1640,33 @@ bool dp_verify_link_cap(
 	}
 
 
+	return success;
+}
+
+bool dp_verify_link_cap_with_retries(
+	struct dc_link *link,
+	struct dc_link_settings *known_limit_link_setting,
+	int attempts)
+{
+	uint8_t i = 0;
+	bool success = false;
+
+	for (i = 0; i < attempts; i++) {
+		int fail_count = 0;
+		enum dc_connection_type type;
+
+		memset(&link->verified_link_cap, 0,
+				sizeof(struct dc_link_settings));
+		if (!dc_link_detect_sink(link, &type)) {
+			break;
+		} else if (dp_verify_link_cap(link,
+				&link->reported_link_cap,
+				&fail_count) && fail_count == 0) {
+			success = true;
+			break;
+		}
+		msleep(10);
+	}
 	return success;
 }
 
@@ -2307,6 +2472,11 @@ bool is_mst_supported(struct dc_link *link)
 	union dpcd_rev rev;
 	union mstm_cap cap;
 
+	if (link->preferred_training_settings.mst_enable &&
+		*link->preferred_training_settings.mst_enable == false) {
+		return false;
+	}
+
 	rev.raw  = 0;
 	cap.raw  = 0;
 
@@ -2514,13 +2684,13 @@ static void dp_wa_power_up_0010FA(struct dc_link *link, uint8_t *dpcd_data,
 
 	if (link->dpcd_caps.dongle_type == DISPLAY_DONGLE_DP_VGA_CONVERTER) {
 		switch (link->dpcd_caps.branch_dev_id) {
-		/* Some active dongles (DP-VGA, DP-DLDVI converters) power down
+		/* 0010FA active dongles (DP-VGA, DP-DLDVI converters) power down
 		 * all internal circuits including AUX communication preventing
 		 * reading DPCD table and EDID (spec violation).
 		 * Encoder will skip DP RX power down on disable_output to
 		 * keep receiver powered all the time.*/
-		case DP_BRANCH_DEVICE_ID_1:
-		case DP_BRANCH_DEVICE_ID_4:
+		case DP_BRANCH_DEVICE_ID_0010FA:
+		case DP_BRANCH_DEVICE_ID_0080E1:
 			link->wa_flags.dp_keep_receiver_powered = true;
 			break;
 
@@ -2925,14 +3095,19 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				controller_test_pattern, color_depth);
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
-			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+			struct pipe_ctx *odm_pipe;
+			int opp_cnt = 1;
 
-			if (bot_odm_pipe) {
-				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+				opp_cnt++;
 
-				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
-				width /= 2;
-				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+			width /= opp_cnt;
+
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
+
+				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
+				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					controller_test_pattern,
 					color_depth,
 					NULL,
@@ -2961,14 +3136,18 @@ static void set_crtc_test_pattern(struct dc_link *link,
 				color_depth);
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 		else if (opp->funcs->opp_set_disp_pattern_generator) {
-			struct pipe_ctx *bot_odm_pipe = dc_res_get_odm_bottom_pipe(pipe_ctx);
+			struct pipe_ctx *odm_pipe;
+			int opp_cnt = 1;
 
-			if (bot_odm_pipe) {
-				struct output_pixel_processor *bot_opp = bot_odm_pipe->stream_res.opp;
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+				opp_cnt++;
 
-				bot_opp->funcs->opp_program_bit_depth_reduction(bot_opp, &params);
-				width /= 2;
-				bot_opp->funcs->opp_set_disp_pattern_generator(bot_opp,
+			width /= opp_cnt;
+			for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
+				struct output_pixel_processor *odm_opp = odm_pipe->stream_res.opp;
+
+				odm_opp->funcs->opp_program_bit_depth_reduction(odm_opp, &params);
+				odm_opp->funcs->opp_set_disp_pattern_generator(odm_opp,
 					CONTROLLER_DP_TEST_PATTERN_VIDEOMODE,
 					color_depth,
 					NULL,
@@ -3009,7 +3188,7 @@ bool dc_link_dp_set_test_pattern(
 	memset(&training_pattern, 0, sizeof(training_pattern));
 
 	for (i = 0; i < MAX_PIPES; i++) {
-		if (pipes[i].stream->link == link) {
+		if (pipes[i].stream->link == link && !pipes[i].top_pipe && !pipes[i].prev_odm_pipe) {
 			pipe_ctx = &pipes[i];
 			break;
 		}
@@ -3156,6 +3335,105 @@ void dp_enable_mst_on_sink(struct dc_link *link, bool enable)
 		mstmCntl &= (~DP_MST_EN);
 
 	core_link_write_dpcd(link, DP_MSTM_CTRL, &mstmCntl, 1);
+}
+
+void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode)
+{
+	union dpcd_edp_config edp_config_set;
+	bool panel_mode_edp = false;
+
+	memset(&edp_config_set, '\0', sizeof(union dpcd_edp_config));
+
+	if (panel_mode != DP_PANEL_MODE_DEFAULT) {
+
+		switch (panel_mode) {
+		case DP_PANEL_MODE_EDP:
+		case DP_PANEL_MODE_SPECIAL:
+			panel_mode_edp = true;
+			break;
+
+		default:
+				break;
+		}
+
+		/*set edp panel mode in receiver*/
+		core_link_read_dpcd(
+			link,
+			DP_EDP_CONFIGURATION_SET,
+			&edp_config_set.raw,
+			sizeof(edp_config_set.raw));
+
+		if (edp_config_set.bits.PANEL_MODE_EDP
+			!= panel_mode_edp) {
+			enum ddc_result result = DDC_RESULT_UNKNOWN;
+
+			edp_config_set.bits.PANEL_MODE_EDP =
+			panel_mode_edp;
+			result = core_link_write_dpcd(
+				link,
+				DP_EDP_CONFIGURATION_SET,
+				&edp_config_set.raw,
+				sizeof(edp_config_set.raw));
+
+			ASSERT(result == DDC_RESULT_SUCESSFULL);
+		}
+	}
+	DC_LOG_DETECTION_DP_CAPS("Link: %d eDP panel mode supported: %d "
+		 "eDP panel mode enabled: %d \n",
+		 link->link_index,
+		 link->dpcd_caps.panel_mode_edp,
+		 panel_mode_edp);
+}
+
+enum dp_panel_mode dp_get_panel_mode(struct dc_link *link)
+{
+	/* We need to explicitly check that connector
+	 * is not DP. Some Travis_VGA get reported
+	 * by video bios as DP.
+	 */
+	if (link->connector_signal != SIGNAL_TYPE_DISPLAY_PORT) {
+
+		switch (link->dpcd_caps.branch_dev_id) {
+		case DP_BRANCH_DEVICE_ID_0022B9:
+			/* alternate scrambler reset is required for Travis
+			 * for the case when external chip does not
+			 * provide sink device id, alternate scrambler
+			 * scheme will  be overriden later by querying
+			 * Encoder features
+			 */
+			if (strncmp(
+				link->dpcd_caps.branch_dev_name,
+				DP_VGA_LVDS_CONVERTER_ID_2,
+				sizeof(
+				link->dpcd_caps.
+				branch_dev_name)) == 0) {
+					return DP_PANEL_MODE_SPECIAL;
+			}
+			break;
+		case DP_BRANCH_DEVICE_ID_00001A:
+			/* alternate scrambler reset is required for Travis
+			 * for the case when external chip does not provide
+			 * sink device id, alternate scrambler scheme will
+			 * be overriden later by querying Encoder feature
+			 */
+			if (strncmp(link->dpcd_caps.branch_dev_name,
+				DP_VGA_LVDS_CONVERTER_ID_3,
+				sizeof(
+				link->dpcd_caps.
+				branch_dev_name)) == 0) {
+					return DP_PANEL_MODE_SPECIAL;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+	if (link->dpcd_caps.panel_mode_edp) {
+		return DP_PANEL_MODE_EDP;
+	}
+
+	return DP_PANEL_MODE_DEFAULT;
 }
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT

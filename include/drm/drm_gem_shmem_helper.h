@@ -134,7 +134,7 @@ static inline bool drm_gem_shmem_is_purgeable(struct drm_gem_shmem_object *shmem
 }
 
 void drm_gem_shmem_purge_locked(struct drm_gem_object *obj);
-void drm_gem_shmem_purge(struct drm_gem_object *obj);
+bool drm_gem_shmem_purge(struct drm_gem_object *obj);
 
 struct drm_gem_shmem_object *
 drm_gem_shmem_create_with_handle(struct drm_file *file_priv,

@@ -1614,6 +1614,9 @@ EXPORT_SYMBOL_GPL(cec_s_phys_addr_from_edid);
 void cec_s_conn_info(struct cec_adapter *adap,
 		     const struct cec_connector_info *conn_info)
 {
+	if (IS_ERR_OR_NULL(adap))
+		return;
+
 	if (!(adap->capabilities & CEC_CAP_CONNECTOR_INFO))
 		return;
 

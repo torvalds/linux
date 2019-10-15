@@ -44,7 +44,7 @@
 #define smnMP0_FW_INTF			0x30101c0
 #define smnMP1_PUB_CTRL			0x3010b14
 
-static bool vega20_is_smc_ram_running(struct pp_hwmgr *hwmgr)
+bool vega20_is_smc_ram_running(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = hwmgr->adev;
 	uint32_t mp1_fw_flags;

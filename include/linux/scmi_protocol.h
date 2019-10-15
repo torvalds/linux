@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * SCMI Message Protocol driver header
  *
@@ -71,7 +71,7 @@ struct scmi_clk_ops {
 	int (*rate_get)(const struct scmi_handle *handle, u32 clk_id,
 			u64 *rate);
 	int (*rate_set)(const struct scmi_handle *handle, u32 clk_id,
-			u32 config, u64 rate);
+			u64 rate);
 	int (*enable)(const struct scmi_handle *handle, u32 clk_id);
 	int (*disable)(const struct scmi_handle *handle, u32 clk_id);
 };
@@ -145,6 +145,8 @@ struct scmi_sensor_info {
 	u32 id;
 	u8 type;
 	s8 scale;
+	u8 num_trip_points;
+	bool async;
 	char name[SCMI_MAX_STR_SIZE];
 };
 
@@ -167,9 +169,9 @@ enum scmi_sensor_class {
  *
  * @count_get: get the count of sensors provided by SCMI
  * @info_get: get the information of the specified sensor
- * @configuration_set: control notifications on cross-over events for
+ * @trip_point_notify: control notifications on cross-over events for
  *	the trip-points
- * @trip_point_set: selects and configures a trip-point of interest
+ * @trip_point_config: selects and configures a trip-point of interest
  * @reading_get: gets the current value of the sensor
  */
 struct scmi_sensor_ops {
@@ -177,12 +179,32 @@ struct scmi_sensor_ops {
 
 	const struct scmi_sensor_info *(*info_get)
 		(const struct scmi_handle *handle, u32 sensor_id);
-	int (*configuration_set)(const struct scmi_handle *handle,
-				 u32 sensor_id);
-	int (*trip_point_set)(const struct scmi_handle *handle, u32 sensor_id,
-			      u8 trip_id, u64 trip_value);
+	int (*trip_point_notify)(const struct scmi_handle *handle,
+				 u32 sensor_id, bool enable);
+	int (*trip_point_config)(const struct scmi_handle *handle,
+				 u32 sensor_id, u8 trip_id, u64 trip_value);
 	int (*reading_get)(const struct scmi_handle *handle, u32 sensor_id,
-			   bool async, u64 *value);
+			   u64 *value);
+};
+
+/**
+ * struct scmi_reset_ops - represents the various operations provided
+ *	by SCMI Reset Protocol
+ *
+ * @num_domains_get: get the count of reset domains provided by SCMI
+ * @name_get: gets the name of a reset domain
+ * @latency_get: gets the reset latency for the specified reset domain
+ * @reset: resets the specified reset domain
+ * @assert: explicitly assert reset signal of the specified reset domain
+ * @deassert: explicitly deassert reset signal of the specified reset domain
+ */
+struct scmi_reset_ops {
+	int (*num_domains_get)(const struct scmi_handle *handle);
+	char *(*name_get)(const struct scmi_handle *handle, u32 domain);
+	int (*latency_get)(const struct scmi_handle *handle, u32 domain);
+	int (*reset)(const struct scmi_handle *handle, u32 domain);
+	int (*assert)(const struct scmi_handle *handle, u32 domain);
+	int (*deassert)(const struct scmi_handle *handle, u32 domain);
 };
 
 /**
@@ -194,6 +216,7 @@ struct scmi_sensor_ops {
  * @perf_ops: pointer to set of performance protocol operations
  * @clk_ops: pointer to set of clock protocol operations
  * @sensor_ops: pointer to set of sensor protocol operations
+ * @reset_ops: pointer to set of reset protocol operations
  * @perf_priv: pointer to private data structure specific to performance
  *	protocol(for internal use only)
  * @clk_priv: pointer to private data structure specific to clock
@@ -201,6 +224,8 @@ struct scmi_sensor_ops {
  * @power_priv: pointer to private data structure specific to power
  *	protocol(for internal use only)
  * @sensor_priv: pointer to private data structure specific to sensors
+ *	protocol(for internal use only)
+ * @reset_priv: pointer to private data structure specific to reset
  *	protocol(for internal use only)
  */
 struct scmi_handle {
@@ -210,11 +235,13 @@ struct scmi_handle {
 	struct scmi_clk_ops *clk_ops;
 	struct scmi_power_ops *power_ops;
 	struct scmi_sensor_ops *sensor_ops;
+	struct scmi_reset_ops *reset_ops;
 	/* for protocol internal use */
 	void *perf_priv;
 	void *clk_priv;
 	void *power_priv;
 	void *sensor_priv;
+	void *reset_priv;
 };
 
 enum scmi_std_protocol {
@@ -224,6 +251,7 @@ enum scmi_std_protocol {
 	SCMI_PROTOCOL_PERF = 0x13,
 	SCMI_PROTOCOL_CLOCK = 0x14,
 	SCMI_PROTOCOL_SENSOR = 0x15,
+	SCMI_PROTOCOL_RESET = 0x16,
 };
 
 struct scmi_device {

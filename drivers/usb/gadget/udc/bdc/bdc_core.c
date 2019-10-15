@@ -515,10 +515,8 @@ static int bdc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(dev, "platform_get_irq failed:%d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 	spin_lock_init(&bdc->lock);
 	platform_set_drvdata(pdev, bdc);
 	bdc->irq = irq;

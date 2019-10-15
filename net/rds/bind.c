@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2006, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -181,7 +181,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		if (addr_len < sizeof(struct sockaddr_in) ||
 		    sin->sin_addr.s_addr == htonl(INADDR_ANY) ||
 		    sin->sin_addr.s_addr == htonl(INADDR_BROADCAST) ||
-		    IN_MULTICAST(ntohl(sin->sin_addr.s_addr)))
+		    ipv4_is_multicast(sin->sin_addr.s_addr))
 			return -EINVAL;
 		ipv6_addr_set_v4mapped(sin->sin_addr.s_addr, &v6addr);
 		binding_addr = &v6addr;
@@ -206,7 +206,7 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 			addr4 = sin6->sin6_addr.s6_addr32[3];
 			if (addr4 == htonl(INADDR_ANY) ||
 			    addr4 == htonl(INADDR_BROADCAST) ||
-			    IN_MULTICAST(ntohl(addr4)))
+			    ipv4_is_multicast(addr4))
 				return -EINVAL;
 		}
 		/* The scope ID must be specified for link local address. */
@@ -239,34 +239,33 @@ int rds_bind(struct socket *sock, struct sockaddr *uaddr, int addr_len)
 		goto out;
 	}
 
+	/* The transport can be set using SO_RDS_TRANSPORT option before the
+	 * socket is bound.
+	 */
+	if (rs->rs_transport) {
+		trans = rs->rs_transport;
+		if (!trans->laddr_check ||
+		    trans->laddr_check(sock_net(sock->sk),
+				       binding_addr, scope_id) != 0) {
+			ret = -ENOPROTOOPT;
+			goto out;
+		}
+	} else {
+		trans = rds_trans_get_preferred(sock_net(sock->sk),
+						binding_addr, scope_id);
+		if (!trans) {
+			ret = -EADDRNOTAVAIL;
+			pr_info_ratelimited("RDS: %s could not find a transport for %pI6c, load rds_tcp or rds_rdma?\n",
+					    __func__, binding_addr);
+			goto out;
+		}
+		rs->rs_transport = trans;
+	}
+
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	ret = rds_add_bound(rs, binding_addr, &port, scope_id);
 	if (ret)
-		goto out;
-
-	if (rs->rs_transport) { /* previously bound */
-		trans = rs->rs_transport;
-		if (trans->laddr_check(sock_net(sock->sk),
-				       binding_addr, scope_id) != 0) {
-			ret = -ENOPROTOOPT;
-			rds_remove_bound(rs);
-		} else {
-			ret = 0;
-		}
-		goto out;
-	}
-	trans = rds_trans_get_preferred(sock_net(sock->sk), binding_addr,
-					scope_id);
-	if (!trans) {
-		ret = -EADDRNOTAVAIL;
-		rds_remove_bound(rs);
-		pr_info_ratelimited("RDS: %s could not find a transport for %pI6c, load rds_tcp or rds_rdma?\n",
-				    __func__, binding_addr);
-		goto out;
-	}
-
-	rs->rs_transport = trans;
-	ret = 0;
+		rs->rs_transport = NULL;
 
 out:
 	release_sock(sk);

@@ -689,7 +689,7 @@ enum qed_link_mode_bits {
 	QED_LM_40000baseLR4_Full_BIT = BIT(9),
 	QED_LM_50000baseKR2_Full_BIT = BIT(10),
 	QED_LM_100000baseKR4_Full_BIT = BIT(11),
-	QED_LM_2500baseX_Full_BIT = BIT(12),
+	QED_LM_TP_BIT = BIT(12),
 	QED_LM_Backplane_BIT = BIT(13),
 	QED_LM_1000baseKX_Full_BIT = BIT(14),
 	QED_LM_10000baseKX4_Full_BIT = BIT(15),
@@ -804,6 +804,7 @@ enum qed_nvm_flash_cmd {
 	QED_NVM_FLASH_CMD_FILE_DATA = 0x2,
 	QED_NVM_FLASH_CMD_FILE_START = 0x3,
 	QED_NVM_FLASH_CMD_NVM_CHANGE = 0x4,
+	QED_NVM_FLASH_CMD_NVM_CFG_ID = 0x5,
 	QED_NVM_FLASH_CMD_NVM_MAX,
 };
 
@@ -1131,6 +1132,34 @@ struct qed_common_ops {
  * @param cdev
  */
 	u8 (*get_affin_hwfn_idx)(struct qed_dev *cdev);
+
+/**
+ * @brief read_nvm_cfg - Read NVM config attribute value.
+ * @param cdev
+ * @param buf - buffer
+ * @param cmd - NVM CFG command id
+ * @param entity_id - Entity id
+ *
+ */
+	int (*read_nvm_cfg)(struct qed_dev *cdev, u8 **buf, u32 cmd,
+			    u32 entity_id);
+/**
+ * @brief read_nvm_cfg - Read NVM config attribute value.
+ * @param cdev
+ * @param cmd - NVM CFG command id
+ *
+ * @return config id length, 0 on error.
+ */
+	int (*read_nvm_cfg_len)(struct qed_dev *cdev, u32 cmd);
+
+/**
+ * @brief set_grc_config - Configure value for grc config id.
+ * @param cdev
+ * @param cfg_id - grc config id
+ * @param val - grc config value
+ *
+ */
+	int (*set_grc_config)(struct qed_dev *cdev, u32 cfg_id, u32 val);
 };
 
 #define MASK_FIELD(_name, _value) \

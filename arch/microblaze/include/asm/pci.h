@@ -66,8 +66,6 @@ extern pgprot_t	pci_phys_mem_access_prot(struct file *file,
 					 unsigned long size,
 					 pgprot_t prot);
 
-#define HAVE_ARCH_PCI_RESOURCE_TO_USER
-
 /* This part of code was originally in xilinx-pci.h */
 #ifdef CONFIG_PCI_XILINX
 extern void __init xilinx_pci_init(void);

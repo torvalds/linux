@@ -70,15 +70,6 @@ struct wilc_p2p_mgmt_data {
 static const u8 p2p_oui[] = {0x50, 0x6f, 0x9A, 0x09};
 static const u8 p2p_vendor_spec[] = {0xdd, 0x05, 0x00, 0x08, 0x40, 0x03};
 
-#define WILC_IP_TIMEOUT_MS		15000
-
-static void clear_during_ip(struct timer_list *t)
-{
-	struct wilc_vif *vif = from_timer(vif, t, during_ip_timer);
-
-	vif->obtaining_ip = false;
-}
-
 static void cfg_scan_result(enum scan_event scan_event,
 			    struct wilc_rcvd_net_info *info, void *user_void)
 {
@@ -176,7 +167,6 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
 		u16 reason = 0;
 
-		vif->obtaining_ip = false;
 		priv->p2p.local_random = 0x01;
 		priv->p2p.recv_random = 0x00;
 		priv->p2p.is_wilc_ie = false;
@@ -1038,8 +1028,7 @@ void wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size)
 	s32 freq;
 	__le16 fc;
 
-	memcpy(&header, (buff - HOST_HDR_OFFSET), HOST_HDR_OFFSET);
-	le32_to_cpus(&header);
+	header = get_unaligned_le32(buff - HOST_HDR_OFFSET);
 	pkt_offset = GET_PKT_OFFSET(header);
 
 	if (pkt_offset & IS_MANAGMEMENT_CALLBACK) {
@@ -1404,8 +1393,7 @@ static int set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	if (!priv->hif_drv)
 		return -EIO;
 
-	if (vif->wilc->enable_ps)
-		wilc_set_power_mgmt(vif, enabled, timeout);
+	wilc_set_power_mgmt(vif, enabled, timeout);
 
 	return 0;
 }
@@ -1421,8 +1409,6 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 	priv->p2p.local_random = 0x01;
 	priv->p2p.recv_random = 0x00;
 	priv->p2p.is_wilc_ie = false;
-	vif->obtaining_ip = false;
-	del_timer(&vif->during_ip_timer);
 
 	switch (type) {
 	case NL80211_IFTYPE_STATION:
@@ -1433,13 +1419,11 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		if (vif->iftype == WILC_AP_MODE || vif->iftype == WILC_GO_MODE)
 			wilc_wfi_deinit_mon_interface(wl, true);
 		vif->iftype = WILC_STATION_MODE;
-		wilc_set_operation_mode(vif, WILC_STATION_MODE);
+		wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+					WILC_STATION_MODE, vif->idx);
 
 		memset(priv->assoc_stainfo.sta_associated_bss, 0,
 		       WILC_MAX_NUM_STA * ETH_ALEN);
-
-		wl->enable_ps = true;
-		wilc_set_power_mgmt(vif, 1, 0);
 		break;
 
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -1448,37 +1432,26 @@ static int change_virtual_intf(struct wiphy *wiphy, struct net_device *dev,
 		priv->wdev.iftype = type;
 		vif->monitor_flag = 0;
 		vif->iftype = WILC_CLIENT_MODE;
-		wilc_set_operation_mode(vif, WILC_STATION_MODE);
-
-		wl->enable_ps = false;
-		wilc_set_power_mgmt(vif, 0, 0);
+		wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+					WILC_STATION_MODE, vif->idx);
 		break;
 
 	case NL80211_IFTYPE_AP:
-		wl->enable_ps = false;
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev.iftype = type;
 		vif->iftype = WILC_AP_MODE;
 
-		if (wl->initialized) {
-			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 0, vif->idx);
-			wilc_set_operation_mode(vif, WILC_AP_MODE);
-			wilc_set_power_mgmt(vif, 0, 0);
-		}
+		if (wl->initialized)
+			wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+						WILC_AP_MODE, vif->idx);
 		break;
 
 	case NL80211_IFTYPE_P2P_GO:
-		vif->obtaining_ip = true;
-		mod_timer(&vif->during_ip_timer,
-			  jiffies + msecs_to_jiffies(WILC_IP_TIMEOUT_MS));
-		wilc_set_operation_mode(vif, WILC_AP_MODE);
 		dev->ieee80211_ptr->iftype = type;
 		priv->wdev.iftype = type;
 		vif->iftype = WILC_GO_MODE;
-
-		wl->enable_ps = false;
-		wilc_set_power_mgmt(vif, 0, 0);
+		wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+					WILC_AP_MODE, vif->idx);
 		break;
 
 	default:
@@ -1500,7 +1473,6 @@ static int start_ap(struct wiphy *wiphy, struct net_device *dev,
 		netdev_err(dev, "Error in setting channel\n");
 
 	wilc_wlan_set_bssid(dev, dev->dev_addr, WILC_AP_MODE);
-	wilc_set_power_mgmt(vif, 0, 0);
 
 	return wilc_add_beacon(vif, settings->beacon_interval,
 				   settings->dtim_period, &settings->beacon);
@@ -1687,16 +1659,16 @@ static int del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev)
 	vif->monitor_flag = 0;
 
 	mutex_lock(&wl->vif_mutex);
-	wilc_set_wfi_drv_handler(vif, 0, 0, 0);
-	for (i = vif->idx; i < wl->vif_num ; i++) {
+	wilc_set_operation_mode(vif, 0, 0, 0);
+	for (i = vif->idx; i < wl->vif_num; i++) {
 		if ((i + 1) >= wl->vif_num) {
 			wl->vif[i] = NULL;
 		} else {
 			vif = wl->vif[i + 1];
 			vif->idx = i;
 			wl->vif[i] = vif;
-			wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif),
-						 vif->iftype, vif->idx);
+			wilc_set_operation_mode(vif, wilc_get_vif_idx(vif),
+						vif->iftype, vif->idx);
 		}
 	}
 	wl->vif_num--;
@@ -1851,7 +1823,6 @@ int wilc_cfg80211_init(struct wilc **wilc, struct device *dev, int io_type,
 	*wilc = wl;
 	wl->io_type = io_type;
 	wl->hif_func = ops;
-	wl->enable_ps = false;
 	wl->chip_ps_state = WILC_CHIP_WAKEDUP;
 	INIT_LIST_HEAD(&wl->txq_head.list);
 	INIT_LIST_HEAD(&wl->rxq_head.list);
@@ -1949,8 +1920,6 @@ int wilc_init_host_int(struct net_device *net)
 	struct wilc_vif *vif = netdev_priv(net);
 	struct wilc_priv *priv = &vif->priv;
 
-	timer_setup(&vif->during_ip_timer, clear_during_ip, 0);
-
 	priv->p2p_listen_state = false;
 
 	mutex_init(&priv->scan_req_lock);
@@ -1969,10 +1938,9 @@ void wilc_deinit_host_int(struct net_device *net)
 
 	priv->p2p_listen_state = false;
 
+	flush_workqueue(vif->wilc->hif_workqueue);
 	mutex_destroy(&priv->scan_req_lock);
 	ret = wilc_deinit(vif);
-
-	del_timer_sync(&vif->during_ip_timer);
 
 	if (ret)
 		netdev_err(net, "Error while deinitializing host interface\n");

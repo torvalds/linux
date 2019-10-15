@@ -26,6 +26,9 @@
 #ifndef AMD_DAL_DEV_AMDGPU_DM_AMDGPU_DM_CRC_H_
 #define AMD_DAL_DEV_AMDGPU_DM_AMDGPU_DM_CRC_H_
 
+struct drm_crtc;
+struct dm_crtc_state;
+
 enum amdgpu_dm_pipe_crc_source {
 	AMDGPU_DM_PIPE_CRC_SOURCE_NONE = 0,
 	AMDGPU_DM_PIPE_CRC_SOURCE_CRTC,
@@ -44,6 +47,9 @@ static inline bool amdgpu_dm_is_valid_crc_source(enum amdgpu_dm_pipe_crc_source 
 
 /* amdgpu_dm_crc.c */
 #ifdef CONFIG_DEBUG_FS
+int amdgpu_dm_crtc_configure_crc_source(struct drm_crtc *crtc,
+					struct dm_crtc_state *dm_crtc_state,
+					enum amdgpu_dm_pipe_crc_source source);
 int amdgpu_dm_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name);
 int amdgpu_dm_crtc_verify_crc_source(struct drm_crtc *crtc,
 				     const char *src_name,

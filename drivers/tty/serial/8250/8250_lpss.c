@@ -14,7 +14,7 @@
 #include <linux/dmaengine.h>
 #include <linux/dma/dw.h>
 
-#include "8250.h"
+#include "8250_dwlib.h"
 
 #define PCI_DEVICE_ID_INTEL_QRK_UARTx	0x0936
 
@@ -23,6 +23,13 @@
 
 #define PCI_DEVICE_ID_INTEL_BSW_UART1	0x228a
 #define PCI_DEVICE_ID_INTEL_BSW_UART2	0x228c
+
+#define PCI_DEVICE_ID_INTEL_EHL_UART0	0x4b96
+#define PCI_DEVICE_ID_INTEL_EHL_UART1	0x4b97
+#define PCI_DEVICE_ID_INTEL_EHL_UART2	0x4b98
+#define PCI_DEVICE_ID_INTEL_EHL_UART3	0x4b99
+#define PCI_DEVICE_ID_INTEL_EHL_UART4	0x4b9a
+#define PCI_DEVICE_ID_INTEL_EHL_UART5	0x4b9b
 
 #define PCI_DEVICE_ID_INTEL_BDW_UART1	0x9ce3
 #define PCI_DEVICE_ID_INTEL_BDW_UART2	0x9ce4
@@ -48,21 +55,25 @@ struct lpss8250_board {
 };
 
 struct lpss8250 {
-	int line;
+	struct dw8250_port_data data;
 	struct lpss8250_board *board;
 
 	/* DMA parameters */
-	struct uart_8250_dma dma;
 	struct dw_dma_chip dma_chip;
 	struct dw_dma_slave dma_param;
 	u8 dma_maxburst;
 };
 
+static inline struct lpss8250 *to_lpss8250(struct dw8250_port_data *data)
+{
+	return container_of(data, struct lpss8250, data);
+}
+
 static void byt_set_termios(struct uart_port *p, struct ktermios *termios,
 			    struct ktermios *old)
 {
 	unsigned int baud = tty_termios_baud_rate(termios);
-	struct lpss8250 *lpss = p->private_data;
+	struct lpss8250 *lpss = to_lpss8250(p->private_data);
 	unsigned long fref = lpss->board->freq, fuart = baud * 16;
 	unsigned long w = BIT(15) - 1;
 	unsigned long m, n;
@@ -109,7 +120,6 @@ static unsigned int byt_get_mctrl(struct uart_port *port)
 static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 {
 	struct dw_dma_slave *param = &lpss->dma_param;
-	struct uart_8250_port *up = up_to_u8250p(port);
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	unsigned int dma_devfn = PCI_DEVFN(PCI_SLOT(pdev->devfn), 0);
 	struct pci_dev *dma_dev = pci_get_slot(pdev->bus, dma_devfn);
@@ -135,10 +145,6 @@ static int byt_serial_setup(struct lpss8250 *lpss, struct uart_port *port)
 	param->m_master = 0;
 	param->p_master = 1;
 
-	/* TODO: Detect FIFO size automaticaly for DesignWare 8250 */
-	port->fifosize = 64;
-	up->tx_loadsz = 64;
-
 	lpss->dma_maxburst = 16;
 
 	port->set_termios = byt_set_termios;
@@ -163,16 +169,19 @@ static const struct dw_dma_platform_data qrk_serial_dma_pdata = {
 
 static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 {
-	struct uart_8250_dma *dma = &lpss->dma;
+	struct uart_8250_dma *dma = &lpss->data.dma;
 	struct dw_dma_chip *chip = &lpss->dma_chip;
 	struct dw_dma_slave *param = &lpss->dma_param;
 	struct pci_dev *pdev = to_pci_dev(port->dev);
 	int ret;
 
+	chip->pdata = &qrk_serial_dma_pdata;
 	chip->dev = &pdev->dev;
+	chip->id = pdev->devfn;
 	chip->irq = pci_irq_vector(pdev, 0);
 	chip->regs = pci_ioremap_bar(pdev, 1);
-	chip->pdata = &qrk_serial_dma_pdata;
+	if (!chip->regs)
+		return;
 
 	/* Falling back to PIO mode if DMA probing fails */
 	ret = dw_dma_probe(chip);
@@ -195,11 +204,15 @@ static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port)
 
 static void qrk_serial_exit_dma(struct lpss8250 *lpss)
 {
+	struct dw_dma_chip *chip = &lpss->dma_chip;
 	struct dw_dma_slave *param = &lpss->dma_param;
 
 	if (!param->dma_dev)
 		return;
-	dw_dma_remove(&lpss->dma_chip);
+
+	dw_dma_remove(chip);
+
+	pci_iounmap(to_pci_dev(chip->dev), chip->regs);
 }
 #else	/* CONFIG_SERIAL_8250_DMA */
 static void qrk_serial_setup_dma(struct lpss8250 *lpss, struct uart_port *port) {}
@@ -241,7 +254,7 @@ static bool lpss8250_dma_filter(struct dma_chan *chan, void *param)
 
 static int lpss8250_dma_setup(struct lpss8250 *lpss, struct uart_8250_port *port)
 {
-	struct uart_8250_dma *dma = &lpss->dma;
+	struct uart_8250_dma *dma = &lpss->data.dma;
 	struct dw_dma_slave *rx_param, *tx_param;
 	struct device *dev = port->port.dev;
 
@@ -290,7 +303,7 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	uart.port.dev = &pdev->dev;
 	uart.port.irq = pdev->irq;
-	uart.port.private_data = lpss;
+	uart.port.private_data = &lpss->data;
 	uart.port.type = PORT_16550A;
 	uart.port.iotype = UPIO_MEM;
 	uart.port.regshift = 2;
@@ -306,6 +319,8 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret)
 		return ret;
 
+	dw8250_setup_port(&uart.port);
+
 	ret = lpss8250_dma_setup(lpss, &uart);
 	if (ret)
 		goto err_exit;
@@ -314,7 +329,7 @@ static int lpss8250_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	if (ret < 0)
 		goto err_exit;
 
-	lpss->line = ret;
+	lpss->data.line = ret;
 
 	pci_set_drvdata(pdev, lpss);
 	return 0;
@@ -329,7 +344,7 @@ static void lpss8250_remove(struct pci_dev *pdev)
 {
 	struct lpss8250 *lpss = pci_get_drvdata(pdev);
 
-	serial8250_unregister_port(lpss->line);
+	serial8250_unregister_port(lpss->data.line);
 
 	if (lpss->board->exit)
 		lpss->board->exit(lpss);
@@ -341,6 +356,11 @@ static const struct lpss8250_board byt_board = {
 	.setup = byt_serial_setup,
 };
 
+static const struct lpss8250_board ehl_board = {
+	.freq = 200000000,
+	.base_baud = 12500000,
+};
+
 static const struct lpss8250_board qrk_board = {
 	.freq = 44236800,
 	.base_baud = 2764800,
@@ -348,17 +368,21 @@ static const struct lpss8250_board qrk_board = {
 	.exit = qrk_serial_exit,
 };
 
-#define LPSS_DEVICE(id, board) { PCI_VDEVICE(INTEL, id), (kernel_ulong_t)&board }
-
 static const struct pci_device_id pci_ids[] = {
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_QRK_UARTx, qrk_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BYT_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BYT_UART2, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BSW_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BSW_UART2, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BDW_UART1, byt_board),
-	LPSS_DEVICE(PCI_DEVICE_ID_INTEL_BDW_UART2, byt_board),
-	{ },
+	{ PCI_DEVICE_DATA(INTEL, QRK_UARTx, &qrk_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART0, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART1, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART2, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART3, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART4, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, EHL_UART5, &ehl_board) },
+	{ PCI_DEVICE_DATA(INTEL, BYT_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BYT_UART2, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BSW_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BSW_UART2, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BDW_UART1, &byt_board) },
+	{ PCI_DEVICE_DATA(INTEL, BDW_UART2, &byt_board) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pci_ids);
 

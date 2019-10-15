@@ -3220,7 +3220,8 @@ static int vega10_apply_state_adjust_rules(struct pp_hwmgr *hwmgr,
 	if (hwmgr->display_config->num_display == 0)
 		disable_mclk_switching = false;
 	else
-		disable_mclk_switching = (hwmgr->display_config->num_display > 1) ||
+		disable_mclk_switching = ((1 < hwmgr->display_config->num_display) &&
+					  !hwmgr->display_config->multi_monitor_in_sync) ||
 			disable_mclk_switching_for_frame_lock ||
 			disable_mclk_switching_for_vr ||
 			force_mclk_high;

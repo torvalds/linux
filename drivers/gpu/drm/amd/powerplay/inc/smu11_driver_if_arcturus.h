@@ -27,7 +27,7 @@
 // *** IMPORTANT ***
 // SMU TEAM: Always increment the interface version if
 // any structure is changed in this file
-#define SMU11_DRIVER_IF_VERSION 0x08
+//#define SMU11_DRIVER_IF_VERSION 0x09
 
 #define PPTABLE_ARCTURUS_SMU_VERSION 4
 
@@ -691,7 +691,12 @@ typedef struct {
   uint16_t          XgmiFclkFreq    [NUM_XGMI_PSTATE_LEVELS];
   uint16_t          XgmiSocVoltage  [NUM_XGMI_PSTATE_LEVELS];
 
-  uint32_t     BoardReserved[10];
+  // GPIO pins for I2C communications with 2nd controller for Input Telemetry Sequence
+  uint8_t      GpioI2cScl;          // Serial Clock
+  uint8_t      GpioI2cSda;          // Serial Data
+  uint16_t     GpioPadding;
+
+  uint32_t     BoardReserved[9];
 
   // Padding for MMHUB - do not modify this
   uint32_t     MmHubPadding[8]; // SMU internal use
@@ -738,7 +743,7 @@ typedef struct {
   uint32_t Padding[4];
 
   // Padding - ignore
-  uint32_t     MmHubPadding[7]; // SMU internal use
+  uint32_t     MmHubPadding[8]; // SMU internal use
 } SmuMetrics_t;
 
 
@@ -748,7 +753,7 @@ typedef struct {
   float    avgPsmVoltage[75];
   float    minPsmVoltage[75];
 
-  uint32_t MmHubPadding[3]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } AvfsDebugTable_t;
 
 typedef struct {
@@ -797,9 +802,9 @@ typedef struct {
 
   uint32_t P2VCharzFreq[AVFS_VOLTAGE_COUNT]; // in 10KHz units
 
-  uint32_t EnabledAvfsModules;
+  uint32_t EnabledAvfsModules[2];
 
-  uint32_t MmHubPadding[7]; // SMU internal use
+  uint32_t MmHubPadding[8]; // SMU internal use
 } AvfsFuseOverride_t;
 
 /* NOT CURRENTLY USED

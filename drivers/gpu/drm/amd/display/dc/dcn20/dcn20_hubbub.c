@@ -380,6 +380,11 @@ int hubbub2_init_dchub_sys_ctx(struct hubbub *hubbub,
 	REG_SET(DCN_VM_AGP_BASE, 0,
 			AGP_BASE, pa_config->system_aperture.agp_base >> 24);
 
+	REG_SET(DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_MSB, 0,
+			DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_MSB, (pa_config->page_table_default_page_addr >> 44) & 0xF);
+	REG_SET(DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB, 0,
+			DCN_VM_PROTECTION_FAULT_DEFAULT_ADDR_LSB, (pa_config->page_table_default_page_addr >> 12) & 0xFFFFFFFF);
+
 	if (pa_config->gart_config.page_table_start_addr != pa_config->gart_config.page_table_end_addr) {
 		phys_config.page_table_start_addr = pa_config->gart_config.page_table_start_addr >> 12;
 		phys_config.page_table_end_addr = pa_config->gart_config.page_table_end_addr >> 12;
@@ -398,54 +403,67 @@ void hubbub2_update_dchub(struct hubbub *hubbub,
 {
 	struct dcn20_hubbub *hubbub1 = TO_DCN20_HUBBUB(hubbub);
 
-	if (REG(DCHUBBUB_SDPIF_FB_TOP) == 0) {
-		ASSERT(false);
-		/*should not come here*/
+	if (REG(DCN_VM_FB_LOCATION_TOP) == 0)
 		return;
-	}
-	/* TODO: port code from dal2 */
+
 	switch (dh_data->fb_mode) {
 	case FRAME_BUFFER_MODE_ZFB_ONLY:
 		/*For ZFB case need to put DCHUB FB BASE and TOP upside down to indicate ZFB mode*/
-		REG_UPDATE(DCHUBBUB_SDPIF_FB_TOP,
-				SDPIF_FB_TOP, 0);
+		REG_UPDATE(DCN_VM_FB_LOCATION_TOP,
+				FB_TOP, 0);
 
-		REG_UPDATE(DCHUBBUB_SDPIF_FB_BASE,
-				SDPIF_FB_BASE, 0x0FFFF);
+		REG_UPDATE(DCN_VM_FB_LOCATION_BASE,
+				FB_BASE, 0xFFFFFF);
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
-				SDPIF_AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
+		REG_UPDATE(DCN_VM_AGP_BASE,
+				AGP_BASE, dh_data->zfb_phys_addr_base >> 24);
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
-				SDPIF_AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+		/*This field defines the bottom range of the AGP aperture and represents the 24*/
+		/*MSBs, bits [47:24] of the 48 address bits*/
+		REG_UPDATE(DCN_VM_AGP_BOT,
+				AGP_BOT, dh_data->zfb_mc_base_addr >> 24);
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
-				SDPIF_AGP_TOP, (dh_data->zfb_mc_base_addr +
-						dh_data->zfb_size_in_byte - 1) >> 22);
+		/*This field defines the top range of the AGP aperture and represents the 24*/
+		/*MSBs, bits [47:24] of the 48 address bits*/
+		REG_UPDATE(DCN_VM_AGP_TOP,
+				AGP_TOP, (dh_data->zfb_mc_base_addr +
+						dh_data->zfb_size_in_byte - 1) >> 24);
 		break;
 	case FRAME_BUFFER_MODE_MIXED_ZFB_AND_LOCAL:
 		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
-				SDPIF_AGP_BASE, dh_data->zfb_phys_addr_base >> 22);
+		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
+		REG_UPDATE(DCN_VM_AGP_BASE,
+				AGP_BASE, dh_data->zfb_phys_addr_base >> 24);
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
-				SDPIF_AGP_BOT, dh_data->zfb_mc_base_addr >> 22);
+		/*This field defines the bottom range of the AGP aperture and represents the 24*/
+		/*MSBs, bits [47:24] of the 48 address bits*/
+		REG_UPDATE(DCN_VM_AGP_BOT,
+				AGP_BOT, dh_data->zfb_mc_base_addr >> 24);
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
-				SDPIF_AGP_TOP, (dh_data->zfb_mc_base_addr +
-						dh_data->zfb_size_in_byte - 1) >> 22);
+		/*This field defines the top range of the AGP aperture and represents the 24*/
+		/*MSBs, bits [47:24] of the 48 address bits*/
+		REG_UPDATE(DCN_VM_AGP_TOP,
+				AGP_TOP, (dh_data->zfb_mc_base_addr +
+						dh_data->zfb_size_in_byte - 1) >> 24);
 		break;
 	case FRAME_BUFFER_MODE_LOCAL_ONLY:
-		/*Should not touch FB LOCATION (done by VBIOS on AsicInit table)*/
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BASE,
-				SDPIF_AGP_BASE, 0);
+		/*Should not touch FB LOCATION (should be done by VBIOS)*/
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_BOT,
-				SDPIF_AGP_BOT, 0X03FFFF);
+		/*This field defines the 24 MSBs, bits [47:24] of the 48 bit AGP Base*/
+		REG_UPDATE(DCN_VM_AGP_BASE,
+				AGP_BASE, 0);
 
-		REG_UPDATE(DCHUBBUB_SDPIF_AGP_TOP,
-				SDPIF_AGP_TOP, 0);
+		/*This field defines the bottom range of the AGP aperture and represents the 24*/
+		/*MSBs, bits [47:24] of the 48 address bits*/
+		REG_UPDATE(DCN_VM_AGP_BOT,
+				AGP_BOT, 0xFFFFFF);
+
+		/*This field defines the top range of the AGP aperture and represents the 24*/
+		/*MSBs, bits [47:24] of the 48 address bits*/
+		REG_UPDATE(DCN_VM_AGP_TOP,
+				AGP_TOP, 0);
 		break;
 	default:
 		break;
@@ -582,7 +600,7 @@ static const struct hubbub_funcs hubbub2_funcs = {
 	.get_dcc_compression_cap = hubbub2_get_dcc_compression_cap,
 	.wm_read_state = hubbub2_wm_read_state,
 	.get_dchub_ref_freq = hubbub2_get_dchub_ref_freq,
-	.program_watermarks = hubbub2_program_watermarks,
+	.program_watermarks = hubbub2_program_watermarks
 };
 
 void hubbub2_construct(struct dcn20_hubbub *hubbub,

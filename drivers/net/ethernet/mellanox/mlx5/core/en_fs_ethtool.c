@@ -399,10 +399,10 @@ add_ethtool_flow_rule(struct mlx5e_priv *priv,
 		      struct mlx5_flow_table *ft,
 		      struct ethtool_rx_flow_spec *fs)
 {
+	struct mlx5_flow_act flow_act = { .flags = FLOW_ACT_NO_APPEND };
 	struct mlx5_flow_destination *dst = NULL;
-	struct mlx5_flow_act flow_act = {0};
-	struct mlx5_flow_spec *spec;
 	struct mlx5_flow_handle *rule;
+	struct mlx5_flow_spec *spec;
 	int err = 0;
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
@@ -611,7 +611,8 @@ static int validate_flow(struct mlx5e_priv *priv,
 		return -ENOSPC;
 
 	if (fs->ring_cookie != RX_CLS_FLOW_DISC)
-		if (!mlx5e_qid_validate(&priv->channels.params, fs->ring_cookie))
+		if (!mlx5e_qid_validate(priv->profile, &priv->channels.params,
+					fs->ring_cookie))
 			return -EINVAL;
 
 	switch (fs->flow_type & ~(FLOW_EXT | FLOW_MAC_EXT)) {
@@ -887,10 +888,10 @@ static int mlx5e_get_rss_hash_opt(struct mlx5e_priv *priv,
 	return 0;
 }
 
-int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
+int mlx5e_ethtool_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 {
-	int err = 0;
 	struct mlx5e_priv *priv = netdev_priv(dev);
+	int err = 0;
 
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXCLSRLINS:
@@ -910,16 +911,13 @@ int mlx5e_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd)
 	return err;
 }
 
-int mlx5e_get_rxnfc(struct net_device *dev,
-		    struct ethtool_rxnfc *info, u32 *rule_locs)
+int mlx5e_ethtool_get_rxnfc(struct net_device *dev,
+			    struct ethtool_rxnfc *info, u32 *rule_locs)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	int err = 0;
 
 	switch (info->cmd) {
-	case ETHTOOL_GRXRINGS:
-		info->data = priv->channels.params.num_channels;
-		break;
 	case ETHTOOL_GRXCLSRLCNT:
 		info->rule_cnt = priv->fs.ethtool.tot_num_rules;
 		break;

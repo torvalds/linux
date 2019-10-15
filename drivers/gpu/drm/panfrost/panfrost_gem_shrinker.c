@@ -36,15 +36,18 @@ panfrost_gem_shrinker_count(struct shrinker *shrinker, struct shrink_control *sc
 	return count;
 }
 
-static void panfrost_gem_purge(struct drm_gem_object *obj)
+static bool panfrost_gem_purge(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
-	mutex_lock(&shmem->pages_lock);
+
+	if (!mutex_trylock(&shmem->pages_lock))
+		return false;
 
 	panfrost_mmu_unmap(to_panfrost_bo(obj));
 	drm_gem_shmem_purge_locked(obj);
 
 	mutex_unlock(&shmem->pages_lock);
+	return true;
 }
 
 static unsigned long
@@ -61,8 +64,8 @@ panfrost_gem_shrinker_scan(struct shrinker *shrinker, struct shrink_control *sc)
 	list_for_each_entry_safe(shmem, tmp, &pfdev->shrinker_list, madv_list) {
 		if (freed >= sc->nr_to_scan)
 			break;
-		if (drm_gem_shmem_is_purgeable(shmem)) {
-			panfrost_gem_purge(&shmem->base);
+		if (drm_gem_shmem_is_purgeable(shmem) &&
+		    panfrost_gem_purge(&shmem->base)) {
 			freed += shmem->base.size >> PAGE_SHIFT;
 			list_del_init(&shmem->madv_list);
 		}

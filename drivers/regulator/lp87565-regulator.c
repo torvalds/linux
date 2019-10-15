@@ -65,7 +65,6 @@ static int lp87565_buck_set_ramp_delay(struct regulator_dev *rdev,
 				       int ramp_delay)
 {
 	int id = rdev_get_id(rdev);
-	struct lp87565 *lp87565 = rdev_get_drvdata(rdev);
 	unsigned int reg;
 	int ret;
 
@@ -86,11 +85,11 @@ static int lp87565_buck_set_ramp_delay(struct regulator_dev *rdev,
 	else
 		reg = 0;
 
-	ret = regmap_update_bits(lp87565->regmap, regulators[id].ctrl2_reg,
+	ret = regmap_update_bits(rdev->regmap, regulators[id].ctrl2_reg,
 				 LP87565_BUCK_CTRL_2_SLEW_RATE,
 				 reg << __ffs(LP87565_BUCK_CTRL_2_SLEW_RATE));
 	if (ret) {
-		dev_err(lp87565->dev, "SLEW RATE write failed: %d\n", ret);
+		dev_err(&rdev->dev, "SLEW RATE write failed: %d\n", ret);
 		return ret;
 	}
 
@@ -163,7 +162,7 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 	struct lp87565 *lp87565 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
 	struct regulator_dev *rdev;
-	int i, min_idx = LP87565_BUCK_0, max_idx = LP87565_BUCK_3;
+	int i, min_idx, max_idx;
 
 	platform_set_drvdata(pdev, lp87565);
 
@@ -182,9 +181,9 @@ static int lp87565_regulator_probe(struct platform_device *pdev)
 		max_idx = LP87565_BUCK_3210;
 		break;
 	default:
-		dev_err(lp87565->dev, "Invalid lp config %d\n",
-			lp87565->dev_type);
-		return -EINVAL;
+		min_idx = LP87565_BUCK_0;
+		max_idx = LP87565_BUCK_3;
+		break;
 	}
 
 	for (i = min_idx; i <= max_idx; i++) {

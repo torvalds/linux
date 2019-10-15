@@ -260,15 +260,14 @@ static struct drm_encoder *
 dce_virtual_encoder(struct drm_connector *connector)
 {
 	struct drm_encoder *encoder;
-	int i;
 
-	drm_connector_for_each_possible_encoder(connector, encoder, i) {
+	drm_connector_for_each_possible_encoder(connector, encoder) {
 		if (encoder->encoder_type == DRM_MODE_ENCODER_VIRTUAL)
 			return encoder;
 	}
 
 	/* pick the first one */
-	drm_connector_for_each_possible_encoder(connector, encoder, i)
+	drm_connector_for_each_possible_encoder(connector, encoder)
 		return encoder;
 
 	return NULL;
@@ -454,16 +453,8 @@ static int dce_virtual_hw_init(void *handle)
 #endif
 		/* no DCE */
 		break;
-	case CHIP_VEGA10:
-	case CHIP_VEGA12:
-	case CHIP_VEGA20:
-	case CHIP_ARCTURUS:
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
-		break;
 	default:
-		DRM_ERROR("Virtual display unsupported ASIC type: 0x%X\n", adev->asic_type);
+		break;
 	}
 	return 0;
 }

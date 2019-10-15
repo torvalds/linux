@@ -274,9 +274,8 @@ static int seiko_panel_probe(struct device *dev,
 			return -EPROBE_DEFER;
 	}
 
-	drm_panel_init(&panel->base);
-	panel->base.dev = dev;
-	panel->base.funcs = &seiko_panel_funcs;
+	drm_panel_init(&panel->base, dev, &seiko_panel_funcs,
+		       DRM_MODE_CONNECTOR_DPI);
 
 	err = drm_panel_add(&panel->base);
 	if (err < 0)

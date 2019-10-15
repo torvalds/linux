@@ -275,6 +275,7 @@ struct amd_pm_funcs {
 	int (*set_power_profile_mode)(void *handle, long *input, uint32_t size);
 	int (*odn_edit_dpm_table)(void *handle, uint32_t type, long *input, uint32_t size);
 	int (*set_mp1_state)(void *handle, enum pp_mp1_state mp1_state);
+	int (*smu_i2c_bus_access)(void *handle, bool acquire);
 /* export to DC */
 	u32 (*get_sclk)(void *handle, bool low);
 	u32 (*get_mclk)(void *handle, bool low);
@@ -310,6 +311,7 @@ struct amd_pm_funcs {
 	int (*set_asic_baco_state)(void *handle, int state);
 	int (*get_ppfeature_status)(void *handle, char *buf);
 	int (*set_ppfeature_status)(void *handle, uint64_t ppfeature_masks);
+	int (*asic_reset_mode_2)(void *handle);
 };
 
 #endif

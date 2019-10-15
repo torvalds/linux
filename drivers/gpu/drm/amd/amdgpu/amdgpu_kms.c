@@ -677,6 +677,9 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (sh_num == AMDGPU_INFO_MMR_SH_INDEX_MASK)
 			sh_num = 0xffffffff;
 
+		if (info->read_mmr_reg.count > 128)
+			return -EINVAL;
+
 		regs = kmalloc_array(info->read_mmr_reg.count, sizeof(*regs), GFP_KERNEL);
 		if (!regs)
 			return -ENOMEM;
@@ -783,6 +786,8 @@ static int amdgpu_info_ioctl(struct drm_device *dev, void *data, struct drm_file
 		if (adev->family >= AMDGPU_FAMILY_NV)
 			dev_info.pa_sc_tile_steering_override =
 				adev->gfx.config.pa_sc_tile_steering_override;
+
+		dev_info.tcc_disabled_mask = adev->gfx.config.tcc_disabled_mask;
 
 		return copy_to_user(out, &dev_info,
 				    min((size_t)size, sizeof(dev_info))) ? -EFAULT : 0;

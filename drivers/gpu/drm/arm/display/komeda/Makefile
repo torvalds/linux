@@ -22,4 +22,6 @@ komeda-y += \
 	d71/d71_dev.o \
 	d71/d71_component.o
 
+komeda-$(CONFIG_DRM_KOMEDA_ERROR_PRINT) += komeda_event.o
+
 obj-$(CONFIG_DRM_KOMEDA) += komeda.o

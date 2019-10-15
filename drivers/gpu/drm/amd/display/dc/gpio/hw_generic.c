@@ -27,6 +27,7 @@
 
 #include "dm_services.h"
 
+#include "include/gpio_interface.h"
 #include "include/gpio_types.h"
 #include "hw_gpio.h"
 #include "hw_generic.h"
@@ -42,6 +43,8 @@
 	generic->base.base.ctx
 #define REG(reg)\
 	(generic->regs->reg)
+
+struct gpio;
 
 static void dal_hw_generic_construct(
 	struct hw_generic *pin,
@@ -106,29 +109,30 @@ static void construct(
 	generic->base.base.funcs = &funcs;
 }
 
-struct hw_gpio_pin *dal_hw_generic_create(
+void dal_hw_generic_init(
+	struct hw_generic **hw_generic,
 	struct dc_context *ctx,
 	enum gpio_id id,
 	uint32_t en)
 {
-	struct hw_generic *generic;
-
-	if (id != GPIO_ID_GENERIC) {
+	if ((en < GPIO_DDC_LINE_MIN) || (en > GPIO_DDC_LINE_MAX)) {
 		ASSERT_CRITICAL(false);
-		return NULL;
+		*hw_generic = NULL;
 	}
 
-	if ((en < GPIO_GENERIC_MIN) || (en > GPIO_GENERIC_MAX)) {
+	*hw_generic = kzalloc(sizeof(struct hw_generic), GFP_KERNEL);
+	if (!*hw_generic) {
 		ASSERT_CRITICAL(false);
-		return NULL;
+		return;
 	}
 
-	generic = kzalloc(sizeof(struct hw_generic), GFP_KERNEL);
-	if (!generic) {
-		ASSERT_CRITICAL(false);
-		return NULL;
-	}
+	construct(*hw_generic, id, en, ctx);
+}
 
-	construct(generic, id, en, ctx);
-	return &generic->base.base;
+
+struct hw_gpio_pin *dal_hw_generic_get_pin(struct gpio *gpio)
+{
+	struct hw_generic *hw_generic = dal_gpio_get_generic(gpio);
+
+	return &hw_generic->base.base;
 }

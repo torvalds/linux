@@ -250,11 +250,6 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 	if (!remote)
 		return -ENODEV;
 
-	if (!of_device_is_available(remote)) {
-		of_node_put(remote);
-		return -ENODEV;
-	}
-
 	if (panel) {
 		*panel = of_drm_find_panel(remote);
 		if (!IS_ERR(*panel))

@@ -8,11 +8,9 @@
 #ifndef __LINUX_GBAUDIO_CODEC_H
 #define __LINUX_GBAUDIO_CODEC_H
 
+#include <linux/greybus.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
-
-#include "greybus.h"
-#include "greybus_protocols.h"
 
 #define NAME_SIZE	32
 #define MAX_DAIS	2	/* APB1, APB2 */

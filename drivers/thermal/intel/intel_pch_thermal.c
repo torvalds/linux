@@ -371,16 +371,14 @@ static void intel_pch_thermal_remove(struct pci_dev *pdev)
 
 static int intel_pch_thermal_suspend(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct pch_thermal_device *ptd = pci_get_drvdata(pdev);
+	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
 	return ptd->ops->suspend(ptd);
 }
 
 static int intel_pch_thermal_resume(struct device *device)
 {
-	struct pci_dev *pdev = to_pci_dev(device);
-	struct pch_thermal_device *ptd = pci_get_drvdata(pdev);
+	struct pch_thermal_device *ptd = dev_get_drvdata(device);
 
 	return ptd->ops->resume(ptd);
 }

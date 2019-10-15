@@ -55,6 +55,7 @@ struct bnxt_dl_nvm_param {
 	u16 num_bits;
 };
 
+void bnxt_devlink_health_report(struct bnxt *bp, unsigned long event);
 int bnxt_dl_register(struct bnxt *bp);
 void bnxt_dl_unregister(struct bnxt *bp);
 

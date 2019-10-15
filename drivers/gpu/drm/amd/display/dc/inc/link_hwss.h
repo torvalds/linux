@@ -72,8 +72,6 @@ void dp_set_hw_test_pattern(
 	uint8_t *custom_pattern,
 	uint32_t custom_pattern_size);
 
-enum dp_panel_mode dp_get_panel_mode(struct dc_link *link);
-
 void dp_retrain_link_dp_test(struct dc_link *link,
 		struct dc_link_settings *link_setting,
 		bool skip_video_pattern);

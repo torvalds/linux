@@ -12,8 +12,8 @@
 #include <string.h>
 
 struct list_head;
-struct perf_evsel;
-struct perf_evlist;
+struct evsel;
+struct evlist;
 struct parse_events_error;
 
 struct option;
@@ -31,7 +31,7 @@ bool have_tracepoints(struct list_head *evlist);
 const char *event_type(int type);
 
 int parse_events_option(const struct option *opt, const char *str, int unset);
-int parse_events(struct perf_evlist *evlist, const char *str,
+int parse_events(struct evlist *evlist, const char *str,
 		 struct parse_events_error *error);
 int parse_events_terms(struct list_head *terms, const char *str);
 int parse_filter(const struct option *opt, const char *str, int unset);
@@ -76,6 +76,7 @@ enum {
 	PARSE_EVENTS__TERM_TYPE_OVERWRITE,
 	PARSE_EVENTS__TERM_TYPE_DRV_CFG,
 	PARSE_EVENTS__TERM_TYPE_PERCORE,
+	PARSE_EVENTS__TERM_TYPE_AUX_OUTPUT,
 	__PARSE_EVENTS__TERM_TYPE_NR,
 };
 
@@ -119,7 +120,7 @@ struct parse_events_state {
 	int			   idx;
 	int			   nr_groups;
 	struct parse_events_error *error;
-	struct perf_evlist	  *evlist;
+	struct evlist	  *evlist;
 	struct list_head	  *terms;
 };
 

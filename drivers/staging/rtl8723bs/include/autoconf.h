@@ -57,9 +57,5 @@
 #define DBG	0	/*  for ODM & BTCOEX debug */
 #endif /*  !DEBUG */
 
-#ifdef CONFIG_PROC_FS
-#define PROC_DEBUG
-#endif
-
 /* define DBG_XMIT_BUF */
 /* define DBG_XMIT_BUF_EXT */

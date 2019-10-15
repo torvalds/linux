@@ -237,6 +237,7 @@ static struct platform_driver exynos_sata_phy_driver = {
 	.driver = {
 		.of_match_table	= exynos_sata_phy_of_match,
 		.name  = "samsung,sata-phy",
+		.suppress_bind_attrs = true,
 	}
 };
 module_platform_driver(exynos_sata_phy_driver);

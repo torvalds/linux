@@ -97,7 +97,7 @@ config CFAG12864B
 	  say Y. You also need the ks0108 LCD Controller driver.
 
 	  For help about how to wire your LCD to the parallel port,
-	  check Documentation/auxdisplay/cfag12864b
+	  check Documentation/admin-guide/auxdisplay/cfag12864b.rst
 
 	  Depends on the x86 arch and the framebuffer support.
 
@@ -448,6 +448,11 @@ config PANEL_BOOT_MESSAGE
 choice
 	prompt "Backlight initial state"
 	default CHARLCD_BL_FLASH
+	---help---
+	  Select the initial backlight state on boot or module load.
+
+	  Previously, there was no option for this: the backlight flashed
+	  briefly on init. Now you can also turn it off/on.
 
 	config CHARLCD_BL_OFF
 		bool "Off"

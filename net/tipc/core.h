@@ -125,6 +125,9 @@ struct tipc_net {
 
 	/* Cluster capabilities */
 	u16 capabilities;
+
+	/* Tracing of node internal messages */
+	struct packet_type loopback_pt;
 };
 
 static inline struct tipc_net *tipc_net(struct net *net)

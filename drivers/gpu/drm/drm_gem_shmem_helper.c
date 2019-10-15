@@ -390,6 +390,12 @@ void drm_gem_shmem_purge_locked(struct drm_gem_object *obj)
 
 	WARN_ON(!drm_gem_shmem_is_purgeable(shmem));
 
+	dma_unmap_sg(obj->dev->dev, shmem->sgt->sgl,
+		     shmem->sgt->nents, DMA_BIDIRECTIONAL);
+	sg_free_table(shmem->sgt);
+	kfree(shmem->sgt);
+	shmem->sgt = NULL;
+
 	drm_gem_shmem_put_pages_locked(shmem);
 
 	shmem->madv = -1;
@@ -409,13 +415,16 @@ void drm_gem_shmem_purge_locked(struct drm_gem_object *obj)
 }
 EXPORT_SYMBOL(drm_gem_shmem_purge_locked);
 
-void drm_gem_shmem_purge(struct drm_gem_object *obj)
+bool drm_gem_shmem_purge(struct drm_gem_object *obj)
 {
 	struct drm_gem_shmem_object *shmem = to_drm_gem_shmem_obj(obj);
 
-	mutex_lock(&shmem->pages_lock);
+	if (!mutex_trylock(&shmem->pages_lock))
+		return false;
 	drm_gem_shmem_purge_locked(obj);
 	mutex_unlock(&shmem->pages_lock);
+
+	return true;
 }
 EXPORT_SYMBOL(drm_gem_shmem_purge);
 

@@ -13,6 +13,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
@@ -675,10 +676,9 @@ static int ingenic_drm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (panel) {
-		bridge = devm_drm_panel_bridge_add(dev, panel,
-						   DRM_MODE_CONNECTOR_Unknown);
-	}
+	if (panel)
+		bridge = devm_drm_panel_bridge_add_typed(dev, panel,
+							 DRM_MODE_CONNECTOR_DPI);
 
 	priv->dma_hwdesc = dma_alloc_coherent(dev, sizeof(*priv->dma_hwdesc),
 					      &priv->dma_hwdesc_phys,

@@ -534,18 +534,14 @@ static int spi_geni_probe(struct platform_device *pdev)
 	int ret, irq;
 	struct spi_master *spi;
 	struct spi_geni_master *mas;
-	struct resource *res;
 	void __iomem *base;
 	struct clk *clk;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "Err getting IRQ %d\n", irq);
+	if (irq < 0)
 		return irq;
-	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

@@ -129,12 +129,10 @@ static int virtio_crypto_alg_ablkcipher_init_session(
 	 * Avoid to do DMA from the stack, switch to using
 	 * dynamically-allocated for the key
 	 */
-	uint8_t *cipher_key = kmalloc(keylen, GFP_ATOMIC);
+	uint8_t *cipher_key = kmemdup(key, keylen, GFP_ATOMIC);
 
 	if (!cipher_key)
 		return -ENOMEM;
-
-	memcpy(cipher_key, key, keylen);
 
 	spin_lock(&vcrypto->ctrl_lock);
 	/* Pad ctrl header */

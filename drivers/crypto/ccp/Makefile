@@ -5,8 +5,8 @@ ccp-$(CONFIG_CRYPTO_DEV_SP_CCP) += ccp-dev.o \
 	    ccp-ops.o \
 	    ccp-dev-v3.o \
 	    ccp-dev-v5.o \
-	    ccp-dmaengine.o \
-	    ccp-debugfs.o
+	    ccp-dmaengine.o
+ccp-$(CONFIG_CRYPTO_DEV_CCP_DEBUGFS) += ccp-debugfs.o
 ccp-$(CONFIG_PCI) += sp-pci.o
 ccp-$(CONFIG_CRYPTO_DEV_SP_PSP) += psp-dev.o
 

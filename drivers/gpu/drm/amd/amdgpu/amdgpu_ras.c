@@ -131,6 +131,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 	char err[9] = "ue";
 	int op = -1;
 	int block_id;
+	uint32_t sub_block;
 	u64 address, value;
 
 	if (*pos)
@@ -169,11 +170,12 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
 		data->op = op;
 
 		if (op == 2) {
-			if (sscanf(str, "%*s %*s %*s %llu %llu",
-						&address, &value) != 2)
-				if (sscanf(str, "%*s %*s %*s 0x%llx 0x%llx",
-							&address, &value) != 2)
+			if (sscanf(str, "%*s %*s %*s %u %llu %llu",
+						&sub_block, &address, &value) != 3)
+				if (sscanf(str, "%*s %*s %*s 0x%x 0x%llx 0x%llx",
+							&sub_block, &address, &value) != 3)
 					return -EINVAL;
+			data->head.sub_block_index = sub_block;
 			data->inject.address = address;
 			data->inject.value = value;
 		}
@@ -218,7 +220,7 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  * write the struct to the control node.
  *
  * bash:
- * echo op block [error [address value]] > .../ras/ras_ctrl
+ * echo op block [error [sub_blcok address value]] > .../ras/ras_ctrl
  *	op: disable, enable, inject
  *		disable: only block is needed
  *		enable: block and error are needed
@@ -228,10 +230,11 @@ static int amdgpu_ras_debugfs_ctrl_parse_data(struct file *f,
  *	error: ue, ce
  *		ue: multi_uncorrectable
  *		ce: single_correctable
+ *	sub_block: sub block index, pass 0 if there is no sub block
  *
  * here are some examples for bash commands,
- *	echo inject umc ue 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
- *	echo inject umc ce 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ue 0x0 0x0 0x0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
+ *	echo inject umc ce 0 0 0 > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *	echo disable umc > /sys/kernel/debug/dri/0/ras/ras_ctrl
  *
  * How to check the result?
@@ -611,6 +614,10 @@ int amdgpu_ras_error_query(struct amdgpu_device *adev,
 		if (adev->gfx.funcs->query_ras_error_count)
 			adev->gfx.funcs->query_ras_error_count(adev, &err_data);
 		break;
+	case AMDGPU_RAS_BLOCK__MMHUB:
+		if (adev->mmhub_funcs->query_ras_error_count)
+			adev->mmhub_funcs->query_ras_error_count(adev, &err_data);
+		break;
 	default:
 		break;
 	}
@@ -656,6 +663,7 @@ int amdgpu_ras_error_inject(struct amdgpu_device *adev,
 			ret = -EINVAL;
 		break;
 	case AMDGPU_RAS_BLOCK__UMC:
+	case AMDGPU_RAS_BLOCK__MMHUB:
 		ret = psp_ras_trigger_error(&adev->psp, &block_info);
 		break;
 	default:
@@ -680,7 +688,7 @@ int amdgpu_ras_error_cure(struct amdgpu_device *adev,
 }
 
 /* get the total error counts on all IPs */
-int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
+unsigned long amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		bool is_ce)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -688,7 +696,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 	struct ras_err_data data = {0, 0};
 
 	if (!con)
-		return -EINVAL;
+		return 0;
 
 	list_for_each_entry(obj, &con->head, node) {
 		struct ras_query_if info = {
@@ -696,7 +704,7 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		};
 
 		if (amdgpu_ras_error_query(adev, &info))
-			return -EINVAL;
+			return 0;
 
 		data.ce_count += info.ce_count;
 		data.ue_count += info.ue_count;
@@ -785,25 +793,8 @@ static ssize_t amdgpu_ras_sysfs_features_read(struct device *dev,
 {
 	struct amdgpu_ras *con =
 		container_of(attr, struct amdgpu_ras, features_attr);
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = ddev->dev_private;
-	struct ras_common_if head;
-	int ras_block_count = AMDGPU_RAS_BLOCK_COUNT;
-	int i, enabled;
-	ssize_t s;
 
-	s = scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
-
-	for (i = 0; i < ras_block_count; i++) {
-		head.block = i;
-		enabled = amdgpu_ras_is_feature_enabled(adev, &head);
-
-		s += scnprintf(&buf[s], PAGE_SIZE - s,
-				"%s ras feature mask: %s\n",
-				ras_block_str(i), enabled?"on":"off");
-	}
-
-	return s;
+	return scnprintf(buf, PAGE_SIZE, "feature mask: 0x%x\n", con->features);
 }
 
 static int amdgpu_ras_sysfs_create_feature_node(struct amdgpu_device *adev)

@@ -81,12 +81,12 @@
 struct sh_veu_dev;
 
 struct sh_veu_file {
+	struct v4l2_fh fh;
 	struct sh_veu_dev *veu_dev;
 	bool cfg_needed;
 };
 
 struct sh_veu_format {
-	char *name;
 	u32 fourcc;
 	unsigned int depth;
 	unsigned int ydepth;
@@ -144,14 +144,14 @@ enum sh_veu_fmt_idx {
  * aligned for NV24.
  */
 static const struct sh_veu_format sh_veu_fmt[] = {
-	[SH_VEU_FMT_NV12]   = { .ydepth = 8, .depth = 12, .name = "NV12", .fourcc = V4L2_PIX_FMT_NV12 },
-	[SH_VEU_FMT_NV16]   = { .ydepth = 8, .depth = 16, .name = "NV16", .fourcc = V4L2_PIX_FMT_NV16 },
-	[SH_VEU_FMT_NV24]   = { .ydepth = 8, .depth = 24, .name = "NV24", .fourcc = V4L2_PIX_FMT_NV24 },
-	[SH_VEU_FMT_RGB332] = { .ydepth = 8, .depth = 8, .name = "RGB332", .fourcc = V4L2_PIX_FMT_RGB332 },
-	[SH_VEU_FMT_RGB444] = { .ydepth = 16, .depth = 16, .name = "RGB444", .fourcc = V4L2_PIX_FMT_RGB444 },
-	[SH_VEU_FMT_RGB565] = { .ydepth = 16, .depth = 16, .name = "RGB565", .fourcc = V4L2_PIX_FMT_RGB565 },
-	[SH_VEU_FMT_RGB666] = { .ydepth = 32, .depth = 32, .name = "BGR666", .fourcc = V4L2_PIX_FMT_BGR666 },
-	[SH_VEU_FMT_RGB24]  = { .ydepth = 24, .depth = 24, .name = "RGB24", .fourcc = V4L2_PIX_FMT_RGB24 },
+	[SH_VEU_FMT_NV12]   = { .ydepth = 8, .depth = 12, .fourcc = V4L2_PIX_FMT_NV12 },
+	[SH_VEU_FMT_NV16]   = { .ydepth = 8, .depth = 16, .fourcc = V4L2_PIX_FMT_NV16 },
+	[SH_VEU_FMT_NV24]   = { .ydepth = 8, .depth = 24, .fourcc = V4L2_PIX_FMT_NV24 },
+	[SH_VEU_FMT_RGB332] = { .ydepth = 8, .depth = 8, .fourcc = V4L2_PIX_FMT_RGB332 },
+	[SH_VEU_FMT_RGB444] = { .ydepth = 16, .depth = 16, .fourcc = V4L2_PIX_FMT_RGB444 },
+	[SH_VEU_FMT_RGB565] = { .ydepth = 16, .depth = 16, .fourcc = V4L2_PIX_FMT_RGB565 },
+	[SH_VEU_FMT_RGB666] = { .ydepth = 32, .depth = 32, .fourcc = V4L2_PIX_FMT_BGR666 },
+	[SH_VEU_FMT_RGB24]  = { .ydepth = 24, .depth = 24, .fourcc = V4L2_PIX_FMT_RGB24 },
 };
 
 #define DEFAULT_IN_VFMT (struct sh_veu_vfmt){						\
@@ -348,9 +348,6 @@ static int sh_veu_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "sh-veu", sizeof(cap->driver));
 	strscpy(cap->card, "sh-mobile VEU", sizeof(cap->card));
 	strscpy(cap->bus_info, "platform:sh-veu", sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -359,8 +356,6 @@ static int sh_veu_enum_fmt(struct v4l2_fmtdesc *f, const int *fmt, int fmt_num)
 	if (f->index >= fmt_num)
 		return -EINVAL;
 
-	strscpy(f->description, sh_veu_fmt[fmt[f->index]].name,
-		sizeof(f->description));
 	f->pixelformat = sh_veu_fmt[fmt[f->index]].fourcc;
 	return 0;
 }
@@ -967,12 +962,14 @@ static int sh_veu_open(struct file *file)
 	if (!veu_file)
 		return -ENOMEM;
 
+	v4l2_fh_init(&veu_file->fh, video_devdata(file));
 	veu_file->veu_dev = veu;
 	veu_file->cfg_needed = true;
 
 	file->private_data = veu_file;
 
 	pm_runtime_get_sync(veu->dev);
+	v4l2_fh_add(&veu_file->fh);
 
 	dev_dbg(veu->dev, "Created instance %p\n", veu_file);
 
@@ -1002,6 +999,8 @@ static int sh_veu_release(struct file *file)
 	}
 
 	pm_runtime_put(veu->dev);
+	v4l2_fh_del(&veu_file->fh);
+	v4l2_fh_exit(&veu_file->fh);
 
 	kfree(veu_file);
 
@@ -1039,6 +1038,7 @@ static const struct video_device sh_veu_videodev = {
 	.minor		= -1,
 	.release	= video_device_release_empty,
 	.vfl_dir	= VFL_DIR_M2M,
+	.device_caps	= V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING,
 };
 
 static const struct v4l2_m2m_ops sh_veu_m2m_ops = {

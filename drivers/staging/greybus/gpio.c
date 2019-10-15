@@ -13,8 +13,8 @@
 #include <linux/irqdomain.h>
 #include <linux/gpio/driver.h>
 #include <linux/mutex.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 
 struct gb_gpio_line {

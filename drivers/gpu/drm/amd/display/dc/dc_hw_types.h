@@ -516,7 +516,8 @@ union dc_cursor_attribute_flags {
 		uint32_t INVERT_PIXEL_DATA:1;
 		uint32_t ZERO_EXPANSION:1;
 		uint32_t MIN_MAX_INVERT:1;
-		uint32_t RESERVED:25;
+		uint32_t ENABLE_CURSOR_DEGAMMA:1;
+		uint32_t RESERVED:24;
 	} bits;
 	uint32_t value;
 };
@@ -756,6 +757,8 @@ struct crtc_trigger_info {
 struct dc_crtc_timing_adjust {
 	uint32_t v_total_min;
 	uint32_t v_total_max;
+	uint32_t v_total_mid;
+	uint32_t v_total_mid_frame_num;
 };
 
 #ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT

@@ -104,4 +104,8 @@
 
 #define CLK_MIPI_CSI		73
 
+/* Clocks not available on V3s */
+#define CLK_BUS_I2S0		75
+#define CLK_I2S0		76
+
 #endif /* _DT_BINDINGS_CLK_SUN8I_V3S_H_ */

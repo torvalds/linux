@@ -2349,7 +2349,9 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 			effective_mode &= ~S_IWUSR;
 	}
 
-	if ((adev->flags & AMD_IS_APU) &&
+	if (((adev->flags & AMD_IS_APU) ||
+	     adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
@@ -2372,6 +2374,12 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		     attr == &sensor_dev_attr_fan1_min.dev_attr.attr))
 			return 0;
 	}
+
+	if ((adev->family == AMDGPU_FAMILY_SI ||	/* not implemented yet */
+	     adev->family == AMDGPU_FAMILY_KV) &&	/* not implemented yet */
+	    (attr == &sensor_dev_attr_in0_input.dev_attr.attr ||
+	     attr == &sensor_dev_attr_in0_label.dev_attr.attr))
+		return 0;
 
 	/* only APUs have vddnb */
 	if (!(adev->flags & AMD_IS_APU) &&
@@ -2828,10 +2836,12 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			DRM_ERROR("failed to create device file pp_dpm_socclk\n");
 			return ret;
 		}
-		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
-		if (ret) {
-			DRM_ERROR("failed to create device file pp_dpm_dcefclk\n");
-			return ret;
+		if (adev->asic_type != CHIP_ARCTURUS) {
+			ret = device_create_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
+			if (ret) {
+				DRM_ERROR("failed to create device file pp_dpm_dcefclk\n");
+				return ret;
+			}
 		}
 	}
 	if (adev->asic_type >= CHIP_VEGA20) {
@@ -2841,10 +2851,12 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 			return ret;
 		}
 	}
-	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
-	if (ret) {
-		DRM_ERROR("failed to create device file pp_dpm_pcie\n");
-		return ret;
+	if (adev->asic_type != CHIP_ARCTURUS) {
+		ret = device_create_file(adev->dev, &dev_attr_pp_dpm_pcie);
+		if (ret) {
+			DRM_ERROR("failed to create device file pp_dpm_pcie\n");
+			return ret;
+		}
 	}
 	ret = device_create_file(adev->dev, &dev_attr_pp_sclk_od);
 	if (ret) {
@@ -2948,9 +2960,11 @@ void amdgpu_pm_sysfs_fini(struct amdgpu_device *adev)
 	device_remove_file(adev->dev, &dev_attr_pp_dpm_mclk);
 	if (adev->asic_type >= CHIP_VEGA10) {
 		device_remove_file(adev->dev, &dev_attr_pp_dpm_socclk);
-		device_remove_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
+		if (adev->asic_type != CHIP_ARCTURUS)
+			device_remove_file(adev->dev, &dev_attr_pp_dpm_dcefclk);
 	}
-	device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
+	if (adev->asic_type != CHIP_ARCTURUS)
+		device_remove_file(adev->dev, &dev_attr_pp_dpm_pcie);
 	if (adev->asic_type >= CHIP_VEGA20)
 		device_remove_file(adev->dev, &dev_attr_pp_dpm_fclk);
 	device_remove_file(adev->dev, &dev_attr_pp_sclk_od);

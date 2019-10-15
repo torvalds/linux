@@ -42,7 +42,7 @@ struct drm_bridge_funcs {
 	 * This callback is invoked whenever our bridge is being attached to a
 	 * &drm_encoder.
 	 *
-	 * The attach callback is optional.
+	 * The @attach callback is optional.
 	 *
 	 * RETURNS:
 	 *
@@ -56,7 +56,7 @@ struct drm_bridge_funcs {
 	 * This callback is invoked whenever our bridge is being detached from a
 	 * &drm_encoder.
 	 *
-	 * The detach callback is optional.
+	 * The @detach callback is optional.
 	 */
 	void (*detach)(struct drm_bridge *bridge);
 
@@ -76,7 +76,7 @@ struct drm_bridge_funcs {
 	 * atomic helpers to validate modes supplied by userspace in
 	 * drm_atomic_helper_check_modeset().
 	 *
-	 * This function is optional.
+	 * The @mode_valid callback is optional.
 	 *
 	 * NOTE:
 	 *
@@ -108,7 +108,7 @@ struct drm_bridge_funcs {
 	 * this function passes all other callbacks must succeed for this
 	 * configuration.
 	 *
-	 * The mode_fixup callback is optional.
+	 * The @mode_fixup callback is optional.
 	 *
 	 * NOTE:
 	 *
@@ -146,7 +146,7 @@ struct drm_bridge_funcs {
 	 * The bridge can assume that the display pipe (i.e. clocks and timing
 	 * signals) feeding it is still running when this callback is called.
 	 *
-	 * The disable callback is optional.
+	 * The @disable callback is optional.
 	 */
 	void (*disable)(struct drm_bridge *bridge);
 
@@ -165,7 +165,7 @@ struct drm_bridge_funcs {
 	 * singals) feeding it is no longer running when this callback is
 	 * called.
 	 *
-	 * The post_disable callback is optional.
+	 * The @post_disable callback is optional.
 	 */
 	void (*post_disable)(struct drm_bridge *bridge);
 
@@ -214,7 +214,7 @@ struct drm_bridge_funcs {
 	 * not enable the display link feeding the next bridge in the chain (if
 	 * there is one) when this callback is called.
 	 *
-	 * The pre_enable callback is optional.
+	 * The @pre_enable callback is optional.
 	 */
 	void (*pre_enable)(struct drm_bridge *bridge);
 
@@ -234,7 +234,7 @@ struct drm_bridge_funcs {
 	 * callback must enable the display link feeding the next bridge in the
 	 * chain if there is one.
 	 *
-	 * The enable callback is optional.
+	 * The @enable callback is optional.
 	 */
 	void (*enable)(struct drm_bridge *bridge);
 
@@ -283,7 +283,7 @@ struct drm_bridge_funcs {
 	 * would be prudent to also provide an implementation of @enable if
 	 * you are expecting driver calls into &drm_bridge_enable.
 	 *
-	 * The enable callback is optional.
+	 * The @atomic_enable callback is optional.
 	 */
 	void (*atomic_enable)(struct drm_bridge *bridge,
 			      struct drm_atomic_state *state);
@@ -305,7 +305,7 @@ struct drm_bridge_funcs {
 	 * would be prudent to also provide an implementation of @disable if
 	 * you are expecting driver calls into &drm_bridge_disable.
 	 *
-	 * The disable callback is optional.
+	 * The @atomic_disable callback is optional.
 	 */
 	void (*atomic_disable)(struct drm_bridge *bridge,
 			       struct drm_atomic_state *state);
@@ -330,7 +330,7 @@ struct drm_bridge_funcs {
 	 * @post_disable if you are expecting driver calls into
 	 * &drm_bridge_post_disable.
 	 *
-	 * The post_disable callback is optional.
+	 * The @atomic_post_disable callback is optional.
 	 */
 	void (*atomic_post_disable)(struct drm_bridge *bridge,
 				    struct drm_atomic_state *state);
@@ -429,12 +429,15 @@ void drm_atomic_bridge_enable(struct drm_bridge *bridge,
 			      struct drm_atomic_state *state);
 
 #ifdef CONFIG_DRM_PANEL_BRIDGE
-struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel,
-					u32 connector_type);
+struct drm_bridge *drm_panel_bridge_add(struct drm_panel *panel);
+struct drm_bridge *drm_panel_bridge_add_typed(struct drm_panel *panel,
+					      u32 connector_type);
 void drm_panel_bridge_remove(struct drm_bridge *bridge);
 struct drm_bridge *devm_drm_panel_bridge_add(struct device *dev,
-					     struct drm_panel *panel,
-					     u32 connector_type);
+					     struct drm_panel *panel);
+struct drm_bridge *devm_drm_panel_bridge_add_typed(struct device *dev,
+						   struct drm_panel *panel,
+						   u32 connector_type);
 #endif
 
 #endif

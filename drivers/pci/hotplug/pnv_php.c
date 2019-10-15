@@ -419,9 +419,21 @@ static int pnv_php_get_attention_state(struct hotplug_slot *slot, u8 *state)
 static int pnv_php_set_attention_state(struct hotplug_slot *slot, u8 state)
 {
 	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
+	struct pci_dev *bridge = php_slot->pdev;
+	u16 new, mask;
 
-	/* FIXME: Make it real once firmware supports it */
 	php_slot->attention_state = state;
+	if (!bridge)
+		return 0;
+
+	mask = PCI_EXP_SLTCTL_AIC;
+
+	if (state)
+		new = PCI_EXP_SLTCTL_ATTN_IND_ON;
+	else
+		new = PCI_EXP_SLTCTL_ATTN_IND_OFF;
+
+	pcie_capability_clear_and_set_word(bridge, PCI_EXP_SLTCTL, mask, new);
 
 	return 0;
 }
@@ -511,6 +523,37 @@ scan:
 	return 0;
 }
 
+static int pnv_php_reset_slot(struct hotplug_slot *slot, int probe)
+{
+	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
+	struct pci_dev *bridge = php_slot->pdev;
+	uint16_t sts;
+
+	/*
+	 * The CAPI folks want pnv_php to drive OpenCAPI slots
+	 * which don't have a bridge. Only claim to support
+	 * reset_slot() if we have a bridge device (for now...)
+	 */
+	if (probe)
+		return !bridge;
+
+	/* mask our interrupt while resetting the bridge */
+	if (php_slot->irq > 0)
+		disable_irq(php_slot->irq);
+
+	pci_bridge_secondary_bus_reset(bridge);
+
+	/* clear any state changes that happened due to the reset */
+	pcie_capability_read_word(php_slot->pdev, PCI_EXP_SLTSTA, &sts);
+	sts &= (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC);
+	pcie_capability_write_word(php_slot->pdev, PCI_EXP_SLTSTA, sts);
+
+	if (php_slot->irq > 0)
+		enable_irq(php_slot->irq);
+
+	return 0;
+}
+
 static int pnv_php_enable_slot(struct hotplug_slot *slot)
 {
 	struct pnv_php_slot *php_slot = to_pnv_php_slot(slot);
@@ -548,6 +591,7 @@ static const struct hotplug_slot_ops php_slot_ops = {
 	.set_attention_status	= pnv_php_set_attention_state,
 	.enable_slot		= pnv_php_enable_slot,
 	.disable_slot		= pnv_php_disable_slot,
+	.reset_slot		= pnv_php_reset_slot,
 };
 
 static void pnv_php_release(struct pnv_php_slot *php_slot)
@@ -721,6 +765,12 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 	pcie_capability_read_word(pdev, PCI_EXP_SLTSTA, &sts);
 	sts &= (PCI_EXP_SLTSTA_PDC | PCI_EXP_SLTSTA_DLLSC);
 	pcie_capability_write_word(pdev, PCI_EXP_SLTSTA, sts);
+
+	pci_dbg(pdev, "PCI slot [%s]: HP int! DLAct: %d, PresDet: %d\n",
+			php_slot->name,
+			!!(sts & PCI_EXP_SLTSTA_DLLSC),
+			!!(sts & PCI_EXP_SLTSTA_PDC));
+
 	if (sts & PCI_EXP_SLTSTA_DLLSC) {
 		pcie_capability_read_word(pdev, PCI_EXP_LNKSTA, &lsts);
 		added = !!(lsts & PCI_EXP_LNKSTA_DLLLA);
@@ -735,6 +785,7 @@ static irqreturn_t pnv_php_interrupt(int irq, void *data)
 
 		added = !!(presence == OPAL_PCI_SLOT_PRESENT);
 	} else {
+		pci_dbg(pdev, "PCI slot [%s]: Spurious IRQ?\n", php_slot->name);
 		return IRQ_NONE;
 	}
 
@@ -955,6 +1006,9 @@ static int __init pnv_php_init(void)
 	for_each_compatible_node(dn, NULL, "ibm,ioda2-phb")
 		pnv_php_register(dn);
 
+	for_each_compatible_node(dn, NULL, "ibm,ioda3-phb")
+		pnv_php_register(dn);
+
 	return 0;
 }
 
@@ -963,6 +1017,9 @@ static void __exit pnv_php_exit(void)
 	struct device_node *dn;
 
 	for_each_compatible_node(dn, NULL, "ibm,ioda2-phb")
+		pnv_php_unregister(dn);
+
+	for_each_compatible_node(dn, NULL, "ibm,ioda3-phb")
 		pnv_php_unregister(dn);
 }
 

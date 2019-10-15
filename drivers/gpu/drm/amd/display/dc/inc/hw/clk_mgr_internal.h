@@ -216,6 +216,8 @@ struct clk_mgr_internal {
 	bool dfs_bypass_enabled;
 	/* True if the DFS-bypass feature is enabled and active. */
 	bool dfs_bypass_active;
+
+	uint32_t dfs_ref_freq_khz;
 	/*
 	 * Cache the display clock returned by VBIOS if DFS-bypass is enabled.
 	 * This is basically "Crystal Frequency In KHz" (XTALIN) frequency
@@ -279,8 +281,14 @@ static inline bool should_set_clock(bool safe_to_lower, int calc_clk, int cur_cl
 
 static inline bool should_update_pstate_support(bool safe_to_lower, bool calc_support, bool cur_support)
 {
-	// Whenever we are transitioning pstate support, we always want to notify prior to committing state
-	return (calc_support != cur_support) ? !safe_to_lower : false;
+	if (cur_support != calc_support) {
+		if (calc_support == true && safe_to_lower)
+			return true;
+		else if (calc_support == false && !safe_to_lower)
+			return true;
+	}
+
+	return false;
 }
 
 int clk_mgr_helper_get_active_display_cnt(

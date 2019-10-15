@@ -43,9 +43,8 @@ static struct pci_config_window *gen_pci_init(struct device *dev,
 		goto err_out;
 	}
 
-	err = devm_add_action(dev, gen_pci_unmap_cfg, cfg);
+	err = devm_add_action_or_reset(dev, gen_pci_unmap_cfg, cfg);
 	if (err) {
-		gen_pci_unmap_cfg(cfg);
 		goto err_out;
 	}
 	return cfg;

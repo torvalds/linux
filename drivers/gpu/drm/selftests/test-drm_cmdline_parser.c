@@ -17,6 +17,136 @@
 
 static const struct drm_connector no_connector = {};
 
+static int drm_cmdline_test_force_e_only(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("e",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON);
+
+	return 0;
+}
+
+static int drm_cmdline_test_force_D_only_not_digital(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("D",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON);
+
+	return 0;
+}
+
+static const struct drm_connector connector_hdmi = {
+	.connector_type	= DRM_MODE_CONNECTOR_HDMIB,
+};
+
+static int drm_cmdline_test_force_D_only_hdmi(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("D",
+							   &connector_hdmi,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON_DIGITAL);
+
+	return 0;
+}
+
+static const struct drm_connector connector_dvi = {
+	.connector_type	= DRM_MODE_CONNECTOR_DVII,
+};
+
+static int drm_cmdline_test_force_D_only_dvi(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("D",
+							   &connector_dvi,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_ON_DIGITAL);
+
+	return 0;
+}
+
+static int drm_cmdline_test_force_d_only(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(!drm_mode_parse_command_line_for_connector("d",
+							   &no_connector,
+							   &mode));
+	FAIL_ON(mode.specified);
+	FAIL_ON(mode.refresh_specified);
+	FAIL_ON(mode.bpp_specified);
+
+	FAIL_ON(mode.rb);
+	FAIL_ON(mode.cvt);
+	FAIL_ON(mode.interlace);
+	FAIL_ON(mode.margins);
+	FAIL_ON(mode.force != DRM_FORCE_OFF);
+
+	return 0;
+}
+
+static int drm_cmdline_test_margin_only(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(drm_mode_parse_command_line_for_connector("m",
+							  &no_connector,
+							  &mode));
+
+	return 0;
+}
+
+static int drm_cmdline_test_interlace_only(void *ignored)
+{
+	struct drm_cmdline_mode mode = { };
+
+	FAIL_ON(drm_mode_parse_command_line_for_connector("i",
+							  &no_connector,
+							  &mode));
+
+	return 0;
+}
+
 static int drm_cmdline_test_res(void *ignored)
 {
 	struct drm_cmdline_mode mode = { };

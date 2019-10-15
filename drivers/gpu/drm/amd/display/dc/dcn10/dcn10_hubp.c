@@ -509,7 +509,7 @@ bool hubp1_program_surface_flip_and_addr(
 }
 
 void hubp1_dcc_control(struct hubp *hubp, bool enable,
-		bool independent_64b_blks)
+		enum hubp_ind_block_size independent_64b_blks)
 {
 	uint32_t dcc_en = enable ? 1 : 0;
 	uint32_t dcc_ind_64b_blk = independent_64b_blks ? 1 : 0;

@@ -209,6 +209,8 @@ static int meson_drv_bind_master(struct device *dev, bool has_components)
 	priv->drm = drm;
 	priv->dev = dev;
 
+	priv->compat = (enum vpu_compatible)of_device_get_match_data(priv->dev);
+
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "vpu");
 	regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(regs)) {
@@ -370,6 +372,33 @@ static const struct component_master_ops meson_drv_master_ops = {
 	.unbind	= meson_drv_unbind,
 };
 
+static int __maybe_unused meson_drv_pm_suspend(struct device *dev)
+{
+	struct meson_drm *priv = dev_get_drvdata(dev);
+
+	if (!priv)
+		return 0;
+
+	return drm_mode_config_helper_suspend(priv->drm);
+}
+
+static int __maybe_unused meson_drv_pm_resume(struct device *dev)
+{
+	struct meson_drm *priv = dev_get_drvdata(dev);
+
+	if (!priv)
+		return 0;
+
+	meson_vpu_init(priv);
+	meson_venc_init(priv);
+	meson_vpp_init(priv);
+	meson_viu_init(priv);
+
+	drm_mode_config_helper_resume(priv->drm);
+
+	return 0;
+}
+
 static int compare_of(struct device *dev, void *data)
 {
 	DRM_DEBUG_DRIVER("Comparing of node %pOF with %pOF\n",
@@ -453,19 +482,28 @@ static int meson_drv_probe(struct platform_device *pdev)
 };
 
 static const struct of_device_id dt_match[] = {
-	{ .compatible = "amlogic,meson-gxbb-vpu" },
-	{ .compatible = "amlogic,meson-gxl-vpu" },
-	{ .compatible = "amlogic,meson-gxm-vpu" },
-	{ .compatible = "amlogic,meson-g12a-vpu" },
+	{ .compatible = "amlogic,meson-gxbb-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_GXBB },
+	{ .compatible = "amlogic,meson-gxl-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_GXL },
+	{ .compatible = "amlogic,meson-gxm-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_GXM },
+	{ .compatible = "amlogic,meson-g12a-vpu",
+	  .data       = (void *)VPU_COMPATIBLE_G12A },
 	{}
 };
 MODULE_DEVICE_TABLE(of, dt_match);
+
+static const struct dev_pm_ops meson_drv_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(meson_drv_pm_suspend, meson_drv_pm_resume)
+};
 
 static struct platform_driver meson_drm_platform_driver = {
 	.probe      = meson_drv_probe,
 	.driver     = {
 		.name	= "meson-drm",
 		.of_match_table = dt_match,
+		.pm = &meson_drv_pm_ops,
 	},
 };
 

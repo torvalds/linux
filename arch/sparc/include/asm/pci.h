@@ -38,8 +38,6 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 #define arch_can_pci_mmap_io()	1
 #define HAVE_ARCH_PCI_GET_UNMAPPED_AREA
 #define get_pci_unmapped_area get_fb_unmapped_area
-
-#define HAVE_ARCH_PCI_RESOURCE_TO_USER
 #endif /* CONFIG_SPARC64 */
 
 #if defined(CONFIG_SPARC64) || defined(CONFIG_LEON_PCI)

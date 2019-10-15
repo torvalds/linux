@@ -274,6 +274,25 @@ static int smu_v11_0_check_fw_version(struct smu_context *smu)
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 
+	switch (smu->adev->asic_type) {
+	case CHIP_VEGA20:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_VG20;
+		break;
+	case CHIP_ARCTURUS:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
+		break;
+	case CHIP_NAVI10:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV10;
+		break;
+	case CHIP_NAVI14:
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_NV14;
+		break;
+	default:
+		pr_err("smu unsupported asic type:%d.\n", smu->adev->asic_type);
+		smu->smc_if_version = SMU11_DRIVER_IF_VERSION_INV;
+		break;
+	}
+
 	/*
 	 * 1. if_version mismatch is not critical as our fw is designed
 	 * to be backward compatible.
@@ -340,7 +359,8 @@ static int smu_v11_0_setup_pptable(struct smu_context *smu)
 	struct amdgpu_device *adev = smu->adev;
 	const struct smc_firmware_header_v1_0 *hdr;
 	int ret, index;
-	uint32_t size;
+	uint32_t size = 0;
+	uint16_t atom_table_size;
 	uint8_t frev, crev;
 	void *table;
 	uint16_t version_major, version_minor;
@@ -368,10 +388,11 @@ static int smu_v11_0_setup_pptable(struct smu_context *smu)
 		index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
 						    powerplayinfo);
 
-		ret = smu_get_atom_data_table(smu, index, (uint16_t *)&size, &frev, &crev,
+		ret = smu_get_atom_data_table(smu, index, &atom_table_size, &frev, &crev,
 					      (uint8_t **)&table);
 		if (ret)
 			return ret;
+		size = atom_table_size;
 	}
 
 	if (!smu->smu_table.power_play_table)
@@ -549,6 +570,9 @@ int smu_v11_0_get_vbios_bootup_values(struct smu_context *smu)
 		smu->smu_table.boot_values.pp_table_id = v_3_3->pplib_pptable_id;
 	}
 
+	smu->smu_table.boot_values.format_revision = header->format_revision;
+	smu->smu_table.boot_values.content_revision = header->content_revision;
+
 	return 0;
 }
 
@@ -627,6 +651,24 @@ static int smu_v11_0_get_clk_info_from_vbios(struct smu_context *smu)
 
 	output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&input;
 	smu->smu_table.boot_values.dclk = le32_to_cpu(output->atom_smu_outputclkfreq.smu_clock_freq_hz) / 10000;
+
+	if ((smu->smu_table.boot_values.format_revision == 3) &&
+	    (smu->smu_table.boot_values.content_revision >= 2)) {
+		memset(&input, 0, sizeof(input));
+		input.clk_id = SMU11_SYSPLL1_0_FCLK_ID;
+		input.syspll_id = SMU11_SYSPLL1_2_ID;
+		input.command = GET_SMU_CLOCK_INFO_V3_1_GET_CLOCK_FREQ;
+		index = get_index_into_master_table(atom_master_list_of_command_functions_v2_1,
+						    getsmuclockinfo);
+
+		ret = amdgpu_atom_execute_table(adev->mode_info.atom_context, index,
+						(uint32_t *)&input);
+		if (ret)
+			return -EINVAL;
+
+		output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&input;
+		smu->smu_table.boot_values.fclk = le32_to_cpu(output->atom_smu_outputclkfreq.smu_clock_freq_hz) / 10000;
+	}
 
 	return 0;
 }
@@ -1085,23 +1127,17 @@ static int smu_v11_0_get_current_clk_freq(struct smu_context *smu,
 }
 
 static int smu_v11_0_set_thermal_range(struct smu_context *smu,
-				       struct smu_temperature_range *range)
+				       struct smu_temperature_range range)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int low = SMU_THERMAL_MINIMUM_ALERT_TEMP;
 	int high = SMU_THERMAL_MAXIMUM_ALERT_TEMP;
 	uint32_t val;
 
-	if (!range)
-		return -EINVAL;
-
-	if (low < range->min)
-		low = range->min;
-	if (high > range->max)
-		high = range->max;
-
-	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP, range->min);
-	high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP, range->max);
+	low = max(SMU_THERMAL_MINIMUM_ALERT_TEMP,
+			range.min / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
+	high = min(SMU_THERMAL_MAXIMUM_ALERT_TEMP,
+			range.max / SMU_TEMPERATURE_UNITS_PER_CENTIGRADES);
 
 	if (low > high)
 		return -EINVAL;
@@ -1137,27 +1173,20 @@ static int smu_v11_0_enable_thermal_alert(struct smu_context *smu)
 static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 {
 	int ret = 0;
-	struct smu_temperature_range range = {
-		TEMP_RANGE_MIN,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MIN,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MIN,
-		TEMP_RANGE_MAX,
-		TEMP_RANGE_MAX};
+	struct smu_temperature_range range;
 	struct amdgpu_device *adev = smu->adev;
 
 	if (!smu->pm_enabled)
 		return ret;
+
+	memcpy(&range, &smu11_thermal_policy[0], sizeof(struct smu_temperature_range));
 
 	ret = smu_get_thermal_temperature_range(smu, &range);
 	if (ret)
 		return ret;
 
 	if (smu->smu_table.thermal_controller_type) {
-		ret = smu_v11_0_set_thermal_range(smu, &range);
+		ret = smu_v11_0_set_thermal_range(smu, range);
 		if (ret)
 			return ret;
 
@@ -1170,17 +1199,15 @@ static int smu_v11_0_start_thermal_control(struct smu_context *smu)
 			return ret;
 	}
 
-	adev->pm.dpm.thermal.min_temp = range.min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_temp = range.max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.min_mem_temp = range.mem_min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.min_temp = range.min * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
-	adev->pm.dpm.thermal.max_temp = range.max * SMU_TEMPERATURE_UNITS_PER_CENTIGRADES;
+	adev->pm.dpm.thermal.min_temp = range.min;
+	adev->pm.dpm.thermal.max_temp = range.max;
+	adev->pm.dpm.thermal.max_edge_emergency_temp = range.edge_emergency_max;
+	adev->pm.dpm.thermal.min_hotspot_temp = range.hotspot_min;
+	adev->pm.dpm.thermal.max_hotspot_crit_temp = range.hotspot_crit_max;
+	adev->pm.dpm.thermal.max_hotspot_emergency_temp = range.hotspot_emergency_max;
+	adev->pm.dpm.thermal.min_mem_temp = range.mem_min;
+	adev->pm.dpm.thermal.max_mem_crit_temp = range.mem_crit_max;
+	adev->pm.dpm.thermal.max_mem_emergency_temp = range.mem_emergency_max;
 
 	return ret;
 }
@@ -1214,6 +1241,10 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 				 void *data, uint32_t *size)
 {
 	int ret = 0;
+
+	if(!data || !size)
+		return -EINVAL;
+
 	switch (sensor) {
 	case AMDGPU_PP_SENSOR_GFX_MCLK:
 		ret = smu_get_current_clk_freq(smu, SMU_UCLK, (uint32_t *)data);
@@ -1236,10 +1267,6 @@ static int smu_v11_0_read_sensor(struct smu_context *smu,
 		break;
 	}
 
-	/* try get sensor data by asic */
-	if (ret)
-		ret = smu_asic_read_sensor(smu, sensor, data, size);
-
 	if (ret)
 		*size = 0;
 
@@ -1255,7 +1282,6 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 	int ret = 0;
 	enum smu_clk_type clk_select = 0;
 	uint32_t clk_freq = clock_req->clock_freq_in_khz / 1000;
-	int clk_id;
 
 	if (!smu->pm_enabled)
 		return -EINVAL;
@@ -1290,16 +1316,8 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		if (clk_select == SMU_UCLK && smu->disable_uclk_switch)
 			return 0;
 
-		clk_id = smu_clk_get_index(smu, clk_select);
-		if (clk_id < 0) {
-			ret = -EINVAL;
-			goto failed;
-		}
-
-
 		mutex_lock(&smu->mutex);
-		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_SetHardMinByFreq,
-			(clk_id << 16) | clk_freq);
+		ret = smu_set_hard_freq_range(smu, clk_select, clk_freq, 0);
 		mutex_unlock(&smu->mutex);
 
 		if(clk_select == SMU_UCLK)
@@ -1646,7 +1664,7 @@ static bool smu_v11_0_baco_is_support(struct smu_context *smu)
 static enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	enum smu_baco_state baco_state = SMU_BACO_STATE_EXIT;
+	enum smu_baco_state baco_state;
 
 	mutex_lock(&smu_baco->mutex);
 	baco_state = smu_baco->state;
@@ -1700,6 +1718,43 @@ static int smu_v11_0_baco_reset(struct smu_context *smu)
 	return ret;
 }
 
+static int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk_type clk_type,
+						 uint32_t *min, uint32_t *max)
+{
+	int ret = 0, clk_id = 0;
+	uint32_t param = 0;
+
+	mutex_lock(&smu->mutex);
+	clk_id = smu_clk_get_index(smu, clk_type);
+	if (clk_id < 0) {
+		ret = -EINVAL;
+		goto failed;
+	}
+	param = (clk_id & 0xffff) << 16;
+
+	if (max) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMaxDpmFreq, param);
+		if (ret)
+			goto failed;
+		ret = smu_read_smc_arg(smu, max);
+		if (ret)
+			goto failed;
+	}
+
+	if (min) {
+		ret = smu_send_smc_msg_with_param(smu, SMU_MSG_GetMinDpmFreq, param);
+		if (ret)
+			goto failed;
+		ret = smu_read_smc_arg(smu, min);
+		if (ret)
+			goto failed;
+	}
+
+failed:
+	mutex_unlock(&smu->mutex);
+	return ret;
+}
+
 static const struct smu_funcs smu_v11_0_funcs = {
 	.init_microcode = smu_v11_0_init_microcode,
 	.load_microcode = smu_v11_0_load_microcode,
@@ -1718,7 +1773,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.notify_memory_pool_location = smu_v11_0_notify_memory_pool_location,
 	.check_pptable = smu_v11_0_check_pptable,
 	.parse_pptable = smu_v11_0_parse_pptable,
-	.populate_smc_pptable = smu_v11_0_populate_smc_pptable,
+	.populate_smc_tables = smu_v11_0_populate_smc_pptable,
 	.write_pptable = smu_v11_0_write_pptable,
 	.write_watermarks_table = smu_v11_0_write_watermarks_table,
 	.set_min_dcef_deep_sleep = smu_v11_0_set_min_dcef_deep_sleep,
@@ -1749,6 +1804,7 @@ static const struct smu_funcs smu_v11_0_funcs = {
 	.baco_get_state = smu_v11_0_baco_get_state,
 	.baco_set_state = smu_v11_0_baco_set_state,
 	.baco_reset = smu_v11_0_baco_reset,
+	.get_dpm_ultimate_freq = smu_v11_0_get_dpm_ultimate_freq,
 };
 
 void smu_v11_0_set_smu_funcs(struct smu_context *smu)

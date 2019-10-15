@@ -131,17 +131,10 @@ DEFINE_SHOW_ATTRIBUTE(qcaspi_info);
 void
 qcaspi_init_device_debugfs(struct qcaspi *qca)
 {
-	struct dentry *device_root;
+	qca->device_root = debugfs_create_dir(dev_name(&qca->net_dev->dev),
+					      NULL);
 
-	device_root = debugfs_create_dir(dev_name(&qca->net_dev->dev), NULL);
-	qca->device_root = device_root;
-
-	if (IS_ERR(device_root) || !device_root) {
-		pr_warn("failed to create debugfs directory for %s\n",
-			dev_name(&qca->net_dev->dev));
-		return;
-	}
-	debugfs_create_file("info", S_IFREG | 0444, device_root, qca,
+	debugfs_create_file("info", S_IFREG | 0444, qca->device_root, qca,
 			    &qcaspi_info_fops);
 }
 

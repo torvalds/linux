@@ -955,9 +955,8 @@ struct drm_connector_helper_funcs {
 	 * @atomic_best_encoder.
 	 *
 	 * You can leave this function to NULL if the connector is only
-	 * attached to a single encoder and you are using the atomic helpers.
-	 * In this case, the core will call drm_atomic_helper_best_encoder()
-	 * for you.
+	 * attached to a single encoder. In this case, the core will call
+	 * drm_connector_get_single_encoder() for you.
 	 *
 	 * RETURNS:
 	 *
@@ -977,7 +976,7 @@ struct drm_connector_helper_funcs {
 	 *
 	 * This function is used by drm_atomic_helper_check_modeset().
 	 * If it is not implemented, the core will fallback to @best_encoder
-	 * (or drm_atomic_helper_best_encoder() if @best_encoder is NULL).
+	 * (or drm_connector_get_single_encoder() if @best_encoder is NULL).
 	 *
 	 * NOTE:
 	 *

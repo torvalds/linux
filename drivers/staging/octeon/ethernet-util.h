@@ -5,10 +5,6 @@
  * Copyright (c) 2003-2007 Cavium Networks
  */
 
-#include <asm/octeon/cvmx-pip.h>
-#include <asm/octeon/cvmx-helper.h>
-#include <asm/octeon/cvmx-helper-util.h>
-
 /**
  * cvm_oct_get_buffer_ptr - convert packet data address to pointer
  * @packet_ptr: Packet data hardware address

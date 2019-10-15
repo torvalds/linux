@@ -391,9 +391,8 @@ static int kingdisplay_panel_add(struct kingdisplay_panel *kingdisplay)
 	if (IS_ERR(kingdisplay->backlight))
 		return PTR_ERR(kingdisplay->backlight);
 
-	drm_panel_init(&kingdisplay->base);
-	kingdisplay->base.funcs = &kingdisplay_panel_funcs;
-	kingdisplay->base.dev = &kingdisplay->link->dev;
+	drm_panel_init(&kingdisplay->base, &kingdisplay->link->dev,
+		       &kingdisplay_panel_funcs, DRM_MODE_CONNECTOR_DSI);
 
 	return drm_panel_add(&kingdisplay->base);
 }

@@ -642,6 +642,9 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 	struct gswip_priv *priv = ds->priv;
 	int err;
 
+	if (!dsa_is_user_port(ds, port))
+		return 0;
+
 	if (!dsa_is_cpu_port(ds, port)) {
 		err = gswip_add_single_port_br(priv, port, true);
 		if (err)
@@ -677,6 +680,9 @@ static int gswip_port_enable(struct dsa_switch *ds, int port,
 static void gswip_port_disable(struct dsa_switch *ds, int port)
 {
 	struct gswip_priv *priv = ds->priv;
+
+	if (!dsa_is_user_port(ds, port))
+		return;
 
 	if (!dsa_is_cpu_port(ds, port)) {
 		gswip_mdio_mask(priv, GSWIP_MDIO_PHY_LINK_DOWN,
@@ -1822,7 +1828,6 @@ remove_gphy:
 static int gswip_probe(struct platform_device *pdev)
 {
 	struct gswip_priv *priv;
-	struct resource *gswip_res, *mdio_res, *mii_res;
 	struct device_node *mdio_np, *gphy_fw_np;
 	struct device *dev = &pdev->dev;
 	int err;
@@ -1833,18 +1838,15 @@ static int gswip_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	gswip_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->gswip = devm_ioremap_resource(dev, gswip_res);
+	priv->gswip = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->gswip))
 		return PTR_ERR(priv->gswip);
 
-	mdio_res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	priv->mdio = devm_ioremap_resource(dev, mdio_res);
+	priv->mdio = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(priv->mdio))
 		return PTR_ERR(priv->mdio);
 
-	mii_res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	priv->mii = devm_ioremap_resource(dev, mii_res);
+	priv->mii = devm_platform_ioremap_resource(pdev, 2);
 	if (IS_ERR(priv->mii))
 		return PTR_ERR(priv->mii);
 

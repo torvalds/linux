@@ -28,7 +28,7 @@ if [ -z "$FEATURE" ]; then
     exit_unsupported
 fi
 
-echo "Test snapshot tigger"
+echo "Test snapshot trigger"
 echo 0 > snapshot
 echo 1 > events/sched/sched_process_fork/enable
 ( echo "forked")
