@@ -2054,7 +2054,7 @@ static int amdgpu_map_buffer(struct ttm_buffer_object *bo,
 	dst_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 	dst_addr += window * AMDGPU_GTT_MAX_TRANSFER_SIZE * 8;
 	amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_addr,
-				dst_addr, num_bytes);
+				dst_addr, num_bytes, false);
 
 	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
 	WARN_ON(job->ibs[0].length_dw > num_dw);
@@ -2126,7 +2126,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
 		amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_offset,
-					dst_offset, cur_size_in_bytes);
+					dst_offset, cur_size_in_bytes, false);
 
 		src_offset += cur_size_in_bytes;
 		dst_offset += cur_size_in_bytes;

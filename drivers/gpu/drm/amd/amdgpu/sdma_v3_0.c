@@ -1638,7 +1638,8 @@ static void sdma_v3_0_set_irq_funcs(struct amdgpu_device *adev)
 static void sdma_v3_0_emit_copy_buffer(struct amdgpu_ib *ib,
 				       uint64_t src_offset,
 				       uint64_t dst_offset,
-				       uint32_t byte_count)
+				       uint32_t byte_count,
+				       bool tmz)
 {
 	ib->ptr[ib->length_dw++] = SDMA_PKT_HEADER_OP(SDMA_OP_COPY) |
 		SDMA_PKT_HEADER_SUB_OP(SDMA_SUBOP_COPY_LINEAR);

@@ -776,7 +776,8 @@ static void si_dma_set_irq_funcs(struct amdgpu_device *adev)
 static void si_dma_emit_copy_buffer(struct amdgpu_ib *ib,
 				       uint64_t src_offset,
 				       uint64_t dst_offset,
-				       uint32_t byte_count)
+				       uint32_t byte_count,
+				       bool tmz)
 {
 	ib->ptr[ib->length_dw++] = DMA_PACKET(DMA_PACKET_COPY,
 					      1, 0, 0, byte_count);
