@@ -39,6 +39,7 @@
 #define  SOR_STATE_ASY_CRC_MODE_NON_ACTIVE	(0x2 << 6)
 #define  SOR_STATE_ASY_CRC_MODE_COMPLETE	(0x1 << 6)
 #define  SOR_STATE_ASY_CRC_MODE_ACTIVE		(0x0 << 6)
+#define  SOR_STATE_ASY_SUBOWNER_MASK		(0x3 << 4)
 #define  SOR_STATE_ASY_OWNER_MASK		0xf
 #define  SOR_STATE_ASY_OWNER(x)			(((x) & 0xf) << 0)
 
