@@ -713,7 +713,7 @@ static void __iomem *mvebu_pcie_map_registers(struct platform_device *pdev,
 
 	ret = of_address_to_resource(np, 0, &regs);
 	if (ret)
-		return ERR_PTR(ret);
+		return (void __iomem *)ERR_PTR(ret);
 
 	return devm_ioremap_resource(&pdev->dev, &regs);
 }
