@@ -3205,6 +3205,7 @@ static int gen12_emit_flush_render(struct i915_request *request,
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
 		flags |= PIPE_CONTROL_FLUSH_ENABLE;
+		flags |= PIPE_CONTROL_HDC_PIPELINE_FLUSH;
 
 		flags |= PIPE_CONTROL_STORE_DATA_INDEX;
 		flags |= PIPE_CONTROL_QW_WRITE;
@@ -3415,7 +3416,8 @@ gen12_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 				      PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH |
 				      PIPE_CONTROL_DEPTH_CACHE_FLUSH |
 				      PIPE_CONTROL_DC_FLUSH_ENABLE |
-				      PIPE_CONTROL_FLUSH_ENABLE);
+				      PIPE_CONTROL_FLUSH_ENABLE |
+				      PIPE_CONTROL_HDC_PIPELINE_FLUSH);
 
 	return gen12_emit_fini_breadcrumb_footer(request, cs);
 }
