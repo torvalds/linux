@@ -82,4 +82,10 @@ static inline int linkmode_equal(const unsigned long *src1,
 	return bitmap_equal(src1, src2, __ETHTOOL_LINK_MODE_MASK_NBITS);
 }
 
+static inline int linkmode_subset(const unsigned long *src1,
+				  const unsigned long *src2)
+{
+	return bitmap_subset(src1, src2, __ETHTOOL_LINK_MODE_MASK_NBITS);
+}
+
 #endif /* __LINKMODE_H */
