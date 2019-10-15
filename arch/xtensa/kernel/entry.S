@@ -520,7 +520,7 @@ common_exception_return:
 	call4	schedule	# void schedule (void)
 	j	1b
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 6:
 	_bbci.l	a4, TIF_NEED_RESCHED, 4f
 
