@@ -165,7 +165,24 @@ static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 static int mes_v10_1_remove_hw_queue(struct amdgpu_mes *mes,
 				     struct mes_remove_queue_input *input)
 {
-	return 0;
+	union MESAPI__REMOVE_QUEUE mes_remove_queue_pkt;
+
+	memset(&mes_remove_queue_pkt, 0, sizeof(mes_remove_queue_pkt));
+
+	mes_remove_queue_pkt.header.type = MES_API_TYPE_SCHEDULER;
+	mes_remove_queue_pkt.header.opcode = MES_SCH_API_REMOVE_QUEUE;
+	mes_remove_queue_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
+
+	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
+	mes_remove_queue_pkt.gang_context_addr = input->gang_context_addr;
+
+	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
+		mes->ring.fence_drv.gpu_addr;
+	mes_remove_queue_pkt.api_status.api_completion_fence_value =
+		++mes->ring.fence_drv.sync_seq;
+
+	return mes_v10_1_submit_pkt_and_poll_completion(mes,
+			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt));
 }
 
 static int mes_v10_1_suspend_gang(struct amdgpu_mes *mes,
