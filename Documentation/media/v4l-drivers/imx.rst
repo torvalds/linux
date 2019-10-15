@@ -564,10 +564,11 @@ alternating fields (field type 'seq-tb' for PAL, or 'alternate').
    media-ctl -V "'ipu1_vdic':2 [fmt:AYUV32/720x576 field:none]"
    media-ctl -V "'ipu1_ic_prp':2 [fmt:AYUV32/720x576 field:none]"
    media-ctl -V "'ipu1_ic_prpvf':1 [fmt:AYUV32/720x576 field:none]"
+   # Configure "ipu1_ic_prpvf capture" interface (assumed at /dev/video2)
+   v4l2-ctl -d2 --set-fmt-video=field=none
 
-Streaming can then begin on the capture device node at
-"ipu1_ic_prpvf capture". The v4l2-ctl tool can be used to select any
-supported YUV or RGB pixelformat on the capture device node.
+Streaming can then begin on /dev/video2. The v4l2-ctl tool can also be
+used to select any supported YUV pixelformat on /dev/video2.
 
 This platform accepts Composite Video analog inputs to the ADV7180 on
 Ain1 (connector J42).
