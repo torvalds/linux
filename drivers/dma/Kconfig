@@ -352,6 +352,16 @@ config MILBEAUT_HDMAC
 	  Say yes here to support the Socionext Milbeaut
 	  HDMAC device.
 
+config MILBEAUT_XDMAC
+	tristate "Milbeaut AXI DMA support"
+	depends on ARCH_MILBEAUT || COMPILE_TEST
+	depends on OF
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Say yes here to support the Socionext Milbeaut
+	  XDMAC device.
+
 config MMP_PDMA
 	bool "MMP PDMA support"
 	depends on ARCH_MMP || ARCH_PXA || COMPILE_TEST
