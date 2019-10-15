@@ -322,9 +322,6 @@ static void pcm3168a_update_fixup_pcm_stream(struct snd_soc_dai *dai)
 	u64 formats = SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S24_LE;
 	unsigned int channel_max = dai->id == PCM3168A_DAI_DAC ? 8 : 6;
 
-	if (!pcm3168a->io_params[dai->id].fmt)
-		return;
-
 	if (pcm3168a->io_params[dai->id].fmt == PCM3168A_FMT_RIGHT_J) {
 		/* S16_LE is only supported in RIGHT_J mode */
 		formats |= SNDRV_PCM_FMTBIT_S16_LE;
