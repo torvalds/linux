@@ -432,8 +432,6 @@ void mt76_update_survey(struct mt76_dev *dev)
 	if (!test_bit(MT76_STATE_RUNNING, &dev->state))
 		return;
 
-	spin_lock_bh(&dev->cc_lock);
-
 	if (dev->drv->update_survey)
 		dev->drv->update_survey(dev);
 
@@ -442,15 +440,11 @@ void mt76_update_survey(struct mt76_dev *dev)
 						  dev->survey_time));
 	dev->survey_time = cur_time;
 
-	spin_unlock_bh(&dev->cc_lock);
-
 	if (dev->drv->drv_flags & MT_DRV_SW_RX_AIRTIME) {
-		spin_lock_bh(&dev->rx_lock);
-		spin_lock(&dev->cc_lock);
+		spin_lock_bh(&dev->cc_lock);
 		state->cc_bss_rx += dev->cur_cc_bss_rx;
 		dev->cur_cc_bss_rx = 0;
-		spin_unlock(&dev->cc_lock);
-		spin_unlock_bh(&dev->rx_lock);
+		spin_unlock_bh(&dev->cc_lock);
 	}
 }
 EXPORT_SYMBOL_GPL(mt76_update_survey);
@@ -485,6 +479,7 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 	struct mt76_channel_state *state;
 	int ret = 0;
 
+	mutex_lock(&dev->mutex);
 	if (idx == 0 && dev->drv->update_survey)
 		mt76_update_survey(dev);
 
@@ -494,8 +489,10 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 		sband = &dev->sband_5g;
 	}
 
-	if (idx >= sband->sband.n_channels)
-		return -ENOENT;
+	if (idx >= sband->sband.n_channels) {
+		ret = -ENOENT;
+		goto out;
+	}
 
 	chan = &sband->sband.channels[idx];
 	state = mt76_channel_state(dev, chan);
@@ -511,13 +508,17 @@ int mt76_get_survey(struct ieee80211_hw *hw, int idx,
 			survey->filled |= SURVEY_INFO_TIME_BSS_RX;
 	}
 
-	spin_lock_bh(&dev->cc_lock);
-	survey->time = div_u64(state->cc_active, 1000);
 	survey->time_busy = div_u64(state->cc_busy, 1000);
-	survey->time_bss_rx = div_u64(state->cc_bss_rx, 1000);
 	survey->time_rx = div_u64(state->cc_rx, 1000);
+	survey->time = div_u64(state->cc_active, 1000);
+
+	spin_lock_bh(&dev->cc_lock);
+	survey->time_bss_rx = div_u64(state->cc_bss_rx, 1000);
 	survey->time_tx = div_u64(state->cc_tx, 1000);
 	spin_unlock_bh(&dev->cc_lock);
+
+out:
+	mutex_unlock(&dev->mutex);
 
 	return ret;
 }
@@ -622,7 +623,9 @@ mt76_airtime_report(struct mt76_dev *dev, struct mt76_rx_status *status,
 	u32 airtime;
 
 	airtime = mt76_calc_rx_airtime(dev, status, len);
+	spin_lock(&dev->cc_lock);
 	dev->cur_cc_bss_rx += airtime;
+	spin_unlock(&dev->cc_lock);
 
 	if (!wcid || !wcid->sta)
 		return;

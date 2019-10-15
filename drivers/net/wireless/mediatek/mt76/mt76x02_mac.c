@@ -1020,8 +1020,11 @@ void mt76x02_update_channel(struct mt76_dev *mdev)
 
 	state = mdev->chan_state;
 	state->cc_busy += mt76_rr(dev, MT_CH_BUSY);
+
+	spin_lock_bh(&dev->mt76.cc_lock);
 	state->cc_tx += dev->tx_airtime;
 	dev->tx_airtime = 0;
+	spin_unlock_bh(&dev->mt76.cc_lock);
 }
 EXPORT_SYMBOL_GPL(mt76x02_update_channel);
 
