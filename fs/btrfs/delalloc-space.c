@@ -381,7 +381,6 @@ int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes)
 out_qgroup:
 	btrfs_qgroup_free_meta_prealloc(root, qgroup_reserve);
 out_fail:
-	btrfs_inode_rsv_release(inode, true);
 	if (delalloc_lock)
 		mutex_unlock(&inode->delalloc_mutex);
 	return ret;
