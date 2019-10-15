@@ -508,9 +508,9 @@ int sfp_get_module_eeprom(struct sfp_bus *bus, struct ethtool_eeprom *ee,
 			  u8 *data);
 void sfp_upstream_start(struct sfp_bus *bus);
 void sfp_upstream_stop(struct sfp_bus *bus);
-struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
-				      void *upstream,
-				      const struct sfp_upstream_ops *ops);
+struct sfp_bus *sfp_register_upstream_node(struct fwnode_handle *fwnode,
+					   void *upstream,
+					   const struct sfp_upstream_ops *ops);
 void sfp_unregister_upstream(struct sfp_bus *bus);
 #else
 static inline int sfp_parse_port(struct sfp_bus *bus,
@@ -553,11 +553,11 @@ static inline void sfp_upstream_stop(struct sfp_bus *bus)
 {
 }
 
-static inline struct sfp_bus *sfp_register_upstream(
+static inline struct sfp_bus *sfp_register_upstream_node(
 	struct fwnode_handle *fwnode, void *upstream,
 	const struct sfp_upstream_ops *ops)
 {
-	return (struct sfp_bus *)-1;
+	return NULL;
 }
 
 static inline void sfp_unregister_upstream(struct sfp_bus *bus)

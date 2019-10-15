@@ -4,6 +4,7 @@
 #include <linux/list.h>
 #include <linux/mutex.h>
 #include <linux/phylink.h>
+#include <linux/property.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
 
@@ -445,45 +446,63 @@ static void sfp_upstream_clear(struct sfp_bus *bus)
 }
 
 /**
- * sfp_register_upstream() - Register the neighbouring device
- * @fwnode: firmware node for the SFP bus
+ * sfp_register_upstream_node() - parse and register the neighbouring device
+ * @fwnode: firmware node for the parent device (MAC or PHY)
  * @upstream: the upstream private data
  * @ops: the upstream's &struct sfp_upstream_ops
  *
- * Register the upstream device (eg, PHY) with the SFP bus. MAC drivers
- * should use phylink, which will call this function for them. Returns
- * a pointer to the allocated &struct sfp_bus.
+ * Parse the parent device's firmware node for a SFP bus, and register the
+ * SFP bus using sfp_register_upstream().
  *
- * On error, returns %NULL.
+ * Returns: on success, a pointer to the sfp_bus structure,
+ *	    %NULL if no SFP is specified,
+ * 	    on failure, an error pointer value:
+ * 		corresponding to the errors detailed for
+ * 		fwnode_property_get_reference_args().
+ * 	        %-ENOMEM if we failed to allocate the bus.
+ *		an error from the upstream's connect_phy() method.
  */
-struct sfp_bus *sfp_register_upstream(struct fwnode_handle *fwnode,
-				      void *upstream,
-				      const struct sfp_upstream_ops *ops)
+struct sfp_bus *sfp_register_upstream_node(struct fwnode_handle *fwnode,
+					   void *upstream,
+					   const struct sfp_upstream_ops *ops)
 {
-	struct sfp_bus *bus = sfp_bus_get(fwnode);
-	int ret = 0;
+	struct fwnode_reference_args ref;
+	struct sfp_bus *bus;
+	int ret;
 
-	if (bus) {
-		rtnl_lock();
-		bus->upstream_ops = ops;
-		bus->upstream = upstream;
+	ret = fwnode_property_get_reference_args(fwnode, "sfp", NULL,
+						 0, 0, &ref);
+	if (ret == -ENOENT)
+		return NULL;
+	else if (ret < 0)
+		return ERR_PTR(ret);
 
-		if (bus->sfp) {
-			ret = sfp_register_bus(bus);
-			if (ret)
-				sfp_upstream_clear(bus);
-		}
-		rtnl_unlock();
+	bus = sfp_bus_get(ref.fwnode);
+	fwnode_handle_put(ref.fwnode);
+	if (!bus)
+		return ERR_PTR(-ENOMEM);
+
+	rtnl_lock();
+	bus->upstream_ops = ops;
+	bus->upstream = upstream;
+
+	if (bus->sfp) {
+		ret = sfp_register_bus(bus);
+		if (ret)
+			sfp_upstream_clear(bus);
+	} else {
+		ret = 0;
 	}
+	rtnl_unlock();
 
 	if (ret) {
 		sfp_bus_put(bus);
-		bus = NULL;
+		bus = ERR_PTR(ret);
 	}
 
 	return bus;
 }
-EXPORT_SYMBOL_GPL(sfp_register_upstream);
+EXPORT_SYMBOL_GPL(sfp_register_upstream_node);
 
 /**
  * sfp_unregister_upstream() - Unregister sfp bus
