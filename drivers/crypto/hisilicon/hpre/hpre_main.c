@@ -116,8 +116,8 @@ static const struct hpre_hw_error hpre_hw_errors[] = {
 	{ .int_msk = BIT(7), .msg = "hpre_cltr2_htbt_tm_out_err" },
 	{ .int_msk = BIT(8), .msg = "hpre_cltr3_htbt_tm_out_err" },
 	{ .int_msk = BIT(9), .msg = "hpre_cltr4_htbt_tm_out_err" },
-	{ .int_msk = GENMASK(10, 15), .msg = "hpre_ooo_rdrsp_err" },
-	{ .int_msk = GENMASK(16, 21), .msg = "hpre_ooo_wrrsp_err" },
+	{ .int_msk = GENMASK(15, 10), .msg = "hpre_ooo_rdrsp_err" },
+	{ .int_msk = GENMASK(21, 16), .msg = "hpre_ooo_wrrsp_err" },
 	{ /* sentinel */ }
 };
 
