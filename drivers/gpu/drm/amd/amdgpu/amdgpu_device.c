@@ -2622,8 +2622,11 @@ static int amdgpu_device_get_job_timeout_settings(struct amdgpu_device *adev)
 		 * There is only one value specified and
 		 * it should apply to all non-compute jobs.
 		 */
-		if (index == 1)
+		if (index == 1) {
 			adev->sdma_timeout = adev->video_timeout = adev->gfx_timeout;
+			if (amdgpu_sriov_vf(adev) || amdgpu_passthrough(adev))
+				adev->compute_timeout = adev->gfx_timeout;
+		}
 	}
 
 	return ret;
