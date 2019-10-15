@@ -315,7 +315,7 @@ static void __usbhsg_recip_send_status(struct usbhsg_gpriv *gpriv,
 	struct usbhs_pipe *pipe = usbhsg_uep_to_pipe(dcp);
 	struct device *dev = usbhsg_gpriv_to_dev(gpriv);
 	struct usb_request *req;
-	unsigned short *buf;
+	__le16 *buf;
 
 	/* alloc new usb_request for recip */
 	req = usb_ep_alloc_request(&dcp->ep, GFP_ATOMIC);
