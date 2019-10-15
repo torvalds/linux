@@ -3253,6 +3253,26 @@ static int gen12_emit_flush_render(struct i915_request *request,
 
 		*cs++ = preparser_disable(false);
 		intel_ring_advance(request, cs);
+
+		/*
+		 * Wa_1604544889:tgl
+		 */
+		if (IS_TGL_REVID(request->i915, TGL_REVID_A0, TGL_REVID_A0)) {
+			flags = 0;
+			flags |= PIPE_CONTROL_CS_STALL;
+			flags |= PIPE_CONTROL_HDC_PIPELINE_FLUSH;
+
+			flags |= PIPE_CONTROL_STORE_DATA_INDEX;
+			flags |= PIPE_CONTROL_QW_WRITE;
+
+			cs = intel_ring_begin(request, 6);
+			if (IS_ERR(cs))
+				return PTR_ERR(cs);
+
+			cs = gen8_emit_pipe_control(cs, flags,
+						    LRC_PPHWSP_SCRATCH_ADDR);
+			intel_ring_advance(request, cs);
+		}
 	}
 
 	return 0;
