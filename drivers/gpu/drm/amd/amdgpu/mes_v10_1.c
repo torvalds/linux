@@ -108,10 +108,58 @@ static int mes_v10_1_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	return 0;
 }
 
+static int convert_to_mes_queue_type(int queue_type)
+{
+	if (queue_type == AMDGPU_RING_TYPE_GFX)
+		return MES_QUEUE_TYPE_GFX;
+	else if (queue_type == AMDGPU_RING_TYPE_COMPUTE)
+		return MES_QUEUE_TYPE_COMPUTE;
+	else if (queue_type == AMDGPU_RING_TYPE_SDMA)
+		return MES_QUEUE_TYPE_SDMA;
+	else
+		BUG();
+	return -1;
+}
+
 static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 				  struct mes_add_queue_input *input)
 {
-	return 0;
+	struct amdgpu_device *adev = mes->adev;
+	union MESAPI__ADD_QUEUE mes_add_queue_pkt;
+
+	memset(&mes_add_queue_pkt, 0, sizeof(mes_add_queue_pkt));
+
+	mes_add_queue_pkt.header.type = MES_API_TYPE_SCHEDULER;
+	mes_add_queue_pkt.header.opcode = MES_SCH_API_ADD_QUEUE;
+	mes_add_queue_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
+
+	mes_add_queue_pkt.process_id = input->process_id;
+	mes_add_queue_pkt.page_table_base_addr =
+		input->page_table_base_addr - adev->gmc.vram_start;
+	mes_add_queue_pkt.process_va_start = input->process_va_start;
+	mes_add_queue_pkt.process_va_end = input->process_va_end;
+	mes_add_queue_pkt.process_quantum = input->process_quantum;
+	mes_add_queue_pkt.process_context_addr = input->process_context_addr;
+	mes_add_queue_pkt.gang_quantum = input->gang_quantum;
+	mes_add_queue_pkt.gang_context_addr = input->gang_context_addr;
+	mes_add_queue_pkt.inprocess_gang_priority =
+		input->inprocess_gang_priority;
+	mes_add_queue_pkt.gang_global_priority_level =
+		input->gang_global_priority_level;
+	mes_add_queue_pkt.doorbell_offset = input->doorbell_offset;
+	mes_add_queue_pkt.mqd_addr = input->mqd_addr;
+	mes_add_queue_pkt.wptr_addr = input->wptr_addr;
+	mes_add_queue_pkt.queue_type =
+		convert_to_mes_queue_type(input->queue_type);
+	mes_add_queue_pkt.paging = input->paging;
+
+	mes_add_queue_pkt.api_status.api_completion_fence_addr =
+		mes->ring.fence_drv.gpu_addr;
+	mes_add_queue_pkt.api_status.api_completion_fence_value =
+		++mes->ring.fence_drv.sync_seq;
+
+	return mes_v10_1_submit_pkt_and_poll_completion(mes,
+			&mes_add_queue_pkt, sizeof(mes_add_queue_pkt));
 }
 
 static int mes_v10_1_remove_hw_queue(struct amdgpu_mes *mes,
