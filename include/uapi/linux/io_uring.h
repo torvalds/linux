@@ -71,6 +71,11 @@ struct io_uring_sqe {
 #define IORING_FSYNC_DATASYNC	(1U << 0)
 
 /*
+ * sqe->timeout_flags
+ */
+#define IORING_TIMEOUT_ABS	(1U << 0)
+
+/*
  * IO completion data structure (Completion Queue Entry)
  */
 struct io_uring_cqe {

@@ -1978,13 +1978,17 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	unsigned count;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct list_head *entry;
+	enum hrtimer_mode mode;
 	struct timespec64 ts;
 	unsigned span = 0;
+	unsigned flags;
 
 	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
-	if (sqe->flags || sqe->ioprio || sqe->buf_index || sqe->timeout_flags ||
-	    sqe->len != 1)
+	if (sqe->flags || sqe->ioprio || sqe->buf_index || sqe->len != 1)
+		return -EINVAL;
+	flags = READ_ONCE(sqe->timeout_flags);
+	if (flags & ~IORING_TIMEOUT_ABS)
 		return -EINVAL;
 
 	if (get_timespec64(&ts, u64_to_user_ptr(sqe->addr)))
@@ -2042,10 +2046,13 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	list_add(&req->list, entry);
 	spin_unlock_irq(&ctx->completion_lock);
 
-	hrtimer_init(&req->timeout.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	if (flags & IORING_TIMEOUT_ABS)
+		mode = HRTIMER_MODE_ABS;
+	else
+		mode = HRTIMER_MODE_REL;
+	hrtimer_init(&req->timeout.timer, CLOCK_MONOTONIC, mode);
 	req->timeout.timer.function = io_timeout_fn;
-	hrtimer_start(&req->timeout.timer, timespec64_to_ktime(ts),
-			HRTIMER_MODE_REL);
+	hrtimer_start(&req->timeout.timer, timespec64_to_ktime(ts), mode);
 	return 0;
 }
 
