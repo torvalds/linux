@@ -426,7 +426,7 @@ static int rk818_cg_usb_get_property(struct power_supply *psy,
 				     union power_supply_propval *val)
 {
 	struct rk818_charger *cg = power_supply_get_drvdata(psy);
-	int fake_offline, ret = 0;
+	int fake_offline = 0, ret = 0;
 
 	if (rk818_cg_online(cg))
 		fake_offline = rk818_cg_lowpwr_check(cg);
