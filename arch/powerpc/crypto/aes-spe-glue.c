@@ -19,6 +19,8 @@
 #include <crypto/algapi.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/xts.h>
+#include <crypto/gf128mul.h>
+#include <crypto/scatterwalk.h>
 
 /*
  * MAX_BYTES defines the number of bytes that are allowed to be processed
@@ -327,12 +329,87 @@ static int ppc_xts_crypt(struct skcipher_request *req, bool enc)
 
 static int ppc_xts_encrypt(struct skcipher_request *req)
 {
-	return ppc_xts_crypt(req, true);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct ppc_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int tail = req->cryptlen % AES_BLOCK_SIZE;
+	int offset = req->cryptlen - tail - AES_BLOCK_SIZE;
+	struct skcipher_request subreq;
+	u8 b[2][AES_BLOCK_SIZE];
+	int err;
+
+	if (req->cryptlen < AES_BLOCK_SIZE)
+		return -EINVAL;
+
+	if (tail) {
+		subreq = *req;
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   req->cryptlen - tail, req->iv);
+		req = &subreq;
+	}
+
+	err = ppc_xts_crypt(req, true);
+	if (err || !tail)
+		return err;
+
+	scatterwalk_map_and_copy(b[0], req->dst, offset, AES_BLOCK_SIZE, 0);
+	memcpy(b[1], b[0], tail);
+	scatterwalk_map_and_copy(b[0], req->src, offset + AES_BLOCK_SIZE, tail, 0);
+
+	spe_begin();
+	ppc_encrypt_xts(b[0], b[0], ctx->key_enc, ctx->rounds, AES_BLOCK_SIZE,
+			req->iv, NULL);
+	spe_end();
+
+	scatterwalk_map_and_copy(b[0], req->dst, offset, AES_BLOCK_SIZE + tail, 1);
+
+	return 0;
 }
 
 static int ppc_xts_decrypt(struct skcipher_request *req)
 {
-	return ppc_xts_crypt(req, false);
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	struct ppc_xts_ctx *ctx = crypto_skcipher_ctx(tfm);
+	int tail = req->cryptlen % AES_BLOCK_SIZE;
+	int offset = req->cryptlen - tail - AES_BLOCK_SIZE;
+	struct skcipher_request subreq;
+	u8 b[3][AES_BLOCK_SIZE];
+	le128 twk;
+	int err;
+
+	if (req->cryptlen < AES_BLOCK_SIZE)
+		return -EINVAL;
+
+	if (tail) {
+		subreq = *req;
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   offset, req->iv);
+		req = &subreq;
+	}
+
+	err = ppc_xts_crypt(req, false);
+	if (err || !tail)
+		return err;
+
+	scatterwalk_map_and_copy(b[1], req->src, offset, AES_BLOCK_SIZE + tail, 0);
+
+	spe_begin();
+	if (!offset)
+		ppc_encrypt_ecb(req->iv, req->iv, ctx->key_twk, ctx->rounds,
+				AES_BLOCK_SIZE);
+
+	gf128mul_x_ble(&twk, (le128 *)req->iv);
+
+	ppc_decrypt_xts(b[1], b[1], ctx->key_dec, ctx->rounds, AES_BLOCK_SIZE,
+			(u8 *)&twk, NULL);
+	memcpy(b[0], b[2], tail);
+	memcpy(b[0] + tail, b[1] + tail, AES_BLOCK_SIZE - tail);
+	ppc_decrypt_xts(b[0], b[0], ctx->key_dec, ctx->rounds, AES_BLOCK_SIZE,
+			req->iv, NULL);
+	spe_end();
+
+	scatterwalk_map_and_copy(b[0], req->dst, offset, AES_BLOCK_SIZE + tail, 1);
+
+	return 0;
 }
 
 /*
