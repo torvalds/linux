@@ -2666,17 +2666,18 @@ int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 		tree_root->commit_root = btrfs_root_node(tree_root);
 		btrfs_set_root_refs(&tree_root->root_item, 1);
 
-		mutex_lock(&tree_root->objectid_mutex);
+		/*
+		 * No need to hold btrfs_root::objectid_mutex since the fs
+		 * hasn't been fully initialised and we are the only user
+		 */
 		ret = btrfs_find_highest_objectid(tree_root,
 						&tree_root->highest_objectid);
 		if (ret < 0) {
-			mutex_unlock(&tree_root->objectid_mutex);
 			handle_error = true;
 			continue;
 		}
 
 		ASSERT(tree_root->highest_objectid <= BTRFS_LAST_FREE_OBJECTID);
-		mutex_unlock(&tree_root->objectid_mutex);
 
 		ret = btrfs_read_roots(fs_info);
 		if (ret < 0) {
