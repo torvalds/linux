@@ -1790,18 +1790,18 @@ sleep:
 }
 
 /*
- * this will find the highest generation in the array of
- * root backups.  The index of the highest array is returned,
- * or -1 if we can't find anything.
+ * This will find the highest generation in the array of root backups.  The
+ * index of the highest array is returned, or -EINVAL if we can't find
+ * anything.
  *
  * We check to make sure the array is valid by comparing the
  * generation of the latest  root in the array with the generation
  * in the super block.  If they don't match we pitch it.
  */
-static int find_newest_super_backup(struct btrfs_fs_info *info, u64 newest_gen)
+static int find_newest_super_backup(struct btrfs_fs_info *info)
 {
+	const u64 newest_gen = btrfs_super_generation(info->super_copy);
 	u64 cur;
-	int newest_index = -1;
 	struct btrfs_root_backup *root_backup;
 	int i;
 
@@ -1809,17 +1809,10 @@ static int find_newest_super_backup(struct btrfs_fs_info *info, u64 newest_gen)
 		root_backup = info->super_copy->super_roots + i;
 		cur = btrfs_backup_tree_root_gen(root_backup);
 		if (cur == newest_gen)
-			newest_index = i;
+			return i;
 	}
 
-	/* check to see if we actually wrapped around */
-	if (newest_index == BTRFS_NUM_BACKUP_ROOTS - 1) {
-		root_backup = info->super_copy->super_roots;
-		cur = btrfs_backup_tree_root_gen(root_backup);
-		if (cur == newest_gen)
-			newest_index = 0;
-	}
-	return newest_index;
+	return -EINVAL;
 }
 
 
@@ -1831,11 +1824,11 @@ static int find_newest_super_backup(struct btrfs_fs_info *info, u64 newest_gen)
 static void find_oldest_super_backup(struct btrfs_fs_info *info,
 				     u64 newest_gen)
 {
-	int newest_index = -1;
+	int newest_index;
 
-	newest_index = find_newest_super_backup(info, newest_gen);
+	newest_index = find_newest_super_backup(info);
 	/* if there was garbage in there, just move along */
-	if (newest_index == -1) {
+	if (newest_index == -EINVAL) {
 		info->backup_root_index = 0;
 	} else {
 		info->backup_root_index = (newest_index + 1) % BTRFS_NUM_BACKUP_ROOTS;
@@ -1952,9 +1945,7 @@ static noinline int next_root_backup(struct btrfs_fs_info *info,
 	int newest = *backup_index;
 
 	if (*num_backups_tried == 0) {
-		u64 gen = btrfs_super_generation(super);
-
-		newest = find_newest_super_backup(info, gen);
+		newest = find_newest_super_backup(info);
 		if (newest == -1)
 			return -1;
 
