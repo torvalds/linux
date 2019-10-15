@@ -84,7 +84,7 @@ struct ks_sa_rng {
 	struct hwrng	rng;
 	struct clk	*clk;
 	struct regmap	*regmap_cfg;
-	struct trng_regs *reg_rng;
+	struct trng_regs __iomem *reg_rng;
 };
 
 static int ks_sa_rng_init(struct hwrng *rng)
