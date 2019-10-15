@@ -526,7 +526,7 @@ static int predict_temp(int temp)
 static int get_raw_code_internal(void)
 {
 	u32 val_cpu_pd;
-	int val_cpu;
+	int val_cpu = INVALID_TEMP;
 	int i;
 	struct rk3368_thermal_data *ctx = rk3368_thermal_get_data();
 
