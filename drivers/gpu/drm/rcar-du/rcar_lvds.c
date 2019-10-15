@@ -65,9 +65,6 @@ struct rcar_lvds {
 		struct clk *dotclkin[2];	/* External DU clocks */
 	} clocks;
 
-	struct drm_display_mode display_mode;
-	enum rcar_lvds_mode mode;
-
 	struct drm_bridge *companion;
 	bool dual_link;
 };
@@ -402,10 +399,53 @@ EXPORT_SYMBOL_GPL(rcar_lvds_clk_disable);
  * Bridge
  */
 
-static void rcar_lvds_enable(struct drm_bridge *bridge)
+static enum rcar_lvds_mode rcar_lvds_get_lvds_mode(struct rcar_lvds *lvds,
+					const struct drm_connector *connector)
+{
+	const struct drm_display_info *info;
+	enum rcar_lvds_mode mode;
+
+	/*
+	 * There is no API yet to retrieve LVDS mode from a bridge, only panels
+	 * are supported.
+	 */
+	if (!lvds->panel)
+		return RCAR_LVDS_MODE_JEIDA;
+
+	info = &connector->display_info;
+	if (!info->num_bus_formats || !info->bus_formats) {
+		dev_warn(lvds->dev,
+			 "no LVDS bus format reported, using JEIDA\n");
+		return RCAR_LVDS_MODE_JEIDA;
+	}
+
+	switch (info->bus_formats[0]) {
+	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
+	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
+		mode = RCAR_LVDS_MODE_JEIDA;
+		break;
+	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
+		mode = RCAR_LVDS_MODE_VESA;
+		break;
+	default:
+		dev_warn(lvds->dev,
+			 "unsupported LVDS bus format 0x%04x, using JEIDA\n",
+			 info->bus_formats[0]);
+		return RCAR_LVDS_MODE_JEIDA;
+	}
+
+	if (info->bus_flags & DRM_BUS_FLAG_DATA_LSB_TO_MSB)
+		mode |= RCAR_LVDS_MODE_MIRROR;
+
+	return mode;
+}
+
+static void __rcar_lvds_atomic_enable(struct drm_bridge *bridge,
+				      struct drm_atomic_state *state,
+				      struct drm_crtc *crtc,
+				      struct drm_connector *connector)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-	const struct drm_display_mode *mode = &lvds->display_mode;
 	u32 lvdhcr;
 	u32 lvdcr0;
 	int ret;
@@ -416,7 +456,8 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 
 	/* Enable the companion LVDS encoder in dual-link mode. */
 	if (lvds->dual_link && lvds->companion)
-		lvds->companion->funcs->enable(lvds->companion);
+		__rcar_lvds_atomic_enable(lvds->companion, state, crtc,
+					  connector);
 
 	/*
 	 * Hardcode the channels and control signals routing for now.
@@ -452,18 +493,20 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	 * PLL clock configuration on all instances but the companion in
 	 * dual-link mode.
 	 */
-	if (!lvds->dual_link || lvds->companion)
+	if (!lvds->dual_link || lvds->companion) {
+		const struct drm_crtc_state *crtc_state =
+			drm_atomic_get_new_crtc_state(state, crtc);
+		const struct drm_display_mode *mode =
+			&crtc_state->adjusted_mode;
+
 		lvds->info->pll_setup(lvds, mode->clock * 1000);
+	}
 
 	/* Set the LVDS mode and select the input. */
-	lvdcr0 = lvds->mode << LVDCR0_LVMD_SHIFT;
+	lvdcr0 = rcar_lvds_get_lvds_mode(lvds, connector) << LVDCR0_LVMD_SHIFT;
 
 	if (lvds->bridge.encoder) {
-		/*
-		 * FIXME: We should really retrieve the CRTC through the state,
-		 * but how do we get a state pointer?
-		 */
-		if (drm_crtc_index(lvds->bridge.encoder->crtc) == 2)
+		if (drm_crtc_index(crtc) == 2)
 			lvdcr0 |= LVDCR0_DUSEL;
 	}
 
@@ -520,7 +563,21 @@ static void rcar_lvds_enable(struct drm_bridge *bridge)
 	}
 }
 
-static void rcar_lvds_disable(struct drm_bridge *bridge)
+static void rcar_lvds_atomic_enable(struct drm_bridge *bridge,
+				    struct drm_atomic_state *state)
+{
+	struct drm_connector *connector;
+	struct drm_crtc *crtc;
+
+	connector = drm_atomic_get_new_connector_for_encoder(state,
+							     bridge->encoder);
+	crtc = drm_atomic_get_new_connector_state(state, connector)->crtc;
+
+	__rcar_lvds_atomic_enable(bridge, state, crtc, connector);
+}
+
+static void rcar_lvds_atomic_disable(struct drm_bridge *bridge,
+				     struct drm_atomic_state *state)
 {
 	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
 
@@ -535,7 +592,7 @@ static void rcar_lvds_disable(struct drm_bridge *bridge)
 
 	/* Disable the companion LVDS encoder in dual-link mode. */
 	if (lvds->dual_link && lvds->companion)
-		lvds->companion->funcs->disable(lvds->companion);
+		lvds->companion->funcs->atomic_disable(lvds->companion, state);
 
 	clk_disable_unprepare(lvds->clocks.mod);
 }
@@ -556,54 +613,6 @@ static bool rcar_lvds_mode_fixup(struct drm_bridge *bridge,
 	adjusted_mode->clock = clamp(adjusted_mode->clock, min_freq, 148500);
 
 	return true;
-}
-
-static void rcar_lvds_get_lvds_mode(struct rcar_lvds *lvds)
-{
-	struct drm_display_info *info = &lvds->connector.display_info;
-	enum rcar_lvds_mode mode;
-
-	/*
-	 * There is no API yet to retrieve LVDS mode from a bridge, only panels
-	 * are supported.
-	 */
-	if (!lvds->panel)
-		return;
-
-	if (!info->num_bus_formats || !info->bus_formats) {
-		dev_err(lvds->dev, "no LVDS bus format reported\n");
-		return;
-	}
-
-	switch (info->bus_formats[0]) {
-	case MEDIA_BUS_FMT_RGB666_1X7X3_SPWG:
-	case MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA:
-		mode = RCAR_LVDS_MODE_JEIDA;
-		break;
-	case MEDIA_BUS_FMT_RGB888_1X7X4_SPWG:
-		mode = RCAR_LVDS_MODE_VESA;
-		break;
-	default:
-		dev_err(lvds->dev, "unsupported LVDS bus format 0x%04x\n",
-			info->bus_formats[0]);
-		return;
-	}
-
-	if (info->bus_flags & DRM_BUS_FLAG_DATA_LSB_TO_MSB)
-		mode |= RCAR_LVDS_MODE_MIRROR;
-
-	lvds->mode = mode;
-}
-
-static void rcar_lvds_mode_set(struct drm_bridge *bridge,
-			       const struct drm_display_mode *mode,
-			       const struct drm_display_mode *adjusted_mode)
-{
-	struct rcar_lvds *lvds = bridge_to_rcar_lvds(bridge);
-
-	lvds->display_mode = *adjusted_mode;
-
-	rcar_lvds_get_lvds_mode(lvds);
 }
 
 static int rcar_lvds_attach(struct drm_bridge *bridge)
@@ -647,10 +656,9 @@ static void rcar_lvds_detach(struct drm_bridge *bridge)
 static const struct drm_bridge_funcs rcar_lvds_bridge_ops = {
 	.attach = rcar_lvds_attach,
 	.detach = rcar_lvds_detach,
-	.enable = rcar_lvds_enable,
-	.disable = rcar_lvds_disable,
+	.atomic_enable = rcar_lvds_atomic_enable,
+	.atomic_disable = rcar_lvds_atomic_disable,
 	.mode_fixup = rcar_lvds_mode_fixup,
-	.mode_set = rcar_lvds_mode_set,
 };
 
 bool rcar_lvds_dual_link(struct drm_bridge *bridge)
