@@ -290,31 +290,40 @@ static const struct dpfe_api dpfe_api_v3 = {
 	},
 };
 
-static bool is_dcpu_enabled(void __iomem *regs)
+static bool is_dcpu_enabled(struct brcmstb_dpfe_priv *priv)
 {
 	u32 val;
 
-	val = readl_relaxed(regs + REG_DCPU_RESET);
+	mutex_lock(&priv->lock);
+	val = readl_relaxed(priv->regs + REG_DCPU_RESET);
+	mutex_unlock(&priv->lock);
 
 	return !(val & DCPU_RESET_MASK);
 }
 
-static void __disable_dcpu(void __iomem *regs)
+static void __disable_dcpu(struct brcmstb_dpfe_priv *priv)
 {
 	u32 val;
 
-	if (!is_dcpu_enabled(regs))
+	if (!is_dcpu_enabled(priv))
 		return;
 
+	mutex_lock(&priv->lock);
+
 	/* Put DCPU in reset if it's running. */
-	val = readl_relaxed(regs + REG_DCPU_RESET);
+	val = readl_relaxed(priv->regs + REG_DCPU_RESET);
 	val |= (1 << DCPU_RESET_SHIFT);
-	writel_relaxed(val, regs + REG_DCPU_RESET);
+	writel_relaxed(val, priv->regs + REG_DCPU_RESET);
+
+	mutex_unlock(&priv->lock);
 }
 
-static void __enable_dcpu(void __iomem *regs)
+static void __enable_dcpu(struct brcmstb_dpfe_priv *priv)
 {
+	void __iomem *regs = priv->regs;
 	u32 val;
+
+	mutex_lock(&priv->lock);
 
 	/* Clear mailbox registers. */
 	writel_relaxed(0, regs + REG_TO_DCPU_MBOX);
@@ -329,6 +338,8 @@ static void __enable_dcpu(void __iomem *regs)
 	val = readl_relaxed(regs + REG_DCPU_RESET);
 	val &= ~(1 << DCPU_RESET_SHIFT);
 	writel_relaxed(val, regs + REG_DCPU_RESET);
+
+	mutex_unlock(&priv->lock);
 }
 
 static unsigned int get_msg_chksum(const u32 msg[], unsigned int max)
@@ -590,7 +601,7 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	 * Skip downloading the firmware if the DCPU is already running and
 	 * responding to commands.
 	 */
-	if (is_dcpu_enabled(priv->regs)) {
+	if (is_dcpu_enabled(priv)) {
 		u32 response[MSG_FIELD_MAX];
 
 		ret = __send_command(priv, DPFE_CMD_GET_INFO, response);
@@ -615,7 +626,7 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	if (ret)
 		return -EFAULT;
 
-	__disable_dcpu(priv->regs);
+	__disable_dcpu(priv);
 
 	is_big_endian = init->is_big_endian;
 	dmem_size = init->dmem_len;
@@ -641,7 +652,7 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	__enable_dcpu(priv->regs);
+	__enable_dcpu(priv);
 
 	return 0;
 }
