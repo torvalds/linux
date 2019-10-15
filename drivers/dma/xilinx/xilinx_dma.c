@@ -612,6 +612,9 @@ xilinx_axidma_alloc_tx_segment(struct xilinx_dma_chan *chan)
 	}
 	spin_unlock_irqrestore(&chan->lock, flags);
 
+	if (!segment)
+		dev_dbg(chan->dev, "Could not find free tx segment\n");
+
 	return segment;
 }
 
