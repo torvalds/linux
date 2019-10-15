@@ -792,7 +792,7 @@ static void d71_scaler_update(struct komeda_component *c,
 
 static void d71_scaler_dump(struct komeda_component *c, struct seq_file *sf)
 {
-	u32 v[9];
+	u32 v[10];
 
 	dump_block_header(sf, c->reg);
 
@@ -812,6 +812,18 @@ static void d71_scaler_dump(struct komeda_component *c, struct seq_file *sf)
 	seq_printf(sf, "SC_H_DELTA_PH:\t\t0x%X\n", v[6]);
 	seq_printf(sf, "SC_V_INIT_PH:\t\t0x%X\n", v[7]);
 	seq_printf(sf, "SC_V_DELTA_PH:\t\t0x%X\n", v[8]);
+
+	get_values_from_reg(c->reg, 0x130, 10, v);
+	seq_printf(sf, "SC_ENH_LIMITS:\t\t0x%X\n", v[0]);
+	seq_printf(sf, "SC_ENH_COEFF0:\t\t0x%X\n", v[1]);
+	seq_printf(sf, "SC_ENH_COEFF1:\t\t0x%X\n", v[2]);
+	seq_printf(sf, "SC_ENH_COEFF2:\t\t0x%X\n", v[3]);
+	seq_printf(sf, "SC_ENH_COEFF3:\t\t0x%X\n", v[4]);
+	seq_printf(sf, "SC_ENH_COEFF4:\t\t0x%X\n", v[5]);
+	seq_printf(sf, "SC_ENH_COEFF5:\t\t0x%X\n", v[6]);
+	seq_printf(sf, "SC_ENH_COEFF6:\t\t0x%X\n", v[7]);
+	seq_printf(sf, "SC_ENH_COEFF7:\t\t0x%X\n", v[8]);
+	seq_printf(sf, "SC_ENH_COEFF8:\t\t0x%X\n", v[9]);
 }
 
 static const struct komeda_component_funcs d71_scaler_funcs = {
