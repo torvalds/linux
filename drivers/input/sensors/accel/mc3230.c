@@ -518,7 +518,7 @@ static int mc3230_start(struct i2c_client *client, char rate)
 
 static inline int mc3230_convert_to_int(s16 value)
 {
-	int result;
+	int result = 0;
 
 	if ((mc32x0_type == IS_MC3230) || (mc32x0_type == IS_MC2234)) {
 		result = value * 192;
