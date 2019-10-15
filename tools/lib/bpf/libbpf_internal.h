@@ -110,7 +110,7 @@ struct btf_ext {
 	};
 	struct btf_ext_info func_info;
 	struct btf_ext_info line_info;
-	struct btf_ext_info offset_reloc_info;
+	struct btf_ext_info field_reloc_info;
 	__u32 data_size;
 };
 
@@ -135,13 +135,23 @@ struct bpf_line_info_min {
 	__u32	line_col;
 };
 
-/* The minimum bpf_offset_reloc checked by the loader
+/* bpf_field_info_kind encodes which aspect of captured field has to be
+ * adjusted by relocations. Currently supported values are:
+ *   - BPF_FIELD_BYTE_OFFSET: field offset (in bytes);
+ *   - BPF_FIELD_EXISTS: field existence (1, if field exists; 0, otherwise);
+ */
+enum bpf_field_info_kind {
+	BPF_FIELD_BYTE_OFFSET = 0,	/* field byte offset */
+	BPF_FIELD_EXISTS = 2,		/* field existence in target kernel */
+};
+
+/* The minimum bpf_field_reloc checked by the loader
  *
- * Offset relocation captures the following data:
+ * Field relocation captures the following data:
  * - insn_off - instruction offset (in bytes) within a BPF program that needs
- *   its insn->imm field to be relocated with actual offset;
+ *   its insn->imm field to be relocated with actual field info;
  * - type_id - BTF type ID of the "root" (containing) entity of a relocatable
- *   offset;
+ *   field;
  * - access_str_off - offset into corresponding .BTF string section. String
  *   itself encodes an accessed field using a sequence of field and array
  *   indicies, separated by colon (:). It's conceptually very close to LLVM's
@@ -172,15 +182,16 @@ struct bpf_line_info_min {
  * bpf_probe_read(&dst, sizeof(dst),
  *		  __builtin_preserve_access_index(&src->a.b.c));
  *
- * In this case Clang will emit offset relocation recording necessary data to
+ * In this case Clang will emit field relocation recording necessary data to
  * be able to find offset of embedded `a.b.c` field within `src` struct.
  *
  *   [0] https://llvm.org/docs/LangRef.html#getelementptr-instruction
  */
-struct bpf_offset_reloc {
+struct bpf_field_reloc {
 	__u32   insn_off;
 	__u32   type_id;
 	__u32   access_str_off;
+	enum bpf_field_info_kind kind;
 };
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */
