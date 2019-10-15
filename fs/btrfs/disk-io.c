@@ -1816,45 +1816,14 @@ static int find_newest_super_backup(struct btrfs_fs_info *info)
 }
 
 /*
- * Initialize backup_root_index with the next available slot, where subsequent
- * transaction commit will store the backup root
- */
-static void init_backup_root_slot(struct btrfs_fs_info *info)
-{
-	int newest_index;
-
-	newest_index = find_newest_super_backup(info);
-	/* if there was garbage in there, just move along */
-	if (newest_index == -EINVAL) {
-		info->backup_root_index = 0;
-	} else {
-		info->backup_root_index = (newest_index + 1) % BTRFS_NUM_BACKUP_ROOTS;
-	}
-}
-
-/*
  * copy all the root pointers into the super backup array.
  * this will bump the backup pointer by one when it is
  * done
  */
 static void backup_super_roots(struct btrfs_fs_info *info)
 {
-	int next_backup;
+	const int next_backup = info->backup_root_index;
 	struct btrfs_root_backup *root_backup;
-	int last_backup;
-
-	next_backup = info->backup_root_index;
-	last_backup = (next_backup + BTRFS_NUM_BACKUP_ROOTS - 1) %
-		BTRFS_NUM_BACKUP_ROOTS;
-
-	/*
-	 * just overwrite the last backup if we're at the same generation
-	 * this happens only at umount
-	 */
-	root_backup = info->super_for_commit->super_roots + last_backup;
-	if (btrfs_backup_tree_root_gen(root_backup) ==
-	    btrfs_header_generation(info->tree_root->node))
-		next_backup = last_backup;
 
 	root_backup = info->super_for_commit->super_roots + next_backup;
 
@@ -2558,8 +2527,9 @@ out:
 	return ret;
 }
 
-int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
+static int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 {
+	int backup_index = find_newest_super_backup(fs_info);
 	struct btrfs_super_block *sb = fs_info->super_copy;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	bool handle_error = false;
@@ -2590,6 +2560,7 @@ int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 			btrfs_set_opt(fs_info->mount_opt, CLEAR_CACHE);
 
 			ret = read_backup_root(fs_info, i);
+			backup_index = ret;
 			if (ret < 0)
 				return ret;
 		}
@@ -2636,6 +2607,14 @@ int __cold init_tree_roots(struct btrfs_fs_info *fs_info)
 		/* All successful */
 		fs_info->generation = generation;
 		fs_info->last_trans_committed = generation;
+
+		/* Always begin writing backup roots after the one being used */
+		if (backup_index < 0) {
+			fs_info->backup_root_index = 0;
+		} else {
+			fs_info->backup_root_index = backup_index + 1;
+			fs_info->backup_root_index %= BTRFS_NUM_BACKUP_ROOTS;
+		}
 		break;
 	}
 
@@ -2928,12 +2907,6 @@ int __cold open_ctree(struct super_block *sb,
 	/* check FS state, whether FS is broken. */
 	if (btrfs_super_flags(disk_super) & BTRFS_SUPER_FLAG_ERROR)
 		set_bit(BTRFS_FS_STATE_ERROR, &fs_info->fs_state);
-
-	/*
-	 * run through our array of backup supers and setup
-	 * our ring pointer to the oldest one
-	 */
-	init_backup_root_slot(fs_info);
 
 	/*
 	 * In the long term, we'll store the compression type in the super
