@@ -582,20 +582,17 @@ static int __write_firmware(u32 __iomem *mem, const u32 *fw,
 	return 0;
 }
 
-static int brcmstb_dpfe_download_firmware(struct platform_device *pdev)
+static int brcmstb_dpfe_download_firmware(struct brcmstb_dpfe_priv *priv)
 {
 	const struct dpfe_firmware_header *header;
 	unsigned int dmem_size, imem_size;
-	struct device *dev = &pdev->dev;
+	struct device *dev = priv->dev;
 	bool is_big_endian = false;
-	struct brcmstb_dpfe_priv *priv;
 	const struct firmware *fw;
 	const u32 *dmem, *imem;
 	struct init_data init;
 	const void *fw_blob;
 	int ret;
-
-	priv = platform_get_drvdata(pdev);
 
 	/*
 	 * Skip downloading the firmware if the DCPU is already running and
@@ -811,7 +808,9 @@ static ssize_t show_dram(struct device *dev, struct device_attribute *devattr,
 
 static int brcmstb_dpfe_resume(struct platform_device *pdev)
 {
-	return brcmstb_dpfe_download_firmware(pdev);
+	struct brcmstb_dpfe_priv *priv = platform_get_drvdata(pdev);
+
+	return brcmstb_dpfe_download_firmware(priv);
 }
 
 static int brcmstb_dpfe_probe(struct platform_device *pdev)
@@ -861,7 +860,7 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ret = brcmstb_dpfe_download_firmware(pdev);
+	ret = brcmstb_dpfe_download_firmware(priv);
 	if (ret) {
 		dev_err(dev, "Couldn't download firmware -- %d\n", ret);
 		return ret;
