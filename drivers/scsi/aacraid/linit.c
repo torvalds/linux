@@ -612,9 +612,13 @@ static struct device_attribute *aac_dev_attrs[] = {
 static int aac_ioctl(struct scsi_device *sdev, unsigned int cmd,
 		     void __user *arg)
 {
+	int retval;
 	struct aac_dev *dev = (struct aac_dev *)sdev->host->hostdata;
 	if (!capable(CAP_SYS_RAWIO))
 		return -EPERM;
+	retval = aac_adapter_check_health(dev);
+	if (retval)
+		return -EBUSY;
 	return aac_do_ioctl(dev, cmd, arg);
 }
 
