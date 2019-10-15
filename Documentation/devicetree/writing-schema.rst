@@ -117,6 +117,9 @@ project can be installed with pip::
 
     pip3 install git+https://github.com/devicetree-org/dt-schema.git@master
 
+Several executables (dt-doc-validate, dt-mk-schema, dt-validate) will be
+installed. Ensure they are in your PATH (~/.local/bin by default).
+
 dtc must also be built with YAML output support enabled. This requires that
 libyaml and its headers be installed on the host system.
 
