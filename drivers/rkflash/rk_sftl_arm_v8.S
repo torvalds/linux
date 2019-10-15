@@ -1,24 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd.
- * date: 2019-04-19
+ * date: 2019-10-15
  */
 	.arch armv8-a
 	.file	"rk_sftl.c"
 #APP
-	.irp	num,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30
-	.equ	.L__reg_num_x\num, \num
-	.endr
-	.equ	.L__reg_num_xzr, 31
-
-	.macro	mrs_s, rt, sreg
-	.inst	0xd5200000|(\sreg)|(.L__reg_num_\rt)
-	.endm
-
-	.macro	msr_s, sreg, rt
-	.inst	0xd5000000|(\sreg)|(.L__reg_num_\rt)
-	.endm
-
+	.arch_extension	lse
 #NO_APP
 	.text
 	.align	2
@@ -2792,7 +2780,7 @@ FtlGcReFreshBadBlk:
 ftl_malloc:
 	stp	x29, x30, [sp, -16]!
 	mov	w1, 193
-	movk	w1, 0x240, lsl 16
+	movk	w1, 0x60, lsl 16
 	sxtw	x0, w0
 	add	x29, sp, 0
 	bl	__kmalloc
@@ -12194,21 +12182,22 @@ FtlWriteToIDB:
 	ldr	w2, [x26]
 	cmp	w2, w1
 	bne	.L1776
-	ldrh	w1, [x0, 10]
-	mov	x0, 262140
-	mov	w20, 65535
-	add	x2, x26, x0
-	mov	w3, 4097
+	add	x1, x26, 258048
+	ldrh	w22, [x0, 10]
+	add	x1, x1, 2044
 	mov	w0, 0
+	mov	w20, 65023
+	mov	w2, 4097
 .L1780:
-	ldr	w4, [x2]
-	cbnz	w4, .L1777
-	ldr	w4, [x26, w0, uxtw 2]
+	ldr	w3, [x1]
+	cbnz	w3, .L1777
+	ldr	w3, [x26, w0, uxtw 2]
 	add	w0, w0, 1
-	str	w4, [x2], -4
-	cmp	w0, w3
+	str	w3, [x1, 2048]
+	cmp	w0, w2
 	sub	w20, w20, #1
 	csel	w0, w0, wzr, cc
+	sub	x1, x1, #4
 	cmp	w20, 4096
 	bne	.L1780
 	mov	w20, 512
@@ -12217,15 +12206,19 @@ FtlWriteToIDB:
 	add	w20, w20, 127
 	lsr	w20, w20, 7
 .L1779:
-	ubfiz	w0, w1, 2, 14
-	add	w22, w20, 4
+	ubfiz	w22, w22, 2, 14
+	mov	w1, w20
+	adrp	x0, .LC130
 	add	x19, x21, :lo12:.LANCHOR0
+	add	x0, x0, :lo12:.LC130
 	mov	w23, 0
-	str	wzr, [x29, 140]
-	udiv	w22, w22, w0
-	lsl	w0, w20, 7
-	str	w0, [x29, 128]
+	udiv	w22, w20, w22
 	add	w22, w22, 1
+	mov	w2, w22
+	bl	sftl_printk
+	lsl	w0, w20, 7
+	str	wzr, [x29, 140]
+	str	w0, [x29, 128]
 .L1802:
 	ldr	x0, [x19, 4000]
 	mov	w1, 0
@@ -12393,8 +12386,8 @@ FtlWriteToIDB:
 	mov	w1, w23
 	ldr	w3, [x28]
 	mov	w4, w24
-	adrp	x0, .LC130
-	add	x0, x0, :lo12:.LC130
+	adrp	x0, .LC131
+	add	x0, x0, :lo12:.LC131
 	bl	sftl_printk
 	ldrh	w1, [x19, 10]
 	mov	w0, 0
@@ -12528,8 +12521,8 @@ FtlWriteToIDB:
 	mov	w4, w22
 	mov	x3, x20
 	mov	w2, 262144
-	adrp	x0, .LC132
-	add	x0, x0, :lo12:.LC132
+	adrp	x0, .LC133
+	add	x0, x0, :lo12:.LC133
 	bl	sftl_printk
 	lsl	w2, w22, 9
 	mov	x1, x23
@@ -12540,8 +12533,8 @@ FtlWriteToIDB:
 	adrp	x1, .LANCHOR1
 	add	x1, x1, :lo12:.LANCHOR1
 	add	x1, x1, 752
-	adrp	x0, .LC131
-	add	x0, x0, :lo12:.LC131
+	adrp	x0, .LC132
+	add	x0, x0, :lo12:.LC132
 	bl	sftl_printk
 	b	.L1804
 .L1807:
@@ -12878,159 +12871,233 @@ rk_sftl_vendor_storage_ioctl:
 	mov	w0, 4096
 	add	x29, sp, 0
 	stp	x19, x20, [sp, 16]
-	mov	x20, x2
-	str	x21, [sp, 32]
-	mov	w21, w1
+	mov	w20, w1
+	stp	x21, x22, [sp, 32]
+	mov	x21, x2
 	bl	ftl_malloc
-	cbz	x0, .L1900
+	cbz	x0, .L1899
 	mov	w1, 30209
 	mov	x19, x0
 	movk	w1, 0x4004, lsl 16
-	cmp	w21, w1
+	cmp	w20, w1
 	beq	.L1886
 	add	w1, w1, 1
-	cmp	w21, w1
+	cmp	w20, w1
 	beq	.L1887
-.L1910:
+.L1909:
 	mov	x20, -14
 	b	.L1885
 .L1886:
 #APP
-// 21 "./arch/arm64/include/asm/current.h" 1
-	mrs x21, sp_el0
+// 19 "./arch/arm64/include/asm/current.h" 1
+	mrs x20, sp_el0
 // 0 "" 2
 #NO_APP
-	mov	x1, x20
-	ldr	x2, [x21, 8]
+	ldr	x3, [x20, 8]
+	mov	x1, x21
+	mov	x2, x3
 #APP
-// 413 "./arch/arm64/include/asm/uaccess.h" 1
-	adds x1, x1, 8; ccmp x1, x2, #2, cc; cset x3, ls
+// 80 "./arch/arm64/include/asm/uaccess.h" 1
+		adds	x1, x1, 8
+	csel	x2, xzr, x2, hi
+	csinv	x1, x1, xzr, cc
+	sbcs	xzr, x1, x2
+	cset	x1, ls
+
 // 0 "" 2
 #NO_APP
-	cbz	x3, .L1888
+	cbz	x1, .L1901
+#APP
+// 246 "./arch/arm64/include/asm/uaccess.h" 1
+		bics	xzr, x21, x3
+	csel	x1, x21, xzr, eq
+
+// 0 "" 2
+// 253 "./arch/arm64/include/asm/uaccess.h" 1
+	hint #20
+// 0 "" 2
+#NO_APP
 	mov	x2, 8
-	mov	x1, x20
 	bl	__arch_copy_from_user
-	cbz	x0, .L1911
-.L1889:
-	mov	x2, x20
-	mov	w1, 256
-.L1915:
-	adrp	x0, .LC133
-	add	x0, x0, :lo12:.LC133
-	bl	sftl_printk
-	b	.L1910
+	mov	x2, x0
+	cbz	x0, .L1889
 .L1888:
-	str	xzr, [x0]
-	b	.L1889
+	sub	x0, x19, x2
+	mov	w1, 0
+	add	x0, x0, 8
+	bl	memset
+	mov	x2, x21
+	mov	w1, 256
 .L1911:
+	adrp	x0, .LC134
+	add	x0, x0, :lo12:.LC134
+	bl	sftl_printk
+	b	.L1909
+.L1901:
+	mov	x2, 8
+	b	.L1888
+.L1890:
+	strh	w0, [x19, 6]
+	and	x2, x0, 65535
+	add	x2, x2, 8
+	mov	x0, x21
+	ldr	x3, [x20, 8]
+	mov	x1, x3
+#APP
+// 80 "./arch/arm64/include/asm/uaccess.h" 1
+		adds	x0, x0, x2
+	csel	x1, xzr, x1, hi
+	csinv	x0, x0, xzr, cc
+	sbcs	xzr, x0, x1
+	cset	x0, ls
+
+// 0 "" 2
+#NO_APP
+	cbz	x0, .L1909
+#APP
+// 246 "./arch/arm64/include/asm/uaccess.h" 1
+		bics	xzr, x21, x3
+	csel	x0, x21, xzr, eq
+
+// 0 "" 2
+// 253 "./arch/arm64/include/asm/uaccess.h" 1
+	hint #20
+// 0 "" 2
+#NO_APP
+	mov	x20, 0
+	mov	x1, x19
+	bl	__arch_copy_to_user
+	cbz	x0, .L1885
+	b	.L1909
+.L1887:
+#APP
+// 19 "./arch/arm64/include/asm/current.h" 1
+	mrs x22, sp_el0
+// 0 "" 2
+#NO_APP
+	ldr	x3, [x22, 8]
+	mov	x1, x21
+	mov	x2, x3
+#APP
+// 80 "./arch/arm64/include/asm/uaccess.h" 1
+		adds	x1, x1, 8
+	csel	x2, xzr, x2, hi
+	csinv	x1, x1, xzr, cc
+	sbcs	xzr, x1, x2
+	cset	x1, ls
+
+// 0 "" 2
+#NO_APP
+	cbz	x1, .L1903
+#APP
+// 246 "./arch/arm64/include/asm/uaccess.h" 1
+		bics	xzr, x21, x3
+	csel	x1, x21, xzr, eq
+
+// 0 "" 2
+// 253 "./arch/arm64/include/asm/uaccess.h" 1
+	hint #20
+// 0 "" 2
+#NO_APP
+	mov	x2, 8
+	bl	__arch_copy_from_user
+	mov	x2, x0
+	cbz	x0, .L1893
+.L1892:
+	sub	x0, x19, x2
+	mov	w1, 0
+	add	x0, x0, 8
+	bl	memset
+	mov	x2, x21
+	mov	w1, 276
+	b	.L1911
+.L1903:
+	mov	x2, 8
+	b	.L1892
+.L1904:
+	mov	x0, x20
+	b	.L1895
+.L1899:
+	mov	x20, -1
+	b	.L1883
+.L1889:
 	ldr	w1, [x19]
 	mov	w0, 17745
 	movk	w0, 0x5652, lsl 16
 	cmp	w1, w0
-	beq	.L1891
-.L1892:
+	bne	.L1894
+	ldrh	w2, [x19, 6]
+	add	x1, x19, 8
+	ldrh	w0, [x19, 4]
+	bl	rk_sftl_vendor_read
+	cmn	w0, #1
+	bne	.L1890
+.L1894:
 	mov	x20, -1
 .L1885:
 	mov	x0, x19
 	bl	kfree
 .L1883:
 	mov	x0, x20
-	ldr	x21, [sp, 32]
 	ldp	x19, x20, [sp, 16]
+	ldp	x21, x22, [sp, 32]
 	ldp	x29, x30, [sp], 48
 	ret
-.L1891:
-	ldrh	w2, [x19, 6]
-	add	x1, x19, 8
-	ldrh	w0, [x19, 4]
-	bl	rk_sftl_vendor_read
-	cmn	w0, #1
-	beq	.L1892
-	strh	w0, [x19, 6]
-	and	x2, x0, 65535
-	add	x2, x2, 8
-	mov	x0, x20
-	ldr	x1, [x21, 8]
-#APP
-// 423 "./arch/arm64/include/asm/uaccess.h" 1
-	adds x0, x0, x2; ccmp x0, x1, #2, cc; cset x3, ls
-// 0 "" 2
-#NO_APP
-	cbz	x3, .L1910
-	mov	x0, x20
-	mov	x1, x19
-	mov	x20, 0
-	bl	__arch_copy_to_user
-	cbz	x0, .L1885
-	b	.L1910
-.L1887:
-#APP
-// 21 "./arch/arm64/include/asm/current.h" 1
-	mrs x21, sp_el0
-// 0 "" 2
-#NO_APP
-	mov	x1, x20
-	ldr	x2, [x21, 8]
-#APP
-// 413 "./arch/arm64/include/asm/uaccess.h" 1
-	adds x1, x1, 8; ccmp x1, x2, #2, cc; cset x3, ls
-// 0 "" 2
-#NO_APP
-	cbz	x3, .L1894
-	mov	x2, 8
-	mov	x1, x20
-	bl	__arch_copy_from_user
-	cbz	x0, .L1912
-.L1895:
-	mov	x2, x20
-	mov	w1, 276
-	b	.L1915
-.L1894:
-	str	xzr, [x0]
-	b	.L1895
-.L1912:
+.L1893:
 	ldr	w1, [x19]
 	mov	w0, 17745
 	movk	w0, 0x5652, lsl 16
 	cmp	w1, w0
-	bne	.L1892
-	ldrh	w2, [x19, 6]
-	cmp	w2, 4087
-	bhi	.L1892
-	add	w2, w2, 8
-	mov	x0, x20
-	sxtw	x2, w2
-	ldr	x1, [x21, 8]
+	bne	.L1894
+	ldrh	w20, [x19, 6]
+	cmp	w20, 4087
+	bhi	.L1894
+	ldr	x2, [x22, 8]
+	add	w20, w20, 8
+	sxtw	x20, w20
+	mov	x0, x21
+	mov	x1, x2
 #APP
-// 413 "./arch/arm64/include/asm/uaccess.h" 1
-	adds x0, x0, x2; ccmp x0, x1, #2, cc; cset x3, ls
+// 80 "./arch/arm64/include/asm/uaccess.h" 1
+		adds	x0, x0, x20
+	csel	x1, xzr, x1, hi
+	csinv	x0, x0, xzr, cc
+	sbcs	xzr, x0, x1
+	cset	x0, ls
+
 // 0 "" 2
 #NO_APP
-	cbz	x3, .L1897
-	mov	x1, x20
+	cbz	x0, .L1904
+#APP
+// 246 "./arch/arm64/include/asm/uaccess.h" 1
+		bics	xzr, x21, x2
+	csel	x1, x21, xzr, eq
+
+// 0 "" 2
+// 253 "./arch/arm64/include/asm/uaccess.h" 1
+	hint #20
+// 0 "" 2
+#NO_APP
+	mov	x2, x20
 	mov	x0, x19
 	bl	__arch_copy_from_user
-	cbz	x0, .L1913
-.L1898:
-	mov	x2, x20
-	mov	w1, 283
-	b	.L1915
-.L1897:
+	cbz	x0, .L1896
+.L1895:
+	sub	x20, x20, x0
+	mov	x2, x0
 	mov	w1, 0
-	mov	x0, x19
+	add	x0, x19, x20
 	bl	memset
-	b	.L1898
-.L1913:
+	mov	x2, x21
+	mov	w1, 283
+	b	.L1911
+.L1896:
 	ldrh	w2, [x19, 6]
 	add	x1, x19, 8
 	ldrh	w0, [x19, 4]
 	bl	rk_sftl_vendor_write
 	sxtw	x20, w0
 	b	.L1885
-.L1900:
-	mov	x20, -1
-	b	.L1883
 	.size	rk_sftl_vendor_storage_ioctl, .-rk_sftl_vendor_storage_ioctl
 	.align	2
 	.global	rk_sftl_vendor_register
@@ -13197,193 +13264,193 @@ rk_sftl_vendor_register:
 	.section	.rodata
 	.align	3
 	.set	.LANCHOR1,. + 0
-	.type	__func__.3803, %object
-	.size	__func__.3803, 17
-__func__.3803:
+	.type	__func__.5928, %object
+	.size	__func__.5928, 17
+__func__.5928:
 	.string	"INSERT_DATA_LIST"
 	.zero	7
-	.type	__func__.3798, %object
-	.size	__func__.3798, 17
-__func__.3798:
+	.type	__func__.5923, %object
+	.size	__func__.5923, 17
+__func__.5923:
 	.string	"INSERT_FREE_LIST"
 	.zero	7
-	.type	__func__.3834, %object
-	.size	__func__.3834, 17
-__func__.3834:
+	.type	__func__.5959, %object
+	.size	__func__.5959, 17
+__func__.5959:
 	.string	"List_remove_node"
 	.zero	7
-	.type	__func__.3866, %object
-	.size	__func__.3866, 22
-__func__.3866:
+	.type	__func__.5991, %object
+	.size	__func__.5991, 22
+__func__.5991:
 	.string	"List_update_data_list"
 	.zero	2
-	.type	__func__.3973, %object
-	.size	__func__.3973, 22
-__func__.3973:
+	.type	__func__.6098, %object
+	.size	__func__.6098, 22
+__func__.6098:
 	.string	"select_l2p_ram_region"
 	.zero	2
-	.type	__func__.4300, %object
-	.size	__func__.4300, 16
-__func__.4300:
+	.type	__func__.6425, %object
+	.size	__func__.6425, 16
+__func__.6425:
 	.string	"make_superblock"
-	.type	__func__.4475, %object
-	.size	__func__.4475, 19
-__func__.4475:
+	.type	__func__.6600, %object
+	.size	__func__.6600, 19
+__func__.6600:
 	.string	"get_new_active_ppa"
 	.zero	5
-	.type	__func__.16146, %object
-	.size	__func__.16146, 17
-__func__.16146:
+	.type	__func__.13410, %object
+	.size	__func__.13410, 17
+__func__.13410:
 	.string	"FlashEraseBlocks"
 	.zero	7
-	.type	__func__.3908, %object
-	.size	__func__.3908, 26
-__func__.3908:
+	.type	__func__.6033, %object
+	.size	__func__.6033, 26
+__func__.6033:
 	.string	"ftl_map_blk_alloc_new_blk"
 	.zero	6
-	.type	__func__.3413, %object
-	.size	__func__.3413, 11
-__func__.3413:
+	.type	__func__.5538, %object
+	.size	__func__.5538, 11
+__func__.5538:
 	.string	"FtlMemInit"
 	.zero	5
-	.type	__func__.3640, %object
-	.size	__func__.3640, 14
-__func__.3640:
+	.type	__func__.5765, %object
+	.size	__func__.5765, 14
+__func__.5765:
 	.string	"FtlBbt2Bitmap"
 	.zero	2
-	.type	__func__.4321, %object
-	.size	__func__.4321, 18
-__func__.4321:
+	.type	__func__.6446, %object
+	.size	__func__.6446, 18
+__func__.6446:
 	.string	"SupperBlkListInit"
 	.zero	6
-	.type	__func__.16103, %object
-	.size	__func__.16103, 15
-__func__.16103:
+	.type	__func__.13367, %object
+	.size	__func__.13367, 15
+__func__.13367:
 	.string	"FlashReadPages"
 	.zero	1
-	.type	__func__.4085, %object
-	.size	__func__.4085, 14
-__func__.4085:
+	.type	__func__.6210, %object
+	.size	__func__.6210, 14
+__func__.6210:
 	.string	"FtlScanSysBlk"
 	.zero	2
-	.type	__func__.3683, %object
-	.size	__func__.3683, 11
-__func__.3683:
+	.type	__func__.5808, %object
+	.size	__func__.5808, 11
+__func__.5808:
 	.string	"FtlLoadBbt"
 	.zero	5
-	.type	__func__.16122, %object
-	.size	__func__.16122, 15
-__func__.16122:
+	.type	__func__.13386, %object
+	.size	__func__.13386, 15
+__func__.13386:
 	.string	"FlashProgPages"
 	.zero	1
-	.type	__func__.4447, %object
-	.size	__func__.4447, 25
-__func__.4447:
+	.type	__func__.6572, %object
+	.size	__func__.6572, 25
+__func__.6572:
 	.string	"allocate_data_superblock"
 	.zero	7
-	.type	__func__.4488, %object
-	.size	__func__.4488, 16
-__func__.4488:
+	.type	__func__.6613, %object
+	.size	__func__.6613, 16
+__func__.6613:
 	.string	"update_vpc_list"
-	.type	__func__.4495, %object
-	.size	__func__.4495, 20
-__func__.4495:
+	.type	__func__.6620, %object
+	.size	__func__.6620, 20
+__func__.6620:
 	.string	"decrement_vpc_count"
 	.zero	4
-	.type	__func__.3934, %object
-	.size	__func__.3934, 31
-__func__.3934:
+	.type	__func__.6059, %object
+	.size	__func__.6059, 31
+__func__.6059:
 	.string	"Ftl_write_map_blk_to_last_page"
 	.zero	1
-	.type	__func__.3948, %object
-	.size	__func__.3948, 16
-__func__.3948:
+	.type	__func__.6073, %object
+	.size	__func__.6073, 16
+__func__.6073:
 	.string	"FtlMapWritePage"
-	.type	__func__.3875, %object
-	.size	__func__.3875, 16
-__func__.3875:
+	.type	__func__.6000, %object
+	.size	__func__.6000, 16
+__func__.6000:
 	.string	"load_l2p_region"
-	.type	__func__.3919, %object
-	.size	__func__.3919, 15
-__func__.3919:
+	.type	__func__.6044, %object
+	.size	__func__.6044, 15
+__func__.6044:
 	.string	"ftl_map_blk_gc"
 	.zero	1
-	.type	__func__.3990, %object
-	.size	__func__.3990, 9
-__func__.3990:
+	.type	__func__.6115, %object
+	.size	__func__.6115, 9
+__func__.6115:
 	.string	"log2phys"
 	.zero	7
-	.type	__func__.4209, %object
-	.size	__func__.4209, 16
-__func__.4209:
+	.type	__func__.6334, %object
+	.size	__func__.6334, 16
+__func__.6334:
 	.string	"FtlReUsePrevPpa"
-	.type	__func__.4243, %object
-	.size	__func__.4243, 22
-__func__.4243:
+	.type	__func__.6368, %object
+	.size	__func__.6368, 22
+__func__.6368:
 	.string	"FtlRecoverySuperblock"
 	.zero	2
-	.type	__func__.4362, %object
-	.size	__func__.4362, 14
-__func__.4362:
+	.type	__func__.6487, %object
+	.size	__func__.6487, 14
+__func__.6487:
 	.string	"ftl_check_vpc"
 	.zero	2
-	.type	__func__.4063, %object
-	.size	__func__.4063, 15
-__func__.4063:
+	.type	__func__.6188, %object
+	.size	__func__.6188, 15
+__func__.6188:
 	.string	"FtlVpcTblFlush"
 	.zero	1
-	.type	__func__.4346, %object
-	.size	__func__.4346, 21
-__func__.4346:
+	.type	__func__.6471, %object
+	.size	__func__.6471, 21
+__func__.6471:
 	.string	"FtlVpcCheckAndModify"
 	.zero	3
-	.type	__func__.4468, %object
-	.size	__func__.4468, 29
-__func__.4468:
+	.type	__func__.6593, %object
+	.size	__func__.6593, 29
+__func__.6593:
 	.string	"allocate_new_data_superblock"
 	.zero	3
-	.type	__func__.3537, %object
-	.size	__func__.3537, 13
-__func__.3537:
+	.type	__func__.5662, %object
+	.size	__func__.5662, 13
+__func__.5662:
 	.string	"FtlProgPages"
 	.zero	3
-	.type	__func__.4565, %object
-	.size	__func__.4565, 19
-__func__.4565:
+	.type	__func__.6690, %object
+	.size	__func__.6690, 19
+__func__.6690:
 	.string	"FtlGcFreeTempBlock"
 	.zero	5
-	.type	__func__.4678, %object
-	.size	__func__.4678, 23
-__func__.4678:
+	.type	__func__.6803, %object
+	.size	__func__.6803, 23
+__func__.6803:
 	.string	"rk_ftl_garbage_collect"
 	.zero	1
-	.type	__func__.3565, %object
-	.size	__func__.3565, 9
-__func__.3565:
+	.type	__func__.5690, %object
+	.size	__func__.5690, 9
+__func__.5690:
 	.string	"FtlWrite"
 	.zero	7
-	.type	__func__.4141, %object
-	.size	__func__.4141, 15
-__func__.4141:
+	.type	__func__.6266, %object
+	.size	__func__.6266, 15
+__func__.6266:
 	.string	"FtlLoadSysInfo"
 	.zero	1
-	.type	__func__.4163, %object
-	.size	__func__.4163, 18
-__func__.4163:
+	.type	__func__.6288, %object
+	.size	__func__.6288, 18
+__func__.6288:
 	.string	"FtlMapTblRecovery"
 	.zero	6
-	.type	__func__.16261, %object
-	.size	__func__.16261, 14
-__func__.16261:
+	.type	__func__.13525, %object
+	.size	__func__.13525, 14
+__func__.13525:
 	.string	"FtlWriteToIDB"
 	.zero	2
 	.type	rk_sftl_vendor_storage_fops, %object
-	.size	rk_sftl_vendor_storage_fops, 216
+	.size	rk_sftl_vendor_storage_fops, 256
 rk_sftl_vendor_storage_fops:
-	.zero	64
+	.zero	72
 	.xword	rk_sftl_vendor_storage_ioctl
 	.xword	rk_sftl_vendor_storage_ioctl
-	.zero	136
+	.zero	168
 	.data
 	.align	3
 	.set	.LANCHOR2,. + 0
@@ -13406,7 +13473,7 @@ power_up_flag:
 rkflash_vender_storage_dev:
 	.word	255
 	.zero	4
-	.xword	.LC134
+	.xword	.LC135
 	.xword	rk_sftl_vendor_storage_fops
 	.zero	56
 	.bss
@@ -14308,12 +14375,14 @@ gp_last_act_superblock:
 .LC129:
 	.string	"%s scan blk_id =%x page =%x hash error hash =%x hash_r =%x\n"
 .LC130:
-	.string	"write_idblock fail! %x %x %x %x\n"
+	.string	"write_idblock %x %x\n"
 .LC131:
-	.string	"%s idb buffer alloc fail\n"
+	.string	"write_idblock fail! %x %x %x %x\n"
 .LC132:
-	.string	"%p %x %p %x\n"
+	.string	"%s idb buffer alloc fail\n"
 .LC133:
-	.string	"copy_from_user error %d %p %p\n"
+	.string	"%p %x %p %x\n"
 .LC134:
+	.string	"copy_from_user error %d %p %p\n"
+.LC135:
 	.string	"vendor_storage"
