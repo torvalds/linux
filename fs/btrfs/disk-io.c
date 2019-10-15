@@ -1815,13 +1815,11 @@ static int find_newest_super_backup(struct btrfs_fs_info *info)
 	return -EINVAL;
 }
 
-
 /*
- * find the oldest backup so we know where to store new entries
- * in the backup array.  This will set the backup_root_index
- * field in the fs_info struct
+ * Initialize backup_root_index with the next available slot, where subsequent
+ * transaction commit will store the backup root
  */
-static void find_oldest_super_backup(struct btrfs_fs_info *info)
+static void init_backup_root_slot(struct btrfs_fs_info *info)
 {
 	int newest_index;
 
@@ -2935,7 +2933,7 @@ int __cold open_ctree(struct super_block *sb,
 	 * run through our array of backup supers and setup
 	 * our ring pointer to the oldest one
 	 */
-	find_oldest_super_backup(fs_info);
+	init_backup_root_slot(fs_info);
 
 	/*
 	 * In the long term, we'll store the compression type in the super
