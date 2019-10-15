@@ -3154,6 +3154,7 @@ static void intel_plane_disable_noatomic(struct intel_crtc *crtc,
 	intel_set_plane_visible(crtc_state, plane_state, false);
 	fixup_active_planes(crtc_state);
 	crtc_state->data_rate[plane->id] = 0;
+	crtc_state->min_cdclk[plane->id] = 0;
 
 	if (plane->id == PLANE_PRIMARY)
 		intel_pre_disable_primary_noatomic(&crtc->base);
@@ -3575,6 +3576,53 @@ int skl_check_plane_surface(struct intel_plane_state *plane_state)
 		return ret;
 
 	return 0;
+}
+
+static void i9xx_plane_ratio(const struct intel_crtc_state *crtc_state,
+			     const struct intel_plane_state *plane_state,
+			     unsigned int *num, unsigned int *den)
+{
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	unsigned int cpp = fb->format->cpp[0];
+
+	/*
+	 * g4x bspec says 64bpp pixel rate can't exceed 80%
+	 * of cdclk when the sprite plane is enabled on the
+	 * same pipe. ilk/snb bspec says 64bpp pixel rate is
+	 * never allowed to exceed 80% of cdclk. Let's just go
+	 * with the ilk/snb limit always.
+	 */
+	if (cpp == 8) {
+		*num = 10;
+		*den = 8;
+	} else {
+		*num = 1;
+		*den = 1;
+	}
+}
+
+static int i9xx_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+				const struct intel_plane_state *plane_state)
+{
+	unsigned int pixel_rate;
+	unsigned int num, den;
+
+	/*
+	 * Note that crtc_state->pixel_rate accounts for both
+	 * horizontal and vertical panel fitter downscaling factors.
+	 * Pre-HSW bspec tells us to only consider the horizontal
+	 * downscaling factor here. We ignore that and just consider
+	 * both for simplicity.
+	 */
+	pixel_rate = crtc_state->pixel_rate;
+
+	i9xx_plane_ratio(crtc_state, plane_state, &num, &den);
+
+	/* two pixels per clock with double wide pipe */
+	if (crtc_state->double_wide)
+		den *= 2;
+
+	return DIV_ROUND_UP(pixel_rate * num, den);
 }
 
 unsigned int
@@ -11706,6 +11754,7 @@ int intel_plane_atomic_calc_changes(const struct intel_crtc_state *old_crtc_stat
 		plane_state->base.visible = visible = false;
 		crtc_state->active_planes &= ~BIT(plane->id);
 		crtc_state->data_rate[plane->id] = 0;
+		crtc_state->min_cdclk[plane->id] = 0;
 	}
 
 	if (!was_visible && !visible)
@@ -12072,9 +12121,6 @@ static int intel_crtc_atomic_check(struct intel_atomic_state *state,
 	if (INTEL_GEN(dev_priv) >= 9) {
 		if (mode_changed || crtc_state->update_pipe)
 			ret = skl_update_scaler_crtc(crtc_state);
-
-		if (!ret)
-			ret = icl_check_nv12_planes(crtc_state);
 		if (!ret)
 			ret = skl_check_pipe_max_pixel_rate(crtc, crtc_state);
 		if (!ret)
@@ -13796,11 +13842,48 @@ static void intel_crtc_check_fastset(const struct intel_crtc_state *old_crtc_sta
 	new_crtc_state->has_drrs = old_crtc_state->has_drrs;
 }
 
-static int intel_atomic_check_planes(struct intel_atomic_state *state)
+static int intel_crtc_add_planes_to_state(struct intel_atomic_state *state,
+					  struct intel_crtc *crtc,
+					  u8 plane_ids_mask)
 {
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_plane *plane;
+
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
+		struct intel_plane_state *plane_state;
+
+		if ((plane_ids_mask & BIT(plane->id)) == 0)
+			continue;
+
+		plane_state = intel_atomic_get_plane_state(state, plane);
+		if (IS_ERR(plane_state))
+			return PTR_ERR(plane_state);
+	}
+
+	return 0;
+}
+
+static bool active_planes_affects_min_cdclk(struct drm_i915_private *dev_priv)
+{
+	/* See {hsw,vlv,ivb}_plane_ratio() */
+	return IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv) ||
+		IS_CHERRYVIEW(dev_priv) || IS_VALLEYVIEW(dev_priv) ||
+		IS_IVYBRIDGE(dev_priv);
+}
+
+static int intel_atomic_check_planes(struct intel_atomic_state *state,
+				     bool *need_modeset)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	struct intel_plane_state *plane_state;
 	struct intel_plane *plane;
+	struct intel_crtc *crtc;
 	int i, ret;
+
+	ret = icl_add_linked_planes(state);
+	if (ret)
+		return ret;
 
 	for_each_new_intel_plane_in_state(state, plane, plane_state, i) {
 		ret = intel_plane_atomic_check(state, plane);
@@ -13810,6 +13893,41 @@ static int intel_atomic_check_planes(struct intel_atomic_state *state)
 			return ret;
 		}
 	}
+
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		u8 old_active_planes, new_active_planes;
+
+		ret = icl_check_nv12_planes(new_crtc_state);
+		if (ret)
+			return ret;
+
+		/*
+		 * On some platforms the number of active planes affects
+		 * the planes' minimum cdclk calculation. Add such planes
+		 * to the state before we compute the minimum cdclk.
+		 */
+		if (!active_planes_affects_min_cdclk(dev_priv))
+			continue;
+
+		old_active_planes = old_crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+		new_active_planes = new_crtc_state->active_planes & ~BIT(PLANE_CURSOR);
+
+		if (hweight8(old_active_planes) == hweight8(new_active_planes))
+			continue;
+
+		ret = intel_crtc_add_planes_to_state(state, crtc, new_active_planes);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * active_planes bitmask has been updated, and potentially
+	 * affected planes are part of the state. We can now
+	 * compute the minimum cdclk for each plane.
+	 */
+	for_each_new_intel_plane_in_state(state, plane, plane_state, i)
+		*need_modeset |= intel_plane_calc_min_cdclk(state, plane);
 
 	return 0;
 }
@@ -13891,6 +14009,10 @@ static int intel_atomic_check(struct drm_device *dev,
 
 	any_ms |= state->cdclk.force_min_cdclk_changed;
 
+	ret = intel_atomic_check_planes(state, &any_ms);
+	if (ret)
+		goto fail;
+
 	if (any_ms) {
 		ret = intel_modeset_checks(state);
 		if (ret)
@@ -13898,14 +14020,6 @@ static int intel_atomic_check(struct drm_device *dev,
 	} else {
 		state->cdclk.logical = dev_priv->cdclk.logical;
 	}
-
-	ret = icl_add_linked_planes(state);
-	if (ret)
-		goto fail;
-
-	ret = intel_atomic_check_planes(state);
-	if (ret)
-		goto fail;
 
 	ret = intel_atomic_check_crtcs(state);
 	if (ret)
@@ -15355,6 +15469,15 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->get_hw_state = i9xx_plane_get_hw_state;
 		plane->check_plane = i9xx_plane_check;
 
+		if (IS_BROADWELL(dev_priv) || IS_HASWELL(dev_priv))
+			plane->min_cdclk = hsw_plane_min_cdclk;
+		else if (IS_IVYBRIDGE(dev_priv))
+			plane->min_cdclk = ivb_plane_min_cdclk;
+		else if (IS_CHERRYVIEW(dev_priv) || IS_VALLEYVIEW(dev_priv))
+			plane->min_cdclk = vlv_plane_min_cdclk;
+		else
+			plane->min_cdclk = i9xx_plane_min_cdclk;
+
 		plane_funcs = &i965_plane_funcs;
 	} else {
 		formats = i8xx_primary_formats;
@@ -15366,6 +15489,7 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 		plane->disable_plane = i9xx_disable_plane;
 		plane->get_hw_state = i9xx_plane_get_hw_state;
 		plane->check_plane = i9xx_plane_check;
+		plane->min_cdclk = i9xx_plane_min_cdclk;
 
 		plane_funcs = &i8xx_plane_funcs;
 	}
@@ -17284,16 +17408,8 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 
 			intel_crtc_compute_pixel_rate(crtc_state);
 
-			min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
-			if (WARN_ON(min_cdclk < 0))
-				min_cdclk = 0;
-
 			intel_crtc_update_active_timings(crtc_state);
 		}
-
-		dev_priv->min_cdclk[crtc->pipe] = min_cdclk;
-		dev_priv->min_voltage_level[crtc->pipe] =
-			crtc_state->min_voltage_level;
 
 		for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane) {
 			const struct intel_plane_state *plane_state =
@@ -17306,7 +17422,33 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 			if (plane_state->base.visible)
 				crtc_state->data_rate[plane->id] =
 					4 * crtc_state->pixel_rate;
+			/*
+			 * FIXME don't have the fb yet, so can't
+			 * use plane->min_cdclk() :(
+			 */
+			if (plane_state->base.visible && plane->min_cdclk) {
+				if (crtc_state->double_wide ||
+				    INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
+					crtc_state->min_cdclk[plane->id] =
+						DIV_ROUND_UP(crtc_state->pixel_rate, 2);
+				else
+					crtc_state->min_cdclk[plane->id] =
+						crtc_state->pixel_rate;
+			}
+			DRM_DEBUG_KMS("[PLANE:%d:%s] min_cdclk %d kHz\n",
+				      plane->base.base.id, plane->base.name,
+				      crtc_state->min_cdclk[plane->id]);
 		}
+
+		if (crtc_state->base.active) {
+			min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
+			if (WARN_ON(min_cdclk < 0))
+				min_cdclk = 0;
+		}
+
+		dev_priv->min_cdclk[crtc->pipe] = min_cdclk;
+		dev_priv->min_voltage_level[crtc->pipe] =
+			crtc_state->min_voltage_level;
 
 		intel_bw_crtc_update(bw_state, crtc_state);
 

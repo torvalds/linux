@@ -138,6 +138,44 @@ unsigned int intel_plane_data_rate(const struct intel_crtc_state *crtc_state,
 	return cpp * crtc_state->pixel_rate;
 }
 
+bool intel_plane_calc_min_cdclk(struct intel_atomic_state *state,
+				struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
+	const struct intel_plane_state *plane_state =
+		intel_atomic_get_new_plane_state(state, plane);
+	struct intel_crtc *crtc = to_intel_crtc(plane_state->base.crtc);
+	struct intel_crtc_state *crtc_state;
+
+	if (!plane_state->base.visible || !plane->min_cdclk)
+		return false;
+
+	crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
+
+	crtc_state->min_cdclk[plane->id] =
+		plane->min_cdclk(crtc_state, plane_state);
+
+	/*
+	 * Does the cdclk need to be bumbed up?
+	 *
+	 * Note: we obviously need to be called before the new
+	 * cdclk frequency is calculated so state->cdclk.logical
+	 * hasn't been populated yet. Hence we look at the old
+	 * cdclk state under dev_priv->cdclk.logical. This is
+	 * safe as long we hold at least one crtc mutex (which
+	 * must be true since we have crtc_state).
+	 */
+	if (crtc_state->min_cdclk[plane->id] > dev_priv->cdclk.logical.cdclk) {
+		DRM_DEBUG_KMS("[PLANE:%d:%s] min_cdclk (%d kHz) > logical cdclk (%d kHz)\n",
+			      plane->base.base.id, plane->base.name,
+			      crtc_state->min_cdclk[plane->id],
+			      dev_priv->cdclk.logical.cdclk);
+		return true;
+	}
+
+	return false;
+}
+
 int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_state,
 					struct intel_crtc_state *new_crtc_state,
 					const struct intel_plane_state *old_plane_state,
@@ -151,6 +189,7 @@ int intel_plane_atomic_check_with_state(const struct intel_crtc_state *old_crtc_
 	new_crtc_state->nv12_planes &= ~BIT(plane->id);
 	new_crtc_state->c8_planes &= ~BIT(plane->id);
 	new_crtc_state->data_rate[plane->id] = 0;
+	new_crtc_state->min_cdclk[plane->id] = 0;
 	new_plane_state->base.visible = false;
 
 	if (!new_plane_state->base.crtc && !old_plane_state->base.crtc)

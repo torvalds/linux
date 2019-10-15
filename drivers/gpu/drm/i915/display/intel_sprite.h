@@ -49,4 +49,11 @@ static inline u8 icl_hdr_plane_mask(void)
 
 bool icl_is_hdr_plane(struct drm_i915_private *dev_priv, enum plane_id plane_id);
 
+int ivb_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
+int hsw_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
+int vlv_plane_min_cdclk(const struct intel_crtc_state *crtc_state,
+			const struct intel_plane_state *plane_state);
+
 #endif /* __INTEL_SPRITE_H__ */

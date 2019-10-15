@@ -1918,6 +1918,19 @@ static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 		return DIV_ROUND_UP(pixel_rate * 100, 90);
 }
 
+static int intel_planes_min_cdclk(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct intel_plane *plane;
+	int min_cdclk = 0;
+
+	for_each_intel_plane_on_crtc(&dev_priv->drm, crtc, plane)
+		min_cdclk = max(crtc_state->min_cdclk[plane->id], min_cdclk);
+
+	return min_cdclk;
+}
+
 int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv =
@@ -1985,6 +1998,9 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI) &&
 	    IS_GEMINILAKE(dev_priv))
 		min_cdclk = max(158400, min_cdclk);
+
+	/* Account for additional needs from the planes */
+	min_cdclk = max(intel_planes_min_cdclk(crtc_state), min_cdclk);
 
 	if (min_cdclk > dev_priv->max_cdclk_freq) {
 		DRM_DEBUG_KMS("required cdclk (%d kHz) exceeds max (%d kHz)\n",
