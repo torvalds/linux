@@ -124,7 +124,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		amdgpu_bo_kunmap(gtt_obj[i]);
 
 		r = amdgpu_copy_buffer(ring, gart_addr, vram_addr,
-				       size, NULL, &fence, false, false);
+				       size, NULL, &fence, false, false, false);
 
 		if (r) {
 			DRM_ERROR("Failed GTT->VRAM copy %d\n", i);
@@ -170,7 +170,7 @@ static void amdgpu_do_test_moves(struct amdgpu_device *adev)
 		amdgpu_bo_kunmap(vram_obj);
 
 		r = amdgpu_copy_buffer(ring, vram_addr, gart_addr,
-				       size, NULL, &fence, false, false);
+				       size, NULL, &fence, false, false, false);
 
 		if (r) {
 			DRM_ERROR("Failed VRAM->GTT copy %d\n", i);

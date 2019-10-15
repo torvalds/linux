@@ -87,7 +87,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,
 		       struct dma_resv *resv,
 		       struct dma_fence **fence, bool direct_submit,
-		       bool vm_needs_flush);
+		       bool vm_needs_flush, bool tmz);
 int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			       struct amdgpu_copy_mem *src,
 			       struct amdgpu_copy_mem *dst,

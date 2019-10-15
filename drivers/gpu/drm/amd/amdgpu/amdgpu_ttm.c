@@ -373,7 +373,7 @@ int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 		}
 
 		r = amdgpu_copy_buffer(ring, from, to, cur_size,
-				       resv, &next, false, true);
+				       resv, &next, false, true, false);
 		if (r)
 			goto error;
 
@@ -2084,7 +2084,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,
 		       struct dma_resv *resv,
 		       struct dma_fence **fence, bool direct_submit,
-		       bool vm_needs_flush)
+		       bool vm_needs_flush, bool tmz)
 {
 	struct amdgpu_device *adev = ring->adev;
 	struct amdgpu_job *job;
@@ -2126,7 +2126,7 @@ int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		uint32_t cur_size_in_bytes = min(byte_count, max_bytes);
 
 		amdgpu_emit_copy_buffer(adev, &job->ibs[0], src_offset,
-					dst_offset, cur_size_in_bytes, false);
+					dst_offset, cur_size_in_bytes, tmz);
 
 		src_offset += cur_size_in_bytes;
 		dst_offset += cur_size_in_bytes;
