@@ -29,6 +29,7 @@
 #include "gc/gc_10_1_0_offset.h"
 #include "gc/gc_10_1_0_sh_mask.h"
 #include "v10_structs.h"
+#include "mes_api_def.h"
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
 
