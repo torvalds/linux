@@ -88,7 +88,17 @@ static const u32 i8xx_primary_formats[] = {
 	DRM_FORMAT_XRGB8888,
 };
 
-/* Primary plane formats for gen >= 4 */
+/* Primary plane formats for ivb (no fp16 due to hw issue) */
+static const u32 ivb_primary_formats[] = {
+	DRM_FORMAT_C8,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB2101010,
+	DRM_FORMAT_XBGR2101010,
+};
+
+/* Primary plane formats for gen >= 4, except ivb */
 static const u32 i965_primary_formats[] = {
 	DRM_FORMAT_C8,
 	DRM_FORMAT_RGB565,
@@ -96,6 +106,7 @@ static const u32 i965_primary_formats[] = {
 	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB2101010,
 	DRM_FORMAT_XBGR2101010,
+	DRM_FORMAT_XBGR16161616F,
 };
 
 static const u64 i9xx_format_modifiers[] = {
@@ -2971,6 +2982,8 @@ static int i9xx_format_to_fourcc(int format)
 		return DRM_FORMAT_XRGB2101010;
 	case DISPPLANE_RGBX101010:
 		return DRM_FORMAT_XBGR2101010;
+	case DISPPLANE_RGBX161616:
+		return DRM_FORMAT_XBGR16161616F;
 	}
 }
 
@@ -3707,6 +3720,9 @@ static u32 i9xx_plane_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_XBGR2101010:
 		dspcntr |= DISPPLANE_RGBX101010;
 		break;
+	case DRM_FORMAT_XBGR16161616F:
+		dspcntr |= DISPPLANE_RGBX161616;
+		break;
 	default:
 		MISSING_CASE(fb->format->format);
 		return 0;
@@ -3729,7 +3745,8 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 {
 	struct drm_i915_private *dev_priv =
 		to_i915(plane_state->base.plane->dev);
-	int src_x, src_y;
+	const struct drm_framebuffer *fb = plane_state->base.fb;
+	int src_x, src_y, src_w;
 	u32 offset;
 	int ret;
 
@@ -3740,8 +3757,13 @@ int i9xx_check_plane_surface(struct intel_plane_state *plane_state)
 	if (!plane_state->base.visible)
 		return 0;
 
+	src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	src_x = plane_state->base.src.x1 >> 16;
 	src_y = plane_state->base.src.y1 >> 16;
+
+	/* Undocumented hardware limit on i965/g4x/vlv/chv */
+	if (HAS_GMCH(dev_priv) && fb->format->cpp[0] == 8 && src_w > 2048)
+		return -EINVAL;
 
 	intel_add_fb_offsets(&src_x, &src_y, plane_state, 0);
 
@@ -15202,6 +15224,7 @@ static bool i965_plane_format_mod_supported(struct drm_plane *_plane,
 	case DRM_FORMAT_XBGR8888:
 	case DRM_FORMAT_XRGB2101010:
 	case DRM_FORMAT_XBGR2101010:
+	case DRM_FORMAT_XBGR16161616F:
 		return modifier == DRM_FORMAT_MOD_LINEAR ||
 			modifier == I915_FORMAT_MOD_X_TILED;
 	default:
@@ -15422,8 +15445,26 @@ intel_primary_plane_create(struct drm_i915_private *dev_priv, enum pipe pipe)
 	}
 
 	if (INTEL_GEN(dev_priv) >= 4) {
-		formats = i965_primary_formats;
-		num_formats = ARRAY_SIZE(i965_primary_formats);
+		/*
+		 * WaFP16GammaEnabling:ivb
+		 * "Workaround : When using the 64-bit format, the plane
+		 *  output on each color channel has one quarter amplitude.
+		 *  It can be brought up to full amplitude by using pipe
+		 *  gamma correction or pipe color space conversion to
+		 *  multiply the plane output by four."
+		 *
+		 * There is no dedicated plane gamma for the primary plane,
+		 * and using the pipe gamma/csc could conflict with other
+		 * planes, so we choose not to expose fp16 on IVB primary
+		 * planes. HSW primary planes no longer have this problem.
+		 */
+		if (IS_IVYBRIDGE(dev_priv)) {
+			formats = ivb_primary_formats;
+			num_formats = ARRAY_SIZE(ivb_primary_formats);
+		} else {
+			formats = i965_primary_formats;
+			num_formats = ARRAY_SIZE(i965_primary_formats);
+		}
 		modifiers = i9xx_format_modifiers;
 
 		plane->max_stride = i9xx_plane_max_stride;
