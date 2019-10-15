@@ -1686,6 +1686,11 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 #define IS_ICL_REVID(p, since, until) \
 	(IS_ICELAKE(p) && IS_REVID(p, since, until))
 
+#define TGL_REVID_A0		0x0
+
+#define IS_TGL_REVID(p, since, until) \
+	(IS_TIGERLAKE(p) && IS_REVID(p, since, until))
+
 #define IS_LP(dev_priv)	(INTEL_INFO(dev_priv)->is_lp)
 #define IS_GEN9_LP(dev_priv)	(IS_GEN(dev_priv, 9) && IS_LP(dev_priv))
 #define IS_GEN9_BC(dev_priv)	(IS_GEN(dev_priv, 9) && !IS_LP(dev_priv))
