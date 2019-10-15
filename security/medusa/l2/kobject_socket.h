@@ -10,8 +10,8 @@
 #include <net/sock.h>
 #include <linux/rcupdate.h>
 #include <linux/medusa/l1/socket.h>
-#include "../../fs/internal.h"
 #include <linux/medusa/l3/registry.h>
+#include "../../fs/internal.h" // For user_get_super()
 
 #define sock_security(sk) (*(struct medusa_l1_socket_s*)(sk->sk_security))
 
