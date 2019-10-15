@@ -326,6 +326,7 @@ static int kbase_devfreq_init_freq_table(struct kbase_device *kbdev,
 			dev_err(kbdev->dev, "failed to find slowest clock");
 			return 0;
 		}
+		dev_pm_opp_put(opp);
 		dev_info(kbdev->dev, "suspend clock %lu from slowest", freq);
 		kbdev->pm.backend.gpu_clock_suspend_freq = freq;
 	}
