@@ -571,6 +571,11 @@ struct aac_dev *aac_init_adapter(struct aac_dev *dev)
 		else
 			dev->sa_firmware = 0;
 
+		if (status[4] & le32_to_cpu(AAC_EXTOPT_SOFT_RESET))
+			dev->soft_reset_support = 1;
+		else
+			dev->soft_reset_support = 0;
+
 		if ((dev->comm_interface == AAC_COMM_MESSAGE) &&
 		    (status[2] > dev->base_size)) {
 			aac_adapter_ioremap(dev, 0);
