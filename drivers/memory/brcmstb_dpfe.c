@@ -180,7 +180,7 @@ struct dpfe_api {
 };
 
 /* Things we need for as long as we are active. */
-struct private_data {
+struct brcmstb_dpfe_priv {
 	void __iomem *regs;
 	void __iomem *dmem;
 	void __iomem *imem;
@@ -343,7 +343,7 @@ static unsigned int get_msg_chksum(const u32 msg[], unsigned int max)
 	return sum;
 }
 
-static void __iomem *get_msg_ptr(struct private_data *priv, u32 response,
+static void __iomem *get_msg_ptr(struct brcmstb_dpfe_priv *priv, u32 response,
 				 char *buf, ssize_t *size)
 {
 	unsigned int msg_type;
@@ -382,7 +382,7 @@ static void __iomem *get_msg_ptr(struct private_data *priv, u32 response,
 	return ptr;
 }
 
-static void __finalize_command(struct private_data *priv)
+static void __finalize_command(struct brcmstb_dpfe_priv *priv)
 {
 	unsigned int release_mbox;
 
@@ -395,7 +395,7 @@ static void __finalize_command(struct private_data *priv)
 	writel_relaxed(0, priv->regs + release_mbox);
 }
 
-static int __send_command(struct private_data *priv, unsigned int cmd,
+static int __send_command(struct brcmstb_dpfe_priv *priv, unsigned int cmd,
 			  u32 result[])
 {
 	const u32 *msg = priv->dpfe_api->command[cmd];
@@ -517,7 +517,7 @@ static int __verify_firmware(struct init_data *init,
 
 /* Verify checksum by reading back the firmware from co-processor RAM. */
 static int __verify_fw_checksum(struct init_data *init,
-				struct private_data *priv,
+				struct brcmstb_dpfe_priv *priv,
 				const struct dpfe_firmware_header *header,
 				u32 checksum)
 {
@@ -578,7 +578,7 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	unsigned int dmem_size, imem_size;
 	struct device *dev = &pdev->dev;
 	bool is_big_endian = false;
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	const struct firmware *fw;
 	const u32 *dmem, *imem;
 	const void *fw_blob;
@@ -647,7 +647,7 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 }
 
 static ssize_t generic_show(unsigned int command, u32 response[],
-			    struct private_data *priv, char *buf)
+			    struct brcmstb_dpfe_priv *priv, char *buf)
 {
 	int ret;
 
@@ -665,7 +665,7 @@ static ssize_t show_info(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	unsigned int info;
 	ssize_t ret;
 
@@ -688,7 +688,7 @@ static ssize_t show_refresh(struct device *dev,
 {
 	u32 response[MSG_FIELD_MAX];
 	void __iomem *info;
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	u8 refresh, sr_abort, ppre, thermal_offs, tuf;
 	u32 mr4;
 	ssize_t ret;
@@ -721,7 +721,7 @@ static ssize_t store_refresh(struct device *dev, struct device_attribute *attr,
 			  const char *buf, size_t count)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	void __iomem *info;
 	unsigned long val;
 	int ret;
@@ -747,7 +747,7 @@ static ssize_t show_vendor(struct device *dev, struct device_attribute *devattr,
 			   char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	void __iomem *info;
 	ssize_t ret;
 	u32 mr5, mr6, mr7, mr8, err;
@@ -778,7 +778,7 @@ static ssize_t show_dram(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	ssize_t ret;
 	u32 mr4, mr5, mr6, mr7, mr8, err;
 
@@ -808,7 +808,7 @@ static int brcmstb_dpfe_resume(struct platform_device *pdev)
 static int brcmstb_dpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct private_data *priv;
+	struct brcmstb_dpfe_priv *priv;
 	struct init_data init;
 	struct resource *res;
 	int ret;
@@ -867,7 +867,7 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 static int brcmstb_dpfe_remove(struct platform_device *pdev)
 {
-	struct private_data *priv = dev_get_drvdata(&pdev->dev);
+	struct brcmstb_dpfe_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	sysfs_remove_groups(&pdev->dev.kobj, priv->dpfe_api->sysfs_attrs);
 
