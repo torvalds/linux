@@ -415,7 +415,6 @@ static struct crypto_alg aes_algs[] = { {
 		.blkcipher = {
 			.min_keysize		=	AES_MIN_KEY_SIZE,
 			.max_keysize		=	AES_MAX_KEY_SIZE,
-			.ivsize			=	AES_BLOCK_SIZE,
 			.setkey			=	ppc_aes_setkey,
 			.encrypt		=	ppc_ecb_encrypt,
 			.decrypt		=	ppc_ecb_decrypt,
