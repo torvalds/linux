@@ -96,8 +96,10 @@ struct bpf_object_open_opts {
 	const char *object_name;
 	/* parse map definitions non-strictly, allowing extra attributes/data */
 	bool relaxed_maps;
+	/* process CO-RE relocations non-strictly, allowing them to fail */
+	bool relaxed_core_relocs;
 };
-#define bpf_object_open_opts__last_field relaxed_maps
+#define bpf_object_open_opts__last_field relaxed_core_relocs
 
 LIBBPF_API struct bpf_object *bpf_object__open(const char *path);
 LIBBPF_API struct bpf_object *

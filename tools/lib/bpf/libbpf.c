@@ -249,6 +249,7 @@ struct bpf_object {
 
 	bool loaded;
 	bool has_pseudo_calls;
+	bool relaxed_core_relocs;
 
 	/*
 	 * Information when doing elf related work. Only valid if fd
@@ -2771,26 +2772,54 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 
 /*
  * Patch relocatable BPF instruction.
- * Expected insn->imm value is provided for validation, as well as the new
- * relocated value.
+ *
+ * Patched value is determined by relocation kind and target specification.
+ * For field existence relocation target spec will be NULL if field is not
+ * found.
+ * Expected insn->imm value is determined using relocation kind and local
+ * spec, and is checked before patching instruction. If actual insn->imm value
+ * is wrong, bail out with error.
  *
  * Currently three kinds of BPF instructions are supported:
  * 1. rX = <imm> (assignment with immediate operand);
  * 2. rX += <imm> (arithmetic operations with immediate operand);
- * 3. *(rX) = <imm> (indirect memory assignment with immediate operand).
- *
- * If actual insn->imm value is wrong, bail out.
  */
-static int bpf_core_reloc_insn(struct bpf_program *prog, int insn_off,
-			       __u32 orig_off, __u32 new_off)
+static int bpf_core_reloc_insn(struct bpf_program *prog,
+			       const struct bpf_field_reloc *relo,
+			       const struct bpf_core_spec *local_spec,
+			       const struct bpf_core_spec *targ_spec)
 {
+	__u32 orig_val, new_val;
 	struct bpf_insn *insn;
 	int insn_idx;
 	__u8 class;
 
-	if (insn_off % sizeof(struct bpf_insn))
+	if (relo->insn_off % sizeof(struct bpf_insn))
 		return -EINVAL;
-	insn_idx = insn_off / sizeof(struct bpf_insn);
+	insn_idx = relo->insn_off / sizeof(struct bpf_insn);
+
+	switch (relo->kind) {
+	case BPF_FIELD_BYTE_OFFSET:
+		orig_val = local_spec->offset;
+		if (targ_spec) {
+			new_val = targ_spec->offset;
+		} else {
+			pr_warning("prog '%s': patching insn #%d w/ failed reloc, imm %d -> %d\n",
+				   bpf_program__title(prog, false), insn_idx,
+				   orig_val, -1);
+			new_val = (__u32)-1;
+		}
+		break;
+	case BPF_FIELD_EXISTS:
+		orig_val = 1; /* can't generate EXISTS relo w/o local field */
+		new_val = targ_spec ? 1 : 0;
+		break;
+	default:
+		pr_warning("prog '%s': unknown relo %d at insn #%d'\n",
+			   bpf_program__title(prog, false),
+			   relo->kind, insn_idx);
+		return -EINVAL;
+	}
 
 	insn = &prog->insns[insn_idx];
 	class = BPF_CLASS(insn->code);
@@ -2798,12 +2827,12 @@ static int bpf_core_reloc_insn(struct bpf_program *prog, int insn_off,
 	if (class == BPF_ALU || class == BPF_ALU64) {
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
-		if (insn->imm != orig_off)
+		if (insn->imm != orig_val)
 			return -EINVAL;
-		insn->imm = new_off;
+		insn->imm = new_val;
 		pr_debug("prog '%s': patched insn #%d (ALU/ALU64) imm %d -> %d\n",
 			 bpf_program__title(prog, false),
-			 insn_idx, orig_off, new_off);
+			 insn_idx, orig_val, new_val);
 	} else {
 		pr_warning("prog '%s': trying to relocate unrecognized insn #%d, code:%x, src:%x, dst:%x, off:%x, imm:%x\n",
 			   bpf_program__title(prog, false),
@@ -2811,6 +2840,7 @@ static int bpf_core_reloc_insn(struct bpf_program *prog, int insn_off,
 			   insn->off, insn->imm);
 		return -EINVAL;
 	}
+
 	return 0;
 }
 
@@ -3087,15 +3117,26 @@ static int bpf_core_reloc_field(struct bpf_program *prog,
 		cand_ids->data[j++] = cand_spec.spec[0].type_id;
 	}
 
-	cand_ids->len = j;
-	if (cand_ids->len == 0) {
+	/*
+	 * For BPF_FIELD_EXISTS relo or when relaxed CO-RE reloc mode is
+	 * requested, it's expected that we might not find any candidates.
+	 * In this case, if field wasn't found in any candidate, the list of
+	 * candidates shouldn't change at all, we'll just handle relocating
+	 * appropriately, depending on relo's kind.
+	 */
+	if (j > 0)
+		cand_ids->len = j;
+
+	if (j == 0 && !prog->obj->relaxed_core_relocs &&
+	    relo->kind != BPF_FIELD_EXISTS) {
 		pr_warning("prog '%s': relo #%d: no matching targets found for [%d] %s + %s\n",
 			   prog_name, relo_idx, local_id, local_name, spec_str);
 		return -ESRCH;
 	}
 
-	err = bpf_core_reloc_insn(prog, relo->insn_off,
-				  local_spec.offset, targ_spec.offset);
+	/* bpf_core_reloc_insn should know how to handle missing targ_spec */
+	err = bpf_core_reloc_insn(prog, relo, &local_spec,
+				  j ? &targ_spec : NULL);
 	if (err) {
 		pr_warning("prog '%s': relo #%d: failed to patch insn at offset %d: %d\n",
 			   prog_name, relo_idx, relo->insn_off, err);
@@ -3587,6 +3628,7 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	if (IS_ERR(obj))
 		return obj;
 
+	obj->relaxed_core_relocs = OPTS_GET(opts, relaxed_core_relocs, false);
 	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
 
 	CHECK_ERR(bpf_object__elf_init(obj), err, out);
