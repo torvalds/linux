@@ -1,0 +1,95 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd
+
+/dts-v1/;
+#include "rk3288-evb-rk628.dtsi"
+
+&sound {
+	status = "okay";
+};
+
+&rk628_hdmi {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			hdmi_in_post_process: endpoint {
+				remote-endpoint = <&post_process_out_hdmi>;
+			};
+		};
+	};
+};
+
+&rk628_post_process {
+	pinctrl-names = "default";
+	pinctrl-0 = <&vop_pins>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			post_process_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_post_process>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			post_process_out_hdmi: endpoint {
+				remote-endpoint = <&hdmi_in_post_process>;
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_post_process: endpoint {
+				remote-endpoint = <&post_process_in_rgb>;
+			};
+		};
+	};
+};
+
+
+&video_phy {
+	status = "okay";
+};
+
+&rgb_in_vopb {
+	status = "disabled";
+};
+
+&rgb_in_vopl {
+	status = "okay";
+};
+
+&route_rgb {
+	connect = <&vopl_out_rgb>;
+	status = "disabled";
+};
+
+&vopb {
+	assigned-clocks = <&cru DCLK_VOP0>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
+};
+
+&vopl {
+	assigned-clocks = <&cru DCLK_VOP1>;
+	assigned-clock-parents = <&cru PLL_GPLL>;
+};

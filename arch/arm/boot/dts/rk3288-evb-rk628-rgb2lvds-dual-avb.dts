@@ -1,0 +1,151 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+// Copyright (c) 2020 Fuzhou Rockchip Electronics Co., Ltd
+
+/dts-v1/;
+#include "rk3288-evb-rk628.dtsi"
+
+/ {
+	vcc33_lcd: vcc33-lcd {
+		compatible = "regulator-fixed";
+		regulator-name = "vcc33_lcd";
+		regulator-boot-on;
+		gpio = <&gpio7 RK_PA2 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	panel {
+		compatible = "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&vcc33_lcd>;
+		enable-gpios = <&gpio5 RK_PC1 GPIO_ACTIVE_HIGH>;
+		prepare-delay-ms = <20>;
+		enable-delay-ms = <20>;
+		disable-delay-ms = <20>;
+		unprepare-delay-ms = <20>;
+		bus-format = <MEDIA_BUS_FMT_RGB888_1X7X4_SPWG>;
+
+		display-timings {
+			native-mode = <&timing0>;
+
+			timing0: timing0 {
+				clock-frequency = <149000000>;
+				hactive = <1920>;
+				vactive = <1080>;
+				hback-porch = <96>;
+				hfront-porch = <120>;
+				vback-porch = <8>;
+				vfront-porch = <33>;
+				hsync-len = <64>;
+				vsync-len = <4>;
+				hsync-active = <0>;
+				vsync-active = <0>;
+				de-active = <0>;
+				pixelclk-active = <0>;
+			};
+		};
+
+		port {
+			panel_in_lvds: endpoint {
+				remote-endpoint = <&lvds_out_panel>;
+			};
+		};
+	};
+};
+
+&rk628_lvds {
+	rockchip,link-type = "dual-link-even-odd-pixels";
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			lvds_in_post_process: endpoint {
+				remote-endpoint = <&post_process_out_lvds>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			lvds_out_panel: endpoint {
+				remote-endpoint = <&panel_in_lvds>;
+			};
+		};
+	};
+};
+
+&rk628_combtxphy {
+	status = "okay";
+};
+
+&rk628_post_process {
+	pinctrl-names = "default";
+	pinctrl-0 = <&vop_pins>;
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			post_process_in_rgb: endpoint {
+				remote-endpoint = <&rgb_out_post_process>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+
+			post_process_out_lvds: endpoint {
+				remote-endpoint = <&lvds_in_post_process>;
+			};
+		};
+	};
+};
+
+&rgb {
+	status = "okay";
+
+	ports {
+		port@1 {
+			reg = <1>;
+
+			rgb_out_post_process: endpoint {
+				remote-endpoint = <&post_process_in_rgb>;
+			};
+		};
+	};
+};
+
+&video_phy {
+	status = "okay";
+};
+
+&rgb_in_vopb {
+	status = "disabled";
+};
+
+&rgb_in_vopl {
+	status = "okay";
+};
+
+&route_rgb {
+	connect = <&vopl_out_rgb>;
+	status = "disabled";
+};
+
+&vopb {
+	assigned-clocks = <&cru DCLK_VOP0>;
+	assigned-clock-parents = <&cru PLL_GPLL>;
+};
+
+&vopl {
+	assigned-clocks = <&cru DCLK_VOP1>;
+	assigned-clock-parents = <&cru PLL_CPLL>;
+};
