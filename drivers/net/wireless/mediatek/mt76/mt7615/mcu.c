@@ -616,8 +616,9 @@ int mt7615_mcu_init_mac(struct mt7615_dev *dev)
 				   &req, sizeof(req), true);
 }
 
-int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val)
+int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val)
 {
+	struct mt7615_dev *dev = phy->dev;
 	struct {
 		u8 prot_idx;
 		u8 band;
@@ -626,7 +627,7 @@ int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val)
 		__le32 pkt_thresh;
 	} __packed req = {
 		.prot_idx = 1,
-		.band = 0,
+		.band = phy != &dev->phy,
 		.len_thresh = cpu_to_le32(val),
 		.pkt_thresh = cpu_to_le32(0x2),
 	};
@@ -672,7 +673,7 @@ int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 				   &req, sizeof(req), true);
 }
 
-int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter)
+int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int band, int enter)
 {
 #define ENTER_PM_STATE	1
 #define EXIT_PM_STATE	2
@@ -695,7 +696,7 @@ int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter)
 	} __packed req = {
 		.pm_number = 5,
 		.pm_state = (enter) ? ENTER_PM_STATE : EXIT_PM_STATE,
-		.band_idx = 0,
+		.band_idx = band,
 	};
 
 	return __mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD_PM_STATE_CTRL,
@@ -1099,12 +1100,14 @@ int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 				   &req, sizeof(req), true);
 }
 
-int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_set_bcn(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       int en)
 {
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
 	struct mt7615_vif *mvif = (struct mt7615_vif *)vif->drv_priv;
 	struct mt76_wcid *wcid = &dev->mt76.global_wcid;
 	struct ieee80211_mutable_offsets offs;
+	struct ieee80211_tx_info *info;
 	struct req {
 		u8 omac_idx;
 		u8 enable;
@@ -1128,7 +1131,7 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 	};
 	struct sk_buff *skb;
 
-	skb = ieee80211_beacon_get_template(mt76_hw(dev), vif, &offs);
+	skb = ieee80211_beacon_get_template(hw, vif, &offs);
 	if (!skb)
 		return -EINVAL;
 
@@ -1136,6 +1139,11 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 		dev_err(dev->mt76.dev, "Bcn size limit exceed\n");
 		dev_kfree_skb(skb);
 		return -EINVAL;
+	}
+
+	if (mvif->band_idx) {
+		info = IEEE80211_SKB_CB(skb);
+		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
 	}
 
 	mt7615_mac_write_txwi(dev, (__le32 *)(req.pkt), skb, wcid, NULL,
@@ -1156,14 +1164,16 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 				   &req, sizeof(req), true);
 }
 
-int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
+int mt7615_mcu_set_tx_power(struct mt7615_phy *phy)
 {
-	int i, ret, n_chains = hweight8(dev->mphy.antenna_mask);
-	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
+	struct mt7615_dev *dev = phy->dev;
+	struct mt76_phy *mphy = phy->mt76;
+	int i, ret, n_chains = hweight8(mphy->antenna_mask);
+	struct cfg80211_chan_def *chandef = &mphy->chandef;
 	int freq = chandef->center_freq1, len, target_chains;
 	u8 *req, *data, *eep = (u8 *)dev->mt76.eeprom.data;
 	enum nl80211_band band = chandef->chan->band;
-	struct ieee80211_hw *hw = mt76_hw(dev);
+	struct ieee80211_hw *hw = mphy->hw;
 	struct {
 		u8 center_chan;
 		u8 dbdc_idx;
@@ -1172,6 +1182,7 @@ int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 	} __packed req_hdr = {
 		.center_chan = ieee80211_frequency_to_channel(freq),
 		.band = band,
+		.dbdc_idx = phy != &dev->phy,
 	};
 	s8 tx_power;
 
@@ -1200,7 +1211,7 @@ int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 		break;
 	}
 	tx_power = max_t(s8, tx_power, 0);
-	dev->mphy.txpower_cur = tx_power;
+	mphy->txpower_cur = tx_power;
 
 	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
 	for (i = 0; i < target_chains; i++) {
@@ -1274,9 +1285,10 @@ int mt7615_mcu_rdd_send_pattern(struct mt7615_dev *dev)
 				   &req, sizeof(req), false);
 }
 
-int mt7615_mcu_set_channel(struct mt7615_dev *dev)
+int mt7615_mcu_set_channel(struct mt7615_phy *phy)
 {
-	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
+	struct mt7615_dev *dev = phy->dev;
+	struct cfg80211_chan_def *chandef = &phy->mt76->chandef;
 	int freq1 = chandef->center_freq1, freq2 = chandef->center_freq2;
 	struct {
 		u8 control_chan;
@@ -1313,7 +1325,9 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 	else
 		req.switch_reason = CH_SWITCH_NORMAL;
 
-	switch (dev->mphy.chandef.width) {
+	req.band_idx = phy != &dev->phy;
+
+	switch (chandef->width) {
 	case NL80211_CHAN_WIDTH_40:
 		req.bw = CMD_CBW_40MHZ;
 		break;

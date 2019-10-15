@@ -50,7 +50,7 @@ static void mt7615_mac_init(struct mt7615_dev *dev)
 		 MT_TMAC_CTCR0_INS_DDLMT_VHT_SMPDU_EN |
 		 MT_TMAC_CTCR0_INS_DDLMT_EN);
 
-	mt7615_mcu_set_rts_thresh(dev, 0x92b);
+	mt7615_mcu_set_rts_thresh(&dev->phy, 0x92b);
 	mt7615_mac_set_scs(dev, true);
 
 	mt76_rmw(dev, MT_AGG_SCR, MT_AGG_SCR_NLNAV_MID_PTEC_DIS,
@@ -132,7 +132,7 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	mt7615_mcu_set_eeprom(dev);
 	mt7615_mac_init(dev);
 	mt7615_phy_init(dev);
-	mt7615_mcu_ctrl_pm_state(dev, 0);
+	mt7615_mcu_ctrl_pm_state(dev, 0, 0);
 	mt7615_mcu_del_wtbl_all(dev);
 
 	/* Beacon and mgmt frames should occupy wcid 0 */
@@ -246,11 +246,9 @@ mt7615_regd_notifier(struct wiphy *wiphy,
 		     struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
-	struct mt7615_dev *dev = hw->priv;
-	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
-
-	if (request->dfs_region == dev->mt76.region)
-		return;
+	struct mt7615_dev *dev = mt7615_hw_dev(hw);
+	struct mt76_phy *mphy = hw->priv;
+	struct cfg80211_chan_def *chandef = &mphy->chandef;
 
 	dev->mt76.region = request->dfs_region;
 
@@ -271,6 +269,9 @@ int mt7615_register_device(struct mt7615_dev *dev)
 	struct wiphy *wiphy = hw->wiphy;
 	int ret;
 
+	dev->phy.dev = dev;
+	dev->phy.mt76 = &dev->mt76.phy;
+	dev->mt76.phy.priv = &dev->phy;
 	INIT_DELAYED_WORK(&dev->mt76.mac_work, mt7615_mac_work);
 	INIT_LIST_HEAD(&dev->sta_poll_list);
 	spin_lock_init(&dev->sta_poll_lock);

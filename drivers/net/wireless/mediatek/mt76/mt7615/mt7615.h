@@ -79,12 +79,20 @@ struct mt7615_vif {
 	struct mt7615_sta sta;
 };
 
+struct mt7615_phy {
+	struct mt76_phy *mt76;
+	struct mt7615_dev *dev;
+
+	u32 rxfilter;
+};
+
 struct mt7615_dev {
 	union { /* must be first */
 		struct mt76_dev mt76;
 		struct mt76_phy mphy;
 	};
 
+	struct mt7615_phy phy;
 	u16 chainmask;
 	u32 vif_mask;
 	u32 omac_mask;
@@ -164,6 +172,33 @@ enum mt7615_rdd_cmd {
 	RDD_RESUME_BF,
 };
 
+static inline struct mt7615_phy *
+mt7615_hw_phy(struct ieee80211_hw *hw)
+{
+	struct mt76_phy *phy = hw->priv;
+
+	return phy->priv;
+}
+
+static inline struct mt7615_dev *
+mt7615_hw_dev(struct ieee80211_hw *hw)
+{
+	struct mt76_phy *phy = hw->priv;
+
+	return container_of(phy->dev, struct mt7615_dev, mt76);
+}
+
+static inline struct mt7615_phy *
+mt7615_ext_phy(struct mt7615_dev *dev)
+{
+	struct mt76_phy *phy = dev->mt76.phy2;
+
+	if (!phy)
+		return NULL;
+
+	return phy->priv;
+}
+
 extern const struct ieee80211_ops mt7615_ops;
 extern struct pci_driver mt7615_pci_driver;
 
@@ -182,7 +217,7 @@ int mt7615_mcu_set_dev_info(struct mt7615_dev *dev,
 			    struct ieee80211_vif *vif, bool enable);
 int mt7615_mcu_set_bss_info(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			    int en);
-void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
+void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates);
 int mt7615_mcu_wtbl_bmc(struct mt7615_dev *dev, struct ieee80211_vif *vif,
@@ -195,9 +230,9 @@ int mt7615_mcu_set_sta_rec_bmc(struct mt7615_dev *dev,
 			       struct ieee80211_vif *vif, bool en);
 int mt7615_mcu_set_sta_rec(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 			   struct ieee80211_sta *sta, bool en);
-int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
+int mt7615_mcu_set_bcn(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       int en);
-int mt7615_mcu_set_channel(struct mt7615_dev *dev);
+int mt7615_mcu_set_channel(struct mt7615_phy *phy);
 int mt7615_mcu_set_wmm(struct mt7615_dev *dev, u8 queue,
 		       const struct ieee80211_tx_queue_params *params);
 int mt7615_mcu_set_tx_ba(struct mt7615_dev *dev,
@@ -261,10 +296,10 @@ int mt7615_mac_wtbl_set_key(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 
 int mt7615_mcu_set_eeprom(struct mt7615_dev *dev);
 int mt7615_mcu_init_mac(struct mt7615_dev *dev);
-int mt7615_mcu_set_rts_thresh(struct mt7615_dev *dev, u32 val);
-int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int enter);
+int mt7615_mcu_set_rts_thresh(struct mt7615_phy *phy, u32 val);
+int mt7615_mcu_ctrl_pm_state(struct mt7615_dev *dev, int band, int enter);
 int mt7615_mcu_get_temperature(struct mt7615_dev *dev, int index);
-int mt7615_mcu_set_tx_power(struct mt7615_dev *dev);
+int mt7615_mcu_set_tx_power(struct mt7615_phy *phy);
 void mt7615_mcu_exit(struct mt7615_dev *dev);
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,

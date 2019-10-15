@@ -49,13 +49,20 @@ void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 		mt76_rr(dev, MT_TX_AGG_CNT(i));
 
 	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
-
-	/* TODO: add DBDC support */
+	dev->mt76.phy.survey_time = ktime_get_boottime();
+	if (dev->mt76.phy2)
+		dev->mt76.phy2->survey_time = ktime_get_boottime();
 
 	/* reset airtime counters */
 	mt76_rr(dev, MT_MIB_SDR9(0));
+	mt76_rr(dev, MT_MIB_SDR9(1));
+
 	mt76_rr(dev, MT_MIB_SDR36(0));
+	mt76_rr(dev, MT_MIB_SDR36(1));
+
 	mt76_rr(dev, MT_MIB_SDR37(0));
+	mt76_rr(dev, MT_MIB_SDR37(1));
+
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
 	mt76_set(dev, MT_WF_RMAC_MIB_AIRTIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
 }
@@ -291,6 +298,7 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, enum mt76_txq_id qid,
 
 static u16
 mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
+		       struct mt76_phy *mphy,
 		       const struct ieee80211_tx_rate *rate,
 		       bool stbc, u8 *bw)
 {
@@ -319,11 +327,11 @@ mt7615_mac_tx_rate_val(struct mt7615_dev *dev,
 			*bw = 1;
 	} else {
 		const struct ieee80211_rate *r;
-		int band = dev->mphy.chandef.chan->band;
+		int band = mphy->chandef.chan->band;
 		u16 val;
 
 		nss = 1;
-		r = &mt76_hw(dev)->wiphy->bands[band]->bitrates[rate->idx];
+		r = &mphy->hw->wiphy->bands[band]->bitrates[rate->idx];
 		if (rate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
 			val = r->hw_value_short;
 		else
@@ -355,6 +363,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	bool multicast = is_multicast_ether_addr(hdr->addr1);
 	struct ieee80211_vif *vif = info->control.vif;
+	struct mt76_phy *mphy = &dev->mphy;
 	int tx_count = 8;
 	u8 fc_type, fc_stype, p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
 	__le16 fc = hdr->frame_control;
@@ -373,6 +382,9 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 
 		tx_count = msta->rate_count;
 	}
+
+	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->mt76.phy2)
+		mphy = dev->mt76.phy2;
 
 	fc_type = (le16_to_cpu(fc) & IEEE80211_FCTL_FTYPE) >> 2;
 	fc_stype = (le16_to_cpu(fc) & IEEE80211_FCTL_STYPE) >> 4;
@@ -431,7 +443,8 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 	    !(info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE)) {
 		bool stbc = info->flags & IEEE80211_TX_CTL_STBC;
 		u8 bw;
-		u16 rateval = mt7615_mac_tx_rate_val(dev, rate, stbc, &bw);
+		u16 rateval = mt7615_mac_tx_rate_val(dev, mphy, rate, stbc,
+						     &bw);
 
 		txwi[2] |= cpu_to_le32(MT_TXD2_FIX_RATE);
 
@@ -588,10 +601,12 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev)
 	rcu_read_unlock();
 }
 
-void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
+void mt7615_mac_set_rates(struct mt7615_phy *phy, struct mt7615_sta *sta,
 			  struct ieee80211_tx_rate *probe_rate,
 			  struct ieee80211_tx_rate *rates)
 {
+	struct mt7615_dev *dev = phy->dev;
+	struct mt76_phy *mphy = phy->mt76;
 	struct ieee80211_tx_rate *ref;
 	int wcid = sta->wcid.idx;
 	u32 addr = mt7615_mac_wtbl_addr(wcid);
@@ -649,11 +664,12 @@ void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 		}
 	}
 
-	val[0] = mt7615_mac_tx_rate_val(dev, &rates[0], stbc, &bw);
+	val[0] = mt7615_mac_tx_rate_val(dev, mphy, &rates[0], stbc, &bw);
 	bw_prev = bw;
 
 	if (probe_rate) {
-		probe_val = mt7615_mac_tx_rate_val(dev, probe_rate, stbc, &bw);
+		probe_val = mt7615_mac_tx_rate_val(dev, mphy, probe_rate,
+						   stbc, &bw);
 		if (bw)
 			bw_idx = 1;
 		else
@@ -662,19 +678,19 @@ void mt7615_mac_set_rates(struct mt7615_dev *dev, struct mt7615_sta *sta,
 		probe_val = val[0];
 	}
 
-	val[1] = mt7615_mac_tx_rate_val(dev, &rates[1], stbc, &bw);
+	val[1] = mt7615_mac_tx_rate_val(dev, mphy, &rates[1], stbc, &bw);
 	if (bw_prev) {
 		bw_idx = 3;
 		bw_prev = bw;
 	}
 
-	val[2] = mt7615_mac_tx_rate_val(dev, &rates[2], stbc, &bw);
+	val[2] = mt7615_mac_tx_rate_val(dev, mphy, &rates[2], stbc, &bw);
 	if (bw_prev) {
 		bw_idx = 5;
 		bw_prev = bw;
 	}
 
-	val[3] = mt7615_mac_tx_rate_val(dev, &rates[3], stbc, &bw);
+	val[3] = mt7615_mac_tx_rate_val(dev, mphy, &rates[3], stbc, &bw);
 	if (bw_prev)
 		bw_idx = 7;
 
@@ -906,8 +922,13 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 
 	if (info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) {
+		struct mt7615_phy *phy = &dev->phy;
+
+		if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && mdev->phy2)
+			phy = mdev->phy2->priv;
+
 		spin_lock_bh(&dev->mt76.lock);
-		mt7615_mac_set_rates(dev, msta, &info->control.rates[0],
+		mt7615_mac_set_rates(phy, msta, &info->control.rates[0],
 				     msta->rates);
 		msta->rate_probe = true;
 		spin_unlock_bh(&dev->mt76.lock);
@@ -962,6 +983,7 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 {
 	struct ieee80211_supported_band *sband;
 	struct mt7615_rate_set *rs;
+	struct mt76_phy *mphy;
 	int first_idx = 0, last_idx;
 	int i, idx, count;
 	bool fixed_rate, ack_timeout;
@@ -1019,7 +1041,12 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 
 		spin_lock_bh(&dev->mt76.lock);
 		if (sta->rate_probe) {
-			mt7615_mac_set_rates(dev, sta, NULL, sta->rates);
+			struct mt7615_phy *phy = &dev->phy;
+
+			if (sta->wcid.ext_phy && dev->mt76.phy2)
+				phy = dev->mt76.phy2->priv;
+
+			mt7615_mac_set_rates(phy, sta, NULL, sta->rates);
 			sta->rate_probe = false;
 		}
 		spin_unlock_bh(&dev->mt76.lock);
@@ -1059,10 +1086,14 @@ out:
 		cck = true;
 		/* fall through */
 	case MT_PHY_TYPE_OFDM:
-		if (dev->mphy.chandef.chan->band == NL80211_BAND_5GHZ)
-			sband = &dev->mphy.sband_5g.sband;
+		mphy = &dev->mphy;
+		if (sta->wcid.ext_phy && dev->mt76.phy2)
+			mphy = dev->mt76.phy2;
+
+		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
+			sband = &mphy->sband_5g.sband;
 		else
-			sband = &dev->mphy.sband_2g.sband;
+			sband = &mphy->sband_2g.sband;
 		final_rate &= MT_TX_RATE_IDX;
 		final_rate = mt76_get_rate(&dev->mt76, sband, final_rate,
 					   cck);
@@ -1128,6 +1159,7 @@ void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	struct ieee80211_sta *sta = NULL;
 	struct mt7615_sta *msta = NULL;
 	struct mt76_wcid *wcid;
+	struct mt76_phy *mphy = &dev->mt76.phy;
 	__le32 *txs_data = data;
 	u32 txs;
 	u8 wcidx;
@@ -1164,8 +1196,11 @@ void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	if (wcidx >= MT7615_WTBL_STA || !sta)
 		goto out;
 
+	if (wcid->ext_phy && dev->mt76.phy2)
+		mphy = dev->mt76.phy2;
+
 	if (mt7615_fill_txs(dev, msta, &info, txs_data))
-		ieee80211_tx_status_noskb(mt76_hw(dev), sta, &info);
+		ieee80211_tx_status_noskb(mphy->hw, sta, &info);
 
 out:
 	rcu_read_unlock();
@@ -1367,27 +1402,36 @@ mt7615_mac_scs_check(struct mt7615_dev *dev)
 		mt7615_mac_set_default_sensitivity(dev);
 }
 
-void mt7615_update_channel(struct mt76_dev *mdev)
+static void
+mt7615_phy_update_channel(struct mt76_phy *mphy, int idx)
 {
-	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+	struct mt7615_dev *dev = container_of(mphy->dev, struct mt7615_dev, mt76);
 	struct mt76_channel_state *state;
 	u64 busy_time, tx_time, rx_time, obss_time;
+	u32 obss_reg = idx ? MT_WF_RMAC_MIB_TIME6 : MT_WF_RMAC_MIB_TIME5;
 
-	/* TODO: add DBDC support */
-	busy_time = mt76_get_field(dev, MT_MIB_SDR9(0),
+	busy_time = mt76_get_field(dev, MT_MIB_SDR9(idx),
 				   MT_MIB_SDR9_BUSY_MASK);
-	tx_time = mt76_get_field(dev, MT_MIB_SDR36(0),
+	tx_time = mt76_get_field(dev, MT_MIB_SDR36(idx),
 				 MT_MIB_SDR36_TXTIME_MASK);
-	rx_time = mt76_get_field(dev, MT_MIB_SDR37(0),
+	rx_time = mt76_get_field(dev, MT_MIB_SDR37(idx),
 				 MT_MIB_SDR37_RXTIME_MASK);
-	obss_time = mt76_get_field(dev, MT_WF_RMAC_MIB_TIME5,
-				   MT_MIB_OBSSTIME_MASK);
+	obss_time = mt76_get_field(dev, obss_reg, MT_MIB_OBSSTIME_MASK);
 
-	state = mdev->phy.chan_state;
+	state = mphy->chan_state;
 	state->cc_busy += busy_time;
 	state->cc_tx += tx_time;
 	state->cc_rx += rx_time + obss_time;
 	state->cc_bss_rx += rx_time;
+}
+
+void mt7615_update_channel(struct mt76_dev *mdev)
+{
+	struct mt7615_dev *dev = container_of(mdev, struct mt7615_dev, mt76);
+
+	mt7615_phy_update_channel(&mdev->phy, 0);
+	if (mdev->phy2)
+		mt7615_phy_update_channel(mdev->phy2, 1);
 
 	/* reset obss airtime */
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);
