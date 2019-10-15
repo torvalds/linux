@@ -13718,11 +13718,6 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 	struct intel_crtc *crtc;
 	int ret, i;
 
-	if (!check_digital_port_conflicts(state)) {
-		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
-		return -EINVAL;
-	}
-
 	/* keep the current setting */
 	if (!state->cdclk.force_min_cdclk_changed)
 		state->cdclk.force_min_cdclk = dev_priv->cdclk.force_min_cdclk;
@@ -13882,6 +13877,12 @@ static int intel_atomic_check(struct drm_device *dev,
 
 		if (needs_modeset(new_crtc_state))
 			any_ms = true;
+	}
+
+	if (any_ms && !check_digital_port_conflicts(state)) {
+		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
+		ret = EINVAL;
+		goto fail;
 	}
 
 	ret = drm_dp_mst_atomic_check(&state->base);
