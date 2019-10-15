@@ -201,8 +201,8 @@ config RCU_NOCB_CPU
 	  specified at boot time by the rcu_nocbs parameter.  For each
 	  such CPU, a kthread ("rcuox/N") will be created to invoke
 	  callbacks, where the "N" is the CPU being offloaded, and where
-	  the "p" for RCU-preempt (PREEMPT kernels) and "s" for RCU-sched
-	  (!PREEMPT kernels).  Nothing prevents this kthread from running
+	  the "p" for RCU-preempt (PREEMPTION kernels) and "s" for RCU-sched
+	  (!PREEMPTION kernels).  Nothing prevents this kthread from running
 	  on the specified CPUs, but (1) the kthreads may be preempted
 	  between each callback, and (2) affinity or cgroups can be used
 	  to force the kthreads to run on whatever set of CPUs is desired.
