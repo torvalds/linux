@@ -802,8 +802,11 @@ static int vma_get_pages(struct i915_vma *vma)
 		}
 
 		err = vma->ops->set_pages(vma);
-		if (err)
+		if (err) {
+			if (vma->obj)
+				i915_gem_object_unpin_pages(vma->obj);
 			goto unlock;
+		}
 	}
 	atomic_inc(&vma->pages_count);
 
