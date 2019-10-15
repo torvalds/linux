@@ -68,11 +68,20 @@
 		regulator-always-on;
 	};
 
+	reg_gen_3p3: regulator-gen-3p3 {
+		compatible = "regulator-fixed";
+		vin-supply = <&reg_3p3_main>;
+		regulator-name = "GEN_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
 	reg_usdhc2_vmmc: regulator-vsd-3v3 {
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_reg_usdhc2>;
 		compatible = "regulator-fixed";
-		vin-supply = <&reg_3p3_main>;
+		vin-supply = <&reg_gen_3p3>;
 		regulator-name = "3V3_SD";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
