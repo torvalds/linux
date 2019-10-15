@@ -741,8 +741,6 @@ snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 		       const char *driver_name);
 #define for_each_rtdcom(rtd, rtdcom) \
 	list_for_each_entry(rtdcom, &(rtd)->component_list, list)
-#define for_each_rtdcom_safe(rtd, rtdcom1, rtdcom2) \
-	list_for_each_entry_safe(rtdcom1, rtdcom2, &(rtd)->component_list, list)
 
 struct snd_soc_dai_link_component {
 	const char *name;
