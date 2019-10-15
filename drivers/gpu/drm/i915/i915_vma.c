@@ -703,7 +703,6 @@ i915_vma_insert(struct i915_vma *vma, u64 size, u64 alignment, u64 flags)
 	list_add_tail(&vma->vm_link, &vma->vm->bound_list);
 
 	if (vma->obj) {
-		atomic_inc(&vma->obj->mm.pages_pin_count);
 		atomic_inc(&vma->obj->bind_count);
 		assert_bind_count(vma->obj);
 	}
@@ -726,14 +725,12 @@ i915_vma_remove(struct i915_vma *vma)
 	if (vma->obj) {
 		struct drm_i915_gem_object *obj = vma->obj;
 
-		atomic_dec(&obj->bind_count);
-
 		/*
 		 * And finally now the object is completely decoupled from this
 		 * vma, we can drop its hold on the backing storage and allow
 		 * it to be reaped by the shrinker.
 		 */
-		i915_gem_object_unpin_pages(obj);
+		atomic_dec(&obj->bind_count);
 		assert_bind_count(obj);
 	}
 
