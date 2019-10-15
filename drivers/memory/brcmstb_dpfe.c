@@ -582,8 +582,7 @@ static int __write_firmware(u32 __iomem *mem, const u32 *fw,
 	return 0;
 }
 
-static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
-					  struct init_data *init)
+static int brcmstb_dpfe_download_firmware(struct platform_device *pdev)
 {
 	const struct dpfe_firmware_header *header;
 	unsigned int dmem_size, imem_size;
@@ -592,6 +591,7 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	struct brcmstb_dpfe_priv *priv;
 	const struct firmware *fw;
 	const u32 *dmem, *imem;
+	struct init_data init;
 	const void *fw_blob;
 	int ret;
 
@@ -622,15 +622,15 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	ret = __verify_firmware(init, fw);
+	ret = __verify_firmware(&init, fw);
 	if (ret)
 		return -EFAULT;
 
 	__disable_dcpu(priv);
 
-	is_big_endian = init->is_big_endian;
-	dmem_size = init->dmem_len;
-	imem_size = init->imem_len;
+	is_big_endian = init.is_big_endian;
+	dmem_size = init.dmem_len;
+	imem_size = init.imem_len;
 
 	/* At the beginning of the firmware blob is a header. */
 	header = (struct dpfe_firmware_header *)fw->data;
@@ -648,7 +648,7 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 	if (ret)
 		return ret;
 
-	ret = __verify_fw_checksum(init, priv, header, init->chksum);
+	ret = __verify_fw_checksum(&init, priv, header, init.chksum);
 	if (ret)
 		return ret;
 
@@ -811,16 +811,13 @@ static ssize_t show_dram(struct device *dev, struct device_attribute *devattr,
 
 static int brcmstb_dpfe_resume(struct platform_device *pdev)
 {
-	struct init_data init;
-
-	return brcmstb_dpfe_download_firmware(pdev, &init);
+	return brcmstb_dpfe_download_firmware(pdev);
 }
 
 static int brcmstb_dpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct brcmstb_dpfe_priv *priv;
-	struct init_data init;
 	struct resource *res;
 	int ret;
 
@@ -864,7 +861,7 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ret = brcmstb_dpfe_download_firmware(pdev, &init);
+	ret = brcmstb_dpfe_download_firmware(pdev);
 	if (ret) {
 		dev_err(dev, "Couldn't download firmware -- %d\n", ret);
 		return ret;
