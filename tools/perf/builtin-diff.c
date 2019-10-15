@@ -23,6 +23,7 @@
 #include "util/time-utils.h"
 #include "util/annotate.h"
 #include "util/map.h"
+#include "util/spark.h"
 #include <linux/err.h>
 #include <linux/zalloc.h>
 #include <subcmd/pager.h>
@@ -53,6 +54,7 @@ enum {
 	PERF_HPP_DIFF__FORMULA,
 	PERF_HPP_DIFF__DELTA_ABS,
 	PERF_HPP_DIFF__CYCLES,
+	PERF_HPP_DIFF__CYCLES_HIST,
 
 	PERF_HPP_DIFF__MAX_INDEX
 };
@@ -87,6 +89,7 @@ static bool force;
 static bool show_period;
 static bool show_formula;
 static bool show_baseline_only;
+static bool cycles_hist;
 static unsigned int sort_compute = 1;
 
 static s64 compute_wdiff_w1;
@@ -164,6 +167,10 @@ static struct header_column {
 	[PERF_HPP_DIFF__CYCLES] = {
 		.name  = "[Program Block Range] Cycles Diff",
 		.width = 70,
+	},
+	[PERF_HPP_DIFF__CYCLES_HIST] = {
+		.name  = "stddev/Hist",
+		.width = NUM_SPARKS + 9,
 	}
 };
 
@@ -610,6 +617,9 @@ static void init_block_info(struct block_info *bi, struct symbol *sym,
 	bi->cycles_aggr = ch->cycles_aggr;
 	bi->num = ch->num;
 	bi->num_aggr = ch->num_aggr;
+
+	memcpy(bi->cycles_spark, ch->cycles_spark,
+	       NUM_SPARKS * sizeof(u64));
 }
 
 static int process_block_per_sym(struct hist_entry *he)
@@ -689,6 +699,21 @@ static struct hist_entry *get_block_pair(struct hist_entry *he,
 	return NULL;
 }
 
+static void init_spark_values(unsigned long *svals, int num)
+{
+	for (int i = 0; i < num; i++)
+		svals[i] = 0;
+}
+
+static void update_spark_value(unsigned long *svals, int num,
+			       struct stats *stats, u64 val)
+{
+	int n = stats->n;
+
+	if (n < num)
+		svals[n] = val;
+}
+
 static void compute_cycles_diff(struct hist_entry *he,
 				struct hist_entry *pair)
 {
@@ -697,6 +722,26 @@ static void compute_cycles_diff(struct hist_entry *he,
 		pair->diff.cycles =
 			pair->block_info->cycles_aggr / pair->block_info->num_aggr -
 			he->block_info->cycles_aggr / he->block_info->num_aggr;
+
+		if (!cycles_hist)
+			return;
+
+		init_stats(&pair->diff.stats);
+		init_spark_values(pair->diff.svals, NUM_SPARKS);
+
+		for (int i = 0; i < pair->block_info->num; i++) {
+			u64 val;
+
+			if (i >= he->block_info->num || i >= NUM_SPARKS)
+				break;
+
+			val = labs(pair->block_info->cycles_spark[i] -
+				     he->block_info->cycles_spark[i]);
+
+			update_spark_value(pair->diff.svals, NUM_SPARKS,
+					   &pair->diff.stats, val);
+			update_stats(&pair->diff.stats, val);
+		}
 	}
 }
 
@@ -1255,6 +1300,9 @@ static const struct option options[] = {
 		    "Show period values."),
 	OPT_BOOLEAN('F', "formula", &show_formula,
 		    "Show formula."),
+	OPT_BOOLEAN(0, "cycles-hist", &cycles_hist,
+		    "Show cycles histogram and standard deviation "
+		    "- WARNING: use only with -c cycles."),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
@@ -1462,6 +1510,90 @@ static int hpp__color_cycles(struct perf_hpp_fmt *fmt,
 	return __hpp__color_compare(fmt, hpp, he, COMPUTE_CYCLES);
 }
 
+static int all_zero(unsigned long *vals, int len)
+{
+	int i;
+
+	for (i = 0; i < len; i++)
+		if (vals[i] != 0)
+			return 0;
+	return 1;
+}
+
+static int print_cycles_spark(char *bf, int size, unsigned long *svals, u64 n)
+{
+	int printed;
+
+	if (n <= 1)
+		return 0;
+
+	if (n > NUM_SPARKS)
+		n = NUM_SPARKS;
+	if (all_zero(svals, n))
+		return 0;
+
+	printed = print_spark(bf, size, svals, n);
+	printed += scnprintf(bf + printed, size - printed, " ");
+	return printed;
+}
+
+static int hpp__color_cycles_hist(struct perf_hpp_fmt *fmt,
+			    struct perf_hpp *hpp, struct hist_entry *he)
+{
+	struct diff_hpp_fmt *dfmt =
+		container_of(fmt, struct diff_hpp_fmt, fmt);
+	struct hist_entry *pair = get_pair_fmt(he, dfmt);
+	struct block_hist *bh = container_of(he, struct block_hist, he);
+	struct block_hist *bh_pair;
+	struct hist_entry *block_he;
+	char spark[32], buf[128];
+	double r;
+	int ret, pad;
+
+	if (!pair) {
+		if (bh->block_idx)
+			hpp->skip = true;
+
+		goto no_print;
+	}
+
+	bh_pair = container_of(pair, struct block_hist, he);
+
+	block_he = hists__get_entry(&bh_pair->block_hists, bh->block_idx);
+	if (!block_he) {
+		hpp->skip = true;
+		goto no_print;
+	}
+
+	ret = print_cycles_spark(spark, sizeof(spark), block_he->diff.svals,
+				 block_he->diff.stats.n);
+
+	r = rel_stddev_stats(stddev_stats(&block_he->diff.stats),
+			     avg_stats(&block_he->diff.stats));
+
+	if (ret) {
+		/*
+		 * Padding spaces if number of sparks less than NUM_SPARKS
+		 * otherwise the output is not aligned.
+		 */
+		pad = NUM_SPARKS - ((ret - 1) / 3);
+		scnprintf(buf, sizeof(buf), "%s%5.1f%% %s", "\u00B1", r, spark);
+		ret = scnprintf(hpp->buf, hpp->size, "%*s",
+				dfmt->header_width, buf);
+
+		if (pad) {
+			ret += scnprintf(hpp->buf + ret, hpp->size - ret,
+					 "%-*s", pad, " ");
+		}
+
+		return ret;
+	}
+
+no_print:
+	return scnprintf(hpp->buf, hpp->size, "%*s",
+			dfmt->header_width, " ");
+}
+
 static void
 hpp__entry_unpair(struct hist_entry *he, int idx, char *buf, size_t size)
 {
@@ -1667,6 +1799,10 @@ static void data__hpp_register(struct data__file *d, int idx)
 		fmt->color = hpp__color_cycles;
 		fmt->sort  = hist_entry__cmp_nop;
 		break;
+	case PERF_HPP_DIFF__CYCLES_HIST:
+		fmt->color = hpp__color_cycles_hist;
+		fmt->sort  = hist_entry__cmp_nop;
+		break;
 	default:
 		fmt->sort  = hist_entry__cmp_nop;
 		break;
@@ -1692,9 +1828,13 @@ static int ui_init(void)
 		 *   PERF_HPP_DIFF__DELTA
 		 *   PERF_HPP_DIFF__RATIO
 		 *   PERF_HPP_DIFF__WEIGHTED_DIFF
+		 *   PERF_HPP_DIFF__CYCLES
 		 */
 		data__hpp_register(d, i ? compute_2_hpp[compute] :
 					  PERF_HPP_DIFF__BASELINE);
+
+		if (cycles_hist && i)
+			data__hpp_register(d, PERF_HPP_DIFF__CYCLES_HIST);
 
 		/*
 		 * And the rest:
@@ -1849,6 +1989,9 @@ int cmd_diff(int argc, const char **argv)
 
 	if (quiet)
 		perf_quiet_option();
+
+	if (cycles_hist && (compute != COMPUTE_CYCLES))
+		usage_with_options(diff_usage, options);
 
 	symbol__annotation_init();
 

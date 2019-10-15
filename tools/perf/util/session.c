@@ -2355,35 +2355,6 @@ void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 	fprintf(fp, "# ========\n#\n");
 }
 
-
-int __perf_session__set_tracepoints_handlers(struct perf_session *session,
-					     const struct evsel_str_handler *assocs,
-					     size_t nr_assocs)
-{
-	struct evsel *evsel;
-	size_t i;
-	int err;
-
-	for (i = 0; i < nr_assocs; i++) {
-		/*
-		 * Adding a handler for an event not in the session,
-		 * just ignore it.
-		 */
-		evsel = perf_evlist__find_tracepoint_by_name(session->evlist, assocs[i].name);
-		if (evsel == NULL)
-			continue;
-
-		err = -EEXIST;
-		if (evsel->handler != NULL)
-			goto out;
-		evsel->handler = assocs[i].handler;
-	}
-
-	err = 0;
-out:
-	return err;
-}
-
 int perf_event__process_id_index(struct perf_session *session,
 				 union perf_event *event)
 {

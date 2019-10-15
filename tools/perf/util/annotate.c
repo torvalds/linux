@@ -853,6 +853,10 @@ static int __symbol__account_cycles(struct cyc_hist *ch,
 			   ch[offset].start < start)
 			return 0;
 	}
+
+	if (ch[offset].num < NUM_SPARKS)
+		ch[offset].cycles_spark[ch[offset].num] = cycles;
+
 	ch[offset].have_start = have_start;
 	ch[offset].start = start;
 	ch[offset].cycles += cycles;

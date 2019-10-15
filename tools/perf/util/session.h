@@ -120,12 +120,8 @@ void perf_session__fprintf_info(struct perf_session *s, FILE *fp, bool full);
 
 struct evsel_str_handler;
 
-int __perf_session__set_tracepoints_handlers(struct perf_session *session,
-					     const struct evsel_str_handler *assocs,
-					     size_t nr_assocs);
-
 #define perf_session__set_tracepoints_handlers(session, array) \
-	__perf_session__set_tracepoints_handlers(session, array, ARRAY_SIZE(array))
+	__evlist__set_tracepoints_handlers(session->evlist, array, ARRAY_SIZE(array))
 
 extern volatile int session_done;
 
