@@ -2251,6 +2251,7 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 	} else if (HAS_PCH_MCC(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
 		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(PORT_TC1);
+		tc_port_hotplug_long_detect = icp_tc_port_hotplug_long_detect;
 		pins = hpd_icp;
 	} else {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
