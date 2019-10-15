@@ -13,8 +13,9 @@
  * HW only supports 7 predefined pixel clocks, and clock select is
  * in bit 29:27 of Display Control register.
  */
-static unsigned long displayControlAdjust_SM750LE(struct mode_parameter *pModeParam,
-						  unsigned long dispControl)
+static unsigned long
+displayControlAdjust_SM750LE(struct mode_parameter *pModeParam,
+			     unsigned long dispControl)
 {
 	unsigned long x, y;
 
