@@ -30,6 +30,7 @@ struct virtio_fs_vq {
 	struct virtqueue *vq;     /* protected by ->lock */
 	struct work_struct done_work;
 	struct list_head queued_reqs;
+	struct list_head end_reqs;	/* End these requests */
 	struct delayed_work dispatch_work;
 	struct fuse_dev *fud;
 	bool connected;
@@ -259,8 +260,27 @@ static void virtio_fs_hiprio_done_work(struct work_struct *work)
 	spin_unlock(&fsvq->lock);
 }
 
-static void virtio_fs_dummy_dispatch_work(struct work_struct *work)
+static void virtio_fs_request_dispatch_work(struct work_struct *work)
 {
+	struct fuse_req *req;
+	struct virtio_fs_vq *fsvq = container_of(work, struct virtio_fs_vq,
+						 dispatch_work.work);
+	struct fuse_conn *fc = fsvq->fud->fc;
+
+	pr_debug("virtio-fs: worker %s called.\n", __func__);
+	while (1) {
+		spin_lock(&fsvq->lock);
+		req = list_first_entry_or_null(&fsvq->end_reqs, struct fuse_req,
+					       list);
+		if (!req) {
+			spin_unlock(&fsvq->lock);
+			return;
+		}
+
+		list_del_init(&req->list);
+		spin_unlock(&fsvq->lock);
+		fuse_request_end(fc, req);
+	}
 }
 
 static void virtio_fs_hiprio_dispatch_work(struct work_struct *work)
@@ -502,6 +522,7 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 	names[VQ_HIPRIO] = fs->vqs[VQ_HIPRIO].name;
 	INIT_WORK(&fs->vqs[VQ_HIPRIO].done_work, virtio_fs_hiprio_done_work);
 	INIT_LIST_HEAD(&fs->vqs[VQ_HIPRIO].queued_reqs);
+	INIT_LIST_HEAD(&fs->vqs[VQ_HIPRIO].end_reqs);
 	INIT_DELAYED_WORK(&fs->vqs[VQ_HIPRIO].dispatch_work,
 			virtio_fs_hiprio_dispatch_work);
 	spin_lock_init(&fs->vqs[VQ_HIPRIO].lock);
@@ -511,8 +532,9 @@ static int virtio_fs_setup_vqs(struct virtio_device *vdev,
 		spin_lock_init(&fs->vqs[i].lock);
 		INIT_WORK(&fs->vqs[i].done_work, virtio_fs_requests_done_work);
 		INIT_DELAYED_WORK(&fs->vqs[i].dispatch_work,
-					virtio_fs_dummy_dispatch_work);
+				  virtio_fs_request_dispatch_work);
 		INIT_LIST_HEAD(&fs->vqs[i].queued_reqs);
+		INIT_LIST_HEAD(&fs->vqs[i].end_reqs);
 		snprintf(fs->vqs[i].name, sizeof(fs->vqs[i].name),
 			 "requests.%u", i - VQ_REQUEST);
 		callbacks[i] = virtio_fs_vq_done;
@@ -918,6 +940,7 @@ __releases(fiq->lock)
 	struct fuse_conn *fc;
 	struct fuse_req *req;
 	struct fuse_pqueue *fpq;
+	struct virtio_fs_vq *fsvq;
 	int ret;
 
 	WARN_ON(list_empty(&fiq->pending));
@@ -951,7 +974,8 @@ __releases(fiq->lock)
 	smp_mb__after_atomic();
 
 retry:
-	ret = virtio_fs_enqueue_req(&fs->vqs[queue_id], req);
+	fsvq = &fs->vqs[queue_id];
+	ret = virtio_fs_enqueue_req(fsvq, req);
 	if (ret < 0) {
 		if (ret == -ENOMEM || ret == -ENOSPC) {
 			/* Virtqueue full. Retry submission */
@@ -965,7 +989,12 @@ retry:
 		clear_bit(FR_SENT, &req->flags);
 		list_del_init(&req->list);
 		spin_unlock(&fpq->lock);
-		fuse_request_end(fc, req);
+
+		/* Can't end request in submission context. Use a worker */
+		spin_lock(&fsvq->lock);
+		list_add_tail(&req->list, &fsvq->end_reqs);
+		schedule_delayed_work(&fsvq->dispatch_work, 0);
+		spin_unlock(&fsvq->lock);
 		return;
 	}
 }
