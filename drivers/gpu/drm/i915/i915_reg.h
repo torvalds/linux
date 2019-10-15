@@ -2885,6 +2885,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define GEN6_RC_SLEEP_PSMI_CONTROL	_MMIO(0x2050)
 #define   GEN6_PSMI_SLEEP_MSG_DISABLE	(1 << 0)
+#define   GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE REG_BIT(7)
 #define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
 #define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	(1 << 10)
 
