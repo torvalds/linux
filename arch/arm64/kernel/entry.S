@@ -680,7 +680,7 @@ alternative_if ARM64_HAS_IRQ_PRIO_MASKING
 	orr	x24, x24, x0
 alternative_else_nop_endif
 	cbnz	x24, 1f				// preempt count != 0 || NMI return path
-	bl	preempt_schedule_irq		// irq en/disable is done inside
+	bl	arm64_preempt_schedule_irq	// irq en/disable is done inside
 1:
 #endif
 
