@@ -835,7 +835,7 @@ sdioh_request_byte(sdioh_info_t *sd, uint rw, uint func, uint regaddr, uint8 *by
 #if defined(MMC_SDIO_ABORT)
 	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
 #endif
-	struct timespec now, before;
+	struct timespec now, before = {};
 
 	if (sd_msglevel & SDH_COST_VAL)
 		getnstimeofday(&before);
@@ -1008,7 +1008,7 @@ sdioh_request_word(sdioh_info_t *sd, uint cmd_type, uint rw, uint func, uint add
 #if defined(MMC_SDIO_ABORT)
 	int sdio_abort_retry = MMC_SDIO_ABORT_RETRY_LIMIT;
 #endif
-	struct timespec now, before;
+	struct timespec now, before = {};
 
 	if (sd_msglevel & SDH_COST_VAL)
 		getnstimeofday(&before);
@@ -1104,7 +1104,7 @@ sdioh_request_packet_chain(sdioh_info_t *sd, uint fix_inc, uint write, uint func
 	uint8 *localbuf = NULL;
 	uint local_plen = 0;
 	uint pkt_len = 0;
-	struct timespec now, before;
+	struct timespec now, before = {};
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 	ASSERT(pkt);
@@ -1302,7 +1302,7 @@ sdioh_buffer_tofrom_bus(sdioh_info_t *sd, uint fix_inc, uint write, uint func,
 {
 	bool fifo = (fix_inc == SDIOH_DATA_FIX);
 	int err_ret = 0;
-	struct timespec now, before;
+	struct timespec now, before = {};
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 	ASSERT(buf);
@@ -1368,7 +1368,7 @@ sdioh_request_buffer(sdioh_info_t *sd, uint pio_dma, uint fix_inc, uint write, u
 {
 	SDIOH_API_RC status;
 	void *tmppkt;
-	struct timespec now, before;
+	struct timespec now, before = {};
 
 	sd_trace(("%s: Enter\n", __FUNCTION__));
 	DHD_PM_RESUME_WAIT(sdioh_request_buffer_wait);
