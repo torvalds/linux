@@ -107,7 +107,6 @@ static int live_unlite_restore(struct drm_i915_private *i915, int prio)
 	struct intel_engine_cs *engine;
 	struct i915_gem_context *ctx;
 	enum intel_engine_id id;
-	intel_wakeref_t wakeref;
 	struct igt_spinner spin;
 	int err = -ENOMEM;
 
@@ -116,11 +115,8 @@ static int live_unlite_restore(struct drm_i915_private *i915, int prio)
 	 * on the same engine from the same parent context.
 	 */
 
-	mutex_lock(&i915->drm.struct_mutex);
-	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
-
 	if (igt_spinner_init(&spin, &i915->gt))
-		goto err_unlock;
+		return err;
 
 	ctx = kernel_context(i915);
 	if (!ctx)
@@ -264,9 +260,6 @@ err_ce:
 	kernel_context_close(ctx);
 err_spin:
 	igt_spinner_fini(&spin);
-err_unlock:
-	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
-	mutex_unlock(&i915->drm.struct_mutex);
 	return err;
 }
 
