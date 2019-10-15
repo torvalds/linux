@@ -907,6 +907,12 @@ tgl_gt_workarounds_init(struct drm_i915_private *i915, struct i915_wa_list *wal)
 		wa_write_or(wal,
 			    SUBSLICE_UNIT_LEVEL_CLKGATE2,
 			    CPSSUNIT_CLKGATE_DIS);
+
+	/* Wa_1409180338:tgl */
+	if (IS_TGL_REVID(i915, TGL_REVID_A0, TGL_REVID_A0))
+		wa_write_or(wal,
+			    SLICE_UNIT_LEVEL_CLKGATE,
+			    L3_CLKGATE_DIS | L3_CR2X_CLKGATE_DIS);
 }
 
 static void
