@@ -1821,8 +1821,7 @@ static int find_newest_super_backup(struct btrfs_fs_info *info)
  * in the backup array.  This will set the backup_root_index
  * field in the fs_info struct
  */
-static void find_oldest_super_backup(struct btrfs_fs_info *info,
-				     u64 newest_gen)
+static void find_oldest_super_backup(struct btrfs_fs_info *info)
 {
 	int newest_index;
 
@@ -2860,8 +2859,7 @@ int __cold open_ctree(struct super_block *sb,
 	 * run through our array of backup supers and setup
 	 * our ring pointer to the oldest one
 	 */
-	generation = btrfs_super_generation(disk_super);
-	find_oldest_super_backup(fs_info, generation);
+	find_oldest_super_backup(fs_info);
 
 	/*
 	 * In the long term, we'll store the compression type in the super
