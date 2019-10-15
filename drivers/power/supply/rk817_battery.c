@@ -3256,7 +3256,7 @@ static int rk817_bat_pm_resume(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct rk817_battery_device *battery = dev_get_drvdata(&pdev->dev);
-	int interval_sec = 0, time_step, pwroff_vol;
+	int interval_sec = 0, time_step = 0, pwroff_vol;
 
 	battery->s2r = true;
 	battery->current_avg = rk817_bat_get_avg_current(battery);
