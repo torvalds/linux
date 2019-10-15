@@ -84,6 +84,11 @@ static void rk_rng_writel(struct rk_rng *rng, u32 val, u32 offset)
 	__raw_writel(val, rng->mem + offset);
 }
 
+static u32 rk_rng_readl(struct rk_rng *rng, u32 offset)
+{
+	return __raw_readl(rng->mem + offset);
+}
+
 static int rk_rng_init(struct hwrng *rng)
 {
 	int ret;
@@ -106,6 +111,15 @@ static void rk_rng_cleanup(struct hwrng *rng)
 
 	dev_dbg(rk_rng->dev, "clk_bulk_disable_unprepare.\n");
 	clk_bulk_disable_unprepare(rk_rng->clk_num, rk_rng->clk_bulks);
+}
+
+static void rk_rng_read_regs(struct rk_rng *rng, u32 offset, void *buf,
+			     size_t size)
+{
+	u32 i;
+
+	for (i = 0; i < size; i += 4)
+		*(u32 *)(buf + i) = be32_to_cpu(rk_rng_readl(rng, offset + i));
 }
 
 static int rk_rng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
@@ -133,7 +147,7 @@ static int rk_rng_v1_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 
 	ret = min_t(size_t, max, RK_MAX_RNG_BYTE);
 
-	memcpy_fromio(buf, rk_rng->mem + CRYPTO_V1_TRNG_DOUT_0, ret);
+	rk_rng_read_regs(rk_rng, CRYPTO_V1_TRNG_DOUT_0, buf, ret);
 
 out:
 	/* close TRNG */
@@ -174,7 +188,7 @@ static int rk_rng_v2_read(struct hwrng *rng, void *buf, size_t max, bool wait)
 
 	ret = min_t(size_t, max, RK_MAX_RNG_BYTE);
 
-	memcpy_fromio(buf, rk_rng->mem + CRYPTO_V2_RNG_DOUT_0, ret);
+	rk_rng_read_regs(rk_rng, CRYPTO_V2_RNG_DOUT_0, buf, ret);
 
 out:
 	/* close TRNG */
