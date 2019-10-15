@@ -319,6 +319,17 @@
 		status = "disabled";
 	};
 
+	rng: rng@ff060000 {
+		compatible = "rockchip,cryptov1-rng";
+		reg = <0x0 0xff060000 0x0 0x4000>;
+
+		clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO_SLV>;
+		clock-names = "clk_crypto", "hclk_crypto";
+		assigned-clocks = <&cru SCLK_CRYPTO>, <&cru HCLK_CRYPTO_SLV>;
+		assigned-clock-rates = <150000000>, <100000000>;
+		status = "disabled";
+	};
+
 	grf: syscon@ff100000 {
 		compatible = "rockchip,rk3328-grf", "syscon", "simple-mfd";
 		reg = <0x0 0xff100000 0x0 0x1000>;
