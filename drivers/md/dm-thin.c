@@ -609,13 +609,12 @@ static void error_thin_bio_list(struct thin_c *tc, struct bio_list *master,
 		blk_status_t error)
 {
 	struct bio_list bios;
-	unsigned long flags;
 
 	bio_list_init(&bios);
 
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 	__merge_bio_list(&bios, master);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 
 	error_bio_list(&bios, error);
 }
@@ -623,15 +622,14 @@ static void error_thin_bio_list(struct thin_c *tc, struct bio_list *master,
 static void requeue_deferred_cells(struct thin_c *tc)
 {
 	struct pool *pool = tc->pool;
-	unsigned long flags;
 	struct list_head cells;
 	struct dm_bio_prison_cell *cell, *tmp;
 
 	INIT_LIST_HEAD(&cells);
 
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 	list_splice_init(&tc->deferred_cells, &cells);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 
 	list_for_each_entry_safe(cell, tmp, &cells, user_list)
 		cell_requeue(pool, cell);
@@ -640,14 +638,13 @@ static void requeue_deferred_cells(struct thin_c *tc)
 static void requeue_io(struct thin_c *tc)
 {
 	struct bio_list bios;
-	unsigned long flags;
 
 	bio_list_init(&bios);
 
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 	__merge_bio_list(&bios, &tc->deferred_bio_list);
 	__merge_bio_list(&bios, &tc->retry_on_resume_list);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 
 	error_bio_list(&bios, BLK_STS_DM_REQUEUE);
 	requeue_deferred_cells(tc);
@@ -756,7 +753,6 @@ static void inc_all_io_entry(struct pool *pool, struct bio *bio)
 static void issue(struct thin_c *tc, struct bio *bio)
 {
 	struct pool *pool = tc->pool;
-	unsigned long flags;
 
 	if (!bio_triggers_commit(tc, bio)) {
 		generic_make_request(bio);
@@ -777,9 +773,9 @@ static void issue(struct thin_c *tc, struct bio *bio)
 	 * Batch together any bios that trigger commits and then issue a
 	 * single commit for them in process_deferred_bios().
 	 */
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	bio_list_add(&pool->deferred_flush_bios, bio);
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 }
 
 static void remap_to_origin_and_issue(struct thin_c *tc, struct bio *bio)
@@ -960,7 +956,6 @@ static void process_prepared_mapping_fail(struct dm_thin_new_mapping *m)
 static void complete_overwrite_bio(struct thin_c *tc, struct bio *bio)
 {
 	struct pool *pool = tc->pool;
-	unsigned long flags;
 
 	/*
 	 * If the bio has the REQ_FUA flag set we must commit the metadata
@@ -985,9 +980,9 @@ static void complete_overwrite_bio(struct thin_c *tc, struct bio *bio)
 	 * Batch together any bios that trigger commits and then issue a
 	 * single commit for them in process_deferred_bios().
 	 */
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	bio_list_add(&pool->deferred_flush_completions, bio);
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 }
 
 static void process_prepared_mapping(struct dm_thin_new_mapping *m)
@@ -1226,14 +1221,13 @@ static void process_prepared_discard_passdown_pt2(struct dm_thin_new_mapping *m)
 static void process_prepared(struct pool *pool, struct list_head *head,
 			     process_mapping_fn *fn)
 {
-	unsigned long flags;
 	struct list_head maps;
 	struct dm_thin_new_mapping *m, *tmp;
 
 	INIT_LIST_HEAD(&maps);
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	list_splice_init(head, &maps);
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 
 	list_for_each_entry_safe(m, tmp, &maps, list)
 		(*fn)(m);
@@ -1510,14 +1504,12 @@ static int commit(struct pool *pool)
 
 static void check_low_water_mark(struct pool *pool, dm_block_t free_blocks)
 {
-	unsigned long flags;
-
 	if (free_blocks <= pool->low_water_blocks && !pool->low_water_triggered) {
 		DMWARN("%s: reached low water mark for data device: sending event.",
 		       dm_device_name(pool->pool_md));
-		spin_lock_irqsave(&pool->lock, flags);
+		spin_lock_irq(&pool->lock);
 		pool->low_water_triggered = true;
-		spin_unlock_irqrestore(&pool->lock, flags);
+		spin_unlock_irq(&pool->lock);
 		dm_table_event(pool->ti->table);
 	}
 }
@@ -1593,11 +1585,10 @@ static void retry_on_resume(struct bio *bio)
 {
 	struct dm_thin_endio_hook *h = dm_per_bio_data(bio, sizeof(struct dm_thin_endio_hook));
 	struct thin_c *tc = h->tc;
-	unsigned long flags;
 
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 	bio_list_add(&tc->retry_on_resume_list, bio);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 }
 
 static blk_status_t should_error_unserviceable_bio(struct pool *pool)
@@ -2170,7 +2161,6 @@ static void __sort_thin_deferred_bios(struct thin_c *tc)
 static void process_thin_deferred_bios(struct thin_c *tc)
 {
 	struct pool *pool = tc->pool;
-	unsigned long flags;
 	struct bio *bio;
 	struct bio_list bios;
 	struct blk_plug plug;
@@ -2184,10 +2174,10 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 
 	bio_list_init(&bios);
 
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 
 	if (bio_list_empty(&tc->deferred_bio_list)) {
-		spin_unlock_irqrestore(&tc->lock, flags);
+		spin_unlock_irq(&tc->lock);
 		return;
 	}
 
@@ -2196,7 +2186,7 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 	bio_list_merge(&bios, &tc->deferred_bio_list);
 	bio_list_init(&tc->deferred_bio_list);
 
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 
 	blk_start_plug(&plug);
 	while ((bio = bio_list_pop(&bios))) {
@@ -2206,10 +2196,10 @@ static void process_thin_deferred_bios(struct thin_c *tc)
 		 * prepared mappings to process.
 		 */
 		if (ensure_next_mapping(pool)) {
-			spin_lock_irqsave(&tc->lock, flags);
+			spin_lock_irq(&tc->lock);
 			bio_list_add(&tc->deferred_bio_list, bio);
 			bio_list_merge(&tc->deferred_bio_list, &bios);
-			spin_unlock_irqrestore(&tc->lock, flags);
+			spin_unlock_irq(&tc->lock);
 			break;
 		}
 
@@ -2264,16 +2254,15 @@ static unsigned sort_cells(struct pool *pool, struct list_head *cells)
 static void process_thin_deferred_cells(struct thin_c *tc)
 {
 	struct pool *pool = tc->pool;
-	unsigned long flags;
 	struct list_head cells;
 	struct dm_bio_prison_cell *cell;
 	unsigned i, j, count;
 
 	INIT_LIST_HEAD(&cells);
 
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 	list_splice_init(&tc->deferred_cells, &cells);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 
 	if (list_empty(&cells))
 		return;
@@ -2294,9 +2283,9 @@ static void process_thin_deferred_cells(struct thin_c *tc)
 				for (j = i; j < count; j++)
 					list_add(&pool->cell_sort_array[j]->user_list, &cells);
 
-				spin_lock_irqsave(&tc->lock, flags);
+				spin_lock_irq(&tc->lock);
 				list_splice(&cells, &tc->deferred_cells);
-				spin_unlock_irqrestore(&tc->lock, flags);
+				spin_unlock_irq(&tc->lock);
 				return;
 			}
 
@@ -2349,7 +2338,6 @@ static struct thin_c *get_next_thin(struct pool *pool, struct thin_c *tc)
 
 static void process_deferred_bios(struct pool *pool)
 {
-	unsigned long flags;
 	struct bio *bio;
 	struct bio_list bios, bio_completions;
 	struct thin_c *tc;
@@ -2368,13 +2356,13 @@ static void process_deferred_bios(struct pool *pool)
 	bio_list_init(&bios);
 	bio_list_init(&bio_completions);
 
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	bio_list_merge(&bios, &pool->deferred_flush_bios);
 	bio_list_init(&pool->deferred_flush_bios);
 
 	bio_list_merge(&bio_completions, &pool->deferred_flush_completions);
 	bio_list_init(&pool->deferred_flush_completions);
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 
 	if (bio_list_empty(&bios) && bio_list_empty(&bio_completions) &&
 	    !(dm_pool_changed_this_transaction(pool->pmd) && need_commit_due_to_time(pool)))
@@ -2657,12 +2645,11 @@ static void metadata_operation_failed(struct pool *pool, const char *op, int r)
  */
 static void thin_defer_bio(struct thin_c *tc, struct bio *bio)
 {
-	unsigned long flags;
 	struct pool *pool = tc->pool;
 
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 	bio_list_add(&tc->deferred_bio_list, bio);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 
 	wake_worker(pool);
 }
@@ -2678,13 +2665,12 @@ static void thin_defer_bio_with_throttle(struct thin_c *tc, struct bio *bio)
 
 static void thin_defer_cell(struct thin_c *tc, struct dm_bio_prison_cell *cell)
 {
-	unsigned long flags;
 	struct pool *pool = tc->pool;
 
 	throttle_lock(&pool->throttle);
-	spin_lock_irqsave(&tc->lock, flags);
+	spin_lock_irq(&tc->lock);
 	list_add_tail(&cell->user_list, &tc->deferred_cells);
-	spin_unlock_irqrestore(&tc->lock, flags);
+	spin_unlock_irq(&tc->lock);
 	throttle_unlock(&pool->throttle);
 
 	wake_worker(pool);
@@ -2810,15 +2796,14 @@ static int pool_is_congested(struct dm_target_callbacks *cb, int bdi_bits)
 
 static void requeue_bios(struct pool *pool)
 {
-	unsigned long flags;
 	struct thin_c *tc;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(tc, &pool->active_thins, list) {
-		spin_lock_irqsave(&tc->lock, flags);
+		spin_lock_irq(&tc->lock);
 		bio_list_merge(&tc->deferred_bio_list, &tc->retry_on_resume_list);
 		bio_list_init(&tc->retry_on_resume_list);
-		spin_unlock_irqrestore(&tc->lock, flags);
+		spin_unlock_irq(&tc->lock);
 	}
 	rcu_read_unlock();
 }
@@ -3412,15 +3397,14 @@ static int pool_map(struct dm_target *ti, struct bio *bio)
 	int r;
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
-	unsigned long flags;
 
 	/*
 	 * As this is a singleton target, ti->begin is always zero.
 	 */
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	bio_set_dev(bio, pt->data_dev->bdev);
 	r = DM_MAPIO_REMAPPED;
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 
 	return r;
 }
@@ -3591,7 +3575,6 @@ static void pool_resume(struct dm_target *ti)
 {
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
-	unsigned long flags;
 
 	/*
 	 * Must requeue active_thins' bios and then resume
@@ -3600,10 +3583,10 @@ static void pool_resume(struct dm_target *ti)
 	requeue_bios(pool);
 	pool_resume_active_thins(pool);
 
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	pool->low_water_triggered = false;
 	pool->suspended = false;
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 
 	do_waker(&pool->waker.work);
 }
@@ -3612,11 +3595,10 @@ static void pool_presuspend(struct dm_target *ti)
 {
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
-	unsigned long flags;
 
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	pool->suspended = true;
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 
 	pool_suspend_active_thins(pool);
 }
@@ -3625,13 +3607,12 @@ static void pool_presuspend_undo(struct dm_target *ti)
 {
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
-	unsigned long flags;
 
 	pool_resume_active_thins(pool);
 
-	spin_lock_irqsave(&pool->lock, flags);
+	spin_lock_irq(&pool->lock);
 	pool->suspended = false;
-	spin_unlock_irqrestore(&pool->lock, flags);
+	spin_unlock_irq(&pool->lock);
 }
 
 static void pool_postsuspend(struct dm_target *ti)
@@ -4110,11 +4091,10 @@ static void thin_put(struct thin_c *tc)
 static void thin_dtr(struct dm_target *ti)
 {
 	struct thin_c *tc = ti->private;
-	unsigned long flags;
 
-	spin_lock_irqsave(&tc->pool->lock, flags);
+	spin_lock_irq(&tc->pool->lock);
 	list_del_rcu(&tc->list);
-	spin_unlock_irqrestore(&tc->pool->lock, flags);
+	spin_unlock_irq(&tc->pool->lock);
 	synchronize_rcu();
 
 	thin_put(tc);
@@ -4150,7 +4130,6 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	struct thin_c *tc;
 	struct dm_dev *pool_dev, *origin_dev;
 	struct mapped_device *pool_md;
-	unsigned long flags;
 
 	mutex_lock(&dm_thin_pool_table.mutex);
 
@@ -4244,9 +4223,9 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 
 	mutex_unlock(&dm_thin_pool_table.mutex);
 
-	spin_lock_irqsave(&tc->pool->lock, flags);
+	spin_lock_irq(&tc->pool->lock);
 	if (tc->pool->suspended) {
-		spin_unlock_irqrestore(&tc->pool->lock, flags);
+		spin_unlock_irq(&tc->pool->lock);
 		mutex_lock(&dm_thin_pool_table.mutex); /* reacquire for __pool_dec */
 		ti->error = "Unable to activate thin device while pool is suspended";
 		r = -EINVAL;
@@ -4255,7 +4234,7 @@ static int thin_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	refcount_set(&tc->refcount, 1);
 	init_completion(&tc->can_destroy);
 	list_add_tail_rcu(&tc->list, &tc->pool->active_thins);
-	spin_unlock_irqrestore(&tc->pool->lock, flags);
+	spin_unlock_irq(&tc->pool->lock);
 	/*
 	 * This synchronize_rcu() call is needed here otherwise we risk a
 	 * wake_worker() call finding no bios to process (because the newly
