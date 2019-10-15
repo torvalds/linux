@@ -13,7 +13,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include <linux/compiler.h>
+#include <asm/rwonce.h>
 
 #ifndef nop
 #define nop()	asm volatile ("nop")
