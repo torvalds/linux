@@ -699,8 +699,8 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
  * where <label> is optional, and marks the point where execution will resume
  * after a yield has been performed. If omitted, execution resumes right after
  * the endif_yield_neon invocation. Note that the entire sequence, including
- * the provided patchup code, will be omitted from the image if CONFIG_PREEMPT
- * is not defined.
+ * the provided patchup code, will be omitted from the image if
+ * CONFIG_PREEMPTION is not defined.
  *
  * As a convenience, in the case where no patchup code is required, the above
  * sequence may be abbreviated to
@@ -728,7 +728,7 @@ USER(\label, ic	ivau, \tmp2)			// invalidate I line PoU
 	.endm
 
 	.macro		if_will_cond_yield_neon
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	get_current_task	x0
 	ldr		x0, [x0, #TSK_TI_PREEMPT]
 	sub		x0, x0, #PREEMPT_DISABLE_OFFSET
