@@ -150,11 +150,10 @@ static int bio_detain(struct dm_bio_prison *prison,
 		      struct dm_bio_prison_cell **cell_result)
 {
 	int r;
-	unsigned long flags;
 
-	spin_lock_irqsave(&prison->lock, flags);
+	spin_lock_irq(&prison->lock);
 	r = __bio_detain(prison, key, inmate, cell_prealloc, cell_result);
-	spin_unlock_irqrestore(&prison->lock, flags);
+	spin_unlock_irq(&prison->lock);
 
 	return r;
 }
@@ -198,11 +197,9 @@ void dm_cell_release(struct dm_bio_prison *prison,
 		     struct dm_bio_prison_cell *cell,
 		     struct bio_list *bios)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&prison->lock, flags);
+	spin_lock_irq(&prison->lock);
 	__cell_release(prison, cell, bios);
-	spin_unlock_irqrestore(&prison->lock, flags);
+	spin_unlock_irq(&prison->lock);
 }
 EXPORT_SYMBOL_GPL(dm_cell_release);
 
@@ -250,12 +247,10 @@ void dm_cell_visit_release(struct dm_bio_prison *prison,
 			   void *context,
 			   struct dm_bio_prison_cell *cell)
 {
-	unsigned long flags;
-
-	spin_lock_irqsave(&prison->lock, flags);
+	spin_lock_irq(&prison->lock);
 	visit_fn(context, cell);
 	rb_erase(&cell->node, &prison->cells);
-	spin_unlock_irqrestore(&prison->lock, flags);
+	spin_unlock_irq(&prison->lock);
 }
 EXPORT_SYMBOL_GPL(dm_cell_visit_release);
 
@@ -275,11 +270,10 @@ int dm_cell_promote_or_release(struct dm_bio_prison *prison,
 			       struct dm_bio_prison_cell *cell)
 {
 	int r;
-	unsigned long flags;
 
-	spin_lock_irqsave(&prison->lock, flags);
+	spin_lock_irq(&prison->lock);
 	r = __promote_or_release(prison, cell);
-	spin_unlock_irqrestore(&prison->lock, flags);
+	spin_unlock_irq(&prison->lock);
 
 	return r;
 }
@@ -379,10 +373,9 @@ EXPORT_SYMBOL_GPL(dm_deferred_entry_dec);
 int dm_deferred_set_add_work(struct dm_deferred_set *ds, struct list_head *work)
 {
 	int r = 1;
-	unsigned long flags;
 	unsigned next_entry;
 
-	spin_lock_irqsave(&ds->lock, flags);
+	spin_lock_irq(&ds->lock);
 	if ((ds->sweeper == ds->current_entry) &&
 	    !ds->entries[ds->current_entry].count)
 		r = 0;
@@ -392,7 +385,7 @@ int dm_deferred_set_add_work(struct dm_deferred_set *ds, struct list_head *work)
 		if (!ds->entries[next_entry].count)
 			ds->current_entry = next_entry;
 	}
-	spin_unlock_irqrestore(&ds->lock, flags);
+	spin_unlock_irq(&ds->lock);
 
 	return r;
 }
