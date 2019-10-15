@@ -10530,15 +10530,7 @@ static u32 intel_cursor_base(const struct intel_plane_state *plane_state)
 	else
 		base = intel_plane_ggtt_offset(plane_state);
 
-	base += plane_state->color_plane[0].offset;
-
-	/* ILK+ do this automagically */
-	if (HAS_GMCH(dev_priv) &&
-	    plane_state->base.rotation & DRM_MODE_ROTATE_180)
-		base += (drm_rect_height(&plane_state->base.dst) *
-			 drm_rect_width(&plane_state->base.dst) - 1) * fb->format->cpp[0];
-
-	return base;
+	return base + plane_state->color_plane[0].offset;
 }
 
 static u32 intel_cursor_position(const struct intel_plane_state *plane_state)
@@ -10575,6 +10567,9 @@ static bool intel_cursor_size_ok(const struct intel_plane_state *plane_state)
 
 static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 {
+	struct drm_i915_private *dev_priv =
+		to_i915(plane_state->base.plane->dev);
+	unsigned int rotation = plane_state->base.rotation;
 	int src_x, src_y;
 	u32 offset;
 	int ret;
@@ -10598,7 +10593,25 @@ static int intel_cursor_check_surface(struct intel_plane_state *plane_state)
 		return -EINVAL;
 	}
 
+	/*
+	 * Put the final coordinates back so that the src
+	 * coordinate checks will see the right values.
+	 */
+	drm_rect_translate_to(&plane_state->base.src,
+			      src_x << 16, src_y << 16);
+
+	/* ILK+ do this automagically in hardware */
+	if (HAS_GMCH(dev_priv) && rotation & DRM_MODE_ROTATE_180) {
+		const struct drm_framebuffer *fb = plane_state->base.fb;
+		int src_w = drm_rect_width(&plane_state->base.src) >> 16;
+		int src_h = drm_rect_height(&plane_state->base.src) >> 16;
+
+		offset += (src_h * src_w - 1) * fb->format->cpp[0];
+	}
+
 	plane_state->color_plane[0].offset = offset;
+	plane_state->color_plane[0].x = src_x;
+	plane_state->color_plane[0].y = src_y;
 
 	return 0;
 }
