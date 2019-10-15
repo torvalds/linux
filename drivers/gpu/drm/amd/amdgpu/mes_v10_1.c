@@ -78,6 +78,36 @@ static const struct amdgpu_ring_funcs mes_v10_1_ring_funcs = {
 	.insert_nop = amdgpu_ring_insert_nop,
 };
 
+static int mes_v10_1_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
+						    void *pkt, int size)
+{
+	int ndw = size / 4;
+	signed long r;
+	union MESAPI__ADD_QUEUE *x_pkt = pkt;
+	struct amdgpu_device *adev = mes->adev;
+	struct amdgpu_ring *ring = &mes->ring;
+
+	BUG_ON(size % 4 != 0);
+
+	if (amdgpu_ring_alloc(ring, ndw))
+		return -ENOMEM;
+
+	amdgpu_ring_write_multiple(ring, pkt, ndw);
+	amdgpu_ring_commit(ring);
+
+	DRM_DEBUG("MES msg=%d was emitted\n", x_pkt->header.opcode);
+
+	r = amdgpu_fence_wait_polling(ring, ring->fence_drv.sync_seq,
+				      adev->usec_timeout);
+	if (r < 1) {
+		DRM_ERROR("MES failed to response msg=%d\n",
+			  x_pkt->header.opcode);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static int mes_v10_1_add_hw_queue(struct amdgpu_mes *mes,
 				  struct mes_add_queue_input *input)
 {
