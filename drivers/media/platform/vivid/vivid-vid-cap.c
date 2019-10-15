@@ -1356,7 +1356,9 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 	if (i == dev->input)
 		return 0;
 
-	if (vb2_is_busy(&dev->vb_vid_cap_q) || vb2_is_busy(&dev->vb_vbi_cap_q))
+	if (vb2_is_busy(&dev->vb_vid_cap_q) ||
+	    vb2_is_busy(&dev->vb_vbi_cap_q) ||
+	    vb2_is_busy(&dev->vb_meta_cap_q))
 		return -EBUSY;
 
 	dev->input = i;
@@ -1366,6 +1368,7 @@ int vidioc_s_input(struct file *file, void *priv, unsigned i)
 		dev->vid_cap_dev.tvnorms = V4L2_STD_ALL;
 	}
 	dev->vbi_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
+	dev->meta_cap_dev.tvnorms = dev->vid_cap_dev.tvnorms;
 	vivid_update_format_cap(dev, false);
 
 	if (dev->colorspace) {

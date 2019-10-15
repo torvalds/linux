@@ -37,6 +37,7 @@
 #include "vivid-osd.h"
 #include "vivid-cec.h"
 #include "vivid-ctrls.h"
+#include "vivid-meta-cap.h"
 
 #define VIVID_MODULE_NAME "vivid"
 
@@ -79,6 +80,10 @@ static int radio_tx_nr[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
 module_param_array(radio_tx_nr, int, NULL, 0444);
 MODULE_PARM_DESC(radio_tx_nr, " radioX start number, -1 is autodetect");
 
+static int meta_cap_nr[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
+module_param_array(meta_cap_nr, int, NULL, 0444);
+MODULE_PARM_DESC(meta_cap_nr, " videoX start number, -1 is autodetect");
+
 static int ccs_cap_mode[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = -1 };
 module_param_array(ccs_cap_mode, int, NULL, 0444);
 MODULE_PARM_DESC(ccs_cap_mode, " capture crop/compose/scale mode:\n"
@@ -95,10 +100,15 @@ static unsigned multiplanar[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 1
 module_param_array(multiplanar, uint, NULL, 0444);
 MODULE_PARM_DESC(multiplanar, " 1 (default) creates a single planar device, 2 creates a multiplanar device.");
 
-/* Default: video + vbi-cap (raw and sliced) + radio rx + radio tx + sdr + vbi-out + vid-out */
-static unsigned node_types[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 0x1d3d };
+/*
+ * Default: video + vbi-cap (raw and sliced) + radio rx + radio tx + sdr +
+ * vbi-out + vid-out + meta-cap
+ */
+static unsigned int node_types[VIVID_MAX_DEVS] = {
+	[0 ... (VIVID_MAX_DEVS - 1)] = 0x21d3d
+};
 module_param_array(node_types, uint, NULL, 0444);
-MODULE_PARM_DESC(node_types, " node types, default is 0x1d3d. Bitmask with the following meaning:\n"
+MODULE_PARM_DESC(node_types, " node types, default is 0x21d3d. Bitmask with the following meaning:\n"
 			     "\t\t    bit 0: Video Capture node\n"
 			     "\t\t    bit 2-3: VBI Capture node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both\n"
 			     "\t\t    bit 4: Radio Receiver node\n"
@@ -106,7 +116,8 @@ MODULE_PARM_DESC(node_types, " node types, default is 0x1d3d. Bitmask with the f
 			     "\t\t    bit 8: Video Output node\n"
 			     "\t\t    bit 10-11: VBI Output node: 0 = none, 1 = raw vbi, 2 = sliced vbi, 3 = both\n"
 			     "\t\t    bit 12: Radio Transmitter node\n"
-			     "\t\t    bit 16: Framebuffer for testing overlays");
+			     "\t\t    bit 16: Framebuffer for testing overlays\n"
+			     "\t\t    bit 17: Metadata Capture node\n");
 
 /* Default: 4 inputs */
 static unsigned num_inputs[VIVID_MAX_DEVS] = { [0 ... (VIVID_MAX_DEVS - 1)] = 4 };
@@ -205,7 +216,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->capabilities = dev->vid_cap_caps | dev->vid_out_caps |
 		dev->vbi_cap_caps | dev->vbi_out_caps |
 		dev->radio_rx_caps | dev->radio_tx_caps |
-		dev->sdr_cap_caps | V4L2_CAP_DEVICE_CAPS;
+		dev->sdr_cap_caps | dev->meta_cap_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -433,7 +444,8 @@ static bool vivid_is_last_user(struct vivid_dev *dev)
 			vivid_is_in_use(&dev->vbi_out_dev) +
 			vivid_is_in_use(&dev->sdr_cap_dev) +
 			vivid_is_in_use(&dev->radio_rx_dev) +
-			vivid_is_in_use(&dev->radio_tx_dev);
+			vivid_is_in_use(&dev->radio_tx_dev) +
+			vivid_is_in_use(&dev->meta_cap_dev);
 
 	return uses == 1;
 }
@@ -459,6 +471,7 @@ static int vivid_fop_release(struct file *file)
 		set_bit(V4L2_FL_REGISTERED, &dev->sdr_cap_dev.flags);
 		set_bit(V4L2_FL_REGISTERED, &dev->radio_rx_dev.flags);
 		set_bit(V4L2_FL_REGISTERED, &dev->radio_tx_dev.flags);
+		set_bit(V4L2_FL_REGISTERED, &dev->meta_cap_dev.flags);
 	}
 	mutex_unlock(&dev->mutex);
 	if (file->private_data == dev->overlay_cap_owner)
@@ -604,6 +617,11 @@ static const struct v4l2_ioctl_ops vivid_ioctl_ops = {
 	.vidioc_log_status		= vidioc_log_status,
 	.vidioc_subscribe_event		= vidioc_subscribe_event,
 	.vidioc_unsubscribe_event	= v4l2_event_unsubscribe,
+
+	.vidioc_enum_fmt_meta_cap	= vidioc_enum_fmt_meta_cap,
+	.vidioc_g_fmt_meta_cap		= vidioc_g_fmt_meta_cap,
+	.vidioc_s_fmt_meta_cap		= vidioc_g_fmt_meta_cap,
+	.vidioc_try_fmt_meta_cap	= vidioc_g_fmt_meta_cap,
 };
 
 /* -----------------------------------------------------------------
@@ -818,6 +836,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 			dev->has_scaler_out ? 'Y' : 'N');
 	}
 
+	/* do we create a meta capture device */
+	dev->has_meta_cap = node_type & 0x20000;
+
 	/* end detecting feature set */
 
 	if (dev->has_vid_cap) {
@@ -874,6 +895,16 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	if (dev->has_radio_tx)
 		dev->radio_tx_caps = V4L2_CAP_RDS_OUTPUT | V4L2_CAP_MODULATOR |
 				     V4L2_CAP_READWRITE;
+
+	/* set up the capabilities of meta capture device */
+	if (dev->has_meta_cap) {
+		dev->meta_cap_caps = V4L2_CAP_META_CAPTURE |
+				     V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+		if (dev->has_audio_inputs)
+			dev->meta_cap_caps |= V4L2_CAP_AUDIO;
+		if (in_type_counter[TV])
+			dev->meta_cap_caps |= V4L2_CAP_TUNER;
+	}
 
 	ret = -ENOMEM;
 	/* initialize the test pattern generator */
@@ -934,6 +965,9 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_AUDIO);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_AUDIO);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_ENUMAUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_AUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_ENUMAUDIO);
 	}
 	if (!dev->has_audio_outputs) {
 		v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_AUDOUT);
@@ -959,12 +993,16 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_FREQUENCY);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_FREQUENCY);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_FREQUENCY);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_FREQUENCY);
 	}
 	if (!has_tuner) {
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_TUNER);
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_G_TUNER);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_TUNER);
 		v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_G_TUNER);
 	}
 	if (in_type_counter[HDMI] == 0) {
 		v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_EDID);
@@ -990,6 +1028,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	v4l2_disable_ioctl(&dev->vid_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
 	v4l2_disable_ioctl(&dev->vbi_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
 	v4l2_disable_ioctl(&dev->sdr_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
+	v4l2_disable_ioctl(&dev->meta_cap_dev, VIDIOC_S_HW_FREQ_SEEK);
 	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_S_FREQUENCY);
 	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_G_FREQUENCY);
 	v4l2_disable_ioctl(&dev->vid_out_dev, VIDIOC_ENUM_FRAMESIZES);
@@ -1078,6 +1117,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	INIT_LIST_HEAD(&dev->vbi_cap_active);
 	INIT_LIST_HEAD(&dev->vbi_out_active);
 	INIT_LIST_HEAD(&dev->sdr_cap_active);
+	INIT_LIST_HEAD(&dev->meta_cap_active);
 
 	INIT_LIST_HEAD(&dev->cec_work_list);
 	spin_lock_init(&dev->cec_slock);
@@ -1225,6 +1265,27 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 				dev->fb_info.node);
 	}
 
+	if (dev->has_meta_cap) {
+		/* initialize meta_cap queue */
+		q = &dev->vb_meta_cap_q;
+		q->type = V4L2_BUF_TYPE_META_CAPTURE;
+		q->io_modes = VB2_MMAP | VB2_DMABUF | VB2_READ;
+		if (!allocator)
+			q->io_modes |= VB2_USERPTR;
+		q->drv_priv = dev;
+		q->buf_struct_size = sizeof(struct vivid_buffer);
+		q->ops = &vivid_meta_cap_qops;
+		q->mem_ops = vivid_mem_ops[allocator];
+		q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+		q->min_buffers_needed = 2;
+		q->lock = &dev->mutex;
+		q->dev = dev->v4l2_dev.dev;
+		q->supports_requests = true;
+		ret = vb2_queue_init(q);
+		if (ret)
+			goto unreg_dev;
+	}
+
 #ifdef CONFIG_VIDEO_VIVID_CEC
 	if (dev->has_vid_cap && in_type_counter[HDMI]) {
 		struct cec_adapter *adap;
@@ -1265,6 +1326,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_rx);
 	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_radio_tx);
 	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_sdr_cap);
+	v4l2_ctrl_handler_setup(&dev->ctrl_hdl_meta_cap);
 
 	/* finally start creating the device nodes */
 	if (dev->has_vid_cap) {
@@ -1492,6 +1554,35 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 					  video_device_node_name(vfd));
 	}
 
+	if (dev->has_meta_cap) {
+		vfd = &dev->meta_cap_dev;
+		snprintf(vfd->name, sizeof(vfd->name),
+			 "vivid-%03d-meta-cap", inst);
+		vfd->fops = &vivid_fops;
+		vfd->ioctl_ops = &vivid_ioctl_ops;
+		vfd->device_caps = dev->meta_cap_caps;
+		vfd->release = video_device_release_empty;
+		vfd->v4l2_dev = &dev->v4l2_dev;
+		vfd->queue = &dev->vb_meta_cap_q;
+		vfd->lock = &dev->mutex;
+		vfd->tvnorms = tvnorms_cap;
+		video_set_drvdata(vfd, dev);
+#ifdef CONFIG_MEDIA_CONTROLLER
+		dev->meta_cap_pad.flags = MEDIA_PAD_FL_SINK;
+		ret = media_entity_pads_init(&vfd->entity, 1,
+					     &dev->meta_cap_pad);
+		if (ret)
+			goto unreg_dev;
+#endif
+		ret = video_register_device(vfd, VFL_TYPE_GRABBER,
+					    meta_cap_nr[inst]);
+		if (ret < 0)
+			goto unreg_dev;
+		v4l2_info(&dev->v4l2_dev,
+			  "V4L2 metadata capture device registered as %s\n",
+			  video_device_node_name(vfd));
+	}
+
 #ifdef CONFIG_MEDIA_CONTROLLER
 	/* Register the media device */
 	ret = media_device_register(&dev->mdev);
@@ -1508,6 +1599,7 @@ static int vivid_create_instance(struct platform_device *pdev, int inst)
 	return 0;
 
 unreg_dev:
+	video_unregister_device(&dev->meta_cap_dev);
 	video_unregister_device(&dev->radio_tx_dev);
 	video_unregister_device(&dev->radio_rx_dev);
 	video_unregister_device(&dev->sdr_cap_dev);
@@ -1623,6 +1715,11 @@ static int vivid_remove(struct platform_device *pdev)
 				dev->fb_info.node);
 			unregister_framebuffer(&dev->fb_info);
 			vivid_fb_release_buffers(dev);
+		}
+		if (dev->has_meta_cap) {
+			v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
+				  video_device_node_name(&dev->meta_cap_dev));
+			video_unregister_device(&dev->meta_cap_dev);
 		}
 		cec_unregister_adapter(dev->cec_rx_adap);
 		for (j = 0; j < MAX_OUTPUTS; j++)
