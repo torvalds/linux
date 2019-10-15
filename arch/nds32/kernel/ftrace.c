@@ -89,18 +89,6 @@ int __init ftrace_dyn_arch_init(void)
 	return 0;
 }
 
-int ftrace_arch_code_modify_prepare(void)
-{
-	set_all_modules_text_rw();
-	return 0;
-}
-
-int ftrace_arch_code_modify_post_process(void)
-{
-	set_all_modules_text_ro();
-	return 0;
-}
-
 static unsigned long gen_sethi_insn(unsigned long addr)
 {
 	unsigned long opcode = 0x46000000;
