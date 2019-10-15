@@ -4296,7 +4296,8 @@ static void gfx_v9_0_update_gfx_cg_power_gating(struct amdgpu_device *adev,
 			gfx_v9_0_enable_gfx_pipeline_powergating(adev, true);
 	} else {
 		gfx_v9_0_enable_gfx_cg_power_gating(adev, false);
-		gfx_v9_0_enable_gfx_pipeline_powergating(adev, false);
+		if (adev->pg_flags & AMD_PG_SUPPORT_GFX_PIPELINE)
+			gfx_v9_0_enable_gfx_pipeline_powergating(adev, false);
 	}
 
 	amdgpu_gfx_rlc_exit_safe_mode(adev);
