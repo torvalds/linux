@@ -614,10 +614,13 @@ static int brcmstb_dpfe_download_firmware(struct brcmstb_dpfe_priv *priv)
 	if (!priv->dpfe_api->fw_name)
 		return -ENODEV;
 
-	ret = request_firmware(&fw, priv->dpfe_api->fw_name, dev);
-	/* request_firmware() prints its own error messages. */
+	ret = firmware_request_nowarn(&fw, priv->dpfe_api->fw_name, dev);
+	/*
+	 * Defer the firmware download if the firmware file couldn't be found.
+	 * The root file system may not be available yet.
+	 */
 	if (ret)
-		return ret;
+		return (ret == -ENOENT) ? -EPROBE_DEFER : ret;
 
 	ret = __verify_firmware(&init, fw);
 	if (ret)
@@ -862,7 +865,8 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 	ret = brcmstb_dpfe_download_firmware(priv);
 	if (ret) {
-		dev_err(dev, "Couldn't download firmware -- %d\n", ret);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "Couldn't download firmware -- %d\n", ret);
 		return ret;
 	}
 
