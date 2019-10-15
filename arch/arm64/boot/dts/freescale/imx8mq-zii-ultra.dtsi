@@ -262,6 +262,18 @@
 	pinctrl-0 = <&pinctrl_i2c1>;
 	status = "okay";
 
+	accelerometer@1c {
+		compatible = "fsl,mma8451";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_accel>;
+		reg = <0x1c>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <20 IRQ_TYPE_LEVEL_LOW>;
+		interrupt-names = "INT2";
+		vdd-supply = <&reg_gen_3p3>;
+		vddio-supply = <&reg_gen_3p3>;
+	};
+
 	ucs1002: charger@32 {
 		compatible = "microchip,ucs1002";
 		pinctrl-names = "default";
@@ -522,6 +534,12 @@
 };
 
 &iomuxc {
+	pinctrl_accel: accelgrp {
+		fsl,pins = <
+			MX8MQ_IOMUXC_SAI5_RXC_GPIO3_IO20		0x41
+		>;
+	};
+
 	pinctrl_fec1: fec1grp {
 		fsl,pins = <
 			MX8MQ_IOMUXC_ENET_MDC_ENET1_MDC			0x3
