@@ -297,7 +297,7 @@ struct stm32f7_i2c_dev {
 	bool use_dma;
 };
 
-/**
+/*
  * All these values are coming from I2C Specification, Version 6.0, 4th of
  * April 2014.
  *
