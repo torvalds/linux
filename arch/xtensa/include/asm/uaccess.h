@@ -132,13 +132,13 @@ do {									\
 #define __check_align_1  ""
 
 #define __check_align_2				\
-	"   _bbci.l %[addr], 0, 1f	\n"	\
+	"   _bbci.l %[mem] * 0, 1f	\n"	\
 	"   movi    %[err], %[efault]	\n"	\
 	"   _j      2f			\n"
 
 #define __check_align_4				\
-	"   _bbsi.l %[addr], 0, 0f	\n"	\
-	"   _bbci.l %[addr], 1, 1f	\n"	\
+	"   _bbsi.l %[mem] * 0, 0f	\n"	\
+	"   _bbci.l %[mem] * 0 + 1, 1f	\n"	\
 	"0: movi    %[err], %[efault]	\n"	\
 	"   _j      2f			\n"
 
@@ -154,7 +154,7 @@ do {									\
 #define __put_user_asm(x_, addr_, err_, align, insn, cb)\
 __asm__ __volatile__(					\
 	__check_align_##align				\
-	"1: "insn"  %[x], %[addr], 0	\n"		\
+	"1: "insn"  %[x], %[mem]	\n"		\
 	"2:				\n"		\
 	"   .section  .fixup,\"ax\"	\n"		\
 	"   .align 4			\n"		\
@@ -167,8 +167,8 @@ __asm__ __volatile__(					\
 	"   .section  __ex_table,\"a\"	\n"		\
 	"   .long	1b, 5b		\n"		\
 	"   .previous"					\
-	:[err] "+r"(err_), [tmp] "=r"(cb)		\
-	:[x] "r"(x_), [addr] "r"(addr_), [efault] "i"(-EFAULT))
+	:[err] "+r"(err_), [tmp] "=r"(cb), [mem] "=m"(*(addr_))		\
+	:[x] "r"(x_), [efault] "i"(-EFAULT))
 
 #define __get_user_nocheck(x, ptr, size)			\
 ({								\
@@ -222,7 +222,7 @@ do {							\
 	u32 __x = 0;					\
 	__asm__ __volatile__(				\
 		__check_align_##align			\
-		"1: "insn"  %[x], %[addr], 0	\n"	\
+		"1: "insn"  %[x], %[mem]	\n"	\
 		"2:				\n"	\
 		"   .section  .fixup,\"ax\"	\n"	\
 		"   .align 4			\n"	\
@@ -236,7 +236,7 @@ do {							\
 		"   .long	1b, 5b		\n"	\
 		"   .previous"				\
 		:[err] "+r"(err_), [tmp] "=r"(cb), [x] "+r"(__x) \
-		:[addr] "r"(addr_), [efault] "i"(-EFAULT)); \
+		:[mem] "m"(*(addr_)), [efault] "i"(-EFAULT)); \
 	(x_) = (__force __typeof__(*(addr_)))__x;	\
 } while (0)
 
