@@ -1910,6 +1910,9 @@ static void process_csb(struct intel_engine_cs *engine)
 		else
 			promote = gen8_csb_parse(execlists, buf + 2 * head);
 		if (promote) {
+			if (!inject_preempt_hang(execlists))
+				ring_set_paused(engine, 0);
+
 			/* cancel old inflight, prepare for switch */
 			trace_ports(execlists, "preempted", execlists->active);
 			while (*execlists->active)
@@ -1925,9 +1928,6 @@ static void process_csb(struct intel_engine_cs *engine)
 
 			if (enable_timeslice(execlists))
 				mod_timer(&execlists->timer, jiffies + 1);
-
-			if (!inject_preempt_hang(execlists))
-				ring_set_paused(engine, 0);
 
 			WRITE_ONCE(execlists->pending[0], NULL);
 		} else {
