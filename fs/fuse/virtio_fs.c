@@ -55,6 +55,9 @@ struct virtio_fs_forget {
 	struct list_head list;
 };
 
+static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
+				 struct fuse_req *req, bool in_flight);
+
 static inline struct virtio_fs_vq *vq_to_fsvq(struct virtqueue *vq)
 {
 	struct virtio_fs *fs = vq->vdev->priv;
@@ -260,6 +263,7 @@ static void virtio_fs_request_dispatch_work(struct work_struct *work)
 	struct virtio_fs_vq *fsvq = container_of(work, struct virtio_fs_vq,
 						 dispatch_work.work);
 	struct fuse_conn *fc = fsvq->fud->fc;
+	int ret;
 
 	pr_debug("virtio-fs: worker %s called.\n", __func__);
 	while (1) {
@@ -268,12 +272,44 @@ static void virtio_fs_request_dispatch_work(struct work_struct *work)
 					       list);
 		if (!req) {
 			spin_unlock(&fsvq->lock);
-			return;
+			break;
 		}
 
 		list_del_init(&req->list);
 		spin_unlock(&fsvq->lock);
 		fuse_request_end(fc, req);
+	}
+
+	/* Dispatch pending requests */
+	while (1) {
+		spin_lock(&fsvq->lock);
+		req = list_first_entry_or_null(&fsvq->queued_reqs,
+					       struct fuse_req, list);
+		if (!req) {
+			spin_unlock(&fsvq->lock);
+			return;
+		}
+		list_del_init(&req->list);
+		spin_unlock(&fsvq->lock);
+
+		ret = virtio_fs_enqueue_req(fsvq, req, true);
+		if (ret < 0) {
+			if (ret == -ENOMEM || ret == -ENOSPC) {
+				spin_lock(&fsvq->lock);
+				list_add_tail(&req->list, &fsvq->queued_reqs);
+				schedule_delayed_work(&fsvq->dispatch_work,
+						      msecs_to_jiffies(1));
+				spin_unlock(&fsvq->lock);
+				return;
+			}
+			req->out.h.error = ret;
+			spin_lock(&fsvq->lock);
+			dec_in_flight_req(fsvq);
+			spin_unlock(&fsvq->lock);
+			pr_err("virtio-fs: virtio_fs_enqueue_req() failed %d\n",
+			       ret);
+			fuse_request_end(fc, req);
+		}
 	}
 }
 
@@ -837,7 +873,7 @@ static unsigned int sg_init_fuse_args(struct scatterlist *sg,
 
 /* Add a request to a virtqueue and kick the device */
 static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
-				 struct fuse_req *req)
+				 struct fuse_req *req, bool in_flight)
 {
 	/* requests need at least 4 elements */
 	struct scatterlist *stack_sgs[6];
@@ -917,7 +953,8 @@ static int virtio_fs_enqueue_req(struct virtio_fs_vq *fsvq,
 	/* matches barrier in request_wait_answer() */
 	smp_mb__after_atomic();
 
-	inc_in_flight_req(fsvq);
+	if (!in_flight)
+		inc_in_flight_req(fsvq);
 	notify = virtqueue_kick_prepare(vq);
 
 	spin_unlock(&fsvq->lock);
@@ -963,15 +1000,21 @@ __releases(fiq->lock)
 		 req->in.h.nodeid, req->in.h.len,
 		 fuse_len_args(req->args->out_numargs, req->args->out_args));
 
-retry:
 	fsvq = &fs->vqs[queue_id];
-	ret = virtio_fs_enqueue_req(fsvq, req);
+	ret = virtio_fs_enqueue_req(fsvq, req, false);
 	if (ret < 0) {
 		if (ret == -ENOMEM || ret == -ENOSPC) {
-			/* Virtqueue full. Retry submission */
-			/* TODO use completion instead of timeout */
-			usleep_range(20, 30);
-			goto retry;
+			/*
+			 * Virtqueue full. Retry submission from worker
+			 * context as we might be holding fc->bg_lock.
+			 */
+			spin_lock(&fsvq->lock);
+			list_add_tail(&req->list, &fsvq->queued_reqs);
+			inc_in_flight_req(fsvq);
+			schedule_delayed_work(&fsvq->dispatch_work,
+						msecs_to_jiffies(1));
+			spin_unlock(&fsvq->lock);
+			return;
 		}
 		req->out.h.error = ret;
 		pr_err("virtio-fs: virtio_fs_enqueue_req() failed %d\n", ret);
