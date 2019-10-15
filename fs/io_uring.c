@@ -1884,7 +1884,7 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 
 static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	unsigned count, req_dist, tail_index;
+	unsigned count;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct list_head *entry;
 	struct timespec64 ts;
@@ -1907,21 +1907,36 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		count = 1;
 
 	req->sequence = ctx->cached_sq_head + count - 1;
+	/* reuse it to store the count */
+	req->submit.sequence = count;
 	req->flags |= REQ_F_TIMEOUT;
 
 	/*
 	 * Insertion sort, ensuring the first entry in the list is always
 	 * the one we need first.
 	 */
-	tail_index = ctx->cached_cq_tail - ctx->rings->sq_dropped;
-	req_dist = req->sequence - tail_index;
 	spin_lock_irq(&ctx->completion_lock);
 	list_for_each_prev(entry, &ctx->timeout_list) {
 		struct io_kiocb *nxt = list_entry(entry, struct io_kiocb, list);
-		unsigned dist;
+		unsigned nxt_sq_head;
+		long long tmp, tmp_nxt;
 
-		dist = nxt->sequence - tail_index;
-		if (req_dist >= dist)
+		/*
+		 * Since cached_sq_head + count - 1 can overflow, use type long
+		 * long to store it.
+		 */
+		tmp = (long long)ctx->cached_sq_head + count - 1;
+		nxt_sq_head = nxt->sequence - nxt->submit.sequence + 1;
+		tmp_nxt = (long long)nxt_sq_head + nxt->submit.sequence - 1;
+
+		/*
+		 * cached_sq_head may overflow, and it will never overflow twice
+		 * once there is some timeout req still be valid.
+		 */
+		if (ctx->cached_sq_head < nxt_sq_head)
+			tmp_nxt += UINT_MAX;
+
+		if (tmp >= tmp_nxt)
 			break;
 	}
 	list_add(&req->list, entry);
