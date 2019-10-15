@@ -515,10 +515,10 @@ Streaming can then begin independently on the capture device nodes
 be used to select any supported YUV pixelformat on the capture device
 nodes, including planar.
 
-SabreAuto with ADV7180 decoder
-------------------------------
+i.MX6Q SabreAuto with ADV7180 decoder
+-------------------------------------
 
-On the SabreAuto, an on-board ADV7180 SD decoder is connected to the
+On the i.MX6Q SabreAuto, an on-board ADV7180 SD decoder is connected to the
 parallel bus input on the internal video mux to IPU1 CSI0.
 
 The following example configures a pipeline to capture from the ADV7180
