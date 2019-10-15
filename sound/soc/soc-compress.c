@@ -28,9 +28,7 @@ static int soc_compr_components_open(struct snd_compr_stream *cstream,
 	struct snd_soc_rtdcom_list *rtdcom;
 	int ret;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->open)
 			continue;
@@ -57,9 +55,7 @@ static int soc_compr_components_free(struct snd_compr_stream *cstream,
 	struct snd_soc_component *component;
 	struct snd_soc_rtdcom_list *rtdcom;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (component == last)
 			break;
 
@@ -353,9 +349,7 @@ static int soc_compr_components_trigger(struct snd_compr_stream *cstream,
 	struct snd_soc_rtdcom_list *rtdcom;
 	int ret;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->trigger)
 			continue;
@@ -458,9 +452,7 @@ static int soc_compr_components_set_params(struct snd_compr_stream *cstream,
 	struct snd_soc_rtdcom_list *rtdcom;
 	int ret;
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->set_params)
 			continue;
@@ -601,9 +593,7 @@ static int soc_compr_get_params(struct snd_compr_stream *cstream,
 			goto err;
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_params)
 			continue;
@@ -627,9 +617,7 @@ static int soc_compr_get_caps(struct snd_compr_stream *cstream,
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_caps)
 			continue;
@@ -652,9 +640,7 @@ static int soc_compr_get_codec_caps(struct snd_compr_stream *cstream,
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_codec_caps)
 			continue;
@@ -684,9 +670,7 @@ static int soc_compr_ack(struct snd_compr_stream *cstream, size_t bytes)
 			goto err;
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->ack)
 			continue;
@@ -715,9 +699,7 @@ static int soc_compr_pointer(struct snd_compr_stream *cstream,
 	if (cpu_dai->driver->cops && cpu_dai->driver->cops->pointer)
 		cpu_dai->driver->cops->pointer(cstream, tstamp, cpu_dai);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->pointer)
 			continue;
@@ -740,9 +722,7 @@ static int soc_compr_copy(struct snd_compr_stream *cstream,
 
 	mutex_lock_nested(&rtd->card->pcm_mutex, rtd->card->pcm_subclass);
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->copy)
 			continue;
@@ -770,9 +750,7 @@ static int soc_compr_set_metadata(struct snd_compr_stream *cstream,
 			return ret;
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->set_metadata)
 			continue;
@@ -801,9 +779,7 @@ static int soc_compr_get_metadata(struct snd_compr_stream *cstream,
 			return ret;
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->get_metadata)
 			continue;
@@ -932,9 +908,7 @@ int snd_soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		memcpy(compr->ops, &soc_compr_ops, sizeof(soc_compr_ops));
 	}
 
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->compr_ops ||
 		    !component->driver->compr_ops->copy)
 			continue;

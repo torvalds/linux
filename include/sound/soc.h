@@ -739,8 +739,12 @@ struct snd_soc_rtdcom_list {
 struct snd_soc_component*
 snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 		       const char *driver_name);
-#define for_each_rtdcom(rtd, rtdcom) \
-	list_for_each_entry(rtdcom, &(rtd)->component_list, list)
+#define for_each_rtd_components(rtd, rtdcom, _component)		\
+	for (rtdcom = list_first_entry(&(rtd)->component_list,		\
+				       typeof(*rtdcom), list);		\
+	     (&rtdcom->list != &(rtd)->component_list) &&		\
+		     (_component = rtdcom->component);			\
+	     rtdcom = list_next_entry(rtdcom, list))
 
 struct snd_soc_dai_link_component {
 	const char *name;

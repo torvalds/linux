@@ -293,10 +293,11 @@ static int snd_soc_rtdcom_add(struct snd_soc_pcm_runtime *rtd,
 			      struct snd_soc_component *component)
 {
 	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *comp;
 
-	for_each_rtdcom(rtd, rtdcom) {
+	for_each_rtd_components(rtd, rtdcom, comp) {
 		/* already connected */
-		if (rtdcom->component == component)
+		if (comp == component)
 			return 0;
 	}
 
@@ -327,6 +328,7 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 						const char *driver_name)
 {
 	struct snd_soc_rtdcom_list *rtdcom;
+	struct snd_soc_component *component;
 
 	if (!driver_name)
 		return NULL;
@@ -339,8 +341,8 @@ struct snd_soc_component *snd_soc_rtdcom_lookup(struct snd_soc_pcm_runtime *rtd,
 	 * But, if many components which have same driver name are connected
 	 * to 1 rtd, this function will return 1st found component.
 	 */
-	for_each_rtdcom(rtd, rtdcom) {
-		const char *component_name = rtdcom->component->driver->name;
+	for_each_rtd_components(rtd, rtdcom, component) {
+		const char *component_name = component->driver->name;
 
 		if (!component_name)
 			continue;
@@ -1248,9 +1250,7 @@ static void soc_remove_link_components(struct snd_soc_card *card)
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-			for_each_rtdcom(rtd, rtdcom) {
-				component = rtdcom->component;
-
+			for_each_rtd_components(rtd, rtdcom, component) {
 				if (component->driver->remove_order != order)
 					continue;
 
@@ -1269,9 +1269,7 @@ static int soc_probe_link_components(struct snd_soc_card *card)
 
 	for_each_comp_order(order) {
 		for_each_card_rtds(card, rtd) {
-			for_each_rtdcom(rtd, rtdcom) {
-				component = rtdcom->component;
-
+			for_each_rtd_components(rtd, rtdcom, component) {
 				if (component->driver->probe_order != order)
 					continue;
 
@@ -1520,9 +1518,7 @@ static int soc_link_init(struct snd_soc_card *card,
 	 * topology based drivers can use the DAI link id field to set PCM
 	 * device number and then use rtd + a base offset of the BEs.
 	 */
-	for_each_rtdcom(rtd, rtdcom) {
-		component = rtdcom->component;
-
+	for_each_rtd_components(rtd, rtdcom, component) {
 		if (!component->driver->use_dai_pcm_id)
 			continue;
 
