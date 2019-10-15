@@ -229,7 +229,7 @@ do {									\
  * pointer value.  The weird cast keeps both GCC and sparse happy.
  */
 #define SHIFT_PERCPU_PTR(__p, __offset)					\
-	RELOC_HIDE((typeof(*(__p)) __kernel __force *)(__p), (__offset))
+	RELOC_HIDE((typeof(*(__p)) __kernel __percpu __force *)(__p), (__offset))
 
 #define per_cpu_ptr(ptr, cpu)						\
 ({									\
