@@ -817,6 +817,8 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->dev = dev;
+
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
 
