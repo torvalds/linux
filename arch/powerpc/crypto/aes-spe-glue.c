@@ -186,7 +186,6 @@ static int ppc_ecb_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	unsigned int ubytes;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
@@ -214,7 +213,6 @@ static int ppc_ecb_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	unsigned int ubytes;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
@@ -242,7 +240,6 @@ static int ppc_cbc_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	unsigned int ubytes;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
@@ -270,7 +267,6 @@ static int ppc_cbc_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	unsigned int ubytes;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
@@ -298,7 +294,6 @@ static int ppc_ctr_crypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	unsigned int pbytes, ubytes;
 	int err;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
 
@@ -329,7 +324,6 @@ static int ppc_xts_encrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	int err;
 	u32 *twk;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 	twk = ctx->key_twk;
@@ -360,7 +354,6 @@ static int ppc_xts_decrypt(struct blkcipher_desc *desc, struct scatterlist *dst,
 	int err;
 	u32 *twk;
 
-	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 	twk = ctx->key_twk;
