@@ -146,7 +146,7 @@ FTRACE_OPS_FL_RECURSION_SAFE
 	itself or any nested functions that those functions call.
 
 	If this flag is set, it is possible that the callback will also
-	be called with preemption enabled (when CONFIG_PREEMPT is set),
+	be called with preemption enabled (when CONFIG_PREEMPTION is set),
 	but this is not guaranteed.
 
 FTRACE_OPS_FL_IPMODIFY
