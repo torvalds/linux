@@ -707,7 +707,7 @@ static void brcmusb_usb3_otp_fix(struct brcm_usb_init_params *params)
 	void __iomem *xhci_ec_base = params->xhci_ec_regs;
 	u32 val;
 
-	if (params->family_id != 0x74371000 || xhci_ec_base == 0)
+	if (params->family_id != 0x74371000 || !xhci_ec_base)
 		return;
 	brcmusb_writel(0xa20c, USB_XHCI_EC_REG(xhci_ec_base, IRAADR));
 	val = brcmusb_readl(USB_XHCI_EC_REG(xhci_ec_base, IRADAT));
