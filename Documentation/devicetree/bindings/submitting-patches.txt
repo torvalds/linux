@@ -15,17 +15,28 @@ I. For patch submitters
      use "Documentation" or "doc" because that is implied. All bindings are
      docs. Repeating "binding" again should also be avoided.
 
-  2) Submit the entire series to the devicetree mailinglist at
+  2) DT binding files are written in DT schema format using json-schema
+     vocabulary and YAML file format. The DT binding files must pass validation
+     by running:
+
+       make dt_binding_check
+
+     See ../writing-schema.rst for more details about schema and tools setup.
+
+  3) DT binding files should be dual licensed. The preferred license tag is
+     (GPL-2.0-only OR BSD-2-Clause).
+
+  4) Submit the entire series to the devicetree mailinglist at
 
        devicetree@vger.kernel.org
 
      and Cc: the DT maintainers. Use scripts/get_maintainer.pl to identify
      all of the DT maintainers.
 
-  3) The Documentation/ portion of the patch should come in the series before
+  5) The Documentation/ portion of the patch should come in the series before
      the code implementing the binding.
 
-  4) Any compatible strings used in a chip or board DTS file must be
+  6) Any compatible strings used in a chip or board DTS file must be
      previously documented in the corresponding DT binding text file
      in Documentation/devicetree/bindings.  This rule applies even if
      the Linux device driver does not yet match on the compatible
@@ -33,7 +44,7 @@ I. For patch submitters
      followed as of commit bff5da4335256513497cc8c79f9a9d1665e09864
      ("checkpatch: add DT compatible string documentation checks"). ]
 
-  5) The wildcard "<chip>" may be used in compatible strings, as in
+  7) The wildcard "<chip>" may be used in compatible strings, as in
      the following example:
 
          - compatible: Must contain '"nvidia,<chip>-pcie",
@@ -42,7 +53,7 @@ I. For patch submitters
      As in the above example, the known values of "<chip>" should be
      documented if it is used.
 
-  6) If a documented compatible string is not yet matched by the
+  8) If a documented compatible string is not yet matched by the
      driver, the documentation should also include a compatible
      string that is matched by the driver (as in the "nvidia,tegra20-pcie"
      example above).
