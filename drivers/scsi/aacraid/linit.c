@@ -391,6 +391,7 @@ static int aac_slave_configure(struct scsi_device *sdev)
 	int chn, tid;
 	unsigned int depth = 0;
 	unsigned int set_timeout = 0;
+	int timeout = 0;
 	bool set_qd_dev_type = false;
 	u8 devtype = 0;
 
@@ -483,10 +484,13 @@ common_config:
 
 	/*
 	 * Firmware has an individual device recovery time typically
-	 * of 35 seconds, give us a margin.
+	 * of 35 seconds, give us a margin. Thor devices can take longer in
+	 * error recovery, hence different value.
 	 */
-	if (set_timeout && sdev->request_queue->rq_timeout < (45 * HZ))
-		blk_queue_rq_timeout(sdev->request_queue, 45*HZ);
+	if (set_timeout) {
+		timeout = aac->sa_firmware ? AAC_SA_TIMEOUT : AAC_ARC_TIMEOUT;
+		blk_queue_rq_timeout(sdev->request_queue, timeout * HZ);
+	}
 
 	if (depth > 256)
 		depth = 256;

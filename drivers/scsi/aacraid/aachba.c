@@ -1477,6 +1477,7 @@ static struct aac_srb * aac_scsi_common(struct fib * fib, struct scsi_cmnd * cmd
 	struct aac_srb * srbcmd;
 	u32 flag;
 	u32 timeout;
+	struct aac_dev *dev = fib->dev;
 
 	aac_fib_init(fib);
 	switch(cmd->sc_data_direction){
@@ -1503,7 +1504,7 @@ static struct aac_srb * aac_scsi_common(struct fib * fib, struct scsi_cmnd * cmd
 	srbcmd->flags    = cpu_to_le32(flag);
 	timeout = cmd->request->timeout/HZ;
 	if (timeout == 0)
-		timeout = 1;
+		timeout = (dev->sa_firmware ? AAC_SA_TIMEOUT : AAC_ARC_TIMEOUT);
 	srbcmd->timeout  = cpu_to_le32(timeout);  // timeout in seconds
 	srbcmd->retry_limit = 0; /* Obsolete parameter */
 	srbcmd->cdb_size = cpu_to_le32(cmd->cmd_len);

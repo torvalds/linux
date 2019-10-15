@@ -108,6 +108,8 @@ enum {
 #define AAC_BUS_TARGET_LOOP		(AAC_MAX_BUSES * AAC_MAX_TARGETS)
 #define AAC_MAX_NATIVE_SIZE		2048
 #define FW_ERROR_BUFFER_SIZE		512
+#define AAC_SA_TIMEOUT			180
+#define AAC_ARC_TIMEOUT			60
 
 #define get_bus_number(x)	(x/AAC_MAX_TARGETS)
 #define get_target_number(x)	(x%AAC_MAX_TARGETS)
