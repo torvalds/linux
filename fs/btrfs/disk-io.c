@@ -1929,6 +1929,50 @@ static void backup_super_roots(struct btrfs_fs_info *info)
 }
 
 /*
+ * read_backup_root - Reads a backup root based on the passed priority. Prio 0
+ * is the newest, prio 1/2/3 are 2nd newest/3rd newest/4th (oldest) backup roots
+ *
+ * fs_info - filesystem whose backup roots need to be read
+ * priority - priority of backup root required
+ *
+ * Returns backup root index on success and -EINVAL otherwise.
+ */
+static int read_backup_root(struct btrfs_fs_info *fs_info, u8 priority)
+{
+	int backup_index = find_newest_super_backup(fs_info);
+	struct btrfs_super_block *super = fs_info->super_copy;
+	struct btrfs_root_backup *root_backup;
+
+	if (priority < BTRFS_NUM_BACKUP_ROOTS && backup_index >= 0) {
+		if (priority == 0)
+			return backup_index;
+
+		backup_index = backup_index + BTRFS_NUM_BACKUP_ROOTS - priority;
+		backup_index %= BTRFS_NUM_BACKUP_ROOTS;
+	} else {
+		return -EINVAL;
+	}
+
+	root_backup = super->super_roots + backup_index;
+
+	btrfs_set_super_generation(super,
+				   btrfs_backup_tree_root_gen(root_backup));
+	btrfs_set_super_root(super, btrfs_backup_tree_root(root_backup));
+	btrfs_set_super_root_level(super,
+				   btrfs_backup_tree_root_level(root_backup));
+	btrfs_set_super_bytes_used(super, btrfs_backup_bytes_used(root_backup));
+
+	/*
+	 * Fixme: the total bytes and num_devices need to match or we should
+	 * need a fsck
+	 */
+	btrfs_set_super_total_bytes(super, btrfs_backup_total_bytes(root_backup));
+	btrfs_set_super_num_devices(super, btrfs_backup_num_devices(root_backup));
+
+	return backup_index;
+}
+
+/*
  * this copies info out of the root backup array and back into
  * the in-memory super block.  It is meant to help iterate through
  * the array, so you send it the number of backups you've already
