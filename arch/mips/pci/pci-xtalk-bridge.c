@@ -452,7 +452,7 @@ static int bridge_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-#define IOC3_SID(sid)	(PCI_VENDOR_ID_SGI << 16 | (sid))
+#define IOC3_SID(sid)	(PCI_VENDOR_ID_SGI | ((sid) << 16))
 
 static void bridge_setup_ip27_baseio6g(struct bridge_controller *bc)
 {
