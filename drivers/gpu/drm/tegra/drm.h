@@ -153,17 +153,12 @@ void tegra_output_connector_destroy(struct drm_connector *connector);
 void tegra_output_encoder_destroy(struct drm_encoder *encoder);
 
 /* from dpaux.c */
-struct drm_dp_link;
-
 struct drm_dp_aux *drm_dp_aux_find_by_of_node(struct device_node *np);
 enum drm_connector_status drm_dp_aux_detect(struct drm_dp_aux *aux);
 int drm_dp_aux_attach(struct drm_dp_aux *aux, struct tegra_output *output);
 int drm_dp_aux_detach(struct drm_dp_aux *aux);
 int drm_dp_aux_enable(struct drm_dp_aux *aux);
 int drm_dp_aux_disable(struct drm_dp_aux *aux);
-int drm_dp_aux_prepare(struct drm_dp_aux *aux, u8 encoding);
-int drm_dp_aux_train(struct drm_dp_aux *aux, struct drm_dp_link *link,
-		     u8 pattern);
 
 /* from fb.c */
 struct tegra_bo *tegra_fb_get_plane(struct drm_framebuffer *framebuffer,

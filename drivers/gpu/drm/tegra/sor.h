@@ -283,10 +283,12 @@
 #define  SOR_DP_PADCTL_CM_TXD_2		(1 << 6)
 #define  SOR_DP_PADCTL_CM_TXD_1		(1 << 5)
 #define  SOR_DP_PADCTL_CM_TXD_0		(1 << 4)
+#define  SOR_DP_PADCTL_CM_TXD(x)	(1 << (4 + (x)))
 #define  SOR_DP_PADCTL_PD_TXD_3		(1 << 3)
 #define  SOR_DP_PADCTL_PD_TXD_0		(1 << 2)
 #define  SOR_DP_PADCTL_PD_TXD_1		(1 << 1)
 #define  SOR_DP_PADCTL_PD_TXD_2		(1 << 0)
+#define  SOR_DP_PADCTL_PD_TXD(x)	(1 << (0 + (x)))
 
 #define SOR_DP_PADCTL1 0x5d
 
