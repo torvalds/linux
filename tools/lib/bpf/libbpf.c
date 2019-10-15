@@ -2326,7 +2326,7 @@ static bool str_is_empty(const char *s)
 }
 
 /*
- * Turn bpf_offset_reloc into a low- and high-level spec representation,
+ * Turn bpf_field_reloc into a low- and high-level spec representation,
  * validating correctness along the way, as well as calculating resulting
  * field offset (in bytes), specified by accessor string. Low-level spec
  * captures every single level of nestedness, including traversing anonymous
@@ -2977,7 +2977,7 @@ static void *u32_as_hash_key(__u32 x)
  *    types should be compatible (see bpf_core_fields_are_compat for details).
  * 3. It is supported and expected that there might be multiple flavors
  *    matching the spec. As long as all the specs resolve to the same set of
- *    offsets across all candidates, there is not error. If there is any
+ *    offsets across all candidates, there is no error. If there is any
  *    ambiguity, CO-RE relocation will fail. This is necessary to accomodate
  *    imprefection of BTF deduplication, which can cause slight duplication of
  *    the same BTF type, if some directly or indirectly referenced (by
@@ -2992,12 +2992,12 @@ static void *u32_as_hash_key(__u32 x)
  *    CPU-wise compared to prebuilding a map from all local type names to
  *    a list of candidate type names. It's also sped up by caching resolved
  *    list of matching candidates per each local "root" type ID, that has at
- *    least one bpf_offset_reloc associated with it. This list is shared
+ *    least one bpf_field_reloc associated with it. This list is shared
  *    between multiple relocations for the same type ID and is updated as some
  *    of the candidates are pruned due to structural incompatibility.
  */
-static int bpf_core_reloc_offset(struct bpf_program *prog,
-				 const struct bpf_offset_reloc *relo,
+static int bpf_core_reloc_field(struct bpf_program *prog,
+				 const struct bpf_field_reloc *relo,
 				 int relo_idx,
 				 const struct btf *local_btf,
 				 const struct btf *targ_btf,
@@ -3106,10 +3106,10 @@ static int bpf_core_reloc_offset(struct bpf_program *prog,
 }
 
 static int
-bpf_core_reloc_offsets(struct bpf_object *obj, const char *targ_btf_path)
+bpf_core_reloc_fields(struct bpf_object *obj, const char *targ_btf_path)
 {
 	const struct btf_ext_info_sec *sec;
-	const struct bpf_offset_reloc *rec;
+	const struct bpf_field_reloc *rec;
 	const struct btf_ext_info *seg;
 	struct hashmap_entry *entry;
 	struct hashmap *cand_cache = NULL;
@@ -3134,7 +3134,7 @@ bpf_core_reloc_offsets(struct bpf_object *obj, const char *targ_btf_path)
 		goto out;
 	}
 
-	seg = &obj->btf_ext->offset_reloc_info;
+	seg = &obj->btf_ext->field_reloc_info;
 	for_each_btf_ext_sec(seg, sec) {
 		sec_name = btf__name_by_offset(obj->btf, sec->sec_name_off);
 		if (str_is_empty(sec_name)) {
@@ -3153,8 +3153,8 @@ bpf_core_reloc_offsets(struct bpf_object *obj, const char *targ_btf_path)
 			 sec_name, sec->num_info);
 
 		for_each_btf_ext_rec(seg, sec, i, rec) {
-			err = bpf_core_reloc_offset(prog, rec, i, obj->btf,
-						    targ_btf, cand_cache);
+			err = bpf_core_reloc_field(prog, rec, i, obj->btf,
+						   targ_btf, cand_cache);
 			if (err) {
 				pr_warning("prog '%s': relo #%d: failed to relocate: %d\n",
 					   sec_name, i, err);
@@ -3179,8 +3179,8 @@ bpf_object__relocate_core(struct bpf_object *obj, const char *targ_btf_path)
 {
 	int err = 0;
 
-	if (obj->btf_ext->offset_reloc_info.len)
-		err = bpf_core_reloc_offsets(obj, targ_btf_path);
+	if (obj->btf_ext->field_reloc_info.len)
+		err = bpf_core_reloc_fields(obj, targ_btf_path);
 
 	return err;
 }

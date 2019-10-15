@@ -888,14 +888,14 @@ static int btf_ext_setup_line_info(struct btf_ext *btf_ext)
 	return btf_ext_setup_info(btf_ext, &param);
 }
 
-static int btf_ext_setup_offset_reloc(struct btf_ext *btf_ext)
+static int btf_ext_setup_field_reloc(struct btf_ext *btf_ext)
 {
 	struct btf_ext_sec_setup_param param = {
-		.off = btf_ext->hdr->offset_reloc_off,
-		.len = btf_ext->hdr->offset_reloc_len,
-		.min_rec_size = sizeof(struct bpf_offset_reloc),
-		.ext_info = &btf_ext->offset_reloc_info,
-		.desc = "offset_reloc",
+		.off = btf_ext->hdr->field_reloc_off,
+		.len = btf_ext->hdr->field_reloc_len,
+		.min_rec_size = sizeof(struct bpf_field_reloc),
+		.ext_info = &btf_ext->field_reloc_info,
+		.desc = "field_reloc",
 	};
 
 	return btf_ext_setup_info(btf_ext, &param);
@@ -975,9 +975,9 @@ struct btf_ext *btf_ext__new(__u8 *data, __u32 size)
 		goto done;
 
 	if (btf_ext->hdr->hdr_len <
-	    offsetofend(struct btf_ext_header, offset_reloc_len))
+	    offsetofend(struct btf_ext_header, field_reloc_len))
 		goto done;
-	err = btf_ext_setup_offset_reloc(btf_ext);
+	err = btf_ext_setup_field_reloc(btf_ext);
 	if (err)
 		goto done;
 
