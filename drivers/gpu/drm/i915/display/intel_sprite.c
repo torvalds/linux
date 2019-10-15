@@ -1653,6 +1653,12 @@ static u32 g4x_sprite_ctl(const struct intel_crtc_state *crtc_state,
 	case DRM_FORMAT_XRGB8888:
 		dvscntr |= DVS_FORMAT_RGBX888;
 		break;
+	case DRM_FORMAT_XBGR16161616F:
+		dvscntr |= DVS_FORMAT_RGBX161616 | DVS_RGB_ORDER_XBGR;
+		break;
+	case DRM_FORMAT_XRGB16161616F:
+		dvscntr |= DVS_FORMAT_RGBX161616;
+		break;
 	case DRM_FORMAT_YUYV:
 		dvscntr |= DVS_FORMAT_YUV422 | DVS_YUV_ORDER_YUYV;
 		break;
@@ -2367,8 +2373,10 @@ static const u64 i9xx_plane_format_modifiers[] = {
 };
 
 static const u32 snb_plane_formats[] = {
-	DRM_FORMAT_XBGR8888,
 	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_XRGB16161616F,
+	DRM_FORMAT_XBGR16161616F,
 	DRM_FORMAT_YUYV,
 	DRM_FORMAT_YVYU,
 	DRM_FORMAT_UYVY,
