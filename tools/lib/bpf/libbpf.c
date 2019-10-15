@@ -1322,9 +1322,9 @@ static int bpf_object__init_user_btf_maps(struct bpf_object *obj, bool strict)
 	return 0;
 }
 
-static int bpf_object__init_maps(struct bpf_object *obj, int flags)
+static int bpf_object__init_maps(struct bpf_object *obj, bool relaxed_maps)
 {
-	bool strict = !(flags & MAPS_RELAX_COMPAT);
+	bool strict = !relaxed_maps;
 	int err;
 
 	err = bpf_object__init_user_maps(obj, strict);
@@ -1521,7 +1521,7 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
+static int bpf_object__elf_collect(struct bpf_object *obj, bool relaxed_maps)
 {
 	Elf *elf = obj->efile.elf;
 	GElf_Ehdr *ep = &obj->efile.ehdr;
@@ -1652,7 +1652,7 @@ static int bpf_object__elf_collect(struct bpf_object *obj, int flags)
 	}
 	err = bpf_object__init_btf(obj, btf_data, btf_ext_data);
 	if (!err)
-		err = bpf_object__init_maps(obj, flags);
+		err = bpf_object__init_maps(obj, relaxed_maps);
 	if (!err)
 		err = bpf_object__sanitize_and_load_btf(obj);
 	if (!err)
@@ -3554,24 +3554,45 @@ bpf_object__load_progs(struct bpf_object *obj, int log_level)
 
 static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
-		   const char *obj_name, int flags)
+		   struct bpf_object_open_opts *opts)
 {
 	struct bpf_object *obj;
+	const char *obj_name;
+	char tmp_name[64];
+	bool relaxed_maps;
 	int err;
 
 	if (elf_version(EV_CURRENT) == EV_NONE) {
-		pr_warning("failed to init libelf for %s\n", path);
+		pr_warning("failed to init libelf for %s\n",
+			   path ? : "(mem buf)");
 		return ERR_PTR(-LIBBPF_ERRNO__LIBELF);
+	}
+
+	if (!OPTS_VALID(opts, bpf_object_open_opts))
+		return ERR_PTR(-EINVAL);
+
+	obj_name = OPTS_GET(opts, object_name, path);
+	if (obj_buf) {
+		if (!obj_name) {
+			snprintf(tmp_name, sizeof(tmp_name), "%lx-%lx",
+				 (unsigned long)obj_buf,
+				 (unsigned long)obj_buf_sz);
+			obj_name = tmp_name;
+		}
+		path = obj_name;
+		pr_debug("loading object '%s' from buffer\n", obj_name);
 	}
 
 	obj = bpf_object__new(path, obj_buf, obj_buf_sz, obj_name);
 	if (IS_ERR(obj))
 		return obj;
 
+	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
+
 	CHECK_ERR(bpf_object__elf_init(obj), err, out);
 	CHECK_ERR(bpf_object__check_endianness(obj), err, out);
 	CHECK_ERR(bpf_object__probe_caps(obj), err, out);
-	CHECK_ERR(bpf_object__elf_collect(obj, flags), err, out);
+	CHECK_ERR(bpf_object__elf_collect(obj, relaxed_maps), err, out);
 	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
 
 	bpf_object__elf_finish(obj);
@@ -3584,13 +3605,16 @@ out:
 static struct bpf_object *
 __bpf_object__open_xattr(struct bpf_object_open_attr *attr, int flags)
 {
+	LIBBPF_OPTS(bpf_object_open_opts, opts,
+		.relaxed_maps = flags & MAPS_RELAX_COMPAT,
+	);
+
 	/* param validation */
 	if (!attr->file)
 		return NULL;
 
 	pr_debug("loading %s\n", attr->file);
-
-	return __bpf_object__open(attr->file, NULL, 0, NULL, flags);
+	return __bpf_object__open(attr->file, NULL, 0, &opts);
 }
 
 struct bpf_object *bpf_object__open_xattr(struct bpf_object_open_attr *attr)
@@ -3611,47 +3635,22 @@ struct bpf_object *bpf_object__open(const char *path)
 struct bpf_object *
 bpf_object__open_file(const char *path, struct bpf_object_open_opts *opts)
 {
-	const char *obj_name;
-	bool relaxed_maps;
-
-	if (!OPTS_VALID(opts, bpf_object_open_opts))
-		return ERR_PTR(-EINVAL);
 	if (!path)
 		return ERR_PTR(-EINVAL);
 
 	pr_debug("loading %s\n", path);
 
-	obj_name = OPTS_GET(opts, object_name, path);
-	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
-	return __bpf_object__open(path, NULL, 0, obj_name,
-				  relaxed_maps ? MAPS_RELAX_COMPAT : 0);
+	return __bpf_object__open(path, NULL, 0, opts);
 }
 
 struct bpf_object *
 bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
 		     struct bpf_object_open_opts *opts)
 {
-	char tmp_name[64];
-	const char *obj_name;
-	bool relaxed_maps;
-
-	if (!OPTS_VALID(opts, bpf_object_open_opts))
-		return ERR_PTR(-EINVAL);
 	if (!obj_buf || obj_buf_sz == 0)
 		return ERR_PTR(-EINVAL);
 
-	obj_name = OPTS_GET(opts, object_name, NULL);
-	if (!obj_name) {
-		snprintf(tmp_name, sizeof(tmp_name), "%lx-%lx",
-			 (unsigned long)obj_buf,
-			 (unsigned long)obj_buf_sz);
-		obj_name = tmp_name;
-	}
-	pr_debug("loading object '%s' from buffer\n", obj_name);
-
-	relaxed_maps = OPTS_GET(opts, relaxed_maps, false);
-	return __bpf_object__open(obj_name, obj_buf, obj_buf_sz, obj_name,
-				  relaxed_maps ? MAPS_RELAX_COMPAT : 0);
+	return __bpf_object__open(NULL, obj_buf, obj_buf_sz, opts);
 }
 
 struct bpf_object *
