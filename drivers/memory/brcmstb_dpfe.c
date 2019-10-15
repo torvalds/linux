@@ -231,9 +231,13 @@ static struct attribute *dpfe_v3_attrs[] = {
 };
 ATTRIBUTE_GROUPS(dpfe_v3);
 
-/* API v2 firmware commands */
-static const struct dpfe_api dpfe_api_v2 = {
-	.version = 2,
+/*
+ * Old API v2 firmware commands, as defined in the rev 0.61 specification, we
+ * use a version set to 1 to denote that it is not compatible with the new API
+ * v2 and onwards.
+ */
+static const struct dpfe_api dpfe_api_old_v2 = {
+	.version = 1,
 	.fw_name = "dpfe.bin",
 	.sysfs_attrs = dpfe_v2_groups,
 	.command = {
@@ -254,6 +258,30 @@ static const struct dpfe_api dpfe_api_v2 = {
 			[MSG_COMMAND] = 2,
 			[MSG_ARG_COUNT] = 1,
 			[MSG_ARG0] = 2,
+		},
+	}
+};
+
+/*
+ * API v2 firmware commands, as defined in the rev 0.8 specification, named new
+ * v2 here
+ */
+static const struct dpfe_api dpfe_api_new_v2 = {
+	.version = 2,
+	.fw_name = NULL, /* We expect the firmware to have been downloaded! */
+	.sysfs_attrs = dpfe_v2_groups,
+	.command = {
+		[DPFE_CMD_GET_INFO] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x101,
+		},
+		[DPFE_CMD_GET_REFRESH] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x201,
+		},
+		[DPFE_CMD_GET_VENDOR] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x202,
 		},
 	}
 };
@@ -390,7 +418,7 @@ static void __finalize_command(struct brcmstb_dpfe_priv *priv)
 	 * It depends on the API version which MBOX register we have to write to
 	 * to signal we are done.
 	 */
-	release_mbox = (priv->dpfe_api->version < 3)
+	release_mbox = (priv->dpfe_api->version < 2)
 			? REG_TO_HOST_MBOX : REG_TO_DCPU_MBOX;
 	writel_relaxed(0, priv->regs + release_mbox);
 }
@@ -886,10 +914,10 @@ static int brcmstb_dpfe_remove(struct platform_device *pdev)
 
 static const struct of_device_id brcmstb_dpfe_of_match[] = {
 	/* Use legacy API v2 for a select number of chips */
-	{ .compatible = "brcm,bcm7268-dpfe-cpu", .data = &dpfe_api_v2 },
-	{ .compatible = "brcm,bcm7271-dpfe-cpu", .data = &dpfe_api_v2 },
-	{ .compatible = "brcm,bcm7278-dpfe-cpu", .data = &dpfe_api_v2 },
-	{ .compatible = "brcm,bcm7211-dpfe-cpu", .data = &dpfe_api_v2 },
+	{ .compatible = "brcm,bcm7268-dpfe-cpu", .data = &dpfe_api_old_v2 },
+	{ .compatible = "brcm,bcm7271-dpfe-cpu", .data = &dpfe_api_old_v2 },
+	{ .compatible = "brcm,bcm7278-dpfe-cpu", .data = &dpfe_api_old_v2 },
+	{ .compatible = "brcm,bcm7211-dpfe-cpu", .data = &dpfe_api_new_v2 },
 	/* API v3 is the default going forward */
 	{ .compatible = "brcm,dpfe-cpu", .data = &dpfe_api_v3 },
 	{}
