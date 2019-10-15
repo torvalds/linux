@@ -2,9 +2,11 @@ include arch/lkl/auto.conf
 
 KBUILD_CFLAGS += -fno-builtin
 
-ifneq (,$(filter $(OUTPUT_FORMAT),elf64-x86-64 elf32-i386 elf64-x86-64-freebsd elf32-littlearm elf64-littleaarch64))
+exec_format = $(firstword $(subst -, ,$(OUTPUT_FORMAT)))
+
+ifneq (,$(filter elf64 elf32,$(exec_format)))
 KBUILD_CFLAGS += -fPIC
-else ifneq (,$(filter $(OUTPUT_FORMAT),pe-i386 pe-x86-64 ))
+else ifneq (,$(filter pe,$(exec_format)))
 ifneq ($(OUTPUT_FORMAT),pe-x86-64)
 prefix=_
 endif

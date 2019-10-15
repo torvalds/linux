@@ -7,7 +7,7 @@ struct lkl_sem;
 struct lkl_tls_key;
 typedef unsigned long lkl_thread_t;
 struct lkl_jmp_buf {
-	unsigned long buf[32];
+	unsigned long buf[128];
 };
 
 /**
