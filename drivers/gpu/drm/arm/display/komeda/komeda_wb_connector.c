@@ -174,6 +174,7 @@ static int komeda_wb_connector_add(struct komeda_kms_dev *kms,
 
 	info = &kwb_conn->base.base.display_info;
 	info->bpc = __fls(kcrtc->master->improc->supported_color_depths);
+	info->color_formats = kcrtc->master->improc->supported_color_formats;
 
 	kcrtc->wb_conn = kwb_conn;
 
