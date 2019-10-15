@@ -598,7 +598,7 @@ int cvm_oct_xmit_pow(struct sk_buff *skb, struct net_device *dev)
 #endif
 		work->word2.s.is_frag = !((ip_hdr(skb)->frag_off == 0) ||
 					  (ip_hdr(skb)->frag_off ==
-					      1 << 14));
+					      cpu_to_be16(1 << 14)));
 #if 0
 		/* Assume Linux is sending a good packet */
 		work->word2.s.IP_exc = 0;
