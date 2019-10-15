@@ -28,6 +28,7 @@
 #include <drm/i915_component.h>
 
 #include "i915_drv.h"
+#include "intel_atomic.h"
 #include "intel_audio.h"
 #include "intel_display_types.h"
 #include "intel_lpe_audio.h"
@@ -818,13 +819,8 @@ retry:
 	to_intel_atomic_state(state)->cdclk.force_min_cdclk =
 		enable ? 2 * 96000 : 0;
 
-	/*
-	 * Protects dev_priv->cdclk.force_min_cdclk
-	 * Need to lock this here in case we have no active pipes
-	 * and thus wouldn't lock it during the commit otherwise.
-	 */
-	ret = drm_modeset_lock(&dev_priv->drm.mode_config.connection_mutex,
-			       &ctx);
+	/* Protects dev_priv->cdclk.force_min_cdclk */
+	ret = intel_atomic_lock_global_state(to_intel_atomic_state(state));
 	if (!ret)
 		ret = drm_atomic_commit(state);
 

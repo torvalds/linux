@@ -12426,6 +12426,12 @@ static bool check_digital_port_conflicts(struct intel_atomic_state *state)
 	bool ret = true;
 
 	/*
+	 * We're going to peek into connector->state,
+	 * hence connection_mutex must be held.
+	 */
+	drm_modeset_lock_assert_held(&dev->mode_config.connection_mutex);
+
+	/*
 	 * Walk the connector list instead of the encoder
 	 * list to detect the problem on ddi platforms
 	 * where there's just one encoder per digital port.
@@ -13725,7 +13731,6 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 	state->active_pipes = dev_priv->active_pipes;
 	state->cdclk.logical = dev_priv->cdclk.logical;
 	state->cdclk.actual = dev_priv->cdclk.actual;
-	state->cdclk.pipe = INVALID_PIPE;
 
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
@@ -13736,6 +13741,12 @@ static int intel_modeset_checks(struct intel_atomic_state *state)
 
 		if (old_crtc_state->base.active != new_crtc_state->base.active)
 			state->active_pipe_changes |= BIT(crtc->pipe);
+	}
+
+	if (state->active_pipe_changes) {
+		ret = intel_atomic_lock_global_state(state);
+		if (ret)
+			return ret;
 	}
 
 	ret = intel_modeset_calc_cdclk(state);
@@ -13839,7 +13850,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	struct intel_crtc_state *old_crtc_state, *new_crtc_state;
 	struct intel_crtc *crtc;
 	int ret, i;
-	bool any_ms = state->cdclk.force_min_cdclk_changed;
+	bool any_ms = false;
 
 	/* Catch I915_MODE_FLAG_INHERITED */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
@@ -13876,6 +13887,8 @@ static int intel_atomic_check(struct drm_device *dev,
 	ret = drm_dp_mst_atomic_check(&state->base);
 	if (ret)
 		goto fail;
+
+	any_ms |= state->cdclk.force_min_cdclk_changed;
 
 	if (any_ms) {
 		ret = intel_modeset_checks(state);
@@ -14670,6 +14683,14 @@ static void intel_atomic_track_fbs(struct intel_atomic_state *state)
 					plane->frontbuffer_bit);
 }
 
+static void assert_global_state_locked(struct drm_i915_private *dev_priv)
+{
+	struct intel_crtc *crtc;
+
+	for_each_intel_crtc(&dev_priv->drm, crtc)
+		drm_modeset_lock_assert_held(&crtc->base.mutex);
+}
+
 static int intel_atomic_commit(struct drm_device *dev,
 			       struct drm_atomic_state *_state,
 			       bool nonblock)
@@ -14735,7 +14756,9 @@ static int intel_atomic_commit(struct drm_device *dev,
 	intel_shared_dpll_swap_state(state);
 	intel_atomic_track_fbs(state);
 
-	if (state->modeset) {
+	if (state->global_state_changed) {
+		assert_global_state_locked(dev_priv);
+
 		memcpy(dev_priv->min_cdclk, state->min_cdclk,
 		       sizeof(state->min_cdclk));
 		memcpy(dev_priv->min_voltage_level, state->min_voltage_level,

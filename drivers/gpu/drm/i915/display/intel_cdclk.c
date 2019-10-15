@@ -2007,11 +2007,20 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
 	       sizeof(state->min_cdclk));
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		int ret;
+
 		min_cdclk = intel_crtc_compute_min_cdclk(crtc_state);
 		if (min_cdclk < 0)
 			return min_cdclk;
 
+		if (state->min_cdclk[i] == min_cdclk)
+			continue;
+
 		state->min_cdclk[i] = min_cdclk;
+
+		ret = intel_atomic_lock_global_state(state);
+		if (ret)
+			return ret;
 	}
 
 	min_cdclk = state->cdclk.force_min_cdclk;
@@ -2034,7 +2043,7 @@ static int intel_compute_min_cdclk(struct intel_atomic_state *state)
  * future platforms this code will need to be
  * adjusted.
  */
-static u8 bxt_compute_min_voltage_level(struct intel_atomic_state *state)
+static int bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	struct intel_crtc *crtc;
@@ -2047,11 +2056,21 @@ static u8 bxt_compute_min_voltage_level(struct intel_atomic_state *state)
 	       sizeof(state->min_voltage_level));
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
+		int ret;
+
 		if (crtc_state->base.enable)
-			state->min_voltage_level[i] =
-				crtc_state->min_voltage_level;
+			min_voltage_level = crtc_state->min_voltage_level;
 		else
-			state->min_voltage_level[i] = 0;
+			min_voltage_level = 0;
+
+		if (state->min_voltage_level[i] == min_voltage_level)
+			continue;
+
+		state->min_voltage_level[i] = min_voltage_level;
+
+		ret = intel_atomic_lock_global_state(state);
+		if (ret)
+			return ret;
 	}
 
 	min_voltage_level = 0;
@@ -2195,11 +2214,15 @@ static int skl_modeset_calc_cdclk(struct intel_atomic_state *state)
 static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	int min_cdclk, cdclk, vco;
+	int min_cdclk, min_voltage_level, cdclk, vco;
 
 	min_cdclk = intel_compute_min_cdclk(state);
 	if (min_cdclk < 0)
 		return min_cdclk;
+
+	min_voltage_level = bxt_compute_min_voltage_level(state);
+	if (min_voltage_level < 0)
+		return min_voltage_level;
 
 	cdclk = bxt_calc_cdclk(dev_priv, min_cdclk);
 	vco = bxt_calc_cdclk_pll_vco(dev_priv, cdclk);
@@ -2207,8 +2230,8 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 	state->cdclk.logical.vco = vco;
 	state->cdclk.logical.cdclk = cdclk;
 	state->cdclk.logical.voltage_level =
-		max(dev_priv->display.calc_voltage_level(cdclk),
-		    bxt_compute_min_voltage_level(state));
+		max_t(int, min_voltage_level,
+		      dev_priv->display.calc_voltage_level(cdclk));
 
 	if (!state->active_pipes) {
 		cdclk = bxt_calc_cdclk(dev_priv, state->cdclk.force_min_cdclk);
@@ -2220,23 +2243,6 @@ static int bxt_modeset_calc_cdclk(struct intel_atomic_state *state)
 			dev_priv->display.calc_voltage_level(cdclk);
 	} else {
 		state->cdclk.actual = state->cdclk.logical;
-	}
-
-	return 0;
-}
-
-static int intel_lock_all_pipes(struct intel_atomic_state *state)
-{
-	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
-	struct intel_crtc *crtc;
-
-	/* Add all pipes to the state */
-	for_each_intel_crtc(&dev_priv->drm, crtc) {
-		struct intel_crtc_state *crtc_state;
-
-		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
-		if (IS_ERR(crtc_state))
-			return PTR_ERR(crtc_state);
 	}
 
 	return 0;
@@ -2308,46 +2314,56 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 		return ret;
 
 	/*
-	 * Writes to dev_priv->cdclk.logical must protected by
-	 * holding all the crtc locks, even if we don't end up
+	 * Writes to dev_priv->cdclk.{actual,logical} must protected
+	 * by holding all the crtc mutexes even if we don't end up
 	 * touching the hardware
 	 */
-	if (intel_cdclk_changed(&dev_priv->cdclk.logical,
-				&state->cdclk.logical)) {
-		ret = intel_lock_all_pipes(state);
-		if (ret < 0)
+	if (intel_cdclk_changed(&dev_priv->cdclk.actual,
+				&state->cdclk.actual)) {
+		/*
+		 * Also serialize commits across all crtcs
+		 * if the actual hw needs to be poked.
+		 */
+		ret = intel_atomic_serialize_global_state(state);
+		if (ret)
 			return ret;
+	} else if (intel_cdclk_changed(&dev_priv->cdclk.logical,
+				       &state->cdclk.logical)) {
+		ret = intel_atomic_lock_global_state(state);
+		if (ret)
+			return ret;
+	} else {
+		return 0;
 	}
 
-	if (is_power_of_2(state->active_pipes)) {
+	if (is_power_of_2(state->active_pipes) &&
+	    intel_cdclk_needs_cd2x_update(dev_priv,
+					  &dev_priv->cdclk.actual,
+					  &state->cdclk.actual)) {
 		struct intel_crtc *crtc;
 		struct intel_crtc_state *crtc_state;
 
 		pipe = ilog2(state->active_pipes);
 		crtc = intel_get_crtc_for_pipe(dev_priv, pipe);
-		crtc_state = intel_atomic_get_new_crtc_state(state, crtc);
-		if (crtc_state &&
-		    drm_atomic_crtc_needs_modeset(&crtc_state->base))
+
+		crtc_state = intel_atomic_get_crtc_state(&state->base, crtc);
+		if (IS_ERR(crtc_state))
+			return PTR_ERR(crtc_state);
+
+		if (drm_atomic_crtc_needs_modeset(&crtc_state->base))
 			pipe = INVALID_PIPE;
 	} else {
 		pipe = INVALID_PIPE;
 	}
 
-	/* All pipes must be switched off while we change the cdclk. */
-	if (pipe != INVALID_PIPE &&
-	    intel_cdclk_needs_cd2x_update(dev_priv,
-					  &dev_priv->cdclk.actual,
-					  &state->cdclk.actual)) {
-		ret = intel_lock_all_pipes(state);
-		if (ret)
-			return ret;
-
+	if (pipe != INVALID_PIPE) {
 		state->cdclk.pipe = pipe;
 
 		DRM_DEBUG_KMS("Can change cdclk with pipe %c active\n",
 			      pipe_name(pipe));
 	} else if (intel_cdclk_needs_modeset(&dev_priv->cdclk.actual,
 					     &state->cdclk.actual)) {
+		/* All pipes must be switched off while we change the cdclk. */
 		ret = intel_modeset_all_pipes(state);
 		if (ret)
 			return ret;
