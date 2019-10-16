@@ -222,10 +222,11 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	writel(VT8500_RTC_CR_ENABLE,
 	       vt8500_rtc->regbase + VT8500_RTC_CR);
 
-	vt8500_rtc->rtc = devm_rtc_device_register(&pdev->dev, "vt8500-rtc",
-					      &vt8500_rtc_ops, THIS_MODULE);
+	vt8500_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
 	if (IS_ERR(vt8500_rtc->rtc))
 		return PTR_ERR(vt8500_rtc->rtc);
+
+	vt8500_rtc->rtc->ops = &vt8500_rtc_ops;
 
 	ret = devm_request_irq(&pdev->dev, vt8500_rtc->irq_alarm,
 				vt8500_rtc_irq, 0, "rtc alarm", vt8500_rtc);
@@ -235,7 +236,7 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	return 0;
+	return rtc_register_device(vt8500_rtc->rtc);
 }
 
 static int vt8500_rtc_remove(struct platform_device *pdev)
