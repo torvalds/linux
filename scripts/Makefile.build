@@ -479,7 +479,10 @@ curdir-single := $(sort $(foreach x, $(KBUILD_SINGLE_TARGETS), \
 unknown-single := $(filter-out $(addsuffix /%, $(subdir-ym)), \
 			$(filter-out $(curdir-single), $(KBUILD_SINGLE_TARGETS)))
 
-__build: $(curdir-single) $(subdir-ym)
+single-subdirs := $(foreach d, $(subdir-ym), \
+			$(if $(filter $(d)/%, $(KBUILD_SINGLE_TARGETS)), $(d)))
+
+__build: $(curdir-single) $(single-subdirs)
 ifneq ($(unknown-single),)
 	$(Q)$(MAKE) -f /dev/null $(unknown-single)
 endif
