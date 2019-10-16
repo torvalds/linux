@@ -536,6 +536,7 @@ static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
 				       struct device_node *np)
 {
 	int nb, ret, array_size;
+	unsigned int i;
 
 	nb = of_property_count_elems_of_size(np, "st,breakinput",
 					     sizeof(struct stm32_breakinput));
@@ -556,6 +557,13 @@ static int stm32_pwm_probe_breakinputs(struct stm32_pwm *priv,
 					 (u32 *)priv->breakinputs, array_size);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < priv->num_breakinputs; i++) {
+		if (priv->breakinputs[i].index > 1 ||
+		    priv->breakinputs[i].level > 1 ||
+		    priv->breakinputs[i].filter > 15)
+			return -EINVAL;
+	}
 
 	return stm32_pwm_apply_breakinputs(priv);
 }
