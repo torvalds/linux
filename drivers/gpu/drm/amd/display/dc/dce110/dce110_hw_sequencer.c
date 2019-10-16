@@ -1438,6 +1438,9 @@ static void power_down_encoders(struct dc *dc)
 			if (!dc->links[i]->wa_flags.dp_keep_receiver_powered)
 				dp_receiver_power_ctrl(dc->links[i], false);
 
+		if (signal != SIGNAL_TYPE_EDP)
+			signal = SIGNAL_TYPE_NONE;
+
 		dc->links[i]->link_enc->funcs->disable_output(
 				dc->links[i]->link_enc, signal);
 	}
