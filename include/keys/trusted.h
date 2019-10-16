@@ -17,7 +17,7 @@
 #define LOAD32N(buffer, offset)	(*(uint32_t *)&buffer[offset])
 #define LOAD16(buffer, offset)	(ntohs(*(uint16_t *)&buffer[offset]))
 
-struct tpm_buf {
+struct tpm1_buf {
 	int len;
 	unsigned char data[MAX_BUF_SIZE];
 };
@@ -46,7 +46,7 @@ int TSS_checkhmac1(unsigned char *buffer,
 			  unsigned int keylen, ...);
 
 int trusted_tpm_send(unsigned char *cmd, size_t buflen);
-int oiap(struct tpm_buf *tb, uint32_t *handle, unsigned char *nonce);
+int oiap(struct tpm1_buf *tb, uint32_t *handle, unsigned char *nonce);
 
 #define TPM_DEBUG 0
 
@@ -110,24 +110,24 @@ static inline void dump_tpm_buf(unsigned char *buf)
 }
 #endif
 
-static inline void store8(struct tpm_buf *buf, const unsigned char value)
+static inline void store8(struct tpm1_buf *buf, const unsigned char value)
 {
 	buf->data[buf->len++] = value;
 }
 
-static inline void store16(struct tpm_buf *buf, const uint16_t value)
+static inline void store16(struct tpm1_buf *buf, const uint16_t value)
 {
 	*(uint16_t *) & buf->data[buf->len] = htons(value);
 	buf->len += sizeof value;
 }
 
-static inline void store32(struct tpm_buf *buf, const uint32_t value)
+static inline void store32(struct tpm1_buf *buf, const uint32_t value)
 {
 	*(uint32_t *) & buf->data[buf->len] = htonl(value);
 	buf->len += sizeof value;
 }
 
-static inline void storebytes(struct tpm_buf *buf, const unsigned char *in,
+static inline void storebytes(struct tpm1_buf *buf, const unsigned char *in,
 			      const int len)
 {
 	memcpy(buf->data + buf->len, in, len);

@@ -31,7 +31,7 @@
 /*
  * Load a TPM key from the blob provided by userspace
  */
-static int tpm_loadkey2(struct tpm_buf *tb,
+static int tpm_loadkey2(struct tpm1_buf *tb,
 			uint32_t keyhandle, unsigned char *keyauth,
 			const unsigned char *keyblob, int keybloblen,
 			uint32_t *newhandle)
@@ -99,7 +99,7 @@ static int tpm_loadkey2(struct tpm_buf *tb,
 /*
  * Execute the FlushSpecific TPM command
  */
-static int tpm_flushspecific(struct tpm_buf *tb, uint32_t handle)
+static int tpm_flushspecific(struct tpm1_buf *tb, uint32_t handle)
 {
 	INIT_BUF(tb);
 	store16(tb, TPM_TAG_RQU_COMMAND);
@@ -115,7 +115,7 @@ static int tpm_flushspecific(struct tpm_buf *tb, uint32_t handle)
  * Decrypt a blob provided by userspace using a specific key handle.
  * The handle is a well known handle or previously loaded by e.g. LoadKey2
  */
-static int tpm_unbind(struct tpm_buf *tb,
+static int tpm_unbind(struct tpm1_buf *tb,
 			uint32_t keyhandle, unsigned char *keyauth,
 			const unsigned char *blob, uint32_t bloblen,
 			void *out, uint32_t outlen)
@@ -201,7 +201,7 @@ static int tpm_unbind(struct tpm_buf *tb,
  * up to key_length_in_bytes - 11 and not be limited to size 20 like the
  * TPM_SS_RSASSAPKCS1v15_SHA1 signature scheme.
  */
-static int tpm_sign(struct tpm_buf *tb,
+static int tpm_sign(struct tpm1_buf *tb,
 		    uint32_t keyhandle, unsigned char *keyauth,
 		    const unsigned char *blob, uint32_t bloblen,
 		    void *out, uint32_t outlen)
@@ -519,7 +519,7 @@ static int tpm_key_decrypt(struct tpm_key *tk,
 			   struct kernel_pkey_params *params,
 			   const void *in, void *out)
 {
-	struct tpm_buf *tb;
+	struct tpm1_buf *tb;
 	uint32_t keyhandle;
 	uint8_t srkauth[SHA1_DIGEST_SIZE];
 	uint8_t keyauth[SHA1_DIGEST_SIZE];
@@ -643,7 +643,7 @@ static int tpm_key_sign(struct tpm_key *tk,
 			struct kernel_pkey_params *params,
 			const void *in, void *out)
 {
-	struct tpm_buf *tb;
+	struct tpm1_buf *tb;
 	uint32_t keyhandle;
 	uint8_t srkauth[SHA1_DIGEST_SIZE];
 	uint8_t keyauth[SHA1_DIGEST_SIZE];
