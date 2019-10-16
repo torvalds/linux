@@ -206,6 +206,16 @@ static int nft_flow_offload_unbind(struct flow_block_offload *bo,
 				   struct nft_base_chain *basechain)
 {
 	struct flow_block_cb *block_cb, *next;
+	struct flow_cls_offload cls_flow;
+	struct nft_chain *chain;
+	struct nft_rule *rule;
+
+	chain = &basechain->chain;
+	list_for_each_entry(rule, &chain->rules, list) {
+		nft_flow_cls_offload_setup(&cls_flow, basechain, rule, NULL,
+					   FLOW_CLS_DESTROY);
+		nft_setup_cb_call(TC_SETUP_CLSFLOWER, &cls_flow, &bo->cb_list);
+	}
 
 	list_for_each_entry_safe(block_cb, next, &bo->cb_list, list) {
 		list_del(&block_cb->list);
@@ -445,18 +455,6 @@ static void nft_indr_block_cb(struct net_device *dev,
 	mutex_unlock(&net->nft.commit_mutex);
 }
 
-static void nft_offload_chain_clean(struct nft_chain *chain)
-{
-	struct nft_rule *rule;
-
-	list_for_each_entry(rule, &chain->rules, list) {
-		nft_flow_offload_rule(chain, rule,
-				      NULL, FLOW_CLS_DESTROY);
-	}
-
-	nft_flow_offload_chain(chain, NULL, FLOW_BLOCK_UNBIND);
-}
-
 static int nft_offload_netdev_event(struct notifier_block *this,
 				    unsigned long event, void *ptr)
 {
@@ -467,7 +465,9 @@ static int nft_offload_netdev_event(struct notifier_block *this,
 	mutex_lock(&net->nft.commit_mutex);
 	chain = __nft_offload_get_chain(dev);
 	if (chain)
-		nft_offload_chain_clean(chain);
+		nft_flow_block_chain(nft_base_chain(chain), dev,
+				     FLOW_BLOCK_UNBIND);
+
 	mutex_unlock(&net->nft.commit_mutex);
 
 	return NOTIFY_DONE;
