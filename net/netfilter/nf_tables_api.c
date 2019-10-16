@@ -1577,7 +1577,7 @@ static int nf_tables_parse_netdev_hooks(struct net *net,
 		list_add_tail(&hook->list, hook_list);
 		n++;
 
-		if (n == NFT_FLOWTABLE_DEVICE_MAX) {
+		if (n == NFT_NETDEVICE_MAX) {
 			err = -EFBIG;
 			goto err_hook;
 		}
