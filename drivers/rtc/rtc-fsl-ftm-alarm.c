@@ -180,10 +180,7 @@ static int ftm_rtc_alarm_irq_enable(struct device *dev,
  */
 static int ftm_rtc_read_time(struct device *dev, struct rtc_time *tm)
 {
-	struct timespec64 ts64;
-
-	ktime_get_real_ts64(&ts64);
-	rtc_time_to_tm(ts64.tv_sec, tm);
+	rtc_time_to_tm(ktime_get_real_seconds(), tm);
 
 	return 0;
 }
