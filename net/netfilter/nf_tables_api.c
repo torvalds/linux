@@ -5706,10 +5706,10 @@ static int nf_tables_flowtable_parse_hook(const struct nft_ctx *ctx,
 	if (!ops)
 		return -ENOMEM;
 
-	flowtable->hooknum	= hooknum;
-	flowtable->priority	= priority;
-	flowtable->ops		= ops;
-	flowtable->ops_len	= n;
+	flowtable->hooknum		= hooknum;
+	flowtable->data.priority	= priority;
+	flowtable->ops			= ops;
+	flowtable->ops_len		= n;
 
 	for (i = 0; i < n; i++) {
 		flowtable->ops[i].pf		= NFPROTO_NETDEV;
@@ -5969,7 +5969,7 @@ static int nf_tables_fill_flowtable_info(struct sk_buff *skb, struct net *net,
 	if (!nest)
 		goto nla_put_failure;
 	if (nla_put_be32(skb, NFTA_FLOWTABLE_HOOK_NUM, htonl(flowtable->hooknum)) ||
-	    nla_put_be32(skb, NFTA_FLOWTABLE_HOOK_PRIORITY, htonl(flowtable->priority)))
+	    nla_put_be32(skb, NFTA_FLOWTABLE_HOOK_PRIORITY, htonl(flowtable->data.priority)))
 		goto nla_put_failure;
 
 	nest_devs = nla_nest_start_noflag(skb, NFTA_FLOWTABLE_HOOK_DEVS);
