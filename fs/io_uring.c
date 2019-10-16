@@ -1944,8 +1944,9 @@ static int io_poll_add(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 {
 	struct io_ring_ctx *ctx;
-	struct io_kiocb *req, *prev;
+	struct io_kiocb *req;
 	unsigned long flags;
+	bool comp;
 
 	req = container_of(timer, struct io_kiocb, timeout.timer);
 	ctx = req->ctx;
@@ -1953,24 +1954,92 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 
 	spin_lock_irqsave(&ctx->completion_lock, flags);
 	/*
-	 * Adjust the reqs sequence before the current one because it
-	 * will consume a slot in the cq_ring and the the cq_tail pointer
-	 * will be increased, otherwise other timeout reqs may return in
-	 * advance without waiting for enough wait_nr.
+	 * We could be racing with timeout deletion. If the list is empty,
+	 * then timeout lookup already found it and will be handling it.
 	 */
-	prev = req;
-	list_for_each_entry_continue_reverse(prev, &ctx->timeout_list, list)
-		prev->sequence++;
-	list_del(&req->list);
+	comp = !list_empty(&req->list);
+	if (comp) {
+		struct io_kiocb *prev;
 
-	io_cqring_fill_event(ctx, req->user_data, -ETIME);
-	io_commit_cqring(ctx);
+		/*
+		 * Adjust the reqs sequence before the current one because it
+		 * will consume a slot in the cq_ring and the the cq_tail
+		 * pointer will be increased, otherwise other timeout reqs may
+		 * return in advance without waiting for enough wait_nr.
+		 */
+		prev = req;
+		list_for_each_entry_continue_reverse(prev, &ctx->timeout_list, list)
+			prev->sequence++;
+
+		list_del_init(&req->list);
+		io_cqring_fill_event(ctx, req->user_data, -ETIME);
+		io_commit_cqring(ctx);
+	}
 	spin_unlock_irqrestore(&ctx->completion_lock, flags);
 
+	if (comp) {
+		io_cqring_ev_posted(ctx);
+		io_put_req(req, NULL);
+	}
+	return HRTIMER_NORESTART;
+}
+
+/*
+ * Remove or update an existing timeout command
+ */
+static int io_timeout_remove(struct io_kiocb *req,
+			     const struct io_uring_sqe *sqe)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_kiocb *treq;
+	int ret = -ENOENT;
+	__u64 user_data;
+	unsigned flags;
+
+	if (unlikely(ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (sqe->flags || sqe->ioprio || sqe->buf_index || sqe->len)
+		return -EINVAL;
+	flags = READ_ONCE(sqe->timeout_flags);
+	if (flags)
+		return -EINVAL;
+
+	user_data = READ_ONCE(sqe->addr);
+	spin_lock_irq(&ctx->completion_lock);
+	list_for_each_entry(treq, &ctx->timeout_list, list) {
+		if (user_data == treq->user_data) {
+			list_del_init(&treq->list);
+			ret = 0;
+			break;
+		}
+	}
+
+	/* didn't find timeout */
+	if (ret) {
+fill_ev:
+		io_cqring_fill_event(ctx, req->user_data, ret);
+		io_commit_cqring(ctx);
+		spin_unlock_irq(&ctx->completion_lock);
+		io_cqring_ev_posted(ctx);
+		io_put_req(req, NULL);
+		return 0;
+	}
+
+	ret = hrtimer_try_to_cancel(&treq->timeout.timer);
+	if (ret == -1) {
+		ret = -EBUSY;
+		goto fill_ev;
+	}
+
+	io_cqring_fill_event(ctx, req->user_data, 0);
+	io_cqring_fill_event(ctx, treq->user_data, -ECANCELED);
+	io_commit_cqring(ctx);
+	spin_unlock_irq(&ctx->completion_lock);
 	io_cqring_ev_posted(ctx);
 
+	io_put_req(treq, NULL);
 	io_put_req(req, NULL);
-	return HRTIMER_NORESTART;
+	return 0;
 }
 
 static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -1993,6 +2062,13 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (get_timespec64(&ts, u64_to_user_ptr(sqe->addr)))
 		return -EFAULT;
+
+	if (flags & IORING_TIMEOUT_ABS)
+		mode = HRTIMER_MODE_ABS;
+	else
+		mode = HRTIMER_MODE_REL;
+
+	hrtimer_init(&req->timeout.timer, CLOCK_MONOTONIC, mode);
 
 	/*
 	 * sqe->off holds how many events that need to occur for this
@@ -2045,12 +2121,6 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	req->sequence -= span;
 	list_add(&req->list, entry);
 	spin_unlock_irq(&ctx->completion_lock);
-
-	if (flags & IORING_TIMEOUT_ABS)
-		mode = HRTIMER_MODE_ABS;
-	else
-		mode = HRTIMER_MODE_REL;
-	hrtimer_init(&req->timeout.timer, CLOCK_MONOTONIC, mode);
 	req->timeout.timer.function = io_timeout_fn;
 	hrtimer_start(&req->timeout.timer, timespec64_to_ktime(ts), mode);
 	return 0;
@@ -2136,6 +2206,9 @@ static int __io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		break;
 	case IORING_OP_TIMEOUT:
 		ret = io_timeout(req, s->sqe);
+		break;
+	case IORING_OP_TIMEOUT_REMOVE:
+		ret = io_timeout_remove(req, s->sqe);
 		break;
 	default:
 		ret = -EINVAL;
