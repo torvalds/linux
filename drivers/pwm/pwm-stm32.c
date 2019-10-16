@@ -493,20 +493,17 @@ static const struct pwm_ops stm32pwm_ops = {
 static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
 				    int index, int level, int filter)
 {
-	u32 bke = (index == 0) ? TIM_BDTR_BKE : TIM_BDTR_BK2E;
-	int shift = (index == 0) ? TIM_BDTR_BKF_SHIFT : TIM_BDTR_BK2F_SHIFT;
-	u32 mask = (index == 0) ? TIM_BDTR_BKE | TIM_BDTR_BKP | TIM_BDTR_BKF
-				: TIM_BDTR_BK2E | TIM_BDTR_BK2P | TIM_BDTR_BK2F;
-	u32 bdtr = bke;
+	u32 shift = TIM_BDTR_BKF_SHIFT(index);
+	u32 bke = TIM_BDTR_BKE(index);
+	u32 bkp = TIM_BDTR_BKP(index);
+	u32 bkf = TIM_BDTR_BKF(index);
+	u32 mask = bkf | bkp | bke;
+	u32 bdtr;
 
-	/*
-	 * The both bits could be set since only one will be wrote
-	 * due to mask value.
-	 */
+	bdtr = (filter & TIM_BDTR_BKF_MASK) << shift | bke;
+
 	if (level)
-		bdtr |= TIM_BDTR_BKP | TIM_BDTR_BK2P;
-
-	bdtr |= (filter & TIM_BDTR_BKF_MASK) << shift;
+		bdtr |= bkp;
 
 	regmap_update_bits(priv->regmap, TIM_BDTR, mask, bdtr);
 
