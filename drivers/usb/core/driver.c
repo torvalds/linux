@@ -818,13 +818,24 @@ static int usb_device_match(struct device *dev, struct device_driver *drv)
 {
 	/* devices and interfaces are handled separately */
 	if (is_usb_device(dev)) {
+		struct usb_device *udev;
+		struct usb_device_driver *udrv;
 
 		/* interface drivers never match devices */
 		if (!is_usb_device_driver(drv))
 			return 0;
 
-		/* TODO: Add real matching code */
-		return 1;
+		udev = to_usb_device(dev);
+		udrv = to_usb_device_driver(drv);
+
+		if (udrv->id_table &&
+		    usb_device_match_id(udev, udrv->id_table) != NULL) {
+			return 1;
+		}
+
+		if (udrv->match)
+			return udrv->match(udev);
+		return 0;
 
 	} else if (is_usb_interface(dev)) {
 		struct usb_interface *intf;

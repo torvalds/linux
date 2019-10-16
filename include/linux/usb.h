@@ -1237,6 +1237,7 @@ struct usb_driver {
 struct usb_device_driver {
 	const char *name;
 
+	bool (*match) (struct usb_device *udev);
 	int (*probe) (struct usb_device *udev);
 	void (*disconnect) (struct usb_device *udev);
 
@@ -1244,6 +1245,7 @@ struct usb_device_driver {
 	int (*resume) (struct usb_device *udev, pm_message_t message);
 	const struct attribute_group **dev_groups;
 	struct usbdrv_wrap drvwrap;
+	const struct usb_device_id *id_table;
 	unsigned int supports_autosuspend:1;
 	unsigned int generic_subclass:1;
 };

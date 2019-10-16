@@ -195,6 +195,34 @@ int usb_choose_configuration(struct usb_device *udev)
 }
 EXPORT_SYMBOL_GPL(usb_choose_configuration);
 
+static int __check_usb_generic(struct device_driver *drv, void *data)
+{
+	struct usb_device *udev = data;
+	struct usb_device_driver *udrv;
+
+	if (!is_usb_device_driver(drv))
+		return 0;
+	udrv = to_usb_device_driver(drv);
+	if (udrv == &usb_generic_driver)
+		return 0;
+	if (!udrv->id_table)
+		return 0;
+
+	return usb_device_match_id(udev, udrv->id_table) != NULL;
+}
+
+static bool usb_generic_driver_match(struct usb_device *udev)
+{
+	/*
+	 * If any other driver wants the device, leave the device to this other
+	 * driver.
+	 */
+	if (bus_for_each_drv(&usb_bus_type, NULL, udev, __check_usb_generic))
+		return false;
+
+	return true;
+}
+
 int usb_generic_driver_probe(struct usb_device *udev)
 {
 	int err, c;
@@ -285,6 +313,7 @@ int usb_generic_driver_resume(struct usb_device *udev, pm_message_t msg)
 
 struct usb_device_driver usb_generic_driver = {
 	.name =	"usb",
+	.match = usb_generic_driver_match,
 	.probe = usb_generic_driver_probe,
 	.disconnect = usb_generic_driver_disconnect,
 #ifdef	CONFIG_PM
