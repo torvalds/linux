@@ -1538,6 +1538,19 @@ err_hook_alloc:
 	return ERR_PTR(err);
 }
 
+static bool nft_hook_list_find(struct list_head *hook_list,
+			       const struct nft_hook *this)
+{
+	struct nft_hook *hook;
+
+	list_for_each_entry(hook, hook_list, list) {
+		if (this->ops.dev == hook->ops.dev)
+			return true;
+	}
+
+	return false;
+}
+
 static int nf_tables_parse_netdev_hooks(struct net *net,
 					const struct nlattr *attr,
 					struct list_head *hook_list)
@@ -1555,6 +1568,10 @@ static int nf_tables_parse_netdev_hooks(struct net *net,
 		hook = nft_netdev_hook_alloc(net, tmp);
 		if (IS_ERR(hook)) {
 			err = PTR_ERR(hook);
+			goto err_hook;
+		}
+		if (nft_hook_list_find(hook_list, hook)) {
+			err = -EEXIST;
 			goto err_hook;
 		}
 		list_add_tail(&hook->list, hook_list);
