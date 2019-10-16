@@ -2182,13 +2182,17 @@ retry:
 	}
 	base = ceph_ino(d_inode(temp));
 	rcu_read_unlock();
-	if (pos < 0 || read_seqretry(&rename_lock, seq)) {
-		pr_err("build_path did not end path lookup where "
-		       "expected, pos is %d\n", pos);
-		/* presumably this is only possible if racing with a
-		   rename of one of the parent directories (we can not
-		   lock the dentries above us to prevent this, but
-		   retrying should be harmless) */
+
+	if (read_seqretry(&rename_lock, seq))
+		goto retry;
+
+	if (pos < 0) {
+		/*
+		 * A rename didn't occur, but somehow we didn't end up where
+		 * we thought we would. Throw a warning and try again.
+		 */
+		pr_warn("build_path did not end path lookup where "
+			"expected, pos is %d\n", pos);
 		goto retry;
 	}
 
