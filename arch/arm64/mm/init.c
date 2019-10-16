@@ -212,7 +212,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 	struct memblock_region *reg;
 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
 	unsigned long max_dma32 = min;
-	unsigned long max_dma = min;
+	unsigned long __maybe_unused max_dma = min;
 
 	memset(zone_size, 0, sizeof(zone_size));
 
