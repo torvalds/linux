@@ -27,7 +27,8 @@ enum rockchip_combphy_rst {
 	PHY_POR_RSTN	= 1,
 	PHY_APB_RSTN	= 2,
 	PHY_PIPE_RSTN	= 3,
-	PHY_RESET_MAX	= 4,
+	PHY_GRF_P_RSTN  = 4,
+	PHY_RESET_MAX	= 5,
 };
 
 struct combphy_reg {
@@ -100,6 +101,8 @@ static const char *get_reset_name(enum rockchip_combphy_rst rst)
 		return "combphy-apb";
 	case PHY_PIPE_RSTN:
 		return "combphy-pipe";
+	case PHY_GRF_P_RSTN:
+		return "usb3phy_grf_p";
 	default:
 		return "invalid";
 	}
@@ -268,6 +271,11 @@ static int phy_pcie_init(struct rockchip_combphy_priv *priv)
 	int ret = 0;
 
 	grfcfg = &priv->cfg->grfcfg;
+
+	/* reset PCIe phy to default configuration */
+	reset_control_assert(priv->rsts[PHY_POR_RSTN]);
+	reset_control_assert(priv->rsts[PHY_APB_RSTN]);
+	reset_control_assert(priv->rsts[PHY_PIPE_RSTN]);
 
 	reset_control_deassert(priv->rsts[PHY_POR_RSTN]);
 	/* Wait PHY power on stable */
@@ -456,6 +464,15 @@ static int rockchip_combphy_exit(struct phy *phy)
 	 */
 	clk_disable_unprepare(priv->ref_clk);
 
+	priv->phy_initialized = false;
+
+	/* in case of waiting phy PLL lock timeout */
+	if (priv->phy_type == PHY_TYPE_PCIE) {
+		reset_control_assert(priv->rsts[PHY_GRF_P_RSTN]);
+		udelay(5);
+		reset_control_deassert(priv->rsts[PHY_GRF_P_RSTN]);
+	}
+
 	return 0;
 }
 
@@ -511,7 +528,8 @@ static int rockchip_combphy_power_off(struct phy *phy)
 
 	grfcfg = &priv->cfg->grfcfg;
 
-	if (priv->phy_type == PHY_TYPE_USB3) {
+	if (priv->phy_type == PHY_TYPE_USB3 ||
+	    priv->phy_type == PHY_TYPE_PCIE) {
 		/*
 		 * Check if lane 0 powerdown is already
 		 * controlled by grf and in P3 state.
@@ -784,6 +802,10 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 	}
 
 	if (priv->phy_type == PHY_TYPE_PCIE) {
+		/* turn on pcie phy pd */
+		writel(0x08400000, priv->mmio + 0x0);
+		writel(0x03030000, priv->mmio + 0x8);
+
 		/* Adjust Lane 0 Rx interface timing */
 		writel(0x20, priv->mmio + 0x20ac);
 		writel(0x12, priv->mmio + 0x20c8);
@@ -807,8 +829,8 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		writel(0xbc, priv->mmio + 0x45d4);
 
 		/* Boost pre-emphasis */
-		writel(0x8b, priv->mmio + 0x21b8);
-		writel(0x8b, priv->mmio + 0x31b8);
+		writel(0xaa, priv->mmio + 0x21b8);
+		writel(0xaa, priv->mmio + 0x31b8);
 	} else if (priv->phy_type == PHY_TYPE_USB3) {
 		/*
 		 * Disable PHY Lane 1 which isn't needed
@@ -889,7 +911,7 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 		 * largest swing and "0000" the smallest.
 		 */
 		reg = readl(priv->mmio + 0x21b8);
-		reg = (reg & ~0xf0) | 0xa0;
+		reg = (reg & ~0xf0) | 0xe0;
 		writel(reg, priv->mmio + 0x21b8);
 
 		/*
@@ -913,8 +935,39 @@ static int rk1808_combphy_cfg(struct rockchip_combphy_priv *priv)
 static int rk1808_combphy_low_power_control(struct rockchip_combphy_priv *priv,
 					    bool en)
 {
-	if (priv->phy_type != PHY_TYPE_USB3)
-		return -EINVAL;
+	if (priv->phy_type != PHY_TYPE_USB3) {
+		/* turn off pcie phy pd */
+		writel(0x08400840, priv->mmio + 0x0);
+		writel(0x03030303, priv->mmio + 0x8);
+
+		/* enter PCIe phy low power mode */
+		writel(0x36, priv->mmio + 0x2150);
+		writel(0x36, priv->mmio + 0x3150);
+		writel(0x02, priv->mmio + 0x21e8);
+		writel(0x02, priv->mmio + 0x31e8);
+		writel(0x0c, priv->mmio + 0x2080);
+		writel(0x0c, priv->mmio + 0x3080);
+		writel(0x08, priv->mmio + 0x20c0);
+		writel(0x08, priv->mmio + 0x30c0);
+		writel(0x08, priv->mmio + 0x2058);
+
+		writel(0x10, priv->mmio + 0x2044);
+		writel(0x10, priv->mmio + 0x21a8);
+		writel(0x10, priv->mmio + 0x31a8);
+		writel(0x08, priv->mmio + 0x2058);
+		writel(0x08, priv->mmio + 0x3058);
+		writel(0x40, priv->mmio + 0x205c);
+		writel(0x40, priv->mmio + 0x305c);
+		writel(0x08, priv->mmio + 0x2184);
+		writel(0x08, priv->mmio + 0x3184);
+		writel(0x00, priv->mmio + 0x2150);
+		writel(0x00, priv->mmio + 0x3150);
+		writel(0x10, priv->mmio + 0x20e0);
+		writel(0x00, priv->mmio + 0x21e8);
+		writel(0x00, priv->mmio + 0x31e8);
+
+		return 0;
+	}
 
 	if (en) {
 		/* Lane 0 tx_biasen disable */
