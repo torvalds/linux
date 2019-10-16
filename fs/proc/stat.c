@@ -124,7 +124,7 @@ static int show_stat(struct seq_file *p, void *v)
 
 		user += kcs->cpustat[CPUTIME_USER];
 		nice += kcs->cpustat[CPUTIME_NICE];
-		system += kcs->cpustat[CPUTIME_SYSTEM];
+		system += kcpustat_field(kcs, CPUTIME_SYSTEM, i);
 		idle += get_idle_time(kcs, i);
 		iowait += get_iowait_time(kcs, i);
 		irq += kcs->cpustat[CPUTIME_IRQ];
@@ -162,7 +162,7 @@ static int show_stat(struct seq_file *p, void *v)
 		/* Copy values here to work around gcc-2.95.3, gcc-2.96 */
 		user = kcs->cpustat[CPUTIME_USER];
 		nice = kcs->cpustat[CPUTIME_NICE];
-		system = kcs->cpustat[CPUTIME_SYSTEM];
+		system = kcpustat_field(kcs, CPUTIME_SYSTEM, i);
 		idle = get_idle_time(kcs, i);
 		iowait = get_iowait_time(kcs, i);
 		irq = kcs->cpustat[CPUTIME_IRQ];
