@@ -80,6 +80,7 @@ struct mt76x02_dev {
 	struct mutex phy_mutex;
 
 	u16 vif_mask;
+	u16 chainmask;
 
 	u8 txdone_seq;
 	DECLARE_KFIFO_PTR(txstatus_fifo, struct mt76x02_tx_status);

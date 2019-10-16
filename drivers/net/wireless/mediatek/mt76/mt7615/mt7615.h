@@ -85,6 +85,7 @@ struct mt7615_dev {
 		struct mt76_phy mphy;
 	};
 
+	u16 chainmask;
 	u32 vif_mask;
 	u32 omac_mask;
 

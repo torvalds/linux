@@ -192,10 +192,10 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 				IEEE80211_HT_CAP_LDPC_CODING;
 		dev->mphy.sband_5g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
-		dev->mt76.chainmask = 0x202;
+		dev->chainmask = 0x202;
 		dev->mt76.antenna_mask = 3;
 	} else {
-		dev->mt76.chainmask = 0x101;
+		dev->chainmask = 0x101;
 		dev->mt76.antenna_mask = 1;
 	}
 }

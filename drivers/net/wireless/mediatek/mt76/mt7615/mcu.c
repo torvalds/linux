@@ -1299,7 +1299,7 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 	} req = {
 		.control_chan = chandef->chan->hw_value,
 		.center_chan = ieee80211_frequency_to_channel(freq1),
-		.tx_streams = (dev->mt76.chainmask >> 8) & 0xf,
+		.tx_streams = (dev->chainmask >> 8) & 0xf,
 		.rx_streams_mask = dev->mt76.antenna_mask,
 		.center_chan2 = ieee80211_frequency_to_channel(freq2),
 	};

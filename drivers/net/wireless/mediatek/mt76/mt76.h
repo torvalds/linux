@@ -524,7 +524,6 @@ struct mt76_dev {
 	u32 aggr_stats[32];
 
 	u8 antenna_mask;
-	u16 chainmask;
 
 	struct tasklet_struct pre_tbtt_tasklet;
 	int beacon_int;
