@@ -552,13 +552,6 @@ static void drm_gem_vram_bo_driver_evict_flags(struct drm_gem_vram_object *gbo,
 	*pl = gbo->placement;
 }
 
-static int drm_gem_vram_bo_driver_verify_access(struct drm_gem_vram_object *gbo,
-						struct file *filp)
-{
-	return drm_vma_node_verify_access(&gbo->bo.base.vma_node,
-					  filp->private_data);
-}
-
 static void drm_gem_vram_bo_driver_move_notify(struct drm_gem_vram_object *gbo,
 					       bool evict,
 					       struct ttm_mem_reg *new_mem)
@@ -823,20 +816,6 @@ static void bo_driver_evict_flags(struct ttm_buffer_object *bo,
 	drm_gem_vram_bo_driver_evict_flags(gbo, placement);
 }
 
-static int bo_driver_verify_access(struct ttm_buffer_object *bo,
-				   struct file *filp)
-{
-	struct drm_gem_vram_object *gbo;
-
-	/* TTM may pass BOs that are not GEM VRAM BOs. */
-	if (!drm_is_gem_vram(bo))
-		return -EINVAL;
-
-	gbo = drm_gem_vram_of_bo(bo);
-
-	return drm_gem_vram_bo_driver_verify_access(gbo, filp);
-}
-
 static void bo_driver_move_notify(struct ttm_buffer_object *bo,
 				  bool evict,
 				  struct ttm_mem_reg *new_mem)
@@ -893,7 +872,6 @@ static struct ttm_bo_driver bo_driver = {
 	.init_mem_type = bo_driver_init_mem_type,
 	.eviction_valuable = ttm_bo_eviction_valuable,
 	.evict_flags = bo_driver_evict_flags,
-	.verify_access = bo_driver_verify_access,
 	.move_notify = bo_driver_move_notify,
 	.io_mem_reserve = bo_driver_io_mem_reserve,
 	.io_mem_free = bo_driver_io_mem_free,
