@@ -33,12 +33,12 @@ static inline bool context_tracking_enabled(void)
 
 static inline bool context_tracking_enabled_cpu(int cpu)
 {
-	return per_cpu(context_tracking.active, cpu);
+	return context_tracking_enabled() && per_cpu(context_tracking.active, cpu);
 }
 
 static inline bool context_tracking_enabled_this_cpu(void)
 {
-	return __this_cpu_read(context_tracking.active);
+	return context_tracking_enabled() && __this_cpu_read(context_tracking.active);
 }
 
 static inline bool context_tracking_in_user(void)

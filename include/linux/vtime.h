@@ -33,12 +33,12 @@ static inline bool vtime_accounting_enabled(void)
 
 static inline bool vtime_accounting_enabled_cpu(int cpu)
 {
-	return (vtime_accounting_enabled() && context_tracking_enabled_cpu(cpu));
+	return context_tracking_enabled_cpu(cpu);
 }
 
 static inline bool vtime_accounting_enabled_this_cpu(void)
 {
-	return (vtime_accounting_enabled() && context_tracking_enabled_this_cpu());
+	return context_tracking_enabled_this_cpu();
 }
 
 extern void vtime_task_switch_generic(struct task_struct *prev);
