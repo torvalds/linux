@@ -56,6 +56,8 @@ const struct exception_table_entry *search_exception_tables(unsigned long addr)
 	e = search_kernel_exception_table(addr);
 	if (!e)
 		e = search_module_extables(addr);
+	if (!e)
+		e = search_bpf_extables(addr);
 	return e;
 }
 

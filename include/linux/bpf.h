@@ -24,6 +24,7 @@ struct sock;
 struct seq_file;
 struct btf;
 struct btf_type;
+struct exception_table_entry;
 
 extern struct idr btf_idr;
 extern spinlock_t btf_idr_lock;
@@ -423,6 +424,8 @@ struct bpf_prog_aux {
 	 * main prog always has linfo_idx == 0
 	 */
 	u32 linfo_idx;
+	u32 num_exentries;
+	struct exception_table_entry *extable;
 	struct bpf_prog_stats __percpu *stats;
 	union {
 		struct work_struct work;

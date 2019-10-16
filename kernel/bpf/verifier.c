@@ -8729,6 +8729,7 @@ static int convert_ctx_accesses(struct bpf_verifier_env *env)
 				return -EINVAL;
 			}
 			insn->code = BPF_LDX | BPF_PROBE_MEM | BPF_SIZE((insn)->code);
+			env->prog->aux->num_exentries++;
 			continue;
 		default:
 			continue;
