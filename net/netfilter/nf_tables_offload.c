@@ -294,6 +294,16 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
 
 #define FLOW_SETUP_BLOCK TC_SETUP_BLOCK
 
+static int nft_flow_block_chain(struct nft_base_chain *basechain,
+				struct net_device *dev,
+				enum flow_block_command cmd)
+{
+	if (dev->netdev_ops->ndo_setup_tc)
+		return nft_block_offload_cmd(basechain, dev, cmd);
+
+	return nft_indr_block_offload_cmd(basechain, dev, cmd);
+}
+
 static int nft_flow_offload_chain(struct nft_chain *chain,
 				  u8 *ppolicy,
 				  enum flow_block_command cmd)
@@ -316,10 +326,7 @@ static int nft_flow_offload_chain(struct nft_chain *chain,
 	if (cmd == FLOW_BLOCK_BIND && policy == NF_DROP)
 		return -EOPNOTSUPP;
 
-	if (dev->netdev_ops->ndo_setup_tc)
-		return nft_block_offload_cmd(basechain, dev, cmd);
-	else
-		return nft_indr_block_offload_cmd(basechain, dev, cmd);
+	return nft_flow_block_chain(basechain, dev, cmd);
 }
 
 int nft_flow_rule_offload_commit(struct net *net)
