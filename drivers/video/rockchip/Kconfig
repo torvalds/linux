@@ -2,3 +2,4 @@
 source "drivers/video/rockchip/rga/Kconfig"
 source "drivers/video/rockchip/rga2/Kconfig"
 source "drivers/video/rockchip/iep/Kconfig"
+source "drivers/video/rockchip/mpp/Kconfig"
