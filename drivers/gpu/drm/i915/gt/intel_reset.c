@@ -715,7 +715,7 @@ static int gt_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 	for_each_engine(engine, gt->i915, id)
 		__intel_engine_reset(engine, stalled_mask & engine->mask);
 
-	i915_gem_restore_fences(gt->i915);
+	i915_gem_restore_fences(gt->ggtt);
 
 	return err;
 }
