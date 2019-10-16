@@ -213,6 +213,9 @@ static int __check_usb_generic(struct device_driver *drv, void *data)
 
 static bool usb_generic_driver_match(struct usb_device *udev)
 {
+	if (udev->use_generic_driver)
+		return true;
+
 	/*
 	 * If any other driver wants the device, leave the device to this other
 	 * driver.

@@ -270,7 +270,10 @@ static int usb_probe_device(struct device *dev)
 		return error;
 
 	error = udriver->probe(udev);
-	/* TODO: fallback to generic driver in case of error */
+	if (error == -ENODEV && udriver != &usb_generic_driver) {
+		udev->use_generic_driver = 1;
+		return -EPROBE_DEFER;
+	}
 	return error;
 }
 
