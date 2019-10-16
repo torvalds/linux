@@ -32,11 +32,15 @@ function die() {
 function push_config() {
 	DYNAMIC_DEBUG=$(grep '^kernel/livepatch' /sys/kernel/debug/dynamic_debug/control | \
 			awk -F'[: ]' '{print "file " $1 " line " $2 " " $4}')
+	FTRACE_ENABLED=$(sysctl --values kernel.ftrace_enabled)
 }
 
 function pop_config() {
 	if [[ -n "$DYNAMIC_DEBUG" ]]; then
 		echo -n "$DYNAMIC_DEBUG" > /sys/kernel/debug/dynamic_debug/control
+	fi
+	if [[ -n "$FTRACE_ENABLED" ]]; then
+		sysctl kernel.ftrace_enabled="$FTRACE_ENABLED" &> /dev/null
 	fi
 }
 
@@ -47,12 +51,20 @@ function set_dynamic_debug() {
 		EOF
 }
 
+function set_ftrace_enabled() {
+	local sysctl="$1"
+	result=$(sysctl kernel.ftrace_enabled="$1" 2>&1 | paste --serial --delimiters=' ')
+	echo "livepatch: $result" > /dev/kmsg
+}
+
 # setup_config - save the current config and set a script exit trap that
 #		 restores the original config.  Setup the dynamic debug
-#		 for verbose livepatching output.
+#		 for verbose livepatching output and turn on
+#		 the ftrace_enabled sysctl.
 function setup_config() {
 	push_config
 	set_dynamic_debug
+	set_ftrace_enabled 1
 	trap pop_config EXIT INT TERM HUP
 }
 
