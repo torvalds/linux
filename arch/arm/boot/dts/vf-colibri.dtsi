@@ -129,8 +129,11 @@
 
 &i2c0 {
 	clock-frequency = <400000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c0>;
+	pinctrl-1 = <&pinctrl_i2c0_gpio>;
+	scl-gpios = <&gpio1 4 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	sda-gpios = <&gpio1 5 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 };
 
 &nfc {
@@ -305,6 +308,13 @@
 			fsl,pins = <
 				VF610_PAD_PTB14__I2C0_SCL		0x37ff
 				VF610_PAD_PTB15__I2C0_SDA		0x37ff
+			>;
+		};
+
+		pinctrl_i2c0_gpio: i2c0gpiogrp {
+			fsl,pins = <
+				VF610_PAD_PTB14__GPIO_36		0x37ff
+				VF610_PAD_PTB15__GPIO_37		0x37ff
 			>;
 		};
 
