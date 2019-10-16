@@ -55,8 +55,6 @@ struct drm_dp_vcpi {
  * @num_sdp_stream_sinks: Number of stream sinks
  * @available_pbn: Available bandwidth for this port.
  * @next: link to next port on this branch device
- * @mstb: branch device on this port, protected by
- * &drm_dp_mst_topology_mgr.lock
  * @aux: i2c aux transport to talk to device connected to this port, protected
  * by &drm_dp_mst_topology_mgr.lock
  * @parent: branch device parent of this port
@@ -92,7 +90,17 @@ struct drm_dp_mst_port {
 	u8 num_sdp_stream_sinks;
 	uint16_t available_pbn;
 	struct list_head next;
-	struct drm_dp_mst_branch *mstb; /* pointer to an mstb if this port has one */
+	/**
+	 * @mstb: the branch device connected to this port, if there is one.
+	 * This should be considered protected for reading by
+	 * &drm_dp_mst_topology_mgr.lock. There are two exceptions to this:
+	 * &drm_dp_mst_topology_mgr.up_req_work and
+	 * &drm_dp_mst_topology_mgr.work, which do not grab
+	 * &drm_dp_mst_topology_mgr.lock during reads but are the only
+	 * updaters of this list and are protected from writing concurrently
+	 * by &drm_dp_mst_topology_mgr.probe_lock.
+	 */
+	struct drm_dp_mst_branch *mstb;
 	struct drm_dp_aux aux; /* i2c bus for this port? */
 	struct drm_dp_mst_branch *parent;
 
@@ -118,7 +126,6 @@ struct drm_dp_mst_port {
  * @lct: Link count total to talk to this branch device.
  * @num_ports: number of ports on the branch.
  * @msg_slots: one bit per transmitted msg slot.
- * @ports: linked list of ports on this branch.
  * @port_parent: pointer to the port parent, NULL if toplevel.
  * @mgr: topology manager for this branch device.
  * @tx_slots: transmission slots for this device.
@@ -156,6 +163,16 @@ struct drm_dp_mst_branch {
 	int num_ports;
 
 	int msg_slots;
+	/**
+	 * @ports: the list of ports on this branch device. This should be
+	 * considered protected for reading by &drm_dp_mst_topology_mgr.lock.
+	 * There are two exceptions to this:
+	 * &drm_dp_mst_topology_mgr.up_req_work and
+	 * &drm_dp_mst_topology_mgr.work, which do not grab
+	 * &drm_dp_mst_topology_mgr.lock during reads but are the only
+	 * updaters of this list and are protected from updating the list
+	 * concurrently by @drm_dp_mst_topology_mgr.probe_lock
+	 */
 	struct list_head ports;
 
 	/* list of tx ops queue for this port */
@@ -501,6 +518,13 @@ struct drm_dp_mst_topology_mgr {
 	 * @lock: protects mst state, primary, dpcd.
 	 */
 	struct mutex lock;
+
+	/**
+	 * @probe_lock: Prevents @work and @up_req_work, the only writers of
+	 * &drm_dp_mst_port.mstb and &drm_dp_mst_branch.ports, from racing
+	 * while they update the topology.
+	 */
+	struct mutex probe_lock;
 
 	/**
 	 * @mst_state: If this manager is enabled for an MST capable port. False

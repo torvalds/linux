@@ -2147,36 +2147,39 @@ static void drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *m
 					       struct drm_dp_mst_branch *mstb)
 {
 	struct drm_dp_mst_port *port;
-	struct drm_dp_mst_branch *mstb_child;
+
 	if (!mstb->link_address_sent)
 		drm_dp_send_link_address(mgr, mstb);
 
 	list_for_each_entry(port, &mstb->ports, next) {
-		if (port->input)
-			continue;
+		struct drm_dp_mst_branch *mstb_child = NULL;
 
-		if (!port->ddps)
+		if (port->input || !port->ddps)
 			continue;
 
 		if (!port->available_pbn)
 			drm_dp_send_enum_path_resources(mgr, mstb, port);
 
-		if (port->mstb) {
+		if (port->mstb)
 			mstb_child = drm_dp_mst_topology_get_mstb_validated(
 			    mgr, port->mstb);
-			if (mstb_child) {
-				drm_dp_check_and_send_link_address(mgr, mstb_child);
-				drm_dp_mst_topology_put_mstb(mstb_child);
-			}
+
+		if (mstb_child) {
+			drm_dp_check_and_send_link_address(mgr, mstb_child);
+			drm_dp_mst_topology_put_mstb(mstb_child);
 		}
 	}
 }
 
 static void drm_dp_mst_link_probe_work(struct work_struct *work)
 {
-	struct drm_dp_mst_topology_mgr *mgr = container_of(work, struct drm_dp_mst_topology_mgr, work);
+	struct drm_dp_mst_topology_mgr *mgr =
+		container_of(work, struct drm_dp_mst_topology_mgr, work);
+	struct drm_device *dev = mgr->dev;
 	struct drm_dp_mst_branch *mstb;
 	int ret;
+
+	mutex_lock(&mgr->probe_lock);
 
 	mutex_lock(&mgr->lock);
 	mstb = mgr->mst_primary;
@@ -2190,6 +2193,7 @@ static void drm_dp_mst_link_probe_work(struct work_struct *work)
 		drm_dp_check_and_send_link_address(mgr, mstb);
 		drm_dp_mst_topology_put_mstb(mstb);
 	}
+	mutex_unlock(&mgr->probe_lock);
 }
 
 static bool drm_dp_validate_guid(struct drm_dp_mst_topology_mgr *mgr,
@@ -3313,6 +3317,7 @@ static void drm_dp_mst_up_req_work(struct work_struct *work)
 			     up_req_work);
 	struct drm_dp_pending_up_req *up_req;
 
+	mutex_lock(&mgr->probe_lock);
 	while (true) {
 		mutex_lock(&mgr->up_req_lock);
 		up_req = list_first_entry_or_null(&mgr->up_req_list,
@@ -3328,6 +3333,7 @@ static void drm_dp_mst_up_req_work(struct work_struct *work)
 		drm_dp_mst_process_up_req(mgr, up_req);
 		kfree(up_req);
 	}
+	mutex_unlock(&mgr->probe_lock);
 }
 
 static int drm_dp_mst_handle_up_req(struct drm_dp_mst_topology_mgr *mgr)
@@ -4352,6 +4358,7 @@ int drm_dp_mst_topology_mgr_init(struct drm_dp_mst_topology_mgr *mgr,
 	mutex_init(&mgr->payload_lock);
 	mutex_init(&mgr->delayed_destroy_lock);
 	mutex_init(&mgr->up_req_lock);
+	mutex_init(&mgr->probe_lock);
 	INIT_LIST_HEAD(&mgr->tx_msg_downq);
 	INIT_LIST_HEAD(&mgr->destroy_port_list);
 	INIT_LIST_HEAD(&mgr->destroy_branch_device_list);
@@ -4417,6 +4424,7 @@ void drm_dp_mst_topology_mgr_destroy(struct drm_dp_mst_topology_mgr *mgr)
 	mutex_destroy(&mgr->qlock);
 	mutex_destroy(&mgr->lock);
 	mutex_destroy(&mgr->up_req_lock);
+	mutex_destroy(&mgr->probe_lock);
 }
 EXPORT_SYMBOL(drm_dp_mst_topology_mgr_destroy);
 
