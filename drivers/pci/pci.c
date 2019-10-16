@@ -1117,14 +1117,14 @@ int pci_set_power_state(struct pci_dev *dev, pci_power_t state)
 	if (dev->current_state == state)
 		return 0;
 
-	__pci_start_power_transition(dev, state);
-
 	/*
 	 * This device is quirked not to be put into D3, so don't put it in
 	 * D3
 	 */
 	if (state >= PCI_D3hot && (dev->dev_flags & PCI_DEV_FLAGS_NO_D3))
 		return 0;
+
+	__pci_start_power_transition(dev, state);
 
 	/*
 	 * To put device in D3cold, we put device into D3hot in native
