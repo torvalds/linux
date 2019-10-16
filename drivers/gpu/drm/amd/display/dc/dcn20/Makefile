@@ -10,13 +10,11 @@ ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
 DCN20 += dcn20_dsc.o
 endif
 
-ifneq ($(call cc-option, -mpreferred-stack-boundary=4),)
-	cc_stack_align := -mpreferred-stack-boundary=4
-else ifneq ($(call cc-option, -mstack-alignment=16),)
-	cc_stack_align := -mstack-alignment=16
-endif
+CFLAGS_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o := -mhard-float -msse
 
-CFLAGS_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o := -mhard-float -msse $(cc_stack_align)
+ifdef CONFIG_CC_IS_GCC
+CFLAGS_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o += -mpreferred-stack-boundary=4
+endif
 
 ifdef CONFIG_CC_IS_CLANG
 CFLAGS_$(AMDDALPATH)/dc/dcn20/dcn20_resource.o += -msse2

@@ -24,13 +24,11 @@
 # It provides the general basic services required by other DAL
 # subcomponents.
 
-ifneq ($(call cc-option, -mpreferred-stack-boundary=4),)
-	cc_stack_align := -mpreferred-stack-boundary=4
-else ifneq ($(call cc-option, -mstack-alignment=16),)
-	cc_stack_align := -mstack-alignment=16
-endif
+dml_ccflags := -mhard-float -msse
 
-dml_ccflags := -mhard-float -msse $(cc_stack_align)
+ifdef CONFIG_CC_IS_GCC
+dml_ccflags += -mpreferred-stack-boundary=4
+endif
 
 ifdef CONFIG_CC_IS_CLANG
 dml_ccflags += -msse2
