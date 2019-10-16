@@ -34,7 +34,7 @@ static inline bool vtime_accounting_enabled(void)
 static inline bool vtime_accounting_cpu_enabled(void)
 {
 	if (vtime_accounting_enabled()) {
-		if (context_tracking_cpu_is_enabled())
+		if (context_tracking_enabled_this_cpu())
 			return true;
 	}
 

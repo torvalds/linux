@@ -118,7 +118,7 @@ static inline void guest_enter_irqoff(void)
 	 * one time slice). Lets treat guest mode as quiescent state, just like
 	 * we do with user-mode execution.
 	 */
-	if (!context_tracking_cpu_is_enabled())
+	if (!context_tracking_enabled_this_cpu())
 		rcu_virt_note_context_switch(smp_processor_id());
 }
 
