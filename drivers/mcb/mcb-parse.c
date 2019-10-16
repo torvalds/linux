@@ -253,4 +253,4 @@ free_header:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(chameleon_parse_cells);
+EXPORT_SYMBOL_NS_GPL(chameleon_parse_cells, MCB);
