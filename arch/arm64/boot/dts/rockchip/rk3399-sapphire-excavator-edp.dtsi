@@ -98,11 +98,7 @@
 		status = "okay";
 	};
 
-	rt5651-sound {
-		status = "disabled";
-	};
-
-	hdmiin-sound {
+	hdmiin_sound: hdmiin-sound {
 		compatible = "rockchip,rockchip-rt5651-tc358749x-sound";
 		rockchip,cpu = <&i2s0>;
 		rockchip,codec = <&rt5651 &rt5651 &tc358749x>;
@@ -150,6 +146,10 @@
 
 &hdmi_dp_sound {
 	status = "okay";
+};
+
+&hdmiin_sound {
+	status = "disabled";
 };
 
 &dp_in_vopb {
@@ -444,6 +444,10 @@
 };
 
 &route_edp {
+	status = "okay";
+};
+
+&rt5651_sound {
 	status = "okay";
 };
 

@@ -45,7 +45,7 @@
 / {
 	compatible = "rockchip,rk3399-sapphire-excavator", "rockchip,rk3399";
 
-	rt5651-sound {
+	rt5651_sound: rt5651-sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,format = "i2s";
 		simple-audio-card,name = "realtek,rt5651-codec";
@@ -163,6 +163,13 @@
 	pinctrl-0 = <&spdif_bus>;
 	i2c-scl-rising-time-ns = <450>;
 	i2c-scl-falling-time-ns = <15>;
+	#sound-dai-cells = <0>;
+};
+
+&i2s0 {
+	status = "okay";
+	rockchip,playback-channels = <8>;
+	rockchip,capture-channels = <8>;
 	#sound-dai-cells = <0>;
 };
 
