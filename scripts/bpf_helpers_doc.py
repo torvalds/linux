@@ -489,7 +489,7 @@ class PrinterHelpers(Printer):
         if t in self.mapped_types:
             return self.mapped_types[t]
         print("")
-        print("Unrecognized type '%s', please add it to known types!" % t)
+        print("#error \"Unrecognized type '%s', please add it to known types!\"" % t)
         sys.exit(1)
 
     seen_helpers = set()
