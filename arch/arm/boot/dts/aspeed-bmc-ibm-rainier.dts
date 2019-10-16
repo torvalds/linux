@@ -49,6 +49,11 @@
 
 &i2c0 {
 	status = "okay";
+
+	eeprom@51 {
+		compatible = "atmel,24c64";
+		reg = <0x51>;
+	};
 };
 
 &i2c1 {
@@ -100,6 +105,21 @@
 		compatible = "ti,tmp275";
 		reg = <0x4a>;
 	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
+
+	eeprom@51 {
+		compatible = "atmel,24c64";
+		reg = <0x51>;
+	};
+
+	eeprom@52 {
+		compatible = "atmel,24c64";
+		reg = <0x52>;
+	};
 };
 
 &i2c5 {
@@ -113,6 +133,16 @@
 	tmp275@49 {
 		compatible = "ti,tmp275";
 		reg = <0x49>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
+
+	eeprom@51 {
+		compatible = "atmel,24c64";
+		reg = <0x51>;
 	};
 };
 
@@ -132,6 +162,26 @@
 	tmp275@4b {
 		compatible = "ti,tmp275";
 		reg = <0x4b>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
+
+	eeprom@51 {
+		compatible = "atmel,24c64";
+		reg = <0x51>;
+	};
+
+	eeprom@52 {
+		compatible = "atmel,24c64";
+		reg = <0x52>;
+	};
+
+	eeprom@53 {
+		compatible = "atmel,24c64";
+		reg = <0x53>;
 	};
 };
 
@@ -258,6 +308,16 @@
 		reg = <0x76>;
 		#io-channel-cells = <0>;
 	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
+
+	eeprom@51 {
+		compatible = "atmel,24c64";
+		reg = <0x51>;
+	};
 };
 
 &i2c8 {
@@ -291,6 +351,16 @@
 	tmp275@4a {
 		compatible = "ti,tmp275";
 		reg = <0x4a>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
+
+	eeprom@51 {
+		compatible = "atmel,24c64";
+		reg = <0x51>;
 	};
 };
 
@@ -336,6 +406,11 @@
 		compatible = "infineon,ir35221";
 		reg = <0x74>;
 	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
 };
 
 &i2c10 {
@@ -380,6 +455,11 @@
 		compatible = "infineon,ir35221";
 		reg = <0x74>;
 	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
 };
 
 &i2c11 {
@@ -393,6 +473,16 @@
 	tmp275@49 {
 		compatible = "ti,tmp275";
 		reg = <0x49>;
+	};
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
+
+	eeprom@51 {
+		compatible = "atmel,24c64";
+		reg = <0x51>;
 	};
 };
 
@@ -767,14 +857,29 @@
 
 &i2c13 {
 	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
 };
 
 &i2c14 {
 	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
 };
 
 &i2c15 {
 	status = "okay";
+
+	eeprom@50 {
+		compatible = "atmel,24c64";
+		reg = <0x50>;
+	};
 };
 
 &lpc_ctrl {
