@@ -147,3 +147,8 @@
 		spi-max-frequency = <100000000>;
 	};
 };
+
+&uart5 {
+	// Workaround for A0
+	compatible = "snps,dw-apb-uart";
+};
