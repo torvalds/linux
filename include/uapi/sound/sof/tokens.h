@@ -111,7 +111,10 @@
 /* TODO: Add SAI tokens */
 
 /* ESAI */
-#define SOF_TKN_IMX_ESAI_FIRST_TOKEN		1100
-/* TODO: Add ESAI tokens */
+#define SOF_TKN_IMX_ESAI_MCLK_ID		1100
+
+/* Led control for mute switches */
+#define SOF_TKN_MUTE_LED_USE			1300
+#define SOF_TKN_MUTE_LED_DIRECTION		1301
 
 #endif
