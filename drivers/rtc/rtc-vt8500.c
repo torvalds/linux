@@ -225,10 +225,9 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	vt8500_rtc->rtc = devm_rtc_device_register(&pdev->dev, "vt8500-rtc",
 					      &vt8500_rtc_ops, THIS_MODULE);
 	if (IS_ERR(vt8500_rtc->rtc)) {
-		ret = PTR_ERR(vt8500_rtc->rtc);
 		dev_err(&pdev->dev,
 			"Failed to register RTC device -> %d\n", ret);
-		goto err_return;
+		return PTR_ERR(vt8500_rtc->rtc);
 	}
 
 	ret = devm_request_irq(&pdev->dev, vt8500_rtc->irq_alarm,
@@ -236,13 +235,10 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can't get irq %i, err %d\n",
 			vt8500_rtc->irq_alarm, ret);
-		goto err_return;
+		return ret;
 	}
 
 	return 0;
-
-err_return:
-	return ret;
 }
 
 static int vt8500_rtc_remove(struct platform_device *pdev)
