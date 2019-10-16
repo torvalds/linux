@@ -396,6 +396,9 @@ void goya_get_fixed_properties(struct hl_device *hdev)
 	prop->tpc_enabled_mask = TPC_ENABLED_MASK;
 	prop->pcie_dbi_base_address = mmPCIE_DBI_BASE;
 	prop->pcie_aux_dbi_reg_addr = CFG_BASE + mmPCIE_AUX_DBI;
+
+	strncpy(prop->armcp_info.card_name, GOYA_DEFAULT_CARD_NAME,
+		CARD_NAME_MAX_LEN);
 }
 
 /*

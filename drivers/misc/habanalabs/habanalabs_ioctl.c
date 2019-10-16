@@ -63,8 +63,13 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	if (hw_ip.dram_size > 0)
 		hw_ip.dram_enabled = 1;
 	hw_ip.num_of_events = prop->num_of_events;
-	memcpy(hw_ip.armcp_version,
-		prop->armcp_info.armcp_version, VERSION_MAX_LEN);
+
+	memcpy(hw_ip.armcp_version, prop->armcp_info.armcp_version,
+		min(VERSION_MAX_LEN, HL_INFO_VERSION_MAX_LEN));
+
+	memcpy(hw_ip.card_name, prop->armcp_info.card_name,
+		min(CARD_NAME_MAX_LEN, HL_INFO_CARD_NAME_MAX_LEN));
+
 	hw_ip.armcp_cpld_version = le32_to_cpu(prop->armcp_info.cpld_version);
 	hw_ip.psoc_pci_pll_nr = prop->psoc_pci_pll_nr;
 	hw_ip.psoc_pci_pll_nf = prop->psoc_pci_pll_nf;

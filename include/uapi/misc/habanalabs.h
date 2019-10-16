@@ -109,6 +109,7 @@ enum hl_device_status {
 #define HL_INFO_CLK_RATE		8
 
 #define HL_INFO_VERSION_MAX_LEN	128
+#define HL_INFO_CARD_NAME_MAX_LEN	16
 
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -127,6 +128,7 @@ struct hl_info_hw_ip_info {
 	__u8 dram_enabled;
 	__u8 pad[2];
 	__u8 armcp_version[HL_INFO_VERSION_MAX_LEN];
+	__u8 card_name[HL_INFO_CARD_NAME_MAX_LEN];
 };
 
 struct hl_info_dram_usage {
