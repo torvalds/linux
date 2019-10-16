@@ -3803,8 +3803,11 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (HAS_PCH_TGP(dev_priv))
 		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK,
 					TGP_TC_HPD_ENABLE_MASK);
-	else if (HAS_PCH_MCC(dev_priv))
+	else if (HAS_PCH_JSP(dev_priv))
 		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK, 0);
+	else if (HAS_PCH_MCC(dev_priv))
+		icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
+					ICP_TC_HPD_ENABLE(PORT_TC1));
 	else
 		icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
 					ICP_TC_HPD_ENABLE_MASK);
