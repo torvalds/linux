@@ -17,6 +17,10 @@ description: |
 allOf:
   - $ref: input.yaml#
 
+anyOf:
+  - required: [ interrupts ]
+  - required: [ poll-interval ]
+
 properties:
   compatible:
     const: fsl,mpr121-touchkey
@@ -41,12 +45,12 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
   - vdd-supply
   - linux,keycodes
 
 examples:
   - |
+    // Example with interrupts
     #include "dt-bindings/input/input.h"
     i2c {
         #address-cells = <1>;
@@ -57,6 +61,25 @@ examples:
             reg = <0x5a>;
             interrupt-parent = <&gpio1>;
             interrupts = <28 2>;
+            autorepeat;
+            vdd-supply = <&ldo4_reg>;
+            linux,keycodes = <KEY_0>, <KEY_1>, <KEY_2>, <KEY_3>,
+                             <KEY_4>, <KEY_5>, <KEY_6>, <KEY_7>,
+                             <KEY_8>, <KEY_9>, <KEY_A>, <KEY_B>;
+        };
+    };
+
+  - |
+    // Example with polling
+    #include "dt-bindings/input/input.h"
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        mpr121@5a {
+            compatible = "fsl,mpr121-touchkey";
+            reg = <0x5a>;
+            poll-interval = <20>;
             autorepeat;
             vdd-supply = <&ldo4_reg>;
             linux,keycodes = <KEY_0>, <KEY_1>, <KEY_2>, <KEY_3>,

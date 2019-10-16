@@ -24,6 +24,10 @@ properties:
           minimum: 0
           maximum: 0xff
 
+  poll-interval:
+    description: Poll interval time in milliseconds.
+    $ref: /schemas/types.yaml#/definitions/uint32
+
   power-off-time-sec:
     description:
       Duration in seconds which the key should be kept pressed for device to
