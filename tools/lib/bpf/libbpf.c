@@ -4489,19 +4489,22 @@ void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 	prog->expected_attach_type = type;
 }
 
-#define BPF_PROG_SEC_IMPL(string, ptype, eatype, is_attachable, atype) \
-	{ string, sizeof(string) - 1, ptype, eatype, is_attachable, atype }
+#define BPF_PROG_SEC_IMPL(string, ptype, eatype, is_attachable, btf, atype) \
+	{ string, sizeof(string) - 1, ptype, eatype, is_attachable, btf, atype }
 
 /* Programs that can NOT be attached. */
-#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, 0, 0)
+#define BPF_PROG_SEC(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, 0, 0, 0)
 
 /* Programs that can be attached. */
 #define BPF_APROG_SEC(string, ptype, atype) \
-	BPF_PROG_SEC_IMPL(string, ptype, 0, 1, atype)
+	BPF_PROG_SEC_IMPL(string, ptype, 0, 1, 0, atype)
 
 /* Programs that must specify expected attach type at load time. */
 #define BPF_EAPROG_SEC(string, ptype, eatype) \
-	BPF_PROG_SEC_IMPL(string, ptype, eatype, 1, eatype)
+	BPF_PROG_SEC_IMPL(string, ptype, eatype, 1, 0, eatype)
+
+/* Programs that use BTF to identify attach point */
+#define BPF_PROG_BTF(string, ptype) BPF_PROG_SEC_IMPL(string, ptype, 0, 0, 1, 0)
 
 /* Programs that can be attached but attach type can't be identified by section
  * name. Kept for backward compatibility.
@@ -4513,7 +4516,8 @@ static const struct {
 	size_t len;
 	enum bpf_prog_type prog_type;
 	enum bpf_attach_type expected_attach_type;
-	int is_attachable;
+	bool is_attachable;
+	bool is_attach_btf;
 	enum bpf_attach_type attach_type;
 } section_names[] = {
 	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
@@ -4523,6 +4527,7 @@ static const struct {
 	BPF_PROG_SEC("action",			BPF_PROG_TYPE_SCHED_ACT),
 	BPF_PROG_SEC("tracepoint/",		BPF_PROG_TYPE_TRACEPOINT),
 	BPF_PROG_SEC("raw_tracepoint/",		BPF_PROG_TYPE_RAW_TRACEPOINT),
+	BPF_PROG_BTF("tp_btf/",			BPF_PROG_TYPE_RAW_TRACEPOINT),
 	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
 	BPF_PROG_SEC("lwt_in",			BPF_PROG_TYPE_LWT_IN),
@@ -4627,6 +4632,27 @@ int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			continue;
 		*prog_type = section_names[i].prog_type;
 		*expected_attach_type = section_names[i].expected_attach_type;
+		if (section_names[i].is_attach_btf) {
+			struct btf *btf = bpf_core_find_kernel_btf();
+			char raw_tp_btf_name[128] = "btf_trace_";
+			char *dst = raw_tp_btf_name + sizeof("btf_trace_") - 1;
+			int ret;
+
+			if (IS_ERR(btf)) {
+				pr_warning("vmlinux BTF is not found\n");
+				return -EINVAL;
+			}
+			/* prepend "btf_trace_" prefix per kernel convention */
+			strncat(dst, name + section_names[i].len,
+				sizeof(raw_tp_btf_name) - (dst - raw_tp_btf_name));
+			ret = btf__find_by_name(btf, raw_tp_btf_name);
+			btf__free(btf);
+			if (ret <= 0) {
+				pr_warning("%s is not found in vmlinux BTF\n", dst);
+				return -EINVAL;
+			}
+			*expected_attach_type = ret;
+		}
 		return 0;
 	}
 	pr_warning("failed to guess program type based on ELF section name '%s'\n", name);
