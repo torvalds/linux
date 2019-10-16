@@ -255,6 +255,8 @@ enum vtime_state {
 	VTIME_SYS,
 	/* Task runs in userspace in a CPU with VTIME active: */
 	VTIME_USER,
+	/* Task runs as guests in a CPU with VTIME active: */
+	VTIME_GUEST,
 };
 
 struct vtime {
