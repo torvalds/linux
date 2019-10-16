@@ -2079,18 +2079,38 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 {
 	struct drm_dp_mst_topology_mgr *mgr = mstb->mgr;
 	struct drm_dp_mst_port *port;
-	int old_ddps;
-	bool dowork = false;
+	int old_ddps, ret;
+	u8 new_pdt;
+	bool dowork = false, create_connector = false;
 
 	port = drm_dp_get_port(mstb, conn_stat->port_number);
 	if (!port)
 		return;
 
-	/* Locking is only needed if the port's exposed to userspace */
-	if (port->connector)
+	if (port->connector) {
+		if (!port->input && conn_stat->input_port) {
+			/*
+			 * We can't remove a connector from an already exposed
+			 * port, so just throw the port out and make sure we
+			 * reprobe the link address of it's parent MSTB
+			 */
+			drm_dp_mst_topology_unlink_port(mgr, port);
+			mstb->link_address_sent = false;
+			dowork = true;
+			goto out;
+		}
+
+		/* Locking is only needed if the port's exposed to userspace */
 		drm_modeset_lock(&mgr->base.lock, NULL);
+	} else if (port->input && !conn_stat->input_port) {
+		create_connector = true;
+		/* Reprobe link address so we get num_sdp_streams */
+		mstb->link_address_sent = false;
+		dowork = true;
+	}
 
 	old_ddps = port->ddps;
+	port->input = conn_stat->input_port;
 	port->mcs = conn_stat->message_capability_status;
 	port->ldps = conn_stat->legacy_device_plug_status;
 	port->ddps = conn_stat->displayport_device_plug_status;
@@ -2103,21 +2123,23 @@ drm_dp_mst_handle_conn_stat(struct drm_dp_mst_branch *mstb,
 		}
 	}
 
-	if (!port->input) {
-		int ret = drm_dp_port_set_pdt(port,
-					      conn_stat->peer_device_type);
-		if (ret == 1) {
-			dowork = true;
-		} else if (ret < 0) {
-			DRM_ERROR("Failed to change PDT for port %p: %d\n",
-				  port, ret);
-			dowork = false;
-		}
+	new_pdt = port->input ? DP_PEER_DEVICE_NONE : conn_stat->peer_device_type;
+
+	ret = drm_dp_port_set_pdt(port, new_pdt);
+	if (ret == 1) {
+		dowork = true;
+	} else if (ret < 0) {
+		DRM_ERROR("Failed to change PDT for port %p: %d\n",
+			  port, ret);
+		dowork = false;
 	}
 
 	if (port->connector)
 		drm_modeset_unlock(&mgr->base.lock);
+	else if (create_connector)
+		drm_dp_mst_port_add_connector(mstb, port);
 
+out:
 	drm_dp_mst_topology_put_port(port);
 	if (dowork)
 		queue_work(system_long_wq, &mstb->mgr->work);
