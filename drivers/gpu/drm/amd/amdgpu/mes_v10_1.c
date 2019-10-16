@@ -32,6 +32,7 @@
 #include "mes_api_def.h"
 
 MODULE_FIRMWARE("amdgpu/navi10_mes.bin");
+MODULE_FIRMWARE("amdgpu/sienna_cichlid_mes.bin");
 
 static int mes_v10_1_hw_fini(void *handle);
 
@@ -274,6 +275,9 @@ static int mes_v10_1_init_microcode(struct amdgpu_device *adev)
 	switch (adev->asic_type) {
 	case CHIP_NAVI10:
 		chip_name = "navi10";
+		break;
+	case CHIP_SIENNA_CICHLID:
+		chip_name = "sienna_cichlid";
 		break;
 	default:
 		BUG();
