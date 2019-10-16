@@ -634,6 +634,13 @@ static int genpd_power_on(struct generic_pm_domain *genpd, unsigned int depth)
 	return ret;
 }
 
+static int genpd_dev_pm_start(struct device *dev)
+{
+	struct generic_pm_domain *genpd = dev_to_genpd(dev);
+
+	return genpd_start_dev(genpd, dev);
+}
+
 static int genpd_dev_pm_qos_notifier(struct notifier_block *nb,
 				     unsigned long val, void *ptr)
 {
@@ -1805,6 +1812,7 @@ int pm_genpd_init(struct generic_pm_domain *genpd,
 	genpd->domain.ops.poweroff_noirq = genpd_poweroff_noirq;
 	genpd->domain.ops.restore_noirq = genpd_restore_noirq;
 	genpd->domain.ops.complete = genpd_complete;
+	genpd->domain.start = genpd_dev_pm_start;
 
 	if (genpd->flags & GENPD_FLAG_PM_CLK) {
 		genpd->dev_ops.stop = pm_clk_suspend;
