@@ -469,6 +469,16 @@ config KEYBOARD_IMX
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx_keypad.
 
+config KEYBOARD_IMX_SC_KEY
+	tristate "IMX SCU Key Driver"
+	depends on IMX_SCU
+	help
+	  This is the system controller key driver for NXP i.MX SoCs with
+	  system controller inside.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_sc_key.
+
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
 	select SERIO
