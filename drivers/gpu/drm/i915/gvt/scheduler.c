@@ -415,10 +415,9 @@ int intel_gvt_scan_and_shadow_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
 	struct intel_vgpu_submission *s = &vgpu->submission;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	int ret;
 
-	lockdep_assert_held(&dev_priv->drm.struct_mutex);
+	lockdep_assert_held(&vgpu->vgpu_lock);
 
 	if (workload->shadow)
 		return 0;
@@ -580,8 +579,6 @@ static void update_vreg_in_ctx(struct intel_vgpu_workload *workload)
 
 static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 {
-	struct intel_vgpu *vgpu = workload->vgpu;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_vgpu_shadow_bb *bb, *pos;
 
 	if (list_empty(&workload->shadow_bb))
@@ -589,8 +586,6 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 
 	bb = list_first_entry(&workload->shadow_bb,
 			struct intel_vgpu_shadow_bb, list);
-
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	list_for_each_entry_safe(bb, pos, &workload->shadow_bb, list) {
 		if (bb->obj) {
@@ -609,8 +604,6 @@ static void release_shadow_batch_buffer(struct intel_vgpu_workload *workload)
 		list_del(&bb->list);
 		kfree(bb);
 	}
-
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 }
 
 static int prepare_workload(struct intel_vgpu_workload *workload)
@@ -685,7 +678,6 @@ err_unpin_mm:
 static int dispatch_workload(struct intel_vgpu_workload *workload)
 {
 	struct intel_vgpu *vgpu = workload->vgpu;
-	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct i915_request *rq;
 	int ring_id = workload->ring_id;
 	int ret;
@@ -694,7 +686,6 @@ static int dispatch_workload(struct intel_vgpu_workload *workload)
 		ring_id, workload);
 
 	mutex_lock(&vgpu->vgpu_lock);
-	mutex_lock(&dev_priv->drm.struct_mutex);
 
 	ret = intel_gvt_workload_req_alloc(workload);
 	if (ret)
@@ -729,7 +720,6 @@ out:
 err_req:
 	if (ret)
 		workload->status = ret;
-	mutex_unlock(&dev_priv->drm.struct_mutex);
 	mutex_unlock(&vgpu->vgpu_lock);
 	return ret;
 }
@@ -1594,9 +1584,9 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 	 */
 	if (list_empty(workload_q_head(vgpu, ring_id))) {
 		intel_runtime_pm_get(&dev_priv->runtime_pm);
-		mutex_lock(&dev_priv->drm.struct_mutex);
+		mutex_lock(&vgpu->vgpu_lock);
 		ret = intel_gvt_scan_and_shadow_workload(workload);
-		mutex_unlock(&dev_priv->drm.struct_mutex);
+		mutex_unlock(&vgpu->vgpu_lock);
 		intel_runtime_pm_put_unchecked(&dev_priv->runtime_pm);
 	}
 
