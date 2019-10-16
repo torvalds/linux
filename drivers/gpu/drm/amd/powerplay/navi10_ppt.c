@@ -796,13 +796,13 @@ static int navi10_populate_umd_state_clk(struct smu_context *smu)
 	int ret = 0;
 	uint32_t min_sclk_freq = 0, min_mclk_freq = 0;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, &min_sclk_freq, NULL);
+	ret = smu_get_dpm_freq_range(smu, SMU_SCLK, &min_sclk_freq, NULL, false);
 	if (ret)
 		return ret;
 
 	smu->pstate_sclk = min_sclk_freq * 100;
 
-	ret = smu_get_dpm_freq_range(smu, SMU_MCLK, &min_mclk_freq, NULL);
+	ret = smu_get_dpm_freq_range(smu, SMU_MCLK, &min_mclk_freq, NULL, false);
 	if (ret)
 		return ret;
 
@@ -855,7 +855,7 @@ static int navi10_pre_display_config_changed(struct smu_context *smu)
 		return ret;
 
 	if (smu_feature_is_enabled(smu, SMU_FEATURE_DPM_UCLK_BIT)) {
-		ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &max_freq);
+		ret = smu_get_dpm_freq_range(smu, SMU_UCLK, NULL, &max_freq, false);
 		if (ret)
 			return ret;
 		ret = smu_set_hard_freq_range(smu, SMU_UCLK, 0, max_freq);
@@ -905,7 +905,7 @@ static int navi10_force_dpm_limit_value(struct smu_context *smu, bool highest)
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++) {
 		clk_type = clks[i];
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
+		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
 		if (ret)
 			return ret;
 
@@ -932,7 +932,7 @@ static int navi10_unforce_dpm_levels(struct smu_context *smu)
 
 	for (i = 0; i < ARRAY_SIZE(clks); i++) {
 		clk_type = clks[i];
-		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq);
+		ret = smu_get_dpm_freq_range(smu, clk_type, &min_freq, &max_freq, false);
 		if (ret)
 			return ret;
 
@@ -1267,7 +1267,10 @@ static int navi10_notify_smc_dispaly_config(struct smu_context *smu)
 	if (smu_feature_is_supported(smu, SMU_FEATURE_DPM_DCEFCLK_BIT)) {
 		clock_req.clock_type = amd_pp_dcef_clock;
 		clock_req.clock_freq_in_khz = min_clocks.dcef_clock * 10;
-		if (!smu_display_clock_voltage_request(smu, &clock_req)) {
+
+		if (smu->funcs->display_clock_voltage_request)
+			ret = smu->funcs->display_clock_voltage_request(smu, &clock_req);
+		if (!ret) {
 			if (smu_feature_is_supported(smu, SMU_FEATURE_DS_DCEFCLK_BIT)) {
 				ret = smu_send_smc_msg_with_param(smu,
 								  SMU_MSG_SetMinDeepSleepDcefclk,

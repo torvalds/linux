@@ -792,8 +792,11 @@ static int smu_v11_0_set_min_dcef_deep_sleep(struct smu_context *smu)
 	if (!table_context)
 		return -EINVAL;
 
-	return smu_set_deep_sleep_dcefclk(smu,
-					  table_context->boot_values.dcefclk / 100);
+	if (smu->funcs->set_deep_sleep_dcefclk)
+		return smu->funcs->set_deep_sleep_dcefclk(smu,
+				table_context->boot_values.dcefclk / 100);
+
+	return 0;
 }
 
 static int smu_v11_0_set_tool_table_location(struct smu_context *smu)
@@ -1308,9 +1311,7 @@ smu_v11_0_display_clock_voltage_request(struct smu_context *smu,
 		if (clk_select == SMU_UCLK && smu->disable_uclk_switch)
 			return 0;
 
-		mutex_lock(&smu->mutex);
 		ret = smu_set_hard_freq_range(smu, clk_select, clk_freq, 0);
-		mutex_unlock(&smu->mutex);
 
 		if(clk_select == SMU_UCLK)
 			smu->hard_min_uclk_req_from_dal = clk_freq;
@@ -1333,12 +1334,10 @@ static int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	case CHIP_NAVI12:
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
-		mutex_lock(&smu->mutex);
 		if (enable)
 			ret = smu_send_smc_msg(smu, SMU_MSG_AllowGfxOff);
 		else
 			ret = smu_send_smc_msg(smu, SMU_MSG_DisallowGfxOff);
-		mutex_unlock(&smu->mutex);
 		break;
 	default:
 		break;
@@ -1454,10 +1453,9 @@ static int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 	if (!speed)
 		return -EINVAL;
 
-	mutex_lock(&(smu->mutex));
 	ret = smu_v11_0_auto_fan_control(smu, 0);
 	if (ret)
-		goto set_fan_speed_rpm_failed;
+		return ret;
 
 	crystal_clock_freq = amdgpu_asic_get_xclk(adev);
 	tach_period = 60 * crystal_clock_freq * 10000 / (8 * speed);
@@ -1468,8 +1466,6 @@ static int smu_v11_0_set_fan_speed_rpm(struct smu_context *smu,
 
 	ret = smu_v11_0_set_fan_static_mode(smu, FDO_PWM_MODE_STATIC_RPM);
 
-set_fan_speed_rpm_failed:
-	mutex_unlock(&(smu->mutex));
 	return ret;
 }
 
@@ -1480,11 +1476,9 @@ static int smu_v11_0_set_xgmi_pstate(struct smu_context *smu,
 				     uint32_t pstate)
 {
 	int ret = 0;
-	mutex_lock(&(smu->mutex));
 	ret = smu_send_smc_msg_with_param(smu,
 					  SMU_MSG_SetXgmiMode,
 					  pstate ? XGMI_STATE_D0 : XGMI_STATE_D3);
-	mutex_unlock(&(smu->mutex));
 	return ret;
 }
 
@@ -1597,9 +1591,7 @@ static int smu_v11_0_set_azalia_d3_pme(struct smu_context *smu)
 {
 	int ret = 0;
 
-	mutex_lock(&smu->mutex);
 	ret = smu_send_smc_msg(smu, SMU_MSG_BacoAudioD3PME);
-	mutex_unlock(&smu->mutex);
 
 	return ret;
 }
@@ -1696,7 +1688,6 @@ static int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 	int ret = 0, clk_id = 0;
 	uint32_t param = 0;
 
-	mutex_lock(&smu->mutex);
 	clk_id = smu_clk_get_index(smu, clk_type);
 	if (clk_id < 0) {
 		ret = -EINVAL;
@@ -1723,7 +1714,6 @@ static int smu_v11_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 	}
 
 failed:
-	mutex_unlock(&smu->mutex);
 	return ret;
 }
 

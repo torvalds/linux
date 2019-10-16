@@ -316,8 +316,6 @@ static int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 	int ret = 0;
 	uint32_t mclk_mask, soc_mask;
 
-	mutex_lock(&smu->mutex);
-
 	if (max) {
 		ret = smu_get_profiling_clk_mask(smu, AMD_DPM_FORCED_LEVEL_PROFILE_PEAK,
 						 NULL,
@@ -387,7 +385,6 @@ static int smu_v12_0_get_dpm_ultimate_freq(struct smu_context *smu, enum smu_clk
 		}
 	}
 failed:
-	mutex_unlock(&smu->mutex);
 	return ret;
 }
 

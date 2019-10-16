@@ -865,7 +865,7 @@ enum pp_smu_status pp_nv_get_maximum_sustainable_clocks(
 	if (!smu->funcs->get_max_sustainable_clocks_by_dc)
 		return PP_SMU_RESULT_UNSUPPORTED;
 
-	if (!smu->funcs->get_max_sustainable_clocks_by_dc(smu, max_clocks))
+	if (!smu_get_max_sustainable_clocks_by_dc(smu, max_clocks))
 		return PP_SMU_RESULT_OK;
 
 	return PP_SMU_RESULT_FAIL;
@@ -884,7 +884,7 @@ enum pp_smu_status pp_nv_get_uclk_dpm_states(struct pp_smu *pp,
 	if (!smu->ppt_funcs->get_uclk_dpm_states)
 		return PP_SMU_RESULT_UNSUPPORTED;
 
-	if (!smu->ppt_funcs->get_uclk_dpm_states(smu,
+	if (!smu_get_uclk_dpm_states(smu,
 			clock_values_in_khz, num_states))
 		return PP_SMU_RESULT_OK;
 
@@ -905,7 +905,7 @@ enum pp_smu_status pp_rn_get_dpm_clock_table(
 	if (!smu->ppt_funcs->get_dpm_clock_table)
 		return PP_SMU_RESULT_UNSUPPORTED;
 
-	if (!smu->ppt_funcs->get_dpm_clock_table(smu, clock_table))
+	if (!smu_get_dpm_clock_table(smu, clock_table))
 		return PP_SMU_RESULT_OK;
 
 	return PP_SMU_RESULT_FAIL;

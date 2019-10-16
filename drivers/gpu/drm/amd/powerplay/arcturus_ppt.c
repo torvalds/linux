@@ -763,8 +763,6 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 	uint32_t soft_min_level, soft_max_level;
 	int ret = 0;
 
-	mutex_lock(&(smu->mutex));
-
 	soft_min_level = mask ? (ffs(mask) - 1) : 0;
 	soft_max_level = mask ? (fls(mask) - 1) : 0;
 
@@ -883,7 +881,6 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 		break;
 	}
 
-	mutex_unlock(&(smu->mutex));
 	return ret;
 }
 
