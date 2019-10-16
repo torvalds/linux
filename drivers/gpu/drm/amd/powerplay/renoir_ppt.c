@@ -640,6 +640,39 @@ static int renoir_set_watermarks_table(
 	return ret;
 }
 
+static int renoir_get_power_profile_mode(struct smu_context *smu,
+					   char *buf)
+{
+	static const char *profile_name[] = {
+					"BOOTUP_DEFAULT",
+					"3D_FULL_SCREEN",
+					"POWER_SAVING",
+					"VIDEO",
+					"VR",
+					"COMPUTE",
+					"CUSTOM"};
+	uint32_t i, size = 0;
+	int16_t workload_type = 0;
+
+	if (!smu->pm_enabled || !buf)
+		return -EINVAL;
+
+	for (i = 0; i <= PP_SMC_POWER_PROFILE_CUSTOM; i++) {
+		/*
+		 * Conv PP_SMC_POWER_PROFILE* to WORKLOAD_PPLIB_*_BIT
+		 * Not all profile modes are supported on arcturus.
+		 */
+		workload_type = smu_workload_get_type(smu, i);
+		if (workload_type < 0)
+			continue;
+
+		size += sprintf(buf + size, "%2d %14s%s\n",
+			i, profile_name[i], (i == smu->power_profile_mode) ? "*" : " ");
+	}
+
+	return size;
+}
+
 static const struct pptable_funcs renoir_ppt_funcs = {
 	.get_smu_msg_index = renoir_get_smu_msg_index,
 	.get_smu_table_index = renoir_get_smu_table_index,
@@ -658,6 +691,7 @@ static const struct pptable_funcs renoir_ppt_funcs = {
 	.set_performance_level = renoir_set_performance_level,
 	.get_dpm_clock_table = renoir_get_dpm_clock_table,
 	.set_watermarks_table = renoir_set_watermarks_table,
+	.get_power_profile_mode = renoir_get_power_profile_mode,
 };
 
 void renoir_set_ppt_funcs(struct smu_context *smu)
