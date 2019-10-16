@@ -172,6 +172,31 @@
 		rst_gpio_number = <&gpio4 22 GPIO_ACTIVE_HIGH>;
 	};
 
+	sgm3784: sgm3784@30 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "sgmicro,gsm3784";
+		reg = <0x30>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		enable-gpio = <&gpio2 RK_PB4 GPIO_ACTIVE_HIGH>;
+		strobe-gpio = <&gpio1 RK_PA3 GPIO_ACTIVE_HIGH>;
+		status = "okay";
+		sgm3784_led0: led@0 {
+			reg = <0x0>;
+			led-max-microamp = <299200>;
+			flash-max-microamp = <1122000>;
+			flash-max-timeout-us = <1600000>;
+		};
+
+		sgm3784_led1: led@1 {
+			reg = <0x1>;
+			led-max-microamp = <299200>;
+			flash-max-microamp = <1122000>;
+			flash-max-timeout-us = <1600000>;
+		};
+	};
+
 	tc358749x: tc358749x@0f {
 		compatible = "toshiba,tc358749x";
 		reg = <0x0f>;
@@ -185,6 +210,39 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmiin_gpios>;
 		status = "disabled";
+	};
+
+	vm149c: vm149c@0c {
+		compatible = "silicon touch,vm149c";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	gc2145: gc2145@3c{
+		status = "okay";
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cif_clkout>;
+
+		clocks = <&cru SCLK_CIF_OUT>;
+		clock-names = "xvclk";
+
+		/* avdd-supply = <>; */
+		/* dvdd-supply = <>; */
+		/* dovdd-supply = <>; */
+		pwdn-gpios = <&gpio2 28 GPIO_ACTIVE_HIGH>;	//ok
+		rockchip,camera-module-index = <1>;
+		rockchip,camera-module-facing = "front";
+		rockchip,camera-module-name = "CameraKing";
+		rockchip,camera-module-lens-name = "Largan";
+		port {
+			gc2145_out: endpoint {
+				remote-endpoint = <&dvp_in_fcam>;
+			};
+		};
 	};
 
 	ov13850: ov13850@10 {
@@ -205,6 +263,8 @@
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "CMK-CT0116";
 		rockchip,camera-module-lens-name = "Largan-50013A1";
+		lens-focus = <&vm149c>;
+		flash-leds = <&sgm3784_led0 &sgm3784_led1>;
 		port {
 			ucam_out0: endpoint {
 				remote-endpoint = <&mipi_in_ucam0>;
@@ -375,6 +435,10 @@
 		isp1_mipi_in: endpoint@0 {
 			reg = <0>;
 			remote-endpoint = <&dphy_tx1rx1_out>;
+		};
+		dvp_in_fcam: endpoint@1 {
+			reg = <1>;
+			remote-endpoint = <&gc2145_out>;
 		};
 	};
 };
