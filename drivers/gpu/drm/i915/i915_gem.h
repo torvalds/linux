@@ -112,4 +112,18 @@ static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
 	return test_bit(TASKLET_STATE_SCHED, &t->state);
 }
 
+static inline void cancel_timer(struct timer_list *t)
+{
+	if (!READ_ONCE(t->expires))
+		return;
+
+	del_timer(t);
+	WRITE_ONCE(t->expires, 0);
+}
+
+static inline bool timer_expired(const struct timer_list *t)
+{
+	return READ_ONCE(t->expires) && !timer_pending(t);
+}
+
 #endif /* __I915_GEM_H__ */

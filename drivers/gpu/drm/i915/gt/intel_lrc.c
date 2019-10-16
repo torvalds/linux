@@ -1473,7 +1473,7 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			last->hw_context->lrc_desc |= CTX_DESC_FORCE_RESTORE;
 			last = NULL;
 		} else if (need_timeslice(engine, last) &&
-			   !timer_pending(&engine->execlists.timer)) {
+			   timer_expired(&engine->execlists.timer)) {
 			GEM_TRACE("%s: expired last=%llx:%lld, prio=%d, hint=%d\n",
 				  engine->name,
 				  last->fence.context,
@@ -1932,6 +1932,8 @@ static void process_csb(struct intel_engine_cs *engine)
 
 			if (enable_timeslice(execlists))
 				mod_timer(&execlists->timer, jiffies + 1);
+			else
+				cancel_timer(&execlists->timer);
 
 			WRITE_ONCE(execlists->pending[0], NULL);
 		} else {
@@ -3452,7 +3454,7 @@ gen12_emit_fini_breadcrumb_rcs(struct i915_request *request, u32 *cs)
 
 static void execlists_park(struct intel_engine_cs *engine)
 {
-	del_timer(&engine->execlists.timer);
+	cancel_timer(&engine->execlists.timer);
 }
 
 void intel_execlists_set_default_submission(struct intel_engine_cs *engine)
