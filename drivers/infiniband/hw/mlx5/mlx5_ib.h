@@ -585,6 +585,9 @@ struct mlx5_ib_dm {
 					  IB_ACCESS_REMOTE_READ   |\
 					  IB_ZERO_BASED)
 
+#define mlx5_update_odp_stats(mr, counter_name, value)		\
+	atomic64_add(value, &((mr)->odp_stats.counter_name))
+
 struct mlx5_ib_mr {
 	struct ib_mr		ibmr;
 	void			*descs;
@@ -622,6 +625,7 @@ struct mlx5_ib_mr {
 	wait_queue_head_t       q_leaf_free;
 	struct mlx5_async_work  cb_work;
 	atomic_t		num_pending_prefetch;
+	struct ib_odp_counters	odp_stats;
 };
 
 static inline bool is_odp_mr(struct mlx5_ib_mr *mr)
