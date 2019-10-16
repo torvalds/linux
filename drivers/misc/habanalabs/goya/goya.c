@@ -1539,7 +1539,6 @@ static void goya_init_mme_cmdq(struct hl_device *hdev)
 	u32 mtr_base_lo, mtr_base_hi;
 	u32 so_base_lo, so_base_hi;
 	u32 gic_base_lo, gic_base_hi;
-	u64 qman_base_addr;
 
 	mtr_base_lo = lower_32_bits(CFG_BASE + mmSYNC_MNGR_MON_PAY_ADDRL_0);
 	mtr_base_hi = upper_32_bits(CFG_BASE + mmSYNC_MNGR_MON_PAY_ADDRL_0);
@@ -1550,9 +1549,6 @@ static void goya_init_mme_cmdq(struct hl_device *hdev)
 		lower_32_bits(CFG_BASE + mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR);
 	gic_base_hi =
 		upper_32_bits(CFG_BASE + mmGIC_DISTRIBUTOR__5_GICD_SETSPI_NSR);
-
-	qman_base_addr = hdev->asic_prop.sram_base_address +
-				MME_QMAN_BASE_OFFSET;
 
 	WREG32(mmMME_CMDQ_CP_MSG_BASE0_ADDR_LO, mtr_base_lo);
 	WREG32(mmMME_CMDQ_CP_MSG_BASE0_ADDR_HI, mtr_base_hi);
