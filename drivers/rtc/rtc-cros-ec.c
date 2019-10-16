@@ -351,11 +351,8 @@ static int cros_ec_rtc_probe(struct platform_device *pdev)
 	cros_ec_rtc->rtc = devm_rtc_device_register(&pdev->dev, DRV_NAME,
 						    &cros_ec_rtc_ops,
 						    THIS_MODULE);
-	if (IS_ERR(cros_ec_rtc->rtc)) {
-		ret = PTR_ERR(cros_ec_rtc->rtc);
-		dev_err(&pdev->dev, "failed to register rtc device\n");
-		return ret;
-	}
+	if (IS_ERR(cros_ec_rtc->rtc))
+		return PTR_ERR(cros_ec_rtc->rtc);
 
 	/* Get RTC events from the EC. */
 	cros_ec_rtc->notifier.notifier_call = cros_ec_rtc_event;
