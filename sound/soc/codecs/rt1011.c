@@ -2328,8 +2328,12 @@ static void rt1011_calibration_work(struct work_struct *work)
 	struct rt1011_priv *rt1011 =
 		container_of(work, struct rt1011_priv, cali_work);
 	struct snd_soc_component *component = rt1011->component;
+	unsigned int r0_integer, r0_factor, format;
 
-	rt1011_calibrate(rt1011, 1);
+	if (rt1011->r0_calib)
+		rt1011_calibrate(rt1011, 0);
+	else
+		rt1011_calibrate(rt1011, 1);
 
 	/*
 	 * This flag should reset after booting.
@@ -2340,6 +2344,39 @@ static void rt1011_calibration_work(struct work_struct *work)
 
 	/* initial */
 	rt1011_reg_init(component);
+
+	/* Apply temperature and calibration data from device property */
+	if (rt1011->temperature_calib) {
+		snd_soc_component_update_bits(component,
+			RT1011_STP_INITIAL_RESISTANCE_TEMP, 0x3ff,
+			(rt1011->temperature_calib << 2));
+	}
+
+	if (rt1011->r0_calib) {
+		rt1011->r0_reg = rt1011->r0_calib;
+
+		format = 2147483648U; /* 2^24 * 128 */
+		r0_integer = format / rt1011->r0_reg / 128;
+		r0_factor = ((format / rt1011->r0_reg * 100) / 128)
+						- (r0_integer * 100);
+		dev_info(component->dev,	"DP r0 resistance about %d.%02d ohm, reg=0x%X\n",
+			r0_integer, r0_factor, rt1011->r0_reg);
+
+		rt1011_r0_load(rt1011);
+	}
+}
+
+static int rt1011_parse_dp(struct rt1011_priv *rt1011, struct device *dev)
+{
+	device_property_read_u32(dev, "realtek,temperature_calib",
+		&rt1011->temperature_calib);
+	device_property_read_u32(dev, "realtek,r0_calib",
+		&rt1011->r0_calib);
+
+	dev_dbg(dev, "%s: r0_calib: 0x%x, temperture_calib: 0x%x",
+		__func__, rt1011->r0_calib, rt1011->temperature_calib);
+
+	return 0;
 }
 
 static int rt1011_i2c_probe(struct i2c_client *i2c,
@@ -2355,6 +2392,8 @@ static int rt1011_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	i2c_set_clientdata(i2c, rt1011);
+
+	rt1011_parse_dp(rt1011, &i2c->dev);
 
 	rt1011->regmap = devm_regmap_init_i2c(i2c, &rt1011_regmap);
 	if (IS_ERR(rt1011->regmap)) {

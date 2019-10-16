@@ -690,6 +690,7 @@ struct rt1011_priv {
 
 	int bq_drc_set;
 	unsigned int r0_reg, cali_done;
+	unsigned int r0_calib, temperature_calib;
 	int recv_spk_mode;
 };
 
