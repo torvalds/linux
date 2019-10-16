@@ -1607,8 +1607,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	spin_unlock_irqrestore(&ictx->kc_lock, flags);
 
 	/* send touchscreen events through input subsystem if touchpad data */
-	if (ictx->display_type == IMON_DISPLAY_TYPE_VGA && len == 8 &&
-	    buf[7] == 0x86) {
+	if (ictx->touch && len == 8 && buf[7] == 0x86) {
 		imon_touch_event(ictx, buf);
 		return;
 
