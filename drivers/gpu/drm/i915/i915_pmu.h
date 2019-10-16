@@ -47,6 +47,10 @@ struct i915_pmu {
 	 */
 	struct pmu base;
 	/**
+	 * @name: Name as registered with perf core.
+	 */
+	const char *name;
+	/**
 	 * @lock: Lock protecting enable mask and ref count handling.
 	 */
 	spinlock_t lock;
