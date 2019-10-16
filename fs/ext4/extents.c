@@ -5005,6 +5005,7 @@ int ext4_convert_unwritten_extents(handle_t *handle, struct inode *inode,
 int ext4_convert_unwritten_io_end_vec(handle_t *handle, ext4_io_end_t *io_end)
 {
 	int ret, err = 0;
+	struct ext4_io_end_vec *io_end_vec;
 
 	/*
 	 * This is somewhat ugly but the idea is clear: When transaction is
@@ -5018,8 +5019,14 @@ int ext4_convert_unwritten_io_end_vec(handle_t *handle, ext4_io_end_t *io_end)
 			return PTR_ERR(handle);
 	}
 
-	ret = ext4_convert_unwritten_extents(handle, io_end->inode,
-					     io_end->offset, io_end->size);
+	list_for_each_entry(io_end_vec, &io_end->list_vec, list) {
+		ret = ext4_convert_unwritten_extents(handle, io_end->inode,
+						     io_end_vec->offset,
+						     io_end_vec->size);
+		if (ret)
+			break;
+	}
+
 	if (handle)
 		err = ext4_journal_stop(handle);
 

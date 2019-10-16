@@ -2364,6 +2364,9 @@ static int mpage_process_page(struct mpage_da_data *mpd, struct page *page,
 	ext4_lblk_t lblk = *m_lblk;
 	ext4_fsblk_t pblock = *m_pblk;
 	int err = 0;
+	int blkbits = mpd->inode->i_blkbits;
+	ssize_t io_end_size = 0;
+	struct ext4_io_end_vec *io_end_vec = ext4_last_io_end_vec(io_end);
 
 	bh = head = page_buffers(page);
 	do {
@@ -2376,17 +2379,16 @@ static int mpage_process_page(struct mpage_da_data *mpd, struct page *page,
 			 */
 			mpd->map.m_len = 0;
 			mpd->map.m_flags = 0;
+			io_end_vec->size += io_end_size;
+			io_end_size = 0;
 
-			/*
-			 * FIXME: If dioread_nolock supports
-			 * blocksize < pagesize, we need to make
-			 * sure we add size mapped so far to
-			 * io_end->size as the following call
-			 * can submit the page for IO.
-			 */
 			err = mpage_process_page_bufs(mpd, head, bh, lblk);
 			if (err > 0)
 				err = 0;
+			if (!err && mpd->map.m_len && mpd->map.m_lblk > lblk) {
+				io_end_vec = ext4_alloc_io_end_vec(io_end);
+				io_end_vec->offset = mpd->map.m_lblk << blkbits;
+			}
 			*map_bh = true;
 			goto out;
 		}
@@ -2395,13 +2397,11 @@ static int mpage_process_page(struct mpage_da_data *mpd, struct page *page,
 			bh->b_blocknr = pblock++;
 		}
 		clear_buffer_unwritten(bh);
+		io_end_size += (1 << blkbits);
 	} while (lblk++, (bh = bh->b_this_page) != head);
-	/*
-	 * FIXME: This is going to break if dioread_nolock
-	 * supports blocksize < pagesize as we will try to
-	 * convert potentially unmapped parts of inode.
-	 */
-	io_end->size += PAGE_SIZE;
+
+	io_end_vec->size += io_end_size;
+	io_end_size = 0;
 	*map_bh = false;
 out:
 	*m_lblk = lblk;
@@ -2551,9 +2551,10 @@ static int mpage_map_and_submit_extent(handle_t *handle,
 	int err;
 	loff_t disksize;
 	int progress = 0;
+	ext4_io_end_t *io_end = mpd->io_submit.io_end;
+	struct ext4_io_end_vec *io_end_vec = ext4_alloc_io_end_vec(io_end);
 
-	mpd->io_submit.io_end->offset =
-				((loff_t)map->m_lblk) << inode->i_blkbits;
+	io_end_vec->offset = ((loff_t)map->m_lblk) << inode->i_blkbits;
 	do {
 		err = mpage_map_one_extent(handle, mpd);
 		if (err < 0) {
@@ -3654,6 +3655,7 @@ static int ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 			    ssize_t size, void *private)
 {
         ext4_io_end_t *io_end = private;
+	struct ext4_io_end_vec *io_end_vec;
 
 	/* if not async direct IO just return */
 	if (!io_end)
@@ -3671,8 +3673,9 @@ static int ext4_end_io_dio(struct kiocb *iocb, loff_t offset,
 		ext4_clear_io_unwritten_flag(io_end);
 		size = 0;
 	}
-	io_end->offset = offset;
-	io_end->size = size;
+	io_end_vec = ext4_alloc_io_end_vec(io_end);
+	io_end_vec->offset = offset;
+	io_end_vec->size = size;
 	ext4_put_io_end(io_end);
 
 	return 0;

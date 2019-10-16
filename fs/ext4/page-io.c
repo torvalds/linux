@@ -31,18 +31,56 @@
 #include "acl.h"
 
 static struct kmem_cache *io_end_cachep;
+static struct kmem_cache *io_end_vec_cachep;
 
 int __init ext4_init_pageio(void)
 {
 	io_end_cachep = KMEM_CACHE(ext4_io_end, SLAB_RECLAIM_ACCOUNT);
 	if (io_end_cachep == NULL)
 		return -ENOMEM;
+
+	io_end_vec_cachep = KMEM_CACHE(ext4_io_end_vec, 0);
+	if (io_end_vec_cachep == NULL) {
+		kmem_cache_destroy(io_end_cachep);
+		return -ENOMEM;
+	}
 	return 0;
 }
 
 void ext4_exit_pageio(void)
 {
 	kmem_cache_destroy(io_end_cachep);
+	kmem_cache_destroy(io_end_vec_cachep);
+}
+
+struct ext4_io_end_vec *ext4_alloc_io_end_vec(ext4_io_end_t *io_end)
+{
+	struct ext4_io_end_vec *io_end_vec;
+
+	io_end_vec = kmem_cache_zalloc(io_end_vec_cachep, GFP_NOFS);
+	if (!io_end_vec)
+		return ERR_PTR(-ENOMEM);
+	INIT_LIST_HEAD(&io_end_vec->list);
+	list_add_tail(&io_end_vec->list, &io_end->list_vec);
+	return io_end_vec;
+}
+
+static void ext4_free_io_end_vec(ext4_io_end_t *io_end)
+{
+	struct ext4_io_end_vec *io_end_vec, *tmp;
+
+	if (list_empty(&io_end->list_vec))
+		return;
+	list_for_each_entry_safe(io_end_vec, tmp, &io_end->list_vec, list) {
+		list_del(&io_end_vec->list);
+		kmem_cache_free(io_end_vec_cachep, io_end_vec);
+	}
+}
+
+struct ext4_io_end_vec *ext4_last_io_end_vec(ext4_io_end_t *io_end)
+{
+	BUG_ON(list_empty(&io_end->list_vec));
+	return list_last_entry(&io_end->list_vec, struct ext4_io_end_vec, list);
 }
 
 /*
@@ -125,6 +163,7 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 		ext4_finish_bio(bio);
 		bio_put(bio);
 	}
+	ext4_free_io_end_vec(io_end);
 	kmem_cache_free(io_end_cachep, io_end);
 }
 
@@ -139,8 +178,6 @@ static void ext4_release_io_end(ext4_io_end_t *io_end)
 static int ext4_end_io_end(ext4_io_end_t *io_end)
 {
 	struct inode *inode = io_end->inode;
-	loff_t offset = io_end->offset;
-	ssize_t size = io_end->size;
 	handle_t *handle = io_end->handle;
 	int ret = 0;
 
@@ -154,8 +191,7 @@ static int ext4_end_io_end(ext4_io_end_t *io_end)
 		ext4_msg(inode->i_sb, KERN_EMERG,
 			 "failed to convert unwritten extents to written "
 			 "extents -- potential data loss!  "
-			 "(inode %lu, offset %llu, size %zd, error %d)",
-			 inode->i_ino, offset, size, ret);
+			 "(inode %lu, error %d)", inode->i_ino, ret);
 	}
 	ext4_clear_io_unwritten_flag(io_end);
 	ext4_release_io_end(io_end);
@@ -247,6 +283,7 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 	if (io_end) {
 		io_end->inode = inode;
 		INIT_LIST_HEAD(&io_end->list);
+		INIT_LIST_HEAD(&io_end->list_vec);
 		atomic_set(&io_end->count, 1);
 	}
 	return io_end;
@@ -255,7 +292,8 @@ ext4_io_end_t *ext4_init_io_end(struct inode *inode, gfp_t flags)
 void ext4_put_io_end_defer(ext4_io_end_t *io_end)
 {
 	if (atomic_dec_and_test(&io_end->count)) {
-		if (!(io_end->flag & EXT4_IO_END_UNWRITTEN) || !io_end->size) {
+		if (!(io_end->flag & EXT4_IO_END_UNWRITTEN) ||
+				list_empty(&io_end->list_vec)) {
 			ext4_release_io_end(io_end);
 			return;
 		}
@@ -307,10 +345,8 @@ static void ext4_end_bio(struct bio *bio)
 		struct inode *inode = io_end->inode;
 
 		ext4_warning(inode->i_sb, "I/O error %d writing to inode %lu "
-			     "(offset %llu size %ld starting block %llu)",
+			     "starting block %llu)",
 			     bio->bi_status, inode->i_ino,
-			     (unsigned long long) io_end->offset,
-			     (long) io_end->size,
 			     (unsigned long long)
 			     bi_sector >> (inode->i_blkbits - 9));
 		mapping_set_error(inode->i_mapping,
