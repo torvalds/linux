@@ -695,11 +695,6 @@ struct i915_gem_mm {
 	 */
 	struct workqueue_struct *userptr_wq;
 
-	/** Bit 6 swizzling required for X tiling */
-	u32 bit_6_swizzle_x;
-	/** Bit 6 swizzling required for Y tiling */
-	u32 bit_6_swizzle_y;
-
 	/* shrinker accounting, also useful for userland debugging */
 	u64 shrink_memory;
 	u32 shrink_count;
@@ -2014,9 +2009,9 @@ i915_gem_object_create_internal(struct drm_i915_private *dev_priv,
 /* i915_gem_tiling.c */
 static inline bool i915_gem_object_needs_bit17_swizzle(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 
-	return dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
+	return i915->ggtt.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_9_10_17 &&
 		i915_gem_object_is_tiled(obj);
 }
 

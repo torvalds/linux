@@ -357,10 +357,10 @@ static int igt_partial_tiling(void *arg)
 		tile.tiling = tiling;
 		switch (tiling) {
 		case I915_TILING_X:
-			tile.swizzle = i915->mm.bit_6_swizzle_x;
+			tile.swizzle = i915->ggtt.bit_6_swizzle_x;
 			break;
 		case I915_TILING_Y:
-			tile.swizzle = i915->mm.bit_6_swizzle_y;
+			tile.swizzle = i915->ggtt.bit_6_swizzle_y;
 			break;
 		}
 
@@ -474,10 +474,10 @@ static int igt_smoke_tiling(void *arg)
 			break;
 
 		case I915_TILING_X:
-			tile.swizzle = i915->mm.bit_6_swizzle_x;
+			tile.swizzle = i915->ggtt.bit_6_swizzle_x;
 			break;
 		case I915_TILING_Y:
-			tile.swizzle = i915->mm.bit_6_swizzle_y;
+			tile.swizzle = i915->ggtt.bit_6_swizzle_y;
 			break;
 		}
 

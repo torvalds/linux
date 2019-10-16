@@ -564,14 +564,15 @@ void i915_gem_restore_fences(struct i915_ggtt *ggtt)
 
 /**
  * detect_bit_6_swizzle - detect bit 6 swizzling pattern
- * @i915: i915 device private
+ * @ggtt: Global GGTT
  *
  * Detects bit 6 swizzling of address lookup between IGD access and CPU
  * access through main memory.
  */
-static void detect_bit_6_swizzle(struct drm_i915_private *i915)
+static void detect_bit_6_swizzle(struct i915_ggtt *ggtt)
 {
-	struct intel_uncore *uncore = &i915->uncore;
+	struct intel_uncore *uncore = ggtt->vm.gt->uncore;
+	struct drm_i915_private *i915 = ggtt->vm.i915;
 	u32 swizzle_x = I915_BIT_6_SWIZZLE_UNKNOWN;
 	u32 swizzle_y = I915_BIT_6_SWIZZLE_UNKNOWN;
 
@@ -733,8 +734,8 @@ static void detect_bit_6_swizzle(struct drm_i915_private *i915)
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
 	}
 
-	i915->mm.bit_6_swizzle_x = swizzle_x;
-	i915->mm.bit_6_swizzle_y = swizzle_y;
+	i915->ggtt.bit_6_swizzle_x = swizzle_x;
+	i915->ggtt.bit_6_swizzle_y = swizzle_y;
 }
 
 /*
@@ -843,7 +844,7 @@ void i915_ggtt_init_fences(struct i915_ggtt *ggtt)
 	INIT_LIST_HEAD(&ggtt->userfault_list);
 	intel_wakeref_auto_init(&ggtt->userfault_wakeref, uncore->rpm);
 
-	detect_bit_6_swizzle(i915);
+	detect_bit_6_swizzle(ggtt);
 
 	if (INTEL_GEN(i915) >= 7 &&
 	    !(IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915)))
@@ -878,7 +879,7 @@ void intel_gt_init_swizzling(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 
 	if (INTEL_GEN(i915) < 5 ||
-	    i915->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
+	    i915->ggtt.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
 		return;
 
 	intel_uncore_rmw(uncore, DISP_ARB_CTL, 0, DISP_TILE_SURFACE_SWIZZLING);

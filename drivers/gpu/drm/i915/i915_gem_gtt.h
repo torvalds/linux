@@ -411,6 +411,11 @@ struct i915_ggtt {
 
 	int mtrr;
 
+	/** Bit 6 swizzling required for X tiling */
+	u32 bit_6_swizzle_x;
+	/** Bit 6 swizzling required for Y tiling */
+	u32 bit_6_swizzle_y;
+
 	u32 pin_bias;
 
 	unsigned int num_fences;

@@ -1660,9 +1660,9 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
-		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
+		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_x));
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
-		   swizzle_string(dev_priv->mm.bit_6_swizzle_y));
+		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_y));
 
 	if (IS_GEN_RANGE(dev_priv, 3, 4)) {
 		seq_printf(m, "DDC = 0x%08x\n",
