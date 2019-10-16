@@ -107,13 +107,13 @@ static inline void op##_bit(unsigned int bit, volatile unsigned long *p)\
 	p += bit >> 5;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32ex   %0, %2\n"			\
-			"      "insn"   %0, %0, %1\n"			\
-			"       s32ex   %0, %2\n"			\
-			"       getex   %0\n"				\
-			"       beqz    %0, 1b\n"			\
-			: "=&a" (tmp)					\
-			: "a" (inv mask), "a" (p)			\
+			"1:     l32ex   %[tmp], %[addr]\n"		\
+			"      "insn"   %[tmp], %[tmp], %[mask]\n"	\
+			"       s32ex   %[tmp], %[addr]\n"		\
+			"       getex   %[tmp]\n"			\
+			"       beqz    %[tmp], 1b\n"			\
+			: [tmp] "=&a" (tmp)				\
+			: [mask] "a" (inv mask), [addr] "a" (p)		\
 			: "memory");					\
 }
 
@@ -127,13 +127,13 @@ test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
 	p += bit >> 5;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32ex   %1, %3\n"			\
-			"      "insn"   %0, %1, %2\n"			\
-			"       s32ex   %0, %3\n"			\
-			"       getex   %0\n"				\
-			"       beqz    %0, 1b\n"			\
-			: "=&a" (tmp), "=&a" (value)			\
-			: "a" (inv mask), "a" (p)			\
+			"1:     l32ex   %[value], %[addr]\n"		\
+			"      "insn"   %[tmp], %[value], %[mask]\n"	\
+			"       s32ex   %[tmp], %[addr]\n"		\
+			"       getex   %[tmp]\n"			\
+			"       beqz    %[tmp], 1b\n"			\
+			: [tmp] "=&a" (tmp), [value] "=&a" (value)	\
+			: [mask] "a" (inv mask), [addr] "a" (p)		\
 			: "memory");					\
 									\
 	return value & mask;						\
@@ -150,13 +150,13 @@ static inline void op##_bit(unsigned int bit, volatile unsigned long *p)\
 	p += bit >> 5;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"      "insn"   %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			: "=&a" (tmp), "=&a" (value)			\
-			: "a" (inv mask), "a" (p)			\
+			"1:     l32i    %[value], %[addr], 0\n"		\
+			"       wsr     %[value], scompare1\n"		\
+			"      "insn"   %[tmp], %[value], %[mask]\n"	\
+			"       s32c1i  %[tmp], %[addr], 0\n"		\
+			"       bne     %[tmp], %[value], 1b\n"		\
+			: [tmp] "=&a" (tmp), [value] "=&a" (value)	\
+			: [mask] "a" (inv mask), [addr] "a" (p)		\
 			: "memory");					\
 }
 
@@ -170,13 +170,13 @@ test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
 	p += bit >> 5;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %1, %3, 0\n"			\
-			"       wsr     %1, scompare1\n"		\
-			"      "insn"   %0, %1, %2\n"			\
-			"       s32c1i  %0, %3, 0\n"			\
-			"       bne     %0, %1, 1b\n"			\
-			: "=&a" (tmp), "=&a" (value)			\
-			: "a" (inv mask), "a" (p)			\
+			"1:     l32i    %[value], %[addr], 0\n"		\
+			"       wsr     %[value], scompare1\n"		\
+			"      "insn"   %[tmp], %[value], %[mask]\n"	\
+			"       s32c1i  %[tmp], %[addr], 0\n"		\
+			"       bne     %[tmp], %[value], 1b\n"		\
+			: [tmp] "=&a" (tmp), [value] "=&a" (value)	\
+			: [mask] "a" (inv mask), [addr] "a" (p)		\
 			: "memory");					\
 									\
 	return tmp & mask;						\
