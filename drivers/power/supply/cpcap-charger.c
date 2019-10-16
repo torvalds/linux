@@ -172,6 +172,7 @@ struct cpcap_charger_ints_state {
 static enum power_supply_property cpcap_charger_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_ONLINE,
+	POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
 };
@@ -235,6 +236,9 @@ static int cpcap_charger_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = ddata->status;
 		break;
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		val->intval = ddata->voltage;
+		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
 		if (ddata->status == POWER_SUPPLY_STATUS_CHARGING)
 			val->intval = cpcap_charger_get_charge_voltage(ddata) *
@@ -257,6 +261,83 @@ static int cpcap_charger_get_property(struct power_supply *psy,
 	}
 
 	return 0;
+}
+
+static int cpcap_charger_match_voltage(int voltage)
+{
+	switch (voltage) {
+	case 0 ... 4100000 - 1: return 3800000;
+	case 4100000 ... 4120000 - 1: return 4100000;
+	case 4120000 ... 4150000 - 1: return 4120000;
+	case 4150000 ... 4170000 - 1: return 4150000;
+	case 4170000 ... 4200000 - 1: return 4170000;
+	case 4200000 ... 4230000 - 1: return 4200000;
+	case 4230000 ... 4250000 - 1: return 4230000;
+	case 4250000 ... 4270000 - 1: return 4250000;
+	case 4270000 ... 4300000 - 1: return 4270000;
+	case 4300000 ... 4330000 - 1: return 4300000;
+	case 4330000 ... 4350000 - 1: return 4330000;
+	case 4350000 ... 4380000 - 1: return 4350000;
+	case 4380000 ... 4400000 - 1: return 4380000;
+	case 4400000 ... 4420000 - 1: return 4400000;
+	case 4420000 ... 4440000 - 1: return 4420000;
+	case 4440000: return 4440000;
+	default: return 0;
+	}
+}
+
+static int
+cpcap_charger_get_bat_const_charge_voltage(struct cpcap_charger_ddata *ddata)
+{
+	union power_supply_propval prop;
+	struct power_supply *battery;
+	int voltage = ddata->voltage;
+	int error;
+
+	battery = power_supply_get_by_name("battery");
+	if (battery) {
+		error = power_supply_get_property(battery,
+				POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE,
+				&prop);
+		if (!error)
+			voltage = prop.intval;
+	}
+
+	return voltage;
+}
+
+static int cpcap_charger_set_property(struct power_supply *psy,
+				      enum power_supply_property psp,
+				      const union power_supply_propval *val)
+{
+	struct cpcap_charger_ddata *ddata = dev_get_drvdata(psy->dev.parent);
+	int voltage, batvolt;
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		voltage = cpcap_charger_match_voltage(val->intval);
+		batvolt = cpcap_charger_get_bat_const_charge_voltage(ddata);
+		if (voltage > batvolt)
+			voltage = batvolt;
+		ddata->voltage = voltage;
+		schedule_delayed_work(&ddata->detect_work, 0);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int cpcap_charger_property_is_writeable(struct power_supply *psy,
+					       enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CONSTANT_CHARGE_VOLTAGE:
+		return 1;
+	default:
+		return 0;
+	}
 }
 
 static void cpcap_charger_set_cable_path(struct cpcap_charger_ddata *ddata,
@@ -724,6 +805,8 @@ static const struct power_supply_desc cpcap_charger_usb_desc = {
 	.properties	= cpcap_charger_props,
 	.num_properties	= ARRAY_SIZE(cpcap_charger_props),
 	.get_property	= cpcap_charger_get_property,
+	.set_property	= cpcap_charger_set_property,
+	.property_is_writeable = cpcap_charger_property_is_writeable,
 };
 
 #ifdef CONFIG_OF
