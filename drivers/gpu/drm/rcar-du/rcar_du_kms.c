@@ -17,7 +17,9 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
+#include <linux/device.h>
 #include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include <linux/wait.h>
 
 #include "rcar_du_crtc.h"
@@ -618,6 +620,75 @@ error:
 	return ret;
 }
 
+static int rcar_du_cmm_init(struct rcar_du_device *rcdu)
+{
+	const struct device_node *np = rcdu->dev->of_node;
+	unsigned int i;
+	int cells;
+
+	cells = of_property_count_u32_elems(np, "renesas,cmms");
+	if (cells == -EINVAL)
+		return 0;
+
+	if (cells > rcdu->num_crtcs) {
+		dev_err(rcdu->dev,
+			"Invalid number of entries in 'renesas,cmms'\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < cells; ++i) {
+		struct platform_device *pdev;
+		struct device_link *link;
+		struct device_node *cmm;
+		int ret;
+
+		cmm = of_parse_phandle(np, "renesas,cmms", i);
+		if (IS_ERR(cmm)) {
+			dev_err(rcdu->dev,
+				"Failed to parse 'renesas,cmms' property\n");
+			return PTR_ERR(cmm);
+		}
+
+		if (!of_device_is_available(cmm)) {
+			/* It's fine to have a phandle to a non-enabled CMM. */
+			of_node_put(cmm);
+			continue;
+		}
+
+		pdev = of_find_device_by_node(cmm);
+		if (IS_ERR(pdev)) {
+			dev_err(rcdu->dev, "No device found for CMM%u\n", i);
+			of_node_put(cmm);
+			return PTR_ERR(pdev);
+		}
+
+		of_node_put(cmm);
+
+		/*
+		 * -ENODEV is used to report that the CMM config option is
+		 * disabled: return 0 and let the DU continue probing.
+		 */
+		ret = rcar_cmm_init(pdev);
+		if (ret)
+			return ret == -ENODEV ? 0 : ret;
+
+		/*
+		 * Enforce suspend/resume ordering by making the CMM a provider
+		 * of the DU: CMM is suspended after and resumed before the DU.
+		 */
+		link = device_link_add(rcdu->dev, &pdev->dev, DL_FLAG_STATELESS);
+		if (!link) {
+			dev_err(rcdu->dev,
+				"Failed to create device link to CMM%u\n", i);
+			return -EINVAL;
+		}
+
+		rcdu->cmms[i] = pdev;
+	}
+
+	return 0;
+}
+
 int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 {
 	static const unsigned int mmio_offsets[] = {
@@ -707,6 +778,11 @@ int rcar_du_modeset_init(struct rcar_du_device *rcdu)
 		if (ret < 0)
 			return ret;
 	}
+
+	/* Initialize the Color Management Modules. */
+	ret = rcar_du_cmm_init(rcdu);
+	if (ret)
+		return ret;
 
 	/* Create the CRTCs. */
 	for (swindex = 0, hwindex = 0; swindex < rcdu->num_crtcs; ++hwindex) {
