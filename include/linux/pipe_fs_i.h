@@ -32,6 +32,7 @@ struct pipe_buffer {
  *	@wait: reader/writer wait point in case of empty/full pipe
  *	@head: The point of buffer production
  *	@tail: The point of buffer consumption
+ *	@max_usage: The maximum number of slots that may be used in the ring
  *	@ring_size: total number of buffers (should be a power of 2)
  *	@tmp_page: cached released page
  *	@readers: number of current readers of this pipe
@@ -50,6 +51,7 @@ struct pipe_inode_info {
 	wait_queue_head_t wait;
 	unsigned int head;
 	unsigned int tail;
+	unsigned int max_usage;
 	unsigned int ring_size;
 	unsigned int readers;
 	unsigned int writers;
@@ -150,9 +152,11 @@ static inline unsigned int pipe_space_for_user(unsigned int head, unsigned int t
 	unsigned int p_occupancy, p_space;
 
 	p_occupancy = pipe_occupancy(head, tail);
-	if (p_occupancy >= pipe->ring_size)
+	if (p_occupancy >= pipe->max_usage)
 		return 0;
 	p_space = pipe->ring_size - p_occupancy;
+	if (p_space > pipe->max_usage)
+		p_space = pipe->max_usage;
 	return p_space;
 }
 

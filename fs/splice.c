@@ -199,7 +199,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 		goto out;
 	}
 
-	while (!pipe_full(head, tail, pipe->ring_size)) {
+	while (!pipe_full(head, tail, pipe->max_usage)) {
 		struct pipe_buffer *buf = &pipe->bufs[head & mask];
 
 		buf->page = spd->pages[page_nr];
@@ -239,7 +239,7 @@ ssize_t add_to_pipe(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 	if (unlikely(!pipe->readers)) {
 		send_sig(SIGPIPE, current, 0);
 		ret = -EPIPE;
-	} else if (pipe_full(head, tail, pipe->ring_size)) {
+	} else if (pipe_full(head, tail, pipe->max_usage)) {
 		ret = -EAGAIN;
 	} else {
 		pipe->bufs[head & mask] = *buf;
@@ -257,7 +257,7 @@ EXPORT_SYMBOL(add_to_pipe);
  */
 int splice_grow_spd(const struct pipe_inode_info *pipe, struct splice_pipe_desc *spd)
 {
-	unsigned int max_usage = READ_ONCE(pipe->ring_size);
+	unsigned int max_usage = READ_ONCE(pipe->max_usage);
 
 	spd->nr_pages_max = max_usage;
 	if (max_usage <= PIPE_DEF_BUFFERS)
@@ -381,7 +381,7 @@ static ssize_t default_file_splice_read(struct file *in, loff_t *ppos,
 	ssize_t res;
 	int i;
 
-	if (pipe_full(pipe->head, pipe->tail, pipe->ring_size))
+	if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
 		return -EAGAIN;
 
 	/*
@@ -698,7 +698,7 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		.pos = *ppos,
 		.u.file = out,
 	};
-	int nbufs = pipe->ring_size;
+	int nbufs = pipe->max_usage;
 	struct bio_vec *array = kcalloc(nbufs, sizeof(struct bio_vec),
 					GFP_KERNEL);
 	ssize_t ret;
@@ -721,9 +721,9 @@ iter_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 		if (ret <= 0)
 			break;
 
-		if (unlikely(nbufs < pipe->ring_size)) {
+		if (unlikely(nbufs < pipe->max_usage)) {
 			kfree(array);
-			nbufs = pipe->ring_size;
+			nbufs = pipe->max_usage;
 			array = kcalloc(nbufs, sizeof(struct bio_vec),
 					GFP_KERNEL);
 			if (!array) {
@@ -963,7 +963,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 		loff_t pos = sd->pos, prev_pos = pos;
 
 		/* Don't try to read more the pipe has space for. */
-		p_space = pipe->ring_size -
+		p_space = pipe->max_usage -
 			pipe_occupancy(pipe->head, pipe->tail);
 		read_len = min_t(size_t, len, p_space << PAGE_SHIFT);
 		ret = do_splice_to(in, &pos, pipe, read_len, flags);
@@ -1090,7 +1090,7 @@ static int wait_for_space(struct pipe_inode_info *pipe, unsigned flags)
 			send_sig(SIGPIPE, current, 0);
 			return -EPIPE;
 		}
-		if (!pipe_full(pipe->head, pipe->tail, pipe->ring_size))
+		if (!pipe_full(pipe->head, pipe->tail, pipe->max_usage))
 			return 0;
 		if (flags & SPLICE_F_NONBLOCK)
 			return -EAGAIN;
@@ -1498,13 +1498,13 @@ static int opipe_prep(struct pipe_inode_info *pipe, unsigned int flags)
 	 * Check pipe occupancy without the inode lock first. This function
 	 * is speculative anyways, so missing one is ok.
 	 */
-	if (pipe_full(pipe->head, pipe->tail, pipe->ring_size))
+	if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
 		return 0;
 
 	ret = 0;
 	pipe_lock(pipe);
 
-	while (pipe_full(pipe->head, pipe->tail, pipe->ring_size)) {
+	while (pipe_full(pipe->head, pipe->tail, pipe->max_usage)) {
 		if (!pipe->readers) {
 			send_sig(SIGPIPE, current, 0);
 			ret = -EPIPE;
@@ -1584,7 +1584,7 @@ retry:
 		 * pipe is empty or the output pipe is full.
 		 */
 		if (pipe_empty(i_head, i_tail) ||
-		    pipe_full(o_head, o_tail, opipe->ring_size)) {
+		    pipe_full(o_head, o_tail, opipe->max_usage)) {
 			/* Already processed some buffers, break */
 			if (ret)
 				break;
@@ -1706,7 +1706,7 @@ static int link_pipe(struct pipe_inode_info *ipipe,
 		 * output room, break.
 		 */
 		if (pipe_empty(i_head, i_tail) ||
-		    pipe_full(o_head, o_tail, opipe->ring_size))
+		    pipe_full(o_head, o_tail, opipe->max_usage))
 			break;
 
 		ibuf = &ipipe->bufs[i_tail & i_mask];
