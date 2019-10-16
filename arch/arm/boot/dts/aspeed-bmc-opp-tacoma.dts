@@ -10,10 +10,6 @@
 	model = "Tacoma";
 	compatible = "ibm,tacoma-bmc", "aspeed,ast2600";
 
-	aliases {
-		serial4 = &uart5;
-	};
-
 	chosen {
 		stdout-path = &uart5;
 		bootargs = "console=ttyS4,115200n8";
@@ -540,6 +536,17 @@
 
 &ibt {
 	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+	// Workaround for A0
+	compatible = "snps,dw-apb-uart";
+};
+
+&uart5 {
+	// Workaround for A0
+	compatible = "snps,dw-apb-uart";
 };
 
 &vuart1 {
