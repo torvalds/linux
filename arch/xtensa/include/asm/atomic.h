@@ -124,13 +124,14 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %[tmp], %[addr], 0\n"		\
+			"1:     l32i    %[tmp], %[mem]\n"		\
 			"       wsr     %[tmp], scompare1\n"		\
 			"       " #op " %[result], %[tmp], %[i]\n"	\
-			"       s32c1i  %[result], %[addr], 0\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
 			"       bne     %[result], %[tmp], 1b\n"	\
-			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
-			: [i] "a" (i), [addr] "a" (v)			\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 }									\
@@ -142,14 +143,15 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %[tmp], %[addr], 0\n"		\
+			"1:     l32i    %[tmp], %[mem]\n"		\
 			"       wsr     %[tmp], scompare1\n"		\
 			"       " #op " %[result], %[tmp], %[i]\n"	\
-			"       s32c1i  %[result], %[addr], 0\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
 			"       bne     %[result], %[tmp], 1b\n"	\
 			"       " #op " %[result], %[result], %[i]\n"	\
-			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
-			: [i] "a" (i), [addr] "a" (v)			\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 									\
@@ -163,13 +165,14 @@ static inline int atomic_fetch_##op(int i, atomic_t * v)		\
 	int result;							\
 									\
 	__asm__ __volatile__(						\
-			"1:     l32i    %[tmp], %[addr], 0\n"		\
+			"1:     l32i    %[tmp], %[mem]\n"		\
 			"       wsr     %[tmp], scompare1\n"		\
 			"       " #op " %[result], %[tmp], %[i]\n"	\
-			"       s32c1i  %[result], %[addr], 0\n"	\
+			"       s32c1i  %[result], %[mem]\n"		\
 			"       bne     %[result], %[tmp], 1b\n"	\
-			: [result] "=&a" (result), [tmp] "=&a" (tmp)	\
-			: [i] "a" (i), [addr] "a" (v)			\
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "memory"					\
 			);						\
 									\
@@ -185,13 +188,13 @@ static inline void atomic_##op(int i, atomic_t * v)			\
 									\
 	__asm__ __volatile__(						\
 			"       rsil    a15, "__stringify(TOPLEVEL)"\n"	\
-			"       l32i    %[result], %[addr], 0\n"	\
+			"       l32i    %[result], %[mem]\n"		\
 			"       " #op " %[result], %[result], %[i]\n"	\
-			"       s32i    %[result], %[addr], 0\n"	\
+			"       s32i    %[result], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: [result] "=&a" (vval)				\
-			: [i] "a" (i), [addr] "a" (v)			\
+			: [result] "=&a" (vval), [mem] "+m" (*v)	\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 }									\
@@ -203,13 +206,13 @@ static inline int atomic_##op##_return(int i, atomic_t * v)		\
 									\
 	__asm__ __volatile__(						\
 			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
-			"       l32i    %[result], %[addr], 0\n"	\
+			"       l32i    %[result], %[mem]\n"		\
 			"       " #op " %[result], %[result], %[i]\n"	\
-			"       s32i    %[result], %[addr], 0\n"	\
+			"       s32i    %[result], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: [result] "=&a" (vval)				\
-			: [i] "a" (i), [addr] "a" (v)			\
+			: [result] "=&a" (vval), [mem] "+m" (*v)	\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 									\
@@ -223,13 +226,14 @@ static inline int atomic_fetch_##op(int i, atomic_t * v)		\
 									\
 	__asm__ __volatile__(						\
 			"       rsil    a15,"__stringify(TOPLEVEL)"\n"	\
-			"       l32i    %[result], %[addr], 0\n"	\
+			"       l32i    %[result], %[mem]\n"		\
 			"       " #op " %[tmp], %[result], %[i]\n"	\
-			"       s32i    %[tmp], %[addr], 0\n"		\
+			"       s32i    %[tmp], %[mem]\n"		\
 			"       wsr     a15, ps\n"			\
 			"       rsync\n"				\
-			: [result] "=&a" (vval), [tmp] "=&a" (tmp)	\
-			: [i] "a" (i), [addr] "a" (v)			\
+			: [result] "=&a" (vval), [tmp] "=&a" (tmp),	\
+			  [mem] "+m" (*v)				\
+			: [i] "a" (i)					\
 			: "a15", "memory"				\
 			);						\
 									\
