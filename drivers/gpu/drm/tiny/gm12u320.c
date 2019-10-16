@@ -649,7 +649,7 @@ static void gm12u320_driver_release(struct drm_device *dev)
 	kfree(gm12u320);
 }
 
-DEFINE_DRM_GEM_SHMEM_FOPS(gm12u320_fops);
+DEFINE_DRM_GEM_FOPS(gm12u320_fops);
 
 static struct drm_driver gm12u320_drm_driver = {
 	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
