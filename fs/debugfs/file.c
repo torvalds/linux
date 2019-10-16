@@ -757,12 +757,11 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_atomic_t_wo, NULL, debugfs_atomic_t_set,
  * @value: a pointer to the variable that the file should read to and write
  *         from.
  */
-struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
-				 struct dentry *parent, atomic_t *value)
+void debugfs_create_atomic_t(const char *name, umode_t mode,
+			     struct dentry *parent, atomic_t *value)
 {
-	return debugfs_create_mode_unsafe(name, mode, parent, value,
-					&fops_atomic_t, &fops_atomic_t_ro,
-					&fops_atomic_t_wo);
+	debugfs_create_mode_unsafe(name, mode, parent, value, &fops_atomic_t,
+				   &fops_atomic_t_ro, &fops_atomic_t_wo);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_atomic_t);
 

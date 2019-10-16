@@ -113,8 +113,8 @@ lower-case values, or 1 or 0.  Any other input will be silently ignored.
 
 Also, atomic_t values can be placed in debugfs with:
 
-    struct dentry *debugfs_create_atomic_t(const char *name, umode_t mode,
-				struct dentry *parent, atomic_t *value)
+    void debugfs_create_atomic_t(const char *name, umode_t mode,
+				 struct dentry *parent, atomic_t *value)
 
 A read of this file will get atomic_t values, and a write of this file
 will set atomic_t values.
