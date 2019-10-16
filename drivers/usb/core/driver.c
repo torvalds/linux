@@ -261,9 +261,16 @@ static int usb_probe_device(struct device *dev)
 	 */
 	if (!udriver->supports_autosuspend)
 		error = usb_autoresume_device(udev);
+	if (error)
+		return error;
 
-	if (!error)
-		error = udriver->probe(udev);
+	if (udriver->generic_subclass)
+		error = usb_generic_driver_probe(udev);
+	if (error)
+		return error;
+
+	error = udriver->probe(udev);
+	/* TODO: fallback to generic driver in case of error */
 	return error;
 }
 
@@ -273,7 +280,10 @@ static int usb_unbind_device(struct device *dev)
 	struct usb_device *udev = to_usb_device(dev);
 	struct usb_device_driver *udriver = to_usb_device_driver(dev->driver);
 
-	udriver->disconnect(udev);
+	if (udriver->disconnect)
+		udriver->disconnect(udev);
+	if (udriver->generic_subclass)
+		usb_generic_driver_disconnect(udev);
 	if (!udriver->supports_autosuspend)
 		usb_autosuspend_device(udev);
 	return 0;
@@ -1149,7 +1159,10 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 		udev->do_remote_wakeup = 0;
 		udriver = &usb_generic_driver;
 	}
-	status = udriver->suspend(udev, msg);
+	if (udriver->suspend)
+		status = udriver->suspend(udev, msg);
+	if (status == 0 && udriver->generic_subclass)
+		status = usb_generic_driver_suspend(udev, msg);
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
@@ -1181,7 +1194,10 @@ static int usb_resume_device(struct usb_device *udev, pm_message_t msg)
 		udev->reset_resume = 1;
 
 	udriver = to_usb_device_driver(udev->dev.driver);
-	status = udriver->resume(udev, msg);
+	if (udriver->generic_subclass)
+		status = usb_generic_driver_resume(udev, msg);
+	if (status == 0 && udriver->resume)
+		status = udriver->resume(udev, msg);
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);

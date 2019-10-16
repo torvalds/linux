@@ -1228,6 +1228,9 @@ struct usb_driver {
  * @drvwrap: Driver-model core structure wrapper.
  * @supports_autosuspend: if set to 0, the USB core will not allow autosuspend
  *	for devices bound to this driver.
+ * @generic_subclass: if set to 1, the generic USB driver's probe, disconnect,
+ *	resume and suspend functions will be called in addition to the driver's
+ *	own, so this part of the setup does not need to be replicated.
  *
  * USB drivers must provide all the fields listed above except drvwrap.
  */
@@ -1242,6 +1245,7 @@ struct usb_device_driver {
 	const struct attribute_group **dev_groups;
 	struct usbdrv_wrap drvwrap;
 	unsigned int supports_autosuspend:1;
+	unsigned int generic_subclass:1;
 };
 #define	to_usb_device_driver(d) container_of(d, struct usb_device_driver, \
 		drvwrap.driver)
