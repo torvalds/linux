@@ -122,12 +122,6 @@ static int vt8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
 {
 	struct vt8500_rtc *vt8500_rtc = dev_get_drvdata(dev);
 
-	if (tm->tm_year < 100) {
-		dev_warn(dev, "Only years 2000-2199 are supported by the "
-			      "hardware!\n");
-		return -EINVAL;
-	}
-
 	writel((bin2bcd(tm->tm_year % 100) << DATE_YEAR_S)
 		| (bin2bcd(tm->tm_mon + 1) << DATE_MONTH_S)
 		| (bin2bcd(tm->tm_mday))
@@ -227,6 +221,8 @@ static int vt8500_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(vt8500_rtc->rtc);
 
 	vt8500_rtc->rtc->ops = &vt8500_rtc_ops;
+	vt8500_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	vt8500_rtc->rtc->range_max = RTC_TIMESTAMP_END_2199;
 
 	ret = devm_request_irq(&pdev->dev, vt8500_rtc->irq_alarm,
 				vt8500_rtc_irq, 0, "rtc alarm", vt8500_rtc);
