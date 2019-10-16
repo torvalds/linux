@@ -27,6 +27,9 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/jack.h>
+#include <linux/of_gpio.h>
+#include <linux/gpio.h>
+#include <linux/clk.h>
 
 #include "rl6231.h"
 #include "rt5651.h"
@@ -312,7 +315,7 @@ static int rt5651_asrc_put(struct snd_kcontrol *kcontrol,
 		regmap_write(rt5651->regmap, 0x73, 0x1004);
 		regmap_write(rt5651->regmap, 0x83, 0x1000);
 		regmap_write(rt5651->regmap, 0x84, 0x7000);
-		snd_soc_update_bits(codec, 0x64, 0x0200, 0x0200);
+		snd_soc_component_update_bits(component, 0x64, 0x0200, 0x0200);
 	} else {
 		regmap_write(rt5651->regmap, 0x83, 0x0);
 		regmap_write(rt5651->regmap, 0x84, 0x0);
@@ -1554,9 +1557,13 @@ static int rt5651_set_dai_pll(struct snd_soc_dai *dai, int pll_id, int source,
 static int rt5651_set_bias_level(struct snd_soc_component *component,
 			enum snd_soc_bias_level level)
 {
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY == snd_soc_component_get_bias_level(component)) {
+			if (!IS_ERR(rt5651->mclk))
+				clk_prepare_enable(rt5651->mclk);
 			if (snd_soc_component_read32(component, RT5651_PLL_MODE_1) & 0x9200)
 				snd_soc_component_update_bits(component, RT5651_D_MISC,
 						    0xc00, 0xc00);
@@ -1574,6 +1581,9 @@ static int rt5651_set_bias_level(struct snd_soc_component *component,
 				RT5651_PWR_FV1 | RT5651_PWR_FV2,
 				RT5651_PWR_FV1 | RT5651_PWR_FV2);
 			snd_soc_component_update_bits(component, RT5651_D_MISC, 0x1, 0x1);
+		} else if (SND_SOC_BIAS_PREPARE == snd_soc_component_get_bias_level(component)) {
+			if (!IS_ERR(rt5651->mclk))
+				clk_disable_unprepare(rt5651->mclk);
 		}
 		break;
 
@@ -2047,6 +2057,10 @@ static int rt5651_probe(struct snd_soc_component *component)
 
 	rt5651->component = component;
 
+	rt5651->mclk = devm_clk_get(component->dev, "mclk");
+	if (PTR_ERR(rt5651->mclk) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
+
 	snd_soc_component_update_bits(component, RT5651_PWR_ANLG1,
 		RT5651_PWR_LDO_DVO_MASK, RT5651_PWR_LDO_DVO_1_2V);
 
@@ -2054,6 +2068,25 @@ static int rt5651_probe(struct snd_soc_component *component)
 
 	rt5651_apply_properties(component);
 
+	return 0;
+}
+
+static void rt5651_enable_spk(struct rt5651_priv *rt5651, bool enable)
+{
+	if (!rt5651 || !rt5651->gpiod_spk_ctl)
+		return;
+	gpiod_set_value(rt5651->gpiod_spk_ctl, enable);
+}
+
+static int rt5651_mute(struct snd_soc_dai *dai, int mute)
+{
+	struct snd_soc_component *component = dai->component;
+	struct rt5651_priv *rt5651 = snd_soc_component_get_drvdata(component);
+
+	if (mute)
+		rt5651_enable_spk(rt5651, false);
+	else
+		rt5651_enable_spk(rt5651, true);
 	return 0;
 }
 
@@ -2090,6 +2123,7 @@ static const struct snd_soc_dai_ops rt5651_aif_dai_ops = {
 	.set_fmt = rt5651_set_dai_fmt,
 	.set_sysclk = rt5651_set_dai_sysclk,
 	.set_pll = rt5651_set_dai_pll,
+	.digital_mute = rt5651_mute,
 };
 
 static struct snd_soc_dai_driver rt5651_dai[] = {
@@ -2250,7 +2284,14 @@ static int rt5651_i2c_probe(struct i2c_client *i2c,
 			 rt5651->irq, ret);
 		rt5651->irq = -ENXIO;
 	}
-
+	rt5651->gpiod_spk_ctl = devm_gpiod_get(&i2c->dev,
+					       "spk-con",
+					       GPIOD_OUT_LOW);
+	if (IS_ERR(rt5651->gpiod_spk_ctl)) {
+		ret = IS_ERR(rt5651->gpiod_spk_ctl);
+		rt5651->gpiod_spk_ctl = NULL;
+		dev_warn(&i2c->dev, "cannot get spk-con-gpio %d\n", ret);
+	}
 	ret = devm_snd_soc_register_component(&i2c->dev,
 				&soc_component_dev_rt5651,
 				rt5651_dai, ARRAY_SIZE(rt5651_dai));
