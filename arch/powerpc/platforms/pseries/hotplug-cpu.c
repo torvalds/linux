@@ -539,7 +539,6 @@ static int dlpar_offline_cpu(struct device_node *dn)
 					goto out;
 				cpu_maps_update_begin();
 				break;
-
 			}
 
 			/*
@@ -547,19 +546,19 @@ static int dlpar_offline_cpu(struct device_node *dn)
 			 * Upgrade it's state to CPU_STATE_OFFLINE.
 			 */
 			set_preferred_offline_state(cpu, CPU_STATE_OFFLINE);
-			BUG_ON(plpar_hcall_norets(H_PROD, thread)
-								!= H_SUCCESS);
+			WARN_ON(plpar_hcall_norets(H_PROD, thread) != H_SUCCESS);
 			__cpu_die(cpu);
 			break;
 		}
-		if (cpu == num_possible_cpus())
-			printk(KERN_WARNING "Could not find cpu to offline with physical id 0x%x\n", thread);
+		if (cpu == num_possible_cpus()) {
+			pr_warn("Could not find cpu to offline with physical id 0x%x\n",
+				thread);
+		}
 	}
 	cpu_maps_update_done();
 
 out:
 	return rc;
-
 }
 
 static ssize_t dlpar_cpu_remove(struct device_node *dn, u32 drc_index)
