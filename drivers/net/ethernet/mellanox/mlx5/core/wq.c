@@ -34,26 +34,6 @@
 #include "wq.h"
 #include "mlx5_core.h"
 
-u32 mlx5_wq_cyc_get_size(struct mlx5_wq_cyc *wq)
-{
-	return (u32)wq->fbc.sz_m1 + 1;
-}
-
-u32 mlx5_cqwq_get_size(struct mlx5_cqwq *wq)
-{
-	return wq->fbc.sz_m1 + 1;
-}
-
-u8 mlx5_cqwq_get_log_stride_size(struct mlx5_cqwq *wq)
-{
-	return wq->fbc.log_stride;
-}
-
-u32 mlx5_wq_ll_get_size(struct mlx5_wq_ll *wq)
-{
-	return (u32)wq->fbc.sz_m1 + 1;
-}
-
 static u32 wq_get_byte_sz(u8 log_sz, u8 log_stride)
 {
 	return ((u32)1 << log_sz) << log_stride;
