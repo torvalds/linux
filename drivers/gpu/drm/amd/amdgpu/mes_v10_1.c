@@ -216,6 +216,47 @@ static int mes_v10_1_query_sched_status(struct amdgpu_mes *mes)
 			&mes_status_pkt, sizeof(mes_status_pkt));
 }
 
+static int mes_v10_1_set_hw_resources(struct amdgpu_mes *mes)
+{
+	int i;
+	struct amdgpu_device *adev = mes->adev;
+	union MESAPI_SET_HW_RESOURCES mes_set_hw_res_pkt;
+
+	memset(&mes_set_hw_res_pkt, 0, sizeof(mes_set_hw_res_pkt));
+
+	mes_set_hw_res_pkt.header.type = MES_API_TYPE_SCHEDULER;
+	mes_set_hw_res_pkt.header.opcode = MES_SCH_API_SET_HW_RSRC;
+	mes_set_hw_res_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
+
+	mes_set_hw_res_pkt.vmid_mask_mmhub = mes->vmid_mask_mmhub;
+	mes_set_hw_res_pkt.vmid_mask_gfxhub = mes->vmid_mask_gfxhub;
+	mes_set_hw_res_pkt.gds_size = adev->gds.gds_size;
+	mes_set_hw_res_pkt.paging_vmid = 0;
+	mes_set_hw_res_pkt.g_sch_ctx_gpu_mc_ptr = mes->sch_ctx_gpu_addr;
+
+	for (i = 0; i < MAX_COMPUTE_PIPES; i++)
+		mes_set_hw_res_pkt.compute_hqd_mask[i] =
+			mes->compute_hqd_mask[i];
+
+	for (i = 0; i < MAX_GFX_PIPES; i++)
+		mes_set_hw_res_pkt.gfx_hqd_mask[i] = mes->gfx_hqd_mask[i];
+
+	for (i = 0; i < MAX_SDMA_PIPES; i++)
+		mes_set_hw_res_pkt.sdma_hqd_mask[i] = mes->sdma_hqd_mask[i];
+
+	for (i = 0; i < AMD_PRIORITY_NUM_LEVELS; i++)
+		mes_set_hw_res_pkt.agreegated_doorbells[i] =
+			mes->agreegated_doorbells[i];
+
+	mes_set_hw_res_pkt.api_status.api_completion_fence_addr =
+		mes->ring.fence_drv.gpu_addr;
+	mes_set_hw_res_pkt.api_status.api_completion_fence_value =
+		++mes->ring.fence_drv.sync_seq;
+
+	return mes_v10_1_submit_pkt_and_poll_completion(mes,
+			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt));
+}
+
 static const struct amdgpu_mes_funcs mes_v10_1_funcs = {
 	.add_hw_queue = mes_v10_1_add_hw_queue,
 	.remove_hw_queue = mes_v10_1_remove_hw_queue,
