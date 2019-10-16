@@ -743,7 +743,8 @@ static bool wait_for_alt_mode(struct dc_link *link)
  * This does not create remote sinks but will trigger DM
  * to start MST detection if a branch is detected.
  */
-bool dc_link_detect_helper(struct dc_link *link, enum dc_detect_reason reason)
+static bool dc_link_detect_helper(struct dc_link *link,
+				  enum dc_detect_reason reason)
 {
 	struct dc_sink_init_data sink_init_data = { 0 };
 	struct display_sink_capability sink_caps = { 0 };
