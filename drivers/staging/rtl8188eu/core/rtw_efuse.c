@@ -25,7 +25,7 @@ enum{
  * When we want to enable write operation, we should change to pwr on state.
  * When we stop write, we should switch to 500k mode and disable LDO 2.5V.
  */
-void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
+static void efuse_power_switch(struct adapter *pAdapter, u8 write, u8 pwrstate)
 {
 	u8 tempval;
 	u16 tmpv16;
