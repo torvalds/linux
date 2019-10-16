@@ -84,6 +84,16 @@ TEST_GEN_PROGS_EXTENDED = test_libbpf_open test_sock_addr test_skb_cgroup_id_use
 
 include ../lib.mk
 
+# Define simple and short `make test_progs`, `make test_sysctl`, etc targets
+# to build individual tests.
+# NOTE: Semicolon at the end is critical to override lib.mk's default static
+# rule for binaries.
+$(notdir $(TEST_GEN_PROGS)						\
+	 $(TEST_PROGS)							\
+	 $(TEST_PROGS_EXTENDED)						\
+	 $(TEST_GEN_PROGS_EXTENDED)					\
+	 $(TEST_CUSTOM_PROGS)): %: $(OUTPUT)/% ;
+
 # NOTE: $(OUTPUT) won't get default value if used before lib.mk
 TEST_CUSTOM_PROGS = $(OUTPUT)/urandom_read
 all: $(TEST_CUSTOM_PROGS)
