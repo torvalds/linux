@@ -534,7 +534,6 @@ struct mt76_dev {
 	struct mt76_hw_cap cap;
 
 	struct mt76_rate_power rate_power;
-	int txpower_conf;
 	int txpower_cur;
 
 	enum nl80211_dfs_regions region;

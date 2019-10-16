@@ -86,14 +86,14 @@ mt76x2_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_POWER) {
-		dev->mt76.txpower_conf = hw->conf.power_level * 2;
+		dev->txpower_conf = hw->conf.power_level * 2;
 
 		/* convert to per-chain power for 2x2 devices */
-		dev->mt76.txpower_conf -= 6;
+		dev->txpower_conf -= 6;
 
 		if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state)) {
 			mt76x2_phy_set_txpower(dev);
-			mt76x02_tx_set_txpwr_auto(dev, dev->mt76.txpower_conf);
+			mt76x02_tx_set_txpwr_auto(dev, dev->txpower_conf);
 		}
 	}
 

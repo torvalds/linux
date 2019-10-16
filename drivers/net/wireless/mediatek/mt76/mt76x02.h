@@ -108,6 +108,7 @@ struct mt76x02_dev {
 
 	struct mt76x02_calibration cal;
 
+	int txpower_conf;
 	s8 target_power;
 	s8 target_power_delta[2];
 	bool enable_tpc;
