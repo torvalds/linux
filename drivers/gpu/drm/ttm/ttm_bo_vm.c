@@ -479,14 +479,10 @@ out_unref:
 }
 EXPORT_SYMBOL(ttm_bo_mmap);
 
-int ttm_fbdev_mmap(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
+int ttm_bo_mmap_obj(struct vm_area_struct *vma, struct ttm_buffer_object *bo)
 {
-	if (vma->vm_pgoff != 0)
-		return -EACCES;
-
 	ttm_bo_get(bo);
-
 	ttm_bo_mmap_vma_setup(bo, vma);
 	return 0;
 }
-EXPORT_SYMBOL(ttm_fbdev_mmap);
+EXPORT_SYMBOL(ttm_bo_mmap_obj);
