@@ -169,18 +169,24 @@ static int __live_parallel_switch1(void *data)
 		struct i915_request *rq = NULL;
 		int err, n;
 
-		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
-			i915_request_put(rq);
+		err = 0;
+		for (n = 0; !err && n < ARRAY_SIZE(arg->ce); n++) {
+			struct i915_request *prev = rq;
 
 			rq = i915_request_create(arg->ce[n]);
-			if (IS_ERR(rq))
+			if (IS_ERR(rq)) {
+				i915_request_put(prev);
 				return PTR_ERR(rq);
+			}
 
 			i915_request_get(rq);
+			if (prev) {
+				err = i915_request_await_dma_fence(rq, &prev->fence);
+				i915_request_put(prev);
+			}
+
 			i915_request_add(rq);
 		}
-
-		err = 0;
 		if (i915_request_wait(rq, 0, HZ / 5) < 0)
 			err = -ETIME;
 		i915_request_put(rq);
@@ -197,6 +203,7 @@ static int __live_parallel_switch1(void *data)
 static int __live_parallel_switchN(void *data)
 {
 	struct parallel_switch *arg = data;
+	struct i915_request *rq = NULL;
 	IGT_TIMEOUT(end_time);
 	unsigned long count;
 	int n;
@@ -204,17 +211,31 @@ static int __live_parallel_switchN(void *data)
 	count = 0;
 	do {
 		for (n = 0; n < ARRAY_SIZE(arg->ce); n++) {
-			struct i915_request *rq;
+			struct i915_request *prev = rq;
+			int err = 0;
 
 			rq = i915_request_create(arg->ce[n]);
-			if (IS_ERR(rq))
+			if (IS_ERR(rq)) {
+				i915_request_put(prev);
 				return PTR_ERR(rq);
+			}
+
+			i915_request_get(rq);
+			if (prev) {
+				err = i915_request_await_dma_fence(rq, &prev->fence);
+				i915_request_put(prev);
+			}
 
 			i915_request_add(rq);
+			if (err) {
+				i915_request_put(rq);
+				return err;
+			}
 		}
 
 		count++;
 	} while (!__igt_timeout(end_time, NULL));
+	i915_request_put(rq);
 
 	pr_info("%s: %lu switches (many)\n", arg->ce[0]->engine->name, count);
 	return 0;
