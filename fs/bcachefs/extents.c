@@ -971,20 +971,7 @@ static int count_iters_for_insert(struct btree_trans *trans,
 				     POS(0, idx + sectors)) >= 0)
 				break;
 
-			*nr_iters += 1;
-
-			if (overwrite &&
-			    r_k.k->type == KEY_TYPE_reflink_v) {
-				struct bkey_s_c_reflink_v r = bkey_s_c_to_reflink_v(r_k);
-
-				if (le64_to_cpu(r.v->refcount) == 1)
-					*nr_iters += bch2_bkey_nr_alloc_ptrs(r_k);
-			}
-
-			/*
-			 * if we're going to be deleting an entry from
-			 * the reflink btree, need more iters...
-			 */
+			*nr_iters += 1 + bch2_bkey_nr_alloc_ptrs(r_k);
 
 			if (*nr_iters >= max_iters) {
 				struct bpos pos = bkey_start_pos(k.k);
