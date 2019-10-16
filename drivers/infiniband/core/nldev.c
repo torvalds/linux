@@ -439,6 +439,14 @@ static bool fill_res_entry(struct ib_device *dev, struct sk_buff *msg,
 	return dev->ops.fill_res_entry(msg, res);
 }
 
+static bool fill_stat_entry(struct ib_device *dev, struct sk_buff *msg,
+			    struct rdma_restrack_entry *res)
+{
+	if (!dev->ops.fill_stat_entry)
+		return false;
+	return dev->ops.fill_stat_entry(msg, res);
+}
+
 static int fill_res_qp_entry(struct sk_buff *msg, bool has_cap_net_admin,
 			     struct rdma_restrack_entry *res, uint32_t port)
 {
@@ -739,8 +747,8 @@ err:
 	return ret;
 }
 
-static int fill_stat_hwcounter_entry(struct sk_buff *msg,
-				     const char *name, u64 value)
+int rdma_nl_stat_hwcounter_entry(struct sk_buff *msg, const char *name,
+				 u64 value)
 {
 	struct nlattr *entry_attr;
 
@@ -762,6 +770,25 @@ err:
 	nla_nest_cancel(msg, entry_attr);
 	return -EMSGSIZE;
 }
+EXPORT_SYMBOL(rdma_nl_stat_hwcounter_entry);
+
+static int fill_stat_mr_entry(struct sk_buff *msg, bool has_cap_net_admin,
+			      struct rdma_restrack_entry *res, uint32_t port)
+{
+	struct ib_mr *mr = container_of(res, struct ib_mr, res);
+	struct ib_device *dev = mr->pd->device;
+
+	if (nla_put_u32(msg, RDMA_NLDEV_ATTR_RES_MRN, res->id))
+		goto err;
+
+	if (fill_stat_entry(dev, msg, res))
+		goto err;
+
+	return 0;
+
+err:
+	return -EMSGSIZE;
+}
 
 static int fill_stat_counter_hwcounters(struct sk_buff *msg,
 					struct rdma_counter *counter)
@@ -775,7 +802,7 @@ static int fill_stat_counter_hwcounters(struct sk_buff *msg,
 		return -EMSGSIZE;
 
 	for (i = 0; i < st->num_counters; i++)
-		if (fill_stat_hwcounter_entry(msg, st->names[i], st->value[i]))
+		if (rdma_nl_stat_hwcounter_entry(msg, st->names[i], st->value[i]))
 			goto err;
 
 	nla_nest_end(msg, table_attr);
@@ -1897,7 +1924,7 @@ static int stat_get_doit_default_counter(struct sk_buff *skb,
 	for (i = 0; i < num_cnts; i++) {
 		v = stats->value[i] +
 			rdma_counter_get_hwstat_value(device, port, i);
-		if (fill_stat_hwcounter_entry(msg, stats->names[i], v)) {
+		if (rdma_nl_stat_hwcounter_entry(msg, stats->names[i], v)) {
 			ret = -EMSGSIZE;
 			goto err_table;
 		}
@@ -2006,7 +2033,10 @@ static int nldev_stat_get_doit(struct sk_buff *skb, struct nlmsghdr *nlh,
 	case RDMA_NLDEV_ATTR_RES_QP:
 		ret = stat_get_doit_qp(skb, nlh, extack, tb);
 		break;
-
+	case RDMA_NLDEV_ATTR_RES_MR:
+		ret = res_get_common_doit(skb, nlh, extack, RDMA_RESTRACK_MR,
+					  fill_stat_mr_entry);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -2030,7 +2060,10 @@ static int nldev_stat_get_dumpit(struct sk_buff *skb,
 	case RDMA_NLDEV_ATTR_RES_QP:
 		ret = nldev_res_get_counter_dumpit(skb, cb);
 		break;
-
+	case RDMA_NLDEV_ATTR_RES_MR:
+		ret = res_get_common_dumpit(skb, cb, RDMA_RESTRACK_MR,
+					    fill_stat_mr_entry);
+		break;
 	default:
 		ret = -EINVAL;
 		break;

@@ -158,6 +158,8 @@ int rdma_nl_put_driver_u64_hex(struct sk_buff *msg, const char *name,
 			       u64 value);
 int rdma_nl_put_driver_string(struct sk_buff *msg, const char *name,
 			      const char *str);
+int rdma_nl_stat_hwcounter_entry(struct sk_buff *msg, const char *name,
+				 u64 value);
 
 struct rdma_restrack_entry *rdma_restrack_get_byid(struct ib_device *dev,
 						   enum rdma_restrack_type type,
