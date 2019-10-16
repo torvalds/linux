@@ -317,38 +317,47 @@ static int nft_indr_block_offload_cmd(struct nft_base_chain *chain,
 #define FLOW_SETUP_BLOCK TC_SETUP_BLOCK
 
 static int nft_flow_block_chain(struct nft_base_chain *basechain,
-				struct net_device *dev,
+				const struct net_device *this_dev,
 				enum flow_block_command cmd)
 {
-	if (dev->netdev_ops->ndo_setup_tc)
-		return nft_block_offload_cmd(basechain, dev, cmd);
+	struct net_device *dev;
+	struct nft_hook *hook;
+	int err;
 
-	return nft_indr_block_offload_cmd(basechain, dev, cmd);
+	list_for_each_entry(hook, &basechain->hook_list, list) {
+		dev = hook->ops.dev;
+		if (this_dev && this_dev != dev)
+			continue;
+
+		if (dev->netdev_ops->ndo_setup_tc)
+			err = nft_block_offload_cmd(basechain, dev, cmd);
+		else
+			err = nft_indr_block_offload_cmd(basechain, dev, cmd);
+
+		if (err < 0)
+			return err;
+	}
+
+	return 0;
 }
 
-static int nft_flow_offload_chain(struct nft_chain *chain,
-				  u8 *ppolicy,
+static int nft_flow_offload_chain(struct nft_chain *chain, u8 *ppolicy,
 				  enum flow_block_command cmd)
 {
 	struct nft_base_chain *basechain;
-	struct net_device *dev;
 	u8 policy;
 
 	if (!nft_is_base_chain(chain))
 		return -EOPNOTSUPP;
 
 	basechain = nft_base_chain(chain);
-	dev = basechain->ops.dev;
-	if (!dev)
-		return -EOPNOTSUPP;
-
 	policy = ppolicy ? *ppolicy : basechain->policy;
 
 	/* Only default policy to accept is supported for now. */
 	if (cmd == FLOW_BLOCK_BIND && policy == NF_DROP)
 		return -EOPNOTSUPP;
 
-	return nft_flow_block_chain(basechain, dev, cmd);
+	return nft_flow_block_chain(basechain, NULL, cmd);
 }
 
 int nft_flow_rule_offload_commit(struct net *net)
@@ -414,6 +423,7 @@ static struct nft_chain *__nft_offload_get_chain(struct net_device *dev)
 {
 	struct nft_base_chain *basechain;
 	struct net *net = dev_net(dev);
+	struct nft_hook *hook, *found;
 	const struct nft_table *table;
 	struct nft_chain *chain;
 
@@ -426,8 +436,16 @@ static struct nft_chain *__nft_offload_get_chain(struct net_device *dev)
 			    !(chain->flags & NFT_CHAIN_HW_OFFLOAD))
 				continue;
 
+			found = NULL;
 			basechain = nft_base_chain(chain);
-			if (strncmp(basechain->dev_name, dev->name, IFNAMSIZ))
+			list_for_each_entry(hook, &basechain->hook_list, list) {
+				if (hook->ops.dev != dev)
+					continue;
+
+				found = hook;
+				break;
+			}
+			if (!found)
 				continue;
 
 			return chain;
