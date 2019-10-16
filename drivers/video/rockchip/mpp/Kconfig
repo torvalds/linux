@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+menuconfig ROCKCHIP_MPP_SERVICE
+	tristate "mpp service framework"
+	depends on ARCH_ROCKCHIP
+	default n
+	help
+	  rockchip mpp service framework.
+
+config ROCKCHIP_MPP_RKVDEC
+	tristate "RKV decoder device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip mpp rkv combo decoder and hevc decoder.
+
+config ROCKCHIP_MPP_VDPU1
+	tristate "VPU decoder v1 device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip mpp vpu decoder v1.
+
+config ROCKCHIP_MPP_VEPU1
+	tristate "VPU encoder v1 device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip mpp vpu encoder v1.
+
+config ROCKCHIP_MPP_VDPU2
+	tristate "VPU decoder v2 device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+
+config ROCKCHIP_MPP_VEPU2
+	tristate "VPU encoder v2 device driver"
+	depends on ROCKCHIP_MPP_SERVICE
+	default n
+	help
+	  rockchip mpp vpu encoder v2

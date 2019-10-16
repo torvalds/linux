@@ -1,0 +1,81 @@
+/* SPDX-License-Identifier: (GPL-2.0+ OR MIT) */
+/*
+ * Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd
+ *
+ * author:
+ *	Alpha Lin, alpha.lin@rock-chips.com
+ *	Randy Li, randy.li@rock-chips.com
+ *	Ding Wei, leo.ding@rock-chips.com
+ *
+ */
+#ifndef __ROCKCHIP_MPP_IOMMU_H__
+#define __ROCKCHIP_MPP_IOMMU_H__
+
+#include <linux/iommu.h>
+#include <linux/dma-mapping.h>
+
+struct mpp_dma_buffer {
+	struct list_head list;
+	struct mpp_dma_session *session;
+
+	/* DMABUF information */
+	struct dma_buf *dmabuf;
+	struct dma_buf_attachment *attach;
+	struct sg_table *sgt;
+	struct sg_table *copy_sgt;
+	enum dma_data_direction dir;
+
+	int fd;
+	dma_addr_t iova;
+	unsigned long size;
+	void *vaddr;
+
+	struct kref ref;
+	ktime_t last_used;
+};
+
+struct mpp_dma_session {
+	struct list_head buffer_list;
+	/* the mutex for the above buffer list */
+	struct mutex list_mutex;
+	/* the max buffer num for the buffer list */
+	u32 max_buffers;
+	/* the count for the buffer list */
+	int buffer_count;
+
+	struct device *dev;
+};
+
+struct mpp_iommu_info {
+	struct iommu_domain *domain;
+	struct iommu_group *group;
+};
+
+struct mpp_dma_session *
+mpp_dma_session_create(struct device *dev);
+int mpp_dma_session_destroy(struct mpp_dma_session *session);
+
+struct mpp_dma_buffer *
+mpp_dma_alloc(struct mpp_dma_session *session, size_t size);
+int mpp_dma_free(struct mpp_dma_session *session,
+		 struct mpp_dma_buffer *buffer);
+
+struct mpp_dma_buffer *
+mpp_dma_import_fd(struct mpp_dma_session *session, int fd);
+int mpp_dma_release(struct mpp_dma_session *session,
+		    struct mpp_dma_buffer *buffer);
+int mpp_dma_release_fd(struct mpp_dma_session *session, int fd);
+
+int mpp_dma_unmap_kernel(struct mpp_dma_session *session,
+			 struct mpp_dma_buffer *buffer);
+int mpp_dma_map_kernel(struct mpp_dma_session *session,
+		       struct mpp_dma_buffer *buffer);
+
+struct mpp_iommu_info *
+mpp_iommu_probe(struct device *dev);
+int mpp_iommu_remove(struct mpp_iommu_info *info);
+
+int mpp_iommu_attach(struct mpp_iommu_info *info);
+int mpp_iommu_detach(struct mpp_iommu_info *info);
+
+#endif
