@@ -74,7 +74,7 @@ void mt76x2_phy_set_antenna(struct mt76x02_dev *dev)
 
 	val = mt76_rr(dev, MT_BBP(AGC, 0));
 	val &= ~(BIT(4) | BIT(1));
-	switch (dev->mt76.antenna_mask) {
+	switch (dev->mphy.antenna_mask) {
 	case 1:
 		/* disable mac DAC control */
 		mt76_clear(dev, MT_BBP(IBI, 9), BIT(11));

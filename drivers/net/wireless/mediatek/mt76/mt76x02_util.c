@@ -193,10 +193,10 @@ void mt76x02_init_device(struct mt76x02_dev *dev)
 		dev->mphy.sband_5g.sband.ht_cap.cap |=
 				IEEE80211_HT_CAP_LDPC_CODING;
 		dev->chainmask = 0x202;
-		dev->mt76.antenna_mask = 3;
+		dev->mphy.antenna_mask = 3;
 	} else {
 		dev->chainmask = 0x101;
-		dev->mt76.antenna_mask = 1;
+		dev->mphy.antenna_mask = 1;
 	}
 }
 EXPORT_SYMBOL_GPL(mt76x02_init_device);

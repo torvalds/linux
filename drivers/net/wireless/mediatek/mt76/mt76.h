@@ -468,6 +468,9 @@ struct mt76_phy {
 
 	struct mt76_sband sband_2g;
 	struct mt76_sband sband_5g;
+
+	int txpower_cur;
+	u8 antenna_mask;
 };
 
 struct mt76_dev {
@@ -523,8 +526,6 @@ struct mt76_dev {
 
 	u32 aggr_stats[32];
 
-	u8 antenna_mask;
-
 	struct tasklet_struct pre_tbtt_tasklet;
 	int beacon_int;
 	u8 beacon_mask;
@@ -534,7 +535,6 @@ struct mt76_dev {
 	struct mt76_hw_cap cap;
 
 	struct mt76_rate_power rate_power;
-	int txpower_cur;
 
 	enum nl80211_dfs_regions region;
 

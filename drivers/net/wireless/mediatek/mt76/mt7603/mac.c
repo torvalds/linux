@@ -609,7 +609,7 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 
 		status->rate_idx = i;
 
-		status->chains = dev->mt76.antenna_mask;
+		status->chains = dev->mphy.antenna_mask;
 		status->chain_signal[0] = FIELD_GET(MT_RXV4_IB_RSSI0, rxdg3) +
 					  dev->rssi_offset[0];
 		status->chain_signal[1] = FIELD_GET(MT_RXV4_IB_RSSI1, rxdg3) +

@@ -113,7 +113,7 @@ mt7603_dma_sched_init(struct mt7603_dev *dev)
 static void
 mt7603_phy_init(struct mt7603_dev *dev)
 {
-	int rx_chains = dev->mt76.antenna_mask;
+	int rx_chains = dev->mphy.antenna_mask;
 	int tx_chains = hweight8(rx_chains) - 1;
 
 	mt76_rmw(dev, MT_WF_RMAC_RMCR,
@@ -493,12 +493,12 @@ mt7603_init_txpower(struct mt7603_dev *dev,
 	target_power += max_offset;
 
 	dev->tx_power_limit = target_power;
-	dev->mt76.txpower_cur = target_power;
+	dev->mphy.txpower_cur = target_power;
 
 	target_power = DIV_ROUND_UP(target_power, 2);
 
 	/* add 3 dBm for 2SS devices (combined output) */
-	if (dev->mt76.antenna_mask & BIT(1))
+	if (dev->mphy.antenna_mask & BIT(1))
 		target_power += 3;
 
 	for (i = 0; i < sband->n_channels; i++) {
@@ -535,9 +535,9 @@ int mt7603_register_device(struct mt7603_dev *dev)
 		     (unsigned long)dev);
 
 	/* Check for 7688, which only has 1SS */
-	dev->mt76.antenna_mask = 3;
+	dev->mphy.antenna_mask = 3;
 	if (mt76_rr(dev, MT_EFUSE_BASE + 0x64) & BIT(4))
-		dev->mt76.antenna_mask = 1;
+		dev->mphy.antenna_mask = 1;
 
 	dev->slottime = 9;
 

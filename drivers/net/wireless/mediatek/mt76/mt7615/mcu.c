@@ -1158,7 +1158,7 @@ int mt7615_mcu_set_bcn(struct mt7615_dev *dev, struct ieee80211_vif *vif,
 
 int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 {
-	int i, ret, n_chains = hweight8(dev->mt76.antenna_mask);
+	int i, ret, n_chains = hweight8(dev->mphy.antenna_mask);
 	struct cfg80211_chan_def *chandef = &dev->mphy.chandef;
 	int freq = chandef->center_freq1, len, target_chains;
 	u8 *req, *data, *eep = (u8 *)dev->mt76.eeprom.data;
@@ -1200,7 +1200,7 @@ int mt7615_mcu_set_tx_power(struct mt7615_dev *dev)
 		break;
 	}
 	tx_power = max_t(s8, tx_power, 0);
-	dev->mt76.txpower_cur = tx_power;
+	dev->mphy.txpower_cur = tx_power;
 
 	target_chains = mt7615_ext_pa_enabled(dev, band) ? 1 : n_chains;
 	for (i = 0; i < target_chains; i++) {
@@ -1300,7 +1300,7 @@ int mt7615_mcu_set_channel(struct mt7615_dev *dev)
 		.control_chan = chandef->chan->hw_value,
 		.center_chan = ieee80211_frequency_to_channel(freq1),
 		.tx_streams = (dev->chainmask >> 8) & 0xf,
-		.rx_streams_mask = dev->mt76.antenna_mask,
+		.rx_streams_mask = dev->mphy.antenna_mask,
 		.center_chan2 = ieee80211_frequency_to_channel(freq2),
 	};
 	int ret;
