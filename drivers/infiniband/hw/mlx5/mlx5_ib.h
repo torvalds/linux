@@ -626,6 +626,7 @@ struct mlx5_ib_mr {
 	struct mlx5_async_work  cb_work;
 	atomic_t		num_pending_prefetch;
 	struct ib_odp_counters	odp_stats;
+	bool			is_odp_implicit;
 };
 
 static inline bool is_odp_mr(struct mlx5_ib_mr *mr)
@@ -1339,6 +1340,8 @@ struct mlx5_core_dev *mlx5_ib_get_native_port_mdev(struct mlx5_ib_dev *dev,
 						   u8 *native_port_num);
 void mlx5_ib_put_native_port_mdev(struct mlx5_ib_dev *dev,
 				  u8 port_num);
+int mlx5_ib_fill_res_entry(struct sk_buff *msg,
+			   struct rdma_restrack_entry *res);
 
 #if IS_ENABLED(CONFIG_INFINIBAND_USER_ACCESS)
 int mlx5_ib_devx_create(struct mlx5_ib_dev *dev, bool is_user);

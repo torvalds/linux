@@ -183,6 +183,19 @@ static int _rdma_nl_put_driver_u64(struct sk_buff *msg, const char *name,
 	return 0;
 }
 
+int rdma_nl_put_driver_string(struct sk_buff *msg, const char *name,
+			      const char *str)
+{
+	if (put_driver_name_print_type(msg, name,
+				       RDMA_NLDEV_PRINT_TYPE_UNSPEC))
+		return -EMSGSIZE;
+	if (nla_put_string(msg, RDMA_NLDEV_ATTR_DRIVER_STRING, str))
+		return -EMSGSIZE;
+
+	return 0;
+}
+EXPORT_SYMBOL(rdma_nl_put_driver_string);
+
 int rdma_nl_put_driver_u32(struct sk_buff *msg, const char *name, u32 value)
 {
 	return _rdma_nl_put_driver_u32(msg, name, RDMA_NLDEV_PRINT_TYPE_UNSPEC,
