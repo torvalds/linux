@@ -203,17 +203,14 @@ static int ftm_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
  */
 static int ftm_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alm)
 {
-	struct rtc_time tm;
-	time64_t now, alm_time;
+	time64_t alm_time;
 	unsigned long long cycle;
 	struct ftm_rtc *rtc = dev_get_drvdata(dev);
 
-	ftm_rtc_read_time(dev, &tm);
-	now = rtc_tm_to_time64(&tm);
 	alm_time = rtc_tm_to_time64(&alm->time);
 
 	ftm_clean_alarm(rtc);
-	cycle = (alm_time - now) * rtc->alarm_freq;
+	cycle = (alm_time - ktime_get_real_seconds()) * rtc->alarm_freq;
 	if (cycle > MAX_COUNT_VAL) {
 		pr_err("Out of alarm range {0~262} seconds.\n");
 		return -ERANGE;
