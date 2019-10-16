@@ -929,24 +929,6 @@ static int __init genpd_power_off_unused(void)
 }
 late_initcall(genpd_power_off_unused);
 
-#if defined(CONFIG_PM_SLEEP) || defined(CONFIG_PM_GENERIC_DOMAINS_OF)
-
-static bool genpd_present(const struct generic_pm_domain *genpd)
-{
-	const struct generic_pm_domain *gpd;
-
-	if (IS_ERR_OR_NULL(genpd))
-		return false;
-
-	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
-		if (gpd == genpd)
-			return true;
-
-	return false;
-}
-
-#endif
-
 #ifdef CONFIG_PM_SLEEP
 
 /**
@@ -1361,8 +1343,8 @@ static void genpd_syscore_switch(struct device *dev, bool suspend)
 {
 	struct generic_pm_domain *genpd;
 
-	genpd = dev_to_genpd(dev);
-	if (!genpd_present(genpd))
+	genpd = dev_to_genpd_safe(dev);
+	if (!genpd)
 		return;
 
 	if (suspend) {
@@ -2026,6 +2008,16 @@ static int genpd_add_provider(struct device_node *np, genpd_xlate_t xlate,
 	pr_debug("Added domain provider from %pOF\n", np);
 
 	return 0;
+}
+
+static bool genpd_present(const struct generic_pm_domain *genpd)
+{
+	const struct generic_pm_domain *gpd;
+
+	list_for_each_entry(gpd, &gpd_list, gpd_list_node)
+		if (gpd == genpd)
+			return true;
+	return false;
 }
 
 /**
