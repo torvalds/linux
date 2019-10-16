@@ -35,7 +35,7 @@ static unsigned long hwsp_cacheline(struct intel_timeline *tl)
 #define CACHELINES_PER_PAGE (PAGE_SIZE / CACHELINE_BYTES)
 
 struct mock_hwsp_freelist {
-	struct drm_i915_private *i915;
+	struct intel_gt *gt;
 	struct radix_tree_root cachelines;
 	struct intel_timeline **history;
 	unsigned long count, max;
@@ -68,7 +68,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 		unsigned long cacheline;
 		int err;
 
-		tl = intel_timeline_create(&state->i915->gt, NULL);
+		tl = intel_timeline_create(state->gt, NULL);
 		if (IS_ERR(tl))
 			return PTR_ERR(tl);
 
@@ -106,6 +106,7 @@ static int __mock_hwsp_timeline(struct mock_hwsp_freelist *state,
 static int mock_hwsp_freelist(void *arg)
 {
 	struct mock_hwsp_freelist state;
+	struct drm_i915_private *i915;
 	const struct {
 		const char *name;
 		unsigned int flags;
@@ -117,12 +118,14 @@ static int mock_hwsp_freelist(void *arg)
 	unsigned int na;
 	int err = 0;
 
+	i915 = mock_gem_device();
+	if (!i915)
+		return -ENOMEM;
+
 	INIT_RADIX_TREE(&state.cachelines, GFP_KERNEL);
 	state.prng = I915_RND_STATE_INITIALIZER(i915_selftest.random_seed);
 
-	state.i915 = mock_gem_device();
-	if (!state.i915)
-		return -ENOMEM;
+	state.gt = &i915->gt;
 
 	/*
 	 * Create a bunch of timelines and check that their HWSP do not overlap.
@@ -151,7 +154,7 @@ out:
 		__mock_hwsp_record(&state, na, NULL);
 	kfree(state.history);
 err_put:
-	drm_dev_put(&state.i915->drm);
+	drm_dev_put(&i915->drm);
 	return err;
 }
 
@@ -476,11 +479,11 @@ out:
 }
 
 static struct intel_timeline *
-checked_intel_timeline_create(struct drm_i915_private *i915)
+checked_intel_timeline_create(struct intel_gt *gt)
 {
 	struct intel_timeline *tl;
 
-	tl = intel_timeline_create(&i915->gt, NULL);
+	tl = intel_timeline_create(gt, NULL);
 	if (IS_ERR(tl))
 		return tl;
 
@@ -497,7 +500,7 @@ checked_intel_timeline_create(struct drm_i915_private *i915)
 static int live_hwsp_engine(void *arg)
 {
 #define NUM_TIMELINES 4096
-	struct drm_i915_private *i915 = arg;
+	struct intel_gt *gt = arg;
 	struct intel_timeline **timelines;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -516,7 +519,7 @@ static int live_hwsp_engine(void *arg)
 		return -ENOMEM;
 
 	count = 0;
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt->i915, id) {
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
@@ -526,7 +529,7 @@ static int live_hwsp_engine(void *arg)
 			struct intel_timeline *tl;
 			struct i915_request *rq;
 
-			tl = checked_intel_timeline_create(i915);
+			tl = checked_intel_timeline_create(gt);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				break;
@@ -548,7 +551,7 @@ static int live_hwsp_engine(void *arg)
 			break;
 	}
 
-	if (igt_flush_test(i915))
+	if (igt_flush_test(gt->i915))
 		err = -EIO;
 
 	for (n = 0; n < count; n++) {
@@ -570,7 +573,7 @@ static int live_hwsp_engine(void *arg)
 static int live_hwsp_alternate(void *arg)
 {
 #define NUM_TIMELINES 4096
-	struct drm_i915_private *i915 = arg;
+	struct intel_gt *gt = arg;
 	struct intel_timeline **timelines;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -591,14 +594,14 @@ static int live_hwsp_alternate(void *arg)
 
 	count = 0;
 	for (n = 0; n < NUM_TIMELINES; n++) {
-		for_each_engine(engine, i915, id) {
+		for_each_engine(engine, gt->i915, id) {
 			struct intel_timeline *tl;
 			struct i915_request *rq;
 
 			if (!intel_engine_can_store_dword(engine))
 				continue;
 
-			tl = checked_intel_timeline_create(i915);
+			tl = checked_intel_timeline_create(gt);
 			if (IS_ERR(tl)) {
 				intel_engine_pm_put(engine);
 				err = PTR_ERR(tl);
@@ -620,7 +623,7 @@ static int live_hwsp_alternate(void *arg)
 	}
 
 out:
-	if (igt_flush_test(i915))
+	if (igt_flush_test(gt->i915))
 		err = -EIO;
 
 	for (n = 0; n < count; n++) {
@@ -641,8 +644,7 @@ out:
 
 static int live_hwsp_wrap(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
 	struct intel_timeline *tl;
 	enum intel_engine_id id;
@@ -740,7 +742,7 @@ static int live_hwsp_wrap(void *arg)
 	}
 
 out:
-	if (igt_flush_test(i915))
+	if (igt_flush_test(gt->i915))
 		err = -EIO;
 
 	intel_timeline_unpin(tl);
@@ -751,7 +753,7 @@ out_free:
 
 static int live_hwsp_recycle(void *arg)
 {
-	struct drm_i915_private *i915 = arg;
+	struct intel_gt *gt = arg;
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	unsigned long count;
@@ -764,7 +766,7 @@ static int live_hwsp_recycle(void *arg)
 	 */
 
 	count = 0;
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt->i915, id) {
 		IGT_TIMEOUT(end_time);
 
 		if (!intel_engine_can_store_dword(engine))
@@ -776,7 +778,7 @@ static int live_hwsp_recycle(void *arg)
 			struct intel_timeline *tl;
 			struct i915_request *rq;
 
-			tl = checked_intel_timeline_create(i915);
+			tl = checked_intel_timeline_create(gt);
 			if (IS_ERR(tl)) {
 				err = PTR_ERR(tl);
 				break;
@@ -831,5 +833,5 @@ int intel_timeline_live_selftests(struct drm_i915_private *i915)
 	if (intel_gt_is_wedged(&i915->gt))
 		return 0;
 
-	return i915_live_subtests(tests, i915);
+	return intel_gt_live_subtests(tests, &i915->gt);
 }
