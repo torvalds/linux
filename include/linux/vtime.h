@@ -28,7 +28,7 @@ extern void vtime_task_switch(struct task_struct *prev);
  */
 static inline bool vtime_accounting_enabled(void)
 {
-	return context_tracking_is_enabled();
+	return context_tracking_enabled();
 }
 
 static inline bool vtime_accounting_cpu_enabled(void)

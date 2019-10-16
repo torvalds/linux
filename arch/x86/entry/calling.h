@@ -354,7 +354,7 @@ For 32-bit we have the following conventions - kernel is built with
 .macro CALL_enter_from_user_mode
 #ifdef CONFIG_CONTEXT_TRACKING
 #ifdef CONFIG_JUMP_LABEL
-	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_enabled, def=0
+	STATIC_JUMP_IF_FALSE .Lafter_call_\@, context_tracking_key, def=0
 #endif
 	call enter_from_user_mode
 .Lafter_call_\@:

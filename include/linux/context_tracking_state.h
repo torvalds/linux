@@ -23,12 +23,12 @@ struct context_tracking {
 };
 
 #ifdef CONFIG_CONTEXT_TRACKING
-extern struct static_key_false context_tracking_enabled;
+extern struct static_key_false context_tracking_key;
 DECLARE_PER_CPU(struct context_tracking, context_tracking);
 
-static inline bool context_tracking_is_enabled(void)
+static inline bool context_tracking_enabled(void)
 {
-	return static_branch_unlikely(&context_tracking_enabled);
+	return static_branch_unlikely(&context_tracking_key);
 }
 
 static inline bool context_tracking_cpu_is_enabled(void)
@@ -42,7 +42,7 @@ static inline bool context_tracking_in_user(void)
 }
 #else
 static inline bool context_tracking_in_user(void) { return false; }
-static inline bool context_tracking_is_enabled(void) { return false; }
+static inline bool context_tracking_enabled(void) { return false; }
 static inline bool context_tracking_cpu_is_enabled(void) { return false; }
 #endif /* CONFIG_CONTEXT_TRACKING */
 
