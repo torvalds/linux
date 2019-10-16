@@ -20,7 +20,10 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
+#include <linux/device.h>
+
+#include <drm/amd_asic_type.h>
+
 #include "amdgpu.h"
 #include "amdgpu_tmz.h"
 
