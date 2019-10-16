@@ -170,6 +170,14 @@ FTRACE_OPS_FL_RCU
 	a callback may be executed and RCU synchronization will not protect
 	it.
 
+FTRACE_OPS_FL_PERMANENT
+        If this is set on any ftrace ops, then the tracing cannot disabled by
+        writing 0 to the proc sysctl ftrace_enabled. Equally, a callback with
+        the flag set cannot be registered if ftrace_enabled is 0.
+
+        Livepatch uses it not to lose the function redirection, so the system
+        stays protected.
+
 
 Filtering which functions to trace
 ==================================

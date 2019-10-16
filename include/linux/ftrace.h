@@ -142,6 +142,8 @@ ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops);
  * PID     - Is affected by set_ftrace_pid (allows filtering on those pids)
  * RCU     - Set when the ops can only be called when RCU is watching.
  * TRACE_ARRAY - The ops->private points to a trace_array descriptor.
+ * PERMANENT - Set when the ops is permanent and should not be affected by
+ *             ftrace_enabled.
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -160,6 +162,7 @@ enum {
 	FTRACE_OPS_FL_PID			= 1 << 13,
 	FTRACE_OPS_FL_RCU			= 1 << 14,
 	FTRACE_OPS_FL_TRACE_ARRAY		= 1 << 15,
+	FTRACE_OPS_FL_PERMANENT                 = 1 << 16,
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
