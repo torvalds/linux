@@ -336,15 +336,12 @@
 			 <&cru SRST_PCIECTL_BUTTON>, <&cru SRST_PCIECTL_PE>,
 			 <&cru SRST_PCIECTL_CORE>, <&cru SRST_PCIECTL_NSTICKY>,
 			 <&cru SRST_PCIECTL_STICKY>, <&cru SRST_PCIECTL_PWR>,
-			 <&cru SRST_PCIE_NIU_A>, <&cru SRST_PCIE_NIU_P>,
-			 <&cru SRST_PCIEPHY_POR>, <&cru SRST_PCIEPHY_P>,
-			 <&cru SRST_PCIEPHY_PIPE>;
+			 <&cru SRST_PCIE_NIU_A>, <&cru SRST_PCIE_NIU_P>;
 		reset-names = "niu-h", "niu-l", "grf-p", "ctl-p",
 			      "ctl-powerup", "ctl-mst-a", "ctl-slv-a",
 			      "ctl-dbi-a", "ctl-button", "ctl-pe",
 			      "ctl-core", "ctl-nsticky", "ctl-sticky",
-			      "ctl-pwr", "ctl-niu-a", "ctl-niu-p",
-			      "phy-por", "phy-p", "phy-pipe";
+			      "ctl-pwr", "ctl-niu-a", "ctl-niu-p";
 		rockchip,usbpciegrf = <&usb_pcie_grf>;
 		rockchip,pmugrf = <&pmugrf>;
 		status = "disabled";
