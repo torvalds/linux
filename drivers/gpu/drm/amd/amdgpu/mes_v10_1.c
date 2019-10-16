@@ -825,6 +825,7 @@ static int mes_v10_1_sw_init(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->mes.adev = adev;
+	adev->mes.funcs = &mes_v10_1_funcs;
 
 	r = mes_v10_1_init_microcode(adev);
 	if (r)
@@ -875,20 +876,29 @@ static int mes_v10_1_hw_init(void *handle)
 			DRM_ERROR("failed to MES fw, r=%d\n", r);
 			return r;
 		}
-	} else {
-		DRM_ERROR("only support direct fw loading on MES\n");
-		return -EINVAL;
 	}
 
 	mes_v10_1_enable(adev, true);
 
 	r = mes_v10_1_queue_init(adev);
+	if (r)
+		goto failure;
+
+	r = mes_v10_1_set_hw_resources(&adev->mes);
+	if (r)
+		goto failure;
+
+	r = mes_v10_1_query_sched_status(&adev->mes);
 	if (r) {
-		mes_v10_1_hw_fini(adev);
-		return r;
+		DRM_ERROR("MES is busy\n");
+		goto failure;
 	}
 
 	return 0;
+
+failure:
+	mes_v10_1_hw_fini(adev);
+	return r;
 }
 
 static int mes_v10_1_hw_fini(void *handle)
