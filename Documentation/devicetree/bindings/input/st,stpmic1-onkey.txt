@@ -15,7 +15,7 @@ Optional properties:
 - st,onkey-pu-inactive: onkey pull up is not active
 - power-off-time-sec: Duration in seconds which the key should be kept
         pressed for device to power off automatically (from 1 to 16 seconds).
-        see See Documentation/devicetree/bindings/input/keys.txt
+        see See Documentation/devicetree/bindings/input/input.yaml
 
 Example:
 
