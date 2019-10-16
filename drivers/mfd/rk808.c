@@ -1338,23 +1338,18 @@ static int rk808_probe(struct i2c_client *client,
 
 	pm_off = of_property_read_bool(np,
 				"rockchip,system-power-controller");
+	if (pm_off) {
+		if (!pm_power_off_prepare)
+			pm_power_off_prepare = rk808->pm_pwroff_prep_fn;
+		if (!pm_power_off_prepare)
+			pm_power_off = rk808->pm_pwroff_fn;
+	}
 
 	rk8xx_kobj = kobject_create_and_add("rk8xx", NULL);
 	if (rk8xx_kobj) {
 		ret = sysfs_create_file(rk8xx_kobj, &rk8xx_attrs.attr);
 		if (ret)
 			dev_err(&client->dev, "create rk8xx sysfs error\n");
-	}
-
-	if (pm_off) {
-		rk808_i2c_client = client;
-		pm_power_off = rk808->pm_pwroff_fn;
-	}
-
-	if (pm_off && !pm_power_off_prepare) {
-		if (!rk808_i2c_client)
-			rk808_i2c_client = client;
-		pm_power_off_prepare = rk808->pm_pwroff_prep_fn;
 	}
 
 	if (!pm_power_off)
