@@ -491,18 +491,18 @@ static const struct pwm_ops stm32pwm_ops = {
 };
 
 static int stm32_pwm_set_breakinput(struct stm32_pwm *priv,
-				    int index, int level, int filter)
+				    const struct stm32_breakinput *bi)
 {
-	u32 shift = TIM_BDTR_BKF_SHIFT(index);
-	u32 bke = TIM_BDTR_BKE(index);
-	u32 bkp = TIM_BDTR_BKP(index);
-	u32 bkf = TIM_BDTR_BKF(index);
+	u32 shift = TIM_BDTR_BKF_SHIFT(bi->index);
+	u32 bke = TIM_BDTR_BKE(bi->index);
+	u32 bkp = TIM_BDTR_BKP(bi->index);
+	u32 bkf = TIM_BDTR_BKF(bi->index);
 	u32 mask = bkf | bkp | bke;
 	u32 bdtr;
 
-	bdtr = (filter & TIM_BDTR_BKF_MASK) << shift | bke;
+	bdtr = (bi->filter & TIM_BDTR_BKF_MASK) << shift | bke;
 
-	if (level)
+	if (bi->level)
 		bdtr |= bkp;
 
 	regmap_update_bits(priv->regmap, TIM_BDTR, mask, bdtr);
@@ -518,10 +518,7 @@ static int stm32_pwm_apply_breakinputs(struct stm32_pwm *priv)
 	int ret;
 
 	for (i = 0; i < priv->num_breakinputs; i++) {
-		ret = stm32_pwm_set_breakinput(priv,
-					       priv->breakinputs[i].index,
-					       priv->breakinputs[i].level,
-					       priv->breakinputs[i].filter);
+		ret = stm32_pwm_set_breakinput(priv, &priv->breakinputs[i]);
 		if (ret < 0)
 			return ret;
 	}
