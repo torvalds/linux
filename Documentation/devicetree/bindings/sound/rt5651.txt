@@ -38,6 +38,8 @@ Optional properties:
   2: Scale current by 1.0
   3: Scale current by 1.5
 
+- spk-con-gpio: speaker amplifier enable/disable control
+
 Pins on the device (for linking into audio routes) for RT5651:
 
   * DMIC L1
