@@ -1737,7 +1737,7 @@ mt7603_false_cca_check(struct mt7603_dev *dev)
 
 	mt7603_cca_stats_reset(dev);
 
-	min_signal = mt76_get_min_avg_rssi(&dev->mt76);
+	min_signal = mt76_get_min_avg_rssi(&dev->mt76, false);
 	if (!min_signal) {
 		dev->sensitivity = 0;
 		dev->last_cca_adj = jiffies;

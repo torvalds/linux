@@ -1266,7 +1266,7 @@ mt7615_mac_adjust_sensitivity(struct mt7615_dev *dev,
 	int signal;
 
 	sensitivity = ofdm ? &dev->ofdm_sensitivity : &dev->cck_sensitivity;
-	signal = mt76_get_min_avg_rssi(&dev->mt76);
+	signal = mt76_get_min_avg_rssi(&dev->mt76, false);
 	if (!signal) {
 		mt7615_mac_set_default_sensitivity(dev);
 		return;
