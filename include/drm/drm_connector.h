@@ -39,6 +39,7 @@ struct drm_encoder;
 struct drm_property;
 struct drm_property_blob;
 struct drm_printer;
+struct drm_panel;
 struct edid;
 
 enum drm_connector_force {
@@ -497,6 +498,7 @@ struct drm_connector_state {
 	struct drm_writeback_job *writeback_job;
 
 	/**
+
 	 * @hdr_output_metadata:
 	 * DRM blob property for HDR output metadata
 	 */
@@ -1174,6 +1176,13 @@ struct drm_connector {
 	/* HDR metdata */
 	struct hdr_output_metadata hdr_output_metadata;
 	struct hdr_sink_metadata hdr_sink_metadata;
+
+	/**
+	 * @panel:
+	 *
+	 * Can find the panel which connected to drm_connector.
+	 */
+	struct drm_panel *panel;
 };
 
 #define obj_to_connector(x) container_of(x, struct drm_connector, base)
