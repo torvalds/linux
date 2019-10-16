@@ -1004,7 +1004,7 @@ static int trusted_instantiate(struct key *key,
 	switch (key_cmd) {
 	case Opt_load:
 		if (tpm2)
-			ret = tpm_unseal_trusted(chip, payload, options);
+			ret = tpm2_unseal_trusted(chip, payload, options);
 		else
 			ret = key_unseal(payload, options);
 		dump_payload(payload);
@@ -1020,7 +1020,7 @@ static int trusted_instantiate(struct key *key,
 			goto out;
 		}
 		if (tpm2)
-			ret = tpm_seal_trusted(chip, payload, options);
+			ret = tpm2_seal_trusted(chip, payload, options);
 		else
 			ret = key_seal(payload, options);
 		if (ret < 0)
