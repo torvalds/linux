@@ -86,7 +86,7 @@ static void mt76x2u_disconnect(struct usb_interface *intf)
 	struct mt76x02_dev *dev = usb_get_intfdata(intf);
 	struct ieee80211_hw *hw = mt76_hw(dev);
 
-	set_bit(MT76_REMOVED, &dev->mt76.state);
+	set_bit(MT76_REMOVED, &dev->mphy.state);
 	ieee80211_unregister_hw(hw);
 	mt76x2u_cleanup(dev);
 	mt76u_deinit(&dev->mt76);

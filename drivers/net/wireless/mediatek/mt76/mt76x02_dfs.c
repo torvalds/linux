@@ -616,7 +616,7 @@ static void mt76x02_dfs_tasklet(unsigned long arg)
 	u32 engine_mask;
 	int i;
 
-	if (test_bit(MT76_SCANNING, &dev->mt76.state))
+	if (test_bit(MT76_SCANNING, &dev->mphy.state))
 		goto out;
 
 	if (time_is_before_jiffies(dfs_pd->last_sw_check +

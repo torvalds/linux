@@ -19,7 +19,7 @@ static int mt7615_start(struct ieee80211_hw *hw)
 	mt7615_mac_reset_counters(dev);
 
 	dev->mphy.survey_time = ktime_get_boottime();
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT7615_WATCHDOG_TIME);
 
@@ -30,7 +30,7 @@ static void mt7615_stop(struct ieee80211_hw *hw)
 {
 	struct mt7615_dev *dev = hw->priv;
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
 }
 
@@ -151,7 +151,7 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
 
 	mutex_lock(&dev->mt76.mutex);
-	set_bit(MT76_RESET, &dev->mt76.state);
+	set_bit(MT76_RESET, &dev->mphy.state);
 
 	mt7615_dfs_check_channel(dev);
 
@@ -168,7 +168,7 @@ static int mt7615_set_channel(struct mt7615_dev *dev)
 	mt7615_mac_reset_counters(dev);
 
 out:
-	clear_bit(MT76_RESET, &dev->mt76.state);
+	clear_bit(MT76_RESET, &dev->mphy.state);
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_txq_schedule_all(&dev->mphy);

@@ -123,7 +123,7 @@ static int mt7615_init_hardware(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	ret = mt7615_mcu_init(dev);
 	if (ret)

@@ -82,7 +82,7 @@ int mt76x2u_phy_set_channel(struct mt76x02_dev *dev,
 		      FIELD_PREP(MT_EXT_CCA_CFG_CCA3, 0) |
 		      FIELD_PREP(MT_EXT_CCA_CFG_CCA_MASK, BIT(3)),
 	};
-	bool scan = test_bit(MT76_SCANNING, &dev->mt76.state);
+	bool scan = test_bit(MT76_SCANNING, &dev->mphy.state);
 	struct ieee80211_channel *chan = chandef->chan;
 	u8 channel = chan->hw_value, bw, bw_index;
 	int ch_group_index, freq, freq1, ret;

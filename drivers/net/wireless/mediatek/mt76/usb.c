@@ -29,13 +29,13 @@ static int __mt76u_vendor_request(struct mt76_dev *dev, u8 req,
 	pipe = (req_type & USB_DIR_IN) ? usb_rcvctrlpipe(udev, 0)
 				       : usb_sndctrlpipe(udev, 0);
 	for (i = 0; i < MT_VEND_REQ_MAX_RETRY; i++) {
-		if (test_bit(MT76_REMOVED, &dev->state))
+		if (test_bit(MT76_REMOVED, &dev->phy.state))
 			return -EIO;
 
 		ret = usb_control_msg(udev, pipe, req, req_type, val,
 				      offset, buf, len, MT_VEND_REQ_TOUT_MS);
 		if (ret == -ENODEV)
-			set_bit(MT76_REMOVED, &dev->state);
+			set_bit(MT76_REMOVED, &dev->phy.state);
 		if (ret >= 0 || ret == -ENODEV)
 			return ret;
 		usleep_range(5000, 10000);
@@ -200,7 +200,7 @@ static int
 mt76u_wr_rp(struct mt76_dev *dev, u32 base,
 	    const struct mt76_reg_pair *data, int n)
 {
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->state))
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
 		return dev->mcu_ops->mcu_wr_rp(dev, base, data, n);
 	else
 		return mt76u_req_wr_rp(dev, base, data, n);
@@ -227,7 +227,7 @@ static int
 mt76u_rd_rp(struct mt76_dev *dev, u32 base,
 	    struct mt76_reg_pair *data, int n)
 {
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->state))
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->phy.state))
 		return dev->mcu_ops->mcu_rd_rp(dev, base, data, n);
 	else
 		return mt76u_req_rd_rp(dev, base, data, n);
@@ -464,7 +464,7 @@ mt76u_process_rx_entry(struct mt76_dev *dev, struct urb *urb)
 	int len, nsgs = 1;
 	struct sk_buff *skb;
 
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->state))
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->phy.state))
 		return 0;
 
 	len = mt76u_get_rx_entry_len(data, urb->actual_length);
@@ -696,7 +696,7 @@ static void mt76u_tx_tasklet(unsigned long data)
 
 		mt76_txq_schedule(&dev->phy, i);
 
-		if (!test_and_set_bit(MT76_READING_STATS, &dev->state))
+		if (!test_and_set_bit(MT76_READING_STATS, &dev->phy.state))
 			queue_work(dev->usb.stat_wq, &dev->usb.stat_work);
 		if (wake)
 			ieee80211_wake_queue(dev->hw, i);
@@ -714,7 +714,7 @@ static void mt76u_tx_status_data(struct work_struct *work)
 	dev = container_of(usb, struct mt76_dev, usb);
 
 	while (true) {
-		if (test_bit(MT76_REMOVED, &dev->state))
+		if (test_bit(MT76_REMOVED, &dev->phy.state))
 			break;
 
 		if (!dev->drv->tx_status_data(dev, &update))
@@ -722,10 +722,10 @@ static void mt76u_tx_status_data(struct work_struct *work)
 		count++;
 	}
 
-	if (count && test_bit(MT76_STATE_RUNNING, &dev->state))
+	if (count && test_bit(MT76_STATE_RUNNING, &dev->phy.state))
 		queue_work(usb->stat_wq, &usb->stat_work);
 	else
-		clear_bit(MT76_READING_STATS, &dev->state);
+		clear_bit(MT76_READING_STATS, &dev->phy.state);
 }
 
 static void mt76u_complete_tx(struct urb *urb)
@@ -806,7 +806,7 @@ static void mt76u_tx_kick(struct mt76_dev *dev, struct mt76_queue *q)
 		err = usb_submit_urb(urb, GFP_ATOMIC);
 		if (err < 0) {
 			if (err == -ENODEV)
-				set_bit(MT76_REMOVED, &dev->state);
+				set_bit(MT76_REMOVED, &dev->phy.state);
 			else
 				dev_err(dev->dev, "tx urb submit failed:%d\n",
 					err);
@@ -905,7 +905,7 @@ void mt76u_stop_tx(struct mt76_dev *dev)
 	}
 
 	cancel_work_sync(&dev->usb.stat_work);
-	clear_bit(MT76_READING_STATS, &dev->state);
+	clear_bit(MT76_READING_STATS, &dev->phy.state);
 
 	mt76_tx_status_check(dev, NULL, true);
 }

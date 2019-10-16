@@ -442,7 +442,7 @@ mt76_txq_send_burst(struct mt76_phy *phy, struct mt76_sw_queue *sq,
 		if (probe)
 			break;
 
-		if (test_bit(MT76_RESET, &dev->state))
+		if (test_bit(MT76_RESET, &phy->state))
 			return -EBUSY;
 
 		skb = mt76_txq_dequeue(phy, mtxq, false);
@@ -498,7 +498,7 @@ mt76_txq_schedule_list(struct mt76_phy *phy, enum mt76_txq_id qid)
 		if (sq->swq_queued >= 4)
 			break;
 
-		if (test_bit(MT76_RESET, &dev->state)) {
+		if (test_bit(MT76_RESET, &phy->state)) {
 			ret = -EBUSY;
 			break;
 		}
@@ -604,7 +604,7 @@ void mt76_wake_tx_queue(struct ieee80211_hw *hw, struct ieee80211_txq *txq)
 	struct mt76_phy *phy = hw->priv;
 	struct mt76_dev *dev = phy->dev;
 
-	if (!test_bit(MT76_STATE_RUNNING, &dev->state))
+	if (!test_bit(MT76_STATE_RUNNING, &phy->state))
 		return;
 
 	tasklet_schedule(&dev->tx_tasklet);

@@ -43,7 +43,7 @@ static irqreturn_t mt7615_irq_handler(int irq, void *dev_instance)
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
 	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
 
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state))
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
 
 	intr &= dev->mt76.mmio.irqmask;

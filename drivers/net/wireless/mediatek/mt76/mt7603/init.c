@@ -284,7 +284,7 @@ mt7603_init_hardware(struct mt7603_dev *dev)
 	mt76_wr(dev, MT_WPDMA_GLO_CFG, 0x52000850);
 	mt7603_mac_dma_start(dev);
 	dev->rxfilter = mt76_rr(dev, MT_WF_RFCR);
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	for (i = 0; i < MT7603_WTBL_SIZE; i++) {
 		mt76_wr(dev, MT_PSE_RTA, MT_PSE_RTA_BUSY | MT_PSE_RTA_WRITE |

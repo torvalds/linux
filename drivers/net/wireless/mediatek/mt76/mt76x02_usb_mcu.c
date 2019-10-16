@@ -87,7 +87,7 @@ __mt76x02u_mcu_send_msg(struct mt76_dev *dev, struct sk_buff *skb,
 	u8 seq = 0;
 	u32 info;
 
-	if (test_bit(MT76_REMOVED, &dev->state))
+	if (test_bit(MT76_REMOVED, &dev->phy.state))
 		return 0;
 
 	if (wait_resp) {

@@ -20,7 +20,7 @@ static int mt76x0e_start(struct ieee80211_hw *hw)
 				     MT_MAC_WORK_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 
 	return 0;
 }
@@ -47,7 +47,7 @@ static void mt76x0e_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	mt76x0e_stop_hw(dev);
 }
 
@@ -124,7 +124,7 @@ static int mt76x0e_register_device(struct mt76x02_dev *dev)
 	if (err < 0)
 		return err;
 
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	return 0;
 }
@@ -195,7 +195,7 @@ error:
 
 static void mt76x0e_cleanup(struct mt76x02_dev *dev)
 {
-	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76x0e_stop_hw(dev);

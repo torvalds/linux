@@ -602,7 +602,7 @@ void mt76x02_sw_scan_complete(struct ieee80211_hw *hw,
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_SCANNING, &dev->mt76.state);
+	clear_bit(MT76_SCANNING, &dev->mphy.state);
 	if (dev->cal.gain_init_done) {
 		/* Restore AGC gain and resume calibration after scanning. */
 		dev->cal.low_gain = -1;

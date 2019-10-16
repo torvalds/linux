@@ -71,7 +71,7 @@ static void mt76x0_init_usb_dma(struct mt76x02_dev *dev)
 
 static void mt76x0u_cleanup(struct mt76x02_dev *dev)
 {
-	clear_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	clear_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 	mt76x0_chip_onoff(dev, false, false);
 	mt76u_queues_deinit(&dev->mt76);
 }
@@ -80,13 +80,13 @@ static void mt76x0u_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	cancel_delayed_work_sync(&dev->cal_work);
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
 	mt76u_stop_tx(&dev->mt76);
 	mt76x02u_exit_beacon_config(dev);
 
-	if (test_bit(MT76_REMOVED, &dev->mt76.state))
+	if (test_bit(MT76_REMOVED, &dev->mphy.state))
 		return;
 
 	if (!mt76_poll(dev, MT_USB_DMA_CFG, MT_USB_DMA_CFG_TX_BUSY, 0, 1000))
@@ -112,7 +112,7 @@ static int mt76x0u_start(struct ieee80211_hw *hw)
 				     MT_MAC_WORK_INTERVAL);
 	ieee80211_queue_delayed_work(dev->mt76.hw, &dev->cal_work,
 				     MT_CALIBRATE_INTERVAL);
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	return 0;
 }
 
@@ -192,7 +192,7 @@ static int mt76x0u_register_device(struct mt76x02_dev *dev)
 	else
 		hw->max_tx_fragments = 1;
 
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	return 0;
 
@@ -283,7 +283,7 @@ err:
 static void mt76x0_disconnect(struct usb_interface *usb_intf)
 {
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
-	bool initialized = test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	bool initialized = test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	if (!initialized)
 		return;
@@ -304,7 +304,7 @@ static int __maybe_unused mt76x0_suspend(struct usb_interface *usb_intf,
 	struct mt76x02_dev *dev = usb_get_intfdata(usb_intf);
 
 	mt76u_stop_rx(&dev->mt76);
-	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 	mt76x0_chip_onoff(dev, false, false);
 
 	return 0;

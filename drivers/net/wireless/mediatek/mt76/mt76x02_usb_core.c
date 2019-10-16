@@ -280,7 +280,7 @@ EXPORT_SYMBOL_GPL(mt76x02u_init_beacon_config);
 
 void mt76x02u_exit_beacon_config(struct mt76x02_dev *dev)
 {
-	if (!test_bit(MT76_REMOVED, &dev->mt76.state))
+	if (!test_bit(MT76_REMOVED, &dev->mphy.state))
 		mt76_clear(dev, MT_BEACON_TIME_CFG,
 			   MT_BEACON_TIME_CFG_TIMER_EN |
 			   MT_BEACON_TIME_CFG_SYNC_MODE |

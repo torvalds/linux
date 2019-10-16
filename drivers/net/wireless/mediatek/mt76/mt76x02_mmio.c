@@ -261,7 +261,7 @@ irqreturn_t mt76x02_irq_handler(int irq, void *dev_instance)
 	intr = mt76_rr(dev, MT_INT_SOURCE_CSR);
 	mt76_wr(dev, MT_INT_SOURCE_CSR, intr);
 
-	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mt76.state))
+	if (!test_bit(MT76_STATE_INITIALIZED, &dev->mphy.state))
 		return IRQ_NONE;
 
 	trace_dev_irq(dev, intr, dev->mt76.mmio.irqmask);
@@ -402,7 +402,7 @@ static void mt76x02_reset_state(struct mt76x02_dev *dev)
 
 	lockdep_assert_held(&dev->mt76.mutex);
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 
 	rcu_read_lock();
 	ieee80211_iter_keys_rcu(dev->mt76.hw, NULL, mt76x02_key_sync, NULL);
@@ -441,7 +441,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 	int i;
 
 	ieee80211_stop_queues(dev->mt76.hw);
-	set_bit(MT76_RESET, &dev->mt76.state);
+	set_bit(MT76_RESET, &dev->mphy.state);
 
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 	tasklet_disable(&dev->mt76.tx_tasklet);
@@ -496,7 +496,7 @@ static void mt76x02_watchdog_reset(struct mt76x02_dev *dev)
 
 	mutex_unlock(&dev->mt76.mutex);
 
-	clear_bit(MT76_RESET, &dev->mt76.state);
+	clear_bit(MT76_RESET, &dev->mphy.state);
 
 	tasklet_enable(&dev->mt76.tx_tasklet);
 	napi_enable(&dev->mt76.tx_napi);

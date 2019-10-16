@@ -1389,7 +1389,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	int i;
 
 	ieee80211_stop_queues(dev->mt76.hw);
-	set_bit(MT76_RESET, &dev->mt76.state);
+	set_bit(MT76_RESET, &dev->mphy.state);
 
 	/* lock/unlock all queues to ensure that no tx is pending */
 	mt76_txq_schedule_all(&dev->mphy);
@@ -1439,7 +1439,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 	mt7603_irq_enable(dev, mask);
 
 skip_dma_reset:
-	clear_bit(MT76_RESET, &dev->mt76.state);
+	clear_bit(MT76_RESET, &dev->mphy.state);
 	mutex_unlock(&dev->mt76.mutex);
 
 	tasklet_enable(&dev->mt76.tx_tasklet);

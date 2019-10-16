@@ -152,7 +152,7 @@ static inline bool mt76x02_wait_for_mac(struct mt76_dev *dev)
 	int i;
 
 	for (i = 0; i < 500; i++) {
-		if (test_bit(MT76_REMOVED, &dev->state))
+		if (test_bit(MT76_REMOVED, &dev->phy.state))
 			return false;
 
 		switch (dev->bus->rr(dev, MAC_CSR0)) {

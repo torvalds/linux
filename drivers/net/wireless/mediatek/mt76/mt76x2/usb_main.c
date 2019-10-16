@@ -17,7 +17,7 @@ static int mt76x2u_start(struct ieee80211_hw *hw)
 
 	ieee80211_queue_delayed_work(mt76_hw(dev), &dev->mt76.mac_work,
 				     MT_MAC_WORK_INTERVAL);
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 
 	return 0;
 }
@@ -26,7 +26,7 @@ static void mt76x2u_stop(struct ieee80211_hw *hw)
 {
 	struct mt76x02_dev *dev = hw->priv;
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	mt76u_stop_tx(&dev->mt76);
 	mt76x2u_stop_hw(dev);
 }
@@ -41,7 +41,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	mt76x02_pre_tbtt_enable(dev, false);
 
 	mutex_lock(&dev->mt76.mutex);
-	set_bit(MT76_RESET, &dev->mt76.state);
+	set_bit(MT76_RESET, &dev->mphy.state);
 
 	mt76_set_channel(&dev->mphy);
 
@@ -52,7 +52,7 @@ mt76x2u_set_channel(struct mt76x02_dev *dev,
 	mt76x02_mac_cc_reset(dev);
 	mt76x2_mac_resume(dev);
 
-	clear_bit(MT76_RESET, &dev->mt76.state);
+	clear_bit(MT76_RESET, &dev->mphy.state);
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76x02_pre_tbtt_enable(dev, true);
@@ -83,7 +83,7 @@ mt76x2u_config(struct ieee80211_hw *hw, u32 changed)
 		/* convert to per-chain power for 2x2 devices */
 		dev->mt76.txpower_conf -= 6;
 
-		if (test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+		if (test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
 			mt76x2_phy_set_txpower(dev);
 	}
 

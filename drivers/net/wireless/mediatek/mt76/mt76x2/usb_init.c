@@ -218,7 +218,7 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	else
 		hw->max_tx_fragments = 1;
 
-	set_bit(MT76_STATE_INITIALIZED, &dev->mt76.state);
+	set_bit(MT76_STATE_INITIALIZED, &dev->mphy.state);
 
 	mt76x02_init_debugfs(dev);
 	mt76x2_init_txpower(dev, &dev->mphy.sband_2g.sband);

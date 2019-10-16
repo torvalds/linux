@@ -458,6 +458,8 @@ struct mt76_phy {
 	struct ieee80211_hw *hw;
 	struct mt76_dev *dev;
 
+	unsigned long state;
+
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_channel *main_chan;
 
@@ -518,7 +520,6 @@ struct mt76_dev {
 
 	u8 macaddr[ETH_ALEN];
 	u32 rev;
-	unsigned long state;
 
 	u32 aggr_stats[32];
 
@@ -660,12 +661,18 @@ void mt76_seq_puts_array(struct seq_file *file, const char *str,
 int mt76_eeprom_init(struct mt76_dev *dev, int len);
 void mt76_eeprom_override(struct mt76_dev *dev);
 
+static inline struct mt76_phy *
+mt76_dev_phy(struct mt76_dev *dev, bool phy_ext)
+{
+	if (phy_ext && dev->phy2)
+		return dev->phy2;
+	return &dev->phy;
+}
+
 static inline struct ieee80211_hw *
 mt76_phy_hw(struct mt76_dev *dev, bool phy_ext)
 {
-	if (phy_ext && dev->phy2)
-		return dev->phy2->hw;
-	return dev->phy.hw;
+	return mt76_dev_phy(dev, phy_ext)->hw;
 }
 
 static inline u8 *

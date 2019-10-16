@@ -104,7 +104,7 @@ static int __mt7615_mcu_msg_send(struct mt7615_dev *dev, struct sk_buff *skb,
 	if (wait_seq)
 		*wait_seq = seq;
 
-	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state))
+	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
 		qid = MT_TXQ_MCU;
 	else
 		qid = MT_TXQ_FWDL;
@@ -561,7 +561,7 @@ int mt7615_mcu_init(struct mt7615_dev *dev)
 	if (ret)
 		return ret;
 
-	set_bit(MT76_STATE_MCU_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state);
 
 	return 0;
 }

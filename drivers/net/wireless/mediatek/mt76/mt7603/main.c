@@ -16,7 +16,7 @@ mt7603_start(struct ieee80211_hw *hw)
 	mt7603_mac_reset_counters(dev);
 	mt7603_mac_start(dev);
 	dev->mphy.survey_time = ktime_get_boottime();
-	set_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	set_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	mt7603_mac_work(&dev->mt76.mac_work.work);
 
 	return 0;
@@ -27,7 +27,7 @@ mt7603_stop(struct ieee80211_hw *hw)
 {
 	struct mt7603_dev *dev = hw->priv;
 
-	clear_bit(MT76_STATE_RUNNING, &dev->mt76.state);
+	clear_bit(MT76_STATE_RUNNING, &dev->mphy.state);
 	cancel_delayed_work_sync(&dev->mt76.mac_work);
 	mt7603_mac_stop(dev);
 }
@@ -143,7 +143,7 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 	tasklet_disable(&dev->mt76.pre_tbtt_tasklet);
 
 	mutex_lock(&dev->mt76.mutex);
-	set_bit(MT76_RESET, &dev->mt76.state);
+	set_bit(MT76_RESET, &dev->mphy.state);
 
 	mt7603_beacon_set_timer(dev, -1, 0);
 	mt76_set_channel(&dev->mphy);
@@ -176,7 +176,7 @@ mt7603_set_channel(struct mt7603_dev *dev, struct cfg80211_chan_def *def)
 	mt7603_mac_set_timing(dev);
 	mt7603_mac_start(dev);
 
-	clear_bit(MT76_RESET, &dev->mt76.state);
+	clear_bit(MT76_RESET, &dev->mphy.state);
 
 	mt76_txq_schedule_all(&dev->mphy);
 

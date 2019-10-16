@@ -775,7 +775,7 @@ int mt76x02_mac_process_rx(struct mt76x02_dev *dev, struct sk_buff *skb,
 	u8 wcid;
 	int len;
 
-	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
 		return -EINVAL;
 
 	if (rxinfo & MT_RXINFO_L2PAD)
@@ -868,7 +868,7 @@ void mt76x02_mac_poll_tx_status(struct mt76x02_dev *dev, bool irq)
 	u8 update = 1;
 	bool ret;
 
-	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
 		return;
 
 	trace_mac_txstat_poll(dev);

@@ -403,7 +403,10 @@ EXPORT_SYMBOL_GPL(mt76_free_device);
 
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
 {
-	if (!test_bit(MT76_STATE_RUNNING, &dev->state)) {
+	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
+	struct mt76_phy *phy = mt76_dev_phy(dev, status->ext_phy);
+
+	if (!test_bit(MT76_STATE_RUNNING, &phy->state)) {
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -458,9 +461,6 @@ mt76_update_survey_active_time(struct mt76_phy *phy, ktime_t time)
 void mt76_update_survey(struct mt76_dev *dev)
 {
 	ktime_t cur_time;
-
-	if (!test_bit(MT76_STATE_RUNNING, &dev->state))
-		return;
 
 	if (dev->drv->update_survey)
 		dev->drv->update_survey(dev);
@@ -1063,17 +1063,17 @@ EXPORT_SYMBOL_GPL(mt76_get_rate);
 void mt76_sw_scan(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		  const u8 *mac)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt76_phy *phy = hw->priv;
 
-	set_bit(MT76_SCANNING, &dev->state);
+	set_bit(MT76_SCANNING, &phy->state);
 }
 EXPORT_SYMBOL_GPL(mt76_sw_scan);
 
 void mt76_sw_scan_complete(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
-	struct mt76_dev *dev = hw->priv;
+	struct mt76_phy *phy = hw->priv;
 
-	clear_bit(MT76_SCANNING, &dev->state);
+	clear_bit(MT76_SCANNING, &phy->state);
 }
 EXPORT_SYMBOL_GPL(mt76_sw_scan_complete);
 

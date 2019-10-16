@@ -72,7 +72,7 @@ int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	bool unicast, remove_pad, insert_ccmp_hdr = false;
 	int i, idx;
 
-	if (!test_bit(MT76_STATE_RUNNING, &dev->mt76.state))
+	if (!test_bit(MT76_STATE_RUNNING, &dev->mphy.state))
 		return -EINVAL;
 
 	memset(status, 0, sizeof(*status));
@@ -1485,7 +1485,7 @@ int mt7615_dfs_init_radar_detector(struct mt7615_dev *dev)
 	if (dev->mt76.region == NL80211_DFS_UNSET)
 		return 0;
 
-	if (test_bit(MT76_SCANNING, &dev->mt76.state))
+	if (test_bit(MT76_SCANNING, &dev->mphy.state))
 		return 0;
 
 	if (dev->dfs_state == chandef->chan->dfs_state)
