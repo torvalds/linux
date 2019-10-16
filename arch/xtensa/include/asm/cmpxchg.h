@@ -43,9 +43,9 @@ __cmpxchg_u32(volatile int *p, int old, int new)
 #elif XCHAL_HAVE_S32C1I
 	__asm__ __volatile__(
 			"       wsr     %[cmp], scompare1\n"
-			"       s32c1i  %[new], %[addr], 0\n"
-			: [new] "+a" (new)
-			: [addr] "a" (p), [cmp] "a" (old)
+			"       s32c1i  %[new], %[mem]\n"
+			: [new] "+a" (new), [mem] "+m" (*p)
+			: [cmp] "a" (old)
 			: "memory"
 			);
 
@@ -53,14 +53,14 @@ __cmpxchg_u32(volatile int *p, int old, int new)
 #else
 	__asm__ __volatile__(
 			"       rsil    a15, "__stringify(TOPLEVEL)"\n"
-			"       l32i    %[old], %[addr], 0\n"
+			"       l32i    %[old], %[mem]\n"
 			"       bne     %[old], %[cmp], 1f\n"
-			"       s32i    %[new], %[addr], 0\n"
+			"       s32i    %[new], %[mem]\n"
 			"1:\n"
 			"       wsr     a15, ps\n"
 			"       rsync\n"
-			: [old] "=&a" (old)
-			: [addr] "a" (p), [cmp] "a" (old), [new] "r" (new)
+			: [old] "=&a" (old), [mem] "+m" (*p)
+			: [cmp] "a" (old), [new] "r" (new)
 			: "a15", "memory");
 	return old;
 #endif
@@ -143,13 +143,14 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 #elif XCHAL_HAVE_S32C1I
 	unsigned long tmp, result;
 	__asm__ __volatile__(
-			"1:     l32i    %[tmp], %[addr], 0\n"
+			"1:     l32i    %[tmp], %[mem]\n"
 			"       mov     %[result], %[val]\n"
 			"       wsr     %[tmp], scompare1\n"
-			"       s32c1i  %[result], %[addr], 0\n"
+			"       s32c1i  %[result], %[mem]\n"
 			"       bne     %[result], %[tmp], 1b\n"
-			: [result] "=&a" (result), [tmp] "=&a" (tmp)
-			: [addr] "a" (m), [val] "a" (val)
+			: [result] "=&a" (result), [tmp] "=&a" (tmp),
+			  [mem] "+m" (*m)
+			: [val] "a" (val)
 			: "memory"
 			);
 	return result;
@@ -157,12 +158,12 @@ static inline unsigned long xchg_u32(volatile int * m, unsigned long val)
 	unsigned long tmp;
 	__asm__ __volatile__(
 			"       rsil    a15, "__stringify(TOPLEVEL)"\n"
-			"       l32i    %[tmp], %[addr], 0\n"
-			"       s32i    %[val], %[addr], 0\n"
+			"       l32i    %[tmp], %[mem]\n"
+			"       s32i    %[val], %[mem]\n"
 			"       wsr     a15, ps\n"
 			"       rsync\n"
-			: [tmp] "=&a" (tmp)
-			: [addr] "a" (m), [val] "a" (val)
+			: [tmp] "=&a" (tmp), [mem] "+m" (*m)
+			: [val] "a" (val)
 			: "a15", "memory");
 	return tmp;
 #endif
