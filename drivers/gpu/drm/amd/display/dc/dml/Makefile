@@ -37,9 +37,7 @@ ifdef IS_OLD_GCC
 # GCC < 7.1 cannot compile code using `double` and -mpreferred-stack-boundary=3
 # (8B stack alignment).
 dml_ccflags += -mpreferred-stack-boundary=4
-endif
-
-ifdef CONFIG_CC_IS_CLANG
+else
 dml_ccflags += -msse2
 endif
 
