@@ -211,8 +211,8 @@ static struct core_reloc_test_case test_cases[] = {
 		.input_len = 0,
 		.output = STRUCT_TO_CHAR_PTR(core_reloc_kernel_output) {
 			.valid = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
-			.comm = "test_progs\0\0\0\0\0",
-			.comm_len = 11,
+			.comm = "test_progs",
+			.comm_len = sizeof("test_progs"),
 		},
 		.output_len = sizeof(struct core_reloc_kernel_output),
 	},
