@@ -119,7 +119,7 @@ intel_dsb_get(struct intel_crtc *crtc)
 		goto err;
 	}
 
-	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, PIN_MAPPABLE);
+	vma = i915_gem_object_ggtt_pin(obj, NULL, 0, 0, 0);
 	if (IS_ERR(vma)) {
 		DRM_ERROR("Vma creation failed\n");
 		i915_gem_object_put(obj);
