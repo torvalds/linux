@@ -6,7 +6,7 @@
 
 struct core_reloc_kernel_output {
 	int valid[10];
-	char comm[16];
+	char comm[sizeof("test_progs")];
 	int comm_len;
 };
 
