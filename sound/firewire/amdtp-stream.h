@@ -145,6 +145,9 @@ struct amdtp_stream {
 			int syt_override;
 		} rx;
 	} ctx_data;
+	unsigned int event_count;
+	unsigned int events_per_period;
+	unsigned int idle_irq_interval;
 
 	/* For CIP headers. */
 	unsigned int source_node_id_field;
