@@ -54,8 +54,13 @@ bool qxl_ttm_bo_is_qxl_bo(struct ttm_buffer_object *bo)
 void qxl_ttm_placement_from_domain(struct qxl_bo *qbo, u32 domain, bool pinned)
 {
 	u32 c = 0;
-	u32 pflag = pinned ? TTM_PL_FLAG_NO_EVICT : 0;
+	u32 pflag = 0;
 	unsigned int i;
+
+	if (pinned)
+		pflag |= TTM_PL_FLAG_NO_EVICT;
+	if (qbo->tbo.base.size <= PAGE_SIZE)
+		pflag |= TTM_PL_FLAG_TOPDOWN;
 
 	qbo->placement.placement = qbo->placements;
 	qbo->placement.busy_placement = qbo->placements;
