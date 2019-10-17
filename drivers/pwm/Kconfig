@@ -508,15 +508,6 @@ config  PWM_TIEHRPWM
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tiehrpwm.
 
-config  PWM_TIPWMSS
-	bool
-	default y if (ARCH_OMAP2PLUS) && (PWM_TIECAP || PWM_TIEHRPWM)
-	help
-	  PWM Subsystem driver support for AM33xx SOC.
-
-	  PWM submodules require PWM config space access from submodule
-	  drivers and require common parent driver support.
-
 config PWM_TWL
 	tristate "TWL4030/6030 PWM support"
 	depends on TWL4030_CORE
