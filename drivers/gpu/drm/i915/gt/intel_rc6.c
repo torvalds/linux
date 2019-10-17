@@ -486,6 +486,66 @@ static void rpm_put(struct intel_rc6 *rc6)
 	rc6->wakeref = false;
 }
 
+static bool intel_rc6_ctx_corrupted(struct intel_rc6 *rc6)
+{
+	return !intel_uncore_read(rc6_to_uncore(rc6), GEN8_RC6_CTX_INFO);
+}
+
+static void intel_rc6_ctx_wa_init(struct intel_rc6 *rc6)
+{
+	struct drm_i915_private *i915 = rc6_to_i915(rc6);
+
+	if (!NEEDS_RC6_CTX_CORRUPTION_WA(i915))
+		return;
+
+	if (intel_rc6_ctx_corrupted(rc6)) {
+		DRM_INFO("RC6 context corrupted, disabling runtime power management\n");
+		rc6->ctx_corrupted = true;
+	}
+}
+
+/**
+ * intel_rc6_ctx_wa_resume - system resume sequence for the RC6 CTX WA
+ * @rc6: rc6 state
+ *
+ * Perform any steps needed to re-init the RC6 CTX WA after system resume.
+ */
+void intel_rc6_ctx_wa_resume(struct intel_rc6 *rc6)
+{
+	if (rc6->ctx_corrupted && !intel_rc6_ctx_corrupted(rc6)) {
+		DRM_INFO("RC6 context restored, re-enabling runtime power management\n");
+		rc6->ctx_corrupted = false;
+	}
+}
+
+/**
+ * intel_rc6_ctx_wa_check - check for a new RC6 CTX corruption
+ * @rc6: rc6 state
+ *
+ * Check if an RC6 CTX corruption has happened since the last check and if so
+ * disable RC6 and runtime power management.
+*/
+void intel_rc6_ctx_wa_check(struct intel_rc6 *rc6)
+{
+	struct drm_i915_private *i915 = rc6_to_i915(rc6);
+
+	if (!NEEDS_RC6_CTX_CORRUPTION_WA(i915))
+		return;
+
+	if (rc6->ctx_corrupted)
+		return;
+
+	if (!intel_rc6_ctx_corrupted(rc6))
+		return;
+
+	DRM_NOTE("RC6 context corruption, disabling runtime power management\n");
+
+	intel_rc6_disable(rc6);
+	rc6->ctx_corrupted = true;
+
+	return;
+}
+
 static void __intel_rc6_disable(struct intel_rc6 *rc6)
 {
 	struct drm_i915_private *i915 = rc6_to_i915(rc6);
@@ -509,6 +569,8 @@ void intel_rc6_init(struct intel_rc6 *rc6)
 
 	if (!rc6_supported(rc6))
 		return;
+
+	intel_rc6_ctx_wa_init(rc6);
 
 	if (IS_CHERRYVIEW(i915))
 		err = chv_rc6_init(rc6);
@@ -543,6 +605,9 @@ void intel_rc6_enable(struct intel_rc6 *rc6)
 		return;
 
 	GEM_BUG_ON(rc6->enabled);
+
+	if (rc6->ctx_corrupted)
+		return;
 
 	intel_uncore_forcewake_get(uncore, FORCEWAKE_ALL);
 

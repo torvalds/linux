@@ -1649,10 +1649,12 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 /* Early gen2 have a totally busted CS tlb and require pinned batches. */
 #define HAS_BROKEN_CS_TLB(dev_priv)	(IS_I830(dev_priv) || IS_I845G(dev_priv))
 
+#define NEEDS_RC6_CTX_CORRUPTION_WA(dev_priv)	\
+	(IS_BROADWELL(dev_priv) || IS_GEN(dev_priv, 9))
+
 /* WaRsDisableCoarsePowerGating:skl,cnl */
 #define NEEDS_WaRsDisableCoarsePowerGating(dev_priv) \
-	(IS_CANNONLAKE(dev_priv) || \
-	 IS_SKL_GT3(dev_priv) || IS_SKL_GT4(dev_priv))
+	(IS_CANNONLAKE(dev_priv) || IS_GEN(dev_priv, 9))
 
 #define HAS_GMBUS_IRQ(dev_priv) (INTEL_GEN(dev_priv) >= 4)
 #define HAS_GMBUS_BURST_READ(dev_priv) (INTEL_GEN(dev_priv) >= 10 || \
