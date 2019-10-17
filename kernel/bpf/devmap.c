@@ -128,7 +128,7 @@ static int dev_map_init_map(struct bpf_dtab *dtab, union bpf_attr *attr)
 
 		if (!dtab->n_buckets) /* Overflow check */
 			return -EINVAL;
-		cost += sizeof(struct hlist_head) * dtab->n_buckets;
+		cost += (u64) sizeof(struct hlist_head) * dtab->n_buckets;
 	}
 
 	/* if map size is larger than memlock limit, reject it */
