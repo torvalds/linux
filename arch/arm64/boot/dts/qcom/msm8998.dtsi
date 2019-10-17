@@ -1556,6 +1556,19 @@
 			status = "disabled";
 		};
 
+		blsp1_dma: dma@c144000 {
+			compatible = "qcom,bam-v1.7.0";
+			reg = <0x0c144000 0x25000>;
+			interrupts = <GIC_SPI 238 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "bam_clk";
+			#dma-cells = <1>;
+			qcom,ee = <0>;
+			qcom,controlled-remotely;
+			num-channels = <18>;
+			qcom,num-ees = <4>;
+		};
+
 		blsp1_i2c1: i2c@c175000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c175000 0x600>;
