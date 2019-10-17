@@ -12,6 +12,7 @@
 #include <asm/cpu.h>
 #include <asm/cputype.h>
 #include <asm/cpufeature.h>
+#include <asm/smp_plat.h>
 
 static bool __maybe_unused
 is_affected_midr_range(const struct arm64_cpu_capabilities *entry, int scope)
@@ -623,6 +624,30 @@ check_branch_predictor(const struct arm64_cpu_capabilities *entry, int scope)
 	return (need_wa > 0);
 }
 
+static const __maybe_unused struct midr_range tx2_family_cpus[] = {
+	MIDR_ALL_VERSIONS(MIDR_BRCM_VULCAN),
+	MIDR_ALL_VERSIONS(MIDR_CAVIUM_THUNDERX2),
+	{},
+};
+
+static bool __maybe_unused
+needs_tx2_tvm_workaround(const struct arm64_cpu_capabilities *entry,
+			 int scope)
+{
+	int i;
+
+	if (!is_affected_midr_range_list(entry, scope) ||
+	    !is_hyp_mode_available())
+		return false;
+
+	for_each_possible_cpu(i) {
+		if (MPIDR_AFFINITY_LEVEL(cpu_logical_map(i), 0) != 0)
+			return true;
+	}
+
+	return false;
+}
+
 #ifdef CONFIG_HARDEN_EL2_VECTORS
 
 static const struct midr_range arm64_harden_el2_vectors[] = {
@@ -850,6 +875,19 @@ const struct arm64_cpu_capabilities arm64_errata[] = {
 		.capability = ARM64_WORKAROUND_1463225,
 		.type = ARM64_CPUCAP_LOCAL_CPU_ERRATUM,
 		.matches = has_cortex_a76_erratum_1463225,
+	},
+#endif
+#ifdef CONFIG_CAVIUM_TX2_ERRATUM_219
+	{
+		.desc = "Cavium ThunderX2 erratum 219 (KVM guest sysreg trapping)",
+		.capability = ARM64_WORKAROUND_CAVIUM_TX2_219_TVM,
+		ERRATA_MIDR_RANGE_LIST(tx2_family_cpus),
+		.matches = needs_tx2_tvm_workaround,
+	},
+	{
+		.desc = "Cavium ThunderX2 erratum 219 (PRFM removal)",
+		.capability = ARM64_WORKAROUND_CAVIUM_TX2_219_PRFM,
+		ERRATA_MIDR_RANGE_LIST(tx2_family_cpus),
 	},
 #endif
 	{

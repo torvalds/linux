@@ -390,7 +390,7 @@ static size_t cf_diag_getctrset(struct cf_ctrset_entry *ctrdata, int ctrset,
 
 	debug_sprintf_event(cf_diag_dbg, 6,
 			    "%s ctrset %d ctrset_size %zu cfvn %d csvn %d"
-			    " need %zd rc:%d\n",
+			    " need %zd rc %d\n",
 			    __func__, ctrset, ctrset_size, cpuhw->info.cfvn,
 			    cpuhw->info.csvn, need, rc);
 	return need;
@@ -567,7 +567,7 @@ static int cf_diag_add(struct perf_event *event, int flags)
 	int err = 0;
 
 	debug_sprintf_event(cf_diag_dbg, 5,
-			    "%s event %p cpu %d flags %#x cpuhw:%p\n",
+			    "%s event %p cpu %d flags %#x cpuhw %p\n",
 			    __func__, event, event->cpu, flags, cpuhw);
 
 	if (cpuhw->flags & PMU_F_IN_USE) {
