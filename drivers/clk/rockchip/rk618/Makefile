@@ -6,6 +6,7 @@
 obj-$(CONFIG_MFD_RK618) += clk-regmap-mux.o \
 			   clk-regmap-divider.o \
 			   clk-regmap-gate.o \
+			   clk-regmap-fractional-divider.o \
 			   clk-regmap-composite.o \
 			   clk-regmap-pll.o \
 			   clk-rk618.o

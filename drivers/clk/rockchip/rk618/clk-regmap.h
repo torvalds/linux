@@ -26,6 +26,19 @@
 #define UPDATE(x, h, l)		(((x) << (l)) & GENMASK((h), (l)))
 #define HIWORD_UPDATE(v, h, l)	(((v) << (l)) | (GENMASK((h), (l)) << 16))
 
+struct clk_regmap_fractional_divider {
+	struct clk_hw hw;
+	struct device *dev;
+	struct regmap *regmap;
+	u32 reg;
+	u8 mshift;
+	u8 mwidth;
+	u32 mmask;
+	u8 nshift;
+	u8 nwidth;
+	u32 nmask;
+};
+
 struct clk_regmap_divider {
 	struct clk_hw hw;
 	struct device *dev;
@@ -55,6 +68,7 @@ struct clk_regmap_mux {
 extern const struct clk_ops clk_regmap_mux_ops;
 extern const struct clk_ops clk_regmap_divider_ops;
 extern const struct clk_ops clk_regmap_gate_ops;
+extern const struct clk_ops clk_regmap_fractional_divider_ops;
 
 struct clk *
 devm_clk_regmap_register_pll(struct device *dev, const char *name,
@@ -79,6 +93,13 @@ devm_clk_regmap_register_gate(struct device *dev, const char *name,
 			      const char *parent_name,
 			      struct regmap *regmap, u32 reg, u8 shift,
 			      unsigned long flags);
+
+struct clk *
+devm_clk_regmap_register_fractional_divider(struct device *dev,
+					    const char *name,
+					    const char *parent_name,
+					    struct regmap *regmap,
+					    u32 reg, unsigned long flags);
 
 struct clk *
 devm_clk_regmap_register_composite(struct device *dev, const char *name,
