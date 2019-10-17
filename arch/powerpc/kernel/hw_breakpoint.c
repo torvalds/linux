@@ -163,9 +163,9 @@ int hw_breakpoint_arch_parse(struct perf_event *bp,
 	 */
 	if (!ppc_breakpoint_available())
 		return -ENODEV;
-	length_max = 8; /* DABR */
+	length_max = DABR_MAX_LEN; /* DABR */
 	if (dawr_enabled()) {
-		length_max = 512 ; /* 64 doublewords */
+		length_max = DAWR_MAX_LEN; /* 64 doublewords */
 		/* DAWR region can't cross 512 boundary */
 		if ((attr->bp_addr >> 9) !=
 		    ((attr->bp_addr + attr->bp_len - 1) >> 9))
