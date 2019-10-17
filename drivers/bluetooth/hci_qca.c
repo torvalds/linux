@@ -1156,8 +1156,10 @@ static int qca_set_speed(struct hci_uart *hu, enum qca_speed_type speed_type)
 		host_set_baudrate(hu, speed);
 
 error:
-		if (qca_is_wcn399x(soc_type))
+		if (qca_is_wcn399x(soc_type)) {
+			msleep(50);
 			hci_uart_set_flow_control(hu, false);
+		}
 
 		if (soc_type == QCA_WCN3990) {
 			/* Wait for the controller to send the vendor event
