@@ -1949,7 +1949,7 @@ static int io_timeout(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		 * once there is some timeout req still be valid.
 		 */
 		if (ctx->cached_sq_head < nxt_sq_head)
-			tmp_nxt += UINT_MAX;
+			tmp += UINT_MAX;
 
 		if (tmp >= tmp_nxt)
 			break;
