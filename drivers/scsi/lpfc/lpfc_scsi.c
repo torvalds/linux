@@ -528,7 +528,6 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 			list_del_init(&psb->list);
 			psb->exch_busy = 0;
 			psb->status = IOSTAT_SUCCESS;
-#ifdef BUILD_NVME
 			if (psb->cur_iocbq.iocb_flag == LPFC_IO_NVME) {
 				qp->abts_nvme_io_bufs--;
 				spin_unlock(&qp->abts_io_buf_list_lock);
@@ -536,7 +535,6 @@ lpfc_sli4_io_xri_aborted(struct lpfc_hba *phba,
 				lpfc_sli4_nvme_xri_aborted(phba, axri, psb);
 				return;
 			}
-#endif
 			qp->abts_scsi_io_bufs--;
 			spin_unlock(&qp->abts_io_buf_list_lock);
 
