@@ -113,6 +113,15 @@ static inline bool is_ttbr1_addr(unsigned long addr)
 	return arch_kasan_reset_tag(addr) >= PAGE_OFFSET;
 }
 
+static inline unsigned long mm_to_pgd_phys(struct mm_struct *mm)
+{
+	/* Either init_pg_dir or swapper_pg_dir */
+	if (mm == &init_mm)
+		return __pa_symbol(mm->pgd);
+
+	return (unsigned long)virt_to_phys(mm->pgd);
+}
+
 /*
  * Dump out the page tables associated with 'addr' in the currently active mm.
  */
@@ -141,7 +150,7 @@ static void show_pte(unsigned long addr)
 
 	pr_alert("%s pgtable: %luk pages, %llu-bit VAs, pgdp=%016lx\n",
 		 mm == &init_mm ? "swapper" : "user", PAGE_SIZE / SZ_1K,
-		 vabits_actual, (unsigned long)virt_to_phys(mm->pgd));
+		 vabits_actual, mm_to_pgd_phys(mm));
 	pgdp = pgd_offset(mm, addr);
 	pgd = READ_ONCE(*pgdp);
 	pr_alert("[%016lx] pgd=%016llx", addr, pgd_val(pgd));
@@ -266,7 +275,7 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	 * If we got a different type of fault from the AT instruction,
 	 * treat the translation fault as spurious.
 	 */
-	dfsc = FIELD_PREP(SYS_PAR_EL1_FST, par);
+	dfsc = FIELD_GET(SYS_PAR_EL1_FST, par);
 	return (dfsc & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT;
 }
 

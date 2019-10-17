@@ -3280,7 +3280,20 @@ static int skl_max_plane_width(const struct drm_framebuffer *fb,
 	switch (fb->modifier) {
 	case DRM_FORMAT_MOD_LINEAR:
 	case I915_FORMAT_MOD_X_TILED:
-		return 4096;
+		/*
+		 * Validated limit is 4k, but has 5k should
+		 * work apart from the following features:
+		 * - Ytile (already limited to 4k)
+		 * - FP16 (already limited to 4k)
+		 * - render compression (already limited to 4k)
+		 * - KVMR sprite and cursor (don't care)
+		 * - horizontal panning (TODO verify this)
+		 * - pipe and plane scaling (TODO verify this)
+		 */
+		if (cpp == 8)
+			return 4096;
+		else
+			return 5120;
 	case I915_FORMAT_MOD_Y_TILED_CCS:
 	case I915_FORMAT_MOD_Yf_TILED_CCS:
 		/* FIXME AUX plane? */
