@@ -202,6 +202,14 @@ struct gpio_irq_chip {
 	bool threaded;
 
 	/**
+	 * @init_hw: optional routine to initialize hardware before
+	 * an IRQ chip will be added. This is quite useful when
+	 * a particular driver wants to clear IRQ related registers
+	 * in order to avoid undesired events.
+	 */
+	int (*init_hw)(struct gpio_chip *chip);
+
+	/**
 	 * @init_valid_mask: optional routine to initialize @valid_mask, to be
 	 * used if not all GPIO lines are valid interrupts. Sometimes some
 	 * lines just cannot fire interrupts, and this routine, when defined,
