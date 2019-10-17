@@ -1226,13 +1226,12 @@ EXPORT_SYMBOL_GPL(iomap_ioend_try_merge);
 static int
 iomap_ioend_compare(void *priv, struct list_head *a, struct list_head *b)
 {
-	struct iomap_ioend *ia, *ib;
+	struct iomap_ioend *ia = container_of(a, struct iomap_ioend, io_list);
+	struct iomap_ioend *ib = container_of(b, struct iomap_ioend, io_list);
 
-	ia = container_of(a, struct iomap_ioend, io_list);
-	ib = container_of(b, struct iomap_ioend, io_list);
 	if (ia->io_offset < ib->io_offset)
 		return -1;
-	else if (ia->io_offset > ib->io_offset)
+	if (ia->io_offset > ib->io_offset)
 		return 1;
 	return 0;
 }
