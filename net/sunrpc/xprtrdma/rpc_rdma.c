@@ -564,6 +564,7 @@ static void rpcrdma_sendctx_done(struct kref *kref)
  */
 void rpcrdma_sendctx_unmap(struct rpcrdma_sendctx *sc)
 {
+	struct rpcrdma_regbuf *rb = sc->sc_req->rl_sendbuf;
 	struct ib_sge *sge;
 
 	if (!sc->sc_unmap_count)
@@ -575,7 +576,7 @@ void rpcrdma_sendctx_unmap(struct rpcrdma_sendctx *sc)
 	 */
 	for (sge = &sc->sc_sges[2]; sc->sc_unmap_count;
 	     ++sge, --sc->sc_unmap_count)
-		ib_dma_unmap_page(sc->sc_device, sge->addr, sge->length,
+		ib_dma_unmap_page(rdmab_device(rb), sge->addr, sge->length,
 				  DMA_TO_DEVICE);
 
 	kref_put(&sc->sc_req->rl_kref, rpcrdma_sendctx_done);
@@ -625,7 +626,6 @@ static bool rpcrdma_prepare_msg_sges(struct rpcrdma_xprt *r_xprt,
 	 */
 	if (!rpcrdma_regbuf_dma_map(r_xprt, rb))
 		goto out_regbuf;
-	sc->sc_device = rdmab_device(rb);
 	sge_no = 1;
 	sge[sge_no].addr = rdmab_addr(rb);
 	sge[sge_no].length = xdr->head[0].iov_len;
