@@ -204,6 +204,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (!internal ||
 	    (dice->substreams_counter > 0 && d->events_per_period > 0)) {
 		unsigned int frames_per_period = d->events_per_period;
+		unsigned int frames_per_buffer = d->events_per_buffer;
 		unsigned int rate;
 
 		err = snd_dice_transaction_get_rate(dice, &rate);
@@ -217,12 +218,22 @@ static int pcm_open(struct snd_pcm_substream *substream)
 
 		if (frames_per_period > 0) {
 			// For double_pcm_frame quirk.
-			if (rate > 96000)
+			if (rate > 96000) {
 				frames_per_period *= 2;
+				frames_per_buffer *= 2;
+			}
 
 			err = snd_pcm_hw_constraint_minmax(substream->runtime,
 					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&dice->mutex);
+				goto err_locked;
+			}
+
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
 			if (err < 0) {
 				mutex_unlock(&dice->mutex);
 				goto err_locked;
@@ -263,13 +274,16 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
 		unsigned int events_per_period = params_period_size(hw_params);
+		unsigned int events_per_buffer = params_buffer_size(hw_params);
 
 		mutex_lock(&dice->mutex);
 		// For double_pcm_frame quirk.
-		if (rate > 96000)
+		if (rate > 96000) {
 			events_per_period /= 2;
+			events_per_buffer /= 2;
+		}
 		err = snd_dice_stream_reserve_duplex(dice, rate,
-						     events_per_period);
+					events_per_period, events_per_buffer);
 		if (err >= 0)
 			++dice->substreams_counter;
 		mutex_unlock(&dice->mutex);

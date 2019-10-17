@@ -279,7 +279,8 @@ static void finish_session(struct snd_dice *dice, struct reg_params *tx_params,
 }
 
 int snd_dice_stream_reserve_duplex(struct snd_dice *dice, unsigned int rate,
-				   unsigned int events_per_period)
+				   unsigned int events_per_period,
+				   unsigned int events_per_buffer)
 {
 	unsigned int curr_rate;
 	int err;
@@ -327,7 +328,7 @@ int snd_dice_stream_reserve_duplex(struct snd_dice *dice, unsigned int rate,
 			goto error;
 
 		err = amdtp_domain_set_events_per_period(&dice->domain,
-							 events_per_period, 0);
+					events_per_period, events_per_buffer);
 		if (err < 0)
 			goto error;
 	}
