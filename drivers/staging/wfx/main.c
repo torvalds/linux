@@ -407,7 +407,7 @@ int wfx_probe(struct wfx_dev *wdev)
 	for (i = 0; i < ARRAY_SIZE(wdev->addresses); i++) {
 		eth_zero_addr(wdev->addresses[i].addr);
 		macaddr = of_get_mac_address(wdev->dev->of_node);
-		if (macaddr) {
+		if (!IS_ERR_OR_NULL(macaddr)) {
 			ether_addr_copy(wdev->addresses[i].addr, macaddr);
 			wdev->addresses[i].addr[ETH_ALEN - 1] += i;
 		}
