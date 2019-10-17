@@ -74,7 +74,8 @@
 /*
  * internal functions
  */
-static void rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc);
+static void rpcrdma_sendctx_put_locked(struct rpcrdma_xprt *r_xprt,
+				       struct rpcrdma_sendctx *sc);
 static void rpcrdma_reqs_reset(struct rpcrdma_xprt *r_xprt);
 static void rpcrdma_reps_destroy(struct rpcrdma_buffer *buf);
 static void rpcrdma_mrs_create(struct rpcrdma_xprt *r_xprt);
@@ -124,7 +125,7 @@ rpcrdma_qp_event_handler(struct ib_event *event, void *context)
 
 /**
  * rpcrdma_wc_send - Invoked by RDMA provider for each polled Send WC
- * @cq:	completion queue (ignored)
+ * @cq:	completion queue
  * @wc:	completed WR
  *
  */
@@ -137,7 +138,7 @@ rpcrdma_wc_send(struct ib_cq *cq, struct ib_wc *wc)
 
 	/* WARNING: Only wr_cqe and status are reliable at this point */
 	trace_xprtrdma_wc_send(sc, wc);
-	rpcrdma_sendctx_put_locked(sc);
+	rpcrdma_sendctx_put_locked((struct rpcrdma_xprt *)cq->cq_context, sc);
 }
 
 /**
@@ -518,7 +519,7 @@ int rpcrdma_ep_create(struct rpcrdma_xprt *r_xprt)
 	init_waitqueue_head(&ep->rep_connect_wait);
 	ep->rep_receive_count = 0;
 
-	sendcq = ib_alloc_cq_any(ia->ri_id->device, NULL,
+	sendcq = ib_alloc_cq_any(ia->ri_id->device, r_xprt,
 				 ep->rep_attr.cap.max_send_wr + 1,
 				 IB_POLL_WORKQUEUE);
 	if (IS_ERR(sendcq)) {
@@ -840,7 +841,6 @@ static int rpcrdma_sendctxs_create(struct rpcrdma_xprt *r_xprt)
 		if (!sc)
 			return -ENOMEM;
 
-		sc->sc_xprt = r_xprt;
 		buf->rb_sc_ctxs[i] = sc;
 	}
 
@@ -903,6 +903,7 @@ out_emptyq:
 
 /**
  * rpcrdma_sendctx_put_locked - Release a send context
+ * @r_xprt: controlling transport instance
  * @sc: send context to release
  *
  * Usage: Called from Send completion to return a sendctxt
@@ -910,10 +911,10 @@ out_emptyq:
  *
  * The caller serializes calls to this function (per transport).
  */
-static void
-rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
+static void rpcrdma_sendctx_put_locked(struct rpcrdma_xprt *r_xprt,
+				       struct rpcrdma_sendctx *sc)
 {
-	struct rpcrdma_buffer *buf = &sc->sc_xprt->rx_buf;
+	struct rpcrdma_buffer *buf = &r_xprt->rx_buf;
 	unsigned long next_tail;
 
 	/* Unmap SGEs of previously completed but unsignaled
@@ -931,7 +932,7 @@ rpcrdma_sendctx_put_locked(struct rpcrdma_sendctx *sc)
 	/* Paired with READ_ONCE */
 	smp_store_release(&buf->rb_sc_tail, next_tail);
 
-	xprt_write_space(&sc->sc_xprt->rx_xprt);
+	xprt_write_space(&r_xprt->rx_xprt);
 }
 
 static void
