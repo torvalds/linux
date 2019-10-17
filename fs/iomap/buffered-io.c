@@ -1162,8 +1162,9 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 
 	if (unlikely(error && !quiet)) {
 		printk_ratelimited(KERN_ERR
-			"%s: writeback error on sector %llu",
-			inode->i_sb->s_id, start);
+"%s: writeback error on inode %lu, offset %lld, sector %llu",
+			inode->i_sb->s_id, inode->i_ino, ioend->io_offset,
+			start);
 	}
 }
 
