@@ -213,9 +213,21 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	maximum_usec_per_period = USEC_PER_SEC * PAGE_SIZE /
 				  CYCLES_PER_SECOND / ctx_header_size;
 
+	// In IEC 61883-6, one isoc packet can transfer events up to the value
+	// of syt interval. This comes from the interval of isoc cycle. As 1394
+	// OHCI controller can generate hardware IRQ per isoc packet, the
+	// interval is 125 usec.
+	// However, there are two ways of transmission in IEC 61883-6; blocking
+	// and non-blocking modes. In blocking mode, the sequence of isoc packet
+	// includes 'empty' or 'NODATA' packets which include no event. In
+	// non-blocking mode, the number of events per packet is variable up to
+	// the syt interval.
+	// Due to the above protocol design, the minimum PCM frames per
+	// interrupt should be double of the value of syt interval, thus it is
+	// 250 usec.
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-					   5000, maximum_usec_per_period);
+					   250, maximum_usec_per_period);
 	if (err < 0)
 		goto end;
 
