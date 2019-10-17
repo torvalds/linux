@@ -66,6 +66,7 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	// at current one.
 	if (clock != SND_TSCM_CLOCK_INTERNAL || tscm->substreams_counter > 0) {
 		unsigned int frames_per_period = d->events_per_period;
+		unsigned int frames_per_buffer = d->events_per_buffer;
 		unsigned int rate;
 
 		err = snd_tscm_stream_get_rate(tscm, &rate);
@@ -79,6 +80,14 @@ static int pcm_open(struct snd_pcm_substream *substream)
 		err = snd_pcm_hw_constraint_minmax(substream->runtime,
 					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
 					frames_per_period, frames_per_period);
+		if (err < 0) {
+			mutex_unlock(&tscm->mutex);
+			goto err_locked;
+		}
+
+		err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_BUFFER_SIZE,
+					frames_per_buffer, frames_per_buffer);
 		if (err < 0) {
 			mutex_unlock(&tscm->mutex);
 			goto err_locked;
@@ -118,10 +127,11 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
 		unsigned int frames_per_period = params_period_size(hw_params);
+		unsigned int frames_per_buffer = params_buffer_size(hw_params);
 
 		mutex_lock(&tscm->mutex);
 		err = snd_tscm_stream_reserve_duplex(tscm, rate,
-						     frames_per_period);
+					frames_per_period, frames_per_buffer);
 		if (err >= 0)
 			++tscm->substreams_counter;
 		mutex_unlock(&tscm->mutex);
