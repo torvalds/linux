@@ -1110,13 +1110,13 @@ out_unlock:
 EXPORT_SYMBOL_GPL(iomap_page_mkwrite);
 
 static void
-iomap_finish_page_writeback(struct inode *inode, struct bio_vec *bvec,
+iomap_finish_page_writeback(struct inode *inode, struct page *page,
 		int error)
 {
-	struct iomap_page *iop = to_iomap_page(bvec->bv_page);
+	struct iomap_page *iop = to_iomap_page(page);
 
 	if (error) {
-		SetPageError(bvec->bv_page);
+		SetPageError(page);
 		mapping_set_error(inode->i_mapping, -EIO);
 	}
 
@@ -1124,7 +1124,7 @@ iomap_finish_page_writeback(struct inode *inode, struct bio_vec *bvec,
 	WARN_ON_ONCE(iop && atomic_read(&iop->write_count) <= 0);
 
 	if (!iop || atomic_dec_and_test(&iop->write_count))
-		end_page_writeback(bvec->bv_page);
+		end_page_writeback(page);
 }
 
 /*
@@ -1156,7 +1156,7 @@ iomap_finish_ioend(struct iomap_ioend *ioend, int error)
 
 		/* walk each page on bio, ending page IO on them */
 		bio_for_each_segment_all(bv, bio, iter_all)
-			iomap_finish_page_writeback(inode, bv, error);
+			iomap_finish_page_writeback(inode, bv->bv_page, error);
 		bio_put(bio);
 	}
 
