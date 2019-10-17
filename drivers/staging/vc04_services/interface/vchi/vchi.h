@@ -8,7 +8,7 @@
 #include "interface/vchi/vchi_common.h"
 
 /******************************************************************************
- Global defs
+ * Global defs
  *****************************************************************************/
 
 #define VCHI_BULK_ROUND_UP(x)     ((((unsigned long)(x)) + VCHI_BULK_ALIGN - 1) & ~(VCHI_BULK_ALIGN - 1))
@@ -56,7 +56,8 @@ typedef struct opaque_vchi_instance_handle_t *VCHI_INSTANCE_T;
 typedef struct opaque_vchi_service_handle_t *VCHI_SERVICE_HANDLE_T;
 
 /******************************************************************************
- Global funcs - implementation is specific to which side you are on (local / remote)
+ * Global funcs - implementation is specific to which side you are on
+ * (local / remote)
  *****************************************************************************/
 
 #ifdef __cplusplus
@@ -80,7 +81,7 @@ extern void vchi_free_buffer(VCHI_SERVICE_HANDLE_T handle, void *address);
 extern uint32_t vchi_current_time(VCHI_INSTANCE_T instance_handle);
 
 /******************************************************************************
- Global service API
+ * Global service API
  *****************************************************************************/
 // Routine to destroy a service
 extern int32_t vchi_service_destroy(const VCHI_SERVICE_HANDLE_T handle);
@@ -153,9 +154,10 @@ extern int32_t vchi_msg_look_ahead(VCHI_SERVICE_HANDLE_T handle,
 				   struct vchi_msg_iter *iter,
 				   VCHI_FLAGS_T flags);
 
-/******************************************************************************
- Global service support API - operations on held messages and message iterators
- *****************************************************************************/
+/*******************************************************************************
+ * Global service support API - operations on held messages
+ * and message iterators
+ ******************************************************************************/
 
 // Routine to get the address of a held message
 extern void *vchi_held_msg_ptr(const struct vchi_held_msg *message);
@@ -196,7 +198,7 @@ extern int32_t vchi_msg_iter_hold_next(struct vchi_msg_iter *iter,
 				       struct vchi_held_msg *message);
 
 /******************************************************************************
- Global bulk API
+ * Global bulk API
  *****************************************************************************/
 
 // Routine to prepare interface for a transfer from the other side
@@ -221,7 +223,7 @@ extern int32_t vchi_bulk_queue_transmit(VCHI_SERVICE_HANDLE_T handle,
 					void *transfer_handle);
 
 /******************************************************************************
- Configuration plumbing
+ * Configuration plumbing
  *****************************************************************************/
 
 #ifdef __cplusplus
