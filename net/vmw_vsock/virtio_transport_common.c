@@ -458,6 +458,9 @@ void virtio_transport_set_buffer_size(struct vsock_sock *vsk, u64 val)
 		vvs->buf_size_max = val;
 	vvs->buf_size = val;
 	vvs->buf_alloc = val;
+
+	virtio_transport_send_credit_update(vsk, VIRTIO_VSOCK_TYPE_STREAM,
+					    NULL);
 }
 EXPORT_SYMBOL_GPL(virtio_transport_set_buffer_size);
 
