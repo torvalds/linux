@@ -12,7 +12,6 @@
 
 #include <asm/asm.h>
 
-#ifdef CONFIG_GENERIC_BUG
 #define __INSN_LENGTH_MASK  _UL(0x3)
 #define __INSN_LENGTH_32    _UL(0x3)
 #define __COMPRESSED_INSN_MASK	_UL(0xffff)
@@ -20,7 +19,6 @@
 #define __BUG_INSN_32	_UL(0x00100073) /* ebreak */
 #define __BUG_INSN_16	_UL(0x9002) /* c.ebreak */
 
-#ifndef __ASSEMBLY__
 typedef u32 bug_insn_t;
 
 #ifdef CONFIG_GENERIC_BUG_RELATIVE_POINTERS
@@ -43,6 +41,7 @@ typedef u32 bug_insn_t;
 	RISCV_SHORT " %2"
 #endif
 
+#ifdef CONFIG_GENERIC_BUG
 #define __BUG_FLAGS(flags)					\
 do {								\
 	__asm__ __volatile__ (					\
@@ -58,14 +57,10 @@ do {								\
 		  "i" (flags),					\
 		  "i" (sizeof(struct bug_entry)));              \
 } while (0)
-
-#endif /* !__ASSEMBLY__ */
 #else /* CONFIG_GENERIC_BUG */
-#ifndef __ASSEMBLY__
 #define __BUG_FLAGS(flags) do {					\
 	__asm__ __volatile__ ("ebreak\n");			\
 } while (0)
-#endif /* !__ASSEMBLY__ */
 #endif /* CONFIG_GENERIC_BUG */
 
 #define BUG() do {						\
@@ -79,15 +74,10 @@ do {								\
 
 #include <asm-generic/bug.h>
 
-#ifndef __ASSEMBLY__
-
 struct pt_regs;
 struct task_struct;
 
-extern void die(struct pt_regs *regs, const char *str);
-extern void do_trap(struct pt_regs *regs, int signo, int code,
-	unsigned long addr);
-
-#endif /* !__ASSEMBLY__ */
+void die(struct pt_regs *regs, const char *str);
+void do_trap(struct pt_regs *regs, int signo, int code, unsigned long addr);
 
 #endif /* _ASM_RISCV_BUG_H */
