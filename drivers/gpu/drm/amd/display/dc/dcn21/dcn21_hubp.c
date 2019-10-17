@@ -204,8 +204,8 @@ void hubp21_set_viewport(
 			PTE_ROW_HEIGHT_LINEAR, &pte_row_height);
 
 		pte_row_height = 1 << (pte_row_height + 3);
-		pte_rows = (viewport_c->height + pte_row_height - 1) / pte_row_height;
-		patched_viewport_height = pte_rows * pte_row_height + 3;
+		pte_rows = (viewport_c->height / pte_row_height) + 1;
+		patched_viewport_height = pte_rows * pte_row_height + 1;
 	}
 
 
