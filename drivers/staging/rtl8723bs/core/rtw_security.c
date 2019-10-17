@@ -1543,7 +1543,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 			 u8 *pframe, uint plen)
 {
 	static u8 message[MAX_MSG_SIZE];
-	uint	qc_exists, a4_exists, i, j, payload_remainder,
+	uint qc_exists, a4_exists, i, j, payload_remainder,
 			num_blocks, payload_index;
 	sint res = _SUCCESS;
 	u8 pn_vector[6];
@@ -1559,8 +1559,8 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	u8 mic[8];
 
 
-	uint	frtype  = GetFrameType(pframe);
-	uint	frsubtype  = GetFrameSubType(pframe);
+	uint frtype  = GetFrameType(pframe);
+	uint frsubtype  = GetFrameSubType(pframe);
 
 	frsubtype = frsubtype>>4;
 
