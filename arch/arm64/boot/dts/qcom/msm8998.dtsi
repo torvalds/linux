@@ -1569,6 +1569,20 @@
 			qcom,num-ees = <4>;
 		};
 
+		blsp1_uart3: serial@c171000 {
+			compatible = "qcom,msm-uartdm-v1.4", "qcom,msm-uartdm";
+			reg = <0x0c171000 0x1000>;
+			interrupts = <GIC_SPI 109 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_UART3_APPS_CLK>,
+				 <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			dmas = <&blsp1_dma 4>, <&blsp1_dma 5>;
+			dma-names = "tx", "rx";
+			pinctrl-names = "default";
+			pinctrl-0 = <&blsp1_uart3_on>;
+			status = "disabled";
+		};
+
 		blsp1_i2c1: i2c@c175000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			reg = <0x0c175000 0x600>;
