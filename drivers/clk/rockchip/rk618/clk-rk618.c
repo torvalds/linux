@@ -122,6 +122,7 @@ struct clk_composite_data {
 	u32 div_reg;
 	u8 div_shift;
 	u8 div_width;
+	u8 div_flags;
 	u32 gate_reg;
 	u8 gate_shift;
 	unsigned long flags;
@@ -142,6 +143,7 @@ struct clk_composite_data {
 	.div_reg = _div_reg, \
 	.div_shift = _div_shift, \
 	.div_width = _div_width, \
+	.div_flags = CLK_DIVIDER_HIWORD_MASK, \
 	.gate_reg = _gate_reg, \
 	.gate_shift = _gate_shift, \
 	.flags = _flags, \
@@ -300,7 +302,7 @@ static void rk618_clk_add_lookup(struct rk618_cru *cru, struct clk *clk,
 static void rk618_clk_register_muxes(struct rk618_cru *cru)
 {
 	struct clk *clk;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(rk618_clk_muxes); i++) {
 		const struct clk_mux_data *data = &rk618_clk_muxes[i];
@@ -324,7 +326,7 @@ static void rk618_clk_register_muxes(struct rk618_cru *cru)
 static void rk618_clk_register_dividers(struct rk618_cru *cru)
 {
 	struct clk *clk;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(rk618_clk_dividers); i++) {
 		const struct clk_divider_data *data = &rk618_clk_dividers[i];
@@ -347,7 +349,7 @@ static void rk618_clk_register_dividers(struct rk618_cru *cru)
 static void rk618_clk_register_gates(struct rk618_cru *cru)
 {
 	struct clk *clk;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(rk618_clk_gates); i++) {
 		const struct clk_gate_data *data = &rk618_clk_gates[i];
@@ -370,7 +372,7 @@ static void rk618_clk_register_gates(struct rk618_cru *cru)
 static void rk618_clk_register_composites(struct rk618_cru *cru)
 {
 	struct clk *clk;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(rk618_clk_composites); i++) {
 		const struct clk_composite_data *data =
@@ -386,6 +388,7 @@ static void rk618_clk_register_composites(struct rk618_cru *cru)
 							 data->div_reg,
 							 data->div_shift,
 							 data->div_width,
+							 data->div_flags,
 							 data->gate_reg,
 							 data->gate_shift,
 							 data->flags);
@@ -402,7 +405,7 @@ static void rk618_clk_register_composites(struct rk618_cru *cru)
 static void rk618_clk_register_plls(struct rk618_cru *cru)
 {
 	struct clk *clk;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < ARRAY_SIZE(rk618_clk_plls); i++) {
 		const struct clk_pll_data *data = &rk618_clk_plls[i];

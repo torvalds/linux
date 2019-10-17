@@ -82,7 +82,7 @@ static int clk_regmap_composite_determine_rate(struct clk_hw *hw,
 	unsigned long rate_diff;
 	unsigned long best_rate_diff = ULONG_MAX;
 	long rate;
-	int i;
+	unsigned int i;
 
 	if (rate_hw && rate_ops && rate_ops->determine_rate) {
 		__clk_hw_set_clk(rate_hw, hw);
@@ -208,14 +208,18 @@ devm_clk_regmap_register_composite(struct device *dev, const char *name,
 				   u8 num_parents, struct regmap *regmap,
 				   u32 mux_reg, u8 mux_shift, u8 mux_width,
 				   u32 div_reg, u8 div_shift, u8 div_width,
+				   u8 div_flags,
 				   u32 gate_reg, u8 gate_shift,
 				   unsigned long flags)
 {
 	struct clk_regmap_gate *gate = NULL;
 	struct clk_regmap_mux *mux = NULL;
 	struct clk_regmap_divider *div = NULL;
+	struct clk_regmap_fractional_divider *fd = NULL;
 	const struct clk_ops *mux_ops = NULL, *div_ops = NULL, *gate_ops = NULL;
+	const struct clk_ops *fd_ops = NULL;
 	struct clk_hw *mux_hw = NULL, *div_hw = NULL, *gate_hw = NULL;
+	struct clk_hw *fd_hw = NULL;
 	struct clk *clk;
 	struct clk_init_data init = {};
 	struct clk_regmap_composite *composite;
@@ -248,18 +252,36 @@ devm_clk_regmap_register_composite(struct device *dev, const char *name,
 		gate_hw = &gate->hw;
 	}
 
-	if (div_width > 0) {
-		div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
-		if (!div)
-			return ERR_PTR(-ENOMEM);
+	if (div_reg > 0) {
+		if (div_flags & CLK_DIVIDER_HIWORD_MASK) {
+			div = devm_kzalloc(dev, sizeof(*div), GFP_KERNEL);
+			if (!div)
+				return ERR_PTR(-ENOMEM);
 
-		div->dev = dev;
-		div->regmap = regmap;
-		div->reg = div_reg;
-		div->shift = div_shift;
-		div->width = div_width;
-		div_ops = &clk_regmap_divider_ops;
-		div_hw = &div->hw;
+			div->dev = dev;
+			div->regmap = regmap;
+			div->reg = div_reg;
+			div->shift = div_shift;
+			div->width = div_width;
+			div_ops = &clk_regmap_divider_ops;
+			div_hw = &div->hw;
+		} else {
+			fd = devm_kzalloc(dev, sizeof(*fd), GFP_KERNEL);
+			if (!fd)
+				return ERR_PTR(-ENOMEM);
+
+			fd->dev = dev;
+			fd->regmap = regmap;
+			fd->reg = div_reg;
+			fd->mshift = 16;
+			fd->mwidth = 16;
+			fd->mmask = GENMASK(fd->mwidth - 1, 0) << fd->mshift;
+			fd->nshift = 0;
+			fd->nwidth = 16;
+			fd->nmask = GENMASK(fd->nwidth - 1, 0) << fd->nshift;
+			fd_ops = &clk_regmap_fractional_divider_ops;
+			fd_hw = &fd->hw;
+		}
 	}
 
 	composite = devm_kzalloc(dev, sizeof(*composite), GFP_KERNEL);
@@ -314,6 +336,33 @@ devm_clk_regmap_register_composite(struct device *dev, const char *name,
 
 		composite->rate_hw = div_hw;
 		composite->rate_ops = div_ops;
+	}
+
+	if (fd_hw && fd_ops) {
+		if (!fd_ops->recalc_rate)
+			return ERR_PTR(-EINVAL);
+
+		clk_composite_ops->recalc_rate =
+			clk_regmap_composite_recalc_rate;
+
+		if (fd_ops->determine_rate)
+			clk_composite_ops->determine_rate =
+				clk_regmap_composite_determine_rate;
+		else if (fd_ops->round_rate)
+			clk_composite_ops->round_rate =
+				clk_regmap_composite_round_rate;
+
+		/* .set_rate requires either .round_rate or .determine_rate */
+		if (fd_ops->set_rate) {
+			if (fd_ops->determine_rate || fd_ops->round_rate)
+				clk_composite_ops->set_rate =
+					clk_regmap_composite_set_rate;
+			else
+				WARN(1, "missing round_rate op\n");
+		}
+
+		composite->rate_hw = fd_hw;
+		composite->rate_ops = fd_ops;
 	}
 
 	if (gate_hw && gate_ops) {

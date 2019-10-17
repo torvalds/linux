@@ -107,6 +107,7 @@ devm_clk_regmap_register_composite(struct device *dev, const char *name,
 				   u8 num_parents, struct regmap *regmap,
 				   u32 mux_reg, u8 mux_shift, u8 mux_width,
 				   u32 div_reg, u8 div_shift, u8 div_width,
+				   u8 div_flags,
 				   u32 gate_reg, u8 gate_shift,
 				   unsigned long flags);
 
