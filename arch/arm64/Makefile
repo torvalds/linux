@@ -203,3 +203,16 @@ define archhelp
   echo  '                  (distribution) /sbin/installkernel or'
   echo  '                  install to $$(INSTALL_PATH) and run lilo'
 endef
+
+MAKE_MODULES ?= y
+
+%.img:
+ifeq ("$(CONFIG_MODULES)$(MAKE_MODULES)$(srctree)","yy$(objtree)")
+	$(Q)$(MAKE) rockchip/$*.dtb Image.lz4 modules
+else
+	$(Q)$(MAKE) rockchip/$*.dtb Image.lz4
+endif
+	$(Q)$(srctree)/scripts/mkimg --dtb $*.dtb
+
+CLEAN_DIRS += out
+CLEAN_FILES += boot.img kernel.img resource.img zboot.img
