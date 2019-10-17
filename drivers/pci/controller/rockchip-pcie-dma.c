@@ -524,6 +524,11 @@ static const struct file_operations rk_pcie_misc_fops = {
 	.poll		= rk_pcie_misc_poll,
 };
 
+static void rk_pcie_delete_misc(struct dma_trx_obj *obj)
+{
+	misc_deregister(&obj->pcie_dev->dev);
+}
+
 static int rk_pcie_add_misc(struct dma_trx_obj *obj)
 {
 	int ret;
@@ -545,6 +550,7 @@ static int rk_pcie_add_misc(struct dma_trx_obj *obj)
 	}
 
 	pcie_dev->obj = obj;
+	obj->pcie_dev = pcie_dev;
 
 	pr_info("register misc device pcie-dev\n");
 
@@ -575,6 +581,11 @@ static void *rk_pcie_map_kernel(phys_addr_t start, size_t len)
 	vfree(p);
 
 	return vaddr;
+}
+
+static void rk_pcie_unmap_kernel(void *vaddr)
+{
+	vunmap(vaddr);
 }
 
 static void rk_pcie_dma_table_free(struct dma_trx_obj *obj, int num)
@@ -752,3 +763,18 @@ free_dma_table:
 	return obj;
 }
 EXPORT_SYMBOL_GPL(rk_pcie_dma_obj_probe);
+
+void rk_pcie_dma_obj_remove(struct dma_trx_obj *obj)
+{
+	hrtimer_cancel(&obj->scan_timer);
+	destroy_hrtimer_on_stack(&obj->scan_timer);
+	rk_pcie_delete_misc(obj);
+	rk_pcie_unmap_kernel(obj->mem_base);
+	rk_pcie_dma_table_free(obj, PCIE_DMA_TABLE_NUM);
+	destroy_workqueue(obj->dma_trx_wq);
+
+#ifdef CONFIG_DEBUG_FS
+	debugfs_remove_recursive(obj->pcie_root);
+#endif
+}
+EXPORT_SYMBOL_GPL(rk_pcie_dma_obj_remove);

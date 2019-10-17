@@ -1280,14 +1280,23 @@ static int rockchip_pcie_remove(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
 
-	pci_stop_root_bus(rockchip->root_bus);
-	pci_remove_root_bus(rockchip->root_bus);
+	if (rockchip->root_bus) {
+		pci_stop_root_bus(rockchip->root_bus);
+		pci_remove_root_bus(rockchip->root_bus);
+	}
+
 	pci_unmap_iospace(rockchip->io);
 	irq_domain_remove(rockchip->irq_domain);
 
 	rockchip_pcie_deinit_phys(rockchip);
 
 	rockchip_pcie_disable_clocks(rockchip);
+
+	if (rockchip->dma_trx_enabled)
+		rk_pcie_dma_obj_remove(rockchip->dma_obj);
+
+	if (rockchip->deferred)
+		sysfs_remove_group(&pdev->dev.kobj, &pcie_attr_group);
 
 	if (!IS_ERR(rockchip->vpcie12v))
 		regulator_disable(rockchip->vpcie12v);
