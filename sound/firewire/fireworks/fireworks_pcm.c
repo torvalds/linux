@@ -173,13 +173,13 @@ end:
 static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_efw *efw = substream->private_data;
-	unsigned int sampling_rate;
+	struct amdtp_domain *d = &efw->domain;
 	enum snd_efw_clock_source clock_source;
 	int err;
 
 	err = snd_efw_stream_lock_try(efw);
 	if (err < 0)
-		goto end;
+		return err;
 
 	err = pcm_init_hw_params(efw, substream);
 	if (err < 0)
@@ -189,23 +189,40 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto err_locked;
 
-	/*
-	 * When source of clock is not internal or any PCM streams are running,
-	 * available sampling rate is limited at current sampling rate.
-	 */
+	mutex_lock(&efw->mutex);
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
 	if ((clock_source != SND_EFW_CLOCK_SOURCE_INTERNAL) ||
-	    amdtp_stream_pcm_running(&efw->tx_stream) ||
-	    amdtp_stream_pcm_running(&efw->rx_stream)) {
+	    (efw->substreams_counter > 0 && d->events_per_period > 0)) {
+		unsigned int frames_per_period = d->events_per_period;
+		unsigned int sampling_rate;
+
 		err = snd_efw_command_get_sampling_rate(efw, &sampling_rate);
-		if (err < 0)
+		if (err < 0) {
+			mutex_unlock(&efw->mutex);
 			goto err_locked;
+		}
 		substream->runtime->hw.rate_min = sampling_rate;
 		substream->runtime->hw.rate_max = sampling_rate;
+
+		if (frames_per_period > 0) {
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&efw->mutex);
+				goto err_locked;
+			}
+		}
 	}
 
+	mutex_unlock(&efw->mutex);
+
 	snd_pcm_set_sync(substream);
-end:
-	return err;
+
+	return 0;
 err_locked:
 	snd_efw_stream_lock_release(efw);
 	return err;
@@ -231,9 +248,11 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
 
 		mutex_lock(&efw->mutex);
-		err = snd_efw_stream_reserve_duplex(efw, rate);
+		err = snd_efw_stream_reserve_duplex(efw, rate,
+						    frames_per_period);
 		if (err >= 0)
 			++efw->substreams_counter;
 		mutex_unlock(&efw->mutex);

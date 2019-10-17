@@ -554,7 +554,8 @@ static int keep_resources(struct snd_bebob *bebob, struct amdtp_stream *stream,
 	return cmp_connection_reserve(conn, amdtp_stream_get_max_payload(stream));
 }
 
-int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
+int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate,
+				    unsigned int frames_per_period)
 {
 	unsigned int curr_rate;
 	int err;
@@ -605,6 +606,14 @@ int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate)
 		err = keep_resources(bebob, &bebob->rx_stream, rate, index);
 		if (err < 0) {
 			cmp_connection_release(&bebob->out_conn);
+			return err;
+		}
+
+		err = amdtp_domain_set_events_per_period(&bebob->domain,
+							 frames_per_period);
+		if (err < 0) {
+			cmp_connection_release(&bebob->out_conn);
+			cmp_connection_release(&bebob->in_conn);
 			return err;
 		}
 	}

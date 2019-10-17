@@ -134,8 +134,8 @@ static int pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 	const struct snd_motu_protocol *const protocol = motu->spec->protocol;
+	struct amdtp_domain *d = &motu->domain;
 	enum snd_motu_clock_source src;
-	unsigned int rate;
 	int err;
 
 	err = snd_motu_stream_lock_try(motu);
@@ -152,28 +152,41 @@ static int pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		goto err_locked;
 
-	/*
-	 * When source of clock is not internal or any PCM streams are running,
-	 * available sampling rate is limited at current sampling rate.
-	 */
 	err = protocol->get_clock_source(motu, &src);
 	if (err < 0)
 		goto err_locked;
+
+	// When source of clock is not internal or any stream is reserved for
+	// transmission of PCM frames, the available sampling rate is limited
+	// at current one.
 	if (src != SND_MOTU_CLOCK_SOURCE_INTERNAL ||
-	    amdtp_stream_pcm_running(&motu->tx_stream) ||
-	    amdtp_stream_pcm_running(&motu->rx_stream)) {
+	    (motu->substreams_counter > 0 && d->events_per_period > 0)) {
+		unsigned int frames_per_period = d->events_per_period;
+		unsigned int rate;
+
 		err = protocol->get_clock_rate(motu, &rate);
 		if (err < 0)
 			goto err_locked;
+
 		substream->runtime->hw.rate_min = rate;
 		substream->runtime->hw.rate_max = rate;
+
+		if (frames_per_period > 0) {
+			err = snd_pcm_hw_constraint_minmax(substream->runtime,
+					SNDRV_PCM_HW_PARAM_PERIOD_SIZE,
+					frames_per_period, frames_per_period);
+			if (err < 0) {
+				mutex_unlock(&motu->mutex);
+				goto err_locked;
+			}
+		}
 	}
 
 	snd_pcm_set_sync(substream);
 
 	mutex_unlock(&motu->mutex);
 
-	return err;
+	return 0;
 err_locked:
 	mutex_unlock(&motu->mutex);
 	snd_motu_stream_lock_release(motu);
@@ -202,9 +215,11 @@ static int pcm_hw_params(struct snd_pcm_substream *substream,
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
 		unsigned int rate = params_rate(hw_params);
+		unsigned int frames_per_period = params_period_size(hw_params);
 
 		mutex_lock(&motu->mutex);
-		err = snd_motu_stream_reserve_duplex(motu, rate);
+		err = snd_motu_stream_reserve_duplex(motu, rate,
+						     frames_per_period);
 		if (err >= 0)
 			++motu->substreams_counter;
 		mutex_unlock(&motu->mutex);
