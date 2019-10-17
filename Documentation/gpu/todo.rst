@@ -462,3 +462,30 @@ Contact: Sam Ravnborg
 
 Outside DRM
 ===========
+
+Convert fbdev drivers to DRM
+----------------------------
+
+There are plenty of fbdev drivers for older hardware. Some hwardware has
+become obsolete, but some still provides good(-enough) framebuffers. The
+drivers that are still useful should be converted to DRM and afterwards
+removed from fbdev.
+
+Very simple fbdev drivers can best be converted by starting with a new
+DRM driver. Simple KMS helpers and SHMEM should be able to handle any
+existing hardware. The new driver's call-back functions are filled from
+existing fbdev code.
+
+More complex fbdev drivers can be refactored step-by-step into a DRM
+driver with the help of the DRM fbconv helpers. [1] These helpers provide
+the transition layer between the DRM core infrastructure and the fbdev
+driver interface. Create a new DRM driver on top of the fbconv helpers,
+copy over the fbdev driver, and hook it up to the DRM code. Examples for
+several fbdev drivers are available at [1] and a tutorial of this process
+available at [2]. The result is a primitive DRM driver that can run X11
+and Weston.
+
+ - [1] https://gitlab.freedesktop.org/tzimmermann/linux/tree/fbconv
+ - [2] https://gitlab.freedesktop.org/tzimmermann/linux/blob/fbconv/drivers/gpu/drm/drm_fbconv_helper.c
+
+Contact: Thomas Zimmermann <tzimmermann@suse.de>
