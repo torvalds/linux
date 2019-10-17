@@ -1064,6 +1064,18 @@ void psp_pci_init(void)
 
 	/* Initialize the platform */
 	rc = sev_platform_init(&error);
+	if (rc && (error == SEV_RET_SECURE_DATA_INVALID)) {
+		/*
+		 * INIT command returned an integrity check failure
+		 * status code, meaning that firmware load and
+		 * validation of SEV related persistent data has
+		 * failed and persistent state has been erased.
+		 * Retrying INIT command here should succeed.
+		 */
+		dev_dbg(sp->dev, "SEV: retrying INIT command");
+		rc = sev_platform_init(&error);
+	}
+
 	if (rc) {
 		dev_err(sp->dev, "SEV: failed to INIT error %#x\n", error);
 		return;
