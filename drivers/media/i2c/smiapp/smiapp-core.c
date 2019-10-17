@@ -2881,7 +2881,6 @@ static int smiapp_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	sensor->hwcfg = hwcfg;
-	mutex_init(&sensor->mutex);
 	sensor->src = &sensor->ssds[sensor->ssds_used];
 
 	v4l2_i2c_subdev_init(&sensor->src->sd, client, &smiapp_ops);
@@ -2944,6 +2943,8 @@ static int smiapp_probe(struct i2c_client *client)
 	rval = smiapp_power_on(&client->dev);
 	if (rval < 0)
 		return rval;
+
+	mutex_init(&sensor->mutex);
 
 	rval = smiapp_identify_module(sensor);
 	if (rval) {
@@ -3134,6 +3135,7 @@ out_cleanup:
 
 out_power_off:
 	smiapp_power_off(&client->dev);
+	mutex_destroy(&sensor->mutex);
 
 	return rval;
 }
@@ -3156,6 +3158,7 @@ static int smiapp_remove(struct i2c_client *client)
 		media_entity_cleanup(&sensor->ssds[i].sd.entity);
 	}
 	smiapp_cleanup(sensor);
+	mutex_destroy(&sensor->mutex);
 
 	return 0;
 }
