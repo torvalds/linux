@@ -312,6 +312,12 @@ again:
 		/* Match nfsv4 minorversion */
 		if (clp->cl_minorversion != data->minorversion)
 			continue;
+
+		/* Match request for a dedicated DS */
+		if (test_bit(NFS_CS_DS, &data->init_flags) !=
+		    test_bit(NFS_CS_DS, &clp->cl_flags))
+			continue;
+
 		/* Match the full socket address */
 		if (!rpc_cmp_addr_port(sap, clap))
 			/* Match all xprt_switch full socket addresses */
