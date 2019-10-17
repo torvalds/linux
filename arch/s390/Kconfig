@@ -1018,3 +1018,17 @@ config S390_GUEST
 	  the KVM hypervisor.
 
 endmenu
+
+menu "Selftests"
+
+config S390_UNWIND_SELFTEST
+	def_tristate n
+	prompt "Test unwind functions"
+	help
+	  This option enables s390 specific stack unwinder testing kernel
+	  module. This option is not useful for distributions or general
+	  kernels, but only for kernel developers working on architecture code.
+
+	  Say N if you are unsure.
+
+endmenu
