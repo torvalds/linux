@@ -1879,10 +1879,10 @@ lpuart32_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	if (termios->c_cflag & CRTSCTS) {
-		modem |= UARTMODEM_RXRTSE | UARTMODEM_TXCTSE;
+		modem |= (UARTMODIR_RXRTSE | UARTMODIR_TXCTSE);
 	} else {
 		termios->c_cflag &= ~CRTSCTS;
-		modem &= ~(UARTMODEM_RXRTSE | UARTMODEM_TXCTSE);
+		modem &= ~(UARTMODIR_RXRTSE | UARTMODIR_TXCTSE);
 	}
 
 	if (termios->c_cflag & CSTOPB)
