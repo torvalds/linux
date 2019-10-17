@@ -31,140 +31,6 @@
 #define RK618_CRU_PLL1_CON1		0x0078
 #define RK618_CRU_PLL1_CON2		0x007c
 
-struct clk_pll_data {
-	unsigned int id;
-	const char *name;
-	const char *parent_name;
-	u32 reg;
-	unsigned long flags;
-};
-
-#define PLL(_id, _name, _parent_name, _reg, _flags) \
-{ \
-	.id = _id, \
-	.name = _name, \
-	.parent_name = _parent_name, \
-	.reg = _reg, \
-	.flags = _flags, \
-}
-
-struct clk_mux_data {
-	unsigned int id;
-	const char *name;
-	const char *const *parent_names;
-	u8 num_parents;
-	u32 reg;
-	u8 shift;
-	u8 width;
-	unsigned long flags;
-};
-
-#define MUX(_id, _name, _parent_names, _reg, _shift, _width, _flags) \
-{ \
-	.id = _id, \
-	.name = _name, \
-	.parent_names = _parent_names, \
-	.num_parents = ARRAY_SIZE(_parent_names), \
-	.reg = _reg, \
-	.shift = _shift, \
-	.width = _width, \
-	.flags = _flags, \
-}
-
-struct clk_gate_data {
-	unsigned int id;
-	const char *name;
-	const char *parent_name;
-	u32 reg;
-	u8 shift;
-	unsigned long flags;
-};
-
-#define GATE(_id, _name, _parent_name, _reg, _shift, _flags) \
-{ \
-	.id = _id, \
-	.name = _name, \
-	.parent_name = _parent_name, \
-	.reg = _reg, \
-	.shift = _shift, \
-	.flags = _flags, \
-}
-
-struct clk_divider_data {
-	unsigned int id;
-	const char *name;
-	const char *parent_name;
-	u32 reg;
-	u8 shift;
-	u8 width;
-	unsigned long flags;
-};
-
-#define DIV(_id, _name, _parent_name, _reg, _shift, _width, _flags) \
-{ \
-	.id = _id, \
-	.name = _name, \
-	.parent_name = _parent_name, \
-	.reg = _reg, \
-	.shift = _shift, \
-	.width = _width, \
-	.flags = _flags, \
-}
-
-struct clk_composite_data {
-	unsigned int id;
-	const char *name;
-	const char *const *parent_names;
-	u8 num_parents;
-	u32 mux_reg;
-	u8 mux_shift;
-	u8 mux_width;
-	u32 div_reg;
-	u8 div_shift;
-	u8 div_width;
-	u8 div_flags;
-	u32 gate_reg;
-	u8 gate_shift;
-	unsigned long flags;
-};
-
-#define COMPOSITE(_id, _name, _parent_names, \
-		  _mux_reg, _mux_shift, _mux_width, \
-		  _div_reg, _div_shift, _div_width, \
-		  _gate_reg, _gate_shift, _flags) \
-{ \
-	.id = _id, \
-	.name = _name, \
-	.parent_names = _parent_names, \
-	.num_parents = ARRAY_SIZE(_parent_names), \
-	.mux_reg = _mux_reg, \
-	.mux_shift = _mux_shift, \
-	.mux_width = _mux_width, \
-	.div_reg = _div_reg, \
-	.div_shift = _div_shift, \
-	.div_width = _div_width, \
-	.div_flags = CLK_DIVIDER_HIWORD_MASK, \
-	.gate_reg = _gate_reg, \
-	.gate_shift = _gate_shift, \
-	.flags = _flags, \
-}
-
-#define COMPOSITE_NODIV(_id, _name, _parent_names, \
-			_mux_reg, _mux_shift, _mux_width, \
-			_gate_reg, _gate_shift, _flags) \
-{ \
-	.id = _id, \
-	.name = _name, \
-	.parent_names = _parent_names, \
-	.num_parents = ARRAY_SIZE(_parent_names), \
-	.mux_reg = _mux_reg, \
-	.mux_shift = _mux_shift, \
-	.mux_width = _mux_width, \
-	.gate_reg = _gate_reg, \
-	.gate_shift = _gate_shift, \
-	.flags = _flags, \
-}
-
 enum {
 	LCDC0_CLK = 1,
 	LCDC1_CLK,
@@ -209,7 +75,7 @@ PNAME(mux_hdmi_src_p) = { "vif1_clk", "scaler_clk", "vif0_clk" };
 PNAME(mux_dither_src_p) = { "vif0_clk", "scaler_clk" };
 PNAME(mux_vif0_src_p) = { "vif0_pre_clk", lcdc0_dclkp_name };
 PNAME(mux_vif1_src_p) = { "vif1_pre_clk", lcdc1_dclkp_name };
-PNAME(mux_codec_src_p) = { "vif_pll_clk", "scaler_pll_clk", clkin_name };
+PNAME(mux_codec_src_p) = { "codec_pre_clk", clkin_name };
 
 /* Two PLL, one for dual datarate input logic, the other for scaler */
 static const struct clk_pll_data rk618_clk_plls[] = {
@@ -240,6 +106,9 @@ static const struct clk_mux_data rk618_clk_muxes[] = {
 	MUX(VIF1_CLK, "vif1_clk", mux_vif1_src_p,
 	    RK618_CRU_CLKSEL3, 7, 1,
 	    CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
+	MUX(CODEC_CLK, "codec_clk", mux_codec_src_p,
+	    RK618_CRU_CLKSEL1, 1, 1,
+	    CLK_SET_RATE_PARENT),
 };
 
 static const struct clk_divider_data rk618_clk_dividers[] = {
@@ -286,10 +155,10 @@ static const struct clk_composite_data rk618_clk_composites[] = {
 		  RK618_CRU_CLKSEL3, 9, 3,
 		  RK618_CRU_CLKSEL3, 8,
 		  CLK_SET_RATE_PARENT | CLK_SET_RATE_NO_REPARENT),
-	COMPOSITE_NODIV(CODEC_CLK, "codec_clk", mux_codec_src_p,
-			RK618_CRU_CLKSEL1, 0, 2,
-			RK618_CRU_CLKSEL1, 2,
-			0),
+	COMPOSITE_FRAC_NOGATE(0, "codec_pre_clk", mux_pll_src_p,
+			      RK618_CRU_CLKSEL1, 0, 1,
+			      RK618_CRU_CLKSEL2,
+			      0),
 };
 
 static void rk618_clk_add_lookup(struct rk618_cru *cru, struct clk *clk,
