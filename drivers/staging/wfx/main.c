@@ -33,14 +33,12 @@
 #include "secure_link.h"
 #include "hif_tx_mib.h"
 #include "hif_api_cmd.h"
-#include "wfx_version.h"
 
 #define WFX_PDS_MAX_SIZE 1500
 
 MODULE_DESCRIPTION("Silicon Labs 802.11 Wireless LAN driver for WFx");
 MODULE_AUTHOR("Jérôme Pouiller <jerome.pouiller@silabs.com>");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(WFX_LABEL);
 
 static int gpio_wakeup = -2;
 module_param(gpio_wakeup, int, 0644);
@@ -479,8 +477,6 @@ void wfx_release(struct wfx_dev *wdev)
 static int __init wfx_core_init(void)
 {
 	int ret = 0;
-
-	pr_info("wfx: Silicon Labs " WFX_LABEL "\n");
 
 	if (IS_ENABLED(CONFIG_SPI))
 		ret = spi_register_driver(&wfx_spi_driver);

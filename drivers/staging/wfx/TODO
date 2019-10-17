@@ -1,9 +1,6 @@
 This is a list of things that need to be done to get this driver out of the
 staging directory.
 
-  - wfx_version.h is still there in order to ensure synchronization with github.
-    It can be dropped as soon as development is entirely in kernel
-
   - I have to take a decision about secure link support. I can:
       - drop completely
       - keep it in an external patch (my preferred option)
