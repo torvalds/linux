@@ -76,6 +76,7 @@ DEFINE_EVENT(iomap_page_class, name,	\
 	TP_PROTO(struct inode *inode, struct page *page, unsigned long off, \
 		 unsigned int len),	\
 	TP_ARGS(inode, page, off, len))
+DEFINE_PAGE_EVENT(iomap_writepage);
 DEFINE_PAGE_EVENT(iomap_releasepage);
 DEFINE_PAGE_EVENT(iomap_invalidatepage);
 
