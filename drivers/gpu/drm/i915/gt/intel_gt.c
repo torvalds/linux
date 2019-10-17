@@ -186,7 +186,7 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
-		for_each_engine_masked(engine, i915, engine_mask, id)
+		for_each_engine_masked(engine, gt, engine_mask, id)
 			gen8_clear_engine_error_register(engine);
 	}
 }

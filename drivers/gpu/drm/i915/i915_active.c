@@ -590,8 +590,8 @@ match:
 int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 					    struct intel_engine_cs *engine)
 {
-	struct drm_i915_private *i915 = engine->i915;
 	intel_engine_mask_t tmp, mask = engine->mask;
+	struct intel_gt *gt = engine->gt;
 	struct llist_node *pos, *next;
 	int err;
 
@@ -603,7 +603,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	 * We can then use the preallocated nodes in
 	 * i915_active_acquire_barrier()
 	 */
-	for_each_engine_masked(engine, i915, mask, tmp) {
+	for_each_engine_masked(engine, gt, mask, tmp) {
 		u64 idx = engine->kernel_context->timeline->fence_context;
 		struct active_node *node;
 

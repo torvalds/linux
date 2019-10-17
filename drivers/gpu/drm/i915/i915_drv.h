@@ -1415,10 +1415,10 @@ static inline struct drm_i915_private *pdev_to_i915(struct pci_dev *pdev)
 		for_each_if ((engine__) = (dev_priv__)->engine[(id__)])
 
 /* Iterator over subset of engines selected by mask */
-#define for_each_engine_masked(engine__, dev_priv__, mask__, tmp__) \
-	for ((tmp__) = (mask__) & INTEL_INFO(dev_priv__)->engine_mask; \
+#define for_each_engine_masked(engine__, gt__, mask__, tmp__) \
+	for ((tmp__) = (mask__) & INTEL_INFO((gt__)->i915)->engine_mask; \
 	     (tmp__) ? \
-	     ((engine__) = (dev_priv__)->engine[__mask_next_bit(tmp__)]), 1 : \
+	     ((engine__) = (gt__)->engine[__mask_next_bit(tmp__)]), 1 : \
 	     0;)
 
 #define rb_to_uabi_engine(rb) \

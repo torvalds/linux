@@ -237,7 +237,7 @@ static void hangcheck_declare_hang(struct intel_gt *gt,
 		hung &= ~stuck;
 	len = scnprintf(msg, sizeof(msg),
 			"%s on ", stuck == hung ? "no progress" : "hang");
-	for_each_engine_masked(engine, gt->i915, hung, tmp)
+	for_each_engine_masked(engine, gt, hung, tmp)
 		len += scnprintf(msg + len, sizeof(msg) - len,
 				 "%s, ", engine->name);
 	msg[len-2] = '\0';

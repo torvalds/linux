@@ -203,15 +203,22 @@ static struct i915_gem_engines *default_engines(struct i915_gem_context *ctx)
 	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
 
+		if (engine->legacy_idx == INVALID_ENGINE)
+			continue;
+
+		GEM_BUG_ON(engine->legacy_idx >= I915_NUM_ENGINES);
+		GEM_BUG_ON(e->engines[engine->legacy_idx]);
+
 		ce = intel_context_create(ctx, engine);
 		if (IS_ERR(ce)) {
-			__free_engines(e, id);
+			__free_engines(e, e->num_engines + 1);
 			return ERR_CAST(ce);
 		}
 
-		e->engines[id] = ce;
-		e->num_engines = id + 1;
+		e->engines[engine->legacy_idx] = ce;
+		e->num_engines = max(e->num_engines, engine->legacy_idx);
 	}
+	e->num_engines++;
 
 	return e;
 }

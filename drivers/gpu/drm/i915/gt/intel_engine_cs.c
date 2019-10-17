@@ -277,6 +277,9 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	BUILD_BUG_ON(MAX_ENGINE_CLASS >= BIT(GEN11_ENGINE_CLASS_WIDTH));
 	BUILD_BUG_ON(MAX_ENGINE_INSTANCE >= BIT(GEN11_ENGINE_INSTANCE_WIDTH));
 
+	if (GEM_DEBUG_WARN_ON(id >= ARRAY_SIZE(gt->engine)))
+		return -EINVAL;
+
 	if (GEM_DEBUG_WARN_ON(info->class > MAX_ENGINE_CLASS))
 		return -EINVAL;
 
@@ -293,6 +296,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	BUILD_BUG_ON(BITS_PER_TYPE(engine->mask) < I915_NUM_ENGINES);
 
 	engine->id = id;
+	engine->legacy_idx = INVALID_ENGINE;
 	engine->mask = BIT(id);
 	engine->i915 = gt->i915;
 	engine->gt = gt;
@@ -328,6 +332,7 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	intel_engine_sanitize_mmio(engine);
 
 	gt->engine_class[info->class][info->instance] = engine;
+	gt->engine[id] = engine;
 
 	intel_engine_add_user(engine);
 	gt->i915->engine[id] = engine;

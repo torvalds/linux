@@ -298,7 +298,7 @@ static int gen6_reset_engines(struct intel_gt *gt,
 		intel_engine_mask_t tmp;
 
 		hw_mask = 0;
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
 		}
@@ -432,7 +432,7 @@ static int gen11_reset_engines(struct intel_gt *gt,
 		hw_mask = GEN11_GRDOM_FULL;
 	} else {
 		hw_mask = 0;
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
 			ret = gen11_lock_sfc(engine, &hw_mask);
@@ -451,7 +451,7 @@ sfc_unlock:
 	 * expiration).
 	 */
 	if (engine_mask != ALL_ENGINES)
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp)
+		for_each_engine_masked(engine, gt, engine_mask, tmp)
 			gen11_unlock_sfc(engine);
 
 	return ret;
@@ -510,7 +510,7 @@ static int gen8_reset_engines(struct intel_gt *gt,
 	intel_engine_mask_t tmp;
 	int ret;
 
-	for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+	for_each_engine_masked(engine, gt, engine_mask, tmp) {
 		ret = gen8_engine_reset_prepare(engine);
 		if (ret && !reset_non_ready)
 			goto skip_reset;
@@ -536,7 +536,7 @@ static int gen8_reset_engines(struct intel_gt *gt,
 		ret = gen6_reset_engines(gt, engine_mask, retry);
 
 skip_reset:
-	for_each_engine_masked(engine, gt->i915, engine_mask, tmp)
+	for_each_engine_masked(engine, gt, engine_mask, tmp)
 		gen8_engine_reset_cancel(engine);
 
 	return ret;
@@ -1206,7 +1206,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 * single reset fails.
 	 */
 	if (intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
 					     &gt->reset.flags))
