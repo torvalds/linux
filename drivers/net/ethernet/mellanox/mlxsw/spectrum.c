@@ -5202,14 +5202,61 @@ static int mlxsw_sp2_resources_kvd_register(struct mlxsw_core *mlxsw_core)
 					 &kvd_size_params);
 }
 
+static int mlxsw_sp_resources_span_register(struct mlxsw_core *mlxsw_core)
+{
+	struct devlink *devlink = priv_to_devlink(mlxsw_core);
+	struct devlink_resource_size_params span_size_params;
+	u32 max_span;
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, MAX_SPAN))
+		return -EIO;
+
+	max_span = MLXSW_CORE_RES_GET(mlxsw_core, MAX_SPAN);
+	devlink_resource_size_params_init(&span_size_params, max_span, max_span,
+					  1, DEVLINK_RESOURCE_UNIT_ENTRY);
+
+	return devlink_resource_register(devlink, MLXSW_SP_RESOURCE_NAME_SPAN,
+					 max_span, MLXSW_SP_RESOURCE_SPAN,
+					 DEVLINK_RESOURCE_ID_PARENT_TOP,
+					 &span_size_params);
+}
+
 static int mlxsw_sp1_resources_register(struct mlxsw_core *mlxsw_core)
 {
-	return mlxsw_sp1_resources_kvd_register(mlxsw_core);
+	int err;
+
+	err = mlxsw_sp1_resources_kvd_register(mlxsw_core);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_resources_span_register(mlxsw_core);
+	if (err)
+		goto err_resources_span_register;
+
+	return 0;
+
+err_resources_span_register:
+	devlink_resources_unregister(priv_to_devlink(mlxsw_core), NULL);
+	return err;
 }
 
 static int mlxsw_sp2_resources_register(struct mlxsw_core *mlxsw_core)
 {
-	return mlxsw_sp2_resources_kvd_register(mlxsw_core);
+	int err;
+
+	err = mlxsw_sp2_resources_kvd_register(mlxsw_core);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_resources_span_register(mlxsw_core);
+	if (err)
+		goto err_resources_span_register;
+
+	return 0;
+
+err_resources_span_register:
+	devlink_resources_unregister(priv_to_devlink(mlxsw_core), NULL);
+	return err;
 }
 
 static int mlxsw_sp_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
