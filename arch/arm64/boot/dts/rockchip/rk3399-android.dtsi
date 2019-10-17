@@ -373,6 +373,10 @@
 	status = "okay";
 };
 
+&rng {
+	status = "okay";
+};
+
 &pinctrl {
 	isp {
 		cif_clkout: cif-clkout {
