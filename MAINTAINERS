@@ -15474,6 +15474,14 @@ L:	linux-wireless@vger.kernel.org
 S:	Supported
 F:	drivers/staging/wilc1000/
 
+STAGING - SEPS525 LCD CONTROLLER DRIVERS
+M:	Michael Hennerich <michael.hennerich@analog.com>
+M:	Beniamin Bia <beniamin.bia@analog.com>
+L:	linux-fbdev@vger.kernel.org
+S:	Supported
+F:	drivers/staging/fbtft/fb_seps525.c
+F:	Documentation/devicetree/bindings/iio/adc/adi,ad7606.yaml
+
 STAGING SUBSYSTEM
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/gregkh/staging.git
