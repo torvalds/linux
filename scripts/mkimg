@@ -1,0 +1,132 @@
+#!/bin/bash
+# SPDX-License-Identifier: GPL-2.0
+# Copyright (c) 2019 Fuzhou Rockchip Electronics Co., Ltd.
+
+set -e
+
+usage() {
+	cat >&2 << USAGE
+usage: $0 [-h] --dtb DTB
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --dtb DTB             the dtb file name
+USAGE
+}
+
+# Parse command-line arguments
+while [ $# -gt 0 ]; do
+	case $1 in
+		--dtb)
+			DTB=$2
+			shift 2
+			;;
+		-h)
+			usage
+			exit 0
+			;;
+		--help)
+			usage
+			exit 0
+			;;
+		*)
+			shift
+			;;
+        esac
+done
+
+srctree=${srctree-"."}
+objtree=${objtree-"."}
+if [ "${ARCH}" == "" ]; then
+	if [ "$($srctree/scripts/config --state CONFIG_ARM)" == "y" ]; then
+		ARCH=arm
+	else
+		ARCH=arm64
+	fi
+fi
+
+LOGO_PATH=${srctree}/logo.bmp
+[ -f ${LOGO_PATH} ] && LOGO=logo.bmp
+
+LOGO_KERNEL_PATH=${srctree}/logo_kernel.bmp
+[ -f ${LOGO_KERNEL_PATH} ] && LOGO_KERNEL=logo_kernel.bmp
+
+RAMDISK_IMG_PATH=${objtree}/ramdisk.img
+[ -f ${RAMDISK_IMG_PATH} ] && RAMDISK_IMG=ramdisk.img && RAMDISK_ARG="--ramdisk ${RAMDISK_IMG_PATH}"
+
+if [ "${ARCH}" == "arm" ]; then
+	DTB_PATH=${objtree}/arch/arm/boot/dts/${DTB}
+	KERNEL_IMAGE_ARG="--kernel ${objtree}/arch/arm/boot/Image"
+	KERNEL_ZIMAGE_ARG="--kernel ${objtree}/arch/arm/boot/zImage"
+	ZIMAGE=zImage
+else
+	DTB_PATH=${objtree}/arch/arm64/boot/dts/rockchip/${DTB}
+	KERNEL_IMAGE_ARG="--kernel ${objtree}/arch/arm64/boot/Image"
+	KERNEL_ZIMAGE_ARG="--kernel ${objtree}/arch/arm64/boot/Image.lz4"
+	ZIMAGE=Image.lz4
+fi
+if [ ! -f ${DTB_PATH} ]; then
+	echo "No dtb"
+	usage
+	exit 1
+fi
+
+make_boot_img()
+{
+	${srctree}/scripts/mkbootimg \
+		${KERNEL_IMAGE_ARG} \
+		${RAMDISK_ARG} \
+		--second resource.img \
+		-o boot.img && \
+	echo "  Image:  boot.img (with Image ${RAMDISK_IMG} resource.img) is ready";
+	${srctree}/scripts/mkbootimg \
+		${KERNEL_ZIMAGE_ARG} \
+		${RAMDISK_ARG} \
+		--second resource.img \
+		-o zboot.img && \
+	echo "  Image:  zboot.img (with ${ZIMAGE} ${RAMDISK_IMG} resource.img) is ready"
+}
+
+repack_boot_img()
+{
+	${srctree}/scripts/repack-bootimg \
+		--boot_img ${BOOT_IMG} --out out \
+		${KERNEL_IMAGE_ARG} \
+		--second resource.img \
+		--dtb ${DTB_PATH} \
+		-o boot.img &&
+	echo "  Image:  boot.img (${BOOT_IMG} + Image + resource.img) is ready";
+	${srctree}/scripts/repack-bootimg \
+		--boot_img ${BOOT_IMG} --out out \
+		${KERNEL_ZIMAGE_ARG} \
+		--second resource.img \
+		--dtb ${DTB_PATH} \
+		-o zboot.img && \
+	echo "  Image:  zboot.img (${BOOT_IMG} + ${ZIMAGE} + resource.img) is ready"
+}
+
+if [ -x ${srctree}/scripts/bmpconvert ]; then
+	if [ -f ${LOGO_PATH} ]; then
+		${srctree}/scripts/bmpconvert ${LOGO_PATH};
+	fi
+	if [ -f ${LOGO_KERNEL_PATH} ]; then
+		${srctree}/scripts/bmpconvert ${LOGO_KERNEL_PATH};
+	fi
+fi
+
+if [ "${srctree}" != "${objtree}" ]; then
+	if [ -f ${LOGO_PATH} ]; then
+		cp -a ${LOGO_PATH} ${objtree}/;
+	fi
+	if [ -f ${LOGO_KERNEL_PATH} ]; then
+		cp -a ${LOGO_KERNEL_PATH} ${objtree}/;
+	fi
+fi
+scripts/resource_tool ${DTB_PATH} ${LOGO} ${LOGO_KERNEL} >/dev/null
+echo "  Image:  resource.img (with ${DTB} ${LOGO} ${LOGO_KERNEL}) is ready"
+
+if [ -f "${BOOT_IMG}" -a -x ${srctree}/scripts/repack-bootimg ]; then
+	repack_boot_img;
+elif [ -x ${srctree}/scripts/mkbootimg ]; then
+	make_boot_img;
+fi
