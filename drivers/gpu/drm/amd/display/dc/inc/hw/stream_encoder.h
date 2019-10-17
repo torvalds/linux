@@ -126,6 +126,7 @@ struct stream_encoder_funcs {
 		struct stream_encoder *enc,
 		struct dc_crtc_timing *crtc_timing,
 		enum dc_color_space output_color_space,
+		bool use_vsc_sdp_for_colorimetry,
 		uint32_t enable_sdp_splitting);
 
 	void (*hdmi_set_stream_attribute)(

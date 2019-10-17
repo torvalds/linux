@@ -533,11 +533,16 @@ void enc2_stream_encoder_dp_set_stream_attribute(
 	struct stream_encoder *enc,
 	struct dc_crtc_timing *crtc_timing,
 	enum dc_color_space output_color_space,
+	bool use_vsc_sdp_for_colorimetry,
 	uint32_t enable_sdp_splitting)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
-	enc1_stream_encoder_dp_set_stream_attribute(enc, crtc_timing, output_color_space, enable_sdp_splitting);
+	enc1_stream_encoder_dp_set_stream_attribute(enc,
+			crtc_timing,
+			output_color_space,
+			use_vsc_sdp_for_colorimetry,
+			enable_sdp_splitting);
 
 	REG_UPDATE(DP_SEC_FRAMING4,
 		DP_SST_SDP_SPLITTING, enable_sdp_splitting);

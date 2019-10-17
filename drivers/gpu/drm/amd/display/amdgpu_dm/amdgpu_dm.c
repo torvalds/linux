@@ -4022,7 +4022,9 @@ create_stream_for_sink(struct amdgpu_dm_connector *aconnector,
 			struct dmcu *dmcu = core_dc->res_pool->dmcu;
 
 			stream->psr_version = dmcu->dmcu_version.psr_version;
-			mod_build_vsc_infopacket(stream, &stream->vsc_infopacket);
+			mod_build_vsc_infopacket(stream,
+					&stream->vsc_infopacket,
+					&stream->use_vsc_sdp_for_colorimetry);
 		}
 	}
 finish:
