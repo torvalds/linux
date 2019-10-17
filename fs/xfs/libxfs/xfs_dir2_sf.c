@@ -628,7 +628,7 @@ xfs_dir2_sf_verify(
 	int				i;
 	int				i8count;
 	int				offset;
-	int				size;
+	int64_t				size;
 	int				error;
 	uint8_t				filetype;
 
