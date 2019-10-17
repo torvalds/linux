@@ -1,4 +1,4 @@
-From d3e51465208595209e34219aac3e6dd3a4360275 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Maciej=20=C5=BBenczykowski?= <maze@google.com>
 Date: Thu, 14 Feb 2019 15:32:55 -0800
 Subject: ANDROID: cuttlefish: enable CONFIG_NET_SCH_NETEM=y
@@ -30,7 +30,7 @@ Change-Id: If06da8f0e77d5523c56fea5d520131e456f9b529
  2 files changed, 2 insertions(+)
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index 87a90ea32c2de..622db3a8c04b1 100644
+index 87a90ea32c2d..622db3a8c04b 100644
 --- a/arch/arm64/configs/cuttlefish_defconfig
 +++ b/arch/arm64/configs/cuttlefish_defconfig
 @@ -178,6 +178,7 @@ CONFIG_IP6_NF_RAW=y
@@ -42,7 +42,7 @@ index 87a90ea32c2de..622db3a8c04b1 100644
  CONFIG_NET_CLS_BPF=y
  CONFIG_NET_EMATCH=y
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index e889c64f64f80..e8da561819039 100644
+index e889c64f64f8..e8da56181903 100644
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -183,6 +183,7 @@ CONFIG_IP6_NF_MANGLE=y
@@ -53,6 +53,3 @@ index e889c64f64f80..e8da561819039 100644
  CONFIG_NET_CLS_U32=y
  CONFIG_NET_CLS_BPF=y
  CONFIG_NET_EMATCH=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

@@ -1,4 +1,4 @@
-From 760b82c9b88d2c8125abfc5f732cc3cd460b2a54 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Quentin Perret <quentin.perret@arm.com>
 Date: Wed, 27 Feb 2019 11:21:24 +0000
 Subject: ANDROID: sched/fair: Bias EAS placement for latency
@@ -124,6 +124,3 @@ index 4012266f4f64..9b43520dc248 100644
  	/*
  	 * Pick the best CPU if prev_cpu cannot be used, or if it saves at
  	 * least 6% of the energy used by prev_cpu.
--- 
-2.23.0.444.g18eeb5a265-goog
-

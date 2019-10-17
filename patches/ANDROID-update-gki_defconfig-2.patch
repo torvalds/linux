@@ -1,4 +1,4 @@
-From 00620c7e94daca29a99d1be644017e85e0bbb3e2 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Greg Kroah-Hartman <gregkh@google.com>
 Date: Mon, 30 Sep 2019 13:31:19 +0200
 Subject: ANDROID: update gki_defconfig
@@ -37,6 +37,3 @@ index 73d513715ce7..7890c249bca9 100644
  CONFIG_BACKLIGHT_CLASS_DEVICE=y
  CONFIG_SOUND=y
  CONFIG_SND=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

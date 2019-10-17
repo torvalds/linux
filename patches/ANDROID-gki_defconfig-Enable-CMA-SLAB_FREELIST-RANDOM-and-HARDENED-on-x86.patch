@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ram Muthiah <rammuthiah@google.com>
+Date: Mon, 3 Jun 2019 13:53:01 -0700
+Subject: ANDROID: gki_defconfig: Enable CMA, SLAB_FREELIST (RANDOM and
+ HARDENED) on x86
+
+Fixes: 134087016
+Fixes: 134378085
+Test: Boot x86 cuttlefish
+Change-Id: I64f9714bbda558056c47f09a5e768d7eb83e2640
+Signed-off-by: Ram Muthiah <rammuthiah@google.com>
+---
+ arch/x86/configs/gki_defconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index cdaba53b7bb0..864595c719e7 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -30,6 +30,8 @@ CONFIG_EMBEDDED=y
+ # CONFIG_VM_EVENT_COUNTERS is not set
+ # CONFIG_COMPAT_BRK is not set
+ # CONFIG_SLAB_MERGE_DEFAULT is not set
++CONFIG_SLAB_FREELIST_RANDOM=y
++CONFIG_SLAB_FREELIST_HARDENED=y
+ CONFIG_PROFILING=y
+ CONFIG_PM_WAKELOCKS=y
+ CONFIG_PM_WAKELOCKS_LIMIT=0
+@@ -46,6 +48,8 @@ CONFIG_MODVERSIONS=y
+ # CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
+ # CONFIG_SPARSEMEM_VMEMMAP is not set
+ CONFIG_TRANSPARENT_HUGEPAGE=y
++CONFIG_CMA=y
++CONFIG_CMA_AREAS=16
+ CONFIG_ZSMALLOC=y
+ CONFIG_NET=y
+ CONFIG_PACKET=y

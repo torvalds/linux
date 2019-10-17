@@ -1,4 +1,4 @@
-From 273959637936f73df12b9f7f081f3f09cf8695b7 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Daniel Campello <campello@google.com>
 Date: Mon, 20 Jul 2015 16:23:50 -0700
 Subject: ANDROID: sdcardfs: Add sdcardfs filesystem
@@ -190,10 +190,10 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  create mode 100644 fs/sdcardfs/super.c
 
 diff --git a/fs/Kconfig b/fs/Kconfig
-index bfb1c6095c7a7..fd08690573d0e 100644
+index 2501e6f1f965..42fe99e24071 100644
 --- a/fs/Kconfig
 +++ b/fs/Kconfig
-@@ -241,6 +241,7 @@ source "fs/orangefs/Kconfig"
+@@ -243,6 +243,7 @@ source "fs/orangefs/Kconfig"
  source "fs/adfs/Kconfig"
  source "fs/affs/Kconfig"
  source "fs/ecryptfs/Kconfig"
@@ -202,10 +202,10 @@ index bfb1c6095c7a7..fd08690573d0e 100644
  source "fs/hfsplus/Kconfig"
  source "fs/befs/Kconfig"
 diff --git a/fs/Makefile b/fs/Makefile
-index d60089fd689bc..b54f564755dcb 100644
+index 14231b4cf383..cc5524e8acda 100644
 --- a/fs/Makefile
 +++ b/fs/Makefile
-@@ -86,6 +86,7 @@ obj-$(CONFIG_ISO9660_FS)	+= isofs/
+@@ -87,6 +87,7 @@ obj-$(CONFIG_ISO9660_FS)	+= isofs/
  obj-$(CONFIG_HFSPLUS_FS)	+= hfsplus/ # Before hfs to find wrapped HFS+
  obj-$(CONFIG_HFS_FS)		+= hfs/
  obj-$(CONFIG_ECRYPT_FS)		+= ecryptfs/
@@ -215,7 +215,7 @@ index d60089fd689bc..b54f564755dcb 100644
  obj-$(CONFIG_EXPORTFS)		+= exportfs/
 diff --git a/fs/sdcardfs/Kconfig b/fs/sdcardfs/Kconfig
 new file mode 100644
-index 0000000000000..a1c103316ac79
+index 000000000000..a1c103316ac7
 --- /dev/null
 +++ b/fs/sdcardfs/Kconfig
 @@ -0,0 +1,13 @@
@@ -234,7 +234,7 @@ index 0000000000000..a1c103316ac79
 +	  Sdcardfs supports fadvise noactive mode.
 diff --git a/fs/sdcardfs/Makefile b/fs/sdcardfs/Makefile
 new file mode 100644
-index 0000000000000..b84fbb2b45a47
+index 000000000000..b84fbb2b45a4
 --- /dev/null
 +++ b/fs/sdcardfs/Makefile
 @@ -0,0 +1,7 @@
@@ -247,7 +247,7 @@ index 0000000000000..b84fbb2b45a47
 +sdcardfs-y := dentry.o file.o inode.o main.o super.o lookup.o mmap.o packagelist.o derived_perm.o
 diff --git a/fs/sdcardfs/dentry.c b/fs/sdcardfs/dentry.c
 new file mode 100644
-index 0000000000000..cb573f1efbfc4
+index 000000000000..cb573f1efbfc
 --- /dev/null
 +++ b/fs/sdcardfs/dentry.c
 @@ -0,0 +1,196 @@
@@ -449,7 +449,7 @@ index 0000000000000..cb573f1efbfc4
 +
 diff --git a/fs/sdcardfs/derived_perm.c b/fs/sdcardfs/derived_perm.c
 new file mode 100644
-index 0000000000000..78a669c8a4d62
+index 000000000000..78a669c8a4d6
 --- /dev/null
 +++ b/fs/sdcardfs/derived_perm.c
 @@ -0,0 +1,477 @@
@@ -932,7 +932,7 @@ index 0000000000000..78a669c8a4d62
 +
 diff --git a/fs/sdcardfs/file.c b/fs/sdcardfs/file.c
 new file mode 100644
-index 0000000000000..271c4c4cb760f
+index 000000000000..271c4c4cb760
 --- /dev/null
 +++ b/fs/sdcardfs/file.c
 @@ -0,0 +1,467 @@
@@ -1405,7 +1405,7 @@ index 0000000000000..271c4c4cb760f
 +};
 diff --git a/fs/sdcardfs/inode.c b/fs/sdcardfs/inode.c
 new file mode 100644
-index 0000000000000..4dd681e0d59d9
+index 000000000000..4dd681e0d59d
 --- /dev/null
 +++ b/fs/sdcardfs/inode.c
 @@ -0,0 +1,821 @@
@@ -2232,7 +2232,7 @@ index 0000000000000..4dd681e0d59d9
 +};
 diff --git a/fs/sdcardfs/lookup.c b/fs/sdcardfs/lookup.c
 new file mode 100644
-index 0000000000000..a5c9686090e0a
+index 000000000000..a5c9686090e0
 --- /dev/null
 +++ b/fs/sdcardfs/lookup.c
 @@ -0,0 +1,470 @@
@@ -2708,7 +2708,7 @@ index 0000000000000..a5c9686090e0a
 +}
 diff --git a/fs/sdcardfs/main.c b/fs/sdcardfs/main.c
 new file mode 100644
-index 0000000000000..b8e5cf2b9ae5b
+index 000000000000..b8e5cf2b9ae5
 --- /dev/null
 +++ b/fs/sdcardfs/main.c
 @@ -0,0 +1,454 @@
@@ -3168,7 +3168,7 @@ index 0000000000000..b8e5cf2b9ae5b
 +module_exit(exit_sdcardfs_fs);
 diff --git a/fs/sdcardfs/mmap.c b/fs/sdcardfs/mmap.c
 new file mode 100644
-index 0000000000000..0ec0950c24471
+index 000000000000..0ec0950c2447
 --- /dev/null
 +++ b/fs/sdcardfs/mmap.c
 @@ -0,0 +1,87 @@
@@ -3261,7 +3261,7 @@ index 0000000000000..0ec0950c24471
 +};
 diff --git a/fs/sdcardfs/multiuser.h b/fs/sdcardfs/multiuser.h
 new file mode 100644
-index 0000000000000..85341e753f8c9
+index 000000000000..85341e753f8c
 --- /dev/null
 +++ b/fs/sdcardfs/multiuser.h
 @@ -0,0 +1,53 @@
@@ -3320,7 +3320,7 @@ index 0000000000000..85341e753f8c9
 +}
 diff --git a/fs/sdcardfs/packagelist.c b/fs/sdcardfs/packagelist.c
 new file mode 100644
-index 0000000000000..4b9a5635f1e04
+index 000000000000..4b9a5635f1e0
 --- /dev/null
 +++ b/fs/sdcardfs/packagelist.c
 @@ -0,0 +1,882 @@
@@ -4208,7 +4208,7 @@ index 0000000000000..4b9a5635f1e04
 +}
 diff --git a/fs/sdcardfs/sdcardfs.h b/fs/sdcardfs/sdcardfs.h
 new file mode 100644
-index 0000000000000..f813d23cddcdc
+index 000000000000..f813d23cddcd
 --- /dev/null
 +++ b/fs/sdcardfs/sdcardfs.h
 @@ -0,0 +1,662 @@
@@ -4876,7 +4876,7 @@ index 0000000000000..f813d23cddcdc
 +#endif	/* not _SDCARDFS_H_ */
 diff --git a/fs/sdcardfs/super.c b/fs/sdcardfs/super.c
 new file mode 100644
-index 0000000000000..6b1d27e5067b4
+index 000000000000..6b1d27e5067b
 --- /dev/null
 +++ b/fs/sdcardfs/super.c
 @@ -0,0 +1,297 @@
@@ -5177,6 +5177,3 @@ index 0000000000000..6b1d27e5067b4
 +	.destroy_inode	= sdcardfs_destroy_inode,
 +	.drop_inode	= generic_delete_inode,
 +};
--- 
-2.23.0.444.g18eeb5a265-goog
-

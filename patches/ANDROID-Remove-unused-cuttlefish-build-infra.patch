@@ -1,4 +1,4 @@
-From 431e4d6c828bfe2ae7349f5f0221998a332119d7 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Delva <adelva@google.com>
 Date: Mon, 12 Aug 2019 12:54:11 -0700
 Subject: ANDROID: Remove unused cuttlefish build infra
@@ -20,7 +20,7 @@ Signed-off-by: Alistair Delva <adelva@google.com>
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
 deleted file mode 100644
-index b84aad53e6d69..0000000000000
+index b84aad53e6d6..000000000000
 --- a/arch/arm64/configs/cuttlefish_defconfig
 +++ /dev/null
 @@ -1,443 +0,0 @@
@@ -469,7 +469,7 @@ index b84aad53e6d69..0000000000000
 -# CONFIG_RUNTIME_TESTING_MENU is not set
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
 deleted file mode 100644
-index cad481541d690..0000000000000
+index cad481541d69..000000000000
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ /dev/null
 @@ -1,472 +0,0 @@
@@ -947,7 +947,7 @@ index cad481541d690..0000000000000
 -CONFIG_UNWINDER_FRAME_POINTER=y
 diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
 deleted file mode 100644
-index b9115335e3fc1..0000000000000
+index b9115335e3fc..000000000000
 --- a/build.config.cuttlefish.aarch64
 +++ /dev/null
 @@ -1,18 +0,0 @@
@@ -971,7 +971,7 @@ index b9115335e3fc1..0000000000000
 -STOP_SHIP_TRACEPRINTK=1
 diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
 deleted file mode 100644
-index bdcbecea3ce11..0000000000000
+index bdcbecea3ce1..000000000000
 --- a/build.config.cuttlefish.x86_64
 +++ /dev/null
 @@ -1,18 +0,0 @@
@@ -993,6 +993,3 @@ index bdcbecea3ce11..0000000000000
 -System.map
 -"
 -STOP_SHIP_TRACEPRINTK=1
--- 
-2.23.0.444.g18eeb5a265-goog
-

@@ -1,0 +1,135 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dietmar Eggemann <dietmar.eggemann@arm.com>
+Date: Thu, 10 May 2018 16:52:33 +0100
+Subject: ANDROID: cpufreq: arch_topology: implement max frequency capping
+
+Implements the Max Frequency Capping Engine (MFCE) getter function
+topology_get_max_freq_scale() to provide the scheduler with a
+maximum frequency scaling correction factor for more accurate cpu
+capacity handling by being able to deal with max frequency capping.
+
+This scaling factor describes the influence of running a cpu with a
+current maximum frequency (policy) lower than the maximum possible
+frequency (cpuinfo).
+
+The factor is:
+
+  policy_max_freq(cpu) << SCHED_CAPACITY_SHIFT / cpuinfo_max_freq(cpu)
+
+It also implements the MFCE setter function arch_set_max_freq_scale()
+which is called from cpufreq_set_policy().
+
+Change-Id: I59e52861ee260755ab0518fe1f7183a2e4e3d0fc
+Signed-off-by: Ionela Voinescu <ionela.voinescu@arm.com>
+Signed-off-by: Dietmar Eggemann <dietmar.eggemann@arm.com>
+[Trivial cherry-pick issue in cpufreq.c]
+Signed-off-by: Quentin Perret <quentin.perret@arm.com>
+---
+ drivers/base/arch_topology.c  | 25 ++++++++++++++++++++++++-
+ drivers/cpufreq/cpufreq.c     |  8 ++++++++
+ include/linux/arch_topology.h |  8 ++++++++
+ include/linux/cpufreq.h       |  2 ++
+ 4 files changed, 42 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/base/arch_topology.c b/drivers/base/arch_topology.c
+index 1eb81f113786..c0cf9ef5c2f5 100644
+--- a/drivers/base/arch_topology.c
++++ b/drivers/base/arch_topology.c
+@@ -22,6 +22,8 @@
+ #include <linux/smp.h>
+ 
+ DEFINE_PER_CPU(unsigned long, freq_scale) = SCHED_CAPACITY_SCALE;
++DEFINE_PER_CPU(unsigned long, max_cpu_freq);
++DEFINE_PER_CPU(unsigned long, max_freq_scale) = SCHED_CAPACITY_SCALE;
+ 
+ void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+ 			 unsigned long max_freq)
+@@ -31,8 +33,29 @@ void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+ 
+ 	scale = (cur_freq << SCHED_CAPACITY_SHIFT) / max_freq;
+ 
+-	for_each_cpu(i, cpus)
++	for_each_cpu(i, cpus) {
+ 		per_cpu(freq_scale, i) = scale;
++		per_cpu(max_cpu_freq, i) = max_freq;
++	}
++}
++
++void arch_set_max_freq_scale(struct cpumask *cpus,
++			     unsigned long policy_max_freq)
++{
++	unsigned long scale, max_freq;
++	int cpu = cpumask_first(cpus);
++
++	if (cpu > nr_cpu_ids)
++		return;
++
++	max_freq = per_cpu(max_cpu_freq, cpu);
++	if (!max_freq)
++		return;
++
++	scale = (policy_max_freq << SCHED_CAPACITY_SHIFT) / max_freq;
++
++	for_each_cpu(cpu, cpus)
++		per_cpu(max_freq_scale, cpu) = scale;
+ }
+ 
+ DEFINE_PER_CPU(unsigned long, cpu_scale) = SCHED_CAPACITY_SCALE;
+diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
+index f9de9dece70f..9c15d7f52e1c 100644
+--- a/drivers/cpufreq/cpufreq.c
++++ b/drivers/cpufreq/cpufreq.c
+@@ -153,6 +153,12 @@ __weak void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+ }
+ EXPORT_SYMBOL_GPL(arch_set_freq_scale);
+ 
++__weak void arch_set_max_freq_scale(struct cpumask *cpus,
++				    unsigned long policy_max_freq)
++{
++}
++EXPORT_SYMBOL_GPL(arch_set_max_freq_scale);
++
+ /*
+  * This is a generic cpufreq init() routine which can be used by cpufreq
+  * drivers of SMP systems. It will do following:
+@@ -2407,6 +2413,8 @@ int cpufreq_set_policy(struct cpufreq_policy *policy,
+ 	policy->max = new_policy->max;
+ 	trace_cpu_frequency_limits(policy);
+ 
++	arch_set_max_freq_scale(policy->cpus, policy->max);
++
+ 	policy->cached_target_freq = UINT_MAX;
+ 
+ 	pr_debug("new min and max freqs are %u - %u kHz\n",
+diff --git a/include/linux/arch_topology.h b/include/linux/arch_topology.h
+index 42f2b5126094..5402bc0e2b1e 100644
+--- a/include/linux/arch_topology.h
++++ b/include/linux/arch_topology.h
+@@ -33,6 +33,14 @@ unsigned long topology_get_freq_scale(int cpu)
+ 	return per_cpu(freq_scale, cpu);
+ }
+ 
++DECLARE_PER_CPU(unsigned long, max_freq_scale);
++
++static inline
++unsigned long topology_get_max_freq_scale(struct sched_domain *sd, int cpu)
++{
++	return per_cpu(max_freq_scale, cpu);
++}
++
+ struct cpu_topology {
+ 	int thread_id;
+ 	int core_id;
+diff --git a/include/linux/cpufreq.h b/include/linux/cpufreq.h
+index c57e88e85c41..fca45a2749d4 100644
+--- a/include/linux/cpufreq.h
++++ b/include/linux/cpufreq.h
+@@ -984,6 +984,8 @@ extern unsigned int arch_freq_get_on_cpu(int cpu);
+ 
+ extern void arch_set_freq_scale(struct cpumask *cpus, unsigned long cur_freq,
+ 				unsigned long max_freq);
++extern void arch_set_max_freq_scale(struct cpumask *cpus,
++				    unsigned long policy_max_freq);
+ 
+ /* the following are really really optional */
+ extern struct freq_attr cpufreq_freq_attr_scaling_available_freqs;

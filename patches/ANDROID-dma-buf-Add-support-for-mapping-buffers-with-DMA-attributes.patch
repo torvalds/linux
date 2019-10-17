@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: "Isaac J. Manjarres" <isaacm@codeaurora.org>
+Date: Wed, 19 Jun 2019 15:37:13 -0700
+Subject: ANDROID: dma-buf: Add support for mapping buffers with DMA attributes
+
+When mapping the memory represented by a dma-buf into a device's
+address space, it might be desireable to map the memory with
+certain DMA attributes. Thus, introduce the dma_mapping_attrs
+field in the dma_buf_attachment structure so that when
+the memory is mapped with dma_buf_map_attachment, it is mapped
+with the desired DMA attributes.
+
+Bug: 133508579
+Test: ion-unit-tests
+Change-Id: Ib2e5bafdc02ae31a58ce96a82d77cc508dd71bd4
+Signed-off-by: Isaac J. Manjarres <isaacm@codeaurora.org>
+Signed-off-by: Sandeep Patil <sspatil@google.com>
+---
+ include/linux/dma-buf.h | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
+index b1457e6b76d8..0458da673ec5 100644
+--- a/include/linux/dma-buf.h
++++ b/include/linux/dma-buf.h
+@@ -384,6 +384,8 @@ struct dma_buf {
+  * @sgt: cached mapping.
+  * @dir: direction of cached mapping.
+  * @priv: exporter specific attachment data.
++ * @dma_map_attrs: DMA attributes to be used when the exporter maps the buffer
++ * through dma_buf_map_attachment.
+  *
+  * This structure holds the attachment information between the dma_buf buffer
+  * and its user device(s). The list contains one attachment struct per device
+@@ -401,6 +403,7 @@ struct dma_buf_attachment {
+ 	struct sg_table *sgt;
+ 	enum dma_data_direction dir;
+ 	void *priv;
++	unsigned long dma_map_attrs;
+ };
+ 
+ /**

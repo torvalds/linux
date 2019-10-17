@@ -1,4 +1,4 @@
-From f88ffe6c2675a7ed714dc614478ab527669bfe4e Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Mark Salyzyn <salyzyn@google.com>
 Date: Tue, 3 Sep 2019 13:17:23 -0700
 Subject: ANDROID: GKI: enable CONFIG_TIPC for x86
@@ -13,7 +13,7 @@ Change-Id: I7731157396372683c906f1f4eb2fdbdb7015f446
  1 file changed, 1 insertion(+)
 
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index 9b76d55e8c413..6b0ff4ca236ab 100644
+index 9b76d55e8c41..6b0ff4ca236a 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -145,6 +145,7 @@ CONFIG_IP6_NF_FILTER=y
@@ -24,6 +24,3 @@ index 9b76d55e8c413..6b0ff4ca236ab 100644
  CONFIG_L2TP=y
  CONFIG_NET_SCHED=y
  CONFIG_NET_SCH_HTB=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

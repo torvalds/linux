@@ -1,4 +1,4 @@
-From ef67599cfe471b7667faaa670a5e2f744e2f4087 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Jin Qian <jinqian@google.com>
 Date: Thu, 2 Mar 2017 13:32:59 -0800
 Subject: ANDROID: taskstats: track fsync syscalls
@@ -28,10 +28,10 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  6 files changed, 17 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/misc/Kconfig b/drivers/misc/Kconfig
-index 304440a9db151..0523c740a4656 100644
+index a067f988d0f4..ca90dacfb016 100644
 --- a/drivers/misc/Kconfig
 +++ b/drivers/misc/Kconfig
-@@ -482,7 +482,7 @@ config MISC_RTSX
+@@ -460,7 +460,7 @@ config MISC_RTSX
  
  config UID_SYS_STATS
  	bool "Per-UID statistics"
@@ -41,7 +41,7 @@ index 304440a9db151..0523c740a4656 100644
  	  Per UID based cpu time statistics exported to /proc/uid_cputime
  	  Per UID based io statistics exported to /proc/uid_io
 diff --git a/drivers/misc/uid_sys_stats.c b/drivers/misc/uid_sys_stats.c
-index ea23f5d0af439..36b5f37fca2f8 100644
+index ea23f5d0af43..36b5f37fca2f 100644
 --- a/drivers/misc/uid_sys_stats.c
 +++ b/drivers/misc/uid_sys_stats.c
 @@ -249,6 +249,7 @@ static void add_uid_tasks_io_stats(struct uid_entry *uid_entry,
@@ -61,7 +61,7 @@ index ea23f5d0af439..36b5f37fca2f8 100644
  	add_uid_tasks_io_stats(uid_entry, task, slot);
  }
 diff --git a/fs/sync.c b/fs/sync.c
-index 4d1ff010bc5af..cc475d8be0c12 100644
+index 4d1ff010bc5a..cc475d8be0c1 100644
 --- a/fs/sync.c
 +++ b/fs/sync.c
 @@ -9,7 +9,7 @@
@@ -82,7 +82,7 @@ index 4d1ff010bc5af..cc475d8be0c12 100644
  	return ret;
  }
 diff --git a/include/linux/sched/xacct.h b/include/linux/sched/xacct.h
-index c078f0a94ceca..9544c9d9d5346 100644
+index c078f0a94cec..9544c9d9d534 100644
 --- a/include/linux/sched/xacct.h
 +++ b/include/linux/sched/xacct.h
 @@ -28,6 +28,11 @@ static inline void inc_syscw(struct task_struct *tsk)
@@ -109,7 +109,7 @@ index c078f0a94ceca..9544c9d9d5346 100644
  
  #endif /* _LINUX_SCHED_XACCT_H */
 diff --git a/include/linux/task_io_accounting.h b/include/linux/task_io_accounting.h
-index 6f6acce064dea..bb26108ca23c0 100644
+index 6f6acce064de..bb26108ca23c 100644
 --- a/include/linux/task_io_accounting.h
 +++ b/include/linux/task_io_accounting.h
 @@ -19,6 +19,8 @@ struct task_io_accounting {
@@ -122,7 +122,7 @@ index 6f6acce064dea..bb26108ca23c0 100644
  
  #ifdef CONFIG_TASK_IO_ACCOUNTING
 diff --git a/include/linux/task_io_accounting_ops.h b/include/linux/task_io_accounting_ops.h
-index bb5498bcdd961..733ab62ae1413 100644
+index bb5498bcdd96..733ab62ae141 100644
 --- a/include/linux/task_io_accounting_ops.h
 +++ b/include/linux/task_io_accounting_ops.h
 @@ -97,6 +97,7 @@ static inline void task_chr_io_accounting_add(struct task_io_accounting *dst,
@@ -133,6 +133,3 @@ index bb5498bcdd961..733ab62ae1413 100644
  }
  #else
  static inline void task_chr_io_accounting_add(struct task_io_accounting *dst,
--- 
-2.23.0.444.g18eeb5a265-goog
-

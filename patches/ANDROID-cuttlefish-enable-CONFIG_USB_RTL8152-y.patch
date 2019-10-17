@@ -1,4 +1,4 @@
-From 9f4a749fc616c0da15a339d8aa740b66df81bf2a Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Maciej=20=C5=BBenczykowski?= <maze@google.com>
 Date: Wed, 6 Mar 2019 17:02:40 -0800
 Subject: ANDROID: cuttlefish: enable CONFIG_USB_RTL8152=y
@@ -30,7 +30,7 @@ Change-Id: Iadca2a11b76296532aa42dde999ee73f58e0bd97
  2 files changed, 2 insertions(+)
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index 9740f417f74e8..4db58d634d7e4 100644
+index 9740f417f74e..4db58d634d7e 100644
 --- a/arch/arm64/configs/cuttlefish_defconfig
 +++ b/arch/arm64/configs/cuttlefish_defconfig
 @@ -230,6 +230,7 @@ CONFIG_PPP_DEFLATE=y
@@ -42,7 +42,7 @@ index 9740f417f74e8..4db58d634d7e4 100644
  # CONFIG_USB_NET_AX8817X is not set
  # CONFIG_USB_NET_AX88179_178A is not set
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index cef416b3a97d2..6bc11c09af2be 100644
+index cef416b3a97d..6bc11c09af2b 100644
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -235,6 +235,7 @@ CONFIG_PPP=y
@@ -53,6 +53,3 @@ index cef416b3a97d2..6bc11c09af2be 100644
  CONFIG_USB_USBNET=y
  # CONFIG_USB_NET_AX8817X is not set
  # CONFIG_USB_NET_AX88179_178A is not set
--- 
-2.23.0.444.g18eeb5a265-goog
-

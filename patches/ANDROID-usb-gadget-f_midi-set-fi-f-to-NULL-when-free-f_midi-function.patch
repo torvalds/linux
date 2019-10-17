@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Winter Wang <wente.wang@nxp.com>
+Date: Fri, 20 May 2016 11:05:00 +0800
+Subject: ANDROID: usb: gadget: f_midi: set fi->f to NULL when free f_midi
+ function
+
+fi->f is set in f_midi's alloc_func, need to clean this to
+NULL in free_func, otherwise on ConfigFS's function switch,
+midi->usb_function it self is freed, fi->f will be a wild
+pointer and run into below kernel panic:
+---------------
+[   58.950628] Unable to handle kernel paging request at virtual address 63697664
+[   58.957869] pgd = c0004000
+[   58.960583] [63697664] *pgd=00000000
+[   58.964185] Internal error: Oops: 80000005 [#1] PREEMPT SMP ARM
+[   58.970111] Modules linked in:
+[   58.973191] CPU: 0 PID: 0 Comm: swapper/0 Not tainted 4.1.15-03504-g34c857c-dirty #89
+[   58.981024] Hardware name: Freescale i.MX6 Quad/DualLite (Device Tree)
+[   58.987557] task: c110bd70 ti: c1100000 task.ti: c1100000
+[   58.992962] PC is at 0x63697664
+[   58.996120] LR is at android_setup+0x78/0x138
+<..snip..>
+[   60.044980] 1fc0: ffffffff ffffffff c1000684 00000000 00000000 c108ecd0 c11f7294 c11039c0
+[   60.053181] 1fe0: c108eccc c110d148 1000406a 412fc09a 00000000 1000807c 00000000 00000000
+[   60.061420] [<c073b1fc>] (android_setup) from [<c0730490>] (udc_irq+0x758/0x1034)
+[   60.068951] [<c0730490>] (udc_irq) from [<c017c650>] (handle_irq_event_percpu+0x50/0x254)
+[   60.077165] [<c017c650>] (handle_irq_event_percpu) from [<c017c890>] (handle_irq_event+0x3c/0x5c)
+[   60.086072] [<c017c890>] (handle_irq_event) from [<c017f3ec>] (handle_fasteoi_irq+0xe0/0x198)
+[   60.094630] [<c017f3ec>] (handle_fasteoi_irq) from [<c017bcfc>] (generic_handle_irq+0x2c/0x3c)
+[   60.103271] [<c017bcfc>] (generic_handle_irq) from [<c017bfb8>] (__handle_domain_irq+0x7c/0xec)
+[   60.112000] [<c017bfb8>] (__handle_domain_irq) from [<c0101450>] (gic_handle_irq+0x24/0x5c)
+--------------
+
+Bug: 111003288
+Bug: 120441124
+Change-Id: Iaf7cc809379c184048a2d9ab1f59e71ebaa3416e
+Signed-off-by: Winter Wang <wente.wang@nxp.com>
+---
+ drivers/usb/gadget/function/f_midi.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/drivers/usb/gadget/function/f_midi.c b/drivers/usb/gadget/function/f_midi.c
+index 2a86b3cf313f..4713a1c7f622 100644
+--- a/drivers/usb/gadget/function/f_midi.c
++++ b/drivers/usb/gadget/function/f_midi.c
+@@ -1318,6 +1318,7 @@ static void f_midi_free(struct usb_function *f)
+ 		kfifo_free(&midi->in_req_fifo);
+ 		kfree(midi);
+ 		free = true;
++		opts->func_inst.f = NULL;
+ 	}
+ 	mutex_unlock(&opts->lock);
+ 

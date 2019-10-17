@@ -1,4 +1,4 @@
-From b582c163e09912979d1dfb9dea896472d9e4f596 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Daniel Rosenberg <drosen@google.com>
 Date: Tue, 15 Nov 2016 13:35:18 -0800
 Subject: ANDROID: sdcardfs: Define magic value
@@ -19,10 +19,10 @@ Signed-off-by: Yongqin Liu <yongqin.liu@linaro.org>
  1 file changed, 2 insertions(+)
 
 diff --git a/include/uapi/linux/magic.h b/include/uapi/linux/magic.h
-index 1274c692e59c5..6220070d5bd4f 100644
+index 903cc2d2750b..5c4bf0ad580c 100644
 --- a/include/uapi/linux/magic.h
 +++ b/include/uapi/linux/magic.h
-@@ -57,6 +57,8 @@
+@@ -58,6 +58,8 @@
  #define REISER2FS_SUPER_MAGIC_STRING	"ReIsEr2Fs"
  #define REISER2FS_JR_SUPER_MAGIC_STRING	"ReIsEr3Fs"
  
@@ -31,6 +31,3 @@ index 1274c692e59c5..6220070d5bd4f 100644
  #define SMB_SUPER_MAGIC		0x517B
  #define CGROUP_SUPER_MAGIC	0x27e0eb
  #define CGROUP2_SUPER_MAGIC	0x63677270
--- 
-2.23.0.444.g18eeb5a265-goog
-

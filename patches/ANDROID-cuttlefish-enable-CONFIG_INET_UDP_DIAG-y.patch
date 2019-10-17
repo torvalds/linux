@@ -1,4 +1,4 @@
-From 1fdc8c1e4dbae081228965ed9235e573740b6400 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: =?UTF-8?q?Maciej=20=C5=BBenczykowski?= <maze@google.com>
 Date: Fri, 8 Mar 2019 12:59:37 -0800
 Subject: ANDROID: cuttlefish: enable CONFIG_INET_UDP_DIAG=y
@@ -29,7 +29,7 @@ Change-Id: I5d4533b7c3b9a11e45e96b0346a70b3f93d4a812
  1 file changed, 1 insertion(+)
 
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index 6bc11c09af2be..e0729ca6bd0e0 100644
+index 6bc11c09af2b..e0729ca6bd0e 100644
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -96,6 +96,7 @@ CONFIG_SYN_COOKIES=y
@@ -40,6 +40,3 @@ index 6bc11c09af2be..e0729ca6bd0e0 100644
  CONFIG_INET_DIAG_DESTROY=y
  CONFIG_TCP_CONG_ADVANCED=y
  # CONFIG_TCP_CONG_BIC is not set
--- 
-2.23.0.444.g18eeb5a265-goog
-

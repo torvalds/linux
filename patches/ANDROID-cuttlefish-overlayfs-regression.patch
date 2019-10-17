@@ -1,4 +1,4 @@
-From 91ba1c1ab413488ffb50058863bd55296a8ebc97 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Mark Salyzyn <salyzyn@google.com>
 Date: Wed, 28 Aug 2019 09:38:07 -0700
 Subject: ANDROID: cuttlefish: overlayfs: regression
@@ -19,7 +19,7 @@ Change-Id: I9e51475f1025f726e69c6f513099248bf452cc2d
  1 file changed, 1 insertion(+)
 
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index a37fa09bd107a..b3dad521ee8a2 100644
+index a37fa09bd107..b3dad521ee8a 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -311,6 +311,7 @@ CONFIG_FS_ENCRYPTION=y
@@ -30,6 +30,3 @@ index a37fa09bd107a..b3dad521ee8a2 100644
  CONFIG_MSDOS_FS=y
  CONFIG_VFAT_FS=y
  CONFIG_TMPFS=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

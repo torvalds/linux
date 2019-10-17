@@ -1,8 +1,7 @@
-From bdac6faf2dfdd42e3a101416dba539550d96ad05 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Quentin Perret <qperret@google.com>
 Date: Mon, 30 Sep 2019 16:23:52 +0100
-Subject: ANDROID: allmodconfig: Force gki_defconfig as
- base
+Subject: ANDROID: allmodconfig: Force gki_defconfig as base
 
 Allmodconfig enables as many options as it can to maximize the number of
 modules it can build. While this is generally a good idea, this can also
@@ -32,6 +31,3 @@ index 43b1a70d5800..6e0404b8de47 100644
  
  # XFS_FS is currently broken on this branch with clang-9
  POST_DEFCONFIG_CMDS="update_config"
--- 
-2.23.0.444.g18eeb5a265-goog
-

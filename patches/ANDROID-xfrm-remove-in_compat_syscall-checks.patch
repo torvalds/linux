@@ -1,4 +1,4 @@
-From 4336c0c080c9a073237a8d589c3ff7d3046aa0ca Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Thu, 25 Jul 2019 16:57:16 -0700
 Subject: ANDROID: xfrm: remove in_compat_syscall() checks
@@ -15,7 +15,7 @@ Change-Id: I083d32b45ca985cfadfe3ce57d253b63202befde
  2 files changed, 6 deletions(-)
 
 diff --git a/net/xfrm/xfrm_state.c b/net/xfrm/xfrm_state.c
-index c6f3c4a1bd993..c023b27c70e1c 100644
+index c6f3c4a1bd99..c023b27c70e1 100644
 --- a/net/xfrm/xfrm_state.c
 +++ b/net/xfrm/xfrm_state.c
 @@ -2266,9 +2266,6 @@ int xfrm_user_policy(struct sock *sk, int optname, u8 __user *optval, int optlen
@@ -29,7 +29,7 @@ index c6f3c4a1bd993..c023b27c70e1c 100644
  		xfrm_sk_policy_insert(sk, XFRM_POLICY_IN, NULL);
  		xfrm_sk_policy_insert(sk, XFRM_POLICY_OUT, NULL);
 diff --git a/net/xfrm/xfrm_user.c b/net/xfrm/xfrm_user.c
-index b88ba45ff1ace..ed6e6790b3e74 100644
+index b88ba45ff1ac..ed6e6790b3e7 100644
 --- a/net/xfrm/xfrm_user.c
 +++ b/net/xfrm/xfrm_user.c
 @@ -2634,9 +2634,6 @@ static int xfrm_user_rcv_msg(struct sk_buff *skb, struct nlmsghdr *nlh,
@@ -42,6 +42,3 @@ index b88ba45ff1ace..ed6e6790b3e74 100644
  	type = nlh->nlmsg_type;
  	if (type > XFRM_MSG_MAX)
  		return -EINVAL;
--- 
-2.23.0.444.g18eeb5a265-goog
-

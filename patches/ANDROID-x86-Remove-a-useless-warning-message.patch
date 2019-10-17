@@ -1,4 +1,4 @@
-From a2ad8abfb9fbc330e2499038cabbbfe66002124e Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Mon, 29 Oct 2018 15:20:05 -0700
 Subject: ANDROID: x86: Remove a useless warning message
@@ -21,10 +21,10 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  1 file changed, 3 deletions(-)
 
 diff --git a/arch/x86/include/asm/cpufeature.h b/arch/x86/include/asm/cpufeature.h
-index 58acda5038178..c636a148f71fe 100644
+index 59bf91c57aa8..48670eb3b4d7 100644
 --- a/arch/x86/include/asm/cpufeature.h
 +++ b/arch/x86/include/asm/cpufeature.h
-@@ -147,9 +147,6 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
+@@ -154,9 +154,6 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
   * Workaround for the sake of BPF compilation which utilizes kernel
   * headers, but clang does not support ASM GOTO and fails the build.
   */
@@ -34,6 +34,3 @@ index 58acda5038178..c636a148f71fe 100644
  
  #define static_cpu_has(bit)            boot_cpu_has(bit)
  
--- 
-2.23.0.444.g18eeb5a265-goog
-

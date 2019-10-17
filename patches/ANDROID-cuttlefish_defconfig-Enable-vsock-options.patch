@@ -1,4 +1,4 @@
-From 29ffbfff62711b002c6b8c398dc8f3e972e88ef8 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Cody Schuffelen <schuffelen@google.com>
 Date: Mon, 14 Jan 2019 18:37:28 -0800
 Subject: ANDROID: cuttlefish_defconfig: Enable vsock options
@@ -13,7 +13,7 @@ Change-Id: I8168a710052c7daada306a915c56230c961accd4
  2 files changed, 4 insertions(+)
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index 0aaf923e8c5a0..ec0149bf7246c 100644
+index 0aaf923e8c5a..ec0149bf7246 100644
 --- a/arch/arm64/configs/cuttlefish_defconfig
 +++ b/arch/arm64/configs/cuttlefish_defconfig
 @@ -182,6 +182,8 @@ CONFIG_NET_CLS_BPF=y
@@ -26,7 +26,7 @@ index 0aaf923e8c5a0..ec0149bf7246c 100644
  # CONFIG_CFG80211_DEFAULT_PS is not set
  # CONFIG_CFG80211_CRDA_SUPPORT is not set
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index 183dd803421eb..ab7fced951fa6 100644
+index 183dd803421e..ab7fced951fa 100644
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -187,6 +187,8 @@ CONFIG_NET_CLS_BPF=y
@@ -38,6 +38,3 @@ index 183dd803421eb..ab7fced951fa6 100644
  CONFIG_CFG80211=y
  CONFIG_MAC80211=y
  CONFIG_RFKILL=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

@@ -1,4 +1,4 @@
-From fe16d6c073c3b27fd0d00caf8f9251b2335c3316 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Colin Cross <ccross@android.com>
 Date: Wed, 2 Apr 2014 18:02:15 -0700
 Subject: ANDROID: arm64: copy CONFIG_CMDLINE_EXTEND from ARM
@@ -15,10 +15,10 @@ Signed-off-by: Colin Cross <ccross@android.com>
  1 file changed, 18 insertions(+)
 
 diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-index 3adcec05b1f67..b1dd948f96659 100644
+index 41a9b4257b72..0cc189b379f5 100644
 --- a/arch/arm64/Kconfig
 +++ b/arch/arm64/Kconfig
-@@ -1538,6 +1538,23 @@ config CMDLINE
+@@ -1567,6 +1567,23 @@ config CMDLINE
  	  entering them here. As a minimum, you should specify the the
  	  root device (e.g. root=/dev/nfs).
  
@@ -42,7 +42,7 @@ index 3adcec05b1f67..b1dd948f96659 100644
  config CMDLINE_FORCE
  	bool "Always use the default kernel command string"
  	help
-@@ -1545,6 +1562,7 @@ config CMDLINE_FORCE
+@@ -1574,6 +1591,7 @@ config CMDLINE_FORCE
  	  loader passes other arguments to the kernel.
  	  This is useful if you cannot or don't want to change the
  	  command-line options your boot loader passes to the kernel.
@@ -50,6 +50,3 @@ index 3adcec05b1f67..b1dd948f96659 100644
  
  config EFI_STUB
  	bool
--- 
-2.23.0.444.g18eeb5a265-goog
-

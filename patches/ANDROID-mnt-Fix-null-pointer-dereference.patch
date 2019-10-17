@@ -1,4 +1,4 @@
-From 7920564b989448af92f3a0e5c64c6269565aa005 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Delva <adelva@google.com>
 Date: Mon, 22 Jul 2019 14:29:35 -0700
 Subject: ANDROID: mnt: Fix null pointer dereference
@@ -16,7 +16,7 @@ Change-Id: I6aedaa89536ae85e6bc29093f38934c672c8fe42
  1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/fs/namespace.c b/fs/namespace.c
-index 2f5aad606ff92..2d600caf9fd8b 100644
+index 4ec782ed6069..b7eb5f242b86 100644
 --- a/fs/namespace.c
 +++ b/fs/namespace.c
 @@ -935,9 +935,11 @@ static struct mount *skip_mnt_tree(struct mount *p)
@@ -41,7 +41,7 @@ index 2f5aad606ff92..2d600caf9fd8b 100644
  	}
  	if (fc->sb_flags & SB_KERNMOUNT)
  		mnt->mnt.mnt_flags = MNT_INTERNAL;
-@@ -2542,7 +2545,7 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
+@@ -2568,7 +2571,7 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
  		err = -EPERM;
  		if (ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
  			err = reconfigure_super(fc);
@@ -50,7 +50,7 @@ index 2f5aad606ff92..2d600caf9fd8b 100644
  				sb->s_op->update_mnt_data(mnt->mnt.data, fc);
  				set_mount_attributes(mnt, mnt_flags);
  				namespace_lock();
-@@ -2550,7 +2553,8 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
+@@ -2576,7 +2579,8 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
  				propagate_remount(mnt);
  				unlock_mount_hash();
  				namespace_unlock();
@@ -60,6 +60,3 @@ index 2f5aad606ff92..2d600caf9fd8b 100644
  		}
  		up_write(&sb->s_umount);
  	}
--- 
-2.23.0.444.g18eeb5a265-goog
-

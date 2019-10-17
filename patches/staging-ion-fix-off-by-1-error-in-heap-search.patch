@@ -1,4 +1,4 @@
-From a875875cc78d919ea17317848400c4202a5b9c89 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Mon, 9 Sep 2019 08:21:20 -0700
 Subject: staging: ion: fix off-by-1 error in heap search
@@ -16,7 +16,7 @@ Signed-off-by: Sandeep Patil <sspatil@google.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
-index 4631953b9c964..33f6f8f990398 100644
+index c8ed051715bc..aaa02c671a91 100644
 --- a/drivers/staging/android/ion/ion.c
 +++ b/drivers/staging/android/ion/ion.c
 @@ -279,7 +279,7 @@ static int ion_assign_heap_id(struct ion_heap *heap, struct ion_device *dev)
@@ -37,6 +37,3 @@ index 4631953b9c964..33f6f8f990398 100644
  	dev->heap_cnt--;
  	up_write(&dev->lock);
  }
--- 
-2.23.0.444.g18eeb5a265-goog
-

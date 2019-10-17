@@ -1,4 +1,4 @@
-From 7a7f965f733e896d06d2d3151bdea372551178b5 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Connor O'Brien <connoro@google.com>
 Date: Wed, 20 Feb 2019 12:17:48 -0800
 Subject: ANDROID: cpufreq: times: optimize proc files
@@ -20,7 +20,7 @@ Signed-off-by: Connor O'Brien <connoro@google.com>
  1 file changed, 14 insertions(+), 8 deletions(-)
 
 diff --git a/drivers/cpufreq/cpufreq_times.c b/drivers/cpufreq/cpufreq_times.c
-index 42420c5e1e6fc..2883d675b1eb7 100644
+index 42420c5e1e6f..2883d675b1eb 100644
 --- a/drivers/cpufreq/cpufreq_times.c
 +++ b/drivers/cpufreq/cpufreq_times.c
 @@ -193,10 +193,12 @@ static void *uid_seq_start(struct seq_file *seq, loff_t *pos)
@@ -70,6 +70,3 @@ index 42420c5e1e6fc..2883d675b1eb7 100644
  		}
  		if (uid_entry->max_state)
  			seq_putc(m, '\n');
--- 
-2.23.0.444.g18eeb5a265-goog
-

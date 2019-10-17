@@ -1,4 +1,4 @@
-From 04117ea579e13122c3c44954aa2b1233d65efa96 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Tue, 14 May 2019 16:07:58 -0700
 Subject: ANDROID: Move from clang r349610 to r353983c.
@@ -16,7 +16,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  3 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
-index fe921b46a9a8d..ec53d6eac9ea3 100644
+index fe921b46a9a8..ec53d6eac9ea 100644
 --- a/build.config.cuttlefish.aarch64
 +++ b/build.config.cuttlefish.aarch64
 @@ -6,7 +6,7 @@ DEFCONFIG=cuttlefish_defconfig
@@ -29,7 +29,7 @@ index fe921b46a9a8d..ec53d6eac9ea3 100644
  FILES="
  arch/arm64/boot/Image.gz
 diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
-index 31e4057673f41..b49683d476d62 100644
+index 31e4057673f4..b49683d476d6 100644
 --- a/build.config.cuttlefish.x86_64
 +++ b/build.config.cuttlefish.x86_64
 @@ -6,7 +6,7 @@ DEFCONFIG=x86_64_cuttlefish_defconfig
@@ -42,7 +42,7 @@ index 31e4057673f41..b49683d476d62 100644
  FILES="
  arch/x86/boot/bzImage
 diff --git a/build.config.gki.aarch64 b/build.config.gki.aarch64
-index dec295284ffa0..ecc2985e92cb5 100644
+index dec295284ffa..ecc2985e92cb 100644
 --- a/build.config.gki.aarch64
 +++ b/build.config.gki.aarch64
 @@ -7,7 +7,7 @@ DEFCONFIG=gki_defconfig
@@ -54,6 +54,3 @@ index dec295284ffa0..ecc2985e92cb5 100644
  LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/bin
  FILES="
  arch/arm64/boot/Image.gz
--- 
-2.23.0.444.g18eeb5a265-goog
-

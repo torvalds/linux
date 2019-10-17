@@ -1,4 +1,4 @@
-From caf3327044b78551610869db4eb5f3a50fb037bc Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Sun, 15 Sep 2019 23:24:48 -0700
 Subject: ANDROID: Removed extraneous serial 8250 configs
@@ -13,7 +13,7 @@ Change-Id: I12afb2b95105bfdbaa81cc51367664fa36a4f60c
  2 files changed, 8 deletions(-)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index d650f7d141e7f..ea9960028cfd3 100644
+index d650f7d141e7..ea9960028cfd 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -264,10 +264,6 @@ CONFIG_SERIAL_8250=y
@@ -28,7 +28,7 @@ index d650f7d141e7f..ea9960028cfd3 100644
  CONFIG_SERIAL_AMBA_PL011=y
  CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index 511a763add373..a5953d43d480e 100644
+index 511a763add37..a5953d43d480 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -237,10 +237,6 @@ CONFIG_INPUT_UINPUT=y
@@ -42,6 +42,3 @@ index 511a763add373..a5953d43d480e 100644
  CONFIG_SERIAL_OF_PLATFORM=m
  CONFIG_HW_RANDOM=y
  CONFIG_HW_RANDOM_VIRTIO=m
--- 
-2.23.0.444.g18eeb5a265-goog
-

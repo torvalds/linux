@@ -1,4 +1,4 @@
-From 642620ef780f3c59ddfeee0c8549cc3beb6643b2 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Wed, 4 Sep 2019 16:18:17 -0700
 Subject: Adding SERIAL_OF_PLATFORM module to gki
@@ -12,7 +12,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  2 files changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 6aae6d55e96c5..d650f7d141e7f 100644
+index 6aae6d55e96c..d650f7d141e7 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -268,7 +268,7 @@ CONFIG_SERIAL_8250_NR_UARTS=48
@@ -25,7 +25,7 @@ index 6aae6d55e96c5..d650f7d141e7f 100644
  CONFIG_SERIAL_AMBA_PL011_CONSOLE=y
  CONFIG_VIRTIO_CONSOLE=y
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index b3dad521ee8a2..511a763add373 100644
+index b3dad521ee8a..511a763add37 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -170,6 +170,7 @@ CONFIG_RFKILL=y
@@ -44,6 +44,3 @@ index b3dad521ee8a2..511a763add373 100644
  CONFIG_HW_RANDOM=y
  CONFIG_HW_RANDOM_VIRTIO=m
  # CONFIG_I2C_COMPAT is not set
--- 
-2.23.0.444.g18eeb5a265-goog
-

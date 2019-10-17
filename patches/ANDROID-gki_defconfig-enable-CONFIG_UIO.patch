@@ -1,4 +1,4 @@
-From 4d7838f044cdca6d05d8126b6884e0c46540d342 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Wed, 18 Sep 2019 14:07:28 -0700
 Subject: ANDROID: gki_defconfig: enable CONFIG_UIO
@@ -12,7 +12,7 @@ Signed-off-by: Tri Vo <trong@google.com>
  2 files changed, 2 insertions(+)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 440173b3c3013..f65b544d17a41 100644
+index 440173b3c301..f65b544d17a4 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -337,6 +337,7 @@ CONFIG_RTC_CLASS=y
@@ -24,10 +24,10 @@ index 440173b3c3013..f65b544d17a41 100644
  # CONFIG_VIRTIO_PCI_LEGACY is not set
  CONFIG_VIRTIO_INPUT=y
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index 929be246c6b1e..88f715d3df352 100644
+index c206a2d0f9cf..3e8f580e0bde 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
-@@ -288,6 +288,7 @@ CONFIG_LEDS_TRIGGERS=y
+@@ -287,6 +287,7 @@ CONFIG_LEDS_TRIGGERS=y
  CONFIG_RTC_CLASS=y
  # CONFIG_RTC_SYSTOHC is not set
  CONFIG_RTC_DRV_TEST=m
@@ -35,6 +35,3 @@ index 929be246c6b1e..88f715d3df352 100644
  CONFIG_VIRTIO_PCI=m
  CONFIG_VIRTIO_INPUT=m
  CONFIG_VIRTIO_MMIO=m
--- 
-2.23.0.444.g18eeb5a265-goog
-

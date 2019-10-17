@@ -1,4 +1,4 @@
-From 67b22fc45b1ec4b1b6bd4fa8e26a00c365e6d1d6 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Mon, 12 Aug 2019 17:23:25 -0700
 Subject: staging: ion: make system and contig heaps modular
@@ -24,7 +24,7 @@ Signed-off-by: Sandeep Patil <sspatil@google.com>
  9 files changed, 169 insertions(+), 75 deletions(-)
 
 diff --git a/drivers/staging/android/ion/heaps/Kconfig b/drivers/staging/android/ion/heaps/Kconfig
-index f1c7a6b79c014..af6fce69e61a1 100644
+index f1c7a6b79c01..af6fce69e61a 100644
 --- a/drivers/staging/android/ion/heaps/Kconfig
 +++ b/drivers/staging/android/ion/heaps/Kconfig
 @@ -1,13 +1,13 @@
@@ -44,7 +44,7 @@ index f1c7a6b79c014..af6fce69e61a1 100644
  	help
  	  Choose this option to enable Ion system contig heap. The system contig heap
 diff --git a/drivers/staging/android/ion/heaps/Makefile b/drivers/staging/android/ion/heaps/Makefile
-index e2ee931100d0b..4498790358779 100644
+index e2ee931100d0..449879035877 100644
 --- a/drivers/staging/android/ion/heaps/Makefile
 +++ b/drivers/staging/android/ion/heaps/Makefile
 @@ -1,4 +1,6 @@
@@ -56,7 +56,7 @@ index e2ee931100d0b..4498790358779 100644
  obj-$(CONFIG_ION_SYSTEM_CONTIG_HEAP) += ion_system_contig_heap.o
  obj-$(CONFIG_ION_CMA_HEAP) += ion_cma_heap.o
 diff --git a/drivers/staging/android/ion/heaps/ion_system_contig_heap.c b/drivers/staging/android/ion/heaps/ion_system_contig_heap.c
-index 3a07ef931c2ee..9cb18e38dc96e 100644
+index 3a07ef931c2e..9cb18e38dc96 100644
 --- a/drivers/staging/android/ion/heaps/ion_system_contig_heap.c
 +++ b/drivers/staging/android/ion/heaps/ion_system_contig_heap.c
 @@ -11,6 +11,7 @@
@@ -113,7 +113,7 @@ index 3a07ef931c2ee..9cb18e38dc96e 100644
 +module_exit(ion_system_contig_heap_exit);
 +MODULE_LICENSE("GPL v2");
 diff --git a/drivers/staging/android/ion/heaps/ion_system_heap.c b/drivers/staging/android/ion/heaps/ion_system_heap.c
-index df4f5010fa820..e3d5129920c6d 100644
+index 25ea31757578..3aed952c219d 100644
 --- a/drivers/staging/android/ion/heaps/ion_system_heap.c
 +++ b/drivers/staging/android/ion/heaps/ion_system_heap.c
 @@ -11,6 +11,7 @@
@@ -209,7 +209,7 @@ index df4f5010fa820..e3d5129920c6d 100644
 +module_exit(ion_system_heap_exit);
 +MODULE_LICENSE("GPL v2");
 diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
-index 6a9f01ec4aed3..e4586eb6cae34 100644
+index b862bdfeca89..548d65dbd3ac 100644
 --- a/drivers/staging/android/ion/ion.c
 +++ b/drivers/staging/android/ion/ion.c
 @@ -222,28 +222,36 @@ static int debug_shrink_get(void *data, u64 *val)
@@ -304,7 +304,7 @@ index 6a9f01ec4aed3..e4586eb6cae34 100644
  static int ion_device_create(void)
  {
 diff --git a/drivers/staging/android/ion/ion_buffer.c b/drivers/staging/android/ion/ion_buffer.c
-index adce2d489f56e..879b3ddb08c0f 100644
+index adce2d489f56..879b3ddb08c0 100644
 --- a/drivers/staging/android/ion/ion_buffer.c
 +++ b/drivers/staging/android/ion/ion_buffer.c
 @@ -6,6 +6,7 @@
@@ -350,7 +350,7 @@ index adce2d489f56e..879b3ddb08c0f 100644
  	kfree(buffer);
  }
 diff --git a/drivers/staging/android/ion/ion_heap.c b/drivers/staging/android/ion/ion_heap.c
-index 755548a4382d2..e102f6a2ecf65 100644
+index 755548a4382d..e102f6a2ecf6 100644
 --- a/drivers/staging/android/ion/ion_heap.c
 +++ b/drivers/staging/android/ion/ion_heap.c
 @@ -101,12 +101,15 @@ static int ion_heap_deferred_free(void *data)
@@ -428,7 +428,7 @@ index 755548a4382d2..e102f6a2ecf65 100644
 +	return 0;
 +}
 diff --git a/drivers/staging/android/ion/ion_private.h b/drivers/staging/android/ion/ion_private.h
-index ed7ed39d0df1e..5cc09fbfbefe2 100644
+index ed7ed39d0df1..5cc09fbfbefe 100644
 --- a/drivers/staging/android/ion/ion_private.h
 +++ b/drivers/staging/android/ion/ion_private.h
 @@ -51,4 +51,7 @@ extern struct dma_buf *ion_dmabuf_alloc(struct ion_device *dev, size_t len,
@@ -440,7 +440,7 @@ index ed7ed39d0df1e..5cc09fbfbefe2 100644
 +
  #endif /* _ION_PRIVATE_H */
 diff --git a/include/linux/ion.h b/include/linux/ion.h
-index 775e948a362c8..fe0d2cb1ef252 100644
+index 775e948a362c..fe0d2cb1ef25 100644
 --- a/include/linux/ion.h
 +++ b/include/linux/ion.h
 @@ -12,6 +12,7 @@
@@ -510,6 +510,3 @@ index 775e948a362c8..fe0d2cb1ef252 100644
  {
  	return -ENODEV;
  }
--- 
-2.23.0.444.g18eeb5a265-goog
-

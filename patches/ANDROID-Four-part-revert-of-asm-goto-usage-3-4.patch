@@ -1,7 +1,7 @@
-From c4a6bc72fb2b9bd99de674d603b82ad74f5cbdb3 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Tue, 21 May 2019 18:20:17 -0700
-Subject:
+Subject: ANDROID-Four-part-revert-of-asm-goto-usage-3-4
 
 Revert "Use __put_user_goto in __put_user_size() and unsafe_put_user()"
 This reverts commit a959dc88f9c8900296ccf13e2f3e1cbc555a8917.
@@ -15,7 +15,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  1 file changed, 33 insertions(+), 24 deletions(-)
 
 diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index c647784dd0c40..01e410fa97d99 100644
+index c647784dd0c4..01e410fa97d9 100644
 --- a/arch/x86/include/asm/uaccess.h
 +++ b/arch/x86/include/asm/uaccess.h
 @@ -184,14 +184,19 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))
@@ -122,6 +122,3 @@ index c647784dd0c40..01e410fa97d99 100644
  
  #define unsafe_get_user(x, ptr, err_label)					\
  do {										\
--- 
-2.23.0.444.g18eeb5a265-goog
-

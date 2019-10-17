@@ -1,0 +1,168 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Daniel Rosenberg <drosen@google.com>
+Date: Wed, 26 Oct 2016 15:29:51 -0700
+Subject: ANDROID: mnt: Add filesystem private data to mount points
+
+This starts to add private data associated directly
+to mount points. The intent is to give filesystems
+a sense of where they have come from, as a means of
+letting a filesystem take different actions based on
+this information.
+
+Bug: 62094374
+Bug: 120446149
+Bug: 122428178
+Change-Id: Ie769d7b3bb2f5972afe05c1bf16cf88c91647ab2
+Signed-off-by: Daniel Rosenberg <drosen@google.com>
+[astrachan: Folded 89a54ed3bf68 ("ANDROID: mnt: Fix next_descendent")
+            into this patch]
+[drosen: Folded 138993ea820 ("Android: mnt: Propagate remount
+         correctly") into this patch, integrated fs_context things
+	 Now has update_mnt_data instead of needing remount2
+Signed-off-by: Alistair Strachan <astrachan@google.com>
+---
+ fs/namespace.c        | 28 +++++++++++++++++++++++++++-
+ fs/pnode.c            | 16 ++++++++++++++++
+ fs/pnode.h            |  1 +
+ include/linux/fs.h    |  4 ++++
+ include/linux/mount.h |  1 +
+ 5 files changed, 49 insertions(+), 1 deletion(-)
+
+diff --git a/fs/namespace.c b/fs/namespace.c
+index fe0e9e1410fe..4ec782ed6069 100644
+--- a/fs/namespace.c
++++ b/fs/namespace.c
+@@ -198,6 +198,7 @@ static struct mount *alloc_vfsmnt(const char *name)
+ 		mnt->mnt_count = 1;
+ 		mnt->mnt_writers = 0;
+ #endif
++		mnt->mnt.data = NULL;
+ 
+ 		INIT_HLIST_NODE(&mnt->mnt_hash);
+ 		INIT_LIST_HEAD(&mnt->mnt_child);
+@@ -547,6 +548,7 @@ int sb_prepare_remount_readonly(struct super_block *sb)
+ 
+ static void free_vfsmnt(struct mount *mnt)
+ {
++	kfree(mnt->mnt.data);
+ 	kfree_const(mnt->mnt_devname);
+ #ifdef CONFIG_SMP
+ 	free_percpu(mnt->mnt_pcp);
+@@ -941,6 +943,15 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
+ 	if (!mnt)
+ 		return ERR_PTR(-ENOMEM);
+ 
++	if (fc->fs_type->alloc_mnt_data) {
++		mnt->mnt.data = fc->fs_type->alloc_mnt_data();
++		if (!mnt->mnt.data) {
++			mnt_free_id(mnt);
++			free_vfsmnt(mnt);
++			return ERR_PTR(-ENOMEM);
++		}
++		fc->root->d_sb->s_op->update_mnt_data(mnt->mnt.data, fc);
++	}
+ 	if (fc->sb_flags & SB_KERNMOUNT)
+ 		mnt->mnt.mnt_flags = MNT_INTERNAL;
+ 
+@@ -1024,6 +1035,14 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
+ 	if (!mnt)
+ 		return ERR_PTR(-ENOMEM);
+ 
++	if (sb->s_op->clone_mnt_data) {
++		mnt->mnt.data = sb->s_op->clone_mnt_data(old->mnt.data);
++		if (!mnt->mnt.data) {
++			err = -ENOMEM;
++			goto out_free;
++		}
++	}
++
+ 	if (flag & (CL_SLAVE | CL_PRIVATE | CL_SHARED_TO_SLAVE))
+ 		mnt->mnt_group_id = 0; /* not a peer of original */
+ 	else
+@@ -2549,8 +2568,15 @@ static int do_remount(struct path *path, int ms_flags, int sb_flags,
+ 		err = -EPERM;
+ 		if (ns_capable(sb->s_user_ns, CAP_SYS_ADMIN)) {
+ 			err = reconfigure_super(fc);
+-			if (!err)
++			if (!err) {
++				sb->s_op->update_mnt_data(mnt->mnt.data, fc);
+ 				set_mount_attributes(mnt, mnt_flags);
++				namespace_lock();
++				lock_mount_hash();
++				propagate_remount(mnt);
++				unlock_mount_hash();
++				namespace_unlock();
++			}
+ 		}
+ 		up_write(&sb->s_umount);
+ 	}
+diff --git a/fs/pnode.c b/fs/pnode.c
+index 49f6d7ff2139..16b2d165b5e9 100644
+--- a/fs/pnode.c
++++ b/fs/pnode.c
+@@ -601,3 +601,19 @@ int propagate_umount(struct list_head *list)
+ 
+ 	return 0;
+ }
++
++void propagate_remount(struct mount *mnt)
++{
++	struct mount *parent = mnt->mnt_parent;
++	struct mount *p = mnt, *m;
++	struct super_block *sb = mnt->mnt.mnt_sb;
++
++	if (!sb->s_op->copy_mnt_data)
++		return;
++	for (p = propagation_next(parent, parent); p;
++				p = propagation_next(p, parent)) {
++		m = __lookup_mnt(&p->mnt, mnt->mnt_mountpoint);
++		if (m)
++			sb->s_op->copy_mnt_data(m->mnt.data, mnt->mnt.data);
++	}
++}
+diff --git a/fs/pnode.h b/fs/pnode.h
+index 49a058c73e4c..a95e519b77bf 100644
+--- a/fs/pnode.h
++++ b/fs/pnode.h
+@@ -42,6 +42,7 @@ int propagate_mnt(struct mount *, struct mountpoint *, struct mount *,
+ int propagate_umount(struct list_head *);
+ int propagate_mount_busy(struct mount *, int);
+ void propagate_mount_unlock(struct mount *);
++void propagate_remount(struct mount *);
+ void mnt_release_group_id(struct mount *);
+ int get_dominating_id(struct mount *mnt, const struct path *root);
+ unsigned int mnt_get_count(struct mount *mnt);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index eccf96ceef3b..f3fa2a711152 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1962,6 +1962,9 @@ struct super_operations {
+ 	int (*unfreeze_fs) (struct super_block *);
+ 	int (*statfs) (struct dentry *, struct kstatfs *);
+ 	int (*remount_fs) (struct super_block *, int *, char *);
++	void *(*clone_mnt_data) (void *);
++	void (*copy_mnt_data) (void *, void *);
++	void (*update_mnt_data) (void *, struct fs_context *);
+ 	void (*umount_begin) (struct super_block *);
+ 
+ 	int (*show_options)(struct seq_file *, struct dentry *);
+@@ -2234,6 +2237,7 @@ struct file_system_type {
+ 	const struct fs_parameter_description *parameters;
+ 	struct dentry *(*mount) (struct file_system_type *, int,
+ 		       const char *, void *);
++	void *(*alloc_mnt_data) (void);
+ 	void (*kill_sb) (struct super_block *);
+ 	struct module *owner;
+ 	struct file_system_type * next;
+diff --git a/include/linux/mount.h b/include/linux/mount.h
+index bf8cc4108b8f..20541916e360 100644
+--- a/include/linux/mount.h
++++ b/include/linux/mount.h
+@@ -69,6 +69,7 @@ struct vfsmount {
+ 	struct dentry *mnt_root;	/* root of the mounted tree */
+ 	struct super_block *mnt_sb;	/* pointer to superblock */
+ 	int mnt_flags;
++	void *data;
+ } __randomize_layout;
+ 
+ struct file; /* forward dec */

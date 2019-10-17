@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sandeep Patil <sspatil@google.com>
+Date: Mon, 26 Aug 2019 12:39:52 -0700
+Subject: ANDROID: staging: ion: move uapi/ion.h to uapi/linux/ion.h
+
+Bug: 133508579
+Test: builds
+
+Change-Id: I599a78e1acd2eed909f40e5a5b6a62813610990c
+Signed-off-by: Sandeep Patil <sspatil@google.com>
+---
+ include/linux/ion.h            | 2 +-
+ include/uapi/{ => linux}/ion.h | 0
+ 2 files changed, 1 insertion(+), 1 deletion(-)
+ rename include/uapi/{ => linux}/ion.h (100%)
+
+diff --git a/include/linux/ion.h b/include/linux/ion.h
+index fe0d2cb1ef25..5d68674b015a 100644
+--- a/include/linux/ion.h
++++ b/include/linux/ion.h
+@@ -18,7 +18,7 @@
+ #include <linux/sched.h>
+ #include <linux/shrinker.h>
+ #include <linux/types.h>
+-#include <uapi/ion.h>
++#include <uapi/linux/ion.h>
+ 
+ /**
+  * struct ion_buffer - metadata for a particular buffer
+diff --git a/include/uapi/ion.h b/include/uapi/linux/ion.h
+similarity index 100%
+rename from include/uapi/ion.h
+rename to include/uapi/linux/ion.h

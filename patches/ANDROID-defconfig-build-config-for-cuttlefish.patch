@@ -1,4 +1,4 @@
-From 0213ff42b9467eacc9d800c749ab2d380c5d0bc4 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Thu, 5 Apr 2018 18:01:04 -0700
 Subject: ANDROID: defconfig / build config for cuttlefish
@@ -25,7 +25,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
 new file mode 100644
-index 0000000000000..e6f0856cd7903
+index 000000000000..e6f0856cd790
 --- /dev/null
 +++ b/arch/arm64/configs/cuttlefish_defconfig
 @@ -0,0 +1,396 @@
@@ -427,7 +427,7 @@ index 0000000000000..e6f0856cd7903
 +# CONFIG_RUNTIME_TESTING_MENU is not set
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
 new file mode 100644
-index 0000000000000..a30f92646583a
+index 000000000000..a30f92646583
 --- /dev/null
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -0,0 +1,437 @@
@@ -870,7 +870,7 @@ index 0000000000000..a30f92646583a
 +CONFIG_UNWINDER_FRAME_POINTER=y
 diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
 new file mode 100644
-index 0000000000000..bfb1f560b2986
+index 000000000000..bfb1f560b298
 --- /dev/null
 +++ b/build.config.cuttlefish.aarch64
 @@ -0,0 +1,16 @@
@@ -892,7 +892,7 @@ index 0000000000000..bfb1f560b2986
 +STOP_SHIP_TRACEPRINTK=1
 diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
 new file mode 100644
-index 0000000000000..69813b30c8ea4
+index 000000000000..69813b30c8ea
 --- /dev/null
 +++ b/build.config.cuttlefish.x86_64
 @@ -0,0 +1,16 @@
@@ -912,6 +912,3 @@ index 0000000000000..69813b30c8ea4
 +System.map
 +"
 +STOP_SHIP_TRACEPRINTK=1
--- 
-2.23.0.444.g18eeb5a265-goog
-

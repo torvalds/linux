@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lorenzo Colitti <lorenzo@google.com>
+Date: Wed, 10 May 2017 23:54:04 +0900
+Subject: ANDROID: net: xfrm: make PF_KEY SHA256 use RFC-compliant truncation.
+
+When using the PF_KEY interface, SHA-256 hashes are hardcoded to
+use 96-bit truncation. This is a violation of RFC4868, which
+specifies 128-bit truncation, but will not be fixed upstream due
+to backwards compatibility concerns and because the PF_KEY
+interface is deprecated in favour of netlink XFRM (which allows
+the app to specify an arbitrary truncation length).
+
+Change the hardcoded truncation length from 96 to 128 so that
+PF_KEY apps such as racoon will work with standards-compliant VPN
+servers.
+
+Bug: 34114242
+Bug: 120440497
+Change-Id: Ie46bff4b6358f18117d0be241171d677d31d33f7
+Signed-off-by: Lorenzo Colitti <lorenzo@google.com>
+---
+ net/xfrm/xfrm_algo.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/net/xfrm/xfrm_algo.c b/net/xfrm/xfrm_algo.c
+index 32a378e7011f..8b06ef53d7fc 100644
+--- a/net/xfrm/xfrm_algo.c
++++ b/net/xfrm/xfrm_algo.c
+@@ -237,7 +237,7 @@ static struct xfrm_algo_desc aalg_list[] = {
+ 
+ 	.uinfo = {
+ 		.auth = {
+-			.icv_truncbits = 96,
++			.icv_truncbits = 128,
+ 			.icv_fullbits = 256,
+ 		}
+ 	},

@@ -1,4 +1,4 @@
-From 4464b2a9ece12e18b118d7b1498021a30acd1f6e Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Todd Kjos <tkjos@google.com>
 Date: Tue, 20 Aug 2019 09:41:56 -0700
 Subject: ANDROID: fix kernelci build-break
@@ -15,7 +15,7 @@ Signed-off-by: Todd Kjos <tkjos@google.com>
  2 files changed, 2 insertions(+)
 
 diff --git a/include/linux/netfilter/xt_quota2.h b/include/linux/netfilter/xt_quota2.h
-index eadc6903314e7..a3918718cbf8d 100644
+index eadc6903314e..a3918718cbf8 100644
 --- a/include/linux/netfilter/xt_quota2.h
 +++ b/include/linux/netfilter/xt_quota2.h
 @@ -1,5 +1,6 @@
@@ -26,7 +26,7 @@ index eadc6903314e7..a3918718cbf8d 100644
  enum xt_quota_flags {
  	XT_QUOTA_INVERT    = 1 << 0,
 diff --git a/include/trace/events/android_fs.h b/include/trace/events/android_fs.h
-index 49509533d3faa..7edb6bcfe482f 100644
+index 49509533d3fa..7edb6bcfe482 100644
 --- a/include/trace/events/android_fs.h
 +++ b/include/trace/events/android_fs.h
 @@ -4,6 +4,7 @@
@@ -37,6 +37,3 @@ index 49509533d3faa..7edb6bcfe482f 100644
  #include <linux/tracepoint.h>
  #include <trace/events/android_fs_template.h>
  
--- 
-2.23.0.444.g18eeb5a265-goog
-

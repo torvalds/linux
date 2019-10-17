@@ -1,4 +1,4 @@
-From dbb653c4e2acb8205d230506edaa89c311205303 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Matthias Maennich <maennich@google.com>
 Date: Mon, 8 Jul 2019 22:21:06 +0100
 Subject: ANDROID: build configs: switch prebuilt path location
@@ -16,7 +16,7 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  4 files changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
-index 40c8d7a5219cc..b9115335e3fc1 100644
+index 40c8d7a5219c..b9115335e3fc 100644
 --- a/build.config.cuttlefish.aarch64
 +++ b/build.config.cuttlefish.aarch64
 @@ -8,7 +8,7 @@ EXTRA_CMDS=''
@@ -29,7 +29,7 @@ index 40c8d7a5219cc..b9115335e3fc1 100644
  FILES="
  arch/arm64/boot/Image.gz
 diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
-index c9496b0d2ce6a..bdcbecea3ce11 100644
+index c9496b0d2ce6..bdcbecea3ce1 100644
 --- a/build.config.cuttlefish.x86_64
 +++ b/build.config.cuttlefish.x86_64
 @@ -8,7 +8,7 @@ EXTRA_CMDS=''
@@ -42,7 +42,7 @@ index c9496b0d2ce6a..bdcbecea3ce11 100644
  FILES="
  arch/x86/boot/bzImage
 diff --git a/build.config.gki.aarch64 b/build.config.gki.aarch64
-index fce42ab0daa34..b2399812513ef 100644
+index 24dade721f96..79871cdc6d07 100644
 --- a/build.config.gki.aarch64
 +++ b/build.config.gki.aarch64
 @@ -8,7 +8,7 @@ EXTRA_CMDS=''
@@ -55,7 +55,7 @@ index fce42ab0daa34..b2399812513ef 100644
  FILES="
  arch/arm64/boot/Image.gz
 diff --git a/build.config.gki.x86_64 b/build.config.gki.x86_64
-index 3ce45e962732b..b5a7f46001017 100644
+index 3ce45e962732..b5a7f4600101 100644
 --- a/build.config.gki.x86_64
 +++ b/build.config.gki.x86_64
 @@ -8,7 +8,7 @@ EXTRA_CMDS=''
@@ -67,6 +67,3 @@ index 3ce45e962732b..b5a7f46001017 100644
  LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/bin
  FILES="
  arch/x86/boot/bzImage
--- 
-2.23.0.444.g18eeb5a265-goog
-

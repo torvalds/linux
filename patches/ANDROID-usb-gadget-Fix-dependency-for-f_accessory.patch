@@ -1,8 +1,7 @@
-From f4f6f40ebc621bc31bee7e5160abda908b798f23 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Quentin Perret <qperret@google.com>
 Date: Mon, 30 Sep 2019 15:27:24 +0100
-Subject: ANDROID: usb: gadget: Fix dependency for
- f_accessory
+Subject: ANDROID: usb: gadget: Fix dependency for f_accessory
 
 The Android Accessory USB gadget functions use core HID functions. As
 such, compiling with CONFIG_HID=m and CONFIG_USB_GADGET=y fails to link:
@@ -47,6 +46,3 @@ index 920ff2d2c557..bcd7f83c9ba0 100644
  	select USB_F_ACC
  	help
  	  USB gadget Accessory support
--- 
-2.23.0.444.g18eeb5a265-goog
-

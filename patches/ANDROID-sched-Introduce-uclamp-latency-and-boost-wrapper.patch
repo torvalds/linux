@@ -1,0 +1,67 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Quentin Perret <quentin.perret@arm.com>
+Date: Tue, 30 Jul 2019 13:58:29 +0100
+Subject: ANDROID: sched: Introduce uclamp latency and boost wrapper
+
+Introduce a simple helper to read the latency_sensitive flag from a
+task. It is called uclamp_latency_sensitive() to match the API
+proposed by Patrick.
+
+While at it, introduce uclamp_boosted() which returns true only when a
+task has a non-null min-clamp.
+
+Change-Id: I5fc747da8b58625257a6604a3c88487b657fbe7a
+Suggested-by: Patrick Bellasi <patrick.bellasi@arm.com>
+Signed-off-by: Quentin Perret <quentin.perret@arm.com>
+---
+ kernel/sched/sched.h | 28 ++++++++++++++++++++++++++++
+ 1 file changed, 28 insertions(+)
+
+diff --git a/kernel/sched/sched.h b/kernel/sched/sched.h
+index 7de9f16cb838..4f0d1668c283 100644
+--- a/kernel/sched/sched.h
++++ b/kernel/sched/sched.h
+@@ -2333,6 +2333,11 @@ static inline unsigned int uclamp_util(struct rq *rq, unsigned int util)
+ {
+ 	return uclamp_util_with(rq, util, NULL);
+ }
++
++static inline bool uclamp_boosted(struct task_struct *p)
++{
++	return uclamp_eff_value(p, UCLAMP_MIN) > 0;
++}
+ #else /* CONFIG_UCLAMP_TASK */
+ static inline unsigned int uclamp_util_with(struct rq *rq, unsigned int util,
+ 					    struct task_struct *p)
+@@ -2343,8 +2348,31 @@ static inline unsigned int uclamp_util(struct rq *rq, unsigned int util)
+ {
+ 	return util;
+ }
++static inline bool uclamp_boosted(struct task_struct *p)
++{
++	return false;
++}
+ #endif /* CONFIG_UCLAMP_TASK */
+ 
++#ifdef CONFIG_UCLAMP_TASK_GROUP
++static inline bool uclamp_latency_sensitive(struct task_struct *p)
++{
++	struct cgroup_subsys_state *css = task_css(p, cpu_cgrp_id);
++	struct task_group *tg;
++
++	if (!css)
++		return false;
++	tg = container_of(css, struct task_group, css);
++
++	return tg->latency_sensitive;
++}
++#else
++static inline bool uclamp_latency_sensitive(struct task_struct *p)
++{
++	return false;
++}
++#endif /* CONFIG_UCLAMP_TASK_GROUP */
++
+ #ifdef arch_scale_freq_capacity
+ # ifndef arch_scale_freq_invariant
+ #  define arch_scale_freq_invariant()	true

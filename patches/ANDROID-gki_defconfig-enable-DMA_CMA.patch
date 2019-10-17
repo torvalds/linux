@@ -1,4 +1,4 @@
-From a36995c4265f4336e17b67930d13f44b2bef8df2 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Wed, 12 Jun 2019 15:26:49 -0700
 Subject: ANDROID: gki_defconfig: enable DMA_CMA
@@ -10,14 +10,13 @@ Test: boot arm64 cuttlefish
 Signed-off-by: Tri Vo <trong@google.com>
 Change-Id: Id0d270f510aa0a06dc5a082ef35c3d969b72cc35
 ---
- abi_gki_aarch64.xml              | 115880 ++++++++++++++--------------
- arch/arm64/configs/gki_defconfig |      1 +
- 2 files changed, 57878 insertions(+), 58003 deletions(-)
+ arch/arm64/configs/gki_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
 
-Index: common/arch/arm64/configs/gki_defconfig
-===================================================================
---- common.orig/arch/arm64/configs/gki_defconfig
-+++ common/arch/arm64/configs/gki_defconfig
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index ef79e45cae16..9bc2782661dc 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
 @@ -373,6 +373,7 @@ CONFIG_CRYPTO_ANSI_CPRNG=y
  CONFIG_CRYPTO_DEV_VIRTIO=y
  CONFIG_CRC8=y

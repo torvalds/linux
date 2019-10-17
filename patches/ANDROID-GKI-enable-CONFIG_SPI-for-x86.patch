@@ -1,4 +1,4 @@
-From ec89293b2fdbe45c5af7a6e9d9456adb0f0ecf6b Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Mark Salyzyn <salyzyn@google.com>
 Date: Tue, 3 Sep 2019 09:42:35 -0700
 Subject: ANDROID: GKI: enable CONFIG_SPI for x86
@@ -13,7 +13,7 @@ Change-Id: I2d7777ab0e671248084880e5c1770b6ec6d7a650
  1 file changed, 1 insertion(+)
 
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index e86cd1009a67c..9b76d55e8c413 100644
+index e86cd1009a67..9b76d55e8c41 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -240,6 +240,7 @@ CONFIG_HW_RANDOM=y
@@ -24,6 +24,3 @@ index e86cd1009a67c..9b76d55e8c413 100644
  CONFIG_GPIOLIB=y
  # CONFIG_HWMON is not set
  CONFIG_DEVFREQ_THERMAL=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

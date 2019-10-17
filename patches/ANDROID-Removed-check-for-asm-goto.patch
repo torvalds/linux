@@ -1,4 +1,4 @@
-From 28dd583e21a3d424a245e5927c5d79eb6f6aa3ac Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Wed, 24 Oct 2018 13:58:11 -0700
 Subject: ANDROID: Removed check for asm-goto
@@ -25,7 +25,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  1 file changed, 4 deletions(-)
 
 diff --git a/arch/x86/Makefile b/arch/x86/Makefile
-index 94df0868804bc..408bb5532d1ba 100644
+index 94df0868804b..408bb5532d1b 100644
 --- a/arch/x86/Makefile
 +++ b/arch/x86/Makefile
 @@ -298,10 +298,6 @@ vdso_install:
@@ -39,6 +39,3 @@ index 94df0868804bc..408bb5532d1ba 100644
  ifdef CONFIG_RETPOLINE
  ifeq ($(RETPOLINE_CFLAGS),)
  	@echo "You are building kernel with non-retpoline compiler." >&2
--- 
-2.23.0.444.g18eeb5a265-goog
-

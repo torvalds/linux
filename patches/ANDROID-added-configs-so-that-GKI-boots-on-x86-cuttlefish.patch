@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ram Muthiah <rammuthiah@google.com>
+Date: Wed, 22 May 2019 20:11:24 -0700
+Subject: ANDROID: added configs so that GKI boots on x86 cuttlefish
+
+Bug: 132629930
+Test: built and ran gki on cuttlefish locally
+Change-Id: I2cbfef4fd97888edaa5b6413a2459160c7117bd5
+Signed-off-by: Ram Muthiah <rammuthiah@google.com>
+---
+ arch/x86/configs/gki_defconfig | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index 18ba312d0a60..cdaba53b7bb0 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -38,6 +38,7 @@ CONFIG_CPU_FREQ=y
+ CONFIG_CPU_FREQ_TIMES=y
+ CONFIG_CPU_FREQ_GOV_POWERSAVE=y
+ CONFIG_CPU_FREQ_GOV_CONSERVATIVE=y
++CONFIG_IA32_EMULATION=y
+ CONFIG_KPROBES=y
+ CONFIG_MODULES=y
+ CONFIG_MODULE_UNLOAD=y
+@@ -156,6 +157,7 @@ CONFIG_CFG80211=y
+ CONFIG_MAC80211=y
+ # CONFIG_MAC80211_RC_MINSTREL is not set
+ CONFIG_RFKILL=y
++CONFIG_PCI=y
+ # CONFIG_ALLOW_DEV_COREDUMP is not set
+ CONFIG_DEBUG_DEVRES=y
+ CONFIG_ZRAM=y
+@@ -274,6 +276,7 @@ CONFIG_LEDS_CLASS=y
+ CONFIG_LEDS_TRIGGERS=y
+ CONFIG_RTC_CLASS=y
+ # CONFIG_RTC_SYSTOHC is not set
++CONFIG_VIRTIO_PCI=y
+ CONFIG_VIRTIO_BALLOON=y
+ CONFIG_VIRTIO_INPUT=y
+ CONFIG_VIRTIO_MMIO=y
+@@ -289,6 +292,7 @@ CONFIG_EXT4_FS=y
+ CONFIG_EXT4_FS_SECURITY=y
+ CONFIG_F2FS_FS=y
+ CONFIG_F2FS_FS_SECURITY=y
++CONFIG_FS_ENCRYPTION=y
+ # CONFIG_DNOTIFY is not set
+ CONFIG_QUOTA=y
+ CONFIG_QFMT_V2=y

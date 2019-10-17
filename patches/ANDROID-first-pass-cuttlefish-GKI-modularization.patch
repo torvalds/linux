@@ -1,4 +1,4 @@
-From a0d4dd90005235d67ef015eb402160d66c37a38f Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Thu, 29 Aug 2019 19:15:01 -0700
 Subject: ANDROID: first pass cuttlefish GKI modularization
@@ -11,7 +11,7 @@ Change-Id: Ie2a4d08596b0e2af7c868224bc18dcd6adae7ee0
  1 file changed, 16 insertions(+), 12 deletions(-)
 
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index 6b0ff4ca236ab..a37fa09bd107a 100644
+index 6b0ff4ca236a..a37fa09bd107 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -155,8 +155,12 @@ CONFIG_NET_CLS_BPF=y
@@ -106,6 +106,3 @@ index 6b0ff4ca236ab..a37fa09bd107a 100644
  CONFIG_CRC8=y
  CONFIG_XZ_DEC=y
  CONFIG_DMA_CMA=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

@@ -1,0 +1,109 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Daniel Rosenberg <drosen@google.com>
+Date: Thu, 11 Feb 2016 16:44:15 -0800
+Subject: ANDROID: vfs: add d_canonical_path for stacked filesystem support
+
+Inotify does not currently know when a filesystem
+is acting as a wrapper around another fs. This means
+that inotify watchers will miss any modifications to
+the base file, as well as any made in a separate
+stacked fs that points to the same file.
+d_canonical_path solves this problem by allowing the fs
+to map a dentry to a path in the lower fs. Inotify
+can use it to find the appropriate place to watch to
+be informed of all changes to a file.
+
+Test: HiKey/X15 + Pie + android-mainline,
+      and HiKey + AOSP Maser + android-mainline,
+      directories under /sdcard created,
+      output of mount is right,
+      CTS test collecting device infor works
+
+Bug: 70706497
+Change-Id: I09563baffad1711a045e45c1bd0bd8713c2cc0b6
+Signed-off-by: Daniel Rosenberg <drosen@google.com>
+[astrachan: Folded 34df4102216e ("ANDROID: fsnotify: Notify lower fs of
+            open") into this patch]
+Signed-off-by: Alistair Strachan <astrachan@google.com>
+Signed-off-by: Yongqin Liu <yongqin.liu@linaro.org>
+---
+ fs/notify/inotify/inotify_user.c | 15 +++++++++++++--
+ include/linux/dcache.h           |  1 +
+ include/linux/fsnotify.h         |  7 +++++++
+ 3 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/fs/notify/inotify/inotify_user.c b/fs/notify/inotify/inotify_user.c
+index 3e66e6c8f53a..bd16ec03b5fd 100644
+--- a/fs/notify/inotify/inotify_user.c
++++ b/fs/notify/inotify/inotify_user.c
+@@ -701,6 +701,8 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
+ 	struct fsnotify_group *group;
+ 	struct inode *inode;
+ 	struct path path;
++	struct path alteredpath;
++	struct path *canonical_path = &path;
+ 	struct fd f;
+ 	int ret;
+ 	unsigned flags = 0;
+@@ -747,13 +749,22 @@ SYSCALL_DEFINE3(inotify_add_watch, int, fd, const char __user *, pathname,
+ 	if (ret)
+ 		goto fput_and_out;
+ 
++	/* support stacked filesystems */
++	if(path.dentry && path.dentry->d_op) {
++		if (path.dentry->d_op->d_canonical_path) {
++			path.dentry->d_op->d_canonical_path(&path, &alteredpath);
++			canonical_path = &alteredpath;
++			path_put(&path);
++		}
++	}
++
+ 	/* inode held in place by reference to path; group by fget on fd */
+-	inode = path.dentry->d_inode;
++	inode = canonical_path->dentry->d_inode;
+ 	group = f.file->private_data;
+ 
+ 	/* create/update an inode mark */
+ 	ret = inotify_update_watch(group, inode, mask);
+-	path_put(&path);
++	path_put(canonical_path);
+ fput_and_out:
+ 	fdput(f);
+ 	return ret;
+diff --git a/include/linux/dcache.h b/include/linux/dcache.h
+index 10090f11ab95..d59a73cdb10e 100644
+--- a/include/linux/dcache.h
++++ b/include/linux/dcache.h
+@@ -147,6 +147,7 @@ struct dentry_operations {
+ 	struct vfsmount *(*d_automount)(struct path *);
+ 	int (*d_manage)(const struct path *, bool);
+ 	struct dentry *(*d_real)(struct dentry *, const struct inode *);
++	void (*d_canonical_path)(const struct path *, struct path *);
+ } ____cacheline_aligned;
+ 
+ /*
+diff --git a/include/linux/fsnotify.h b/include/linux/fsnotify.h
+index a2d5d175d3c1..e018872b047c 100644
+--- a/include/linux/fsnotify.h
++++ b/include/linux/fsnotify.h
+@@ -262,6 +262,7 @@ static inline void fsnotify_modify(struct file *file)
+ static inline void fsnotify_open(struct file *file)
+ {
+ 	const struct path *path = &file->f_path;
++	struct path lower_path;
+ 	struct inode *inode = file_inode(file);
+ 	__u32 mask = FS_OPEN;
+ 
+@@ -270,6 +271,12 @@ static inline void fsnotify_open(struct file *file)
+ 	if (file->f_flags & __FMODE_EXEC)
+ 		mask |= FS_OPEN_EXEC;
+ 
++	if (path->dentry->d_op && path->dentry->d_op->d_canonical_path) {
++		path->dentry->d_op->d_canonical_path(path, &lower_path);
++		fsnotify_parent(&lower_path, NULL, mask);
++		fsnotify(lower_path.dentry->d_inode, mask, &lower_path, FSNOTIFY_EVENT_PATH, NULL, 0);
++		path_put(&lower_path);
++	}
+ 	fsnotify_path(inode, path, mask);
+ }
+ 

@@ -1,7 +1,7 @@
-From 43da3e283a034446549fa6e8847a5dcbd3614422 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Tue, 21 May 2019 18:21:54 -0700
-Subject:
+Subject: ANDROID-Four-part-revert-of-asm-goto-usage-4-4
 
 Revert "x86 uaccess: Introduce __put_user_goto"
 This reverts commit 4a789213c9a54c8b618924d3421e56e98df8a447.
@@ -15,7 +15,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  1 file changed, 11 insertions(+), 17 deletions(-)
 
 diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index 01e410fa97d99..b498ffae35cac 100644
+index 01e410fa97d9..b498ffae35ca 100644
 --- a/arch/x86/include/asm/uaccess.h
 +++ b/arch/x86/include/asm/uaccess.h
 @@ -463,23 +463,17 @@ struct __large_struct { unsigned long buf[100]; };
@@ -53,6 +53,3 @@ index 01e410fa97d99..b498ffae35cac 100644
  
  #define __put_user_asm_ex(x, addr, itype, rtype, ltype)			\
  	asm volatile("1:	mov"itype" %"rtype"0,%1\n"		\
--- 
-2.23.0.444.g18eeb5a265-goog
-

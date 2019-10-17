@@ -1,4 +1,4 @@
-From f1aa35a164021c6213541492f420e926b2a01c73 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Greg Kroah-Hartman <gregkh@google.com>
 Date: Mon, 23 Sep 2019 14:43:39 +0200
 Subject: ANDROID: update arm64 gki_defconfig
@@ -24,6 +24,3 @@ index ab1dd6d01ec8..01be7843c646 100644
  # CONFIG_EFIVAR_FS is not set
  CONFIG_SDCARD_FS=y
  CONFIG_PSTORE=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

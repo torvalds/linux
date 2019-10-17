@@ -1,0 +1,258 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Daniel Rosenberg <drosen@google.com>
+Date: Wed, 26 Oct 2016 16:33:11 -0700
+Subject: ANDROID: vfs: Add setattr2 for filesystems with per mount permissions
+
+This allows filesystems to use their mount private data to
+influence the permssions they use in setattr2. It has
+been separated into a new call to avoid disrupting current
+setattr users.
+
+Test: HiKey/X15 + Pie + android-mainline,
+      and HiKey + AOSP Maser + android-mainline,
+      directories under /sdcard created,
+      output of mount is right,
+      CTS test collecting device infor works
+
+Change-Id: I19959038309284448f1b7f232d579674ef546385
+Signed-off-by: Daniel Rosenberg <drosen@google.com>
+Signed-off-by: Yongqin Liu <yongqin.liu@linaro.org>
+---
+ fs/attr.c          | 12 ++++++++++--
+ fs/coredump.c      |  2 +-
+ fs/inode.c         |  6 +++---
+ fs/namei.c         |  2 +-
+ fs/open.c          | 23 ++++++++++++++++-------
+ fs/utimes.c        |  2 +-
+ include/linux/fs.h |  6 +++++-
+ 7 files changed, 37 insertions(+), 16 deletions(-)
+
+diff --git a/fs/attr.c b/fs/attr.c
+index df28035aa23e..0a7f9d67bb35 100644
+--- a/fs/attr.c
++++ b/fs/attr.c
+@@ -226,7 +226,7 @@ EXPORT_SYMBOL(setattr_copy);
+  * the file open for write, as there can be no conflicting delegation in
+  * that case.
+  */
+-int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
++int notify_change2(struct vfsmount *mnt, struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
+ {
+ 	struct inode *inode = dentry->d_inode;
+ 	umode_t mode = inode->i_mode;
+@@ -333,7 +333,9 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
+ 	if (error)
+ 		return error;
+ 
+-	if (inode->i_op->setattr)
++	if (mnt && inode->i_op->setattr2)
++		error = inode->i_op->setattr2(mnt, dentry, attr);
++	else if (inode->i_op->setattr)
+ 		error = inode->i_op->setattr(dentry, attr);
+ 	else
+ 		error = simple_setattr(dentry, attr);
+@@ -346,4 +348,10 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
+ 
+ 	return error;
+ }
++EXPORT_SYMBOL(notify_change2);
++
++int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **delegated_inode)
++{
++	return notify_change2(NULL, dentry, attr, delegated_inode);
++}
+ EXPORT_SYMBOL(notify_change);
+diff --git a/fs/coredump.c b/fs/coredump.c
+index b1ea7dfbd149..a6b542bb4d85 100644
+--- a/fs/coredump.c
++++ b/fs/coredump.c
+@@ -775,7 +775,7 @@ void do_coredump(const kernel_siginfo_t *siginfo)
+ 			goto close_fail;
+ 		if (!(cprm.file->f_mode & FMODE_CAN_WRITE))
+ 			goto close_fail;
+-		if (do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file))
++		if (do_truncate2(cprm.file->f_path.mnt, cprm.file->f_path.dentry, 0, 0, cprm.file))
+ 			goto close_fail;
+ 	}
+ 
+diff --git a/fs/inode.c b/fs/inode.c
+index fef457a42882..853ce7aa6301 100644
+--- a/fs/inode.c
++++ b/fs/inode.c
+@@ -1810,7 +1810,7 @@ int dentry_needs_remove_privs(struct dentry *dentry)
+ 	return mask;
+ }
+ 
+-static int __remove_privs(struct dentry *dentry, int kill)
++static int __remove_privs(struct vfsmount *mnt, struct dentry *dentry, int kill)
+ {
+ 	struct iattr newattrs;
+ 
+@@ -1819,7 +1819,7 @@ static int __remove_privs(struct dentry *dentry, int kill)
+ 	 * Note we call this on write, so notify_change will not
+ 	 * encounter any conflicting delegations:
+ 	 */
+-	return notify_change(dentry, &newattrs, NULL);
++	return notify_change2(mnt, dentry, &newattrs, NULL);
+ }
+ 
+ /*
+@@ -1846,7 +1846,7 @@ int file_remove_privs(struct file *file)
+ 	if (kill < 0)
+ 		return kill;
+ 	if (kill)
+-		error = __remove_privs(dentry, kill);
++		error = __remove_privs(file->f_path.mnt, dentry, kill);
+ 	if (!error)
+ 		inode_has_no_xattr(inode);
+ 
+diff --git a/fs/namei.c b/fs/namei.c
+index 671c3c1a3425..8a77269e644f 100644
+--- a/fs/namei.c
++++ b/fs/namei.c
+@@ -2995,7 +2995,7 @@ static int handle_truncate(struct file *filp)
+ 	if (!error)
+ 		error = security_path_truncate(path);
+ 	if (!error) {
+-		error = do_truncate(path->dentry, 0,
++		error = do_truncate2(path->mnt, path->dentry, 0,
+ 				    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
+ 				    filp);
+ 	}
+diff --git a/fs/open.c b/fs/open.c
+index b62f5c0923a8..a189284464a0 100644
+--- a/fs/open.c
++++ b/fs/open.c
+@@ -35,8 +35,8 @@
+ 
+ #include "internal.h"
+ 
+-int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
+-	struct file *filp)
++int do_truncate2(struct vfsmount *mnt, struct dentry *dentry, loff_t length,
++		unsigned int time_attrs, struct file *filp)
+ {
+ 	int ret;
+ 	struct iattr newattrs;
+@@ -61,17 +61,24 @@ int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
+ 
+ 	inode_lock(dentry->d_inode);
+ 	/* Note any delegations or leases have already been broken: */
+-	ret = notify_change(dentry, &newattrs, NULL);
++	ret = notify_change2(mnt, dentry, &newattrs, NULL);
+ 	inode_unlock(dentry->d_inode);
+ 	return ret;
+ }
++int do_truncate(struct dentry *dentry, loff_t length, unsigned int time_attrs,
++	struct file *filp)
++{
++	return do_truncate2(NULL, dentry, length, time_attrs, filp);
++}
+ 
+ long vfs_truncate(const struct path *path, loff_t length)
+ {
+ 	struct inode *inode;
++	struct vfsmount *mnt;
+ 	long error;
+ 
+ 	inode = path->dentry->d_inode;
++	mnt = path->mnt;
+ 
+ 	/* For directories it's -EISDIR, for other non-regulars - -EINVAL */
+ 	if (S_ISDIR(inode->i_mode))
+@@ -107,7 +114,7 @@ long vfs_truncate(const struct path *path, loff_t length)
+ 	if (!error)
+ 		error = security_path_truncate(path);
+ 	if (!error)
+-		error = do_truncate(path->dentry, length, 0, NULL);
++		error = do_truncate2(mnt, path->dentry, length, 0, NULL);
+ 
+ put_write_and_out:
+ 	put_write_access(inode);
+@@ -156,6 +163,7 @@ long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+ {
+ 	struct inode *inode;
+ 	struct dentry *dentry;
++	struct vfsmount *mnt;
+ 	struct fd f;
+ 	int error;
+ 
+@@ -172,6 +180,7 @@ long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+ 		small = 0;
+ 
+ 	dentry = f.file->f_path.dentry;
++	mnt = f.file->f_path.mnt;
+ 	inode = dentry->d_inode;
+ 	error = -EINVAL;
+ 	if (!S_ISREG(inode->i_mode) || !(f.file->f_mode & FMODE_WRITE))
+@@ -192,7 +201,7 @@ long do_sys_ftruncate(unsigned int fd, loff_t length, int small)
+ 	if (!error)
+ 		error = security_path_truncate(&f.file->f_path);
+ 	if (!error)
+-		error = do_truncate(dentry, length, ATTR_MTIME|ATTR_CTIME, f.file);
++		error = do_truncate2(mnt, dentry, length, ATTR_MTIME|ATTR_CTIME, f.file);
+ 	sb_end_write(inode->i_sb);
+ out_putf:
+ 	fdput(f);
+@@ -558,7 +567,7 @@ static int chmod_common(const struct path *path, umode_t mode)
+ 		goto out_unlock;
+ 	newattrs.ia_mode = (mode & S_IALLUGO) | (inode->i_mode & ~S_IALLUGO);
+ 	newattrs.ia_valid = ATTR_MODE | ATTR_CTIME;
+-	error = notify_change(path->dentry, &newattrs, &delegated_inode);
++	error = notify_change2(path->mnt, path->dentry, &newattrs, &delegated_inode);
+ out_unlock:
+ 	inode_unlock(inode);
+ 	if (delegated_inode) {
+@@ -649,7 +658,7 @@ static int chown_common(const struct path *path, uid_t user, gid_t group)
+ 	inode_lock(inode);
+ 	error = security_path_chown(path, uid, gid);
+ 	if (!error)
+-		error = notify_change(path->dentry, &newattrs, &delegated_inode);
++		error = notify_change2(path->mnt, path->dentry, &newattrs, &delegated_inode);
+ 	inode_unlock(inode);
+ 	if (delegated_inode) {
+ 		error = break_deleg_wait(&delegated_inode);
+diff --git a/fs/utimes.c b/fs/utimes.c
+index 1ba3f7883870..93a3a58a4f6d 100644
+--- a/fs/utimes.c
++++ b/fs/utimes.c
+@@ -57,7 +57,7 @@ static int utimes_common(const struct path *path, struct timespec64 *times)
+ 	}
+ retry_deleg:
+ 	inode_lock(inode);
+-	error = notify_change(path->dentry, &newattrs, &delegated_inode);
++	error = notify_change2(path->mnt, path->dentry, &newattrs, &delegated_inode);
+ 	inode_unlock(inode);
+ 	if (delegated_inode) {
+ 		error = break_deleg_wait(&delegated_inode);
+diff --git a/include/linux/fs.h b/include/linux/fs.h
+index e0d909d35763..35e662198dc5 100644
+--- a/include/linux/fs.h
++++ b/include/linux/fs.h
+@@ -1871,7 +1871,8 @@ struct inode_operations {
+ 	int (*rename) (struct inode *, struct dentry *,
+ 			struct inode *, struct dentry *, unsigned int);
+ 	int (*setattr) (struct dentry *, struct iattr *);
+-	int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
++	int (*setattr2) (struct vfsmount *, struct dentry *, struct iattr *);
++        int (*getattr) (const struct path *, struct kstat *, u32, unsigned int);
+ 	ssize_t (*listxattr) (struct dentry *, char *, size_t);
+ 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
+ 		      u64 len);
+@@ -2519,6 +2520,8 @@ static_assert(offsetof(struct filename, iname) % sizeof(long) == 0);
+ extern long vfs_truncate(const struct path *, loff_t);
+ extern int do_truncate(struct dentry *, loff_t start, unsigned int time_attrs,
+ 		       struct file *filp);
++extern int do_truncate2(struct vfsmount *, struct dentry *, loff_t start,
++			unsigned int time_attrs, struct file *filp);
+ extern int vfs_fallocate(struct file *file, int mode, loff_t offset,
+ 			loff_t len);
+ extern long do_sys_open(int dfd, const char __user *filename, int flags,
+@@ -2866,6 +2869,7 @@ extern void emergency_remount(void);
+ extern sector_t bmap(struct inode *, sector_t);
+ #endif
+ extern int notify_change(struct dentry *, struct iattr *, struct inode **);
++extern int notify_change2(struct vfsmount *, struct dentry *, struct iattr *, struct inode **);
+ extern int inode_permission(struct inode *, int);
+ extern int generic_permission(struct inode *, int);
+ extern int __check_sticky(struct inode *dir, struct inode *inode);

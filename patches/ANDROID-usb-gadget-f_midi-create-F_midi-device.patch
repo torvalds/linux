@@ -1,4 +1,4 @@
-From a3f67c143957149153c09bce680ec9659e99e72c Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Badhri Jagan Sridharan <Badhri@google.com>
 Date: Wed, 2 Sep 2015 22:49:10 -0700
 Subject: ANDROID: usb: gadget: f_midi: create F_midi device
@@ -16,7 +16,7 @@ Signed-off-by: Badhri Jagan Sridharan <badhri@google.com>
  1 file changed, 65 insertions(+)
 
 diff --git a/drivers/usb/gadget/function/f_midi.c b/drivers/usb/gadget/function/f_midi.c
-index 46af0aa07e2e3..2a86b3cf313fd 100644
+index 46af0aa07e2e..2a86b3cf313f 100644
 --- a/drivers/usb/gadget/function/f_midi.c
 +++ b/drivers/usb/gadget/function/f_midi.c
 @@ -1216,6 +1216,65 @@ static void f_midi_free_inst(struct usb_function_instance *f)
@@ -105,6 +105,3 @@ index 46af0aa07e2e3..2a86b3cf313fd 100644
  	return &midi->func;
  
  setup_fail:
--- 
-2.23.0.444.g18eeb5a265-goog
-

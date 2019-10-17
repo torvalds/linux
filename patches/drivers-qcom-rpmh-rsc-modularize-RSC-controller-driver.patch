@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Lina Iyer <ilina@codeaurora.org>
+Date: Thu, 29 Aug 2019 14:27:59 -0600
+Subject: drivers: qcom: rpmh-rsc: modularize RSC controller driver
+
+Enable RSC controller driver to be compiled as modules. Since RPMH
+communication is need for enabling/disabling critical clocks and busses
+needed for the application processor, it is better to keep this module
+enabled. Hence declare the driver as a builtin platform driver.
+
+Signed-off-by: Hridya Valsaraju <hridya@google.com>
+Signed-off-by: Lina Iyer <ilina@codeaurora.org>
+
+Change-Id: I5e90b68bbf2c7ed3a2666e0687ff4ade40b9c7a3
+---
+ drivers/soc/qcom/Kconfig    | 2 +-
+ drivers/soc/qcom/rpmh-rsc.c | 9 ++++-----
+ 2 files changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/drivers/soc/qcom/Kconfig b/drivers/soc/qcom/Kconfig
+index 661e47acc354..119a38bf373e 100644
+--- a/drivers/soc/qcom/Kconfig
++++ b/drivers/soc/qcom/Kconfig
+@@ -102,7 +102,7 @@ config QCOM_RMTFS_MEM
+ 	  Say y here if you intend to boot the modem remoteproc.
+ 
+ config QCOM_RPMH
+-	bool "Qualcomm RPM-Hardened (RPMH) Communication"
++	tristate "Qualcomm Technologies, Inc. RPM-Hardened (RPMH) Communication driver"
+ 	depends on ARCH_QCOM && ARM64 || COMPILE_TEST
+ 	help
+ 	  Support for communication with the hardened-RPM blocks in
+diff --git a/drivers/soc/qcom/rpmh-rsc.c b/drivers/soc/qcom/rpmh-rsc.c
+index e278fc11fe5c..d7d9e1b8a4f1 100644
+--- a/drivers/soc/qcom/rpmh-rsc.c
++++ b/drivers/soc/qcom/rpmh-rsc.c
+@@ -11,6 +11,7 @@
+ #include <linux/io.h>
+ #include <linux/kernel.h>
+ #include <linux/list.h>
++#include <linux/module.h>
+ #include <linux/of.h>
+ #include <linux/of_irq.h>
+ #include <linux/of_platform.h>
+@@ -687,9 +688,7 @@ static struct platform_driver rpmh_driver = {
+ 		  .of_match_table = rpmh_drv_match,
+ 	},
+ };
++builtin_platform_driver(rpmh_driver);
+ 
+-static int __init rpmh_driver_init(void)
+-{
+-	return platform_driver_register(&rpmh_driver);
+-}
+-arch_initcall(rpmh_driver_init);
++MODULE_LICENSE("GPL v2");
++MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPMH communication driver");

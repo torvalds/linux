@@ -1,8 +1,7 @@
-From f5db87cf98f2894584d7e2f45d42adcb5a9b6275 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Thu, 8 Aug 2019 08:35:46 -0700
-Subject: staging: ion: refactor ion's heap API into
- linux/ion.h
+Subject: staging: ion: refactor ion's heap API into linux/ion.h
 
 Now that we know the APIs needed by system and cma heaps,
 refactor and move all those into linux/ion.h.
@@ -22,20 +21,20 @@ Signed-off-by: Sandeep Patil <sspatil@google.com>
  .../staging/android/ion/heaps/ion_cma_heap.c  |   3 +-
  .../android/ion/heaps/ion_system_heap.c       |   2 +-
  drivers/staging/android/ion/ion.c             |   1 -
- drivers/staging/android/ion/ion.h             | 248 --------------
+ drivers/staging/android/ion/ion.h             | 246 --------------
  drivers/staging/android/ion/ion_buffer.c      |  37 ++-
  drivers/staging/android/ion/ion_heap.c        |  44 ---
  drivers/staging/android/ion/ion_private.h     |   3 +-
  include/linux/ion.h                           | 312 +++++++++++++++++-
  .../staging/android => include}/uapi/ion.h    |  35 +-
- 9 files changed, 367 insertions(+), 318 deletions(-)
+ 9 files changed, 367 insertions(+), 316 deletions(-)
  delete mode 100644 drivers/staging/android/ion/ion.h
  rename {drivers/staging/android => include}/uapi/ion.h (74%)
 
-Index: common/drivers/staging/android/ion/heaps/ion_cma_heap.c
-===================================================================
---- common.orig/drivers/staging/android/ion/heaps/ion_cma_heap.c
-+++ common/drivers/staging/android/ion/heaps/ion_cma_heap.c
+diff --git a/drivers/staging/android/ion/heaps/ion_cma_heap.c b/drivers/staging/android/ion/heaps/ion_cma_heap.c
+index 0872e5d630f8..83f7dce74f18 100644
+--- a/drivers/staging/android/ion/heaps/ion_cma_heap.c
++++ b/drivers/staging/android/ion/heaps/ion_cma_heap.c
 @@ -7,6 +7,7 @@
   */
  
@@ -53,10 +52,10 @@ Index: common/drivers/staging/android/ion/heaps/ion_cma_heap.c
  struct ion_cma_heap {
  	struct ion_heap heap;
  	struct cma *cma;
-Index: common/drivers/staging/android/ion/heaps/ion_system_heap.c
-===================================================================
---- common.orig/drivers/staging/android/ion/heaps/ion_system_heap.c
-+++ common/drivers/staging/android/ion/heaps/ion_system_heap.c
+diff --git a/drivers/staging/android/ion/heaps/ion_system_heap.c b/drivers/staging/android/ion/heaps/ion_system_heap.c
+index 8e26016082d4..afb2a6385705 100644
+--- a/drivers/staging/android/ion/heaps/ion_system_heap.c
++++ b/drivers/staging/android/ion/heaps/ion_system_heap.c
 @@ -9,12 +9,12 @@
  #include <linux/dma-mapping.h>
  #include <linux/err.h>
@@ -71,11 +70,11 @@ Index: common/drivers/staging/android/ion/heaps/ion_system_heap.c
  #include "ion_page_pool.h"
  
  #define NUM_ORDERS ARRAY_SIZE(orders)
-Index: common/drivers/staging/android/ion/ion.c
-===================================================================
---- common.orig/drivers/staging/android/ion/ion.c
-+++ common/drivers/staging/android/ion/ion.c
-@@ -246,7 +246,6 @@ void ion_device_add_heap(struct ion_heap
+diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
+index c80a31da371b..b862bdfeca89 100644
+--- a/drivers/staging/android/ion/ion.c
++++ b/drivers/staging/android/ion/ion.c
+@@ -246,7 +246,6 @@ void ion_device_add_heap(struct ion_heap *heap)
  			pr_err("%s: Failed to register shrinker\n", __func__);
  	}
  
@@ -83,9 +82,10 @@ Index: common/drivers/staging/android/ion/ion.c
  	heap->num_of_buffers = 0;
  	heap->num_of_alloc_bytes = 0;
  	heap->alloc_bytes_wm = 0;
-Index: common/drivers/staging/android/ion/ion.h
-===================================================================
---- common.orig/drivers/staging/android/ion/ion.h
+diff --git a/drivers/staging/android/ion/ion.h b/drivers/staging/android/ion/ion.h
+deleted file mode 100644
+index b5b5412507fd..000000000000
+--- a/drivers/staging/android/ion/ion.h
 +++ /dev/null
 @@ -1,246 +0,0 @@
 -/* SPDX-License-Identifier: GPL-2.0 */
@@ -334,11 +334,11 @@ Index: common/drivers/staging/android/ion/ion.h
 -size_t ion_heap_freelist_size(struct ion_heap *heap);
 -
 -#endif /* _ION_H */
-Index: common/drivers/staging/android/ion/ion_buffer.c
-===================================================================
---- common.orig/drivers/staging/android/ion/ion_buffer.c
-+++ common/drivers/staging/android/ion/ion_buffer.c
-@@ -92,6 +92,41 @@ err2:
+diff --git a/drivers/staging/android/ion/ion_buffer.c b/drivers/staging/android/ion/ion_buffer.c
+index 50c2dbc3ebec..adce2d489f56 100644
+--- a/drivers/staging/android/ion/ion_buffer.c
++++ b/drivers/staging/android/ion/ion_buffer.c
+@@ -92,6 +92,41 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
  	return ERR_PTR(ret);
  }
  
@@ -380,7 +380,7 @@ Index: common/drivers/staging/android/ion/ion_buffer.c
  struct ion_buffer *ion_buffer_alloc(struct ion_device *dev, size_t len,
  				    unsigned int heap_id_mask,
  				    unsigned int flags)
-@@ -147,7 +182,7 @@ int ion_buffer_zero(struct ion_buffer *b
+@@ -147,7 +182,7 @@ int ion_buffer_zero(struct ion_buffer *buffer)
  	else
  		pgprot = pgprot_writecombine(PAGE_KERNEL);
  
@@ -389,11 +389,11 @@ Index: common/drivers/staging/android/ion/ion_buffer.c
  }
  
  void ion_buffer_release(struct ion_buffer *buffer)
-Index: common/drivers/staging/android/ion/ion_heap.c
-===================================================================
---- common.orig/drivers/staging/android/ion/ion_heap.c
-+++ common/drivers/staging/android/ion/ion_heap.c
-@@ -61,18 +61,6 @@ static unsigned long ion_heap_shrink_sca
+diff --git a/drivers/staging/android/ion/ion_heap.c b/drivers/staging/android/ion/ion_heap.c
+index 39eb60e4842e..755548a4382d 100644
+--- a/drivers/staging/android/ion/ion_heap.c
++++ b/drivers/staging/android/ion/ion_heap.c
+@@ -61,18 +61,6 @@ static unsigned long ion_heap_shrink_scan(struct shrinker *shrinker,
  	return freed;
  }
  
@@ -412,7 +412,7 @@ Index: common/drivers/staging/android/ion/ion_heap.c
  static size_t _ion_heap_freelist_drain(struct ion_heap *heap, size_t size,
  				       bool skip_pools)
  {
-@@ -211,38 +199,6 @@ int ion_heap_map_user(struct ion_heap *h
+@@ -211,38 +199,6 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
  	return 0;
  }
  
@@ -451,10 +451,10 @@ Index: common/drivers/staging/android/ion/ion_heap.c
  void ion_heap_freelist_add(struct ion_heap *heap, struct ion_buffer *buffer)
  {
  	spin_lock(&heap->free_lock);
-Index: common/drivers/staging/android/ion/ion_private.h
-===================================================================
---- common.orig/drivers/staging/android/ion/ion_private.h
-+++ common/drivers/staging/android/ion/ion_private.h
+diff --git a/drivers/staging/android/ion/ion_private.h b/drivers/staging/android/ion/ion_private.h
+index 9c8f482cd9d2..ed7ed39d0df1 100644
+--- a/drivers/staging/android/ion/ion_private.h
++++ b/drivers/staging/android/ion/ion_private.h
 @@ -10,6 +10,7 @@
  
  #include <linux/dcache.h>
@@ -472,10 +472,10 @@ Index: common/drivers/staging/android/ion/ion_private.h
  /**
   * struct ion_device - the metadata of the ion device node
   * @dev:		the actual misc device
-Index: common/include/linux/ion.h
-===================================================================
---- common.orig/include/linux/ion.h
-+++ common/include/linux/ion.h
+diff --git a/include/linux/ion.h b/include/linux/ion.h
+index 66a694b875ca..775e948a362c 100644
+--- a/include/linux/ion.h
++++ b/include/linux/ion.h
 @@ -8,9 +8,264 @@
  
  #include <linux/dma-buf.h>
@@ -741,7 +741,7 @@ Index: common/include/linux/ion.h
  
  /**
   * ion_alloc - Allocates an ion buffer of given size from given heap
-@@ -27,12 +282,67 @@ struct dma_buf *ion_alloc(size_t len, un
+@@ -27,12 +282,67 @@ struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
  			  unsigned int flags);
  
  #else
@@ -810,28 +810,20 @@ Index: common/include/linux/ion.h
 -
  #endif /* CONFIG_ION */
  #endif /* _ION_KERNEL_H */
-Index: common/drivers/staging/android/uapi/ion.h
-===================================================================
---- common.orig/drivers/staging/android/uapi/ion.h
-+++ /dev/null
-@@ -1,127 +0,0 @@
--/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
--/*
-- * drivers/staging/android/uapi/ion.h
-- *
-- * Copyright (C) 2011 Google, Inc.
-- */
--
--#ifndef _UAPI_LINUX_ION_H
--#define _UAPI_LINUX_ION_H
--
--#include <linux/ioctl.h>
--#include <linux/types.h>
--
--/**
-- * enum ion_heap_types - list of all possible types of heaps
+diff --git a/drivers/staging/android/uapi/ion.h b/include/uapi/ion.h
+similarity index 74%
+rename from drivers/staging/android/uapi/ion.h
+rename to include/uapi/ion.h
+index 46c93fcb46d6..bfcbc0e70921 100644
+--- a/drivers/staging/android/uapi/ion.h
++++ b/include/uapi/ion.h
+@@ -13,26 +13,25 @@
+ 
+ /**
+  * enum ion_heap_types - list of all possible types of heaps
 - * @ION_HEAP_TYPE_SYSTEM:	 memory allocated via vmalloc
-- * @ION_HEAP_TYPE_SYSTEM_CONTIG: memory allocated via kmalloc
++ * @ION_HEAP_TYPE_SYSTEM:        memory allocated via vmalloc
+  * @ION_HEAP_TYPE_SYSTEM_CONTIG: memory allocated via kmalloc
 - * @ION_HEAP_TYPE_CARVEOUT:	 memory allocated from a prereserved
 - *				 carveout heap, allocations are physically
 - *				 contiguous
@@ -839,131 +831,6 @@ Index: common/drivers/staging/android/uapi/ion.h
 - * @ION_NUM_HEAPS:		 helper for iterating over heaps, a bit mask
 - *				 is used to identify the heaps, so only 32
 - *				 total heap types are supported
-- */
--enum ion_heap_type {
--	ION_HEAP_TYPE_SYSTEM,
--	ION_HEAP_TYPE_SYSTEM_CONTIG,
--	ION_HEAP_TYPE_CARVEOUT,
--	ION_HEAP_TYPE_CHUNK,
--	ION_HEAP_TYPE_DMA,
--	ION_HEAP_TYPE_CUSTOM, /*
--			       * must be last so device specific heaps always
--			       * are at the end of this enum
--			       */
--};
--
--#define ION_NUM_HEAP_IDS		(sizeof(unsigned int) * 8)
--
--/**
-- * allocation flags - the lower 16 bits are used by core ion, the upper 16
-- * bits are reserved for use by the heaps themselves.
-- */
--
--/*
-- * mappings of this buffer should be cached, ion will do cache maintenance
-- * when the buffer is mapped for dma
-- */
--#define ION_FLAG_CACHED 1
--
--/**
-- * DOC: Ion Userspace API
-- *
-- * create a client by opening /dev/ion
-- * most operations handled via following ioctls
-- *
-- */
--
--/**
-- * struct ion_allocation_data - metadata passed from userspace for allocations
-- * @len:		size of the allocation
-- * @heap_id_mask:	mask of heap ids to allocate from
-- * @flags:		flags passed to heap
-- * @handle:		pointer that will be populated with a cookie to use to
-- *			refer to this allocation
-- *
-- * Provided by userspace as an argument to the ioctl
-- */
--struct ion_allocation_data {
--	__u64 len;
--	__u32 heap_id_mask;
--	__u32 flags;
--	__u32 fd;
--	__u32 unused;
--};
--
--#define MAX_HEAP_NAME			32
--
--/**
-- * struct ion_heap_data - data about a heap
-- * @name - first 32 characters of the heap name
-- * @type - heap type
-- * @heap_id - heap id for the heap
-- */
--struct ion_heap_data {
--	char name[MAX_HEAP_NAME];
--	__u32 type;
--	__u32 heap_id;
--	__u32 reserved0;
--	__u32 reserved1;
--	__u32 reserved2;
--};
--
--/**
-- * struct ion_heap_query - collection of data about all heaps
-- * @cnt - total number of heaps to be copied
-- * @heaps - buffer to copy heap data
-- */
--struct ion_heap_query {
--	__u32 cnt; /* Total number of heaps to be copied */
--	__u32 reserved0; /* align to 64bits */
--	__u64 heaps; /* buffer to be populated */
--	__u32 reserved1;
--	__u32 reserved2;
--};
--
--#define ION_IOC_MAGIC		'I'
--
--/**
-- * DOC: ION_IOC_ALLOC - allocate memory
-- *
-- * Takes an ion_allocation_data struct and returns it with the handle field
-- * populated with the opaque handle for the allocation.
-- */
--#define ION_IOC_ALLOC		_IOWR(ION_IOC_MAGIC, 0, \
--				      struct ion_allocation_data)
--
--/**
-- * DOC: ION_IOC_HEAP_QUERY - information about available heaps
-- *
-- * Takes an ion_heap_query structure and populates information about
-- * available Ion heaps.
-- */
--#define ION_IOC_HEAP_QUERY     _IOWR(ION_IOC_MAGIC, 8, \
--					struct ion_heap_query)
--
--#endif /* _UAPI_LINUX_ION_H */
-Index: common/include/uapi/ion.h
-===================================================================
---- /dev/null
-+++ common/include/uapi/ion.h
-@@ -0,0 +1,126 @@
-+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-+/*
-+ * drivers/staging/android/uapi/ion.h
-+ *
-+ * Copyright (C) 2011 Google, Inc.
-+ */
-+
-+#ifndef _UAPI_LINUX_ION_H
-+#define _UAPI_LINUX_ION_H
-+
-+#include <linux/ioctl.h>
-+#include <linux/types.h>
-+
-+/**
-+ * enum ion_heap_types - list of all possible types of heaps
-+ * @ION_HEAP_TYPE_SYSTEM:        memory allocated via vmalloc
-+ * @ION_HEAP_TYPE_SYSTEM_CONTIG: memory allocated via kmalloc
 + * @ION_HEAP_TYPE_CARVEOUT:      memory allocated from a prereserved
 + *                               carveout heap, allocations are physically
 + *                               contiguous
@@ -973,103 +840,32 @@ Index: common/include/uapi/ion.h
 + * @ION_NUM_HEAPS_IDS:           helper for iterating over heaps, a bit mask
 + *                               is used to identify the heaps, so only 32
 + *                               total heap types are supported
-+ */
-+enum ion_heap_type {
+  */
+ enum ion_heap_type {
+-	ION_HEAP_TYPE_SYSTEM,
+-	ION_HEAP_TYPE_SYSTEM_CONTIG,
+-	ION_HEAP_TYPE_CARVEOUT,
+-	ION_HEAP_TYPE_CHUNK,
+-	ION_HEAP_TYPE_DMA,
+-	ION_HEAP_TYPE_CUSTOM, /*
+-			       * must be last so device specific heaps always
+-			       * are at the end of this enum
+-			       */
 +	ION_HEAP_TYPE_SYSTEM = (1 << 0),
 +	ION_HEAP_TYPE_SYSTEM_CONTIG = (1 << 1),
 +	ION_HEAP_TYPE_CARVEOUT = (1 << 2),
 +	ION_HEAP_TYPE_CHUNK = (1 << 3),
 +	ION_HEAP_TYPE_DMA = (1 << 4),
 +	ION_HEAP_TYPE_MAX = (1 << 15),
-+};
-+
-+#define ION_NUM_HEAP_IDS		(sizeof(unsigned int) * 8)
-+
-+/**
-+ * allocation flags - the lower 16 bits are used by core ion, the upper 16
-+ * bits are reserved for use by the heaps themselves.
-+ */
-+
-+/*
-+ * mappings of this buffer should be cached, ion will do cache maintenance
-+ * when the buffer is mapped for dma
-+ */
+ };
+ 
+ #define ION_NUM_HEAP_IDS		(sizeof(unsigned int) * 8)
+@@ -46,7 +45,7 @@ enum ion_heap_type {
+  * mappings of this buffer should be cached, ion will do cache maintenance
+  * when the buffer is mapped for dma
+  */
+-#define ION_FLAG_CACHED 1
 +#define ION_FLAG_CACHED		1
-+
-+/**
-+ * DOC: Ion Userspace API
-+ *
-+ * create a client by opening /dev/ion
-+ * most operations handled via following ioctls
-+ *
-+ */
-+
-+/**
-+ * struct ion_allocation_data - metadata passed from userspace for allocations
-+ * @len:		size of the allocation
-+ * @heap_id_mask:	mask of heap ids to allocate from
-+ * @flags:		flags passed to heap
-+ * @handle:		pointer that will be populated with a cookie to use to
-+ *			refer to this allocation
-+ *
-+ * Provided by userspace as an argument to the ioctl
-+ */
-+struct ion_allocation_data {
-+	__u64 len;
-+	__u32 heap_id_mask;
-+	__u32 flags;
-+	__u32 fd;
-+	__u32 unused;
-+};
-+
-+#define MAX_HEAP_NAME			32
-+
-+/**
-+ * struct ion_heap_data - data about a heap
-+ * @name - first 32 characters of the heap name
-+ * @type - heap type
-+ * @heap_id - heap id for the heap
-+ */
-+struct ion_heap_data {
-+	char name[MAX_HEAP_NAME];
-+	__u32 type;
-+	__u32 heap_id;
-+	__u32 reserved0;
-+	__u32 reserved1;
-+	__u32 reserved2;
-+};
-+
-+/**
-+ * struct ion_heap_query - collection of data about all heaps
-+ * @cnt - total number of heaps to be copied
-+ * @heaps - buffer to copy heap data
-+ */
-+struct ion_heap_query {
-+	__u32 cnt; /* Total number of heaps to be copied */
-+	__u32 reserved0; /* align to 64bits */
-+	__u64 heaps; /* buffer to be populated */
-+	__u32 reserved1;
-+	__u32 reserved2;
-+};
-+
-+#define ION_IOC_MAGIC		'I'
-+
-+/**
-+ * DOC: ION_IOC_ALLOC - allocate memory
-+ *
-+ * Takes an ion_allocation_data struct and returns it with the handle field
-+ * populated with the opaque handle for the allocation.
-+ */
-+#define ION_IOC_ALLOC		_IOWR(ION_IOC_MAGIC, 0, \
-+				      struct ion_allocation_data)
-+
-+/**
-+ * DOC: ION_IOC_HEAP_QUERY - information about available heaps
-+ *
-+ * Takes an ion_heap_query structure and populates information about
-+ * available Ion heaps.
-+ */
-+#define ION_IOC_HEAP_QUERY     _IOWR(ION_IOC_MAGIC, 8, \
-+					struct ion_heap_query)
-+
-+#endif /* _UAPI_LINUX_ION_H */
+ 
+ /**
+  * DOC: Ion Userspace API

@@ -1,0 +1,139 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Connor O'Brien <connoro@google.com>
+Date: Mon, 22 Jan 2018 18:28:08 -0800
+Subject: ANDROID: cpufreq: Add time_in_state to /proc/uid directories
+
+Add per-uid files that report the data in binary format rather than
+text, to allow faster reading & parsing by userspace.
+
+Signed-off-by: Connor O'Brien <connoro@google.com>
+Bug: 72339335
+Bug: 127641090
+Test: compare values to those reported in /proc/uid_time_in_state
+Change-Id: I463039ea7f17b842be4c70024fe772539fe2ce02
+---
+ drivers/cpufreq/cpufreq_times.c | 49 +++++++++++++++++++++++++++++++++
+ fs/proc/uid.c                   | 16 ++++++++++-
+ include/linux/cpufreq_times.h   |  1 +
+ 3 files changed, 65 insertions(+), 1 deletion(-)
+
+diff --git a/drivers/cpufreq/cpufreq_times.c b/drivers/cpufreq/cpufreq_times.c
+index 15b52e1f82fc..a43eeee30e8e 100644
+--- a/drivers/cpufreq/cpufreq_times.c
++++ b/drivers/cpufreq/cpufreq_times.c
+@@ -58,6 +58,19 @@ static struct cpu_freqs *all_freqs[NR_CPUS];
+ 
+ static unsigned int next_offset;
+ 
++
++/* Caller must hold rcu_read_lock() */
++static struct uid_entry *find_uid_entry_rcu(uid_t uid)
++{
++	struct uid_entry *uid_entry;
++
++	hash_for_each_possible_rcu(uid_hash_table, uid_entry, hash, uid) {
++		if (uid_entry->uid == uid)
++			return uid_entry;
++	}
++	return NULL;
++}
++
+ /* Caller must hold uid lock */
+ static struct uid_entry *find_uid_entry_locked(uid_t uid)
+ {
+@@ -127,6 +140,36 @@ static bool freq_index_invalid(unsigned int index)
+ 	return true;
+ }
+ 
++static int single_uid_time_in_state_show(struct seq_file *m, void *ptr)
++{
++	struct uid_entry *uid_entry;
++	unsigned int i;
++	u64 time;
++	uid_t uid = from_kuid_munged(current_user_ns(), *(kuid_t *)m->private);
++
++	if (uid == overflowuid)
++		return -EINVAL;
++
++	rcu_read_lock();
++
++	uid_entry = find_uid_entry_rcu(uid);
++	if (!uid_entry) {
++		rcu_read_unlock();
++		return 0;
++	}
++
++	for (i = 0; i < uid_entry->max_state; ++i) {
++		if (freq_index_invalid(i))
++			continue;
++		time = nsec_to_clock_t(uid_entry->time_in_state[i]);
++		seq_write(m, &time, sizeof(time));
++	}
++
++	rcu_read_unlock();
++
++	return 0;
++}
++
+ static void *uid_seq_start(struct seq_file *seq, loff_t *pos)
+ {
+ 	if (*pos >= HASH_SIZE(uid_hash_table))
+@@ -397,6 +440,12 @@ static int uid_time_in_state_open(struct inode *inode, struct file *file)
+ 	return seq_open(file, &uid_time_in_state_seq_ops);
+ }
+ 
++int single_uid_time_in_state_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, single_uid_time_in_state_show,
++			&(inode->i_uid));
++}
++
+ static const struct file_operations uid_time_in_state_fops = {
+ 	.open		= uid_time_in_state_open,
+ 	.read		= seq_read,
+diff --git a/fs/proc/uid.c b/fs/proc/uid.c
+index ae720b93a0ed..311717ea199a 100644
+--- a/fs/proc/uid.c
++++ b/fs/proc/uid.c
+@@ -2,6 +2,7 @@
+  * /proc/uid support
+  */
+ 
++#include <linux/cpufreq_times.h>
+ #include <linux/fs.h>
+ #include <linux/hashtable.h>
+ #include <linux/init.h>
+@@ -82,7 +83,20 @@ struct uid_entry {
+ 	.fop	= FOP,					\
+ }
+ 
+-static const struct uid_entry uid_base_stuff[] = {};
++#ifdef CONFIG_CPU_FREQ_TIMES
++static const struct file_operations proc_uid_time_in_state_operations = {
++	.open		= single_uid_time_in_state_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= single_release,
++};
++#endif
++
++static const struct uid_entry uid_base_stuff[] = {
++#ifdef CONFIG_CPU_FREQ_TIMES
++	NOD("time_in_state", 0444, NULL, &proc_uid_time_in_state_operations),
++#endif
++};
+ 
+ static const struct inode_operations proc_uid_def_inode_operations = {
+ 	.setattr	= proc_setattr,
+diff --git a/include/linux/cpufreq_times.h b/include/linux/cpufreq_times.h
+index a03157f649a4..757bf0cb6070 100644
+--- a/include/linux/cpufreq_times.h
++++ b/include/linux/cpufreq_times.h
+@@ -29,6 +29,7 @@ void cpufreq_acct_update_power(struct task_struct *p, u64 cputime);
+ void cpufreq_times_create_policy(struct cpufreq_policy *policy);
+ void cpufreq_times_record_transition(struct cpufreq_freqs *freq);
+ void cpufreq_task_times_remove_uids(uid_t uid_start, uid_t uid_end);
++int single_uid_time_in_state_open(struct inode *inode, struct file *file);
+ #else
+ static inline void cpufreq_task_times_init(struct task_struct *p) {}
+ static inline void cpufreq_task_times_alloc(struct task_struct *p) {}

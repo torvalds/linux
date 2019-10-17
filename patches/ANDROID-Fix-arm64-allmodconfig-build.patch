@@ -1,4 +1,4 @@
-From 099f0261d93727c97aa0dea2ed22bedf991fe574 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Quentin Perret <qperret@google.com>
 Date: Tue, 24 Sep 2019 17:28:02 +0100
 Subject: ANDROID: Fix arm64 allmodconfig build
@@ -32,6 +32,3 @@ index 6e0404b8de47..deaa8f3d5a69 100644
      (cd ${OUT_DIR} && \
       make O=${OUT_DIR} $archsubarch CC=${CC} CROSS_COMPILE=${CROSS_COMPILE} olddefconfig)
  }
--- 
-2.23.0.444.g18eeb5a265-goog
-

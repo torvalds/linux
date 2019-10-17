@@ -1,0 +1,170 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: "Isaac J. Manjarres" <isaacm@codeaurora.org>
+Date: Wed, 19 Jun 2019 15:37:11 -0700
+Subject: ANDROID: dma-buf: Add support for partial cache maintenance
+
+In order to improve performance, allow dma-buf clients to
+apply cache maintenance to only a subset of a dma-buf.
+
+Kernel clients will be able to use the dma_buf_begin_cpu_access_partial
+and dma_buf_end_cpu_access_partial functions to only apply cache
+maintenance to a range within the dma-buf.
+
+Bug: 133508579
+Test: ion-unit-tests
+Change-Id: Icce61fc21b1542f5248daea34f713184449a62c3
+Signed-off-by: Isaac J. Manjarres <isaacm@codeaurora.org>
+Signed-off-by: Sandeep Patil <sspatil@google.com>
+---
+ drivers/dma-buf/dma-buf.c | 40 +++++++++++++++++++++++++
+ include/linux/dma-buf.h   | 63 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 103 insertions(+)
+
+diff --git a/drivers/dma-buf/dma-buf.c b/drivers/dma-buf/dma-buf.c
+index 433d91d710e4..532a854be1b3 100644
+--- a/drivers/dma-buf/dma-buf.c
++++ b/drivers/dma-buf/dma-buf.c
+@@ -957,6 +957,30 @@ int dma_buf_begin_cpu_access(struct dma_buf *dmabuf,
+ }
+ EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access);
+ 
++int dma_buf_begin_cpu_access_partial(struct dma_buf *dmabuf,
++				     enum dma_data_direction direction,
++				     unsigned int offset, unsigned int len)
++{
++	int ret = 0;
++
++	if (WARN_ON(!dmabuf))
++		return -EINVAL;
++
++	if (dmabuf->ops->begin_cpu_access_partial)
++		ret = dmabuf->ops->begin_cpu_access_partial(dmabuf, direction,
++							    offset, len);
++
++	/* Ensure that all fences are waited upon - but we first allow
++	 * the native handler the chance to do so more efficiently if it
++	 * chooses. A double invocation here will be reasonably cheap no-op.
++	 */
++	if (ret == 0)
++		ret = __dma_buf_begin_cpu_access(dmabuf, direction);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(dma_buf_begin_cpu_access_partial);
++
+ /**
+  * dma_buf_end_cpu_access - Must be called after accessing a dma_buf from the
+  * cpu in the kernel context. Calls end_cpu_access to allow exporter-specific
+@@ -983,6 +1007,22 @@ int dma_buf_end_cpu_access(struct dma_buf *dmabuf,
+ }
+ EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access);
+ 
++int dma_buf_end_cpu_access_partial(struct dma_buf *dmabuf,
++				   enum dma_data_direction direction,
++				   unsigned int offset, unsigned int len)
++{
++	int ret = 0;
++
++	WARN_ON(!dmabuf);
++
++	if (dmabuf->ops->end_cpu_access_partial)
++		ret = dmabuf->ops->end_cpu_access_partial(dmabuf, direction,
++							  offset, len);
++
++	return ret;
++}
++EXPORT_SYMBOL_GPL(dma_buf_end_cpu_access_partial);
++
+ /**
+  * dma_buf_kmap - Map a page of the buffer object into kernel address space. The
+  * same restrictions as for kmap and friends apply.
+diff --git a/include/linux/dma-buf.h b/include/linux/dma-buf.h
+index ec212cb27fdc..b1457e6b76d8 100644
+--- a/include/linux/dma-buf.h
++++ b/include/linux/dma-buf.h
+@@ -178,6 +178,41 @@ struct dma_buf_ops {
+ 	 */
+ 	int (*begin_cpu_access)(struct dma_buf *, enum dma_data_direction);
+ 
++	/**
++	 * @begin_cpu_access_partial:
++	 *
++	 * This is called from dma_buf_begin_cpu_access_partial() and allows the
++	 * exporter to ensure that the memory specified in the range is
++	 * available for cpu access - the exporter might need to allocate or
++	 * swap-in and pin the backing storage.
++	 * The exporter also needs to ensure that cpu access is
++	 * coherent for the access direction. The direction can be used by the
++	 * exporter to optimize the cache flushing, i.e. access with a different
++	 * direction (read instead of write) might return stale or even bogus
++	 * data (e.g. when the exporter needs to copy the data to temporary
++	 * storage).
++	 *
++	 * This callback is optional.
++	 *
++	 * FIXME: This is both called through the DMA_BUF_IOCTL_SYNC command
++	 * from userspace (where storage shouldn't be pinned to avoid handing
++	 * de-factor mlock rights to userspace) and for the kernel-internal
++	 * users of the various kmap interfaces, where the backing storage must
++	 * be pinned to guarantee that the atomic kmap calls can succeed. Since
++	 * there's no in-kernel users of the kmap interfaces yet this isn't a
++	 * real problem.
++	 *
++	 * Returns:
++	 *
++	 * 0 on success or a negative error code on failure. This can for
++	 * example fail when the backing storage can't be allocated. Can also
++	 * return -ERESTARTSYS or -EINTR when the call has been interrupted and
++	 * needs to be restarted.
++	 */
++	int (*begin_cpu_access_partial)(struct dma_buf *dmabuf,
++					enum dma_data_direction,
++					unsigned int offset, unsigned int len);
++
+ 	/**
+ 	 * @end_cpu_access:
+ 	 *
+@@ -197,6 +232,28 @@ struct dma_buf_ops {
+ 	 */
+ 	int (*end_cpu_access)(struct dma_buf *, enum dma_data_direction);
+ 
++	/**
++	 * @end_cpu_access_partial:
++	 *
++	 * This is called from dma_buf_end_cpu_access_partial() when the
++	 * importer is done accessing the CPU. The exporter can use to limit
++	 * cache flushing to only the range specefied and to unpin any
++	 * resources pinned in @begin_cpu_access_umapped.
++	 * The result of any dma_buf kmap calls after end_cpu_access_partial is
++	 * undefined.
++	 *
++	 * This callback is optional.
++	 *
++	 * Returns:
++	 *
++	 * 0 on success or a negative error code on failure. Can return
++	 * -ERESTARTSYS or -EINTR when the call has been interrupted and needs
++	 * to be restarted.
++	 */
++	int (*end_cpu_access_partial)(struct dma_buf *dmabuf,
++				      enum dma_data_direction,
++				      unsigned int offset, unsigned int len);
++
+ 	/**
+ 	 * @mmap:
+ 	 *
+@@ -411,8 +468,14 @@ void dma_buf_unmap_attachment(struct dma_buf_attachment *, struct sg_table *,
+ 				enum dma_data_direction);
+ int dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
+ 			     enum dma_data_direction dir);
++int dma_buf_begin_cpu_access_partial(struct dma_buf *dma_buf,
++				     enum dma_data_direction dir,
++				     unsigned int offset, unsigned int len);
+ int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
+ 			   enum dma_data_direction dir);
++int dma_buf_end_cpu_access_partial(struct dma_buf *dma_buf,
++				     enum dma_data_direction dir,
++				     unsigned int offset, unsigned int len);
+ void *dma_buf_kmap(struct dma_buf *, unsigned long);
+ void dma_buf_kunmap(struct dma_buf *, unsigned long, void *);
+ 

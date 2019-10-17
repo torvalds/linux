@@ -1,4 +1,4 @@
-From 33a5e52fa9dec25bc57a99883d6a675f36cc0543 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Thu, 20 Jun 2019 18:04:53 -0700
 Subject: ANDROID: gki_defconfig: workaround to enable configs
@@ -22,14 +22,13 @@ Bug: 135247530
 Change-Id: If348f54fc11ab2c35ed2241d50327d8ce3b0b72e
 Signed-off-by: Tri Vo <trong@google.com>
 ---
- abi_gki_aarch64.xml              | 221872 ++++++++++++++--------------
- arch/arm64/configs/gki_defconfig |      4 +-
- 2 files changed, 110333 insertions(+), 111543 deletions(-)
+ arch/arm64/configs/gki_defconfig | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
 
-Index: common/arch/arm64/configs/gki_defconfig
-===================================================================
---- common.orig/arch/arm64/configs/gki_defconfig
-+++ common/arch/arm64/configs/gki_defconfig
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index 3afe7f8d8310..ec0566116066 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
 @@ -276,12 +276,13 @@ CONFIG_HW_RANDOM_VIRTIO=y
  # CONFIG_I2C_HELPER_AUTO is not set
  CONFIG_SPMI=y

@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ram Muthiah <rammuthiah@google.com>
+Date: Wed, 3 Jul 2019 14:31:23 -0700
+Subject: ANDROID: adding usb HCD dummy config to permit usb write ops on init
+
+Bug: 136021903
+Change-Id: I45ae272fd7243e290f0701a7f29722788ce0cd5a
+Signed-off-by: Ram Muthiah <rammuthiah@google.com>
+---
+ arch/arm64/configs/gki_defconfig | 1 +
+ arch/x86/configs/gki_defconfig   | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index ec0566116066..7c66f40c9739 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -314,6 +314,7 @@ CONFIG_HID_MULTITOUCH=y
+ CONFIG_USB_HIDDEV=y
+ CONFIG_USB=y
+ CONFIG_USB_GADGET=y
++CONFIG_USB_DUMMY_HCD=y
+ CONFIG_USB_CONFIGFS=y
+ CONFIG_USB_CONFIGFS_UEVENT=y
+ CONFIG_USB_CONFIGFS_F_FS=y
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index c0993920b94d..65c67797fb74 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -267,6 +267,7 @@ CONFIG_HID_MULTITOUCH=y
+ CONFIG_USB_HIDDEV=y
+ CONFIG_USB=y
+ CONFIG_USB_GADGET=y
++CONFIG_USB_DUMMY_HCD=y
+ CONFIG_USB_CONFIGFS=y
+ CONFIG_USB_CONFIGFS_UEVENT=y
+ CONFIG_USB_CONFIGFS_F_FS=y

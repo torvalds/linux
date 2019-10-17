@@ -1,4 +1,4 @@
-From 48f01a0b664488b5245fd5a5d40d39b6898d65b1 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Connor O'Brien <connoro@google.com>
 Date: Mon, 16 Oct 2017 10:30:24 -0700
 Subject: ANDROID: proc: Add /proc/uid directory
@@ -33,7 +33,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  create mode 100644 fs/proc/uid.c
 
 diff --git a/fs/proc/Kconfig b/fs/proc/Kconfig
-index cb5629bd5fffe..313ae27bb674d 100644
+index cb5629bd5fff..313ae27bb674 100644
 --- a/fs/proc/Kconfig
 +++ b/fs/proc/Kconfig
 @@ -103,3 +103,9 @@ config PROC_CHILDREN
@@ -47,7 +47,7 @@ index cb5629bd5fffe..313ae27bb674d 100644
 +	help
 +	Provides aggregated per-uid information under /proc/uid.
 diff --git a/fs/proc/Makefile b/fs/proc/Makefile
-index ead487e805108..3f849ca0edcea 100644
+index ead487e80510..3f849ca0edce 100644
 --- a/fs/proc/Makefile
 +++ b/fs/proc/Makefile
 @@ -27,6 +27,7 @@ proc-y	+= softirqs.o
@@ -59,7 +59,7 @@ index ead487e805108..3f849ca0edcea 100644
  proc-$(CONFIG_NET)		+= proc_net.o
  proc-$(CONFIG_PROC_KCORE)	+= kcore.o
 diff --git a/fs/proc/internal.h b/fs/proc/internal.h
-index cd0c8d5ce9a13..95846552ef245 100644
+index cd0c8d5ce9a1..95846552ef24 100644
 --- a/fs/proc/internal.h
 +++ b/fs/proc/internal.h
 @@ -253,6 +253,15 @@ static inline void proc_sys_evict_inode(struct  inode *inode,
@@ -79,10 +79,10 @@ index cd0c8d5ce9a13..95846552ef245 100644
   * proc_tty.c
   */
 diff --git a/fs/proc/root.c b/fs/proc/root.c
-index 33f72d1b92cca..132a86b3bcf99 100644
+index 0b7c8dffc9ae..485237e7cce1 100644
 --- a/fs/proc/root.c
 +++ b/fs/proc/root.c
-@@ -222,6 +222,7 @@ void __init proc_root_init(void)
+@@ -221,6 +221,7 @@ void __init proc_root_init(void)
  	proc_symlink("mounts", NULL, "self/mounts");
  
  	proc_net_init();
@@ -92,7 +92,7 @@ index 33f72d1b92cca..132a86b3bcf99 100644
  	proc_create_mount_point("fs/nfsd"); /* somewhere for the nfsd filesystem to be mounted */
 diff --git a/fs/proc/uid.c b/fs/proc/uid.c
 new file mode 100644
-index 0000000000000..ae720b93a0ed2
+index 000000000000..ae720b93a0ed
 --- /dev/null
 +++ b/fs/proc/uid.c
 @@ -0,0 +1,290 @@
@@ -387,7 +387,7 @@ index 0000000000000..ae720b93a0ed2
 +	return 0;
 +}
 diff --git a/include/linux/proc_fs.h b/include/linux/proc_fs.h
-index a705aa2d03f91..35e83f86e51ad 100644
+index a705aa2d03f9..35e83f86e51a 100644
 --- a/include/linux/proc_fs.h
 +++ b/include/linux/proc_fs.h
 @@ -131,6 +131,12 @@ static inline struct pid *tgid_pidfd_to_pid(const struct file *file)
@@ -404,7 +404,7 @@ index a705aa2d03f91..35e83f86e51ad 100644
  
  static inline struct proc_dir_entry *proc_net_mkdir(
 diff --git a/kernel/user.c b/kernel/user.c
-index 5235d7f49982e..a32a8a59a13c5 100644
+index 5235d7f49982..a32a8a59a13c 100644
 --- a/kernel/user.c
 +++ b/kernel/user.c
 @@ -18,6 +18,7 @@
@@ -431,6 +431,3 @@ index 5235d7f49982e..a32a8a59a13c5 100644
  
  	return 0;
  }
--- 
-2.23.0.444.g18eeb5a265-goog
-

@@ -1,4 +1,4 @@
-From 5ecd1b81d6ad3e72af67249845129ffe681c5017 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Mohan Srinivasan <srmohan@google.com>
 Date: Wed, 14 Dec 2016 16:39:51 -0800
 Subject: ANDROID: fs: FS tracepoints to track IO.
@@ -32,10 +32,10 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  create mode 100644 include/trace/events/android_fs.h
  create mode 100644 include/trace/events/android_fs_template.h
 
-Index: common/fs/ext4/inline.c
-===================================================================
---- common.orig/fs/ext4/inline.c
-+++ common/fs/ext4/inline.c
+diff --git a/fs/ext4/inline.c b/fs/ext4/inline.c
+index 2fec62d764fa..2f187da48c83 100644
+--- a/fs/ext4/inline.c
++++ b/fs/ext4/inline.c
 @@ -12,6 +12,7 @@
  #include "ext4.h"
  #include "xattr.h"
@@ -44,7 +44,7 @@ Index: common/fs/ext4/inline.c
  
  #define EXT4_XATTR_SYSTEM_DATA	"data"
  #define EXT4_MIN_INLINE_DATA_SIZE	((sizeof(__le32) * EXT4_N_BLOCKS))
-@@ -505,6 +506,17 @@ int ext4_readpage_inline(struct inode *i
+@@ -505,6 +506,17 @@ int ext4_readpage_inline(struct inode *inode, struct page *page)
  		return -EAGAIN;
  	}
  
@@ -62,7 +62,7 @@ Index: common/fs/ext4/inline.c
  	/*
  	 * Current inline data can only exist in the 1st page,
  	 * So for all the other pages, just set them uptodate.
-@@ -516,6 +528,8 @@ int ext4_readpage_inline(struct inode *i
+@@ -516,6 +528,8 @@ int ext4_readpage_inline(struct inode *inode, struct page *page)
  		SetPageUptodate(page);
  	}
  
@@ -71,10 +71,10 @@ Index: common/fs/ext4/inline.c
  	up_read(&EXT4_I(inode)->xattr_sem);
  
  	unlock_page(page);
-Index: common/fs/ext4/inode.c
-===================================================================
---- common.orig/fs/ext4/inode.c
-+++ common/fs/ext4/inode.c
+diff --git a/fs/ext4/inode.c b/fs/ext4/inode.c
+index 516faa280ced..ac409eb63100 100644
+--- a/fs/ext4/inode.c
++++ b/fs/ext4/inode.c
 @@ -47,6 +47,7 @@
  #include "truncate.h"
  
@@ -83,7 +83,7 @@ Index: common/fs/ext4/inode.c
  
  #define MPAGE_DA_EXTENT_TAIL 0x01
  
-@@ -1269,6 +1270,16 @@ static int ext4_write_begin(struct file
+@@ -1269,6 +1270,16 @@ static int ext4_write_begin(struct file *file, struct address_space *mapping,
  	if (unlikely(ext4_forced_shutdown(EXT4_SB(inode->i_sb))))
  		return -EIO;
  
@@ -100,7 +100,7 @@ Index: common/fs/ext4/inode.c
  	trace_ext4_write_begin(inode, pos, len, flags);
  	/*
  	 * Reserve one block more for addition to orphan list in case
-@@ -1411,6 +1422,7 @@ static int ext4_write_end(struct file *f
+@@ -1411,6 +1422,7 @@ static int ext4_write_end(struct file *file,
  	int inline_data = ext4_has_inline_data(inode);
  	bool verity = ext4_verity_in_progress(inode);
  
@@ -108,7 +108,7 @@ Index: common/fs/ext4/inode.c
  	trace_ext4_write_end(inode, pos, len, copied);
  	if (inline_data) {
  		ret = ext4_write_inline_data_end(inode, pos, len,
-@@ -1521,6 +1533,7 @@ static int ext4_journalled_write_end(str
+@@ -1521,6 +1533,7 @@ static int ext4_journalled_write_end(struct file *file,
  	int inline_data = ext4_has_inline_data(inode);
  	bool verity = ext4_verity_in_progress(inode);
  
@@ -116,7 +116,7 @@ Index: common/fs/ext4/inode.c
  	trace_ext4_journalled_write_end(inode, pos, len, copied);
  	from = pos & (PAGE_SIZE - 1);
  	to = from + len;
-@@ -3040,6 +3053,16 @@ static int ext4_da_write_begin(struct fi
+@@ -3040,6 +3053,16 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
  					len, flags, pagep, fsdata);
  	}
  	*fsdata = (void *)0;
@@ -133,7 +133,7 @@ Index: common/fs/ext4/inode.c
  	trace_ext4_da_write_begin(inode, pos, len, flags);
  
  	if (ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {
-@@ -3158,6 +3181,7 @@ static int ext4_da_write_end(struct file
+@@ -3158,6 +3181,7 @@ static int ext4_da_write_end(struct file *file,
  		return ext4_write_end(file, mapping, pos,
  				      len, copied, page, fsdata);
  
@@ -141,7 +141,7 @@ Index: common/fs/ext4/inode.c
  	trace_ext4_da_write_end(inode, pos, len, copied);
  	start = pos & (PAGE_SIZE - 1);
  	end = start + copied - 1;
-@@ -3846,6 +3870,7 @@ static ssize_t ext4_direct_IO(struct kio
+@@ -3846,6 +3870,7 @@ static ssize_t ext4_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
  	size_t count = iov_iter_count(iter);
  	loff_t offset = iocb->ki_pos;
  	ssize_t ret;
@@ -149,7 +149,7 @@ Index: common/fs/ext4/inode.c
  
  #ifdef CONFIG_FS_ENCRYPTION
  	if (IS_ENCRYPTED(inode) && S_ISREG(inode->i_mode))
-@@ -3864,12 +3889,42 @@ static ssize_t ext4_direct_IO(struct kio
+@@ -3864,12 +3889,42 @@ static ssize_t ext4_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
  	if (ext4_has_inline_data(inode))
  		return 0;
  
@@ -192,10 +192,10 @@ Index: common/fs/ext4/inode.c
  	return ret;
  }
  
-Index: common/fs/ext4/readpage.c
-===================================================================
---- common.orig/fs/ext4/readpage.c
-+++ common/fs/ext4/readpage.c
+diff --git a/fs/ext4/readpage.c b/fs/ext4/readpage.c
+index a30b203fa461..0d88b82a5929 100644
+--- a/fs/ext4/readpage.c
++++ b/fs/ext4/readpage.c
 @@ -46,6 +46,7 @@
  #include <linux/cleancache.h>
  
@@ -204,7 +204,7 @@ Index: common/fs/ext4/readpage.c
  
  #define NUM_PREALLOC_POST_READ_CTXS	128
  
-@@ -146,6 +147,17 @@ static bool bio_post_read_required(struc
+@@ -146,6 +147,17 @@ static bool bio_post_read_required(struct bio *bio)
  	return bio->bi_private && !bio->bi_status;
  }
  
@@ -222,7 +222,7 @@ Index: common/fs/ext4/readpage.c
  /*
   * I/O completion handler for multipage BIOs.
   *
-@@ -160,6 +172,9 @@ static bool bio_post_read_required(struc
+@@ -160,6 +172,9 @@ static bool bio_post_read_required(struct bio *bio)
   */
  static void mpage_end_io(struct bio *bio)
  {
@@ -232,7 +232,7 @@ Index: common/fs/ext4/readpage.c
  	if (bio_post_read_required(bio)) {
  		struct bio_post_read_ctx *ctx = bio->bi_private;
  
-@@ -209,6 +224,30 @@ static inline loff_t ext4_readpage_limit
+@@ -209,6 +224,30 @@ static inline loff_t ext4_readpage_limit(struct inode *inode)
  	return i_size_read(inode);
  }
  
@@ -263,7 +263,7 @@ Index: common/fs/ext4/readpage.c
  int ext4_mpage_readpages(struct address_space *mapping,
  			 struct list_head *pages, struct page *page,
  			 unsigned nr_pages, bool is_readahead)
-@@ -354,7 +393,7 @@ int ext4_mpage_readpages(struct address_
+@@ -354,7 +393,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
  		 */
  		if (bio && (last_block_in_bio != blocks[0] - 1)) {
  		submit_and_realloc:
@@ -272,7 +272,7 @@ Index: common/fs/ext4/readpage.c
  			bio = NULL;
  		}
  		if (bio == NULL) {
-@@ -385,14 +424,14 @@ int ext4_mpage_readpages(struct address_
+@@ -385,14 +424,14 @@ int ext4_mpage_readpages(struct address_space *mapping,
  		if (((map.m_flags & EXT4_MAP_BOUNDARY) &&
  		     (relative_block == map.m_len)) ||
  		    (first_hole != blocks_per_page)) {
@@ -289,7 +289,7 @@ Index: common/fs/ext4/readpage.c
  			bio = NULL;
  		}
  		if (!PageUptodate(page))
-@@ -405,7 +444,7 @@ int ext4_mpage_readpages(struct address_
+@@ -405,7 +444,7 @@ int ext4_mpage_readpages(struct address_space *mapping,
  	}
  	BUG_ON(pages && !list_empty(pages));
  	if (bio)
@@ -298,10 +298,10 @@ Index: common/fs/ext4/readpage.c
  	return 0;
  }
  
-Index: common/fs/f2fs/data.c
-===================================================================
---- common.orig/fs/f2fs/data.c
-+++ common/fs/f2fs/data.c
+diff --git a/fs/f2fs/data.c b/fs/f2fs/data.c
+index 5755e897a5f0..9155256779bf 100644
+--- a/fs/f2fs/data.c
++++ b/fs/f2fs/data.c
 @@ -25,6 +25,7 @@
  #include "segment.h"
  #include "trace.h"
@@ -310,7 +310,7 @@ Index: common/fs/f2fs/data.c
  
  #define NUM_PREALLOC_POST_READ_CTXS	128
  
-@@ -2623,6 +2624,16 @@ static int f2fs_write_begin(struct file
+@@ -2623,6 +2624,16 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
  	block_t blkaddr = NULL_ADDR;
  	int err = 0;
  
@@ -327,7 +327,7 @@ Index: common/fs/f2fs/data.c
  	trace_f2fs_write_begin(inode, pos, len, flags);
  
  	if (!f2fs_is_checkpoint_ready(sbi)) {
-@@ -2730,6 +2741,7 @@ static int f2fs_write_end(struct file *f
+@@ -2730,6 +2741,7 @@ static int f2fs_write_end(struct file *file,
  {
  	struct inode *inode = page->mapping->host;
  
@@ -335,7 +335,7 @@ Index: common/fs/f2fs/data.c
  	trace_f2fs_write_end(inode, pos, len, copied);
  
  	/*
-@@ -2846,6 +2858,29 @@ static ssize_t f2fs_direct_IO(struct kio
+@@ -2846,6 +2858,29 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
  
  	trace_f2fs_direct_IO_enter(inode, offset, count, rw);
  
@@ -365,7 +365,7 @@ Index: common/fs/f2fs/data.c
  	if (rw == WRITE && whint_mode == WHINT_MODE_OFF)
  		iocb->ki_hint = WRITE_LIFE_NOT_SET;
  
-@@ -2891,6 +2926,13 @@ static ssize_t f2fs_direct_IO(struct kio
+@@ -2891,6 +2926,13 @@ static ssize_t f2fs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
  	}
  
  out:
@@ -379,10 +379,10 @@ Index: common/fs/f2fs/data.c
  	trace_f2fs_direct_IO_exit(inode, offset, count, rw, err);
  
  	return err;
-Index: common/fs/f2fs/inline.c
-===================================================================
---- common.orig/fs/f2fs/inline.c
-+++ common/fs/f2fs/inline.c
+diff --git a/fs/f2fs/inline.c b/fs/f2fs/inline.c
+index 896db0416f0e..59adbfa25bac 100644
+--- a/fs/f2fs/inline.c
++++ b/fs/f2fs/inline.c
 @@ -11,6 +11,7 @@
  
  #include "f2fs.h"
@@ -391,7 +391,7 @@ Index: common/fs/f2fs/inline.c
  
  bool f2fs_may_inline_data(struct inode *inode)
  {
-@@ -84,14 +85,29 @@ int f2fs_read_inline_data(struct inode *
+@@ -84,14 +85,29 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
  {
  	struct page *ipage;
  
@@ -421,7 +421,7 @@ Index: common/fs/f2fs/inline.c
  		return -EAGAIN;
  	}
  
-@@ -103,6 +119,8 @@ int f2fs_read_inline_data(struct inode *
+@@ -103,6 +119,8 @@ int f2fs_read_inline_data(struct inode *inode, struct page *page)
  	if (!PageUptodate(page))
  		SetPageUptodate(page);
  	f2fs_put_page(ipage, 1);
@@ -430,10 +430,10 @@ Index: common/fs/f2fs/inline.c
  	unlock_page(page);
  	return 0;
  }
-Index: common/fs/mpage.c
-===================================================================
---- common.orig/fs/mpage.c
-+++ common/fs/mpage.c
+diff --git a/fs/mpage.c b/fs/mpage.c
+index a63620cdb73a..e8281998e690 100644
+--- a/fs/mpage.c
++++ b/fs/mpage.c
 @@ -32,6 +32,14 @@
  #include <linux/cleancache.h>
  #include "internal.h"
@@ -449,7 +449,7 @@ Index: common/fs/mpage.c
  /*
   * I/O completion handler for multipage BIOs.
   *
-@@ -49,6 +57,16 @@ static void mpage_end_io(struct bio *bio
+@@ -49,6 +57,16 @@ static void mpage_end_io(struct bio *bio)
  	struct bio_vec *bv;
  	struct bvec_iter_all iter_all;
  
@@ -466,7 +466,7 @@ Index: common/fs/mpage.c
  	bio_for_each_segment_all(bv, bio, iter_all) {
  		struct page *page = bv->bv_page;
  		page_endio(page, bio_op(bio),
-@@ -60,6 +78,24 @@ static void mpage_end_io(struct bio *bio
+@@ -60,6 +78,24 @@ static void mpage_end_io(struct bio *bio)
  
  static struct bio *mpage_bio_submit(int op, int op_flags, struct bio *bio)
  {
@@ -491,10 +491,11 @@ Index: common/fs/mpage.c
  	bio->bi_end_io = mpage_end_io;
  	bio_set_op_attrs(bio, op, op_flags);
  	guard_bio_eod(op, bio);
-Index: common/include/trace/events/android_fs.h
-===================================================================
+diff --git a/include/trace/events/android_fs.h b/include/trace/events/android_fs.h
+new file mode 100644
+index 000000000000..49509533d3fa
 --- /dev/null
-+++ common/include/trace/events/android_fs.h
++++ b/include/trace/events/android_fs.h
 @@ -0,0 +1,65 @@
 +#undef TRACE_SYSTEM
 +#define TRACE_SYSTEM android_fs
@@ -561,10 +562,11 @@ Index: common/include/trace/events/android_fs.h
 +	return path;
 +}
 +#endif
-Index: common/include/trace/events/android_fs_template.h
-===================================================================
+diff --git a/include/trace/events/android_fs_template.h b/include/trace/events/android_fs_template.h
+new file mode 100644
+index 000000000000..b23d17b56c63
 --- /dev/null
-+++ common/include/trace/events/android_fs_template.h
++++ b/include/trace/events/android_fs_template.h
 @@ -0,0 +1,64 @@
 +#if !defined(_TRACE_ANDROID_FS_TEMPLATE_H) || defined(TRACE_HEADER_MULTI_READ)
 +#define _TRACE_ANDROID_FS_TEMPLATE_H

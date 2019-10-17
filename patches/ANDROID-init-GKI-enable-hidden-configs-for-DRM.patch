@@ -1,4 +1,4 @@
-From 0e99f5a95ab59f973a1a1d7cd51a3edef46747b5 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Todd Kjos <tkjos@google.com>
 Date: Tue, 17 Sep 2019 14:36:04 -0700
 Subject: ANDROID: init: GKI: enable hidden configs for DRM
@@ -15,7 +15,7 @@ Signed-off-by: Todd Kjos <tkjos@google.com>
  1 file changed, 12 insertions(+)
 
 diff --git a/init/Kconfig.gki b/init/Kconfig.gki
-index fafcd618037de..6c3f89bd8e25e 100644
+index fafcd618037d..6c3f89bd8e25 100644
 --- a/init/Kconfig.gki
 +++ b/init/Kconfig.gki
 @@ -1,3 +1,14 @@
@@ -41,6 +41,3 @@ index fafcd618037de..6c3f89bd8e25e 100644
  	help
  	  Dummy config option used to enable core functionality used by
  	  modules that may not be selectable in this config.
--- 
-2.23.0.444.g18eeb5a265-goog
-

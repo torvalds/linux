@@ -1,4 +1,4 @@
-From 9a8189c272ac9fa2dd95aba34af9ce58fe541971 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tristan Muntsinger <muntsinger@google.com>
 Date: Thu, 25 Jul 2019 13:48:04 -0700
 Subject: ANDROID: Add initial rockpi4_defconfig
@@ -15,7 +15,7 @@ Signed-off-by: Tristan Muntsinger <muntsinger@google.com>
 
 diff --git a/arch/arm64/configs/rockpi4_defconfig b/arch/arm64/configs/rockpi4_defconfig
 new file mode 100644
-index 0000000000000..6d0cf70f37570
+index 000000000000..6d0cf70f3757
 --- /dev/null
 +++ b/arch/arm64/configs/rockpi4_defconfig
 @@ -0,0 +1,540 @@
@@ -559,6 +559,3 @@ index 0000000000000..6d0cf70f37570
 +# CONFIG_RUNTIME_TESTING_MENU is not set
 +CONFIG_CORESIGHT=y
 +CONFIG_CORESIGHT_STM=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

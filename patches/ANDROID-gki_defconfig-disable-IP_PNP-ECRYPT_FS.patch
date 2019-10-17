@@ -1,4 +1,4 @@
-From aeba9a624e4903c9b3e97c6ef89caee80620edb3 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Thu, 8 Aug 2019 17:06:26 -0700
 Subject: ANDROID: gki_defconfig: disable IP_PNP, ECRYPT_FS
@@ -12,7 +12,7 @@ Signed-off-by: Tri Vo <trong@google.com>
  1 file changed, 2 deletions(-)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 43a1fea94c6a5..539f42574383e 100644
+index 43a1fea94c6a..539f42574383 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -87,7 +87,6 @@ CONFIG_INET=y
@@ -31,6 +31,3 @@ index 43a1fea94c6a5..539f42574383e 100644
  CONFIG_SDCARD_FS=y
  CONFIG_PSTORE=y
  CONFIG_PSTORE_CONSOLE=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

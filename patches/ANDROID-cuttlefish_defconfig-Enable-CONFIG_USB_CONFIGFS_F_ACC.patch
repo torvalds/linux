@@ -1,8 +1,7 @@
-From d174edb2240488dc38d66489d3e9797078f5c582 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Mon, 29 Oct 2018 14:38:12 -0700
-Subject: ANDROID: cuttlefish_defconfig: Enable
- CONFIG_USB_CONFIGFS_F_ACC
+Subject: ANDROID: cuttlefish_defconfig: Enable CONFIG_USB_CONFIGFS_F_ACC
 
 Bug: 118439987
 Bug: 120439617
@@ -14,7 +13,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  2 files changed, 2 insertions(+)
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index c3f86180e65c6..bb22c11a7eb38 100644
+index c3f86180e65c..bb22c11a7eb3 100644
 --- a/arch/arm64/configs/cuttlefish_defconfig
 +++ b/arch/arm64/configs/cuttlefish_defconfig
 @@ -353,6 +353,7 @@ CONFIG_USB_GADGET=y
@@ -26,7 +25,7 @@ index c3f86180e65c6..bb22c11a7eb38 100644
  CONFIG_RTC_CLASS=y
  # CONFIG_RTC_HCTOSYS is not set
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index 0f72dfca13faf..6de2240beeb91 100644
+index 0f72dfca13fa..6de2240beeb9 100644
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -365,6 +365,7 @@ CONFIG_USB_DUMMY_HCD=y
@@ -37,6 +36,3 @@ index 0f72dfca13faf..6de2240beeb91 100644
  CONFIG_USB_CONFIGFS_F_MIDI=y
  CONFIG_RTC_CLASS=y
  # CONFIG_RTC_HCTOSYS is not set
--- 
-2.23.0.444.g18eeb5a265-goog
-

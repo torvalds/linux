@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Salyzyn <salyzyn@google.com>
+Date: Fri, 30 Aug 2019 08:23:25 -0700
+Subject: ANDROID: net: enable wireless core features with
+ GKI_LEGACY_WEXT_ALLCONFIG
+
+In embedded environments the requirements are to be able to pick and
+chose which features one requires built into the kernel.  If an
+embedded environment wants to supports loading modules that have been
+kbuilt out of tree, there is a need to enable hidden configurations
+for legacy wireless core features to provide the API surface for
+them to load.
+
+Introduce CONFIG_GKI_LEGACY_WEXT_ALLCONFIG to select all legacy wireless
+extension core features by activating in turn all the associated
+hidden configuration options, without having to specifically select
+any wireless module(s).
+
+(rejected upstream commit url https://lkml.org/lkml/2019/9/6/878)
+Signed-off-by: Mark Salyzyn <salyzyn@google.com>
+Bug: 140250271
+Change-Id: Ie40e656d87ce21ae82f04ffe8dae2f0efab88a2e
+---
+ init/Kconfig.gki | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/init/Kconfig.gki b/init/Kconfig.gki
+index 5df8c67123ef..b2f3ecefd782 100644
+--- a/init/Kconfig.gki
++++ b/init/Kconfig.gki
+@@ -34,6 +34,25 @@ config GKI_HIDDEN_GPIO_CONFIGS
+ 	  These are normally selected implicitely when a module
+ 	  that relies on it is configured.
+ 
++# LEGACY_WEXT_ALLCONFIG Discussed upstream, soundly rejected as a unique
++# problem for GKI to solve.  It should be noted that these extensions are
++# in-effect deprecated and generally unsupported and we should pressure
++# the SOC vendors to drop any modules that require these extensions.
++config GKI_LEGACY_WEXT_ALLCONFIG
++	bool "Hidden wireless extension configs needed for GKI"
++	select WIRELESS_EXT
++	select WEXT_CORE
++	select WEXT_PROC
++	select WEXT_SPY
++	select WEXT_PRIV
++	help
++	  Dummy config option used to enable all the hidden legacy wireless
++	  extensions to the core wireless network functionality used by
++	  add-in modules.
++
++	  If you are not building a kernel to be used for a variety of
++	  out-of-kernel built wireless modules, say N here.
++
+ # Atrocities needed for
+ # a) building GKI modules in separate tree, or
+ # b) building drivers that are not modularizable
+@@ -47,6 +66,7 @@ config GKI_HACKS_TO_FIX
+ 	select GKI_HIDDEN_REGMAP_CONFIGS
+ 	select GKI_HIDDEN_SND_SOC_CONFIGS
+ 	select GKI_HIDDEN_GPIO_CONFIGS
++	select GKI_LEGACY_WEXT_ALLCONFIG
+ 	help
+ 	  Dummy config option used to enable core functionality used by
+ 	  modules that may not be selectable in this config.

@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alistair Strachan <astrachan@google.com>
+Date: Tue, 30 Oct 2018 17:29:25 -0700
+Subject: ANDROID: cuttlefish_defconfig: Enable CONFIG_UID_SYS_STATS
+
+Bug: 118439987
+Bug: 120439617
+Change-Id: I0a62a9c17f58d79201640be311ea7280a2a040fd
+Signed-off-by: Alistair Strachan <astrachan@google.com>
+---
+ arch/arm64/configs/cuttlefish_defconfig      | 1 +
+ arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
+index fa86d0682e21..ca9d2b3413f2 100644
+--- a/arch/arm64/configs/cuttlefish_defconfig
++++ b/arch/arm64/configs/cuttlefish_defconfig
+@@ -195,6 +195,7 @@ CONFIG_BLK_DEV_LOOP=y
+ CONFIG_BLK_DEV_RAM=y
+ CONFIG_BLK_DEV_RAM_SIZE=8192
+ CONFIG_VIRTIO_BLK=y
++CONFIG_UID_SYS_STATS=y
+ CONFIG_SCSI=y
+ # CONFIG_SCSI_MQ_DEFAULT is not set
+ # CONFIG_SCSI_PROC_FS is not set
+diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
+index 5ce93372e6a7..918218ed6cf6 100644
+--- a/arch/x86/configs/x86_64_cuttlefish_defconfig
++++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
+@@ -197,6 +197,7 @@ CONFIG_BLK_DEV_LOOP=y
+ CONFIG_BLK_DEV_RAM=y
+ CONFIG_BLK_DEV_RAM_SIZE=8192
+ CONFIG_VIRTIO_BLK=y
++CONFIG_UID_SYS_STATS=y
+ CONFIG_SCSI=y
+ CONFIG_BLK_DEV_SD=y
+ CONFIG_BLK_DEV_SR=y

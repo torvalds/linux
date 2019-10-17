@@ -1,7 +1,7 @@
-From 6cbeaede2e4fdb044c67d99722a66b73b11b6701 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Tue, 21 May 2019 18:15:21 -0700
-Subject:
+Subject: ANDROID-Four-part-revert-of-asm-goto-usage-2-4
 
 Revert "x86/uaccess: Don't leak the AC flag into __put_user() value evaluation"
 This reverts commit 2a418cf3f5f1caf911af288e978d61c9844b0695.
@@ -15,7 +15,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  1 file changed, 2 insertions(+), 4 deletions(-)
 
 diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index 29920ffb5df10..c647784dd0c40 100644
+index 29920ffb5df1..c647784dd0c4 100644
 --- a/arch/x86/include/asm/uaccess.h
 +++ b/arch/x86/include/asm/uaccess.h
 @@ -282,7 +282,7 @@ do {									\
@@ -39,6 +39,3 @@ index 29920ffb5df10..c647784dd0c40 100644
  	__pu_err = 0;						\
  __pu_label:							\
  	__uaccess_end();					\
--- 
-2.23.0.444.g18eeb5a265-goog
-

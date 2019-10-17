@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sandeep Patil <sspatil@google.com>
+Date: Fri, 30 Aug 2019 14:46:57 -0700
+Subject: ANDROID: staging: ion: Fix uninitialized variable warning
+
+Warning:
+   In file included from include/linux/bitops.h:19:0,
+                    from include/linux/bitmap.h:8,
+                    from drivers/staging/android/ion/ion.c:10:
+   drivers/staging/android/ion/ion.c: In function '__ion_device_add_heap':
+>> arch/m68k/include/asm/bitops.h:371:28: warning: 'end_bit' may be used uninitialized in this function [-Wmaybe-uninitialized]
+    #define find_next_zero_bit find_next_zero_bit
+                               ^~~~~~~~~~~~~~~~~~
+   drivers/staging/android/ion/ion.c:228:17: note: 'end_bit' was declared here
+     int start_bit, end_bit;
+                    ^~~~~~~
+   In file included from include/linux/bitops.h:19:0,
+                    from include/linux/bitmap.h:8,
+                    from drivers/staging/android/ion/ion.c:10:
+>> arch/m68k/include/asm/bitops.h:354:10: warning: 'start_bit' may be used uninitialized in this function [-Wmaybe-uninitialized]
+      offset -= bit;
+      ~~~~~~~^~~~~~
+   drivers/staging/android/ion/ion.c:228:6: note: 'start_bit' was declared here
+     int start_bit, end_bit;
+         ^~~~~~~~~
+
+Change-Id: I2df4a5b36f457aca5f19c03976ae7229c35ecdb3
+Reported-by: kbuild test robot <lkp@intel.com>
+Fixes: acbfdf321afb ("ANDROID: staging: ion: add support for consistent heap ids")
+Signed-off-by: Sandeep Patil <sspatil@google.com>
+---
+ drivers/staging/android/ion/ion.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
+index c7be7457a709..c8ed051715bc 100644
+--- a/drivers/staging/android/ion/ion.c
++++ b/drivers/staging/android/ion/ion.c
+@@ -225,7 +225,7 @@ DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
+ static int ion_assign_heap_id(struct ion_heap *heap, struct ion_device *dev)
+ {
+ 	int id_bit;
+-	int start_bit, end_bit;
++	int start_bit, end_bit = -1;
+ 
+ 	switch (heap->type) {
+ 	case ION_HEAP_TYPE_SYSTEM:

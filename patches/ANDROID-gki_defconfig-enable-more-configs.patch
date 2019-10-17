@@ -1,4 +1,4 @@
-From a202788f0afad1fe1f69007fda37b5baf317553e Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Tue, 16 Jul 2019 16:27:17 -0700
 Subject: ANDROID: gki_defconfig: enable more configs
@@ -27,7 +27,7 @@ Signed-off-by: Tri Vo <trong@google.com>
  1 file changed, 7 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 7c66f40c97398..45644397a2d7a 100644
+index 7c66f40c9739..45644397a2d7 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -274,14 +274,17 @@ CONFIG_HW_RANDOM_VIRTIO=y
@@ -83,6 +83,3 @@ index 7c66f40c97398..45644397a2d7a 100644
  CONFIG_ANDROID=y
  CONFIG_ANDROID_BINDER_IPC=y
  CONFIG_INTERCONNECT=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

@@ -1,8 +1,7 @@
-From 4f8e773bb4a8fc494e0d786c6466bcd76ab0a693 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Sun, 19 May 2019 14:37:03 -0700
-Subject: ANDROID: gki_defconfig: more generic configs for
- DLKMs
+Subject: ANDROID: gki_defconfig: more generic configs for DLKMs
 
 Test: boot arm64 cuttlefish
 Signed-off-by: Tri Vo <trong@google.com>
@@ -12,7 +11,7 @@ Change-Id: I9f6380927f348d0a5e20d1acff2bef4331c3f591
  1 file changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index b7ae05eb896e7..04f531ef25117 100644
+index b7ae05eb896e..04f531ef2511 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -192,6 +192,8 @@ CONFIG_UID_SYS_STATS=y
@@ -64,6 +63,3 @@ index b7ae05eb896e7..04f531ef25117 100644
  CONFIG_EXT4_FS=y
  CONFIG_EXT4_FS_SECURITY=y
  CONFIG_F2FS_FS=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

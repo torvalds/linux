@@ -1,0 +1,25 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ram Muthiah <rammuthiah@google.com>
+Date: Sun, 4 Aug 2019 13:37:09 -0700
+Subject: ANDROID: Removed hardcoded kernel command line arguments
+
+Test: Booted mainline on cuttlefish locally
+Signed-off-by: Ram Muthiah <rammuthiah@google.com>
+Change-Id: I5a32dcc1bc4faaff08b032f4ff8350adf2bbb5c1
+---
+ arch/x86/configs/gki_defconfig | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index 4016f8be75c5..731cec5e1bc3 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -35,8 +35,6 @@ CONFIG_SLAB_FREELIST_RANDOM=y
+ CONFIG_SLAB_FREELIST_HARDENED=y
+ CONFIG_PROFILING=y
+ CONFIG_SMP=y
+-CONFIG_CMDLINE_BOOL=y
+-CONFIG_CMDLINE="console=ttyS0 reboot=p"
+ CONFIG_PM_WAKELOCKS=y
+ CONFIG_PM_WAKELOCKS_LIMIT=0
+ # CONFIG_PM_WAKELOCKS_GC is not set

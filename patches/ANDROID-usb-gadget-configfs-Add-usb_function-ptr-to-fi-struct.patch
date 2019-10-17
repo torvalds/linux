@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Badhri Jagan Sridharan <Badhri@google.com>
+Date: Mon, 15 Dec 2014 16:42:27 -0800
+Subject: ANDROID: usb: gadget: configfs: Add usb_function ptr to fi struct
+
+Add a pointer to the usb_function inside the
+usb_function_instance structure to service
+functions specific setup requests even before
+the function gets added to the usb_gadget
+
+Bug: 63740241
+Bug: 68755607
+Bug: 78114713
+Bug: 120441124
+Change-Id: I6f457006f6c5516cc6986ec2acdf5b1ecf259d0c
+[badhri: This is a supporting patch for other patches which have
+         replacements pipelined. It can be dropped when those
+         implementations land.]
+Signed-off-by: Badhri Jagan Sridharan <badhri@google.com>
+---
+ include/linux/usb/composite.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/include/linux/usb/composite.h b/include/linux/usb/composite.h
+index 8675e145ea8b..af4396cc4ea8 100644
+--- a/include/linux/usb/composite.h
++++ b/include/linux/usb/composite.h
+@@ -587,6 +587,7 @@ struct usb_function_instance {
+ 	struct config_group group;
+ 	struct list_head cfs_list;
+ 	struct usb_function_driver *fd;
++	struct usb_function *f;
+ 	int (*set_inst_name)(struct usb_function_instance *inst,
+ 			      const char *name);
+ 	void (*free_func_inst)(struct usb_function_instance *inst);

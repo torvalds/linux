@@ -1,4 +1,4 @@
-From 21019d4dee6cac07eebc9a624bf967fe22e1d902 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Daniel Rosenberg <drosen@google.com>
 Date: Tue, 16 Jul 2019 18:09:39 -0700
 Subject: ANDROID: Add show_options2 to view private mount data
@@ -14,7 +14,7 @@ Signed-off-by: Daniel Rosenberg <drosen@google.com>
  2 files changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/fs/proc_namespace.c b/fs/proc_namespace.c
-index e16fb8f2049e7..8fde658fdb112 100644
+index 273ee82d8aa9..5b8d065fa83c 100644
 --- a/fs/proc_namespace.c
 +++ b/fs/proc_namespace.c
 @@ -121,7 +121,9 @@ static int show_vfsmnt(struct seq_file *m, struct vfsmount *mnt)
@@ -40,10 +40,10 @@ index e16fb8f2049e7..8fde658fdb112 100644
  	seq_putc(m, '\n');
  out:
 diff --git a/include/linux/fs.h b/include/linux/fs.h
-index e9c1d5637c171..045bd6ff12ae1 100644
+index 42c2cfc33ce7..eccf96ceef3b 100644
 --- a/include/linux/fs.h
 +++ b/include/linux/fs.h
-@@ -1940,6 +1940,7 @@ struct super_operations {
+@@ -1965,6 +1965,7 @@ struct super_operations {
  	void (*umount_begin) (struct super_block *);
  
  	int (*show_options)(struct seq_file *, struct dentry *);
@@ -51,6 +51,3 @@ index e9c1d5637c171..045bd6ff12ae1 100644
  	int (*show_devname)(struct seq_file *, struct dentry *);
  	int (*show_path)(struct seq_file *, struct dentry *);
  	int (*show_stats)(struct seq_file *, struct dentry *);
--- 
-2.23.0.444.g18eeb5a265-goog
-

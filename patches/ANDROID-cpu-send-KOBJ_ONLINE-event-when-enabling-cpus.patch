@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thierry Strudel <tstrudel@google.com>
+Date: Tue, 14 Jun 2016 17:46:44 -0700
+Subject: ANDROID: cpu: send KOBJ_ONLINE event when enabling cpus
+
+In case some sysfs nodes needs to be labeled with a different label than
+sysfs then user needs to be notified when a core is brought back online.
+
+Bug: 29359497
+Bug: 120444461
+Change-Id: I0395c86e01cd49c348fda8f93087d26f88557c91
+Signed-off-by: Thierry Strudel <tstrudel@google.com>
+---
+ kernel/cpu.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/kernel/cpu.c b/kernel/cpu.c
+index fc28e17940e0..4bc4f6cd5634 100644
+--- a/kernel/cpu.c
++++ b/kernel/cpu.c
+@@ -1276,6 +1276,7 @@ void __weak arch_enable_nonboot_cpus_end(void)
+ void enable_nonboot_cpus(void)
+ {
+ 	int cpu, error;
++	struct device *cpu_device;
+ 
+ 	/* Allow everyone to use the CPU hotplug again */
+ 	cpu_maps_update_begin();
+@@ -1293,6 +1294,12 @@ void enable_nonboot_cpus(void)
+ 		trace_suspend_resume(TPS("CPU_ON"), cpu, false);
+ 		if (!error) {
+ 			pr_info("CPU%d is up\n", cpu);
++			cpu_device = get_cpu_device(cpu);
++			if (!cpu_device)
++				pr_err("%s: failed to get cpu%d device\n",
++				       __func__, cpu);
++			else
++				kobject_uevent(&cpu_device->kobj, KOBJ_ONLINE);
+ 			continue;
+ 		}
+ 		pr_warn("Error taking CPU%d up: %d\n", cpu, error);

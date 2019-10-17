@@ -1,4 +1,4 @@
-From a273512dafbf6322b134716873d50d1af803972f Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Dietmar Eggemann <dietmar.eggemann@arm.com>
 Date: Thu, 10 May 2018 16:54:16 +0100
 Subject: ANDROID: arm64: enable max frequency capping
@@ -28,6 +28,3 @@ index a4d945db95a2..70697177d6ec 100644
  /* Replace task scheduler's default cpu-invariant accounting */
  #define arch_scale_cpu_capacity topology_get_cpu_scale
  
--- 
-2.23.0.444.g18eeb5a265-goog
-

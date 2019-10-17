@@ -1,4 +1,4 @@
-From 680078c26c5aaa6321e37c7f24243fbadf91b6f4 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Colin Cross <ccross@android.com>
 Date: Mon, 6 May 2013 23:50:16 +0000
 Subject: ANDROID: fs: epoll: use freezable blocking call
@@ -28,7 +28,7 @@ Signed-off-by: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/fs/eventpoll.c b/fs/eventpoll.c
-index d7f1f5011fac3..f58f3943b07ae 100644
+index c4159bcc05d9..6730d92e225a 100644
 --- a/fs/eventpoll.c
 +++ b/fs/eventpoll.c
 @@ -29,6 +29,7 @@
@@ -49,6 +49,3 @@ index d7f1f5011fac3..f58f3943b07ae 100644
  			timed_out = 1;
  			break;
  		}
--- 
-2.23.0.444.g18eeb5a265-goog
-

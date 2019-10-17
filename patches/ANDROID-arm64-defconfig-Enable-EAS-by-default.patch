@@ -1,4 +1,4 @@
-From 588085feb44fa553aec7eb98545a570e189eabad Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Quentin Perret <quentin.perret@arm.com>
 Date: Wed, 3 Jul 2019 10:48:14 +0100
 Subject: ANDROID: arm64: defconfig: Enable EAS by default
@@ -42,6 +42,3 @@ index 8e05c39eab08..2c029af5d7e0 100644
  CONFIG_CPU_FREQ_GOV_POWERSAVE=m
  CONFIG_CPU_FREQ_GOV_USERSPACE=y
  CONFIG_CPU_FREQ_GOV_ONDEMAND=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

@@ -1,4 +1,4 @@
-From 1ec486602e746651cb113cb6ae53df02a7c80031 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Connor O'Brien <connoro@google.com>
 Date: Tue, 6 Feb 2018 13:30:27 -0800
 Subject: ANDROID: cpufreq: times: track per-uid time in state
@@ -18,7 +18,7 @@ Change-Id: I20ba3546a27c25b7e7991e2a86986e158aafa58c
  3 files changed, 215 insertions(+)
 
 diff --git a/drivers/cpufreq/cpufreq_times.c b/drivers/cpufreq/cpufreq_times.c
-index 339a3e9cf0821..15b52e1f82fc6 100644
+index 339a3e9cf082..15b52e1f82fc 100644
 --- a/drivers/cpufreq/cpufreq_times.c
 +++ b/drivers/cpufreq/cpufreq_times.c
 @@ -15,14 +15,30 @@
@@ -285,7 +285,7 @@ index 339a3e9cf0821..15b52e1f82fc6 100644
 +
 +early_initcall(cpufreq_times_init);
 diff --git a/drivers/misc/uid_sys_stats.c b/drivers/misc/uid_sys_stats.c
-index 36b5f37fca2f8..88dc1cd3a2046 100644
+index 36b5f37fca2f..88dc1cd3a204 100644
 --- a/drivers/misc/uid_sys_stats.c
 +++ b/drivers/misc/uid_sys_stats.c
 @@ -14,6 +14,7 @@
@@ -307,7 +307,7 @@ index 36b5f37fca2f8..88dc1cd3a2046 100644
  
  	for (; uid_start <= uid_end; uid_start++) {
 diff --git a/include/linux/cpufreq_times.h b/include/linux/cpufreq_times.h
-index bfef6e62c68a1..a03157f649a4f 100644
+index bfef6e62c68a..a03157f649a4 100644
 --- a/include/linux/cpufreq_times.h
 +++ b/include/linux/cpufreq_times.h
 @@ -28,6 +28,7 @@ int proc_time_in_state_show(struct seq_file *m, struct pid_namespace *ns,
@@ -326,6 +326,3 @@ index bfef6e62c68a1..a03157f649a4f 100644
 +						  uid_t uid_end) {}
  #endif /* CONFIG_CPU_FREQ_TIMES */
  #endif /* _LINUX_CPUFREQ_TIMES_H */
--- 
-2.23.0.444.g18eeb5a265-goog
-

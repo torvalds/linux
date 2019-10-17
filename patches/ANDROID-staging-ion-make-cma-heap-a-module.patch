@@ -1,4 +1,4 @@
-From a3d87671564a9cfc4dc3dc30036f50ea8541b109 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Fri, 13 Sep 2019 14:52:14 -0700
 Subject: ANDROID: staging: ion: make cma heap a module
@@ -114,6 +114,3 @@ index 236b6c576cdb..9584972b5005 100644
 +module_init(ion_cma_heap_init);
 +module_exit(ion_cma_heap_exit);
 +MODULE_LICENSE("GPL v2");
--- 
-2.23.0.444.g18eeb5a265-goog
-

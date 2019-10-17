@@ -1,4 +1,4 @@
-From 0ad8fba0d7c02b5d2495829dd001b118809a83ee Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Thu, 20 Jun 2019 14:30:05 -0700
 Subject: ANDROID: gki_defconfig: more configs for partners
@@ -7,14 +7,13 @@ Bug: 135666008
 Signed-off-by: Tri Vo <trong@google.com>
 Change-Id: I5e13f602bcacb416cace48f92f40689ebd3bb12e
 ---
- abi_gki_aarch64.xml              | 415449 +++++++++++++++-------------
- arch/arm64/configs/gki_defconfig |     21 +-
- 2 files changed, 222337 insertions(+), 193133 deletions(-)
+ arch/arm64/configs/gki_defconfig | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
 
-Index: common/arch/arm64/configs/gki_defconfig
-===================================================================
---- common.orig/arch/arm64/configs/gki_defconfig
-+++ common/arch/arm64/configs/gki_defconfig
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index 7eeafbecf1b9..3afe7f8d8310 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
 @@ -10,6 +10,7 @@ CONFIG_IKCONFIG=y
  CONFIG_IKCONFIG_PROC=y
  CONFIG_MEMCG=y

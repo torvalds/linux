@@ -1,4 +1,4 @@
-From 9c52f16472a6ea98c17a2e54714f355043c565d4 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Delva <adelva@google.com>
 Date: Mon, 19 Aug 2019 18:27:29 -0700
 Subject: ANDROID: staging: ion: Build fix for mips
@@ -11,7 +11,7 @@ Signed-off-by: Alistair Delva <adelva@google.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/drivers/staging/android/ion/ion_buffer.c b/drivers/staging/android/ion/ion_buffer.c
-index 879b3ddb08c0f..961605a35c595 100644
+index 879b3ddb08c0..961605a35c59 100644
 --- a/drivers/staging/android/ion/ion_buffer.c
 +++ b/drivers/staging/android/ion/ion_buffer.c
 @@ -8,6 +8,7 @@
@@ -22,6 +22,3 @@ index 879b3ddb08c0f..961605a35c595 100644
  
  #include "ion_private.h"
  
--- 
-2.23.0.444.g18eeb5a265-goog
-

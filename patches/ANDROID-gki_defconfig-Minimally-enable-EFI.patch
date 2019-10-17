@@ -1,4 +1,4 @@
-From 06e0256c5c890918ae24431384c602126192e271 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: John Stultz <john.stultz@linaro.org>
 Date: Fri, 16 Aug 2019 22:33:20 +0000
 Subject: ANDROID: gki_defconfig: Minimally enable EFI
@@ -15,7 +15,7 @@ Change-Id: I5c2e63701ae93277fcc3ddb36a39637237c65194
  2 files changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 2773a84fd9390..006692f065d4e 100644
+index 2773a84fd939..006692f065d4 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -46,7 +46,7 @@ CONFIG_SWP_EMULATION=y
@@ -44,7 +44,7 @@ index 2773a84fd9390..006692f065d4e 100644
  CONFIG_PSTORE=y
  CONFIG_PSTORE_CONSOLE=y
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index a1b2121bde8b6..ed8296e953ed3 100644
+index a1b2121bde8b..ed8296e953ed 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -36,6 +36,7 @@ CONFIG_SLAB_FREELIST_HARDENED=y
@@ -63,6 +63,3 @@ index a1b2121bde8b6..ed8296e953ed3 100644
  CONFIG_SDCARD_FS=y
  CONFIG_PSTORE=y
  CONFIG_PSTORE_CONSOLE=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

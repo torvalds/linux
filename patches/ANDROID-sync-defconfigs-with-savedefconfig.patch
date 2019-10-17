@@ -1,4 +1,4 @@
-From c1642f5b434b35dbd0578a92f1900332a0d5f9f8 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Mon, 20 May 2019 11:54:22 -0700
 Subject: ANDROID: sync defconfigs with savedefconfig
@@ -12,7 +12,7 @@ Change-Id: Ie0b518c0fd5100a39312069fe3b193684feb634d
  2 files changed, 3 insertions(+), 9 deletions(-)
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index 5f7157425a316..41502bd397dd5 100644
+index 5f7157425a31..41502bd397dd 100644
 --- a/arch/arm64/configs/cuttlefish_defconfig
 +++ b/arch/arm64/configs/cuttlefish_defconfig
 @@ -38,14 +38,14 @@ CONFIG_SCHED_MC=y
@@ -57,7 +57,7 @@ index 5f7157425a316..41502bd397dd5 100644
  # CONFIG_ALLOW_DEV_COREDUMP is not set
  CONFIG_DEBUG_DEVRES=y
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 04f531ef25117..c9720858fd9a1 100644
+index 04f531ef2511..c9720858fd9a 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -35,13 +35,13 @@ CONFIG_PROFILING=y
@@ -99,6 +99,3 @@ index 04f531ef25117..c9720858fd9a1 100644
  # CONFIG_LCD_CLASS_DEVICE is not set
  CONFIG_BACKLIGHT_CLASS_DEVICE=y
  CONFIG_SOUND=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

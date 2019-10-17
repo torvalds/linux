@@ -1,4 +1,4 @@
-From ee9fd08b5e142f62bc5b751ddeb6418cfe8c119a Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Mark Salyzyn <salyzyn@google.com>
 Date: Mon, 26 Aug 2019 07:56:13 -0700
 Subject: ANDROID: gki_defconfig: set CONFIG_NR_CPUS=32
@@ -18,7 +18,7 @@ Change-Id: I9687d37da254a612947398a45ae56ab01e676562
  2 files changed, 2 insertions(+)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index b70d608b1ee69..2773a84fd9390 100644
+index b70d608b1ee6..2773a84fd939 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -37,6 +37,7 @@ CONFIG_SLAB_FREELIST_RANDOM=y
@@ -30,7 +30,7 @@ index b70d608b1ee69..2773a84fd9390 100644
  CONFIG_PARAVIRT=y
  CONFIG_COMPAT=y
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index ae3d165a79c3a..a1b2121bde8b6 100644
+index ae3d165a79c3..a1b2121bde8b 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -35,6 +35,7 @@ CONFIG_SLAB_FREELIST_RANDOM=y
@@ -41,6 +41,3 @@ index ae3d165a79c3a..a1b2121bde8b6 100644
  CONFIG_PM_WAKELOCKS=y
  CONFIG_PM_WAKELOCKS_LIMIT=0
  # CONFIG_PM_WAKELOCKS_GC is not set
--- 
-2.23.0.444.g18eeb5a265-goog
-

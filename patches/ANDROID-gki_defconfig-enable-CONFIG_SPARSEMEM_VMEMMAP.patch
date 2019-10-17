@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Mark Salyzyn <salyzyn@google.com>
+Date: Thu, 29 Aug 2019 08:00:26 -0700
+Subject: ANDROID: gki_defconfig enable CONFIG_SPARSEMEM_VMEMMAP
+
+Legacy Ion driver and SPARSEMEM for carveout regions results
+in invalid page structures breaking page_to_pfn().  This can
+be temporarily resolved with SPARSEMEM_VMEMMAP until the Ion
+driver is refactored and can be reinvestigated.
+
+At that time if it can be solved, or maybe correct this issue
+utilizing less resources than SPARSEMEM_VMEMMAP requires. The
+ABI does not change so we have the flexibility to adjust this
+configuration.
+
+Signed-off-by: Mark Salyzyn <salyzyn@google.com>
+Bug: 138851285
+Bug: 138149732
+Test: ABI_DEFINITION=common/abi_gki_aarch64.xml \
+      BUILD_CONFIG=common/build.config.gki.aarch64 ./build/build_abi.sh
+Change-Id: I25cc8ebe9e25260b9869c5e8d8667b280f83ca51
+---
+ arch/arm64/configs/gki_defconfig | 1 -
+ arch/x86/configs/gki_defconfig   | 1 -
+ 2 files changed, 2 deletions(-)
+
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index 006692f065d4..604b97841737 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -72,7 +72,6 @@ CONFIG_MODULES=y
+ CONFIG_MODULE_UNLOAD=y
+ CONFIG_MODVERSIONS=y
+ # CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
+-# CONFIG_SPARSEMEM_VMEMMAP is not set
+ CONFIG_MEMORY_HOTPLUG=y
+ CONFIG_TRANSPARENT_HUGEPAGE=y
+ CONFIG_CMA=y
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index ed8296e953ed..e86cd1009a67 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -48,7 +48,6 @@ CONFIG_MODULES=y
+ CONFIG_MODULE_UNLOAD=y
+ CONFIG_MODVERSIONS=y
+ # CONFIG_CORE_DUMP_DEFAULT_ELF_HEADERS is not set
+-# CONFIG_SPARSEMEM_VMEMMAP is not set
+ CONFIG_TRANSPARENT_HUGEPAGE=y
+ CONFIG_CMA=y
+ CONFIG_CMA_AREAS=16

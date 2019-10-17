@@ -1,4 +1,4 @@
-From 8f9c80dc525828562ba9ec7c6a8fd17c11745cda Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Paul Lawrence <paullawrence@google.com>
 Date: Tue, 26 Mar 2019 09:05:55 -0700
 Subject: ANDROID: dm-bow: Fix 32 bit compile errors
@@ -15,7 +15,7 @@ Signed-off-by: Paul Lawrence <paullawrence@google.com>
  1 file changed, 13 insertions(+), 8 deletions(-)
 
 diff --git a/drivers/md/dm-bow.c b/drivers/md/dm-bow.c
-index 0d176aa140dfb..9323c7c8580d4 100644
+index 0d176aa140df..9323c7c8580d 100644
 --- a/drivers/md/dm-bow.c
 +++ b/drivers/md/dm-bow.c
 @@ -266,7 +266,8 @@ static struct bow_range *find_free_range(struct bow_context *bc)
@@ -74,6 +74,3 @@ index 0d176aa140dfb..9323c7c8580d4 100644
  		if (result >= end)
  			return;
  
--- 
-2.23.0.444.g18eeb5a265-goog
-

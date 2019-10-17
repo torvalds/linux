@@ -1,4 +1,4 @@
-From e73ed590cc04dd0c831b463e5e2b98bf1841dbcd Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Fri, 7 Dec 2018 11:34:16 -0800
 Subject: ANDROID: Move from clang r328903 to r346389b.
@@ -13,7 +13,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
-index bfb1f560b2986..5fb372dce6a22 100644
+index bfb1f560b298..5fb372dce6a2 100644
 --- a/build.config.cuttlefish.aarch64
 +++ b/build.config.cuttlefish.aarch64
 @@ -6,7 +6,7 @@ DEFCONFIG=cuttlefish_defconfig
@@ -26,7 +26,7 @@ index bfb1f560b2986..5fb372dce6a22 100644
  FILES="
  arch/arm64/boot/Image.gz
 diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
-index 69813b30c8ea4..a81cb544f51a4 100644
+index 69813b30c8ea..a81cb544f51a 100644
 --- a/build.config.cuttlefish.x86_64
 +++ b/build.config.cuttlefish.x86_64
 @@ -6,7 +6,7 @@ DEFCONFIG=x86_64_cuttlefish_defconfig
@@ -38,6 +38,3 @@ index 69813b30c8ea4..a81cb544f51a4 100644
  LINUX_GCC_CROSS_COMPILE_PREBUILTS_BIN=prebuilts/gcc/linux-x86/x86/x86_64-linux-android-4.9/bin
  FILES="
  arch/x86/boot/bzImage
--- 
-2.23.0.444.g18eeb5a265-goog
-

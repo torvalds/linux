@@ -1,4 +1,4 @@
-From 819b4d829053dd13e02aebc14f14b92078907655 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Wed, 12 Jun 2019 14:25:25 -0700
 Subject: ANDROID: Fixed x86 regression
@@ -13,7 +13,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index 864595c719e76..94690e9d016a2 100644
+index 864595c719e7..94690e9d016a 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -33,13 +33,14 @@ CONFIG_EMBEDDED=y
@@ -41,6 +41,3 @@ index 864595c719e76..94690e9d016a2 100644
  CONFIG_PM_DEVFREQ=y
  CONFIG_ANDROID=y
  CONFIG_ANDROID_BINDER_IPC=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

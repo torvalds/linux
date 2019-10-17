@@ -1,8 +1,7 @@
-From e02ada4da4a9c7d18433aff958515be9e68a0fc9 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Mon, 29 Oct 2018 14:36:30 -0700
-Subject: ANDROID: cuttlefish_defconfig: Enable
- CONFIG_USB_CONFIGFS_UEVENT
+Subject: ANDROID: cuttlefish_defconfig: Enable CONFIG_USB_CONFIGFS_UEVENT
 
 Bug: 118439987
 Bug: 120439617
@@ -14,7 +13,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  2 files changed, 2 insertions(+)
 
 diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index b5ec7e3c81aae..c3f86180e65c6 100644
+index b5ec7e3c81aa..c3f86180e65c 100644
 --- a/arch/arm64/configs/cuttlefish_defconfig
 +++ b/arch/arm64/configs/cuttlefish_defconfig
 @@ -351,6 +351,7 @@ CONFIG_USB_ANNOUNCE_NEW_DEVICES=y
@@ -26,7 +25,7 @@ index b5ec7e3c81aae..c3f86180e65c6 100644
  CONFIG_USB_CONFIGFS_F_MIDI=y
  CONFIG_RTC_CLASS=y
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index a30f92646583a..0f72dfca13faf 100644
+index a30f92646583..0f72dfca13fa 100644
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -363,6 +363,7 @@ CONFIG_USB_EHCI_HCD=y
@@ -37,6 +36,3 @@ index a30f92646583a..0f72dfca13faf 100644
  CONFIG_USB_CONFIGFS_F_FS=y
  CONFIG_USB_CONFIGFS_F_MIDI=y
  CONFIG_RTC_CLASS=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

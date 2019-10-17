@@ -1,0 +1,147 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: "Isaac J. Manjarres" <isaacm@codeaurora.org>
+Date: Wed, 19 Jun 2019 15:37:14 -0700
+Subject: ANDROID: staging: android: ion: Expose ion_alloc() to kernel space
+
+Expose ion_alloc() to kernel space clients. Users of this
+function will receive a dma-buf structure for sharing
+the ION buffer that was allocated.
+
+Bug: 133508579
+Test: ion-unit-tests
+Change-Id: I410044127ba92a759a79c65e422b0b75b74e2159
+Signed-off-by: Isaac J. Manjarres <isaacm@codeaurora.org>
+Signed-off-by: Sandeep Patil <sspatil@google.com>
+---
+ drivers/staging/android/ion/ion.c | 40 +++++++++++++++++++++++--------
+ include/linux/ion.h               | 26 ++++++++++++++++++++
+ 2 files changed, 56 insertions(+), 10 deletions(-)
+ create mode 100644 include/linux/ion.h
+
+diff --git a/drivers/staging/android/ion/ion.c b/drivers/staging/android/ion/ion.c
+index e6b1ca141b93..2e5c6ae2f3fc 100644
+--- a/drivers/staging/android/ion/ion.c
++++ b/drivers/staging/android/ion/ion.c
+@@ -3,6 +3,8 @@
+  * ION Memory Allocator
+  *
+  * Copyright (C) 2011 Google, Inc.
++ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
++ *
+  */
+ 
+ #include <linux/debugfs.h>
+@@ -353,13 +355,13 @@ static const struct dma_buf_ops dma_buf_ops = {
+ 	.unmap = ion_dma_buf_kunmap,
+ };
+ 
+-static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
++static struct dma_buf *ion_alloc_dmabuf(size_t len, unsigned int heap_id_mask,
++					unsigned int flags)
+ {
+ 	struct ion_device *dev = internal_dev;
+ 	struct ion_buffer *buffer = NULL;
+ 	struct ion_heap *heap;
+ 	DEFINE_DMA_BUF_EXPORT_INFO(exp_info);
+-	int fd;
+ 	struct dma_buf *dmabuf;
+ 
+ 	pr_debug("%s: len %zu heap_id_mask %u flags %x\n", __func__,
+@@ -373,7 +375,7 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+ 	len = PAGE_ALIGN(len);
+ 
+ 	if (!len)
+-		return -EINVAL;
++		return ERR_PTR(-EINVAL);
+ 
+ 	down_read(&dev->lock);
+ 	plist_for_each_entry(heap, &dev->heaps, node) {
+@@ -387,10 +389,10 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+ 	up_read(&dev->lock);
+ 
+ 	if (!buffer)
+-		return -ENODEV;
++		return ERR_PTR(-ENODEV);
+ 
+ 	if (IS_ERR(buffer))
+-		return PTR_ERR(buffer);
++		return ERR_CAST(buffer);
+ 
+ 	exp_info.ops = &dma_buf_ops;
+ 	exp_info.size = buffer->size;
+@@ -398,10 +400,28 @@ static int ion_alloc(size_t len, unsigned int heap_id_mask, unsigned int flags)
+ 	exp_info.priv = buffer;
+ 
+ 	dmabuf = dma_buf_export(&exp_info);
+-	if (IS_ERR(dmabuf)) {
++	if (IS_ERR(dmabuf))
+ 		_ion_buffer_destroy(buffer);
++
++	return dmabuf;
++}
++
++struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
++			  unsigned int flags)
++{
++	return ion_alloc_dmabuf(len, heap_id_mask, flags);
++}
++EXPORT_SYMBOL_GPL(ion_alloc);
++
++static int ion_alloc_fd(size_t len, unsigned int heap_id_mask,
++			unsigned int flags)
++{
++	int fd;
++	struct dma_buf *dmabuf;
++
++	dmabuf = ion_alloc_dmabuf(len, heap_id_mask, flags);
++	if (IS_ERR(dmabuf))
+ 		return PTR_ERR(dmabuf);
+-	}
+ 
+ 	fd = dma_buf_fd(dmabuf, O_CLOEXEC);
+ 	if (fd < 0)
+@@ -506,9 +526,9 @@ static long ion_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+ 	{
+ 		int fd;
+ 
+-		fd = ion_alloc(data.allocation.len,
+-			       data.allocation.heap_id_mask,
+-			       data.allocation.flags);
++		fd = ion_alloc_fd(data.allocation.len,
++				  data.allocation.heap_id_mask,
++				  data.allocation.flags);
+ 		if (fd < 0)
+ 			return fd;
+ 
+diff --git a/include/linux/ion.h b/include/linux/ion.h
+new file mode 100644
+index 000000000000..7bec77d98224
+--- /dev/null
++++ b/include/linux/ion.h
+@@ -0,0 +1,26 @@
++/* SPDX-License-Identifier: GPL-2.0-only */
++/*
++ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
++ */
++
++#ifndef _ION_KERNEL_H
++#define _ION_KERNEL_H
++
++#include <linux/dma-buf.h>
++#include <linux/err.h>
++
++#ifdef CONFIG_ION
++/*
++ * Allocates an ION buffer.
++ */
++struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
++			  unsigned int flags);
++
++#else
++static inline struct dma_buf *ion_alloc(size_t len, unsigned int heap_id_mask,
++					unsigned int flags)
++{
++	return ERR_PTR(-ENOMEM);
++}
++#endif /* CONFIG_ION */
++#endif /* _ION_KERNEL_H */

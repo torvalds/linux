@@ -1,4 +1,4 @@
-From 7d1009ce0de9f6f018be997f32989c3b51d5d57f Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Fri, 17 May 2019 16:52:29 -0700
 Subject: ANDROID: Add initial x86_64 gki_defconfig
@@ -28,7 +28,7 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
 
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
 new file mode 100644
-index 0000000000000..18ba312d0a602
+index 000000000000..18ba312d0a60
 --- /dev/null
 +++ b/arch/x86/configs/gki_defconfig
 @@ -0,0 +1,328 @@
@@ -361,7 +361,7 @@ index 0000000000000..18ba312d0a602
 +# CONFIG_RUNTIME_TESTING_MENU is not set
 +CONFIG_UNWINDER_FRAME_POINTER=y
 diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index d1f0fa08eacfb..06c931405999c 100644
+index d1f0fa08eacf..06c931405999 100644
 --- a/arch/x86/configs/x86_64_cuttlefish_defconfig
 +++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
 @@ -67,7 +67,6 @@ CONFIG_IA32_EMULATION=y
@@ -409,7 +409,7 @@ index d1f0fa08eacfb..06c931405999c 100644
 -CONFIG_OPTIMIZE_INLINING=y
  CONFIG_UNWINDER_FRAME_POINTER=y
 diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
-index ec53d6eac9ea3..bec1288d65e13 100644
+index ec53d6eac9ea..bec1288d65e1 100644
 --- a/build.config.cuttlefish.aarch64
 +++ b/build.config.cuttlefish.aarch64
 @@ -1,7 +1,8 @@
@@ -423,7 +423,7 @@ index ec53d6eac9ea3..bec1288d65e13 100644
  EXTRA_CMDS=''
  KERNEL_DIR=common
 diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
-index b49683d476d62..33063abed0edb 100644
+index b49683d476d6..33063abed0ed 100644
 --- a/build.config.cuttlefish.x86_64
 +++ b/build.config.cuttlefish.x86_64
 @@ -1,7 +1,8 @@
@@ -438,7 +438,7 @@ index b49683d476d62..33063abed0edb 100644
  KERNEL_DIR=common
 diff --git a/build.config.gki.x86_64 b/build.config.gki.x86_64
 new file mode 100644
-index 0000000000000..69d339dce4a0f
+index 000000000000..69d339dce4a0
 --- /dev/null
 +++ b/build.config.gki.x86_64
 @@ -0,0 +1,17 @@
@@ -459,6 +459,3 @@ index 0000000000000..69d339dce4a0f
 +System.map
 +"
 +STOP_SHIP_TRACEPRINTK=1
--- 
-2.23.0.444.g18eeb5a265-goog
-

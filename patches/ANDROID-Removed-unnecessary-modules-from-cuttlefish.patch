@@ -1,4 +1,4 @@
-From 1d9332540b0ea68ffa85fa577a58c9f1de7fd468 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Fri, 9 Aug 2019 12:48:12 -0700
 Subject: ANDROID: Removed unnecessary modules from cuttlefish.
@@ -14,7 +14,7 @@ Change-Id: I07b6c140e4c474d66132a4fb5630d18933b69e81
  1 file changed, 2 insertions(+)
 
 diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
-index 731cec5e1bc30..2d5f55d7b9669 100644
+index 731cec5e1bc3..2d5f55d7b966 100644
 --- a/arch/x86/configs/gki_defconfig
 +++ b/arch/x86/configs/gki_defconfig
 @@ -242,11 +242,13 @@ CONFIG_HW_RANDOM_VIRTIO=y
@@ -31,6 +31,3 @@ index 731cec5e1bc30..2d5f55d7b9669 100644
  CONFIG_BACKLIGHT_CLASS_DEVICE=y
  CONFIG_SOUND=y
  CONFIG_SND=y
--- 
-2.23.0.444.g18eeb5a265-goog
-

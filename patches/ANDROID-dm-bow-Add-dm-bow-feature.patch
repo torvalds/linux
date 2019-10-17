@@ -1,4 +1,4 @@
-From 695ab5d15770a6be00e6561e6f0a29652755c191 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Paul Lawrence <paullawrence@google.com>
 Date: Tue, 23 Oct 2018 08:56:04 -0700
 Subject: ANDROID: dm-bow: Add dm-bow feature
@@ -74,7 +74,7 @@ Signed-off-by: Paul Lawrence <paullawrence@google.com>
 
 diff --git a/Documentation/device-mapper/dm-bow.txt b/Documentation/device-mapper/dm-bow.txt
 new file mode 100644
-index 0000000000000..e3fc4d22e0f40
+index 000000000000..e3fc4d22e0f4
 --- /dev/null
 +++ b/Documentation/device-mapper/dm-bow.txt
 @@ -0,0 +1,99 @@
@@ -178,10 +178,10 @@ index 0000000000000..e3fc4d22e0f40
 +log entry to be written.
 +
 diff --git a/drivers/md/Kconfig b/drivers/md/Kconfig
-index 9adb32c01ef1f..539ec6f110cce 100644
+index a744ba61ad21..2bce42552769 100644
 --- a/drivers/md/Kconfig
 +++ b/drivers/md/Kconfig
-@@ -579,4 +579,16 @@ config DM_ZONED
+@@ -608,4 +608,16 @@ config DM_ZONED
  
  	  If unsure, say N.
  
@@ -199,10 +199,10 @@ index 9adb32c01ef1f..539ec6f110cce 100644
 +
  endif # MD
 diff --git a/drivers/md/Makefile b/drivers/md/Makefile
-index e07264750a3ba..d185e2e790c05 100644
+index 356b32d6b158..a9a602dfc4a3 100644
 --- a/drivers/md/Makefile
 +++ b/drivers/md/Makefile
-@@ -69,6 +69,7 @@ obj-$(CONFIG_DM_LOG_WRITES)	+= dm-log-writes.o
+@@ -71,6 +71,7 @@ obj-$(CONFIG_DM_LOG_WRITES)	+= dm-log-writes.o
  obj-$(CONFIG_DM_INTEGRITY)	+= dm-integrity.o
  obj-$(CONFIG_DM_ZONED)		+= dm-zoned.o
  obj-$(CONFIG_DM_WRITECACHE)	+= dm-writecache.o
@@ -212,7 +212,7 @@ index e07264750a3ba..d185e2e790c05 100644
  dm-mod-objs			+= dm-init.o
 diff --git a/drivers/md/dm-bow.c b/drivers/md/dm-bow.c
 new file mode 100644
-index 0000000000000..0d176aa140dfb
+index 000000000000..0d176aa140df
 --- /dev/null
 +++ b/drivers/md/dm-bow.c
 @@ -0,0 +1,1226 @@
@@ -1442,6 +1442,3 @@ index 0000000000000..0d176aa140dfb
 +
 +module_init(dm_bow_init);
 +module_exit(dm_bow_exit);
--- 
-2.23.0.444.g18eeb5a265-goog
-

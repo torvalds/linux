@@ -1,4 +1,4 @@
-From 553049f81c5ad43603aa9b9a813d9c965ce6f2d7 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Matthias Maennich <maennich@google.com>
 Date: Tue, 28 May 2019 12:38:16 +0100
 Subject: ANDROID: Initial abi_gki_aarch64 definition
@@ -24,15 +24,13 @@ Bug: 133501930
 Change-Id: I815940ee13037ad450547e0ab0786e37f0b83d9b
 Signed-off-by: Matthias Maennich <maennich@google.com>
 ---
- abi_gki_aarch64.out      | 319440 ++++++++++++++++++++++++++++++++++++
- build.config.gki.aarch64 |      1 +
- 2 files changed, 319441 insertions(+)
- create mode 100644 abi_gki_aarch64.out
+ build.config.gki.aarch64 | 24 +++++-------------------
+ 1 file changed, 5 insertions(+), 19 deletions(-)
 
-Index: common/build.config.gki.aarch64
-===================================================================
---- common.orig/build.config.gki.aarch64
-+++ common/build.config.gki.aarch64
+diff --git a/build.config.gki.aarch64 b/build.config.gki.aarch64
+index 653e82bf1965..352a6382b06c 100644
+--- a/build.config.gki.aarch64
++++ b/build.config.gki.aarch64
 @@ -1,19 +1,5 @@
 -ARCH=arm64
 -BRANCH=android-mainline

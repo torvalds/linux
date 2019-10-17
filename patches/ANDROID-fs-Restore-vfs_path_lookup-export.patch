@@ -1,4 +1,4 @@
-From 25c49c8d48cfe199197009eb2793b3710afa5039 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Strachan <astrachan@google.com>
 Date: Mon, 19 Nov 2018 22:38:23 -0800
 Subject: ANDROID: fs: Restore vfs_path_lookup() export
@@ -22,7 +22,7 @@ Signed-off-by: Yongqin Liu <yongqin.liu@linaro.org>
  2 files changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/fs/internal.h b/fs/internal.h
-index 315fcd8d237cc..df6e4c4584f32 100644
+index 315fcd8d237c..df6e4c4584f3 100644
 --- a/fs/internal.h
 +++ b/fs/internal.h
 @@ -62,8 +62,6 @@ extern int finish_clean_context(struct fs_context *fc);
@@ -35,10 +35,10 @@ index 315fcd8d237cc..df6e4c4584f32 100644
  		unsigned int dev);
  long do_mkdirat(int dfd, const char __user *pathname, umode_t mode);
 diff --git a/include/linux/namei.h b/include/linux/namei.h
-index 474b3c2de0898..ff686a3989e96 100644
+index cb288d62f1d6..5f04b40747b2 100644
 --- a/include/linux/namei.h
 +++ b/include/linux/namei.h
-@@ -82,6 +82,8 @@ extern struct dentry *kern_path_create(int, const char *, struct path *, unsigne
+@@ -55,6 +55,8 @@ extern struct dentry *kern_path_create(int, const char *, struct path *, unsigne
  extern struct dentry *user_path_create(int, const char __user *, struct path *, unsigned int);
  extern void done_path_create(struct path *, struct dentry *);
  extern struct dentry *kern_path_locked(const char *, struct path *);
@@ -47,6 +47,3 @@ index 474b3c2de0898..ff686a3989e96 100644
  extern int kern_path_mountpoint(int, const char *, struct path *, unsigned int);
  
  extern struct dentry *try_lookup_one_len(const char *, struct dentry *, int);
--- 
-2.23.0.444.g18eeb5a265-goog
-

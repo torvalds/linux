@@ -1,4 +1,4 @@
-From 884416f5176aeddc5b8d66b64407db8a4e5abe70 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Matthias Maennich <maennich@google.com>
 Date: Thu, 29 Aug 2019 12:41:43 +0100
 Subject: ANDROID: create build.configs for allmodconfig
@@ -52,6 +52,3 @@ index 000000000000..bedb3869d99b
 +. ${ROOT_DIR}/common/build.config.x86_64
 +. ${ROOT_DIR}/common/build.config.allmodconfig
 +
--- 
-2.23.0.444.g18eeb5a265-goog
-

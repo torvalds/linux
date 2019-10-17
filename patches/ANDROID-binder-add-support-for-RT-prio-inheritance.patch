@@ -1,4 +1,4 @@
-From f26f402c7656946b47df499d381fc51bc5a966a1 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Martijn Coenen <maco@google.com>
 Date: Tue, 6 Jun 2017 17:04:42 -0700
 Subject: ANDROID: binder: add support for RT prio inheritance.
@@ -28,7 +28,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  3 files changed, 284 insertions(+), 33 deletions(-)
 
 diff --git a/drivers/android/binder.c b/drivers/android/binder.c
-index dc1c83eafc225..f3cf51af833bf 100644
+index c0a491277aca..d970a45e6038 100644
 --- a/drivers/android/binder.c
 +++ b/drivers/android/binder.c
 @@ -66,6 +66,7 @@
@@ -39,7 +39,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  
  #include <asm/cacheflush.h>
  
-@@ -316,10 +317,13 @@ struct binder_error {
+@@ -294,10 +295,13 @@ struct binder_error {
   *                        and by @lock)
   * @has_async_transaction: async transaction to node in progress
   *                        (protected by @lock)
@@ -53,7 +53,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
   * @txn_security_ctx:     require sender's security context
   *                        (invariant after initialized)
   * @async_todo:           list of async work items
-@@ -357,6 +361,8 @@ struct binder_node {
+@@ -335,6 +339,8 @@ struct binder_node {
  		/*
  		 * invariant after initialization
  		 */
@@ -62,7 +62,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  		u8 accept_fds:1;
  		u8 txn_security_ctx:1;
  		u8 min_priority;
-@@ -430,6 +436,22 @@ enum binder_deferred_state {
+@@ -408,6 +414,22 @@ enum binder_deferred_state {
  	BINDER_DEFERRED_RELEASE      = 0x02,
  };
  
@@ -85,7 +85,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  /**
   * struct binder_proc - binder process bookkeeping
   * @proc_node:            element for binder_procs list
-@@ -503,7 +525,7 @@ struct binder_proc {
+@@ -482,7 +504,7 @@ struct binder_proc {
  	int requested_threads;
  	int requested_threads_started;
  	int tmp_ref;
@@ -94,7 +94,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	struct dentry *debugfs_entry;
  	struct binder_alloc alloc;
  	struct binder_context *context;
-@@ -553,6 +575,7 @@ enum {
+@@ -533,6 +555,7 @@ enum {
   * @is_dead:              thread is dead and awaiting free
   *                        when outstanding transactions are cleaned up
   *                        (protected by @proc->inner_lock)
@@ -102,7 +102,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
   *
   * Bookkeeping structure for binder threads.
   */
-@@ -572,6 +595,7 @@ struct binder_thread {
+@@ -552,6 +575,7 @@ struct binder_thread {
  	struct binder_stats stats;
  	atomic_t tmp_ref;
  	bool is_dead;
@@ -110,7 +110,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  };
  
  /**
-@@ -605,8 +629,9 @@ struct binder_transaction {
+@@ -585,8 +609,9 @@ struct binder_transaction {
  	struct binder_buffer *buffer;
  	unsigned int	code;
  	unsigned int	flags;
@@ -122,7 +122,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	kuid_t	sender_euid;
  	struct list_head fd_fixups;
  	binder_uintptr_t security_ctx;
-@@ -1065,22 +1090,145 @@ static void binder_wakeup_proc_ilocked(struct binder_proc *proc)
+@@ -1045,22 +1070,145 @@ static void binder_wakeup_proc_ilocked(struct binder_proc *proc)
  	binder_wakeup_thread_ilocked(proc, thread, /* sync = */false);
  }
  
@@ -279,7 +279,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  }
  
  static struct binder_node *binder_get_node_ilocked(struct binder_proc *proc,
-@@ -1133,6 +1281,7 @@ static struct binder_node *binder_init_node_ilocked(
+@@ -1113,6 +1261,7 @@ static struct binder_node *binder_init_node_ilocked(
  	binder_uintptr_t ptr = fp ? fp->binder : 0;
  	binder_uintptr_t cookie = fp ? fp->cookie : 0;
  	__u32 flags = fp ? fp->flags : 0;
@@ -287,7 +287,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  
  	assert_spin_locked(&proc->inner_lock);
  
-@@ -1165,8 +1314,12 @@ static struct binder_node *binder_init_node_ilocked(
+@@ -1145,8 +1294,12 @@ static struct binder_node *binder_init_node_ilocked(
  	node->ptr = ptr;
  	node->cookie = cookie;
  	node->work.type = BINDER_WORK_NODE;
@@ -301,7 +301,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	node->txn_security_ctx = !!(flags & FLAT_BINDER_FLAG_TXN_SECURITY_CTX);
  	spin_lock_init(&node->lock);
  	INIT_LIST_HEAD(&node->work.entry);
-@@ -2777,11 +2930,15 @@ static bool binder_proc_transaction(struct binder_transaction *t,
+@@ -2757,11 +2910,15 @@ static bool binder_proc_transaction(struct binder_transaction *t,
  				    struct binder_thread *thread)
  {
  	struct binder_node *node = t->buffer->target_node;
@@ -317,7 +317,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	if (oneway) {
  		BUG_ON(thread);
  		if (node->has_async_transaction) {
-@@ -2802,12 +2959,15 @@ static bool binder_proc_transaction(struct binder_transaction *t,
+@@ -2782,12 +2939,15 @@ static bool binder_proc_transaction(struct binder_transaction *t,
  	if (!thread && !pending_async)
  		thread = binder_select_thread_ilocked(proc);
  
@@ -336,7 +336,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  
  	if (!pending_async)
  		binder_wakeup_thread_ilocked(proc, thread, !oneway /* sync */);
-@@ -2928,7 +3088,6 @@ static void binder_transaction(struct binder_proc *proc,
+@@ -2908,7 +3068,6 @@ static void binder_transaction(struct binder_proc *proc,
  		}
  		thread->transaction_stack = in_reply_to->to_parent;
  		binder_inner_proc_unlock(proc);
@@ -344,7 +344,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  		target_thread = binder_get_txn_from_and_acq_inner(in_reply_to);
  		if (target_thread == NULL) {
  			/* annotation for sparse */
-@@ -3127,7 +3286,15 @@ static void binder_transaction(struct binder_proc *proc,
+@@ -3107,7 +3266,15 @@ static void binder_transaction(struct binder_proc *proc,
  	t->to_thread = target_thread;
  	t->code = tr->code;
  	t->flags = tr->flags;
@@ -361,7 +361,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  
  	if (target_node && target_node->txn_security_ctx) {
  		u32 secid;
-@@ -3454,6 +3621,7 @@ static void binder_transaction(struct binder_proc *proc,
+@@ -3434,6 +3601,7 @@ static void binder_transaction(struct binder_proc *proc,
  		binder_enqueue_thread_work_ilocked(target_thread, &t->work);
  		binder_inner_proc_unlock(target_proc);
  		wake_up_interruptible_sync(&target_thread->wait);
@@ -369,7 +369,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  		binder_free_transaction(in_reply_to);
  	} else if (!(t->flags & TF_ONE_WAY)) {
  		BUG_ON(t->buffer->async_transaction != 0);
-@@ -3564,6 +3732,7 @@ static void binder_transaction(struct binder_proc *proc,
+@@ -3544,6 +3712,7 @@ static void binder_transaction(struct binder_proc *proc,
  
  	BUG_ON(thread->return_error.cmd != BR_OK);
  	if (in_reply_to) {
@@ -377,7 +377,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  		thread->return_error.cmd = BR_TRANSACTION_COMPLETE;
  		binder_enqueue_thread_work(thread, &thread->return_error.work);
  		binder_send_failed_reply(in_reply_to, return_error);
-@@ -4230,7 +4399,7 @@ static int binder_thread_read(struct binder_proc *proc,
+@@ -4210,7 +4379,7 @@ static int binder_thread_read(struct binder_proc *proc,
  			wait_event_interruptible(binder_user_error_wait,
  						 binder_stop_on_user_error < 2);
  		}
@@ -386,7 +386,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	}
  
  	if (non_block) {
-@@ -4452,16 +4621,14 @@ static int binder_thread_read(struct binder_proc *proc,
+@@ -4432,16 +4601,14 @@ static int binder_thread_read(struct binder_proc *proc,
  		BUG_ON(t->buffer == NULL);
  		if (t->buffer->target_node) {
  			struct binder_node *target_node = t->buffer->target_node;
@@ -408,7 +408,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  			cmd = BR_TRANSACTION;
  		} else {
  			trd->target.ptr = 0;
-@@ -4673,6 +4840,8 @@ static struct binder_thread *binder_get_thread_ilocked(
+@@ -4653,6 +4820,8 @@ static struct binder_thread *binder_get_thread_ilocked(
  	binder_stats_created(BINDER_STAT_THREAD);
  	thread->proc = proc;
  	thread->pid = current->pid;
@@ -417,7 +417,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	atomic_set(&thread->tmp_ref, 0);
  	init_waitqueue_head(&thread->wait);
  	INIT_LIST_HEAD(&thread->todo);
-@@ -4723,6 +4892,7 @@ static void binder_free_thread(struct binder_thread *thread)
+@@ -4703,6 +4872,7 @@ static void binder_free_thread(struct binder_thread *thread)
  	BUG_ON(!list_empty(&thread->todo));
  	binder_stats_deleted(BINDER_STAT_THREAD);
  	binder_proc_dec_tmpref(thread->proc);
@@ -425,7 +425,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	kfree(thread);
  }
  
-@@ -5242,7 +5412,14 @@ static int binder_open(struct inode *nodp, struct file *filp)
+@@ -5224,7 +5394,14 @@ static int binder_open(struct inode *nodp, struct file *filp)
  	get_task_struct(current->group_leader);
  	proc->tsk = current->group_leader;
  	INIT_LIST_HEAD(&proc->todo);
@@ -439,9 +439,9 @@ index dc1c83eafc225..f3cf51af833bf 100644
 +	}
 +
  	/* binderfs stashes devices in i_private */
- 	if (is_binderfs_device(nodp))
+ 	if (is_binderfs_device(nodp)) {
  		binder_dev = nodp->i_private;
-@@ -5525,13 +5702,14 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
+@@ -5545,13 +5722,14 @@ static void print_binder_transaction_ilocked(struct seq_file *m,
  	spin_lock(&t->lock);
  	to_proc = t->to_proc;
  	seq_printf(m,
@@ -458,7 +458,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  	spin_unlock(&t->lock);
  
  	if (proc != to_proc) {
-@@ -5649,8 +5827,9 @@ static void print_binder_node_nilocked(struct seq_file *m,
+@@ -5669,8 +5847,9 @@ static void print_binder_node_nilocked(struct seq_file *m,
  	hlist_for_each_entry(ref, &node->refs, node_entry)
  		count++;
  
@@ -470,7 +470,7 @@ index dc1c83eafc225..f3cf51af833bf 100644
  		   node->local_strong_refs, node->local_weak_refs,
  		   node->internal_strong_refs, count, node->tmp_refs);
 diff --git a/drivers/android/binder_trace.h b/drivers/android/binder_trace.h
-index 6731c3cd81455..a70e23716ad04 100644
+index 6731c3cd8145..a70e23716ad0 100644
 --- a/drivers/android/binder_trace.h
 +++ b/drivers/android/binder_trace.h
 @@ -76,6 +76,30 @@ DEFINE_BINDER_FUNCTION_RETURN_EVENT(binder_ioctl_done);
@@ -505,7 +505,7 @@ index 6731c3cd81455..a70e23716ad04 100644
  	TP_PROTO(bool proc_work, bool transaction_stack, bool thread_todo),
  	TP_ARGS(proc_work, transaction_stack, thread_todo),
 diff --git a/include/uapi/linux/android/binder.h b/include/uapi/linux/android/binder.h
-index 2832134e53971..11babae0339f2 100644
+index 2832134e5397..11babae0339f 100644
 --- a/include/uapi/linux/android/binder.h
 +++ b/include/uapi/linux/android/binder.h
 @@ -38,10 +38,58 @@ enum {
@@ -568,6 +568,3 @@ index 2832134e53971..11babae0339f2 100644
  	/**
  	 * @FLAT_BINDER_FLAG_TXN_SECURITY_CTX: request security contexts
  	 *
--- 
-2.23.0.444.g18eeb5a265-goog
-

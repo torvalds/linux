@@ -1,4 +1,4 @@
-From f9d4d5e2608b11e0af1c62a0b4f451294f9ab2f1 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Connor O'Brien <connoro@google.com>
 Date: Wed, 31 Jan 2018 18:11:57 -0800
 Subject: ANDROID: cpufreq: track per-task time in state
@@ -32,7 +32,7 @@ Signed-off-by: Alistair Strachan <astrachan@google.com>
  create mode 100644 include/linux/cpufreq_times.h
 
 diff --git a/drivers/cpufreq/Kconfig b/drivers/cpufreq/Kconfig
-index bff5295016ae0..f711715aa5797 100644
+index bff5295016ae..f711715aa579 100644
 --- a/drivers/cpufreq/Kconfig
 +++ b/drivers/cpufreq/Kconfig
 @@ -34,6 +34,13 @@ config CPU_FREQ_STAT
@@ -50,7 +50,7 @@ index bff5295016ae0..f711715aa5797 100644
  	prompt "Default CPUFreq governor"
  	default CPU_FREQ_DEFAULT_GOV_USERSPACE if ARM_SA1100_CPUFREQ || ARM_SA1110_CPUFREQ
 diff --git a/drivers/cpufreq/Makefile b/drivers/cpufreq/Makefile
-index 5a6c70d26c985..d28709da43de5 100644
+index 9a9f5ccd13d9..93d52a112cab 100644
 --- a/drivers/cpufreq/Makefile
 +++ b/drivers/cpufreq/Makefile
 @@ -5,7 +5,10 @@ obj-$(CONFIG_CPU_FREQ)			+= cpufreq.o freq_table.o
@@ -66,7 +66,7 @@ index 5a6c70d26c985..d28709da43de5 100644
  obj-$(CONFIG_CPU_FREQ_GOV_POWERSAVE)	+= cpufreq_powersave.o
  obj-$(CONFIG_CPU_FREQ_GOV_USERSPACE)	+= cpufreq_userspace.o
 diff --git a/drivers/cpufreq/cpufreq.c b/drivers/cpufreq/cpufreq.c
-index c28ebf2810f11..e1cb6e99c76df 100644
+index c52d6fa32aac..a6512ee4b8cc 100644
 --- a/drivers/cpufreq/cpufreq.c
 +++ b/drivers/cpufreq/cpufreq.c
 @@ -16,6 +16,7 @@
@@ -85,7 +85,7 @@ index c28ebf2810f11..e1cb6e99c76df 100644
  		policy->cur = freqs->new;
  	}
  }
-@@ -1447,6 +1449,7 @@ static int cpufreq_online(unsigned int cpu)
+@@ -1460,6 +1462,7 @@ static int cpufreq_online(unsigned int cpu)
  			goto out_destroy_policy;
  
  		cpufreq_stats_create_table(policy);
@@ -95,7 +95,7 @@ index c28ebf2810f11..e1cb6e99c76df 100644
  		list_add(&policy->policy_list, &cpufreq_policy_list);
 diff --git a/drivers/cpufreq/cpufreq_times.c b/drivers/cpufreq/cpufreq_times.c
 new file mode 100644
-index 0000000000000..339a3e9cf0821
+index 000000000000..339a3e9cf082
 --- /dev/null
 +++ b/drivers/cpufreq/cpufreq_times.c
 @@ -0,0 +1,207 @@
@@ -307,7 +307,7 @@ index 0000000000000..339a3e9cf0821
 +	cpufreq_cpu_put(policy);
 +}
 diff --git a/fs/proc/base.c b/fs/proc/base.c
-index ebea9501afb84..7d13501910ee7 100644
+index ebea9501afb8..7d13501910ee 100644
 --- a/fs/proc/base.c
 +++ b/fs/proc/base.c
 @@ -94,6 +94,7 @@
@@ -340,7 +340,7 @@ index ebea9501afb84..7d13501910ee7 100644
  static int proc_tid_base_readdir(struct file *file, struct dir_context *ctx)
 diff --git a/include/linux/cpufreq_times.h b/include/linux/cpufreq_times.h
 new file mode 100644
-index 0000000000000..bfef6e62c68a1
+index 000000000000..bfef6e62c68a
 --- /dev/null
 +++ b/include/linux/cpufreq_times.h
 @@ -0,0 +1,41 @@
@@ -386,10 +386,10 @@ index 0000000000000..bfef6e62c68a1
 +#endif /* CONFIG_CPU_FREQ_TIMES */
 +#endif /* _LINUX_CPUFREQ_TIMES_H */
 diff --git a/include/linux/sched.h b/include/linux/sched.h
-index 9f51932bd543f..47c90085f5e73 100644
+index 2c2e56bd8913..16c499ca096b 100644
 --- a/include/linux/sched.h
 +++ b/include/linux/sched.h
-@@ -854,6 +854,10 @@ struct task_struct {
+@@ -840,6 +840,10 @@ struct task_struct {
  	u64				stimescaled;
  #endif
  	u64				gtime;
@@ -401,7 +401,7 @@ index 9f51932bd543f..47c90085f5e73 100644
  #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
  	struct vtime			vtime;
 diff --git a/kernel/fork.c b/kernel/fork.c
-index 541fd805fb888..6cde9f0e923d1 100644
+index f9572f416126..13a59b9f2339 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -93,6 +93,7 @@
@@ -412,7 +412,7 @@ index 541fd805fb888..6cde9f0e923d1 100644
  #include <linux/stackleak.h>
  
  #include <asm/pgtable.h>
-@@ -442,6 +443,8 @@ void put_task_stack(struct task_struct *tsk)
+@@ -451,6 +452,8 @@ void put_task_stack(struct task_struct *tsk)
  
  void free_task(struct task_struct *tsk)
  {
@@ -421,7 +421,7 @@ index 541fd805fb888..6cde9f0e923d1 100644
  #ifndef CONFIG_THREAD_INFO_IN_TASK
  	/*
  	 * The task is finally done with both the stack and thread_info,
-@@ -1857,6 +1860,8 @@ static __latent_entropy struct task_struct *copy_process(
+@@ -1852,6 +1855,8 @@ static __latent_entropy struct task_struct *copy_process(
  	if (!p)
  		goto fork_out;
  
@@ -430,7 +430,7 @@ index 541fd805fb888..6cde9f0e923d1 100644
  	/*
  	 * This _must_ happen before we call free_task(), i.e. before we jump
  	 * to any of the bad_fork_* labels. This is to avoid freeing
-@@ -2374,6 +2379,8 @@ long _do_fork(struct kernel_clone_args *args)
+@@ -2369,6 +2374,8 @@ long _do_fork(struct kernel_clone_args *args)
  	if (IS_ERR(p))
  		return PTR_ERR(p);
  
@@ -440,7 +440,7 @@ index 541fd805fb888..6cde9f0e923d1 100644
  	 * Do this prior waking up the new thread - the thread pointer
  	 * might get invalid after that point, if the thread exits quickly.
 diff --git a/kernel/sched/cputime.c b/kernel/sched/cputime.c
-index 2305ce89a26cf..cdcb00b5dc5ee 100644
+index 2305ce89a26c..cdcb00b5dc5e 100644
 --- a/kernel/sched/cputime.c
 +++ b/kernel/sched/cputime.c
 @@ -2,6 +2,7 @@
@@ -471,6 +471,3 @@ index 2305ce89a26cf..cdcb00b5dc5ee 100644
  }
  
  /*
--- 
-2.23.0.444.g18eeb5a265-goog
-

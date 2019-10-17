@@ -1,4 +1,4 @@
-From 6746891e99fc3eda1bbbd999a8a08b3128c3f458 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Tri Vo <trong@google.com>
 Date: Fri, 23 Aug 2019 10:57:25 -0700
 Subject: ANDROID: gki_defconfig: enable CONFIG_TIPC
@@ -11,7 +11,7 @@ Signed-off-by: Tri Vo <trong@google.com>
  1 file changed, 1 insertion(+)
 
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
-index 73acbe383203d..b70d608b1ee69 100644
+index 73acbe383203..b70d608b1ee6 100644
 --- a/arch/arm64/configs/gki_defconfig
 +++ b/arch/arm64/configs/gki_defconfig
 @@ -170,6 +170,7 @@ CONFIG_IP6_NF_FILTER=y
@@ -22,6 +22,3 @@ index 73acbe383203d..b70d608b1ee69 100644
  CONFIG_L2TP=y
  CONFIG_BRIDGE=y
  CONFIG_NET_SCHED=y
--- 
-2.23.0.444.g18eeb5a265-goog
-
