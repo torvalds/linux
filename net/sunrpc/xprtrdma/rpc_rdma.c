@@ -589,146 +589,160 @@ static bool rpcrdma_prepare_hdr_sge(struct rpcrdma_xprt *r_xprt,
 {
 	struct rpcrdma_sendctx *sc = req->rl_sendctx;
 	struct rpcrdma_regbuf *rb = req->rl_rdmabuf;
-	struct ib_sge *sge = sc->sc_sges;
+	struct ib_sge *sge = &sc->sc_sges[req->rl_wr.num_sge++];
 
 	if (!rpcrdma_regbuf_dma_map(r_xprt, rb))
-		goto out_regbuf;
+		return false;
 	sge->addr = rdmab_addr(rb);
 	sge->length = len;
 	sge->lkey = rdmab_lkey(rb);
 
 	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr, sge->length,
 				      DMA_TO_DEVICE);
-	req->rl_wr.num_sge++;
+	return true;
+}
+
+/* The head iovec is straightforward, as it is usually already
+ * DMA-mapped. Sync the content that has changed.
+ */
+static bool rpcrdma_prepare_head_iov(struct rpcrdma_xprt *r_xprt,
+				     struct rpcrdma_req *req, unsigned int len)
+{
+	struct rpcrdma_sendctx *sc = req->rl_sendctx;
+	struct ib_sge *sge = &sc->sc_sges[req->rl_wr.num_sge++];
+	struct rpcrdma_regbuf *rb = req->rl_sendbuf;
+
+	if (!rpcrdma_regbuf_dma_map(r_xprt, rb))
+		return false;
+
+	sge->addr = rdmab_addr(rb);
+	sge->length = len;
+	sge->lkey = rdmab_lkey(rb);
+
+	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr, sge->length,
+				      DMA_TO_DEVICE);
+	return true;
+}
+
+/* If there is a page list present, DMA map and prepare an
+ * SGE for each page to be sent.
+ */
+static bool rpcrdma_prepare_pagelist(struct rpcrdma_req *req,
+				     struct xdr_buf *xdr)
+{
+	struct rpcrdma_sendctx *sc = req->rl_sendctx;
+	struct rpcrdma_regbuf *rb = req->rl_sendbuf;
+	unsigned int page_base, len, remaining;
+	struct page **ppages;
+	struct ib_sge *sge;
+
+	ppages = xdr->pages + (xdr->page_base >> PAGE_SHIFT);
+	page_base = offset_in_page(xdr->page_base);
+	remaining = xdr->page_len;
+	while (remaining) {
+		sge = &sc->sc_sges[req->rl_wr.num_sge++];
+		len = min_t(unsigned int, PAGE_SIZE - page_base, remaining);
+		sge->addr = ib_dma_map_page(rdmab_device(rb), *ppages,
+					    page_base, len, DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(rdmab_device(rb), sge->addr))
+			goto out_mapping_err;
+
+		sge->length = len;
+		sge->lkey = rdmab_lkey(rb);
+
+		sc->sc_unmap_count++;
+		ppages++;
+		remaining -= len;
+		page_base = 0;
+	}
+
 	return true;
 
-out_regbuf:
-	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
+out_mapping_err:
+	trace_xprtrdma_dma_maperr(sge->addr);
 	return false;
 }
 
-/* Prepare the Send SGEs. The head and tail iovec, and each entry
- * in the page list, gets its own SGE.
+/* The tail iovec may include an XDR pad for the page list,
+ * as well as additional content, and may not reside in the
+ * same page as the head iovec.
  */
-static bool rpcrdma_prepare_msg_sges(struct rpcrdma_xprt *r_xprt,
-				     struct rpcrdma_req *req,
+static bool rpcrdma_prepare_tail_iov(struct rpcrdma_req *req,
 				     struct xdr_buf *xdr,
-				     enum rpcrdma_chunktype rtype)
+				     unsigned int page_base, unsigned int len)
 {
 	struct rpcrdma_sendctx *sc = req->rl_sendctx;
-	unsigned int sge_no, page_base, len, remaining;
+	struct ib_sge *sge = &sc->sc_sges[req->rl_wr.num_sge++];
 	struct rpcrdma_regbuf *rb = req->rl_sendbuf;
-	struct ib_sge *sge = sc->sc_sges;
-	struct page *page, **ppages;
+	struct page *page = virt_to_page(xdr->tail[0].iov_base);
 
-	/* The head iovec is straightforward, as it is already
-	 * DMA-mapped. Sync the content that has changed.
-	 */
-	if (!rpcrdma_regbuf_dma_map(r_xprt, rb))
-		goto out_regbuf;
-	sge_no = 1;
-	sge[sge_no].addr = rdmab_addr(rb);
-	sge[sge_no].length = xdr->head[0].iov_len;
-	sge[sge_no].lkey = rdmab_lkey(rb);
-	ib_dma_sync_single_for_device(rdmab_device(rb), sge[sge_no].addr,
-				      sge[sge_no].length, DMA_TO_DEVICE);
+	sge->addr = ib_dma_map_page(rdmab_device(rb), page, page_base, len,
+				    DMA_TO_DEVICE);
+	if (ib_dma_mapping_error(rdmab_device(rb), sge->addr))
+		goto out_mapping_err;
 
-	/* If there is a Read chunk, the page list is being handled
-	 * via explicit RDMA, and thus is skipped here. However, the
-	 * tail iovec may include an XDR pad for the page list, as
-	 * well as additional content, and may not reside in the
-	 * same page as the head iovec.
-	 */
-	if (rtype == rpcrdma_readch) {
-		len = xdr->tail[0].iov_len;
-
-		/* Do not include the tail if it is only an XDR pad */
-		if (len < 4)
-			goto out;
-
-		page = virt_to_page(xdr->tail[0].iov_base);
-		page_base = offset_in_page(xdr->tail[0].iov_base);
-
-		/* If the content in the page list is an odd length,
-		 * xdr_write_pages() has added a pad at the beginning
-		 * of the tail iovec. Force the tail's non-pad content
-		 * to land at the next XDR position in the Send message.
-		 */
-		page_base += len & 3;
-		len -= len & 3;
-		goto map_tail;
-	}
-
-	/* If there is a page list present, temporarily DMA map
-	 * and prepare an SGE for each page to be sent.
-	 */
-	if (xdr->page_len) {
-		ppages = xdr->pages + (xdr->page_base >> PAGE_SHIFT);
-		page_base = offset_in_page(xdr->page_base);
-		remaining = xdr->page_len;
-		while (remaining) {
-			sge_no++;
-			if (sge_no > RPCRDMA_MAX_SEND_SGES - 2)
-				goto out_mapping_overflow;
-
-			len = min_t(u32, PAGE_SIZE - page_base, remaining);
-			sge[sge_no].addr =
-				ib_dma_map_page(rdmab_device(rb), *ppages,
-						page_base, len, DMA_TO_DEVICE);
-			if (ib_dma_mapping_error(rdmab_device(rb),
-						 sge[sge_no].addr))
-				goto out_mapping_err;
-			sge[sge_no].length = len;
-			sge[sge_no].lkey = rdmab_lkey(rb);
-
-			sc->sc_unmap_count++;
-			ppages++;
-			remaining -= len;
-			page_base = 0;
-		}
-	}
-
-	/* The tail iovec is not always constructed in the same
-	 * page where the head iovec resides (see, for example,
-	 * gss_wrap_req_priv). To neatly accommodate that case,
-	 * DMA map it separately.
-	 */
-	if (xdr->tail[0].iov_len) {
-		page = virt_to_page(xdr->tail[0].iov_base);
-		page_base = offset_in_page(xdr->tail[0].iov_base);
-		len = xdr->tail[0].iov_len;
-
-map_tail:
-		sge_no++;
-		sge[sge_no].addr =
-			ib_dma_map_page(rdmab_device(rb), page, page_base, len,
-					DMA_TO_DEVICE);
-		if (ib_dma_mapping_error(rdmab_device(rb), sge[sge_no].addr))
-			goto out_mapping_err;
-		sge[sge_no].length = len;
-		sge[sge_no].lkey = rdmab_lkey(rb);
-		sc->sc_unmap_count++;
-	}
-
-out:
-	req->rl_wr.num_sge += sge_no;
-	if (sc->sc_unmap_count)
-		kref_get(&req->rl_kref);
+	sge->length = len;
+	sge->lkey = rdmab_lkey(rb);
+	++sc->sc_unmap_count;
 	return true;
 
-out_regbuf:
-	pr_err("rpcrdma: failed to DMA map a Send buffer\n");
-	return false;
-
-out_mapping_overflow:
-	rpcrdma_sendctx_unmap(sc);
-	pr_err("rpcrdma: too many Send SGEs (%u)\n", sge_no);
-	return false;
-
 out_mapping_err:
-	rpcrdma_sendctx_unmap(sc);
-	trace_xprtrdma_dma_maperr(sge[sge_no].addr);
+	trace_xprtrdma_dma_maperr(sge->addr);
 	return false;
+}
+
+static bool rpcrdma_prepare_noch_mapped(struct rpcrdma_xprt *r_xprt,
+					struct rpcrdma_req *req,
+					struct xdr_buf *xdr)
+{
+	struct kvec *tail = &xdr->tail[0];
+
+	if (!rpcrdma_prepare_head_iov(r_xprt, req, xdr->head[0].iov_len))
+		return false;
+	if (xdr->page_len)
+		if (!rpcrdma_prepare_pagelist(req, xdr))
+			return false;
+	if (tail->iov_len)
+		if (!rpcrdma_prepare_tail_iov(req, xdr,
+					      offset_in_page(tail->iov_base),
+					      tail->iov_len))
+			return false;
+
+	if (req->rl_sendctx->sc_unmap_count)
+		kref_get(&req->rl_kref);
+	return true;
+}
+
+static bool rpcrdma_prepare_readch(struct rpcrdma_xprt *r_xprt,
+				   struct rpcrdma_req *req,
+				   struct xdr_buf *xdr)
+{
+	if (!rpcrdma_prepare_head_iov(r_xprt, req, xdr->head[0].iov_len))
+		return false;
+
+	/* If there is a Read chunk, the page list is being handled
+	 * via explicit RDMA, and thus is skipped here.
+	 */
+
+	/* Do not include the tail if it is only an XDR pad */
+	if (xdr->tail[0].iov_len > 3) {
+		unsigned int page_base, len;
+
+		/* If the content in the page list is an odd length,
+		 * xdr_write_pages() adds a pad at the beginning of
+		 * the tail iovec. Force the tail's non-pad content to
+		 * land at the next XDR position in the Send message.
+		 */
+		page_base = offset_in_page(xdr->tail[0].iov_base);
+		len = xdr->tail[0].iov_len;
+		page_base += len & 3;
+		len -= len & 3;
+		if (!rpcrdma_prepare_tail_iov(req, xdr, page_base, len))
+			return false;
+		kref_get(&req->rl_kref);
+	}
+
+	return true;
 }
 
 /**
@@ -741,17 +755,17 @@ out_mapping_err:
  *
  * Returns 0 on success; otherwise a negative errno is returned.
  */
-int
-rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
-			  struct rpcrdma_req *req, u32 hdrlen,
-			  struct xdr_buf *xdr, enum rpcrdma_chunktype rtype)
+inline int rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
+				     struct rpcrdma_req *req, u32 hdrlen,
+				     struct xdr_buf *xdr,
+				     enum rpcrdma_chunktype rtype)
 {
 	int ret;
 
 	ret = -EAGAIN;
 	req->rl_sendctx = rpcrdma_sendctx_get_locked(r_xprt);
 	if (!req->rl_sendctx)
-		goto err;
+		goto out_nosc;
 	req->rl_sendctx->sc_unmap_count = 0;
 	req->rl_sendctx->sc_req = req;
 	kref_init(&req->rl_kref);
@@ -762,13 +776,28 @@ rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 
 	ret = -EIO;
 	if (!rpcrdma_prepare_hdr_sge(r_xprt, req, hdrlen))
-		goto err;
-	if (rtype != rpcrdma_areadch)
-		if (!rpcrdma_prepare_msg_sges(r_xprt, req, xdr, rtype))
-			goto err;
+		goto out_unmap;
+
+	switch (rtype) {
+	case rpcrdma_noch:
+		if (!rpcrdma_prepare_noch_mapped(r_xprt, req, xdr))
+			goto out_unmap;
+		break;
+	case rpcrdma_readch:
+		if (!rpcrdma_prepare_readch(r_xprt, req, xdr))
+			goto out_unmap;
+		break;
+	case rpcrdma_areadch:
+		break;
+	default:
+		goto out_unmap;
+	}
+
 	return 0;
 
-err:
+out_unmap:
+	rpcrdma_sendctx_unmap(req->rl_sendctx);
+out_nosc:
 	trace_xprtrdma_prepsend_failed(&req->rl_slot, ret);
 	return ret;
 }
