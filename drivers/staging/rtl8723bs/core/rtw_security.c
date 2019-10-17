@@ -307,10 +307,10 @@ void rtw_wep_decrypt(struct adapter  *padapter, u8 *precvframe)
 				 _drv_err_,
 				 ("%s:icv error crc[3](%x)!=payload[length-1](%x) || crc[2](%x)!=payload[length-2](%x) || crc[1](%x)!=payload[length-3](%x) || crc[0](%x)!=payload[length-4](%x)\n",
 					__func__,
-					crc[3], payload[length-1],
-					crc[2], payload[length-2],
-					crc[1], payload[length-3],
-					crc[0], payload[length-4]));
+					crc[3], payload[length - 1],
+					crc[2], payload[length - 2],
+					crc[1], payload[length - 3],
+					crc[0], payload[length - 4]));
 		}
 
 		WEP_SW_DEC_CNT_INC(psecuritypriv, prxattrib->ra);
@@ -848,10 +848,10 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 				RT_TRACE(_module_rtl871x_security_c_,
 					 _drv_err_,
 					 ("rtw_wep_decrypt:icv error crc[3](%x)!=payload[length-1](%x) || crc[2](%x)!=payload[length-2](%x) || crc[1](%x)!=payload[length-3](%x) || crc[0](%x)!=payload[length-4](%x)\n",
-						crc[3], payload[length-1],
-						crc[2], payload[length-2],
-						crc[1], payload[length-3],
-						crc[0], payload[length-4]));
+						crc[3], payload[length - 1],
+						crc[2], payload[length - 2],
+						crc[1], payload[length - 3],
+						crc[0], payload[length - 4]));
 				res = _FAIL;
 			}
 
@@ -1615,11 +1615,11 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	payload_remainder = (plen-8) % 16;
 
 	pn_vector[0]  = pframe[hdrlen];
-	pn_vector[1]  = pframe[hdrlen+1];
-	pn_vector[2]  = pframe[hdrlen+4];
-	pn_vector[3]  = pframe[hdrlen+5];
-	pn_vector[4]  = pframe[hdrlen+6];
-	pn_vector[5]  = pframe[hdrlen+7];
+	pn_vector[1]  = pframe[hdrlen + 1];
+	pn_vector[2]  = pframe[hdrlen + 4];
+	pn_vector[3]  = pframe[hdrlen + 5];
+	pn_vector[4]  = pframe[hdrlen + 6];
+	pn_vector[5]  = pframe[hdrlen + 7];
 
 	if ((hdrlen == WLAN_HDR_A3_LEN) || (hdrlen ==  WLAN_HDR_A3_QOS_LEN))
 		a4_exists = 0;
@@ -1657,7 +1657,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 				qc_exists,
 				pframe,
 				pn_vector,
-				i+1,
+				i + 1,
 				frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
 			);
 
@@ -1840,13 +1840,13 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 				 ("%s:mic check error mic[%d]: pframe(%x) != message(%x)\n",
 					__func__,
 					i,
-					pframe[hdrlen+8+plen-8+i],
-					message[hdrlen+8+plen-8+i]));
+					pframe[hdrlen + 8 + plen - 8 + i],
+					message[hdrlen + 8 + plen - 8 + i]));
 			DBG_871X("%s:mic check error mic[%d]: pframe(%x) != message(%x)\n",
 					__func__,
 					i,
-					pframe[hdrlen+8+plen-8+i],
-					message[hdrlen+8+plen-8+i]);
+					pframe[hdrlen + 8 + plen - 8 + i],
+					message[hdrlen + 8 + plen - 8 + i]);
 			res = _FAIL;
 		}
 	}
