@@ -104,7 +104,8 @@ int snd_oxfw_stream_init_duplex(struct snd_oxfw *oxfw);
 int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 				   struct amdtp_stream *stream,
 				   unsigned int rate, unsigned int pcm_channels,
-				   unsigned int frames_per_period);
+				   unsigned int frames_per_period,
+				   unsigned int frames_per_buffer);
 int snd_oxfw_stream_start_duplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_stop_duplex(struct snd_oxfw *oxfw);
 void snd_oxfw_stream_destroy_duplex(struct snd_oxfw *oxfw);
