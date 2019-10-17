@@ -347,7 +347,6 @@ struct smu_context
 	struct amdgpu_device            *adev;
 	struct amdgpu_irq_src		*irq_source;
 
-	const struct smu_funcs		*funcs;
 	const struct pptable_funcs	*ppt_funcs;
 	struct mutex			mutex;
 	struct mutex			sensor_lock;
@@ -471,16 +470,12 @@ struct pptable_funcs {
 	int (*set_df_cstate)(struct smu_context *smu, enum pp_df_cstate state);
 	int (*update_pcie_parameters)(struct smu_context *smu, uint32_t pcie_gen_cap, uint32_t pcie_width_cap);
 	int (*get_dpm_clock_table)(struct smu_context *smu, struct dpm_clocks *clock_table);
-};
-
-struct smu_funcs
-{
 	int (*init_microcode)(struct smu_context *smu);
+	int (*load_microcode)(struct smu_context *smu);
 	int (*init_smc_tables)(struct smu_context *smu);
 	int (*fini_smc_tables)(struct smu_context *smu);
 	int (*init_power)(struct smu_context *smu);
 	int (*fini_power)(struct smu_context *smu);
-	int (*load_microcode)(struct smu_context *smu);
 	int (*check_fw_status)(struct smu_context *smu);
 	int (*setup_pptable)(struct smu_context *smu);
 	int (*get_vbios_bootup_values)(struct smu_context *smu);
@@ -510,8 +505,6 @@ struct smu_funcs
 	int (*init_max_sustainable_clocks)(struct smu_context *smu);
 	int (*start_thermal_control)(struct smu_context *smu);
 	int (*stop_thermal_control)(struct smu_context *smu);
-	int (*read_sensor)(struct smu_context *smu, enum amd_pp_sensors sensor,
-			   void *data, uint32_t *size);
 	int (*set_deep_sleep_dcefclk)(struct smu_context *smu, uint32_t clk);
 	int (*set_active_display_count)(struct smu_context *smu, uint32_t count);
 	int (*store_cc6_data)(struct smu_context *smu, uint32_t separation_time,
