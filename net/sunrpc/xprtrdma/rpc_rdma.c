@@ -599,7 +599,7 @@ static bool rpcrdma_prepare_hdr_sge(struct rpcrdma_xprt *r_xprt,
 
 	ib_dma_sync_single_for_device(rdmab_device(rb), sge->addr, sge->length,
 				      DMA_TO_DEVICE);
-	sc->sc_wr.num_sge++;
+	req->rl_wr.num_sge++;
 	return true;
 
 out_regbuf:
@@ -711,7 +711,7 @@ map_tail:
 	}
 
 out:
-	sc->sc_wr.num_sge += sge_no;
+	req->rl_wr.num_sge += sge_no;
 	if (sc->sc_unmap_count)
 		kref_get(&req->rl_kref);
 	return true;
@@ -752,10 +752,13 @@ rpcrdma_prepare_send_sges(struct rpcrdma_xprt *r_xprt,
 	req->rl_sendctx = rpcrdma_sendctx_get_locked(r_xprt);
 	if (!req->rl_sendctx)
 		goto err;
-	req->rl_sendctx->sc_wr.num_sge = 0;
 	req->rl_sendctx->sc_unmap_count = 0;
 	req->rl_sendctx->sc_req = req;
 	kref_init(&req->rl_kref);
+	req->rl_wr.wr_cqe = &req->rl_sendctx->sc_cqe;
+	req->rl_wr.sg_list = req->rl_sendctx->sc_sges;
+	req->rl_wr.num_sge = 0;
+	req->rl_wr.opcode = IB_WR_SEND;
 
 	ret = -EIO;
 	if (!rpcrdma_prepare_hdr_sge(r_xprt, req, hdrlen))

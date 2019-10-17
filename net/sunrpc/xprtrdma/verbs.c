@@ -811,9 +811,6 @@ static struct rpcrdma_sendctx *rpcrdma_sendctx_create(struct rpcrdma_ia *ia)
 	if (!sc)
 		return NULL;
 
-	sc->sc_wr.wr_cqe = &sc->sc_cqe;
-	sc->sc_wr.sg_list = sc->sc_sges;
-	sc->sc_wr.opcode = IB_WR_SEND;
 	sc->sc_cqe.done = rpcrdma_wc_send;
 	return sc;
 }
@@ -1469,7 +1466,7 @@ rpcrdma_ep_post(struct rpcrdma_ia *ia,
 		struct rpcrdma_ep *ep,
 		struct rpcrdma_req *req)
 {
-	struct ib_send_wr *send_wr = &req->rl_sendctx->sc_wr;
+	struct ib_send_wr *send_wr = &req->rl_wr;
 	int rc;
 
 	if (!ep->rep_send_count || kref_read(&req->rl_kref) > 1) {

@@ -219,7 +219,6 @@ enum {
  */
 struct rpcrdma_req;
 struct rpcrdma_sendctx {
-	struct ib_send_wr	sc_wr;
 	struct ib_cqe		sc_cqe;
 	struct rpcrdma_req	*sc_req;
 	unsigned int		sc_unmap_count;
@@ -314,6 +313,7 @@ struct rpcrdma_req {
 	struct rpcrdma_rep	*rl_reply;
 	struct xdr_stream	rl_stream;
 	struct xdr_buf		rl_hdrbuf;
+	struct ib_send_wr	rl_wr;
 	struct rpcrdma_sendctx	*rl_sendctx;
 	struct rpcrdma_regbuf	*rl_rdmabuf;	/* xprt header */
 	struct rpcrdma_regbuf	*rl_sendbuf;	/* rq_snd_buf */

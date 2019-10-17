@@ -667,9 +667,8 @@ TRACE_EVENT(xprtrdma_post_send,
 		__entry->client_id = rqst->rq_task->tk_client ?
 				     rqst->rq_task->tk_client->cl_clid : -1;
 		__entry->req = req;
-		__entry->num_sge = req->rl_sendctx->sc_wr.num_sge;
-		__entry->signaled = req->rl_sendctx->sc_wr.send_flags &
-				    IB_SEND_SIGNALED;
+		__entry->num_sge = req->rl_wr.num_sge;
+		__entry->signaled = req->rl_wr.send_flags & IB_SEND_SIGNALED;
 		__entry->status = status;
 	),
 

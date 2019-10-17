@@ -396,7 +396,7 @@ int frwr_send(struct rpcrdma_ia *ia, struct rpcrdma_req *req)
 	struct ib_send_wr *post_wr;
 	struct rpcrdma_mr *mr;
 
-	post_wr = &req->rl_sendctx->sc_wr;
+	post_wr = &req->rl_wr;
 	list_for_each_entry(mr, &req->rl_registered, mr_list) {
 		struct rpcrdma_frwr *frwr;
 
