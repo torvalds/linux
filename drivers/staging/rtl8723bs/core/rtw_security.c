@@ -1540,7 +1540,7 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 }
 
 static sint aes_decipher(u8 *key, uint	hdrlen,
-			u8 *pframe, uint plen)
+			 u8 *pframe, uint plen)
 {
 	static u8 message[MAX_MSG_SIZE];
 	uint	qc_exists, a4_exists, i, j, payload_remainder,
@@ -1616,15 +1616,10 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	payload_index = hdrlen + 8; /*  8 is for extiv */
 
 	for (i = 0; i < num_blocks; i++) {
-		construct_ctr_preload(
-				ctr_preload,
-				a4_exists,
-				qc_exists,
-				pframe,
-				pn_vector,
-				i + 1,
-				frtype /*  add for CONFIG_IEEE80211W, none 11w also can use */
-			);
+		construct_ctr_preload(ctr_preload, a4_exists,
+				      qc_exists, pframe,
+				      pn_vector, i + 1,
+				      frtype); /*  add for CONFIG_IEEE80211W, none 11w also can use */
 
 			aes128k128d(key, ctr_preload, aes_out);
 			bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);
