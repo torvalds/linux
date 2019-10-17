@@ -1483,7 +1483,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	aes128k128d(key, ctr_preload, aes_out);
 	bitwise_xor(aes_out, padded_buffer, chain_buffer);
 	for (j = 0; j < 8; j++)
-		 pframe[payload_index++] = chain_buffer[j];
+		pframe[payload_index++] = chain_buffer[j];
 
 	return _SUCCESS;
 }
@@ -1616,7 +1616,7 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	payload_index = hdrlen + 8; /*  8 is for extiv */
 
 	for (i = 0; i < num_blocks; i++) {
-			construct_ctr_preload(
+		construct_ctr_preload(
 				ctr_preload,
 				a4_exists,
 				qc_exists,
