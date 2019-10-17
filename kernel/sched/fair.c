@@ -6364,7 +6364,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
 		goto fail;
 
 	cpu = smp_processor_id();
-	if (sync && cpumask_test_cpu(cpu, p->cpus_ptr)) {
+	if (sync && cpu_rq(cpu)->nr_running == 1 &&
+	    cpumask_test_cpu(cpu, p->cpus_ptr)) {
 		rcu_read_unlock();
 		return cpu;
 	}
