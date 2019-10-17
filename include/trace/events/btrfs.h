@@ -170,7 +170,7 @@ DECLARE_EVENT_CLASS(btrfs__inode,
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  ino			)
-		__field(	blkcnt_t,  blocks		)
+		__field(	u64,  blocks			)
 		__field(	u64,  disk_i_size		)
 		__field(	u64,  generation		)
 		__field(	u64,  last_trans		)
@@ -194,7 +194,7 @@ DECLARE_EVENT_CLASS(btrfs__inode,
 		  show_root_type(__entry->root_objectid),
 		  __entry->generation,
 		  __entry->ino,
-		  (unsigned long long)__entry->blocks,
+		  __entry->blocks,
 		  __entry->disk_i_size,
 		  __entry->last_trans,
 		  __entry->logged_trans)
@@ -574,7 +574,7 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 		__field(	char,   for_kupdate		)
 		__field(	char,   for_reclaim		)
 		__field(	char,   range_cyclic		)
-		__field(	pgoff_t,  writeback_index	)
+		__field(	unsigned long,  writeback_index	)
 		__field(	u64,    root_objectid		)
 	),
 
@@ -603,7 +603,7 @@ DECLARE_EVENT_CLASS(btrfs__writepage,
 		  __entry->range_start, __entry->range_end,
 		  __entry->for_kupdate,
 		  __entry->for_reclaim, __entry->range_cyclic,
-		  (unsigned long)__entry->writeback_index)
+		  __entry->writeback_index)
 );
 
 DEFINE_EVENT(btrfs__writepage, __extent_writepage,
@@ -622,7 +622,7 @@ TRACE_EVENT(btrfs_writepage_end_io_hook,
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,	 ino		)
-		__field(	pgoff_t, index		)
+		__field(	unsigned long, index	)
 		__field(	u64,	 start		)
 		__field(	u64,	 end		)
 		__field(	int,	 uptodate	)
@@ -642,7 +642,7 @@ TRACE_EVENT(btrfs_writepage_end_io_hook,
 	TP_printk_btrfs("root=%llu(%s) ino=%llu page_index=%lu start=%llu "
 		  "end=%llu uptodate=%d",
 		  show_root_type(__entry->root_objectid),
-		  __entry->ino, (unsigned long)__entry->index,
+		  __entry->ino, __entry->index,
 		  __entry->start,
 		  __entry->end, __entry->uptodate)
 );
@@ -1325,17 +1325,17 @@ TRACE_EVENT(alloc_extent_state,
 	TP_STRUCT__entry(
 		__field(const struct extent_state *, state)
 		__field(gfp_t, mask)
-		__field(unsigned long, ip)
+		__field(const void*, ip)
 	),
 
 	TP_fast_assign(
 		__entry->state	= state,
 		__entry->mask	= mask,
-		__entry->ip	= IP
+		__entry->ip	= (const void *)IP
 	),
 
 	TP_printk("state=%p mask=%s caller=%pS", __entry->state,
-		  show_gfp_flags(__entry->mask), (const void *)__entry->ip)
+		  show_gfp_flags(__entry->mask), __entry->ip)
 );
 
 TRACE_EVENT(free_extent_state,
@@ -1346,16 +1346,15 @@ TRACE_EVENT(free_extent_state,
 
 	TP_STRUCT__entry(
 		__field(const struct extent_state *, state)
-		__field(unsigned long, ip)
+		__field(const void*, ip)
 	),
 
 	TP_fast_assign(
 		__entry->state	= state,
-		__entry->ip = IP
+		__entry->ip = (const void *)IP
 	),
 
-	TP_printk("state=%p caller=%pS", __entry->state,
-		  (const void *)__entry->ip)
+	TP_printk("state=%p caller=%pS", __entry->state, __entry->ip)
 );
 
 DECLARE_EVENT_CLASS(btrfs__work,
@@ -1567,8 +1566,7 @@ DECLARE_EVENT_CLASS(btrfs_qgroup_extent,
 	),
 
 	TP_printk_btrfs("bytenr=%llu num_bytes=%llu",
-		  (unsigned long long)__entry->bytenr,
-		  (unsigned long long)__entry->num_bytes)
+		  __entry->bytenr, __entry->num_bytes)
 );
 
 DEFINE_EVENT(btrfs_qgroup_extent, btrfs_qgroup_account_extents,
