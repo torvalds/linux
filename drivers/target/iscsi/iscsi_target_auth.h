@@ -10,7 +10,7 @@
 #define CHAP_DIGEST_SHA256	7
 #define CHAP_DIGEST_SHA3_256	8
 
-#define CHAP_CHALLENGE_LENGTH	16
+#define MAX_CHAP_CHALLENGE_LEN	32
 #define CHAP_CHALLENGE_STR_LEN	4096
 #define MAX_RESPONSE_LENGTH	128	/* sufficient for SHA3 256 */
 #define	MAX_CHAP_N_SIZE		512
@@ -34,7 +34,7 @@ extern u32 chap_main_loop(struct iscsi_conn *, struct iscsi_node_auth *, char *,
 
 struct iscsi_chap {
 	unsigned char	id;
-	unsigned char	challenge[CHAP_CHALLENGE_LENGTH];
+	unsigned char	challenge[MAX_CHAP_CHALLENGE_LEN];
 	unsigned int	challenge_len;
 	unsigned char	*digest_name;
 	unsigned int	digest_size;
