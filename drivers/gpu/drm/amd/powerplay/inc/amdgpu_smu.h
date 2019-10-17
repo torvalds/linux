@@ -553,89 +553,13 @@ struct smu_funcs
 	int (*override_pcie_parameters)(struct smu_context *smu);
 };
 
-#define smu_init_microcode(smu) \
-	((smu)->funcs->init_microcode ? (smu)->funcs->init_microcode((smu)) : 0)
-#define smu_init_smc_tables(smu) \
-	((smu)->funcs->init_smc_tables ? (smu)->funcs->init_smc_tables((smu)) : 0)
-#define smu_fini_smc_tables(smu) \
-	((smu)->funcs->fini_smc_tables ? (smu)->funcs->fini_smc_tables((smu)) : 0)
-#define smu_init_power(smu) \
-	((smu)->funcs->init_power ? (smu)->funcs->init_power((smu)) : 0)
-#define smu_fini_power(smu) \
-	((smu)->funcs->fini_power ? (smu)->funcs->fini_power((smu)) : 0)
 int smu_load_microcode(struct smu_context *smu);
 
 int smu_check_fw_status(struct smu_context *smu);
 
-#define smu_setup_pptable(smu) \
-	((smu)->funcs->setup_pptable ? (smu)->funcs->setup_pptable((smu)) : 0)
-#define smu_powergate_sdma(smu, gate) \
-	((smu)->funcs->powergate_sdma ? (smu)->funcs->powergate_sdma((smu), (gate)) : 0)
-#define smu_powergate_vcn(smu, gate) \
-	((smu)->funcs->powergate_vcn ? (smu)->funcs->powergate_vcn((smu), (gate)) : 0)
 int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
-#define smu_get_vbios_bootup_values(smu) \
-	((smu)->funcs->get_vbios_bootup_values ? (smu)->funcs->get_vbios_bootup_values((smu)) : 0)
-#define smu_get_clk_info_from_vbios(smu) \
-	((smu)->funcs->get_clk_info_from_vbios ? (smu)->funcs->get_clk_info_from_vbios((smu)) : 0)
-#define smu_check_pptable(smu) \
-	((smu)->funcs->check_pptable ? (smu)->funcs->check_pptable((smu)) : 0)
-#define smu_parse_pptable(smu) \
-	((smu)->funcs->parse_pptable ? (smu)->funcs->parse_pptable((smu)) : 0)
-#define smu_populate_smc_tables(smu) \
-	((smu)->funcs->populate_smc_tables ? (smu)->funcs->populate_smc_tables((smu)) : 0)
-#define smu_check_fw_version(smu) \
-	((smu)->funcs->check_fw_version ? (smu)->funcs->check_fw_version((smu)) : 0)
-#define smu_write_pptable(smu) \
-	((smu)->funcs->write_pptable ? (smu)->funcs->write_pptable((smu)) : 0)
-#define smu_set_min_dcef_deep_sleep(smu) \
-	((smu)->funcs->set_min_dcef_deep_sleep ? (smu)->funcs->set_min_dcef_deep_sleep((smu)) : 0)
-#define smu_set_tool_table_location(smu) \
-	((smu)->funcs->set_tool_table_location ? (smu)->funcs->set_tool_table_location((smu)) : 0)
-#define smu_notify_memory_pool_location(smu) \
-	((smu)->funcs->notify_memory_pool_location ? (smu)->funcs->notify_memory_pool_location((smu)) : 0)
-#define smu_gfx_off_control(smu, enable) \
-	((smu)->funcs->gfx_off_control ? (smu)->funcs->gfx_off_control((smu), (enable)) : 0)
-#define smu_set_last_dcef_min_deep_sleep_clk(smu) \
-	((smu)->funcs->set_last_dcef_min_deep_sleep_clk ? (smu)->funcs->set_last_dcef_min_deep_sleep_clk((smu)) : 0)
-#define smu_system_features_control(smu, en) \
-	((smu)->funcs->system_features_control ? (smu)->funcs->system_features_control((smu), (en)) : 0)
-#define smu_init_max_sustainable_clocks(smu) \
-	((smu)->funcs->init_max_sustainable_clocks ? (smu)->funcs->init_max_sustainable_clocks((smu)) : 0)
-#define smu_set_default_od_settings(smu, initialize) \
-	((smu)->ppt_funcs->set_default_od_settings ? (smu)->ppt_funcs->set_default_od_settings((smu), (initialize)) : 0)
-int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 
-#define smu_send_smc_msg(smu, msg) \
-	((smu)->funcs->send_smc_msg? (smu)->funcs->send_smc_msg((smu), (msg)) : 0)
-#define smu_send_smc_msg_with_param(smu, msg, param) \
-	((smu)->funcs->send_smc_msg_with_param? (smu)->funcs->send_smc_msg_with_param((smu), (msg), (param)) : 0)
-#define smu_read_smc_arg(smu, arg) \
-	((smu)->funcs->read_smc_arg? (smu)->funcs->read_smc_arg((smu), (arg)) : 0)
-#define smu_alloc_dpm_context(smu) \
-	((smu)->ppt_funcs->alloc_dpm_context ? (smu)->ppt_funcs->alloc_dpm_context((smu)) : 0)
-#define smu_init_display_count(smu, count) \
-	((smu)->funcs->init_display_count ? (smu)->funcs->init_display_count((smu), (count)) : 0)
-#define smu_feature_set_allowed_mask(smu) \
-	((smu)->funcs->set_allowed_mask? (smu)->funcs->set_allowed_mask((smu)) : 0)
-#define smu_feature_get_enabled_mask(smu, mask, num) \
-	((smu)->funcs->get_enabled_mask? (smu)->funcs->get_enabled_mask((smu), (mask), (num)) : 0)
-#define smu_is_dpm_running(smu) \
-	((smu)->ppt_funcs->is_dpm_running ? (smu)->ppt_funcs->is_dpm_running((smu)) : 0)
-#define smu_notify_display_change(smu) \
-	((smu)->funcs->notify_display_change? (smu)->funcs->notify_display_change((smu)) : 0)
-#define smu_store_powerplay_table(smu) \
-	((smu)->ppt_funcs->store_powerplay_table ? (smu)->ppt_funcs->store_powerplay_table((smu)) : 0)
-#define smu_check_powerplay_table(smu) \
-	((smu)->ppt_funcs->check_powerplay_table ? (smu)->ppt_funcs->check_powerplay_table((smu)) : 0)
-#define smu_append_powerplay_table(smu) \
-	((smu)->ppt_funcs->append_powerplay_table ? (smu)->ppt_funcs->append_powerplay_table((smu)) : 0)
-#define smu_set_default_dpm_table(smu) \
-	((smu)->ppt_funcs->set_default_dpm_table ? (smu)->ppt_funcs->set_default_dpm_table((smu)) : 0)
-#define smu_populate_umd_state_clk(smu) \
-	((smu)->ppt_funcs->populate_umd_state_clk ? (smu)->ppt_funcs->populate_umd_state_clk((smu)) : 0)
-#define smu_set_default_od8_settings(smu) \
-	((smu)->ppt_funcs->set_default_od8_settings ? (smu)->ppt_funcs->set_default_od8_settings((smu)) : 0)
+int smu_set_fan_speed_rpm(struct smu_context *smu, uint32_t speed);
 
 int smu_get_power_limit(struct smu_context *smu,
 			uint32_t *limit,
@@ -643,8 +567,6 @@ int smu_get_power_limit(struct smu_context *smu,
 			bool lock_needed);
 
 int smu_set_power_limit(struct smu_context *smu, uint32_t limit);
-#define smu_get_current_clk_freq(smu, clk_id, value) \
-	((smu)->funcs->get_current_clk_freq? (smu)->funcs->get_current_clk_freq((smu), (clk_id), (value)) : 0)
 int smu_print_clk_levels(struct smu_context *smu, enum smu_clk_type clk_type, char *buf);
 int smu_get_od_percentage(struct smu_context *smu, enum smu_clk_type type);
 int smu_set_od_percentage(struct smu_context *smu, enum smu_clk_type type, uint32_t value);
@@ -652,68 +574,24 @@ int smu_set_od_percentage(struct smu_context *smu, enum smu_clk_type type, uint3
 int smu_od_edit_dpm_table(struct smu_context *smu,
 			  enum PP_OD_DPM_TABLE_COMMAND type,
 			  long *input, uint32_t size);
-#define smu_tables_init(smu, tab) \
-	((smu)->ppt_funcs->tables_init ? (smu)->ppt_funcs->tables_init((smu), (tab)) : 0)
-#define smu_set_thermal_fan_table(smu) \
-	((smu)->ppt_funcs->set_thermal_fan_table ? (smu)->ppt_funcs->set_thermal_fan_table((smu)) : 0)
-#define smu_start_thermal_control(smu) \
-	((smu)->funcs->start_thermal_control? (smu)->funcs->start_thermal_control((smu)) : 0)
-#define smu_stop_thermal_control(smu) \
-	((smu)->funcs->stop_thermal_control? (smu)->funcs->stop_thermal_control((smu)) : 0)
 
 int smu_read_sensor(struct smu_context *smu,
 		    enum amd_pp_sensors sensor,
 		    void *data, uint32_t *size);
-#define smu_smc_read_sensor(smu, sensor, data, size) \
-	((smu)->funcs->read_sensor? (smu)->funcs->read_sensor((smu), (sensor), (data), (size)) : -EINVAL)
 int smu_get_power_profile_mode(struct smu_context *smu, char *buf);
 
 int smu_set_power_profile_mode(struct smu_context *smu,
 			       long *param,
 			       uint32_t param_size,
 			       bool lock_needed);
-#define smu_pre_display_config_changed(smu) \
-	((smu)->ppt_funcs->pre_display_config_changed ? (smu)->ppt_funcs->pre_display_config_changed((smu)) : 0)
-#define smu_display_config_changed(smu) \
-	((smu)->ppt_funcs->display_config_changed ? (smu)->ppt_funcs->display_config_changed((smu)) : 0)
-#define smu_apply_clocks_adjust_rules(smu) \
-	((smu)->ppt_funcs->apply_clocks_adjust_rules ? (smu)->ppt_funcs->apply_clocks_adjust_rules((smu)) : 0)
-#define smu_notify_smc_dispaly_config(smu) \
-	((smu)->ppt_funcs->notify_smc_dispaly_config ? (smu)->ppt_funcs->notify_smc_dispaly_config((smu)) : 0)
-#define smu_force_dpm_limit_value(smu, highest) \
-	((smu)->ppt_funcs->force_dpm_limit_value ? (smu)->ppt_funcs->force_dpm_limit_value((smu), (highest)) : 0)
-#define smu_unforce_dpm_levels(smu) \
-	((smu)->ppt_funcs->unforce_dpm_levels ? (smu)->ppt_funcs->unforce_dpm_levels((smu)) : 0)
-#define smu_get_profiling_clk_mask(smu, level, sclk_mask, mclk_mask, soc_mask) \
-	((smu)->ppt_funcs->get_profiling_clk_mask ? (smu)->ppt_funcs->get_profiling_clk_mask((smu), (level), (sclk_mask), (mclk_mask), (soc_mask)) : 0)
-#define smu_set_cpu_power_state(smu) \
-	((smu)->ppt_funcs->set_cpu_power_state ? (smu)->ppt_funcs->set_cpu_power_state((smu)) : 0)
 int smu_get_fan_control_mode(struct smu_context *smu);
 int smu_set_fan_control_mode(struct smu_context *smu, int value);
 int smu_get_fan_speed_percent(struct smu_context *smu, uint32_t *speed);
 int smu_set_fan_speed_percent(struct smu_context *smu, uint32_t speed);
 int smu_get_fan_speed_rpm(struct smu_context *smu, uint32_t *speed);
 
-#define smu_msg_get_index(smu, msg) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_msg_index? (smu)->ppt_funcs->get_smu_msg_index((smu), (msg)) : -EINVAL) : -EINVAL)
-#define smu_clk_get_index(smu, msg) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_clk_index? (smu)->ppt_funcs->get_smu_clk_index((smu), (msg)) : -EINVAL) : -EINVAL)
-#define smu_feature_get_index(smu, msg) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_feature_index? (smu)->ppt_funcs->get_smu_feature_index((smu), (msg)) : -EINVAL) : -EINVAL)
-#define smu_table_get_index(smu, tab) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_table_index? (smu)->ppt_funcs->get_smu_table_index((smu), (tab)) : -EINVAL) : -EINVAL)
-#define smu_power_get_index(smu, src) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_smu_power_index? (smu)->ppt_funcs->get_smu_power_index((smu), (src)) : -EINVAL) : -EINVAL)
-#define smu_workload_get_type(smu, profile) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_workload_type? (smu)->ppt_funcs->get_workload_type((smu), (profile)) : -EINVAL) : -EINVAL)
-#define smu_run_btc(smu) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->run_btc? (smu)->ppt_funcs->run_btc((smu)) : 0) : 0)
-#define smu_get_allowed_feature_mask(smu, feature_mask, num) \
-	((smu)->ppt_funcs? ((smu)->ppt_funcs->get_allowed_feature_mask? (smu)->ppt_funcs->get_allowed_feature_mask((smu), (feature_mask), (num)) : 0) : 0)
 int smu_set_deep_sleep_dcefclk(struct smu_context *smu, int clk);
 int smu_set_active_display_count(struct smu_context *smu, uint32_t count);
-#define smu_store_cc6_data(smu, st, cc6_dis, pst_dis, pst_sw_dis) \
-	((smu)->funcs->store_cc6_data ? (smu)->funcs->store_cc6_data((smu), (st), (cc6_dis), (pst_dis), (pst_sw_dis)) : 0)
 
 int smu_get_clock_by_type(struct smu_context *smu,
 			  enum amd_pp_clock_type type,
@@ -733,35 +611,12 @@ int smu_get_clock_by_type_with_voltage(struct smu_context *smu,
 int smu_display_clock_voltage_request(struct smu_context *smu,
 				      struct pp_display_clock_request *clock_req);
 int smu_display_disable_memory_clock_switch(struct smu_context *smu, bool disable_memory_clock_switch);
-#define smu_get_dal_power_level(smu, clocks) \
-	((smu)->funcs->get_dal_power_level ? (smu)->funcs->get_dal_power_level((smu), (clocks)) : 0)
-#define smu_get_perf_level(smu, designation, level) \
-	((smu)->funcs->get_perf_level ? (smu)->funcs->get_perf_level((smu), (designation), (level)) : 0)
-#define smu_get_current_shallow_sleep_clocks(smu, clocks) \
-	((smu)->funcs->get_current_shallow_sleep_clocks ? (smu)->funcs->get_current_shallow_sleep_clocks((smu), (clocks)) : 0)
 int smu_notify_smu_enable_pwe(struct smu_context *smu);
-
-#define smu_dpm_set_uvd_enable(smu, enable) \
-	((smu)->ppt_funcs->dpm_set_uvd_enable ? (smu)->ppt_funcs->dpm_set_uvd_enable((smu), (enable)) : 0)
-#define smu_dpm_set_vce_enable(smu, enable) \
-	((smu)->ppt_funcs->dpm_set_vce_enable ? (smu)->ppt_funcs->dpm_set_vce_enable((smu), (enable)) : 0)
 
 int smu_set_xgmi_pstate(struct smu_context *smu,
 			uint32_t pstate);
-#define smu_set_watermarks_table(smu, tab, clock_ranges) \
-	((smu)->ppt_funcs->set_watermarks_table ? (smu)->ppt_funcs->set_watermarks_table((smu), (tab), (clock_ranges)) : 0)
-#define smu_get_current_clk_freq_by_table(smu, clk_type, value) \
-	((smu)->ppt_funcs->get_current_clk_freq_by_table ? (smu)->ppt_funcs->get_current_clk_freq_by_table((smu), (clk_type), (value)) : 0)
-#define smu_thermal_temperature_range_update(smu, range, rw) \
-	((smu)->ppt_funcs->thermal_temperature_range_update? (smu)->ppt_funcs->thermal_temperature_range_update((smu), (range), (rw)) : 0)
-#define smu_get_thermal_temperature_range(smu, range) \
-	((smu)->ppt_funcs->get_thermal_temperature_range? (smu)->ppt_funcs->get_thermal_temperature_range((smu), (range)) : 0)
-#define smu_register_irq_handler(smu) \
-	((smu)->funcs->register_irq_handler ? (smu)->funcs->register_irq_handler(smu) : 0)
 
 int smu_set_azalia_d3_pme(struct smu_context *smu);
-#define smu_get_dpm_ultimate_freq(smu, param, min, max) \
-		((smu)->funcs->get_dpm_ultimate_freq ? (smu)->funcs->get_dpm_ultimate_freq((smu), (param), (min), (max)) : 0)
 
 bool smu_baco_is_support(struct smu_context *smu);
 
@@ -770,20 +625,6 @@ int smu_baco_get_state(struct smu_context *smu, enum smu_baco_state *state);
 int smu_baco_reset(struct smu_context *smu);
 
 int smu_mode2_reset(struct smu_context *smu);
-#define smu_asic_set_performance_level(smu, level) \
-	((smu)->ppt_funcs->set_performance_level? (smu)->ppt_funcs->set_performance_level((smu), (level)) : -EINVAL);
-#define smu_dump_pptable(smu) \
-	((smu)->ppt_funcs->dump_pptable ? (smu)->ppt_funcs->dump_pptable((smu)) : 0)
-#define smu_get_dpm_clk_limited(smu, clk_type, dpm_level, freq) \
-		((smu)->ppt_funcs->get_dpm_clk_limited ? (smu)->ppt_funcs->get_dpm_clk_limited((smu), (clk_type), (dpm_level), (freq)) : -EINVAL)
-#define smu_set_soft_freq_limited_range(smu, clk_type, min, max) \
-		((smu)->funcs->set_soft_freq_limited_range ? (smu)->funcs->set_soft_freq_limited_range((smu), (clk_type), (min), (max)) : -EINVAL)
-
-#define smu_override_pcie_parameters(smu) \
-		((smu)->funcs->override_pcie_parameters ? (smu)->funcs->override_pcie_parameters((smu)) : 0)
-
-#define smu_update_pcie_parameters(smu, pcie_gen_cap, pcie_width_cap) \
-		((smu)->ppt_funcs->update_pcie_parameters ? (smu)->ppt_funcs->update_pcie_parameters((smu), (pcie_gen_cap), (pcie_width_cap)) : 0)
 
 extern int smu_get_atom_data_table(struct smu_context *smu, uint32_t table,
 				   uint16_t *size, uint8_t *frev, uint8_t *crev,
