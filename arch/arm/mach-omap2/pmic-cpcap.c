@@ -61,7 +61,7 @@ static struct omap_voltdm_pmic omap_cpcap_core = {
 	.i2c_slave_addr = 0x02,
 	.volt_reg_addr = 0x00,
 	.cmd_reg_addr = 0x01,
-	.i2c_high_speed = true,
+	.i2c_high_speed = false,
 	.vsel_to_uv = omap_cpcap_vsel_to_uv,
 	.uv_to_vsel = omap_cpcap_uv_to_vsel,
 };
@@ -78,7 +78,7 @@ static struct omap_voltdm_pmic omap_cpcap_iva = {
 	.i2c_slave_addr = 0x44,
 	.volt_reg_addr = 0x0,
 	.cmd_reg_addr = 0x01,
-	.i2c_high_speed = true,
+	.i2c_high_speed = false,
 	.vsel_to_uv = omap_cpcap_vsel_to_uv,
 	.uv_to_vsel = omap_cpcap_uv_to_vsel,
 };
@@ -125,7 +125,7 @@ static struct omap_voltdm_pmic omap443x_max8952_mpu = {
 	.i2c_slave_addr = 0x60,
 	.volt_reg_addr = 0x03,
 	.cmd_reg_addr = 0x03,
-	.i2c_high_speed = true,
+	.i2c_high_speed = false,
 	.vsel_to_uv = omap_max8952_vsel_to_uv,
 	.uv_to_vsel = omap_max8952_uv_to_vsel,
 };
@@ -212,7 +212,7 @@ static struct omap_voltdm_pmic omap4_fan_core = {
 	.vddmax = 1375000,
 	.vp_timeout_us = OMAP4_VP_VLIMITTO_TIMEOUT_US,
 	.i2c_slave_addr = 0x4A,
-	.i2c_high_speed = true,
+	.i2c_high_speed = false,
 	.volt_reg_addr = 0x01,
 	.cmd_reg_addr = 0x01,
 	.vsel_to_uv = omap_fan535508_vsel_to_uv,
@@ -232,7 +232,7 @@ static struct omap_voltdm_pmic omap4_fan_iva = {
 	.i2c_slave_addr = 0x48,
 	.volt_reg_addr = 0x01,
 	.cmd_reg_addr = 0x01,
-	.i2c_high_speed = true,
+	.i2c_high_speed = false,
 	.vsel_to_uv = omap_fan535503_vsel_to_uv,
 	.uv_to_vsel = omap_fan535503_uv_to_vsel,
 };
@@ -263,3 +263,11 @@ int __init omap4_cpcap_init(void)
 
 	return 0;
 }
+
+static int __init cpcap_late_init(void)
+{
+	omap4_vc_set_pmic_signaling(PWRDM_POWER_RET);
+
+	return 0;
+}
+omap_late_initcall(cpcap_late_init);
