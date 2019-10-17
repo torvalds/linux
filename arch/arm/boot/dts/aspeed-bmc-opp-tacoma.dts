@@ -27,7 +27,7 @@
 
 		flash_memory: region@ba000000 {
 			no-map;
-			reg = <0xba000000 0x2000000>; /* 32M */
+			reg = <0xb8000000 0x4000000>; /* 64M */
 		};
 	};
 
