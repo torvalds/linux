@@ -19,7 +19,10 @@ struct io_uring_sqe {
 	__u8	flags;		/* IOSQE_ flags */
 	__u16	ioprio;		/* ioprio for the request */
 	__s32	fd;		/* file descriptor to do IO on */
-	__u64	off;		/* offset into file */
+	union {
+		__u64	off;	/* offset into file */
+		__u64	addr2;
+	};
 	__u64	addr;		/* pointer to buffer or iovecs */
 	__u32	len;		/* buffer size or number of iovecs */
 	union {
@@ -29,6 +32,7 @@ struct io_uring_sqe {
 		__u32		sync_range_flags;
 		__u32		msg_flags;
 		__u32		timeout_flags;
+		__u32		accept_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	union {
@@ -65,6 +69,7 @@ struct io_uring_sqe {
 #define IORING_OP_RECVMSG	10
 #define IORING_OP_TIMEOUT	11
 #define IORING_OP_TIMEOUT_REMOVE	12
+#define IORING_OP_ACCEPT	13
 
 /*
  * sqe->fsync_flags
