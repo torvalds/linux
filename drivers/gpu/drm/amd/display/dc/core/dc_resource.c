@@ -951,25 +951,14 @@ static void calculate_inits_and_adj_vp(struct pipe_ctx *pipe_ctx)
 	data->inits.v_c_bot = dc_fixpt_add(data->inits.v_c, data->ratios.vert_c);
 
 }
-static bool are_rects_integer_multiples(struct rect src, struct rect dest)
-{
-	if (dest.width  >= src.width  && dest.width  % src.width  == 0 &&
-		dest.height >= src.height && dest.height % src.height == 0)
-		return true;
-
-	return false;
-}
 
 static void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
 {
-	if (!pipe_ctx->plane_state->scaling_quality.integer_scaling)
-		return;
+	unsigned int integer_multiple = 1;
 
-	//for Centered Mode
-	if (pipe_ctx->stream->dst.width  == pipe_ctx->stream->src.width &&
-		pipe_ctx->stream->dst.height == pipe_ctx->stream->src.height) {
+	if (pipe_ctx->plane_state->scaling_quality.integer_scaling) {
 		// calculate maximum # of replication of src onto addressable
-		unsigned int integer_multiple = min(
+		integer_multiple = min(
 				pipe_ctx->stream->timing.h_addressable / pipe_ctx->stream->src.width,
 				pipe_ctx->stream->timing.v_addressable  / pipe_ctx->stream->src.height);
 
@@ -980,10 +969,8 @@ static void calculate_integer_scaling(struct pipe_ctx *pipe_ctx)
 		//center dst onto addressable
 		pipe_ctx->stream->dst.x = (pipe_ctx->stream->timing.h_addressable - pipe_ctx->stream->dst.width)/2;
 		pipe_ctx->stream->dst.y = (pipe_ctx->stream->timing.v_addressable - pipe_ctx->stream->dst.height)/2;
-	}
 
-	//disable taps if src & dst are integer ratio
-	if (are_rects_integer_multiples(pipe_ctx->stream->src, pipe_ctx->stream->dst)) {
+		//We are guaranteed that we are scaling in integer ratio
 		pipe_ctx->plane_state->scaling_quality.v_taps = 1;
 		pipe_ctx->plane_state->scaling_quality.h_taps = 1;
 		pipe_ctx->plane_state->scaling_quality.v_taps_c = 1;

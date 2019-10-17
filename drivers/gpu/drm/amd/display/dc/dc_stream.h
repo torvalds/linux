@@ -252,6 +252,7 @@ struct dc_stream_update {
 	struct dc_info_packet *vsp_infopacket;
 
 	bool *dpms_off;
+	bool integer_scaling_update;
 
 	struct colorspace_transform *gamut_remap;
 	enum dc_color_space *output_color_space;

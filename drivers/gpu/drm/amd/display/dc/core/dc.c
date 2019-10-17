@@ -1552,7 +1552,10 @@ static enum surface_update_type get_scaling_info_update_type(
 	if (u->scaling_info->clip_rect.width != u->surface->clip_rect.width
 			|| u->scaling_info->clip_rect.height != u->surface->clip_rect.height
 			|| u->scaling_info->dst_rect.width != u->surface->dst_rect.width
-			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height) {
+			|| u->scaling_info->dst_rect.height != u->surface->dst_rect.height
+			|| u->scaling_info->scaling_quality.integer_scaling !=
+				u->surface->scaling_quality.integer_scaling
+			) {
 		update_flags->bits.scaling_change = 1;
 
 		if ((u->scaling_info->dst_rect.width < u->surface->dst_rect.width
@@ -1673,7 +1676,8 @@ static enum surface_update_type check_update_surfaces_for_stream(
 		union stream_update_flags *su_flags = &stream_update->stream->update_flags;
 
 		if ((stream_update->src.height != 0 && stream_update->src.width != 0) ||
-				(stream_update->dst.height != 0 && stream_update->dst.width != 0))
+			(stream_update->dst.height != 0 && stream_update->dst.width != 0) ||
+			stream_update->integer_scaling_update)
 			su_flags->bits.scaling = 1;
 
 		if (stream_update->out_transfer_func)
