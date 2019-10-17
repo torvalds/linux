@@ -665,7 +665,6 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 	u8 *pframe, *payload, *iv, *prwskey;
 	union pn48 dot11txpn;
-	/* struct	sta_info 	*stainfo; */
 	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
 	struct	security_priv *psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv 	*pxmitpriv = &padapter->xmitpriv;
@@ -680,32 +679,12 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	/* 4 start to encrypt each fragment */
 	if (pattrib->encrypt == _TKIP_) {
 
-/*
-		if (pattrib->psta)
 		{
-			stainfo = pattrib->psta;
-		}
-		else
-		{
-			DBG_871X("%s, call rtw_get_stainfo()\n", __func__);
-			stainfo =rtw_get_stainfo(&padapter->stapriv ,&pattrib->ra[0]);
-		}
-*/
-		/* if (stainfo!= NULL) */
-		{
-/*
-			if (!(stainfo->state &_FW_LINKED))
-			{
-				DBG_871X("%s, psta->state(0x%x) != _FW_LINKED\n", __func__, stainfo->state);
-				return _FAIL;
-			}
-*/
 			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("%s: stainfo!= NULL!!!\n", __func__));
 
 			if (IS_MCAST(pattrib->ra))
 				prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 			else
-				/* prwskey =&stainfo->dot118021x_UncstKey.skey[0]; */
 				prwskey = pattrib->dot118021x_UncstKey.skey;
 
 			for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
@@ -744,13 +723,6 @@ u32 rtw_tkip_encrypt(struct adapter *padapter, u8 *pxmitframe)
 
 			TKIP_SW_ENC_CNT_INC(psecuritypriv, pattrib->ra);
 		}
-/*
-		else {
-			RT_TRACE(_module_rtl871x_security_c_, _drv_err_, ("rtw_tkip_encrypt: stainfo == NULL!!!\n"));
-			DBG_871X("%s, psta ==NUL\n", __func__);
-			res = _FAIL;
-		}
-*/
 
 	}
 	return res;
@@ -773,7 +745,6 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 	struct	sta_info 	*stainfo;
 	struct	rx_pkt_attrib	 *prxattrib = &((union recv_frame *)precvframe)->u.hdr.attrib;
 	struct	security_priv *psecuritypriv = &padapter->securitypriv;
-/* 	struct	recv_priv 	*precvpriv =&padapter->recvpriv; */
 	u32 	res = _SUCCESS;
 
 	pframe = (unsigned char *)((union recv_frame *)precvframe)->u.hdr.rx_data;
@@ -818,8 +789,6 @@ u32 rtw_tkip_decrypt(struct adapter *padapter, u8 *precvframe)
 				no_gkey_bc_cnt = 0;
 				no_gkey_mc_cnt = 0;
 
-				/* DBG_871X("rx bc/mc packets, to perform sw rtw_tkip_decrypt\n"); */
-				/* prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey; */
 				prwskey = psecuritypriv->dot118021XGrpKey[prxattrib->key_index].skey;
 			} else {
 				prwskey = &stainfo->dot118021x_UncstKey.skey[0];
@@ -1429,7 +1398,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	aes128k128d(key, chain_buffer, aes_out);
 
 	for (i = 0; i < num_blocks; i++) {
-		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);/* bitwise_xor(aes_out, &message[payload_index], chain_buffer); */
+		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);
 
 		payload_index += 16;
 		aes128k128d(key, chain_buffer, aes_out);
@@ -1440,7 +1409,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
 		for (j = 0; j < payload_remainder; j++) {
-			padded_buffer[j] = pframe[payload_index++];/* padded_buffer[j] = message[payload_index++]; */
+			padded_buffer[j] = pframe[payload_index++];
 		}
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		aes128k128d(key, chain_buffer, aes_out);
@@ -1452,7 +1421,7 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 
 	/* Insert MIC into payload */
 	for (j = 0; j < 8; j++)
-		pframe[payload_index+j] = mic[j];	/* message[payload_index+j] = mic[j]; */
+		pframe[payload_index+j] = mic[j];
 
 	payload_index = hdrlen + 8;
 	for (i = 0; i < num_blocks; i++) {
@@ -1466,9 +1435,9 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 			frtype
 		); /*  add for CONFIG_IEEE80211W, none 11w also can use */
 		aes128k128d(key, ctr_preload, aes_out);
-		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);/* bitwise_xor(aes_out, &message[payload_index], chain_buffer); */
+		bitwise_xor(aes_out, &pframe[payload_index], chain_buffer);
 		for (j = 0; j < 16; j++)
-			pframe[payload_index++] = chain_buffer[j];/* for (j = 0; j<16;j++) message[payload_index++] = chain_buffer[j]; */
+			pframe[payload_index++] = chain_buffer[j];
 	}
 
 	if (payload_remainder > 0) {
@@ -1487,12 +1456,12 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 		for (j = 0; j < 16; j++)
 			padded_buffer[j] = 0x00;
 		for (j = 0; j < payload_remainder; j++)
-			padded_buffer[j] = pframe[payload_index+j];/* padded_buffer[j] = message[payload_index+j]; */
+			padded_buffer[j] = pframe[payload_index+j];
 
 		aes128k128d(key, ctr_preload, aes_out);
 		bitwise_xor(aes_out, padded_buffer, chain_buffer);
 		for (j = 0; j < payload_remainder; j++)
-			pframe[payload_index++] = chain_buffer[j];/* for (j = 0; j<payload_remainder;j++) message[payload_index++] = chain_buffer[j]; */
+			pframe[payload_index++] = chain_buffer[j];
 	}
 
 	/* Encrypt the MIC */
@@ -1509,12 +1478,12 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	for (j = 0; j < 16; j++)
 		padded_buffer[j] = 0x00;
 	for (j = 0; j < 8; j++)
-		padded_buffer[j] = pframe[j+hdrlen+8+plen];/* padded_buffer[j] = message[j+hdrlen+8+plen]; */
+		padded_buffer[j] = pframe[j+hdrlen+8+plen];
 
 	aes128k128d(key, ctr_preload, aes_out);
 	bitwise_xor(aes_out, padded_buffer, chain_buffer);
 	for (j = 0; j < 8; j++)
-		 pframe[payload_index++] = chain_buffer[j];/* for (j = 0; j<8;j++) message[payload_index++] = chain_buffer[j]; */
+		 pframe[payload_index++] = chain_buffer[j];
 
 	return _SUCCESS;
 }
@@ -1530,12 +1499,10 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 	sint	curfragnum, length;
 	u8 *pframe, *prwskey;	/*  *payload,*iv */
 	u8   hw_hdr_offset = 0;
-	/* struct	sta_info 	*stainfo = NULL; */
 	struct	pkt_attrib	 *pattrib = &((struct xmit_frame *)pxmitframe)->attrib;
 	struct	security_priv *psecuritypriv = &padapter->securitypriv;
 	struct	xmit_priv 	*pxmitpriv = &padapter->xmitpriv;
 
-/* 	uint	offset = 0; */
 	u32 res = _SUCCESS;
 
 	if (((struct xmit_frame *)pxmitframe)->buf_addr == NULL)
@@ -1551,7 +1518,6 @@ u32 rtw_aes_encrypt(struct adapter *padapter, u8 *pxmitframe)
 		if (IS_MCAST(pattrib->ra))
 			prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey;
 		else
-			/* prwskey =&stainfo->dot118021x_UncstKey.skey[0]; */
 			prwskey = pattrib->dot118021x_UncstKey.skey;
 
 		for (curfragnum = 0; curfragnum < pattrib->nr_frags; curfragnum++) {
@@ -1593,7 +1559,6 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	u8 mic[8];
 
 
-/* 	uint	offset = 0; */
 	uint	frtype  = GetFrameType(pframe);
 	uint	frsubtype  = GetFrameSubType(pframe);
 
@@ -1869,7 +1834,6 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 	struct	sta_info 	*stainfo;
 	struct	rx_pkt_attrib	 *prxattrib = &((union recv_frame *)precvframe)->u.hdr.attrib;
 	struct	security_priv *psecuritypriv = &padapter->securitypriv;
-/* 	struct	recv_priv 	*precvpriv =&padapter->recvpriv; */
 	u32 res = _SUCCESS;
 
 	pframe = (unsigned char *)((union recv_frame *)precvframe)->u.hdr.rx_data;
@@ -1886,8 +1850,6 @@ u32 rtw_aes_decrypt(struct adapter *padapter, u8 *precvframe)
 				static u32 no_gkey_bc_cnt;
 				static u32 no_gkey_mc_cnt;
 
-				/* DBG_871X("rx bc/mc packets, to perform sw rtw_aes_decrypt\n"); */
-				/* prwskey = psecuritypriv->dot118021XGrpKey[psecuritypriv->dot118021XGrpKeyid].skey; */
 				if (psecuritypriv->binstallGrpkey == false) {
 					res = _FAIL;
 
