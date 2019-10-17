@@ -308,7 +308,7 @@ int snd_oxfw_stream_reserve_duplex(struct snd_oxfw *oxfw,
 		}
 
 		err = amdtp_domain_set_events_per_period(&oxfw->domain,
-							frames_per_period);
+							frames_per_period, 0);
 		if (err < 0) {
 			cmp_connection_release(&oxfw->in_conn);
 			if (oxfw->has_output)

@@ -174,7 +174,7 @@ int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate,
 		}
 
 		err = amdtp_domain_set_events_per_period(&motu->domain,
-							 frames_per_period);
+							 frames_per_period, 0);
 		if (err < 0) {
 			fw_iso_resources_free(&motu->tx_resources);
 			fw_iso_resources_free(&motu->rx_resources);

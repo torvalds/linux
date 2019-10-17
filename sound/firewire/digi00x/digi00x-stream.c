@@ -318,7 +318,7 @@ int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate,
 		}
 
 		err = amdtp_domain_set_events_per_period(&dg00x->domain,
-							 frames_per_period);
+							 frames_per_period, 0);
 		if (err < 0) {
 			fw_iso_resources_free(&dg00x->rx_resources);
 			fw_iso_resources_free(&dg00x->tx_resources);

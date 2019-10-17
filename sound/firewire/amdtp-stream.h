@@ -117,6 +117,7 @@ struct amdtp_stream {
 	/* For packet processing. */
 	struct fw_iso_context *context;
 	struct iso_packets_buffer buffer;
+	unsigned int queue_size;
 	int packet_index;
 	struct pkt_desc *pkt_descs;
 	int tag;
@@ -274,6 +275,7 @@ struct amdtp_domain {
 	struct list_head streams;
 
 	unsigned int events_per_period;
+	unsigned int events_per_buffer;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);
@@ -286,9 +288,11 @@ int amdtp_domain_start(struct amdtp_domain *d);
 void amdtp_domain_stop(struct amdtp_domain *d);
 
 static inline int amdtp_domain_set_events_per_period(struct amdtp_domain *d,
-						unsigned int events_per_period)
+						unsigned int events_per_period,
+						unsigned int events_per_buffer)
 {
 	d->events_per_period = events_per_period;
+	d->events_per_buffer = events_per_buffer;
 
 	return 0;
 }

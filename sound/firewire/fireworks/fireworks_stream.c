@@ -231,7 +231,7 @@ int snd_efw_stream_reserve_duplex(struct snd_efw *efw, unsigned int rate,
 		}
 
 		err = amdtp_domain_set_events_per_period(&efw->domain,
-							 frames_per_period);
+							 frames_per_period, 0);
 		if (err < 0) {
 			cmp_connection_release(&efw->in_conn);
 			cmp_connection_release(&efw->out_conn);

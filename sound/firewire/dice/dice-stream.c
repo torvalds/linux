@@ -327,7 +327,7 @@ int snd_dice_stream_reserve_duplex(struct snd_dice *dice, unsigned int rate,
 			goto error;
 
 		err = amdtp_domain_set_events_per_period(&dice->domain,
-							 events_per_period);
+							 events_per_period, 0);
 		if (err < 0)
 			goto error;
 	}

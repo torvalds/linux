@@ -153,7 +153,7 @@ int snd_ff_stream_reserve_duplex(struct snd_ff *ff, unsigned int rate,
 			return err;
 
 		err = amdtp_domain_set_events_per_period(&ff->domain,
-							 frames_per_period);
+							 frames_per_period, 0);
 		if (err < 0) {
 			fw_iso_resources_free(&ff->tx_resources);
 			fw_iso_resources_free(&ff->rx_resources);

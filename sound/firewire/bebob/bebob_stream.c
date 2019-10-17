@@ -610,7 +610,7 @@ int snd_bebob_stream_reserve_duplex(struct snd_bebob *bebob, unsigned int rate,
 		}
 
 		err = amdtp_domain_set_events_per_period(&bebob->domain,
-							 frames_per_period);
+							 frames_per_period, 0);
 		if (err < 0) {
 			cmp_connection_release(&bebob->out_conn);
 			cmp_connection_release(&bebob->in_conn);
