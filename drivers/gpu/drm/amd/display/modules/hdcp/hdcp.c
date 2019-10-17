@@ -61,7 +61,8 @@ static uint8_t is_cp_desired_hdcp1(struct mod_hdcp *hdcp)
 
 	return (hdcp->connection.hdcp1_retry_count < MAX_NUM_OF_ATTEMPTS) &&
 			is_auth_needed &&
-			!hdcp->connection.link.adjust.hdcp1.disable;
+			!hdcp->connection.link.adjust.hdcp1.disable &&
+			!hdcp->connection.is_hdcp1_revoked;
 }
 
 static uint8_t is_cp_desired_hdcp2(struct mod_hdcp *hdcp)

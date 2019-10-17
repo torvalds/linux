@@ -170,6 +170,7 @@ struct mod_hdcp_connection {
 	struct mod_hdcp_display displays[MAX_NUM_OF_DISPLAYS];
 	uint8_t is_repeater;
 	uint8_t is_km_stored;
+	uint8_t is_hdcp1_revoked;
 	uint8_t is_hdcp2_revoked;
 	struct mod_hdcp_trace trace;
 	uint8_t hdcp1_retry_count;

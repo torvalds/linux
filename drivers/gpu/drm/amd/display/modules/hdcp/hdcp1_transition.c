@@ -210,7 +210,8 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (input->rx_validation != PASS) {
-			if (hdcp->state.stay_count < 2) {
+			if (hdcp->state.stay_count < 2 &&
+					!hdcp->connection.is_hdcp1_revoked) {
 				/* allow 2 additional retries */
 				callback_in_ms(0, output);
 				increment_stay_counter(hdcp);
@@ -290,7 +291,8 @@ enum mod_hdcp_status mod_hdcp_hdcp1_dp_transition(struct mod_hdcp *hdcp,
 			fail_and_restart_in_ms(0, &status, output);
 			break;
 		} else if (input->ksvlist_vp_validation != PASS) {
-			if (hdcp->state.stay_count < 2) {
+			if (hdcp->state.stay_count < 2 &&
+					!hdcp->connection.is_hdcp1_revoked) {
 				/* allow 2 additional retries */
 				callback_in_ms(0, output);
 				increment_stay_counter(hdcp);
