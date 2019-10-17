@@ -427,22 +427,22 @@ static int renoir_get_dpm_clock_table(struct smu_context *smu, struct dpm_clocks
 	if (!clock_table || !table)
 		return -EINVAL;
 
-	for (i = 0; i < PP_SMU_NUM_DCFCLK_DPM_LEVELS; i++) {
+	for (i = 0; i < NUM_DCFCLK_DPM_LEVELS; i++) {
 		clock_table->DcfClocks[i].Freq = table->DcfClocks[i].Freq;
 		clock_table->DcfClocks[i].Vol = table->DcfClocks[i].Vol;
 	}
 
-	for (i = 0; i < PP_SMU_NUM_SOCCLK_DPM_LEVELS; i++) {
+	for (i = 0; i < NUM_SOCCLK_DPM_LEVELS; i++) {
 		clock_table->SocClocks[i].Freq = table->SocClocks[i].Freq;
 		clock_table->SocClocks[i].Vol = table->SocClocks[i].Vol;
 	}
 
-	for (i = 0; i < PP_SMU_NUM_FCLK_DPM_LEVELS; i++) {
+	for (i = 0; i < NUM_FCLK_DPM_LEVELS; i++) {
 		clock_table->FClocks[i].Freq = table->FClocks[i].Freq;
 		clock_table->FClocks[i].Vol = table->FClocks[i].Vol;
 	}
 
-	for (i = 0; i<  PP_SMU_NUM_MEMCLK_DPM_LEVELS; i++) {
+	for (i = 0; i<  NUM_MEMCLK_DPM_LEVELS; i++) {
 		clock_table->MemClocks[i].Freq = table->MemClocks[i].Freq;
 		clock_table->MemClocks[i].Vol = table->MemClocks[i].Vol;
 	}
