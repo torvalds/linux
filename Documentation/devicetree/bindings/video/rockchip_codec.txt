@@ -1,0 +1,73 @@
+Device-Tree bindings for Rockchip Video Codec.
+
+Required properties:
+- compatible: There are several vcodec IP inside rockchip chips.
+	Decoder should be one of following:
+		"rockchip,vpu-decoder-v1",
+		"rockchip,avs-plus-decoder",
+		"rockchip,vpu-decoder-v2",
+		"rockchip,hevc-decoder",
+		"rockchip,rkv-decoder-v1",
+		"rockchip,rkv-decoder-rk3399",
+		"rockchip,rkv-decoder-rk3328",
+	Encoder should be one of following:
+		"rockchip,vpu-encoder-v1",
+		"rockchip,vpu-encoder-v2",
+		"rockchip,rkv-encoder-v1",
+		"rockchip,rkv-encoder-v2",
+		"rockchip,rkv-encoder-rv1108",
+		"rockchip,hevc-encoder-v22",
+
+-rockchip,srv: The pointer of service device node.
+	the value must be the name of service device, like <&mpp_srv>.
+
+- rockchip,taskqueue-node: The taskqueue node number of current device working.
+	the value must between 0 and rockchip,taskqueue-count
+
+Example:
+
+DT entry:
+
+	vdpu: vdpu@ff650400 {
+		compatible = "rockchip,vpu-decoder-v2";
+		reg = <0x0 0xff650400 0x0 0x400>;
+		interrupts = <GIC_SPI 113 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "irq_dec";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_H_VCODEC>, <&cru SRST_A_VCODEC>;
+		reset-names = "video_h", "video_a";
+		iommus = <&vpu_mmu>;
+		power-domains = <&power RK3399_PD_VCODEC>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		status = "disabled";
+	};
+
+	vepu: vepu@ff650000 {
+		compatible = "rockchip,vpu-encoder-v2";
+		reg = <0x0 0xff650000 0x0 0x400>;
+		interrupts = <GIC_SPI 114 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "irq_enc";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		resets = <&cru SRST_H_VCODEC>, <&cru SRST_A_VCODEC>;
+		reset-names = "video_h", "video_a";
+		iommus = <&vpu_mmu>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		power-domains = <&power RK3399_PD_VCODEC>;
+		status = "disabled";
+	};
+
+	vpu_mmu: iommu@ff650800 {
+		compatible = "rockchip,iommu";
+		reg = <0x0 0xff650800 0x0 0x40>;
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH 0>;
+		interrupt-names = "vpu_mmu";
+		clocks = <&cru ACLK_VCODEC>, <&cru HCLK_VCODEC>;
+		clock-names = "aclk", "iface";
+		power-domains = <&power RK3399_PD_VCODEC>;
+		#iommu-cells = <0>;
+		status = "disabled";
+	};
