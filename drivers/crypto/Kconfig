@@ -808,4 +808,6 @@ config CRYPTO_DEV_CCREE
 
 source "drivers/crypto/hisilicon/Kconfig"
 
+source "drivers/crypto/amlogic/Kconfig"
+
 endif # CRYPTO_HW
