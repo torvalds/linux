@@ -176,6 +176,8 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime)
 {
 	struct snd_pcm_hardware *hw = &runtime->hw;
+	unsigned int ctx_header_size;
+	unsigned int maximum_usec_per_period;
 	int err;
 
 	hw->info = SNDRV_PCM_INFO_BATCH |
@@ -196,19 +198,24 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 	hw->period_bytes_max = hw->period_bytes_min * 2048;
 	hw->buffer_bytes_max = hw->period_bytes_max * hw->periods_min;
 
-	/*
-	 * Currently firewire-lib processes 16 packets in one software
-	 * interrupt callback. This equals to 2msec but actually the
-	 * interval of the interrupts has a jitter.
-	 * Additionally, even if adding a constraint to fit period size to
-	 * 2msec, actual calculated frames per period doesn't equal to 2msec,
-	 * depending on sampling rate.
-	 * Anyway, the interval to call snd_pcm_period_elapsed() cannot 2msec.
-	 * Here let us use 5msec for safe period interrupt.
-	 */
+	// Linux driver for 1394 OHCI controller voluntarily flushes isoc
+	// context when total size of accumulated context header reaches
+	// PAGE_SIZE. This kicks tasklet for the isoc context and brings
+	// callback in the middle of scheduled interrupts.
+	// Although AMDTP streams in the same domain use the same events per
+	// IRQ, use the largest size of context header between IT/IR contexts.
+	// Here, use the value of context header in IR context is for both
+	// contexts.
+	if (!(s->flags & CIP_NO_HEADER))
+		ctx_header_size = IR_CTX_HEADER_SIZE_CIP;
+	else
+		ctx_header_size = IR_CTX_HEADER_SIZE_NO_CIP;
+	maximum_usec_per_period = USEC_PER_SEC * PAGE_SIZE /
+				  CYCLES_PER_SECOND / ctx_header_size;
+
 	err = snd_pcm_hw_constraint_minmax(runtime,
 					   SNDRV_PCM_HW_PARAM_PERIOD_TIME,
-					   5000, UINT_MAX);
+					   5000, maximum_usec_per_period);
 	if (err < 0)
 		goto end;
 
