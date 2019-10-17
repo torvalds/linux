@@ -368,7 +368,7 @@ malidp_verify_afbc_framebuffer(struct drm_device *dev, struct drm_file *file,
 	return false;
 }
 
-struct drm_framebuffer *
+static struct drm_framebuffer *
 malidp_fb_create(struct drm_device *dev, struct drm_file *file,
 		 const struct drm_mode_fb_cmd2 *mode_cmd)
 {
@@ -491,9 +491,9 @@ void malidp_error(struct malidp_drm *malidp,
 	spin_unlock_irqrestore(&malidp->errors_lock, irqflags);
 }
 
-void malidp_error_stats_dump(const char *prefix,
-			     struct malidp_error_stats error_stats,
-			     struct seq_file *m)
+static void malidp_error_stats_dump(const char *prefix,
+				    struct malidp_error_stats error_stats,
+				    struct seq_file *m)
 {
 	seq_printf(m, "[%s] num_errors : %d\n", prefix,
 		   error_stats.num_errors);
@@ -665,7 +665,7 @@ static ssize_t core_id_show(struct device *dev, struct device_attribute *attr,
 	return snprintf(buf, PAGE_SIZE, "%08x\n", malidp->core_id);
 }
 
-DEVICE_ATTR_RO(core_id);
+static DEVICE_ATTR_RO(core_id);
 
 static int malidp_init_sysfs(struct device *dev)
 {
