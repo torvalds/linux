@@ -13,13 +13,28 @@ properties:
   compatible:
     items:
       - const: samsung,exynos4210-chipid
+      - const: syscon
 
   reg:
     maxItems: 1
 
+  samsung,asv-bin:
+    description:
+      Adaptive Supply Voltage bin selection. This can be used
+      to determine the ASV bin of an SoC if respective information
+      is missing in the CHIPID registers or in the OTP memory.
+    allOf:
+      - $ref: /schemas/types.yaml#/definitions/uint32
+      - enum: [ 0, 1, 2, 3 ]
+
+required:
+  - compatible
+  - reg
+
 examples:
   - |
     chipid@10000000 {
-        compatible = "samsung,exynos4210-chipid";
+        compatible = "samsung,exynos4210-chipid", "syscon";
         reg = <0x10000000 0x100>;
+        samsung,asv-bin = <2>;
     };
