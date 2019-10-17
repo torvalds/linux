@@ -14,7 +14,7 @@ extern struct bio_set xfs_ioend_bioset;
 struct xfs_ioend {
 	struct list_head	io_list;	/* next ioend in chain */
 	int			io_fork;	/* inode fork written back */
-	xfs_exntst_t		io_state;	/* extent state */
+	u16			io_type;
 	struct inode		*io_inode;	/* file being written to */
 	size_t			io_size;	/* size of the extent */
 	xfs_off_t		io_offset;	/* offset in the file */
