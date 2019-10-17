@@ -286,20 +286,46 @@ struct syscall_tp {
 };
 
 /*
+ * The evsel->priv as used by 'perf trace'
+ * sc:	for raw_syscalls:sys_{enter,exit} and syscalls:sys_{enter,exit}_SYSCALLNAME
+ * fmt: for all the other tracepoints
+ */
+struct evsel_trace {
+	struct syscall_tp	sc;
+	struct syscall_arg_fmt  *fmt;
+};
+
+static struct evsel_trace *evsel_trace__new(void)
+{
+	return zalloc(sizeof(struct evsel_trace));
+}
+
+static void evsel_trace__delete(struct evsel_trace *et)
+{
+	if (et == NULL)
+		return;
+
+	zfree(&et->fmt);
+	free(et);
+}
+
+/*
  * Used with raw_syscalls:sys_{enter,exit} and with the
  * syscalls:sys_{enter,exit}_SYSCALL tracepoints
  */
 static inline struct syscall_tp *__evsel__syscall_tp(struct evsel *evsel)
 {
-	struct syscall_tp *sc = evsel->priv;
+	struct evsel_trace *et = evsel->priv;
 
-	return sc;
+	return &et->sc;
 }
 
 static struct syscall_tp *evsel__syscall_tp(struct evsel *evsel)
 {
 	if (evsel->priv == NULL) {
-		evsel->priv = zalloc(sizeof(struct syscall_tp));
+		evsel->priv = evsel_trace__new();
+		if (evsel->priv == NULL)
+			return NULL;
 	}
 
 	return __evsel__syscall_tp(evsel);
@@ -310,18 +336,34 @@ static struct syscall_tp *evsel__syscall_tp(struct evsel *evsel)
  */
 static inline struct syscall_arg_fmt *__evsel__syscall_arg_fmt(struct evsel *evsel)
 {
-	struct syscall_arg_fmt *fmt = evsel->priv;
+	struct evsel_trace *et = evsel->priv;
 
-	return fmt;
+	return et->fmt;
 }
 
 static struct syscall_arg_fmt *evsel__syscall_arg_fmt(struct evsel *evsel)
 {
+	struct evsel_trace *et = evsel->priv;
+
 	if (evsel->priv == NULL) {
-		evsel->priv = calloc(evsel->tp_format->format.nr_fields, sizeof(struct syscall_arg_fmt));
+		et = evsel->priv = evsel_trace__new();
+
+		if (et == NULL)
+			return NULL;
+	}
+
+	if (et->fmt == NULL) {
+		et->fmt = calloc(evsel->tp_format->format.nr_fields, sizeof(struct syscall_arg_fmt));
+		if (et->fmt == NULL)
+			goto out_delete;
 	}
 
 	return __evsel__syscall_arg_fmt(evsel);
+
+out_delete:
+	evsel_trace__delete(evsel->priv);
+	evsel->priv = NULL;
+	return NULL;
 }
 
 static int perf_evsel__init_tp_uint_field(struct evsel *evsel,
