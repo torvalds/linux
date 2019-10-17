@@ -80,6 +80,11 @@ MODULE_FIRMWARE(FIRMWARE_VEGA12);
 MODULE_FIRMWARE(FIRMWARE_VEGA20);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
+static int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+				     struct amdgpu_bo *bo,
+				     struct dma_fence **fence);
+static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
+				      bool direct, struct dma_fence **fence);
 
 /**
  * amdgpu_vce_init - allocate memory, load vce firmware
@@ -428,9 +433,9 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
  *
  * Open up a stream for HW test
  */
-int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
-			      struct amdgpu_bo *bo,
-			      struct dma_fence **fence)
+static int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+				     struct amdgpu_bo *bo,
+				     struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
@@ -508,8 +513,8 @@ err:
  *
  * Close up a stream for HW test or if userspace failed to do so
  */
-int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
-			       bool direct, struct dma_fence **fence)
+static int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
+				      bool direct, struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
