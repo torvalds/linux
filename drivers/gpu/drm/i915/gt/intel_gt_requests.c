@@ -25,7 +25,7 @@ static void flush_submission(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		intel_engine_flush_submission(engine);
 }
 

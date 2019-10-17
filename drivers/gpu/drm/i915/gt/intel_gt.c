@@ -197,7 +197,7 @@ static void gen6_check_faults(struct intel_gt *gt)
 	enum intel_engine_id id;
 	u32 fault;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		fault = GEN6_RING_FAULT_REG_READ(engine);
 		if (fault & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"

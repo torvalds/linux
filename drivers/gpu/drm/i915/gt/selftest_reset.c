@@ -125,7 +125,7 @@ static int igt_atomic_engine_reset(void *arg)
 	if (!igt_force_reset(gt))
 		goto out_unlock;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		tasklet_disable_nosync(&engine->execlists.tasklet);
 		intel_engine_pm_get(engine);
 

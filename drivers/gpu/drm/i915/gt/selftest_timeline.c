@@ -519,7 +519,7 @@ static int live_hwsp_engine(void *arg)
 		return -ENOMEM;
 
 	count = 0;
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		if (!intel_engine_can_store_dword(engine))
 			continue;
 
@@ -594,7 +594,7 @@ static int live_hwsp_alternate(void *arg)
 
 	count = 0;
 	for (n = 0; n < NUM_TIMELINES; n++) {
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			struct intel_timeline *tl;
 			struct i915_request *rq;
 
@@ -666,7 +666,7 @@ static int live_hwsp_wrap(void *arg)
 	if (err)
 		goto out_free;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		const u32 *hwsp_seqno[2];
 		struct i915_request *rq;
 		u32 seqno[2];
@@ -766,7 +766,7 @@ static int live_hwsp_recycle(void *arg)
 	 */
 
 	count = 0;
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		IGT_TIMEOUT(end_time);
 
 		if (!intel_engine_can_store_dword(engine))

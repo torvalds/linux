@@ -281,7 +281,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(gt->uncore);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct hangcheck hc;
 
 		intel_engine_breadcrumbs_irq(engine);
@@ -303,7 +303,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	if (GEM_SHOW_DEBUG() && (hung | stuck)) {
 		struct drm_printer p = drm_debug_printer("hangcheck");
 
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			if (intel_engine_is_idle(engine))
 				continue;
 

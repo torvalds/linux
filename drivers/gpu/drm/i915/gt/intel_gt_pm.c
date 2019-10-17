@@ -136,16 +136,16 @@ void intel_gt_sanitize(struct intel_gt *gt, bool force)
 
 	intel_uc_sanitize(&gt->uc);
 
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		if (engine->reset.prepare)
 			engine->reset.prepare(engine);
 
 	if (reset_engines(gt) || force) {
-		for_each_engine(engine, gt->i915, id)
+		for_each_engine(engine, gt, id)
 			__intel_engine_reset(engine, false);
 	}
 
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		if (engine->reset.finish)
 			engine->reset.finish(engine);
 }
@@ -177,7 +177,7 @@ int intel_gt_resume(struct intel_gt *gt)
 	intel_uncore_forcewake_get(gt->uncore, FORCEWAKE_ALL);
 	intel_rc6_sanitize(&gt->rc6);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
 
 		intel_engine_pm_get(engine);

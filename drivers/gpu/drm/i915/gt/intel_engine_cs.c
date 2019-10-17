@@ -1123,7 +1123,7 @@ bool intel_engines_are_idle(struct intel_gt *gt)
 	if (!READ_ONCE(gt->awake))
 		return true;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		if (!intel_engine_is_idle(engine))
 			return false;
 	}
@@ -1136,7 +1136,7 @@ void intel_engines_reset_default_submission(struct intel_gt *gt)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		engine->set_default_submission(engine);
 }
 

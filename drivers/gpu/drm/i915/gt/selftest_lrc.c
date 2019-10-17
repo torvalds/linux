@@ -123,7 +123,7 @@ static int live_unlite_restore(struct intel_gt *gt, int prio)
 		goto err_spin;
 
 	err = 0;
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_context *ce[2] = {};
 		struct i915_request *rq[2];
 		struct igt_live_test t;
@@ -384,7 +384,7 @@ slice_semaphore_queue(struct intel_engine_cs *outer,
 		return PTR_ERR(head);
 
 	i915_request_get(head);
-	for_each_engine(engine, outer->i915, id) {
+	for_each_engine(engine, outer->gt, id) {
 		for (i = 0; i < count; i++) {
 			struct i915_request *rq;
 
@@ -456,7 +456,7 @@ static int live_timeslice_preempt(void *arg)
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			if (!intel_engine_has_preemption(engine))
 				continue;
 
@@ -532,7 +532,7 @@ static int live_busywait_preempt(void *arg)
 	if (err)
 		goto err_map;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct i915_request *lo, *hi;
 		struct igt_live_test t;
 		u32 *cs;
@@ -708,7 +708,7 @@ static int live_preempt(void *arg)
 	ctx_lo->sched.priority =
 		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct igt_live_test t;
 		struct i915_request *rq;
 
@@ -804,7 +804,7 @@ static int live_late_preempt(void *arg)
 	/* Make sure ctx_lo stays before ctx_hi until we trigger preemption. */
 	ctx_lo->sched.priority = I915_USER_PRIORITY(1);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct igt_live_test t;
 		struct i915_request *rq;
 
@@ -929,7 +929,7 @@ static int live_nopreempt(void *arg)
 		goto err_client_a;
 	b.ctx->sched.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct i915_request *rq_a, *rq_b;
 
 		if (!intel_engine_has_preemption(engine))
@@ -1040,7 +1040,7 @@ static int live_suppress_self_preempt(void *arg)
 	if (preempt_client_init(gt, &b))
 		goto err_client_a;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct i915_request *rq_a, *rq_b;
 		int depth;
 
@@ -1207,7 +1207,7 @@ static int live_suppress_wait_preempt(void *arg)
 	if (preempt_client_init(gt, &client[3])) /* bystander */
 		goto err_client_2;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		int depth;
 
 		if (!intel_engine_has_preemption(engine))
@@ -1318,7 +1318,7 @@ static int live_chain_preempt(void *arg)
 	if (preempt_client_init(gt, &lo))
 		goto err_client_hi;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct i915_sched_attr attr = {
 			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
 		};
@@ -1467,7 +1467,7 @@ static int live_preempt_hang(void *arg)
 	ctx_lo->sched.priority =
 		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct i915_request *rq;
 
 		if (!intel_engine_has_preemption(engine))
@@ -1656,7 +1656,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 	unsigned long count;
 	int err = 0;
 
-	for_each_engine(engine, smoke->gt->i915, id) {
+	for_each_engine(engine, smoke->gt, id) {
 		arg[id] = *smoke;
 		arg[id].engine = engine;
 		if (!(flags & BATCH))
@@ -1673,7 +1673,7 @@ static int smoke_crescendo(struct preempt_smoke *smoke, unsigned int flags)
 	}
 
 	count = 0;
-	for_each_engine(engine, smoke->gt->i915, id) {
+	for_each_engine(engine, smoke->gt, id) {
 		int status;
 
 		if (IS_ERR_OR_NULL(tsk[id]))
@@ -1702,7 +1702,7 @@ static int smoke_random(struct preempt_smoke *smoke, unsigned int flags)
 
 	count = 0;
 	do {
-		for_each_engine(smoke->engine, smoke->gt->i915, id) {
+		for_each_engine(smoke->engine, smoke->gt, id) {
 			struct i915_gem_context *ctx = smoke_context(smoke);
 			int err;
 
@@ -1937,7 +1937,7 @@ static int live_virtual_engine(void *arg)
 	if (USES_GUC_SUBMISSION(gt->i915))
 		return 0;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = nop_virtual_engine(gt, &engine, 1, 1, 0);
 		if (err) {
 			pr_err("Failed to wrap engine %s: err=%d\n",
@@ -2270,7 +2270,7 @@ static int bond_virtual_engine(struct intel_gt *gt,
 
 	err = 0;
 	rq[0] = ERR_PTR(-ENOMEM);
-	for_each_engine(master, gt->i915, id) {
+	for_each_engine(master, gt, id) {
 		struct i915_sw_fence fence = {};
 
 		if (master->class == class)
@@ -2508,7 +2508,7 @@ static int live_lrc_layout(void *arg)
 		return -ENOMEM;
 
 	err = 0;
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		u32 *hw, *lrc;
 		int dw;
 
@@ -2701,7 +2701,7 @@ static int live_lrc_state(void *arg)
 		goto out_close;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = __live_lrc_state(fixme, engine, scratch);
 		if (err)
 			break;
@@ -2844,7 +2844,7 @@ static int live_gpr_clear(void *arg)
 		goto out_close;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = __live_gpr_clear(fixme, engine, scratch);
 		if (err)
 			break;

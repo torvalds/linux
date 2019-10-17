@@ -323,7 +323,7 @@ static int igt_hang_sanitycheck(void *arg)
 	if (err)
 		return err;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_wedge_me w;
 		long timeout;
 
@@ -400,7 +400,7 @@ static int igt_reset_nop(void *arg)
 	reset_count = i915_reset_count(global);
 	count = 0;
 	do {
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			int i;
 
 			for (i = 0; i < 16; i++) {
@@ -471,7 +471,7 @@ static int igt_reset_nop_engine(void *arg)
 	}
 
 	i915_gem_context_clear_bannable(ctx);
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
 		unsigned int count;
 		IGT_TIMEOUT(end_time);
@@ -560,7 +560,7 @@ static int __igt_reset_engine(struct intel_gt *gt, bool active)
 			return err;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		unsigned int reset_count, reset_engine_count;
 		IGT_TIMEOUT(end_time);
 
@@ -782,7 +782,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 			h.ctx->sched.priority = 1024;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct active_engine threads[I915_NUM_ENGINES] = {};
 		unsigned long device = i915_reset_count(global);
 		unsigned long count = 0, reported;
@@ -800,7 +800,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		}
 
 		memset(threads, 0, sizeof(threads));
-		for_each_engine(other, gt->i915, tmp) {
+		for_each_engine(other, gt, tmp) {
 			struct task_struct *tsk;
 
 			threads[tmp].resets =
@@ -914,7 +914,7 @@ static int __igt_reset_engines(struct intel_gt *gt,
 		}
 
 unwind:
-		for_each_engine(other, gt->i915, tmp) {
+		for_each_engine(other, gt, tmp) {
 			int ret;
 
 			if (!threads[tmp].task)
@@ -1335,7 +1335,7 @@ static int wait_for_others(struct intel_gt *gt,
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		if (engine == exclude)
 			continue;
 
@@ -1363,7 +1363,7 @@ static int igt_reset_queue(void *arg)
 	if (err)
 		goto unlock;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct i915_request *prev;
 		IGT_TIMEOUT(end_time);
 		unsigned int count;
@@ -1651,7 +1651,7 @@ static int igt_reset_engines_atomic(void *arg)
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			err = igt_atomic_reset_engine(engine, p);
 			if (err)
 				goto out;
