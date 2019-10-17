@@ -507,7 +507,7 @@ struct hif_mib_tx_rate_retry_policy {
 	uint8_t    rates[12];
 } __packed;
 
-#define HIF_MIB_NUM_TX_RATE_RETRY_POLICIES    16
+#define HIF_MIB_NUM_TX_RATE_RETRY_POLICIES    15
 
 struct hif_mib_set_tx_rate_retry_policy {
 	uint8_t    num_tx_rate_policies;
