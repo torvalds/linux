@@ -34,6 +34,8 @@ struct arch_hw_breakpoint {
 #define HW_BRK_TYPE_PRIV_ALL	(HW_BRK_TYPE_USER | HW_BRK_TYPE_KERNEL | \
 				 HW_BRK_TYPE_HYP)
 
+#define HW_BREAKPOINT_ALIGN 0x7
+
 #define DABR_MAX_LEN	8
 #define DAWR_MAX_LEN	512
 
@@ -47,8 +49,6 @@ struct perf_event;
 struct pmu;
 struct perf_sample_data;
 struct task_struct;
-
-#define HW_BREAKPOINT_ALIGN 0x7
 
 extern int hw_breakpoint_slots(int type);
 extern int arch_bp_generic_fields(int type, int *gen_bp_type);
