@@ -1801,9 +1801,7 @@ static int esw_enable_vport(struct mlx5_eswitch *esw, struct mlx5_vport *vport,
 		goto done;
 
 	/* Attach vport to the eswitch rate limiter */
-	if (esw_vport_enable_qos(esw, vport, vport->info.max_rate,
-				 vport->qos.bw_share))
-		esw_warn(esw->dev, "Failed to attach vport %d to eswitch rate limiter", vport_num);
+	esw_vport_enable_qos(esw, vport, vport->info.max_rate, vport->qos.bw_share);
 
 	/* Sync with current vport context */
 	vport->enabled_events = enabled_events;
