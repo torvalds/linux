@@ -1752,7 +1752,7 @@ static void xs_set_port(struct rpc_xprt *xprt, unsigned short port)
 
 static void xs_set_srcport(struct sock_xprt *transport, struct socket *sock)
 {
-	if (transport->srcport == 0)
+	if (transport->srcport == 0 && transport->xprt.reuseport)
 		transport->srcport = xs_sock_getport(sock);
 }
 

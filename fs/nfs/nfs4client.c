@@ -879,8 +879,11 @@ static int nfs4_set_client(struct nfs_server *server,
 	};
 	struct nfs_client *clp;
 
-	if (minorversion > 0 && proto == XPRT_TRANSPORT_TCP)
+	if (minorversion == 0)
+		__set_bit(NFS_CS_REUSEPORT, &cl_init.init_flags);
+	else if (proto == XPRT_TRANSPORT_TCP)
 		cl_init.nconnect = nconnect;
+
 	if (server->flags & NFS_MOUNT_NORESVPORT)
 		__set_bit(NFS_CS_NORESVPORT, &cl_init.init_flags);
 	if (server->options & NFS_OPTION_MIGRATION)
