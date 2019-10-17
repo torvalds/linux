@@ -59,6 +59,7 @@ int amdgpu_vce_entity_init(struct amdgpu_device *adev);
 int amdgpu_vce_suspend(struct amdgpu_device *adev);
 int amdgpu_vce_resume(struct amdgpu_device *adev);
 int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+			      struct amdgpu_bo *bo,
 			      struct dma_fence **fence);
 int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 			       bool direct, struct dma_fence **fence);

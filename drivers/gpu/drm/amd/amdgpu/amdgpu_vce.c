@@ -429,13 +429,14 @@ void amdgpu_vce_free_handles(struct amdgpu_device *adev, struct drm_file *filp)
  * Open up a stream for HW test
  */
 int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
+			      struct amdgpu_bo *bo,
 			      struct dma_fence **fence)
 {
 	const unsigned ib_size_dw = 1024;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct dma_fence *f = NULL;
-	uint64_t dummy;
+	uint64_t addr;
 	int i, r;
 
 	r = amdgpu_job_alloc_with_ib(ring->adev, ib_size_dw * 4, &job);
@@ -444,7 +445,7 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib = &job->ibs[0];
 
-	dummy = ib->gpu_addr + 1024;
+	addr = amdgpu_bo_gpu_offset(bo);
 
 	/* stitch together an VCE create msg */
 	ib->length_dw = 0;
@@ -476,8 +477,8 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 
 	ib->ptr[ib->length_dw++] = 0x00000014; /* len */
 	ib->ptr[ib->length_dw++] = 0x05000005; /* feedback buffer */
-	ib->ptr[ib->length_dw++] = upper_32_bits(dummy);
-	ib->ptr[ib->length_dw++] = dummy;
+	ib->ptr[ib->length_dw++] = upper_32_bits(addr);
+	ib->ptr[ib->length_dw++] = addr;
 	ib->ptr[ib->length_dw++] = 0x00000001;
 
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
@@ -1110,13 +1111,20 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 {
 	struct dma_fence *fence = NULL;
+	struct amdgpu_bo *bo = NULL;
 	long r;
 
 	/* skip vce ring1/2 ib test for now, since it's not reliable */
 	if (ring != &ring->adev->vce.ring[0])
 		return 0;
 
-	r = amdgpu_vce_get_create_msg(ring, 1, NULL);
+	r = amdgpu_bo_create_reserved(ring->adev, 512, PAGE_SIZE,
+				      AMDGPU_GEM_DOMAIN_VRAM,
+				      &bo, NULL, NULL);
+	if (r)
+		return r;
+
+	r = amdgpu_vce_get_create_msg(ring, 1, bo, NULL);
 	if (r)
 		goto error;
 
@@ -1132,5 +1140,7 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 
 error:
 	dma_fence_put(fence);
+	amdgpu_bo_unreserve(bo);
+	amdgpu_bo_unref(&bo);
 	return r;
 }
