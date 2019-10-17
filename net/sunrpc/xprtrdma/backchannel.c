@@ -79,7 +79,7 @@ static int rpcrdma_bc_marshal_reply(struct rpc_rqst *rqst)
 	*p = xdr_zero;
 
 	if (rpcrdma_prepare_send_sges(r_xprt, req, RPCRDMA_HDRLEN_MIN,
-				      &rqst->rq_snd_buf, rpcrdma_noch))
+				      &rqst->rq_snd_buf, rpcrdma_noch_pullup))
 		return -EIO;
 
 	trace_xprtrdma_cb_reply(rqst);

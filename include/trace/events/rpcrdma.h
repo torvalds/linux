@@ -532,6 +532,8 @@ DEFINE_WRCH_EVENT(write);
 DEFINE_WRCH_EVENT(reply);
 
 TRACE_DEFINE_ENUM(rpcrdma_noch);
+TRACE_DEFINE_ENUM(rpcrdma_noch_pullup);
+TRACE_DEFINE_ENUM(rpcrdma_noch_mapped);
 TRACE_DEFINE_ENUM(rpcrdma_readch);
 TRACE_DEFINE_ENUM(rpcrdma_areadch);
 TRACE_DEFINE_ENUM(rpcrdma_writech);
@@ -540,6 +542,8 @@ TRACE_DEFINE_ENUM(rpcrdma_replych);
 #define xprtrdma_show_chunktype(x)					\
 		__print_symbolic(x,					\
 				{ rpcrdma_noch, "inline" },		\
+				{ rpcrdma_noch_pullup, "pullup" },	\
+				{ rpcrdma_noch_mapped, "mapped" },	\
 				{ rpcrdma_readch, "read list" },	\
 				{ rpcrdma_areadch, "*read list" },	\
 				{ rpcrdma_writech, "write list" },	\
