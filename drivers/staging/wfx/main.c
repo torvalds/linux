@@ -410,8 +410,9 @@ int wfx_probe(struct wfx_dev *wdev)
 		if (!IS_ERR_OR_NULL(macaddr)) {
 			ether_addr_copy(wdev->addresses[i].addr, macaddr);
 			wdev->addresses[i].addr[ETH_ALEN - 1] += i;
+		} else {
+			ether_addr_copy(wdev->addresses[i].addr, wdev->hw_caps.mac_addr[i]);
 		}
-		ether_addr_copy(wdev->addresses[i].addr, wdev->hw_caps.mac_addr[i]);
 		if (!is_valid_ether_addr(wdev->addresses[i].addr)) {
 			dev_warn(wdev->dev, "using random MAC address\n");
 			eth_random_addr(wdev->addresses[i].addr);
