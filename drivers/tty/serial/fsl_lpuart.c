@@ -1333,18 +1333,7 @@ static void lpuart_set_mctrl(struct uart_port *port, unsigned int mctrl)
 
 static void lpuart32_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
-	unsigned long temp;
 
-	temp = lpuart32_read(port, UARTMODIR) &
-			~(UARTMODIR_RXRTSE | UARTMODIR_TXCTSE);
-
-	if (mctrl & TIOCM_RTS)
-		temp |= UARTMODIR_RXRTSE;
-
-	if (mctrl & TIOCM_CTS)
-		temp |= UARTMODIR_TXCTSE;
-
-	lpuart32_write(port, temp, UARTMODIR);
 }
 
 static void lpuart_break_ctl(struct uart_port *port, int break_state)
