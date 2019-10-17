@@ -209,6 +209,7 @@ struct wilc_vif {
 	bool connecting;
 	struct wilc_priv priv;
 	struct list_head list;
+	struct cfg80211_bss *bss;
 };
 
 struct wilc {

@@ -137,6 +137,7 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 	struct wilc *wl = vif->wilc;
 	struct host_if_drv *wfi_drv = priv->hif_drv;
 	struct wilc_conn_info *conn_info = &wfi_drv->conn_info;
+	struct wiphy *wiphy = dev->ieee80211_ptr->wiphy;
 
 	vif->connecting = false;
 
@@ -158,12 +159,16 @@ static void cfg_connect_result(enum conn_event conn_disconn_evt, u8 mac_status,
 			memcpy(priv->associated_bss, conn_info->bssid,
 			       ETH_ALEN);
 
-		cfg80211_connect_result(dev, conn_info->bssid,
-					conn_info->req_ies,
-					conn_info->req_ies_len,
-					conn_info->resp_ies,
-					conn_info->resp_ies_len, connect_status,
-					GFP_KERNEL);
+		cfg80211_ref_bss(wiphy, vif->bss);
+		cfg80211_connect_bss(dev, conn_info->bssid, vif->bss,
+				     conn_info->req_ies,
+				     conn_info->req_ies_len,
+				     conn_info->resp_ies,
+				     conn_info->resp_ies_len,
+				     connect_status, GFP_KERNEL,
+				     NL80211_TIMEOUT_UNSPECIFIED);
+
+		vif->bss = NULL;
 	} else if (conn_disconn_evt == CONN_DISCONN_EVENT_DISCONN_NOTIF) {
 		u16 reason = 0;
 
@@ -406,6 +411,7 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		goto out_put_bss;
 	}
 	kfree(join_params);
+	vif->bss = bss;
 	cfg80211_put_bss(wiphy, bss);
 	return 0;
 
@@ -450,6 +456,8 @@ static int disconnect(struct wiphy *wiphy, struct net_device *dev,
 		netdev_err(priv->dev, "Error in disconnecting\n");
 		ret = -EINVAL;
 	}
+
+	vif->bss = NULL;
 
 	return ret;
 }
