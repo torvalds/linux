@@ -257,7 +257,6 @@ struct rpcrdma_mr {
 	u32			mr_handle;
 	u32			mr_length;
 	u64			mr_offset;
-	struct work_struct	mr_recycle;
 	struct list_head	mr_all;
 };
 
@@ -489,12 +488,6 @@ struct rpcrdma_sendctx *rpcrdma_sendctx_get_locked(struct rpcrdma_xprt *r_xprt);
 struct rpcrdma_mr *rpcrdma_mr_get(struct rpcrdma_xprt *r_xprt);
 void rpcrdma_mr_put(struct rpcrdma_mr *mr);
 void rpcrdma_mrs_refresh(struct rpcrdma_xprt *r_xprt);
-
-static inline void
-rpcrdma_mr_recycle(struct rpcrdma_mr *mr)
-{
-	schedule_work(&mr->mr_recycle);
-}
 
 struct rpcrdma_req *rpcrdma_buffer_get(struct rpcrdma_buffer *);
 void rpcrdma_buffer_put(struct rpcrdma_buffer *buffers,

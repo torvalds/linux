@@ -88,8 +88,10 @@ void frwr_release_mr(struct rpcrdma_mr *mr)
 	kfree(mr);
 }
 
-static void frwr_mr_recycle(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
+static void frwr_mr_recycle(struct rpcrdma_mr *mr)
 {
+	struct rpcrdma_xprt *r_xprt = mr->mr_xprt;
+
 	trace_xprtrdma_mr_recycle(mr);
 
 	if (mr->mr_dir != DMA_NONE) {
@@ -105,18 +107,6 @@ static void frwr_mr_recycle(struct rpcrdma_xprt *r_xprt, struct rpcrdma_mr *mr)
 	spin_unlock(&r_xprt->rx_buf.rb_lock);
 
 	frwr_release_mr(mr);
-}
-
-/* MRs are dynamically allocated, so simply clean up and release the MR.
- * A replacement MR will subsequently be allocated on demand.
- */
-static void
-frwr_mr_recycle_worker(struct work_struct *work)
-{
-	struct rpcrdma_mr *mr = container_of(work, struct rpcrdma_mr,
-					     mr_recycle);
-
-	frwr_mr_recycle(mr->mr_xprt, mr);
 }
 
 /* frwr_reset - Place MRs back on the free list
@@ -163,7 +153,6 @@ int frwr_init_mr(struct rpcrdma_ia *ia, struct rpcrdma_mr *mr)
 	mr->frwr.fr_mr = frmr;
 	mr->mr_dir = DMA_NONE;
 	INIT_LIST_HEAD(&mr->mr_list);
-	INIT_WORK(&mr->mr_recycle, frwr_mr_recycle_worker);
 	init_completion(&mr->frwr.fr_linv_done);
 
 	sg_init_table(sg, depth);
@@ -448,7 +437,7 @@ void frwr_reminv(struct rpcrdma_rep *rep, struct list_head *mrs)
 static void __frwr_release_mr(struct ib_wc *wc, struct rpcrdma_mr *mr)
 {
 	if (wc->status != IB_WC_SUCCESS)
-		rpcrdma_mr_recycle(mr);
+		frwr_mr_recycle(mr);
 	else
 		rpcrdma_mr_put(mr);
 }
@@ -570,7 +559,7 @@ void frwr_unmap_sync(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		bad_wr = bad_wr->next;
 
 		list_del_init(&mr->mr_list);
-		rpcrdma_mr_recycle(mr);
+		frwr_mr_recycle(mr);
 	}
 }
 
@@ -664,7 +653,7 @@ void frwr_unmap_async(struct rpcrdma_xprt *r_xprt, struct rpcrdma_req *req)
 		mr = container_of(frwr, struct rpcrdma_mr, frwr);
 		bad_wr = bad_wr->next;
 
-		rpcrdma_mr_recycle(mr);
+		frwr_mr_recycle(mr);
 	}
 
 	/* The final LOCAL_INV WR in the chain is supposed to
