@@ -3,13 +3,15 @@
 # Copyright (c) 2019 Oracle.
 # All Rights Reserved.
 #
+
+ccflags-y += -I $(srctree)/$(src)		# needed for trace events
+
 obj-$(CONFIG_FS_IOMAP)		+= iomap.o
 
-iomap-y				+= \
-					apply.o \
-					buffered-io.o \
-					direct-io.o \
-					fiemap.o \
-					seek.o
-
+iomap-y				+= trace.o \
+				   apply.o \
+				   buffered-io.o \
+				   direct-io.o \
+				   fiemap.o \
+				   seek.o
 iomap-$(CONFIG_SWAP)		+= swapfile.o
