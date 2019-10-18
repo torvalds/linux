@@ -693,7 +693,7 @@ EXPORT_SYMBOL_GPL(iomap_set_page_dirty);
 
 static int
 __iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
-		unsigned copied, struct page *page, struct iomap *iomap)
+		unsigned copied, struct page *page)
 {
 	flush_dcache_page(page);
 
@@ -746,7 +746,7 @@ iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
 		ret = block_write_end(NULL, inode->i_mapping, pos, len, copied,
 				page, NULL);
 	} else {
-		ret = __iomap_write_end(inode, pos, len, copied, page, iomap);
+		ret = __iomap_write_end(inode, pos, len, copied, page);
 	}
 
 	/*
