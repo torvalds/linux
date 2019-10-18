@@ -9,6 +9,7 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/firewire.h>
+#include <linux/firewire-constants.h>
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <sound/pcm.h>
@@ -983,13 +984,16 @@ static void amdtp_stream_master_first_callback(struct fw_iso_context *context,
  * @d: the AMDTP domain to which the AMDTP stream belongs
  * @is_irq_target: whether isoc context for the AMDTP stream is used to generate
  *		   hardware IRQ.
+ * @start_cycle: the isochronous cycle to start the context. Start immediately
+ *		 if negative value is given.
  *
  * The stream cannot be started until it has been configured with
  * amdtp_stream_set_parameters() and it must be started before any PCM or MIDI
  * device can be started.
  */
 static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
-			      struct amdtp_domain *d, bool is_irq_target)
+			      struct amdtp_domain *d, bool is_irq_target,
+			      int start_cycle)
 {
 	static const struct {
 		unsigned int data_block;
@@ -1146,7 +1150,7 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 		tag |= FW_ISO_CONTEXT_MATCH_TAG0;
 
 	s->callbacked = false;
-	err = fw_iso_context_start(s->context, -1, 0, tag);
+	err = fw_iso_context_start(s->context, start_cycle, 0, tag);
 	if (err < 0)
 		goto err_pkt_descs;
 
@@ -1339,14 +1343,40 @@ int amdtp_domain_add_stream(struct amdtp_domain *d, struct amdtp_stream *s,
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_add_stream);
 
+static int get_current_cycle_time(struct fw_card *fw_card, int *cur_cycle)
+{
+	int generation;
+	int rcode;
+	__be32 reg;
+	u32 data;
+
+	// This is a request to local 1394 OHCI controller and expected to
+	// complete without any event waiting.
+	generation = fw_card->generation;
+	smp_rmb();	// node_id vs. generation.
+	rcode = fw_run_transaction(fw_card, TCODE_READ_QUADLET_REQUEST,
+				   fw_card->node_id, generation, SCODE_100,
+				   CSR_REGISTER_BASE + CSR_CYCLE_TIME,
+				   &reg, sizeof(reg));
+	if (rcode != RCODE_COMPLETE)
+		return -EIO;
+
+	data = be32_to_cpu(reg);
+	*cur_cycle = data >> 12;
+
+	return 0;
+}
+
 /**
  * amdtp_domain_start - start sending packets for isoc context in the domain.
  * @d: the AMDTP domain.
+ * @ir_delay_cycle: the cycle delay to start all IR contexts.
  */
-int amdtp_domain_start(struct amdtp_domain *d)
+int amdtp_domain_start(struct amdtp_domain *d, unsigned int ir_delay_cycle)
 {
 	struct amdtp_stream *s;
-	int err = 0;
+	int cycle;
+	int err;
 
 	// Select an IT context as IRQ target.
 	list_for_each_entry(s, &d->streams, list) {
@@ -1357,17 +1387,54 @@ int amdtp_domain_start(struct amdtp_domain *d)
 		return -ENXIO;
 	d->irq_target = s;
 
+	if (ir_delay_cycle > 0) {
+		struct fw_card *fw_card = fw_parent_device(s->unit)->card;
+
+		err = get_current_cycle_time(fw_card, &cycle);
+		if (err < 0)
+			return err;
+
+		// No need to care overflow in cycle field because of enough
+		// width.
+		cycle += ir_delay_cycle;
+
+		// Round up to sec field.
+		if ((cycle & 0x00001fff) >= CYCLES_PER_SECOND) {
+			unsigned int sec;
+
+			// The sec field can overflow.
+			sec = (cycle & 0xffffe000) >> 13;
+			cycle = (++sec << 13) |
+				((cycle & 0x00001fff) / CYCLES_PER_SECOND);
+		}
+
+		// In OHCI 1394 specification, lower 2 bits are available for
+		// sec field.
+		cycle &= 0x00007fff;
+	} else {
+		cycle = -1;
+	}
+
 	list_for_each_entry(s, &d->streams, list) {
+		int cycle_match;
+
+		if (s->direction == AMDTP_IN_STREAM) {
+			cycle_match = cycle;
+		} else {
+			// IT context starts immediately.
+			cycle_match = -1;
+		}
+
 		if (s != d->irq_target) {
 			err = amdtp_stream_start(s, s->channel, s->speed, d,
-						 false);
+						 false, cycle_match);
 			if (err < 0)
 				goto error;
 		}
 	}
 
 	s = d->irq_target;
-	err = amdtp_stream_start(s, s->channel, s->speed, d, true);
+	err = amdtp_stream_start(s, s->channel, s->speed, d, true, -1);
 	if (err < 0)
 		goto error;
 
