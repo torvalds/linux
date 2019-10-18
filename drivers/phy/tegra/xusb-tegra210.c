@@ -50,6 +50,7 @@
 #define XUSB_PADCTL_SS_PORT_MAP_PORTX_MAP_SHIFT(x) ((x) * 5)
 #define XUSB_PADCTL_SS_PORT_MAP_PORTX_MAP_MASK(x) (0x7 << ((x) * 5))
 #define XUSB_PADCTL_SS_PORT_MAP_PORTX_MAP(x, v) (((v) & 0x7) << ((x) * 5))
+#define XUSB_PADCTL_SS_PORT_MAP_PORT_DISABLED 0x7
 
 #define XUSB_PADCTL_ELPG_PROGRAM1 0x024
 #define XUSB_PADCTL_ELPG_PROGRAM1_AUX_MUX_LP0_VCORE_DOWN (1 << 31)
@@ -944,6 +945,34 @@ static int tegra210_usb2_phy_power_on(struct phy *phy)
 
 	priv = to_tegra210_xusb_padctl(padctl);
 
+	if (port->usb3_port_fake != -1) {
+		value = padctl_readl(padctl, XUSB_PADCTL_SS_PORT_MAP);
+		value &= ~XUSB_PADCTL_SS_PORT_MAP_PORTX_MAP_MASK(
+					port->usb3_port_fake);
+		value |= XUSB_PADCTL_SS_PORT_MAP_PORTX_MAP(
+					port->usb3_port_fake, index);
+		padctl_writel(padctl, value, XUSB_PADCTL_SS_PORT_MAP);
+
+		value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
+		value &= ~XUSB_PADCTL_ELPG_PROGRAM1_SSPX_ELPG_VCORE_DOWN(
+					port->usb3_port_fake);
+		padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
+
+		usleep_range(100, 200);
+
+		value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
+		value &= ~XUSB_PADCTL_ELPG_PROGRAM1_SSPX_ELPG_CLAMP_EN_EARLY(
+					port->usb3_port_fake);
+		padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
+
+		usleep_range(100, 200);
+
+		value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
+		value &= ~XUSB_PADCTL_ELPG_PROGRAM1_SSPX_ELPG_CLAMP_EN(
+					port->usb3_port_fake);
+		padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
+	}
+
 	value = padctl_readl(padctl, XUSB_PADCTL_USB2_BIAS_PAD_CTL0);
 	value &= ~((XUSB_PADCTL_USB2_BIAS_PAD_CTL0_HS_SQUELCH_LEVEL_MASK <<
 		    XUSB_PADCTL_USB2_BIAS_PAD_CTL0_HS_SQUELCH_LEVEL_SHIFT) |
@@ -1077,6 +1106,32 @@ static int tegra210_usb2_phy_power_off(struct phy *phy)
 	}
 
 	mutex_lock(&padctl->lock);
+
+	if (port->usb3_port_fake != -1) {
+		value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
+		value |= XUSB_PADCTL_ELPG_PROGRAM1_SSPX_ELPG_CLAMP_EN_EARLY(
+					port->usb3_port_fake);
+		padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
+
+		usleep_range(100, 200);
+
+		value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
+		value |= XUSB_PADCTL_ELPG_PROGRAM1_SSPX_ELPG_CLAMP_EN(
+					port->usb3_port_fake);
+		padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
+
+		usleep_range(250, 350);
+
+		value = padctl_readl(padctl, XUSB_PADCTL_ELPG_PROGRAM1);
+		value |= XUSB_PADCTL_ELPG_PROGRAM1_SSPX_ELPG_VCORE_DOWN(
+					port->usb3_port_fake);
+		padctl_writel(padctl, value, XUSB_PADCTL_ELPG_PROGRAM1);
+
+		value = padctl_readl(padctl, XUSB_PADCTL_SS_PORT_MAP);
+		value |= XUSB_PADCTL_SS_PORT_MAP_PORTX_MAP(port->usb3_port_fake,
+					XUSB_PADCTL_SS_PORT_MAP_PORT_DISABLED);
+		padctl_writel(padctl, value, XUSB_PADCTL_SS_PORT_MAP);
+	}
 
 	if (WARN_ON(pad->enable == 0))
 		goto out;
@@ -2049,6 +2104,7 @@ const struct tegra_xusb_padctl_soc tegra210_xusb_padctl_soc = {
 	.ops = &tegra210_xusb_padctl_ops,
 	.supply_names = tegra210_xusb_padctl_supply_names,
 	.num_supplies = ARRAY_SIZE(tegra210_xusb_padctl_supply_names),
+	.need_fake_usb3_port = true,
 };
 EXPORT_SYMBOL_GPL(tegra210_xusb_padctl_soc);
 

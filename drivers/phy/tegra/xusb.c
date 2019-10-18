@@ -800,9 +800,62 @@ static void __tegra_xusb_remove_ports(struct tegra_xusb_padctl *padctl)
 	}
 }
 
+static int tegra_xusb_find_unused_usb3_port(struct tegra_xusb_padctl *padctl)
+{
+	struct device_node *np;
+	unsigned int i;
+
+	for (i = 0; i < padctl->soc->ports.usb3.count; i++) {
+		np = tegra_xusb_find_port_node(padctl, "usb3", i);
+		if (!np || !of_device_is_available(np))
+			return i;
+	}
+
+	return -ENODEV;
+}
+
+static bool tegra_xusb_port_is_companion(struct tegra_xusb_usb2_port *usb2)
+{
+	unsigned int i;
+	struct tegra_xusb_usb3_port *usb3;
+	struct tegra_xusb_padctl *padctl = usb2->base.padctl;
+
+	for (i = 0; i < padctl->soc->ports.usb3.count; i++) {
+		usb3 = tegra_xusb_find_usb3_port(padctl, i);
+		if (usb3 && usb3->port == usb2->base.index)
+			return true;
+	}
+
+	return false;
+}
+
+static int tegra_xusb_update_usb3_fake_port(struct tegra_xusb_usb2_port *usb2)
+{
+	int fake;
+
+	/* Disable usb3_port_fake usage by default and assign if needed */
+	usb2->usb3_port_fake = -1;
+
+	if ((usb2->mode == USB_DR_MODE_OTG ||
+	     usb2->mode == USB_DR_MODE_PERIPHERAL) &&
+		!tegra_xusb_port_is_companion(usb2)) {
+		fake = tegra_xusb_find_unused_usb3_port(usb2->base.padctl);
+		if (fake < 0) {
+			dev_err(&usb2->base.dev, "no unused USB3 ports available\n");
+			return -ENODEV;
+		}
+
+		dev_dbg(&usb2->base.dev, "Found unused usb3 port: %d\n", fake);
+		usb2->usb3_port_fake = fake;
+	}
+
+	return 0;
+}
+
 static int tegra_xusb_setup_ports(struct tegra_xusb_padctl *padctl)
 {
 	struct tegra_xusb_port *port;
+	struct tegra_xusb_usb2_port *usb2;
 	unsigned int i;
 	int err = 0;
 
@@ -830,6 +883,18 @@ static int tegra_xusb_setup_ports(struct tegra_xusb_padctl *padctl)
 		err = tegra_xusb_add_usb3_port(padctl, i);
 		if (err < 0)
 			goto remove_ports;
+	}
+
+	if (padctl->soc->need_fake_usb3_port) {
+		for (i = 0; i < padctl->soc->ports.usb2.count; i++) {
+			usb2 = tegra_xusb_find_usb2_port(padctl, i);
+			if (!usb2)
+				continue;
+
+			err = tegra_xusb_update_usb3_fake_port(usb2);
+			if (err < 0)
+				goto remove_ports;
+		}
 	}
 
 	list_for_each_entry(port, &padctl->ports, list) {
