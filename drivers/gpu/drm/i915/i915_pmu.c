@@ -1094,7 +1094,7 @@ static bool is_igp(struct drm_i915_private *i915)
 void i915_pmu_register(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (INTEL_GEN(i915) <= 2) {
 		dev_info(i915->drm.dev, "PMU not supported for this GPU.");
@@ -1102,10 +1102,8 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	}
 
 	i915_pmu_events_attr_group.attrs = create_event_attributes(pmu);
-	if (!i915_pmu_events_attr_group.attrs) {
-		ret = -ENOMEM;
+	if (!i915_pmu_events_attr_group.attrs)
 		goto err;
-	}
 
 	pmu->base.attr_groups	= i915_pmu_attr_groups;
 	pmu->base.task_ctx_nr	= perf_invalid_context;
