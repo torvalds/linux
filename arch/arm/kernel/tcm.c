@@ -18,6 +18,7 @@
 #include <asm/memory.h>
 #include <asm/system_info.h>
 #include <asm/traps.h>
+#include <asm/tcm.h>
 
 #define TCMTR_FORMAT_MASK	0xe0000000U
 
