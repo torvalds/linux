@@ -15,7 +15,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  1 file changed, 33 insertions(+), 24 deletions(-)
 
 diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index c647784dd0c4..01e410fa97d9 100644
+index 8fc40674c174..0b049e6baf31 100644
 --- a/arch/x86/include/asm/uaccess.h
 +++ b/arch/x86/include/asm/uaccess.h
 @@ -184,14 +184,19 @@ __typeof__(__builtin_choose_expr(sizeof(x) > sizeof(0UL), 0ULL, 0UL))

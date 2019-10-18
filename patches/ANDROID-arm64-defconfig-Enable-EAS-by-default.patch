@@ -13,7 +13,7 @@ Signed-off-by: Quentin Perret <quentin.perret@arm.com>
  1 file changed, 4 insertions(+)
 
 diff --git a/arch/arm64/configs/defconfig b/arch/arm64/configs/defconfig
-index 8e05c39eab08..2c029af5d7e0 100644
+index c9a867ac32d4..7456909a8a64 100644
 --- a/arch/arm64/configs/defconfig
 +++ b/arch/arm64/configs/defconfig
 @@ -13,10 +13,12 @@ CONFIG_TASK_XACCT=y

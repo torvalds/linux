@@ -15,7 +15,7 @@ Signed-off-by: Ram Muthiah <rammuthiah@google.com>
  1 file changed, 11 insertions(+), 17 deletions(-)
 
 diff --git a/arch/x86/include/asm/uaccess.h b/arch/x86/include/asm/uaccess.h
-index 01e410fa97d9..b498ffae35ca 100644
+index 0b049e6baf31..d3b6c3ba61d1 100644
 --- a/arch/x86/include/asm/uaccess.h
 +++ b/arch/x86/include/asm/uaccess.h
 @@ -463,23 +463,17 @@ struct __large_struct { unsigned long buf[100]; };

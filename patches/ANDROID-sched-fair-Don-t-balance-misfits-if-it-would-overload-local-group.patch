@@ -31,10 +31,10 @@ Signed-off-by: Quentin Perret <quentin.perret@arm.com>
  1 file changed, 12 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 1962e68fcf60..af23c63eca32 100644
+index f9902c86c5b9..7faaf156b66c 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -8509,8 +8509,18 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
+@@ -8517,8 +8517,18 @@ static inline void calculate_imbalance(struct lb_env *env, struct sd_lb_stats *s
  		(sds->avg_load - local->avg_load) * local->group_capacity
  	) / SCHED_CAPACITY_SCALE;
  

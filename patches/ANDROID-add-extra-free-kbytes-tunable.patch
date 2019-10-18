@@ -102,7 +102,7 @@ index 00fcea236eba..570cf6083712 100644
  		.procname	= "percpu_pagelist_fraction",
  		.data		= &percpu_pagelist_fraction,
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 15c2050c629b..a7dc735cdcfa 100644
+index c0b2e0306720..ca7e48d00f3f 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
 @@ -313,6 +313,11 @@ compound_page_dtor * const compound_page_dtors[] = {
@@ -131,7 +131,7 @@ index 15c2050c629b..a7dc735cdcfa 100644
  static unsigned long nr_kernel_pages __initdata;
  static unsigned long nr_all_pages __initdata;
  static unsigned long dma_reserve __initdata;
-@@ -7725,6 +7737,7 @@ static void setup_per_zone_lowmem_reserve(void)
+@@ -7731,6 +7743,7 @@ static void setup_per_zone_lowmem_reserve(void)
  static void __setup_per_zone_wmarks(void)
  {
  	unsigned long pages_min = min_free_kbytes >> (PAGE_SHIFT - 10);
@@ -139,7 +139,7 @@ index 15c2050c629b..a7dc735cdcfa 100644
  	unsigned long lowmem_pages = 0;
  	struct zone *zone;
  	unsigned long flags;
-@@ -7736,11 +7749,13 @@ static void __setup_per_zone_wmarks(void)
+@@ -7742,11 +7755,13 @@ static void __setup_per_zone_wmarks(void)
  	}
  
  	for_each_zone(zone) {
@@ -154,7 +154,7 @@ index 15c2050c629b..a7dc735cdcfa 100644
  		if (is_highmem(zone)) {
  			/*
  			 * __GFP_HIGH and PF_MEMALLOC allocations usually don't
-@@ -7773,8 +7788,10 @@ static void __setup_per_zone_wmarks(void)
+@@ -7779,8 +7794,10 @@ static void __setup_per_zone_wmarks(void)
  			    mult_frac(zone_managed_pages(zone),
  				      watermark_scale_factor, 10000));
  
@@ -167,7 +167,7 @@ index 15c2050c629b..a7dc735cdcfa 100644
  		zone->watermark_boost = 0;
  
  		spin_unlock_irqrestore(&zone->lock, flags);
-@@ -7858,7 +7875,7 @@ core_initcall(init_per_zone_wmark_min)
+@@ -7864,7 +7881,7 @@ core_initcall(init_per_zone_wmark_min)
  /*
   * min_free_kbytes_sysctl_handler - just a wrapper around proc_dointvec() so
   *	that we can call two helper functions whenever min_free_kbytes

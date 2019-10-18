@@ -88,7 +88,7 @@ index 3f62b347b04a..2306098a7f2d 100644
   *	anycast prototypes (anycast.c)
   */
 diff --git a/net/ipv6/addrconf.c b/net/ipv6/addrconf.c
-index 6a576ff92c39..89c828c4d027 100644
+index 34ccef18b40e..b2f002624391 100644
 --- a/net/ipv6/addrconf.c
 +++ b/net/ipv6/addrconf.c
 @@ -217,6 +217,7 @@ static struct ipv6_devconf ipv6_devconf __read_mostly = {
@@ -152,7 +152,7 @@ index 6a576ff92c39..89c828c4d027 100644
  
  	table = fib6_get_table(dev_net(dev), tb_id);
  	if (!table)
-@@ -6634,6 +6656,13 @@ static const struct ctl_table addrconf_sysctl[] = {
+@@ -6641,6 +6663,13 @@ static const struct ctl_table addrconf_sysctl[] = {
  	},
  #endif
  #endif

@@ -28,10 +28,10 @@ Signed-off-by: Quentin Perret <quentin.perret@arm.com>
  1 file changed, 5 insertions(+), 1 deletion(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index b4314e918c29..df279e422001 100644
+index f0631d17c0bf..b62581b58f13 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -7112,6 +7112,7 @@ struct lb_env {
+@@ -7120,6 +7120,7 @@ struct lb_env {
  	int			new_dst_cpu;
  	enum cpu_idle_type	idle;
  	long			imbalance;
@@ -39,7 +39,7 @@ index b4314e918c29..df279e422001 100644
  	/* The set of CPUs under consideration for load-balancing */
  	struct cpumask		*cpus;
  
-@@ -8294,6 +8295,8 @@ static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sd
+@@ -8302,6 +8303,8 @@ static inline void update_sd_lb_stats(struct lb_env *env, struct sd_lb_stats *sd
  	if (env->sd->flags & SD_NUMA)
  		env->fbq_type = fbq_classify_group(&sds->busiest_stat);
  
@@ -48,7 +48,7 @@ index b4314e918c29..df279e422001 100644
  	if (!env->sd->parent) {
  		struct root_domain *rd = env->dst_rq->rd;
  
-@@ -8988,7 +8991,8 @@ static int load_balance(int this_cpu, struct rq *this_rq,
+@@ -8996,7 +8999,8 @@ static int load_balance(int this_cpu, struct rq *this_rq,
  		 * excessive cache_hot migrations and active balances.
  		 */
  		if (idle != CPU_NEWLY_IDLE)

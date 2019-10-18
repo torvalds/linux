@@ -66,10 +66,10 @@ Signed-off-by: Quentin Perret <quentin.perret@arm.com>
  3 files changed, 44 insertions(+), 15 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index fee99f8cb193..b4314e918c29 100644
+index c0b1c1233727..f0631d17c0bf 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -6195,7 +6195,7 @@ static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
+@@ -6203,7 +6203,7 @@ static int wake_cap(struct task_struct *p, int cpu, int prev_cpu)
  		return 0;
  
  	min_cap = min(capacity_orig_of(prev_cpu), capacity_orig_of(cpu));
@@ -78,7 +78,7 @@ index fee99f8cb193..b4314e918c29 100644
  
  	/* Minimum capacity is close to max, no need to abort wake_affine */
  	if (max_cap - min_cap < max_cap >> 3)
-@@ -7747,16 +7747,46 @@ static unsigned long scale_rt_capacity(int cpu, unsigned long max)
+@@ -7755,16 +7755,46 @@ static unsigned long scale_rt_capacity(int cpu, unsigned long max)
  	return scale_irq_capacity(free, irq, max);
  }
  
@@ -125,7 +125,7 @@ index fee99f8cb193..b4314e918c29 100644
  	capacity = scale_rt_capacity(cpu, capacity);
  
  	if (!capacity)
-@@ -7861,7 +7891,7 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
+@@ -7869,7 +7899,7 @@ check_cpu_capacity(struct rq *rq, struct sched_domain *sd)
  static inline int check_misfit_status(struct rq *rq, struct sched_domain *sd)
  {
  	return rq->misfit_task_load &&

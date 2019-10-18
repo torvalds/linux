@@ -67,7 +67,7 @@ index 61448c19a132..a24e32410915 100644
  {
  	return sysctl_perf_event_paranoid > -1;
 diff --git a/kernel/events/core.c b/kernel/events/core.c
-index 4655adbbae10..4940fd122ecc 100644
+index 9ec0b0bfddbd..db1cbe0b652d 100644
 --- a/kernel/events/core.c
 +++ b/kernel/events/core.c
 @@ -398,8 +398,13 @@ static cpumask_var_t perf_online_mask;
@@ -84,7 +84,7 @@ index 4655adbbae10..4940fd122ecc 100644
  
  /* Minimum for 512 kiB + 1 user control page */
  int sysctl_perf_event_mlock __read_mostly = 512 + (PAGE_SIZE / 1024); /* 'free' kiB per user */
-@@ -10890,6 +10895,9 @@ SYSCALL_DEFINE5(perf_event_open,
+@@ -10886,6 +10891,9 @@ SYSCALL_DEFINE5(perf_event_open,
  	if (flags & ~PERF_FLAG_ALL)
  		return -EINVAL;
  

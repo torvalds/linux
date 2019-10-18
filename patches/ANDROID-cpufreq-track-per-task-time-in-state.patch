@@ -401,7 +401,7 @@ index 2c2e56bd8913..16c499ca096b 100644
  #ifdef CONFIG_VIRT_CPU_ACCOUNTING_GEN
  	struct vtime			vtime;
 diff --git a/kernel/fork.c b/kernel/fork.c
-index f9572f416126..13a59b9f2339 100644
+index bcdf53125210..d8cba7583875 100644
 --- a/kernel/fork.c
 +++ b/kernel/fork.c
 @@ -93,6 +93,7 @@
@@ -440,7 +440,7 @@ index f9572f416126..13a59b9f2339 100644
  	 * Do this prior waking up the new thread - the thread pointer
  	 * might get invalid after that point, if the thread exits quickly.
 diff --git a/kernel/sched/cputime.c b/kernel/sched/cputime.c
-index 2305ce89a26c..cdcb00b5dc5e 100644
+index 46ed4e1383e2..fc49c1e169d9 100644
 --- a/kernel/sched/cputime.c
 +++ b/kernel/sched/cputime.c
 @@ -2,6 +2,7 @@

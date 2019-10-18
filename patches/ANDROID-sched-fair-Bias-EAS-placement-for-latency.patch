@@ -41,10 +41,10 @@ Signed-off-by: Quentin Perret <quentin.perret@arm.com>
  1 file changed, 38 insertions(+), 2 deletions(-)
 
 diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
-index 4012266f4f64..9b43520dc248 100644
+index 699f8256dc94..ba1eaa599dbc 100644
 --- a/kernel/sched/fair.c
 +++ b/kernel/sched/fair.c
-@@ -6340,8 +6340,13 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
+@@ -6348,8 +6348,13 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
  {
  	unsigned long prev_delta = ULONG_MAX, best_delta = ULONG_MAX;
  	struct root_domain *rd = cpu_rq(smp_processor_id())->rd;
@@ -58,7 +58,7 @@ index 4012266f4f64..9b43520dc248 100644
  	struct sched_domain *sd;
  	struct perf_domain *pd;
  
-@@ -6370,6 +6375,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
+@@ -6378,6 +6383,10 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
  	if (!task_util_est(p))
  		goto unlock;
  
@@ -69,7 +69,7 @@ index 4012266f4f64..9b43520dc248 100644
  	for (; pd; pd = pd->next) {
  		unsigned long cur_delta, spare_cap, max_spare_cap = 0;
  		unsigned long base_energy_pd;
-@@ -6394,7 +6403,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
+@@ -6402,7 +6411,7 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
  				continue;
  
  			/* Always use prev_cpu as a candidate. */
@@ -78,7 +78,7 @@ index 4012266f4f64..9b43520dc248 100644
  				prev_delta = compute_energy(p, prev_cpu, pd);
  				prev_delta -= base_energy_pd;
  				best_delta = min(best_delta, prev_delta);
-@@ -6409,10 +6418,34 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
+@@ -6417,10 +6426,34 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
  				max_spare_cap = spare_cap;
  				max_spare_cap_cpu = cpu;
  			}
@@ -114,7 +114,7 @@ index 4012266f4f64..9b43520dc248 100644
  			cur_delta = compute_energy(p, max_spare_cap_cpu, pd);
  			cur_delta -= base_energy_pd;
  			if (cur_delta < best_delta) {
-@@ -6424,6 +6457,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
+@@ -6432,6 +6465,9 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
  unlock:
  	rcu_read_unlock();
  

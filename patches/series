@@ -1,7 +1,7 @@
 #
 # android-mainline patches
 #
-# Applies onto mainline 54ecb8f7028c Linux v5.4-rc1
+# Applies onto mainline 4f5cafb5cb84 Linux v5.4-rc3
 # Matches android-mainline c8e152bc7d05 ANDROID: staging: ion: Fix missing entry in kerneldoc header
 #
 ANDROID-x86-Remove-a-useless-warning-message.patch
@@ -195,7 +195,6 @@ ANDROID-usb-gadget-Fix-dependency-for-f_accessory.patch
 ANDROID-allmodconfig-Force-gki_defconfig-as-base.patch
 ANDROID-Fix-arm64-allmodconfig-build.patch
 ANDROID-update-gki_defconfig-2.patch
-UPSTREAM-fix-sched-membarrier-Fix-p-mm-membarrier_state-racy-load.patch
 ANDROID-sched-fair-EAS-Add-uclamp-support-to-find_energy_efficient_cpu.patch
 ANDROID-sched-Unconditionally-honor-sync-flag-for-energy-aware-wakeups.patch
 ANDROID-sched-fair-add-arch-scaling-function-for-max-frequency-capping.patch
