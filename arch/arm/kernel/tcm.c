@@ -30,8 +30,8 @@ extern char __itcm_start, __sitcm_text, __eitcm_text;
 extern char __dtcm_start, __sdtcm_data, __edtcm_data;
 
 /* These will be increased as we run */
-u32 dtcm_end = DTCM_OFFSET;
-u32 itcm_end = ITCM_OFFSET;
+static u32 dtcm_end = DTCM_OFFSET;
+static u32 itcm_end = ITCM_OFFSET;
 
 /*
  * TCM memory resources
