@@ -1138,7 +1138,7 @@ static int remain_on_channel(struct wiphy *wiphy,
 
 	cfg80211_ready_on_channel(wdev, *cookie, chan, duration, GFP_KERNEL);
 	mod_timer(&vif->hif_drv->remain_on_ch_timer,
-		  jiffies + msecs_to_jiffies(duration));
+		  jiffies + msecs_to_jiffies(duration + 1000));
 
 	return ret;
 }
