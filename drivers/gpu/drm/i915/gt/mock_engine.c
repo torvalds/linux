@@ -253,6 +253,7 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	snprintf(engine->base.name, sizeof(engine->base.name), "%s", name);
 	engine->base.id = id;
 	engine->base.mask = BIT(id);
+	engine->base.legacy_idx = INVALID_ENGINE;
 	engine->base.instance = id;
 	engine->base.status_page.addr = (void *)(engine + 1);
 
@@ -266,6 +267,9 @@ struct intel_engine_cs *mock_engine(struct drm_i915_private *i915,
 	engine->base.reset.reset = mock_reset;
 	engine->base.reset.finish = mock_reset_finish;
 	engine->base.cancel_requests = mock_cancel_requests;
+
+	i915->gt.engine[id] = &engine->base;
+	i915->gt.engine_class[0][id] = &engine->base;
 
 	/* fake hw queue */
 	spin_lock_init(&engine->hw_lock);
