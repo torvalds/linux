@@ -663,6 +663,13 @@ static int _of_add_opp_table_v2(struct device *dev, struct opp_table *opp_table)
 		return 0;
 	}
 
+	/*
+	 * Re-initialize list_kref every time we add static OPPs to the OPP
+	 * table as the reference count may be 0 after the last tie static OPPs
+	 * were removed.
+	 */
+	kref_init(&opp_table->list_kref);
+
 	/* We have opp-table node now, iterate over it and add OPPs */
 	for_each_available_child_of_node(opp_table->np, np) {
 		opp = _opp_add_static_v2(opp_table, dev, np);
