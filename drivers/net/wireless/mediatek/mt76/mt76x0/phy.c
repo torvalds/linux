@@ -899,7 +899,6 @@ void mt76x0_phy_calibrate(struct mt76x02_dev *dev, bool power_on)
 	}
 
 	mt76x02_mcu_calibrate(dev, MCU_CAL_FULL, val);
-	msleep(350);
 	mt76x02_mcu_calibrate(dev, MCU_CAL_LC, is_5ghz);
 	usleep_range(15000, 20000);
 
