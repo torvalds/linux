@@ -63,25 +63,21 @@ static struct resource cs5535_mfd_resources[NR_BARS];
 
 static struct mfd_cell cs5535_mfd_cells[] = {
 	{
-		.id = SMB_BAR,
 		.name = "cs5535-smb",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[SMB_BAR],
 	},
 	{
-		.id = GPIO_BAR,
 		.name = "cs5535-gpio",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[GPIO_BAR],
 	},
 	{
-		.id = MFGPT_BAR,
 		.name = "cs5535-mfgpt",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[MFGPT_BAR],
 	},
 	{
-		.id = PMS_BAR,
 		.name = "cs5535-pms",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[PMS_BAR],
@@ -90,7 +86,6 @@ static struct mfd_cell cs5535_mfd_cells[] = {
 		.disable = cs5535_mfd_res_disable,
 	},
 	{
-		.id = ACPI_BAR,
 		.name = "cs5535-acpi",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[ACPI_BAR],
@@ -108,23 +103,18 @@ static const char *olpc_acpi_clones[] = {
 static int cs5535_mfd_probe(struct pci_dev *pdev,
 		const struct pci_device_id *id)
 {
-	int err, i;
+	int err, bar;
 
 	err = pci_enable_device(pdev);
 	if (err)
 		return err;
 
-	/* fill in IO range for each cell; subdrivers handle the region */
-	for (i = 0; i < ARRAY_SIZE(cs5535_mfd_cells); i++) {
-		int bar = cs5535_mfd_cells[i].id;
+	for (bar = 0; bar < NR_BARS; bar++) {
 		struct resource *r = &cs5535_mfd_resources[bar];
 
 		r->flags = IORESOURCE_IO;
 		r->start = pci_resource_start(pdev, bar);
 		r->end = pci_resource_end(pdev, bar);
-
-		/* id is used for temporarily storing BAR; unset it now */
-		cs5535_mfd_cells[i].id = 0;
 	}
 
 	err = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE, cs5535_mfd_cells,
