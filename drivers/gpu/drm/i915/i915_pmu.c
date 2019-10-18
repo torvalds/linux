@@ -301,7 +301,7 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 	if ((i915->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
 		return;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_engine_pmu *pmu = &engine->pmu;
 		unsigned long flags;
 		bool busy;

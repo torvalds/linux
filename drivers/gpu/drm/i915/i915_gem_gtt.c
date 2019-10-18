@@ -1569,7 +1569,7 @@ static void gen7_ppgtt_enable(struct intel_gt *gt)
 	}
 	intel_uncore_write(uncore, GAM_ECOCHK, ecochk);
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		/* GFX_MODE is per-ring on gen7+ */
 		ENGINE_WRITE(engine,
 			     RING_MODE_GEN7,
