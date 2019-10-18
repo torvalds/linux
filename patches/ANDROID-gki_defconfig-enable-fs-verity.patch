@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Eric Biggers <ebiggers@google.com>
+Date: Thu, 10 Oct 2019 15:45:41 -0700
+Subject: ANDROID: gki_defconfig: enable fs-verity
+
+fs-verity will be used for APK verification in R.
+
+Bug: 142494008
+Change-Id: Ia18eb35fcdbccabab47de5fb26daba455fc1eb77
+Signed-off-by: Eric Biggers <ebiggers@google.com>
+---
+ arch/arm64/configs/gki_defconfig | 2 ++
+ arch/x86/configs/gki_defconfig   | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index ed21a0d79f4c..80ebf75319a1 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -381,6 +381,8 @@ CONFIG_EXT4_FS_SECURITY=y
+ CONFIG_F2FS_FS=y
+ CONFIG_F2FS_FS_SECURITY=y
+ CONFIG_FS_ENCRYPTION=y
++CONFIG_FS_VERITY=y
++CONFIG_FS_VERITY_BUILTIN_SIGNATURES=y
+ # CONFIG_DNOTIFY is not set
+ CONFIG_QUOTA=y
+ CONFIG_QFMT_V2=y
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index fbcf73e4f66f..18c3429c7ede 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -313,6 +313,8 @@ CONFIG_EXT4_FS_SECURITY=y
+ CONFIG_F2FS_FS=y
+ CONFIG_F2FS_FS_SECURITY=y
+ CONFIG_FS_ENCRYPTION=y
++CONFIG_FS_VERITY=y
++CONFIG_FS_VERITY_BUILTIN_SIGNATURES=y
+ # CONFIG_DNOTIFY is not set
+ CONFIG_QUOTA=y
+ CONFIG_QFMT_V2=y

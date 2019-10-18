@@ -1,0 +1,118 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Murali Nalajala <mnalajal@codeaurora.org>
+Date: Mon, 7 Oct 2019 13:37:42 -0700
+Subject: UPSTREAM: base: soc: Handle custom soc information sysfs entries
+
+Soc framework exposed sysfs entries are not sufficient for some
+of the h/w platforms. Currently there is no interface where soc
+drivers can expose further information about their SoCs via soc
+framework. This change address this limitation where clients can
+pass their custom entries as attribute group and soc framework
+would expose them as sysfs properties.
+
+Bug: 141190076
+Signed-off-by: Murali Nalajala <mnalajal@codeaurora.org>
+Reviewed-by: Bjorn Andersson <bjorn.andersson@linaro.org>
+Reviewed-by: Stephen Boyd <swboyd@chromium.org>
+Link: https://lore.kernel.org/r/1570480662-25252-1-git-send-email-mnalajal@codeaurora.org
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+(cherry-picked from c31e73121f4c1ec45a3e523ac6ce3ce6dafdcec1)
+Signed-off-by: Greg Kroah-Hartman <gregkh@google.com>
+Change-Id: Ia1c8d697e29052b4503da7c4b30c2c97d3b697f7
+---
+ drivers/base/soc.c      | 30 +++++++++++++++++-------------
+ include/linux/sys_soc.h |  1 +
+ 2 files changed, 18 insertions(+), 13 deletions(-)
+
+diff --git a/drivers/base/soc.c b/drivers/base/soc.c
+index 7c0c5ca5953d..4af11a423475 100644
+--- a/drivers/base/soc.c
++++ b/drivers/base/soc.c
+@@ -104,15 +104,12 @@ static const struct attribute_group soc_attr_group = {
+ 	.is_visible = soc_attribute_mode,
+ };
+ 
+-static const struct attribute_group *soc_attr_groups[] = {
+-	&soc_attr_group,
+-	NULL,
+-};
+-
+ static void soc_release(struct device *dev)
+ {
+ 	struct soc_device *soc_dev = container_of(dev, struct soc_device, dev);
+ 
++	ida_simple_remove(&soc_ida, soc_dev->soc_dev_num);
++	kfree(soc_dev->dev.groups);
+ 	kfree(soc_dev);
+ }
+ 
+@@ -121,6 +118,7 @@ static struct soc_device_attribute *early_soc_dev_attr;
+ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr)
+ {
+ 	struct soc_device *soc_dev;
++	const struct attribute_group **soc_attr_groups;
+ 	int ret;
+ 
+ 	if (!soc_bus_type.p) {
+@@ -136,10 +134,18 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
+ 		goto out1;
+ 	}
+ 
++	soc_attr_groups = kcalloc(3, sizeof(*soc_attr_groups), GFP_KERNEL);
++	if (!soc_attr_groups) {
++		ret = -ENOMEM;
++		goto out2;
++	}
++	soc_attr_groups[0] = &soc_attr_group;
++	soc_attr_groups[1] = soc_dev_attr->custom_attr_group;
++
+ 	/* Fetch a unique (reclaimable) SOC ID. */
+ 	ret = ida_simple_get(&soc_ida, 0, 0, GFP_KERNEL);
+ 	if (ret < 0)
+-		goto out2;
++		goto out3;
+ 	soc_dev->soc_dev_num = ret;
+ 
+ 	soc_dev->attr = soc_dev_attr;
+@@ -150,15 +156,15 @@ struct soc_device *soc_device_register(struct soc_device_attribute *soc_dev_attr
+ 	dev_set_name(&soc_dev->dev, "soc%d", soc_dev->soc_dev_num);
+ 
+ 	ret = device_register(&soc_dev->dev);
+-	if (ret)
+-		goto out3;
++	if (ret) {
++		put_device(&soc_dev->dev);
++		return ERR_PTR(ret);
++	}
+ 
+ 	return soc_dev;
+ 
+ out3:
+-	ida_simple_remove(&soc_ida, soc_dev->soc_dev_num);
+-	put_device(&soc_dev->dev);
+-	soc_dev = NULL;
++	kfree(soc_attr_groups);
+ out2:
+ 	kfree(soc_dev);
+ out1:
+@@ -169,8 +175,6 @@ EXPORT_SYMBOL_GPL(soc_device_register);
+ /* Ensure soc_dev->attr is freed prior to calling soc_device_unregister. */
+ void soc_device_unregister(struct soc_device *soc_dev)
+ {
+-	ida_simple_remove(&soc_ida, soc_dev->soc_dev_num);
+-
+ 	device_unregister(&soc_dev->dev);
+ 	early_soc_dev_attr = NULL;
+ }
+diff --git a/include/linux/sys_soc.h b/include/linux/sys_soc.h
+index 48ceea867dd6..d9b3cf0f410c 100644
+--- a/include/linux/sys_soc.h
++++ b/include/linux/sys_soc.h
+@@ -15,6 +15,7 @@ struct soc_device_attribute {
+ 	const char *serial_number;
+ 	const char *soc_id;
+ 	const void *data;
++	const struct attribute_group *custom_attr_group;
+ };
+ 
+ /**

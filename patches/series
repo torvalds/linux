@@ -2,7 +2,7 @@
 # android-mainline patches
 #
 # Applies onto mainline 4f5cafb5cb84 Linux v5.4-rc3
-# Matches android-mainline c8e152bc7d05 ANDROID: staging: ion: Fix missing entry in kerneldoc header
+# Matches android-mainline 1caeb408f5db UPSTREAM: base: soc: Handle custom soc information sysfs entries
 #
 ANDROID-x86-Remove-a-useless-warning-message.patch
 ANDROID-Kbuild-LLVMLinux-allow-overriding-clang-target-triple.patch
@@ -211,3 +211,24 @@ ANDROID-sched-core-Add-a-latency-sensitive-flag-to-uclamp.patch
 ANDROID-sched-Introduce-uclamp-latency-and-boost-wrapper.patch
 ANDROID-sched-fair-Bias-EAS-placement-for-latency.patch
 ANDROID-Initial-abi_gki_aarch64-definition.patch
+Add-an-IOCTL-to-check-ION-ABI-version.patch
+FROMGIT-driver-core-Add-fwnode_to_dev-to-look-up-device-from-fwnode.patch
+FROMGIT-driver-core-Add-support-for-linking-devices-during-device-addition.patch
+FROMGIT-of-property-Add-functional-dependency-link-from-DT-bindings.patch
+FROMGIT-driver-core-Add-sync_state-driver-bus-callback.patch
+FROMGIT-of-platform-Pause-resume-sync-state-during-init-and-of_platform_populate.patch
+FROMGIT-of-property-Create-device-links-for-all-child-supplier-depencencies.patch
+ANDROID-gki_defconfig-Enable-BPF_JIT-and-BPF_JIT_ALWAYS_ON.patch
+ANDROID-gki_defconfig-enable-REGULATOR.patch
+ANDROID-gki_defconfig-enable-CONFIG_NLS_.patch
+Revert-kheaders-make-headers-archive-reproducible.patch
+ANDROID-staging-ion-fix-sparse-warning-in-ion-system-heap.patch
+ANDROID-gki_defconfig-enable-CONFIG_PARAVIRT-and-CONFIG_HYPERVISOR_GUEST.patch
+ANDROID-gki_defconfig-enable-accelerated-AES-and-SHA-256.patch
+ANDROID-gki_defconfig-enabled-CONFIG_TMPFS-explicitly.patch
+gki_defconfig-Enable-CONFIG_DM_SNAPSHOT.patch
+ANDROID-Fix-x86_64-allmodconfig-build.patch
+Revert-drivers-qcom-rpmh-rsc-modularize-RSC-controller-driver.patch
+clk-add-pre-and-post-change-rate-callbacks.patch
+ANDROID-gki_defconfig-enable-fs-verity.patch
+UPSTREAM-base-soc-Handle-custom-soc-information-sysfs-entries.patch

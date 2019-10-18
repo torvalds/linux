@@ -1,0 +1,68 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Saravana Kannan <saravanak@google.com>
+Date: Wed, 4 Sep 2019 14:11:20 -0700
+Subject: FROMGIT: driver core: Add fwnode_to_dev() to look up device from
+ fwnode
+
+It's often useful to look up a device that corresponds to a fwnode. So
+add an API to do that irrespective of the bus on which the device has
+been added to.
+
+Signed-off-by: Saravana Kannan <saravanak@google.com>
+Link: https://lore.kernel.org/r/20190904211126.47518-2-saravanak@google.com
+Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+(cherry-picked from commit 372a67c0c5ef63f55bd1eb480d9555328d8ec0f2
+ https://git.kernel.org/pub/scm/linux/kernel/git/gregkh/driver-core.git driver-core-next)
+
+Bug: 141703324
+Change-Id: I68c36177da083bfb04e73c1b754e740f40faf284
+---
+ drivers/base/core.c    | 7 +++++++
+ include/linux/fwnode.h | 2 ++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/drivers/base/core.c b/drivers/base/core.c
+index 2db62d98e395..510fabf8918c 100644
+--- a/drivers/base/core.c
++++ b/drivers/base/core.c
+@@ -2198,6 +2198,10 @@ int device_add(struct device *dev)
+ 					     BUS_NOTIFY_ADD_DEVICE, dev);
+ 
+ 	kobject_uevent(&dev->kobj, KOBJ_ADD);
++
++	if (dev->fwnode && !dev->fwnode->dev)
++		dev->fwnode->dev = dev;
++
+ 	bus_probe_device(dev);
+ 	if (parent)
+ 		klist_add_tail(&dev->p->knode_parent,
+@@ -2342,6 +2346,9 @@ void device_del(struct device *dev)
+ 	kill_device(dev);
+ 	device_unlock(dev);
+ 
++	if (dev->fwnode && dev->fwnode->dev == dev)
++		dev->fwnode->dev = NULL;
++
+ 	/* Notify clients of device removal.  This call must come
+ 	 * before dpm_sysfs_remove().
+ 	 */
+diff --git a/include/linux/fwnode.h b/include/linux/fwnode.h
+index ababd6bc82f3..d8c6d231d577 100644
+--- a/include/linux/fwnode.h
++++ b/include/linux/fwnode.h
+@@ -17,6 +17,7 @@ struct device;
+ struct fwnode_handle {
+ 	struct fwnode_handle *secondary;
+ 	const struct fwnode_operations *ops;
++	struct device *dev;
+ };
+ 
+ /**
+@@ -123,5 +124,6 @@ struct fwnode_operations {
+ 		if (fwnode_has_op(fwnode, op))				\
+ 			(fwnode)->ops->op(fwnode, ## __VA_ARGS__);	\
+ 	} while (false)
++#define get_dev_from_fwnode(fwnode)	get_device((fwnode)->dev)
+ 
+ #endif

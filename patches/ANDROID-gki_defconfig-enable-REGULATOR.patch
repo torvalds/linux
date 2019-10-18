@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tri Vo <trong@google.com>
+Date: Tue, 8 Oct 2019 12:38:34 -0700
+Subject: ANDROID: gki_defconfig: enable REGULATOR
+
+Fixes: 142334529
+Change-Id: If2e17aec00c2f2202f6f9203192afcd8e12228a6
+Signed-off-by: Tri Vo <trong@google.com>
+---
+ arch/arm64/configs/gki_defconfig | 1 +
+ arch/x86/configs/gki_defconfig   | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index 9e3b34fa8b64..0b7669f8fedd 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -293,6 +293,7 @@ CONFIG_DEVFREQ_THERMAL=y
+ CONFIG_WATCHDOG=y
+ CONFIG_MFD_ACT8945A=y
+ CONFIG_MFD_SYSCON=y
++CONFIG_REGULATOR=y
+ CONFIG_MEDIA_SUPPORT=y
+ CONFIG_MEDIA_CAMERA_SUPPORT=y
+ CONFIG_MEDIA_CONTROLLER=y
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index f539970bf631..78283ea8c1c8 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -252,6 +252,7 @@ CONFIG_GPIOLIB=y
+ # CONFIG_HWMON is not set
+ CONFIG_DEVFREQ_THERMAL=y
+ # CONFIG_X86_PKG_TEMP_THERMAL is not set
++CONFIG_REGULATOR=y
+ CONFIG_MEDIA_SUPPORT=y
+ CONFIG_MEDIA_CAMERA_SUPPORT=y
+ CONFIG_DRM=y

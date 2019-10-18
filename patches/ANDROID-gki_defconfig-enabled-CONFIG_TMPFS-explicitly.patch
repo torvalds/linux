@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yongqin Liu <yongqin.liu@linaro.org>
+Date: Thu, 10 Oct 2019 11:35:16 +0800
+Subject: ANDROID: gki_defconfig: enabled CONFIG_TMPFS explicitly
+
+otherwise will cause init boot failure reported like this:
+
+[    1.959344] Run /init as init process
+[    1.966119] tmpfs: Unknown parameter 'mode'
+[    1.971092] tmpfs: Unknown parameter 'mode'
+[    1.975426] tmpfs: Unknown parameter 'mode'
+[    1.979709] tmpfs: Unknown parameter 'mode'
+[    1.984298] init: mount("tmpfs", "/dev", "tmpfs", MS_NOSUID, "mode=0755") failed Invalid argument
+[    1.993214] init: mount("tmpfs", "/mnt", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV, "mode=0755,uid=0,gid=1000") failed Invalid argument
+[    2.005417] init: mount("tmpfs", "/apex", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV, "mode=0755,uid=0,gid=0") failed Invalid argument
+[    2.017435] init: mount("tmpfs", "/debug_ramdisk", "tmpfs", MS_NOEXEC | MS_NOSUID | MS_NODEV, "mode=0755,uid=0,gid=0") failed Invalid argument
+[    2.030276] init: Init encountered errors starting first stage, aborting
+[    2.057074] init: #00 pc 00000000002eeac8  /init (UnwindStackCurrent::UnwindFromContext(unsigned long, void*)+96)
+[    2.067403] init: #01 pc 00000000002730c4  /init (android::init::InitFatalReboot()+92)
+[    2.075341] init: #02 pc 00000000002754f4  /init (android::init::InitAborter(char const*)+44)
+[    2.083887] init: #03 pc 00000000002ae4f8  /init (android::base::LogMessage::~LogMessage()+608)
+[    2.092605] init: #04 pc 000000000026aba8  /init (android::init::FirstStageMain(int, char**)+4400)
+[    2.101588] init: #05 pc 00000000003599e4  /init (__real_libc_init(void*, void (*)(), int (*)(int, char**, char**), structors_array_t const*, bionic_tcb*)+572)
+[    2.115863] init: Reboot ending, jumping to kernel
+[    2.121709] reboot: Restarting system with command 'bootloader'
+
+Tested: with hikey
+
+Change-Id: I607856cbcc5bfdaf304b13089c07ca0cf10c2f76
+Signed-off-by: Yongqin Liu <yongqin.liu@linaro.org>
+---
+ arch/arm64/configs/gki_defconfig | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
+index 98520ebdd4d6..6ccf6c7ef9ec 100644
+--- a/arch/arm64/configs/gki_defconfig
++++ b/arch/arm64/configs/gki_defconfig
+@@ -387,6 +387,7 @@ CONFIG_FUSE_FS=y
+ CONFIG_OVERLAY_FS=y
+ CONFIG_MSDOS_FS=y
+ CONFIG_VFAT_FS=y
++CONFIG_TMPFS=y
+ # CONFIG_EFIVAR_FS is not set
+ CONFIG_SDCARD_FS=y
+ CONFIG_PSTORE=y
