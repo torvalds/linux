@@ -3500,7 +3500,8 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_dp_start_link_train(intel_dp);
 
 	/* 7.k */
-	intel_dp_stop_link_train(intel_dp);
+	if (!is_trans_port_sync_mode(crtc_state))
+		intel_dp_stop_link_train(intel_dp);
 
 	/*
 	 * TODO: enable clock gating
@@ -3574,7 +3575,8 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 					      true);
 	intel_dp_sink_set_fec_ready(intel_dp, crtc_state);
 	intel_dp_start_link_train(intel_dp);
-	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
+	if ((port != PORT_A || INTEL_GEN(dev_priv) >= 9) &&
+	    !is_trans_port_sync_mode(crtc_state))
 		intel_dp_stop_link_train(intel_dp);
 
 	intel_ddi_enable_fec(encoder, crtc_state);

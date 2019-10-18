@@ -27,6 +27,7 @@
 
 #include <drm/drm_util.h>
 #include <drm/i915_drm.h>
+#include "intel_dp_link_training.h"
 
 enum link_m_n_set;
 struct dpll;
@@ -54,6 +55,7 @@ struct intel_plane;
 struct intel_plane_state;
 struct intel_remapped_info;
 struct intel_rotation_info;
+struct intel_crtc_state;
 
 enum i915_gpio {
 	GPIOA,
