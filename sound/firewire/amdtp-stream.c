@@ -1099,35 +1099,44 @@ err_unlock:
 }
 
 /**
- * amdtp_stream_pcm_pointer - get the PCM buffer position
+ * amdtp_domain_stream_pcm_pointer - get the PCM buffer position
+ * @d: the AMDTP domain.
  * @s: the AMDTP stream that transports the PCM data
  *
  * Returns the current buffer position, in frames.
  */
-unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s)
+unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
+					      struct amdtp_stream *s)
 {
-	/*
-	 * This function is called in software IRQ context of period_tasklet or
-	 * process context.
-	 *
-	 * When the software IRQ context was scheduled by software IRQ context
-	 * of IR/IT contexts, queued packets were already handled. Therefore,
-	 * no need to flush the queue in buffer anymore.
-	 *
-	 * When the process context reach here, some packets will be already
-	 * queued in the buffer. These packets should be handled immediately
-	 * to keep better granularity of PCM pointer.
-	 *
-	 * Later, the process context will sometimes schedules software IRQ
-	 * context of the period_tasklet. Then, no need to flush the queue by
-	 * the same reason as described for IR/IT contexts.
-	 */
-	if (!in_interrupt() && amdtp_stream_running(s))
-		fw_iso_context_flush_completions(s->context);
+	struct amdtp_stream *irq_target = d->irq_target;
+
+	if (irq_target && amdtp_stream_running(irq_target)) {
+		// This function is called in software IRQ context of
+		// period_tasklet or process context.
+		//
+		// When the software IRQ context was scheduled by software IRQ
+		// context of IT contexts, queued packets were already handled.
+		// Therefore, no need to flush the queue in buffer furthermore.
+		//
+		// When the process context reach here, some packets will be
+		// already queued in the buffer. These packets should be handled
+		// immediately to keep better granularity of PCM pointer.
+		//
+		// Later, the process context will sometimes schedules software
+		// IRQ context of the period_tasklet. Then, no need to flush the
+		// queue by the same reason as described in the above
+		if (!in_interrupt()) {
+			// Queued packet should be processed without any kernel
+			// preemption to keep latency against bus cycle.
+			preempt_disable();
+			fw_iso_context_flush_completions(irq_target->context);
+			preempt_enable();
+		}
+	}
 
 	return READ_ONCE(s->pcm_buffer_pointer);
 }
-EXPORT_SYMBOL(amdtp_stream_pcm_pointer);
+EXPORT_SYMBOL_GPL(amdtp_domain_stream_pcm_pointer);
 
 /**
  * amdtp_stream_pcm_ack - acknowledge queued PCM frames

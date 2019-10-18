@@ -198,7 +198,6 @@ int amdtp_stream_add_pcm_hw_constraints(struct amdtp_stream *s,
 					struct snd_pcm_runtime *runtime);
 
 void amdtp_stream_pcm_prepare(struct amdtp_stream *s);
-unsigned long amdtp_stream_pcm_pointer(struct amdtp_stream *s);
 int amdtp_stream_pcm_ack(struct amdtp_stream *s);
 void amdtp_stream_pcm_abort(struct amdtp_stream *s);
 
@@ -302,4 +301,6 @@ static inline int amdtp_domain_set_events_per_period(struct amdtp_domain *d,
 	return 0;
 }
 
+unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
+					      struct amdtp_stream *s);
 #endif

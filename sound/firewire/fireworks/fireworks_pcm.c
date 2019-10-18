@@ -348,12 +348,14 @@ static int pcm_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 static snd_pcm_uframes_t pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_efw *efw = sbstrm->private_data;
-	return amdtp_stream_pcm_pointer(&efw->tx_stream);
+
+	return amdtp_domain_stream_pcm_pointer(&efw->domain, &efw->tx_stream);
 }
 static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_efw *efw = sbstrm->private_data;
-	return amdtp_stream_pcm_pointer(&efw->rx_stream);
+
+	return amdtp_domain_stream_pcm_pointer(&efw->domain, &efw->rx_stream);
 }
 
 static int pcm_capture_ack(struct snd_pcm_substream *substream)

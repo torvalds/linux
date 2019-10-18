@@ -379,14 +379,14 @@ static snd_pcm_uframes_t capture_pointer(struct snd_pcm_substream *substream)
 	struct snd_dice *dice = substream->private_data;
 	struct amdtp_stream *stream = &dice->tx_stream[substream->pcm->device];
 
-	return amdtp_stream_pcm_pointer(stream);
+	return amdtp_domain_stream_pcm_pointer(&dice->domain, stream);
 }
 static snd_pcm_uframes_t playback_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_dice *dice = substream->private_data;
 	struct amdtp_stream *stream = &dice->rx_stream[substream->pcm->device];
 
-	return amdtp_stream_pcm_pointer(stream);
+	return amdtp_domain_stream_pcm_pointer(&dice->domain, stream);
 }
 
 static int capture_ack(struct snd_pcm_substream *substream)

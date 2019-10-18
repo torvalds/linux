@@ -320,13 +320,13 @@ static snd_pcm_uframes_t capture_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_pointer(&motu->tx_stream);
+	return amdtp_domain_stream_pcm_pointer(&motu->domain, &motu->tx_stream);
 }
 static snd_pcm_uframes_t playback_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_pointer(&motu->rx_stream);
+	return amdtp_domain_stream_pcm_pointer(&motu->domain, &motu->rx_stream);
 }
 
 static int capture_ack(struct snd_pcm_substream *substream)
