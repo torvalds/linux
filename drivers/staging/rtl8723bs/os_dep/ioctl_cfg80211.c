@@ -1410,16 +1410,17 @@ void rtw_cfg80211_unlink_bss(struct adapter *padapter, struct wlan_network *pnet
 	struct wireless_dev *pwdev = padapter->rtw_wdev;
 	struct wiphy *wiphy = pwdev->wiphy;
 	struct cfg80211_bss *bss = NULL;
-	struct wlan_bssid_ex select_network = pnetwork->network;
+	struct wlan_bssid_ex *select_network = &pnetwork->network;
 
 	bss = cfg80211_get_bss(wiphy, NULL/*notify_channel*/,
-		select_network.MacAddress, select_network.Ssid.Ssid,
-		select_network.Ssid.SsidLength, 0/*WLAN_CAPABILITY_ESS*/,
+		select_network->MacAddress, select_network->Ssid.Ssid,
+		select_network->Ssid.SsidLength, 0/*WLAN_CAPABILITY_ESS*/,
 		0/*WLAN_CAPABILITY_ESS*/);
 
 	if (bss) {
 		cfg80211_unlink_bss(wiphy, bss);
-		DBG_8192C("%s(): cfg80211_unlink %s!! () ", __func__, select_network.Ssid.Ssid);
+		DBG_8192C("%s(): cfg80211_unlink %s!! () ", __func__,
+			  select_network->Ssid.Ssid);
 		cfg80211_put_bss(padapter->rtw_wdev->wiphy, bss);
 	}
 }
