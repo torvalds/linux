@@ -93,6 +93,7 @@ enum pipe {
 #define pipe_name(p) ((p) + 'A')
 
 enum transcoder {
+	INVALID_TRANSCODER = -1,
 	/*
 	 * The following transcoders have a 1:1 transcoder -> pipe mapping,
 	 * keep their values fixed: the code assumes that TRANSCODER_A=0, the
@@ -462,6 +463,7 @@ enum drm_mode_status
 intel_mode_valid_max_plane_size(struct drm_i915_private *dev_priv,
 				const struct drm_display_mode *mode);
 enum phy intel_port_to_phy(struct drm_i915_private *i915, enum port port);
+bool is_trans_port_sync_mode(const struct intel_crtc_state *state);
 
 void intel_plane_destroy(struct drm_plane *plane);
 void i830_enable_pipe(struct drm_i915_private *dev_priv, enum pipe pipe);
