@@ -1876,6 +1876,8 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv);
 int i915_gem_freeze(struct drm_i915_private *dev_priv);
 int i915_gem_freeze_late(struct drm_i915_private *dev_priv);
 
+struct intel_memory_region *i915_gem_shmem_setup(struct drm_i915_private *i915);
+
 static inline void i915_gem_drain_freed_objects(struct drm_i915_private *i915)
 {
 	/*

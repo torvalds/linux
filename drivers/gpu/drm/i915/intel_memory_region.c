@@ -6,6 +6,16 @@
 #include "intel_memory_region.h"
 #include "i915_drv.h"
 
+/* XXX: Hysterical raisins. BIT(inst) needs to just be (inst) at some point. */
+#define REGION_MAP(type, inst) \
+	BIT((type) + INTEL_MEMORY_TYPE_SHIFT) | BIT(inst)
+
+const u32 intel_region_map[] = {
+	[INTEL_REGION_SMEM] = REGION_MAP(INTEL_MEMORY_SYSTEM, 0),
+	[INTEL_REGION_LMEM] = REGION_MAP(INTEL_MEMORY_LOCAL, 0),
+	[INTEL_REGION_STOLEN] = REGION_MAP(INTEL_MEMORY_STOLEN, 0),
+};
+
 static u64
 intel_memory_region_free_pages(struct intel_memory_region *mem,
 			       struct list_head *blocks)

@@ -6,6 +6,7 @@
 #include "intel_memory_region.h"
 #include "i915_gem_region.h"
 #include "i915_drv.h"
+#include "i915_trace.h"
 
 void
 i915_gem_object_put_pages_buddy(struct drm_i915_gem_object *obj,
@@ -165,5 +166,9 @@ i915_gem_object_create_region(struct intel_memory_region *mem,
 	if (overflows_type(size, obj->base.size))
 		return ERR_PTR(-E2BIG);
 
-	return mem->ops->create_object(mem, size, flags);
+	obj = mem->ops->create_object(mem, size, flags);
+	if (!IS_ERR(obj))
+		trace_i915_gem_object_create(obj);
+
+	return obj;
 }

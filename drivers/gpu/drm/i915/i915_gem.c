@@ -45,7 +45,6 @@
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_pm.h"
-#include "gem/i915_gemfs.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
@@ -1432,16 +1431,10 @@ static void i915_gem_init__mm(struct drm_i915_private *i915)
 
 void i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
-	int err;
-
 	i915_gem_init__mm(dev_priv);
 	i915_gem_init__pm(dev_priv);
 
 	spin_lock_init(&dev_priv->fb_tracking.lock);
-
-	err = i915_gemfs_init(dev_priv);
-	if (err)
-		DRM_NOTE("Unable to create a private tmpfs mount, hugepage support will be disabled(%d).\n", err);
 }
 
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
@@ -1450,8 +1443,6 @@ void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)
 	GEM_BUG_ON(!llist_empty(&dev_priv->mm.free_list));
 	GEM_BUG_ON(atomic_read(&dev_priv->mm.free_count));
 	WARN_ON(dev_priv->mm.shrink_count);
-
-	i915_gemfs_fini(dev_priv);
 }
 
 int i915_gem_freeze(struct drm_i915_private *dev_priv)

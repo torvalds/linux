@@ -2773,14 +2773,29 @@ int i915_gem_init_memory_regions(struct drm_i915_private *i915)
 
 	for (i = 0; i < INTEL_REGION_UNKNOWN; i++) {
 		struct intel_memory_region *mem = ERR_PTR(-ENODEV);
+		u32 type;
 
 		if (!HAS_REGION(i915, BIT(i)))
 			continue;
 
+		type = MEMORY_TYPE_FROM_REGION(intel_region_map[i]);
+		switch (type) {
+		case INTEL_MEMORY_SYSTEM:
+			mem = i915_gem_shmem_setup(i915);
+			break;
+		}
+
 		if (IS_ERR(mem)) {
 			err = PTR_ERR(mem);
+			DRM_ERROR("Failed to setup region(%d) type=%d\n", err, type);
 			goto out_cleanup;
 		}
+
+		mem->id = intel_region_map[i];
+		mem->type = type;
+		mem->instance = MEMORY_INSTANCE_FROM_REGION(intel_region_map[i]);
+
+		i915->mm.regions[i] = mem;
 	}
 
 	return 0;
