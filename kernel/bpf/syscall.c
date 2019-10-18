@@ -1571,6 +1571,17 @@ bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 			   u32 btf_id)
 {
 	switch (prog_type) {
+	case BPF_PROG_TYPE_RAW_TRACEPOINT:
+		if (btf_id > BTF_MAX_TYPE)
+			return -EINVAL;
+		break;
+	default:
+		if (btf_id)
+			return -EINVAL;
+		break;
+	}
+
+	switch (prog_type) {
 	case BPF_PROG_TYPE_CGROUP_SOCK:
 		switch (expected_attach_type) {
 		case BPF_CGROUP_INET_SOCK_CREATE:
@@ -1610,13 +1621,7 @@ bpf_prog_load_check_attach(enum bpf_prog_type prog_type,
 		default:
 			return -EINVAL;
 		}
-	case BPF_PROG_TYPE_RAW_TRACEPOINT:
-		if (btf_id > BTF_MAX_TYPE)
-			return -EINVAL;
-		return 0;
 	default:
-		if (btf_id)
-			return -EINVAL;
 		return 0;
 	}
 }
