@@ -685,8 +685,6 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	attach->dmabuf = dmabuf;
 	attach->dynamic_mapping = dynamic_mapping;
 
-	mutex_lock(&dmabuf->lock);
-
 	if (dmabuf->ops->attach) {
 		ret = dmabuf->ops->attach(dmabuf, attach);
 		if (ret)
@@ -695,8 +693,6 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 	dma_resv_lock(dmabuf->resv, NULL);
 	list_add(&attach->node, &dmabuf->attachments);
 	dma_resv_unlock(dmabuf->resv);
-
-	mutex_unlock(&dmabuf->lock);
 
 	/* When either the importer or the exporter can't handle dynamic
 	 * mappings we cache the mapping here to avoid issues with the
@@ -726,7 +722,6 @@ dma_buf_dynamic_attach(struct dma_buf *dmabuf, struct device *dev,
 
 err_attach:
 	kfree(attach);
-	mutex_unlock(&dmabuf->lock);
 	return ERR_PTR(ret);
 
 err_unlock:
@@ -776,14 +771,12 @@ void dma_buf_detach(struct dma_buf *dmabuf, struct dma_buf_attachment *attach)
 			dma_resv_unlock(attach->dmabuf->resv);
 	}
 
-	mutex_lock(&dmabuf->lock);
 	dma_resv_lock(dmabuf->resv, NULL);
 	list_del(&attach->node);
 	dma_resv_unlock(dmabuf->resv);
 	if (dmabuf->ops->detach)
 		dmabuf->ops->detach(dmabuf, attach);
 
-	mutex_unlock(&dmabuf->lock);
 	kfree(attach);
 }
 EXPORT_SYMBOL_GPL(dma_buf_detach);
@@ -1248,13 +1241,9 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 
 	list_for_each_entry(buf_obj, &db_list.head, list_node) {
 
-		ret = mutex_lock_interruptible(&buf_obj->lock);
-		if (ret)
-			goto error_unlock_list;
-
 		ret = dma_resv_lock_interruptible(buf_obj->resv, NULL);
 		if (ret)
-			goto error_unlock_buf;
+			goto error_unlock;
 
 		seq_printf(s, "%08zu\t%08x\t%08x\t%08ld\t%s\t%08lu\t%s\n",
 				buf_obj->size,
@@ -1307,7 +1296,6 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 
 		count++;
 		size += buf_obj->size;
-		mutex_unlock(&buf_obj->lock);
 	}
 
 	seq_printf(s, "\nTotal %d objects, %zu bytes\n", count, size);
@@ -1315,9 +1303,7 @@ static int dma_buf_debug_show(struct seq_file *s, void *unused)
 	mutex_unlock(&db_list.lock);
 	return 0;
 
-error_unlock_buf:
-	mutex_unlock(&buf_obj->lock);
-error_unlock_list:
+error_unlock:
 	mutex_unlock(&db_list.lock);
 	return ret;
 }
