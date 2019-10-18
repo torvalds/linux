@@ -279,6 +279,8 @@ struct amdtp_domain {
 
 	unsigned int events_per_period;
 	unsigned int events_per_buffer;
+
+	struct amdtp_stream *irq_target;
 };
 
 int amdtp_domain_init(struct amdtp_domain *d);
