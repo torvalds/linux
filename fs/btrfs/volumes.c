@@ -2982,27 +2982,28 @@ static int btrfs_may_alloc_data_chunk(struct btrfs_fs_info *fs_info,
 	chunk_type = cache->flags;
 	btrfs_put_block_group(cache);
 
-	if (chunk_type & BTRFS_BLOCK_GROUP_DATA) {
-		spin_lock(&fs_info->data_sinfo->lock);
-		bytes_used = fs_info->data_sinfo->bytes_used;
-		spin_unlock(&fs_info->data_sinfo->lock);
+	if (!(chunk_type & BTRFS_BLOCK_GROUP_DATA))
+		return 0;
 
-		if (!bytes_used) {
-			struct btrfs_trans_handle *trans;
-			int ret;
+	spin_lock(&fs_info->data_sinfo->lock);
+	bytes_used = fs_info->data_sinfo->bytes_used;
+	spin_unlock(&fs_info->data_sinfo->lock);
 
-			trans =	btrfs_join_transaction(fs_info->tree_root);
-			if (IS_ERR(trans))
-				return PTR_ERR(trans);
+	if (!bytes_used) {
+		struct btrfs_trans_handle *trans;
+		int ret;
 
-			ret = btrfs_force_chunk_alloc(trans,
-						      BTRFS_BLOCK_GROUP_DATA);
-			btrfs_end_transaction(trans);
-			if (ret < 0)
-				return ret;
-			return 1;
-		}
+		trans =	btrfs_join_transaction(fs_info->tree_root);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+
+		ret = btrfs_force_chunk_alloc(trans, BTRFS_BLOCK_GROUP_DATA);
+		btrfs_end_transaction(trans);
+		if (ret < 0)
+			return ret;
+		return 1;
 	}
+
 	return 0;
 }
 
