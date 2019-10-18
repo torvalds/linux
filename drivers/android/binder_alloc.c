@@ -267,7 +267,6 @@ static int binder_update_page_range(struct binder_alloc *alloc, int allocate,
 			alloc->pages_high = index + 1;
 
 		trace_binder_alloc_page_end(alloc, index);
-		/* vm_insert_page does not seem to increment the refcount */
 	}
 	if (mm) {
 		up_read(&mm->mmap_sem);
