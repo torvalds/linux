@@ -671,14 +671,15 @@ static struct page *rbio_qstripe_page(struct btrfs_raid_bio *rbio, int index)
  */
 static noinline int lock_stripe_add(struct btrfs_raid_bio *rbio)
 {
-	int bucket = rbio_bucket(rbio);
-	struct btrfs_stripe_hash *h = rbio->fs_info->stripe_hash_table->table + bucket;
+	struct btrfs_stripe_hash *h;
 	struct btrfs_raid_bio *cur;
 	struct btrfs_raid_bio *pending;
 	unsigned long flags;
 	struct btrfs_raid_bio *freeit = NULL;
 	struct btrfs_raid_bio *cache_drop = NULL;
 	int ret = 0;
+
+	h = rbio->fs_info->stripe_hash_table->table + rbio_bucket(rbio);
 
 	spin_lock_irqsave(&h->lock, flags);
 	list_for_each_entry(cur, &h->hash_list, hash_list) {
