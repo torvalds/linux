@@ -262,7 +262,6 @@
 				regulator-name = "vcc_ddr";
 				regulator-always-on;
 				regulator-boot-on;
-				regulator-initial-mode = <1>;
 			};
 
 			vcc_io: DCDC_REG4 {

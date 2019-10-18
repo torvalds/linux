@@ -260,7 +260,6 @@
 
 			vcc_ddr: DCDC_REG3 {
 				regulator-name = "vcc_ddr";
-				regulator-initial-mode = <0x1>;
 				regulator-boot-on;
 				regulator-always-on;
 				regulator-state-mem {
