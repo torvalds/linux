@@ -378,13 +378,6 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	int cpu;
 	unsigned long iflag;
 
-	if (ctxp->txrdy) {
-		dma_pool_free(phba->txrdy_payload_pool, ctxp->txrdy,
-			      ctxp->txrdy_phys);
-		ctxp->txrdy = NULL;
-		ctxp->txrdy_phys = 0;
-	}
-
 	if (ctxp->state == LPFC_NVMET_STE_FREE) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6411 NVMET free, already free IO x%x: %d %d\n",
@@ -430,7 +423,6 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 
 		ctxp = (struct lpfc_nvmet_rcv_ctx *)ctx_buf->context;
 		ctxp->wqeq = NULL;
-		ctxp->txrdy = NULL;
 		ctxp->offset = 0;
 		ctxp->phba = phba;
 		ctxp->size = size;
@@ -2327,7 +2319,6 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 				ctxp->state, ctxp->entry_cnt, ctxp->oxid);
 	}
 	ctxp->wqeq = NULL;
-	ctxp->txrdy = NULL;
 	ctxp->offset = 0;
 	ctxp->phba = phba;
 	ctxp->size = size;
@@ -2606,7 +2597,6 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	struct scatterlist *sgel;
 	union lpfc_wqe128 *wqe;
 	struct ulp_bde64 *bde;
-	uint32_t *txrdy;
 	dma_addr_t physaddr;
 	int i, cnt;
 	int do_pbde;
@@ -2768,23 +2758,11 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		       &lpfc_treceive_cmd_template.words[3],
 		       sizeof(uint32_t) * 9);
 
-		/* Words 0 - 2 : The first sg segment */
-		txrdy = dma_pool_alloc(phba->txrdy_payload_pool,
-				       GFP_KERNEL, &physaddr);
-		if (!txrdy) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-					"6041 Bad txrdy buffer: oxid x%x\n",
-					ctxp->oxid);
-			return NULL;
-		}
-		ctxp->txrdy = txrdy;
-		ctxp->txrdy_phys = physaddr;
-		wqe->fcp_treceive.bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
-		wqe->fcp_treceive.bde.tus.f.bdeSize = TXRDY_PAYLOAD_LEN;
-		wqe->fcp_treceive.bde.addrLow =
-			cpu_to_le32(putPaddrLow(physaddr));
-		wqe->fcp_treceive.bde.addrHigh =
-			cpu_to_le32(putPaddrHigh(physaddr));
+		/* Words 0 - 2 : First SGE is skipped, set invalid BDE type */
+		wqe->fcp_treceive.bde.tus.f.bdeFlags = LPFC_SGE_TYPE_SKIP;
+		wqe->fcp_treceive.bde.tus.f.bdeSize = 0;
+		wqe->fcp_treceive.bde.addrLow = 0;
+		wqe->fcp_treceive.bde.addrHigh = 0;
 
 		/* Word 4 */
 		wqe->fcp_treceive.relative_offset = ctxp->offset;
@@ -2819,17 +2797,13 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		/* Word 12 */
 		wqe->fcp_tsend.fcp_data_len = rsp->transfer_length;
 
-		/* Setup 1 TXRDY and 1 SKIP SGE */
-		txrdy[0] = 0;
-		txrdy[1] = cpu_to_be32(rsp->transfer_length);
-		txrdy[2] = 0;
-
-		sgl->addr_hi = putPaddrHigh(physaddr);
-		sgl->addr_lo = putPaddrLow(physaddr);
+		/* Setup 2 SKIP SGEs */
+		sgl->addr_hi = 0;
+		sgl->addr_lo = 0;
 		sgl->word2 = 0;
-		bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_DATA);
+		bf_set(lpfc_sli4_sge_type, sgl, LPFC_SGE_TYPE_SKIP);
 		sgl->word2 = cpu_to_le32(sgl->word2);
-		sgl->sge_len = cpu_to_le32(TXRDY_PAYLOAD_LEN);
+		sgl->sge_len = 0;
 		sgl++;
 		sgl->addr_hi = 0;
 		sgl->addr_lo = 0;

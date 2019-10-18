@@ -7556,18 +7556,10 @@ lpfc_create_shost(struct lpfc_hba *phba)
 
 	if (phba->nvmet_support) {
 		/* Only 1 vport (pport) will support NVME target */
-		if (phba->txrdy_payload_pool == NULL) {
-			phba->txrdy_payload_pool = dma_pool_create(
-				"txrdy_pool", &phba->pcidev->dev,
-				TXRDY_PAYLOAD_LEN, 16, 0);
-			if (phba->txrdy_payload_pool) {
-				phba->targetport = NULL;
-				phba->cfg_enable_fc4_type = LPFC_ENABLE_NVME;
-				lpfc_printf_log(phba, KERN_INFO,
-						LOG_INIT | LOG_NVME_DISC,
-						"6076 NVME Target Found\n");
-			}
-		}
+		phba->targetport = NULL;
+		phba->cfg_enable_fc4_type = LPFC_ENABLE_NVME;
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_NVME_DISC,
+				"6076 NVME Target Found\n");
 	}
 
 	lpfc_debugfs_initialize(vport);
