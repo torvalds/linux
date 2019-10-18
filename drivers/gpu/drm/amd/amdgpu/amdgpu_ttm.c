@@ -1803,17 +1803,6 @@ int amdgpu_ttm_init(struct amdgpu_device *adev)
 #endif
 
 	/*
-	 * retired pages will be loaded from eeprom and reserved here,
-	 * it should be called after ttm init since new bo may be created,
-	 * recovery_init may fail, but it can free all resources allocated by
-	 * itself and its failure should not stop amdgpu init process.
-	 *
-	 * Note: theoretically, this should be called before all vram allocations
-	 * to protect retired page from abusing
-	 */
-	amdgpu_ras_recovery_init(adev);
-
-	/*
 	 *The reserved vram for firmware must be pinned to the specified
 	 *place on the VRAM, so reserve it early.
 	 */
