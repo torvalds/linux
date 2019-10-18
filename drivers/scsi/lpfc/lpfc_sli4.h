@@ -514,6 +514,7 @@ struct lpfc_pc_sli4_params {
 	uint8_t cqav;
 	uint8_t wqsize;
 	uint8_t bv1s;
+	uint8_t pls;
 #define LPFC_WQ_SZ64_SUPPORT	1
 #define LPFC_WQ_SZ128_SUPPORT	2
 	uint8_t wqpcnt;

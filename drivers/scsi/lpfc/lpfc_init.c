@@ -8239,6 +8239,94 @@ lpfc_destroy_bootstrap_mbox(struct lpfc_hba *phba)
 	memset(&phba->sli4_hba.bmbx, 0, sizeof(struct lpfc_bmbx));
 }
 
+static const char * const lpfc_topo_to_str[] = {
+	"Loop then P2P",
+	"Loopback",
+	"P2P Only",
+	"Unsupported",
+	"Loop Only",
+	"Unsupported",
+	"P2P then Loop",
+};
+
+/**
+ * lpfc_map_topology - Map the topology read from READ_CONFIG
+ * @phba: pointer to lpfc hba data structure.
+ * @rdconf: pointer to read config data
+ *
+ * This routine is invoked to map the topology values as read
+ * from the read config mailbox command. If the persistent
+ * topology feature is supported, the firmware will provide the
+ * saved topology information to be used in INIT_LINK
+ *
+ **/
+#define	LINK_FLAGS_DEF	0x0
+#define	LINK_FLAGS_P2P	0x1
+#define	LINK_FLAGS_LOOP	0x2
+static void
+lpfc_map_topology(struct lpfc_hba *phba, struct lpfc_mbx_read_config *rd_config)
+{
+	u8 ptv, tf, pt;
+
+	ptv = bf_get(lpfc_mbx_rd_conf_ptv, rd_config);
+	tf = bf_get(lpfc_mbx_rd_conf_tf, rd_config);
+	pt = bf_get(lpfc_mbx_rd_conf_pt, rd_config);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+			"2027 Read Config Data : ptv:0x%x, tf:0x%x pt:0x%x",
+			 ptv, tf, pt);
+	if (!ptv) {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+				"2019 FW does not support persistent topology "
+				"Using driver parameter defined value [%s]",
+				lpfc_topo_to_str[phba->cfg_topology]);
+		return;
+	}
+	/* FW supports persistent topology - override module parameter value */
+	phba->hba_flag |= HBA_PERSISTENT_TOPO;
+	switch (phba->pcidev->device) {
+	case PCI_DEVICE_ID_LANCER_G7_FC:
+		if (tf || (pt == LINK_FLAGS_LOOP)) {
+			/* Invalid values from FW - use driver params */
+			phba->hba_flag &= ~HBA_PERSISTENT_TOPO;
+		} else {
+			/* Prism only supports PT2PT topology */
+			phba->cfg_topology = FLAGS_TOPOLOGY_MODE_PT_PT;
+		}
+		break;
+	case PCI_DEVICE_ID_LANCER_G6_FC:
+		if (!tf) {
+			phba->cfg_topology = ((pt == LINK_FLAGS_LOOP)
+					? FLAGS_TOPOLOGY_MODE_LOOP
+					: FLAGS_TOPOLOGY_MODE_PT_PT);
+		} else {
+			phba->hba_flag &= ~HBA_PERSISTENT_TOPO;
+		}
+		break;
+	default:	/* G5 */
+		if (tf) {
+			/* If topology failover set - pt is '0' or '1' */
+			phba->cfg_topology = (pt ? FLAGS_TOPOLOGY_MODE_PT_LOOP :
+					      FLAGS_TOPOLOGY_MODE_LOOP_PT);
+		} else {
+			phba->cfg_topology = ((pt == LINK_FLAGS_P2P)
+					? FLAGS_TOPOLOGY_MODE_PT_PT
+					: FLAGS_TOPOLOGY_MODE_LOOP);
+		}
+		break;
+	}
+	if (phba->hba_flag & HBA_PERSISTENT_TOPO) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
+				"2020 Using persistent topology value [%s]",
+				lpfc_topo_to_str[phba->cfg_topology]);
+	} else {
+		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
+				"2021 Invalid topology values from FW "
+				"Using driver parameter defined value [%s]",
+				lpfc_topo_to_str[phba->cfg_topology]);
+	}
+}
+
 /**
  * lpfc_sli4_read_config - Get the config parameters.
  * @phba: pointer to lpfc hba data structure.
@@ -8350,6 +8438,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->max_vpi = (phba->sli4_hba.max_cfg_param.max_vpi > 0) ?
 				(phba->sli4_hba.max_cfg_param.max_vpi - 1) : 0;
 		phba->max_vports = phba->max_vpi;
+		lpfc_map_topology(phba, rd_config);
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 				"2003 cfg params Extents? %d "
 				"XRI(B:%d M:%d), "
@@ -11542,6 +11631,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->cqav = bf_get(cfg_cqav, mbx_sli4_parameters);
 	sli4_params->wqsize = bf_get(cfg_wqsize, mbx_sli4_parameters);
 	sli4_params->bv1s = bf_get(cfg_bv1s, mbx_sli4_parameters);
+	sli4_params->pls = bf_get(cfg_pvl, mbx_sli4_parameters);
 	sli4_params->sgl_pages_max = bf_get(cfg_sgl_page_cnt,
 					    mbx_sli4_parameters);
 	sli4_params->wqpcnt = bf_get(cfg_wqpcnt, mbx_sli4_parameters);
