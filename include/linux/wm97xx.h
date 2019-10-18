@@ -254,9 +254,6 @@ struct wm97xx_mach_ops {
 	int (*acc_startup) (struct wm97xx *);
 	void (*acc_shutdown) (struct wm97xx *);
 
-	/* interrupt mask control - required for accelerated operation */
-	void (*irq_enable) (struct wm97xx *, int enable);
-
 	/* GPIO pin used for accelerated operation */
 	int irq_gpio;
 

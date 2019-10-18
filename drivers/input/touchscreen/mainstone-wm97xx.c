@@ -246,21 +246,12 @@ static void wm97xx_acc_shutdown(struct wm97xx *wm)
 	}
 }
 
-static void wm97xx_irq_enable(struct wm97xx *wm, int enable)
-{
-	if (enable)
-		enable_irq(wm->pen_irq);
-	else
-		disable_irq_nosync(wm->pen_irq);
-}
-
 static struct wm97xx_mach_ops mainstone_mach_ops = {
 	.acc_enabled	= 1,
 	.acc_pen_up	= wm97xx_acc_pen_up,
 	.acc_pen_down	= wm97xx_acc_pen_down,
 	.acc_startup	= wm97xx_acc_startup,
 	.acc_shutdown	= wm97xx_acc_shutdown,
-	.irq_enable	= wm97xx_irq_enable,
 	.irq_gpio	= WM97XX_GPIO_2,
 };
 
