@@ -13640,6 +13640,7 @@ __lpfc_sli4_process_cq(struct lpfc_hba *phba, struct lpfc_queue *cq,
 			phba->sli4_hba.sli4_write_cq_db(phba, cq, consumed,
 						LPFC_QUEUE_NOARM);
 			consumed = 0;
+			cq->assoc_qp->q_flag |= HBA_EQ_DELAY_CHK;
 		}
 
 		if (count == LPFC_NVMET_CQ_NOTIFY)
@@ -14278,7 +14279,7 @@ lpfc_sli4_hba_intr_handler(int irq, void *dev_id)
 	fpeq->last_cpu = raw_smp_processor_id();
 
 	if (icnt > LPFC_EQD_ISR_TRIGGER &&
-	    phba->cfg_irq_chann == 1 &&
+	    fpeq->q_flag & HBA_EQ_DELAY_CHK &&
 	    phba->cfg_auto_imax &&
 	    fpeq->q_mode != LPFC_MAX_AUTO_EQ_DELAY &&
 	    phba->sli.sli_flag & LPFC_SLI_USE_EQDR)

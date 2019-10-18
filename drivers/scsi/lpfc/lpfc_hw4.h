@@ -210,7 +210,6 @@ struct lpfc_sli_intf {
 #define LPFC_MAX_IMAX          5000000
 #define LPFC_DEF_IMAX          0
 
-#define LPFC_IMAX_THRESHOLD    1000
 #define LPFC_MAX_AUTO_EQ_DELAY 120
 #define LPFC_EQ_DELAY_STEP     15
 #define LPFC_EQD_ISR_TRIGGER   20000

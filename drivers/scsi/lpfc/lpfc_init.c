@@ -1235,10 +1235,9 @@ lpfc_hb_eq_delay_work(struct work_struct *work)
 					     struct lpfc_hba, eq_delay_work);
 	struct lpfc_eq_intr_info *eqi, *eqi_new;
 	struct lpfc_queue *eq, *eq_next;
-	unsigned char *eqcnt = NULL;
+	unsigned char *ena_delay = NULL;
 	uint32_t usdelay;
 	int i;
-	bool update = false;
 
 	if (!phba->cfg_auto_imax || phba->pport->load_flag & FC_UNLOADING)
 		return;
@@ -1247,44 +1246,36 @@ lpfc_hb_eq_delay_work(struct work_struct *work)
 	    phba->pport->fc_flag & FC_OFFLINE_MODE)
 		goto requeue;
 
-	eqcnt = kcalloc(num_possible_cpus(), sizeof(unsigned char),
-			GFP_KERNEL);
-	if (!eqcnt)
+	ena_delay = kcalloc(phba->sli4_hba.num_possible_cpu, sizeof(*ena_delay),
+			    GFP_KERNEL);
+	if (!ena_delay)
 		goto requeue;
 
-	if (phba->cfg_irq_chann > 1) {
-		/* Loop thru all IRQ vectors */
-		for (i = 0; i < phba->cfg_irq_chann; i++) {
-			/* Get the EQ corresponding to the IRQ vector */
-			eq = phba->sli4_hba.hba_eq_hdl[i].eq;
-			if (!eq)
-				continue;
-			if (eq->q_mode) {
-				update = true;
-				break;
-			}
-			if (eqcnt[eq->last_cpu] < 2)
-				eqcnt[eq->last_cpu]++;
+	for (i = 0; i < phba->cfg_irq_chann; i++) {
+		/* Get the EQ corresponding to the IRQ vector */
+		eq = phba->sli4_hba.hba_eq_hdl[i].eq;
+		if (!eq)
+			continue;
+		if (eq->q_mode || eq->q_flag & HBA_EQ_DELAY_CHK) {
+			eq->q_flag &= ~HBA_EQ_DELAY_CHK;
+			ena_delay[eq->last_cpu] = 1;
 		}
-	} else
-		update = true;
+	}
 
 	for_each_present_cpu(i) {
 		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, i);
-		if (!update && eqcnt[i] < 2) {
-			eqi->icnt = 0;
-			continue;
+		if (ena_delay[i]) {
+			usdelay = (eqi->icnt >> 10) * LPFC_EQ_DELAY_STEP;
+			if (usdelay > LPFC_MAX_AUTO_EQ_DELAY)
+				usdelay = LPFC_MAX_AUTO_EQ_DELAY;
+		} else {
+			usdelay = 0;
 		}
-
-		usdelay = (eqi->icnt / LPFC_IMAX_THRESHOLD) *
-			   LPFC_EQ_DELAY_STEP;
-		if (usdelay > LPFC_MAX_AUTO_EQ_DELAY)
-			usdelay = LPFC_MAX_AUTO_EQ_DELAY;
 
 		eqi->icnt = 0;
 
 		list_for_each_entry_safe(eq, eq_next, &eqi->list, cpu_list) {
-			if (eq->last_cpu != i) {
+			if (unlikely(eq->last_cpu != i)) {
 				eqi_new = per_cpu_ptr(phba->sli4_hba.eq_info,
 						      eq->last_cpu);
 				list_move_tail(&eq->cpu_list, &eqi_new->list);
@@ -1296,7 +1287,7 @@ lpfc_hb_eq_delay_work(struct work_struct *work)
 		}
 	}
 
-	kfree(eqcnt);
+	kfree(ena_delay);
 
 requeue:
 	queue_delayed_work(phba->wq, &phba->eq_delay_work,
