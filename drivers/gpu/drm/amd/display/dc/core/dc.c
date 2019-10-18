@@ -1246,6 +1246,10 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 
 	dc_enable_stereo(dc, context, dc_streams, context->stream_count);
 
+	if (!dc->optimize_seamless_boot)
+			/* pplib is notified if disp_num changed */
+			dc->hwss.optimize_bandwidth(dc, context);
+
 	for (i = 0; i < context->stream_count; i++)
 		context->streams[i]->mode_changed = false;
 
