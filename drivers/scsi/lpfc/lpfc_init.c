@@ -8630,8 +8630,8 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	 */
 
 	if (phba->nvmet_support) {
-		if (phba->cfg_irq_chann < phba->cfg_nvmet_mrq)
-			phba->cfg_nvmet_mrq = phba->cfg_irq_chann;
+		if (phba->cfg_hdw_queue < phba->cfg_nvmet_mrq)
+			phba->cfg_nvmet_mrq = phba->cfg_hdw_queue;
 		if (phba->cfg_nvmet_mrq > LPFC_NVMET_MRQ_MAX)
 			phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_MAX;
 	}
@@ -11033,8 +11033,6 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 				phba->cfg_irq_chann, vectors);
 		if (phba->cfg_irq_chann > vectors)
 			phba->cfg_irq_chann = vectors;
-		if (phba->nvmet_support && (phba->cfg_nvmet_mrq > vectors))
-			phba->cfg_nvmet_mrq = vectors;
 	}
 
 	return rc;
