@@ -5381,6 +5381,13 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 		otg_set_host(hsotg->uphy->otg, &hcd->self);
 
 	/*
+	 * do not manage the PHY state in the HCD core, instead let the driver
+	 * handle this (for example if the PHY can only be turned on after a
+	 * specific event)
+	 */
+	hcd->skip_phy_initialization = 1;
+
+	/*
 	 * Finish generic HCD initialization and start the HCD. This function
 	 * allocates the DMA buffer pool, registers the USB bus, requests the
 	 * IRQ line, and calls hcd_start method.
