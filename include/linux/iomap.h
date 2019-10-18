@@ -168,7 +168,7 @@ int iomap_migrate_page(struct address_space *mapping, struct page *newpage,
 #else
 #define iomap_migrate_page NULL
 #endif
-int iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
+int iomap_file_unshare(struct inode *inode, loff_t pos, loff_t len,
 		const struct iomap_ops *ops);
 int iomap_zero_range(struct inode *inode, loff_t pos, loff_t len,
 		bool *did_zero, const struct iomap_ops *ops);

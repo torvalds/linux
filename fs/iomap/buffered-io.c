@@ -887,11 +887,18 @@ __iomap_read_page(struct inode *inode, loff_t offset)
 }
 
 static loff_t
-iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
+iomap_unshare_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		struct iomap *iomap)
 {
 	long status = 0;
 	ssize_t written = 0;
+
+	/* don't bother with blocks that are not shared to start with */
+	if (!(iomap->flags & IOMAP_F_SHARED))
+		return length;
+	/* don't bother with holes or unwritten extents */
+	if (iomap->type == IOMAP_HOLE || iomap->type == IOMAP_UNWRITTEN)
+		return length;
 
 	do {
 		struct page *page, *rpage;
@@ -932,14 +939,14 @@ iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 }
 
 int
-iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
+iomap_file_unshare(struct inode *inode, loff_t pos, loff_t len,
 		const struct iomap_ops *ops)
 {
 	loff_t ret;
 
 	while (len) {
 		ret = iomap_apply(inode, pos, len, IOMAP_WRITE, ops, NULL,
-				iomap_dirty_actor);
+				iomap_unshare_actor);
 		if (ret <= 0)
 			return ret;
 		pos += ret;
@@ -948,7 +955,7 @@ iomap_file_dirty(struct inode *inode, loff_t pos, loff_t len,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(iomap_file_dirty);
+EXPORT_SYMBOL_GPL(iomap_file_unshare);
 
 static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
 		unsigned bytes, struct iomap *iomap)
