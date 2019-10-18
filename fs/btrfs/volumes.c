@@ -6806,48 +6806,49 @@ int btrfs_read_sys_array(struct btrfs_fs_info *fs_info)
 		sb_array_offset += len;
 		cur_offset += len;
 
-		if (key.type == BTRFS_CHUNK_ITEM_KEY) {
-			chunk = (struct btrfs_chunk *)sb_array_offset;
-			/*
-			 * At least one btrfs_chunk with one stripe must be
-			 * present, exact stripe count check comes afterwards
-			 */
-			len = btrfs_chunk_item_size(1);
-			if (cur_offset + len > array_size)
-				goto out_short_read;
-
-			num_stripes = btrfs_chunk_num_stripes(sb, chunk);
-			if (!num_stripes) {
-				btrfs_err(fs_info,
-					"invalid number of stripes %u in sys_array at offset %u",
-					num_stripes, cur_offset);
-				ret = -EIO;
-				break;
-			}
-
-			type = btrfs_chunk_type(sb, chunk);
-			if ((type & BTRFS_BLOCK_GROUP_SYSTEM) == 0) {
-				btrfs_err(fs_info,
-			    "invalid chunk type %llu in sys_array at offset %u",
-					type, cur_offset);
-				ret = -EIO;
-				break;
-			}
-
-			len = btrfs_chunk_item_size(num_stripes);
-			if (cur_offset + len > array_size)
-				goto out_short_read;
-
-			ret = read_one_chunk(&key, sb, chunk);
-			if (ret)
-				break;
-		} else {
+		if (key.type != BTRFS_CHUNK_ITEM_KEY) {
 			btrfs_err(fs_info,
 			    "unexpected item type %u in sys_array at offset %u",
 				  (u32)key.type, cur_offset);
 			ret = -EIO;
 			break;
 		}
+
+		chunk = (struct btrfs_chunk *)sb_array_offset;
+		/*
+		 * At least one btrfs_chunk with one stripe must be present,
+		 * exact stripe count check comes afterwards
+		 */
+		len = btrfs_chunk_item_size(1);
+		if (cur_offset + len > array_size)
+			goto out_short_read;
+
+		num_stripes = btrfs_chunk_num_stripes(sb, chunk);
+		if (!num_stripes) {
+			btrfs_err(fs_info,
+			"invalid number of stripes %u in sys_array at offset %u",
+				  num_stripes, cur_offset);
+			ret = -EIO;
+			break;
+		}
+
+		type = btrfs_chunk_type(sb, chunk);
+		if ((type & BTRFS_BLOCK_GROUP_SYSTEM) == 0) {
+			btrfs_err(fs_info,
+			"invalid chunk type %llu in sys_array at offset %u",
+				  type, cur_offset);
+			ret = -EIO;
+			break;
+		}
+
+		len = btrfs_chunk_item_size(num_stripes);
+		if (cur_offset + len > array_size)
+			goto out_short_read;
+
+		ret = read_one_chunk(&key, sb, chunk);
+		if (ret)
+			break;
+
 		array_ptr += len;
 		sb_array_offset += len;
 		cur_offset += len;
