@@ -36,14 +36,20 @@
 #define OMAP4430_AUTO_CTRL_VDD_CORE(x)		((x) << 0)
 #define OMAP4430_AUTO_CTRL_VDD_RET		2
 
-#define OMAP4_VDD_DEFAULT_VAL	\
+#define OMAP4430_VDD_I2C_DISABLE_MASK	\
 	(OMAP4430_VDD_IVA_I2C_DISABLE | \
-	 OMAP4430_VDD_MPU_I2C_DISABLE |	 \
-	 OMAP4430_VDD_CORE_I2C_DISABLE | \
+	 OMAP4430_VDD_MPU_I2C_DISABLE | \
+	 OMAP4430_VDD_CORE_I2C_DISABLE)
+
+#define OMAP4_VDD_DEFAULT_VAL	\
+	(OMAP4430_VDD_I2C_DISABLE_MASK | \
 	 OMAP4430_VDD_IVA_PRESENCE | OMAP4430_VDD_MPU_PRESENCE | \
 	 OMAP4430_AUTO_CTRL_VDD_IVA(OMAP4430_AUTO_CTRL_VDD_RET) | \
 	 OMAP4430_AUTO_CTRL_VDD_MPU(OMAP4430_AUTO_CTRL_VDD_RET) | \
 	 OMAP4430_AUTO_CTRL_VDD_CORE(OMAP4430_AUTO_CTRL_VDD_RET))
+
+#define OMAP4_VDD_RET_VAL	\
+	(OMAP4_VDD_DEFAULT_VAL & ~OMAP4430_VDD_I2C_DISABLE_MASK)
 
 /**
  * struct omap_vc_channel_cfg - describe the cfg_channel bitfield
@@ -297,6 +303,26 @@ void omap3_vc_set_pmic_signaling(int core_next_state)
 			  OMAP3_PRM_VOLTSETUP2_OFFSET);
 		vc.voltsetup2 = voltsetup2;
 	}
+}
+
+void omap4_vc_set_pmic_signaling(int core_next_state)
+{
+	struct voltagedomain *vd = vc.vd;
+	u32 val;
+
+	if (!vd)
+		return;
+
+	switch (core_next_state) {
+	case PWRDM_POWER_RET:
+		val = OMAP4_VDD_RET_VAL;
+		break;
+	default:
+		val = OMAP4_VDD_DEFAULT_VAL;
+		break;
+	}
+
+	vd->write(val, OMAP4_PRM_VOLTCTRL_OFFSET);
 }
 
 /*
