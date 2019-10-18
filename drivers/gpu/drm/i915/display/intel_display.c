@@ -14130,6 +14130,37 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 						     new_crtc_state);
 }
 
+static void intel_trans_port_sync_modeset_disables(struct intel_atomic_state *state,
+						   struct intel_crtc *crtc,
+						   struct intel_crtc_state *old_crtc_state,
+						   struct intel_crtc_state *new_crtc_state)
+{
+	struct intel_crtc *slave_crtc = intel_get_slave_crtc(new_crtc_state);
+	struct intel_crtc_state *new_slave_crtc_state =
+		intel_atomic_get_new_crtc_state(state, slave_crtc);
+	struct intel_crtc_state *old_slave_crtc_state =
+		intel_atomic_get_old_crtc_state(state, slave_crtc);
+
+	WARN_ON(!slave_crtc || !new_slave_crtc_state ||
+		!old_slave_crtc_state);
+
+	/* Disable Slave first */
+	intel_pre_plane_update(old_slave_crtc_state, new_slave_crtc_state);
+	if (old_slave_crtc_state->base.active)
+		intel_old_crtc_state_disables(state,
+					      old_slave_crtc_state,
+					      new_slave_crtc_state,
+					      slave_crtc);
+
+	/* Disable Master */
+	intel_pre_plane_update(old_crtc_state, new_crtc_state);
+	if (old_crtc_state->base.active)
+		intel_old_crtc_state_disables(state,
+					      old_crtc_state,
+					      new_crtc_state,
+					      crtc);
+}
+
 static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 {
 	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
@@ -14148,13 +14179,28 @@ static void intel_commit_modeset_disables(struct intel_atomic_state *state)
 		if (!needs_modeset(new_crtc_state))
 			continue;
 
-		intel_pre_plane_update(old_crtc_state, new_crtc_state);
+		/* In case of Transcoder port Sync master slave CRTCs can be
+		 * assigned in any order and we need to make sure that
+		 * slave CRTCs are disabled first and then master CRTC since
+		 * Slave vblanks are masked till Master Vblanks.
+		 */
+		if (is_trans_port_sync_mode(new_crtc_state)) {
+			if (is_trans_port_sync_master(new_crtc_state))
+				intel_trans_port_sync_modeset_disables(state,
+								       crtc,
+								       old_crtc_state,
+								       new_crtc_state);
+			else
+				continue;
+		} else {
+			intel_pre_plane_update(old_crtc_state, new_crtc_state);
 
-		if (old_crtc_state->base.active)
-			intel_old_crtc_state_disables(state,
-						      old_crtc_state,
-						      new_crtc_state,
-						      crtc);
+			if (old_crtc_state->base.active)
+				intel_old_crtc_state_disables(state,
+							      old_crtc_state,
+							      new_crtc_state,
+							      crtc);
+		}
 	}
 }
 
