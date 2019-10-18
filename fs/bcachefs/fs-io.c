@@ -571,12 +571,12 @@ vm_fault_t bch2_page_mkwrite(struct vm_fault *vmf)
 	}
 
 	bch2_set_page_dirty(c, inode, page, &res, 0, len);
+	bch2_page_reservation_put(c, inode, &res);
+
 	wait_for_stable_page(page);
 out:
 	bch2_pagecache_add_put(&inode->ei_pagecache_lock);
 	sb_end_pagefault(inode->v.i_sb);
-
-	bch2_page_reservation_put(c, inode, &res);
 
 	return ret;
 }
