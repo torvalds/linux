@@ -1669,6 +1669,7 @@ static void hidpp_touchpad_raw_xy_event(struct hidpp_device *hidpp_dev,
 
 #define HIDPP_FF_EFFECTID_NONE		-1
 #define HIDPP_FF_EFFECTID_AUTOCENTER	-2
+#define HIDPP_AUTOCENTER_PARAMS_LENGTH	18
 
 #define HIDPP_FF_MAX_PARAMS	20
 #define HIDPP_FF_RESERVED_SLOTS	1
@@ -2009,7 +2010,7 @@ static int hidpp_ff_erase_effect(struct input_dev *dev, int effect_id)
 static void hidpp_ff_set_autocenter(struct input_dev *dev, u16 magnitude)
 {
 	struct hidpp_ff_private_data *data = dev->ff->private;
-	u8 params[18];
+	u8 params[HIDPP_AUTOCENTER_PARAMS_LENGTH];
 
 	dbg_hid("Setting autocenter to %d.\n", magnitude);
 
@@ -2081,7 +2082,8 @@ static void hidpp_ff_destroy(struct ff_device *ff)
 	kfree(data->effect_ids);
 }
 
-static int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
+static int hidpp_ff_init(struct hidpp_device *hidpp,
+			 struct hidpp_ff_private_data *data)
 {
 	struct hid_device *hid = hidpp->hid_dev;
 	struct hid_input *hidinput;
@@ -2089,9 +2091,7 @@ static int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
 	const struct usb_device_descriptor *udesc = &(hid_to_usb_dev(hid)->descriptor);
 	const u16 bcdDevice = le16_to_cpu(udesc->bcdDevice);
 	struct ff_device *ff;
-	struct hidpp_report response;
-	struct hidpp_ff_private_data *data;
-	int error, j, num_slots;
+	int error, j, num_slots = data->num_effects;
 	u8 version;
 
 	if (list_empty(&hid->inputs)) {
@@ -2116,27 +2116,17 @@ static int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
 		for (j = 0; hidpp_ff_effects_v2[j] >= 0; j++)
 			set_bit(hidpp_ff_effects_v2[j], dev->ffbit);
 
-	/* Read number of slots available in device */
-	error = hidpp_send_fap_command_sync(hidpp, feature_index,
-		HIDPP_FF_GET_INFO, NULL, 0, &response);
-	if (error) {
-		if (error < 0)
-			return error;
-		hid_err(hidpp->hid_dev, "%s: received protocol error 0x%02x\n",
-			__func__, error);
-		return -EPROTO;
-	}
-
-	num_slots = response.fap.params[0] - HIDPP_FF_RESERVED_SLOTS;
-
 	error = input_ff_create(dev, num_slots);
 
 	if (error) {
 		hid_err(dev, "Failed to create FF device!\n");
 		return error;
 	}
-
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	/*
+	 * Create a copy of passed data, so we can transfer memory
+	 * ownership to FF core
+	 */
+	data = kmemdup(data, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 	data->effect_ids = kcalloc(num_slots, sizeof(int), GFP_KERNEL);
@@ -2152,10 +2142,7 @@ static int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
 	}
 
 	data->hidpp = hidpp;
-	data->feature_index = feature_index;
 	data->version = version;
-	data->slot_autocenter = 0;
-	data->num_effects = num_slots;
 	for (j = 0; j < num_slots; j++)
 		data->effect_ids[j] = -1;
 
@@ -2169,36 +2156,13 @@ static int hidpp_ff_init(struct hidpp_device *hidpp, u8 feature_index)
 	ff->set_autocenter = hidpp_ff_set_autocenter;
 	ff->destroy = hidpp_ff_destroy;
 
-
-	/* reset all forces */
-	error = hidpp_send_fap_command_sync(hidpp, feature_index,
-		HIDPP_FF_RESET_ALL, NULL, 0, &response);
-
-	/* Read current Range */
-	error = hidpp_send_fap_command_sync(hidpp, feature_index,
-		HIDPP_FF_GET_APERTURE, NULL, 0, &response);
-	if (error)
-		hid_warn(hidpp->hid_dev, "Failed to read range from device!\n");
-	data->range = error ? 900 : get_unaligned_be16(&response.fap.params[0]);
-
 	/* Create sysfs interface */
 	error = device_create_file(&(hidpp->hid_dev->dev), &dev_attr_range);
 	if (error)
 		hid_warn(hidpp->hid_dev, "Unable to create sysfs interface for \"range\", errno %d!\n", error);
 
-	/* Read the current gain values */
-	error = hidpp_send_fap_command_sync(hidpp, feature_index,
-		HIDPP_FF_GET_GLOBAL_GAINS, NULL, 0, &response);
-	if (error)
-		hid_warn(hidpp->hid_dev, "Failed to read gain values from device!\n");
-	data->gain = error ? 0xffff : get_unaligned_be16(&response.fap.params[0]);
-	/* ignore boost value at response.fap.params[2] */
-
 	/* init the hardware command queue */
 	atomic_set(&data->workqueue_size, 0);
-
-	/* initialize with zero autocenter to get wheel in usable state */
-	hidpp_ff_set_autocenter(dev, 0);
 
 	hid_info(hid, "Force feedback support loaded (firmware release %d).\n",
 		 version);
@@ -2732,24 +2696,93 @@ static int k400_connect(struct hid_device *hdev, bool connected)
 
 #define HIDPP_PAGE_G920_FORCE_FEEDBACK			0x8123
 
-static int g920_get_config(struct hidpp_device *hidpp)
+static int g920_ff_set_autocenter(struct hidpp_device *hidpp,
+				  struct hidpp_ff_private_data *data)
 {
-	u8 feature_type;
-	u8 feature_index;
+	struct hidpp_report response;
+	u8 params[HIDPP_AUTOCENTER_PARAMS_LENGTH] = {
+		[1] = HIDPP_FF_EFFECT_SPRING | HIDPP_FF_EFFECT_AUTOSTART,
+	};
 	int ret;
+
+	/* initialize with zero autocenter to get wheel in usable state */
+
+	dbg_hid("Setting autocenter to 0.\n");
+	ret = hidpp_send_fap_command_sync(hidpp, data->feature_index,
+					  HIDPP_FF_DOWNLOAD_EFFECT,
+					  params, ARRAY_SIZE(params),
+					  &response);
+	if (ret)
+		hid_warn(hidpp->hid_dev, "Failed to autocenter device!\n");
+	else
+		data->slot_autocenter = response.fap.params[0];
+
+	return ret;
+}
+
+static int g920_get_config(struct hidpp_device *hidpp,
+			   struct hidpp_ff_private_data *data)
+{
+	struct hidpp_report response;
+	u8 feature_type;
+	int ret;
+
+	memset(data, 0, sizeof(*data));
 
 	/* Find feature and store for later use */
 	ret = hidpp_root_get_feature(hidpp, HIDPP_PAGE_G920_FORCE_FEEDBACK,
-		&feature_index, &feature_type);
+				     &data->feature_index, &feature_type);
 	if (ret)
 		return ret;
 
-	ret = hidpp_ff_init(hidpp, feature_index);
-	if (ret)
-		hid_warn(hidpp->hid_dev, "Unable to initialize force feedback support, errno %d\n",
-				ret);
+	/* Read number of slots available in device */
+	ret = hidpp_send_fap_command_sync(hidpp, data->feature_index,
+					  HIDPP_FF_GET_INFO,
+					  NULL, 0,
+					  &response);
+	if (ret) {
+		if (ret < 0)
+			return ret;
+		hid_err(hidpp->hid_dev,
+			"%s: received protocol error 0x%02x\n", __func__, ret);
+		return -EPROTO;
+	}
 
-	return 0;
+	data->num_effects = response.fap.params[0] - HIDPP_FF_RESERVED_SLOTS;
+
+	/* reset all forces */
+	ret = hidpp_send_fap_command_sync(hidpp, data->feature_index,
+					  HIDPP_FF_RESET_ALL,
+					  NULL, 0,
+					  &response);
+	if (ret)
+		hid_warn(hidpp->hid_dev, "Failed to reset all forces!\n");
+
+	ret = hidpp_send_fap_command_sync(hidpp, data->feature_index,
+					  HIDPP_FF_GET_APERTURE,
+					  NULL, 0,
+					  &response);
+	if (ret) {
+		hid_warn(hidpp->hid_dev,
+			 "Failed to read range from device!\n");
+	}
+	data->range = ret ?
+		900 : get_unaligned_be16(&response.fap.params[0]);
+
+	/* Read the current gain values */
+	ret = hidpp_send_fap_command_sync(hidpp, data->feature_index,
+					  HIDPP_FF_GET_GLOBAL_GAINS,
+					  NULL, 0,
+					  &response);
+	if (ret)
+		hid_warn(hidpp->hid_dev,
+			 "Failed to read gain values from device!\n");
+	data->gain = ret ?
+		0xffff : get_unaligned_be16(&response.fap.params[0]);
+
+	/* ignore boost value at response.fap.params[2] */
+
+	return g920_ff_set_autocenter(hidpp, data);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -3512,6 +3545,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	int ret;
 	bool connected;
 	unsigned int connect_mask = HID_CONNECT_DEFAULT;
+	struct hidpp_ff_private_data data;
 
 	/* report_fixup needs drvdata to be set before we call hid_parse */
 	hidpp = devm_kzalloc(&hdev->dev, sizeof(*hidpp), GFP_KERNEL);
@@ -3621,7 +3655,7 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		if (ret)
 			goto hid_hw_init_fail;
 	} else if (connected && (hidpp->quirks & HIDPP_QUIRK_CLASS_G920)) {
-		ret = g920_get_config(hidpp);
+		ret = g920_get_config(hidpp, &data);
 		if (ret)
 			goto hid_hw_init_fail;
 	}
@@ -3641,6 +3675,14 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	if (ret) {
 		hid_err(hdev, "%s:hid_hw_start returned error\n", __func__);
 		goto hid_hw_start_fail;
+	}
+
+	if (hidpp->quirks & HIDPP_QUIRK_CLASS_G920) {
+		ret = hidpp_ff_init(hidpp, &data);
+		if (ret)
+			hid_warn(hidpp->hid_dev,
+		     "Unable to initialize force feedback support, errno %d\n",
+				 ret);
 	}
 
 	return ret;
