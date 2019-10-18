@@ -448,12 +448,70 @@ int pci_cleanup_aer_error_status_regs(struct pci_dev *dev)
 	return 0;
 }
 
+void pci_save_aer_state(struct pci_dev *dev)
+{
+	struct pci_cap_saved_state *save_state;
+	u32 *cap;
+	int pos;
+
+	pos = dev->aer_cap;
+	if (!pos)
+		return;
+
+	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_ERR);
+	if (!save_state)
+		return;
+
+	cap = &save_state->cap.data[0];
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, cap++);
+	pci_read_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, cap++);
+	pci_read_config_dword(dev, pos + PCI_ERR_COR_MASK, cap++);
+	pci_read_config_dword(dev, pos + PCI_ERR_CAP, cap++);
+	if (pcie_cap_has_rtctl(dev))
+		pci_read_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, cap++);
+}
+
+void pci_restore_aer_state(struct pci_dev *dev)
+{
+	struct pci_cap_saved_state *save_state;
+	u32 *cap;
+	int pos;
+
+	pos = dev->aer_cap;
+	if (!pos)
+		return;
+
+	save_state = pci_find_saved_ext_cap(dev, PCI_EXT_CAP_ID_ERR);
+	if (!save_state)
+		return;
+
+	cap = &save_state->cap.data[0];
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_MASK, *cap++);
+	pci_write_config_dword(dev, pos + PCI_ERR_UNCOR_SEVER, *cap++);
+	pci_write_config_dword(dev, pos + PCI_ERR_COR_MASK, *cap++);
+	pci_write_config_dword(dev, pos + PCI_ERR_CAP, *cap++);
+	if (pcie_cap_has_rtctl(dev))
+		pci_write_config_dword(dev, pos + PCI_ERR_ROOT_COMMAND, *cap++);
+}
+
 void pci_aer_init(struct pci_dev *dev)
 {
-	dev->aer_cap = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	int n;
 
-	if (dev->aer_cap)
-		dev->aer_stats = kzalloc(sizeof(struct aer_stats), GFP_KERNEL);
+	dev->aer_cap = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+	if (!dev->aer_cap)
+		return;
+
+	dev->aer_stats = kzalloc(sizeof(struct aer_stats), GFP_KERNEL);
+
+	/*
+	 * We save/restore PCI_ERR_UNCOR_MASK, PCI_ERR_UNCOR_SEVER,
+	 * PCI_ERR_COR_MASK, and PCI_ERR_CAP.  Root and Root Complex Event
+	 * Collectors also implement PCI_ERR_ROOT_COMMAND (PCIe r5.0, sec
+	 * 7.8.4).
+	 */
+	n = pcie_cap_has_rtctl(dev) ? 5 : 4;
+	pci_add_ext_cap_save_buffer(dev, PCI_EXT_CAP_ID_ERR, sizeof(u32) * n);
 
 	pci_cleanup_aer_error_status_regs(dev);
 }
