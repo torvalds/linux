@@ -333,14 +333,14 @@ static int capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&motu->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&motu->domain, &motu->tx_stream);
 }
 
 static int playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&motu->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&motu->domain, &motu->rx_stream);
 }
 
 int snd_motu_create_pcm_devices(struct snd_motu *motu)

@@ -1139,23 +1139,29 @@ unsigned long amdtp_domain_stream_pcm_pointer(struct amdtp_domain *d,
 EXPORT_SYMBOL_GPL(amdtp_domain_stream_pcm_pointer);
 
 /**
- * amdtp_stream_pcm_ack - acknowledge queued PCM frames
+ * amdtp_domain_stream_pcm_ack - acknowledge queued PCM frames
+ * @d: the AMDTP domain.
  * @s: the AMDTP stream that transfers the PCM frames
  *
  * Returns zero always.
  */
-int amdtp_stream_pcm_ack(struct amdtp_stream *s)
+int amdtp_domain_stream_pcm_ack(struct amdtp_domain *d, struct amdtp_stream *s)
 {
-	/*
-	 * Process isochronous packets for recent isochronous cycle to handle
-	 * queued PCM frames.
-	 */
-	if (amdtp_stream_running(s))
-		fw_iso_context_flush_completions(s->context);
+	struct amdtp_stream *irq_target = d->irq_target;
+
+	// Process isochronous packets for recent isochronous cycle to handle
+	// queued PCM frames.
+	if (irq_target && amdtp_stream_running(irq_target)) {
+		// Queued packet should be processed without any kernel
+		// preemption to keep latency against bus cycle.
+		preempt_disable();
+		fw_iso_context_flush_completions(irq_target->context);
+		preempt_enable();
+	}
 
 	return 0;
 }
-EXPORT_SYMBOL(amdtp_stream_pcm_ack);
+EXPORT_SYMBOL_GPL(amdtp_domain_stream_pcm_ack);
 
 /**
  * amdtp_stream_update - update the stream after a bus reset

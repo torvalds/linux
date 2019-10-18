@@ -355,14 +355,14 @@ static int pcm_capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_ff *ff = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&ff->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&ff->domain, &ff->tx_stream);
 }
 
 static int pcm_playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_ff *ff = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&ff->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&ff->domain, &ff->rx_stream);
 }
 
 int snd_ff_create_pcm_devices(struct snd_ff *ff)
