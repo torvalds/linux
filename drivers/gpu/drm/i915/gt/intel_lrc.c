@@ -352,10 +352,15 @@ static inline bool need_preempt(const struct intel_engine_cs *engine,
 	 * However, the priority hint is a mere hint that we may need to
 	 * preempt. If that hint is stale or we may be trying to preempt
 	 * ourselves, ignore the request.
+	 *
+	 * More naturally we would write
+	 *      prio >= max(0, last);
+	 * except that we wish to prevent triggering preemption at the same
+	 * priority level: the task that is running should remain running
+	 * to preserve FIFO ordering of dependencies.
 	 */
-	last_prio = effective_prio(rq);
-	if (!i915_scheduler_need_preempt(engine->execlists.queue_priority_hint,
-					 last_prio))
+	last_prio = max(effective_prio(rq), I915_PRIORITY_NORMAL - 1);
+	if (engine->execlists.queue_priority_hint <= last_prio)
 		return false;
 
 	/*
@@ -1509,8 +1514,17 @@ static void execlists_dequeue(struct intel_engine_cs *engine)
 			 * submission.
 			 */
 			if (!list_is_last(&last->sched.link,
-					  &engine->active.requests))
+					  &engine->active.requests)) {
+				/*
+				 * Even if ELSP[1] is occupied and not worthy
+				 * of timeslices, our queue might be.
+				 */
+				if (!execlists->timer.expires &&
+				    need_timeslice(engine, last))
+					mod_timer(&execlists->timer,
+						  jiffies + 1);
 				return;
+			}
 
 			/*
 			 * WaIdleLiteRestore:bdw,skl

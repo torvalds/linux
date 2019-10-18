@@ -177,9 +177,22 @@ static inline int rq_prio(const struct i915_request *rq)
 	return rq->sched.attr.priority | __NO_PREEMPTION;
 }
 
+static inline bool need_preempt(int prio, int active)
+{
+	/*
+	 * Allow preemption of low -> normal -> high, but we do
+	 * not allow low priority tasks to preempt other low priority
+	 * tasks under the impression that latency for low priority
+	 * tasks does not matter (as much as background throughput),
+	 * so kiss.
+	 */
+	return prio >= max(I915_PRIORITY_NORMAL, active);
+}
+
 static void kick_submission(struct intel_engine_cs *engine, int prio)
 {
-	const struct i915_request *inflight = *engine->execlists.active;
+	const struct i915_request *inflight =
+		execlists_active(&engine->execlists);
 
 	/*
 	 * If we are already the currently executing context, don't
@@ -188,7 +201,7 @@ static void kick_submission(struct intel_engine_cs *engine, int prio)
 	 * tasklet, i.e. we have not change the priority queue
 	 * sufficiently to oust the running context.
 	 */
-	if (!inflight || !i915_scheduler_need_preempt(prio, rq_prio(inflight)))
+	if (!inflight || !need_preempt(prio, rq_prio(inflight)))
 		return;
 
 	tasklet_hi_schedule(&engine->execlists.tasklet);

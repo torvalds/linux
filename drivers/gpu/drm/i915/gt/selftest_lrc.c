@@ -325,7 +325,13 @@ semaphore_queue(struct intel_engine_cs *engine, struct i915_vma *vma, int idx)
 	if (IS_ERR(rq))
 		goto out_ctx;
 
-	err = emit_semaphore_chain(rq, vma, idx);
+	err = 0;
+	if (rq->engine->emit_init_breadcrumb)
+		err = rq->engine->emit_init_breadcrumb(rq);
+	if (err == 0)
+		err = emit_semaphore_chain(rq, vma, idx);
+	if (err == 0)
+		i915_request_get(rq);
 	i915_request_add(rq);
 	if (err)
 		rq = ERR_PTR(err);
@@ -338,10 +344,10 @@ out_ctx:
 static int
 release_queue(struct intel_engine_cs *engine,
 	      struct i915_vma *vma,
-	      int idx)
+	      int idx, int prio)
 {
 	struct i915_sched_attr attr = {
-		.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
+		.priority = prio,
 	};
 	struct i915_request *rq;
 	u32 *cs;
@@ -362,9 +368,15 @@ release_queue(struct intel_engine_cs *engine,
 	*cs++ = 1;
 
 	intel_ring_advance(rq, cs);
+
+	i915_request_get(rq);
 	i915_request_add(rq);
 
+	local_bh_disable();
 	engine->schedule(rq, &attr);
+	local_bh_enable(); /* kick tasklet */
+
+	i915_request_put(rq);
 
 	return 0;
 }
@@ -383,7 +395,6 @@ slice_semaphore_queue(struct intel_engine_cs *outer,
 	if (IS_ERR(head))
 		return PTR_ERR(head);
 
-	i915_request_get(head);
 	for_each_engine(engine, outer->gt, id) {
 		for (i = 0; i < count; i++) {
 			struct i915_request *rq;
@@ -393,10 +404,12 @@ slice_semaphore_queue(struct intel_engine_cs *outer,
 				err = PTR_ERR(rq);
 				goto out;
 			}
+
+			i915_request_put(rq);
 		}
 	}
 
-	err = release_queue(outer, vma, n);
+	err = release_queue(outer, vma, n, INT_MAX);
 	if (err)
 		goto out;
 
@@ -471,6 +484,150 @@ static int live_timeslice_preempt(void *arg)
 				goto err_pin;
 			}
 		}
+	}
+
+err_pin:
+	i915_vma_unpin(vma);
+err_map:
+	i915_gem_object_unpin_map(obj);
+err_obj:
+	i915_gem_object_put(obj);
+	return err;
+}
+
+static struct i915_request *nop_request(struct intel_engine_cs *engine)
+{
+	struct i915_request *rq;
+
+	rq = i915_request_create(engine->kernel_context);
+	if (IS_ERR(rq))
+		return rq;
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+
+	return rq;
+}
+
+static void wait_for_submit(struct intel_engine_cs *engine,
+			    struct i915_request *rq)
+{
+	do {
+		cond_resched();
+		intel_engine_flush_submission(engine);
+	} while (!i915_request_is_active(rq));
+}
+
+static int live_timeslice_queue(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct drm_i915_gem_object *obj;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	struct i915_vma *vma;
+	void *vaddr;
+	int err = 0;
+
+	/*
+	 * Make sure that even if ELSP[0] and ELSP[1] are filled with
+	 * timeslicing between them disabled, we *do* enable timeslicing
+	 * if the queue demands it. (Normally, we do not submit if
+	 * ELSP[1] is already occupied, so must rely on timeslicing to
+	 * eject ELSP[0] in favour of the queue.)
+	 */
+
+	obj = i915_gem_object_create_internal(gt->i915, PAGE_SIZE);
+	if (IS_ERR(obj))
+		return PTR_ERR(obj);
+
+	vma = i915_vma_instance(obj, &gt->ggtt->vm, NULL);
+	if (IS_ERR(vma)) {
+		err = PTR_ERR(vma);
+		goto err_obj;
+	}
+
+	vaddr = i915_gem_object_pin_map(obj, I915_MAP_WC);
+	if (IS_ERR(vaddr)) {
+		err = PTR_ERR(vaddr);
+		goto err_obj;
+	}
+
+	err = i915_vma_pin(vma, 0, 0, PIN_GLOBAL);
+	if (err)
+		goto err_map;
+
+	for_each_engine(engine, gt, id) {
+		struct i915_sched_attr attr = {
+			.priority = I915_USER_PRIORITY(I915_PRIORITY_MAX),
+		};
+		struct i915_request *rq, *nop;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
+
+		memset(vaddr, 0, PAGE_SIZE);
+
+		/* ELSP[0]: semaphore wait */
+		rq = semaphore_queue(engine, vma, 0);
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err_pin;
+		}
+		engine->schedule(rq, &attr);
+		wait_for_submit(engine, rq);
+
+		/* ELSP[1]: nop request */
+		nop = nop_request(engine);
+		if (IS_ERR(nop)) {
+			err = PTR_ERR(nop);
+			i915_request_put(rq);
+			goto err_pin;
+		}
+		wait_for_submit(engine, nop);
+		i915_request_put(nop);
+
+		GEM_BUG_ON(i915_request_completed(rq));
+		GEM_BUG_ON(execlists_active(&engine->execlists) != rq);
+
+		/* Queue: semaphore signal, matching priority as semaphore */
+		err = release_queue(engine, vma, 1, effective_prio(rq));
+		if (err) {
+			i915_request_put(rq);
+			goto err_pin;
+		}
+
+		intel_engine_flush_submission(engine);
+		if (!READ_ONCE(engine->execlists.timer.expires) &&
+		    !i915_request_completed(rq)) {
+			struct drm_printer p =
+				drm_info_printer(gt->i915->drm.dev);
+
+			GEM_TRACE_ERR("%s: Failed to enable timeslicing!\n",
+				      engine->name);
+			intel_engine_dump(engine, &p,
+					  "%s\n", engine->name);
+			GEM_TRACE_DUMP();
+
+			memset(vaddr, 0xff, PAGE_SIZE);
+			err = -EINVAL;
+		}
+
+		/* Timeslice every jiffie, so within 2 we should signal */
+		if (i915_request_wait(rq, 0, 3) < 0) {
+			struct drm_printer p =
+				drm_info_printer(gt->i915->drm.dev);
+
+			pr_err("%s: Failed to timeslice into queue\n",
+			       engine->name);
+			intel_engine_dump(engine, &p,
+					  "%s\n", engine->name);
+
+			memset(vaddr, 0xff, PAGE_SIZE);
+			err = -EIO;
+		}
+		i915_request_put(rq);
+		if (err)
+			break;
 	}
 
 err_pin:
@@ -2437,6 +2594,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_unlite_switch),
 		SUBTEST(live_unlite_preempt),
 		SUBTEST(live_timeslice_preempt),
+		SUBTEST(live_timeslice_queue),
 		SUBTEST(live_busywait_preempt),
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
