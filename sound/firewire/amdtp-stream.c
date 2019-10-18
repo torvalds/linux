@@ -842,8 +842,6 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	}
 
 	s->event_count = event_count;
-
-	fw_iso_context_queue_flush(s->context);
 }
 
 static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
@@ -897,8 +895,6 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	}
 
 	s->event_count = event_count;
-
-	fw_iso_context_queue_flush(s->context);
 }
 
 /* this is executed one time */
