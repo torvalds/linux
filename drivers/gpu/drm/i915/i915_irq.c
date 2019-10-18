@@ -4486,10 +4486,10 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 	int irq = dev_priv->drm.pdev->irq;
 
 	/*
-	 * FIXME we can get called twice during driver load
-	 * error handling due to intel_modeset_cleanup()
-	 * calling us out of sequence. Would be nice if
-	 * it didn't do that...
+	 * FIXME we can get called twice during driver probe
+	 * error handling as well as during driver remove due to
+	 * intel_modeset_driver_remove() calling us out of sequence.
+	 * Would be nice if it didn't do that...
 	 */
 	if (!dev_priv->drm.irq_enabled)
 		return;

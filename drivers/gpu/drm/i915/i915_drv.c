@@ -354,6 +354,8 @@ static void i915_driver_modeset_remove(struct drm_i915_private *i915)
 {
 	intel_modeset_driver_remove(i915);
 
+	intel_irq_uninstall(i915);
+
 	intel_bios_driver_remove(i915);
 
 	i915_switcheroo_unregister(i915);
