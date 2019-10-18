@@ -5430,6 +5430,16 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 				"Event Data1:x%08x Event Data2: x%08x\n",
 				acqe_sli->event_data1, acqe_sli->event_data2);
 		break;
+	case LPFC_SLI_EVENT_TYPE_MISCONF_FAWWN:
+		/* Misconfigured WWN. Reports that the SLI Port is configured
+		 * to use FA-WWN, but the attached device doesn’t support it.
+		 * No driver action is required.
+		 * Event Data1 - N.A, Event Data2 - N.A
+		 */
+		lpfc_log_msg(phba, KERN_WARNING, LOG_SLI,
+			     "2699 Misconfigured FA-WWN - Attached device does "
+			     "not support FA-WWN\n");
+		break;
 	case LPFC_SLI_EVENT_TYPE_EEPROM_FAILURE:
 		/* EEPROM failure. No driver action is required */
 		lpfc_printf_log(phba, KERN_WARNING, LOG_SLI,
