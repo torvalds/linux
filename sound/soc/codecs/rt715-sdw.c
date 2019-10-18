@@ -284,7 +284,7 @@ static const struct regmap_config rt715_regmap = {
 	.reg_write = rt715_sdw_write,
 };
 
-const struct regmap_config rt715_sdw_regmap = {
+static const struct regmap_config rt715_sdw_regmap = {
 	.name = "sdw",
 	.reg_bits = 32, /* Total register space for SDW */
 	.val_bits = 8, /* Total number of bits in register */
