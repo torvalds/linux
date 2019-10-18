@@ -130,8 +130,6 @@ enum qca_speed_type {
  */
 struct qca_vreg {
 	const char *name;
-	unsigned int min_uV;
-	unsigned int max_uV;
 	unsigned int load_uA;
 };
 
@@ -1334,10 +1332,10 @@ static const struct hci_uart_proto qca_proto = {
 static const struct qca_vreg_data qca_soc_data_wcn3990 = {
 	.soc_type = QCA_WCN3990,
 	.vregs = (struct qca_vreg []) {
-		{ "vddio",   1800000, 1900000,  15000  },
-		{ "vddxo",   1800000, 1900000,  80000  },
-		{ "vddrf",   1300000, 1350000,  300000 },
-		{ "vddch0",  3300000, 3400000,  450000 },
+		{ "vddio", 15000  },
+		{ "vddxo", 80000  },
+		{ "vddrf", 300000 },
+		{ "vddch0", 450000 },
 	},
 	.num_vregs = 4,
 };
@@ -1345,10 +1343,10 @@ static const struct qca_vreg_data qca_soc_data_wcn3990 = {
 static const struct qca_vreg_data qca_soc_data_wcn3998 = {
 	.soc_type = QCA_WCN3998,
 	.vregs = (struct qca_vreg []) {
-		{ "vddio",   1800000, 1900000,  10000  },
-		{ "vddxo",   1800000, 1900000,  80000  },
-		{ "vddrf",   1300000, 1352000,  300000 },
-		{ "vddch0",  3300000, 3300000,  450000 },
+		{ "vddio", 10000  },
+		{ "vddxo", 80000  },
+		{ "vddrf", 300000 },
+		{ "vddch0", 450000 },
 	},
 	.num_vregs = 4,
 };
@@ -1388,13 +1386,6 @@ static int qca_power_off(struct hci_dev *hdev)
 static int qca_enable_regulator(struct qca_vreg vregs,
 				struct regulator *regulator)
 {
-	int ret;
-
-	ret = regulator_set_voltage(regulator, vregs.min_uV,
-				    vregs.max_uV);
-	if (ret)
-		return ret;
-
 	return regulator_enable(regulator);
 
 }
@@ -1403,7 +1394,6 @@ static void qca_disable_regulator(struct qca_vreg vregs,
 				  struct regulator *regulator)
 {
 	regulator_disable(regulator);
-	regulator_set_voltage(regulator, 0, vregs.max_uV);
 
 }
 
