@@ -90,7 +90,7 @@ static int psp_sw_init(void *handle)
 
 	ret = psp_mem_training_init(psp);
 	if (ret) {
-		DRM_ERROR("Failed to initliaze memory training!\n");
+		DRM_ERROR("Failed to initialize memory training!\n");
 		return ret;
 	}
 	ret = psp_mem_training(psp, PSP_MEM_TRAIN_COLD_BOOT);
