@@ -621,7 +621,6 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 		struct page **pagep, struct iomap *iomap)
 {
 	const struct iomap_page_ops *page_ops = iomap->page_ops;
-	pgoff_t index = pos >> PAGE_SHIFT;
 	struct page *page;
 	int status = 0;
 
@@ -636,7 +635,8 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 			return status;
 	}
 
-	page = grab_cache_page_write_begin(inode->i_mapping, index, flags);
+	page = grab_cache_page_write_begin(inode->i_mapping, pos >> PAGE_SHIFT,
+			AOP_FLAG_NOFS);
 	if (!page) {
 		status = -ENOMEM;
 		goto out_no_page;
@@ -778,7 +778,6 @@ iomap_write_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 	struct iov_iter *i = data;
 	long status = 0;
 	ssize_t written = 0;
-	unsigned int flags = AOP_FLAG_NOFS;
 
 	do {
 		struct page *page;
@@ -808,8 +807,7 @@ again:
 			break;
 		}
 
-		status = iomap_write_begin(inode, pos, bytes, flags, &page,
-				iomap);
+		status = iomap_write_begin(inode, pos, bytes, 0, &page, iomap);
 		if (unlikely(status))
 			break;
 
@@ -907,8 +905,7 @@ iomap_dirty_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		if (IS_ERR(rpage))
 			return PTR_ERR(rpage);
 
-		status = iomap_write_begin(inode, pos, bytes,
-					   AOP_FLAG_NOFS, &page, iomap);
+		status = iomap_write_begin(inode, pos, bytes, 0, &page, iomap);
 		put_page(rpage);
 		if (unlikely(status))
 			return status;
@@ -959,8 +956,7 @@ static int iomap_zero(struct inode *inode, loff_t pos, unsigned offset,
 	struct page *page;
 	int status;
 
-	status = iomap_write_begin(inode, pos, bytes, AOP_FLAG_NOFS, &page,
-				   iomap);
+	status = iomap_write_begin(inode, pos, bytes, 0, &page, iomap);
 	if (status)
 		return status;
 
