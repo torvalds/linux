@@ -684,6 +684,8 @@ struct i915_gem_mm {
 	 */
 	struct vfsmount *gemfs;
 
+	struct intel_memory_region *regions[INTEL_REGION_UNKNOWN];
+
 	struct notifier_block oom_notifier;
 	struct notifier_block vmap_notifier;
 	struct shrinker shrinker;
@@ -1783,6 +1785,8 @@ IS_SUBPLATFORM(const struct drm_i915_private *i915,
 
 #define HAS_IPC(dev_priv)		 (INTEL_INFO(dev_priv)->display.has_ipc)
 
+#define HAS_REGION(i915, i) (INTEL_INFO(i915)->memory_regions & (i))
+
 #define HAS_GT_UC(dev_priv)	(INTEL_INFO(dev_priv)->has_gt_uc)
 
 /* Having GuC is not the same as using GuC */
@@ -2000,6 +2004,9 @@ int __must_check i915_gem_evict_for_node(struct i915_address_space *vm,
 					 struct drm_mm_node *node,
 					 unsigned int flags);
 int i915_gem_evict_vm(struct i915_address_space *vm);
+
+void i915_gem_cleanup_memory_regions(struct drm_i915_private *i915);
+int i915_gem_init_memory_regions(struct drm_i915_private *i915);
 
 /* i915_gem_internal.c */
 struct drm_i915_gem_object *

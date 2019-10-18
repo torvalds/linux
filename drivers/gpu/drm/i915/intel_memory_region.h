@@ -18,6 +18,10 @@ struct drm_i915_gem_object;
 struct intel_memory_region;
 struct sg_table;
 
+enum intel_region_id {
+	INTEL_REGION_UNKNOWN = 0, /* Should be last */
+};
+
 #define I915_ALLOC_MIN_PAGE_SIZE  BIT(0)
 #define I915_ALLOC_CONTIGUOUS     BIT(1)
 
