@@ -12320,35 +12320,57 @@ lpfc_sli4_get_iocb_cnt(struct lpfc_hba *phba)
 }
 
 
-static void
+static int
 lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
 	uint32_t magic_number, uint32_t ftype, uint32_t fid, uint32_t fsize,
 	const struct firmware *fw)
 {
-	if ((offset == ADD_STATUS_FW_NOT_SUPPORTED) ||
+	int rc;
+
+	/* Three cases:  (1) FW was not supported on the detected adapter.
+	 * (2) FW update has been locked out administratively.
+	 * (3) Some other error during FW update.
+	 * In each case, an unmaskable message is written to the console
+	 * for admin diagnosis.
+	 */
+	if (offset == ADD_STATUS_FW_NOT_SUPPORTED ||
 	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
 	     magic_number != MAGIC_NUMER_G6) ||
 	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC &&
-	     magic_number != MAGIC_NUMER_G7))
+	     magic_number != MAGIC_NUMER_G7)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"3030 This firmware version is not supported on "
-			"this HBA model. Device:%x Magic:%x Type:%x "
-			"ID:%x Size %d %zd\n",
-			phba->pcidev->device, magic_number, ftype, fid,
-			fsize, fw->size);
-	else
+				"3030 This firmware version is not supported on"
+				" this HBA model. Device:%x Magic:%x Type:%x "
+				"ID:%x Size %d %zd\n",
+				phba->pcidev->device, magic_number, ftype, fid,
+				fsize, fw->size);
+		rc = -EINVAL;
+	} else if (offset == ADD_STATUS_FW_DOWNLOAD_HW_DISABLED) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"3022 FW Download failed. Device:%x Magic:%x Type:%x "
-			"ID:%x Size %d %zd\n",
-			phba->pcidev->device, magic_number, ftype, fid,
-			fsize, fw->size);
+				"3021 Firmware downloads have been prohibited "
+				"by a system configuration setting on "
+				"Device:%x Magic:%x Type:%x ID:%x Size %d "
+				"%zd\n",
+				phba->pcidev->device, magic_number, ftype, fid,
+				fsize, fw->size);
+		rc = -EACCES;
+	} else {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3022 FW Download failed. Add Status x%x "
+				"Device:%x Magic:%x Type:%x ID:%x Size %d "
+				"%zd\n",
+				offset, phba->pcidev->device, magic_number,
+				ftype, fid, fsize, fw->size);
+		rc = -EIO;
+	}
+	return rc;
 }
-
 
 /**
  * lpfc_write_firmware - attempt to write a firmware image to the port
  * @fw: pointer to firmware image returned from request_firmware.
- * @phba: pointer to lpfc hba data structure.
+ * @context: pointer to firmware image returned from request_firmware.
+ * @ret: return value this routine provides to the caller.
  *
  **/
 static void
@@ -12417,8 +12439,12 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 			rc = lpfc_wr_object(phba, &dma_buffer_list,
 				    (fw->size - offset), &offset);
 			if (rc) {
-				lpfc_log_write_firmware_error(phba, offset,
-					magic_number, ftype, fid, fsize, fw);
+				rc = lpfc_log_write_firmware_error(phba, offset,
+								   magic_number,
+								   ftype,
+								   fid,
+								   fsize,
+								   fw);
 				goto release_out;
 			}
 		}
@@ -12438,9 +12464,12 @@ release_out:
 	}
 	release_firmware(fw);
 out:
-	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"3024 Firmware update done: %d.\n", rc);
-	return;
+	if (rc < 0)
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3062 Firmware update error, status %d.\n", rc);
+	else
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3024 Firmware update success: size %d.\n", rc);
 }
 
 /**
