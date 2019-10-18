@@ -144,8 +144,8 @@ struct qca_vreg_data {
  */
 struct qca_power {
 	struct device *dev;
-	const struct qca_vreg_data *vreg_data;
 	struct regulator_bulk_data *vreg_bulk;
+	int num_vregs;
 	bool vregs_on;
 };
 
@@ -1383,63 +1383,34 @@ static int qca_power_off(struct hci_dev *hdev)
 	return 0;
 }
 
-static int qca_enable_regulator(struct qca_vreg vregs,
-				struct regulator *regulator)
-{
-	return regulator_enable(regulator);
-
-}
-
-static void qca_disable_regulator(struct qca_vreg vregs,
-				  struct regulator *regulator)
-{
-	regulator_disable(regulator);
-
-}
-
 static int qca_power_setup(struct hci_uart *hu, bool on)
 {
-	struct qca_vreg *vregs;
 	struct regulator_bulk_data *vreg_bulk;
 	struct qca_serdev *qcadev;
-	int i, num_vregs, ret = 0;
+	int num_vregs;
+	int ret = 0;
 
 	qcadev = serdev_device_get_drvdata(hu->serdev);
-	if (!qcadev || !qcadev->bt_power || !qcadev->bt_power->vreg_data ||
-	    !qcadev->bt_power->vreg_bulk)
+	if (!qcadev || !qcadev->bt_power || !qcadev->bt_power->vreg_bulk)
 		return -EINVAL;
 
-	vregs = qcadev->bt_power->vreg_data->vregs;
 	vreg_bulk = qcadev->bt_power->vreg_bulk;
-	num_vregs = qcadev->bt_power->vreg_data->num_vregs;
-	BT_DBG("on: %d", on);
+	num_vregs = qcadev->bt_power->num_vregs;
+	BT_DBG("on: %d (%d regulators)", on, num_vregs);
 	if (on && !qcadev->bt_power->vregs_on) {
-		for (i = 0; i < num_vregs; i++) {
-			ret = qca_enable_regulator(vregs[i],
-						   vreg_bulk[i].consumer);
-			if (ret)
-				break;
-		}
+		ret = regulator_bulk_enable(num_vregs, vreg_bulk);
+		if (ret)
+			return ret;
 
-		if (ret) {
-			BT_ERR("failed to enable regulator:%s", vregs[i].name);
-			/* turn off regulators which are enabled */
-			for (i = i - 1; i >= 0; i--)
-				qca_disable_regulator(vregs[i],
-						      vreg_bulk[i].consumer);
-		} else {
-			qcadev->bt_power->vregs_on = true;
-		}
+		qcadev->bt_power->vregs_on = true;
 	} else if (!on && qcadev->bt_power->vregs_on) {
 		/* turn off regulator in reverse order */
-		i = qcadev->bt_power->vreg_data->num_vregs - 1;
-		for ( ; i >= 0; i--)
-			qca_disable_regulator(vregs[i], vreg_bulk[i].consumer);
+		regulator_bulk_disable(num_vregs, vreg_bulk);
 
 		qcadev->bt_power->vregs_on = false;
 	}
 
-	return ret;
+	return 0;
 }
 
 static int qca_init_regulators(struct qca_power *qca,
@@ -1467,6 +1438,7 @@ static int qca_init_regulators(struct qca_power *qca,
 	}
 
 	qca->vreg_bulk = bulk;
+	qca->num_vregs = num_vregs;
 
 	return 0;
 }
@@ -1495,7 +1467,6 @@ static int qca_serdev_probe(struct serdev_device *serdev)
 			return -ENOMEM;
 
 		qcadev->bt_power->dev = &serdev->dev;
-		qcadev->bt_power->vreg_data = data;
 		err = qca_init_regulators(qcadev->bt_power, data->vregs,
 					  data->num_vregs);
 		if (err) {
