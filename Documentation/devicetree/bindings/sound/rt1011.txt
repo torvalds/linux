@@ -20,6 +20,14 @@ Required properties:
         |     1     |    1     |   0x3b     |
         -------------------------------------
 
+Optional properties:
+
+- realtek,temperature_calib
+  u32. The temperature was measured while doing the calibration. Units: Celsius degree
+
+- realtek,r0_calib
+  u32. This is r0 calibration data which was measured in factory mode.
+
 Pins on the device (for linking into audio routes) for RT1011:
 
   * SPO
@@ -29,4 +37,6 @@ Example:
 rt1011: codec@38 {
 	compatible = "realtek,rt1011";
 	reg = <0x38>;
+	realtek,temperature_calib = <25>;
+	realtek,r0_calib = <0x224050>;
 };
