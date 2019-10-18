@@ -23,11 +23,11 @@ struct vm_fault;
 /*
  * Types of block ranges for iomap mappings:
  */
-#define IOMAP_HOLE	0x01	/* no blocks allocated, need allocation */
-#define IOMAP_DELALLOC	0x02	/* delayed allocation blocks */
-#define IOMAP_MAPPED	0x03	/* blocks allocated at @addr */
-#define IOMAP_UNWRITTEN	0x04	/* blocks allocated at @addr in unwritten state */
-#define IOMAP_INLINE	0x05	/* data inline in the inode */
+#define IOMAP_HOLE	0	/* no blocks allocated, need allocation */
+#define IOMAP_DELALLOC	1	/* delayed allocation blocks */
+#define IOMAP_MAPPED	2	/* blocks allocated at @addr */
+#define IOMAP_UNWRITTEN	3	/* blocks allocated at @addr in unwritten state */
+#define IOMAP_INLINE	4	/* data inline in the inode */
 
 /*
  * Flags reported by the file system from iomap_begin:
