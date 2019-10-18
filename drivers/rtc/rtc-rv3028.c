@@ -8,6 +8,7 @@
  *
  */
 
+#include <linux/clk-provider.h>
 #include <linux/bcd.h>
 #include <linux/bitops.h>
 #include <linux/i2c.h>
@@ -52,6 +53,11 @@
 #define RV3028_STATUS_CLKF		BIT(6)
 #define RV3028_STATUS_EEBUSY		BIT(7)
 
+#define RV3028_CLKOUT_FD_MASK		GENMASK(2, 0)
+#define RV3028_CLKOUT_PORIE		BIT(3)
+#define RV3028_CLKOUT_CLKSY		BIT(6)
+#define RV3028_CLKOUT_CLKOE		BIT(7)
+
 #define RV3028_CTRL1_EERD		BIT(3)
 #define RV3028_CTRL1_WADA		BIT(5)
 
@@ -84,6 +90,9 @@ struct rv3028_data {
 	struct regmap *regmap;
 	struct rtc_device *rtc;
 	enum rv3028_type type;
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw clkout_hw;
+#endif
 };
 
 static u16 rv3028_trickle_resistors[] = {1000, 3000, 6000, 11000};
@@ -581,6 +590,140 @@ restore_eerd:
 	return ret;
 }
 
+#ifdef CONFIG_COMMON_CLK
+#define clkout_hw_to_rv3028(hw) container_of(hw, struct rv3028_data, clkout_hw)
+
+static int clkout_rates[] = {
+	32768,
+	8192,
+	1024,
+	64,
+	32,
+	1,
+};
+
+static unsigned long rv3028_clkout_recalc_rate(struct clk_hw *hw,
+					       unsigned long parent_rate)
+{
+	int clkout, ret;
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	ret = regmap_read(rv3028->regmap, RV3028_CLKOUT, &clkout);
+	if (ret < 0)
+		return 0;
+
+	clkout &= RV3028_CLKOUT_FD_MASK;
+	return clkout_rates[clkout];
+}
+
+static long rv3028_clkout_round_rate(struct clk_hw *hw, unsigned long rate,
+				     unsigned long *prate)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++)
+		if (clkout_rates[i] <= rate)
+			return clkout_rates[i];
+
+	return 0;
+}
+
+static int rv3028_clkout_set_rate(struct clk_hw *hw, unsigned long rate,
+				  unsigned long parent_rate)
+{
+	int i, ret;
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	ret = regmap_write(rv3028->regmap, RV3028_CLKOUT, 0x0);
+	if (ret < 0)
+		return ret;
+
+	for (i = 0; i < ARRAY_SIZE(clkout_rates); i++) {
+		if (clkout_rates[i] == rate) {
+			ret = regmap_update_bits(rv3028->regmap,
+						 RV3028_CLKOUT,
+						 RV3028_CLKOUT_FD_MASK, i);
+			if (ret < 0)
+				return ret;
+
+			return regmap_write(rv3028->regmap, RV3028_CLKOUT,
+				RV3028_CLKOUT_CLKSY | RV3028_CLKOUT_CLKOE);
+		}
+	}
+
+	return -EINVAL;
+}
+
+static int rv3028_clkout_prepare(struct clk_hw *hw)
+{
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	return regmap_write(rv3028->regmap, RV3028_CLKOUT,
+			    RV3028_CLKOUT_CLKSY | RV3028_CLKOUT_CLKOE);
+}
+
+static void rv3028_clkout_unprepare(struct clk_hw *hw)
+{
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	regmap_write(rv3028->regmap, RV3028_CLKOUT, 0x0);
+	regmap_update_bits(rv3028->regmap, RV3028_STATUS,
+			   RV3028_STATUS_CLKF, 0);
+}
+
+static int rv3028_clkout_is_prepared(struct clk_hw *hw)
+{
+	int clkout, ret;
+	struct rv3028_data *rv3028 = clkout_hw_to_rv3028(hw);
+
+	ret = regmap_read(rv3028->regmap, RV3028_CLKOUT, &clkout);
+	if (ret < 0)
+		return ret;
+
+	return !!(clkout & RV3028_CLKOUT_CLKOE);
+}
+
+static const struct clk_ops rv3028_clkout_ops = {
+	.prepare = rv3028_clkout_prepare,
+	.unprepare = rv3028_clkout_unprepare,
+	.is_prepared = rv3028_clkout_is_prepared,
+	.recalc_rate = rv3028_clkout_recalc_rate,
+	.round_rate = rv3028_clkout_round_rate,
+	.set_rate = rv3028_clkout_set_rate,
+};
+
+static int rv3028_clkout_register_clk(struct rv3028_data *rv3028,
+				      struct i2c_client *client)
+{
+	int ret;
+	struct clk *clk;
+	struct clk_init_data init;
+	struct device_node *node = client->dev.of_node;
+
+	ret = regmap_update_bits(rv3028->regmap, RV3028_STATUS,
+				 RV3028_STATUS_CLKF, 0);
+	if (ret < 0)
+		return ret;
+
+	init.name = "rv3028-clkout";
+	init.ops = &rv3028_clkout_ops;
+	init.flags = 0;
+	init.parent_names = NULL;
+	init.num_parents = 0;
+	rv3028->clkout_hw.init = &init;
+
+	/* optional override of the clockname */
+	of_property_read_string(node, "clock-output-names", &init.name);
+
+	/* register the clock */
+	clk = devm_clk_register(&client->dev, &rv3028->clkout_hw);
+	if (!IS_ERR(clk))
+		of_clk_add_provider(node, of_clk_src_simple_get, clk);
+
+	return 0;
+}
+#endif
+
 static struct rtc_class_ops rv3028_rtc_ops = {
 	.read_time = rv3028_get_time,
 	.set_time = rv3028_set_time,
@@ -708,6 +851,9 @@ static int rv3028_probe(struct i2c_client *client)
 
 	rv3028->rtc->max_user_freq = 1;
 
+#ifdef CONFIG_COMMON_CLK
+	rv3028_clkout_register_clk(rv3028, client);
+#endif
 	return 0;
 }
 
