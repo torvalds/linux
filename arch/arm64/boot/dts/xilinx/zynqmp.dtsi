@@ -135,6 +135,14 @@
 			     <1 10 0xf08>;
 	};
 
+	fpga_full: fpga-full {
+		compatible = "fpga-region";
+		fpga-mgr = <&zynqmp_pcap>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+	};
+
 	amba_apu: amba-apu@0 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
