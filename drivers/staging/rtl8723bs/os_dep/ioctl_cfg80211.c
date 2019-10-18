@@ -1513,7 +1513,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	int i;
 	u8 _status = false;
 	int ret = 0;
-	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];
+	struct ndis_802_11_ssid *ssid = NULL;
 	struct rtw_ieee80211_channel ch[RTW_CHANNEL_SCAN_AMOUNT];
 	u8 survey_times =3;
 	u8 survey_times_for_one_ch =6;
@@ -1604,7 +1604,13 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 		goto check_need_indicate_scan_done;
 	}
 
-	memset(ssid, 0, sizeof(struct ndis_802_11_ssid)*RTW_SSID_SCAN_AMOUNT);
+	ssid = kzalloc(RTW_SSID_SCAN_AMOUNT * sizeof(struct ndis_802_11_ssid),
+		       GFP_KERNEL);
+	if (!ssid) {
+		ret = -ENOMEM;
+		goto check_need_indicate_scan_done;
+	}
+
 	/* parsing request ssids, n_ssids */
 	for (i = 0; i < request->n_ssids && i < RTW_SSID_SCAN_AMOUNT; i++) {
 		#ifdef DEBUG_CFG80211
@@ -1648,6 +1654,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	}
 
 check_need_indicate_scan_done:
+	kfree(ssid);
 	if (need_indicate_scan_done)
 	{
 		rtw_cfg80211_surveydone_event_callback(padapter);
