@@ -1542,12 +1542,44 @@ static int expand_inode_data(struct inode *inode, loff_t offset,
 	if (off_end)
 		map.m_len++;
 
-	if (f2fs_is_pinned_file(inode))
-		map.m_seg_type = CURSEG_COLD_DATA;
+	if (!map.m_len)
+		return 0;
 
-	err = f2fs_map_blocks(inode, &map, 1, (f2fs_is_pinned_file(inode) ?
-						F2FS_GET_BLOCK_PRE_DIO :
-						F2FS_GET_BLOCK_PRE_AIO));
+	if (f2fs_is_pinned_file(inode)) {
+		block_t len = (map.m_len >> sbi->log_blocks_per_seg) <<
+					sbi->log_blocks_per_seg;
+		block_t done = 0;
+
+		if (map.m_len % sbi->blocks_per_seg)
+			len += sbi->blocks_per_seg;
+
+		map.m_len = sbi->blocks_per_seg;
+next_alloc:
+		if (has_not_enough_free_secs(sbi, 0,
+			GET_SEC_FROM_SEG(sbi, overprovision_segments(sbi)))) {
+			mutex_lock(&sbi->gc_mutex);
+			err = f2fs_gc(sbi, true, false, NULL_SEGNO);
+			if (err && err != -ENODATA && err != -EAGAIN)
+				goto out_err;
+		}
+
+		down_write(&sbi->pin_sem);
+		map.m_seg_type = CURSEG_COLD_DATA_PINNED;
+		f2fs_allocate_new_segments(sbi, CURSEG_COLD_DATA);
+		err = f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_DIO);
+		up_write(&sbi->pin_sem);
+
+		done += map.m_len;
+		len -= map.m_len;
+		map.m_lblk += map.m_len;
+		if (!err && len)
+			goto next_alloc;
+
+		map.m_len = done;
+	} else {
+		err = f2fs_map_blocks(inode, &map, 1, F2FS_GET_BLOCK_PRE_AIO);
+	}
+out_err:
 	if (err) {
 		pgoff_t last_off;
 
