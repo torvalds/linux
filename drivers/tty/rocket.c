@@ -1222,22 +1222,28 @@ static int set_config(struct tty_struct *tty, struct r_port *info,
  */
 static int get_ports(struct r_port *info, struct rocket_ports __user *retports)
 {
-	struct rocket_ports tmp;
-	int board;
+	struct rocket_ports *tmp;
+	int board, ret = 0;
 
-	memset(&tmp, 0, sizeof (tmp));
-	tmp.tty_major = rocket_driver->major;
+	tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	if (!tmp)
+		return -ENOMEM;
+
+	tmp->tty_major = rocket_driver->major;
 
 	for (board = 0; board < 4; board++) {
-		tmp.rocketModel[board].model = rocketModel[board].model;
-		strcpy(tmp.rocketModel[board].modelString, rocketModel[board].modelString);
-		tmp.rocketModel[board].numPorts = rocketModel[board].numPorts;
-		tmp.rocketModel[board].loadrm2 = rocketModel[board].loadrm2;
-		tmp.rocketModel[board].startingPortNumber = rocketModel[board].startingPortNumber;
+		tmp->rocketModel[board].model = rocketModel[board].model;
+		strcpy(tmp->rocketModel[board].modelString,
+		       rocketModel[board].modelString);
+		tmp->rocketModel[board].numPorts = rocketModel[board].numPorts;
+		tmp->rocketModel[board].loadrm2 = rocketModel[board].loadrm2;
+		tmp->rocketModel[board].startingPortNumber =
+			rocketModel[board].startingPortNumber;
 	}
-	if (copy_to_user(retports, &tmp, sizeof (*retports)))
-		return -EFAULT;
-	return 0;
+	if (copy_to_user(retports, tmp, sizeof(*retports)))
+		ret = -EFAULT;
+	kfree(tmp);
+	return ret;
 }
 
 static int reset_rm2(struct r_port *info, void __user *arg)
