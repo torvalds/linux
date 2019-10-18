@@ -284,7 +284,8 @@ void snd_dg00x_stream_destroy_duplex(struct snd_dg00x *dg00x)
 }
 
 int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate,
-				    unsigned int frames_per_period)
+				    unsigned int frames_per_period,
+				    unsigned int frames_per_buffer)
 {
 	unsigned int curr_rate;
 	int err;
@@ -318,7 +319,7 @@ int snd_dg00x_stream_reserve_duplex(struct snd_dg00x *dg00x, unsigned int rate,
 		}
 
 		err = amdtp_domain_set_events_per_period(&dg00x->domain,
-							 frames_per_period);
+					frames_per_period, frames_per_buffer);
 		if (err < 0) {
 			fw_iso_resources_free(&dg00x->rx_resources);
 			fw_iso_resources_free(&dg00x->tx_resources);
