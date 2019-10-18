@@ -4435,6 +4435,25 @@ static void icl_enable_trans_port_sync(const struct intel_crtc_state *crtc_state
 		   trans_ddi_func_ctl2_val);
 }
 
+static void icl_disable_transcoder_port_sync(const struct intel_crtc_state *old_crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->base.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	i915_reg_t reg;
+	u32 trans_ddi_func_ctl2_val;
+
+	if (old_crtc_state->master_transcoder == INVALID_TRANSCODER)
+		return;
+
+	DRM_DEBUG_KMS("Disabling Transcoder Port Sync on Slave Transcoder %s\n",
+		      transcoder_name(old_crtc_state->cpu_transcoder));
+
+	reg = TRANS_DDI_FUNC_CTL2(old_crtc_state->cpu_transcoder);
+	trans_ddi_func_ctl2_val = ~(PORT_SYNC_MODE_ENABLE |
+				    PORT_SYNC_MODE_MASTER_SELECT_MASK);
+	I915_WRITE(reg, trans_ddi_func_ctl2_val);
+}
+
 static void intel_fdi_normal_train(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
@@ -6638,6 +6657,9 @@ static void haswell_crtc_disable(struct intel_crtc_state *old_crtc_state,
 
 	if (intel_crtc_has_type(old_crtc_state, INTEL_OUTPUT_DP_MST))
 		intel_ddi_set_vc_payload_alloc(old_crtc_state, false);
+
+	if (INTEL_GEN(dev_priv) >= 11)
+		icl_disable_transcoder_port_sync(old_crtc_state);
 
 	if (!transcoder_is_dsi(cpu_transcoder))
 		intel_ddi_disable_transcoder_func(old_crtc_state);
