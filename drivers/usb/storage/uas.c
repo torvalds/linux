@@ -1219,6 +1219,5 @@ static struct usb_driver uas_driver = {
 module_usb_driver(uas_driver);
 
 MODULE_LICENSE("GPL");
-MODULE_IMPORT_NS(USB_STORAGE);
 MODULE_AUTHOR(
 	"Hans de Goede <hdegoede@redhat.com>, Matthew Wilcox and Sarah Sharp");

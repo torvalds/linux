@@ -4,12 +4,14 @@
 #ifndef KSYM_FUNC
 #define KSYM_FUNC(x) x
 #endif
-#ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
-#define KSYM_ALIGN 4
-#elif defined(CONFIG_64BIT)
+#ifdef CONFIG_64BIT
+#ifndef KSYM_ALIGN
 #define KSYM_ALIGN 8
+#endif
 #else
+#ifndef KSYM_ALIGN
 #define KSYM_ALIGN 4
+#endif
 #endif
 #ifndef KCRC_ALIGN
 #define KCRC_ALIGN 4
@@ -17,11 +19,11 @@
 
 .macro __put, val, name
 #ifdef CONFIG_HAVE_ARCH_PREL32_RELOCATIONS
-	.long	\val - ., \name - ., 0
+	.long	\val - ., \name - .
 #elif defined(CONFIG_64BIT)
-	.quad	\val, \name, 0
+	.quad	\val, \name
 #else
-	.long	\val, \name, 0
+	.long	\val, \name
 #endif
 .endm
 
@@ -55,6 +57,7 @@ __kcrctab_\name:
 #endif
 #endif
 .endm
+#undef __put
 
 #if defined(CONFIG_TRIM_UNUSED_KSYMS)
 

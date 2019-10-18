@@ -32,7 +32,6 @@
 *.lzo
 *.mod
 *.mod.c
-*.ns_deps
 *.o
 *.o.*
 *.patch

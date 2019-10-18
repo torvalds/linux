@@ -8,8 +8,6 @@
 
 ccflags-y := -I $(srctree)/drivers/scsi
 
-ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=USB_STORAGE
-
 obj-$(CONFIG_USB_UAS)		+= uas.o
 obj-$(CONFIG_USB_STORAGE)	+= usb-storage.o
 
