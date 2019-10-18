@@ -1067,11 +1067,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		}
 	} else if (CSR_HW_RF_ID_TYPE_CHIP_ID(iwl_trans->hw_rf_id) ==
 		   CSR_HW_RF_ID_TYPE_CHIP_ID(CSR_HW_RF_ID_TYPE_HR) &&
-		   ((cfg != &iwl_ax200_cfg_cc &&
-		     cfg != &killer1650x_2ax_cfg &&
-		     cfg != &killer1650w_2ax_cfg &&
-		     cfg != &iwl_ax201_cfg_quz_hr) ||
-		    iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0)) {
+		   iwl_trans->hw_rev == CSR_HW_REV_TYPE_QNJ_B0) {
 		u32 hw_status;
 
 		hw_status = iwl_read_prph(iwl_trans, UMAG_GEN_HW_STATUS);
