@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
  *
- * Copyright 2016-2018 HabanaLabs, Ltd.
+ * Copyright 2016-2019 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -28,20 +28,20 @@
 
 enum goya_queue_id {
 	GOYA_QUEUE_ID_DMA_0 = 0,
-	GOYA_QUEUE_ID_DMA_1,
-	GOYA_QUEUE_ID_DMA_2,
-	GOYA_QUEUE_ID_DMA_3,
-	GOYA_QUEUE_ID_DMA_4,
-	GOYA_QUEUE_ID_CPU_PQ,
-	GOYA_QUEUE_ID_MME,	/* Internal queues start here */
-	GOYA_QUEUE_ID_TPC0,
-	GOYA_QUEUE_ID_TPC1,
-	GOYA_QUEUE_ID_TPC2,
-	GOYA_QUEUE_ID_TPC3,
-	GOYA_QUEUE_ID_TPC4,
-	GOYA_QUEUE_ID_TPC5,
-	GOYA_QUEUE_ID_TPC6,
-	GOYA_QUEUE_ID_TPC7,
+	GOYA_QUEUE_ID_DMA_1 = 1,
+	GOYA_QUEUE_ID_DMA_2 = 2,
+	GOYA_QUEUE_ID_DMA_3 = 3,
+	GOYA_QUEUE_ID_DMA_4 = 4,
+	GOYA_QUEUE_ID_CPU_PQ = 5,
+	GOYA_QUEUE_ID_MME = 6,	/* Internal queues start here */
+	GOYA_QUEUE_ID_TPC0 = 7,
+	GOYA_QUEUE_ID_TPC1 = 8,
+	GOYA_QUEUE_ID_TPC2 = 9,
+	GOYA_QUEUE_ID_TPC3 = 10,
+	GOYA_QUEUE_ID_TPC4 = 11,
+	GOYA_QUEUE_ID_TPC5 = 12,
+	GOYA_QUEUE_ID_TPC6 = 13,
+	GOYA_QUEUE_ID_TPC7 = 14,
 	GOYA_QUEUE_ID_SIZE
 };
 
@@ -75,12 +75,34 @@ enum hl_device_status {
 	HL_DEVICE_STATUS_MALFUNCTION
 };
 
-/* Opcode for management ioctl */
-#define HL_INFO_HW_IP_INFO	0
-#define HL_INFO_HW_EVENTS	1
-#define HL_INFO_DRAM_USAGE	2
-#define HL_INFO_HW_IDLE		3
-#define HL_INFO_DEVICE_STATUS	4
+/* Opcode for management ioctl
+ *
+ * HW_IP_INFO            - Receive information about different IP blocks in the
+ *                         device.
+ * HL_INFO_HW_EVENTS     - Receive an array describing how many times each event
+ *                         occurred since the last hard reset.
+ * HL_INFO_DRAM_USAGE    - Retrieve the dram usage inside the device and of the
+ *                         specific context. This is relevant only for devices
+ *                         where the dram is managed by the kernel driver
+ * HL_INFO_HW_IDLE       - Retrieve information about the idle status of each
+ *                         internal engine.
+ * HL_INFO_DEVICE_STATUS - Retrieve the device's status. This opcode doesn't
+ *                         require an open context.
+ * HL_INFO_DEVICE_UTILIZATION - Retrieve the total utilization of the device
+ *                              over the last period specified by the user.
+ *                              The period can be between 100ms to 1s, in
+ *                              resolution of 100ms. The return value is a
+ *                              percentage of the utilization rate.
+ * HL_INFO_HW_EVENTS_AGGREGATE - Receive an array describing how many times each
+ *                               event occurred since the driver was loaded.
+ */
+#define HL_INFO_HW_IP_INFO		0
+#define HL_INFO_HW_EVENTS		1
+#define HL_INFO_DRAM_USAGE		2
+#define HL_INFO_HW_IDLE			3
+#define HL_INFO_DEVICE_STATUS		4
+#define HL_INFO_DEVICE_UTILIZATION	6
+#define HL_INFO_HW_EVENTS_AGGREGATE	7
 
 #define HL_INFO_VERSION_MAX_LEN	128
 
@@ -122,6 +144,11 @@ struct hl_info_device_status {
 	__u32 pad;
 };
 
+struct hl_info_device_utilization {
+	__u32 utilization;
+	__u32 pad;
+};
+
 struct hl_info_args {
 	/* Location of relevant struct in userspace */
 	__u64 return_pointer;
@@ -137,8 +164,15 @@ struct hl_info_args {
 	/* HL_INFO_* */
 	__u32 op;
 
-	/* Context ID - Currently not in use */
-	__u32 ctx_id;
+	union {
+		/* Context ID - Currently not in use */
+		__u32 ctx_id;
+		/* Period value for utilization rate (100ms - 1000ms, in 100ms
+		 * resolution.
+		 */
+		__u32 period_ms;
+	};
+
 	__u32 pad;
 };
 
@@ -295,12 +329,12 @@ struct hl_mem_in {
 		struct {
 			/*
 			 * Requested virtual address of mapped memory.
-			 * KMD will try to map the requested region to this
-			 * hint address, as long as the address is valid and
-			 * not already mapped. The user should check the
+			 * The driver will try to map the requested region to
+			 * this hint address, as long as the address is valid
+			 * and not already mapped. The user should check the
 			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that KMD
-			 * will choose the address itself.
+			 * the hint address. Passing 0 here means that the
+			 * driver will choose the address itself.
 			 */
 			__u64 hint_addr;
 			/* Handle returned from HL_MEM_OP_ALLOC */
@@ -313,12 +347,12 @@ struct hl_mem_in {
 			__u64 host_virt_addr;
 			/*
 			 * Requested virtual address of mapped memory.
-			 * KMD will try to map the requested region to this
-			 * hint address, as long as the address is valid and
-			 * not already mapped. The user should check the
+			 * The driver will try to map the requested region to
+			 * this hint address, as long as the address is valid
+			 * and not already mapped. The user should check the
 			 * returned address of the IOCTL to make sure he got
-			 * the hint address. Passing 0 here means that KMD
-			 * will choose the address itself.
+			 * the hint address. Passing 0 here means that the
+			 * driver will choose the address itself.
 			 */
 			__u64 hint_addr;
 			/* Size of allocated host memory */
@@ -439,7 +473,7 @@ struct hl_debug_params_spmu {
 #define HL_DEBUG_OP_BMON	4
 /* Opcode for SPMU component */
 #define HL_DEBUG_OP_SPMU	5
-/* Opcode for timestamp */
+/* Opcode for timestamp (deprecated) */
 #define HL_DEBUG_OP_TIMESTAMP	6
 /* Opcode for setting the device into or out of debug mode. The enable
  * variable should be 1 for enabling debug mode and 0 for disabling it

@@ -2,6 +2,11 @@
 /*
  *  Copyright (C) 2010, Lars-Peter Clausen <lars@metafoo.de>
  *  JZ4740 platform PWM support
+ *
+ * Limitations:
+ * - The .apply callback doesn't complete the currently running period before
+ *   reconfiguring the hardware.
+ * - Each period starts with the inactive part.
  */
 
 #include <linux/clk.h>
@@ -83,7 +88,7 @@ static void jz4740_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 }
 
 static int jz4740_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
-			    struct pwm_state *state)
+			    const struct pwm_state *state)
 {
 	struct jz4740_pwm_chip *jz4740 = to_jz4740(pwm->chip);
 	unsigned long long tmp;

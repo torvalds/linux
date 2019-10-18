@@ -35,7 +35,7 @@
 #include "display/intel_panel.h"
 
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_opregion.h"
 
 #define OPREGION_HEADER_OFFSET 0

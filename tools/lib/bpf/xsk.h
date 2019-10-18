@@ -32,6 +32,7 @@ struct name { \
 	__u32 *producer; \
 	__u32 *consumer; \
 	void *ring; \
+	__u32 *flags; \
 }
 
 DEFINE_XSK_RING(xsk_ring_prod);
@@ -74,6 +75,11 @@ xsk_ring_cons__rx_desc(const struct xsk_ring_cons *rx, __u32 idx)
 	const struct xdp_desc *descs = (const struct xdp_desc *)rx->ring;
 
 	return &descs[idx & rx->mask];
+}
+
+static inline int xsk_ring_prod__needs_wakeup(const struct xsk_ring_prod *r)
+{
+	return *r->flags & XDP_RING_NEED_WAKEUP;
 }
 
 static inline __u32 xsk_prod_nb_free(struct xsk_ring_prod *r, __u32 nb)
@@ -162,6 +168,21 @@ static inline void *xsk_umem__get_data(void *umem_area, __u64 addr)
 	return &((char *)umem_area)[addr];
 }
 
+static inline __u64 xsk_umem__extract_addr(__u64 addr)
+{
+	return addr & XSK_UNALIGNED_BUF_ADDR_MASK;
+}
+
+static inline __u64 xsk_umem__extract_offset(__u64 addr)
+{
+	return addr >> XSK_UNALIGNED_BUF_OFFSET_SHIFT;
+}
+
+static inline __u64 xsk_umem__add_offset_to_addr(__u64 addr)
+{
+	return xsk_umem__extract_addr(addr) + xsk_umem__extract_offset(addr);
+}
+
 LIBBPF_API int xsk_umem__fd(const struct xsk_umem *umem);
 LIBBPF_API int xsk_socket__fd(const struct xsk_socket *xsk);
 
@@ -170,12 +191,14 @@ LIBBPF_API int xsk_socket__fd(const struct xsk_socket *xsk);
 #define XSK_UMEM__DEFAULT_FRAME_SHIFT    12 /* 4096 bytes */
 #define XSK_UMEM__DEFAULT_FRAME_SIZE     (1 << XSK_UMEM__DEFAULT_FRAME_SHIFT)
 #define XSK_UMEM__DEFAULT_FRAME_HEADROOM 0
+#define XSK_UMEM__DEFAULT_FLAGS 0
 
 struct xsk_umem_config {
 	__u32 fill_size;
 	__u32 comp_size;
 	__u32 frame_size;
 	__u32 frame_headroom;
+	__u32 flags;
 };
 
 /* Flags for the libbpf_flags field. */
@@ -195,6 +218,16 @@ LIBBPF_API int xsk_umem__create(struct xsk_umem **umem,
 				struct xsk_ring_prod *fill,
 				struct xsk_ring_cons *comp,
 				const struct xsk_umem_config *config);
+LIBBPF_API int xsk_umem__create_v0_0_2(struct xsk_umem **umem,
+				       void *umem_area, __u64 size,
+				       struct xsk_ring_prod *fill,
+				       struct xsk_ring_cons *comp,
+				       const struct xsk_umem_config *config);
+LIBBPF_API int xsk_umem__create_v0_0_4(struct xsk_umem **umem,
+				       void *umem_area, __u64 size,
+				       struct xsk_ring_prod *fill,
+				       struct xsk_ring_cons *comp,
+				       const struct xsk_umem_config *config);
 LIBBPF_API int xsk_socket__create(struct xsk_socket **xsk,
 				  const char *ifname, __u32 queue_id,
 				  struct xsk_umem *umem,

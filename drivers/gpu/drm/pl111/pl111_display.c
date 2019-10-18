@@ -11,14 +11,16 @@
 
 #include <linux/amba/clcd-regs.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/version.h>
 #include <linux/dma-buf.h>
 #include <linux/of_graph.h>
 
-#include <drm/drmP.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "pl111_drm.h"
 
@@ -126,6 +128,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 	struct drm_framebuffer *fb = plane->state->fb;
 	struct drm_connector *connector = priv->connector;
 	struct drm_bridge *bridge = priv->bridge;
+	bool grayscale = false;
 	u32 cntl;
 	u32 ppl, hsw, hfp, hbp;
 	u32 lpp, vsw, vfp, vbp;
@@ -185,6 +188,20 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		if (connector->display_info.bus_flags &
 		    DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 			tim2 |= TIM2_IPC;
+
+		if (connector->display_info.num_bus_formats == 1 &&
+		    connector->display_info.bus_formats[0] ==
+		    MEDIA_BUS_FMT_Y8_1X8)
+			grayscale = true;
+
+		/*
+		 * The AC pin bias frequency is set to max count when using
+		 * grayscale so at least once in a while we will reverse
+		 * polarity and get rid of any DC built up that could
+		 * damage the display.
+		 */
+		if (grayscale)
+			tim2 |= TIM2_ACB_MASK;
 	}
 
 	if (bridge) {
@@ -216,8 +233,18 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 
 	writel(0, priv->regs + CLCD_TIM3);
 
-	/* Hard-code TFT panel */
-	cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
+	/*
+	 * Detect grayscale bus format. We do not support a grayscale mode
+	 * toward userspace, instead we expose an RGB24 buffer and then the
+	 * hardware will activate its grayscaler to convert to the grayscale
+	 * format.
+	 */
+	if (grayscale)
+		cntl = CNTL_LCDEN | CNTL_LCDMONO8;
+	else
+		/* Else we assume TFT display */
+		cntl = CNTL_LCDEN | CNTL_LCDTFT | CNTL_LCDVCOMP(1);
+
 	/* On the ST Micro variant, assume all 24 bits are connected */
 	if (priv->variant->st_bitmux_control)
 		cntl |= CNTL_ST_CDWID_24;
@@ -546,24 +573,7 @@ pl111_init_clock_divider(struct drm_device *drm)
 int pl111_display_init(struct drm_device *drm)
 {
 	struct pl111_drm_dev_private *priv = drm->dev_private;
-	struct device *dev = drm->dev;
-	struct device_node *endpoint;
-	u32 tft_r0b0g0[3];
 	int ret;
-
-	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
-	if (!endpoint)
-		return -ENODEV;
-
-	if (of_property_read_u32_array(endpoint,
-				       "arm,pl11x,tft-r0g0b0-pads",
-				       tft_r0b0g0,
-				       ARRAY_SIZE(tft_r0b0g0)) != 0) {
-		dev_err(dev, "arm,pl11x,tft-r0g0b0-pads should be 3 ints\n");
-		of_node_put(endpoint);
-		return -ENOENT;
-	}
-	of_node_put(endpoint);
 
 	ret = pl111_init_clock_divider(drm);
 	if (ret)

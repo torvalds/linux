@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: BSD-3-Clause */
 /*
- * Virtio-iommu definition v0.9
+ * Virtio-iommu definition v0.12
  *
- * Copyright (C) 2018 Arm Ltd.
+ * Copyright (C) 2019 Arm Ltd.
  */
 #ifndef _UAPI_LINUX_VIRTIO_IOMMU_H
 #define _UAPI_LINUX_VIRTIO_IOMMU_H
@@ -11,26 +11,31 @@
 
 /* Feature bits */
 #define VIRTIO_IOMMU_F_INPUT_RANGE		0
-#define VIRTIO_IOMMU_F_DOMAIN_BITS		1
+#define VIRTIO_IOMMU_F_DOMAIN_RANGE		1
 #define VIRTIO_IOMMU_F_MAP_UNMAP		2
 #define VIRTIO_IOMMU_F_BYPASS			3
 #define VIRTIO_IOMMU_F_PROBE			4
+#define VIRTIO_IOMMU_F_MMIO			5
 
-struct virtio_iommu_range {
-	__u64					start;
-	__u64					end;
+struct virtio_iommu_range_64 {
+	__le64					start;
+	__le64					end;
+};
+
+struct virtio_iommu_range_32 {
+	__le32					start;
+	__le32					end;
 };
 
 struct virtio_iommu_config {
 	/* Supported page sizes */
-	__u64					page_size_mask;
+	__le64					page_size_mask;
 	/* Supported IOVA range */
-	struct virtio_iommu_range		input_range;
+	struct virtio_iommu_range_64		input_range;
 	/* Max domain ID size */
-	__u8					domain_bits;
-	__u8					padding[3];
+	struct virtio_iommu_range_32		domain_range;
 	/* Probe buffer size */
-	__u32					probe_size;
+	__le32					probe_size;
 };
 
 /* Request types */
@@ -49,6 +54,7 @@ struct virtio_iommu_config {
 #define VIRTIO_IOMMU_S_RANGE			0x05
 #define VIRTIO_IOMMU_S_NOENT			0x06
 #define VIRTIO_IOMMU_S_FAULT			0x07
+#define VIRTIO_IOMMU_S_NOMEM			0x08
 
 struct virtio_iommu_req_head {
 	__u8					type;
@@ -78,12 +84,10 @@ struct virtio_iommu_req_detach {
 
 #define VIRTIO_IOMMU_MAP_F_READ			(1 << 0)
 #define VIRTIO_IOMMU_MAP_F_WRITE		(1 << 1)
-#define VIRTIO_IOMMU_MAP_F_EXEC			(1 << 2)
-#define VIRTIO_IOMMU_MAP_F_MMIO			(1 << 3)
+#define VIRTIO_IOMMU_MAP_F_MMIO			(1 << 2)
 
 #define VIRTIO_IOMMU_MAP_F_MASK			(VIRTIO_IOMMU_MAP_F_READ |	\
 						 VIRTIO_IOMMU_MAP_F_WRITE |	\
-						 VIRTIO_IOMMU_MAP_F_EXEC |	\
 						 VIRTIO_IOMMU_MAP_F_MMIO)
 
 struct virtio_iommu_req_map {

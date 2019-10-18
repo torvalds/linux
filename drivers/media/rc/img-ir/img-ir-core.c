@@ -81,10 +81,8 @@ static int img_ir_probe(struct platform_device *pdev)
 
 	/* Get resources from platform device */
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "cannot find IRQ resource\n");
+	if (irq < 0)
 		return irq;
-	}
 
 	/* Private driver data */
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);

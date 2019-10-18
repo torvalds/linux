@@ -245,7 +245,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	plane->hw_format = fmt;
 
 	plane->base = vgpu_vreg_t(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
@@ -368,7 +368,7 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 			alpha_plane, alpha_force);
 
 	plane->base = vgpu_vreg_t(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
@@ -472,7 +472,7 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	plane->drm_format = drm_format;
 
 	plane->base = vgpu_vreg_t(vgpu, SPRSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0))
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);

@@ -10,7 +10,7 @@
  */
 
 #include <crypto/aes.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 
 #include "cesa.h"
 
@@ -254,7 +254,7 @@ static int mv_cesa_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 	int ret;
 	int i;
 
-	ret = crypto_aes_expand_key(&ctx->aes, key, len);
+	ret = aes_expandkey(&ctx->aes, key, len);
 	if (ret) {
 		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return ret;
@@ -272,21 +272,12 @@ static int mv_cesa_aes_setkey(struct crypto_skcipher *cipher, const u8 *key,
 static int mv_cesa_des_setkey(struct crypto_skcipher *cipher, const u8 *key,
 			      unsigned int len)
 {
-	struct crypto_tfm *tfm = crypto_skcipher_tfm(cipher);
-	struct mv_cesa_des_ctx *ctx = crypto_tfm_ctx(tfm);
-	u32 tmp[DES_EXPKEY_WORDS];
-	int ret;
+	struct mv_cesa_des_ctx *ctx = crypto_skcipher_ctx(cipher);
+	int err;
 
-	if (len != DES_KEY_SIZE) {
-		crypto_skcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -EINVAL;
-	}
-
-	ret = des_ekey(tmp, key);
-	if (!ret && (tfm->crt_flags & CRYPTO_TFM_REQ_FORBID_WEAK_KEYS)) {
-		tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-		return -EINVAL;
-	}
+	err = verify_skcipher_des_key(cipher, key);
+	if (err)
+		return err;
 
 	memcpy(ctx->key, key, DES_KEY_SIZE);
 
@@ -299,8 +290,8 @@ static int mv_cesa_des3_ede_setkey(struct crypto_skcipher *cipher,
 	struct mv_cesa_des_ctx *ctx = crypto_skcipher_ctx(cipher);
 	int err;
 
-	err = des3_verify_key(cipher, key);
-	if (unlikely(err))
+	err = verify_skcipher_des3_key(cipher, key);
+	if (err)
 		return err;
 
 	memcpy(ctx->key, key, DES3_EDE_KEY_SIZE);

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 imx6-media-objs := imx-media-dev.o imx-media-internal-sd.o \
-	imx-ic-common.o imx-ic-prp.o imx-ic-prpencvf.o imx-media-vdic.o
+	imx-ic-common.o imx-ic-prp.o imx-ic-prpencvf.o imx-media-vdic.o \
+	imx-media-csc-scaler.o
 
 imx-media-common-objs := imx-media-capture.o imx-media-dev-common.o \
 	imx-media-of.o imx-media-utils.o

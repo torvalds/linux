@@ -28,14 +28,12 @@
 #include "mock_request.h"
 
 struct i915_request *
-mock_request(struct intel_engine_cs *engine,
-	     struct i915_gem_context *context,
-	     unsigned long delay)
+mock_request(struct intel_context *ce, unsigned long delay)
 {
 	struct i915_request *request;
 
 	/* NB the i915->requests slab cache is enlarged to fit mock_request */
-	request = igt_request_alloc(context, engine);
+	request = intel_context_create_request(ce);
 	if (IS_ERR(request))
 		return NULL;
 

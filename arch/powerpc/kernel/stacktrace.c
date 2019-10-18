@@ -182,7 +182,7 @@ static int __save_stack_trace_tsk_reliable(struct task_struct *tsk,
 		 * FIXME: IMHO these tests do not belong in
 		 * arch-dependent code, they are generic.
 		 */
-		ip = ftrace_graph_ret_addr(tsk, &graph_idx, ip, NULL);
+		ip = ftrace_graph_ret_addr(tsk, &graph_idx, ip, stack);
 #ifdef CONFIG_KPROBES
 		/*
 		 * Mark stacktraces with kretprobed functions on them

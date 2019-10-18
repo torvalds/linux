@@ -493,6 +493,10 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
  * kmalloc is the normal method of allocating memory
  * for objects smaller than page size in the kernel.
  *
+ * The allocated object address is aligned to at least ARCH_KMALLOC_MINALIGN
+ * bytes. For @size of power of two bytes, the alignment is also guaranteed
+ * to be at least to the size.
+ *
  * The @flags argument may be one of the GFP flags defined at
  * include/linux/gfp.h and described at
  * :ref:`Documentation/core-api/mm-api.rst <mm-api-gfp-flags>`
@@ -594,68 +598,6 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 #endif
 	return __kmalloc_node(size, flags, node);
 }
-
-struct memcg_cache_array {
-	struct rcu_head rcu;
-	struct kmem_cache *entries[0];
-};
-
-/*
- * This is the main placeholder for memcg-related information in kmem caches.
- * Both the root cache and the child caches will have it. For the root cache,
- * this will hold a dynamically allocated array large enough to hold
- * information about the currently limited memcgs in the system. To allow the
- * array to be accessed without taking any locks, on relocation we free the old
- * version only after a grace period.
- *
- * Root and child caches hold different metadata.
- *
- * @root_cache:	Common to root and child caches.  NULL for root, pointer to
- *		the root cache for children.
- *
- * The following fields are specific to root caches.
- *
- * @memcg_caches: kmemcg ID indexed table of child caches.  This table is
- *		used to index child cachces during allocation and cleared
- *		early during shutdown.
- *
- * @root_caches_node: List node for slab_root_caches list.
- *
- * @children:	List of all child caches.  While the child caches are also
- *		reachable through @memcg_caches, a child cache remains on
- *		this list until it is actually destroyed.
- *
- * The following fields are specific to child caches.
- *
- * @memcg:	Pointer to the memcg this cache belongs to.
- *
- * @children_node: List node for @root_cache->children list.
- *
- * @kmem_caches_node: List node for @memcg->kmem_caches list.
- */
-struct memcg_cache_params {
-	struct kmem_cache *root_cache;
-	union {
-		struct {
-			struct memcg_cache_array __rcu *memcg_caches;
-			struct list_head __root_caches_node;
-			struct list_head children;
-			bool dying;
-		};
-		struct {
-			struct mem_cgroup *memcg;
-			struct list_head children_node;
-			struct list_head kmem_caches_node;
-			struct percpu_ref refcnt;
-
-			void (*work_fn)(struct kmem_cache *);
-			union {
-				struct rcu_head rcu_head;
-				struct work_struct work;
-			};
-		};
-	};
-};
 
 int memcg_update_all_caches(int num_memcgs);
 

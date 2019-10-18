@@ -31,16 +31,16 @@
 #include <linux/virtio_config.h>
 #include <linux/virtio_gpu.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_gem.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_gem.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_placement.h>
 #include <drm/ttm/ttm_module.h>
+#include <drm/ttm/ttm_placement.h>
 
 #define DRIVER_NAME "virtio_gpu"
 #define DRIVER_DESC "virtio GPU"
@@ -396,7 +396,7 @@ static inline void virtio_gpu_object_unref(struct virtio_gpu_object **bo)
 
 static inline u64 virtio_gpu_object_mmap_offset(struct virtio_gpu_object *bo)
 {
-	return drm_vma_node_offset_addr(&bo->tbo.vma_node);
+	return drm_vma_node_offset_addr(&bo->tbo.base.vma_node);
 }
 
 static inline int virtio_gpu_object_reserve(struct virtio_gpu_object *bo,

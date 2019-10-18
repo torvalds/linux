@@ -72,7 +72,7 @@ static int amdgpu_vm_sdma_prepare(struct amdgpu_vm_update_params *p,
 	if (r)
 		return r;
 
-	r = amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.resv,
+	r = amdgpu_sync_resv(p->adev, &p->job->sync, root->tbo.base.resv,
 			     owner, false);
 	if (r)
 		return r;

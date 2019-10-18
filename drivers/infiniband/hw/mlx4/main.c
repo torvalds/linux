@@ -734,7 +734,8 @@ out:
 
 static u8 state_to_phys_state(enum ib_port_state state)
 {
-	return state == IB_PORT_ACTIVE ? 5 : 3;
+	return state == IB_PORT_ACTIVE ?
+		IB_PORT_PHYS_STATE_LINK_UP : IB_PORT_PHYS_STATE_DISABLED;
 }
 
 static int eth_link_query_port(struct ib_device *ibdev, u8 port,

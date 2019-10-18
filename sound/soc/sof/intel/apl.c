@@ -46,7 +46,9 @@ const struct snd_sof_dsp_ops sof_apl_ops = {
 
 	/* ipc */
 	.send_msg	= hda_dsp_ipc_send_msg,
-	.fw_ready	= hda_dsp_ipc_fw_ready,
+	.fw_ready	= sof_fw_ready,
+	.get_mailbox_offset = hda_dsp_ipc_get_mailbox_offset,
+	.get_window_offset = hda_dsp_ipc_get_window_offset,
 
 	.ipc_msg_data	= hda_ipc_msg_data,
 	.ipc_pcm_params	= hda_ipc_pcm_params,

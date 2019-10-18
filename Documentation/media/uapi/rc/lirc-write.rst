@@ -64,7 +64,8 @@ driver returns ``EINVAL``.
 When in :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` mode, one
 ``struct lirc_scancode`` must be written to the chardev at a time, else
 ``EINVAL`` is returned. Set the desired scancode in the ``scancode`` member,
-and the protocol in the :c:type:`rc_proto`: member. All other members must be
+and the :ref:`IR protocol <Remote_controllers_Protocols>` in the
+:c:type:`rc_proto`: member. All other members must be
 set to 0, else ``EINVAL`` is returned. If there is no protocol encoder
 for the protocol or the scancode is not valid for the specified protocol,
 ``EINVAL`` is returned. The write function blocks until the scancode

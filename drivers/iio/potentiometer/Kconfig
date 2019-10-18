@@ -26,6 +26,17 @@ config DS1803
 	  To compile this driver as a module, choose M here: the
 	  module will be called ds1803.
 
+config MAX5432
+	tristate "Maxim MAX5432-MAX5435 Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Maxim
+	  MAX5432, MAX5433, MAX5434 and MAX5435 digital
+	  potentiometer chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max5432.
+
 config MAX5481
 	tristate "Maxim MAX5481-MAX5484 Digital Potentiometer driver"
 	depends on SPI

@@ -9,7 +9,7 @@
 #include <drm/i915_drm.h>
 
 #include "i915_drv.h"
-#include "intel_drv.h"
+#include "intel_display_types.h"
 #include "intel_vdsc.h"
 
 enum ROW_INDEX_BPP {
@@ -459,17 +459,23 @@ int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 enum intel_display_power_domain
 intel_dsc_power_domain(const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *i915 = to_i915(crtc_state->base.crtc->dev);
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 
 	/*
-	 * On ICL VDSC/joining for eDP transcoder uses a separate power well PW2
-	 * This requires POWER_DOMAIN_TRANSCODER_EDP_VDSC power domain.
+	 * On ICL VDSC/joining for eDP transcoder uses a separate power well,
+	 * PW2. This requires POWER_DOMAIN_TRANSCODER_VDSC_PW2 power domain.
 	 * For any other transcoder, VDSC/joining uses the power well associated
 	 * with the pipe/transcoder in use. Hence another reference on the
 	 * transcoder power domain will suffice.
+	 *
+	 * On TGL we have the same mapping, but for transcoder A (the special
+	 * TRANSCODER_EDP is gone).
 	 */
-	if (cpu_transcoder == TRANSCODER_EDP)
-		return POWER_DOMAIN_TRANSCODER_EDP_VDSC;
+	if (INTEL_GEN(i915) >= 12 && cpu_transcoder == TRANSCODER_A)
+		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
+	else if (cpu_transcoder == TRANSCODER_EDP)
+		return POWER_DOMAIN_TRANSCODER_VDSC_PW2;
 	else
 		return POWER_DOMAIN_TRANSCODER(cpu_transcoder);
 }
@@ -541,7 +547,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 	pps_val |= DSC_PIC_HEIGHT(vdsc_cfg->pic_height) |
 		DSC_PIC_WIDTH(vdsc_cfg->pic_width / num_vdsc_instances);
 	DRM_INFO("PPS2 = 0x%08x\n", pps_val);
-	if (encoder->type == INTEL_OUTPUT_EDP) {
+	if (cpu_transcoder == TRANSCODER_EDP) {
 		I915_WRITE(DSCA_PICTURE_PARAMETER_SET_2, pps_val);
 		/*
 		 * If 2 VDSC instances are needed, configure PPS for second

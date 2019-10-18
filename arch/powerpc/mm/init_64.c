@@ -172,6 +172,21 @@ static __meminit void vmemmap_list_populate(unsigned long phys,
 	vmemmap_list = vmem_back;
 }
 
+static bool altmap_cross_boundary(struct vmem_altmap *altmap, unsigned long start,
+				unsigned long page_size)
+{
+	unsigned long nr_pfn = page_size / sizeof(struct page);
+	unsigned long start_pfn = page_to_pfn((struct page *)start);
+
+	if ((start_pfn + nr_pfn) > altmap->end_pfn)
+		return true;
+
+	if (start_pfn < altmap->base_pfn)
+		return true;
+
+	return false;
+}
+
 int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		struct vmem_altmap *altmap)
 {
@@ -194,7 +209,7 @@ int __meminit vmemmap_populate(unsigned long start, unsigned long end, int node,
 		 * fail due to alignment issues when using 16MB hugepages, so
 		 * fall back to system memory if the altmap allocation fail.
 		 */
-		if (altmap) {
+		if (altmap && !altmap_cross_boundary(altmap, start, page_size)) {
 			p = altmap_alloc_block_buf(page_size, altmap);
 			if (!p)
 				pr_debug("altmap block allocation failed, falling back to system memory");

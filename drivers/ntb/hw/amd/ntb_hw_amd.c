@@ -78,7 +78,7 @@ static int ndev_mw_to_bar(struct amd_ntb_dev *ndev, int idx)
 	if (idx < 0 || idx > ndev->mw_count)
 		return -EINVAL;
 
-	return 1 << idx;
+	return ndev->dev_data->mw_idx << idx;
 }
 
 static int amd_ntb_mw_count(struct ntb_dev *ntb, int pidx)
@@ -909,7 +909,7 @@ static int amd_init_ntb(struct amd_ntb_dev *ndev)
 {
 	void __iomem *mmio = ndev->self_mmio;
 
-	ndev->mw_count = AMD_MW_CNT;
+	ndev->mw_count = ndev->dev_data->mw_count;
 	ndev->spad_count = AMD_SPADS_CNT;
 	ndev->db_count = AMD_DB_CNT;
 
@@ -1069,6 +1069,8 @@ static int amd_ntb_pci_probe(struct pci_dev *pdev,
 		goto err_ndev;
 	}
 
+	ndev->dev_data = (struct ntb_dev_data *)id->driver_data;
+
 	ndev_init_struct(ndev, pdev);
 
 	rc = amd_ntb_init_pci(ndev, pdev);
@@ -1123,9 +1125,21 @@ static const struct file_operations amd_ntb_debugfs_info = {
 	.read = ndev_debugfs_read,
 };
 
+static const struct ntb_dev_data dev_data[] = {
+	{ /* for device 145b */
+		.mw_count = 3,
+		.mw_idx = 1,
+	},
+	{ /* for device 148b */
+		.mw_count = 2,
+		.mw_idx = 2,
+	},
+};
+
 static const struct pci_device_id amd_ntb_pci_tbl[] = {
-	{PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_NTB)},
-	{0}
+	{ PCI_VDEVICE(AMD, 0x145b), (kernel_ulong_t)&dev_data[0] },
+	{ PCI_VDEVICE(AMD, 0x148b), (kernel_ulong_t)&dev_data[1] },
+	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, amd_ntb_pci_tbl);
 

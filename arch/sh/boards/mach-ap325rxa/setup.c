@@ -527,7 +527,6 @@ static int __init ap325rxa_devices_setup(void)
 
 	/* Initialize CEU platform device separately to map memory first */
 	device_initialize(&ap325rxa_ceu_device.dev);
-	arch_setup_pdev_archdata(&ap325rxa_ceu_device);
 	dma_declare_coherent_memory(&ap325rxa_ceu_device.dev,
 			ceu_dma_membase, ceu_dma_membase,
 			ceu_dma_membase + CEU_BUFFER_MEMORY_SIZE - 1);

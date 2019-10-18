@@ -9,6 +9,9 @@
 #ifndef __MESON_VPP_H
 #define __MESON_VPP_H
 
+struct drm_rect;
+struct meson_drm;
+
 /* Mux VIU/VPP to ENCI */
 #define MESON_VIU_VPP_MUX_ENCI	0x5
 /* Mux VIU/VPP to ENCP */

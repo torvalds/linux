@@ -313,10 +313,6 @@ static int stih_cec_probe(struct platform_device *pdev)
 	if (!cec)
 		return -ENOMEM;
 
-	cec->notifier = cec_notifier_get(hdmi_dev);
-	if (!cec->notifier)
-		return -ENOMEM;
-
 	cec->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -340,30 +336,42 @@ static int stih_cec_probe(struct platform_device *pdev)
 		return PTR_ERR(cec->clk);
 	}
 
-	cec->adap = cec_allocate_adapter(&sti_cec_adap_ops, cec,
-			CEC_NAME, CEC_CAP_DEFAULTS, CEC_MAX_LOG_ADDRS);
+	cec->adap = cec_allocate_adapter(&sti_cec_adap_ops, cec, CEC_NAME,
+					 CEC_CAP_DEFAULTS |
+					 CEC_CAP_CONNECTOR_INFO,
+					 CEC_MAX_LOG_ADDRS);
 	ret = PTR_ERR_OR_ZERO(cec->adap);
 	if (ret)
 		return ret;
 
-	ret = cec_register_adapter(cec->adap, &pdev->dev);
-	if (ret) {
-		cec_delete_adapter(cec->adap);
-		return ret;
+	cec->notifier = cec_notifier_cec_adap_register(hdmi_dev, NULL,
+						       cec->adap);
+	if (!cec->notifier) {
+		ret = -ENOMEM;
+		goto err_delete_adapter;
 	}
 
-	cec_register_cec_notifier(cec->adap, cec->notifier);
+	ret = cec_register_adapter(cec->adap, &pdev->dev);
+	if (ret)
+		goto err_notifier;
 
 	platform_set_drvdata(pdev, cec);
 	return 0;
+
+err_notifier:
+	cec_notifier_cec_adap_unregister(cec->notifier);
+
+err_delete_adapter:
+	cec_delete_adapter(cec->adap);
+	return ret;
 }
 
 static int stih_cec_remove(struct platform_device *pdev)
 {
 	struct stih_cec *cec = platform_get_drvdata(pdev);
 
+	cec_notifier_cec_adap_unregister(cec->notifier);
 	cec_unregister_adapter(cec->adap);
-	cec_notifier_put(cec->notifier);
 
 	return 0;
 }

@@ -339,12 +339,8 @@ void ODM_TXPowerTrackingCheck(PDM_ODM_T pDM_Odm);
 
 void odm_RateAdaptiveMaskInit(PDM_ODM_T pDM_Odm);
 
-void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm);
-
 
 void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm);
-
-void odm_TXPowerTrackingCheckCE(PDM_ODM_T pDM_Odm);
 
 /* Remove Edca by Yu Chen */
 
@@ -1259,13 +1255,11 @@ void odm_RSSIMonitorCheckCE(PDM_ODM_T pDM_Odm)
 	int tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
 	u8 sta_cnt = 0;
 	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
-	bool FirstConnect = false;
 	pRA_T pRA_Table = &pDM_Odm->DM_RA_Table;
 
 	if (pDM_Odm->bLinked != true)
 		return;
 
-	FirstConnect = (pDM_Odm->bLinked) && (pRA_Table->firstconnect == false);
 	pRA_Table->firstconnect = pDM_Odm->bLinked;
 
 	/* if (check_fwstate(&Adapter->mlmepriv, WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == true) */
@@ -1324,11 +1318,6 @@ void odm_RSSIMonitorCheckCE(PDM_ODM_T pDM_Odm)
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
 
-void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm)
-{
-	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
-}
-
 static u8 getSwingIndex(PDM_ODM_T pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
@@ -1353,7 +1342,7 @@ static u8 getSwingIndex(PDM_ODM_T pDM_Odm)
 	return i;
 }
 
-void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm)
+void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm)
 {
 	u8 defaultSwingIndex = getSwingIndex(pDM_Odm);
 	u8 p = 0;
@@ -1397,13 +1386,7 @@ void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm)
 
 }
 
-
 void ODM_TXPowerTrackingCheck(PDM_ODM_T pDM_Odm)
-{
-	odm_TXPowerTrackingCheckCE(pDM_Odm);
-}
-
-void odm_TXPowerTrackingCheckCE(PDM_ODM_T pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 

@@ -138,6 +138,7 @@ static const struct pci_device_id pci_ids[] = {
 	{ PCI_VDEVICE(INTEL, 0x4b87), (kernel_ulong_t)&spi_pci_ehl_desc},
 	{},
 };
+MODULE_DEVICE_TABLE(pci, pci_ids);
 
 static struct pci_driver dw_spi_driver = {
 	.name =		DRIVER_NAME,

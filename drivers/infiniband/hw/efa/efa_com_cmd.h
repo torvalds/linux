@@ -225,6 +225,26 @@ struct efa_com_dealloc_uar_params {
 	u16 uarn;
 };
 
+struct efa_com_get_stats_params {
+	/* see enum efa_admin_get_stats_type */
+	u8 type;
+	/* see enum efa_admin_get_stats_scope */
+	u8 scope;
+	u16 scope_modifier;
+};
+
+struct efa_com_basic_stats {
+	u64 tx_bytes;
+	u64 tx_pkts;
+	u64 rx_bytes;
+	u64 rx_pkts;
+	u64 rx_drops;
+};
+
+union efa_com_get_stats_result {
+	struct efa_com_basic_stats basic_stats;
+};
+
 void efa_com_set_dma_addr(dma_addr_t addr, u32 *addr_high, u32 *addr_low);
 int efa_com_create_qp(struct efa_com_dev *edev,
 		      struct efa_com_create_qp_params *params,
@@ -266,5 +286,8 @@ int efa_com_alloc_uar(struct efa_com_dev *edev,
 		      struct efa_com_alloc_uar_result *result);
 int efa_com_dealloc_uar(struct efa_com_dev *edev,
 			struct efa_com_dealloc_uar_params *params);
+int efa_com_get_stats(struct efa_com_dev *edev,
+		      struct efa_com_get_stats_params *params,
+		      union efa_com_get_stats_result *result);
 
 #endif /* _EFA_COM_CMD_H_ */

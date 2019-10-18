@@ -210,7 +210,7 @@ static int mlx5i_pkey_open(struct net_device *netdev)
 		goto err_unint_underlay_qp;
 	}
 
-	err = mlx5i_create_tis(mdev, ipriv->qp.qpn, &epriv->tisn[0]);
+	err = mlx5i_create_tis(mdev, ipriv->qp.qpn, &epriv->tisn[0][0]);
 	if (err) {
 		mlx5_core_warn(mdev, "create child tis failed, %d\n", err);
 		goto err_remove_rx_uderlay_qp;
@@ -228,7 +228,7 @@ static int mlx5i_pkey_open(struct net_device *netdev)
 	return 0;
 
 err_clear_state_opened_flag:
-	mlx5e_destroy_tis(mdev, epriv->tisn[0]);
+	mlx5e_destroy_tis(mdev, epriv->tisn[0][0]);
 err_remove_rx_uderlay_qp:
 	mlx5_fs_remove_rx_underlay_qpn(mdev, ipriv->qp.qpn);
 err_unint_underlay_qp:
@@ -257,7 +257,7 @@ static int mlx5i_pkey_close(struct net_device *netdev)
 	mlx5i_uninit_underlay_qp(priv);
 	mlx5e_deactivate_priv_channels(priv);
 	mlx5e_close_channels(&priv->channels);
-	mlx5e_destroy_tis(mdev, priv->tisn[0]);
+	mlx5e_destroy_tis(mdev, priv->tisn[0][0]);
 unlock:
 	mutex_unlock(&priv->state_lock);
 	return 0;
@@ -355,6 +355,7 @@ static const struct mlx5e_profile mlx5i_pkey_nic_profile = {
 	.rx_handlers.handle_rx_cqe       = mlx5i_handle_rx_cqe,
 	.rx_handlers.handle_rx_cqe_mpwqe = NULL, /* Not supported */
 	.max_tc		   = MLX5I_MAX_NUM_TC,
+	.rq_groups	   = MLX5E_NUM_RQ_GROUPS(REGULAR),
 };
 
 const struct mlx5e_profile *mlx5i_pkey_get_profile(void)

@@ -27,11 +27,10 @@ static inline void ppc_set_pmu_inuse(int inuse)
 #ifdef CONFIG_PPC_PSERIES
 		get_lppaca()->pmcregs_in_use = inuse;
 #endif
-	} else {
-#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
-		get_paca()->pmcregs_in_use = inuse;
-#endif
 	}
+#ifdef CONFIG_KVM_BOOK3S_HV_POSSIBLE
+	get_paca()->pmcregs_in_use = inuse;
+#endif
 #endif
 }
 

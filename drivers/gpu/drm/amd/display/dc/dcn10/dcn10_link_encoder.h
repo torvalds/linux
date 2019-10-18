@@ -337,6 +337,7 @@ struct dcn10_link_enc_registers {
 		type RDPCS_TX_FIFO_ERROR_MASK;\
 		type RDPCS_DPALT_DISABLE_TOGGLE_MASK;\
 		type RDPCS_DPALT_4LANE_TOGGLE_MASK;\
+		type RDPCS_PHY_DPALT_DISABLE;\
 		type RDPCS_PHY_DPALT_DISABLE_ACK;\
 		type RDPCS_PHY_DP_MPLLB_V2I;\
 		type RDPCS_PHY_DP_MPLLB_FREQ_VCO;\
@@ -514,4 +515,6 @@ unsigned int dcn10_get_dig_frontend(struct link_encoder *enc);
 
 void dcn10_aux_initialize(struct dcn10_link_encoder *enc10);
 
+enum signal_type dcn10_get_dig_mode(
+	struct link_encoder *enc);
 #endif /* __DC_LINK_ENCODER__DCN10_H__ */

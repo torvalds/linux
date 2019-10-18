@@ -137,23 +137,23 @@ int amdgpu_gem_prime_mmap(struct drm_gem_object *obj,
 }
 
 static int
-__reservation_object_make_exclusive(struct reservation_object *obj)
+__dma_resv_make_exclusive(struct dma_resv *obj)
 {
 	struct dma_fence **fences;
 	unsigned int count;
 	int r;
 
-	if (!reservation_object_get_list(obj)) /* no shared fences to convert */
+	if (!dma_resv_get_list(obj)) /* no shared fences to convert */
 		return 0;
 
-	r = reservation_object_get_fences_rcu(obj, NULL, &count, &fences);
+	r = dma_resv_get_fences_rcu(obj, NULL, &count, &fences);
 	if (r)
 		return r;
 
 	if (count == 0) {
 		/* Now that was unexpected. */
 	} else if (count == 1) {
-		reservation_object_add_excl_fence(obj, fences[0]);
+		dma_resv_add_excl_fence(obj, fences[0]);
 		dma_fence_put(fences[0]);
 		kfree(fences);
 	} else {
@@ -165,7 +165,7 @@ __reservation_object_make_exclusive(struct reservation_object *obj)
 		if (!array)
 			goto err_fences_put;
 
-		reservation_object_add_excl_fence(obj, &array->base);
+		dma_resv_add_excl_fence(obj, &array->base);
 		dma_fence_put(&array->base);
 	}
 
@@ -216,7 +216,7 @@ static int amdgpu_dma_buf_map_attach(struct dma_buf *dma_buf,
 		 * fences on the reservation object into a single exclusive
 		 * fence.
 		 */
-		r = __reservation_object_make_exclusive(bo->tbo.resv);
+		r = __dma_resv_make_exclusive(bo->tbo.base.resv);
 		if (r)
 			goto error_unreserve;
 	}
@@ -268,20 +268,6 @@ error:
 }
 
 /**
- * amdgpu_gem_prime_res_obj - &drm_driver.gem_prime_res_obj implementation
- * @obj: GEM BO
- *
- * Returns:
- * The BO's reservation object.
- */
-struct reservation_object *amdgpu_gem_prime_res_obj(struct drm_gem_object *obj)
-{
-	struct amdgpu_bo *bo = gem_to_amdgpu_bo(obj);
-
-	return bo->tbo.resv;
-}
-
-/**
  * amdgpu_dma_buf_begin_cpu_access - &dma_buf_ops.begin_cpu_access implementation
  * @dma_buf: Shared DMA buffer
  * @direction: Direction of DMA transfer
@@ -299,7 +285,7 @@ static int amdgpu_dma_buf_begin_cpu_access(struct dma_buf *dma_buf,
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(dma_buf->priv);
 	struct amdgpu_device *adev = amdgpu_ttm_adev(bo->tbo.bdev);
 	struct ttm_operation_ctx ctx = { true, false };
-	u32 domain = amdgpu_display_supported_domains(adev);
+	u32 domain = amdgpu_display_supported_domains(adev, bo->flags);
 	int ret;
 	bool reads = (direction == DMA_BIDIRECTIONAL ||
 		      direction == DMA_FROM_DEVICE);
@@ -339,14 +325,12 @@ const struct dma_buf_ops amdgpu_dmabuf_ops = {
  * @gobj: GEM BO
  * @flags: Flags such as DRM_CLOEXEC and DRM_RDWR.
  *
- * The main work is done by the &drm_gem_prime_export helper, which in turn
- * uses &amdgpu_gem_prime_res_obj.
+ * The main work is done by the &drm_gem_prime_export helper.
  *
  * Returns:
  * Shared DMA buffer representing the GEM BO from the given device.
  */
-struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
-					struct drm_gem_object *gobj,
+struct dma_buf *amdgpu_gem_prime_export(struct drm_gem_object *gobj,
 					int flags)
 {
 	struct amdgpu_bo *bo = gem_to_amdgpu_bo(gobj);
@@ -356,9 +340,9 @@ struct dma_buf *amdgpu_gem_prime_export(struct drm_device *dev,
 	    bo->flags & AMDGPU_GEM_CREATE_VM_ALWAYS_VALID)
 		return ERR_PTR(-EPERM);
 
-	buf = drm_gem_prime_export(dev, gobj, flags);
+	buf = drm_gem_prime_export(gobj, flags);
 	if (!IS_ERR(buf)) {
-		buf->file->f_mapping = dev->anon_inode->i_mapping;
+		buf->file->f_mapping = gobj->dev->anon_inode->i_mapping;
 		buf->ops = &amdgpu_dmabuf_ops;
 	}
 
@@ -383,7 +367,7 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 				 struct dma_buf_attachment *attach,
 				 struct sg_table *sg)
 {
-	struct reservation_object *resv = attach->dmabuf->resv;
+	struct dma_resv *resv = attach->dmabuf->resv;
 	struct amdgpu_device *adev = dev->dev_private;
 	struct amdgpu_bo *bo;
 	struct amdgpu_bo_param bp;
@@ -396,7 +380,7 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	bp.flags = 0;
 	bp.type = ttm_bo_type_sg;
 	bp.resv = resv;
-	ww_mutex_lock(&resv->lock, NULL);
+	dma_resv_lock(resv, NULL);
 	ret = amdgpu_bo_create(adev, &bp, &bo);
 	if (ret)
 		goto error;
@@ -408,11 +392,11 @@ amdgpu_gem_prime_import_sg_table(struct drm_device *dev,
 	if (attach->dmabuf->ops != &amdgpu_dmabuf_ops)
 		bo->prime_shared_count = 1;
 
-	ww_mutex_unlock(&resv->lock);
-	return &bo->gem_base;
+	dma_resv_unlock(resv);
+	return &bo->tbo.base;
 
 error:
-	ww_mutex_unlock(&resv->lock);
+	dma_resv_unlock(resv);
 	return ERR_PTR(ret);
 }
 

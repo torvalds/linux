@@ -96,7 +96,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 		cpu_to_le64(trans_pcie->rxq->bd_dma);
 
 	/* Configure debug, for integration */
-	if (!trans->dbg.ini_valid)
+	if (!iwl_trans_dbg_ini_valid(trans))
 		iwl_pcie_alloc_fw_monitor(trans, 0);
 	if (trans->dbg.num_blocks) {
 		prph_sc_ctrl->hwm_cfg.hwm_base_addr =
@@ -180,7 +180,7 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	iwl_set_bit(trans, CSR_CTXT_INFO_BOOT_CTRL,
 		    CSR_AUTO_FUNC_BOOT_ENA);
-	if (trans->cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210)
 		iwl_write_umac_prph(trans, UREG_CPU_INIT_RUN, 1);
 	else
 		iwl_set_bit(trans, CSR_GP_CNTRL, CSR_AUTO_FUNC_INIT);

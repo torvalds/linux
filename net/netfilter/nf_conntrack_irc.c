@@ -213,7 +213,7 @@ static int help(struct sk_buff *skb, unsigned int protoff,
 						 addr_beg_p - ib_ptr,
 						 addr_end_p - addr_beg_p,
 						 exp);
-			else if (nf_ct_expect_related(exp) != 0) {
+			else if (nf_ct_expect_related(exp, 0) != 0) {
 				nf_ct_helper_log(skb, ct,
 						 "cannot add expectation");
 				ret = NF_DROP;

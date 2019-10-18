@@ -272,6 +272,7 @@ static struct platform_driver exynos_pcie_phy_driver = {
 	.driver = {
 		.of_match_table	= exynos_pcie_phy_match,
 		.name		= "exynos_pcie_phy",
+		.suppress_bind_attrs = true,
 	}
 };
 

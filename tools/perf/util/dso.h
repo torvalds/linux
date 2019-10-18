@@ -2,19 +2,22 @@
 #ifndef __PERF_DSO
 #define __PERF_DSO
 
+#include <pthread.h>
 #include <linux/refcount.h>
 #include <linux/types.h>
 #include <linux/rbtree.h>
 #include <sys/types.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include "rwsem.h"
 #include <linux/bitops.h>
 #include "build-id.h"
 
 struct machine;
 struct map;
 struct perf_env;
+
+#define DSO__NAME_KALLSYMS	"[kernel.kallsyms]"
+#define DSO__NAME_KCORE		"[kernel.kcore]"
 
 enum dso_binary_type {
 	DSO_BINARY_TYPE__KALLSYMS = 0,
@@ -124,16 +127,6 @@ struct dso_cache {
 	u64 offset;
 	u64 size;
 	char data[0];
-};
-
-/*
- * DSOs are put into both a list for fast iteration and rbtree for fast
- * long name lookup.
- */
-struct dsos {
-	struct list_head head;
-	struct rb_root	 root;	/* rbtree root sorted by long name */
-	struct rw_semaphore lock;
 };
 
 struct auxtrace_cache;
@@ -344,20 +337,7 @@ struct map *dso__new_map(const char *name);
 struct dso *machine__findnew_kernel(struct machine *machine, const char *name,
 				    const char *short_name, int dso_type);
 
-void __dsos__add(struct dsos *dsos, struct dso *dso);
-void dsos__add(struct dsos *dsos, struct dso *dso);
-struct dso *__dsos__addnew(struct dsos *dsos, const char *name);
-struct dso *__dsos__find(struct dsos *dsos, const char *name, bool cmp_short);
-struct dso *dsos__find(struct dsos *dsos, const char *name, bool cmp_short);
-struct dso *__dsos__findnew(struct dsos *dsos, const char *name);
-struct dso *dsos__findnew(struct dsos *dsos, const char *name);
-bool __dsos__read_build_ids(struct list_head *head, bool with_hits);
-
 void dso__reset_find_symbol_cache(struct dso *dso);
-
-size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
-			       bool (skip)(struct dso *dso, int parm), int parm);
-size_t __dsos__fprintf(struct list_head *head, FILE *fp);
 
 size_t dso__fprintf_buildid(struct dso *dso, FILE *fp);
 size_t dso__fprintf_symbols_by_name(struct dso *dso, FILE *fp);

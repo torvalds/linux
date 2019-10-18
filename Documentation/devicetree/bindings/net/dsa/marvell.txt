@@ -22,7 +22,7 @@ which is at a different MDIO base address in different switch families.
 - "marvell,mv88e6190"	: Switch has base address 0x00. Use with models:
 			  6190, 6190X, 6191, 6290, 6390, 6390X
 - "marvell,mv88e6250"	: Switch has base address 0x08 or 0x18. Use with model:
-			  6250
+			  6220, 6250
 
 Required properties:
 - compatible		: Should be one of "marvell,mv88e6085",

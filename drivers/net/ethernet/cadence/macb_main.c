@@ -165,9 +165,8 @@ static unsigned int macb_adj_dma_desc_idx(struct macb *bp, unsigned int desc_idx
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 static struct macb_dma_desc_64 *macb_64b_desc(struct macb *bp, struct macb_dma_desc *desc)
 {
-	if (bp->hw_dma_cap & HW_DMA_CAP_64B)
-		return (struct macb_dma_desc_64 *)((void *)desc + sizeof(struct macb_dma_desc));
-	return NULL;
+	return (struct macb_dma_desc_64 *)((void *)desc
+		+ sizeof(struct macb_dma_desc));
 }
 #endif
 
@@ -4154,7 +4153,7 @@ static const struct of_device_id macb_dt_ids[] = {
 	{ .compatible = "cdns,emac", .data = &emac_config },
 	{ .compatible = "cdns,zynqmp-gem", .data = &zynqmp_config},
 	{ .compatible = "cdns,zynq-gem", .data = &zynq_config },
-	{ .compatible = "sifive,fu540-macb", .data = &fu540_c000_config },
+	{ .compatible = "sifive,fu540-c000-gem", .data = &fu540_c000_config },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, macb_dt_ids);

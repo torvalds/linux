@@ -39,7 +39,6 @@ Table : Subdirectories in /proc/sys/net
  802       E802 protocol         ax25       AX25
  ethernet  Ethernet protocol     rose       X.25 PLP layer
  ipv4      IP version 4          x25        X.25 protocol
- ipx       IPX                   token-ring IBM token ring
  bridge    Bridging              decnet     DEC net
  ipv6      IP version 6          tipc       TIPC
  ========= =================== = ========== ==================
@@ -401,33 +400,7 @@ interface.
 (network) that the route leads to, the router (may be directly connected), the
 route flags, and the device the route is using.
 
-
-5. IPX
-------
-
-The IPX protocol has no tunable values in proc/sys/net.
-
-The IPX  protocol  does,  however,  provide  proc/net/ipx. This lists each IPX
-socket giving  the  local  and  remote  addresses  in  Novell  format (that is
-network:node:port). In  accordance  with  the  strange  Novell  tradition,
-everything but the port is in hex. Not_Connected is displayed for sockets that
-are not  tied to a specific remote address. The Tx and Rx queue sizes indicate
-the number  of  bytes  pending  for  transmission  and  reception.  The  state
-indicates the  state  the  socket  is  in and the uid is the owning uid of the
-socket.
-
-The /proc/net/ipx_interface  file lists all IPX interfaces. For each interface
-it gives  the network number, the node number, and indicates if the network is
-the primary  network.  It  also  indicates  which  device  it  is bound to (or
-Internal for  internal  networks)  and  the  Frame  Type if appropriate. Linux
-supports 802.3,  802.2,  802.2  SNAP  and DIX (Blue Book) ethernet framing for
-IPX.
-
-The /proc/net/ipx_route  table  holds  a list of IPX routes. For each route it
-gives the  destination  network, the router node (or Directly) and the network
-address of the router (or Connected) for internal networks.
-
-6. TIPC
+5. TIPC
 -------
 
 tipc_rmem

@@ -5,7 +5,7 @@
  *
  * The ATXP1 can reside on I2C addresses 0x37 or 0x4e. The chip is
  * not auto-detected by the driver and must be instantiated explicitly.
- * See Documentation/i2c/instantiating-devices for more information.
+ * See Documentation/i2c/instantiating-devices.rst for more information.
  */
 
 #include <linux/kernel.h>

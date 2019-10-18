@@ -18,11 +18,31 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "processor.h"
+#include "vmx.h"
 
 #define VCPU_ID 0
 
 static void guest_code(void)
 {
+}
+
+static int smt_possible(void)
+{
+	char buf[16];
+	FILE *f;
+	bool res = 1;
+
+	f = fopen("/sys/devices/system/cpu/smt/control", "r");
+	if (f) {
+		if (fread(buf, sizeof(*buf), sizeof(buf), f) > 0) {
+			if (!strncmp(buf, "forceoff", 8) ||
+			    !strncmp(buf, "notsupported", 12))
+				res = 0;
+		}
+		fclose(f);
+	}
+
+	return res;
 }
 
 static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
@@ -57,6 +77,14 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 
 		TEST_ASSERT(!entry->padding[0] && !entry->padding[1] &&
 			    !entry->padding[2], "padding should be zero");
+
+		if (entry->function == 0x40000004) {
+			int nononarchcs = !!(entry->eax & (1UL << 18));
+
+			TEST_ASSERT(nononarchcs == !smt_possible(),
+				    "NoNonArchitecturalCoreSharing bit"
+				    " doesn't reflect SMT setting");
+		}
 
 		/*
 		 * If needed for debug:
@@ -106,12 +134,7 @@ int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
 	int rv;
-	uint16_t evmcs_ver;
 	struct kvm_cpuid2 *hv_cpuid_entries;
-	struct kvm_enable_cap enable_evmcs_cap = {
-		.cap = KVM_CAP_HYPERV_ENLIGHTENED_VMCS,
-		 .args[0] = (unsigned long)&evmcs_ver
-	};
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
@@ -136,13 +159,13 @@ int main(int argc, char *argv[])
 
 	free(hv_cpuid_entries);
 
-	rv = _vcpu_ioctl(vm, VCPU_ID, KVM_ENABLE_CAP, &enable_evmcs_cap);
-
-	if (rv) {
+	if (!kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
 		fprintf(stderr,
 			"Enlightened VMCS is unsupported, skip related test\n");
 		goto vm_free;
 	}
+
+	vcpu_enable_evmcs(vm, VCPU_ID);
 
 	hv_cpuid_entries = kvm_get_supported_hv_cpuid(vm);
 	if (!hv_cpuid_entries)

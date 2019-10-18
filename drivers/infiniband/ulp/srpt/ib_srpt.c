@@ -1767,8 +1767,8 @@ static int srpt_create_ch_ib(struct srpt_rdma_ch *ch)
 		goto out;
 
 retry:
-	ch->cq = ib_alloc_cq(sdev->device, ch, ch->rq_size + sq_size,
-			0 /* XXX: spread CQs */, IB_POLL_WORKQUEUE);
+	ch->cq = ib_alloc_cq_any(sdev->device, ch, ch->rq_size + sq_size,
+				 IB_POLL_WORKQUEUE);
 	if (IS_ERR(ch->cq)) {
 		ret = PTR_ERR(ch->cq);
 		pr_err("failed to create CQ cqe= %d ret= %d\n",

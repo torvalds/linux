@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2002 - 2008 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <unistd.h>
@@ -132,7 +132,7 @@ static void update_thread(void)
 	int n;
 	char c;
 
-	flags = set_signals(0);
+	flags = set_signals_trace(0);
 	CATCH_EINTR(n = write(sigio_private[0], &c, sizeof(c)));
 	if (n != sizeof(c)) {
 		printk(UM_KERN_ERR "update_thread : write failed, err = %d\n",
@@ -147,7 +147,7 @@ static void update_thread(void)
 		goto fail;
 	}
 
-	set_signals(flags);
+	set_signals_trace(flags);
 	return;
  fail:
 	/* Critical section start */
@@ -161,7 +161,7 @@ static void update_thread(void)
 	close(write_sigio_fds[0]);
 	close(write_sigio_fds[1]);
 	/* Critical section end */
-	set_signals(flags);
+	set_signals_trace(flags);
 }
 
 int add_sigio_fd(int fd)

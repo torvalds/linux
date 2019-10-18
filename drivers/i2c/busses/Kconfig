@@ -429,6 +429,7 @@ config I2C_AXXIA
 	tristate "Axxia I2C controller"
 	depends on ARCH_AXXIA || COMPILE_TEST
 	default ARCH_AXXIA
+	select I2C_SLAVE
 	help
 	  Say yes if you want to support the I2C bus on Axxia platforms.
 
@@ -684,7 +685,7 @@ config I2C_IMX_LPI2C
 
 config I2C_IOP3XX
 	tristate "Intel IOPx3xx and IXP4xx on-chip I2C interface"
-	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IXP4XX || ARCH_IOP13XX
+	depends on ARCH_IOP32X || ARCH_IXP4XX
 	help
 	  Say Y here if you want to use the IIC bus controller on
 	  the Intel IOPx3xx I/O Processors or IXP4xx Network Processors.
@@ -977,7 +978,7 @@ config I2C_SIRF
 	  will be called i2c-sirf.
 
 config I2C_SPRD
-	bool "Spreadtrum I2C interface"
+	tristate "Spreadtrum I2C interface"
 	depends on I2C=y && ARCH_SPRD
 	help
 	  If you say yes to this option, support will be included for the
@@ -1206,7 +1207,7 @@ config I2C_PARPORT
 	  and makes it easier to add support for new devices.
 
 	  An adapter type parameter is now mandatory.  Please read the file
-	  Documentation/i2c/busses/i2c-parport for details.
+	  Documentation/i2c/busses/i2c-parport.rst for details.
 
 	  Another driver exists, named i2c-parport-light, which doesn't depend
 	  on the parport driver.  This is meant for embedded systems. Don't say
@@ -1309,6 +1310,20 @@ config I2C_ELEKTOR
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-elektor.
 
+config I2C_ICY
+	tristate "ICY Zorro card"
+	depends on ZORRO
+	select I2C_ALGOPCF
+	help
+	  This supports the PCF8584 Zorro bus I2C adapter, known as ICY.
+	  Say Y if you own such an adapter.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-icy.
+
+	  If you have a 2019 edition board with an LTC2990 sensor at address
+	  0x4c, loading the module 'ltc2990' is sufficient to enable it.
+
 config I2C_MLXCPLD
 	tristate "Mellanox I2C driver"
 	depends on X86_64
@@ -1345,7 +1360,7 @@ config I2C_SIBYTE
 
 config I2C_CROS_EC_TUNNEL
 	tristate "ChromeOS EC tunnel I2C bus"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  If you say yes here you get an I2C bus that will tunnel i2c commands
 	  through to the other side of the ChromeOS EC to the i2c bus

@@ -4,7 +4,6 @@
  */
 #ifndef __ASM_COMPAT_H
 #define __ASM_COMPAT_H
-#ifdef __KERNEL__
 #ifdef CONFIG_COMPAT
 
 /*
@@ -215,5 +214,4 @@ static inline int is_compat_thread(struct thread_info *thread)
 }
 
 #endif /* CONFIG_COMPAT */
-#endif /* __KERNEL__ */
 #endif /* __ASM_COMPAT_H */

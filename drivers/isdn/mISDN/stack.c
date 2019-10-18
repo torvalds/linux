@@ -75,8 +75,7 @@ send_socklist(struct mISDN_sock_list *sl, struct sk_buff *skb)
 			cskb = NULL;
 	}
 	read_unlock(&sl->lock);
-	if (cskb)
-		dev_kfree_skb(cskb);
+	dev_kfree_skb(cskb);
 }
 
 static void
@@ -134,8 +133,7 @@ send_layer2(struct mISDNstack *st, struct sk_buff *skb)
 	}
 out:
 	mutex_unlock(&st->lmutex);
-	if (skb)
-		dev_kfree_skb(skb);
+	dev_kfree_skb(skb);
 }
 
 static inline int

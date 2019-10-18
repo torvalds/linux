@@ -27,14 +27,20 @@
 #include "libbpf.h"
 #include <bpf/bpf.h>
 
-
-static int do_attach(int idx, int fd, const char *name)
+static int do_attach(int idx, int prog_fd, int map_fd, const char *name)
 {
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, fd, 0);
-	if (err < 0)
+	err = bpf_set_link_xdp_fd(idx, prog_fd, 0);
+	if (err < 0) {
 		printf("ERROR: failed to attach program to %s\n", name);
+		return err;
+	}
+
+	/* Adding ifindex as a possible egress TX port */
+	err = bpf_map_update_elem(map_fd, &idx, &idx, 0);
+	if (err)
+		printf("ERROR: failed using device %s as TX-port\n", name);
 
 	return err;
 }
@@ -47,6 +53,9 @@ static int do_detach(int idx, const char *name)
 	if (err < 0)
 		printf("ERROR: failed to detach program from %s\n", name);
 
+	/* TODO: Remember to cleanup map, when adding use of shared map
+	 *  bpf_map_delete_elem((map_fd, &idx);
+	 */
 	return err;
 }
 
@@ -67,10 +76,10 @@ int main(int argc, char **argv)
 	};
 	const char *prog_name = "xdp_fwd";
 	struct bpf_program *prog;
+	int prog_fd, map_fd = -1;
 	char filename[PATH_MAX];
 	struct bpf_object *obj;
 	int opt, i, idx, err;
-	int prog_fd, map_fd;
 	int attach = 1;
 	int ret = 0;
 
@@ -103,8 +112,14 @@ int main(int argc, char **argv)
 			return 1;
 		}
 
-		if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+		err = bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd);
+		if (err) {
+			printf("Does kernel support devmap lookup?\n");
+			/* If not, the error message will be:
+			 *  "cannot pass map_type 14 into func bpf_map_lookup_elem#1"
+			 */
 			return 1;
+		}
 
 		prog = bpf_object__find_program_by_title(obj, prog_name);
 		prog_fd = bpf_program__fd(prog);
@@ -113,15 +128,11 @@ int main(int argc, char **argv)
 			return 1;
 		}
 		map_fd = bpf_map__fd(bpf_object__find_map_by_name(obj,
-								  "tx_port"));
+							"xdp_tx_ports"));
 		if (map_fd < 0) {
 			printf("map not found: %s\n", strerror(map_fd));
 			return 1;
 		}
-	}
-	if (attach) {
-		for (i = 1; i < 64; ++i)
-			bpf_map_update_elem(map_fd, &i, &i, 0);
 	}
 
 	for (i = optind; i < argc; ++i) {
@@ -138,7 +149,7 @@ int main(int argc, char **argv)
 			if (err)
 				ret = err;
 		} else {
-			err = do_attach(idx, prog_fd, argv[i]);
+			err = do_attach(idx, prog_fd, map_fd, argv[i]);
 			if (err)
 				ret = err;
 		}

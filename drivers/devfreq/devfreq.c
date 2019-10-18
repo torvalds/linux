@@ -254,7 +254,7 @@ static struct devfreq_governor *try_then_request_governor(const char *name)
 		/* Restore previous state before return */
 		mutex_lock(&devfreq_list_lock);
 		if (err)
-			return ERR_PTR(err);
+			return (err < 0) ? ERR_PTR(err) : ERR_PTR(-EINVAL);
 
 		governor = find_devfreq_governor(name);
 	}
@@ -402,7 +402,7 @@ static void devfreq_monitor(struct work_struct *work)
  * devfreq_monitor_start() - Start load monitoring of devfreq instance
  * @devfreq:	the devfreq instance.
  *
- * Helper function for starting devfreq device load monitoing. By
+ * Helper function for starting devfreq device load monitoring. By
  * default delayed work based monitoring is supported. Function
  * to be called from governor in response to DEVFREQ_GOV_START
  * event when device is added to devfreq framework.
@@ -420,7 +420,7 @@ EXPORT_SYMBOL(devfreq_monitor_start);
  * devfreq_monitor_stop() - Stop load monitoring of a devfreq instance
  * @devfreq:	the devfreq instance.
  *
- * Helper function to stop devfreq device load monitoing. Function
+ * Helper function to stop devfreq device load monitoring. Function
  * to be called from governor in response to DEVFREQ_GOV_STOP
  * event when device is removed from devfreq framework.
  */
@@ -434,7 +434,7 @@ EXPORT_SYMBOL(devfreq_monitor_stop);
  * devfreq_monitor_suspend() - Suspend load monitoring of a devfreq instance
  * @devfreq:	the devfreq instance.
  *
- * Helper function to suspend devfreq device load monitoing. Function
+ * Helper function to suspend devfreq device load monitoring. Function
  * to be called from governor in response to DEVFREQ_GOV_SUSPEND
  * event or when polling interval is set to zero.
  *
@@ -461,7 +461,7 @@ EXPORT_SYMBOL(devfreq_monitor_suspend);
  * devfreq_monitor_resume() - Resume load monitoring of a devfreq instance
  * @devfreq:    the devfreq instance.
  *
- * Helper function to resume devfreq device load monitoing. Function
+ * Helper function to resume devfreq device load monitoring. Function
  * to be called from governor in response to DEVFREQ_GOV_RESUME
  * event or when polling interval is set to non-zero.
  */
@@ -867,7 +867,7 @@ EXPORT_SYMBOL_GPL(devfreq_get_devfreq_by_phandle);
 
 /**
  * devm_devfreq_remove_device() - Resource-managed devfreq_remove_device()
- * @dev:	the device to add devfreq feature.
+ * @dev:	the device from which to remove devfreq feature.
  * @devfreq:	the devfreq instance to be removed
  */
 void devm_devfreq_remove_device(struct device *dev, struct devfreq *devfreq)

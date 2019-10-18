@@ -8,12 +8,12 @@
  */
 
 #include <bpf/libbpf.h>
-#include "perf.h"
 #include "debug.h"
 #include "bpf-loader.h"
 #include "bpf-prologue.h"
 #include "probe-finder.h"
 #include <errno.h>
+#include <stdlib.h>
 #include <dwarf-regs.h>
 #include <linux/filter.h>
 

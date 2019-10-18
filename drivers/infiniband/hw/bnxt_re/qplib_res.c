@@ -488,7 +488,7 @@ static int bnxt_qplib_alloc_sgid_tbl(struct bnxt_qplib_res *res,
 				     struct bnxt_qplib_sgid_tbl *sgid_tbl,
 				     u16 max)
 {
-	sgid_tbl->tbl = kcalloc(max, sizeof(struct bnxt_qplib_gid), GFP_KERNEL);
+	sgid_tbl->tbl = kcalloc(max, sizeof(*sgid_tbl->tbl), GFP_KERNEL);
 	if (!sgid_tbl->tbl)
 		return -ENOMEM;
 
@@ -526,9 +526,10 @@ static void bnxt_qplib_cleanup_sgid_tbl(struct bnxt_qplib_res *res,
 	for (i = 0; i < sgid_tbl->max; i++) {
 		if (memcmp(&sgid_tbl->tbl[i], &bnxt_qplib_gid_zero,
 			   sizeof(bnxt_qplib_gid_zero)))
-			bnxt_qplib_del_sgid(sgid_tbl, &sgid_tbl->tbl[i], true);
+			bnxt_qplib_del_sgid(sgid_tbl, &sgid_tbl->tbl[i].gid,
+					    sgid_tbl->tbl[i].vlan_id, true);
 	}
-	memset(sgid_tbl->tbl, 0, sizeof(struct bnxt_qplib_gid) * sgid_tbl->max);
+	memset(sgid_tbl->tbl, 0, sizeof(*sgid_tbl->tbl) * sgid_tbl->max);
 	memset(sgid_tbl->hw_id, -1, sizeof(u16) * sgid_tbl->max);
 	memset(sgid_tbl->vlan, 0, sizeof(u8) * sgid_tbl->max);
 	sgid_tbl->active = 0;
@@ -537,7 +538,11 @@ static void bnxt_qplib_cleanup_sgid_tbl(struct bnxt_qplib_res *res,
 static void bnxt_qplib_init_sgid_tbl(struct bnxt_qplib_sgid_tbl *sgid_tbl,
 				     struct net_device *netdev)
 {
-	memset(sgid_tbl->tbl, 0, sizeof(struct bnxt_qplib_gid) * sgid_tbl->max);
+	u32 i;
+
+	for (i = 0; i < sgid_tbl->max; i++)
+		sgid_tbl->tbl[i].vlan_id = 0xffff;
+
 	memset(sgid_tbl->hw_id, -1, sizeof(u16) * sgid_tbl->max);
 }
 

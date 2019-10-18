@@ -861,8 +861,9 @@ int kvm_arch_vcpu_setup(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_postcreate(struct kvm_vcpu *vcpu);
 void kvm_arch_vcpu_destroy(struct kvm_vcpu *vcpu);
 
-bool kvm_arch_has_vcpu_debugfs(void);
-int kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu);
+#ifdef __KVM_HAVE_ARCH_VCPU_DEBUGFS
+void kvm_arch_create_vcpu_debugfs(struct kvm_vcpu *vcpu);
+#endif
 
 int kvm_arch_hardware_enable(void);
 void kvm_arch_hardware_disable(void);
@@ -872,6 +873,7 @@ int kvm_arch_check_processor_compat(void);
 int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu);
 bool kvm_arch_vcpu_in_kernel(struct kvm_vcpu *vcpu);
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
+bool kvm_arch_dy_runnable(struct kvm_vcpu *vcpu);
 
 #ifndef __KVM_HAVE_ARCH_VM_ALLOC
 /*
@@ -1088,6 +1090,7 @@ enum kvm_stat_kind {
 
 struct kvm_stat_data {
 	int offset;
+	int mode;
 	struct kvm *kvm;
 };
 
@@ -1095,6 +1098,7 @@ struct kvm_stats_debugfs_item {
 	const char *name;
 	int offset;
 	enum kvm_stat_kind kind;
+	int mode;
 };
 extern struct kvm_stats_debugfs_item debugfs_entries[];
 extern struct dentry *kvm_debugfs_dir;

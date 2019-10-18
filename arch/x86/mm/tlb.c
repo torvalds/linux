@@ -440,7 +440,7 @@ void switch_mm_irqs_off(struct mm_struct *prev, struct mm_struct *next,
 	this_cpu_write(cpu_tlbstate.loaded_mm_asid, new_asid);
 
 	if (next != real_prev) {
-		load_mm_cr4(next);
+		load_mm_cr4_irqsoff(next);
 		switch_ldt(real_prev, next);
 	}
 }

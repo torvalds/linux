@@ -1,0 +1,26 @@
+Sharp LD-D5116Z01B 12.3" WUXGA+ eDP panel
+
+Required properties:
+- compatible: should be "sharp,ld-d5116z01b"
+- power-supply: regulator to provide the VCC supply voltage (3.3 volts)
+
+This binding is compatible with the simple-panel binding.
+
+The device node can contain one 'port' child node with one child
+'endpoint' node, according to the bindings defined in [1]. This
+node should describe panel's video bus.
+
+[1]: Documentation/devicetree/bindings/media/video-interfaces.txt
+
+Example:
+
+	panel: panel {
+		compatible = "sharp,ld-d5116z01b";
+		power-supply = <&vlcd_3v3>;
+
+		port {
+			panel_ep: endpoint {
+				remote-endpoint = <&bridge_out_ep>;
+			};
+		};
+	};

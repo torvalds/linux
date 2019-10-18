@@ -32,7 +32,9 @@
 #ifndef _I810_DRV_H_
 #define _I810_DRV_H_
 
+#include <drm/drm_ioctl.h>
 #include <drm/drm_legacy.h>
+#include <drm/i810_drm.h>
 
 /* General customization:
  */

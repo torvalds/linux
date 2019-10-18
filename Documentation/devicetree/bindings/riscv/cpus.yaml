@@ -10,6 +10,18 @@ maintainers:
   - Paul Walmsley <paul.walmsley@sifive.com>
   - Palmer Dabbelt <palmer@sifive.com>
 
+description: |
+  This document uses some terminology common to the RISC-V community
+  that is not widely used, the definitions of which are listed here:
+
+  hart: A hardware execution context, which contains all the state
+  mandated by the RISC-V ISA: a PC and some registers.  This
+  terminology is designed to disambiguate software's view of execution
+  contexts from any particular microarchitectural implementation
+  strategy.  For example, an Intel laptop containing one socket with
+  two cores, each of which has two hyperthreads, could be described as
+  having four harts.
+
 properties:
   compatible:
     items:
@@ -49,6 +61,10 @@ properties:
       supported by the hart.  These are documented in the RISC-V
       User-Level ISA document, available from
       https://riscv.org/specifications/
+
+      While the isa strings in ISA specification are case
+      insensitive, letters in the riscv,isa string must be all
+      lowercase to simplify parsing.
 
   timebase-frequency:
     type: integer

@@ -225,10 +225,6 @@ struct o2hb_region {
 	unsigned int		hr_region_num;
 
 	struct dentry		*hr_debug_dir;
-	struct dentry		*hr_debug_livenodes;
-	struct dentry		*hr_debug_regnum;
-	struct dentry		*hr_debug_elapsed_time;
-	struct dentry		*hr_debug_pinned;
 	struct o2hb_debug_buf	*hr_db_livenodes;
 	struct o2hb_debug_buf	*hr_db_regnum;
 	struct o2hb_debug_buf	*hr_db_elapsed_time;
@@ -1394,21 +1390,20 @@ void o2hb_exit(void)
 	kfree(o2hb_db_failedregions);
 }
 
-static struct dentry *o2hb_debug_create(const char *name, struct dentry *dir,
-					struct o2hb_debug_buf **db, int db_len,
-					int type, int size, int len, void *data)
+static void o2hb_debug_create(const char *name, struct dentry *dir,
+			      struct o2hb_debug_buf **db, int db_len, int type,
+			      int size, int len, void *data)
 {
 	*db = kmalloc(db_len, GFP_KERNEL);
 	if (!*db)
-		return NULL;
+		return;
 
 	(*db)->db_type = type;
 	(*db)->db_size = size;
 	(*db)->db_len = len;
 	(*db)->db_data = data;
 
-	return debugfs_create_file(name, S_IFREG|S_IRUSR, dir, *db,
-				   &o2hb_debug_fops);
+	debugfs_create_file(name, S_IFREG|S_IRUSR, dir, *db, &o2hb_debug_fops);
 }
 
 static void o2hb_debug_init(void)
@@ -1525,11 +1520,7 @@ static void o2hb_region_release(struct config_item *item)
 
 	kfree(reg->hr_slots);
 
-	debugfs_remove(reg->hr_debug_livenodes);
-	debugfs_remove(reg->hr_debug_regnum);
-	debugfs_remove(reg->hr_debug_elapsed_time);
-	debugfs_remove(reg->hr_debug_pinned);
-	debugfs_remove(reg->hr_debug_dir);
+	debugfs_remove_recursive(reg->hr_debug_dir);
 	kfree(reg->hr_db_livenodes);
 	kfree(reg->hr_db_regnum);
 	kfree(reg->hr_db_elapsed_time);
@@ -1988,69 +1979,33 @@ static struct o2hb_heartbeat_group *to_o2hb_heartbeat_group(struct config_group 
 		: NULL;
 }
 
-static int o2hb_debug_region_init(struct o2hb_region *reg, struct dentry *dir)
+static void o2hb_debug_region_init(struct o2hb_region *reg,
+				   struct dentry *parent)
 {
-	int ret = -ENOMEM;
+	struct dentry *dir;
 
-	reg->hr_debug_dir =
-		debugfs_create_dir(config_item_name(&reg->hr_item), dir);
-	if (!reg->hr_debug_dir) {
-		mlog_errno(ret);
-		goto bail;
-	}
+	dir = debugfs_create_dir(config_item_name(&reg->hr_item), parent);
+	reg->hr_debug_dir = dir;
 
-	reg->hr_debug_livenodes =
-			o2hb_debug_create(O2HB_DEBUG_LIVENODES,
-					  reg->hr_debug_dir,
-					  &(reg->hr_db_livenodes),
-					  sizeof(*(reg->hr_db_livenodes)),
-					  O2HB_DB_TYPE_REGION_LIVENODES,
-					  sizeof(reg->hr_live_node_bitmap),
-					  O2NM_MAX_NODES, reg);
-	if (!reg->hr_debug_livenodes) {
-		mlog_errno(ret);
-		goto bail;
-	}
+	o2hb_debug_create(O2HB_DEBUG_LIVENODES, dir, &(reg->hr_db_livenodes),
+			  sizeof(*(reg->hr_db_livenodes)),
+			  O2HB_DB_TYPE_REGION_LIVENODES,
+			  sizeof(reg->hr_live_node_bitmap), O2NM_MAX_NODES,
+			  reg);
 
-	reg->hr_debug_regnum =
-			o2hb_debug_create(O2HB_DEBUG_REGION_NUMBER,
-					  reg->hr_debug_dir,
-					  &(reg->hr_db_regnum),
-					  sizeof(*(reg->hr_db_regnum)),
-					  O2HB_DB_TYPE_REGION_NUMBER,
-					  0, O2NM_MAX_NODES, reg);
-	if (!reg->hr_debug_regnum) {
-		mlog_errno(ret);
-		goto bail;
-	}
+	o2hb_debug_create(O2HB_DEBUG_REGION_NUMBER, dir, &(reg->hr_db_regnum),
+			  sizeof(*(reg->hr_db_regnum)),
+			  O2HB_DB_TYPE_REGION_NUMBER, 0, O2NM_MAX_NODES, reg);
 
-	reg->hr_debug_elapsed_time =
-			o2hb_debug_create(O2HB_DEBUG_REGION_ELAPSED_TIME,
-					  reg->hr_debug_dir,
-					  &(reg->hr_db_elapsed_time),
-					  sizeof(*(reg->hr_db_elapsed_time)),
-					  O2HB_DB_TYPE_REGION_ELAPSED_TIME,
-					  0, 0, reg);
-	if (!reg->hr_debug_elapsed_time) {
-		mlog_errno(ret);
-		goto bail;
-	}
+	o2hb_debug_create(O2HB_DEBUG_REGION_ELAPSED_TIME, dir,
+			  &(reg->hr_db_elapsed_time),
+			  sizeof(*(reg->hr_db_elapsed_time)),
+			  O2HB_DB_TYPE_REGION_ELAPSED_TIME, 0, 0, reg);
 
-	reg->hr_debug_pinned =
-			o2hb_debug_create(O2HB_DEBUG_REGION_PINNED,
-					  reg->hr_debug_dir,
-					  &(reg->hr_db_pinned),
-					  sizeof(*(reg->hr_db_pinned)),
-					  O2HB_DB_TYPE_REGION_PINNED,
-					  0, 0, reg);
-	if (!reg->hr_debug_pinned) {
-		mlog_errno(ret);
-		goto bail;
-	}
+	o2hb_debug_create(O2HB_DEBUG_REGION_PINNED, dir, &(reg->hr_db_pinned),
+			  sizeof(*(reg->hr_db_pinned)),
+			  O2HB_DB_TYPE_REGION_PINNED, 0, 0, reg);
 
-	ret = 0;
-bail:
-	return ret;
 }
 
 static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *group,
@@ -2106,11 +2061,7 @@ static struct config_item *o2hb_heartbeat_group_make_item(struct config_group *g
 	if (ret)
 		goto unregister_handler;
 
-	ret = o2hb_debug_region_init(reg, o2hb_debug_dir);
-	if (ret) {
-		config_item_put(&reg->hr_item);
-		goto unregister_handler;
-	}
+	o2hb_debug_region_init(reg, o2hb_debug_dir);
 
 	return &reg->hr_item;
 

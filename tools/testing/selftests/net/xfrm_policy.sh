@@ -106,6 +106,13 @@ do_overlap()
     #
     # 10.0.0.0/24 and 10.0.1.0/24 nodes have been merged as 10.0.0.0/23.
     ip -net $ns xfrm policy add src 10.1.0.0/24 dst 10.0.0.0/23 dir fwd priority 200 action block
+
+    # similar to above: add policies (with partially random address), with shrinking prefixes.
+    for p in 29 28 27;do
+      for k in $(seq 1 32); do
+       ip -net $ns xfrm policy add src 10.253.1.$((RANDOM%255))/$p dst 10.254.1.$((RANDOM%255))/$p dir fwd priority $((200+k)) action block 2>/dev/null
+      done
+    done
 }
 
 do_esp_policy_get_check() {

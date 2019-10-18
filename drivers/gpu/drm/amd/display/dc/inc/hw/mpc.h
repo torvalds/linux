@@ -128,6 +128,7 @@ struct mpc {
 	struct mpcc mpcc_array[MAX_MPCC];
 #if defined(CONFIG_DRM_AMD_DC_DCN2_0)
 	struct pwl_params blender_params;
+	bool cm_bypass_mode;
 #endif
 };
 
@@ -198,6 +199,9 @@ struct mpc_funcs {
 	 * Return:  void
 	 */
 	void (*mpc_init)(struct mpc *mpc);
+	void (*mpc_init_single_inst)(
+			struct mpc *mpc,
+			unsigned int mpcc_id);
 
 	/*
 	 * Update the blending configuration for a specified MPCC.
@@ -250,6 +254,10 @@ struct mpc_funcs {
 			struct mpc *mpc,
 			int mpcc_id,
 			const struct pwl_params *params);
+	void (*power_on_mpc_mem_pwr)(
+			struct mpc *mpc,
+			int mpcc_id,
+			bool power_on);
 #endif
 
 };

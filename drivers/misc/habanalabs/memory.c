@@ -1629,6 +1629,8 @@ void hl_vm_ctx_fini(struct hl_ctx *ctx)
 			dev_dbg(hdev->dev,
 				"page list 0x%p of asid %d is still alive\n",
 				phys_pg_list, ctx->asid);
+			atomic64_sub(phys_pg_list->total_size,
+					&hdev->dram_used_mem);
 			free_phys_pg_pack(hdev, phys_pg_list);
 			idr_remove(&vm->phys_pg_pack_handles, i);
 		}

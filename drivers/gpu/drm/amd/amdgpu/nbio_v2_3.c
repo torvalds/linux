@@ -92,7 +92,7 @@ static void nbio_v2_3_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 }
 
 static void nbio_v2_3_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
-					 int doorbell_index)
+					 int doorbell_index, int instance)
 {
 	u32 reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
 

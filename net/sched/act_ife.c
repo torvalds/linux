@@ -479,7 +479,13 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	u8 *saddr = NULL;
 	bool exists = false;
 	int ret = 0;
+	u32 index;
 	int err;
+
+	if (!nla) {
+		NL_SET_ERR_MSG_MOD(extack, "IFE requires attributes to be passed");
+		return -EINVAL;
+	}
 
 	err = nla_parse_nested_deprecated(tb, TCA_IFE_MAX, nla, ife_policy,
 					  NULL);
@@ -502,7 +508,8 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	if (!p)
 		return -ENOMEM;
 
-	err = tcf_idr_check_alloc(tn, &parm->index, a, bind);
+	index = parm->index;
+	err = tcf_idr_check_alloc(tn, &index, a, bind);
 	if (err < 0) {
 		kfree(p);
 		return err;
@@ -514,10 +521,10 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	}
 
 	if (!exists) {
-		ret = tcf_idr_create(tn, parm->index, est, a, &act_ife_ops,
+		ret = tcf_idr_create(tn, index, est, a, &act_ife_ops,
 				     bind, true);
 		if (ret) {
-			tcf_idr_cleanup(tn, parm->index);
+			tcf_idr_cleanup(tn, index);
 			kfree(p);
 			return ret;
 		}
@@ -883,7 +890,7 @@ static __net_init int ife_init_net(struct net *net)
 {
 	struct tc_action_net *tn = net_generic(net, ife_net_id);
 
-	return tc_action_net_init(tn, &act_ife_ops);
+	return tc_action_net_init(net, tn, &act_ife_ops);
 }
 
 static void __net_exit ife_exit_net(struct list_head *net_list)

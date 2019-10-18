@@ -139,7 +139,6 @@ static int isp1761_pci_probe(struct pci_dev *dev,
 
 	pci_set_master(dev);
 
-	dev->dev.dma_mask = NULL;
 	ret = isp1760_register(&dev->resource[3], dev->irq, 0, &dev->dev,
 			       devflags);
 	if (ret < 0)

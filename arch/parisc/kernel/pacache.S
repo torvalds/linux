@@ -63,7 +63,7 @@ ENTRY_CFI(flush_tlb_all_local)
 
 	/* Flush Instruction Tlb */
 
-	LDREG		ITLB_SID_BASE(%r1), %r20
+88:	LDREG		ITLB_SID_BASE(%r1), %r20
 	LDREG		ITLB_SID_STRIDE(%r1), %r21
 	LDREG		ITLB_SID_COUNT(%r1), %r22
 	LDREG		ITLB_OFF_BASE(%r1), %arg0
@@ -103,6 +103,7 @@ fitonemiddle:					/* Loop if LOOP = 1 */
 	add		%r21, %r20, %r20		/* increment space */
 
 fitdone:
+	ALTERNATIVE(88b, fitdone, ALT_COND_NO_SPLIT_TLB, INSN_NOP)
 
 	/* Flush Data Tlb */
 
@@ -173,6 +174,15 @@ fdtdone:
 
 2:      bv		%r0(%r2)
 	nop
+
+	/*
+	 * When running in qemu, drop whole flush_tlb_all_local function and
+	 * replace by one pdtlbe instruction, for which QEMU will drop all
+	 * local TLB entries.
+	 */
+3:	pdtlbe		%r0(%sr1,%r0)
+	bv,n		%r0(%r2)
+	ALTERNATIVE_CODE(flush_tlb_all_local, 2, ALT_COND_RUN_ON_QEMU, 3b)
 ENDPROC_CFI(flush_tlb_all_local)
 
 	.import cache_info,data

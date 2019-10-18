@@ -21,9 +21,9 @@
  * IN THE SOFTWARE.
  */
 
+#include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_link_training.h"
-#include "intel_drv.h"
 
 static void
 intel_dp_dump_link_status(const u8 link_status[DP_LINK_STATUS_SIZE])

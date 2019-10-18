@@ -63,7 +63,7 @@
  * enough to patch inline, increasing performance.
  */
 
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 # define preempt_stop(clobbers)	DISABLE_INTERRUPTS(clobbers); TRACE_IRQS_OFF
 #else
 # define preempt_stop(clobbers)
@@ -1084,7 +1084,7 @@ restore_all:
 	INTERRUPT_RETURN
 
 restore_all_kernel:
-#ifdef CONFIG_PREEMPT
+#ifdef CONFIG_PREEMPTION
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	cmpl	$0, PER_CPU_VAR(__preempt_count)
 	jnz	.Lno_preempt
@@ -1364,7 +1364,7 @@ ENTRY(xen_hypervisor_callback)
 ENTRY(xen_do_upcall)
 1:	mov	%esp, %eax
 	call	xen_evtchn_do_upcall
-#ifndef CONFIG_PREEMPT
+#ifndef CONFIG_PREEMPTION
 	call	xen_maybe_preempt_hcall
 #endif
 	jmp	ret_from_intr
@@ -1443,8 +1443,12 @@ BUILD_INTERRUPT3(hv_stimer0_callback_vector, HYPERV_STIMER0_VECTOR,
 
 ENTRY(page_fault)
 	ASM_CLAC
-	pushl	$0; /* %gs's slot on the stack */
+	pushl	$do_page_fault
+	jmp	common_exception_read_cr2
+END(page_fault)
 
+common_exception_read_cr2:
+	/* the function address is in %gs's slot on the stack */
 	SAVE_ALL switch_stacks=1 skip_gs=1
 
 	ENCODE_FRAME_POINTER
@@ -1452,6 +1456,7 @@ ENTRY(page_fault)
 
 	/* fixup %gs */
 	GS_TO_REG %ecx
+	movl	PT_GS(%esp), %edi
 	REG_TO_PTGS %ecx
 	SET_KERNEL_GS %ecx
 
@@ -1463,9 +1468,9 @@ ENTRY(page_fault)
 
 	TRACE_IRQS_OFF
 	movl	%esp, %eax			# pt_regs pointer
-	call	do_page_fault
+	CALL_NOSPEC %edi
 	jmp	ret_from_exception
-END(page_fault)
+END(common_exception_read_cr2)
 
 common_exception:
 	/* the function address is in %gs's slot on the stack */
@@ -1595,7 +1600,7 @@ END(general_protection)
 ENTRY(async_page_fault)
 	ASM_CLAC
 	pushl	$do_async_page_fault
-	jmp	common_exception
+	jmp	common_exception_read_cr2
 END(async_page_fault)
 #endif
 

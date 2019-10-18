@@ -369,15 +369,14 @@ int sja1105_ptp_clock_register(struct sja1105_private *priv)
 		.mult = SJA1105_CC_MULT,
 	};
 	mutex_init(&priv->ptp_lock);
-	INIT_DELAYED_WORK(&priv->refresh_work, sja1105_ptp_overflow_check);
-
-	schedule_delayed_work(&priv->refresh_work, SJA1105_REFRESH_INTERVAL);
-
 	priv->ptp_caps = sja1105_ptp_caps;
 
 	priv->clock = ptp_clock_register(&priv->ptp_caps, ds->dev);
 	if (IS_ERR_OR_NULL(priv->clock))
 		return PTR_ERR(priv->clock);
+
+	INIT_DELAYED_WORK(&priv->refresh_work, sja1105_ptp_overflow_check);
+	schedule_delayed_work(&priv->refresh_work, SJA1105_REFRESH_INTERVAL);
 
 	return sja1105_ptp_reset(priv);
 }

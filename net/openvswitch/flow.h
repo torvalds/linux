@@ -194,7 +194,7 @@ struct sw_flow_actions {
 	struct nlattr actions[];
 };
 
-struct flow_stats {
+struct sw_flow_stats {
 	u64 packet_count;		/* Number of packets matched. */
 	u64 byte_count;			/* Number of bytes matched. */
 	unsigned long used;		/* Last used time (in jiffies). */
@@ -216,7 +216,7 @@ struct sw_flow {
 	struct cpumask cpu_used_mask;
 	struct sw_flow_mask *mask;
 	struct sw_flow_actions __rcu *sf_acts;
-	struct flow_stats __rcu *stats[]; /* One for each CPU.  First one
+	struct sw_flow_stats __rcu *stats[]; /* One for each CPU.  First one
 					   * is allocated at flow creation time,
 					   * the rest are allocated on demand
 					   * while holding the 'stats[0].lock'.
@@ -270,6 +270,7 @@ void ovs_flow_stats_clear(struct sw_flow *);
 u64 ovs_flow_used_time(unsigned long flow_jiffies);
 
 int ovs_flow_key_update(struct sk_buff *skb, struct sw_flow_key *key);
+int ovs_flow_key_update_l3l4(struct sk_buff *skb, struct sw_flow_key *key);
 int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 			 struct sk_buff *skb,
 			 struct sw_flow_key *key);

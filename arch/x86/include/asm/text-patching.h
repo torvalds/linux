@@ -45,8 +45,8 @@ extern void text_poke_early(void *addr, const void *opcode, size_t len);
  * no thread can be preempted in the instructions being modified (no iret to an
  * invalid instruction possible) or if the instructions are changed from a
  * consistent state to another consistent state atomically.
- * On the local CPU you need to be protected again NMI or MCE handlers seeing an
- * inconsistent instruction while you patch.
+ * On the local CPU you need to be protected against NMI or MCE handlers seeing
+ * an inconsistent instruction while you patch.
  */
 extern void *text_poke(void *addr, const void *opcode, size_t len);
 extern void *text_poke_kgdb(void *addr, const void *opcode, size_t len);

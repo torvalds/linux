@@ -306,7 +306,7 @@ static int switchtec_ntb_mw_set_trans(struct ntb_dev *ntb, int pidx, int widx,
 	if (rc)
 		return rc;
 
-	if (addr == 0 || size == 0) {
+	if (size == 0) {
 		if (widx < nr_direct_mw)
 			switchtec_ntb_mw_clr_direct(sndev, widx);
 		else

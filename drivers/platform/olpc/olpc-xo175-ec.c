@@ -736,6 +736,12 @@ static const struct of_device_id olpc_xo175_ec_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, olpc_xo175_ec_of_match);
 
+static const struct spi_device_id olpc_xo175_ec_id_table[] = {
+	{ "xo1.75-ec", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(spi, olpc_xo175_ec_id_table);
+
 static struct spi_driver olpc_xo175_ec_spi_driver = {
 	.driver = {
 		.name	= "olpc-xo175-ec",

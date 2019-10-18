@@ -250,6 +250,10 @@ static int mlxsw_sp_sb_pm_occ_clear(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
 
+	if (local_port == MLXSW_PORT_CPU_PORT &&
+	    des->dir == MLXSW_REG_SBXX_DIR_INGRESS)
+		return 0;
+
 	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, des->pool, des->dir,
 			    true, 0, 0);
 	return mlxsw_reg_trans_query(mlxsw_sp->core, MLXSW_REG(sbpm), sbpm_pl,
@@ -272,6 +276,10 @@ static int mlxsw_sp_sb_pm_occ_query(struct mlxsw_sp *mlxsw_sp, u8 local_port,
 		&mlxsw_sp->sb_vals->pool_dess[pool_index];
 	char sbpm_pl[MLXSW_REG_SBPM_LEN];
 	struct mlxsw_sp_sb_pm *pm;
+
+	if (local_port == MLXSW_PORT_CPU_PORT &&
+	    des->dir == MLXSW_REG_SBXX_DIR_INGRESS)
+		return 0;
 
 	pm = mlxsw_sp_sb_pm_get(mlxsw_sp, local_port, pool_index);
 	mlxsw_reg_sbpm_pack(sbpm_pl, local_port, des->pool, des->dir,
@@ -437,8 +445,8 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 			   MLXSW_SP1_SB_PR_CPU_SIZE, true, false),
 };
 
-#define MLXSW_SP2_SB_PR_INGRESS_SIZE	38128752
-#define MLXSW_SP2_SB_PR_EGRESS_SIZE	38128752
+#define MLXSW_SP2_SB_PR_INGRESS_SIZE	35297568
+#define MLXSW_SP2_SB_PR_EGRESS_SIZE	35297568
 #define MLXSW_SP2_SB_PR_CPU_SIZE	(256 * 1000)
 
 /* Order according to mlxsw_sp2_sb_pool_dess */
@@ -1085,6 +1093,11 @@ int mlxsw_sp_sb_port_pool_set(struct mlxsw_core_port *mlxsw_core_port,
 	u32 max_buff;
 	int err;
 
+	if (local_port == MLXSW_PORT_CPU_PORT) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing CPU port's threshold is forbidden");
+		return -EINVAL;
+	}
+
 	err = mlxsw_sp_sb_threshold_in(mlxsw_sp, pool_index,
 				       threshold, &max_buff, extack);
 	if (err)
@@ -1129,6 +1142,11 @@ int mlxsw_sp_sb_tc_pool_bind_set(struct mlxsw_core_port *mlxsw_core_port,
 	enum mlxsw_reg_sbxx_dir dir = (enum mlxsw_reg_sbxx_dir) pool_type;
 	u32 max_buff;
 	int err;
+
+	if (local_port == MLXSW_PORT_CPU_PORT) {
+		NL_SET_ERR_MSG_MOD(extack, "Changing CPU port's binding is forbidden");
+		return -EINVAL;
+	}
 
 	if (dir != mlxsw_sp->sb_vals->pool_dess[pool_index].dir) {
 		NL_SET_ERR_MSG_MOD(extack, "Binding egress TC to ingress pool and vice versa is forbidden");
@@ -1187,6 +1205,11 @@ static void mlxsw_sp_sb_sr_occ_query_cb(struct mlxsw_core *mlxsw_core,
 	     local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
+		if (local_port == MLXSW_PORT_CPU_PORT) {
+			/* Ingress quotas are not supported for the CPU port */
+			masked_count++;
+			continue;
+		}
 		for (i = 0; i < MLXSW_SP_SB_ING_TC_COUNT; i++) {
 			cm = mlxsw_sp_sb_cm_get(mlxsw_sp, local_port, i,
 						MLXSW_REG_SBXX_DIR_INGRESS);
@@ -1222,7 +1245,7 @@ int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
 	char *sbsr_pl;
 	u8 masked_count;
 	u8 local_port_1;
-	u8 local_port = 0;
+	u8 local_port;
 	int i;
 	int err;
 	int err2;
@@ -1231,8 +1254,8 @@ int mlxsw_sp_sb_occ_snapshot(struct mlxsw_core *mlxsw_core,
 	if (!sbsr_pl)
 		return -ENOMEM;
 
+	local_port = MLXSW_PORT_CPU_PORT;
 next_batch:
-	local_port++;
 	local_port_1 = local_port;
 	masked_count = 0;
 	mlxsw_reg_sbsr_pack(sbsr_pl, false);
@@ -1243,7 +1266,11 @@ next_batch:
 	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
-		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
+		if (local_port != MLXSW_PORT_CPU_PORT) {
+			/* Ingress quotas are not supported for the CPU port */
+			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
+							     local_port, 1);
+		}
 		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
 		for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
 			err = mlxsw_sp_sb_pm_occ_query(mlxsw_sp, local_port, i,
@@ -1264,8 +1291,10 @@ do_query:
 				    cb_priv);
 	if (err)
 		goto out;
-	if (local_port < mlxsw_core_max_ports(mlxsw_core))
+	if (local_port < mlxsw_core_max_ports(mlxsw_core)) {
+		local_port++;
 		goto next_batch;
+	}
 
 out:
 	err2 = mlxsw_reg_trans_bulk_wait(&bulk_list);
@@ -1282,7 +1311,7 @@ int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
 	LIST_HEAD(bulk_list);
 	char *sbsr_pl;
 	unsigned int masked_count;
-	u8 local_port = 0;
+	u8 local_port;
 	int i;
 	int err;
 	int err2;
@@ -1291,8 +1320,8 @@ int mlxsw_sp_sb_occ_max_clear(struct mlxsw_core *mlxsw_core,
 	if (!sbsr_pl)
 		return -ENOMEM;
 
+	local_port = MLXSW_PORT_CPU_PORT;
 next_batch:
-	local_port++;
 	masked_count = 0;
 	mlxsw_reg_sbsr_pack(sbsr_pl, true);
 	for (i = 0; i < MLXSW_SP_SB_ING_TC_COUNT; i++)
@@ -1302,7 +1331,11 @@ next_batch:
 	for (; local_port < mlxsw_core_max_ports(mlxsw_core); local_port++) {
 		if (!mlxsw_sp->ports[local_port])
 			continue;
-		mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl, local_port, 1);
+		if (local_port != MLXSW_PORT_CPU_PORT) {
+			/* Ingress quotas are not supported for the CPU port */
+			mlxsw_reg_sbsr_ingress_port_mask_set(sbsr_pl,
+							     local_port, 1);
+		}
 		mlxsw_reg_sbsr_egress_port_mask_set(sbsr_pl, local_port, 1);
 		for (i = 0; i < mlxsw_sp->sb_vals->pool_count; i++) {
 			err = mlxsw_sp_sb_pm_occ_clear(mlxsw_sp, local_port, i,
@@ -1319,8 +1352,10 @@ do_query:
 				    &bulk_list, NULL, 0);
 	if (err)
 		goto out;
-	if (local_port < mlxsw_core_max_ports(mlxsw_core))
+	if (local_port < mlxsw_core_max_ports(mlxsw_core)) {
+		local_port++;
 		goto next_batch;
+	}
 
 out:
 	err2 = mlxsw_reg_trans_bulk_wait(&bulk_list);

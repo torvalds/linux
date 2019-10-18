@@ -48,7 +48,7 @@ static unsigned int help(struct sk_buff *skb,
 		int res;
 
 		exp->tuple.dst.u.tcp.port = htons(port);
-		res = nf_ct_expect_related(exp);
+		res = nf_ct_expect_related(exp, 0);
 		if (res == 0)
 			break;
 		else if (res != -EBUSY) {

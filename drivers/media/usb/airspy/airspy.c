@@ -71,7 +71,6 @@ static const struct v4l2_frequency_band bands_rf[] = {
 
 /* stream formats */
 struct airspy_format {
-	char	*name;
 	u32	pixelformat;
 	u32	buffersize;
 };
@@ -79,7 +78,6 @@ struct airspy_format {
 /* format descriptions for capture and preview */
 static struct airspy_format formats[] = {
 	{
-		.name		= "Real U12LE",
 		.pixelformat	= V4L2_SDR_FMT_RU12LE,
 		.buffersize	= BULK_BUFFER_SIZE,
 	},
@@ -622,7 +620,6 @@ static int airspy_enum_fmt_sdr_cap(struct file *file, void *priv,
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
 
-	strscpy(f->description, formats[f->index].name, sizeof(f->description));
 	f->pixelformat = formats[f->index].pixelformat;
 
 	return 0;

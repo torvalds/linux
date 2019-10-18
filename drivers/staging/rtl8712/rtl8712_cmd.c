@@ -263,11 +263,6 @@ static struct cmd_obj *cmd_hdl_filter(struct _adapter *padapter,
 	return pcmd_r; /* if returning pcmd_r == NULL, pcmd must be free. */
 }
 
-static u8 check_cmd_fifo(struct _adapter *padapter, uint sz)
-{
-	return _SUCCESS;
-}
-
 u8 r8712_fw_cmd(struct _adapter *pAdapter, u32 cmd)
 {
 	int pollingcnts = 50;
@@ -311,7 +306,7 @@ int r8712_cmd_thread(void *context)
 			break;
 		if (padapter->driver_stopped || padapter->surprise_removed)
 			break;
-		if (r8712_register_cmd_alive(padapter) != _SUCCESS)
+		if (r8712_register_cmd_alive(padapter))
 			continue;
 _next:
 		pcmd = r8712_dequeue_cmd(&pcmdpriv->cmd_queue);
@@ -359,13 +354,6 @@ _next:
 					       (pcmdpriv->cmd_seq << 24));
 			pcmdbuf += 2; /* 8 bytes alignment */
 			memcpy((u8 *)pcmdbuf, pcmd->parmbuf, pcmd->cmdsz);
-			while (check_cmd_fifo(padapter, wr_sz) == _FAIL) {
-				if (padapter->driver_stopped ||
-				    padapter->surprise_removed)
-					break;
-				msleep(100);
-				continue;
-			}
 			if (blnPending)
 				wr_sz += 8;   /* Append 8 bytes */
 			r8712_write_mem(padapter, RTL8712_DMA_H2CCMD, wr_sz,

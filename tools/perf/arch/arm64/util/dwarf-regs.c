@@ -11,7 +11,6 @@
 #include <dwarf-regs.h>
 #include <linux/ptrace.h> /* for struct user_pt_regs */
 #include <linux/stringify.h>
-#include "util.h"
 
 struct pt_regs_dwarfnum {
 	const char *name;

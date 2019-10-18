@@ -74,7 +74,7 @@ struct ht16k33_priv {
 	struct ht16k33_fbdev fbdev;
 };
 
-static struct fb_fix_screeninfo ht16k33_fb_fix = {
+static const struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.id		= DRIVER_NAME,
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_MONO10,
@@ -85,7 +85,7 @@ static struct fb_fix_screeninfo ht16k33_fb_fix = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo ht16k33_fb_var = {
+static const struct fb_var_screeninfo ht16k33_fb_var = {
 	.xres = HT16K33_MATRIX_LED_MAX_ROWS,
 	.yres = HT16K33_MATRIX_LED_MAX_COLS,
 	.xres_virtual = HT16K33_MATRIX_LED_MAX_ROWS,

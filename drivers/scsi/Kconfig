@@ -1523,9 +1523,9 @@ config SCSI_VIRTIO
 
 source "drivers/scsi/csiostor/Kconfig"
 
-endif # SCSI_LOWLEVEL
-
 source "drivers/scsi/pcmcia/Kconfig"
+
+endif # SCSI_LOWLEVEL
 
 source "drivers/scsi/device_handler/Kconfig"
 

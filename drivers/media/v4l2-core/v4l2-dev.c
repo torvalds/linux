@@ -859,6 +859,9 @@ int __video_register_device(struct video_device *vdev,
 	/* the v4l2_dev pointer MUST be present */
 	if (WARN_ON(!vdev->v4l2_dev))
 		return -EINVAL;
+	/* the device_caps field MUST be set for all but subdevs */
+	if (WARN_ON(type != VFL_TYPE_SUBDEV && !vdev->device_caps))
+		return -EINVAL;
 
 	/* v4l2_fh support */
 	spin_lock_init(&vdev->fh_lock);
@@ -1089,7 +1092,7 @@ static void __exit videodev_exit(void)
 subsys_initcall(videodev_init);
 module_exit(videodev_exit)
 
-MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@kernel.org>");
-MODULE_DESCRIPTION("Device registrar for Video4Linux drivers v2");
+MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@kernel.org>, Bill Dirks, Justin Schoeman, Gerd Knorr");
+MODULE_DESCRIPTION("Video4Linux2 core driver");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(VIDEO_MAJOR);

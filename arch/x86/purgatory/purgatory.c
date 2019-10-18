@@ -9,7 +9,7 @@
  */
 
 #include <linux/bug.h>
-#include <linux/sha256.h>
+#include <crypto/sha.h>
 #include <asm/purgatory.h>
 
 #include "../boot/string.h"
@@ -68,3 +68,9 @@ void purgatory(void)
 	}
 	copy_backup_region();
 }
+
+/*
+ * Defined in order to reuse memcpy() and memset() from
+ * arch/x86/boot/compressed/string.c
+ */
+void warn(const char *msg) {}

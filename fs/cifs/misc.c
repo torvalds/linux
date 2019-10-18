@@ -1011,3 +1011,25 @@ void extract_unc_hostname(const char *unc, const char **h, size_t *len)
 	*h = unc;
 	*len = end - unc;
 }
+
+/**
+ * copy_path_name - copy src path to dst, possibly truncating
+ *
+ * returns number of bytes written (including trailing nul)
+ */
+int copy_path_name(char *dst, const char *src)
+{
+	int name_len;
+
+	/*
+	 * PATH_MAX includes nul, so if strlen(src) >= PATH_MAX it
+	 * will truncate and strlen(dst) will be PATH_MAX-1
+	 */
+	name_len = strscpy(dst, src, PATH_MAX);
+	if (WARN_ON_ONCE(name_len < 0))
+		name_len = PATH_MAX-1;
+
+	/* we count the trailing nul */
+	name_len++;
+	return name_len;
+}

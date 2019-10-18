@@ -527,8 +527,11 @@ static int jffs2_scan_eraseblock (struct jffs2_sb_info *c, struct jffs2_eraseblo
 					err = jffs2_fill_scan_buf(c, sumptr, 
 								  jeb->offset + c->sector_size - sumlen,
 								  sumlen - buf_len);				
-					if (err)
+					if (err) {
+						if (sumlen > buf_size)
+							kfree(sumptr);
 						return err;
+					}
 				}
 			}
 

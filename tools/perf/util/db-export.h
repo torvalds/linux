@@ -10,7 +10,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 
-struct perf_evsel;
+struct evsel;
 struct machine;
 struct thread;
 struct comm;
@@ -25,7 +25,7 @@ struct call_return;
 struct export_sample {
 	union perf_event	*event;
 	struct perf_sample	*sample;
-	struct perf_evsel	*evsel;
+	struct evsel		*evsel;
 	struct addr_location	*al;
 	u64			db_id;
 	u64			comm_db_id;
@@ -39,7 +39,7 @@ struct export_sample {
 };
 
 struct db_export {
-	int (*export_evsel)(struct db_export *dbe, struct perf_evsel *evsel);
+	int (*export_evsel)(struct db_export *dbe, struct evsel *evsel);
 	int (*export_machine)(struct db_export *dbe, struct machine *machine);
 	int (*export_thread)(struct db_export *dbe, struct thread *thread,
 			     u64 main_thread_db_id, struct machine *machine);
@@ -79,7 +79,7 @@ struct db_export {
 
 int db_export__init(struct db_export *dbe);
 void db_export__exit(struct db_export *dbe);
-int db_export__evsel(struct db_export *dbe, struct perf_evsel *evsel);
+int db_export__evsel(struct db_export *dbe, struct evsel *evsel);
 int db_export__machine(struct db_export *dbe, struct machine *machine);
 int db_export__thread(struct db_export *dbe, struct thread *thread,
 		      struct machine *machine, struct thread *main_thread);
@@ -96,7 +96,7 @@ int db_export__symbol(struct db_export *dbe, struct symbol *sym,
 int db_export__branch_type(struct db_export *dbe, u32 branch_type,
 			   const char *name);
 int db_export__sample(struct db_export *dbe, union perf_event *event,
-		      struct perf_sample *sample, struct perf_evsel *evsel,
+		      struct perf_sample *sample, struct evsel *evsel,
 		      struct addr_location *al);
 
 int db_export__branch_types(struct db_export *dbe);

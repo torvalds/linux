@@ -67,14 +67,6 @@
 #include "sta.h"
 #include "rs.h"
 
-static int iwl_mvm_set_fw_key_idx(struct iwl_mvm *mvm);
-
-static int iwl_mvm_send_sta_key(struct iwl_mvm *mvm,
-				u32 sta_id,
-				struct ieee80211_key_conf *key, bool mcast,
-				u32 tkip_iv32, u16 *tkip_p1k, u32 cmd_flags,
-				u8 key_offset, bool mfp);
-
 /*
  * New version of ADD_STA_sta command added new fields at the end of the
  * structure, so sending the size of the relevant API's structure is enough to
@@ -1612,7 +1604,7 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	mvm_sta->mac_id_n_color = FW_CMD_ID_AND_COLOR(mvmvif->id,
 						      mvmvif->color);
 	mvm_sta->vif = vif;
-	if (!mvm->trans->cfg->gen2)
+	if (!mvm->trans->trans_cfg->gen2)
 		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_DEF;
 	else
 		mvm_sta->max_agg_bufsize = LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF;
@@ -1684,6 +1676,8 @@ int iwl_mvm_add_sta(struct iwl_mvm *mvm,
 	 */
 	if (iwl_mvm_has_tlc_offload(mvm))
 		iwl_mvm_rs_add_sta(mvm, mvm_sta);
+	else
+		spin_lock_init(&mvm_sta->lq_sta.rs_drv.pers.lock);
 
 	iwl_mvm_toggle_tx_ant(mvm, &mvm_sta->tx_ant);
 
@@ -1893,10 +1887,6 @@ int iwl_mvm_rm_sta(struct iwl_mvm *mvm,
 
 		/* unassoc - go ahead - remove the AP STA now */
 		mvmvif->ap_sta_id = IWL_MVM_INVALID_STA;
-
-		/* clear d0i3_ap_sta_id if no longer relevant */
-		if (mvm->d0i3_ap_sta_id == sta_id)
-			mvm->d0i3_ap_sta_id = IWL_MVM_INVALID_STA;
 	}
 
 	/*
@@ -1964,8 +1954,8 @@ static void iwl_mvm_enable_aux_snif_queue(struct iwl_mvm *mvm, u16 *queue,
 					  u8 sta_id, u8 fifo)
 {
 	unsigned int wdg_timeout = iwlmvm_mod_params.tfd_q_hang_detect ?
-					mvm->cfg->base_params->wd_timeout :
-					IWL_WATCHDOG_DISABLED;
+		mvm->trans->trans_cfg->base_params->wd_timeout :
+		IWL_WATCHDOG_DISABLED;
 
 	if (iwl_mvm_has_new_tx_api(mvm)) {
 		int tvqm_queue =
@@ -2421,7 +2411,7 @@ int iwl_mvm_rm_mcast_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 
 static void iwl_mvm_sync_rxq_del_ba(struct iwl_mvm *mvm, u8 baid)
 {
-	struct iwl_mvm_delba_notif notif = {
+	struct iwl_mvm_rss_sync_notif notif = {
 		.metadata.type = IWL_MVM_RXQ_NOTIF_DEL_BA,
 		.metadata.sync = 1,
 		.delba.baid = baid,
@@ -2769,13 +2759,6 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	spin_lock_bh(&mvmsta->lock);
 
-	/* possible race condition - we entered D0i3 while starting agg */
-	if (test_bit(IWL_MVM_STATUS_IN_D0I3, &mvm->status)) {
-		spin_unlock_bh(&mvmsta->lock);
-		IWL_ERR(mvm, "Entered D0i3 while starting Tx agg\n");
-		return -EIO;
-	}
-
 	/*
 	 * Note the possible cases:
 	 *  1. An enabled TXQ - TXQ needs to become agg'ed
@@ -2830,7 +2813,7 @@ int iwl_mvm_sta_tx_agg_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
 	normalized_ssn = tid_data->ssn;
-	if (mvm->trans->cfg->gen2)
+	if (mvm->trans->trans_cfg->gen2)
 		normalized_ssn &= 0xff;
 
 	if (normalized_ssn == tid_data->next_reclaimed) {
@@ -2972,7 +2955,7 @@ out:
 	IWL_DEBUG_HT(mvm, "Tx aggregation enabled on ra = %pM tid = %d\n",
 		     sta->addr, tid);
 
-	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.rs_drv.lq, false);
+	return iwl_mvm_send_lq_cmd(mvm, &mvmsta->lq_sta.rs_drv.lq);
 }
 
 static void iwl_mvm_unreserve_agg_queue(struct iwl_mvm *mvm,
@@ -3870,7 +3853,7 @@ u16 iwl_mvm_tid_queued(struct iwl_mvm *mvm, struct iwl_mvm_tid_data *tid_data)
 	 * In 22000 HW, the next_reclaimed index is only 8 bit, so we'll need
 	 * to align the wrap around of ssn so we compare relevant values.
 	 */
-	if (mvm->trans->cfg->gen2)
+	if (mvm->trans->trans_cfg->gen2)
 		sn &= 0xff;
 
 	return ieee80211_sn_sub(sn, tid_data->next_reclaimed);

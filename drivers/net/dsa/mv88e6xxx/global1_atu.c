@@ -5,6 +5,8 @@
  * Copyright (c) 2008 Marvell Semiconductor
  * Copyright (c) 2017 Savoir-faire Linux, Inc.
  */
+
+#include <linux/bitfield.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 
@@ -75,8 +77,9 @@ int mv88e6xxx_g1_atu_set_age_time(struct mv88e6xxx_chip *chip,
 
 static int mv88e6xxx_g1_atu_op_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g1_wait(chip, MV88E6XXX_G1_ATU_OP,
-				 MV88E6XXX_G1_ATU_OP_BUSY);
+	int bit = __bf_shf(MV88E6XXX_G1_ATU_OP_BUSY);
+
+	return mv88e6xxx_g1_wait_bit(chip, MV88E6XXX_G1_ATU_OP, bit, 0);
 }
 
 static int mv88e6xxx_g1_atu_op(struct mv88e6xxx_chip *chip, u16 fid, u16 op)
@@ -132,7 +135,7 @@ static int mv88e6xxx_g1_atu_data_read(struct mv88e6xxx_chip *chip,
 		return err;
 
 	entry->state = val & 0xf;
-	if (entry->state != MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (entry->state) {
 		entry->trunk = !!(val & MV88E6XXX_G1_ATU_DATA_TRUNK);
 		entry->portvec = (val >> 4) & mv88e6xxx_port_mask(chip);
 	}
@@ -145,7 +148,7 @@ static int mv88e6xxx_g1_atu_data_write(struct mv88e6xxx_chip *chip,
 {
 	u16 data = entry->state & 0xf;
 
-	if (entry->state != MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (entry->state) {
 		if (entry->trunk)
 			data |= MV88E6XXX_G1_ATU_DATA_TRUNK;
 
@@ -206,7 +209,7 @@ int mv88e6xxx_g1_atu_getnext(struct mv88e6xxx_chip *chip, u16 fid,
 		return err;
 
 	/* Write the MAC address to iterate from only once */
-	if (entry->state == MV88E6XXX_G1_ATU_DATA_STATE_UNUSED) {
+	if (!entry->state) {
 		err = mv88e6xxx_g1_atu_mac_write(chip, entry);
 		if (err)
 			return err;

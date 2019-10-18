@@ -300,8 +300,7 @@ static int sun4i_ts_probe(struct platform_device *pdev)
 		input_set_drvdata(ts->input, ts);
 	}
 
-	ts->base = devm_ioremap_resource(dev,
-			      platform_get_resource(pdev, IORESOURCE_MEM, 0));
+	ts->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ts->base))
 		return PTR_ERR(ts->base);
 

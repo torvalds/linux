@@ -8,7 +8,6 @@
  * Copyright (C) Linus Torvalds, 2005
  */
 #include "util.h"
-#include "debug.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <linux/compiler.h>

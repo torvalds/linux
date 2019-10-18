@@ -334,8 +334,7 @@ static void alcor_pci_remove(struct pci_dev *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int alcor_suspend(struct device *dev)
 {
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct alcor_pci_priv *priv = pci_get_drvdata(pdev);
+	struct alcor_pci_priv *priv = dev_get_drvdata(dev);
 
 	alcor_pci_aspm_ctrl(priv, 1);
 	return 0;
@@ -344,8 +343,7 @@ static int alcor_suspend(struct device *dev)
 static int alcor_resume(struct device *dev)
 {
 
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct alcor_pci_priv *priv = pci_get_drvdata(pdev);
+	struct alcor_pci_priv *priv = dev_get_drvdata(dev);
 
 	alcor_pci_aspm_ctrl(priv, 0);
 	return 0;

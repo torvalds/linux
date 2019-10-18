@@ -253,7 +253,7 @@ int mdp5_ctl_set_cursor(struct mdp5_ctl *ctl, struct mdp5_pipeline *pipeline,
 	u32 blend_cfg;
 	struct mdp5_hw_mixer *mixer = pipeline->mixer;
 
-	if (unlikely(WARN_ON(!mixer))) {
+	if (WARN_ON(!mixer)) {
 		DRM_DEV_ERROR(ctl_mgr->dev->dev, "CTL %d cannot find LM",
 			ctl->id);
 		return -EINVAL;
@@ -695,7 +695,7 @@ struct mdp5_ctl_manager *mdp5_ctlm_init(struct drm_device *dev,
 		goto fail;
 	}
 
-	if (unlikely(WARN_ON(ctl_cfg->count > MAX_CTL))) {
+	if (WARN_ON(ctl_cfg->count > MAX_CTL)) {
 		DRM_DEV_ERROR(dev->dev, "Increase static pool size to at least %d\n",
 				ctl_cfg->count);
 		ret = -ENOSPC;

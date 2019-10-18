@@ -145,6 +145,7 @@ struct nsim_dev_port {
 struct nsim_dev {
 	struct nsim_bus_dev *nsim_bus_dev;
 	struct nsim_fib_data *fib_data;
+	struct nsim_trap_data *trap_data;
 	struct dentry *ddir;
 	struct dentry *ports_ddir;
 	struct bpf_offload_dev *bpf_dev;
@@ -158,6 +159,9 @@ struct nsim_dev {
 	struct list_head port_list;
 	struct mutex port_list_lock; /* protects port list */
 	bool fw_update_status;
+	u32 max_macs;
+	bool test1;
+	struct devlink_region *dummy_region;
 };
 
 int nsim_dev_init(void);
@@ -169,12 +173,10 @@ int nsim_dev_port_add(struct nsim_bus_dev *nsim_bus_dev,
 int nsim_dev_port_del(struct nsim_bus_dev *nsim_bus_dev,
 		      unsigned int port_index);
 
-struct nsim_fib_data *nsim_fib_create(void);
-void nsim_fib_destroy(struct nsim_fib_data *fib_data);
-u64 nsim_fib_get_val(struct nsim_fib_data *fib_data,
-		     enum nsim_resource_id res_id, bool max);
-int nsim_fib_set_max(struct nsim_fib_data *fib_data,
-		     enum nsim_resource_id res_id, u64 val,
+int nsim_fib_init(void);
+void nsim_fib_exit(void);
+u64 nsim_fib_get_val(struct net *net, enum nsim_resource_id res_id, bool max);
+int nsim_fib_set_max(struct net *net, enum nsim_resource_id res_id, u64 val,
 		     struct netlink_ext_ack *extack);
 
 #if IS_ENABLED(CONFIG_XFRM_OFFLOAD)

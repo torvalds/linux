@@ -124,7 +124,7 @@ static inline int check_which(__u32 which)
 static inline int check_pad(struct v4l2_subdev *sd, __u32 pad)
 {
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	if (sd->entity.graph_obj.mdev) {
+	if (sd->entity.num_pads) {
 		if (pad >= sd->entity.num_pads)
 			return -EINVAL;
 		return 0;
@@ -372,19 +372,19 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 		if (!vfh->ctrl_handler)
 			return -ENOTTY;
 		return v4l2_g_ext_ctrls(vfh->ctrl_handler,
-					sd->v4l2_dev->mdev, arg);
+					vdev, sd->v4l2_dev->mdev, arg);
 
 	case VIDIOC_S_EXT_CTRLS:
 		if (!vfh->ctrl_handler)
 			return -ENOTTY;
 		return v4l2_s_ext_ctrls(vfh, vfh->ctrl_handler,
-					sd->v4l2_dev->mdev, arg);
+					vdev, sd->v4l2_dev->mdev, arg);
 
 	case VIDIOC_TRY_EXT_CTRLS:
 		if (!vfh->ctrl_handler)
 			return -ENOTTY;
 		return v4l2_try_ext_ctrls(vfh->ctrl_handler,
-					  sd->v4l2_dev->mdev, arg);
+					  vdev, sd->v4l2_dev->mdev, arg);
 
 	case VIDIOC_DQEVENT:
 		if (!(sd->flags & V4L2_SUBDEV_FL_HAS_EVENTS))

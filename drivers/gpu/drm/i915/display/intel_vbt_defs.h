@@ -310,13 +310,13 @@ enum vbt_gmbus_ddi {
 	DDC_BUS_DDI_F,
 	ICL_DDC_BUS_DDI_A = 0x1,
 	ICL_DDC_BUS_DDI_B,
+	TGL_DDC_BUS_DDI_C,
 	ICL_DDC_BUS_PORT_1 = 0x4,
 	ICL_DDC_BUS_PORT_2,
 	ICL_DDC_BUS_PORT_3,
 	ICL_DDC_BUS_PORT_4,
-	MCC_DDC_BUS_DDI_A = 0x1,
-	MCC_DDC_BUS_DDI_B,
-	MCC_DDC_BUS_DDI_C = 0x4,
+	TGL_DDC_BUS_PORT_5,
+	TGL_DDC_BUS_PORT_6,
 };
 
 #define DP_AUX_A 0x40
@@ -478,13 +478,13 @@ struct psr_table {
 	/* TP wake up time in multiple of 100 */
 	u16 tp1_wakeup_time;
 	u16 tp2_tp3_wakeup_time;
-
-	/* PSR2 TP2/TP3 wakeup time for 16 panels */
-	u32 psr2_tp2_tp3_wakeup_time;
 } __packed;
 
 struct bdb_psr {
 	struct psr_table psr_table[16];
+
+	/* PSR2 TP2/TP3 wakeup time for 16 panels */
+	u32 psr2_tp2_tp3_wakeup_time;
 } __packed;
 
 /*

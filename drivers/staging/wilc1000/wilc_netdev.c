@@ -11,6 +11,7 @@
 #include <linux/inetdevice.h>
 
 #include "wilc_wfi_cfgoperations.h"
+#include "wilc_wlan_cfg.h"
 
 #define WILC_MULTICAST_TABLE_SIZE	8
 
@@ -59,7 +60,7 @@ static int init_irq(struct net_device *dev)
 
 	ret = request_threaded_irq(wl->dev_irq_num, isr_uh_routine,
 				   isr_bh_routine,
-				   IRQF_TRIGGER_LOW | IRQF_ONESHOT,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   "WILC_IRQ", dev);
 	if (ret < 0)
 		netdev_err(dev, "Failed to request IRQ\n");
@@ -474,7 +475,7 @@ static void wilc_wlan_deinitialize(struct net_device *dev)
 		wlan_deinitialize_threads(dev);
 		deinit_irq(dev);
 
-		wilc_wlan_stop(wl);
+		wilc_wlan_stop(wl, vif);
 		wilc_wlan_cleanup(dev);
 		wlan_deinit_locks(dev);
 
@@ -502,12 +503,6 @@ static int wlan_initialize_threads(struct net_device *dev)
 
 	return 0;
 }
-
-static int dev_state_ev_handler(struct notifier_block *this,
-				unsigned long event, void *ptr);
-static struct notifier_block g_dev_notifier = {
-	.notifier_call = dev_state_ev_handler
-};
 
 static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 {
@@ -574,12 +569,11 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 			ret = -EIO;
 			goto fail_fw_start;
 		}
-		register_inetaddr_notifier(&g_dev_notifier);
 		wl->initialized = true;
 		return 0;
 
 fail_fw_start:
-		wilc_wlan_stop(wl);
+		wilc_wlan_stop(wl, vif);
 
 fail_irq_enable:
 		if (!wl->dev_irq_num &&
@@ -632,10 +626,8 @@ static int wilc_mac_open(struct net_device *ndev)
 		return ret;
 	}
 
-	wilc_set_wfi_drv_handler(vif, wilc_get_vif_idx(vif), vif->iftype,
-				 vif->idx);
-	wilc_set_operation_mode(vif, vif->iftype);
-
+	wilc_set_operation_mode(vif, wilc_get_vif_idx(vif), vif->iftype,
+				vif->idx);
 	wilc_get_mac_address(vif, mac_add);
 	netdev_dbg(ndev, "Mac address: %pM\n", mac_add);
 	ether_addr_copy(ndev->dev_addr, mac_add);
@@ -780,7 +772,6 @@ static int wilc_mac_close(struct net_device *ndev)
 	if (wl->open_ifcs == 0) {
 		netdev_dbg(ndev, "Deinitializing wilc1000\n");
 		wl->close = 1;
-		unregister_inetaddr_notifier(&g_dev_notifier);
 		wilc_wlan_deinitialize(ndev);
 	}
 
@@ -862,63 +853,6 @@ static const struct net_device_ops wilc_netdev_ops = {
 	.ndo_get_stats = mac_stats,
 	.ndo_set_rx_mode  = wilc_set_multicast_list,
 };
-
-static int dev_state_ev_handler(struct notifier_block *this,
-				unsigned long event, void *ptr)
-{
-	struct in_ifaddr *dev_iface = ptr;
-	struct wilc_priv *priv;
-	struct host_if_drv *hif_drv;
-	struct net_device *dev;
-	struct wilc_vif *vif;
-
-	if (!dev_iface || !dev_iface->ifa_dev || !dev_iface->ifa_dev->dev)
-		return NOTIFY_DONE;
-
-	dev  = (struct net_device *)dev_iface->ifa_dev->dev;
-	if (dev->netdev_ops != &wilc_netdev_ops)
-		return NOTIFY_DONE;
-
-	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
-		return NOTIFY_DONE;
-
-	vif = netdev_priv(dev);
-	priv = &vif->priv;
-
-	hif_drv = (struct host_if_drv *)priv->hif_drv;
-
-	switch (event) {
-	case NETDEV_UP:
-		if (vif->iftype == WILC_STATION_MODE ||
-		    vif->iftype == WILC_CLIENT_MODE) {
-			hif_drv->ifc_up = 1;
-			vif->obtaining_ip = false;
-			del_timer(&vif->during_ip_timer);
-		}
-
-		if (vif->wilc->enable_ps)
-			wilc_set_power_mgmt(vif, 1, 0);
-
-		break;
-
-	case NETDEV_DOWN:
-		if (vif->iftype == WILC_STATION_MODE ||
-		    vif->iftype == WILC_CLIENT_MODE) {
-			hif_drv->ifc_up = 0;
-			vif->obtaining_ip = false;
-			wilc_set_power_mgmt(vif, 0, 0);
-		}
-
-		wilc_resolve_disconnect_aberration(vif);
-
-		break;
-
-	default:
-		break;
-	}
-
-	return NOTIFY_DONE;
-}
 
 void wilc_netdev_cleanup(struct wilc *wilc)
 {

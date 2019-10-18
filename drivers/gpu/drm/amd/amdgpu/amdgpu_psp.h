@@ -90,7 +90,6 @@ struct psp_funcs
 	int (*ring_destroy)(struct psp_context *psp,
 			    enum psp_ring_type ring_type);
 	int (*cmd_submit)(struct psp_context *psp,
-			  struct amdgpu_firmware_info *ucode,
 			  uint64_t cmd_buf_mc_addr, uint64_t fence_mc_addr,
 			  int index);
 	bool (*compare_sram_data)(struct psp_context *psp,
@@ -172,7 +171,6 @@ struct psp_context
 	/* tmr buffer */
 	struct amdgpu_bo		*tmr_bo;
 	uint64_t			tmr_mc_addr;
-	void				*tmr_buf;
 
 	/* asd firmware and buffer */
 	const struct firmware		*asd_fw;
@@ -223,8 +221,8 @@ struct amdgpu_psp_funcs {
 #define psp_ring_create(psp, type) (psp)->funcs->ring_create((psp), (type))
 #define psp_ring_stop(psp, type) (psp)->funcs->ring_stop((psp), (type))
 #define psp_ring_destroy(psp, type) ((psp)->funcs->ring_destroy((psp), (type)))
-#define psp_cmd_submit(psp, ucode, cmd_mc, fence_mc, index) \
-		(psp)->funcs->cmd_submit((psp), (ucode), (cmd_mc), (fence_mc), (index))
+#define psp_cmd_submit(psp, cmd_mc, fence_mc, index) \
+		(psp)->funcs->cmd_submit((psp), (cmd_mc), (fence_mc), (index))
 #define psp_compare_sram_data(psp, ucode, type) \
 		(psp)->funcs->compare_sram_data((psp), (ucode), (type))
 #define psp_init_microcode(psp) \
@@ -270,6 +268,7 @@ extern int psp_wait_for(struct psp_context *psp, uint32_t reg_index,
 			uint32_t field_val, uint32_t mask, bool check_changed);
 
 extern const struct amdgpu_ip_block_version psp_v10_0_ip_block;
+extern const struct amdgpu_ip_block_version psp_v12_0_ip_block;
 
 int psp_gpu_reset(struct amdgpu_device *adev);
 int psp_update_vcn_sram(struct amdgpu_device *adev, int inst_idx,

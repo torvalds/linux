@@ -34,7 +34,6 @@ enum {
 	INT33FE_NODE_MAX17047,
 	INT33FE_NODE_PI3USB30532,
 	INT33FE_NODE_DISPLAYPORT,
-	INT33FE_NODE_ROLE_SWITCH,
 	INT33FE_NODE_USB_CONNECTOR,
 	INT33FE_NODE_MAX,
 };
@@ -45,7 +44,6 @@ struct cht_int33fe_data {
 	struct i2c_client *pi3usb30532;
 
 	struct fwnode_handle *dp;
-	struct fwnode_handle *mux;
 };
 
 static const struct software_node nodes[];
@@ -139,45 +137,9 @@ static const struct software_node nodes[] = {
 	{ "max17047", NULL, max17047_props },
 	{ "pi3usb30532" },
 	{ "displayport" },
-	{ "usb-role-switch" },
 	{ "connector", &nodes[0], usb_connector_props, usb_connector_refs },
 	{ }
 };
-
-static int cht_int33fe_setup_mux(struct cht_int33fe_data *data)
-{
-	struct fwnode_handle *fwnode;
-	struct device *dev;
-	struct device *p;
-
-	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_ROLE_SWITCH]);
-	if (!fwnode)
-		return -ENODEV;
-
-	/* First finding the platform device */
-	p = bus_find_device_by_name(&platform_bus_type, NULL,
-				    "intel_xhci_usb_sw");
-	if (!p)
-		return -EPROBE_DEFER;
-
-	/* Then the mux child device */
-	dev = device_find_child_by_name(p, "intel_xhci_usb_sw-role-switch");
-	put_device(p);
-	if (!dev)
-		return -EPROBE_DEFER;
-
-	/* If there already is a node for the mux, using that one. */
-	if (dev->fwnode)
-		fwnode_remove_software_node(fwnode);
-	else
-		dev->fwnode = fwnode;
-
-	data->mux = fwnode_handle_get(dev->fwnode);
-	put_device(dev);
-	mux_ref.node = to_software_node(data->mux);
-
-	return 0;
-}
 
 static int cht_int33fe_setup_dp(struct cht_int33fe_data *data)
 {
@@ -211,10 +173,9 @@ static void cht_int33fe_remove_nodes(struct cht_int33fe_data *data)
 {
 	software_node_unregister_nodes(nodes);
 
-	if (data->mux) {
-		fwnode_handle_put(data->mux);
+	if (mux_ref.node) {
+		fwnode_handle_put(software_node_fwnode(mux_ref.node));
 		mux_ref.node = NULL;
-		data->mux = NULL;
 	}
 
 	if (data->dp) {
@@ -235,14 +196,16 @@ static int cht_int33fe_add_nodes(struct cht_int33fe_data *data)
 	/* The devices that are not created in this driver need extra steps. */
 
 	/*
-	 * There is no ACPI device node for the USB role mux, so we need to find
-	 * the mux device and assign our node directly to it. That means we
-	 * depend on the mux driver. This function will return -PROBE_DEFER
-	 * until the mux device is registered.
+	 * There is no ACPI device node for the USB role mux, so we need to wait
+	 * until the mux driver has created software node for the mux device.
+	 * It means we depend on the mux driver. This function will return
+	 * -EPROBE_DEFER until the mux device is registered.
 	 */
-	ret = cht_int33fe_setup_mux(data);
-	if (ret)
+	mux_ref.node = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!mux_ref.node) {
+		ret = -EPROBE_DEFER;
 		goto err_remove_nodes;
+	}
 
 	/*
 	 * The DP connector does have ACPI device node. In this case we can just

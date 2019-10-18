@@ -292,7 +292,6 @@ struct brcmf_cfg80211_wowl {
  */
 struct brcmf_cfg80211_info {
 	struct wiphy *wiphy;
-	struct cfg80211_ops *ops;
 	struct brcmf_cfg80211_conf *conf;
 	struct brcmf_p2p_info p2p;
 	struct brcmf_btcoex_info *btcoex;

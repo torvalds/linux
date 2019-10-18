@@ -32,10 +32,10 @@
 #include "intel_audio.h"
 #include "intel_connector.h"
 #include "intel_ddi.h"
+#include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_mst.h"
 #include "intel_dpio_phy.h"
-#include "intel_drv.h"
 
 static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 					    struct intel_crtc_state *crtc_state,
@@ -81,7 +81,7 @@ static int intel_dp_mst_compute_link_config(struct intel_encoder *encoder,
 			       adjusted_mode->crtc_clock,
 			       crtc_state->port_clock,
 			       &crtc_state->dp_m_n,
-			       constant_n);
+			       constant_n, crtc_state->fec_enable);
 	crtc_state->dp_m_n.tu = slots;
 
 	return 0;
@@ -128,7 +128,15 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	limits.max_lane_count = intel_dp_max_lane_count(intel_dp);
 
 	limits.min_bpp = intel_dp_min_bpp(pipe_config);
-	limits.max_bpp = pipe_config->pipe_bpp;
+	/*
+	 * FIXME: If all the streams can't fit into the link with
+	 * their current pipe_bpp we should reduce pipe_bpp across
+	 * the board until things start to fit. Until then we
+	 * limit to <= 8bpc since that's what was hardcoded for all
+	 * MST streams previously. This hack should be removed once
+	 * we have the proper retry logic in place.
+	 */
+	limits.max_bpp = min(pipe_config->pipe_bpp, 24);
 
 	intel_dp_adjust_compliance_config(intel_dp, pipe_config, &limits);
 
@@ -338,11 +346,8 @@ static void intel_mst_enable_dp(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("active links %d\n", intel_dp->active_mst_links);
 
-	if (intel_wait_for_register(&dev_priv->uncore,
-				    DP_TP_STATUS(port),
-				    DP_TP_STATUS_ACT_SENT,
-				    DP_TP_STATUS_ACT_SENT,
-				    1))
+	if (intel_de_wait_for_set(dev_priv, DP_TP_STATUS(port),
+				  DP_TP_STATUS_ACT_SENT, 1))
 		DRM_ERROR("Timed out waiting for ACT sent\n");
 
 	drm_dp_check_act_status(&intel_dp->mst_mgr);
@@ -539,7 +544,15 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 
 	intel_attach_force_audio_property(connector);
 	intel_attach_broadcast_rgb_property(connector);
-	drm_connector_attach_max_bpc_property(connector, 6, 12);
+
+	/*
+	 * Reuse the prop from the SST connector because we're
+	 * not allowed to create new props after device registration.
+	 */
+	connector->max_bpc_property =
+		intel_dp->attached_connector->base.max_bpc_property;
+	if (connector->max_bpc_property)
+		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
 	return connector;
 
@@ -629,6 +642,12 @@ intel_dp_create_fake_mst_encoders(struct intel_digital_port *intel_dig_port)
 	for_each_pipe(dev_priv, pipe)
 		intel_dp->mst_encoders[pipe] = intel_dp_create_fake_mst_encoder(intel_dig_port, pipe);
 	return true;
+}
+
+int
+intel_dp_mst_encoder_active_links(struct intel_digital_port *intel_dig_port)
+{
+	return intel_dig_port->dp.active_mst_links;
 }
 
 int

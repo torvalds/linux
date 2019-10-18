@@ -61,19 +61,31 @@ MODULE_DEVICE_TABLE(of, st_press_of_match);
 
 static int st_press_spi_probe(struct spi_device *spi)
 {
-	struct iio_dev *indio_dev;
+	const struct st_sensor_settings *settings;
 	struct st_sensor_data *press_data;
+	struct iio_dev *indio_dev;
 	int err;
-
-	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*press_data));
-	if (indio_dev == NULL)
-		return -ENOMEM;
-
-	press_data = iio_priv(indio_dev);
 
 	st_sensors_of_name_probe(&spi->dev, st_press_of_match,
 				 spi->modalias, sizeof(spi->modalias));
-	st_sensors_spi_configure(indio_dev, spi, press_data);
+
+	settings = st_press_get_settings(spi->modalias);
+	if (!settings) {
+		dev_err(&spi->dev, "device name %s not recognized.\n",
+			spi->modalias);
+		return -ENODEV;
+	}
+
+	indio_dev = devm_iio_device_alloc(&spi->dev, sizeof(*press_data));
+	if (!indio_dev)
+		return -ENOMEM;
+
+	press_data = iio_priv(indio_dev);
+	press_data->sensor_settings = (struct st_sensor_settings *)settings;
+
+	err = st_sensors_spi_configure(indio_dev, spi);
+	if (err < 0)
+		return err;
 
 	err = st_press_common_probe(indio_dev);
 	if (err < 0)

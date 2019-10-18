@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2012-2014 Cisco Systems
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/clockchips.h>
@@ -39,7 +39,15 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 {
 	unsigned long flags;
 
-	if (time_travel_mode != TT_MODE_OFF)
+	/*
+	 * In basic time-travel mode we still get real interrupts
+	 * (signals) but since we don't read time from the OS, we
+	 * must update the simulated time here to the expiry when
+	 * we get a signal.
+	 * This is not the case in inf-cpu mode, since there we
+	 * never get any real signals from the OS.
+	 */
+	if (time_travel_mode == TT_MODE_BASIC)
 		time_travel_set_time(time_travel_timer_expiry);
 
 	local_irq_save(flags);
@@ -50,7 +58,7 @@ void timer_handler(int sig, struct siginfo *unused_si, struct uml_pt_regs *regs)
 static int itimer_shutdown(struct clock_event_device *evt)
 {
 	if (time_travel_mode != TT_MODE_OFF)
-		time_travel_set_timer(TT_TMR_DISABLED, 0);
+		time_travel_set_timer_mode(TT_TMR_DISABLED);
 
 	if (time_travel_mode != TT_MODE_INFCPU)
 		os_timer_disable();
@@ -62,9 +70,11 @@ static int itimer_set_periodic(struct clock_event_device *evt)
 {
 	unsigned long long interval = NSEC_PER_SEC / HZ;
 
-	if (time_travel_mode != TT_MODE_OFF)
-		time_travel_set_timer(TT_TMR_PERIODIC,
-				      time_travel_time + interval);
+	if (time_travel_mode != TT_MODE_OFF) {
+		time_travel_set_timer_mode(TT_TMR_PERIODIC);
+		time_travel_set_timer_expiry(time_travel_time + interval);
+		time_travel_set_timer_interval(interval);
+	}
 
 	if (time_travel_mode != TT_MODE_INFCPU)
 		os_timer_set_interval(interval);
@@ -77,9 +87,10 @@ static int itimer_next_event(unsigned long delta,
 {
 	delta += 1;
 
-	if (time_travel_mode != TT_MODE_OFF)
-		time_travel_set_timer(TT_TMR_ONESHOT,
-				      time_travel_time + delta);
+	if (time_travel_mode != TT_MODE_OFF) {
+		time_travel_set_timer_mode(TT_TMR_ONESHOT);
+		time_travel_set_timer_expiry(time_travel_time + delta);
+	}
 
 	if (time_travel_mode != TT_MODE_INFCPU)
 		return os_timer_one_shot(delta);

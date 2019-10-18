@@ -702,7 +702,7 @@ xfs_buf_item_get_format(
 	}
 
 	bip->bli_formats = kmem_zalloc(count * sizeof(struct xfs_buf_log_format),
-				KM_SLEEP);
+				0);
 	if (!bip->bli_formats)
 		return -ENOMEM;
 	return 0;
@@ -747,7 +747,7 @@ xfs_buf_item_init(
 		return 0;
 	}
 
-	bip = kmem_zone_zalloc(xfs_buf_item_zone, KM_SLEEP);
+	bip = kmem_zone_zalloc(xfs_buf_item_zone, 0);
 	xfs_log_item_init(mp, &bip->bli_item, XFS_LI_BUF, &xfs_buf_item_ops);
 	bip->bli_buf = bp;
 
