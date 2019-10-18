@@ -30,23 +30,38 @@ struct vm_fault;
 #define IOMAP_INLINE	0x05	/* data inline in the inode */
 
 /*
- * Flags for all iomap mappings:
+ * Flags reported by the file system from iomap_begin:
+ *
+ * IOMAP_F_NEW indicates that the blocks have been newly allocated and need
+ * zeroing for areas that no data is copied to.
  *
  * IOMAP_F_DIRTY indicates the inode has uncommitted metadata needed to access
  * written data and requires fdatasync to commit them to persistent storage.
  * This needs to take into account metadata changes that *may* be made at IO
  * completion, such as file size updates from direct IO.
+ *
+ * IOMAP_F_SHARED indicates that the blocks are shared, and will need to be
+ * unshared as part a write.
+ *
+ * IOMAP_F_MERGED indicates that the iomap contains the merge of multiple block
+ * mappings.
+ *
+ * IOMAP_F_BUFFER_HEAD indicates that the file system requires the use of
+ * buffer heads for this mapping.
  */
-#define IOMAP_F_NEW		0x01	/* blocks have been newly allocated */
-#define IOMAP_F_DIRTY		0x02	/* uncommitted metadata */
-#define IOMAP_F_BUFFER_HEAD	0x04	/* file system requires buffer heads */
-#define IOMAP_F_SIZE_CHANGED	0x08	/* file size has changed */
+#define IOMAP_F_NEW		0x01
+#define IOMAP_F_DIRTY		0x02
+#define IOMAP_F_SHARED		0x04
+#define IOMAP_F_MERGED		0x08
+#define IOMAP_F_BUFFER_HEAD	0x10
 
 /*
- * Flags that only need to be reported for IOMAP_REPORT requests:
+ * Flags set by the core iomap code during operations:
+ *
+ * IOMAP_F_SIZE_CHANGED indicates to the iomap_end method that the file size
+ * has changed as the result of this write operation.
  */
-#define IOMAP_F_MERGED		0x10	/* contains multiple blocks/extents */
-#define IOMAP_F_SHARED		0x20	/* block shared with another file */
+#define IOMAP_F_SIZE_CHANGED	0x100
 
 /*
  * Flags from 0x1000 up are for file system specific usage:
