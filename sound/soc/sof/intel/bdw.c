@@ -262,20 +262,20 @@ static void bdw_dump(struct snd_sof_dev *sdev, u32 flags)
 	imrd = snd_sof_dsp_read(sdev, BDW_DSP_BAR, SHIM_IMRD);
 	dev_err(sdev->dev,
 		"error: ipc host -> DSP: pending %s complete %s raw 0x%8.8x\n",
-		panic & SHIM_IPCX_BUSY ? "yes" : "no",
-		panic & SHIM_IPCX_DONE ? "yes" : "no", panic);
+		(panic & SHIM_IPCX_BUSY) ? "yes" : "no",
+		(panic & SHIM_IPCX_DONE) ? "yes" : "no", panic);
 	dev_err(sdev->dev,
 		"error: mask host: pending %s complete %s raw 0x%8.8x\n",
-		imrx & SHIM_IMRX_BUSY ? "yes" : "no",
-		imrx & SHIM_IMRX_DONE ? "yes" : "no", imrx);
+		(imrx & SHIM_IMRX_BUSY) ? "yes" : "no",
+		(imrx & SHIM_IMRX_DONE) ? "yes" : "no", imrx);
 	dev_err(sdev->dev,
 		"error: ipc DSP -> host: pending %s complete %s raw 0x%8.8x\n",
-		status & SHIM_IPCD_BUSY ? "yes" : "no",
-		status & SHIM_IPCD_DONE ? "yes" : "no", status);
+		(status & SHIM_IPCD_BUSY) ? "yes" : "no",
+		(status & SHIM_IPCD_DONE) ? "yes" : "no", status);
 	dev_err(sdev->dev,
 		"error: mask DSP: pending %s complete %s raw 0x%8.8x\n",
-		imrd & SHIM_IMRD_BUSY ? "yes" : "no",
-		imrd & SHIM_IMRD_DONE ? "yes" : "no", imrd);
+		(imrd & SHIM_IMRD_BUSY) ? "yes" : "no",
+		(imrd & SHIM_IMRD_DONE) ? "yes" : "no", imrd);
 }
 
 /*

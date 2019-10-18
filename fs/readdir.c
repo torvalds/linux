@@ -27,53 +27,13 @@
 /*
  * Note the "unsafe_put_user() semantics: we goto a
  * label for errors.
- *
- * Also note how we use a "while()" loop here, even though
- * only the biggest size needs to loop. The compiler (well,
- * at least gcc) is smart enough to turn the smaller sizes
- * into just if-statements, and this way we don't need to
- * care whether 'u64' or 'u32' is the biggest size.
- */
-#define unsafe_copy_loop(dst, src, len, type, label) 		\
-	while (len >= sizeof(type)) {				\
-		unsafe_put_user(get_unaligned((type *)src),	\
-			(type __user *)dst, label);		\
-		dst += sizeof(type);				\
-		src += sizeof(type);				\
-		len -= sizeof(type);				\
-	}
-
-/*
- * We avoid doing 64-bit copies on 32-bit architectures. They
- * might be better, but the component names are mostly small,
- * and the 64-bit cases can end up being much more complex and
- * put much more register pressure on the code, so it's likely
- * not worth the pain of unaligned accesses etc.
- *
- * So limit the copies to "unsigned long" size. I did verify
- * that at least the x86-32 case is ok without this limiting,
- * but I worry about random other legacy 32-bit cases that
- * might not do as well.
- */
-#define unsafe_copy_type(dst, src, len, type, label) do {	\
-	if (sizeof(type) <= sizeof(unsigned long))		\
-		unsafe_copy_loop(dst, src, len, type, label);	\
-} while (0)
-
-/*
- * Copy the dirent name to user space, and NUL-terminate
- * it. This should not be a function call, since we're doing
- * the copy inside a "user_access_begin/end()" section.
  */
 #define unsafe_copy_dirent_name(_dst, _src, _len, label) do {	\
 	char __user *dst = (_dst);				\
 	const char *src = (_src);				\
 	size_t len = (_len);					\
-	unsafe_copy_type(dst, src, len, u64, label);	 	\
-	unsafe_copy_type(dst, src, len, u32, label);		\
-	unsafe_copy_type(dst, src, len, u16, label);		\
-	unsafe_copy_type(dst, src, len, u8,  label);		\
-	unsafe_put_user(0, dst, label);				\
+	unsafe_put_user(0, dst+len, label);			\
+	unsafe_copy_to_user(dst, src, len, label);		\
 } while (0)
 
 
