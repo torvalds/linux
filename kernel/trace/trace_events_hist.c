@@ -448,6 +448,8 @@ static bool synth_field_signed(char *type)
 {
 	if (strncmp(type, "u", 1) == 0)
 		return false;
+	if (strcmp(type, "gfp_t") == 0)
+		return false;
 
 	return true;
 }
