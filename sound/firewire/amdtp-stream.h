@@ -143,11 +143,12 @@ struct amdtp_stream {
 			// To generate CIP header.
 			unsigned int fdf;
 			int syt_override;
+
+			// To generate constant hardware IRQ.
+			unsigned int event_count;
+			unsigned int events_per_period;
 		} rx;
 	} ctx_data;
-	unsigned int event_count;
-	unsigned int events_per_period;
-	unsigned int idle_irq_interval;
 
 	/* For CIP headers. */
 	unsigned int source_node_id_field;

@@ -482,13 +482,13 @@ static inline int queue_out_packet(struct amdtp_stream *s,
 }
 
 static inline int queue_in_packet(struct amdtp_stream *s,
-				  struct fw_iso_packet *params, bool sched_irq)
+				  struct fw_iso_packet *params)
 {
 	// Queue one packet for IR context.
 	params->header_length = s->ctx_data.tx.ctx_header_size;
 	params->payload_length = s->ctx_data.tx.max_ctx_payload_length;
 	params->skip = false;
-	return queue_packet(s, params, sched_irq);
+	return queue_packet(s, params, false);
 }
 
 static void generate_cip_header(struct amdtp_stream *s, __be32 cip_header[2],
@@ -790,15 +790,24 @@ static void process_ctx_payloads(struct amdtp_stream *s,
 		update_pcm_pointers(s, pcm, pcm_frames);
 }
 
+static void amdtp_stream_master_callback(struct fw_iso_context *context,
+					 u32 tstamp, size_t header_length,
+					 void *header, void *private_data);
+
+static void amdtp_stream_master_first_callback(struct fw_iso_context *context,
+					u32 tstamp, size_t header_length,
+					void *header, void *private_data);
+
 static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				size_t header_length, void *header,
 				void *private_data)
 {
 	struct amdtp_stream *s = private_data;
 	const __be32 *ctx_header = header;
-	unsigned int events_per_period = s->events_per_period;
-	unsigned int event_count = s->event_count;
+	unsigned int events_per_period = s->ctx_data.rx.events_per_period;
+	unsigned int event_count = s->ctx_data.rx.event_count;
 	unsigned int packets;
+	bool is_irq_target;
 	int i;
 
 	if (s->packet_index < 0)
@@ -810,6 +819,10 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	generate_ideal_pkt_descs(s, s->pkt_descs, ctx_header, packets);
 
 	process_ctx_payloads(s, s->pkt_descs, packets);
+
+	is_irq_target =
+		!!(context->callback.sc == amdtp_stream_master_callback ||
+		   context->callback.sc == amdtp_stream_master_first_callback);
 
 	for (i = 0; i < packets; ++i) {
 		const struct pkt_desc *desc = s->pkt_descs + i;
@@ -829,10 +842,12 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 				    desc->data_blocks, desc->data_block_counter,
 				    syt, i);
 
-		event_count += desc->data_blocks;
-		if (event_count >= events_per_period) {
-			event_count -= events_per_period;
-			sched_irq = true;
+		if (is_irq_target) {
+			event_count += desc->data_blocks;
+			if (event_count >= events_per_period) {
+				event_count -= events_per_period;
+				sched_irq = true;
+			}
 		}
 
 		if (queue_out_packet(s, &template.params, sched_irq) < 0) {
@@ -841,7 +856,7 @@ static void out_stream_callback(struct fw_iso_context *context, u32 tstamp,
 		}
 	}
 
-	s->event_count = event_count;
+	s->ctx_data.rx.event_count = event_count;
 }
 
 static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
@@ -850,8 +865,6 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 {
 	struct amdtp_stream *s = private_data;
 	__be32 *ctx_header = header;
-	unsigned int events_per_period = s->events_per_period;
-	unsigned int event_count = s->event_count;
 	unsigned int packets;
 	int i;
 	int err;
@@ -873,31 +886,47 @@ static void in_stream_callback(struct fw_iso_context *context, u32 tstamp,
 	}
 
 	for (i = 0; i < packets; ++i) {
-		const struct pkt_desc *desc = s->pkt_descs + i;
 		struct fw_iso_packet params = {0};
-		bool sched_irq = false;
 
-		if (err >= 0) {
-			event_count += desc->data_blocks;
-			if (event_count >= events_per_period) {
-				event_count -= events_per_period;
-				sched_irq = true;
-			}
-		} else {
-			sched_irq =
-				!((s->packet_index + 1) % s->idle_irq_interval);
-		}
-
-		if (queue_in_packet(s, &params, sched_irq) < 0) {
+		if (queue_in_packet(s, &params) < 0) {
 			cancel_stream(s);
 			return;
 		}
 	}
-
-	s->event_count = event_count;
 }
 
-/* this is executed one time */
+static void amdtp_stream_master_callback(struct fw_iso_context *context,
+					 u32 tstamp, size_t header_length,
+					 void *header, void *private_data)
+{
+	struct amdtp_domain *d = private_data;
+	struct amdtp_stream *irq_target = d->irq_target;
+	struct amdtp_stream *s;
+
+	out_stream_callback(context, tstamp, header_length, header, irq_target);
+	if (amdtp_streaming_error(irq_target))
+		goto error;
+
+	list_for_each_entry(s, &d->streams, list) {
+		if (s != irq_target && amdtp_stream_running(s)) {
+			fw_iso_context_flush_completions(s->context);
+			if (amdtp_streaming_error(s))
+				goto error;
+		}
+	}
+
+	return;
+error:
+	if (amdtp_stream_running(irq_target))
+		cancel_stream(irq_target);
+
+	list_for_each_entry(s, &d->streams, list) {
+		if (amdtp_stream_running(s))
+			cancel_stream(s);
+	}
+}
+
+// this is executed one time.
 static void amdtp_stream_first_callback(struct fw_iso_context *context,
 					u32 tstamp, size_t header_length,
 					void *header, void *private_data)
@@ -928,18 +957,39 @@ static void amdtp_stream_first_callback(struct fw_iso_context *context,
 	context->callback.sc(context, tstamp, header_length, header, s);
 }
 
+static void amdtp_stream_master_first_callback(struct fw_iso_context *context,
+					       u32 tstamp, size_t header_length,
+					       void *header, void *private_data)
+{
+	struct amdtp_domain *d = private_data;
+	struct amdtp_stream *s = d->irq_target;
+	const __be32 *ctx_header = header;
+
+	s->callbacked = true;
+	wake_up(&s->callback_wait);
+
+	s->start_cycle = compute_it_cycle(*ctx_header, s->queue_size);
+
+	context->callback.sc = amdtp_stream_master_callback;
+
+	context->callback.sc(context, tstamp, header_length, header, d);
+}
+
 /**
  * amdtp_stream_start - start transferring packets
  * @s: the AMDTP stream to start
  * @channel: the isochronous channel on the bus
  * @speed: firewire speed code
+ * @d: the AMDTP domain to which the AMDTP stream belongs
+ * @is_irq_target: whether isoc context for the AMDTP stream is used to generate
+ *		   hardware IRQ.
  *
  * The stream cannot be started until it has been configured with
  * amdtp_stream_set_parameters() and it must be started before any PCM or MIDI
  * device can be started.
  */
 static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
-			      struct amdtp_domain *d)
+			      struct amdtp_domain *d, bool is_irq_target)
 {
 	static const struct {
 		unsigned int data_block;
@@ -955,10 +1005,13 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	};
 	unsigned int events_per_buffer = d->events_per_buffer;
 	unsigned int events_per_period = d->events_per_period;
+	unsigned int idle_irq_interval;
 	unsigned int ctx_header_size;
 	unsigned int max_ctx_payload_size;
 	enum dma_data_direction dir;
 	int type, tag, err;
+	fw_iso_callback_t ctx_cb;
+	void *ctx_data;
 
 	mutex_lock(&s->mutex);
 
@@ -969,6 +1022,12 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	}
 
 	if (s->direction == AMDTP_IN_STREAM) {
+		// NOTE: IT context should be used for constant IRQ.
+		if (is_irq_target) {
+			err = -EINVAL;
+			goto err_unlock;
+		}
+
 		s->data_block_counter = UINT_MAX;
 	} else {
 		entry = &initial_state[s->sfc];
@@ -1008,22 +1067,29 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	if (events_per_buffer == 0)
 		events_per_buffer = events_per_period * 3;
 
-	s->idle_irq_interval =
-			DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_period,
-				     amdtp_rate_table[s->sfc]);
+	idle_irq_interval = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_period,
+					 amdtp_rate_table[s->sfc]);
 	s->queue_size = DIV_ROUND_UP(CYCLES_PER_SECOND * events_per_buffer,
 				     amdtp_rate_table[s->sfc]);
-	s->events_per_period = events_per_period;
-	s->event_count = 0;
 
 	err = iso_packets_buffer_init(&s->buffer, s->unit, s->queue_size,
 				      max_ctx_payload_size, dir);
 	if (err < 0)
 		goto err_unlock;
 
+	if (is_irq_target) {
+		s->ctx_data.rx.events_per_period = events_per_period;
+		s->ctx_data.rx.event_count = 0;
+		ctx_cb = amdtp_stream_master_first_callback;
+		ctx_data = d;
+	} else {
+		ctx_cb = amdtp_stream_first_callback;
+		ctx_data = s;
+	}
+
 	s->context = fw_iso_context_create(fw_parent_device(s->unit)->card,
 					  type, channel, speed, ctx_header_size,
-					  amdtp_stream_first_callback, s);
+					  ctx_cb, ctx_data);
 	if (IS_ERR(s->context)) {
 		err = PTR_ERR(s->context);
 		if (err == -EBUSY)
@@ -1054,14 +1120,20 @@ static int amdtp_stream_start(struct amdtp_stream *s, int channel, int speed,
 	s->packet_index = 0;
 	do {
 		struct fw_iso_packet params;
-		bool sched_irq;
 
-		sched_irq = !((s->packet_index + 1) % s->idle_irq_interval);
 		if (s->direction == AMDTP_IN_STREAM) {
-			err = queue_in_packet(s, &params, sched_irq);
+			err = queue_in_packet(s, &params);
 		} else {
+			bool sched_irq = false;
+
 			params.header_length = 0;
 			params.payload_length = 0;
+
+			if (is_irq_target) {
+				sched_irq = !((s->packet_index + 1) %
+					      idle_irq_interval);
+			}
+
 			err = queue_out_packet(s, &params, sched_irq);
 		}
 		if (err < 0)
@@ -1276,17 +1348,33 @@ int amdtp_domain_start(struct amdtp_domain *d)
 	struct amdtp_stream *s;
 	int err = 0;
 
+	// Select an IT context as IRQ target.
 	list_for_each_entry(s, &d->streams, list) {
-		err = amdtp_stream_start(s, s->channel, s->speed, d);
-		if (err < 0)
+		if (s->direction == AMDTP_OUT_STREAM)
 			break;
 	}
+	if (!s)
+		return -ENXIO;
+	d->irq_target = s;
 
-	if (err < 0) {
-		list_for_each_entry(s, &d->streams, list)
-			amdtp_stream_stop(s);
+	list_for_each_entry(s, &d->streams, list) {
+		if (s != d->irq_target) {
+			err = amdtp_stream_start(s, s->channel, s->speed, d,
+						 false);
+			if (err < 0)
+				goto error;
+		}
 	}
 
+	s = d->irq_target;
+	err = amdtp_stream_start(s, s->channel, s->speed, d, true);
+	if (err < 0)
+		goto error;
+
+	return 0;
+error:
+	list_for_each_entry(s, &d->streams, list)
+		amdtp_stream_stop(s);
 	return err;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_start);
@@ -1299,12 +1387,17 @@ void amdtp_domain_stop(struct amdtp_domain *d)
 {
 	struct amdtp_stream *s, *next;
 
+	if (d->irq_target)
+		amdtp_stream_stop(d->irq_target);
+
 	list_for_each_entry_safe(s, next, &d->streams, list) {
 		list_del(&s->list);
 
-		amdtp_stream_stop(s);
+		if (s != d->irq_target)
+			amdtp_stream_stop(s);
 	}
 
 	d->events_per_period = 0;
+	d->irq_target = NULL;
 }
 EXPORT_SYMBOL_GPL(amdtp_domain_stop);
