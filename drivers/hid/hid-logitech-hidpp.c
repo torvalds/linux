@@ -3498,34 +3498,45 @@ static int hidpp_get_report_length(struct hid_device *hdev, int id)
 	return report->field[0]->report_count + 1;
 }
 
-static bool hidpp_validate_report(struct hid_device *hdev, int id,
-				  int expected_length, bool optional)
-{
-	int report_length;
-
-	if (id >= HID_MAX_IDS || id < 0) {
-		hid_err(hdev, "invalid HID report id %u\n", id);
-		return false;
-	}
-
-	report_length = hidpp_get_report_length(hdev, id);
-	if (!report_length)
-		return optional;
-
-	if (report_length < expected_length) {
-		hid_warn(hdev, "not enough values in hidpp report %d\n", id);
-		return false;
-	}
-
-	return true;
-}
-
 static bool hidpp_validate_device(struct hid_device *hdev)
 {
-	return hidpp_validate_report(hdev, REPORT_ID_HIDPP_SHORT,
-				     HIDPP_REPORT_SHORT_LENGTH, false) &&
-	       hidpp_validate_report(hdev, REPORT_ID_HIDPP_LONG,
-				     HIDPP_REPORT_LONG_LENGTH, true);
+	struct hidpp_device *hidpp = hid_get_drvdata(hdev);
+	int id, report_length, supported_reports = 0;
+
+	id = REPORT_ID_HIDPP_SHORT;
+	report_length = hidpp_get_report_length(hdev, id);
+	if (report_length) {
+		if (report_length < HIDPP_REPORT_SHORT_LENGTH)
+			goto bad_device;
+
+		supported_reports++;
+	}
+
+	id = REPORT_ID_HIDPP_LONG;
+	report_length = hidpp_get_report_length(hdev, id);
+	if (report_length) {
+		if (report_length < HIDPP_REPORT_LONG_LENGTH)
+			goto bad_device;
+
+		supported_reports++;
+	}
+
+	id = REPORT_ID_HIDPP_VERY_LONG;
+	report_length = hidpp_get_report_length(hdev, id);
+	if (report_length) {
+		if (report_length < HIDPP_REPORT_LONG_LENGTH ||
+		    report_length > HIDPP_REPORT_VERY_LONG_MAX_LENGTH)
+			goto bad_device;
+
+		supported_reports++;
+		hidpp->very_long_report_length = report_length;
+	}
+
+	return supported_reports;
+
+bad_device:
+	hid_warn(hdev, "not enough values in hidpp report %d\n", id);
+	return false;
 }
 
 static bool hidpp_application_equals(struct hid_device *hdev,
@@ -3571,11 +3582,6 @@ static int hidpp_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		devm_kfree(&hdev->dev, hidpp);
 		return hid_hw_start(hdev, HID_CONNECT_DEFAULT);
 	}
-
-	hidpp->very_long_report_length =
-		hidpp_get_report_length(hdev, REPORT_ID_HIDPP_VERY_LONG);
-	if (hidpp->very_long_report_length > HIDPP_REPORT_VERY_LONG_MAX_LENGTH)
-		hidpp->very_long_report_length = HIDPP_REPORT_VERY_LONG_MAX_LENGTH;
 
 	if (id->group == HID_GROUP_LOGITECH_DJ_DEVICE)
 		hidpp->quirks |= HIDPP_QUIRK_UNIFYING;
