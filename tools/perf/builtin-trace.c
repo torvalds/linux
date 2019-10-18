@@ -2727,12 +2727,6 @@ static int trace__event_handler(struct trace *trace, struct evsel *evsel,
 			} else {
 				trace__fprintf_tp_fields(trace, evsel, sample, thread, NULL, 0);
 			}
-			++trace->nr_events_printed;
-
-			if (evsel->max_events != ULONG_MAX && ++evsel->nr_events_printed == evsel->max_events) {
-				evsel__disable(evsel);
-				evsel__close(evsel);
-			}
 		}
 	}
 
@@ -2743,6 +2737,13 @@ newline:
 		trace__fprintf_callchain(trace, sample);
 	else if (callchain_ret < 0)
 		pr_err("Problem processing %s callchain, skipping...\n", perf_evsel__name(evsel));
+
+	++trace->nr_events_printed;
+
+	if (evsel->max_events != ULONG_MAX && ++evsel->nr_events_printed == evsel->max_events) {
+		evsel__disable(evsel);
+		evsel__close(evsel);
+	}
 out:
 	thread__put(thread);
 	return 0;
