@@ -1559,7 +1559,7 @@ static void chv_init_irq_valid_mask(struct gpio_chip *chip,
 		intsel >>= CHV_PADCTRL0_INTSEL_SHIFT;
 
 		if (intsel >= community->nirqs)
-			clear_bit(i, valid_mask);
+			clear_bit(desc->number, valid_mask);
 	}
 }
 
