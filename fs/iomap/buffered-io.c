@@ -548,6 +548,10 @@ iomap_migrate_page(struct address_space *mapping, struct page *newpage,
 EXPORT_SYMBOL_GPL(iomap_migrate_page);
 #endif /* CONFIG_MIGRATION */
 
+enum {
+	IOMAP_WRITE_F_UNSHARE		= (1 << 0),
+};
+
 static void
 iomap_write_failed(struct inode *inode, loff_t pos, unsigned len)
 {
@@ -577,7 +581,7 @@ iomap_read_page_sync(loff_t block_start, struct page *page, unsigned poff,
 }
 
 static int
-__iomap_write_begin(struct inode *inode, loff_t pos, unsigned len,
+__iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, int flags,
 		struct page *page, struct iomap *iomap)
 {
 	struct iomap_page *iop = iomap_page_create(inode, page);
@@ -596,11 +600,14 @@ __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len,
 		if (plen == 0)
 			break;
 
-		if ((from <= poff || from >= poff + plen) &&
+		if (!(flags & IOMAP_WRITE_F_UNSHARE) &&
+		    (from <= poff || from >= poff + plen) &&
 		    (to <= poff || to >= poff + plen))
 			continue;
 
 		if (iomap_block_needs_zeroing(inode, iomap, block_start)) {
+			if (WARN_ON_ONCE(flags & IOMAP_WRITE_F_UNSHARE))
+				return -EIO;
 			zero_user_segments(page, poff, from, to, poff + plen);
 			iomap_set_range_uptodate(page, poff, plen);
 			continue;
@@ -646,7 +653,8 @@ iomap_write_begin(struct inode *inode, loff_t pos, unsigned len, unsigned flags,
 	else if (iomap->flags & IOMAP_F_BUFFER_HEAD)
 		status = __block_write_begin_int(page, pos, len, NULL, iomap);
 	else
-		status = __iomap_write_begin(inode, pos, len, page, iomap);
+		status = __iomap_write_begin(inode, pos, len, flags, page,
+				iomap);
 
 	if (unlikely(status))
 		goto out_unlock;
@@ -869,22 +877,6 @@ iomap_file_buffered_write(struct kiocb *iocb, struct iov_iter *iter,
 }
 EXPORT_SYMBOL_GPL(iomap_file_buffered_write);
 
-static struct page *
-__iomap_read_page(struct inode *inode, loff_t offset)
-{
-	struct address_space *mapping = inode->i_mapping;
-	struct page *page;
-
-	page = read_mapping_page(mapping, offset >> PAGE_SHIFT, NULL);
-	if (IS_ERR(page))
-		return page;
-	if (!PageUptodate(page)) {
-		put_page(page);
-		return ERR_PTR(-EIO);
-	}
-	return page;
-}
-
 static loff_t
 iomap_unshare_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		struct iomap *iomap)
@@ -900,23 +892,14 @@ iomap_unshare_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
 		return length;
 
 	do {
-		struct page *page, *rpage;
-		unsigned long offset;	/* Offset into pagecache page */
-		unsigned long bytes;	/* Bytes to write to page */
+		unsigned long offset = offset_in_page(pos);
+		unsigned long bytes = min_t(loff_t, PAGE_SIZE - offset, length);
+		struct page *page;
 
-		offset = offset_in_page(pos);
-		bytes = min_t(loff_t, PAGE_SIZE - offset, length);
-
-		rpage = __iomap_read_page(inode, pos);
-		if (IS_ERR(rpage))
-			return PTR_ERR(rpage);
-
-		status = iomap_write_begin(inode, pos, bytes, 0, &page, iomap);
-		put_page(rpage);
+		status = iomap_write_begin(inode, pos, bytes,
+				IOMAP_WRITE_F_UNSHARE, &page, iomap);
 		if (unlikely(status))
 			return status;
-
-		WARN_ON_ONCE(!PageUptodate(page));
 
 		status = iomap_write_end(inode, pos, bytes, bytes, page, iomap);
 		if (unlikely(status <= 0)) {
