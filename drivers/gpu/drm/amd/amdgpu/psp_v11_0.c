@@ -244,7 +244,7 @@ static int psp_v11_0_bootloader_load_kdb(struct psp_context *psp)
 	/* Copy PSP KDB binary to memory */
 	memcpy(psp->fw_pri_buf, psp->kdb_start_addr, psp->kdb_bin_size);
 
-	/* Provide the sys driver to bootloader */
+	/* Provide the PSP KDB to bootloader */
 	WREG32_SOC15(MP0, 0, mmMP0_SMN_C2PMSG_36,
 	       (uint32_t)(psp->fw_pri_mc_addr >> 20));
 	psp_gfxdrv_command_reg = PSP_BL__LOAD_KEY_DATABASE;
