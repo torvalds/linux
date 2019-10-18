@@ -50,16 +50,19 @@ static struct mfd_cell cs5535_mfd_cells[] = {
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[PMS_BAR],
 	},
+};
+
+static struct mfd_cell cs5535_olpc_mfd_cells[] = {
 	{
-		.name = "cs5535-acpi",
+		.name = "olpc-xo1-pm-acpi",
 		.num_resources = 1,
 		.resources = &cs5535_mfd_resources[ACPI_BAR],
 	},
-};
-
-static const char *olpc_acpi_clones[] = {
-	"olpc-xo1-pm-acpi",
-	"olpc-xo1-sci-acpi"
+	{
+		.name = "olpc-xo1-sci-acpi",
+		.num_resources = 1,
+		.resources = &cs5535_mfd_resources[ACPI_BAR],
+	},
 };
 
 static int cs5535_mfd_probe(struct pci_dev *pdev,
@@ -101,10 +104,14 @@ static int cs5535_mfd_probe(struct pci_dev *pdev,
 			goto err_remove_devices;
 		}
 
-		err = mfd_clone_cell("cs5535-acpi", olpc_acpi_clones,
-				     ARRAY_SIZE(olpc_acpi_clones));
+		err = mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE,
+				      cs5535_olpc_mfd_cells,
+				      ARRAY_SIZE(cs5535_olpc_mfd_cells),
+				      NULL, 0, NULL);
 		if (err) {
-			dev_err(&pdev->dev, "Failed to clone MFD cell\n");
+			dev_err(&pdev->dev,
+				"Failed to add CS5535 OLPC sub-devices: %d\n",
+				err);
 			goto err_release_acpi;
 		}
 	}
