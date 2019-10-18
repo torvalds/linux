@@ -46,6 +46,23 @@
 #define LOG_NVME_IOERR  0x00800000      /* NVME IO Error events. */
 #define LOG_ALL_MSG	0xffffffff	/* LOG all messages */
 
+/* generate message by verbose log setting or severity */
+#define lpfc_vlog_msg(vport, level, mask, fmt, arg...) \
+{ if (((mask) & (vport)->cfg_log_verbose) || (level[1] <= '4')) \
+	dev_printk(level, &((vport)->phba->pcidev)->dev, "%d:(%d):" \
+		   fmt, (vport)->phba->brd_no, vport->vpi, ##arg); }
+
+#define lpfc_log_msg(phba, level, mask, fmt, arg...) \
+do { \
+	{ uint32_t log_verbose = (phba)->pport ? \
+				 (phba)->pport->cfg_log_verbose : \
+				 (phba)->cfg_log_verbose; \
+	if (((mask) & log_verbose) || (level[1] <= '4')) \
+		dev_printk(level, &((phba)->pcidev)->dev, "%d:" \
+			   fmt, phba->brd_no, ##arg); \
+	} \
+} while (0)
+
 #define lpfc_printf_vlog(vport, level, mask, fmt, arg...) \
 do { \
 	{ if (((mask) & (vport)->cfg_log_verbose) || (level[1] <= '3')) \
