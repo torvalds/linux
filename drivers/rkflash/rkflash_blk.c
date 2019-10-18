@@ -27,13 +27,11 @@
 #include <linux/wait.h>
 #include <linux/version.h>
 #include <linux/soc/rockchip/rk_vendor_storage.h>
+#include "../soc/rockchip/flash_vendor_storage.h"
 
-#include "rkflash_api.h"
 #include "rkflash_blk.h"
 #include "rkflash_debug.h"
 #include "rk_sftl.h"
-
-#include "../soc/rockchip/flash_vendor_storage.h"
 
 void __printf(1, 2) sftl_printk(char *fmt, ...)
 {
@@ -44,68 +42,10 @@ void __printf(1, 2) sftl_printk(char *fmt, ...)
 	va_end(ap);
 }
 
-static struct flash_boot_ops nandc_nand_ops = {
-#ifdef	CONFIG_RK_NANDC_NAND
-	FLASH_TYPE_NANDC_NAND,
-	sftl_flash_init,
-	sftl_flash_read,
-	sftl_flash_write,
-	sftl_flash_get_capacity,
-	sftl_flash_deinit,
-	sftl_flash_resume,
-	sftl_flash_vendor_read,
-	sftl_flash_vendor_write,
-	sftl_flash_gc,
-	sftl_flash_discard,
-#else
-	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-#endif
-};
-
-static struct flash_boot_ops sfc_nor_ops = {
-#ifdef	CONFIG_RK_SFC_NOR
-	FLASH_TYPE_SFC_NOR,
-	spi_flash_init,
-	snor_read_lba,
-	snor_write_lba,
-	snor_capacity,
-	snor_deinit,
-	snor_resume,
-	snor_vendor_read,
-	snor_vendor_write,
-	snor_gc,
-	NULL,
-#else
-	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-#endif
-};
-
-static struct flash_boot_ops sfc_nand_ops = {
-#ifdef	CONFIG_RK_SFC_NAND
-	FLASH_TYPE_SFC_NAND,
-	snand_init,
-	snand_read,
-	snand_write,
-	snand_get_capacity,
-	snand_deinit,
-	snand_resume,
-	snand_vendor_read,
-	snand_vendor_write,
-	snand_gc,
-	snand_discard,
-#else
-	-1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-#endif
-};
-
-static struct flash_boot_ops *g_boot_ops[] = {
-	&nandc_nand_ops,
-	&sfc_nor_ops,
-	&sfc_nand_ops,
-};
+/* For rkflash block dev private data */
+static const struct flash_boot_ops *g_boot_ops;
 
 static int g_flash_type = -1;
-
 static struct flash_part disk_array[MAX_PART_COUNT];
 static int g_max_part_num = 4;
 #define FW_HRADER_PT_NAME		("fw_header_p")
@@ -119,51 +59,30 @@ static unsigned long totle_read_data;
 static unsigned long totle_write_data;
 static unsigned long totle_read_count;
 static unsigned long totle_write_count;
-static int rkflash_dev_initialised;
 
 static char *mtd_read_temp_buffer;
 #define MTD_RW_SECTORS (512)
+
+#define DISABLE_WRITE _IO('V', 0)
+#define ENABLE_WRITE _IO('V', 1)
+#define DISABLE_READ _IO('V', 2)
+#define ENABLE_READ _IO('V', 3)
+
+static DECLARE_WAIT_QUEUE_HEAD(rkflash_thread_wait);
+static unsigned long rkflash_req_jiffies;
+static unsigned int rknand_req_do;
+
+/* For rkflash dev private data, including mtd dev and block dev */
+static int rkflash_dev_initialised;
 static DEFINE_MUTEX(g_flash_ops_mutex);
-
-int rkflash_vendor_read(u32 sec, u32 n_sec, void *p_data)
-{
-	int ret;
-
-	if (g_boot_ops[g_flash_type]->vendor_read) {
-		mutex_lock(&g_flash_ops_mutex);
-		ret = g_boot_ops[g_flash_type]->vendor_read(sec, n_sec, p_data);
-		mutex_unlock(&g_flash_ops_mutex);
-	} else {
-		ret = -EPERM;
-	}
-
-	return ret;
-}
-
-int rkflash_vendor_write(u32 sec, u32 n_sec, void *p_data)
-{
-	int ret;
-
-	if (g_boot_ops[g_flash_type]->vendor_write) {
-		mutex_lock(&g_flash_ops_mutex);
-		ret = g_boot_ops[g_flash_type]->vendor_write(sec,
-							     n_sec,
-							     p_data);
-		mutex_unlock(&g_flash_ops_mutex);
-	} else {
-		ret = -EPERM;
-	}
-
-	return ret;
-}
 
 static int rkflash_flash_gc(void)
 {
 	int ret;
 
-	if (g_boot_ops[g_flash_type]->gc) {
+	if (g_boot_ops->gc) {
 		mutex_lock(&g_flash_ops_mutex);
-		ret = g_boot_ops[g_flash_type]->gc();
+		ret = g_boot_ops->gc();
 		mutex_unlock(&g_flash_ops_mutex);
 	} else {
 		ret = -EPERM;
@@ -176,9 +95,9 @@ static int rkflash_blk_discard(u32 sec, u32 n_sec)
 {
 	int ret;
 
-	if (g_boot_ops[g_flash_type]->discard) {
+	if (g_boot_ops->discard) {
 		mutex_lock(&g_flash_ops_mutex);
-		ret = g_boot_ops[g_flash_type]->discard(sec, n_sec);
+		ret = g_boot_ops->discard(sec, n_sec);
 		mutex_unlock(&g_flash_ops_mutex);
 	} else {
 		ret = -EPERM;
@@ -197,10 +116,10 @@ static unsigned int rk_partition_init(struct flash_part *part)
 	if (!g_part)
 		return 0;
 	mutex_lock(&g_flash_ops_mutex);
-	if (g_boot_ops[g_flash_type]->read(0, 4, g_part) == 0) {
+	if (g_boot_ops->read(0, 4, g_part) == 0) {
 		if (g_part->hdr.ui_fw_tag == RK_PARTITION_TAG) {
 			part_num = g_part->hdr.ui_part_entry_count;
-			desity = g_boot_ops[g_flash_type]->get_capacity();
+			desity = g_boot_ops->get_capacity();
 			for (i = 0; i < part_num; i++) {
 				memcpy(part[i].name,
 				       g_part->part[i].sz_name,
@@ -229,7 +148,7 @@ static unsigned int rk_partition_init(struct flash_part *part)
 	return part_num;
 }
 
-static int rkflash_proc_show(struct seq_file *m, void *v)
+static int rkflash_blk_proc_show(struct seq_file *m, void *v)
 {
 	char *ftl_buf = kzalloc(4096, GFP_KERNEL);
 
@@ -248,24 +167,24 @@ static int rkflash_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int rkflash_proc_open(struct inode *inode, struct file *file)
+static int rkflash_blk_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, rkflash_proc_show, PDE_DATA(inode));
+	return single_open(file, rkflash_blk_proc_show, PDE_DATA(inode));
 }
 
-static const struct file_operations rkflash_proc_fops = {
+static const struct file_operations rkflash_blk_proc_fops = {
 	.owner		= THIS_MODULE,
-	.open		= rkflash_proc_open,
+	.open		= rkflash_blk_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-static int rkflash_create_procfs(void)
+static int rkflash_blk_create_procfs(void)
 {
 	struct proc_dir_entry *ent;
 
-	ent = proc_create_data("rkflash", 0x664, NULL, &rkflash_proc_fops,
+	ent = proc_create_data("rkflash", 0x664, NULL, &rkflash_blk_proc_fops,
 			       (void *)0);
 	if (!ent)
 		return -1;
@@ -273,12 +192,12 @@ static int rkflash_create_procfs(void)
 	return 0;
 }
 
-static int rkflash_xfer(struct flash_blk_dev *dev,
-			unsigned long start,
-			unsigned long nsector,
-			char *buf,
-			int cmd,
-			int totle_nsec)
+static int rkflash_blk_xfer(struct flash_blk_dev *dev,
+			    unsigned long start,
+			    unsigned long nsector,
+			    char *buf,
+			    int cmd,
+			    int totle_nsec)
 {
 	int ret;
 
@@ -297,7 +216,7 @@ static int rkflash_xfer(struct flash_blk_dev *dev,
 		mutex_lock(&g_flash_ops_mutex);
 		rkflash_print_bio("rkflash r sec= %lx, n_sec= %lx\n",
 				  start, nsector);
-		ret = g_boot_ops[g_flash_type]->read(start, nsector, buf);
+		ret = g_boot_ops->read(start, nsector, buf);
 		mutex_unlock(&g_flash_ops_mutex);
 		if (ret)
 			ret = -EIO;
@@ -309,7 +228,7 @@ static int rkflash_xfer(struct flash_blk_dev *dev,
 		mutex_lock(&g_flash_ops_mutex);
 		rkflash_print_bio("rkflash w sec= %lx, n_sec= %lx\n",
 				  start, nsector);
-		ret = g_boot_ops[g_flash_type]->write(start, nsector, buf);
+		ret = g_boot_ops->write(start, nsector, buf);
 		mutex_unlock(&g_flash_ops_mutex);
 		if (ret)
 			ret = -EIO;
@@ -323,11 +242,7 @@ static int rkflash_xfer(struct flash_blk_dev *dev,
 	return ret;
 }
 
-static DECLARE_WAIT_QUEUE_HEAD(rkflash_thread_wait);
-static unsigned long rkflash_req_jiffies;
-static unsigned int rknand_req_do;
-
-static int req_check_buffer_align(struct request *req, char **pbuf)
+static int rkflash_blk_check_buffer_align(struct request *req, char **pbuf)
 {
 	int nr_vec = 0;
 	struct bio_vec bvec;
@@ -409,14 +324,14 @@ static int rkflash_blktrans_thread(void *arg)
 			continue;
 		} else if (rw_flag == REQ_OP_READ && mtd_read_temp_buffer) {
 			buf = mtd_read_temp_buffer;
-			req_check_buffer_align(req, &buf);
+			rkflash_blk_check_buffer_align(req, &buf);
 			spin_unlock_irq(rq->queue_lock);
-			res = rkflash_xfer(dev,
-					   sector_index,
-					   totle_nsect,
-					   buf,
-					   rw_flag,
-					   totle_nsect);
+			res = rkflash_blk_xfer(dev,
+					       sector_index,
+					       totle_nsect,
+					       buf,
+					       rw_flag,
+					       totle_nsect);
 			spin_lock_irq(rq->queue_lock);
 			if (buf == mtd_read_temp_buffer) {
 				char *p = buf;
@@ -438,12 +353,12 @@ static int rkflash_blktrans_thread(void *arg)
 				} else {
 					if (rq_len) {
 						spin_unlock_irq(rq->queue_lock);
-						res = rkflash_xfer(dev,
-								   sector_index,
-								   rq_len >> 9,
-								   buf,
-								   rw_flag,
-								   totle_nsect);
+						res = rkflash_blk_xfer(dev,
+								       sector_index,
+								       rq_len >> 9,
+								       buf,
+								       rw_flag,
+								       totle_nsect);
 						spin_lock_irq(rq->queue_lock);
 					}
 					sector_index += rq_len >> 9;
@@ -454,12 +369,12 @@ static int rkflash_blktrans_thread(void *arg)
 			}
 			if (rq_len) {
 				spin_unlock_irq(rq->queue_lock);
-				res = rkflash_xfer(dev,
-						   sector_index,
-						   rq_len >> 9,
-						   buf,
-						   rw_flag,
-						   totle_nsect);
+				res = rkflash_blk_xfer(dev,
+						       sector_index,
+						       rq_len >> 9,
+						       buf,
+						       rw_flag,
+						       totle_nsect);
 				spin_lock_irq(rq->queue_lock);
 			}
 		} else {
@@ -493,20 +408,16 @@ static void rkflash_blk_request(struct request_queue *rq)
 	wake_up(&blk_ops->thread_wq);
 }
 
-static int rkflash_open(struct block_device *bdev, fmode_t mode)
+static int rkflash_blk_open(struct block_device *bdev, fmode_t mode)
 {
 	return 0;
 }
 
-static void rkflash_release(struct gendisk *disk, fmode_t mode)
+static void rkflash_blk_release(struct gendisk *disk, fmode_t mode)
 {
 };
 
-#define DISABLE_WRITE _IO('V', 0)
-#define ENABLE_WRITE _IO('V', 1)
-#define DISABLE_READ _IO('V', 2)
-#define ENABLE_READ _IO('V', 3)
-static int rkflash_ioctl(struct block_device *bdev, fmode_t mode,
+static int rkflash_blk_ioctl(struct block_device *bdev, fmode_t mode,
 			 unsigned int cmd,
 			 unsigned long arg)
 {
@@ -537,11 +448,11 @@ static int rkflash_ioctl(struct block_device *bdev, fmode_t mode,
 	}
 }
 
-const struct block_device_operations rkflash_blktrans_ops = {
+const struct block_device_operations rkflash_blk_trans_ops = {
 	.owner = THIS_MODULE,
-	.open = rkflash_open,
-	.release = rkflash_release,
-	.ioctl = rkflash_ioctl,
+	.open = rkflash_blk_open,
+	.release = rkflash_blk_release,
+	.ioctl = rkflash_blk_ioctl,
 };
 
 static struct flash_blk_ops mytr = {
@@ -551,7 +462,7 @@ static struct flash_blk_ops mytr = {
 	.owner = THIS_MODULE,
 };
 
-static int rkflash_add_dev(struct flash_blk_ops *blk_ops,
+static int rkflash_blk_add_dev(struct flash_blk_ops *blk_ops,
 			   struct flash_part *part)
 {
 	struct flash_blk_dev *dev;
@@ -579,7 +490,7 @@ static int rkflash_add_dev(struct flash_blk_ops *blk_ops,
 
 	gd->major = blk_ops->major;
 	gd->first_minor = (dev->devnum) << blk_ops->minorbits;
-	gd->fops = &rkflash_blktrans_ops;
+	gd->fops = &rkflash_blk_trans_ops;
 
 	if (part->name[0]) {
 		snprintf(gd->disk_name,
@@ -620,7 +531,7 @@ static int rkflash_add_dev(struct flash_blk_ops *blk_ops,
 	return 0;
 }
 
-static int rkflash_remove_dev(struct flash_blk_dev *dev)
+static int rkflash_blk_remove_dev(struct flash_blk_dev *dev)
 {
 	struct gendisk *gd;
 
@@ -679,19 +590,19 @@ static int rkflash_blk_register(struct flash_blk_ops *blk_ops)
 				offset * 512,
 				(u64)(offset + disk_array[i].size) * 512,
 				(u64)disk_array[i].size / 2048);
-			rkflash_add_dev(blk_ops, &disk_array[i]);
+			rkflash_blk_add_dev(blk_ops, &disk_array[i]);
 		}
-		rkflash_add_dev(blk_ops, &fw_header_p);
+		rkflash_blk_add_dev(blk_ops, &fw_header_p);
 	} else {
 		struct flash_part part;
 
 		part.offset = 0;
-		part.size = g_boot_ops[g_flash_type]->get_capacity();
+		part.size = g_boot_ops->get_capacity();
 		part.type = 0;
 		part.name[0] = 0;
-		rkflash_add_dev(&mytr, &part);
+		rkflash_blk_add_dev(&mytr, &part);
 	}
-	rkflash_create_procfs();
+	rkflash_blk_create_procfs();
 
 	return 0;
 }
@@ -707,60 +618,81 @@ static void rkflash_blk_unregister(struct flash_blk_ops *blk_ops)
 		struct flash_blk_dev *dev =
 			list_entry(this, struct flash_blk_dev, list);
 
-		rkflash_remove_dev(dev);
+		rkflash_blk_remove_dev(dev);
 	}
 	blk_cleanup_queue(blk_ops->rq);
 	unregister_blkdev(blk_ops->major, blk_ops->name);
 }
 
-int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
+static int rkflash_dev_vendor_read(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret;
-	int tmp_id, start_id, end_id;
 
-	pr_err("%s\n", __func__);
+	if (g_boot_ops->vendor_read) {
+		mutex_lock(&g_flash_ops_mutex);
+		ret = g_boot_ops->vendor_read(sec, n_sec, p_data);
+		mutex_unlock(&g_flash_ops_mutex);
+	} else {
+		ret = -EPERM;
+	}
+
+	return ret;
+}
+
+static int rkflash_dev_vendor_write(u32 sec, u32 n_sec, void *p_data)
+{
+	int ret;
+
+	if (g_boot_ops->vendor_write) {
+		mutex_lock(&g_flash_ops_mutex);
+		ret = g_boot_ops->vendor_write(sec,
+					       n_sec,
+					       p_data);
+		mutex_unlock(&g_flash_ops_mutex);
+	} else {
+		ret = -EPERM;
+	}
+
+	return ret;
+}
+
+int rkflash_dev_init(void __iomem *reg_addr,
+		     enum flash_type type,
+		     const struct flash_boot_ops *ops)
+{
+	int ret = -1;
+
+	pr_err("%s enter\n", __func__);
 	if (rkflash_dev_initialised) {
 		pr_err("rkflash has already inited as id[%d]\n", g_flash_type);
 		return -1;
 	}
 
-	if (con_type == FLASH_CON_TYPE_NANDC) {
-		start_id = FLASH_TYPE_NANDC_NAND;
-		end_id = FLASH_TYPE_NANDC_NAND;
-	} else {
-		start_id = FLASH_TYPE_SFC_NOR;
-		end_id = FLASH_TYPE_SFC_NAND;
+	if (!ops->init)
+		return -EINVAL;
+	ret = ops->init(reg_addr);
+	if (ret) {
+		pr_err("rkflash[%d] is invalid", type);
+
+		return -ENODEV;
 	}
-	for (tmp_id = start_id; tmp_id <= end_id; tmp_id++) {
-		pr_info("init rkflash[%d]\n", tmp_id);
-		if (g_boot_ops[tmp_id]->id == -1) {
-			pr_err("rkflash[%d] is invalid\n", tmp_id);
-			if (tmp_id == end_id)
-				return -1;
-			continue;
-		}
-		ret = g_boot_ops[tmp_id]->init(reg_addr);
-		if (ret) {
-			pr_err("rkflash[%d] init fail ret = %d\n", tmp_id, ret);
-			if (tmp_id == end_id)
-				return -1;
-			continue;
-		} else {
-			break;
-		}
-	}
-	pr_info("rkflash[%d] init success\n", tmp_id);
-	g_flash_type = tmp_id;
-	mytr.quit = 1;
-	if (g_flash_type == FLASH_TYPE_SFC_NOR) {
-		flash_vendor_dev_ops_register(rkflash_vendor_read,
-					      rkflash_vendor_write);
-	} else if (g_flash_type == FLASH_TYPE_SFC_NAND) {
-		/* TO-DO */
-	} else {
-#if defined(CONFIG_RK_NANDC_NAND) || defined(CONFIG_RK_SFC_NAND)
-		rk_sftl_vendor_dev_ops_register(rkflash_vendor_read,
-						rkflash_vendor_write);
+	pr_info("rkflash[%d] init success\n", type);
+	g_boot_ops = ops;
+
+	/* vendor part */
+	switch (type) {
+	case FLASH_TYPE_SFC_NOR:
+		flash_vendor_dev_ops_register(rkflash_dev_vendor_read,
+					      rkflash_dev_vendor_write);
+		break;
+	case FLASH_TYPE_SFC_NAND:
+#ifdef CONFIG_RK_SFC_NAND_MTD
+		break;
+#endif
+	case FLASH_TYPE_NANDC_NAND:
+#if defined(CONFIG_RK_SFC_NAND) || defined(CONFIG_RK_NANDC_NAND)
+		rk_sftl_vendor_dev_ops_register(rkflash_dev_vendor_read,
+						rkflash_dev_vendor_write);
 		ret = rk_sftl_vendor_storage_init();
 		if (!ret) {
 			rk_vendor_register(rk_sftl_vendor_read,
@@ -770,62 +702,76 @@ int rkflash_dev_init(void __iomem *reg_addr, enum flash_con_type con_type)
 		} else {
 			pr_info("rkflash vendor storage init failed !\n");
 		}
+		break;
 #endif
+	default:
+		break;
 	}
-#if defined(CONFIG_RK_SFC_NOR_MTD) || defined(CONFIG_RK_SFC_NAND_MTD)
-	if (g_flash_type == FLASH_TYPE_SFC_NOR) {
-		pr_info("sfc_nor flash registered as a mtd device\n");
-		rkflash_dev_initialised = 1;
-		return 0;
-	} else if (g_flash_type == FLASH_TYPE_SFC_NAND) {
-		pr_info("sfc_nand flash registered as a mtd device\n");
-		rkflash_dev_initialised = 1;
-		return 0;
-	}
+
+	switch (type) {
+	case FLASH_TYPE_SFC_NOR:
+#ifdef CONFIG_RK_SFC_NOR_MTD
+		ret = sfc_nor_mtd_init(sfnor_dev, &g_flash_ops_mutex);
+		pr_err("%s device register as blk dev, ret= %d\n", __func__, ret);
+		break;
 #endif
-	ret = rkflash_blk_register(&mytr);
-	if (ret) {
-		pr_err("rkflash_blk_register fail\n");
-		g_flash_type = -1;
-		return -1;
+	case FLASH_TYPE_SFC_NAND:
+#ifdef CONFIG_RK_SFC_NAND_MTD
+		ret = sfc_nand_mtd_init(sfnand_dev, &g_flash_ops_mutex);
+		pr_err("%s device register as blk dev, ret= %d\n", __func__, ret);
+		break;
+#endif
+	case FLASH_TYPE_NANDC_NAND:
+	default:
+		g_flash_type = type;
+		mytr.quit = 1;
+		ret = rkflash_blk_register(&mytr);
+		pr_err("%s device register as blk dev, ret= %d\n", __func__, ret);
+		if (ret)
+			g_flash_type = -1;
+		break;
 	}
-	rkflash_dev_initialised = 1;
+
+	if (!ret)
+		rkflash_dev_initialised = 1;
 
 	return ret;
 }
 
 int rkflash_dev_exit(void)
 {
-	if (rkflash_dev_initialised) {
-		g_flash_type = -1;
+	if (rkflash_dev_initialised)
 		rkflash_dev_initialised = 0;
+	if (g_flash_type != -1)
 		rkflash_blk_unregister(&mytr);
-		pr_info("%s:OK\n", __func__);
-	}
+	pr_info("%s:OK\n", __func__);
+
 	return 0;
 }
 
 int rkflash_dev_suspend(void)
 {
 	mutex_lock(&g_flash_ops_mutex);
+
 	return 0;
 }
 
 int rkflash_dev_resume(void __iomem *reg_addr)
 {
-	g_boot_ops[g_flash_type]->resume(reg_addr);
+	g_boot_ops->resume(reg_addr);
 	mutex_unlock(&g_flash_ops_mutex);
+
 	return 0;
 }
 
 void rkflash_dev_shutdown(void)
 {
 	pr_info("rkflash_shutdown...\n");
-	if (mytr.quit == 0) {
+	if (g_flash_type != -1 && mytr.quit == 0) {
 		mytr.quit = 1;
 		wake_up(&mytr.thread_wq);
 		wait_for_completion(&mytr.thread_exit);
 	}
-	g_boot_ops[g_flash_type]->deinit();
+	g_boot_ops->deinit();
 	pr_info("rkflash_shutdown:OK\n");
 }

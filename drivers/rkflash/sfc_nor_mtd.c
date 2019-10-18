@@ -9,54 +9,62 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
-#include "sfc_nor.h"
 #include "rkflash_blk.h"
 #include "rkflash_debug.h"
 
+struct snor_mtd_dev {
+	struct SFNOR_DEV *snor;
+	struct mutex	*lock; /* to lock this object */
+	struct mtd_info mtd;
+	u8 *dma_buf;
+};
+
 static struct mtd_partition nor_parts[MAX_PART_COUNT];
 
-static inline struct SFNOR_DEV *mtd_to_sfc(struct mtd_info *ptr_mtd)
+static inline struct snor_mtd_dev *mtd_to_priv(struct mtd_info *ptr_mtd)
 {
-	return (struct SFNOR_DEV *)((char *)ptr_mtd -
-		offsetof(struct SFNOR_DEV, mtd));
+	return (struct snor_mtd_dev *)((char *)ptr_mtd -
+		offsetof(struct snor_mtd_dev, mtd));
 }
 
 static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 {
 	int ret;
-	struct SFNOR_DEV *p_dev = mtd_to_sfc(mtd);
+	struct snor_mtd_dev *p_dev = mtd_to_priv(mtd);
 	u32 addr, len;
 	u32 rem;
 
-	if ((instr->addr + instr->len) > p_dev->capacity << 9)
+	addr = instr->addr;
+	len = instr->len;
+	rkflash_print_dio("%s addr= %x len= %x\n",
+			  __func__, addr, len);
+
+	if ((addr + len) > mtd->size)
 		return -EINVAL;
 
 	div_u64_rem(instr->len, mtd->erasesize, &rem);
 	if (rem)
 		return -EINVAL;
 
-	mutex_lock(&p_dev->lock);
-
-	addr = instr->addr;
-	len = instr->len;
+	mutex_lock(p_dev->lock);
 
 	if (len == p_dev->mtd.size) {
-		ret = snor_erase(p_dev, 0, CMD_CHIP_ERASE);
+		ret = snor_erase(p_dev->snor, 0, CMD_CHIP_ERASE);
 		if (ret) {
 			rkflash_print_error("snor_erase CHIP 0x%x ret=%d\n",
 					    addr, ret);
 			instr->state = MTD_ERASE_FAILED;
-			mutex_unlock(&p_dev->lock);
+			mutex_unlock(p_dev->lock);
 			return -EIO;
 		}
 	} else {
 		while (len > 0) {
-			ret = snor_erase(p_dev, addr, ERASE_BLOCK64K);
+			ret = snor_erase(p_dev->snor, addr, ERASE_BLOCK64K);
 			if (ret) {
 				rkflash_print_error("snor_erase 0x%x ret=%d\n",
 						    addr, ret);
 				instr->state = MTD_ERASE_FAILED;
-				mutex_unlock(&p_dev->lock);
+				mutex_unlock(p_dev->lock);
 				return -EIO;
 			}
 			addr += mtd->erasesize;
@@ -64,7 +72,7 @@ static int sfc_erase_mtd(struct mtd_info *mtd, struct erase_info *instr)
 		}
 	}
 
-	mutex_unlock(&p_dev->lock);
+	mutex_unlock(p_dev->lock);
 
 	instr->state = MTD_ERASE_DONE;
 	mtd_erase_callback(instr);
@@ -78,12 +86,13 @@ static int sfc_write_mtd(struct mtd_info *mtd, loff_t to, size_t len,
 	int status;
 	u32 addr, size, chunk, padding;
 	u32 page_align;
-	struct SFNOR_DEV *p_dev = mtd_to_sfc(mtd);
+	struct snor_mtd_dev *p_dev = mtd_to_priv(mtd);
 
-	if ((to + len) > p_dev->capacity << 9)
+	rkflash_print_dio("%s addr= %llx len= %x\n", __func__, to, (u32)len);
+	if ((to + len) > mtd->size)
 		return -EINVAL;
 
-	mutex_lock(&p_dev->lock);
+	mutex_lock(p_dev->lock);
 
 	addr = to;
 	size = len;
@@ -100,13 +109,13 @@ static int sfc_write_mtd(struct mtd_info *mtd, loff_t to, size_t len,
 			padding = ((chunk + 3) & 0xFFFC) - chunk;
 			memset(p_dev->dma_buf + chunk, 0xFF, padding);
 		}
-		status = snor_prog_page(p_dev, addr, p_dev->dma_buf,
+		status = snor_prog_page(p_dev->snor, addr, p_dev->dma_buf,
 					chunk + padding);
 		if (status != SFC_OK) {
 			rkflash_print_error("snor_prog_page %x ret= %d\n",
 					    addr, status);
 			*retlen = len - size;
-			mutex_unlock(&p_dev->lock);
+			mutex_unlock(p_dev->lock);
 			return status;
 		}
 
@@ -115,7 +124,7 @@ static int sfc_write_mtd(struct mtd_info *mtd, loff_t to, size_t len,
 		buf += chunk;
 	}
 	*retlen = len;
-	mutex_unlock(&p_dev->lock);
+	mutex_unlock(p_dev->lock);
 
 	return 0;
 }
@@ -126,24 +135,24 @@ static int sfc_read_mtd(struct mtd_info *mtd, loff_t from, size_t len,
 	u32 addr, size, chunk;
 	u8 *p_buf =  (u8 *)buf;
 	int ret = SFC_OK;
+	struct snor_mtd_dev *p_dev = mtd_to_priv(mtd);
 
-	struct SFNOR_DEV *p_dev = mtd_to_sfc(mtd);
-
-	if ((from + len) > p_dev->capacity << 9)
+	rkflash_print_dio("%s addr= %llx len= %x\n", __func__, from, (u32)len);
+	if ((from + len) > mtd->size)
 		return -EINVAL;
 
-	mutex_lock(&p_dev->lock);
+	mutex_lock(p_dev->lock);
 
 	addr = from;
 	size = len;
 
 	while (size > 0) {
 		chunk = (size < NOR_PAGE_SIZE) ? size : NOR_PAGE_SIZE;
-		ret = snor_read_data(p_dev, addr, p_dev->dma_buf, chunk);
+		ret = snor_read_data(p_dev->snor, addr, p_dev->dma_buf, chunk);
 		if (ret != SFC_OK) {
 			rkflash_print_error("snor_read_data %x ret=%d\n", addr, ret);
 			*retlen = len - size;
-			mutex_unlock(&p_dev->lock);
+			mutex_unlock(p_dev->lock);
 			return ret;
 		}
 		memcpy(p_buf, p_dev->dma_buf, chunk);
@@ -153,7 +162,7 @@ static int sfc_read_mtd(struct mtd_info *mtd, loff_t from, size_t len,
 	}
 
 	*retlen = len;
-	mutex_unlock(&p_dev->lock);
+	mutex_unlock(p_dev->lock);
 	return 0;
 }
 
@@ -168,36 +177,43 @@ static int sfc_read_mtd(struct mtd_info *mtd, loff_t from, size_t len,
  */
 struct mtd_partition def_nor_part[] = {};
 
-int sfc_nor_mtd_init(struct SFNOR_DEV *p_dev)
+int sfc_nor_mtd_init(struct SFNOR_DEV *p_dev, struct mutex *lock)
 {
 	int ret, i, part_num = 0;
 	int capacity;
 	struct STRUCT_PART_INFO *g_part;  /* size 2KB */
+	struct snor_mtd_dev *priv_dev = kzalloc(sizeof(*priv_dev), GFP_KERNEL);
 
-	capacity = p_dev->capacity;
-	p_dev->mtd.name = "sfc_nor";
-	p_dev->mtd.type = MTD_NORFLASH;
-	p_dev->mtd.writesize = 1;
-	p_dev->mtd.flags = MTD_CAP_NORFLASH;
-	/* see snor_write */
-	p_dev->mtd.size = capacity << 9;
-	p_dev->mtd._erase = sfc_erase_mtd;
-	p_dev->mtd._read = sfc_read_mtd;
-	p_dev->mtd._write = sfc_write_mtd;
-	p_dev->mtd.erasesize = g_spi_flash_info->block_size << 9;
-	p_dev->mtd.writebufsize = NOR_PAGE_SIZE;
-
-	p_dev->dma_buf = kmalloc(NOR_PAGE_SIZE, GFP_KERNEL | GFP_DMA);
-	if (!p_dev->dma_buf) {
-		rkflash_print_error("kmalloc size=0x%x failed\n", NOR_PAGE_SIZE);
-		ret = -ENOMEM;
-		goto out;
+	if (!priv_dev) {
+		rkflash_print_error("%s %d alloc failed\n", __func__, __LINE__);
+		return -ENOMEM;
 	}
 
-	g_part = kmalloc(sizeof(*g_part), GFP_KERNEL | GFP_DMA);
+	priv_dev->snor = p_dev;
+	capacity = p_dev->capacity;
+	priv_dev->mtd.name = "sfc_nor";
+	priv_dev->mtd.type = MTD_NORFLASH;
+	priv_dev->mtd.writesize = 1;
+	priv_dev->mtd.flags = MTD_CAP_NORFLASH;
+	/* see snor_write */
+	priv_dev->mtd.size = (u64)capacity << 9;
+	priv_dev->mtd._erase = sfc_erase_mtd;
+	priv_dev->mtd._read = sfc_read_mtd;
+	priv_dev->mtd._write = sfc_write_mtd;
+	priv_dev->mtd.erasesize = p_dev->blk_size << 9;
+	priv_dev->mtd.writebufsize = NOR_PAGE_SIZE;
+	priv_dev->lock = lock;
+	priv_dev->dma_buf = kmalloc(NOR_PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	if (!priv_dev->dma_buf) {
+		rkflash_print_error("%s %d alloc failed\n", __func__, __LINE__);
+		ret = -ENOMEM;
+		goto error_out;
+	}
+
+	g_part = kmalloc(sizeof(*g_part), GFP_KERNEL);
 	if (!g_part) {
 		ret = -ENOMEM;
-		goto free_dma_buf;
+		goto error_out;
 	}
 	part_num = 0;
 	if (snor_read(p_dev, 0, 4, g_part) == 4) {
@@ -234,14 +250,19 @@ int sfc_nor_mtd_init(struct SFNOR_DEV *p_dev)
 		}
 	}
 	kfree(g_part);
-	ret = mtd_device_register(&p_dev->mtd, nor_parts, part_num);
-	if (ret != 0)
-		goto free_dma_buf;
-	return ret;
+	ret = mtd_device_register(&priv_dev->mtd, nor_parts, part_num);
+	if (ret) {
+		pr_err("%s register mtd fail %d\n", __func__, ret);
+	} else {
+		pr_info("%s register mtd succuss\n", __func__);
 
-free_dma_buf:
-	kfree(p_dev->dma_buf);
-out:
+		return 0;
+	}
+
+	kfree(priv_dev->dma_buf);
+error_out:
+	kfree(priv_dev);
+
 	return ret;
 }
 

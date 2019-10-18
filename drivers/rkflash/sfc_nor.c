@@ -2,12 +2,13 @@
 
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
 
+#include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/kernel.h>
-#include <linux/string.h>
+#include <asm/string.h>
 
-#include "sfc_nor.h"
 #include "rkflash_debug.h"
+#include "sfc_nor.h"
 
 static struct flash_info spi_flash_tbl[] = {
 	/* GD25Q32B */
@@ -21,13 +22,13 @@ static struct flash_info spi_flash_tbl[] = {
 	/* GD25Q512MC */
 	{ 0xc84020, 128, 8, 0x13, 0x12, 0x6C, 0x3E, 0x21, 0xDC, 0x1C, 17, 6, 0 },
 	/* 25Q64JVSSIQ */
-	{ 0xef4017, 128, 8, 0x13, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 9, 0 },
+	{ 0xef4017, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 9, 0 },
 	/* 25Q128FV and 25Q128JV*/
 	{ 0xef4018, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 15, 9, 0 },
-	/* 25Q256FV */
+	/* 25Q256F/J */
 	{ 0xef4019, 128, 8, 0x13, 0x02, 0x6C, 0x32, 0x20, 0xD8, 0x3C, 16, 9, 0 },
 	/* 25Q64FWSSIG */
-	{ 0xef6017, 128, 8, 0x13, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 9, 0 },
+	{ 0xef6017, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 9, 0 },
 	/* MX25L6433F */
 	{ 0xc22017, 128, 8, 0x03, 0x02, 0x6B, 0x38, 0x20, 0xD8, 0x0E, 14, 6, 0 },
 	/* MX25L12835E/F MX25L12833FMI-10G */
@@ -48,6 +49,8 @@ static struct flash_info spi_flash_tbl[] = {
 	{ 0x207017, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 0, 0 },
 	/* XT25F128A XM25QH128A */
 	{ 0x207018, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x00, 15, 0, 0 },
+	/* XT25F64BSSIGU-5 */
+	{ 0x0b4017, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0D, 14, 9, 0 },
 	/* XT25F128BSSIGU */
 	{ 0x0b4018, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0D, 15, 9, 0 },
 	/* EN25QH128A */
@@ -58,33 +61,15 @@ static struct flash_info spi_flash_tbl[] = {
 	{ 0x1c3817, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 0, 0 },
 	/* P25Q64H */
 	{ 0x856017, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 9, 0 },
+	/* EN25QH256A */
+	{ 0x1c7019, 128, 8, 0x13, 0x12, 0x6C, 0x34, 0x21, 0xDC, 0x3C, 16, 0, 0 },
+	/* FM25Q64A */
+	{ 0xf83217, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0D, 14, 9, 0 },
+	/* ZB25VQ64 */
+	{ 0x5e4017, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 14, 9, 0 },
+	/* ZB25VQ128 */
+	{ 0x5e4018, 128, 8, 0x03, 0x02, 0x6B, 0x32, 0x20, 0xD8, 0x0C, 15, 9, 0 },
 };
-
-static const u8 sfnor_dev_code[] = {
-	0x11,
-	0x12,
-	0x13,
-	0x14,
-	0x15,
-	0x16,
-	0x17,
-	0x18,
-	0x19
-};
-
-static const u32 sfnor_capacity[] = {
-	0x20000,        /* 128k-byte */
-	0x40000,        /* 256k-byte */
-	0x80000,        /* 512k-byte */
-	0x100000,       /* 1M-byte */
-	0x200000,       /* 2M-byte */
-	0x400000,       /* 4M-byte */
-	0x800000,       /* 8M-byte */
-	0x1000000,      /* 16M-byte */
-	0x2000000       /* 32M-byte */
-};
-
-struct flash_info *g_spi_flash_info;
 
 static int snor_write_en(void)
 {
@@ -350,7 +335,9 @@ static int snor_enable_QE(struct SFNOR_DEV *p_dev)
 	    p_dev->manufacturer == MID_XTX ||
 	    p_dev->manufacturer == MID_MACRONIX ||
 	    p_dev->manufacturer == MID_PUYA ||
-	    p_dev->manufacturer == MID_XMC) {
+	    p_dev->manufacturer == MID_XMC ||
+	    p_dev->manufacturer == MID_DOSILICON ||
+	    p_dev->manufacturer == MID_ZBIT) {
 		reg_index = p_dev->QE_bits >> 3;
 		bit_offset = p_dev->QE_bits & 0x7;
 		ret = snor_read_status(reg_index, &status);
@@ -379,7 +366,9 @@ int snor_disable_QE(struct SFNOR_DEV *p_dev)
 	    p_dev->manufacturer == MID_XTX ||
 	    p_dev->manufacturer == MID_MACRONIX ||
 	    p_dev->manufacturer == MID_PUYA ||
-	    p_dev->manufacturer == MID_XMC) {
+	    p_dev->manufacturer == MID_XMC ||
+	    p_dev->manufacturer == MID_DOSILICON ||
+	    p_dev->manufacturer == MID_ZBIT) {
 		reg_index = p_dev->QE_bits >> 3;
 		bit_offset = p_dev->QE_bits & 0x7;
 		ret = snor_read_status(reg_index, &status);
@@ -395,41 +384,6 @@ int snor_disable_QE(struct SFNOR_DEV *p_dev)
 
 	return ret;
 }
-
-#if (SNOR_4BIT_DATA_DETECT_EN)
-static int snor_set_dlines(struct SFNOR_DEV *p_dev, enum SFC_DATA_LINES lines)
-{
-	int ret;
-	u8 read_cmd[] = {CMD_FAST_READ_X1, CMD_FAST_READ_X2, CMD_FAST_READ_X4};
-
-	if (lines == DATA_LINES_X4) {
-		ret = snor_enable_QE(p_dev);
-		if (ret != SFC_OK)
-			return ret;
-	}
-
-	p_dev->read_lines = lines;
-	p_dev->read_cmd = read_cmd[lines];
-
-	if (p_dev->manufacturer == MID_GIGADEV ||
-	    p_dev->manufacturer == MID_WINBOND ||
-	    p_dev->manufacturer == MID_MACRONIX) {
-		p_dev->prog_lines = (lines != DATA_LINES_X2) ?
-				     lines : DATA_LINES_X1;
-		if (lines == DATA_LINES_X1) {
-			p_dev->prog_cmd = CMD_PAGE_PROG;
-		} else {
-			if (p_dev->manufacturer == MID_GIGADEV ||
-			    p_dev->manufacturer == MID_WINBOND)
-				p_dev->prog_cmd = CMD_PAGE_PROG_X4;
-			else
-				p_dev->prog_cmd = CMD_PAGE_PROG_A4;
-		}
-	}
-
-	return SFC_OK;
-}
-#endif
 
 int snor_read_data(struct SFNOR_DEV *p_dev,
 		   u32 addr,
@@ -479,7 +433,6 @@ int snor_read(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 	if ((sec + n_sec) > p_dev->capacity)
 		return SFC_PARAM_ERR;
 
-	mutex_lock(&p_dev->lock);
 	addr = sec << 9;
 	size = n_sec << 9;
 	while (size) {
@@ -496,7 +449,6 @@ int snor_read(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 		p_buf += len;
 	}
 out:
-	mutex_unlock(&p_dev->lock);
 	if (!ret)
 		ret = n_sec;
 
@@ -513,7 +465,6 @@ int snor_write(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 	if ((sec + n_sec) > p_dev->capacity)
 		return SFC_PARAM_ERR;
 
-	mutex_lock(&p_dev->lock);
 	while (n_sec) {
 		if (sec < 512 || sec >= p_dev->capacity  - 512)
 			blk_size = 8;
@@ -542,7 +493,6 @@ int snor_write(struct SFNOR_DEV *p_dev, u32 sec, u32 n_sec, void *p_data)
 		p_buf += len << 9;
 	}
 out:
-	mutex_unlock(&p_dev->lock);
 	if (!ret)
 		ret = total_sec;
 
@@ -584,17 +534,6 @@ u32 snor_get_capacity(struct SFNOR_DEV *p_dev)
 	return p_dev->capacity;
 }
 
-static void snor_print_spi_chip_info(struct SFNOR_DEV *p_dev)
-{
-	rkflash_print_info("addr_mode: %x\n", p_dev->addr_mode);
-	rkflash_print_info("read_lines: %x\n", p_dev->read_lines);
-	rkflash_print_info("prog_lines: %x\n", p_dev->prog_lines);
-	rkflash_print_info("read_cmd: %x\n", p_dev->read_cmd);
-	rkflash_print_info("prog_cmd: %x\n", p_dev->prog_cmd);
-	rkflash_print_info("blk_erase_cmd: %x\n", p_dev->blk_erase_cmd);
-	rkflash_print_info("sec_erase_cmd: %x\n", p_dev->sec_erase_cmd);
-}
-
 static struct flash_info *snor_get_flash_info(u8 *flash_id)
 {
 	u32 i;
@@ -626,23 +565,23 @@ static void *snor_flash_info_adjust(struct flash_info *spi_flash_info)
 
 int snor_init(struct SFNOR_DEV *p_dev)
 {
+	struct flash_info *g_spi_flash_info;
 	u32 i;
 	u8 id_byte[5];
-	int err;
+
+	if (!p_dev)
+		return SFC_PARAM_ERR;
 
 	memset(p_dev, 0, sizeof(struct SFNOR_DEV));
 	snor_read_id(id_byte);
 	rkflash_print_info("sfc nor id: %x %x %x\n",
 			   id_byte[0], id_byte[1], id_byte[2]);
-	if (0xFF == id_byte[0] || 0x00 == id_byte[0]) {
-		err = SFC_ERROR;
-		goto err_out;
-	}
+	if (0xFF == id_byte[0] || 0x00 == id_byte[0])
+		return SFC_ERROR;
 
 	p_dev->manufacturer = id_byte[0];
 	p_dev->mem_type = id_byte[1];
 
-	mutex_init(&p_dev->lock);
 	g_spi_flash_info = snor_get_flash_info(id_byte);
 	if (g_spi_flash_info) {
 		snor_flash_info_adjust(g_spi_flash_info);
@@ -682,45 +621,28 @@ int snor_init(struct SFNOR_DEV *p_dev)
 
 		if ((g_spi_flash_info->feature & FEA_4BYTE_ADDR_MODE))
 			snor_enter_4byte_mode();
-#ifdef CONFIG_RK_SFC_NOR_MTD
-		err = sfc_nor_mtd_init(p_dev);
-		if (err)
-			goto err_out;
-#endif
-
-		goto normal_out;
+	} else {
+		p_dev->capacity = 1 << id_byte[2] >> 3;
+		p_dev->QE_bits = 0;
+		p_dev->blk_size = NOR_SECS_BLK;
+		p_dev->page_size = NOR_SECS_PAGE;
+		p_dev->read_cmd = CMD_READ_DATA;
+		p_dev->prog_cmd = CMD_PAGE_PROG;
+		p_dev->sec_erase_cmd = CMD_SECTOR_ERASE;
+		p_dev->blk_erase_cmd = CMD_BLOCK_ERASE;
+		p_dev->prog_lines = DATA_LINES_X1;
+		p_dev->read_lines = DATA_LINES_X1;
+		p_dev->write_status = snor_write_status;
 	}
 
-	for (i = 0; i < sizeof(sfnor_dev_code); i++) {
-		if (id_byte[2] == sfnor_dev_code[i]) {
-			p_dev->capacity = sfnor_capacity[i] >> 9;
-			break;
-		}
-	}
-
-	if (i >= sizeof(sfnor_dev_code)) {
-		err = SFC_ERROR;
-		goto err_out;
-	}
-
-	p_dev->QE_bits = 9;
-	p_dev->blk_size = NOR_SECS_BLK;
-	p_dev->page_size = NOR_SECS_PAGE;
-	p_dev->read_cmd = CMD_READ_DATA;
-	p_dev->prog_cmd = CMD_PAGE_PROG;
-	p_dev->sec_erase_cmd = CMD_SECTOR_ERASE;
-	p_dev->blk_erase_cmd = CMD_BLOCK_ERASE;
-	p_dev->write_status = snor_write_status2;
-	#if (SNOR_4BIT_DATA_DETECT_EN)
-	snor_set_dlines(p_dev, DATA_LINES_X4);
-	#endif
-
-normal_out:
-	snor_print_spi_chip_info(p_dev);
+	rkflash_print_info("addr_mode: %x\n", p_dev->addr_mode);
+	rkflash_print_info("read_lines: %x\n", p_dev->read_lines);
+	rkflash_print_info("prog_lines: %x\n", p_dev->prog_lines);
+	rkflash_print_info("read_cmd: %x\n", p_dev->read_cmd);
+	rkflash_print_info("prog_cmd: %x\n", p_dev->prog_cmd);
+	rkflash_print_info("blk_erase_cmd: %x\n", p_dev->blk_erase_cmd);
+	rkflash_print_info("sec_erase_cmd: %x\n", p_dev->sec_erase_cmd);
 
 	return SFC_OK;
-
-err_out:
-	return err;
 }
 

@@ -6,45 +6,53 @@
 #define __RK_FLASH_API_H
 
 #ifdef CONFIG_RK_NANDC_NAND
-int sftl_flash_init(void __iomem *reg_addr);
-void sftl_flash_read_id(u8 chip_sel, void *buf);
-int sftl_flash_read(unsigned int sec, unsigned int n_sec, void *p_data);
-int sftl_flash_write(unsigned int sec, unsigned int n_sec, void *p_data);
-int sftl_flash_vendor_read(unsigned int sec, unsigned int n_sec, void *p_data);
-int sftl_flash_vendor_write(unsigned int sec, unsigned int n_sec, void *p_data);
-unsigned int sftl_flash_get_capacity(void);
-void sftl_flash_deinit(void);
-int sftl_flash_resume(void __iomem *reg_addr);
-void sftl_flash_clean_irq(void);
-int sftl_flash_gc(void);
-int sftl_flash_discard(u32 sec, u32 n_sec);
+#include "flash.h"
+#endif
+#ifdef CONFIG_RK_SFC_NOR
+#include "sfc_nand.h"
+#endif
+#ifdef	CONFIG_RK_SFC_NAND
+#include "sfc_nor.h"
+#endif
+
+enum flash_con_type {
+	FLASH_CON_TYPE_NANDC = 0,
+	FLASH_CON_TYPE_SFC,
+	FLASH_CON_TYPE_MAX,
+};
+
+enum flash_type {
+	FLASH_TYPE_NANDC_NAND = 0,
+	FLASH_TYPE_SFC_NOR,
+	FLASH_TYPE_SFC_NAND,
+	FLASH_TYPE_MAX,
+};
+
+struct flash_boot_ops {
+	int (*init)(void __iomem *reg_addr);
+	int (*read)(u32 sec, u32 n_sec, void *p_data);
+	int (*write)(u32 sec, u32 n_sec, void *p_data);
+	u32 (*get_capacity)(void);
+	void (*deinit)(void);
+	int (*resume)(void __iomem *reg_addr);
+	int (*vendor_read)(u32 sec, u32 n_sec, void *p_data);
+	int (*vendor_write)(u32 sec, u32 n_sec, void *p_data);
+	int (*gc)(void);
+	int (*discard)(u32 sec, u32 n_sec);
+};
+
+#ifdef CONFIG_RK_NANDC_NAND
+extern const struct flash_boot_ops nandc_nand_ops;
 #endif
 
 #ifdef CONFIG_RK_SFC_NOR
-int spi_flash_init(void __iomem *reg_addr);
-void spi_flash_read_id(u8 chip_sel, void *buf);
-int snor_read_lba(unsigned int sec, unsigned int n_sec, void *p_data);
-int snor_write_lba(unsigned int sec, unsigned int n_sec, void *p_data);
-unsigned int snor_capacity(void);
-void snor_deinit(void);
-int snor_resume(void __iomem *reg_addr);
-int snor_vendor_read(unsigned int sec, unsigned int n_sec, void *p_data);
-int snor_vendor_write(unsigned int sec, unsigned int n_sec, void *p_data);
-int snor_gc(void);
+extern struct SFNOR_DEV *sfnor_dev;
+extern const struct flash_boot_ops sfc_nor_ops;
 #endif
 
-#ifdef CONFIG_RK_SFC_NAND
-int snand_init(void __iomem *reg_addr);
-int snand_read(unsigned int sec, unsigned int n_sec, void *p_data);
-int snand_write(unsigned int sec, unsigned int n_sec, void *p_data);
-int snand_vendor_read(unsigned int sec, unsigned int n_sec, void *p_data);
-int snand_vendor_write(unsigned int sec, unsigned int n_sec, void *p_data);
-unsigned int snand_get_capacity(void);
-void snand_deinit(void);
-int snand_resume(void __iomem *reg_addr);
-void sfc_clean_irq(void);
-int snand_gc(void);
-int snand_discard(u32 sec, u32 n_sec);
+#ifdef	CONFIG_RK_SFC_NAND
+extern struct SFNAND_DEV *sfnand_dev;
+extern const struct flash_boot_ops sfc_nand_ops;
 #endif
 
 #endif

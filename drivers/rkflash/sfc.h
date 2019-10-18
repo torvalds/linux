@@ -18,7 +18,7 @@
 #define SFC_RX_WMARK_SHIFT	(8)
 #define SFC_TX_WMARK_SHIFT	(0)
 
-/*return value*/
+/* return value */
 #define SFC_OK                      (0)
 #define SFC_ERROR                   (-1)
 #define SFC_PARAM_ERR               (-2)
@@ -106,6 +106,20 @@ union SFCFSR_DATA {
 		unsigned reserved31_21 : 11;
 	} b;
 };
+
+/* Manufactory ID */
+#define MID_WINBOND	0xEF
+#define MID_GIGADEV	0xC8
+#define MID_MICRON	0x2C
+#define MID_MACRONIX	0xC2
+#define MID_SPANSION	0x01
+#define MID_EON		0x1C
+#define MID_ST		0x20
+#define MID_XTX		0x0B
+#define MID_PUYA	0x85
+#define MID_XMC		0x20
+#define MID_DOSILICON	0xF8
+#define MID_ZBIT	0x5E
 
 /*------------------------------ Global Typedefs -----------------------------*/
 enum SFC_DATA_LINES {

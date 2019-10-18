@@ -9,7 +9,7 @@
 #include "rkflash_api.h"
 #include "rk_sftl.h"
 
-int sftl_flash_init(void __iomem *reg_addr)
+static int sftl_flash_init(void __iomem *reg_addr)
 {
 	int ret;
 
@@ -19,50 +19,43 @@ int sftl_flash_init(void __iomem *reg_addr)
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(sftl_flash_init);
 
-void sftl_flash_read_id(u8 chip_sel, void *buf)
-{
-	nandc_flash_get_id(chip_sel, buf);
-}
-EXPORT_SYMBOL_GPL(sftl_flash_read_id);
-
-unsigned int sftl_flash_get_capacity(void)
+static unsigned int sftl_flash_get_capacity(void)
 {
 	return sftl_get_density();
 }
 
-int sftl_flash_read(u32 sec, u32 n_sec, void *p_data)
+static int sftl_flash_read(u32 sec, u32 n_sec, void *p_data)
 {
 	return sftl_read(sec, n_sec, p_data);
 }
 
-int sftl_flash_write(u32 sec, u32 n_sec, void *p_data)
+static int sftl_flash_write(u32 sec, u32 n_sec, void *p_data)
 {
 	return sftl_write(sec, n_sec, p_data);
 }
 
-int sftl_flash_vendor_read(u32 sec, u32 n_sec, void *p_data)
+static int sftl_flash_vendor_read(u32 sec, u32 n_sec, void *p_data)
 {
 	return sftl_vendor_read(sec, n_sec, p_data);
 }
 
-int sftl_flash_vendor_write(u32 sec, u32 n_sec, void *p_data)
+static int sftl_flash_vendor_write(u32 sec, u32 n_sec, void *p_data)
 {
 	return sftl_vendor_write(sec, n_sec, p_data);
 }
 
-int sftl_flash_gc(void)
+static int sftl_flash_gc(void)
 {
 	return sftl_gc();
 }
 
-int sftl_flash_discard(u32 sec, u32 n_sec)
+static int sftl_flash_discard(u32 sec, u32 n_sec)
 {
 	return sftl_discard(sec, n_sec);
 }
 
-void sftl_flash_deinit(void)
+static void sftl_flash_deinit(void)
 {
 	u8 chip_sel = 0;
 
@@ -70,11 +63,21 @@ void sftl_flash_deinit(void)
 	nandc_flash_reset(chip_sel);
 }
 
-int sftl_flash_resume(void __iomem *reg_addr)
+static int sftl_flash_resume(void __iomem *reg_addr)
 {
 	return nandc_flash_init(reg_addr);
 }
 
-void sftl_flash_clean_irq(void)
-{
-}
+const struct flash_boot_ops nandc_nand_ops = {
+	sftl_flash_init,
+	sftl_flash_read,
+	sftl_flash_write,
+	sftl_flash_get_capacity,
+	sftl_flash_deinit,
+	sftl_flash_resume,
+	sftl_flash_vendor_read,
+	sftl_flash_vendor_write,
+	sftl_flash_gc,
+	sftl_flash_discard,
+};
+

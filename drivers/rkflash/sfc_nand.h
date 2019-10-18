@@ -7,12 +7,6 @@
 
 #include "flash_com.h"
 
-#ifdef CONFIG_RK_SFC_NAND_MTD
-#include <linux/mtd/mtd.h>
-#endif
-
-#define SFC_NAND_STRESS_TEST_EN		0
-
 #define SFC_NAND_PROG_ERASE_ERROR	2
 #define SFC_NAND_HW_ERROR		1
 #define SFC_NAND_ECC_ERROR		NAND_ERROR
@@ -31,14 +25,6 @@
 #define FEA_4BYTE_ADDR          BIT(4)
 #define FEA_4BYTE_ADDR_MODE	BIT(5)
 #define FEA_SOFT_QOP_BIT	BIT(6)
-
-#define MID_WINBOND             0xEF
-#define MID_GIGADEV             0xC8
-#define MID_MICRON              0x2C
-#define MID_MACRONIX            0xC2
-#define MID_SPANSION            0x01
-#define MID_EON                 0x1C
-#define MID_ST                  0x20
 
 /* Command Set */
 #define CMD_READ_JEDECID        (0x9F)
@@ -94,10 +80,6 @@ struct SFNAND_DEV {
 	u8 prog_lines;
 	u8 page_read_cmd;
 	u8 page_prog_cmd;
-#ifdef CONFIG_RK_SFC_NAND_MTD
-	struct mtd_info mtd;
-	u8 *dma_buf;
-#endif
 };
 
 struct nand_info {
@@ -128,10 +110,8 @@ struct nand_info {
 	u32 (*ecc_status)(void);
 };
 
-#ifndef CONFIG_RK_SFC_NOR_MTD
 extern struct nand_phy_info	g_nand_phy_info;
 extern struct nand_ops		g_nand_ops;
-#endif
 
 u32 sfc_nand_init(void);
 void sfc_nand_deinit(void);
@@ -146,7 +126,7 @@ u32 sfc_nand_prog_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
 u32 sfc_nand_read_page(u8 cs, u32 addr, u32 *p_data, u32 *p_spare);
 u32 sfc_nand_check_bad_block(u8 cs, u32 addr);
 u32 sfc_nand_mark_bad_block(u8 cs, u32 addr);
-
-int sfc_nand_mtd_init(struct SFNAND_DEV *p_dev);
+void sfc_nand_ftl_ops_init(void);
+struct SFNAND_DEV *sfc_nand_get_private_dev(void);
 
 #endif

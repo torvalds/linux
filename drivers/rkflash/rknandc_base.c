@@ -134,7 +134,7 @@ static int rknandc_probe(struct platform_device *pdev)
 		 __func__,
 		 g_nandc_info.clk_rate);
 	rknandc_irq_init();
-	ret = rkflash_dev_init(g_nandc_info.reg_base, FLASH_CON_TYPE_NANDC);
+	ret = rkflash_dev_init(g_nandc_info.reg_base, FLASH_TYPE_NANDC_NAND, &nandc_nand_ops);
 
 	return ret;
 }

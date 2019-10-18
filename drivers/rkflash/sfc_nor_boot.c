@@ -3,9 +3,8 @@
 /* Copyright (c) 2018 Rockchip Electronics Co. Ltd. */
 
 #include <linux/kernel.h>
-#include <linux/mutex.h>
+#include <linux/slab.h>
 
-#include "sfc.h"
 #include "sfc_nor.h"
 #include "rkflash_api.h"
 
@@ -18,27 +17,25 @@
 	(FLASH_VENDOR_PART_START +\
 	FLASH_VENDOR_PART_SIZE * VENDOR_PART_NUM - 1)
 
-struct SFNOR_DEV sfnor_dev;
+struct SFNOR_DEV *sfnor_dev;
 
 /* SFNOR_DEV sfnor_dev is in the sfc_nor.h */
-int spi_flash_init(void __iomem	*reg_addr)
+static int spi_nor_init(void __iomem *reg_addr)
 {
 	int ret;
 
+	sfnor_dev = kzalloc(sizeof(*sfnor_dev), GFP_KERNEL);
+
+	if (!sfnor_dev)
+		return -ENOMEM;
+
 	sfc_init(reg_addr);
-	ret = snor_init(&sfnor_dev);
+	ret = snor_init(sfnor_dev);
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(spi_flash_init);
 
-void spi_flash_read_id(u8 chip_sel, void *buf)
-{
-	snor_read_id(buf);
-}
-EXPORT_SYMBOL_GPL(spi_flash_read_id);
-
-int snor_read_lba(u32 sec, u32 n_sec, void *p_data)
+static int snor_read_lba(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret = 0;
 	u32 count, offset;
@@ -46,19 +43,19 @@ int snor_read_lba(u32 sec, u32 n_sec, void *p_data)
 
 	if (sec + n_sec - 1 < FLASH_VENDOR_PART_START ||
 	    sec > FLASH_VENDOR_PART_END) {
-		ret = snor_read(&sfnor_dev, sec, n_sec, p_data);
+		ret = snor_read(sfnor_dev, sec, n_sec, p_data);
 	} else {
 		memset(p_data, 0, 512 * n_sec);
 		if (sec < FLASH_VENDOR_PART_START) {
 			count = FLASH_VENDOR_PART_START - sec;
 			buf = p_data;
-			ret = snor_read(&sfnor_dev, sec, count, buf);
+			ret = snor_read(sfnor_dev, sec, count, buf);
 		}
 		if ((sec + n_sec - 1) > FLASH_VENDOR_PART_END) {
 			count = sec + n_sec - 1 - FLASH_VENDOR_PART_END;
 			offset = FLASH_VENDOR_PART_END - sec + 1;
 			buf = p_data + offset * 512;
-			ret = snor_read(&sfnor_dev,
+			ret = snor_read(sfnor_dev,
 					FLASH_VENDOR_PART_END + 1,
 					count, buf);
 		}
@@ -67,50 +64,64 @@ int snor_read_lba(u32 sec, u32 n_sec, void *p_data)
 	return (u32)ret == n_sec ? 0 : ret;
 }
 
-int snor_write_lba(u32 sec, u32 n_sec, void *p_data)
+static int snor_write_lba(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret = 0;
 
-	ret = snor_write(&sfnor_dev, sec, n_sec, p_data);
+	ret = snor_write(sfnor_dev, sec, n_sec, p_data);
 
 	return (u32)ret == n_sec ? 0 : ret;
 }
 
-int snor_vendor_read(u32 sec, u32 n_sec, void *p_data)
+static int snor_vendor_read(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret = 0;
 
-	ret = snor_read(&sfnor_dev, sec, n_sec, p_data);
+	ret = snor_read(sfnor_dev, sec, n_sec, p_data);
 
 	return (u32)ret == n_sec ? 0 : ret;
 }
 
-int snor_vendor_write(u32 sec, u32 n_sec, void *p_data)
+static int snor_vendor_write(u32 sec, u32 n_sec, void *p_data)
 {
 	int ret = 0;
 
-	ret = snor_write(&sfnor_dev, sec, n_sec, p_data);
+	ret = snor_write(sfnor_dev, sec, n_sec, p_data);
 
 	return (u32)ret == n_sec ? 0 : ret;
 }
 
-int snor_gc(void)
+static int snor_gc(void)
 {
 	return 0;
 }
 
-unsigned int snor_capacity(void)
+static unsigned int snor_capacity(void)
 {
-	return snor_get_capacity(&sfnor_dev);
+	return snor_get_capacity(sfnor_dev);
 }
 
-void snor_deinit(void)
+static void snor_deinit(void)
 {
-	snor_disable_QE(&sfnor_dev);
+	snor_disable_QE(sfnor_dev);
 	snor_reset_device();
+	kfree(sfnor_dev);
 }
 
-int snor_resume(void __iomem *reg_addr)
+static int snor_resume(void __iomem *reg_addr)
 {
-	return snor_init(&sfnor_dev);
+	return spi_nor_init(&sfnor_dev);
 }
+
+const struct flash_boot_ops sfc_nor_ops = {
+	spi_nor_init,
+	snor_read_lba,
+	snor_write_lba,
+	snor_capacity,
+	snor_deinit,
+	snor_resume,
+	snor_vendor_read,
+	snor_vendor_write,
+	snor_gc,
+	NULL,
+};

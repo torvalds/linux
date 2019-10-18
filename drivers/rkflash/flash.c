@@ -43,14 +43,6 @@ static struct NAND_PARA_INFO_T nand_para = {
 	{0}
 };	/* TC58NVG0S3HTA00 */
 
-void nandc_flash_reset(u8 cs)
-{
-	nandc_flash_cs(cs);
-	nandc_writel(RESET_CMD, NANDC_CHIP_CMD(cs));
-	nandc_wait_flash_ready(cs);
-	nandc_flash_de_cs(cs);
-}
-
 static void flash_read_id_raw(u8 cs, u8 *buf)
 {
 	u8 *ptr = (u8 *)buf;
@@ -292,7 +284,7 @@ static void flash_read_spare(u8 cs, u32 page_addr, u8 *spare)
  * Read the 1st page's 1st spare byte of a phy_blk
  * If not FF, it's bad blk
  */
-static s32 get_bad_blk_list(u16 *table, u32 die)
+static s32 flash_get_bad_blk_list(u16 *table, u32 die)
 {
 	u16 blk;
 	u32 bad_cnt, page_addr0, page_addr1, page_addr2;
@@ -322,98 +314,6 @@ static s32 get_bad_blk_list(u16 *table, u32 die)
 	return bad_cnt;
 }
 
-#if FLASH_STRESS_TEST_EN
-
-#define FLASH_PAGE_SIZE	2048
-#define FLASH_SPARE_SIZE	8
-
-static u16 bad_blk_list[1024];
-static u32 *pwrite;
-static u32 *pread;
-static u32 pspare_write[FLASH_SPARE_SIZE / 4];
-static u32 pspare_read[FLASH_SPARE_SIZE / 4];
-static u32 bad_blk_num;
-static u32 bad_page_num;
-
-static void flash_test(void)
-{
-	u32 i, blk, page, bad_cnt, page_addr;
-	int ret;
-	u32 pages_num = 64;
-	u32 blk_addr = 64;
-	u32 is_bad_blk = 0;
-
-	pwrite = kzalloc(FLASH_PAGE_SIZE, GFP_KERNEL | GFP_DMA);
-	pread = kzalloc(FLASH_PAGE_SIZE, GFP_KERNEL | GFP_DMA);
-
-	rkflash_print_error("%s\n", __func__);
-	bad_blk_num = 0;
-	bad_page_num = 0;
-	bad_cnt	= get_bad_blk_list(bad_blk_list, 0);
-
-	for (blk = 0; blk < 1024; blk++) {
-		for (i = 0; i < bad_cnt; i++) {
-			if (bad_blk_list[i] == blk)
-				break;
-		}
-		if (i < bad_cnt)
-			continue;
-		is_bad_blk = 0;
-		rkflash_print_error("Flash prog block: %x\n", blk);
-		flash_erase_block(0, blk * blk_addr);
-		for (page = 0; page < pages_num; page++) {
-			page_addr = blk * blk_addr + page;
-			for (i = 0; i < 512; i++)
-				pwrite[i] = (page_addr << 16) + i;
-			pspare_write[0] = pwrite[0] + 0x5AF0;
-			pspare_write[1] = pspare_write[0] + 1;
-			flash_prog_page(0, page_addr, pwrite, pspare_write);
-			memset(pread, 0, 2048);
-			memset(pspare_read, 0, 8);
-			ret = flash_read_page(0, page_addr, pread,
-					      pspare_read);
-			if (ret != NAND_STS_OK)
-				is_bad_blk = 1;
-			for (i = 0; i < 512; i++) {
-				if (pwrite[i] != pread[i]) {
-					is_bad_blk = 1;
-					break;
-				}
-			}
-			for (i = 0; i < 2; i++) {
-				if (pspare_write[i] != pspare_read[i]) {
-					is_bad_blk = 1;
-					break;
-				}
-			}
-			if (is_bad_blk) {
-				bad_page_num++;
-				rkflash_print_error("ERR:page %x, ret= %x\n",
-						    page_addr,
-						    ret);
-				rkflash_print_hex("w data:", pwrite, 4, 512);
-				rkflash_print_hex("w spare:", pspare_write, 4, 4);
-				rkflash_print_hex("r data:", pread, 4, 512);
-				rkflash_print_hex("r spare:", pspare_read, 4, 5);
-				while (1)
-					;
-			}
-		}
-		flash_erase_block(0, blk * blk_addr);
-		if (is_bad_blk)
-			bad_blk_num++;
-	}
-	rkflash_print_error("bad_blk_num = %d, bad_page_num = %d\n",
-			    bad_blk_num, bad_page_num);
-
-	rkflash_print_error("Flash Test Finish!!!\n");
-	kfree(pwrite);
-	kfree(pread);
-	while (1)
-		;
-}
-#endif
-
 static void flash_die_info_init(void)
 {
 	u32 cs;
@@ -429,7 +329,7 @@ static void flash_die_info_init(void)
 			nand_para.blk_per_plane;
 }
 
-static void flash_rkflash_print_info(void)
+static void flash_print_info(void)
 {
 	rkflash_print_info("No.0 FLASH ID: %x %x %x %x %x %x\n",
 			   nand_para.nand_id[0],
@@ -483,7 +383,7 @@ static void flash_rkflash_print_info(void)
 	rkflash_print_info("g_nand_idb_res_blk_num: %x\n", g_nand_idb_res_blk_num);
 }
 
-static void ftl_flash_init(void)
+static void flash_ftl_ops_init(void)
 {
 	u8 nandc_ver = nandc_get_version();
 
@@ -505,7 +405,7 @@ static void ftl_flash_init(void)
 	g_nand_phy_info.ecc_bits	= nand_para.ecc_bits;
 
 	/* driver register */
-	g_nand_ops.get_bad_blk_list	= get_bad_blk_list;
+	g_nand_ops.get_bad_blk_list	= flash_get_bad_blk_list;
 	g_nand_ops.erase_blk		= flash_erase_block;
 	g_nand_ops.prog_page		= flash_prog_page;
 	g_nand_ops.read_page		= flash_read_page;
@@ -513,6 +413,14 @@ static void ftl_flash_init(void)
 		g_nand_ops.bch_sel = flash_bch_sel;
 		g_nand_ops.set_sec_num = flash_set_sector;
 	}
+}
+
+void nandc_flash_reset(u8 cs)
+{
+	nandc_flash_cs(cs);
+	nandc_writel(RESET_CMD, NANDC_CHIP_CMD(cs));
+	nandc_wait_flash_ready(cs);
+	nandc_flash_de_cs(cs);
 }
 
 u32 nandc_flash_init(void __iomem *nandc_addr)
@@ -537,8 +445,8 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 			    id_byte[0][1] != 0xD1 &&
 			    id_byte[0][1] != 0x95 &&
 			    id_byte[0][1] != 0xDC &&
+			    id_byte[0][1] != 0xD3 &&
 			    id_byte[0][1] != 0x48)
-
 				return FTL_UNSUPPORTED_FLASH;
 		}
 	}
@@ -550,7 +458,8 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 		nand_para.nand_id[1] = 0xDA;
 	} else if (id_byte[0][1] == 0xDC) {
 		nand_para.nand_id[1] = 0xDC;
-		if (id_byte[0][0] == 0x2C && id_byte[0][3] == 0xA6) {
+		if ((id_byte[0][0] == 0x2C && id_byte[0][3] == 0xA6) ||
+		    (id_byte[0][0] == 0xC2 && id_byte[0][3] == 0xA2)) {
 			nand_para.plane_per_die = 2;
 			nand_para.sec_per_page = 8;
 		} else if (id_byte[0][0] == 0x98 && id_byte[0][3] == 0x26) {
@@ -566,15 +475,16 @@ u32 nandc_flash_init(void __iomem *nandc_addr)
 		nand_para.page_per_blk = 128;
 		nand_para.plane_per_die = 2;
 		nand_para.blk_per_plane = 2048;
+	} else if (id_byte[0][1] == 0xD3) {
+		nand_para.sec_per_page = 8;
+		nand_para.page_per_blk = 64;
+		nand_para.plane_per_die = 2;
+		nand_para.blk_per_plane = 2048;
 	}
 	flash_die_info_init();
 	flash_bch_sel(nand_para.ecc_bits);
-	flash_rkflash_print_info();
-	ftl_flash_init();
-
-	#if FLASH_STRESS_TEST_EN
-	flash_test();
-	#endif
+	flash_print_info();
+	flash_ftl_ops_init();
 
 	return 0;
 }
