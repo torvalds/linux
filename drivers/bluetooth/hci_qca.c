@@ -160,7 +160,8 @@ struct qca_serdev {
 	const char *firmware_name;
 };
 
-static int qca_power_setup(struct hci_uart *hu, bool on);
+static int qca_regulator_enable(struct qca_serdev *qcadev);
+static void qca_regulator_disable(struct qca_serdev *qcadev);
 static void qca_power_shutdown(struct hci_uart *hu);
 static int qca_power_off(struct hci_dev *hdev);
 
@@ -516,7 +517,7 @@ static int qca_open(struct hci_uart *hu)
 		} else {
 			hu->init_speed = qcadev->init_speed;
 			hu->oper_speed = qcadev->oper_speed;
-			ret = qca_power_setup(hu, true);
+			ret = qca_regulator_enable(qcadev);
 			if (ret) {
 				destroy_workqueue(qca->workqueue);
 				kfree_skb(qca->rx_skb);
@@ -1188,7 +1189,7 @@ static int qca_wcn3990_init(struct hci_uart *hu)
 	qcadev = serdev_device_get_drvdata(hu->serdev);
 	if (!qcadev->bt_power->vregs_on) {
 		serdev_device_close(hu->serdev);
-		ret = qca_power_setup(hu, true);
+		ret = qca_regulator_enable(qcadev);
 		if (ret)
 			return ret;
 
@@ -1353,8 +1354,11 @@ static const struct qca_vreg_data qca_soc_data_wcn3998 = {
 
 static void qca_power_shutdown(struct hci_uart *hu)
 {
+	struct qca_serdev *qcadev;
 	struct qca_data *qca = hu->priv;
 	unsigned long flags;
+
+	qcadev = serdev_device_get_drvdata(hu->serdev);
 
 	/* From this point we go into power off state. But serial port is
 	 * still open, stop queueing the IBS data and flush all the buffered
@@ -1367,7 +1371,7 @@ static void qca_power_shutdown(struct hci_uart *hu)
 
 	host_set_baudrate(hu, 2400);
 	qca_send_power_pulse(hu, false);
-	qca_power_setup(hu, false);
+	qca_regulator_disable(qcadev);
 }
 
 static int qca_power_off(struct hci_dev *hdev)
@@ -1383,34 +1387,41 @@ static int qca_power_off(struct hci_dev *hdev)
 	return 0;
 }
 
-static int qca_power_setup(struct hci_uart *hu, bool on)
+static int qca_regulator_enable(struct qca_serdev *qcadev)
 {
-	struct regulator_bulk_data *vreg_bulk;
-	struct qca_serdev *qcadev;
-	int num_vregs;
-	int ret = 0;
+	struct qca_power *power = qcadev->bt_power;
+	int ret;
 
-	qcadev = serdev_device_get_drvdata(hu->serdev);
-	if (!qcadev || !qcadev->bt_power || !qcadev->bt_power->vreg_bulk)
-		return -EINVAL;
+	/* Already enabled */
+	if (power->vregs_on)
+		return 0;
 
-	vreg_bulk = qcadev->bt_power->vreg_bulk;
-	num_vregs = qcadev->bt_power->num_vregs;
-	BT_DBG("on: %d (%d regulators)", on, num_vregs);
-	if (on && !qcadev->bt_power->vregs_on) {
-		ret = regulator_bulk_enable(num_vregs, vreg_bulk);
-		if (ret)
-			return ret;
+	BT_DBG("enabling %d regulators)", power->num_vregs);
 
-		qcadev->bt_power->vregs_on = true;
-	} else if (!on && qcadev->bt_power->vregs_on) {
-		/* turn off regulator in reverse order */
-		regulator_bulk_disable(num_vregs, vreg_bulk);
+	ret = regulator_bulk_enable(power->num_vregs, power->vreg_bulk);
+	if (ret)
+		return ret;
 
-		qcadev->bt_power->vregs_on = false;
-	}
+	power->vregs_on = true;
 
 	return 0;
+}
+
+static void qca_regulator_disable(struct qca_serdev *qcadev)
+{
+	struct qca_power *power;
+
+	if (!qcadev)
+		return;
+
+	power = qcadev->bt_power;
+
+	/* Already disabled? */
+	if (!power->vregs_on)
+		return;
+
+	regulator_bulk_disable(power->num_vregs, power->vreg_bulk);
+	power->vregs_on = false;
 }
 
 static int qca_init_regulators(struct qca_power *qca,
