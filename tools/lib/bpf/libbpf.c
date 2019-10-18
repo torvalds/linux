@@ -657,6 +657,21 @@ bpf_object__init_license(struct bpf_object *obj, void *data, size_t size)
 	return 0;
 }
 
+static int
+bpf_object__init_kversion(struct bpf_object *obj, void *data, size_t size)
+{
+	__u32 kver;
+
+	if (size != sizeof(kver)) {
+		pr_warning("invalid kver section in %s\n", obj->path);
+		return -LIBBPF_ERRNO__FORMAT;
+	}
+	memcpy(&kver, data, sizeof(kver));
+	obj->kern_version = kver;
+	pr_debug("kernel version of %s is %x\n", obj->path, obj->kern_version);
+	return 0;
+}
+
 static int compare_bpf_map(const void *_a, const void *_b)
 {
 	const struct bpf_map *a = _a;
@@ -1574,7 +1589,11 @@ static int bpf_object__elf_collect(struct bpf_object *obj, bool relaxed_maps)
 			if (err)
 				return err;
 		} else if (strcmp(name, "version") == 0) {
-			/* skip, we don't need it anymore */
+			err = bpf_object__init_kversion(obj,
+							data->d_buf,
+							data->d_size);
+			if (err)
+				return err;
 		} else if (strcmp(name, "maps") == 0) {
 			obj->efile.maps_shndx = idx;
 		} else if (strcmp(name, MAPS_ELF_SEC) == 0) {
