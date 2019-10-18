@@ -2748,8 +2748,6 @@ void i915_gem_cleanup_memory_regions(struct drm_i915_private *i915)
 {
 	int i;
 
-	i915_gem_cleanup_stolen(i915);
-
 	for (i = 0; i < INTEL_REGION_UNKNOWN; i++) {
 		struct intel_memory_region *region = i915->mm.regions[i];
 
@@ -2762,15 +2760,6 @@ int i915_gem_init_memory_regions(struct drm_i915_private *i915)
 {
 	int err, i;
 
-	/*
-	 * Initialise stolen early so that we may reserve preallocated
-	 * objects for the BIOS to KMS transition.
-	 */
-	/* XXX: stolen will become a region at some point */
-	err = i915_gem_init_stolen(i915);
-	if (err)
-		return err;
-
 	for (i = 0; i < INTEL_REGION_UNKNOWN; i++) {
 		struct intel_memory_region *mem = ERR_PTR(-ENODEV);
 		u32 type;
@@ -2782,6 +2771,9 @@ int i915_gem_init_memory_regions(struct drm_i915_private *i915)
 		switch (type) {
 		case INTEL_MEMORY_SYSTEM:
 			mem = i915_gem_shmem_setup(i915);
+			break;
+		case INTEL_MEMORY_STOLEN:
+			mem = i915_gem_stolen_setup(i915);
 			break;
 		}
 

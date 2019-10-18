@@ -152,7 +152,7 @@
 	.page_sizes = I915_GTT_PAGE_SIZE_4K
 
 #define GEN_DEFAULT_REGIONS \
-	.memory_regions = REGION_SMEM
+	.memory_regions = REGION_SMEM | REGION_STOLEN
 
 #define I830_FEATURES \
 	GEN(2), \
