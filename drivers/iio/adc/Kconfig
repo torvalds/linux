@@ -6,6 +6,16 @@
 
 menu "Analog to digital converters"
 
+config AB8500_GPADC
+	bool "ST-Ericsson AB8500 GPADC driver"
+	depends on AB8500_CORE && REGULATOR_AB8500
+	default y
+	help
+	  AB8500 Analog Baseband, mixed signal integrated circuit GPADC
+	  (General Purpose Analog to Digital Converter) driver used to monitor
+	  internal voltages, convert accessory and battery, AC (charger, mains)
+	  and USB voltages integral to the U8500 platform.
+
 config AD_SIGMA_DELTA
 	tristate
 	select IIO_BUFFER
