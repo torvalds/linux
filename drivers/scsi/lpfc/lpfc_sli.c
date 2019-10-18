@@ -6219,11 +6219,16 @@ lpfc_ras_stop_fwlog(struct lpfc_hba *phba)
 {
 	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
 
-	ras_fwlog->ras_active = false;
+	spin_lock_irq(&phba->hbalock);
+	ras_fwlog->state = INACTIVE;
+	spin_unlock_irq(&phba->hbalock);
 
 	/* Disable FW logging to host memory */
 	writel(LPFC_CTL_PDEV_CTL_DDL_RAS,
 	       phba->sli4_hba.conf_regs_memmap_p + LPFC_CTL_PDEV_CTL_OFFSET);
+
+	/* Wait 10ms for firmware to stop using DMA buffer */
+	usleep_range(10 * 1000, 20 * 1000);
 }
 
 /**
@@ -6259,7 +6264,9 @@ lpfc_sli4_ras_dma_free(struct lpfc_hba *phba)
 		ras_fwlog->lwpd.virt = NULL;
 	}
 
-	ras_fwlog->ras_active = false;
+	spin_lock_irq(&phba->hbalock);
+	ras_fwlog->state = INACTIVE;
+	spin_unlock_irq(&phba->hbalock);
 }
 
 /**
@@ -6361,7 +6368,9 @@ lpfc_sli4_ras_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		goto disable_ras;
 	}
 
-	ras_fwlog->ras_active = true;
+	spin_lock_irq(&phba->hbalock);
+	ras_fwlog->state = ACTIVE;
+	spin_unlock_irq(&phba->hbalock);
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	return;
@@ -6392,6 +6401,10 @@ lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba,
 	LPFC_MBOXQ_t *mbox;
 	uint32_t len = 0, fwlog_buffsize, fwlog_entry_count;
 	int rc = 0;
+
+	spin_lock_irq(&phba->hbalock);
+	ras_fwlog->state = INACTIVE;
+	spin_unlock_irq(&phba->hbalock);
 
 	fwlog_buffsize = (LPFC_RAS_MIN_BUFF_POST_SIZE *
 			  phba->cfg_ras_fwlog_buffsize);
@@ -6452,6 +6465,9 @@ lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba,
 	mbx_fwlog->u.request.lwpd.addr_lo = putPaddrLow(ras_fwlog->lwpd.phys);
 	mbx_fwlog->u.request.lwpd.addr_hi = putPaddrHigh(ras_fwlog->lwpd.phys);
 
+	spin_lock_irq(&phba->hbalock);
+	ras_fwlog->state = REG_INPROGRESS;
+	spin_unlock_irq(&phba->hbalock);
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_sli4_ras_mbox_cmpl;
 

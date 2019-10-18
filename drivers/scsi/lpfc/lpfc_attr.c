@@ -5932,7 +5932,53 @@ LPFC_ATTR_RW(enable_mds_diags, 0, 0, 1, "Enable MDS Diagnostics");
  *	[1-4] = Multiple of 1/4th Mb of host memory for FW logging
  * Value range [0..4]. Default value is 0
  */
-LPFC_ATTR_RW(ras_fwlog_buffsize, 0, 0, 4, "Host memory for FW logging");
+LPFC_ATTR(ras_fwlog_buffsize, 0, 0, 4, "Host memory for FW logging");
+lpfc_param_show(ras_fwlog_buffsize);
+
+static ssize_t
+lpfc_ras_fwlog_buffsize_set(struct lpfc_hba  *phba, uint val)
+{
+	int ret = 0;
+	enum ras_state state;
+
+	if (!lpfc_rangecheck(val, 0, 4))
+		return -EINVAL;
+
+	if (phba->cfg_ras_fwlog_buffsize == val)
+		return 0;
+
+	if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn))
+		return -EINVAL;
+
+	spin_lock_irq(&phba->hbalock);
+	state = phba->ras_fwlog.state;
+	spin_unlock_irq(&phba->hbalock);
+
+	if (state == REG_INPROGRESS) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI, "6147 RAS Logging "
+				"registration is in progress\n");
+		return -EBUSY;
+	}
+
+	/* For disable logging: stop the logs and free the DMA.
+	 * For ras_fwlog_buffsize size change we still need to free and
+	 * reallocate the DMA in lpfc_sli4_ras_fwlog_init.
+	 */
+	phba->cfg_ras_fwlog_buffsize = val;
+	if (state == ACTIVE) {
+		lpfc_ras_stop_fwlog(phba);
+		lpfc_sli4_ras_dma_free(phba);
+	}
+
+	lpfc_sli4_ras_init(phba);
+	if (phba->ras_fwlog.ras_enabled)
+		ret = lpfc_sli4_ras_fwlog_init(phba, phba->cfg_ras_fwlog_level,
+					       LPFC_RAS_ENABLE_LOGGING);
+	return ret;
+}
+
+lpfc_param_store(ras_fwlog_buffsize);
+static DEVICE_ATTR_RW(lpfc_ras_fwlog_buffsize);
 
 /*
  * lpfc_ras_fwlog_level: Firmware logging verbosity level

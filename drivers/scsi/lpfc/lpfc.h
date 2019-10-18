@@ -605,6 +605,12 @@ struct lpfc_epd_pool {
 	spinlock_t lock;	/* lock for expedite pool */
 };
 
+enum ras_state {
+	INACTIVE,
+	REG_INPROGRESS,
+	ACTIVE
+};
+
 struct lpfc_ras_fwlog {
 	uint8_t *fwlog_buff;
 	uint32_t fw_buffcount; /* Buffer size posted to FW */
@@ -621,7 +627,7 @@ struct lpfc_ras_fwlog {
 	bool ras_enabled;   /* Ras Enabled for the function */
 #define LPFC_RAS_DISABLE_LOGGING 0x00
 #define LPFC_RAS_ENABLE_LOGGING 0x01
-	bool ras_active;    /* RAS logging running state */
+	enum ras_state state;    /* RAS logging running state */
 };
 
 struct lpfc_hba {
@@ -1053,6 +1059,7 @@ struct lpfc_hba {
 #ifdef LPFC_HDWQ_LOCK_STAT
 	struct dentry *debug_lockstat;
 #endif
+	struct dentry *debug_ras_log;
 	atomic_t nvmeio_trc_cnt;
 	uint32_t nvmeio_trc_size;
 	uint32_t nvmeio_trc_output_idx;

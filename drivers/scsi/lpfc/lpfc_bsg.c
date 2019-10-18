@@ -5435,10 +5435,12 @@ lpfc_bsg_get_ras_config(struct bsg_job *job)
 		bsg_reply->reply_data.vendor_reply.vendor_rsp;
 
 	/* Current logging state */
-	if (ras_fwlog->ras_active == true)
+	spin_lock_irq(&phba->hbalock);
+	if (ras_fwlog->state == ACTIVE)
 		ras_reply->state = LPFC_RASLOG_STATE_RUNNING;
 	else
 		ras_reply->state = LPFC_RASLOG_STATE_STOPPED;
+	spin_unlock_irq(&phba->hbalock);
 
 	ras_reply->log_level = phba->ras_fwlog.fw_loglevel;
 	ras_reply->log_buff_sz = phba->cfg_ras_fwlog_buffsize;
@@ -5495,10 +5497,13 @@ lpfc_bsg_set_ras_config(struct bsg_job *job)
 
 	if (action == LPFC_RASACTION_STOP_LOGGING) {
 		/* Check if already disabled */
-		if (ras_fwlog->ras_active == false) {
+		spin_lock_irq(&phba->hbalock);
+		if (ras_fwlog->state != ACTIVE) {
+			spin_unlock_irq(&phba->hbalock);
 			rc = -ESRCH;
 			goto ras_job_error;
 		}
+		spin_unlock_irq(&phba->hbalock);
 
 		/* Disable logging */
 		lpfc_ras_stop_fwlog(phba);
@@ -5509,8 +5514,10 @@ lpfc_bsg_set_ras_config(struct bsg_job *job)
 		 * FW-logging with new log-level. Return status
 		 * "Logging already Running" to caller.
 		 **/
-		if (ras_fwlog->ras_active)
+		spin_lock_irq(&phba->hbalock);
+		if (ras_fwlog->state != INACTIVE)
 			action_status = -EINPROGRESS;
+		spin_unlock_irq(&phba->hbalock);
 
 		/* Enable logging */
 		rc = lpfc_sli4_ras_fwlog_init(phba, log_level,
@@ -5626,10 +5633,13 @@ lpfc_bsg_get_ras_fwlog(struct bsg_job *job)
 		goto ras_job_error;
 
 	/* Logging to be stopped before reading */
-	if (ras_fwlog->ras_active == true) {
+	spin_lock_irq(&phba->hbalock);
+	if (ras_fwlog->state == ACTIVE) {
+		spin_unlock_irq(&phba->hbalock);
 		rc = -EINPROGRESS;
 		goto ras_job_error;
 	}
+	spin_unlock_irq(&phba->hbalock);
 
 	if (job->request_len <
 	    sizeof(struct fc_bsg_request) +
