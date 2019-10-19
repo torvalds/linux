@@ -77,7 +77,7 @@ static int wfx_drop_encrypt_data(struct wfx_dev *wdev, struct hif_ind_rx *arg, s
 		break;
 	default:
 		dev_err(wdev->dev, "unknown encryption type %d\n",
-			 arg->rx_flags.encryp);
+			arg->rx_flags.encryp);
 		return -EIO;
 	}
 

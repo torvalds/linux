@@ -141,10 +141,11 @@ static int wfx_rx_stats_show(struct seq_file *seq, void *v)
 	mutex_lock(&wdev->rx_stats_lock);
 	seq_printf(seq, "Timestamp: %dus\n", st->date);
 	seq_printf(seq, "Low power clock: frequency %uHz, external %s\n",
-		st->pwr_clk_freq,
-		st->is_ext_pwr_clk ? "yes" : "no");
-	seq_printf(seq, "Num. of frames: %d, PER (x10e4): %d, Throughput: %dKbps/s\n",
-		st->nb_rx_frame, st->per_total, st->throughput);
+		   st->pwr_clk_freq,
+		   st->is_ext_pwr_clk ? "yes" : "no");
+	seq_printf(seq,
+		   "N. of frames: %d, PER (x10e4): %d, Throughput: %dKbps/s\n",
+		   st->nb_rx_frame, st->per_total, st->throughput);
 	seq_puts(seq, "       Num. of      PER     RSSI      SNR      CFO\n");
 	seq_puts(seq, "        frames  (x10e4)    (dBm)     (dB)    (kHz)\n");
 	for (i = 0; i < ARRAY_SIZE(channel_names); i++) {
@@ -160,8 +161,9 @@ static int wfx_rx_stats_show(struct seq_file *seq, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(wfx_rx_stats);
 
-static ssize_t wfx_send_pds_write(struct file *file, const char __user *user_buf,
-			     size_t count, loff_t *ppos)
+static ssize_t wfx_send_pds_write(struct file *file,
+				  const char __user *user_buf,
+				  size_t count, loff_t *ppos)
 {
 	struct wfx_dev *wdev = file->private_data;
 	char *buf;

@@ -40,7 +40,7 @@ static int wfx_get_hw_rate(struct wfx_dev *wdev,
 /* TX policy cache implementation */
 
 static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
-			    struct ieee80211_tx_rate *rates)
+				struct ieee80211_tx_rate *rates)
 {
 	int i;
 	size_t count;
