@@ -437,15 +437,7 @@ static int ds1343_probe(struct spi_device *spi)
 
 static int ds1343_remove(struct spi_device *spi)
 {
-	struct ds1343_priv *priv = spi_get_drvdata(spi);
-
-	if (spi->irq) {
-		dev_pm_clear_wake_irq(&spi->dev);
-		device_init_wakeup(&spi->dev, false);
-		devm_free_irq(&spi->dev, spi->irq, priv);
-	}
-
-	spi_set_drvdata(spi, NULL);
+	dev_pm_clear_wake_irq(&spi->dev);
 
 	return 0;
 }
