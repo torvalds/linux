@@ -1863,13 +1863,14 @@ out:
 }
 
 static int emit_oa_config(struct i915_perf_stream *stream,
+			  struct i915_oa_config *oa_config,
 			  struct intel_context *ce)
 {
 	struct i915_request *rq;
 	struct i915_vma *vma;
 	int err;
 
-	vma = get_oa_vma(stream, stream->oa_config);
+	vma = get_oa_vma(stream, oa_config);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -1927,7 +1928,7 @@ static int hsw_enable_metric_set(struct i915_perf_stream *stream)
 	intel_uncore_rmw(uncore, GEN6_UCGCTL1,
 			 0, GEN6_CSUNIT_CLOCK_GATE_DISABLE);
 
-	return emit_oa_config(stream, oa_context(stream));
+	return emit_oa_config(stream, stream->oa_config, oa_context(stream));
 }
 
 static void hsw_disable_metric_set(struct i915_perf_stream *stream)
@@ -2250,7 +2251,7 @@ static int gen8_configure_all_contexts(struct i915_perf_stream *stream,
 static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 {
 	struct intel_uncore *uncore = stream->uncore;
-	const struct i915_oa_config *oa_config = stream->oa_config;
+	struct i915_oa_config *oa_config = stream->oa_config;
 	int ret;
 
 	/*
@@ -2291,7 +2292,7 @@ static int gen8_enable_metric_set(struct i915_perf_stream *stream)
 	if (ret)
 		return ret;
 
-	return emit_oa_config(stream, oa_context(stream));
+	return emit_oa_config(stream, oa_config, oa_context(stream));
 }
 
 static void gen8_disable_metric_set(struct i915_perf_stream *stream)
@@ -2895,7 +2896,7 @@ static long i915_perf_config_locked(struct i915_perf_stream *stream,
 		 * When set globally, we use a low priority kernel context,
 		 * so it will effectively take effect when idle.
 		 */
-		err = emit_oa_config(stream, oa_context(stream));
+		err = emit_oa_config(stream, config, oa_context(stream));
 		if (err == 0)
 			config = xchg(&stream->oa_config, config);
 		else
