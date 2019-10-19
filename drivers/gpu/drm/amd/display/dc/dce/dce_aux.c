@@ -432,7 +432,6 @@ static bool dce_aux_configure_timeout(struct ddc_service *ddc,
 {
 	uint32_t multiplier = 0;
 	uint32_t length = 0;
-	uint32_t timeout = 0;
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct dce_aux *aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
 	struct aux_engine_dce110 *aux110 = FROM_AUX_ENGINE(aux_engine);
@@ -446,25 +445,21 @@ static bool dce_aux_configure_timeout(struct ddc_service *ddc,
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_8;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_8 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_8;
 	} else if (timeout_in_us <= 2 * TIME_OUT_INCREMENT) {
 		multiplier = 1;
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_16;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_16 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_16;
 	} else if (timeout_in_us <= 4 * TIME_OUT_INCREMENT) {
 		multiplier = 2;
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_32;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_32 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_32;
 	} else if (timeout_in_us > 4 * TIME_OUT_INCREMENT) {
 		multiplier = 3;
 		length = timeout_in_us/TIME_OUT_MULTIPLIER_64;
 		if (timeout_in_us % TIME_OUT_MULTIPLIER_64 != 0)
 			length++;
-		timeout = length * TIME_OUT_MULTIPLIER_64;
 	}
 
 	length = (length < MAX_TIMEOUT_LENGTH) ? length : MAX_TIMEOUT_LENGTH;
