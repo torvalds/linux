@@ -2025,6 +2025,9 @@ mvneta_swbm_rx_frame(struct mvneta_port *pp,
 				rx_desc->buf_phys_addr,
 				len, dma_dir);
 
+	/* Prefetch header */
+	prefetch(data);
+
 	xdp->data_hard_start = data;
 	xdp->data = data + MVNETA_SKB_HEADROOM + MVNETA_MH_SIZE;
 	xdp->data_end = xdp->data + data_len;
@@ -2122,14 +2125,10 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 	while (rx_proc < budget && rx_proc < rx_todo) {
 		struct mvneta_rx_desc *rx_desc = mvneta_rxq_next_desc_get(rxq);
 		u32 rx_status, index;
-		unsigned char *data;
 		struct page *page;
 
 		index = rx_desc - rxq->descs;
 		page = (struct page *)rxq->buf_virt_addr[index];
-		data = page_address(page);
-		/* Prefetch header */
-		prefetch(data);
 
 		rx_status = rx_desc->status;
 		rx_proc++;
