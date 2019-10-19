@@ -78,7 +78,6 @@ struct ds1343_priv {
 	struct spi_device *spi;
 	struct rtc_device *rtc;
 	struct regmap *map;
-	struct mutex mutex;
 	unsigned int irqen;
 	int irq;
 	int alarm_sec;
@@ -290,17 +289,15 @@ static int ds1343_update_alarm(struct device *dev)
 static int ds1343_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int res = 0;
+	int res;
 	unsigned int stat;
 
 	if (priv->irq <= 0)
 		return -EINVAL;
 
-	mutex_lock(&priv->mutex);
-
 	res = regmap_read(priv->map, DS1343_STATUS_REG, &stat);
 	if (res)
-		goto out;
+		return res;
 
 	alarm->enabled = !!(priv->irqen & RTC_AF);
 	alarm->pending = !!(stat & DS1343_IRQF0);
@@ -310,20 +307,15 @@ static int ds1343_read_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	alarm->time.tm_hour = priv->alarm_hour < 0 ? 0 : priv->alarm_hour;
 	alarm->time.tm_mday = priv->alarm_mday < 0 ? 0 : priv->alarm_mday;
 
-out:
-	mutex_unlock(&priv->mutex);
-	return res;
+	return 0;
 }
 
 static int ds1343_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int res = 0;
 
 	if (priv->irq <= 0)
 		return -EINVAL;
-
-	mutex_lock(&priv->mutex);
 
 	priv->alarm_sec = alarm->time.tm_sec;
 	priv->alarm_min = alarm->time.tm_min;
@@ -333,33 +325,22 @@ static int ds1343_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	if (alarm->enabled)
 		priv->irqen |= RTC_AF;
 
-	res = ds1343_update_alarm(dev);
-
-	mutex_unlock(&priv->mutex);
-
-	return res;
+	return ds1343_update_alarm(dev);
 }
 
 static int ds1343_alarm_irq_enable(struct device *dev, unsigned int enabled)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int res = 0;
 
 	if (priv->irq <= 0)
 		return -EINVAL;
-
-	mutex_lock(&priv->mutex);
 
 	if (enabled)
 		priv->irqen |= RTC_AF;
 	else
 		priv->irqen &= ~RTC_AF;
 
-	res = ds1343_update_alarm(dev);
-
-	mutex_unlock(&priv->mutex);
-
-	return res;
+	return ds1343_update_alarm(dev);
 }
 
 static irqreturn_t ds1343_thread(int irq, void *dev_id)
@@ -368,7 +349,7 @@ static irqreturn_t ds1343_thread(int irq, void *dev_id)
 	unsigned int stat, control;
 	int res = 0;
 
-	mutex_lock(&priv->mutex);
+	rtc_lock(priv->rtc);
 
 	res = regmap_read(priv->map, DS1343_STATUS_REG, &stat);
 	if (res)
@@ -389,7 +370,7 @@ static irqreturn_t ds1343_thread(int irq, void *dev_id)
 	}
 
 out:
-	mutex_unlock(&priv->mutex);
+	rtc_unlock(priv->rtc);
 	return IRQ_HANDLED;
 }
 
@@ -422,7 +403,6 @@ static int ds1343_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	priv->spi = spi;
-	mutex_init(&priv->mutex);
 
 	/* RTC DS1347 works in spi mode 3 and
 	 * its chip select is active high
@@ -500,9 +480,7 @@ static int ds1343_remove(struct spi_device *spi)
 	struct ds1343_priv *priv = spi_get_drvdata(spi);
 
 	if (spi->irq) {
-		mutex_lock(&priv->mutex);
 		priv->irqen &= ~RTC_AF;
-		mutex_unlock(&priv->mutex);
 
 		dev_pm_clear_wake_irq(&spi->dev);
 		device_init_wakeup(&spi->dev, false);
