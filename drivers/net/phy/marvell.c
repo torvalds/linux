@@ -54,10 +54,14 @@
 #define MII_M1011_PHY_SCR			0x10
 #define MII_M1011_PHY_SCR_DOWNSHIFT_EN		BIT(11)
 #define MII_M1011_PHY_SCR_DOWNSHIFT_SHIFT	12
-#define MII_M1011_PHY_SRC_DOWNSHIFT_MASK	0x7800
+#define MII_M1011_PHY_SRC_DOWNSHIFT_MASK	GENMASK(14, 12)
+#define MII_M1011_PHY_SCR_DOWNSHIFT_MAX		8
 #define MII_M1011_PHY_SCR_MDI			(0x0 << 5)
 #define MII_M1011_PHY_SCR_MDI_X			(0x1 << 5)
 #define MII_M1011_PHY_SCR_AUTO_CROSS		(0x3 << 5)
+
+#define MII_M1011_PHY_SSR			0x11
+#define MII_M1011_PHY_SSR_DOWNSHIFT		BIT(5)
 
 #define MII_M1111_PHY_LED_CONTROL	0x18
 #define MII_M1111_PHY_LED_DIRECT	0x4100
@@ -833,6 +837,79 @@ static int m88e1111_config_init(struct phy_device *phydev)
 	return genphy_soft_reset(phydev);
 }
 
+static int m88e1111_get_downshift(struct phy_device *phydev, u8 *data)
+{
+	int val, cnt, enable;
+
+	val = phy_read(phydev, MII_M1011_PHY_SCR);
+	if (val < 0)
+		return val;
+
+	enable = FIELD_GET(MII_M1011_PHY_SCR_DOWNSHIFT_EN, val);
+	cnt = FIELD_GET(MII_M1011_PHY_SRC_DOWNSHIFT_MASK, val) + 1;
+
+	*data = enable ? cnt : DOWNSHIFT_DEV_DISABLE;
+
+	return 0;
+}
+
+static int m88e1111_set_downshift(struct phy_device *phydev, u8 cnt)
+{
+	int val;
+
+	if (cnt > MII_M1011_PHY_SCR_DOWNSHIFT_MAX)
+		return -E2BIG;
+
+	if (!cnt)
+		return phy_clear_bits(phydev, MII_M1011_PHY_SCR,
+				      MII_M1011_PHY_SCR_DOWNSHIFT_EN);
+
+	val = MII_M1011_PHY_SCR_DOWNSHIFT_EN;
+	val |= FIELD_PREP(MII_M1011_PHY_SRC_DOWNSHIFT_MASK, cnt - 1);
+
+	return phy_modify(phydev, MII_M1011_PHY_SCR,
+			  MII_M1011_PHY_SCR_DOWNSHIFT_EN |
+			  MII_M1011_PHY_SRC_DOWNSHIFT_MASK,
+			  val);
+}
+
+static int m88e1111_get_tunable(struct phy_device *phydev,
+				struct ethtool_tunable *tuna, void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return m88e1111_get_downshift(phydev, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int m88e1111_set_tunable(struct phy_device *phydev,
+				struct ethtool_tunable *tuna, const void *data)
+{
+	switch (tuna->id) {
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return m88e1111_set_downshift(phydev, *(const u8 *)data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static void m88e1111_link_change_notify(struct phy_device *phydev)
+{
+	int status;
+
+	if (phydev->state != PHY_RUNNING)
+		return;
+
+	/* we may be on fiber page currently */
+	status = phy_read_paged(phydev, MII_MARVELL_COPPER_PAGE,
+				MII_M1011_PHY_SSR);
+
+	if (status > 0 && status & MII_M1011_PHY_SSR_DOWNSHIFT)
+		phydev_warn(phydev, "Downshift occurred! Cabling may be defective.\n");
+}
+
 static int m88e1318_config_init(struct phy_device *phydev)
 {
 	if (phy_interrupt_is_valid(phydev)) {
@@ -1117,6 +1194,8 @@ static int m88e1540_get_tunable(struct phy_device *phydev,
 	switch (tuna->id) {
 	case ETHTOOL_PHY_FAST_LINK_DOWN:
 		return m88e1540_get_fld(phydev, data);
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return m88e1111_get_downshift(phydev, data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1128,6 +1207,8 @@ static int m88e1540_set_tunable(struct phy_device *phydev,
 	switch (tuna->id) {
 	case ETHTOOL_PHY_FAST_LINK_DOWN:
 		return m88e1540_set_fld(phydev, data);
+	case ETHTOOL_PHY_DOWNSHIFT:
+		return m88e1111_set_downshift(phydev, *(const u8 *)data);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -2220,6 +2301,9 @@ static struct phy_driver marvell_drivers[] = {
 		.get_sset_count = marvell_get_sset_count,
 		.get_strings = marvell_get_strings,
 		.get_stats = marvell_get_stats,
+		.get_tunable = m88e1111_get_tunable,
+		.set_tunable = m88e1111_set_tunable,
+		.link_change_notify = m88e1111_link_change_notify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1318S,
@@ -2359,6 +2443,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
+		.link_change_notify = m88e1111_link_change_notify,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1545,
@@ -2421,6 +2506,7 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1540_get_tunable,
 		.set_tunable = m88e1540_set_tunable,
+		.link_change_notify = m88e1111_link_change_notify,
 	},
 };
 
