@@ -2831,10 +2831,10 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 }
 
 static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
-			 struct sk_buff **out_skb, bool pending)
+			 bool pending)
 {
-	struct sk_buff *skb = *out_skb;
-	struct sk_buff *head_skb = *out_skb;
+	struct sk_buff *skb = ring->skb;
+	struct sk_buff *head_skb = skb;
 	struct sk_buff *new_skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *pre_desc;
@@ -3017,8 +3017,7 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	return 0;
 }
 
-static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
-			     struct sk_buff **out_skb)
+static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 {
 	struct sk_buff *skb = ring->skb;
 	struct hns3_desc_cb *desc_cb;
@@ -3056,12 +3055,12 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 
 	if (!skb) {
 		ret = hns3_alloc_skb(ring, length, ring->va);
-		*out_skb = skb = ring->skb;
+		skb = ring->skb;
 
 		if (ret < 0) /* alloc buffer fail */
 			return ret;
 		if (ret > 0) { /* need add frag */
-			ret = hns3_add_frag(ring, desc, &skb, false);
+			ret = hns3_add_frag(ring, desc, false);
 			if (ret)
 				return ret;
 
@@ -3072,7 +3071,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 			       ALIGN(ring->pull_len, sizeof(long)));
 		}
 	} else {
-		ret = hns3_add_frag(ring, desc, &skb, true);
+		ret = hns3_add_frag(ring, desc, true);
 		if (ret)
 			return ret;
 
@@ -3090,8 +3089,6 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	skb_record_rx_queue(skb, ring->tqp->tqp_index);
-	*out_skb = skb;
-
 	return 0;
 }
 
@@ -3100,7 +3097,6 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 {
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
 	int unused_count = hns3_desc_unused(ring);
-	struct sk_buff *skb = ring->skb;
 	int recv_pkts = 0;
 	int recv_bds = 0;
 	int err, num;
@@ -3123,27 +3119,19 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 		}
 
 		/* Poll one pkt */
-		err = hns3_handle_rx_bd(ring, &skb);
-		if (unlikely(!skb)) /* This fault cannot be repaired */
+		err = hns3_handle_rx_bd(ring);
+		/* Do not get FE for the packet or failed to alloc skb */
+		if (unlikely(!ring->skb || err == -ENXIO)) {
 			goto out;
-
-		if (err == -ENXIO) { /* Do not get FE for the packet */
-			goto out;
-		} else if (unlikely(err)) {  /* Do jump the err */
-			recv_bds += ring->pending_buf;
-			unused_count += ring->pending_buf;
-			ring->skb = NULL;
-			ring->pending_buf = 0;
-			continue;
+		} else if (likely(!err)) {
+			rx_fn(ring, ring->skb);
+			recv_pkts++;
 		}
 
-		rx_fn(ring, skb);
 		recv_bds += ring->pending_buf;
 		unused_count += ring->pending_buf;
 		ring->skb = NULL;
 		ring->pending_buf = 0;
-
-		recv_pkts++;
 	}
 
 out:
