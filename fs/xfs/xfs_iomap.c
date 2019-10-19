@@ -539,7 +539,6 @@ xfs_file_iomap_begin_delay(
 	struct xfs_iext_cursor	icur, ccur;
 	xfs_fsblock_t		prealloc_blocks = 0;
 	bool			eof = false, cow_eof = false, shared = false;
-	u16			iomap_flags = 0;
 	int			whichfork = XFS_DATA_FORK;
 	int			error = 0;
 
@@ -600,8 +599,7 @@ xfs_file_iomap_begin_delay(
 				&ccur, &cmap);
 		if (!cow_eof && cmap.br_startoff <= offset_fsb) {
 			trace_xfs_reflink_cow_found(ip, &cmap);
-			whichfork = XFS_COW_FORK;
-			goto done;
+			goto found_cow;
 		}
 	}
 
@@ -615,7 +613,7 @@ xfs_file_iomap_begin_delay(
 		    ((flags & IOMAP_ZERO) && imap.br_state != XFS_EXT_NORM)) {
 			trace_xfs_iomap_found(ip, offset, count, XFS_DATA_FORK,
 					&imap);
-			goto done;
+			goto found_imap;
 		}
 
 		xfs_trim_extent(&imap, offset_fsb, end_fsb - offset_fsb);
@@ -629,7 +627,7 @@ xfs_file_iomap_begin_delay(
 		if (!shared) {
 			trace_xfs_iomap_found(ip, offset, count, XFS_DATA_FORK,
 					&imap);
-			goto done;
+			goto found_imap;
 		}
 
 		/*
@@ -703,35 +701,37 @@ retry:
 		goto out_unlock;
 	}
 
+	if (whichfork == XFS_COW_FORK) {
+		trace_xfs_iomap_alloc(ip, offset, count, whichfork, &cmap);
+		goto found_cow;
+	}
+
 	/*
 	 * Flag newly allocated delalloc blocks with IOMAP_F_NEW so we punch
 	 * them out if the write happens to fail.
 	 */
-	if (whichfork == XFS_DATA_FORK) {
-		iomap_flags |= IOMAP_F_NEW;
-		trace_xfs_iomap_alloc(ip, offset, count, whichfork, &imap);
-	} else {
-		trace_xfs_iomap_alloc(ip, offset, count, whichfork, &cmap);
-	}
-done:
-	if (whichfork == XFS_COW_FORK) {
-		if (imap.br_startoff > offset_fsb) {
-			xfs_trim_extent(&cmap, offset_fsb,
-					imap.br_startoff - offset_fsb);
-			error = xfs_bmbt_to_iomap(ip, iomap, &cmap,
-					IOMAP_F_SHARED);
-			goto out_unlock;
-		}
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	trace_xfs_iomap_alloc(ip, offset, count, whichfork, &imap);
+	return xfs_bmbt_to_iomap(ip, iomap, &imap, IOMAP_F_NEW);
+
+found_imap:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	return xfs_bmbt_to_iomap(ip, iomap, &imap, 0);
+
+found_cow:
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+	if (imap.br_startoff <= offset_fsb) {
 		/* ensure we only report blocks we have a reservation for */
 		xfs_trim_extent(&imap, cmap.br_startoff, cmap.br_blockcount);
-		shared = true;
+		return xfs_bmbt_to_iomap(ip, iomap, &imap, IOMAP_F_SHARED);
 	}
-	if (shared)
-		iomap_flags |= IOMAP_F_SHARED;
-	error = xfs_bmbt_to_iomap(ip, iomap, &imap, iomap_flags);
+	xfs_trim_extent(&cmap, offset_fsb, imap.br_startoff - offset_fsb);
+	return xfs_bmbt_to_iomap(ip, iomap, &cmap, IOMAP_F_SHARED);
+
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	return error;
+
 }
 
 int
