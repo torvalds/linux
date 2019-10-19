@@ -236,46 +236,18 @@ static int ds1343_read_time(struct device *dev, struct rtc_time *dt)
 static int ds1343_set_time(struct device *dev, struct rtc_time *dt)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev);
-	int res;
+	u8 buf[7];
 
-	res = regmap_write(priv->map, DS1343_SECONDS_REG,
-				bin2bcd(dt->tm_sec));
-	if (res)
-		return res;
+	buf[0] = bin2bcd(dt->tm_sec);
+	buf[1] = bin2bcd(dt->tm_min);
+	buf[2] = bin2bcd(dt->tm_hour) & 0x3F;
+	buf[3] = bin2bcd(dt->tm_wday + 1);
+	buf[4] = bin2bcd(dt->tm_mday);
+	buf[5] = bin2bcd(dt->tm_mon + 1);
+	buf[6] = bin2bcd(dt->tm_year - 100);
 
-	res = regmap_write(priv->map, DS1343_MINUTES_REG,
-				bin2bcd(dt->tm_min));
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_HOURS_REG,
-				bin2bcd(dt->tm_hour) & 0x3F);
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_DAY_REG,
-				bin2bcd(dt->tm_wday + 1));
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_DATE_REG,
-				bin2bcd(dt->tm_mday));
-	if (res)
-		return res;
-
-	res = regmap_write(priv->map, DS1343_MONTH_REG,
-				bin2bcd(dt->tm_mon + 1));
-	if (res)
-		return res;
-
-	dt->tm_year %= 100;
-
-	res = regmap_write(priv->map, DS1343_YEAR_REG,
-				bin2bcd(dt->tm_year));
-	if (res)
-		return res;
-
-	return 0;
+	return regmap_bulk_write(priv->map, DS1343_SECONDS_REG,
+				 buf, sizeof(buf));
 }
 
 static int ds1343_update_alarm(struct device *dev)
