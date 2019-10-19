@@ -313,31 +313,33 @@ pcm_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
-static snd_pcm_uframes_t
-pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
+static snd_pcm_uframes_t pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_bebob *bebob = sbstrm->private_data;
-	return amdtp_stream_pcm_pointer(&bebob->tx_stream);
+
+	return amdtp_domain_stream_pcm_pointer(&bebob->domain,
+					       &bebob->tx_stream);
 }
-static snd_pcm_uframes_t
-pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
+static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_bebob *bebob = sbstrm->private_data;
-	return amdtp_stream_pcm_pointer(&bebob->rx_stream);
+
+	return amdtp_domain_stream_pcm_pointer(&bebob->domain,
+					       &bebob->rx_stream);
 }
 
 static int pcm_capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&bebob->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&bebob->domain, &bebob->tx_stream);
 }
 
 static int pcm_playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_bebob *bebob = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&bebob->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&bebob->domain, &bebob->rx_stream);
 }
 
 int snd_bebob_create_pcm_devices(struct snd_bebob *bebob)

@@ -658,7 +658,15 @@ int snd_bebob_stream_start_duplex(struct snd_bebob *bebob)
 		if (err < 0)
 			goto error;
 
-		err = amdtp_domain_start(&bebob->domain);
+		// The device postpones start of transmission mostly for 1 sec
+		// after receives packets firstly. For safe, IR context starts
+		// 1.5 sec (=12000 cycles) later. This is within 2.0 sec
+		// (=CALLBACK_TIMEOUT).
+		// Furthermore, some devices transfer isoc packets with
+		// discontinuous counter in the beginning of packet streaming.
+		// The delay has an effect to avoid detection of this
+		// discontinuity.
+		err = amdtp_domain_start(&bebob->domain, 12000);
 		if (err < 0)
 			goto error;
 

@@ -230,28 +230,28 @@ static snd_pcm_uframes_t pcm_capture_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_tscm *tscm = sbstrm->private_data;
 
-	return amdtp_stream_pcm_pointer(&tscm->tx_stream);
+	return amdtp_domain_stream_pcm_pointer(&tscm->domain, &tscm->tx_stream);
 }
 
 static snd_pcm_uframes_t pcm_playback_pointer(struct snd_pcm_substream *sbstrm)
 {
 	struct snd_tscm *tscm = sbstrm->private_data;
 
-	return amdtp_stream_pcm_pointer(&tscm->rx_stream);
+	return amdtp_domain_stream_pcm_pointer(&tscm->domain, &tscm->rx_stream);
 }
 
 static int pcm_capture_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_tscm *tscm = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&tscm->tx_stream);
+	return amdtp_domain_stream_pcm_ack(&tscm->domain, &tscm->tx_stream);
 }
 
 static int pcm_playback_ack(struct snd_pcm_substream *substream)
 {
 	struct snd_tscm *tscm = substream->private_data;
 
-	return amdtp_stream_pcm_ack(&tscm->rx_stream);
+	return amdtp_domain_stream_pcm_ack(&tscm->domain, &tscm->rx_stream);
 }
 
 int snd_tscm_create_pcm_devices(struct snd_tscm *tscm)
