@@ -2863,8 +2863,7 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 			return -ENXIO;
 
 		if (unlikely(ring->frag_num >= MAX_SKB_FRAGS)) {
-			new_skb = napi_alloc_skb(&ring->tqp_vector->napi,
-						 HNS3_RX_HEAD_SIZE);
+			new_skb = napi_alloc_skb(&ring->tqp_vector->napi, 0);
 			if (unlikely(!new_skb)) {
 				hns3_rl_err(ring_to_netdev(ring),
 					    "alloc rx fraglist skb fail\n");
