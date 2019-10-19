@@ -92,8 +92,11 @@ static ssize_t ds1343_show_glitchfilter(struct device *dev,
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
 	int glitch_filt_status, data;
+	int res;
 
-	regmap_read(priv->map, DS1343_CONTROL_REG, &data);
+	res = regmap_read(priv->map, DS1343_CONTROL_REG, &data);
+	if (res)
+		return res;
 
 	glitch_filt_status = !!(data & DS1343_EGFIL);
 
@@ -147,10 +150,12 @@ static ssize_t ds1343_show_tricklecharger(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
-	int data;
+	int res, data;
 	char *diodes = "disabled", *resistors = " ";
 
-	regmap_read(priv->map, DS1343_TRICKLE_REG, &data);
+	res = regmap_read(priv->map, DS1343_TRICKLE_REG, &data);
+	if (res)
+		return res;
 
 	if ((data & 0xf0) == DS1343_TRICKLE_MAGIC) {
 		switch (data & 0x0c) {
