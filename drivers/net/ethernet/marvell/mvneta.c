@@ -1900,6 +1900,23 @@ static void mvneta_rxq_drop_pkts(struct mvneta_port *pp,
 	}
 }
 
+static void
+mvneta_update_stats(struct mvneta_port *pp, u32 pkts,
+		    u32 len, bool tx)
+{
+	struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
+
+	u64_stats_update_begin(&stats->syncp);
+	if (tx) {
+		stats->tx_packets += pkts;
+		stats->tx_bytes += len;
+	} else {
+		stats->rx_packets += pkts;
+		stats->rx_bytes += len;
+	}
+	u64_stats_update_end(&stats->syncp);
+}
+
 static inline
 int mvneta_rx_refill_queue(struct mvneta_port *pp, struct mvneta_rx_queue *rxq)
 {
@@ -2075,14 +2092,8 @@ static int mvneta_rx_swbm(struct napi_struct *napi,
 		rxq->left_size = 0;
 	}
 
-	if (rcvd_pkts) {
-		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
-
-		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets += rcvd_pkts;
-		stats->rx_bytes   += rcvd_bytes;
-		u64_stats_update_end(&stats->syncp);
-	}
+	if (rcvd_pkts)
+		mvneta_update_stats(pp, rcvd_pkts, rcvd_bytes, false);
 
 	/* return some buffers to hardware queue, one at a time is too slow */
 	refill = mvneta_rx_refill_queue(pp, rxq);
@@ -2206,14 +2217,8 @@ err_drop_frame:
 		napi_gro_receive(napi, skb);
 	}
 
-	if (rcvd_pkts) {
-		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
-
-		u64_stats_update_begin(&stats->syncp);
-		stats->rx_packets += rcvd_pkts;
-		stats->rx_bytes   += rcvd_bytes;
-		u64_stats_update_end(&stats->syncp);
-	}
+	if (rcvd_pkts)
+		mvneta_update_stats(pp, rcvd_pkts, rcvd_bytes, false);
 
 	/* Update rxq management counters */
 	mvneta_rxq_desc_num_update(pp, rxq, rx_done, rx_done);
@@ -2459,7 +2464,6 @@ static netdev_tx_t mvneta_tx(struct sk_buff *skb, struct net_device *dev)
 
 out:
 	if (frags > 0) {
-		struct mvneta_pcpu_stats *stats = this_cpu_ptr(pp->stats);
 		struct netdev_queue *nq = netdev_get_tx_queue(dev, txq_id);
 
 		netdev_tx_sent_queue(nq, len);
@@ -2474,10 +2478,7 @@ out:
 		else
 			txq->pending += frags;
 
-		u64_stats_update_begin(&stats->syncp);
-		stats->tx_packets++;
-		stats->tx_bytes  += len;
-		u64_stats_update_end(&stats->syncp);
+		mvneta_update_stats(pp, 1, len, true);
 	} else {
 		dev->stats.tx_dropped++;
 		dev_kfree_skb_any(skb);
