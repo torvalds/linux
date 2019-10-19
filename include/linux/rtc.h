@@ -159,6 +159,9 @@ struct rtc_device {
 };
 #define to_rtc_device(d) container_of(d, struct rtc_device, dev)
 
+#define rtc_lock(d) mutex_lock(&d->ops_lock)
+#define rtc_unlock(d) mutex_unlock(&d->ops_lock)
+
 /* useful timestamps */
 #define RTC_TIMESTAMP_BEGIN_0000	-62167219200ULL /* 0000-01-01 00:00:00 */
 #define RTC_TIMESTAMP_BEGIN_1900	-2208988800LL /* 1900-01-01 00:00:00 */
