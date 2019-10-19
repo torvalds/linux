@@ -345,10 +345,7 @@ static int tcf_police_dump(struct sk_buff *skb, struct tc_action *a,
 	    nla_put_u32(skb, TCA_POLICE_AVRATE, p->tcfp_ewma_rate))
 		goto nla_put_failure;
 
-	t.install = jiffies_to_clock_t(jiffies - police->tcf_tm.install);
-	t.lastuse = jiffies_to_clock_t(jiffies - police->tcf_tm.lastuse);
-	t.firstuse = jiffies_to_clock_t(jiffies - police->tcf_tm.firstuse);
-	t.expires = jiffies_to_clock_t(police->tcf_tm.expires);
+	tcf_tm_dump(&t, &police->tcf_tm);
 	if (nla_put_64bit(skb, TCA_POLICE_TM, sizeof(t), &t, TCA_POLICE_PAD))
 		goto nla_put_failure;
 	spin_unlock_bh(&police->tcf_lock);
