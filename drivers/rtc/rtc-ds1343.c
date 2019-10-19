@@ -520,6 +520,8 @@ static int ds1343_probe(struct spi_device *spi)
 
 	priv->rtc->nvram_old_abi = true;
 	priv->rtc->ops = &ds1343_rtc_ops;
+	priv->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	priv->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
 	res = rtc_register_device(priv->rtc);
 	if (res)
