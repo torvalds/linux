@@ -20,7 +20,8 @@
 #define WFX_LINK_ID_NO_ASSOC   15
 #define WFX_LINK_ID_GC_TIMEOUT ((unsigned long)(10 * HZ))
 
-static int wfx_get_hw_rate(struct wfx_dev *wdev, const struct ieee80211_tx_rate *rate)
+static int wfx_get_hw_rate(struct wfx_dev *wdev,
+			   const struct ieee80211_tx_rate *rate)
 {
 	if (rate->idx < 0)
 		return -1;
@@ -120,12 +121,14 @@ static void wfx_tx_policy_build(struct wfx_vif *wvif, struct tx_policy *policy,
 	}
 }
 
-static bool tx_policy_is_equal(const struct tx_policy *a, const struct tx_policy *b)
+static bool tx_policy_is_equal(const struct tx_policy *a,
+			       const struct tx_policy *b)
 {
 	return !memcmp(a->rates, b->rates, sizeof(a->rates));
 }
 
-static int wfx_tx_policy_find(struct tx_policy_cache *cache, struct tx_policy *wanted)
+static int wfx_tx_policy_find(struct tx_policy_cache *cache,
+			      struct tx_policy *wanted)
 {
 	struct tx_policy *it;
 
@@ -138,13 +141,15 @@ static int wfx_tx_policy_find(struct tx_policy_cache *cache, struct tx_policy *w
 	return -1;
 }
 
-static void wfx_tx_policy_use(struct tx_policy_cache *cache, struct tx_policy *entry)
+static void wfx_tx_policy_use(struct tx_policy_cache *cache,
+			      struct tx_policy *entry)
 {
 	++entry->usage_count;
 	list_move(&entry->link, &cache->used);
 }
 
-static int wfx_tx_policy_release(struct tx_policy_cache *cache, struct tx_policy *entry)
+static int wfx_tx_policy_release(struct tx_policy_cache *cache,
+				 struct tx_policy *entry)
 {
 	int ret = --entry->usage_count;
 
@@ -153,8 +158,9 @@ static int wfx_tx_policy_release(struct tx_policy_cache *cache, struct tx_policy
 	return ret;
 }
 
-static int wfx_tx_policy_get(struct wfx_vif *wvif, struct ieee80211_tx_rate *rates,
-			 bool *renew)
+static int wfx_tx_policy_get(struct wfx_vif *wvif,
+			     struct ieee80211_tx_rate *rates,
+			     bool *renew)
 {
 	int idx;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
@@ -211,7 +217,10 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 	int i;
 	struct tx_policy_cache *cache = &wvif->tx_policy_cache;
 	struct hif_mib_set_tx_rate_retry_policy *arg =
-		kzalloc(struct_size(arg, tx_rate_retry_policy, HIF_MIB_NUM_TX_RATE_RETRY_POLICIES), GFP_KERNEL);
+		kzalloc(struct_size(arg,
+				    tx_rate_retry_policy,
+				    HIF_MIB_NUM_TX_RATE_RETRY_POLICIES),
+			GFP_KERNEL);
 	struct hif_mib_tx_rate_retry_policy *dst;
 
 	spin_lock_bh(&cache->lock);
@@ -220,7 +229,8 @@ static int wfx_tx_policy_upload(struct wfx_vif *wvif)
 		struct tx_policy *src = &cache->cache[i];
 
 		if (!src->uploaded && memzcmp(src->rates, sizeof(src->rates))) {
-			dst = arg->tx_rate_retry_policy + arg->num_tx_rate_policies;
+			dst = arg->tx_rate_retry_policy +
+				arg->num_tx_rate_policies;
 
 			dst->policy_index = i;
 			dst->short_retry_count = 255;
@@ -326,7 +336,8 @@ int wfx_find_link_id(struct wfx_vif *wvif, const u8 *mac)
 	return ret;
 }
 
-static int wfx_map_link(struct wfx_vif *wvif, struct wfx_link_entry *link_entry, int sta_id)
+static int wfx_map_link(struct wfx_vif *wvif,
+			struct wfx_link_entry *link_entry, int sta_id)
 {
 	int ret;
 
@@ -437,7 +448,8 @@ static bool ieee80211_is_action_back(struct ieee80211_hdr *hdr)
 }
 
 static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
-			     struct wfx_tx_priv *tx_priv, struct ieee80211_sta *sta)
+			     struct wfx_tx_priv *tx_priv,
+			     struct ieee80211_sta *sta)
 {
 	u32 mask = ~BIT(tx_priv->raw_link_id);
 
@@ -447,7 +459,8 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 		wvif->pspoll_mask &= mask;
 	}
 
-	if (tx_priv->link_id == WFX_LINK_ID_AFTER_DTIM && !wvif->mcast_buffered) {
+	if (tx_priv->link_id == WFX_LINK_ID_AFTER_DTIM &&
+	    !wvif->mcast_buffered) {
 		wvif->mcast_buffered = true;
 		if (wvif->sta_asleep_mask)
 			schedule_work(&wvif->mcast_start_work);
@@ -464,9 +477,12 @@ static void wfx_tx_manage_pm(struct wfx_vif *wvif, struct ieee80211_hdr *hdr,
 		ieee80211_sta_set_buffered(sta, tx_priv->tid, true);
 }
 
-static uint8_t wfx_tx_get_raw_link_id(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct ieee80211_hdr *hdr)
+static uint8_t wfx_tx_get_raw_link_id(struct wfx_vif *wvif,
+				      struct ieee80211_sta *sta,
+				      struct ieee80211_hdr *hdr)
 {
-	struct wfx_sta_priv *sta_priv = sta ? (struct wfx_sta_priv *) &sta->drv_priv : NULL;
+	struct wfx_sta_priv *sta_priv =
+		sta ? (struct wfx_sta_priv *) &sta->drv_priv : NULL;
 	const u8 *da = ieee80211_get_DA(hdr);
 	int ret;
 
@@ -505,8 +521,11 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 	do {
 		finished = true;
 		for (i = 0; i < IEEE80211_TX_MAX_RATES - 1; i++) {
-			if (rates[i + 1].idx == rates[i].idx && rates[i].idx != -1) {
-				rates[i].count =  max_t(int, rates[i].count, rates[i + 1].count);
+			if (rates[i + 1].idx == rates[i].idx &&
+			    rates[i].idx != -1) {
+				rates[i].count =
+					max_t(int, rates[i].count,
+					      rates[i + 1].count);
 				rates[i + 1].idx = -1;
 				rates[i + 1].count = 0;
 
@@ -523,12 +542,14 @@ static void wfx_tx_fixup_rates(struct ieee80211_tx_rate *rates)
 		rates[i].flags &= ~IEEE80211_TX_RC_SHORT_GI;
 }
 
-static uint8_t wfx_tx_get_rate_id(struct wfx_vif *wvif, struct ieee80211_tx_info *tx_info)
+static uint8_t wfx_tx_get_rate_id(struct wfx_vif *wvif,
+				  struct ieee80211_tx_info *tx_info)
 {
 	bool tx_policy_renew = false;
 	uint8_t rate_id;
 
-	rate_id = wfx_tx_policy_get(wvif, tx_info->driver_rates, &tx_policy_renew);
+	rate_id = wfx_tx_policy_get(wvif,
+				    tx_info->driver_rates, &tx_policy_renew);
 	WARN(rate_id == WFX_INVALID_RATE_ID, "unable to get a valid Tx policy");
 
 	if (tx_policy_renew) {
@@ -584,7 +605,8 @@ static int wfx_tx_get_icv_len(struct ieee80211_key_conf *hw_key)
 	return hw_key->icv_len + mic_space;
 }
 
-static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct sk_buff *skb)
+static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
+			struct sk_buff *skb)
 {
 	struct hif_msg *hif_msg;
 	struct hif_req_tx *req;
@@ -594,7 +616,8 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int queue_id = tx_info->hw_queue;
 	size_t offset = (size_t) skb->data & 3;
-	int wmsg_len = sizeof(struct hif_msg) + sizeof(struct hif_req_tx) + offset;
+	int wmsg_len = sizeof(struct hif_msg) +
+			sizeof(struct hif_req_tx) + offset;
 
 	WARN(queue_id >= IEEE80211_NUM_ACS, "unsupported queue_id");
 	wfx_tx_fixup_rates(tx_info->driver_rates);
@@ -632,7 +655,8 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 
 	// Fill tx request
 	req = (struct hif_req_tx *)hif_msg->body;
-	req->packet_id = queue_id << 16 | IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
+	req->packet_id = queue_id << 16 |
+			 IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 	req->data_flags.fc_offset = offset;
 	req->queue_id.peer_sta_id = tx_priv->raw_link_id;
 	// Queue index are inverted between firmware and Linux
@@ -655,7 +679,8 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct ieee80211_sta *sta = control ? control->sta : NULL;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	size_t driver_data_room = FIELD_SIZEOF(struct ieee80211_tx_info, rate_driver_data);
+	size_t driver_data_room = FIELD_SIZEOF(struct ieee80211_tx_info,
+					       rate_driver_data);
 
 	compiletime_assert(sizeof(struct wfx_tx_priv) <= driver_data_room,
 			   "struct tx_priv is too large");
@@ -692,12 +717,15 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 
 	skb = wfx_pending_get(wvif->wdev, arg->packet_id);
 	if (!skb) {
-		dev_warn(wvif->wdev->dev, "received unknown packet_id (%#.8x) from chip\n", arg->packet_id);
+		dev_warn(wvif->wdev->dev,
+			 "received unknown packet_id (%#.8x) from chip\n",
+			 arg->packet_id);
 		return;
 	}
 	tx_info = IEEE80211_SKB_CB(skb);
 	tx_priv = wfx_skb_tx_priv(skb);
-	_trace_tx_stats(arg, skb, wfx_pending_get_pkt_us_delay(wvif->wdev, skb));
+	_trace_tx_stats(arg, skb,
+			wfx_pending_get_pkt_us_delay(wvif->wdev, skb));
 
 	// You can touch to tx_priv, but don't touch to tx_info->status.
 	tx_count = arg->ack_failures;
@@ -710,9 +738,12 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 		if (tx_count < rate->count && arg->status && arg->ack_failures)
 			dev_dbg(wvif->wdev->dev, "all retries were not consumed: %d != %d\n",
 				rate->count, tx_count);
-		if (tx_count <= rate->count && tx_count && arg->txed_rate != wfx_get_hw_rate(wvif->wdev, rate))
-			dev_dbg(wvif->wdev->dev, "inconsistent tx_info rates: %d != %d\n",
-				arg->txed_rate, wfx_get_hw_rate(wvif->wdev, rate));
+		if (tx_count <= rate->count && tx_count &&
+		    arg->txed_rate != wfx_get_hw_rate(wvif->wdev, rate))
+			dev_dbg(wvif->wdev->dev,
+				"inconsistent tx_info rates: %d != %d\n",
+				arg->txed_rate,
+				wfx_get_hw_rate(wvif->wdev, rate));
 		if (tx_count > rate->count) {
 			tx_count -= rate->count;
 		} else if (!tx_count) {
@@ -724,7 +755,8 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 		}
 	}
 	if (tx_count)
-		dev_dbg(wvif->wdev->dev, "%d more retries than expected\n", tx_count);
+		dev_dbg(wvif->wdev->dev,
+			"%d more retries than expected\n", tx_count);
 	skb_trim(skb, skb->len - wfx_tx_get_icv_len(tx_priv->hw_key));
 
 	// From now, you can touch to tx_info->status, but do not touch to
@@ -734,9 +766,11 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 	memset(tx_info->pad, 0, sizeof(tx_info->pad));
 
 	if (!arg->status) {
-		if (wvif->bss_loss_state && arg->packet_id == wvif->bss_loss_confirm_id)
+		if (wvif->bss_loss_state &&
+		    arg->packet_id == wvif->bss_loss_confirm_id)
 			wfx_cqm_bssloss_sm(wvif, 0, 1, 0);
-		tx_info->status.tx_time = arg->media_delay - arg->tx_queue_delay;
+		tx_info->status.tx_time =
+		arg->media_delay - arg->tx_queue_delay;
 		if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 			tx_info->flags |= IEEE80211_TX_STAT_NOACK_TRANSMITTED;
 		else
@@ -752,7 +786,8 @@ void wfx_tx_confirm_cb(struct wfx_vif *wvif, struct hif_cnf_tx *arg)
 		wfx_suspend_resume(wvif, &suspend);
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
 	} else {
-		if (wvif->bss_loss_state && arg->packet_id == wvif->bss_loss_confirm_id)
+		if (wvif->bss_loss_state &&
+		    arg->packet_id == wvif->bss_loss_confirm_id)
 			wfx_cqm_bssloss_sm(wvif, 0, 0, 1);
 	}
 	wfx_pending_remove(wvif->wdev, skb);
@@ -790,7 +825,9 @@ void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
 	struct hif_msg *hif = (struct hif_msg *)skb->data;
 	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
-	unsigned int offset = sizeof(struct hif_req_tx) + sizeof(struct hif_msg) + req->data_flags.fc_offset;
+	unsigned int offset = sizeof(struct hif_req_tx) +
+				sizeof(struct hif_msg) +
+				req->data_flags.fc_offset;
 
 	WARN_ON(!wvif);
 	skb_pull(skb, offset);

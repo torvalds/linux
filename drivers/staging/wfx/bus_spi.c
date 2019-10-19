@@ -178,11 +178,14 @@ static int wfx_spi_probe(struct spi_device *func)
 		return ret;
 	// Trace below is also displayed by spi_setup() if compiled with DEBUG
 	dev_dbg(&func->dev, "SPI params: CS=%d, mode=%d bits/word=%d speed=%d\n",
-		func->chip_select, func->mode, func->bits_per_word, func->max_speed_hz);
+		func->chip_select, func->mode, func->bits_per_word,
+		func->max_speed_hz);
 	if (func->bits_per_word != 16 && func->bits_per_word != 8)
-		dev_warn(&func->dev, "unusual bits/word value: %d\n", func->bits_per_word);
+		dev_warn(&func->dev, "unusual bits/word value: %d\n",
+			 func->bits_per_word);
 	if (func->max_speed_hz > 49000000)
-		dev_warn(&func->dev, "%dHz is a very high speed\n", func->max_speed_hz);
+		dev_warn(&func->dev, "%dHz is a very high speed\n",
+			 func->max_speed_hz);
 
 	bus = devm_kzalloc(&func->dev, sizeof(*bus), GFP_KERNEL);
 	if (!bus)

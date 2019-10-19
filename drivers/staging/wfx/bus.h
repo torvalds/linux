@@ -21,8 +21,10 @@
 #define WFX_REG_FRAME_OUT     0x7
 
 struct hwbus_ops {
-	int (*copy_from_io)(void *bus_priv, unsigned int addr, void *dst, size_t count);
-	int (*copy_to_io)(void *bus_priv, unsigned int addr, const void *src, size_t count);
+	int (*copy_from_io)(void *bus_priv, unsigned int addr,
+			    void *dst, size_t count);
+	int (*copy_to_io)(void *bus_priv, unsigned int addr,
+			  const void *src, size_t count);
 	void (*lock)(void *bus_priv);
 	void (*unlock)(void *bus_priv);
 	size_t (*align_size)(void *bus_priv, size_t size);

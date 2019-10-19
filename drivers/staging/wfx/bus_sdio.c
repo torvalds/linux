@@ -180,7 +180,8 @@ static int wfx_sdio_probe(struct sdio_func *func,
 		}
 		bus->of_irq = irq_of_parse_and_map(np, 0);
 	} else {
-		dev_warn(&func->dev, "device is not declared in DT, features will be limited\n");
+		dev_warn(&func->dev,
+			 "device is not declared in DT, features will be limited\n");
 		// FIXME: ignore VID/PID and only rely on device tree
 		// return -ENODEV;
 	}

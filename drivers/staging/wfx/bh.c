@@ -32,7 +32,8 @@ static void device_wakeup(struct wfx_dev *wdev)
 		// completion without consume it (a kind of
 		// wait_for_completion_done_timeout()). So we have to emulate
 		// it.
-		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready, msecs_to_jiffies(2) + 1))
+		if (wait_for_completion_timeout(&wdev->hif.ctrl_ready,
+						msecs_to_jiffies(2) + 1))
 			complete(&wdev->hif.ctrl_ready);
 		else
 			dev_err(wdev->dev, "timeout while wake up chip\n");
@@ -179,8 +180,9 @@ static void tx_helper(struct wfx_dev *wdev, struct hif_msg *hif)
 	wdev->hif.tx_seqnum = (wdev->hif.tx_seqnum + 1) % (HIF_COUNTER_MAX + 1);
 
 	if (wfx_is_secure_command(wdev, hif->id)) {
-		len = round_up(len - sizeof(hif->len), 16) + sizeof(hif->len)
-		      + sizeof(struct hif_sl_msg_hdr) + sizeof(struct hif_sl_tag);
+		len = round_up(len - sizeof(hif->len), 16) + sizeof(hif->len) +
+			sizeof(struct hif_sl_msg_hdr) +
+			sizeof(struct hif_sl_tag);
 		// AES support encryption in-place. However, mac80211 access to
 		// 802.11 header after frame was sent (to get MAC addresses).
 		// So, keep origin buffer clear.
@@ -241,7 +243,8 @@ static void ack_sdio_data(struct wfx_dev *wdev)
 
 	config_reg_read(wdev, &cfg_reg);
 	if (cfg_reg & 0xFF) {
-		dev_warn(wdev->dev, "chip reports errors: %02x\n", cfg_reg & 0xFF);
+		dev_warn(wdev->dev, "chip reports errors: %02x\n",
+			 cfg_reg & 0xFF);
 		config_reg_write_bits(wdev, 0xFF, 0x00);
 	}
 }
@@ -268,11 +271,13 @@ static void bh_work(struct work_struct *work)
 
 	if (last_op_is_rx)
 		ack_sdio_data(wdev);
-	if (!wdev->hif.tx_buffers_used && !work_pending(work) && !atomic_read(&wdev->scan_in_progress)) {
+	if (!wdev->hif.tx_buffers_used && !work_pending(work) &&
+	    !atomic_read(&wdev->scan_in_progress)) {
 		device_release(wdev);
 		release_chip = true;
 	}
-	_trace_bh_stats(stats_ind, stats_req, stats_cnf, wdev->hif.tx_buffers_used, release_chip);
+	_trace_bh_stats(stats_ind, stats_req, stats_cnf,
+			wdev->hif.tx_buffers_used, release_chip);
 }
 
 /*
