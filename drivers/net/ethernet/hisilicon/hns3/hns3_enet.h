@@ -435,7 +435,7 @@ struct hns3_enet_ring {
 	int pending_buf;
 	struct sk_buff *skb;
 	struct sk_buff *tail_skb;
-};
+} ____cacheline_internodealigned_in_smp;
 
 enum hns3_flow_level_range {
 	HNS3_FLOW_LOW = 0,
