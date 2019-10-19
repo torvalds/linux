@@ -39,7 +39,8 @@ xfs_aligned_fsb_count(
 	return count_fsb;
 }
 
-extern const struct iomap_ops xfs_iomap_ops;
+extern const struct iomap_ops xfs_buffered_write_iomap_ops;
+extern const struct iomap_ops xfs_direct_write_iomap_ops;
 extern const struct iomap_ops xfs_read_iomap_ops;
 extern const struct iomap_ops xfs_seek_iomap_ops;
 extern const struct iomap_ops xfs_xattr_iomap_ops;

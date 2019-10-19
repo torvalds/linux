@@ -719,16 +719,7 @@ relock:
 }
 
 static int
-xfs_file_iomap_begin_delay(
-	struct inode		*inode,
-	loff_t			offset,
-	loff_t			count,
-	unsigned		flags,
-	struct iomap		*iomap,
-	struct iomap		*srcmap);
-
-static int
-xfs_file_iomap_begin(
+xfs_direct_write_iomap_begin(
 	struct inode		*inode,
 	loff_t			offset,
 	loff_t			length,
@@ -750,13 +741,6 @@ xfs_file_iomap_begin(
 
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
-
-	if (!(flags & IOMAP_DIRECT) && !IS_DAX(inode) &&
-	    !xfs_get_extsz_hint(ip)) {
-		/* Reserve delalloc blocks for regular writeback. */
-		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
-				iomap, srcmap);
-	}
 
 	/*
 	 * Lock the inode in the manner required for the specified operation and
@@ -864,8 +848,12 @@ out_unlock:
 	return error;
 }
 
+const struct iomap_ops xfs_direct_write_iomap_ops = {
+	.iomap_begin		= xfs_direct_write_iomap_begin,
+};
+
 static int
-xfs_file_iomap_begin_delay(
+xfs_buffered_write_iomap_begin(
 	struct inode		*inode,
 	loff_t			offset,
 	loff_t			count,
@@ -884,8 +872,12 @@ xfs_file_iomap_begin_delay(
 	int			whichfork = XFS_DATA_FORK;
 	int			error = 0;
 
+	/* we can't use delayed allocations when using extent size hints */
+	if (xfs_get_extsz_hint(ip))
+		return xfs_direct_write_iomap_begin(inode, offset, count,
+				flags, iomap, srcmap);
+
 	ASSERT(!XFS_IS_REALTIME_INODE(ip));
-	ASSERT(!xfs_get_extsz_hint(ip));
 
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 
@@ -1077,17 +1069,22 @@ out_unlock:
 }
 
 static int
-xfs_file_iomap_end_delalloc(
-	struct xfs_inode	*ip,
+xfs_buffered_write_iomap_end(
+	struct inode		*inode,
 	loff_t			offset,
 	loff_t			length,
 	ssize_t			written,
+	unsigned		flags,
 	struct iomap		*iomap)
 {
+	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		start_fsb;
 	xfs_fileoff_t		end_fsb;
 	int			error = 0;
+
+	if (iomap->type != IOMAP_DELALLOC)
+		return 0;
 
 	/*
 	 * Behave as if the write failed if drop writes is enabled. Set the NEW
@@ -1133,25 +1130,9 @@ xfs_file_iomap_end_delalloc(
 	return 0;
 }
 
-static int
-xfs_file_iomap_end(
-	struct inode		*inode,
-	loff_t			offset,
-	loff_t			length,
-	ssize_t			written,
-	unsigned		flags,
-	struct iomap		*iomap)
-{
-	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) &&
-	    iomap->type == IOMAP_DELALLOC)
-		return xfs_file_iomap_end_delalloc(XFS_I(inode), offset,
-				length, written, iomap);
-	return 0;
-}
-
-const struct iomap_ops xfs_iomap_ops = {
-	.iomap_begin		= xfs_file_iomap_begin,
-	.iomap_end		= xfs_file_iomap_end,
+const struct iomap_ops xfs_buffered_write_iomap_ops = {
+	.iomap_begin		= xfs_buffered_write_iomap_begin,
+	.iomap_end		= xfs_buffered_write_iomap_end,
 };
 
 static int
