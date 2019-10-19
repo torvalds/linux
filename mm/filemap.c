@@ -40,6 +40,7 @@
 #include <linux/rmap.h>
 #include <linux/delayacct.h>
 #include <linux/psi.h>
+#include <linux/ramfs.h>
 #include "internal.h"
 
 #define CREATE_TRACE_POINTS
