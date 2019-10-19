@@ -950,11 +950,13 @@ xfs_file_iomap_begin(
 	u16			iomap_flags = 0;
 	unsigned		lockmode;
 
+	ASSERT(flags & (IOMAP_WRITE | IOMAP_ZERO));
+
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return -EIO;
 
-	if ((flags & (IOMAP_WRITE | IOMAP_ZERO)) && !(flags & IOMAP_DIRECT) &&
-			!IS_DAX(inode) && !xfs_get_extsz_hint(ip)) {
+	if (!(flags & IOMAP_DIRECT) && !IS_DAX(inode) &&
+	    !xfs_get_extsz_hint(ip)) {
 		/* Reserve delalloc blocks for regular writeback. */
 		return xfs_file_iomap_begin_delay(inode, offset, length, flags,
 				iomap, srcmap);
@@ -974,17 +976,6 @@ xfs_file_iomap_begin(
 			       &nimaps, 0);
 	if (error)
 		goto out_unlock;
-
-	if (flags & IOMAP_REPORT) {
-		/* Trim the mapping to the nearest shared extent boundary. */
-		error = xfs_reflink_trim_around_shared(ip, &imap, &shared);
-		if (error)
-			goto out_unlock;
-	}
-
-	/* Non-modifying mapping requested, so we are done */
-	if (!(flags & (IOMAP_WRITE | IOMAP_ZERO)))
-		goto out_found;
 
 	/*
 	 * Break shared extents if necessary. Checks for non-blocking IO have
@@ -1051,10 +1042,8 @@ out_finish:
 	 * so consider them to be dirty for the purposes of O_DSYNC even if
 	 * there is no other metadata changes pending or have been made here.
 	 */
-	if ((flags & IOMAP_WRITE) && offset + length > i_size_read(inode))
+	if (offset + length > i_size_read(inode))
 		iomap_flags |= IOMAP_F_DIRTY;
-	if (shared)
-		iomap_flags |= IOMAP_F_SHARED;
 	return xfs_bmbt_to_iomap(ip, iomap, &imap, iomap_flags);
 
 out_found:
@@ -1155,6 +1144,48 @@ xfs_file_iomap_end(
 const struct iomap_ops xfs_iomap_ops = {
 	.iomap_begin		= xfs_file_iomap_begin,
 	.iomap_end		= xfs_file_iomap_end,
+};
+
+static int
+xfs_read_iomap_begin(
+	struct inode		*inode,
+	loff_t			offset,
+	loff_t			length,
+	unsigned		flags,
+	struct iomap		*iomap,
+	struct iomap		*srcmap)
+{
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_bmbt_irec	imap;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = xfs_iomap_end_fsb(mp, offset, length);
+	int			nimaps = 1, error = 0;
+	bool			shared = false;
+	unsigned		lockmode;
+
+	ASSERT(!(flags & (IOMAP_WRITE | IOMAP_ZERO)));
+
+	if (XFS_FORCED_SHUTDOWN(mp))
+		return -EIO;
+
+	error = xfs_ilock_for_iomap(ip, flags, &lockmode);
+	if (error)
+		return error;
+	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
+			       &nimaps, 0);
+	if (!error && (flags & IOMAP_REPORT))
+		error = xfs_reflink_trim_around_shared(ip, &imap, &shared);
+	xfs_iunlock(ip, lockmode);
+
+	if (error)
+		return error;
+	trace_xfs_iomap_found(ip, offset, length, XFS_DATA_FORK, &imap);
+	return xfs_bmbt_to_iomap(ip, iomap, &imap, shared ? IOMAP_F_SHARED : 0);
+}
+
+const struct iomap_ops xfs_read_iomap_ops = {
+	.iomap_begin		= xfs_read_iomap_begin,
 };
 
 static int

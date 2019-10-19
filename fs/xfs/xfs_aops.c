@@ -634,7 +634,7 @@ xfs_vm_bmap(
 	 */
 	if (xfs_is_cow_inode(ip) || XFS_IS_REALTIME_INODE(ip))
 		return 0;
-	return iomap_bmap(mapping, block, &xfs_iomap_ops);
+	return iomap_bmap(mapping, block, &xfs_read_iomap_ops);
 }
 
 STATIC int
@@ -642,7 +642,7 @@ xfs_vm_readpage(
 	struct file		*unused,
 	struct page		*page)
 {
-	return iomap_readpage(page, &xfs_iomap_ops);
+	return iomap_readpage(page, &xfs_read_iomap_ops);
 }
 
 STATIC int
@@ -652,7 +652,7 @@ xfs_vm_readpages(
 	struct list_head	*pages,
 	unsigned		nr_pages)
 {
-	return iomap_readpages(mapping, pages, nr_pages, &xfs_iomap_ops);
+	return iomap_readpages(mapping, pages, nr_pages, &xfs_read_iomap_ops);
 }
 
 static int
@@ -662,7 +662,8 @@ xfs_iomap_swapfile_activate(
 	sector_t			*span)
 {
 	sis->bdev = xfs_find_bdev_for_inode(file_inode(swap_file));
-	return iomap_swapfile_activate(sis, swap_file, span, &xfs_iomap_ops);
+	return iomap_swapfile_activate(sis, swap_file, span,
+			&xfs_read_iomap_ops);
 }
 
 const struct address_space_operations xfs_address_space_operations = {
