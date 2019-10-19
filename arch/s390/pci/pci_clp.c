@@ -19,7 +19,6 @@
 #include <linux/uaccess.h>
 #include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
-#include <asm/compat.h>
 #include <asm/clp.h>
 #include <uapi/asm/clp.h>
 
@@ -67,7 +66,7 @@ static inline int clp_get_ilp(unsigned long *ilp)
 /*
  * Call Logical Processor with c=0, the give constant lps and an lpcb request.
  */
-static inline int clp_req(void *data, unsigned int lps)
+static __always_inline int clp_req(void *data, unsigned int lps)
 {
 	struct { u8 _[CLP_BLK_SIZE]; } *req = data;
 	u64 ignored;
@@ -164,7 +163,14 @@ static int clp_store_query_pci_fn(struct zpci_dev *zdev,
 		memcpy(zdev->util_str, response->util_str,
 		       sizeof(zdev->util_str));
 	}
+	zdev->mio_capable = response->mio_addr_avail;
+	for (i = 0; i < PCI_BAR_COUNT; i++) {
+		if (!(response->mio.valid & (1 << (PCI_BAR_COUNT - i - 1))))
+			continue;
 
+		zdev->bars[i].mio_wb = (void __iomem *) response->mio.addr[i].wb;
+		zdev->bars[i].mio_wt = (void __iomem *) response->mio.addr[i].wt;
+	}
 	return 0;
 }
 
@@ -280,11 +286,18 @@ int clp_enable_fh(struct zpci_dev *zdev, u8 nr_dma_as)
 	int rc;
 
 	rc = clp_set_pci_fn(&fh, nr_dma_as, CLP_SET_ENABLE_PCI_FN);
-	if (!rc)
-		/* Success -> store enabled handle in zdev */
-		zdev->fh = fh;
+	zpci_dbg(3, "ena fid:%x, fh:%x, rc:%d\n", zdev->fid, fh, rc);
+	if (rc)
+		goto out;
 
-	zpci_dbg(3, "ena fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
+	zdev->fh = fh;
+	if (zpci_use_mio(zdev)) {
+		rc = clp_set_pci_fn(&fh, nr_dma_as, CLP_SET_ENABLE_MIO);
+		zpci_dbg(3, "ena mio fid:%x, fh:%x, rc:%d\n", zdev->fid, fh, rc);
+		if (rc)
+			clp_disable_fh(zdev);
+	}
+out:
 	return rc;
 }
 
@@ -297,11 +310,10 @@ int clp_disable_fh(struct zpci_dev *zdev)
 		return 0;
 
 	rc = clp_set_pci_fn(&fh, 0, CLP_SET_DISABLE_PCI_FN);
+	zpci_dbg(3, "dis fid:%x, fh:%x, rc:%d\n", zdev->fid, fh, rc);
 	if (!rc)
-		/* Success -> store disabled handle in zdev */
 		zdev->fh = fh;
 
-	zpci_dbg(3, "dis fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
 	return rc;
 }
 
@@ -437,7 +449,7 @@ int clp_get_state(u32 fid, enum zpci_state *state)
 	struct clp_state_data sd = {fid, ZPCI_FN_STATE_RESERVED};
 	int rc;
 
-	rrb = clp_alloc_block(GFP_KERNEL);
+	rrb = clp_alloc_block(GFP_ATOMIC);
 	if (!rrb)
 		return -ENOMEM;
 

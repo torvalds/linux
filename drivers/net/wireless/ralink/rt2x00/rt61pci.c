@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Copyright (C) 2004 - 2009 Ivo van Doorn <IvDoorn@gmail.com>
 	<http://rt2x00.serialmonkey.com>
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -40,7 +29,7 @@
  * Allow hardware encryption to be disabled.
  */
 static bool modparam_nohwcrypt = false;
-module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 /*
@@ -321,97 +310,12 @@ static int rt61pci_config_shared_key(struct rt2x00_dev *rt2x00dev,
 				     struct rt2x00lib_crypto *crypto,
 				     struct ieee80211_key_conf *key)
 {
-	struct hw_key_entry key_entry;
-	struct rt2x00_field32 field;
-	u32 mask;
-	u32 reg;
-
-	if (crypto->cmd == SET_KEY) {
-		/*
-		 * rt2x00lib can't determine the correct free
-		 * key_idx for shared keys. We have 1 register
-		 * with key valid bits. The goal is simple, read
-		 * the register, if that is full we have no slots
-		 * left.
-		 * Note that each BSS is allowed to have up to 4
-		 * shared keys, so put a mask over the allowed
-		 * entries.
-		 */
-		mask = (0xf << crypto->bssidx);
-
-		reg = rt2x00mmio_register_read(rt2x00dev, SEC_CSR0);
-		reg &= mask;
-
-		if (reg && reg == mask)
-			return -ENOSPC;
-
-		key->hw_key_idx += reg ? ffz(reg) : 0;
-
-		/*
-		 * Upload key to hardware
-		 */
-		memcpy(key_entry.key, crypto->key,
-		       sizeof(key_entry.key));
-		memcpy(key_entry.tx_mic, crypto->tx_mic,
-		       sizeof(key_entry.tx_mic));
-		memcpy(key_entry.rx_mic, crypto->rx_mic,
-		       sizeof(key_entry.rx_mic));
-
-		reg = SHARED_KEY_ENTRY(key->hw_key_idx);
-		rt2x00mmio_register_multiwrite(rt2x00dev, reg,
-					       &key_entry, sizeof(key_entry));
-
-		/*
-		 * The cipher types are stored over 2 registers.
-		 * bssidx 0 and 1 keys are stored in SEC_CSR1 and
-		 * bssidx 1 and 2 keys are stored in SEC_CSR5.
-		 * Using the correct defines correctly will cause overhead,
-		 * so just calculate the correct offset.
-		 */
-		if (key->hw_key_idx < 8) {
-			field.bit_offset = (3 * key->hw_key_idx);
-			field.bit_mask = 0x7 << field.bit_offset;
-
-			reg = rt2x00mmio_register_read(rt2x00dev, SEC_CSR1);
-			rt2x00_set_field32(&reg, field, crypto->cipher);
-			rt2x00mmio_register_write(rt2x00dev, SEC_CSR1, reg);
-		} else {
-			field.bit_offset = (3 * (key->hw_key_idx - 8));
-			field.bit_mask = 0x7 << field.bit_offset;
-
-			reg = rt2x00mmio_register_read(rt2x00dev, SEC_CSR5);
-			rt2x00_set_field32(&reg, field, crypto->cipher);
-			rt2x00mmio_register_write(rt2x00dev, SEC_CSR5, reg);
-		}
-
-		/*
-		 * The driver does not support the IV/EIV generation
-		 * in hardware. However it doesn't support the IV/EIV
-		 * inside the ieee80211 frame either, but requires it
-		 * to be provided separately for the descriptor.
-		 * rt2x00lib will cut the IV/EIV data out of all frames
-		 * given to us by mac80211, but we must tell mac80211
-		 * to generate the IV/EIV data.
-		 */
-		key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-	}
-
 	/*
-	 * SEC_CSR0 contains only single-bit fields to indicate
-	 * a particular key is valid. Because using the FIELD32()
-	 * defines directly will cause a lot of overhead, we use
-	 * a calculation to determine the correct bit directly.
+	 * Let the software handle the shared keys,
+	 * since the hardware decryption does not work reliably,
+	 * because the firmware does not know the key's keyidx.
 	 */
-	mask = 1 << key->hw_key_idx;
-
-	reg = rt2x00mmio_register_read(rt2x00dev, SEC_CSR0);
-	if (crypto->cmd == SET_KEY)
-		reg |= mask;
-	else if (crypto->cmd == DISABLE_KEY)
-		reg &= ~mask;
-	rt2x00mmio_register_write(rt2x00dev, SEC_CSR0, reg);
-
-	return 0;
+	return -EOPNOTSUPP;
 }
 
 static int rt61pci_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
@@ -2226,7 +2130,7 @@ static void rt61pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		case 6: /* Failure, excessive retries */
 			__set_bit(TXDONE_EXCESSIVE_RETRY, &txdesc.flags);
-			/* Don't break, this is a failed frame! */
+			/* Fall through - this is a failed frame! */
 		default: /* Failure */
 			__set_bit(TXDONE_FAILURE, &txdesc.flags);
 		}

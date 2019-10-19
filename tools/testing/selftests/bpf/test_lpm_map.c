@@ -22,10 +22,11 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 
 #include <bpf/bpf.h>
+
 #include "bpf_util.h"
+#include "bpf_rlimit.h"
 
 struct tlpm_node {
 	struct tlpm_node *next;
@@ -473,6 +474,16 @@ static void test_lpm_delete(void)
 	assert(bpf_map_lookup_elem(map_fd, key, &value) == -1 &&
 		errno == ENOENT);
 
+	key->prefixlen = 30; // unused prefix so far
+	inet_pton(AF_INET, "192.255.0.0", key->data);
+	assert(bpf_map_delete_elem(map_fd, key) == -1 &&
+		errno == ENOENT);
+
+	key->prefixlen = 16; // same prefix as the root node
+	inet_pton(AF_INET, "192.255.0.0", key->data);
+	assert(bpf_map_delete_elem(map_fd, key) == -1 &&
+		errno == ENOENT);
+
 	/* assert initial lookup */
 	key->prefixlen = 32;
 	inet_pton(AF_INET, "192.168.0.1", key->data);
@@ -562,13 +573,13 @@ static void test_lpm_get_next_key(void)
 
 	/* add one more element (total two) */
 	key_p->prefixlen = 24;
-	inet_pton(AF_INET, "192.168.0.0", key_p->data);
+	inet_pton(AF_INET, "192.168.128.0", key_p->data);
 	assert(bpf_map_update_elem(map_fd, key_p, &value, 0) == 0);
 
 	memset(key_p, 0, key_size);
 	assert(bpf_map_get_next_key(map_fd, NULL, key_p) == 0);
 	assert(key_p->prefixlen == 24 && key_p->data[0] == 192 &&
-	       key_p->data[1] == 168 && key_p->data[2] == 0);
+	       key_p->data[1] == 168 && key_p->data[2] == 128);
 
 	memset(next_key_p, 0, key_size);
 	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == 0);
@@ -581,7 +592,7 @@ static void test_lpm_get_next_key(void)
 
 	/* Add one more element (total three) */
 	key_p->prefixlen = 24;
-	inet_pton(AF_INET, "192.168.128.0", key_p->data);
+	inet_pton(AF_INET, "192.168.0.0", key_p->data);
 	assert(bpf_map_update_elem(map_fd, key_p, &value, 0) == 0);
 
 	memset(key_p, 0, key_size);
@@ -614,6 +625,41 @@ static void test_lpm_get_next_key(void)
 	       key_p->data[1] == 168 && key_p->data[2] == 0);
 
 	memset(next_key_p, 0, key_size);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == 0);
+	assert(next_key_p->prefixlen == 24 && next_key_p->data[0] == 192 &&
+	       next_key_p->data[1] == 168 && next_key_p->data[2] == 1);
+
+	memcpy(key_p, next_key_p, key_size);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == 0);
+	assert(next_key_p->prefixlen == 24 && next_key_p->data[0] == 192 &&
+	       next_key_p->data[1] == 168 && next_key_p->data[2] == 128);
+
+	memcpy(key_p, next_key_p, key_size);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == 0);
+	assert(next_key_p->prefixlen == 16 && next_key_p->data[0] == 192 &&
+	       next_key_p->data[1] == 168);
+
+	memcpy(key_p, next_key_p, key_size);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -1 &&
+	       errno == ENOENT);
+
+	/* Add one more element (total five) */
+	key_p->prefixlen = 28;
+	inet_pton(AF_INET, "192.168.1.128", key_p->data);
+	assert(bpf_map_update_elem(map_fd, key_p, &value, 0) == 0);
+
+	memset(key_p, 0, key_size);
+	assert(bpf_map_get_next_key(map_fd, NULL, key_p) == 0);
+	assert(key_p->prefixlen == 24 && key_p->data[0] == 192 &&
+	       key_p->data[1] == 168 && key_p->data[2] == 0);
+
+	memset(next_key_p, 0, key_size);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == 0);
+	assert(next_key_p->prefixlen == 28 && next_key_p->data[0] == 192 &&
+	       next_key_p->data[1] == 168 && next_key_p->data[2] == 1 &&
+	       next_key_p->data[3] == 128);
+
+	memcpy(key_p, next_key_p, key_size);
 	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == 0);
 	assert(next_key_p->prefixlen == 24 && next_key_p->data[0] == 192 &&
 	       next_key_p->data[1] == 168 && next_key_p->data[2] == 1);
@@ -736,16 +782,10 @@ static void test_lpm_multi_thread(void)
 
 int main(void)
 {
-	struct rlimit limit  = { RLIM_INFINITY, RLIM_INFINITY };
-	int i, ret;
+	int i;
 
 	/* we want predictable, pseudo random tests */
 	srand(0xf00ba1);
-
-	/* allow unlimited locked memory */
-	ret = setrlimit(RLIMIT_MEMLOCK, &limit);
-	if (ret < 0)
-		perror("Unable to lift memlock rlimit");
 
 	test_lpm_basic();
 	test_lpm_order();
@@ -755,11 +795,8 @@ int main(void)
 		test_lpm_map(i);
 
 	test_lpm_ipaddr();
-
 	test_lpm_delete();
-
 	test_lpm_get_next_key();
-
 	test_lpm_multi_thread();
 
 	printf("test_lpm: OK\n");

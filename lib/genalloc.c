@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Basic general purpose allocator for managing special purpose
  * memory, for example, memory that is not managed by the regular
@@ -23,9 +24,6 @@
  * CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG.
  *
  * Copyright 2005 (C) Jes Sorensen <jes@trained-monkey.org>
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <linux/slab.h>
@@ -35,6 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/genalloc.h>
 #include <linux/of_device.h>
+#include <linux/vmalloc.h>
 
 static inline size_t chunk_size(const struct gen_pool_chunk *chunk)
 {
@@ -167,33 +166,35 @@ struct gen_pool *gen_pool_create(int min_alloc_order, int nid)
 EXPORT_SYMBOL(gen_pool_create);
 
 /**
- * gen_pool_add_virt - add a new chunk of special memory to the pool
+ * gen_pool_add_owner- add a new chunk of special memory to the pool
  * @pool: pool to add new memory chunk to
  * @virt: virtual starting address of memory chunk to add to pool
  * @phys: physical starting address of memory chunk to add to pool
  * @size: size in bytes of the memory chunk to add to pool
  * @nid: node id of the node the chunk structure and bitmap should be
  *       allocated on, or -1
+ * @owner: private data the publisher would like to recall at alloc time
  *
  * Add a new chunk of special memory to the specified pool.
  *
  * Returns 0 on success or a -ve errno on failure.
  */
-int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
-		 size_t size, int nid)
+int gen_pool_add_owner(struct gen_pool *pool, unsigned long virt, phys_addr_t phys,
+		 size_t size, int nid, void *owner)
 {
 	struct gen_pool_chunk *chunk;
 	int nbits = size >> pool->min_alloc_order;
 	int nbytes = sizeof(struct gen_pool_chunk) +
 				BITS_TO_LONGS(nbits) * sizeof(long);
 
-	chunk = kzalloc_node(nbytes, GFP_KERNEL, nid);
+	chunk = vzalloc_node(nbytes, nid);
 	if (unlikely(chunk == NULL))
 		return -ENOMEM;
 
 	chunk->phys_addr = phys;
 	chunk->start_addr = virt;
 	chunk->end_addr = virt + size - 1;
+	chunk->owner = owner;
 	atomic_long_set(&chunk->avail, size);
 
 	spin_lock(&pool->lock);
@@ -202,7 +203,7 @@ int gen_pool_add_virt(struct gen_pool *pool, unsigned long virt, phys_addr_t phy
 
 	return 0;
 }
-EXPORT_SYMBOL(gen_pool_add_virt);
+EXPORT_SYMBOL(gen_pool_add_owner);
 
 /**
  * gen_pool_virt_to_phys - return the physical address of memory
@@ -251,7 +252,7 @@ void gen_pool_destroy(struct gen_pool *pool)
 		bit = find_next_bit(chunk->bits, end_bit, 0);
 		BUG_ON(bit < end_bit);
 
-		kfree(chunk);
+		vfree(chunk);
 	}
 	kfree_const(pool->name);
 	kfree(pool);
@@ -259,35 +260,20 @@ void gen_pool_destroy(struct gen_pool *pool)
 EXPORT_SYMBOL(gen_pool_destroy);
 
 /**
- * gen_pool_alloc - allocate special memory from the pool
- * @pool: pool to allocate from
- * @size: number of bytes to allocate from the pool
- *
- * Allocate the requested number of bytes from the specified pool.
- * Uses the pool allocation function (with first-fit algorithm by default).
- * Can not be used in NMI handler on architectures without
- * NMI-safe cmpxchg implementation.
- */
-unsigned long gen_pool_alloc(struct gen_pool *pool, size_t size)
-{
-	return gen_pool_alloc_algo(pool, size, pool->algo, pool->data);
-}
-EXPORT_SYMBOL(gen_pool_alloc);
-
-/**
- * gen_pool_alloc_algo - allocate special memory from the pool
+ * gen_pool_alloc_algo_owner - allocate special memory from the pool
  * @pool: pool to allocate from
  * @size: number of bytes to allocate from the pool
  * @algo: algorithm passed from caller
  * @data: data passed to algorithm
+ * @owner: optionally retrieve the chunk owner
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
  * Can not be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  */
-unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
-		genpool_algo_t algo, void *data)
+unsigned long gen_pool_alloc_algo_owner(struct gen_pool *pool, size_t size,
+		genpool_algo_t algo, void *data, void **owner)
 {
 	struct gen_pool_chunk *chunk;
 	unsigned long addr = 0;
@@ -297,6 +283,9 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
 	BUG_ON(in_nmi());
 #endif
+
+	if (owner)
+		*owner = NULL;
 
 	if (size == 0)
 		return 0;
@@ -311,7 +300,7 @@ unsigned long gen_pool_alloc_algo(struct gen_pool *pool, size_t size,
 		end_bit = chunk_size(chunk) >> order;
 retry:
 		start_bit = algo(chunk->bits, end_bit, start_bit,
-				 nbits, data, pool);
+				 nbits, data, pool, chunk->start_addr);
 		if (start_bit >= end_bit)
 			continue;
 		remain = bitmap_set_ll(chunk->bits, start_bit, nbits);
@@ -325,32 +314,58 @@ retry:
 		addr = chunk->start_addr + ((unsigned long)start_bit << order);
 		size = nbits << order;
 		atomic_long_sub(size, &chunk->avail);
+		if (owner)
+			*owner = chunk->owner;
 		break;
 	}
 	rcu_read_unlock();
 	return addr;
 }
-EXPORT_SYMBOL(gen_pool_alloc_algo);
+EXPORT_SYMBOL(gen_pool_alloc_algo_owner);
 
 /**
  * gen_pool_dma_alloc - allocate special memory from the pool for DMA usage
  * @pool: pool to allocate from
  * @size: number of bytes to allocate from the pool
- * @dma: dma-view physical address return value.  Use NULL if unneeded.
+ * @dma: dma-view physical address return value.  Use %NULL if unneeded.
  *
  * Allocate the requested number of bytes from the specified pool.
  * Uses the pool allocation function (with first-fit algorithm by default).
  * Can not be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
+ *
+ * Return: virtual address of the allocated memory, or %NULL on failure
  */
 void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
+{
+	return gen_pool_dma_alloc_algo(pool, size, dma, pool->algo, pool->data);
+}
+EXPORT_SYMBOL(gen_pool_dma_alloc);
+
+/**
+ * gen_pool_dma_alloc_algo - allocate special memory from the pool for DMA
+ * usage with the given pool algorithm
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ * @dma: DMA-view physical address return value. Use %NULL if unneeded.
+ * @algo: algorithm passed from caller
+ * @data: data passed to algorithm
+ *
+ * Allocate the requested number of bytes from the specified pool. Uses the
+ * given pool allocation function. Can not be used in NMI handler on
+ * architectures without NMI-safe cmpxchg implementation.
+ *
+ * Return: virtual address of the allocated memory, or %NULL on failure
+ */
+void *gen_pool_dma_alloc_algo(struct gen_pool *pool, size_t size,
+		dma_addr_t *dma, genpool_algo_t algo, void *data)
 {
 	unsigned long vaddr;
 
 	if (!pool)
 		return NULL;
 
-	vaddr = gen_pool_alloc(pool, size);
+	vaddr = gen_pool_alloc_algo(pool, size, algo, data);
 	if (!vaddr)
 		return NULL;
 
@@ -359,19 +374,116 @@ void *gen_pool_dma_alloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
 
 	return (void *)vaddr;
 }
-EXPORT_SYMBOL(gen_pool_dma_alloc);
+EXPORT_SYMBOL(gen_pool_dma_alloc_algo);
+
+/**
+ * gen_pool_dma_alloc_align - allocate special memory from the pool for DMA
+ * usage with the given alignment
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ * @dma: DMA-view physical address return value. Use %NULL if unneeded.
+ * @align: alignment in bytes for starting address
+ *
+ * Allocate the requested number bytes from the specified pool, with the given
+ * alignment restriction. Can not be used in NMI handler on architectures
+ * without NMI-safe cmpxchg implementation.
+ *
+ * Return: virtual address of the allocated memory, or %NULL on failure
+ */
+void *gen_pool_dma_alloc_align(struct gen_pool *pool, size_t size,
+		dma_addr_t *dma, int align)
+{
+	struct genpool_data_align data = { .align = align };
+
+	return gen_pool_dma_alloc_algo(pool, size, dma,
+			gen_pool_first_fit_align, &data);
+}
+EXPORT_SYMBOL(gen_pool_dma_alloc_align);
+
+/**
+ * gen_pool_dma_zalloc - allocate special zeroed memory from the pool for
+ * DMA usage
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ * @dma: dma-view physical address return value.  Use %NULL if unneeded.
+ *
+ * Allocate the requested number of zeroed bytes from the specified pool.
+ * Uses the pool allocation function (with first-fit algorithm by default).
+ * Can not be used in NMI handler on architectures without
+ * NMI-safe cmpxchg implementation.
+ *
+ * Return: virtual address of the allocated zeroed memory, or %NULL on failure
+ */
+void *gen_pool_dma_zalloc(struct gen_pool *pool, size_t size, dma_addr_t *dma)
+{
+	return gen_pool_dma_zalloc_algo(pool, size, dma, pool->algo, pool->data);
+}
+EXPORT_SYMBOL(gen_pool_dma_zalloc);
+
+/**
+ * gen_pool_dma_zalloc_algo - allocate special zeroed memory from the pool for
+ * DMA usage with the given pool algorithm
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ * @dma: DMA-view physical address return value. Use %NULL if unneeded.
+ * @algo: algorithm passed from caller
+ * @data: data passed to algorithm
+ *
+ * Allocate the requested number of zeroed bytes from the specified pool. Uses
+ * the given pool allocation function. Can not be used in NMI handler on
+ * architectures without NMI-safe cmpxchg implementation.
+ *
+ * Return: virtual address of the allocated zeroed memory, or %NULL on failure
+ */
+void *gen_pool_dma_zalloc_algo(struct gen_pool *pool, size_t size,
+		dma_addr_t *dma, genpool_algo_t algo, void *data)
+{
+	void *vaddr = gen_pool_dma_alloc_algo(pool, size, dma, algo, data);
+
+	if (vaddr)
+		memset(vaddr, 0, size);
+
+	return vaddr;
+}
+EXPORT_SYMBOL(gen_pool_dma_zalloc_algo);
+
+/**
+ * gen_pool_dma_zalloc_align - allocate special zeroed memory from the pool for
+ * DMA usage with the given alignment
+ * @pool: pool to allocate from
+ * @size: number of bytes to allocate from the pool
+ * @dma: DMA-view physical address return value. Use %NULL if unneeded.
+ * @align: alignment in bytes for starting address
+ *
+ * Allocate the requested number of zeroed bytes from the specified pool,
+ * with the given alignment restriction. Can not be used in NMI handler on
+ * architectures without NMI-safe cmpxchg implementation.
+ *
+ * Return: virtual address of the allocated zeroed memory, or %NULL on failure
+ */
+void *gen_pool_dma_zalloc_align(struct gen_pool *pool, size_t size,
+		dma_addr_t *dma, int align)
+{
+	struct genpool_data_align data = { .align = align };
+
+	return gen_pool_dma_zalloc_algo(pool, size, dma,
+			gen_pool_first_fit_align, &data);
+}
+EXPORT_SYMBOL(gen_pool_dma_zalloc_align);
 
 /**
  * gen_pool_free - free allocated special memory back to the pool
  * @pool: pool to free to
  * @addr: starting address of memory to free back to pool
  * @size: size in bytes of memory to free
+ * @owner: private data stashed at gen_pool_add() time
  *
  * Free previously allocated special memory back to the specified
  * pool.  Can not be used in NMI handler on architectures without
  * NMI-safe cmpxchg implementation.
  */
-void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
+void gen_pool_free_owner(struct gen_pool *pool, unsigned long addr, size_t size,
+		void **owner)
 {
 	struct gen_pool_chunk *chunk;
 	int order = pool->min_alloc_order;
@@ -380,6 +492,9 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 #ifndef CONFIG_ARCH_HAVE_NMI_SAFE_CMPXCHG
 	BUG_ON(in_nmi());
 #endif
+
+	if (owner)
+		*owner = NULL;
 
 	nbits = (size + (1UL << order) - 1) >> order;
 	rcu_read_lock();
@@ -391,6 +506,8 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 			BUG_ON(remain);
 			size = nbits << order;
 			atomic_long_add(size, &chunk->avail);
+			if (owner)
+				*owner = chunk->owner;
 			rcu_read_unlock();
 			return;
 		}
@@ -398,7 +515,7 @@ void gen_pool_free(struct gen_pool *pool, unsigned long addr, size_t size)
 	rcu_read_unlock();
 	BUG();
 }
-EXPORT_SYMBOL(gen_pool_free);
+EXPORT_SYMBOL(gen_pool_free_owner);
 
 /**
  * gen_pool_for_each_chunk - call func for every chunk of generic memory pool
@@ -525,7 +642,7 @@ EXPORT_SYMBOL(gen_pool_set_algo);
  */
 unsigned long gen_pool_first_fit(unsigned long *map, unsigned long size,
 		unsigned long start, unsigned int nr, void *data,
-		struct gen_pool *pool)
+		struct gen_pool *pool, unsigned long start_addr)
 {
 	return bitmap_find_next_zero_area(map, size, start, nr, 0);
 }
@@ -543,16 +660,19 @@ EXPORT_SYMBOL(gen_pool_first_fit);
  */
 unsigned long gen_pool_first_fit_align(unsigned long *map, unsigned long size,
 		unsigned long start, unsigned int nr, void *data,
-		struct gen_pool *pool)
+		struct gen_pool *pool, unsigned long start_addr)
 {
 	struct genpool_data_align *alignment;
-	unsigned long align_mask;
+	unsigned long align_mask, align_off;
 	int order;
 
 	alignment = data;
 	order = pool->min_alloc_order;
 	align_mask = ((alignment->align + (1UL << order) - 1) >> order) - 1;
-	return bitmap_find_next_zero_area(map, size, start, nr, align_mask);
+	align_off = (start_addr & (alignment->align - 1)) >> order;
+
+	return bitmap_find_next_zero_area_off(map, size, start, nr,
+					      align_mask, align_off);
 }
 EXPORT_SYMBOL(gen_pool_first_fit_align);
 
@@ -567,7 +687,7 @@ EXPORT_SYMBOL(gen_pool_first_fit_align);
  */
 unsigned long gen_pool_fixed_alloc(unsigned long *map, unsigned long size,
 		unsigned long start, unsigned int nr, void *data,
-		struct gen_pool *pool)
+		struct gen_pool *pool, unsigned long start_addr)
 {
 	struct genpool_data_fixed *fixed_data;
 	int order;
@@ -601,7 +721,8 @@ EXPORT_SYMBOL(gen_pool_fixed_alloc);
  */
 unsigned long gen_pool_first_fit_order_align(unsigned long *map,
 		unsigned long size, unsigned long start,
-		unsigned int nr, void *data, struct gen_pool *pool)
+		unsigned int nr, void *data, struct gen_pool *pool,
+		unsigned long start_addr)
 {
 	unsigned long align_mask = roundup_pow_of_two(nr) - 1;
 
@@ -624,7 +745,7 @@ EXPORT_SYMBOL(gen_pool_first_fit_order_align);
  */
 unsigned long gen_pool_best_fit(unsigned long *map, unsigned long size,
 		unsigned long start, unsigned int nr, void *data,
-		struct gen_pool *pool)
+		struct gen_pool *pool, unsigned long start_addr)
 {
 	unsigned long start_bit = size;
 	unsigned long len = size + 1;

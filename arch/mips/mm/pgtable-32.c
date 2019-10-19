@@ -7,11 +7,12 @@
  */
 #include <linux/init.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/highmem.h>
 #include <asm/fixmap.h>
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
+#include <asm/tlbflush.h>
 
 void pgd_init(unsigned long page)
 {
@@ -29,6 +30,25 @@ void pgd_init(unsigned long page)
 		p[i + 7] = (unsigned long) invalid_pte_table;
 	}
 }
+
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE)
+pmd_t mk_pmd(struct page *page, pgprot_t prot)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = (page_to_pfn(page) << _PFN_SHIFT) | pgprot_val(prot);
+
+	return pmd;
+}
+
+
+void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+		pmd_t *pmdp, pmd_t pmd)
+{
+	*pmdp = pmd;
+	flush_tlb_all();
+}
+#endif /* defined(CONFIG_TRANSPARENT_HUGEPAGE) */
 
 void __init pagetable_init(void)
 {

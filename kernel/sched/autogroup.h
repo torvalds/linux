@@ -1,15 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifdef CONFIG_SCHED_AUTOGROUP
 
-#include <linux/kref.h>
-#include <linux/rwsem.h>
-#include <linux/sched/autogroup.h>
-
 struct autogroup {
 	/*
-	 * reference doesn't mean how many thread attach to this
-	 * autogroup now. It just stands for the number of task
-	 * could use this autogroup.
+	 * Reference doesn't mean how many threads attach to this
+	 * autogroup now. It just stands for the number of tasks
+	 * which could use this autogroup.
 	 */
 	struct kref		kref;
 	struct task_group	*tg;
@@ -56,11 +52,9 @@ autogroup_task_group(struct task_struct *p, struct task_group *tg)
 	return tg;
 }
 
-#ifdef CONFIG_SCHED_DEBUG
 static inline int autogroup_path(struct task_group *tg, char *buf, int buflen)
 {
 	return 0;
 }
-#endif
 
 #endif /* CONFIG_SCHED_AUTOGROUP */

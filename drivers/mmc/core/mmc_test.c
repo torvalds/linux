@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright 2007-2008 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or (at
- * your option) any later version.
  */
 
 #include <linux/mmc/core.h>
@@ -3145,17 +3141,7 @@ static int mtf_testlist_show(struct seq_file *sf, void *data)
 	return 0;
 }
 
-static int mtf_testlist_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, mtf_testlist_show, inode->i_private);
-}
-
-static const struct file_operations mmc_test_fops_testlist = {
-	.open		= mtf_testlist_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(mtf_testlist);
 
 static void mmc_test_free_dbgfs_file(struct mmc_card *card)
 {
@@ -3181,15 +3167,7 @@ static int __mmc_test_register_dbgfs_file(struct mmc_card *card,
 	struct mmc_test_dbgfs_file *df;
 
 	if (card->debugfs_root)
-		file = debugfs_create_file(name, mode, card->debugfs_root,
-			card, fops);
-
-	if (IS_ERR_OR_NULL(file)) {
-		dev_err(&card->dev,
-			"Can't create %s. Perhaps debugfs is disabled.\n",
-			name);
-		return -ENODEV;
-	}
+		debugfs_create_file(name, mode, card->debugfs_root, card, fops);
 
 	df = kmalloc(sizeof(*df), GFP_KERNEL);
 	if (!df) {
@@ -3216,7 +3194,7 @@ static int mmc_test_register_dbgfs_file(struct mmc_card *card)
 		goto err;
 
 	ret = __mmc_test_register_dbgfs_file(card, "testlist", S_IRUGO,
-		&mmc_test_fops_testlist);
+		&mtf_testlist_fops);
 	if (ret)
 		goto err;
 

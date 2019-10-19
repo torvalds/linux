@@ -24,7 +24,7 @@
 	.endm
 
 	.macro	__uaccess_ttbr0_enable, tmp1, tmp2
-	get_thread_info \tmp1
+	get_current_task \tmp1
 	ldr	\tmp1, [\tmp1, #TSK_TI_TTBR0]	// load saved TTBR0_EL1
 	mrs	\tmp2, ttbr1_el1
 	extr    \tmp2, \tmp2, \tmp1, #48
@@ -78,10 +78,9 @@ alternative_else_nop_endif
 /*
  * Remove the address tag from a virtual address, if present.
  */
-	.macro	clear_address_tag, dst, addr
-	tst	\addr, #(1 << 55)
-	bic	\dst, \addr, #(0xff << 56)
-	csel	\dst, \dst, \addr, eq
+	.macro	untagged_addr, dst, addr
+	sbfx	\dst, \addr, #0, #56
+	and	\dst, \dst, \addr
 	.endm
 
 #endif

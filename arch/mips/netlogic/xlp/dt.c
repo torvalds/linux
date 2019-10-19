@@ -33,7 +33,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <linux/of_fdt.h>
 #include <linux/of_platform.h>
@@ -93,17 +93,3 @@ void __init device_tree_init(void)
 {
 	unflatten_and_copy_device_tree();
 }
-
-static struct of_device_id __initdata xlp_ids[] = {
-	{ .compatible = "simple-bus", },
-	{},
-};
-
-int __init xlp8xx_ds_publish_devices(void)
-{
-	if (!of_have_populated_dt())
-		return 0;
-	return of_platform_bus_probe(NULL, xlp_ids, NULL);
-}
-
-device_initcall(xlp8xx_ds_publish_devices);

@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/sched/gen_estimator.c	Simple rate estimator.
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Alexey Kuznetsov, <kuznet@ms2.inr.ac.ru>
  *		Eric Dumazet <edumazet@google.com>
@@ -66,6 +62,7 @@ struct net_rate_estimator {
 static void est_fetch_counters(struct net_rate_estimator *e,
 			       struct gnet_stats_basic_packed *b)
 {
+	memset(b, 0, sizeof(*b));
 	if (e->stats_lock)
 		spin_lock(e->stats_lock);
 
@@ -111,7 +108,7 @@ static void est_timer(struct timer_list *t)
  * @bstats: basic statistics
  * @cpu_bstats: bstats per cpu
  * @rate_est: rate estimator statistics
- * @stats_lock: statistics lock
+ * @lock: lock for statistics and control path
  * @running: qdisc running seqcount
  * @opt: rate estimator configuration TLV
  *
@@ -127,7 +124,7 @@ static void est_timer(struct timer_list *t)
 int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 		      struct gnet_stats_basic_cpu __percpu *cpu_bstats,
 		      struct net_rate_estimator __rcu **rate_est,
-		      spinlock_t *stats_lock,
+		      spinlock_t *lock,
 		      seqcount_t *running,
 		      struct nlattr *opt)
 {
@@ -153,19 +150,22 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	seqcount_init(&est->seq);
 	intvl_log = parm->interval + 2;
 	est->bstats = bstats;
-	est->stats_lock = stats_lock;
+	est->stats_lock = lock;
 	est->running  = running;
 	est->ewma_log = parm->ewma_log;
 	est->intvl_log = intvl_log;
 	est->cpu_bstats = cpu_bstats;
 
-	if (stats_lock)
+	if (lock)
 		local_bh_disable();
 	est_fetch_counters(est, &b);
-	if (stats_lock)
+	if (lock)
 		local_bh_enable();
 	est->last_bytes = b.bytes;
 	est->last_packets = b.packets;
+
+	if (lock)
+		spin_lock_bh(lock);
 	old = rcu_dereference_protected(*rate_est, 1);
 	if (old) {
 		del_timer_sync(&old->timer);
@@ -178,6 +178,8 @@ int gen_new_estimator(struct gnet_stats_basic_packed *bstats,
 	mod_timer(&est->timer, est->next_jiffies);
 
 	rcu_assign_pointer(*rate_est, est);
+	if (lock)
+		spin_unlock_bh(lock);
 	if (old)
 		kfree_rcu(old, rcu);
 	return 0;
@@ -208,7 +210,7 @@ EXPORT_SYMBOL(gen_kill_estimator);
  * @bstats: basic statistics
  * @cpu_bstats: bstats per cpu
  * @rate_est: rate estimator statistics
- * @stats_lock: statistics lock
+ * @lock: lock for statistics and control path
  * @running: qdisc running seqcount (might be NULL)
  * @opt: rate estimator configuration TLV
  *
@@ -220,11 +222,11 @@ EXPORT_SYMBOL(gen_kill_estimator);
 int gen_replace_estimator(struct gnet_stats_basic_packed *bstats,
 			  struct gnet_stats_basic_cpu __percpu *cpu_bstats,
 			  struct net_rate_estimator __rcu **rate_est,
-			  spinlock_t *stats_lock,
+			  spinlock_t *lock,
 			  seqcount_t *running, struct nlattr *opt)
 {
 	return gen_new_estimator(bstats, cpu_bstats, rate_est,
-				 stats_lock, running, opt);
+				 lock, running, opt);
 }
 EXPORT_SYMBOL(gen_replace_estimator);
 

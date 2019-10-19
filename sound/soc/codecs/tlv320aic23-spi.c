@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC TLV320AIC23 codec driver SPI interface
  *
@@ -5,10 +6,6 @@
  * Copyright:   (C) 2008 Mistral Solutions Pvt Ltd.,
  *
  * Based on sound/soc/codecs/wm8731.c by Richard Purdie
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -34,18 +31,11 @@ static int aic23_spi_probe(struct spi_device *spi)
 	return tlv320aic23_probe(&spi->dev, regmap);
 }
 
-static int aic23_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
-}
-
 static struct spi_driver aic23_spi = {
 	.driver = {
 		.name = "tlv320aic23",
 	},
 	.probe = aic23_spi_probe,
-	.remove = aic23_spi_remove,
 };
 
 module_spi_driver(aic23_spi);

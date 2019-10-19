@@ -1,19 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ALSA SoC CS43130 codec driver
  *
  * Copyright 2017 Cirrus Logic, Inc.
  *
  * Author: Li Xu <li.xu@cirrus.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
  */
 
 #ifndef __CS43130_H__
@@ -508,7 +499,7 @@ struct cs43130_dai {
 };
 
 struct	cs43130_private {
-	struct snd_soc_codec		*codec;
+	struct snd_soc_component	*component;
 	struct regmap			*regmap;
 	struct regulator_bulk_data	supplies[CS43130_NUM_SUPPLIES];
 	struct gpio_desc		*reset_gpio;

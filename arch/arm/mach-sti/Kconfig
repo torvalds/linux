@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_STI
 	bool "STMicroelectronics Consumer Electronics SOCs"
 	depends on ARCH_MULTI_V7

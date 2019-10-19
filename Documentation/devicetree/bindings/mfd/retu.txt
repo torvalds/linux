@@ -9,7 +9,6 @@ Required properties:
 - compatible:		"nokia,retu" or "nokia,tahvo"
 - reg:			Specifies the CBUS slave address of the ASIC chip
 - interrupts: 		The interrupt line the device is connected to
-- interrupt-parent:	The parent interrupt controller
 
 Example:
 

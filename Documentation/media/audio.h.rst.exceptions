@@ -1,8 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0
+
 # Ignore header name
 ignore define _DVBAUDIO_H_
-
-# Typedef pointing to structs
-replace typedef audio_karaoke_t :c:type:`audio_karaoke`
 
 # Undocumented audio caps, as this is a deprecated API anyway
 ignore define AUDIO_CAP_DTS

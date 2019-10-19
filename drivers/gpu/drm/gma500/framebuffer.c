@@ -1,53 +1,37 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/pfn_t.h>
-#include <linux/mm.h>
-#include <linux/tty.h>
-#include <linux/slab.h>
-#include <linux/delay.h>
-#include <linux/init.h>
 #include <linux/console.h>
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/mm.h>
+#include <linux/module.h>
+#include <linux/pfn_t.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/tty.h>
 
-#include <drm/drmP.h>
 #include <drm/drm.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_framebuffer_helper.h>
 
-#include "psb_drv.h"
-#include "psb_intel_reg.h"
-#include "psb_intel_drv.h"
 #include "framebuffer.h"
 #include "gtt.h"
-
-static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb);
-static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-					      struct drm_file *file_priv,
-					      unsigned int *handle);
+#include "psb_drv.h"
+#include "psb_intel_drv.h"
+#include "psb_intel_reg.h"
 
 static const struct drm_framebuffer_funcs psb_fb_funcs = {
-	.destroy = psb_user_framebuffer_destroy,
-	.create_handle = psb_user_framebuffer_create_handle,
+	.destroy = drm_gem_fb_destroy,
+	.create_handle = drm_gem_fb_create_handle,
 };
 
 #define CMAP_TOHW(_val, _width) ((((_val) << (_width)) + 0x7FFF - (_val)) >> 16)
@@ -96,34 +80,36 @@ static int psbfb_pan(struct fb_var_screeninfo *var, struct fb_info *info)
 	struct psb_fbdev *fbdev = info->par;
 	struct psb_framebuffer *psbfb = &fbdev->pfb;
 	struct drm_device *dev = psbfb->base.dev;
+	struct gtt_range *gtt = to_gtt_range(psbfb->base.obj[0]);
 
 	/*
 	 *	We have to poke our nose in here. The core fb code assumes
 	 *	panning is part of the hardware that can be invoked before
 	 *	the actual fb is mapped. In our case that isn't quite true.
 	 */
-	if (psbfb->gtt->npage) {
+	if (gtt->npage) {
 		/* GTT roll shifts in 4K pages, we need to shift the right
 		   number of pages */
 		int pages = info->fix.line_length >> 12;
-		psb_gtt_roll(dev, psbfb->gtt, var->yoffset * pages);
+		psb_gtt_roll(dev, gtt, var->yoffset * pages);
 	}
         return 0;
 }
 
-static int psbfb_vm_fault(struct vm_fault *vmf)
+static vm_fault_t psbfb_vm_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct psb_framebuffer *psbfb = vma->vm_private_data;
 	struct drm_device *dev = psbfb->base.dev;
 	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct gtt_range *gtt = to_gtt_range(psbfb->base.obj[0]);
 	int page_num;
 	int i;
 	unsigned long address;
-	int ret;
+	vm_fault_t ret = VM_FAULT_SIGBUS;
 	unsigned long pfn;
 	unsigned long phys_addr = (unsigned long)dev_priv->stolen_base +
-				  psbfb->gtt->offset;
+				  gtt->offset;
 
 	page_num = vma_pages(vma);
 	address = vmf->address - (vmf->pgoff << PAGE_SHIFT);
@@ -133,18 +119,14 @@ static int psbfb_vm_fault(struct vm_fault *vmf)
 	for (i = 0; i < page_num; i++) {
 		pfn = (phys_addr >> PAGE_SHIFT);
 
-		ret = vm_insert_mixed(vma, address,
+		ret = vmf_insert_mixed(vma, address,
 				__pfn_to_pfn_t(pfn, PFN_DEV));
-		if (unlikely((ret == -EBUSY) || (ret != 0 && i > 0)))
+		if (unlikely(ret & VM_FAULT_ERROR))
 			break;
-		else if (unlikely(ret != 0)) {
-			ret = (ret == -ENOMEM) ? VM_FAULT_OOM : VM_FAULT_SIGBUS;
-			return ret;
-		}
 		address += PAGE_SIZE;
 		phys_addr += PAGE_SIZE;
 	}
-	return VM_FAULT_NOPAGE;
+	return ret;
 }
 
 static void psbfb_vm_open(struct vm_area_struct *vma)
@@ -238,7 +220,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 	 * Reject unknown formats, YUV formats, and formats with more than
 	 * 4 bytes per pixel.
 	 */
-	info = drm_format_info(mode_cmd->pixel_format);
+	info = drm_get_format_info(dev, mode_cmd);
 	if (!info || !info->depth || info->cpp[0] > 4)
 		return -EINVAL;
 
@@ -246,7 +228,7 @@ static int psb_framebuffer_init(struct drm_device *dev,
 		return -EINVAL;
 
 	drm_helper_mode_fill_fb_struct(dev, &fb->base, mode_cmd);
-	fb->gtt = gt;
+	fb->base.obj[0] = &gt->gem;
 	ret = drm_framebuffer_init(dev, &fb->base, &psb_fb_funcs);
 	if (ret) {
 		dev_err(dev->dev, "framebuffer init failed: %d\n", ret);
@@ -395,7 +377,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		ret = PTR_ERR(info);
 		goto out;
 	}
-	info->par = fbdev;
 
 	mode_cmd.pixel_format = drm_mode_legacy_fb_format(bpp, depth);
 
@@ -408,10 +389,6 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 
 	fbdev->psb_fb_helper.fb = fb;
 
-	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->format->depth);
-	strcpy(info->fix.id, "psbdrmfb");
-
-	info->flags = FBINFO_DEFAULT;
 	if (dev_priv->ops->accel_2d && pitch_lines > 8)	/* 2D engine */
 		info->fbops = &psbfb_ops;
 	else if (gtt_roll) {	/* GTT rolling seems best */
@@ -434,8 +411,7 @@ static int psbfb_create(struct psb_fbdev *fbdev,
 		info->apertures->ranges[0].size = dev_priv->gtt.stolen_size;
 	}
 
-	drm_fb_helper_fill_var(info, &fbdev->psb_fb_helper,
-				sizes->fb_width, sizes->fb_height);
+	drm_fb_helper_fill_info(info, &fbdev->psb_fb_helper, sizes);
 
 	info->fix.mmio_start = pci_resource_start(dev->pdev, 0);
 	info->fix.mmio_len = pci_resource_len(dev->pdev, 0);
@@ -518,8 +494,8 @@ static int psb_fbdev_destroy(struct drm_device *dev, struct psb_fbdev *fbdev)
 	drm_framebuffer_unregister_private(&psbfb->base);
 	drm_framebuffer_cleanup(&psbfb->base);
 
-	if (psbfb->gtt)
-		drm_gem_object_unreference_unlocked(&psbfb->gtt->gem);
+	if (psbfb->base.obj[0])
+		drm_gem_object_put_unlocked(psbfb->base.obj[0]);
 	return 0;
 }
 
@@ -574,44 +550,6 @@ static void psb_fbdev_fini(struct drm_device *dev)
 	psb_fbdev_destroy(dev, dev_priv->fbdev);
 	kfree(dev_priv->fbdev);
 	dev_priv->fbdev = NULL;
-}
-
-/**
- *	psb_user_framebuffer_create_handle - add hamdle to a framebuffer
- *	@fb: framebuffer
- *	@file_priv: our DRM file
- *	@handle: returned handle
- *
- *	Our framebuffer object is a GTT range which also contains a GEM
- *	object. We need to turn it into a handle for userspace. GEM will do
- *	the work for us
- */
-static int psb_user_framebuffer_create_handle(struct drm_framebuffer *fb,
-					      struct drm_file *file_priv,
-					      unsigned int *handle)
-{
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-	struct gtt_range *r = psbfb->gtt;
-	return drm_gem_handle_create(file_priv, &r->gem, handle);
-}
-
-/**
- *	psb_user_framebuffer_destroy	-	destruct user created fb
- *	@fb: framebuffer
- *
- *	User framebuffers are backed by GEM objects so all we have to do is
- *	clean up a bit and drop the reference, GEM will handle the fallout
- */
-static void psb_user_framebuffer_destroy(struct drm_framebuffer *fb)
-{
-	struct psb_framebuffer *psbfb = to_psb_fb(fb);
-	struct gtt_range *r = psbfb->gtt;
-
-	/* Let DRM do its clean up */
-	drm_framebuffer_cleanup(fb);
-	/*  We are no longer using the resource in GEM */
-	drm_gem_object_unreference_unlocked(&r->gem);
-	kfree(fb);
 }
 
 static const struct drm_mode_config_funcs psb_mode_funcs = {

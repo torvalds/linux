@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Freescale PowerQUICC Ethernet Driver -- MIIM bus implementation
  * Provides Bus interface for MIIM regs
@@ -8,12 +9,6 @@
  * Copyright 2002-2004, 2008-2009 Freescale Semiconductor, Inc.
  *
  * Based on gianfar_mii.c and ucc_geth_mii.c (Li Yang, Kim Phillips)
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/kernel.h>
@@ -377,6 +372,38 @@ static const struct of_device_id fsl_pq_mdio_match[] = {
 };
 MODULE_DEVICE_TABLE(of, fsl_pq_mdio_match);
 
+static void set_tbipa(const u32 tbipa_val, struct platform_device *pdev,
+		      uint32_t __iomem * (*get_tbipa)(void __iomem *),
+		      void __iomem *reg_map, struct resource *reg_res)
+{
+	struct device_node *np = pdev->dev.of_node;
+	uint32_t __iomem *tbipa;
+	bool tbipa_mapped;
+
+	tbipa = of_iomap(np, 1);
+	if (tbipa) {
+		tbipa_mapped = true;
+	} else {
+		tbipa_mapped = false;
+		tbipa = (*get_tbipa)(reg_map);
+
+		/*
+		 * Add consistency check to make sure TBI is contained within
+		 * the mapped range (not because we would get a segfault,
+		 * rather to catch bugs in computing TBI address). Print error
+		 * message but continue anyway.
+		 */
+		if ((void *)tbipa > reg_map + resource_size(reg_res) - 4)
+			dev_err(&pdev->dev, "invalid register map (should be at least 0x%04zx to contain TBI address)\n",
+				((void *)tbipa - reg_map) + 4);
+	}
+
+	iowrite32be(be32_to_cpu(tbipa_val), tbipa);
+
+	if (tbipa_mapped)
+		iounmap(tbipa);
+}
+
 static int fsl_pq_mdio_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *id =
@@ -414,8 +441,8 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 		goto error;
 	}
 
-	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%s@%llx", np->name,
-		(unsigned long long)res.start);
+	snprintf(new_bus->id, MII_BUS_ID_SIZE, "%pOFn@%llx", np,
+		 (unsigned long long)res.start);
 
 	priv->map = of_iomap(np, 0);
 	if (!priv->map) {
@@ -441,7 +468,7 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 	if (data->get_tbipa) {
 		for_each_child_of_node(np, tbi) {
-			if (strcmp(tbi->type, "tbi-phy") == 0) {
+			if (of_node_is_type(tbi, "tbi-phy")) {
 				dev_dbg(&pdev->dev, "found TBI PHY node %pOFP\n",
 					tbi);
 				break;
@@ -450,8 +477,6 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 
 		if (tbi) {
 			const u32 *prop = of_get_property(tbi, "reg", NULL);
-			uint32_t __iomem *tbipa;
-
 			if (!prop) {
 				dev_err(&pdev->dev,
 					"missing 'reg' property in node %pOF\n",
@@ -459,20 +484,8 @@ static int fsl_pq_mdio_probe(struct platform_device *pdev)
 				err = -EBUSY;
 				goto error;
 			}
-
-			tbipa = data->get_tbipa(priv->map);
-
-			/*
-			 * Add consistency check to make sure TBI is contained
-			 * within the mapped range (not because we would get a
-			 * segfault, rather to catch bugs in computing TBI
-			 * address). Print error message but continue anyway.
-			 */
-			if ((void *)tbipa > priv->map + resource_size(&res) - 4)
-				dev_err(&pdev->dev, "invalid register map (should be at least 0x%04zx to contain TBI address)\n",
-					((void *)tbipa - priv->map) + 4);
-
-			iowrite32be(be32_to_cpup(prop), tbipa);
+			set_tbipa(*prop, pdev,
+				  data->get_tbipa, priv->map, &res);
 		}
 	}
 

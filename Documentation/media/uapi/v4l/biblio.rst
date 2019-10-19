@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 **********
 References
@@ -115,6 +122,15 @@ ITU BT.1119
 
 :author:    International Telecommunication Union (http://www.itu.ch)
 
+.. _h264:
+
+ITU-T Rec. H.264 Specification (04/2017 Edition)
+================================================
+
+:title:     ITU-T Recommendation H.264 "Advanced Video Coding for Generic Audiovisual Services"
+
+:author:    International Telecommunication Union (http://www.itu.ch)
+
 .. _jfif:
 
 JFIF
@@ -225,16 +241,6 @@ xvYCC
 :title:     IEC 61966-2-4 ed1.0 "Multimedia systems and equipment - Colour measurement and management - Part 2-4: Colour management - Extended-gamut YCC colour space for video applications - xvYCC"
 
 :author:    International Electrotechnical Commission (http://www.iec.ch)
-
-.. _adobergb:
-
-AdobeRGB
-========
-
-
-:title:     Adobe© RGB (1998) Color Image Encoding Version 2005-05
-
-:author:    Adobe Systems Incorporated (http://www.adobe.com)
 
 .. _oprgb:
 
@@ -389,3 +395,13 @@ colimg
 :title:     Color Imaging: Fundamentals and Applications
 
 :author:    Erik Reinhard et al.
+
+.. _vp8:
+
+VP8
+===
+
+
+:title:     RFC 6386: "VP8 Data Format and Decoding Guide"
+
+:author:    J. Bankoski et al.

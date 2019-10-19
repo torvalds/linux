@@ -753,7 +753,7 @@ validate_gl_shader_rec(struct drm_device *dev,
 		28, /* cs */
 	};
 	uint32_t shader_reloc_count = ARRAY_SIZE(shader_reloc_offsets);
-	struct drm_gem_cma_object *bo[shader_reloc_count + 8];
+	struct drm_gem_cma_object *bo[ARRAY_SIZE(shader_reloc_offsets) + 8];
 	uint32_t nr_attributes, nr_relocs, packet_size;
 	int i;
 

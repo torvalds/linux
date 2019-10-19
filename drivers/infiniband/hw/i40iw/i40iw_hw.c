@@ -331,7 +331,7 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 		switch (info->ae_id) {
 		case I40IW_AE_LLP_FIN_RECEIVED:
 			if (qp->term_flags)
-				continue;
+				break;
 			if (atomic_inc_return(&iwqp->close_timer_started) == 1) {
 				iwqp->hw_tcp_state = I40IW_TCP_STATE_CLOSE_WAIT;
 				if ((iwqp->hw_tcp_state == I40IW_TCP_STATE_CLOSE_WAIT) &&
@@ -352,13 +352,15 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 			else
 				i40iw_cm_disconn(iwqp);
 			break;
+		case I40IW_AE_BAD_CLOSE:
+			/* fall through */
 		case I40IW_AE_RESET_SENT:
 			i40iw_next_iw_state(iwqp, I40IW_QP_STATE_ERROR, 1, 0, 0);
 			i40iw_cm_disconn(iwqp);
 			break;
 		case I40IW_AE_LLP_CONNECTION_RESET:
 			if (atomic_read(&iwqp->close_timer_started))
-				continue;
+				break;
 			i40iw_cm_disconn(iwqp);
 			break;
 		case I40IW_AE_QP_SUSPEND_COMPLETE:
@@ -433,21 +435,24 @@ void i40iw_process_aeq(struct i40iw_device *iwdev)
 }
 
 /**
- * i40iw_manage_apbvt - add or delete tcp port
+ * i40iw_cqp_manage_abvpt_cmd - send cqp command manage abpvt
  * @iwdev: iwarp device
  * @accel_local_port: port for apbvt
  * @add_port: add or delete port
  */
-int i40iw_manage_apbvt(struct i40iw_device *iwdev, u16 accel_local_port, bool add_port)
+static enum i40iw_status_code
+i40iw_cqp_manage_abvpt_cmd(struct i40iw_device *iwdev,
+			   u16 accel_local_port,
+			   bool add_port)
 {
 	struct i40iw_apbvt_info *info;
-	enum i40iw_status_code status;
 	struct i40iw_cqp_request *cqp_request;
 	struct cqp_commands_info *cqp_info;
+	enum i40iw_status_code status;
 
 	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, add_port);
 	if (!cqp_request)
-		return -ENOMEM;
+		return I40IW_ERR_NO_MEMORY;
 
 	cqp_info = &cqp_request->info;
 	info = &cqp_info->in.u.manage_apbvt_entry.info;
@@ -463,7 +468,51 @@ int i40iw_manage_apbvt(struct i40iw_device *iwdev, u16 accel_local_port, bool ad
 	status = i40iw_handle_cqp_op(iwdev, cqp_request);
 	if (status)
 		i40iw_pr_err("CQP-OP Manage APBVT entry fail");
+
 	return status;
+}
+
+/**
+ * i40iw_manage_apbvt - add or delete tcp port
+ * @iwdev: iwarp device
+ * @accel_local_port: port for apbvt
+ * @add_port: add or delete port
+ */
+enum i40iw_status_code i40iw_manage_apbvt(struct i40iw_device *iwdev,
+					  u16 accel_local_port,
+					  bool add_port)
+{
+	struct i40iw_cm_core *cm_core = &iwdev->cm_core;
+	enum i40iw_status_code status;
+	unsigned long flags;
+	bool in_use;
+
+	/* apbvt_lock is held across CQP delete APBVT OP (non-waiting) to
+	 * protect against race where add APBVT CQP can race ahead of the delete
+	 * APBVT for same port.
+	 */
+	if (add_port) {
+		spin_lock_irqsave(&cm_core->apbvt_lock, flags);
+		in_use = __test_and_set_bit(accel_local_port,
+					    cm_core->ports_in_use);
+		spin_unlock_irqrestore(&cm_core->apbvt_lock, flags);
+		if (in_use)
+			return 0;
+		return i40iw_cqp_manage_abvpt_cmd(iwdev, accel_local_port,
+						  true);
+	} else {
+		spin_lock_irqsave(&cm_core->apbvt_lock, flags);
+		in_use = i40iw_port_in_use(cm_core, accel_local_port);
+		if (in_use) {
+			spin_unlock_irqrestore(&cm_core->apbvt_lock, flags);
+			return 0;
+		}
+		__clear_bit(accel_local_port, cm_core->ports_in_use);
+		status = i40iw_cqp_manage_abvpt_cmd(iwdev, accel_local_port,
+						    false);
+		spin_unlock_irqrestore(&cm_core->apbvt_lock, flags);
+		return status;
+	}
 }
 
 /**
@@ -665,6 +714,39 @@ enum i40iw_status_code i40iw_hw_flush_wqes(struct i40iw_device *iwdev,
 	}
 
 	return 0;
+}
+
+/**
+ * i40iw_gen_ae - generate AE
+ * @iwdev: iwarp device
+ * @qp: qp associated with AE
+ * @info: info for ae
+ * @wait: wait for completion
+ */
+void i40iw_gen_ae(struct i40iw_device *iwdev,
+		  struct i40iw_sc_qp *qp,
+		  struct i40iw_gen_ae_info *info,
+		  bool wait)
+{
+	struct i40iw_gen_ae_info *ae_info;
+	struct i40iw_cqp_request *cqp_request;
+	struct cqp_commands_info *cqp_info;
+
+	cqp_request = i40iw_get_cqp_request(&iwdev->cqp, wait);
+	if (!cqp_request)
+		return;
+
+	cqp_info = &cqp_request->info;
+	ae_info = &cqp_request->info.in.u.gen_ae.info;
+	memcpy(ae_info, info, sizeof(*ae_info));
+
+	cqp_info->cqp_cmd = OP_GEN_AE;
+	cqp_info->post_sq = 1;
+	cqp_info->in.u.gen_ae.qp = qp;
+	cqp_info->in.u.gen_ae.scratch = (uintptr_t)cqp_request;
+	if (i40iw_handle_cqp_op(iwdev, cqp_request))
+		i40iw_pr_err("CQP OP failed attempting to generate ae_code=0x%x\n",
+			     info->ae_code);
 }
 
 /**

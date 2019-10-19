@@ -49,7 +49,6 @@ Optional Properties:
 
   - interrupt-controller: Identifies the node as an interrupt controller.
   - #interrupt-cells: Number of cells to encode an interrupt source, shall be 2.
-  - interrupt-parent: phandle of the parent interrupt controller.
   - interrupts: Interrupt specifier for the controllers interrupt.
 
 

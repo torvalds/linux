@@ -39,6 +39,10 @@
 #include <linux/qed/qed_if.h>
 #include <linux/qed/qed_iov_if.h>
 
+/* 64 max queues * (1 rx + 4 tx-cos + 1 xdp) */
+#define QED_MIN_L2_CONS (2 + NUM_PHYS_TCS_4PORT_K2)
+#define QED_MAX_L2_CONS (64 * (QED_MIN_L2_CONS))
+
 struct qed_queue_start_common_params {
 	/* Should always be relative to entity sending this. */
 	u8 vport_id;
@@ -49,6 +53,8 @@ struct qed_queue_start_common_params {
 
 	struct qed_sb_info *p_sb;
 	u8 sb_idx;
+
+	u8 tc;
 };
 
 struct qed_rxq_start_ret_params {
@@ -66,6 +72,7 @@ enum qed_filter_config_mode {
 	QED_FILTER_CONFIG_MODE_5_TUPLE,
 	QED_FILTER_CONFIG_MODE_L4_PORT,
 	QED_FILTER_CONFIG_MODE_IP_DEST,
+	QED_FILTER_CONFIG_MODE_IP_SRC,
 };
 
 struct qed_ntuple_filter_params {
@@ -88,6 +95,9 @@ struct qed_ntuple_filter_params {
 
 	/* true iff this filter is to be added. Else to be removed */
 	bool b_is_add;
+
+	/* If flow needs to be dropped */
+	bool b_is_drop;
 };
 
 struct qed_dev_eth_info {
@@ -352,6 +362,7 @@ struct qed_eth_ops {
 	int (*configure_arfs_searcher)(struct qed_dev *cdev,
 				       enum qed_filter_config_mode mode);
 	int (*get_coalesce)(struct qed_dev *cdev, u16 *coal, void *handle);
+	int (*req_bulletin_update_mac)(struct qed_dev *cdev, u8 *mac);
 };
 
 const struct qed_eth_ops *qed_get_eth_ops(void);

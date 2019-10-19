@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2016 Mellanox Technologies, LTD. All rights reserved.
  *
@@ -34,48 +34,12 @@
 #ifndef RDMA_USER_IOCTL_H
 #define RDMA_USER_IOCTL_H
 
-#include <linux/types.h>
-#include <linux/ioctl.h>
 #include <rdma/ib_user_mad.h>
 #include <rdma/hfi/hfi1_ioctl.h>
+#include <rdma/rdma_user_ioctl_cmds.h>
 
-/* Documentation/ioctl/ioctl-number.txt */
-#define RDMA_IOCTL_MAGIC	0x1b
 /* Legacy name, for user space application which already use it */
 #define IB_IOCTL_MAGIC		RDMA_IOCTL_MAGIC
-
-#define RDMA_VERBS_IOCTL \
-	_IOWR(RDMA_IOCTL_MAGIC, 1, struct ib_uverbs_ioctl_hdr)
-
-#define UVERBS_ID_NS_MASK 0xF000
-#define UVERBS_ID_NS_SHIFT 12
-
-enum {
-	/* User input */
-	UVERBS_ATTR_F_MANDATORY = 1U << 0,
-	/*
-	 * Valid output bit should be ignored and considered set in
-	 * mandatory fields. This bit is kernel output.
-	 */
-	UVERBS_ATTR_F_VALID_OUTPUT = 1U << 1,
-};
-
-struct ib_uverbs_attr {
-	__u16 attr_id;		/* command specific type attribute */
-	__u16 len;		/* only for pointers */
-	__u16 flags;		/* combination of UVERBS_ATTR_F_XXXX */
-	__u16 reserved;
-	__u64 data;		/* ptr to command, inline data or idr/fd */
-};
-
-struct ib_uverbs_ioctl_hdr {
-	__u16 length;
-	__u16 object_id;
-	__u16 method_id;
-	__u16 num_attrs;
-	__u64 reserved;
-	struct ib_uverbs_attr  attrs[0];
-};
 
 /*
  * General blocks assignments

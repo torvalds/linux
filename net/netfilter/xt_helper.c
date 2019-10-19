@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* iptables module to match on related connections */
 /*
  * (C) 2001 Martin Josefsson <gandalf@wlug.westbo.se>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -61,8 +58,8 @@ static int helper_mt_check(const struct xt_mtchk_param *par)
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0) {
-		pr_info("cannot load conntrack support for proto=%u\n",
-			par->family);
+		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+				    par->family);
 		return ret;
 	}
 	info->name[sizeof(info->name) - 1] = '\0';

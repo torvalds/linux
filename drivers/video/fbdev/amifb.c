@@ -1855,7 +1855,7 @@ static int ami_get_var_cursorinfo(struct fb_var_cursorinfo *var,
 	var->yspot = par->crsr.spot_y;
 	if (size > var->height * var->width)
 		return -ENAMETOOLONG;
-	if (!access_ok(VERIFY_WRITE, data, size))
+	if (!access_ok(data, size))
 		return -EFAULT;
 	delta = 1 << par->crsr.fmode;
 	lspr = lofsprite + (delta << 1);
@@ -1935,7 +1935,7 @@ static int ami_set_var_cursorinfo(struct fb_var_cursorinfo *var,
 		return -EINVAL;
 	if (!var->height)
 		return -EINVAL;
-	if (!access_ok(VERIFY_READ, data, var->width * var->height))
+	if (!access_ok(data, var->width * var->height))
 		return -EFAULT;
 	delta = 1 << fmode;
 	lofsprite = shfsprite = (u_short *)spritememory;
@@ -2303,7 +2303,7 @@ static void ami_build_copper(struct fb_info *info)
 	ami_rebuild_copper(info->par);
 }
 
-
+#ifndef MODULE
 static void __init amifb_setup_mcap(char *spec)
 {
 	char *p;
@@ -2368,7 +2368,7 @@ static int __init amifb_setup(char *options)
 
 	return 0;
 }
-
+#endif
 
 static int amifb_check_var(struct fb_var_screeninfo *var,
 			   struct fb_info *info)
@@ -3554,10 +3554,8 @@ static int __init amifb_probe(struct platform_device *pdev)
 	custom.dmacon = DMAF_ALL | DMAF_MASTER;
 
 	info = framebuffer_alloc(sizeof(struct amifb_par), &pdev->dev);
-	if (!info) {
-		dev_err(&pdev->dev, "framebuffer_alloc failed\n");
+	if (!info)
 		return -ENOMEM;
-	}
 
 	strcpy(info->fix.id, "Amiga ");
 	info->fix.visual = FB_VISUAL_PSEUDOCOLOR;

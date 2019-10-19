@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Synopsys DesignWare Multimedia Card Interface driver
  *  (Based on NXP driver for lpc 31xx)
  *
  * Copyright (C) 2009 NXP Semiconductors
  * Copyright (C) 2009, 2010 Imagination Technologies Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #ifndef _DW_MMC_H_
@@ -65,8 +61,7 @@ struct dw_mci_dma_slave {
  * @fifo_reg: Pointer to MMIO registers for data FIFO
  * @sg: Scatterlist entry currently being processed by PIO code, if any.
  * @sg_miter: PIO mapping scatterlist iterator.
- * @cur_slot: The slot which is currently using the controller.
- * @mrq: The request currently being processed on @cur_slot,
+ * @mrq: The request currently being processed on @slot,
  *	or NULL if the controller is idle.
  * @cmd: The command currently being sent to the card, or NULL.
  * @data: The data currently being transferred, or NULL if no data
@@ -102,7 +97,6 @@ struct dw_mci_dma_slave {
  * @bus_hz: The rate of @mck in Hz. This forms the basis for MMC bus
  *	rate and timeout calculations.
  * @current_speed: Configured rate of the controller.
- * @num_slots: Number of slots available.
  * @fifoth_val: The value of FIFOTH register.
  * @verid: Denote Version ID.
  * @dev: Device associated with the MMC controller.
@@ -134,16 +128,16 @@ struct dw_mci_dma_slave {
  * =======
  *
  * @lock is a softirq-safe spinlock protecting @queue as well as
+ * @slot, @mrq and @state. These must always be updated
  * at the same time while holding @lock.
+ * The @mrq field of struct dw_mci_slot is also protected by @lock,
+ * and must always be written at the same time as the slot is added to
+ * @queue.
  *
  * @irq_lock is an irq-safe spinlock protecting the INTMASK register
  * to allow the interrupt handler to modify it directly.  Held for only long
  * enough to read-modify-write INTMASK and no other locks are grabbed when
  * holding this one.
- *
- * The @mrq field of struct dw_mci_slot is also protected by @lock,
- * and must always be written at the same time as the slot is added to
- * @queue.
  *
  * @pending_events and @completed_events are accessed using atomic bit
  * operations, so they don't need any locking.
@@ -253,8 +247,6 @@ struct dma_pdata;
 
 /* Board platform data */
 struct dw_mci_board {
-	u32 num_slots;
-
 	unsigned int bus_hz; /* Clock speed at the cclk_in pad */
 
 	u32 caps;	/* Capabilities */
@@ -318,11 +310,12 @@ struct dw_mci_board {
 #define SDMMC_BUFADDR		0x098
 #define SDMMC_CDTHRCTL		0x100
 #define SDMMC_UHS_REG_EXT	0x108
+#define SDMMC_DDR_REG		0x10c
 #define SDMMC_ENABLE_SHIFT	0x110
 #define SDMMC_DATA(x)		(x)
 /*
-* Registers to support idmac 64-bit address mode
-*/
+ * Registers to support idmac 64-bit address mode
+ */
 #define SDMMC_DBADDRL		0x088
 #define SDMMC_DBADDRU		0x08c
 #define SDMMC_IDSTS64		0x090
@@ -443,13 +436,19 @@ struct dw_mci_board {
 #define SDMMC_CARD_WR_THR_EN		BIT(2)
 #define SDMMC_CARD_RD_THR_EN		BIT(0)
 /* UHS-1 register defines */
+#define SDMMC_UHS_DDR			BIT(16)
 #define SDMMC_UHS_18V			BIT(0)
+/* DDR register defines */
+#define SDMMC_DDR_HS400			BIT(31)
+/* Enable shift register defines */
+#define SDMMC_ENABLE_PHASE		BIT(0)
 /* All ctrl reset bits */
 #define SDMMC_CTRL_ALL_RESET_FLAGS \
 	(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET)
 
 /* FIFO register access macros. These should not change the data endian-ness
- * as they are written to memory to be dealt with by the upper layers */
+ * as they are written to memory to be dealt with by the upper layers
+ */
 #define mci_fifo_readw(__reg)	__raw_readw(__reg)
 #define mci_fifo_readl(__reg)	__raw_readl(__reg)
 #define mci_fifo_readq(__reg)	__raw_readq(__reg)
@@ -543,6 +542,7 @@ struct dw_mci_slot {
 /**
  * dw_mci driver data - dw-mshc implementation specific driver data.
  * @caps: mmc subsystem specified capabilities of the controller(s).
+ * @num_caps: number of capabilities specified by @caps.
  * @init: early implementation specific initialization.
  * @set_ios: handle bus specific extensions.
  * @parse_dt: parse implementation specific device tree properties.
@@ -554,6 +554,7 @@ struct dw_mci_slot {
  */
 struct dw_mci_drv_data {
 	unsigned long	*caps;
+	u32		num_caps;
 	int		(*init)(struct dw_mci *host);
 	void		(*set_ios)(struct dw_mci *host, struct mmc_ios *ios);
 	int		(*parse_dt)(struct dw_mci *host);

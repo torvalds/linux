@@ -6,6 +6,7 @@ Required properties:
 	"mediatek,mt2712-pcie"
 	"mediatek,mt7622-pcie"
 	"mediatek,mt7623-pcie"
+	"mediatek,mt7629-pcie"
 - device_type: Must be "pci"
 - reg: Base addresses and lengths of the PCIe subsys and root ports.
 - reg-names: Names of the above areas to use during resource lookup.
@@ -65,7 +66,6 @@ Required properties:
   explanation.
 - ranges: Sub-ranges distributed from the PCIe controller node. An empty
   property is sufficient.
-- num-lanes: Number of lanes to use for this port.
 
 Examples for MT7623:
 
@@ -78,7 +78,7 @@ Examples for MT7623:
 		#reset-cells = <1>;
 	};
 
-	pcie: pcie-controller@1a140000 {
+	pcie: pcie@1a140000 {
 		compatible = "mediatek,mt7623-pcie";
 		device_type = "pci";
 		reg = <0 0x1a140000 0 0x1000>, /* PCIe shared registers */
@@ -111,7 +111,6 @@ Examples for MT7623:
 			  0x83000000 0 0x60000000 0 0x60000000 0 0x10000000>;	/* memory space */
 
 		pcie@0,0 {
-			device_type = "pci";
 			reg = <0x0000 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -119,11 +118,9 @@ Examples for MT7623:
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &sysirq GIC_SPI 193 IRQ_TYPE_LEVEL_LOW>;
 			ranges;
-			num-lanes = <1>;
 		};
 
 		pcie@1,0 {
-			device_type = "pci";
 			reg = <0x0800 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -131,11 +128,9 @@ Examples for MT7623:
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &sysirq GIC_SPI 194 IRQ_TYPE_LEVEL_LOW>;
 			ranges;
-			num-lanes = <1>;
 		};
 
 		pcie@2,0 {
-			device_type = "pci";
 			reg = <0x1000 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
@@ -143,11 +138,11 @@ Examples for MT7623:
 			interrupt-map-mask = <0 0 0 0>;
 			interrupt-map = <0 0 0 0 &sysirq GIC_SPI 195 IRQ_TYPE_LEVEL_LOW>;
 			ranges;
-			num-lanes = <1>;
 		};
 	};
 
 Examples for MT2712:
+
 	pcie: pcie@11700000 {
 		compatible = "mediatek,mt2712-pcie";
 		device_type = "pci";
@@ -169,13 +164,11 @@ Examples for MT2712:
 		ranges = <0x82000000 0 0x20000000  0x0 0x20000000  0 0x10000000>;
 
 		pcie0: pcie@0,0 {
-			device_type = "pci";
 			reg = <0x0000 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges;
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
 					<0 0 0 2 &pcie_intc0 1>,
@@ -189,13 +182,11 @@ Examples for MT2712:
 		};
 
 		pcie1: pcie@1,0 {
-			device_type = "pci";
 			reg = <0x0800 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges;
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc1 0>,
 					<0 0 0 2 &pcie_intc1 1>,
@@ -210,6 +201,7 @@ Examples for MT2712:
 	};
 
 Examples for MT7622:
+
 	pcie: pcie@1a140000 {
 		compatible = "mediatek,mt7622-pcie";
 		device_type = "pci";
@@ -243,13 +235,11 @@ Examples for MT7622:
 		ranges = <0x82000000 0 0x20000000  0x0 0x20000000  0 0x10000000>;
 
 		pcie0: pcie@0,0 {
-			device_type = "pci";
 			reg = <0x0000 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges;
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc0 0>,
 					<0 0 0 2 &pcie_intc0 1>,
@@ -263,13 +253,11 @@ Examples for MT7622:
 		};
 
 		pcie1: pcie@1,0 {
-			device_type = "pci";
 			reg = <0x0800 0 0 0 0>;
 			#address-cells = <3>;
 			#size-cells = <2>;
 			#interrupt-cells = <1>;
 			ranges;
-			num-lanes = <1>;
 			interrupt-map-mask = <0 0 0 7>;
 			interrupt-map = <0 0 0 1 &pcie_intc1 0>,
 					<0 0 0 2 &pcie_intc1 1>,

@@ -96,11 +96,13 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
-	phy = <&phy1>;
+	pinctrl-0 = <&gmac_mii_pins>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
+};
 
+&gmac_mdio {
 	phy1: ethernet-phy@1 {
 		reg = <1>;
 	};
@@ -115,22 +117,19 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-	cd-inverted;
+	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
 	status = "okay";
 };
 
 &pio {
-	led_pins_itead_core: led_pins@0 {
+	led_pins_itead_core: led-pins {
 		pins = "PH20","PH21";
 		function = "gpio_out";
 		drive-strength = <20>;
@@ -143,6 +142,6 @@
 
 &spdif {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_tx_pins_a>;
+	pinctrl-0 = <&spdif_tx_pin>;
 	status = "okay";
 };

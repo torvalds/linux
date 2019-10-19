@@ -323,8 +323,10 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 	struct ccw_dev_id dev_id;
 	int rc, i;
 
-	gdev = kzalloc(sizeof(*gdev) + num_devices * sizeof(gdev->cdev[0]),
-		       GFP_KERNEL);
+	if (num_devices < 1)
+		return -EINVAL;
+
+	gdev = kzalloc(struct_size(gdev, cdev, num_devices), GFP_KERNEL);
 	if (!gdev)
 		return -ENOMEM;
 
@@ -370,12 +372,12 @@ int ccwgroup_create_dev(struct device *parent, struct ccwgroup_driver *gdrv,
 		goto error;
 	}
 	/* Check for trailing stuff. */
-	if (i == num_devices && strlen(buf) > 0) {
+	if (i == num_devices && buf && strlen(buf) > 0) {
 		rc = -EINVAL;
 		goto error;
 	}
 	/* Check if the devices are bound to the required ccw driver. */
-	if (gdev->count && gdrv && gdrv->ccw_driver &&
+	if (gdrv && gdrv->ccw_driver &&
 	    gdev->cdev[0]->drv != gdrv->ccw_driver) {
 		rc = -EINVAL;
 		goto error;
@@ -558,6 +560,12 @@ static struct bus_type ccwgroup_bus_type = {
 	.pm = &ccwgroup_pm_ops,
 };
 
+bool dev_is_ccwgroup(struct device *dev)
+{
+	return dev->bus == &ccwgroup_bus_type;
+}
+EXPORT_SYMBOL(dev_is_ccwgroup);
+
 /**
  * ccwgroup_driver_register() - register a ccw group driver
  * @cdriver: driver to be registered
@@ -573,11 +581,6 @@ int ccwgroup_driver_register(struct ccwgroup_driver *cdriver)
 }
 EXPORT_SYMBOL(ccwgroup_driver_register);
 
-static int __ccwgroup_match_all(struct device *dev, void *data)
-{
-	return 1;
-}
-
 /**
  * ccwgroup_driver_unregister() - deregister a ccw group driver
  * @cdriver: driver to be deregistered
@@ -589,8 +592,7 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 	struct device *dev;
 
 	/* We don't want ccwgroup devices to live longer than their driver. */
-	while ((dev = driver_find_device(&cdriver->driver, NULL, NULL,
-					 __ccwgroup_match_all))) {
+	while ((dev = driver_find_next_device(&cdriver->driver, NULL))) {
 		struct ccwgroup_device *gdev = to_ccwgroupdev(dev);
 
 		ccwgroup_ungroup(gdev);
@@ -599,6 +601,28 @@ void ccwgroup_driver_unregister(struct ccwgroup_driver *cdriver)
 	driver_unregister(&cdriver->driver);
 }
 EXPORT_SYMBOL(ccwgroup_driver_unregister);
+
+/**
+ * get_ccwgroupdev_by_busid() - obtain device from a bus id
+ * @gdrv: driver the device is owned by
+ * @bus_id: bus id of the device to be searched
+ *
+ * This function searches all devices owned by @gdrv for a device with a bus
+ * id matching @bus_id.
+ * Returns:
+ *  If a match is found, its reference count of the found device is increased
+ *  and it is returned; else %NULL is returned.
+ */
+struct ccwgroup_device *get_ccwgroupdev_by_busid(struct ccwgroup_driver *gdrv,
+						 char *bus_id)
+{
+	struct device *dev;
+
+	dev = driver_find_device_by_name(&gdrv->driver, bus_id);
+
+	return dev ? to_ccwgroupdev(dev) : NULL;
+}
+EXPORT_SYMBOL_GPL(get_ccwgroupdev_by_busid);
 
 /**
  * ccwgroup_probe_ccwdev() - probe function for slave devices

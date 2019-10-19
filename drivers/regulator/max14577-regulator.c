@@ -1,19 +1,9 @@
-/*
- * max14577.c - Regulator driver for the Maxim 14577/77836
- *
- * Copyright (C) 2013,2014 Samsung Electronics
- * Krzysztof Kozlowski <krzk@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max14577.c - Regulator driver for the Maxim 14577/77836
+//
+// Copyright (C) 2013,2014 Samsung Electronics
+// Krzysztof Kozlowski <krzk@kernel.org>
 
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -165,58 +155,6 @@ static const struct regulator_desc max77836_supported_regulators[] = {
 	[MAX77836_LDO2] = MAX77836_LDO_REG(2),
 };
 
-#ifdef CONFIG_OF
-static struct of_regulator_match max14577_regulator_matches[] = {
-	{ .name	= "SAFEOUT", },
-	{ .name = "CHARGER", },
-};
-
-static struct of_regulator_match max77836_regulator_matches[] = {
-	{ .name	= "SAFEOUT", },
-	{ .name = "CHARGER", },
-	{ .name = "LDO1", },
-	{ .name = "LDO2", },
-};
-
-static inline struct regulator_init_data *match_init_data(int index,
-		enum maxim_device_type dev_type)
-{
-	switch (dev_type) {
-	case MAXIM_DEVICE_TYPE_MAX77836:
-		return max77836_regulator_matches[index].init_data;
-
-	case MAXIM_DEVICE_TYPE_MAX14577:
-	default:
-		return max14577_regulator_matches[index].init_data;
-	}
-}
-
-static inline struct device_node *match_of_node(int index,
-		enum maxim_device_type dev_type)
-{
-	switch (dev_type) {
-	case MAXIM_DEVICE_TYPE_MAX77836:
-		return max77836_regulator_matches[index].of_node;
-
-	case MAXIM_DEVICE_TYPE_MAX14577:
-	default:
-		return max14577_regulator_matches[index].of_node;
-	}
-}
-#else /* CONFIG_OF */
-static inline struct regulator_init_data *match_init_data(int index,
-		enum maxim_device_type dev_type)
-{
-	return NULL;
-}
-
-static inline struct device_node *match_of_node(int index,
-		enum maxim_device_type dev_type)
-{
-	return NULL;
-}
-#endif /* CONFIG_OF */
-
 /**
  * Registers for regulators of max77836 use different I2C slave addresses so
  * different regmaps must be used for them.
@@ -275,9 +213,6 @@ static int max14577_regulator_probe(struct platform_device *pdev)
 		if (pdata && pdata->regulators) {
 			config.init_data = pdata->regulators[i].initdata;
 			config.of_node = pdata->regulators[i].of_node;
-		} else {
-			config.init_data = match_init_data(i, dev_type);
-			config.of_node = match_of_node(i, dev_type);
 		}
 		config.regmap = max14577_get_regmap(max14577,
 				supported_regulators[i].id);
@@ -334,4 +269,3 @@ module_exit(max14577_regulator_exit);
 MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_DESCRIPTION("Maxim 14577/77836 regulator driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:max14577-regulator");

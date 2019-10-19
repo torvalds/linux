@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * w6692.c     mISDN driver for Winbond w6692 based cards
  *
@@ -5,20 +6,6 @@
  *             based on the w6692 I4L driver from Petr Novak <petr.novak@i.cz>
  *
  * Copyright 2009  by Karsten Keil <keil@isdn4linux.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  */
 
 #include <linux/interrupt.h>
@@ -52,10 +39,7 @@ static const struct w6692map  w6692_map[] =
 	{W6692_USR, "USR W6692"}
 };
 
-#ifndef PCI_VENDOR_ID_USR
-#define PCI_VENDOR_ID_USR	0x16ec
 #define PCI_DEVICE_ID_USR_6692	0x3409
-#endif
 
 struct w6692_ch {
 	struct bchannel		bch;
@@ -372,8 +356,7 @@ handle_rxD(struct w6692_hw *card) {
 			card->dch.err_rx++;
 #endif
 		}
-		if (card->dch.rx_skb)
-			dev_kfree_skb(card->dch.rx_skb);
+		dev_kfree_skb(card->dch.rx_skb);
 		card->dch.rx_skb = NULL;
 		WriteW6692(card, W_D_CMDR, W_D_CMDR_RACK | W_D_CMDR_RRST);
 	} else {
@@ -392,8 +375,7 @@ handle_txD(struct w6692_hw *card) {
 	if (card->dch.tx_skb && card->dch.tx_idx < card->dch.tx_skb->len) {
 		W6692_fill_Dfifo(card);
 	} else {
-		if (card->dch.tx_skb)
-			dev_kfree_skb(card->dch.tx_skb);
+		dev_kfree_skb(card->dch.tx_skb);
 		if (get_next_dframe(&card->dch))
 			W6692_fill_Dfifo(card);
 	}
@@ -652,8 +634,7 @@ send_next(struct w6692_ch *wch)
 	if (wch->bch.tx_skb && wch->bch.tx_idx < wch->bch.tx_skb->len) {
 		W6692_fill_Bfifo(wch);
 	} else {
-		if (wch->bch.tx_skb)
-			dev_kfree_skb(wch->bch.tx_skb);
+		dev_kfree_skb(wch->bch.tx_skb);
 		if (get_next_bframe(&wch->bch)) {
 			W6692_fill_Bfifo(wch);
 			test_and_clear_bit(FLG_TX_EMPTY, &wch->bch.Flags);

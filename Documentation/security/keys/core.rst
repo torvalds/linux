@@ -433,6 +433,10 @@ The main syscalls are:
      /sbin/request-key will be invoked in an attempt to obtain a key. The
      callout_info string will be passed as an argument to the program.
 
+     To link a key into the destination keyring the key must grant link
+     permission on the key to the caller and the keyring must grant write
+     permission.
+
      See also Documentation/security/keys/request-key.rst.
 
 
@@ -575,6 +579,27 @@ The keyctl syscall functions are:
      Any links within the keyring to keys that match the new key in terms of
      type and description will be discarded from the keyring as the new one is
      added.
+
+
+  *  Move a key from one keyring to another::
+
+	long keyctl(KEYCTL_MOVE,
+		    key_serial_t id,
+		    key_serial_t from_ring_id,
+		    key_serial_t to_ring_id,
+		    unsigned int flags);
+
+     Move the key specified by "id" from the keyring specified by
+     "from_ring_id" to the keyring specified by "to_ring_id".  If the two
+     keyrings are the same, nothing is done.
+
+     "flags" can have KEYCTL_MOVE_EXCL set in it to cause the operation to fail
+     with EEXIST if a matching key exists in the destination keyring, otherwise
+     such a key will be replaced.
+
+     A process must have link permission on the key for this function to be
+     successful and write permission on both keyrings.  Any errors that can
+     occur from KEYCTL_LINK also apply on the destination keyring here.
 
 
   *  Unlink a key or keyring from another keyring::
@@ -859,6 +884,7 @@ The keyctl syscall functions are:
      and either the buffer length or the OtherInfo length exceeds the
      allowed length.
 
+
   *  Restrict keyring linkage::
 
 	long keyctl(KEYCTL_RESTRICT_KEYRING, key_serial_t keyring,
@@ -888,6 +914,116 @@ The keyctl syscall functions are:
      chains or individual certificate signatures using the asymmetric key type.
      See Documentation/crypto/asymmetric-keys.txt for specific restrictions
      applicable to the asymmetric key type.
+
+
+  *  Query an asymmetric key::
+
+	long keyctl(KEYCTL_PKEY_QUERY,
+		    key_serial_t key_id, unsigned long reserved,
+		    struct keyctl_pkey_query *info);
+
+     Get information about an asymmetric key.  The information is returned in
+     the keyctl_pkey_query struct::
+
+	__u32	supported_ops;
+	__u32	key_size;
+	__u16	max_data_size;
+	__u16	max_sig_size;
+	__u16	max_enc_size;
+	__u16	max_dec_size;
+	__u32	__spare[10];
+
+     ``supported_ops`` contains a bit mask of flags indicating which ops are
+     supported.  This is constructed from a bitwise-OR of::
+
+	KEYCTL_SUPPORTS_{ENCRYPT,DECRYPT,SIGN,VERIFY}
+
+     ``key_size`` indicated the size of the key in bits.
+
+     ``max_*_size`` indicate the maximum sizes in bytes of a blob of data to be
+     signed, a signature blob, a blob to be encrypted and a blob to be
+     decrypted.
+
+     ``__spare[]`` must be set to 0.  This is intended for future use to hand
+     over one or more passphrases needed unlock a key.
+
+     If successful, 0 is returned.  If the key is not an asymmetric key,
+     EOPNOTSUPP is returned.
+
+
+  *  Encrypt, decrypt, sign or verify a blob using an asymmetric key::
+
+	long keyctl(KEYCTL_PKEY_ENCRYPT,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    void *out);
+
+	long keyctl(KEYCTL_PKEY_DECRYPT,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    void *out);
+
+	long keyctl(KEYCTL_PKEY_SIGN,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    void *out);
+
+	long keyctl(KEYCTL_PKEY_VERIFY,
+		    const struct keyctl_pkey_params *params,
+		    const char *info,
+		    const void *in,
+		    const void *in2);
+
+     Use an asymmetric key to perform a public-key cryptographic operation a
+     blob of data.  For encryption and verification, the asymmetric key may
+     only need the public parts to be available, but for decryption and signing
+     the private parts are required also.
+
+     The parameter block pointed to by params contains a number of integer
+     values::
+
+	__s32		key_id;
+	__u32		in_len;
+	__u32		out_len;
+	__u32		in2_len;
+
+     ``key_id`` is the ID of the asymmetric key to be used.  ``in_len`` and
+     ``in2_len`` indicate the amount of data in the in and in2 buffers and
+     ``out_len`` indicates the size of the out buffer as appropriate for the
+     above operations.
+
+     For a given operation, the in and out buffers are used as follows::
+
+	Operation ID		in,in_len	out,out_len	in2,in2_len
+	=======================	===============	===============	===============
+	KEYCTL_PKEY_ENCRYPT	Raw data	Encrypted data	-
+	KEYCTL_PKEY_DECRYPT	Encrypted data	Raw data	-
+	KEYCTL_PKEY_SIGN	Raw data	Signature	-
+	KEYCTL_PKEY_VERIFY	Raw data	-		Signature
+
+     ``info`` is a string of key=value pairs that supply supplementary
+     information.  These include:
+
+	``enc=<encoding>`` The encoding of the encrypted/signature blob.  This
+			can be "pkcs1" for RSASSA-PKCS1-v1.5 or
+			RSAES-PKCS1-v1.5; "pss" for "RSASSA-PSS"; "oaep" for
+			"RSAES-OAEP".  If omitted or is "raw", the raw output
+			of the encryption function is specified.
+
+	``hash=<algo>``	If the data buffer contains the output of a hash
+			function and the encoding includes some indication of
+			which hash function was used, the hash function can be
+			specified with this, eg. "hash=sha256".
+
+     The ``__spare[]`` space in the parameter block must be set to 0.  This is
+     intended, amongst other things, to allow the passing of passphrases
+     required to unlock a key.
+
+     If successful, encrypt, decrypt and sign all return the amount of data
+     written into the output buffer.  Verification returns 0 on success.
 
 
 Kernel Services
@@ -966,49 +1102,43 @@ payload contents" for more information.
     See also Documentation/security/keys/request-key.rst.
 
 
+ *  To search for a key in a specific domain, call:
+
+	struct key *request_key_tag(const struct key_type *type,
+				    const char *description,
+				    struct key_tag *domain_tag,
+				    const char *callout_info);
+
+    This is identical to request_key(), except that a domain tag may be
+    specifies that causes search algorithm to only match keys matching that
+    tag.  The domain_tag may be NULL, specifying a global domain that is
+    separate from any nominated domain.
+
+
  *  To search for a key, passing auxiliary data to the upcaller, call::
 
 	struct key *request_key_with_auxdata(const struct key_type *type,
 					     const char *description,
+					     struct key_tag *domain_tag,
 					     const void *callout_info,
 					     size_t callout_len,
 					     void *aux);
 
-    This is identical to request_key(), except that the auxiliary data is
-    passed to the key_type->request_key() op if it exists, and the callout_info
-    is a blob of length callout_len, if given (the length may be 0).
+    This is identical to request_key_tag(), except that the auxiliary data is
+    passed to the key_type->request_key() op if it exists, and the
+    callout_info is a blob of length callout_len, if given (the length may be
+    0).
 
 
- *  A key can be requested asynchronously by calling one of::
+ *  To search for a key under RCU conditions, call::
 
-	struct key *request_key_async(const struct key_type *type,
-				      const char *description,
-				      const void *callout_info,
-				      size_t callout_len);
+	struct key *request_key_rcu(const struct key_type *type,
+				    const char *description,
+				    struct key_tag *domain_tag);
 
-    or::
-
-	struct key *request_key_async_with_auxdata(const struct key_type *type,
-						   const char *description,
-						   const char *callout_info,
-					     	   size_t callout_len,
-					     	   void *aux);
-
-    which are asynchronous equivalents of request_key() and
-    request_key_with_auxdata() respectively.
-
-    These two functions return with the key potentially still under
-    construction.  To wait for construction completion, the following should be
-    called::
-
-	int wait_for_key_construction(struct key *key, bool intr);
-
-    The function will wait for the key to finish being constructed and then
-    invokes key_validate() to return an appropriate value to indicate the state
-    of the key (0 indicates the key is usable).
-
-    If intr is true, then the wait can be interrupted by a signal, in which
-    case error ERESTARTSYS will be returned.
+    which is similar to request_key_tag() except that it does not check for
+    keys that are under construction and it will not call out to userspace to
+    construct a key if it can't find a match.
 
 
  *  When it is no longer required, the key should be released using::
@@ -1048,11 +1178,13 @@ payload contents" for more information.
 
 	key_ref_t keyring_search(key_ref_t keyring_ref,
 				 const struct key_type *type,
-				 const char *description)
+				 const char *description,
+				 bool recurse)
 
-    This searches the keyring tree specified for a matching key. Error ENOKEY
-    is returned upon failure (use IS_ERR/PTR_ERR to determine). If successful,
-    the returned key will need to be released.
+    This searches the specified keyring only (recurse == false) or keyring tree
+    (recurse == true) specified for a matching key. Error ENOKEY is returned
+    upon failure (use IS_ERR/PTR_ERR to determine). If successful, the returned
+    key will need to be released.
 
     The possession attribute from the keyring reference is used to control
     access through the permissions mask and is propagated to the returned key
@@ -1481,6 +1613,116 @@ The structure has a number of fields, some of which are mandatory:
      name) is passed in, and this method returns a pointer to a key_restriction
      structure containing the relevant functions and data to evaluate each
      attempted key link operation. If there is no match, -EINVAL is returned.
+
+
+  *  ``asym_eds_op`` and ``asym_verify_signature``::
+
+       int (*asym_eds_op)(struct kernel_pkey_params *params,
+			  const void *in, void *out);
+       int (*asym_verify_signature)(struct kernel_pkey_params *params,
+				    const void *in, const void *in2);
+
+     These methods are optional.  If provided the first allows a key to be
+     used to encrypt, decrypt or sign a blob of data, and the second allows a
+     key to verify a signature.
+
+     In all cases, the following information is provided in the params block::
+
+	struct kernel_pkey_params {
+		struct key	*key;
+		const char	*encoding;
+		const char	*hash_algo;
+		char		*info;
+		__u32		in_len;
+		union {
+			__u32	out_len;
+			__u32	in2_len;
+		};
+		enum kernel_pkey_operation op : 8;
+	};
+
+     This includes the key to be used; a string indicating the encoding to use
+     (for instance, "pkcs1" may be used with an RSA key to indicate
+     RSASSA-PKCS1-v1.5 or RSAES-PKCS1-v1.5 encoding or "raw" if no encoding);
+     the name of the hash algorithm used to generate the data for a signature
+     (if appropriate); the sizes of the input and output (or second input)
+     buffers; and the ID of the operation to be performed.
+
+     For a given operation ID, the input and output buffers are used as
+     follows::
+
+	Operation ID		in,in_len	out,out_len	in2,in2_len
+	=======================	===============	===============	===============
+	kernel_pkey_encrypt	Raw data	Encrypted data	-
+	kernel_pkey_decrypt	Encrypted data	Raw data	-
+	kernel_pkey_sign	Raw data	Signature	-
+	kernel_pkey_verify	Raw data	-		Signature
+
+     asym_eds_op() deals with encryption, decryption and signature creation as
+     specified by params->op.  Note that params->op is also set for
+     asym_verify_signature().
+
+     Encrypting and signature creation both take raw data in the input buffer
+     and return the encrypted result in the output buffer.  Padding may have
+     been added if an encoding was set.  In the case of signature creation,
+     depending on the encoding, the padding created may need to indicate the
+     digest algorithm - the name of which should be supplied in hash_algo.
+
+     Decryption takes encrypted data in the input buffer and returns the raw
+     data in the output buffer.  Padding will get checked and stripped off if
+     an encoding was set.
+
+     Verification takes raw data in the input buffer and the signature in the
+     second input buffer and checks that the one matches the other.  Padding
+     will be validated.  Depending on the encoding, the digest algorithm used
+     to generate the raw data may need to be indicated in hash_algo.
+
+     If successful, asym_eds_op() should return the number of bytes written
+     into the output buffer.  asym_verify_signature() should return 0.
+
+     A variety of errors may be returned, including EOPNOTSUPP if the operation
+     is not supported; EKEYREJECTED if verification fails; ENOPKG if the
+     required crypto isn't available.
+
+
+  *  ``asym_query``::
+
+       int (*asym_query)(const struct kernel_pkey_params *params,
+			 struct kernel_pkey_query *info);
+
+     This method is optional.  If provided it allows information about the
+     public or asymmetric key held in the key to be determined.
+
+     The parameter block is as for asym_eds_op() and co. but in_len and out_len
+     are unused.  The encoding and hash_algo fields should be used to reduce
+     the returned buffer/data sizes as appropriate.
+
+     If successful, the following information is filled in::
+
+	struct kernel_pkey_query {
+		__u32		supported_ops;
+		__u32		key_size;
+		__u16		max_data_size;
+		__u16		max_sig_size;
+		__u16		max_enc_size;
+		__u16		max_dec_size;
+	};
+
+     The supported_ops field will contain a bitmask indicating what operations
+     are supported by the key, including encryption of a blob, decryption of a
+     blob, signing a blob and verifying the signature on a blob.  The following
+     constants are defined for this::
+
+	KEYCTL_SUPPORTS_{ENCRYPT,DECRYPT,SIGN,VERIFY}
+
+     The key_size field is the size of the key in bits.  max_data_size and
+     max_sig_size are the maximum raw data and signature sizes for creation and
+     verification of a signature; max_enc_size and max_dec_size are the maximum
+     raw data and signature sizes for encryption and decryption.  The
+     max_*_size fields are measured in bytes.
+
+     If successful, 0 will be returned.  If the key doesn't support this,
+     EOPNOTSUPP will be returned.
 
 
 Request-Key Callback Service

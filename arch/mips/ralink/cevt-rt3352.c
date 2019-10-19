@@ -134,7 +134,7 @@ static int __init ralink_systick_init(struct device_node *np)
 	systick.dev.min_delta_ticks = 0x3;
 	systick.dev.irq = irq_of_parse_and_map(np, 0);
 	if (!systick.dev.irq) {
-		pr_err("%s: request_irq failed", np->name);
+		pr_err("%pOFn: request_irq failed", np);
 		return -EINVAL;
 	}
 
@@ -146,8 +146,8 @@ static int __init ralink_systick_init(struct device_node *np)
 
 	clockevents_register_device(&systick.dev);
 
-	pr_info("%s: running - mult: %d, shift: %d\n",
-			np->name, systick.dev.mult, systick.dev.shift);
+	pr_info("%pOFn: running - mult: %d, shift: %d\n",
+			np, systick.dev.mult, systick.dev.shift);
 
 	return 0;
 }

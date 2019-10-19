@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2016 SiFive
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation, version 2.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
  */
 
 #ifndef __ASM_RISCV_PCI_H
@@ -25,9 +17,6 @@
 
 /* RISC-V shim does not initialize PCI bus */
 #define pcibios_assign_all_busses() 1
-
-/* We do not have an IOMMU */
-#define PCI_DMA_BUS_IS_PHYS 1
 
 extern int isa_dma_bridge_buggy;
 

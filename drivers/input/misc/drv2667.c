@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DRV2667 haptics driver family
  *
  * Author: Dan Murphy <dmurphy@ti.com>
  *
  * Copyright: (C) 2014 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #include <linux/i2c.h>
@@ -177,9 +169,9 @@ static int drv2667_set_waveform_freq(struct drv2667_data *haptics)
 		error = regmap_write(haptics->regmap, DRV2667_PAGE, read_buf);
 		if (error) {
 			dev_err(&haptics->client->dev,
-					"Failed to set the page: %d\n", error);
-				return -EIO;
-			}
+				"Failed to set the page: %d\n", error);
+			return -EIO;
+		}
 	}
 
 	return error;

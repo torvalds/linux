@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-omap1/mcbsp.c
  *
  * Copyright (C) 2008 Instituto Nokia de Tecnologia
  * Contact: Eduardo Valentin <eduardo.valentin@indt.org.br>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Multichannel mode not supported.
  */
@@ -389,7 +386,7 @@ static void omap_mcbsp_register_board_cfg(struct resource *res, int res_count,
 {
 	int i;
 
-	omap_mcbsp_devices = kzalloc(size * sizeof(struct platform_device *),
+	omap_mcbsp_devices = kcalloc(size, sizeof(struct platform_device *),
 				     GFP_KERNEL);
 	if (!omap_mcbsp_devices) {
 		printk(KERN_ERR "Could not register McBSP devices\n");

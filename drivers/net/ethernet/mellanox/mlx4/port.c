@@ -614,9 +614,9 @@ int __mlx4_register_vlan(struct mlx4_dev *dev, u8 port, u16 vlan,
 		int index_at_dup_port = -1;
 
 		for (i = MLX4_VLAN_REGULAR; i < MLX4_MAX_VLAN_NUM; i++) {
-			if ((vlan == (MLX4_VLAN_MASK & be32_to_cpu(table->entries[i]))))
+			if (vlan == (MLX4_VLAN_MASK & be32_to_cpu(table->entries[i])))
 				index_at_port = i;
-			if ((vlan == (MLX4_VLAN_MASK & be32_to_cpu(dup_table->entries[i]))))
+			if (vlan == (MLX4_VLAN_MASK & be32_to_cpu(dup_table->entries[i])))
 				index_at_dup_port = i;
 		}
 		/* check that same vlan is not in the tables at different indices */
@@ -2077,11 +2077,6 @@ int mlx4_get_module_info(struct mlx4_dev *dev, u8 port,
 		size -= offset + size - I2C_PAGE_SIZE;
 
 	i2c_addr = I2C_ADDR_LOW;
-	if (offset >= I2C_PAGE_SIZE) {
-		/* Reset offset to high page */
-		i2c_addr = I2C_ADDR_HIGH;
-		offset -= I2C_PAGE_SIZE;
-	}
 
 	cable_info = (struct mlx4_cable_info *)inmad->data;
 	cable_info->dev_mem_address = cpu_to_be16(offset);

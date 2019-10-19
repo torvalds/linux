@@ -395,6 +395,8 @@ struct integrated_info {
 	struct i2c_reg_info dp3_ext_hdmi_reg_settings[9];
 	unsigned char dp3_ext_hdmi_6g_reg_num;
 	struct i2c_reg_info dp3_ext_hdmi_6g_reg_settings[3];
+	/* V11 */
+	uint32_t dp_ss_control;
 };
 
 /**
@@ -417,11 +419,6 @@ struct bios_event_info {
 	bool has_forced_mode_changed;
 	bool forced_mode;
 	bool backlight_changed;
-};
-
-enum {
-	HDMI_PIXEL_CLOCK_IN_KHZ_297 = 297000,
-	TMDS_PIXEL_CLOCK_IN_KHZ_165 = 165000
 };
 
 /*

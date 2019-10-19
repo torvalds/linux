@@ -36,6 +36,7 @@
 #include <uapi/drm/drm_fourcc.h>
 #include "i915_drv.h"
 #include "gvt.h"
+#include "i915_pvinfo.h"
 
 #define PRIMARY_FORMAT_NUM	16
 struct pixel_format {
@@ -150,7 +151,7 @@ static u32 intel_vgpu_get_stride(struct intel_vgpu *vgpu, int pipe,
 	u32 stride_reg = vgpu_vreg_t(vgpu, DSPSTRIDE(pipe)) & stride_mask;
 	u32 stride = stride_reg;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	if (INTEL_GEN(dev_priv) >= 9) {
 		switch (tiled) {
 		case PLANE_CTL_TILED_LINEAR:
 			stride = stride_reg * 64;
@@ -214,9 +215,8 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	if (!plane->enabled)
 		return -ENODEV;
 
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
-		plane->tiled = (val & PLANE_CTL_TILED_MASK) >>
-		_PLANE_CTL_TILED_SHIFT;
+	if (INTEL_GEN(dev_priv) >= 9) {
+		plane->tiled = val & PLANE_CTL_TILED_MASK;
 		fmt = skl_format_to_drm(
 			val & PLANE_CTL_FORMAT_MASK,
 			val & PLANE_CTL_ORDER_RGBX,
@@ -231,7 +231,7 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 		plane->bpp = skl_pixel_formats[fmt].bpp;
 		plane->drm_format = skl_pixel_formats[fmt].drm_format;
 	} else {
-		plane->tiled = !!(val & DISPPLANE_TILED);
+		plane->tiled = val & DISPPLANE_TILED;
 		fmt = bdw_format_to_drm(val & DISPPLANE_PIXFORMAT_MASK);
 		plane->bpp = bdw_pixel_formats[fmt].bpp;
 		plane->drm_format = bdw_pixel_formats[fmt].drm_format;
@@ -245,21 +245,18 @@ int intel_vgpu_decode_primary_plane(struct intel_vgpu *vgpu,
 	plane->hw_format = fmt;
 
 	plane->base = vgpu_vreg_t(vgpu, DSPSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-			     (unsigned long)plane->base);
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
-	}
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
 	if (plane->base_gpa == INTEL_GVT_INVALID_ADDR) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-				(unsigned long)plane->base);
+		gvt_vgpu_err("Translate primary plane gma 0x%x to gpa fail\n",
+				plane->base);
 		return  -EINVAL;
 	}
 
-	plane->stride = intel_vgpu_get_stride(vgpu, pipe, (plane->tiled << 10),
-		(IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) ?
+	plane->stride = intel_vgpu_get_stride(vgpu, pipe, plane->tiled,
+		(INTEL_GEN(dev_priv) >= 9) ?
 			(_PRI_PLANE_STRIDE_MASK >> 6) :
 				_PRI_PLANE_STRIDE_MASK, plane->bpp);
 
@@ -303,16 +300,16 @@ static int cursor_mode_to_drm(int mode)
 	int cursor_pixel_formats_index = 4;
 
 	switch (mode) {
-	case CURSOR_MODE_128_ARGB_AX:
+	case MCURSOR_MODE_128_ARGB_AX:
 		cursor_pixel_formats_index = 0;
 		break;
-	case CURSOR_MODE_256_ARGB_AX:
+	case MCURSOR_MODE_256_ARGB_AX:
 		cursor_pixel_formats_index = 1;
 		break;
-	case CURSOR_MODE_64_ARGB_AX:
+	case MCURSOR_MODE_64_ARGB_AX:
 		cursor_pixel_formats_index = 2;
 		break;
-	case CURSOR_MODE_64_32B_AX:
+	case MCURSOR_MODE_64_32B_AX:
 		cursor_pixel_formats_index = 3;
 		break;
 
@@ -345,8 +342,8 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 		return -ENODEV;
 
 	val = vgpu_vreg_t(vgpu, CURCNTR(pipe));
-	mode = val & CURSOR_MODE;
-	plane->enabled = (mode != CURSOR_MODE_DISABLE);
+	mode = val & MCURSOR_MODE;
+	plane->enabled = (mode != MCURSOR_MODE_DISABLE);
 	if (!plane->enabled)
 		return -ENODEV;
 
@@ -371,16 +368,13 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 			alpha_plane, alpha_force);
 
 	plane->base = vgpu_vreg_t(vgpu, CURBASE(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-			     (unsigned long)plane->base);
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
-	}
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
 	if (plane->base_gpa == INTEL_GVT_INVALID_ADDR) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-				(unsigned long)plane->base);
+		gvt_vgpu_err("Translate cursor plane gma 0x%x to gpa fail\n",
+				plane->base);
 		return  -EINVAL;
 	}
 
@@ -390,6 +384,8 @@ int intel_vgpu_decode_cursor_plane(struct intel_vgpu *vgpu,
 	plane->y_pos = (val & _CURSOR_POS_Y_MASK) >> _CURSOR_POS_Y_SHIFT;
 	plane->y_sign = (val & _CURSOR_SIGN_Y_MASK) >> _CURSOR_SIGN_Y_SHIFT;
 
+	plane->x_hot = vgpu_vreg_t(vgpu, vgtif_reg(cursor_x_hot));
+	plane->y_hot = vgpu_vreg_t(vgpu, vgtif_reg(cursor_y_hot));
 	return 0;
 }
 
@@ -476,16 +472,13 @@ int intel_vgpu_decode_sprite_plane(struct intel_vgpu *vgpu,
 	plane->drm_format = drm_format;
 
 	plane->base = vgpu_vreg_t(vgpu, SPRSURF(pipe)) & I915_GTT_PAGE_MASK;
-	if (!intel_gvt_ggtt_validate_range(vgpu, plane->base, 0)) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-			     (unsigned long)plane->base);
+	if (!vgpu_gmadr_is_valid(vgpu, plane->base))
 		return  -EINVAL;
-	}
 
 	plane->base_gpa = intel_vgpu_gma_to_gpa(vgpu->gtt.ggtt_mm, plane->base);
 	if (plane->base_gpa == INTEL_GVT_INVALID_ADDR) {
-		gvt_vgpu_err("invalid gma address: %lx\n",
-				(unsigned long)plane->base);
+		gvt_vgpu_err("Translate sprite plane gma 0x%x to gpa fail\n",
+				plane->base);
 		return  -EINVAL;
 	}
 

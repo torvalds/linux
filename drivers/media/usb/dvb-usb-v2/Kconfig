@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DVB_USB_V2
 	tristate "Support for various USB DVB devices v2"
 	depends on DVB_CORE && USB && I2C && (RC_CORE || RC_CORE=n)
@@ -6,7 +7,7 @@ config DVB_USB_V2
 	  USB1.1 and USB2.0 DVB devices.
 
 	  Almost every USB device needs a firmware, please look into
-	  <file:Documentation/dvb/README.dvb-usb>.
+	  <file:Documentation/media/dvb-drivers/dvb-usb.rst>.
 
 	  For a complete list of supported USB devices see the LinuxTV DVB Wiki:
 	  <https://linuxtv.org/wiki/index.php/DVB_USB>
@@ -15,7 +16,8 @@ config DVB_USB_V2
 
 config DVB_USB_AF9015
 	tristate "Afatech AF9015 DVB-T USB2.0 support"
-	depends on DVB_USB_V2
+	depends on DVB_USB_V2 && I2C_MUX
+	select REGMAP
 	select DVB_AF9013
 	select DVB_PLL              if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MT2060   if MEDIA_SUBDRV_AUTOSELECT
@@ -95,10 +97,13 @@ config DVB_USB_GL861
 	tristate "Genesys Logic GL861 USB2.0 support"
 	depends on DVB_USB_V2
 	select DVB_ZL10353 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TC90522 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the MSI Megasky 580 (55801) DVB-T USB2.0
-	  receiver with USB ID 0db0:5581.
+	  receiver with USB ID 0db0:5581, Friio White ISDB-T receiver
+	  with USB ID 0x7a69:0001.
 
 config DVB_USB_LME2510
 	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
@@ -129,6 +134,7 @@ config DVB_USB_RTL28XXU
 	depends on DVB_USB_V2 && I2C_MUX
 	select DVB_MN88472 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_MN88473 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_CXD2841ER if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_RTL2830
 	select DVB_RTL2832
 	select DVB_RTL2832_SDR if (MEDIA_SUBDRV_AUTOSELECT && MEDIA_SDR_SUPPORT)

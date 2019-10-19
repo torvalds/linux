@@ -1,23 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015-2016 Free Electrons
  * Copyright (C) 2015-2016 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 struct dumb_vga {
 	struct drm_bridge	bridge;
@@ -45,7 +42,7 @@ static int dumb_vga_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 	int ret;
 
-	if (IS_ERR(vga->ddc))
+	if (!vga->ddc)
 		goto fallback;
 
 	edid = drm_get_edid(connector, vga->ddc);
@@ -54,8 +51,10 @@ static int dumb_vga_get_modes(struct drm_connector *connector)
 		goto fallback;
 	}
 
-	drm_mode_connector_update_edid_property(connector, edid);
-	return drm_add_edid_modes(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
+	ret = drm_add_edid_modes(connector, edid);
+	kfree(edid);
+	return ret;
 
 fallback:
 	/*
@@ -85,7 +84,7 @@ dumb_vga_connector_detect(struct drm_connector *connector, bool force)
 	 * wire the DDC pins, or the I2C bus might not be working at
 	 * all.
 	 */
-	if (!IS_ERR(vga->ddc) && drm_probe_ddc(vga->ddc))
+	if (vga->ddc && drm_probe_ddc(vga->ddc))
 		return connector_status_connected;
 
 	return connector_status_unknown;
@@ -112,14 +111,16 @@ static int dumb_vga_attach(struct drm_bridge *bridge)
 
 	drm_connector_helper_add(&vga->connector,
 				 &dumb_vga_con_helper_funcs);
-	ret = drm_connector_init(bridge->dev, &vga->connector,
-				 &dumb_vga_con_funcs, DRM_MODE_CONNECTOR_VGA);
+	ret = drm_connector_init_with_ddc(bridge->dev, &vga->connector,
+					  &dumb_vga_con_funcs,
+					  DRM_MODE_CONNECTOR_VGA,
+					  vga->ddc);
 	if (ret) {
 		DRM_ERROR("Failed to initialize connector\n");
 		return ret;
 	}
 
-	drm_mode_connector_attach_encoder(&vga->connector,
+	drm_connector_attach_encoder(&vga->connector,
 					  bridge->encoder);
 
 	return 0;
@@ -196,6 +197,7 @@ static int dumb_vga_probe(struct platform_device *pdev)
 		if (PTR_ERR(vga->ddc) == -ENODEV) {
 			dev_dbg(&pdev->dev,
 				"No i2c bus specified. Disabling EDID readout\n");
+			vga->ddc = NULL;
 		} else {
 			dev_err(&pdev->dev, "Couldn't retrieve i2c bus\n");
 			return PTR_ERR(vga->ddc);
@@ -204,6 +206,7 @@ static int dumb_vga_probe(struct platform_device *pdev)
 
 	vga->bridge.funcs = &dumb_vga_bridge_funcs;
 	vga->bridge.of_node = pdev->dev.of_node;
+	vga->bridge.timings = of_device_get_match_data(&pdev->dev);
 
 	drm_bridge_add(&vga->bridge);
 
@@ -216,16 +219,67 @@ static int dumb_vga_remove(struct platform_device *pdev)
 
 	drm_bridge_remove(&vga->bridge);
 
-	if (!IS_ERR(vga->ddc))
+	if (vga->ddc)
 		i2c_put_adapter(vga->ddc);
 
 	return 0;
 }
 
+/*
+ * We assume the ADV7123 DAC is the "default" for historical reasons
+ * Information taken from the ADV7123 datasheet, revision D.
+ * NOTE: the ADV7123EP seems to have other timings and need a new timings
+ * set if used.
+ */
+static const struct drm_bridge_timings default_dac_timings = {
+	/* Timing specifications, datasheet page 7 */
+	.input_bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
+	.setup_time_ps = 500,
+	.hold_time_ps = 1500,
+};
+
+/*
+ * Information taken from the THS8134, THS8134A, THS8134B datasheet named
+ * "SLVS205D", dated May 1990, revised March 2000.
+ */
+static const struct drm_bridge_timings ti_ths8134_dac_timings = {
+	/* From timing diagram, datasheet page 9 */
+	.input_bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
+	/* From datasheet, page 12 */
+	.setup_time_ps = 3000,
+	/* I guess this means latched input */
+	.hold_time_ps = 0,
+};
+
+/*
+ * Information taken from the THS8135 datasheet named "SLAS343B", dated
+ * May 2001, revised April 2013.
+ */
+static const struct drm_bridge_timings ti_ths8135_dac_timings = {
+	/* From timing diagram, datasheet page 14 */
+	.input_bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE,
+	/* From datasheet, page 16 */
+	.setup_time_ps = 2000,
+	.hold_time_ps = 500,
+};
+
 static const struct of_device_id dumb_vga_match[] = {
-	{ .compatible = "dumb-vga-dac" },
-	{ .compatible = "adi,adv7123" },
-	{ .compatible = "ti,ths8135" },
+	{
+		.compatible = "dumb-vga-dac",
+		.data = NULL,
+	},
+	{
+		.compatible = "adi,adv7123",
+		.data = &default_dac_timings,
+	},
+	{
+		.compatible = "ti,ths8135",
+		.data = &ti_ths8135_dac_timings,
+	},
+	{
+		.compatible = "ti,ths8134",
+		.data = &ti_ths8134_dac_timings,
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, dumb_vga_match);

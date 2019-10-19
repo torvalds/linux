@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTW_EFUSE_C_
@@ -20,28 +12,25 @@
 #include <linux/jiffies.h>
 
 
-/*------------------------Define local variable------------------------------*/
-u8 fakeEfuseBank = 0;
-u32 fakeEfuseUsedBytes = 0;
+/* Define global variables */
+u8 fakeEfuseBank;
+u32 fakeEfuseUsedBytes;
 u8 fakeEfuseContent[EFUSE_MAX_HW_SIZE] = {0};
 u8 fakeEfuseInitMap[EFUSE_MAX_MAP_LEN] = {0};
 u8 fakeEfuseModifiedMap[EFUSE_MAX_MAP_LEN] = {0};
 
-u32 BTEfuseUsedBytes = 0;
+u32 BTEfuseUsedBytes;
 u8 BTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
 u8 BTEfuseInitMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 u8 BTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 
-u32 fakeBTEfuseUsedBytes = 0;
+u32 fakeBTEfuseUsedBytes;
 u8 fakeBTEfuseContent[EFUSE_MAX_BT_BANK][EFUSE_MAX_HW_SIZE];
 u8 fakeBTEfuseInitMap[EFUSE_BT_MAX_MAP_LEN] = {0};
 u8 fakeBTEfuseModifiedMap[EFUSE_BT_MAX_MAP_LEN] = {0};
-/*------------------------Define local variable------------------------------*/
 
-/*  */
 #define REG_EFUSE_CTRL		0x0030
 #define EFUSE_CTRL			REG_EFUSE_CTRL		/*  E-Fuse Control. */
-/*  */
 
 bool
 Efuse_Read1ByteFromFakeContent(
@@ -81,7 +70,7 @@ Efuse_Write1ByteToFakeContent(
 	}
 	if (fakeEfuseBank == 0)
 		fakeEfuseContent[Offset] = Value;
-	else{
+	else {
 		fakeBTEfuseContent[fakeEfuseBank-1][Offset] = Value;
 	}
 	return true;
@@ -136,11 +125,8 @@ Efuse_GetCurrentSize(
 	u8 	efuseType,
 	bool		bPseudoTest)
 {
-	u16 ret = 0;
-
-	ret = padapter->HalFunc.EfuseGetCurrentSize(padapter, efuseType, bPseudoTest);
-
-	return ret;
+	return padapter->HalFunc.EfuseGetCurrentSize(padapter, efuseType,
+						     bPseudoTest);
 }
 
 /*  11/16/2008 MH Add description. Get current efuse area enabled word!!. */
@@ -232,7 +218,6 @@ EFUSE_Read1Byte(
 struct adapter *Adapter,
 u16 	Address)
 {
-	u8 data;
 	u8 Bytetemp = {0x00};
 	u8 temp = {0x00};
 	u32 k = 0;
@@ -264,8 +249,7 @@ u16 	Address)
 				break;
 			}
 		}
-		data = rtw_read8(Adapter, EFUSE_CTRL);
-		return data;
+		return rtw_read8(Adapter, EFUSE_CTRL);
 	} else
 		return 0xFF;
 
@@ -314,7 +298,7 @@ bool		bPseudoTest)
 	if (tmpidx < 100) {
 		*data = rtw_read8(padapter, EFUSE_CTRL);
 		bResult = true;
-	} else{
+	} else {
 		*data = 0xff;
 		bResult = false;
 		DBG_871X("%s: [ERROR] addr = 0x%x bResult =%d time out 1s !!!\n", __func__, addr, bResult);
@@ -370,7 +354,7 @@ bool		bPseudoTest)
 
 	if (tmpidx < 100) {
 		bResult = true;
-	} else{
+	} else {
 		bResult = false;
 		DBG_871X("%s: [ERROR] addr = 0x%x , efuseValue = 0x%x , bResult =%d time out 1s !!!\n",
 					__func__, addr, efuseValue, bResult);
@@ -389,11 +373,8 @@ Efuse_PgPacketRead(struct adapter *padapter,
 				u8 	*data,
 				bool		bPseudoTest)
 {
-	int	ret = 0;
-
-	ret =  padapter->HalFunc.Efuse_PgPacketRead(padapter, offset, data, bPseudoTest);
-
-	return ret;
+	return padapter->HalFunc.Efuse_PgPacketRead(padapter, offset, data,
+						    bPseudoTest);
 }
 
 int
@@ -403,11 +384,8 @@ Efuse_PgPacketWrite(struct adapter *padapter,
 				u8 	*data,
 				bool		bPseudoTest)
 {
-	int ret;
-
-	ret =  padapter->HalFunc.Efuse_PgPacketWrite(padapter, offset, word_en, data, bPseudoTest);
-
-	return ret;
+	return padapter->HalFunc.Efuse_PgPacketWrite(padapter, offset, word_en,
+						     data, bPseudoTest);
 }
 
 /*-----------------------------------------------------------------------------
@@ -458,11 +436,9 @@ Efuse_WordEnableDataWrite(struct adapter *padapter,
 						u8 *data,
 						bool		bPseudoTest)
 {
-	u8 ret = 0;
-
-	ret =  padapter->HalFunc.Efuse_WordEnableDataWrite(padapter, efuse_addr, word_en, data, bPseudoTest);
-
-	return ret;
+	return padapter->HalFunc.Efuse_WordEnableDataWrite(padapter, efuse_addr,
+							   word_en, data,
+							   bPseudoTest);
 }
 
 /*-----------------------------------------------------------------------------
@@ -591,11 +567,10 @@ void EFUSE_ShadowMapUpdate(
 
 	EFUSE_GetEfuseDefinition(padapter, efuseType, TYPE_EFUSE_MAP_LEN, (void *)&mapLen, bPseudoTest);
 
-	if (pEEPROM->bautoload_fail_flag == true) {
+	if (pEEPROM->bautoload_fail_flag)
 		memset(pEEPROM->efuse_eeprom_data, 0xFF, mapLen);
-	} else{
+	else
 		Efuse_ReadAllMap(padapter, efuseType, pEEPROM->efuse_eeprom_data, bPseudoTest);
-	}
 
 	/* PlatformMoveMemory((void *)&pHalData->EfuseMap[EFUSE_MODIFY_MAP][0], */
 	/* void *)&pHalData->EfuseMap[EFUSE_INIT_MAP][0], mapLen); */

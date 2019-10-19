@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for the Tundra Universe I/II VME-PCI Bridge Chips
  *
@@ -8,11 +9,6 @@
  * Copyright 2004 Motorola Inc.
  *
  * Derived from ca91c042.c by Michael Wyrick
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -970,7 +966,6 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 {
 	u32 result;
 	uintptr_t pci_addr;
-	int i;
 	struct ca91cx42_driver *bridge;
 	struct device *dev;
 
@@ -978,7 +973,6 @@ static unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	dev = image->parent->parent;
 
 	/* Find the PCI address that maps to the desired VME address */
-	i = image->number;
 
 	/* Locking as we can only do one of these at a time */
 	mutex_lock(&bridge->vme_rmw);

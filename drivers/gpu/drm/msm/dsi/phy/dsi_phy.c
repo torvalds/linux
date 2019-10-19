@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>
@@ -265,6 +257,115 @@ int msm_dsi_dphy_timing_calc_v2(struct msm_dsi_dphy_timing *timing,
 	return 0;
 }
 
+int msm_dsi_dphy_timing_calc_v3(struct msm_dsi_dphy_timing *timing,
+	struct msm_dsi_phy_clk_request *clk_req)
+{
+	const unsigned long bit_rate = clk_req->bitclk_rate;
+	const unsigned long esc_rate = clk_req->escclk_rate;
+	s32 ui, ui_x8, lpx;
+	s32 tmax, tmin;
+	s32 pcnt0 = 50;
+	s32 pcnt1 = 50;
+	s32 pcnt2 = 10;
+	s32 pcnt3 = 30;
+	s32 pcnt4 = 10;
+	s32 pcnt5 = 2;
+	s32 coeff = 1000; /* Precision, should avoid overflow */
+	s32 hb_en, hb_en_ckln;
+	s32 temp;
+
+	if (!bit_rate || !esc_rate)
+		return -EINVAL;
+
+	timing->hs_halfbyte_en = 0;
+	hb_en = 0;
+	timing->hs_halfbyte_en_ckln = 0;
+	hb_en_ckln = 0;
+
+	ui = mult_frac(NSEC_PER_MSEC, coeff, bit_rate / 1000);
+	ui_x8 = ui << 3;
+	lpx = mult_frac(NSEC_PER_MSEC, coeff, esc_rate / 1000);
+
+	temp = S_DIV_ROUND_UP(38 * coeff, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (95 * coeff) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->clk_prepare = linear_inter(tmax, tmin, pcnt0, 0, false);
+
+	temp = 300 * coeff - (timing->clk_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = (tmin > 255) ? 511 : 255;
+	timing->clk_zero = linear_inter(tmax, tmin, pcnt5, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 3 * ui, ui_x8);
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp + 3 * ui) / ui_x8;
+	timing->clk_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = S_DIV_ROUND_UP(40 * coeff + 4 * ui, ui_x8);
+	tmin = max_t(s32, temp, 0);
+	temp = (85 * coeff + 6 * ui) / ui_x8;
+	tmax = max_t(s32, temp, 0);
+	timing->hs_prepare = linear_inter(tmax, tmin, pcnt1, 0, false);
+
+	temp = 145 * coeff + 10 * ui - (timing->hs_prepare << 3) * ui;
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_zero = linear_inter(tmax, tmin, pcnt4, 0, false);
+
+	tmin = DIV_ROUND_UP(60 * coeff + 4 * ui, ui_x8) - 1;
+	temp = 105 * coeff + 12 * ui - 20 * coeff;
+	tmax = (temp / ui_x8) - 1;
+	timing->hs_trail = linear_inter(tmax, tmin, pcnt3, 0, false);
+
+	temp = 50 * coeff + ((hb_en << 2) - 8) * ui;
+	timing->hs_rqst = S_DIV_ROUND_UP(temp, ui_x8);
+
+	tmin = DIV_ROUND_UP(100 * coeff, ui_x8) - 1;
+	tmax = 255;
+	timing->hs_exit = linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 50 * coeff + ((hb_en_ckln << 2) - 8) * ui;
+	timing->hs_rqst_ckln = S_DIV_ROUND_UP(temp, ui_x8);
+
+	temp = 60 * coeff + 52 * ui - 43 * ui;
+	tmin = DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	timing->shared_timings.clk_post =
+		linear_inter(tmax, tmin, pcnt2, 0, false);
+
+	temp = 8 * ui + (timing->clk_prepare << 3) * ui;
+	temp += (((timing->clk_zero + 3) << 3) + 11) * ui;
+	temp += hb_en_ckln ? (((timing->hs_rqst_ckln << 3) + 4) * ui) :
+		(((timing->hs_rqst_ckln << 3) + 8) * ui);
+	tmin = S_DIV_ROUND_UP(temp, ui_x8) - 1;
+	tmax = 63;
+	if (tmin > tmax) {
+		temp = linear_inter(tmax << 1, tmin, pcnt2, 0, false);
+		timing->shared_timings.clk_pre = temp >> 1;
+		timing->shared_timings.clk_pre_inc_by_2 = 1;
+	} else {
+		timing->shared_timings.clk_pre =
+			linear_inter(tmax, tmin, pcnt2, 0, false);
+			timing->shared_timings.clk_pre_inc_by_2 = 0;
+	}
+
+	timing->ta_go = 3;
+	timing->ta_sure = 0;
+	timing->ta_get = 4;
+
+	DBG("%d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d, %d",
+		timing->shared_timings.clk_pre, timing->shared_timings.clk_post,
+		timing->shared_timings.clk_pre_inc_by_2, timing->clk_zero,
+		timing->clk_trail, timing->clk_prepare, timing->hs_exit,
+		timing->hs_zero, timing->hs_prepare, timing->hs_trail,
+		timing->hs_rqst, timing->hs_rqst_ckln, timing->hs_halfbyte_en,
+		timing->hs_halfbyte_en_ckln, timing->hs_prep_dly,
+		timing->hs_prep_dly_ckln);
+
+	return 0;
+}
+
 void msm_dsi_phy_set_src_pll(struct msm_dsi_phy *phy, int pll_id, u32 reg,
 				u32 bit_mask)
 {
@@ -295,8 +396,12 @@ static int dsi_phy_regulator_init(struct msm_dsi_phy *phy)
 
 	ret = devm_regulator_bulk_get(dev, num, s);
 	if (ret < 0) {
-		dev_err(dev, "%s: failed to init regulator, ret=%d\n",
-						__func__, ret);
+		if (ret != -EPROBE_DEFER) {
+			DRM_DEV_ERROR(dev,
+				      "%s: failed to init regulator, ret=%d\n",
+				      __func__, ret);
+		}
+
 		return ret;
 	}
 
@@ -332,7 +437,7 @@ static int dsi_phy_regulator_enable(struct msm_dsi_phy *phy)
 			ret = regulator_set_load(s[i].consumer,
 							regs[i].enable_load);
 			if (ret < 0) {
-				dev_err(dev,
+				DRM_DEV_ERROR(dev,
 					"regulator %d set op mode failed, %d\n",
 					i, ret);
 				goto fail;
@@ -342,7 +447,7 @@ static int dsi_phy_regulator_enable(struct msm_dsi_phy *phy)
 
 	ret = regulator_bulk_enable(num, s);
 	if (ret < 0) {
-		dev_err(dev, "regulator enable failed, %d\n", ret);
+		DRM_DEV_ERROR(dev, "regulator enable failed, %d\n", ret);
 		goto fail;
 	}
 
@@ -363,7 +468,7 @@ static int dsi_phy_enable_resource(struct msm_dsi_phy *phy)
 
 	ret = clk_prepare_enable(phy->ahb_clk);
 	if (ret) {
-		dev_err(dev, "%s: can't enable ahb clk, %d\n", __func__, ret);
+		DRM_DEV_ERROR(dev, "%s: can't enable ahb clk, %d\n", __func__, ret);
 		pm_runtime_put_sync(dev);
 	}
 
@@ -394,6 +499,12 @@ static const struct of_device_id dsi_phy_dt_match[] = {
 #ifdef CONFIG_DRM_MSM_DSI_14NM_PHY
 	{ .compatible = "qcom,dsi-phy-14nm",
 	  .data = &dsi_phy_14nm_cfgs },
+#endif
+#ifdef CONFIG_DRM_MSM_DSI_10NM_PHY
+	{ .compatible = "qcom,dsi-phy-10nm",
+	  .data = &dsi_phy_10nm_cfgs },
+	{ .compatible = "qcom,dsi-phy-10nm-8998",
+	  .data = &dsi_phy_10nm_8998_cfgs },
 #endif
 	{}
 };
@@ -430,7 +541,7 @@ int msm_dsi_phy_init_common(struct msm_dsi_phy *phy)
 	phy->reg_base = msm_ioremap(pdev, "dsi_phy_regulator",
 				"DSI_PHY_REG");
 	if (IS_ERR(phy->reg_base)) {
-		dev_err(&pdev->dev, "%s: failed to map phy regulator base\n",
+		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map phy regulator base\n",
 			__func__);
 		ret = -ENOMEM;
 		goto fail;
@@ -461,7 +572,7 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 	phy->id = dsi_phy_get_id(phy);
 	if (phy->id < 0) {
 		ret = phy->id;
-		dev_err(dev, "%s: couldn't identify PHY index, %d\n",
+		DRM_DEV_ERROR(dev, "%s: couldn't identify PHY index, %d\n",
 			__func__, ret);
 		goto fail;
 	}
@@ -471,20 +582,18 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 
 	phy->base = msm_ioremap(pdev, "dsi_phy", "DSI_PHY");
 	if (IS_ERR(phy->base)) {
-		dev_err(dev, "%s: failed to map phy base\n", __func__);
+		DRM_DEV_ERROR(dev, "%s: failed to map phy base\n", __func__);
 		ret = -ENOMEM;
 		goto fail;
 	}
 
 	ret = dsi_phy_regulator_init(phy);
-	if (ret) {
-		dev_err(dev, "%s: failed to init regulator\n", __func__);
+	if (ret)
 		goto fail;
-	}
 
 	phy->ahb_clk = msm_clk_get(pdev, "iface");
 	if (IS_ERR(phy->ahb_clk)) {
-		dev_err(dev, "%s: Unable to get ahb clk\n", __func__);
+		DRM_DEV_ERROR(dev, "%s: Unable to get ahb clk\n", __func__);
 		ret = PTR_ERR(phy->ahb_clk);
 		goto fail;
 	}
@@ -503,10 +612,12 @@ static int dsi_phy_driver_probe(struct platform_device *pdev)
 		goto fail;
 
 	phy->pll = msm_dsi_pll_init(pdev, phy->cfg->type, phy->id);
-	if (!phy->pll)
-		dev_info(dev,
-			"%s: pll init failed, need separate pll clk driver\n",
-			__func__);
+	if (IS_ERR_OR_NULL(phy->pll)) {
+		DRM_DEV_INFO(dev,
+			"%s: pll init failed: %ld, need separate pll clk driver\n",
+			__func__, PTR_ERR(phy->pll));
+		phy->pll = NULL;
+	}
 
 	dsi_phy_disable_resource(phy);
 
@@ -562,21 +673,21 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 	ret = dsi_phy_enable_resource(phy);
 	if (ret) {
-		dev_err(dev, "%s: resource enable failed, %d\n",
+		DRM_DEV_ERROR(dev, "%s: resource enable failed, %d\n",
 			__func__, ret);
 		goto res_en_fail;
 	}
 
 	ret = dsi_phy_regulator_enable(phy);
 	if (ret) {
-		dev_err(dev, "%s: regulator enable failed, %d\n",
+		DRM_DEV_ERROR(dev, "%s: regulator enable failed, %d\n",
 			__func__, ret);
 		goto reg_en_fail;
 	}
 
 	ret = phy->cfg->ops.enable(phy, src_pll_id, clk_req);
 	if (ret) {
-		dev_err(dev, "%s: phy enable failed, %d\n", __func__, ret);
+		DRM_DEV_ERROR(dev, "%s: phy enable failed, %d\n", __func__, ret);
 		goto phy_en_fail;
 	}
 
@@ -589,7 +700,7 @@ int msm_dsi_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	if (phy->usecase != MSM_DSI_PHY_SLAVE) {
 		ret = msm_dsi_pll_restore_state(phy->pll);
 		if (ret) {
-			dev_err(dev, "%s: failed to restore pll state, %d\n",
+			DRM_DEV_ERROR(dev, "%s: failed to restore pll state, %d\n",
 				__func__, ret);
 			goto pll_restor_fail;
 		}

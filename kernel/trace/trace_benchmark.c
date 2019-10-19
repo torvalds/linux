@@ -159,13 +159,13 @@ static int benchmark_event_kthread(void *arg)
 		 * wants to run, schedule in, but if the CPU is idle,
 		 * we'll keep burning cycles.
 		 *
-		 * Note the _rcu_qs() version of cond_resched() will
+		 * Note the tasks_rcu_qs() version of cond_resched() will
 		 * notify synchronize_rcu_tasks() that this thread has
 		 * passed a quiescent state for rcu_tasks. Otherwise
 		 * this thread will never voluntarily schedule which would
 		 * block synchronize_rcu_tasks() indefinitely.
 		 */
-		cond_resched();
+		cond_resched_tasks_rcu_qs();
 	}
 
 	return 0;

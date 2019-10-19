@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015 MediaTek Inc.
  * Author: Chunfeng Yun <chunfeng.yun@mediatek.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  *
  */
 
@@ -49,6 +41,12 @@
 #define U3P_USBPHYACR0		0x000
 #define PA0_RG_U2PLL_FORCE_ON		BIT(15)
 #define PA0_RG_USB20_INTR_EN		BIT(5)
+
+#define U3P_USBPHYACR1		0x004
+#define PA1_RG_VRT_SEL			GENMASK(14, 12)
+#define PA1_RG_VRT_SEL_VAL(x)	((0x7 & (x)) << 12)
+#define PA1_RG_TERM_SEL		GENMASK(10, 8)
+#define PA1_RG_TERM_SEL_VAL(x)	((0x7 & (x)) << 8)
 
 #define U3P_USBPHYACR2		0x008
 #define PA2_RG_SIF_U2PLL_FORCE_EN	BIT(18)
@@ -102,6 +100,9 @@
 #define P2C_RG_SESSEND			BIT(4)
 #define P2C_RG_AVALID			BIT(2)
 #define P2C_RG_IDDIG			BIT(1)
+
+#define U3P_U2PHYBC12C		0x080
+#define P2C_RG_CHGDT_EN		BIT(0)
 
 #define U3P_U3_CHIP_GPIO_CTLD		0x0c
 #define P3C_REG_IP_SW_RST		BIT(31)
@@ -296,6 +297,10 @@ struct mtk_phy_instance {
 	struct clk *ref_clk;	/* reference clock of anolog phy */
 	u32 index;
 	u8 type;
+	int eye_src;
+	int eye_vrt;
+	int eye_term;
+	bool bc12_en;
 };
 
 struct mtk_tphy {
@@ -306,6 +311,8 @@ struct mtk_tphy {
 	const struct mtk_phy_pdata *pdata;
 	struct mtk_phy_instance **phys;
 	int nphys;
+	int src_ref_clk; /* MHZ, reference clock for slew rate calibrate */
+	int src_coef; /* coefficient for slew rate calibrate */
 };
 
 static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
@@ -317,6 +324,10 @@ static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
 	int calibration_val;
 	int fm_out;
 	u32 tmp;
+
+	/* use force value */
+	if (instance->eye_src)
+		return;
 
 	/* enable USB ring oscillator */
 	tmp = readl(com + U3P_USBPHYACR5);
@@ -360,16 +371,17 @@ static void hs_slew_rate_calibrate(struct mtk_tphy *tphy,
 	writel(tmp, fmreg + U3P_U2FREQ_FMMONR1);
 
 	if (fm_out) {
-		/* ( 1024 / FM_OUT ) x reference clock frequency x 0.028 */
-		tmp = U3P_FM_DET_CYCLE_CNT * U3P_REF_CLK * U3P_SLEW_RATE_COEF;
-		tmp /= fm_out;
+		/* ( 1024 / FM_OUT ) x reference clock frequency x coef */
+		tmp = tphy->src_ref_clk * tphy->src_coef;
+		tmp = (tmp * U3P_FM_DET_CYCLE_CNT) / fm_out;
 		calibration_val = DIV_ROUND_CLOSEST(tmp, U3P_SR_COEF_DIVISOR);
 	} else {
 		/* if FM detection fail, set default value */
 		calibration_val = 4;
 	}
-	dev_dbg(tphy->dev, "phy:%d, fm_out:%d, calib:%d\n",
-		instance->index, fm_out, calibration_val);
+	dev_dbg(tphy->dev, "phy:%d, fm_out:%d, calib:%d (clk:%d, coef:%d)\n",
+		instance->index, fm_out, calibration_val,
+		tphy->src_ref_clk, tphy->src_coef);
 
 	/* set HS slew rate */
 	tmp = readl(com + U3P_USBPHYACR5);
@@ -688,8 +700,7 @@ static void pcie_phy_instance_power_on(struct mtk_tphy *tphy,
 	u32 tmp;
 
 	tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLD);
-	tmp &= ~(P3C_FORCE_IP_SW_RST | P3C_MCU_BUS_CK_GATE_EN |
-		P3C_REG_IP_SW_RST);
+	tmp &= ~(P3C_FORCE_IP_SW_RST | P3C_REG_IP_SW_RST);
 	writel(tmp, bank->chip + U3P_U3_CHIP_GPIO_CTLD);
 
 	tmp = readl(bank->chip + U3P_U3_CHIP_GPIO_CTLE);
@@ -824,6 +835,61 @@ static void phy_v2_banks_init(struct mtk_tphy *tphy,
 	}
 }
 
+static void phy_parse_property(struct mtk_tphy *tphy,
+				struct mtk_phy_instance *instance)
+{
+	struct device *dev = &instance->phy->dev;
+
+	if (instance->type != PHY_TYPE_USB2)
+		return;
+
+	instance->bc12_en = device_property_read_bool(dev, "mediatek,bc12");
+	device_property_read_u32(dev, "mediatek,eye-src",
+				 &instance->eye_src);
+	device_property_read_u32(dev, "mediatek,eye-vrt",
+				 &instance->eye_vrt);
+	device_property_read_u32(dev, "mediatek,eye-term",
+				 &instance->eye_term);
+	dev_dbg(dev, "bc12:%d, src:%d, vrt:%d, term:%d\n",
+		instance->bc12_en, instance->eye_src,
+		instance->eye_vrt, instance->eye_term);
+}
+
+static void u2_phy_props_set(struct mtk_tphy *tphy,
+			     struct mtk_phy_instance *instance)
+{
+	struct u2phy_banks *u2_banks = &instance->u2_banks;
+	void __iomem *com = u2_banks->com;
+	u32 tmp;
+
+	if (instance->bc12_en) {
+		tmp = readl(com + U3P_U2PHYBC12C);
+		tmp |= P2C_RG_CHGDT_EN;	/* BC1.2 path Enable */
+		writel(tmp, com + U3P_U2PHYBC12C);
+	}
+
+	if (instance->eye_src) {
+		tmp = readl(com + U3P_USBPHYACR5);
+		tmp &= ~PA5_RG_U2_HSTX_SRCTRL;
+		tmp |= PA5_RG_U2_HSTX_SRCTRL_VAL(instance->eye_src);
+		writel(tmp, com + U3P_USBPHYACR5);
+	}
+
+	if (instance->eye_vrt) {
+		tmp = readl(com + U3P_USBPHYACR1);
+		tmp &= ~PA1_RG_VRT_SEL;
+		tmp |= PA1_RG_VRT_SEL_VAL(instance->eye_vrt);
+		writel(tmp, com + U3P_USBPHYACR1);
+	}
+
+	if (instance->eye_term) {
+		tmp = readl(com + U3P_USBPHYACR1);
+		tmp &= ~PA1_RG_TERM_SEL;
+		tmp |= PA1_RG_TERM_SEL_VAL(instance->eye_term);
+		writel(tmp, com + U3P_USBPHYACR1);
+	}
+}
+
 static int mtk_phy_init(struct phy *phy)
 {
 	struct mtk_phy_instance *instance = phy_get_drvdata(phy);
@@ -845,6 +911,7 @@ static int mtk_phy_init(struct phy *phy)
 	switch (instance->type) {
 	case PHY_TYPE_USB2:
 		u2_phy_instance_init(tphy, instance);
+		u2_phy_props_set(tphy, instance);
 		break;
 	case PHY_TYPE_USB3:
 		u3_phy_instance_init(tphy, instance);
@@ -904,7 +971,7 @@ static int mtk_phy_exit(struct phy *phy)
 	return 0;
 }
 
-static int mtk_phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int mtk_phy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
 {
 	struct mtk_phy_instance *instance = phy_get_drvdata(phy);
 	struct mtk_tphy *tphy = dev_get_drvdata(phy->dev.parent);
@@ -956,6 +1023,8 @@ static struct phy *mtk_phy_xlate(struct device *dev,
 		dev_err(dev, "phy version is not supported\n");
 		return ERR_PTR(-EINVAL);
 	}
+
+	phy_parse_property(tphy, instance);
 
 	return instance->phy;
 }
@@ -1034,13 +1103,16 @@ static int mtk_tphy_probe(struct platform_device *pdev)
 	}
 
 	/* it's deprecated, make it optional for backward compatibility */
-	tphy->u3phya_ref = devm_clk_get(dev, "u3phya_ref");
-	if (IS_ERR(tphy->u3phya_ref)) {
-		if (PTR_ERR(tphy->u3phya_ref) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
+	tphy->u3phya_ref = devm_clk_get_optional(dev, "u3phya_ref");
+	if (IS_ERR(tphy->u3phya_ref))
+		return PTR_ERR(tphy->u3phya_ref);
 
-		tphy->u3phya_ref = NULL;
-	}
+	tphy->src_ref_clk = U3P_REF_CLK;
+	tphy->src_coef = U3P_SLEW_RATE_COEF;
+	/* update parameters of slew rate calibrate if exist */
+	device_property_read_u32(dev, "mediatek,src-ref-clk-mhz",
+		&tphy->src_ref_clk);
+	device_property_read_u32(dev, "mediatek,src-coef", &tphy->src_coef);
 
 	port = 0;
 	for_each_child_of_node(np, child_np) {

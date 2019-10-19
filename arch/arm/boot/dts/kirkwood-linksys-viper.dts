@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * kirkwood-viper.dts - Device Tree file for Linksys viper (E4200v2 / EA4500)
  *
@@ -6,9 +7,6 @@
  * (c) 2014 Luka Perkov <luka@openwrt.org>
  * (c) 2014 Randy C. Will <randall.will@gmail.com>
  *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -66,53 +64,6 @@
 		white-pulse {
 			label = "viper:white:pulse";
 			gpios = <&gpio0 14 GPIO_ACTIVE_HIGH>;
-		};
-	};
-
-	dsa {
-		status = "disabled";
-
-		compatible = "marvell,dsa";
-		#address-cells = <2>;
-		#size-cells = <0>;
-
-		dsa,ethernet = <&eth0port>;
-		dsa,mii-bus = <&mdio>;
-
-		switch@16,0 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			reg = <16 0>;	/* MDIO address 16, switch 0 in tree */
-
-			port@0 {
-				reg = <0>;
-				label = "ethernet1";
-			};
-
-			port@1 {
-				reg = <1>;
-				label = "ethernet2";
-			};
-
-			port@2 {
-				reg = <2>;
-				label = "ethernet3";
-			};
-
-			port@3 {
-				reg = <3>;
-				label = "ethernet4";
-			};
-
-			port@4 {
-				reg = <4>;
-				label = "internet";
-			};
-
-			port@5 {
-				reg = <5>;
-				label = "cpu";
-			};
 		};
 	};
 };

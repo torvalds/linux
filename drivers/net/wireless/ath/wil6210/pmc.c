@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2015,2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +18,7 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/seq_file.h>
 #include "wmi.h"
 #include "wil6210.h"
 #include "txrx.h"
@@ -53,6 +55,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	u32 i;
 	struct pmc_ctx *pmc = &wil->pmc;
 	struct device *dev = wil_to_dev(wil);
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_pmc_cmd pmc_cmd = {0};
 	int last_cmd_err = -ENOMEM;
 
@@ -186,6 +189,7 @@ void wil_pmc_alloc(struct wil6210_priv *wil,
 	wil_dbg_misc(wil, "pmc_alloc: send WMI_PMC_CMD with ALLOCATE op\n");
 	pmc->last_cmd_status = wmi_send(wil,
 					WMI_PMC_CMDID,
+					vif->mid,
 					&pmc_cmd,
 					sizeof(pmc_cmd));
 	if (pmc->last_cmd_status) {
@@ -236,6 +240,7 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 {
 	struct pmc_ctx *pmc = &wil->pmc;
 	struct device *dev = wil_to_dev(wil);
+	struct wil6210_vif *vif = ndev_to_vif(wil->main_ndev);
 	struct wmi_pmc_cmd pmc_cmd = {0};
 
 	mutex_lock(&pmc->lock);
@@ -254,8 +259,8 @@ void wil_pmc_free(struct wil6210_priv *wil, int send_pmc_cmd)
 		wil_dbg_misc(wil, "send WMI_PMC_CMD with RELEASE op\n");
 		pmc_cmd.op = WMI_PMC_RELEASE;
 		pmc->last_cmd_status =
-				wmi_send(wil, WMI_PMC_CMDID, &pmc_cmd,
-					 sizeof(pmc_cmd));
+				wmi_send(wil, WMI_PMC_CMDID, vif->mid,
+					 &pmc_cmd, sizeof(pmc_cmd));
 		if (pmc->last_cmd_status) {
 			wil_err(wil,
 				"WMI_PMC_CMD with RELEASE op failed, status %d",
@@ -426,4 +431,29 @@ out:
 	mutex_unlock(&pmc->lock);
 
 	return newpos;
+}
+
+int wil_pmcring_read(struct seq_file *s, void *data)
+{
+	struct wil6210_priv *wil = s->private;
+	struct pmc_ctx *pmc = &wil->pmc;
+	size_t pmc_ring_size =
+		sizeof(struct vring_rx_desc) * pmc->num_descriptors;
+
+	mutex_lock(&pmc->lock);
+
+	if (!wil_is_pmc_allocated(pmc)) {
+		wil_err(wil, "error, pmc is not allocated!\n");
+		pmc->last_cmd_status = -EPERM;
+		mutex_unlock(&pmc->lock);
+		return -EPERM;
+	}
+
+	wil_dbg_misc(wil, "pmcring_read: size %zu\n", pmc_ring_size);
+
+	seq_write(s, pmc->pring_va, pmc_ring_size);
+
+	mutex_unlock(&pmc->lock);
+
+	return 0;
 }

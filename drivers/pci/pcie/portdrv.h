@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * File:	portdrv.h
  * Purpose:	PCI Express Port Bus Driver's Internal Data Structures
  *
  * Copyright (C) 2004 Intel
@@ -12,7 +11,99 @@
 
 #include <linux/compiler.h>
 
+/* Service Type */
+#define PCIE_PORT_SERVICE_PME_SHIFT	0	/* Power Management Event */
+#define PCIE_PORT_SERVICE_PME		(1 << PCIE_PORT_SERVICE_PME_SHIFT)
+#define PCIE_PORT_SERVICE_AER_SHIFT	1	/* Advanced Error Reporting */
+#define PCIE_PORT_SERVICE_AER		(1 << PCIE_PORT_SERVICE_AER_SHIFT)
+#define PCIE_PORT_SERVICE_HP_SHIFT	2	/* Native Hotplug */
+#define PCIE_PORT_SERVICE_HP		(1 << PCIE_PORT_SERVICE_HP_SHIFT)
+#define PCIE_PORT_SERVICE_DPC_SHIFT	3	/* Downstream Port Containment */
+#define PCIE_PORT_SERVICE_DPC		(1 << PCIE_PORT_SERVICE_DPC_SHIFT)
+#define PCIE_PORT_SERVICE_BWNOTIF_SHIFT	4	/* Bandwidth notification */
+#define PCIE_PORT_SERVICE_BWNOTIF	(1 << PCIE_PORT_SERVICE_BWNOTIF_SHIFT)
+
 #define PCIE_PORT_DEVICE_MAXSERVICES   5
+
+#ifdef CONFIG_PCIEAER
+int pcie_aer_init(void);
+#else
+static inline int pcie_aer_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_HOTPLUG_PCI_PCIE
+int pcie_hp_init(void);
+#else
+static inline int pcie_hp_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_PCIE_PME
+int pcie_pme_init(void);
+#else
+static inline int pcie_pme_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_PCIE_DPC
+int pcie_dpc_init(void);
+#else
+static inline int pcie_dpc_init(void) { return 0; }
+#endif
+
+#ifdef CONFIG_PCIE_BW
+int pcie_bandwidth_notification_init(void);
+#else
+static inline int pcie_bandwidth_notification_init(void) { return 0; }
+#endif
+
+/* Port Type */
+#define PCIE_ANY_PORT			(~0)
+
+struct pcie_device {
+	int		irq;	    /* Service IRQ/MSI/MSI-X Vector */
+	struct pci_dev *port;	    /* Root/Upstream/Downstream Port */
+	u32		service;    /* Port service this device represents */
+	void		*priv_data; /* Service Private Data */
+	struct device	device;     /* Generic Device Interface */
+};
+#define to_pcie_device(d) container_of(d, struct pcie_device, device)
+
+static inline void set_service_data(struct pcie_device *dev, void *data)
+{
+	dev->priv_data = data;
+}
+
+static inline void *get_service_data(struct pcie_device *dev)
+{
+	return dev->priv_data;
+}
+
+struct pcie_port_service_driver {
+	const char *name;
+	int (*probe)(struct pcie_device *dev);
+	void (*remove)(struct pcie_device *dev);
+	int (*suspend)(struct pcie_device *dev);
+	int (*resume_noirq)(struct pcie_device *dev);
+	int (*resume)(struct pcie_device *dev);
+	int (*runtime_suspend)(struct pcie_device *dev);
+	int (*runtime_resume)(struct pcie_device *dev);
+
+	/* Device driver may resume normal operations */
+	void (*error_resume)(struct pci_dev *dev);
+
+	/* Link Reset Capability - AER service driver specific */
+	pci_ers_result_t (*reset_link)(struct pci_dev *dev);
+
+	int port_type;  /* Type of the port this driver can handle */
+	u32 service;    /* Port service this device represents */
+
+	struct device_driver driver;
+};
+#define to_service_driver(d) \
+	container_of(d, struct pcie_port_service_driver, driver)
+
+int pcie_port_service_register(struct pcie_port_service_driver *new);
+void pcie_port_service_unregister(struct pcie_port_service_driver *new);
+
 /*
  * The PCIe Capability Interrupt Message Number (PCIe r3.1, sec 7.8.2) must
  * be one of the first 32 MSI-X entries.  Per PCI r3.0, sec 6.8.3.1, MSI
@@ -26,27 +117,16 @@ extern struct bus_type pcie_port_bus_type;
 int pcie_port_device_register(struct pci_dev *dev);
 #ifdef CONFIG_PM
 int pcie_port_device_suspend(struct device *dev);
+int pcie_port_device_resume_noirq(struct device *dev);
 int pcie_port_device_resume(struct device *dev);
+int pcie_port_device_runtime_suspend(struct device *dev);
+int pcie_port_device_runtime_resume(struct device *dev);
 #endif
 void pcie_port_device_remove(struct pci_dev *dev);
 int __must_check pcie_port_bus_register(void);
 void pcie_port_bus_unregister(void);
 
 struct pci_dev;
-
-void pcie_clear_root_pme_status(struct pci_dev *dev);
-
-#ifdef CONFIG_HOTPLUG_PCI_PCIE
-extern bool pciehp_msi_disabled;
-
-static inline bool pciehp_no_msi(void)
-{
-	return pciehp_msi_disabled;
-}
-
-#else  /* !CONFIG_HOTPLUG_PCI_PCIE */
-static inline bool pciehp_no_msi(void) { return false; }
-#endif /* !CONFIG_HOTPLUG_PCI_PCIE */
 
 #ifdef CONFIG_PCIE_PME
 extern bool pcie_pme_msi_disabled;
@@ -68,15 +148,18 @@ static inline bool pcie_pme_no_msi(void) { return false; }
 static inline void pcie_pme_interrupt_enable(struct pci_dev *dev, bool en) {}
 #endif /* !CONFIG_PCIE_PME */
 
-#ifdef CONFIG_ACPI
-void pcie_port_acpi_setup(struct pci_dev *port, int *mask);
-
-static inline void pcie_port_platform_notify(struct pci_dev *port, int *mask)
+#ifdef CONFIG_ACPI_APEI
+int pcie_aer_get_firmware_first(struct pci_dev *pci_dev);
+#else
+static inline int pcie_aer_get_firmware_first(struct pci_dev *pci_dev)
 {
-	pcie_port_acpi_setup(port, mask);
+	if (pci_dev->__aer_firmware_first_valid)
+		return pci_dev->__aer_firmware_first;
+	return 0;
 }
-#else /* !CONFIG_ACPI */
-static inline void pcie_port_platform_notify(struct pci_dev *port, int *mask){}
-#endif /* !CONFIG_ACPI */
+#endif
 
+struct pcie_port_service_driver *pcie_port_find_service(struct pci_dev *dev,
+							u32 service);
+struct device *pcie_port_find_device(struct pci_dev *dev, u32 service);
 #endif /* _PORTDRV_H_ */

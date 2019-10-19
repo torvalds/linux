@@ -1,26 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
  * Author: Rob Clark <rob.clark@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <drm/drm_vblank.h>
 
 #include "omap_drv.h"
 
 struct omap_irq_wait {
 	struct list_head node;
 	wait_queue_head_t wq;
-	uint32_t irqmask;
+	u32 irqmask;
 	int count;
 };
 
@@ -29,7 +20,7 @@ static void omap_irq_update(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_irq_wait *wait;
-	uint32_t irqmask = priv->irq_mask;
+	u32 irqmask = priv->irq_mask;
 
 	assert_spin_locked(&priv->wait_lock);
 
@@ -38,7 +29,7 @@ static void omap_irq_update(struct drm_device *dev)
 
 	DBG("irqmask=%08x", irqmask);
 
-	priv->dispc_ops->write_irqenable(irqmask);
+	priv->dispc_ops->write_irqenable(priv->dispc, irqmask);
 }
 
 static void omap_irq_wait_handler(struct omap_irq_wait *wait)
@@ -48,7 +39,7 @@ static void omap_irq_wait_handler(struct omap_irq_wait *wait)
 }
 
 struct omap_irq_wait * omap_irq_wait_init(struct drm_device *dev,
-		uint32_t irqmask, int count)
+		u32 irqmask, int count)
 {
 	struct omap_drm_private *priv = dev->dev_private;
 	struct omap_irq_wait *wait = kzalloc(sizeof(*wait), GFP_KERNEL);
@@ -85,6 +76,28 @@ int omap_irq_wait(struct drm_device *dev, struct omap_irq_wait *wait,
 	return ret == 0 ? -1 : 0;
 }
 
+int omap_irq_enable_framedone(struct drm_crtc *crtc, bool enable)
+{
+	struct drm_device *dev = crtc->dev;
+	struct omap_drm_private *priv = dev->dev_private;
+	unsigned long flags;
+	enum omap_channel channel = omap_crtc_channel(crtc);
+	int framedone_irq =
+		priv->dispc_ops->mgr_get_framedone_irq(priv->dispc, channel);
+
+	DBG("dev=%p, crtc=%u, enable=%d", dev, channel, enable);
+
+	spin_lock_irqsave(&priv->wait_lock, flags);
+	if (enable)
+		priv->irq_mask |= framedone_irq;
+	else
+		priv->irq_mask &= ~framedone_irq;
+	omap_irq_update(dev);
+	spin_unlock_irqrestore(&priv->wait_lock, flags);
+
+	return 0;
+}
+
 /**
  * enable_vblank - enable vblank interrupt events
  * @dev: DRM device
@@ -108,7 +121,8 @@ int omap_irq_enable_vblank(struct drm_crtc *crtc)
 	DBG("dev=%p, crtc=%u", dev, channel);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	priv->irq_mask |= priv->dispc_ops->mgr_get_vsync_irq(channel);
+	priv->irq_mask |= priv->dispc_ops->mgr_get_vsync_irq(priv->dispc,
+							     channel);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 
@@ -134,7 +148,8 @@ void omap_irq_disable_vblank(struct drm_crtc *crtc)
 	DBG("dev=%p, crtc=%u", dev, channel);
 
 	spin_lock_irqsave(&priv->wait_lock, flags);
-	priv->irq_mask &= ~priv->dispc_ops->mgr_get_vsync_irq(channel);
+	priv->irq_mask &= ~priv->dispc_ops->mgr_get_vsync_irq(priv->dispc,
+							      channel);
 	omap_irq_update(dev);
 	spin_unlock_irqrestore(&priv->wait_lock, flags);
 }
@@ -198,23 +213,26 @@ static irqreturn_t omap_irq_handler(int irq, void *arg)
 	unsigned int id;
 	u32 irqstatus;
 
-	irqstatus = priv->dispc_ops->read_irqstatus();
-	priv->dispc_ops->clear_irqstatus(irqstatus);
-	priv->dispc_ops->read_irqstatus();        /* flush posted write */
+	irqstatus = priv->dispc_ops->read_irqstatus(priv->dispc);
+	priv->dispc_ops->clear_irqstatus(priv->dispc, irqstatus);
+	priv->dispc_ops->read_irqstatus(priv->dispc);	/* flush posted write */
 
 	VERB("irqs: %08x", irqstatus);
 
-	for (id = 0; id < priv->num_crtcs; id++) {
-		struct drm_crtc *crtc = priv->crtcs[id];
+	for (id = 0; id < priv->num_pipes; id++) {
+		struct drm_crtc *crtc = priv->pipes[id].crtc;
 		enum omap_channel channel = omap_crtc_channel(crtc);
 
-		if (irqstatus & priv->dispc_ops->mgr_get_vsync_irq(channel)) {
+		if (irqstatus & priv->dispc_ops->mgr_get_vsync_irq(priv->dispc, channel)) {
 			drm_handle_vblank(dev, id);
 			omap_crtc_vblank_irq(crtc);
 		}
 
-		if (irqstatus & priv->dispc_ops->mgr_get_sync_lost_irq(channel))
+		if (irqstatus & priv->dispc_ops->mgr_get_sync_lost_irq(priv->dispc, channel))
 			omap_crtc_error_irq(crtc, irqstatus);
+
+		if (irqstatus & priv->dispc_ops->mgr_get_framedone_irq(priv->dispc, channel))
+			omap_crtc_framedone_irq(crtc, irqstatus);
 	}
 
 	omap_irq_ocp_error_handler(dev, irqstatus);
@@ -247,7 +265,7 @@ static const u32 omap_underflow_irqs[] = {
 int omap_drm_irq_install(struct drm_device *dev)
 {
 	struct omap_drm_private *priv = dev->dev_private;
-	unsigned int num_mgrs = priv->dispc_ops->get_num_mgrs();
+	unsigned int num_mgrs = priv->dispc_ops->get_num_mgrs(priv->dispc);
 	unsigned int max_planes;
 	unsigned int i;
 	int ret;
@@ -265,13 +283,13 @@ int omap_drm_irq_install(struct drm_device *dev)
 	}
 
 	for (i = 0; i < num_mgrs; ++i)
-		priv->irq_mask |= priv->dispc_ops->mgr_get_sync_lost_irq(i);
+		priv->irq_mask |= priv->dispc_ops->mgr_get_sync_lost_irq(priv->dispc, i);
 
-	priv->dispc_ops->runtime_get();
-	priv->dispc_ops->clear_irqstatus(0xffffffff);
-	priv->dispc_ops->runtime_put();
+	priv->dispc_ops->runtime_get(priv->dispc);
+	priv->dispc_ops->clear_irqstatus(priv->dispc, 0xffffffff);
+	priv->dispc_ops->runtime_put(priv->dispc);
 
-	ret = priv->dispc_ops->request_irq(omap_irq_handler, dev);
+	ret = priv->dispc_ops->request_irq(priv->dispc, omap_irq_handler, dev);
 	if (ret < 0)
 		return ret;
 
@@ -289,5 +307,5 @@ void omap_drm_irq_uninstall(struct drm_device *dev)
 
 	dev->irq_enabled = false;
 
-	priv->dispc_ops->free_irq(dev);
+	priv->dispc_ops->free_irq(priv->dispc, dev);
 }

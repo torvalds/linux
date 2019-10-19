@@ -1,26 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * APM X-Gene SoC PMU (Performance Monitor Unit)
  *
  * Copyright (c) 2016, Applied Micro Circuits Corporation
  * Author: Hoan Tran <hotran@apm.com>
  *         Tai Nguyen <ttnguyen@apm.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/acpi.h>
 #include <linux/clk.h>
+#include <linux/cpuhotplug.h>
 #include <linux/cpumask.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
@@ -130,12 +119,14 @@ struct xgene_pmu_ops {
 
 struct xgene_pmu {
 	struct device *dev;
+	struct hlist_node node;
 	int version;
 	void __iomem *pcppmu_csr;
 	u32 mcb_active_mask;
 	u32 mc_active_mask;
 	u32 l3c_active_mask;
 	cpumask_t cpu;
+	int irq;
 	raw_spinlock_t lock;
 	const struct xgene_pmu_ops *ops;
 	struct list_head l3cpmus;
@@ -914,11 +905,6 @@ static int xgene_perf_event_init(struct perf_event *event)
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EINVAL;
 
-	/* SOC counters do not have usr/os/guest/host bits */
-	if (event->attr.exclude_user || event->attr.exclude_kernel ||
-	    event->attr.exclude_host || event->attr.exclude_guest)
-		return -EINVAL;
-
 	if (event->cpu < 0)
 		return -EINVAL;
 	/*
@@ -949,11 +935,11 @@ static int xgene_perf_event_init(struct perf_event *event)
 			!is_software_event(event->group_leader))
 		return -EINVAL;
 
-	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			group_entry)
+	for_each_sibling_event(sibling, event->group_leader) {
 		if (sibling->pmu != event->pmu &&
 				!is_software_event(sibling))
 			return -EINVAL;
+	}
 
 	return 0;
 }
@@ -1054,7 +1040,6 @@ static void xgene_perf_start(struct perf_event *event, int flags)
 static void xgene_perf_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hw = &event->hw;
-	u64 config;
 
 	if (hw->state & PERF_HES_UPTODATE)
 		return;
@@ -1066,7 +1051,6 @@ static void xgene_perf_stop(struct perf_event *event, int flags)
 	if (hw->state & PERF_HES_UPTODATE)
 		return;
 
-	config = hw->config;
 	xgene_perf_read(event);
 	hw->state |= PERF_HES_UPTODATE;
 }
@@ -1133,6 +1117,7 @@ static int xgene_init_perf(struct xgene_pmu_dev *pmu_dev, char *name)
 		.start		= xgene_perf_start,
 		.stop		= xgene_perf_stop,
 		.read		= xgene_perf_read,
+		.capabilities	= PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
 	/* Hardware counter init */
@@ -1463,7 +1448,7 @@ static char *xgene_pmu_dev_name(struct device *dev, u32 type, int id)
 	case PMU_TYPE_IOB:
 		return devm_kasprintf(dev, GFP_KERNEL, "iob%d", id);
 	case PMU_TYPE_IOB_SLOW:
-		return devm_kasprintf(dev, GFP_KERNEL, "iob-slow%d", id);
+		return devm_kasprintf(dev, GFP_KERNEL, "iob_slow%d", id);
 	case PMU_TYPE_MCB:
 		return devm_kasprintf(dev, GFP_KERNEL, "mcb%d", id);
 	case PMU_TYPE_MC:
@@ -1806,6 +1791,53 @@ static const struct acpi_device_id xgene_pmu_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, xgene_pmu_acpi_match);
 #endif
 
+static int xgene_pmu_online_cpu(unsigned int cpu, struct hlist_node *node)
+{
+	struct xgene_pmu *xgene_pmu = hlist_entry_safe(node, struct xgene_pmu,
+						       node);
+
+	if (cpumask_empty(&xgene_pmu->cpu))
+		cpumask_set_cpu(cpu, &xgene_pmu->cpu);
+
+	/* Overflow interrupt also should use the same CPU */
+	WARN_ON(irq_set_affinity(xgene_pmu->irq, &xgene_pmu->cpu));
+
+	return 0;
+}
+
+static int xgene_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
+{
+	struct xgene_pmu *xgene_pmu = hlist_entry_safe(node, struct xgene_pmu,
+						       node);
+	struct xgene_pmu_dev_ctx *ctx;
+	unsigned int target;
+
+	if (!cpumask_test_and_clear_cpu(cpu, &xgene_pmu->cpu))
+		return 0;
+	target = cpumask_any_but(cpu_online_mask, cpu);
+	if (target >= nr_cpu_ids)
+		return 0;
+
+	list_for_each_entry(ctx, &xgene_pmu->mcpmus, next) {
+		perf_pmu_migrate_context(&ctx->pmu_dev->pmu, cpu, target);
+	}
+	list_for_each_entry(ctx, &xgene_pmu->mcbpmus, next) {
+		perf_pmu_migrate_context(&ctx->pmu_dev->pmu, cpu, target);
+	}
+	list_for_each_entry(ctx, &xgene_pmu->l3cpmus, next) {
+		perf_pmu_migrate_context(&ctx->pmu_dev->pmu, cpu, target);
+	}
+	list_for_each_entry(ctx, &xgene_pmu->iobpmus, next) {
+		perf_pmu_migrate_context(&ctx->pmu_dev->pmu, cpu, target);
+	}
+
+	cpumask_set_cpu(target, &xgene_pmu->cpu);
+	/* Overflow interrupt also should use the same CPU */
+	WARN_ON(irq_set_affinity(xgene_pmu->irq, &xgene_pmu->cpu));
+
+	return 0;
+}
+
 static int xgene_pmu_probe(struct platform_device *pdev)
 {
 	const struct xgene_pmu_data *dev_data;
@@ -1814,6 +1846,14 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	struct resource *res;
 	int irq, rc;
 	int version;
+
+	/* Install a hook to update the reader CPU in case it goes offline */
+	rc = cpuhp_setup_state_multi(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
+				      "CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE",
+				      xgene_pmu_online_cpu,
+				      xgene_pmu_offline_cpu);
+	if (rc)
+		return rc;
 
 	xgene_pmu = devm_kzalloc(&pdev->dev, sizeof(*xgene_pmu), GFP_KERNEL);
 	if (!xgene_pmu)
@@ -1861,10 +1901,9 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	}
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
+	if (irq < 0)
 		return -EINVAL;
-	}
+
 	rc = devm_request_irq(&pdev->dev, irq, xgene_pmu_isr,
 				IRQF_NOBALANCING | IRQF_NO_THREAD,
 				dev_name(&pdev->dev), xgene_pmu);
@@ -1872,6 +1911,8 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Could not request IRQ %d\n", irq);
 		return rc;
 	}
+
+	xgene_pmu->irq = irq;
 
 	raw_spin_lock_init(&xgene_pmu->lock);
 
@@ -1883,13 +1924,11 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 		xgene_pmu->mc_active_mask = 0x1;
 	}
 
-	/* Pick one core to use for cpumask attributes */
-	cpumask_set_cpu(smp_processor_id(), &xgene_pmu->cpu);
-
-	/* Make sure that the overflow interrupt is handled by this CPU */
-	rc = irq_set_affinity(irq, &xgene_pmu->cpu);
+	/* Add this instance to the list used by the hotplug callback */
+	rc = cpuhp_state_add_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
+				      &xgene_pmu->node);
 	if (rc) {
-		dev_err(&pdev->dev, "Failed to set interrupt affinity!\n");
+		dev_err(&pdev->dev, "Error %d registering hotplug", rc);
 		return rc;
 	}
 
@@ -1897,13 +1936,18 @@ static int xgene_pmu_probe(struct platform_device *pdev)
 	rc = xgene_pmu_probe_pmu_dev(xgene_pmu, pdev);
 	if (rc) {
 		dev_err(&pdev->dev, "No PMU perf devices found!\n");
-		return rc;
+		goto out_unregister;
 	}
 
 	/* Enable interrupt */
 	xgene_pmu->ops->unmask_int(xgene_pmu);
 
 	return 0;
+
+out_unregister:
+	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
+				    &xgene_pmu->node);
+	return rc;
 }
 
 static void
@@ -1924,6 +1968,8 @@ static int xgene_pmu_remove(struct platform_device *pdev)
 	xgene_pmu_dev_cleanup(xgene_pmu, &xgene_pmu->iobpmus);
 	xgene_pmu_dev_cleanup(xgene_pmu, &xgene_pmu->mcbpmus);
 	xgene_pmu_dev_cleanup(xgene_pmu, &xgene_pmu->mcpmus);
+	cpuhp_state_remove_instance(CPUHP_AP_PERF_ARM_APM_XGENE_ONLINE,
+				    &xgene_pmu->node);
 
 	return 0;
 }

@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
+#include <linux/bitops.h>
 #include <linux/seq_file.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
 #include "scsi_debugfs.h"
 
-#define SCSI_CMD_FLAG_NAME(name) [ilog2(SCMD_##name)] = #name
+#define SCSI_CMD_FLAG_NAME(name)[const_ilog2(SCMD_##name)] = #name
 static const char *const scsi_cmd_flags[] = {
 	SCSI_CMD_FLAG_NAME(TAGGED),
 	SCSI_CMD_FLAG_NAME(UNCHECKED_ISA_DMA),
@@ -18,9 +19,7 @@ static int scsi_flags_show(struct seq_file *m, const unsigned long flags,
 	bool sep = false;
 	int i;
 
-	for (i = 0; i < sizeof(flags) * BITS_PER_BYTE; i++) {
-		if (!(flags & BIT(i)))
-			continue;
+	for_each_set_bit(i, &flags, BITS_PER_LONG) {
 		if (sep)
 			seq_puts(m, "|");
 		sep = true;

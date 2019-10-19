@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __HAL_COM_PHYCFG_H__
@@ -185,7 +177,7 @@ u8 		Channel,
 	bool		*bIn24G
 	);
 
-s8 PHY_GetTxPowerLimit (struct adapter *adapter, u32 RegPwrTblSel,
+s8 phy_get_tx_pwr_lmt (struct adapter *adapter, u32 RegPwrTblSel,
 			enum BAND_TYPE Band, enum CHANNEL_WIDTH Bandwidth,
 u8 		RfPath,
 u8 		DataRate,
@@ -219,23 +211,6 @@ PHY_GetTxPowerTrackingOffset(
 	struct adapter *padapter,
 	u8 	Rate,
 	u8 	RFPath
-	);
-
-u8
-PHY_GetTxPowerIndex(
-struct adapter *		padapter,
-u8 			RFPath,
-u8 			Rate,
-enum CHANNEL_WIDTH		BandWidth,
-u8 			Channel
-	);
-
-void
-PHY_SetTxPowerIndex(
-struct adapter *	padapter,
-u32 			PowerIndex,
-u8 		RFPath,
-u8 		Rate
 	);
 
 void

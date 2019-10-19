@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig PPC_82xx
 	bool "82xx-based boards (PQ II)"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 
 if PPC_82xx
 
@@ -51,11 +51,10 @@ endif
 
 config PQ2ADS
 	bool
-	default n
 
 config 8260
 	bool
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	select CPM2
 	help
 	  The MPC8260 is a typical embedded CPU made by Freescale.  Selecting

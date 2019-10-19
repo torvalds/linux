@@ -70,7 +70,6 @@ static const struct musb_register_map musb_regmap[] = {
 	{ "DMA_CNTLch7",	0x274,	16 },
 	{ "DMA_ADDRch7",	0x278,	32 },
 	{ "DMA_COUNTch7",	0x27C,	32 },
-#ifndef CONFIG_BLACKFIN
 	{ "ConfigData",	MUSB_CONFIGDATA,8 },
 	{ "BabbleCtl",	MUSB_BABBLE_CTL,8 },
 	{ "TxFIFOsz",	MUSB_TXFIFOSZ,	8 },
@@ -79,7 +78,6 @@ static const struct musb_register_map musb_regmap[] = {
 	{ "RxFIFOadd",	MUSB_RXFIFOADD,	16 },
 	{ "EPInfo",	MUSB_EPINFO,	8 },
 	{ "RAMInfo",	MUSB_RAMINFO,	8 },
-#endif
 	{  }	/* Terminating Entry */
 };
 
@@ -112,11 +110,7 @@ static int musb_regdump_show(struct seq_file *s, void *unused)
 	pm_runtime_put_autosuspend(musb->controller);
 	return 0;
 }
-
-static int musb_regdump_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, musb_regdump_show, inode->i_private);
-}
+DEFINE_SHOW_ATTRIBUTE(musb_regdump);
 
 static int musb_test_mode_show(struct seq_file *s, void *unused)
 {
@@ -160,13 +154,6 @@ static int musb_test_mode_show(struct seq_file *s, void *unused)
 
 	return 0;
 }
-
-static const struct file_operations musb_regdump_fops = {
-	.open			= musb_regdump_open,
-	.read			= seq_read,
-	.llseek			= seq_lseek,
-	.release		= single_release,
-};
 
 static int musb_test_mode_open(struct inode *inode, struct file *file)
 {
@@ -334,48 +321,18 @@ static const struct file_operations musb_softconnect_fops = {
 	.release		= single_release,
 };
 
-int musb_init_debugfs(struct musb *musb)
+void musb_init_debugfs(struct musb *musb)
 {
-	struct dentry		*root;
-	struct dentry		*file;
-	int			ret;
+	struct dentry *root;
 
 	root = debugfs_create_dir(dev_name(musb->controller), NULL);
-	if (!root) {
-		ret = -ENOMEM;
-		goto err0;
-	}
-
-	file = debugfs_create_file("regdump", S_IRUGO, root, musb,
-			&musb_regdump_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	file = debugfs_create_file("testmode", S_IRUGO | S_IWUSR,
-			root, musb, &musb_test_mode_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
-	file = debugfs_create_file("softconnect", S_IRUGO | S_IWUSR,
-			root, musb, &musb_softconnect_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-
 	musb->debugfs_root = root;
 
-	return 0;
-
-err1:
-	debugfs_remove_recursive(root);
-
-err0:
-	return ret;
+	debugfs_create_file("regdump", S_IRUGO, root, musb, &musb_regdump_fops);
+	debugfs_create_file("testmode", S_IRUGO | S_IWUSR, root, musb,
+			    &musb_test_mode_fops);
+	debugfs_create_file("softconnect", S_IRUGO | S_IWUSR, root, musb,
+			    &musb_softconnect_fops);
 }
 
 void /* __init_or_exit */ musb_exit_debugfs(struct musb *musb)

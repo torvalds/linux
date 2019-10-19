@@ -1,12 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "../../util/util.h"
 #include <signal.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdlib.h>
 #include <sys/ttydefaults.h>
 
-#include "../../util/cache.h"
-#include "../../util/debug.h"
 #include "../browser.h"
 #include "../keysyms.h"
 #include "../helpline.h"
@@ -162,8 +160,7 @@ next_key:
 	return key;
 }
 
-int ui__question_window(const char *title, const char *text,
-			const char *exit_msg, int delay_secs)
+void __ui__info_window(const char *title, const char *text, const char *exit_msg)
 {
 	int x, y;
 	int max_len = 0, nr_lines = 0;
@@ -185,10 +182,10 @@ int ui__question_window(const char *title, const char *text,
 		t = sep + 1;
 	}
 
-	pthread_mutex_lock(&ui__lock);
-
 	max_len += 2;
-	nr_lines += 4;
+	nr_lines += 2;
+	if (exit_msg)
+		nr_lines += 2;
 	y = SLtt_Screen_Rows / 2 - nr_lines / 2,
 	x = SLtt_Screen_Cols / 2 - max_len / 2;
 
@@ -199,18 +196,34 @@ int ui__question_window(const char *title, const char *text,
 		SLsmg_write_string((char *)title);
 	}
 	SLsmg_gotorc(++y, x);
-	nr_lines -= 2;
+	if (exit_msg)
+		nr_lines -= 2;
 	max_len -= 2;
 	SLsmg_write_wrapped_string((unsigned char *)text, y, x,
 				   nr_lines, max_len, 1);
-	SLsmg_gotorc(y + nr_lines - 2, x);
-	SLsmg_write_nstring((char *)" ", max_len);
-	SLsmg_gotorc(y + nr_lines - 1, x);
-	SLsmg_write_nstring((char *)exit_msg, max_len);
+	if (exit_msg) {
+		SLsmg_gotorc(y + nr_lines - 2, x);
+		SLsmg_write_nstring((char *)" ", max_len);
+		SLsmg_gotorc(y + nr_lines - 1, x);
+		SLsmg_write_nstring((char *)exit_msg, max_len);
+	}
+}
+
+void ui__info_window(const char *title, const char *text)
+{
+	pthread_mutex_lock(&ui__lock);
+	__ui__info_window(title, text, NULL);
 	SLsmg_refresh();
-
 	pthread_mutex_unlock(&ui__lock);
+}
 
+int ui__question_window(const char *title, const char *text,
+			const char *exit_msg, int delay_secs)
+{
+	pthread_mutex_lock(&ui__lock);
+	__ui__info_window(title, text, exit_msg);
+	SLsmg_refresh();
+	pthread_mutex_unlock(&ui__lock);
 	return ui__getch(delay_secs);
 }
 

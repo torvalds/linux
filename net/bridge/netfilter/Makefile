@@ -3,9 +3,11 @@
 # Makefile for the netfilter modules for Link Layer filtering on a bridge.
 #
 
-obj-$(CONFIG_NF_TABLES_BRIDGE) += nf_tables_bridge.o
 obj-$(CONFIG_NFT_BRIDGE_META)  += nft_meta_bridge.o
 obj-$(CONFIG_NFT_BRIDGE_REJECT)  += nft_reject_bridge.o
+
+# connection tracking
+obj-$(CONFIG_NF_CONNTRACK_BRIDGE) += nf_conntrack_bridge.o
 
 # packet logging
 obj-$(CONFIG_NF_LOG_BRIDGE) += nf_log_bridge.o

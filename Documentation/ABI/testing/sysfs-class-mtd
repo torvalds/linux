@@ -232,3 +232,11 @@ Description:
 		of the parent (another partition or a flash device) in bytes.
 		This attribute is absent on flash devices, so it can be used
 		to distinguish them from partitions.
+
+What:		/sys/class/mtd/mtdX/oobavail
+Date:		April 2018
+KernelVersion:	4.16
+Contact:	linux-mtd@lists.infradead.org
+Description:
+		Number of bytes available for a client to place data into
+		the out of band area.

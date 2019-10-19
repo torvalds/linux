@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * vimc-core.c Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/component.h>
@@ -24,7 +14,6 @@
 
 #include "vimc-common.h"
 
-#define VIMC_PDEV_NAME "vimc"
 #define VIMC_MDEV_MODEL_NAME "VIMC MDEV"
 
 #define VIMC_ENT_LINK(src, srcpad, sink, sinkpad, link_flags) {	\
@@ -221,6 +210,7 @@ static int vimc_comp_bind(struct device *master)
 
 err_mdev_unregister:
 	media_device_unregister(&vimc->mdev);
+	media_device_cleanup(&vimc->mdev);
 err_comp_unbind_all:
 	component_unbind_all(master, NULL);
 err_v4l2_unregister:
@@ -237,16 +227,14 @@ static void vimc_comp_unbind(struct device *master)
 	dev_dbg(master, "unbind");
 
 	media_device_unregister(&vimc->mdev);
+	media_device_cleanup(&vimc->mdev);
 	component_unbind_all(master, NULL);
 	v4l2_device_unregister(&vimc->v4l2_dev);
 }
 
 static int vimc_comp_compare(struct device *comp, void *data)
 {
-	const struct platform_device *pdev = to_platform_device(comp);
-	const char *name = data;
-
-	return !strcmp(pdev->dev.platform_data, name);
+	return comp == data;
 }
 
 static struct component_match *vimc_add_subdevs(struct vimc_device *vimc)
@@ -259,7 +247,7 @@ static struct component_match *vimc_add_subdevs(struct vimc_device *vimc)
 		dev_dbg(&vimc->pdev.dev, "new pdev for %s\n",
 			vimc->pipe_cfg->ents[i].drv);
 
-		strlcpy(pdata.entity_name, vimc->pipe_cfg->ents[i].name,
+		strscpy(pdata.entity_name, vimc->pipe_cfg->ents[i].name,
 			sizeof(pdata.entity_name));
 
 		vimc->subdevs[i] = platform_device_register_data(&vimc->pdev.dev,
@@ -276,7 +264,7 @@ static struct component_match *vimc_add_subdevs(struct vimc_device *vimc)
 		}
 
 		component_match_add(&vimc->pdev.dev, &match, vimc_comp_compare,
-				    (void *)vimc->pipe_cfg->ents[i].name);
+				    &vimc->subdevs[i]->dev);
 	}
 
 	return match;
@@ -303,6 +291,8 @@ static int vimc_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "probe");
 
+	memset(&vimc->mdev, 0, sizeof(vimc->mdev));
+
 	/* Create platform_device for each entity in the topology*/
 	vimc->subdevs = devm_kcalloc(&vimc->pdev.dev, vimc->pipe_cfg->num_ents,
 				     sizeof(*vimc->subdevs), GFP_KERNEL);
@@ -317,8 +307,10 @@ static int vimc_probe(struct platform_device *pdev)
 	vimc->v4l2_dev.mdev = &vimc->mdev;
 
 	/* Initialize media device */
-	strlcpy(vimc->mdev.model, VIMC_MDEV_MODEL_NAME,
+	strscpy(vimc->mdev.model, VIMC_MDEV_MODEL_NAME,
 		sizeof(vimc->mdev.model));
+	snprintf(vimc->mdev.bus_info, sizeof(vimc->mdev.bus_info),
+		 "platform:%s", VIMC_PDEV_NAME);
 	vimc->mdev.dev = &pdev->dev;
 	media_device_init(&vimc->mdev);
 
@@ -328,7 +320,6 @@ static int vimc_probe(struct platform_device *pdev)
 	if (ret) {
 		media_device_cleanup(&vimc->mdev);
 		vimc_rm_subdevs(vimc);
-		kfree(vimc);
 		return ret;
 	}
 

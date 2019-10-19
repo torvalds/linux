@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Intel SKL IPC Support
  *
  * Copyright (C) 2014-15, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 
 #ifndef __SKL_IPC_H
@@ -18,9 +10,9 @@
 
 #include <linux/irqreturn.h>
 #include "../common/sst-ipc.h"
+#include "skl-sst-dsp.h"
 
 struct sst_dsp;
-struct skl_sst;
 struct sst_generic_ipc;
 
 enum skl_ipc_pipeline_state {
@@ -73,51 +65,6 @@ struct skl_d0i3_data {
 struct skl_lib_info {
 	char name[SKL_LIB_NAME_LENGTH];
 	const struct firmware *fw;
-};
-
-struct skl_sst {
-	struct device *dev;
-	struct sst_dsp *dsp;
-
-	/* boot */
-	wait_queue_head_t boot_wait;
-	bool boot_complete;
-
-	/* module load */
-	wait_queue_head_t mod_load_wait;
-	bool mod_load_complete;
-	bool mod_load_status;
-
-	/* IPC messaging */
-	struct sst_generic_ipc ipc;
-
-	/* callback for miscbdge */
-	void (*enable_miscbdcge)(struct device *dev, bool enable);
-	/* Is CGCTL.MISCBDCGE disabled */
-	bool miscbdcg_disabled;
-
-	/* Populate module information */
-	struct list_head uuid_list;
-
-	/* Is firmware loaded */
-	bool fw_loaded;
-
-	/* first boot ? */
-	bool is_first_boot;
-
-	/* multi-core */
-	struct skl_dsp_cores cores;
-
-	/* library info */
-	struct skl_lib_info  lib_info[SKL_MAX_LIB];
-	int lib_count;
-
-	/* Callback to update D0i3C register */
-	void (*update_d0i3c)(struct device *dev, bool enable);
-
-	struct skl_d0i3_data d0i3;
-
-	const struct skl_dsp_ops *dsp_ops;
 };
 
 struct skl_ipc_init_instance_msg {
@@ -192,7 +139,8 @@ int skl_ipc_set_large_config(struct sst_generic_ipc *ipc,
 		struct skl_ipc_large_config_msg *msg, u32 *param);
 
 int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
-		struct skl_ipc_large_config_msg *msg, u32 *param);
+		struct skl_ipc_large_config_msg *msg,
+		u32 **payload, size_t *bytes);
 
 int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 			u8 dma_id, u8 table_id, bool wait);
@@ -209,7 +157,7 @@ void skl_ipc_int_disable(struct sst_dsp *dsp);
 
 bool skl_ipc_int_status(struct sst_dsp *dsp);
 void skl_ipc_free(struct sst_generic_ipc *ipc);
-int skl_ipc_init(struct device *dev, struct skl_sst *skl);
+int skl_ipc_init(struct device *dev, struct skl_dev *skl);
 void skl_clear_module_cnt(struct sst_dsp *ctx);
 
 void skl_ipc_process_reply(struct sst_generic_ipc *ipc,

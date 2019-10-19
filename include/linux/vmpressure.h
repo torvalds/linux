@@ -17,7 +17,7 @@ struct vmpressure {
 	unsigned long tree_scanned;
 	unsigned long tree_reclaimed;
 	/* The lock is used to keep the scanned/reclaimed above in sync. */
-	struct spinlock sr_lock;
+	spinlock_t sr_lock;
 
 	/* The list of vmpressure_event structs. */
 	struct list_head events;

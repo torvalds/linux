@@ -328,40 +328,21 @@ static int opticon_tiocmset(struct tty_struct *tty,
 	return 0;
 }
 
-static int get_serial_info(struct usb_serial_port *port,
-			   struct serial_struct __user *serial)
-{
-	struct serial_struct tmp;
-
-	memset(&tmp, 0x00, sizeof(tmp));
-
-	/* fake emulate a 16550 uart to make userspace code happy */
-	tmp.type		= PORT_16550A;
-	tmp.line		= port->minor;
-	tmp.port		= 0;
-	tmp.irq			= 0;
-	tmp.xmit_fifo_size	= 1024;
-	tmp.baud_base		= 9600;
-	tmp.close_delay		= 5*HZ;
-	tmp.closing_wait	= 30*HZ;
-
-	if (copy_to_user(serial, &tmp, sizeof(*serial)))
-		return -EFAULT;
-	return 0;
-}
-
-static int opticon_ioctl(struct tty_struct *tty,
-			 unsigned int cmd, unsigned long arg)
+static int get_serial_info(struct tty_struct *tty,
+			   struct serial_struct *ss)
 {
 	struct usb_serial_port *port = tty->driver_data;
 
-	switch (cmd) {
-	case TIOCGSERIAL:
-		return get_serial_info(port,
-				       (struct serial_struct __user *)arg);
-	}
-
-	return -ENOIOCTLCMD;
+	/* fake emulate a 16550 uart to make userspace code happy */
+	ss->type		= PORT_16550A;
+	ss->line		= port->minor;
+	ss->port		= 0;
+	ss->irq			= 0;
+	ss->xmit_fifo_size	= 1024;
+	ss->baud_base		= 9600;
+	ss->close_delay		= 5*HZ;
+	ss->closing_wait	= 30*HZ;
+	return 0;
 }
 
 static int opticon_port_probe(struct usb_serial_port *port)
@@ -404,7 +385,7 @@ static struct usb_serial_driver opticon_device = {
 	.write_room = 		opticon_write_room,
 	.throttle =		usb_serial_generic_throttle,
 	.unthrottle =		usb_serial_generic_unthrottle,
-	.ioctl =		opticon_ioctl,
+	.get_serial =		get_serial_info,
 	.tiocmget =		opticon_tiocmget,
 	.tiocmset =		opticon_tiocmset,
 	.process_read_urb =	opticon_process_read_urb,

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Support for CX23885 analog audio capture
@@ -5,16 +6,6 @@
  *    (c) 2008 Mijhail Moreyra <mijhail.moreyra@gmail.com>
  *    Adapted from cx88-alsa.c
  *    (c) 2009 Steven Toth <stoth@kernellabs.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx23885.h"
@@ -59,7 +50,7 @@ module_param(audio_debug, int, 0644);
 MODULE_PARM_DESC(audio_debug, "enable debug messages [analog audio]");
 
 /****************************************************************************
-			Board specific funtions
+			Board specific functions
  ****************************************************************************/
 
 /* Constants taken from cx88-reg.h */
@@ -89,14 +80,13 @@ static int cx23885_alsa_dma_init(struct cx23885_audio_dev *chip, int nr_pages)
 		return -ENOMEM;
 	}
 
-	dprintk(1, "vmalloc is at addr 0x%08lx, size=%d\n",
-				(unsigned long)buf->vaddr,
-				nr_pages << PAGE_SHIFT);
+	dprintk(1, "vmalloc is at addr %p, size=%d\n",
+		buf->vaddr, nr_pages << PAGE_SHIFT);
 
 	memset(buf->vaddr, 0, nr_pages << PAGE_SHIFT);
 	buf->nr_pages = nr_pages;
 
-	buf->sglist = vzalloc(buf->nr_pages * sizeof(*buf->sglist));
+	buf->sglist = vzalloc(array_size(sizeof(*buf->sglist), buf->nr_pages));
 	if (NULL == buf->sglist)
 		goto vzalloc_err;
 
@@ -527,7 +517,7 @@ static int snd_cx23885_pcm(struct cx23885_audio_dev *chip, int device,
 	if (err < 0)
 		return err;
 	pcm->private_data = chip;
-	strcpy(pcm->name, name);
+	strscpy(pcm->name, name, sizeof(pcm->name));
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_cx23885_pcm_ops);
 
 	return 0;
@@ -572,7 +562,7 @@ struct cx23885_audio_dev *cx23885_audio_register(struct cx23885_dev *dev)
 	if (err < 0)
 		goto error;
 
-	strcpy(card->driver, "CX23885");
+	strscpy(card->driver, "CX23885", sizeof(card->driver));
 	sprintf(card->shortname, "Conexant CX23885");
 	sprintf(card->longname, "%s at %s", card->shortname, dev->name);
 

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 - 2015 Linaro Ltd.
  * Copyright (c) 2013 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/sched.h>
 #include <linux/device.h>
@@ -52,8 +49,6 @@
 #define CX_SRC			0x814
 #define CX_DST			0x818
 #define CX_CFG			0x81c
-#define AXI_CFG			0x820
-#define AXI_CFG_DEFAULT		0x201201
 
 #define CX_LLI_CHAIN_EN		0x2
 #define CX_CFG_EN		0x1
@@ -87,10 +82,10 @@ struct k3_dma_chan {
 	struct virt_dma_chan	vc;
 	struct k3_dma_phy	*phy;
 	struct list_head	node;
-	enum dma_transfer_direction dir;
 	dma_addr_t		dev_addr;
 	enum dma_status		status;
 	bool			cyclic;
+	struct dma_slave_config	slave_config;
 };
 
 struct k3_dma_phy {
@@ -113,10 +108,23 @@ struct k3_dma_dev {
 	struct dma_pool		*pool;
 	u32			dma_channels;
 	u32			dma_requests;
+	u32			dma_channel_mask;
 	unsigned int		irq;
 };
 
+
+#define K3_FLAG_NOCLK	BIT(1)
+
+struct k3dma_soc_data {
+	unsigned long flags;
+};
+
+
 #define to_k3_dma(dmadev) container_of(dmadev, struct k3_dma_dev, slave)
+
+static int k3_dma_config_write(struct dma_chan *chan,
+			       enum dma_transfer_direction dir,
+			       struct dma_slave_config *cfg);
 
 static struct k3_dma_chan *to_k3_chan(struct dma_chan *chan)
 {
@@ -157,7 +165,6 @@ static void k3_dma_set_desc(struct k3_dma_phy *phy, struct k3_desc_hw *hw)
 	writel_relaxed(hw->count, phy->base + CX_CNT0);
 	writel_relaxed(hw->saddr, phy->base + CX_SRC);
 	writel_relaxed(hw->daddr, phy->base + CX_DST);
-	writel_relaxed(AXI_CFG_DEFAULT, phy->base + AXI_CFG);
 	writel_relaxed(hw->config, phy->base + CX_CFG);
 }
 
@@ -310,6 +317,9 @@ static void k3_dma_tasklet(unsigned long arg)
 	/* check new channel request in d->chan_pending */
 	spin_lock_irq(&d->lock);
 	for (pch = 0; pch < d->dma_channels; pch++) {
+		if (!(d->dma_channel_mask & (1 << pch)))
+			continue;
+
 		p = &d->phy[pch];
 
 		if (p->vchan == NULL && !list_empty(&d->chan_pending)) {
@@ -327,6 +337,9 @@ static void k3_dma_tasklet(unsigned long arg)
 	spin_unlock_irq(&d->lock);
 
 	for (pch = 0; pch < d->dma_channels; pch++) {
+		if (!(d->dma_channel_mask & (1 << pch)))
+			continue;
+
 		if (pch_alloc & (1 << pch)) {
 			p = &d->phy[pch];
 			c = p->vchan;
@@ -501,14 +514,8 @@ static struct dma_async_tx_descriptor *k3_dma_prep_memcpy(
 		copy = min_t(size_t, len, DMA_MAX_SIZE);
 		k3_dma_fill_desc(ds, dst, src, copy, num++, c->ccfg);
 
-		if (c->dir == DMA_MEM_TO_DEV) {
-			src += copy;
-		} else if (c->dir == DMA_DEV_TO_MEM) {
-			dst += copy;
-		} else {
-			src += copy;
-			dst += copy;
-		}
+		src += copy;
+		dst += copy;
 		len -= copy;
 	} while (len);
 
@@ -542,6 +549,7 @@ static struct dma_async_tx_descriptor *k3_dma_prep_slave_sg(
 	if (!ds)
 		return NULL;
 	num = 0;
+	k3_dma_config_write(chan, dir, &c->slave_config);
 
 	for_each_sg(sgl, sg, sglen, i) {
 		addr = sg_dma_address(sg);
@@ -602,6 +610,7 @@ k3_dma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t buf_addr,
 	avail = buf_len;
 	total = avail;
 	num = 0;
+	k3_dma_config_write(chan, dir, &c->slave_config);
 
 	if (period_len < modulo)
 		modulo = period_len;
@@ -642,18 +651,26 @@ static int k3_dma_config(struct dma_chan *chan,
 			 struct dma_slave_config *cfg)
 {
 	struct k3_dma_chan *c = to_k3_chan(chan);
+
+	memcpy(&c->slave_config, cfg, sizeof(*cfg));
+
+	return 0;
+}
+
+static int k3_dma_config_write(struct dma_chan *chan,
+			       enum dma_transfer_direction dir,
+			       struct dma_slave_config *cfg)
+{
+	struct k3_dma_chan *c = to_k3_chan(chan);
 	u32 maxburst = 0, val = 0;
 	enum dma_slave_buswidth width = DMA_SLAVE_BUSWIDTH_UNDEFINED;
 
-	if (cfg == NULL)
-		return -EINVAL;
-	c->dir = cfg->direction;
-	if (c->dir == DMA_DEV_TO_MEM) {
+	if (dir == DMA_DEV_TO_MEM) {
 		c->ccfg = CX_CFG_DSTINCR;
 		c->dev_addr = cfg->src_addr;
 		maxburst = cfg->src_maxburst;
 		width = cfg->src_addr_width;
-	} else if (c->dir == DMA_MEM_TO_DEV) {
+	} else if (dir == DMA_MEM_TO_DEV) {
 		c->ccfg = CX_CFG_SRCINCR;
 		c->dev_addr = cfg->dst_addr;
 		maxburst = cfg->dst_maxburst;
@@ -782,8 +799,21 @@ static int k3_dma_transfer_resume(struct dma_chan *chan)
 	return 0;
 }
 
+static const struct k3dma_soc_data k3_v1_dma_data = {
+	.flags = 0,
+};
+
+static const struct k3dma_soc_data asp_v1_dma_data = {
+	.flags = K3_FLAG_NOCLK,
+};
+
 static const struct of_device_id k3_pdma_dt_ids[] = {
-	{ .compatible = "hisilicon,k3-dma-1.0", },
+	{ .compatible = "hisilicon,k3-dma-1.0",
+	  .data = &k3_v1_dma_data
+	},
+	{ .compatible = "hisilicon,hisi-pcm-asp-dma-1.0",
+	  .data = &asp_v1_dma_data
+	},
 	{}
 };
 MODULE_DEVICE_TABLE(of, k3_pdma_dt_ids);
@@ -794,7 +824,7 @@ static struct dma_chan *k3_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 	struct k3_dma_dev *d = ofdma->of_dma_data;
 	unsigned int request = dma_spec->args[0];
 
-	if (request > d->dma_requests)
+	if (request >= d->dma_requests)
 		return NULL;
 
 	return dma_get_slave_channel(&(d->chans[request].vc.chan));
@@ -802,6 +832,7 @@ static struct dma_chan *k3_of_dma_simple_xlate(struct of_phandle_args *dma_spec,
 
 static int k3_dma_probe(struct platform_device *op)
 {
+	const struct k3dma_soc_data *soc_data;
 	struct k3_dma_dev *d;
 	const struct of_device_id *of_id;
 	struct resource *iores;
@@ -815,6 +846,10 @@ static int k3_dma_probe(struct platform_device *op)
 	if (!d)
 		return -ENOMEM;
 
+	soc_data = device_get_match_data(&op->dev);
+	if (!soc_data)
+		return -EINVAL;
+
 	d->base = devm_ioremap_resource(&op->dev, iores);
 	if (IS_ERR(d->base))
 		return PTR_ERR(d->base);
@@ -825,12 +860,21 @@ static int k3_dma_probe(struct platform_device *op)
 				"dma-channels", &d->dma_channels);
 		of_property_read_u32((&op->dev)->of_node,
 				"dma-requests", &d->dma_requests);
+		ret = of_property_read_u32((&op->dev)->of_node,
+				"dma-channel-mask", &d->dma_channel_mask);
+		if (ret) {
+			dev_warn(&op->dev,
+				 "dma-channel-mask doesn't exist, considering all as available.\n");
+			d->dma_channel_mask = (u32)~0UL;
+		}
 	}
 
-	d->clk = devm_clk_get(&op->dev, NULL);
-	if (IS_ERR(d->clk)) {
-		dev_err(&op->dev, "no dma clk\n");
-		return PTR_ERR(d->clk);
+	if (!(soc_data->flags & K3_FLAG_NOCLK)) {
+		d->clk = devm_clk_get(&op->dev, NULL);
+		if (IS_ERR(d->clk)) {
+			dev_err(&op->dev, "no dma clk\n");
+			return PTR_ERR(d->clk);
+		}
 	}
 
 	irq = platform_get_irq(op, 0);
@@ -848,14 +892,18 @@ static int k3_dma_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	/* init phy channel */
-	d->phy = devm_kzalloc(&op->dev,
-		d->dma_channels * sizeof(struct k3_dma_phy), GFP_KERNEL);
+	d->phy = devm_kcalloc(&op->dev,
+		d->dma_channels, sizeof(struct k3_dma_phy), GFP_KERNEL);
 	if (d->phy == NULL)
 		return -ENOMEM;
 
 	for (i = 0; i < d->dma_channels; i++) {
-		struct k3_dma_phy *p = &d->phy[i];
+		struct k3_dma_phy *p;
 
+		if (!(d->dma_channel_mask & BIT(i)))
+			continue;
+
+		p = &d->phy[i];
 		p->idx = i;
 		p->base = d->base + i * 0x40;
 	}
@@ -879,8 +927,8 @@ static int k3_dma_probe(struct platform_device *op)
 	d->slave.copy_align = DMAENGINE_ALIGN_8_BYTES;
 
 	/* init virtual channel */
-	d->chans = devm_kzalloc(&op->dev,
-		d->dma_requests * sizeof(struct k3_dma_chan), GFP_KERNEL);
+	d->chans = devm_kcalloc(&op->dev,
+		d->dma_requests, sizeof(struct k3_dma_chan), GFP_KERNEL);
 	if (d->chans == NULL)
 		return -ENOMEM;
 

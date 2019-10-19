@@ -1,17 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2012
  *
@@ -42,8 +30,6 @@ _GLOBAL(copypage_power7)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	/* setup read stream 0  */
 	dcbt	0,r4,0b01000  	/* addr from */
 	dcbt	0,r7,0b01010   /* length and depth from */
@@ -52,7 +38,6 @@ _GLOBAL(copypage_power7)
 	dcbtst	0,r10,0b01010  /* length and depth to */
 	eieio
 	dcbt	0,r8,0b01010	/* all streams GO */
-.machine pop
 
 #ifdef CONFIG_ALTIVEC
 	mflr	r0
@@ -60,7 +45,7 @@ _GLOBAL(copypage_power7)
 	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	enter_vmx_copy
+	bl	enter_vmx_ops
 	cmpwi	r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STK_REG(R31)(r1)
@@ -103,7 +88,7 @@ _GLOBAL(copypage_power7)
 	addi	r3,r3,128
 	bdnz	1b
 
-	b	exit_vmx_copy		/* tail call optimise */
+	b	exit_vmx_ops		/* tail call optimise */
 
 #else
 	li	r0,(PAGE_SIZE/128)

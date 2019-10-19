@@ -26,29 +26,42 @@ struct sock_xprt {
 	 */
 	struct socket *		sock;
 	struct sock *		inet;
+	struct file *		file;
 
 	/*
 	 * State of TCP reply receive
 	 */
-	__be32			tcp_fraghdr,
-				tcp_xid,
-				tcp_calldir;
+	struct {
+		struct {
+			__be32	fraghdr,
+				xid,
+				calldir;
+		} __attribute__((packed));
 
-	u32			tcp_offset,
-				tcp_reclen;
+		u32		offset,
+				len;
 
-	unsigned long		tcp_copied,
-				tcp_flags;
+		unsigned long	copied;
+	} recv;
+
+	/*
+	 * State of TCP transmit queue
+	 */
+	struct {
+		u32		offset;
+	} xmit;
 
 	/*
 	 * Connection of transports
 	 */
 	unsigned long		sock_state;
 	struct delayed_work	connect_worker;
+	struct work_struct	error_worker;
 	struct work_struct	recv_worker;
 	struct mutex		recv_mutex;
 	struct sockaddr_storage	srcaddr;
 	unsigned short		srcport;
+	int			xprt_err;
 
 	/*
 	 * UDP socket buffer size parameters
@@ -68,23 +81,15 @@ struct sock_xprt {
 };
 
 /*
- * TCP receive state flags
- */
-#define TCP_RCV_LAST_FRAG	(1UL << 0)
-#define TCP_RCV_COPY_FRAGHDR	(1UL << 1)
-#define TCP_RCV_COPY_XID	(1UL << 2)
-#define TCP_RCV_COPY_DATA	(1UL << 3)
-#define TCP_RCV_READ_CALLDIR	(1UL << 4)
-#define TCP_RCV_COPY_CALLDIR	(1UL << 5)
-
-/*
  * TCP RPC flags
  */
-#define TCP_RPC_REPLY		(1UL << 6)
-
 #define XPRT_SOCK_CONNECTING	1U
 #define XPRT_SOCK_DATA_READY	(2)
 #define XPRT_SOCK_UPD_TIMEOUT	(3)
+#define XPRT_SOCK_WAKE_ERROR	(4)
+#define XPRT_SOCK_WAKE_WRITE	(5)
+#define XPRT_SOCK_WAKE_PENDING	(6)
+#define XPRT_SOCK_WAKE_DISCONNECT	(7)
 
 #endif /* __KERNEL__ */
 

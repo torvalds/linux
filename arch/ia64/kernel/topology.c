@@ -19,7 +19,7 @@
 #include <linux/node.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/nodemask.h>
 #include <linux/notifier.h>
 #include <linux/export.h>
@@ -42,7 +42,6 @@ EXPORT_SYMBOL_GPL(arch_fix_phys_package_id);
 #ifdef CONFIG_HOTPLUG_CPU
 int __ref arch_register_cpu(int num)
 {
-#ifdef CONFIG_ACPI
 	/*
 	 * If CPEI can be re-targeted or if this is not
 	 * CPEI target, then it is hotpluggable
@@ -50,7 +49,6 @@ int __ref arch_register_cpu(int num)
 	if (can_cpei_retarget() || !is_cpu_cpei_target(num))
 		sysfs_cpus[num].cpu.hotpluggable = 1;
 	map_cpu_to_node(num, node_cpuid[num].nid);
-#endif
 	return register_cpu(&sysfs_cpus[num].cpu, num);
 }
 EXPORT_SYMBOL(arch_register_cpu);
@@ -58,9 +56,7 @@ EXPORT_SYMBOL(arch_register_cpu);
 void __ref arch_unregister_cpu(int num)
 {
 	unregister_cpu(&sysfs_cpus[num].cpu);
-#ifdef CONFIG_ACPI
 	unmap_cpu_from_node(num, cpu_to_node(num));
-#endif
 }
 EXPORT_SYMBOL(arch_unregister_cpu);
 #else
@@ -85,7 +81,7 @@ static int __init topology_init(void)
 	}
 #endif
 
-	sysfs_cpus = kzalloc(sizeof(struct ia64_cpu) * NR_CPUS, GFP_KERNEL);
+	sysfs_cpus = kcalloc(NR_CPUS, sizeof(struct ia64_cpu), GFP_KERNEL);
 	if (!sysfs_cpus)
 		panic("kzalloc in topology_init failed - NR_CPUS too big?");
 
@@ -319,8 +315,8 @@ static int cpu_cache_sysfs_init(unsigned int cpu)
 		return -1;
 	}
 
-	this_cache=kzalloc(sizeof(struct cache_info)*unique_caches,
-			GFP_KERNEL);
+	this_cache=kcalloc(unique_caches, sizeof(struct cache_info),
+			   GFP_KERNEL);
 	if (this_cache == NULL)
 		return -ENOMEM;
 

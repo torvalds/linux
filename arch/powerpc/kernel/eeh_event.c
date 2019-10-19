@@ -1,17 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Copyright (c) 2005 Linas Vepstas <linas@linas.org>
  */
@@ -35,7 +23,7 @@
  */
 
 static DEFINE_SPINLOCK(eeh_eventlist_lock);
-static struct semaphore eeh_eventlist_sem;
+static DECLARE_COMPLETION(eeh_eventlist_event);
 static LIST_HEAD(eeh_eventlist);
 
 /**
@@ -52,10 +40,9 @@ static int eeh_event_handler(void * dummy)
 {
 	unsigned long flags;
 	struct eeh_event *event;
-	struct eeh_pe *pe;
 
 	while (!kthread_should_stop()) {
-		if (down_interruptible(&eeh_eventlist_sem))
+		if (wait_for_completion_interruptible(&eeh_eventlist_event))
 			break;
 
 		/* Fetch EEH event from the queue */
@@ -71,21 +58,10 @@ static int eeh_event_handler(void * dummy)
 			continue;
 
 		/* We might have event without binding PE */
-		pe = event->pe;
-		if (pe) {
-			eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
-			if (pe->type & EEH_PE_PHB)
-				pr_info("EEH: Detected error on PHB#%x\n",
-					 pe->phb->global_number);
-			else
-				pr_info("EEH: Detected PCI bus error on "
-					"PHB#%x-PE#%x\n",
-					pe->phb->global_number, pe->addr);
-			eeh_handle_event(pe);
-			eeh_pe_state_clear(pe, EEH_PE_RECOVERING);
-		} else {
-			eeh_handle_event(NULL);
-		}
+		if (event->pe)
+			eeh_handle_normal_event(event->pe);
+		else
+			eeh_handle_special_event();
 
 		kfree(event);
 	}
@@ -103,9 +79,6 @@ int eeh_event_init(void)
 {
 	struct task_struct *t;
 	int ret = 0;
-
-	/* Initialize semaphore */
-	sema_init(&eeh_eventlist_sem, 0);
 
 	t = kthread_run(eeh_event_handler, NULL, "eehd");
 	if (IS_ERR(t)) {
@@ -126,7 +99,7 @@ int eeh_event_init(void)
  * the actual event will be delivered in a normal context
  * (from a workqueue).
  */
-int eeh_send_failure_event(struct eeh_pe *pe)
+int __eeh_send_failure_event(struct eeh_pe *pe)
 {
 	unsigned long flags;
 	struct eeh_event *event;
@@ -138,15 +111,47 @@ int eeh_send_failure_event(struct eeh_pe *pe)
 	}
 	event->pe = pe;
 
+	/*
+	 * Mark the PE as recovering before inserting it in the queue.
+	 * This prevents the PE from being free()ed by a hotplug driver
+	 * while the PE is sitting in the event queue.
+	 */
+	if (pe) {
+#ifdef CONFIG_STACKTRACE
+		/*
+		 * Save the current stack trace so we can dump it from the
+		 * event handler thread.
+		 */
+		pe->trace_entries = stack_trace_save(pe->stack_trace,
+					 ARRAY_SIZE(pe->stack_trace), 0);
+#endif /* CONFIG_STACKTRACE */
+
+		eeh_pe_state_mark(pe, EEH_PE_RECOVERING);
+	}
+
 	/* We may or may not be called in an interrupt context */
 	spin_lock_irqsave(&eeh_eventlist_lock, flags);
 	list_add(&event->list, &eeh_eventlist);
 	spin_unlock_irqrestore(&eeh_eventlist_lock, flags);
 
 	/* For EEH deamon to knick in */
-	up(&eeh_eventlist_sem);
+	complete(&eeh_eventlist_event);
 
 	return 0;
+}
+
+int eeh_send_failure_event(struct eeh_pe *pe)
+{
+	/*
+	 * If we've manually supressed recovery events via debugfs
+	 * then just drop it on the floor.
+	 */
+	if (eeh_debugfs_no_recover) {
+		pr_err("EEH: Event dropped due to no_recover setting\n");
+		return 0;
+	}
+
+	return __eeh_send_failure_event(pe);
 }
 
 /**

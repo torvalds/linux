@@ -100,14 +100,15 @@ indicates that it is caching uptodate data.
 
 Glock locking order within GFS2:
 
- 1. i_mutex (if required)
+ 1. i_rwsem (if required)
  2. Rename glock (for rename only)
  3. Inode glock(s)
     (Parents before children, inodes at "same level" with same parent in
      lock number order)
  4. Rgrp glock(s) (for (de)allocation operations)
  5. Transaction glock (via gfs2_trans_begin) for non-read operations
- 6. Page lock  (always last, very important!)
+ 6. i_rw_mutex (if required)
+ 7. Page lock  (always last, very important!)
 
 There are two glocks per inode. One deals with access to the inode
 itself (locking order as above), and the other, known as the iopen

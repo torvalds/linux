@@ -33,6 +33,7 @@
 #include <linux/hw_breakpoint.h>
 #include <linux/perf_event.h>
 #include <linux/context_tracking.h>
+#include <linux/nospec.h>
 
 #include <linux/uaccess.h>
 #include <linux/pkeys.h>
@@ -41,6 +42,8 @@
 #include <asm/switch_to.h>
 #include <asm/tm.h>
 #include <asm/asm-prototypes.h>
+#include <asm/debug.h>
+#include <asm/hw_breakpoint.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -273,6 +276,8 @@ static int set_user_trap(struct task_struct *task, unsigned long trap)
  */
 int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 {
+	unsigned int regs_max;
+
 	if ((task->thread.regs == NULL) || !data)
 		return -EIO;
 
@@ -296,7 +301,9 @@ int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 	}
 #endif
 
-	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long))) {
+	regs_max = sizeof(struct user_pt_regs) / sizeof(unsigned long);
+	if (regno < regs_max) {
+		regno = array_index_nospec(regno, regs_max);
 		*data = ((unsigned long *)task->thread.regs)[regno];
 		return 0;
 	}
@@ -320,6 +327,7 @@ int ptrace_put_reg(struct task_struct *task, int regno, unsigned long data)
 		return set_user_dscr(task, data);
 
 	if (regno <= PT_MAX_PUT_REG) {
+		regno = array_index_nospec(regno, PT_MAX_PUT_REG + 1);
 		((unsigned long *)task->thread.regs)[regno] = data;
 		return 0;
 	}
@@ -359,10 +367,10 @@ static int gpr_get(struct task_struct *target, const struct user_regset *regset,
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					  &target->thread.regs->orig_gpr3,
 					  offsetof(struct pt_regs, orig_gpr3),
-					  sizeof(struct pt_regs));
+					  sizeof(struct user_pt_regs));
 	if (!ret)
 		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       sizeof(struct pt_regs), -1);
+					       sizeof(struct user_pt_regs), -1);
 
 	return ret;
 }
@@ -560,6 +568,7 @@ static int vr_get(struct task_struct *target, const struct user_regset *regset,
 		/*
 		 * Copy out only the low-order word of vrsave.
 		 */
+		int start, end;
 		union {
 			elf_vrreg_t reg;
 			u32 word;
@@ -568,8 +577,10 @@ static int vr_get(struct task_struct *target, const struct user_regset *regset,
 
 		vrsave.word = target->thread.vrsave;
 
+		start = 33 * sizeof(vector128);
+		end = start + sizeof(vrsave);
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, &vrsave,
-					  33 * sizeof(vector128), -1);
+					  start, end);
 	}
 
 	return ret;
@@ -607,6 +618,7 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 		/*
 		 * We use only the first word of vrsave.
 		 */
+		int start, end;
 		union {
 			elf_vrreg_t reg;
 			u32 word;
@@ -615,8 +627,10 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 
 		vrsave.word = target->thread.vrsave;
 
+		start = 33 * sizeof(vector128);
+		end = start + sizeof(vrsave);
 		ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, &vrsave,
-					 33 * sizeof(vector128), -1);
+					 start, end);
 		if (!ret)
 			target->thread.vrsave = vrsave.word;
 	}
@@ -852,10 +866,10 @@ static int tm_cgpr_get(struct task_struct *target,
 		ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 					  &target->thread.ckpt_regs.orig_gpr3,
 					  offsetof(struct pt_regs, orig_gpr3),
-					  sizeof(struct pt_regs));
+					  sizeof(struct user_pt_regs));
 	if (!ret)
 		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
-					       sizeof(struct pt_regs), -1);
+					       sizeof(struct user_pt_regs), -1);
 
 	return ret;
 }
@@ -1608,7 +1622,7 @@ static int ppr_get(struct task_struct *target,
 		      void *kbuf, void __user *ubuf)
 {
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				   &target->thread.ppr, 0, sizeof(u64));
+				   &target->thread.regs->ppr, 0, sizeof(u64));
 }
 
 static int ppr_set(struct task_struct *target,
@@ -1617,7 +1631,7 @@ static int ppr_set(struct task_struct *target,
 		      const void *kbuf, const void __user *ubuf)
 {
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.ppr, 0, sizeof(u64));
+				  &target->thread.regs->ppr, 0, sizeof(u64));
 }
 
 static int dscr_get(struct task_struct *target,
@@ -2378,6 +2392,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	struct perf_event_attr attr;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #ifndef CONFIG_PPC_ADV_DEBUG_REGS
+	bool set_bp = true;
 	struct arch_hw_breakpoint hw_brk;
 #endif
 
@@ -2411,9 +2426,10 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	hw_brk.address = data & (~HW_BRK_TYPE_DABR);
 	hw_brk.type = (data & HW_BRK_TYPE_DABR) | HW_BRK_TYPE_PRIV_ALL;
 	hw_brk.len = 8;
+	set_bp = (data) && (hw_brk.type & HW_BRK_TYPE_RDWR);
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	bp = thread->ptrace_bps[0];
-	if ((!data) || !(hw_brk.type & HW_BRK_TYPE_RDWR)) {
+	if (!set_bp) {
 		if (bp) {
 			unregister_hw_breakpoint(bp);
 			thread->ptrace_bps[0] = NULL;
@@ -2440,6 +2456,7 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 	/* Create a new breakpoint request if one doesn't exist already */
 	hw_breakpoint_init(&attr);
 	attr.bp_addr = hw_brk.address;
+	attr.bp_len = 8;
 	arch_bp_generic_fields(hw_brk.type,
 			       &attr.bp_type);
 
@@ -2450,6 +2467,9 @@ static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 		return PTR_ERR(bp);
 	}
 
+#else /* !CONFIG_HAVE_HW_BREAKPOINT */
+	if (set_bp && (!ppc_breakpoint_available()))
+		return -ENODEV;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 	task->thread.hw_brk = hw_brk;
 #else /* CONFIG_PPC_ADV_DEBUG_REGS */
@@ -2904,6 +2924,9 @@ static long ppc_set_hwdebug(struct task_struct *child,
 	if (child->thread.hw_brk.address)
 		return -ENOSPC;
 
+	if (!ppc_breakpoint_available())
+		return -ENODEV;
+
 	child->thread.hw_brk = brk;
 
 	return 1;
@@ -3052,7 +3075,10 @@ long arch_ptrace(struct task_struct *child, long request,
 #endif
 #else /* !CONFIG_PPC_ADV_DEBUG_REGS */
 		dbginfo.num_instruction_bps = 0;
-		dbginfo.num_data_bps = 1;
+		if (ppc_breakpoint_available())
+			dbginfo.num_data_bps = 1;
+		else
+			dbginfo.num_data_bps = 0;
 		dbginfo.num_condition_regs = 0;
 #ifdef CONFIG_PPC64
 		dbginfo.data_bp_alignment = 8;
@@ -3062,34 +3088,26 @@ long arch_ptrace(struct task_struct *child, long request,
 		dbginfo.sizeof_condition = 0;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		dbginfo.features = PPC_DEBUG_FEATURE_DATA_BP_RANGE;
-		if (cpu_has_feature(CPU_FTR_DAWR))
+		if (dawr_enabled())
 			dbginfo.features |= PPC_DEBUG_FEATURE_DATA_BP_DAWR;
 #else
 		dbginfo.features = 0;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif /* CONFIG_PPC_ADV_DEBUG_REGS */
 
-		if (!access_ok(VERIFY_WRITE, datavp,
-			       sizeof(struct ppc_debug_info)))
+		if (copy_to_user(datavp, &dbginfo,
+				 sizeof(struct ppc_debug_info)))
 			return -EFAULT;
-		ret = __copy_to_user(datavp, &dbginfo,
-				     sizeof(struct ppc_debug_info)) ?
-		      -EFAULT : 0;
-		break;
+		return 0;
 	}
 
 	case PPC_PTRACE_SETHWDEBUG: {
 		struct ppc_hw_breakpoint bp_info;
 
-		if (!access_ok(VERIFY_READ, datavp,
-			       sizeof(struct ppc_hw_breakpoint)))
+		if (copy_from_user(&bp_info, datavp,
+				   sizeof(struct ppc_hw_breakpoint)))
 			return -EFAULT;
-		ret = __copy_from_user(&bp_info, datavp,
-				       sizeof(struct ppc_hw_breakpoint)) ?
-		      -EFAULT : 0;
-		if (!ret)
-			ret = ppc_set_hwdebug(child, &bp_info);
-		break;
+		return ppc_set_hwdebug(child, &bp_info);
 	}
 
 	case PPC_PTRACE_DELHWDEBUG: {
@@ -3125,7 +3143,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_GETREGS:	/* Get all pt_regs from the child. */
 		return copy_regset_to_user(child, &user_ppc_native_view,
 					   REGSET_GPR,
-					   0, sizeof(struct pt_regs),
+					   0, sizeof(struct user_pt_regs),
 					   datavp);
 
 #ifdef CONFIG_PPC64
@@ -3134,7 +3152,7 @@ long arch_ptrace(struct task_struct *child, long request,
 	case PTRACE_SETREGS:	/* Set all gp regs in the child. */
 		return copy_regset_from_user(child, &user_ppc_native_view,
 					     REGSET_GPR,
-					     0, sizeof(struct pt_regs),
+					     0, sizeof(struct user_pt_regs),
 					     datavp);
 
 	case PTRACE_GETFPREGS: /* Get the child FPU state (FPR0...31 + FPSCR) */
@@ -3257,17 +3275,40 @@ static inline int do_seccomp(struct pt_regs *regs) { return 0; }
  */
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
+	u32 flags;
+
 	user_exit();
 
-	/*
-	 * The tracer may decide to abort the syscall, if so tracehook
-	 * will return !0. Note that the tracer may also just change
-	 * regs->gpr[0] to an invalid syscall number, that is handled
-	 * below on the exit path.
-	 */
-	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
-	    tracehook_report_syscall_entry(regs))
-		goto skip;
+	flags = READ_ONCE(current_thread_info()->flags) &
+		(_TIF_SYSCALL_EMU | _TIF_SYSCALL_TRACE);
+
+	if (flags) {
+		int rc = tracehook_report_syscall_entry(regs);
+
+		if (unlikely(flags & _TIF_SYSCALL_EMU)) {
+			/*
+			 * A nonzero return code from
+			 * tracehook_report_syscall_entry() tells us to prevent
+			 * the syscall execution, but we are not going to
+			 * execute it anyway.
+			 *
+			 * Returning -1 will skip the syscall execution. We want
+			 * to avoid clobbering any registers, so we don't goto
+			 * the skip label below.
+			 */
+			return -1;
+		}
+
+		if (rc) {
+			/*
+			 * The tracer decided to abort the syscall. Note that
+			 * the tracer may also just change regs->gpr[0] to an
+			 * invalid syscall number, that is handled below on the
+			 * exit path.
+			 */
+			goto skip;
+		}
+	}
 
 	/* Run seccomp after ptrace; allow it to set gpr[3]. */
 	if (do_seccomp(regs))
@@ -3318,4 +3359,43 @@ void do_syscall_trace_leave(struct pt_regs *regs)
 		tracehook_report_syscall_exit(regs, step);
 
 	user_enter();
+}
+
+void __init pt_regs_check(void)
+{
+	BUILD_BUG_ON(offsetof(struct pt_regs, gpr) !=
+		     offsetof(struct user_pt_regs, gpr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, nip) !=
+		     offsetof(struct user_pt_regs, nip));
+	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+		     offsetof(struct user_pt_regs, msr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, msr) !=
+		     offsetof(struct user_pt_regs, msr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, orig_gpr3) !=
+		     offsetof(struct user_pt_regs, orig_gpr3));
+	BUILD_BUG_ON(offsetof(struct pt_regs, ctr) !=
+		     offsetof(struct user_pt_regs, ctr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, link) !=
+		     offsetof(struct user_pt_regs, link));
+	BUILD_BUG_ON(offsetof(struct pt_regs, xer) !=
+		     offsetof(struct user_pt_regs, xer));
+	BUILD_BUG_ON(offsetof(struct pt_regs, ccr) !=
+		     offsetof(struct user_pt_regs, ccr));
+#ifdef __powerpc64__
+	BUILD_BUG_ON(offsetof(struct pt_regs, softe) !=
+		     offsetof(struct user_pt_regs, softe));
+#else
+	BUILD_BUG_ON(offsetof(struct pt_regs, mq) !=
+		     offsetof(struct user_pt_regs, mq));
+#endif
+	BUILD_BUG_ON(offsetof(struct pt_regs, trap) !=
+		     offsetof(struct user_pt_regs, trap));
+	BUILD_BUG_ON(offsetof(struct pt_regs, dar) !=
+		     offsetof(struct user_pt_regs, dar));
+	BUILD_BUG_ON(offsetof(struct pt_regs, dsisr) !=
+		     offsetof(struct user_pt_regs, dsisr));
+	BUILD_BUG_ON(offsetof(struct pt_regs, result) !=
+		     offsetof(struct user_pt_regs, result));
+
+	BUILD_BUG_ON(sizeof(struct user_pt_regs) > sizeof(struct pt_regs));
 }

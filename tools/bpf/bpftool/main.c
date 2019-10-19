@@ -1,39 +1,6 @@
-/*
- * Copyright (C) 2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2017-2018 Netronome Systems, Inc. */
 
-/* Author: Jakub Kicinski <kubakici@wp.pl> */
-
-#include <bfd.h>
 #include <ctype.h>
 #include <errno.h>
 #include <getopt.h>
@@ -43,8 +10,12 @@
 #include <string.h>
 
 #include <bpf.h>
+#include <libbpf.h>
 
 #include "main.h"
+
+#define BATCH_LINE_LEN_MAX 65536
+#define BATCH_ARG_NB_MAX 4096
 
 const char *bin_name;
 static int last_argc;
@@ -54,6 +25,9 @@ json_writer_t *json_wtr;
 bool pretty_output;
 bool json_output;
 bool show_pinned;
+bool block_mount;
+bool verifier_logs;
+int bpf_flags;
 struct pinned_obj_table prog_table;
 struct pinned_obj_table map_table;
 
@@ -84,7 +58,7 @@ static int do_help(int argc, char **argv)
 		"       %s batch file FILE\n"
 		"       %s version\n"
 		"\n"
-		"       OBJECT := { prog | map | cgroup }\n"
+		"       OBJECT := { prog | map | cgroup | perf | net | feature | btf }\n"
 		"       " HELP_SPEC_OPTIONS "\n"
 		"",
 		bin_name, bin_name, bin_name);
@@ -103,6 +77,13 @@ static int do_version(int argc, char **argv)
 		printf("%s v%s\n", bin_name, BPFTOOL_VERSION);
 	}
 	return 0;
+}
+
+static int __printf(2, 0)
+print_all_levels(__maybe_unused enum libbpf_print_level level,
+		 const char *format, va_list args)
+{
+	return vfprintf(stderr, format, args);
 }
 
 int cmd_select(const struct cmd *cmds, int argc, char **argv,
@@ -136,6 +117,35 @@ bool is_prefix(const char *pfx, const char *str)
 	return !memcmp(str, pfx, strlen(pfx));
 }
 
+/* Last argument MUST be NULL pointer */
+int detect_common_prefix(const char *arg, ...)
+{
+	unsigned int count = 0;
+	const char *ref;
+	char msg[256];
+	va_list ap;
+
+	snprintf(msg, sizeof(msg), "ambiguous prefix: '%s' could be '", arg);
+	va_start(ap, arg);
+	while ((ref = va_arg(ap, const char *))) {
+		if (!is_prefix(arg, ref))
+			continue;
+		count++;
+		if (count > 1)
+			strncat(msg, "' or '", sizeof(msg) - strlen(msg) - 1);
+		strncat(msg, ref, sizeof(msg) - strlen(msg) - 1);
+	}
+	va_end(ap);
+	strncat(msg, "'", sizeof(msg) - strlen(msg) - 1);
+
+	if (count >= 2) {
+		p_err("%s", msg);
+		return -1;
+	}
+
+	return 0;
+}
+
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep)
 {
 	unsigned char *data = arg;
@@ -157,6 +167,54 @@ void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep)
 	}
 }
 
+/* Split command line into argument vector. */
+static int make_args(char *line, char *n_argv[], int maxargs, int cmd_nb)
+{
+	static const char ws[] = " \t\r\n";
+	char *cp = line;
+	int n_argc = 0;
+
+	while (*cp) {
+		/* Skip leading whitespace. */
+		cp += strspn(cp, ws);
+
+		if (*cp == '\0')
+			break;
+
+		if (n_argc >= (maxargs - 1)) {
+			p_err("too many arguments to command %d", cmd_nb);
+			return -1;
+		}
+
+		/* Word begins with quote. */
+		if (*cp == '\'' || *cp == '"') {
+			char quote = *cp++;
+
+			n_argv[n_argc++] = cp;
+			/* Find ending quote. */
+			cp = strchr(cp, quote);
+			if (!cp) {
+				p_err("unterminated quoted string in command %d",
+				      cmd_nb);
+				return -1;
+			}
+		} else {
+			n_argv[n_argc++] = cp;
+
+			/* Find end of word. */
+			cp += strcspn(cp, ws);
+			if (*cp == '\0')
+				break;
+		}
+
+		/* Separate words. */
+		*cp++ = 0;
+	}
+	n_argv[n_argc] = NULL;
+
+	return n_argc;
+}
+
 static int do_batch(int argc, char **argv);
 
 static const struct cmd cmds[] = {
@@ -165,17 +223,22 @@ static const struct cmd cmds[] = {
 	{ "prog",	do_prog },
 	{ "map",	do_map },
 	{ "cgroup",	do_cgroup },
+	{ "perf",	do_perf },
+	{ "net",	do_net },
+	{ "feature",	do_feature },
+	{ "btf",	do_btf },
 	{ "version",	do_version },
 	{ 0 }
 };
 
 static int do_batch(int argc, char **argv)
 {
+	char buf[BATCH_LINE_LEN_MAX], contline[BATCH_LINE_LEN_MAX];
+	char *n_argv[BATCH_ARG_NB_MAX];
 	unsigned int lines = 0;
-	char *n_argv[4096];
-	char buf[65536];
 	int n_argc;
 	FILE *fp;
+	char *cp;
 	int err;
 	int i;
 
@@ -191,7 +254,10 @@ static int do_batch(int argc, char **argv)
 	}
 	NEXT_ARG();
 
-	fp = fopen(*argv, "r");
+	if (!strcmp(*argv, "-"))
+		fp = stdin;
+	else
+		fp = fopen(*argv, "r");
 	if (!fp) {
 		p_err("Can't open file (%s): %s", *argv, strerror(errno));
 		return -1;
@@ -200,27 +266,45 @@ static int do_batch(int argc, char **argv)
 	if (json_output)
 		jsonw_start_array(json_wtr);
 	while (fgets(buf, sizeof(buf), fp)) {
+		cp = strchr(buf, '#');
+		if (cp)
+			*cp = '\0';
+
 		if (strlen(buf) == sizeof(buf) - 1) {
 			errno = E2BIG;
 			break;
 		}
 
-		n_argc = 0;
-		n_argv[n_argc] = strtok(buf, " \t\n");
-
-		while (n_argv[n_argc]) {
-			n_argc++;
-			if (n_argc == ARRAY_SIZE(n_argv)) {
-				p_err("line %d has too many arguments, skip",
+		/* Append continuation lines if any (coming after a line ending
+		 * with '\' in the batch file).
+		 */
+		while ((cp = strstr(buf, "\\\n")) != NULL) {
+			if (!fgets(contline, sizeof(contline), fp) ||
+			    strlen(contline) == 0) {
+				p_err("missing continuation line on command %d",
 				      lines);
-				n_argc = 0;
-				break;
+				err = -1;
+				goto err_close;
 			}
-			n_argv[n_argc] = strtok(NULL, " \t\n");
+
+			cp = strchr(contline, '#');
+			if (cp)
+				*cp = '\0';
+
+			if (strlen(buf) + strlen(contline) + 1 > sizeof(buf)) {
+				p_err("command %d is too long", lines);
+				err = -1;
+				goto err_close;
+			}
+			buf[strlen(buf) - 2] = '\0';
+			strcat(buf, contline);
 		}
 
+		n_argc = make_args(buf, n_argv, BATCH_ARG_NB_MAX, lines);
 		if (!n_argc)
 			continue;
+		if (n_argc < 0)
+			goto err_close;
 
 		if (json_output) {
 			jsonw_start_object(json_wtr);
@@ -244,14 +328,16 @@ static int do_batch(int argc, char **argv)
 	}
 
 	if (errno && errno != ENOENT) {
-		perror("reading batch file failed");
+		p_err("reading batch file failed: %s", strerror(errno));
 		err = -1;
 	} else {
-		p_info("processed %d lines", lines);
+		if (!json_output)
+			printf("processed %d commands\n", lines);
 		err = 0;
 	}
 err_close:
-	fclose(fp);
+	if (fp != stdin)
+		fclose(fp);
 
 	if (json_output)
 		jsonw_end_array(json_wtr);
@@ -267,6 +353,9 @@ int main(int argc, char **argv)
 		{ "pretty",	no_argument,	NULL,	'p' },
 		{ "version",	no_argument,	NULL,	'V' },
 		{ "bpffs",	no_argument,	NULL,	'f' },
+		{ "mapcompat",	no_argument,	NULL,	'm' },
+		{ "nomount",	no_argument,	NULL,	'n' },
+		{ "debug",	no_argument,	NULL,	'd' },
 		{ 0 }
 	};
 	int opt, ret;
@@ -275,13 +364,14 @@ int main(int argc, char **argv)
 	pretty_output = false;
 	json_output = false;
 	show_pinned = false;
+	block_mount = false;
 	bin_name = argv[0];
 
 	hash_init(prog_table.table);
 	hash_init(map_table.table);
 
 	opterr = 0;
-	while ((opt = getopt_long(argc, argv, "Vhpjf",
+	while ((opt = getopt_long(argc, argv, "Vhpjfmnd",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
@@ -305,6 +395,16 @@ int main(int argc, char **argv)
 		case 'f':
 			show_pinned = true;
 			break;
+		case 'm':
+			bpf_flags = MAPS_RELAX_COMPAT;
+			break;
+		case 'n':
+			block_mount = true;
+			break;
+		case 'd':
+			libbpf_set_print(print_all_levels);
+			verifier_logs = true;
+			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
 			if (json_output)
@@ -318,8 +418,6 @@ int main(int argc, char **argv)
 	argv += optind;
 	if (argc < 0)
 		usage();
-
-	bfd_init();
 
 	ret = cmd_select(cmds, argc, argv, do_help);
 

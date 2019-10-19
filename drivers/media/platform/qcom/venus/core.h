@@ -1,16 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  * Copyright (C) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef __VENUS_CORE_H_
@@ -55,6 +46,31 @@ struct venus_format {
 	u32 pixfmt;
 	unsigned int num_planes;
 	u32 type;
+	u32 flags;
+};
+
+#define MAX_PLANES		4
+#define MAX_FMT_ENTRIES		32
+#define MAX_CAP_ENTRIES		32
+#define MAX_ALLOC_MODE_ENTRIES	16
+#define MAX_CODEC_NUM		32
+
+struct raw_formats {
+	u32 buftype;
+	u32 fmt;
+};
+
+struct venus_caps {
+	u32 codec;
+	u32 domain;
+	bool cap_bufs_mode_dynamic;
+	unsigned int num_caps;
+	struct hfi_capability caps[MAX_CAP_ENTRIES];
+	unsigned int num_pl;
+	struct hfi_profile_level pl[HFI_MAX_PROFILE_COUNT];
+	unsigned int num_fmts;
+	struct raw_formats fmts[MAX_FMT_ENTRIES];
+	bool valid;	/* used only for Venus v1xx */
 };
 
 /**
@@ -65,6 +81,8 @@ struct venus_format {
  * @clks:	an array of struct clk pointers
  * @core0_clk:	a struct clk pointer for core0
  * @core1_clk:	a struct clk pointer for core1
+ * @core0_bus_clk: a struct clk pointer for core0 bus clock
+ * @core1_bus_clk: a struct clk pointer for core1 bus clock
  * @vdev_dec:	a reference to video device structure for decoder instances
  * @vdev_enc:	a reference to video device structure for encoder instances
  * @v4l2_dev:	a holder for v4l2 device structure
@@ -72,6 +90,7 @@ struct venus_format {
  * @dev:		convenience struct device pointer
  * @dev_dec:	convenience struct device pointer for decoder device
  * @dev_enc:	convenience struct device pointer for encoder device
+ * @use_tz:	a flag that suggests presence of trustzone
  * @lock:	a lock for this strucure
  * @instances:	a list_head of all instances
  * @insts_count:	num of instances
@@ -94,6 +113,8 @@ struct venus_core {
 	struct clk *clks[VIDC_CLKS_NUM_MAX];
 	struct clk *core0_clk;
 	struct clk *core1_clk;
+	struct clk *core0_bus_clk;
+	struct clk *core1_bus_clk;
 	struct video_device *vdev_dec;
 	struct video_device *vdev_enc;
 	struct v4l2_device v4l2_dev;
@@ -101,6 +122,12 @@ struct venus_core {
 	struct device *dev;
 	struct device *dev_dec;
 	struct device *dev_enc;
+	unsigned int use_tz;
+	struct video_firmware {
+		struct device *dev;
+		struct iommu_domain *iommu_domain;
+		size_t mapped_mem_size;
+	} fw;
 	struct mutex lock;
 	struct list_head instances;
 	atomic_t insts_count;
@@ -109,8 +136,8 @@ struct venus_core {
 	unsigned int error;
 	bool sys_error;
 	const struct hfi_core_ops *core_ops;
-	u32 enc_codecs;
-	u32 dec_codecs;
+	unsigned long enc_codecs;
+	unsigned long dec_codecs;
 	unsigned int max_sessions_supported;
 #define ENC_ROTATION_CAPABILITY		0x1
 #define ENC_SCALING_CAPABILITY		0x2
@@ -120,6 +147,8 @@ struct venus_core {
 	void *priv;
 	const struct hfi_ops *ops;
 	struct delayed_work work;
+	struct venus_caps caps[MAX_CODEC_NUM];
+	unsigned int codecs_count;
 };
 
 struct vdec_controls {
@@ -160,10 +189,12 @@ struct venc_controls {
 		u32 mpeg4;
 		u32 h264;
 		u32 vpx;
+		u32 hevc;
 	} profile;
 	struct {
 		u32 mpeg4;
 		u32 h264;
+		u32 hevc;
 	} level;
 };
 
@@ -179,12 +210,32 @@ struct venus_buffer {
 
 #define to_venus_buffer(ptr)	container_of(ptr, struct venus_buffer, vb)
 
+enum venus_dec_state {
+	VENUS_DEC_STATE_DEINIT		= 0,
+	VENUS_DEC_STATE_INIT		= 1,
+	VENUS_DEC_STATE_CAPTURE_SETUP	= 2,
+	VENUS_DEC_STATE_STOPPED		= 3,
+	VENUS_DEC_STATE_SEEK		= 4,
+	VENUS_DEC_STATE_DRAIN		= 5,
+	VENUS_DEC_STATE_DECODING	= 6,
+	VENUS_DEC_STATE_DRC		= 7
+};
+
+struct venus_ts_metadata {
+	bool used;
+	u64 ts_ns;
+	u64 ts_us;
+	u32 flags;
+	struct v4l2_timecode tc;
+};
+
 /**
- * struct venus_inst - holds per instance paramerters
+ * struct venus_inst - holds per instance parameters
  *
  * @list:	used for attach an instance to the core
  * @lock:	instance lock
  * @core:	a reference to the core struct
+ * @dpbbufs:	a list of decoded picture buffers
  * @internalbufs:	a list of internal bufferes
  * @registeredbufs:	a list of registered capture bufferes
  * @delayed_process	a list of delayed buffers
@@ -201,6 +252,10 @@ struct venus_buffer {
  * @colorspace:	current color space
  * @quantization:	current quantization
  * @xfer_func:	current xfer function
+ * @codec_state:	current codec API state (see DEC/ENC_STATE_)
+ * @reconf_wait:	wait queue for resolution change event
+ * @subscriptions:	used to hold current events subscriptions
+ * @buf_count:		used to count number of buffers (reqbuf(0))
  * @fps:		holds current FPS
  * @timeperframe:	holds current time per frame structure
  * @fmt_out:	a reference to output format structure
@@ -209,9 +264,13 @@ struct venus_buffer {
  * @num_output_bufs:	holds number of output buffers
  * @input_buf_size	holds input buffer size
  * @output_buf_size:	holds output buffer size
+ * @output2_buf_size:	holds secondary decoder output buffer size
+ * @dpb_buftype:	decoded picture buffer type
+ * @dpb_fmt:		decoded picture buffer raw format
+ * @opb_buftype:	output picture buffer type
+ * @opb_fmt:		output picture buffer raw format
  * @reconfig:	a flag raised by decoder when the stream resolution changed
- * @reconfig_width:	holds the new width
- * @reconfig_height:	holds the new height
+ * @hfi_codec:		current codec for this instance in HFI space
  * @sequence_cap:	a sequence counter for capture queue
  * @sequence_out:	a sequence counter for output queue
  * @m2m_dev:	a reference to m2m device structure
@@ -224,27 +283,12 @@ struct venus_buffer {
  * @priv:	a private for HFI operations callbacks
  * @session_type:	the type of the session (decoder or encoder)
  * @hprop:	a union used as a holder by get property
- * @cap_width:	width capability
- * @cap_height:	height capability
- * @cap_mbs_per_frame:	macroblocks per frame capability
- * @cap_mbs_per_sec:	macroblocks per second capability
- * @cap_framerate:	framerate capability
- * @cap_scale_x:		horizontal scaling capability
- * @cap_scale_y:		vertical scaling capability
- * @cap_bitrate:		bitrate capability
- * @cap_hier_p:		hier capability
- * @cap_ltr_count:	LTR count capability
- * @cap_secure_output2_threshold: secure OUTPUT2 threshold capability
- * @cap_bufs_mode_static:	buffers allocation mode capability
- * @cap_bufs_mode_dynamic:	buffers allocation mode capability
- * @pl_count:	count of supported profiles/levels
- * @pl:		supported profiles/levels
- * @bufreq:	holds buffer requirements
  */
 struct venus_inst {
 	struct list_head list;
 	struct mutex lock;
 	struct venus_core *core;
+	struct list_head dpbbufs;
 	struct list_head internalbufs;
 	struct list_head registeredbufs;
 	struct list_head delayed_process;
@@ -265,6 +309,11 @@ struct venus_inst {
 	u8 ycbcr_enc;
 	u8 quantization;
 	u8 xfer_func;
+	enum venus_dec_state codec_state;
+	wait_queue_head_t reconf_wait;
+	unsigned int subscriptions;
+	int buf_count;
+	struct venus_ts_metadata tss[VIDEO_MAX_FRAME];
 	u64 fps;
 	struct v4l2_fract timeperframe;
 	const struct venus_format *fmt_out;
@@ -273,9 +322,13 @@ struct venus_inst {
 	unsigned int num_output_bufs;
 	unsigned int input_buf_size;
 	unsigned int output_buf_size;
+	unsigned int output2_buf_size;
+	u32 dpb_buftype;
+	u32 dpb_fmt;
+	u32 opb_buftype;
+	u32 opb_fmt;
 	bool reconfig;
-	u32 reconfig_width;
-	u32 reconfig_height;
+	u32 hfi_codec;
 	u32 sequence_cap;
 	u32 sequence_out;
 	struct v4l2_m2m_dev *m2m_dev;
@@ -287,23 +340,11 @@ struct venus_inst {
 	const struct hfi_inst_ops *ops;
 	u32 session_type;
 	union hfi_get_property hprop;
-	struct hfi_capability cap_width;
-	struct hfi_capability cap_height;
-	struct hfi_capability cap_mbs_per_frame;
-	struct hfi_capability cap_mbs_per_sec;
-	struct hfi_capability cap_framerate;
-	struct hfi_capability cap_scale_x;
-	struct hfi_capability cap_scale_y;
-	struct hfi_capability cap_bitrate;
-	struct hfi_capability cap_hier_p;
-	struct hfi_capability cap_ltr_count;
-	struct hfi_capability cap_secure_output2_threshold;
-	bool cap_bufs_mode_static;
-	bool cap_bufs_mode_dynamic;
-	unsigned int pl_count;
-	struct hfi_profile_level pl[HFI_MAX_PROFILE_COUNT];
-	struct hfi_buffer_requirements bufreq[HFI_BUFFER_TYPE_MAX];
 };
+
+#define IS_V1(core)	((core)->res->hfi_version == HFI_VERSION_1XX)
+#define IS_V3(core)	((core)->res->hfi_version == HFI_VERSION_3XX)
+#define IS_V4(core)	((core)->res->hfi_version == HFI_VERSION_4XX)
 
 #define ctrl_to_inst(ctrl)	\
 	container_of((ctrl)->handler, struct venus_inst, ctrl_handler)
@@ -316,6 +357,20 @@ static inline struct venus_inst *to_inst(struct file *filp)
 static inline void *to_hfi_priv(struct venus_core *core)
 {
 	return core->priv;
+}
+
+static inline struct venus_caps *
+venus_caps_by_codec(struct venus_core *core, u32 codec, u32 domain)
+{
+	unsigned int c;
+
+	for (c = 0; c < core->codecs_count; c++) {
+		if (core->caps[c].codec == codec &&
+		    core->caps[c].domain == domain)
+			return &core->caps[c];
+	}
+
+	return NULL;
 }
 
 #endif

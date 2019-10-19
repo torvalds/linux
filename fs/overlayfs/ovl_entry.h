@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *
  * Copyright (C) 2011 Novell Inc.
  * Copyright (C) 2016 Red Hat, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 struct ovl_config {
@@ -18,13 +15,24 @@ struct ovl_config {
 	const char *redirect_mode;
 	bool index;
 	bool nfs_export;
+	int xino;
+	bool metacopy;
+};
+
+struct ovl_sb {
+	struct super_block *sb;
+	dev_t pseudo_dev;
 };
 
 struct ovl_layer {
 	struct vfsmount *mnt;
-	dev_t pseudo_dev;
-	/* Index of this layer in fs root (upper == 0) */
+	/* Trap in ovl inode cache */
+	struct inode *trap;
+	struct ovl_sb *fs;
+	/* Index of this layer in fs root (upper idx == 0) */
 	int idx;
+	/* One fsid per unique underlying sb (upper fsid == 0) */
+	int fsid;
 };
 
 struct ovl_path {
@@ -35,8 +43,11 @@ struct ovl_path {
 /* private information held for overlayfs's superblock */
 struct ovl_fs {
 	struct vfsmount *upper_mnt;
-	unsigned numlower;
+	unsigned int numlower;
+	/* Number of unique lower sb that differ from upper sb */
+	unsigned int numlowerfs;
 	struct ovl_layer *lower_layers;
+	struct ovl_sb *lower_fs;
 	/* workbasedir is the path at workdir= mount option */
 	struct dentry *workbasedir;
 	/* workdir is the 'work' directory under workbasedir */
@@ -50,11 +61,16 @@ struct ovl_fs {
 	const struct cred *creator_cred;
 	bool tmpfile;
 	bool noxattr;
-	/* sb common to all layers */
-	struct super_block *same_sb;
 	/* Did we take the inuse lock? */
 	bool upperdir_locked;
 	bool workdir_locked;
+	/* Traps in ovl inode cache */
+	struct inode *upperdir_trap;
+	struct inode *workbasedir_trap;
+	struct inode *workdir_trap;
+	struct inode *indexdir_trap;
+	/* Inode numbers in all layers do not use the high xino_bits */
+	unsigned int xino_bits;
 };
 
 /* private information held for every overlayfs dentry */
@@ -77,7 +93,10 @@ static inline struct ovl_entry *OVL_E(struct dentry *dentry)
 }
 
 struct ovl_inode {
-	struct ovl_dir_cache *cache;
+	union {
+		struct ovl_dir_cache *cache;	/* directory */
+		struct inode *lowerdata;	/* regular file */
+	};
 	const char *redirect;
 	u64 version;
 	unsigned long flags;

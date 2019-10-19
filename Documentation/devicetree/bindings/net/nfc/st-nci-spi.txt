@@ -3,7 +3,6 @@
 Required properties:
 - compatible: Should be "st,st21nfcb-spi"
 - spi-max-frequency: Maximum SPI frequency (<= 4000000).
-- interrupt-parent: phandle for the interrupt gpio controller
 - interrupts: GPIO interrupt to which the chip is connected
 - reset-gpios: Output GPIO pin used to reset the ST21NFCB
 

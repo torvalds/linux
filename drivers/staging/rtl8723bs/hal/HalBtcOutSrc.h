@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef	__HALBTC_OUT_SRC_H__
@@ -540,7 +532,6 @@ typedef struct _BTC_COEXIST {
 
 extern BTC_COEXIST GLBtCoexist;
 
-u8 EXhalbtcoutsrc_InitlizeVariables(void *Adapter);
 void EXhalbtcoutsrc_PowerOnSetting(PBTC_COEXIST pBtCoexist);
 void EXhalbtcoutsrc_InitHwConfig(PBTC_COEXIST pBtCoexist, u8 bWifiOnly);
 void EXhalbtcoutsrc_InitCoexDm(PBTC_COEXIST pBtCoexist);

@@ -3,7 +3,9 @@
 See dma.txt first
 
 Required properties:
-- compatible: Should be "hisilicon,k3-dma-1.0"
+- compatible: Must be one of
+-              "hisilicon,k3-dma-1.0"
+-              "hisilicon,hisi-pcm-asp-dma-1.0"
 - reg: Should contain DMA registers location and length.
 - interrupts: Should contain one interrupt shared by all channel
 - #dma-cells: see dma.txt, should be 1, para number
@@ -23,7 +25,6 @@ Controller:
 			dma-requests = <27>;
 			interrupts = <0 12 4>;
 			clocks = <&pclk>;
-			status = "disable";
 		};
 
 Client:

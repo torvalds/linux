@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Global fscache object list maintainer and viewer
  *
  * Copyright (C) 2009 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define FSCACHE_DEBUG_LEVEL COOKIE
@@ -36,8 +32,6 @@ struct fscache_objlist_data {
 #define FSCACHE_OBJLIST_CONFIG_NOEVENTS	0x00000800	/* show objects without no events */
 #define FSCACHE_OBJLIST_CONFIG_WORK	0x00001000	/* show objects with work */
 #define FSCACHE_OBJLIST_CONFIG_NOWORK	0x00002000	/* show objects without work */
-
-	u8		buf[512];	/* key and aux data buffer */
 };
 
 /*
@@ -170,7 +164,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 	struct fscache_cookie *cookie;
 	unsigned long config = data->config;
 	char _type[3], *type;
-	u8 *buf = data->buf, *p;
+	u8 *p;
 
 	if ((unsigned long) v == 1) {
 		seq_puts(m, "OBJECT   PARENT   STAT CHLDN OPS OOP IPR EX READS"
@@ -254,7 +248,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 	if (fscache_use_cookie(obj)) {
 		uint16_t keylen = 0, auxlen = 0;
 
-		switch (cookie->def->type) {
+		switch (cookie->type) {
 		case 0:
 			type = "IX";
 			break;
@@ -263,7 +257,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 			break;
 		default:
 			snprintf(_type, sizeof(_type), "%02u",
-				 cookie->def->type);
+				 cookie->type);
 			type = _type;
 			break;
 		}
@@ -274,30 +268,30 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 			   cookie->flags,
 			   cookie->netfs_data);
 
-		if (cookie->def->get_key &&
-		    config & FSCACHE_OBJLIST_CONFIG_KEY)
-			keylen = cookie->def->get_key(cookie->netfs_data,
-						      buf, 400);
+		if (config & FSCACHE_OBJLIST_CONFIG_KEY)
+			keylen = cookie->key_len;
 
-		if (cookie->def->get_aux &&
-		    config & FSCACHE_OBJLIST_CONFIG_AUX)
-			auxlen = cookie->def->get_aux(cookie->netfs_data,
-						      buf + keylen, 512 - keylen);
-		fscache_unuse_cookie(obj);
+		if (config & FSCACHE_OBJLIST_CONFIG_AUX)
+			auxlen = cookie->aux_len;
 
 		if (keylen > 0 || auxlen > 0) {
 			seq_puts(m, " ");
-			for (p = buf; keylen > 0; keylen--)
+			p = keylen <= sizeof(cookie->inline_key) ?
+				cookie->inline_key : cookie->key;
+			for (; keylen > 0; keylen--)
 				seq_printf(m, "%02x", *p++);
 			if (auxlen > 0) {
 				if (config & FSCACHE_OBJLIST_CONFIG_KEY)
 					seq_puts(m, ", ");
+				p = auxlen <= sizeof(cookie->inline_aux) ?
+					cookie->inline_aux : cookie->aux;
 				for (; auxlen > 0; auxlen--)
 					seq_printf(m, "%02x", *p++);
 			}
 		}
 
 		seq_puts(m, "\n");
+		fscache_unuse_cookie(obj);
 	} else {
 		seq_puts(m, "<no_netfs>\n");
 	}

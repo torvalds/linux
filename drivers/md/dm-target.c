@@ -16,8 +16,6 @@
 static LIST_HEAD(_targets);
 static DECLARE_RWSEM(_lock);
 
-#define DM_MOD_NAME_SIZE 32
-
 static inline struct target_type *__find_target_type(const char *name)
 {
 	struct target_type *tt;
@@ -138,7 +136,8 @@ static int io_err_clone_and_map_rq(struct dm_target *ti, struct request *rq,
 	return DM_MAPIO_KILL;
 }
 
-static void io_err_release_clone_rq(struct request *clone)
+static void io_err_release_clone_rq(struct request *clone,
+				    union map_info *map_context)
 {
 }
 

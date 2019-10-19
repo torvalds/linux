@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Clock definitions for u8500 platform.
  *
  * Copyright (C) 2012 ST-Ericsson SA
  * Author: Ulf Hansson <ulf.hansson@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/of.h>
@@ -545,21 +544,21 @@ static void u8500_clk_init(struct device_node *np)
 	for_each_child_of_node(np, child) {
 		static struct clk_onecell_data clk_data;
 
-		if (!of_node_cmp(child->name, "prcmu-clock")) {
+		if (of_node_name_eq(child, "prcmu-clock")) {
 			clk_data.clks = prcmu_clk;
 			clk_data.clk_num = ARRAY_SIZE(prcmu_clk);
 			of_clk_add_provider(child, of_clk_src_onecell_get, &clk_data);
 		}
-		if (!of_node_cmp(child->name, "prcc-periph-clock"))
+		if (of_node_name_eq(child, "prcc-periph-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_pclk);
 
-		if (!of_node_cmp(child->name, "prcc-kernel-clock"))
+		if (of_node_name_eq(child, "prcc-kernel-clock"))
 			of_clk_add_provider(child, ux500_twocell_get, prcc_kclk);
 
-		if (!of_node_cmp(child->name, "rtc32k-clock"))
+		if (of_node_name_eq(child, "rtc32k-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, rtc_clk);
 
-		if (!of_node_cmp(child->name, "smp-twd-clock"))
+		if (of_node_name_eq(child, "smp-twd-clock"))
 			of_clk_add_provider(child, of_clk_src_simple_get, twd_clk);
 	}
 }

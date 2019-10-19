@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: apfiles - File-related functions for acpidump utility
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include "acpidump.h"
 
@@ -63,18 +29,24 @@ static int ap_is_existing_file(char *pathname)
 {
 #if !defined(_GNU_EFI) && !defined(_EDK2_EFI)
 	struct stat stat_info;
+	int in_char;
 
 	if (!stat(pathname, &stat_info)) {
 		fprintf(stderr,
 			"Target path already exists, overwrite? [y|n] ");
 
-		if (getchar() != 'y') {
+		in_char = fgetc(stdin);
+		if (in_char == '\n') {
+			in_char = fgetc(stdin);
+		}
+
+		if (in_char != 'y' && in_char != 'Y') {
 			return (-1);
 		}
 	}
 #endif
 
-	return 0;
+	return (0);
 }
 
 /******************************************************************************
@@ -131,7 +103,7 @@ int ap_open_output_file(char *pathname)
 
 int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 {
-	char filename[ACPI_NAME_SIZE + 16];
+	char filename[ACPI_NAMESEG_SIZE + 16];
 	char instance_str[16];
 	ACPI_FILE file;
 	acpi_size actual;
@@ -144,16 +116,16 @@ int ap_write_to_binary_file(struct acpi_table_header *table, u32 instance)
 	/* Construct lower-case filename from the table local signature */
 
 	if (ACPI_VALIDATE_RSDP_SIG(table->signature)) {
-		ACPI_MOVE_NAME(filename, ACPI_RSDP_NAME);
+		ACPI_COPY_NAMESEG(filename, ACPI_RSDP_NAME);
 	} else {
-		ACPI_MOVE_NAME(filename, table->signature);
+		ACPI_COPY_NAMESEG(filename, table->signature);
 	}
 
 	filename[0] = (char)tolower((int)filename[0]);
 	filename[1] = (char)tolower((int)filename[1]);
 	filename[2] = (char)tolower((int)filename[2]);
 	filename[3] = (char)tolower((int)filename[3]);
-	filename[ACPI_NAME_SIZE] = 0;
+	filename[ACPI_NAMESEG_SIZE] = 0;
 
 	/* Handle multiple SSDts - create different filenames for each */
 

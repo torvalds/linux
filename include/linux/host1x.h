@@ -1,19 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2009-2013, NVIDIA Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef __LINUX_HOST1X_H
@@ -192,13 +179,6 @@ struct host1x_reloc {
 	unsigned long shift;
 };
 
-struct host1x_waitchk {
-	struct host1x_bo *bo;
-	u32 offset;
-	u32 syncpt_id;
-	u32 thresh;
-};
-
 struct host1x_job {
 	/* When refcount goes to zero, job can be freed */
 	struct kref ref;
@@ -209,19 +189,15 @@ struct host1x_job {
 	/* Channel where job is submitted to */
 	struct host1x_channel *channel;
 
-	u32 client;
+	/* client where the job originated */
+	struct host1x_client *client;
 
 	/* Gathers and their memory */
 	struct host1x_job_gather *gathers;
 	unsigned int num_gathers;
 
-	/* Wait checks to be processed at submit time */
-	struct host1x_waitchk *waitchk;
-	unsigned int num_waitchk;
-	u32 waitchk_mask;
-
 	/* Array of handles to be pinned & unpinned */
-	struct host1x_reloc *relocarray;
+	struct host1x_reloc *relocs;
 	unsigned int num_relocs;
 	struct host1x_job_unpin_data *unpins;
 	unsigned int num_unpins;
@@ -261,10 +237,9 @@ struct host1x_job {
 };
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
-				    u32 num_cmdbufs, u32 num_relocs,
-				    u32 num_waitchks);
-void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *mem_id,
-			   u32 words, u32 offset);
+				    u32 num_cmdbufs, u32 num_relocs);
+void host1x_job_add_gather(struct host1x_job *job, struct host1x_bo *bo,
+			   unsigned int words, unsigned int offset);
 struct host1x_job *host1x_job_get(struct host1x_job *job);
 void host1x_job_put(struct host1x_job *job);
 int host1x_job_pin(struct host1x_job *job, struct device *dev);
@@ -322,6 +297,8 @@ struct host1x_device {
 	struct list_head clients;
 
 	bool registered;
+
+	struct device_dma_parameters dma_parms;
 };
 
 static inline struct host1x_device *to_host1x_device(struct device *dev)

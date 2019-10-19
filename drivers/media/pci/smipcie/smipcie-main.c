@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * SMI PCIe driver for DVBSky cards.
  *
  * Copyright (C) 2014 Max nibble <nibble.max@gmail.com>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include "smipcie.h"
@@ -191,7 +182,7 @@ static int smi_i2c_init(struct smi_dev *dev)
 	/* i2c bus 0 */
 	smi_i2c_cfg(dev, I2C_A_SW_CTL);
 	i2c_set_adapdata(&dev->i2c_bus[0], dev);
-	strcpy(dev->i2c_bus[0].name, "SMI-I2C0");
+	strscpy(dev->i2c_bus[0].name, "SMI-I2C0", sizeof(dev->i2c_bus[0].name));
 	dev->i2c_bus[0].owner = THIS_MODULE;
 	dev->i2c_bus[0].dev.parent = &dev->pci_dev->dev;
 	dev->i2c_bus[0].algo_data = &dev->i2c_bit[0];
@@ -213,7 +204,7 @@ static int smi_i2c_init(struct smi_dev *dev)
 	/* i2c bus 1 */
 	smi_i2c_cfg(dev, I2C_B_SW_CTL);
 	i2c_set_adapdata(&dev->i2c_bus[1], dev);
-	strcpy(dev->i2c_bus[1].name, "SMI-I2C1");
+	strscpy(dev->i2c_bus[1].name, "SMI-I2C1", sizeof(dev->i2c_bus[1].name));
 	dev->i2c_bus[1].owner = THIS_MODULE;
 	dev->i2c_bus[1].dev.parent = &dev->pci_dev->dev;
 	dev->i2c_bus[1].algo_data = &dev->i2c_bit[1];
@@ -549,7 +540,7 @@ static int smi_dvbsky_m88ds3103_fe_attach(struct smi_port *port)
 	}
 	/* attach tuner */
 	ts2020_config.fe = port->fe;
-	strlcpy(tuner_info.type, "ts2020", I2C_NAME_SIZE);
+	strscpy(tuner_info.type, "ts2020", I2C_NAME_SIZE);
 	tuner_info.addr = 0x60;
 	tuner_info.platform_data = &ts2020_config;
 	tuner_client = smi_add_i2c_client(tuner_i2c_adapter, &tuner_info);
@@ -605,7 +596,7 @@ static int smi_dvbsky_m88rs6000_fe_attach(struct smi_port *port)
 	}
 	/* attach tuner */
 	m88rs6000t_config.fe = port->fe;
-	strlcpy(tuner_info.type, "m88rs6000t", I2C_NAME_SIZE);
+	strscpy(tuner_info.type, "m88rs6000t", I2C_NAME_SIZE);
 	tuner_info.addr = 0x21;
 	tuner_info.platform_data = &m88rs6000t_config;
 	tuner_client = smi_add_i2c_client(tuner_i2c_adapter, &tuner_info);
@@ -647,7 +638,7 @@ static int smi_dvbsky_sit2_fe_attach(struct smi_port *port)
 	si2168_config.ts_mode = SI2168_TS_PARALLEL;
 
 	memset(&client_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(client_info.type, "si2168", I2C_NAME_SIZE);
+	strscpy(client_info.type, "si2168", I2C_NAME_SIZE);
 	client_info.addr = 0x64;
 	client_info.platform_data = &si2168_config;
 
@@ -664,7 +655,7 @@ static int smi_dvbsky_sit2_fe_attach(struct smi_port *port)
 	si2157_config.if_port = 1;
 
 	memset(&client_info, 0, sizeof(struct i2c_board_info));
-	strlcpy(client_info.type, "si2157", I2C_NAME_SIZE);
+	strscpy(client_info.type, "si2157", I2C_NAME_SIZE);
 	client_info.addr = 0x60;
 	client_info.platform_data = &si2157_config;
 

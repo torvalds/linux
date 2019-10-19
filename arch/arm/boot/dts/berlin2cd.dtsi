@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Device Tree Include file for Marvell Armada 1500-mini (Berlin BG2CD) SoC
  *
@@ -5,38 +6,6 @@
  *
  * based on GPL'ed 2.6 kernel sources
  *  (c) Marvell International Ltd.
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is licensed under the terms of the GNU General Public
- *     License version 2. This program is licensed "as is" without any
- *     warranty of any kind, whether express or implied.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include <dt-bindings/clock/berlin2.h>
@@ -57,7 +26,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu@0 {
+		cpu: cpu@0 {
 			compatible = "arm,cortex-a9";
 			device_type = "cpu";
 			next-level-cache = <&l2>;
@@ -73,6 +42,12 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
 	refclk: oscillator {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -86,11 +61,6 @@
 		interrupt-parent = <&gic>;
 
 		ranges = <0 0xf7000000 0x1000000>;
-
-		pmu {
-			compatible = "arm,cortex-a9-pmu";
-			interrupts = <GIC_SPI 30 IRQ_TYPE_LEVEL_HIGH>;
-		};
 
 		sdhci0: sdhci@ab0000 {
 			compatible = "mrvl,pxav3-mmc";
@@ -108,6 +78,11 @@
 			cache-level = <2>;
 		};
 
+		snoop-control-unit@ad0000 {
+			compatible = "arm,cortex-a9-scu";
+			reg = <0xad0000 0x100>;
+		};
+
 		gic: interrupt-controller@ad1000 {
 			compatible = "arm,cortex-a9-gic";
 			reg = <0xad1000 0x1000>, <0xad0100 0x0100>;
@@ -115,10 +90,24 @@
 			#interrupt-cells = <3>;
 		};
 
+		global-timer@ad0200 {
+			compatible = "arm,cortex-a9-global-timer";
+			reg = <0xad0200 0x20>;
+			interrupts = <GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_EDGE_RISING)>;
+			clocks = <&chip_clk CLKID_TWD>;
+		};
+
 		local-timer@ad0600 {
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0xad0600 0x20>;
-			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
+			interrupts = <GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_EDGE_RISING)>;
+			clocks = <&chip_clk CLKID_TWD>;
+		};
+
+		local-wdt@ad0620 {
+			compatible = "arm,cortex-a9-twd-wdt";
+			reg = <0xad0620 0x20>;
+			interrupts = <GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_EDGE_RISING)>;
 			clocks = <&chip_clk CLKID_TWD>;
 		};
 
@@ -252,6 +241,60 @@
 					#interrupt-cells = <2>;
 					interrupts = <3>;
 				};
+			};
+
+			i2c0: i2c@1400 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x1400 0x100>;
+				interrupts = <16>;
+				clocks = <&chip_clk CLKID_CFG>;
+				status = "disabled";
+			};
+
+			i2c1: i2c@1800 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x1800 0x100>;
+				interrupts = <17>;
+				clocks = <&chip_clk CLKID_CFG>;
+				status = "disabled";
+			};
+
+			spi0: spi@1c00 {
+				compatible = "snps,dw-apb-ssi";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x1c00 0x100>;
+				interrupts = <4>;
+				clocks = <&chip_clk CLKID_CFG>;
+				status = "disabled";
+			};
+
+			wdt4: watchdog@2000 {
+				compatible = "snps,dw-wdt";
+				reg = <0x2000 0x100>;
+				clocks = <&chip_clk CLKID_CFG>;
+				interrupts = <5>;
+				status = "disabled";
+			};
+
+			wdt5: watchdog@2400 {
+				compatible = "snps,dw-wdt";
+				reg = <0x2400 0x100>;
+				clocks = <&chip_clk CLKID_CFG>;
+				interrupts = <6>;
+				status = "disabled";
+			};
+
+			wdt6: watchdog@2800 {
+				compatible = "snps,dw-wdt";
+				reg = <0x2800 0x100>;
+				clocks = <&chip_clk CLKID_CFG>;
+				interrupts = <7>;
+				status = "disabled";
 			};
 
 			timer0: timer@2c00 {
@@ -435,6 +478,36 @@
 				};
 			};
 
+			spi1: spi@6000 {
+				compatible = "snps,dw-apb-ssi";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x6000 0x100>;
+				clocks = <&refclk>;
+				interrupts = <5>;
+				status = "disabled";
+			};
+
+			i2c2: i2c@7000 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x7000 0x100>;
+				interrupts = <6>;
+				clocks = <&refclk>;
+				status = "disabled";
+			};
+
+			i2c3: i2c@8000 {
+				compatible = "snps,designware-i2c";
+				#address-cells = <1>;
+				#size-cells = <0>;
+				reg = <0x8000 0x100>;
+				interrupts = <7>;
+				clocks = <&refclk>;
+				status = "disabled";
+			};
+
 			sm_gpio0: gpio@c000 {
 				compatible = "snps,dw-apb-gpio";
 				reg = <0xc000 0x400>;
@@ -472,12 +545,28 @@
 				status = "disabled";
 			};
 
+			uart2: serial@b000 {
+				compatible = "snps,dw-apb-uart";
+				reg = <0xb000 0x100>;
+				reg-shift = <2>;
+				reg-io-width = <1>;
+				interrupts = <10>;
+				clocks = <&refclk>;
+				status = "disabled";
+			};
+
 			sysctrl: system-controller@d000 {
 				compatible = "simple-mfd", "syscon";
 				reg = <0xd000 0x100>;
 
 				sys_pinctrl: pin-controller {
 					compatible = "marvell,berlin2cd-system-pinctrl";
+				};
+
+				adc: adc {
+					compatible = "marvell,berlin2-adc";
+					interrupts = <12>, <14>;
+					interrupt-names = "adc", "tsen";
 				};
 			};
 

@@ -160,13 +160,14 @@ static void nfcmrvl_tx_complete(struct urb *urb)
 	struct nci_dev *ndev = (struct nci_dev *)skb->dev;
 	struct nfcmrvl_private *priv = nci_get_drvdata(ndev);
 	struct nfcmrvl_usb_drv_data *drv_data = priv->drv_data;
+	unsigned long flags;
 
 	nfc_info(priv->dev, "urb %p status %d count %d\n",
 		 urb, urb->status, urb->actual_length);
 
-	spin_lock(&drv_data->txlock);
+	spin_lock_irqsave(&drv_data->txlock, flags);
 	drv_data->tx_in_flight--;
-	spin_unlock(&drv_data->txlock);
+	spin_unlock_irqrestore(&drv_data->txlock, flags);
 
 	kfree(urb->setup_packet);
 	kfree_skb(skb);
@@ -304,6 +305,7 @@ static int nfcmrvl_probe(struct usb_interface *intf,
 
 	/* No configuration for USB */
 	memset(&config, 0, sizeof(config));
+	config.reset_n_io = -EINVAL;
 
 	nfc_info(&udev->dev, "intf %p id %p\n", intf, id);
 

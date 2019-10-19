@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* CPU virtualization extensions handling
  *
  * This should carry the code for handling CPU virtualization extensions
@@ -8,9 +9,6 @@
  * Copyright (C) 2008, Red Hat Inc.
  *
  * Contains code from KVM, Copyright (C) 2006 Qumranet, Inc.
- *
- * This work is licensed under the terms of the GNU GPL, version 2.  See
- * the COPYING file in the top-level directory.
  */
 #ifndef _ASM_X86_VIRTEX_H
 #define _ASM_X86_VIRTEX_H
@@ -40,7 +38,7 @@ static inline int cpu_has_vmx(void)
  */
 static inline void cpu_vmxoff(void)
 {
-	asm volatile (ASM_VMX_VMXOFF : : : "cc");
+	asm volatile ("vmxoff");
 	cr4_clear_bits(X86_CR4_VMXE);
 }
 
@@ -83,9 +81,10 @@ static inline void cpu_emergency_vmxoff(void)
  */
 static inline int cpu_has_svm(const char **msg)
 {
-	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD) {
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD &&
+	    boot_cpu_data.x86_vendor != X86_VENDOR_HYGON) {
 		if (msg)
-			*msg = "not amd";
+			*msg = "not amd or hygon";
 		return 0;
 	}
 

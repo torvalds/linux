@@ -7,6 +7,7 @@
 #include <sys/resource.h>
 #include "libbpf.h"
 #include "bpf_load.h"
+#include "trace_helpers.h"
 
 int main(int ac, char **argv)
 {
@@ -36,8 +37,13 @@ int main(int ac, char **argv)
 			bpf_map_lookup_elem(map_fd[0], &next_key, &value);
 			assert(next_key == value);
 			sym = ksym_search(value);
-			printf(" %s", sym->name);
 			key = next_key;
+			if (!sym) {
+				printf("ksym not found. Is kallsyms loaded?\n");
+				continue;
+			}
+
+			printf(" %s", sym->name);
 		}
 		if (key)
 			printf("\n");

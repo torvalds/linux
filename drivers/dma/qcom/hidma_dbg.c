@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Qualcomm Technologies HIDMA debug file
  *
  * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/debugfs.h>
@@ -85,11 +77,11 @@ static void hidma_ll_devstats(struct seq_file *s, void *llhndl)
 }
 
 /*
- * hidma_chan_stats: display HIDMA channel statistics
+ * hidma_chan_show: display HIDMA channel statistics
  *
  * Display the statistics for the current HIDMA virtual channel device.
  */
-static int hidma_chan_stats(struct seq_file *s, void *unused)
+static int hidma_chan_show(struct seq_file *s, void *unused)
 {
 	struct hidma_chan *mchan = s->private;
 	struct hidma_desc *mdesc;
@@ -117,11 +109,11 @@ static int hidma_chan_stats(struct seq_file *s, void *unused)
 }
 
 /*
- * hidma_dma_info: display HIDMA device info
+ * hidma_dma_show: display HIDMA device info
  *
  * Display the info for the current HIDMA device.
  */
-static int hidma_dma_info(struct seq_file *s, void *unused)
+static int hidma_dma_show(struct seq_file *s, void *unused)
 {
 	struct hidma_dev *dmadev = s->private;
 	resource_size_t sz;
@@ -138,46 +130,21 @@ static int hidma_dma_info(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int hidma_chan_stats_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hidma_chan_stats, inode->i_private);
-}
-
-static int hidma_dma_info_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, hidma_dma_info, inode->i_private);
-}
-
-static const struct file_operations hidma_chan_fops = {
-	.open = hidma_chan_stats_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static const struct file_operations hidma_dma_fops = {
-	.open = hidma_dma_info_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(hidma_chan);
+DEFINE_SHOW_ATTRIBUTE(hidma_dma);
 
 void hidma_debug_uninit(struct hidma_dev *dmadev)
 {
 	debugfs_remove_recursive(dmadev->debugfs);
 }
 
-int hidma_debug_init(struct hidma_dev *dmadev)
+void hidma_debug_init(struct hidma_dev *dmadev)
 {
-	int rc = 0;
 	int chidx = 0;
 	struct list_head *position = NULL;
+	struct dentry *dir;
 
 	dmadev->debugfs = debugfs_create_dir(dev_name(dmadev->ddev.dev), NULL);
-	if (!dmadev->debugfs) {
-		rc = -ENODEV;
-		return rc;
-	}
 
 	/* walk through the virtual channel list */
 	list_for_each(position, &dmadev->ddev.channels) {
@@ -186,32 +153,13 @@ int hidma_debug_init(struct hidma_dev *dmadev)
 		chan = list_entry(position, struct hidma_chan,
 				  chan.device_node);
 		sprintf(chan->dbg_name, "chan%d", chidx);
-		chan->debugfs = debugfs_create_dir(chan->dbg_name,
+		dir = debugfs_create_dir(chan->dbg_name,
 						   dmadev->debugfs);
-		if (!chan->debugfs) {
-			rc = -ENOMEM;
-			goto cleanup;
-		}
-		chan->stats = debugfs_create_file("stats", S_IRUGO,
-						  chan->debugfs, chan,
-						  &hidma_chan_fops);
-		if (!chan->stats) {
-			rc = -ENOMEM;
-			goto cleanup;
-		}
+		debugfs_create_file("stats", S_IRUGO, dir, chan,
+				    &hidma_chan_fops);
 		chidx++;
 	}
 
-	dmadev->stats = debugfs_create_file("stats", S_IRUGO,
-					    dmadev->debugfs, dmadev,
-					    &hidma_dma_fops);
-	if (!dmadev->stats) {
-		rc = -ENOMEM;
-		goto cleanup;
-	}
-
-	return 0;
-cleanup:
-	hidma_debug_uninit(dmadev);
-	return rc;
+	debugfs_create_file("stats", S_IRUGO, dmadev->debugfs, dmadev,
+			    &hidma_dma_fops);
 }

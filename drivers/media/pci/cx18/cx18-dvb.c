@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  cx18 functions for DVB support
  *
  *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
  *  Copyright (C) 2008  Andy Walls <awalls@md.metrocast.net>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include "cx18-version.h"
@@ -72,7 +62,7 @@ static struct s5h1409_config hauppauge_hvr1600_config = {
 	.qam_if        = 44000,
 	.inversion     = S5H1409_INVERSION_OFF,
 	.status_mode   = S5H1409_DEMODLOCKING,
-	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1409_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 	.hvr1600_opt   = S5H1409_HVR1600_OPTIMIZE
 };
 
@@ -86,7 +76,7 @@ static struct s5h1411_config hcw_s5h1411_config = {
 	.qam_if        = S5H1411_IF_4000,
 	.inversion     = S5H1411_INVERSION_ON,
 	.status_mode   = S5H1411_DEMODLOCKING,
-	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK,
+	.mpeg_timing   = S5H1411_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK,
 };
 
 static struct tda18271_std_map hauppauge_tda18271_std_map = {
@@ -120,8 +110,8 @@ static struct zl10353_config leadtek_dvr3100h_demod = {
 /*
  * Due to
  *
- * 1. an absence of information on how to prgram the MT352
- * 2. the Linux mt352 module pushing MT352 initialzation off onto us here
+ * 1. an absence of information on how to program the MT352
+ * 2. the Linux mt352 module pushing MT352 initialization off onto us here
  *
  * We have to use an init sequence that *you* must extract from the Windows
  * driver (yuanrap.sys) and which we load as a firmware.
@@ -152,7 +142,7 @@ static int yuan_mpc718_mt352_reqfw(struct cx18_stream *stream,
 
 	if (ret) {
 		CX18_ERR("The MPC718 board variant with the MT352 DVB-T demodulator will not work without it\n");
-		CX18_ERR("Run 'linux/Documentation/dvb/get_dvb_firmware mpc718' if you need the firmware\n");
+		CX18_ERR("Run 'linux/scripts/get_dvb_firmware mpc718' if you need the firmware\n");
 	}
 	return ret;
 }
@@ -458,7 +448,7 @@ void cx18_dvb_unregister(struct cx18_stream *stream)
 	dvb_unregister_adapter(dvb_adapter);
 }
 
-/* All the DVB attach calls go here, this function get's modified
+/* All the DVB attach calls go here, this function gets modified
  * for each new card. cx18_dvb_start_feed() will also need changes.
  */
 static int dvb_register(struct cx18_stream *stream)

@@ -1488,11 +1488,10 @@ static int alloc_and_init_dma_members(struct comedi_device *dev)
 	for (i = 0; i < AO_DMA_RING_COUNT; i++) {
 		if (ao_cmd_is_supported(board)) {
 			devpriv->ao_buffer[i] =
-				dma_alloc_coherent(&pcidev->dev,
-						   DMA_BUFFER_SIZE,
-						   &devpriv->
-						   ao_buffer_bus_addr[i],
-						   GFP_KERNEL);
+			    dma_alloc_coherent(&pcidev->dev,
+					       DMA_BUFFER_SIZE,
+					       &devpriv->ao_buffer_bus_addr[i],
+					       GFP_KERNEL);
 			if (!devpriv->ao_buffer[i])
 				return -ENOMEM;
 		}
@@ -1701,7 +1700,7 @@ static void i2c_write(struct comedi_device *dev, unsigned int address,
 	 * eeprom and i2c bus
 	 */
 
-	/* make sure we dont send anything to eeprom */
+	/* make sure we don't send anything to eeprom */
 	devpriv->plx_control_bits &= ~PLX_CNTRL_EECS;
 
 	i2c_stop(dev);
@@ -2269,14 +2268,14 @@ static inline unsigned int dma_transfer_size(struct comedi_device *dev)
 }
 
 static u32 ai_convert_counter_6xxx(const struct comedi_device *dev,
-					const struct comedi_cmd *cmd)
+				   const struct comedi_cmd *cmd)
 {
 	/* supposed to load counter with desired divisor minus 3 */
 	return cmd->convert_arg / TIMER_BASE - 3;
 }
 
 static u32 ai_scan_counter_6xxx(struct comedi_device *dev,
-				     struct comedi_cmd *cmd)
+				struct comedi_cmd *cmd)
 {
 	u32 count;
 
@@ -2297,7 +2296,7 @@ static u32 ai_scan_counter_6xxx(struct comedi_device *dev,
 }
 
 static u32 ai_convert_counter_4020(struct comedi_device *dev,
-					struct comedi_cmd *cmd)
+				   struct comedi_cmd *cmd)
 {
 	struct pcidas64_private *devpriv = dev->private;
 	unsigned int divisor;
@@ -2463,20 +2462,21 @@ static int setup_channel_queue(struct comedi_device *dev,
 			writew(0, devpriv->main_iobase + ADC_QUEUE_CLEAR_REG);
 			/* load external queue */
 			for (i = 0; i < cmd->chanlist_len; i++) {
+				unsigned int chanspec = cmd->chanlist[i];
+				int use_differential;
+
 				bits = 0;
 				/* set channel */
-				bits |= adc_chan_bits(CR_CHAN(cmd->
-							      chanlist[i]));
+				bits |= adc_chan_bits(CR_CHAN(chanspec));
 				/* set gain */
 				bits |= ai_range_bits_6xxx(dev,
-							   CR_RANGE(cmd->
-								    chanlist
-								    [i]));
+							   CR_RANGE(chanspec));
 				/* set single-ended / differential */
-				bits |= se_diff_bit_6xxx(dev,
-							 CR_AREF(cmd->
-								 chanlist[i]) ==
-							 AREF_DIFF);
+				use_differential = 0;
+				if (CR_AREF(chanspec) == AREF_DIFF)
+					use_differential = 1;
+				bits |= se_diff_bit_6xxx(dev, use_differential);
+
 				if (CR_AREF(cmd->chanlist[i]) == AREF_COMMON)
 					bits |= ADC_COMMON_BIT;
 				/* mark end of queue */
@@ -3097,8 +3097,10 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 	struct pcidas64_private *devpriv = dev->private;
-	int chan = CR_CHAN(insn->chanspec);
-	int range = CR_RANGE(insn->chanspec);
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	unsigned int val = s->readback[chan];
+	unsigned int i;
 
 	/* do some initializing */
 	writew(0, devpriv->main_iobase + DAC_CONTROL0_REG);
@@ -3108,20 +3110,24 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	writew(devpriv->dac_control1_bits,
 	       devpriv->main_iobase + DAC_CONTROL1_REG);
 
-	/* write to channel */
-	if (board->layout == LAYOUT_4020) {
-		writew(data[0] & 0xff,
-		       devpriv->main_iobase + dac_lsb_4020_reg(chan));
-		writew((data[0] >> 8) & 0xf,
-		       devpriv->main_iobase + dac_msb_4020_reg(chan));
-	} else {
-		writew(data[0], devpriv->main_iobase + dac_convert_reg(chan));
+	for (i = 0; i < insn->n; i++) {
+		/* write to channel */
+		val = data[i];
+		if (board->layout == LAYOUT_4020) {
+			writew(val & 0xff,
+			       devpriv->main_iobase + dac_lsb_4020_reg(chan));
+			writew((val >> 8) & 0xf,
+			       devpriv->main_iobase + dac_msb_4020_reg(chan));
+		} else {
+			writew(val,
+			       devpriv->main_iobase + dac_convert_reg(chan));
+		}
 	}
 
-	/* remember output value */
-	s->readback[chan] = data[0];
+	/* remember last output value */
+	s->readback[chan] = val;
 
-	return 1;
+	return insn->n;
 }
 
 static void set_dac_control0_reg(struct comedi_device *dev,
@@ -3248,17 +3254,15 @@ static int prep_ao_dma(struct comedi_device *dev, const struct comedi_cmd *cmd)
 	return 0;
 }
 
-static inline int external_ai_queue_in_use(struct comedi_device *dev,
-					   struct comedi_subdevice *s,
-					   struct comedi_cmd *cmd)
+static inline int external_ai_queue_in_use(struct comedi_device *dev)
 {
 	const struct pcidas64_board *board = dev->board_ptr;
 
-	if (s->busy)
+	if (!dev->read_subdev->busy)
 		return 0;
 	if (board->layout == LAYOUT_4020)
 		return 0;
-	else if (use_internal_queue_6xxx(cmd))
+	else if (use_internal_queue_6xxx(&dev->read_subdev->async->cmd))
 		return 0;
 	return 1;
 }
@@ -3292,7 +3296,7 @@ static int ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct pcidas64_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 
-	if (external_ai_queue_in_use(dev, s, cmd)) {
+	if (external_ai_queue_in_use(dev)) {
 		warn_external_queue(dev);
 		return -EBUSY;
 	}
@@ -3764,9 +3768,17 @@ static int eeprom_read_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	data[0] = read_eeprom(dev, CR_CHAN(insn->chanspec));
+	unsigned int val;
+	unsigned int i;
 
-	return 1;
+	if (insn->n) {
+		/* No point reading the same EEPROM location more than once. */
+		val = read_eeprom(dev, CR_CHAN(insn->chanspec));
+		for (i = 0; i < insn->n; i++)
+			data[i] = val;
+	}
+
+	return insn->n;
 }
 
 /* Allocate and initialize the subdevice structures. */

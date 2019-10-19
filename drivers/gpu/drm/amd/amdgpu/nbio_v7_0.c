@@ -27,12 +27,19 @@
 #include "nbio/nbio_7_0_default.h"
 #include "nbio/nbio_7_0_offset.h"
 #include "nbio/nbio_7_0_sh_mask.h"
+#include "nbio/nbio_7_0_smn.h"
 #include "vega10_enum.h"
+#include <uapi/linux/kfd_ioctl.h>
 
 #define smnNBIF_MGCG_CTRL_LCLK	0x1013a05c
 
-#define smnCPM_CONTROL                                                                                  0x11180460
-#define smnPCIE_CNTL2                                                                                   0x11180070
+static void nbio_v7_0_remap_hdp_registers(struct amdgpu_device *adev)
+{
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_MEM_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL);
+	WREG32_SOC15(NBIO, 0, mmREMAP_HDP_REG_FLUSH_CNTL,
+		adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_REG_FLUSH_CNTL);
+}
 
 static u32 nbio_v7_0_get_rev_id(struct amdgpu_device *adev)
 {
@@ -53,9 +60,13 @@ static void nbio_v7_0_mc_access_enable(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(NBIO, 0, mmBIF_FB_EN, 0);
 }
 
-static void nbio_v7_0_hdp_flush(struct amdgpu_device *adev)
+static void nbio_v7_0_hdp_flush(struct amdgpu_device *adev,
+				struct amdgpu_ring *ring)
 {
-	WREG32_SOC15_NO_KIQ(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	if (!ring || !ring->funcs->emit_wreg)
+		WREG32_NO_KIQ((adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
+	else
+		amdgpu_ring_emit_wreg(ring, (adev->rmmio_remap.reg_offset + KFD_MMIO_REMAP_HDP_MEM_FLUSH_CNTL) >> 2, 0);
 }
 
 static u32 nbio_v7_0_get_memsize(struct amdgpu_device *adev)
@@ -64,7 +75,7 @@ static u32 nbio_v7_0_get_memsize(struct amdgpu_device *adev)
 }
 
 static void nbio_v7_0_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
-					  bool use_doorbell, int doorbell_index)
+			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
 	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
@@ -73,9 +84,29 @@ static void nbio_v7_0_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
-		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 2);
+		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, doorbell_size);
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
+
+	WREG32(reg, doorbell_range);
+}
+
+static void nbio_v7_0_vcn_doorbell_range(struct amdgpu_device *adev, bool use_doorbell,
+					 int doorbell_index, int instance)
+{
+	u32 reg = SOC15_REG_OFFSET(NBIO, 0, mmBIF_MMSCH0_DOORBELL_RANGE);
+
+	u32 doorbell_range = RREG32(reg);
+
+	if (use_doorbell) {
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, OFFSET,
+					       doorbell_index);
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, SIZE, 8);
+	} else
+		doorbell_range = REG_SET_FIELD(doorbell_range,
+					       BIF_MMSCH0_DOORBELL_RANGE, SIZE, 0);
 
 	WREG32(reg, doorbell_range);
 }
@@ -203,7 +234,7 @@ static void nbio_v7_0_ih_control(struct amdgpu_device *adev)
 	u32 interrupt_cntl;
 
 	/* setup interrupt control */
-	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL2, adev->dummy_page.addr >> 8);
+	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
 	interrupt_cntl = RREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL);
 	/* INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=0 - dummy read disabled with msi, enabled without msi
 	 * INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN
@@ -271,6 +302,7 @@ const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
 	.hdp_flush = nbio_v7_0_hdp_flush,
 	.get_memsize = nbio_v7_0_get_memsize,
 	.sdma_doorbell_range = nbio_v7_0_sdma_doorbell_range,
+	.vcn_doorbell_range = nbio_v7_0_vcn_doorbell_range,
 	.enable_doorbell_aperture = nbio_v7_0_enable_doorbell_aperture,
 	.enable_doorbell_selfring_aperture = nbio_v7_0_enable_doorbell_selfring_aperture,
 	.ih_doorbell_range = nbio_v7_0_ih_doorbell_range,
@@ -280,4 +312,5 @@ const struct amdgpu_nbio_funcs nbio_v7_0_funcs = {
 	.ih_control = nbio_v7_0_ih_control,
 	.init_registers = nbio_v7_0_init_registers,
 	.detect_hw_virt = nbio_v7_0_detect_hw_virt,
+	.remap_hdp_registers = nbio_v7_0_remap_hdp_registers,
 };

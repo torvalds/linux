@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config OVERLAY_FS
 	tristate "Overlay filesystem support"
 	select EXPORTFS
@@ -11,7 +12,7 @@ config OVERLAY_FS
 	  For more information see Documentation/filesystems/overlayfs.txt
 
 config OVERLAY_FS_REDIRECT_DIR
-	bool "Overlayfs: turn on redirect dir feature by default"
+	bool "Overlayfs: turn on redirect directory feature by default"
 	depends on OVERLAY_FS
 	help
 	  If this config option is enabled then overlay filesystems will use
@@ -24,6 +25,8 @@ config OVERLAY_FS_REDIRECT_DIR
 	  an overlay which has redirects on a kernel that doesn't support this
 	  feature will have unexpected results.
 
+	  If unsure, say N.
+
 config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
 	bool "Overlayfs: follow redirects even if redirects are turned off"
 	default y
@@ -32,14 +35,19 @@ config OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW
 	  Disable this to get a possibly more secure configuration, but that
 	  might not be backward compatible with previous kernels.
 
+	  If backward compatibility is not an issue, then it is safe and
+	  recommended to say N here.
+
 	  For more information, see Documentation/filesystems/overlayfs.txt
+
+	  If unsure, say Y.
 
 config OVERLAY_FS_INDEX
 	bool "Overlayfs: turn on inodes index feature by default"
 	depends on OVERLAY_FS
 	help
 	  If this config option is enabled then overlay filesystems will use
-	  the inodes index dir to map lower inodes to upper inodes by default.
+	  the index directory to map lower inodes to upper inodes by default.
 	  In this case it is still possible to turn off index globally with the
 	  "index=off" module option or on a filesystem instance basis with the
 	  "index=off" mount option.
@@ -51,13 +59,16 @@ config OVERLAY_FS_INDEX
 	  That is, mounting an overlay which has an inodes index on a kernel
 	  that doesn't support this feature will have unexpected results.
 
+	  If unsure, say N.
+
 config OVERLAY_FS_NFS_EXPORT
 	bool "Overlayfs: turn on NFS export feature by default"
 	depends on OVERLAY_FS
 	depends on OVERLAY_FS_INDEX
+	depends on !OVERLAY_FS_METACOPY
 	help
 	  If this config option is enabled then overlay filesystems will use
-	  the inodes index dir to decode overlay NFS file handles by default.
+	  the index directory to decode overlay NFS file handles by default.
 	  In this case, it is still possible to turn off NFS export support
 	  globally with the "nfs_export=off" module option or on a filesystem
 	  instance basis with the "nfs_export=off" mount option.
@@ -72,3 +83,43 @@ config OVERLAY_FS_NFS_EXPORT
 	  Note, that the NFS export feature is not backward compatible.
 	  That is, mounting an overlay which has a full index on a kernel
 	  that doesn't support this feature will have unexpected results.
+
+	  Most users should say N here and enable this feature on a case-by-
+	  case basis with the "nfs_export=on" mount option.
+
+	  Say N unless you fully understand the consequences.
+
+config OVERLAY_FS_XINO_AUTO
+	bool "Overlayfs: auto enable inode number mapping"
+	default n
+	depends on OVERLAY_FS
+	help
+	  If this config option is enabled then overlay filesystems will use
+	  unused high bits in undelying filesystem inode numbers to map all
+	  inodes to a unified address space.  The mapped 64bit inode numbers
+	  might not be compatible with applications that expect 32bit inodes.
+
+	  If compatibility with applications that expect 32bit inodes is not an
+	  issue, then it is safe and recommended to say Y here.
+
+	  For more information, see Documentation/filesystems/overlayfs.txt
+
+	  If unsure, say N.
+
+config OVERLAY_FS_METACOPY
+	bool "Overlayfs: turn on metadata only copy up feature by default"
+	depends on OVERLAY_FS
+	select OVERLAY_FS_REDIRECT_DIR
+	help
+	  If this config option is enabled then overlay filesystems will
+	  copy up only metadata where appropriate and data copy up will
+	  happen when a file is opened for WRITE operation. It is still
+	  possible to turn off this feature globally with the "metacopy=off"
+	  module option or on a filesystem instance basis with the
+	  "metacopy=off" mount option.
+
+	  Note, that this feature is not backward compatible.  That is,
+	  mounting an overlay which has metacopy only inodes on a kernel
+	  that doesn't support this feature will have unexpected results.
+
+	  If unsure, say N.

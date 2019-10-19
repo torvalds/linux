@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2008 Red Hat, Inc., Eric Paris <eparis@redhat.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/dcache.h>
@@ -48,7 +35,7 @@ void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
  * Called during unmount with no locks held, so needs to be safe against
  * concurrent modifiers. We temporarily drop sb->s_inode_list_lock and CAN block.
  */
-void fsnotify_unmount_inodes(struct super_block *sb)
+static void fsnotify_unmount_inodes(struct super_block *sb)
 {
 	struct inode *inode, *iput_inode = NULL;
 
@@ -96,6 +83,15 @@ void fsnotify_unmount_inodes(struct super_block *sb)
 
 	if (iput_inode)
 		iput(iput_inode);
+	/* Wait for outstanding inode references from connectors */
+	wait_var_event(&sb->s_fsnotify_inode_refs,
+		       !atomic_long_read(&sb->s_fsnotify_inode_refs));
+}
+
+void fsnotify_sb_delete(struct super_block *sb)
+{
+	fsnotify_unmount_inodes(sb);
+	fsnotify_clear_marks_by_sb(sb);
 }
 
 /*
@@ -158,9 +154,9 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 	parent = dget_parent(dentry);
 	p_inode = parent->d_inode;
 
-	if (unlikely(!fsnotify_inode_watches_children(p_inode)))
+	if (unlikely(!fsnotify_inode_watches_children(p_inode))) {
 		__fsnotify_update_child_dentry_flags(p_inode);
-	else if (p_inode->i_fsnotify_mask & mask) {
+	} else if (p_inode->i_fsnotify_mask & mask & ALL_FSNOTIFY_EVENTS) {
 		struct name_snapshot name;
 
 		/* we are notifying a parent so come up with the new mask which
@@ -170,10 +166,10 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 		take_dentry_name_snapshot(&name, dentry);
 		if (path)
 			ret = fsnotify(p_inode, mask, path, FSNOTIFY_EVENT_PATH,
-				       name.name, 0);
+				       &name.name, 0);
 		else
 			ret = fsnotify(p_inode, mask, dentry->d_inode, FSNOTIFY_EVENT_INODE,
-				       name.name, 0);
+				       &name.name, 0);
 		release_dentry_name_snapshot(&name);
 	}
 
@@ -184,62 +180,54 @@ int __fsnotify_parent(const struct path *path, struct dentry *dentry, __u32 mask
 EXPORT_SYMBOL_GPL(__fsnotify_parent);
 
 static int send_to_group(struct inode *to_tell,
-			 struct fsnotify_mark *inode_mark,
-			 struct fsnotify_mark *vfsmount_mark,
 			 __u32 mask, const void *data,
 			 int data_is, u32 cookie,
-			 const unsigned char *file_name,
+			 const struct qstr *file_name,
 			 struct fsnotify_iter_info *iter_info)
 {
 	struct fsnotify_group *group = NULL;
-	__u32 inode_test_mask = 0;
-	__u32 vfsmount_test_mask = 0;
+	__u32 test_mask = (mask & ALL_FSNOTIFY_EVENTS);
+	__u32 marks_mask = 0;
+	__u32 marks_ignored_mask = 0;
+	struct fsnotify_mark *mark;
+	int type;
 
-	if (unlikely(!inode_mark && !vfsmount_mark)) {
-		BUG();
+	if (WARN_ON(!iter_info->report_mask))
 		return 0;
-	}
 
 	/* clear ignored on inode modification */
 	if (mask & FS_MODIFY) {
-		if (inode_mark &&
-		    !(inode_mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
-			inode_mark->ignored_mask = 0;
-		if (vfsmount_mark &&
-		    !(vfsmount_mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
-			vfsmount_mark->ignored_mask = 0;
+		fsnotify_foreach_obj_type(type) {
+			if (!fsnotify_iter_should_report_type(iter_info, type))
+				continue;
+			mark = iter_info->marks[type];
+			if (mark &&
+			    !(mark->flags & FSNOTIFY_MARK_FLAG_IGNORED_SURV_MODIFY))
+				mark->ignored_mask = 0;
+		}
 	}
 
-	/* does the inode mark tell us to do something? */
-	if (inode_mark) {
-		group = inode_mark->group;
-		inode_test_mask = (mask & ~FS_EVENT_ON_CHILD);
-		inode_test_mask &= inode_mark->mask;
-		inode_test_mask &= ~inode_mark->ignored_mask;
+	fsnotify_foreach_obj_type(type) {
+		if (!fsnotify_iter_should_report_type(iter_info, type))
+			continue;
+		mark = iter_info->marks[type];
+		/* does the object mark tell us to do something? */
+		if (mark) {
+			group = mark->group;
+			marks_mask |= mark->mask;
+			marks_ignored_mask |= mark->ignored_mask;
+		}
 	}
 
-	/* does the vfsmount_mark tell us to do something? */
-	if (vfsmount_mark) {
-		vfsmount_test_mask = (mask & ~FS_EVENT_ON_CHILD);
-		group = vfsmount_mark->group;
-		vfsmount_test_mask &= vfsmount_mark->mask;
-		vfsmount_test_mask &= ~vfsmount_mark->ignored_mask;
-		if (inode_mark)
-			vfsmount_test_mask &= ~inode_mark->ignored_mask;
-	}
-
-	pr_debug("%s: group=%p to_tell=%p mask=%x inode_mark=%p"
-		 " inode_test_mask=%x vfsmount_mark=%p vfsmount_test_mask=%x"
+	pr_debug("%s: group=%p to_tell=%p mask=%x marks_mask=%x marks_ignored_mask=%x"
 		 " data=%p data_is=%d cookie=%d\n",
-		 __func__, group, to_tell, mask, inode_mark,
-		 inode_test_mask, vfsmount_mark, vfsmount_test_mask, data,
-		 data_is, cookie);
+		 __func__, group, to_tell, mask, marks_mask, marks_ignored_mask,
+		 data, data_is, cookie);
 
-	if (!inode_test_mask && !vfsmount_test_mask)
+	if (!(test_mask & marks_mask & ~marks_ignored_mask))
 		return 0;
 
-	return group->ops->handle_event(group, to_tell, inode_mark,
-					vfsmount_mark, mask, data, data_is,
+	return group->ops->handle_event(group, to_tell, mask, data, data_is,
 					file_name, cookie, iter_info);
 }
 
@@ -267,24 +255,79 @@ static struct fsnotify_mark *fsnotify_next_mark(struct fsnotify_mark *mark)
 }
 
 /*
+ * iter_info is a multi head priority queue of marks.
+ * Pick a subset of marks from queue heads, all with the
+ * same group and set the report_mask for selected subset.
+ * Returns the report_mask of the selected subset.
+ */
+static unsigned int fsnotify_iter_select_report_types(
+		struct fsnotify_iter_info *iter_info)
+{
+	struct fsnotify_group *max_prio_group = NULL;
+	struct fsnotify_mark *mark;
+	int type;
+
+	/* Choose max prio group among groups of all queue heads */
+	fsnotify_foreach_obj_type(type) {
+		mark = iter_info->marks[type];
+		if (mark &&
+		    fsnotify_compare_groups(max_prio_group, mark->group) > 0)
+			max_prio_group = mark->group;
+	}
+
+	if (!max_prio_group)
+		return 0;
+
+	/* Set the report mask for marks from same group as max prio group */
+	iter_info->report_mask = 0;
+	fsnotify_foreach_obj_type(type) {
+		mark = iter_info->marks[type];
+		if (mark &&
+		    fsnotify_compare_groups(max_prio_group, mark->group) == 0)
+			fsnotify_iter_set_report_type(iter_info, type);
+	}
+
+	return iter_info->report_mask;
+}
+
+/*
+ * Pop from iter_info multi head queue, the marks that were iterated in the
+ * current iteration step.
+ */
+static void fsnotify_iter_next(struct fsnotify_iter_info *iter_info)
+{
+	int type;
+
+	fsnotify_foreach_obj_type(type) {
+		if (fsnotify_iter_should_report_type(iter_info, type))
+			iter_info->marks[type] =
+				fsnotify_next_mark(iter_info->marks[type]);
+	}
+}
+
+/*
  * This is the main call to fsnotify.  The VFS calls into hook specific functions
  * in linux/fsnotify.h.  Those functions then in turn call here.  Here will call
  * out to all of the registered fsnotify_group.  Those groups can then use the
  * notification event in whatever means they feel necessary.
  */
 int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
-	     const unsigned char *file_name, u32 cookie)
+	     const struct qstr *file_name, u32 cookie)
 {
 	struct fsnotify_iter_info iter_info = {};
-	struct mount *mnt;
+	struct super_block *sb = to_tell->i_sb;
+	struct mount *mnt = NULL;
+	__u32 mnt_or_sb_mask = sb->s_fsnotify_mask;
 	int ret = 0;
-	/* global tests shouldn't care about events on child only the specific event */
-	__u32 test_mask = (mask & ~FS_EVENT_ON_CHILD);
+	__u32 test_mask = (mask & ALL_FSNOTIFY_EVENTS);
 
-	if (data_is == FSNOTIFY_EVENT_PATH)
+	if (data_is == FSNOTIFY_EVENT_PATH) {
 		mnt = real_mount(((const struct path *)data)->mnt);
-	else
-		mnt = NULL;
+		mnt_or_sb_mask |= mnt->mnt_fsnotify_mask;
+	}
+	/* An event "on child" is not intended for a mount/sb mark */
+	if (mask & FS_EVENT_ON_CHILD)
+		mnt_or_sb_mask = 0;
 
 	/*
 	 * Optimization: srcu_read_lock() has a memory barrier which can
@@ -293,66 +336,42 @@ int fsnotify(struct inode *to_tell, __u32 mask, const void *data, int data_is,
 	 * SRCU because we have no references to any objects and do not
 	 * need SRCU to keep them "alive".
 	 */
-	if (!to_tell->i_fsnotify_marks &&
+	if (!to_tell->i_fsnotify_marks && !sb->s_fsnotify_marks &&
 	    (!mnt || !mnt->mnt_fsnotify_marks))
 		return 0;
 	/*
 	 * if this is a modify event we may need to clear the ignored masks
-	 * otherwise return if neither the inode nor the vfsmount care about
+	 * otherwise return if neither the inode nor the vfsmount/sb care about
 	 * this type of event.
 	 */
 	if (!(mask & FS_MODIFY) &&
-	    !(test_mask & to_tell->i_fsnotify_mask) &&
-	    !(mnt && test_mask & mnt->mnt_fsnotify_mask))
+	    !(test_mask & (to_tell->i_fsnotify_mask | mnt_or_sb_mask)))
 		return 0;
 
 	iter_info.srcu_idx = srcu_read_lock(&fsnotify_mark_srcu);
 
-	if ((mask & FS_MODIFY) ||
-	    (test_mask & to_tell->i_fsnotify_mask)) {
-		iter_info.inode_mark =
-			fsnotify_first_mark(&to_tell->i_fsnotify_marks);
-	}
-
-	if (mnt && ((mask & FS_MODIFY) ||
-		    (test_mask & mnt->mnt_fsnotify_mask))) {
-		iter_info.inode_mark =
-			fsnotify_first_mark(&to_tell->i_fsnotify_marks);
-		iter_info.vfsmount_mark =
+	iter_info.marks[FSNOTIFY_OBJ_TYPE_INODE] =
+		fsnotify_first_mark(&to_tell->i_fsnotify_marks);
+	iter_info.marks[FSNOTIFY_OBJ_TYPE_SB] =
+		fsnotify_first_mark(&sb->s_fsnotify_marks);
+	if (mnt) {
+		iter_info.marks[FSNOTIFY_OBJ_TYPE_VFSMOUNT] =
 			fsnotify_first_mark(&mnt->mnt_fsnotify_marks);
 	}
 
 	/*
-	 * We need to merge inode & vfsmount mark lists so that inode mark
-	 * ignore masks are properly reflected for mount mark notifications.
+	 * We need to merge inode/vfsmount/sb mark lists so that e.g. inode mark
+	 * ignore masks are properly reflected for mount/sb mark notifications.
 	 * That's why this traversal is so complicated...
 	 */
-	while (iter_info.inode_mark || iter_info.vfsmount_mark) {
-		struct fsnotify_mark *inode_mark = iter_info.inode_mark;
-		struct fsnotify_mark *vfsmount_mark = iter_info.vfsmount_mark;
-
-		if (inode_mark && vfsmount_mark) {
-			int cmp = fsnotify_compare_groups(inode_mark->group,
-							  vfsmount_mark->group);
-			if (cmp > 0)
-				inode_mark = NULL;
-			else if (cmp < 0)
-				vfsmount_mark = NULL;
-		}
-
-		ret = send_to_group(to_tell, inode_mark, vfsmount_mark, mask,
-				    data, data_is, cookie, file_name,
-				    &iter_info);
+	while (fsnotify_iter_select_report_types(&iter_info)) {
+		ret = send_to_group(to_tell, mask, data, data_is, cookie,
+				    file_name, &iter_info);
 
 		if (ret && (mask & ALL_FSNOTIFY_PERM_EVENTS))
 			goto out;
 
-		if (inode_mark)
-			iter_info.inode_mark =
-				fsnotify_next_mark(iter_info.inode_mark);
-		if (vfsmount_mark)
-			iter_info.vfsmount_mark =
-				fsnotify_next_mark(iter_info.vfsmount_mark);
+		fsnotify_iter_next(&iter_info);
 	}
 	ret = 0;
 out:
@@ -368,7 +387,7 @@ static __init int fsnotify_init(void)
 {
 	int ret;
 
-	BUG_ON(hweight32(ALL_FSNOTIFY_EVENTS) != 23);
+	BUILD_BUG_ON(HWEIGHT32(ALL_FSNOTIFY_BITS) != 25);
 
 	ret = init_srcu_struct(&fsnotify_mark_srcu);
 	if (ret)

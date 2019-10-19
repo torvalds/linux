@@ -77,10 +77,12 @@ Documentation/process/howto.rst
 
 리눅스 커널 소스 코드는 GPL로 배포(release)되었다. 소스트리의 메인
 디렉토리에 있는 라이센스에 관하여 상세하게 쓰여 있는 COPYING이라는
-파일을 봐라. 여러분이 라이센스에 관한 더 깊은 문제를 가지고 있다면
-리눅스 커널 메일링 리스트에 묻지말고 변호사와 연락하라. 메일링
-리스트들에 있는 사람들은 변호사가 아니기 때문에 법적 문제에 관하여
-그들의 말에 의지해서는 안된다.
+파일을 봐라. 리눅스 커널 라이센싱 규칙과 소스 코드 안의 `SPDX
+<https://spdx.org/>`_ 식별자 사용법은
+:ref:`Documentation/process/license-rules.rst <kernel_licensing>` 에 설명되어
+있다. 여러분이 라이센스에 관한 더 깊은 문제를 가지고 있다면 리눅스 커널 메일링
+리스트에 묻지말고 변호사와 연락하라. 메일링 리스트들에 있는 사람들은 변호사가
+아니기 때문에 법적 문제에 관하여 그들의 말에 의지해서는 안된다.
 
 GPL에 관한 잦은 질문들과 답변들은 다음을 참조하라.
 
@@ -99,7 +101,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
 
 다음은 커널 소스 트리에 있는 읽어야 할 파일들의 리스트이다.
 
-  README
+  :ref:`Documentation/admin-guide/README.rst <readme>`
     이 파일은 리눅스 커널에 관하여 간단한 배경 설명과 커널을 설정하고
     빌드하기 위해 필요한 것을 설명한다. 커널에 입문하는 사람들은 여기서
     시작해야 한다.
@@ -133,7 +135,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
         https://www.ozlabs.org/~akpm/stuff/tpp.txt
 
     "Linux kernel patch submission format"
-        http://linux.yyz.us/patch-format.html
+        https://web.archive.org/web/20180829112450/http://linux.yyz.us/patch-format.html
 
    :ref:`Documentation/process/stable-api-nonsense.rst <stable_api_nonsense>`
     이 문서는 의도적으로 커널이 불변하는 API를 갖지 않도록 결정한
@@ -160,7 +162,7 @@ mtk.manpages@gmail.com의 메인테이너에게 보낼 것을 권장한다.
     독특한 행동에 관하여 흔히 있는 오해들과 혼란들을 해소하고 있기
     때문이다.
 
-  :ref:`Documentation/process/stable_kernel_rules.rst <stable_kernel_rules>`
+  :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
     이 문서는 안정적인 커널 배포가 이루어지는 규칙을 설명하고 있으며
     여러분들이 이러한 배포들 중 하나에 변경을 하길 원한다면
     무엇을 해야 하는지를 설명한다.
@@ -220,13 +222,6 @@ ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된�
 가지고 있지 않다면 다음에 무엇을 해야할지에 관한 방향을 배울 수 있을
 것이다.
 
-여러분들이 이미 커널 트리에 반영하길 원하는 코드 묶음을 가지고 있지만
-올바른 포맷으로 포장하는데 도움이 필요하다면 그러한 문제를 돕기 위해
-만들어진 kernel-mentors 프로젝트가 있다. 그곳은 메일링 리스트이며
-다음에서 참조할 수 있다.
-
-         https://selenic.com/mailman/listinfo/kernel-mentors
-
 리눅스 커널 코드에 실제 변경을 하기 전에 반드시 그 코드가 어떻게
 동작하는지 이해하고 있어야 한다. 코드를 분석하기 위하여 특정한 툴의
 도움을 빌려서라도 코드를 직접 읽는 것보다 좋은 것은 없다(대부분의
@@ -235,7 +230,7 @@ ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된�
 소스코드를 인덱스된 웹 페이지들의 형태로 보여준다. 최신의 멋진 커널
 코드 저장소는 다음을 통하여 참조할 수 있다.
 
-      http://lxr.free-electrons.com/
+      https://elixir.bootlin.com/
 
 
 개발 프로세스
@@ -247,7 +242,6 @@ ReST 마크업을 사용하는 문서들은 Documentation/output 에 생성된�
 
   - main 4.x 커널 트리
   - 4.x.y - 안정된 커널 트리
-  - 4.x -git 커널 패치들
   - 서브시스템을 위한 커널 트리들과 패치들
   - 4.x - 통합 테스트를 위한 next 커널 트리
 
@@ -303,17 +297,9 @@ Andrew Morton의 글이 있다.
 4.x.y는 "stable" 팀<stable@vger.kernel.org>에 의해 관리되며 거의 매번 격주로
 배포된다.
 
-커널 트리 문서들 내에 Documentation/process/stable-kernel-rules.rst 파일은 어떤
-종류의 변경들이 -stable 트리로 들어왔는지와 배포 프로세스가 어떻게
-진행되는지를 설명한다.
-
-4.x -git 패치들
-~~~~~~~~~~~~~~~
-
-git 저장소(그러므로 -git이라는 이름이 붙음)에는 날마다 관리되는 Linus의
-커널 트리의 snapshot 들이 있다. 이 패치들은 일반적으로 날마다 배포되며
-Linus의 트리의 현재 상태를 나타낸다. 이 패치들은 정상적인지 조금도
-살펴보지 않고 자동적으로 생성된 것이므로 -rc 커널들 보다도 더 실험적이다.
+커널 트리 문서들 내의 :ref:`Documentation/process/stable-kernel-rules.rst <stable_kernel_rules>`
+파일은 어떤 종류의 변경들이 -stable 트리로 들어왔는지와
+배포 프로세스가 어떻게 진행되는지를 설명한다.
 
 서브시스템 커널 트리들과 패치들
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -360,9 +346,10 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 
     https://bugzilla.kernel.org/page.cgi?id=faq.html
 
-메인 커널 소스 디렉토리에 있는 admin-guide/reporting-bugs.rst 파일은 커널 버그라고 생각되는
-것을 보고하는 방법에 관한 좋은 템플릿이며 문제를 추적하기 위해서 커널
-개발자들이 필요로 하는 정보가 무엇들인지를 상세히 설명하고 있다.
+메인 커널 소스 디렉토리에 있는 :ref:`admin-guide/reporting-bugs.rst <reportingbugs>`
+파일은 커널 버그라고 생각되는 것을 보고하는 방법에 관한 좋은 템플릿이며 문제를
+추적하기 위해서 커널 개발자들이 필요로 하는 정보가 무엇들인지를 상세히 설명하고
+있다.
 
 
 버그 리포트들의 관리
@@ -377,15 +364,7 @@ https://bugzilla.kernel.org 는 리눅스 커널 개발자들이 커널의 버�
 다른 사람들의 버그들을 수정하기 위하여 시간을 낭비하지 않기 때문이다.
 
 이미 보고된 버그 리포트들을 가지고 작업하기 위해서 https://bugzilla.kernel.org
-를 참조하라. 여러분이 앞으로 생겨날 버그 리포트들의 조언자가 되길 원한다면
-bugme-new 메일링 리스트나(새로운 버그 리포트들만이 이곳에서 메일로 전해진다)
-bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메일로 전해진다)
-에 등록하면 된다.
-
-      https://lists.linux-foundation.org/mailman/listinfo/bugme-new
-
-      https://lists.linux-foundation.org/mailman/listinfo/bugme-janitors
-
+를 참조하라.
 
 
 메일링 리스트들
@@ -430,7 +409,8 @@ bugme-janitor 메일링 리스트(bugzilla에 모든 변화들이 여기서 메�
 "John 커널해커는 작성했다...."를 유지하며 여러분들의 의견을 그 메일의 윗부분에
 작성하지 말고 각 인용한 단락들 사이에 넣어라.
 
-여러분들이 패치들을 메일에 넣는다면 그것들은 Documentation/process/submitting-patches.rst에
+여러분들이 패치들을 메일에 넣는다면 그것들은
+:ref:`Documentation/process/submitting-patches.rst <submittingpatches>` 에
 나와있는데로 명백히(plain) 읽을 수 있는 텍스트여야 한다. 커널 개발자들은
 첨부파일이나 압축된 패치들을 원하지 않는다. 그들은 여러분들의 패치의
 각 라인 단위로 코멘트를 하길 원하며 압축하거나 첨부하지 않고 보내는 것이

@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARC PGU DRM driver.
  *
  * Copyright (C) 2016 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_encoder_slave.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_device.h>
+#include <drm/drm_probe_helper.h>
 
 #include "arcpgu.h"
 
@@ -29,7 +20,6 @@
 
 struct arcpgu_drm_connector {
 	struct drm_connector connector;
-	struct drm_encoder_slave *encoder_slave;
 };
 
 static int arcpgu_drm_connector_get_modes(struct drm_connector *connector)
@@ -53,7 +43,6 @@ arcpgu_drm_connector_helper_funcs = {
 };
 
 static const struct drm_connector_funcs arcpgu_drm_connector_funcs = {
-	.dpms = drm_helper_connector_dpms,
 	.reset = drm_atomic_helper_connector_reset,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = arcpgu_drm_connector_destroy,
@@ -68,7 +57,7 @@ static struct drm_encoder_funcs arcpgu_drm_encoder_funcs = {
 int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
 {
 	struct arcpgu_drm_connector *arcpgu_connector;
-	struct drm_encoder_slave *encoder;
+	struct drm_encoder *encoder;
 	struct drm_connector *connector;
 	int ret;
 
@@ -76,10 +65,10 @@ int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
 	if (encoder == NULL)
 		return -ENOMEM;
 
-	encoder->base.possible_crtcs = 1;
-	encoder->base.possible_clones = 0;
+	encoder->possible_crtcs = 1;
+	encoder->possible_clones = 0;
 
-	ret = drm_encoder_init(drm, &encoder->base, &arcpgu_drm_encoder_funcs,
+	ret = drm_encoder_init(drm, encoder, &arcpgu_drm_encoder_funcs,
 			       DRM_MODE_ENCODER_VIRTUAL, NULL);
 	if (ret)
 		return ret;
@@ -101,14 +90,12 @@ int arcpgu_drm_sim_init(struct drm_device *drm, struct device_node *np)
 		goto error_encoder_cleanup;
 	}
 
-	ret = drm_mode_connector_attach_encoder(connector, &encoder->base);
+	ret = drm_connector_attach_encoder(connector, encoder);
 	if (ret < 0) {
 		dev_err(drm->dev, "could not attach connector to encoder\n");
 		drm_connector_unregister(connector);
 		goto error_connector_cleanup;
 	}
-
-	arcpgu_connector->encoder_slave = encoder;
 
 	return 0;
 
@@ -116,6 +103,6 @@ error_connector_cleanup:
 	drm_connector_cleanup(connector);
 
 error_encoder_cleanup:
-	drm_encoder_cleanup(&encoder->base);
+	drm_encoder_cleanup(encoder);
 	return ret;
 }

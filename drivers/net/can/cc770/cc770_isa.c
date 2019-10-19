@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for CC770 and AN82527 CAN controllers on the legacy ISA bus
  *
  * Copyright (C) 2009, 2011 Wolfgang Grandegger <wg@grandegger.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -82,29 +74,29 @@ static u8 cor[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
 static u8 bcr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
 static int indirect[MAXDEV] = {[0 ... (MAXDEV - 1)] = -1};
 
-module_param_hw_array(port, ulong, ioport, NULL, S_IRUGO);
+module_param_hw_array(port, ulong, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "I/O port number");
 
-module_param_hw_array(mem, ulong, iomem, NULL, S_IRUGO);
+module_param_hw_array(mem, ulong, iomem, NULL, 0444);
 MODULE_PARM_DESC(mem, "I/O memory address");
 
-module_param_hw_array(indirect, int, ioport, NULL, S_IRUGO);
+module_param_hw_array(indirect, int, ioport, NULL, 0444);
 MODULE_PARM_DESC(indirect, "Indirect access via address and data port");
 
-module_param_hw_array(irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ number");
 
-module_param_array(clk, int, NULL, S_IRUGO);
+module_param_array(clk, int, NULL, 0444);
 MODULE_PARM_DESC(clk, "External oscillator clock frequency "
 		 "(default=16000000 [16 MHz])");
 
-module_param_array(cir, byte, NULL, S_IRUGO);
+module_param_array(cir, byte, NULL, 0444);
 MODULE_PARM_DESC(cir, "CPU interface register (default=0x40 [DSC])");
 
-module_param_array(cor, byte, NULL, S_IRUGO);
+module_param_array(cor, byte, NULL, 0444);
 MODULE_PARM_DESC(cor, "Clockout register (default=0x00)");
 
-module_param_array(bcr, byte, NULL, S_IRUGO);
+module_param_array(bcr, byte, NULL, 0444);
 MODULE_PARM_DESC(bcr, "Bus configuration register (default=0x40 [CBY])");
 
 #define CC770_IOSIZE          0x20

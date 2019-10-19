@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for the OLPC DCON and OLPC EC access
  *
  * Copyright © 2006  Advanced Micro Devices, Inc.
  * Copyright © 2007-2008  Andres Salomon <dilinger@debian.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -29,9 +25,6 @@
 
 struct olpc_platform_t olpc_platform_info;
 EXPORT_SYMBOL_GPL(olpc_platform_info);
-
-/* EC event mask to be applied during suspend (defining wakeup sources). */
-static u16 ec_wakeup_mask;
 
 /* what the timeout *should* be (in ms) */
 #define EC_BASE_TIMEOUT 20
@@ -186,83 +179,6 @@ err:
 	return ret;
 }
 
-void olpc_ec_wakeup_set(u16 value)
-{
-	ec_wakeup_mask |= value;
-}
-EXPORT_SYMBOL_GPL(olpc_ec_wakeup_set);
-
-void olpc_ec_wakeup_clear(u16 value)
-{
-	ec_wakeup_mask &= ~value;
-}
-EXPORT_SYMBOL_GPL(olpc_ec_wakeup_clear);
-
-/*
- * Returns true if the compile and runtime configurations allow for EC events
- * to wake the system.
- */
-bool olpc_ec_wakeup_available(void)
-{
-	if (!machine_is_olpc())
-		return false;
-
-	/*
-	 * XO-1 EC wakeups are available when olpc-xo1-sci driver is
-	 * compiled in
-	 */
-#ifdef CONFIG_OLPC_XO1_SCI
-	if (olpc_platform_info.boardrev < olpc_board_pre(0xd0)) /* XO-1 */
-		return true;
-#endif
-
-	/*
-	 * XO-1.5 EC wakeups are available when olpc-xo15-sci driver is
-	 * compiled in
-	 */
-#ifdef CONFIG_OLPC_XO15_SCI
-	if (olpc_platform_info.boardrev >= olpc_board_pre(0xd0)) /* XO-1.5 */
-		return true;
-#endif
-
-	return false;
-}
-EXPORT_SYMBOL_GPL(olpc_ec_wakeup_available);
-
-int olpc_ec_mask_write(u16 bits)
-{
-	if (olpc_platform_info.flags & OLPC_F_EC_WIDE_SCI) {
-		__be16 ec_word = cpu_to_be16(bits);
-		return olpc_ec_cmd(EC_WRITE_EXT_SCI_MASK, (void *) &ec_word, 2,
-				   NULL, 0);
-	} else {
-		unsigned char ec_byte = bits & 0xff;
-		return olpc_ec_cmd(EC_WRITE_SCI_MASK, &ec_byte, 1, NULL, 0);
-	}
-}
-EXPORT_SYMBOL_GPL(olpc_ec_mask_write);
-
-int olpc_ec_sci_query(u16 *sci_value)
-{
-	int ret;
-
-	if (olpc_platform_info.flags & OLPC_F_EC_WIDE_SCI) {
-		__be16 ec_word;
-		ret = olpc_ec_cmd(EC_EXT_SCI_QUERY,
-			NULL, 0, (void *) &ec_word, 2);
-		if (ret == 0)
-			*sci_value = be16_to_cpu(ec_word);
-	} else {
-		unsigned char ec_byte;
-		ret = olpc_ec_cmd(EC_SCI_QUERY, NULL, 0, &ec_byte, 1);
-		if (ret == 0)
-			*sci_value = ec_byte;
-	}
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(olpc_ec_sci_query);
-
 static bool __init check_ofw_architecture(struct device_node *root)
 {
 	const char *olpc_arch;
@@ -296,6 +212,10 @@ static bool __init platform_detect(void)
 	if (success) {
 		olpc_platform_info.boardrev = get_board_revision(root);
 		olpc_platform_info.flags |= OLPC_F_PRESENT;
+
+		pr_info("OLPC board revision %s%X\n",
+			((olpc_platform_info.boardrev & 0xf) < 8) ? "pre" : "",
+			olpc_platform_info.boardrev >> 4);
 	}
 
 	of_node_put(root);
@@ -311,33 +231,12 @@ static int __init add_xo1_platform_devices(void)
 		return PTR_ERR(pdev);
 
 	pdev = platform_device_register_simple("olpc-xo1", -1, NULL, 0);
-	if (IS_ERR(pdev))
-		return PTR_ERR(pdev);
 
-	return 0;
+	return PTR_ERR_OR_ZERO(pdev);
 }
 
-static int olpc_xo1_ec_probe(struct platform_device *pdev)
-{
-	/* get the EC revision */
-	olpc_ec_cmd(EC_FIRMWARE_REV, NULL, 0,
-			(unsigned char *) &olpc_platform_info.ecver, 1);
-
-	/* EC version 0x5f adds support for wide SCI mask */
-	if (olpc_platform_info.ecver >= 0x5f)
-		olpc_platform_info.flags |= OLPC_F_EC_WIDE_SCI;
-
-	pr_info("OLPC board revision %s%X (EC=%x)\n",
-			((olpc_platform_info.boardrev & 0xf) < 8) ? "pre" : "",
-			olpc_platform_info.boardrev >> 4,
-			olpc_platform_info.ecver);
-
-	return 0;
-}
 static int olpc_xo1_ec_suspend(struct platform_device *pdev)
 {
-	olpc_ec_mask_write(ec_wakeup_mask);
-
 	/*
 	 * Squelch SCIs while suspended.  This is a fix for
 	 * <http://dev.laptop.org/ticket/1835>.
@@ -361,15 +260,27 @@ static int olpc_xo1_ec_resume(struct platform_device *pdev)
 }
 
 static struct olpc_ec_driver ec_xo1_driver = {
-	.probe = olpc_xo1_ec_probe,
 	.suspend = olpc_xo1_ec_suspend,
 	.resume = olpc_xo1_ec_resume,
 	.ec_cmd = olpc_xo1_ec_cmd,
+#ifdef CONFIG_OLPC_XO1_SCI
+	/*
+	 * XO-1 EC wakeups are available when olpc-xo1-sci driver is
+	 * compiled in
+	 */
+	.wakeup_available = true,
+#endif
 };
 
 static struct olpc_ec_driver ec_xo1_5_driver = {
-	.probe = olpc_xo1_ec_probe,
 	.ec_cmd = olpc_xo1_ec_cmd,
+#ifdef CONFIG_OLPC_XO1_5_SCI
+	/*
+	 * XO-1.5 EC wakeups are available when olpc-xo15-sci driver is
+	 * compiled in
+	 */
+	.wakeup_available = true,
+#endif
 };
 
 static int __init olpc_init(void)

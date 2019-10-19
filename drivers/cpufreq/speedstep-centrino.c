@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * cpufreq driver for Enhanced SpeedStep, as found in Intel's Pentium
  * M (part of the Centrino chipset).
@@ -37,7 +38,7 @@ struct cpu_id
 {
 	__u8	x86;            /* CPU family */
 	__u8	x86_model;	/* model */
-	__u8	x86_mask;	/* stepping */
+	__u8	x86_stepping;	/* stepping */
 };
 
 enum {
@@ -277,7 +278,7 @@ static int centrino_verify_cpu_id(const struct cpuinfo_x86 *c,
 {
 	if ((c->x86 == x->x86) &&
 	    (c->x86_model == x->x86_model) &&
-	    (c->x86_mask == x->x86_mask))
+	    (c->x86_stepping == x->x86_stepping))
 		return 1;
 	return 0;
 }
@@ -394,9 +395,9 @@ static int centrino_cpu_init(struct cpufreq_policy *policy)
 
 	policy->cpuinfo.transition_latency = 10000;
 						/* 10uS transition latency */
+	policy->freq_table = per_cpu(centrino_model, policy->cpu)->op_points;
 
-	return cpufreq_table_validate_and_show(policy,
-		per_cpu(centrino_model, policy->cpu)->op_points);
+	return 0;
 }
 
 static int centrino_cpu_exit(struct cpufreq_policy *policy)
@@ -412,7 +413,7 @@ static int centrino_cpu_exit(struct cpufreq_policy *policy)
 }
 
 /**
- * centrino_setpolicy - set a new CPUFreq policy
+ * centrino_target - set a new CPUFreq policy
  * @policy: new policy
  * @index: index of target frequency
  *

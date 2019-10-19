@@ -48,6 +48,10 @@ extern const char tipc_bclink_name[];
 
 #define TIPC_METHOD_EXPIRE msecs_to_jiffies(5000)
 
+#define BCLINK_MODE_BCAST  0x1
+#define BCLINK_MODE_RCAST  0x2
+#define BCLINK_MODE_SEL    0x4
+
 struct tipc_nlist {
 	struct list_head list;
 	u32 self;
@@ -63,11 +67,13 @@ void tipc_nlist_del(struct tipc_nlist *nl, u32 node);
 /* Cookie to be used between socket and broadcast layer
  * @rcast: replicast (instead of broadcast) was used at previous xmit
  * @mandatory: broadcast/replicast indication was set by user
+ * @deferredq: defer queue to make message in order
  * @expires: re-evaluate non-mandatory transmit method if we are past this
  */
 struct tipc_mc_method {
 	bool rcast;
 	bool mandatory;
+	struct sk_buff_head deferredq;
 	unsigned long expires;
 };
 
@@ -91,6 +97,12 @@ int tipc_bcast_sync_rcv(struct net *net, struct tipc_link *l,
 int tipc_nl_add_bc_link(struct net *net, struct tipc_nl_msg *msg);
 int tipc_nl_bc_link_set(struct net *net, struct nlattr *attrs[]);
 int tipc_bclink_reset_stats(struct net *net);
+
+u32 tipc_bcast_get_broadcast_mode(struct net *net);
+u32 tipc_bcast_get_broadcast_ratio(struct net *net);
+
+void tipc_mcast_filter_msg(struct net *net, struct sk_buff_head *defq,
+			   struct sk_buff_head *inputq);
 
 static inline void tipc_bcast_lock(struct net *net)
 {

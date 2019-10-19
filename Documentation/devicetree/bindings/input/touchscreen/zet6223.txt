@@ -3,8 +3,6 @@ Zeitec ZET6223 I2C touchscreen controller
 Required properties:
 - compatible		  : "zeitec,zet6223"
 - reg			  : I2C slave address of the chip (0x76)
-- interrupt-parent	  : a phandle pointing to the interrupt controller
-			    serving the interrupt for this chip
 - interrupts		  : interrupt specification for the zet6223 interrupt
 
 Optional properties:

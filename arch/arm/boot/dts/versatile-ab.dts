@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /dts-v1/;
-/include/ "skeleton.dtsi"
 
 / {
 	model = "ARM Versatile AB";
@@ -21,6 +20,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x0 0x08000000>;
 	};
 
@@ -28,6 +28,43 @@
 		#clock-cells = <0>;
 		compatible = "fixed-clock";
 		clock-frequency = <24000000>;
+	};
+
+	bridge {
+		compatible = "ti,ths8134b", "ti,ths8134";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				vga_bridge_in: endpoint {
+					remote-endpoint = <&clcd_pads_vga_dac>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vga_bridge_out: endpoint {
+					remote-endpoint = <&vga_con_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		compatible = "vga-connector";
+
+		port {
+			vga_con_in: endpoint {
+				remote-endpoint = <&vga_bridge_out>;
+			};
+		};
 	};
 
 	core-module@10000000 {
@@ -124,6 +161,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x34000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	i2c0: i2c@10002000 {
@@ -230,7 +270,39 @@
 			reg = <0x10120000 0x1000>;
 			interrupts = <16>;
 			clocks = <&osc1>, <&pclk>;
-			clock-names = "clcd", "apb_pclk";
+			clock-names = "clcdclk", "apb_pclk";
+			/* 800x600 16bpp @ 36MHz works fine */
+			max-memory-bandwidth = <54000000>;
+
+			/*
+			 * This port is routed through a PLD (Programmable
+			 * Logic Device) that routes the output from the CLCD
+			 * (after transformations) to the VGA DAC and also an
+			 * external panel connector. The PLD is essential for
+			 * supporting RGB565/BGR565.
+			 *
+			 * The signals from the port thus reaches two endpoints.
+			 * The PLD is managed through a few special bits in the
+			 * FPGA "sysreg".
+			 *
+			 * This arrangement can be clearly seen in
+			 * ARM DUI 0225D, page 3-41, figure 3-19.
+			 */
+			port@0 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				clcd_pads_panel: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&panel_in>;
+					arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+				};
+				clcd_pads_vga_dac: endpoint@1 {
+					reg = <1>;
+					remote-endpoint = <&vga_bridge_in>;
+					arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
+				};
+			};
 		};
 
 		sctl@101e0000 {
@@ -304,7 +376,7 @@
 			clock-names = "apb_pclk";
 		};
 
-		ssp@101f4000 {
+		spi@101f4000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x101f4000 0x1000>;
 			interrupts = <11>;
@@ -319,8 +391,18 @@
 			ranges = <0 0x10000000 0x10000>;
 
 			sysreg@0 {
-				compatible = "arm,versatile-sysreg", "syscon";
+				compatible = "arm,versatile-sysreg", "syscon", "simple-mfd";
 				reg = <0x00000 0x1000>;
+
+				panel: display@0 {
+					compatible = "arm,versatile-tft-panel";
+
+					port {
+						panel_in: endpoint {
+							remote-endpoint = <&clcd_pads_panel>;
+						};
+					};
+				};
 			};
 
 			aaci@4000 {

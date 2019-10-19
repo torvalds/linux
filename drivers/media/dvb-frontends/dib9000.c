@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux-DVB Driver for DiBcom's DiB9000 and demodulator-family.
  *
  * Copyright (C) 2005-10 DiBcom (http://www.dibcom.fr/)
- *
- * This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1020,7 +1017,7 @@ static int dib9000_risc_apb_access_read(struct dib9000_state *state, u32 address
 	if (address >= 1024 || !state->platform.risc.fw_is_running)
 		return -EINVAL;
 
-	/* dprintk( "APB access thru rd fw %d %x\n", address, attribute); */
+	/* dprintk( "APB access through rd fw %d %x\n", address, attribute); */
 
 	mb[0] = (u16) address;
 	mb[1] = len / 2;
@@ -1050,7 +1047,7 @@ static int dib9000_risc_apb_access_write(struct dib9000_state *state, u32 addres
 	if (len > 18)
 		return -EINVAL;
 
-	/* dprintk( "APB access thru wr fw %d %x\n", address, attribute); */
+	/* dprintk( "APB access through wr fw %d %x\n", address, attribute); */
 
 	mb[0] = (u16)address;
 	for (i = 0; i + 1 < len; i += 2)
@@ -2381,12 +2378,12 @@ int dib9000_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 defaul
 	u8 new_addr = 0;
 	struct i2c_device client = {.i2c_adap = i2c };
 
-	client.i2c_write_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
+	client.i2c_write_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_write_buffer) {
 		dprintk("%s: not enough memory\n", __func__);
 		return -ENOMEM;
 	}
-	client.i2c_read_buffer = kzalloc(4 * sizeof(u8), GFP_KERNEL);
+	client.i2c_read_buffer = kzalloc(4, GFP_KERNEL);
 	if (!client.i2c_read_buffer) {
 		dprintk("%s: not enough memory\n", __func__);
 		ret = -ENOMEM;
@@ -2521,7 +2518,8 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 	dibx000_init_i2c_master(&st->i2c_master, DIB7000MC, st->i2c.i2c_adap, st->i2c.i2c_addr);
 
 	st->tuner_adap.dev.parent = i2c_adap->dev.parent;
-	strncpy(st->tuner_adap.name, "DIB9000_FW TUNER ACCESS", sizeof(st->tuner_adap.name));
+	strscpy(st->tuner_adap.name, "DIB9000_FW TUNER ACCESS",
+		sizeof(st->tuner_adap.name));
 	st->tuner_adap.algo = &dib9000_tuner_algo;
 	st->tuner_adap.algo_data = NULL;
 	i2c_set_adapdata(&st->tuner_adap, st);
@@ -2529,7 +2527,8 @@ struct dvb_frontend *dib9000_attach(struct i2c_adapter *i2c_adap, u8 i2c_addr, c
 		goto error;
 
 	st->component_bus.dev.parent = i2c_adap->dev.parent;
-	strncpy(st->component_bus.name, "DIB9000_FW COMPONENT BUS ACCESS", sizeof(st->component_bus.name));
+	strscpy(st->component_bus.name, "DIB9000_FW COMPONENT BUS ACCESS",
+		sizeof(st->component_bus.name));
 	st->component_bus.algo = &dib9000_component_bus_algo;
 	st->component_bus.algo_data = NULL;
 	st->component_bus_speed = 340;
@@ -2553,9 +2552,9 @@ static const struct dvb_frontend_ops dib9000_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		 .name = "DiBcom 9000",
-		 .frequency_min = 44250000,
-		 .frequency_max = 867250000,
-		 .frequency_stepsize = 62500,
+		 .frequency_min_hz =  44250 * kHz,
+		 .frequency_max_hz = 867250 * kHz,
+		 .frequency_stepsize_hz = 62500,
 		 .caps = FE_CAN_INVERSION_AUTO |
 		 FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 		 FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

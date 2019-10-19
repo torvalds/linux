@@ -626,6 +626,217 @@ static int xgbe_get_ts_info(struct net_device *netdev,
 	return 0;
 }
 
+static int xgbe_get_module_info(struct net_device *netdev,
+				struct ethtool_modinfo *modinfo)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return pdata->phy_if.module_info(pdata, modinfo);
+}
+
+static int xgbe_get_module_eeprom(struct net_device *netdev,
+				  struct ethtool_eeprom *eeprom, u8 *data)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	return pdata->phy_if.module_eeprom(pdata, eeprom, data);
+}
+
+static void xgbe_get_ringparam(struct net_device *netdev,
+			       struct ethtool_ringparam *ringparam)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+
+	ringparam->rx_max_pending = XGBE_RX_DESC_CNT_MAX;
+	ringparam->tx_max_pending = XGBE_TX_DESC_CNT_MAX;
+	ringparam->rx_pending = pdata->rx_desc_count;
+	ringparam->tx_pending = pdata->tx_desc_count;
+}
+
+static int xgbe_set_ringparam(struct net_device *netdev,
+			      struct ethtool_ringparam *ringparam)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int rx, tx;
+
+	if (ringparam->rx_mini_pending || ringparam->rx_jumbo_pending) {
+		netdev_err(netdev, "unsupported ring parameter\n");
+		return -EINVAL;
+	}
+
+	if ((ringparam->rx_pending < XGBE_RX_DESC_CNT_MIN) ||
+	    (ringparam->rx_pending > XGBE_RX_DESC_CNT_MAX)) {
+		netdev_err(netdev,
+			   "rx ring parameter must be between %u and %u\n",
+			   XGBE_RX_DESC_CNT_MIN, XGBE_RX_DESC_CNT_MAX);
+		return -EINVAL;
+	}
+
+	if ((ringparam->tx_pending < XGBE_TX_DESC_CNT_MIN) ||
+	    (ringparam->tx_pending > XGBE_TX_DESC_CNT_MAX)) {
+		netdev_err(netdev,
+			   "tx ring parameter must be between %u and %u\n",
+			   XGBE_TX_DESC_CNT_MIN, XGBE_TX_DESC_CNT_MAX);
+		return -EINVAL;
+	}
+
+	rx = __rounddown_pow_of_two(ringparam->rx_pending);
+	if (rx != ringparam->rx_pending)
+		netdev_notice(netdev,
+			      "rx ring parameter rounded to power of two: %u\n",
+			      rx);
+
+	tx = __rounddown_pow_of_two(ringparam->tx_pending);
+	if (tx != ringparam->tx_pending)
+		netdev_notice(netdev,
+			      "tx ring parameter rounded to power of two: %u\n",
+			      tx);
+
+	if ((rx == pdata->rx_desc_count) &&
+	    (tx == pdata->tx_desc_count))
+		goto out;
+
+	pdata->rx_desc_count = rx;
+	pdata->tx_desc_count = tx;
+
+	xgbe_restart_dev(pdata);
+
+out:
+	return 0;
+}
+
+static void xgbe_get_channels(struct net_device *netdev,
+			      struct ethtool_channels *channels)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int rx, tx, combined;
+
+	/* Calculate maximums allowed:
+	 *   - Take into account the number of available IRQs
+	 *   - Do not take into account the number of online CPUs so that
+	 *     the user can over-subscribe if desired
+	 *   - Tx is additionally limited by the number of hardware queues
+	 */
+	rx = min(pdata->hw_feat.rx_ch_cnt, pdata->rx_max_channel_count);
+	rx = min(rx, pdata->channel_irq_count);
+	tx = min(pdata->hw_feat.tx_ch_cnt, pdata->tx_max_channel_count);
+	tx = min(tx, pdata->channel_irq_count);
+	tx = min(tx, pdata->tx_max_q_count);
+
+	combined = min(rx, tx);
+
+	channels->max_combined = combined;
+	channels->max_rx = rx ? rx - 1 : 0;
+	channels->max_tx = tx ? tx - 1 : 0;
+
+	/* Get current settings based on device state */
+	rx = pdata->new_rx_ring_count ? : pdata->rx_ring_count;
+	tx = pdata->new_tx_ring_count ? : pdata->tx_ring_count;
+
+	combined = min(rx, tx);
+	rx -= combined;
+	tx -= combined;
+
+	channels->combined_count = combined;
+	channels->rx_count = rx;
+	channels->tx_count = tx;
+}
+
+static void xgbe_print_set_channels_input(struct net_device *netdev,
+					  struct ethtool_channels *channels)
+{
+	netdev_err(netdev, "channel inputs: combined=%u, rx-only=%u, tx-only=%u\n",
+		   channels->combined_count, channels->rx_count,
+		   channels->tx_count);
+}
+
+static int xgbe_set_channels(struct net_device *netdev,
+			     struct ethtool_channels *channels)
+{
+	struct xgbe_prv_data *pdata = netdev_priv(netdev);
+	unsigned int rx, rx_curr, tx, tx_curr, combined;
+
+	/* Calculate maximums allowed:
+	 *   - Take into account the number of available IRQs
+	 *   - Do not take into account the number of online CPUs so that
+	 *     the user can over-subscribe if desired
+	 *   - Tx is additionally limited by the number of hardware queues
+	 */
+	rx = min(pdata->hw_feat.rx_ch_cnt, pdata->rx_max_channel_count);
+	rx = min(rx, pdata->channel_irq_count);
+	tx = min(pdata->hw_feat.tx_ch_cnt, pdata->tx_max_channel_count);
+	tx = min(tx, pdata->tx_max_q_count);
+	tx = min(tx, pdata->channel_irq_count);
+
+	combined = min(rx, tx);
+
+	/* Should not be setting other count */
+	if (channels->other_count) {
+		netdev_err(netdev,
+			   "other channel count must be zero\n");
+		return -EINVAL;
+	}
+
+	/* Require at least one Combined (Rx and Tx) channel */
+	if (!channels->combined_count) {
+		netdev_err(netdev,
+			   "at least one combined Rx/Tx channel is required\n");
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	/* Check combined channels */
+	if (channels->combined_count > combined) {
+		netdev_err(netdev,
+			   "combined channel count cannot exceed %u\n",
+			   combined);
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	/* Can have some Rx-only or Tx-only channels, but not both */
+	if (channels->rx_count && channels->tx_count) {
+		netdev_err(netdev,
+			   "cannot specify both Rx-only and Tx-only channels\n");
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	/* Check that we don't exceed the maximum number of channels */
+	if ((channels->combined_count + channels->rx_count) > rx) {
+		netdev_err(netdev,
+			   "total Rx channels (%u) requested exceeds maximum available (%u)\n",
+			   channels->combined_count + channels->rx_count, rx);
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	if ((channels->combined_count + channels->tx_count) > tx) {
+		netdev_err(netdev,
+			   "total Tx channels (%u) requested exceeds maximum available (%u)\n",
+			   channels->combined_count + channels->tx_count, tx);
+		xgbe_print_set_channels_input(netdev, channels);
+		return -EINVAL;
+	}
+
+	rx = channels->combined_count + channels->rx_count;
+	tx = channels->combined_count + channels->tx_count;
+
+	rx_curr = pdata->new_rx_ring_count ? : pdata->rx_ring_count;
+	tx_curr = pdata->new_tx_ring_count ? : pdata->tx_ring_count;
+
+	if ((rx == rx_curr) && (tx == tx_curr))
+		goto out;
+
+	pdata->new_rx_ring_count = rx;
+	pdata->new_tx_ring_count = tx;
+
+	xgbe_full_restart_dev(pdata);
+
+out:
+	return 0;
+}
+
 static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_drvinfo = xgbe_get_drvinfo,
 	.get_msglevel = xgbe_get_msglevel,
@@ -646,6 +857,12 @@ static const struct ethtool_ops xgbe_ethtool_ops = {
 	.get_ts_info = xgbe_get_ts_info,
 	.get_link_ksettings = xgbe_get_link_ksettings,
 	.set_link_ksettings = xgbe_set_link_ksettings,
+	.get_module_info = xgbe_get_module_info,
+	.get_module_eeprom = xgbe_get_module_eeprom,
+	.get_ringparam = xgbe_get_ringparam,
+	.set_ringparam = xgbe_set_ringparam,
+	.get_channels = xgbe_get_channels,
+	.set_channels = xgbe_set_channels,
 };
 
 const struct ethtool_ops *xgbe_get_ethtool_ops(void)

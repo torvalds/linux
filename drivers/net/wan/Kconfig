@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # wan devices configuration
 #
@@ -265,20 +266,6 @@ config FARSYNC
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called farsync.
-
-config DSCC4
-	tristate "Etinc PCISYNC serial board support"
-	depends on HDLC && PCI && m
-	help
-	  Driver for Etinc PCISYNC boards based on the Infineon (ex. Siemens)
-	  DSCC4 chipset.
-
-	  This is supposed to work with the four port card. Take a look at
-	  <http://www.cogenit.fr/dscc4/> for further information about the
-	  driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dscc4.
 
 config FSL_UCC_HDLC
 	tristate "Freescale QUICC Engine HDLC support"

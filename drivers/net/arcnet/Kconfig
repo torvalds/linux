@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Arcnet configuration
 #
@@ -55,19 +56,19 @@ config ARCNET_CAP
 	tristate "Enable CAP mode packet interface"
 	help
 	  ARCnet "cap mode" packet encapsulation. Used to get the hardware
-          acknowledge back to userspace. After the initial protocol byte every
-          packet is stuffed with an extra 4 byte "cookie" which doesn't
-          actually appear on the network. After transmit the driver will send
-          back a packet with protocol byte 0 containing the status of the
-          transmission:
-             0=no hardware acknowledge
-             1=excessive nak
-             2=transmission accepted by the receiver hardware
+	  acknowledge back to userspace. After the initial protocol byte every
+	  packet is stuffed with an extra 4 byte "cookie" which doesn't
+	  actually appear on the network. After transmit the driver will send
+	  back a packet with protocol byte 0 containing the status of the
+	  transmission:
+	     0=no hardware acknowledge
+	     1=excessive nak
+	     2=transmission accepted by the receiver hardware
 
-          Received packets are also stuffed with the extra 4 bytes but it will
-          be random data.
+	  Received packets are also stuffed with the extra 4 bytes but it will
+	  be random data.
 
-          Cap only listens to protocol 1-8.
+	  Cap only listens to protocol 1-8.
 
 config ARCNET_COM90xx
 	tristate "ARCnet COM90xx (normal) chipset driver"

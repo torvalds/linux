@@ -8,7 +8,18 @@
 
 struct target_core_fabric_ops {
 	struct module *module;
-	const char *name;
+	/*
+	 * XXX: Special case for iscsi/iSCSI...
+	 * If non-null, fabric_alias is used for matching target/$fabric
+	 * ConfigFS paths. If null, fabric_name is used for this (see below).
+	 */
+	const char *fabric_alias;
+	/*
+	 * fabric_name is used for matching target/$fabric ConfigFS paths
+	 * without a fabric_alias (see above). It's also used for the ALUA state
+	 * path and is stored on disk with PR state.
+	 */
+	const char *fabric_name;
 	size_t node_acl_size;
 	/*
 	 * Limits number of scatterlist entries per SCF_SCSI_DATA_CDB payload.
@@ -23,7 +34,6 @@ struct target_core_fabric_ops {
 	 * XXX: Currently assumes single PAGE_SIZE per scatterlist entry
 	 */
 	u32 max_data_sg_nents;
-	char *(*get_fabric_name)(void);
 	char *(*tpg_get_wwn)(struct se_portal_group *);
 	u16 (*tpg_get_tag)(struct se_portal_group *);
 	u32 (*tpg_get_default_depth)(struct se_portal_group *);
@@ -64,7 +74,6 @@ struct target_core_fabric_ops {
 	u32 (*sess_get_initiator_sid)(struct se_session *,
 				      unsigned char *, u32);
 	int (*write_pending)(struct se_cmd *);
-	int (*write_pending_status)(struct se_cmd *);
 	void (*set_default_node_attributes)(struct se_node_acl *);
 	int (*get_cmd_state)(struct se_cmd *);
 	int (*queue_data_in)(struct se_cmd *);
@@ -79,7 +88,7 @@ struct target_core_fabric_ops {
 	void (*fabric_drop_wwn)(struct se_wwn *);
 	void (*add_wwn_groups)(struct se_wwn *);
 	struct se_portal_group *(*fabric_make_tpg)(struct se_wwn *,
-				struct config_group *, const char *);
+						   const char *);
 	void (*fabric_drop_tpg)(struct se_portal_group *);
 	int (*fabric_post_link)(struct se_portal_group *,
 				struct se_lun *);
@@ -101,6 +110,13 @@ struct target_core_fabric_ops {
 	struct configfs_attribute **tfc_tpg_nacl_attrib_attrs;
 	struct configfs_attribute **tfc_tpg_nacl_auth_attrs;
 	struct configfs_attribute **tfc_tpg_nacl_param_attrs;
+
+	/*
+	 * Set this member variable to true if the SCSI transport protocol
+	 * (e.g. iSCSI) requires that the Data-Out buffer is transferred in
+	 * its entirety before a command is aborted.
+	 */
+	bool write_pending_must_be_called;
 };
 
 int target_register_template(const struct target_core_fabric_ops *fo);
@@ -109,23 +125,24 @@ void target_unregister_template(const struct target_core_fabric_ops *fo);
 int target_depend_item(struct config_item *item);
 void target_undepend_item(struct config_item *item);
 
-struct se_session *target_alloc_session(struct se_portal_group *,
+struct se_session *target_setup_session(struct se_portal_group *,
 		unsigned int, unsigned int, enum target_prot_op prot_op,
 		const char *, void *,
 		int (*callback)(struct se_portal_group *,
 				struct se_session *, void *));
+void target_remove_session(struct se_session *);
 
-struct se_session *transport_init_session(enum target_prot_op);
+int transport_init_session(struct se_session *se_sess);
+struct se_session *transport_alloc_session(enum target_prot_op);
 int transport_alloc_session_tags(struct se_session *, unsigned int,
 		unsigned int);
-struct se_session *transport_init_session_tags(unsigned int, unsigned int,
-		enum target_prot_op);
 void	__transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 void	transport_register_session(struct se_portal_group *,
 		struct se_node_acl *, struct se_session *, void *);
 ssize_t	target_show_dynamic_sessions(struct se_portal_group *, char *);
 void	transport_free_session(struct se_session *);
+void	target_spc2_release(struct se_node_acl *nacl);
 void	target_put_nacl(struct se_node_acl *);
 void	transport_deregister_session_configfs(struct se_session *);
 void	transport_deregister_session(struct se_session *);
@@ -149,14 +166,15 @@ int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 int	transport_handle_cdb_direct(struct se_cmd *);
 sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
 
+void	target_put_cmd_and_wait(struct se_cmd *cmd);
 void	target_execute_cmd(struct se_cmd *cmd);
 
 int	transport_generic_free_cmd(struct se_cmd *, int);
 
 bool	transport_wait_for_tasks(struct se_cmd *);
-int	transport_check_aborted_status(struct se_cmd *, int);
 int	transport_send_check_condition_and_sense(struct se_cmd *,
 		sense_reason_t, int);
+int	target_send_busy(struct se_cmd *cmd);
 int	target_get_sess_cmd(struct se_cmd *, bool);
 int	target_put_sess_cmd(struct se_cmd *);
 void	target_sess_cmd_list_set_waiting(struct se_session *);

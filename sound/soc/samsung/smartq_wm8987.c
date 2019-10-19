@@ -1,17 +1,10 @@
-/* sound/soc/samsung/smartq_wm8987.c
- *
- * Copyright 2010 Maurus Cuelenaere <mcuelenaere@gmail.com>
- *
- * Based on smdk6410_wm8987.c
- *     Copyright 2007 Wolfson Microelectronics PLC. - linux@wolfsonmicro.com
- *     Graeme Gregory - graeme.gregory@wolfsonmicro.com
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2010 Maurus Cuelenaere <mcuelenaere@gmail.com>
+//
+// Based on smdk6410_wm8987.c
+//     Copyright 2007 Wolfson Microelectronics PLC. - linux@wolfsonmicro.com
+//     Graeme Gregory - graeme.gregory@wolfsonmicro.com
 
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -160,18 +153,20 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	return err;
 }
 
+SND_SOC_DAILINK_DEFS(wm8987,
+	DAILINK_COMP_ARRAY(COMP_CPU("samsung-i2s.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8750.0-0x1a", "wm8750-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("samsung-i2s.0")));
+
 static struct snd_soc_dai_link smartq_dai[] = {
 	{
 		.name		= "wm8987",
 		.stream_name	= "SmartQ Hi-Fi",
-		.cpu_dai_name	= "samsung-i2s.0",
-		.codec_dai_name	= "wm8750-hifi",
-		.platform_name	= "samsung-i2s.0",
-		.codec_name	= "wm8750.0-0x1a",
 		.init		= smartq_wm8987_init,
 		.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 				  SND_SOC_DAIFMT_CBS_CFS,
 		.ops		= &smartq_hifi_ops,
+		SND_SOC_DAILINK_REG(wm8987),
 	},
 };
 

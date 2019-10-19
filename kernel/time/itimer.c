@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * linux/kernel/itimer.c
- *
  * Copyright (C) 1992 Darren Senn
  */
 
@@ -57,15 +55,10 @@ static void get_cpu_itimer(struct task_struct *tsk, unsigned int clock_id,
 	val = it->expires;
 	interval = it->incr;
 	if (val) {
-		struct task_cputime cputime;
-		u64 t;
+		u64 t, samples[CPUCLOCK_MAX];
 
-		thread_group_cputimer(tsk, &cputime);
-		if (clock_id == CPUCLOCK_PROF)
-			t = cputime.utime + cputime.stime;
-		else
-			/* CPUCLOCK_VIRT */
-			t = cputime.utime;
+		thread_group_sample_cputime(tsk, samples);
+		t = samples[clock_id];
 
 		if (val < t)
 			/* about to fire */
@@ -139,9 +132,10 @@ enum hrtimer_restart it_real_fn(struct hrtimer *timer)
 {
 	struct signal_struct *sig =
 		container_of(timer, struct signal_struct, real_timer);
+	struct pid *leader_pid = sig->pids[PIDTYPE_TGID];
 
-	trace_itimer_expire(ITIMER_REAL, sig->leader_pid, 0);
-	kill_pid_info(SIGALRM, SEND_SIG_PRIV, sig->leader_pid);
+	trace_itimer_expire(ITIMER_REAL, leader_pid, 0);
+	kill_pid_info(SIGALRM, SEND_SIG_PRIV, leader_pid);
 
 	return HRTIMER_NORESTART;
 }
@@ -214,6 +208,7 @@ again:
 		/* We are sharing ->siglock with it_real_fn() */
 		if (hrtimer_try_to_cancel(timer) < 0) {
 			spin_unlock_irq(&tsk->sighand->siglock);
+			hrtimer_cancel_wait_running(timer);
 			goto again;
 		}
 		expires = timeval_to_ktime(value->it_value);

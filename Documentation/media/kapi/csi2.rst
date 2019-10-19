@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 MIPI CSI-2
 ==========
 
@@ -47,9 +49,13 @@ where
 
 The transmitter drivers must, if possible, configure the CSI-2
 transmitter to *LP-11 mode* whenever the transmitter is powered on but
-not active. Some transmitters do this automatically but some have to
-be explicitly programmed to do so, and some are unable to do so
-altogether due to hardware constraints.
+not active, and maintain *LP-11 mode* until stream on. Only at stream
+on should the transmitter activate the clock on the clock lane and
+transition to *HS mode*.
+
+Some transmitters do this automatically but some have to be explicitly
+programmed to do so, and some are unable to do so altogether due to
+hardware constraints.
 
 Stopping the transmitter
 ^^^^^^^^^^^^^^^^^^^^^^^^
@@ -70,3 +76,10 @@ the transmitter up by using the
 :c:type:`v4l2_subdev_core_ops`->s_power() callback. This may take
 place either indirectly by using :c:func:`v4l2_pipeline_pm_use` or
 directly.
+
+Formats
+-------
+
+The media bus pixel codes document parallel formats. Should the pixel data be
+transported over a serial bus, the media bus pixel code that describes a
+parallel format that transfers a sample on a single clock cycle is used.

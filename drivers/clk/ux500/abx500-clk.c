@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * abx500 clock implementation for ux500 platform.
  *
  * Copyright (C) 2012 ST-Ericsson SA
  * Author: Ulf Hansson <ulf.hansson@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/err.h>
@@ -88,18 +87,6 @@ static int ab8500_reg_clks(struct device *dev)
 	return 0;
 }
 
-/* Clock definitions for ab8540 */
-static int ab8540_reg_clks(struct device *dev)
-{
-	return 0;
-}
-
-/* Clock definitions for ab9540 */
-static int ab9540_reg_clks(struct device *dev)
-{
-	return 0;
-}
-
 static int abx500_clk_probe(struct platform_device *pdev)
 {
 	struct ab8500 *parent = dev_get_drvdata(pdev->dev.parent);
@@ -107,10 +94,6 @@ static int abx500_clk_probe(struct platform_device *pdev)
 
 	if (is_ab8500(parent) || is_ab8505(parent)) {
 		ret = ab8500_reg_clks(&pdev->dev);
-	} else if (is_ab8540(parent)) {
-		ret = ab8540_reg_clks(&pdev->dev);
-	} else if (is_ab9540(parent)) {
-		ret = ab9540_reg_clks(&pdev->dev);
 	} else {
 		dev_err(&pdev->dev, "non supported plf id\n");
 		return -ENODEV;

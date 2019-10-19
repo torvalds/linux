@@ -2,23 +2,26 @@ Kernel Memory Leak Detector
 ===========================
 
 Kmemleak provides a way of detecting possible kernel memory leaks in a
-way similar to a tracing garbage collector
-(https://en.wikipedia.org/wiki/Garbage_collection_%28computer_science%29#Tracing_garbage_collectors),
+way similar to a `tracing garbage collector
+<https://en.wikipedia.org/wiki/Tracing_garbage_collection>`_,
 with the difference that the orphan objects are not freed but only
 reported via /sys/kernel/debug/kmemleak. A similar method is used by the
 Valgrind tool (``memcheck --leak-check``) to detect the memory leaks in
 user-space applications.
-Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s390, metag and tile.
+Kmemleak is supported on x86, arm, powerpc, sparc, sh, microblaze, ppc, mips, s390 and tile.
 
 Usage
 -----
 
 CONFIG_DEBUG_KMEMLEAK in "Kernel hacking" has to be enabled. A kernel
 thread scans the memory every 10 minutes (by default) and prints the
-number of new unreferenced objects found. To display the details of all
-the possible memory leaks::
+number of new unreferenced objects found. If the ``debugfs`` isn't already
+mounted, mount with::
 
   # mount -t debugfs nodev /sys/kernel/debug/
+
+To display the details of all the possible scanned memory leaks::
+
   # cat /sys/kernel/debug/kmemleak
 
 To trigger an intermediate memory scan::
@@ -71,6 +74,9 @@ is configured via the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option.
 If CONFIG_DEBUG_KMEMLEAK_DEFAULT_OFF are enabled, the kmemleak is
 disabled by default. Passing ``kmemleak=on`` on the kernel command
 line enables the function. 
+
+If you are getting errors like "Error while writing to stdout" or "write_loop:
+Invalid argument", make sure kmemleak is properly enabled.
 
 Basic Algorithm
 ---------------
@@ -218,3 +224,37 @@ the pointer is calculated by other methods than the usual container_of
 macro or the pointer is stored in a location not scanned by kmemleak.
 
 Page allocations and ioremap are not tracked.
+
+Testing with kmemleak-test
+--------------------------
+
+To check if you have all set up to use kmemleak, you can use the kmemleak-test
+module, a module that deliberately leaks memory. Set CONFIG_DEBUG_KMEMLEAK_TEST
+as module (it can't be used as bult-in) and boot the kernel with kmemleak
+enabled. Load the module and perform a scan with::
+
+        # modprobe kmemleak-test
+        # echo scan > /sys/kernel/debug/kmemleak
+
+Note that the you may not get results instantly or on the first scanning. When
+kmemleak gets results, it'll log ``kmemleak: <count of leaks> new suspected
+memory leaks``. Then read the file to see then::
+
+        # cat /sys/kernel/debug/kmemleak
+        unreferenced object 0xffff89862ca702e8 (size 32):
+          comm "modprobe", pid 2088, jiffies 4294680594 (age 375.486s)
+          hex dump (first 32 bytes):
+            6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b  kkkkkkkkkkkkkkkk
+            6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5  kkkkkkkkkkkkkkk.
+          backtrace:
+            [<00000000e0a73ec7>] 0xffffffffc01d2036
+            [<000000000c5d2a46>] do_one_initcall+0x41/0x1df
+            [<0000000046db7e0a>] do_init_module+0x55/0x200
+            [<00000000542b9814>] load_module+0x203c/0x2480
+            [<00000000c2850256>] __do_sys_finit_module+0xba/0xe0
+            [<000000006564e7ef>] do_syscall_64+0x43/0x110
+            [<000000007c873fa6>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+        ...
+
+Removing the module with ``rmmod kmemleak_test`` should also trigger some
+kmemleak results.

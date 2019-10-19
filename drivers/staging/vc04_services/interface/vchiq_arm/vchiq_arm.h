@@ -1,35 +1,7 @@
-/**
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
+/*
  * Copyright (c) 2014 Raspberry Pi (Trading) Ltd. All rights reserved.
  * Copyright (c) 2010-2012 Broadcom. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2, as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
 #ifndef VCHIQ_ARM_H
@@ -66,7 +38,7 @@ enum USE_TYPE_E {
 	USE_TYPE_VCHIQ
 };
 
-typedef struct vchiq_arm_state_struct {
+struct vchiq_arm_state {
 	/* Keepalive-related data */
 	struct task_struct *ka_thread;
 	struct completion ka_evt;
@@ -83,7 +55,7 @@ typedef struct vchiq_arm_state_struct {
 
 	unsigned int wake_address;
 
-	VCHIQ_STATE_T *state;
+	struct vchiq_state *state;
 	struct timer_list suspend_timer;
 	int suspend_timer_timeout;
 	int suspend_timer_running;
@@ -121,36 +93,37 @@ typedef struct vchiq_arm_state_struct {
 	unsigned long long resume_start_time;
 	unsigned long long last_wake_time;
 
-} VCHIQ_ARM_STATE_T;
+};
+
+struct vchiq_drvdata {
+	const unsigned int cache_line_size;
+	struct rpi_firmware *fw;
+};
 
 extern int vchiq_arm_log_level;
 extern int vchiq_susp_log_level;
 
-int vchiq_platform_init(struct platform_device *pdev, VCHIQ_STATE_T *state);
+int vchiq_platform_init(struct platform_device *pdev,
+			struct vchiq_state *state);
 
-extern VCHIQ_STATE_T *
+extern struct vchiq_state *
 vchiq_get_state(void);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_vcsuspend(VCHIQ_STATE_T *state);
+vchiq_arm_vcsuspend(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_arm_force_suspend(VCHIQ_STATE_T *state);
+vchiq_arm_vcresume(struct vchiq_state *state);
+
+extern VCHIQ_STATUS_T
+vchiq_arm_init_state(struct vchiq_state *state,
+		     struct vchiq_arm_state *arm_state);
 
 extern int
-vchiq_arm_allow_resume(VCHIQ_STATE_T *state);
-
-extern VCHIQ_STATUS_T
-vchiq_arm_vcresume(VCHIQ_STATE_T *state);
-
-extern VCHIQ_STATUS_T
-vchiq_arm_init_state(VCHIQ_STATE_T *state, VCHIQ_ARM_STATE_T *arm_state);
-
-extern int
-vchiq_check_resume(VCHIQ_STATE_T *state);
+vchiq_check_resume(struct vchiq_state *state);
 
 extern void
-vchiq_check_suspend(VCHIQ_STATE_T *state);
+vchiq_check_suspend(struct vchiq_state *state);
 VCHIQ_STATUS_T
 vchiq_use_service(VCHIQ_SERVICE_HANDLE_T handle);
 
@@ -158,36 +131,37 @@ extern VCHIQ_STATUS_T
 vchiq_release_service(VCHIQ_SERVICE_HANDLE_T handle);
 
 extern VCHIQ_STATUS_T
-vchiq_check_service(VCHIQ_SERVICE_T *service);
+vchiq_check_service(struct vchiq_service *service);
 
 extern VCHIQ_STATUS_T
-vchiq_platform_suspend(VCHIQ_STATE_T *state);
+vchiq_platform_suspend(struct vchiq_state *state);
 
 extern int
-vchiq_platform_videocore_wanted(VCHIQ_STATE_T *state);
+vchiq_platform_videocore_wanted(struct vchiq_state *state);
 
 extern int
 vchiq_platform_use_suspend_timer(void);
 
 extern void
-vchiq_dump_platform_use_state(VCHIQ_STATE_T *state);
+vchiq_dump_platform_use_state(struct vchiq_state *state);
 
 extern void
-vchiq_dump_service_use_state(VCHIQ_STATE_T *state);
+vchiq_dump_service_use_state(struct vchiq_state *state);
 
-extern VCHIQ_ARM_STATE_T*
-vchiq_platform_get_arm_state(VCHIQ_STATE_T *state);
+extern struct vchiq_arm_state*
+vchiq_platform_get_arm_state(struct vchiq_state *state);
 
 extern int
-vchiq_videocore_wanted(VCHIQ_STATE_T *state);
+vchiq_videocore_wanted(struct vchiq_state *state);
 
 extern VCHIQ_STATUS_T
-vchiq_use_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service,
-		enum USE_TYPE_E use_type);
+vchiq_use_internal(struct vchiq_state *state, struct vchiq_service *service,
+		   enum USE_TYPE_E use_type);
 extern VCHIQ_STATUS_T
-vchiq_release_internal(VCHIQ_STATE_T *state, VCHIQ_SERVICE_T *service);
+vchiq_release_internal(struct vchiq_state *state,
+		       struct vchiq_service *service);
 
-extern VCHIQ_DEBUGFS_NODE_T *
+extern struct vchiq_debugfs_node *
 vchiq_instance_get_debugfs_node(VCHIQ_INSTANCE_T instance);
 
 extern int
@@ -203,14 +177,14 @@ extern void
 vchiq_instance_set_trace(VCHIQ_INSTANCE_T instance, int trace);
 
 extern void
-set_suspend_state(VCHIQ_ARM_STATE_T *arm_state,
-	enum vc_suspend_status new_state);
+set_suspend_state(struct vchiq_arm_state *arm_state,
+		  enum vc_suspend_status new_state);
 
 extern void
-set_resume_state(VCHIQ_ARM_STATE_T *arm_state,
-	enum vc_resume_status new_state);
+set_resume_state(struct vchiq_arm_state *arm_state,
+		 enum vc_resume_status new_state);
 
 extern void
-start_suspend_timer(VCHIQ_ARM_STATE_T *arm_state);
+start_suspend_timer(struct vchiq_arm_state *arm_state);
 
 #endif /* VCHIQ_ARM_H */

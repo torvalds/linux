@@ -33,7 +33,7 @@
 
 #define DRV_NAME		"enic"
 #define DRV_DESCRIPTION		"Cisco VIC Ethernet NIC Driver"
-#define DRV_VERSION		"2.3.0.45"
+#define DRV_VERSION		"2.3.0.53"
 #define DRV_COPYRIGHT		"Copyright 2008-2013 Cisco Systems, Inc"
 
 #define ENIC_BARS_MAX		6
@@ -140,6 +140,7 @@ struct enic_rfs_flw_tbl {
 struct vxlan_offload {
 	u16 vxlan_udp_port_number;
 	u8 patch_level;
+	u8 flags;
 };
 
 /* Per-instance private data structure */

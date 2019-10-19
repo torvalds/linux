@@ -1,16 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2014, Samsung Electronics Co. Ltd. All Rights Reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/iio/iio.h>
@@ -462,43 +452,35 @@ static struct ssp_data *ssp_parse_dt(struct device *dev)
 
 	data->mcu_ap_gpio = of_get_named_gpio(node, "mcu-ap-gpios", 0);
 	if (data->mcu_ap_gpio < 0)
-		goto err_free_pd;
+		return NULL;
 
 	data->ap_mcu_gpio = of_get_named_gpio(node, "ap-mcu-gpios", 0);
 	if (data->ap_mcu_gpio < 0)
-		goto err_free_pd;
+		return NULL;
 
 	data->mcu_reset_gpio = of_get_named_gpio(node, "mcu-reset-gpios", 0);
 	if (data->mcu_reset_gpio < 0)
-		goto err_free_pd;
+		return NULL;
 
 	ret = devm_gpio_request_one(dev, data->ap_mcu_gpio, GPIOF_OUT_INIT_HIGH,
 				    "ap-mcu-gpios");
 	if (ret)
-		goto err_free_pd;
+		return NULL;
 
 	ret = devm_gpio_request_one(dev, data->mcu_reset_gpio,
 				    GPIOF_OUT_INIT_HIGH, "mcu-reset-gpios");
 	if (ret)
-		goto err_ap_mcu;
+		return NULL;
 
 	match = of_match_node(ssp_of_match, node);
 	if (!match)
-		goto err_mcu_reset_gpio;
+		return NULL;
 
 	data->sensorhub_info = match->data;
 
 	dev_set_drvdata(dev, data);
 
 	return data;
-
-err_mcu_reset_gpio:
-	devm_gpio_free(dev, data->mcu_reset_gpio);
-err_ap_mcu:
-	devm_gpio_free(dev, data->ap_mcu_gpio);
-err_free_pd:
-	devm_kfree(dev, data);
-	return NULL;
 }
 #else
 static struct ssp_data *ssp_parse_dt(struct device *pdev)

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Freescale Semiconductor, Inc.
  *
  * CPU Frequency Scaling driver for Freescale QorIQ SoCs.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -13,7 +10,6 @@
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/cpufreq.h>
-#include <linux/cpu_cooling.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
@@ -31,7 +27,6 @@
 struct cpu_data {
 	struct clk **pclk;
 	struct cpufreq_frequency_table *table;
-	struct thermal_cooling_device *cdev;
 };
 
 /*
@@ -165,7 +160,7 @@ static void freq_table_sort(struct cpufreq_frequency_table *freq_table,
 static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 {
 	struct device_node *np;
-	int i, count, ret;
+	int i, count;
 	u32 freq;
 	struct clk *clk;
 	const struct clk_hw *hwclk;
@@ -192,16 +187,12 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	count = clk_hw_get_num_parents(hwclk);
 
 	data->pclk = kcalloc(count, sizeof(struct clk *), GFP_KERNEL);
-	if (!data->pclk) {
-		pr_err("%s: no memory\n", __func__);
+	if (!data->pclk)
 		goto err_nomem2;
-	}
 
 	table = kcalloc(count + 1, sizeof(*table), GFP_KERNEL);
-	if (!table) {
-		pr_err("%s: no memory\n", __func__);
+	if (!table)
 		goto err_pclk;
-	}
 
 	for (i = 0; i < count; i++) {
 		clk = clk_hw_get_parent_by_index(hwclk, i)->clk;
@@ -213,14 +204,7 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	freq_table_redup(table, count);
 	freq_table_sort(table, count);
 	table[i].frequency = CPUFREQ_TABLE_END;
-
-	/* set the min and max frequency properly */
-	ret = cpufreq_table_validate_and_show(policy, table);
-	if (ret) {
-		pr_err("invalid frequency table: %d\n", ret);
-		goto err_nomem1;
-	}
-
+	policy->freq_table = table;
 	data->table = table;
 
 	/* update ->cpus if we have cluster, no harm if not */
@@ -236,8 +220,6 @@ static int qoriq_cpufreq_cpu_init(struct cpufreq_policy *policy)
 
 	return 0;
 
-err_nomem1:
-	kfree(table);
 err_pclk:
 	kfree(data->pclk);
 err_nomem2:
@@ -252,7 +234,6 @@ static int qoriq_cpufreq_cpu_exit(struct cpufreq_policy *policy)
 {
 	struct cpu_data *data = policy->driver_data;
 
-	cpufreq_cooling_unregister(data->cdev);
 	kfree(data->pclk);
 	kfree(data->table);
 	kfree(data);
@@ -271,23 +252,15 @@ static int qoriq_cpufreq_target(struct cpufreq_policy *policy,
 	return clk_set_parent(policy->clk, parent);
 }
 
-
-static void qoriq_cpufreq_ready(struct cpufreq_policy *policy)
-{
-	struct cpu_data *cpud = policy->driver_data;
-
-	cpud->cdev = of_cpufreq_cooling_register(policy);
-}
-
 static struct cpufreq_driver qoriq_cpufreq_driver = {
 	.name		= "qoriq_cpufreq",
-	.flags		= CPUFREQ_CONST_LOOPS,
+	.flags		= CPUFREQ_CONST_LOOPS |
+			  CPUFREQ_IS_COOLING_DEV,
 	.init		= qoriq_cpufreq_cpu_init,
 	.exit		= qoriq_cpufreq_cpu_exit,
 	.verify		= cpufreq_generic_frequency_table_verify,
 	.target_index	= qoriq_cpufreq_target,
 	.get		= cpufreq_generic_get,
-	.ready		= qoriq_cpufreq_ready,
 	.attr		= cpufreq_generic_attr,
 };
 
@@ -304,10 +277,12 @@ static const struct of_device_id node_matches[] __initconst = {
 
 	{ .compatible = "fsl,ls1012a-clockgen", },
 	{ .compatible = "fsl,ls1021a-clockgen", },
+	{ .compatible = "fsl,ls1028a-clockgen", },
 	{ .compatible = "fsl,ls1043a-clockgen", },
 	{ .compatible = "fsl,ls1046a-clockgen", },
 	{ .compatible = "fsl,ls1088a-clockgen", },
 	{ .compatible = "fsl,ls2080a-clockgen", },
+	{ .compatible = "fsl,lx2160a-clockgen", },
 	{ .compatible = "fsl,p4080-clockgen", },
 	{ .compatible = "fsl,qoriq-clockgen-1.0", },
 	{ .compatible = "fsl,qoriq-clockgen-2.0", },

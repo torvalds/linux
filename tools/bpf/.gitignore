@@ -1,0 +1,6 @@
+FEATURE-DUMP.bpf
+feature
+bpf_asm
+bpf_dbg
+bpf_exp.yacc.*
+bpf_jit_disasm

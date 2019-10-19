@@ -24,11 +24,17 @@
  * Authors:
  *    Jerome Glisse <glisse@freedesktop.org>
  */
+
 #include <linux/list_sort.h>
-#include <drm/drmP.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_pci.h>
 #include <drm/radeon_drm.h>
-#include "radeon_reg.h"
+
 #include "radeon.h"
+#include "radeon_reg.h"
 #include "radeon_trace.h"
 
 #define RADEON_CS_MAX_PRIORITY		32u
@@ -178,7 +184,7 @@ static int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 		}
 
 		p->relocs[i].tv.bo = &p->relocs[i].robj->tbo;
-		p->relocs[i].tv.shared = !r->write_domain;
+		p->relocs[i].tv.num_shared = !r->write_domain;
 
 		radeon_cs_buckets_add(&buckets, &p->relocs[i].tv.head,
 				      priority);
@@ -249,11 +255,11 @@ static int radeon_cs_sync_rings(struct radeon_cs_parser *p)
 	int r;
 
 	list_for_each_entry(reloc, &p->validated, tv.head) {
-		struct reservation_object *resv;
+		struct dma_resv *resv;
 
-		resv = reloc->robj->tbo.resv;
+		resv = reloc->robj->tbo.base.resv;
 		r = radeon_sync_resv(p->rdev, &p->ib.sync, resv,
-				     reloc->tv.shared);
+				     reloc->tv.num_shared);
 		if (r)
 			return r;
 	}
@@ -437,7 +443,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error, bo
 			if (bo == NULL)
 				continue;
 
-			drm_gem_object_put_unlocked(&bo->gem_base);
+			drm_gem_object_put_unlocked(&bo->tbo.base);
 		}
 	}
 	kfree(parser->track);

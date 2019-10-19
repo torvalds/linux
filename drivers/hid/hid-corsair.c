@@ -1,19 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HID driver for Corsair devices
  *
  * Supported devices:
+ *  - Vengeance K70 Keyboard
+ *  - K70 RAPIDFIRE Keyboard
  *  - Vengeance K90 Keyboard
  *  - Scimitar PRO RGB Gaming Mouse
  *
  * Copyright (c) 2015 Clement Vuchener
  * Copyright (c) 2017 Oscar Campos
+ * Copyright (c) 2017 Aaron Bottegal
  */
 
 /*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #include <linux/hid.h>
@@ -673,7 +673,7 @@ static int corsair_input_mapping(struct hid_device *dev,
 }
 
 /*
- * The report descriptor of Corsair Scimitar RGB Pro gaming mouse is
+ * The report descriptor of some of the Corsair gaming mice is
  * non parseable as they define two consecutive Logical Minimum for
  * the Usage Page (Consumer) in rdescs bytes 75 and 77 being 77 0x16
  * that should be obviousy 0x26 for Logical Magimum of 16 bits. This
@@ -681,7 +681,8 @@ static int corsair_input_mapping(struct hid_device *dev,
  * Minimum being larger than Logical Maximum.
  *
  * This driver fixes the report descriptor for:
- * - USB ID b1c:1b3e, sold as Scimitar RGB Pro Gaming mouse
+ * - USB ID 1b1c:1b34, sold as GLAIVE RGB Gaming mouse
+ * - USB ID 1b1c:1b3e, sold as Scimitar RGB Pro Gaming mouse
  */
 
 static __u8 *corsair_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -691,13 +692,14 @@ static __u8 *corsair_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 
 	if (intf->cur_altsetting->desc.bInterfaceNumber == 1) {
 		/*
-		 * Corsair Scimitar RGB Pro report descriptor is broken and
-		 * defines two different Logical Minimum for the Consumer
-		 * Application. The byte 77 should be a 0x26 defining a 16
-		 * bits integer for the Logical Maximum but it is a 0x16
+		 * Corsair GLAIVE RGB and Scimitar RGB Pro report descriptor is
+		 * broken and defines two different Logical Minimum for the
+		 * Consumer Application. The byte 77 should be a 0x26 defining
+		 * a 16 bits integer for the Logical Maximum but it is a 0x16
 		 * instead (Logical Minimum)
 		 */
 		switch (hdev->product) {
+		case USB_DEVICE_ID_CORSAIR_GLAIVE_RGB:
 		case USB_DEVICE_ID_CORSAIR_SCIMITAR_PRO_RGB:
 			if (*rsize >= 172 && rdesc[75] == 0x15 && rdesc[77] == 0x16
 			&& rdesc[78] == 0xff && rdesc[79] == 0x0f) {
@@ -716,7 +718,14 @@ static const struct hid_device_id corsair_devices[] = {
 		.driver_data = CORSAIR_USE_K90_MACRO |
 			       CORSAIR_USE_K90_BACKLIGHT },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
+            USB_DEVICE_ID_CORSAIR_GLAIVE_RGB) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
             USB_DEVICE_ID_CORSAIR_SCIMITAR_PRO_RGB) },
+	/*
+	 * Vengeance K70 and K70 RAPIDFIRE share product IDs.
+	 */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_CORSAIR,
+            USB_DEVICE_ID_CORSAIR_K70R) },
 	{}
 };
 

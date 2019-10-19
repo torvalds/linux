@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Cavium, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
  */
 
 #include <linux/device.h>
@@ -278,8 +275,8 @@ static int cpt_ucode_load_fw(struct cpt_device *cpt, const u8 *fw, bool is_ae)
 	mcode->num_cores = is_ae ? 6 : 10;
 
 	/*  Allocate DMAable space */
-	mcode->code = dma_zalloc_coherent(&cpt->pdev->dev, mcode->code_size,
-					  &mcode->phys_base, GFP_KERNEL);
+	mcode->code = dma_alloc_coherent(&cpt->pdev->dev, mcode->code_size,
+					 &mcode->phys_base, GFP_KERNEL);
 	if (!mcode->code) {
 		dev_err(dev, "Unable to allocate space for microcode");
 		ret = -ENOMEM;
@@ -436,7 +433,7 @@ static int cpt_device_init(struct cpt_device *cpt)
 
 	/* Reset the PF when probed first */
 	cpt_reset(cpt);
-	mdelay(100);
+	msleep(100);
 
 	/*Check BIST status*/
 	bist = (u64)cpt_check_bist_status(cpt);

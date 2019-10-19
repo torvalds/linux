@@ -639,7 +639,6 @@ static int cygnus_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct cygnus_aio_port *aio;
-	int ret = 0;
 
 	aio = cygnus_dai_get_dma_data(substream);
 	dev_dbg(rtd->cpu_dai->dev, "%s  port %d\n", __func__, aio->portnum);
@@ -647,7 +646,7 @@ static int cygnus_pcm_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 	runtime->dma_bytes = params_buffer_bytes(params);
 
-	return ret;
+	return 0;
 }
 
 static int cygnus_pcm_hw_free(struct snd_pcm_substream *substream)
@@ -668,7 +667,6 @@ static int cygnus_pcm_prepare(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct cygnus_aio_port *aio;
 	unsigned long bufsize, periodsize;
-	int ret = 0;
 	bool is_play;
 	u32 start;
 	struct ringbuf_regs *p_rbuf = NULL;
@@ -693,7 +691,7 @@ static int cygnus_pcm_prepare(struct snd_pcm_substream *substream)
 	ringbuf_set_initial(aio->cygaud->audio, p_rbuf, is_play, start,
 				periodsize, bufsize);
 
-	return ret;
+	return 0;
 }
 
 static snd_pcm_uframes_t cygnus_pcm_pointer(struct snd_pcm_substream *substream)
@@ -820,7 +818,7 @@ static int cygnus_dma_new(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-static struct snd_soc_platform_driver cygnus_soc_platform = {
+static struct snd_soc_component_driver cygnus_soc_platform = {
 	.ops		= &cygnus_pcm_ops,
 	.pcm_new	= cygnus_dma_new,
 	.pcm_free	= cygnus_dma_free_dma_buffers,
@@ -840,7 +838,8 @@ int cygnus_soc_platform_register(struct device *dev,
 		return rc;
 	}
 
-	rc = snd_soc_register_platform(dev, &cygnus_soc_platform);
+	rc = devm_snd_soc_register_component(dev, &cygnus_soc_platform,
+					     NULL, 0);
 	if (rc) {
 		dev_err(dev, "%s failed\n", __func__);
 		return rc;
@@ -851,8 +850,6 @@ int cygnus_soc_platform_register(struct device *dev,
 
 int cygnus_soc_platform_unregister(struct device *dev)
 {
-	snd_soc_unregister_platform(dev);
-
 	return 0;
 }
 

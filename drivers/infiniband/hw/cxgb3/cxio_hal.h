@@ -158,8 +158,7 @@ void cxio_rdev_close(struct cxio_rdev *rdev);
 int cxio_hal_cq_op(struct cxio_rdev *rdev, struct t3_cq *cq,
 		   enum t3_cq_opcode op, u32 credit);
 int cxio_create_cq(struct cxio_rdev *rdev, struct t3_cq *cq, int kernel);
-int cxio_destroy_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
-int cxio_resize_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
+void cxio_destroy_cq(struct cxio_rdev *rdev, struct t3_cq *cq);
 void cxio_release_ucontext(struct cxio_rdev *rdev, struct cxio_ucontext *uctx);
 void cxio_init_ucontext(struct cxio_rdev *rdev, struct cxio_ucontext *uctx);
 int cxio_create_qp(struct cxio_rdev *rdev, u32 kernel_domain, struct t3_wq *wq,
@@ -201,14 +200,5 @@ int iwch_cxgb3_ofld_send(struct t3cdev *tdev, struct sk_buff *skb);
 #endif
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#ifdef DEBUG
-void cxio_dump_tpt(struct cxio_rdev *rev, u32 stag);
-void cxio_dump_pbl(struct cxio_rdev *rev, u32 pbl_addr, uint len, u8 shift);
-void cxio_dump_wqe(union t3_wr *wqe);
-void cxio_dump_wce(struct t3_cqe *wce);
-void cxio_dump_rqt(struct cxio_rdev *rdev, u32 hwtid, int nents);
-void cxio_dump_tcb(struct cxio_rdev *rdev, u32 hwtid);
-#endif
 
 #endif

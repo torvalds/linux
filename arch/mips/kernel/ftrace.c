@@ -86,7 +86,7 @@ static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 		return -EFAULT;
 
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
 	set_fs(old_fs);
 
@@ -111,7 +111,7 @@ static int ftrace_modify_code_2(unsigned long ip, unsigned int new_code1,
 
 	ip -= 4;
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
 	set_fs(old_fs);
 
@@ -135,7 +135,7 @@ static int ftrace_modify_code_2r(unsigned long ip, unsigned int new_code1,
 		return -EFAULT;
 
 	old_fs = get_fs();
-	set_fs(get_ds());
+	set_fs(KERNEL_DS);
 	flush_icache_range(ip, ip + 8);
 	set_fs(old_fs);
 
@@ -322,7 +322,6 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 			   unsigned long fp)
 {
 	unsigned long old_parent_ra;
-	struct ftrace_graph_ent trace;
 	unsigned long return_hooker = (unsigned long)
 	    &return_to_handler;
 	int faulted, insns;
@@ -334,20 +333,21 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 		return;
 
 	/*
-	 * "parent_ra_addr" is the stack address saved the return address of
-	 * the caller of _mcount.
+	 * "parent_ra_addr" is the stack address where the return address of
+	 * the caller of _mcount is saved.
 	 *
-	 * if the gcc < 4.5, a leaf function does not save the return address
-	 * in the stack address, so, we "emulate" one in _mcount's stack space,
-	 * and hijack it directly, but for a non-leaf function, it save the
-	 * return address to the its own stack space, we can not hijack it
-	 * directly, but need to find the real stack address,
-	 * ftrace_get_parent_addr() does it!
+	 * If gcc < 4.5, a leaf function does not save the return address
+	 * in the stack address, so we "emulate" one in _mcount's stack space,
+	 * and hijack it directly.
+	 * For a non-leaf function, it does save the return address to its own
+	 * stack space, so we can not hijack it directly, but need to find the
+	 * real stack address, which is done by ftrace_get_parent_addr().
 	 *
-	 * if gcc>= 4.5, with the new -mmcount-ra-address option, for a
+	 * If gcc >= 4.5, with the new -mmcount-ra-address option, for a
 	 * non-leaf function, the location of the return address will be saved
-	 * to $12 for us, and for a leaf function, only put a zero into $12. we
-	 * do it in ftrace_graph_caller of mcount.S.
+	 * to $12 for us.
+	 * For a leaf function, it just puts a zero into $12, so we handle
+	 * it in ftrace_graph_caller() of mcount.S.
 	 */
 
 	/* old_parent_ra = *parent_ra_addr; */
@@ -369,12 +369,6 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	if (unlikely(faulted))
 		goto out;
 
-	if (ftrace_push_return_trace(old_parent_ra, self_ra, &trace.depth, fp,
-				     NULL) == -EBUSY) {
-		*parent_ra_addr = old_parent_ra;
-		return;
-	}
-
 	/*
 	 * Get the recorded ip of the current mcount calling site in the
 	 * __mcount_loc section, which will be used to filter the function
@@ -382,13 +376,10 @@ void prepare_ftrace_return(unsigned long *parent_ra_addr, unsigned long self_ra,
 	 */
 
 	insns = core_kernel_text(self_ra) ? 2 : MCOUNT_OFFSET_INSNS + 1;
-	trace.func = self_ra - (MCOUNT_INSN_SIZE * insns);
+	self_ra -= (MCOUNT_INSN_SIZE * insns);
 
-	/* Only trace if the calling function expects to */
-	if (!ftrace_graph_entry(&trace)) {
-		current->curr_ret_stack--;
+	if (function_graph_enter(old_parent_ra, self_ra, fp, NULL))
 		*parent_ra_addr = old_parent_ra;
-	}
 	return;
 out:
 	ftrace_graph_stop();
@@ -410,13 +401,13 @@ unsigned long __init arch_syscall_addr(int nr)
 unsigned long __init arch_syscall_addr(int nr)
 {
 #ifdef CONFIG_MIPS32_N32
-	if (nr >= __NR_N32_Linux && nr <= __NR_N32_Linux + __NR_N32_Linux_syscalls)
+	if (nr >= __NR_N32_Linux && nr < __NR_N32_Linux + __NR_N32_Linux_syscalls)
 		return (unsigned long)sysn32_call_table[nr - __NR_N32_Linux];
 #endif
-	if (nr >= __NR_64_Linux  && nr <= __NR_64_Linux + __NR_64_Linux_syscalls)
+	if (nr >= __NR_64_Linux  && nr < __NR_64_Linux + __NR_64_Linux_syscalls)
 		return (unsigned long)sys_call_table[nr - __NR_64_Linux];
 #ifdef CONFIG_MIPS32_O32
-	if (nr >= __NR_O32_Linux && nr <= __NR_O32_Linux + __NR_O32_Linux_syscalls)
+	if (nr >= __NR_O32_Linux && nr < __NR_O32_Linux + __NR_O32_Linux_syscalls)
 		return (unsigned long)sys32_call_table[nr - __NR_O32_Linux];
 #endif
 

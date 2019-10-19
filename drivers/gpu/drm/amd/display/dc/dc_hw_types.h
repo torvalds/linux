@@ -97,6 +97,10 @@ struct dc_plane_address {
 			union large_integer chroma_dcc_const_color;
 		} video_progressive;
 	};
+
+	union large_integer page_table_base;
+
+	uint8_t vmid;
 };
 
 struct dc_size {
@@ -111,41 +115,39 @@ struct rect {
 	int height;
 };
 
-union plane_size {
-	/* Grph or Video will be selected
-	 * based on format above:
-	 * Use Video structure if
-	 * format >= DalPixelFormat_VideoBegin
-	 * else use Grph structure
+struct plane_size {
+	/* Graphic surface pitch in pixels.
+	 * In LINEAR_GENERAL mode, pitch
+	 * is 32 pixel aligned.
 	 */
-	struct {
-		struct rect surface_size;
-		/* Graphic surface pitch in pixels.
-		 * In LINEAR_GENERAL mode, pitch
-		 * is 32 pixel aligned.
-		 */
-		int surface_pitch;
-	} grph;
+	int surface_pitch;
+	int chroma_pitch;
+	struct rect surface_size;
+	struct rect chroma_size;
 
-	struct {
-		struct rect luma_size;
-		/* Graphic surface pitch in pixels.
-		 * In LINEAR_GENERAL mode, pitch is
-		 * 32 pixel aligned.
-		 */
-		int luma_pitch;
+	union {
+		struct {
+			struct rect surface_size;
+			int surface_pitch;
+		} grph;
 
-		struct rect chroma_size;
-		/* Graphic surface pitch in pixels.
-		 * In LINEAR_GENERAL mode, pitch is
-		 * 32 pixel aligned.
-		 */
-		int chroma_pitch;
-	} video;
+		struct {
+			struct rect luma_size;
+			int luma_pitch;
+			struct rect chroma_size;
+			int chroma_pitch;
+		} video;
+	};
 };
 
 struct dc_plane_dcc_param {
 	bool enable;
+
+	int meta_pitch;
+	bool independent_64b_blks;
+
+	int meta_pitch_c;
+	bool independent_64b_blks_c;
 
 	union {
 		struct {
@@ -192,13 +194,24 @@ enum surface_pixel_format {
 	/*swaped & float*/
 	SURFACE_PIXEL_FORMAT_GRPH_ABGR16161616F,
 	/*grow graphics here if necessary */
-
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FIX,
+	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FIX,
+	SURFACE_PIXEL_FORMAT_GRPH_RGB111110_FLOAT,
+	SURFACE_PIXEL_FORMAT_GRPH_BGR101111_FLOAT,
+#endif
 	SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCbCr =
 		SURFACE_PIXEL_FORMAT_VIDEO_BEGIN,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_YCrCb,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCbCr,
 	SURFACE_PIXEL_FORMAT_VIDEO_420_10bpc_YCrCb,
+		SURFACE_PIXEL_FORMAT_SUBSAMPLE_END,
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	SURFACE_PIXEL_FORMAT_VIDEO_ACrYCb2101010,
+	SURFACE_PIXEL_FORMAT_VIDEO_CrYCbA1010102,
+#endif
+	SURFACE_PIXEL_FORMAT_VIDEO_AYCrCb8888,
 	SURFACE_PIXEL_FORMAT_INVALID
 
 	/*grow 444 video here if necessary */
@@ -235,6 +248,13 @@ enum tile_split_values {
 	DC_DEPTH_MICRO_TILING = 0x2,
 	DC_ROTATED_MICRO_TILING = 0x3,
 };
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+enum tripleBuffer_enable {
+	DC_TRIPLEBUFFER_DISABLE = 0x0,
+	DC_TRIPLEBUFFER_ENABLE = 0x1,
+};
+#endif
 
 /* TODO: These values come from hardware spec. We need to readdress this
  * if they ever change.
@@ -288,7 +308,8 @@ enum swizzle_mode_values {
 	DC_SW_VAR_S_X = 29,
 	DC_SW_VAR_D_X = 30,
 	DC_SW_VAR_R_X = 31,
-	DC_SW_MAX
+	DC_SW_MAX = 32,
+	DC_SW_UNKNOWN = DC_SW_MAX
 };
 
 union dc_tiling_info {
@@ -356,15 +377,16 @@ union dc_tiling_info {
 	} gfx8;
 
 	struct {
+		enum swizzle_mode_values swizzle;
 		unsigned int num_pipes;
-		unsigned int num_banks;
+		unsigned int max_compressed_frags;
 		unsigned int pipe_interleave;
+
+		unsigned int num_banks;
 		unsigned int num_shader_engines;
 		unsigned int num_rb_per_se;
-		unsigned int max_compressed_frags;
 		bool shaderEnable;
 
-		enum swizzle_mode_values swizzle;
 		bool meta_linear;
 		bool rb_aligned;
 		bool pipe_aligned;
@@ -403,9 +425,11 @@ struct dc_cursor_position {
 struct dc_cursor_mi_param {
 	unsigned int pixel_clk_khz;
 	unsigned int ref_clk_khz;
-	unsigned int viewport_x_start;
-	unsigned int viewport_width;
+	struct rect viewport;
 	struct fixed31_32 h_scale_ratio;
+	struct fixed31_32 v_scale_ratio;
+	enum dc_rotation_angle rotation;
+	bool mirror;
 };
 
 /* IPP related types */
@@ -413,13 +437,30 @@ struct dc_cursor_mi_param {
 enum {
 	GAMMA_RGB_256_ENTRIES = 256,
 	GAMMA_RGB_FLOAT_1024_ENTRIES = 1024,
-	GAMMA_MAX_ENTRIES = 1024
+	GAMMA_CS_TFM_1D_ENTRIES = 4096,
+	GAMMA_CUSTOM_ENTRIES = 4096,
+	GAMMA_MAX_ENTRIES = 4096
 };
 
 enum dc_gamma_type {
 	GAMMA_RGB_256 = 1,
-	GAMMA_RGB_FLOAT_1024 = 2
+	GAMMA_RGB_FLOAT_1024 = 2,
+	GAMMA_CS_TFM_1D = 3,
+	GAMMA_CUSTOM = 4,
 };
+
+struct dc_csc_transform {
+	uint16_t matrix[12];
+	bool enable_adjustment;
+};
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+struct dc_rgb_fixed {
+	struct fixed31_32 red;
+	struct fixed31_32 green;
+	struct fixed31_32 blue;
+};
+#endif
 
 struct dc_gamma {
 	struct kref refcount;
@@ -434,6 +475,11 @@ struct dc_gamma {
 
 	/* private to DC core */
 	struct dc_context *ctx;
+
+	/* is_identity is used for RGB256 gamma identity which can also be programmed in INPUT_LUT.
+	 * is_logical_identity indicates the given gamma ramp regardless of type is identity.
+	 */
+	bool is_identity;
 };
 
 /* Used by both ipp amd opp functions*/
@@ -448,7 +494,11 @@ enum dc_cursor_color_format {
 	CURSOR_MODE_MONO,
 	CURSOR_MODE_COLOR_1BIT_AND,
 	CURSOR_MODE_COLOR_PRE_MULTIPLIED_ALPHA,
-	CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA
+	CURSOR_MODE_COLOR_UN_PRE_MULTIPLIED_ALPHA,
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+	CURSOR_MODE_COLOR_64BIT_FP_PRE_MULTIPLIED,
+	CURSOR_MODE_COLOR_64BIT_FP_UN_PRE_MULTIPLIED
+#endif
 };
 
 /*
@@ -466,7 +516,8 @@ union dc_cursor_attribute_flags {
 		uint32_t INVERT_PIXEL_DATA:1;
 		uint32_t ZERO_EXPANSION:1;
 		uint32_t MIN_MAX_INVERT:1;
-		uint32_t RESERVED:25;
+		uint32_t ENABLE_CURSOR_DEGAMMA:1;
+		uint32_t RESERVED:24;
 	} bits;
 	uint32_t value;
 };
@@ -480,11 +531,17 @@ struct dc_cursor_attributes {
 	uint32_t height;
 
 	enum dc_cursor_color_format color_format;
+	uint32_t sdr_white_level; // for boosting (SDR) cursor in HDR mode
 
 	/* In case we support HW Cursor rotation in the future */
 	enum dc_rotation_angle rotation_angle;
 
 	union dc_cursor_attribute_flags attribute_flags;
+};
+
+struct dpp_cursor_attributes {
+	int bias;
+	int scale;
 };
 
 /* OPP */
@@ -510,6 +567,7 @@ enum dc_color_space {
 	COLOR_SPACE_DOLBYVISION,
 	COLOR_SPACE_APPCTRL,
 	COLOR_SPACE_CUSTOMPOINTS,
+	COLOR_SPACE_YCBCR709_BLACK,
 };
 
 enum dc_dither_option {
@@ -555,28 +613,29 @@ struct scaling_taps {
 	uint32_t h_taps;
 	uint32_t v_taps_c;
 	uint32_t h_taps_c;
+	bool integer_scaling;
 };
 
 enum dc_timing_standard {
-	TIMING_STANDARD_UNDEFINED,
-	TIMING_STANDARD_DMT,
-	TIMING_STANDARD_GTF,
-	TIMING_STANDARD_CVT,
-	TIMING_STANDARD_CVT_RB,
-	TIMING_STANDARD_CEA770,
-	TIMING_STANDARD_CEA861,
-	TIMING_STANDARD_HDMI,
-	TIMING_STANDARD_TV_NTSC,
-	TIMING_STANDARD_TV_NTSC_J,
-	TIMING_STANDARD_TV_PAL,
-	TIMING_STANDARD_TV_PAL_M,
-	TIMING_STANDARD_TV_PAL_CN,
-	TIMING_STANDARD_TV_SECAM,
-	TIMING_STANDARD_EXPLICIT,
+	DC_TIMING_STANDARD_UNDEFINED,
+	DC_TIMING_STANDARD_DMT,
+	DC_TIMING_STANDARD_GTF,
+	DC_TIMING_STANDARD_CVT,
+	DC_TIMING_STANDARD_CVT_RB,
+	DC_TIMING_STANDARD_CEA770,
+	DC_TIMING_STANDARD_CEA861,
+	DC_TIMING_STANDARD_HDMI,
+	DC_TIMING_STANDARD_TV_NTSC,
+	DC_TIMING_STANDARD_TV_NTSC_J,
+	DC_TIMING_STANDARD_TV_PAL,
+	DC_TIMING_STANDARD_TV_PAL_M,
+	DC_TIMING_STANDARD_TV_PAL_CN,
+	DC_TIMING_STANDARD_TV_SECAM,
+	DC_TIMING_STANDARD_EXPLICIT,
 	/*!< For explicit timings from EDID, VBIOS, etc.*/
-	TIMING_STANDARD_USER_OVERRIDE,
+	DC_TIMING_STANDARD_USER_OVERRIDE,
 	/*!< For mode timing override by user*/
-	TIMING_STANDARD_MAX
+	DC_TIMING_STANDARD_MAX
 };
 
 enum dc_color_depth {
@@ -587,6 +646,10 @@ enum dc_color_depth {
 	COLOR_DEPTH_121212,
 	COLOR_DEPTH_141414,
 	COLOR_DEPTH_161616,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+	COLOR_DEPTH_999,
+	COLOR_DEPTH_111111,
+#endif
 	COLOR_DEPTH_COUNT
 };
 
@@ -647,6 +710,9 @@ struct dc_crtc_timing_flags {
 	 * rates less than or equal to 340Mcsc */
 	uint32_t LTE_340MCSC_SCRAMBLE:1;
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	uint32_t DSC : 1; /* Use DSC with this timing */
+#endif
 };
 
 enum dc_timing_3d_format {
@@ -688,8 +754,26 @@ struct crtc_trigger_info {
 	enum trigger_delay delay;
 };
 
-struct dc_crtc_timing {
+struct dc_crtc_timing_adjust {
+	uint32_t v_total_min;
+	uint32_t v_total_max;
+	uint32_t v_total_mid;
+	uint32_t v_total_mid_frame_num;
+};
 
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+struct dc_dsc_config {
+	uint32_t num_slices_h; /* Number of DSC slices - horizontal */
+	uint32_t num_slices_v; /* Number of DSC slices - vertical */
+	uint32_t bits_per_pixel; /* DSC target bitrate in 1/16 of bpp (e.g. 128 -> 8bpp) */
+	bool block_pred_enable; /* DSC block prediction enable */
+	uint32_t linebuf_depth; /* DSC line buffer depth */
+	uint32_t version_minor; /* DSC minor version. Full version is formed as 1.version_minor. */
+	bool ycbcr422_simple; /* Tell DSC engine to convert YCbCr 4:2:2 to 'YCbCr 4:2:2 simple'. */
+	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
+};
+#endif
+struct dc_crtc_timing {
 	uint32_t h_total;
 	uint32_t h_border_left;
 	uint32_t h_addressable;
@@ -704,7 +788,7 @@ struct dc_crtc_timing {
 	uint32_t v_front_porch;
 	uint32_t v_sync_width;
 
-	uint32_t pix_clk_khz;
+	uint32_t pix_clk_100hz;
 
 	uint32_t vic;
 	uint32_t hdmi_vic;
@@ -715,7 +799,72 @@ struct dc_crtc_timing {
 	enum scanning_type scan_type;
 
 	struct dc_crtc_timing_flags flags;
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	struct dc_dsc_config dsc_cfg;
+#endif
 };
+
+/* Passed on init */
+enum vram_type {
+	VIDEO_MEMORY_TYPE_GDDR5  = 2,
+	VIDEO_MEMORY_TYPE_DDR3   = 3,
+	VIDEO_MEMORY_TYPE_DDR4   = 4,
+	VIDEO_MEMORY_TYPE_HBM    = 5,
+	VIDEO_MEMORY_TYPE_GDDR6  = 6,
+};
+
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+enum dwb_cnv_out_bpc {
+	DWB_CNV_OUT_BPC_8BPC  = 0,
+	DWB_CNV_OUT_BPC_10BPC = 1,
+};
+
+enum dwb_output_depth {
+	DWB_OUTPUT_PIXEL_DEPTH_8BPC = 0,
+	DWB_OUTPUT_PIXEL_DEPTH_10BPC = 1,
+};
+
+enum dwb_capture_rate {
+	dwb_capture_rate_0 = 0,	/* Every frame is captured. */
+	dwb_capture_rate_1 = 1,	/* Every other frame is captured. */
+	dwb_capture_rate_2 = 2,	/* Every 3rd frame is captured. */
+	dwb_capture_rate_3 = 3,	/* Every 4th frame is captured. */
+};
+
+enum dwb_scaler_mode {
+	dwb_scaler_mode_bypass444 = 0,
+	dwb_scaler_mode_rgb444 = 1,
+	dwb_scaler_mode_yuv444 = 2,
+	dwb_scaler_mode_yuv420 = 3
+};
+
+enum dwb_subsample_position {
+	DWB_INTERSTITIAL_SUBSAMPLING = 0,
+	DWB_COSITED_SUBSAMPLING      = 1
+};
+
+enum dwb_stereo_eye_select {
+	DWB_STEREO_EYE_LEFT  = 1,		/* Capture left eye only */
+	DWB_STEREO_EYE_RIGHT = 2,		/* Capture right eye only */
+};
+
+enum dwb_stereo_type {
+	DWB_STEREO_TYPE_FRAME_PACKING = 0,		/* Frame packing */
+	DWB_STEREO_TYPE_FRAME_SEQUENTIAL = 3,	/* Frame sequential */
+};
+
+#define MCIF_BUF_COUNT	4
+
+struct mcif_buf_params {
+	unsigned long long	luma_address[MCIF_BUF_COUNT];
+	unsigned long long	chroma_address[MCIF_BUF_COUNT];
+	unsigned int		luma_pitch;
+	unsigned int		chroma_pitch;
+	unsigned int		warmup_pitch;
+	unsigned int		swlock;
+};
+
+#endif
 
 #define MAX_TG_COLOR_VALUE 0x3FF
 struct tg_color {

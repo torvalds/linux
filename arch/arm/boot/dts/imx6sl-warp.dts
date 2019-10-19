@@ -54,7 +54,8 @@
 	model = "WaRP Board";
 	compatible = "warp,imx6sl-warp", "fsl,imx6sl";
 
-	memory {
+	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x20000000>;
 	};
 

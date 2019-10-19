@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  BSG helper library
  *
  *  Copyright (C) 2008   James Smart, Emulex Corporation
  *  Copyright (C) 2011   Red Hat, Inc.  All rights reserved.
  *  Copyright (C) 2011   Mike Christie
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 #ifndef _BLK_BSG_
 #define _BLK_BSG_
@@ -31,6 +17,9 @@ struct device;
 struct scatterlist;
 struct request_queue;
 
+typedef int (bsg_job_fn) (struct bsg_job *);
+typedef enum blk_eh_timer_return (bsg_timeout_fn)(struct request *);
+
 struct bsg_buffer {
 	unsigned int payload_len;
 	int sg_cnt;
@@ -38,11 +27,11 @@ struct bsg_buffer {
 };
 
 struct bsg_job {
-	struct scsi_request sreq;
 	struct device *dev;
-	struct request *req;
 
 	struct kref kref;
+
+	unsigned int timeout;
 
 	/* Transport/driver specific request/reply structs */
 	void *request;
@@ -63,14 +52,21 @@ struct bsg_job {
 	struct bsg_buffer request_payload;
 	struct bsg_buffer reply_payload;
 
+	int result;
+	unsigned int reply_payload_rcv_len;
+
+	/* BIDI support */
+	struct request *bidi_rq;
+	struct bio *bidi_bio;
+
 	void *dd_data;		/* Used for driver-specific storage */
 };
 
 void bsg_job_done(struct bsg_job *job, int result,
 		  unsigned int reply_payload_rcv_len);
 struct request_queue *bsg_setup_queue(struct device *dev, const char *name,
-		bsg_job_fn *job_fn, int dd_job_size,
-		void (*release)(struct device *));
+		bsg_job_fn *job_fn, bsg_timeout_fn *timeout, int dd_job_size);
+void bsg_remove_queue(struct request_queue *q);
 void bsg_job_put(struct bsg_job *job);
 int __must_check bsg_job_get(struct bsg_job *job);
 

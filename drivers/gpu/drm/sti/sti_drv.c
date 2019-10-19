@@ -4,22 +4,22 @@
  * Author: Benjamin Gaignard <benjamin.gaignard@st.com> for STMicroelectronics.
  */
 
-#include <drm/drmP.h>
-
 #include <linux/component.h>
-#include <linux/debugfs.h>
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_fb_cma_helper.h>
 #include <drm/drm_of.h>
+#include <drm/drm_probe_helper.h>
 
 #include "sti_crtc.h"
 #include "sti_drv.h"
@@ -95,7 +95,6 @@ static struct drm_info_list sti_drm_dbg_list[] = {
 
 static int sti_drm_dbg_init(struct drm_minor *minor)
 {
-	struct dentry *dentry;
 	int ret;
 
 	ret = drm_debugfs_create_files(sti_drm_dbg_list,
@@ -104,13 +103,8 @@ static int sti_drm_dbg_init(struct drm_minor *minor)
 	if (ret)
 		goto err;
 
-	dentry = debugfs_create_file("fps_show", S_IRUGO | S_IWUSR,
-				     minor->debugfs_root, minor->dev,
-				     &sti_drm_fps_fops);
-	if (!dentry) {
-		ret = -ENOMEM;
-		goto err;
-	}
+	debugfs_create_file("fps_show", S_IRUGO | S_IWUSR, minor->debugfs_root,
+			    minor->dev, &sti_drm_fps_fops);
 
 	DRM_INFO("%s: debugfs installed\n", DRIVER_NAME);
 	return 0;
@@ -119,30 +113,9 @@ err:
 	return ret;
 }
 
-static int sti_atomic_check(struct drm_device *dev,
-			    struct drm_atomic_state *state)
-{
-	int ret;
-
-	ret = drm_atomic_helper_check_modeset(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_normalize_zpos(dev, state);
-	if (ret)
-		return ret;
-
-	ret = drm_atomic_helper_check_planes(dev, state);
-	if (ret)
-		return ret;
-
-	return ret;
-}
-
 static const struct drm_mode_config_funcs sti_mode_config_funcs = {
 	.fb_create = drm_gem_fb_create,
-	.output_poll_changed = drm_fb_helper_output_poll_changed,
-	.atomic_check = sti_atomic_check,
+	.atomic_check = drm_atomic_helper_check,
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
@@ -160,13 +133,14 @@ static void sti_mode_config_init(struct drm_device *dev)
 	dev->mode_config.max_height = STI_MAX_FB_HEIGHT;
 
 	dev->mode_config.funcs = &sti_mode_config_funcs;
+
+	dev->mode_config.normalize_zpos = true;
 }
 
 DEFINE_DRM_GEM_CMA_FOPS(sti_driver_fops);
 
 static struct drm_driver sti_driver = {
-	.driver_features = DRIVER_MODESET |
-	    DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 	.dumb_create = drm_gem_cma_dumb_create,
@@ -177,8 +151,6 @@ static struct drm_driver sti_driver = {
 
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export = drm_gem_prime_export,
-	.gem_prime_import = drm_gem_prime_import,
 	.gem_prime_get_sg_table = drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
@@ -224,8 +196,9 @@ static void sti_cleanup(struct drm_device *ddev)
 {
 	struct sti_private *private = ddev->dev_private;
 
-	drm_fb_cma_fbdev_fini(ddev);
 	drm_kms_helper_poll_fini(ddev);
+	drm_atomic_helper_shutdown(ddev);
+	drm_mode_config_cleanup(ddev);
 	component_unbind_all(ddev->dev, ddev);
 	kfree(private);
 	ddev->dev_private = NULL;
@@ -242,7 +215,7 @@ static int sti_bind(struct device *dev)
 
 	ret = sti_init(ddev);
 	if (ret)
-		goto err_drm_dev_unref;
+		goto err_drm_dev_put;
 
 	ret = component_bind_all(ddev->dev, ddev);
 	if (ret)
@@ -250,24 +223,18 @@ static int sti_bind(struct device *dev)
 
 	ret = drm_dev_register(ddev, 0);
 	if (ret)
-		goto err_register;
+		goto err_cleanup;
 
 	drm_mode_config_reset(ddev);
 
-	if (ddev->mode_config.num_connector) {
-		ret = drm_fb_cma_fbdev_init(ddev, 32, 0);
-		if (ret)
-			DRM_DEBUG_DRIVER("Warning: fails to create fbdev\n");
-	}
+	drm_fbdev_generic_setup(ddev, 32);
 
 	return 0;
 
-err_register:
-	drm_mode_config_cleanup(ddev);
 err_cleanup:
 	sti_cleanup(ddev);
-err_drm_dev_unref:
-	drm_dev_unref(ddev);
+err_drm_dev_put:
+	drm_dev_put(ddev);
 	return ret;
 }
 
@@ -277,7 +244,7 @@ static void sti_unbind(struct device *dev)
 
 	drm_dev_unregister(ddev);
 	sti_cleanup(ddev);
-	drm_dev_unref(ddev);
+	drm_dev_put(ddev);
 }
 
 static const struct component_master_ops sti_ops = {

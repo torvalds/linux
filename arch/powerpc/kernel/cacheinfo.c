@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Processor cache information made available to userspace via sysfs;
  * intended to be compatible with x86 intel_cacheinfo implementation.
  *
  * Copyright 2008 IBM Corporation
  * Author: Nathan Lynch
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
 
 #include <linux/cpu.h>
@@ -20,6 +17,8 @@
 #include <linux/percpu.h>
 #include <linux/slab.h>
 #include <asm/prom.h>
+#include <asm/cputhreads.h>
+#include <asm/smp.h>
 
 #include "cacheinfo.h"
 
@@ -351,8 +350,6 @@ static int cache_is_unified_d(const struct device_node *np)
 		CACHE_TYPE_UNIFIED_D : CACHE_TYPE_UNIFIED;
 }
 
-/*
- */
 static struct cache *cache_do_one_devnode_unified(struct device_node *node, int level)
 {
 	pr_debug("creating L%d ucache for %pOF\n", level, node);
@@ -426,7 +423,7 @@ static void link_cache_lists(struct cache *smaller, struct cache *bigger)
 static void do_subsidiary_caches_debugcheck(struct cache *cache)
 {
 	WARN_ON_ONCE(cache->level != 1);
-	WARN_ON_ONCE(strcmp(cache->ofnode->type, "cpu"));
+	WARN_ON_ONCE(!of_node_is_type(cache->ofnode, "cpu"));
 }
 
 static void do_subsidiary_caches(struct cache *cache)
@@ -627,17 +624,48 @@ static ssize_t level_show(struct kobject *k, struct kobj_attribute *attr, char *
 static struct kobj_attribute cache_level_attr =
 	__ATTR(level, 0444, level_show, NULL);
 
+static unsigned int index_dir_to_cpu(struct cache_index_dir *index)
+{
+	struct kobject *index_dir_kobj = &index->kobj;
+	struct kobject *cache_dir_kobj = index_dir_kobj->parent;
+	struct kobject *cpu_dev_kobj = cache_dir_kobj->parent;
+	struct device *dev = kobj_to_dev(cpu_dev_kobj);
+
+	return dev->id;
+}
+
+/*
+ * On big-core systems, each core has two groups of CPUs each of which
+ * has its own L1-cache. The thread-siblings which share l1-cache with
+ * @cpu can be obtained via cpu_smallcore_mask().
+ */
+static const struct cpumask *get_big_core_shared_cpu_map(int cpu, struct cache *cache)
+{
+	if (cache->level == 1)
+		return cpu_smallcore_mask(cpu);
+
+	return &cache->shared_cpu_map;
+}
+
 static ssize_t shared_cpu_map_show(struct kobject *k, struct kobj_attribute *attr, char *buf)
 {
 	struct cache_index_dir *index;
 	struct cache *cache;
-	int ret;
+	const struct cpumask *mask;
+	int ret, cpu;
 
 	index = kobj_to_cache_index_dir(k);
 	cache = index->cache;
 
+	if (has_big_cores) {
+		cpu = index_dir_to_cpu(index);
+		mask = get_big_core_shared_cpu_map(cpu, cache);
+	} else {
+		mask  = &cache->shared_cpu_map;
+	}
+
 	ret = scnprintf(buf, PAGE_SIZE - 1, "%*pb\n",
-			cpumask_pr_args(&cache->shared_cpu_map));
+			cpumask_pr_args(mask));
 	buf[ret++] = '\n';
 	buf[ret] = '\0';
 	return ret;
@@ -726,23 +754,21 @@ static void cacheinfo_create_index_dir(struct cache *cache, int index,
 
 	index_dir = kzalloc(sizeof(*index_dir), GFP_KERNEL);
 	if (!index_dir)
-		goto err;
+		return;
 
 	index_dir->cache = cache;
 
 	rc = kobject_init_and_add(&index_dir->kobj, &cache_index_type,
 				  cache_dir->kobj, "index%d", index);
-	if (rc)
-		goto err;
+	if (rc) {
+		kobject_put(&index_dir->kobj);
+		return;
+	}
 
 	index_dir->next = cache_dir->index;
 	cache_dir->index = index_dir;
 
 	cacheinfo_create_index_opt_attrs(index_dir);
-
-	return;
-err:
-	kfree(index_dir);
 }
 
 static void cacheinfo_sysfs_populate(unsigned int cpu_id,
@@ -865,4 +891,25 @@ void cacheinfo_cpu_offline(unsigned int cpu_id)
 	if (cache)
 		cache_cpu_clear(cache, cpu_id);
 }
+
+void cacheinfo_teardown(void)
+{
+	unsigned int cpu;
+
+	lockdep_assert_cpus_held();
+
+	for_each_online_cpu(cpu)
+		cacheinfo_cpu_offline(cpu);
+}
+
+void cacheinfo_rebuild(void)
+{
+	unsigned int cpu;
+
+	lockdep_assert_cpus_held();
+
+	for_each_online_cpu(cpu)
+		cacheinfo_cpu_online(cpu);
+}
+
 #endif /* (CONFIG_PPC_PSERIES && CONFIG_SUSPEND) || CONFIG_HOTPLUG_CPU */

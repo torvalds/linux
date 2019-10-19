@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This driver implements I2C master functionality using the LSI API2C
  * controller.
@@ -5,13 +6,10 @@
  * NOTE: The controller has a limitation in that it can only do transfers of
  * maximum 255 bytes at a time. If a larger transfer is attempted, error code
  * (-EINVAL) is returned.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
  */
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -25,6 +23,7 @@
 #define I2C_XFER_TIMEOUT    (msecs_to_jiffies(250))
 #define I2C_STOP_TIMEOUT    (msecs_to_jiffies(100))
 #define FIFO_SIZE           8
+#define SEQ_LEN             2
 
 #define GLOBAL_CONTROL		0x00
 #define   GLOBAL_MST_EN         BIT(0)
@@ -51,6 +50,7 @@
 #define   CMD_BUSY		(1<<3)
 #define   CMD_MANUAL		(0x00 | CMD_BUSY)
 #define   CMD_AUTO		(0x01 | CMD_BUSY)
+#define   CMD_SEQUENCE		(0x02 | CMD_BUSY)
 #define MST_RX_XFER		0x2c
 #define MST_TX_XFER		0x30
 #define MST_ADDR_1		0x34
@@ -74,10 +74,43 @@
 				 MST_STATUS_ND)
 #define   MST_STATUS_ERR	(MST_STATUS_NAK | \
 				 MST_STATUS_AL  | \
-				 MST_STATUS_IP  | \
-				 MST_STATUS_TSS)
+				 MST_STATUS_IP)
 #define MST_TX_BYTES_XFRD	0x50
 #define MST_RX_BYTES_XFRD	0x54
+#define SLV_ADDR_DEC_CTL	0x58
+#define   SLV_ADDR_DEC_GCE	BIT(0)  /* ACK to General Call Address from own master (loopback) */
+#define   SLV_ADDR_DEC_OGCE	BIT(1)  /* ACK to General Call Address from external masters */
+#define   SLV_ADDR_DEC_SA1E	BIT(2)  /* ACK to addr_1 enabled */
+#define   SLV_ADDR_DEC_SA1M	BIT(3)  /* 10-bit addressing for addr_1 enabled */
+#define   SLV_ADDR_DEC_SA2E	BIT(4)  /* ACK to addr_2 enabled */
+#define   SLV_ADDR_DEC_SA2M	BIT(5)  /* 10-bit addressing for addr_2 enabled */
+#define SLV_ADDR_1		0x5c
+#define SLV_ADDR_2		0x60
+#define SLV_RX_CTL		0x64
+#define   SLV_RX_ACSA1		BIT(0)  /* Generate ACK for writes to addr_1 */
+#define   SLV_RX_ACSA2		BIT(1)  /* Generate ACK for writes to addr_2 */
+#define   SLV_RX_ACGCA		BIT(2)  /* ACK data phase transfers to General Call Address */
+#define SLV_DATA		0x68
+#define SLV_RX_FIFO		0x6c
+#define   SLV_FIFO_DV1		BIT(0)  /* Data Valid for addr_1 */
+#define   SLV_FIFO_DV2		BIT(1)  /* Data Valid for addr_2 */
+#define   SLV_FIFO_AS		BIT(2)  /* (N)ACK Sent */
+#define   SLV_FIFO_TNAK		BIT(3)  /* Timeout NACK */
+#define   SLV_FIFO_STRC		BIT(4)  /* First byte after start condition received */
+#define   SLV_FIFO_RSC		BIT(5)  /* Repeated Start Condition */
+#define   SLV_FIFO_STPC		BIT(6)  /* Stop Condition */
+#define   SLV_FIFO_DV		(SLV_FIFO_DV1 | SLV_FIFO_DV2)
+#define SLV_INT_ENABLE		0x70
+#define SLV_INT_STATUS		0x74
+#define   SLV_STATUS_RFH	BIT(0)  /* FIFO service */
+#define   SLV_STATUS_WTC	BIT(1)  /* Write transfer complete */
+#define   SLV_STATUS_SRS1	BIT(2)  /* Slave read from addr 1 */
+#define   SLV_STATUS_SRRS1	BIT(3)  /* Repeated start from addr 1 */
+#define   SLV_STATUS_SRND1	BIT(4)  /* Read request not following start condition */
+#define   SLV_STATUS_SRC1	BIT(5)  /* Read canceled */
+#define   SLV_STATUS_SRAT1	BIT(6)  /* Slave Read timed out */
+#define   SLV_STATUS_SRDRE1	BIT(7)  /* Data written after timed out */
+#define SLV_READ_DUMMY		0x78
 #define SCL_HIGH_PERIOD		0x80
 #define SCL_LOW_PERIOD		0x84
 #define SPIKE_FLTR_LEN		0x88
@@ -88,24 +121,32 @@
  * axxia_i2c_dev - I2C device context
  * @base: pointer to register struct
  * @msg: pointer to current message
- * @msg_xfrd: number of bytes transferred in msg
+ * @msg_r: pointer to current read message (sequence transfer)
+ * @msg_xfrd: number of bytes transferred in tx_fifo
+ * @msg_xfrd_r: number of bytes transferred in rx_fifo
  * @msg_err: error code for completed message
  * @msg_complete: xfer completion object
  * @dev: device reference
  * @adapter: core i2c abstraction
  * @i2c_clk: clock reference for i2c input clock
  * @bus_clk_rate: current i2c bus clock rate
+ * @last: a flag indicating is this is last message in transfer
  */
 struct axxia_i2c_dev {
 	void __iomem *base;
 	struct i2c_msg *msg;
+	struct i2c_msg *msg_r;
 	size_t msg_xfrd;
+	size_t msg_xfrd_r;
 	int msg_err;
 	struct completion msg_complete;
 	struct device *dev;
 	struct i2c_adapter adapter;
 	struct clk *i2c_clk;
 	u32 bus_clk_rate;
+	bool last;
+	struct i2c_client *slave;
+	int irq;
 };
 
 static void i2c_int_disable(struct axxia_i2c_dev *idev, u32 mask)
@@ -228,27 +269,27 @@ static int i2c_m_recv_len(const struct i2c_msg *msg)
  */
 static int axxia_i2c_empty_rx_fifo(struct axxia_i2c_dev *idev)
 {
-	struct i2c_msg *msg = idev->msg;
+	struct i2c_msg *msg = idev->msg_r;
 	size_t rx_fifo_avail = readl(idev->base + MST_RX_FIFO);
-	int bytes_to_transfer = min(rx_fifo_avail, msg->len - idev->msg_xfrd);
+	int bytes_to_transfer = min(rx_fifo_avail, msg->len - idev->msg_xfrd_r);
 
 	while (bytes_to_transfer-- > 0) {
 		int c = readl(idev->base + MST_DATA);
 
-		if (idev->msg_xfrd == 0 && i2c_m_recv_len(msg)) {
+		if (idev->msg_xfrd_r == 0 && i2c_m_recv_len(msg)) {
 			/*
 			 * Check length byte for SMBus block read
 			 */
 			if (c <= 0 || c > I2C_SMBUS_BLOCK_MAX) {
 				idev->msg_err = -EPROTO;
-				i2c_int_disable(idev, ~0);
+				i2c_int_disable(idev, ~MST_STATUS_TSS);
 				complete(&idev->msg_complete);
 				break;
 			}
 			msg->len = 1 + c;
 			writel(msg->len, idev->base + MST_RX_XFER);
 		}
-		msg->buf[idev->msg_xfrd++] = c;
+		msg->buf[idev->msg_xfrd_r++] = c;
 	}
 
 	return 0;
@@ -271,13 +312,65 @@ static int axxia_i2c_fill_tx_fifo(struct axxia_i2c_dev *idev)
 	return ret;
 }
 
+static void axxia_i2c_slv_fifo_event(struct axxia_i2c_dev *idev)
+{
+	u32 fifo_status = readl(idev->base + SLV_RX_FIFO);
+	u8 val;
+
+	dev_dbg(idev->dev, "slave irq fifo_status=0x%x\n", fifo_status);
+
+	if (fifo_status & SLV_FIFO_DV1) {
+		if (fifo_status & SLV_FIFO_STRC)
+			i2c_slave_event(idev->slave,
+					I2C_SLAVE_WRITE_REQUESTED, &val);
+
+		val = readl(idev->base + SLV_DATA);
+		i2c_slave_event(idev->slave, I2C_SLAVE_WRITE_RECEIVED, &val);
+	}
+	if (fifo_status & SLV_FIFO_STPC) {
+		readl(idev->base + SLV_DATA); /* dummy read */
+		i2c_slave_event(idev->slave, I2C_SLAVE_STOP, &val);
+	}
+	if (fifo_status & SLV_FIFO_RSC)
+		readl(idev->base + SLV_DATA); /* dummy read */
+}
+
+static irqreturn_t axxia_i2c_slv_isr(struct axxia_i2c_dev *idev)
+{
+	u32 status = readl(idev->base + SLV_INT_STATUS);
+	u8 val;
+
+	dev_dbg(idev->dev, "slave irq status=0x%x\n", status);
+
+	if (status & SLV_STATUS_RFH)
+		axxia_i2c_slv_fifo_event(idev);
+	if (status & SLV_STATUS_SRS1) {
+		i2c_slave_event(idev->slave, I2C_SLAVE_READ_REQUESTED, &val);
+		writel(val, idev->base + SLV_DATA);
+	}
+	if (status & SLV_STATUS_SRND1) {
+		i2c_slave_event(idev->slave, I2C_SLAVE_READ_PROCESSED, &val);
+		writel(val, idev->base + SLV_DATA);
+	}
+	if (status & SLV_STATUS_SRC1)
+		i2c_slave_event(idev->slave, I2C_SLAVE_STOP, &val);
+
+	writel(INT_SLV, idev->base + INTERRUPT_STATUS);
+	return IRQ_HANDLED;
+}
+
 static irqreturn_t axxia_i2c_isr(int irq, void *_dev)
 {
 	struct axxia_i2c_dev *idev = _dev;
+	irqreturn_t ret = IRQ_NONE;
 	u32 status;
 
-	if (!(readl(idev->base + INTERRUPT_STATUS) & INT_MST))
-		return IRQ_NONE;
+	status = readl(idev->base + INTERRUPT_STATUS);
+
+	if (status & INT_SLV)
+		ret = axxia_i2c_slv_isr(idev);
+	if (!(status & INT_MST))
+		return ret;
 
 	/* Read interrupt status bits */
 	status = readl(idev->base + MST_INT_STATUS);
@@ -288,7 +381,7 @@ static irqreturn_t axxia_i2c_isr(int irq, void *_dev)
 	}
 
 	/* RX FIFO needs service? */
-	if (i2c_m_rd(idev->msg) && (status & MST_STATUS_RFL))
+	if (i2c_m_rd(idev->msg_r) && (status & MST_STATUS_RFL))
 		axxia_i2c_empty_rx_fifo(idev);
 
 	/* TX FIFO needs service? */
@@ -297,17 +390,7 @@ static irqreturn_t axxia_i2c_isr(int irq, void *_dev)
 			i2c_int_disable(idev, MST_STATUS_TFL);
 	}
 
-	if (status & MST_STATUS_SCC) {
-		/* Stop completed */
-		i2c_int_disable(idev, ~0);
-		complete(&idev->msg_complete);
-	} else if (status & MST_STATUS_SNS) {
-		/* Transfer done */
-		i2c_int_disable(idev, ~0);
-		if (i2c_m_rd(idev->msg) && idev->msg_xfrd < idev->msg->len)
-			axxia_i2c_empty_rx_fifo(idev);
-		complete(&idev->msg_complete);
-	} else if (unlikely(status & MST_STATUS_ERR)) {
+	if (unlikely(status & MST_STATUS_ERR)) {
 		/* Transfer error */
 		i2c_int_disable(idev, ~0);
 		if (status & MST_STATUS_AL)
@@ -324,6 +407,23 @@ static irqreturn_t axxia_i2c_isr(int irq, void *_dev)
 			readl(idev->base + MST_TX_BYTES_XFRD),
 			readl(idev->base + MST_TX_XFER));
 		complete(&idev->msg_complete);
+	} else if (status & MST_STATUS_SCC) {
+		/* Stop completed */
+		i2c_int_disable(idev, ~MST_STATUS_TSS);
+		complete(&idev->msg_complete);
+	} else if (status & (MST_STATUS_SNS | MST_STATUS_SS)) {
+		/* Transfer done */
+		int mask = idev->last ? ~0 : ~MST_STATUS_TSS;
+
+		i2c_int_disable(idev, mask);
+		if (i2c_m_rd(idev->msg_r) && idev->msg_xfrd_r < idev->msg_r->len)
+			axxia_i2c_empty_rx_fifo(idev);
+		complete(&idev->msg_complete);
+	} else if (status & MST_STATUS_TSS) {
+		/* Transfer timeout */
+		idev->msg_err = -ETIMEDOUT;
+		i2c_int_disable(idev, ~MST_STATUS_TSS);
+		complete(&idev->msg_complete);
 	}
 
 out:
@@ -333,17 +433,9 @@ out:
 	return IRQ_HANDLED;
 }
 
-static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
+static void axxia_i2c_set_addr(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 {
-	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SNS;
-	u32 rx_xfer, tx_xfer;
 	u32 addr_1, addr_2;
-	unsigned long time_left;
-
-	idev->msg = msg;
-	idev->msg_xfrd = 0;
-	idev->msg_err = 0;
-	reinit_completion(&idev->msg_complete);
 
 	if (i2c_m_ten(msg)) {
 		/* 10-bit address
@@ -351,21 +443,105 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 		 *   addr_2: addr[7:0]
 		 */
 		addr_1 = 0xF0 | ((msg->addr >> 7) & 0x06);
+		if (i2c_m_rd(msg))
+			addr_1 |= 1;	/* Set the R/nW bit of the address */
 		addr_2 = msg->addr & 0xFF;
 	} else {
 		/* 7-bit address
 		 *   addr_1: addr[6:0] | (R/nW)
 		 *   addr_2: dont care
 		 */
-		addr_1 = (msg->addr << 1) & 0xFF;
+		addr_1 = i2c_8bit_addr_from_msg(msg);
 		addr_2 = 0;
 	}
+
+	writel(addr_1, idev->base + MST_ADDR_1);
+	writel(addr_2, idev->base + MST_ADDR_2);
+}
+
+/* The NAK interrupt will be sent _before_ issuing STOP command
+ * so the controller might still be busy processing it. No
+ * interrupt will be sent at the end so we have to poll for it
+ */
+static int axxia_i2c_handle_seq_nak(struct axxia_i2c_dev *idev)
+{
+	unsigned long timeout = jiffies + I2C_XFER_TIMEOUT;
+
+	do {
+		if ((readl(idev->base + MST_COMMAND) & CMD_BUSY) == 0)
+			return 0;
+		usleep_range(1, 100);
+	} while (time_before(jiffies, timeout));
+
+	return -ETIMEDOUT;
+}
+
+static int axxia_i2c_xfer_seq(struct axxia_i2c_dev *idev, struct i2c_msg msgs[])
+{
+	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SS | MST_STATUS_RFL;
+	u32 rlen = i2c_m_recv_len(&msgs[1]) ? I2C_SMBUS_BLOCK_MAX : msgs[1].len;
+	unsigned long time_left;
+
+	axxia_i2c_set_addr(idev, &msgs[0]);
+
+	writel(msgs[0].len, idev->base + MST_TX_XFER);
+	writel(rlen, idev->base + MST_RX_XFER);
+
+	idev->msg = &msgs[0];
+	idev->msg_r = &msgs[1];
+	idev->msg_xfrd = 0;
+	idev->msg_xfrd_r = 0;
+	idev->last = true;
+	axxia_i2c_fill_tx_fifo(idev);
+
+	writel(CMD_SEQUENCE, idev->base + MST_COMMAND);
+
+	reinit_completion(&idev->msg_complete);
+	i2c_int_enable(idev, int_mask);
+
+	time_left = wait_for_completion_timeout(&idev->msg_complete,
+						I2C_XFER_TIMEOUT);
+
+	if (idev->msg_err == -ENXIO) {
+		if (axxia_i2c_handle_seq_nak(idev))
+			axxia_i2c_init(idev);
+	} else if (readl(idev->base + MST_COMMAND) & CMD_BUSY) {
+		dev_warn(idev->dev, "busy after xfer\n");
+	}
+
+	if (time_left == 0) {
+		idev->msg_err = -ETIMEDOUT;
+		i2c_recover_bus(&idev->adapter);
+		axxia_i2c_init(idev);
+	}
+
+	if (unlikely(idev->msg_err) && idev->msg_err != -ENXIO)
+		axxia_i2c_init(idev);
+
+	return idev->msg_err;
+}
+
+static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg,
+			      bool last)
+{
+	u32 int_mask = MST_STATUS_ERR;
+	u32 rx_xfer, tx_xfer;
+	unsigned long time_left;
+	unsigned int wt_value;
+
+	idev->msg = msg;
+	idev->msg_r = msg;
+	idev->msg_xfrd = 0;
+	idev->msg_xfrd_r = 0;
+	idev->last = last;
+	reinit_completion(&idev->msg_complete);
+
+	axxia_i2c_set_addr(idev, msg);
 
 	if (i2c_m_rd(msg)) {
 		/* I2C read transfer */
 		rx_xfer = i2c_m_recv_len(msg) ? I2C_SMBUS_BLOCK_MAX : msg->len;
 		tx_xfer = 0;
-		addr_1 |= 1;	/* Set the R/nW bit of the address */
 	} else {
 		/* I2C write transfer */
 		rx_xfer = 0;
@@ -374,16 +550,28 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 
 	writel(rx_xfer, idev->base + MST_RX_XFER);
 	writel(tx_xfer, idev->base + MST_TX_XFER);
-	writel(addr_1, idev->base + MST_ADDR_1);
-	writel(addr_2, idev->base + MST_ADDR_2);
 
 	if (i2c_m_rd(msg))
 		int_mask |= MST_STATUS_RFL;
 	else if (axxia_i2c_fill_tx_fifo(idev) != 0)
 		int_mask |= MST_STATUS_TFL;
 
-	/* Start manual mode */
-	writel(CMD_MANUAL, idev->base + MST_COMMAND);
+	wt_value = WT_VALUE(readl(idev->base + WAIT_TIMER_CONTROL));
+	/* Disable wait timer temporarly */
+	writel(wt_value, idev->base + WAIT_TIMER_CONTROL);
+	/* Check if timeout error happened */
+	if (idev->msg_err)
+		goto out;
+
+	if (!last) {
+		writel(CMD_MANUAL, idev->base + MST_COMMAND);
+		int_mask |= MST_STATUS_SNS;
+	} else {
+		writel(CMD_AUTO, idev->base + MST_COMMAND);
+		int_mask |= MST_STATUS_SS;
+	}
+
+	writel(WT_EN | wt_value, idev->base + WAIT_TIMER_CONTROL);
 
 	i2c_int_enable(idev, int_mask);
 
@@ -395,38 +583,30 @@ static int axxia_i2c_xfer_msg(struct axxia_i2c_dev *idev, struct i2c_msg *msg)
 	if (readl(idev->base + MST_COMMAND) & CMD_BUSY)
 		dev_warn(idev->dev, "busy after xfer\n");
 
-	if (time_left == 0)
+	if (time_left == 0) {
 		idev->msg_err = -ETIMEDOUT;
-
-	if (idev->msg_err == -ETIMEDOUT)
 		i2c_recover_bus(&idev->adapter);
+		axxia_i2c_init(idev);
+	}
 
-	if (unlikely(idev->msg_err) && idev->msg_err != -ENXIO)
+out:
+	if (unlikely(idev->msg_err) && idev->msg_err != -ENXIO &&
+			idev->msg_err != -ETIMEDOUT)
 		axxia_i2c_init(idev);
 
 	return idev->msg_err;
 }
 
-static int axxia_i2c_stop(struct axxia_i2c_dev *idev)
+/* This function checks if the msgs[] array contains messages compatible with
+ * Sequence mode of operation. This mode assumes there will be exactly one
+ * write of non-zero length followed by exactly one read of non-zero length,
+ * both targeted at the same client device.
+ */
+static bool axxia_i2c_sequence_ok(struct i2c_msg msgs[], int num)
 {
-	u32 int_mask = MST_STATUS_ERR | MST_STATUS_SCC;
-	unsigned long time_left;
-
-	reinit_completion(&idev->msg_complete);
-
-	/* Issue stop */
-	writel(0xb, idev->base + MST_COMMAND);
-	i2c_int_enable(idev, int_mask);
-	time_left = wait_for_completion_timeout(&idev->msg_complete,
-					      I2C_STOP_TIMEOUT);
-	i2c_int_disable(idev, int_mask);
-	if (time_left == 0)
-		return -ETIMEDOUT;
-
-	if (readl(idev->base + MST_COMMAND) & CMD_BUSY)
-		dev_warn(idev->dev, "busy after stop\n");
-
-	return 0;
+	return num == SEQ_LEN && !i2c_m_rd(&msgs[0]) && i2c_m_rd(&msgs[1]) &&
+	       msgs[0].len > 0 && msgs[0].len <= FIFO_SIZE &&
+	       msgs[1].len > 0 && msgs[0].addr == msgs[1].addr;
 }
 
 static int
@@ -436,10 +616,17 @@ axxia_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	int i;
 	int ret = 0;
 
-	for (i = 0; ret == 0 && i < num; ++i)
-		ret = axxia_i2c_xfer_msg(idev, &msgs[i]);
+	idev->msg_err = 0;
 
-	axxia_i2c_stop(idev);
+	if (axxia_i2c_sequence_ok(msgs, num)) {
+		ret = axxia_i2c_xfer_seq(idev, msgs);
+		return ret ? : SEQ_LEN;
+	}
+
+	i2c_int_enable(idev, MST_STATUS_TSS);
+
+	for (i = 0; ret == 0 && i < num; ++i)
+		ret = axxia_i2c_xfer_msg(idev, &msgs[i], i == (num - 1));
 
 	return ret ? : i;
 }
@@ -484,9 +671,58 @@ static u32 axxia_i2c_func(struct i2c_adapter *adap)
 	return caps;
 }
 
+static int axxia_i2c_reg_slave(struct i2c_client *slave)
+{
+	struct axxia_i2c_dev *idev = i2c_get_adapdata(slave->adapter);
+	u32 slv_int_mask = SLV_STATUS_RFH;
+	u32 dec_ctl;
+
+	if (idev->slave)
+		return -EBUSY;
+
+	idev->slave = slave;
+
+	/* Enable slave mode as well */
+	writel(GLOBAL_MST_EN | GLOBAL_SLV_EN, idev->base + GLOBAL_CONTROL);
+	writel(INT_MST | INT_SLV, idev->base + INTERRUPT_ENABLE);
+
+	/* Set slave address */
+	dec_ctl = SLV_ADDR_DEC_SA1E;
+	if (slave->flags & I2C_CLIENT_TEN)
+		dec_ctl |= SLV_ADDR_DEC_SA1M;
+
+	writel(SLV_RX_ACSA1, idev->base + SLV_RX_CTL);
+	writel(dec_ctl, idev->base + SLV_ADDR_DEC_CTL);
+	writel(slave->addr, idev->base + SLV_ADDR_1);
+
+	/* Enable interrupts */
+	slv_int_mask |= SLV_STATUS_SRS1 | SLV_STATUS_SRRS1 | SLV_STATUS_SRND1;
+	slv_int_mask |= SLV_STATUS_SRC1;
+	writel(slv_int_mask, idev->base + SLV_INT_ENABLE);
+
+	return 0;
+}
+
+static int axxia_i2c_unreg_slave(struct i2c_client *slave)
+{
+	struct axxia_i2c_dev *idev = i2c_get_adapdata(slave->adapter);
+
+	/* Disable slave mode */
+	writel(GLOBAL_MST_EN, idev->base + GLOBAL_CONTROL);
+	writel(INT_MST, idev->base + INTERRUPT_ENABLE);
+
+	synchronize_irq(idev->irq);
+
+	idev->slave = NULL;
+
+	return 0;
+}
+
 static const struct i2c_algorithm axxia_i2c_algo = {
 	.master_xfer = axxia_i2c_xfer,
 	.functionality = axxia_i2c_func,
+	.reg_slave = axxia_i2c_reg_slave,
+	.unreg_slave = axxia_i2c_unreg_slave,
 };
 
 static const struct i2c_adapter_quirks axxia_i2c_quirks = {
@@ -500,7 +736,6 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	struct axxia_i2c_dev *idev = NULL;
 	struct resource *res;
 	void __iomem *base;
-	int irq;
 	int ret = 0;
 
 	idev = devm_kzalloc(&pdev->dev, sizeof(*idev), GFP_KERNEL);
@@ -512,10 +747,10 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	irq = platform_get_irq(pdev, 0);
-	if (irq < 0) {
+	idev->irq = platform_get_irq(pdev, 0);
+	if (idev->irq < 0) {
 		dev_err(&pdev->dev, "missing interrupt resource\n");
-		return irq;
+		return idev->irq;
 	}
 
 	idev->i2c_clk = devm_clk_get(&pdev->dev, "i2c");
@@ -532,23 +767,23 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	if (idev->bus_clk_rate == 0)
 		idev->bus_clk_rate = 100000;	/* default clock rate */
 
-	ret = axxia_i2c_init(idev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to initialize\n");
-		return ret;
-	}
-
-	ret = devm_request_irq(&pdev->dev, irq, axxia_i2c_isr, 0,
-			       pdev->name, idev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to claim IRQ%d\n", irq);
-		return ret;
-	}
-
 	ret = clk_prepare_enable(idev->i2c_clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
 		return ret;
+	}
+
+	ret = axxia_i2c_init(idev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to initialize\n");
+		goto error_disable_clk;
+	}
+
+	ret = devm_request_irq(&pdev->dev, idev->irq, axxia_i2c_isr, 0,
+			       pdev->name, idev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to claim IRQ%d\n", idev->irq);
+		goto error_disable_clk;
 	}
 
 	i2c_set_adapdata(&idev->adapter, idev);
@@ -563,12 +798,14 @@ static int axxia_i2c_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, idev);
 
 	ret = i2c_add_adapter(&idev->adapter);
-	if (ret) {
-		clk_disable_unprepare(idev->i2c_clk);
-		return ret;
-	}
+	if (ret)
+		goto error_disable_clk;
 
 	return 0;
+
+error_disable_clk:
+	clk_disable_unprepare(idev->i2c_clk);
+	return ret;
 }
 
 static int axxia_i2c_remove(struct platform_device *pdev)

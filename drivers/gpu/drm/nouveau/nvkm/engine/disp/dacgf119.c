@@ -58,8 +58,13 @@ gf119_dac = {
 int
 gf119_dac_new(struct nvkm_disp *disp, int id)
 {
-	struct nvkm_device *device = disp->engine.subdev.device;
-	if (!(nvkm_rd32(device, 0x612004) & (0x00000010 << id)))
-		return 0;
 	return nvkm_ior_new_(&gf119_dac, disp, DAC, id);
+}
+
+int
+gf119_dac_cnt(struct nvkm_disp *disp, unsigned long *pmask)
+{
+	struct nvkm_device *device = disp->engine.subdev.device;
+	*pmask = (nvkm_rd32(device, 0x612004) & 0x000000f0) >> 4;
+	return 4;
 }

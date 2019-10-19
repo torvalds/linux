@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: oslinuxtbl - Linux OSL for obtaining ACPI tables
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include "acpidump.h"
 
@@ -53,7 +19,7 @@ ACPI_MODULE_NAME("oslinuxtbl")
 typedef struct osl_table_info {
 	struct osl_table_info *next;
 	u32 instance;
-	char signature[ACPI_NAME_SIZE];
+	char signature[ACPI_NAMESEG_SIZE];
 
 } osl_table_info;
 
@@ -320,14 +286,14 @@ static acpi_status osl_add_table_to_list(char *signature, u32 instance)
 		return (AE_NO_MEMORY);
 	}
 
-	ACPI_MOVE_NAME(new_info->signature, signature);
+	ACPI_COPY_NAMESEG(new_info->signature, signature);
 
 	if (!gbl_table_list_head) {
 		gbl_table_list_head = new_info;
 	} else {
 		next = gbl_table_list_head;
 		while (1) {
-			if (ACPI_COMPARE_NAME(next->signature, signature)) {
+			if (ACPI_COMPARE_NAMESEG(next->signature, signature)) {
 				if (next->instance == instance) {
 					found = TRUE;
 				}
@@ -816,11 +782,11 @@ osl_get_bios_table(char *signature,
 
 	/* Handle special tables whose addresses are not in RSDT/XSDT */
 
-	if (ACPI_COMPARE_NAME(signature, ACPI_RSDP_NAME) ||
-	    ACPI_COMPARE_NAME(signature, ACPI_SIG_RSDT) ||
-	    ACPI_COMPARE_NAME(signature, ACPI_SIG_XSDT) ||
-	    ACPI_COMPARE_NAME(signature, ACPI_SIG_DSDT) ||
-	    ACPI_COMPARE_NAME(signature, ACPI_SIG_FACS)) {
+	if (ACPI_COMPARE_NAMESEG(signature, ACPI_RSDP_NAME) ||
+	    ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_RSDT) ||
+	    ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_XSDT) ||
+	    ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_DSDT) ||
+	    ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_FACS)) {
 
 find_next_instance:
 
@@ -831,7 +797,7 @@ find_next_instance:
 		 * careful about the FADT length and validate table addresses.
 		 * Note: The 64-bit addresses have priority.
 		 */
-		if (ACPI_COMPARE_NAME(signature, ACPI_SIG_DSDT)) {
+		if (ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_DSDT)) {
 			if (current_instance < 2) {
 				if ((gbl_fadt->header.length >=
 				     MIN_FADT_FOR_XDSDT) && gbl_fadt->Xdsdt
@@ -849,7 +815,7 @@ find_next_instance:
 					    dsdt;
 				}
 			}
-		} else if (ACPI_COMPARE_NAME(signature, ACPI_SIG_FACS)) {
+		} else if (ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_FACS)) {
 			if (current_instance < 2) {
 				if ((gbl_fadt->header.length >=
 				     MIN_FADT_FOR_XFACS) && gbl_fadt->Xfacs
@@ -867,7 +833,7 @@ find_next_instance:
 					    facs;
 				}
 			}
-		} else if (ACPI_COMPARE_NAME(signature, ACPI_SIG_XSDT)) {
+		} else if (ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_XSDT)) {
 			if (!gbl_revision) {
 				return (AE_BAD_SIGNATURE);
 			}
@@ -876,7 +842,7 @@ find_next_instance:
 				    (acpi_physical_address)gbl_rsdp.
 				    xsdt_physical_address;
 			}
-		} else if (ACPI_COMPARE_NAME(signature, ACPI_SIG_RSDT)) {
+		} else if (ACPI_COMPARE_NAMESEG(signature, ACPI_SIG_RSDT)) {
 			if (current_instance == 0) {
 				table_address =
 				    (acpi_physical_address)gbl_rsdp.
@@ -965,7 +931,7 @@ find_next_instance:
 
 			/* Does this table match the requested signature? */
 
-			if (!ACPI_COMPARE_NAME
+			if (!ACPI_COMPARE_NAMESEG
 			    (mapped_table->signature, signature)) {
 				osl_unmap_table(mapped_table);
 				mapped_table = NULL;
@@ -1029,7 +995,7 @@ static acpi_status osl_list_customized_tables(char *directory)
 {
 	void *table_dir;
 	u32 instance;
-	char temp_name[ACPI_NAME_SIZE];
+	char temp_name[ACPI_NAMESEG_SIZE];
 	char *filename;
 	acpi_status status = AE_OK;
 
@@ -1120,8 +1086,8 @@ osl_map_table(acpi_size address,
 				return (AE_BAD_SIGNATURE);
 			}
 		} else
-		    if (!ACPI_COMPARE_NAME(signature, mapped_table->signature))
-		{
+		    if (!ACPI_COMPARE_NAMESEG
+			(signature, mapped_table->signature)) {
 			acpi_os_unmap_memory(mapped_table,
 					     sizeof(struct acpi_table_header));
 			return (AE_BAD_SIGNATURE);
@@ -1192,15 +1158,15 @@ osl_table_name_from_file(char *filename, char *signature, u32 *instance)
 
 	/* Ignore meaningless files */
 
-	if (strlen(filename) < ACPI_NAME_SIZE) {
+	if (strlen(filename) < ACPI_NAMESEG_SIZE) {
 		return (AE_BAD_SIGNATURE);
 	}
 
 	/* Extract instance number */
 
-	if (isdigit((int)filename[ACPI_NAME_SIZE])) {
-		sscanf(&filename[ACPI_NAME_SIZE], "%u", instance);
-	} else if (strlen(filename) != ACPI_NAME_SIZE) {
+	if (isdigit((int)filename[ACPI_NAMESEG_SIZE])) {
+		sscanf(&filename[ACPI_NAMESEG_SIZE], "%u", instance);
+	} else if (strlen(filename) != ACPI_NAMESEG_SIZE) {
 		return (AE_BAD_SIGNATURE);
 	} else {
 		*instance = 0;
@@ -1208,7 +1174,7 @@ osl_table_name_from_file(char *filename, char *signature, u32 *instance)
 
 	/* Extract signature */
 
-	ACPI_MOVE_NAME(signature, filename);
+	ACPI_COPY_NAMESEG(signature, filename);
 	return (AE_OK);
 }
 
@@ -1270,7 +1236,7 @@ osl_read_table_from_file(char *filename,
 				status = AE_BAD_SIGNATURE;
 				goto exit;
 			}
-		} else if (!ACPI_COMPARE_NAME(signature, header.signature)) {
+		} else if (!ACPI_COMPARE_NAMESEG(signature, header.signature)) {
 			fprintf(stderr,
 				"Incorrect signature: Expecting %4.4s, found %4.4s\n",
 				signature, header.signature);
@@ -1345,7 +1311,7 @@ osl_get_customized_table(char *pathname,
 {
 	void *table_dir;
 	u32 current_instance = 0;
-	char temp_name[ACPI_NAME_SIZE];
+	char temp_name[ACPI_NAMESEG_SIZE];
 	char table_filename[PATH_MAX];
 	char *filename;
 	acpi_status status;
@@ -1363,7 +1329,7 @@ osl_get_customized_table(char *pathname,
 
 		/* Ignore meaningless files */
 
-		if (!ACPI_COMPARE_NAME(filename, signature)) {
+		if (!ACPI_COMPARE_NAMESEG(filename, signature)) {
 			continue;
 		}
 

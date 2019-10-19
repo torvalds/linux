@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91sam9x5cm.dtsi - Device Tree Include file for AT91SAM9x5 CPU Module
  *
  *  Copyright (C) 2012 Atmel,
  *                2012 Nicolas Ferre <nicolas.ferre@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 / {
@@ -85,12 +84,22 @@
 
 						uboot@40000 {
 							label = "u-boot";
-							reg = <0x40000 0x80000>;
+							reg = <0x40000 0xc0000>;
 						};
 
-						ubootenv@c0000 {
+						ubootenvred@100000 {
+							label = "U-Boot Env Redundant";
+							reg = <0x100000 0x40000>;
+						};
+
+						ubootenv@140000 {
 							label = "U-Boot Env";
-							reg = <0xc0000 0x140000>;
+							reg = <0x140000 0x40000>;
+						};
+
+						dtb@180000 {
+							label = "device tree";
+							reg = <0x180000 0x80000>;
 						};
 
 						kernel@200000 {
@@ -100,7 +109,7 @@
 
 						rootfs@800000 {
 							label = "rootfs";
-							reg = <0x800000 0x1f800000>;
+							reg = <0x800000 0x0f800000>;
 						};
 					};
 				};

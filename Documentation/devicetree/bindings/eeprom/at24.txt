@@ -27,6 +27,7 @@ Required properties:
                 "atmel,24c256",
                 "atmel,24c512",
                 "atmel,24c1024",
+                "atmel,24c2048",
 
                 If <manufacturer> is not "atmel", then a fallback must be used
                 with the same <model> and "atmel" as manufacturer.
@@ -38,15 +39,20 @@ Required properties:
 
                 "catalyst",
                 "microchip",
+                "nxp",
                 "ramtron",
                 "renesas",
-                "nxp",
+                "rohm",
                 "st",
 
                 Some vendors use different model names for chips which are just
                 variants of the above. Known such exceptions are listed below:
 
+                "nxp,se97b" - the fallback is "atmel,24c02",
                 "renesas,r1ex24002" - the fallback is "atmel,24c02"
+                "renesas,r1ex24016" - the fallback is "atmel,24c16"
+                "renesas,r1ex24128" - the fallback is "atmel,24c128"
+                "rohm,br24t01" - the fallback is "atmel,24c01"
 
   - reg: The I2C address of the EEPROM.
 
@@ -68,6 +74,10 @@ Optional properties:
 
   - wp-gpios: GPIO to which the write-protect pin of the chip is connected.
 
+  - address-width: number of address bits (one of 8, 16).
+
+  - num-addresses: total number of i2c slave addresses this device takes
+
 Example:
 
 eeprom@52 {
@@ -75,4 +85,5 @@ eeprom@52 {
 	reg = <0x52>;
 	pagesize = <32>;
 	wp-gpios = <&gpio1 3 0>;
+	num-addresses = <8>;
 };

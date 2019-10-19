@@ -6,6 +6,7 @@
  * initial implementation -- AV, Oct 2001.
  */
 
+#include <linux/cache.h>
 #include <linux/fs.h>
 #include <linux/export.h>
 #include <linux/seq_file.h>
@@ -19,6 +20,8 @@
 #include <linux/uaccess.h>
 #include <asm/page.h>
 
+static struct kmem_cache *seq_file_cache __ro_after_init;
+
 static void seq_set_overflow(struct seq_file *m)
 {
 	m->count = m->size;
@@ -26,7 +29,7 @@ static void seq_set_overflow(struct seq_file *m)
 
 static void *seq_buf_alloc(unsigned long size)
 {
-	return kvmalloc(size, GFP_KERNEL);
+	return kvmalloc(size, GFP_KERNEL_ACCOUNT);
 }
 
 /**
@@ -51,7 +54,7 @@ int seq_open(struct file *file, const struct seq_operations *op)
 
 	WARN_ON(file->private_data);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kmem_cache_zalloc(seq_file_cache, GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
@@ -87,23 +90,22 @@ EXPORT_SYMBOL(seq_open);
 
 static int traverse(struct seq_file *m, loff_t offset)
 {
-	loff_t pos = 0, index;
+	loff_t pos = 0;
 	int error = 0;
 	void *p;
 
 	m->version = 0;
-	index = 0;
+	m->index = 0;
 	m->count = m->from = 0;
-	if (!offset) {
-		m->index = index;
+	if (!offset)
 		return 0;
-	}
+
 	if (!m->buf) {
 		m->buf = seq_buf_alloc(m->size = PAGE_SIZE);
 		if (!m->buf)
 			return -ENOMEM;
 	}
-	p = m->op->start(m, &index);
+	p = m->op->start(m, &m->index);
 	while (p) {
 		error = PTR_ERR(p);
 		if (IS_ERR(p))
@@ -117,23 +119,18 @@ static int traverse(struct seq_file *m, loff_t offset)
 		}
 		if (seq_has_overflowed(m))
 			goto Eoverflow;
+		p = m->op->next(m, p, &m->index);
 		if (pos + m->count > offset) {
 			m->from = offset - pos;
 			m->count -= m->from;
-			m->index = index;
 			break;
 		}
 		pos += m->count;
 		m->count = 0;
-		if (pos == offset) {
-			index++;
-			m->index = index;
+		if (pos == offset)
 			break;
-		}
-		p = m->op->next(m, p, &index);
 	}
 	m->op->stop(m, p);
-	m->index = index;
 	return error;
 
 Eoverflow:
@@ -157,7 +154,6 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 {
 	struct seq_file *m = file->private_data;
 	size_t copied = 0;
-	loff_t pos;
 	size_t n;
 	void *p;
 	int err = 0;
@@ -220,16 +216,12 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		size -= n;
 		buf += n;
 		copied += n;
-		if (!m->count) {
-			m->from = 0;
-			m->index++;
-		}
 		if (!size)
 			goto Done;
 	}
 	/* we need at least one record in buffer */
-	pos = m->index;
-	p = m->op->start(m, &pos);
+	m->from = 0;
+	p = m->op->start(m, &m->index);
 	while (1) {
 		err = PTR_ERR(p);
 		if (!p || IS_ERR(p))
@@ -240,8 +232,7 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		if (unlikely(err))
 			m->count = 0;
 		if (unlikely(!m->count)) {
-			p = m->op->next(m, p, &pos);
-			m->index = pos;
+			p = m->op->next(m, p, &m->index);
 			continue;
 		}
 		if (m->count < m->size)
@@ -253,29 +244,33 @@ ssize_t seq_read(struct file *file, char __user *buf, size_t size, loff_t *ppos)
 		if (!m->buf)
 			goto Enomem;
 		m->version = 0;
-		pos = m->index;
-		p = m->op->start(m, &pos);
+		p = m->op->start(m, &m->index);
 	}
 	m->op->stop(m, p);
 	m->count = 0;
 	goto Done;
 Fill:
 	/* they want more? let's try to get some more */
-	while (m->count < size) {
+	while (1) {
 		size_t offs = m->count;
-		loff_t next = pos;
-		p = m->op->next(m, p, &next);
+		loff_t pos = m->index;
+
+		p = m->op->next(m, p, &m->index);
+		if (pos == m->index)
+			/* Buggy ->next function */
+			m->index++;
 		if (!p || IS_ERR(p)) {
 			err = PTR_ERR(p);
 			break;
 		}
+		if (m->count >= size)
+			break;
 		err = m->op->show(m, p);
 		if (seq_has_overflowed(m) || err) {
 			m->count = offs;
 			if (likely(err <= 0))
 				break;
 		}
-		pos = next;
 	}
 	m->op->stop(m, p);
 	n = min(m->count, size);
@@ -284,11 +279,7 @@ Fill:
 		goto Efault;
 	copied += n;
 	m->count -= n;
-	if (m->count)
-		m->from = n;
-	else
-		pos++;
-	m->index = pos;
+	m->from = n;
 Done:
 	if (!copied)
 		copied = err;
@@ -326,6 +317,7 @@ loff_t seq_lseek(struct file *file, loff_t offset, int whence)
 	switch (whence) {
 	case SEEK_CUR:
 		offset += file->f_pos;
+		/* fall through */
 	case SEEK_SET:
 		if (offset < 0)
 			break;
@@ -366,7 +358,7 @@ int seq_release(struct inode *inode, struct file *file)
 {
 	struct seq_file *m = file->private_data;
 	kvfree(m->buf);
-	kfree(m);
+	kmem_cache_free(seq_file_cache, m);
 	return 0;
 }
 EXPORT_SYMBOL(seq_release);
@@ -391,6 +383,17 @@ void seq_escape(struct seq_file *m, const char *s, const char *esc)
 	seq_commit(m, ret < size ? ret : -1);
 }
 EXPORT_SYMBOL(seq_escape);
+
+void seq_escape_mem_ascii(struct seq_file *m, const char *src, size_t isz)
+{
+	char *buf;
+	size_t size = seq_get_buf(m, &buf);
+	int ret;
+
+	ret = string_escape_mem_ascii(src, isz, buf, size);
+	seq_commit(m, ret < size ? ret : -1);
+}
+EXPORT_SYMBOL(seq_escape_mem_ascii);
 
 void seq_vprintf(struct seq_file *m, const char *f, va_list args)
 {
@@ -563,7 +566,7 @@ static void single_stop(struct seq_file *p, void *v)
 int single_open(struct file *file, int (*show)(struct seq_file *, void *),
 		void *data)
 {
-	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL);
+	struct seq_operations *op = kmalloc(sizeof(*op), GFP_KERNEL_ACCOUNT);
 	int res = -ENOMEM;
 
 	if (op) {
@@ -625,7 +628,7 @@ void *__seq_open_private(struct file *f, const struct seq_operations *ops,
 	void *private;
 	struct seq_file *seq;
 
-	private = kzalloc(psize, GFP_KERNEL);
+	private = kzalloc(psize, GFP_KERNEL_ACCOUNT);
 	if (private == NULL)
 		goto out;
 
@@ -673,37 +676,40 @@ void seq_puts(struct seq_file *m, const char *s)
 }
 EXPORT_SYMBOL(seq_puts);
 
-/*
+/**
  * A helper routine for putting decimal numbers without rich format of printf().
  * only 'unsigned long long' is supported.
- * This routine will put strlen(delimiter) + number into seq_file.
+ * @m: seq_file identifying the buffer to which data should be written
+ * @delimiter: a string which is printed before the number
+ * @num: the number
+ * @width: a minimum field width
+ *
+ * This routine will put strlen(delimiter) + number into seq_filed.
  * This routine is very quick when you show lots of numbers.
  * In usual cases, it will be better to use seq_printf(). It's easier to read.
  */
-void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
-			 unsigned long long num)
+void seq_put_decimal_ull_width(struct seq_file *m, const char *delimiter,
+			 unsigned long long num, unsigned int width)
 {
 	int len;
 
 	if (m->count + 2 >= m->size) /* we'll write 2 bytes at least */
 		goto overflow;
 
-	len = strlen(delimiter);
-	if (m->count + len >= m->size)
-		goto overflow;
-
-	memcpy(m->buf + m->count, delimiter, len);
-	m->count += len;
-
-	if (m->count + 1 >= m->size)
-		goto overflow;
-
-	if (num < 10) {
-		m->buf[m->count++] = num + '0';
-		return;
+	if (delimiter && delimiter[0]) {
+		if (delimiter[1] == 0)
+			seq_putc(m, delimiter[0]);
+		else
+			seq_puts(m, delimiter);
 	}
 
-	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	if (!width)
+		width = 1;
+
+	if (m->count + width >= m->size)
+		goto overflow;
+
+	len = num_to_str(m->buf + m->count, m->size - m->count, num, width);
 	if (!len)
 		goto overflow;
 
@@ -713,7 +719,59 @@ void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
 overflow:
 	seq_set_overflow(m);
 }
+
+void seq_put_decimal_ull(struct seq_file *m, const char *delimiter,
+			 unsigned long long num)
+{
+	return seq_put_decimal_ull_width(m, delimiter, num, 0);
+}
 EXPORT_SYMBOL(seq_put_decimal_ull);
+
+/**
+ * seq_put_hex_ll - put a number in hexadecimal notation
+ * @m: seq_file identifying the buffer to which data should be written
+ * @delimiter: a string which is printed before the number
+ * @v: the number
+ * @width: a minimum field width
+ *
+ * seq_put_hex_ll(m, "", v, 8) is equal to seq_printf(m, "%08llx", v)
+ *
+ * This routine is very quick when you show lots of numbers.
+ * In usual cases, it will be better to use seq_printf(). It's easier to read.
+ */
+void seq_put_hex_ll(struct seq_file *m, const char *delimiter,
+				unsigned long long v, unsigned int width)
+{
+	unsigned int len;
+	int i;
+
+	if (delimiter && delimiter[0]) {
+		if (delimiter[1] == 0)
+			seq_putc(m, delimiter[0]);
+		else
+			seq_puts(m, delimiter);
+	}
+
+	/* If x is 0, the result of __builtin_clzll is undefined */
+	if (v == 0)
+		len = 1;
+	else
+		len = (sizeof(v) * 8 - __builtin_clzll(v) + 3) / 4;
+
+	if (len < width)
+		len = width;
+
+	if (m->count + len > m->size) {
+		seq_set_overflow(m);
+		return;
+	}
+
+	for (i = len - 1; i >= 0; i--) {
+		m->buf[m->count + i] = hex_asc[0xf & v];
+		v = v >> 4;
+	}
+	m->count += len;
+}
 
 void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num)
 {
@@ -722,12 +780,12 @@ void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num
 	if (m->count + 3 >= m->size) /* we'll write 2 bytes at least */
 		goto overflow;
 
-	len = strlen(delimiter);
-	if (m->count + len >= m->size)
-		goto overflow;
-
-	memcpy(m->buf + m->count, delimiter, len);
-	m->count += len;
+	if (delimiter && delimiter[0]) {
+		if (delimiter[1] == 0)
+			seq_putc(m, delimiter[0]);
+		else
+			seq_puts(m, delimiter);
+	}
 
 	if (m->count + 2 >= m->size)
 		goto overflow;
@@ -742,7 +800,7 @@ void seq_put_decimal_ll(struct seq_file *m, const char *delimiter, long long num
 		return;
 	}
 
-	len = num_to_str(m->buf + m->count, m->size - m->count, num);
+	len = num_to_str(m->buf + m->count, m->size - m->count, num, 0);
 	if (!len)
 		goto overflow;
 
@@ -782,8 +840,14 @@ EXPORT_SYMBOL(seq_write);
 void seq_pad(struct seq_file *m, char c)
 {
 	int size = m->pad_until - m->count;
-	if (size > 0)
-		seq_printf(m, "%*s", size, "");
+	if (size > 0) {
+		if (size + m->count > m->size) {
+			seq_set_overflow(m);
+			return;
+		}
+		memset(m->buf + m->count, ' ', size);
+		m->count += size;
+	}
 	if (c)
 		seq_putc(m, c);
 }
@@ -1040,3 +1104,8 @@ seq_hlist_next_percpu(void *v, struct hlist_head __percpu *head,
 	return NULL;
 }
 EXPORT_SYMBOL(seq_hlist_next_percpu);
+
+void __init seq_file_init(void)
+{
+	seq_file_cache = KMEM_CACHE(seq_file, SLAB_ACCOUNT|SLAB_PANIC);
+}

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Epson RTC-9701JE
  *
@@ -7,10 +8,6 @@
  *
  * Copyright (C) 2006 8D Technologies inc.
  * Copyright (C) 2004 Compulab Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -92,7 +89,7 @@ static int r9701_get_datetime(struct device *dev, struct rtc_time *dt)
 	 * according to the data sheet. make sure they are valid.
 	 */
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int r9701_set_datetime(struct device *dev, struct rtc_time *dt)

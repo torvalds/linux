@@ -159,13 +159,16 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 				 const struct nls_table *nls_cp)
 {
 	char *bcc_ptr = *pbcc_area;
+	int len;
 
 	/* copy user */
 	/* BB what about null user mounts - check that we do this BB */
 	/* copy user */
 	if (ses->user_name != NULL) {
-		strncpy(bcc_ptr, ses->user_name, CIFS_MAX_USERNAME_LEN);
-		bcc_ptr += strnlen(ses->user_name, CIFS_MAX_USERNAME_LEN);
+		len = strscpy(bcc_ptr, ses->user_name, CIFS_MAX_USERNAME_LEN);
+		if (WARN_ON_ONCE(len < 0))
+			len = CIFS_MAX_USERNAME_LEN - 1;
+		bcc_ptr += len;
 	}
 	/* else null user mount */
 	*bcc_ptr = 0;
@@ -173,8 +176,10 @@ static void ascii_ssetup_strings(char **pbcc_area, struct cifs_ses *ses,
 
 	/* copy domain */
 	if (ses->domainName != NULL) {
-		strncpy(bcc_ptr, ses->domainName, CIFS_MAX_DOMAINNAME_LEN);
-		bcc_ptr += strnlen(ses->domainName, CIFS_MAX_DOMAINNAME_LEN);
+		len = strscpy(bcc_ptr, ses->domainName, CIFS_MAX_DOMAINNAME_LEN);
+		if (WARN_ON_ONCE(len < 0))
+			len = CIFS_MAX_DOMAINNAME_LEN - 1;
+		bcc_ptr += len;
 	} /* else we will send a null domain name
 	     so the server will default to its own domain */
 	*bcc_ptr = 0;
@@ -242,9 +247,10 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 
 	kfree(ses->serverOS);
 
-	ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
+	ses->serverOS = kmalloc(len + 1, GFP_KERNEL);
 	if (ses->serverOS) {
-		strncpy(ses->serverOS, bcc_ptr, len);
+		memcpy(ses->serverOS, bcc_ptr, len);
+		ses->serverOS[len] = 0;
 		if (strncmp(ses->serverOS, "OS/2", 4) == 0)
 			cifs_dbg(FYI, "OS/2 server\n");
 	}
@@ -258,9 +264,11 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 
 	kfree(ses->serverNOS);
 
-	ses->serverNOS = kzalloc(len + 1, GFP_KERNEL);
-	if (ses->serverNOS)
-		strncpy(ses->serverNOS, bcc_ptr, len);
+	ses->serverNOS = kmalloc(len + 1, GFP_KERNEL);
+	if (ses->serverNOS) {
+		memcpy(ses->serverNOS, bcc_ptr, len);
+		ses->serverNOS[len] = 0;
+	}
 
 	bcc_ptr += len + 1;
 	bleft -= len + 1;
@@ -398,6 +406,12 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 		goto setup_ntlmv2_ret;
 	}
 	*pbuffer = kmalloc(size_of_ntlmssp_blob(ses), GFP_KERNEL);
+	if (!*pbuffer) {
+		rc = -ENOMEM;
+		cifs_dbg(VFS, "Error %d during NTLMSSP allocation\n", rc);
+		*buflen = 0;
+		goto setup_ntlmv2_ret;
+	}
 	sec_blob = (AUTHENTICATE_MESSAGE *)*pbuffer;
 
 	memcpy(sec_blob->Signature, NTLMSSP_SIGNATURE, 8);
@@ -528,9 +542,9 @@ cifs_select_sectype(struct TCP_Server_Info *server, enum securityEnum requested)
 			if (global_secflags & CIFSSEC_MAY_NTLM)
 				return NTLM;
 		default:
-			/* Fallthrough to attempt LANMAN authentication next */
 			break;
 		}
+		/* Fallthrough - to attempt LANMAN authentication next */
 	case CIFS_NEGFLAVOR_LANMAN:
 		switch (requested) {
 		case LANMAN:
@@ -684,7 +698,6 @@ sess_auth_lanman(struct sess_data *sess_data)
 	char *bcc_ptr;
 	struct cifs_ses *ses = sess_data->ses;
 	char lnm_session_key[CIFS_AUTH_RESP_SIZE];
-	__u32 capabilities;
 	__u16 bytes_remaining;
 
 	/* lanman 2 style sessionsetup */
@@ -695,7 +708,7 @@ sess_auth_lanman(struct sess_data *sess_data)
 
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
 	bcc_ptr = sess_data->iov[2].iov_base;
-	capabilities = cifs_ssetup_hdr(ses, pSMB);
+	(void)cifs_ssetup_hdr(ses, pSMB);
 
 	pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
 
@@ -1148,14 +1161,12 @@ out:
 static int
 _sess_auth_rawntlmssp_assemble_req(struct sess_data *sess_data)
 {
-	struct smb_hdr *smb_buf;
 	SESSION_SETUP_ANDX *pSMB;
 	struct cifs_ses *ses = sess_data->ses;
 	__u32 capabilities;
 	char *bcc_ptr;
 
 	pSMB = (SESSION_SETUP_ANDX *)sess_data->iov[0].iov_base;
-	smb_buf = (struct smb_hdr *)pSMB;
 
 	capabilities = cifs_ssetup_hdr(ses, pSMB);
 	if ((pSMB->req.hdr.Flags2 & SMBFLG2_UNICODE) == 0) {

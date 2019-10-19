@@ -5,6 +5,7 @@ Description:
 		The /proc/diskstats file displays the I/O statistics
 		of block devices. Each line contains the following 14
 		fields:
+
 		 1 - major number
 		 2 - minor mumber
 		 3 - device name
@@ -19,4 +20,13 @@ Description:
 		12 - I/Os currently in progress
 		13 - time spent doing I/Os (ms)
 		14 - weighted time spent doing I/Os (ms)
-		For more details refer to Documentation/iostats.txt
+
+		Kernel 4.18+ appends four more fields for discard
+		tracking putting the total at 18:
+
+		15 - discards completed successfully
+		16 - discards merged
+		17 - sectors discarded
+		18 - time spent discarding
+
+		For more details refer to Documentation/admin-guide/iostats.rst

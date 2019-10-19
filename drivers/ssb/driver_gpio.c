@@ -8,14 +8,14 @@
  * Licensed under the GNU/GPL. See COPYING for details.
  */
 
+#include "ssb_private.h"
+
 #include <linux/gpio/driver.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/export.h>
 #include <linux/ssb/ssb.h>
-
-#include "ssb_private.h"
 
 
 /**************************************************
@@ -460,9 +460,6 @@ int ssb_gpio_init(struct ssb_bus *bus)
 		return ssb_gpio_chipco_init(bus);
 	else if (ssb_extif_available(&bus->extif))
 		return ssb_gpio_extif_init(bus);
-	else
-		SSB_WARN_ON(1);
-
 	return -1;
 }
 
@@ -472,9 +469,6 @@ int ssb_gpio_unregister(struct ssb_bus *bus)
 	    ssb_extif_available(&bus->extif)) {
 		gpiochip_remove(&bus->gpio);
 		return 0;
-	} else {
-		SSB_WARN_ON(1);
 	}
-
 	return -1;
 }

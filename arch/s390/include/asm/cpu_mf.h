@@ -2,7 +2,7 @@
 /*
  * CPU-measurement facilities
  *
- *  Copyright IBM Corp. 2012
+ *  Copyright IBM Corp. 2012, 2018
  *  Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  *	       Jan Glauber <jang@linux.vnet.ibm.com>
  */
@@ -11,6 +11,8 @@
 
 #include <linux/errno.h>
 #include <asm/facility.h>
+
+asm(".include \"asm/cpu_mf-insn.h\"\n");
 
 #define CPU_MF_INT_SF_IAE	(1 << 31)	/* invalid entry address */
 #define CPU_MF_INT_SF_ISE	(1 << 30)	/* incorrect SDBT entry */
@@ -26,15 +28,17 @@
 				 CPU_MF_INT_SF_PRA|CPU_MF_INT_SF_SACA|	\
 				 CPU_MF_INT_SF_LSDA)
 
+#define CPU_MF_SF_RIBM_NOTAV	0x1		/* Sampling unavailable */
+
 /* CPU measurement facility support */
 static inline int cpum_cf_avail(void)
 {
-	return MACHINE_HAS_LPP && test_facility(67);
+	return test_facility(40) && test_facility(67);
 }
 
 static inline int cpum_sf_avail(void)
 {
-	return MACHINE_HAS_LPP && test_facility(68);
+	return test_facility(40) && test_facility(68);
 }
 
 
@@ -67,8 +71,9 @@ struct hws_qsi_info_block {	    /* Bit(s) */
 	unsigned long max_sampl_rate; /* 16-23: maximum sampling interval*/
 	unsigned long tear;	    /* 24-31: TEAR contents		 */
 	unsigned long dear;	    /* 32-39: DEAR contents		 */
-	unsigned int rsvrd0;	    /* 40-43: reserved			 */
-	unsigned int cpu_speed;     /* 44-47: CPU speed 		 */
+	unsigned int rsvrd0:24;	    /* 40-42: reserved			 */
+	unsigned int ribm:8;	    /* 43: Reserved by IBM		 */
+	unsigned int cpu_speed;     /* 44-47: CPU speed			 */
 	unsigned long long rsvrd1;  /* 48-55: reserved			 */
 	unsigned long long rsvrd2;  /* 56-63: reserved			 */
 } __packed;
@@ -87,10 +92,10 @@ struct hws_lsctl_request_block {
 	unsigned long tear;	    /* 16-23: TEAR contents		 */
 	unsigned long dear;	    /* 24-31: DEAR contents		 */
 	/* 32-63:							 */
-	unsigned long rsvrd1;	    /* reserved 			 */
-	unsigned long rsvrd2;	    /* reserved 			 */
-	unsigned long rsvrd3;	    /* reserved 			 */
-	unsigned long rsvrd4;	    /* reserved 			 */
+	unsigned long rsvrd1;	    /* reserved				 */
+	unsigned long rsvrd2;	    /* reserved				 */
+	unsigned long rsvrd3;	    /* reserved				 */
+	unsigned long rsvrd4;	    /* reserved				 */
 } __packed;
 
 struct hws_basic_entry {
@@ -113,7 +118,7 @@ struct hws_basic_entry {
 
 struct hws_diag_entry {
 	unsigned int def:16;	    /* 0-15  Data Entry Format		 */
-	unsigned int R:14;	    /* 16-19 and 20-30 reserved		 */
+	unsigned int R:15;	    /* 16-19 and 20-30 reserved		 */
 	unsigned int I:1;	    /* 31 entry valid or invalid	 */
 	u8	     data[];	    /* Machine-dependent sample data	 */
 } __packed;
@@ -129,7 +134,9 @@ struct hws_trailer_entry {
 			unsigned int f:1;	/* 0 - Block Full Indicator   */
 			unsigned int a:1;	/* 1 - Alert request control  */
 			unsigned int t:1;	/* 2 - Timestamp format	      */
-			unsigned long long:61;	/* 3 - 63: Reserved	      */
+			unsigned int :29;	/* 3 - 31: Reserved	      */
+			unsigned int bsdes:16;	/* 32-47: size of basic SDE   */
+			unsigned int dsdes:16;	/* 48-63: size of diagnostic SDE */
 		};
 		unsigned long long flags;	/* 0 - 63: All indicators     */
 	};
@@ -137,8 +144,14 @@ struct hws_trailer_entry {
 	unsigned char timestamp[16];	 /* 16 - 31 timestamp		      */
 	unsigned long long reserved1;	 /* 32 -Reserved		      */
 	unsigned long long reserved2;	 /*				      */
-	unsigned long long progusage1;	 /* 48 - reserved for programming use */
-	unsigned long long progusage2;	 /*				      */
+	union {				 /* 48 - reserved for programming use */
+		struct {
+			unsigned int clock_base:1; /* in progusage2 */
+			unsigned long long progusage1:63;
+			unsigned long long progusage2;
+		};
+		unsigned long long progusage[2];
+	};
 } __packed;
 
 /* Load program parameter */
@@ -201,17 +214,26 @@ static inline int ecctr(u64 ctr, u64 *val)
 	return cc;
 }
 
-/* Store CPU counter multiple for the MT utilization counter set */
-static inline int stcctm5(u64 num, u64 *val)
+/* Store CPU counter multiple for a particular counter set */
+enum stcctm_ctr_set {
+	EXTENDED = 0,
+	BASIC = 1,
+	PROBLEM_STATE = 2,
+	CRYPTO_ACTIVITY = 3,
+	MT_DIAG = 5,
+	MT_DIAG_CLEARING = 9,	/* clears loss-of-MT-ctr-data alert */
+};
+
+static __always_inline int stcctm(enum stcctm_ctr_set set, u64 range, u64 *dest)
 {
 	int cc;
 
 	asm volatile (
-		"	.insn	rsy,0xeb0000000017,%2,5,%1\n"
+		"	STCCTM	%2,%3,%1\n"
 		"	ipm	%0\n"
 		"	srl	%0,28\n"
 		: "=d" (cc)
-		: "Q" (*val), "d" (num)
+		: "Q" (*dest), "d" (range), "i" (set)
 		: "cc", "memory");
 	return cc;
 }

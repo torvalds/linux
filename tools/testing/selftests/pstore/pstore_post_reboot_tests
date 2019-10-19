@@ -1,11 +1,14 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # pstore_post_reboot_tests - Check pstore's behavior after crash/reboot
 #
 # Copyright (C) Hitachi Ltd., 2015
 #  Written by Hiraku Toyooka <hiraku.toyooka.gu@hitachi.com>
 #
-# Released under the terms of the GPL v2.
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 . ./common_tests
 
@@ -13,7 +16,7 @@ if [ -e $REBOOT_FLAG  ]; then
     rm $REBOOT_FLAG
 else
     prlog "pstore_crash_test has not been executed yet. we skip further tests."
-    exit 0
+    exit $ksft_skip
 fi
 
 prlog -n "Mounting pstore filesystem ... "

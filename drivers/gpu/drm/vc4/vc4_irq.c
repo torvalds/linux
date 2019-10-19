@@ -59,15 +59,22 @@ vc4_overflow_mem_work(struct work_struct *work)
 {
 	struct vc4_dev *vc4 =
 		container_of(work, struct vc4_dev, overflow_mem_work);
-	struct vc4_bo *bo = vc4->bin_bo;
+	struct vc4_bo *bo;
 	int bin_bo_slot;
 	struct vc4_exec_info *exec;
 	unsigned long irqflags;
 
+	mutex_lock(&vc4->bin_bo_lock);
+
+	if (!vc4->bin_bo)
+		goto complete;
+
+	bo = vc4->bin_bo;
+
 	bin_bo_slot = vc4_v3d_get_bin_slot(vc4);
 	if (bin_bo_slot < 0) {
 		DRM_ERROR("Couldn't allocate binner overflow mem\n");
-		return;
+		goto complete;
 	}
 
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
@@ -98,19 +105,29 @@ vc4_overflow_mem_work(struct work_struct *work)
 	V3D_WRITE(V3D_INTCTL, V3D_INT_OUTOMEM);
 	V3D_WRITE(V3D_INTENA, V3D_INT_OUTOMEM);
 	spin_unlock_irqrestore(&vc4->job_lock, irqflags);
+
+complete:
+	mutex_unlock(&vc4->bin_bo_lock);
 }
 
 static void
 vc4_irq_finish_bin_job(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
-	struct vc4_exec_info *exec = vc4_first_bin_job(vc4);
+	struct vc4_exec_info *next, *exec = vc4_first_bin_job(vc4);
 
 	if (!exec)
 		return;
 
 	vc4_move_job_to_render(dev, exec);
-	vc4_submit_next_bin_job(dev);
+	next = vc4_first_bin_job(vc4);
+
+	/* Only submit the next job in the bin list if it matches the perfmon
+	 * attached to the one that just finished (or if both jobs don't have
+	 * perfmon attached to them).
+	 */
+	if (next && next->perfmon == exec->perfmon)
+		vc4_submit_next_bin_job(dev);
 }
 
 static void
@@ -122,6 +139,10 @@ vc4_cancel_bin_job(struct drm_device *dev)
 	if (!exec)
 		return;
 
+	/* Stop the perfmon so that the next bin job can be started. */
+	if (exec->perfmon)
+		vc4_perfmon_stop(vc4, exec->perfmon, false);
+
 	list_move_tail(&exec->head, &vc4->bin_job_list);
 	vc4_submit_next_bin_job(dev);
 }
@@ -131,18 +152,41 @@ vc4_irq_finish_render_job(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_exec_info *exec = vc4_first_render_job(vc4);
+	struct vc4_exec_info *nextbin, *nextrender;
 
 	if (!exec)
 		return;
 
 	vc4->finished_seqno++;
 	list_move_tail(&exec->head, &vc4->job_done_list);
+
+	nextbin = vc4_first_bin_job(vc4);
+	nextrender = vc4_first_render_job(vc4);
+
+	/* Only stop the perfmon if following jobs in the queue don't expect it
+	 * to be enabled.
+	 */
+	if (exec->perfmon && !nextrender &&
+	    (!nextbin || nextbin->perfmon != exec->perfmon))
+		vc4_perfmon_stop(vc4, exec->perfmon, true);
+
+	/* If there's a render job waiting, start it. If this is not the case
+	 * we may have to unblock the binner if it's been stalled because of
+	 * perfmon (this can be checked by comparing the perfmon attached to
+	 * the finished renderjob to the one attached to the next bin job: if
+	 * they don't match, this means the binner is stalled and should be
+	 * restarted).
+	 */
+	if (nextrender)
+		vc4_submit_next_render_job(dev);
+	else if (nextbin && nextbin->perfmon != exec->perfmon)
+		vc4_submit_next_bin_job(dev);
+
 	if (exec->fence) {
 		dma_fence_signal_locked(exec->fence);
 		dma_fence_put(exec->fence);
 		exec->fence = NULL;
 	}
-	vc4_submit_next_render_job(dev);
 
 	wake_up_all(&vc4->job_wait_queue);
 	schedule_work(&vc4->job_done_work);
@@ -195,6 +239,9 @@ vc4_irq_preinstall(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
+	if (!vc4->v3d)
+		return;
+
 	init_waitqueue_head(&vc4->job_wait_queue);
 	INIT_WORK(&vc4->overflow_mem_work, vc4_overflow_mem_work);
 
@@ -209,8 +256,13 @@ vc4_irq_postinstall(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 
-	/* Enable both the render done and out of memory interrupts. */
-	V3D_WRITE(V3D_INTENA, V3D_DRIVER_IRQS);
+	if (!vc4->v3d)
+		return 0;
+
+	/* Enable the render done interrupts. The out-of-memory interrupt is
+	 * enabled as soon as we have a binner BO allocated.
+	 */
+	V3D_WRITE(V3D_INTENA, V3D_INT_FLDONE | V3D_INT_FRDONE);
 
 	return 0;
 }
@@ -219,6 +271,9 @@ void
 vc4_irq_uninstall(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+	if (!vc4->v3d)
+		return;
 
 	/* Disable sending interrupts for our driver's IRQs. */
 	V3D_WRITE(V3D_INTDIS, V3D_DRIVER_IRQS);

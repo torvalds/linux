@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2007-2008 Extreme Engineering Solutions, Inc.
  *
  * Author: Nate Case <ncase@xes-inc.com>
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * LED driver for various PCA955x I2C LED drivers
  *
@@ -40,7 +37,6 @@
  *  bits the chip supports.
  */
 
-#include <linux/acpi.h>
 #include <linux/ctype.h>
 #include <linux/delay.h>
 #include <linux/err.h>
@@ -48,8 +44,8 @@
 #include <linux/i2c.h>
 #include <linux/leds.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 
@@ -109,15 +105,6 @@ static const struct i2c_device_id pca955x_id[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pca955x_id);
-
-static const struct acpi_device_id pca955x_acpi_ids[] = {
-	{ "PCA9550",  pca9550 },
-	{ "PCA9551",  pca9551 },
-	{ "PCA9552",  pca9552 },
-	{ "PCA9553",  pca9553 },
-	{ }
-};
-MODULE_DEVICE_TABLE(acpi, pca955x_acpi_ids);
 
 struct pca955x {
 	struct mutex lock;
@@ -373,16 +360,14 @@ static int pca955x_gpio_direction_output(struct gpio_chip *gc,
 }
 #endif /* CONFIG_LEDS_PCA955X_GPIO */
 
-#if IS_ENABLED(CONFIG_OF)
 static struct pca955x_platform_data *
-pca955x_pdata_of_init(struct i2c_client *client, struct pca955x_chipdef *chip)
+pca955x_get_pdata(struct i2c_client *client, struct pca955x_chipdef *chip)
 {
-	struct device_node *np = client->dev.of_node;
-	struct device_node *child;
 	struct pca955x_platform_data *pdata;
+	struct fwnode_handle *child;
 	int count;
 
-	count = of_get_child_count(np);
+	count = device_get_child_node_count(&client->dev);
 	if (!count || count > chip->bits)
 		return ERR_PTR(-ENODEV);
 
@@ -390,30 +375,31 @@ pca955x_pdata_of_init(struct i2c_client *client, struct pca955x_chipdef *chip)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	pdata->leds = devm_kzalloc(&client->dev,
-				   sizeof(struct pca955x_led) * chip->bits,
+	pdata->leds = devm_kcalloc(&client->dev,
+				   chip->bits, sizeof(struct pca955x_led),
 				   GFP_KERNEL);
 	if (!pdata->leds)
 		return ERR_PTR(-ENOMEM);
 
-	for_each_child_of_node(np, child) {
+	device_for_each_child_node(&client->dev, child) {
 		const char *name;
 		u32 reg;
 		int res;
 
-		res = of_property_read_u32(child, "reg", &reg);
+		res = fwnode_property_read_u32(child, "reg", &reg);
 		if ((res != 0) || (reg >= chip->bits))
 			continue;
 
-		if (of_property_read_string(child, "label", &name))
-			name = child->name;
+		res = fwnode_property_read_string(child, "label", &name);
+		if ((res != 0) && is_of_node(child))
+			name = to_of_node(child)->name;
 
 		snprintf(pdata->leds[reg].name, sizeof(pdata->leds[reg].name),
 			 "%s", name);
 
 		pdata->leds[reg].type = PCA955X_TYPE_LED;
-		of_property_read_u32(child, "type", &pdata->leds[reg].type);
-		of_property_read_string(child, "linux,default-trigger",
+		fwnode_property_read_u32(child, "type", &pdata->leds[reg].type);
+		fwnode_property_read_string(child, "linux,default-trigger",
 					&pdata->leds[reg].default_trigger);
 	}
 
@@ -429,15 +415,7 @@ static const struct of_device_id of_pca955x_match[] = {
 	{ .compatible = "nxp,pca9553", .data = (void *)pca9553 },
 	{},
 };
-
 MODULE_DEVICE_TABLE(of, of_pca955x_match);
-#else
-static struct pca955x_platform_data *
-pca955x_pdata_of_init(struct i2c_client *client, struct pca955x_chipdef *chip)
-{
-	return ERR_PTR(-ENODEV);
-}
-#endif
 
 static int pca955x_probe(struct i2c_client *client,
 					const struct i2c_device_id *id)
@@ -450,20 +428,11 @@ static int pca955x_probe(struct i2c_client *client,
 	struct pca955x_platform_data *pdata;
 	int ngpios = 0;
 
-	if (id) {
-		chip = &pca955x_chipdefs[id->driver_data];
-	} else {
-		const struct acpi_device_id *acpi_id;
-
-		acpi_id = acpi_match_device(pca955x_acpi_ids, &client->dev);
-		if (!acpi_id)
-			return -ENODEV;
-		chip = &pca955x_chipdefs[acpi_id->driver_data];
-	}
-	adapter = to_i2c_adapter(client->dev.parent);
+	chip = &pca955x_chipdefs[id->driver_data];
+	adapter = client->adapter;
 	pdata = dev_get_platdata(&client->dev);
 	if (!pdata) {
-		pdata =	pca955x_pdata_of_init(client, chip);
+		pdata =	pca955x_get_pdata(client, chip);
 		if (IS_ERR(pdata))
 			return PTR_ERR(pdata);
 	}
@@ -494,8 +463,8 @@ static int pca955x_probe(struct i2c_client *client,
 	if (!pca955x)
 		return -ENOMEM;
 
-	pca955x->leds = devm_kzalloc(&client->dev,
-			sizeof(*pca955x_led) * chip->bits, GFP_KERNEL);
+	pca955x->leds = devm_kcalloc(&client->dev,
+			chip->bits, sizeof(*pca955x_led), GFP_KERNEL);
 	if (!pca955x->leds)
 		return -ENOMEM;
 
@@ -602,8 +571,7 @@ static int pca955x_probe(struct i2c_client *client,
 static struct i2c_driver pca955x_driver = {
 	.driver = {
 		.name	= "leds-pca955x",
-		.acpi_match_table = ACPI_PTR(pca955x_acpi_ids),
-		.of_match_table = of_match_ptr(of_pca955x_match),
+		.of_match_table = of_pca955x_match,
 	},
 	.probe	= pca955x_probe,
 	.id_table = pca955x_id,

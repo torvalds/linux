@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Netronome device configuration
 #
@@ -19,7 +20,8 @@ config NFP
 	tristate "Netronome(R) NFP4000/NFP6000 NIC driver"
 	depends on PCI && PCI_MSI
 	depends on VXLAN || VXLAN=n
-	depends on MAY_USE_DEVLINK
+	depends on TLS && TLS_DEVICE || TLS_DEVICE=n
+	select NET_DEVLINK
 	---help---
 	  This driver supports the Netronome(R) NFP4000/NFP6000 based
 	  cards working as a advanced Ethernet NIC.  It works with both
@@ -35,6 +37,19 @@ config NFP_APP_FLOWER
 	  Say Y, if you are planning to make use of TC Flower offload
 	  either directly, with Open vSwitch, or any other way.  Note that
 	  TC Flower offload requires specific FW to work.
+
+config NFP_APP_ABM_NIC
+	bool "NFP4000/NFP6000 Advanced buffer management NIC support"
+	depends on NFP
+	depends on NET_SWITCHDEV
+	default y
+	help
+	  Enable driver support for Advanced buffer management NIC on NFP.
+	  ABM NIC allows advanced configuration of queuing and scheduling
+	  of packets, including ECN marking. Say Y, if you are planning to
+	  use one of the NFP4000 and NFP6000 platforms which support this
+	  functionality.
+	  Code will be built into the nfp.ko driver.
 
 config NFP_DEBUG
 	bool "Debug support for Netronome(R) NFP4000/NFP6000 NIC drivers"

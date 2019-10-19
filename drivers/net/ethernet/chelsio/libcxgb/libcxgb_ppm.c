@@ -123,6 +123,9 @@ static int ppm_get_cpu_entries(struct cxgbi_ppm *ppm, unsigned int count,
 	unsigned int cpu;
 	int i;
 
+	if (!ppm->pool)
+		return -EINVAL;
+
 	cpu = get_cpu();
 	pool = per_cpu_ptr(ppm->pool, cpu);
 	spin_lock_bh(&pool->lock);
@@ -169,7 +172,9 @@ static int ppm_get_entries(struct cxgbi_ppm *ppm, unsigned int count,
 	}
 
 	ppm->next = i + count;
-	if (ppm->next >= ppm->bmap_index_max)
+	if (ppm->max_index_in_edram && (ppm->next >= ppm->max_index_in_edram))
+		ppm->next = 0;
+	else if (ppm->next >= ppm->bmap_index_max)
 		ppm->next = 0;
 
 	spin_unlock_bh(&ppm->map_lock);
@@ -354,7 +359,10 @@ static struct cxgbi_ppm_pool *ppm_alloc_cpu_pool(unsigned int *total,
 		ppmax = max;
 
 	/* pool size must be multiple of unsigned long */
-	bmap = BITS_TO_LONGS(ppmax);
+	bmap = ppmax / BITS_PER_TYPE(unsigned long);
+	if (!bmap)
+		return NULL;
+
 	ppmax = (bmap * sizeof(unsigned long)) << 3;
 
 	alloc_sz = sizeof(*pools) + sizeof(unsigned long) * bmap;
@@ -379,18 +387,36 @@ static struct cxgbi_ppm_pool *ppm_alloc_cpu_pool(unsigned int *total,
 
 int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 		   struct pci_dev *pdev, void *lldev,
-		   struct cxgbi_tag_format *tformat,
-		   unsigned int ppmax,
-		   unsigned int llimit,
-		   unsigned int start,
-		   unsigned int reserve_factor)
+		   struct cxgbi_tag_format *tformat, unsigned int iscsi_size,
+		   unsigned int llimit, unsigned int start,
+		   unsigned int reserve_factor, unsigned int iscsi_edram_start,
+		   unsigned int iscsi_edram_size)
 {
 	struct cxgbi_ppm *ppm = (struct cxgbi_ppm *)(*ppm_pp);
 	struct cxgbi_ppm_pool *pool = NULL;
-	unsigned int ppmax_pool = 0;
 	unsigned int pool_index_max = 0;
-	unsigned int alloc_sz;
+	unsigned int ppmax_pool = 0;
 	unsigned int ppod_bmap_size;
+	unsigned int alloc_sz;
+	unsigned int ppmax;
+
+	if (!iscsi_edram_start)
+		iscsi_edram_size = 0;
+
+	if (iscsi_edram_size &&
+	    ((iscsi_edram_start + iscsi_edram_size) != start)) {
+		pr_err("iscsi ppod region not contiguous: EDRAM start 0x%x "
+			"size 0x%x DDR start 0x%x\n",
+			iscsi_edram_start, iscsi_edram_size, start);
+		return -EINVAL;
+	}
+
+	if (iscsi_edram_size) {
+		reserve_factor = 0;
+		start = iscsi_edram_start;
+	}
+
+	ppmax = (iscsi_edram_size + iscsi_size) >> PPOD_SIZE_SHIFT;
 
 	if (ppm) {
 		pr_info("ippm: %s, ppm 0x%p,0x%p already initialized, %u/%u.\n",
@@ -402,6 +428,10 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 	if (reserve_factor) {
 		ppmax_pool = ppmax / reserve_factor;
 		pool = ppm_alloc_cpu_pool(&ppmax_pool, &pool_index_max);
+		if (!pool) {
+			ppmax_pool = 0;
+			reserve_factor = 0;
+		}
 
 		pr_debug("%s: ppmax %u, cpu total %u, per cpu %u.\n",
 			 ndev->name, ppmax, ppmax_pool, pool_index_max);
@@ -412,11 +442,9 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 			ppmax * (sizeof(struct cxgbi_ppod_data)) +
 			ppod_bmap_size * sizeof(unsigned long);
 
-	ppm = vmalloc(alloc_sz);
+	ppm = vzalloc(alloc_sz);
 	if (!ppm)
 		goto release_ppm_pool;
-
-	memset(ppm, 0, alloc_sz);
 
 	ppm->ppod_bmap = (unsigned long *)(&ppm->ppod_data[ppmax]);
 
@@ -428,6 +456,14 @@ int cxgbi_ppm_init(void **ppm_pp, struct net_device *ndev,
 		pr_info("%s: %u - %u < %u * 8, mask extra bits %u, %u.\n",
 			__func__, ppmax, ppmax_pool, ppod_bmap_size, start,
 			end);
+	}
+	if (iscsi_edram_size) {
+		unsigned int first_ddr_idx =
+				iscsi_edram_size >> PPOD_SIZE_SHIFT;
+
+		ppm->max_index_in_edram = first_ddr_idx - 1;
+		bitmap_set(ppm->ppod_bmap, first_ddr_idx, 1);
+		pr_debug("reserved %u ppod in bitmap\n", first_ddr_idx);
 	}
 
 	spin_lock_init(&ppm->map_lock);

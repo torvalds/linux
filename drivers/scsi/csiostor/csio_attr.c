@@ -274,11 +274,23 @@ csio_get_host_speed(struct Scsi_Host *shost)
 
 	spin_lock_irq(&hw->lock);
 	switch (hw->pport[ln->portid].link_speed) {
-	case FW_PORT_CAP_SPEED_1G:
+	case FW_PORT_CAP32_SPEED_1G:
 		fc_host_speed(shost) = FC_PORTSPEED_1GBIT;
 		break;
-	case FW_PORT_CAP_SPEED_10G:
+	case FW_PORT_CAP32_SPEED_10G:
 		fc_host_speed(shost) = FC_PORTSPEED_10GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_25G:
+		fc_host_speed(shost) = FC_PORTSPEED_25GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_40G:
+		fc_host_speed(shost) = FC_PORTSPEED_40GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_50G:
+		fc_host_speed(shost) = FC_PORTSPEED_50GBIT;
+		break;
+	case FW_PORT_CAP32_SPEED_100G:
+		fc_host_speed(shost) = FC_PORTSPEED_100GBIT;
 		break;
 	default:
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
@@ -485,7 +497,6 @@ out:
 static int
 csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 {
-	struct csio_lnode *pln;
 	struct csio_mb  *mbp;
 	struct fw_fcoe_vnp_cmd *rsp;
 	int ret = 0;
@@ -501,8 +512,6 @@ csio_fcoe_free_vnp(struct csio_hw *hw, struct csio_lnode *ln)
 		ret = -ENOMEM;
 		goto out;
 	}
-
-	pln = ln->pln;
 
 	csio_fcoe_vnp_free_init_mb(ln, mbp, CSIO_MB_DEFAULT_TMO,
 				   ln->fcf_flowid, ln->vnp_flowid,
@@ -582,12 +591,12 @@ csio_vport_create(struct fc_vport *fc_vport, bool disable)
 	}
 
 	fc_vport_set_state(fc_vport, FC_VPORT_INITIALIZING);
+	ln->fc_vport = fc_vport;
 
 	if (csio_fcoe_alloc_vnp(hw, ln))
 		goto error;
 
 	*(struct csio_lnode **)fc_vport->dd_data = ln;
-	ln->fc_vport = fc_vport;
 	if (!fc_vport->node_name)
 		fc_vport->node_name = wwn_to_u64(csio_ln_wwnn(ln));
 	if (!fc_vport->port_name)

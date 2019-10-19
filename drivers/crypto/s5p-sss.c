@@ -232,6 +232,7 @@
  * struct samsung_aes_variant - platform specific SSS driver data
  * @aes_offset: AES register offset from SSS module's base.
  * @hash_offset: HASH register offset from SSS module's base.
+ * @clk_names: names of clocks needed to run SSS IP
  *
  * Specifies platform specific configuration of SSS module.
  * Note: A structure for driver specific platform data is used for future
@@ -240,6 +241,7 @@
 struct samsung_aes_variant {
 	unsigned int			aes_offset;
 	unsigned int			hash_offset;
+	const char			*clk_names[2];
 };
 
 struct s5p_aes_reqctx {
@@ -249,8 +251,8 @@ struct s5p_aes_reqctx {
 struct s5p_aes_ctx {
 	struct s5p_aes_dev		*dev;
 
-	uint8_t				aes_key[AES_MAX_KEY_SIZE];
-	uint8_t				nonce[CTR_RFC3686_NONCE_SIZE];
+	u8				aes_key[AES_MAX_KEY_SIZE];
+	u8				nonce[CTR_RFC3686_NONCE_SIZE];
 	int				keylen;
 };
 
@@ -296,6 +298,7 @@ struct s5p_aes_ctx {
 struct s5p_aes_dev {
 	struct device			*dev;
 	struct clk			*clk;
+	struct clk			*pclk;
 	void __iomem			*ioaddr;
 	void __iomem			*aes_ioaddr;
 	int				irq_fc;
@@ -384,11 +387,19 @@ struct s5p_hash_ctx {
 static const struct samsung_aes_variant s5p_aes_data = {
 	.aes_offset	= 0x4000,
 	.hash_offset	= 0x6000,
+	.clk_names	= { "secss", },
 };
 
 static const struct samsung_aes_variant exynos_aes_data = {
 	.aes_offset	= 0x200,
 	.hash_offset	= 0x400,
+	.clk_names	= { "secss", },
+};
+
+static const struct samsung_aes_variant exynos5433_slim_aes_data = {
+	.aes_offset	= 0x400,
+	.hash_offset	= 0x800,
+	.clk_names	= { "pclk", "aclk", },
 };
 
 static const struct of_device_id s5p_sss_dt_match[] = {
@@ -400,33 +411,39 @@ static const struct of_device_id s5p_sss_dt_match[] = {
 		.compatible = "samsung,exynos4210-secss",
 		.data = &exynos_aes_data,
 	},
+	{
+		.compatible = "samsung,exynos5433-slim-sss",
+		.data = &exynos5433_slim_aes_data,
+	},
 	{ },
 };
 MODULE_DEVICE_TABLE(of, s5p_sss_dt_match);
 
-static inline struct samsung_aes_variant *find_s5p_sss_version
-				   (struct platform_device *pdev)
+static inline const struct samsung_aes_variant *find_s5p_sss_version
+				   (const struct platform_device *pdev)
 {
 	if (IS_ENABLED(CONFIG_OF) && (pdev->dev.of_node)) {
 		const struct of_device_id *match;
 
 		match = of_match_node(s5p_sss_dt_match,
 					pdev->dev.of_node);
-		return (struct samsung_aes_variant *)match->data;
+		return (const struct samsung_aes_variant *)match->data;
 	}
-	return (struct samsung_aes_variant *)
+	return (const struct samsung_aes_variant *)
 			platform_get_device_id(pdev)->driver_data;
 }
 
 static struct s5p_aes_dev *s5p_dev;
 
-static void s5p_set_dma_indata(struct s5p_aes_dev *dev, struct scatterlist *sg)
+static void s5p_set_dma_indata(struct s5p_aes_dev *dev,
+			       const struct scatterlist *sg)
 {
 	SSS_WRITE(dev, FCBRDMAS, sg_dma_address(sg));
 	SSS_WRITE(dev, FCBRDMAL, sg_dma_len(sg));
 }
 
-static void s5p_set_dma_outdata(struct s5p_aes_dev *dev, struct scatterlist *sg)
+static void s5p_set_dma_outdata(struct s5p_aes_dev *dev,
+				const struct scatterlist *sg)
 {
 	SSS_WRITE(dev, FCBTDMAS, sg_dma_address(sg));
 	SSS_WRITE(dev, FCBTDMAL, sg_dma_len(sg));
@@ -461,6 +478,9 @@ static void s5p_sg_copy_buf(void *buf, struct scatterlist *sg,
 
 static void s5p_sg_done(struct s5p_aes_dev *dev)
 {
+	struct ablkcipher_request *req = dev->req;
+	struct s5p_aes_reqctx *reqctx = ablkcipher_request_ctx(req);
+
 	if (dev->sg_dst_cpy) {
 		dev_dbg(dev->dev,
 			"Copying %d bytes of output data back to original place\n",
@@ -470,12 +490,17 @@ static void s5p_sg_done(struct s5p_aes_dev *dev)
 	}
 	s5p_free_sg_cpy(dev, &dev->sg_src_cpy);
 	s5p_free_sg_cpy(dev, &dev->sg_dst_cpy);
+	if (reqctx->mode & FLAGS_AES_CBC)
+		memcpy_fromio(req->info, dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), AES_BLOCK_SIZE);
+
+	else if (reqctx->mode & FLAGS_AES_CTR)
+		memcpy_fromio(req->info, dev->aes_ioaddr + SSS_REG_AES_CNT_DATA(0), AES_BLOCK_SIZE);
 }
 
 /* Calls the completion. Cannot be called with dev->lock hold. */
-static void s5p_aes_complete(struct s5p_aes_dev *dev, int err)
+static void s5p_aes_complete(struct ablkcipher_request *req, int err)
 {
-	dev->req->base.complete(&dev->req->base, err);
+	req->base.complete(&req->base, err);
 }
 
 static void s5p_unset_outdata(struct s5p_aes_dev *dev)
@@ -489,7 +514,7 @@ static void s5p_unset_indata(struct s5p_aes_dev *dev)
 }
 
 static int s5p_make_sg_cpy(struct s5p_aes_dev *dev, struct scatterlist *src,
-			    struct scatterlist **dst)
+			   struct scatterlist **dst)
 {
 	void *pages;
 	int len;
@@ -516,46 +541,28 @@ static int s5p_make_sg_cpy(struct s5p_aes_dev *dev, struct scatterlist *src,
 
 static int s5p_set_outdata(struct s5p_aes_dev *dev, struct scatterlist *sg)
 {
-	int err;
+	if (!sg->length)
+		return -EINVAL;
 
-	if (!sg->length) {
-		err = -EINVAL;
-		goto exit;
-	}
-
-	err = dma_map_sg(dev->dev, sg, 1, DMA_FROM_DEVICE);
-	if (!err) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	if (!dma_map_sg(dev->dev, sg, 1, DMA_FROM_DEVICE))
+		return -ENOMEM;
 
 	dev->sg_dst = sg;
-	err = 0;
 
-exit:
-	return err;
+	return 0;
 }
 
 static int s5p_set_indata(struct s5p_aes_dev *dev, struct scatterlist *sg)
 {
-	int err;
+	if (!sg->length)
+		return -EINVAL;
 
-	if (!sg->length) {
-		err = -EINVAL;
-		goto exit;
-	}
-
-	err = dma_map_sg(dev->dev, sg, 1, DMA_TO_DEVICE);
-	if (!err) {
-		err = -ENOMEM;
-		goto exit;
-	}
+	if (!dma_map_sg(dev->dev, sg, 1, DMA_TO_DEVICE))
+		return -ENOMEM;
 
 	dev->sg_src = sg;
-	err = 0;
 
-exit:
-	return err;
+	return 0;
 }
 
 /*
@@ -619,7 +626,7 @@ static inline void s5p_hash_write(struct s5p_aes_dev *dd,
  * @sg:		scatterlist ready to DMA transmit
  */
 static void s5p_set_dma_hashdata(struct s5p_aes_dev *dev,
-				 struct scatterlist *sg)
+				 const struct scatterlist *sg)
 {
 	dev->hash_sg_cnt--;
 	SSS_WRITE(dev, FCHRDMAS, sg_dma_address(sg));
@@ -653,14 +660,14 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 {
 	struct platform_device *pdev = dev_id;
 	struct s5p_aes_dev *dev = platform_get_drvdata(pdev);
+	struct ablkcipher_request *req;
 	int err_dma_tx = 0;
 	int err_dma_rx = 0;
 	int err_dma_hx = 0;
 	bool tx_end = false;
 	bool hx_end = false;
 	unsigned long flags;
-	uint32_t status;
-	u32 st_bits;
+	u32 status, st_bits;
 	int err;
 
 	spin_lock_irqsave(&dev->lock, flags);
@@ -725,7 +732,7 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 
 		spin_unlock_irqrestore(&dev->lock, flags);
 
-		s5p_aes_complete(dev, 0);
+		s5p_aes_complete(dev->req, 0);
 		/* Device is still busy */
 		tasklet_schedule(&dev->tasklet);
 	} else {
@@ -750,11 +757,12 @@ static irqreturn_t s5p_aes_interrupt(int irq, void *dev_id)
 error:
 	s5p_sg_done(dev);
 	dev->busy = false;
+	req = dev->req;
 	if (err_dma_hx == 1)
 		s5p_set_dma_hashdata(dev, dev->hash_sg_iter);
 
 	spin_unlock_irqrestore(&dev->lock, flags);
-	s5p_aes_complete(dev, err);
+	s5p_aes_complete(req, err);
 
 hash_irq_end:
 	/*
@@ -792,9 +800,9 @@ static void s5p_hash_read_msg(struct ahash_request *req)
  * @ctx:	request context
  */
 static void s5p_hash_write_ctx_iv(struct s5p_aes_dev *dd,
-				  struct s5p_hash_reqctx *ctx)
+				  const struct s5p_hash_reqctx *ctx)
 {
-	u32 *hash = (u32 *)ctx->digest;
+	const u32 *hash = (const u32 *)ctx->digest;
 	unsigned int i;
 
 	for (i = 0; i < ctx->nregs; i++)
@@ -818,7 +826,7 @@ static void s5p_hash_write_iv(struct ahash_request *req)
  */
 static void s5p_hash_copy_result(struct ahash_request *req)
 {
-	struct s5p_hash_reqctx *ctx = ahash_request_ctx(req);
+	const struct s5p_hash_reqctx *ctx = ahash_request_ctx(req);
 
 	if (!req->result)
 		return;
@@ -1210,9 +1218,6 @@ static int s5p_hash_prepare_request(struct ahash_request *req, bool update)
 	int xmit_len, hash_later, nbytes;
 	int ret;
 
-	if (!req)
-		return 0;
-
 	if (update)
 		nbytes = req->nbytes;
 	else
@@ -1293,7 +1298,7 @@ static int s5p_hash_prepare_request(struct ahash_request *req, bool update)
  */
 static void s5p_hash_update_dma_stop(struct s5p_aes_dev *dd)
 {
-	struct s5p_hash_reqctx *ctx = ahash_request_ctx(dd->hash_req);
+	const struct s5p_hash_reqctx *ctx = ahash_request_ctx(dd->hash_req);
 
 	dma_unmap_sg(dd->dev, ctx->sg, ctx->sg_len, DMA_TO_DEVICE);
 	clear_bit(HASH_FLAGS_DMA_ACTIVE, &dd->hash_flags);
@@ -1529,7 +1534,6 @@ static int s5p_hash_shash_digest(struct crypto_shash *tfm, u32 flags,
 	SHASH_DESC_ON_STACK(shash, tfm);
 
 	shash->tfm = tfm;
-	shash->flags = flags & ~CRYPTO_TFM_REQ_MAY_SLEEP;
 
 	return crypto_shash_digest(shash, data, len, out);
 }
@@ -1720,7 +1724,7 @@ static void s5p_hash_cra_exit(struct crypto_tfm *tfm)
  */
 static int s5p_hash_export(struct ahash_request *req, void *out)
 {
-	struct s5p_hash_reqctx *ctx = ahash_request_ctx(req);
+	const struct s5p_hash_reqctx *ctx = ahash_request_ctx(req);
 
 	memcpy(out, ctx, sizeof(*ctx) + ctx->bufcnt);
 
@@ -1766,8 +1770,7 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 		.cra_name		= "sha1",
 		.cra_driver_name	= "exynos-sha1",
 		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-					  CRYPTO_ALG_KERN_DRIVER_ONLY |
+		.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 					  CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
@@ -1792,8 +1795,7 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 		.cra_name		= "md5",
 		.cra_driver_name	= "exynos-md5",
 		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-					  CRYPTO_ALG_KERN_DRIVER_ONLY |
+		.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 					  CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
@@ -1818,8 +1820,7 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 		.cra_name		= "sha256",
 		.cra_driver_name	= "exynos-sha256",
 		.cra_priority		= 100,
-		.cra_flags		= CRYPTO_ALG_TYPE_AHASH |
-					  CRYPTO_ALG_KERN_DRIVER_ONLY |
+		.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 					  CRYPTO_ALG_ASYNC |
 					  CRYPTO_ALG_NEED_FALLBACK,
 		.cra_blocksize		= HASH_BLOCK_SIZE,
@@ -1834,12 +1835,18 @@ static struct ahash_alg algs_sha1_md5_sha256[] = {
 };
 
 static void s5p_set_aes(struct s5p_aes_dev *dev,
-			uint8_t *key, uint8_t *iv, unsigned int keylen)
+			const u8 *key, const u8 *iv, const u8 *ctr,
+			unsigned int keylen)
 {
 	void __iomem *keystart;
 
 	if (iv)
-		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv, 0x10);
+		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_IV_DATA(0), iv,
+			    AES_BLOCK_SIZE);
+
+	if (ctr)
+		memcpy_toio(dev->aes_ioaddr + SSS_REG_AES_CNT_DATA(0), ctr,
+			    AES_BLOCK_SIZE);
 
 	if (keylen == AES_KEYSIZE_256)
 		keystart = dev->aes_ioaddr + SSS_REG_AES_KEY_DATA(0);
@@ -1890,7 +1897,7 @@ static int s5p_set_indata_start(struct s5p_aes_dev *dev,
 }
 
 static int s5p_set_outdata_start(struct s5p_aes_dev *dev,
-				struct ablkcipher_request *req)
+				 struct ablkcipher_request *req)
 {
 	struct scatterlist *sg;
 	int err;
@@ -1919,18 +1926,28 @@ static int s5p_set_outdata_start(struct s5p_aes_dev *dev,
 static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
 {
 	struct ablkcipher_request *req = dev->req;
-	uint32_t aes_control;
+	u32 aes_control;
 	unsigned long flags;
 	int err;
+	u8 *iv, *ctr;
 
+	/* This sets bit [13:12] to 00, which selects 128-bit counter */
 	aes_control = SSS_AES_KEY_CHANGE_MODE;
 	if (mode & FLAGS_AES_DECRYPT)
 		aes_control |= SSS_AES_MODE_DECRYPT;
 
-	if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CBC)
+	if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CBC) {
 		aes_control |= SSS_AES_CHAIN_MODE_CBC;
-	else if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CTR)
+		iv = req->info;
+		ctr = NULL;
+	} else if ((mode & FLAGS_AES_MODE_MASK) == FLAGS_AES_CTR) {
 		aes_control |= SSS_AES_CHAIN_MODE_CTR;
+		iv = NULL;
+		ctr = req->info;
+	} else {
+		iv = NULL; /* AES_ECB */
+		ctr = NULL;
+	}
 
 	if (dev->ctx->keylen == AES_KEYSIZE_192)
 		aes_control |= SSS_AES_KEY_SIZE_192;
@@ -1961,7 +1978,7 @@ static void s5p_aes_crypt_start(struct s5p_aes_dev *dev, unsigned long mode)
 		goto outdata_error;
 
 	SSS_AES_WRITE(dev, AES_CONTROL, aes_control);
-	s5p_set_aes(dev, dev->ctx->aes_key, req->info, dev->ctx->keylen);
+	s5p_set_aes(dev, dev->ctx->aes_key, iv, ctr, dev->ctx->keylen);
 
 	s5p_set_dma_indata(dev,  dev->sg_src);
 	s5p_set_dma_outdata(dev, dev->sg_dst);
@@ -1980,7 +1997,7 @@ indata_error:
 	s5p_sg_done(dev);
 	dev->busy = false;
 	spin_unlock_irqrestore(&dev->lock, flags);
-	s5p_aes_complete(dev, err);
+	s5p_aes_complete(req, err);
 }
 
 static void s5p_tasklet_cb(unsigned long data)
@@ -2021,7 +2038,7 @@ static int s5p_aes_handle_req(struct s5p_aes_dev *dev,
 	err = ablkcipher_enqueue_request(&dev->queue, req);
 	if (dev->busy) {
 		spin_unlock_irqrestore(&dev->lock, flags);
-		goto exit;
+		return err;
 	}
 	dev->busy = true;
 
@@ -2029,7 +2046,6 @@ static int s5p_aes_handle_req(struct s5p_aes_dev *dev,
 
 	tasklet_schedule(&dev->tasklet);
 
-exit:
 	return err;
 }
 
@@ -2040,8 +2056,12 @@ static int s5p_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 	struct s5p_aes_ctx *ctx = crypto_ablkcipher_ctx(tfm);
 	struct s5p_aes_dev *dev = ctx->dev;
 
-	if (!IS_ALIGNED(req->nbytes, AES_BLOCK_SIZE)) {
-		dev_err(dev->dev, "request size is not exact amount of AES blocks\n");
+	if (!req->nbytes)
+		return 0;
+
+	if (!IS_ALIGNED(req->nbytes, AES_BLOCK_SIZE) &&
+			((mode & FLAGS_AES_MODE_MASK) != FLAGS_AES_CTR)) {
+		dev_dbg(dev->dev, "request size is not exact amount of AES blocks\n");
 		return -EINVAL;
 	}
 
@@ -2051,7 +2071,7 @@ static int s5p_aes_crypt(struct ablkcipher_request *req, unsigned long mode)
 }
 
 static int s5p_aes_setkey(struct crypto_ablkcipher *cipher,
-			  const uint8_t *key, unsigned int keylen)
+			  const u8 *key, unsigned int keylen)
 {
 	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
 	struct s5p_aes_ctx *ctx = crypto_tfm_ctx(tfm);
@@ -2085,6 +2105,11 @@ static int s5p_aes_cbc_encrypt(struct ablkcipher_request *req)
 static int s5p_aes_cbc_decrypt(struct ablkcipher_request *req)
 {
 	return s5p_aes_crypt(req, FLAGS_AES_DECRYPT | FLAGS_AES_CBC);
+}
+
+static int s5p_aes_ctr_crypt(struct ablkcipher_request *req)
+{
+	return s5p_aes_crypt(req, FLAGS_AES_CTR);
 }
 
 static int s5p_aes_cra_init(struct crypto_tfm *tfm)
@@ -2141,13 +2166,35 @@ static struct crypto_alg algs[] = {
 			.decrypt	= s5p_aes_cbc_decrypt,
 		}
 	},
+	{
+		.cra_name		= "ctr(aes)",
+		.cra_driver_name	= "ctr-aes-s5p",
+		.cra_priority		= 100,
+		.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER |
+					  CRYPTO_ALG_ASYNC |
+					  CRYPTO_ALG_KERN_DRIVER_ONLY,
+		.cra_blocksize		= 1,
+		.cra_ctxsize		= sizeof(struct s5p_aes_ctx),
+		.cra_alignmask		= 0x0f,
+		.cra_type		= &crypto_ablkcipher_type,
+		.cra_module		= THIS_MODULE,
+		.cra_init		= s5p_aes_cra_init,
+		.cra_u.ablkcipher = {
+			.min_keysize	= AES_MIN_KEY_SIZE,
+			.max_keysize	= AES_MAX_KEY_SIZE,
+			.ivsize		= AES_BLOCK_SIZE,
+			.setkey		= s5p_aes_setkey,
+			.encrypt	= s5p_aes_ctr_crypt,
+			.decrypt	= s5p_aes_ctr_crypt,
+		}
+	},
 };
 
 static int s5p_aes_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int i, j, err = -ENODEV;
-	struct samsung_aes_variant *variant;
+	const struct samsung_aes_variant *variant;
 	struct s5p_aes_dev *pdata;
 	struct resource *res;
 	unsigned int hash_i;
@@ -2188,16 +2235,37 @@ static int s5p_aes_probe(struct platform_device *pdev)
 			return PTR_ERR(pdata->ioaddr);
 	}
 
-	pdata->clk = devm_clk_get(dev, "secss");
+	pdata->clk = devm_clk_get(dev, variant->clk_names[0]);
 	if (IS_ERR(pdata->clk)) {
-		dev_err(dev, "failed to find secss clock source\n");
+		dev_err(dev, "failed to find secss clock %s\n",
+			variant->clk_names[0]);
 		return -ENOENT;
 	}
 
 	err = clk_prepare_enable(pdata->clk);
 	if (err < 0) {
-		dev_err(dev, "Enabling SSS clk failed, err %d\n", err);
+		dev_err(dev, "Enabling clock %s failed, err %d\n",
+			variant->clk_names[0], err);
 		return err;
+	}
+
+	if (variant->clk_names[1]) {
+		pdata->pclk = devm_clk_get(dev, variant->clk_names[1]);
+		if (IS_ERR(pdata->pclk)) {
+			dev_err(dev, "failed to find clock %s\n",
+				variant->clk_names[1]);
+			err = -ENOENT;
+			goto err_clk;
+		}
+
+		err = clk_prepare_enable(pdata->pclk);
+		if (err < 0) {
+			dev_err(dev, "Enabling clock %s failed, err %d\n",
+				variant->clk_names[0], err);
+			goto err_clk;
+		}
+	} else {
+		pdata->pclk = NULL;
 	}
 
 	spin_lock_init(&pdata->lock);
@@ -2275,8 +2343,11 @@ err_algs:
 	tasklet_kill(&pdata->tasklet);
 
 err_irq:
-	clk_disable_unprepare(pdata->clk);
+	if (pdata->pclk)
+		clk_disable_unprepare(pdata->pclk);
 
+err_clk:
+	clk_disable_unprepare(pdata->clk);
 	s5p_dev = NULL;
 
 	return err;
@@ -2302,6 +2373,9 @@ static int s5p_aes_remove(struct platform_device *pdev)
 		tasklet_kill(&pdata->hash_tasklet);
 		pdata->use_hash = false;
 	}
+
+	if (pdata->pclk)
+		clk_disable_unprepare(pdata->pclk);
 
 	clk_disable_unprepare(pdata->clk);
 	s5p_dev = NULL;

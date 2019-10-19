@@ -1,10 +1,10 @@
-/*
- * Freescale MPC5200 PSC DMA
- * ALSA SoC Platform driver
- *
- * Copyright (C) 2008 Secret Lab Technologies Ltd.
- * Copyright (C) 2009 Jon Smirl, Digispeaker
- */
+// SPDX-License-Identifier: GPL-2.0-only
+//
+// Freescale MPC5200 PSC DMA
+// ALSA SoC Platform driver
+//
+// Copyright (C) 2008 Secret Lab Technologies Ltd.
+// Copyright (C) 2009 Jon Smirl, Digispeaker
 
 #include <linux/module.h>
 #include <linux/of_device.h>
@@ -21,6 +21,8 @@
 #include <asm/mpc52xx_psc.h>
 
 #include "mpc5200_dma.h"
+
+#define DRV_NAME "mpc5200_dma"
 
 /*
  * Interrupt handlers
@@ -300,12 +302,13 @@ static const struct snd_pcm_ops psc_dma_ops = {
 static int psc_dma_new(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_card *card = rtd->card->snd_card;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_soc_dai *dai = rtd->cpu_dai;
 	struct snd_pcm *pcm = rtd->pcm;
 	size_t size = psc_dma_hardware.buffer_bytes_max;
 	int rc;
 
-	dev_dbg(rtd->platform->dev, "psc_dma_new(card=%p, dai=%p, pcm=%p)\n",
+	dev_dbg(component->dev, "psc_dma_new(card=%p, dai=%p, pcm=%p)\n",
 		card, dai, pcm);
 
 	rc = dma_coerce_mask_and_coherent(card->dev, DMA_BIT_MASK(32));
@@ -341,10 +344,11 @@ static int psc_dma_new(struct snd_soc_pcm_runtime *rtd)
 static void psc_dma_free(struct snd_pcm *pcm)
 {
 	struct snd_soc_pcm_runtime *rtd = pcm->private_data;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_pcm_substream *substream;
 	int stream;
 
-	dev_dbg(rtd->platform->dev, "psc_dma_free(pcm=%p)\n", pcm);
+	dev_dbg(component->dev, "psc_dma_free(pcm=%p)\n", pcm);
 
 	for (stream = 0; stream < 2; stream++) {
 		substream = pcm->streams[stream].substream;
@@ -356,7 +360,8 @@ static void psc_dma_free(struct snd_pcm *pcm)
 	}
 }
 
-static const struct snd_soc_platform_driver mpc5200_audio_dma_platform = {
+static const struct snd_soc_component_driver mpc5200_audio_dma_component = {
+	.name		= DRV_NAME,
 	.ops		= &psc_dma_ops,
 	.pcm_new	= &psc_dma_new,
 	.pcm_free	= &psc_dma_free,
@@ -468,7 +473,8 @@ int mpc5200_audio_dma_create(struct platform_device *op)
 	dev_set_drvdata(&op->dev, psc_dma);
 
 	/* Tell the ASoC OF helpers about it */
-	return snd_soc_register_platform(&op->dev, &mpc5200_audio_dma_platform);
+	return devm_snd_soc_register_component(&op->dev,
+					&mpc5200_audio_dma_component, NULL, 0);
 out_irq:
 	free_irq(psc_dma->irq, psc_dma);
 	free_irq(psc_dma->capture.irq, &psc_dma->capture);
@@ -486,8 +492,6 @@ int mpc5200_audio_dma_destroy(struct platform_device *op)
 	struct psc_dma *psc_dma = dev_get_drvdata(&op->dev);
 
 	dev_dbg(&op->dev, "mpc5200_audio_dma_destroy()\n");
-
-	snd_soc_unregister_platform(&op->dev);
 
 	bcom_gen_bd_rx_release(psc_dma->capture.bcom_task);
 	bcom_gen_bd_tx_release(psc_dma->playback.bcom_task);

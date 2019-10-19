@@ -7,8 +7,15 @@
 
 /* EMU clusters */
 #define NR_CLUSTERS		4
+/* Maximum cores per cluster,
+ * varies based on partname
+ */
 #define AE_CORES_PER_CLUSTER	20
 #define SE_CORES_PER_CLUSTER	16
+
+#define AE_MAX_CORES	(AE_CORES_PER_CLUSTER * NR_CLUSTERS)
+#define SE_MAX_CORES	(SE_CORES_PER_CLUSTER * NR_CLUSTERS)
+#define ZIP_MAX_CORES	5
 
 /* BIST registers */
 #define EMU_BIST_STATUSX(_i)	(0x1402700 + ((_i) * 0x40000))
@@ -33,9 +40,77 @@
 #define EMU_FUSE_MAPX(_i)	(0x1402708 + ((_i) * 0x40000))
 
 /* UCD registers */
+#define UCD_SE_EID_UCODE_BLOCK_NUMX(_i)	(0x12C0000 + ((_i) * 0x1000))
+#define UCD_AE_EID_UCODE_BLOCK_NUMX(_i)	(0x12C0008 + ((_i) * 0x800))
 #define UCD_UCODE_LOAD_BLOCK_NUM	0x12C0010
 #define UCD_UCODE_LOAD_IDX_DATAX(_i)	(0x12C0018 + ((_i) * 0x20))
-#define UCD_SE_EID_UCODE_BLOCK_NUMX(_i)	(0x12C0000 + ((_i) * 0x1000))
+#define UCD_SE_CNTX(_i)			(0x12C0040 + ((_i) * 0x1000))
+#define UCD_AE_CNTX(_i)			(0x12C0048 + ((_i) * 0x800))
+
+/* AQM registers */
+#define AQM_CTL                         0x1300000
+#define AQM_INT                         0x1300008
+#define AQM_DBELL_OVF_LO                0x1300010
+#define AQM_DBELL_OVF_HI                0x1300018
+#define AQM_DBELL_OVF_LO_W1S            0x1300020
+#define AQM_DBELL_OVF_LO_ENA_W1C        0x1300028
+#define AQM_DBELL_OVF_LO_ENA_W1S        0x1300030
+#define AQM_DBELL_OVF_HI_W1S            0x1300038
+#define AQM_DBELL_OVF_HI_ENA_W1C        0x1300040
+#define AQM_DBELL_OVF_HI_ENA_W1S        0x1300048
+#define AQM_DMA_RD_ERR_LO               0x1300050
+#define AQM_DMA_RD_ERR_HI               0x1300058
+#define AQM_DMA_RD_ERR_LO_W1S           0x1300060
+#define AQM_DMA_RD_ERR_LO_ENA_W1C       0x1300068
+#define AQM_DMA_RD_ERR_LO_ENA_W1S       0x1300070
+#define AQM_DMA_RD_ERR_HI_W1S           0x1300078
+#define AQM_DMA_RD_ERR_HI_ENA_W1C       0x1300080
+#define AQM_DMA_RD_ERR_HI_ENA_W1S       0x1300088
+#define AQM_EXEC_NA_LO                  0x1300090
+#define AQM_EXEC_NA_HI                  0x1300098
+#define AQM_EXEC_NA_LO_W1S              0x13000A0
+#define AQM_EXEC_NA_LO_ENA_W1C          0x13000A8
+#define AQM_EXEC_NA_LO_ENA_W1S          0x13000B0
+#define AQM_EXEC_NA_HI_W1S              0x13000B8
+#define AQM_EXEC_NA_HI_ENA_W1C          0x13000C0
+#define AQM_EXEC_NA_HI_ENA_W1S          0x13000C8
+#define AQM_EXEC_ERR_LO                 0x13000D0
+#define AQM_EXEC_ERR_HI                 0x13000D8
+#define AQM_EXEC_ERR_LO_W1S             0x13000E0
+#define AQM_EXEC_ERR_LO_ENA_W1C         0x13000E8
+#define AQM_EXEC_ERR_LO_ENA_W1S         0x13000F0
+#define AQM_EXEC_ERR_HI_W1S             0x13000F8
+#define AQM_EXEC_ERR_HI_ENA_W1C         0x1300100
+#define AQM_EXEC_ERR_HI_ENA_W1S         0x1300108
+#define AQM_ECC_INT                     0x1300110
+#define AQM_ECC_INT_W1S                 0x1300118
+#define AQM_ECC_INT_ENA_W1C             0x1300120
+#define AQM_ECC_INT_ENA_W1S             0x1300128
+#define AQM_ECC_CTL                     0x1300130
+#define AQM_BIST_STATUS                 0x1300138
+#define AQM_CMD_INF_THRX(x)             (0x1300400 + ((x) * 0x8))
+#define AQM_CMD_INFX(x)                 (0x1300800 + ((x) * 0x8))
+#define AQM_GRP_EXECMSK_LOX(x)          (0x1300C00 + ((x) * 0x10))
+#define AQM_GRP_EXECMSK_HIX(x)          (0x1300C08 + ((x) * 0x10))
+#define AQM_ACTIVITY_STAT_LO            0x1300C80
+#define AQM_ACTIVITY_STAT_HI            0x1300C88
+#define AQM_Q_CMD_PROCX(x)              (0x1301000 + ((x) * 0x8))
+#define AQM_PERF_CTL_LO                 0x1301400
+#define AQM_PERF_CTL_HI                 0x1301408
+#define AQM_PERF_CNT                    0x1301410
+
+#define AQMQ_DRBLX(x)                   (0x20000 + ((x) * 0x40000))
+#define AQMQ_QSZX(x)                    (0x20008 + ((x) * 0x40000))
+#define AQMQ_BADRX(x)                   (0x20010 + ((x) * 0x40000))
+#define AQMQ_NXT_CMDX(x)                (0x20018 + ((x) * 0x40000))
+#define AQMQ_CMD_CNTX(x)                (0x20020 + ((x) * 0x40000))
+#define AQMQ_CMP_THRX(x)                (0x20028 + ((x) * 0x40000))
+#define AQMQ_CMP_CNTX(x)                (0x20030 + ((x) * 0x40000))
+#define AQMQ_TIM_LDX(x)                 (0x20038 + ((x) * 0x40000))
+#define AQMQ_TIMERX(x)                  (0x20040 + ((x) * 0x40000))
+#define AQMQ_ENX(x)                     (0x20048 + ((x) * 0x40000))
+#define AQMQ_ACTIVITY_STATX(x)          (0x20050 + ((x) * 0x40000))
+#define AQM_VF_CMP_STATX(x)             (0x28000 + ((x) * 0x40000))
 
 /* NPS core registers */
 #define NPS_CORE_GBL_VFCFG	0x1000000
@@ -47,7 +122,13 @@
 #define NPS_STATS_PKT_DMA_WR_CNT	0x1000190
 
 /* NPS packet registers */
-#define NPS_PKT_INT				0x1040018
+#define NPS_PKT_INT			0x1040018
+#define NPS_PKT_MBOX_INT_LO		0x1040020
+#define NPS_PKT_MBOX_INT_LO_ENA_W1C	0x1040030
+#define NPS_PKT_MBOX_INT_LO_ENA_W1S	0x1040038
+#define NPS_PKT_MBOX_INT_HI		0x1040040
+#define NPS_PKT_MBOX_INT_HI_ENA_W1C	0x1040050
+#define NPS_PKT_MBOX_INT_HI_ENA_W1S	0x1040058
 #define NPS_PKT_IN_RERR_HI		0x1040108
 #define NPS_PKT_IN_RERR_HI_ENA_W1S	0x1040120
 #define NPS_PKT_IN_RERR_LO		0x1040128
@@ -67,6 +148,10 @@
 #define NPS_PKT_SLC_RERR_LO_ENA_W1S	0x1040240
 #define NPS_PKT_SLC_ERR_TYPE		0x1040248
 #define NPS_PKT_SLC_ERR_TYPE_ENA_W1S	0x1040260
+/* Mailbox PF->VF PF Accessible Data registers */
+#define NPS_PKT_MBOX_PF_VF_PFDATAX(_i)	(0x1040800 + ((_i) * 0x8))
+#define NPS_PKT_MBOX_VF_PF_PFDATAX(_i)	(0x1040C00 + ((_i) * 0x8))
+
 #define NPS_PKT_SLC_CTLX(_i)		(0x10000 + ((_i) * 0x40000))
 #define NPS_PKT_SLC_CNTSX(_i)		(0x10008 + ((_i) * 0x40000))
 #define NPS_PKT_SLC_INT_LEVELSX(_i)	(0x10010 + ((_i) * 0x40000))
@@ -111,8 +196,176 @@
 #define LBC_ELM_VF65_128_INT		0x120C000
 #define LBC_ELM_VF65_128_INT_ENA_W1S	0x120F000
 
+#define RST_BOOT	0x10C1600
+#define FUS_DAT1	0x10C1408
+
 /* PEM registers */
 #define PEM0_INT 0x1080428
+
+/**
+ * struct ucd_core_eid_ucode_block_num - Core Eid to Ucode Blk Mapping Registers
+ * @ucode_len: Ucode length identifier 32KB or 64KB
+ * @ucode_blk: Ucode Block Number
+ */
+union ucd_core_eid_ucode_block_num {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_4_63 : 60;
+		u64 ucode_len : 1;
+		u64 ucode_blk : 3;
+#else
+		u64 ucode_blk : 3;
+		u64 ucode_len : 1;
+		u64 raz_4_63 : 60;
+#endif
+	};
+};
+
+/**
+ * struct aqm_grp_execmsk_lo - Available AE engines for the group
+ * @exec_0_to_39: AE engines 0 to 39 status
+ */
+union aqm_grp_execmsk_lo {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_40_63 : 24;
+		u64 exec_0_to_39 : 40;
+#else
+		u64 exec_0_to_39 : 40;
+		u64 raz_40_63 : 24;
+#endif
+	};
+};
+
+/**
+ * struct aqm_grp_execmsk_hi - Available AE engines for the group
+ * @exec_40_to_79: AE engines 40 to 79 status
+ */
+union aqm_grp_execmsk_hi {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_40_63 : 24;
+		u64 exec_40_to_79 : 40;
+#else
+		u64 exec_40_to_79 : 40;
+		u64 raz_40_63 : 24;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_drbl - AQM Queue Doorbell Counter Registers
+ * @dbell_count: Doorbell Counter
+ */
+union aqmq_drbl {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_32_63 : 32;
+		u64 dbell_count : 32;
+#else
+		u64 dbell_count : 32;
+		u64 raz_32_63 : 32;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_qsz - AQM Queue Host Queue Size Registers
+ * @host_queue_size: Size, in numbers of 'aqmq_command_s' command
+ * of the Host Ring.
+ */
+union aqmq_qsz {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_32_63 : 32;
+		u64 host_queue_size : 32;
+#else
+		u64 host_queue_size : 32;
+		u64 raz_32_63 : 32;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_cmp_thr - AQM Queue Commands Completed Threshold Registers
+ * @commands_completed_threshold: Count of 'aqmq_command_s' commands executed
+ * by AE engines for which completion interrupt is asserted.
+ */
+union aqmq_cmp_thr {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_32_63 : 32;
+		u64 commands_completed_threshold : 32;
+#else
+		u64 commands_completed_threshold : 32;
+		u64 raz_32_63 : 32;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_cmp_cnt - AQM Queue Commands Completed Count Registers
+ * @resend: Bit to request completion interrupt Resend.
+ * @completion_status: Command completion status of the ring.
+ * @commands_completed_count: Count of 'aqmq_command_s' commands executed by
+ * AE engines.
+ */
+union aqmq_cmp_cnt {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_34_63 : 30;
+		u64 resend : 1;
+		u64 completion_status : 1;
+		u64 commands_completed_count : 32;
+#else
+		u64 commands_completed_count : 32;
+		u64 completion_status : 1;
+		u64 resend : 1;
+		u64 raz_34_63 : 30;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_en - AQM Queue Enable Registers
+ * @queue_status: 1 = AQMQ is enabled, 0 = AQMQ is disabled
+ */
+union aqmq_en {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_1_63 : 63;
+		u64 queue_enable : 1;
+#else
+		u64 queue_enable : 1;
+		u64 raz_1_63 : 63;
+#endif
+	};
+};
+
+/**
+ * struct aqmq_activity_stat - AQM Queue Activity Status Registers
+ * @queue_active: 1 = AQMQ is active, 0 = AQMQ is quiescent
+ */
+union aqmq_activity_stat {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_1_63 : 63;
+		u64 queue_active : 1;
+#else
+		u64 queue_active : 1;
+		u64 raz_1_63 : 63;
+#endif
+	};
+};
 
 /**
  * struct emu_fuse_map - EMU Fuse Map Registers
@@ -1080,6 +1333,107 @@ union lbc_inval_status {
 		u64 raz3 : 23;
 #endif
 	} s;
+};
+
+/**
+ * struct rst_boot: RST Boot Register
+ * @jtcsrdis: when set, internal CSR access via JTAG TAP controller
+ *   is disabled
+ * @jt_tst_mode: JTAG test mode
+ * @io_supply: I/O power supply setting based on IO_VDD_SELECT pin:
+ *    0x1 = 1.8V
+ *    0x2 = 2.5V
+ *    0x4 = 3.3V
+ *    All other values are reserved
+ * @pnr_mul: clock multiplier
+ * @lboot: last boot cause mask, resets only with PLL_DC_OK
+ * @rboot: determines whether core 0 remains in reset after
+ *    chip cold or warm or soft reset
+ * @rboot_pin: read only access to REMOTE_BOOT pin
+ */
+union rst_boot {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_63 : 1;
+		u64 jtcsrdis : 1;
+		u64 raz_59_61 : 3;
+		u64 jt_tst_mode : 1;
+		u64 raz_40_57 : 18;
+		u64 io_supply : 3;
+		u64 raz_30_36 : 7;
+		u64 pnr_mul : 6;
+		u64 raz_12_23 : 12;
+		u64 lboot : 10;
+		u64 rboot : 1;
+		u64 rboot_pin : 1;
+#else
+		u64 rboot_pin : 1;
+		u64 rboot : 1;
+		u64 lboot : 10;
+		u64 raz_12_23 : 12;
+		u64 pnr_mul : 6;
+		u64 raz_30_36 : 7;
+		u64 io_supply : 3;
+		u64 raz_40_57 : 18;
+		u64 jt_tst_mode : 1;
+		u64 raz_59_61 : 3;
+		u64 jtcsrdis : 1;
+		u64 raz_63 : 1;
+#endif
+	};
+};
+
+/**
+ * struct fus_dat1: Fuse Data 1 Register
+ * @pll_mul: main clock PLL multiplier hardware limit
+ * @pll_half_dis: main clock PLL control
+ * @efus_lck: efuse lockdown
+ * @zip_info: ZIP information
+ * @bar2_sz_conf: when zero, BAR2 size conforms to
+ *    PCIe specification
+ * @efus_ign: efuse ignore
+ * @nozip: ZIP disable
+ * @pll_alt_matrix: select alternate PLL matrix
+ * @pll_bwadj_denom: select CLKF denominator for
+ *    BWADJ value
+ * @chip_id: chip ID
+ */
+union fus_dat1 {
+	u64 value;
+	struct {
+#if (defined(__BIG_ENDIAN_BITFIELD))
+		u64 raz_57_63 : 7;
+		u64 pll_mul : 3;
+		u64 pll_half_dis : 1;
+		u64 raz_43_52 : 10;
+		u64 efus_lck : 3;
+		u64 raz_26_39 : 14;
+		u64 zip_info : 5;
+		u64 bar2_sz_conf : 1;
+		u64 efus_ign : 1;
+		u64 nozip : 1;
+		u64 raz_11_17 : 7;
+		u64 pll_alt_matrix : 1;
+		u64 pll_bwadj_denom : 2;
+		u64 chip_id : 8;
+#else
+		u64 chip_id : 8;
+		u64 pll_bwadj_denom : 2;
+		u64 pll_alt_matrix : 1;
+		u64 raz_11_17 : 7;
+		u64 nozip : 1;
+		u64 efus_ign : 1;
+		u64 bar2_sz_conf : 1;
+		u64 zip_info : 5;
+		u64 raz_26_39 : 14;
+		u64 efus_lck : 3;
+		u64 raz_43_52 : 10;
+		u64 pll_half_dis : 1;
+		u64 pll_mul : 3;
+		u64 raz_57_63 : 7;
+#endif
+	};
 };
 
 #endif /* __NITROX_CSR_H */

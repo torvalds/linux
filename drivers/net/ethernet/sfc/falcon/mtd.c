@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2006-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/module.h>
@@ -24,17 +21,8 @@
 static int ef4_mtd_erase(struct mtd_info *mtd, struct erase_info *erase)
 {
 	struct ef4_nic *efx = mtd->priv;
-	int rc;
 
-	rc = efx->type->mtd_erase(mtd, erase->addr, erase->len);
-	if (rc == 0) {
-		erase->state = MTD_ERASE_DONE;
-	} else {
-		erase->state = MTD_ERASE_FAILED;
-		erase->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
-	}
-	mtd_erase_callback(erase);
-	return rc;
+	return efx->type->mtd_erase(mtd, erase->addr, erase->len);
 }
 
 static void ef4_mtd_sync(struct mtd_info *mtd)

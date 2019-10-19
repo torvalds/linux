@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Scan implementation for ST-Ericsson CW1200 mac80211 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/sched.h>
@@ -78,17 +75,20 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 	if (req->n_ssids > WSM_SCAN_MAX_NUM_OF_SSIDS)
 		return -EINVAL;
 
-	frame.skb = ieee80211_probereq_get(hw, priv->vif->addr, NULL, 0,
-		req->ie_len);
-	if (!frame.skb)
-		return -ENOMEM;
-
-	if (req->ie_len)
-		skb_put_data(frame.skb, req->ie, req->ie_len);
-
 	/* will be unlocked in cw1200_scan_work() */
 	down(&priv->scan.lock);
 	mutex_lock(&priv->conf_mutex);
+
+	frame.skb = ieee80211_probereq_get(hw, priv->vif->addr, NULL, 0,
+		req->ie_len);
+	if (!frame.skb) {
+		mutex_unlock(&priv->conf_mutex);
+		up(&priv->scan.lock);
+		return -ENOMEM;
+	}
+
+	if (req->ie_len)
+		skb_put_data(frame.skb, req->ie, req->ie_len);
 
 	ret = wsm_set_template_frame(priv, &frame);
 	if (!ret) {
@@ -96,9 +96,9 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 		ret = wsm_set_probe_responder(priv, true);
 	}
 	if (ret) {
+		dev_kfree_skb(frame.skb);
 		mutex_unlock(&priv->conf_mutex);
 		up(&priv->scan.lock);
-		dev_kfree_skb(frame.skb);
 		return ret;
 	}
 
@@ -120,10 +120,9 @@ int cw1200_hw_scan(struct ieee80211_hw *hw,
 		++priv->scan.n_ssids;
 	}
 
-	mutex_unlock(&priv->conf_mutex);
-
 	if (frame.skb)
 		dev_kfree_skb(frame.skb);
+	mutex_unlock(&priv->conf_mutex);
 	queue_work(priv->workqueue, &priv->scan.work);
 	return 0;
 }
@@ -230,9 +229,9 @@ void cw1200_scan_work(struct work_struct *work)
 			scan.type = WSM_SCAN_TYPE_BACKGROUND;
 			scan.flags = WSM_SCAN_FLAG_FORCE_BACKGROUND;
 		}
-		scan.ch = kzalloc(
-			sizeof(struct wsm_scan_ch) * (it - priv->scan.curr),
-			GFP_KERNEL);
+		scan.ch = kcalloc(it - priv->scan.curr,
+				  sizeof(struct wsm_scan_ch),
+				  GFP_KERNEL);
 		if (!scan.ch) {
 			priv->scan.status = -ENOMEM;
 			goto fail;

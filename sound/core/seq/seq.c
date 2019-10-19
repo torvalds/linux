@@ -1,22 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  ALSA sequencer main module
  *  Copyright (c) 1998-1999 by Frank van de Pol <fvdpol@coil.demon.nl>
- *
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/init.h>
@@ -84,30 +69,32 @@ static int __init alsa_seq_init(void)
 {
 	int err;
 
-	if ((err = client_init_data()) < 0)
-		goto error;
-
-	/* init memory, room for selected events */
-	if ((err = snd_sequencer_memory_init()) < 0)
-		goto error;
-
-	/* init event queues */
-	if ((err = snd_seq_queues_init()) < 0)
+	err = client_init_data();
+	if (err < 0)
 		goto error;
 
 	/* register sequencer device */
-	if ((err = snd_sequencer_device_init()) < 0)
+	err = snd_sequencer_device_init();
+	if (err < 0)
 		goto error;
 
 	/* register proc interface */
-	if ((err = snd_seq_info_init()) < 0)
-		goto error;
+	err = snd_seq_info_init();
+	if (err < 0)
+		goto error_device;
 
 	/* register our internal client */
-	if ((err = snd_seq_system_client_init()) < 0)
-		goto error;
+	err = snd_seq_system_client_init();
+	if (err < 0)
+		goto error_info;
 
 	snd_seq_autoload_init();
+	return 0;
+
+ error_info:
+	snd_seq_info_done();
+ error_device:
+	snd_sequencer_device_done();
  error:
 	return err;
 }
@@ -125,9 +112,6 @@ static void __exit alsa_seq_exit(void)
 
 	/* unregister sequencer device */
 	snd_sequencer_device_done();
-
-	/* release event memory */
-	snd_sequencer_memory_done();
 
 	snd_seq_autoload_exit();
 }

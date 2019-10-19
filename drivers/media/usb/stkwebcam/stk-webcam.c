@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * stk-webcam.c : Driver for Syntek 1125 USB webcam controller
  *
@@ -6,16 +7,6 @@
  *
  * Some parts are inspired from cafe_ccic.c
  * Copyright 2006-2007 Jonathan Corbet
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -116,6 +107,13 @@ static const struct dmi_system_id stk_upside_down_dmi_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "T12Rg-H")
 		}
 	},
+	{
+		.ident = "ASUS A6VM",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "A6VM")
+		}
+	},
 	{}
 };
 
@@ -164,7 +162,11 @@ int stk_camera_read_reg(struct stk_camera *dev, u16 index, u8 *value)
 		*value = *buf;
 
 	kfree(buf);
-	return ret;
+
+	if (ret < 0)
+		return ret;
+	else
+		return 0;
 }
 
 static int stk_start_stream(struct stk_camera *dev)
@@ -567,8 +569,9 @@ static int stk_prepare_sio_buffers(struct stk_camera *dev, unsigned n_sbufs)
 	if (dev->sio_bufs != NULL)
 		pr_err("sio_bufs already allocated\n");
 	else {
-		dev->sio_bufs = kzalloc(n_sbufs * sizeof(struct stk_sio_buffer),
-				GFP_KERNEL);
+		dev->sio_bufs = kcalloc(n_sbufs,
+					sizeof(struct stk_sio_buffer),
+					GFP_KERNEL);
 		if (dev->sio_bufs == NULL)
 			return -ENOMEM;
 		for (i = 0; i < n_sbufs; i++) {
@@ -640,8 +643,7 @@ static int v4l_stk_release(struct file *fp)
 		dev->owner = NULL;
 	}
 
-	if (is_present(dev))
-		usb_autopm_put_interface(dev->interface);
+	usb_autopm_put_interface(dev->interface);
 	mutex_unlock(&dev->lock);
 	return v4l2_fh_release(fp);
 }
@@ -792,13 +794,9 @@ static int stk_vidioc_querycap(struct file *filp,
 {
 	struct stk_camera *dev = video_drvdata(filp);
 
-	strcpy(cap->driver, "stk");
-	strcpy(cap->card, "stk");
+	strscpy(cap->driver, "stk", sizeof(cap->driver));
+	strscpy(cap->card, "stk", sizeof(cap->card));
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE
-		| V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -808,7 +806,7 @@ static int stk_vidioc_enum_input(struct file *filp,
 	if (input->index != 0)
 		return -EINVAL;
 
-	strcpy(input->name, "Syntek USB Camera");
+	strscpy(input->name, "Syntek USB Camera", sizeof(input->name));
 	input->type = V4L2_INPUT_TYPE_CAMERA;
 	return 0;
 }
@@ -858,23 +856,18 @@ static int stk_vidioc_enum_fmt_vid_cap(struct file *filp,
 	switch (fmtd->index) {
 	case 0:
 		fmtd->pixelformat = V4L2_PIX_FMT_RGB565;
-		strcpy(fmtd->description, "r5g6b5");
 		break;
 	case 1:
 		fmtd->pixelformat = V4L2_PIX_FMT_RGB565X;
-		strcpy(fmtd->description, "r5g6b5BE");
 		break;
 	case 2:
 		fmtd->pixelformat = V4L2_PIX_FMT_UYVY;
-		strcpy(fmtd->description, "yuv4:2:2");
 		break;
 	case 3:
 		fmtd->pixelformat = V4L2_PIX_FMT_SBGGR8;
-		strcpy(fmtd->description, "Raw bayer");
 		break;
 	case 4:
 		fmtd->pixelformat = V4L2_PIX_FMT_YUYV;
-		strcpy(fmtd->description, "yuv4:2:2");
 		break;
 	default:
 		return -EINVAL;
@@ -994,7 +987,7 @@ static int stk_setup_format(struct stk_camera *dev)
 		stk_camera_write_reg(dev, 0x001c, 0x46);
 	/*
 	 * Registers 0x0115 0x0114 are the size of each line (bytes),
-	 * regs 0x0117 0x0116 are the heigth of the image.
+	 * regs 0x0117 0x0116 are the height of the image.
 	 */
 	stk_camera_write_reg(dev, 0x0115,
 		((stk_sizes[i].w * depth) >> 8) & 0xff);
@@ -1132,7 +1125,7 @@ static int stk_vidioc_dqbuf(struct file *filp,
 	sbuf->v4lbuf.flags &= ~V4L2_BUF_FLAG_QUEUED;
 	sbuf->v4lbuf.flags |= V4L2_BUF_FLAG_DONE;
 	sbuf->v4lbuf.sequence = ++dev->sequence;
-	v4l2_get_timestamp(&sbuf->v4lbuf.timestamp);
+	sbuf->v4lbuf.timestamp = ns_to_timeval(ktime_get_ns());
 
 	*buf = sbuf->v4lbuf;
 	return 0;
@@ -1258,6 +1251,8 @@ static int stk_register_video_device(struct stk_camera *dev)
 	dev->vdev = stk_v4l_data;
 	dev->vdev.lock = &dev->lock;
 	dev->vdev.v4l2_dev = &dev->v4l2_dev;
+	dev->vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				V4L2_CAP_STREAMING;
 	video_set_drvdata(&dev->vdev, dev);
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)

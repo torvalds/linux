@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* net/atm/clip.c - RFC1577 Classical IP over ATM */
 
 /* Written 1995-2000 by Werner Almesberger, EPFL LRC/ICA */
@@ -345,8 +346,8 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 	rt = (struct rtable *) dst;
-	if (rt->rt_gateway)
-		daddr = &rt->rt_gateway;
+	if (rt->rt_gw_family == AF_INET)
+		daddr = &rt->rt_gw4;
 	else
 		daddr = &ip_hdr(skb)->daddr;
 	n = dst_neigh_lookup(dst, daddr);
@@ -381,8 +382,7 @@ static netdev_tx_t clip_start_xmit(struct sk_buff *skb,
 		memcpy(here, llc_oui, sizeof(llc_oui));
 		((__be16 *) here)[3] = skb->protocol;
 	}
-	refcount_add(skb->truesize, &sk_atm(vcc)->sk_wmem_alloc);
-	ATM_SKB(skb)->atm_options = vcc->atm_options;
+	atm_account_tx(vcc, skb);
 	entry->vccs->last_use = jiffies;
 	pr_debug("atm_skb(%p)->vcc(%p)->dev(%p)\n", skb, vcc, vcc->dev);
 	old = xchg(&entry->vccs->xoff, 1);	/* assume XOFF ... */
@@ -863,20 +863,6 @@ static const struct seq_operations arp_seq_ops = {
 	.stop	= neigh_seq_stop,
 	.show	= clip_seq_show,
 };
-
-static int arp_seq_open(struct inode *inode, struct file *file)
-{
-	return seq_open_net(inode, file, &arp_seq_ops,
-			    sizeof(struct clip_seq_state));
-}
-
-static const struct file_operations arp_seq_fops = {
-	.open		= arp_seq_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release_net,
-	.owner		= THIS_MODULE
-};
 #endif
 
 static void atm_clip_exit_noproc(void);
@@ -893,7 +879,8 @@ static int __init atm_clip_init(void)
 	{
 		struct proc_dir_entry *p;
 
-		p = proc_create("arp", S_IRUGO, atm_proc_root, &arp_seq_fops);
+		p = proc_create_net("arp", 0444, atm_proc_root, &arp_seq_ops,
+				sizeof(struct clip_seq_state));
 		if (!p) {
 			pr_err("Unable to initialize /proc/net/atm/arp\n");
 			atm_clip_exit_noproc();

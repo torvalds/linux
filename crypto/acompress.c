@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Asynchronous Compression operations
  *
  * Copyright (c) 2016, Intel Corporation
  * Authors: Weigang Li <weigang.li@intel.com>
  *          Giovanni Cabiddu <giovanni.cabiddu@intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 #include <linux/errno.h>
 #include <linux/kernel.h>
@@ -33,15 +28,11 @@ static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)
 {
 	struct crypto_report_acomp racomp;
 
-	strncpy(racomp.type, "acomp", sizeof(racomp.type));
+	memset(&racomp, 0, sizeof(racomp));
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_ACOMP,
-		    sizeof(struct crypto_report_acomp), &racomp))
-		goto nla_put_failure;
-	return 0;
+	strscpy(racomp.type, "acomp", sizeof(racomp.type));
 
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_ACOMP, sizeof(racomp), &racomp);
 }
 #else
 static int crypto_acomp_report(struct sk_buff *skb, struct crypto_alg *alg)

@@ -173,14 +173,18 @@
 		they are redirected through the parport multiplex layer.
 
    7 char	Virtual console capture devices
-		  0 = /dev/vcs		Current vc text contents
-		  1 = /dev/vcs1		tty1 text contents
+		  0 = /dev/vcs		Current vc text (glyph) contents
+		  1 = /dev/vcs1		tty1 text (glyph) contents
 		    ...
-		 63 = /dev/vcs63	tty63 text contents
-		128 = /dev/vcsa		Current vc text/attribute contents
-		129 = /dev/vcsa1	tty1 text/attribute contents
+		 63 = /dev/vcs63	tty63 text (glyph) contents
+		 64 = /dev/vcsu		Current vc text (unicode) contents
+		65 = /dev/vcsu1		tty1 text (unicode) contents
 		    ...
-		191 = /dev/vcsa63	tty63 text/attribute contents
+		127 = /dev/vcsu63	tty63 text (unicode) contents
+		128 = /dev/vcsa		Current vc text/attribute (glyph) contents
+		129 = /dev/vcsa1	tty1 text/attribute (glyph) contents
+		    ...
+		191 = /dev/vcsa63	tty63 text/attribute (glyph) contents
 
 		NOTE: These devices permit both read and write access.
 
@@ -1643,8 +1647,17 @@
 		  0 = /dev/comedi0	First comedi device
 		  1 = /dev/comedi1	Second comedi device
 		    ...
+		 47 = /dev/comedi47	48th comedi device
 
-		See http://stm.lbl.gov/comedi.
+		Minors 48 to 255 are reserved for comedi subdevices with
+		pathnames of the form "/dev/comediX_subdY", where "X" is the
+		minor number of the associated comedi device and "Y" is the
+		subdevice number.  These subdevice minors are assigned
+		dynamically, so there is no fixed mapping from subdevice
+		pathnames to minor numbers.
+
+		See http://www.comedi.org/ for information about the Comedi
+		project.
 
   98 block	User-mode virtual block device
 		  0 = /dev/ubda		First user-mode block device
@@ -2689,8 +2702,8 @@
 		 41 = /dev/ttySMX0		Motorola i.MX - port 0
 		 42 = /dev/ttySMX1		Motorola i.MX - port 1
 		 43 = /dev/ttySMX2		Motorola i.MX - port 2
-		 44 = /dev/ttyMM0		Marvell MPSC - port 0
-		 45 = /dev/ttyMM1		Marvell MPSC - port 1
+		 44 = /dev/ttyMM0		Marvell MPSC - port 0 (obsolete unused)
+		 45 = /dev/ttyMM1		Marvell MPSC - port 1 (obsolete unused)
 		 46 = /dev/ttyCPM0		PPC CPM (SCC or SMC) - port 0
 		    ...
 		 47 = /dev/ttyCPM5		PPC CPM (SCC or SMC) - port 5

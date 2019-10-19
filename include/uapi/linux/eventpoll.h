@@ -42,7 +42,7 @@
 #define EPOLLRDHUP	(__force __poll_t)0x00002000
 
 /* Set exclusive wakeup mode for the target file descriptor */
-#define EPOLLEXCLUSIVE (__force __poll_t)(1U << 28)
+#define EPOLLEXCLUSIVE	((__force __poll_t)(1U << 28))
 
 /*
  * Request the handling of system wakeup events so as to prevent system suspends
@@ -54,13 +54,13 @@
  *
  * Requires CAP_BLOCK_SUSPEND
  */
-#define EPOLLWAKEUP (__force __poll_t)(1U << 29)
+#define EPOLLWAKEUP	((__force __poll_t)(1U << 29))
 
 /* Set the One Shot behaviour for the target file descriptor */
-#define EPOLLONESHOT (__force __poll_t)(1U << 30)
+#define EPOLLONESHOT	((__force __poll_t)(1U << 30))
 
 /* Set the Edge Triggered behaviour for the target file descriptor */
-#define EPOLLET (__force __poll_t)(1U << 31)
+#define EPOLLET		((__force __poll_t)(1U << 31))
 
 /* 
  * On x86-64 make the 64bit structure have the same alignment as the

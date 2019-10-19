@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Split from entry_32.S
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/magic.h>
@@ -14,7 +10,6 @@
 #include <asm/ftrace.h>
 #include <asm/export.h>
 
-#ifdef CONFIG_DYNAMIC_FTRACE
 _GLOBAL(mcount)
 _GLOBAL(_mcount)
 	/*
@@ -47,26 +42,7 @@ _GLOBAL(ftrace_graph_stub)
 	MCOUNT_RESTORE_FRAME
 	/* old link register ends up in ctr reg */
 	bctr
-#else
-_GLOBAL(mcount)
-_GLOBAL(_mcount)
 
-	MCOUNT_SAVE_FRAME
-
-	subi	r3, r3, MCOUNT_INSN_SIZE
-	LOAD_REG_ADDR(r5, ftrace_trace_function)
-	lwz	r5,0(r5)
-
-	mtctr	r5
-	bctrl
-	nop
-
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	b	ftrace_graph_caller
-#endif
-	MCOUNT_RESTORE_FRAME
-	bctr
-#endif
 EXPORT_SYMBOL(_mcount)
 
 _GLOBAL(ftrace_stub)
@@ -74,6 +50,7 @@ _GLOBAL(ftrace_stub)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 _GLOBAL(ftrace_graph_caller)
+	addi	r5, r1, 48
 	/* load r4 with local address */
 	lwz	r4, 44(r1)
 	subi	r4, r4, MCOUNT_INSN_SIZE

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _control:
 
@@ -288,7 +295,7 @@ Control IDs
     Sets the alpha color component. When a capture device (or capture
     queue of a mem-to-mem device) produces a frame format that includes
     an alpha component (e.g.
-    :ref:`packed RGB image formats <rgb-formats>`) and the alpha value
+    :ref:`packed RGB image formats <pixfmt-rgb>`) and the alpha value
     is not defined by the device or the mem-to-mem input data this
     control lets you select the alpha component value of all pixels.
     When an output device (or output queue of a mem-to-mem device)
@@ -492,7 +499,7 @@ Example: Changing controls
 .. [#f1]
    The use of ``V4L2_CID_PRIVATE_BASE`` is problematic because different
    drivers may use the same ``V4L2_CID_PRIVATE_BASE`` ID for different
-   controls. This makes it hard to programatically set such controls
+   controls. This makes it hard to programmatically set such controls
    since the meaning of the control with that ID is driver dependent. In
    order to resolve this drivers use unique IDs and the
    ``V4L2_CID_PRIVATE_BASE`` IDs are mapped to those unique IDs by the

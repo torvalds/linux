@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isabelle.c - Low power high fidelity audio codec driver
  *
  * Copyright (c) 2012 Texas Instruments, Inc
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- *
  * Initially based on sound/soc/codecs/twl6040.c
- *
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -867,7 +862,7 @@ static const struct snd_soc_dapm_route isabelle_intercon[] = {
 
 static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute)
 {
-	snd_soc_update_bits(dai->codec, ISABELLE_DAC1_SOFTRAMP_REG,
+	snd_soc_component_update_bits(dai->component, ISABELLE_DAC1_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
 
 	return 0;
@@ -875,7 +870,7 @@ static int isabelle_hs_mute(struct snd_soc_dai *dai, int mute)
 
 static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute)
 {
-	snd_soc_update_bits(dai->codec, ISABELLE_DAC2_SOFTRAMP_REG,
+	snd_soc_component_update_bits(dai->component, ISABELLE_DAC2_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
 
 	return 0;
@@ -883,13 +878,13 @@ static int isabelle_hf_mute(struct snd_soc_dai *dai, int mute)
 
 static int isabelle_line_mute(struct snd_soc_dai *dai, int mute)
 {
-	snd_soc_update_bits(dai->codec, ISABELLE_DAC3_SOFTRAMP_REG,
+	snd_soc_component_update_bits(dai->component, ISABELLE_DAC3_SOFTRAMP_REG,
 			BIT(4), (mute ? BIT(4) : 0));
 
 	return 0;
 }
 
-static int isabelle_set_bias_level(struct snd_soc_codec *codec,
+static int isabelle_set_bias_level(struct snd_soc_component *component,
 				enum snd_soc_bias_level level)
 {
 	switch (level) {
@@ -899,12 +894,12 @@ static int isabelle_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_STANDBY:
-		snd_soc_update_bits(codec, ISABELLE_PWR_EN_REG,
+		snd_soc_component_update_bits(component, ISABELLE_PWR_EN_REG,
 				ISABELLE_CHIP_EN, BIT(0));
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		snd_soc_update_bits(codec, ISABELLE_PWR_EN_REG,
+		snd_soc_component_update_bits(component, ISABELLE_PWR_EN_REG,
 				ISABELLE_CHIP_EN, 0);
 		break;
 	}
@@ -916,7 +911,7 @@ static int isabelle_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params,
 			      struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	u16 aif = 0;
 	unsigned int fs_val = 0;
 
@@ -952,7 +947,7 @@ static int isabelle_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, ISABELLE_FS_RATE_CFG_REG,
+	snd_soc_component_update_bits(component, ISABELLE_FS_RATE_CFG_REG,
 			ISABELLE_FS_RATE_MASK, fs_val);
 
 	/* bit size */
@@ -967,7 +962,7 @@ static int isabelle_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, ISABELLE_INTF_CFG_REG,
+	snd_soc_component_update_bits(component, ISABELLE_INTF_CFG_REG,
 			ISABELLE_AIF_LENGTH_MASK, aif);
 
 	return 0;
@@ -975,7 +970,7 @@ static int isabelle_hw_params(struct snd_pcm_substream *substream,
 
 static int isabelle_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 	unsigned int aif_val = 0;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1003,7 +998,7 @@ static int isabelle_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, ISABELLE_INTF_CFG_REG,
+	snd_soc_component_update_bits(component, ISABELLE_INTF_CFG_REG,
 			(ISABELLE_AIF_MS | ISABELLE_AIF_FMT_MASK), aif_val);
 
 	return 0;
@@ -1087,17 +1082,17 @@ static struct snd_soc_dai_driver isabelle_dai[] = {
 	},
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_isabelle = {
-	.set_bias_level = isabelle_set_bias_level,
-	.component_driver = {
-		.controls		= isabelle_snd_controls,
-		.num_controls		= ARRAY_SIZE(isabelle_snd_controls),
-		.dapm_widgets		= isabelle_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(isabelle_dapm_widgets),
-		.dapm_routes		= isabelle_intercon,
-		.num_dapm_routes	= ARRAY_SIZE(isabelle_intercon),
-	},
-	.idle_bias_off = true,
+static const struct snd_soc_component_driver soc_component_dev_isabelle = {
+	.set_bias_level		= isabelle_set_bias_level,
+	.controls		= isabelle_snd_controls,
+	.num_controls		= ARRAY_SIZE(isabelle_snd_controls),
+	.dapm_widgets		= isabelle_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(isabelle_dapm_widgets),
+	.dapm_routes		= isabelle_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(isabelle_intercon),
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config isabelle_regmap_config = {
@@ -1125,21 +1120,15 @@ static int isabelle_i2c_probe(struct i2c_client *i2c,
 	}
 	i2c_set_clientdata(i2c, isabelle_regmap);
 
-	ret =  snd_soc_register_codec(&i2c->dev,
-				&soc_codec_dev_isabelle, isabelle_dai,
+	ret = devm_snd_soc_register_component(&i2c->dev,
+				&soc_component_dev_isabelle, isabelle_dai,
 				ARRAY_SIZE(isabelle_dai));
 	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
+		dev_err(&i2c->dev, "Failed to register component: %d\n", ret);
 		return ret;
 	}
 
 	return ret;
-}
-
-static int isabelle_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id isabelle_i2c_id[] = {
@@ -1153,7 +1142,6 @@ static struct i2c_driver isabelle_i2c_driver = {
 		.name = "isabelle",
 	},
 	.probe = isabelle_i2c_probe,
-	.remove = isabelle_i2c_remove,
 	.id_table = isabelle_i2c_id,
 };
 

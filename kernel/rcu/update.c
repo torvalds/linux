@@ -1,26 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Read-Copy Update mechanism for mutual exclusion
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, you can access it online at
- * http://www.gnu.org/licenses/gpl-2.0.html.
  *
  * Copyright IBM Corporation, 2001
  *
  * Authors: Dipankar Sarma <dipankar@in.ibm.com>
  *	    Manfred Spraul <manfred@colorfullife.com>
  *
- * Based on the original work by Paul McKenney <paulmck@us.ibm.com>
+ * Based on the original work by Paul McKenney <paulmck@linux.ibm.com>
  * and inputs from Rusty Russell, Andrea Arcangeli and Andi Kleen.
  * Papers:
  * http://www.rdrop.com/users/paulmck/paper/rclockpdcsproof.pdf
@@ -52,6 +39,7 @@
 #include <linux/tick.h>
 #include <linux/rcupdate_wait.h>
 #include <linux/sched/isolation.h>
+#include <linux/kprobes.h>
 
 #define CREATE_TRACE_POINTS
 
@@ -73,9 +61,15 @@ module_param(rcu_normal_after_boot, int, 0);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 /**
- * rcu_read_lock_sched_held() - might we be in RCU-sched read-side critical section?
+ * rcu_read_lock_held_common() - might we be in RCU-sched read-side critical section?
+ * @ret:	Best guess answer if lockdep cannot be relied on
  *
- * If CONFIG_DEBUG_LOCK_ALLOC is selected, returns nonzero iff in an
+ * Returns true if lockdep must be ignored, in which case *ret contains
+ * the best guess described below.  Otherwise returns false, in which
+ * case *ret tells the caller nothing and the caller should instead
+ * consult lockdep.
+ *
+ * If CONFIG_DEBUG_LOCK_ALLOC is selected, set *ret to nonzero iff in an
  * RCU-sched read-side critical section.  In absence of
  * CONFIG_DEBUG_LOCK_ALLOC, this assumes we are in an RCU-sched read-side
  * critical section unless it can prove otherwise.  Note that disabling
@@ -87,35 +81,45 @@ module_param(rcu_normal_after_boot, int, 0);
  * Check debug_lockdep_rcu_enabled() to prevent false positives during boot
  * and while lockdep is disabled.
  *
- * Note that if the CPU is in the idle loop from an RCU point of
- * view (ie: that we are in the section between rcu_idle_enter() and
- * rcu_idle_exit()) then rcu_read_lock_held() returns false even if the CPU
- * did an rcu_read_lock().  The reason for this is that RCU ignores CPUs
- * that are in such a section, considering these as in extended quiescent
- * state, so such a CPU is effectively never in an RCU read-side critical
- * section regardless of what RCU primitives it invokes.  This state of
- * affairs is required --- we need to keep an RCU-free window in idle
- * where the CPU may possibly enter into low power mode. This way we can
- * notice an extended quiescent state to other CPUs that started a grace
- * period. Otherwise we would delay any grace period as long as we run in
- * the idle task.
+ * Note that if the CPU is in the idle loop from an RCU point of view (ie:
+ * that we are in the section between rcu_idle_enter() and rcu_idle_exit())
+ * then rcu_read_lock_held() sets *ret to false even if the CPU did an
+ * rcu_read_lock().  The reason for this is that RCU ignores CPUs that are
+ * in such a section, considering these as in extended quiescent state,
+ * so such a CPU is effectively never in an RCU read-side critical section
+ * regardless of what RCU primitives it invokes.  This state of affairs is
+ * required --- we need to keep an RCU-free window in idle where the CPU may
+ * possibly enter into low power mode. This way we can notice an extended
+ * quiescent state to other CPUs that started a grace period. Otherwise
+ * we would delay any grace period as long as we run in the idle task.
  *
- * Similarly, we avoid claiming an SRCU read lock held if the current
+ * Similarly, we avoid claiming an RCU read lock held if the current
  * CPU is offline.
  */
+static bool rcu_read_lock_held_common(bool *ret)
+{
+	if (!debug_lockdep_rcu_enabled()) {
+		*ret = 1;
+		return true;
+	}
+	if (!rcu_is_watching()) {
+		*ret = 0;
+		return true;
+	}
+	if (!rcu_lockdep_current_cpu_online()) {
+		*ret = 0;
+		return true;
+	}
+	return false;
+}
+
 int rcu_read_lock_sched_held(void)
 {
-	int lockdep_opinion = 0;
+	bool ret;
 
-	if (!debug_lockdep_rcu_enabled())
-		return 1;
-	if (!rcu_is_watching())
-		return 0;
-	if (!rcu_lockdep_current_cpu_online())
-		return 0;
-	if (debug_locks)
-		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
-	return lockdep_opinion || !preemptible();
+	if (rcu_read_lock_held_common(&ret))
+		return ret;
+	return lock_is_held(&rcu_sched_lock_map) || !preemptible();
 }
 EXPORT_SYMBOL(rcu_read_lock_sched_held);
 #endif
@@ -148,8 +152,7 @@ static atomic_t rcu_expedited_nesting = ATOMIC_INIT(1);
  */
 bool rcu_gp_is_expedited(void)
 {
-	return rcu_expedited || atomic_read(&rcu_expedited_nesting) ||
-	       rcu_scheduler_active == RCU_SCHEDULER_INIT;
+	return rcu_expedited || atomic_read(&rcu_expedited_nesting);
 }
 EXPORT_SYMBOL_GPL(rcu_gp_is_expedited);
 
@@ -203,11 +206,7 @@ void rcu_test_sync_prims(void)
 	if (!IS_ENABLED(CONFIG_PROVE_RCU))
 		return;
 	synchronize_rcu();
-	synchronize_rcu_bh();
-	synchronize_sched();
 	synchronize_rcu_expedited();
-	synchronize_rcu_bh_expedited();
-	synchronize_sched_expedited();
 }
 
 #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU)
@@ -225,54 +224,6 @@ static int __init rcu_set_runtime_mode(void)
 core_initcall(rcu_set_runtime_mode);
 
 #endif /* #if !defined(CONFIG_TINY_RCU) || defined(CONFIG_SRCU) */
-
-#ifdef CONFIG_PREEMPT_RCU
-
-/*
- * Preemptible RCU implementation for rcu_read_lock().
- * Just increment ->rcu_read_lock_nesting, shared state will be updated
- * if we block.
- */
-void __rcu_read_lock(void)
-{
-	current->rcu_read_lock_nesting++;
-	barrier();  /* critical section after entry code. */
-}
-EXPORT_SYMBOL_GPL(__rcu_read_lock);
-
-/*
- * Preemptible RCU implementation for rcu_read_unlock().
- * Decrement ->rcu_read_lock_nesting.  If the result is zero (outermost
- * rcu_read_unlock()) and ->rcu_read_unlock_special is non-zero, then
- * invoke rcu_read_unlock_special() to clean up after a context switch
- * in an RCU read-side critical section and other special cases.
- */
-void __rcu_read_unlock(void)
-{
-	struct task_struct *t = current;
-
-	if (t->rcu_read_lock_nesting != 1) {
-		--t->rcu_read_lock_nesting;
-	} else {
-		barrier();  /* critical section before exit code. */
-		t->rcu_read_lock_nesting = INT_MIN;
-		barrier();  /* assign before ->rcu_read_unlock_special load */
-		if (unlikely(READ_ONCE(t->rcu_read_unlock_special.s)))
-			rcu_read_unlock_special(t);
-		barrier();  /* ->rcu_read_unlock_special load before assign */
-		t->rcu_read_lock_nesting = 0;
-	}
-#ifdef CONFIG_PROVE_LOCKING
-	{
-		int rrln = READ_ONCE(t->rcu_read_lock_nesting);
-
-		WARN_ON_ONCE(rrln < 0 && rrln > INT_MIN / 2);
-	}
-#endif /* #ifdef CONFIG_PROVE_LOCKING */
-}
-EXPORT_SYMBOL_GPL(__rcu_read_unlock);
-
-#endif /* #ifdef CONFIG_PREEMPT_RCU */
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
@@ -301,6 +252,7 @@ int notrace debug_lockdep_rcu_enabled(void)
 	       current->lockdep_recursion == 0;
 }
 EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
+NOKPROBE_SYMBOL(debug_lockdep_rcu_enabled);
 
 /**
  * rcu_read_lock_held() - might we be in RCU read-side critical section?
@@ -324,12 +276,10 @@ EXPORT_SYMBOL_GPL(debug_lockdep_rcu_enabled);
  */
 int rcu_read_lock_held(void)
 {
-	if (!debug_lockdep_rcu_enabled())
-		return 1;
-	if (!rcu_is_watching())
-		return 0;
-	if (!rcu_lockdep_current_cpu_online())
-		return 0;
+	bool ret;
+
+	if (rcu_read_lock_held_common(&ret))
+		return ret;
 	return lock_is_held(&rcu_lock_map);
 }
 EXPORT_SYMBOL_GPL(rcu_read_lock_held);
@@ -346,20 +296,32 @@ EXPORT_SYMBOL_GPL(rcu_read_lock_held);
  *
  * Check debug_lockdep_rcu_enabled() to prevent false positives during boot.
  *
- * Note that rcu_read_lock() is disallowed if the CPU is either idle or
+ * Note that rcu_read_lock_bh() is disallowed if the CPU is either idle or
  * offline from an RCU perspective, so check for those as well.
  */
 int rcu_read_lock_bh_held(void)
 {
-	if (!debug_lockdep_rcu_enabled())
-		return 1;
-	if (!rcu_is_watching())
-		return 0;
-	if (!rcu_lockdep_current_cpu_online())
-		return 0;
+	bool ret;
+
+	if (rcu_read_lock_held_common(&ret))
+		return ret;
 	return in_softirq() || irqs_disabled();
 }
 EXPORT_SYMBOL_GPL(rcu_read_lock_bh_held);
+
+int rcu_read_lock_any_held(void)
+{
+	bool ret;
+
+	if (rcu_read_lock_held_common(&ret))
+		return ret;
+	if (lock_is_held(&rcu_lock_map) ||
+	    lock_is_held(&rcu_bh_lock_map) ||
+	    lock_is_held(&rcu_sched_lock_map))
+		return 1;
+	return !preemptible();
+}
+EXPORT_SYMBOL_GPL(rcu_read_lock_any_held);
 
 #endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -384,11 +346,10 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 	int i;
 	int j;
 
-	/* Initialize and register callbacks for each flavor specified. */
+	/* Initialize and register callbacks for each crcu_array element. */
 	for (i = 0; i < n; i++) {
 		if (checktiny &&
-		    (crcu_array[i] == call_rcu ||
-		     crcu_array[i] == call_rcu_bh)) {
+		    (crcu_array[i] == call_rcu)) {
 			might_sleep();
 			continue;
 		}
@@ -404,8 +365,7 @@ void __wait_rcu_gp(bool checktiny, int n, call_rcu_func_t *crcu_array,
 	/* Wait for all callbacks to be invoked. */
 	for (i = 0; i < n; i++) {
 		if (checktiny &&
-		    (crcu_array[i] == call_rcu ||
-		     crcu_array[i] == call_rcu_bh))
+		    (crcu_array[i] == call_rcu))
 			continue;
 		for (j = 0; j < i; j++)
 			if (crcu_array[j] == crcu_array[i])
@@ -488,81 +448,41 @@ EXPORT_SYMBOL_GPL(do_trace_rcu_torture_read);
 	do { } while (0)
 #endif
 
-#ifdef CONFIG_RCU_STALL_COMMON
+#if IS_ENABLED(CONFIG_RCU_TORTURE_TEST) || IS_MODULE(CONFIG_RCU_TORTURE_TEST)
+/* Get rcutorture access to sched_setaffinity(). */
+long rcutorture_sched_setaffinity(pid_t pid, const struct cpumask *in_mask)
+{
+	int ret;
 
-#ifdef CONFIG_PROVE_RCU
-#define RCU_STALL_DELAY_DELTA	       (5 * HZ)
-#else
-#define RCU_STALL_DELAY_DELTA	       0
+	ret = sched_setaffinity(pid, in_mask);
+	WARN_ONCE(ret, "%s: sched_setaffinity() returned %d\n", __func__, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(rcutorture_sched_setaffinity);
 #endif
 
+#ifdef CONFIG_RCU_STALL_COMMON
+int rcu_cpu_stall_ftrace_dump __read_mostly;
+module_param(rcu_cpu_stall_ftrace_dump, int, 0644);
 int rcu_cpu_stall_suppress __read_mostly; /* 1 = suppress stall warnings. */
 EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress);
-static int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
-
 module_param(rcu_cpu_stall_suppress, int, 0644);
+int rcu_cpu_stall_timeout __read_mostly = CONFIG_RCU_CPU_STALL_TIMEOUT;
 module_param(rcu_cpu_stall_timeout, int, 0644);
-
-int rcu_jiffies_till_stall_check(void)
-{
-	int till_stall_check = READ_ONCE(rcu_cpu_stall_timeout);
-
-	/*
-	 * Limit check must be consistent with the Kconfig limits
-	 * for CONFIG_RCU_CPU_STALL_TIMEOUT.
-	 */
-	if (till_stall_check < 3) {
-		WRITE_ONCE(rcu_cpu_stall_timeout, 3);
-		till_stall_check = 3;
-	} else if (till_stall_check > 300) {
-		WRITE_ONCE(rcu_cpu_stall_timeout, 300);
-		till_stall_check = 300;
-	}
-	return till_stall_check * HZ + RCU_STALL_DELAY_DELTA;
-}
-
-void rcu_sysrq_start(void)
-{
-	if (!rcu_cpu_stall_suppress)
-		rcu_cpu_stall_suppress = 2;
-}
-
-void rcu_sysrq_end(void)
-{
-	if (rcu_cpu_stall_suppress == 2)
-		rcu_cpu_stall_suppress = 0;
-}
-
-static int rcu_panic(struct notifier_block *this, unsigned long ev, void *ptr)
-{
-	rcu_cpu_stall_suppress = 1;
-	return NOTIFY_DONE;
-}
-
-static struct notifier_block rcu_panic_block = {
-	.notifier_call = rcu_panic,
-};
-
-static int __init check_cpu_stall_init(void)
-{
-	atomic_notifier_chain_register(&panic_notifier_list, &rcu_panic_block);
-	return 0;
-}
-early_initcall(check_cpu_stall_init);
-
 #endif /* #ifdef CONFIG_RCU_STALL_COMMON */
 
 #ifdef CONFIG_TASKS_RCU
 
 /*
- * Simple variant of RCU whose quiescent states are voluntary context switch,
- * user-space execution, and idle.  As such, grace periods can take one good
- * long time.  There are no read-side primitives similar to rcu_read_lock()
- * and rcu_read_unlock() because this implementation is intended to get
- * the system into a safe state for some of the manipulations involved in
- * tracing and the like.  Finally, this implementation does not support
- * high call_rcu_tasks() rates from multiple CPUs.  If this is required,
- * per-CPU callback lists will be needed.
+ * Simple variant of RCU whose quiescent states are voluntary context
+ * switch, cond_resched_rcu_qs(), user-space execution, and idle.
+ * As such, grace periods can take one good long time.  There are no
+ * read-side primitives similar to rcu_read_lock() and rcu_read_unlock()
+ * because this implementation is intended to get the system into a safe
+ * state for some of the manipulations involved in tracing and the like.
+ * Finally, this implementation does not support high call_rcu_tasks()
+ * rates from multiple CPUs.  If this is required, per-CPU callback lists
+ * will be needed.
  */
 
 /* Global list of callbacks and associated lock. */
@@ -590,11 +510,11 @@ static struct task_struct *rcu_tasks_kthread_ptr;
  * period elapses, in other words after all currently executing RCU
  * read-side critical sections have completed. call_rcu_tasks() assumes
  * that the read-side critical sections end at a voluntary context
- * switch (not a preemption!), entry into idle, or transition to usermode
- * execution.  As such, there are no read-side primitives analogous to
- * rcu_read_lock() and rcu_read_unlock() because this primitive is intended
- * to determine that all tasks have passed through a safe state, not so
- * much for data-strcuture synchronization.
+ * switch (not a preemption!), cond_resched_rcu_qs(), entry into idle,
+ * or transition to usermode execution.  As such, there are no read-side
+ * primitives analogous to rcu_read_lock() and rcu_read_unlock() because
+ * this primitive is intended to determine that all tasks have passed
+ * through a safe state, not so much for data-strcuture synchronization.
  *
  * See the description of call_rcu() for more detailed information on
  * memory ordering guarantees.
@@ -624,7 +544,7 @@ EXPORT_SYMBOL_GPL(call_rcu_tasks);
  * grace period has elapsed, in other words after all currently
  * executing rcu-tasks read-side critical sections have elapsed.  These
  * read-side critical sections are delimited by calls to schedule(),
- * cond_resched_rcu_qs(), idle execution, userspace execution, calls
+ * cond_resched_tasks_rcu_qs(), idle execution, userspace execution, calls
  * to synchronize_rcu_tasks(), and (in theory, anyway) cond_resched().
  *
  * This is a very specialized primitive, intended only for a few uses in
@@ -715,6 +635,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 	struct rcu_head *list;
 	struct rcu_head *next;
 	LIST_HEAD(rcu_tasks_holdouts);
+	int fract;
 
 	/* Run on housekeeping CPUs by default.  Sysadm can move if desired. */
 	housekeeping_affine(current, HK_FLAG_RCU);
@@ -747,19 +668,19 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 
 		/*
 		 * Wait for all pre-existing t->on_rq and t->nvcsw
-		 * transitions to complete.  Invoking synchronize_sched()
+		 * transitions to complete.  Invoking synchronize_rcu()
 		 * suffices because all these transitions occur with
-		 * interrupts disabled.  Without this synchronize_sched(),
+		 * interrupts disabled.  Without this synchronize_rcu(),
 		 * a read-side critical section that started before the
 		 * grace period might be incorrectly seen as having started
 		 * after the grace period.
 		 *
-		 * This synchronize_sched() also dispenses with the
+		 * This synchronize_rcu() also dispenses with the
 		 * need for a memory barrier on the first store to
 		 * ->rcu_tasks_holdout, as it forces the store to happen
 		 * after the beginning of the grace period.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 
 		/*
 		 * There were callbacks, so we need to wait for an
@@ -786,7 +707,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		 * This does only part of the job, ensuring that all
 		 * tasks that were previously exiting reach the point
 		 * where they have disabled preemption, allowing the
-		 * later synchronize_sched() to finish the job.
+		 * later synchronize_rcu() to finish the job.
 		 */
 		synchronize_srcu(&tasks_rcu_exit_srcu);
 
@@ -796,13 +717,25 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		 * holdouts.  When the list is empty, we are done.
 		 */
 		lastreport = jiffies;
-		while (!list_empty(&rcu_tasks_holdouts)) {
+
+		/* Start off with HZ/10 wait and slowly back off to 1 HZ wait*/
+		fract = 10;
+
+		for (;;) {
 			bool firstreport;
 			bool needreport;
 			int rtst;
 			struct task_struct *t1;
 
-			schedule_timeout_interruptible(HZ);
+			if (list_empty(&rcu_tasks_holdouts))
+				break;
+
+			/* Slowly back off waiting for holdouts */
+			schedule_timeout_interruptible(HZ/fract);
+
+			if (fract > 1)
+				fract--;
+
 			rtst = READ_ONCE(rcu_task_stall_timeout);
 			needreport = rtst > 0 &&
 				     time_after(jiffies, lastreport + rtst);
@@ -824,20 +757,20 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 		 * cause their RCU-tasks read-side critical sections to
 		 * extend past the end of the grace period.  However,
 		 * because these ->nvcsw updates are carried out with
-		 * interrupts disabled, we can use synchronize_sched()
+		 * interrupts disabled, we can use synchronize_rcu()
 		 * to force the needed ordering on all such CPUs.
 		 *
-		 * This synchronize_sched() also confines all
+		 * This synchronize_rcu() also confines all
 		 * ->rcu_tasks_holdout accesses to be within the grace
 		 * period, avoiding the need for memory barriers for
 		 * ->rcu_tasks_holdout accesses.
 		 *
-		 * In addition, this synchronize_sched() waits for exiting
+		 * In addition, this synchronize_rcu() waits for exiting
 		 * tasks to complete their final preempt_disable() region
 		 * of execution, cleaning up after the synchronize_srcu()
 		 * above.
 		 */
-		synchronize_sched();
+		synchronize_rcu();
 
 		/* Invoke the callbacks. */
 		while (list) {
@@ -848,6 +781,7 @@ static int __noreturn rcu_tasks_kthread(void *arg)
 			list = next;
 			cond_resched();
 		}
+		/* Paranoid sleep to keep this from entering a tight loop */
 		schedule_timeout_uninterruptible(HZ/10);
 	}
 }
@@ -858,7 +792,8 @@ static int __init rcu_spawn_tasks_kthread(void)
 	struct task_struct *t;
 
 	t = kthread_run(rcu_tasks_kthread, NULL, "rcu_tasks_kthread");
-	BUG_ON(IS_ERR(t));
+	if (WARN_ONCE(IS_ERR(t), "%s: Could not start Tasks-RCU grace-period kthread, OOM is now expected behavior\n", __func__))
+		return 0;
 	smp_mb(); /* Ensure others see full kthread. */
 	WRITE_ONCE(rcu_tasks_kthread_ptr, t);
 	return 0;
@@ -903,15 +838,10 @@ static void __init rcu_tasks_bootup_oddness(void)
 #ifdef CONFIG_PROVE_RCU
 
 /*
- * Early boot self test parameters, one for each flavor
+ * Early boot self test parameters.
  */
 static bool rcu_self_test;
-static bool rcu_self_test_bh;
-static bool rcu_self_test_sched;
-
 module_param(rcu_self_test, bool, 0444);
-module_param(rcu_self_test_bh, bool, 0444);
-module_param(rcu_self_test_sched, bool, 0444);
 
 static int rcu_self_test_counter;
 
@@ -921,25 +851,16 @@ static void test_callback(struct rcu_head *r)
 	pr_info("RCU test callback executed %d\n", rcu_self_test_counter);
 }
 
+DEFINE_STATIC_SRCU(early_srcu);
+
 static void early_boot_test_call_rcu(void)
 {
 	static struct rcu_head head;
+	static struct rcu_head shead;
 
 	call_rcu(&head, test_callback);
-}
-
-static void early_boot_test_call_rcu_bh(void)
-{
-	static struct rcu_head head;
-
-	call_rcu_bh(&head, test_callback);
-}
-
-static void early_boot_test_call_rcu_sched(void)
-{
-	static struct rcu_head head;
-
-	call_rcu_sched(&head, test_callback);
+	if (IS_ENABLED(CONFIG_SRCU))
+		call_srcu(&early_srcu, &shead, test_callback);
 }
 
 void rcu_early_boot_tests(void)
@@ -948,10 +869,6 @@ void rcu_early_boot_tests(void)
 
 	if (rcu_self_test)
 		early_boot_test_call_rcu();
-	if (rcu_self_test_bh)
-		early_boot_test_call_rcu_bh();
-	if (rcu_self_test_sched)
-		early_boot_test_call_rcu_sched();
 	rcu_test_sync_prims();
 }
 
@@ -963,16 +880,11 @@ static int rcu_verify_early_boot_tests(void)
 	if (rcu_self_test) {
 		early_boot_test_counter++;
 		rcu_barrier();
+		if (IS_ENABLED(CONFIG_SRCU)) {
+			early_boot_test_counter++;
+			srcu_barrier(&early_srcu);
+		}
 	}
-	if (rcu_self_test_bh) {
-		early_boot_test_counter++;
-		rcu_barrier_bh();
-	}
-	if (rcu_self_test_sched) {
-		early_boot_test_counter++;
-		rcu_barrier_sched();
-	}
-
 	if (rcu_self_test_counter != early_boot_test_counter) {
 		WARN_ON(1);
 		ret = -1;

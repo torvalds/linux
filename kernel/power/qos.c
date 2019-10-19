@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This module exposes the interface to kernel space for specifying
  * QoS dependencies.  It provides infrastructure for registration of:
@@ -77,57 +78,9 @@ static struct pm_qos_object cpu_dma_pm_qos = {
 	.name = "cpu_dma_latency",
 };
 
-static BLOCKING_NOTIFIER_HEAD(network_lat_notifier);
-static struct pm_qos_constraints network_lat_constraints = {
-	.list = PLIST_HEAD_INIT(network_lat_constraints.list),
-	.target_value = PM_QOS_NETWORK_LAT_DEFAULT_VALUE,
-	.default_value = PM_QOS_NETWORK_LAT_DEFAULT_VALUE,
-	.no_constraint_value = PM_QOS_NETWORK_LAT_DEFAULT_VALUE,
-	.type = PM_QOS_MIN,
-	.notifiers = &network_lat_notifier,
-};
-static struct pm_qos_object network_lat_pm_qos = {
-	.constraints = &network_lat_constraints,
-	.name = "network_latency",
-};
-
-
-static BLOCKING_NOTIFIER_HEAD(network_throughput_notifier);
-static struct pm_qos_constraints network_tput_constraints = {
-	.list = PLIST_HEAD_INIT(network_tput_constraints.list),
-	.target_value = PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE,
-	.default_value = PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE,
-	.no_constraint_value = PM_QOS_NETWORK_THROUGHPUT_DEFAULT_VALUE,
-	.type = PM_QOS_MAX,
-	.notifiers = &network_throughput_notifier,
-};
-static struct pm_qos_object network_throughput_pm_qos = {
-	.constraints = &network_tput_constraints,
-	.name = "network_throughput",
-};
-
-
-static BLOCKING_NOTIFIER_HEAD(memory_bandwidth_notifier);
-static struct pm_qos_constraints memory_bw_constraints = {
-	.list = PLIST_HEAD_INIT(memory_bw_constraints.list),
-	.target_value = PM_QOS_MEMORY_BANDWIDTH_DEFAULT_VALUE,
-	.default_value = PM_QOS_MEMORY_BANDWIDTH_DEFAULT_VALUE,
-	.no_constraint_value = PM_QOS_MEMORY_BANDWIDTH_DEFAULT_VALUE,
-	.type = PM_QOS_SUM,
-	.notifiers = &memory_bandwidth_notifier,
-};
-static struct pm_qos_object memory_bandwidth_pm_qos = {
-	.constraints = &memory_bw_constraints,
-	.name = "memory_bandwidth",
-};
-
-
 static struct pm_qos_object *pm_qos_array[] = {
 	&null_pm_qos,
 	&cpu_dma_pm_qos,
-	&network_lat_pm_qos,
-	&network_throughput_pm_qos,
-	&memory_bandwidth_pm_qos,
 };
 
 static ssize_t pm_qos_power_write(struct file *filp, const char __user *buf,
@@ -184,8 +137,7 @@ static inline void pm_qos_set_value(struct pm_qos_constraints *c, s32 value)
 	c->target_value = value;
 }
 
-static inline int pm_qos_get_value(struct pm_qos_constraints *c);
-static int pm_qos_dbg_show_requests(struct seq_file *s, void *unused)
+static int pm_qos_debug_show(struct seq_file *s, void *unused)
 {
 	struct pm_qos_object *qos = (struct pm_qos_object *)s->private;
 	struct pm_qos_constraints *c;
@@ -246,18 +198,7 @@ out:
 	return 0;
 }
 
-static int pm_qos_dbg_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, pm_qos_dbg_show_requests,
-			   inode->i_private);
-}
-
-static const struct file_operations pm_qos_debug_fops = {
-	.open           = pm_qos_dbg_open,
-	.read           = seq_read,
-	.llseek         = seq_lseek,
-	.release        = single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(pm_qos_debug);
 
 /**
  * pm_qos_update_target - manages the constraints list and calls the notifiers
@@ -295,6 +236,7 @@ int pm_qos_update_target(struct pm_qos_constraints *c, struct plist_node *node,
 		 * changed
 		 */
 		plist_del(node, &c->list);
+		/* fall through */
 	case PM_QOS_ADD_REQ:
 		plist_node_init(node, new_value);
 		plist_add(node, &c->list);
@@ -367,6 +309,7 @@ bool pm_qos_update_flags(struct pm_qos_flags *pqf,
 		break;
 	case PM_QOS_UPDATE_REQ:
 		pm_qos_flags_remove_req(pqf, req);
+		/* fall through */
 	case PM_QOS_ADD_REQ:
 		req->flags = val;
 		INIT_LIST_HEAD(&req->node);
@@ -592,10 +535,8 @@ static int register_pm_qos_misc(struct pm_qos_object *qos, struct dentry *d)
 	qos->pm_qos_power_miscdev.name = qos->name;
 	qos->pm_qos_power_miscdev.fops = &pm_qos_power_fops;
 
-	if (d) {
-		(void)debugfs_create_file(qos->name, S_IRUGO, d,
-					  (void *)qos, &pm_qos_debug_fops);
-	}
+	debugfs_create_file(qos->name, S_IRUGO, d, (void *)qos,
+			    &pm_qos_debug_fops);
 
 	return misc_register(&qos->pm_qos_power_miscdev);
 }
@@ -695,8 +636,6 @@ static int __init pm_qos_power_init(void)
 	BUILD_BUG_ON(ARRAY_SIZE(pm_qos_array) != PM_QOS_NUM_CLASSES);
 
 	d = debugfs_create_dir("pm_qos", NULL);
-	if (IS_ERR_OR_NULL(d))
-		d = NULL;
 
 	for (i = PM_QOS_CPU_DMA_LATENCY; i < PM_QOS_NUM_CLASSES; i++) {
 		ret = register_pm_qos_misc(pm_qos_array[i], d);

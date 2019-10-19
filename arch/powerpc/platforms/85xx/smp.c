@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Author: Andy Fleming <afleming@freescale.com>
  * 	   Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2006-2008, 2011-2012, 2015 Freescale Semiconductor Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stddef.h>
@@ -147,7 +143,7 @@ static void qoriq_cpu_kill(unsigned int cpu)
 	for (i = 0; i < 500; i++) {
 		if (is_cpu_dead(cpu)) {
 #ifdef CONFIG_PPC64
-			paca[cpu].cpu_start = 0;
+			paca_ptrs[cpu]->cpu_start = 0;
 #endif
 			return;
 		}
@@ -216,8 +212,8 @@ static int smp_85xx_start_cpu(int cpu)
 
 	/* Map the spin table */
 	if (ioremappable)
-		spin_table = ioremap_prot(*cpu_rel_addr,
-			sizeof(struct epapr_spin_table), _PAGE_COHERENT);
+		spin_table = ioremap_coherent(*cpu_rel_addr,
+					      sizeof(struct epapr_spin_table));
 	else
 		spin_table = phys_to_virt(*cpu_rel_addr);
 
@@ -328,7 +324,7 @@ static int smp_85xx_kick_cpu(int nr)
 		return ret;
 
 done:
-	paca[nr].cpu_start = 1;
+	paca_ptrs[nr]->cpu_start = 1;
 	generic_set_cpu_up(nr);
 
 	return ret;
@@ -409,14 +405,14 @@ void mpc85xx_smp_kexec_cpu_down(int crash_shutdown, int secondary)
 	}
 
 	if (disable_threadbit) {
-		while (paca[disable_cpu].kexec_state < KEXEC_STATE_REAL_MODE) {
+		while (paca_ptrs[disable_cpu]->kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
 			now = mftb();
 			if (!notified && now - start > 1000000) {
 				pr_info("%s/%d: waiting for cpu %d to enter KEXEC_STATE_REAL_MODE (%d)\n",
 					__func__, smp_processor_id(),
 					disable_cpu,
-					paca[disable_cpu].kexec_state);
+					paca_ptrs[disable_cpu]->kexec_state);
 				notified = true;
 			}
 		}

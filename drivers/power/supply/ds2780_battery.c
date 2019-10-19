@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * 1-wire client/driver for the Maxim/Dallas DS2780 Stand-Alone Fuel Gauge IC
  *
@@ -6,11 +7,6 @@
  * Author: Clifton Barnes <cabarnes@indesign-llc.com>
  *
  * Based on ds2760_battery and ds2782_battery drivers
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -54,11 +50,6 @@ static inline struct ds2780_device_info *
 to_ds2780_device_info(struct power_supply *psy)
 {
 	return power_supply_get_drvdata(psy);
-}
-
-static inline struct power_supply *to_power_supply(struct device *dev)
-{
-	return dev_get_drvdata(dev);
 }
 
 static inline int ds2780_battery_io(struct ds2780_device_info *dev_info,
@@ -663,7 +654,7 @@ static ssize_t ds2780_write_param_eeprom_bin(struct file *filp,
 	return count;
 }
 
-static const struct bin_attribute ds2780_param_eeprom_bin_attr = {
+static struct bin_attribute ds2780_param_eeprom_bin_attr = {
 	.attr = {
 		.name = "param_eeprom",
 		.mode = S_IRUGO | S_IWUSR,
@@ -708,7 +699,7 @@ static ssize_t ds2780_write_user_eeprom_bin(struct file *filp,
 	return count;
 }
 
-static const struct bin_attribute ds2780_user_eeprom_bin_attr = {
+static struct bin_attribute ds2780_user_eeprom_bin_attr = {
 	.attr = {
 		.name = "user_eeprom",
 		.mode = S_IRUGO | S_IWUSR,
@@ -727,8 +718,7 @@ static DEVICE_ATTR(rsgain_setting, S_IRUGO | S_IWUSR, ds2780_get_rsgain_setting,
 static DEVICE_ATTR(pio_pin, S_IRUGO | S_IWUSR, ds2780_get_pio_pin,
 	ds2780_set_pio_pin);
 
-
-static struct attribute *ds2780_attributes[] = {
+static struct attribute *ds2780_sysfs_attrs[] = {
 	&dev_attr_pmod_enabled.attr,
 	&dev_attr_sense_resistor_value.attr,
 	&dev_attr_rsgain_setting.attr,
@@ -736,21 +726,30 @@ static struct attribute *ds2780_attributes[] = {
 	NULL
 };
 
-static const struct attribute_group ds2780_attr_group = {
-	.attrs = ds2780_attributes,
+static struct bin_attribute *ds2780_sysfs_bin_attrs[] = {
+	&ds2780_param_eeprom_bin_attr,
+	&ds2780_user_eeprom_bin_attr,
+	NULL
+};
+
+static const struct attribute_group ds2780_sysfs_group = {
+	.attrs = ds2780_sysfs_attrs,
+	.bin_attrs = ds2780_sysfs_bin_attrs,
+};
+
+static const struct attribute_group *ds2780_sysfs_groups[] = {
+	&ds2780_sysfs_group,
+	NULL,
 };
 
 static int ds2780_battery_probe(struct platform_device *pdev)
 {
 	struct power_supply_config psy_cfg = {};
-	int ret = 0;
 	struct ds2780_device_info *dev_info;
 
 	dev_info = devm_kzalloc(&pdev->dev, sizeof(*dev_info), GFP_KERNEL);
-	if (!dev_info) {
-		ret = -ENOMEM;
-		goto fail;
-	}
+	if (!dev_info)
+		return -ENOMEM;
 
 	platform_set_drvdata(pdev, dev_info);
 
@@ -763,61 +762,15 @@ static int ds2780_battery_probe(struct platform_device *pdev)
 	dev_info->bat_desc.get_property	= ds2780_battery_get_property;
 
 	psy_cfg.drv_data		= dev_info;
+	psy_cfg.attr_grp		= ds2780_sysfs_groups;
 
-	dev_info->bat = power_supply_register(&pdev->dev, &dev_info->bat_desc,
-					      &psy_cfg);
+	dev_info->bat = devm_power_supply_register(&pdev->dev,
+						   &dev_info->bat_desc,
+						   &psy_cfg);
 	if (IS_ERR(dev_info->bat)) {
 		dev_err(dev_info->dev, "failed to register battery\n");
-		ret = PTR_ERR(dev_info->bat);
-		goto fail;
+		return PTR_ERR(dev_info->bat);
 	}
-
-	ret = sysfs_create_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
-	if (ret) {
-		dev_err(dev_info->dev, "failed to create sysfs group\n");
-		goto fail_unregister;
-	}
-
-	ret = sysfs_create_bin_file(&dev_info->bat->dev.kobj,
-					&ds2780_param_eeprom_bin_attr);
-	if (ret) {
-		dev_err(dev_info->dev,
-				"failed to create param eeprom bin file");
-		goto fail_remove_group;
-	}
-
-	ret = sysfs_create_bin_file(&dev_info->bat->dev.kobj,
-					&ds2780_user_eeprom_bin_attr);
-	if (ret) {
-		dev_err(dev_info->dev,
-				"failed to create user eeprom bin file");
-		goto fail_remove_bin_file;
-	}
-
-	return 0;
-
-fail_remove_bin_file:
-	sysfs_remove_bin_file(&dev_info->bat->dev.kobj,
-				&ds2780_param_eeprom_bin_attr);
-fail_remove_group:
-	sysfs_remove_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
-fail_unregister:
-	power_supply_unregister(dev_info->bat);
-fail:
-	return ret;
-}
-
-static int ds2780_battery_remove(struct platform_device *pdev)
-{
-	struct ds2780_device_info *dev_info = platform_get_drvdata(pdev);
-
-	/*
-	 * Remove attributes before unregistering power supply
-	 * because 'bat' will be freed on power_supply_unregister() call.
-	 */
-	sysfs_remove_group(&dev_info->bat->dev.kobj, &ds2780_attr_group);
-
-	power_supply_unregister(dev_info->bat);
 
 	return 0;
 }
@@ -827,12 +780,11 @@ static struct platform_driver ds2780_battery_driver = {
 		.name = "ds2780-battery",
 	},
 	.probe	  = ds2780_battery_probe,
-	.remove   = ds2780_battery_remove,
 };
 
 module_platform_driver(ds2780_battery_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Clifton Barnes <cabarnes@indesign-llc.com>");
-MODULE_DESCRIPTION("Maxim/Dallas DS2780 Stand-Alone Fuel Gauage IC driver");
+MODULE_DESCRIPTION("Maxim/Dallas DS2780 Stand-Alone Fuel Gauge IC driver");
 MODULE_ALIAS("platform:ds2780-battery");

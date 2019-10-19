@@ -1,8 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MAC80211
 	tristate "Generic IEEE 802.11 Networking Stack (mac80211)"
 	depends on CFG80211
 	select CRYPTO
-	select CRYPTO_ARC4
+	select CRYPTO_LIB_ARC4
 	select CRYPTO_AES
 	select CRYPTO_CCM
 	select CRYPTO_GCM
@@ -27,20 +28,6 @@ config MAC80211_RC_MINSTREL
 	---help---
 	  This option enables the 'minstrel' TX rate control algorithm
 
-config MAC80211_RC_MINSTREL_HT
-	bool "Minstrel 802.11n support" if EXPERT
-	depends on MAC80211_RC_MINSTREL
-	default y
-	---help---
-	  This option enables the 'minstrel_ht' TX rate control algorithm
-
-config MAC80211_RC_MINSTREL_VHT
-	bool "Minstrel 802.11ac support" if EXPERT
-	depends on MAC80211_RC_MINSTREL_HT
-	default n
-	---help---
-	  This option enables VHT in the 'minstrel_ht' TX rate control algorithm
-
 choice
 	prompt "Default rate control algorithm"
 	depends on MAC80211_HAS_RC
@@ -62,8 +49,7 @@ endchoice
 
 config MAC80211_RC_DEFAULT
 	string
-	default "minstrel_ht" if MAC80211_RC_DEFAULT_MINSTREL && MAC80211_RC_MINSTREL_HT
-	default "minstrel" if MAC80211_RC_DEFAULT_MINSTREL
+	default "minstrel_ht" if MAC80211_RC_DEFAULT_MINSTREL
 	default ""
 
 endif
@@ -72,14 +58,13 @@ comment "Some wireless drivers require a rate control algorithm"
 	depends on MAC80211 && MAC80211_HAS_RC=n
 
 config MAC80211_MESH
-	bool "Enable mac80211 mesh networking (pre-802.11s) support"
+	bool "Enable mac80211 mesh networking support"
 	depends on MAC80211
 	---help---
-	 This options enables support of Draft 802.11s mesh networking.
-	 The implementation is based on Draft 2.08 of the Mesh Networking
-	 amendment.  However, no compliance with that draft is claimed or even
-	 possible, as drafts leave a number of identifiers to be defined after
-	 ratification.  For more information visit http://o11s.org/.
+	  Select this option to enable 802.11 mesh operation in mac80211
+	  drivers that support it.  802.11 mesh connects multiple stations
+	  over (possibly multi-hop) wireless links to form a single logical
+	  LAN.
 
 config MAC80211_LEDS
 	bool "Enable LED triggers"

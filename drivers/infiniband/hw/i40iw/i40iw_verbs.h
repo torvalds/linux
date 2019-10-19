@@ -78,6 +78,7 @@ struct i40iw_pbl {
 	};
 
 	bool pbl_allocated;
+	bool on_list;
 	u64 user_base;
 	struct i40iw_pble_alloc pble_alloc;
 	struct i40iw_mr *iwmr;
@@ -93,8 +94,7 @@ struct i40iw_mr {
 	struct ib_umem *region;
 	u16 type;
 	u32 page_cnt;
-	u32 page_size;
-	u64 page_msk;
+	u64 page_size;
 	u32 npages;
 	u32 stag;
 	u64 length;

@@ -1,25 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * GPL LICENSE SUMMARY
- *
  * Copyright(c) 2008 - 2014 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
- * The full GNU General Public License is included in this distribution
- * in the file called COPYING.
+ * Copyright (C) 2018 Intel Corporation
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -41,33 +24,8 @@
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	if (!debugfs_create_file(#name, mode, parent, priv,		\
-				 &iwl_dbgfs_##name##_ops))		\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_BOOL(name, parent, ptr) do {			\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_bool(#name, S_IWUSR | S_IRUSR,		\
-				    parent, ptr);			\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_X32(name, parent, ptr) do {				\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_x32(#name, S_IWUSR | S_IRUSR,		\
-				   parent, ptr);			\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_U32(name, parent, ptr, mode) do {			\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_u32(#name, mode,				\
-				   parent, ptr);			\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
+	debugfs_create_file(#name, mode, parent, priv,			\
+			    &iwl_dbgfs_##name##_ops);			\
 } while (0)
 
 /* file operation */
@@ -2245,7 +2203,7 @@ static ssize_t iwl_dbgfs_log_event_write(struct file *file,
 	buf_size = min(count, sizeof(buf) -  1);
 	if (copy_from_user(buf, user_buf, buf_size))
 		return -EFAULT;
-	if (sscanf(buf, "%d", &event_log_flag) != 1)
+	if (sscanf(buf, "%u", &event_log_flag) != 1)
 		return -EFAULT;
 	if (event_log_flag == 1)
 		iwl_dump_nic_event_log(priv, true, NULL);
@@ -2354,64 +2312,58 @@ DEBUGFS_READ_WRITE_FILE_OPS(calib_disabled);
  * Create the debugfs files and directories
  *
  */
-int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
+void iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 {
 	struct dentry *dir_data, *dir_rf, *dir_debug;
 
 	priv->debugfs_dir = dbgfs_dir;
 
 	dir_data = debugfs_create_dir("data", dbgfs_dir);
-	if (!dir_data)
-		goto err;
 	dir_rf = debugfs_create_dir("rf", dbgfs_dir);
-	if (!dir_rf)
-		goto err;
 	dir_debug = debugfs_create_dir("debug", dbgfs_dir);
-	if (!dir_debug)
-		goto err;
 
-	DEBUGFS_ADD_FILE(nvm, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(sram, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(wowlan_sram, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(stations, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(channels, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(rx_handlers, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(temperature, dir_data, S_IRUSR);
+	DEBUGFS_ADD_FILE(nvm, dir_data, 0400);
+	DEBUGFS_ADD_FILE(sram, dir_data, 0600);
+	DEBUGFS_ADD_FILE(wowlan_sram, dir_data, 0400);
+	DEBUGFS_ADD_FILE(stations, dir_data, 0400);
+	DEBUGFS_ADD_FILE(channels, dir_data, 0400);
+	DEBUGFS_ADD_FILE(status, dir_data, 0400);
+	DEBUGFS_ADD_FILE(rx_handlers, dir_data, 0600);
+	DEBUGFS_ADD_FILE(qos, dir_data, 0400);
+	DEBUGFS_ADD_FILE(sleep_level_override, dir_data, 0600);
+	DEBUGFS_ADD_FILE(current_sleep_command, dir_data, 0400);
+	DEBUGFS_ADD_FILE(thermal_throttling, dir_data, 0400);
+	DEBUGFS_ADD_FILE(disable_ht40, dir_data, 0600);
+	DEBUGFS_ADD_FILE(temperature, dir_data, 0400);
 
-	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(rf_reset, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(protection_mode, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(echo_test, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(fw_restart, dir_debug, S_IWUSR);
+	DEBUGFS_ADD_FILE(power_save_status, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(clear_ucode_statistics, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(rf_reset, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(txfifo_flush, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(protection_mode, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_tracing, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(ucode_bt_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(reply_tx_error, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(echo_test, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(fw_restart, dir_debug, 0200);
 #ifdef CONFIG_IWLWIFI_DEBUG
-	DEBUGFS_ADD_FILE(log_event, dir_debug, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(log_event, dir_debug, 0600);
 #endif
 
 	if (iwl_advanced_bt_coexist(priv))
-		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(bt_traffic, dir_debug, 0400);
 
 	/* Calibrations disabled/enabled status*/
-	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(calib_disabled, dir_rf, 0600);
 
 	/*
 	 * Create a symlink with mac80211. This is not very robust, as it does
@@ -2428,13 +2380,6 @@ int iwl_dbgfs_register(struct iwl_priv *priv, struct dentry *dbgfs_dir)
 
 		snprintf(buf, 100, "../../%pd2", dev_dir);
 
-		if (!debugfs_create_symlink("iwlwifi", mac80211_dir, buf))
-			goto err;
+		debugfs_create_symlink("iwlwifi", mac80211_dir, buf);
 	}
-
-	return 0;
-
-err:
-	IWL_ERR(priv, "failed to create the dvm debugfs entries\n");
-	return -ENOMEM;
 }

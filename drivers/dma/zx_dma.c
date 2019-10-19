@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015 Linaro.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/sched.h>
 #include <linux/device.h>
@@ -798,8 +795,8 @@ static int zx_dma_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	/* init phy channel */
-	d->phy = devm_kzalloc(&op->dev,
-		d->dma_channels * sizeof(struct zx_dma_phy), GFP_KERNEL);
+	d->phy = devm_kcalloc(&op->dev,
+		d->dma_channels, sizeof(struct zx_dma_phy), GFP_KERNEL);
 	if (!d->phy)
 		return -ENOMEM;
 
@@ -834,8 +831,8 @@ static int zx_dma_probe(struct platform_device *op)
 	d->slave.residue_granularity = DMA_RESIDUE_GRANULARITY_SEGMENT;
 
 	/* init virtual channel */
-	d->chans = devm_kzalloc(&op->dev,
-		d->dma_requests * sizeof(struct zx_dma_chan), GFP_KERNEL);
+	d->chans = devm_kcalloc(&op->dev,
+		d->dma_requests, sizeof(struct zx_dma_chan), GFP_KERNEL);
 	if (!d->chans)
 		return -ENOMEM;
 

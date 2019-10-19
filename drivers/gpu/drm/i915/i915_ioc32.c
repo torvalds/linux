@@ -1,10 +1,5 @@
-/**
- * \file i915_ioc32.c
- *
+/*
  * 32-bit ioctl compatibility routines for the i915 DRM.
- *
- * \author Alan Hourihane <alanh@fairlite.demon.co.uk>
- *
  *
  * Copyright (C) Paul Mackerras 2005
  * Copyright (C) Alan Hourihane 2005
@@ -28,11 +23,13 @@
  * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
+ *
+ * Author: Alan Hourihane <alanh@fairlite.demon.co.uk>
  */
 #include <linux/compat.h>
 
-#include <drm/drmP.h>
 #include <drm/i915_drm.h>
+#include <drm/drm_ioctl.h>
 #include "i915_drv.h"
 
 struct drm_i915_getparam32 {
@@ -55,10 +52,10 @@ static int compat_i915_getparam(struct file *file, unsigned int cmd,
 		return -EFAULT;
 
 	request = compat_alloc_user_space(sizeof(*request));
-	if (!access_ok(VERIFY_WRITE, request, sizeof(*request))
-	    || __put_user(req32.param, &request->param)
-	    || __put_user((void __user *)(unsigned long)req32.value,
-			  &request->value))
+	if (!access_ok(request, sizeof(*request)) ||
+	    __put_user(req32.param, &request->param) ||
+	    __put_user((void __user *)(unsigned long)req32.value,
+		       &request->value))
 		return -EFAULT;
 
 	return drm_ioctl(file, DRM_IOCTL_I915_GETPARAM,
@@ -70,13 +67,13 @@ static drm_ioctl_compat_t *i915_compat_ioctls[] = {
 };
 
 /**
+ * i915_compat_ioctl - handle the mistakes of the past
+ * @filp: the file pointer
+ * @cmd: the ioctl command (and encoded flags)
+ * @arg: the ioctl argument (from userspace)
+ *
  * Called whenever a 32-bit process running under a 64-bit kernel
  * performs an ioctl on /dev/dri/card<n>.
- *
- * \param filp file pointer.
- * \param cmd command.
- * \param arg user argument.
- * \return zero on success or negative number on failure.
  */
 long i915_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {

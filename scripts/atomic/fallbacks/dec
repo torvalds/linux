@@ -1,0 +1,7 @@
+cat <<EOF
+static inline ${ret}
+${atomic}_${pfx}dec${sfx}${order}(${atomic}_t *v)
+{
+	${retstmt}${atomic}_${pfx}sub${sfx}${order}(1, v);
+}
+EOF

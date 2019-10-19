@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS:        Destination Hashing scheduling module
  *
@@ -6,13 +7,7 @@
  *              Inspired by the consistent hashing scheduler patch from
  *              Thomas Proell <proellt@gmx.de>
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
- *
  * Changes:
- *
  */
 
 /*
@@ -43,6 +38,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/hash.h>
 
 #include <net/ip_vs.h>
 
@@ -81,7 +77,7 @@ static inline unsigned int ip_vs_dh_hashkey(int af, const union nf_inet_addr *ad
 		addr_fold = addr->ip6[0]^addr->ip6[1]^
 			    addr->ip6[2]^addr->ip6[3];
 #endif
-	return (ntohl(addr_fold)*2654435761UL) & IP_VS_DH_TAB_MASK;
+	return hash_32(ntohl(addr_fold), IP_VS_DH_TAB_BITS);
 }
 
 

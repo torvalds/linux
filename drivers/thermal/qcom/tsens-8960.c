@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/platform_device.h>
@@ -65,21 +56,21 @@
 #define TRDY_MASK		BIT(7)
 #define TIMEOUT_US		100
 
-static int suspend_8960(struct tsens_device *tmdev)
+static int suspend_8960(struct tsens_priv *priv)
 {
 	int ret;
 	unsigned int mask;
-	struct regmap *map = tmdev->map;
+	struct regmap *map = priv->tm_map;
 
-	ret = regmap_read(map, THRESHOLD_ADDR, &tmdev->ctx.threshold);
+	ret = regmap_read(map, THRESHOLD_ADDR, &priv->ctx.threshold);
 	if (ret)
 		return ret;
 
-	ret = regmap_read(map, CNTL_ADDR, &tmdev->ctx.control);
+	ret = regmap_read(map, CNTL_ADDR, &priv->ctx.control);
 	if (ret)
 		return ret;
 
-	if (tmdev->num_sensors > 1)
+	if (priv->num_sensors > 1)
 		mask = SLP_CLK_ENA | EN;
 	else
 		mask = SLP_CLK_ENA_8660 | EN;
@@ -91,10 +82,10 @@ static int suspend_8960(struct tsens_device *tmdev)
 	return 0;
 }
 
-static int resume_8960(struct tsens_device *tmdev)
+static int resume_8960(struct tsens_priv *priv)
 {
 	int ret;
-	struct regmap *map = tmdev->map;
+	struct regmap *map = priv->tm_map;
 
 	ret = regmap_update_bits(map, CNTL_ADDR, SW_RST, SW_RST);
 	if (ret)
@@ -104,80 +95,80 @@ static int resume_8960(struct tsens_device *tmdev)
 	 * Separate CONFIG restore is not needed only for 8660 as
 	 * config is part of CTRL Addr and its restored as such
 	 */
-	if (tmdev->num_sensors > 1) {
+	if (priv->num_sensors > 1) {
 		ret = regmap_update_bits(map, CONFIG_ADDR, CONFIG_MASK, CONFIG);
 		if (ret)
 			return ret;
 	}
 
-	ret = regmap_write(map, THRESHOLD_ADDR, tmdev->ctx.threshold);
+	ret = regmap_write(map, THRESHOLD_ADDR, priv->ctx.threshold);
 	if (ret)
 		return ret;
 
-	ret = regmap_write(map, CNTL_ADDR, tmdev->ctx.control);
+	ret = regmap_write(map, CNTL_ADDR, priv->ctx.control);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int enable_8960(struct tsens_device *tmdev, int id)
+static int enable_8960(struct tsens_priv *priv, int id)
 {
 	int ret;
 	u32 reg, mask;
 
-	ret = regmap_read(tmdev->map, CNTL_ADDR, &reg);
+	ret = regmap_read(priv->tm_map, CNTL_ADDR, &reg);
 	if (ret)
 		return ret;
 
 	mask = BIT(id + SENSOR0_SHIFT);
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg | SW_RST);
+	ret = regmap_write(priv->tm_map, CNTL_ADDR, reg | SW_RST);
 	if (ret)
 		return ret;
 
-	if (tmdev->num_sensors > 1)
+	if (priv->num_sensors > 1)
 		reg |= mask | SLP_CLK_ENA | EN;
 	else
 		reg |= mask | SLP_CLK_ENA_8660 | EN;
 
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg);
+	ret = regmap_write(priv->tm_map, CNTL_ADDR, reg);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static void disable_8960(struct tsens_device *tmdev)
+static void disable_8960(struct tsens_priv *priv)
 {
 	int ret;
 	u32 reg_cntl;
 	u32 mask;
 
-	mask = GENMASK(tmdev->num_sensors - 1, 0);
+	mask = GENMASK(priv->num_sensors - 1, 0);
 	mask <<= SENSOR0_SHIFT;
 	mask |= EN;
 
-	ret = regmap_read(tmdev->map, CNTL_ADDR, &reg_cntl);
+	ret = regmap_read(priv->tm_map, CNTL_ADDR, &reg_cntl);
 	if (ret)
 		return;
 
 	reg_cntl &= ~mask;
 
-	if (tmdev->num_sensors > 1)
+	if (priv->num_sensors > 1)
 		reg_cntl &= ~SLP_CLK_ENA;
 	else
 		reg_cntl &= ~SLP_CLK_ENA_8660;
 
-	regmap_write(tmdev->map, CNTL_ADDR, reg_cntl);
+	regmap_write(priv->tm_map, CNTL_ADDR, reg_cntl);
 }
 
-static int init_8960(struct tsens_device *tmdev)
+static int init_8960(struct tsens_priv *priv)
 {
 	int ret, i;
 	u32 reg_cntl;
 
-	tmdev->map = dev_get_regmap(tmdev->dev, NULL);
-	if (!tmdev->map)
+	priv->tm_map = dev_get_regmap(priv->dev, NULL);
+	if (!priv->tm_map)
 		return -ENODEV;
 
 	/*
@@ -186,21 +177,21 @@ static int init_8960(struct tsens_device *tmdev)
 	 * but the control registers stay in the same place, i.e
 	 * directly after the first 5 status registers.
 	 */
-	for (i = 0; i < tmdev->num_sensors; i++) {
+	for (i = 0; i < priv->num_sensors; i++) {
 		if (i >= 5)
-			tmdev->sensor[i].status = S0_STATUS_ADDR + 40;
-		tmdev->sensor[i].status += i * 4;
+			priv->sensor[i].status = S0_STATUS_ADDR + 40;
+		priv->sensor[i].status += i * 4;
 	}
 
 	reg_cntl = SW_RST;
-	ret = regmap_update_bits(tmdev->map, CNTL_ADDR, SW_RST, reg_cntl);
+	ret = regmap_update_bits(priv->tm_map, CNTL_ADDR, SW_RST, reg_cntl);
 	if (ret)
 		return ret;
 
-	if (tmdev->num_sensors > 1) {
+	if (priv->num_sensors > 1) {
 		reg_cntl |= SLP_CLK_ENA | (MEASURE_PERIOD << 18);
 		reg_cntl &= ~SW_RST;
-		ret = regmap_update_bits(tmdev->map, CONFIG_ADDR,
+		ret = regmap_update_bits(priv->tm_map, CONFIG_ADDR,
 					 CONFIG_MASK, CONFIG);
 	} else {
 		reg_cntl |= SLP_CLK_ENA_8660 | (MEASURE_PERIOD << 16);
@@ -208,35 +199,37 @@ static int init_8960(struct tsens_device *tmdev)
 		reg_cntl |= CONFIG_8660 << CONFIG_SHIFT_8660;
 	}
 
-	reg_cntl |= GENMASK(tmdev->num_sensors - 1, 0) << SENSOR0_SHIFT;
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg_cntl);
+	reg_cntl |= GENMASK(priv->num_sensors - 1, 0) << SENSOR0_SHIFT;
+	ret = regmap_write(priv->tm_map, CNTL_ADDR, reg_cntl);
 	if (ret)
 		return ret;
 
 	reg_cntl |= EN;
-	ret = regmap_write(tmdev->map, CNTL_ADDR, reg_cntl);
+	ret = regmap_write(priv->tm_map, CNTL_ADDR, reg_cntl);
 	if (ret)
 		return ret;
 
 	return 0;
 }
 
-static int calibrate_8960(struct tsens_device *tmdev)
+static int calibrate_8960(struct tsens_priv *priv)
 {
 	int i;
 	char *data;
 
-	ssize_t num_read = tmdev->num_sensors;
-	struct tsens_sensor *s = tmdev->sensor;
+	ssize_t num_read = priv->num_sensors;
+	struct tsens_sensor *s = priv->sensor;
 
-	data = qfprom_read(tmdev->dev, "calib");
+	data = qfprom_read(priv->dev, "calib");
 	if (IS_ERR(data))
-		data = qfprom_read(tmdev->dev, "calib_backup");
+		data = qfprom_read(priv->dev, "calib_backup");
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
 	for (i = 0; i < num_read; i++, s++)
 		s->offset = data[i];
+
+	kfree(data);
 
 	return 0;
 }
@@ -252,21 +245,21 @@ static inline int code_to_mdegC(u32 adc_code, const struct tsens_sensor *s)
 	return adc_code * slope + offset;
 }
 
-static int get_temp_8960(struct tsens_device *tmdev, int id, int *temp)
+static int get_temp_8960(struct tsens_priv *priv, int id, int *temp)
 {
 	int ret;
 	u32 code, trdy;
-	const struct tsens_sensor *s = &tmdev->sensor[id];
+	const struct tsens_sensor *s = &priv->sensor[id];
 	unsigned long timeout;
 
 	timeout = jiffies + usecs_to_jiffies(TIMEOUT_US);
 	do {
-		ret = regmap_read(tmdev->map, INT_STATUS_ADDR, &trdy);
+		ret = regmap_read(priv->tm_map, INT_STATUS_ADDR, &trdy);
 		if (ret)
 			return ret;
 		if (!(trdy & TRDY_MASK))
 			continue;
-		ret = regmap_read(tmdev->map, s->status, &code);
+		ret = regmap_read(priv->tm_map, s->status, &code);
 		if (ret)
 			return ret;
 		*temp = code_to_mdegC(code, s);
@@ -286,7 +279,7 @@ static const struct tsens_ops ops_8960 = {
 	.resume		= resume_8960,
 };
 
-const struct tsens_data data_8960 = {
+const struct tsens_plat_data data_8960 = {
 	.num_sensors	= 11,
 	.ops		= &ops_8960,
 };

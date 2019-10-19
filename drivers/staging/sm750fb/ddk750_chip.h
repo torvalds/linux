@@ -24,25 +24,23 @@ static inline void poke32(u32 addr, u32 data)
 }
 
 /* This is all the chips recognized by this library */
-typedef enum _logical_chip_type_t {
+enum logical_chip_type {
 	SM_UNKNOWN,
 	SM718,
 	SM750,
 	SM750LE,
-}
-logical_chip_type_t;
+};
 
-typedef enum _clock_type_t {
+enum clock_type {
 	MXCLK_PLL,
 	PRIMARY_PLL,
 	SECONDARY_PLL,
 	VGA0_PLL,
 	VGA1_PLL,
-}
-clock_type_t;
+};
 
 struct pll_value {
-	clock_type_t clockType;
+	enum clock_type clockType;
 	unsigned long inputFreq; /* Input clock frequency to the PLL */
 
 	/* Use this when clockType = PANEL_PLL */
@@ -94,8 +92,8 @@ struct initchip_param {
 	/* More initialization parameter can be added if needed */
 };
 
-logical_chip_type_t sm750_get_chip_type(void);
-void sm750_set_chip_type(unsigned short devId, u8 revId);
+enum logical_chip_type sm750_get_chip_type(void);
+void sm750_set_chip_type(unsigned short dev_id, u8 rev_id);
 unsigned int sm750_calc_pll_value(unsigned int request, struct  pll_value *pll);
 unsigned int sm750_format_pll_reg(struct pll_value *pPLL);
 unsigned int ddk750_get_vm_size(void);

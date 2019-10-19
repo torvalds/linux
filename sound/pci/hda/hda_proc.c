@@ -1,31 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Universal Interface for Intel High Definition Audio Codec
  * 
  * Generic proc interface
  *
  * Copyright (c) 2004 Takashi Iwai <tiwai@suse.de>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <sound/core.h>
 #include <linux/module.h>
-#include "hda_codec.h"
+#include <sound/hda_codec.h>
 #include "hda_local.h"
 
 static int dump_coef = -1;
@@ -825,8 +811,9 @@ static void print_codec_info(struct snd_info_entry *entry,
 		if (wid_caps & AC_WCAP_CONN_LIST) {
 			conn_len = snd_hda_get_num_raw_conns(codec, nid);
 			if (conn_len > 0) {
-				conn = kmalloc(sizeof(hda_nid_t) * conn_len,
-					       GFP_KERNEL);
+				conn = kmalloc_array(conn_len,
+						     sizeof(hda_nid_t),
+						     GFP_KERNEL);
 				if (!conn)
 					return;
 				if (snd_hda_get_raw_connections(codec, nid, conn,
@@ -918,15 +905,8 @@ static void print_codec_info(struct snd_info_entry *entry,
 int snd_hda_codec_proc_new(struct hda_codec *codec)
 {
 	char name[32];
-	struct snd_info_entry *entry;
-	int err;
 
 	snprintf(name, sizeof(name), "codec#%d", codec->core.addr);
-	err = snd_card_proc_new(codec->card, name, &entry);
-	if (err < 0)
-		return err;
-
-	snd_info_set_text_ops(entry, codec, print_codec_info);
-	return 0;
+	return snd_card_ro_proc_new(codec->card, name, codec, print_codec_info);
 }
 

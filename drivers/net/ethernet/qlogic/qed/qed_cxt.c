@@ -40,13 +40,13 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/string.h>
-#include <linux/bitops.h>
 #include "qed.h"
 #include "qed_cxt.h"
 #include "qed_dev_api.h"
 #include "qed_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
+#include "qed_rdma.h"
 #include "qed_reg_addr.h"
 #include "qed_sriov.h"
 
@@ -77,7 +77,7 @@
 #define ILT_CFG_REG(cli, reg)	PSWRQ2_REG_ ## cli ## _ ## reg ## _RT_OFFSET
 
 /* ILT entry structure */
-#define ILT_ENTRY_PHY_ADDR_MASK		0x000FFFFFFFFFFFULL
+#define ILT_ENTRY_PHY_ADDR_MASK		(~0ULL >> 12)
 #define ILT_ENTRY_PHY_ADDR_SHIFT	0
 #define ILT_ENTRY_VALID_MASK		0x1ULL
 #define ILT_ENTRY_VALID_SHIFT		52
@@ -426,7 +426,7 @@ static void qed_cxt_set_srq_count(struct qed_hwfn *p_hwfn, u32 num_srqs)
 	p_mgr->srq_count = num_srqs;
 }
 
-static u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
+u32 qed_cxt_get_srq_count(struct qed_hwfn *p_hwfn)
 {
 	struct qed_cxt_mngr *p_mgr = p_hwfn->p_cxt_mngr;
 
@@ -936,14 +936,13 @@ static int qed_cxt_src_t2_alloc(struct qed_hwfn *p_hwfn)
 		u32 size = min_t(u32, total_size, psz);
 		void **p_virt = &p_mngr->t2[i].p_virt;
 
-		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
-					     size,
-					     &p_mngr->t2[i].p_phys, GFP_KERNEL);
+		*p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
+					     &p_mngr->t2[i].p_phys,
+					     GFP_KERNEL);
 		if (!p_mngr->t2[i].p_virt) {
 			rc = -ENOMEM;
 			goto t2_fail;
 		}
-		memset(*p_virt, 0, size);
 		p_mngr->t2[i].size = size;
 		total_size -= size;
 	}
@@ -1055,8 +1054,8 @@ static int qed_ilt_blk_alloc(struct qed_hwfn *p_hwfn,
 		u32 size;
 
 		size = min_t(u32, sz_left, p_blk->real_size_in_page);
-		p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev, size,
-					     &p_phys, GFP_KERNEL);
+		p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev, size,
+					    &p_phys, GFP_KERNEL);
 		if (!p_virt)
 			return -ENOMEM;
 
@@ -1531,7 +1530,7 @@ void qed_qm_init_pf(struct qed_hwfn *p_hwfn,
 }
 
 /* CM PF */
-void qed_cm_init_pf(struct qed_hwfn *p_hwfn)
+static void qed_cm_init_pf(struct qed_hwfn *p_hwfn)
 {
 	/* XCM pure-LB queue */
 	STORE_RT_REG(p_hwfn, XCM_REG_CON_PHY_Q3_RT_OFFSET,
@@ -2071,7 +2070,7 @@ static void qed_rdma_set_pf_params(struct qed_hwfn *p_hwfn,
 	u32 num_cons, num_qps, num_srqs;
 	enum protocol_type proto;
 
-	num_srqs = min_t(u32, 32 * 1024, p_params->num_srqs);
+	num_srqs = min_t(u32, QED_RDMA_MAX_SRQS, p_params->num_srqs);
 
 	if (p_hwfn->mcp_info->func_info.protocol == QED_PCI_ETH_RDMA) {
 		DP_NOTICE(p_hwfn,
@@ -2130,17 +2129,18 @@ int qed_cxt_set_pf_params(struct qed_hwfn *p_hwfn, u32 rdma_tasks)
 					       rdma_tasks);
 		/* no need for break since RoCE coexist with Ethernet */
 	}
+	/* fall through */
 	case QED_PCI_ETH:
 	{
 		struct qed_eth_pf_params *p_params =
 		    &p_hwfn->pf_params.eth_pf_params;
 
-			if (!p_params->num_vf_cons)
-				p_params->num_vf_cons =
-				    ETH_PF_PARAMS_VF_CONS_DEFAULT;
-			qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
-						    p_params->num_cons,
-						    p_params->num_vf_cons);
+		if (!p_params->num_vf_cons)
+			p_params->num_vf_cons =
+			    ETH_PF_PARAMS_VF_CONS_DEFAULT;
+		qed_cxt_set_proto_cid_count(p_hwfn, PROTOCOLID_ETH,
+					    p_params->num_cons,
+					    p_params->num_vf_cons);
 		p_hwfn->p_cxt_mngr->arfs_count = p_params->num_arfs_filters;
 		break;
 	}
@@ -2307,9 +2307,9 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 		goto out0;
 	}
 
-	p_virt = dma_zalloc_coherent(&p_hwfn->cdev->pdev->dev,
-				     p_blk->real_size_in_page, &p_phys,
-				     GFP_KERNEL);
+	p_virt = dma_alloc_coherent(&p_hwfn->cdev->pdev->dev,
+				    p_blk->real_size_in_page, &p_phys,
+				    GFP_KERNEL);
 	if (!p_virt) {
 		rc = -ENOMEM;
 		goto out1;
@@ -2351,7 +2351,8 @@ qed_cxt_dynamic_ilt_alloc(struct qed_hwfn *p_hwfn,
 
 	/* Write via DMAE since the PSWRQ2_REG_ILT_MEMORY line is a wide-bus */
 	qed_dmae_host2grc(p_hwfn, p_ptt, (u64) (uintptr_t)&ilt_hw_entry,
-			  reg_offset, sizeof(ilt_hw_entry) / sizeof(u32), 0);
+			  reg_offset, sizeof(ilt_hw_entry) / sizeof(u32),
+			  NULL);
 
 	if (elem_type == QED_ELEM_CXT) {
 		u32 last_cid_allocated = (1 + (iid / elems_per_p)) *
@@ -2457,7 +2458,7 @@ qed_cxt_free_ilt_range(struct qed_hwfn *p_hwfn,
 				  (u64) (uintptr_t) &ilt_hw_entry,
 				  reg_offset,
 				  sizeof(ilt_hw_entry) / sizeof(u32),
-				  0);
+				  NULL);
 	}
 
 	qed_ptt_release(p_hwfn, p_ptt);
@@ -2480,7 +2481,10 @@ int qed_cxt_free_proto_ilt(struct qed_hwfn *p_hwfn, enum protocol_type proto)
 	if (rc)
 		return rc;
 
-	/* Free Task CXT */
+	/* Free Task CXT ( Intentionally RoCE as task-id is shared between
+	 * RoCE and iWARP )
+	 */
+	proto = PROTOCOLID_ROCE;
 	rc = qed_cxt_free_ilt_range(p_hwfn, QED_ELEM_TASK, 0,
 				    qed_cxt_get_proto_tid_count(p_hwfn, proto));
 	if (rc)

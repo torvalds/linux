@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt5663.h  --  RT5663 ALSA SoC audio driver
  *
  * Copyright 2016 Realtek Microelectronics
  * Author: Jack Yu <jack.yu@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __RT5663_H__
@@ -1125,9 +1122,7 @@ enum {
 	RT5663_AD_STEREO_FILTER = 0x2,
 };
 
-int rt5663_set_jack_detect(struct snd_soc_codec *codec,
-	struct snd_soc_jack *hs_jack);
-int rt5663_sel_asrc_clk_src(struct snd_soc_codec *codec,
+int rt5663_sel_asrc_clk_src(struct snd_soc_component *component,
 	unsigned int filter_mask, unsigned int clk_src);
 
 #endif /* __RT5663_H__ */

@@ -1,28 +1,5 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #ifndef _I40E_VIRTCHNL_PF_H_
 #define _I40E_VIRTCHNL_PF_H_
@@ -36,9 +13,11 @@
 #define I40E_DEFAULT_NUM_MDD_EVENTS_ALLOWED	3
 #define I40E_DEFAULT_NUM_INVALID_MSGS_ALLOWED	10
 
-#define I40E_VLAN_PRIORITY_SHIFT	12
+#define I40E_VLAN_PRIORITY_SHIFT	13
 #define I40E_VLAN_MASK			0xFFF
-#define I40E_PRIORITY_MASK		0x7000
+#define I40E_PRIORITY_MASK		0xE000
+
+#define I40E_MAX_VF_PROMISC_FLAGS	3
 
 /* Various queue ctrls */
 enum i40e_queue_ctrl {
@@ -67,6 +46,19 @@ enum i40e_vf_capabilities {
 	I40E_VIRTCHNL_VF_CAP_PRIVILEGE = 0,
 	I40E_VIRTCHNL_VF_CAP_L2,
 	I40E_VIRTCHNL_VF_CAP_IWARP,
+};
+
+/* In ADq, max 4 VSI's can be allocated per VF including primary VF VSI.
+ * These variables are used to store indices, id's and number of queues
+ * for each VSI including that of primary VF VSI. Each Traffic class is
+ * termed as channel and each channel can in-turn have 4 queues which
+ * means max 16 queues overall per VF.
+ */
+struct i40evf_channel {
+	u16 vsi_idx; /* index in PF struct for all channel VSIs */
+	u16 vsi_id; /* VSI ID used by firmware */
+	u16 num_qps; /* number of queue pairs requested by user */
+	u64 max_tx_rate; /* bandwidth rate allocation for VSIs */
 };
 
 /* VF information structure */
@@ -107,9 +99,17 @@ struct i40e_vf {
 	unsigned int tx_rate;	/* Tx bandwidth limit in Mbps */
 	bool link_forced;
 	bool link_up;		/* only valid if VF link is forced */
+	bool queues_enabled;	/* true if the VF queues are enabled */
 	bool spoofchk;
 	u16 num_mac;
 	u16 num_vlan;
+
+	/* ADq related variables */
+	bool adq_enabled; /* flag to enable adq */
+	u8 num_tc;
+	struct i40evf_channel ch[I40E_MAX_VF_VSI];
+	struct hlist_head cloud_filter_list;
+	u16 num_cloud_filters;
 
 	/* RDMA Client */
 	struct virtchnl_iwarp_qvlist_info *qvlist_info;

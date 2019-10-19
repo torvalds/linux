@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "dsi.h"
@@ -29,7 +21,7 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 
 	phy_node = of_parse_phandle(pdev->dev.of_node, "phys", 0);
 	if (!phy_node) {
-		dev_err(&pdev->dev, "cannot find phy device\n");
+		DRM_DEV_ERROR(&pdev->dev, "cannot find phy device\n");
 		return -ENXIO;
 	}
 
@@ -40,7 +32,7 @@ static int dsi_get_phy(struct msm_dsi *msm_dsi)
 	of_node_put(phy_node);
 
 	if (!phy_pdev || !msm_dsi->phy) {
-		dev_err(&pdev->dev, "%s: phy driver is not ready\n", __func__);
+		DRM_DEV_ERROR(&pdev->dev, "%s: phy driver is not ready\n", __func__);
 		return -EPROBE_DEFER;
 	}
 
@@ -83,6 +75,7 @@ static struct msm_dsi *dsi_init(struct platform_device *pdev)
 		return ERR_PTR(-ENOMEM);
 	DBG("dsi probed=%p", msm_dsi);
 
+	msm_dsi->id = -1;
 	msm_dsi->pdev = pdev;
 	platform_set_drvdata(pdev, msm_dsi);
 
@@ -117,8 +110,13 @@ static int dsi_bind(struct device *dev, struct device *master, void *data)
 
 	DBG("");
 	msm_dsi = dsi_init(pdev);
-	if (IS_ERR(msm_dsi))
-		return PTR_ERR(msm_dsi);
+	if (IS_ERR(msm_dsi)) {
+		/* Don't fail the bind if the dsi port is not connected */
+		if (PTR_ERR(msm_dsi) == -ENODEV)
+			return 0;
+		else
+			return PTR_ERR(msm_dsi);
+	}
 
 	priv->dsi[msm_dsi->id] = msm_dsi;
 
@@ -192,27 +190,31 @@ void __exit msm_dsi_unregister(void)
 int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 			 struct drm_encoder *encoder)
 {
-	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_drm_private *priv;
 	struct drm_bridge *ext_bridge;
 	int ret;
 
-	if (WARN_ON(!encoder))
+	if (WARN_ON(!encoder) || WARN_ON(!msm_dsi) || WARN_ON(!dev))
 		return -EINVAL;
 
+	priv = dev->dev_private;
 	msm_dsi->dev = dev;
 
 	ret = msm_dsi_host_modeset_init(msm_dsi->host, dev);
 	if (ret) {
-		dev_err(dev->dev, "failed to modeset init host: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to modeset init host: %d\n", ret);
 		goto fail;
 	}
+
+	if (!msm_dsi_manager_validate_current_config(msm_dsi->id))
+		goto fail;
 
 	msm_dsi->encoder = encoder;
 
 	msm_dsi->bridge = msm_dsi_manager_bridge_init(msm_dsi->id);
 	if (IS_ERR(msm_dsi->bridge)) {
 		ret = PTR_ERR(msm_dsi->bridge);
-		dev_err(dev->dev, "failed to create dsi bridge: %d\n", ret);
+		DRM_DEV_ERROR(dev->dev, "failed to create dsi bridge: %d\n", ret);
 		msm_dsi->bridge = NULL;
 		goto fail;
 	}
@@ -234,30 +236,30 @@ int msm_dsi_modeset_init(struct msm_dsi *msm_dsi, struct drm_device *dev,
 
 	if (IS_ERR(msm_dsi->connector)) {
 		ret = PTR_ERR(msm_dsi->connector);
-		dev_err(dev->dev,
+		DRM_DEV_ERROR(dev->dev,
 			"failed to create dsi connector: %d\n", ret);
 		msm_dsi->connector = NULL;
 		goto fail;
 	}
+
+	msm_dsi_manager_setup_encoder(msm_dsi->id);
 
 	priv->bridges[priv->num_bridges++]       = msm_dsi->bridge;
 	priv->connectors[priv->num_connectors++] = msm_dsi->connector;
 
 	return 0;
 fail:
-	if (msm_dsi) {
-		/* bridge/connector are normally destroyed by drm: */
-		if (msm_dsi->bridge) {
-			msm_dsi_manager_bridge_destroy(msm_dsi->bridge);
-			msm_dsi->bridge = NULL;
-		}
-
-		/* don't destroy connector if we didn't make it */
-		if (msm_dsi->connector && !msm_dsi->external_bridge)
-			msm_dsi->connector->funcs->destroy(msm_dsi->connector);
-
-		msm_dsi->connector = NULL;
+	/* bridge/connector are normally destroyed by drm: */
+	if (msm_dsi->bridge) {
+		msm_dsi_manager_bridge_destroy(msm_dsi->bridge);
+		msm_dsi->bridge = NULL;
 	}
+
+	/* don't destroy connector if we didn't make it */
+	if (msm_dsi->connector && !msm_dsi->external_bridge)
+		msm_dsi->connector->funcs->destroy(msm_dsi->connector);
+
+	msm_dsi->connector = NULL;
 
 	return ret;
 }

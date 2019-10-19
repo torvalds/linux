@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP44xx sleep code.
  *
  * Copyright (C) 2011 Texas Instruments, Inc.
  * 	Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software,you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -21,8 +18,11 @@
 #include "omap44xx.h"
 #include "omap4-sar-layout.h"
 
+	.arch armv7-a
+
 #if defined(CONFIG_SMP) && defined(CONFIG_PM)
 
+	.arch_extension sec
 .macro	DO_SMC
 	dsb
 	smc	#0
@@ -90,12 +90,7 @@ skip_secure_l1_clean:
 	mcr	p15, 0, r0, c1, c0, 0
 	isb
 
-	/*
-	 * Invalidate L1 data cache. Even though only invalidate is
-	 * necessary exported flush API is used here. Doing clean
-	 * on already clean cache would be almost NOP.
-	 */
-	bl	v7_flush_dcache_all
+	bl	v7_invalidate_l1
 
 	/*
 	 * Switch the CPU from Symmetric Multiprocessing (SMP) mode

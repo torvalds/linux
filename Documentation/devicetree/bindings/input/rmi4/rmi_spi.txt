@@ -16,7 +16,6 @@ Required Properties:
 
 Optional Properties:
 - interrupts: interrupt which the rmi device is connected to.
-- interrupt-parent: The interrupt controller.
 See Documentation/devicetree/bindings/interrupt-controller/interrupts.txt
 
 - spi-rx-delay-us: microsecond delay after a read transfer.

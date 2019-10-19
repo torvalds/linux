@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config SND_HDA_CORE
 	tristate
 	select REGMAP
@@ -5,11 +6,15 @@ config SND_HDA_CORE
 config SND_HDA_DSP_LOADER
 	bool
 
+config SND_HDA_ALIGNED_MMIO
+	bool
+
+config SND_HDA_COMPONENT
+	bool
+
 config SND_HDA_I915
 	bool
-	default y
-	depends on DRM_I915
-	depends on SND_HDA_CORE
+	select SND_HDA_COMPONENT
 
 config SND_HDA_EXT_CORE
        tristate
@@ -27,3 +32,8 @@ config SND_HDA_PREALLOC_SIZE
 
 	  Note that the pre-allocation size can be changed dynamically
 	  via a proc file (/proc/asound/card*/pcm*/sub*/prealloc), too.
+
+config SND_INTEL_NHLT
+	tristate
+	# this config should be selected only for Intel ACPI platforms.
+	# A fallback is provided so that the code compiles in all cases.

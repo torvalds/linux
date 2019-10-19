@@ -431,8 +431,6 @@
 #define MAC_MDIOSCAR_PA_WIDTH		5
 #define MAC_MDIOSCAR_RA_INDEX		0
 #define MAC_MDIOSCAR_RA_WIDTH		16
-#define MAC_MDIOSCAR_REG_INDEX		0
-#define MAC_MDIOSCAR_REG_WIDTH		21
 #define MAC_MDIOSCCDR_BUSY_INDEX	22
 #define MAC_MDIOSCCDR_BUSY_WIDTH	1
 #define MAC_MDIOSCCDR_CMD_INDEX		16
@@ -1321,6 +1319,10 @@
 #define MDIO_VEND2_AN_STAT		0x8002
 #endif
 
+#ifndef MDIO_VEND2_PMA_CDR_CONTROL
+#define MDIO_VEND2_PMA_CDR_CONTROL	0x8056
+#endif
+
 #ifndef MDIO_CTRL1_SPEED1G
 #define MDIO_CTRL1_SPEED1G		(MDIO_CTRL1_SPEED10G & ~BMCR_SPEED100)
 #endif
@@ -1368,6 +1370,10 @@
 #define XGBE_AN_CL37_PCS_MODE_SGMII	0x04
 #define XGBE_AN_CL37_TX_CONFIG_MASK	0x08
 #define XGBE_AN_CL37_MII_CTRL_8BIT	0x0100
+
+#define XGBE_PMA_CDR_TRACK_EN_MASK	0x01
+#define XGBE_PMA_CDR_TRACK_EN_OFF	0x00
+#define XGBE_PMA_CDR_TRACK_EN_ON	0x01
 
 /* Bit setting and getting macros
  *  The get macro will extract the current bit field value from within

@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dce110_transform_v.h"
 #include "dm_services.h"
 #include "dc.h"
@@ -30,6 +32,8 @@
 #include "dce/dce_11_0_sh_mask.h"
 
 #define SCLV_PHASES 64
+#define DC_LOGGER \
+	xfm->ctx->logger
 
 struct sclv_ratios_inits {
 	uint32_t h_int_scale_ratio_luma;
@@ -233,7 +237,7 @@ static void program_overscan(
 	int overscan_right = data->h_active - data->recout.x - data->recout.width;
 	int overscan_bottom = data->v_active - data->recout.y - data->recout.height;
 
-	if (xfm_dce->base.ctx->dc->debug.surface_visual_confirm) {
+	if (xfm_dce->base.ctx->dc->debug.visual_confirm != VISUAL_CONFIRM_DISABLE) {
 		overscan_bottom += 2;
 		overscan_right += 2;
 	}
@@ -371,13 +375,13 @@ static void calculate_inits(
 	struct rect *chroma_viewport)
 {
 	inits->h_int_scale_ratio_luma =
-		dal_fixed31_32_u2d19(data->ratios.horz) << 5;
+		dc_fixpt_u2d19(data->ratios.horz) << 5;
 	inits->v_int_scale_ratio_luma =
-		dal_fixed31_32_u2d19(data->ratios.vert) << 5;
+		dc_fixpt_u2d19(data->ratios.vert) << 5;
 	inits->h_int_scale_ratio_chroma =
-		dal_fixed31_32_u2d19(data->ratios.horz_c) << 5;
+		dc_fixpt_u2d19(data->ratios.horz_c) << 5;
 	inits->v_int_scale_ratio_chroma =
-		dal_fixed31_32_u2d19(data->ratios.vert_c) << 5;
+		dc_fixpt_u2d19(data->ratios.vert_c) << 5;
 
 	inits->h_init_luma.integer = 1;
 	inits->v_init_luma.integer = 1;
@@ -670,8 +674,7 @@ static void dce110_xfmv_set_pixel_storage_depth(
 	if (!(xfm_dce->lb_pixel_depth_supported & depth)) {
 		/*we should use unsupported capabilities
 		 *  unless it is required by w/a*/
-		dm_logger_write(xfm->ctx->logger, LOG_WARNING,
-			"%s: Capability not supported",
+		DC_LOG_WARNING("%s: Capability not supported",
 			__func__);
 	}
 }

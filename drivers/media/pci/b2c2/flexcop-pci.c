@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux driver the digital TV devices equipped with B2C2 FlexcopII(b)/III
  * flexcop-pci.c - covers the PCI part including DMA transfers

@@ -279,10 +279,14 @@ such a method has a form like::
 One important point cannot be overstated: every kobject must have a
 release() method, and the kobject must persist (in a consistent state)
 until that method is called. If these constraints are not met, the code is
-flawed.  Note that the kernel will warn you if you forget to provide a
+flawed. Note that the kernel will warn you if you forget to provide a
 release() method.  Do not try to get rid of this warning by providing an
-"empty" release function; you will be mocked mercilessly by the kobject
-maintainer if you attempt this.
+"empty" release function.
+
+If all your cleanup function needs to do is call kfree(), then you must
+create a wrapper function which uses container_of() to upcast to the correct
+type (as shown in the example above) and then calls kfree() on the overall
+structure.
 
 Note, the name of the kobject is available in the release function, but it
 must NOT be changed within this callback.  Otherwise there will be a memory

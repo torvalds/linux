@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Temperature sensor drivers
 #
@@ -43,6 +44,18 @@ config MLX90614
 	  This driver can also be built as a module. If so, the module will
 	  be called mlx90614.
 
+config MLX90632
+	tristate "MLX90632 contact-less infrared sensor with medical accuracy"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for the Melexis
+	  MLX90632 contact-less infrared sensor with medical accuracy
+	  connected with I2C.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called mlx90632.
+
 config TMP006
 	tristate "TMP006 infrared thermopile sensor"
 	depends on I2C
@@ -54,14 +67,14 @@ config TMP006
 	  be called tmp006.
 
 config TMP007
-        tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
-        depends on I2C
-        help
-          If you say yes here you get support for the Texas Instruments
-          TMP007 infrared thermopile sensor with Integrated Math Engine.
+	tristate "TMP007 infrared thermopile sensor with Integrated Math Engine"
+	depends on I2C
+	help
+	  If you say yes here you get support for the Texas Instruments
+	  TMP007 infrared thermopile sensor with Integrated Math Engine.
 
-          This driver can also be built as a module. If so, the module will
-          be called tmp007.
+	  This driver can also be built as a module. If so, the module will
+	  be called tmp007.
 
 config TSYS01
 	tristate "Measurement Specialties TSYS01 temperature sensor using I2C bus connection"
@@ -84,5 +97,15 @@ config TSYS02D
 
 	  This driver can also be built as a module. If so, the module will
 	  be called tsys02d.
+
+config MAX31856
+	tristate "MAX31856 thermocouple sensor"
+	depends on SPI
+	help
+	  If you say yes here you get support for MAX31856
+	  thermocouple sensor chip connected via SPI.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called max31856.
 
 endmenu

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_PATH_H
@@ -43,15 +39,11 @@ struct aa_buffers {
 
 DECLARE_PER_CPU(struct aa_buffers, aa_buffers);
 
-#define COUNT_ARGS(X...) COUNT_ARGS_HELPER(, ##X, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
-#define COUNT_ARGS_HELPER(_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, n, X...) n
-#define CONCAT(X, Y) X ## Y
-#define CONCAT_AFTER(X, Y) CONCAT(X, Y)
-
-#define ASSIGN(FN, X, N) ((X) = FN(N))
-#define EVAL1(FN, X) ASSIGN(FN, X, 0) /*X = FN(0)*/
-#define EVAL2(FN, X, Y...) do { ASSIGN(FN, X, 1);  EVAL1(FN, Y); } while (0)
-#define EVAL(FN, X...) CONCAT_AFTER(EVAL, COUNT_ARGS(X))(FN, X)
+#define ASSIGN(FN, A, X, N) ((X) = FN(A, N))
+#define EVAL1(FN, A, X) ASSIGN(FN, A, X, 0) /*X = FN(0)*/
+#define EVAL2(FN, A, X, Y...)	\
+	do { ASSIGN(FN, A, X, 1);  EVAL1(FN, A, Y); } while (0)
+#define EVAL(FN, A, X...) CONCATENATE(EVAL, COUNT_ARGS(X))(FN, A, X)
 
 #define for_each_cpu_buffer(I) for ((I) = 0; (I) < MAX_PATH_BUFFERS; (I)++)
 
@@ -61,26 +53,24 @@ DECLARE_PER_CPU(struct aa_buffers, aa_buffers);
 #define AA_BUG_PREEMPT_ENABLED(X) /* nop */
 #endif
 
-#define __get_buffer(N) ({					\
-	struct aa_buffers *__cpu_var; \
+#define __get_buffer(C, N) ({						\
 	AA_BUG_PREEMPT_ENABLED("__get_buffer without preempt disabled");  \
-	__cpu_var = this_cpu_ptr(&aa_buffers);			\
-	__cpu_var->buf[(N)]; })
+	(C)->buf[(N)]; })
 
-#define __get_buffers(X...)    EVAL(__get_buffer, X)
+#define __get_buffers(C, X...)    EVAL(__get_buffer, C, X)
 
 #define __put_buffers(X, Y...) ((void)&(X))
 
-#define get_buffers(X...)	\
-do {				\
-	preempt_disable();	\
-	__get_buffers(X);	\
+#define get_buffers(X...)						\
+do {									\
+	struct aa_buffers *__cpu_var = get_cpu_ptr(&aa_buffers);	\
+	__get_buffers(__cpu_var, X);					\
 } while (0)
 
-#define put_buffers(X, Y...)	\
-do {				\
-	__put_buffers(X, Y);	\
-	preempt_enable();	\
+#define put_buffers(X, Y...)		\
+do {					\
+	__put_buffers(X, Y);		\
+	put_cpu_ptr(&aa_buffers);	\
 } while (0)
 
 #endif /* __AA_PATH_H */

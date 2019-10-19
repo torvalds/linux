@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Motorola CPCAP PMIC RTC driver
  *
@@ -12,18 +13,10 @@
  *  - remove custom "secure clock daemon" helpers
  *
  * Copyright (C) 2017 Sebastian Reichel <sre@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
@@ -119,7 +112,7 @@ static int cpcap_rtc_read_time(struct device *dev, struct rtc_time *tm)
 
 	cpcap2rtc_time(tm, &cpcap_tm);
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int cpcap_rtc_set_time(struct device *dev, struct rtc_time *tm)

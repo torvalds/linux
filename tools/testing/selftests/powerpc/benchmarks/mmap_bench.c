@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016, Anton Blanchard, Michael Ellerman, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <stdio.h>
@@ -84,5 +84,7 @@ int main(int argc, char *argv[])
 			exit(1);
 		}
 	}
+
+	test_harness_set_timeout(300);
 	return test_harness(test_mmap, "mmap_bench");
 }

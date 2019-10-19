@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x Command DMA
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 
@@ -41,7 +30,17 @@
  * means that the push buffer is full, not empty.
  */
 
-#define HOST1X_PUSHBUFFER_SLOTS	512
+/*
+ * Typically the commands written into the push buffer are a pair of words. We
+ * use slots to represent each of these pairs and to simplify things. Note the
+ * strange number of slots allocated here. 512 slots will fit exactly within a
+ * single memory page. We also need one additional word at the end of the push
+ * buffer for the RESTART opcode that will instruct the CDMA to jump back to
+ * the beginning of the push buffer. With 512 slots, this means that we'll use
+ * 2 memory pages and waste 4092 bytes of the second page that will never be
+ * used.
+ */
+#define HOST1X_PUSHBUFFER_SLOTS	511
 
 /*
  * Clean up push buffer resources
@@ -51,7 +50,7 @@ static void host1x_pushbuffer_destroy(struct push_buffer *pb)
 	struct host1x_cdma *cdma = pb_to_cdma(pb);
 	struct host1x *host1x = cdma_to_host1x(cdma);
 
-	if (!pb->phys)
+	if (!pb->mapped)
 		return;
 
 	if (host1x->domain) {
@@ -127,7 +126,7 @@ static int host1x_pushbuffer_init(struct push_buffer *pb)
 iommu_free_iova:
 	__free_iova(&host1x->iova, alloc);
 iommu_free_mem:
-	dma_free_wc(host1x->dev, pb->alloc_size, pb->mapped, pb->phys);
+	dma_free_wc(host1x->dev, size, pb->mapped, pb->phys);
 
 	return err;
 }
@@ -143,7 +142,10 @@ static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 	WARN_ON(pb->pos == pb->fence);
 	*(p++) = op1;
 	*(p++) = op2;
-	pb->pos = (pb->pos + 8) & (pb->size - 1);
+	pb->pos += 8;
+
+	if (pb->pos >= pb->size)
+		pb->pos -= pb->size;
 }
 
 /*
@@ -153,7 +155,10 @@ static void host1x_pushbuffer_push(struct push_buffer *pb, u32 op1, u32 op2)
 static void host1x_pushbuffer_pop(struct push_buffer *pb, unsigned int slots)
 {
 	/* Advance the next write position */
-	pb->fence = (pb->fence + slots * 8) & (pb->size - 1);
+	pb->fence += slots * 8;
+
+	if (pb->fence >= pb->size)
+		pb->fence -= pb->size;
 }
 
 /*
@@ -161,7 +166,12 @@ static void host1x_pushbuffer_pop(struct push_buffer *pb, unsigned int slots)
  */
 static u32 host1x_pushbuffer_space(struct push_buffer *pb)
 {
-	return ((pb->fence - pb->pos) & (pb->size - 1)) / 8;
+	unsigned int fence = pb->fence;
+
+	if (pb->fence < pb->pos)
+		fence += pb->size;
+
+	return (fence - pb->pos) / 8;
 }
 
 /*
@@ -210,13 +220,52 @@ unsigned int host1x_cdma_wait_locked(struct host1x_cdma *cdma,
 		cdma->event = event;
 
 		mutex_unlock(&cdma->lock);
-		down(&cdma->sem);
+		wait_for_completion(&cdma->complete);
 		mutex_lock(&cdma->lock);
 	}
 
 	return 0;
 }
 
+/*
+ * Sleep (if necessary) until the push buffer has enough free space.
+ *
+ * Must be called with the cdma lock held.
+ */
+int host1x_cdma_wait_pushbuffer_space(struct host1x *host1x,
+				      struct host1x_cdma *cdma,
+				      unsigned int needed)
+{
+	while (true) {
+		struct push_buffer *pb = &cdma->push_buffer;
+		unsigned int space;
+
+		space = host1x_pushbuffer_space(pb);
+		if (space >= needed)
+			break;
+
+		trace_host1x_wait_cdma(dev_name(cdma_to_channel(cdma)->dev),
+				       CDMA_EVENT_PUSH_BUFFER_SPACE);
+
+		host1x_hw_cdma_flush(host1x, cdma);
+
+		/* If somebody has managed to already start waiting, yield */
+		if (cdma->event != CDMA_EVENT_NONE) {
+			mutex_unlock(&cdma->lock);
+			schedule();
+			mutex_lock(&cdma->lock);
+			continue;
+		}
+
+		cdma->event = CDMA_EVENT_PUSH_BUFFER_SPACE;
+
+		mutex_unlock(&cdma->lock);
+		wait_for_completion(&cdma->complete);
+		mutex_lock(&cdma->lock);
+	}
+
+	return 0;
+}
 /*
  * Start timer that tracks the time spent by the job.
  * Must be called with the cdma lock held.
@@ -247,7 +296,7 @@ static void cdma_start_timer_locked(struct host1x_cdma *cdma,
 static void stop_cdma_timer_locked(struct host1x_cdma *cdma)
 {
 	cancel_delayed_work(&cdma->timeout.wq);
-	cdma->timeout.client = 0;
+	cdma->timeout.client = NULL;
 }
 
 /*
@@ -314,7 +363,7 @@ static void update_cdma_locked(struct host1x_cdma *cdma)
 
 	if (signal) {
 		cdma->event = CDMA_EVENT_NONE;
-		up(&cdma->sem);
+		complete(&cdma->complete);
 	}
 }
 
@@ -323,7 +372,7 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 {
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	u32 restart_addr, syncpt_incrs, syncpt_val;
-	struct host1x_job *job = NULL;
+	struct host1x_job *job, *next_job = NULL;
 
 	syncpt_val = host1x_syncpt_load(cdma->timeout.syncpt);
 
@@ -341,40 +390,37 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 		__func__);
 
 	list_for_each_entry(job, &cdma->sync_queue, list) {
-		if (syncpt_val < job->syncpt_end)
-			break;
+		if (syncpt_val < job->syncpt_end) {
+
+			if (!list_is_last(&job->list, &cdma->sync_queue))
+				next_job = list_next_entry(job, list);
+
+			goto syncpt_incr;
+		}
 
 		host1x_job_dump(dev, job);
 	}
 
+	/* all jobs have been completed */
+	job = NULL;
+
+syncpt_incr:
+
 	/*
-	 * Walk the sync_queue, first incrementing with the CPU syncpts that
-	 * are partially executed (the first buffer) or fully skipped while
-	 * still in the current context (slots are also NOP-ed).
+	 * Increment with CPU the remaining syncpts of a partially executed job.
 	 *
-	 * At the point contexts are interleaved, syncpt increments must be
-	 * done inline with the pushbuffer from a GATHER buffer to maintain
-	 * the order (slots are modified to be a GATHER of syncpt incrs).
-	 *
-	 * Note: save in restart_addr the location where the timed out buffer
-	 * started in the PB, so we can start the refetch from there (with the
-	 * modified NOP-ed PB slots). This lets things appear to have completed
-	 * properly for this buffer and resources are freed.
+	 * CDMA will continue execution starting with the next job or will get
+	 * into idle state.
 	 */
-
-	dev_dbg(dev, "%s: perform CPU incr on pending same ctx buffers\n",
-		__func__);
-
-	if (!list_empty(&cdma->sync_queue))
-		restart_addr = job->first_get;
+	if (next_job)
+		restart_addr = next_job->first_get;
 	else
 		restart_addr = cdma->last_pos;
 
-	/* do CPU increments as long as this context continues */
-	list_for_each_entry_from(job, &cdma->sync_queue, list) {
-		/* different context, gets us out of this loop */
-		if (job->client != cdma->timeout.client)
-			break;
+	/* do CPU increments for the remaining syncpts */
+	if (job) {
+		dev_dbg(dev, "%s: perform CPU incr on pending buffers\n",
+			__func__);
 
 		/* won't need a timeout when replayed */
 		job->timeout = 0;
@@ -389,20 +435,9 @@ void host1x_cdma_update_sync_queue(struct host1x_cdma *cdma,
 						syncpt_incrs, job->syncpt_end,
 						job->num_slots);
 
-		syncpt_val += syncpt_incrs;
+		dev_dbg(dev, "%s: finished sync_queue modification\n",
+			__func__);
 	}
-
-	/*
-	 * The following sumbits from the same client may be dependent on the
-	 * failed submit and therefore they may fail. Force a small timeout
-	 * to make the queue cleanup faster.
-	 */
-
-	list_for_each_entry_from(job, &cdma->sync_queue, list)
-		if (job->client == cdma->timeout.client)
-			job->timeout = min_t(unsigned int, job->timeout, 500);
-
-	dev_dbg(dev, "%s: finished sync_queue modification\n", __func__);
 
 	/* roll back DMAGET and start up channel again */
 	host1x_hw_cdma_resume(host1x, cdma, restart_addr);
@@ -416,7 +451,7 @@ int host1x_cdma_init(struct host1x_cdma *cdma)
 	int err;
 
 	mutex_init(&cdma->lock);
-	sema_init(&cdma->sem, 0);
+	init_completion(&cdma->complete);
 
 	INIT_LIST_HEAD(&cdma->sync_queue);
 
@@ -507,6 +542,59 @@ void host1x_cdma_push(struct host1x_cdma *cdma, u32 op1, u32 op2)
 	cdma->slots_free = slots_free - 1;
 	cdma->slots_used++;
 	host1x_pushbuffer_push(pb, op1, op2);
+}
+
+/*
+ * Push four words into two consecutive push buffer slots. Note that extra
+ * care needs to be taken not to split the two slots across the end of the
+ * push buffer. Otherwise the RESTART opcode at the end of the push buffer
+ * that ensures processing will restart at the beginning will break up the
+ * four words.
+ *
+ * Blocks as necessary if the push buffer is full.
+ */
+void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
+			   u32 op3, u32 op4)
+{
+	struct host1x_channel *channel = cdma_to_channel(cdma);
+	struct host1x *host1x = cdma_to_host1x(cdma);
+	struct push_buffer *pb = &cdma->push_buffer;
+	unsigned int needed = 2, extra = 0, i;
+	unsigned int space = cdma->slots_free;
+
+	if (host1x_debug_trace_cmdbuf)
+		trace_host1x_cdma_push_wide(dev_name(channel->dev), op1, op2,
+					    op3, op4);
+
+	/* compute number of extra slots needed for padding */
+	if (pb->pos + 16 > pb->size) {
+		extra = (pb->size - pb->pos) / 8;
+		needed += extra;
+	}
+
+	host1x_cdma_wait_pushbuffer_space(host1x, cdma, needed);
+	space = host1x_pushbuffer_space(pb);
+
+	cdma->slots_free = space - needed;
+	cdma->slots_used += needed;
+
+	/*
+	 * Note that we rely on the fact that this is only used to submit wide
+	 * gather opcodes, which consist of 3 words, and they are padded with
+	 * a NOP to avoid having to deal with fractional slots (a slot always
+	 * represents 2 words). The fourth opcode passed to this function will
+	 * therefore always be a NOP.
+	 *
+	 * This works around a slight ambiguity when it comes to opcodes. For
+	 * all current host1x incarnations the NOP opcode uses the exact same
+	 * encoding (0x20000000), so we could hard-code the value here, but a
+	 * new incarnation may change it and break that assumption.
+	 */
+	for (i = 0; i < extra; i++)
+		host1x_pushbuffer_push(pb, op4, op4);
+
+	host1x_pushbuffer_push(pb, op1, op2);
+	host1x_pushbuffer_push(pb, op3, op4);
 }
 
 /*

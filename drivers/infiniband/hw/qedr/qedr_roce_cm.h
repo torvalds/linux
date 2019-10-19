@@ -46,10 +46,10 @@ static inline u32 qedr_get_ipv4_from_gid(const u8 *gid)
 
 /* RDMA CM */
 int qedr_gsi_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc);
-int qedr_gsi_post_recv(struct ib_qp *ibqp, struct ib_recv_wr *wr,
-		       struct ib_recv_wr **bad_wr);
-int qedr_gsi_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
-		       struct ib_send_wr **bad_wr);
+int qedr_gsi_post_recv(struct ib_qp *ibqp, const struct ib_recv_wr *wr,
+		       const struct ib_recv_wr **bad_wr);
+int qedr_gsi_post_send(struct ib_qp *ibqp, const struct ib_send_wr *wr,
+		       const struct ib_send_wr **bad_wr);
 struct ib_qp *qedr_create_gsi_qp(struct qedr_dev *dev,
 				 struct ib_qp_init_attr *attrs,
 				 struct qedr_qp *qp);

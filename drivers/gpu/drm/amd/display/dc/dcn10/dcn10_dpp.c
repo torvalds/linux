@@ -91,12 +91,33 @@ enum dscl_mode_sel {
 	DSCL_MODE_DSCL_BYPASS = 6
 };
 
-enum gamut_remap_select {
-	GAMUT_REMAP_BYPASS = 0,
-	GAMUT_REMAP_COEFF,
-	GAMUT_REMAP_COMA_COEFF,
-	GAMUT_REMAP_COMB_COEFF
-};
+void dpp_read_state(struct dpp *dpp_base,
+		struct dcn_dpp_state *s)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	REG_GET(DPP_CONTROL,
+			DPP_CLOCK_ENABLE, &s->is_enabled);
+	REG_GET(CM_IGAM_CONTROL,
+			CM_IGAM_LUT_MODE, &s->igam_lut_mode);
+	REG_GET(CM_IGAM_CONTROL,
+			CM_IGAM_INPUT_FORMAT, &s->igam_input_format);
+	REG_GET(CM_DGAM_CONTROL,
+			CM_DGAM_LUT_MODE, &s->dgam_lut_mode);
+	REG_GET(CM_RGAM_CONTROL,
+			CM_RGAM_LUT_MODE, &s->rgam_lut_mode);
+	REG_GET(CM_GAMUT_REMAP_CONTROL,
+			CM_GAMUT_REMAP_MODE, &s->gamut_remap_mode);
+
+	if (s->gamut_remap_mode) {
+		s->gamut_remap_c11_c12 = REG_READ(CM_GAMUT_REMAP_C11_C12);
+		s->gamut_remap_c13_c14 = REG_READ(CM_GAMUT_REMAP_C13_C14);
+		s->gamut_remap_c21_c22 = REG_READ(CM_GAMUT_REMAP_C21_C22);
+		s->gamut_remap_c23_c24 = REG_READ(CM_GAMUT_REMAP_C23_C24);
+		s->gamut_remap_c31_c32 = REG_READ(CM_GAMUT_REMAP_C31_C32);
+		s->gamut_remap_c33_c34 = REG_READ(CM_GAMUT_REMAP_C33_C34);
+	}
+}
 
 /* Program gamut remap in bypass mode */
 void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
@@ -106,10 +127,9 @@ void dpp_set_gamut_remap_bypass(struct dcn10_dpp *dpp)
 	/* Gamut remap in bypass */
 }
 
-#define IDENTITY_RATIO(ratio) (dal_fixed31_32_u2d19(ratio) == (1 << 19))
+#define IDENTITY_RATIO(ratio) (dc_fixpt_u2d19(ratio) == (1 << 19))
 
-
-bool dpp_get_optimal_number_of_taps(
+static bool dpp_get_optimal_number_of_taps(
 		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)
@@ -120,6 +140,18 @@ bool dpp_get_optimal_number_of_taps(
 		pixel_width = scl_data->recout.width;
 	else
 		pixel_width = scl_data->viewport.width;
+
+	/* Some ASICs does not support  FP16 scaling, so we reject modes require this*/
+	if (scl_data->format == PIXEL_FORMAT_FP16 &&
+		dpp->caps->dscl_data_proc_format == DSCL_DATA_PRCESSING_FIXED_FORMAT &&
+		scl_data->ratios.horz.value != dc_fixpt_one.value &&
+		scl_data->ratios.vert.value != dc_fixpt_one.value)
+		return false;
+
+	if (scl_data->viewport.width > scl_data->h_active &&
+		dpp->ctx->dc->debug.max_downscale_src_width != 0 &&
+		scl_data->viewport.width > dpp->ctx->dc->debug.max_downscale_src_width)
+		return false;
 
 	/* TODO: add lb check */
 
@@ -196,7 +228,7 @@ static void dpp1_cm_set_regamma_pwl(
 	case OPP_REGAMMA_SRGB:
 		re_mode = 1;
 		break;
-	case OPP_REGAMMA_3_6:
+	case OPP_REGAMMA_XVYCC:
 		re_mode = 2;
 		break;
 	case OPP_REGAMMA_USER:
@@ -257,8 +289,13 @@ void dpp1_cnv_setup (
 		struct dpp *dpp_base,
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
-		struct csc_transform input_csc_color_matrix,
+		struct dc_csc_transform input_csc_color_matrix,
+#ifdef CONFIG_DRM_AMD_DC_DCN2_0
+		enum dc_color_space input_color_space,
+		struct cnv_alpha_2bit_lut *alpha_2bit_lut)
+#else
 		enum dc_color_space input_color_space)
+#endif
 {
 	uint32_t pixel_format;
 	uint32_t alpha_en;
@@ -353,6 +390,10 @@ void dpp1_cnv_setup (
 	default:
 		break;
 	}
+
+	/* Set default color space based on format if none is given. */
+	color_space = input_color_space ? input_color_space : color_space;
+
 	REG_SET(CNVC_SURFACE_PIXEL_FORMAT, 0,
 			CNVC_SURFACE_PIXEL_FORMAT, pixel_format);
 	REG_UPDATE(FORMAT_CONTROL, FORMAT_CONTROL__ALPHA_EN, alpha_en);
@@ -364,7 +405,7 @@ void dpp1_cnv_setup (
 		for (i = 0; i < 12; i++)
 			tbl_entry.regval[i] = input_csc_color_matrix.matrix[i];
 
-		tbl_entry.color_space = input_color_space;
+		tbl_entry.color_space = color_space;
 
 		if (color_space >= COLOR_SPACE_YCBCR601)
 			select = INPUT_CSC_SELECT_ICSC;
@@ -385,8 +426,9 @@ void dpp1_cnv_setup (
 
 void dpp1_set_cursor_attributes(
 		struct dpp *dpp_base,
-		enum dc_cursor_color_format color_format)
+		struct dc_cursor_attributes *cursor_attributes)
 {
+	enum dc_cursor_color_format color_format = cursor_attributes->color_format;
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
 
 	REG_UPDATE_2(CURSOR0_CONTROL,
@@ -407,24 +449,76 @@ void dpp1_set_cursor_position(
 		struct dpp *dpp_base,
 		const struct dc_cursor_position *pos,
 		const struct dc_cursor_mi_param *param,
-		uint32_t width)
+		uint32_t width,
+		uint32_t height)
 {
 	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
-	int src_x_offset = pos->x - pos->x_hotspot - param->viewport_x_start;
+	int src_x_offset = pos->x - pos->x_hotspot - param->viewport.x;
+	int src_y_offset = pos->y - pos->y_hotspot - param->viewport.y;
 	uint32_t cur_en = pos->enable ? 1 : 0;
 
-	if (src_x_offset >= (int)param->viewport_width)
+	// Cursor width/height and hotspots need to be rotated for offset calculation
+	if (param->rotation == ROTATION_ANGLE_90 || param->rotation == ROTATION_ANGLE_270) {
+		swap(width, height);
+		if (param->rotation == ROTATION_ANGLE_90) {
+			src_x_offset = pos->x - pos->y_hotspot - param->viewport.x;
+			src_y_offset = pos->y - pos->x_hotspot - param->viewport.y;
+		}
+	} else if (param->rotation == ROTATION_ANGLE_180) {
+		src_x_offset = pos->x - param->viewport.x;
+		src_y_offset = pos->y - param->viewport.y;
+	}
+
+
+	if (src_x_offset >= (int)param->viewport.width)
 		cur_en = 0;  /* not visible beyond right edge*/
 
-	if (src_x_offset + (int)width < 0)
+	if (src_x_offset + (int)width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
+
+	if (src_y_offset >= (int)param->viewport.height)
+		cur_en = 0;  /* not visible beyond bottom edge*/
+
+	if (src_y_offset + (int)height <= 0)
+		cur_en = 0;  /* not visible beyond top edge*/
 
 	REG_UPDATE(CURSOR0_CONTROL,
 			CUR0_ENABLE, cur_en);
 
 }
 
+void dpp1_cnv_set_optional_cursor_attributes(
+		struct dpp *dpp_base,
+		struct dpp_cursor_attributes *attr)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	if (attr) {
+		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_BIAS,  attr->bias);
+		REG_UPDATE(CURSOR0_FP_SCALE_BIAS,  CUR0_FP_SCALE, attr->scale);
+	}
+}
+
+void dpp1_dppclk_control(
+		struct dpp *dpp_base,
+		bool dppclk_div,
+		bool enable)
+{
+	struct dcn10_dpp *dpp = TO_DCN10_DPP(dpp_base);
+
+	if (enable) {
+		if (dpp->tf_mask->DPPCLK_RATE_CONTROL)
+			REG_UPDATE_2(DPP_CONTROL,
+				DPPCLK_RATE_CONTROL, dppclk_div,
+				DPP_CLOCK_ENABLE, 1);
+		else
+			REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 1);
+	} else
+		REG_UPDATE(DPP_CONTROL, DPP_CLOCK_ENABLE, 0);
+}
+
 static const struct dpp_funcs dcn10_dpp_funcs = {
+		.dpp_read_state = dpp_read_state,
 		.dpp_reset = dpp_reset,
 		.dpp_set_scaler = dpp1_dscl_set_scaler_manual_scale,
 		.dpp_get_optimal_number_of_taps = dpp_get_optimal_number_of_taps,
@@ -445,6 +539,14 @@ static const struct dpp_funcs dcn10_dpp_funcs = {
 		.dpp_full_bypass		= dpp1_full_bypass,
 		.set_cursor_attributes = dpp1_set_cursor_attributes,
 		.set_cursor_position = dpp1_set_cursor_position,
+		.set_optional_cursor_attributes = dpp1_cnv_set_optional_cursor_attributes,
+		.dpp_dppclk_control = dpp1_dppclk_control,
+		.dpp_set_hdr_multiplier = dpp1_set_hdr_multiplier,
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+		.dpp_program_blnd_lut = NULL,
+		.dpp_program_shaper_lut = NULL,
+		.dpp_program_3dlut = NULL
+#endif
 };
 
 static struct dpp_caps dcn10_dpp_cap = {

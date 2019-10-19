@@ -1,0 +1,2006 @@
+Explanation of the Linux-Kernel Memory Consistency Model
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:Author: Alan Stern <stern@rowland.harvard.edu>
+:Created: October 2017
+
+.. Contents
+
+  1. INTRODUCTION
+  2. BACKGROUND
+  3. A SIMPLE EXAMPLE
+  4. A SELECTION OF MEMORY MODELS
+  5. ORDERING AND CYCLES
+  6. EVENTS
+  7. THE PROGRAM ORDER RELATION: po AND po-loc
+  8. A WARNING
+  9. DEPENDENCY RELATIONS: data, addr, and ctrl
+  10. THE READS-FROM RELATION: rf, rfi, and rfe
+  11. CACHE COHERENCE AND THE COHERENCE ORDER RELATION: co, coi, and coe
+  12. THE FROM-READS RELATION: fr, fri, and fre
+  13. AN OPERATIONAL MODEL
+  14. PROPAGATION ORDER RELATION: cumul-fence
+  15. DERIVATION OF THE LKMM FROM THE OPERATIONAL MODEL
+  16. SEQUENTIAL CONSISTENCY PER VARIABLE
+  17. ATOMIC UPDATES: rmw
+  18. THE PRESERVED PROGRAM ORDER RELATION: ppo
+  19. AND THEN THERE WAS ALPHA
+  20. THE HAPPENS-BEFORE RELATION: hb
+  21. THE PROPAGATES-BEFORE RELATION: pb
+  22. RCU RELATIONS: rcu-link, rcu-gp, rcu-rscsi, rcu-fence, and rb
+  23. LOCKING
+  24. ODDS AND ENDS
+
+
+
+INTRODUCTION
+------------
+
+The Linux-kernel memory consistency model (LKMM) is rather complex and
+obscure.  This is particularly evident if you read through the
+linux-kernel.bell and linux-kernel.cat files that make up the formal
+version of the model; they are extremely terse and their meanings are
+far from clear.
+
+This document describes the ideas underlying the LKMM, but excluding
+the modeling of bare C (or plain) shared memory accesses.  It is meant
+for people who want to understand how the model was designed.  It does
+not go into the details of the code in the .bell and .cat files;
+rather, it explains in English what the code expresses symbolically.
+
+Sections 2 (BACKGROUND) through 5 (ORDERING AND CYCLES) are aimed
+toward beginners; they explain what memory consistency models are and
+the basic notions shared by all such models.  People already familiar
+with these concepts can skim or skip over them.  Sections 6 (EVENTS)
+through 12 (THE FROM_READS RELATION) describe the fundamental
+relations used in many models.  Starting in Section 13 (AN OPERATIONAL
+MODEL), the workings of the LKMM itself are covered.
+
+Warning: The code examples in this document are not written in the
+proper format for litmus tests.  They don't include a header line, the
+initializations are not enclosed in braces, the global variables are
+not passed by pointers, and they don't have an "exists" clause at the
+end.  Converting them to the right format is left as an exercise for
+the reader.
+
+
+BACKGROUND
+----------
+
+A memory consistency model (or just memory model, for short) is
+something which predicts, given a piece of computer code running on a
+particular kind of system, what values may be obtained by the code's
+load instructions.  The LKMM makes these predictions for code running
+as part of the Linux kernel.
+
+In practice, people tend to use memory models the other way around.
+That is, given a piece of code and a collection of values specified
+for the loads, the model will predict whether it is possible for the
+code to run in such a way that the loads will indeed obtain the
+specified values.  Of course, this is just another way of expressing
+the same idea.
+
+For code running on a uniprocessor system, the predictions are easy:
+Each load instruction must obtain the value written by the most recent
+store instruction accessing the same location (we ignore complicating
+factors such as DMA and mixed-size accesses.)  But on multiprocessor
+systems, with multiple CPUs making concurrent accesses to shared
+memory locations, things aren't so simple.
+
+Different architectures have differing memory models, and the Linux
+kernel supports a variety of architectures.  The LKMM has to be fairly
+permissive, in the sense that any behavior allowed by one of these
+architectures also has to be allowed by the LKMM.
+
+
+A SIMPLE EXAMPLE
+----------------
+
+Here is a simple example to illustrate the basic concepts.  Consider
+some code running as part of a device driver for an input device.  The
+driver might contain an interrupt handler which collects data from the
+device, stores it in a buffer, and sets a flag to indicate the buffer
+is full.  Running concurrently on a different CPU might be a part of
+the driver code being executed by a process in the midst of a read(2)
+system call.  This code tests the flag to see whether the buffer is
+ready, and if it is, copies the data back to userspace.  The buffer
+and the flag are memory locations shared between the two CPUs.
+
+We can abstract out the important pieces of the driver code as follows
+(the reason for using WRITE_ONCE() and READ_ONCE() instead of simple
+assignment statements is discussed later):
+
+	int buf = 0, flag = 0;
+
+	P0()
+	{
+		WRITE_ONCE(buf, 1);
+		WRITE_ONCE(flag, 1);
+	}
+
+	P1()
+	{
+		int r1;
+		int r2 = 0;
+
+		r1 = READ_ONCE(flag);
+		if (r1)
+			r2 = READ_ONCE(buf);
+	}
+
+Here the P0() function represents the interrupt handler running on one
+CPU and P1() represents the read() routine running on another.  The
+value 1 stored in buf represents input data collected from the device.
+Thus, P0 stores the data in buf and then sets flag.  Meanwhile, P1
+reads flag into the private variable r1, and if it is set, reads the
+data from buf into a second private variable r2 for copying to
+userspace.  (Presumably if flag is not set then the driver will wait a
+while and try again.)
+
+This pattern of memory accesses, where one CPU stores values to two
+shared memory locations and another CPU loads from those locations in
+the opposite order, is widely known as the "Message Passing" or MP
+pattern.  It is typical of memory access patterns in the kernel.
+
+Please note that this example code is a simplified abstraction.  Real
+buffers are usually larger than a single integer, real device drivers
+usually use sleep and wakeup mechanisms rather than polling for I/O
+completion, and real code generally doesn't bother to copy values into
+private variables before using them.  All that is beside the point;
+the idea here is simply to illustrate the overall pattern of memory
+accesses by the CPUs.
+
+A memory model will predict what values P1 might obtain for its loads
+from flag and buf, or equivalently, what values r1 and r2 might end up
+with after the code has finished running.
+
+Some predictions are trivial.  For instance, no sane memory model would
+predict that r1 = 42 or r2 = -7, because neither of those values ever
+gets stored in flag or buf.
+
+Some nontrivial predictions are nonetheless quite simple.  For
+instance, P1 might run entirely before P0 begins, in which case r1 and
+r2 will both be 0 at the end.  Or P0 might run entirely before P1
+begins, in which case r1 and r2 will both be 1.
+
+The interesting predictions concern what might happen when the two
+routines run concurrently.  One possibility is that P1 runs after P0's
+store to buf but before the store to flag.  In this case, r1 and r2
+will again both be 0.  (If P1 had been designed to read buf
+unconditionally then we would instead have r1 = 0 and r2 = 1.)
+
+However, the most interesting possibility is where r1 = 1 and r2 = 0.
+If this were to occur it would mean the driver contains a bug, because
+incorrect data would get sent to the user: 0 instead of 1.  As it
+happens, the LKMM does predict this outcome can occur, and the example
+driver code shown above is indeed buggy.
+
+
+A SELECTION OF MEMORY MODELS
+----------------------------
+
+The first widely cited memory model, and the simplest to understand,
+is Sequential Consistency.  According to this model, systems behave as
+if each CPU executed its instructions in order but with unspecified
+timing.  In other words, the instructions from the various CPUs get
+interleaved in a nondeterministic way, always according to some single
+global order that agrees with the order of the instructions in the
+program source for each CPU.  The model says that the value obtained
+by each load is simply the value written by the most recently executed
+store to the same memory location, from any CPU.
+
+For the MP example code shown above, Sequential Consistency predicts
+that the undesired result r1 = 1, r2 = 0 cannot occur.  The reasoning
+goes like this:
+
+	Since r1 = 1, P0 must store 1 to flag before P1 loads 1 from
+	it, as loads can obtain values only from earlier stores.
+
+	P1 loads from flag before loading from buf, since CPUs execute
+	their instructions in order.
+
+	P1 must load 0 from buf before P0 stores 1 to it; otherwise r2
+	would be 1 since a load obtains its value from the most recent
+	store to the same address.
+
+	P0 stores 1 to buf before storing 1 to flag, since it executes
+	its instructions in order.
+
+	Since an instruction (in this case, P1's store to flag) cannot
+	execute before itself, the specified outcome is impossible.
+
+However, real computer hardware almost never follows the Sequential
+Consistency memory model; doing so would rule out too many valuable
+performance optimizations.  On ARM and PowerPC architectures, for
+instance, the MP example code really does sometimes yield r1 = 1 and
+r2 = 0.
+
+x86 and SPARC follow yet a different memory model: TSO (Total Store
+Ordering).  This model predicts that the undesired outcome for the MP
+pattern cannot occur, but in other respects it differs from Sequential
+Consistency.  One example is the Store Buffer (SB) pattern, in which
+each CPU stores to its own shared location and then loads from the
+other CPU's location:
+
+	int x = 0, y = 0;
+
+	P0()
+	{
+		int r0;
+
+		WRITE_ONCE(x, 1);
+		r0 = READ_ONCE(y);
+	}
+
+	P1()
+	{
+		int r1;
+
+		WRITE_ONCE(y, 1);
+		r1 = READ_ONCE(x);
+	}
+
+Sequential Consistency predicts that the outcome r0 = 0, r1 = 0 is
+impossible.  (Exercise: Figure out the reasoning.)  But TSO allows
+this outcome to occur, and in fact it does sometimes occur on x86 and
+SPARC systems.
+
+The LKMM was inspired by the memory models followed by PowerPC, ARM,
+x86, Alpha, and other architectures.  However, it is different in
+detail from each of them.
+
+
+ORDERING AND CYCLES
+-------------------
+
+Memory models are all about ordering.  Often this is temporal ordering
+(i.e., the order in which certain events occur) but it doesn't have to
+be; consider for example the order of instructions in a program's
+source code.  We saw above that Sequential Consistency makes an
+important assumption that CPUs execute instructions in the same order
+as those instructions occur in the code, and there are many other
+instances of ordering playing central roles in memory models.
+
+The counterpart to ordering is a cycle.  Ordering rules out cycles:
+It's not possible to have X ordered before Y, Y ordered before Z, and
+Z ordered before X, because this would mean that X is ordered before
+itself.  The analysis of the MP example under Sequential Consistency
+involved just such an impossible cycle:
+
+	W: P0 stores 1 to flag   executes before
+	X: P1 loads 1 from flag  executes before
+	Y: P1 loads 0 from buf   executes before
+	Z: P0 stores 1 to buf    executes before
+	W: P0 stores 1 to flag.
+
+In short, if a memory model requires certain accesses to be ordered,
+and a certain outcome for the loads in a piece of code can happen only
+if those accesses would form a cycle, then the memory model predicts
+that outcome cannot occur.
+
+The LKMM is defined largely in terms of cycles, as we will see.
+
+
+EVENTS
+------
+
+The LKMM does not work directly with the C statements that make up
+kernel source code.  Instead it considers the effects of those
+statements in a more abstract form, namely, events.  The model
+includes three types of events:
+
+	Read events correspond to loads from shared memory, such as
+	calls to READ_ONCE(), smp_load_acquire(), or
+	rcu_dereference().
+
+	Write events correspond to stores to shared memory, such as
+	calls to WRITE_ONCE(), smp_store_release(), or atomic_set().
+
+	Fence events correspond to memory barriers (also known as
+	fences), such as calls to smp_rmb() or rcu_read_lock().
+
+These categories are not exclusive; a read or write event can also be
+a fence.  This happens with functions like smp_load_acquire() or
+spin_lock().  However, no single event can be both a read and a write.
+Atomic read-modify-write accesses, such as atomic_inc() or xchg(),
+correspond to a pair of events: a read followed by a write.  (The
+write event is omitted for executions where it doesn't occur, such as
+a cmpxchg() where the comparison fails.)
+
+Other parts of the code, those which do not involve interaction with
+shared memory, do not give rise to events.  Thus, arithmetic and
+logical computations, control-flow instructions, or accesses to
+private memory or CPU registers are not of central interest to the
+memory model.  They only affect the model's predictions indirectly.
+For example, an arithmetic computation might determine the value that
+gets stored to a shared memory location (or in the case of an array
+index, the address where the value gets stored), but the memory model
+is concerned only with the store itself -- its value and its address
+-- not the computation leading up to it.
+
+Events in the LKMM can be linked by various relations, which we will
+describe in the following sections.  The memory model requires certain
+of these relations to be orderings, that is, it requires them not to
+have any cycles.
+
+
+THE PROGRAM ORDER RELATION: po AND po-loc
+-----------------------------------------
+
+The most important relation between events is program order (po).  You
+can think of it as the order in which statements occur in the source
+code after branches are taken into account and loops have been
+unrolled.  A better description might be the order in which
+instructions are presented to a CPU's execution unit.  Thus, we say
+that X is po-before Y (written as "X ->po Y" in formulas) if X occurs
+before Y in the instruction stream.
+
+This is inherently a single-CPU relation; two instructions executing
+on different CPUs are never linked by po.  Also, it is by definition
+an ordering so it cannot have any cycles.
+
+po-loc is a sub-relation of po.  It links two memory accesses when the
+first comes before the second in program order and they access the
+same memory location (the "-loc" suffix).
+
+Although this may seem straightforward, there is one subtle aspect to
+program order we need to explain.  The LKMM was inspired by low-level
+architectural memory models which describe the behavior of machine
+code, and it retains their outlook to a considerable extent.  The
+read, write, and fence events used by the model are close in spirit to
+individual machine instructions.  Nevertheless, the LKMM describes
+kernel code written in C, and the mapping from C to machine code can
+be extremely complex.
+
+Optimizing compilers have great freedom in the way they translate
+source code to object code.  They are allowed to apply transformations
+that add memory accesses, eliminate accesses, combine them, split them
+into pieces, or move them around.  The use of READ_ONCE(), WRITE_ONCE(),
+or one of the other atomic or synchronization primitives prevents a
+large number of compiler optimizations.  In particular, it is guaranteed
+that the compiler will not remove such accesses from the generated code
+(unless it can prove the accesses will never be executed), it will not
+change the order in which they occur in the code (within limits imposed
+by the C standard), and it will not introduce extraneous accesses.
+
+The MP and SB examples above used READ_ONCE() and WRITE_ONCE() rather
+than ordinary memory accesses.  Thanks to this usage, we can be certain
+that in the MP example, the compiler won't reorder P0's write event to
+buf and P0's write event to flag, and similarly for the other shared
+memory accesses in the examples.
+
+Since private variables are not shared between CPUs, they can be
+accessed normally without READ_ONCE() or WRITE_ONCE().  In fact, they
+need not even be stored in normal memory at all -- in principle a
+private variable could be stored in a CPU register (hence the convention
+that these variables have names starting with the letter 'r').
+
+
+A WARNING
+---------
+
+The protections provided by READ_ONCE(), WRITE_ONCE(), and others are
+not perfect; and under some circumstances it is possible for the
+compiler to undermine the memory model.  Here is an example.  Suppose
+both branches of an "if" statement store the same value to the same
+location:
+
+	r1 = READ_ONCE(x);
+	if (r1) {
+		WRITE_ONCE(y, 2);
+		...  /* do something */
+	} else {
+		WRITE_ONCE(y, 2);
+		...  /* do something else */
+	}
+
+For this code, the LKMM predicts that the load from x will always be
+executed before either of the stores to y.  However, a compiler could
+lift the stores out of the conditional, transforming the code into
+something resembling:
+
+	r1 = READ_ONCE(x);
+	WRITE_ONCE(y, 2);
+	if (r1) {
+		...  /* do something */
+	} else {
+		...  /* do something else */
+	}
+
+Given this version of the code, the LKMM would predict that the load
+from x could be executed after the store to y.  Thus, the memory
+model's original prediction could be invalidated by the compiler.
+
+Another issue arises from the fact that in C, arguments to many
+operators and function calls can be evaluated in any order.  For
+example:
+
+	r1 = f(5) + g(6);
+
+The object code might call f(5) either before or after g(6); the
+memory model cannot assume there is a fixed program order relation
+between them.  (In fact, if the functions are inlined then the
+compiler might even interleave their object code.)
+
+
+DEPENDENCY RELATIONS: data, addr, and ctrl
+------------------------------------------
+
+We say that two events are linked by a dependency relation when the
+execution of the second event depends in some way on a value obtained
+from memory by the first.  The first event must be a read, and the
+value it obtains must somehow affect what the second event does.
+There are three kinds of dependencies: data, address (addr), and
+control (ctrl).
+
+A read and a write event are linked by a data dependency if the value
+obtained by the read affects the value stored by the write.  As a very
+simple example:
+
+	int x, y;
+
+	r1 = READ_ONCE(x);
+	WRITE_ONCE(y, r1 + 5);
+
+The value stored by the WRITE_ONCE obviously depends on the value
+loaded by the READ_ONCE.  Such dependencies can wind through
+arbitrarily complicated computations, and a write can depend on the
+values of multiple reads.
+
+A read event and another memory access event are linked by an address
+dependency if the value obtained by the read affects the location
+accessed by the other event.  The second event can be either a read or
+a write.  Here's another simple example:
+
+	int a[20];
+	int i;
+
+	r1 = READ_ONCE(i);
+	r2 = READ_ONCE(a[r1]);
+
+Here the location accessed by the second READ_ONCE() depends on the
+index value loaded by the first.  Pointer indirection also gives rise
+to address dependencies, since the address of a location accessed
+through a pointer will depend on the value read earlier from that
+pointer.
+
+Finally, a read event and another memory access event are linked by a
+control dependency if the value obtained by the read affects whether
+the second event is executed at all.  Simple example:
+
+	int x, y;
+
+	r1 = READ_ONCE(x);
+	if (r1)
+		WRITE_ONCE(y, 1984);
+
+Execution of the WRITE_ONCE() is controlled by a conditional expression
+which depends on the value obtained by the READ_ONCE(); hence there is
+a control dependency from the load to the store.
+
+It should be pretty obvious that events can only depend on reads that
+come earlier in program order.  Symbolically, if we have R ->data X,
+R ->addr X, or R ->ctrl X (where R is a read event), then we must also
+have R ->po X.  It wouldn't make sense for a computation to depend
+somehow on a value that doesn't get loaded from shared memory until
+later in the code!
+
+
+THE READS-FROM RELATION: rf, rfi, and rfe
+-----------------------------------------
+
+The reads-from relation (rf) links a write event to a read event when
+the value loaded by the read is the value that was stored by the
+write.  In colloquial terms, the load "reads from" the store.  We
+write W ->rf R to indicate that the load R reads from the store W.  We
+further distinguish the cases where the load and the store occur on
+the same CPU (internal reads-from, or rfi) and where they occur on
+different CPUs (external reads-from, or rfe).
+
+For our purposes, a memory location's initial value is treated as
+though it had been written there by an imaginary initial store that
+executes on a separate CPU before the program runs.
+
+Usage of the rf relation implicitly assumes that loads will always
+read from a single store.  It doesn't apply properly in the presence
+of load-tearing, where a load obtains some of its bits from one store
+and some of them from another store.  Fortunately, use of READ_ONCE()
+and WRITE_ONCE() will prevent load-tearing; it's not possible to have:
+
+	int x = 0;
+
+	P0()
+	{
+		WRITE_ONCE(x, 0x1234);
+	}
+
+	P1()
+	{
+		int r1;
+
+		r1 = READ_ONCE(x);
+	}
+
+and end up with r1 = 0x1200 (partly from x's initial value and partly
+from the value stored by P0).
+
+On the other hand, load-tearing is unavoidable when mixed-size
+accesses are used.  Consider this example:
+
+	union {
+		u32	w;
+		u16	h[2];
+	} x;
+
+	P0()
+	{
+		WRITE_ONCE(x.h[0], 0x1234);
+		WRITE_ONCE(x.h[1], 0x5678);
+	}
+
+	P1()
+	{
+		int r1;
+
+		r1 = READ_ONCE(x.w);
+	}
+
+If r1 = 0x56781234 (little-endian!) at the end, then P1 must have read
+from both of P0's stores.  It is possible to handle mixed-size and
+unaligned accesses in a memory model, but the LKMM currently does not
+attempt to do so.  It requires all accesses to be properly aligned and
+of the location's actual size.
+
+
+CACHE COHERENCE AND THE COHERENCE ORDER RELATION: co, coi, and coe
+------------------------------------------------------------------
+
+Cache coherence is a general principle requiring that in a
+multi-processor system, the CPUs must share a consistent view of the
+memory contents.  Specifically, it requires that for each location in
+shared memory, the stores to that location must form a single global
+ordering which all the CPUs agree on (the coherence order), and this
+ordering must be consistent with the program order for accesses to
+that location.
+
+To put it another way, for any variable x, the coherence order (co) of
+the stores to x is simply the order in which the stores overwrite one
+another.  The imaginary store which establishes x's initial value
+comes first in the coherence order; the store which directly
+overwrites the initial value comes second; the store which overwrites
+that value comes third, and so on.
+
+You can think of the coherence order as being the order in which the
+stores reach x's location in memory (or if you prefer a more
+hardware-centric view, the order in which the stores get written to
+x's cache line).  We write W ->co W' if W comes before W' in the
+coherence order, that is, if the value stored by W gets overwritten,
+directly or indirectly, by the value stored by W'.
+
+Coherence order is required to be consistent with program order.  This
+requirement takes the form of four coherency rules:
+
+	Write-write coherence: If W ->po-loc W' (i.e., W comes before
+	W' in program order and they access the same location), where W
+	and W' are two stores, then W ->co W'.
+
+	Write-read coherence: If W ->po-loc R, where W is a store and R
+	is a load, then R must read from W or from some other store
+	which comes after W in the coherence order.
+
+	Read-write coherence: If R ->po-loc W, where R is a load and W
+	is a store, then the store which R reads from must come before
+	W in the coherence order.
+
+	Read-read coherence: If R ->po-loc R', where R and R' are two
+	loads, then either they read from the same store or else the
+	store read by R comes before the store read by R' in the
+	coherence order.
+
+This is sometimes referred to as sequential consistency per variable,
+because it means that the accesses to any single memory location obey
+the rules of the Sequential Consistency memory model.  (According to
+Wikipedia, sequential consistency per variable and cache coherence
+mean the same thing except that cache coherence includes an extra
+requirement that every store eventually becomes visible to every CPU.)
+
+Any reasonable memory model will include cache coherence.  Indeed, our
+expectation of cache coherence is so deeply ingrained that violations
+of its requirements look more like hardware bugs than programming
+errors:
+
+	int x;
+
+	P0()
+	{
+		WRITE_ONCE(x, 17);
+		WRITE_ONCE(x, 23);
+	}
+
+If the final value stored in x after this code ran was 17, you would
+think your computer was broken.  It would be a violation of the
+write-write coherence rule: Since the store of 23 comes later in
+program order, it must also come later in x's coherence order and
+thus must overwrite the store of 17.
+
+	int x = 0;
+
+	P0()
+	{
+		int r1;
+
+		r1 = READ_ONCE(x);
+		WRITE_ONCE(x, 666);
+	}
+
+If r1 = 666 at the end, this would violate the read-write coherence
+rule: The READ_ONCE() load comes before the WRITE_ONCE() store in
+program order, so it must not read from that store but rather from one
+coming earlier in the coherence order (in this case, x's initial
+value).
+
+	int x = 0;
+
+	P0()
+	{
+		WRITE_ONCE(x, 5);
+	}
+
+	P1()
+	{
+		int r1, r2;
+
+		r1 = READ_ONCE(x);
+		r2 = READ_ONCE(x);
+	}
+
+If r1 = 5 (reading from P0's store) and r2 = 0 (reading from the
+imaginary store which establishes x's initial value) at the end, this
+would violate the read-read coherence rule: The r1 load comes before
+the r2 load in program order, so it must not read from a store that
+comes later in the coherence order.
+
+(As a minor curiosity, if this code had used normal loads instead of
+READ_ONCE() in P1, on Itanium it sometimes could end up with r1 = 5
+and r2 = 0!  This results from parallel execution of the operations
+encoded in Itanium's Very-Long-Instruction-Word format, and it is yet
+another motivation for using READ_ONCE() when accessing shared memory
+locations.)
+
+Just like the po relation, co is inherently an ordering -- it is not
+possible for a store to directly or indirectly overwrite itself!  And
+just like with the rf relation, we distinguish between stores that
+occur on the same CPU (internal coherence order, or coi) and stores
+that occur on different CPUs (external coherence order, or coe).
+
+On the other hand, stores to different memory locations are never
+related by co, just as instructions on different CPUs are never
+related by po.  Coherence order is strictly per-location, or if you
+prefer, each location has its own independent coherence order.
+
+
+THE FROM-READS RELATION: fr, fri, and fre
+-----------------------------------------
+
+The from-reads relation (fr) can be a little difficult for people to
+grok.  It describes the situation where a load reads a value that gets
+overwritten by a store.  In other words, we have R ->fr W when the
+value that R reads is overwritten (directly or indirectly) by W, or
+equivalently, when R reads from a store which comes earlier than W in
+the coherence order.
+
+For example:
+
+	int x = 0;
+
+	P0()
+	{
+		int r1;
+
+		r1 = READ_ONCE(x);
+		WRITE_ONCE(x, 2);
+	}
+
+The value loaded from x will be 0 (assuming cache coherence!), and it
+gets overwritten by the value 2.  Thus there is an fr link from the
+READ_ONCE() to the WRITE_ONCE().  If the code contained any later
+stores to x, there would also be fr links from the READ_ONCE() to
+them.
+
+As with rf, rfi, and rfe, we subdivide the fr relation into fri (when
+the load and the store are on the same CPU) and fre (when they are on
+different CPUs).
+
+Note that the fr relation is determined entirely by the rf and co
+relations; it is not independent.  Given a read event R and a write
+event W for the same location, we will have R ->fr W if and only if
+the write which R reads from is co-before W.  In symbols,
+
+	(R ->fr W) := (there exists W' with W' ->rf R and W' ->co W).
+
+
+AN OPERATIONAL MODEL
+--------------------
+
+The LKMM is based on various operational memory models, meaning that
+the models arise from an abstract view of how a computer system
+operates.  Here are the main ideas, as incorporated into the LKMM.
+
+The system as a whole is divided into the CPUs and a memory subsystem.
+The CPUs are responsible for executing instructions (not necessarily
+in program order), and they communicate with the memory subsystem.
+For the most part, executing an instruction requires a CPU to perform
+only internal operations.  However, loads, stores, and fences involve
+more.
+
+When CPU C executes a store instruction, it tells the memory subsystem
+to store a certain value at a certain location.  The memory subsystem
+propagates the store to all the other CPUs as well as to RAM.  (As a
+special case, we say that the store propagates to its own CPU at the
+time it is executed.)  The memory subsystem also determines where the
+store falls in the location's coherence order.  In particular, it must
+arrange for the store to be co-later than (i.e., to overwrite) any
+other store to the same location which has already propagated to CPU C.
+
+When a CPU executes a load instruction R, it first checks to see
+whether there are any as-yet unexecuted store instructions, for the
+same location, that come before R in program order.  If there are, it
+uses the value of the po-latest such store as the value obtained by R,
+and we say that the store's value is forwarded to R.  Otherwise, the
+CPU asks the memory subsystem for the value to load and we say that R
+is satisfied from memory.  The memory subsystem hands back the value
+of the co-latest store to the location in question which has already
+propagated to that CPU.
+
+(In fact, the picture needs to be a little more complicated than this.
+CPUs have local caches, and propagating a store to a CPU really means
+propagating it to the CPU's local cache.  A local cache can take some
+time to process the stores that it receives, and a store can't be used
+to satisfy one of the CPU's loads until it has been processed.  On
+most architectures, the local caches process stores in
+First-In-First-Out order, and consequently the processing delay
+doesn't matter for the memory model.  But on Alpha, the local caches
+have a partitioned design that results in non-FIFO behavior.  We will
+discuss this in more detail later.)
+
+Note that load instructions may be executed speculatively and may be
+restarted under certain circumstances.  The memory model ignores these
+premature executions; we simply say that the load executes at the
+final time it is forwarded or satisfied.
+
+Executing a fence (or memory barrier) instruction doesn't require a
+CPU to do anything special other than informing the memory subsystem
+about the fence.  However, fences do constrain the way CPUs and the
+memory subsystem handle other instructions, in two respects.
+
+First, a fence forces the CPU to execute various instructions in
+program order.  Exactly which instructions are ordered depends on the
+type of fence:
+
+	Strong fences, including smp_mb() and synchronize_rcu(), force
+	the CPU to execute all po-earlier instructions before any
+	po-later instructions;
+
+	smp_rmb() forces the CPU to execute all po-earlier loads
+	before any po-later loads;
+
+	smp_wmb() forces the CPU to execute all po-earlier stores
+	before any po-later stores;
+
+	Acquire fences, such as smp_load_acquire(), force the CPU to
+	execute the load associated with the fence (e.g., the load
+	part of an smp_load_acquire()) before any po-later
+	instructions;
+
+	Release fences, such as smp_store_release(), force the CPU to
+	execute all po-earlier instructions before the store
+	associated with the fence (e.g., the store part of an
+	smp_store_release()).
+
+Second, some types of fence affect the way the memory subsystem
+propagates stores.  When a fence instruction is executed on CPU C:
+
+	For each other CPU C', smp_wmb() forces all po-earlier stores
+	on C to propagate to C' before any po-later stores do.
+
+	For each other CPU C', any store which propagates to C before
+	a release fence is executed (including all po-earlier
+	stores executed on C) is forced to propagate to C' before the
+	store associated with the release fence does.
+
+	Any store which propagates to C before a strong fence is
+	executed (including all po-earlier stores on C) is forced to
+	propagate to all other CPUs before any instructions po-after
+	the strong fence are executed on C.
+
+The propagation ordering enforced by release fences and strong fences
+affects stores from other CPUs that propagate to CPU C before the
+fence is executed, as well as stores that are executed on C before the
+fence.  We describe this property by saying that release fences and
+strong fences are A-cumulative.  By contrast, smp_wmb() fences are not
+A-cumulative; they only affect the propagation of stores that are
+executed on C before the fence (i.e., those which precede the fence in
+program order).
+
+rcu_read_lock(), rcu_read_unlock(), and synchronize_rcu() fences have
+other properties which we discuss later.
+
+
+PROPAGATION ORDER RELATION: cumul-fence
+---------------------------------------
+
+The fences which affect propagation order (i.e., strong, release, and
+smp_wmb() fences) are collectively referred to as cumul-fences, even
+though smp_wmb() isn't A-cumulative.  The cumul-fence relation is
+defined to link memory access events E and F whenever:
+
+	E and F are both stores on the same CPU and an smp_wmb() fence
+	event occurs between them in program order; or
+
+	F is a release fence and some X comes before F in program order,
+	where either X = E or else E ->rf X; or
+
+	A strong fence event occurs between some X and F in program
+	order, where either X = E or else E ->rf X.
+
+The operational model requires that whenever W and W' are both stores
+and W ->cumul-fence W', then W must propagate to any given CPU
+before W' does.  However, for different CPUs C and C', it does not
+require W to propagate to C before W' propagates to C'.
+
+
+DERIVATION OF THE LKMM FROM THE OPERATIONAL MODEL
+-------------------------------------------------
+
+The LKMM is derived from the restrictions imposed by the design
+outlined above.  These restrictions involve the necessity of
+maintaining cache coherence and the fact that a CPU can't operate on a
+value before it knows what that value is, among other things.
+
+The formal version of the LKMM is defined by five requirements, or
+axioms:
+
+	Sequential consistency per variable: This requires that the
+	system obey the four coherency rules.
+
+	Atomicity: This requires that atomic read-modify-write
+	operations really are atomic, that is, no other stores can
+	sneak into the middle of such an update.
+
+	Happens-before: This requires that certain instructions are
+	executed in a specific order.
+
+	Propagation: This requires that certain stores propagate to
+	CPUs and to RAM in a specific order.
+
+	Rcu: This requires that RCU read-side critical sections and
+	grace periods obey the rules of RCU, in particular, the
+	Grace-Period Guarantee.
+
+The first and second are quite common; they can be found in many
+memory models (such as those for C11/C++11).  The "happens-before" and
+"propagation" axioms have analogs in other memory models as well.  The
+"rcu" axiom is specific to the LKMM.
+
+Each of these axioms is discussed below.
+
+
+SEQUENTIAL CONSISTENCY PER VARIABLE
+-----------------------------------
+
+According to the principle of cache coherence, the stores to any fixed
+shared location in memory form a global ordering.  We can imagine
+inserting the loads from that location into this ordering, by placing
+each load between the store that it reads from and the following
+store.  This leaves the relative positions of loads that read from the
+same store unspecified; let's say they are inserted in program order,
+first for CPU 0, then CPU 1, etc.
+
+You can check that the four coherency rules imply that the rf, co, fr,
+and po-loc relations agree with this global ordering; in other words,
+whenever we have X ->rf Y or X ->co Y or X ->fr Y or X ->po-loc Y, the
+X event comes before the Y event in the global ordering.  The LKMM's
+"coherence" axiom expresses this by requiring the union of these
+relations not to have any cycles.  This means it must not be possible
+to find events
+
+	X0 -> X1 -> X2 -> ... -> Xn -> X0,
+
+where each of the links is either rf, co, fr, or po-loc.  This has to
+hold if the accesses to the fixed memory location can be ordered as
+cache coherence demands.
+
+Although it is not obvious, it can be shown that the converse is also
+true: This LKMM axiom implies that the four coherency rules are
+obeyed.
+
+
+ATOMIC UPDATES: rmw
+-------------------
+
+What does it mean to say that a read-modify-write (rmw) update, such
+as atomic_inc(&x), is atomic?  It means that the memory location (x in
+this case) does not get altered between the read and the write events
+making up the atomic operation.  In particular, if two CPUs perform
+atomic_inc(&x) concurrently, it must be guaranteed that the final
+value of x will be the initial value plus two.  We should never have
+the following sequence of events:
+
+	CPU 0 loads x obtaining 13;
+					CPU 1 loads x obtaining 13;
+	CPU 0 stores 14 to x;
+					CPU 1 stores 14 to x;
+
+where the final value of x is wrong (14 rather than 15).
+
+In this example, CPU 0's increment effectively gets lost because it
+occurs in between CPU 1's load and store.  To put it another way, the
+problem is that the position of CPU 0's store in x's coherence order
+is between the store that CPU 1 reads from and the store that CPU 1
+performs.
+
+The same analysis applies to all atomic update operations.  Therefore,
+to enforce atomicity the LKMM requires that atomic updates follow this
+rule: Whenever R and W are the read and write events composing an
+atomic read-modify-write and W' is the write event which R reads from,
+there must not be any stores coming between W' and W in the coherence
+order.  Equivalently,
+
+	(R ->rmw W) implies (there is no X with R ->fr X and X ->co W),
+
+where the rmw relation links the read and write events making up each
+atomic update.  This is what the LKMM's "atomic" axiom says.
+
+
+THE PRESERVED PROGRAM ORDER RELATION: ppo
+-----------------------------------------
+
+There are many situations where a CPU is obligated to execute two
+instructions in program order.  We amalgamate them into the ppo (for
+"preserved program order") relation, which links the po-earlier
+instruction to the po-later instruction and is thus a sub-relation of
+po.
+
+The operational model already includes a description of one such
+situation: Fences are a source of ppo links.  Suppose X and Y are
+memory accesses with X ->po Y; then the CPU must execute X before Y if
+any of the following hold:
+
+	A strong (smp_mb() or synchronize_rcu()) fence occurs between
+	X and Y;
+
+	X and Y are both stores and an smp_wmb() fence occurs between
+	them;
+
+	X and Y are both loads and an smp_rmb() fence occurs between
+	them;
+
+	X is also an acquire fence, such as smp_load_acquire();
+
+	Y is also a release fence, such as smp_store_release().
+
+Another possibility, not mentioned earlier but discussed in the next
+section, is:
+
+	X and Y are both loads, X ->addr Y (i.e., there is an address
+	dependency from X to Y), and X is a READ_ONCE() or an atomic
+	access.
+
+Dependencies can also cause instructions to be executed in program
+order.  This is uncontroversial when the second instruction is a
+store; either a data, address, or control dependency from a load R to
+a store W will force the CPU to execute R before W.  This is very
+simply because the CPU cannot tell the memory subsystem about W's
+store before it knows what value should be stored (in the case of a
+data dependency), what location it should be stored into (in the case
+of an address dependency), or whether the store should actually take
+place (in the case of a control dependency).
+
+Dependencies to load instructions are more problematic.  To begin with,
+there is no such thing as a data dependency to a load.  Next, a CPU
+has no reason to respect a control dependency to a load, because it
+can always satisfy the second load speculatively before the first, and
+then ignore the result if it turns out that the second load shouldn't
+be executed after all.  And lastly, the real difficulties begin when
+we consider address dependencies to loads.
+
+To be fair about it, all Linux-supported architectures do execute
+loads in program order if there is an address dependency between them.
+After all, a CPU cannot ask the memory subsystem to load a value from
+a particular location before it knows what that location is.  However,
+the split-cache design used by Alpha can cause it to behave in a way
+that looks as if the loads were executed out of order (see the next
+section for more details).  The kernel includes a workaround for this
+problem when the loads come from READ_ONCE(), and therefore the LKMM
+includes address dependencies to loads in the ppo relation.
+
+On the other hand, dependencies can indirectly affect the ordering of
+two loads.  This happens when there is a dependency from a load to a
+store and a second, po-later load reads from that store:
+
+	R ->dep W ->rfi R',
+
+where the dep link can be either an address or a data dependency.  In
+this situation we know it is possible for the CPU to execute R' before
+W, because it can forward the value that W will store to R'.  But it
+cannot execute R' before R, because it cannot forward the value before
+it knows what that value is, or that W and R' do access the same
+location.  However, if there is merely a control dependency between R
+and W then the CPU can speculatively forward W to R' before executing
+R; if the speculation turns out to be wrong then the CPU merely has to
+restart or abandon R'.
+
+(In theory, a CPU might forward a store to a load when it runs across
+an address dependency like this:
+
+	r1 = READ_ONCE(ptr);
+	WRITE_ONCE(*r1, 17);
+	r2 = READ_ONCE(*r1);
+
+because it could tell that the store and the second load access the
+same location even before it knows what the location's address is.
+However, none of the architectures supported by the Linux kernel do
+this.)
+
+Two memory accesses of the same location must always be executed in
+program order if the second access is a store.  Thus, if we have
+
+	R ->po-loc W
+
+(the po-loc link says that R comes before W in program order and they
+access the same location), the CPU is obliged to execute W after R.
+If it executed W first then the memory subsystem would respond to R's
+read request with the value stored by W (or an even later store), in
+violation of the read-write coherence rule.  Similarly, if we had
+
+	W ->po-loc W'
+
+and the CPU executed W' before W, then the memory subsystem would put
+W' before W in the coherence order.  It would effectively cause W to
+overwrite W', in violation of the write-write coherence rule.
+(Interestingly, an early ARMv8 memory model, now obsolete, proposed
+allowing out-of-order writes like this to occur.  The model avoided
+violating the write-write coherence rule by requiring the CPU not to
+send the W write to the memory subsystem at all!)
+
+
+AND THEN THERE WAS ALPHA
+------------------------
+
+As mentioned above, the Alpha architecture is unique in that it does
+not appear to respect address dependencies to loads.  This means that
+code such as the following:
+
+	int x = 0;
+	int y = -1;
+	int *ptr = &y;
+
+	P0()
+	{
+		WRITE_ONCE(x, 1);
+		smp_wmb();
+		WRITE_ONCE(ptr, &x);
+	}
+
+	P1()
+	{
+		int *r1;
+		int r2;
+
+		r1 = ptr;
+		r2 = READ_ONCE(*r1);
+	}
+
+can malfunction on Alpha systems (notice that P1 uses an ordinary load
+to read ptr instead of READ_ONCE()).  It is quite possible that r1 = &x
+and r2 = 0 at the end, in spite of the address dependency.
+
+At first glance this doesn't seem to make sense.  We know that the
+smp_wmb() forces P0's store to x to propagate to P1 before the store
+to ptr does.  And since P1 can't execute its second load
+until it knows what location to load from, i.e., after executing its
+first load, the value x = 1 must have propagated to P1 before the
+second load executed.  So why doesn't r2 end up equal to 1?
+
+The answer lies in the Alpha's split local caches.  Although the two
+stores do reach P1's local cache in the proper order, it can happen
+that the first store is processed by a busy part of the cache while
+the second store is processed by an idle part.  As a result, the x = 1
+value may not become available for P1's CPU to read until after the
+ptr = &x value does, leading to the undesirable result above.  The
+final effect is that even though the two loads really are executed in
+program order, it appears that they aren't.
+
+This could not have happened if the local cache had processed the
+incoming stores in FIFO order.  By contrast, other architectures
+maintain at least the appearance of FIFO order.
+
+In practice, this difficulty is solved by inserting a special fence
+between P1's two loads when the kernel is compiled for the Alpha
+architecture.  In fact, as of version 4.15, the kernel automatically
+adds this fence (called smp_read_barrier_depends() and defined as
+nothing at all on non-Alpha builds) after every READ_ONCE() and atomic
+load.  The effect of the fence is to cause the CPU not to execute any
+po-later instructions until after the local cache has finished
+processing all the stores it has already received.  Thus, if the code
+was changed to:
+
+	P1()
+	{
+		int *r1;
+		int r2;
+
+		r1 = READ_ONCE(ptr);
+		r2 = READ_ONCE(*r1);
+	}
+
+then we would never get r1 = &x and r2 = 0.  By the time P1 executed
+its second load, the x = 1 store would already be fully processed by
+the local cache and available for satisfying the read request.  Thus
+we have yet another reason why shared data should always be read with
+READ_ONCE() or another synchronization primitive rather than accessed
+directly.
+
+The LKMM requires that smp_rmb(), acquire fences, and strong fences
+share this property with smp_read_barrier_depends(): They do not allow
+the CPU to execute any po-later instructions (or po-later loads in the
+case of smp_rmb()) until all outstanding stores have been processed by
+the local cache.  In the case of a strong fence, the CPU first has to
+wait for all of its po-earlier stores to propagate to every other CPU
+in the system; then it has to wait for the local cache to process all
+the stores received as of that time -- not just the stores received
+when the strong fence began.
+
+And of course, none of this matters for any architecture other than
+Alpha.
+
+
+THE HAPPENS-BEFORE RELATION: hb
+-------------------------------
+
+The happens-before relation (hb) links memory accesses that have to
+execute in a certain order.  hb includes the ppo relation and two
+others, one of which is rfe.
+
+W ->rfe R implies that W and R are on different CPUs.  It also means
+that W's store must have propagated to R's CPU before R executed;
+otherwise R could not have read the value stored by W.  Therefore W
+must have executed before R, and so we have W ->hb R.
+
+The equivalent fact need not hold if W ->rfi R (i.e., W and R are on
+the same CPU).  As we have already seen, the operational model allows
+W's value to be forwarded to R in such cases, meaning that R may well
+execute before W does.
+
+It's important to understand that neither coe nor fre is included in
+hb, despite their similarities to rfe.  For example, suppose we have
+W ->coe W'.  This means that W and W' are stores to the same location,
+they execute on different CPUs, and W comes before W' in the coherence
+order (i.e., W' overwrites W).  Nevertheless, it is possible for W' to
+execute before W, because the decision as to which store overwrites
+the other is made later by the memory subsystem.  When the stores are
+nearly simultaneous, either one can come out on top.  Similarly,
+R ->fre W means that W overwrites the value which R reads, but it
+doesn't mean that W has to execute after R.  All that's necessary is
+for the memory subsystem not to propagate W to R's CPU until after R
+has executed, which is possible if W executes shortly before R.
+
+The third relation included in hb is like ppo, in that it only links
+events that are on the same CPU.  However it is more difficult to
+explain, because it arises only indirectly from the requirement of
+cache coherence.  The relation is called prop, and it links two events
+on CPU C in situations where a store from some other CPU comes after
+the first event in the coherence order and propagates to C before the
+second event executes.
+
+This is best explained with some examples.  The simplest case looks
+like this:
+
+	int x;
+
+	P0()
+	{
+		int r1;
+
+		WRITE_ONCE(x, 1);
+		r1 = READ_ONCE(x);
+	}
+
+	P1()
+	{
+		WRITE_ONCE(x, 8);
+	}
+
+If r1 = 8 at the end then P0's accesses must have executed in program
+order.  We can deduce this from the operational model; if P0's load
+had executed before its store then the value of the store would have
+been forwarded to the load, so r1 would have ended up equal to 1, not
+8.  In this case there is a prop link from P0's write event to its read
+event, because P1's store came after P0's store in x's coherence
+order, and P1's store propagated to P0 before P0's load executed.
+
+An equally simple case involves two loads of the same location that
+read from different stores:
+
+	int x = 0;
+
+	P0()
+	{
+		int r1, r2;
+
+		r1 = READ_ONCE(x);
+		r2 = READ_ONCE(x);
+	}
+
+	P1()
+	{
+		WRITE_ONCE(x, 9);
+	}
+
+If r1 = 0 and r2 = 9 at the end then P0's accesses must have executed
+in program order.  If the second load had executed before the first
+then the x = 9 store must have been propagated to P0 before the first
+load executed, and so r1 would have been 9 rather than 0.  In this
+case there is a prop link from P0's first read event to its second,
+because P1's store overwrote the value read by P0's first load, and
+P1's store propagated to P0 before P0's second load executed.
+
+Less trivial examples of prop all involve fences.  Unlike the simple
+examples above, they can require that some instructions are executed
+out of program order.  This next one should look familiar:
+
+	int buf = 0, flag = 0;
+
+	P0()
+	{
+		WRITE_ONCE(buf, 1);
+		smp_wmb();
+		WRITE_ONCE(flag, 1);
+	}
+
+	P1()
+	{
+		int r1;
+		int r2;
+
+		r1 = READ_ONCE(flag);
+		r2 = READ_ONCE(buf);
+	}
+
+This is the MP pattern again, with an smp_wmb() fence between the two
+stores.  If r1 = 1 and r2 = 0 at the end then there is a prop link
+from P1's second load to its first (backwards!).  The reason is
+similar to the previous examples: The value P1 loads from buf gets
+overwritten by P0's store to buf, the fence guarantees that the store
+to buf will propagate to P1 before the store to flag does, and the
+store to flag propagates to P1 before P1 reads flag.
+
+The prop link says that in order to obtain the r1 = 1, r2 = 0 result,
+P1 must execute its second load before the first.  Indeed, if the load
+from flag were executed first, then the buf = 1 store would already
+have propagated to P1 by the time P1's load from buf executed, so r2
+would have been 1 at the end, not 0.  (The reasoning holds even for
+Alpha, although the details are more complicated and we will not go
+into them.)
+
+But what if we put an smp_rmb() fence between P1's loads?  The fence
+would force the two loads to be executed in program order, and it
+would generate a cycle in the hb relation: The fence would create a ppo
+link (hence an hb link) from the first load to the second, and the
+prop relation would give an hb link from the second load to the first.
+Since an instruction can't execute before itself, we are forced to
+conclude that if an smp_rmb() fence is added, the r1 = 1, r2 = 0
+outcome is impossible -- as it should be.
+
+The formal definition of the prop relation involves a coe or fre link,
+followed by an arbitrary number of cumul-fence links, ending with an
+rfe link.  You can concoct more exotic examples, containing more than
+one fence, although this quickly leads to diminishing returns in terms
+of complexity.  For instance, here's an example containing a coe link
+followed by two cumul-fences and an rfe link, utilizing the fact that
+release fences are A-cumulative:
+
+	int x, y, z;
+
+	P0()
+	{
+		int r0;
+
+		WRITE_ONCE(x, 1);
+		r0 = READ_ONCE(z);
+	}
+
+	P1()
+	{
+		WRITE_ONCE(x, 2);
+		smp_wmb();
+		WRITE_ONCE(y, 1);
+	}
+
+	P2()
+	{
+		int r2;
+
+		r2 = READ_ONCE(y);
+		smp_store_release(&z, 1);
+	}
+
+If x = 2, r0 = 1, and r2 = 1 after this code runs then there is a prop
+link from P0's store to its load.  This is because P0's store gets
+overwritten by P1's store since x = 2 at the end (a coe link), the
+smp_wmb() ensures that P1's store to x propagates to P2 before the
+store to y does (the first cumul-fence), the store to y propagates to P2
+before P2's load and store execute, P2's smp_store_release()
+guarantees that the stores to x and y both propagate to P0 before the
+store to z does (the second cumul-fence), and P0's load executes after the
+store to z has propagated to P0 (an rfe link).
+
+In summary, the fact that the hb relation links memory access events
+in the order they execute means that it must not have cycles.  This
+requirement is the content of the LKMM's "happens-before" axiom.
+
+The LKMM defines yet another relation connected to times of
+instruction execution, but it is not included in hb.  It relies on the
+particular properties of strong fences, which we cover in the next
+section.
+
+
+THE PROPAGATES-BEFORE RELATION: pb
+----------------------------------
+
+The propagates-before (pb) relation capitalizes on the special
+features of strong fences.  It links two events E and F whenever some
+store is coherence-later than E and propagates to every CPU and to RAM
+before F executes.  The formal definition requires that E be linked to
+F via a coe or fre link, an arbitrary number of cumul-fences, an
+optional rfe link, a strong fence, and an arbitrary number of hb
+links.  Let's see how this definition works out.
+
+Consider first the case where E is a store (implying that the sequence
+of links begins with coe).  Then there are events W, X, Y, and Z such
+that:
+
+	E ->coe W ->cumul-fence* X ->rfe? Y ->strong-fence Z ->hb* F,
+
+where the * suffix indicates an arbitrary number of links of the
+specified type, and the ? suffix indicates the link is optional (Y may
+be equal to X).  Because of the cumul-fence links, we know that W will
+propagate to Y's CPU before X does, hence before Y executes and hence
+before the strong fence executes.  Because this fence is strong, we
+know that W will propagate to every CPU and to RAM before Z executes.
+And because of the hb links, we know that Z will execute before F.
+Thus W, which comes later than E in the coherence order, will
+propagate to every CPU and to RAM before F executes.
+
+The case where E is a load is exactly the same, except that the first
+link in the sequence is fre instead of coe.
+
+The existence of a pb link from E to F implies that E must execute
+before F.  To see why, suppose that F executed first.  Then W would
+have propagated to E's CPU before E executed.  If E was a store, the
+memory subsystem would then be forced to make E come after W in the
+coherence order, contradicting the fact that E ->coe W.  If E was a
+load, the memory subsystem would then be forced to satisfy E's read
+request with the value stored by W or an even later store,
+contradicting the fact that E ->fre W.
+
+A good example illustrating how pb works is the SB pattern with strong
+fences:
+
+	int x = 0, y = 0;
+
+	P0()
+	{
+		int r0;
+
+		WRITE_ONCE(x, 1);
+		smp_mb();
+		r0 = READ_ONCE(y);
+	}
+
+	P1()
+	{
+		int r1;
+
+		WRITE_ONCE(y, 1);
+		smp_mb();
+		r1 = READ_ONCE(x);
+	}
+
+If r0 = 0 at the end then there is a pb link from P0's load to P1's
+load: an fre link from P0's load to P1's store (which overwrites the
+value read by P0), and a strong fence between P1's store and its load.
+In this example, the sequences of cumul-fence and hb links are empty.
+Note that this pb link is not included in hb as an instance of prop,
+because it does not start and end on the same CPU.
+
+Similarly, if r1 = 0 at the end then there is a pb link from P1's load
+to P0's.  This means that if both r1 and r2 were 0 there would be a
+cycle in pb, which is not possible since an instruction cannot execute
+before itself.  Thus, adding smp_mb() fences to the SB pattern
+prevents the r0 = 0, r1 = 0 outcome.
+
+In summary, the fact that the pb relation links events in the order
+they execute means that it cannot have cycles.  This requirement is
+the content of the LKMM's "propagation" axiom.
+
+
+RCU RELATIONS: rcu-link, rcu-gp, rcu-rscsi, rcu-fence, and rb
+-------------------------------------------------------------
+
+RCU (Read-Copy-Update) is a powerful synchronization mechanism.  It
+rests on two concepts: grace periods and read-side critical sections.
+
+A grace period is the span of time occupied by a call to
+synchronize_rcu().  A read-side critical section (or just critical
+section, for short) is a region of code delimited by rcu_read_lock()
+at the start and rcu_read_unlock() at the end.  Critical sections can
+be nested, although we won't make use of this fact.
+
+As far as memory models are concerned, RCU's main feature is its
+Grace-Period Guarantee, which states that a critical section can never
+span a full grace period.  In more detail, the Guarantee says:
+
+	For any critical section C and any grace period G, at least
+	one of the following statements must hold:
+
+(1)	C ends before G does, and in addition, every store that
+	propagates to C's CPU before the end of C must propagate to
+	every CPU before G ends.
+
+(2)	G starts before C does, and in addition, every store that
+	propagates to G's CPU before the start of G must propagate
+	to every CPU before C starts.
+
+In particular, it is not possible for a critical section to both start
+before and end after a grace period.
+
+Here is a simple example of RCU in action:
+
+	int x, y;
+
+	P0()
+	{
+		rcu_read_lock();
+		WRITE_ONCE(x, 1);
+		WRITE_ONCE(y, 1);
+		rcu_read_unlock();
+	}
+
+	P1()
+	{
+		int r1, r2;
+
+		r1 = READ_ONCE(x);
+		synchronize_rcu();
+		r2 = READ_ONCE(y);
+	}
+
+The Grace Period Guarantee tells us that when this code runs, it will
+never end with r1 = 1 and r2 = 0.  The reasoning is as follows.  r1 = 1
+means that P0's store to x propagated to P1 before P1 called
+synchronize_rcu(), so P0's critical section must have started before
+P1's grace period, contrary to part (2) of the Guarantee.  On the
+other hand, r2 = 0 means that P0's store to y, which occurs before the
+end of the critical section, did not propagate to P1 before the end of
+the grace period, contrary to part (1).  Together the results violate
+the Guarantee.
+
+In the kernel's implementations of RCU, the requirements for stores
+to propagate to every CPU are fulfilled by placing strong fences at
+suitable places in the RCU-related code.  Thus, if a critical section
+starts before a grace period does then the critical section's CPU will
+execute an smp_mb() fence after the end of the critical section and
+some time before the grace period's synchronize_rcu() call returns.
+And if a critical section ends after a grace period does then the
+synchronize_rcu() routine will execute an smp_mb() fence at its start
+and some time before the critical section's opening rcu_read_lock()
+executes.
+
+What exactly do we mean by saying that a critical section "starts
+before" or "ends after" a grace period?  Some aspects of the meaning
+are pretty obvious, as in the example above, but the details aren't
+entirely clear.  The LKMM formalizes this notion by means of the
+rcu-link relation.  rcu-link encompasses a very general notion of
+"before": If E and F are RCU fence events (i.e., rcu_read_lock(),
+rcu_read_unlock(), or synchronize_rcu()) then among other things,
+E ->rcu-link F includes cases where E is po-before some memory-access
+event X, F is po-after some memory-access event Y, and we have any of
+X ->rfe Y, X ->co Y, or X ->fr Y.
+
+The formal definition of the rcu-link relation is more than a little
+obscure, and we won't give it here.  It is closely related to the pb
+relation, and the details don't matter unless you want to comb through
+a somewhat lengthy formal proof.  Pretty much all you need to know
+about rcu-link is the information in the preceding paragraph.
+
+The LKMM also defines the rcu-gp and rcu-rscsi relations.  They bring
+grace periods and read-side critical sections into the picture, in the
+following way:
+
+	E ->rcu-gp F means that E and F are in fact the same event,
+	and that event is a synchronize_rcu() fence (i.e., a grace
+	period).
+
+	E ->rcu-rscsi F means that E and F are the rcu_read_unlock()
+	and rcu_read_lock() fence events delimiting some read-side
+	critical section.  (The 'i' at the end of the name emphasizes
+	that this relation is "inverted": It links the end of the
+	critical section to the start.)
+
+If we think of the rcu-link relation as standing for an extended
+"before", then X ->rcu-gp Y ->rcu-link Z roughly says that X is a
+grace period which ends before Z begins.  (In fact it covers more than
+this, because it also includes cases where some store propagates to
+Z's CPU before Z begins but doesn't propagate to some other CPU until
+after X ends.)  Similarly, X ->rcu-rscsi Y ->rcu-link Z says that X is
+the end of a critical section which starts before Z begins.
+
+The LKMM goes on to define the rcu-fence relation as a sequence of
+rcu-gp and rcu-rscsi links separated by rcu-link links, in which the
+number of rcu-gp links is >= the number of rcu-rscsi links.  For
+example:
+
+	X ->rcu-gp Y ->rcu-link Z ->rcu-rscsi T ->rcu-link U ->rcu-gp V
+
+would imply that X ->rcu-fence V, because this sequence contains two
+rcu-gp links and one rcu-rscsi link.  (It also implies that
+X ->rcu-fence T and Z ->rcu-fence V.)  On the other hand:
+
+	X ->rcu-rscsi Y ->rcu-link Z ->rcu-rscsi T ->rcu-link U ->rcu-gp V
+
+does not imply X ->rcu-fence V, because the sequence contains only
+one rcu-gp link but two rcu-rscsi links.
+
+The rcu-fence relation is important because the Grace Period Guarantee
+means that rcu-fence acts kind of like a strong fence.  In particular,
+E ->rcu-fence F implies not only that E begins before F ends, but also
+that any write po-before E will propagate to every CPU before any
+instruction po-after F can execute.  (However, it does not imply that
+E must execute before F; in fact, each synchronize_rcu() fence event
+is linked to itself by rcu-fence as a degenerate case.)
+
+To prove this in full generality requires some intellectual effort.
+We'll consider just a very simple case:
+
+	G ->rcu-gp W ->rcu-link Z ->rcu-rscsi F.
+
+This formula means that G and W are the same event (a grace period),
+and there are events X, Y and a read-side critical section C such that:
+
+	1. G = W is po-before or equal to X;
+
+	2. X comes "before" Y in some sense (including rfe, co and fr);
+
+	2. Y is po-before Z;
+
+	4. Z is the rcu_read_unlock() event marking the end of C;
+
+	5. F is the rcu_read_lock() event marking the start of C.
+
+From 1 - 4 we deduce that the grace period G ends before the critical
+section C.  Then part (2) of the Grace Period Guarantee says not only
+that G starts before C does, but also that any write which executes on
+G's CPU before G starts must propagate to every CPU before C starts.
+In particular, the write propagates to every CPU before F finishes
+executing and hence before any instruction po-after F can execute.
+This sort of reasoning can be extended to handle all the situations
+covered by rcu-fence.
+
+Finally, the LKMM defines the RCU-before (rb) relation in terms of
+rcu-fence.  This is done in essentially the same way as the pb
+relation was defined in terms of strong-fence.  We will omit the
+details; the end result is that E ->rb F implies E must execute
+before F, just as E ->pb F does (and for much the same reasons).
+
+Putting this all together, the LKMM expresses the Grace Period
+Guarantee by requiring that the rb relation does not contain a cycle.
+Equivalently, this "rcu" axiom requires that there are no events E
+and F with E ->rcu-link F ->rcu-fence E.  Or to put it a third way,
+the axiom requires that there are no cycles consisting of rcu-gp and
+rcu-rscsi alternating with rcu-link, where the number of rcu-gp links
+is >= the number of rcu-rscsi links.
+
+Justifying the axiom isn't easy, but it is in fact a valid
+formalization of the Grace Period Guarantee.  We won't attempt to go
+through the detailed argument, but the following analysis gives a
+taste of what is involved.  Suppose both parts of the Guarantee are
+violated: A critical section starts before a grace period, and some
+store propagates to the critical section's CPU before the end of the
+critical section but doesn't propagate to some other CPU until after
+the end of the grace period.
+
+Putting symbols to these ideas, let L and U be the rcu_read_lock() and
+rcu_read_unlock() fence events delimiting the critical section in
+question, and let S be the synchronize_rcu() fence event for the grace
+period.  Saying that the critical section starts before S means there
+are events Q and R where Q is po-after L (which marks the start of the
+critical section), Q is "before" R in the sense used by the rcu-link
+relation, and R is po-before the grace period S.  Thus we have:
+
+	L ->rcu-link S.
+
+Let W be the store mentioned above, let Y come before the end of the
+critical section and witness that W propagates to the critical
+section's CPU by reading from W, and let Z on some arbitrary CPU be a
+witness that W has not propagated to that CPU, where Z happens after
+some event X which is po-after S.  Symbolically, this amounts to:
+
+	S ->po X ->hb* Z ->fr W ->rf Y ->po U.
+
+The fr link from Z to W indicates that W has not propagated to Z's CPU
+at the time that Z executes.  From this, it can be shown (see the
+discussion of the rcu-link relation earlier) that S and U are related
+by rcu-link:
+
+	S ->rcu-link U.
+
+Since S is a grace period we have S ->rcu-gp S, and since L and U are
+the start and end of the critical section C we have U ->rcu-rscsi L.
+From this we obtain:
+
+	S ->rcu-gp S ->rcu-link U ->rcu-rscsi L ->rcu-link S,
+
+a forbidden cycle.  Thus the "rcu" axiom rules out this violation of
+the Grace Period Guarantee.
+
+For something a little more down-to-earth, let's see how the axiom
+works out in practice.  Consider the RCU code example from above, this
+time with statement labels added:
+
+	int x, y;
+
+	P0()
+	{
+		L: rcu_read_lock();
+		X: WRITE_ONCE(x, 1);
+		Y: WRITE_ONCE(y, 1);
+		U: rcu_read_unlock();
+	}
+
+	P1()
+	{
+		int r1, r2;
+
+		Z: r1 = READ_ONCE(x);
+		S: synchronize_rcu();
+		W: r2 = READ_ONCE(y);
+	}
+
+
+If r2 = 0 at the end then P0's store at Y overwrites the value that
+P1's load at W reads from, so we have W ->fre Y.  Since S ->po W and
+also Y ->po U, we get S ->rcu-link U.  In addition, S ->rcu-gp S
+because S is a grace period.
+
+If r1 = 1 at the end then P1's load at Z reads from P0's store at X,
+so we have X ->rfe Z.  Together with L ->po X and Z ->po S, this
+yields L ->rcu-link S.  And since L and U are the start and end of a
+critical section, we have U ->rcu-rscsi L.
+
+Then U ->rcu-rscsi L ->rcu-link S ->rcu-gp S ->rcu-link U is a
+forbidden cycle, violating the "rcu" axiom.  Hence the outcome is not
+allowed by the LKMM, as we would expect.
+
+For contrast, let's see what can happen in a more complicated example:
+
+	int x, y, z;
+
+	P0()
+	{
+		int r0;
+
+		L0: rcu_read_lock();
+		    r0 = READ_ONCE(x);
+		    WRITE_ONCE(y, 1);
+		U0: rcu_read_unlock();
+	}
+
+	P1()
+	{
+		int r1;
+
+		    r1 = READ_ONCE(y);
+		S1: synchronize_rcu();
+		    WRITE_ONCE(z, 1);
+	}
+
+	P2()
+	{
+		int r2;
+
+		L2: rcu_read_lock();
+		    r2 = READ_ONCE(z);
+		    WRITE_ONCE(x, 1);
+		U2: rcu_read_unlock();
+	}
+
+If r0 = r1 = r2 = 1 at the end, then similar reasoning to before shows
+that U0 ->rcu-rscsi L0 ->rcu-link S1 ->rcu-gp S1 ->rcu-link U2 ->rcu-rscsi
+L2 ->rcu-link U0.  However this cycle is not forbidden, because the
+sequence of relations contains fewer instances of rcu-gp (one) than of
+rcu-rscsi (two).  Consequently the outcome is allowed by the LKMM.
+The following instruction timing diagram shows how it might actually
+occur:
+
+P0			P1			P2
+--------------------	--------------------	--------------------
+rcu_read_lock()
+WRITE_ONCE(y, 1)
+			r1 = READ_ONCE(y)
+			synchronize_rcu() starts
+			.			rcu_read_lock()
+			.			WRITE_ONCE(x, 1)
+r0 = READ_ONCE(x)	.
+rcu_read_unlock()	.
+			synchronize_rcu() ends
+			WRITE_ONCE(z, 1)
+						r2 = READ_ONCE(z)
+						rcu_read_unlock()
+
+This requires P0 and P2 to execute their loads and stores out of
+program order, but of course they are allowed to do so.  And as you
+can see, the Grace Period Guarantee is not violated: The critical
+section in P0 both starts before P1's grace period does and ends
+before it does, and the critical section in P2 both starts after P1's
+grace period does and ends after it does.
+
+Addendum: The LKMM now supports SRCU (Sleepable Read-Copy-Update) in
+addition to normal RCU.  The ideas involved are much the same as
+above, with new relations srcu-gp and srcu-rscsi added to represent
+SRCU grace periods and read-side critical sections.  There is a
+restriction on the srcu-gp and srcu-rscsi links that can appear in an
+rcu-fence sequence (the srcu-rscsi links must be paired with srcu-gp
+links having the same SRCU domain with proper nesting); the details
+are relatively unimportant.
+
+
+LOCKING
+-------
+
+The LKMM includes locking.  In fact, there is special code for locking
+in the formal model, added in order to make tools run faster.
+However, this special code is intended to be more or less equivalent
+to concepts we have already covered.  A spinlock_t variable is treated
+the same as an int, and spin_lock(&s) is treated almost the same as:
+
+	while (cmpxchg_acquire(&s, 0, 1) != 0)
+		cpu_relax();
+
+This waits until s is equal to 0 and then atomically sets it to 1,
+and the read part of the cmpxchg operation acts as an acquire fence.
+An alternate way to express the same thing would be:
+
+	r = xchg_acquire(&s, 1);
+
+along with a requirement that at the end, r = 0.  Similarly,
+spin_trylock(&s) is treated almost the same as:
+
+	return !cmpxchg_acquire(&s, 0, 1);
+
+which atomically sets s to 1 if it is currently equal to 0 and returns
+true if it succeeds (the read part of the cmpxchg operation acts as an
+acquire fence only if the operation is successful).  spin_unlock(&s)
+is treated almost the same as:
+
+	smp_store_release(&s, 0);
+
+The "almost" qualifiers above need some explanation.  In the LKMM, the
+store-release in a spin_unlock() and the load-acquire which forms the
+first half of the atomic rmw update in a spin_lock() or a successful
+spin_trylock() -- we can call these things lock-releases and
+lock-acquires -- have two properties beyond those of ordinary releases
+and acquires.
+
+First, when a lock-acquire reads from a lock-release, the LKMM
+requires that every instruction po-before the lock-release must
+execute before any instruction po-after the lock-acquire.  This would
+naturally hold if the release and acquire operations were on different
+CPUs, but the LKMM says it holds even when they are on the same CPU.
+For example:
+
+	int x, y;
+	spinlock_t s;
+
+	P0()
+	{
+		int r1, r2;
+
+		spin_lock(&s);
+		r1 = READ_ONCE(x);
+		spin_unlock(&s);
+		spin_lock(&s);
+		r2 = READ_ONCE(y);
+		spin_unlock(&s);
+	}
+
+	P1()
+	{
+		WRITE_ONCE(y, 1);
+		smp_wmb();
+		WRITE_ONCE(x, 1);
+	}
+
+Here the second spin_lock() reads from the first spin_unlock(), and
+therefore the load of x must execute before the load of y.  Thus we
+cannot have r1 = 1 and r2 = 0 at the end (this is an instance of the
+MP pattern).
+
+This requirement does not apply to ordinary release and acquire
+fences, only to lock-related operations.  For instance, suppose P0()
+in the example had been written as:
+
+	P0()
+	{
+		int r1, r2, r3;
+
+		r1 = READ_ONCE(x);
+		smp_store_release(&s, 1);
+		r3 = smp_load_acquire(&s);
+		r2 = READ_ONCE(y);
+	}
+
+Then the CPU would be allowed to forward the s = 1 value from the
+smp_store_release() to the smp_load_acquire(), executing the
+instructions in the following order:
+
+		r3 = smp_load_acquire(&s);	// Obtains r3 = 1
+		r2 = READ_ONCE(y);
+		r1 = READ_ONCE(x);
+		smp_store_release(&s, 1);	// Value is forwarded
+
+and thus it could load y before x, obtaining r2 = 0 and r1 = 1.
+
+Second, when a lock-acquire reads from a lock-release, and some other
+stores W and W' occur po-before the lock-release and po-after the
+lock-acquire respectively, the LKMM requires that W must propagate to
+each CPU before W' does.  For example, consider:
+
+	int x, y;
+	spinlock_t x;
+
+	P0()
+	{
+		spin_lock(&s);
+		WRITE_ONCE(x, 1);
+		spin_unlock(&s);
+	}
+
+	P1()
+	{
+		int r1;
+
+		spin_lock(&s);
+		r1 = READ_ONCE(x);
+		WRITE_ONCE(y, 1);
+		spin_unlock(&s);
+	}
+
+	P2()
+	{
+		int r2, r3;
+
+		r2 = READ_ONCE(y);
+		smp_rmb();
+		r3 = READ_ONCE(x);
+	}
+
+If r1 = 1 at the end then the spin_lock() in P1 must have read from
+the spin_unlock() in P0.  Hence the store to x must propagate to P2
+before the store to y does, so we cannot have r2 = 1 and r3 = 0.
+
+These two special requirements for lock-release and lock-acquire do
+not arise from the operational model.  Nevertheless, kernel developers
+have come to expect and rely on them because they do hold on all
+architectures supported by the Linux kernel, albeit for various
+differing reasons.
+
+
+ODDS AND ENDS
+-------------
+
+This section covers material that didn't quite fit anywhere in the
+earlier sections.
+
+The descriptions in this document don't always match the formal
+version of the LKMM exactly.  For example, the actual formal
+definition of the prop relation makes the initial coe or fre part
+optional, and it doesn't require the events linked by the relation to
+be on the same CPU.  These differences are very unimportant; indeed,
+instances where the coe/fre part of prop is missing are of no interest
+because all the other parts (fences and rfe) are already included in
+hb anyway, and where the formal model adds prop into hb, it includes
+an explicit requirement that the events being linked are on the same
+CPU.
+
+Another minor difference has to do with events that are both memory
+accesses and fences, such as those corresponding to smp_load_acquire()
+calls.  In the formal model, these events aren't actually both reads
+and fences; rather, they are read events with an annotation marking
+them as acquires.  (Or write events annotated as releases, in the case
+smp_store_release().)  The final effect is the same.
+
+Although we didn't mention it above, the instruction execution
+ordering provided by the smp_rmb() fence doesn't apply to read events
+that are part of a non-value-returning atomic update.  For instance,
+given:
+
+	atomic_inc(&x);
+	smp_rmb();
+	r1 = READ_ONCE(y);
+
+it is not guaranteed that the load from y will execute after the
+update to x.  This is because the ARMv8 architecture allows
+non-value-returning atomic operations effectively to be executed off
+the CPU.  Basically, the CPU tells the memory subsystem to increment
+x, and then the increment is carried out by the memory hardware with
+no further involvement from the CPU.  Since the CPU doesn't ever read
+the value of x, there is nothing for the smp_rmb() fence to act on.
+
+The LKMM defines a few extra synchronization operations in terms of
+things we have already covered.  In particular, rcu_dereference() is
+treated as READ_ONCE() and rcu_assign_pointer() is treated as
+smp_store_release() -- which is basically how the Linux kernel treats
+them.
+
+There are a few oddball fences which need special treatment:
+smp_mb__before_atomic(), smp_mb__after_atomic(), and
+smp_mb__after_spinlock().  The LKMM uses fence events with special
+annotations for them; they act as strong fences just like smp_mb()
+except for the sets of events that they order.  Instead of ordering
+all po-earlier events against all po-later events, as smp_mb() does,
+they behave as follows:
+
+	smp_mb__before_atomic() orders all po-earlier events against
+	po-later atomic updates and the events following them;
+
+	smp_mb__after_atomic() orders po-earlier atomic updates and
+	the events preceding them against all po-later events;
+
+	smp_mb_after_spinlock() orders po-earlier lock acquisition
+	events and the events preceding them against all po-later
+	events.
+
+Interestingly, RCU and locking each introduce the possibility of
+deadlock.  When faced with code sequences such as:
+
+	spin_lock(&s);
+	spin_lock(&s);
+	spin_unlock(&s);
+	spin_unlock(&s);
+
+or:
+
+	rcu_read_lock();
+	synchronize_rcu();
+	rcu_read_unlock();
+
+what does the LKMM have to say?  Answer: It says there are no allowed
+executions at all, which makes sense.  But this can also lead to
+misleading results, because if a piece of code has multiple possible
+executions, some of which deadlock, the model will report only on the
+non-deadlocking executions.  For example:
+
+	int x, y;
+
+	P0()
+	{
+		int r0;
+
+		WRITE_ONCE(x, 1);
+		r0 = READ_ONCE(y);
+	}
+
+	P1()
+	{
+		rcu_read_lock();
+		if (READ_ONCE(x) > 0) {
+			WRITE_ONCE(y, 36);
+			synchronize_rcu();
+		}
+		rcu_read_unlock();
+	}
+
+Is it possible to end up with r0 = 36 at the end?  The LKMM will tell
+you it is not, but the model won't mention that this is because P1
+will self-deadlock in the executions where it stores 36 in y.

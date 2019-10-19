@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xtfpga I2S controller driver
  *
  * Copyright (c) 2014 Cadence Design Systems Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -469,9 +466,9 @@ static int xtfpga_pcm_new(struct snd_soc_pcm_runtime *rtd)
 	struct snd_card *card = rtd->card->snd_card;
 	size_t size = xtfpga_pcm_hardware.buffer_bytes_max;
 
-	return snd_pcm_lib_preallocate_pages_for_all(rtd->pcm,
-						     SNDRV_DMA_TYPE_DEV,
-						     card->dev, size, size);
+	snd_pcm_lib_preallocate_pages_for_all(rtd->pcm, SNDRV_DMA_TYPE_DEV,
+					      card->dev, size, size);
+	return 0;
 }
 
 static const struct snd_pcm_ops xtfpga_pcm_ops = {
@@ -483,13 +480,10 @@ static const struct snd_pcm_ops xtfpga_pcm_ops = {
 	.pointer	= xtfpga_pcm_pointer,
 };
 
-static const struct snd_soc_platform_driver xtfpga_soc_platform = {
-	.pcm_new	= xtfpga_pcm_new,
-	.ops		= &xtfpga_pcm_ops,
-};
-
 static const struct snd_soc_component_driver xtfpga_i2s_component = {
 	.name		= DRV_NAME,
+	.pcm_new	= xtfpga_pcm_new,
+	.ops		= &xtfpga_pcm_ops,
 };
 
 static const struct snd_soc_dai_ops xtfpga_i2s_dai_ops = {
@@ -537,7 +531,6 @@ static int xtfpga_i2s_runtime_resume(struct device *dev)
 static int xtfpga_i2s_probe(struct platform_device *pdev)
 {
 	struct xtfpga_i2s *i2s;
-	struct resource *mem;
 	int err, irq;
 
 	i2s = devm_kzalloc(&pdev->dev, sizeof(*i2s), GFP_KERNEL);
@@ -549,8 +542,7 @@ static int xtfpga_i2s_probe(struct platform_device *pdev)
 	i2s->dev = &pdev->dev;
 	dev_dbg(&pdev->dev, "dev: %p, i2s: %p\n", &pdev->dev, i2s);
 
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	i2s->regs = devm_ioremap_resource(&pdev->dev, mem);
+	i2s->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(i2s->regs)) {
 		err = PTR_ERR(i2s->regs);
 		goto err;
@@ -578,7 +570,6 @@ static int xtfpga_i2s_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "No IRQ resource\n");
 		err = irq;
 		goto err;
 	}
@@ -591,18 +582,13 @@ static int xtfpga_i2s_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	err = snd_soc_register_platform(&pdev->dev, &xtfpga_soc_platform);
-	if (err < 0) {
-		dev_err(&pdev->dev, "couldn't register platform\n");
-		goto err;
-	}
 	err = devm_snd_soc_register_component(&pdev->dev,
 					      &xtfpga_i2s_component,
 					      xtfpga_i2s_dai,
 					      ARRAY_SIZE(xtfpga_i2s_dai));
 	if (err < 0) {
 		dev_err(&pdev->dev, "couldn't register component\n");
-		goto err_unregister_platform;
+		goto err;
 	}
 
 	pm_runtime_enable(&pdev->dev);
@@ -615,8 +601,6 @@ static int xtfpga_i2s_probe(struct platform_device *pdev)
 
 err_pm_disable:
 	pm_runtime_disable(&pdev->dev);
-err_unregister_platform:
-	snd_soc_unregister_platform(&pdev->dev);
 err:
 	dev_err(&pdev->dev, "%s: err = %d\n", __func__, err);
 	return err;
@@ -626,7 +610,6 @@ static int xtfpga_i2s_remove(struct platform_device *pdev)
 {
 	struct xtfpga_i2s *i2s = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_platform(&pdev->dev);
 	if (i2s->regmap && !IS_ERR(i2s->regmap)) {
 		regmap_write(i2s->regmap, XTFPGA_I2S_CONFIG, 0);
 		regmap_write(i2s->regmap, XTFPGA_I2S_INT_MASK, 0);

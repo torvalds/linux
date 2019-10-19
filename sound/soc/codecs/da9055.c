@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DA9055 ALSA Soc codec driver
  *
@@ -6,11 +7,6 @@
  * Tested on (Samsung SMDK6410 board + DA9055 EVB) using I2S and I2C
  * Written by David Chen <david.chen@diasemi.com> and
  * Ashish Chavan <ashish.chavan@kpitcummins.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  */
 
 #include <linux/delay.h>
@@ -451,7 +447,7 @@ static const char * const da9055_hold_time_txt[] = {
 static SOC_ENUM_SINGLE_DECL(da9055_hold_time,
 			    DA9055_ALC_CTRL3, 0, da9055_hold_time_txt);
 
-static int da9055_get_alc_data(struct snd_soc_codec *codec, u8 reg_val)
+static int da9055_get_alc_data(struct snd_soc_component *component, u8 reg_val)
 {
 	int mid_data, top_data;
 	int sum = 0;
@@ -460,17 +456,17 @@ static int da9055_get_alc_data(struct snd_soc_codec *codec, u8 reg_val)
 	for (iteration = 0; iteration < DA9055_ALC_AVG_ITERATIONS;
 	     iteration++) {
 		/* Select the left or right channel and capture data */
-		snd_soc_write(codec, DA9055_ALC_CIC_OP_LVL_CTRL, reg_val);
+		snd_soc_component_write(component, DA9055_ALC_CIC_OP_LVL_CTRL, reg_val);
 
 		/* Select middle 8 bits for read back from data register */
-		snd_soc_write(codec, DA9055_ALC_CIC_OP_LVL_CTRL,
+		snd_soc_component_write(component, DA9055_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA9055_ALC_DATA_MIDDLE);
-		mid_data = snd_soc_read(codec, DA9055_ALC_CIC_OP_LVL_DATA);
+		mid_data = snd_soc_component_read32(component, DA9055_ALC_CIC_OP_LVL_DATA);
 
 		/* Select top 8 bits for read back from data register */
-		snd_soc_write(codec, DA9055_ALC_CIC_OP_LVL_CTRL,
+		snd_soc_component_write(component, DA9055_ALC_CIC_OP_LVL_CTRL,
 			      reg_val | DA9055_ALC_DATA_TOP);
-		top_data = snd_soc_read(codec, DA9055_ALC_CIC_OP_LVL_DATA);
+		top_data = snd_soc_component_read32(component, DA9055_ALC_CIC_OP_LVL_DATA);
 
 		sum += ((mid_data << 8) | (top_data << 16));
 	}
@@ -481,7 +477,7 @@ static int da9055_get_alc_data(struct snd_soc_codec *codec, u8 reg_val)
 static int da9055_put_alc_sw(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
 	u8 reg_val, adc_left, adc_right, mic_left, mic_right;
 	int avg_left_data, avg_right_data, offset_l, offset_r;
 
@@ -492,31 +488,31 @@ static int da9055_put_alc_sw(struct snd_kcontrol *kcontrol,
 		 */
 
 		/* Save current values from Mic control registers */
-		mic_left = snd_soc_read(codec, DA9055_MIC_L_CTRL);
-		mic_right = snd_soc_read(codec, DA9055_MIC_R_CTRL);
+		mic_left = snd_soc_component_read32(component, DA9055_MIC_L_CTRL);
+		mic_right = snd_soc_component_read32(component, DA9055_MIC_R_CTRL);
 
 		/* Mute Mic PGA Left and Right */
-		snd_soc_update_bits(codec, DA9055_MIC_L_CTRL,
+		snd_soc_component_update_bits(component, DA9055_MIC_L_CTRL,
 				    DA9055_MIC_L_MUTE_EN, DA9055_MIC_L_MUTE_EN);
-		snd_soc_update_bits(codec, DA9055_MIC_R_CTRL,
+		snd_soc_component_update_bits(component, DA9055_MIC_R_CTRL,
 				    DA9055_MIC_R_MUTE_EN, DA9055_MIC_R_MUTE_EN);
 
 		/* Save current values from ADC control registers */
-		adc_left = snd_soc_read(codec, DA9055_ADC_L_CTRL);
-		adc_right = snd_soc_read(codec, DA9055_ADC_R_CTRL);
+		adc_left = snd_soc_component_read32(component, DA9055_ADC_L_CTRL);
+		adc_right = snd_soc_component_read32(component, DA9055_ADC_R_CTRL);
 
 		/* Enable ADC Left and Right */
-		snd_soc_update_bits(codec, DA9055_ADC_L_CTRL,
+		snd_soc_component_update_bits(component, DA9055_ADC_L_CTRL,
 				    DA9055_ADC_L_EN, DA9055_ADC_L_EN);
-		snd_soc_update_bits(codec, DA9055_ADC_R_CTRL,
+		snd_soc_component_update_bits(component, DA9055_ADC_R_CTRL,
 				    DA9055_ADC_R_EN, DA9055_ADC_R_EN);
 
 		/* Calculate average for Left and Right data */
 		/* Left Data */
-		avg_left_data = da9055_get_alc_data(codec,
+		avg_left_data = da9055_get_alc_data(component,
 				DA9055_ALC_CIC_OP_CHANNEL_LEFT);
 		/* Right Data */
-		avg_right_data = da9055_get_alc_data(codec,
+		avg_right_data = da9055_get_alc_data(component,
 				 DA9055_ALC_CIC_OP_CHANNEL_RIGHT);
 
 		/* Calculate DC offset */
@@ -524,22 +520,22 @@ static int da9055_put_alc_sw(struct snd_kcontrol *kcontrol,
 		offset_r = -avg_right_data;
 
 		reg_val = (offset_l & DA9055_ALC_OFFSET_15_8) >> 8;
-		snd_soc_write(codec, DA9055_ALC_OFFSET_OP2M_L, reg_val);
+		snd_soc_component_write(component, DA9055_ALC_OFFSET_OP2M_L, reg_val);
 		reg_val = (offset_l & DA9055_ALC_OFFSET_17_16) >> 16;
-		snd_soc_write(codec, DA9055_ALC_OFFSET_OP2U_L, reg_val);
+		snd_soc_component_write(component, DA9055_ALC_OFFSET_OP2U_L, reg_val);
 
 		reg_val = (offset_r & DA9055_ALC_OFFSET_15_8) >> 8;
-		snd_soc_write(codec, DA9055_ALC_OFFSET_OP2M_R, reg_val);
+		snd_soc_component_write(component, DA9055_ALC_OFFSET_OP2M_R, reg_val);
 		reg_val = (offset_r & DA9055_ALC_OFFSET_17_16) >> 16;
-		snd_soc_write(codec, DA9055_ALC_OFFSET_OP2U_R, reg_val);
+		snd_soc_component_write(component, DA9055_ALC_OFFSET_OP2U_R, reg_val);
 
 		/* Restore original values of ADC control registers */
-		snd_soc_write(codec, DA9055_ADC_L_CTRL, adc_left);
-		snd_soc_write(codec, DA9055_ADC_R_CTRL, adc_right);
+		snd_soc_component_write(component, DA9055_ADC_L_CTRL, adc_left);
+		snd_soc_component_write(component, DA9055_ADC_R_CTRL, adc_right);
 
 		/* Restore original values of Mic control registers */
-		snd_soc_write(codec, DA9055_MIC_L_CTRL, mic_left);
-		snd_soc_write(codec, DA9055_MIC_R_CTRL, mic_right);
+		snd_soc_component_write(component, DA9055_MIC_L_CTRL, mic_left);
+		snd_soc_component_write(component, DA9055_MIC_R_CTRL, mic_right);
 	}
 
 	return snd_soc_put_volsw(kcontrol, ucontrol);
@@ -1041,9 +1037,9 @@ static bool da9055_volatile_register(struct device *dev,
 	case DA9055_HP_R_GAIN_STATUS:
 	case DA9055_LINE_GAIN_STATUS:
 	case DA9055_ALC_CIC_OP_LVL_DATA:
-		return 1;
+		return true;
 	default:
-		return 0;
+		return false;
 	}
 }
 
@@ -1052,8 +1048,8 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct da9055_priv *da9055 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct da9055_priv *da9055 = snd_soc_component_get_drvdata(component);
 	u8 aif_ctrl, fs;
 	u32 sysclk;
 
@@ -1075,7 +1071,7 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Set AIF format */
-	snd_soc_update_bits(codec, DA9055_AIF_CTRL, DA9055_AIF_WORD_LENGTH_MASK,
+	snd_soc_component_update_bits(component, DA9055_AIF_CTRL, DA9055_AIF_WORD_LENGTH_MASK,
 			    aif_ctrl);
 
 	switch (params_rate(params)) {
@@ -1125,7 +1121,7 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 
 	if (da9055->mclk_rate) {
 		/* PLL Mode, Write actual FS */
-		snd_soc_write(codec, DA9055_SR, fs);
+		snd_soc_component_write(component, DA9055_SR, fs);
 	} else {
 		/*
 		 * Non-PLL Mode
@@ -1134,24 +1130,24 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 		 * to derive its sys clk. As sys clk has to be 256 * Fs, we
 		 * need to write constant sample rate i.e. 48KHz.
 		 */
-		snd_soc_write(codec, DA9055_SR, DA9055_SR_48000);
+		snd_soc_component_write(component, DA9055_SR, DA9055_SR_48000);
 	}
 
 	if (da9055->mclk_rate && (da9055->mclk_rate != sysclk)) {
 		/* PLL Mode */
 		if (!da9055->master) {
 			/* PLL slave mode, enable PLL and also SRM */
-			snd_soc_update_bits(codec, DA9055_PLL_CTRL,
+			snd_soc_component_update_bits(component, DA9055_PLL_CTRL,
 					    DA9055_PLL_EN | DA9055_PLL_SRM_EN,
 					    DA9055_PLL_EN | DA9055_PLL_SRM_EN);
 		} else {
 			/* PLL master mode, only enable PLL */
-			snd_soc_update_bits(codec, DA9055_PLL_CTRL,
+			snd_soc_component_update_bits(component, DA9055_PLL_CTRL,
 					    DA9055_PLL_EN, DA9055_PLL_EN);
 		}
 	} else {
 		/* Non PLL Mode, disable PLL */
-		snd_soc_update_bits(codec, DA9055_PLL_CTRL, DA9055_PLL_EN, 0);
+		snd_soc_component_update_bits(component, DA9055_PLL_CTRL, DA9055_PLL_EN, 0);
 	}
 
 	return 0;
@@ -1160,8 +1156,8 @@ static int da9055_hw_params(struct snd_pcm_substream *substream,
 /* Set DAI mode and Format */
 static int da9055_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct da9055_priv *da9055 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct da9055_priv *da9055 = snd_soc_component_get_drvdata(component);
 	u8 aif_clk_mode, aif_ctrl, mode;
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -1180,7 +1176,7 @@ static int da9055_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	}
 
 	/* Don't allow change of mode if PLL is enabled */
-	if ((snd_soc_read(codec, DA9055_PLL_CTRL) & DA9055_PLL_EN) &&
+	if ((snd_soc_component_read32(component, DA9055_PLL_CTRL) & DA9055_PLL_EN) &&
 	    (da9055->master != mode))
 		return -EINVAL;
 
@@ -1207,27 +1203,27 @@ static int da9055_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 	/* By default only 32 BCLK per WCLK is supported */
 	aif_clk_mode |= DA9055_AIF_BCLKS_PER_WCLK_32;
 
-	snd_soc_update_bits(codec, DA9055_AIF_CLK_MODE,
+	snd_soc_component_update_bits(component, DA9055_AIF_CLK_MODE,
 			    (DA9055_AIF_CLK_MODE_MASK | DA9055_AIF_BCLK_MASK),
 			    aif_clk_mode);
-	snd_soc_update_bits(codec, DA9055_AIF_CTRL, DA9055_AIF_FORMAT_MASK,
+	snd_soc_component_update_bits(component, DA9055_AIF_CTRL, DA9055_AIF_FORMAT_MASK,
 			    aif_ctrl);
 	return 0;
 }
 
 static int da9055_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 
 	if (mute) {
-		snd_soc_update_bits(codec, DA9055_DAC_L_CTRL,
+		snd_soc_component_update_bits(component, DA9055_DAC_L_CTRL,
 				    DA9055_DAC_L_MUTE_EN, DA9055_DAC_L_MUTE_EN);
-		snd_soc_update_bits(codec, DA9055_DAC_R_CTRL,
+		snd_soc_component_update_bits(component, DA9055_DAC_R_CTRL,
 				    DA9055_DAC_R_MUTE_EN, DA9055_DAC_R_MUTE_EN);
 	} else {
-		snd_soc_update_bits(codec, DA9055_DAC_L_CTRL,
+		snd_soc_component_update_bits(component, DA9055_DAC_L_CTRL,
 				    DA9055_DAC_L_MUTE_EN, 0);
-		snd_soc_update_bits(codec, DA9055_DAC_R_CTRL,
+		snd_soc_component_update_bits(component, DA9055_DAC_R_CTRL,
 				    DA9055_DAC_R_MUTE_EN, 0);
 	}
 
@@ -1240,8 +1236,8 @@ static int da9055_mute(struct snd_soc_dai *dai, int mute)
 static int da9055_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct da9055_priv *da9055 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct da9055_priv *da9055 = snd_soc_component_get_drvdata(component);
 
 	switch (clk_id) {
 	case DA9055_CLKSRC_MCLK:
@@ -1283,13 +1279,13 @@ static int da9055_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 static int da9055_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 			      int source, unsigned int fref, unsigned int fout)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct da9055_priv *da9055 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct da9055_priv *da9055 = snd_soc_component_get_drvdata(component);
 
 	u8 pll_frac_top, pll_frac_bot, pll_integer, cnt;
 
 	/* Disable PLL before setting the divisors */
-	snd_soc_update_bits(codec, DA9055_PLL_CTRL, DA9055_PLL_EN, 0);
+	snd_soc_component_update_bits(component, DA9055_PLL_CTRL, DA9055_PLL_EN, 0);
 
 	/* In slave mode, there is only one set of divisors */
 	if (!da9055->master && (fout != 2822400))
@@ -1312,9 +1308,9 @@ static int da9055_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 		goto pll_err;
 
 	/* Write PLL dividers */
-	snd_soc_write(codec, DA9055_PLL_FRAC_TOP, pll_frac_top);
-	snd_soc_write(codec, DA9055_PLL_FRAC_BOT, pll_frac_bot);
-	snd_soc_write(codec, DA9055_PLL_INTEGER, pll_integer);
+	snd_soc_component_write(component, DA9055_PLL_FRAC_TOP, pll_frac_top);
+	snd_soc_component_write(component, DA9055_PLL_FRAC_BOT, pll_frac_bot);
+	snd_soc_component_write(component, DA9055_PLL_INTEGER, pll_integer);
 
 	return 0;
 pll_err:
@@ -1353,7 +1349,7 @@ static struct snd_soc_dai_driver da9055_dai = {
 	.symmetric_rates = 1,
 };
 
-static int da9055_set_bias_level(struct snd_soc_codec *codec,
+static int da9055_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
 	switch (level) {
@@ -1361,48 +1357,48 @@ static int da9055_set_bias_level(struct snd_soc_codec *codec,
 	case SND_SOC_BIAS_PREPARE:
 		break;
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			/* Enable VMID reference & master bias */
-			snd_soc_update_bits(codec, DA9055_REFERENCES,
+			snd_soc_component_update_bits(component, DA9055_REFERENCES,
 					    DA9055_VMID_EN | DA9055_BIAS_EN,
 					    DA9055_VMID_EN | DA9055_BIAS_EN);
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* Disable VMID reference & master bias */
-		snd_soc_update_bits(codec, DA9055_REFERENCES,
+		snd_soc_component_update_bits(component, DA9055_REFERENCES,
 				    DA9055_VMID_EN | DA9055_BIAS_EN, 0);
 		break;
 	}
 	return 0;
 }
 
-static int da9055_probe(struct snd_soc_codec *codec)
+static int da9055_probe(struct snd_soc_component *component)
 {
-	struct da9055_priv *da9055 = snd_soc_codec_get_drvdata(codec);
+	struct da9055_priv *da9055 = snd_soc_component_get_drvdata(component);
 
 	/* Enable all Gain Ramps */
-	snd_soc_update_bits(codec, DA9055_AUX_L_CTRL,
+	snd_soc_component_update_bits(component, DA9055_AUX_L_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_AUX_R_CTRL,
+	snd_soc_component_update_bits(component, DA9055_AUX_R_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_MIXIN_L_CTRL,
+	snd_soc_component_update_bits(component, DA9055_MIXIN_L_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_MIXIN_R_CTRL,
+	snd_soc_component_update_bits(component, DA9055_MIXIN_R_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_ADC_L_CTRL,
+	snd_soc_component_update_bits(component, DA9055_ADC_L_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_ADC_R_CTRL,
+	snd_soc_component_update_bits(component, DA9055_ADC_R_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_DAC_L_CTRL,
+	snd_soc_component_update_bits(component, DA9055_DAC_L_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_DAC_R_CTRL,
+	snd_soc_component_update_bits(component, DA9055_DAC_R_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_HP_L_CTRL,
+	snd_soc_component_update_bits(component, DA9055_HP_L_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_HP_R_CTRL,
+	snd_soc_component_update_bits(component, DA9055_HP_R_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
-	snd_soc_update_bits(codec, DA9055_LINE_CTRL,
+	snd_soc_component_update_bits(component, DA9055_LINE_CTRL,
 			    DA9055_GAIN_RAMPING_EN, DA9055_GAIN_RAMPING_EN);
 
 	/*
@@ -1412,28 +1408,28 @@ static int da9055_probe(struct snd_soc_codec *codec)
 	 * being managed by DAPM while other (non power related) bits are
 	 * enabled here
 	 */
-	snd_soc_update_bits(codec, DA9055_MIXIN_L_CTRL,
+	snd_soc_component_update_bits(component, DA9055_MIXIN_L_CTRL,
 			    DA9055_MIXIN_L_MIX_EN, DA9055_MIXIN_L_MIX_EN);
-	snd_soc_update_bits(codec, DA9055_MIXIN_R_CTRL,
+	snd_soc_component_update_bits(component, DA9055_MIXIN_R_CTRL,
 			    DA9055_MIXIN_R_MIX_EN, DA9055_MIXIN_R_MIX_EN);
 
-	snd_soc_update_bits(codec, DA9055_MIXOUT_L_CTRL,
+	snd_soc_component_update_bits(component, DA9055_MIXOUT_L_CTRL,
 			    DA9055_MIXOUT_L_MIX_EN, DA9055_MIXOUT_L_MIX_EN);
-	snd_soc_update_bits(codec, DA9055_MIXOUT_R_CTRL,
+	snd_soc_component_update_bits(component, DA9055_MIXOUT_R_CTRL,
 			    DA9055_MIXOUT_R_MIX_EN, DA9055_MIXOUT_R_MIX_EN);
 
 	/* Set this as per your system configuration */
-	snd_soc_write(codec, DA9055_PLL_CTRL, DA9055_PLL_INDIV_10_20_MHZ);
+	snd_soc_component_write(component, DA9055_PLL_CTRL, DA9055_PLL_INDIV_10_20_MHZ);
 
 	/* Set platform data values */
 	if (da9055->pdata) {
 		/* set mic bias source */
 		if (da9055->pdata->micbias_source) {
-			snd_soc_update_bits(codec, DA9055_MIXIN_R_SELECT,
+			snd_soc_component_update_bits(component, DA9055_MIXIN_R_SELECT,
 					    DA9055_MICBIAS2_EN,
 					    DA9055_MICBIAS2_EN);
 		} else {
-			snd_soc_update_bits(codec, DA9055_MIXIN_R_SELECT,
+			snd_soc_component_update_bits(component, DA9055_MIXIN_R_SELECT,
 					    DA9055_MICBIAS2_EN, 0);
 		}
 		/* set mic bias voltage */
@@ -1442,7 +1438,7 @@ static int da9055_probe(struct snd_soc_codec *codec)
 		case DA9055_MICBIAS_2_1V:
 		case DA9055_MICBIAS_1_8V:
 		case DA9055_MICBIAS_1_6V:
-			snd_soc_update_bits(codec, DA9055_MIC_CONFIG,
+			snd_soc_component_update_bits(component, DA9055_MIC_CONFIG,
 					    DA9055_MICBIAS_LEVEL_MASK,
 					    (da9055->pdata->micbias) << 4);
 			break;
@@ -1451,18 +1447,19 @@ static int da9055_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_da9055 = {
+static const struct snd_soc_component_driver soc_component_dev_da9055 = {
 	.probe			= da9055_probe,
 	.set_bias_level		= da9055_set_bias_level,
-
-	.component_driver = {
-		.controls		= da9055_snd_controls,
-		.num_controls		= ARRAY_SIZE(da9055_snd_controls),
-		.dapm_widgets		= da9055_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(da9055_dapm_widgets),
-		.dapm_routes		= da9055_audio_map,
-		.num_dapm_routes	= ARRAY_SIZE(da9055_audio_map),
-	},
+	.controls		= da9055_snd_controls,
+	.num_controls		= ARRAY_SIZE(da9055_snd_controls),
+	.dapm_widgets		= da9055_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(da9055_dapm_widgets),
+	.dapm_routes		= da9055_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(da9055_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config da9055_regmap_config = {
@@ -1499,19 +1496,13 @@ static int da9055_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	ret = snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_da9055, &da9055_dai, 1);
+	ret = devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_da9055, &da9055_dai, 1);
 	if (ret < 0) {
-		dev_err(&i2c->dev, "Failed to register da9055 codec: %d\n",
+		dev_err(&i2c->dev, "Failed to register da9055 component: %d\n",
 			ret);
 	}
 	return ret;
-}
-
-static int da9055_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 /*
@@ -1540,7 +1531,6 @@ static struct i2c_driver da9055_i2c_driver = {
 		.of_match_table = of_match_ptr(da9055_of_match),
 	},
 	.probe		= da9055_i2c_probe,
-	.remove		= da9055_remove,
 	.id_table	= da9055_i2c_id,
 };
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Broadcom device configuration
 #
@@ -7,14 +8,15 @@ config NET_VENDOR_BROADCOM
 	default y
 	depends on (SSB_POSSIBLE && HAS_DMA) || PCI || BCM63XX || \
 		   SIBYTE_SB1xxx_SOC
+	select DIMLIB
 	---help---
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
 
 	  Note that the answer to this question does not directly affect
-	  the kernel: saying N will just case the configurator to skip all
-	  the questions regarding AMD chipsets. If you say Y, you will be asked
-	  for your specific chipset/driver in the following questions.
+	  the kernel: saying N will just cause the configurator to skip all
+	  the questions regarding Broadcom chipsets. If you say Y, you will
+	  be asked for your specific chipset/driver in the following questions.
 
 if NET_VENDOR_BROADCOM
 
@@ -61,7 +63,7 @@ config BCM63XX_ENET
 
 config BCMGENET
 	tristate "Broadcom GENET internal MAC support"
-	depends on OF && HAS_IOMEM
+	depends on HAS_IOMEM
 	select MII
 	select PHYLIB
 	select FIXED_PHY
@@ -157,7 +159,6 @@ config BGMAC
 config BGMAC_BCMA
 	tristate "Broadcom iProc GBit BCMA support"
 	depends on BCMA && BCMA_HOST_SOC
-	depends on HAS_DMA
 	depends on BCM47XX || ARCH_BCM_5301X || COMPILE_TEST
 	select BGMAC
 	select PHYLIB
@@ -170,7 +171,6 @@ config BGMAC_BCMA
 
 config BGMAC_PLATFORM
 	tristate "Broadcom iProc GBit platform support"
-	depends on HAS_DMA
 	depends on ARCH_BCM_IPROC || COMPILE_TEST
 	depends on OF
 	select BGMAC
@@ -183,7 +183,7 @@ config BGMAC_PLATFORM
 
 config SYSTEMPORT
 	tristate "Broadcom SYSTEMPORT internal MAC support"
-	depends on OF
+	depends on HAS_IOMEM
 	depends on NET_DSA || !NET_DSA
 	select MII
 	select PHYLIB
@@ -196,9 +196,10 @@ config SYSTEMPORT
 config BNXT
 	tristate "Broadcom NetXtreme-C/E support"
 	depends on PCI
-	depends on MAY_USE_DEVLINK
 	select FW_LOADER
 	select LIBCRC32C
+	select NET_DEVLINK
+	select PAGE_POOL
 	---help---
 	  This driver supports Broadcom NetXtreme-C/E 10/25/40/50 gigabit
 	  Ethernet cards.  To compile this driver as a module, choose M here:
@@ -231,5 +232,13 @@ config BNXT_DCB
 	  driver.
 
 	  If unsure, say N.
+
+config BNXT_HWMON
+	bool "Broadcom NetXtreme-C/E HWMON support"
+	default y
+	depends on BNXT && HWMON && !(BNXT=y && HWMON=m)
+	---help---
+	  Say Y if you want to expose the thermal sensor data on NetXtreme-C/E
+	  devices, via the hwmon sysfs interface.
 
 endif # NET_VENDOR_BROADCOM

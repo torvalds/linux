@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  * Parts of this file were based on sources as follows:
@@ -7,22 +8,19 @@
  * Copyright (C) 2007 Dave Airlie <airlied@linux.ie>
  * Copyright (C) 2011 Texas Instruments
  * Copyright (C) 2017 Eric Anholt
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms of
- * such GNU licence.
  */
+
 #include <linux/clk.h>
 #include <linux/version.h>
 #include <linux/dma-buf.h>
 #include <linux/of_graph.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_vblank.h>
 
 #include "tve200_drm.h"
 
@@ -120,7 +118,8 @@ static int tve200_display_check(struct drm_simple_display_pipe *pipe,
 }
 
 static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
-				 struct drm_crtc_state *cstate)
+				 struct drm_crtc_state *cstate,
+				 struct drm_plane_state *plane_state)
 {
 	struct drm_crtc *crtc = &pipe->crtc;
 	struct drm_plane *plane = &pipe->plane;
@@ -148,7 +147,8 @@ static void tve200_display_enable(struct drm_simple_display_pipe *pipe,
 	/* Vsync IRQ at start of Vsync at first */
 	ctrl1 |= TVE200_VSTSTYPE_VSYNC;
 
-	if (connector->display_info.bus_flags & DRM_BUS_FLAG_PIXDATA_NEGEDGE)
+	if (connector->display_info.bus_flags &
+	    DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE)
 		ctrl1 |= TVE200_CTRL_TVCLKP;
 
 	if ((mode->hdisplay == 352 && mode->vdisplay == 240) || /* SIF(525) */
@@ -273,25 +273,23 @@ static void tve200_display_update(struct drm_simple_display_pipe *pipe,
 	}
 }
 
-int tve200_enable_vblank(struct drm_device *drm, unsigned int crtc)
+static int tve200_display_enable_vblank(struct drm_simple_display_pipe *pipe)
 {
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_device *drm = crtc->dev;
 	struct tve200_drm_dev_private *priv = drm->dev_private;
 
 	writel(TVE200_INT_V_STATUS, priv->regs + TVE200_INT_EN);
 	return 0;
 }
 
-void tve200_disable_vblank(struct drm_device *drm, unsigned int crtc)
+static void tve200_display_disable_vblank(struct drm_simple_display_pipe *pipe)
 {
+	struct drm_crtc *crtc = &pipe->crtc;
+	struct drm_device *drm = crtc->dev;
 	struct tve200_drm_dev_private *priv = drm->dev_private;
 
 	writel(0, priv->regs + TVE200_INT_EN);
-}
-
-static int tve200_display_prepare_fb(struct drm_simple_display_pipe *pipe,
-				    struct drm_plane_state *plane_state)
-{
-	return drm_gem_fb_prepare_fb(&pipe->plane, plane_state);
 }
 
 static const struct drm_simple_display_pipe_funcs tve200_display_funcs = {
@@ -299,7 +297,9 @@ static const struct drm_simple_display_pipe_funcs tve200_display_funcs = {
 	.enable = tve200_display_enable,
 	.disable = tve200_display_disable,
 	.update = tve200_display_update,
-	.prepare_fb = tve200_display_prepare_fb,
+	.prepare_fb = drm_gem_fb_simple_display_pipe_prepare_fb,
+	.enable_vblank = tve200_display_enable_vblank,
+	.disable_vblank = tve200_display_disable_vblank,
 };
 
 int tve200_display_init(struct drm_device *drm)

@@ -267,22 +267,22 @@
 
 			mdio@fd000 {
 				xfiphy1: ethernet-phy@10 {
-					compatible = "ethernet-phy-ieee802.3-c45";
+					compatible = "ethernet-phy-id13e5.1002";
 					reg = <0x10>;
 				};
 
 				xfiphy2: ethernet-phy@11 {
-					compatible = "ethernet-phy-ieee802.3-c45";
+					compatible = "ethernet-phy-id13e5.1002";
 					reg = <0x11>;
 				};
 
 				xfiphy3: ethernet-phy@13 {
-					compatible = "ethernet-phy-ieee802.3-c45";
+					compatible = "ethernet-phy-id13e5.1002";
 					reg = <0x13>;
 				};
 
 				xfiphy4: ethernet-phy@12 {
-					compatible = "ethernet-phy-ieee802.3-c45";
+					compatible = "ethernet-phy-id13e5.1002";
 					reg = <0x12>;
 				};
 			};

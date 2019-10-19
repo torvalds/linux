@@ -123,8 +123,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -143,8 +141,6 @@
 #include "axp209.dtsi"
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 
 	wm8978: codec@1a {
@@ -154,26 +150,24 @@
 	};
 
 	pcf8563: rtc@51 {
-		compatible = "phg,pcf8563";
+		compatible = "nxp,pcf8563";
 		reg = <0x51>;
 	};
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
 &i2s0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2s0_mclk_pins_a>, <&i2s0_data_pins_a>;
+	pinctrl-0 = <&i2s0_mclk_pin>, <&i2s0_data_pins>;
 	status = "okay";
 };
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
@@ -181,49 +175,49 @@
 	vref-supply = <&reg_ldo2>;
 	status = "okay";
 
-	button@190 {
+	button-190 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <190000>;
 	};
 
-	button@390 {
+	button-390 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <390000>;
 	};
 
-	button@600 {
+	button-600 {
 		label = "Menu";
 		linux,code = <KEY_MENU>;
 		channel = <0>;
 		voltage = <600000>;
 	};
 
-	button@800 {
+	button-800 {
 		label = "Search";
 		linux,code = <KEY_SEARCH>;
 		channel = <0>;
 		voltage = <800000>;
 	};
 
-	button@980 {
+	button-980 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;
 		voltage = <980000>;
 	};
 
-	button@1180 {
+	button-1180 {
 		label = "Esc";
 		linux,code = <KEY_ESC>;
 		channel = <0>;
 		voltage = <1180000>;
 	};
 
-	button@1400 {
+	button-1400 {
 		label = "Enter";
 		linux,code = <KEY_ENTER>;
 		channel = <0>;
@@ -232,18 +226,15 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_gr8_evb>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 0 GPIO_ACTIVE_HIGH>; /* PG0 */
-	cd-inverted;
+	cd-gpios = <&pio 6 0 GPIO_ACTIVE_LOW>; /* PG0 */
 	status = "okay";
 };
 
 &nfc {
 	pinctrl-names = "default";
-	pinctrl-0 = <&nand_pins_a &nand_cs0_pins_a &nand_rb0_pins_a>;
+	pinctrl-0 = <&nand_pins &nand_cs0_pin &nand_rb0_pin>;
 
 	/* MLC Support sucks for now */
 	status = "disabled";
@@ -257,31 +248,9 @@
 	status = "okay";
 };
 
-&pio {
-	mmc0_cd_pin_gr8_evb: mmc0-cd-pin@0 {
-		pins = "PG0";
-		function = "gpio_in";
-	};
-
-	usb0_id_pin_gr8_evb: usb0-id-pin@0 {
-		pins = "PG2";
-		function = "gpio_in";
-	};
-
-	usb0_vbus_det_pin_gr8_evb: usb0-vbus-det-pin@0 {
-		pins = "PG1";
-		function = "gpio_in";
-	};
-
-	usb1_vbus_pin_gr8_evb: usb1-vbus-pin@0 {
-		pins = "PG13";
-		function = "gpio_out";
-	};
-};
-
 &pwm {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pwm0_pins>;
+	pinctrl-0 = <&pwm0_pin>;
 	status = "okay";
 };
 
@@ -311,7 +280,6 @@
 };
 
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_gr8_evb>;
 	gpio = <&pio 6 13 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
@@ -322,7 +290,7 @@
 
 &spdif {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_tx_pins_a>;
+	pinctrl-0 = <&spdif_tx_pin>;
 	status = "okay";
 };
 
@@ -332,7 +300,7 @@
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_b>, <&uart1_cts_rts_pins_a>;
+	pinctrl-0 = <&uart1_pg_pins>, <&uart1_cts_rts_pins>;
 	status = "okay";
 };
 
@@ -357,10 +325,8 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_pin_gr8_evb>, <&usb0_vbus_det_pin_gr8_evb>;
-	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
-	usb0_vbus_det-gpio = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
+	usb0_id_det-gpios = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
+	usb0_vbus_det-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
 	usb0_vbus_power-supply = <&usb_power_supply>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";

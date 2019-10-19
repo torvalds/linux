@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel Baytrail SST IPC Support
  * Copyright (c) 2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/types.h>
@@ -219,7 +211,7 @@ static struct sst_byt_stream *sst_byt_get_stream(struct sst_byt *byt,
 static void sst_byt_stream_update(struct sst_byt *byt, struct ipc_message *msg)
 {
 	struct sst_byt_stream *stream;
-	u64 header = msg->header;
+	u64 header = msg->tx.header;
 	u8 stream_id = sst_byt_header_str_id(header);
 	u8 stream_msg = sst_byt_header_msg_id(header);
 
@@ -248,9 +240,10 @@ static int sst_byt_process_reply(struct sst_byt *byt, u64 header)
 	if (msg == NULL)
 		return 1;
 
+	msg->rx.header = header;
 	if (header & IPC_HEADER_LARGE(true)) {
-		msg->rx_size = sst_byt_header_data(header);
-		sst_dsp_inbox_read(byt->dsp, msg->rx_data, msg->rx_size);
+		msg->rx.size = sst_byt_header_data(header);
+		sst_dsp_inbox_read(byt->dsp, msg->rx.data, msg->rx.size);
 	}
 
 	/* update any stream states */
@@ -278,7 +271,6 @@ static int sst_byt_process_notification(struct sst_byt *byt,
 	struct sst_byt_stream *stream;
 	u64 header;
 	u8 msg_id, stream_id;
-	int handled = 1;
 
 	header = sst_dsp_shim_read64_unlocked(sst, SST_IPCD);
 	msg_id = sst_byt_header_msg_id(header);
@@ -298,7 +290,7 @@ static int sst_byt_process_notification(struct sst_byt *byt,
 		break;
 	}
 
-	return handled;
+	return 1;
 }
 
 static irqreturn_t sst_byt_irq_thread(int irq, void *context)
@@ -416,17 +408,18 @@ int sst_byt_stream_buffer(struct sst_byt *byt, struct sst_byt_stream *stream,
 
 int sst_byt_stream_commit(struct sst_byt *byt, struct sst_byt_stream *stream)
 {
-	struct sst_byt_alloc_params *str_req = &stream->request;
-	struct sst_byt_alloc_response *reply = &stream->reply;
-	u64 header;
+	struct sst_ipc_message request, reply = {0};
 	int ret;
 
-	header = sst_byt_header(IPC_IA_ALLOC_STREAM,
-				sizeof(*str_req) + sizeof(u32),
+	request.header = sst_byt_header(IPC_IA_ALLOC_STREAM,
+				sizeof(stream->request) + sizeof(u32),
 				true, stream->str_id);
-	ret = sst_ipc_tx_message_wait(&byt->ipc, header, str_req,
-				      sizeof(*str_req),
-				      reply, sizeof(*reply));
+	request.data = &stream->request;
+	request.size = sizeof(stream->request);
+	reply.data = &stream->reply;
+	reply.size = sizeof(stream->reply);
+
+	ret = sst_ipc_tx_message_wait(&byt->ipc, request, &reply);
 	if (ret < 0) {
 		dev_err(byt->dev, "ipc: error stream commit failed\n");
 		return ret;
@@ -439,7 +432,7 @@ int sst_byt_stream_commit(struct sst_byt *byt, struct sst_byt_stream *stream)
 
 int sst_byt_stream_free(struct sst_byt *byt, struct sst_byt_stream *stream)
 {
-	u64 header;
+	struct sst_ipc_message request = {0};
 	int ret = 0;
 	struct sst_dsp *sst = byt->dsp;
 	unsigned long flags;
@@ -447,8 +440,9 @@ int sst_byt_stream_free(struct sst_byt *byt, struct sst_byt_stream *stream)
 	if (!stream->commited)
 		goto out;
 
-	header = sst_byt_header(IPC_IA_FREE_STREAM, 0, false, stream->str_id);
-	ret = sst_ipc_tx_message_wait(&byt->ipc, header, NULL, 0, NULL, 0);
+	request.header = sst_byt_header(IPC_IA_FREE_STREAM,
+			0, false, stream->str_id);
+	ret = sst_ipc_tx_message_wait(&byt->ipc, request, NULL);
 	if (ret < 0) {
 		dev_err(byt->dev, "ipc: free stream %d failed\n",
 			stream->str_id);
@@ -468,15 +462,13 @@ out:
 static int sst_byt_stream_operations(struct sst_byt *byt, int type,
 				     int stream_id, int wait)
 {
-	u64 header;
+	struct sst_ipc_message request = {0};
 
-	header = sst_byt_header(type, 0, false, stream_id);
+	request.header = sst_byt_header(type, 0, false, stream_id);
 	if (wait)
-		return sst_ipc_tx_message_wait(&byt->ipc, header, NULL,
-						0, NULL, 0);
+		return sst_ipc_tx_message_wait(&byt->ipc, request, NULL);
 	else
-		return sst_ipc_tx_message_nowait(&byt->ipc, header,
-						NULL, 0);
+		return sst_ipc_tx_message_nowait(&byt->ipc, request);
 }
 
 /* stream ALSA trigger operations */
@@ -484,19 +476,17 @@ int sst_byt_stream_start(struct sst_byt *byt, struct sst_byt_stream *stream,
 			 u32 start_offset)
 {
 	struct sst_byt_start_stream_params start_stream;
-	void *tx_msg;
-	size_t size;
-	u64 header;
+	struct sst_ipc_message request;
 	int ret;
 
 	start_stream.byte_offset = start_offset;
-	header = sst_byt_header(IPC_IA_START_STREAM,
+	request.header = sst_byt_header(IPC_IA_START_STREAM,
 				sizeof(start_stream) + sizeof(u32),
 				true, stream->str_id);
-	tx_msg = &start_stream;
-	size = sizeof(start_stream);
+	request.data = &start_stream;
+	request.size = sizeof(start_stream);
 
-	ret = sst_ipc_tx_message_nowait(&byt->ipc, header, tx_msg, size);
+	ret = sst_ipc_tx_message_nowait(&byt->ipc, request);
 	if (ret < 0)
 		dev_err(byt->dev, "ipc: error failed to start stream %d\n",
 			stream->str_id);
@@ -632,10 +622,10 @@ EXPORT_SYMBOL_GPL(sst_byt_dsp_wait_for_ready);
 
 static void byt_tx_msg(struct sst_generic_ipc *ipc, struct ipc_message *msg)
 {
-	if (msg->header & IPC_HEADER_LARGE(true))
-		sst_dsp_outbox_write(ipc->dsp, msg->tx_data, msg->tx_size);
+	if (msg->tx.header & IPC_HEADER_LARGE(true))
+		sst_dsp_outbox_write(ipc->dsp, msg->tx.data, msg->tx.size);
 
-	sst_dsp_shim_write64_unlocked(ipc->dsp, SST_IPCX, msg->header);
+	sst_dsp_shim_write64_unlocked(ipc->dsp, SST_IPCX, msg->tx.header);
 }
 
 static void byt_shim_dbg(struct sst_generic_ipc *ipc, const char *text)
@@ -657,9 +647,9 @@ static void byt_tx_data_copy(struct ipc_message *msg, char *tx_data,
 	size_t tx_size)
 {
 	/* msg content = lower 32-bit of the header + data */
-	*(u32 *)msg->tx_data = (u32)(msg->header & (u32)-1);
-	memcpy(msg->tx_data + sizeof(u32), tx_data, tx_size);
-	msg->tx_size += sizeof(u32);
+	*(u32 *)msg->tx.data = (u32)(msg->tx.header & (u32)-1);
+	memcpy(msg->tx.data + sizeof(u32), tx_data, tx_size);
+	msg->tx.size += sizeof(u32);
 }
 
 static u64 byt_reply_msg_match(u64 header, u64 *mask)

@@ -46,6 +46,12 @@
 		assign, print, reg, unreg)			\
 	DEFINE_TRACE_FN(name, reg, unreg)
 
+#undef TRACE_EVENT_NOP
+#define TRACE_EVENT_NOP(name, proto, args, struct, assign, print)
+
+#undef DEFINE_EVENT_NOP
+#define DEFINE_EVENT_NOP(template, name, proto, args)
+
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args) \
 	DEFINE_TRACE(name)
@@ -95,12 +101,15 @@
 #ifdef TRACEPOINTS_ENABLED
 #include <trace/trace_events.h>
 #include <trace/perf.h>
+#include <trace/bpf_probe.h>
 #endif
 
 #undef TRACE_EVENT
 #undef TRACE_EVENT_FN
 #undef TRACE_EVENT_FN_COND
 #undef TRACE_EVENT_CONDITION
+#undef TRACE_EVENT_NOP
+#undef DEFINE_EVENT_NOP
 #undef DECLARE_EVENT_CLASS
 #undef DEFINE_EVENT
 #undef DEFINE_EVENT_FN

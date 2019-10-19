@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Input misc drivers configuration
 #
@@ -117,6 +118,16 @@ config INPUT_E3X0_BUTTON
 	  To compile this driver as a module, choose M here: the
 	  module will be called e3x0_button.
 
+config INPUT_MSM_VIBRATOR
+	tristate "Qualcomm MSM vibrator driver"
+	select INPUT_FF_MEMLESS
+	help
+	  Support for the vibrator that is found on various Qualcomm MSM
+	  SOCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called msm_vibrator.
+
 config INPUT_PCSPKR
 	tristate "PC Speaker support"
 	depends on PCSPKR_PLATFORM
@@ -179,6 +190,15 @@ config INPUT_SPARCSPKR
 config INPUT_M68K_BEEP
 	tristate "M68k Beeper support"
 	depends on M68K
+
+config INPUT_MAX77650_ONKEY
+	tristate "Maxim MAX77650 ONKEY support"
+	depends on MFD_MAX77650
+	help
+	  Support the ONKEY of the MAX77650 PMIC as an input device.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called max77650-onkey.
 
 config INPUT_MAX77693_HAPTIC
 	tristate "MAXIM MAX77693/MAX77843 haptic controller support"
@@ -279,6 +299,18 @@ config INPUT_GPIO_DECODER
 
 	 To compile this driver as a module, choose M here: the module
 	 will be called gpio_decoder.
+
+config INPUT_GPIO_VIBRA
+	tristate "GPIO vibrator support"
+	depends on GPIOLIB || COMPILE_TEST
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here to get support for GPIO based vibrator devices.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called gpio-vibra.
 
 config INPUT_IXP4XX_BEEPER
 	tristate "IXP4XX Beeper support"
@@ -411,7 +443,7 @@ config INPUT_YEALINK
 	  usb sound driver, so you might want to enable that as well.
 
 	  For information about how to use these additional functions, see
-	  <file:Documentation/input/yealink.txt>.
+	  <file:Documentation/input/devices/yealink.rst>.
 
 	  To compile this driver as a module, choose M here: the module will be
 	  called yealink.
@@ -595,7 +627,7 @@ config INPUT_GPIO_ROTARY_ENCODER
 	depends on GPIOLIB || COMPILE_TEST
 	help
 	  Say Y here to add support for rotary encoders connected to GPIO lines.
-	  Check file:Documentation/input/rotary-encoder.txt for more
+	  Check file:Documentation/input/devices/rotary-encoder.rst for more
 	  information.
 
 	  To compile this driver as a module, choose M here: the
@@ -654,15 +686,6 @@ config INPUT_DM355EVM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dm355evm_keys.
-
-config INPUT_BFIN_ROTARY
-	tristate "Blackfin Rotary support"
-	depends on BF54x || BF52x
-	help
-	  Say Y here if you want to use the Blackfin Rotary.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin-rotary.
 
 config INPUT_WM831X_ON
 	tristate "WM831X ON pin"
@@ -790,10 +813,10 @@ config INPUT_IDEAPAD_SLIDEBAR
 
 config INPUT_SOC_BUTTON_ARRAY
 	tristate "Windows-compatible SoC Button Array"
-	depends on KEYBOARD_GPIO
+	depends on KEYBOARD_GPIO && ACPI
 	help
-	  Say Y here if you have a SoC-based tablet that originally
-	  runs Windows 8.
+	  Say Y here if you have a SoC-based tablet that originally runs
+	  Windows 8 or a Microsoft Surface Book 2, Pro 5, Laptop 1 or later.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called soc_button_array.
@@ -840,5 +863,35 @@ config INPUT_HISI_POWERKEY
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hisi_powerkey.
+
+config INPUT_RAVE_SP_PWRBUTTON
+	tristate "RAVE SP Power button Driver"
+	depends on RAVE_SP_CORE
+	help
+	  Say Y here if you want to enable power key reporting from RAVE SP
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rave-sp-pwrbutton.
+
+config INPUT_SC27XX_VIBRA
+	tristate "Spreadtrum sc27xx vibrator support"
+	depends on MFD_SC27XX_PMIC || COMPILE_TEST
+	select INPUT_FF_MEMLESS
+	help
+	  This option enables support for Spreadtrum sc27xx vibrator driver.
+
+	  To compile this driver as a module, choose M here. The module will
+	  be called sc27xx_vibra.
+
+config INPUT_STPMIC1_ONKEY
+	tristate "STPMIC1 PMIC Onkey support"
+	depends on MFD_STPMIC1
+	help
+	  Say Y to enable support of onkey embedded into STPMIC1 PMIC. onkey
+	  can be used to wakeup from low power modes and force a shut-down on
+	  long press.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called stpmic1_onkey.
 
 endif

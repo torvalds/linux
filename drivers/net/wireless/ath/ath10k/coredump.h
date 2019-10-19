@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: ISC */
 /*
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #ifndef _COREDUMP_H_
@@ -124,6 +113,8 @@ enum ath10k_mem_region_type {
 	ATH10K_MEM_REGION_TYPE_AXI	= 3,
 	ATH10K_MEM_REGION_TYPE_IRAM1	= 4,
 	ATH10K_MEM_REGION_TYPE_IRAM2	= 5,
+	ATH10K_MEM_REGION_TYPE_IOSRAM	= 6,
+	ATH10K_MEM_REGION_TYPE_IOREG	= 7,
 };
 
 /* Define a section of the region which should be copied. As not all parts
@@ -163,6 +154,7 @@ struct ath10k_mem_region {
  */
 struct ath10k_hw_mem_layout {
 	u32 hw_id;
+	u32 hw_rev;
 
 	struct {
 		const struct ath10k_mem_region *regions;

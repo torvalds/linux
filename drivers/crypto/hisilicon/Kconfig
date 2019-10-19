@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config CRYPTO_DEV_HISI_SEC
+	tristate "Support for Hisilicon SEC crypto block cipher accelerator"
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_ALGAPI
+	select CRYPTO_LIB_DES
+	select SG_SPLIT
+	depends on ARM64 || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Support for Hisilicon SEC Engine in Hip06 and Hip07
+
+	  To compile this as a module, choose M here: the module
+	  will be called hisi_sec.
+
+config CRYPTO_DEV_HISI_QM
+	tristate
+	depends on ARM64 && PCI && PCI_MSI
+	help
+	  HiSilicon accelerator engines use a common queue management
+	  interface. Specific engine driver may use this module.
+
+config CRYPTO_HISI_SGL
+	tristate
+	depends on ARM64
+	help
+	  HiSilicon accelerator engines use a common hardware scatterlist
+	  interface for data format. Specific engine driver may use this
+	  module.
+
+config CRYPTO_DEV_HISI_ZIP
+	tristate "Support for HiSilicon ZIP accelerator"
+	depends on ARM64 && PCI && PCI_MSI
+	select CRYPTO_DEV_HISI_QM
+	select CRYPTO_HISI_SGL
+	select SG_SPLIT
+	help
+	  Support for HiSilicon ZIP Driver

@@ -16,6 +16,7 @@
 #include <linux/usb/gadget.h>
 #include <linux/usb/otg-fsm.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/role.h>
 #include <linux/ulpi/interface.h>
 
 /******************************************************************************
@@ -217,6 +218,7 @@ struct ci_hdrc {
 	ktime_t				hr_timeouts[NUM_OTG_FSM_TIMERS];
 	unsigned			enabled_otg_timer_bits;
 	enum otg_fsm_timer		next_otg_timer;
+	struct usb_role_switch		*role_switch;
 	struct work_struct		work;
 	struct workqueue_struct		*wq;
 
@@ -240,10 +242,8 @@ struct ci_hdrc {
 
 	struct ci_hdrc_platform_data	*platdata;
 	int				vbus_active;
-#ifdef CONFIG_USB_CHIPIDEA_ULPI
 	struct ulpi			*ulpi;
 	struct ulpi_ops 		ulpi_ops;
-#endif
 	struct phy			*phy;
 	/* old usb_phy interface */
 	struct usb_phy			*usb_phy;
@@ -290,6 +290,16 @@ static inline void ci_role_stop(struct ci_hdrc *ci)
 	ci->role = CI_ROLE_END;
 
 	ci->roles[role]->stop(ci);
+}
+
+static inline enum usb_role ci_role_to_usb_role(struct ci_hdrc *ci)
+{
+	if (ci->role == CI_ROLE_HOST)
+		return USB_ROLE_HOST;
+	else if (ci->role == CI_ROLE_GADGET && ci->vbus_active)
+		return USB_ROLE_DEVICE;
+	else
+		return USB_ROLE_NONE;
 }
 
 /**
@@ -426,15 +436,9 @@ static inline bool ci_otg_is_fsm_mode(struct ci_hdrc *ci)
 #endif
 }
 
-#if IS_ENABLED(CONFIG_USB_CHIPIDEA_ULPI)
 int ci_ulpi_init(struct ci_hdrc *ci);
 void ci_ulpi_exit(struct ci_hdrc *ci);
 int ci_ulpi_resume(struct ci_hdrc *ci);
-#else
-static inline int ci_ulpi_init(struct ci_hdrc *ci) { return 0; }
-static inline void ci_ulpi_exit(struct ci_hdrc *ci) { }
-static inline int ci_ulpi_resume(struct ci_hdrc *ci) { return 0; }
-#endif
 
 u32 hw_read_intr_enable(struct ci_hdrc *ci);
 
@@ -450,7 +454,7 @@ void hw_phymode_configure(struct ci_hdrc *ci);
 
 void ci_platform_configure(struct ci_hdrc *ci);
 
-int dbg_create_files(struct ci_hdrc *ci);
+void dbg_create_files(struct ci_hdrc *ci);
 
 void dbg_remove_files(struct ci_hdrc *ci);
 #endif	/* __DRIVERS_USB_CHIPIDEA_CI_H */

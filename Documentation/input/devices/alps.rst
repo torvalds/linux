@@ -192,9 +192,12 @@ The final v3 packet type is the trackstick packet::
  byte 0:    1    1   x7   y7    1    1    1    1
  byte 1:    0   x6   x5   x4   x3   x2   x1   x0
  byte 2:    0   y6   y5   y4   y3   y2   y1   y0
- byte 3:    0    1    0    0    1    0    0    0
- byte 4:    0   z4   z3   z2   z1   z0    ?    ?
+ byte 3:    0    1   TP   SW    1    M    R    L
+ byte 4:    0   z6   z5   z4   z3   z2   z1   z0
  byte 5:    0    0    1    1    1    1    1    1
+
+TP means Tap SW status when tap processing is enabled or Press status when press
+processing is enabled. SW means scroll up when 4 buttons are available.
 
 ALPS Absolute Mode - Protocol Version 4
 ---------------------------------------

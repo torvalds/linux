@@ -3,7 +3,7 @@
 # Test for gcc 'asm goto' support
 # Copyright (C) 2010, Jason Baron <jbaron@redhat.com>
 
-cat << "END" | $@ -x c - -c -o /dev/null >/dev/null 2>&1 && echo "y"
+cat << "END" | $@ -x c - -fno-PIE -c -o /dev/null
 int main(void)
 {
 #if defined(__arm__) || defined(__aarch64__)

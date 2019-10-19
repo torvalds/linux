@@ -5,7 +5,7 @@
  * s390 implementation of the AES Cipher Algorithm with protected keys.
  *
  * s390 Version:
- *   Copyright IBM Corp. 2017
+ *   Copyright IBM Corp. 2017,2019
  *   Author(s): Martin Schwidefsky <schwidefsky@de.ibm.com>
  *		Harald Freudenberger <freude@de.ibm.com>
  */
@@ -25,31 +25,79 @@
 #include <asm/cpacf.h>
 #include <asm/pkey.h>
 
+/*
+ * Key blobs smaller/bigger than these defines are rejected
+ * by the common code even before the individual setkey function
+ * is called. As paes can handle different kinds of key blobs
+ * and padding is also possible, the limits need to be generous.
+ */
+#define PAES_MIN_KEYSIZE 64
+#define PAES_MAX_KEYSIZE 256
+
 static u8 *ctrblk;
 static DEFINE_SPINLOCK(ctrblk_lock);
 
 static cpacf_mask_t km_functions, kmc_functions, kmctr_functions;
 
+struct key_blob {
+	/*
+	 * Small keys will be stored in the keybuf. Larger keys are
+	 * stored in extra allocated memory. In both cases does
+	 * key point to the memory where the key is stored.
+	 * The code distinguishes by checking keylen against
+	 * sizeof(keybuf). See the two following helper functions.
+	 */
+	u8 *key;
+	u8 keybuf[128];
+	unsigned int keylen;
+};
+
+static inline int _copy_key_to_kb(struct key_blob *kb,
+				  const u8 *key,
+				  unsigned int keylen)
+{
+	if (keylen <= sizeof(kb->keybuf))
+		kb->key = kb->keybuf;
+	else {
+		kb->key = kmalloc(keylen, GFP_KERNEL);
+		if (!kb->key)
+			return -ENOMEM;
+	}
+	memcpy(kb->key, key, keylen);
+	kb->keylen = keylen;
+
+	return 0;
+}
+
+static inline void _free_kb_keybuf(struct key_blob *kb)
+{
+	if (kb->key && kb->key != kb->keybuf
+	    && kb->keylen > sizeof(kb->keybuf)) {
+		kfree(kb->key);
+		kb->key = NULL;
+	}
+}
+
 struct s390_paes_ctx {
-	struct pkey_seckey sk;
+	struct key_blob kb;
 	struct pkey_protkey pk;
 	unsigned long fc;
 };
 
 struct s390_pxts_ctx {
-	struct pkey_seckey sk[2];
+	struct key_blob kb[2];
 	struct pkey_protkey pk[2];
 	unsigned long fc;
 };
 
-static inline int __paes_convert_key(struct pkey_seckey *sk,
+static inline int __paes_convert_key(struct key_blob *kb,
 				     struct pkey_protkey *pk)
 {
 	int i, ret;
 
 	/* try three times in case of failure */
 	for (i = 0; i < 3; i++) {
-		ret = pkey_skey2pkey(sk, pk);
+		ret = pkey_keyblob2pkey(kb->key, kb->keylen, pk);
 		if (ret == 0)
 			break;
 	}
@@ -61,7 +109,7 @@ static int __paes_set_key(struct s390_paes_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->sk, &ctx->pk))
+	if (__paes_convert_key(&ctx->kb, &ctx->pk))
 		return -EINVAL;
 
 	/* Pick the correct function code based on the protected key type */
@@ -75,15 +123,33 @@ static int __paes_set_key(struct s390_paes_ctx *ctx)
 	return ctx->fc ? 0 : -EINVAL;
 }
 
-static int ecb_paes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-			    unsigned int key_len)
+static int ecb_paes_init(struct crypto_tfm *tfm)
 {
 	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	if (key_len != SECKEYBLOBSIZE)
-		return -EINVAL;
+	ctx->kb.key = NULL;
 
-	memcpy(ctx->sk.seckey, in_key, SECKEYBLOBSIZE);
+	return 0;
+}
+
+static void ecb_paes_exit(struct crypto_tfm *tfm)
+{
+	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	_free_kb_keybuf(&ctx->kb);
+}
+
+static int ecb_paes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
+			    unsigned int key_len)
+{
+	int rc;
+	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	_free_kb_keybuf(&ctx->kb);
+	rc = _copy_key_to_kb(&ctx->kb, in_key, key_len);
+	if (rc)
+		return rc;
+
 	if (__paes_set_key(ctx)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
@@ -138,17 +204,19 @@ static int ecb_paes_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg ecb_paes_alg = {
 	.cra_name		=	"ecb(paes)",
 	.cra_driver_name	=	"ecb-paes-s390",
-	.cra_priority		=	400,	/* combo: aes + ecb */
+	.cra_priority		=	401,	/* combo: aes + ecb + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_paes_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(ecb_paes_alg.cra_list),
+	.cra_init		=	ecb_paes_init,
+	.cra_exit		=	ecb_paes_exit,
 	.cra_u			=	{
 		.blkcipher = {
-			.min_keysize		=	SECKEYBLOBSIZE,
-			.max_keysize		=	SECKEYBLOBSIZE,
+			.min_keysize		=	PAES_MIN_KEYSIZE,
+			.max_keysize		=	PAES_MAX_KEYSIZE,
 			.setkey			=	ecb_paes_set_key,
 			.encrypt		=	ecb_paes_encrypt,
 			.decrypt		=	ecb_paes_decrypt,
@@ -156,11 +224,27 @@ static struct crypto_alg ecb_paes_alg = {
 	}
 };
 
+static int cbc_paes_init(struct crypto_tfm *tfm)
+{
+	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	ctx->kb.key = NULL;
+
+	return 0;
+}
+
+static void cbc_paes_exit(struct crypto_tfm *tfm)
+{
+	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	_free_kb_keybuf(&ctx->kb);
+}
+
 static int __cbc_paes_set_key(struct s390_paes_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->sk, &ctx->pk))
+	if (__paes_convert_key(&ctx->kb, &ctx->pk))
 		return -EINVAL;
 
 	/* Pick the correct function code based on the protected key type */
@@ -177,9 +261,14 @@ static int __cbc_paes_set_key(struct s390_paes_ctx *ctx)
 static int cbc_paes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			    unsigned int key_len)
 {
+	int rc;
 	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	memcpy(ctx->sk.seckey, in_key, SECKEYBLOBSIZE);
+	_free_kb_keybuf(&ctx->kb);
+	rc = _copy_key_to_kb(&ctx->kb, in_key, key_len);
+	if (rc)
+		return rc;
+
 	if (__cbc_paes_set_key(ctx)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
@@ -208,7 +297,7 @@ static int cbc_paes_crypt(struct blkcipher_desc *desc, unsigned long modifier,
 			      walk->dst.virt.addr, walk->src.virt.addr, n);
 		if (k)
 			ret = blkcipher_walk_done(desc, walk, nbytes - k);
-		if (n < k) {
+		if (k < n) {
 			if (__cbc_paes_set_key(ctx) != 0)
 				return blkcipher_walk_done(desc, walk, -EIO);
 			memcpy(param.key, ctx->pk.protkey, MAXPROTKEYSIZE);
@@ -241,17 +330,19 @@ static int cbc_paes_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg cbc_paes_alg = {
 	.cra_name		=	"cbc(paes)",
 	.cra_driver_name	=	"cbc-paes-s390",
-	.cra_priority		=	400,	/* combo: aes + cbc */
+	.cra_priority		=	402,	/* ecb-paes-s390 + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_paes_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(cbc_paes_alg.cra_list),
+	.cra_init		=	cbc_paes_init,
+	.cra_exit		=	cbc_paes_exit,
 	.cra_u			=	{
 		.blkcipher = {
-			.min_keysize		=	SECKEYBLOBSIZE,
-			.max_keysize		=	SECKEYBLOBSIZE,
+			.min_keysize		=	PAES_MIN_KEYSIZE,
+			.max_keysize		=	PAES_MAX_KEYSIZE,
 			.ivsize			=	AES_BLOCK_SIZE,
 			.setkey			=	cbc_paes_set_key,
 			.encrypt		=	cbc_paes_encrypt,
@@ -260,12 +351,30 @@ static struct crypto_alg cbc_paes_alg = {
 	}
 };
 
+static int xts_paes_init(struct crypto_tfm *tfm)
+{
+	struct s390_pxts_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	ctx->kb[0].key = NULL;
+	ctx->kb[1].key = NULL;
+
+	return 0;
+}
+
+static void xts_paes_exit(struct crypto_tfm *tfm)
+{
+	struct s390_pxts_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	_free_kb_keybuf(&ctx->kb[0]);
+	_free_kb_keybuf(&ctx->kb[1]);
+}
+
 static int __xts_paes_set_key(struct s390_pxts_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->sk[0], &ctx->pk[0]) ||
-	    __paes_convert_key(&ctx->sk[1], &ctx->pk[1]))
+	if (__paes_convert_key(&ctx->kb[0], &ctx->pk[0]) ||
+	    __paes_convert_key(&ctx->kb[1], &ctx->pk[1]))
 		return -EINVAL;
 
 	if (ctx->pk[0].type != ctx->pk[1].type)
@@ -283,14 +392,27 @@ static int __xts_paes_set_key(struct s390_pxts_ctx *ctx)
 }
 
 static int xts_paes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
-			    unsigned int key_len)
+			    unsigned int xts_key_len)
 {
+	int rc;
 	struct s390_pxts_ctx *ctx = crypto_tfm_ctx(tfm);
 	u8 ckey[2 * AES_MAX_KEY_SIZE];
-	unsigned int ckey_len;
+	unsigned int ckey_len, key_len;
 
-	memcpy(ctx->sk[0].seckey, in_key, SECKEYBLOBSIZE);
-	memcpy(ctx->sk[1].seckey, in_key + SECKEYBLOBSIZE, SECKEYBLOBSIZE);
+	if (xts_key_len % 2)
+		return -EINVAL;
+
+	key_len = xts_key_len / 2;
+
+	_free_kb_keybuf(&ctx->kb[0]);
+	_free_kb_keybuf(&ctx->kb[1]);
+	rc = _copy_key_to_kb(&ctx->kb[0], in_key, key_len);
+	if (rc)
+		return rc;
+	rc = _copy_key_to_kb(&ctx->kb[1], in_key + key_len, key_len);
+	if (rc)
+		return rc;
+
 	if (__xts_paes_set_key(ctx)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
@@ -377,17 +499,19 @@ static int xts_paes_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg xts_paes_alg = {
 	.cra_name		=	"xts(paes)",
 	.cra_driver_name	=	"xts-paes-s390",
-	.cra_priority		=	400,	/* combo: aes + xts */
+	.cra_priority		=	402,	/* ecb-paes-s390 + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		=	AES_BLOCK_SIZE,
 	.cra_ctxsize		=	sizeof(struct s390_pxts_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(xts_paes_alg.cra_list),
+	.cra_init		=	xts_paes_init,
+	.cra_exit		=	xts_paes_exit,
 	.cra_u			=	{
 		.blkcipher = {
-			.min_keysize		=	2 * SECKEYBLOBSIZE,
-			.max_keysize		=	2 * SECKEYBLOBSIZE,
+			.min_keysize		=	2 * PAES_MIN_KEYSIZE,
+			.max_keysize		=	2 * PAES_MAX_KEYSIZE,
 			.ivsize			=	AES_BLOCK_SIZE,
 			.setkey			=	xts_paes_set_key,
 			.encrypt		=	xts_paes_encrypt,
@@ -396,11 +520,27 @@ static struct crypto_alg xts_paes_alg = {
 	}
 };
 
+static int ctr_paes_init(struct crypto_tfm *tfm)
+{
+	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	ctx->kb.key = NULL;
+
+	return 0;
+}
+
+static void ctr_paes_exit(struct crypto_tfm *tfm)
+{
+	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
+
+	_free_kb_keybuf(&ctx->kb);
+}
+
 static int __ctr_paes_set_key(struct s390_paes_ctx *ctx)
 {
 	unsigned long fc;
 
-	if (__paes_convert_key(&ctx->sk, &ctx->pk))
+	if (__paes_convert_key(&ctx->kb, &ctx->pk))
 		return -EINVAL;
 
 	/* Pick the correct function code based on the protected key type */
@@ -418,9 +558,14 @@ static int __ctr_paes_set_key(struct s390_paes_ctx *ctx)
 static int ctr_paes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 			    unsigned int key_len)
 {
+	int rc;
 	struct s390_paes_ctx *ctx = crypto_tfm_ctx(tfm);
 
-	memcpy(ctx->sk.seckey, in_key, key_len);
+	_free_kb_keybuf(&ctx->kb);
+	rc = _copy_key_to_kb(&ctx->kb, in_key, key_len);
+	if (rc)
+		return rc;
+
 	if (__ctr_paes_set_key(ctx)) {
 		tfm->crt_flags |= CRYPTO_TFM_RES_BAD_KEY_LEN;
 		return -EINVAL;
@@ -523,17 +668,19 @@ static int ctr_paes_decrypt(struct blkcipher_desc *desc,
 static struct crypto_alg ctr_paes_alg = {
 	.cra_name		=	"ctr(paes)",
 	.cra_driver_name	=	"ctr-paes-s390",
-	.cra_priority		=	400,	/* combo: aes + ctr */
+	.cra_priority		=	402,	/* ecb-paes-s390 + 1 */
 	.cra_flags		=	CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize		=	1,
 	.cra_ctxsize		=	sizeof(struct s390_paes_ctx),
 	.cra_type		=	&crypto_blkcipher_type,
 	.cra_module		=	THIS_MODULE,
 	.cra_list		=	LIST_HEAD_INIT(ctr_paes_alg.cra_list),
+	.cra_init		=	ctr_paes_init,
+	.cra_exit		=	ctr_paes_exit,
 	.cra_u			=	{
 		.blkcipher = {
-			.min_keysize		=	SECKEYBLOBSIZE,
-			.max_keysize		=	SECKEYBLOBSIZE,
+			.min_keysize		=	PAES_MIN_KEYSIZE,
+			.max_keysize		=	PAES_MAX_KEYSIZE,
 			.ivsize			=	AES_BLOCK_SIZE,
 			.setkey			=	ctr_paes_set_key,
 			.encrypt		=	ctr_paes_encrypt,

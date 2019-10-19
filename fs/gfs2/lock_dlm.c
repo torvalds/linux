@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright 2004-2011 Red Hat, Inc.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -31,9 +28,10 @@
  * @delta is the difference between the current rtt sample and the
  * running average srtt. We add 1/8 of that to the srtt in order to
  * update the current srtt estimate. The variance estimate is a bit
- * more complicated. We subtract the abs value of the @delta from
- * the current variance estimate and add 1/4 of that to the running
- * total.
+ * more complicated. We subtract the current variance estimate from
+ * the abs value of the @delta and add 1/4 of that to the running
+ * total.  That's equivalent to 3/4 of the current variance
+ * estimate plus 1/4 of the abs of @delta.
  *
  * Note that the index points at the array entry containing the smoothed
  * mean value, and the variance is always in the following entry
@@ -49,7 +47,7 @@ static inline void gfs2_update_stats(struct gfs2_lkstats *s, unsigned index,
 	s64 delta = sample - s->stats[index];
 	s->stats[index] += (delta >> 3);
 	index++;
-	s->stats[index] += ((abs(delta) - s->stats[index]) >> 2);
+	s->stats[index] += (s64)(abs(delta) - s->stats[index]) >> 2;
 }
 
 /**
@@ -177,14 +175,14 @@ static void gdlm_bast(void *arg, int mode)
 		gfs2_glock_cb(gl, LM_ST_SHARED);
 		break;
 	default:
-		pr_err("unknown bast mode %d\n", mode);
+		fs_err(gl->gl_name.ln_sbd, "unknown bast mode %d\n", mode);
 		BUG();
 	}
 }
 
 /* convert gfs lock-state to dlm lock-mode */
 
-static int make_mode(const unsigned int lmstate)
+static int make_mode(struct gfs2_sbd *sdp, const unsigned int lmstate)
 {
 	switch (lmstate) {
 	case LM_ST_UNLOCKED:
@@ -196,7 +194,7 @@ static int make_mode(const unsigned int lmstate)
 	case LM_ST_SHARED:
 		return DLM_LOCK_PR;
 	}
-	pr_err("unknown LM state %d\n", lmstate);
+	fs_err(sdp, "unknown LM state %d\n", lmstate);
 	BUG();
 	return -1;
 }
@@ -257,7 +255,7 @@ static int gdlm_lock(struct gfs2_glock *gl, unsigned int req_state,
 	u32 lkf;
 	char strname[GDLM_STRNAME_BYTES] = "";
 
-	req = make_mode(req_state);
+	req = make_mode(gl->gl_name.ln_sbd, req_state);
 	lkf = make_flags(gl, flags, req);
 	gfs2_glstats_inc(gl, GFS2_LKS_DCOUNT);
 	gfs2_sbstats_inc(gl, GFS2_LKS_DCOUNT);
@@ -309,7 +307,7 @@ static void gdlm_put_lock(struct gfs2_glock *gl)
 	error = dlm_unlock(ls->ls_dlm, gl->gl_lksb.sb_lkid, DLM_LKF_VALBLK,
 			   NULL, gl);
 	if (error) {
-		pr_err("gdlm_unlock %x,%llx err=%d\n",
+		fs_err(sdp, "gdlm_unlock %x,%llx err=%d\n",
 		       gl->gl_name.ln_type,
 		       (unsigned long long)gl->gl_name.ln_number, error);
 		return;
@@ -821,6 +819,13 @@ restart:
 		goto fail;
 	}
 
+	/**
+	 * If we're a spectator, we don't want to take the lock in EX because
+	 * we cannot do the first-mount responsibility it implies: recovery.
+	 */
+	if (sdp->sd_args.ar_spectator)
+		goto locks_done;
+
 	error = mounted_lock(sdp, DLM_LOCK_EX, DLM_LKF_CONVERT|DLM_LKF_NOQUEUE);
 	if (!error) {
 		mounted_mode = DLM_LOCK_EX;
@@ -896,9 +901,16 @@ locks_done:
 	if (lvb_gen < mount_gen) {
 		/* wait for mounted nodes to update control_lock lvb to our
 		   generation, which might include new recovery bits set */
-		fs_info(sdp, "control_mount wait1 block %u start %u mount %u "
-			"lvb %u flags %lx\n", block_gen, start_gen, mount_gen,
-			lvb_gen, ls->ls_recover_flags);
+		if (sdp->sd_args.ar_spectator) {
+			fs_info(sdp, "Recovery is required. Waiting for a "
+				"non-spectator to mount.\n");
+			msleep_interruptible(1000);
+		} else {
+			fs_info(sdp, "control_mount wait1 block %u start %u "
+				"mount %u lvb %u flags %lx\n", block_gen,
+				start_gen, mount_gen, lvb_gen,
+				ls->ls_recover_flags);
+		}
 		spin_unlock(&ls->ls_recover_spin);
 		goto restart;
 	}
@@ -1023,11 +1035,11 @@ static int set_recover_size(struct gfs2_sbd *sdp, struct dlm_slot *slots,
 	}
 
 	old_size = ls->ls_recover_size;
-
-	if (old_size >= max_jid + 1)
+	new_size = old_size;
+	while (new_size < max_jid + 1)
+		new_size += RECOVER_SIZE_INC;
+	if (new_size == old_size)
 		return 0;
-
-	new_size = old_size + RECOVER_SIZE_INC;
 
 	submit = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);
 	result = kcalloc(new_size, sizeof(uint32_t), GFP_NOFS);

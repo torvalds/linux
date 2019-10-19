@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *			Linux MegaRAID device driver
  *
  * Copyright (c) 2003-2004  LSI Logic Corporation.
- *
- *	   This program is free software; you can redistribute it and/or
- *	   modify it under the terms of the GNU General Public License
- *	   as published by the Free Software Foundation; either version
- *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_mm.c
  * Version	: v2.20.2.7 (Jul 16 2006)
@@ -935,10 +931,12 @@ mraid_mm_register_adp(mraid_mmadp_t *lld_adp)
 	 * Allocate single blocks of memory for all required kiocs,
 	 * mailboxes and passthru structures.
 	 */
-	adapter->kioc_list	= kmalloc(sizeof(uioc_t) * lld_adp->max_kioc,
-						GFP_KERNEL);
-	adapter->mbox_list	= kmalloc(sizeof(mbox64_t) * lld_adp->max_kioc,
-						GFP_KERNEL);
+	adapter->kioc_list	= kmalloc_array(lld_adp->max_kioc,
+						  sizeof(uioc_t),
+						  GFP_KERNEL);
+	adapter->mbox_list	= kmalloc_array(lld_adp->max_kioc,
+						  sizeof(mbox64_t),
+						  GFP_KERNEL);
 	adapter->pthru_dma_pool = dma_pool_create("megaraid mm pthru pool",
 						&adapter->pdev->dev,
 						sizeof(mraid_passthru_t),
@@ -1015,8 +1013,7 @@ memalloc_error:
 	kfree(adapter->kioc_list);
 	kfree(adapter->mbox_list);
 
-	if (adapter->pthru_dma_pool)
-		dma_pool_destroy(adapter->pthru_dma_pool);
+	dma_pool_destroy(adapter->pthru_dma_pool);
 
 	kfree(adapter);
 

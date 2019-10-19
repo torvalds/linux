@@ -47,7 +47,8 @@
 	model = "Grinn i.MX6UL liteSOM";
 	compatible = "grinn,imx6ul-litesom", "fsl,imx6ul";
 
-	memory {
+	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x20000000>;
 	};
 };

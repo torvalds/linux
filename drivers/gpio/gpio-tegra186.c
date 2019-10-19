@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2017 NVIDIA Corporation
  *
  * Author: Thierry Reding <treding@nvidia.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
  */
 
 #include <linux/gpio/driver.h>
@@ -16,6 +13,7 @@
 #include <linux/platform_device.h>
 
 #include <dt-bindings/gpio/tegra186-gpio.h>
+#include <dt-bindings/gpio/tegra194-gpio.h>
 
 #define TEGRA186_GPIO_ENABLE_CONFIG 0x00
 #define  TEGRA186_GPIO_ENABLE_CONFIG_ENABLE BIT(0)
@@ -278,7 +276,7 @@ static void tegra186_irq_unmask(struct irq_data *data)
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 }
 
-static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
+static int tegra186_irq_set_type(struct irq_data *data, unsigned int type)
 {
 	struct tegra_gpio *gpio = irq_data_get_irq_chip_data(data);
 	void __iomem *base;
@@ -292,7 +290,7 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_TYPE_MASK;
 	value &= ~TEGRA186_GPIO_ENABLE_CONFIG_TRIGGER_LEVEL;
 
-	switch (flow & IRQ_TYPE_SENSE_MASK) {
+	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_NONE:
 		break;
 
@@ -324,7 +322,7 @@ static int tegra186_irq_set_type(struct irq_data *data, unsigned int flow)
 
 	writel(value, base + TEGRA186_GPIO_ENABLE_CONFIG);
 
-	if ((flow & IRQ_TYPE_EDGE_BOTH) == 0)
+	if ((type & IRQ_TYPE_EDGE_BOTH) == 0)
 		irq_set_handler_locked(data, handle_level_irq);
 	else
 		irq_set_handler_locked(data, handle_edge_irq);
@@ -528,8 +526,8 @@ static int tegra186_gpio_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#define TEGRA_MAIN_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA_MAIN_GPIO_PORT_##port] = {			\
+#define TEGRA186_MAIN_GPIO_PORT(port, base, count, controller)	\
+	[TEGRA186_MAIN_GPIO_PORT_##port] = {			\
 		.name = #port,					\
 		.offset = base,					\
 		.pins = count,					\
@@ -537,29 +535,29 @@ static int tegra186_gpio_remove(struct platform_device *pdev)
 	}
 
 static const struct tegra_gpio_port tegra186_main_ports[] = {
-	TEGRA_MAIN_GPIO_PORT( A, 0x2000, 7, 2),
-	TEGRA_MAIN_GPIO_PORT( B, 0x3000, 7, 3),
-	TEGRA_MAIN_GPIO_PORT( C, 0x3200, 7, 3),
-	TEGRA_MAIN_GPIO_PORT( D, 0x3400, 6, 3),
-	TEGRA_MAIN_GPIO_PORT( E, 0x2200, 8, 2),
-	TEGRA_MAIN_GPIO_PORT( F, 0x2400, 6, 2),
-	TEGRA_MAIN_GPIO_PORT( G, 0x4200, 6, 4),
-	TEGRA_MAIN_GPIO_PORT( H, 0x1000, 7, 1),
-	TEGRA_MAIN_GPIO_PORT( I, 0x0800, 8, 0),
-	TEGRA_MAIN_GPIO_PORT( J, 0x5000, 8, 5),
-	TEGRA_MAIN_GPIO_PORT( K, 0x5200, 1, 5),
-	TEGRA_MAIN_GPIO_PORT( L, 0x1200, 8, 1),
-	TEGRA_MAIN_GPIO_PORT( M, 0x5600, 6, 5),
-	TEGRA_MAIN_GPIO_PORT( N, 0x0000, 7, 0),
-	TEGRA_MAIN_GPIO_PORT( O, 0x0200, 4, 0),
-	TEGRA_MAIN_GPIO_PORT( P, 0x4000, 7, 4),
-	TEGRA_MAIN_GPIO_PORT( Q, 0x0400, 6, 0),
-	TEGRA_MAIN_GPIO_PORT( R, 0x0a00, 6, 0),
-	TEGRA_MAIN_GPIO_PORT( T, 0x0600, 4, 0),
-	TEGRA_MAIN_GPIO_PORT( X, 0x1400, 8, 1),
-	TEGRA_MAIN_GPIO_PORT( Y, 0x1600, 7, 1),
-	TEGRA_MAIN_GPIO_PORT(BB, 0x2600, 2, 2),
-	TEGRA_MAIN_GPIO_PORT(CC, 0x5400, 4, 5),
+	TEGRA186_MAIN_GPIO_PORT( A, 0x2000, 7, 2),
+	TEGRA186_MAIN_GPIO_PORT( B, 0x3000, 7, 3),
+	TEGRA186_MAIN_GPIO_PORT( C, 0x3200, 7, 3),
+	TEGRA186_MAIN_GPIO_PORT( D, 0x3400, 6, 3),
+	TEGRA186_MAIN_GPIO_PORT( E, 0x2200, 8, 2),
+	TEGRA186_MAIN_GPIO_PORT( F, 0x2400, 6, 2),
+	TEGRA186_MAIN_GPIO_PORT( G, 0x4200, 6, 4),
+	TEGRA186_MAIN_GPIO_PORT( H, 0x1000, 7, 1),
+	TEGRA186_MAIN_GPIO_PORT( I, 0x0800, 8, 0),
+	TEGRA186_MAIN_GPIO_PORT( J, 0x5000, 8, 5),
+	TEGRA186_MAIN_GPIO_PORT( K, 0x5200, 1, 5),
+	TEGRA186_MAIN_GPIO_PORT( L, 0x1200, 8, 1),
+	TEGRA186_MAIN_GPIO_PORT( M, 0x5600, 6, 5),
+	TEGRA186_MAIN_GPIO_PORT( N, 0x0000, 7, 0),
+	TEGRA186_MAIN_GPIO_PORT( O, 0x0200, 4, 0),
+	TEGRA186_MAIN_GPIO_PORT( P, 0x4000, 7, 4),
+	TEGRA186_MAIN_GPIO_PORT( Q, 0x0400, 6, 0),
+	TEGRA186_MAIN_GPIO_PORT( R, 0x0a00, 6, 0),
+	TEGRA186_MAIN_GPIO_PORT( T, 0x0600, 4, 0),
+	TEGRA186_MAIN_GPIO_PORT( X, 0x1400, 8, 1),
+	TEGRA186_MAIN_GPIO_PORT( Y, 0x1600, 7, 1),
+	TEGRA186_MAIN_GPIO_PORT(BB, 0x2600, 2, 2),
+	TEGRA186_MAIN_GPIO_PORT(CC, 0x5400, 4, 5),
 };
 
 static const struct tegra_gpio_soc tegra186_main_soc = {
@@ -568,8 +566,8 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	.name = "tegra186-gpio",
 };
 
-#define TEGRA_AON_GPIO_PORT(port, base, count, controller)	\
-	[TEGRA_AON_GPIO_PORT_##port] = {			\
+#define TEGRA186_AON_GPIO_PORT(port, base, count, controller)	\
+	[TEGRA186_AON_GPIO_PORT_##port] = {			\
 		.name = #port,					\
 		.offset = base,					\
 		.pins = count,					\
@@ -577,20 +575,87 @@ static const struct tegra_gpio_soc tegra186_main_soc = {
 	}
 
 static const struct tegra_gpio_port tegra186_aon_ports[] = {
-	TEGRA_AON_GPIO_PORT( S, 0x0200, 5, 0),
-	TEGRA_AON_GPIO_PORT( U, 0x0400, 6, 0),
-	TEGRA_AON_GPIO_PORT( V, 0x0800, 8, 0),
-	TEGRA_AON_GPIO_PORT( W, 0x0a00, 8, 0),
-	TEGRA_AON_GPIO_PORT( Z, 0x0e00, 4, 0),
-	TEGRA_AON_GPIO_PORT(AA, 0x0c00, 8, 0),
-	TEGRA_AON_GPIO_PORT(EE, 0x0600, 3, 0),
-	TEGRA_AON_GPIO_PORT(FF, 0x0000, 5, 0),
+	TEGRA186_AON_GPIO_PORT( S, 0x0200, 5, 0),
+	TEGRA186_AON_GPIO_PORT( U, 0x0400, 6, 0),
+	TEGRA186_AON_GPIO_PORT( V, 0x0800, 8, 0),
+	TEGRA186_AON_GPIO_PORT( W, 0x0a00, 8, 0),
+	TEGRA186_AON_GPIO_PORT( Z, 0x0e00, 4, 0),
+	TEGRA186_AON_GPIO_PORT(AA, 0x0c00, 8, 0),
+	TEGRA186_AON_GPIO_PORT(EE, 0x0600, 3, 0),
+	TEGRA186_AON_GPIO_PORT(FF, 0x0000, 5, 0),
 };
 
 static const struct tegra_gpio_soc tegra186_aon_soc = {
 	.num_ports = ARRAY_SIZE(tegra186_aon_ports),
 	.ports = tegra186_aon_ports,
 	.name = "tegra186-gpio-aon",
+};
+
+#define TEGRA194_MAIN_GPIO_PORT(port, base, count, controller)	\
+	[TEGRA194_MAIN_GPIO_PORT_##port] = {			\
+		.name = #port,					\
+		.offset = base,					\
+		.pins = count,					\
+		.irq = controller,				\
+	}
+
+static const struct tegra_gpio_port tegra194_main_ports[] = {
+	TEGRA194_MAIN_GPIO_PORT( A, 0x1400, 8, 1),
+	TEGRA194_MAIN_GPIO_PORT( B, 0x4e00, 2, 4),
+	TEGRA194_MAIN_GPIO_PORT( C, 0x4600, 8, 4),
+	TEGRA194_MAIN_GPIO_PORT( D, 0x4800, 4, 4),
+	TEGRA194_MAIN_GPIO_PORT( E, 0x4a00, 8, 4),
+	TEGRA194_MAIN_GPIO_PORT( F, 0x4c00, 6, 4),
+	TEGRA194_MAIN_GPIO_PORT( G, 0x4000, 8, 4),
+	TEGRA194_MAIN_GPIO_PORT( H, 0x4200, 8, 4),
+	TEGRA194_MAIN_GPIO_PORT( I, 0x4400, 5, 4),
+	TEGRA194_MAIN_GPIO_PORT( J, 0x5200, 6, 5),
+	TEGRA194_MAIN_GPIO_PORT( K, 0x3000, 8, 3),
+	TEGRA194_MAIN_GPIO_PORT( L, 0x3200, 4, 3),
+	TEGRA194_MAIN_GPIO_PORT( M, 0x2600, 8, 2),
+	TEGRA194_MAIN_GPIO_PORT( N, 0x2800, 3, 2),
+	TEGRA194_MAIN_GPIO_PORT( O, 0x5000, 6, 5),
+	TEGRA194_MAIN_GPIO_PORT( P, 0x2a00, 8, 2),
+	TEGRA194_MAIN_GPIO_PORT( Q, 0x2c00, 8, 2),
+	TEGRA194_MAIN_GPIO_PORT( R, 0x2e00, 6, 2),
+	TEGRA194_MAIN_GPIO_PORT( S, 0x3600, 8, 3),
+	TEGRA194_MAIN_GPIO_PORT( T, 0x3800, 8, 3),
+	TEGRA194_MAIN_GPIO_PORT( U, 0x3a00, 1, 3),
+	TEGRA194_MAIN_GPIO_PORT( V, 0x1000, 8, 1),
+	TEGRA194_MAIN_GPIO_PORT( W, 0x1200, 2, 1),
+	TEGRA194_MAIN_GPIO_PORT( X, 0x2000, 8, 2),
+	TEGRA194_MAIN_GPIO_PORT( Y, 0x2200, 8, 2),
+	TEGRA194_MAIN_GPIO_PORT( Z, 0x2400, 8, 2),
+	TEGRA194_MAIN_GPIO_PORT(FF, 0x3400, 2, 3),
+	TEGRA194_MAIN_GPIO_PORT(GG, 0x0000, 2, 0)
+};
+
+static const struct tegra_gpio_soc tegra194_main_soc = {
+	.num_ports = ARRAY_SIZE(tegra194_main_ports),
+	.ports = tegra194_main_ports,
+	.name = "tegra194-gpio",
+};
+
+#define TEGRA194_AON_GPIO_PORT(port, base, count, controller)	\
+	[TEGRA194_AON_GPIO_PORT_##port] = {			\
+		.name = #port,					\
+		.offset = base,					\
+		.pins = count,					\
+		.irq = controller,				\
+	}
+
+static const struct tegra_gpio_port tegra194_aon_ports[] = {
+	TEGRA194_AON_GPIO_PORT(AA, 0x0600, 8, 0),
+	TEGRA194_AON_GPIO_PORT(BB, 0x0800, 4, 0),
+	TEGRA194_AON_GPIO_PORT(CC, 0x0200, 8, 0),
+	TEGRA194_AON_GPIO_PORT(DD, 0x0400, 3, 0),
+	TEGRA194_AON_GPIO_PORT(EE, 0x0000, 7, 0)
+};
+
+static const struct tegra_gpio_soc tegra194_aon_soc = {
+	.num_ports = ARRAY_SIZE(tegra194_aon_ports),
+	.ports = tegra194_aon_ports,
+	.name = "tegra194-gpio-aon",
 };
 
 static const struct of_device_id tegra186_gpio_of_match[] = {
@@ -600,6 +665,12 @@ static const struct of_device_id tegra186_gpio_of_match[] = {
 	}, {
 		.compatible = "nvidia,tegra186-gpio-aon",
 		.data = &tegra186_aon_soc
+	}, {
+		.compatible = "nvidia,tegra194-gpio",
+		.data = &tegra194_main_soc
+	}, {
+		.compatible = "nvidia,tegra194-gpio-aon",
+		.data = &tegra194_aon_soc
 	}, {
 		/* sentinel */
 	}

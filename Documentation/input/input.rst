@@ -188,7 +188,7 @@ LCDs and many other purposes.
 
 The monitor and speaker controls should be easy to add to the hid/input
 interface, but for the UPSs and LCDs it doesn't make much sense. For this,
-the hiddev interface was designed. See Documentation/hid/hiddev.txt
+the hiddev interface was designed. See Documentation/hid/hiddev.rst
 for more information about it.
 
 The usage of the usbhid module is very simple, it takes no parameters,

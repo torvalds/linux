@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Xen PCI - handle PCI (INTx) and MSI infrastructure calls for PV, HVM and
  * initial domain support. We also handle the DSDT _PRT callbacks for GSI's
@@ -168,7 +169,7 @@ static int xen_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSI && nvec > 1)
 		return 1;
 
-	v = kzalloc(sizeof(int) * max(1, nvec), GFP_KERNEL);
+	v = kcalloc(max(1, nvec), sizeof(int), GFP_KERNEL);
 	if (!v)
 		return -ENOMEM;
 

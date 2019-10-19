@@ -7,6 +7,7 @@ Required properties:
 
 - compatible: should be one of the following:
    - "rockchip,rk3066-i2s": for rk3066
+   - "rockchip,px30-i2s", "rockchip,rk3066-i2s": for px30
    - "rockchip,rk3036-i2s", "rockchip,rk3066-i2s": for rk3036
    - "rockchip,rk3188-i2s", "rockchip,rk3066-i2s": for rk3188
    - "rockchip,rk3228-i2s", "rockchip,rk3066-i2s": for rk3228

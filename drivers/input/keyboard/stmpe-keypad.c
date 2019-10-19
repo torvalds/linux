@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License Terms: GNU General Public License, version 2
  * Author: Rabin Vincent <rabin.vincent@stericsson.com> for ST-Ericsson
  */
 
@@ -48,6 +48,14 @@
 #define STMPE_KEYPAD_KEYMAP_MAX_SIZE \
 	(STMPE_KEYPAD_MAX_ROWS * STMPE_KEYPAD_MAX_COLS)
 
+
+#define STMPE1601_NUM_DATA	5
+#define STMPE2401_NUM_DATA	3
+#define STMPE2403_NUM_DATA	5
+
+/* Make sure it covers all cases above */
+#define MAX_NUM_DATA		5
+
 /**
  * struct stmpe_keypad_variant - model-specific attributes
  * @auto_increment: whether the KPC_DATA_BYTE register address
@@ -74,7 +82,7 @@ struct stmpe_keypad_variant {
 static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
 	[STMPE1601] = {
 		.auto_increment		= true,
-		.num_data		= 5,
+		.num_data		= STMPE1601_NUM_DATA,
 		.num_normal_data	= 3,
 		.max_cols		= 8,
 		.max_rows		= 8,
@@ -84,7 +92,7 @@ static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
 	[STMPE2401] = {
 		.auto_increment		= false,
 		.set_pullup		= true,
-		.num_data		= 3,
+		.num_data		= STMPE2401_NUM_DATA,
 		.num_normal_data	= 2,
 		.max_cols		= 8,
 		.max_rows		= 12,
@@ -94,7 +102,7 @@ static const struct stmpe_keypad_variant stmpe_keypad_variants[] = {
 	[STMPE2403] = {
 		.auto_increment		= true,
 		.set_pullup		= true,
-		.num_data		= 5,
+		.num_data		= STMPE2403_NUM_DATA,
 		.num_normal_data	= 3,
 		.max_cols		= 8,
 		.max_rows		= 12,
@@ -156,7 +164,7 @@ static irqreturn_t stmpe_keypad_irq(int irq, void *dev)
 	struct stmpe_keypad *keypad = dev;
 	struct input_dev *input = keypad->input;
 	const struct stmpe_keypad_variant *variant = keypad->variant;
-	u8 fifo[variant->num_data];
+	u8 fifo[MAX_NUM_DATA];
 	int ret;
 	int i;
 

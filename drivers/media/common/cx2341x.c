@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * cx2341x - generic code for cx23415/6/8 based devices
  *
  * Copyright (C) 2006 Hans Verkuil <hverkuil@xs4all.nl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 
@@ -569,7 +560,7 @@ static int cx2341x_ctrl_query_fill(struct v4l2_queryctrl *qctrl,
 		qctrl->step = step;
 		qctrl->default_value = def;
 		qctrl->reserved[0] = qctrl->reserved[1] = 0;
-		strlcpy(qctrl->name, name, sizeof(qctrl->name));
+		strscpy(qctrl->name, name, sizeof(qctrl->name));
 		return 0;
 
 	default:
@@ -1028,7 +1019,7 @@ static int cx2341x_api(void *priv, cx2341x_mbox_func func,
 	return func(priv, cmd, args, 0, data);
 }
 
-#define NEQ(field) (old->field != new->field)
+#define CMP_FIELD(__old, __new, __field) (__old->__field != __new->__field)
 
 int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		   const struct cx2341x_mpeg_params *old,
@@ -1042,20 +1033,22 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		11,	/* VCD */
 		12,	/* SVCD */
 	};
-
-	int err = 0;
-	int force = (old == NULL);
-	u16 temporal = new->video_temporal_filter;
+	int err;
 
 	cx2341x_api(priv, func, CX2341X_ENC_SET_OUTPUT_PORT, 2, new->port, 0);
 
-	if (force || NEQ(is_50hz)) {
+	if (!old ||
+	    CMP_FIELD(old, new, is_50hz)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_RATE, 1,
 				  new->is_50hz);
-		if (err) return err;
+		if (err)
+			return err;
 	}
 
-	if (force || NEQ(width) || NEQ(height) || NEQ(video_encoding)) {
+	if (!old ||
+	    CMP_FIELD(old, new, width) ||
+	    CMP_FIELD(old, new, height) ||
+	    CMP_FIELD(old, new, video_encoding)) {
 		u16 w = new->width;
 		u16 h = new->height;
 
@@ -1065,94 +1058,127 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 		}
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_SIZE, 2,
 				  h, w);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(stream_type)) {
+	if (!old ||
+	    CMP_FIELD(old, new, stream_type)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_STREAM_TYPE, 1,
 				  mpeg_stream_type[new->stream_type]);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_aspect)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_aspect)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_ASPECT_RATIO, 1,
 				  1 + new->video_aspect);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_b_frames) || NEQ(video_gop_size)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_b_frames) ||
+	    CMP_FIELD(old, new, video_gop_size)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_GOP_PROPERTIES, 2,
-				new->video_gop_size, new->video_b_frames + 1);
-		if (err) return err;
+				  new->video_gop_size, new->video_b_frames + 1);
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_gop_closure)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_gop_closure)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_GOP_CLOSURE, 1,
 				  new->video_gop_closure);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(audio_properties)) {
+	if (!old ||
+	    CMP_FIELD(old, new, audio_properties)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_AUDIO_PROPERTIES,
 				  1, new->audio_properties);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(audio_mute)) {
+	if (!old ||
+	    CMP_FIELD(old, new, audio_mute)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_AUDIO, 1,
 				  new->audio_mute);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_bitrate_mode) || NEQ(video_bitrate) ||
-						NEQ(video_bitrate_peak)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_bitrate_mode) ||
+	    CMP_FIELD(old, new, video_bitrate) ||
+	    CMP_FIELD(old, new, video_bitrate_peak)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_BIT_RATE, 5,
-				new->video_bitrate_mode, new->video_bitrate,
-				new->video_bitrate_peak / 400, 0, 0);
-		if (err) return err;
+				  new->video_bitrate_mode, new->video_bitrate,
+				  new->video_bitrate_peak / 400, 0, 0);
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_spatial_filter_mode) ||
-		     NEQ(video_temporal_filter_mode) ||
-		     NEQ(video_median_filter_type)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_spatial_filter_mode) ||
+	    CMP_FIELD(old, new, video_temporal_filter_mode) ||
+	    CMP_FIELD(old, new, video_median_filter_type)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_DNR_FILTER_MODE,
-				  2, new->video_spatial_filter_mode |
+				  2,
+				  new->video_spatial_filter_mode |
 					(new->video_temporal_filter_mode << 1),
-				new->video_median_filter_type);
-		if (err) return err;
+				  new->video_median_filter_type);
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_luma_median_filter_bottom) ||
-		     NEQ(video_luma_median_filter_top) ||
-		     NEQ(video_chroma_median_filter_bottom) ||
-		     NEQ(video_chroma_median_filter_top)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_luma_median_filter_bottom) ||
+	    CMP_FIELD(old, new, video_luma_median_filter_top) ||
+	    CMP_FIELD(old, new, video_chroma_median_filter_bottom) ||
+	    CMP_FIELD(old, new, video_chroma_median_filter_top)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_CORING_LEVELS, 4,
-				new->video_luma_median_filter_bottom,
-				new->video_luma_median_filter_top,
-				new->video_chroma_median_filter_bottom,
-				new->video_chroma_median_filter_top);
-		if (err) return err;
+				  new->video_luma_median_filter_bottom,
+				  new->video_luma_median_filter_top,
+				  new->video_chroma_median_filter_bottom,
+				  new->video_chroma_median_filter_top);
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_luma_spatial_filter_type) ||
-		     NEQ(video_chroma_spatial_filter_type)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_luma_spatial_filter_type) ||
+	    CMP_FIELD(old, new, video_chroma_spatial_filter_type)) {
 		err = cx2341x_api(priv, func,
 				  CX2341X_ENC_SET_SPATIAL_FILTER_TYPE,
 				  2, new->video_luma_spatial_filter_type,
 				  new->video_chroma_spatial_filter_type);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_spatial_filter) ||
-		     old->video_temporal_filter != temporal) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_spatial_filter) ||
+	    CMP_FIELD(old, new, video_temporal_filter)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_DNR_FILTER_PROPS,
-				  2, new->video_spatial_filter, temporal);
-		if (err) return err;
+				  2, new->video_spatial_filter,
+				  new->video_temporal_filter);
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_temporal_decimation)) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_temporal_decimation)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_FRAME_DROP_RATE,
 				  1, new->video_temporal_decimation);
-		if (err) return err;
+		if (err)
+			return err;
 	}
-	if (force || NEQ(video_mute) ||
-		(new->video_mute && NEQ(video_mute_yuv))) {
+	if (!old ||
+	    CMP_FIELD(old, new, video_mute) ||
+	    (new->video_mute && CMP_FIELD(old, new, video_mute_yuv))) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_MUTE_VIDEO, 1,
-				new->video_mute | (new->video_mute_yuv << 8));
-		if (err) return err;
+				  new->video_mute | (new->video_mute_yuv << 8));
+		if (err)
+			return err;
 	}
-	if (force || NEQ(stream_insert_nav_packets)) {
+	if (!old ||
+	    CMP_FIELD(old, new, stream_insert_nav_packets)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_MISC, 2,
-				7, new->stream_insert_nav_packets);
-		if (err) return err;
+				  7, new->stream_insert_nav_packets);
+		if (err)
+			return err;
 	}
 	return 0;
 }

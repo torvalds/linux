@@ -29,7 +29,7 @@
 #include "os_types.h"
 #include "dc_types.h"
 
-#include "dm_pp_smu.h"
+struct pp_smu_funcs;
 
 struct dm_pp_clock_range {
 	int min_khz;
@@ -82,9 +82,17 @@ enum dm_pp_clock_type {
 #define DC_DECODE_PP_CLOCK_TYPE(clk_type) \
 	(clk_type) == DM_PP_CLOCK_TYPE_DISPLAY_CLK ? "Display" : \
 	(clk_type) == DM_PP_CLOCK_TYPE_ENGINE_CLK ? "Engine" : \
-	(clk_type) == DM_PP_CLOCK_TYPE_MEMORY_CLK ? "Memory" : "Invalid"
+	(clk_type) == DM_PP_CLOCK_TYPE_MEMORY_CLK ? "Memory" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DCFCLK ? "DCF" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DCEFCLK ? "DCEF" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_SOCCLK ? "SoC" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_PIXELCLK ? "Pixel" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DISPLAYPHYCLK ? "Display PHY" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_DPPCLK ? "DPP" : \
+	(clk_type) == DM_PP_CLOCK_TYPE_FCLK ? "F" : \
+	"Invalid"
 
-#define DM_PP_MAX_CLOCK_LEVELS 8
+#define DM_PP_MAX_CLOCK_LEVELS 16
 
 struct dm_pp_clock_levels {
 	uint32_t num_levels;
@@ -137,7 +145,7 @@ struct dm_pp_clock_range_for_wm_set {
 	enum dm_pp_wm_set_id wm_set_id;
 	uint32_t wm_min_eng_clk_in_khz;
 	uint32_t wm_max_eng_clk_in_khz;
-	uint32_t wm_min_memg_clk_in_khz;
+	uint32_t wm_min_mem_clk_in_khz;
 	uint32_t wm_max_mem_clk_in_khz;
 };
 
@@ -150,7 +158,7 @@ struct dm_pp_clock_range_for_dmif_wm_set_soc15 {
 	enum dm_pp_wm_set_id wm_set_id;
 	uint32_t wm_min_dcfclk_clk_in_khz;
 	uint32_t wm_max_dcfclk_clk_in_khz;
-	uint32_t wm_min_memg_clk_in_khz;
+	uint32_t wm_min_mem_clk_in_khz;
 	uint32_t wm_max_mem_clk_in_khz;
 };
 
@@ -158,7 +166,7 @@ struct dm_pp_clock_range_for_mcif_wm_set_soc15 {
 	enum dm_pp_wm_set_id wm_set_id;
 	uint32_t wm_min_socclk_clk_in_khz;
 	uint32_t wm_max_socclk_clk_in_khz;
-	uint32_t wm_min_memg_clk_in_khz;
+	uint32_t wm_min_mem_clk_in_khz;
 	uint32_t wm_max_mem_clk_in_khz;
 };
 
@@ -208,22 +216,20 @@ struct dm_bl_data_point {
 		/* Brightness level as effective value in range 0-255,
 		 * corresponding to above percentage
 		 */
-		uint8_t signalLevel;
+		uint8_t signal_level;
 };
 
 /* Total size of the structure should not exceed 256 bytes */
 struct dm_acpi_atif_backlight_caps {
-
-
 	uint16_t size; /* Bytes 0-1 (2 bytes) */
 	uint16_t flags; /* Byted 2-3 (2 bytes) */
-	uint8_t  errorCode; /* Byte 4 */
-	uint8_t  acLevelPercentage; /* Byte 5 */
-	uint8_t  dcLevelPercentage; /* Byte 6 */
-	uint8_t  minInputSignal; /* Byte 7 */
-	uint8_t  maxInputSignal; /* Byte 8 */
-	uint8_t  numOfDataPoints; /* Byte 9 */
-	struct dm_bl_data_point dataPoints[99]; /* Bytes 10-207 (198 bytes)*/
+	uint8_t  error_code; /* Byte 4 */
+	uint8_t  ac_level_percentage; /* Byte 5 */
+	uint8_t  dc_level_percentage; /* Byte 6 */
+	uint8_t  min_input_signal; /* Byte 7 */
+	uint8_t  max_input_signal; /* Byte 8 */
+	uint8_t  num_data_points; /* Byte 9 */
+	struct dm_bl_data_point data_points[99]; /* Bytes 10-207 (198 bytes)*/
 };
 
 enum dm_acpi_display_type {
@@ -239,25 +245,8 @@ enum dm_acpi_display_type {
 	AcpiDisplayType_DFP6 = 12
 };
 
-enum dm_pp_power_level {
-	DM_PP_POWER_LEVEL_INVALID,
-	DM_PP_POWER_LEVEL_ULTRA_LOW,
-	DM_PP_POWER_LEVEL_LOW,
-	DM_PP_POWER_LEVEL_NOMINAL,
-	DM_PP_POWER_LEVEL_PERFORMANCE,
-
-	DM_PP_POWER_LEVEL_0 = DM_PP_POWER_LEVEL_ULTRA_LOW,
-	DM_PP_POWER_LEVEL_1 = DM_PP_POWER_LEVEL_LOW,
-	DM_PP_POWER_LEVEL_2 = DM_PP_POWER_LEVEL_NOMINAL,
-	DM_PP_POWER_LEVEL_3 = DM_PP_POWER_LEVEL_PERFORMANCE,
-	DM_PP_POWER_LEVEL_4 = DM_PP_CLOCKS_DPM_STATE_LEVEL_3 + 1,
-	DM_PP_POWER_LEVEL_5 = DM_PP_CLOCKS_DPM_STATE_LEVEL_4 + 1,
-	DM_PP_POWER_LEVEL_6 = DM_PP_CLOCKS_DPM_STATE_LEVEL_5 + 1,
-	DM_PP_POWER_LEVEL_7 = DM_PP_CLOCKS_DPM_STATE_LEVEL_6 + 1,
-};
-
 struct dm_pp_power_level_change_request {
-	enum dm_pp_power_level power_level;
+	enum dm_pp_clocks_state power_level;
 };
 
 struct dm_pp_clock_for_voltage_req {

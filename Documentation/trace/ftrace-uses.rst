@@ -12,7 +12,7 @@ Written for: 4.14
 Introduction
 ============
 
-The ftrace infrastructure was originially created to attach callbacks to the
+The ftrace infrastructure was originally created to attach callbacks to the
 beginning of functions in order to record and trace the flow of the kernel.
 But callbacks to the start of a function can have other use cases. Either
 for live kernel patching, or for security monitoring. This document describes
@@ -21,15 +21,16 @@ how to use ftrace to implement your own function callbacks.
 
 The ftrace context
 ==================
+.. warning::
 
-WARNING: The ability to add a callback to almost any function within the
-kernel comes with risks. A callback can be called from any context
-(normal, softirq, irq, and NMI). Callbacks can also be called just before
-going to idle, during CPU bring up and takedown, or going to user space.
-This requires extra care to what can be done inside a callback. A callback
-can be called outside the protective scope of RCU.
+  The ability to add a callback to almost any function within the
+  kernel comes with risks. A callback can be called from any context
+  (normal, softirq, irq, and NMI). Callbacks can also be called just before
+  going to idle, during CPU bring up and takedown, or going to user space.
+  This requires extra care to what can be done inside a callback. A callback
+  can be called outside the protective scope of RCU.
 
-The ftrace infrastructure has some protections agains recursions and RCU
+The ftrace infrastructure has some protections against recursions and RCU
 but one must still be very careful how they use the callbacks.
 
 
@@ -54,15 +55,15 @@ an ftrace_ops with ftrace:
 
 Both .flags and .private are optional. Only .func is required.
 
-To enable tracing call::
+To enable tracing call:
 
 .. c:function::  register_ftrace_function(&ops);
 
-To disable tracing call::
+To disable tracing call:
 
 .. c:function::  unregister_ftrace_function(&ops);
 
-The above is defined by including the header::
+The above is defined by including the header:
 
 .. c:function:: #include <linux/ftrace.h>
 
@@ -198,9 +199,9 @@ If @buf is NULL and reset is set, all functions will be enabled for tracing.
 The @buf can also be a glob expression to enable all functions that
 match a specific pattern.
 
-See Filter Commands in :file:`Documentation/trace/ftrace.txt`.
+See Filter Commands in :file:`Documentation/trace/ftrace.rst`.
 
-To just trace the schedule function::
+To just trace the schedule function:
 
 .. code-block:: c
 
@@ -210,7 +211,7 @@ To add more functions, call the ftrace_set_filter() more than once with the
 @reset parameter set to zero. To remove the current filter set and replace it
 with new functions defined by @buf, have @reset be non-zero.
 
-To remove all the filtered functions and trace all functions::
+To remove all the filtered functions and trace all functions:
 
 .. code-block:: c
 

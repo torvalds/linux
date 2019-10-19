@@ -30,13 +30,13 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
+#include <linux/vmalloc.h>
 #include "rxe.h"
 #include "rxe_loc.h"
 #include "rxe_queue.h"
 
 int rxe_cq_chk_attr(struct rxe_dev *rxe, struct rxe_cq *cq,
-		    int cqe, int comp_vector, struct ib_udata *udata)
+		    int cqe, int comp_vector)
 {
 	int count;
 
@@ -82,8 +82,8 @@ static void rxe_send_complete(unsigned long data)
 }
 
 int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
-		     int comp_vector, struct ib_ucontext *context,
-		     struct ib_udata *udata)
+		     int comp_vector, struct ib_udata *udata,
+		     struct rxe_create_cq_resp __user *uresp)
 {
 	int err;
 
@@ -94,15 +94,15 @@ int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 		return -ENOMEM;
 	}
 
-	err = do_mmap_info(rxe, udata, false, context, cq->queue->buf,
-			   cq->queue->buf_size, &cq->queue->ip);
+	err = do_mmap_info(rxe, uresp ? &uresp->mi : NULL, udata,
+			   cq->queue->buf, cq->queue->buf_size, &cq->queue->ip);
 	if (err) {
-		kvfree(cq->queue->buf);
+		vfree(cq->queue->buf);
 		kfree(cq->queue);
 		return err;
 	}
 
-	if (udata)
+	if (uresp)
 		cq->is_user = 1;
 
 	cq->is_dying = false;
@@ -114,14 +114,15 @@ int rxe_cq_from_init(struct rxe_dev *rxe, struct rxe_cq *cq, int cqe,
 	return 0;
 }
 
-int rxe_cq_resize_queue(struct rxe_cq *cq, int cqe, struct ib_udata *udata)
+int rxe_cq_resize_queue(struct rxe_cq *cq, int cqe,
+			struct rxe_resize_cq_resp __user *uresp,
+			struct ib_udata *udata)
 {
 	int err;
 
 	err = rxe_queue_resize(cq->queue, (unsigned int *)&cqe,
-			       sizeof(struct rxe_cqe),
-			       cq->queue->ip ? cq->queue->ip->context : NULL,
-			       udata, NULL, &cq->cq_lock);
+			       sizeof(struct rxe_cqe), udata,
+			       uresp ? &uresp->mi : NULL, NULL, &cq->cq_lock);
 	if (!err)
 		cq->ibcq.cqe = cqe;
 

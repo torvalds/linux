@@ -60,7 +60,7 @@ struct mthca_mpt_entry {
 	__be64 mtt_seg;
 	__be32 mtt_sz;		/* Arbel only */
 	u32    reserved[2];
-} __attribute__((packed));
+} __packed;
 
 #define MTHCA_MPT_FLAG_SW_OWNS       (0xfUL << 28)
 #define MTHCA_MPT_FLAG_MIO           (1 << 17)
@@ -144,7 +144,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 	buddy->max_order = max_order;
 	spin_lock_init(&buddy->lock);
 
-	buddy->bits = kzalloc((buddy->max_order + 1) * sizeof (long *),
+	buddy->bits = kcalloc(buddy->max_order + 1, sizeof(long *),
 			      GFP_KERNEL);
 	buddy->num_free = kcalloc((buddy->max_order + 1), sizeof *buddy->num_free,
 				  GFP_KERNEL);
@@ -153,7 +153,7 @@ static int mthca_buddy_init(struct mthca_buddy *buddy, int max_order)
 
 	for (i = 0; i <= buddy->max_order; ++i) {
 		s = BITS_TO_LONGS(1 << (buddy->max_order - i));
-		buddy->bits[i] = kmalloc(s * sizeof (long), GFP_KERNEL);
+		buddy->bits[i] = kmalloc_array(s, sizeof(long), GFP_KERNEL);
 		if (!buddy->bits[i])
 			goto err_out_free;
 		bitmap_zero(buddy->bits[i],

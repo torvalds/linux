@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Accelerated GHASH implementation with NEON/ARMv8 vmull.p8/64 instructions.
  *
  * Copyright (C) 2015 - 2017 Linaro Ltd. <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -62,6 +59,33 @@
 	k32		.req	d30
 	k48		.req	d31
 	SHASH2_p64	.req	d31
+
+	HH		.req	q10
+	HH3		.req	q11
+	HH4		.req	q12
+	HH34		.req	q13
+
+	HH_L		.req	d20
+	HH_H		.req	d21
+	HH3_L		.req	d22
+	HH3_H		.req	d23
+	HH4_L		.req	d24
+	HH4_H		.req	d25
+	HH34_L		.req	d26
+	HH34_H		.req	d27
+	SHASH2_H	.req	d29
+
+	XL2		.req	q5
+	XM2		.req	q6
+	XH2		.req	q7
+	T3		.req	q8
+
+	XL2_L		.req	d10
+	XL2_H		.req	d11
+	XM2_L		.req	d12
+	XM2_H		.req	d13
+	T3_L		.req	d16
+	T3_H		.req	d17
 
 	.text
 	.fpu		crypto-neon-fp-armv8
@@ -175,12 +199,77 @@
 	beq		0f
 	vld1.64		{T1}, [ip]
 	teq		r0, #0
-	b		1f
+	b		3f
 
-0:	vld1.64		{T1}, [r2]!
+0:	.ifc		\pn, p64
+	tst		r0, #3			// skip until #blocks is a
+	bne		2f			// round multiple of 4
+
+	vld1.8		{XL2-XM2}, [r2]!
+1:	vld1.8		{T3-T2}, [r2]!
+	vrev64.8	XL2, XL2
+	vrev64.8	XM2, XM2
+
+	subs		r0, r0, #4
+
+	vext.8		T1, XL2, XL2, #8
+	veor		XL2_H, XL2_H, XL_L
+	veor		XL, XL, T1
+
+	vrev64.8	T3, T3
+	vrev64.8	T1, T2
+
+	vmull.p64	XH, HH4_H, XL_H			// a1 * b1
+	veor		XL2_H, XL2_H, XL_H
+	vmull.p64	XL, HH4_L, XL_L			// a0 * b0
+	vmull.p64	XM, HH34_H, XL2_H		// (a1 + a0)(b1 + b0)
+
+	vmull.p64	XH2, HH3_H, XM2_L		// a1 * b1
+	veor		XM2_L, XM2_L, XM2_H
+	vmull.p64	XL2, HH3_L, XM2_H		// a0 * b0
+	vmull.p64	XM2, HH34_L, XM2_L		// (a1 + a0)(b1 + b0)
+
+	veor		XH, XH, XH2
+	veor		XL, XL, XL2
+	veor		XM, XM, XM2
+
+	vmull.p64	XH2, HH_H, T3_L			// a1 * b1
+	veor		T3_L, T3_L, T3_H
+	vmull.p64	XL2, HH_L, T3_H			// a0 * b0
+	vmull.p64	XM2, SHASH2_H, T3_L		// (a1 + a0)(b1 + b0)
+
+	veor		XH, XH, XH2
+	veor		XL, XL, XL2
+	veor		XM, XM, XM2
+
+	vmull.p64	XH2, SHASH_H, T1_L		// a1 * b1
+	veor		T1_L, T1_L, T1_H
+	vmull.p64	XL2, SHASH_L, T1_H		// a0 * b0
+	vmull.p64	XM2, SHASH2_p64, T1_L		// (a1 + a0)(b1 + b0)
+
+	veor		XH, XH, XH2
+	veor		XL, XL, XL2
+	veor		XM, XM, XM2
+
+	beq		4f
+
+	vld1.8		{XL2-XM2}, [r2]!
+
+	veor		T1, XL, XH
+	veor		XM, XM, T1
+
+	__pmull_reduce_p64
+
+	veor		T1, T1, XH
+	veor		XL, XL, T1
+
+	b		1b
+	.endif
+
+2:	vld1.64		{T1}, [r2]!
 	subs		r0, r0, #1
 
-1:	/* multiply XL by SHASH in GF(2^128) */
+3:	/* multiply XL by SHASH in GF(2^128) */
 #ifndef CONFIG_CPU_BIG_ENDIAN
 	vrev64.8	T1, T1
 #endif
@@ -193,7 +282,7 @@
 	__pmull_\pn	XL, XL_L, SHASH_L, s1l, s2l, s3l, s4l	@ a0 * b0
 	__pmull_\pn	XM, T1_L, SHASH2_\pn			@ (a1+a0)(b1+b0)
 
-	veor		T1, XL, XH
+4:	veor		T1, XL, XH
 	veor		XM, XM, T1
 
 	__pmull_reduce_\pn
@@ -212,8 +301,14 @@
 	 *			   struct ghash_key const *k, const char *head)
 	 */
 ENTRY(pmull_ghash_update_p64)
-	vld1.64		{SHASH}, [r3]
+	vld1.64		{SHASH}, [r3]!
+	vld1.64		{HH}, [r3]!
+	vld1.64		{HH3-HH4}, [r3]
+
 	veor		SHASH2_p64, SHASH_L, SHASH_H
+	veor		SHASH2_H, HH_L, HH_H
+	veor		HH34_L, HH3_L, HH3_H
+	veor		HH34_H, HH4_L, HH4_H
 
 	vmov.i8		MASK, #0xe1
 	vshl.u64	MASK, MASK, #57

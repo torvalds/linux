@@ -1,22 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) 2015 Etnaviv Project
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
+ * Copyright (C) 2015-2018 Etnaviv Project
  */
 
 #include <linux/component.h>
+#include <linux/dma-mapping.h>
+#include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_file.h>
+#include <drm/drm_ioctl.h>
 #include <drm/drm_of.h>
+#include <drm/drm_prime.h>
 
 #include "etnaviv_cmdbuf.h"
 #include "etnaviv_drv.h"
@@ -24,57 +22,6 @@
 #include "etnaviv_gem.h"
 #include "etnaviv_mmu.h"
 #include "etnaviv_perfmon.h"
-
-#ifdef CONFIG_DRM_ETNAVIV_REGISTER_LOGGING
-static bool reglog;
-MODULE_PARM_DESC(reglog, "Enable register read/write logging");
-module_param(reglog, bool, 0600);
-#else
-#define reglog 0
-#endif
-
-void __iomem *etnaviv_ioremap(struct platform_device *pdev, const char *name,
-		const char *dbgname)
-{
-	struct resource *res;
-	void __iomem *ptr;
-
-	if (name)
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
-	else
-		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-
-	ptr = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(ptr)) {
-		dev_err(&pdev->dev, "failed to ioremap %s: %ld\n", name,
-			PTR_ERR(ptr));
-		return ptr;
-	}
-
-	if (reglog)
-		dev_printk(KERN_DEBUG, &pdev->dev, "IO:region %s 0x%p %08zx\n",
-			   dbgname, ptr, (size_t)resource_size(res));
-
-	return ptr;
-}
-
-void etnaviv_writel(u32 data, void __iomem *addr)
-{
-	if (reglog)
-		printk(KERN_DEBUG "IO:W %p %08x\n", addr, data);
-
-	writel(data, addr);
-}
-
-u32 etnaviv_readl(const void __iomem *addr)
-{
-	u32 val = readl(addr);
-
-	if (reglog)
-		printk(KERN_DEBUG "IO:R %p %08x\n", addr, val);
-
-	return val;
-}
 
 /*
  * DRM operations:
@@ -101,15 +48,39 @@ static void load_gpu(struct drm_device *dev)
 
 static int etnaviv_open(struct drm_device *dev, struct drm_file *file)
 {
+	struct etnaviv_drm_private *priv = dev->dev_private;
 	struct etnaviv_file_private *ctx;
+	int ret, i;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
+	ctx->mmu = etnaviv_iommu_context_init(priv->mmu_global,
+					      priv->cmdbuf_suballoc);
+	if (!ctx->mmu) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
+
+	for (i = 0; i < ETNA_MAX_PIPES; i++) {
+		struct etnaviv_gpu *gpu = priv->gpu[i];
+		struct drm_sched_rq *rq;
+
+		if (gpu) {
+			rq = &gpu->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+			drm_sched_entity_init(&ctx->sched_entity[i],
+					      &rq, 1, NULL);
+			}
+	}
+
 	file->driver_priv = ctx;
 
 	return 0;
+
+out_free:
+	kfree(ctx);
+	return ret;
 }
 
 static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
@@ -121,13 +92,11 @@ static void etnaviv_postclose(struct drm_device *dev, struct drm_file *file)
 	for (i = 0; i < ETNA_MAX_PIPES; i++) {
 		struct etnaviv_gpu *gpu = priv->gpu[i];
 
-		if (gpu) {
-			mutex_lock(&gpu->lock);
-			if (gpu->lastctx == ctx)
-				gpu->lastctx = NULL;
-			mutex_unlock(&gpu->lock);
-		}
+		if (gpu)
+			drm_sched_entity_destroy(&ctx->sched_entity[i]);
 	}
+
+	etnaviv_iommu_context_put(ctx->mmu);
 
 	kfree(ctx);
 }
@@ -160,12 +129,29 @@ static int etnaviv_mm_show(struct drm_device *dev, struct seq_file *m)
 static int etnaviv_mmu_show(struct etnaviv_gpu *gpu, struct seq_file *m)
 {
 	struct drm_printer p = drm_seq_file_printer(m);
+	struct etnaviv_iommu_context *mmu_context;
 
 	seq_printf(m, "Active Objects (%s):\n", dev_name(gpu->dev));
 
-	mutex_lock(&gpu->mmu->lock);
-	drm_mm_print(&gpu->mmu->mm, &p);
-	mutex_unlock(&gpu->mmu->lock);
+	/*
+	 * Lock the GPU to avoid a MMU context switch just now and elevate
+	 * the refcount of the current context to avoid it disappearing from
+	 * under our feet.
+	 */
+	mutex_lock(&gpu->lock);
+	mmu_context = gpu->mmu_context;
+	if (mmu_context)
+		etnaviv_iommu_context_get(mmu_context);
+	mutex_unlock(&gpu->lock);
+
+	if (!mmu_context)
+		return 0;
+
+	mutex_lock(&mmu_context->lock);
+	drm_mm_print(&mmu_context->mm, &p);
+	mutex_unlock(&mmu_context->lock);
+
+	etnaviv_iommu_context_put(mmu_context);
 
 	return 0;
 }
@@ -392,7 +378,6 @@ static int etnaviv_ioctl_gem_userptr(struct drm_device *dev, void *data,
 	struct drm_file *file)
 {
 	struct drm_etnaviv_gem_userptr *args = data;
-	int access;
 
 	if (args->flags & ~(ETNA_USERPTR_READ|ETNA_USERPTR_WRITE) ||
 	    args->flags == 0)
@@ -404,12 +389,7 @@ static int etnaviv_ioctl_gem_userptr(struct drm_device *dev, void *data,
 	    args->user_ptr & ~PAGE_MASK)
 		return -EINVAL;
 
-	if (args->flags & ETNA_USERPTR_WRITE)
-		access = VERIFY_WRITE;
-	else
-		access = VERIFY_READ;
-
-	if (!access_ok(access, (void __user *)(unsigned long)args->user_ptr,
+	if (!access_ok((void __user *)(unsigned long)args->user_ptr,
 		       args->user_size))
 		return -EFAULT;
 
@@ -489,17 +469,17 @@ static int etnaviv_ioctl_pm_query_sig(struct drm_device *dev, void *data,
 static const struct drm_ioctl_desc etnaviv_ioctls[] = {
 #define ETNA_IOCTL(n, func, flags) \
 	DRM_IOCTL_DEF_DRV(ETNAVIV_##n, etnaviv_ioctl_##func, flags)
-	ETNA_IOCTL(GET_PARAM,    get_param,    DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(GEM_NEW,      gem_new,      DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(GEM_INFO,     gem_info,     DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(GEM_CPU_PREP, gem_cpu_prep, DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(GEM_CPU_FINI, gem_cpu_fini, DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(GEM_SUBMIT,   gem_submit,   DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(WAIT_FENCE,   wait_fence,   DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(GEM_USERPTR,  gem_userptr,  DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(GEM_WAIT,     gem_wait,     DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(PM_QUERY_DOM, pm_query_dom, DRM_AUTH|DRM_RENDER_ALLOW),
-	ETNA_IOCTL(PM_QUERY_SIG, pm_query_sig, DRM_AUTH|DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GET_PARAM,    get_param,    DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GEM_NEW,      gem_new,      DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GEM_INFO,     gem_info,     DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GEM_CPU_PREP, gem_cpu_prep, DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GEM_CPU_FINI, gem_cpu_fini, DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GEM_SUBMIT,   gem_submit,   DRM_RENDER_ALLOW),
+	ETNA_IOCTL(WAIT_FENCE,   wait_fence,   DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GEM_USERPTR,  gem_userptr,  DRM_RENDER_ALLOW),
+	ETNA_IOCTL(GEM_WAIT,     gem_wait,     DRM_RENDER_ALLOW),
+	ETNA_IOCTL(PM_QUERY_DOM, pm_query_dom, DRM_RENDER_ALLOW),
+	ETNA_IOCTL(PM_QUERY_SIG, pm_query_sig, DRM_RENDER_ALLOW),
 };
 
 static const struct vm_operations_struct vm_ops = {
@@ -521,18 +501,13 @@ static const struct file_operations fops = {
 };
 
 static struct drm_driver etnaviv_drm_driver = {
-	.driver_features    = DRIVER_GEM |
-				DRIVER_PRIME |
-				DRIVER_RENDER,
+	.driver_features    = DRIVER_GEM | DRIVER_RENDER,
 	.open               = etnaviv_open,
 	.postclose           = etnaviv_postclose,
 	.gem_free_object_unlocked = etnaviv_gem_free_object,
 	.gem_vm_ops         = &vm_ops,
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_export   = drm_gem_prime_export,
-	.gem_prime_import   = drm_gem_prime_import,
-	.gem_prime_res_obj  = etnaviv_gem_prime_res_obj,
 	.gem_prime_pin      = etnaviv_gem_prime_pin,
 	.gem_prime_unpin    = etnaviv_gem_prime_unpin,
 	.gem_prime_get_sg_table = etnaviv_gem_prime_get_sg_table,
@@ -550,7 +525,7 @@ static struct drm_driver etnaviv_drm_driver = {
 	.desc               = "etnaviv DRM",
 	.date               = "20151214",
 	.major              = 1,
-	.minor              = 2,
+	.minor              = 3,
 };
 
 /*
@@ -570,34 +545,46 @@ static int etnaviv_bind(struct device *dev)
 	if (!priv) {
 		dev_err(dev, "failed to allocate private data\n");
 		ret = -ENOMEM;
-		goto out_unref;
+		goto out_put;
 	}
 	drm->dev_private = priv;
+
+	dev->dma_parms = &priv->dma_parms;
+	dma_set_max_seg_size(dev, SZ_2G);
 
 	mutex_init(&priv->gem_lock);
 	INIT_LIST_HEAD(&priv->gem_list);
 	priv->num_gpus = 0;
 
+	priv->cmdbuf_suballoc = etnaviv_cmdbuf_suballoc_new(drm->dev);
+	if (IS_ERR(priv->cmdbuf_suballoc)) {
+		dev_err(drm->dev, "Failed to create cmdbuf suballocator\n");
+		ret = PTR_ERR(priv->cmdbuf_suballoc);
+		goto out_free_priv;
+	}
+
 	dev_set_drvdata(dev, drm);
 
 	ret = component_bind_all(dev, drm);
 	if (ret < 0)
-		goto out_bind;
+		goto out_destroy_suballoc;
 
 	load_gpu(drm);
 
 	ret = drm_dev_register(drm, 0);
 	if (ret)
-		goto out_register;
+		goto out_unbind;
 
 	return 0;
 
-out_register:
+out_unbind:
 	component_unbind_all(dev, drm);
-out_bind:
+out_destroy_suballoc:
+	etnaviv_cmdbuf_suballoc_destroy(priv->cmdbuf_suballoc);
+out_free_priv:
 	kfree(priv);
-out_unref:
-	drm_dev_unref(drm);
+out_put:
+	drm_dev_put(drm);
 
 	return ret;
 }
@@ -611,10 +598,14 @@ static void etnaviv_unbind(struct device *dev)
 
 	component_unbind_all(dev, drm);
 
+	dev->dma_parms = NULL;
+
+	etnaviv_cmdbuf_suballoc_destroy(priv->cmdbuf_suballoc);
+
 	drm->dev_private = NULL;
 	kfree(priv);
 
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 }
 
 static const struct component_master_ops etnaviv_master_ops = {
@@ -637,25 +628,19 @@ static int compare_str(struct device *dev, void *data)
 static int etnaviv_pdev_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
 	struct component_match *match = NULL;
 
-	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
-
-	if (node) {
+	if (!dev->platform_data) {
 		struct device_node *core_node;
-		int i;
 
-		for (i = 0; ; i++) {
-			core_node = of_parse_phandle(node, "cores", i);
-			if (!core_node)
-				break;
+		for_each_compatible_node(core_node, NULL, "vivante,gc") {
+			if (!of_device_is_available(core_node))
+				continue;
 
 			drm_of_component_match_add(&pdev->dev, &match,
 						   compare_of, core_node);
-			of_node_put(core_node);
 		}
-	} else if (dev->platform_data) {
+	} else {
 		char **names = dev->platform_data;
 		unsigned i;
 
@@ -673,25 +658,21 @@ static int etnaviv_pdev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id dt_match[] = {
-	{ .compatible = "fsl,imx-gpu-subsystem" },
-	{ .compatible = "marvell,dove-gpu-subsystem" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, dt_match);
-
 static struct platform_driver etnaviv_platform_driver = {
 	.probe      = etnaviv_pdev_probe,
 	.remove     = etnaviv_pdev_remove,
 	.driver     = {
 		.name   = "etnaviv",
-		.of_match_table = dt_match,
 	},
 };
 
+static struct platform_device *etnaviv_drm;
+
 static int __init etnaviv_init(void)
 {
+	struct platform_device *pdev;
 	int ret;
+	struct device_node *np;
 
 	etnaviv_validate_init();
 
@@ -701,16 +682,59 @@ static int __init etnaviv_init(void)
 
 	ret = platform_driver_register(&etnaviv_platform_driver);
 	if (ret != 0)
-		platform_driver_unregister(&etnaviv_gpu_driver);
+		goto unregister_gpu_driver;
 
+	/*
+	 * If the DT contains at least one available GPU device, instantiate
+	 * the DRM platform device.
+	 */
+	for_each_compatible_node(np, NULL, "vivante,gc") {
+		if (!of_device_is_available(np))
+			continue;
+
+		pdev = platform_device_alloc("etnaviv", -1);
+		if (!pdev) {
+			ret = -ENOMEM;
+			of_node_put(np);
+			goto unregister_platform_driver;
+		}
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(40);
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+
+		/*
+		 * Apply the same DMA configuration to the virtual etnaviv
+		 * device as the GPU we found. This assumes that all Vivante
+		 * GPUs in the system share the same DMA constraints.
+		 */
+		of_dma_configure(&pdev->dev, np, true);
+
+		ret = platform_device_add(pdev);
+		if (ret) {
+			platform_device_put(pdev);
+			of_node_put(np);
+			goto unregister_platform_driver;
+		}
+
+		etnaviv_drm = pdev;
+		of_node_put(np);
+		break;
+	}
+
+	return 0;
+
+unregister_platform_driver:
+	platform_driver_unregister(&etnaviv_platform_driver);
+unregister_gpu_driver:
+	platform_driver_unregister(&etnaviv_gpu_driver);
 	return ret;
 }
 module_init(etnaviv_init);
 
 static void __exit etnaviv_exit(void)
 {
-	platform_driver_unregister(&etnaviv_gpu_driver);
+	platform_device_unregister(etnaviv_drm);
 	platform_driver_unregister(&etnaviv_platform_driver);
+	platform_driver_unregister(&etnaviv_gpu_driver);
 }
 module_exit(etnaviv_exit);
 

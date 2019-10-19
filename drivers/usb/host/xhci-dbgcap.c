@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * xhci-dbgcap.c - xHCI debug capability support
  *
@@ -21,7 +22,6 @@ dbc_dma_alloc_coherent(struct xhci_hcd *xhci, size_t size,
 
 	vaddr = dma_alloc_coherent(xhci_to_hcd(xhci)->self.sysdev,
 				   size, dma_handle, flags);
-	memset(vaddr, 0, size);
 	return vaddr;
 }
 
@@ -180,7 +180,7 @@ static void xhci_dbc_flush_endpoint_requests(struct dbc_ep *dep)
 		xhci_dbc_flush_single_request(req);
 }
 
-static void xhci_dbc_flush_reqests(struct xhci_dbc *dbc)
+static void xhci_dbc_flush_requests(struct xhci_dbc *dbc)
 {
 	xhci_dbc_flush_endpoint_requests(&dbc->eps[BULK_OUT]);
 	xhci_dbc_flush_endpoint_requests(&dbc->eps[BULK_IN]);
@@ -328,13 +328,14 @@ dbc_ep_do_queue(struct dbc_ep *dep, struct dbc_request *req)
 int dbc_ep_queue(struct dbc_ep *dep, struct dbc_request *req,
 		 gfp_t gfp_flags)
 {
+	unsigned long		flags;
 	struct xhci_dbc		*dbc = dep->dbc;
 	int			ret = -ESHUTDOWN;
 
-	spin_lock(&dbc->lock);
+	spin_lock_irqsave(&dbc->lock, flags);
 	if (dbc->state == DS_CONFIGURED)
 		ret = dbc_ep_do_queue(dep, req);
-	spin_unlock(&dbc->lock);
+	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	mod_delayed_work(system_wq, &dbc->event_work, 0);
 
@@ -418,8 +419,6 @@ static int xhci_dbc_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	/* Setup strings and contexts: */
 	string_length = xhci_dbc_populate_strings(dbc->string);
 	xhci_dbc_init_contexts(xhci, string_length);
-
-	mmiowb();
 
 	xhci_dbc_eps_init(xhci);
 	dbc->state = DS_INITIALIZED;
@@ -506,30 +505,32 @@ static int xhci_do_dbc_start(struct xhci_hcd *xhci)
 	return 0;
 }
 
-static void xhci_do_dbc_stop(struct xhci_hcd *xhci)
+static int xhci_do_dbc_stop(struct xhci_hcd *xhci)
 {
 	struct xhci_dbc		*dbc = xhci->dbc;
 
 	if (dbc->state == DS_DISABLED)
-		return;
+		return -1;
 
 	writel(0, &dbc->regs->control);
-	xhci_dbc_mem_cleanup(xhci);
 	dbc->state = DS_DISABLED;
+
+	return 0;
 }
 
 static int xhci_dbc_start(struct xhci_hcd *xhci)
 {
 	int			ret;
+	unsigned long		flags;
 	struct xhci_dbc		*dbc = xhci->dbc;
 
 	WARN_ON(!dbc);
 
 	pm_runtime_get_sync(xhci_to_hcd(xhci)->self.controller);
 
-	spin_lock(&dbc->lock);
+	spin_lock_irqsave(&dbc->lock, flags);
 	ret = xhci_do_dbc_start(xhci);
-	spin_unlock(&dbc->lock);
+	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	if (ret) {
 		pm_runtime_put(xhci_to_hcd(xhci)->self.controller);
@@ -541,6 +542,8 @@ static int xhci_dbc_start(struct xhci_hcd *xhci)
 
 static void xhci_dbc_stop(struct xhci_hcd *xhci)
 {
+	int ret;
+	unsigned long		flags;
 	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
@@ -551,11 +554,14 @@ static void xhci_dbc_stop(struct xhci_hcd *xhci)
 	if (port->registered)
 		xhci_dbc_tty_unregister_device(xhci);
 
-	spin_lock(&dbc->lock);
-	xhci_do_dbc_stop(xhci);
-	spin_unlock(&dbc->lock);
+	spin_lock_irqsave(&dbc->lock, flags);
+	ret = xhci_do_dbc_stop(xhci);
+	spin_unlock_irqrestore(&dbc->lock, flags);
 
-	pm_runtime_put_sync(xhci_to_hcd(xhci)->self.controller);
+	if (!ret) {
+		xhci_dbc_mem_cleanup(xhci);
+		pm_runtime_put_sync(xhci_to_hcd(xhci)->self.controller);
+	}
 }
 
 static void
@@ -679,7 +685,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 		    !(portsc & DBC_PORTSC_CONN_STATUS)) {
 			xhci_info(xhci, "DbC cable unplugged\n");
 			dbc->state = DS_ENABLED;
-			xhci_dbc_flush_reqests(dbc);
+			xhci_dbc_flush_requests(dbc);
 
 			return EVT_DISC;
 		}
@@ -689,7 +695,7 @@ static enum evtreturn xhci_dbc_do_handle_events(struct xhci_dbc *dbc)
 			xhci_info(xhci, "DbC port reset\n");
 			writel(portsc, &dbc->regs->portsc);
 			dbc->state = DS_ENABLED;
-			xhci_dbc_flush_reqests(dbc);
+			xhci_dbc_flush_requests(dbc);
 
 			return EVT_DISC;
 		}
@@ -779,14 +785,15 @@ static void xhci_dbc_handle_events(struct work_struct *work)
 	int			ret;
 	enum evtreturn		evtr;
 	struct xhci_dbc		*dbc;
+	unsigned long		flags;
 	struct xhci_hcd		*xhci;
 
 	dbc = container_of(to_delayed_work(work), struct xhci_dbc, event_work);
 	xhci = dbc->xhci;
 
-	spin_lock(&dbc->lock);
+	spin_lock_irqsave(&dbc->lock, flags);
 	evtr = xhci_dbc_do_handle_events(dbc);
-	spin_unlock(&dbc->lock);
+	spin_unlock_irqrestore(&dbc->lock, flags);
 
 	switch (evtr) {
 	case EVT_GSER:
@@ -904,11 +911,9 @@ static ssize_t dbc_store(struct device *dev,
 			 struct device_attribute *attr,
 			 const char *buf, size_t count)
 {
-	struct xhci_dbc		*dbc;
 	struct xhci_hcd		*xhci;
 
 	xhci = hcd_to_xhci(dev_get_drvdata(dev));
-	dbc = xhci->dbc;
 
 	if (!strncmp(buf, "enable", 6))
 		xhci_dbc_start(xhci);

@@ -910,7 +910,7 @@ static void ivtv_load_and_init_modules(struct ivtv *itv)
 
 	/* check which i2c devices are actually found */
 	for (i = 0; i < 32; i++) {
-		u32 device = 1 << i;
+		u32 device = BIT(i);
 
 		if (!(device & hw))
 			continue;
@@ -999,7 +999,7 @@ static int ivtv_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 	int vbi_buf_size;
 	struct ivtv *itv;
 
-	itv = kzalloc(sizeof(struct ivtv), GFP_ATOMIC);
+	itv = kzalloc(sizeof(struct ivtv), GFP_KERNEL);
 	if (itv == NULL)
 		return -ENOMEM;
 	itv->pdev = pdev;

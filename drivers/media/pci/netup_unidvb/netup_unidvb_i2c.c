@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * netup_unidvb_i2c.c
  *
@@ -6,16 +7,6 @@
  * Copyright (C) 2014 NetUP Inc.
  * Copyright (C) 2014 Sergey Kozlov <serjk@netup.ru>
  * Copyright (C) 2014 Abylay Ospan <aospan@netup.ru>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -214,11 +205,6 @@ static int netup_i2c_xfer(struct i2c_adapter *adap,
 	struct netup_i2c *i2c = i2c_get_adapdata(adap);
 	u16 reg;
 
-	if (num <= 0) {
-		dev_dbg(i2c->adap.dev.parent,
-			"%s(): num == %d\n", __func__, num);
-		return -EINVAL;
-	}
 	spin_lock_irqsave(&i2c->lock, flags);
 	if (i2c->state != STATE_DONE) {
 		dev_dbg(i2c->adap.dev.parent,

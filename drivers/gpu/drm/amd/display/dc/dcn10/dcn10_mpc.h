@@ -149,6 +149,10 @@ void mpc1_remove_mpcc(
 void mpc1_mpc_init(
 	struct mpc *mpc);
 
+void mpc1_mpc_init_single_inst(
+	struct mpc *mpc,
+	unsigned int mpcc_id);
+
 void mpc1_assert_idle_mpcc(
 	struct mpc *mpc,
 	int id);
@@ -182,5 +186,10 @@ struct mpcc *mpc1_get_mpcc(
 struct mpcc *mpc1_get_mpcc_for_dpp(
 	struct mpc_tree *tree,
 	int dpp_id);
+
+void mpc1_read_mpcc_state(
+		struct mpc *mpc,
+		int mpcc_inst,
+		struct mpcc_state *s);
 
 #endif

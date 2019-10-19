@@ -1,10 +1,6 @@
-/*
- * Copyright (C) 2015 Renesas Electronics Corp.
+/* SPDX-License-Identifier: GPL-2.0+
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
+ * Copyright (C) 2015 Renesas Electronics Corp.
  */
 #ifndef __DT_BINDINGS_CLOCK_R8A7795_CPG_MSSR_H__
 #define __DT_BINDINGS_CLOCK_R8A7795_CPG_MSSR_H__
@@ -54,7 +50,7 @@
 #define R8A7795_CLK_CANFD		39
 #define R8A7795_CLK_HDMI		40
 #define R8A7795_CLK_CSI0		41
-#define R8A7795_CLK_CSIREF		42
+/* CLK_CSIREF was removed */
 #define R8A7795_CLK_CP			43
 #define R8A7795_CLK_CPEX		44
 #define R8A7795_CLK_R			45

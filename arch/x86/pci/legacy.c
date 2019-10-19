@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * legacy.c - traditional, old school PCI bus probing
  */
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/pci.h>
+#include <asm/jailhouse_para.h>
 #include <asm/pci_x86.h>
 
 /*
@@ -34,13 +36,14 @@ int __init pci_legacy_init(void)
 
 void pcibios_scan_specific_bus(int busn)
 {
+	int stride = jailhouse_paravirt() ? 1 : 8;
 	int devfn;
 	u32 l;
 
 	if (pci_find_bus(0, busn))
 		return;
 
-	for (devfn = 0; devfn < 256; devfn += 8) {
+	for (devfn = 0; devfn < 256; devfn += stride) {
 		if (!raw_pci_read(0, busn, devfn, PCI_VENDOR_ID, 2, &l) &&
 		    l != 0x0000 && l != 0xffff) {
 			DBG("Found device at %02x:%02x [%04x]\n", busn, devfn, l);

@@ -76,12 +76,14 @@ struct xb_req_data {
 	struct list_head list;
 	wait_queue_head_t wq;
 	struct xsd_sockmsg msg;
+	uint32_t caller_req_id;
 	enum xsd_sockmsg_type type;
 	char *body;
 	const struct kvec *vec;
 	int num_vecs;
 	int err;
 	enum xb_req_state state;
+	bool user_req;
 	void (*cb)(struct xb_req_data *);
 	void *par;
 };
@@ -131,5 +133,7 @@ void xenbus_ring_ops_init(void);
 
 int xenbus_dev_request_and_reply(struct xsd_sockmsg *msg, void *par);
 void xenbus_dev_queue_reply(struct xb_req_data *req);
+
+extern unsigned int xb_dev_generation_id;
 
 #endif

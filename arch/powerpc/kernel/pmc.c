@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  arch/powerpc/kernel/pmc.c
  *
@@ -5,11 +6,6 @@
  *  Includes code formerly from arch/ppc/kernel/perfmon.c:
  *    Author: Andy Fleming
  *    Copyright (c) 2004 Freescale Semiconductor, Inc
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -29,7 +25,7 @@ static void dummy_perf(struct pt_regs *regs)
 {
 #if defined(CONFIG_FSL_EMB_PERFMON)
 	mtpmr(PMRN_PMGC0, mfpmr(PMRN_PMGC0) & ~PMGC0_PMIE);
-#elif defined(CONFIG_PPC64) || defined(CONFIG_6xx)
+#elif defined(CONFIG_PPC64) || defined(CONFIG_PPC_BOOK3S_32)
 	if (cur_cpu_spec->pmc_type == PPC_PMC_IBM)
 		mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~(MMCR0_PMXE|MMCR0_PMAO));
 #else

@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/platform_device.h>
@@ -141,9 +138,9 @@ int falcon_load_firmware(struct falcon *falcon)
 	/* allocate iova space for the firmware */
 	falcon->firmware.vaddr = falcon->ops->alloc(falcon, firmware->size,
 						    &falcon->firmware.paddr);
-	if (!falcon->firmware.vaddr) {
-		dev_err(falcon->dev, "dma memory mapping failed\n");
-		return -ENOMEM;
+	if (IS_ERR(falcon->firmware.vaddr)) {
+		dev_err(falcon->dev, "DMA memory mapping failed\n");
+		return PTR_ERR(falcon->firmware.vaddr);
 	}
 
 	/* copy firmware image into local area. this also ensures endianness */
@@ -197,10 +194,18 @@ void falcon_exit(struct falcon *falcon)
 int falcon_boot(struct falcon *falcon)
 {
 	unsigned long offset;
+	u32 value;
 	int err;
 
 	if (!falcon->firmware.vaddr)
 		return -EINVAL;
+
+	err = readl_poll_timeout(falcon->regs + FALCON_DMACTL, value,
+				 (value & (FALCON_DMACTL_IMEM_SCRUBBING |
+					   FALCON_DMACTL_DMEM_SCRUBBING)) == 0,
+				 10, 10000);
+	if (err < 0)
+		return err;
 
 	falcon_writel(falcon, 0, FALCON_DMACTL);
 

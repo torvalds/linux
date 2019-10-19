@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PROC_FS
 	bool "/proc file system support" if EXPERT
 	default y
@@ -31,6 +32,7 @@ config PROC_FS
 config PROC_KCORE
 	bool "/proc/kcore support" if !ARM
 	depends on PROC_FS && MMU
+	select CRASH_CORE
 	help
 	  Provides a virtual ELF core file of the live kernel.  This can
 	  be read with gdb and other ELF tools.  No modifications can be
@@ -42,6 +44,22 @@ config PROC_VMCORE
 	default y
         help
         Exports the dump image of crashed kernel in ELF format.
+
+config PROC_VMCORE_DEVICE_DUMP
+	bool "Device Hardware/Firmware Log Collection"
+	depends on PROC_VMCORE
+	default n
+	help
+	  After kernel panic, device drivers can collect the device
+	  specific snapshot of their hardware or firmware before the
+	  underlying devices are initialized in crash recovery kernel.
+	  Note that the device driver must be present in the crash
+	  recovery kernel's initramfs to collect its underlying device
+	  snapshot.
+
+	  If you say Y here, the collected device dumps will be added
+	  as ELF notes to /proc/vmcore. You can still disable device
+	  dump using the kernel command line option 'novmcoredd'.
 
 config PROC_SYSCTL
 	bool "Sysctl support (/proc/sys)" if EXPERT
@@ -55,7 +73,7 @@ config PROC_SYSCTL
 	  interface is through /proc/sys.  If you say Y here a tree of
 	  modifiable sysctl entries will be generated beneath the
           /proc/sys directory. They are explained in the files
-	  in <file:Documentation/sysctl/>.  Note that enabling this
+	  in <file:Documentation/admin-guide/sysctl/>.  Note that enabling this
 	  option will enlarge the kernel by at least 8 KB.
 
 	  As it is generally a good thing, you should say Y here unless
@@ -81,3 +99,7 @@ config PROC_CHILDREN
 
 	  Say Y if you are running any user-space software which takes benefit from
 	  this interface. For example, rkt is such a piece of software.
+
+config PROC_PID_ARCH_STATUS
+	def_bool n
+	depends on PROC_FS

@@ -81,14 +81,6 @@ struct c4iw_debugfs_data {
 	int pos;
 };
 
-static int count_idrs(int id, void *p, void *data)
-{
-	int *countp = data;
-
-	*countp = *countp + 1;
-	return 0;
-}
-
 static ssize_t debugfs_read(struct file *file, char __user *buf, size_t count,
 			    loff_t *ppos)
 {
@@ -220,14 +212,14 @@ static void set_ep_sin_addrs(struct c4iw_ep *ep,
 {
 	struct iw_cm_id *id = ep->com.cm_id;
 
-	*lsin = (struct sockaddr_in *)&ep->com.local_addr;
-	*rsin = (struct sockaddr_in *)&ep->com.remote_addr;
+	*m_lsin = (struct sockaddr_in *)&ep->com.local_addr;
+	*m_rsin = (struct sockaddr_in *)&ep->com.remote_addr;
 	if (id) {
-		*m_lsin = (struct sockaddr_in *)&id->m_local_addr;
-		*m_rsin = (struct sockaddr_in *)&id->m_remote_addr;
+		*lsin = (struct sockaddr_in *)&id->local_addr;
+		*rsin = (struct sockaddr_in *)&id->remote_addr;
 	} else {
-		*m_lsin = &zero_sin;
-		*m_rsin = &zero_sin;
+		*lsin = &zero_sin;
+		*rsin = &zero_sin;
 	}
 }
 
@@ -239,24 +231,22 @@ static void set_ep_sin6_addrs(struct c4iw_ep *ep,
 {
 	struct iw_cm_id *id = ep->com.cm_id;
 
-	*lsin6 = (struct sockaddr_in6 *)&ep->com.local_addr;
-	*rsin6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
+	*m_lsin6 = (struct sockaddr_in6 *)&ep->com.local_addr;
+	*m_rsin6 = (struct sockaddr_in6 *)&ep->com.remote_addr;
 	if (id) {
-		*m_lsin6 = (struct sockaddr_in6 *)&id->m_local_addr;
-		*m_rsin6 = (struct sockaddr_in6 *)&id->m_remote_addr;
+		*lsin6 = (struct sockaddr_in6 *)&id->local_addr;
+		*rsin6 = (struct sockaddr_in6 *)&id->remote_addr;
 	} else {
-		*m_lsin6 = &zero_sin6;
-		*m_rsin6 = &zero_sin6;
+		*lsin6 = &zero_sin6;
+		*rsin6 = &zero_sin6;
 	}
 }
 
-static int dump_qp(int id, void *p, void *data)
+static int dump_qp(unsigned long id, struct c4iw_qp *qp,
+		   struct c4iw_debugfs_data *qpd)
 {
-	struct c4iw_qp *qp = p;
-	struct c4iw_debugfs_data *qpd = data;
 	int space;
 	int cc;
-
 	if (id != qp->wq.sq.qid)
 		return 0;
 
@@ -275,10 +265,11 @@ static int dump_qp(int id, void *p, void *data)
 
 			set_ep_sin_addrs(ep, &lsin, &rsin, &m_lsin, &m_rsin);
 			cc = snprintf(qpd->buf + qpd->pos, space,
-				      "rc qp sq id %u rq id %u state %u "
+				      "rc qp sq id %u %s id %u state %u "
 				      "onchip %u ep tid %u state %u "
 				      "%pI4:%u/%u->%pI4:%u/%u\n",
-				      qp->wq.sq.qid, qp->wq.rq.qid,
+				      qp->wq.sq.qid, qp->srq ? "srq" : "rq",
+				      qp->srq ? qp->srq->idx : qp->wq.rq.qid,
 				      (int)qp->attr.state,
 				      qp->wq.sq.flags & T4_SQ_ONCHIP,
 				      ep->hwtid, (int)ep->com.state,
@@ -334,19 +325,24 @@ static int qp_release(struct inode *inode, struct file *file)
 
 static int qp_open(struct inode *inode, struct file *file)
 {
+	struct c4iw_qp *qp;
 	struct c4iw_debugfs_data *qpd;
+	unsigned long index;
 	int count = 1;
 
-	qpd = kmalloc(sizeof *qpd, GFP_KERNEL);
+	qpd = kmalloc(sizeof(*qpd), GFP_KERNEL);
 	if (!qpd)
 		return -ENOMEM;
 
 	qpd->devp = inode->i_private;
 	qpd->pos = 0;
 
-	spin_lock_irq(&qpd->devp->lock);
-	idr_for_each(&qpd->devp->qpidr, count_idrs, &count);
-	spin_unlock_irq(&qpd->devp->lock);
+	/*
+	 * No need to lock; we drop the lock to call vmalloc so it's racy
+	 * anyway.  Someone who cares should switch this over to seq_file
+	 */
+	xa_for_each(&qpd->devp->qps, index, qp)
+		count++;
 
 	qpd->bufsize = count * 180;
 	qpd->buf = vmalloc(qpd->bufsize);
@@ -355,9 +351,10 @@ static int qp_open(struct inode *inode, struct file *file)
 		return -ENOMEM;
 	}
 
-	spin_lock_irq(&qpd->devp->lock);
-	idr_for_each(&qpd->devp->qpidr, dump_qp, qpd);
-	spin_unlock_irq(&qpd->devp->lock);
+	xa_lock_irq(&qpd->devp->qps);
+	xa_for_each(&qpd->devp->qps, index, qp)
+		dump_qp(index, qp, qpd);
+	xa_unlock_irq(&qpd->devp->qps);
 
 	qpd->buf[qpd->pos++] = 0;
 	file->private_data = qpd;
@@ -372,9 +369,8 @@ static const struct file_operations qp_debugfs_fops = {
 	.llseek  = default_llseek,
 };
 
-static int dump_stag(int id, void *p, void *data)
+static int dump_stag(unsigned long id, struct c4iw_debugfs_data *stagd)
 {
-	struct c4iw_debugfs_data *stagd = data;
 	int space;
 	int cc;
 	struct fw_ri_tpte tpte;
@@ -423,10 +419,12 @@ static int stag_release(struct inode *inode, struct file *file)
 static int stag_open(struct inode *inode, struct file *file)
 {
 	struct c4iw_debugfs_data *stagd;
+	void *p;
+	unsigned long index;
 	int ret = 0;
 	int count = 1;
 
-	stagd = kmalloc(sizeof *stagd, GFP_KERNEL);
+	stagd = kmalloc(sizeof(*stagd), GFP_KERNEL);
 	if (!stagd) {
 		ret = -ENOMEM;
 		goto out;
@@ -434,9 +432,8 @@ static int stag_open(struct inode *inode, struct file *file)
 	stagd->devp = inode->i_private;
 	stagd->pos = 0;
 
-	spin_lock_irq(&stagd->devp->lock);
-	idr_for_each(&stagd->devp->mmidr, count_idrs, &count);
-	spin_unlock_irq(&stagd->devp->lock);
+	xa_for_each(&stagd->devp->mrs, index, p)
+		count++;
 
 	stagd->bufsize = count * 256;
 	stagd->buf = vmalloc(stagd->bufsize);
@@ -445,9 +442,10 @@ static int stag_open(struct inode *inode, struct file *file)
 		goto err1;
 	}
 
-	spin_lock_irq(&stagd->devp->lock);
-	idr_for_each(&stagd->devp->mmidr, dump_stag, stagd);
-	spin_unlock_irq(&stagd->devp->lock);
+	xa_lock_irq(&stagd->devp->mrs);
+	xa_for_each(&stagd->devp->mrs, index, p)
+		dump_stag(index, stagd);
+	xa_unlock_irq(&stagd->devp->mrs);
 
 	stagd->buf[stagd->pos++] = 0;
 	file->private_data = stagd;
@@ -480,6 +478,9 @@ static int stats_show(struct seq_file *seq, void *v)
 	seq_printf(seq, "      QID: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.qid.total, dev->rdev.stats.qid.cur,
 			dev->rdev.stats.qid.max, dev->rdev.stats.qid.fail);
+	seq_printf(seq, "     SRQS: %10llu %10llu %10llu %10llu\n",
+		   dev->rdev.stats.srqt.total, dev->rdev.stats.srqt.cur,
+			dev->rdev.stats.srqt.max, dev->rdev.stats.srqt.fail);
 	seq_printf(seq, "   TPTMEM: %10llu %10llu %10llu %10llu\n",
 			dev->rdev.stats.stag.total, dev->rdev.stats.stag.cur,
 			dev->rdev.stats.stag.max, dev->rdev.stats.stag.fail);
@@ -530,6 +531,8 @@ static ssize_t stats_clear(struct file *file, const char __user *buf,
 	dev->rdev.stats.pbl.fail = 0;
 	dev->rdev.stats.rqt.max = 0;
 	dev->rdev.stats.rqt.fail = 0;
+	dev->rdev.stats.rqt.max = 0;
+	dev->rdev.stats.rqt.fail = 0;
 	dev->rdev.stats.ocqp.max = 0;
 	dev->rdev.stats.ocqp.fail = 0;
 	dev->rdev.stats.db_full = 0;
@@ -552,10 +555,8 @@ static const struct file_operations stats_debugfs_fops = {
 	.write   = stats_clear,
 };
 
-static int dump_ep(int id, void *p, void *data)
+static int dump_ep(struct c4iw_ep *ep, struct c4iw_debugfs_data *epd)
 {
-	struct c4iw_ep *ep = p;
-	struct c4iw_debugfs_data *epd = data;
 	int space;
 	int cc;
 
@@ -611,10 +612,9 @@ static int dump_ep(int id, void *p, void *data)
 	return 0;
 }
 
-static int dump_listen_ep(int id, void *p, void *data)
+static
+int dump_listen_ep(struct c4iw_listen_ep *ep, struct c4iw_debugfs_data *epd)
 {
-	struct c4iw_listen_ep *ep = p;
-	struct c4iw_debugfs_data *epd = data;
 	int space;
 	int cc;
 
@@ -668,6 +668,9 @@ static int ep_release(struct inode *inode, struct file *file)
 
 static int ep_open(struct inode *inode, struct file *file)
 {
+	struct c4iw_ep *ep;
+	struct c4iw_listen_ep *lep;
+	unsigned long index;
 	struct c4iw_debugfs_data *epd;
 	int ret = 0;
 	int count = 1;
@@ -680,11 +683,12 @@ static int ep_open(struct inode *inode, struct file *file)
 	epd->devp = inode->i_private;
 	epd->pos = 0;
 
-	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->hwtid_idr, count_idrs, &count);
-	idr_for_each(&epd->devp->atid_idr, count_idrs, &count);
-	idr_for_each(&epd->devp->stid_idr, count_idrs, &count);
-	spin_unlock_irq(&epd->devp->lock);
+	xa_for_each(&epd->devp->hwtids, index, ep)
+		count++;
+	xa_for_each(&epd->devp->atids, index, ep)
+		count++;
+	xa_for_each(&epd->devp->stids, index, lep)
+		count++;
 
 	epd->bufsize = count * 240;
 	epd->buf = vmalloc(epd->bufsize);
@@ -693,11 +697,18 @@ static int ep_open(struct inode *inode, struct file *file)
 		goto err1;
 	}
 
-	spin_lock_irq(&epd->devp->lock);
-	idr_for_each(&epd->devp->hwtid_idr, dump_ep, epd);
-	idr_for_each(&epd->devp->atid_idr, dump_ep, epd);
-	idr_for_each(&epd->devp->stid_idr, dump_listen_ep, epd);
-	spin_unlock_irq(&epd->devp->lock);
+	xa_lock_irq(&epd->devp->hwtids);
+	xa_for_each(&epd->devp->hwtids, index, ep)
+		dump_ep(ep, epd);
+	xa_unlock_irq(&epd->devp->hwtids);
+	xa_lock_irq(&epd->devp->atids);
+	xa_for_each(&epd->devp->atids, index, ep)
+		dump_ep(ep, epd);
+	xa_unlock_irq(&epd->devp->atids);
+	xa_lock_irq(&epd->devp->stids);
+	xa_for_each(&epd->devp->stids, index, lep)
+		dump_listen_ep(lep, epd);
+	xa_unlock_irq(&epd->devp->stids);
 
 	file->private_data = epd;
 	goto out;
@@ -714,11 +725,8 @@ static const struct file_operations ep_debugfs_fops = {
 	.read    = debugfs_read,
 };
 
-static int setup_debugfs(struct c4iw_dev *devp)
+static void setup_debugfs(struct c4iw_dev *devp)
 {
-	if (!devp->debugfs_root)
-		return -1;
-
 	debugfs_create_file_size("qps", S_IWUSR, devp->debugfs_root,
 				 (void *)devp, &qp_debugfs_fops, 4096);
 
@@ -734,7 +742,6 @@ static int setup_debugfs(struct c4iw_dev *devp)
 	if (c4iw_wr_log)
 		debugfs_create_file_size("wr_log", S_IWUSR, devp->debugfs_root,
 					 (void *)devp, &wr_log_debugfs_fops, 4096);
-	return 0;
 }
 
 void c4iw_release_dev_ucontext(struct c4iw_rdev *rdev,
@@ -777,6 +784,7 @@ void c4iw_init_dev_ucontext(struct c4iw_rdev *rdev,
 static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 {
 	int err;
+	unsigned int factor;
 
 	c4iw_init_dev_ucontext(rdev, &rdev->uctx);
 
@@ -800,9 +808,19 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		return -EINVAL;
 	}
 
-	rdev->qpmask = rdev->lldi.udb_density - 1;
-	rdev->cqmask = rdev->lldi.ucq_density - 1;
-	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u\n",
+	/* This implementation requires a sge_host_page_size <= PAGE_SIZE. */
+	if (rdev->lldi.sge_host_page_size > PAGE_SIZE) {
+		pr_err("%s: unsupported sge host page size %u\n",
+		       pci_name(rdev->lldi.pdev),
+		       rdev->lldi.sge_host_page_size);
+		return -EINVAL;
+	}
+
+	factor = PAGE_SIZE / rdev->lldi.sge_host_page_size;
+	rdev->qpmask = (rdev->lldi.udb_density * factor) - 1;
+	rdev->cqmask = (rdev->lldi.ucq_density * factor) - 1;
+
+	pr_debug("dev %s stag start 0x%0x size 0x%0x num stags %d pbl start 0x%0x size 0x%0x rq start 0x%0x size 0x%0x qp qid start %u size %u cq qid start %u size %u srq size %u\n",
 		 pci_name(rdev->lldi.pdev), rdev->lldi.vr->stag.start,
 		 rdev->lldi.vr->stag.size, c4iw_num_stags(rdev),
 		 rdev->lldi.vr->pbl.start,
@@ -811,7 +829,8 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 		 rdev->lldi.vr->qp.start,
 		 rdev->lldi.vr->qp.size,
 		 rdev->lldi.vr->cq.start,
-		 rdev->lldi.vr->cq.size);
+		 rdev->lldi.vr->cq.size,
+		 rdev->lldi.vr->srq.size);
 	pr_debug("udb %pR db_reg %p gts_reg %p qpmask 0x%x cqmask 0x%x\n",
 		 &rdev->lldi.pdev->resource[2],
 		 rdev->lldi.db_reg, rdev->lldi.gts_reg,
@@ -824,10 +843,12 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->stats.stag.total = rdev->lldi.vr->stag.size;
 	rdev->stats.pbl.total = rdev->lldi.vr->pbl.size;
 	rdev->stats.rqt.total = rdev->lldi.vr->rq.size;
+	rdev->stats.srqt.total = rdev->lldi.vr->srq.size;
 	rdev->stats.ocqp.total = rdev->lldi.vr->ocq.size;
 	rdev->stats.qid.total = rdev->lldi.vr->qp.size;
 
-	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev), T4_MAX_NUM_PD);
+	err = c4iw_init_resource(rdev, c4iw_num_stags(rdev),
+				 T4_MAX_NUM_PD, rdev->lldi.vr->srq.size);
 	if (err) {
 		pr_err("error %d initializing resources\n", err);
 		return err;
@@ -857,10 +878,12 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	rdev->status_page->qp_size = rdev->lldi.vr->qp.size;
 	rdev->status_page->cq_start = rdev->lldi.vr->cq.start;
 	rdev->status_page->cq_size = rdev->lldi.vr->cq.size;
+	rdev->status_page->write_cmpl_supported = rdev->lldi.write_cmpl_support;
 
 	if (c4iw_wr_log) {
-		rdev->wr_log = kzalloc((1 << c4iw_wr_log_size_order) *
-				       sizeof(*rdev->wr_log), GFP_KERNEL);
+		rdev->wr_log = kcalloc(1 << c4iw_wr_log_size_order,
+				       sizeof(*rdev->wr_log),
+				       GFP_KERNEL);
 		if (rdev->wr_log) {
 			rdev->wr_log_size = 1 << c4iw_wr_log_size_order;
 			atomic_set(&rdev->wr_log_idx, 0);
@@ -874,6 +897,11 @@ static int c4iw_rdev_open(struct c4iw_rdev *rdev)
 	}
 
 	rdev->status_page->db_off = 0;
+
+	init_completion(&rdev->rqt_compl);
+	init_completion(&rdev->pbl_compl);
+	kref_init(&rdev->rqt_kref);
+	kref_init(&rdev->pbl_kref);
 
 	return 0;
 err_free_status_page_and_wr_log:
@@ -893,29 +921,27 @@ destroy_resource:
 
 static void c4iw_rdev_close(struct c4iw_rdev *rdev)
 {
-	destroy_workqueue(rdev->free_workq);
 	kfree(rdev->wr_log);
 	c4iw_release_dev_ucontext(rdev, &rdev->uctx);
 	free_page((unsigned long)rdev->status_page);
 	c4iw_pblpool_destroy(rdev);
 	c4iw_rqtpool_destroy(rdev);
+	wait_for_completion(&rdev->pbl_compl);
+	wait_for_completion(&rdev->rqt_compl);
 	c4iw_ocqp_pool_destroy(rdev);
+	destroy_workqueue(rdev->free_workq);
 	c4iw_destroy_resource(&rdev->resource);
 }
 
 void c4iw_dealloc(struct uld_ctx *ctx)
 {
 	c4iw_rdev_close(&ctx->dev->rdev);
-	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->cqidr));
-	idr_destroy(&ctx->dev->cqidr);
-	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->qpidr));
-	idr_destroy(&ctx->dev->qpidr);
-	WARN_ON_ONCE(!idr_is_empty(&ctx->dev->mmidr));
-	idr_destroy(&ctx->dev->mmidr);
-	wait_event(ctx->dev->wait, idr_is_empty(&ctx->dev->hwtid_idr));
-	idr_destroy(&ctx->dev->hwtid_idr);
-	idr_destroy(&ctx->dev->stid_idr);
-	idr_destroy(&ctx->dev->atid_idr);
+	WARN_ON(!xa_empty(&ctx->dev->cqs));
+	WARN_ON(!xa_empty(&ctx->dev->qps));
+	WARN_ON(!xa_empty(&ctx->dev->mrs));
+	wait_event(ctx->dev->wait, xa_empty(&ctx->dev->hwtids));
+	WARN_ON(!xa_empty(&ctx->dev->stids));
+	WARN_ON(!xa_empty(&ctx->dev->atids));
 	if (ctx->dev->rdev.bar2_kva)
 		iounmap(ctx->dev->rdev.bar2_kva);
 	if (ctx->dev->rdev.oc_mw_kva)
@@ -952,7 +978,7 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		pr_info("%s: On-Chip Queues not supported on this device\n",
 			pci_name(infop->pdev));
 
-	devp = (struct c4iw_dev *)ib_alloc_device(sizeof(*devp));
+	devp = ib_alloc_device(c4iw_dev, ibdev);
 	if (!devp) {
 		pr_err("Cannot allocate ib device\n");
 		return ERR_PTR(-ENOMEM);
@@ -1019,13 +1045,12 @@ static struct c4iw_dev *c4iw_alloc(const struct cxgb4_lld_info *infop)
 		return ERR_PTR(ret);
 	}
 
-	idr_init(&devp->cqidr);
-	idr_init(&devp->qpidr);
-	idr_init(&devp->mmidr);
-	idr_init(&devp->hwtid_idr);
-	idr_init(&devp->stid_idr);
-	idr_init(&devp->atid_idr);
-	spin_lock_init(&devp->lock);
+	xa_init_flags(&devp->cqs, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&devp->qps, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&devp->mrs, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&devp->hwtids, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&devp->atids, XA_FLAGS_LOCK_IRQ);
+	xa_init_flags(&devp->stids, XA_FLAGS_LOCK_IRQ);
 	mutex_init(&devp->rdev.stats.lock);
 	mutex_init(&devp->db_mutex);
 	INIT_LIST_HEAD(&devp->db_fc_list);
@@ -1053,7 +1078,7 @@ static void *c4iw_uld_add(const struct cxgb4_lld_info *infop)
 		pr_info("Chelsio T4/T5 RDMA Driver - version %s\n",
 			DRV_VERSION);
 
-	ctx = kzalloc(sizeof *ctx, GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx) {
 		ctx = ERR_PTR(-ENOMEM);
 		goto out;
@@ -1217,13 +1242,13 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 		if (ctx->dev)
 			c4iw_remove(ctx);
 		break;
+	case CXGB4_STATE_FATAL_ERROR:
 	case CXGB4_STATE_START_RECOVERY:
 		pr_info("%s: Fatal Error\n", pci_name(ctx->lldi.pdev));
 		if (ctx->dev) {
-			struct ib_event event;
+			struct ib_event event = {};
 
 			ctx->dev->rdev.flags |= T4_FATAL_ERROR;
-			memset(&event, 0, sizeof event);
 			event.event  = IB_EVENT_DEVICE_FATAL;
 			event.device = &ctx->dev->ibdev;
 			ib_dispatch_event(&event);
@@ -1239,34 +1264,21 @@ static int c4iw_uld_state_change(void *handle, enum cxgb4_state new_state)
 	return 0;
 }
 
-static int disable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_disable_wq_db(&qp->wq);
-	return 0;
-}
-
 static void stop_queues(struct uld_ctx *ctx)
 {
-	unsigned long flags;
+	struct c4iw_qp *qp;
+	unsigned long index, flags;
 
-	spin_lock_irqsave(&ctx->dev->lock, flags);
+	xa_lock_irqsave(&ctx->dev->qps, flags);
 	ctx->dev->rdev.stats.db_state_transitions++;
 	ctx->dev->db_state = STOPPED;
-	if (ctx->dev->rdev.flags & T4_STATUS_PAGE_DISABLED)
-		idr_for_each(&ctx->dev->qpidr, disable_qp_db, NULL);
-	else
+	if (ctx->dev->rdev.flags & T4_STATUS_PAGE_DISABLED) {
+		xa_for_each(&ctx->dev->qps, index, qp)
+			t4_disable_wq_db(&qp->wq);
+	} else {
 		ctx->dev->rdev.status_page->db_off = 1;
-	spin_unlock_irqrestore(&ctx->dev->lock, flags);
-}
-
-static int enable_qp_db(int id, void *p, void *data)
-{
-	struct c4iw_qp *qp = p;
-
-	t4_enable_wq_db(&qp->wq);
-	return 0;
+	}
+	xa_unlock_irqrestore(&ctx->dev->qps, flags);
 }
 
 static void resume_rc_qp(struct c4iw_qp *qp)
@@ -1296,18 +1308,21 @@ static void resume_a_chunk(struct uld_ctx *ctx)
 
 static void resume_queues(struct uld_ctx *ctx)
 {
-	spin_lock_irq(&ctx->dev->lock);
+	xa_lock_irq(&ctx->dev->qps);
 	if (ctx->dev->db_state != STOPPED)
 		goto out;
 	ctx->dev->db_state = FLOW_CONTROL;
 	while (1) {
 		if (list_empty(&ctx->dev->db_fc_list)) {
+			struct c4iw_qp *qp;
+			unsigned long index;
+
 			WARN_ON(ctx->dev->db_state != FLOW_CONTROL);
 			ctx->dev->db_state = NORMAL;
 			ctx->dev->rdev.stats.db_state_transitions++;
 			if (ctx->dev->rdev.flags & T4_STATUS_PAGE_DISABLED) {
-				idr_for_each(&ctx->dev->qpidr, enable_qp_db,
-					     NULL);
+				xa_for_each(&ctx->dev->qps, index, qp)
+					t4_enable_wq_db(&qp->wq);
 			} else {
 				ctx->dev->rdev.status_page->db_off = 0;
 			}
@@ -1319,12 +1334,12 @@ static void resume_queues(struct uld_ctx *ctx)
 				resume_a_chunk(ctx);
 			}
 			if (!list_empty(&ctx->dev->db_fc_list)) {
-				spin_unlock_irq(&ctx->dev->lock);
+				xa_unlock_irq(&ctx->dev->qps);
 				if (DB_FC_RESUME_DELAY) {
 					set_current_state(TASK_UNINTERRUPTIBLE);
 					schedule_timeout(DB_FC_RESUME_DELAY);
 				}
-				spin_lock_irq(&ctx->dev->lock);
+				xa_lock_irq(&ctx->dev->qps);
 				if (ctx->dev->db_state != FLOW_CONTROL)
 					break;
 			}
@@ -1333,30 +1348,13 @@ static void resume_queues(struct uld_ctx *ctx)
 out:
 	if (ctx->dev->db_state != NORMAL)
 		ctx->dev->rdev.stats.db_fc_interruptions++;
-	spin_unlock_irq(&ctx->dev->lock);
+	xa_unlock_irq(&ctx->dev->qps);
 }
 
 struct qp_list {
 	unsigned idx;
 	struct c4iw_qp **qps;
 };
-
-static int add_and_ref_qp(int id, void *p, void *data)
-{
-	struct qp_list *qp_listp = data;
-	struct c4iw_qp *qp = p;
-
-	c4iw_qp_add_ref(&qp->ibqp);
-	qp_listp->qps[qp_listp->idx++] = qp;
-	return 0;
-}
-
-static int count_qps(int id, void *p, void *data)
-{
-	unsigned *countp = data;
-	(*countp)++;
-	return 0;
-}
 
 static void deref_qps(struct qp_list *qp_list)
 {
@@ -1374,7 +1372,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 	for (idx = 0; idx < qp_list->idx; idx++) {
 		struct c4iw_qp *qp = qp_list->qps[idx];
 
-		spin_lock_irq(&qp->rhp->lock);
+		xa_lock_irq(&qp->rhp->qps);
 		spin_lock(&qp->lock);
 		ret = cxgb4_sync_txq_pidx(qp->rhp->rdev.lldi.ports[0],
 					  qp->wq.sq.qid,
@@ -1384,7 +1382,7 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 			pr_err("%s: Fatal error - DB overflow recovery failed - error syncing SQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.sq.qid);
 			spin_unlock(&qp->lock);
-			spin_unlock_irq(&qp->rhp->lock);
+			xa_unlock_irq(&qp->rhp->qps);
 			return;
 		}
 		qp->wq.sq.wq_pidx_inc = 0;
@@ -1398,12 +1396,12 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 			pr_err("%s: Fatal error - DB overflow recovery failed - error syncing RQ qid %u\n",
 			       pci_name(ctx->lldi.pdev), qp->wq.rq.qid);
 			spin_unlock(&qp->lock);
-			spin_unlock_irq(&qp->rhp->lock);
+			xa_unlock_irq(&qp->rhp->qps);
 			return;
 		}
 		qp->wq.rq.wq_pidx_inc = 0;
 		spin_unlock(&qp->lock);
-		spin_unlock_irq(&qp->rhp->lock);
+		xa_unlock_irq(&qp->rhp->qps);
 
 		/* Wait for the dbfifo to drain */
 		while (cxgb4_dbfifo_count(qp->rhp->rdev.lldi.ports[0], 1) > 0) {
@@ -1415,6 +1413,8 @@ static void recover_lost_dbs(struct uld_ctx *ctx, struct qp_list *qp_list)
 
 static void recover_queues(struct uld_ctx *ctx)
 {
+	struct c4iw_qp *qp;
+	unsigned long index;
 	int count = 0;
 	struct qp_list qp_list;
 	int ret;
@@ -1432,22 +1432,26 @@ static void recover_queues(struct uld_ctx *ctx)
 	}
 
 	/* Count active queues so we can build a list of queues to recover */
-	spin_lock_irq(&ctx->dev->lock);
+	xa_lock_irq(&ctx->dev->qps);
 	WARN_ON(ctx->dev->db_state != STOPPED);
 	ctx->dev->db_state = RECOVERY;
-	idr_for_each(&ctx->dev->qpidr, count_qps, &count);
+	xa_for_each(&ctx->dev->qps, index, qp)
+		count++;
 
-	qp_list.qps = kzalloc(count * sizeof *qp_list.qps, GFP_ATOMIC);
+	qp_list.qps = kcalloc(count, sizeof(*qp_list.qps), GFP_ATOMIC);
 	if (!qp_list.qps) {
-		spin_unlock_irq(&ctx->dev->lock);
+		xa_unlock_irq(&ctx->dev->qps);
 		return;
 	}
 	qp_list.idx = 0;
 
 	/* add and ref each qp so it doesn't get freed */
-	idr_for_each(&ctx->dev->qpidr, add_and_ref_qp, &qp_list);
+	xa_for_each(&ctx->dev->qps, index, qp) {
+		c4iw_qp_add_ref(&qp->ibqp);
+		qp_list.qps[qp_list.idx++] = qp;
+	}
 
-	spin_unlock_irq(&ctx->dev->lock);
+	xa_unlock_irq(&ctx->dev->qps);
 
 	/* now traverse the list in a safe context to recover the db state*/
 	recover_lost_dbs(ctx, &qp_list);
@@ -1456,10 +1460,10 @@ static void recover_queues(struct uld_ctx *ctx)
 	deref_qps(&qp_list);
 	kfree(qp_list.qps);
 
-	spin_lock_irq(&ctx->dev->lock);
+	xa_lock_irq(&ctx->dev->qps);
 	WARN_ON(ctx->dev->db_state != RECOVERY);
 	ctx->dev->db_state = STOPPED;
-	spin_unlock_irq(&ctx->dev->lock);
+	xa_unlock_irq(&ctx->dev->qps);
 }
 
 static int c4iw_uld_control(void *handle, enum cxgb4_control control, ...)
@@ -1534,8 +1538,6 @@ static int __init c4iw_init_module(void)
 		return err;
 
 	c4iw_debugfs_root = debugfs_create_dir(DRV_NAME, NULL);
-	if (!c4iw_debugfs_root)
-		pr_warn("could not create debugfs entry, continuing\n");
 
 	reg_workq = create_singlethread_workqueue("Register_iWARP_device");
 	if (!reg_workq) {

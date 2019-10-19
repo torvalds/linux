@@ -7,7 +7,7 @@
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
 
 /*
- * Non-existant functions to indicate usage errors at link time
+ * Non-existent functions to indicate usage errors at link time
  * (or compile-time if the compiler implements __compiletime_error().
  */
 extern void __xchg_wrong_size(void)
@@ -75,7 +75,7 @@ extern void __add_wrong_size(void)
  * use "asm volatile" and "memory" clobbers to prevent gcc from moving
  * information around.
  */
-#define xchg(ptr, v)	__xchg_op((ptr), (v), xchg, "")
+#define arch_xchg(ptr, v)	__xchg_op((ptr), (v), xchg, "")
 
 /*
  * Atomic compare and exchange.  Compare OLD with MEM, if identical,
@@ -145,13 +145,13 @@ extern void __add_wrong_size(void)
 # include <asm/cmpxchg_64.h>
 #endif
 
-#define cmpxchg(ptr, old, new)						\
+#define arch_cmpxchg(ptr, old, new)					\
 	__cmpxchg(ptr, old, new, sizeof(*(ptr)))
 
-#define sync_cmpxchg(ptr, old, new)					\
+#define arch_sync_cmpxchg(ptr, old, new)				\
 	__sync_cmpxchg(ptr, old, new, sizeof(*(ptr)))
 
-#define cmpxchg_local(ptr, old, new)					\
+#define arch_cmpxchg_local(ptr, old, new)				\
 	__cmpxchg_local(ptr, old, new, sizeof(*(ptr)))
 
 
@@ -221,7 +221,7 @@ extern void __add_wrong_size(void)
 #define __try_cmpxchg(ptr, pold, new, size)				\
 	__raw_try_cmpxchg((ptr), (pold), (new), (size), LOCK_PREFIX)
 
-#define try_cmpxchg(ptr, pold, new)					\
+#define try_cmpxchg(ptr, pold, new) 					\
 	__try_cmpxchg((ptr), (pold), (new), sizeof(*(ptr)))
 
 /*
@@ -242,18 +242,20 @@ extern void __add_wrong_size(void)
 	BUILD_BUG_ON(sizeof(*(p2)) != sizeof(long));			\
 	VM_BUG_ON((unsigned long)(p1) % (2 * sizeof(long)));		\
 	VM_BUG_ON((unsigned long)((p1) + 1) != (unsigned long)(p2));	\
-	asm volatile(pfx "cmpxchg%c4b %2; sete %0"			\
-		     : "=a" (__ret), "+d" (__old2),			\
-		       "+m" (*(p1)), "+m" (*(p2))			\
-		     : "i" (2 * sizeof(long)), "a" (__old1),		\
+	asm volatile(pfx "cmpxchg%c5b %1"				\
+		     CC_SET(e)						\
+		     : CC_OUT(e) (__ret),				\
+		       "+m" (*(p1)), "+m" (*(p2)),			\
+		       "+a" (__old1), "+d" (__old2)			\
+		     : "i" (2 * sizeof(long)),				\
 		       "b" (__new1), "c" (__new2));			\
 	__ret;								\
 })
 
-#define cmpxchg_double(p1, p2, o1, o2, n1, n2) \
+#define arch_cmpxchg_double(p1, p2, o1, o2, n1, n2) \
 	__cmpxchg_double(LOCK_PREFIX, p1, p2, o1, o2, n1, n2)
 
-#define cmpxchg_double_local(p1, p2, o1, o2, n1, n2) \
+#define arch_cmpxchg_double_local(p1, p2, o1, o2, n1, n2) \
 	__cmpxchg_double(, p1, p2, o1, o2, n1, n2)
 
 #endif	/* ASM_X86_CMPXCHG_H */

@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tc654.c - Linux kernel modules for fan speed controller
  *
  * Copyright (C) 2016 Allied Telesis Labs NZ
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitops.h>
@@ -200,7 +191,7 @@ out:
  * sysfs attributes
  */
 
-static ssize_t show_fan(struct device *dev, struct device_attribute *da,
+static ssize_t fan_show(struct device *dev, struct device_attribute *da,
 			char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
@@ -218,7 +209,7 @@ static ssize_t show_fan(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t show_fan_min(struct device *dev, struct device_attribute *da,
+static ssize_t fan_min_show(struct device *dev, struct device_attribute *da,
 			    char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
@@ -231,8 +222,8 @@ static ssize_t show_fan_min(struct device *dev, struct device_attribute *da,
 		       TC654_FAN_FAULT_FROM_REG(data->fan_fault[nr]));
 }
 
-static ssize_t set_fan_min(struct device *dev, struct device_attribute *da,
-			   const char *buf, size_t count)
+static ssize_t fan_min_store(struct device *dev, struct device_attribute *da,
+			     const char *buf, size_t count)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct tc654_data *data = dev_get_drvdata(dev);
@@ -255,7 +246,7 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *da,
 	return ret < 0 ? ret : count;
 }
 
-static ssize_t show_fan_alarm(struct device *dev, struct device_attribute *da,
+static ssize_t fan_alarm_show(struct device *dev, struct device_attribute *da,
 			      char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
@@ -275,8 +266,8 @@ static ssize_t show_fan_alarm(struct device *dev, struct device_attribute *da,
 
 static const u8 TC654_FAN_PULSE_SHIFT[] = { 1, 3 };
 
-static ssize_t show_fan_pulses(struct device *dev, struct device_attribute *da,
-			       char *buf)
+static ssize_t fan_pulses_show(struct device *dev,
+			       struct device_attribute *da, char *buf)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct tc654_data *data = tc654_update_client(dev);
@@ -289,8 +280,9 @@ static ssize_t show_fan_pulses(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", val);
 }
 
-static ssize_t set_fan_pulses(struct device *dev, struct device_attribute *da,
-			      const char *buf, size_t count)
+static ssize_t fan_pulses_store(struct device *dev,
+				struct device_attribute *da, const char *buf,
+				size_t count)
 {
 	int nr = to_sensor_dev_attr(da)->index;
 	struct tc654_data *data = dev_get_drvdata(dev);
@@ -329,8 +321,8 @@ static ssize_t set_fan_pulses(struct device *dev, struct device_attribute *da,
 	return ret < 0 ? ret : count;
 }
 
-static ssize_t show_pwm_mode(struct device *dev,
-			     struct device_attribute *da, char *buf)
+static ssize_t pwm_mode_show(struct device *dev, struct device_attribute *da,
+			     char *buf)
 {
 	struct tc654_data *data = tc654_update_client(dev);
 
@@ -340,9 +332,8 @@ static ssize_t show_pwm_mode(struct device *dev,
 	return sprintf(buf, "%d\n", !!(data->config & TC654_REG_CONFIG_DUTYC));
 }
 
-static ssize_t set_pwm_mode(struct device *dev,
-			    struct device_attribute *da,
-			    const char *buf, size_t count)
+static ssize_t pwm_mode_store(struct device *dev, struct device_attribute *da,
+			      const char *buf, size_t count)
 {
 	struct tc654_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -371,7 +362,7 @@ static ssize_t set_pwm_mode(struct device *dev,
 static const int tc654_pwm_map[16] = { 77,  88, 102, 112, 124, 136, 148, 160,
 				      172, 184, 196, 207, 219, 231, 243, 255};
 
-static ssize_t show_pwm(struct device *dev, struct device_attribute *da,
+static ssize_t pwm_show(struct device *dev, struct device_attribute *da,
 			char *buf)
 {
 	struct tc654_data *data = tc654_update_client(dev);
@@ -388,8 +379,8 @@ static ssize_t show_pwm(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", pwm);
 }
 
-static ssize_t set_pwm(struct device *dev, struct device_attribute *da,
-		       const char *buf, size_t count)
+static ssize_t pwm_store(struct device *dev, struct device_attribute *da,
+			 const char *buf, size_t count)
 {
 	struct tc654_data *data = dev_get_drvdata(dev);
 	struct i2c_client *client = data->client;
@@ -423,22 +414,16 @@ out:
 	return ret < 0 ? ret : count;
 }
 
-static SENSOR_DEVICE_ATTR(fan1_input, S_IRUGO, show_fan, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_input, S_IRUGO, show_fan, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan1_min, S_IWUSR | S_IRUGO, show_fan_min,
-			  set_fan_min, 0);
-static SENSOR_DEVICE_ATTR(fan2_min, S_IWUSR | S_IRUGO, show_fan_min,
-			  set_fan_min, 1);
-static SENSOR_DEVICE_ATTR(fan1_alarm, S_IRUGO, show_fan_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(fan2_alarm, S_IRUGO, show_fan_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(fan1_pulses, S_IWUSR | S_IRUGO, show_fan_pulses,
-			  set_fan_pulses, 0);
-static SENSOR_DEVICE_ATTR(fan2_pulses, S_IWUSR | S_IRUGO, show_fan_pulses,
-			  set_fan_pulses, 1);
-static SENSOR_DEVICE_ATTR(pwm1_mode, S_IWUSR | S_IRUGO,
-			  show_pwm_mode, set_pwm_mode, 0);
-static SENSOR_DEVICE_ATTR(pwm1, S_IWUSR | S_IRUGO, show_pwm,
-			  set_pwm, 0);
+static SENSOR_DEVICE_ATTR_RO(fan1_input, fan, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_input, fan, 1);
+static SENSOR_DEVICE_ATTR_RW(fan1_min, fan_min, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_min, fan_min, 1);
+static SENSOR_DEVICE_ATTR_RO(fan1_alarm, fan_alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(fan2_alarm, fan_alarm, 1);
+static SENSOR_DEVICE_ATTR_RW(fan1_pulses, fan_pulses, 0);
+static SENSOR_DEVICE_ATTR_RW(fan2_pulses, fan_pulses, 1);
+static SENSOR_DEVICE_ATTR_RW(pwm1_mode, pwm_mode, 0);
+static SENSOR_DEVICE_ATTR_RW(pwm1, pwm, 0);
 
 /* Driver data */
 static struct attribute *tc654_attrs[] = {

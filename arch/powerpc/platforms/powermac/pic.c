@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Support for the interrupt controllers found on Power Macintosh,
  *  currently Apple's "Grand Central" interrupt controller in all
@@ -7,12 +8,6 @@
  *  Copyright (C) 1997 Paul Mackerras (paulus@samba.org)
  *  Copyright (C) 2005 Benjamin Herrenschmidt (benh@kernel.crashing.org)
  *                     IBM, Corp.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 
 #include <linux/stddef.h>
@@ -417,7 +412,7 @@ int of_irq_parse_oldworld(struct device_node *device, int index,
 		if (ints != NULL)
 			break;
 		device = device->parent;
-		if (device && strcmp(device->type, "pci") != 0)
+		if (!of_node_is_type(device, "pci"))
 			break;
 	}
 	if (ints == NULL)
@@ -553,13 +548,13 @@ void __init pmac_pic_init(void)
 
 		for_each_node_with_property(np, "interrupt-controller") {
 			/* Skip /chosen/interrupt-controller */
-			if (strcmp(np->name, "chosen") == 0)
+			if (of_node_name_eq(np, "chosen"))
 				continue;
 			/* It seems like at least one person wants
 			 * to use BootX on a machine with an AppleKiwi
 			 * controller which happens to pretend to be an
 			 * interrupt controller too. */
-			if (strcmp(np->name, "AppleKiwi") == 0)
+			if (of_node_name_eq(np, "AppleKiwi"))
 				continue;
 			/* I think we found one ! */
 			of_irq_dflt_pic = np;

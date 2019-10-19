@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 LAPIS Semiconductor Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/module.h>
@@ -68,7 +56,6 @@ static const DECLARE_TLV_DB_SCALE(alclvl, -2250, 150, 0);
 static const DECLARE_TLV_DB_SCALE(mingain, -1200, 600, 0);
 static const DECLARE_TLV_DB_SCALE(maxgain, -675, 600, 0);
 static const DECLARE_TLV_DB_SCALE(boost_vol, -1200, 75, 0);
-static const DECLARE_TLV_DB_SCALE(ngth, -7650, 150, 0);
 
 static const char * const ml26124_companding[] = {"16bit PCM", "u-law",
 						  "A-law"};
@@ -338,8 +325,8 @@ static int ml26124_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *hw_params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ml26124_priv *priv = snd_soc_component_get_drvdata(component);
 	int i = get_coeff(priv->mclk, params_rate(hw_params));
 	int srate;
 
@@ -351,23 +338,23 @@ static int ml26124_hw_params(struct snd_pcm_substream *substream,
 	if (priv->clk_in) {
 		switch (priv->mclk / params_rate(hw_params)) {
 		case 256:
-			snd_soc_update_bits(codec, ML26124_CLK_CTL,
+			snd_soc_component_update_bits(component, ML26124_CLK_CTL,
 					    BIT(0) | BIT(1), 1);
 			break;
 		case 512:
-			snd_soc_update_bits(codec, ML26124_CLK_CTL,
+			snd_soc_component_update_bits(component, ML26124_CLK_CTL,
 					    BIT(0) | BIT(1), 2);
 			break;
 		case 1024:
-			snd_soc_update_bits(codec, ML26124_CLK_CTL,
+			snd_soc_component_update_bits(component, ML26124_CLK_CTL,
 					    BIT(0) | BIT(1), 3);
 			break;
 		default:
-			dev_err(codec->dev, "Unsupported MCLKI\n");
+			dev_err(component->dev, "Unsupported MCLKI\n");
 			break;
 		}
 	} else {
-		snd_soc_update_bits(codec, ML26124_CLK_CTL,
+		snd_soc_component_update_bits(component, ML26124_CLK_CTL,
 				    BIT(0) | BIT(1), 0);
 	}
 
@@ -375,35 +362,35 @@ static int ml26124_hw_params(struct snd_pcm_substream *substream,
 	if (srate < 0)
 		return srate;
 
-	snd_soc_update_bits(codec, ML26124_SMPLING_RATE, 0xf, srate);
-	snd_soc_update_bits(codec, ML26124_PLLNL, 0xff, coeff_div[i].pllnl);
-	snd_soc_update_bits(codec, ML26124_PLLNH, 0x1, coeff_div[i].pllnh);
-	snd_soc_update_bits(codec, ML26124_PLLML, 0xff, coeff_div[i].pllml);
-	snd_soc_update_bits(codec, ML26124_PLLMH, 0x3f, coeff_div[i].pllmh);
-	snd_soc_update_bits(codec, ML26124_PLLDIV, 0x1f, coeff_div[i].plldiv);
+	snd_soc_component_update_bits(component, ML26124_SMPLING_RATE, 0xf, srate);
+	snd_soc_component_update_bits(component, ML26124_PLLNL, 0xff, coeff_div[i].pllnl);
+	snd_soc_component_update_bits(component, ML26124_PLLNH, 0x1, coeff_div[i].pllnh);
+	snd_soc_component_update_bits(component, ML26124_PLLML, 0xff, coeff_div[i].pllml);
+	snd_soc_component_update_bits(component, ML26124_PLLMH, 0x3f, coeff_div[i].pllmh);
+	snd_soc_component_update_bits(component, ML26124_PLLDIV, 0x1f, coeff_div[i].plldiv);
 
 	return 0;
 }
 
 static int ml26124_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ml26124_priv *priv = snd_soc_component_get_drvdata(component);
 
 	switch (priv->substream->stream) {
 	case SNDRV_PCM_STREAM_CAPTURE:
-		snd_soc_update_bits(codec, ML26124_REC_PLYBAK_RUN, BIT(0), 1);
+		snd_soc_component_update_bits(component, ML26124_REC_PLYBAK_RUN, BIT(0), 1);
 		break;
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		snd_soc_update_bits(codec, ML26124_REC_PLYBAK_RUN, BIT(1), 2);
+		snd_soc_component_update_bits(component, ML26124_REC_PLYBAK_RUN, BIT(1), 2);
 		break;
 	}
 
 	if (mute)
-		snd_soc_update_bits(codec, ML26124_DVOL_CTL, BIT(4),
+		snd_soc_component_update_bits(component, ML26124_DVOL_CTL, BIT(4),
 				    DVOL_CTL_DVMUTE_ON);
 	else
-		snd_soc_update_bits(codec, ML26124_DVOL_CTL, BIT(4),
+		snd_soc_component_update_bits(component, ML26124_DVOL_CTL, BIT(4),
 				    DVOL_CTL_DVMUTE_OFF);
 
 	return 0;
@@ -413,7 +400,7 @@ static int ml26124_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
 	unsigned char mode;
-	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_component *component = codec_dai->component;
 
 	/* set master/slave audio interface */
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
@@ -426,7 +413,7 @@ static int ml26124_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	default:
 		return -EINVAL;
 	}
-	snd_soc_update_bits(codec, ML26124_SAI_MODE_SEL, BIT(0), mode);
+	snd_soc_component_update_bits(component, ML26124_SAI_MODE_SEL, BIT(0), mode);
 
 	/* interface format */
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
@@ -450,8 +437,8 @@ static int ml26124_set_dai_fmt(struct snd_soc_dai *codec_dai,
 static int ml26124_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct ml26124_priv *priv = snd_soc_component_get_drvdata(component);
 
 	switch (clk_id) {
 	case ML26124_USE_PLLOUT:
@@ -469,17 +456,17 @@ static int ml26124_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
-static int ml26124_set_bias_level(struct snd_soc_codec *codec,
+static int ml26124_set_bias_level(struct snd_soc_component *component,
 		enum snd_soc_bias_level level)
 {
-	struct ml26124_priv *priv = snd_soc_codec_get_drvdata(codec);
+	struct ml26124_priv *priv = snd_soc_component_get_drvdata(component);
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
-		snd_soc_update_bits(codec, ML26124_PW_SPAMP_PW_MNG,
+		snd_soc_component_update_bits(component, ML26124_PW_SPAMP_PW_MNG,
 				    ML26124_R26_MASK, ML26124_BLT_PREAMP_ON);
 		msleep(100);
-		snd_soc_update_bits(codec, ML26124_PW_SPAMP_PW_MNG,
+		snd_soc_component_update_bits(component, ML26124_PW_SPAMP_PW_MNG,
 				    ML26124_R26_MASK,
 				    ML26124_MICBEN_ON | ML26124_BLT_ALL_ON);
 		break;
@@ -487,8 +474,8 @@ static int ml26124_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_STANDBY:
 		/* VMID ON */
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
-			snd_soc_update_bits(codec, ML26124_PW_REF_PW_MNG,
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
+			snd_soc_component_update_bits(component, ML26124_PW_REF_PW_MNG,
 					    ML26124_VMID, ML26124_VMID);
 			msleep(500);
 			regcache_sync(priv->regmap);
@@ -496,7 +483,7 @@ static int ml26124_set_bias_level(struct snd_soc_codec *codec,
 		break;
 	case SND_SOC_BIAS_OFF:
 		/* VMID OFF */
-		snd_soc_update_bits(codec, ML26124_PW_REF_PW_MNG,
+		snd_soc_component_update_bits(component, ML26124_PW_REF_PW_MNG,
 				    ML26124_VMID, 0);
 		break;
 	}
@@ -528,27 +515,29 @@ static struct snd_soc_dai_driver ml26124_dai = {
 	.symmetric_rates = 1,
 };
 
-static int ml26124_probe(struct snd_soc_codec *codec)
+static int ml26124_probe(struct snd_soc_component *component)
 {
 	/* Software Reset */
-	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 1);
-	snd_soc_update_bits(codec, ML26124_SW_RST, 0x01, 0);
+	snd_soc_component_update_bits(component, ML26124_SW_RST, 0x01, 1);
+	snd_soc_component_update_bits(component, ML26124_SW_RST, 0x01, 0);
 
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_ml26124 = {
-	.probe =	ml26124_probe,
-	.set_bias_level = ml26124_set_bias_level,
-	.suspend_bias_off = true,
-	.component_driver = {
-		.controls		= ml26124_snd_controls,
-		.num_controls		= ARRAY_SIZE(ml26124_snd_controls),
-		.dapm_widgets		= ml26124_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ml26124_dapm_widgets),
-		.dapm_routes		= ml26124_intercon,
-		.num_dapm_routes	= ARRAY_SIZE(ml26124_intercon),
-	},
+static const struct snd_soc_component_driver soc_component_dev_ml26124 = {
+	.probe			= ml26124_probe,
+	.set_bias_level		= ml26124_set_bias_level,
+	.controls		= ml26124_snd_controls,
+	.num_controls		= ARRAY_SIZE(ml26124_snd_controls),
+	.dapm_widgets		= ml26124_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ml26124_dapm_widgets),
+	.dapm_routes		= ml26124_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(ml26124_intercon),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ml26124_i2c_regmap = {
@@ -580,14 +569,8 @@ static int ml26124_i2c_probe(struct i2c_client *i2c,
 		return ret;
 	}
 
-	return snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_ml26124, &ml26124_dai, 1);
-}
-
-static int ml26124_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
+	return devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_ml26124, &ml26124_dai, 1);
 }
 
 static const struct i2c_device_id ml26124_i2c_id[] = {
@@ -601,7 +584,6 @@ static struct i2c_driver ml26124_i2c_driver = {
 		.name = "ml26124",
 	},
 	.probe = ml26124_i2c_probe,
-	.remove = ml26124_i2c_remove,
 	.id_table = ml26124_i2c_id,
 };
 

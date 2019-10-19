@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config IWLWIFI
 	tristate "Intel Wireless WiFi Next Gen AGN - Wireless-N/Advanced-N/Ultimate-N (iwlwifi) "
-	depends on PCI && MAC80211 && HAS_IOMEM
+	depends on PCI && HAS_IOMEM && CFG80211
 	select FW_LOADER
 	---help---
 	  Select to build the driver supporting the:
@@ -39,7 +40,7 @@ config IWLWIFI
 
 	  If you want to compile the driver as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want),
-	  say M here and read <file:Documentation/kbuild/modules.txt>.  The
+	  say M here and read <file:Documentation/kbuild/modules.rst>.  The
 	  module will be called iwlwifi.
 
 if IWLWIFI
@@ -47,12 +48,14 @@ if IWLWIFI
 config IWLWIFI_LEDS
 	bool
 	depends on LEDS_CLASS=y || LEDS_CLASS=IWLWIFI
+	depends on IWLMVM || IWLDVM
 	select LEDS_TRIGGERS
 	select MAC80211_LEDS
 	default y
 
 config IWLDVM
 	tristate "Intel Wireless WiFi DVM Firmware support"
+	depends on MAC80211
 	help
 	  This is the driver that supports the DVM firmware. The list
 	  of the devices that use this firmware is available here:
@@ -61,6 +64,7 @@ config IWLDVM
 config IWLMVM
 	tristate "Intel Wireless WiFi MVM Firmware support"
 	select WANT_DEV_COREDUMP
+	depends on MAC80211
 	help
 	  This is the driver that supports the MVM firmware. The list
 	  of the devices that use this firmware is available here:
@@ -87,21 +91,6 @@ config IWLWIFI_BCAST_FILTERING
 
 	  If unsure, don't enable this option, as some programs might
 	  expect incoming broadcasts for their normal operations.
-
-config IWLWIFI_PCIE_RTPM
-       bool "Enable runtime power management mode for PCIe devices"
-       depends on IWLMVM && PM && EXPERT
-       default false
-       help
-         Say Y here to enable runtime power management for PCIe
-         devices.  If enabled, the device will go into low power mode
-         when idle for a short period of time, allowing for improved
-         power saving during runtime. Note that this feature requires
-         a tight integration with the platform. It is not recommended
-         to enable this feature without proper validation with the
-         specific target platform.
-
-	 If unsure, say N.
 
 menu "Debugging Options"
 
@@ -130,9 +119,9 @@ config IWLWIFI_DEBUG
 	  any problems you may encounter.
 
 config IWLWIFI_DEBUGFS
-        bool "iwlwifi debugfs support"
-        depends on MAC80211_DEBUGFS
-        ---help---
+	bool "iwlwifi debugfs support"
+	depends on MAC80211_DEBUGFS
+	---help---
 	  Enable creation of debugfs files for the iwlwifi drivers. This
 	  is a low-impact option that allows getting insight into the
 	  driver's state at runtime.

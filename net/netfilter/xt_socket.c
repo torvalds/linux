@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Transparent proxy support for Linux/iptables
  *
  * Copyright (C) 2007-2008 BalaBit IT Ltd.
  * Author: Krisztian Kovacs
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
@@ -56,8 +52,12 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	struct sk_buff *pskb = (struct sk_buff *)skb;
 	struct sock *sk = skb->sk;
 
+	if (sk && !net_eq(xt_net(par), sock_net(sk)))
+		sk = NULL;
+
 	if (!sk)
 		sk = nf_sk_lookup_slow_v4(xt_net(par), skb, xt_in(par));
+
 	if (sk) {
 		bool wildcard;
 		bool transparent = true;
@@ -73,7 +73,7 @@ socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 		 * if XT_SOCKET_TRANSPARENT is used
 		 */
 		if (info->flags & XT_SOCKET_TRANSPARENT)
-			transparent = nf_sk_is_transparent(sk);
+			transparent = inet_sk_transparent(sk);
 
 		if (info->flags & XT_SOCKET_RESTORESKMARK && !wildcard &&
 		    transparent && sk_fullsock(sk))
@@ -113,8 +113,12 @@ socket_mt6_v1_v2_v3(const struct sk_buff *skb, struct xt_action_param *par)
 	struct sk_buff *pskb = (struct sk_buff *)skb;
 	struct sock *sk = skb->sk;
 
+	if (sk && !net_eq(xt_net(par), sock_net(sk)))
+		sk = NULL;
+
 	if (!sk)
 		sk = nf_sk_lookup_slow_v6(xt_net(par), skb, xt_in(par));
+
 	if (sk) {
 		bool wildcard;
 		bool transparent = true;
@@ -130,7 +134,7 @@ socket_mt6_v1_v2_v3(const struct sk_buff *skb, struct xt_action_param *par)
 		 * if XT_SOCKET_TRANSPARENT is used
 		 */
 		if (info->flags & XT_SOCKET_TRANSPARENT)
-			transparent = nf_sk_is_transparent(sk);
+			transparent = inet_sk_transparent(sk);
 
 		if (info->flags & XT_SOCKET_RESTORESKMARK && !wildcard &&
 		    transparent && sk_fullsock(sk))
@@ -171,7 +175,8 @@ static int socket_mt_v1_check(const struct xt_mtchk_param *par)
 		return err;
 
 	if (info->flags & ~XT_SOCKET_FLAGS_V1) {
-		pr_info("unknown flags 0x%x\n", info->flags & ~XT_SOCKET_FLAGS_V1);
+		pr_info_ratelimited("unknown flags 0x%x\n",
+				    info->flags & ~XT_SOCKET_FLAGS_V1);
 		return -EINVAL;
 	}
 	return 0;
@@ -187,7 +192,8 @@ static int socket_mt_v2_check(const struct xt_mtchk_param *par)
 		return err;
 
 	if (info->flags & ~XT_SOCKET_FLAGS_V2) {
-		pr_info("unknown flags 0x%x\n", info->flags & ~XT_SOCKET_FLAGS_V2);
+		pr_info_ratelimited("unknown flags 0x%x\n",
+				    info->flags & ~XT_SOCKET_FLAGS_V2);
 		return -EINVAL;
 	}
 	return 0;
@@ -203,8 +209,8 @@ static int socket_mt_v3_check(const struct xt_mtchk_param *par)
 	if (err)
 		return err;
 	if (info->flags & ~XT_SOCKET_FLAGS_V3) {
-		pr_info("unknown flags 0x%x\n",
-			info->flags & ~XT_SOCKET_FLAGS_V3);
+		pr_info_ratelimited("unknown flags 0x%x\n",
+				    info->flags & ~XT_SOCKET_FLAGS_V3);
 		return -EINVAL;
 	}
 	return 0;

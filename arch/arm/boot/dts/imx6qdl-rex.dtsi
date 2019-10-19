@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2014 FEDEVEL, Inc.
  *
  * Author: Robert Nelson <robertcnelson@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <dt-bindings/gpio/gpio.h>
@@ -137,7 +133,7 @@
 	status = "okay";
 
 	eeprom@57 {
-		compatible = "at,24c02";
+		compatible = "atmel,24c02";
 		reg = <0x57>;
 	};
 };

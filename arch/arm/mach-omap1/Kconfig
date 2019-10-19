@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_OMAP1
 
 menu "TI OMAP1 specific features"
@@ -30,6 +31,7 @@ config ARCH_OMAP16XX
 	bool "OMAP16xx Based System"
 	select ARCH_OMAP_OTG
 	select CPU_ARM926T
+	select OMAP_DM_TIMER
 
 config OMAP_MUX
 	bool "OMAP multiplexing support"

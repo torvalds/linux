@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 1998-2009 VIA Technologies, Inc. All Rights Reserved.
  * Copyright 2001-2008 S3 Graphics, Inc. All Rights Reserved.
@@ -17,7 +18,6 @@
 #include <linux/platform_device.h>
 #include <linux/list.h>
 #include <linux/pm.h>
-#include <asm/olpc.h>
 
 /*
  * The default port config.
@@ -220,49 +220,6 @@ void viafb_release_dma(void)
 	mutex_unlock(&viafb_dma_lock);
 }
 EXPORT_SYMBOL_GPL(viafb_release_dma);
-
-
-#if 0
-/*
- * Copy a single buffer from FB memory, synchronously.  This code works
- * but is not currently used.
- */
-void viafb_dma_copy_out(unsigned int offset, dma_addr_t paddr, int len)
-{
-	unsigned long flags;
-	int csr;
-
-	mutex_lock(&viafb_dma_lock);
-	init_completion(&viafb_dma_completion);
-	/*
-	 * Program the controller.
-	 */
-	spin_lock_irqsave(&global_dev.reg_lock, flags);
-	viafb_mmio_write(VDMA_CSR0, VDMA_C_ENABLE|VDMA_C_DONE);
-	/* Enable ints; must happen after CSR0 write! */
-	viafb_mmio_write(VDMA_MR0, VDMA_MR_TDIE);
-	viafb_mmio_write(VDMA_MARL0, (int) (paddr & 0xfffffff0));
-	viafb_mmio_write(VDMA_MARH0, (int) ((paddr >> 28) & 0xfff));
-	/* Data sheet suggests DAR0 should be <<4, but it lies */
-	viafb_mmio_write(VDMA_DAR0, offset);
-	viafb_mmio_write(VDMA_DQWCR0, len >> 4);
-	viafb_mmio_write(VDMA_TMR0, 0);
-	viafb_mmio_write(VDMA_DPRL0, 0);
-	viafb_mmio_write(VDMA_DPRH0, 0);
-	viafb_mmio_write(VDMA_PMR0, 0);
-	csr = viafb_mmio_read(VDMA_CSR0);
-	viafb_mmio_write(VDMA_CSR0, VDMA_C_ENABLE|VDMA_C_START);
-	spin_unlock_irqrestore(&global_dev.reg_lock, flags);
-	/*
-	 * Now we just wait until the interrupt handler says
-	 * we're done.
-	 */
-	wait_for_completion_interruptible(&viafb_dma_completion);
-	viafb_mmio_write(VDMA_MR0, 0); /* Reset int enable */
-	mutex_unlock(&viafb_dma_lock);
-}
-EXPORT_SYMBOL_GPL(viafb_dma_copy_out);
-#endif
 
 /*
  * Do a scatter/gather DMA copy from FB memory.  You must have done

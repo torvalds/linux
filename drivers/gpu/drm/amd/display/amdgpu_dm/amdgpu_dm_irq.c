@@ -23,8 +23,6 @@
  *
  */
 
-#include <drm/drmP.h>
-
 #include "dm_services_types.h"
 #include "dc.h"
 
@@ -32,28 +30,58 @@
 #include "amdgpu_dm.h"
 #include "amdgpu_dm_irq.h"
 
+/**
+ * DOC: overview
+ *
+ * DM provides another layer of IRQ management on top of what the base driver
+ * already provides. This is something that could be cleaned up, and is a
+ * future TODO item.
+ *
+ * The base driver provides IRQ source registration with DRM, handler
+ * registration into the base driver's IRQ table, and a handler callback
+ * amdgpu_irq_handler(), with which DRM calls on interrupts. This generic
+ * handler looks up the IRQ table, and calls the respective
+ * &amdgpu_irq_src_funcs.process hookups.
+ *
+ * What DM provides on top are two IRQ tables specifically for top-half and
+ * bottom-half IRQ handling, with the bottom-half implementing workqueues:
+ *
+ * - &amdgpu_display_manager.irq_handler_list_high_tab
+ * - &amdgpu_display_manager.irq_handler_list_low_tab
+ *
+ * They override the base driver's IRQ table, and the effect can be seen
+ * in the hooks that DM provides for &amdgpu_irq_src_funcs.process. They
+ * are all set to the DM generic handler amdgpu_dm_irq_handler(), which looks up
+ * DM's IRQ tables. However, in order for base driver to recognize this hook, DM
+ * still needs to register the IRQ with the base driver. See
+ * dce110_register_irq_handlers() and dcn10_register_irq_handlers().
+ *
+ * To expose DC's hardware interrupt toggle to the base driver, DM implements
+ * &amdgpu_irq_src_funcs.set hooks. Base driver calls it through
+ * amdgpu_irq_update() to enable or disable the interrupt.
+ */
+
 /******************************************************************************
  * Private declarations.
  *****************************************************************************/
 
-struct handler_common_data {
+/**
+ * struct amdgpu_dm_irq_handler_data - Data for DM interrupt handlers.
+ *
+ * @list: Linked list entry referencing the next/previous handler
+ * @handler: Handler function
+ * @handler_arg: Argument passed to the handler when triggered
+ * @dm: DM which this handler belongs to
+ * @irq_source: DC interrupt source that this handler is registered for
+ */
+struct amdgpu_dm_irq_handler_data {
 	struct list_head list;
 	interrupt_handler handler;
 	void *handler_arg;
 
-	/* DM which this handler belongs to */
 	struct amdgpu_display_manager *dm;
-};
-
-struct amdgpu_dm_irq_handler_data {
-	struct handler_common_data hcd;
 	/* DAL irq source which registered for this interrupt. */
 	enum dc_irq_source irq_source;
-};
-
-struct amdgpu_dm_timer_handler_data {
-	struct handler_common_data hcd;
-	struct delayed_work d_work;
 };
 
 #define DM_IRQ_TABLE_LOCK(adev, flags) \
@@ -66,7 +94,7 @@ struct amdgpu_dm_timer_handler_data {
  * Private functions.
  *****************************************************************************/
 
-static void init_handler_common_data(struct handler_common_data *hcd,
+static void init_handler_common_data(struct amdgpu_dm_irq_handler_data *hcd,
 				     void (*ih)(void *),
 				     void *args,
 				     struct amdgpu_display_manager *dm)
@@ -77,7 +105,7 @@ static void init_handler_common_data(struct handler_common_data *hcd,
 }
 
 /**
- * dm_irq_work_func - Handle an IRQ outside of the interrupt handler proper.
+ * dm_irq_work_func() - Handle an IRQ outside of the interrupt handler proper.
  *
  * @work: work struct
  */
@@ -90,11 +118,9 @@ static void dm_irq_work_func(struct work_struct *work)
 	struct amdgpu_dm_irq_handler_data *handler_data;
 
 	list_for_each(entry, handler_list) {
-		handler_data =
-			list_entry(
-				entry,
-				struct amdgpu_dm_irq_handler_data,
-				hcd.list);
+		handler_data = list_entry(entry,
+					  struct amdgpu_dm_irq_handler_data,
+					  list);
 
 		DRM_DEBUG_KMS("DM_IRQ: work_func: for dal_src=%d\n",
 				handler_data->irq_source);
@@ -102,7 +128,7 @@ static void dm_irq_work_func(struct work_struct *work)
 		DRM_DEBUG_KMS("DM_IRQ: schedule_work: for dal_src=%d\n",
 			handler_data->irq_source);
 
-		handler_data->hcd.handler(handler_data->hcd.handler_arg);
+		handler_data->handler(handler_data->handler_arg);
 	}
 
 	/* Call a DAL subcomponent which registered for interrupt notification
@@ -110,8 +136,8 @@ static void dm_irq_work_func(struct work_struct *work)
 	 * (The most common use is HPD interrupt) */
 }
 
-/**
- * Remove a handler and return a pointer to hander list from which the
+/*
+ * Remove a handler and return a pointer to handler list from which the
  * handler was removed.
  */
 static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
@@ -142,11 +168,11 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 	list_for_each_safe(entry, tmp, hnd_list) {
 
 		handler = list_entry(entry, struct amdgpu_dm_irq_handler_data,
-				hcd.list);
+				     list);
 
 		if (ih == handler) {
 			/* Found our handler. Remove it from the list. */
-			list_del(&handler->hcd.list);
+			list_del(&handler->list);
 			handler_removed = true;
 			break;
 		}
@@ -167,62 +193,6 @@ static struct list_head *remove_irq_handler(struct amdgpu_device *adev,
 		ih, int_params->irq_source, int_params->int_context);
 
 	return hnd_list;
-}
-
-/* If 'handler_in == NULL' then remove ALL handlers. */
-static void remove_timer_handler(struct amdgpu_device *adev,
-				 struct amdgpu_dm_timer_handler_data *handler_in)
-{
-	struct amdgpu_dm_timer_handler_data *handler_temp;
-	struct list_head *handler_list;
-	struct list_head *entry, *tmp;
-	unsigned long irq_table_flags;
-	bool handler_removed = false;
-
-	DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
-
-	handler_list = &adev->dm.timer_handler_list;
-
-	list_for_each_safe(entry, tmp, handler_list) {
-		/* Note that list_for_each_safe() guarantees that
-		 * handler_temp is NOT null. */
-		handler_temp = list_entry(entry,
-				struct amdgpu_dm_timer_handler_data, hcd.list);
-
-		if (handler_in == NULL || handler_in == handler_temp) {
-			list_del(&handler_temp->hcd.list);
-			DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-
-			DRM_DEBUG_KMS("DM_IRQ: removing timer handler: %p\n",
-					handler_temp);
-
-			if (handler_in == NULL) {
-				/* Since it is still in the queue, it must
-				 * be cancelled. */
-				cancel_delayed_work_sync(&handler_temp->d_work);
-			}
-
-			kfree(handler_temp);
-			handler_removed = true;
-
-			DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
-		}
-
-		/* Remove ALL handlers. */
-		if (handler_in == NULL)
-			continue;
-
-		/* Remove a SPECIFIC handler.
-		 * Found our handler - we can stop here. */
-		if (handler_in == handler_temp)
-			break;
-	}
-
-	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
-
-	if (handler_in != NULL && handler_removed == false)
-		DRM_ERROR("DM_IRQ: handler: %p is not in the list!\n",
-				handler_in);
 }
 
 static bool
@@ -270,6 +240,24 @@ static bool validate_irq_unregistration_params(enum dc_irq_source irq_source,
  * Note: caller is responsible for input validation.
  *****************************************************************************/
 
+/**
+ * amdgpu_dm_irq_register_interrupt() - Register a handler within DM.
+ * @adev: The base driver device containing the DM device.
+ * @int_params: Interrupt parameters containing the source, and handler context
+ * @ih: Function pointer to the interrupt handler to register
+ * @handler_args: Arguments passed to the handler when the interrupt occurs
+ *
+ * Register an interrupt handler for the given IRQ source, under the given
+ * context. The context can either be high or low. High context handlers are
+ * executed directly within ISR context, while low context is executed within a
+ * workqueue, thereby allowing operations that sleep.
+ *
+ * Registered handlers are called in a FIFO manner, i.e. the most recently
+ * registered handler will be called first.
+ *
+ * Return: Handler data &struct amdgpu_dm_irq_handler_data containing the IRQ
+ *         source, handler function, and args
+ */
 void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
 				       struct dc_interrupt_params *int_params,
 				       void (*ih)(void *),
@@ -289,10 +277,7 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
 		return DAL_INVALID_IRQ_HANDLER_IDX;
 	}
 
-	memset(handler_data, 0, sizeof(*handler_data));
-
-	init_handler_common_data(&handler_data->hcd, ih, handler_args,
-			&adev->dm);
+	init_handler_common_data(handler_data, ih, handler_args, &adev->dm);
 
 	irq_source = int_params->irq_source;
 
@@ -311,7 +296,7 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
 		break;
 	}
 
-	list_add_tail(&handler_data->hcd.list, hnd_list);
+	list_add_tail(&handler_data->list, hnd_list);
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
 
@@ -329,6 +314,15 @@ void *amdgpu_dm_irq_register_interrupt(struct amdgpu_device *adev,
 	return handler_data;
 }
 
+/**
+ * amdgpu_dm_irq_unregister_interrupt() - Remove a handler from the DM IRQ table
+ * @adev: The base driver device containing the DM device
+ * @irq_source: IRQ source to remove the given handler from
+ * @ih: Function pointer to the interrupt handler to unregister
+ *
+ * Go through both low and high context IRQ tables, and find the given handler
+ * for the given irq source. If found, remove it. Otherwise, do nothing.
+ */
 void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 					enum dc_irq_source irq_source,
 					void *ih)
@@ -363,6 +357,20 @@ void amdgpu_dm_irq_unregister_interrupt(struct amdgpu_device *adev,
 	}
 }
 
+/**
+ * amdgpu_dm_irq_init() - Initialize DM IRQ management
+ * @adev:  The base driver device containing the DM device
+ *
+ * Initialize DM's high and low context IRQ tables.
+ *
+ * The N by M table contains N IRQ sources, with M
+ * &struct amdgpu_dm_irq_handler_data hooked together in a linked list. The
+ * list_heads are initialized here. When an interrupt n is triggered, all m
+ * handlers are called in sequence, FIFO according to registration order.
+ *
+ * The low context table requires special steps to initialize, since handlers
+ * will be deferred to a workqueue. See &struct irq_list_head.
+ */
 int amdgpu_dm_irq_init(struct amdgpu_device *adev)
 {
 	int src;
@@ -382,39 +390,30 @@ int amdgpu_dm_irq_init(struct amdgpu_device *adev)
 		INIT_LIST_HEAD(&adev->dm.irq_handler_list_high_tab[src]);
 	}
 
-	INIT_LIST_HEAD(&adev->dm.timer_handler_list);
-
-	/* allocate and initialize the workqueue for DM timer */
-	adev->dm.timer_workqueue = create_singlethread_workqueue(
-			"dm_timer_queue");
-	if (adev->dm.timer_workqueue == NULL) {
-		DRM_ERROR("DM_IRQ: unable to create timer queue!\n");
-		return -1;
-	}
-
 	return 0;
 }
 
-/* DM IRQ and timer resource release */
+/**
+ * amdgpu_dm_irq_fini() - Tear down DM IRQ management
+ * @adev: The base driver device containing the DM device
+ *
+ * Flush all work within the low context IRQ table.
+ */
 void amdgpu_dm_irq_fini(struct amdgpu_device *adev)
 {
 	int src;
 	struct irq_list_head *lh;
+	unsigned long irq_table_flags;
 	DRM_DEBUG_KMS("DM_IRQ: releasing resources.\n");
-
 	for (src = 0; src < DAL_IRQ_SOURCES_NUMBER; src++) {
-
+		DM_IRQ_TABLE_LOCK(adev, irq_table_flags);
 		/* The handler was removed from the table,
 		 * it means it is safe to flush all the 'work'
 		 * (because no code can schedule a new one). */
 		lh = &adev->dm.irq_handler_list_low_tab[src];
+		DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
 		flush_work(&lh->work);
 	}
-
-	/* Cancel ALL timers and release handlers (if any). */
-	remove_timer_handler(adev, NULL);
-	/* Release the queue itself. */
-	destroy_workqueue(adev->dm.timer_workqueue);
 }
 
 int amdgpu_dm_irq_suspend(struct amdgpu_device *adev)
@@ -496,7 +495,7 @@ int amdgpu_dm_irq_resume_late(struct amdgpu_device *adev)
 	return 0;
 }
 
-/**
+/*
  * amdgpu_dm_irq_schedule_work - schedule all work items registered for the
  * "irq_source".
  */
@@ -521,8 +520,9 @@ static void amdgpu_dm_irq_schedule_work(struct amdgpu_device *adev,
 
 }
 
-/** amdgpu_dm_irq_immediate_work
- *  Callback high irq work immediately, don't send to work queue
+/*
+ * amdgpu_dm_irq_immediate_work
+ * Callback high irq work immediately, don't send to work queue
  */
 static void amdgpu_dm_irq_immediate_work(struct amdgpu_device *adev,
 					 enum dc_irq_source irq_source)
@@ -537,25 +537,26 @@ static void amdgpu_dm_irq_immediate_work(struct amdgpu_device *adev,
 		entry,
 		&adev->dm.irq_handler_list_high_tab[irq_source]) {
 
-		handler_data =
-			list_entry(
-				entry,
-				struct amdgpu_dm_irq_handler_data,
-				hcd.list);
+		handler_data = list_entry(entry,
+					  struct amdgpu_dm_irq_handler_data,
+					  list);
 
 		/* Call a subcomponent which registered for immediate
 		 * interrupt notification */
-		handler_data->hcd.handler(handler_data->hcd.handler_arg);
+		handler_data->handler(handler_data->handler_arg);
 	}
 
 	DM_IRQ_TABLE_UNLOCK(adev, irq_table_flags);
 }
 
-/*
- * amdgpu_dm_irq_handler
+/**
+ * amdgpu_dm_irq_handler - Generic DM IRQ handler
+ * @adev: amdgpu base driver device containing the DM device
+ * @source: Unused
+ * @entry: Data about the triggered interrupt
  *
- * Generic IRQ handler, calls all registered high irq work immediately, and
- * schedules work for low irq
+ * Calls all registered high irq work immediately, and schedules work for low
+ * irq. The DM IRQ table is used to find the corresponding handlers.
  */
 static int amdgpu_dm_irq_handler(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
@@ -630,6 +631,9 @@ static inline int dm_irq_state(struct amdgpu_device *adev,
 		return 0;
 	}
 
+	if (acrtc->otg_inst == -1)
+		return 0;
+
 	irq_source = dal_irq_type + acrtc->otg_inst;
 
 	st = (state == AMDGPU_IRQ_STATE_ENABLE);
@@ -666,8 +670,27 @@ static int amdgpu_dm_set_crtc_irq_state(struct amdgpu_device *adev,
 		__func__);
 }
 
+static int amdgpu_dm_set_vupdate_irq_state(struct amdgpu_device *adev,
+					   struct amdgpu_irq_src *source,
+					   unsigned int crtc_id,
+					   enum amdgpu_interrupt_state state)
+{
+	return dm_irq_state(
+		adev,
+		source,
+		crtc_id,
+		state,
+		IRQ_TYPE_VUPDATE,
+		__func__);
+}
+
 static const struct amdgpu_irq_src_funcs dm_crtc_irq_funcs = {
 	.set = amdgpu_dm_set_crtc_irq_state,
+	.process = amdgpu_dm_irq_handler,
+};
+
+static const struct amdgpu_irq_src_funcs dm_vupdate_irq_funcs = {
+	.set = amdgpu_dm_set_vupdate_irq_state,
 	.process = amdgpu_dm_irq_handler,
 };
 
@@ -683,11 +706,12 @@ static const struct amdgpu_irq_src_funcs dm_hpd_irq_funcs = {
 
 void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 {
-	if (adev->mode_info.num_crtc > 0)
-		adev->crtc_irq.num_types = AMDGPU_CRTC_IRQ_VLINE1 + adev->mode_info.num_crtc;
-	else
-		adev->crtc_irq.num_types = 0;
+
+	adev->crtc_irq.num_types = adev->mode_info.num_crtc;
 	adev->crtc_irq.funcs = &dm_crtc_irq_funcs;
+
+	adev->vupdate_irq.num_types = adev->mode_info.num_crtc;
+	adev->vupdate_irq.funcs = &dm_vupdate_irq_funcs;
 
 	adev->pageflip_irq.num_types = adev->mode_info.num_crtc;
 	adev->pageflip_irq.funcs = &dm_pageflip_irq_funcs;
@@ -696,7 +720,7 @@ void amdgpu_dm_set_irq_funcs(struct amdgpu_device *adev)
 	adev->hpd_irq.funcs = &dm_hpd_irq_funcs;
 }
 
-/*
+/**
  * amdgpu_dm_hpd_init - hpd setup callback.
  *
  * @adev: amdgpu_device pointer

@@ -1,8 +1,5 @@
 #ifndef __DRM_DRM_LEGACY_H__
 #define __DRM_DRM_LEGACY_H__
-
-#include <drm/drm_auth.h>
-
 /*
  * Legacy driver interfaces for the Direct Rendering Manager
  *
@@ -36,6 +33,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
+#include <drm/drm.h>
+#include <drm/drm_auth.h>
+#include <drm/drm_hashtab.h>
+
+struct drm_device;
+struct file;
 
 /*
  * Legacy Support for palateontologic DRM drivers
@@ -156,10 +159,9 @@ struct drm_map_list {
 int drm_legacy_addmap(struct drm_device *d, resource_size_t offset,
 		      unsigned int size, enum drm_map_type type,
 		      enum drm_map_flags flags, struct drm_local_map **map_p);
+struct drm_local_map *drm_legacy_findmap(struct drm_device *dev, unsigned int token);
 void drm_legacy_rmmap(struct drm_device *d, struct drm_local_map *map);
 int drm_legacy_rmmap_locked(struct drm_device *d, struct drm_local_map *map);
-void drm_legacy_master_rmmaps(struct drm_device *dev,
-			      struct drm_master *master);
 struct drm_local_map *drm_legacy_getsarea(struct drm_device *dev);
 int drm_legacy_mmap(struct file *filp, struct vm_area_struct *vma);
 
@@ -193,15 +195,5 @@ void __drm_legacy_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 void drm_legacy_ioremap(struct drm_local_map *map, struct drm_device *dev);
 void drm_legacy_ioremap_wc(struct drm_local_map *map, struct drm_device *dev);
 void drm_legacy_ioremapfree(struct drm_local_map *map, struct drm_device *dev);
-
-static __inline__ struct drm_local_map *drm_legacy_findmap(struct drm_device *dev,
-							   unsigned int token)
-{
-	struct drm_map_list *_entry;
-	list_for_each_entry(_entry, &dev->maplist, head)
-	    if (_entry->user_token == token)
-		return _entry->map;
-	return NULL;
-}
 
 #endif /* __DRM_DRM_LEGACY_H__ */

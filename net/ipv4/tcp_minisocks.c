@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -144,7 +145,7 @@ tcp_timewait_state_process(struct inet_timewait_sock *tw, struct sk_buff *skb,
 		tw->tw_substate	  = TCP_TIME_WAIT;
 		tcptw->tw_rcv_nxt = TCP_SKB_CB(skb)->end_seq;
 		if (tmp_opt.saw_tstamp) {
-			tcptw->tw_ts_recent_stamp = get_seconds();
+			tcptw->tw_ts_recent_stamp = ktime_get_seconds();
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
 		}
 
@@ -184,12 +185,13 @@ kill:
 				inet_twsk_deschedule_put(tw);
 				return TCP_TW_SUCCESS;
 			}
+		} else {
+			inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 		}
-		inet_twsk_reschedule(tw, TCP_TIMEWAIT_LEN);
 
 		if (tmp_opt.saw_tstamp) {
 			tcptw->tw_ts_recent	  = tmp_opt.rcv_tsval;
-			tcptw->tw_ts_recent_stamp = get_seconds();
+			tcptw->tw_ts_recent_stamp = ktime_get_seconds();
 		}
 
 		inet_twsk_put(tw);
@@ -263,6 +265,8 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		struct inet_sock *inet = inet_sk(sk);
 
 		tw->tw_transparent	= inet->transparent;
+		tw->tw_mark		= sk->sk_mark;
+		tw->tw_priority		= sk->sk_priority;
 		tw->tw_rcv_wscale	= tp->rx_opt.rcv_wscale;
 		tcptw->tw_rcv_nxt	= tp->rcv_nxt;
 		tcptw->tw_snd_nxt	= tp->snd_nxt;
@@ -271,7 +275,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		tcptw->tw_ts_recent_stamp = tp->rx_opt.ts_recent_stamp;
 		tcptw->tw_ts_offset	= tp->tsoffset;
 		tcptw->tw_last_oow_ack_time = 0;
-
+		tcptw->tw_tx_delay	= tp->tcp_tx_delay;
 #if IS_ENABLED(CONFIG_IPV6)
 		if (tw->tw_family == PF_INET6) {
 			struct ipv6_pinfo *np = inet6_sk(sk);
@@ -280,6 +284,7 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 			tw->tw_v6_rcv_saddr = sk->sk_v6_rcv_saddr;
 			tw->tw_tclass = np->tclass;
 			tw->tw_flowlabel = be32_to_cpu(np->flow_label & IPV6_FLOWLABEL_MASK);
+			tw->tw_txhash = sk->sk_txhash;
 			tw->tw_ipv6only = sk->sk_ipv6only;
 		}
 #endif
@@ -292,12 +297,15 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		 * so the timewait ack generating code has the key.
 		 */
 		do {
-			struct tcp_md5sig_key *key;
 			tcptw->tw_md5_key = NULL;
-			key = tp->af_specific->md5_lookup(sk, sk);
-			if (key) {
-				tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
-				BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
+			if (static_branch_unlikely(&tcp_md5_needed)) {
+				struct tcp_md5sig_key *key;
+
+				key = tp->af_specific->md5_lookup(sk, sk);
+				if (key) {
+					tcptw->tw_md5_key = kmemdup(key, sizeof(*key), GFP_ATOMIC);
+					BUG_ON(tcptw->tw_md5_key && !tcp_alloc_md5sig_pool());
+				}
 			}
 		} while (0);
 #endif
@@ -306,7 +314,6 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 		if (timeo < rto)
 			timeo = rto;
 
-		tw->tw_timeout = TCP_TIMEWAIT_LEN;
 		if (state == TCP_TIME_WAIT)
 			timeo = TCP_TIMEWAIT_LEN;
 
@@ -332,14 +339,17 @@ void tcp_time_wait(struct sock *sk, int state, int timeo)
 	tcp_update_metrics(sk);
 	tcp_done(sk);
 }
+EXPORT_SYMBOL(tcp_time_wait);
 
 void tcp_twsk_destructor(struct sock *sk)
 {
 #ifdef CONFIG_TCP_MD5SIG
-	struct tcp_timewait_sock *twsk = tcp_twsk(sk);
+	if (static_branch_unlikely(&tcp_md5_needed)) {
+		struct tcp_timewait_sock *twsk = tcp_twsk(sk);
 
-	if (twsk->tw_md5_key)
-		kfree_rcu(twsk->tw_md5_key, rcu);
+		if (twsk->tw_md5_key)
+			kfree_rcu(twsk->tw_md5_key, rcu);
+	}
 #endif
 }
 EXPORT_SYMBOL_GPL(tcp_twsk_destructor);
@@ -448,119 +458,93 @@ struct sock *tcp_create_openreq_child(const struct sock *sk,
 				      struct sk_buff *skb)
 {
 	struct sock *newsk = inet_csk_clone_lock(sk, req, GFP_ATOMIC);
+	const struct inet_request_sock *ireq = inet_rsk(req);
+	struct tcp_request_sock *treq = tcp_rsk(req);
+	struct inet_connection_sock *newicsk;
+	struct tcp_sock *oldtp, *newtp;
 
-	if (newsk) {
-		const struct inet_request_sock *ireq = inet_rsk(req);
-		struct tcp_request_sock *treq = tcp_rsk(req);
-		struct inet_connection_sock *newicsk = inet_csk(newsk);
-		struct tcp_sock *newtp = tcp_sk(newsk);
-		struct tcp_sock *oldtp = tcp_sk(sk);
+	if (!newsk)
+		return NULL;
 
-		smc_check_reset_syn_req(oldtp, req, newtp);
+	newicsk = inet_csk(newsk);
+	newtp = tcp_sk(newsk);
+	oldtp = tcp_sk(sk);
 
-		/* Now setup tcp_sock */
-		newtp->pred_flags = 0;
+	smc_check_reset_syn_req(oldtp, req, newtp);
 
-		newtp->rcv_wup = newtp->copied_seq =
-		newtp->rcv_nxt = treq->rcv_isn + 1;
-		newtp->segs_in = 1;
+	/* Now setup tcp_sock */
+	newtp->pred_flags = 0;
 
-		newtp->snd_sml = newtp->snd_una =
-		newtp->snd_nxt = newtp->snd_up = treq->snt_isn + 1;
+	newtp->rcv_wup = newtp->copied_seq =
+	newtp->rcv_nxt = treq->rcv_isn + 1;
+	newtp->segs_in = 1;
 
-		INIT_LIST_HEAD(&newtp->tsq_node);
-		INIT_LIST_HEAD(&newtp->tsorted_sent_queue);
+	newtp->snd_sml = newtp->snd_una =
+	newtp->snd_nxt = newtp->snd_up = treq->snt_isn + 1;
 
-		tcp_init_wl(newtp, treq->rcv_isn);
+	INIT_LIST_HEAD(&newtp->tsq_node);
+	INIT_LIST_HEAD(&newtp->tsorted_sent_queue);
 
-		newtp->srtt_us = 0;
-		newtp->mdev_us = jiffies_to_usecs(TCP_TIMEOUT_INIT);
-		minmax_reset(&newtp->rtt_min, tcp_jiffies32, ~0U);
-		newicsk->icsk_rto = TCP_TIMEOUT_INIT;
-		newicsk->icsk_ack.lrcvtime = tcp_jiffies32;
+	tcp_init_wl(newtp, treq->rcv_isn);
 
-		newtp->packets_out = 0;
-		newtp->retrans_out = 0;
-		newtp->sacked_out = 0;
-		newtp->snd_ssthresh = TCP_INFINITE_SSTHRESH;
-		newtp->tlp_high_seq = 0;
-		newtp->lsndtime = tcp_jiffies32;
-		newsk->sk_txhash = treq->txhash;
-		newtp->last_oow_ack_time = 0;
-		newtp->total_retrans = req->num_retrans;
+	minmax_reset(&newtp->rtt_min, tcp_jiffies32, ~0U);
+	newicsk->icsk_ack.lrcvtime = tcp_jiffies32;
 
-		/* So many TCP implementations out there (incorrectly) count the
-		 * initial SYN frame in their delayed-ACK and congestion control
-		 * algorithms that we must have the following bandaid to talk
-		 * efficiently to them.  -DaveM
-		 */
-		newtp->snd_cwnd = TCP_INIT_CWND;
-		newtp->snd_cwnd_cnt = 0;
+	newtp->lsndtime = tcp_jiffies32;
+	newsk->sk_txhash = treq->txhash;
+	newtp->total_retrans = req->num_retrans;
 
-		/* There's a bubble in the pipe until at least the first ACK. */
-		newtp->app_limited = ~0U;
+	tcp_init_xmit_timers(newsk);
+	newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
 
-		tcp_init_xmit_timers(newsk);
-		newtp->write_seq = newtp->pushed_seq = treq->snt_isn + 1;
+	if (sock_flag(newsk, SOCK_KEEPOPEN))
+		inet_csk_reset_keepalive_timer(newsk,
+					       keepalive_time_when(newtp));
 
-		newtp->rx_opt.saw_tstamp = 0;
-
-		newtp->rx_opt.dsack = 0;
-		newtp->rx_opt.num_sacks = 0;
-
-		newtp->urg_data = 0;
-
-		if (sock_flag(newsk, SOCK_KEEPOPEN))
-			inet_csk_reset_keepalive_timer(newsk,
-						       keepalive_time_when(newtp));
-
-		newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
-		newtp->rx_opt.sack_ok = ireq->sack_ok;
-		newtp->window_clamp = req->rsk_window_clamp;
-		newtp->rcv_ssthresh = req->rsk_rcv_wnd;
-		newtp->rcv_wnd = req->rsk_rcv_wnd;
-		newtp->rx_opt.wscale_ok = ireq->wscale_ok;
-		if (newtp->rx_opt.wscale_ok) {
-			newtp->rx_opt.snd_wscale = ireq->snd_wscale;
-			newtp->rx_opt.rcv_wscale = ireq->rcv_wscale;
-		} else {
-			newtp->rx_opt.snd_wscale = newtp->rx_opt.rcv_wscale = 0;
-			newtp->window_clamp = min(newtp->window_clamp, 65535U);
-		}
-		newtp->snd_wnd = (ntohs(tcp_hdr(skb)->window) <<
-				  newtp->rx_opt.snd_wscale);
-		newtp->max_window = newtp->snd_wnd;
-
-		if (newtp->rx_opt.tstamp_ok) {
-			newtp->rx_opt.ts_recent = req->ts_recent;
-			newtp->rx_opt.ts_recent_stamp = get_seconds();
-			newtp->tcp_header_len = sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED;
-		} else {
-			newtp->rx_opt.ts_recent_stamp = 0;
-			newtp->tcp_header_len = sizeof(struct tcphdr);
-		}
-		newtp->tsoffset = treq->ts_off;
-#ifdef CONFIG_TCP_MD5SIG
-		newtp->md5sig_info = NULL;	/*XXX*/
-		if (newtp->af_specific->md5_lookup(sk, newsk))
-			newtp->tcp_header_len += TCPOLEN_MD5SIG_ALIGNED;
-#endif
-		if (skb->len >= TCP_MSS_DEFAULT + newtp->tcp_header_len)
-			newicsk->icsk_ack.last_seg_size = skb->len - newtp->tcp_header_len;
-		newtp->rx_opt.mss_clamp = req->mss;
-		tcp_ecn_openreq_child(newtp, req);
-		newtp->fastopen_req = NULL;
-		newtp->fastopen_rsk = NULL;
-		newtp->syn_data_acked = 0;
-		newtp->rack.mstamp = 0;
-		newtp->rack.advanced = 0;
-		newtp->rack.reo_wnd_steps = 1;
-		newtp->rack.last_delivered = 0;
-		newtp->rack.reo_wnd_persist = 0;
-		newtp->rack.dsack_seen = 0;
-
-		__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
+	newtp->rx_opt.tstamp_ok = ireq->tstamp_ok;
+	newtp->rx_opt.sack_ok = ireq->sack_ok;
+	newtp->window_clamp = req->rsk_window_clamp;
+	newtp->rcv_ssthresh = req->rsk_rcv_wnd;
+	newtp->rcv_wnd = req->rsk_rcv_wnd;
+	newtp->rx_opt.wscale_ok = ireq->wscale_ok;
+	if (newtp->rx_opt.wscale_ok) {
+		newtp->rx_opt.snd_wscale = ireq->snd_wscale;
+		newtp->rx_opt.rcv_wscale = ireq->rcv_wscale;
+	} else {
+		newtp->rx_opt.snd_wscale = newtp->rx_opt.rcv_wscale = 0;
+		newtp->window_clamp = min(newtp->window_clamp, 65535U);
 	}
+	newtp->snd_wnd = ntohs(tcp_hdr(skb)->window) << newtp->rx_opt.snd_wscale;
+	newtp->max_window = newtp->snd_wnd;
+
+	if (newtp->rx_opt.tstamp_ok) {
+		newtp->rx_opt.ts_recent = req->ts_recent;
+		newtp->rx_opt.ts_recent_stamp = ktime_get_seconds();
+		newtp->tcp_header_len = sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED;
+	} else {
+		newtp->rx_opt.ts_recent_stamp = 0;
+		newtp->tcp_header_len = sizeof(struct tcphdr);
+	}
+	if (req->num_timeout) {
+		newtp->undo_marker = treq->snt_isn;
+		newtp->retrans_stamp = div_u64(treq->snt_synack,
+					       USEC_PER_SEC / TCP_TS_HZ);
+	}
+	newtp->tsoffset = treq->ts_off;
+#ifdef CONFIG_TCP_MD5SIG
+	newtp->md5sig_info = NULL;	/*XXX*/
+	if (newtp->af_specific->md5_lookup(sk, newsk))
+		newtp->tcp_header_len += TCPOLEN_MD5SIG_ALIGNED;
+#endif
+	if (skb->len >= TCP_MSS_DEFAULT + newtp->tcp_header_len)
+		newicsk->icsk_ack.last_seg_size = skb->len - newtp->tcp_header_len;
+	newtp->rx_opt.mss_clamp = req->mss;
+	tcp_ecn_openreq_child(newtp, req);
+	newtp->fastopen_req = NULL;
+	newtp->fastopen_rsk = NULL;
+
+	__TCP_INC_STATS(sock_net(sk), TCP_MIB_PASSIVEOPENS);
+
 	return newsk;
 }
 EXPORT_SYMBOL(tcp_create_openreq_child);
@@ -578,7 +562,7 @@ EXPORT_SYMBOL(tcp_create_openreq_child);
 
 struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			   struct request_sock *req,
-			   bool fastopen)
+			   bool fastopen, bool *req_stolen)
 {
 	struct tcp_options_received tmp_opt;
 	struct sock *child;
@@ -599,7 +583,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 			 * it can be estimated (approximately)
 			 * from another data.
 			 */
-			tmp_opt.ts_recent_stamp = get_seconds() - ((TCP_TIMEOUT_INIT/HZ)<<req->num_timeout);
+			tmp_opt.ts_recent_stamp = ktime_get_seconds() - ((TCP_TIMEOUT_INIT/HZ)<<req->num_timeout);
 			paws_reject = tcp_paws_reject(&tmp_opt, th->rst);
 		}
 	}
@@ -785,6 +769,7 @@ struct sock *tcp_check_req(struct sock *sk, struct sk_buff *skb,
 
 	sock_rps_save_rxhash(child, skb);
 	tcp_synack_rtt_meas(child, req);
+	*req_stolen = !own_req;
 	return inet_csk_complete_hashdance(sk, child, req, own_req);
 
 listen_overflow:

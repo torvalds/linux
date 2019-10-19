@@ -1,13 +1,6 @@
-/*
- * Copyright 2012 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2012 Freescale Semiconductor, Inc.
 
 #include "imx23-pinfunc.h"
 
@@ -20,10 +13,8 @@
 	 * The decompressor and also some bootloaders rely on a
 	 * pre-existing /chosen node to be available to insert the
 	 * command line and merge other ATAGS info.
-	 * Also for U-Boot there must be a pre-existing /memory node.
 	 */
 	chosen {};
-	memory { device_type = "memory"; reg = <0 0>; };
 
 	aliases {
 		gpio0 = &gpio0;
@@ -100,7 +91,7 @@
 				status = "disabled";
 			};
 
-			ssp0: ssp@80010000 {
+			ssp0: spi@80010000 {
 				reg = <0x80010000 0x2000>;
 				interrupts = <15>;
 				clocks = <&clks 33>;
@@ -222,7 +213,8 @@
 					fsl,pull-up = <MXS_PULL_DISABLE>;
 				};
 
-				gpmi_pins_fixup: gpmi-pins-fixup {
+				gpmi_pins_fixup: gpmi-pins-fixup@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX23_PAD_GPMI_WPN__GPMI_WPN
 						MX23_PAD_GPMI_WRN__GPMI_WRN
@@ -266,7 +258,8 @@
 					fsl,pull-up = <MXS_PULL_ENABLE>;
 				};
 
-				mmc0_pins_fixup: mmc0-pins-fixup {
+				mmc0_pins_fixup: mmc0-pins-fixup@0 {
+					reg = <0>;
 					fsl,pinmux-ids = <
 						MX23_PAD_SSP1_DETECT__SSP1_DETECT
 						MX23_PAD_SSP1_SCK__SSP1_SCK
@@ -462,7 +455,7 @@
 				status = "disabled";
 			};
 
-			ssp1: ssp@80034000 {
+			ssp1: spi@80034000 {
 				reg = <0x80034000 0x2000>;
 				interrupts = <2>;
 				clocks = <&clks 33>;

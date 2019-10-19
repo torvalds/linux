@@ -23,6 +23,7 @@
 #include "pp_debug.h"
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/gfp.h>
 
@@ -55,11 +56,7 @@
 #include "dce/dce_10_0_d.h"
 #include "dce/dce_10_0_sh_mask.h"
 
-
-#define VOLTAGE_SCALE 4
 #define POWERTUNE_DEFAULT_SET_MAX    1
-#define VOLTAGE_VID_OFFSET_SCALE1   625
-#define VOLTAGE_VID_OFFSET_SCALE2   100
 #define MC_CG_ARB_FREQ_F1           0x0b
 #define VDDC_VDDCI_DELTA            200
 
@@ -196,11 +193,11 @@ static int tonga_start_in_non_protection_mode(struct pp_hwmgr *hwmgr)
 
 static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 {
+	struct tonga_smumgr *priv = hwmgr->smu_backend;
 	int result;
 
 	/* Only start SMC if SMC RAM is not running */
-	if (!(smu7_is_smc_ram_running(hwmgr) ||
-		cgs_is_virtualization_enabled(hwmgr->device))) {
+	if (!smu7_is_smc_ram_running(hwmgr) && hwmgr->not_vf) {
 		/*Check if SMU is running in protected mode*/
 		if (0 == PHM_READ_VFPF_INDIRECT_FIELD(hwmgr->device, CGS_IND_REG__SMC,
 					SMU_FIRMWARE, SMU_MODE)) {
@@ -214,6 +211,14 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 		}
 	}
 
+	/* Setup SoftRegsStart here to visit the register UcodeLoadStatus
+	 * to check fw loading state
+	 */
+	smu7_read_smc_sram_dword(hwmgr,
+			SMU72_FIRMWARE_HEADER_LOCATION +
+			offsetof(SMU72_Firmware_Header, SoftRegisters),
+			&(priv->smu7_data.soft_regs_start), 0x40000);
+
 	result = smu7_request_smu_load_fw(hwmgr);
 
 	return result;
@@ -222,7 +227,6 @@ static int tonga_start_smu(struct pp_hwmgr *hwmgr)
 static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 {
 	struct tonga_smumgr *tonga_priv = NULL;
-	int  i;
 
 	tonga_priv = kzalloc(sizeof(struct tonga_smumgr), GFP_KERNEL);
 	if (tonga_priv == NULL)
@@ -230,11 +234,10 @@ static int tonga_smu_init(struct pp_hwmgr *hwmgr)
 
 	hwmgr->smu_backend = tonga_priv;
 
-	if (smu7_init(hwmgr))
+	if (smu7_init(hwmgr)) {
+		kfree(tonga_priv);
 		return -EINVAL;
-
-	for (i = 0; i < SMU72_MAX_LEVELS_GRAPHICS; i++)
-		tonga_priv->activity_target[i] = 30;
+	}
 
 	return 0;
 }
@@ -416,7 +419,7 @@ static int tonga_populate_cac_tables(struct pp_hwmgr *hwmgr,
 			convert_to_vid(vddc_lookup_table->entries[index].us_cac_high);
 	}
 
-	if ((data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2)) {
+	if (data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) {
 		/* We are populating vddgfx CAC data to BapmVddgfx table in split mode */
 		for (count = 0; count < vddgfx_level_count; count++) {
 			index = phm_get_voltage_index(vddgfx_lookup_table,
@@ -612,7 +615,6 @@ static int tonga_calculate_sclk_params(struct pp_hwmgr *hwmgr,
 
 static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 						uint32_t engine_clock,
-				uint16_t sclk_activity_level_threshold,
 				SMU72_Discrete_GraphicsLevel *graphic_level)
 {
 	int result;
@@ -620,12 +622,18 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *pptable_info =
 			    (struct phm_ppt_v1_information *)(hwmgr->pptable);
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
 
 	result = tonga_calculate_sclk_params(hwmgr, engine_clock, graphic_level);
 
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_sclk;
+	else
+		vdd_dep_table = pptable_info->vdd_dep_on_sclk;
+
 	/* populate graphics levels*/
 	result = tonga_get_dependency_volt_by_clk(hwmgr,
-		pptable_info->vdd_dep_on_sclk, engine_clock,
+		vdd_dep_table, engine_clock,
 		&graphic_level->MinVoltage, &mvdd);
 	PP_ASSERT_WITH_CODE((!result),
 		"can not find VDDC voltage value for VDDC "
@@ -634,7 +642,7 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	/* SCLK frequency in units of 10KHz*/
 	graphic_level->SclkFrequency = engine_clock;
 	/* Indicates maximum activity level for this performance level. 50% for now*/
-	graphic_level->ActivityLevel = sclk_activity_level_threshold;
+	graphic_level->ActivityLevel = data->current_profile_setting.sclk_activity;
 
 	graphic_level->CcPwrDynRm = 0;
 	graphic_level->CcPwrDynRm1 = 0;
@@ -642,13 +650,13 @@ static int tonga_populate_single_graphic_level(struct pp_hwmgr *hwmgr,
 	graphic_level->EnabledForActivity = 0;
 	/* this level can be used for throttling.*/
 	graphic_level->EnabledForThrottle = 1;
-	graphic_level->UpHyst = 0;
-	graphic_level->DownHyst = 0;
+	graphic_level->UpHyst = data->current_profile_setting.sclk_up_hyst;
+	graphic_level->DownHyst = data->current_profile_setting.sclk_down_hyst;
 	graphic_level->VoltageDownHyst = 0;
 	graphic_level->PowerThrottle = 0;
 
 	data->display_timing.min_clock_in_sr =
-			hwmgr->display_config.min_core_set_clock_in_sr;
+			hwmgr->display_config->min_core_set_clock_in_sr;
 
 	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
 			PHM_PlatformCaps_SclkDeepSleep))
@@ -702,7 +710,6 @@ static int tonga_populate_all_graphic_levels(struct pp_hwmgr *hwmgr)
 	for (i = 0; i < dpm_table->sclk_table.count; i++) {
 		result = tonga_populate_single_graphic_level(hwmgr,
 					dpm_table->sclk_table.dpm_levels[i].value,
-					(uint16_t)smu_data->activity_target[i],
 					&(smu_data->smc_state_table.GraphicsLevel[i]));
 		if (result != 0)
 			return result;
@@ -955,21 +962,26 @@ static int tonga_populate_single_memory_level(
 		SMU72_Discrete_MemoryLevel *memory_level
 		)
 {
-	uint32_t mvdd = 0;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct phm_ppt_v1_information *pptable_info =
 			  (struct phm_ppt_v1_information *)(hwmgr->pptable);
-	int result = 0;
-	bool dll_state_on;
-	struct cgs_display_info info = {0};
 	uint32_t mclk_edc_wr_enable_threshold = 40000;
 	uint32_t mclk_stutter_mode_threshold = 30000;
 	uint32_t mclk_edc_enable_threshold = 40000;
 	uint32_t mclk_strobe_mode_threshold = 40000;
+	phm_ppt_v1_clock_voltage_dependency_table *vdd_dep_table = NULL;
+	int result = 0;
+	bool dll_state_on;
+	uint32_t mvdd = 0;
 
-	if (NULL != pptable_info->vdd_dep_on_mclk) {
+	if (hwmgr->od_enabled)
+		vdd_dep_table = (phm_ppt_v1_clock_voltage_dependency_table *)&data->odn_dpm_table.vdd_dependency_on_mclk;
+	else
+		vdd_dep_table = pptable_info->vdd_dep_on_mclk;
+
+	if (NULL != vdd_dep_table) {
 		result = tonga_get_dependency_volt_by_clk(hwmgr,
-				pptable_info->vdd_dep_on_mclk,
+				vdd_dep_table,
 				memory_clock,
 				&memory_level->MinVoltage, &mvdd);
 		PP_ASSERT_WITH_CODE(
@@ -986,12 +998,12 @@ static int tonga_populate_single_memory_level(
 
 	memory_level->EnabledForThrottle = 1;
 	memory_level->EnabledForActivity = 0;
-	memory_level->UpHyst = 0;
-	memory_level->DownHyst = 100;
+	memory_level->UpHyst = data->current_profile_setting.mclk_up_hyst;
+	memory_level->DownHyst = data->current_profile_setting.mclk_down_hyst;
 	memory_level->VoltageDownHyst = 0;
 
 	/* Indicates maximum activity level for this performance level.*/
-	memory_level->ActivityLevel = (uint16_t)data->mclk_activity_target;
+	memory_level->ActivityLevel = data->current_profile_setting.mclk_activity;
 	memory_level->StutterEnable = 0;
 	memory_level->StrobeEnable = 0;
 	memory_level->EdcReadEnable = 0;
@@ -1001,8 +1013,8 @@ static int tonga_populate_single_memory_level(
 	/* default set to low watermark. Highest level will be set to high later.*/
 	memory_level->DisplayWatermark = PPSMC_DISPLAY_WATERMARK_LOW;
 
-	cgs_get_active_displays_info(hwmgr->device, &info);
-	data->display_timing.num_existing_displays = info.display_count;
+	data->display_timing.num_existing_displays = hwmgr->display_config->num_display;
+	data->display_timing.vrefresh = hwmgr->display_config->vrefresh;
 
 	if ((mclk_stutter_mode_threshold != 0) &&
 	    (memory_clock <= mclk_stutter_mode_threshold) &&
@@ -1281,7 +1293,7 @@ static int tonga_populate_smc_acpi_level(struct pp_hwmgr *hwmgr,
 	table->MemoryACPILevel.VoltageDownHyst = 0;
 	/* Indicates maximum activity level for this performance level.*/
 	table->MemoryACPILevel.ActivityLevel =
-			PP_HOST_TO_SMC_US((uint16_t)data->mclk_activity_target);
+			PP_HOST_TO_SMC_US(data->current_profile_setting.mclk_activity);
 
 	table->MemoryACPILevel.StutterEnable = 0;
 	table->MemoryACPILevel.StrobeEnable = 0;
@@ -1442,51 +1454,6 @@ static int tonga_populate_smc_acp_level(struct pp_hwmgr *hwmgr,
 	return result;
 }
 
-static int tonga_populate_smc_samu_level(struct pp_hwmgr *hwmgr,
-		SMU72_Discrete_DpmTable *table)
-{
-	int result = 0;
-	uint8_t count;
-	pp_atomctrl_clock_dividers_vi dividers;
-	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
-	struct phm_ppt_v1_information *pptable_info =
-			     (struct phm_ppt_v1_information *)(hwmgr->pptable);
-	phm_ppt_v1_mm_clock_voltage_dependency_table *mm_table =
-						    pptable_info->mm_dep_table;
-
-	table->SamuBootLevel = 0;
-	table->SamuLevelCount = (uint8_t) (mm_table->count);
-
-	for (count = 0; count < table->SamuLevelCount; count++) {
-		/* not sure whether we need evclk or not */
-		table->SamuLevel[count].Frequency =
-			pptable_info->mm_dep_table->entries[count].samclock;
-		table->SamuLevel[count].MinVoltage.Vddc =
-			phm_get_voltage_index(pptable_info->vddc_lookup_table,
-				mm_table->entries[count].vddc);
-		table->SamuLevel[count].MinVoltage.VddGfx =
-			(data->vdd_gfx_control == SMU7_VOLTAGE_CONTROL_BY_SVID2) ?
-			phm_get_voltage_index(pptable_info->vddgfx_lookup_table,
-				mm_table->entries[count].vddgfx) : 0;
-		table->SamuLevel[count].MinVoltage.Vddci =
-			phm_get_voltage_id(&data->vddci_voltage_table,
-				mm_table->entries[count].vddc - VDDC_VDDCI_DELTA);
-		table->SamuLevel[count].MinVoltage.Phases = 1;
-
-		/* retrieve divider value for VBIOS */
-		result = atomctrl_get_dfs_pll_dividers_vi(hwmgr,
-					table->SamuLevel[count].Frequency, &dividers);
-		PP_ASSERT_WITH_CODE((!result),
-			"can not find divide id for samu clock", return result);
-
-		table->SamuLevel[count].Divider = (uint8_t)dividers.pll_post_divider;
-
-		CONVERT_FROM_HOST_TO_SMC_UL(table->SamuLevel[count].Frequency);
-	}
-
-	return result;
-}
-
 static int tonga_populate_memory_timing_parameters(
 		struct pp_hwmgr *hwmgr,
 		uint32_t engine_clock,
@@ -1617,19 +1584,12 @@ static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 	struct phm_ppt_v1_clock_voltage_dependency_table *sclk_table =
 			table_info->vdd_dep_on_sclk;
 	uint32_t hw_revision, dev_id;
-	struct cgs_system_info sys_info = {0};
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	stretch_amount = (uint8_t)table_info->cac_dtp_table->usClockStretchAmount;
 
-	sys_info.size = sizeof(struct cgs_system_info);
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_REV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	hw_revision = (uint32_t)sys_info.value;
-
-	sys_info.info_id = CGS_SYSTEM_INFO_PCIE_DEV;
-	cgs_query_system_info(hwmgr->device, &sys_info);
-	dev_id = (uint32_t)sys_info.value;
+	hw_revision = adev->pdev->revision;
+	dev_id = adev->pdev->device;
 
 	/* Read SMU_Eefuse to read and calculate RO and determine
 	 * if the part is SS or FF. if RO >= 1660MHz, part is FF.
@@ -1699,7 +1659,7 @@ static int tonga_populate_clock_stretcher_data_table(struct pp_hwmgr *hwmgr)
 		phm_cap_unset(hwmgr->platform_descriptor.platformCaps,
 				PHM_PlatformCaps_ClockStretcher);
 		PP_ASSERT_WITH_CODE(false,
-				"Stretch Amount in PPTable not supported\n",
+				"Stretch Amount in PPTable not supported",
 				return -EINVAL);
 	}
 
@@ -2257,42 +2217,6 @@ static void tonga_initialize_power_tune_defaults(struct pp_hwmgr *hwmgr)
 		smu_data->power_tune_defaults = &tonga_power_tune_data_set_array[0];
 }
 
-static void tonga_save_default_power_profile(struct pp_hwmgr *hwmgr)
-{
-	struct tonga_smumgr *data = (struct tonga_smumgr *)(hwmgr->smu_backend);
-	struct SMU72_Discrete_GraphicsLevel *levels =
-				data->smc_state_table.GraphicsLevel;
-	unsigned min_level = 1;
-
-	hwmgr->default_gfx_power_profile.activity_threshold =
-			be16_to_cpu(levels[0].ActivityLevel);
-	hwmgr->default_gfx_power_profile.up_hyst = levels[0].UpHyst;
-	hwmgr->default_gfx_power_profile.down_hyst = levels[0].DownHyst;
-	hwmgr->default_gfx_power_profile.type = AMD_PP_GFX_PROFILE;
-
-	hwmgr->default_compute_power_profile = hwmgr->default_gfx_power_profile;
-	hwmgr->default_compute_power_profile.type = AMD_PP_COMPUTE_PROFILE;
-
-	/* Workaround compute SDMA instability: disable lowest SCLK
-	 * DPM level. Optimize compute power profile: Use only highest
-	 * 2 power levels (if more than 2 are available), Hysteresis:
-	 * 0ms up, 5ms down
-	 */
-	if (data->smc_state_table.GraphicsDpmLevelCount > 2)
-		min_level = data->smc_state_table.GraphicsDpmLevelCount - 2;
-	else if (data->smc_state_table.GraphicsDpmLevelCount == 2)
-		min_level = 1;
-	else
-		min_level = 0;
-	hwmgr->default_compute_power_profile.min_sclk =
-			be32_to_cpu(levels[min_level].SclkFrequency);
-	hwmgr->default_compute_power_profile.up_hyst = 0;
-	hwmgr->default_compute_power_profile.down_hyst = 5;
-
-	hwmgr->gfx_power_profile = hwmgr->default_gfx_power_profile;
-	hwmgr->compute_power_profile = hwmgr->default_compute_power_profile;
-}
-
 static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 {
 	int result;
@@ -2365,10 +2289,6 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	PP_ASSERT_WITH_CODE(!result,
 		"Failed to initialize ACP Level !", return result);
 
-	result = tonga_populate_smc_samu_level(hwmgr, table);
-	PP_ASSERT_WITH_CODE(!result,
-		"Failed to initialize SAMU Level !", return result);
-
 	/* Since only the initial state is completely set up at this
 	* point (the other states are just copies of the boot state) we only
 	* need to populate the  ARB settings for the initial state.
@@ -2434,7 +2354,7 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = tonga_populate_vr_config(hwmgr, table);
 	PP_ASSERT_WITH_CODE(!result,
 		"Failed to populate VRConfig setting !", return result);
-
+	data->vr_config = table->VRConfig;
 	table->ThermGpio  = 17;
 	table->SclkStepSize = 0x4000;
 
@@ -2501,7 +2421,6 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 
 	for (i = 0; i < SMU72_MAX_ENTRIES_SMIO; i++)
 		table->Smio[i] = PP_HOST_TO_SMC_UL(table->Smio[i]);
-
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SystemFlags);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->VRConfig);
 	CONVERT_FROM_HOST_TO_SMC_UL(table->SmioMask1);
@@ -2534,8 +2453,6 @@ static int tonga_init_smc_table(struct pp_hwmgr *hwmgr)
 	result = tonga_populate_initial_mc_reg_table(hwmgr);
 	PP_ASSERT_WITH_CODE((!result),
 		"Failed to populate initialize MC Reg table !", return result);
-
-	tonga_save_default_power_profile(hwmgr);
 
 	return 0;
 }
@@ -2612,7 +2529,7 @@ static int tonga_thermal_setup_fan_table(struct pp_hwmgr *hwmgr)
 
 	fan_table.TempRespLim = cpu_to_be16(5);
 
-	reference_clock = smu7_get_xclk(hwmgr);
+	reference_clock = amdgpu_asic_get_xclk((struct amdgpu_device *)hwmgr->adev);
 
 	fan_table.RefreshPeriod = cpu_to_be32((hwmgr->thermal_controller.advanceFanControlParameters.ulCycleDelay * reference_clock) / 1600);
 
@@ -2695,6 +2612,8 @@ static uint32_t tonga_get_offsetof(uint32_t type, uint32_t member)
 			return offsetof(SMU72_SoftRegisters, VoltageChangeTimeout);
 		case AverageGraphicsActivity:
 			return offsetof(SMU72_SoftRegisters, AverageGraphicsActivity);
+		case AverageMemoryActivity:
+			return offsetof(SMU72_SoftRegisters, AverageMemoryActivity);
 		case PreVBlankGap:
 			return offsetof(SMU72_SoftRegisters, PreVBlankGap);
 		case VBlankTimeout:
@@ -2712,17 +2631,17 @@ static uint32_t tonga_get_offsetof(uint32_t type, uint32_t member)
 		case DRAM_LOG_BUFF_SIZE:
 			return offsetof(SMU72_SoftRegisters, DRAM_LOG_BUFF_SIZE);
 		}
+		break;
 	case SMU_Discrete_DpmTable:
 		switch (member) {
 		case UvdBootLevel:
 			return offsetof(SMU72_Discrete_DpmTable, UvdBootLevel);
 		case VceBootLevel:
 			return offsetof(SMU72_Discrete_DpmTable, VceBootLevel);
-		case SamuBootLevel:
-			return offsetof(SMU72_Discrete_DpmTable, SamuBootLevel);
 		case LowSclkInterruptThreshold:
 			return offsetof(SMU72_Discrete_DpmTable, LowSclkInterruptThreshold);
 		}
+		break;
 	}
 	pr_warn("can't get the offset of type %x member %x\n", type, member);
 	return 0;
@@ -2818,32 +2737,6 @@ static int tonga_update_vce_smc_table(struct pp_hwmgr *hwmgr)
 	return 0;
 }
 
-static int tonga_update_samu_smc_table(struct pp_hwmgr *hwmgr)
-{
-	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)(hwmgr->smu_backend);
-	uint32_t mm_boot_level_offset, mm_boot_level_value;
-
-	smu_data->smc_state_table.SamuBootLevel = 0;
-	mm_boot_level_offset = smu_data->smu7_data.dpm_table_start +
-				offsetof(SMU72_Discrete_DpmTable, SamuBootLevel);
-
-	mm_boot_level_offset /= 4;
-	mm_boot_level_offset *= 4;
-	mm_boot_level_value = cgs_read_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset);
-	mm_boot_level_value &= 0xFFFFFF00;
-	mm_boot_level_value |= smu_data->smc_state_table.SamuBootLevel << 0;
-	cgs_write_ind_register(hwmgr->device,
-			CGS_IND_REG__SMC, mm_boot_level_offset, mm_boot_level_value);
-
-	if (phm_cap_enabled(hwmgr->platform_descriptor.platformCaps,
-			PHM_PlatformCaps_StablePState))
-		smum_send_msg_to_smc_with_parameter(hwmgr,
-				PPSMC_MSG_SAMUDPM_SetEnabledMask,
-				(uint32_t)(1 << smu_data->smc_state_table.SamuBootLevel));
-	return 0;
-}
-
 static int tonga_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 {
 	switch (type) {
@@ -2852,9 +2745,6 @@ static int tonga_update_smc_table(struct pp_hwmgr *hwmgr, uint32_t type)
 		break;
 	case SMU_VCE_TABLE:
 		tonga_update_vce_smc_table(hwmgr);
-		break;
-	case SMU_SAMU_TABLE:
-		tonga_update_samu_smc_table(hwmgr);
 		break;
 	default:
 		break;
@@ -3227,8 +3117,6 @@ static int tonga_initialize_mc_reg_table(struct pp_hwmgr *hwmgr)
 	cgs_write_register(hwmgr->device, mmMC_SEQ_WR_CTL_2_LP,
 			cgs_read_register(hwmgr->device, mmMC_SEQ_WR_CTL_2));
 
-	memset(table, 0x00, sizeof(pp_atomctrl_mc_reg_table));
-
 	result = atomctrl_initialize_mc_reg_table(hwmgr, module_index, table);
 
 	if (!result)
@@ -3254,32 +3142,104 @@ static bool tonga_is_dpm_running(struct pp_hwmgr *hwmgr)
 			? true : false;
 }
 
-static int tonga_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request)
+static int tonga_update_dpm_settings(struct pp_hwmgr *hwmgr,
+				void *profile_setting)
 {
+	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
 	struct tonga_smumgr *smu_data = (struct tonga_smumgr *)
 			(hwmgr->smu_backend);
+	struct profile_mode_setting *setting;
 	struct SMU72_Discrete_GraphicsLevel *levels =
 			smu_data->smc_state_table.GraphicsLevel;
 	uint32_t array = smu_data->smu7_data.dpm_table_start +
 			offsetof(SMU72_Discrete_DpmTable, GraphicsLevel);
-	uint32_t array_size = sizeof(struct SMU72_Discrete_GraphicsLevel) *
-			SMU72_MAX_LEVELS_GRAPHICS;
-	uint32_t i;
 
-	for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
-		levels[i].ActivityLevel =
-				cpu_to_be16(request->activity_threshold);
-		levels[i].EnabledForActivity = 1;
-		levels[i].UpHyst = request->up_hyst;
-		levels[i].DownHyst = request->down_hyst;
+	uint32_t mclk_array = smu_data->smu7_data.dpm_table_start +
+			offsetof(SMU72_Discrete_DpmTable, MemoryLevel);
+	struct SMU72_Discrete_MemoryLevel *mclk_levels =
+			smu_data->smc_state_table.MemoryLevel;
+	uint32_t i;
+	uint32_t offset, up_hyst_offset, down_hyst_offset, clk_activity_offset, tmp;
+
+	if (profile_setting == NULL)
+		return -EINVAL;
+
+	setting = (struct profile_mode_setting *)profile_setting;
+
+	if (setting->bupdate_sclk) {
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_FreezeLevel);
+		for (i = 0; i < smu_data->smc_state_table.GraphicsDpmLevelCount; i++) {
+			if (levels[i].ActivityLevel !=
+				cpu_to_be16(setting->sclk_activity)) {
+				levels[i].ActivityLevel = cpu_to_be16(setting->sclk_activity);
+
+				clk_activity_offset = array + (sizeof(SMU72_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU72_Discrete_GraphicsLevel, ActivityLevel);
+				offset = clk_activity_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(clk_activity_offset, tmp, levels[i].ActivityLevel, sizeof(uint16_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+
+			}
+			if (levels[i].UpHyst != setting->sclk_up_hyst ||
+				levels[i].DownHyst != setting->sclk_down_hyst) {
+				levels[i].UpHyst = setting->sclk_up_hyst;
+				levels[i].DownHyst = setting->sclk_down_hyst;
+				up_hyst_offset = array + (sizeof(SMU72_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU72_Discrete_GraphicsLevel, UpHyst);
+				down_hyst_offset = array + (sizeof(SMU72_Discrete_GraphicsLevel) * i)
+						+ offsetof(SMU72_Discrete_GraphicsLevel, DownHyst);
+				offset = up_hyst_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(up_hyst_offset, tmp, levels[i].UpHyst, sizeof(uint8_t));
+				tmp = phm_set_field_to_u32(down_hyst_offset, tmp, levels[i].DownHyst, sizeof(uint8_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+			}
+		}
+		if (!data->sclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_SCLKDPM_UnfreezeLevel);
 	}
 
-	return smu7_copy_bytes_to_smc(hwmgr, array, (uint8_t *)levels,
-				array_size, SMC_RAM_END);
+	if (setting->bupdate_mclk) {
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_FreezeLevel);
+		for (i = 0; i < smu_data->smc_state_table.MemoryDpmLevelCount; i++) {
+			if (mclk_levels[i].ActivityLevel !=
+				cpu_to_be16(setting->mclk_activity)) {
+				mclk_levels[i].ActivityLevel = cpu_to_be16(setting->mclk_activity);
+
+				clk_activity_offset = mclk_array + (sizeof(SMU72_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU72_Discrete_MemoryLevel, ActivityLevel);
+				offset = clk_activity_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(clk_activity_offset, tmp, mclk_levels[i].ActivityLevel, sizeof(uint16_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+
+			}
+			if (mclk_levels[i].UpHyst != setting->mclk_up_hyst ||
+				mclk_levels[i].DownHyst != setting->mclk_down_hyst) {
+				mclk_levels[i].UpHyst = setting->mclk_up_hyst;
+				mclk_levels[i].DownHyst = setting->mclk_down_hyst;
+				up_hyst_offset = mclk_array + (sizeof(SMU72_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU72_Discrete_MemoryLevel, UpHyst);
+				down_hyst_offset = mclk_array + (sizeof(SMU72_Discrete_MemoryLevel) * i)
+						+ offsetof(SMU72_Discrete_MemoryLevel, DownHyst);
+				offset = up_hyst_offset & ~0x3;
+				tmp = PP_HOST_TO_SMC_UL(cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset));
+				tmp = phm_set_field_to_u32(up_hyst_offset, tmp, mclk_levels[i].UpHyst, sizeof(uint8_t));
+				tmp = phm_set_field_to_u32(down_hyst_offset, tmp, mclk_levels[i].DownHyst, sizeof(uint8_t));
+				cgs_write_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset, PP_HOST_TO_SMC_UL(tmp));
+			}
+		}
+		if (!data->mclk_dpm_key_disabled)
+			smum_send_msg_to_smc(hwmgr, PPSMC_MSG_MCLKDPM_UnfreezeLevel);
+	}
+	return 0;
 }
 
 const struct pp_smumgr_func tonga_smu_funcs = {
+	.name = "tonga_smu",
 	.smu_init = &tonga_smu_init,
 	.smu_fini = &smu7_smu_fini,
 	.start_smu = &tonga_start_smu,
@@ -3301,5 +3261,5 @@ const struct pp_smumgr_func tonga_smu_funcs = {
 	.get_mac_definition = tonga_get_mac_definition,
 	.initialize_mc_reg_table = tonga_initialize_mc_reg_table,
 	.is_dpm_running = tonga_is_dpm_running,
-	.populate_requested_graphic_levels = tonga_populate_requested_graphic_levels,
+	.update_dpm_settings = tonga_update_dpm_settings,
 };

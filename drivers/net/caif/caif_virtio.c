@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2013
  * Authors: Vicram Arv
  *	    Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
  *	    Sjur Brendeland
- * License terms: GNU General Public License (GPL) version 2
  */
 #include <linux/module.h>
 #include <linux/if_arp.h>
@@ -623,27 +623,23 @@ static void cfv_netdev_setup(struct net_device *netdev)
 /* Create debugfs counters for the device */
 static inline void debugfs_init(struct cfv_info *cfv)
 {
-	cfv->debugfs =
-		debugfs_create_dir(netdev_name(cfv->ndev), NULL);
+	cfv->debugfs = debugfs_create_dir(netdev_name(cfv->ndev), NULL);
 
-	if (IS_ERR(cfv->debugfs))
-		return;
-
-	debugfs_create_u32("rx-napi-complete", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-napi-complete", 0400, cfv->debugfs,
 			   &cfv->stats.rx_napi_complete);
-	debugfs_create_u32("rx-napi-resched", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-napi-resched", 0400, cfv->debugfs,
 			   &cfv->stats.rx_napi_resched);
-	debugfs_create_u32("rx-nomem", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-nomem", 0400, cfv->debugfs,
 			   &cfv->stats.rx_nomem);
-	debugfs_create_u32("rx-kicks", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("rx-kicks", 0400, cfv->debugfs,
 			   &cfv->stats.rx_kicks);
-	debugfs_create_u32("tx-full-ring", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-full-ring", 0400, cfv->debugfs,
 			   &cfv->stats.tx_full_ring);
-	debugfs_create_u32("tx-no-mem", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-no-mem", 0400, cfv->debugfs,
 			   &cfv->stats.tx_no_mem);
-	debugfs_create_u32("tx-kicks", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-kicks", 0400, cfv->debugfs,
 			   &cfv->stats.tx_kicks);
-	debugfs_create_u32("tx-flow-on", S_IRUSR, cfv->debugfs,
+	debugfs_create_u32("tx-flow-on", 0400, cfv->debugfs,
 			   &cfv->stats.tx_flow_on);
 }
 

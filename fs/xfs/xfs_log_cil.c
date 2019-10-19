@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2010 Red Hat, Inc. All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
 #include "xfs.h"
@@ -22,10 +10,7 @@
 #include "xfs_shared.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_error.h"
-#include "xfs_alloc.h"
 #include "xfs_extent_busy.h"
-#include "xfs_discard.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
 #include "xfs_log.h"
@@ -53,7 +38,7 @@ xlog_cil_ticket_alloc(
 	struct xlog_ticket *tic;
 
 	tic = xlog_ticket_alloc(log, 0, 1, XFS_TRANSACTION, 0,
-				KM_SLEEP|KM_NOFS);
+				KM_NOFS);
 
 	/*
 	 * set the current reservation to zero so we know to steal the basic
@@ -141,10 +126,9 @@ xlog_cil_alloc_shadow_bufs(
 	struct xlog		*log,
 	struct xfs_trans	*tp)
 {
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item	*lip;
 
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item *lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec *lv;
 		int	niovecs = 0;
 		int	nbytes = 0;
@@ -152,7 +136,7 @@ xlog_cil_alloc_shadow_bufs(
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
 		/* get number of vecs and size of data to be stored */
@@ -202,7 +186,7 @@ xlog_cil_alloc_shadow_bufs(
 			 */
 			kmem_free(lip->li_lv_shadow);
 
-			lv = kmem_alloc(buf_size, KM_SLEEP|KM_NOFS);
+			lv = kmem_alloc_large(buf_size, KM_NOFS);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;
@@ -259,7 +243,8 @@ xfs_cil_prepare_item(
 	 * shadow buffer, so update the the pointer to it appropriately.
 	 */
 	if (!old_lv) {
-		lv->lv_item->li_ops->iop_pin(lv->lv_item);
+		if (lv->lv_item->li_ops->iop_pin)
+			lv->lv_item->li_ops->iop_pin(lv->lv_item);
 		lv->lv_item->li_lv_shadow = NULL;
 	} else if (old_lv != lv) {
 		ASSERT(lv->lv_buf_len != XFS_LOG_VEC_ORDERED);
@@ -317,7 +302,7 @@ xlog_cil_insert_format_items(
 	int			*diff_len,
 	int			*diff_iovecs)
 {
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item	*lip;
 
 
 	/* Bail out if we didn't find a log item.  */
@@ -326,15 +311,14 @@ xlog_cil_insert_format_items(
 		return;
 	}
 
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item *lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		struct xfs_log_vec *lv;
 		struct xfs_log_vec *old_lv = NULL;
 		struct xfs_log_vec *shadow;
 		bool	ordered = false;
 
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
 		/*
@@ -406,7 +390,7 @@ xlog_cil_insert_items(
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xfs_cil_ctx	*ctx = cil->xc_ctx;
-	struct xfs_log_item_desc *lidp;
+	struct xfs_log_item	*lip;
 	int			len = 0;
 	int			diff_iovecs = 0;
 	int			iclog_space;
@@ -479,11 +463,10 @@ xlog_cil_insert_items(
 	 * We do this here so we only need to take the CIL lock once during
 	 * the transaction commit.
 	 */
-	list_for_each_entry(lidp, &tp->t_items, lid_trans) {
-		struct xfs_log_item	*lip = lidp->lid_item;
+	list_for_each_entry(lip, &tp->t_items, li_trans) {
 
 		/* Skip items which aren't dirty in this transaction. */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY))
+		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
 			continue;
 
 		/*
@@ -591,11 +574,23 @@ xlog_discard_busy_extents(
  */
 static void
 xlog_cil_committed(
-	void	*args,
-	int	abort)
+	struct xfs_cil_ctx	*ctx,
+	bool			abort)
 {
-	struct xfs_cil_ctx	*ctx = args;
 	struct xfs_mount	*mp = ctx->cil->xc_log->l_mp;
+
+	/*
+	 * If the I/O failed, we're aborting the commit and already shutdown.
+	 * Wake any commit waiters before aborting the log items so we don't
+	 * block async log pushers on callbacks. Async log pushers explicitly do
+	 * not wait on log force completion because they may be holding locks
+	 * required to unpin items.
+	 */
+	if (abort) {
+		spin_lock(&ctx->cil->xc_push_lock);
+		wake_up_all(&ctx->cil->xc_commit_wait);
+		spin_unlock(&ctx->cil->xc_push_lock);
+	}
 
 	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
 					ctx->start_lsn, abort);
@@ -604,15 +599,7 @@ xlog_cil_committed(
 	xfs_extent_busy_clear(mp, &ctx->busy_extents,
 			     (mp->m_flags & XFS_MOUNT_DISCARD) && !abort);
 
-	/*
-	 * If we are aborting the commit, wake up anyone waiting on the
-	 * committing list.  If we don't, then a shutdown we can leave processes
-	 * waiting in xlog_cil_force_lsn() waiting on a sequence commit that
-	 * will never happen because we aborted it.
-	 */
 	spin_lock(&ctx->cil->xc_push_lock);
-	if (abort)
-		wake_up_all(&ctx->cil->xc_commit_wait);
 	list_del(&ctx->committing);
 	spin_unlock(&ctx->cil->xc_push_lock);
 
@@ -622,6 +609,20 @@ xlog_cil_committed(
 		xlog_discard_busy_extents(mp, ctx);
 	else
 		kmem_free(ctx);
+}
+
+void
+xlog_cil_process_committed(
+	struct list_head	*list,
+	bool			aborted)
+{
+	struct xfs_cil_ctx	*ctx;
+
+	while ((ctx = list_first_entry_or_null(list,
+			struct xfs_cil_ctx, iclog_entry))) {
+		list_del(&ctx->iclog_entry);
+		xlog_cil_committed(ctx, aborted);
+	}
 }
 
 /*
@@ -659,7 +660,7 @@ xlog_cil_push(
 	if (!cil)
 		return 0;
 
-	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_SLEEP|KM_NOFS);
+	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_NOFS);
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
 	down_write(&cil->xc_ctx_lock);
@@ -845,12 +846,15 @@ restart:
 	if (commit_lsn == -1)
 		goto out_abort;
 
-	/* attach all the transactions w/ busy extents to iclog */
-	ctx->log_cb.cb_func = xlog_cil_committed;
-	ctx->log_cb.cb_arg = ctx;
-	error = xfs_log_notify(log->l_mp, commit_iclog, &ctx->log_cb);
-	if (error)
+	spin_lock(&commit_iclog->ic_callback_lock);
+	if (commit_iclog->ic_state & XLOG_STATE_IOERROR) {
+		spin_unlock(&commit_iclog->ic_callback_lock);
 		goto out_abort;
+	}
+	ASSERT_ALWAYS(commit_iclog->ic_state == XLOG_STATE_ACTIVE ||
+		      commit_iclog->ic_state == XLOG_STATE_WANT_SYNC);
+	list_add_tail(&ctx->iclog_entry, &commit_iclog->ic_callbacks);
+	spin_unlock(&commit_iclog->ic_callback_lock);
 
 	/*
 	 * now the checkpoint commit is complete and we've attached the
@@ -874,7 +878,7 @@ out_skip:
 out_abort_free_ticket:
 	xfs_log_ticket_put(tic);
 out_abort:
-	xlog_cil_committed(ctx, XFS_LI_ABORTED);
+	xlog_cil_committed(ctx, true);
 	return -EIO;
 }
 
@@ -994,6 +998,7 @@ xfs_log_commit_cil(
 {
 	struct xlog		*log = mp->m_log;
 	struct xfs_cil		*cil = log->l_cilp;
+	struct xfs_log_item	*lip, *next;
 	xfs_lsn_t		xc_commit_lsn;
 
 	/*
@@ -1013,11 +1018,12 @@ xfs_log_commit_cil(
 		*commit_lsn = xc_commit_lsn;
 
 	xfs_log_done(mp, tp->t_ticket, NULL, regrant);
+	tp->t_ticket = NULL;
 	xfs_trans_unreserve_and_mod_sb(tp);
 
 	/*
 	 * Once all the items of the transaction have been copied to the CIL,
-	 * the items can be unlocked and freed.
+	 * the items can be unlocked and possibly freed.
 	 *
 	 * This needs to be done before we drop the CIL context lock because we
 	 * have to update state in the log items and unlock them before they go
@@ -1026,8 +1032,12 @@ xfs_log_commit_cil(
 	 * the log items. This affects (at least) processing of stale buffers,
 	 * inodes and EFIs.
 	 */
-	xfs_trans_free_items(tp, xc_commit_lsn, false);
-
+	trace_xfs_trans_commit_items(tp, _RET_IP_);
+	list_for_each_entry_safe(lip, next, &tp->t_items, li_trans) {
+		xfs_trans_del_item(lip);
+		if (lip->li_ops->iop_committing)
+			lip->li_ops->iop_committing(lip, xc_commit_lsn);
+	}
 	xlog_cil_push_background(log);
 
 	up_read(&cil->xc_ctx_lock);
@@ -1169,11 +1179,11 @@ xlog_cil_init(
 	struct xfs_cil	*cil;
 	struct xfs_cil_ctx *ctx;
 
-	cil = kmem_zalloc(sizeof(*cil), KM_SLEEP|KM_MAYFAIL);
+	cil = kmem_zalloc(sizeof(*cil), KM_MAYFAIL);
 	if (!cil)
 		return -ENOMEM;
 
-	ctx = kmem_zalloc(sizeof(*ctx), KM_SLEEP|KM_MAYFAIL);
+	ctx = kmem_zalloc(sizeof(*ctx), KM_MAYFAIL);
 	if (!ctx) {
 		kmem_free(cil);
 		return -ENOMEM;

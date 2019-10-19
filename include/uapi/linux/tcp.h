@@ -122,6 +122,17 @@ enum {
 #define TCP_MD5SIG_EXT		32	/* TCP MD5 Signature with extensions */
 #define TCP_FASTOPEN_KEY	33	/* Set the key for Fast Open (cookie) */
 #define TCP_FASTOPEN_NO_COOKIE	34	/* Enable TFO without a TFO cookie */
+#define TCP_ZEROCOPY_RECEIVE	35
+#define TCP_INQ			36	/* Notify bytes available to read as a cmsg on read */
+
+#define TCP_CM_INQ		TCP_INQ
+
+#define TCP_TX_DELAY		37	/* delay outgoing packets by XX usec */
+
+
+#define TCP_REPAIR_ON		1
+#define TCP_REPAIR_OFF		0
+#define TCP_REPAIR_OFF_NO_WP	-1	/* Turn off without window probes */
 
 struct tcp_repair_opt {
 	__u32	opt_code;
@@ -152,15 +163,42 @@ enum {
 #define TCPI_OPT_ECN_SEEN	16 /* we received at least one packet with ECT */
 #define TCPI_OPT_SYN_DATA	32 /* SYN-ACK acked data in SYN sent or rcvd */
 
+/*
+ * Sender's congestion state indicating normal or abnormal situations
+ * in the last round of packets sent. The state is driven by the ACK
+ * information and timer events.
+ */
 enum tcp_ca_state {
+	/*
+	 * Nothing bad has been observed recently.
+	 * No apparent reordering, packet loss, or ECN marks.
+	 */
 	TCP_CA_Open = 0,
 #define TCPF_CA_Open	(1<<TCP_CA_Open)
+	/*
+	 * The sender enters disordered state when it has received DUPACKs or
+	 * SACKs in the last round of packets sent. This could be due to packet
+	 * loss or reordering but needs further information to confirm packets
+	 * have been lost.
+	 */
 	TCP_CA_Disorder = 1,
 #define TCPF_CA_Disorder (1<<TCP_CA_Disorder)
+	/*
+	 * The sender enters Congestion Window Reduction (CWR) state when it
+	 * has received ACKs with ECN-ECE marks, or has experienced congestion
+	 * or packet discard on the sender host (e.g. qdisc).
+	 */
 	TCP_CA_CWR = 2,
 #define TCPF_CA_CWR	(1<<TCP_CA_CWR)
+	/*
+	 * The sender is in fast recovery and retransmitting lost packets,
+	 * typically triggered by ACK events.
+	 */
 	TCP_CA_Recovery = 3,
 #define TCPF_CA_Recovery (1<<TCP_CA_Recovery)
+	/*
+	 * The sender is in loss recovery triggered by retransmission timeout.
+	 */
 	TCP_CA_Loss = 4
 #define TCPF_CA_Loss	(1<<TCP_CA_Loss)
 };
@@ -224,6 +262,20 @@ struct tcp_info {
 	__u64	tcpi_busy_time;      /* Time (usec) busy sending data */
 	__u64	tcpi_rwnd_limited;   /* Time (usec) limited by receive window */
 	__u64	tcpi_sndbuf_limited; /* Time (usec) limited by send buffer */
+
+	__u32	tcpi_delivered;
+	__u32	tcpi_delivered_ce;
+
+	__u64	tcpi_bytes_sent;     /* RFC4898 tcpEStatsPerfHCDataOctetsOut */
+	__u64	tcpi_bytes_retrans;  /* RFC4898 tcpEStatsPerfOctetsRetrans */
+	__u32	tcpi_dsack_dups;     /* RFC4898 tcpEStatsStackDSACKDups */
+	__u32	tcpi_reord_seen;     /* reordering events seen */
+
+	__u32	tcpi_rcv_ooopack;    /* Out-of-order packets received */
+
+	__u32	tcpi_snd_wnd;	     /* peer's advertised receive window after
+				      * scaling (bytes)
+				      */
 };
 
 /* netlink attributes types for SCM_TIMESTAMPING_OPT_STATS */
@@ -241,7 +293,16 @@ enum {
 	TCP_NLA_MIN_RTT,        /* minimum RTT */
 	TCP_NLA_RECUR_RETRANS,  /* Recurring retransmits for the current pkt */
 	TCP_NLA_DELIVERY_RATE_APP_LMT, /* delivery rate application limited ? */
-
+	TCP_NLA_SNDQ_SIZE,	/* Data (bytes) pending in send queue */
+	TCP_NLA_CA_STATE,	/* ca_state of socket */
+	TCP_NLA_SND_SSTHRESH,	/* Slow start size threshold */
+	TCP_NLA_DELIVERED,	/* Data pkts delivered incl. out-of-order */
+	TCP_NLA_DELIVERED_CE,	/* Like above but only ones w/ CE marks */
+	TCP_NLA_BYTES_SENT,	/* Data bytes sent including retransmission */
+	TCP_NLA_BYTES_RETRANS,	/* Data bytes retransmitted */
+	TCP_NLA_DSACK_DUPS,	/* DSACK blocks received */
+	TCP_NLA_REORD_SEEN,	/* reordering events seen */
+	TCP_NLA_SRTT,		/* smoothed RTT in usecs */
 };
 
 /* for TCP_MD5SIG socket option */
@@ -268,4 +329,11 @@ struct tcp_diag_md5sig {
 	__u8	tcpm_key[TCP_MD5SIG_MAXKEYLEN];
 };
 
+/* setsockopt(fd, IPPROTO_TCP, TCP_ZEROCOPY_RECEIVE, ...) */
+
+struct tcp_zerocopy_receive {
+	__u64 address;		/* in: address of mapping */
+	__u32 length;		/* in/out: number of bytes to map/mapped */
+	__u32 recv_skip_hint;	/* out: amount of bytes to skip */
+};
 #endif /* _UAPI_LINUX_TCP_H */

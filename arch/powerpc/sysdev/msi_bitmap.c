@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2006-2008, Michael Ellerman, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; version 2 of the
- * License.
- *
  */
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
+#include <linux/kmemleak.h>
 #include <linux/bitmap.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <asm/msi_bitmap.h>
 #include <asm/setup.h>
 
@@ -127,7 +123,10 @@ int __ref msi_bitmap_alloc(struct msi_bitmap *bmp, unsigned int irq_count,
 	if (bmp->bitmap_from_slab)
 		bmp->bitmap = kzalloc(size, GFP_KERNEL);
 	else {
-		bmp->bitmap = memblock_virt_alloc(size, 0);
+		bmp->bitmap = memblock_alloc(size, SMP_CACHE_BYTES);
+		if (!bmp->bitmap)
+			panic("%s: Failed to allocate %u bytes\n", __func__,
+			      size);
 		/* the bitmap won't be freed from memblock allocator */
 		kmemleak_not_leak(bmp->bitmap);
 	}
@@ -224,22 +223,23 @@ static void __init test_of_node(void)
 	struct device_node of_node;
 	struct property prop;
 	struct msi_bitmap bmp;
-	int size = 256;
-	DECLARE_BITMAP(expected, size);
+#define SIZE_EXPECTED 256
+	DECLARE_BITMAP(expected, SIZE_EXPECTED);
 
 	/* There should really be a struct device_node allocator */
 	memset(&of_node, 0, sizeof(of_node));
 	of_node_init(&of_node);
 	of_node.full_name = node_name;
 
-	WARN_ON(msi_bitmap_alloc(&bmp, size, &of_node));
+	WARN_ON(msi_bitmap_alloc(&bmp, SIZE_EXPECTED, &of_node));
 
 	/* No msi-available-ranges, so expect > 0 */
 	WARN_ON(msi_bitmap_reserve_dt_hwirqs(&bmp) <= 0);
 
 	/* Should all still be free */
-	WARN_ON(bitmap_find_free_region(bmp.bitmap, size, get_count_order(size)));
-	bitmap_release_region(bmp.bitmap, 0, get_count_order(size));
+	WARN_ON(bitmap_find_free_region(bmp.bitmap, SIZE_EXPECTED,
+					get_count_order(SIZE_EXPECTED)));
+	bitmap_release_region(bmp.bitmap, 0, get_count_order(SIZE_EXPECTED));
 
 	/* Now create a fake msi-available-ranges property */
 
@@ -255,8 +255,8 @@ static void __init test_of_node(void)
 	WARN_ON(msi_bitmap_reserve_dt_hwirqs(&bmp));
 
 	/* Check we got the expected result */
-	WARN_ON(bitmap_parselist(expected_str, expected, size));
-	WARN_ON(!bitmap_equal(expected, bmp.bitmap, size));
+	WARN_ON(bitmap_parselist(expected_str, expected, SIZE_EXPECTED));
+	WARN_ON(!bitmap_equal(expected, bmp.bitmap, SIZE_EXPECTED));
 
 	msi_bitmap_free(&bmp);
 	kfree(bmp.bitmap);

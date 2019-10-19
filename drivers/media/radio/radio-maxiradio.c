@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Guillemot Maxi Radio FM 2000 PCI radio card driver for Linux
  * (C) 2001 Dimitromanolakis Apostolos <apdim@grecian.net>
@@ -27,7 +28,7 @@
  * BUGS:
  *   - card unmutes if you change frequency
  *
- * (c) 2006, 2007 by Mauro Carvalho Chehab <mchehab@infradead.org>:
+ * (c) 2006, 2007 by Mauro Carvalho Chehab <mchehab@kernel.org>:
  *	- Conversion to V4L2 API
  *      - Uses video_ioctl2 for parsing and to add debug support
  */
@@ -142,7 +143,7 @@ static int maxiradio_probe(struct pci_dev *pdev,
 	dev->tea.cannot_read_data = true;
 	dev->tea.v4l2_dev = v4l2_dev;
 	dev->tea.radio_nr = radio_nr;
-	strlcpy(dev->tea.card, "Maxi Radio FM2000", sizeof(dev->tea.card));
+	strscpy(dev->tea.card, "Maxi Radio FM2000", sizeof(dev->tea.card));
 	snprintf(dev->tea.bus_info, sizeof(dev->tea.bus_info),
 			"PCI:%s", pci_name(pdev));
 

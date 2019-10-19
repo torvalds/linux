@@ -244,6 +244,65 @@ bool tipc_msg_validate(struct sk_buff **_skb)
 }
 
 /**
+ * tipc_msg_fragment - build a fragment skb list for TIPC message
+ *
+ * @skb: TIPC message skb
+ * @hdr: internal msg header to be put on the top of the fragments
+ * @pktmax: max size of a fragment incl. the header
+ * @frags: returned fragment skb list
+ *
+ * Returns 0 if the fragmentation is successful, otherwise: -EINVAL
+ * or -ENOMEM
+ */
+int tipc_msg_fragment(struct sk_buff *skb, const struct tipc_msg *hdr,
+		      int pktmax, struct sk_buff_head *frags)
+{
+	int pktno, nof_fragms, dsz, dmax, eat;
+	struct tipc_msg *_hdr;
+	struct sk_buff *_skb;
+	u8 *data;
+
+	/* Non-linear buffer? */
+	if (skb_linearize(skb))
+		return -ENOMEM;
+
+	data = (u8 *)skb->data;
+	dsz = msg_size(buf_msg(skb));
+	dmax = pktmax - INT_H_SIZE;
+	if (dsz <= dmax || !dmax)
+		return -EINVAL;
+
+	nof_fragms = dsz / dmax + 1;
+	for (pktno = 1; pktno <= nof_fragms; pktno++) {
+		if (pktno < nof_fragms)
+			eat = dmax;
+		else
+			eat = dsz % dmax;
+		/* Allocate a new fragment */
+		_skb = tipc_buf_acquire(INT_H_SIZE + eat, GFP_ATOMIC);
+		if (!_skb)
+			goto error;
+		skb_orphan(_skb);
+		__skb_queue_tail(frags, _skb);
+		/* Copy header & data to the fragment */
+		skb_copy_to_linear_data(_skb, hdr, INT_H_SIZE);
+		skb_copy_to_linear_data_offset(_skb, INT_H_SIZE, data, eat);
+		data += eat;
+		/* Update the fragment's header */
+		_hdr = buf_msg(_skb);
+		msg_set_fragm_no(_hdr, pktno);
+		msg_set_nof_fragms(_hdr, nof_fragms);
+		msg_set_size(_hdr, INT_H_SIZE + eat);
+	}
+	return 0;
+
+error:
+	__skb_queue_purge(frags);
+	__skb_queue_head_init(frags);
+	return -ENOMEM;
+}
+
+/**
  * tipc_msg_build - create buffer chain containing specified header and data
  * @mhdr: Message header, to be prepended to data
  * @m: User message
@@ -416,26 +475,31 @@ bool tipc_msg_bundle(struct sk_buff *skb, struct tipc_msg *msg, u32 mtu)
  */
 bool tipc_msg_extract(struct sk_buff *skb, struct sk_buff **iskb, int *pos)
 {
-	struct tipc_msg *msg;
-	int imsz, offset;
+	struct tipc_msg *hdr, *ihdr;
+	int imsz;
 
 	*iskb = NULL;
 	if (unlikely(skb_linearize(skb)))
 		goto none;
 
-	msg = buf_msg(skb);
-	offset = msg_hdr_sz(msg) + *pos;
-	if (unlikely(offset > (msg_size(msg) - MIN_H_SIZE)))
+	hdr = buf_msg(skb);
+	if (unlikely(*pos > (msg_data_sz(hdr) - MIN_H_SIZE)))
 		goto none;
 
-	*iskb = skb_clone(skb, GFP_ATOMIC);
-	if (unlikely(!*iskb))
+	ihdr = (struct tipc_msg *)(msg_data(hdr) + *pos);
+	imsz = msg_size(ihdr);
+
+	if ((*pos + imsz) > msg_data_sz(hdr))
 		goto none;
-	skb_pull(*iskb, offset);
-	imsz = msg_size(buf_msg(*iskb));
-	skb_trim(*iskb, imsz);
+
+	*iskb = tipc_buf_acquire(imsz, GFP_ATOMIC);
+	if (!*iskb)
+		goto none;
+
+	skb_copy_to_linear_data(*iskb, ihdr, imsz);
 	if (unlikely(!tipc_msg_validate(iskb)))
 		goto none;
+
 	*pos += align(imsz);
 	return true;
 none:
@@ -479,10 +543,7 @@ bool tipc_msg_make_bundle(struct sk_buff **skb,  struct tipc_msg *msg,
 	bmsg = buf_msg(_skb);
 	tipc_msg_init(msg_prevnode(msg), bmsg, MSG_BUNDLER, 0,
 		      INT_H_SIZE, dnode);
-	if (msg_isdata(msg))
-		msg_set_importance(bmsg, TIPC_CRITICAL_IMPORTANCE);
-	else
-		msg_set_importance(bmsg, TIPC_SYSTEM_IMPORTANCE);
+	msg_set_importance(bmsg, msg_importance(msg));
 	msg_set_seqno(bmsg, msg_seqno(msg));
 	msg_set_ack(bmsg, msg_ack(msg));
 	msg_set_bcast_ack(bmsg, msg_bcast_ack(msg));
@@ -494,65 +555,77 @@ bool tipc_msg_make_bundle(struct sk_buff **skb,  struct tipc_msg *msg,
 /**
  * tipc_msg_reverse(): swap source and destination addresses and add error code
  * @own_node: originating node id for reversed message
- * @skb:  buffer containing message to be reversed; may be replaced.
+ * @skb:  buffer containing message to be reversed; will be consumed
  * @err:  error code to be set in message, if any
- * Consumes buffer at failure
+ * Replaces consumed buffer with new one when successful
  * Returns true if success, otherwise false
  */
 bool tipc_msg_reverse(u32 own_node,  struct sk_buff **skb, int err)
 {
 	struct sk_buff *_skb = *skb;
-	struct tipc_msg *hdr;
-	struct tipc_msg ohdr;
-	int dlen;
+	struct tipc_msg *_hdr, *hdr;
+	int hlen, dlen;
 
 	if (skb_linearize(_skb))
 		goto exit;
-	hdr = buf_msg(_skb);
-	dlen = min_t(uint, msg_data_sz(hdr), MAX_FORWARD_SIZE);
-	if (msg_dest_droppable(hdr))
+	_hdr = buf_msg(_skb);
+	dlen = min_t(uint, msg_data_sz(_hdr), MAX_FORWARD_SIZE);
+	hlen = msg_hdr_sz(_hdr);
+
+	if (msg_dest_droppable(_hdr))
 		goto exit;
-	if (msg_errcode(hdr))
-		goto exit;
-
-	/* Take a copy of original header before altering message */
-	memcpy(&ohdr, hdr, msg_hdr_sz(hdr));
-
-	/* Never return SHORT header; expand by replacing buffer if necessary */
-	if (msg_short(hdr)) {
-		*skb = tipc_buf_acquire(BASIC_H_SIZE + dlen, GFP_ATOMIC);
-		if (!*skb)
-			goto exit;
-		memcpy((*skb)->data + BASIC_H_SIZE, msg_data(hdr), dlen);
-		kfree_skb(_skb);
-		_skb = *skb;
-		hdr = buf_msg(_skb);
-		memcpy(hdr, &ohdr, BASIC_H_SIZE);
-		msg_set_hdr_sz(hdr, BASIC_H_SIZE);
-	}
-
-	if (skb_cloned(_skb) &&
-	    pskb_expand_head(_skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
+	if (msg_errcode(_hdr))
 		goto exit;
 
-	/* reassign after skb header modifications */
-	hdr = buf_msg(_skb);
-	/* Now reverse the concerned fields */
+	/* Never return SHORT header */
+	if (hlen == SHORT_H_SIZE)
+		hlen = BASIC_H_SIZE;
+
+	/* Don't return data along with SYN+, - sender has a clone */
+	if (msg_is_syn(_hdr) && err == TIPC_ERR_OVERLOAD)
+		dlen = 0;
+
+	/* Allocate new buffer to return */
+	*skb = tipc_buf_acquire(hlen + dlen, GFP_ATOMIC);
+	if (!*skb)
+		goto exit;
+	memcpy((*skb)->data, _skb->data, msg_hdr_sz(_hdr));
+	memcpy((*skb)->data + hlen, msg_data(_hdr), dlen);
+
+	/* Build reverse header in new buffer */
+	hdr = buf_msg(*skb);
+	msg_set_hdr_sz(hdr, hlen);
 	msg_set_errcode(hdr, err);
 	msg_set_non_seq(hdr, 0);
-	msg_set_origport(hdr, msg_destport(&ohdr));
-	msg_set_destport(hdr, msg_origport(&ohdr));
-	msg_set_destnode(hdr, msg_prevnode(&ohdr));
+	msg_set_origport(hdr, msg_destport(_hdr));
+	msg_set_destport(hdr, msg_origport(_hdr));
+	msg_set_destnode(hdr, msg_prevnode(_hdr));
 	msg_set_prevnode(hdr, own_node);
 	msg_set_orignode(hdr, own_node);
-	msg_set_size(hdr, msg_hdr_sz(hdr) + dlen);
-	skb_trim(_skb, msg_size(hdr));
+	msg_set_size(hdr, hlen + dlen);
 	skb_orphan(_skb);
+	kfree_skb(_skb);
 	return true;
 exit:
 	kfree_skb(_skb);
 	*skb = NULL;
 	return false;
+}
+
+bool tipc_msg_skb_clone(struct sk_buff_head *msg, struct sk_buff_head *cpy)
+{
+	struct sk_buff *skb, *_skb;
+
+	skb_queue_walk(msg, skb) {
+		_skb = skb_clone(skb, GFP_ATOMIC);
+		if (!_skb) {
+			__skb_queue_purge(cpy);
+			pr_err_ratelimited("Failed to clone buffer chain\n");
+			return false;
+		}
+		__skb_queue_tail(cpy, _skb);
+	}
+	return true;
 }
 
 /**
@@ -580,7 +653,7 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 	msg = buf_msg(skb);
 	if (msg_reroute_cnt(msg))
 		return false;
-	dnode = addr_domain(net, msg_lookup_scope(msg));
+	dnode = tipc_scope2node(net, msg_lookup_scope(msg));
 	dport = tipc_nametbl_translate(net, msg_nametype(msg),
 				       msg_nameinst(msg), &dnode);
 	if (!dport)
@@ -594,10 +667,6 @@ bool tipc_msg_lookup_dest(struct net *net, struct sk_buff *skb, int *err)
 
 	if (!skb_cloned(skb))
 		return true;
-
-	/* Unclone buffer in case it was bundled */
-	if (pskb_expand_head(skb, BUF_HEADROOM, BUF_TAILROOM, GFP_ATOMIC))
-		return false;
 
 	return true;
 }

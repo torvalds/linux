@@ -1,45 +1,11 @@
+/* SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0 */
 /******************************************************************************
  *
  * Name: acrestyp.h - Defines, types, and structures for resource descriptors
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #ifndef __ACRESTYP_H__
 #define __ACRESTYP_H__
@@ -173,7 +139,7 @@ struct acpi_resource_irq {
 	u8 descriptor_length;
 	u8 triggering;
 	u8 polarity;
-	u8 sharable;
+	u8 shareable;
 	u8 wake_capable;
 	u8 interrupt_count;
 	u8 interrupts[1];
@@ -362,7 +328,7 @@ struct acpi_resource_extended_irq {
 	u8 producer_consumer;
 	u8 triggering;
 	u8 polarity;
-	u8 sharable;
+	u8 shareable;
 	u8 wake_capable;
 	u8 interrupt_count;
 	struct acpi_resource_source resource_source;
@@ -382,7 +348,7 @@ struct acpi_resource_gpio {
 	u8 connection_type;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
 	u8 pin_config;
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u8 wake_capable;	/* For values, see Interrupt Attributes above */
 	u8 io_restriction;
 	u8 triggering;		/* For values, see Interrupt Attributes above */
@@ -542,7 +508,7 @@ struct acpi_resource_uart_serialbus {
 struct acpi_resource_pin_function {
 	u8 revision_id;
 	u8 pin_config;
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u16 function_number;
 	u16 pin_table_length;
 	u16 vendor_length;
@@ -554,7 +520,7 @@ struct acpi_resource_pin_function {
 struct acpi_resource_pin_config {
 	u8 revision_id;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u8 pin_config_type;
 	u32 pin_config_value;
 	u16 pin_table_length;
@@ -594,7 +560,7 @@ struct acpi_resource_pin_group {
 struct acpi_resource_pin_group_function {
 	u8 revision_id;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u16 function_number;
 	u16 vendor_length;
 	struct acpi_resource_source resource_source;
@@ -605,7 +571,7 @@ struct acpi_resource_pin_group_function {
 struct acpi_resource_pin_group_config {
 	u8 revision_id;
 	u8 producer_consumer;	/* For values, see Producer/Consumer above */
-	u8 sharable;		/* For values, see Interrupt Attributes above */
+	u8 shareable;		/* For values, see Interrupt Attributes above */
 	u8 pin_config_type;	/* For values, see pin_config_type above */
 	u32 pin_config_value;
 	u16 vendor_length;

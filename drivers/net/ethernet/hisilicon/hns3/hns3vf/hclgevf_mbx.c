@@ -26,7 +26,7 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 				u8 *resp_data, u16 resp_len)
 {
 #define HCLGEVF_MAX_TRY_TIMES	500
-#define HCLGEVF_SLEEP_USCOEND	1000
+#define HCLGEVF_SLEEP_USECOND	1000
 	struct hclgevf_mbx_resp_status *mbx_resp;
 	u16 r_code0, r_code1;
 	int i = 0;
@@ -40,20 +40,27 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 	}
 
 	while ((!hdev->mbx_resp.received_resp) && (i < HCLGEVF_MAX_TRY_TIMES)) {
-		udelay(HCLGEVF_SLEEP_USCOEND);
+		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state))
+			return -EIO;
+
+		usleep_range(HCLGEVF_SLEEP_USECOND, HCLGEVF_SLEEP_USECOND * 2);
 		i++;
 	}
 
 	if (i >= HCLGEVF_MAX_TRY_TIMES) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not get mbx resp(=%d) from PF in %d tries\n",
-			hdev->mbx_resp.received_resp, i);
+			"VF could not get mbx(%d,%d) resp(=%d) from PF in %d tries\n",
+			code0, code1, hdev->mbx_resp.received_resp, i);
 		return -EIO;
 	}
 
 	mbx_resp = &hdev->mbx_resp;
 	r_code0 = (u16)(mbx_resp->origin_mbx_msg >> 16);
 	r_code1 = (u16)(mbx_resp->origin_mbx_msg & 0xff);
+
+	if (mbx_resp->resp_status)
+		return mbx_resp->resp_status;
+
 	if (resp_data)
 		memcpy(resp_data, &mbx_resp->additional_info[0], resp_len);
 
@@ -61,8 +68,11 @@ static int hclgevf_get_mbx_resp(struct hclgevf_dev *hdev, u16 code0, u16 code1,
 
 	if (!(r_code0 == code0 && r_code1 == code1 && !mbx_resp->resp_status)) {
 		dev_err(&hdev->pdev->dev,
-			"VF could not match resp code(code0=%d,code1=%d), %d",
+			"VF could not match resp code(code0=%d,code1=%d), %d\n",
 			code0, code1, mbx_resp->resp_status);
+		dev_err(&hdev->pdev->dev,
+			"VF could not match resp r_code(r_code0=%d,r_code1=%d)\n",
+			r_code0, r_code1);
 		return -EIO;
 	}
 
@@ -88,9 +98,12 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 	}
 
 	hclgevf_cmd_setup_basic_desc(&desc, HCLGEVF_OPC_MBX_VF_TO_PF, false);
+	req->mbx_need_resp |= need_resp ? HCLGE_MBX_NEED_RESP_BIT :
+					  ~HCLGE_MBX_NEED_RESP_BIT;
 	req->msg[0] = code;
 	req->msg[1] = subcode;
-	memcpy(&req->msg[2], msg_data, msg_len);
+	if (msg_data)
+		memcpy(&req->msg[2], msg_data, msg_len);
 
 	/* synchronous send */
 	if (need_resp) {
@@ -122,24 +135,54 @@ int hclgevf_send_mbx_msg(struct hclgevf_dev *hdev, u16 code, u16 subcode,
 	return status;
 }
 
+static bool hclgevf_cmd_crq_empty(struct hclgevf_hw *hw)
+{
+	u32 tail = hclgevf_read_dev(hw, HCLGEVF_NIC_CRQ_TAIL_REG);
+
+	return tail == hw->cmq.crq.next_to_use;
+}
+
 void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 {
 	struct hclgevf_mbx_resp_status *resp;
 	struct hclge_mbx_pf_to_vf_cmd *req;
 	struct hclgevf_cmq_ring *crq;
 	struct hclgevf_desc *desc;
-	u16 link_status, flag;
+	u16 *msg_q;
+	u16 flag;
 	u8 *temp;
 	int i;
 
 	resp = &hdev->mbx_resp;
 	crq = &hdev->hw.cmq.crq;
 
-	flag = le16_to_cpu(crq->desc[crq->next_to_use].flag);
-	while (hnae_get_bit(flag, HCLGEVF_CMDQ_RX_OUTVLD_B)) {
+	while (!hclgevf_cmd_crq_empty(&hdev->hw)) {
+		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+			dev_info(&hdev->pdev->dev, "vf crq need init\n");
+			return;
+		}
+
 		desc = &crq->desc[crq->next_to_use];
 		req = (struct hclge_mbx_pf_to_vf_cmd *)desc->data;
 
+		flag = le16_to_cpu(crq->desc[crq->next_to_use].flag);
+		if (unlikely(!hnae3_get_bit(flag, HCLGEVF_CMDQ_RX_OUTVLD_B))) {
+			dev_warn(&hdev->pdev->dev,
+				 "dropped invalid mailbox message, code = %d\n",
+				 req->msg[0]);
+
+			/* dropping/not processing this invalid message */
+			crq->desc[crq->next_to_use].flag = 0;
+			hclge_mbx_ring_ptr_move_crq(crq);
+			continue;
+		}
+
+		/* synchronous messages are time critical and need preferential
+		 * treatment. Therefore, we need to acknowledge all the sync
+		 * responses as quickly as possible so that waiting tasks do not
+		 * timeout and simultaneously queue the async messages for later
+		 * prcessing in context of mailbox task i.e. the slow path.
+		 */
 		switch (req->msg[0]) {
 		case HCLGE_MBX_PF_VF_RESP:
 			if (resp->received_resp)
@@ -159,10 +202,35 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 			}
 			break;
 		case HCLGE_MBX_LINK_STAT_CHANGE:
-			link_status = le16_to_cpu(req->msg[1]);
+		case HCLGE_MBX_ASSERTING_RESET:
+		case HCLGE_MBX_LINK_STAT_MODE:
+		case HCLGE_MBX_PUSH_VLAN_INFO:
+			/* set this mbx event as pending. This is required as we
+			 * might loose interrupt event when mbx task is busy
+			 * handling. This shall be cleared when mbx task just
+			 * enters handling state.
+			 */
+			hdev->mbx_event_pending = true;
 
-			/* update upper layer with new link link status */
-			hclgevf_update_link_status(hdev, link_status);
+			/* we will drop the async msg if we find ARQ as full
+			 * and continue with next message
+			 */
+			if (atomic_read(&hdev->arq.count) >=
+			    HCLGE_MBX_MAX_ARQ_MSG_NUM) {
+				dev_warn(&hdev->pdev->dev,
+					 "Async Q full, dropping msg(%d)\n",
+					 req->msg[1]);
+				break;
+			}
+
+			/* tail the async message in arq */
+			msg_q = hdev->arq.msg_q[hdev->arq.tail];
+			memcpy(&msg_q[0], req->msg,
+			       HCLGE_MBX_MAX_ARQ_MSG_SIZE * sizeof(u16));
+			hclge_mbx_tail_ptr_move_arq(hdev->arq);
+			atomic_inc(&hdev->arq.count);
+
+			hclgevf_mbx_task_schedule(hdev);
 
 			break;
 		default:
@@ -171,11 +239,89 @@ void hclgevf_mbx_handler(struct hclgevf_dev *hdev)
 				req->msg[0]);
 			break;
 		}
+		crq->desc[crq->next_to_use].flag = 0;
 		hclge_mbx_ring_ptr_move_crq(crq);
-		flag = le16_to_cpu(crq->desc[crq->next_to_use].flag);
 	}
 
 	/* Write back CMDQ_RQ header pointer, M7 need this pointer */
 	hclgevf_write_dev(&hdev->hw, HCLGEVF_NIC_CRQ_HEAD_REG,
 			  crq->next_to_use);
+}
+
+void hclgevf_mbx_async_handler(struct hclgevf_dev *hdev)
+{
+	enum hnae3_reset_type reset_type;
+	u16 link_status, state;
+	u16 *msg_q, *vlan_info;
+	u8 duplex;
+	u32 speed;
+	u32 tail;
+	u8 idx;
+
+	/* we can safely clear it now as we are at start of the async message
+	 * processing
+	 */
+	hdev->mbx_event_pending = false;
+
+	tail = hdev->arq.tail;
+
+	/* process all the async queue messages */
+	while (tail != hdev->arq.head) {
+		if (test_bit(HCLGEVF_STATE_CMD_DISABLE, &hdev->state)) {
+			dev_info(&hdev->pdev->dev,
+				 "vf crq need init in async\n");
+			return;
+		}
+
+		msg_q = hdev->arq.msg_q[hdev->arq.head];
+
+		switch (msg_q[0]) {
+		case HCLGE_MBX_LINK_STAT_CHANGE:
+			link_status = msg_q[1];
+			memcpy(&speed, &msg_q[2], sizeof(speed));
+			duplex = (u8)msg_q[4];
+
+			/* update upper layer with new link link status */
+			hclgevf_update_link_status(hdev, link_status);
+			hclgevf_update_speed_duplex(hdev, speed, duplex);
+
+			break;
+		case HCLGE_MBX_LINK_STAT_MODE:
+			idx = (u8)msg_q[1];
+			if (idx)
+				memcpy(&hdev->hw.mac.supported, &msg_q[2],
+				       sizeof(unsigned long));
+			else
+				memcpy(&hdev->hw.mac.advertising, &msg_q[2],
+				       sizeof(unsigned long));
+			break;
+		case HCLGE_MBX_ASSERTING_RESET:
+			/* PF has asserted reset hence VF should go in pending
+			 * state and poll for the hardware reset status till it
+			 * has been completely reset. After this stack should
+			 * eventually be re-initialized.
+			 */
+			reset_type = (enum hnae3_reset_type)msg_q[1];
+			set_bit(reset_type, &hdev->reset_pending);
+			set_bit(HCLGEVF_RESET_PENDING, &hdev->reset_state);
+			hclgevf_reset_task_schedule(hdev);
+
+			break;
+		case HCLGE_MBX_PUSH_VLAN_INFO:
+			state = msg_q[1];
+			vlan_info = &msg_q[1];
+			hclgevf_update_port_base_vlan_info(hdev, state,
+							   (u8 *)vlan_info, 8);
+			break;
+		default:
+			dev_err(&hdev->pdev->dev,
+				"fetched unsupported(%d) message from arq\n",
+				msg_q[0]);
+			break;
+		}
+
+		hclge_mbx_head_ptr_move_arq(hdev->arq);
+		atomic_dec(&hdev->arq.count);
+		msg_q = hdev->arq.msg_q[hdev->arq.head];
+	}
 }

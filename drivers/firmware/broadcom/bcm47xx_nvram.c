@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * BCM947xx nvram variable access
  *
  * Copyright (C) 2005 Broadcom Corporation
  * Copyright (C) 2006 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2010-2012 Hauke Mehrtens <hauke@hauke-m.de>
- *
- * This program is free software; you can redistribute	it and/or modify it
- * under  the terms of	the GNU General	 Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/io.h>
@@ -36,7 +32,7 @@ struct nvram_header {
 
 static char nvram_buf[NVRAM_SPACE];
 static size_t nvram_len;
-static const u32 nvram_sizes[] = {0x8000, 0xF000, 0x10000};
+static const u32 nvram_sizes[] = {0x6000, 0x8000, 0xF000, 0x10000};
 
 static u32 find_nvram_size(void __iomem *end)
 {
@@ -100,7 +96,7 @@ found:
 		nvram_len = size;
 	}
 	if (nvram_len >= NVRAM_SPACE) {
-		pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
+		pr_err("nvram on flash (%zu bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
 		       nvram_len, NVRAM_SPACE - 1);
 		nvram_len = NVRAM_SPACE - 1;
 	}
@@ -152,8 +148,8 @@ static int nvram_init(void)
 	    header.len > sizeof(header)) {
 		nvram_len = header.len;
 		if (nvram_len >= NVRAM_SPACE) {
-			pr_err("nvram on flash (%i bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
-				header.len, NVRAM_SPACE);
+			pr_err("nvram on flash (%zu bytes) is bigger than the reserved space in memory, will just copy the first %i bytes\n",
+				nvram_len, NVRAM_SPACE);
 			nvram_len = NVRAM_SPACE - 1;
 		}
 

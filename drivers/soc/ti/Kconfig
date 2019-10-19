@@ -1,3 +1,23 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# 64-bit ARM SoCs from TI
+if ARM64
+
+if ARCH_K3
+
+config ARCH_K3_AM6_SOC
+	bool "K3 AM6 SoC"
+	help
+	  Enable support for TI's AM6 SoC Family support
+
+config ARCH_K3_J721E_SOC
+	bool "K3 J721E SoC"
+	help
+	  Enable support for TI's J721E SoC Family support
+
+endif
+
+endif
+
 #
 # TI SOC drivers
 #
@@ -28,6 +48,16 @@ config KEYSTONE_NAVIGATOR_DMA
 
 	  If unsure, say N.
 
+config AMX3_PM
+	tristate "AMx3 Power Management"
+	depends on SOC_AM33XX || SOC_AM43XX
+	depends on WKUP_M3_IPC && TI_EMIF_SRAM && SRAM && RTC_DRV_OMAP
+	help
+	  Enable power management on AM335x and AM437x. Required for suspend to mem
+	  and standby states on both AM335x and AM437x platforms and for deeper cpuidle
+	  c-states on AM335x. Also required for rtc and ddr in self-refresh low
+	  power mode on AM437x platforms.
+
 config WKUP_M3_IPC
 	tristate "TI AMx3 Wkup-M3 IPC Driver"
 	depends on WKUP_M3_RPROC
@@ -51,3 +81,9 @@ config TI_SCI_PM_DOMAINS
 	  rootfs may be available.
 
 endif # SOC_TI
+
+config TI_SCI_INTA_MSI_DOMAIN
+	bool
+	select GENERIC_MSI_IRQ_DOMAIN
+	help
+	  Driver to enable Interrupt Aggregator specific MSI Domain.

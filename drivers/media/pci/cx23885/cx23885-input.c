@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for the Conexant CX23885/7/8 PCIe bridge
  *
@@ -13,21 +14,11 @@
  *  Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
  *  Copyright (C) 2005 Ludovico Cavedon <cavedon@sssup.it>
  *		       Markus Rechberger <mrechberger@gmail.com>
- *		       Mauro Carvalho Chehab <mchehab@infradead.org>
+ *		       Mauro Carvalho Chehab <mchehab@kernel.org>
  *		       Sascha Sommer <saschasommer@freenet.de>
  *  Copyright (C) 2004, 2005 Chris Pascoe
  *  Copyright (C) 2003, 2004 Gerd Knorr
  *  Copyright (C) 2003 Pavel Machek
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include "cx23885.h"
@@ -94,6 +85,7 @@ void cx23885_input_rx_work_handler(struct cx23885_dev *dev, u32 events)
 	case CX23885_BOARD_DVBSKY_S950:
 	case CX23885_BOARD_DVBSKY_S952:
 	case CX23885_BOARD_DVBSKY_T982:
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 		/*
 		 * The only boards we handle right now.  However other boards
 		 * using the CX2388x integrated IR controller should be similar
@@ -153,6 +145,7 @@ static int cx23885_input_ir_start(struct cx23885_dev *dev)
 	case CX23885_BOARD_DVBSKY_S950:
 	case CX23885_BOARD_DVBSKY_S952:
 	case CX23885_BOARD_DVBSKY_T982:
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 		/*
 		 * The IR controller on this board only returns pulse widths.
 		 * Any other mode setting will fail to set up the device.
@@ -283,6 +276,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1850:
 	case CX23885_BOARD_HAUPPAUGE_HVR1290:
 	case CX23885_BOARD_HAUPPAUGE_HVR1250:
+	case CX23885_BOARD_HAUPPAUGE_HVR1265_K4:
 		/* Integrated CX2388[58] IR controller */
 		allowed_protos = RC_PROTO_BIT_ALL_IR_DECODER;
 		/* The grey Hauppauge RC-5 remote */

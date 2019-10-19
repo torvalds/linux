@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Driver for Adaptec AHA-1542 SCSI host adapters
  *
@@ -58,8 +59,15 @@ struct aha1542_hostdata {
 	int aha1542_last_mbi_used;
 	int aha1542_last_mbo_used;
 	struct scsi_cmnd *int_cmds[AHA1542_MAILBOXES];
-	struct mailbox mb[2 * AHA1542_MAILBOXES];
-	struct ccb ccb[AHA1542_MAILBOXES];
+	struct mailbox *mb;
+	dma_addr_t mb_handle;
+	struct ccb *ccb;
+	dma_addr_t ccb_handle;
+};
+
+struct aha1542_cmd {
+	struct chain *chain;
+	dma_addr_t chain_handle;
 };
 
 static inline void aha1542_intr_reset(u16 base)
@@ -233,6 +241,21 @@ static int aha1542_test_port(struct Scsi_Host *sh)
 	return 1;
 }
 
+static void aha1542_free_cmd(struct scsi_cmnd *cmd)
+{
+	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
+	struct device *dev = cmd->device->host->dma_dev;
+	size_t len = scsi_sg_count(cmd) * sizeof(struct chain);
+
+	if (acmd->chain) {
+		dma_unmap_single(dev, acmd->chain_handle, len, DMA_TO_DEVICE);
+		kfree(acmd->chain);
+	}
+
+	acmd->chain = NULL;
+	scsi_dma_unmap(cmd);
+}
+
 static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 {
 	struct Scsi_Host *sh = dev_id;
@@ -303,7 +326,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		};
 
-		mbo = (scsi2int(mb[mbi].ccbptr) - (isa_virt_to_bus(&ccb[0]))) / sizeof(struct ccb);
+		mbo = (scsi2int(mb[mbi].ccbptr) - (unsigned long)aha1542->ccb_handle) / sizeof(struct ccb);
 		mbistatus = mb[mbi].status;
 		mb[mbi].status = 0;
 		aha1542->aha1542_last_mbi_used = mbi;
@@ -331,8 +354,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 			return IRQ_HANDLED;
 		}
 		my_done = tmp_cmd->scsi_done;
-		kfree(tmp_cmd->host_scribble);
-		tmp_cmd->host_scribble = NULL;
+		aha1542_free_cmd(tmp_cmd);
 		/* Fetch the sense data, and tuck it away, in the required slot.  The
 		   Adaptec automatically fetches it, and there is no guarantee that
 		   we will still have it in the cdb when we come back */
@@ -369,6 +391,7 @@ static irqreturn_t aha1542_interrupt(int irq, void *dev_id)
 
 static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 {
+	struct aha1542_cmd *acmd = scsi_cmd_priv(cmd);
 	struct aha1542_hostdata *aha1542 = shost_priv(sh);
 	u8 direction;
 	u8 target = cmd->device->id;
@@ -378,7 +401,6 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	int mbo, sg_count;
 	struct mailbox *mb = aha1542->mb;
 	struct ccb *ccb = aha1542->ccb;
-	struct chain *cptr;
 
 	if (*cmd->cmnd == REQUEST_SENSE) {
 		/* Don't do the command - we have the sense data already */
@@ -398,14 +420,17 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		print_hex_dump_bytes("command: ", DUMP_PREFIX_NONE, cmd->cmnd, cmd->cmd_len);
 	}
 #endif
-	if (bufflen) {	/* allocate memory before taking host_lock */
-		sg_count = scsi_sg_count(cmd);
-		cptr = kmalloc(sizeof(*cptr) * sg_count, GFP_KERNEL | GFP_DMA);
-		if (!cptr)
-			return SCSI_MLQUEUE_HOST_BUSY;
-	} else {
-		sg_count = 0;
-		cptr = NULL;
+	sg_count = scsi_dma_map(cmd);
+	if (sg_count) {
+		size_t len = sg_count * sizeof(struct chain);
+
+		acmd->chain = kmalloc(len, GFP_DMA);
+		if (!acmd->chain)
+			goto out_unmap;
+		acmd->chain_handle = dma_map_single(sh->dma_dev, acmd->chain,
+				len, DMA_TO_DEVICE);
+		if (dma_mapping_error(sh->dma_dev, acmd->chain_handle))
+			goto out_free_chain;
 	}
 
 	/* Use the outgoing mailboxes in a round-robin fashion, because this
@@ -436,7 +461,8 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	shost_printk(KERN_DEBUG, sh, "Sending command (%d %p)...", mbo, cmd->scsi_done);
 #endif
 
-	any2scsi(mb[mbo].ccbptr, isa_virt_to_bus(&ccb[mbo]));	/* This gets trashed for some reason */
+	/* This gets trashed for some reason */
+	any2scsi(mb[mbo].ccbptr, aha1542->ccb_handle + mbo * sizeof(*ccb));
 
 	memset(&ccb[mbo], 0, sizeof(struct ccb));
 
@@ -455,21 +481,18 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 		int i;
 
 		ccb[mbo].op = 2;	/* SCSI Initiator Command  w/scatter-gather */
-		cmd->host_scribble = (void *)cptr;
 		scsi_for_each_sg(cmd, sg, sg_count, i) {
-			any2scsi(cptr[i].dataptr, isa_page_to_bus(sg_page(sg))
-								+ sg->offset);
-			any2scsi(cptr[i].datalen, sg->length);
+			any2scsi(acmd->chain[i].dataptr, sg_dma_address(sg));
+			any2scsi(acmd->chain[i].datalen, sg_dma_len(sg));
 		};
 		any2scsi(ccb[mbo].datalen, sg_count * sizeof(struct chain));
-		any2scsi(ccb[mbo].dataptr, isa_virt_to_bus(cptr));
+		any2scsi(ccb[mbo].dataptr, acmd->chain_handle);
 #ifdef DEBUG
-		shost_printk(KERN_DEBUG, sh, "cptr %p: ", cptr);
-		print_hex_dump_bytes("cptr: ", DUMP_PREFIX_NONE, cptr, 18);
+		shost_printk(KERN_DEBUG, sh, "cptr %p: ", acmd->chain);
+		print_hex_dump_bytes("cptr: ", DUMP_PREFIX_NONE, acmd->chain, 18);
 #endif
 	} else {
 		ccb[mbo].op = 0;	/* SCSI Initiator Command */
-		cmd->host_scribble = NULL;
 		any2scsi(ccb[mbo].datalen, 0);
 		any2scsi(ccb[mbo].dataptr, 0);
 	};
@@ -487,24 +510,29 @@ static int aha1542_queuecommand(struct Scsi_Host *sh, struct scsi_cmnd *cmd)
 	spin_unlock_irqrestore(sh->host_lock, flags);
 
 	return 0;
+out_free_chain:
+	kfree(acmd->chain);
+	acmd->chain = NULL;
+out_unmap:
+	scsi_dma_unmap(cmd);
+	return SCSI_MLQUEUE_HOST_BUSY;
 }
 
 /* Initialize mailboxes */
 static void setup_mailboxes(struct Scsi_Host *sh)
 {
 	struct aha1542_hostdata *aha1542 = shost_priv(sh);
-	int i;
-	struct mailbox *mb = aha1542->mb;
-	struct ccb *ccb = aha1542->ccb;
-
 	u8 mb_cmd[5] = { CMD_MBINIT, AHA1542_MAILBOXES, 0, 0, 0};
+	int i;
 
 	for (i = 0; i < AHA1542_MAILBOXES; i++) {
-		mb[i].status = mb[AHA1542_MAILBOXES + i].status = 0;
-		any2scsi(mb[i].ccbptr, isa_virt_to_bus(&ccb[i]));
+		aha1542->mb[i].status = 0;
+		any2scsi(aha1542->mb[i].ccbptr,
+			 aha1542->ccb_handle + i * sizeof(struct ccb));
+		aha1542->mb[AHA1542_MAILBOXES + i].status = 0;
 	};
 	aha1542_intr_reset(sh->io_port);	/* reset interrupts, so they don't block */
-	any2scsi((mb_cmd + 2), isa_virt_to_bus(mb));
+	any2scsi(mb_cmd + 2, aha1542->mb_handle);
 	if (aha1542_out(sh->io_port, mb_cmd, 5))
 		shost_printk(KERN_ERR, sh, "failed setting up mailboxes\n");
 	aha1542_intr_reset(sh->io_port);
@@ -738,11 +766,26 @@ static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct
 	if (aha1542->bios_translation == BIOS_TRANSLATION_25563)
 		shost_printk(KERN_INFO, sh, "Using extended bios translation\n");
 
+	if (dma_set_mask_and_coherent(pdev, DMA_BIT_MASK(24)) < 0)
+		goto unregister;
+
+	aha1542->mb = dma_alloc_coherent(pdev,
+			AHA1542_MAILBOXES * 2 * sizeof(struct mailbox),
+			&aha1542->mb_handle, GFP_KERNEL);
+	if (!aha1542->mb)
+		goto unregister;
+
+	aha1542->ccb = dma_alloc_coherent(pdev,
+			AHA1542_MAILBOXES * sizeof(struct ccb),
+			&aha1542->ccb_handle, GFP_KERNEL);
+	if (!aha1542->ccb)
+		goto free_mb;
+
 	setup_mailboxes(sh);
 
 	if (request_irq(sh->irq, aha1542_interrupt, 0, "aha1542", sh)) {
 		shost_printk(KERN_ERR, sh, "Unable to allocate IRQ.\n");
-		goto unregister;
+		goto free_ccb;
 	}
 	if (sh->dma_channel != 0xFF) {
 		if (request_dma(sh->dma_channel, "aha1542")) {
@@ -761,11 +804,18 @@ static struct Scsi_Host *aha1542_hw_init(struct scsi_host_template *tpnt, struct
 	scsi_scan_host(sh);
 
 	return sh;
+
 free_dma:
 	if (sh->dma_channel != 0xff)
 		free_dma(sh->dma_channel);
 free_irq:
 	free_irq(sh->irq, sh);
+free_ccb:
+	dma_free_coherent(pdev, AHA1542_MAILBOXES * sizeof(struct ccb),
+			  aha1542->ccb, aha1542->ccb_handle);
+free_mb:
+	dma_free_coherent(pdev, AHA1542_MAILBOXES * 2 * sizeof(struct mailbox),
+			  aha1542->mb, aha1542->mb_handle);
 unregister:
 	scsi_host_put(sh);
 release:
@@ -776,9 +826,16 @@ release:
 
 static int aha1542_release(struct Scsi_Host *sh)
 {
+	struct aha1542_hostdata *aha1542 = shost_priv(sh);
+	struct device *dev = sh->dma_dev;
+
 	scsi_remove_host(sh);
 	if (sh->dma_channel != 0xff)
 		free_dma(sh->dma_channel);
+	dma_free_coherent(dev, AHA1542_MAILBOXES * sizeof(struct ccb),
+			  aha1542->ccb, aha1542->ccb_handle);
+	dma_free_coherent(dev, AHA1542_MAILBOXES * 2 * sizeof(struct mailbox),
+			  aha1542->mb, aha1542->mb_handle);
 	if (sh->irq)
 		free_irq(sh->irq, sh);
 	if (sh->io_port && sh->n_io_port)
@@ -825,7 +882,8 @@ static int aha1542_dev_reset(struct scsi_cmnd *cmd)
 
 	aha1542->aha1542_last_mbo_used = mbo;
 
-	any2scsi(mb[mbo].ccbptr, isa_virt_to_bus(&ccb[mbo]));	/* This gets trashed for some reason */
+	/* This gets trashed for some reason */
+	any2scsi(mb[mbo].ccbptr, aha1542->ccb_handle + mbo * sizeof(*ccb));
 
 	memset(&ccb[mbo], 0, sizeof(struct ccb));
 
@@ -900,8 +958,7 @@ static int aha1542_reset(struct scsi_cmnd *cmd, u8 reset_cmd)
 				 */
 				continue;
 			}
-			kfree(tmp_cmd->host_scribble);
-			tmp_cmd->host_scribble = NULL;
+			aha1542_free_cmd(tmp_cmd);
 			aha1542->int_cmds[i] = NULL;
 			aha1542->mb[i].status = 0;
 		}
@@ -945,6 +1002,7 @@ static struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
 	.proc_name		= "aha1542",
 	.name			= "Adaptec 1542",
+	.cmd_size		= sizeof(struct aha1542_cmd),
 	.queuecommand		= aha1542_queuecommand,
 	.eh_device_reset_handler= aha1542_dev_reset,
 	.eh_bus_reset_handler	= aha1542_bus_reset,
@@ -954,7 +1012,6 @@ static struct scsi_host_template driver_template = {
 	.this_id		= 7,
 	.sg_tablesize		= 16,
 	.unchecked_isa_dma	= 1, 
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static int aha1542_isa_match(struct device *pdev, unsigned int ndev)

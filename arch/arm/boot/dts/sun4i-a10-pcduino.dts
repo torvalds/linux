@@ -76,8 +76,6 @@
 
 	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
 		back {
 			label = "Key Back";
@@ -112,7 +110,7 @@
 };
 
 &emac {
-	phy = <&phy1>;
+	phy-handle = <&phy1>;
 	status = "okay";
 };
 
@@ -140,8 +138,7 @@
 &mmc0 {
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-	cd-inverted;
+	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
 	status = "okay";
 };
 
@@ -155,14 +152,6 @@
 
 &otg_sram {
 	status = "okay";
-};
-
-&pio {
-	usb0_id_detect_pin: usb0-id-detect-pin {
-		pins = "PH4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
 };
 
 #include "axp209.dtsi"
@@ -204,9 +193,7 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>;
-	usb0_id_det-gpio = <&pio 7 4 GPIO_ACTIVE_HIGH>; /* PH4 */
+	usb0_id_det-gpios = <&pio 7 4 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PH4 */
 	usb1_vbus-supply = <&reg_vcc5v0>; /* USB1 VBUS is always on */
 	usb2_vbus-supply = <&reg_vcc5v0>; /* USB2 VBUS is always on */
 	status = "okay";

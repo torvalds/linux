@@ -1,7 +1,9 @@
-Linux kernel release 4.x <http://kernel.org/>
+.. _readme:
+
+Linux kernel release 5.x <http://kernel.org/>
 =============================================
 
-These are the release notes for Linux version 4.  Read them carefully,
+These are the release notes for Linux version 5.  Read them carefully,
 as they tell you what this is all about, explain how to install the
 kernel, and what to do if something goes wrong.
 
@@ -26,8 +28,8 @@ On what hardware does it run?
   Although originally developed first for 32-bit x86-based PCs (386 or higher),
   today Linux also runs on (at least) the Compaq Alpha AXP, Sun SPARC and
   UltraSPARC, Motorola 68000, PowerPC, PowerPC64, ARM, Hitachi SuperH, Cell,
-  IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64, AXIS CRIS,
-  Xtensa, Tilera TILE, ARC and Renesas M32R architectures.
+  IBM S/390, MIPS, HP PA-RISC, Intel IA-64, DEC VAX, AMD x86-64 Xtensa, and
+  ARC architectures.
 
   Linux is easily portable to most general-purpose 32- or 64-bit architectures
   as long as they have a paged memory management unit (PMMU) and a port of the
@@ -49,8 +51,7 @@ Documentation
 
  - There are various README files in the Documentation/ subdirectory:
    these typically contain kernel-specific installation notes for some
-   drivers for example. See Documentation/00-INDEX for a list of what
-   is contained in each file.  Please read the
+   drivers for example. Please read the
    :ref:`Documentation/process/changes.rst <changes>` file, as it
    contains information about the problems, which may result by upgrading
    your kernel.
@@ -62,7 +63,7 @@ Installing the kernel source
    directory where you have permissions (e.g. your home directory) and
    unpack it::
 
-     xz -cd linux-4.X.tar.xz | tar xvf -
+     xz -cd linux-5.x.tar.xz | tar xvf -
 
    Replace "X" with the version number of the latest kernel.
 
@@ -71,26 +72,26 @@ Installing the kernel source
    files.  They should match the library, and not get messed up by
    whatever the kernel-du-jour happens to be.
 
- - You can also upgrade between 4.x releases by patching.  Patches are
+ - You can also upgrade between 5.x releases by patching.  Patches are
    distributed in the xz format.  To install by patching, get all the
    newer patch files, enter the top level directory of the kernel source
-   (linux-4.X) and execute::
+   (linux-5.x) and execute::
 
-     xz -cd ../patch-4.x.xz | patch -p1
+     xz -cd ../patch-5.x.xz | patch -p1
 
-   Replace "x" for all versions bigger than the version "X" of your current
+   Replace "x" for all versions bigger than the version "x" of your current
    source tree, **in_order**, and you should be ok.  You may want to remove
    the backup files (some-file-name~ or some-file-name.orig), and make sure
    that there are no failed patches (some-file-name# or some-file-name.rej).
    If there are, either you or I have made a mistake.
 
-   Unlike patches for the 4.x kernels, patches for the 4.x.y kernels
+   Unlike patches for the 5.x kernels, patches for the 5.x.y kernels
    (also known as the -stable kernels) are not incremental but instead apply
-   directly to the base 4.x kernel.  For example, if your base kernel is 4.0
-   and you want to apply the 4.0.3 patch, you must not first apply the 4.0.1
-   and 4.0.2 patches. Similarly, if you are running kernel version 4.0.2 and
-   want to jump to 4.0.3, you must first reverse the 4.0.2 patch (that is,
-   patch -R) **before** applying the 4.0.3 patch. You can read more on this in
+   directly to the base 5.x kernel.  For example, if your base kernel is 5.0
+   and you want to apply the 5.0.3 patch, you must not first apply the 5.0.1
+   and 5.0.2 patches. Similarly, if you are running kernel version 5.0.2 and
+   want to jump to 5.0.3, you must first reverse the 5.0.2 patch (that is,
+   patch -R) **before** applying the 5.0.3 patch. You can read more on this in
    :ref:`Documentation/process/applying-patches.rst <applying_patches>`.
 
    Alternatively, the script patch-kernel can be used to automate this
@@ -113,7 +114,7 @@ Installing the kernel source
 Software requirements
 ---------------------
 
-   Compiling and running the 4.x kernels requires up-to-date
+   Compiling and running the 5.x kernels requires up-to-date
    versions of various software packages.  Consult
    :ref:`Documentation/process/changes.rst <changes>` for the minimum version numbers
    required and how to get updates for these packages.  Beware that using
@@ -131,12 +132,12 @@ Build directory for the kernel
    place for the output files (including .config).
    Example::
 
-     kernel source code: /usr/src/linux-4.X
+     kernel source code: /usr/src/linux-5.x
      build directory:    /home/name/build/kernel
 
    To configure and build the kernel, use::
 
-     cd /usr/src/linux-4.X
+     cd /usr/src/linux-5.x
      make O=/home/name/build/kernel menuconfig
      make O=/home/name/build/kernel
      sudo make O=/home/name/build/kernel modules_install install
@@ -218,8 +219,15 @@ Configuring the kernel
      "make localyesconfig" Similar to localmodconfig, except it will convert
                            all module options to built in (=y) options.
 
+     "make kvmconfig"   Enable additional options for kvm guest kernel support.
+
+     "make xenconfig"   Enable additional options for xen dom0 guest kernel
+                        support.
+
+     "make tinyconfig"  Configure the tiniest possible kernel.
+
    You can find more information on using the Linux kernel config tools
-   in Documentation/kbuild/kconfig.txt.
+   in Documentation/kbuild/kconfig.rst.
 
  - NOTES on ``make config``:
 
@@ -243,7 +251,7 @@ Configuring the kernel
 Compiling the kernel
 --------------------
 
- - Make sure you have at least gcc 3.2 available.
+ - Make sure you have at least gcc 4.6 available.
    For more information, refer to :ref:`Documentation/process/changes.rst <changes>`.
 
    Please note that you can still run a.out user programs with this kernel.

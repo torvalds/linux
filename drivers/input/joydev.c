@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Joystick device driver for the input driver suite.
  *
  * Copyright (c) 1999-2002 Vojtech Pavlik
  * Copyright (c) 1999 Colin Van Dyke
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -279,7 +275,7 @@ static int joydev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 
@@ -812,6 +808,7 @@ static bool joydev_dev_is_blacklisted(struct input_dev *dev)
 static bool joydev_dev_is_absolute_mouse(struct input_dev *dev)
 {
 	DECLARE_BITMAP(jd_scratch, KEY_CNT);
+	bool ev_match = false;
 
 	BUILD_BUG_ON(ABS_CNT > KEY_CNT || EV_CNT > KEY_CNT);
 
@@ -830,17 +827,36 @@ static bool joydev_dev_is_absolute_mouse(struct input_dev *dev)
 	 * considered to be an absolute mouse if the following is
 	 * true:
 	 *
-	 * 1) Event types are exactly EV_ABS, EV_KEY and EV_SYN.
+	 * 1) Event types are exactly
+	 *      EV_ABS, EV_KEY and EV_SYN
+	 *    or
+	 *      EV_ABS, EV_KEY, EV_SYN and EV_MSC
+	 *    or
+	 *      EV_ABS, EV_KEY, EV_SYN, EV_MSC and EV_REL.
 	 * 2) Absolute events are exactly ABS_X and ABS_Y.
 	 * 3) Keys are exactly BTN_LEFT, BTN_RIGHT and BTN_MIDDLE.
 	 * 4) Device is not on "Amiga" bus.
 	 */
 
 	bitmap_zero(jd_scratch, EV_CNT);
+	/* VMware VMMouse, HP ILO2 */
 	__set_bit(EV_ABS, jd_scratch);
 	__set_bit(EV_KEY, jd_scratch);
 	__set_bit(EV_SYN, jd_scratch);
-	if (!bitmap_equal(jd_scratch, dev->evbit, EV_CNT))
+	if (bitmap_equal(jd_scratch, dev->evbit, EV_CNT))
+		ev_match = true;
+
+	/* HP ILO2, AMI BMC firmware */
+	__set_bit(EV_MSC, jd_scratch);
+	if (bitmap_equal(jd_scratch, dev->evbit, EV_CNT))
+		ev_match = true;
+
+	/* VMware Virtual USB Mouse, QEMU USB Tablet, ATEN BMC firmware */
+	__set_bit(EV_REL, jd_scratch);
+	if (bitmap_equal(jd_scratch, dev->evbit, EV_CNT))
+		ev_match = true;
+
+	if (!ev_match)
 		return false;
 
 	bitmap_zero(jd_scratch, ABS_CNT);

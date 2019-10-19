@@ -2,6 +2,8 @@
 #ifndef _ASM_POWERPC_BOOK3S_64_MMU_H_
 #define _ASM_POWERPC_BOOK3S_64_MMU_H_
 
+#include <asm/page.h>
+
 #ifndef __ASSEMBLY__
 /*
  * Page size definition
@@ -23,8 +25,22 @@ struct mmu_psize_def {
 	};
 };
 extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
-
 #endif /* __ASSEMBLY__ */
+
+/*
+ * If we store section details in page->flags we can't increase the MAX_PHYSMEM_BITS
+ * if we increase SECTIONS_WIDTH we will not store node details in page->flags and
+ * page_to_nid does a page->section->node lookup
+ * Hence only increase for VMEMMAP. Further depending on SPARSEMEM_EXTREME reduce
+ * memory requirements with large number of sections.
+ * 51 bits is the max physical real address on POWER9
+ */
+#if defined(CONFIG_SPARSEMEM_VMEMMAP) && defined(CONFIG_SPARSEMEM_EXTREME) &&  \
+	defined(CONFIG_PPC_64K_PAGES)
+#define MAX_PHYSMEM_BITS 51
+#else
+#define MAX_PHYSMEM_BITS 46
+#endif
 
 /* 64-bit classic hash table MMU */
 #include <asm/book3s/64/mmu-hash.h>
@@ -81,30 +97,33 @@ struct spinlock;
 #define NV_MAX_NPUS 8
 
 typedef struct {
-	mm_context_id_t id;
-	u16 user_psize;		/* page size index */
+	union {
+		/*
+		 * We use id as the PIDR content for radix. On hash we can use
+		 * more than one id. The extended ids are used when we start
+		 * having address above 512TB. We allocate one extended id
+		 * for each 512TB. The new id is then used with the 49 bit
+		 * EA to build a new VA. We always use ESID_BITS_1T_MASK bits
+		 * from EA and new context ids to build the new VAs.
+		 */
+		mm_context_id_t id;
+		mm_context_id_t extended_id[TASK_SIZE_USER64/TASK_CONTEXT_SIZE];
+	};
 
 	/* Number of bits in the mm_cpumask */
 	atomic_t active_cpus;
 
-	/* NPU NMMU context */
-	struct npu_context *npu_context;
+	/* Number of users of the external (Nest) MMU */
+	atomic_t copros;
 
-#ifdef CONFIG_PPC_MM_SLICES
-	u64 low_slices_psize;	/* SLB page size encodings */
-	unsigned char high_slices_psize[SLICE_ARRAY_SIZE];
-	unsigned long slb_addr_limit;
-#else
-	u16 sllp;		/* SLB page size encoding */
-#endif
+	struct hash_mm_context *hash_context;
+
 	unsigned long vdso_base;
-#ifdef CONFIG_PPC_SUBPAGE_PROT
-	struct subpage_prot_table spt;
-#endif /* CONFIG_PPC_SUBPAGE_PROT */
-#ifdef CONFIG_PPC_64K_PAGES
-	/* for 4K PTE fragment support */
+	/*
+	 * pagetable fragment support
+	 */
 	void *pte_frag;
-#endif
+	void *pmd_frag;
 #ifdef CONFIG_SPAPR_TCE_IOMMU
 	struct list_head iommu_group_mem_list;
 #endif
@@ -120,6 +139,60 @@ typedef struct {
 #endif
 } mm_context_t;
 
+static inline u16 mm_ctx_user_psize(mm_context_t *ctx)
+{
+	return ctx->hash_context->user_psize;
+}
+
+static inline void mm_ctx_set_user_psize(mm_context_t *ctx, u16 user_psize)
+{
+	ctx->hash_context->user_psize = user_psize;
+}
+
+static inline unsigned char *mm_ctx_low_slices(mm_context_t *ctx)
+{
+	return ctx->hash_context->low_slices_psize;
+}
+
+static inline unsigned char *mm_ctx_high_slices(mm_context_t *ctx)
+{
+	return ctx->hash_context->high_slices_psize;
+}
+
+static inline unsigned long mm_ctx_slb_addr_limit(mm_context_t *ctx)
+{
+	return ctx->hash_context->slb_addr_limit;
+}
+
+static inline void mm_ctx_set_slb_addr_limit(mm_context_t *ctx, unsigned long limit)
+{
+	ctx->hash_context->slb_addr_limit = limit;
+}
+
+static inline struct slice_mask *slice_mask_for_size(mm_context_t *ctx, int psize)
+{
+#ifdef CONFIG_PPC_64K_PAGES
+	if (psize == MMU_PAGE_64K)
+		return &ctx->hash_context->mask_64k;
+#endif
+#ifdef CONFIG_HUGETLB_PAGE
+	if (psize == MMU_PAGE_16M)
+		return &ctx->hash_context->mask_16m;
+	if (psize == MMU_PAGE_16G)
+		return &ctx->hash_context->mask_16g;
+#endif
+	BUG_ON(psize != MMU_PAGE_4K);
+
+	return &ctx->hash_context->mask_4k;
+}
+
+#ifdef CONFIG_PPC_SUBPAGE_PROT
+static inline struct subpage_prot_table *mm_ctx_subpage_prot(mm_context_t *ctx)
+{
+	return ctx->hash_context->spt;
+}
+#endif
+
 /*
  * The current system page and segment sizes
  */
@@ -133,7 +206,6 @@ extern int mmu_io_psize;
 void mmu_early_init_devtree(void);
 void hash__early_init_devtree(void);
 void radix__early_init_devtree(void);
-extern void radix_init_native(void);
 extern void hash__early_init_mmu(void);
 extern void radix__early_init_mmu(void);
 static inline void early_init_mmu(void)
@@ -165,14 +237,31 @@ static inline void setup_initial_memory_limit(phys_addr_t first_memblock_base,
 					   first_memblock_size);
 }
 
-extern int (*register_process_table)(unsigned long base, unsigned long page_size,
-				     unsigned long tbl_size);
-
 #ifdef CONFIG_PPC_PSERIES
 extern void radix_init_pseries(void);
 #else
 static inline void radix_init_pseries(void) { };
 #endif
+
+static inline int get_user_context(mm_context_t *ctx, unsigned long ea)
+{
+	int index = ea >> MAX_EA_BITS_PER_CONTEXT;
+
+	if (likely(index < ARRAY_SIZE(ctx->extended_id)))
+		return ctx->extended_id[index];
+
+	/* should never happen */
+	WARN_ON(1);
+	return 0;
+}
+
+static inline unsigned long get_user_vsid(mm_context_t *ctx,
+					  unsigned long ea, int ssize)
+{
+	unsigned long context = get_user_context(ctx, ea);
+
+	return get_vsid(context, ea, ssize);
+}
 
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_POWERPC_BOOK3S_64_MMU_H_ */

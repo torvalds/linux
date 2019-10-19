@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * L220/L310 cache controller support
  *
  * Copyright (C) 2016 ARM Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/errno.h>
 #include <linux/hrtimer.h>
@@ -293,7 +281,7 @@ static bool l2x0_pmu_group_is_valid(struct perf_event *event)
 	else if (!is_software_event(leader))
 		return false;
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	for_each_sibling_event(sibling, leader) {
 		if (sibling->pmu == pmu)
 			num_hw++;
 		else if (!is_software_event(sibling))
@@ -312,14 +300,6 @@ static int l2x0_pmu_event_init(struct perf_event *event)
 
 	if (is_sampling_event(event) ||
 	    event->attach_state & PERF_ATTACH_TASK)
-		return -EINVAL;
-
-	if (event->attr.exclude_user   ||
-	    event->attr.exclude_kernel ||
-	    event->attr.exclude_hv     ||
-	    event->attr.exclude_idle   ||
-	    event->attr.exclude_host   ||
-	    event->attr.exclude_guest)
 		return -EINVAL;
 
 	if (event->cpu < 0)
@@ -544,6 +524,7 @@ static __init int l2x0_pmu_init(void)
 		.del = l2x0_pmu_event_del,
 		.event_init = l2x0_pmu_event_init,
 		.attr_groups = l2x0_pmu_attr_groups,
+		.capabilities = PERF_PMU_CAP_NO_EXCLUDE,
 	};
 
 	l2x0_pmu_reset();

@@ -12,13 +12,11 @@ Required properties:
  - interrupts: interrupt number to the cpu.
  - clocks: from common clock binding: handle to usb clock.
  - clock-names: from common clock binding: Shall be "usbhost".
- - port: if in the SoC there are EHCI phys, they should be listed here.
-   One phy per port. Each port should have following entries:
-	- reg: port number on EHCI controller, e.g
-	       On Exynos5250, port 0 is USB2.0 otg phy
-			      port 1 is HSIC phy0
-			      port 2 is HSIC phy1
-	- phys: from the *Generic PHY* bindings; specifying phy used by port.
+ - phys: from the *Generic PHY* bindings; array specifying phy(s) used
+   by the root port.
+ - phy-names: from the *Generic PHY* bindings; array of the names for
+   each phy for the root ports, must be a subset of the following:
+   "host", "hsic0", "hsic1".
 
 Optional properties:
  - samsung,vbus-gpio:  if present, specifies the GPIO that
@@ -35,12 +33,8 @@ Example:
 		clocks = <&clock 285>;
 		clock-names = "usbhost";
 
-		#address-cells = <1>;
-		#size-cells = <0>;
-		port@0 {
-		    reg = <0>;
-		    phys = <&usb2phy 1>;
-		};
+		phys = <&usb2phy 1>;
+		phy-names = "host";
 	};
 
 OHCI
@@ -52,13 +46,11 @@ Required properties:
  - interrupts: interrupt number to the cpu.
  - clocks: from common clock binding: handle to usb clock.
  - clock-names: from common clock binding: Shall be "usbhost".
- - port: if in the SoC there are OHCI phys, they should be listed here.
-   One phy per port. Each port should have following entries:
-	- reg: port number on OHCI controller, e.g
-	       On Exynos5250, port 0 is USB2.0 otg phy
-			      port 1 is HSIC phy0
-			      port 2 is HSIC phy1
-	- phys: from the *Generic PHY* bindings, specifying phy used by port.
+ - phys: from the *Generic PHY* bindings; array specifying phy(s) used
+   by the root port.
+ - phy-names: from the *Generic PHY* bindings; array of the names for
+   each phy for the root ports, must be a subset of the following:
+   "host", "hsic0", "hsic1".
 
 Example:
 	usb@12120000 {
@@ -69,13 +61,8 @@ Example:
 		clocks = <&clock 285>;
 		clock-names = "usbhost";
 
-		#address-cells = <1>;
-		#size-cells = <0>;
-		port@0 {
-		    reg = <0>;
-		    phys = <&usb2phy 1>;
-		};
-
+		phys = <&usb2phy 1>;
+		phy-names = "host";
 	};
 
 DWC3
@@ -83,6 +70,8 @@ Required properties:
  - compatible: should be one of the following -
 	       "samsung,exynos5250-dwusb3": for USB 3.0 DWC3 controller on
 					    Exynos5250/5420.
+	       "samsung,exynos5433-dwusb3": for USB 3.0 DWC3 controller on
+					    Exynos5433.
 	       "samsung,exynos7-dwusb3": for USB 3.0 DWC3 controller on Exynos7.
  - #address-cells, #size-cells : should be '1' if the device has sub-nodes
 				 with 'reg' property.

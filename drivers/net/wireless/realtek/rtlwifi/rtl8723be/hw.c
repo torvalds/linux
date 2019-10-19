@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2009-2014  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2009-2014  Realtek Corporation.*/
 
 #include "../wifi.h"
 #include "../efuse.h"
@@ -319,12 +297,12 @@ void rtl8723be_get_hw_reg(struct ieee80211_hw *hw, u8 variable, u8 *val)
 		*((enum rf_pwrstate *)(val)) = ppsc->rfpwr_state;
 		break;
 	case HW_VAR_FWLPS_RF_ON:{
-		enum rf_pwrstate rfState;
+		enum rf_pwrstate rfstate;
 		u32 val_rcr;
 
 		rtlpriv->cfg->ops->get_hw_reg(hw, HW_VAR_RF_STATE,
-					      (u8 *)(&rfState));
-		if (rfState == ERFOFF) {
+					      (u8 *)(&rfstate));
+		if (rfstate == ERFOFF) {
 			*((bool *)(val)) = true;
 		} else {
 			val_rcr = rtl_read_dword(rtlpriv, REG_RCR);
@@ -764,10 +742,10 @@ static bool _rtl8723be_llt_table_init(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	unsigned short i;
 	u8 txpktbuf_bndy;
-	u8 maxPage;
+	u8 maxpage;
 	bool status;
 
-	maxPage = 255;
+	maxpage = 255;
 	txpktbuf_bndy = 245;
 
 	rtl_write_dword(rtlpriv, REG_TRXFF_BNDY,
@@ -792,13 +770,13 @@ static bool _rtl8723be_llt_table_init(struct ieee80211_hw *hw)
 	if (!status)
 		return status;
 
-	for (i = txpktbuf_bndy; i < maxPage; i++) {
+	for (i = txpktbuf_bndy; i < maxpage; i++) {
 		status = _rtl8723be_llt_write(hw, i, (i + 1));
 		if (!status)
 			return status;
 	}
 
-	status = _rtl8723be_llt_write(hw, maxPage, txpktbuf_bndy);
+	status = _rtl8723be_llt_write(hw, maxpage, txpktbuf_bndy);
 	if (!status)
 		return status;
 
@@ -847,6 +825,9 @@ static bool _rtl8723be_init_mac(struct ieee80211_hw *hw)
 			 "init MAC Fail as power on failure\n");
 		return false;
 	}
+
+	if (rtlpriv->cfg->ops->get_btc_status())
+		rtlpriv->btcoexist.btc_ops->btc_power_on_setting(rtlpriv);
 
 	bytetmp = rtl_read_byte(rtlpriv, REG_MULTI_FUNC_CTRL);
 	rtl_write_byte(rtlpriv, REG_MULTI_FUNC_CTRL, bytetmp | BIT(3));
@@ -1125,7 +1106,8 @@ static void _rtl8723be_enable_aspm_back_door(struct ieee80211_hw *hw)
 
 	/* Configuration Space offset 0x70f BIT7 is used to control L0S */
 	tmp8 = _rtl8723be_dbi_read(rtlpriv, 0x70f);
-	_rtl8723be_dbi_write(rtlpriv, 0x70f, tmp8 | BIT(7));
+	_rtl8723be_dbi_write(rtlpriv, 0x70f, tmp8 | BIT(7) |
+			     ASPM_L1_LATENCY << 3);
 
 	/* Configuration Space offset 0x719 Bit3 is for L1
 	 * BIT4 is for clock request
@@ -2695,21 +2677,21 @@ void rtl8723be_read_bt_coexist_info_from_hwpg(struct ieee80211_hw *hw,
 		rtlpriv->btcoexist.btc_info.bt_type = BT_RTL8723B;
 		rtlpriv->btcoexist.btc_info.ant_num = (value & 0x1);
 		rtlpriv->btcoexist.btc_info.single_ant_path =
-			 (value & 0x40);	/*0xc3[6]*/
+			 (value & 0x40 ? ANT_AUX : ANT_MAIN);	/*0xc3[6]*/
 	} else {
 		rtlpriv->btcoexist.btc_info.btcoexist = 0;
 		rtlpriv->btcoexist.btc_info.bt_type = BT_RTL8723B;
 		rtlpriv->btcoexist.btc_info.ant_num = ANT_X2;
-		rtlpriv->btcoexist.btc_info.single_ant_path = 0;
+		rtlpriv->btcoexist.btc_info.single_ant_path = ANT_MAIN;
 	}
 
 	/* override ant_num / ant_path */
 	if (mod_params->ant_sel) {
 		rtlpriv->btcoexist.btc_info.ant_num =
-			(mod_params->ant_sel == 1 ? ANT_X2 : ANT_X1);
+			(mod_params->ant_sel == 1 ? ANT_X1 : ANT_X2);
 
 		rtlpriv->btcoexist.btc_info.single_ant_path =
-			(mod_params->ant_sel == 1 ? 0 : 1);
+			(mod_params->ant_sel == 1 ? ANT_AUX : ANT_MAIN);
 	}
 }
 

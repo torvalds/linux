@@ -9,7 +9,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/io.h>
 
 #include <asm/octeon/octeon.h>
@@ -82,7 +82,6 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 {
 	struct octeon_gpio *gpio;
 	struct gpio_chip *chip;
-	struct resource *res_mem;
 	void __iomem *reg_base;
 	int err = 0;
 
@@ -91,8 +90,7 @@ static int octeon_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	chip = &gpio->chip;
 
-	res_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	reg_base = devm_ioremap_resource(&pdev->dev, res_mem);
+	reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(reg_base))
 		return PTR_ERR(reg_base);
 

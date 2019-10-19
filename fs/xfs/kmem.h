@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_SUPPORT_KMEM_H__
 #define __XFS_SUPPORT_KMEM_H__
@@ -28,8 +16,6 @@
  */
 
 typedef unsigned __bitwise xfs_km_flags_t;
-#define KM_SLEEP	((__force xfs_km_flags_t)0x0001u)
-#define KM_NOSLEEP	((__force xfs_km_flags_t)0x0002u)
 #define KM_NOFS		((__force xfs_km_flags_t)0x0004u)
 #define KM_MAYFAIL	((__force xfs_km_flags_t)0x0008u)
 #define KM_ZERO		((__force xfs_km_flags_t)0x0010u)
@@ -44,15 +30,11 @@ kmem_flags_convert(xfs_km_flags_t flags)
 {
 	gfp_t	lflags;
 
-	BUG_ON(flags & ~(KM_SLEEP|KM_NOSLEEP|KM_NOFS|KM_MAYFAIL|KM_ZERO));
+	BUG_ON(flags & ~(KM_NOFS|KM_MAYFAIL|KM_ZERO));
 
-	if (flags & KM_NOSLEEP) {
-		lflags = GFP_ATOMIC | __GFP_NOWARN;
-	} else {
-		lflags = GFP_KERNEL | __GFP_NOWARN;
-		if (flags & KM_NOFS)
-			lflags &= ~__GFP_FS;
-	}
+	lflags = GFP_KERNEL | __GFP_NOWARN;
+	if (flags & KM_NOFS)
+		lflags &= ~__GFP_FS;
 
 	/*
 	 * Default page/slab allocator behavior is to retry for ever
@@ -71,7 +53,8 @@ kmem_flags_convert(xfs_km_flags_t flags)
 }
 
 extern void *kmem_alloc(size_t, xfs_km_flags_t);
-extern void *kmem_zalloc_large(size_t size, xfs_km_flags_t);
+extern void *kmem_alloc_io(size_t size, int align_mask, xfs_km_flags_t flags);
+extern void *kmem_alloc_large(size_t size, xfs_km_flags_t);
 extern void *kmem_realloc(const void *, size_t, xfs_km_flags_t);
 static inline void  kmem_free(const void *ptr)
 {
@@ -83,6 +66,12 @@ static inline void *
 kmem_zalloc(size_t size, xfs_km_flags_t flags)
 {
 	return kmem_alloc(size, flags | KM_ZERO);
+}
+
+static inline void *
+kmem_zalloc_large(size_t size, xfs_km_flags_t flags)
+{
+	return kmem_alloc_large(size, flags | KM_ZERO);
 }
 
 /*
@@ -128,6 +117,14 @@ static inline void *
 kmem_zone_zalloc(kmem_zone_t *zone, xfs_km_flags_t flags)
 {
 	return kmem_zone_alloc(zone, flags | KM_ZERO);
+}
+
+static inline struct page *
+kmem_to_page(void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		return vmalloc_to_page(addr);
+	return virt_to_page(addr);
 }
 
 #endif /* __XFS_SUPPORT_KMEM_H__ */

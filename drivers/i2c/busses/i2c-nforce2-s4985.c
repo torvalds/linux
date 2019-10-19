@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * i2c-nforce2-s4985.c - i2c-nforce2 extras for the Tyan S4985 motherboard
  *
  * Copyright (C) 2008 Jean Delvare <jdelvare@suse.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -164,12 +155,12 @@ static int __init nforce2_s4985_init(void)
 
 	printk(KERN_INFO "Enabling SMBus multiplexing for Tyan S4985\n");
 	/* Define the 5 virtual adapters and algorithms structures */
-	s4985_adapter = kzalloc(5 * sizeof(struct i2c_adapter), GFP_KERNEL);
+	s4985_adapter = kcalloc(5, sizeof(struct i2c_adapter), GFP_KERNEL);
 	if (!s4985_adapter) {
 		error = -ENOMEM;
 		goto ERROR1;
 	}
-	s4985_algo = kzalloc(5 * sizeof(struct i2c_algorithm), GFP_KERNEL);
+	s4985_algo = kcalloc(5, sizeof(struct i2c_algorithm), GFP_KERNEL);
 	if (!s4985_algo) {
 		error = -ENOMEM;
 		goto ERROR2;

@@ -1,17 +1,22 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#define EM_GPIO_0  (1 << 0)
-#define EM_GPIO_1  (1 << 1)
-#define EM_GPIO_2  (1 << 2)
-#define EM_GPIO_3  (1 << 3)
-#define EM_GPIO_4  (1 << 4)
-#define EM_GPIO_5  (1 << 5)
-#define EM_GPIO_6  (1 << 6)
-#define EM_GPIO_7  (1 << 7)
 
-#define EM_GPO_0   (1 << 0)
-#define EM_GPO_1   (1 << 1)
-#define EM_GPO_2   (1 << 2)
-#define EM_GPO_3   (1 << 3)
+/*
+ * em28xx-reg.h - Register definitions for em28xx driver
+ */
+
+#define EM_GPIO_0  ((unsigned char)BIT(0))
+#define EM_GPIO_1  ((unsigned char)BIT(1))
+#define EM_GPIO_2  ((unsigned char)BIT(2))
+#define EM_GPIO_3  ((unsigned char)BIT(3))
+#define EM_GPIO_4  ((unsigned char)BIT(4))
+#define EM_GPIO_5  ((unsigned char)BIT(5))
+#define EM_GPIO_6  ((unsigned char)BIT(6))
+#define EM_GPIO_7  ((unsigned char)BIT(7))
+
+#define EM_GPO_0   ((unsigned char)BIT(0))
+#define EM_GPO_1   ((unsigned char)BIT(1))
+#define EM_GPO_2   ((unsigned char)BIT(2))
+#define EM_GPO_3   ((unsigned char)BIT(3))
 
 /* em28xx endpoints */
 /* 0x82:   (always ?) analog */
@@ -62,7 +67,7 @@
 #define EM28XX_I2C_CLK_WAIT_ENABLE	0x40
 #define EM28XX_I2C_EEPROM_ON_BOARD	0x08
 #define EM28XX_I2C_EEPROM_KEY_VALID	0x04
-#define EM2874_I2C_SECONDARY_BUS_SELECT	0x04 /* em2874 has two i2c busses */
+#define EM2874_I2C_SECONDARY_BUS_SELECT	0x04 /* em2874 has two i2c buses */
 #define EM28XX_I2C_FREQ_1_5_MHZ		0x03 /* bus frequency (bits [1-0]) */
 #define EM28XX_I2C_FREQ_25_KHZ		0x02
 #define EM28XX_I2C_FREQ_400_KHZ		0x01
@@ -203,10 +208,11 @@
 #define EM28XX_R43_AC97BUSY	0x43
 
 #define EM28XX_R45_IR		0x45
-	/* 0x45  bit 7    - parity bit
-		 bits 6-0 - count
-	   0x46  IR brand
-	   0x47  IR data
+	/*
+	 * 0x45  bit 7    - parity bit
+	 *	 bits 6-0 - count
+	 * 0x46  IR brand
+	 *  0x47  IR data
 	 */
 
 /* em2874 registers */
@@ -249,12 +255,12 @@
 #define EM2874_IR_RC6_MODE_6A   0x0b
 
 /* em2874 Transport Stream Enable Register (0x5f) */
-#define EM2874_TS1_CAPTURE_ENABLE (1 << 0)
-#define EM2874_TS1_FILTER_ENABLE  (1 << 1)
-#define EM2874_TS1_NULL_DISCARD   (1 << 2)
-#define EM2874_TS2_CAPTURE_ENABLE (1 << 4)
-#define EM2874_TS2_FILTER_ENABLE  (1 << 5)
-#define EM2874_TS2_NULL_DISCARD   (1 << 6)
+#define EM2874_TS1_CAPTURE_ENABLE ((unsigned char)BIT(0))
+#define EM2874_TS1_FILTER_ENABLE  ((unsigned char)BIT(1))
+#define EM2874_TS1_NULL_DISCARD   ((unsigned char)BIT(2))
+#define EM2874_TS2_CAPTURE_ENABLE ((unsigned char)BIT(4))
+#define EM2874_TS2_FILTER_ENABLE  ((unsigned char)BIT(5))
+#define EM2874_TS2_NULL_DISCARD   ((unsigned char)BIT(6))
 
 /* register settings */
 #define EM2800_AUDIO_SRC_TUNER  0x0d

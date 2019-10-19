@@ -1,6 +1,4 @@
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
+# SPDX-License-Identifier: GPL-2.0-only
 
 config ARM64_PTDUMP_CORE
 	def_bool n
@@ -97,5 +95,3 @@ config ARM64_RELOC_TEST
 	tristate "Relocation testing module"
 
 source "drivers/hwtracing/coresight/Kconfig"
-
-endmenu

@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for Freescale MC44S803 Low Power CMOS Broadband Tuner
  *
  *  Copyright (c) 2009 Jochen Friedrich <jochen@scram.de>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -300,10 +290,10 @@ static int mc44s803_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops mc44s803_tuner_ops = {
 	.info = {
-		.name           = "Freescale MC44S803",
-		.frequency_min  =   48000000,
-		.frequency_max  = 1000000000,
-		.frequency_step =     100000,
+		.name              = "Freescale MC44S803",
+		.frequency_min_hz  =   48 * MHz,
+		.frequency_max_hz  = 1000 * MHz,
+		.frequency_step_hz =  100 * kHz,
 	},
 
 	.release       = mc44s803_release,

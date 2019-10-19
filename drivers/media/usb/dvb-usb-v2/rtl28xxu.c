@@ -1,23 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Realtek RTL28xxU DVB USB driver
  *
  * Copyright (C) 2009 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2011 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2012 Thomas Mair <thomas.mair86@googlemail.com>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "rtl28xxu.h"
@@ -384,6 +371,7 @@ static int rtl2832u_read_config(struct dvb_usb_device *d)
 	struct rtl28xxu_req req_r828d = {0x0074, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_mn88472 = {0xff38, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_mn88473 = {0xff38, CMD_I2C_RD, 1, buf};
+	struct rtl28xxu_req req_cxd2837er = {0xfdd8, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_si2157 = {0x00c0, CMD_I2C_RD, 1, buf};
 	struct rtl28xxu_req req_si2168 = {0x00c8, CMD_I2C_RD, 1, buf};
 
@@ -540,7 +528,18 @@ tuner_found:
 
 	/* probe slave demod */
 	if (dev->tuner == TUNER_RTL2832_R828D) {
-		/* power on MN88472 demod on GPIO0 */
+		/* power off slave demod on GPIO0 to reset CXD2837ER */
+		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x00, 0x01);
+		if (ret)
+			goto err;
+
+		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_EN, 0x00, 0x01);
+		if (ret)
+			goto err;
+
+		msleep(50);
+
+		/* power on slave demod on GPIO0 */
 		ret = rtl28xxu_wr_reg_mask(d, SYS_GPIO_OUT_VAL, 0x01, 0x01);
 		if (ret)
 			goto err;
@@ -553,7 +552,7 @@ tuner_found:
 		if (ret)
 			goto err;
 
-		/* check MN88472 answers */
+		/* check slave answers */
 		ret = rtl28xxu_ctrl_msg(d, &req_mn88472);
 		if (ret == 0 && buf[0] == 0x02) {
 			dev_dbg(&d->intf->dev, "MN88472 found\n");
@@ -565,6 +564,13 @@ tuner_found:
 		if (ret == 0 && buf[0] == 0x03) {
 			dev_dbg(&d->intf->dev, "MN88473 found\n");
 			dev->slave_demod = SLAVE_DEMOD_MN88473;
+			goto demod_found;
+		}
+
+		ret = rtl28xxu_ctrl_msg(d, &req_cxd2837er);
+		if (ret == 0 && buf[0] == 0xb1) {
+			dev_dbg(&d->intf->dev, "CXD2837ER found\n");
+			dev->slave_demod = SLAVE_DEMOD_CXD2837ER;
 			goto demod_found;
 		}
 	}
@@ -687,7 +693,7 @@ static int rtl2831u_frontend_attach(struct dvb_usb_adapter *adap)
 
 	/* attach demodulator */
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "rtl2830", I2C_NAME_SIZE);
+	strscpy(board_info.type, "rtl2830", I2C_NAME_SIZE);
 	board_info.addr = 0x10;
 	board_info.platform_data = pdata;
 	request_module("%s", board_info.type);
@@ -908,7 +914,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 
 	/* attach demodulator */
 	memset(&board_info, 0, sizeof(board_info));
-	strlcpy(board_info.type, "rtl2832", I2C_NAME_SIZE);
+	strscpy(board_info.type, "rtl2832", I2C_NAME_SIZE);
 	board_info.addr = 0x10;
 	board_info.platform_data = pdata;
 	request_module("%s", board_info.type);
@@ -947,7 +953,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 
 			mn88472_config.fe = &adap->fe[1];
 			mn88472_config.i2c_wr_max = 22,
-			strlcpy(info.type, "mn88472", I2C_NAME_SIZE);
+			strscpy(info.type, "mn88472", I2C_NAME_SIZE);
 			mn88472_config.xtal = 20500000;
 			mn88472_config.ts_mode = SERIAL_TS_MODE;
 			mn88472_config.ts_clock = VARIABLE_TS_CLOCK;
@@ -972,7 +978,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 
 			mn88473_config.fe = &adap->fe[1];
 			mn88473_config.i2c_wr_max = 22,
-			strlcpy(info.type, "mn88473", I2C_NAME_SIZE);
+			strscpy(info.type, "mn88473", I2C_NAME_SIZE);
 			info.addr = 0x18;
 			info.platform_data = &mn88473_config;
 			request_module(info.type);
@@ -989,6 +995,23 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			}
 
 			dev->i2c_client_slave_demod = client;
+		} else if (dev->slave_demod == SLAVE_DEMOD_CXD2837ER) {
+			struct cxd2841er_config cxd2837er_config = {};
+
+			cxd2837er_config.i2c_addr = 0xd8;
+			cxd2837er_config.xtal = SONY_XTAL_20500;
+			cxd2837er_config.flags = (CXD2841ER_AUTO_IFHZ |
+				CXD2841ER_NO_AGCNEG | CXD2841ER_TSBITS |
+				CXD2841ER_EARLY_TUNE | CXD2841ER_TS_SERIAL);
+			adap->fe[1] = dvb_attach(cxd2841er_attach_t_c,
+						 &cxd2837er_config,
+						 &d->i2c_adap);
+			if (!adap->fe[1]) {
+				dev->slave_demod = SLAVE_DEMOD_NONE;
+				goto err_slave_demod_failed;
+			}
+			adap->fe[1]->id = 1;
+			dev->i2c_client_slave_demod = NULL;
 		} else {
 			struct si2168_config si2168_config = {};
 			struct i2c_adapter *adapter;
@@ -998,7 +1021,7 @@ static int rtl2832u_frontend_attach(struct dvb_usb_adapter *adap)
 			si2168_config.ts_mode = SI2168_TS_SERIAL;
 			si2168_config.ts_clock_inv = false;
 			si2168_config.ts_clock_gapped = true;
-			strlcpy(info.type, "si2168", I2C_NAME_SIZE);
+			strscpy(info.type, "si2168", I2C_NAME_SIZE);
 			info.addr = 0x64;
 			info.platform_data = &si2168_config;
 			request_module(info.type);
@@ -1189,7 +1212,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				.clock = 28800000,
 			};
 
-			strlcpy(info.type, "e4000", I2C_NAME_SIZE);
+			strscpy(info.type, "e4000", I2C_NAME_SIZE);
 			info.addr = 0x64;
 			info.platform_data = &e4000_config;
 
@@ -1213,7 +1236,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 			};
 			struct i2c_board_info board_info = {};
 
-			strlcpy(board_info.type, "fc2580", I2C_NAME_SIZE);
+			strscpy(board_info.type, "fc2580", I2C_NAME_SIZE);
 			board_info.addr = 0x56;
 			board_info.platform_data = &fc2580_pdata;
 			request_module("fc2580");
@@ -1244,7 +1267,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 		if (ret)
 			goto err;
 
-		strlcpy(board_info.type, "tua9001", I2C_NAME_SIZE);
+		strscpy(board_info.type, "tua9001", I2C_NAME_SIZE);
 		board_info.addr = 0x60;
 		board_info.platform_data = &tua9001_pdata;
 		request_module("tua9001");
@@ -1289,7 +1312,7 @@ static int rtl2832u_tuner_attach(struct dvb_usb_adapter *adap)
 				.inversion = false,
 			};
 
-			strlcpy(info.type, "si2157", I2C_NAME_SIZE);
+			strscpy(info.type, "si2157", I2C_NAME_SIZE);
 			info.addr = 0x60;
 			info.platform_data = &si2157_config;
 			request_module(info.type);
@@ -1685,7 +1708,7 @@ static int rtl2832u_rc_query(struct dvb_usb_device *d)
 {
 	int ret, i, len;
 	struct rtl28xxu_dev *dev = d->priv;
-	struct ir_raw_event ev;
+	struct ir_raw_event ev = {};
 	u8 buf[128];
 	static const struct rtl28xxu_reg_val_mask refresh_tab[] = {
 		{IR_RX_IF,               0x03, 0xff},
@@ -1732,7 +1755,7 @@ static int rtl2832u_rc_query(struct dvb_usb_device *d)
 		goto exit;
 
 	ret = rtl28xxu_rd_reg(d, IR_RX_BC, &buf[0]);
-	if (ret)
+	if (ret || buf[0] > sizeof(buf))
 		goto err;
 
 	len = buf[0];
@@ -1751,8 +1774,6 @@ static int rtl2832u_rc_query(struct dvb_usb_device *d)
 	}
 
 	/* pass data to Kernel IR decoder */
-	init_ir_raw_event(&ev);
-
 	for (i = 0; i < len; i++) {
 		ev.pulse = buf[i] >> 7;
 		ev.duration = 50800 * (buf[i] & 0x7f);

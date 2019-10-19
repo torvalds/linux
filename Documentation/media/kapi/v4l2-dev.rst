@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 Video device' s internal representation
 =======================================
 
@@ -31,7 +33,7 @@ of the video device exits.
 The default :c:func:`video_device_release` callback currently
 just calls ``kfree`` to free the allocated memory.
 
-There is also a ::c:func:`video_device_release_empty` function that does
+There is also a :c:func:`video_device_release_empty` function that does
 nothing (is empty) and should be used if the struct is embedded and there
 is nothing to do when it is released.
 
@@ -286,6 +288,7 @@ Mask  Description
 0x08  Log the read and write file operations and the VIDIOC_QBUF and
       VIDIOC_DQBUF ioctls.
 0x10  Log the poll file operation.
+0x20  Log error and messages in the control operations.
 ===== ================================================================
 
 Video device cleanup

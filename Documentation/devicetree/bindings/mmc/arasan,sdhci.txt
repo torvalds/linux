@@ -15,12 +15,17 @@ Required Properties:
     - "arasan,sdhci-5.1": generic Arasan SDHCI 5.1 PHY
     - "rockchip,rk3399-sdhci-5.1", "arasan,sdhci-5.1": rk3399 eMMC PHY
       For this device it is strongly suggested to include arasan,soc-ctl-syscon.
+    - "ti,am654-sdhci-5.1", "arasan,sdhci-5.1": TI AM654 MMC PHY
+	Note: This binding has been deprecated and moved to [5].
+    - "intel,lgm-sdhci-5.1-emmc", "arasan,sdhci-5.1": Intel LGM eMMC PHY
+      For this device it is strongly suggested to include arasan,soc-ctl-syscon.
+
+  [5] Documentation/devicetree/bindings/mmc/sdhci-am654.txt
+
   - reg: From mmc bindings: Register location and length.
   - clocks: From clock bindings: Handles to clock inputs.
   - clock-names: From clock bindings: Tuple including "clk_xin" and "clk_ahb"
   - interrupts: Interrupt specifier
-  - interrupt-parent: Phandle for the interrupt controller that services
-		      interrupts for this device.
 
 Required Properties for "arasan,sdhci-5.1":
   - phys: From PHY bindings: Phandle for the Generic PHY for arasan.
@@ -39,6 +44,8 @@ Optional Properties:
   - xlnx,fails-without-test-cd: when present, the controller doesn't work when
     the CD line is not connected properly, and the line is not connected
     properly. Test mode can be used to force the controller to function.
+  - xlnx,int-clock-stable-broken: when present, the controller always reports
+    that the internal clock is stable even when it is not.
 
 Example:
 	sdhci@e0100000 {
@@ -74,4 +81,19 @@ Example:
 		phys = <&emmc_phy>;
 		phy-names = "phy_arasan";
 		#clock-cells = <0>;
+	};
+
+	emmc: sdhci@ec700000 {
+		compatible = "intel,lgm-sdhci-5.1-emmc", "arasan,sdhci-5.1";
+		reg = <0xec700000 0x300>;
+		interrupt-parent = <&ioapic1>;
+		interrupts = <44 1>;
+		clocks = <&cgu0 LGM_CLK_EMMC5>, <&cgu0 LGM_CLK_NGI>,
+			 <&cgu0 LGM_GCLK_EMMC>;
+		clock-names = "clk_xin", "clk_ahb", "gate";
+		clock-output-names = "emmc_cardclock";
+		#clock-cells = <0>;
+		phys = <&emmc_phy>;
+		phy-names = "phy_arasan";
+		arasan,soc-ctl-syscon = <&sysconf>;
 	};

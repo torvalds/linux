@@ -146,14 +146,11 @@ struct execlist_ring_context {
 	u32 nop4;
 	u32 lri_cmd_2;
 	struct execlist_mmio_pair ctx_timestamp;
-	struct execlist_mmio_pair pdp3_UDW;
-	struct execlist_mmio_pair pdp3_LDW;
-	struct execlist_mmio_pair pdp2_UDW;
-	struct execlist_mmio_pair pdp2_LDW;
-	struct execlist_mmio_pair pdp1_UDW;
-	struct execlist_mmio_pair pdp1_LDW;
-	struct execlist_mmio_pair pdp0_UDW;
-	struct execlist_mmio_pair pdp0_LDW;
+	/*
+	 * pdps[8]={ pdp3_UDW, pdp3_LDW, pdp2_UDW, pdp2_LDW,
+	 *           pdp1_UDW, pdp1_LDW, pdp0_UDW, pdp0_LDW}
+	 */
+	struct execlist_mmio_pair pdps[8];
 };
 
 struct intel_vgpu_elsp_dwords {
@@ -183,6 +180,6 @@ int intel_vgpu_init_execlist(struct intel_vgpu *vgpu);
 int intel_vgpu_submit_execlist(struct intel_vgpu *vgpu, int ring_id);
 
 void intel_vgpu_reset_execlist(struct intel_vgpu *vgpu,
-		unsigned long engine_mask);
+			       intel_engine_mask_t engine_mask);
 
 #endif /*_GVT_EXECLIST_H_*/

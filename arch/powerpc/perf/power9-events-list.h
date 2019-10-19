@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Performance counter support for POWER9 processors.
  *
  * Copyright 2016 Madhavan Srinivasan, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /*
@@ -63,9 +59,59 @@ EVENT(PM_RUN_CYC_ALT,				0x200f4)
 /* Instruction Dispatched */
 EVENT(PM_INST_DISP,				0x200f2)
 EVENT(PM_INST_DISP_ALT,				0x300f2)
-/* Alternate Branch event code */
-EVENT(PM_BR_CMPL_ALT,				0x10012)
 /* Branch event that are not strongly biased */
 EVENT(PM_BR_2PATH,				0x20036)
 /* ALternate branch event that are not strongly biased */
 EVENT(PM_BR_2PATH_ALT,				0x40036)
+
+/* Blacklisted events */
+EVENT(PM_MRK_ST_DONE_L2,			0x10134)
+EVENT(PM_RADIX_PWC_L1_HIT,			0x1f056)
+EVENT(PM_FLOP_CMPL,				0x100f4)
+EVENT(PM_MRK_NTF_FIN,				0x20112)
+EVENT(PM_RADIX_PWC_L2_HIT,			0x2d024)
+EVENT(PM_IFETCH_THROTTLE,			0x3405e)
+EVENT(PM_MRK_L2_TM_ST_ABORT_SISTER,		0x3e15c)
+EVENT(PM_RADIX_PWC_L3_HIT,			0x3f056)
+EVENT(PM_RUN_CYC_SMT2_MODE,			0x3006c)
+EVENT(PM_TM_TX_PASS_RUN_INST,			0x4e014)
+EVENT(PM_DISP_HELD_SYNC_HOLD,			0x4003c)
+EVENT(PM_DTLB_MISS_16G,				0x1c058)
+EVENT(PM_DERAT_MISS_2M,				0x1c05a)
+EVENT(PM_DTLB_MISS_2M,				0x1c05c)
+EVENT(PM_MRK_DTLB_MISS_1G,			0x1d15c)
+EVENT(PM_DTLB_MISS_4K,				0x2c056)
+EVENT(PM_DERAT_MISS_1G,				0x2c05a)
+EVENT(PM_MRK_DERAT_MISS_2M,			0x2d152)
+EVENT(PM_MRK_DTLB_MISS_4K,			0x2d156)
+EVENT(PM_MRK_DTLB_MISS_16G,			0x2d15e)
+EVENT(PM_DTLB_MISS_64K,				0x3c056)
+EVENT(PM_MRK_DERAT_MISS_1G,			0x3d152)
+EVENT(PM_MRK_DTLB_MISS_64K,			0x3d156)
+EVENT(PM_DTLB_MISS_16M,				0x4c056)
+EVENT(PM_DTLB_MISS_1G,				0x4c05a)
+EVENT(PM_MRK_DTLB_MISS_16M,			0x4c15e)
+
+/*
+ * Memory Access Events
+ *
+ * Primary PMU event used here is PM_MRK_INST_CMPL (0x401e0)
+ * To enable capturing of memory profiling, these MMCRA bits
+ * needs to be programmed and corresponding raw event format
+ * encoding.
+ *
+ * MMCRA bits encoding needed are
+ *     SM (Sampling Mode)
+ *     EM (Eligibility for Random Sampling)
+ *     TECE (Threshold Event Counter Event)
+ *     TS (Threshold Start Event)
+ *     TE (Threshold End Event)
+ *
+ * Corresponding Raw Encoding bits:
+ *     sample [EM,SM]
+ *     thresh_sel (TECE)
+ *     thresh start (TS)
+ *     thresh end (TE)
+ */
+EVENT(MEM_LOADS,				0x34340401e0)
+EVENT(MEM_STORES,				0x343c0401e0)

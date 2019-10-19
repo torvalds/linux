@@ -25,7 +25,7 @@
 #ifndef DC_TYPES_H_
 #define DC_TYPES_H_
 
-#include "fixed32_32.h"
+#include "os_types.h"
 #include "fixed31_32.h"
 #include "irq_types.h"
 #include "dc_dp_types.h"
@@ -73,12 +73,18 @@ struct hw_asic_id {
 	void *atombios_base_address;
 };
 
+struct dc_perf_trace {
+	unsigned long read_count;
+	unsigned long write_count;
+	unsigned long last_entry_read;
+	unsigned long last_entry_write;
+};
+
 struct dc_context {
 	struct dc *dc;
 
 	void *driver_context; /* e.g. amdgpu_device */
-
-	struct dal_logger *logger;
+	struct dc_perf_trace *perf_trace;
 	void *cgs_device;
 
 	enum dce_environment dce_environment;
@@ -91,15 +97,14 @@ struct dc_context {
 	struct dc_bios *dc_bios;
 	bool created_bios;
 	struct gpio_service *gpio_service;
-	struct i2caux *i2caux;
-#if defined(CONFIG_DRM_AMD_DC_FBC)
+	uint32_t dc_sink_id_count;
+	uint32_t dc_stream_id_count;
 	uint64_t fbc_gpu_addr;
-#endif
 };
 
 
-#define MAX_EDID_BUFFER_SIZE 512
-#define EDID_BLOCK_SIZE 128
+#define DC_MAX_EDID_BUFFER_SIZE 1024
+#define DC_EDID_BLOCK_SIZE 128
 #define MAX_SURFACE_NUM 4
 #define NUM_PIXEL_FORMATS 10
 
@@ -137,13 +142,13 @@ enum plane_stereo_format {
  */
 
 enum dc_edid_connector_type {
-	EDID_CONNECTOR_UNKNOWN = 0,
-	EDID_CONNECTOR_ANALOG = 1,
-	EDID_CONNECTOR_DIGITAL = 10,
-	EDID_CONNECTOR_DVI = 11,
-	EDID_CONNECTOR_HDMIA = 12,
-	EDID_CONNECTOR_MDDI = 14,
-	EDID_CONNECTOR_DISPLAYPORT = 15
+	DC_EDID_CONNECTOR_UNKNOWN = 0,
+	DC_EDID_CONNECTOR_ANALOG = 1,
+	DC_EDID_CONNECTOR_DIGITAL = 10,
+	DC_EDID_CONNECTOR_DVI = 11,
+	DC_EDID_CONNECTOR_HDMIA = 12,
+	DC_EDID_CONNECTOR_MDDI = 14,
+	DC_EDID_CONNECTOR_DISPLAYPORT = 15
 };
 
 enum dc_edid_status {
@@ -169,7 +174,7 @@ struct dc_cea_audio_mode {
 
 struct dc_edid {
 	uint32_t length;
-	uint8_t raw_edid[MAX_EDID_BUFFER_SIZE];
+	uint8_t raw_edid[DC_MAX_EDID_BUFFER_SIZE];
 };
 
 /* When speaker location data block is not available, DEFAULT_SPEAKER_LOCATION
@@ -191,6 +196,13 @@ union display_content_support {
 		unsigned int graphics_content :1;
 		unsigned int reserved :27;
 	} bits;
+};
+
+struct dc_panel_patch {
+	unsigned int dppowerup_delay;
+	unsigned int extra_t12_ms;
+	unsigned int extra_delay_backlight_off;
+	unsigned int extra_t7_ms;
 };
 
 struct dc_edid_caps {
@@ -219,6 +231,8 @@ struct dc_edid_caps {
 
 	bool edid_hdmi;
 	bool hdr_supported;
+
+	struct dc_panel_patch panel_patch;
 };
 
 struct view {
@@ -364,12 +378,6 @@ struct dc_csc_adjustments {
 	struct fixed31_32 hue;
 };
 
-enum {
-	MAX_LANES = 2,
-	MAX_COFUNC_PATH = 6,
-	LAYER_INDEX_PRIMARY = -1,
-};
-
 enum dpcd_downstream_port_max_bpc {
 	DOWN_STREAM_MAX_8BPC = 0,
 	DOWN_STREAM_MAX_10BPC,
@@ -388,7 +396,7 @@ struct dc_dongle_caps {
 	bool is_dp_hdmi_ycbcr422_converter;
 	bool is_dp_hdmi_ycbcr420_converter;
 	uint32_t dp_hdmi_max_bpc;
-	uint32_t dp_hdmi_max_pixel_clk;
+	uint32_t dp_hdmi_max_pixel_clk_in_khz;
 };
 /* Scaling format */
 enum scaling_transformation {
@@ -413,6 +421,39 @@ enum display_content_type {
 	DISPLAY_CONTENT_TYPE_CINEMA = 4,
 	DISPLAY_CONTENT_TYPE_GAME = 8
 };
+
+#if defined(CONFIG_DRM_AMD_DC_DCN2_0)
+/* writeback */
+struct dwb_stereo_params {
+	bool				stereo_enabled;		/* false: normal mode, true: 3D stereo */
+	enum dwb_stereo_type		stereo_type;		/* indicates stereo format */
+	bool				stereo_polarity;	/* indicates left eye or right eye comes first in stereo mode */
+	enum dwb_stereo_eye_select	stereo_eye_select;	/* indicate which eye should be captured */
+};
+
+struct dc_dwb_cnv_params {
+	unsigned int		src_width;	/* input active width */
+	unsigned int		src_height;	/* input active height (half-active height in interlaced mode) */
+	unsigned int		crop_width;	/* cropped window width at cnv output */
+	bool			crop_en;	/* window cropping enable in cnv */
+	unsigned int		crop_height;	/* cropped window height at cnv output */
+	unsigned int		crop_x;		/* cropped window start x value at cnv output */
+	unsigned int		crop_y;		/* cropped window start y value at cnv output */
+	enum dwb_cnv_out_bpc cnv_out_bpc;	/* cnv output pixel depth - 8bpc or 10bpc */
+};
+
+struct dc_dwb_params {
+	struct dc_dwb_cnv_params	cnv_params;	/* CNV source size and cropping window parameters */
+	unsigned int			dest_width;	/* Destination width */
+	unsigned int			dest_height;	/* Destination height */
+	enum dwb_scaler_mode		out_format;	/* default = YUV420 - TODO: limit this to 0 and 1 on dcn3 */
+	enum dwb_output_depth		output_depth;	/* output pixel depth - 8bpc or 10bpc */
+	enum dwb_capture_rate		capture_rate;	/* controls the frame capture rate */
+	struct scaling_taps 		scaler_taps;	/* Scaling taps */
+	enum dwb_subsample_position	subsample_position;
+	struct dc_transfer_func *out_transfer_func;
+};
+#endif
 
 /* audio*/
 
@@ -515,22 +556,49 @@ struct audio_info {
 	struct audio_mode modes[DC_MAX_AUDIO_DESC_COUNT];
 };
 
-struct freesync_context {
-	bool supported;
-	bool enabled;
-	bool active;
+enum dc_infoframe_type {
+	DC_HDMI_INFOFRAME_TYPE_VENDOR = 0x81,
+	DC_HDMI_INFOFRAME_TYPE_AVI = 0x82,
+	DC_HDMI_INFOFRAME_TYPE_SPD = 0x83,
+	DC_HDMI_INFOFRAME_TYPE_AUDIO = 0x84,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	DC_DP_INFOFRAME_TYPE_PPS = 0x10,
+#endif
+};
 
-	unsigned int min_refresh_in_micro_hz;
-	unsigned int nominal_refresh_in_micro_hz;
+struct dc_info_packet {
+	bool valid;
+	uint8_t hb0;
+	uint8_t hb1;
+	uint8_t hb2;
+	uint8_t hb3;
+	uint8_t sb[32];
+};
+
+struct dc_info_packet_128 {
+	bool valid;
+	uint8_t hb0;
+	uint8_t hb1;
+	uint8_t hb2;
+	uint8_t hb3;
+	uint8_t sb[128];
+};
+
+#define DC_PLANE_UPDATE_TIMES_MAX 10
+
+struct dc_plane_flip_time {
+	unsigned int time_elapsed_in_us[DC_PLANE_UPDATE_TIMES_MAX];
+	unsigned int index;
+	unsigned int prev_update_time_in_us;
 };
 
 struct psr_config {
 	unsigned char psr_version;
 	unsigned int psr_rfb_setup_time;
 	bool psr_exit_link_training_required;
-
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	bool allow_smu_optimizations;
 };
 
 union dmcu_psr_level {
@@ -632,6 +700,7 @@ struct psr_context {
 	 * continuing powerd own
 	 */
 	unsigned int frame_delay;
+	bool allow_smu_optimizations;
 };
 
 struct colorspace_transform {
@@ -645,4 +714,100 @@ enum i2c_mot_mode {
 	I2C_MOT_FALSE
 };
 
+struct AsicStateEx {
+	unsigned int memoryClock;
+	unsigned int displayClock;
+	unsigned int engineClock;
+	unsigned int maxSupportedDppClock;
+	unsigned int dppClock;
+	unsigned int socClock;
+	unsigned int dcfClockDeepSleep;
+	unsigned int fClock;
+	unsigned int phyClock;
+};
+
+
+enum dc_clock_type {
+	DC_CLOCK_TYPE_DISPCLK = 0,
+	DC_CLOCK_TYPE_DPPCLK        = 1,
+};
+
+struct dc_clock_config {
+	uint32_t max_clock_khz;
+	uint32_t min_clock_khz;
+	uint32_t bw_requirequired_clock_khz;
+	uint32_t current_clock_khz;/*current clock in use*/
+};
+
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+/* DSC DPCD capabilities */
+union dsc_slice_caps1 {
+	struct {
+		uint8_t NUM_SLICES_1 : 1;
+		uint8_t NUM_SLICES_2 : 1;
+		uint8_t RESERVED : 1;
+		uint8_t NUM_SLICES_4 : 1;
+		uint8_t NUM_SLICES_6 : 1;
+		uint8_t NUM_SLICES_8 : 1;
+		uint8_t NUM_SLICES_10 : 1;
+		uint8_t NUM_SLICES_12 : 1;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_slice_caps2 {
+	struct {
+		uint8_t NUM_SLICES_16 : 1;
+		uint8_t NUM_SLICES_20 : 1;
+		uint8_t NUM_SLICES_24 : 1;
+		uint8_t RESERVED : 5;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_formats {
+	struct {
+		uint8_t RGB : 1;
+		uint8_t YCBCR_444 : 1;
+		uint8_t YCBCR_SIMPLE_422 : 1;
+		uint8_t YCBCR_NATIVE_422 : 1;
+		uint8_t YCBCR_NATIVE_420 : 1;
+		uint8_t RESERVED : 3;
+	} bits;
+	uint8_t raw;
+};
+
+union dsc_color_depth {
+	struct {
+		uint8_t RESERVED1 : 1;
+		uint8_t COLOR_DEPTH_8_BPC : 1;
+		uint8_t COLOR_DEPTH_10_BPC : 1;
+		uint8_t COLOR_DEPTH_12_BPC : 1;
+		uint8_t RESERVED2 : 3;
+	} bits;
+	uint8_t raw;
+};
+
+struct dsc_dec_dpcd_caps {
+	bool is_dsc_supported;
+	uint8_t dsc_version;
+	int32_t rc_buffer_size; /* DSC RC buffer block size in bytes */
+	union dsc_slice_caps1 slice_caps1;
+	union dsc_slice_caps2 slice_caps2;
+	int32_t lb_bit_depth;
+	bool is_block_pred_supported;
+	int32_t edp_max_bits_per_pixel; /* Valid only in eDP */
+	union dsc_color_formats color_formats;
+	union dsc_color_depth color_depth;
+	int32_t throughput_mode_0_mps; /* In MPs */
+	int32_t throughput_mode_1_mps; /* In MPs */
+	int32_t max_slice_width;
+	uint32_t bpp_increment_div; /* bpp increment divisor, e.g. if 16, it's 1/16th of a bit */
+
+	/* Extended DSC caps */
+	uint32_t branch_overall_throughput_0_mps; /* In MPs */
+	uint32_t branch_overall_throughput_1_mps; /* In MPs */
+	uint32_t branch_max_line_width;
+};
+#endif
 #endif /* DC_TYPES_H_ */

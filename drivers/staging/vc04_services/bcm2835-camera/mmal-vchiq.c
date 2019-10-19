@@ -4,10 +4,11 @@
  *
  * Copyright © 2013 Raspberry Pi (Trading) Ltd.
  *
- * Authors: Vincent Sanders <vincent.sanders@collabora.co.uk>
- *          Dave Stevenson <dsteve@broadcom.com>
- *          Simon Mellor <simellor@broadcom.com>
- *          Luke Diamand <luked@broadcom.com>
+ * Authors: Vincent Sanders @ Collabora
+ *          Dave Stevenson @ Broadcom
+ *		(now dave.stevenson@raspberrypi.org)
+ *          Simon Mellor @ Broadcom
+ *          Luke Diamand @ Broadcom
  *
  * V4L2 driver MMAL vchiq interface code
  */
@@ -21,8 +22,6 @@
 #include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/vmalloc.h>
-#include <linux/btree.h>
-#include <asm/cacheflush.h>
 #include <media/videobuf2-vmalloc.h>
 
 #include "mmal-common.h"
@@ -111,12 +110,18 @@ struct vchiq_mmal_instance;
 /* normal message context */
 struct mmal_msg_context {
 	struct vchiq_mmal_instance *instance;
-	u32 handle;
+
+	/* Index in the context_map idr so that we can find the
+	 * mmal_msg_context again when servicing the VCHI reply.
+	 */
+	int handle;
 
 	union {
 		struct {
-			/* work struct for defered callback - must come first */
+			/* work struct for buffer_cb callback */
 			struct work_struct work;
+			/* work struct for deferred callback */
+			struct work_struct buffer_to_host_work;
 			/* mmal instance */
 			struct vchiq_mmal_instance *instance;
 			/* mmal port */
@@ -137,7 +142,7 @@ struct mmal_msg_context {
 
 		struct {
 			/* message handle to release */
-			VCHI_HELD_MSG_T msg_handle;
+			struct vchi_held_msg msg_handle;
 			/* pointer to received message */
 			struct mmal_msg *msg;
 			/* received message length */
@@ -149,111 +154,32 @@ struct mmal_msg_context {
 
 };
 
-struct vchiq_mmal_context_map {
-	/* ensure serialized access to the btree(contention should be low) */
-	struct mutex lock;
-	struct btree_head32 btree_head;
-	u32 last_handle;
-};
-
 struct vchiq_mmal_instance {
 	VCHI_SERVICE_HANDLE_T handle;
 
 	/* ensure serialised access to service */
 	struct mutex vchiq_mutex;
 
-	/* ensure serialised access to bulk operations */
-	struct mutex bulk_mutex;
-
 	/* vmalloc page to receive scratch bulk xfers into */
 	void *bulk_scratch;
 
-	/* mapping table between context handles and mmal_msg_contexts */
-	struct vchiq_mmal_context_map context_map;
+	struct idr context_map;
+	/* protect accesses to context_map */
+	struct mutex context_map_lock;
 
 	/* component to use next */
 	int component_idx;
 	struct vchiq_mmal_component component[VCHIQ_MMAL_MAX_COMPONENTS];
+
+	/* ordered workqueue to process all bulk operations */
+	struct workqueue_struct *bulk_wq;
 };
-
-static int __must_check
-mmal_context_map_init(struct vchiq_mmal_context_map *context_map)
-{
-	mutex_init(&context_map->lock);
-	context_map->last_handle = 0;
-	return btree_init32(&context_map->btree_head);
-}
-
-static void mmal_context_map_destroy(struct vchiq_mmal_context_map *context_map)
-{
-	mutex_lock(&context_map->lock);
-	btree_destroy32(&context_map->btree_head);
-	mutex_unlock(&context_map->lock);
-}
-
-static u32
-mmal_context_map_create_handle(struct vchiq_mmal_context_map *context_map,
-			       struct mmal_msg_context *msg_context,
-			       gfp_t gfp)
-{
-	u32 handle;
-
-	mutex_lock(&context_map->lock);
-
-	while (1) {
-		/* just use a simple count for handles, but do not use 0 */
-		context_map->last_handle++;
-		if (!context_map->last_handle)
-			context_map->last_handle++;
-
-		handle = context_map->last_handle;
-
-		/* check if the handle is already in use */
-		if (!btree_lookup32(&context_map->btree_head, handle))
-			break;
-	}
-
-	if (btree_insert32(&context_map->btree_head, handle,
-			   msg_context, gfp)) {
-		/* probably out of memory */
-		mutex_unlock(&context_map->lock);
-		return 0;
-	}
-
-	mutex_unlock(&context_map->lock);
-	return handle;
-}
-
-static struct mmal_msg_context *
-mmal_context_map_lookup_handle(struct vchiq_mmal_context_map *context_map,
-			       u32 handle)
-{
-	struct mmal_msg_context *msg_context;
-
-	if (!handle)
-		return NULL;
-
-	mutex_lock(&context_map->lock);
-
-	msg_context = btree_lookup32(&context_map->btree_head, handle);
-
-	mutex_unlock(&context_map->lock);
-	return msg_context;
-}
-
-static void
-mmal_context_map_destroy_handle(struct vchiq_mmal_context_map *context_map,
-				u32 handle)
-{
-	mutex_lock(&context_map->lock);
-	btree_remove32(&context_map->btree_head, handle);
-	mutex_unlock(&context_map->lock);
-}
 
 static struct mmal_msg_context *
 get_msg_context(struct vchiq_mmal_instance *instance)
 {
 	struct mmal_msg_context *msg_context;
+	int handle;
 
 	/* todo: should this be allocated from a pool to avoid kzalloc */
 	msg_context = kzalloc(sizeof(*msg_context), GFP_KERNEL);
@@ -261,32 +187,40 @@ get_msg_context(struct vchiq_mmal_instance *instance)
 	if (!msg_context)
 		return ERR_PTR(-ENOMEM);
 
-	msg_context->instance = instance;
-	msg_context->handle =
-		mmal_context_map_create_handle(&instance->context_map,
-					       msg_context,
-					       GFP_KERNEL);
+	/* Create an ID that will be passed along with our message so
+	 * that when we service the VCHI reply, we can look up what
+	 * message is being replied to.
+	 */
+	mutex_lock(&instance->context_map_lock);
+	handle = idr_alloc(&instance->context_map, msg_context,
+			   0, 0, GFP_KERNEL);
+	mutex_unlock(&instance->context_map_lock);
 
-	if (!msg_context->handle) {
+	if (handle < 0) {
 		kfree(msg_context);
-		return ERR_PTR(-ENOMEM);
+		return ERR_PTR(handle);
 	}
+
+	msg_context->instance = instance;
+	msg_context->handle = handle;
 
 	return msg_context;
 }
 
 static struct mmal_msg_context *
-lookup_msg_context(struct vchiq_mmal_instance *instance, u32 handle)
+lookup_msg_context(struct vchiq_mmal_instance *instance, int handle)
 {
-	return mmal_context_map_lookup_handle(&instance->context_map,
-		handle);
+	return idr_find(&instance->context_map, handle);
 }
 
 static void
 release_msg_context(struct mmal_msg_context *msg_context)
 {
-	mmal_context_map_destroy_handle(&msg_context->instance->context_map,
-					msg_context->handle);
+	struct vchiq_mmal_instance *instance = msg_context->instance;
+
+	mutex_lock(&instance->context_map_lock);
+	idr_remove(&instance->context_map, msg_context->handle);
+	mutex_unlock(&instance->context_map_lock);
 	kfree(msg_context);
 }
 
@@ -312,6 +246,8 @@ static void buffer_work_cb(struct work_struct *work)
 	struct mmal_msg_context *msg_context =
 		container_of(work, struct mmal_msg_context, u.bulk.work);
 
+	atomic_dec(&msg_context->u.bulk.port->buffers_with_vpu);
+
 	msg_context->u.bulk.port->buffer_cb(msg_context->u.bulk.instance,
 					    msg_context->u.bulk.port,
 					    msg_context->u.bulk.status,
@@ -320,9 +256,44 @@ static void buffer_work_cb(struct work_struct *work)
 					    msg_context->u.bulk.mmal_flags,
 					    msg_context->u.bulk.dts,
 					    msg_context->u.bulk.pts);
+}
 
-	/* release message context */
-	release_msg_context(msg_context);
+/* workqueue scheduled callback to handle receiving buffers
+ *
+ * VCHI will allow up to 4 bulk receives to be scheduled before blocking.
+ * If we block in the service_callback context then we can't process the
+ * VCHI_CALLBACK_BULK_RECEIVED message that would otherwise allow the blocked
+ * vchi_bulk_queue_receive() call to complete.
+ */
+static void buffer_to_host_work_cb(struct work_struct *work)
+{
+	struct mmal_msg_context *msg_context =
+		container_of(work, struct mmal_msg_context,
+			     u.bulk.buffer_to_host_work);
+	struct vchiq_mmal_instance *instance = msg_context->instance;
+	unsigned long len = msg_context->u.bulk.buffer_used;
+	int ret;
+
+	if (!len)
+		/* Dummy receive to ensure the buffers remain in order */
+		len = 8;
+	/* queue the bulk submission */
+	vchi_service_use(instance->handle);
+	ret = vchi_bulk_queue_receive(instance->handle,
+				      msg_context->u.bulk.buffer->buffer,
+				      /* Actual receive needs to be a multiple
+				       * of 4 bytes
+				       */
+				      (len + 3) & ~3,
+				      VCHI_FLAGS_CALLBACK_WHEN_OP_COMPLETE |
+				      VCHI_FLAGS_BLOCK_UNTIL_QUEUED,
+				      msg_context);
+
+	vchi_service_release(instance->handle);
+
+	if (ret != 0)
+		pr_err("%s: ctx: %p, vchi_bulk_queue_receive failed %d\n",
+		       __func__, msg_context, ret);
 }
 
 /* enqueue a bulk receive for a given message context */
@@ -331,23 +302,11 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 			struct mmal_msg_context *msg_context)
 {
 	unsigned long rd_len;
-	unsigned long flags = 0;
-	int ret;
-
-	/* bulk mutex stops other bulk operations while we have a
-	 * receive in progress - released in callback
-	 */
-	ret = mutex_lock_interruptible(&instance->bulk_mutex);
-	if (ret != 0)
-		return ret;
 
 	rd_len = msg->u.buffer_from_host.buffer_header.length;
 
-	/* take buffer from queue */
-	spin_lock_irqsave(&msg_context->u.bulk.port->slock, flags);
-	if (list_empty(&msg_context->u.bulk.port->buffers)) {
-		spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
-		pr_err("buffer list empty trying to submit bulk receive\n");
+	if (!msg_context->u.bulk.buffer) {
+		pr_err("bulk.buffer not configured - error in buffer_from_host\n");
 
 		/* todo: this is a serious error, we should never have
 		 * committed a buffer_to_host operation to the mmal
@@ -359,17 +318,8 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 		 * waiting bulk receive?
 		 */
 
-		mutex_unlock(&instance->bulk_mutex);
-
 		return -EINVAL;
 	}
-
-	msg_context->u.bulk.buffer =
-	    list_entry(msg_context->u.bulk.port->buffers.next,
-		       struct mmal_buffer, list);
-	list_del(&msg_context->u.bulk.buffer->list);
-
-	spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
 
 	/* ensure we do not overrun the available buffer */
 	if (rd_len > msg_context->u.bulk.buffer->buffer_size) {
@@ -382,67 +332,13 @@ static int bulk_receive(struct vchiq_mmal_instance *instance,
 
 	/* store length */
 	msg_context->u.bulk.buffer_used = rd_len;
-	msg_context->u.bulk.mmal_flags =
-	    msg->u.buffer_from_host.buffer_header.flags;
 	msg_context->u.bulk.dts = msg->u.buffer_from_host.buffer_header.dts;
 	msg_context->u.bulk.pts = msg->u.buffer_from_host.buffer_header.pts;
 
-	/* queue the bulk submission */
-	vchi_service_use(instance->handle);
-	ret = vchi_bulk_queue_receive(instance->handle,
-				      msg_context->u.bulk.buffer->buffer,
-				      /* Actual receive needs to be a multiple
-				       * of 4 bytes
-				       */
-				      (rd_len + 3) & ~3,
-				      VCHI_FLAGS_CALLBACK_WHEN_OP_COMPLETE |
-				      VCHI_FLAGS_BLOCK_UNTIL_QUEUED,
-				      msg_context);
+	queue_work(msg_context->instance->bulk_wq,
+		   &msg_context->u.bulk.buffer_to_host_work);
 
-	vchi_service_release(instance->handle);
-
-	if (ret != 0) {
-		/* callback will not be clearing the mutex */
-		mutex_unlock(&instance->bulk_mutex);
-	}
-
-	return ret;
-}
-
-/* enque a dummy bulk receive for a given message context */
-static int dummy_bulk_receive(struct vchiq_mmal_instance *instance,
-			      struct mmal_msg_context *msg_context)
-{
-	int ret;
-
-	/* bulk mutex stops other bulk operations while we have a
-	 * receive in progress - released in callback
-	 */
-	ret = mutex_lock_interruptible(&instance->bulk_mutex);
-	if (ret != 0)
-		return ret;
-
-	/* zero length indicates this was a dummy transfer */
-	msg_context->u.bulk.buffer_used = 0;
-
-	/* queue the bulk submission */
-	vchi_service_use(instance->handle);
-
-	ret = vchi_bulk_queue_receive(instance->handle,
-				      instance->bulk_scratch,
-				      8,
-				      VCHI_FLAGS_CALLBACK_WHEN_OP_COMPLETE |
-				      VCHI_FLAGS_BLOCK_UNTIL_QUEUED,
-				      msg_context);
-
-	vchi_service_release(instance->handle);
-
-	if (ret != 0) {
-		/* callback will not be clearing the mutex */
-		mutex_unlock(&instance->bulk_mutex);
-	}
-
-	return ret;
+	return 0;
 }
 
 /* data in message, memcpy from packet into output buffer */
@@ -450,31 +346,6 @@ static int inline_receive(struct vchiq_mmal_instance *instance,
 			  struct mmal_msg *msg,
 			  struct mmal_msg_context *msg_context)
 {
-	unsigned long flags = 0;
-
-	/* take buffer from queue */
-	spin_lock_irqsave(&msg_context->u.bulk.port->slock, flags);
-	if (list_empty(&msg_context->u.bulk.port->buffers)) {
-		spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
-		pr_err("buffer list empty trying to receive inline\n");
-
-		/* todo: this is a serious error, we should never have
-		 * committed a buffer_to_host operation to the mmal
-		 * port without the buffer to back it up (with
-		 * underflow handling) and there is no obvious way to
-		 * deal with this. Less bad than the bulk case as we
-		 * can just drop this on the floor but...unhelpful
-		 */
-		return -EINVAL;
-	}
-
-	msg_context->u.bulk.buffer =
-	    list_entry(msg_context->u.bulk.port->buffers.next,
-		       struct mmal_buffer, list);
-	list_del(&msg_context->u.bulk.buffer->list);
-
-	spin_unlock_irqrestore(&msg_context->u.bulk.port->slock, flags);
-
 	memcpy(msg_context->u.bulk.buffer->buffer,
 	       msg->u.buffer_from_host.short_data,
 	       msg->u.buffer_from_host.payload_in_message);
@@ -494,29 +365,31 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 	struct mmal_msg m;
 	int ret;
 
+	if (!port->enabled)
+		return -EINVAL;
+
 	pr_debug("instance:%p buffer:%p\n", instance->handle, buf);
 
-	/* bulk mutex stops other bulk operations while we
-	 * have a receive in progress
-	 */
-	if (mutex_lock_interruptible(&instance->bulk_mutex))
-		return -EINTR;
-
 	/* get context */
-	msg_context = get_msg_context(instance);
-	if (IS_ERR(msg_context)) {
-		ret = PTR_ERR(msg_context);
-		goto unlock;
+	if (!buf->msg_context) {
+		pr_err("%s: msg_context not allocated, buf %p\n", __func__,
+		       buf);
+		return -EINVAL;
 	}
+	msg_context = buf->msg_context;
 
 	/* store bulk message context for when data arrives */
 	msg_context->u.bulk.instance = instance;
 	msg_context->u.bulk.port = port;
-	msg_context->u.bulk.buffer = NULL;	/* not valid until bulk xfer */
+	msg_context->u.bulk.buffer = buf;
 	msg_context->u.bulk.buffer_used = 0;
 
 	/* initialise work structure ready to schedule callback */
 	INIT_WORK(&msg_context->u.bulk.work, buffer_work_cb);
+	INIT_WORK(&msg_context->u.bulk.buffer_to_host_work,
+		  buffer_to_host_work_cb);
+
+	atomic_inc(&port->buffers_with_vpu);
 
 	/* prep the buffer from host message */
 	memset(&m, 0xbc, sizeof(m));	/* just to make debug clearer */
@@ -557,53 +430,7 @@ buffer_from_host(struct vchiq_mmal_instance *instance,
 					sizeof(struct mmal_msg_header) +
 					sizeof(m.u.buffer_from_host));
 
-	if (ret != 0) {
-		release_msg_context(msg_context);
-		/* todo: is this correct error value? */
-	}
-
 	vchi_service_release(instance->handle);
-
-unlock:
-	mutex_unlock(&instance->bulk_mutex);
-
-	return ret;
-}
-
-/* submit a buffer to the mmal sevice
- *
- * the buffer_from_host uses size data from the ports next available
- * mmal_buffer and deals with there being no buffer available by
- * incrementing the underflow for later
- */
-static int port_buffer_from_host(struct vchiq_mmal_instance *instance,
-				 struct vchiq_mmal_port *port)
-{
-	int ret;
-	struct mmal_buffer *buf;
-	unsigned long flags = 0;
-
-	if (!port->enabled)
-		return -EINVAL;
-
-	/* peek buffer from queue */
-	spin_lock_irqsave(&port->slock, flags);
-	if (list_empty(&port->buffers)) {
-		port->buffer_underflow++;
-		spin_unlock_irqrestore(&port->slock, flags);
-		return -ENOSPC;
-	}
-
-	buf = list_entry(port->buffers.next, struct mmal_buffer, list);
-
-	spin_unlock_irqrestore(&port->slock, flags);
-
-	/* issue buffer to mmal service */
-	ret = buffer_from_host(instance, port, buf);
-	if (ret) {
-		pr_err("adding buffer header failed\n");
-		/* todo: how should this be dealt with */
-	}
 
 	return ret;
 }
@@ -632,6 +459,9 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 		return;
 	}
 
+	msg_context->u.bulk.mmal_flags =
+				msg->u.buffer_from_host.buffer_header.flags;
+
 	if (msg->h.status != MMAL_MSG_STATUS_SUCCESS) {
 		/* message reception had an error */
 		pr_warn("error %d in reply\n", msg->h.status);
@@ -643,7 +473,7 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 		if (msg->u.buffer_from_host.buffer_header.flags &
 		    MMAL_BUFFER_HEADER_FLAG_EOS) {
 			msg_context->u.bulk.status =
-			    dummy_bulk_receive(instance, msg_context);
+			    bulk_receive(instance, msg, msg_context);
 			if (msg_context->u.bulk.status == 0)
 				return;	/* successful bulk submission, bulk
 					 * completion will trigger callback
@@ -680,9 +510,6 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 		    msg->u.buffer_from_host.payload_in_message;
 	}
 
-	/* replace the buffer header */
-	port_buffer_from_host(instance, msg_context->u.bulk.port);
-
 	/* schedule the port callback */
 	schedule_work(&msg_context->u.bulk.work);
 }
@@ -690,13 +517,6 @@ static void buffer_to_host_cb(struct vchiq_mmal_instance *instance,
 static void bulk_receive_cb(struct vchiq_mmal_instance *instance,
 			    struct mmal_msg_context *msg_context)
 {
-	/* bulk receive operation complete */
-	mutex_unlock(&msg_context->u.bulk.instance->bulk_mutex);
-
-	/* replace the buffer header */
-	port_buffer_from_host(msg_context->u.bulk.instance,
-			      msg_context->u.bulk.port);
-
 	msg_context->u.bulk.status = 0;
 
 	/* schedule the port callback */
@@ -707,13 +527,6 @@ static void bulk_abort_cb(struct vchiq_mmal_instance *instance,
 			  struct mmal_msg_context *msg_context)
 {
 	pr_err("%s: bulk ABORTED msg_context:%p\n", __func__, msg_context);
-
-	/* bulk receive operation complete */
-	mutex_unlock(&msg_context->u.bulk.instance->bulk_mutex);
-
-	/* replace the buffer header */
-	port_buffer_from_host(msg_context->u.bulk.instance,
-			      msg_context->u.bulk.port);
 
 	msg_context->u.bulk.status = -EINTR;
 
@@ -729,7 +542,7 @@ static void service_callback(void *param,
 	int status;
 	u32 msg_len;
 	struct mmal_msg *msg;
-	VCHI_HELD_MSG_T msg_handle;
+	struct vchi_held_msg msg_handle;
 	struct mmal_msg_context *msg_context;
 
 	if (!instance) {
@@ -827,16 +640,17 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 				     struct mmal_msg *msg,
 				     unsigned int payload_len,
 				     struct mmal_msg **msg_out,
-				     VCHI_HELD_MSG_T *msg_handle_out)
+				     struct vchi_held_msg *msg_handle_out)
 {
 	struct mmal_msg_context *msg_context;
 	int ret;
+	unsigned long timeout;
 
 	/* payload size must not cause message to exceed max size */
 	if (payload_len >
 	    (MMAL_MSG_MAX_SIZE - sizeof(struct mmal_msg_header))) {
 		pr_err("payload length %d exceeds max:%d\n", payload_len,
-		      (int)(MMAL_MSG_MAX_SIZE -
+		       (int)(MMAL_MSG_MAX_SIZE -
 			    sizeof(struct mmal_msg_header)));
 		return -EINVAL;
 	}
@@ -869,11 +683,11 @@ static int send_synchronous_mmal_msg(struct vchiq_mmal_instance *instance,
 		return ret;
 	}
 
-	ret = wait_for_completion_timeout(&msg_context->u.sync.cmplt, 3 * HZ);
-	if (ret <= 0) {
-		pr_err("error %d waiting for sync completion\n", ret);
-		if (ret == 0)
-			ret = -ETIME;
+	timeout = wait_for_completion_timeout(&msg_context->u.sync.cmplt,
+					      3 * HZ);
+	if (timeout == 0) {
+		pr_err("timed out waiting for sync completion\n");
+		ret = -ETIME;
 		/* todo: what happens if the message arrives after aborting */
 		release_msg_context(msg_context);
 		return ret;
@@ -952,7 +766,7 @@ static int port_info_set(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	pr_debug("setting port info port %p\n", port);
 	if (!port)
@@ -1013,7 +827,7 @@ static int port_info_get(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	/* port info time */
 	m.h.type = MMAL_MSG_TYPE_PORT_INFO_GET;
@@ -1039,9 +853,9 @@ static int port_info_get(struct vchiq_mmal_instance *instance,
 		goto release_msg;
 
 	if (rmsg->u.port_info_get_reply.port.is_enabled == 0)
-		port->enabled = false;
+		port->enabled = 0;
 	else
-		port->enabled = true;
+		port->enabled = 1;
 
 	/* copy the values out of the message */
 	port->handle = rmsg->u.port_info_get_reply.port_handle;
@@ -1109,7 +923,7 @@ static int create_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	/* build component create message */
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_CREATE;
@@ -1156,7 +970,7 @@ static int destroy_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_DESTROY;
 	m.u.component_destroy.component_handle = component->handle;
@@ -1189,7 +1003,7 @@ static int enable_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_ENABLE;
 	m.u.component_enable.component_handle = component->handle;
@@ -1221,7 +1035,7 @@ static int disable_component(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_COMPONENT_DISABLE;
 	m.u.component_disable.component_handle = component->handle;
@@ -1254,7 +1068,7 @@ static int get_version(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_GET_VERSION;
 
@@ -1287,7 +1101,7 @@ static int port_action_port(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_ACTION;
 	m.u.port_action_port.component_handle = port->component->handle;
@@ -1331,7 +1145,7 @@ static int port_action_handle(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_ACTION;
 
@@ -1376,7 +1190,7 @@ static int port_parameter_set(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_PARAMETER_SET;
 
@@ -1417,7 +1231,7 @@ static int port_parameter_get(struct vchiq_mmal_instance *instance,
 	int ret;
 	struct mmal_msg m;
 	struct mmal_msg *rmsg;
-	VCHI_HELD_MSG_T rmsg_handle;
+	struct vchi_held_msg rmsg_handle;
 
 	m.h.type = MMAL_MSG_TYPE_PORT_PARAMETER_GET;
 
@@ -1453,9 +1267,10 @@ static int port_parameter_get(struct vchiq_mmal_instance *instance,
 		memcpy(value, &rmsg->u.port_parameter_get_reply.value,
 		       *value_size);
 		*value_size = rmsg->u.port_parameter_get_reply.size;
-	} else
+	} else {
 		memcpy(value, &rmsg->u.port_parameter_get_reply.value,
 		       rmsg->u.port_parameter_get_reply.size);
+	}
 
 	pr_debug("%s:result:%d component:0x%x port:%d parameter:%d\n", __func__,
 		 ret, port->component->handle, port->handle, parameter_id);
@@ -1477,12 +1292,19 @@ static int port_disable(struct vchiq_mmal_instance *instance,
 	if (!port->enabled)
 		return 0;
 
-	port->enabled = false;
+	port->enabled = 0;
 
 	ret = port_action_port(instance, port,
 			       MMAL_MSG_PORT_ACTION_TYPE_DISABLE);
 	if (ret == 0) {
-		/* drain all queued buffers on port */
+		/*
+		 * Drain all queued buffers on port. This should only
+		 * apply to buffers that have been queued before the port
+		 * has been enabled. If the port has been enabled and buffers
+		 * passed, then the buffers should have been removed from this
+		 * list, and we should get the relevant callbacks via VCHIQ
+		 * to release the buffers.
+		 */
 		spin_lock_irqsave(&port->slock, flags);
 
 		list_for_each_safe(buf_head, q, &port->buffers) {
@@ -1511,33 +1333,23 @@ static int port_enable(struct vchiq_mmal_instance *instance,
 		       struct vchiq_mmal_port *port)
 {
 	unsigned int hdr_count;
-	struct list_head *buf_head;
+	struct list_head *q, *buf_head;
 	int ret;
 
 	if (port->enabled)
 		return 0;
-
-	/* ensure there are enough buffers queued to cover the buffer headers */
-	if (port->buffer_cb) {
-		hdr_count = 0;
-		list_for_each(buf_head, &port->buffers) {
-			hdr_count++;
-		}
-		if (hdr_count < port->current_buffer.num)
-			return -ENOSPC;
-	}
 
 	ret = port_action_port(instance, port,
 			       MMAL_MSG_PORT_ACTION_TYPE_ENABLE);
 	if (ret)
 		goto done;
 
-	port->enabled = true;
+	port->enabled = 1;
 
 	if (port->buffer_cb) {
 		/* send buffer headers to videocore */
 		hdr_count = 1;
-		list_for_each(buf_head, &port->buffers) {
+		list_for_each_safe(buf_head, q, &port->buffers) {
 			struct mmal_buffer *mmalbuf;
 
 			mmalbuf = list_entry(buf_head, struct mmal_buffer,
@@ -1546,6 +1358,7 @@ static int port_enable(struct vchiq_mmal_instance *instance,
 			if (ret)
 				goto done;
 
+			list_del(buf_head);
 			hdr_count++;
 			if (hdr_count > port->current_buffer.num)
 				break;
@@ -1698,7 +1511,7 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 			pr_err("failed disconnecting src port\n");
 			goto release_unlock;
 		}
-		src->connected->enabled = false;
+		src->connected->enabled = 0;
 		src->connected = NULL;
 	}
 
@@ -1758,19 +1571,38 @@ int vchiq_mmal_submit_buffer(struct vchiq_mmal_instance *instance,
 			     struct mmal_buffer *buffer)
 {
 	unsigned long flags = 0;
+	int ret;
 
-	spin_lock_irqsave(&port->slock, flags);
-	list_add_tail(&buffer->list, &port->buffers);
-	spin_unlock_irqrestore(&port->slock, flags);
-
-	/* the port previously underflowed because it was missing a
-	 * mmal_buffer which has just been added, submit that buffer
-	 * to the mmal service.
-	 */
-	if (port->buffer_underflow) {
-		port_buffer_from_host(instance, port);
-		port->buffer_underflow--;
+	ret = buffer_from_host(instance, port, buffer);
+	if (ret == -EINVAL) {
+		/* Port is disabled. Queue for when it is enabled. */
+		spin_lock_irqsave(&port->slock, flags);
+		list_add_tail(&buffer->list, &port->buffers);
+		spin_unlock_irqrestore(&port->slock, flags);
 	}
+
+	return 0;
+}
+
+int mmal_vchi_buffer_init(struct vchiq_mmal_instance *instance,
+			  struct mmal_buffer *buf)
+{
+	struct mmal_msg_context *msg_context = get_msg_context(instance);
+
+	if (IS_ERR(msg_context))
+		return (PTR_ERR(msg_context));
+
+	buf->msg_context = msg_context;
+	return 0;
+}
+
+int mmal_vchi_buffer_cleanup(struct mmal_buffer *buf)
+{
+	struct mmal_msg_context *msg_context = buf->msg_context;
+
+	if (msg_context)
+		release_msg_context(msg_context);
+	buf->msg_context = NULL;
 
 	return 0;
 }
@@ -1797,8 +1629,11 @@ int vchiq_mmal_component_init(struct vchiq_mmal_instance *instance,
 	component = &instance->component[instance->component_idx];
 
 	ret = create_component(instance, component, name);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("%s: failed to create component %d (Not enough GPU mem?)\n",
+		       __func__, ret);
 		goto unlock;
+	}
 
 	/* ports info needs gathering */
 	component->control.type = MMAL_PORT_TYPE_CONTROL;
@@ -1923,7 +1758,7 @@ int vchiq_mmal_component_disable(struct vchiq_mmal_instance *instance,
 
 	ret = disable_component(instance, component);
 	if (ret == 0)
-		component->enabled = false;
+		component->enabled = 0;
 
 	mutex_unlock(&instance->vchiq_mutex);
 
@@ -1963,9 +1798,12 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 
 	mutex_unlock(&instance->vchiq_mutex);
 
+	flush_workqueue(instance->bulk_wq);
+	destroy_workqueue(instance->bulk_wq);
+
 	vfree(instance->bulk_scratch);
 
-	mmal_context_map_destroy(&instance->context_map);
+	idr_destroy(&instance->context_map);
 
 	kfree(instance);
 
@@ -1976,19 +1814,12 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 {
 	int status;
 	struct vchiq_mmal_instance *instance;
-	static VCHI_CONNECTION_T *vchi_connection;
 	static VCHI_INSTANCE_T vchi_instance;
-	SERVICE_CREATION_T params = {
+	struct service_creation params = {
 		.version		= VCHI_VERSION_EX(VC_MMAL_VER, VC_MMAL_MIN_VER),
 		.service_id		= VC_MMAL_SERVER_NAME,
-		.connection		= vchi_connection,
-		.rx_fifo_size		= 0,
-		.tx_fifo_size		= 0,
 		.callback		= service_callback,
 		.callback_param		= NULL,
-		.want_unaligned_bulk_rx = 1,
-		.want_unaligned_bulk_tx = 1,
-		.want_crc		= 0
 	};
 
 	/* compile time checks to ensure structure size as they are
@@ -2012,7 +1843,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		return -EIO;
 	}
 
-	status = vchi_connect(NULL, 0, vchi_instance);
+	status = vchi_connect(vchi_instance);
 	if (status) {
 		pr_err("Failed to connect VCHI instance (status=%d)\n", status);
 		return -EIO;
@@ -2024,18 +1855,18 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		return -ENOMEM;
 
 	mutex_init(&instance->vchiq_mutex);
-	mutex_init(&instance->bulk_mutex);
 
 	instance->bulk_scratch = vmalloc(PAGE_SIZE);
 
-	status = mmal_context_map_init(&instance->context_map);
-	if (status) {
-		pr_err("Failed to init context map (status=%d)\n", status);
-		kfree(instance);
-		return status;
-	}
+	mutex_init(&instance->context_map_lock);
+	idr_init_base(&instance->context_map, 1);
 
 	params.callback_param = instance;
+
+	instance->bulk_wq = alloc_ordered_workqueue("mmal-vchiq",
+						    WQ_MEM_RECLAIM);
+	if (!instance->bulk_wq)
+		goto err_free;
 
 	status = vchi_service_open(vchi_instance, &params, &instance->handle);
 	if (status) {
@@ -2051,8 +1882,9 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	return 0;
 
 err_close_services:
-
 	vchi_service_close(instance->handle);
+	destroy_workqueue(instance->bulk_wq);
+err_free:
 	vfree(instance->bulk_scratch);
 	kfree(instance);
 	return -ENODEV;

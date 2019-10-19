@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Real Time Clock interface for Linux
  *
@@ -19,11 +20,6 @@
  *	contains the interrupt status in the low byte and the number of
  *	interrupts since the last read in the remaining high bytes. The
  *	/dev/rtc interface can also be used with the select(2) call.
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	Based on other minimal char device drivers, like Alan's
  *	watchdog, Ted's random, etc. etc.
@@ -171,7 +167,7 @@ static void mask_rtc_irq_bit(unsigned char bit)
 #endif
 
 #ifdef CONFIG_PROC_FS
-static int rtc_proc_open(struct inode *inode, struct file *file);
+static int rtc_proc_show(struct seq_file *seq, void *v);
 #endif
 
 /*
@@ -192,14 +188,6 @@ static unsigned long rtc_status;	/* bitmapped status byte.	*/
 static unsigned long rtc_freq;		/* Current periodic IRQ rate	*/
 static unsigned long rtc_irq_data;	/* our output to the world	*/
 static unsigned long rtc_max_user_freq = 64; /* > this, need CAP_SYS_RESOURCE */
-
-#ifdef RTC_IRQ
-/*
- * rtc_task_lock nests inside rtc_lock.
- */
-static DEFINE_SPINLOCK(rtc_task_lock);
-static rtc_task_t *rtc_callback;
-#endif
 
 /*
  *	If this driver ever becomes modularised, it will be really nice
@@ -264,11 +252,6 @@ static irqreturn_t rtc_interrupt(int irq, void *dev_id)
 
 	spin_unlock(&rtc_lock);
 
-	/* Now do the rest of the actions */
-	spin_lock(&rtc_task_lock);
-	if (rtc_callback)
-		rtc_callback->func(rtc_callback->private_data);
-	spin_unlock(&rtc_task_lock);
 	wake_up_interruptible(&rtc_wait);
 
 	kill_fasync(&rtc_async_queue, SIGIO, POLL_IN);
@@ -809,89 +792,6 @@ static __poll_t rtc_poll(struct file *file, poll_table *wait)
 }
 #endif
 
-int rtc_register(rtc_task_t *task)
-{
-#ifndef RTC_IRQ
-	return -EIO;
-#else
-	if (task == NULL || task->func == NULL)
-		return -EINVAL;
-	spin_lock_irq(&rtc_lock);
-	if (rtc_status & RTC_IS_OPEN) {
-		spin_unlock_irq(&rtc_lock);
-		return -EBUSY;
-	}
-	spin_lock(&rtc_task_lock);
-	if (rtc_callback) {
-		spin_unlock(&rtc_task_lock);
-		spin_unlock_irq(&rtc_lock);
-		return -EBUSY;
-	}
-	rtc_status |= RTC_IS_OPEN;
-	rtc_callback = task;
-	spin_unlock(&rtc_task_lock);
-	spin_unlock_irq(&rtc_lock);
-	return 0;
-#endif
-}
-EXPORT_SYMBOL(rtc_register);
-
-int rtc_unregister(rtc_task_t *task)
-{
-#ifndef RTC_IRQ
-	return -EIO;
-#else
-	unsigned char tmp;
-
-	spin_lock_irq(&rtc_lock);
-	spin_lock(&rtc_task_lock);
-	if (rtc_callback != task) {
-		spin_unlock(&rtc_task_lock);
-		spin_unlock_irq(&rtc_lock);
-		return -ENXIO;
-	}
-	rtc_callback = NULL;
-
-	/* disable controls */
-	if (!hpet_mask_rtc_irq_bit(RTC_PIE | RTC_AIE | RTC_UIE)) {
-		tmp = CMOS_READ(RTC_CONTROL);
-		tmp &= ~RTC_PIE;
-		tmp &= ~RTC_AIE;
-		tmp &= ~RTC_UIE;
-		CMOS_WRITE(tmp, RTC_CONTROL);
-		CMOS_READ(RTC_INTR_FLAGS);
-	}
-	if (rtc_status & RTC_TIMER_ON) {
-		rtc_status &= ~RTC_TIMER_ON;
-		del_timer(&rtc_irq_timer);
-	}
-	rtc_status &= ~RTC_IS_OPEN;
-	spin_unlock(&rtc_task_lock);
-	spin_unlock_irq(&rtc_lock);
-	return 0;
-#endif
-}
-EXPORT_SYMBOL(rtc_unregister);
-
-int rtc_control(rtc_task_t *task, unsigned int cmd, unsigned long arg)
-{
-#ifndef RTC_IRQ
-	return -EIO;
-#else
-	unsigned long flags;
-	if (cmd != RTC_PIE_ON && cmd != RTC_PIE_OFF && cmd != RTC_IRQP_SET)
-		return -EINVAL;
-	spin_lock_irqsave(&rtc_task_lock, flags);
-	if (rtc_callback != task) {
-		spin_unlock_irqrestore(&rtc_task_lock, flags);
-		return -ENXIO;
-	}
-	spin_unlock_irqrestore(&rtc_task_lock, flags);
-	return rtc_do_ioctl(cmd, arg, 1);
-#endif
-}
-EXPORT_SYMBOL(rtc_control);
-
 /*
  *	The various file operations we support.
  */
@@ -914,16 +814,6 @@ static struct miscdevice rtc_dev = {
 	.name		= "rtc",
 	.fops		= &rtc_fops,
 };
-
-#ifdef CONFIG_PROC_FS
-static const struct file_operations rtc_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= rtc_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-#endif
 
 static resource_size_t rtc_size;
 
@@ -972,8 +862,8 @@ static int __init rtc_init(void)
 #ifdef CONFIG_SPARC32
 	for_each_node_by_name(ebus_dp, "ebus") {
 		struct device_node *dp;
-		for (dp = ebus_dp; dp; dp = dp->sibling) {
-			if (!strcmp(dp->name, "rtc")) {
+		for_each_child_of_node(ebus_dp, dp) {
+			if (of_node_name_eq(dp, "rtc")) {
 				op = of_find_device_by_node(dp);
 				if (op) {
 					rtc_port = op->resource[0].start;
@@ -1065,7 +955,7 @@ no_irq:
 	}
 
 #ifdef CONFIG_PROC_FS
-	ent = proc_create("driver/rtc", 0, NULL, &rtc_proc_fops);
+	ent = proc_create_single("driver/rtc", 0, NULL, rtc_proc_show);
 	if (!ent)
 		printk(KERN_WARNING "rtc: Failed to register with procfs.\n");
 #endif
@@ -1231,11 +1121,10 @@ static int rtc_proc_show(struct seq_file *seq, void *v)
 	 * time or for Universal Standard Time (GMT). Probably local though.
 	 */
 	seq_printf(seq,
-		   "rtc_time\t: %02d:%02d:%02d\n"
-		   "rtc_date\t: %04d-%02d-%02d\n"
+		   "rtc_time\t: %ptRt\n"
+		   "rtc_date\t: %ptRd\n"
 		   "rtc_epoch\t: %04lu\n",
-		   tm.tm_hour, tm.tm_min, tm.tm_sec,
-		   tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, epoch);
+		   &tm, &tm, epoch);
 
 	get_rtc_alm_time(&tm);
 
@@ -1283,11 +1172,6 @@ static int rtc_proc_show(struct seq_file *seq, void *v)
 	return  0;
 #undef YN
 #undef NY
-}
-
-static int rtc_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, rtc_proc_show, NULL);
 }
 #endif
 

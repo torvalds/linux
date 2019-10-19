@@ -14,26 +14,9 @@
 #include <asm/facility.h>
 
 #include "ap_bus.h"
-#include "ap_asm.h"
+#include "ap_debug.h"
 
-/**
- * ap_queue_irq_ctrl(): Control interruption on a AP queue.
- * @qirqctrl: struct ap_qirq_ctrl (64 bit value)
- * @ind: The notification indicator byte
- *
- * Returns AP queue status.
- *
- * Control interruption on the given AP queue.
- * Just a simple wrapper function for the low level PQAP(AQIC)
- * instruction available for other kernel modules.
- */
-struct ap_queue_status ap_queue_irq_ctrl(ap_qid_t qid,
-					 struct ap_qirq_ctrl qirqctrl,
-					 void *ind)
-{
-	return ap_aqic(qid, qirqctrl, ind);
-}
-EXPORT_SYMBOL(ap_queue_irq_ctrl);
+static void __ap_flush_queue(struct ap_queue *aq);
 
 /**
  * ap_queue_enable_interruption(): Enable interruption on an AP queue.
@@ -169,6 +152,7 @@ static struct ap_queue_status ap_sm_recv(struct ap_queue *aq)
 			ap_msg->receive(aq, ap_msg, aq->reply);
 			break;
 		}
+		/* fall through */
 	case AP_RESPONSE_NO_PENDING_REPLY:
 		if (!status.queue_empty || aq->queue_count <= 0)
 			break;
@@ -437,6 +421,14 @@ static ap_func_t *ap_jumptable[NR_AP_STATES][NR_AP_EVENTS] = {
 		[AP_EVENT_POLL] = ap_sm_suspend_read,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
 	},
+	[AP_STATE_REMOVE] = {
+		[AP_EVENT_POLL] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+	},
+	[AP_STATE_UNBOUND] = {
+		[AP_EVENT_POLL] = ap_sm_nop,
+		[AP_EVENT_TIMEOUT] = ap_sm_nop,
+	},
 	[AP_STATE_BORKED] = {
 		[AP_EVENT_POLL] = ap_sm_nop,
 		[AP_EVENT_TIMEOUT] = ap_sm_nop,
@@ -482,9 +474,9 @@ EXPORT_SYMBOL(ap_queue_resume);
 /*
  * AP queue related attributes.
  */
-static ssize_t ap_req_count_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t request_count_show(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	unsigned int req_cnt;
@@ -495,9 +487,9 @@ static ssize_t ap_req_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", req_cnt);
 }
 
-static ssize_t ap_req_count_store(struct device *dev,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
+static ssize_t request_count_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 
@@ -508,10 +500,10 @@ static ssize_t ap_req_count_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(request_count, 0644, ap_req_count_show, ap_req_count_store);
+static DEVICE_ATTR_RW(request_count);
 
-static ssize_t ap_requestq_count_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t requestq_count_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	unsigned int reqq_cnt = 0;
@@ -522,10 +514,10 @@ static ssize_t ap_requestq_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", reqq_cnt);
 }
 
-static DEVICE_ATTR(requestq_count, 0444, ap_requestq_count_show, NULL);
+static DEVICE_ATTR_RO(requestq_count);
 
-static ssize_t ap_pendingq_count_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t pendingq_count_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	unsigned int penq_cnt = 0;
@@ -536,10 +528,10 @@ static ssize_t ap_pendingq_count_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", penq_cnt);
 }
 
-static DEVICE_ATTR(pendingq_count, 0444, ap_pendingq_count_show, NULL);
+static DEVICE_ATTR_RO(pendingq_count);
 
-static ssize_t ap_reset_show(struct device *dev,
-				      struct device_attribute *attr, char *buf)
+static ssize_t reset_show(struct device *dev,
+			  struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	int rc = 0;
@@ -561,10 +553,28 @@ static ssize_t ap_reset_show(struct device *dev,
 	return rc;
 }
 
-static DEVICE_ATTR(reset, 0444, ap_reset_show, NULL);
+static ssize_t reset_store(struct device *dev,
+			   struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct ap_queue *aq = to_ap_queue(dev);
 
-static ssize_t ap_interrupt_show(struct device *dev,
-				 struct device_attribute *attr, char *buf)
+	spin_lock_bh(&aq->lock);
+	__ap_flush_queue(aq);
+	aq->state = AP_STATE_RESET_START;
+	ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
+	spin_unlock_bh(&aq->lock);
+
+	AP_DBF(DBF_INFO, "reset queue=%02x.%04x triggered by user\n",
+	       AP_QID_CARD(aq->qid), AP_QID_QUEUE(aq->qid));
+
+	return count;
+}
+
+static DEVICE_ATTR_RW(reset);
+
+static ssize_t interrupt_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
 {
 	struct ap_queue *aq = to_ap_queue(dev);
 	int rc = 0;
@@ -580,7 +590,7 @@ static ssize_t ap_interrupt_show(struct device *dev,
 	return rc;
 }
 
-static DEVICE_ATTR(interrupt, 0444, ap_interrupt_show, NULL);
+static DEVICE_ATTR_RO(interrupt);
 
 static struct attribute *ap_queue_dev_attrs[] = {
 	&dev_attr_request_count.attr,
@@ -724,6 +734,7 @@ static void __ap_flush_queue(struct ap_queue *aq)
 		ap_msg->rc = -EAGAIN;
 		ap_msg->receive(aq, ap_msg, NULL);
 	}
+	aq->queue_count = 0;
 }
 
 void ap_flush_queue(struct ap_queue *aq)
@@ -734,9 +745,36 @@ void ap_flush_queue(struct ap_queue *aq)
 }
 EXPORT_SYMBOL(ap_flush_queue);
 
-void ap_queue_remove(struct ap_queue *aq)
+void ap_queue_prepare_remove(struct ap_queue *aq)
 {
-	ap_flush_queue(aq);
+	spin_lock_bh(&aq->lock);
+	/* flush queue */
+	__ap_flush_queue(aq);
+	/* set REMOVE state to prevent new messages are queued in */
+	aq->state = AP_STATE_REMOVE;
+	spin_unlock_bh(&aq->lock);
 	del_timer_sync(&aq->timeout);
 }
-EXPORT_SYMBOL(ap_queue_remove);
+
+void ap_queue_remove(struct ap_queue *aq)
+{
+	/*
+	 * all messages have been flushed and the state is
+	 * AP_STATE_REMOVE. Now reset with zero which also
+	 * clears the irq registration and move the state
+	 * to AP_STATE_UNBOUND to signal that this queue
+	 * is not used by any driver currently.
+	 */
+	spin_lock_bh(&aq->lock);
+	ap_zapq(aq->qid);
+	aq->state = AP_STATE_UNBOUND;
+	spin_unlock_bh(&aq->lock);
+}
+
+void ap_queue_reinit_state(struct ap_queue *aq)
+{
+	spin_lock_bh(&aq->lock);
+	aq->state = AP_STATE_RESET_START;
+	ap_wait(ap_sm_event(aq, AP_EVENT_POLL));
+	spin_unlock_bh(&aq->lock);
+}

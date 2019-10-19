@@ -1,5 +1,6 @@
-#ifndef _UTIL_H
-#define _UTIL_H
+/* SPDX-License-Identifier: GPL-2.0-or-later */
+#ifndef UTIL_H
+#define UTIL_H
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -8,21 +9,6 @@
 /*
  * Copyright 2011 The Chromium Authors, All Rights Reserved.
  * Copyright 2008 Jon Loeliger, Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
  */
 
 #ifdef __GNUC__
@@ -34,6 +20,9 @@
 #endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
+#define stringify(s)	stringify_(s)
+#define stringify_(s)	#s
 
 static inline void NORETURN PRINTF(1, 2) die(const char *str, ...)
 {
@@ -69,6 +58,8 @@ static inline void *xrealloc(void *p, size_t len)
 extern char *xstrdup(const char *s);
 
 extern int PRINTF(2, 3) xasprintf(char **strp, const char *fmt, ...);
+extern int PRINTF(2, 3) xasprintf_append(char **strp, const char *fmt, ...);
+extern int xavsprintf_append(char **strp, const char *fmt, va_list ap);
 extern char *join_path(const char *path, const char *name);
 
 /**
@@ -95,16 +86,10 @@ char get_escape_char(const char *s, int *i);
  * stderr.
  *
  * @param filename	The filename to read, or - for stdin
+ * @param len		If non-NULL, the amount of data we managed to read
  * @return Pointer to allocated buffer containing fdt, or NULL on error
  */
-char *utilfdt_read(const char *filename);
-
-/**
- * Like utilfdt_read(), but also passes back the size of the file read.
- *
- * @param len		If non-NULL, the amount of data we managed to read
- */
-char *utilfdt_read_len(const char *filename, off_t *len);
+char *utilfdt_read(const char *filename, size_t *len);
 
 /**
  * Read a device tree file into a buffer. Does not report errors, but only
@@ -113,23 +98,17 @@ char *utilfdt_read_len(const char *filename, off_t *len);
  *
  * @param filename	The filename to read, or - for stdin
  * @param buffp		Returns pointer to buffer containing fdt
+ * @param len		If non-NULL, the amount of data we managed to read
  * @return 0 if ok, else an errno value representing the error
  */
-int utilfdt_read_err(const char *filename, char **buffp);
-
-/**
- * Like utilfdt_read_err(), but also passes back the size of the file read.
- *
- * @param len		If non-NULL, the amount of data we managed to read
- */
-int utilfdt_read_err_len(const char *filename, char **buffp, off_t *len);
+int utilfdt_read_err(const char *filename, char **buffp, size_t *len);
 
 /**
  * Write a device tree buffer to a file. This will report any errors on
  * stderr.
  *
  * @param filename	The filename to write, or - for stdout
- * @param blob		Poiner to buffer containing fdt
+ * @param blob		Pointer to buffer containing fdt
  * @return 0 if ok, -1 on error
  */
 int utilfdt_write(const char *filename, const void *blob);
@@ -140,7 +119,7 @@ int utilfdt_write(const char *filename, const void *blob);
  * an error message for the user.
  *
  * @param filename	The filename to write, or - for stdout
- * @param blob		Poiner to buffer containing fdt
+ * @param blob		Pointer to buffer containing fdt
  * @return 0 if ok, else an errno value representing the error
  */
 int utilfdt_write_err(const char *filename, const void *blob);
@@ -260,4 +239,4 @@ void NORETURN util_usage(const char *errmsg, const char *synopsis,
 	case 'V': util_version(); \
 	case '?': usage("unknown option");
 
-#endif /* _UTIL_H */
+#endif /* UTIL_H */

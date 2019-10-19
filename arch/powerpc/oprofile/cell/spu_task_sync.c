@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cell Broadband Engine OProfile Support
  *
  * (C) Copyright IBM Corporation 2006
  *
  * Author: Maynard Johnson <maynardj@us.ibm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 /* The purpose of this file is to handle SPU event task switching
@@ -208,7 +204,7 @@ prepare_cached_spu_info(struct spu *spu, unsigned long objectId)
 	/* Create cached_info and set spu_info[spu->number] to point to it.
 	 * spu->number is a system-wide value, not a per-node value.
 	 */
-	info = kzalloc(sizeof(struct cached_info), GFP_KERNEL);
+	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
 		printk(KERN_ERR "SPU_PROF: "
 		       "%s, line %d: create vma_map failed\n",

@@ -214,8 +214,9 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 {
 	int isa16 = get_isa16_mode(regs->cp0_epc);
 	mips_instruction break_math;
-	struct emuframe __user *fr;
-	int err, fr_idx;
+	unsigned long fr_uaddr;
+	struct emuframe fr;
+	int fr_idx, ret;
 
 	/* NOP is easy */
 	if (ir == 0)
@@ -250,27 +251,31 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 		fr_idx = alloc_emuframe();
 	if (fr_idx == BD_EMUFRAME_NONE)
 		return SIGBUS;
-	fr = &dsemul_page()[fr_idx];
 
 	/* Retrieve the appropriately encoded break instruction */
 	break_math = BREAK_MATH(isa16);
 
 	/* Write the instructions to the frame */
 	if (isa16) {
-		err = __put_user(ir >> 16,
-				 (u16 __user *)(&fr->emul));
-		err |= __put_user(ir & 0xffff,
-				  (u16 __user *)((long)(&fr->emul) + 2));
-		err |= __put_user(break_math >> 16,
-				  (u16 __user *)(&fr->badinst));
-		err |= __put_user(break_math & 0xffff,
-				  (u16 __user *)((long)(&fr->badinst) + 2));
+		union mips_instruction _emul = {
+			.halfword = { ir >> 16, ir }
+		};
+		union mips_instruction _badinst = {
+			.halfword = { break_math >> 16, break_math }
+		};
+
+		fr.emul = _emul.word;
+		fr.badinst = _badinst.word;
 	} else {
-		err = __put_user(ir, &fr->emul);
-		err |= __put_user(break_math, &fr->badinst);
+		fr.emul = ir;
+		fr.badinst = break_math;
 	}
 
-	if (unlikely(err)) {
+	/* Write the frame to user memory */
+	fr_uaddr = (unsigned long)&dsemul_page()[fr_idx];
+	ret = access_process_vm(current, fr_uaddr, &fr, sizeof(fr),
+				FOLL_FORCE | FOLL_WRITE);
+	if (unlikely(ret != sizeof(fr))) {
 		MIPS_FPU_EMU_INC_STATS(errors);
 		free_emuframe(fr_idx, current->mm);
 		return SIGBUS;
@@ -282,10 +287,7 @@ int mips_dsemul(struct pt_regs *regs, mips_instruction ir,
 	atomic_set(&current->thread.bd_emu_frame, fr_idx);
 
 	/* Change user register context to execute the frame */
-	regs->cp0_epc = (unsigned long)&fr->emul | isa16;
-
-	/* Ensure the icache observes our newly written frame */
-	flush_cache_sigtramp((unsigned long)&fr->emul);
+	regs->cp0_epc = fr_uaddr | isa16;
 
 	return 0;
 }

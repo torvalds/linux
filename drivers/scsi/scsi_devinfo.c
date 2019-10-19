@@ -161,25 +161,21 @@ static struct {
 	{"DGC", "RAID", NULL, BLIST_SPARSELUN},	/* EMC CLARiiON, storage on LUN 0 */
 	{"DGC", "DISK", NULL, BLIST_SPARSELUN},	/* EMC CLARiiON, no storage on LUN 0 */
 	{"EMC",  "Invista", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"EMC", "SYMMETRIX", NULL, BLIST_SPARSELUN | BLIST_LARGELUN | BLIST_REPORTLUN2},
+	{"EMC", "SYMMETRIX", NULL, BLIST_SPARSELUN | BLIST_LARGELUN |
+	 BLIST_REPORTLUN2 | BLIST_RETRY_ITF},
 	{"EMULEX", "MD21/S2     ESDI", NULL, BLIST_SINGLELUN},
 	{"easyRAID", "16P", NULL, BLIST_NOREPORTLUN},
 	{"easyRAID", "X6P", NULL, BLIST_NOREPORTLUN},
 	{"easyRAID", "F8", NULL, BLIST_NOREPORTLUN},
 	{"FSC", "CentricStor", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
+	{"FUJITSU", "ETERNUS_DXM", "*", BLIST_RETRY_ASC_C1},
 	{"Generic", "USB SD Reader", "1.00", BLIST_FORCELUN | BLIST_INQUIRY_36},
-	{"Generic", "USB Storage-SMC", "0180", BLIST_FORCELUN | BLIST_INQUIRY_36},
-	{"Generic", "USB Storage-SMC", "0207", BLIST_FORCELUN | BLIST_INQUIRY_36},
+	{"Generic", "USB Storage-SMC", NULL, BLIST_FORCELUN | BLIST_INQUIRY_36}, /* FW: 0180 and 0207 */
 	{"HITACHI", "DF400", "*", BLIST_REPORTLUN2},
 	{"HITACHI", "DF500", "*", BLIST_REPORTLUN2},
 	{"HITACHI", "DISK-SUBSYSTEM", "*", BLIST_REPORTLUN2},
 	{"HITACHI", "HUS1530", "*", BLIST_NO_DIF},
 	{"HITACHI", "OPEN-", "*", BLIST_REPORTLUN2 | BLIST_TRY_VPD_PAGES},
-	{"HITACHI", "OP-C-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HITACHI", "3380-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HITACHI", "3390-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HITACHI", "6586-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HITACHI", "6588-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"HP", "A6189A", NULL, BLIST_SPARSELUN | BLIST_LARGELUN},	/* HP VA7400 */
 	{"HP", "OPEN-", "*", BLIST_REPORTLUN2 | BLIST_TRY_VPD_PAGES}, /* HP XP Arrays */
 	{"HP", "NetRAID-4M", NULL, BLIST_FORCELUN},
@@ -187,13 +183,7 @@ static struct {
 	{"HP", "C1557A", NULL, BLIST_FORCELUN},
 	{"HP", "C3323-300", "4269", BLIST_NOTQ},
 	{"HP", "C5713A", NULL, BLIST_NOREPORTLUN},
-	{"HP", "DF400", "*", BLIST_REPORTLUN2},
-	{"HP", "DF500", "*", BLIST_REPORTLUN2},
-	{"HP", "OP-C-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HP", "3380-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HP", "3390-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HP", "6586-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
-	{"HP", "6588-", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
+	{"HP", "DISK-SUBSYSTEM", "*", BLIST_REPORTLUN2},
 	{"IBM", "AuSaV1S2", NULL, BLIST_FORCELUN},
 	{"IBM", "ProFibre 4000R", "*", BLIST_SPARSELUN | BLIST_LARGELUN},
 	{"IBM", "2105", NULL, BLIST_RETRY_HWERROR},
@@ -213,7 +203,7 @@ static struct {
 	{"Medion", "Flash XL  MMC/SD", "2.6D", BLIST_FORCELUN},
 	{"MegaRAID", "LD", NULL, BLIST_FORCELUN},
 	{"MICROP", "4110", NULL, BLIST_NOTQ},
-	{"MSFT", "Virtual HD", NULL, BLIST_NO_RSOC},
+	{"MSFT", "Virtual HD", NULL, BLIST_MAX_1024 | BLIST_NO_RSOC},
 	{"MYLEX", "DACARMRB", "*", BLIST_REPORTLUN2},
 	{"nCipher", "Fastness Crypto", NULL, BLIST_FORCELUN},
 	{"NAKAMICH", "MJ-4.8S", NULL, BLIST_FORCELUN | BLIST_SINGLELUN},
@@ -248,6 +238,9 @@ static struct {
 	{"NETAPP", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
 	{"LSI", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
 	{"ENGENIO", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
+	{"LENOVO", "Universal Xport", "*", BLIST_NO_ULD_ATTACH},
+	{"SanDisk", "Cruzer Blade", NULL, BLIST_TRY_VPD_PAGES |
+		BLIST_INQUIRY_36},
 	{"SMSC", "USB 2 HS-CF", NULL, BLIST_SPARSELUN | BLIST_INQUIRY_36},
 	{"SONY", "CD-ROM CDU-8001", NULL, BLIST_BORKEN},
 	{"SONY", "TSL", NULL, BLIST_FORCELUN},		/* DDS3 & DDS4 autoloaders */
@@ -372,8 +365,22 @@ int scsi_dev_info_list_add_keyed(int compatible, char *vendor, char *model,
 	scsi_strcpy_devinfo("model", devinfo->model, sizeof(devinfo->model),
 			    model, compatible);
 
-	if (strflags)
-		flags = (__force blist_flags_t)simple_strtoul(strflags, NULL, 0);
+	if (strflags) {
+		unsigned long long val;
+		int ret = kstrtoull(strflags, 0, &val);
+
+		if (ret != 0) {
+			kfree(devinfo);
+			return ret;
+		}
+		flags = (__force blist_flags_t)val;
+	}
+	if (flags & __BLIST_UNUSED_MASK) {
+		pr_err("scsi_devinfo (%s:%s): unsupported flags 0x%llx",
+		       vendor, model, flags & __BLIST_UNUSED_MASK);
+		kfree(devinfo);
+		return -EINVAL;
+	}
 	devinfo->flags = flags;
 	devinfo->compatible = compatible;
 
@@ -626,7 +633,7 @@ static int devinfo_seq_show(struct seq_file *m, void *v)
 	    devinfo_table->name)
 		seq_printf(m, "[%s]:\n", devinfo_table->name);
 
-	seq_printf(m, "'%.8s' '%.16s' 0x%x\n",
+	seq_printf(m, "'%.8s' '%.16s' 0x%llx\n",
 		   devinfo->vendor, devinfo->model, devinfo->flags);
 	return 0;
 }
@@ -745,9 +752,9 @@ MODULE_PARM_DESC(dev_flags,
 	 " list entries for vendor and model with an integer value of flags"
 	 " to the scsi device info list");
 
-module_param_named(default_dev_flags, scsi_default_dev_flags, int, S_IRUGO|S_IWUSR);
+module_param_named(default_dev_flags, scsi_default_dev_flags, ullong, 0644);
 MODULE_PARM_DESC(default_dev_flags,
-		 "scsi default device flag integer value");
+		 "scsi default device flag uint64_t value");
 
 /**
  * scsi_exit_devinfo - remove /proc/scsi/device_info & the scsi_dev_info_list

@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
-*
-* Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
-*
-* This program is free software; you can redistribute it and/or modify it
-* under the terms of version 2 of the GNU General Public License as
-* published by the Free Software Foundation.
-*
-* This program is distributed in the hope that it will be useful, but WITHOUT
-* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
-* more details.
-*
-******************************************************************************/
+ *
+ * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
+ *
+ ******************************************************************************/
 
 #include "odm_precomp.h"
 
@@ -185,7 +177,7 @@ static void rtl8188e_config_rf_reg(struct adapter *adapt,
 	u32 content = 0x1000; /*RF Content: radio_a_txt*/
 	u32 maskforphyset = content & 0xE000;
 
-	rtl_rfreg_delay(adapt, RF90_PATH_A, addr | maskforphyset,
+	rtl_rfreg_delay(adapt, RF_PATH_A, addr | maskforphyset,
 			RFREG_OFFSET_MASK,
 			data);
 }
@@ -226,11 +218,11 @@ static bool rtl88e_phy_config_rf_with_headerfile(struct adapter *adapt)
 	return true;
 }
 
-static bool rf6052_conf_para(struct adapter *adapt)
+bool rtl88eu_phy_rf_config(struct adapter *adapt)
 {
 	struct hal_data_8188e *hal_data = adapt->HalData;
 	u32 u4val = 0;
-	bool rtstatus = true;
+	bool rtstatus;
 	struct bb_reg_def *pphyreg;
 
 	pphyreg = &hal_data->PHYRegDef[RF90_PATH_A];
@@ -253,14 +245,4 @@ static bool rf6052_conf_para(struct adapter *adapt)
 	phy_set_bb_reg(adapt, pphyreg->rfintfs, BRFSI_RFENV, u4val);
 
 	return rtstatus;
-}
-
-static bool rtl88e_phy_rf6052_config(struct adapter *adapt)
-{
-	return rf6052_conf_para(adapt);
-}
-
-bool rtl88eu_phy_rf_config(struct adapter *adapt)
-{
-	return rtl88e_phy_rf6052_config(adapt);
 }

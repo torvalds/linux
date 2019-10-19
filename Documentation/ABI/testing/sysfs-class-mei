@@ -45,3 +45,38 @@ Contact:	Tomas Winkler <tomas.winkler@intel.com>
 Description:	Display the driver HBM protocol version.
 
 		The HBM protocol version supported by the driver.
+
+What:		/sys/class/mei/meiN/tx_queue_limit
+Date:		Jan 2018
+KernelVersion:	4.16
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Configure tx queue limit
+
+		Set maximal number of pending writes
+		per opened session.
+
+What:		/sys/class/mei/meiN/fw_ver
+Date:		May 2018
+KernelVersion:	4.18
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display the ME firmware version.
+
+		The version of the platform ME firmware is in format:
+		<platform>:<major>.<minor>.<milestone>.<build_no>.
+		There can be up to three such blocks for different
+		FW components.
+
+What:		/sys/class/mei/meiN/dev_state
+Date:		Mar 2019
+KernelVersion:	5.1
+Contact:	Tomas Winkler <tomas.winkler@intel.com>
+Description:	Display the ME device state.
+
+		The device state can have following values:
+		INITIALIZING
+		INIT_CLIENTS
+		ENABLED
+		RESETTING
+		DISABLED
+		POWER_DOWN
+		POWER_UP

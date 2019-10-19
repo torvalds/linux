@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel(R) Trace Hub driver core
  *
  * Copyright (C) 2014-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
@@ -147,7 +139,8 @@ static int intel_th_remove(struct device *dev)
 			th->thdev[i] = NULL;
 		}
 
-		th->num_thdevs = lowest;
+		if (lowest >= 0)
+			th->num_thdevs = lowest;
 	}
 
 	if (thdrv->attr_group)
@@ -429,6 +422,7 @@ static const struct intel_th_subdevice {
 	unsigned		nres;
 	unsigned		type;
 	unsigned		otype;
+	bool			mknode;
 	unsigned		scrpd;
 	int			id;
 } intel_th_subdevices[] = {
@@ -436,9 +430,9 @@ static const struct intel_th_subdevice {
 		.nres	= 1,
 		.res	= {
 			{
-				/* Handle TSCU from GTH driver */
+				/* Handle TSCU and CTS from GTH driver */
 				.start	= REG_GTH_OFFSET,
-				.end	= REG_TSCU_OFFSET + REG_TSCU_LENGTH - 1,
+				.end	= REG_CTS_OFFSET + REG_CTS_LENGTH - 1,
 				.flags	= IORESOURCE_MEM,
 			},
 		},
@@ -463,6 +457,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 0,
 		.type	= INTEL_TH_OUTPUT,
+		.mknode	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC0_IS_ENABLED,
 	},
@@ -483,6 +478,7 @@ static const struct intel_th_subdevice {
 		.name	= "msc",
 		.id	= 1,
 		.type	= INTEL_TH_OUTPUT,
+		.mknode	= true,
 		.otype	= GTH_MSU,
 		.scrpd	= SCRPD_MEM_IS_PRIM_DEST | SCRPD_MSC1_IS_ENABLED,
 	},
@@ -502,6 +498,24 @@ static const struct intel_th_subdevice {
 		},
 		.id	= -1,
 		.name	= "sth",
+		.type	= INTEL_TH_SOURCE,
+	},
+	{
+		.nres	= 2,
+		.res	= {
+			{
+				.start	= REG_STH_OFFSET,
+				.end	= REG_STH_OFFSET + REG_STH_LENGTH - 1,
+				.flags	= IORESOURCE_MEM,
+			},
+			{
+				.start	= TH_MMIO_RTIT,
+				.end	= 0,
+				.flags	= IORESOURCE_MEM,
+			},
+		},
+		.id	= -1,
+		.name	= "rtit",
 		.type	= INTEL_TH_SOURCE,
 	},
 	{
@@ -611,6 +625,9 @@ intel_th_subdevice_alloc(struct intel_th *th,
 		 */
 		if (!res[r].end && res[r].flags == IORESOURCE_MEM) {
 			bar = res[r].start;
+			err = -ENODEV;
+			if (bar >= th->num_resources)
+				goto fail_put_device;
 			res[r].start = 0;
 			res[r].end = resource_size(&devres[bar]) - 1;
 		}
@@ -622,7 +639,12 @@ intel_th_subdevice_alloc(struct intel_th *th,
 			dev_dbg(th->dev, "%s:%d @ %pR\n",
 				subdev->name, r, &res[r]);
 		} else if (res[r].flags & IORESOURCE_IRQ) {
-			res[r].start	= th->irq;
+			/*
+			 * Only pass on the IRQ if we have useful interrupts:
+			 * the ones that can be configured via MINTCTL.
+			 */
+			if (INTEL_TH_CAP(th, has_mintctl) && th->irq != -1)
+				res[r].start = th->irq;
 		}
 	}
 
@@ -633,12 +655,14 @@ intel_th_subdevice_alloc(struct intel_th *th,
 	}
 
 	if (subdev->type == INTEL_TH_OUTPUT) {
-		thdev->dev.devt = MKDEV(th->major, th->num_thdevs);
+		if (subdev->mknode)
+			thdev->dev.devt = MKDEV(th->major, th->num_thdevs);
 		thdev->output.type = subdev->otype;
 		thdev->output.port = -1;
 		thdev->output.scratchpad = subdev->scrpd;
 	} else if (subdev->type == INTEL_TH_SWITCH) {
-		thdev->host_mode = host_mode;
+		thdev->host_mode =
+			INTEL_TH_CAP(th, host_mode_only) ? true : host_mode;
 		th->hub = thdev;
 	}
 
@@ -737,7 +761,8 @@ static int intel_th_populate(struct intel_th *th)
 		struct intel_th_device *thdev;
 
 		/* only allow SOURCE and SWITCH devices in host mode */
-		if (host_mode && subdev->type == INTEL_TH_OUTPUT)
+		if ((INTEL_TH_CAP(th, host_mode_only) || host_mode) &&
+		    subdev->type == INTEL_TH_OUTPUT)
 			continue;
 
 		/*
@@ -750,20 +775,18 @@ static int intel_th_populate(struct intel_th *th)
 
 		thdev = intel_th_subdevice_alloc(th, subdev);
 		/* note: caller should free subdevices from th::thdev[] */
-		if (IS_ERR(thdev))
+		if (IS_ERR(thdev)) {
+			/* ENODEV for individual subdevices is allowed */
+			if (PTR_ERR(thdev) == -ENODEV)
+				continue;
+
 			return PTR_ERR(thdev);
+		}
 
 		th->thdev[th->num_thdevs++] = thdev;
 	}
 
 	return 0;
-}
-
-static int match_devt(struct device *dev, void *data)
-{
-	dev_t devt = (dev_t)(unsigned long)data;
-
-	return dev->devt == devt;
 }
 
 static int intel_th_output_open(struct inode *inode, struct file *file)
@@ -773,9 +796,7 @@ static int intel_th_output_open(struct inode *inode, struct file *file)
 	struct device *dev;
 	int err;
 
-	dev = bus_find_device(&intel_th_bus, NULL,
-			      (void *)(unsigned long)inode->i_rdev,
-			      match_devt);
+	dev = bus_find_device_by_devt(&intel_th_bus, inode->i_rdev);
 	if (!dev || !dev->driver)
 		return -ENODEV;
 
@@ -801,19 +822,40 @@ static const struct file_operations intel_th_output_fops = {
 	.llseek	= noop_llseek,
 };
 
+static irqreturn_t intel_th_irq(int irq, void *data)
+{
+	struct intel_th *th = data;
+	irqreturn_t ret = IRQ_NONE;
+	struct intel_th_driver *d;
+	int i;
+
+	for (i = 0; i < th->num_thdevs; i++) {
+		if (th->thdev[i]->type != INTEL_TH_OUTPUT)
+			continue;
+
+		d = to_intel_th_driver(th->thdev[i]->dev.driver);
+		if (d && d->irq)
+			ret |= d->irq(th->thdev[i]);
+	}
+
+	if (ret == IRQ_NONE)
+		pr_warn_ratelimited("nobody cared for irq\n");
+
+	return ret;
+}
+
 /**
  * intel_th_alloc() - allocate a new Intel TH device and its subdevices
  * @dev:	parent device
- * @devres:	parent's resources
- * @ndevres:	number of resources
+ * @devres:	resources indexed by th_mmio_idx
  * @irq:	irq number
  */
 struct intel_th *
 intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
-	       struct resource *devres, unsigned int ndevres, int irq)
+	       struct resource *devres, unsigned int ndevres)
 {
+	int err, r, nr_mmios = 0;
 	struct intel_th *th;
-	int err;
 
 	th = kzalloc(sizeof(*th), GFP_KERNEL);
 	if (!th)
@@ -831,12 +873,32 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 		err = th->major;
 		goto err_ida;
 	}
+	th->irq = -1;
 	th->dev = dev;
 	th->drvdata = drvdata;
 
-	th->resource = devres;
-	th->num_resources = ndevres;
-	th->irq = irq;
+	for (r = 0; r < ndevres; r++)
+		switch (devres[r].flags & IORESOURCE_TYPE_BITS) {
+		case IORESOURCE_MEM:
+			th->resource[nr_mmios++] = devres[r];
+			break;
+		case IORESOURCE_IRQ:
+			err = devm_request_irq(dev, devres[r].start,
+					       intel_th_irq, IRQF_SHARED,
+					       dev_name(dev), th);
+			if (err)
+				goto err_chrdev;
+
+			if (th->irq == -1)
+				th->irq = devres[r].start;
+			break;
+		default:
+			dev_warn(dev, "Unknown resource type %lx\n",
+				 devres[r].flags);
+			break;
+		}
+
+	th->num_resources = nr_mmios;
 
 	dev_set_drvdata(dev, th);
 
@@ -852,6 +914,10 @@ intel_th_alloc(struct device *dev, struct intel_th_drvdata *drvdata,
 	}
 
 	return th;
+
+err_chrdev:
+	__unregister_chrdev(th->major, 0, TH_POSSIBLE_OUTPUTS,
+			    "intel_th/output");
 
 err_ida:
 	ida_simple_remove(&intel_th_ida, th->id);
@@ -913,6 +979,27 @@ int intel_th_trace_enable(struct intel_th_device *thdev)
 EXPORT_SYMBOL_GPL(intel_th_trace_enable);
 
 /**
+ * intel_th_trace_switch() - execute a switch sequence
+ * @thdev:	output device that requests tracing switch
+ */
+int intel_th_trace_switch(struct intel_th_device *thdev)
+{
+	struct intel_th_device *hub = to_intel_th_device(thdev->dev.parent);
+	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
+
+	if (WARN_ON_ONCE(hub->type != INTEL_TH_SWITCH))
+		return -EINVAL;
+
+	if (WARN_ON_ONCE(thdev->type != INTEL_TH_OUTPUT))
+		return -EINVAL;
+
+	hubdrv->trig_switch(hub, &thdev->output);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(intel_th_trace_switch);
+
+/**
  * intel_th_trace_disable() - disable tracing for an output device
  * @thdev:	output device that requests tracing be disabled
  */
@@ -935,8 +1022,12 @@ EXPORT_SYMBOL_GPL(intel_th_trace_disable);
 int intel_th_set_output(struct intel_th_device *thdev,
 			unsigned int master)
 {
-	struct intel_th_device *hub = to_intel_th_device(thdev->dev.parent);
+	struct intel_th_device *hub = to_intel_th_hub(thdev);
 	struct intel_th_driver *hubdrv = to_intel_th_driver(hub->dev.driver);
+
+	/* In host mode, this is up to the external debugger, do nothing. */
+	if (hub->host_mode)
+		return 0;
 
 	if (!hubdrv->set_output)
 		return -ENOTSUPP;

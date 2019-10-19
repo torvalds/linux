@@ -23,8 +23,8 @@
 
 #include "ppatomfwctrl.h"
 #include "atomfirmware.h"
+#include "atom.h"
 #include "pp_debug.h"
-
 
 static const union atom_voltage_object_v4 *pp_atomfwctrl_lookup_voltage_type_v4(
 		const struct atom_voltage_objects_info_v4_1 *voltage_object_info_table,
@@ -38,35 +38,34 @@ static const union atom_voltage_object_v4 *pp_atomfwctrl_lookup_voltage_type_v4(
 
 	while (offset < size) {
 		const union atom_voltage_object_v4 *voltage_object =
-				(const union atom_voltage_object_v4 *)(start + offset);
+			(const union atom_voltage_object_v4 *)(start + offset);
 
-        if (voltage_type == voltage_object->gpio_voltage_obj.header.voltage_type &&
-            voltage_mode == voltage_object->gpio_voltage_obj.header.voltage_mode)
-            return voltage_object;
+		if (voltage_type == voltage_object->gpio_voltage_obj.header.voltage_type &&
+		    voltage_mode == voltage_object->gpio_voltage_obj.header.voltage_mode)
+			return voltage_object;
 
-        offset += le16_to_cpu(voltage_object->gpio_voltage_obj.header.object_size);
+		offset += le16_to_cpu(voltage_object->gpio_voltage_obj.header.object_size);
 
-    }
+	}
 
-    return NULL;
+	return NULL;
 }
 
 static struct atom_voltage_objects_info_v4_1 *pp_atomfwctrl_get_voltage_info_table(
 		struct pp_hwmgr *hwmgr)
 {
-    const void *table_address;
-    uint16_t idx;
+	const void *table_address;
+	uint16_t idx;
 
-    idx = GetIndexIntoMasterDataTable(voltageobject_info);
-    table_address =	cgs_atom_get_data_table(hwmgr->device,
-    		idx, NULL, NULL, NULL);
+	idx = GetIndexIntoMasterDataTable(voltageobject_info);
+	table_address = smu_atom_get_data_table(hwmgr->adev,
+						idx, NULL, NULL, NULL);
 
-    PP_ASSERT_WITH_CODE( 
-        table_address,
-        "Error retrieving BIOS Table Address!",
-        return NULL);
+	PP_ASSERT_WITH_CODE(table_address,
+			"Error retrieving BIOS Table Address!",
+			return NULL);
 
-    return (struct atom_voltage_objects_info_v4_1 *)table_address;
+	return (struct atom_voltage_objects_info_v4_1 *)table_address;
 }
 
 /**
@@ -167,7 +166,7 @@ static struct atom_gpio_pin_lut_v2_1 *pp_atomfwctrl_get_gpio_lookup_table(
 	uint16_t idx;
 
 	idx = GetIndexIntoMasterDataTable(gpio_pin_lut);
-	table_address =	cgs_atom_get_data_table(hwmgr->device,
+	table_address =	smu_atom_get_data_table(hwmgr->adev,
 			idx, NULL, NULL, NULL);
 	PP_ASSERT_WITH_CODE(table_address,
 			"Error retrieving BIOS Table Address!",
@@ -248,28 +247,30 @@ int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
 		uint32_t clock_type, uint32_t clock_value,
 		struct pp_atomfwctrl_clock_dividers_soc15 *dividers)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct compute_gpu_clock_input_parameter_v1_8 pll_parameters;
 	struct compute_gpu_clock_output_parameter_v1_8 *pll_output;
-	int result;
 	uint32_t idx;
 
 	pll_parameters.gpuclock_10khz = (uint32_t)clock_value;
 	pll_parameters.gpu_clock_type = clock_type;
 
 	idx = GetIndexIntoMasterCmdTable(computegpuclockparam);
-	result = cgs_atom_exec_cmd_table(hwmgr->device, idx, &pll_parameters);
 
-	if (!result) {
-		pll_output = (struct compute_gpu_clock_output_parameter_v1_8 *)
-				&pll_parameters;
-		dividers->ulClock = le32_to_cpu(pll_output->gpuclock_10khz);
-		dividers->ulDid = le32_to_cpu(pll_output->dfs_did);
-		dividers->ulPll_fb_mult = le32_to_cpu(pll_output->pll_fb_mult);
-		dividers->ulPll_ss_fbsmult = le32_to_cpu(pll_output->pll_ss_fbsmult);
-		dividers->usPll_ss_slew_frac = le16_to_cpu(pll_output->pll_ss_slew_frac);
-		dividers->ucPll_ss_enable = pll_output->pll_ss_enable;
-	}
-	return result;
+	if (amdgpu_atom_execute_table(
+		adev->mode_info.atom_context, idx, (uint32_t *)&pll_parameters))
+		return -EINVAL;
+
+	pll_output = (struct compute_gpu_clock_output_parameter_v1_8 *)
+			&pll_parameters;
+	dividers->ulClock = le32_to_cpu(pll_output->gpuclock_10khz);
+	dividers->ulDid = le32_to_cpu(pll_output->dfs_did);
+	dividers->ulPll_fb_mult = le32_to_cpu(pll_output->pll_fb_mult);
+	dividers->ulPll_ss_fbsmult = le32_to_cpu(pll_output->pll_ss_fbsmult);
+	dividers->usPll_ss_slew_frac = le16_to_cpu(pll_output->pll_ss_slew_frac);
+	dividers->ucPll_ss_enable = pll_output->pll_ss_enable;
+
+	return 0;
 }
 
 int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
@@ -283,7 +284,7 @@ int pp_atomfwctrl_get_avfs_information(struct pp_hwmgr *hwmgr,
 
 	idx = GetIndexIntoMasterDataTable(asic_profiling_info);
 	profile = (struct atom_asic_profiling_info_v4_1 *)
-			cgs_atom_get_data_table(hwmgr->device,
+			smu_atom_get_data_table(hwmgr->adev,
 					idx, NULL, NULL, NULL);
 
 	if (!profile)
@@ -467,7 +468,7 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 
 	idx = GetIndexIntoMasterDataTable(smu_info);
 	info = (struct atom_smu_info_v3_1 *)
-		cgs_atom_get_data_table(hwmgr->device,
+		smu_atom_get_data_table(hwmgr->adev,
 				idx, NULL, NULL, NULL);
 
 	if (!info) {
@@ -487,37 +488,112 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 	return 0;
 }
 
-int pp_atomfwctrl__get_clk_information_by_clkid(struct pp_hwmgr *hwmgr, BIOS_CLKID id, uint32_t *frequency)
+int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr,
+					       uint8_t clk_id, uint8_t syspll_id,
+					       uint32_t *frequency)
 {
+	struct amdgpu_device *adev = hwmgr->adev;
 	struct atom_get_smu_clock_info_parameters_v3_1   parameters;
 	struct atom_get_smu_clock_info_output_parameters_v3_1 *output;
 	uint32_t ix;
 
-	parameters.clk_id = id;
+	parameters.clk_id = clk_id;
+	parameters.syspll_id = syspll_id;
 	parameters.command = GET_SMU_CLOCK_INFO_V3_1_GET_CLOCK_FREQ;
+	parameters.dfsdid = 0;
 
 	ix = GetIndexIntoMasterCmdTable(getsmuclockinfo);
-	if (!cgs_atom_exec_cmd_table(hwmgr->device, ix, &parameters)) {
-		output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&parameters;
-		*frequency = output->atom_smu_outputclkfreq.smu_clock_freq_hz / 10000;
-	} else {
-		pr_info("Error execute_table getsmuclockinfo!");
-		return -1;
-	}
+
+	if (amdgpu_atom_execute_table(
+		adev->mode_info.atom_context, ix, (uint32_t *)&parameters))
+		return -EINVAL;
+
+	output = (struct atom_get_smu_clock_info_output_parameters_v3_1 *)&parameters;
+	*frequency = le32_to_cpu(output->atom_smu_outputclkfreq.smu_clock_freq_hz) / 10000;
 
 	return 0;
+}
+
+static void pp_atomfwctrl_copy_vbios_bootup_values_3_2(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values,
+			struct atom_firmware_info_v3_2 *fw_info)
+{
+	uint32_t frequency = 0;
+
+	boot_values->ulRevision = fw_info->firmware_revision;
+	boot_values->ulGfxClk   = fw_info->bootup_sclk_in10khz;
+	boot_values->ulUClk     = fw_info->bootup_mclk_in10khz;
+	boot_values->usVddc     = fw_info->bootup_vddc_mv;
+	boot_values->usVddci    = fw_info->bootup_vddci_mv;
+	boot_values->usMvddc    = fw_info->bootup_mvddc_mv;
+	boot_values->usVddGfx   = fw_info->bootup_vddgfx_mv;
+	boot_values->ucCoolingID = fw_info->coolingsolution_id;
+	boot_values->ulSocClk   = 0;
+	boot_values->ulDCEFClk   = 0;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_SOCCLK_ID, SMU11_SYSPLL0_ID, &frequency))
+		boot_values->ulSocClk   = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCEFCLK_ID, SMU11_SYSPLL0_ID, &frequency))
+		boot_values->ulDCEFClk  = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_ECLK_ID, SMU11_SYSPLL0_ID, &frequency))
+		boot_values->ulEClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_VCLK_ID, SMU11_SYSPLL0_ID, &frequency))
+		boot_values->ulVClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL0_DCLK_ID, SMU11_SYSPLL0_ID, &frequency))
+		boot_values->ulDClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU11_SYSPLL1_0_FCLK_ID, SMU11_SYSPLL1_2_ID, &frequency))
+		boot_values->ulFClk     = frequency;
+}
+
+static void pp_atomfwctrl_copy_vbios_bootup_values_3_1(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_bios_boot_up_values *boot_values,
+			struct atom_firmware_info_v3_1 *fw_info)
+{
+	uint32_t frequency = 0;
+
+	boot_values->ulRevision = fw_info->firmware_revision;
+	boot_values->ulGfxClk   = fw_info->bootup_sclk_in10khz;
+	boot_values->ulUClk     = fw_info->bootup_mclk_in10khz;
+	boot_values->usVddc     = fw_info->bootup_vddc_mv;
+	boot_values->usVddci    = fw_info->bootup_vddci_mv;
+	boot_values->usMvddc    = fw_info->bootup_mvddc_mv;
+	boot_values->usVddGfx   = fw_info->bootup_vddgfx_mv;
+	boot_values->ucCoolingID = fw_info->coolingsolution_id;
+	boot_values->ulSocClk   = 0;
+	boot_values->ulDCEFClk   = 0;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, 0, &frequency))
+		boot_values->ulSocClk   = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, 0, &frequency))
+		boot_values->ulDCEFClk  = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_ECLK_ID, 0, &frequency))
+		boot_values->ulEClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_VCLK_ID, 0, &frequency))
+		boot_values->ulVClk     = frequency;
+
+	if (!pp_atomfwctrl_get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCLK_ID, 0, &frequency))
+		boot_values->ulDClk     = frequency;
 }
 
 int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_bios_boot_up_values *boot_values)
 {
-	struct atom_firmware_info_v3_1 *info = NULL;
+	struct atom_firmware_info_v3_2 *fwinfo_3_2;
+	struct atom_firmware_info_v3_1 *fwinfo_3_1;
+	struct atom_common_table_header *info = NULL;
 	uint16_t ix;
-	uint32_t frequency = 0;
 
 	ix = GetIndexIntoMasterDataTable(firmwareinfo);
-	info = (struct atom_firmware_info_v3_1 *)
-		cgs_atom_get_data_table(hwmgr->device,
+	info = (struct atom_common_table_header *)
+		smu_atom_get_data_table(hwmgr->adev,
 				ix, NULL, NULL, NULL);
 
 	if (!info) {
@@ -525,21 +601,110 @@ int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 		return -EINVAL;
 	}
 
-	boot_values->ulRevision = info->firmware_revision;
-	boot_values->ulGfxClk   = info->bootup_sclk_in10khz;
-	boot_values->ulUClk     = info->bootup_mclk_in10khz;
-	boot_values->usVddc     = info->bootup_vddc_mv;
-	boot_values->usVddci    = info->bootup_vddci_mv;
-	boot_values->usMvddc    = info->bootup_mvddc_mv;
-	boot_values->usVddGfx   = info->bootup_vddgfx_mv;
-	boot_values->ulSocClk   = 0;
-	boot_values->ulDCEFClk   = 0;
+	if ((info->format_revision == 3) && (info->content_revision == 2)) {
+		fwinfo_3_2 = (struct atom_firmware_info_v3_2 *)info;
+		pp_atomfwctrl_copy_vbios_bootup_values_3_2(hwmgr,
+				boot_values, fwinfo_3_2);
+	} else if ((info->format_revision == 3) && (info->content_revision == 1)) {
+		fwinfo_3_1 = (struct atom_firmware_info_v3_1 *)info;
+		pp_atomfwctrl_copy_vbios_bootup_values_3_1(hwmgr,
+				boot_values, fwinfo_3_1);
+	} else {
+		pr_info("Fw info table revision does not match!");
+		return -EINVAL;
+	}
 
-	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_SOCCLK_ID, &frequency))
-		boot_values->ulSocClk   = frequency;
+	return 0;
+}
 
-	if (!pp_atomfwctrl__get_clk_information_by_clkid(hwmgr, SMU9_SYSPLL0_DCEFCLK_ID, &frequency))
-		boot_values->ulDCEFClk   = frequency;
+int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
+		struct pp_atomfwctrl_smc_dpm_parameters *param)
+{
+	struct atom_smc_dpm_info_v4_1 *info;
+	uint16_t ix;
+
+	ix = GetIndexIntoMasterDataTable(smc_dpm_info);
+	info = (struct atom_smc_dpm_info_v4_1 *)
+		smu_atom_get_data_table(hwmgr->adev,
+				ix, NULL, NULL, NULL);
+	if (!info) {
+		pr_info("Error retrieving BIOS Table Address!");
+		return -EINVAL;
+	}
+
+	param->liquid1_i2c_address = info->liquid1_i2c_address;
+	param->liquid2_i2c_address = info->liquid2_i2c_address;
+	param->vr_i2c_address = info->vr_i2c_address;
+	param->plx_i2c_address = info->plx_i2c_address;
+
+	param->liquid_i2c_linescl = info->liquid_i2c_linescl;
+	param->liquid_i2c_linesda = info->liquid_i2c_linesda;
+	param->vr_i2c_linescl = info->vr_i2c_linescl;
+	param->vr_i2c_linesda = info->vr_i2c_linesda;
+
+	param->plx_i2c_linescl = info->plx_i2c_linescl;
+	param->plx_i2c_linesda = info->plx_i2c_linesda;
+	param->vrsensorpresent = info->vrsensorpresent;
+	param->liquidsensorpresent = info->liquidsensorpresent;
+
+	param->maxvoltagestepgfx = info->maxvoltagestepgfx;
+	param->maxvoltagestepsoc = info->maxvoltagestepsoc;
+
+	param->vddgfxvrmapping = info->vddgfxvrmapping;
+	param->vddsocvrmapping = info->vddsocvrmapping;
+	param->vddmem0vrmapping = info->vddmem0vrmapping;
+	param->vddmem1vrmapping = info->vddmem1vrmapping;
+
+	param->gfxulvphasesheddingmask = info->gfxulvphasesheddingmask;
+	param->soculvphasesheddingmask = info->soculvphasesheddingmask;
+
+	param->gfxmaxcurrent = info->gfxmaxcurrent;
+	param->gfxoffset = info->gfxoffset;
+	param->padding_telemetrygfx = info->padding_telemetrygfx;
+
+	param->socmaxcurrent = info->socmaxcurrent;
+	param->socoffset = info->socoffset;
+	param->padding_telemetrysoc = info->padding_telemetrysoc;
+
+	param->mem0maxcurrent = info->mem0maxcurrent;
+	param->mem0offset = info->mem0offset;
+	param->padding_telemetrymem0 = info->padding_telemetrymem0;
+
+	param->mem1maxcurrent = info->mem1maxcurrent;
+	param->mem1offset = info->mem1offset;
+	param->padding_telemetrymem1 = info->padding_telemetrymem1;
+
+	param->acdcgpio = info->acdcgpio;
+	param->acdcpolarity = info->acdcpolarity;
+	param->vr0hotgpio = info->vr0hotgpio;
+	param->vr0hotpolarity = info->vr0hotpolarity;
+
+	param->vr1hotgpio = info->vr1hotgpio;
+	param->vr1hotpolarity = info->vr1hotpolarity;
+	param->padding1 = info->padding1;
+	param->padding2 = info->padding2;
+
+	param->ledpin0 = info->ledpin0;
+	param->ledpin1 = info->ledpin1;
+	param->ledpin2 = info->ledpin2;
+
+	param->pllgfxclkspreadenabled = info->pllgfxclkspreadenabled;
+	param->pllgfxclkspreadpercent = info->pllgfxclkspreadpercent;
+	param->pllgfxclkspreadfreq = info->pllgfxclkspreadfreq;
+
+	param->uclkspreadenabled = info->uclkspreadenabled;
+	param->uclkspreadpercent = info->uclkspreadpercent;
+	param->uclkspreadfreq = info->uclkspreadfreq;
+
+	param->socclkspreadenabled = info->socclkspreadenabled;
+	param->socclkspreadpercent = info->socclkspreadpercent;
+	param->socclkspreadfreq = info->socclkspreadfreq;
+
+	param->acggfxclkspreadenabled = info->acggfxclkspreadenabled;
+	param->acggfxclkspreadpercent = info->acggfxclkspreadpercent;
+	param->acggfxclkspreadfreq = info->acggfxclkspreadfreq;
+
+	param->Vr2_I2C_address = info->Vr2_I2C_address;
 
 	return 0;
 }

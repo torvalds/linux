@@ -1,28 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * i.MX drm driver - parallel display implementation
  *
  * Copyright (C) 2012 Sascha Hauer, Pengutronix
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/component.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/platform_device.h>
+#include <linux/videodev2.h>
+
+#include <video/of_display_timing.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
-#include <linux/videodev2.h>
-#include <video/of_display_timing.h>
+#include <drm/drm_probe_helper.h>
 
 #include "imx-drm.h"
 
@@ -53,17 +47,14 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_parallel_display *imxpd = con_to_imxpd(connector);
 	struct device_node *np = imxpd->dev->of_node;
-	int num_modes = 0;
+	int num_modes;
 
-	if (imxpd->panel && imxpd->panel->funcs &&
-	    imxpd->panel->funcs->get_modes) {
-		num_modes = imxpd->panel->funcs->get_modes(imxpd->panel);
-		if (num_modes > 0)
-			return num_modes;
-	}
+	num_modes = drm_panel_get_modes(imxpd->panel);
+	if (num_modes > 0)
+		return num_modes;
 
 	if (imxpd->edid) {
-		drm_mode_connector_update_edid_property(connector, imxpd->edid);
+		drm_connector_update_edid_property(connector, imxpd->edid);
 		num_modes = drm_add_edid_modes(connector, imxpd->edid);
 	}
 
@@ -197,7 +188,7 @@ static int imx_pd_register(struct drm_device *drm,
 			return ret;
 		}
 	} else {
-		drm_mode_connector_attach_encoder(&imxpd->connector, encoder);
+		drm_connector_attach_encoder(&imxpd->connector, encoder);
 	}
 
 	return 0;

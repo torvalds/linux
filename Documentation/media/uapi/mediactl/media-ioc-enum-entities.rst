@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _media_ioc_enum_entities:
 
@@ -26,6 +33,7 @@ Arguments
     File descriptor returned by :ref:`open() <media-func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`media_entity_desc`.
 
 
 Description
@@ -58,131 +66,90 @@ id's until they get an error.
     :stub-columns: 0
     :widths: 1 1 1 1 8
 
-
-    -  .. row 1
-
-       -  __u32
-
+    *  -  __u32
        -  ``id``
-
        -
        -
-       -  Entity id, set by the application. When the id is or'ed with
+       -  Entity ID, set by the application. When the ID is or'ed with
 	  ``MEDIA_ENT_ID_FLAG_NEXT``, the driver clears the flag and returns
-	  the first entity with a larger id.
+	  the first entity with a larger ID. Do not expect that the ID will
+	  always be the same for each instance of the device. In other words,
+	  do not hardcode entity IDs in an application.
 
-    -  .. row 2
-
-       -  char
-
+    *  -  char
        -  ``name``\ [32]
-
        -
        -
-       -  Entity name as an UTF-8 NULL-terminated string.
+       -  Entity name as an UTF-8 NULL-terminated string. This name must be unique
+          within the media topology.
 
-    -  .. row 3
-
-       -  __u32
-
+    *  -  __u32
        -  ``type``
-
        -
        -
-       -  Entity type, see :ref:`media-entity-type` for details.
+       -  Entity type, see :ref:`media-entity-functions` for details.
 
-    -  .. row 4
-
-       -  __u32
-
+    *  -  __u32
        -  ``revision``
-
        -
        -
        -  Entity revision. Always zero (obsolete)
 
-    -  .. row 5
-
-       -  __u32
-
+    *  -  __u32
        -  ``flags``
-
        -
        -
        -  Entity flags, see :ref:`media-entity-flag` for details.
 
-    -  .. row 6
-
-       -  __u32
-
+    *  -  __u32
        -  ``group_id``
-
        -
        -
        -  Entity group ID. Always zero (obsolete)
 
-    -  .. row 7
-
-       -  __u16
-
+    *  -  __u16
        -  ``pads``
-
        -
        -
        -  Number of pads
 
-    -  .. row 8
-
-       -  __u16
-
+    *  -  __u16
        -  ``links``
-
        -
        -
        -  Total number of outbound links. Inbound links are not counted in
 	  this field.
 
-    -  .. row 9
-
-       -  union
-
-    -  .. row 10
-
+    *  -  __u32
+       -  ``reserved[4]``
        -
+       -
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
+
+    *  -  union
+
+    *  -
        -  struct
-
        -  ``dev``
-
        -
        -  Valid for (sub-)devices that create a single device node.
 
-    -  .. row 11
-
-       -
+    *  -
        -
        -  __u32
-
        -  ``major``
-
        -  Device node major number.
 
-    -  .. row 12
-
-       -
+    *  -
        -
        -  __u32
-
        -  ``minor``
-
        -  Device node minor number.
 
-    -  .. row 13
-
-       -
+    *  -
        -  __u8
-
        -  ``raw``\ [184]
-
        -
        -
 

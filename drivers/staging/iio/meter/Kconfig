@@ -1,49 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # IIO meter drivers configuration
 #
 menu "Active energy metering IC"
-
-config ADE7753
-	tristate "Analog Devices ADE7753/6 Single-Phase Multifunction Metering IC Driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices ADE7753 Single-Phase Multifunction
-	  Metering IC with di/dt Sensor Interface.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ade7753.
-
-config ADE7754
-	tristate "Analog Devices ADE7754 Polyphase Multifunction Energy Metering IC Driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices ADE7754 Polyphase
-	  Multifunction Energy Metering IC Driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ade7754.
-
-config ADE7758
-	tristate "Analog Devices ADE7758 Poly Phase Multifunction Energy Metering IC Driver"
-	depends on SPI
-	select IIO_TRIGGER if IIO_BUFFER
-	select IIO_KFIFO_BUF if IIO_BUFFER
-	help
-	  Say yes here to build support for Analog Devices ADE7758 Polyphase
-	  Multifunction Energy Metering IC with Per Phase Information Driver.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ade7758.
-
-config ADE7759
-	tristate "Analog Devices ADE7759 Active Energy Metering IC Driver"
-	depends on SPI
-	help
-	  Say yes here to build support for Analog Devices ADE7758 Active Energy
-	  Metering IC with di/dt Sensor Interface.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ade7759.
 
 config ADE7854
 	tristate "Analog Devices ADE7854/58/68/78 Polyphase Multifunction Energy Metering IC Driver"

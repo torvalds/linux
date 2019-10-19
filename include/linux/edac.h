@@ -17,6 +17,7 @@
 #include <linux/completion.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
+#include <linux/numa.h>
 
 #define EDAC_DEVICE_NAME_LEN	31
 
@@ -186,6 +187,7 @@ static inline char *mc_event_error_type(const unsigned int err_type)
  * @MEM_RDDR4:		Registered DDR4 RAM
  *			This is a variant of the DDR4 memories.
  * @MEM_LRDDR4:		Load-Reduced DDR4 memory.
+ * @MEM_NVDIMM:		Non-volatile RAM
  */
 enum mem_type {
 	MEM_EMPTY = 0,
@@ -209,6 +211,7 @@ enum mem_type {
 	MEM_DDR4,
 	MEM_RDDR4,
 	MEM_LRDDR4,
+	MEM_NVDIMM,
 };
 
 #define MEM_FLAG_EMPTY		BIT(MEM_EMPTY)
@@ -231,6 +234,7 @@ enum mem_type {
 #define MEM_FLAG_DDR4           BIT(MEM_DDR4)
 #define MEM_FLAG_RDDR4          BIT(MEM_RDDR4)
 #define MEM_FLAG_LRDDR4         BIT(MEM_LRDDR4)
+#define MEM_FLAG_NVDIMM         BIT(MEM_NVDIMM)
 
 /**
  * enum edac-type - Error Detection and Correction capabilities and mode
@@ -436,7 +440,7 @@ struct dimm_info {
 	char label[EDAC_MC_LABEL_LEN + 1];	/* DIMM label on motherboard */
 
 	/* Memory location data */
-	unsigned location[EDAC_MAX_LAYERS];
+	unsigned int location[EDAC_MAX_LAYERS];
 
 	struct mem_ctl_info *mci;	/* the parent */
 
@@ -447,7 +451,9 @@ struct dimm_info {
 
 	u32 nr_pages;			/* number of pages on this dimm */
 
-	unsigned csrow, cschannel;	/* Points to the old API data */
+	unsigned int csrow, cschannel;	/* Points to the old API data */
+
+	u16 smbios_handle;              /* Handle for SMBIOS type 17 */
 };
 
 /**
@@ -591,7 +597,7 @@ struct mem_ctl_info {
 					   unsigned long page);
 	int mc_idx;
 	struct csrow_info **csrows;
-	unsigned nr_csrows, num_cschannel;
+	unsigned int nr_csrows, num_cschannel;
 
 	/*
 	 * Memory Controller hierarchy
@@ -602,14 +608,14 @@ struct mem_ctl_info {
 	 * of the recent drivers enumerate memories per DIMM, instead.
 	 * When the memory controller is per rank, csbased is true.
 	 */
-	unsigned n_layers;
+	unsigned int n_layers;
 	struct edac_mc_layer *layers;
 	bool csbased;
 
 	/*
 	 * DIMM info. Will eventually remove the entire csrows_info some day
 	 */
-	unsigned tot_dimms;
+	unsigned int tot_dimms;
 	struct dimm_info **dimms;
 
 	/*
@@ -663,10 +669,4 @@ struct mem_ctl_info {
 	bool fake_inject_ue;
 	u16 fake_inject_count;
 };
-
-/*
- * Maximum number of memory controllers in the coherent fabric.
- */
-#define EDAC_MAX_MCS	16
-
 #endif

@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __BTRFS_TRANSACTION__
-#define __BTRFS_TRANSACTION__
+#ifndef BTRFS_TRANSACTION_H
+#define BTRFS_TRANSACTION_H
 
 #include <linux/refcount.h>
 #include "btrfs_inode.h"
@@ -25,13 +12,13 @@
 #include "ctree.h"
 
 enum btrfs_trans_state {
-	TRANS_STATE_RUNNING		= 0,
-	TRANS_STATE_BLOCKED		= 1,
-	TRANS_STATE_COMMIT_START	= 2,
-	TRANS_STATE_COMMIT_DOING	= 3,
-	TRANS_STATE_UNBLOCKED		= 4,
-	TRANS_STATE_COMPLETED		= 5,
-	TRANS_STATE_MAX			= 6,
+	TRANS_STATE_RUNNING,
+	TRANS_STATE_BLOCKED,
+	TRANS_STATE_COMMIT_START,
+	TRANS_STATE_COMMIT_DOING,
+	TRANS_STATE_UNBLOCKED,
+	TRANS_STATE_COMPLETED,
+	TRANS_STATE_MAX,
 };
 
 #define BTRFS_TRANS_HAVE_FREE_BGS	0
@@ -52,7 +39,6 @@ struct btrfs_transaction {
 	 */
 	atomic_t num_writers;
 	refcount_t use_count;
-	atomic_t pending_ordered;
 
 	unsigned long flags;
 
@@ -61,14 +47,29 @@ struct btrfs_transaction {
 	int aborted;
 	struct list_head list;
 	struct extent_io_tree dirty_pages;
-	unsigned long start_time;
+	time64_t start_time;
 	wait_queue_head_t writer_wait;
 	wait_queue_head_t commit_wait;
-	wait_queue_head_t pending_wait;
 	struct list_head pending_snapshots;
-	struct list_head pending_chunks;
+	struct list_head dev_update_list;
 	struct list_head switch_commits;
 	struct list_head dirty_bgs;
+
+	/*
+	 * There is no explicit lock which protects io_bgs, rather its
+	 * consistency is implied by the fact that all the sites which modify
+	 * it do so under some form of transaction critical section, namely:
+	 *
+	 * - btrfs_start_dirty_block_groups - This function can only ever be
+	 *   run by one of the transaction committers. Refer to
+	 *   BTRFS_TRANS_DIRTY_BG_RUN usage in btrfs_commit_transaction
+	 *
+	 * - btrfs_write_dirty_blockgroups - this is called by
+	 *   commit_cowonly_roots from transaction critical section
+	 *   (TRANS_STATE_COMMIT_DOING)
+	 *
+	 * - btrfs_cleanup_dirty_bgs - called on transaction abort
+	 */
 	struct list_head io_bgs;
 	struct list_head dropped_roots;
 
@@ -79,7 +80,6 @@ struct btrfs_transaction {
 	 */
 	struct mutex cache_write_mutex;
 	spinlock_t dirty_bgs_lock;
-	unsigned int num_dirty_bgs;
 	/* Protected by spin lock fs_info->unused_bgs_lock. */
 	struct list_head deleted_bgs;
 	spinlock_t dropped_roots_lock;
@@ -89,21 +89,20 @@ struct btrfs_transaction {
 
 #define __TRANS_FREEZABLE	(1U << 0)
 
-#define __TRANS_USERSPACE	(1U << 8)
 #define __TRANS_START		(1U << 9)
 #define __TRANS_ATTACH		(1U << 10)
 #define __TRANS_JOIN		(1U << 11)
 #define __TRANS_JOIN_NOLOCK	(1U << 12)
 #define __TRANS_DUMMY		(1U << 13)
+#define __TRANS_JOIN_NOSTART	(1U << 14)
 
-#define TRANS_USERSPACE		(__TRANS_USERSPACE | __TRANS_FREEZABLE)
 #define TRANS_START		(__TRANS_START | __TRANS_FREEZABLE)
 #define TRANS_ATTACH		(__TRANS_ATTACH)
 #define TRANS_JOIN		(__TRANS_JOIN | __TRANS_FREEZABLE)
 #define TRANS_JOIN_NOLOCK	(__TRANS_JOIN_NOLOCK)
+#define TRANS_JOIN_NOSTART	(__TRANS_JOIN_NOSTART)
 
-#define TRANS_EXTWRITERS	(__TRANS_USERSPACE | __TRANS_START |	\
-				 __TRANS_ATTACH)
+#define TRANS_EXTWRITERS	(__TRANS_START | __TRANS_ATTACH)
 
 #define BTRFS_SEND_TRANS_STUB	((void *)1)
 
@@ -122,7 +121,6 @@ struct btrfs_trans_handle {
 	bool allocating_chunk;
 	bool can_flush_pending_bgs;
 	bool reloc_reserved;
-	bool sync;
 	bool dirty;
 	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info;
@@ -139,7 +137,6 @@ struct btrfs_pending_snapshot {
 	struct btrfs_path *path;
 	/* block reservation for the operation */
 	struct btrfs_block_rsv block_rsv;
-	u64 qgroup_reserved;
 	/* extra metadata reservation for relocation */
 	int error;
 	bool readonly;
@@ -186,15 +183,12 @@ struct btrfs_trans_handle *btrfs_start_transaction_fallback_global_rsv(
 					struct btrfs_root *root,
 					unsigned int num_items,
 					int min_factor);
-struct btrfs_trans_handle *btrfs_start_transaction_lflush(
-					struct btrfs_root *root,
-					unsigned int num_items);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_join_transaction_nolock(struct btrfs_root *root);
+struct btrfs_trans_handle *btrfs_join_transaction_nostart(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction(struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_attach_transaction_barrier(
 					struct btrfs_root *root);
-struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *root);
 int btrfs_wait_for_commit(struct btrfs_fs_info *fs_info, u64 transid);
 
 void btrfs_add_dead_root(struct btrfs_root *root);
@@ -203,6 +197,20 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans);
 int btrfs_commit_transaction_async(struct btrfs_trans_handle *trans,
 				   int wait_for_unblock);
+
+/*
+ * Try to commit transaction asynchronously, so this is safe to call
+ * even holding a spinlock.
+ *
+ * It's done by informing transaction_kthread to commit transaction without
+ * waiting for commit interval.
+ */
+static inline void btrfs_commit_transaction_locksafe(
+		struct btrfs_fs_info *fs_info)
+{
+	set_bit(BTRFS_FS_NEED_ASYNC_COMMIT, &fs_info->flags);
+	wake_up_process(fs_info->transaction_kthread);
+}
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans);
 int btrfs_should_end_transaction(struct btrfs_trans_handle *trans);
 void btrfs_throttle(struct btrfs_fs_info *fs_info);
@@ -219,4 +227,6 @@ void btrfs_put_transaction(struct btrfs_transaction *transaction);
 void btrfs_apply_pending_changes(struct btrfs_fs_info *fs_info);
 void btrfs_add_dropped_root(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
+void btrfs_trans_release_chunk_metadata(struct btrfs_trans_handle *trans);
+
 #endif

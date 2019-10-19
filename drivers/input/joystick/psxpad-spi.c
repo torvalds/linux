@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PlayStation 1/2 joypads via SPI interface Driver
  *
  * Copyright (C) 2017 Tomohiro Yoshidomi <sylph23k@gmail.com>
- * Licensed under the GPL-2 or later.
  *
  * PlayStation 1/2 joypad's plug (not socket)
  *  123 456 789

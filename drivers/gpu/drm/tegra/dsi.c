@@ -1,28 +1,27 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
 #include <linux/debugfs.h>
+#include <linux/delay.h>
 #include <linux/host1x.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 
-#include <linux/regulator/consumer.h>
+#include <video/mipi_display.h>
 
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_file.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
-
-#include <video/mipi_display.h>
 
 #include "dc.h"
 #include "drm.h"
@@ -1052,7 +1051,7 @@ static int tegra_dsi_init(struct host1x_client *client)
 		drm_encoder_helper_add(&dsi->output.encoder,
 				       &tegra_dsi_encoder_helper_funcs);
 
-		drm_mode_connector_attach_encoder(&dsi->output.connector,
+		drm_connector_attach_encoder(&dsi->output.connector,
 						  &dsi->output.encoder);
 		drm_connector_register(&dsi->output.connector);
 
@@ -1072,7 +1071,6 @@ static int tegra_dsi_exit(struct host1x_client *client)
 	struct tegra_dsi *dsi = host1x_client_to_dsi(client);
 
 	tegra_output_exit(&dsi->output);
-	regulator_disable(dsi->vdd);
 
 	return 0;
 }
@@ -1412,6 +1410,9 @@ static int tegra_dsi_host_attach(struct mipi_dsi_host *host,
 		struct tegra_output *output = &dsi->output;
 
 		output->panel = of_drm_find_panel(device->dev.of_node);
+		if (IS_ERR(output->panel))
+			output->panel = NULL;
+
 		if (output->panel && output->connector.dev) {
 			drm_panel_attach(output->panel, &output->connector);
 			drm_helper_hpd_irq_event(output->connector.dev);

@@ -50,11 +50,12 @@
 	compatible = "fsl,vf610m4";
 
 	chosen {
-		bootargs = "console=ttyLP2,115200 clk_ignore_unused init=/linuxrc rw";
-		linux,stdout-path = "&uart2";
+		bootargs = "clk_ignore_unused init=/linuxrc rw";
+		stdout-path = "serial2:115200";
 	};
 
-	memory {
+	memory@8c000000 {
+		device_type = "memory";
 		reg = <0x8c000000 0x3000000>;
 	};
 };

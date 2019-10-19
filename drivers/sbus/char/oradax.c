@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -30,7 +18,7 @@
  * the recommended way for applications to use the coprocessor, and
  * the driver interface is not intended for general use.
  *
- * See Documentation/sparc/oradax/oracle_dax.txt for more details.
+ * See Documentation/sparc/oradax/oracle-dax.rst for more details.
  */
 
 #include <linux/uaccess.h>
@@ -437,7 +425,7 @@ static int dax_lock_page(void *va, struct page **p)
 
 	dax_dbg("uva %p", va);
 
-	ret = get_user_pages_fast((unsigned long)va, 1, 1, p);
+	ret = get_user_pages_fast((unsigned long)va, 1, FOLL_WRITE, p);
 	if (ret == 1) {
 		dax_dbg("locked page %p, for VA %p", *p, va);
 		return 0;
@@ -689,8 +677,7 @@ static int dax_open(struct inode *inode, struct file *f)
 alloc_error:
 	kfree(ctx->ccb_buf);
 done:
-	if (ctx != NULL)
-		kfree(ctx);
+	kfree(ctx);
 	return -ENOMEM;
 }
 
@@ -880,7 +867,7 @@ static int dax_ccb_exec(struct dax_ctx *ctx, const char __user *buf,
 	dax_dbg("args: ccb_buf_len=%ld, idx=%d", count, idx);
 
 	/* for given index and length, verify ca_buf range exists */
-	if (idx + nccbs >= DAX_CA_ELEMS) {
+	if (idx < 0 || idx > (DAX_CA_ELEMS - nccbs)) {
 		ctx->result.exec.status = DAX_SUBMIT_ERR_NO_CA_AVAIL;
 		return 0;
 	}

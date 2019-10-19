@@ -6,41 +6,22 @@
 #include <linux/mtd/partitions.h>
 
 /*
- * Current pxa3xx_nand controller has two chip select which
- * both be workable.
- *
- * Notice should be taken that:
- * When you want to use this feature, you should not enable the
- * keep configuration feature, for two chip select could be
- * attached with different nand chip. The different page size
- * and timing requirement make the keep configuration impossible.
+ * Current pxa3xx_nand controller has two chip select which both be workable but
+ * historically all platforms remaining on platform data used only one. Switch
+ * to device tree if you need more.
  */
-
-/* The max num of chip select current support */
-#define NUM_CHIP_SELECT		(2)
 struct pxa3xx_nand_platform_data {
-
-	/* the data flash bus is shared between the Static Memory
-	 * Controller and the Data Flash Controller,  the arbiter
-	 * controls the ownership of the bus
-	 */
-	int	enable_arbiter;
-
-	/* allow platform code to keep OBM/bootloader defined NFC config */
-	int	keep_config;
-
-	/* indicate how many chip selects will be used */
-	int	num_cs;
-
-	/* use an flash-based bad block table */
-	bool	flash_bbt;
-
-	/* requested ECC strength and ECC step size */
+	/* Keep OBM/bootloader NFC timing configuration */
+	bool keep_config;
+	/* Use a flash-based bad block table */
+	bool flash_bbt;
+	/* Requested ECC strength and ECC step size */
 	int ecc_strength, ecc_step_size;
-
-	const struct mtd_partition		*parts[NUM_CHIP_SELECT];
-	unsigned int				nr_parts[NUM_CHIP_SELECT];
+	/* Partitions */
+	const struct mtd_partition *parts;
+	unsigned int nr_parts;
 };
 
 extern void pxa3xx_set_nand_info(struct pxa3xx_nand_platform_data *info);
+
 #endif /* __ASM_ARCH_PXA3XX_NAND_H */

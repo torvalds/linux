@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * trace/beauty/cone.c
  *
  *  Copyright (C) 2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include "trace/beauty/beauty.h"
@@ -11,13 +10,14 @@
 #include <sys/types.h>
 #include <uapi/linux/sched.h>
 
-static size_t clone__scnprintf_flags(unsigned long flags, char *bf, size_t size)
+static size_t clone__scnprintf_flags(unsigned long flags, char *bf, size_t size, bool show_prefix)
 {
+	const char *prefix = "CLONE_";
 	int printed = 0;
 
 #define	P_FLAG(n) \
 	if (flags & CLONE_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~CLONE_##n; \
 	}
 
@@ -25,6 +25,7 @@ static size_t clone__scnprintf_flags(unsigned long flags, char *bf, size_t size)
 	P_FLAG(FS);
 	P_FLAG(FILES);
 	P_FLAG(SIGHAND);
+	P_FLAG(PIDFD);
 	P_FLAG(PTRACE);
 	P_FLAG(VFORK);
 	P_FLAG(PARENT);
@@ -71,5 +72,5 @@ size_t syscall_arg__scnprintf_clone_flags(char *bf, size_t size, struct syscall_
 	if (!(flags & CLONE_SETTLS))
 		arg->mask |= SCC_TLS;
 
-	return clone__scnprintf_flags(flags, bf, size);
+	return clone__scnprintf_flags(flags, bf, size, arg->show_string_prefix);
 }

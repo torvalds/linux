@@ -269,7 +269,7 @@ cmd_write(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *cmd,
 		commit = false;
 	}
 
-	   cmd_queue_close(priv, queue, commit);
+	cmd_queue_close(priv, queue, commit);
 
 	return ret;
 }
@@ -347,7 +347,7 @@ nvkm_msgqueue_post(struct nvkm_msgqueue *priv, enum msgqueue_msg_priority prio,
 	ret = cmd_write(priv, cmd, queue);
 	if (ret) {
 		seq->state = SEQ_STATE_PENDING;
-		      msgqueue_seq_release(priv, seq);
+		msgqueue_seq_release(priv, seq);
 	}
 
 	return ret;
@@ -373,7 +373,7 @@ msgqueue_msg_handle(struct nvkm_msgqueue *priv, struct nvkm_msgqueue_hdr *hdr)
 	if (seq->completion)
 		complete(seq->completion);
 
-	   msgqueue_seq_release(priv, seq);
+	msgqueue_seq_release(priv, seq);
 
 	return 0;
 }
@@ -506,6 +506,7 @@ nvkm_msgqueue_new(u32 version, struct nvkm_falcon *falcon,
 		break;
 	case 0x0148cdec:
 	case 0x015ccf3e:
+	case 0x0167d263:
 		ret = msgqueue_0148cdec_new(falcon, sb, queue);
 		break;
 	default:

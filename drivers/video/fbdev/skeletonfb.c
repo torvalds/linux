@@ -836,7 +836,7 @@ static void xxxfb_remove(struct pci_dev *dev)
  *	@dev: PCI device
  *	@msg: the suspend event code.
  *
- *      See Documentation/power/admin-guide/devices.rst for more information
+ *      See Documentation/driver-api/pm/devices.rst for more information
  */
 static int xxxfb_suspend(struct pci_dev *dev, pm_message_t msg)
 {
@@ -851,7 +851,7 @@ static int xxxfb_suspend(struct pci_dev *dev, pm_message_t msg)
  *	xxxfb_resume - Optional but recommended function. Resume the device.
  *	@dev: PCI device
  *
- *      See Documentation/power/admin-guide/devices.rst for more information
+ *      See Documentation/driver-api/pm/devices.rst for more information
  */
 static int xxxfb_resume(struct pci_dev *dev)
 {
@@ -915,7 +915,7 @@ static void __exit xxxfb_exit(void)
  *	@dev: platform device
  *	@msg: the suspend event code.
  *
- *      See Documentation/power/admin-guide/devices.rst for more information
+ *      See Documentation/driver-api/pm/devices.rst for more information
  */
 static int xxxfb_suspend(struct platform_device *dev, pm_message_t msg)
 {
@@ -930,7 +930,7 @@ static int xxxfb_suspend(struct platform_device *dev, pm_message_t msg)
  *	xxxfb_resume - Optional but recommended function. Resume the device.
  *	@dev: platform device
  *
- *      See Documentation/power/admin-guide/devices.rst for more information
+ *      See Documentation/driver-api/pm/devices.rst for more information
  */
 static int xxxfb_resume(struct platform_dev *dev)
 {

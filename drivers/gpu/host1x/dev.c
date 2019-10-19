@@ -1,19 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Tegra host1x driver
  *
  * Copyright (c) 2010-2013, NVIDIA Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -29,6 +18,10 @@
 #include <trace/events/host1x.h>
 #undef CREATE_TRACE_POINTS
 
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+#include <asm/dma-iommu.h>
+#endif
+
 #include "bus.h"
 #include "channel.h"
 #include "debug.h"
@@ -40,6 +33,7 @@
 #include "hw/host1x04.h"
 #include "hw/host1x05.h"
 #include "hw/host1x06.h"
+#include "hw/host1x07.h"
 
 void host1x_hypervisor_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -115,6 +109,15 @@ static const struct host1x_info host1x05_info = {
 	.dma_mask = DMA_BIT_MASK(34),
 };
 
+static const struct host1x_sid_entry tegra186_sid_table[] = {
+	{
+		/* VIC */
+		.base = 0x1af0,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+};
+
 static const struct host1x_info host1x06_info = {
 	.nb_channels = 63,
 	.nb_pts = 576,
@@ -122,11 +125,36 @@ static const struct host1x_info host1x06_info = {
 	.nb_bases = 16,
 	.init = host1x06_init,
 	.sync_offset = 0x0,
-	.dma_mask = DMA_BIT_MASK(34),
+	.dma_mask = DMA_BIT_MASK(40),
 	.has_hypervisor = true,
+	.num_sid_entries = ARRAY_SIZE(tegra186_sid_table),
+	.sid_table = tegra186_sid_table,
+};
+
+static const struct host1x_sid_entry tegra194_sid_table[] = {
+	{
+		/* VIC */
+		.base = 0x1af0,
+		.offset = 0x30,
+		.limit = 0x34
+	},
+};
+
+static const struct host1x_info host1x07_info = {
+	.nb_channels = 63,
+	.nb_pts = 704,
+	.nb_mlocks = 32,
+	.nb_bases = 0,
+	.init = host1x07_init,
+	.sync_offset = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.has_hypervisor = true,
+	.num_sid_entries = ARRAY_SIZE(tegra194_sid_table),
+	.sid_table = tegra194_sid_table,
 };
 
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra194-host1x", .data = &host1x07_info, },
 	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
 	{ .compatible = "nvidia,tegra124-host1x", .data = &host1x04_info, },
@@ -136,6 +164,19 @@ static const struct of_device_id host1x_of_match[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(of, host1x_of_match);
+
+static void host1x_setup_sid_table(struct host1x *host)
+{
+	const struct host1x_info *info = host->info;
+	unsigned int i;
+
+	for (i = 0; i < info->num_sid_entries; i++) {
+		const struct host1x_sid_entry *entry = &info->sid_table[i];
+
+		host1x_hypervisor_writel(host, entry->offset, entry->base);
+		host1x_hypervisor_writel(host, entry->limit, entry->base + 4);
+	}
+}
 
 static int host1x_probe(struct platform_device *pdev)
 {
@@ -206,8 +247,11 @@ static int host1x_probe(struct platform_device *pdev)
 
 	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
-		dev_err(&pdev->dev, "failed to get clock\n");
 		err = PTR_ERR(host->clk);
+
+		if (err != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "failed to get clock: %d\n", err);
+
 		return err;
 	}
 
@@ -217,16 +261,32 @@ static int host1x_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get reset: %d\n", err);
 		return err;
 	}
+#if IS_ENABLED(CONFIG_ARM_DMA_USE_IOMMU)
+	if (host->dev->archdata.mapping) {
+		struct dma_iommu_mapping *mapping =
+				to_dma_iommu_mapping(host->dev);
+		arm_iommu_detach_device(host->dev);
+		arm_iommu_release_mapping(mapping);
+	}
+#endif
+	if (IS_ENABLED(CONFIG_TEGRA_HOST1X_FIREWALL))
+		goto skip_iommu;
 
 	host->group = iommu_group_get(&pdev->dev);
 	if (host->group) {
 		struct iommu_domain_geometry *geometry;
+		u64 mask = dma_get_mask(host->dev);
+		dma_addr_t start, end;
 		unsigned long order;
+
+		err = iova_cache_get();
+		if (err < 0)
+			goto put_group;
 
 		host->domain = iommu_domain_alloc(&platform_bus_type);
 		if (!host->domain) {
 			err = -ENOMEM;
-			goto put_group;
+			goto put_cache;
 		}
 
 		err = iommu_attach_group(host->domain, host->group);
@@ -234,6 +294,7 @@ static int host1x_probe(struct platform_device *pdev)
 			if (err == -ENODEV) {
 				iommu_domain_free(host->domain);
 				host->domain = NULL;
+				iova_cache_put();
 				iommu_group_put(host->group);
 				host->group = NULL;
 				goto skip_iommu;
@@ -243,11 +304,12 @@ static int host1x_probe(struct platform_device *pdev)
 		}
 
 		geometry = &host->domain->geometry;
+		start = geometry->aperture_start & mask;
+		end = geometry->aperture_end & mask;
 
 		order = __ffs(host->domain->pgsize_bitmap);
-		init_iova_domain(&host->iova, 1UL << order,
-				 geometry->aperture_start >> order);
-		host->iova_end = geometry->aperture_end;
+		init_iova_domain(&host->iova, 1UL << order, start >> order);
+		host->iova_end = end;
 	}
 
 skip_iommu:
@@ -284,6 +346,9 @@ skip_iommu:
 
 	host1x_debug_init(host);
 
+	if (host->info->has_hypervisor)
+		host1x_setup_sid_table(host);
+
 	err = host1x_register(host);
 	if (err < 0)
 		goto fail_deinit_intr;
@@ -308,6 +373,9 @@ fail_detach_device:
 fail_free_domain:
 	if (host->domain)
 		iommu_domain_free(host->domain);
+put_cache:
+	if (host->group)
+		iova_cache_put();
 put_group:
 	iommu_group_put(host->group);
 
@@ -328,6 +396,7 @@ static int host1x_remove(struct platform_device *pdev)
 		put_iova_domain(&host->iova);
 		iommu_detach_group(host->domain, host->group);
 		iommu_domain_free(host->domain);
+		iova_cache_put();
 		iommu_group_put(host->group);
 	}
 

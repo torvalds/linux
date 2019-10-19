@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
-#include "util.h"
 #include <api/fs/fs.h>
-#include "../perf.h"
 #include "cpumap.h"
+#include "debug.h"
+#include "event.h"
 #include <assert.h>
 #include <dirent.h>
 #include <stdio.h>
@@ -10,190 +10,19 @@
 #include <linux/bitmap.h>
 #include "asm/bug.h"
 
-#include "sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/zalloc.h>
 
 static int max_cpu_num;
 static int max_present_cpu_num;
 static int max_node_num;
 static int *cpunode_map;
 
-static struct cpu_map *cpu_map__default_new(void)
+static struct perf_cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 {
-	struct cpu_map *cpus;
-	int nr_cpus;
+	struct perf_cpu_map *map;
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-	if (nr_cpus < 0)
-		return NULL;
-
-	cpus = malloc(sizeof(*cpus) + nr_cpus * sizeof(int));
-	if (cpus != NULL) {
-		int i;
-		for (i = 0; i < nr_cpus; ++i)
-			cpus->map[i] = i;
-
-		cpus->nr = nr_cpus;
-		refcount_set(&cpus->refcnt, 1);
-	}
-
-	return cpus;
-}
-
-static struct cpu_map *cpu_map__trim_new(int nr_cpus, int *tmp_cpus)
-{
-	size_t payload_size = nr_cpus * sizeof(int);
-	struct cpu_map *cpus = malloc(sizeof(*cpus) + payload_size);
-
-	if (cpus != NULL) {
-		cpus->nr = nr_cpus;
-		memcpy(cpus->map, tmp_cpus, payload_size);
-		refcount_set(&cpus->refcnt, 1);
-	}
-
-	return cpus;
-}
-
-struct cpu_map *cpu_map__read(FILE *file)
-{
-	struct cpu_map *cpus = NULL;
-	int nr_cpus = 0;
-	int *tmp_cpus = NULL, *tmp;
-	int max_entries = 0;
-	int n, cpu, prev;
-	char sep;
-
-	sep = 0;
-	prev = -1;
-	for (;;) {
-		n = fscanf(file, "%u%c", &cpu, &sep);
-		if (n <= 0)
-			break;
-		if (prev >= 0) {
-			int new_max = nr_cpus + cpu - prev - 1;
-
-			if (new_max >= max_entries) {
-				max_entries = new_max + MAX_NR_CPUS / 2;
-				tmp = realloc(tmp_cpus, max_entries * sizeof(int));
-				if (tmp == NULL)
-					goto out_free_tmp;
-				tmp_cpus = tmp;
-			}
-
-			while (++prev < cpu)
-				tmp_cpus[nr_cpus++] = prev;
-		}
-		if (nr_cpus == max_entries) {
-			max_entries += MAX_NR_CPUS;
-			tmp = realloc(tmp_cpus, max_entries * sizeof(int));
-			if (tmp == NULL)
-				goto out_free_tmp;
-			tmp_cpus = tmp;
-		}
-
-		tmp_cpus[nr_cpus++] = cpu;
-		if (n == 2 && sep == '-')
-			prev = cpu;
-		else
-			prev = -1;
-		if (n == 1 || sep == '\n')
-			break;
-	}
-
-	if (nr_cpus > 0)
-		cpus = cpu_map__trim_new(nr_cpus, tmp_cpus);
-	else
-		cpus = cpu_map__default_new();
-out_free_tmp:
-	free(tmp_cpus);
-	return cpus;
-}
-
-static struct cpu_map *cpu_map__read_all_cpu_map(void)
-{
-	struct cpu_map *cpus = NULL;
-	FILE *onlnf;
-
-	onlnf = fopen("/sys/devices/system/cpu/online", "r");
-	if (!onlnf)
-		return cpu_map__default_new();
-
-	cpus = cpu_map__read(onlnf);
-	fclose(onlnf);
-	return cpus;
-}
-
-struct cpu_map *cpu_map__new(const char *cpu_list)
-{
-	struct cpu_map *cpus = NULL;
-	unsigned long start_cpu, end_cpu = 0;
-	char *p = NULL;
-	int i, nr_cpus = 0;
-	int *tmp_cpus = NULL, *tmp;
-	int max_entries = 0;
-
-	if (!cpu_list)
-		return cpu_map__read_all_cpu_map();
-
-	if (!isdigit(*cpu_list))
-		goto out;
-
-	while (isdigit(*cpu_list)) {
-		p = NULL;
-		start_cpu = strtoul(cpu_list, &p, 0);
-		if (start_cpu >= INT_MAX
-		    || (*p != '\0' && *p != ',' && *p != '-'))
-			goto invalid;
-
-		if (*p == '-') {
-			cpu_list = ++p;
-			p = NULL;
-			end_cpu = strtoul(cpu_list, &p, 0);
-
-			if (end_cpu >= INT_MAX || (*p != '\0' && *p != ','))
-				goto invalid;
-
-			if (end_cpu < start_cpu)
-				goto invalid;
-		} else {
-			end_cpu = start_cpu;
-		}
-
-		for (; start_cpu <= end_cpu; start_cpu++) {
-			/* check for duplicates */
-			for (i = 0; i < nr_cpus; i++)
-				if (tmp_cpus[i] == (int)start_cpu)
-					goto invalid;
-
-			if (nr_cpus == max_entries) {
-				max_entries += MAX_NR_CPUS;
-				tmp = realloc(tmp_cpus, max_entries * sizeof(int));
-				if (tmp == NULL)
-					goto invalid;
-				tmp_cpus = tmp;
-			}
-			tmp_cpus[nr_cpus++] = (int)start_cpu;
-		}
-		if (*p)
-			++p;
-
-		cpu_list = p;
-	}
-
-	if (nr_cpus > 0)
-		cpus = cpu_map__trim_new(nr_cpus, tmp_cpus);
-	else
-		cpus = cpu_map__default_new();
-invalid:
-	free(tmp_cpus);
-out:
-	return cpus;
-}
-
-static struct cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
-{
-	struct cpu_map *map;
-
-	map = cpu_map__empty_new(cpus->nr);
+	map = perf_cpu_map__empty_new(cpus->nr);
 	if (map) {
 		unsigned i;
 
@@ -213,14 +42,14 @@ static struct cpu_map *cpu_map__from_entries(struct cpu_map_entries *cpus)
 	return map;
 }
 
-static struct cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
+static struct perf_cpu_map *cpu_map__from_mask(struct perf_record_record_cpu_map *mask)
 {
-	struct cpu_map *map;
+	struct perf_cpu_map *map;
 	int nr, nbits = mask->nr * mask->long_size * BITS_PER_BYTE;
 
 	nr = bitmap_weight(mask->mask, nbits);
 
-	map = cpu_map__empty_new(nr);
+	map = perf_cpu_map__empty_new(nr);
 	if (map) {
 		int cpu, i = 0;
 
@@ -231,15 +60,15 @@ static struct cpu_map *cpu_map__from_mask(struct cpu_map_mask *mask)
 
 }
 
-struct cpu_map *cpu_map__new_data(struct cpu_map_data *data)
+struct perf_cpu_map *cpu_map__new_data(struct perf_record_cpu_map_data *data)
 {
 	if (data->type == PERF_CPU_MAP__CPUS)
 		return cpu_map__from_entries((struct cpu_map_entries *)data->data);
 	else
-		return cpu_map__from_mask((struct cpu_map_mask *)data->data);
+		return cpu_map__from_mask((struct perf_record_record_cpu_map *)data->data);
 }
 
-size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp)
+size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)
 {
 #define BUFSIZE 1024
 	char buf[BUFSIZE];
@@ -249,22 +78,9 @@ size_t cpu_map__fprintf(struct cpu_map *map, FILE *fp)
 #undef BUFSIZE
 }
 
-struct cpu_map *cpu_map__dummy_new(void)
+struct perf_cpu_map *perf_cpu_map__empty_new(int nr)
 {
-	struct cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int));
-
-	if (cpus != NULL) {
-		cpus->nr = 1;
-		cpus->map[0] = -1;
-		refcount_set(&cpus->refcnt, 1);
-	}
-
-	return cpus;
-}
-
-struct cpu_map *cpu_map__empty_new(int nr)
-{
-	struct cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
+	struct perf_cpu_map *cpus = malloc(sizeof(*cpus) + sizeof(int) * nr);
 
 	if (cpus != NULL) {
 		int i;
@@ -277,28 +93,6 @@ struct cpu_map *cpu_map__empty_new(int nr)
 	}
 
 	return cpus;
-}
-
-static void cpu_map__delete(struct cpu_map *map)
-{
-	if (map) {
-		WARN_ONCE(refcount_read(&map->refcnt) != 0,
-			  "cpu_map refcnt unbalanced\n");
-		free(map);
-	}
-}
-
-struct cpu_map *cpu_map__get(struct cpu_map *map)
-{
-	if (map)
-		refcount_inc(&map->refcnt);
-	return map;
-}
-
-void cpu_map__put(struct cpu_map *map)
-{
-	if (map && refcount_dec_and_test(&map->refcnt))
-		cpu_map__delete(map);
 }
 
 static int cpu__get_topology_int(int cpu, const char *name, int *value)
@@ -317,7 +111,7 @@ int cpu_map__get_socket_id(int cpu)
 	return ret ?: value;
 }
 
-int cpu_map__get_socket(struct cpu_map *map, int idx, void *data __maybe_unused)
+int cpu_map__get_socket(struct perf_cpu_map *map, int idx, void *data __maybe_unused)
 {
 	int cpu;
 
@@ -334,11 +128,11 @@ static int cmp_ids(const void *a, const void *b)
 	return *(int *)a - *(int *)b;
 }
 
-int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
-		       int (*f)(struct cpu_map *map, int cpu, void *data),
+int cpu_map__build_map(struct perf_cpu_map *cpus, struct perf_cpu_map **res,
+		       int (*f)(struct perf_cpu_map *map, int cpu, void *data),
 		       void *data)
 {
-	struct cpu_map *c;
+	struct perf_cpu_map *c;
 	int nr = cpus->nr;
 	int cpu, s1, s2;
 
@@ -366,15 +160,55 @@ int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
 	return 0;
 }
 
+int cpu_map__get_die_id(int cpu)
+{
+	int value, ret = cpu__get_topology_int(cpu, "die_id", &value);
+
+	return ret ?: value;
+}
+
+int cpu_map__get_die(struct perf_cpu_map *map, int idx, void *data)
+{
+	int cpu, die_id, s;
+
+	if (idx > map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	die_id = cpu_map__get_die_id(cpu);
+	/* There is no die_id on legacy system. */
+	if (die_id == -1)
+		die_id = 0;
+
+	s = cpu_map__get_socket(map, idx, data);
+	if (s == -1)
+		return -1;
+
+	/*
+	 * Encode socket in bit range 15:8
+	 * die_id is relative to socket, and
+	 * we need a global id. So we combine
+	 * socket + die id
+	 */
+	if (WARN_ONCE(die_id >> 8, "The die id number is too big.\n"))
+		return -1;
+
+	if (WARN_ONCE(s >> 8, "The socket id number is too big.\n"))
+		return -1;
+
+	return (s << 8) | (die_id & 0xff);
+}
+
 int cpu_map__get_core_id(int cpu)
 {
 	int value, ret = cpu__get_topology_int(cpu, "core_id", &value);
 	return ret ?: value;
 }
 
-int cpu_map__get_core(struct cpu_map *map, int idx, void *data)
+int cpu_map__get_core(struct perf_cpu_map *map, int idx, void *data)
 {
-	int cpu, s;
+	int cpu, s_die;
 
 	if (idx > map->nr)
 		return -1;
@@ -383,25 +217,35 @@ int cpu_map__get_core(struct cpu_map *map, int idx, void *data)
 
 	cpu = cpu_map__get_core_id(cpu);
 
-	s = cpu_map__get_socket(map, idx, data);
-	if (s == -1)
+	/* s_die is the combination of socket + die id */
+	s_die = cpu_map__get_die(map, idx, data);
+	if (s_die == -1)
 		return -1;
 
 	/*
-	 * encode socket in upper 16 bits
-	 * core_id is relative to socket, and
+	 * encode socket in bit range 31:24
+	 * encode die id in bit range 23:16
+	 * core_id is relative to socket and die,
 	 * we need a global id. So we combine
-	 * socket+ core id
+	 * socket + die id + core id
 	 */
-	return (s << 16) | (cpu & 0xffff);
+	if (WARN_ONCE(cpu >> 16, "The core id number is too big.\n"))
+		return -1;
+
+	return (s_die << 16) | (cpu & 0xffff);
 }
 
-int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp)
+int cpu_map__build_socket_map(struct perf_cpu_map *cpus, struct perf_cpu_map **sockp)
 {
 	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket, NULL);
 }
 
-int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep)
+int cpu_map__build_die_map(struct perf_cpu_map *cpus, struct perf_cpu_map **diep)
+{
+	return cpu_map__build_map(cpus, diep, cpu_map__get_die, NULL);
+}
+
+int cpu_map__build_core_map(struct perf_cpu_map *cpus, struct perf_cpu_map **corep)
 {
 	return cpu_map__build_map(cpus, corep, cpu_map__get_core, NULL);
 }
@@ -613,29 +457,17 @@ int cpu__setup_cpunode_map(void)
 	return 0;
 }
 
-bool cpu_map__has(struct cpu_map *cpus, int cpu)
+bool cpu_map__has(struct perf_cpu_map *cpus, int cpu)
 {
-	return cpu_map__idx(cpus, cpu) != -1;
+	return perf_cpu_map__idx(cpus, cpu) != -1;
 }
 
-int cpu_map__idx(struct cpu_map *cpus, int cpu)
-{
-	int i;
-
-	for (i = 0; i < cpus->nr; ++i) {
-		if (cpus->map[i] == cpu)
-			return i;
-	}
-
-	return -1;
-}
-
-int cpu_map__cpu(struct cpu_map *cpus, int idx)
+int cpu_map__cpu(struct perf_cpu_map *cpus, int idx)
 {
 	return cpus->map[idx];
 }
 
-size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
+size_t cpu_map__snprint(struct perf_cpu_map *map, char *buf, size_t size)
 {
 	int i, cpu, start = -1;
 	bool first = true;
@@ -674,7 +506,7 @@ size_t cpu_map__snprint(struct cpu_map *map, char *buf, size_t size)
 
 #undef COMMA
 
-	pr_debug("cpumask list: %s\n", buf);
+	pr_debug2("cpumask list: %s\n", buf);
 	return ret;
 }
 
@@ -687,14 +519,17 @@ static char hex_char(unsigned char val)
 	return '?';
 }
 
-size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
+size_t cpu_map__snprint_mask(struct perf_cpu_map *map, char *buf, size_t size)
 {
 	int i, cpu;
 	char *ptr = buf;
 	unsigned char *bitmap;
 	int last_cpu = cpu_map__cpu(map, map->nr - 1);
 
-	bitmap = zalloc((last_cpu + 7) / 8);
+	if (buf == NULL)
+		return 0;
+
+	bitmap = zalloc(last_cpu / 8 + 1);
 	if (bitmap == NULL) {
 		buf[0] = '\0';
 		return 0;
@@ -722,4 +557,14 @@ size_t cpu_map__snprint_mask(struct cpu_map *map, char *buf, size_t size)
 
 	buf[size - 1] = '\0';
 	return ptr - buf;
+}
+
+const struct perf_cpu_map *cpu_map__online(void) /* thread unsafe */
+{
+	static const struct perf_cpu_map *online = NULL;
+
+	if (!online)
+		online = perf_cpu_map__new(NULL); /* from /sys/devices/system/cpu/online */
+
+	return online;
 }

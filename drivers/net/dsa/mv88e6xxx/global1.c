@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Marvell 88E6xxx Switch Global (1) Registers support
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (c) 2016-2017 Savoir-faire Linux Inc.
  *	Vivien Didelot <vivien.didelot@savoirfairelinux.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/bitfield.h>
@@ -31,100 +27,52 @@ int mv88e6xxx_g1_write(struct mv88e6xxx_chip *chip, int reg, u16 val)
 	return mv88e6xxx_write(chip, addr, reg, val);
 }
 
-int mv88e6xxx_g1_wait(struct mv88e6xxx_chip *chip, int reg, u16 mask)
+int mv88e6xxx_g1_wait_bit(struct mv88e6xxx_chip *chip, int reg, int
+			  bit, int val)
 {
-	return mv88e6xxx_wait(chip, chip->info->global1_addr, reg, mask);
+	return mv88e6xxx_wait_bit(chip, chip->info->global1_addr, reg,
+				  bit, val);
+}
+
+int mv88e6xxx_g1_wait_mask(struct mv88e6xxx_chip *chip, int reg,
+			   u16 mask, u16 val)
+{
+	return mv88e6xxx_wait_mask(chip, chip->info->global1_addr, reg,
+				   mask, val);
 }
 
 /* Offset 0x00: Switch Global Status Register */
 
 static int mv88e6185_g1_wait_ppu_disabled(struct mv88e6xxx_chip *chip)
 {
-	u16 state;
-	int i, err;
-
-	for (i = 0; i < 16; i++) {
-		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
-		if (err)
-			return err;
-
-		/* Check the value of the PPUState bits 15:14 */
-		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
-		if (state != MV88E6185_G1_STS_PPU_STATE_POLLING)
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	return -ETIMEDOUT;
+	return mv88e6xxx_g1_wait_mask(chip, MV88E6XXX_G1_STS,
+				      MV88E6185_G1_STS_PPU_STATE_MASK,
+				      MV88E6185_G1_STS_PPU_STATE_DISABLED);
 }
 
 static int mv88e6185_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 {
-	u16 state;
-	int i, err;
-
-	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
-		if (err)
-			return err;
-
-		/* Check the value of the PPUState bits 15:14 */
-		state &= MV88E6185_G1_STS_PPU_STATE_MASK;
-		if (state == MV88E6185_G1_STS_PPU_STATE_POLLING)
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	return -ETIMEDOUT;
+	return mv88e6xxx_g1_wait_mask(chip, MV88E6XXX_G1_STS,
+				      MV88E6185_G1_STS_PPU_STATE_MASK,
+				      MV88E6185_G1_STS_PPU_STATE_POLLING);
 }
 
 static int mv88e6352_g1_wait_ppu_polling(struct mv88e6xxx_chip *chip)
 {
-	u16 state;
-	int i, err;
+	int bit = __bf_shf(MV88E6352_G1_STS_PPU_STATE);
 
-	for (i = 0; i < 16; ++i) {
-		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &state);
-		if (err)
-			return err;
-
-		/* Check the value of the PPUState (or InitState) bit 15 */
-		if (state & MV88E6352_G1_STS_PPU_STATE)
-			return 0;
-
-		usleep_range(1000, 2000);
-	}
-
-	return -ETIMEDOUT;
+	return mv88e6xxx_g1_wait_bit(chip, MV88E6XXX_G1_STS, bit, 1);
 }
 
 static int mv88e6xxx_g1_wait_init_ready(struct mv88e6xxx_chip *chip)
 {
-	const unsigned long timeout = jiffies + 1 * HZ;
-	u16 val;
-	int err;
+	int bit = __bf_shf(MV88E6XXX_G1_STS_INIT_READY);
 
 	/* Wait up to 1 second for the switch to be ready. The InitReady bit 11
 	 * is set to a one when all units inside the device (ATU, VTU, etc.)
 	 * have finished their initialization and are ready to accept frames.
 	 */
-	while (time_before(jiffies, timeout)) {
-		err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_STS, &val);
-		if (err)
-			return err;
-
-		if (val & MV88E6XXX_G1_STS_INIT_READY)
-			break;
-
-		usleep_range(1000, 2000);
-	}
-
-	if (time_after(jiffies, timeout))
-		return -ETIMEDOUT;
-
-	return 0;
+	return mv88e6xxx_g1_wait_bit(chip, MV88E6XXX_G1_STS, bit, 1);
 }
 
 /* Offset 0x01: Switch MAC Address Register Bytes 0 & 1
@@ -182,7 +130,7 @@ int mv88e6185_g1_reset(struct mv88e6xxx_chip *chip)
 	return mv88e6185_g1_wait_ppu_polling(chip);
 }
 
-int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
+int mv88e6250_g1_reset(struct mv88e6xxx_chip *chip)
 {
 	u16 val;
 	int err;
@@ -198,7 +146,14 @@ int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
-	err = mv88e6xxx_g1_wait_init_ready(chip);
+	return mv88e6xxx_g1_wait_init_ready(chip);
+}
+
+int mv88e6352_g1_reset(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	err = mv88e6250_g1_reset(chip);
 	if (err)
 		return err;
 
@@ -239,6 +194,70 @@ int mv88e6185_g1_ppu_disable(struct mv88e6xxx_chip *chip)
 		return err;
 
 	return mv88e6185_g1_wait_ppu_disabled(chip);
+}
+
+/* Offset 0x10: IP-PRI Mapping Register 0
+ * Offset 0x11: IP-PRI Mapping Register 1
+ * Offset 0x12: IP-PRI Mapping Register 2
+ * Offset 0x13: IP-PRI Mapping Register 3
+ * Offset 0x14: IP-PRI Mapping Register 4
+ * Offset 0x15: IP-PRI Mapping Register 5
+ * Offset 0x16: IP-PRI Mapping Register 6
+ * Offset 0x17: IP-PRI Mapping Register 7
+ */
+
+int mv88e6085_g1_ip_pri_map(struct mv88e6xxx_chip *chip)
+{
+	int err;
+
+	/* Reset the IP TOS/DiffServ/Traffic priorities to defaults */
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_0, 0x0000);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_1, 0x0000);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_2, 0x5555);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_3, 0x5555);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_4, 0xaaaa);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_5, 0xaaaa);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_6, 0xffff);
+	if (err)
+		return err;
+
+	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IP_PRI_7, 0xffff);
+	if (err)
+		return err;
+
+	return 0;
+}
+
+/* Offset 0x18: IEEE-PRI Register */
+
+int mv88e6085_g1_ieee_pri_map(struct mv88e6xxx_chip *chip)
+{
+	/* Reset the IEEE Tag priorities to defaults */
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IEEE_PRI, 0xfa41);
+}
+
+int mv88e6250_g1_ieee_pri_map(struct mv88e6xxx_chip *chip)
+{
+	/* Reset the IEEE Tag priorities to defaults */
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_IEEE_PRI, 0xfa50);
 }
 
 /* Offset 0x1a: Monitor Control */
@@ -321,26 +340,26 @@ int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 	u16 ptr;
 	int err;
 
-	/* 01:c2:80:00:00:00:00-01:c2:80:00:00:00:07 are Management */
-	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XLO;
+	/* 01:80:c2:00:00:00-01:80:c2:00:00:07 are Management */
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200000XLO;
 	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
-	/* 01:c2:80:00:00:00:08-01:c2:80:00:00:00:0f are Management */
-	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000000XHI;
+	/* 01:80:c2:00:00:08-01:80:c2:00:00:0f are Management */
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200000XHI;
 	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
-	/* 01:c2:80:00:00:00:20-01:c2:80:00:00:00:27 are Management */
-	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XLO;
+	/* 01:80:c2:00:00:20-01:80:c2:00:00:27 are Management */
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200002XLO;
 	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
 
-	/* 01:c2:80:00:00:00:28-01:c2:80:00:00:00:2f are Management */
-	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C280000002XHI;
+	/* 01:80:c2:00:00:28-01:80:c2:00:00:2f are Management */
+	ptr = MV88E6390_G1_MONITOR_MGMT_CTL_PTR_0180C200002XHI;
 	err = mv88e6390_g1_monitor_write(chip, ptr, 0xff);
 	if (err)
 		return err;
@@ -350,28 +369,68 @@ int mv88e6390_g1_mgmt_rsvd2cpu(struct mv88e6xxx_chip *chip)
 
 /* Offset 0x1c: Global Control 2 */
 
-int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_g1_ctl2_mask(struct mv88e6xxx_chip *chip, u16 mask,
+				  u16 val)
 {
-	u16 val;
+	u16 reg;
 	int err;
 
-	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL2, &val);
+	err = mv88e6xxx_g1_read(chip, MV88E6XXX_G1_CTL2, &reg);
 	if (err)
 		return err;
 
-	val |= MV88E6XXX_G1_CTL2_HIST_RX_TX;
+	reg &= ~mask;
+	reg |= val & mask;
 
-	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2, val);
+	return mv88e6xxx_g1_write(chip, MV88E6XXX_G1_CTL2, reg);
+}
 
-	return err;
+int mv88e6185_g1_set_cascade_port(struct mv88e6xxx_chip *chip, int port)
+{
+	const u16 mask = MV88E6185_G1_CTL2_CASCADE_PORT_MASK;
+
+	return mv88e6xxx_g1_ctl2_mask(chip, mask, port << __bf_shf(mask));
+}
+
+int mv88e6085_g1_rmu_disable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6085_G1_CTL2_P10RM |
+				      MV88E6085_G1_CTL2_RM_ENABLE, 0);
+}
+
+int mv88e6352_g1_rmu_disable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6352_G1_CTL2_RMU_MODE_MASK,
+				      MV88E6352_G1_CTL2_RMU_MODE_DISABLED);
+}
+
+int mv88e6390_g1_rmu_disable(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6390_G1_CTL2_RMU_MODE_MASK,
+				      MV88E6390_G1_CTL2_RMU_MODE_DISABLED);
+}
+
+int mv88e6390_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip, MV88E6390_G1_CTL2_HIST_MODE_MASK,
+				      MV88E6390_G1_CTL2_HIST_MODE_RX |
+				      MV88E6390_G1_CTL2_HIST_MODE_TX);
+}
+
+int mv88e6xxx_g1_set_device_number(struct mv88e6xxx_chip *chip, int index)
+{
+	return mv88e6xxx_g1_ctl2_mask(chip,
+				      MV88E6XXX_G1_CTL2_DEVICE_NUMBER_MASK,
+				      index);
 }
 
 /* Offset 0x1d: Statistics Operation 2 */
 
-int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)
+static int mv88e6xxx_g1_stats_wait(struct mv88e6xxx_chip *chip)
 {
-	return mv88e6xxx_g1_wait(chip, MV88E6XXX_G1_STATS_OP,
-				 MV88E6XXX_G1_STATS_OP_BUSY);
+	int bit = __bf_shf(MV88E6XXX_G1_STATS_OP_BUSY);
+
+	return mv88e6xxx_g1_wait_bit(chip, MV88E6XXX_G1_STATS_OP, bit, 0);
 }
 
 int mv88e6095_g1_stats_set_histogram(struct mv88e6xxx_chip *chip)
@@ -470,6 +529,8 @@ int mv88e6xxx_g1_stats_clear(struct mv88e6xxx_chip *chip)
 	if (err)
 		return err;
 
+	/* Keep the histogram mode bits */
+	val &= MV88E6XXX_G1_STATS_OP_HIST_RX_TX;
 	val |= MV88E6XXX_G1_STATS_OP_BUSY | MV88E6XXX_G1_STATS_OP_FLUSH_ALL;
 
 	err = mv88e6xxx_g1_write(chip, MV88E6XXX_G1_STATS_OP, val);

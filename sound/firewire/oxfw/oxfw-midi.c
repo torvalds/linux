@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * oxfw_midi.c - a part of driver for OXFW970/971 based devices
  *
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "oxfw.h"
@@ -19,8 +18,13 @@ static int midi_capture_open(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->capture_substreams++;
-	err = snd_oxfw_stream_start_simplex(oxfw, &oxfw->tx_stream, 0, 0);
+	err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->tx_stream, 0, 0);
+	if (err >= 0) {
+		++oxfw->substreams_count;
+		err = snd_oxfw_stream_start_duplex(oxfw);
+		if (err < 0)
+			--oxfw->substreams_count;
+	}
 
 	mutex_unlock(&oxfw->mutex);
 
@@ -41,8 +45,11 @@ static int midi_playback_open(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->playback_substreams++;
-	err = snd_oxfw_stream_start_simplex(oxfw, &oxfw->rx_stream, 0, 0);
+	err = snd_oxfw_stream_reserve_duplex(oxfw, &oxfw->rx_stream, 0, 0);
+	if (err >= 0) {
+		++oxfw->substreams_count;
+		err = snd_oxfw_stream_start_duplex(oxfw);
+	}
 
 	mutex_unlock(&oxfw->mutex);
 
@@ -58,8 +65,8 @@ static int midi_capture_close(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->capture_substreams--;
-	snd_oxfw_stream_stop_simplex(oxfw, &oxfw->tx_stream);
+	--oxfw->substreams_count;
+	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);
 
@@ -73,8 +80,8 @@ static int midi_playback_close(struct snd_rawmidi_substream *substream)
 
 	mutex_lock(&oxfw->mutex);
 
-	oxfw->playback_substreams--;
-	snd_oxfw_stream_stop_simplex(oxfw, &oxfw->rx_stream);
+	--oxfw->substreams_count;
+	snd_oxfw_stream_stop_duplex(oxfw);
 
 	mutex_unlock(&oxfw->mutex);
 

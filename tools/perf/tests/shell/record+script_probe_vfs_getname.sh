@@ -1,3 +1,4 @@
+#!/bin/sh
 # Use vfs_getname probe to get syscall args filenames
 
 # Uses the 'perf test shell' library to add probe:vfs_getname to the system
@@ -5,6 +6,7 @@
 # checks that that was captured by the vfs_getname probe in the generated
 # perf.data file, with the temp file name as the pathname argument.
 
+# SPDX-License-Identifier: GPL-2.0
 # Arnaldo Carvalho de Melo <acme@kernel.org>, 2017
 
 . $(dirname $0)/lib/probe.sh

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * linux/drivers/video/mmp/hw/mmp_ctrl.c
  * Marvell MMP series Display Controller support
@@ -6,20 +7,6 @@
  * Authors:  Guoqing Li <ligq@marvell.com>
  *          Lisa Du <cldu@marvell.com>
  *          Zhou Zhu <zzhu3@marvell.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -406,12 +393,10 @@ static int path_init(struct mmphw_path_plat *path_plat,
 	dev_info(ctrl->dev, "%s: %s\n", __func__, config->name);
 
 	/* init driver data */
-	path_info = kzalloc(sizeof(struct mmp_path_info), GFP_KERNEL);
-	if (!path_info) {
-		dev_err(ctrl->dev, "%s: unable to alloc path_info for %s\n",
-				__func__, config->name);
+	path_info = kzalloc(sizeof(*path_info), GFP_KERNEL);
+	if (!path_info)
 		return 0;
-	}
+
 	path_info->name = config->name;
 	path_info->id = path_plat->id;
 	path_info->dev = ctrl->dev;
@@ -448,7 +433,7 @@ static int mmphw_probe(struct platform_device *pdev)
 {
 	struct mmp_mach_plat_info *mi;
 	struct resource *res;
-	int ret, i, size, irq;
+	int ret, i, irq;
 	struct mmphw_path_plat *path_plat;
 	struct mmphw_ctrl *ctrl = NULL;
 
@@ -476,9 +461,9 @@ static int mmphw_probe(struct platform_device *pdev)
 	}
 
 	/* allocate */
-	size = sizeof(struct mmphw_ctrl) + sizeof(struct mmphw_path_plat) *
-	       mi->path_num;
-	ctrl = devm_kzalloc(&pdev->dev, size, GFP_KERNEL);
+	ctrl = devm_kzalloc(&pdev->dev,
+			    struct_size(ctrl, path_plats, mi->path_num),
+			    GFP_KERNEL);
 	if (!ctrl) {
 		ret = -ENOMEM;
 		goto failed;

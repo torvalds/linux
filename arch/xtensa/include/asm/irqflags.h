@@ -12,6 +12,7 @@
 #ifndef _XTENSA_IRQFLAGS_H
 #define _XTENSA_IRQFLAGS_H
 
+#include <linux/stringify.h>
 #include <linux/types.h>
 #include <asm/processor.h>
 
@@ -26,7 +27,7 @@ static inline unsigned long arch_local_irq_save(void)
 {
 	unsigned long flags;
 #if XTENSA_FAKE_NMI
-#if defined(CONFIG_DEBUG_KERNEL) && (LOCKLEVEL | TOPLEVEL) >= XCHAL_DEBUGLEVEL
+#if defined(CONFIG_DEBUG_MISC) && (LOCKLEVEL | TOPLEVEL) >= XCHAL_DEBUGLEVEL
 	unsigned long tmp;
 
 	asm volatile("rsr	%0, ps\t\n"

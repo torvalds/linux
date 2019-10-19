@@ -53,14 +53,6 @@
 	CON_INITCALL
   }
 
-  .uml.initcall.init : {
-	__uml_initcall_start = .;
-	*(.uml.initcall.init)
-	__uml_initcall_end = .;
-  }
-
-  SECURITY_INIT
-
   .exitcall : {
 	__exitcall_begin = .;
 	*(.exitcall.exit)
@@ -91,8 +83,8 @@
 	__preinit_array_end = .;
   }
   .init_array : {
+        /* dummy - we call this ourselves */
 	__init_array_start = .;
-	*(.init_array)
 	__init_array_end = .;
   }
   .fini_array : {

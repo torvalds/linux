@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ZX Specific Extensions for Synopsys DW Multimedia Card Interface driver
  *
  * Copyright (C) 2016, Linaro Ltd.
  * Copyright (C) 2016, ZTE Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -195,6 +191,7 @@ static unsigned long zx_dwmmc_caps[3] = {
 
 static const struct dw_mci_drv_data zx_drv_data = {
 	.caps			= zx_dwmmc_caps,
+	.num_caps		= ARRAY_SIZE(zx_dwmmc_caps),
 	.execute_tuning		= dw_mci_zx_execute_tuning,
 	.prepare_hs400_tuning	= dw_mci_zx_prepare_hs400_tuning,
 	.parse_dt               = dw_mci_zx_parse_dt,

@@ -1,18 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * LIRC base driver
  *
  * by Artur Lipowski <alipowski@interia.pl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -20,6 +10,7 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/device.h>
+#include <linux/file.h>
 #include <linux/idr.h>
 #include <linux/poll.h>
 #include <linux/sched.h>
@@ -28,7 +19,7 @@
 #include "rc-core-priv.h"
 #include <uapi/linux/lirc.h>
 
-#define LIRCBUF_SIZE	256
+#define LIRCBUF_SIZE	1024
 
 static dev_t lirc_base_dev;
 
@@ -60,12 +51,12 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		 * space with the maximum time value.
 		 */
 		sample = LIRC_SPACE(LIRC_VALUE_MASK);
-		IR_dprintk(2, "delivering reset sync space to lirc_dev\n");
+		dev_dbg(&dev->dev, "delivering reset sync space to lirc_dev\n");
 
 	/* Carrier reports */
 	} else if (ev.carrier_report) {
 		sample = LIRC_FREQUENCY(ev.carrier);
-		IR_dprintk(2, "carrier report (freq: %d)\n", sample);
+		dev_dbg(&dev->dev, "carrier report (freq: %d)\n", sample);
 
 	/* Packet end */
 	} else if (ev.timeout) {
@@ -77,7 +68,7 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 		dev->gap_duration = ev.duration;
 
 		sample = LIRC_TIMEOUT(ev.duration / 1000);
-		IR_dprintk(2, "timeout report (duration: %d)\n", sample);
+		dev_dbg(&dev->dev, "timeout report (duration: %d)\n", sample);
 
 	/* Normal sample */
 	} else {
@@ -100,9 +91,15 @@ void ir_lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 
 		sample = ev.pulse ? LIRC_PULSE(ev.duration / 1000) :
 					LIRC_SPACE(ev.duration / 1000);
-		IR_dprintk(2, "delivering %uus %s to lirc_dev\n",
-			   TO_US(ev.duration), TO_STR(ev.pulse));
+		dev_dbg(&dev->dev, "delivering %uus %s to lirc_dev\n",
+			TO_US(ev.duration), TO_STR(ev.pulse));
 	}
+
+	/*
+	 * bpf does not care about the gap generated above; that exists
+	 * for backwards compatibility
+	 */
+	lirc_bpf_run(dev, sample);
 
 	spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 	list_for_each_entry(fh, &dev->lirc_fh, list) {
@@ -188,7 +185,7 @@ static int ir_lirc_open(struct inode *inode, struct file *file)
 	list_add(&fh->list, &dev->lirc_fh);
 	spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
 
-	nonseekable_open(inode, file);
+	stream_open(inode, file);
 
 	return 0;
 out_kfifo:
@@ -248,8 +245,6 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 		ret = -ENODEV;
 		goto out_unlock;
 	}
-
-	start = ktime_get();
 
 	if (!dev->tx_ir) {
 		ret = -EINVAL;
@@ -342,6 +337,8 @@ static ssize_t ir_lirc_transmit_ir(struct file *file, const char __user *buf,
 
 		duration += txbuf[i];
 	}
+
+	start = ktime_get();
 
 	ret = dev->tx_ir(dev, txbuf, count);
 	if (ret < 0)
@@ -570,13 +567,20 @@ static long ir_lirc_ioctl(struct file *file, unsigned int cmd,
 				ret = -EINVAL;
 			else if (dev->s_timeout)
 				ret = dev->s_timeout(dev, tmp);
-			else if (!ret)
+			else
 				dev->timeout = tmp;
 		}
 		break;
 
-	case LIRC_SET_REC_TIMEOUT_REPORTS:
+	case LIRC_GET_REC_TIMEOUT:
 		if (!dev->timeout)
+			ret = -ENOTTY;
+		else
+			val = DIV_ROUND_UP(dev->timeout, 1000);
+		break;
+
+	case LIRC_SET_REC_TIMEOUT_REPORTS:
+		if (dev->driver_type != RC_DRIVER_IR_RAW)
 			ret = -ENOTTY;
 		else
 			fh->send_timeout_reports = !!val;
@@ -735,6 +739,7 @@ static void lirc_release_device(struct device *ld)
 
 int ir_lirc_register(struct rc_dev *dev)
 {
+	const char *rx_type, *tx_type;
 	int err, minor;
 
 	minor = ida_simple_get(&lirc_ida, 0, RC_DEV_MAX, GFP_KERNEL);
@@ -759,8 +764,25 @@ int ir_lirc_register(struct rc_dev *dev)
 
 	get_device(&dev->dev);
 
-	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d",
-		 dev->driver_name, minor);
+	switch (dev->driver_type) {
+	case RC_DRIVER_SCANCODE:
+		rx_type = "scancode";
+		break;
+	case RC_DRIVER_IR_RAW:
+		rx_type = "raw IR";
+		break;
+	default:
+		rx_type = "no";
+		break;
+	}
+
+	if (dev->tx_ir)
+		tx_type = "raw IR";
+	else
+		tx_type = "no";
+
+	dev_info(&dev->dev, "lirc_dev: driver %s registered at minor = %d, %s receiver, %s transmitter",
+		 dev->driver_name, minor, rx_type, tx_type);
 
 	return 0;
 
@@ -804,8 +826,8 @@ int __init lirc_dev_init(void)
 		return retval;
 	}
 
-	pr_info("IR Remote Control driver registered, major %d\n",
-						MAJOR(lirc_base_dev));
+	pr_debug("IR Remote Control driver registered, major %d\n",
+		 MAJOR(lirc_base_dev));
 
 	return 0;
 }
@@ -814,6 +836,29 @@ void __exit lirc_dev_exit(void)
 {
 	class_destroy(lirc_class);
 	unregister_chrdev_region(lirc_base_dev, RC_DEV_MAX);
+}
+
+struct rc_dev *rc_dev_get_from_fd(int fd)
+{
+	struct fd f = fdget(fd);
+	struct lirc_fh *fh;
+	struct rc_dev *dev;
+
+	if (!f.file)
+		return ERR_PTR(-EBADF);
+
+	if (f.file->f_op != &lirc_fops) {
+		fdput(f);
+		return ERR_PTR(-EINVAL);
+	}
+
+	fh = f.file->private_data;
+	dev = fh->rc;
+
+	get_device(&dev->dev);
+	fdput(f);
+
+	return dev;
 }
 
 MODULE_ALIAS("lirc_dev");

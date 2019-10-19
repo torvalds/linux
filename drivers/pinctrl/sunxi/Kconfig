@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_SUNXI
 
 config PINCTRL_SUNXI
@@ -6,75 +7,106 @@ config PINCTRL_SUNXI
 	select GENERIC_PINCONF
 	select GPIOLIB
 
+config PINCTRL_SUNIV_F1C100S
+	def_bool MACH_SUNIV
+	select PINCTRL_SUNXI
+
 config PINCTRL_SUN4I_A10
-	def_bool MACH_SUN4I || MACH_SUN7I || MACH_SUN8I
+	bool "Support for the Allwinner A10, A20 and R40 PIO"
+	default MACH_SUN4I || MACH_SUN7I || MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN5I
-	def_bool MACH_SUN5I
+	bool "Support for the Allwinner A10s, A13, R8 and NextThing GR8 PIO"
+	default MACH_SUN5I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN6I_A31
-	def_bool MACH_SUN6I
+	bool "Support for the Allwinner A31 PIO"
+	default MACH_SUN6I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN6I_A31_R
-	def_bool MACH_SUN6I
+	bool "Support for the Allwinner A31 R-PIO"
+	default MACH_SUN6I
 	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_A23
-	def_bool MACH_SUN8I
+	bool "Support for the Allwinner A23 PIO"
+	default MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_A33
-	def_bool MACH_SUN8I
+	bool "Support for the Allwinner A33 PIO"
+	default MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_A83T
-	def_bool MACH_SUN8I
+	bool "Support for the Allwinner A83T PIO"
+	default MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_A83T_R
-	def_bool MACH_SUN8I
+	bool "Support for the Allwinner A83T R-PIO"
+	default MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_A23_R
-	def_bool MACH_SUN8I
+	bool "Support for the Allwinner A23 and A33 R-PIO"
+	default MACH_SUN8I
 	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_H3
-	def_bool MACH_SUN8I
+	bool "Support for the Allwinner H3 PIO"
+	default MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_H3_R
-	def_bool MACH_SUN8I || (ARM64 && ARCH_SUNXI)
+	bool "Support for the Allwinner H3 and H5 R-PIO"
+	default MACH_SUN8I || (ARM64 && ARCH_SUNXI)
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN8I_V3S
-	def_bool MACH_SUN8I
+	bool "Support for the Allwinner V3s PIO"
+	default MACH_SUN8I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN9I_A80
-	def_bool MACH_SUN9I
+	bool "Support for the Allwinner A80 PIO"
+	default MACH_SUN9I
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN9I_A80_R
-	def_bool MACH_SUN9I
+	bool "Support for the Allwinner A80 R-PIO"
+	default MACH_SUN9I
 	depends on RESET_CONTROLLER
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN50I_A64
-	def_bool ARM64 && ARCH_SUNXI
+	bool "Support for the Allwinner A64 PIO"
+	default ARM64 && ARCH_SUNXI
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN50I_A64_R
-	def_bool ARM64 && ARCH_SUNXI
+	bool "Support for the Allwinner A64 R-PIO"
+	default ARM64 && ARCH_SUNXI
 	select PINCTRL_SUNXI
 
 config PINCTRL_SUN50I_H5
-	def_bool ARM64 && ARCH_SUNXI
+	bool "Support for the Allwinner H5 PIO"
+	default ARM64 && ARCH_SUNXI
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN50I_H6
+	bool "Support for the Allwinner H6 PIO"
+	default ARM64 && ARCH_SUNXI
+	select PINCTRL_SUNXI
+
+config PINCTRL_SUN50I_H6_R
+	bool "Support for the Allwinner H6 R-PIO"
+	default ARM64 && ARCH_SUNXI
 	select PINCTRL_SUNXI
 
 endif

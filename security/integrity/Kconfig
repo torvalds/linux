@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 config INTEGRITY
 	bool "Integrity subsystem"
@@ -17,8 +18,8 @@ if INTEGRITY
 
 config INTEGRITY_SIGNATURE
 	bool "Digital signature verification using multiple keyrings"
-	depends on KEYS
 	default n
+	select KEYS
 	select SIGNATURE
 	help
 	  This option enables digital signature verification support
@@ -51,6 +52,26 @@ config INTEGRITY_TRUSTED_KEYRING
 	   .evm keyrings be signed by a key on the system trusted
 	   keyring.
 
+config INTEGRITY_PLATFORM_KEYRING
+        bool "Provide keyring for platform/firmware trusted keys"
+        depends on INTEGRITY_ASYMMETRIC_KEYS
+        depends on SYSTEM_BLACKLIST_KEYRING
+        help
+         Provide a separate, distinct keyring for platform trusted keys, which
+         the kernel automatically populates during initialization from values
+         provided by the platform for verifying the kexec'ed kerned image
+         and, possibly, the initramfs signature.
+
+config LOAD_UEFI_KEYS
+       depends on INTEGRITY_PLATFORM_KEYRING
+       depends on EFI
+       def_bool y
+
+config LOAD_IPL_KEYS
+       depends on INTEGRITY_PLATFORM_KEYRING
+       depends on S390
+       def_bool y
+
 config INTEGRITY_AUDIT
 	bool "Enables integrity auditing support "
 	depends on AUDIT
@@ -66,7 +87,7 @@ config INTEGRITY_AUDIT
 	  be enabled by specifying 'integrity_audit=1' on the kernel
 	  command line.
 
-source security/integrity/ima/Kconfig
-source security/integrity/evm/Kconfig
+source "security/integrity/ima/Kconfig"
+source "security/integrity/evm/Kconfig"
 
 endif   # if INTEGRITY

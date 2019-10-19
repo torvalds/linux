@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mm/percpu-debug.c
  *
  * Copyright (C) 2017		Facebook Inc.
  * Copyright (C) 2017		Dennis Zhou <dennisz@fb.com>
- *
- * This file is released under the GPLv2.
  *
  * Prints statistics about the percpu allocator and backing chunks.
  */
@@ -53,6 +52,7 @@ static int find_max_nr_alloc(void)
 static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 			    int *buffer)
 {
+	struct pcpu_block_md *chunk_md = &chunk->chunk_md;
 	int i, last_alloc, as_len, start, end;
 	int *alloc_sizes, *p;
 	/* statistics */
@@ -121,9 +121,9 @@ static void chunk_map_stats(struct seq_file *m, struct pcpu_chunk *chunk,
 	P("nr_alloc", chunk->nr_alloc);
 	P("max_alloc_size", chunk->max_alloc_size);
 	P("empty_pop_pages", chunk->nr_empty_pop_pages);
-	P("first_bit", chunk->first_bit);
+	P("first_bit", chunk_md->first_free);
 	P("free_bytes", chunk->free_bytes);
-	P("contig_bytes", chunk->contig_bits * PCPU_MIN_ALLOC_SIZE);
+	P("contig_bytes", chunk_md->contig_hint * PCPU_MIN_ALLOC_SIZE);
 	P("sum_frag", sum_frag);
 	P("max_frag", max_frag);
 	P("cur_min_alloc", cur_min_alloc);
@@ -144,7 +144,7 @@ alloc_buffer:
 	spin_unlock_irq(&pcpu_lock);
 
 	/* there can be at most this many free and allocated fragments */
-	buffer = vmalloc((2 * max_nr_alloc + 1) * sizeof(int));
+	buffer = vmalloc(array_size(sizeof(int), (2 * max_nr_alloc + 1)));
 	if (!buffer)
 		return -ENOMEM;
 
@@ -223,18 +223,7 @@ alloc_buffer:
 
 	return 0;
 }
-
-static int percpu_stats_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, percpu_stats_show, NULL);
-}
-
-static const struct file_operations percpu_stats_fops = {
-	.open		= percpu_stats_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(percpu_stats);
 
 static int __init init_percpu_stats_debugfs(void)
 {

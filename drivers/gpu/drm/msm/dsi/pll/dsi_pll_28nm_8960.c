@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -327,7 +319,7 @@ static int dsi_pll_28nm_enable_seq(struct msm_dsi_pll *pll)
 	locked = pll_28nm_poll_for_ready(pll_28nm, max_reads, timeout_us);
 
 	if (unlikely(!locked))
-		dev_err(dev, "DSI PLL lock failed\n");
+		DRM_DEV_ERROR(dev, "DSI PLL lock failed\n");
 	else
 		DBG("DSI PLL lock success");
 
@@ -368,7 +360,7 @@ static int dsi_pll_28nm_restore_state(struct msm_dsi_pll *pll)
 	ret = dsi_pll_28nm_clk_set_rate(&pll->clk_hw,
 					cached_state->vco_rate, 0);
 	if (ret) {
-		dev_err(&pll_28nm->pdev->dev,
+		DRM_DEV_ERROR(&pll_28nm->pdev->dev,
 			"restore vco rate failed. ret=%d\n", ret);
 		return ret;
 	}
@@ -482,7 +474,7 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm)
 	ret = of_clk_add_provider(dev->of_node,
 			of_clk_src_onecell_get, &pll_28nm->clk_data);
 	if (ret) {
-		dev_err(dev, "failed to register clk provider: %d\n", ret);
+		DRM_DEV_ERROR(dev, "failed to register clk provider: %d\n", ret);
 		return ret;
 	}
 
@@ -508,7 +500,7 @@ struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
 
 	pll_28nm->mmio = msm_ioremap(pdev, "dsi_pll", "DSI_PLL");
 	if (IS_ERR_OR_NULL(pll_28nm->mmio)) {
-		dev_err(&pdev->dev, "%s: failed to map pll base\n", __func__);
+		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map pll base\n", __func__);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -526,7 +518,7 @@ struct msm_dsi_pll *msm_dsi_pll_28nm_8960_init(struct platform_device *pdev,
 
 	ret = pll_28nm_register(pll_28nm);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to register PLL: %d\n", ret);
+		DRM_DEV_ERROR(&pdev->dev, "failed to register PLL: %d\n", ret);
 		return ERR_PTR(ret);
 	}
 

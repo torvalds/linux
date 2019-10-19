@@ -27,6 +27,7 @@ int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 
 	err = rdev_stop_ap(rdev, dev);
 	if (!err) {
+		wdev->conn_owner_nlportid = 0;
 		wdev->beacon_interval = 0;
 		memset(&wdev->chandef, 0, sizeof(wdev->chandef));
 		wdev->ssid_len = 0;
@@ -39,6 +40,8 @@ int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
 		 */
 		cfg80211_sched_dfs_chan_update(rdev);
 	}
+
+	schedule_work(&cfg80211_disconnect_work);
 
 	return err;
 }

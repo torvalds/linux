@@ -1,8 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017 Facebook
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
  */
 
 #include <stdio.h>
@@ -11,13 +8,13 @@
 #include <errno.h>
 #include <assert.h>
 #include <sys/time.h>
-#include <sys/resource.h>
 
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
 #include "cgroup_helpers.h"
+#include "bpf_rlimit.h"
 
 #define DEV_CGROUP_PROG "./dev_cgroup.o"
 
@@ -25,14 +22,10 @@
 
 int main(int argc, char **argv)
 {
-	struct rlimit limit  = { RLIM_INFINITY, RLIM_INFINITY };
 	struct bpf_object *obj;
 	int error = EXIT_FAILURE;
 	int prog_fd, cgroup_fd;
 	__u32 prog_cnt;
-
-	if (setrlimit(RLIMIT_MEMLOCK, &limit) < 0)
-		perror("Unable to lift memlock rlimit");
 
 	if (bpf_prog_load(DEV_CGROUP_PROG, BPF_PROG_TYPE_CGROUP_DEVICE,
 			  &obj, &prog_fd)) {
@@ -47,7 +40,7 @@ int main(int argc, char **argv)
 
 	/* Create a cgroup, get fd, and join it */
 	cgroup_fd = create_and_get_cgroup(TEST_CGROUP);
-	if (!cgroup_fd) {
+	if (cgroup_fd < 0) {
 		printf("Failed to create test cgroup\n");
 		goto err;
 	}

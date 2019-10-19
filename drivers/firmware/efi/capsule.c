@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * EFI capsule support.
  *
  * Copyright 2013 Intel Corporation; author Matt Fleming
- *
- * This file is part of the Linux kernel, and is made available under
- * the terms of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) "efi: " fmt
@@ -231,7 +229,7 @@ int efi_capsule_update(efi_capsule_header_t *capsule, phys_addr_t *pages)
 	count = DIV_ROUND_UP(imagesize, PAGE_SIZE);
 	sg_count = sg_pages_num(count);
 
-	sg_pages = kzalloc(sg_count * sizeof(*sg_pages), GFP_KERNEL);
+	sg_pages = kcalloc(sg_count, sizeof(*sg_pages), GFP_KERNEL);
 	if (!sg_pages)
 		return -ENOMEM;
 

@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # PHY drivers for Ralink platforms.
 #
 config PHY_RALINK_USB
 	tristate "Ralink USB PHY driver"
 	depends on RALINK || COMPILE_TEST
+	depends on HAS_IOMEM
 	select GENERIC_PHY
 	select MFD_SYSCON
 	help

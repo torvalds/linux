@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* General netfs cache on cache files internal defs
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #ifdef pr_fmt
@@ -123,6 +119,8 @@ struct cachefiles_xattr {
 	uint8_t				type;
 	uint8_t				data[];
 };
+
+#include <trace/events/cachefiles.h>
 
 /*
  * note change of state for daemon

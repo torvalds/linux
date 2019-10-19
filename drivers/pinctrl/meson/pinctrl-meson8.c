@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Pin controller and GPIO driver for Amlogic Meson8.
+ * Pin controller and GPIO driver for Amlogic Meson8 and Meson8m2.
  *
  * Copyright (C) 2014 Beniamino Galvani <b.galvani@gmail.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <dt-bindings/gpio/meson8-gpio.h>
@@ -299,6 +293,10 @@ static const unsigned int spi_mosi_1_pins[]	= { GPIOZ_12 };
 static const unsigned int spi_miso_1_pins[]	= { GPIOZ_13 };
 static const unsigned int spi_ss2_1_pins[]	= { GPIOZ_14 };
 
+static const unsigned int eth_txd3_pins[]	= { GPIOZ_0 };
+static const unsigned int eth_txd2_pins[]	= { GPIOZ_1 };
+static const unsigned int eth_rxd3_pins[]	= { GPIOZ_2 };
+static const unsigned int eth_rxd2_pins[]	= { GPIOZ_3 };
 static const unsigned int eth_tx_clk_50m_pins[]	= { GPIOZ_4 };
 static const unsigned int eth_tx_en_pins[]	= { GPIOZ_5 };
 static const unsigned int eth_txd1_pins[]	= { GPIOZ_6 };
@@ -502,6 +500,32 @@ static struct meson_pmx_group meson8_cbus_groups[] = {
 	GPIO_GROUP(GPIOZ_12),
 	GPIO_GROUP(GPIOZ_13),
 	GPIO_GROUP(GPIOZ_14),
+	GPIO_GROUP(CARD_0),
+	GPIO_GROUP(CARD_1),
+	GPIO_GROUP(CARD_2),
+	GPIO_GROUP(CARD_3),
+	GPIO_GROUP(CARD_4),
+	GPIO_GROUP(CARD_5),
+	GPIO_GROUP(CARD_6),
+	GPIO_GROUP(BOOT_0),
+	GPIO_GROUP(BOOT_1),
+	GPIO_GROUP(BOOT_2),
+	GPIO_GROUP(BOOT_3),
+	GPIO_GROUP(BOOT_4),
+	GPIO_GROUP(BOOT_5),
+	GPIO_GROUP(BOOT_6),
+	GPIO_GROUP(BOOT_7),
+	GPIO_GROUP(BOOT_8),
+	GPIO_GROUP(BOOT_9),
+	GPIO_GROUP(BOOT_10),
+	GPIO_GROUP(BOOT_11),
+	GPIO_GROUP(BOOT_12),
+	GPIO_GROUP(BOOT_13),
+	GPIO_GROUP(BOOT_14),
+	GPIO_GROUP(BOOT_15),
+	GPIO_GROUP(BOOT_16),
+	GPIO_GROUP(BOOT_17),
+	GPIO_GROUP(BOOT_18),
 
 	/* bank X */
 	GROUP(sd_d0_a,		8,	5),
@@ -650,6 +674,12 @@ static struct meson_pmx_group meson8_cbus_groups[] = {
 	GROUP(eth_mdio,		6,	6),
 	GROUP(eth_mdc,		6,	5),
 
+	/* NOTE: the following four groups are only available on Meson8m2: */
+	GROUP(eth_rxd2,		6,	3),
+	GROUP(eth_rxd3,		6,	2),
+	GROUP(eth_txd2,		6,	1),
+	GROUP(eth_txd3,		6,	0),
+
 	GROUP(i2c_sda_a0,	5,	31),
 	GROUP(i2c_sck_a0,	5,	30),
 
@@ -764,7 +794,7 @@ static struct meson_pmx_group meson8_aobus_groups[] = {
 	GROUP(hdmi_cec_ao,		0,	17),
 };
 
-static const char * const gpio_groups[] = {
+static const char * const gpio_periphs_groups[] = {
 	"GPIOX_0", "GPIOX_1", "GPIOX_2", "GPIOX_3", "GPIOX_4",
 	"GPIOX_5", "GPIOX_6", "GPIOX_7", "GPIOX_8", "GPIOX_9",
 	"GPIOX_10", "GPIOX_11", "GPIOX_12", "GPIOX_13", "GPIOX_14",
@@ -797,7 +827,9 @@ static const char * const gpio_groups[] = {
 	"BOOT_5", "BOOT_6", "BOOT_7", "BOOT_8", "BOOT_9",
 	"BOOT_10", "BOOT_11", "BOOT_12", "BOOT_13", "BOOT_14",
 	"BOOT_15", "BOOT_16", "BOOT_17", "BOOT_18",
+};
 
+static const char * const gpio_aobus_groups[] = {
 	"GPIOAO_0", "GPIOAO_1", "GPIOAO_2", "GPIOAO_3",
 	"GPIOAO_4", "GPIOAO_5", "GPIOAO_6", "GPIOAO_7",
 	"GPIOAO_8", "GPIOAO_9", "GPIOAO_10", "GPIOAO_11",
@@ -877,7 +909,8 @@ static const char * const spi_groups[] = {
 static const char * const ethernet_groups[] = {
 	"eth_tx_clk_50m", "eth_tx_en", "eth_txd1",
 	"eth_txd0", "eth_rx_clk_in", "eth_rx_dv",
-	"eth_rxd1", "eth_rxd0", "eth_mdio", "eth_mdc"
+	"eth_rxd1", "eth_rxd0", "eth_mdio", "eth_mdc", "eth_rxd2",
+	"eth_rxd3", "eth_txd2", "eth_txd3"
 };
 
 static const char * const i2c_a_groups[] = {
@@ -983,7 +1016,7 @@ static const char * const hdmi_cec_ao_groups[] = {
 };
 
 static struct meson_pmx_func meson8_cbus_functions[] = {
-	FUNCTION(gpio),
+	FUNCTION(gpio_periphs),
 	FUNCTION(sd_a),
 	FUNCTION(sdxc_a),
 	FUNCTION(pcm_a),
@@ -1019,6 +1052,7 @@ static struct meson_pmx_func meson8_cbus_functions[] = {
 };
 
 static struct meson_pmx_func meson8_aobus_functions[] = {
+	FUNCTION(gpio_aobus),
 	FUNCTION(uart_ao),
 	FUNCTION(remote),
 	FUNCTION(i2c_slave_ao),
@@ -1042,7 +1076,7 @@ static struct meson_bank meson8_cbus_banks[] = {
 
 static struct meson_bank meson8_aobus_banks[] = {
 	/*   name    first     last         irq    pullen  pull    dir     out     in  */
-	BANK("AO",   GPIOAO_0, GPIO_TEST_N, 0, 13, 0,  0,  0, 16,  0,  0,  0, 16,  1,  0),
+	BANK("AO",   GPIOAO_0, GPIO_TEST_N, 0, 13, 0, 16,  0,  0,  0,  0,  0, 16,  1,  0),
 };
 
 static struct meson_pinctrl_data meson8_cbus_pinctrl_data = {
@@ -1078,6 +1112,14 @@ static const struct of_device_id meson8_pinctrl_dt_match[] = {
 	},
 	{
 		.compatible = "amlogic,meson8-aobus-pinctrl",
+		.data = &meson8_aobus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-cbus-pinctrl",
+		.data = &meson8_cbus_pinctrl_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-aobus-pinctrl",
 		.data = &meson8_aobus_pinctrl_data,
 	},
 	{ },

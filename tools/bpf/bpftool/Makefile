@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 include ../../scripts/Makefile.include
 include ../../scripts/utilities.mak
 
@@ -16,39 +17,52 @@ endif
 BPF_DIR = $(srctree)/tools/lib/bpf/
 
 ifneq ($(OUTPUT),)
-  BPF_PATH = $(OUTPUT)
+  LIBBPF_OUTPUT = $(OUTPUT)/libbpf/
+  LIBBPF_PATH = $(LIBBPF_OUTPUT)
 else
-  BPF_PATH = $(BPF_DIR)
+  LIBBPF_PATH = $(BPF_DIR)
 endif
 
-LIBBPF = $(BPF_PATH)libbpf.a
+LIBBPF = $(LIBBPF_PATH)libbpf.a
 
-BPFTOOL_VERSION=$(shell make --no-print-directory -sC ../../.. kernelversion)
+BPFTOOL_VERSION := $(shell make -rR --no-print-directory -sC ../../.. kernelversion)
 
 $(LIBBPF): FORCE
-	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) $(OUTPUT)libbpf.a FEATURES_DUMP=$(FEATURE_DUMP_EXPORT)
+	$(if $(LIBBPF_OUTPUT),@mkdir -p $(LIBBPF_OUTPUT))
+	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(LIBBPF_OUTPUT) $(LIBBPF_OUTPUT)libbpf.a
 
 $(LIBBPF)-clean:
 	$(call QUIET_CLEAN, libbpf)
-	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(OUTPUT) clean >/dev/null
+	$(Q)$(MAKE) -C $(BPF_DIR) OUTPUT=$(LIBBPF_OUTPUT) clean >/dev/null
 
 prefix ?= /usr/local
 bash_compdir ?= /usr/share/bash-completion/completions
 
-CC = gcc
-
 CFLAGS += -O2
-CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wshadow
-CFLAGS += -DPACKAGE='"bpftool"' -D__EXPORTED_HEADERS__ -I$(srctree)/tools/include/uapi -I$(srctree)/tools/include -I$(srctree)/tools/lib/bpf -I$(srctree)/kernel/bpf/
+CFLAGS += -W -Wall -Wextra -Wno-unused-parameter -Wno-missing-field-initializers
+CFLAGS += $(filter-out -Wswitch-enum,$(EXTRA_WARNINGS))
+CFLAGS += -DPACKAGE='"bpftool"' -D__EXPORTED_HEADERS__ \
+	-I$(srctree)/kernel/bpf/ \
+	-I$(srctree)/tools/include \
+	-I$(srctree)/tools/include/uapi \
+	-I$(srctree)/tools/lib/bpf \
+	-I$(srctree)/tools/perf
 CFLAGS += -DBPFTOOL_VERSION='"$(BPFTOOL_VERSION)"'
-LIBS = -lelf -lbfd -lopcodes $(LIBBPF)
+ifneq ($(EXTRA_CFLAGS),)
+CFLAGS += $(EXTRA_CFLAGS)
+endif
+ifneq ($(EXTRA_LDFLAGS),)
+LDFLAGS += $(EXTRA_LDFLAGS)
+endif
+
+LIBS = $(LIBBPF) -lelf -lz
 
 INSTALL ?= install
 RM ?= rm -f
 
 FEATURE_USER = .bpftool
-FEATURE_TESTS = libbfd disassembler-four-args
-FEATURE_DISPLAY = libbfd disassembler-four-args
+FEATURE_TESTS = libbfd disassembler-four-args reallocarray zlib
+FEATURE_DISPLAY = libbfd disassembler-four-args zlib
 
 check_feat := 1
 NON_CHECK_FEAT_TARGETS := clean uninstall doc doc-clean doc-install doc-uninstall
@@ -70,25 +84,51 @@ ifeq ($(feature-disassembler-four-args), 1)
 CFLAGS += -DDISASM_FOUR_ARGS_SIGNATURE
 endif
 
-include $(wildcard *.d)
+ifeq ($(feature-reallocarray), 0)
+CFLAGS += -DCOMPAT_NEED_REALLOCARRAY
+endif
+
+include $(wildcard $(OUTPUT)*.d)
 
 all: $(OUTPUT)bpftool
 
-SRCS = $(wildcard *.c)
+BFD_SRCS = jit_disasm.c
+
+SRCS = $(filter-out $(BFD_SRCS),$(wildcard *.c))
+
+ifeq ($(feature-libbfd),1)
+  LIBS += -lbfd -ldl -lopcodes
+else ifeq ($(feature-libbfd-liberty),1)
+  LIBS += -lbfd -ldl -lopcodes -liberty
+else ifeq ($(feature-libbfd-liberty-z),1)
+  LIBS += -lbfd -ldl -lopcodes -liberty -lz
+endif
+
+ifneq ($(filter -lbfd,$(LIBS)),)
+CFLAGS += -DHAVE_LIBBFD_SUPPORT
+SRCS += $(BFD_SRCS)
+endif
+
 OBJS = $(patsubst %.c,$(OUTPUT)%.o,$(SRCS)) $(OUTPUT)disasm.o
 
 $(OUTPUT)disasm.o: $(srctree)/kernel/bpf/disasm.c
 	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
 
+$(OUTPUT)feature.o: | zdep
+
 $(OUTPUT)bpftool: $(OBJS) $(LIBBPF)
-	$(QUIET_LINK)$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
 
 $(OUTPUT)%.o: %.c
 	$(QUIET_CC)$(COMPILE.c) -MMD -o $@ $<
 
 clean: $(LIBBPF)-clean
 	$(call QUIET_CLEAN, bpftool)
-	$(Q)$(RM) $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) -- $(OUTPUT)bpftool $(OUTPUT)*.o $(OUTPUT)*.d
+	$(Q)$(RM) -r -- $(OUTPUT)libbpf/
+	$(call QUIET_CLEAN, core-gen)
+	$(Q)$(RM) -- $(OUTPUT)FEATURE-DUMP.bpftool
+	$(Q)$(RM) -r -- $(OUTPUT)feature/
 
 install: $(OUTPUT)bpftool
 	$(call QUIET_INSTALL, bpftool)
@@ -99,8 +139,8 @@ install: $(OUTPUT)bpftool
 
 uninstall:
 	$(call QUIET_UNINST, bpftool)
-	$(Q)$(RM) $(DESTDIR)$(prefix)/sbin/bpftool
-	$(Q)$(RM) $(DESTDIR)$(bash_compdir)/bpftool
+	$(Q)$(RM) -- $(DESTDIR)$(prefix)/sbin/bpftool
+	$(Q)$(RM) -- $(DESTDIR)$(bash_compdir)/bpftool
 
 doc:
 	$(call descend,Documentation)
@@ -116,6 +156,9 @@ doc-uninstall:
 
 FORCE:
 
-.PHONY: all FORCE clean install uninstall
+zdep:
+	@if [ "$(feature-zlib)" != "1" ]; then echo "No zlib found"; exit 1 ; fi
+
+.PHONY: all FORCE clean install uninstall zdep
 .PHONY: doc doc-clean doc-install doc-uninstall
 .DEFAULT_GOAL := all

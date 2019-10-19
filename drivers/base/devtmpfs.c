@@ -25,6 +25,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/kthread.h>
+#include <uapi/linux/mount.h>
 #include "base.h"
 
 static struct task_struct *thread;
@@ -55,20 +56,32 @@ static int __init mount_param(char *str)
 }
 __setup("devtmpfs.mount=", mount_param);
 
-static struct dentry *dev_mount(struct file_system_type *fs_type, int flags,
+static struct vfsmount *mnt;
+
+static struct dentry *public_dev_mount(struct file_system_type *fs_type, int flags,
 		      const char *dev_name, void *data)
 {
-#ifdef CONFIG_TMPFS
-	return mount_single(fs_type, flags, data, shmem_fill_super);
-#else
-	return mount_single(fs_type, flags, data, ramfs_fill_super);
-#endif
+	struct super_block *s = mnt->mnt_sb;
+	atomic_inc(&s->s_active);
+	down_write(&s->s_umount);
+	return dget(s->s_root);
 }
+
+static struct file_system_type internal_fs_type = {
+	.name = "devtmpfs",
+#ifdef CONFIG_TMPFS
+	.init_fs_context = shmem_init_fs_context,
+	.parameters	= &shmem_fs_parameters,
+#else
+	.init_fs_context = ramfs_init_fs_context,
+	.parameters	= &ramfs_fs_parameters,
+#endif
+	.kill_sb = kill_litter_super,
+};
 
 static struct file_system_type dev_fs_type = {
 	.name = "devtmpfs",
-	.mount = dev_mount,
-	.kill_sb = kill_litter_super,
+	.mount = public_dev_mount,
 };
 
 #ifdef CONFIG_BLOCK
@@ -252,7 +265,7 @@ static int dev_rmdir(const char *name)
 
 static int delete_path(const char *nodepath)
 {
-	const char *path;
+	char *path;
 	int err = 0;
 
 	path = kstrdup(nodepath, GFP_KERNEL);
@@ -356,7 +369,7 @@ int devtmpfs_mount(const char *mntdir)
 	if (!thread)
 		return 0;
 
-	err = sys_mount("devtmpfs", (char *)mntdir, "devtmpfs", MS_SILENT, NULL);
+	err = ksys_mount("devtmpfs", mntdir, "devtmpfs", MS_SILENT, NULL);
 	if (err)
 		printk(KERN_INFO "devtmpfs: error mounting %i\n", err);
 	else
@@ -377,16 +390,15 @@ static int handle(const char *name, umode_t mode, kuid_t uid, kgid_t gid,
 
 static int devtmpfsd(void *p)
 {
-	char options[] = "mode=0755";
 	int *err = p;
-	*err = sys_unshare(CLONE_NEWNS);
+	*err = ksys_unshare(CLONE_NEWNS);
 	if (*err)
 		goto out;
-	*err = sys_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, options);
+	*err = ksys_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, NULL);
 	if (*err)
 		goto out;
-	sys_chdir("/.."); /* will traverse into overmounted root */
-	sys_chroot(".");
+	ksys_chdir("/.."); /* will traverse into overmounted root */
+	ksys_chroot(".");
 	complete(&setup_done);
 	while (1) {
 		spin_lock(&req_lock);
@@ -419,7 +431,16 @@ out:
  */
 int __init devtmpfs_init(void)
 {
-	int err = register_filesystem(&dev_fs_type);
+	char opts[] = "mode=0755";
+	int err;
+
+	mnt = vfs_kern_mount(&internal_fs_type, 0, "devtmpfs", opts);
+	if (IS_ERR(mnt)) {
+		printk(KERN_ERR "devtmpfs: unable to create devtmpfs %ld\n",
+				PTR_ERR(mnt));
+		return PTR_ERR(mnt);
+	}
+	err = register_filesystem(&dev_fs_type);
 	if (err) {
 		printk(KERN_ERR "devtmpfs: unable to register devtmpfs "
 		       "type %i\n", err);

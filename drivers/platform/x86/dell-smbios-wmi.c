@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  WMI methods for use with dell-smbios
  *
  *  Copyright (c) 2017 Dell Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -78,11 +75,12 @@ static int run_smbios_call(struct wmi_device *wdev)
 	dev_dbg(&wdev->dev, "result: [%08x,%08x,%08x,%08x]\n",
 		priv->buf->std.output[0], priv->buf->std.output[1],
 		priv->buf->std.output[2], priv->buf->std.output[3]);
+	kfree(output.pointer);
 
 	return 0;
 }
 
-int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
+static int dell_smbios_wmi_call(struct calling_interface_buffer *buffer)
 {
 	struct wmi_smbios_priv *priv;
 	size_t difference;
@@ -145,7 +143,7 @@ fail_smbios_cmd:
 	return ret;
 }
 
-static int dell_smbios_wmi_probe(struct wmi_device *wdev)
+static int dell_smbios_wmi_probe(struct wmi_device *wdev, const void *context)
 {
 	struct wmi_driver *wdriver =
 		container_of(wdev->dev.driver, struct wmi_driver, driver);
@@ -228,7 +226,7 @@ static const struct wmi_device_id dell_smbios_wmi_id_table[] = {
 	{ },
 };
 
-static void __init parse_b1_table(const struct dmi_header *dm)
+static void parse_b1_table(const struct dmi_header *dm)
 {
 	struct misc_bios_flags_structure *flags =
 	container_of(dm, struct misc_bios_flags_structure, header);
@@ -242,7 +240,7 @@ static void __init parse_b1_table(const struct dmi_header *dm)
 		wmi_supported = 1;
 }
 
-static void __init find_b1(const struct dmi_header *dm, void *dummy)
+static void find_b1(const struct dmi_header *dm, void *dummy)
 {
 	switch (dm->type) {
 	case 0xb1: /* misc bios flags */
@@ -261,7 +259,7 @@ static struct wmi_driver dell_smbios_wmi_driver = {
 	.filter_callback = dell_smbios_wmi_filter,
 };
 
-static int __init init_dell_smbios_wmi(void)
+int init_dell_smbios_wmi(void)
 {
 	dmi_walk(find_b1, NULL);
 
@@ -271,15 +269,9 @@ static int __init init_dell_smbios_wmi(void)
 	return wmi_driver_register(&dell_smbios_wmi_driver);
 }
 
-static void __exit exit_dell_smbios_wmi(void)
+void exit_dell_smbios_wmi(void)
 {
 	wmi_driver_unregister(&dell_smbios_wmi_driver);
 }
 
-module_init(init_dell_smbios_wmi);
-module_exit(exit_dell_smbios_wmi);
-
-MODULE_ALIAS("wmi:" DELL_WMI_SMBIOS_GUID);
-MODULE_AUTHOR("Mario Limonciello <mario.limonciello@dell.com>");
-MODULE_DESCRIPTION("Dell SMBIOS communications over WMI");
-MODULE_LICENSE("GPL");
+MODULE_DEVICE_TABLE(wmi, dell_smbios_wmi_id_table);

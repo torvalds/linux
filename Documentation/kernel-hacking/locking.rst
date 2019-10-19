@@ -1,3 +1,5 @@
+.. _kernel_hacking_lock:
+
 ===========================
 Unreliable Guide To Locking
 ===========================
@@ -177,7 +179,7 @@ perfect world).
 
 Note that you can also use :c:func:`spin_lock_irq()` or
 :c:func:`spin_lock_irqsave()` here, which stop hardware interrupts
-as well: see `Hard IRQ Context <#hardirq-context>`__.
+as well: see `Hard IRQ Context <#hard-irq-context>`__.
 
 This works perfectly for UP as well: the spin lock vanishes, and this
 macro simply becomes :c:func:`local_bh_disable()`
@@ -228,7 +230,7 @@ The Same Softirq
 ~~~~~~~~~~~~~~~~
 
 The same softirq can run on the other CPUs: you can use a per-CPU array
-(see `Per-CPU Data <#per-cpu>`__) for better performance. If you're
+(see `Per-CPU Data <#per-cpu-data>`__) for better performance. If you're
 going so far as to use a softirq, you probably care about scalable
 performance enough to justify the extra complexity.
 
@@ -449,7 +451,7 @@ to protect the cache and all the objects within it. Here's the code::
             if ((obj = kmalloc(sizeof(*obj), GFP_KERNEL)) == NULL)
                     return -ENOMEM;
 
-            strlcpy(obj->name, name, sizeof(obj->name));
+            strscpy(obj->name, name, sizeof(obj->name));
             obj->id = id;
             obj->popularity = 0;
 
@@ -658,7 +660,7 @@ Here is the code::
      }
 
     @@ -63,6 +94,7 @@
-             strlcpy(obj->name, name, sizeof(obj->name));
+             strscpy(obj->name, name, sizeof(obj->name));
              obj->id = id;
              obj->popularity = 0;
     +        obj->refcnt = 1; /* The cache holds a reference */
@@ -772,7 +774,7 @@ the lock is no longer used to protect the reference count itself.
      }
 
     @@ -94,7 +76,7 @@
-             strlcpy(obj->name, name, sizeof(obj->name));
+             strscpy(obj->name, name, sizeof(obj->name));
              obj->id = id;
              obj->popularity = 0;
     -        obj->refcnt = 1; /* The cache holds a reference */
@@ -1362,7 +1364,7 @@ Futex API reference
 Further reading
 ===============
 
--  ``Documentation/locking/spinlocks.txt``: Linus Torvalds' spinlocking
+-  ``Documentation/locking/spinlocks.rst``: Linus Torvalds' spinlocking
    tutorial in the kernel sources.
 
 -  Unix Systems for Modern Architectures: Symmetric Multiprocessing and

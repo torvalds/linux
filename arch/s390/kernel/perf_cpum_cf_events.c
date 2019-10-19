@@ -6,6 +6,7 @@
 
 #include <linux/slab.h>
 #include <linux/perf_event.h>
+#include <asm/cpu_mf.h>
 
 
 /* BEGIN: CPUM_CF COUNTER DEFINITIONS =================================== */
@@ -30,22 +31,26 @@ CPUMF_EVENT_ATTR(cf_fvn3, PROBLEM_STATE_CPU_CYCLES, 0x0020);
 CPUMF_EVENT_ATTR(cf_fvn3, PROBLEM_STATE_INSTRUCTIONS, 0x0021);
 CPUMF_EVENT_ATTR(cf_fvn3, L1D_DIR_WRITES, 0x0004);
 CPUMF_EVENT_ATTR(cf_fvn3, L1D_PENALTY_CYCLES, 0x0005);
-CPUMF_EVENT_ATTR(cf_svn_generic, PRNG_FUNCTIONS, 0x0040);
-CPUMF_EVENT_ATTR(cf_svn_generic, PRNG_CYCLES, 0x0041);
-CPUMF_EVENT_ATTR(cf_svn_generic, PRNG_BLOCKED_FUNCTIONS, 0x0042);
-CPUMF_EVENT_ATTR(cf_svn_generic, PRNG_BLOCKED_CYCLES, 0x0043);
-CPUMF_EVENT_ATTR(cf_svn_generic, SHA_FUNCTIONS, 0x0044);
-CPUMF_EVENT_ATTR(cf_svn_generic, SHA_CYCLES, 0x0045);
-CPUMF_EVENT_ATTR(cf_svn_generic, SHA_BLOCKED_FUNCTIONS, 0x0046);
-CPUMF_EVENT_ATTR(cf_svn_generic, SHA_BLOCKED_CYCLES, 0x0047);
-CPUMF_EVENT_ATTR(cf_svn_generic, DEA_FUNCTIONS, 0x0048);
-CPUMF_EVENT_ATTR(cf_svn_generic, DEA_CYCLES, 0x0049);
-CPUMF_EVENT_ATTR(cf_svn_generic, DEA_BLOCKED_FUNCTIONS, 0x004a);
-CPUMF_EVENT_ATTR(cf_svn_generic, DEA_BLOCKED_CYCLES, 0x004b);
-CPUMF_EVENT_ATTR(cf_svn_generic, AES_FUNCTIONS, 0x004c);
-CPUMF_EVENT_ATTR(cf_svn_generic, AES_CYCLES, 0x004d);
-CPUMF_EVENT_ATTR(cf_svn_generic, AES_BLOCKED_FUNCTIONS, 0x004e);
-CPUMF_EVENT_ATTR(cf_svn_generic, AES_BLOCKED_CYCLES, 0x004f);
+CPUMF_EVENT_ATTR(cf_svn_12345, PRNG_FUNCTIONS, 0x0040);
+CPUMF_EVENT_ATTR(cf_svn_12345, PRNG_CYCLES, 0x0041);
+CPUMF_EVENT_ATTR(cf_svn_12345, PRNG_BLOCKED_FUNCTIONS, 0x0042);
+CPUMF_EVENT_ATTR(cf_svn_12345, PRNG_BLOCKED_CYCLES, 0x0043);
+CPUMF_EVENT_ATTR(cf_svn_12345, SHA_FUNCTIONS, 0x0044);
+CPUMF_EVENT_ATTR(cf_svn_12345, SHA_CYCLES, 0x0045);
+CPUMF_EVENT_ATTR(cf_svn_12345, SHA_BLOCKED_FUNCTIONS, 0x0046);
+CPUMF_EVENT_ATTR(cf_svn_12345, SHA_BLOCKED_CYCLES, 0x0047);
+CPUMF_EVENT_ATTR(cf_svn_12345, DEA_FUNCTIONS, 0x0048);
+CPUMF_EVENT_ATTR(cf_svn_12345, DEA_CYCLES, 0x0049);
+CPUMF_EVENT_ATTR(cf_svn_12345, DEA_BLOCKED_FUNCTIONS, 0x004a);
+CPUMF_EVENT_ATTR(cf_svn_12345, DEA_BLOCKED_CYCLES, 0x004b);
+CPUMF_EVENT_ATTR(cf_svn_12345, AES_FUNCTIONS, 0x004c);
+CPUMF_EVENT_ATTR(cf_svn_12345, AES_CYCLES, 0x004d);
+CPUMF_EVENT_ATTR(cf_svn_12345, AES_BLOCKED_FUNCTIONS, 0x004e);
+CPUMF_EVENT_ATTR(cf_svn_12345, AES_BLOCKED_CYCLES, 0x004f);
+CPUMF_EVENT_ATTR(cf_svn_6, ECC_FUNCTION_COUNT, 0x0050);
+CPUMF_EVENT_ATTR(cf_svn_6, ECC_CYCLES_COUNT, 0x0051);
+CPUMF_EVENT_ATTR(cf_svn_6, ECC_BLOCKED_FUNCTION_COUNT, 0x0052);
+CPUMF_EVENT_ATTR(cf_svn_6, ECC_BLOCKED_CYCLES_COUNT, 0x0053);
 CPUMF_EVENT_ATTR(cf_z10, L1I_L2_SOURCED_WRITES, 0x0080);
 CPUMF_EVENT_ATTR(cf_z10, L1D_L2_SOURCED_WRITES, 0x0081);
 CPUMF_EVENT_ATTR(cf_z10, L1I_L3_LOCAL_WRITES, 0x0082);
@@ -123,7 +128,7 @@ CPUMF_EVENT_ATTR(cf_zec12, L1I_OFFBOOK_L3_SOURCED_WRITES_IV, 0x00a1);
 CPUMF_EVENT_ATTR(cf_zec12, TX_NC_TABORT, 0x00b1);
 CPUMF_EVENT_ATTR(cf_zec12, TX_C_TABORT_NO_SPECIAL, 0x00b2);
 CPUMF_EVENT_ATTR(cf_zec12, TX_C_TABORT_SPECIAL, 0x00b3);
-CPUMF_EVENT_ATTR(cf_z13, L1D_WRITES_RO_EXCL, 0x0080);
+CPUMF_EVENT_ATTR(cf_z13, L1D_RO_EXCL_WRITES, 0x0080);
 CPUMF_EVENT_ATTR(cf_z13, DTLB1_WRITES, 0x0081);
 CPUMF_EVENT_ATTR(cf_z13, DTLB1_MISSES, 0x0082);
 CPUMF_EVENT_ATTR(cf_z13, DTLB1_HPAGE_WRITES, 0x0083);
@@ -179,7 +184,7 @@ CPUMF_EVENT_ATTR(cf_z13, TX_C_TABORT_NO_SPECIAL, 0x00db);
 CPUMF_EVENT_ATTR(cf_z13, TX_C_TABORT_SPECIAL, 0x00dc);
 CPUMF_EVENT_ATTR(cf_z13, MT_DIAG_CYCLES_ONE_THR_ACTIVE, 0x01c0);
 CPUMF_EVENT_ATTR(cf_z13, MT_DIAG_CYCLES_TWO_THR_ACTIVE, 0x01c1);
-CPUMF_EVENT_ATTR(cf_z14, L1D_WRITES_RO_EXCL, 0x0080);
+CPUMF_EVENT_ATTR(cf_z14, L1D_RO_EXCL_WRITES, 0x0080);
 CPUMF_EVENT_ATTR(cf_z14, DTLB2_WRITES, 0x0081);
 CPUMF_EVENT_ATTR(cf_z14, DTLB2_MISSES, 0x0082);
 CPUMF_EVENT_ATTR(cf_z14, DTLB2_HPAGE_WRITES, 0x0083);
@@ -261,23 +266,47 @@ static struct attribute *cpumcf_fvn3_pmu_event_attr[] __initdata = {
 	NULL,
 };
 
-static struct attribute *cpumcf_svn_generic_pmu_event_attr[] __initdata = {
-	CPUMF_EVENT_PTR(cf_svn_generic, PRNG_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, PRNG_CYCLES),
-	CPUMF_EVENT_PTR(cf_svn_generic, PRNG_BLOCKED_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, PRNG_BLOCKED_CYCLES),
-	CPUMF_EVENT_PTR(cf_svn_generic, SHA_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, SHA_CYCLES),
-	CPUMF_EVENT_PTR(cf_svn_generic, SHA_BLOCKED_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, SHA_BLOCKED_CYCLES),
-	CPUMF_EVENT_PTR(cf_svn_generic, DEA_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, DEA_CYCLES),
-	CPUMF_EVENT_PTR(cf_svn_generic, DEA_BLOCKED_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, DEA_BLOCKED_CYCLES),
-	CPUMF_EVENT_PTR(cf_svn_generic, AES_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, AES_CYCLES),
-	CPUMF_EVENT_PTR(cf_svn_generic, AES_BLOCKED_FUNCTIONS),
-	CPUMF_EVENT_PTR(cf_svn_generic, AES_BLOCKED_CYCLES),
+static struct attribute *cpumcf_svn_12345_pmu_event_attr[] __initdata = {
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_BLOCKED_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_BLOCKED_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_BLOCKED_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_BLOCKED_CYCLES),
+	NULL,
+};
+
+static struct attribute *cpumcf_svn_6_pmu_event_attr[] __initdata = {
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, PRNG_BLOCKED_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, SHA_BLOCKED_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, DEA_BLOCKED_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_BLOCKED_FUNCTIONS),
+	CPUMF_EVENT_PTR(cf_svn_12345, AES_BLOCKED_CYCLES),
+	CPUMF_EVENT_PTR(cf_svn_6, ECC_FUNCTION_COUNT),
+	CPUMF_EVENT_PTR(cf_svn_6, ECC_CYCLES_COUNT),
+	CPUMF_EVENT_PTR(cf_svn_6, ECC_BLOCKED_FUNCTION_COUNT),
+	CPUMF_EVENT_PTR(cf_svn_6, ECC_BLOCKED_CYCLES_COUNT),
 	NULL,
 };
 
@@ -371,7 +400,7 @@ static struct attribute *cpumcf_zec12_pmu_event_attr[] __initdata = {
 };
 
 static struct attribute *cpumcf_z13_pmu_event_attr[] __initdata = {
-	CPUMF_EVENT_PTR(cf_z13, L1D_WRITES_RO_EXCL),
+	CPUMF_EVENT_PTR(cf_z13, L1D_RO_EXCL_WRITES),
 	CPUMF_EVENT_PTR(cf_z13, DTLB1_WRITES),
 	CPUMF_EVENT_PTR(cf_z13, DTLB1_MISSES),
 	CPUMF_EVENT_PTR(cf_z13, DTLB1_HPAGE_WRITES),
@@ -431,7 +460,7 @@ static struct attribute *cpumcf_z13_pmu_event_attr[] __initdata = {
 };
 
 static struct attribute *cpumcf_z14_pmu_event_attr[] __initdata = {
-	CPUMF_EVENT_PTR(cf_z14, L1D_WRITES_RO_EXCL),
+	CPUMF_EVENT_PTR(cf_z14, L1D_RO_EXCL_WRITES),
 	CPUMF_EVENT_PTR(cf_z14, DTLB2_WRITES),
 	CPUMF_EVENT_PTR(cf_z14, DTLB2_MISSES),
 	CPUMF_EVENT_PTR(cf_z14, DTLB2_HPAGE_WRITES),
@@ -527,7 +556,7 @@ static __init struct attribute **merge_attr(struct attribute **a,
 		j++;
 	j++;
 
-	new = kmalloc(sizeof(struct attribute *) * j, GFP_KERNEL);
+	new = kmalloc_array(j, sizeof(struct attribute *), GFP_KERNEL);
 	if (!new)
 		return NULL;
 	j = 0;
@@ -561,7 +590,18 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 	default:
 		cfvn = none;
 	}
-	csvn = cpumcf_svn_generic_pmu_event_attr;
+
+	/* Determine version specific crypto set */
+	switch (ci.csvn) {
+	case 1 ... 5:
+		csvn = cpumcf_svn_12345_pmu_event_attr;
+		break;
+	case 6:
+		csvn = cpumcf_svn_6_pmu_event_attr;
+		break;
+	default:
+		csvn = none;
+	}
 
 	/* Determine model-specific counter set(s) */
 	get_cpu_id(&cpu_id);
@@ -583,6 +623,9 @@ __init const struct attribute_group **cpumf_cf_event_group(void)
 		model = cpumcf_z13_pmu_event_attr;
 		break;
 	case 0x3906:
+	case 0x3907:
+	case 0x8561:
+	case 0x8562:
 		model = cpumcf_z14_pmu_event_attr;
 		break;
 	default:

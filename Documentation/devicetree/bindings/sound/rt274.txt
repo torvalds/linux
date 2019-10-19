@@ -26,7 +26,7 @@ Pins on the device (for linking into audio routes) for RT274:
 
 Example:
 
-codec: rt274@1c {
+rt274: codec@1c {
 	compatible = "realtek,rt274";
 	reg = <0x1c>;
 	interrupts = <7 IRQ_TYPE_EDGE_FALLING>;

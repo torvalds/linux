@@ -1,9 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "DMABUF options"
 
 config SYNC_FILE
 	bool "Explicit Synchronization Framework"
 	default n
-	select ANON_INODES
 	select DMA_SHARED_BUFFER
 	---help---
 	  The Sync File Framework adds explicit syncronization via
@@ -15,7 +15,7 @@ config SYNC_FILE
 	  associated with a buffer. When a job is submitted to the GPU a fence
 	  is attached to the buffer and is transferred via userspace, using Sync
 	  Files fds, to the DRM driver for example. More details at
-	  Documentation/sync_file.txt.
+	  Documentation/driver-api/sync_file.rst.
 
 config SW_SYNC
 	bool "Sync File Validation Framework"
@@ -29,5 +29,19 @@ config SW_SYNC
 
 	  WARNING: improper use of this can result in deadlocking kernel
 	  drivers from userspace. Intended for test and debug only.
+
+config UDMABUF
+	bool "userspace dmabuf misc driver"
+	default n
+	depends on DMA_SHARED_BUFFER
+	depends on MEMFD_CREATE || COMPILE_TEST
+	help
+	  A driver to let userspace turn memfd regions into dma-bufs.
+	  Qemu can use this to create host dmabufs for guest framebuffers.
+
+config DMABUF_SELFTESTS
+	tristate "Selftests for the dma-buf interfaces"
+	default n
+	depends on DMA_SHARED_BUFFER
 
 endmenu

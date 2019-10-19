@@ -61,8 +61,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_i12_tvbox>;
 
 		red {
 			label = "i12_tvbox:red:usr";
@@ -77,8 +75,6 @@
 
 	reg_vmmc3: vmmc3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&vmmc3_pin_i12_tvbox>;
 		regulator-name = "vmmc3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -88,8 +84,6 @@
 
 	reg_vmmc3_io: vmmc3-io {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&vmmc3_io_pin_i12_tvbox>;
 		regulator-name = "vmmc3-io";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -101,8 +95,6 @@
 
 	reg_gmac_3v3: gmac-3v3 {
 		compatible = "regulator-fixed";
-		pinctrl-names = "default";
-		pinctrl-0 = <&gmac_power_pin_i12_tvbox>;
 		regulator-name = "gmac-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
@@ -122,20 +114,14 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
-	phy = <&phy1>;
+	pinctrl-0 = <&gmac_mii_pins>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	phy-supply = <&reg_gmac_3v3>;
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp209: pmic@34 {
@@ -151,23 +137,24 @@
 
 &ir0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir0_rx_pins_a>;
+	pinctrl-0 = <&ir0_rx_pin>;
 	status = "okay";
 };
 
+&gmac_mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 1 GPIO_ACTIVE_HIGH>; /* PH1 */
-	cd-inverted;
+	cd-gpios = <&pio 7 1 GPIO_ACTIVE_LOW>; /* PH1 */
 	status = "okay";
 };
 
 &mmc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc3_pins_a>;
 	vmmc-supply = <&reg_vmmc3>;
 	bus-width = <4>;
 	non-removable;
@@ -182,39 +169,12 @@
 	};
 };
 
-&mmc3_pins_a {
-	/* AP6210 / AP6330 requires pull-up */
-	bias-pull-up;
-};
-
 &ohci0 {
 	status = "okay";
 };
 
 &ohci1 {
 	status = "okay";
-};
-
-&pio {
-	vmmc3_pin_i12_tvbox: vmmc3_pin@0 {
-		pins = "PH2";
-		function = "gpio_out";
-	};
-
-	vmmc3_io_pin_i12_tvbox: vmmc3_io_pin@0 {
-		pins = "PH12";
-		function = "gpio_out";
-	};
-
-	gmac_power_pin_i12_tvbox: gmac_power_pin@0 {
-		pins = "PH21";
-		function = "gpio_out";
-	};
-
-	led_pins_i12_tvbox: led_pins@0 {
-		pins = "PH9", "PH20";
-		function = "gpio_out";
-	};
 };
 
 &reg_usb1_vbus {
@@ -227,7 +187,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

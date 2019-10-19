@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
 #define _ASM_POWERPC_BOOK3S_32_MMU_HASH_H_
+
 /*
  * 32-bit hash table MMU support
  */
@@ -34,8 +35,12 @@
 #define BAT_PHYS_ADDR(x) ((u32)((x & 0x00000000fffe0000ULL) | \
 				((x & 0x0000000e00000000ULL) >> 24) | \
 				((x & 0x0000000100000000ULL) >> 30)))
+#define PHYS_BAT_ADDR(x) (((u64)(x) & 0x00000000fffe0000ULL) | \
+			  (((u64)(x) << 24) & 0x0000000e00000000ULL) | \
+			  (((u64)(x) << 30) & 0x0000000100000000ULL))
 #else
 #define BAT_PHYS_ADDR(x) (x)
+#define PHYS_BAT_ADDR(x) ((x) & 0xfffe0000)
 #endif
 
 struct ppc_bat {
@@ -53,6 +58,11 @@ struct ppc_bat {
 #define PP_RWRX 1	/* Supervisor read/write, User read */
 #define PP_RWRW 2	/* Supervisor read/write, User read/write */
 #define PP_RXRX 3	/* Supervisor read,       User read */
+
+/* Values for Segment Registers */
+#define SR_NX	0x10000000	/* No Execute */
+#define SR_KP	0x20000000	/* User key */
+#define SR_KS	0x40000000	/* Supervisor key */
 
 #ifndef __ASSEMBLY__
 
@@ -82,6 +92,14 @@ typedef struct {
 	unsigned long id;
 	unsigned long vdso_base;
 } mm_context_t;
+
+void update_bats(void);
+
+/* patch sites */
+extern s32 patch__hash_page_A0, patch__hash_page_A1, patch__hash_page_A2;
+extern s32 patch__hash_page_B, patch__hash_page_C;
+extern s32 patch__flush_hash_A0, patch__flush_hash_A1, patch__flush_hash_A2;
+extern s32 patch__flush_hash_B;
 
 #endif /* !__ASSEMBLY__ */
 

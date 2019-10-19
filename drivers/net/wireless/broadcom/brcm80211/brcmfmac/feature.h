@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2014 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #ifndef _BRCMF_FEATURE_H
 #define _BRCMF_FEATURE_H
@@ -33,6 +22,10 @@
  * MFP: 802.11w Management Frame Protection.
  * GSCAN: enhanced scan offload feature.
  * FWSUP: Firmware supplicant.
+ * MONITOR: firmware can pass monitor packets to host.
+ * MONITOR_FMT_RADIOTAP: firmware provides monitor packets with radiotap header
+ * MONITOR_FMT_HW_RX_HDR: firmware provides monitor packets with hw/ucode header
+ * DOT11H: firmware supports 802.11h
  */
 #define BRCMF_FEAT_LIST \
 	BRCMF_FEAT_DEF(MBSS) \
@@ -48,7 +41,11 @@
 	BRCMF_FEAT_DEF(WOWL_ARP_ND) \
 	BRCMF_FEAT_DEF(MFP) \
 	BRCMF_FEAT_DEF(GSCAN) \
-	BRCMF_FEAT_DEF(FWSUP)
+	BRCMF_FEAT_DEF(FWSUP) \
+	BRCMF_FEAT_DEF(MONITOR) \
+	BRCMF_FEAT_DEF(MONITOR_FMT_RADIOTAP) \
+	BRCMF_FEAT_DEF(MONITOR_FMT_HW_RX_HDR) \
+	BRCMF_FEAT_DEF(DOT11H)
 
 /*
  * Quirks:
@@ -88,6 +85,13 @@ enum brcmf_feat_quirk {
  * @drvr: driver instance.
  */
 void brcmf_feat_attach(struct brcmf_pub *drvr);
+
+/**
+ * brcmf_feat_debugfs_create() - create debugfs entries.
+ *
+ * @drvr: driver instance.
+ */
+void brcmf_feat_debugfs_create(struct brcmf_pub *drvr);
 
 /**
  * brcmf_feat_is_enabled() - query feature.

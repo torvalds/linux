@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /dts-v1/;
@@ -88,12 +80,12 @@
 
 		pinctrl_esdhc1: esdhc1grp {
 			fsl,pins = <
-				MX25_PAD_SD1_CMD__SD1_CMD		0x400000c0
-				MX25_PAD_SD1_CLK__SD1_CLK		0x400000c0
-				MX25_PAD_SD1_DATA0__SD1_DATA0		0x400000c0
-				MX25_PAD_SD1_DATA1__SD1_DATA1		0x400000c0
-				MX25_PAD_SD1_DATA2__SD1_DATA2		0x400000c0
-				MX25_PAD_SD1_DATA3__SD1_DATA3		0x400000c0
+				MX25_PAD_SD1_CMD__ESDHC1_CMD		0x400000c0
+				MX25_PAD_SD1_CLK__ESDHC1_CLK		0x400000c0
+				MX25_PAD_SD1_DATA0__ESDHC1_DAT0		0x400000c0
+				MX25_PAD_SD1_DATA1__ESDHC1_DAT1		0x400000c0
+				MX25_PAD_SD1_DATA2__ESDHC1_DAT2		0x400000c0
+				MX25_PAD_SD1_DATA3__ESDHC1_DAT3		0x400000c0
 			>;
 		};
 

@@ -9,29 +9,24 @@
     |       alpha: | TODO |
     |         arc: |  ..  |
     |         arm: |  ..  |
-    |       arm64: |  ..  |
-    |    blackfin: |  ..  |
+    |       arm64: |  ok  |
     |         c6x: |  ..  |
-    |        cris: |  ..  |
-    |         frv: |  ..  |
+    |        csky: |  ..  |
     |       h8300: |  ..  |
     |     hexagon: |  ..  |
     |        ia64: |  ok  |
-    |        m32r: | TODO |
     |        m68k: |  ..  |
-    |       metag: |  ok  |
     |  microblaze: |  ok  |
     |        mips: |  ok  |
-    |     mn10300: | TODO |
+    |       nds32: | TODO |
     |       nios2: |  ..  |
     |    openrisc: |  ..  |
     |      parisc: |  ..  |
     |     powerpc: |  ok  |
+    |       riscv: |  ok  |
     |        s390: |  ok  |
-    |       score: |  ok  |
     |          sh: |  ok  |
     |       sparc: |  ok  |
-    |        tile: | TODO |
     |          um: |  ..  |
     |   unicore32: |  ..  |
     |         x86: |  ok  |

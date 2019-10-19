@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008-2009 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (c) 2014 Intel Corporation
+ * Author: Tomasz Bursztyka <tomasz.bursztyka@linux.intel.com>
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
 
 #include <linux/kernel.h>
-#include <linux/init.h>
-#include <linux/module.h>
 #include <linux/netlink.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter/nf_tables.h>
@@ -25,10 +22,39 @@
 #include <net/netfilter/nf_tables.h>
 #include <net/netfilter/nf_tables_core.h>
 #include <net/netfilter/nft_meta.h>
+#include <net/netfilter/nf_tables_offload.h>
 
 #include <uapi/linux/netfilter_bridge.h> /* NF_BR_PRE_ROUTING */
 
+#define NFT_META_SECS_PER_MINUTE	60
+#define NFT_META_SECS_PER_HOUR		3600
+#define NFT_META_SECS_PER_DAY		86400
+#define NFT_META_DAYS_PER_WEEK		7
+
 static DEFINE_PER_CPU(struct rnd_state, nft_prandom_state);
+
+static u8 nft_meta_weekday(unsigned long secs)
+{
+	unsigned int dse;
+	u8 wday;
+
+	secs -= NFT_META_SECS_PER_MINUTE * sys_tz.tz_minuteswest;
+	dse = secs / NFT_META_SECS_PER_DAY;
+	wday = (4 + dse) % NFT_META_DAYS_PER_WEEK;
+
+	return wday;
+}
+
+static u32 nft_meta_hour(unsigned long secs)
+{
+	struct tm tm;
+
+	time64_to_tm(secs, 0, &tm);
+
+	return tm.tm_hour * NFT_META_SECS_PER_HOUR
+		+ tm.tm_min * NFT_META_SECS_PER_MINUTE
+		+ tm.tm_sec;
+}
 
 void nft_meta_get_eval(const struct nft_expr *expr,
 		       struct nft_regs *regs,
@@ -62,24 +88,16 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		*dest = skb->mark;
 		break;
 	case NFT_META_IIF:
-		if (in == NULL)
-			goto err;
-		*dest = in->ifindex;
+		*dest = in ? in->ifindex : 0;
 		break;
 	case NFT_META_OIF:
-		if (out == NULL)
-			goto err;
-		*dest = out->ifindex;
+		*dest = out ? out->ifindex : 0;
 		break;
 	case NFT_META_IIFNAME:
-		if (in == NULL)
-			goto err;
-		strncpy((char *)dest, in->name, IFNAMSIZ);
+		strncpy((char *)dest, in ? in->name : "", IFNAMSIZ);
 		break;
 	case NFT_META_OIFNAME:
-		if (out == NULL)
-			goto err;
-		strncpy((char *)dest, out->name, IFNAMSIZ);
+		strncpy((char *)dest, out ? out->name : "", IFNAMSIZ);
 		break;
 	case NFT_META_IIFTYPE:
 		if (in == NULL)
@@ -93,7 +111,8 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 	case NFT_META_SKUID:
 		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk))
+		if (!sk || !sk_fullsock(sk) ||
+		    !net_eq(nft_net(pkt), sock_net(sk)))
 			goto err;
 
 		read_lock_bh(&sk->sk_callback_lock);
@@ -109,7 +128,8 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 		break;
 	case NFT_META_SKGID:
 		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk))
+		if (!sk || !sk_fullsock(sk) ||
+		    !net_eq(nft_net(pkt), sock_net(sk)))
 			goto err;
 
 		read_lock_bh(&sk->sk_callback_lock);
@@ -200,7 +220,8 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 #ifdef CONFIG_CGROUP_NET_CLASSID
 	case NFT_META_CGROUP:
 		sk = skb_to_full_sk(skb);
-		if (!sk || !sk_fullsock(sk))
+		if (!sk || !sk_fullsock(sk) ||
+		    !net_eq(nft_net(pkt), sock_net(sk)))
 			goto err;
 		*dest = sock_cgroup_classid(&sk->sk_cgrp_data);
 		break;
@@ -212,9 +233,28 @@ void nft_meta_get_eval(const struct nft_expr *expr,
 	}
 #ifdef CONFIG_XFRM
 	case NFT_META_SECPATH:
-		nft_reg_store8(dest, !!skb->sp);
+		nft_reg_store8(dest, secpath_exists(skb));
 		break;
 #endif
+	case NFT_META_IIFKIND:
+		if (in == NULL || in->rtnl_link_ops == NULL)
+			goto err;
+		strncpy((char *)dest, in->rtnl_link_ops->kind, IFNAMSIZ);
+		break;
+	case NFT_META_OIFKIND:
+		if (out == NULL || out->rtnl_link_ops == NULL)
+			goto err;
+		strncpy((char *)dest, out->rtnl_link_ops->kind, IFNAMSIZ);
+		break;
+	case NFT_META_TIME_NS:
+		nft_reg_store64(dest, ktime_get_real_ns());
+		break;
+	case NFT_META_TIME_DAY:
+		nft_reg_store8(dest, nft_meta_weekday(get_seconds()));
+		break;
+	case NFT_META_TIME_HOUR:
+		*dest = nft_meta_hour(get_seconds());
+		break;
 	default:
 		WARN_ON(1);
 		goto err;
@@ -234,7 +274,7 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 	struct sk_buff *skb = pkt->skb;
 	u32 *sreg = &regs->data[meta->sreg];
 	u32 value = *sreg;
-	u8 pkt_type;
+	u8 value8;
 
 	switch (meta->key) {
 	case NFT_META_MARK:
@@ -244,16 +284,23 @@ void nft_meta_set_eval(const struct nft_expr *expr,
 		skb->priority = value;
 		break;
 	case NFT_META_PKTTYPE:
-		pkt_type = nft_reg_load8(sreg);
+		value8 = nft_reg_load8(sreg);
 
-		if (skb->pkt_type != pkt_type &&
-		    skb_pkt_type_ok(pkt_type) &&
+		if (skb->pkt_type != value8 &&
+		    skb_pkt_type_ok(value8) &&
 		    skb_pkt_type_ok(skb->pkt_type))
-			skb->pkt_type = pkt_type;
+			skb->pkt_type = value8;
 		break;
 	case NFT_META_NFTRACE:
-		skb->nf_trace = !!value;
+		value8 = nft_reg_load8(sreg);
+
+		skb->nf_trace = !!value8;
 		break;
+#ifdef CONFIG_NETWORK_SECMARK
+	case NFT_META_SECMARK:
+		skb->secmark = value;
+		break;
+#endif
 	default:
 		WARN_ON(1);
 	}
@@ -307,6 +354,8 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 		break;
 	case NFT_META_IIFNAME:
 	case NFT_META_OIFNAME:
+	case NFT_META_IIFKIND:
+	case NFT_META_OIFKIND:
 		len = IFNAMSIZ;
 		break;
 	case NFT_META_PRANDOM:
@@ -318,6 +367,15 @@ int nft_meta_get_init(const struct nft_ctx *ctx,
 		len = sizeof(u8);
 		break;
 #endif
+	case NFT_META_TIME_NS:
+		len = sizeof(u64);
+		break;
+	case NFT_META_TIME_DAY:
+		len = sizeof(u8);
+		break;
+	case NFT_META_TIME_HOUR:
+		len = sizeof(u32);
+		break;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -402,6 +460,9 @@ int nft_meta_set_init(const struct nft_ctx *ctx,
 	switch (priv->key) {
 	case NFT_META_MARK:
 	case NFT_META_PRIORITY:
+#ifdef CONFIG_NETWORK_SECMARK
+	case NFT_META_SECMARK:
+#endif
 		len = sizeof(u32);
 		break;
 	case NFT_META_NFTRACE:
@@ -442,8 +503,7 @@ nla_put_failure:
 }
 EXPORT_SYMBOL_GPL(nft_meta_get_dump);
 
-int nft_meta_set_dump(struct sk_buff *skb,
-		      const struct nft_expr *expr)
+int nft_meta_set_dump(struct sk_buff *skb, const struct nft_expr *expr)
 {
 	const struct nft_meta *priv = nft_expr_priv(expr);
 
@@ -469,7 +529,31 @@ void nft_meta_set_destroy(const struct nft_ctx *ctx,
 }
 EXPORT_SYMBOL_GPL(nft_meta_set_destroy);
 
-static struct nft_expr_type nft_meta_type;
+static int nft_meta_get_offload(struct nft_offload_ctx *ctx,
+				struct nft_flow_rule *flow,
+				const struct nft_expr *expr)
+{
+	const struct nft_meta *priv = nft_expr_priv(expr);
+	struct nft_offload_reg *reg = &ctx->regs[priv->dreg];
+
+	switch (priv->key) {
+	case NFT_META_PROTOCOL:
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_BASIC, basic, n_proto,
+				  sizeof(__u16), reg);
+		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_NETWORK);
+		break;
+	case NFT_META_L4PROTO:
+		NFT_OFFLOAD_MATCH(FLOW_DISSECTOR_KEY_BASIC, basic, ip_proto,
+				  sizeof(__u8), reg);
+		nft_offload_set_dependency(ctx, NFT_OFFLOAD_DEP_TRANSPORT);
+		break;
+	default:
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 static const struct nft_expr_ops nft_meta_get_ops = {
 	.type		= &nft_meta_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_meta)),
@@ -477,6 +561,7 @@ static const struct nft_expr_ops nft_meta_get_ops = {
 	.init		= nft_meta_get_init,
 	.dump		= nft_meta_get_dump,
 	.validate	= nft_meta_get_validate,
+	.offload	= nft_meta_get_offload,
 };
 
 static const struct nft_expr_ops nft_meta_set_ops = {
@@ -499,6 +584,10 @@ nft_meta_select_ops(const struct nft_ctx *ctx,
 	if (tb[NFTA_META_DREG] && tb[NFTA_META_SREG])
 		return ERR_PTR(-EINVAL);
 
+#if IS_ENABLED(CONFIG_NF_TABLES_BRIDGE) && IS_MODULE(CONFIG_NFT_BRIDGE_META)
+	if (ctx->family == NFPROTO_BRIDGE)
+		return ERR_PTR(-EAGAIN);
+#endif
 	if (tb[NFTA_META_DREG])
 		return &nft_meta_get_ops;
 
@@ -508,7 +597,7 @@ nft_meta_select_ops(const struct nft_ctx *ctx,
 	return ERR_PTR(-EINVAL);
 }
 
-static struct nft_expr_type nft_meta_type __read_mostly = {
+struct nft_expr_type nft_meta_type __read_mostly = {
 	.name		= "meta",
 	.select_ops	= nft_meta_select_ops,
 	.policy		= nft_meta_policy,
@@ -516,19 +605,110 @@ static struct nft_expr_type nft_meta_type __read_mostly = {
 	.owner		= THIS_MODULE,
 };
 
-static int __init nft_meta_module_init(void)
+#ifdef CONFIG_NETWORK_SECMARK
+struct nft_secmark {
+	u32 secid;
+	char *ctx;
+};
+
+static const struct nla_policy nft_secmark_policy[NFTA_SECMARK_MAX + 1] = {
+	[NFTA_SECMARK_CTX]     = { .type = NLA_STRING, .len = NFT_SECMARK_CTX_MAXLEN },
+};
+
+static int nft_secmark_compute_secid(struct nft_secmark *priv)
 {
-	return nft_register_expr(&nft_meta_type);
+	u32 tmp_secid = 0;
+	int err;
+
+	err = security_secctx_to_secid(priv->ctx, strlen(priv->ctx), &tmp_secid);
+	if (err)
+		return err;
+
+	if (!tmp_secid)
+		return -ENOENT;
+
+	err = security_secmark_relabel_packet(tmp_secid);
+	if (err)
+		return err;
+
+	priv->secid = tmp_secid;
+	return 0;
 }
 
-static void __exit nft_meta_module_exit(void)
+static void nft_secmark_obj_eval(struct nft_object *obj, struct nft_regs *regs,
+				 const struct nft_pktinfo *pkt)
 {
-	nft_unregister_expr(&nft_meta_type);
+	const struct nft_secmark *priv = nft_obj_data(obj);
+	struct sk_buff *skb = pkt->skb;
+
+	skb->secmark = priv->secid;
 }
 
-module_init(nft_meta_module_init);
-module_exit(nft_meta_module_exit);
+static int nft_secmark_obj_init(const struct nft_ctx *ctx,
+				const struct nlattr * const tb[],
+				struct nft_object *obj)
+{
+	struct nft_secmark *priv = nft_obj_data(obj);
+	int err;
 
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_ALIAS_NFT_EXPR("meta");
+	if (tb[NFTA_SECMARK_CTX] == NULL)
+		return -EINVAL;
+
+	priv->ctx = nla_strdup(tb[NFTA_SECMARK_CTX], GFP_KERNEL);
+	if (!priv->ctx)
+		return -ENOMEM;
+
+	err = nft_secmark_compute_secid(priv);
+	if (err) {
+		kfree(priv->ctx);
+		return err;
+	}
+
+	security_secmark_refcount_inc();
+
+	return 0;
+}
+
+static int nft_secmark_obj_dump(struct sk_buff *skb, struct nft_object *obj,
+				bool reset)
+{
+	struct nft_secmark *priv = nft_obj_data(obj);
+	int err;
+
+	if (nla_put_string(skb, NFTA_SECMARK_CTX, priv->ctx))
+		return -1;
+
+	if (reset) {
+		err = nft_secmark_compute_secid(priv);
+		if (err)
+			return err;
+	}
+
+	return 0;
+}
+
+static void nft_secmark_obj_destroy(const struct nft_ctx *ctx, struct nft_object *obj)
+{
+	struct nft_secmark *priv = nft_obj_data(obj);
+
+	security_secmark_refcount_dec();
+
+	kfree(priv->ctx);
+}
+
+static const struct nft_object_ops nft_secmark_obj_ops = {
+	.type		= &nft_secmark_obj_type,
+	.size		= sizeof(struct nft_secmark),
+	.init		= nft_secmark_obj_init,
+	.eval		= nft_secmark_obj_eval,
+	.dump		= nft_secmark_obj_dump,
+	.destroy	= nft_secmark_obj_destroy,
+};
+struct nft_object_type nft_secmark_obj_type __read_mostly = {
+	.type		= NFT_OBJECT_SECMARK,
+	.ops		= &nft_secmark_obj_ops,
+	.maxattr	= NFTA_SECMARK_MAX,
+	.policy		= nft_secmark_policy,
+	.owner		= THIS_MODULE,
+};
+#endif /* CONFIG_NETWORK_SECMARK */

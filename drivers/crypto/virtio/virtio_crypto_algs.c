@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
  /* Algorithms supported by virtio crypto device
   *
   * Authors: Gonglei <arei.gonglei@huawei.com>
   *
   * Copyright 2016 HUAWEI TECHNOLOGIES CO., LTD.
-  *
-  * This program is free software; you can redistribute it and/or modify
-  * it under the terms of the GNU General Public License as published by
-  * the Free Software Foundation; either version 2 of the License, or
-  * (at your option) any later version.
-  *
-  * This program is distributed in the hope that it will be useful,
-  * but WITHOUT ANY WARRANTY; without even the implied warranty of
-  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  * GNU General Public License for more details.
-  *
-  * You should have received a copy of the GNU General Public License
-  * along with this program; if not, see <http://www.gnu.org/licenses/>.
   */
 
 #include <linux/scatterlist.h>
@@ -29,6 +17,7 @@
 
 
 struct virtio_crypto_ablkcipher_ctx {
+	struct crypto_engine_ctx enginectx;
 	struct virtio_crypto *vcrypto;
 	struct crypto_tfm *tfm;
 
@@ -48,12 +37,18 @@ struct virtio_crypto_sym_request {
 	bool encrypt;
 };
 
+struct virtio_crypto_algo {
+	uint32_t algonum;
+	uint32_t service;
+	unsigned int active_devs;
+	struct crypto_alg algo;
+};
+
 /*
  * The algs_lock protects the below global virtio_crypto_active_devs
  * and crypto algorithms registion.
  */
 static DEFINE_MUTEX(algs_lock);
-static unsigned int virtio_crypto_active_devs;
 static void virtio_crypto_ablkcipher_finalize_req(
 	struct virtio_crypto_sym_request *vc_sym_req,
 	struct ablkcipher_request *req,
@@ -134,12 +129,10 @@ static int virtio_crypto_alg_ablkcipher_init_session(
 	 * Avoid to do DMA from the stack, switch to using
 	 * dynamically-allocated for the key
 	 */
-	uint8_t *cipher_key = kmalloc(keylen, GFP_ATOMIC);
+	uint8_t *cipher_key = kmemdup(key, keylen, GFP_ATOMIC);
 
 	if (!cipher_key)
 		return -ENOMEM;
-
-	memcpy(cipher_key, key, keylen);
 
 	spin_lock(&vcrypto->ctrl_lock);
 	/* Pad ctrl header */
@@ -311,15 +304,21 @@ static int virtio_crypto_ablkcipher_setkey(struct crypto_ablkcipher *tfm,
 					 unsigned int keylen)
 {
 	struct virtio_crypto_ablkcipher_ctx *ctx = crypto_ablkcipher_ctx(tfm);
+	uint32_t alg;
 	int ret;
+
+	ret = virtio_crypto_alg_validate_key(keylen, &alg);
+	if (ret)
+		return ret;
 
 	if (!ctx->vcrypto) {
 		/* New key */
 		int node = virtio_crypto_get_current_node();
 		struct virtio_crypto *vcrypto =
-				      virtcrypto_get_dev_node(node);
+				      virtcrypto_get_dev_node(node,
+				      VIRTIO_CRYPTO_SERVICE_CIPHER, alg);
 		if (!vcrypto) {
-			pr_err("virtio_crypto: Could not find a virtio device in the system\n");
+			pr_err("virtio_crypto: Could not find a virtio device in the system or unsupported algo\n");
 			return -ENODEV;
 		}
 
@@ -370,12 +369,12 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 
 	/* Why 3?  outhdr + iv + inhdr */
 	sg_total = src_nents + dst_nents + 3;
-	sgs = kzalloc_node(sg_total * sizeof(*sgs), GFP_ATOMIC,
+	sgs = kcalloc_node(sg_total, sizeof(*sgs), GFP_KERNEL,
 				dev_to_node(&vcrypto->vdev->dev));
 	if (!sgs)
 		return -ENOMEM;
 
-	req_data = kzalloc_node(sizeof(*req_data), GFP_ATOMIC,
+	req_data = kzalloc_node(sizeof(*req_data), GFP_KERNEL,
 				dev_to_node(&vcrypto->vdev->dev));
 	if (!req_data) {
 		kfree(sgs);
@@ -393,7 +392,7 @@ __virtio_crypto_ablkcipher_do_req(struct virtio_crypto_sym_request *vc_sym_req,
 	} else {
 		req_data->header.session_id =
 			cpu_to_le64(ctx->dec_sess_info.session_id);
-	    req_data->header.opcode =
+		req_data->header.opcode =
 			cpu_to_le32(VIRTIO_CRYPTO_CIPHER_DECRYPT);
 	}
 	req_data->u.sym_req.op_type = cpu_to_le32(VIRTIO_CRYPTO_SYM_OP_CIPHER);
@@ -491,7 +490,7 @@ static int virtio_crypto_ablkcipher_encrypt(struct ablkcipher_request *req)
 	vc_sym_req->ablkcipher_req = req;
 	vc_sym_req->encrypt = true;
 
-	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
+	return crypto_transfer_ablkcipher_request_to_engine(data_vq->engine, req);
 }
 
 static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
@@ -511,7 +510,7 @@ static int virtio_crypto_ablkcipher_decrypt(struct ablkcipher_request *req)
 	vc_sym_req->ablkcipher_req = req;
 	vc_sym_req->encrypt = false;
 
-	return crypto_transfer_cipher_request_to_engine(data_vq->engine, req);
+	return crypto_transfer_ablkcipher_request_to_engine(data_vq->engine, req);
 }
 
 static int virtio_crypto_ablkcipher_init(struct crypto_tfm *tfm)
@@ -521,6 +520,9 @@ static int virtio_crypto_ablkcipher_init(struct crypto_tfm *tfm)
 	tfm->crt_ablkcipher.reqsize = sizeof(struct virtio_crypto_sym_request);
 	ctx->tfm = tfm;
 
+	ctx->enginectx.op.do_one_request = virtio_crypto_ablkcipher_crypt_req;
+	ctx->enginectx.op.prepare_request = NULL;
+	ctx->enginectx.op.unprepare_request = NULL;
 	return 0;
 }
 
@@ -538,9 +540,9 @@ static void virtio_crypto_ablkcipher_exit(struct crypto_tfm *tfm)
 }
 
 int virtio_crypto_ablkcipher_crypt_req(
-	struct crypto_engine *engine,
-	struct ablkcipher_request *req)
+	struct crypto_engine *engine, void *vreq)
 {
+	struct ablkcipher_request *req = container_of(vreq, struct ablkcipher_request, base);
 	struct virtio_crypto_sym_request *vc_sym_req =
 				ablkcipher_request_ctx(req);
 	struct virtio_crypto_request *vc_req = &vc_sym_req->base;
@@ -561,63 +563,91 @@ static void virtio_crypto_ablkcipher_finalize_req(
 	struct ablkcipher_request *req,
 	int err)
 {
-	crypto_finalize_cipher_request(vc_sym_req->base.dataq->engine,
-					req, err);
+	crypto_finalize_ablkcipher_request(vc_sym_req->base.dataq->engine,
+					   req, err);
 	kzfree(vc_sym_req->iv);
 	virtcrypto_clear_request(&vc_sym_req->base);
 }
 
-static struct crypto_alg virtio_crypto_algs[] = { {
-	.cra_name = "cbc(aes)",
-	.cra_driver_name = "virtio_crypto_aes_cbc",
-	.cra_priority = 150,
-	.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-	.cra_blocksize = AES_BLOCK_SIZE,
-	.cra_ctxsize  = sizeof(struct virtio_crypto_ablkcipher_ctx),
-	.cra_alignmask = 0,
-	.cra_module = THIS_MODULE,
-	.cra_type = &crypto_ablkcipher_type,
-	.cra_init = virtio_crypto_ablkcipher_init,
-	.cra_exit = virtio_crypto_ablkcipher_exit,
-	.cra_u = {
-	   .ablkcipher = {
-			.setkey = virtio_crypto_ablkcipher_setkey,
-			.decrypt = virtio_crypto_ablkcipher_decrypt,
-			.encrypt = virtio_crypto_ablkcipher_encrypt,
-			.min_keysize = AES_MIN_KEY_SIZE,
-			.max_keysize = AES_MAX_KEY_SIZE,
-			.ivsize = AES_BLOCK_SIZE,
+static struct virtio_crypto_algo virtio_crypto_algs[] = { {
+	.algonum = VIRTIO_CRYPTO_CIPHER_AES_CBC,
+	.service = VIRTIO_CRYPTO_SERVICE_CIPHER,
+	.algo = {
+		.cra_name = "cbc(aes)",
+		.cra_driver_name = "virtio_crypto_aes_cbc",
+		.cra_priority = 150,
+		.cra_flags = CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_blocksize = AES_BLOCK_SIZE,
+		.cra_ctxsize  = sizeof(struct virtio_crypto_ablkcipher_ctx),
+		.cra_alignmask = 0,
+		.cra_module = THIS_MODULE,
+		.cra_type = &crypto_ablkcipher_type,
+		.cra_init = virtio_crypto_ablkcipher_init,
+		.cra_exit = virtio_crypto_ablkcipher_exit,
+		.cra_u = {
+			.ablkcipher = {
+				.setkey = virtio_crypto_ablkcipher_setkey,
+				.decrypt = virtio_crypto_ablkcipher_decrypt,
+				.encrypt = virtio_crypto_ablkcipher_encrypt,
+				.min_keysize = AES_MIN_KEY_SIZE,
+				.max_keysize = AES_MAX_KEY_SIZE,
+				.ivsize = AES_BLOCK_SIZE,
+			},
 		},
 	},
 } };
 
-int virtio_crypto_algs_register(void)
+int virtio_crypto_algs_register(struct virtio_crypto *vcrypto)
 {
 	int ret = 0;
+	int i = 0;
 
 	mutex_lock(&algs_lock);
-	if (++virtio_crypto_active_devs != 1)
-		goto unlock;
 
-	ret = crypto_register_algs(virtio_crypto_algs,
-			ARRAY_SIZE(virtio_crypto_algs));
-	if (ret)
-		virtio_crypto_active_devs--;
+	for (i = 0; i < ARRAY_SIZE(virtio_crypto_algs); i++) {
+
+		uint32_t service = virtio_crypto_algs[i].service;
+		uint32_t algonum = virtio_crypto_algs[i].algonum;
+
+		if (!virtcrypto_algo_is_supported(vcrypto, service, algonum))
+			continue;
+
+		if (virtio_crypto_algs[i].active_devs == 0) {
+			ret = crypto_register_alg(&virtio_crypto_algs[i].algo);
+			if (ret)
+				goto unlock;
+		}
+
+		virtio_crypto_algs[i].active_devs++;
+		dev_info(&vcrypto->vdev->dev, "Registered algo %s\n",
+			 virtio_crypto_algs[i].algo.cra_name);
+	}
 
 unlock:
 	mutex_unlock(&algs_lock);
 	return ret;
 }
 
-void virtio_crypto_algs_unregister(void)
+void virtio_crypto_algs_unregister(struct virtio_crypto *vcrypto)
 {
+	int i = 0;
+
 	mutex_lock(&algs_lock);
-	if (--virtio_crypto_active_devs != 0)
-		goto unlock;
 
-	crypto_unregister_algs(virtio_crypto_algs,
-			ARRAY_SIZE(virtio_crypto_algs));
+	for (i = 0; i < ARRAY_SIZE(virtio_crypto_algs); i++) {
 
-unlock:
+		uint32_t service = virtio_crypto_algs[i].service;
+		uint32_t algonum = virtio_crypto_algs[i].algonum;
+
+		if (virtio_crypto_algs[i].active_devs == 0 ||
+		    !virtcrypto_algo_is_supported(vcrypto, service, algonum))
+			continue;
+
+		if (virtio_crypto_algs[i].active_devs == 1)
+			crypto_unregister_alg(&virtio_crypto_algs[i].algo);
+
+		virtio_crypto_algs[i].active_devs--;
+	}
+
 	mutex_unlock(&algs_lock);
 }

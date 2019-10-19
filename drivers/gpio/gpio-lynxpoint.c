@@ -1,36 +1,22 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * GPIO controller driver for Intel Lynxpoint PCH chipset>
  * Copyright (c) 2012, Intel Corporation.
  *
  * Author: Mathias Nyman <mathias.nyman@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 
+#include <linux/acpi.h>
+#include <linux/bitops.h>
+#include <linux/gpio/driver.h>
+#include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/init.h>
-#include <linux/types.h>
-#include <linux/bitops.h>
-#include <linux/interrupt.h>
-#include <linux/gpio.h>
-#include <linux/slab.h>
-#include <linux/acpi.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/io.h>
+#include <linux/slab.h>
+#include <linux/types.h>
 
 /* LynxPoint chipset has support for 94 gpio pins */
 
@@ -240,21 +226,23 @@ static void lp_gpio_irq_handler(struct irq_desc *desc)
 	struct gpio_chip *gc = irq_desc_get_handler_data(desc);
 	struct lp_gpio *lg = gpiochip_get_data(gc);
 	struct irq_chip *chip = irq_data_get_irq_chip(data);
-	u32 base, pin, mask;
 	unsigned long reg, ena, pending;
+	u32 base, pin;
 
 	/* check from GPIO controller which pin triggered the interrupt */
 	for (base = 0; base < lg->chip.ngpio; base += 32) {
 		reg = lp_gpio_reg(&lg->chip, base, LP_INT_STAT);
 		ena = lp_gpio_reg(&lg->chip, base, LP_INT_ENABLE);
 
-		while ((pending = (inl(reg) & inl(ena)))) {
+		/* Only interrupts that are enabled */
+		pending = inl(reg) & inl(ena);
+
+		for_each_set_bit(pin, &pending, 32) {
 			unsigned irq;
 
-			pin = __ffs(pending);
-			mask = BIT(pin);
 			/* Clear before handling so we don't lose an edge */
-			outl(mask, reg);
+			outl(BIT(pin), reg);
+
 			irq = irq_find_mapping(lg->chip.irq.domain, base + pin);
 			generic_handle_irq(irq);
 		}
@@ -306,8 +294,9 @@ static struct irq_chip lp_irqchip = {
 	.flags = IRQCHIP_SKIP_SET_WAKE,
 };
 
-static void lp_gpio_irq_init_hw(struct lp_gpio *lg)
+static int lp_gpio_irq_init_hw(struct gpio_chip *chip)
 {
+	struct lp_gpio *lg = gpiochip_get_data(chip);
 	unsigned long reg;
 	unsigned base;
 
@@ -319,6 +308,8 @@ static void lp_gpio_irq_init_hw(struct lp_gpio *lg)
 		reg = lp_gpio_reg(&lg->chip, base, LP_INT_STAT);
 		outl(0xffffffff, reg);
 	}
+
+	return 0;
 }
 
 static int lp_gpio_probe(struct platform_device *pdev)
@@ -370,25 +361,29 @@ static int lp_gpio_probe(struct platform_device *pdev)
 	gc->can_sleep = false;
 	gc->parent = dev;
 
+	/* set up interrupts  */
+	if (irq_rc && irq_rc->start) {
+		struct gpio_irq_chip *girq;
+
+		girq = &gc->irq;
+		girq->chip = &lp_irqchip;
+		girq->init_hw = lp_gpio_irq_init_hw;
+		girq->parent_handler = lp_gpio_irq_handler;
+		girq->num_parents = 1;
+		girq->parents = devm_kcalloc(&pdev->dev, girq->num_parents,
+					     sizeof(*girq->parents),
+					     GFP_KERNEL);
+		if (!girq->parents)
+			return -ENOMEM;
+		girq->parents[0] = (unsigned)irq_rc->start;
+		girq->default_type = IRQ_TYPE_NONE;
+		girq->handler = handle_bad_irq;
+	}
+
 	ret = devm_gpiochip_add_data(dev, gc, lg);
 	if (ret) {
 		dev_err(dev, "failed adding lp-gpio chip\n");
 		return ret;
-	}
-
-	/* set up interrupts  */
-	if (irq_rc && irq_rc->start) {
-		lp_gpio_irq_init_hw(lg);
-		ret = gpiochip_irqchip_add(gc, &lp_irqchip, 0,
-					   handle_simple_irq, IRQ_TYPE_NONE);
-		if (ret) {
-			dev_err(dev, "failed to add irqchip\n");
-			return ret;
-		}
-
-		gpiochip_set_chained_irqchip(gc, &lp_irqchip,
-					     (unsigned)irq_rc->start,
-					     lp_gpio_irq_handler);
 	}
 
 	pm_runtime_enable(dev);
@@ -408,8 +403,7 @@ static int lp_gpio_runtime_resume(struct device *dev)
 
 static int lp_gpio_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct lp_gpio *lg = platform_get_drvdata(pdev);
+	struct lp_gpio *lg = dev_get_drvdata(dev);
 	unsigned long reg;
 	int i;
 
@@ -467,5 +461,5 @@ module_exit(lp_gpio_exit);
 
 MODULE_AUTHOR("Mathias Nyman (Intel)");
 MODULE_DESCRIPTION("GPIO interface for Intel Lynxpoint");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:lp_gpio");

@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config BCM47XX_NVRAM
 	bool "Broadcom NVRAM driver"
-	depends on BCM47XX || ARCH_BCM_5301X
+	depends on BCM47XX || ARCH_BCM_5301X || COMPILE_TEST
 	help
 	  Broadcom home routers contain flash partition called "nvram" with all
 	  important hardware configuration as well as some minor user setup.
@@ -13,6 +14,7 @@ config BCM47XX_NVRAM
 config BCM47XX_SPROM
 	bool "Broadcom SPROM driver"
 	depends on BCM47XX_NVRAM
+	select GENERIC_NET_UTILS
 	help
 	  Broadcom devices store configuration data in SPROM. Accessing it is
 	  specific to the bus host type, e.g. PCI(e) devices have it mapped in

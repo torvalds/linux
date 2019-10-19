@@ -1,0 +1,12 @@
+OSD Displays OSD070T1718-19TS 7" WVGA TFT LCD panel
+
+Required properties:
+- compatible: shall be "osddisplays,osd070t1718-19ts"
+- power-supply: see simple-panel.txt
+
+Optional properties:
+- backlight: see simple-panel.txt
+
+This binding is compatible with the simple-panel binding, which is specified
+in simple-panel.txt in this directory. No other simple-panel properties than
+the ones specified herein are valid.

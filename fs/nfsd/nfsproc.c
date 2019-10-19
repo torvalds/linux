@@ -172,6 +172,7 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	struct nfsd_readargs *argp = rqstp->rq_argp;
 	struct nfsd_readres *resp = rqstp->rq_resp;
 	__be32	nfserr;
+	u32 eof;
 
 	dprintk("nfsd: READ    %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),
@@ -195,7 +196,8 @@ nfsd_proc_read(struct svc_rqst *rqstp)
 	nfserr = nfsd_read(rqstp, fh_copy(&resp->fh, &argp->fh),
 				  argp->offset,
 			   	  rqstp->rq_vec, argp->vlen,
-				  &resp->count);
+				  &resp->count,
+				  &eof);
 
 	if (nfserr) return nfserr;
 	return fh_getattr(&resp->fh, &resp->stat);
@@ -212,13 +214,19 @@ nfsd_proc_write(struct svc_rqst *rqstp)
 	struct nfsd_attrstat *resp = rqstp->rq_resp;
 	__be32	nfserr;
 	unsigned long cnt = argp->len;
+	unsigned int nvecs;
 
 	dprintk("nfsd: WRITE    %s %d bytes at %d\n",
 		SVCFH_fmt(&argp->fh),
 		argp->len, argp->offset);
 
-	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh), argp->offset,
-				rqstp->rq_vec, argp->vlen, &cnt, NFS_DATA_SYNC);
+	nvecs = svc_fill_write_vector(rqstp, rqstp->rq_arg.pages,
+				      &argp->first, cnt);
+	if (!nvecs)
+		return nfserr_io;
+	nfserr = nfsd_write(rqstp, fh_copy(&resp->fh, &argp->fh),
+			    argp->offset, rqstp->rq_vec, nvecs,
+			    &cnt, NFS_DATA_SYNC);
 	return nfsd_return_attrs(nfserr, resp);
 }
 
@@ -444,20 +452,24 @@ nfsd_proc_symlink(struct svc_rqst *rqstp)
 	struct svc_fh	newfh;
 	__be32		nfserr;
 
+	if (argp->tlen > NFS_MAXPATHLEN)
+		return nfserr_nametoolong;
+
+	argp->tname = svc_fill_symlink_pathname(rqstp, &argp->first,
+						page_address(rqstp->rq_arg.pages[0]),
+						argp->tlen);
+	if (IS_ERR(argp->tname))
+		return nfserrno(PTR_ERR(argp->tname));
+
 	dprintk("nfsd: SYMLINK  %s %.*s -> %.*s\n",
 		SVCFH_fmt(&argp->ffh), argp->flen, argp->fname,
 		argp->tlen, argp->tname);
 
 	fh_init(&newfh, NFS_FHSIZE);
-	/*
-	 * Crazy hack: the request fits in a page, and already-decoded
-	 * attributes follow argp->tname, so it's safe to just write a
-	 * null to ensure it's null-terminated:
-	 */
-	argp->tname[argp->tlen] = '\0';
 	nfserr = nfsd_symlink(rqstp, &argp->ffh, argp->fname, argp->flen,
 						 argp->tname, &newfh);
 
+	kfree(argp->tname);
 	fh_put(&argp->ffh);
 	fh_put(&newfh);
 	return nfserr;

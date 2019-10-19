@@ -201,13 +201,12 @@ static int set_gamma(struct fbtft_par *par, u32 *curves)
 		c = i * par->gamma.num_values;
 		for (j = 0; j < par->gamma.num_values; j++)
 			curves[c + j] &= gamma_par_mask[j];
-		write_reg(
-			par, PVGAMCTRL + i,
-			curves[c + 0], curves[c + 1], curves[c + 2],
-			curves[c + 3], curves[c + 4], curves[c + 5],
-			curves[c + 6], curves[c + 7], curves[c + 8],
-			curves[c + 9], curves[c + 10], curves[c + 11],
-			curves[c + 12], curves[c + 13]);
+		write_reg(par, PVGAMCTRL + i,
+			  curves[c + 0],  curves[c + 1],  curves[c + 2],
+			  curves[c + 3],  curves[c + 4],  curves[c + 5],
+			  curves[c + 6],  curves[c + 7],  curves[c + 8],
+			  curves[c + 9],  curves[c + 10], curves[c + 11],
+			  curves[c + 12], curves[c + 13]);
 	}
 	return 0;
 }

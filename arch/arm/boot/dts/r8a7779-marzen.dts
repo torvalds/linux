@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
- * Device Tree Source for the Marzen board
+ * Device Tree Source for the R-Car H1 (R8A77790) Marzen board
  *
  * Copyright (C) 2013 Renesas Solutions Corp.
  * Copyright (C) 2013 Simon Horman
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 /dts-v1/;
@@ -24,7 +21,7 @@
 	};
 
 	chosen {
-		bootargs = "ignore_loglevel root=/dev/nfs ip=on";
+		bootargs = "ignore_loglevel rw root=/dev/nfs ip=on";
 		stdout-path = "serial0:115200n8";
 	};
 
@@ -40,6 +37,19 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-boot-on;
 		regulator-always-on;
+	};
+
+	vccq_sdhi0: regulator-vccq-sdhi0 {
+		compatible = "regulator-gpio";
+
+		regulator-name = "SDHI0 VccQ";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <3300000>;
+
+		gpios = <&gpio3 20 GPIO_ACTIVE_HIGH>;
+		gpios-states = <1>;
+		states = <3300000 1
+			  1800000 0>;
 	};
 
 	ethernet@18000000 {
@@ -243,6 +253,7 @@
 	pinctrl-names = "default";
 
 	vmmc-supply = <&fixedregulator3v3>;
+	vqmmc-supply = <&vccq_sdhi0>;
 	bus-width = <4>;
 	status = "okay";
 };

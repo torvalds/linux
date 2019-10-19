@@ -3,8 +3,6 @@
 Required properties:
 - compatible: Should be "samsung,sxgbe-v2.0a"
 - reg: Address and length of the register set for the device
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the SXGBE interrupts
   These interrupts are ordered by fixed and follows variable
   trasmit DMA interrupts, receive DMA interrupts and lpi interrupt.
@@ -23,9 +21,11 @@ Required properties:
   range.
 
 Optional properties:
-- mac-address: 6 bytes, mac address
 - max-frame-size: Maximum Transfer Unit (IEEE defined MTU), rather
 		  than the maximum frame size.
+
+The MAC address will be determined using the optional properties
+defined in ethernet.txt.
 
 Example:
 

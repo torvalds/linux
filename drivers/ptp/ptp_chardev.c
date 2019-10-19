@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PTP 1588 clock support - character device implementation.
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 #include <linux/module.h>
 #include <linux/posix-clock.h>
@@ -23,6 +10,8 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/timekeeping.h>
+
+#include <linux/nospec.h>
 
 #include "ptp_private.h"
 
@@ -89,6 +78,7 @@ int ptp_set_pinfunc(struct ptp_clock *ptp, unsigned int pin,
 	case PTP_PF_PHYSYNC:
 		if (chan != 0)
 			return -EINVAL;
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -118,23 +108,27 @@ int ptp_open(struct posix_clock *pc, fmode_t fmode)
 
 long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 {
-	struct ptp_clock_caps caps;
-	struct ptp_clock_request req;
-	struct ptp_sys_offset *sysoff = NULL;
-	struct ptp_sys_offset_precise precise_offset;
-	struct ptp_pin_desc pd;
 	struct ptp_clock *ptp = container_of(pc, struct ptp_clock, clock);
-	struct ptp_clock_info *ops = ptp->info;
-	struct ptp_clock_time *pct;
-	struct timespec64 ts;
+	struct ptp_sys_offset_extended *extoff = NULL;
+	struct ptp_sys_offset_precise precise_offset;
 	struct system_device_crosststamp xtstamp;
-	int enable, err = 0;
+	struct ptp_clock_info *ops = ptp->info;
+	struct ptp_sys_offset *sysoff = NULL;
+	struct ptp_system_timestamp sts;
+	struct ptp_clock_request req;
+	struct ptp_clock_caps caps;
+	struct ptp_clock_time *pct;
 	unsigned int i, pin_index;
+	struct ptp_pin_desc pd;
+	struct timespec64 ts;
+	int enable, err = 0;
 
 	switch (cmd) {
 
 	case PTP_CLOCK_GETCAPS:
+	case PTP_CLOCK_GETCAPS2:
 		memset(&caps, 0, sizeof(caps));
+
 		caps.max_adj = ptp->info->max_adj;
 		caps.n_alarm = ptp->info->n_alarm;
 		caps.n_ext_ts = ptp->info->n_ext_ts;
@@ -147,10 +141,23 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_EXTTS_REQUEST:
+	case PTP_EXTTS_REQUEST2:
+		memset(&req, 0, sizeof(req));
+
 		if (copy_from_user(&req.extts, (void __user *)arg,
 				   sizeof(req.extts))) {
 			err = -EFAULT;
 			break;
+		}
+		if (((req.extts.flags & ~PTP_EXTTS_VALID_FLAGS) ||
+			req.extts.rsv[0] || req.extts.rsv[1]) &&
+			cmd == PTP_EXTTS_REQUEST2) {
+			err = -EINVAL;
+			break;
+		} else if (cmd == PTP_EXTTS_REQUEST) {
+			req.extts.flags &= PTP_EXTTS_V1_VALID_FLAGS;
+			req.extts.rsv[0] = 0;
+			req.extts.rsv[1] = 0;
 		}
 		if (req.extts.index >= ops->n_ext_ts) {
 			err = -EINVAL;
@@ -162,10 +169,26 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_PEROUT_REQUEST:
+	case PTP_PEROUT_REQUEST2:
+		memset(&req, 0, sizeof(req));
+
 		if (copy_from_user(&req.perout, (void __user *)arg,
 				   sizeof(req.perout))) {
 			err = -EFAULT;
 			break;
+		}
+		if (((req.perout.flags & ~PTP_PEROUT_VALID_FLAGS) ||
+			req.perout.rsv[0] || req.perout.rsv[1] ||
+			req.perout.rsv[2] || req.perout.rsv[3]) &&
+			cmd == PTP_PEROUT_REQUEST2) {
+			err = -EINVAL;
+			break;
+		} else if (cmd == PTP_PEROUT_REQUEST) {
+			req.perout.flags &= PTP_PEROUT_V1_VALID_FLAGS;
+			req.perout.rsv[0] = 0;
+			req.perout.rsv[1] = 0;
+			req.perout.rsv[2] = 0;
+			req.perout.rsv[3] = 0;
 		}
 		if (req.perout.index >= ops->n_per_out) {
 			err = -EINVAL;
@@ -177,6 +200,9 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_ENABLE_PPS:
+	case PTP_ENABLE_PPS2:
+		memset(&req, 0, sizeof(req));
+
 		if (!capable(CAP_SYS_TIME))
 			return -EPERM;
 		req.type = PTP_CLK_REQ_PPS;
@@ -185,6 +211,7 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_SYS_OFFSET_PRECISE:
+	case PTP_SYS_OFFSET_PRECISE2:
 		if (!ptp->info->getcrosststamp) {
 			err = -EOPNOTSUPP;
 			break;
@@ -208,7 +235,40 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 			err = -EFAULT;
 		break;
 
+	case PTP_SYS_OFFSET_EXTENDED:
+	case PTP_SYS_OFFSET_EXTENDED2:
+		if (!ptp->info->gettimex64) {
+			err = -EOPNOTSUPP;
+			break;
+		}
+		extoff = memdup_user((void __user *)arg, sizeof(*extoff));
+		if (IS_ERR(extoff)) {
+			err = PTR_ERR(extoff);
+			extoff = NULL;
+			break;
+		}
+		if (extoff->n_samples > PTP_MAX_SAMPLES
+		    || extoff->rsv[0] || extoff->rsv[1] || extoff->rsv[2]) {
+			err = -EINVAL;
+			break;
+		}
+		for (i = 0; i < extoff->n_samples; i++) {
+			err = ptp->info->gettimex64(ptp->info, &ts, &sts);
+			if (err)
+				goto out;
+			extoff->ts[i][0].sec = sts.pre_ts.tv_sec;
+			extoff->ts[i][0].nsec = sts.pre_ts.tv_nsec;
+			extoff->ts[i][1].sec = ts.tv_sec;
+			extoff->ts[i][1].nsec = ts.tv_nsec;
+			extoff->ts[i][2].sec = sts.post_ts.tv_sec;
+			extoff->ts[i][2].nsec = sts.post_ts.tv_nsec;
+		}
+		if (copy_to_user((void __user *)arg, extoff, sizeof(*extoff)))
+			err = -EFAULT;
+		break;
+
 	case PTP_SYS_OFFSET:
+	case PTP_SYS_OFFSET2:
 		sysoff = memdup_user((void __user *)arg, sizeof(*sysoff));
 		if (IS_ERR(sysoff)) {
 			err = PTR_ERR(sysoff);
@@ -221,16 +281,21 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		}
 		pct = &sysoff->ts[0];
 		for (i = 0; i < sysoff->n_samples; i++) {
-			getnstimeofday64(&ts);
+			ktime_get_real_ts64(&ts);
 			pct->sec = ts.tv_sec;
 			pct->nsec = ts.tv_nsec;
 			pct++;
-			ptp->info->gettime64(ptp->info, &ts);
+			if (ops->gettimex64)
+				err = ops->gettimex64(ops, &ts, NULL);
+			else
+				err = ops->gettime64(ops, &ts);
+			if (err)
+				goto out;
 			pct->sec = ts.tv_sec;
 			pct->nsec = ts.tv_nsec;
 			pct++;
 		}
-		getnstimeofday64(&ts);
+		ktime_get_real_ts64(&ts);
 		pct->sec = ts.tv_sec;
 		pct->nsec = ts.tv_nsec;
 		if (copy_to_user((void __user *)arg, sysoff, sizeof(*sysoff)))
@@ -238,15 +303,29 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_PIN_GETFUNC:
+	case PTP_PIN_GETFUNC2:
 		if (copy_from_user(&pd, (void __user *)arg, sizeof(pd))) {
 			err = -EFAULT;
 			break;
+		}
+		if ((pd.rsv[0] || pd.rsv[1] || pd.rsv[2]
+				|| pd.rsv[3] || pd.rsv[4])
+			&& cmd == PTP_PIN_GETFUNC2) {
+			err = -EINVAL;
+			break;
+		} else if (cmd == PTP_PIN_GETFUNC) {
+			pd.rsv[0] = 0;
+			pd.rsv[1] = 0;
+			pd.rsv[2] = 0;
+			pd.rsv[3] = 0;
+			pd.rsv[4] = 0;
 		}
 		pin_index = pd.index;
 		if (pin_index >= ops->n_pins) {
 			err = -EINVAL;
 			break;
 		}
+		pin_index = array_index_nospec(pin_index, ops->n_pins);
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))
 			return -ERESTARTSYS;
 		pd = ops->pin_config[pin_index];
@@ -256,15 +335,29 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 
 	case PTP_PIN_SETFUNC:
+	case PTP_PIN_SETFUNC2:
 		if (copy_from_user(&pd, (void __user *)arg, sizeof(pd))) {
 			err = -EFAULT;
 			break;
+		}
+		if ((pd.rsv[0] || pd.rsv[1] || pd.rsv[2]
+				|| pd.rsv[3] || pd.rsv[4])
+			&& cmd == PTP_PIN_SETFUNC2) {
+			err = -EINVAL;
+			break;
+		} else if (cmd == PTP_PIN_SETFUNC) {
+			pd.rsv[0] = 0;
+			pd.rsv[1] = 0;
+			pd.rsv[2] = 0;
+			pd.rsv[3] = 0;
+			pd.rsv[4] = 0;
 		}
 		pin_index = pd.index;
 		if (pin_index >= ops->n_pins) {
 			err = -EINVAL;
 			break;
 		}
+		pin_index = array_index_nospec(pin_index, ops->n_pins);
 		if (mutex_lock_interruptible(&ptp->pincfg_mux))
 			return -ERESTARTSYS;
 		err = ptp_set_pinfunc(ptp, pin_index, pd.func, pd.chan);
@@ -276,6 +369,8 @@ long ptp_ioctl(struct posix_clock *pc, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
+out:
+	kfree(extoff);
 	kfree(sysoff);
 	return err;
 }

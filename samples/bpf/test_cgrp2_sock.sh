@@ -61,6 +61,7 @@ cleanup_and_exit()
 
 	[ -n "$msg" ] && echo "ERROR: $msg"
 
+	test_cgrp2_sock -d ${CGRP_MNT}/sockopts
 	ip li del cgrp2_sock
 	umount ${CGRP_MNT}
 

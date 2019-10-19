@@ -5,7 +5,7 @@
 
 #define pr_fmt(fmt) "### dt-test ### " fmt
 
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/errno.h>
@@ -156,7 +156,7 @@ static void __init of_unittest_dynamic(void)
 	}
 
 	/* Array of 4 properties for the purpose of testing */
-	prop = kzalloc(sizeof(*prop) * 4, GFP_KERNEL);
+	prop = kcalloc(4, sizeof(*prop), GFP_KERNEL);
 	if (!prop) {
 		unittest(0, "kzalloc() failed\n");
 		return;
@@ -165,20 +165,20 @@ static void __init of_unittest_dynamic(void)
 	/* Add a new property - should pass*/
 	prop->name = "new-property";
 	prop->value = "new-property-data";
-	prop->length = strlen(prop->value);
+	prop->length = strlen(prop->value) + 1;
 	unittest(of_add_property(np, prop) == 0, "Adding a new property failed\n");
 
 	/* Try to add an existing property - should fail */
 	prop++;
 	prop->name = "new-property";
 	prop->value = "new-property-data-should-fail";
-	prop->length = strlen(prop->value);
+	prop->length = strlen(prop->value) + 1;
 	unittest(of_add_property(np, prop) != 0,
 		 "Adding an existing property should have failed\n");
 
 	/* Try to modify an existing property - should pass */
 	prop->value = "modify-property-data-should-pass";
-	prop->length = strlen(prop->value);
+	prop->length = strlen(prop->value) + 1;
 	unittest(of_update_property(np, prop) == 0,
 		 "Updating an existing property should have passed\n");
 
@@ -186,7 +186,7 @@ static void __init of_unittest_dynamic(void)
 	prop++;
 	prop->name = "modify-property";
 	prop->value = "modify-missing-property-data-should-pass";
-	prop->length = strlen(prop->value);
+	prop->length = strlen(prop->value) + 1;
 	unittest(of_update_property(np, prop) == 0,
 		 "Updating a missing property should have passed\n");
 
@@ -212,8 +212,8 @@ static int __init of_unittest_check_node_linkage(struct device_node *np)
 
 	for_each_child_of_node(np, child) {
 		if (child->parent != np) {
-			pr_err("Child node %s links to wrong parent %s\n",
-				 child->name, np->name);
+			pr_err("Child node %pOFn links to wrong parent %pOFn\n",
+				 child, np);
 			rc = -EINVAL;
 			goto put_child;
 		}
@@ -252,12 +252,18 @@ static void __init of_unittest_check_tree_linkage(void)
 static void __init of_unittest_printf_one(struct device_node *np, const char *fmt,
 					  const char *expected)
 {
-	unsigned char buf[strlen(expected)+10];
+	unsigned char *buf;
+	int buf_size;
 	int size, i;
 
+	buf_size = strlen(expected) + 10;
+	buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return;
+
 	/* Baseline; check conversion with a large size limit */
-	memset(buf, 0xff, sizeof(buf));
-	size = snprintf(buf, sizeof(buf) - 2, fmt, np);
+	memset(buf, 0xff, buf_size);
+	size = snprintf(buf, buf_size - 2, fmt, np);
 
 	/* use strcmp() instead of strncmp() here to be absolutely sure strings match */
 	unittest((strcmp(buf, expected) == 0) && (buf[size+1] == 0xff),
@@ -268,12 +274,13 @@ static void __init of_unittest_printf_one(struct device_node *np, const char *fm
 	size++;
 	for (i = 0; i < 2; i++, size--) {
 		/* Clear the buffer, and make sure it works correctly still */
-		memset(buf, 0xff, sizeof(buf));
+		memset(buf, 0xff, buf_size);
 		snprintf(buf, size+1, fmt, np);
 		unittest(strncmp(buf, expected, size) == 0 && (buf[size+1] == 0xff),
 			"snprintf failed; size=%i fmt='%s' expected='%s' rslt='%s'\n",
 			size, fmt, expected, buf);
 	}
+	kfree(buf);
 }
 
 static void __init of_unittest_printf(void)
@@ -288,10 +295,14 @@ static void __init of_unittest_printf(void)
 		return;
 	}
 
-	num_to_str(phandle_str, sizeof(phandle_str), np->phandle);
+	num_to_str(phandle_str, sizeof(phandle_str), np->phandle, 0);
 
 	of_unittest_printf_one(np, "%pOF",  full_name);
 	of_unittest_printf_one(np, "%pOFf", full_name);
+	of_unittest_printf_one(np, "%pOFn", "dev");
+	of_unittest_printf_one(np, "%2pOFn", "dev");
+	of_unittest_printf_one(np, "%5pOFn", "  dev");
+	of_unittest_printf_one(np, "%pOFnc", "dev:test-sub-device");
 	of_unittest_printf_one(np, "%pOFp", phandle_str);
 	of_unittest_printf_one(np, "%pOFP", "dev@100");
 	of_unittest_printf_one(np, "ABC %pOFP ABC", "ABC dev@100 ABC");
@@ -333,7 +344,7 @@ static void __init of_unittest_check_phandles(void)
 		}
 
 		nh = kzalloc(sizeof(*nh), GFP_KERNEL);
-		if (WARN_ON(!nh))
+		if (!nh)
 			return;
 
 		nh->np = np;
@@ -368,6 +379,7 @@ static void __init of_unittest_parse_phandle_with_args(void)
 	for (i = 0; i < 8; i++) {
 		bool passed = true;
 
+		memset(&args, 0, sizeof(args));
 		rc = of_parse_phandle_with_args(np, "phandle-list",
 						"#phandle-cells", i, &args);
 
@@ -421,6 +433,7 @@ static void __init of_unittest_parse_phandle_with_args(void)
 	}
 
 	/* Check for missing list property */
+	memset(&args, 0, sizeof(args));
 	rc = of_parse_phandle_with_args(np, "phandle-list-missing",
 					"#phandle-cells", 0, &args);
 	unittest(rc == -ENOENT, "expected:%i got:%i\n", -ENOENT, rc);
@@ -429,6 +442,7 @@ static void __init of_unittest_parse_phandle_with_args(void)
 	unittest(rc == -ENOENT, "expected:%i got:%i\n", -ENOENT, rc);
 
 	/* Check for missing cells property */
+	memset(&args, 0, sizeof(args));
 	rc = of_parse_phandle_with_args(np, "phandle-list",
 					"#phandle-cells-missing", 0, &args);
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
@@ -437,6 +451,7 @@ static void __init of_unittest_parse_phandle_with_args(void)
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 
 	/* Check for bad phandle in list */
+	memset(&args, 0, sizeof(args));
 	rc = of_parse_phandle_with_args(np, "phandle-list-bad-phandle",
 					"#phandle-cells", 0, &args);
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
@@ -445,11 +460,136 @@ static void __init of_unittest_parse_phandle_with_args(void)
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 
 	/* Check for incorrectly formed argument list */
+	memset(&args, 0, sizeof(args));
 	rc = of_parse_phandle_with_args(np, "phandle-list-bad-args",
 					"#phandle-cells", 1, &args);
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 	rc = of_count_phandle_with_args(np, "phandle-list-bad-args",
 					"#phandle-cells");
+	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
+}
+
+static void __init of_unittest_parse_phandle_with_args_map(void)
+{
+	struct device_node *np, *p0, *p1, *p2, *p3;
+	struct of_phandle_args args;
+	int i, rc;
+
+	np = of_find_node_by_path("/testcase-data/phandle-tests/consumer-b");
+	if (!np) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	p0 = of_find_node_by_path("/testcase-data/phandle-tests/provider0");
+	if (!p0) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	p1 = of_find_node_by_path("/testcase-data/phandle-tests/provider1");
+	if (!p1) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	p2 = of_find_node_by_path("/testcase-data/phandle-tests/provider2");
+	if (!p2) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	p3 = of_find_node_by_path("/testcase-data/phandle-tests/provider3");
+	if (!p3) {
+		pr_err("missing testcase data\n");
+		return;
+	}
+
+	rc = of_count_phandle_with_args(np, "phandle-list", "#phandle-cells");
+	unittest(rc == 7, "of_count_phandle_with_args() returned %i, expected 7\n", rc);
+
+	for (i = 0; i < 8; i++) {
+		bool passed = true;
+
+		memset(&args, 0, sizeof(args));
+		rc = of_parse_phandle_with_args_map(np, "phandle-list",
+						    "phandle", i, &args);
+
+		/* Test the values from tests-phandle.dtsi */
+		switch (i) {
+		case 0:
+			passed &= !rc;
+			passed &= (args.np == p1);
+			passed &= (args.args_count == 1);
+			passed &= (args.args[0] == 1);
+			break;
+		case 1:
+			passed &= !rc;
+			passed &= (args.np == p3);
+			passed &= (args.args_count == 3);
+			passed &= (args.args[0] == 2);
+			passed &= (args.args[1] == 5);
+			passed &= (args.args[2] == 3);
+			break;
+		case 2:
+			passed &= (rc == -ENOENT);
+			break;
+		case 3:
+			passed &= !rc;
+			passed &= (args.np == p0);
+			passed &= (args.args_count == 0);
+			break;
+		case 4:
+			passed &= !rc;
+			passed &= (args.np == p1);
+			passed &= (args.args_count == 1);
+			passed &= (args.args[0] == 3);
+			break;
+		case 5:
+			passed &= !rc;
+			passed &= (args.np == p0);
+			passed &= (args.args_count == 0);
+			break;
+		case 6:
+			passed &= !rc;
+			passed &= (args.np == p2);
+			passed &= (args.args_count == 2);
+			passed &= (args.args[0] == 15);
+			passed &= (args.args[1] == 0x20);
+			break;
+		case 7:
+			passed &= (rc == -ENOENT);
+			break;
+		default:
+			passed = false;
+		}
+
+		unittest(passed, "index %i - data error on node %s rc=%i\n",
+			 i, args.np->full_name, rc);
+	}
+
+	/* Check for missing list property */
+	memset(&args, 0, sizeof(args));
+	rc = of_parse_phandle_with_args_map(np, "phandle-list-missing",
+					    "phandle", 0, &args);
+	unittest(rc == -ENOENT, "expected:%i got:%i\n", -ENOENT, rc);
+
+	/* Check for missing cells,map,mask property */
+	memset(&args, 0, sizeof(args));
+	rc = of_parse_phandle_with_args_map(np, "phandle-list",
+					    "phandle-missing", 0, &args);
+	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
+
+	/* Check for bad phandle in list */
+	memset(&args, 0, sizeof(args));
+	rc = of_parse_phandle_with_args_map(np, "phandle-list-bad-phandle",
+					    "phandle", 0, &args);
+	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
+
+	/* Check for incorrectly formed argument list */
+	memset(&args, 0, sizeof(args));
+	rc = of_parse_phandle_with_args_map(np, "phandle-list-bad-args",
+					    "phandle", 1, &args);
 	unittest(rc == -EINVAL, "expected:%i got:%i\n", -EINVAL, rc);
 }
 
@@ -562,41 +702,71 @@ static void __init of_unittest_property_copy(void)
 static void __init of_unittest_changeset(void)
 {
 #ifdef CONFIG_OF_DYNAMIC
-	struct property *ppadd, padd = { .name = "prop-add", .length = 0, .value = "" };
+	struct property *ppadd, padd = { .name = "prop-add", .length = 1, .value = "" };
+	struct property *ppname_n1,  pname_n1  = { .name = "name", .length = 3, .value = "n1"  };
+	struct property *ppname_n2,  pname_n2  = { .name = "name", .length = 3, .value = "n2"  };
+	struct property *ppname_n21, pname_n21 = { .name = "name", .length = 3, .value = "n21" };
 	struct property *ppupdate, pupdate = { .name = "prop-update", .length = 5, .value = "abcd" };
 	struct property *ppremove;
-	struct device_node *n1, *n2, *n21, *nremove, *parent, *np;
+	struct device_node *n1, *n2, *n21, *nchangeset, *nremove, *parent, *np;
 	struct of_changeset chgset;
 
-	n1 = __of_node_dup(NULL, "/testcase-data/changeset/n1");
+	n1 = __of_node_dup(NULL, "n1");
 	unittest(n1, "testcase setup failure\n");
-	n2 = __of_node_dup(NULL, "/testcase-data/changeset/n2");
+
+	n2 = __of_node_dup(NULL, "n2");
 	unittest(n2, "testcase setup failure\n");
-	n21 = __of_node_dup(NULL, "%s/%s", "/testcase-data/changeset/n2", "n21");
+
+	n21 = __of_node_dup(NULL, "n21");
 	unittest(n21, "testcase setup failure %p\n", n21);
-	nremove = of_find_node_by_path("/testcase-data/changeset/node-remove");
+
+	nchangeset = of_find_node_by_path("/testcase-data/changeset");
+	nremove = of_get_child_by_name(nchangeset, "node-remove");
 	unittest(nremove, "testcase setup failure\n");
+
 	ppadd = __of_prop_dup(&padd, GFP_KERNEL);
 	unittest(ppadd, "testcase setup failure\n");
+
+	ppname_n1  = __of_prop_dup(&pname_n1, GFP_KERNEL);
+	unittest(ppname_n1, "testcase setup failure\n");
+
+	ppname_n2  = __of_prop_dup(&pname_n2, GFP_KERNEL);
+	unittest(ppname_n2, "testcase setup failure\n");
+
+	ppname_n21 = __of_prop_dup(&pname_n21, GFP_KERNEL);
+	unittest(ppname_n21, "testcase setup failure\n");
+
 	ppupdate = __of_prop_dup(&pupdate, GFP_KERNEL);
 	unittest(ppupdate, "testcase setup failure\n");
-	parent = nremove->parent;
+
+	parent = nchangeset;
 	n1->parent = parent;
 	n2->parent = parent;
 	n21->parent = n2;
-	n2->child = n21;
+
 	ppremove = of_find_property(parent, "prop-remove", NULL);
 	unittest(ppremove, "failed to find removal prop");
 
 	of_changeset_init(&chgset);
+
 	unittest(!of_changeset_attach_node(&chgset, n1), "fail attach n1\n");
+	unittest(!of_changeset_add_property(&chgset, n1, ppname_n1), "fail add prop name\n");
+
 	unittest(!of_changeset_attach_node(&chgset, n2), "fail attach n2\n");
+	unittest(!of_changeset_add_property(&chgset, n2, ppname_n2), "fail add prop name\n");
+
 	unittest(!of_changeset_detach_node(&chgset, nremove), "fail remove node\n");
+	unittest(!of_changeset_add_property(&chgset, n21, ppname_n21), "fail add prop name\n");
+
 	unittest(!of_changeset_attach_node(&chgset, n21), "fail attach n21\n");
-	unittest(!of_changeset_add_property(&chgset, parent, ppadd), "fail add prop\n");
+
+	unittest(!of_changeset_add_property(&chgset, parent, ppadd), "fail add prop prop-add\n");
 	unittest(!of_changeset_update_property(&chgset, parent, ppupdate), "fail update prop\n");
 	unittest(!of_changeset_remove_property(&chgset, parent, ppremove), "fail remove prop\n");
+
 	unittest(!of_changeset_apply(&chgset), "apply failed\n");
+
+	of_node_put(nchangeset);
 
 	/* Make sure node names are constructed correctly */
 	unittest((np = of_find_node_by_path("/testcase-data/changeset/n2/n21")),
@@ -615,6 +785,9 @@ static void __init of_unittest_parse_interrupts(void)
 	struct of_phandle_args args;
 	int i, rc;
 
+	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
+		return;
+
 	np = of_find_node_by_path("/testcase-data/interrupts/interrupts0");
 	if (!np) {
 		pr_err("missing testcase data\n");
@@ -624,7 +797,7 @@ static void __init of_unittest_parse_interrupts(void)
 	for (i = 0; i < 4; i++) {
 		bool passed = true;
 
-		args.args_count = 0;
+		memset(&args, 0, sizeof(args));
 		rc = of_irq_parse_one(np, i, &args);
 
 		passed &= !rc;
@@ -645,7 +818,7 @@ static void __init of_unittest_parse_interrupts(void)
 	for (i = 0; i < 4; i++) {
 		bool passed = true;
 
-		args.args_count = 0;
+		memset(&args, 0, sizeof(args));
 		rc = of_irq_parse_one(np, i, &args);
 
 		/* Test the values from tests-phandle.dtsi */
@@ -689,6 +862,9 @@ static void __init of_unittest_parse_interrupts_extended(void)
 	struct of_phandle_args args;
 	int i, rc;
 
+	if (of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)
+		return;
+
 	np = of_find_node_by_path("/testcase-data/interrupts/interrupts-extended0");
 	if (!np) {
 		pr_err("missing testcase data\n");
@@ -698,6 +874,7 @@ static void __init of_unittest_parse_interrupts_extended(void)
 	for (i = 0; i < 7; i++) {
 		bool passed = true;
 
+		memset(&args, 0, sizeof(args));
 		rc = of_irq_parse_one(np, i, &args);
 
 		/* Test the values from tests-phandle.dtsi */
@@ -845,15 +1022,19 @@ static void __init of_unittest_platform_populate(void)
 	pdev = of_find_device_by_node(np);
 	unittest(pdev, "device 1 creation failed\n");
 
-	irq = platform_get_irq(pdev, 0);
-	unittest(irq == -EPROBE_DEFER, "device deferred probe failed - %d\n", irq);
+	if (!(of_irq_workarounds & OF_IMAP_OLDWORLD_MAC)) {
+		irq = platform_get_irq(pdev, 0);
+		unittest(irq == -EPROBE_DEFER,
+			 "device deferred probe failed - %d\n", irq);
 
-	/* Test that a parsing failure does not return -EPROBE_DEFER */
-	np = of_find_node_by_path("/testcase-data/testcase-device2");
-	pdev = of_find_device_by_node(np);
-	unittest(pdev, "device 2 creation failed\n");
-	irq = platform_get_irq(pdev, 0);
-	unittest(irq < 0 && irq != -EPROBE_DEFER, "device parsing error failed - %d\n", irq);
+		/* Test that a parsing failure does not return -EPROBE_DEFER */
+		np = of_find_node_by_path("/testcase-data/testcase-device2");
+		pdev = of_find_device_by_node(np);
+		unittest(pdev, "device 2 creation failed\n");
+		irq = platform_get_irq(pdev, 0);
+		unittest(irq < 0 && irq != -EPROBE_DEFER,
+			 "device parsing error failed - %d\n", irq);
+	}
 
 	np = of_find_node_by_path("/testcase-data/platform-tests");
 	unittest(np, "No testcase data in device tree\n");
@@ -863,8 +1044,10 @@ static void __init of_unittest_platform_populate(void)
 	test_bus = platform_device_register_full(&test_bus_info);
 	rc = PTR_ERR_OR_ZERO(test_bus);
 	unittest(!rc, "testbus registration failed; rc=%i\n", rc);
-	if (rc)
+	if (rc) {
+		of_node_put(np);
 		return;
+	}
 	test_bus->dev.of_node = np;
 
 	/*
@@ -880,16 +1063,16 @@ static void __init of_unittest_platform_populate(void)
 	for_each_child_of_node(np, child) {
 		for_each_child_of_node(child, grandchild)
 			unittest(of_find_device_by_node(grandchild),
-				 "Could not create device for node '%s'\n",
-				 grandchild->name);
+				 "Could not create device for node '%pOFn'\n",
+				 grandchild);
 	}
 
 	of_platform_depopulate(&test_bus->dev);
 	for_each_child_of_node(np, child) {
 		for_each_child_of_node(child, grandchild)
 			unittest(!of_find_device_by_node(grandchild),
-				 "device didn't get destroyed '%s'\n",
-				 grandchild->name);
+				 "device didn't get destroyed '%pOFn'\n",
+				 grandchild);
 	}
 
 	platform_device_unregister(test_bus);
@@ -901,40 +1084,76 @@ static void __init of_unittest_platform_populate(void)
  *	of np into dup node (present in live tree) and
  *	updates parent of children of np to dup.
  *
- *	@np:	node already present in live tree
+ *	@np:	node whose properties are being added to the live tree
  *	@dup:	node present in live tree to be updated
  */
 static void update_node_properties(struct device_node *np,
 					struct device_node *dup)
 {
 	struct property *prop;
+	struct property *save_next;
 	struct device_node *child;
-
-	for_each_property_of_node(np, prop)
-		of_add_property(dup, prop);
+	int ret;
 
 	for_each_child_of_node(np, child)
 		child->parent = dup;
+
+	/*
+	 * "unittest internal error: unable to add testdata property"
+	 *
+	 *    If this message reports a property in node '/__symbols__' then
+	 *    the respective unittest overlay contains a label that has the
+	 *    same name as a label in the live devicetree.  The label will
+	 *    be in the live devicetree only if the devicetree source was
+	 *    compiled with the '-@' option.  If you encounter this error,
+	 *    please consider renaming __all__ of the labels in the unittest
+	 *    overlay dts files with an odd prefix that is unlikely to be
+	 *    used in a real devicetree.
+	 */
+
+	/*
+	 * open code for_each_property_of_node() because of_add_property()
+	 * sets prop->next to NULL
+	 */
+	for (prop = np->properties; prop != NULL; prop = save_next) {
+		save_next = prop->next;
+		ret = of_add_property(dup, prop);
+		if (ret) {
+			if (ret == -EEXIST && !strcmp(prop->name, "name"))
+				continue;
+			pr_err("unittest internal error: unable to add testdata property %pOF/%s",
+			       np, prop->name);
+		}
+	}
 }
 
 /**
  *	attach_node_and_children - attaches nodes
- *	and its children to live tree
+ *	and its children to live tree.
+ *	CAUTION: misleading function name - if node @np already exists in
+ *	the live tree then children of @np are *not* attached to the live
+ *	tree.  This works for the current test devicetree nodes because such
+ *	nodes do not have child nodes.
  *
  *	@np:	Node to attach to live tree
  */
-static int attach_node_and_children(struct device_node *np)
+static void attach_node_and_children(struct device_node *np)
 {
 	struct device_node *next, *dup, *child;
 	unsigned long flags;
 	const char *full_name;
 
 	full_name = kasprintf(GFP_KERNEL, "%pOF", np);
+
+	if (!strcmp(full_name, "/__local_fixups__") ||
+	    !strcmp(full_name, "/__fixups__"))
+		return;
+
 	dup = of_find_node_by_path(full_name);
 	kfree(full_name);
 	if (dup) {
 		update_node_properties(np, dup);
-		return 0;
+		return;
 	}
 
 	child = np->child;
@@ -955,8 +1174,6 @@ static int attach_node_and_children(struct device_node *np)
 		attach_node_and_children(child);
 		child = next;
 	}
-
-	return 0;
 }
 
 /**
@@ -984,12 +1201,9 @@ static int __init unittest_data_add(void)
 
 	/* creating copy */
 	unittest_data = kmemdup(__dtb_testcases_begin, size, GFP_KERNEL);
-
-	if (!unittest_data) {
-		pr_warn("%s: Failed to allocate memory for unittest_data; "
-			"not running tests\n", __func__);
+	if (!unittest_data)
 		return -ENOMEM;
-	}
+
 	of_fdt_unflatten_tree(unittest_data, NULL, &unittest_data_node);
 	if (!unittest_data_node) {
 		pr_warn("%s: No tree to attach; not running tests\n", __func__);
@@ -997,8 +1211,7 @@ static int __init unittest_data_add(void)
 	}
 
 	/*
-	 * This lock normally encloses of_overlay_apply() as well as
-	 * of_resolve_phandles().
+	 * This lock normally encloses of_resolve_phandles()
 	 */
 	of_overlay_mutex_lock();
 
@@ -1035,6 +1248,7 @@ static int __init unittest_data_add(void)
 }
 
 #ifdef CONFIG_OF_OVERLAY
+static int __init overlay_data_apply(const char *overlay_name, int *overlay_id);
 
 static int unittest_probe(struct platform_device *pdev)
 {
@@ -1191,12 +1405,12 @@ static int of_unittest_device_exists(int unittest_nr, enum overlay_type ovtype)
 	return 0;
 }
 
-static const char *overlay_path(int nr)
+static const char *overlay_name_from_nr(int nr)
 {
 	static char buf[256];
 
 	snprintf(buf, sizeof(buf) - 1,
-		"/testcase-data/overlay%d", nr);
+		"overlay_%d", nr);
 	buf[sizeof(buf) - 1] = '\0';
 
 	return buf;
@@ -1263,54 +1477,40 @@ static void of_unittest_destroy_tracked_overlays(void)
 	} while (defers > 0);
 }
 
-static int of_unittest_apply_overlay(int overlay_nr, int unittest_nr,
-		int *overlay_id)
+static int __init of_unittest_apply_overlay(int overlay_nr, int *overlay_id)
 {
-	struct device_node *np = NULL;
-	int ret;
+	const char *overlay_name;
 
-	np = of_find_node_by_path(overlay_path(overlay_nr));
-	if (np == NULL) {
-		unittest(0, "could not find overlay node @\"%s\"\n",
-				overlay_path(overlay_nr));
-		ret = -EINVAL;
-		goto out;
-	}
+	overlay_name = overlay_name_from_nr(overlay_nr);
 
-	*overlay_id = 0;
-	ret = of_overlay_apply(np, overlay_id);
-	if (ret < 0) {
-		unittest(0, "could not create overlay from \"%s\"\n",
-				overlay_path(overlay_nr));
-		goto out;
+	if (!overlay_data_apply(overlay_name, overlay_id)) {
+		unittest(0, "could not apply overlay \"%s\"\n",
+				overlay_name);
+		return -EFAULT;
 	}
 	of_unittest_track_overlay(*overlay_id);
 
-	ret = 0;
-
-out:
-	of_node_put(np);
-
-	return ret;
+	return 0;
 }
 
 /* apply an overlay while checking before and after states */
-static int of_unittest_apply_overlay_check(int overlay_nr, int unittest_nr,
-		int before, int after, enum overlay_type ovtype)
+static int __init of_unittest_apply_overlay_check(int overlay_nr,
+		int unittest_nr, int before, int after,
+		enum overlay_type ovtype)
 {
 	int ret, ovcs_id;
 
 	/* unittest device must not be in before state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != before) {
-		unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s with device @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
 	}
 
 	ovcs_id = 0;
-	ret = of_unittest_apply_overlay(overlay_nr, unittest_nr, &ovcs_id);
+	ret = of_unittest_apply_overlay(overlay_nr, &ovcs_id);
 	if (ret != 0) {
 		/* of_unittest_apply_overlay already called unittest() */
 		return ret;
@@ -1318,8 +1518,8 @@ static int of_unittest_apply_overlay_check(int overlay_nr, int unittest_nr,
 
 	/* unittest device must be to set to after state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != after) {
-		unittest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s failed to create @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!after ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1329,7 +1529,7 @@ static int of_unittest_apply_overlay_check(int overlay_nr, int unittest_nr,
 }
 
 /* apply an overlay and then revert it while checking before, after states */
-static int of_unittest_apply_revert_overlay_check(int overlay_nr,
+static int __init of_unittest_apply_revert_overlay_check(int overlay_nr,
 		int unittest_nr, int before, int after,
 		enum overlay_type ovtype)
 {
@@ -1337,8 +1537,8 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	/* unittest device must be in before state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != before) {
-		unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s with device @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1346,7 +1546,7 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	/* apply the overlay */
 	ovcs_id = 0;
-	ret = of_unittest_apply_overlay(overlay_nr, unittest_nr, &ovcs_id);
+	ret = of_unittest_apply_overlay(overlay_nr, &ovcs_id);
 	if (ret != 0) {
 		/* of_unittest_apply_overlay already called unittest() */
 		return ret;
@@ -1354,8 +1554,8 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	/* unittest device must be in after state */
 	if (of_unittest_device_exists(unittest_nr, ovtype) != after) {
-		unittest(0, "overlay @\"%s\" failed to create @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s failed to create @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!after ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1363,16 +1563,16 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 
 	ret = of_overlay_remove(&ovcs_id);
 	if (ret != 0) {
-		unittest(0, "overlay @\"%s\" failed to be destroyed @\"%s\"\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s failed to be destroyed @\"%s\"\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype));
 		return ret;
 	}
 
 	/* unittest device must be again in before state */
 	if (of_unittest_device_exists(unittest_nr, PDEV_OVERLAY) != before) {
-		unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-				overlay_path(overlay_nr),
+		unittest(0, "%s with device @\"%s\" %s\n",
+				overlay_name_from_nr(overlay_nr),
 				unittest_path(unittest_nr, ovtype),
 				!before ? "enabled" : "disabled");
 		return -EINVAL;
@@ -1382,97 +1582,79 @@ static int of_unittest_apply_revert_overlay_check(int overlay_nr,
 }
 
 /* test activation of device */
-static void of_unittest_overlay_0(void)
+static void __init of_unittest_overlay_0(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(0, 0, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(0, 0, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 0);
 }
 
 /* test deactivation of device */
-static void of_unittest_overlay_1(void)
+static void __init of_unittest_overlay_1(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(1, 1, 1, 0, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(1, 1, 1, 0, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 1);
 }
 
 /* test activation of device */
-static void of_unittest_overlay_2(void)
+static void __init of_unittest_overlay_2(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(2, 2, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(2, 2, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 2);
 }
 
 /* test deactivation of device */
-static void of_unittest_overlay_3(void)
+static void __init of_unittest_overlay_3(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(3, 3, 1, 0, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(3, 3, 1, 0, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 3);
 }
 
 /* test activation of a full device node */
-static void of_unittest_overlay_4(void)
+static void __init of_unittest_overlay_4(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(4, 4, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(4, 4, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 4);
 }
 
 /* test overlay apply/revert sequence */
-static void of_unittest_overlay_5(void)
+static void __init of_unittest_overlay_5(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_revert_overlay_check(5, 5, 0, 1, PDEV_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_revert_overlay_check(5, 5, 0, 1, PDEV_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 5);
 }
 
 /* test overlay application in sequence */
-static void of_unittest_overlay_6(void)
+static void __init of_unittest_overlay_6(void)
 {
-	struct device_node *np;
-	int ret, i, ov_id[2], ovcs_id;
+	int i, ov_id[2], ovcs_id;
 	int overlay_nr = 6, unittest_nr = 6;
 	int before = 0, after = 1;
+	const char *overlay_name;
 
 	/* unittest device must be in before state */
 	for (i = 0; i < 2; i++) {
 		if (of_unittest_device_exists(unittest_nr + i, PDEV_OVERLAY)
 				!= before) {
-			unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-					overlay_path(overlay_nr + i),
+			unittest(0, "%s with device @\"%s\" %s\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY),
 					!before ? "enabled" : "disabled");
@@ -1483,18 +1665,11 @@ static void of_unittest_overlay_6(void)
 	/* apply the overlays */
 	for (i = 0; i < 2; i++) {
 
-		np = of_find_node_by_path(overlay_path(overlay_nr + i));
-		if (np == NULL) {
-			unittest(0, "could not find overlay node @\"%s\"\n",
-					overlay_path(overlay_nr + i));
-			return;
-		}
+		overlay_name = overlay_name_from_nr(overlay_nr + i);
 
-		ovcs_id = 0;
-		ret = of_overlay_apply(np, &ovcs_id);
-		if (ret < 0)  {
-			unittest(0, "could not create overlay from \"%s\"\n",
-					overlay_path(overlay_nr + i));
+		if (!overlay_data_apply(overlay_name, &ovcs_id)) {
+			unittest(0, "could not apply overlay \"%s\"\n",
+					overlay_name);
 			return;
 		}
 		ov_id[i] = ovcs_id;
@@ -1506,7 +1681,7 @@ static void of_unittest_overlay_6(void)
 		if (of_unittest_device_exists(unittest_nr + i, PDEV_OVERLAY)
 				!= after) {
 			unittest(0, "overlay @\"%s\" failed @\"%s\" %s\n",
-					overlay_path(overlay_nr + i),
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY),
 					!after ? "enabled" : "disabled");
@@ -1516,10 +1691,9 @@ static void of_unittest_overlay_6(void)
 
 	for (i = 1; i >= 0; i--) {
 		ovcs_id = ov_id[i];
-		ret = of_overlay_remove(&ovcs_id);
-		if (ret != 0) {
-			unittest(0, "overlay @\"%s\" failed destroy @\"%s\"\n",
-					overlay_path(overlay_nr + i),
+		if (of_overlay_remove(&ovcs_id)) {
+			unittest(0, "%s failed destroy @\"%s\"\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY));
 			return;
@@ -1531,8 +1705,8 @@ static void of_unittest_overlay_6(void)
 		/* unittest device must be again in before state */
 		if (of_unittest_device_exists(unittest_nr + i, PDEV_OVERLAY)
 				!= before) {
-			unittest(0, "overlay @\"%s\" with device @\"%s\" %s\n",
-					overlay_path(overlay_nr + i),
+			unittest(0, "%s with device @\"%s\" %s\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr + i,
 						PDEV_OVERLAY),
 					!before ? "enabled" : "disabled");
@@ -1544,29 +1718,22 @@ static void of_unittest_overlay_6(void)
 }
 
 /* test overlay application in sequence */
-static void of_unittest_overlay_8(void)
+static void __init of_unittest_overlay_8(void)
 {
-	struct device_node *np;
-	int ret, i, ov_id[2], ovcs_id;
+	int i, ov_id[2], ovcs_id;
 	int overlay_nr = 8, unittest_nr = 8;
+	const char *overlay_name;
 
 	/* we don't care about device state in this test */
 
 	/* apply the overlays */
 	for (i = 0; i < 2; i++) {
 
-		np = of_find_node_by_path(overlay_path(overlay_nr + i));
-		if (np == NULL) {
-			unittest(0, "could not find overlay node @\"%s\"\n",
-					overlay_path(overlay_nr + i));
-			return;
-		}
+		overlay_name = overlay_name_from_nr(overlay_nr + i);
 
-		ovcs_id = 0;
-		ret = of_overlay_apply(np, &ovcs_id);
-		if (ret < 0)  {
-			unittest(0, "could not create overlay from \"%s\"\n",
-					overlay_path(overlay_nr + i));
+		if (!overlay_data_apply(overlay_name, &ovcs_id)) {
+			unittest(0, "could not apply overlay \"%s\"\n",
+					overlay_name);
 			return;
 		}
 		ov_id[i] = ovcs_id;
@@ -1575,10 +1742,9 @@ static void of_unittest_overlay_8(void)
 
 	/* now try to remove first overlay (it should fail) */
 	ovcs_id = ov_id[0];
-	ret = of_overlay_remove(&ovcs_id);
-	if (ret == 0) {
-		unittest(0, "overlay @\"%s\" was destroyed @\"%s\"\n",
-				overlay_path(overlay_nr + 0),
+	if (!of_overlay_remove(&ovcs_id)) {
+		unittest(0, "%s was destroyed @\"%s\"\n",
+				overlay_name_from_nr(overlay_nr + 0),
 				unittest_path(unittest_nr,
 					PDEV_OVERLAY));
 		return;
@@ -1587,10 +1753,9 @@ static void of_unittest_overlay_8(void)
 	/* removing them in order should work */
 	for (i = 1; i >= 0; i--) {
 		ovcs_id = ov_id[i];
-		ret = of_overlay_remove(&ovcs_id);
-		if (ret != 0) {
-			unittest(0, "overlay @\"%s\" not destroyed @\"%s\"\n",
-					overlay_path(overlay_nr + i),
+		if (of_overlay_remove(&ovcs_id)) {
+			unittest(0, "%s not destroyed @\"%s\"\n",
+					overlay_name_from_nr(overlay_nr + i),
 					unittest_path(unittest_nr,
 						PDEV_OVERLAY));
 			return;
@@ -1602,7 +1767,7 @@ static void of_unittest_overlay_8(void)
 }
 
 /* test insertion of a bus with parent devices */
-static void of_unittest_overlay_10(void)
+static void __init of_unittest_overlay_10(void)
 {
 	int ret;
 	char *child_path;
@@ -1620,21 +1785,19 @@ static void of_unittest_overlay_10(void)
 
 	ret = of_path_device_type_exists(child_path, PDEV_OVERLAY);
 	kfree(child_path);
-	if (unittest(ret, "overlay test %d failed; no child device\n", 10))
-		return;
+
+	unittest(ret, "overlay test %d failed; no child device\n", 10);
 }
 
 /* test insertion of a bus with parent devices (and revert) */
-static void of_unittest_overlay_11(void)
+static void __init of_unittest_overlay_11(void)
 {
 	int ret;
 
 	/* device should disable */
 	ret = of_unittest_apply_revert_overlay_check(11, 11, 0, 1,
 			PDEV_OVERLAY);
-	if (unittest(ret == 0,
-			"overlay test %d failed; overlay application\n", 11))
-		return;
+	unittest(ret == 0, "overlay test %d failed; overlay apply\n", 11);
 }
 
 #if IS_BUILTIN(CONFIG_I2C) && IS_ENABLED(CONFIG_OF_OVERLAY)
@@ -1681,10 +1844,8 @@ static int unittest_i2c_bus_probe(struct platform_device *pdev)
 	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
 
 	std = devm_kzalloc(dev, sizeof(*std), GFP_KERNEL);
-	if (!std) {
-		dev_err(dev, "Failed to allocate unittest i2c data\n");
+	if (!std)
 		return -ENOMEM;
-	}
 
 	/* link them together */
 	std->pdev = pdev;
@@ -1785,9 +1946,9 @@ static int unittest_i2c_mux_select_chan(struct i2c_mux_core *muxc, u32 chan)
 static int unittest_i2c_mux_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
-	int ret, i, nchans;
+	int i, nchans;
 	struct device *dev = &client->dev;
-	struct i2c_adapter *adap = to_i2c_adapter(dev->parent);
+	struct i2c_adapter *adap = client->adapter;
 	struct device_node *np = client->dev.of_node, *child;
 	struct i2c_mux_core *muxc;
 	u32 reg, max_reg;
@@ -1801,8 +1962,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 
 	max_reg = (u32)-1;
 	for_each_child_of_node(np, child) {
-		ret = of_property_read_u32(child, "reg", &reg);
-		if (ret)
+		if (of_property_read_u32(child, "reg", &reg))
 			continue;
 		if (max_reg == (u32)-1 || reg > max_reg)
 			max_reg = reg;
@@ -1818,8 +1978,7 @@ static int unittest_i2c_mux_probe(struct i2c_client *client,
 	if (!muxc)
 		return -ENOMEM;
 	for (i = 0; i < nchans; i++) {
-		ret = i2c_mux_add_adapter(muxc, 0, i, 0);
-		if (ret) {
+		if (i2c_mux_add_adapter(muxc, 0, i, 0)) {
 			dev_err(dev, "Failed to register mux #%d\n", i);
 			i2c_mux_del_adapters(muxc);
 			return -ENODEV;
@@ -1891,26 +2050,20 @@ static void of_unittest_overlay_i2c_cleanup(void)
 	i2c_del_driver(&unittest_i2c_dev_driver);
 }
 
-static void of_unittest_overlay_i2c_12(void)
+static void __init of_unittest_overlay_i2c_12(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(12, 12, 0, 1, I2C_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(12, 12, 0, 1, I2C_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 12);
 }
 
 /* test deactivation of device */
-static void of_unittest_overlay_i2c_13(void)
+static void __init of_unittest_overlay_i2c_13(void)
 {
-	int ret;
-
 	/* device should disable */
-	ret = of_unittest_apply_overlay_check(13, 13, 1, 0, I2C_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(13, 13, 1, 0, I2C_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 13);
@@ -1921,13 +2074,10 @@ static void of_unittest_overlay_i2c_14(void)
 {
 }
 
-static void of_unittest_overlay_i2c_15(void)
+static void __init of_unittest_overlay_i2c_15(void)
 {
-	int ret;
-
 	/* device should enable */
-	ret = of_unittest_apply_overlay_check(15, 15, 0, 1, I2C_OVERLAY);
-	if (ret != 0)
+	if (of_unittest_apply_overlay_check(15, 15, 0, 1, I2C_OVERLAY))
 		return;
 
 	unittest(1, "overlay test %d passed\n", 15);
@@ -1943,10 +2093,8 @@ static inline void of_unittest_overlay_i2c_15(void) { }
 static void __init of_unittest_overlay(void)
 {
 	struct device_node *bus_np = NULL;
-	int ret;
 
-	ret = platform_driver_register(&unittest_driver);
-	if (ret != 0) {
+	if (platform_driver_register(&unittest_driver)) {
 		unittest(0, "could not register unittest driver\n");
 		goto out;
 	}
@@ -1957,8 +2105,7 @@ static void __init of_unittest_overlay(void)
 		goto out;
 	}
 
-	ret = of_platform_default_populate(bus_np, NULL, NULL);
-	if (ret != 0) {
+	if (of_platform_default_populate(bus_np, NULL, NULL)) {
 		unittest(0, "could not populate bus @ \"%s\"\n", bus_path);
 		goto out;
 	}
@@ -2023,40 +2170,81 @@ static inline void __init of_unittest_overlay(void) { }
 	extern uint8_t __dtb_##name##_begin[]; \
 	extern uint8_t __dtb_##name##_end[]
 
-#define OVERLAY_INFO(name, expected) \
-{	.dtb_begin	 = __dtb_##name##_begin, \
-	.dtb_end	 = __dtb_##name##_end, \
-	.expected_result = expected, \
+#define OVERLAY_INFO(overlay_name, expected)             \
+{	.dtb_begin       = __dtb_##overlay_name##_begin, \
+	.dtb_end         = __dtb_##overlay_name##_end,   \
+	.expected_result = expected,                     \
+	.name            = #overlay_name,                \
 }
 
 struct overlay_info {
-	uint8_t		   *dtb_begin;
-	uint8_t		   *dtb_end;
-	void		   *data;
-	struct device_node *np_overlay;
-	int		   expected_result;
-	int		   overlay_id;
+	uint8_t		*dtb_begin;
+	uint8_t		*dtb_end;
+	int		expected_result;
+	int		overlay_id;
+	char		*name;
 };
 
 OVERLAY_INFO_EXTERN(overlay_base);
 OVERLAY_INFO_EXTERN(overlay);
+OVERLAY_INFO_EXTERN(overlay_0);
+OVERLAY_INFO_EXTERN(overlay_1);
+OVERLAY_INFO_EXTERN(overlay_2);
+OVERLAY_INFO_EXTERN(overlay_3);
+OVERLAY_INFO_EXTERN(overlay_4);
+OVERLAY_INFO_EXTERN(overlay_5);
+OVERLAY_INFO_EXTERN(overlay_6);
+OVERLAY_INFO_EXTERN(overlay_7);
+OVERLAY_INFO_EXTERN(overlay_8);
+OVERLAY_INFO_EXTERN(overlay_9);
+OVERLAY_INFO_EXTERN(overlay_10);
+OVERLAY_INFO_EXTERN(overlay_11);
+OVERLAY_INFO_EXTERN(overlay_12);
+OVERLAY_INFO_EXTERN(overlay_13);
+OVERLAY_INFO_EXTERN(overlay_15);
+OVERLAY_INFO_EXTERN(overlay_bad_add_dup_node);
+OVERLAY_INFO_EXTERN(overlay_bad_add_dup_prop);
 OVERLAY_INFO_EXTERN(overlay_bad_phandle);
 OVERLAY_INFO_EXTERN(overlay_bad_symbol);
 
-/* order of entries is hard-coded into users of overlays[] */
+/* entries found by name */
 static struct overlay_info overlays[] = {
 	OVERLAY_INFO(overlay_base, -9999),
 	OVERLAY_INFO(overlay, 0),
+	OVERLAY_INFO(overlay_0, 0),
+	OVERLAY_INFO(overlay_1, 0),
+	OVERLAY_INFO(overlay_2, 0),
+	OVERLAY_INFO(overlay_3, 0),
+	OVERLAY_INFO(overlay_4, 0),
+	OVERLAY_INFO(overlay_5, 0),
+	OVERLAY_INFO(overlay_6, 0),
+	OVERLAY_INFO(overlay_7, 0),
+	OVERLAY_INFO(overlay_8, 0),
+	OVERLAY_INFO(overlay_9, 0),
+	OVERLAY_INFO(overlay_10, 0),
+	OVERLAY_INFO(overlay_11, 0),
+	OVERLAY_INFO(overlay_12, 0),
+	OVERLAY_INFO(overlay_13, 0),
+	OVERLAY_INFO(overlay_15, 0),
+	OVERLAY_INFO(overlay_bad_add_dup_node, -EINVAL),
+	OVERLAY_INFO(overlay_bad_add_dup_prop, -EINVAL),
 	OVERLAY_INFO(overlay_bad_phandle, -EINVAL),
 	OVERLAY_INFO(overlay_bad_symbol, -EINVAL),
-	{}
+	/* end marker */
+	{.dtb_begin = NULL, .dtb_end = NULL, .expected_result = 0, .name = NULL}
 };
 
 static struct device_node *overlay_base_root;
 
 static void * __init dt_alloc_memory(u64 size, u64 align)
 {
-	return memblock_virt_alloc(size, align);
+	void *ptr = memblock_alloc(size, align);
+
+	if (!ptr)
+		panic("%s: Failed to allocate %llu bytes align=0x%llx\n",
+		      __func__, size, align);
+
+	return ptr;
 }
 
 /*
@@ -2077,7 +2265,21 @@ void __init unittest_unflatten_overlay_base(void)
 {
 	struct overlay_info *info;
 	u32 data_size;
+	void *new_fdt;
 	u32 size;
+	int found = 0;
+	const char *overlay_name = "overlay_base";
+
+	for (info = overlays; info && info->name; info++) {
+		if (!strcmp(overlay_name, info->name)) {
+			found = 1;
+			break;
+		}
+	}
+	if (!found) {
+		pr_err("no overlay data for %s\n", overlay_name);
+		return;
+	}
 
 	info = &overlays[0];
 
@@ -2098,17 +2300,16 @@ void __init unittest_unflatten_overlay_base(void)
 		return;
 	}
 
-	info->data = dt_alloc_memory(size, roundup_pow_of_two(FDT_V17_SIZE));
-	if (!info->data) {
+	new_fdt = dt_alloc_memory(size, roundup_pow_of_two(FDT_V17_SIZE));
+	if (!new_fdt) {
 		pr_err("alloc for dtb 'overlay_base' failed");
 		return;
 	}
 
-	memcpy(info->data, info->dtb_begin, size);
+	memcpy(new_fdt, info->dtb_begin, size);
 
-	__unflatten_device_tree(info->data, NULL, &info->np_overlay,
+	__unflatten_device_tree(new_fdt, NULL, &overlay_base_root,
 				dt_alloc_memory, true);
-	overlay_base_root = info->np_overlay;
 }
 
 /*
@@ -2122,73 +2323,41 @@ void __init unittest_unflatten_overlay_base(void)
  *
  * Return 0 on unexpected error.
  */
-static int __init overlay_data_add(int onum)
+static int __init overlay_data_apply(const char *overlay_name, int *overlay_id)
 {
 	struct overlay_info *info;
-	int k;
+	int found = 0;
 	int ret;
 	u32 size;
-	u32 size_from_header;
 
-	for (k = 0, info = overlays; info; info++, k++) {
-		if (k == onum)
+	for (info = overlays; info && info->name; info++) {
+		if (!strcmp(overlay_name, info->name)) {
+			found = 1;
 			break;
+		}
 	}
-	if (onum > k)
+	if (!found) {
+		pr_err("no overlay data for %s\n", overlay_name);
 		return 0;
+	}
 
 	size = info->dtb_end - info->dtb_begin;
-	if (!size) {
-		pr_err("no overlay to attach, %d\n", onum);
-		ret = 0;
-	}
+	if (!size)
+		pr_err("no overlay data for %s\n", overlay_name);
 
-	size_from_header = fdt_totalsize(info->dtb_begin);
-	if (size_from_header != size) {
-		pr_err("overlay header totalsize != actual size, %d", onum);
-		return 0;
-	}
+	ret = of_overlay_fdt_apply(info->dtb_begin, size, &info->overlay_id);
+	if (overlay_id)
+		*overlay_id = info->overlay_id;
+	if (ret < 0)
+		goto out;
 
-	/*
-	 * Must create permanent copy of FDT because of_fdt_unflatten_tree()
-	 * will create pointers to the passed in FDT in the EDT.
-	 */
-	info->data = kmemdup(info->dtb_begin, size, GFP_KERNEL);
-	if (!info->data) {
-		pr_err("unable to allocate memory for data, %d\n", onum);
-		return 0;
-	}
-
-	of_fdt_unflatten_tree(info->data, NULL, &info->np_overlay);
-	if (!info->np_overlay) {
-		pr_err("unable to unflatten overlay, %d\n", onum);
-		ret = 0;
-		goto out_free_data;
-	}
-
-	info->overlay_id = 0;
-	ret = of_overlay_apply(info->np_overlay, &info->overlay_id);
-	if (ret < 0) {
-		pr_err("of_overlay_apply() (ret=%d), %d\n", ret, onum);
-		goto out_free_np_overlay;
-	}
-
-	pr_debug("__dtb_overlay_begin applied, overlay id %d\n", ret);
-
-	goto out;
-
-out_free_np_overlay:
-	/*
-	 * info->np_overlay is the unflattened device tree
-	 * It has not been spliced into the live tree.
-	 */
-
-	/* todo: function to free unflattened device tree */
-
-out_free_data:
-	kfree(info->data);
+	pr_debug("%s applied\n", overlay_name);
 
 out:
+	if (ret != info->expected_result)
+		pr_err("of_overlay_fdt_apply() expected %d, ret=%d, %s\n",
+		       info->expected_result, ret, overlay_name);
+
 	return (ret == info->expected_result);
 }
 
@@ -2208,7 +2377,6 @@ static __init void of_unittest_overlay_high_level(void)
 	struct device_node *overlay_base_symbols;
 	struct device_node **pprev;
 	struct property *prop;
-	int ret;
 
 	if (!overlay_base_root) {
 		unittest(0, "overlay_base_root not initialized\n");
@@ -2235,7 +2403,7 @@ static __init void of_unittest_overlay_high_level(void)
 	 */
 	pprev = &overlay_base_root->child;
 	for (np = overlay_base_root->child; np; np = np->sibling) {
-		if (!of_node_cmp(np->name, "__local_fixups__")) {
+		if (of_node_name_eq(np, "__local_fixups__")) {
 			*pprev = np->sibling;
 			break;
 		}
@@ -2248,7 +2416,7 @@ static __init void of_unittest_overlay_high_level(void)
 		/* will have to graft properties from node into live tree */
 		pprev = &overlay_base_root->child;
 		for (np = overlay_base_root->child; np; np = np->sibling) {
-			if (!of_node_cmp(np->name, "__symbols__")) {
+			if (of_node_name_eq(np, "__symbols__")) {
 				overlay_base_symbols = np;
 				*pprev = np->sibling;
 				break;
@@ -2257,11 +2425,14 @@ static __init void of_unittest_overlay_high_level(void)
 		}
 	}
 
-	for (np = overlay_base_root->child; np; np = np->sibling) {
-		if (of_get_child_by_name(of_root, np->name)) {
-			unittest(0, "illegal node name in overlay_base %s",
-				np->name);
-			return;
+	for_each_child_of_node(overlay_base_root, np) {
+		struct device_node *base_child;
+		for_each_child_of_node(of_root, base_child) {
+			if (!strcmp(np->full_name, base_child->full_name)) {
+				unittest(0, "illegal node name in overlay_base %pOFn",
+					 np);
+				return;
+			}
 		}
 	}
 
@@ -2290,18 +2461,25 @@ static __init void of_unittest_overlay_high_level(void)
 		__of_attach_node_sysfs(np);
 
 	if (of_symbols) {
+		struct property *new_prop;
 		for_each_property_of_node(overlay_base_symbols, prop) {
-			ret = __of_add_property(of_symbols, prop);
-			if (ret) {
-				unittest(0,
-					 "duplicate property '%s' in overlay_base node __symbols__",
+
+			new_prop = __of_prop_dup(prop, GFP_KERNEL);
+			if (!new_prop) {
+				unittest(0, "__of_prop_dup() of '%s' from overlay_base node __symbols__",
 					 prop->name);
 				goto err_unlock;
 			}
-			ret = __of_add_property_sysfs(of_symbols, prop);
-			if (ret) {
-				unittest(0,
-					 "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
+			if (__of_add_property(of_symbols, new_prop)) {
+				/* "name" auto-generated by unflatten */
+				if (!strcmp(new_prop->name, "name"))
+					continue;
+				unittest(0, "duplicate property '%s' in overlay_base node __symbols__",
+					 prop->name);
+				goto err_unlock;
+			}
+			if (__of_add_property_sysfs(of_symbols, new_prop)) {
+				unittest(0, "unable to add property '%s' in overlay_base node __symbols__ to sysfs",
 					 prop->name);
 				goto err_unlock;
 			}
@@ -2313,13 +2491,19 @@ static __init void of_unittest_overlay_high_level(void)
 
 	/* now do the normal overlay usage test */
 
-	unittest(overlay_data_add(1),
+	unittest(overlay_data_apply("overlay", NULL),
 		 "Adding overlay 'overlay' failed\n");
 
-	unittest(overlay_data_add(2),
+	unittest(overlay_data_apply("overlay_bad_add_dup_node", NULL),
+		 "Adding overlay 'overlay_bad_add_dup_node' failed\n");
+
+	unittest(overlay_data_apply("overlay_bad_add_dup_prop", NULL),
+		 "Adding overlay 'overlay_bad_add_dup_prop' failed\n");
+
+	unittest(overlay_data_apply("overlay_bad_phandle", NULL),
 		 "Adding overlay 'overlay_bad_phandle' failed\n");
 
-	unittest(overlay_data_add(3),
+	unittest(overlay_data_apply("overlay_bad_symbol", NULL),
 		 "Adding overlay 'overlay_bad_symbol' failed\n");
 
 	return;
@@ -2340,6 +2524,10 @@ static int __init of_unittest(void)
 	int res;
 
 	/* adding data for unittest */
+
+	if (IS_ENABLED(CONFIG_UML))
+		unittest_unflatten_overlay_base();
+
 	res = unittest_data_add();
 	if (res)
 		return res;
@@ -2359,6 +2547,7 @@ static int __init of_unittest(void)
 	of_unittest_find_node_by_name();
 	of_unittest_dynamic();
 	of_unittest_parse_phandle_with_args();
+	of_unittest_parse_phandle_with_args_map();
 	of_unittest_printf();
 	of_unittest_property_string();
 	of_unittest_property_copy();

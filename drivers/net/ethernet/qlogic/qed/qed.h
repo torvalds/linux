@@ -53,7 +53,7 @@
 extern const struct qed_common_ops qed_common_ops_pass;
 
 #define QED_MAJOR_VERSION		8
-#define QED_MINOR_VERSION		33
+#define QED_MINOR_VERSION		37
 #define QED_REVISION_VERSION		0
 #define QED_ENGINEERING_VERSION		20
 
@@ -81,10 +81,19 @@ enum qed_coalescing_mode {
 	QED_COAL_MODE_ENABLE
 };
 
+enum qed_nvm_cmd {
+	QED_PUT_FILE_BEGIN = DRV_MSG_CODE_NVM_PUT_FILE_BEGIN,
+	QED_PUT_FILE_DATA = DRV_MSG_CODE_NVM_PUT_FILE_DATA,
+	QED_NVM_WRITE_NVRAM = DRV_MSG_CODE_NVM_WRITE_NVRAM,
+	QED_GET_MCP_NVM_RESP = 0xFFFFFF00
+};
+
 struct qed_eth_cb_ops;
 struct qed_dev_info;
 union qed_mcp_protocol_stats;
 enum qed_mcp_protocol_type;
+enum qed_mfw_tlv_type;
+union qed_mfw_tlv_data;
 
 /* helpers */
 #define QED_MFW_GET_FIELD(name, field) \
@@ -131,6 +140,7 @@ struct qed_cxt_mngr;
 struct qed_sb_sp_info;
 struct qed_ll2_info;
 struct qed_mcp_info;
+struct qed_llh_info;
 
 struct qed_rt_data {
 	u32	*init_val;
@@ -287,6 +297,12 @@ enum qed_wol_support {
 	QED_WOL_SUPPORT_PME,
 };
 
+enum qed_db_rec_exec {
+	DB_REC_DRY_RUN,
+	DB_REC_REAL_DEAL,
+	DB_REC_ONCE,
+};
+
 struct qed_hw_info {
 	/* PCI personality */
 	enum qed_pci_personality personality;
@@ -327,6 +343,10 @@ struct qed_hw_info {
 	 */
 	u8 num_active_tc;
 	u8				offload_tc;
+	bool				offload_tc_set;
+
+	bool				multi_tc_roce_en;
+#define IS_QED_MULTI_TC_ROCE(p_hwfn) (((p_hwfn)->hw_info.multi_tc_roce_en))
 
 	u32				concrete_fid;
 	u16				opaque_fid;
@@ -390,8 +410,8 @@ struct qed_qm_info {
 	u16				start_pq;
 	u8				start_vport;
 	u16				 pure_lb_pq;
-	u16				offload_pq;
-	u16				low_latency_pq;
+	u16				first_ofld_pq;
+	u16				first_llt_pq;
 	u16				pure_ack_pq;
 	u16				ooo_pq;
 	u16				first_vf_pq;
@@ -410,6 +430,18 @@ struct qed_qm_info {
 	u32				pf_rl;
 	struct qed_wfq_data		*wfq_data;
 	u8 num_pf_rls;
+};
+
+#define QED_OVERFLOW_BIT	1
+
+struct qed_db_recovery_info {
+	struct list_head list;
+
+	/* Lock to protect the doorbell recovery mechanism list */
+	spinlock_t lock;
+	bool dorq_attn;
+	u32 db_recovery_counter;
+	unsigned long overflow;
 };
 
 struct storm_stats {
@@ -432,9 +464,71 @@ struct qed_fw_data {
 	u32			init_ops_size;
 };
 
+enum qed_mf_mode_bit {
+	/* Supports PF-classification based on tag */
+	QED_MF_OVLAN_CLSS,
+
+	/* Supports PF-classification based on MAC */
+	QED_MF_LLH_MAC_CLSS,
+
+	/* Supports PF-classification based on protocol type */
+	QED_MF_LLH_PROTO_CLSS,
+
+	/* Requires a default PF to be set */
+	QED_MF_NEED_DEF_PF,
+
+	/* Allow LL2 to multicast/broadcast */
+	QED_MF_LL2_NON_UNICAST,
+
+	/* Allow Cross-PF [& child VFs] Tx-switching */
+	QED_MF_INTER_PF_SWITCH,
+
+	/* Unified Fabtic Port support enabled */
+	QED_MF_UFP_SPECIFIC,
+
+	/* Disable Accelerated Receive Flow Steering (aRFS) */
+	QED_MF_DISABLE_ARFS,
+
+	/* Use vlan for steering */
+	QED_MF_8021Q_TAGGING,
+
+	/* Use stag for steering */
+	QED_MF_8021AD_TAGGING,
+
+	/* Allow DSCP to TC mapping */
+	QED_MF_DSCP_TO_TC_MAP,
+
+	/* Do not insert a vlan tag with id 0 */
+	QED_MF_DONT_ADD_VLAN0_TAG,
+};
+
+enum qed_ufp_mode {
+	QED_UFP_MODE_ETS,
+	QED_UFP_MODE_VNIC_BW,
+	QED_UFP_MODE_UNKNOWN
+};
+
+enum qed_ufp_pri_type {
+	QED_UFP_PRI_OS,
+	QED_UFP_PRI_VNIC,
+	QED_UFP_PRI_UNKNOWN
+};
+
+struct qed_ufp_info {
+	enum qed_ufp_pri_type pri_type;
+	enum qed_ufp_mode mode;
+	u8 tc;
+};
+
 enum BAR_ID {
 	BAR_ID_0,		/* used for GRC */
 	BAR_ID_1		/* Used for doorbells */
+};
+
+struct qed_nvm_image_info {
+	u32 num_images;
+	struct bist_nvm_image_att *image_att;
+	bool valid;
 };
 
 #define DRV_MODULE_VERSION		      \
@@ -446,6 +540,11 @@ enum BAR_ID {
 struct qed_simd_fp_handler {
 	void	*token;
 	void	(*func)(void *);
+};
+
+enum qed_slowpath_wq_flag {
+	QED_SLOWPATH_MFW_TLV_REQ,
+	QED_SLOWPATH_PERIODIC_DB_REC,
 };
 
 struct qed_hwfn {
@@ -463,7 +562,6 @@ struct qed_hwfn {
 	u8				dp_level;
 	char				name[NAME_SIZE];
 
-	bool				first_on_engine;
 	bool				hw_init_done;
 
 	u8				num_funcs_on_engine;
@@ -535,6 +633,8 @@ struct qed_hwfn {
 
 	struct qed_dcbx_info		*p_dcbx_info;
 
+	struct qed_ufp_info		ufp_info;
+
 	struct qed_dmae_info		dmae_info;
 
 	/* QM init */
@@ -545,6 +645,7 @@ struct qed_hwfn {
 	void				*unzip_buf;
 
 	struct dbg_tools_data		dbg_info;
+	void				*dbg_user_info;
 
 	/* PWM region specific data */
 	u16				wid_count;
@@ -561,6 +662,12 @@ struct qed_hwfn {
 	/* L2-related */
 	struct qed_l2_info *p_l2_info;
 
+	/* Mechanism for recovering from doorbell drop */
+	struct qed_db_recovery_info db_recovery_info;
+
+	/* Nvm images number and attributes */
+	struct qed_nvm_image_info nvm_info;
+
 	struct qed_ptt *p_arfs_ptt;
 
 	struct qed_simd_fp_handler	simd_proto_handler[64];
@@ -570,8 +677,12 @@ struct qed_hwfn {
 	struct delayed_work iov_task;
 	unsigned long iov_task_flags;
 #endif
-
-	struct z_stream_s		*stream;
+	struct z_stream_s *stream;
+	bool slowpath_wq_active;
+	struct workqueue_struct *slowpath_wq;
+	struct delayed_work slowpath_task;
+	unsigned long slowpath_task_flags;
+	u32 periodic_db_rec_count;
 };
 
 struct pci_params {
@@ -631,6 +742,7 @@ struct qed_dev {
 #define QED_DEV_ID_MASK		0xff00
 #define QED_DEV_ID_MASK_BB	0x1600
 #define QED_DEV_ID_MASK_AH	0x8000
+#define QED_IS_E4(dev)  (QED_IS_BB(dev) || QED_IS_AH(dev))
 
 	u16	chip_num;
 #define CHIP_NUM_MASK                   0xffff
@@ -650,14 +762,13 @@ struct qed_dev {
 #define CHIP_BOND_ID_SHIFT              0
 
 	u8				num_engines;
+	u8				num_ports;
 	u8				num_ports_in_engine;
 	u8				num_funcs_in_port;
 
 	u8				path_id;
-	enum qed_mf_mode		mf_mode;
-#define IS_MF_DEFAULT(_p_hwfn)  (((_p_hwfn)->cdev)->mf_mode == QED_MF_DEFAULT)
-#define IS_MF_SI(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_NPAR)
-#define IS_MF_SD(_p_hwfn)       (((_p_hwfn)->cdev)->mf_mode == QED_MF_OVLAN)
+
+	unsigned long			mf_bits;
 
 	int				pcie_width;
 	int				pcie_speed;
@@ -692,6 +803,11 @@ struct qed_dev {
 	u8				num_hwfns;
 	struct qed_hwfn			hwfns[MAX_HWFNS_PER_DEVICE];
 
+	/* Engine affinity */
+	u8				l2_affin_hint;
+	u8				fir_affin;
+	u8				iwarp_affin;
+
 	/* SRIOV */
 	struct qed_hw_sriov_info *p_iov_info;
 #define IS_QED_SRIOV(cdev)              (!!(cdev)->p_iov_info)
@@ -702,6 +818,13 @@ struct qed_dev {
 	struct qed_fw_data		*fw_data;
 
 	u32				mcp_nvm_resp;
+
+	/* Recovery */
+	bool recov_in_prog;
+
+	/* LLH info */
+	u8 ppfid_bitmap;
+	struct qed_llh_info *p_llh_info;
 
 	/* Linux specific here */
 	struct  qede_dev		*edev;
@@ -740,6 +863,9 @@ struct qed_dev {
 	u32 rdma_max_inline;
 	u32 rdma_max_srq_sge;
 	u16 tunn_feature_mask;
+
+	struct devlink			*dl;
+	bool				iwarp_cmt;
 };
 
 #define NUM_OF_VFS(dev)         (QED_IS_BB(dev) ? MAX_NUM_VFS_BB \
@@ -788,11 +914,18 @@ void qed_configure_vp_wfq_on_link_change(struct qed_dev *cdev,
 
 void qed_clean_wfq_db(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 int qed_device_num_engines(struct qed_dev *cdev);
-int qed_device_get_port_id(struct qed_dev *cdev);
 void qed_set_fw_mac_addr(__le16 *fw_msb,
 			 __le16 *fw_mid, __le16 *fw_lsb, u8 *mac);
 
 #define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
+#define QED_IS_CMT(dev)		((dev)->num_hwfns > 1)
+/* Macros for getting the engine-affinitized hwfn (FIR: fcoe,iscsi,roce) */
+#define QED_FIR_AFFIN_HWFN(dev)		(&(dev)->hwfns[dev->fir_affin])
+#define QED_IWARP_AFFIN_HWFN(dev)       (&(dev)->hwfns[dev->iwarp_affin])
+#define QED_AFFIN_HWFN(dev)				   \
+	(QED_IS_IWARP_PERSONALITY(QED_LEADING_HWFN(dev)) ? \
+	 QED_IWARP_AFFIN_HWFN(dev) : QED_FIR_AFFIN_HWFN(dev))
+#define QED_AFFIN_HWFN_IDX(dev) (IS_LEAD_HWFN(QED_AFFIN_HWFN(dev)) ? 0 : 1)
 
 /* Flags for indication of required queues */
 #define PQ_FLAGS_RLS    (BIT(0))
@@ -803,13 +936,19 @@ void qed_set_fw_mac_addr(__le16 *fw_msb,
 #define PQ_FLAGS_OFLD   (BIT(5))
 #define PQ_FLAGS_VFS    (BIT(6))
 #define PQ_FLAGS_LLT    (BIT(7))
+#define PQ_FLAGS_MTC    (BIT(8))
 
 /* physical queue index for cm context intialization */
 u16 qed_get_cm_pq_idx(struct qed_hwfn *p_hwfn, u32 pq_flags);
 u16 qed_get_cm_pq_idx_mcos(struct qed_hwfn *p_hwfn, u8 tc);
 u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf);
+u16 qed_get_cm_pq_idx_ofld_mtc(struct qed_hwfn *p_hwfn, u8 tc);
+u16 qed_get_cm_pq_idx_llt_mtc(struct qed_hwfn *p_hwfn, u8 tc);
 
-#define QED_LEADING_HWFN(dev)   (&dev->hwfns[0])
+/* doorbell recovery mechanism */
+void qed_db_recovery_dp(struct qed_hwfn *p_hwfn);
+void qed_db_recovery_execute(struct qed_hwfn *p_hwfn);
+bool qed_edpm_enabled(struct qed_hwfn *p_hwfn);
 
 /* Other Linux specific common definitions */
 #define DP_NAME(cdev) ((cdev)->name)
@@ -826,17 +965,30 @@ u16 qed_get_cm_pq_idx_vf(struct qed_hwfn *p_hwfn, u16 vf);
 	writel((u32)val, (void __iomem *)((u8 __iomem *)\
 					  (cdev->doorbells) + (db_addr)))
 
+#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
+				  qed_device_num_ports((_p_hwfn)->cdev))
+int qed_device_num_ports(struct qed_dev *cdev);
+
 /* Prototypes */
 int qed_fill_dev_info(struct qed_dev *cdev,
 		      struct qed_dev_info *dev_info);
-void qed_link_update(struct qed_hwfn *hwfn);
+void qed_link_update(struct qed_hwfn *hwfn, struct qed_ptt *ptt);
 u32 qed_unzip_data(struct qed_hwfn *p_hwfn,
 		   u32 input_len, u8 *input_buf,
 		   u32 max_size, u8 *unzip_buf);
+void qed_schedule_recovery_handler(struct qed_hwfn *p_hwfn);
 void qed_get_protocol_stats(struct qed_dev *cdev,
 			    enum qed_mcp_protocol_type type,
 			    union qed_mcp_protocol_stats *stats);
 int qed_slowpath_irq_req(struct qed_hwfn *hwfn);
 void qed_slowpath_irq_sync(struct qed_hwfn *p_hwfn);
+int qed_mfw_tlv_req(struct qed_hwfn *hwfn);
 
+int qed_mfw_fill_tlv_data(struct qed_hwfn *hwfn,
+			  enum qed_mfw_tlv_type type,
+			  union qed_mfw_tlv_data *tlv_data);
+
+void qed_hw_info_set_offload_tc(struct qed_hw_info *p_info, u8 tc);
+
+void qed_periodic_db_rec_start(struct qed_hwfn *p_hwfn);
 #endif /* _QED_H */

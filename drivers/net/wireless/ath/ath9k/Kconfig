@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: ISC
 config ATH9K_HW
 	tristate
 config ATH9K_COMMON
@@ -116,7 +117,7 @@ config ATH9K_DFS_CERTIFIED
 	  except increase code size.
 
 config ATH9K_DYNACK
-	bool "Atheros ath9k ACK timeout estimation algorithm (EXPERIMENTAL)"
+	bool "Atheros ath9k ACK timeout estimation algorithm"
 	depends on ATH9K
 	default n
 	---help---
@@ -147,7 +148,7 @@ config ATH9K_CHANNEL_CONTEXT
        depends on ATH9K
        default n
        ---help---
-         This option enables channel context support in ath9k, which is needed
+	 This option enables channel context support in ath9k, which is needed
 	 for multi-channel concurrency. Enable this if P2P PowerSave support
 	 is required.
 
@@ -155,6 +156,22 @@ config ATH9K_PCOEM
 	bool "Atheros ath9k support for PC OEM cards" if EXPERT
 	depends on ATH9K
 	default y
+
+config ATH9K_PCI_NO_EEPROM
+	tristate "Atheros ath9k pci loader for EEPROM-less chips"
+	depends on ATH9K_PCI
+	default n
+	help
+	 This separate driver provides a loader in order to support the
+	 AR500X to AR92XX-generation of ath9k PCI(e) WiFi chips, which have
+	 their initialization data (which contains the real PCI Device ID
+	 that ath9k will need) stored together with the calibration data out
+	 of reach for the ath9k chip.
+
+	 These devices are usually various network appliances, routers or
+	 access Points and such.
+
+	 If unsure say N.
 
 config ATH9K_HTC
        tristate "Atheros HTC based wireless cards support"

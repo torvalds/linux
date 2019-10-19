@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2011 IBM Corporation.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
- *
  */
 #include <linux/types.h>
 #include <linux/threads.h>
@@ -446,10 +441,11 @@ static void __init xics_get_server_size(void)
 	np = of_find_compatible_node(NULL, NULL, "ibm,ppc-xics");
 	if (!np)
 		return;
+
 	isize = of_get_property(np, "ibm,interrupt-server#-size", NULL);
-	if (!isize)
-		return;
-	xics_interrupt_server_size = be32_to_cpu(*isize);
+	if (isize)
+		xics_interrupt_server_size = be32_to_cpu(*isize);
+
 	of_node_put(np);
 }
 

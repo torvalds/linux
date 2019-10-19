@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ICS MK712 touchscreen controller driver
  *
@@ -6,18 +7,13 @@
  * Copyright (c) 2005 Vojtech Pavlik <vojtech@suse.cz>
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- */
 
 /*
  * This driver supports the ICS MicroClock MK712 TouchScreen controller,
  * found in Gateway AOL Connected Touchpad computers.
  *
  * Documentation for ICS MK712 can be found at:
- *	http://www.idt.com/products/getDoc.cfm?docID=18713923
+ *	https://www.idt.com/general-parts/mk712-touch-screen-controller
  */
 
 /*

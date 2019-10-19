@@ -8,11 +8,13 @@
 
 #include <linux/clk.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_device.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "sti_compositor.h"
 #include "sti_crtc.h"
@@ -40,6 +42,8 @@ static void sti_crtc_atomic_disable(struct drm_crtc *crtc,
 	DRM_DEBUG_DRIVER("\n");
 
 	mixer->status = STI_MIXER_DISABLING;
+
+	drm_crtc_wait_one_vblank(crtc);
 }
 
 static int
@@ -51,18 +55,10 @@ sti_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	struct clk *compo_clk, *pix_clk;
 	int rate = mode->clock * 1000;
 
-	DRM_DEBUG_KMS("CRTC:%d (%s) mode:%d (%s)\n",
-		      crtc->base.id, sti_mixer_to_str(mixer),
-		      mode->base.id, mode->name);
+	DRM_DEBUG_KMS("CRTC:%d (%s) mode: (%s)\n",
+		      crtc->base.id, sti_mixer_to_str(mixer), mode->name);
 
-	DRM_DEBUG_KMS("%d %d %d %d %d %d %d %d %d %d 0x%x 0x%x\n",
-		      mode->vrefresh, mode->clock,
-		      mode->hdisplay,
-		      mode->hsync_start, mode->hsync_end,
-		      mode->htotal,
-		      mode->vdisplay,
-		      mode->vsync_start, mode->vsync_end,
-		      mode->vtotal, mode->type, mode->flags);
+	DRM_DEBUG_KMS(DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 
 	if (mixer->id == STI_MIXER_MAIN) {
 		compo_clk = compo->clk_compo_main;
@@ -250,10 +246,8 @@ int sti_crtc_vblank_cb(struct notifier_block *nb,
 	struct sti_compositor *compo;
 	struct drm_crtc *crtc = data;
 	struct sti_mixer *mixer;
-	struct sti_private *priv;
 	unsigned int pipe;
 
-	priv = crtc->dev->dev_private;
 	pipe = drm_crtc_index(crtc);
 	compo = container_of(nb, struct sti_compositor, vtg_vblank_nb[pipe]);
 	mixer = compo->mixer[pipe];
@@ -357,7 +351,7 @@ int sti_crtc_init(struct drm_device *drm_dev, struct sti_mixer *mixer,
 	res = drm_crtc_init_with_planes(drm_dev, crtc, primary, cursor,
 					&sti_crtc_funcs, NULL);
 	if (res) {
-		DRM_ERROR("Can't initialze CRTC\n");
+		DRM_ERROR("Can't initialize CRTC\n");
 		return -EINVAL;
 	}
 

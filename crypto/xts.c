@@ -1,17 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* XTS: as defined in IEEE1619/D16
  *	http://grouper.ieee.org/groups/1619/email/pdf00086.pdf
- *	(sector sizes which are not a multiple of 16 bytes are,
- *	however currently unsupported)
  *
  * Copyright (c) 2007 Rik Snel <rsnel@cube.dyndns.org>
  *
  * Based on ecb.c
  * Copyright (c) 2006 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 #include <crypto/internal/skcipher.h>
 #include <crypto/scatterwalk.h>
@@ -26,8 +20,6 @@
 #include <crypto/b128ops.h>
 #include <crypto/gf128mul.h>
 
-#define XTS_BUFFER_SIZE 128u
-
 struct priv {
 	struct crypto_skcipher *child;
 	struct crypto_cipher *tweak;
@@ -39,19 +31,9 @@ struct xts_instance_ctx {
 };
 
 struct rctx {
-	le128 buf[XTS_BUFFER_SIZE / sizeof(le128)];
-
 	le128 t;
-
-	le128 *ext;
-
-	struct scatterlist srcbuf[2];
-	struct scatterlist dstbuf[2];
-	struct scatterlist *src;
-	struct scatterlist *dst;
-
-	unsigned int left;
-
+	struct scatterlist *tail;
+	struct scatterlist sg[2];
 	struct skcipher_request subreq;
 };
 
@@ -96,81 +78,28 @@ static int setkey(struct crypto_skcipher *parent, const u8 *key,
 	return err;
 }
 
-static int post_crypt(struct skcipher_request *req)
+/*
+ * We compute the tweak masks twice (both before and after the ECB encryption or
+ * decryption) to avoid having to allocate a temporary buffer and/or make
+ * mutliple calls to the 'ecb(..)' instance, which usually would be slower than
+ * just doing the gf128mul_x_ble() calls again.
+ */
+static int xor_tweak(struct skcipher_request *req, bool second_pass, bool enc)
 {
 	struct rctx *rctx = skcipher_request_ctx(req);
-	le128 *buf = rctx->ext ?: rctx->buf;
-	struct skcipher_request *subreq;
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	const bool cts = (req->cryptlen % XTS_BLOCK_SIZE);
 	const int bs = XTS_BLOCK_SIZE;
 	struct skcipher_walk w;
-	struct scatterlist *sg;
-	unsigned offset;
+	le128 t = rctx->t;
 	int err;
 
-	subreq = &rctx->subreq;
-	err = skcipher_walk_virt(&w, subreq, false);
-
-	while (w.nbytes) {
-		unsigned int avail = w.nbytes;
-		le128 *wdst;
-
-		wdst = w.dst.virt.addr;
-
-		do {
-			le128_xor(wdst, buf++, wdst);
-			wdst++;
-		} while ((avail -= bs) >= bs);
-
-		err = skcipher_walk_done(&w, avail);
+	if (second_pass) {
+		req = &rctx->subreq;
+		/* set to our TFM to enforce correct alignment: */
+		skcipher_request_set_tfm(req, tfm);
 	}
-
-	rctx->left -= subreq->cryptlen;
-
-	if (err || !rctx->left)
-		goto out;
-
-	rctx->dst = rctx->dstbuf;
-
-	scatterwalk_done(&w.out, 0, 1);
-	sg = w.out.sg;
-	offset = w.out.offset;
-
-	if (rctx->dst != sg) {
-		rctx->dst[0] = *sg;
-		sg_unmark_end(rctx->dst);
-		scatterwalk_crypto_chain(rctx->dst, sg_next(sg), 0, 2);
-	}
-	rctx->dst[0].length -= offset - sg->offset;
-	rctx->dst[0].offset = offset;
-
-out:
-	return err;
-}
-
-static int pre_crypt(struct skcipher_request *req)
-{
-	struct rctx *rctx = skcipher_request_ctx(req);
-	le128 *buf = rctx->ext ?: rctx->buf;
-	struct skcipher_request *subreq;
-	const int bs = XTS_BLOCK_SIZE;
-	struct skcipher_walk w;
-	struct scatterlist *sg;
-	unsigned cryptlen;
-	unsigned offset;
-	bool more;
-	int err;
-
-	subreq = &rctx->subreq;
-	cryptlen = subreq->cryptlen;
-
-	more = rctx->left > cryptlen;
-	if (!more)
-		cryptlen = rctx->left;
-
-	skcipher_request_set_crypt(subreq, rctx->src, rctx->dst,
-				   cryptlen, NULL);
-
-	err = skcipher_walk_virt(&w, subreq, false);
+	err = skcipher_walk_virt(&w, req, false);
 
 	while (w.nbytes) {
 		unsigned int avail = w.nbytes;
@@ -181,65 +110,147 @@ static int pre_crypt(struct skcipher_request *req)
 		wdst = w.dst.virt.addr;
 
 		do {
-			*buf++ = rctx->t;
-			le128_xor(wdst++, &rctx->t, wsrc++);
-			gf128mul_x_ble(&rctx->t, &rctx->t);
+			if (unlikely(cts) &&
+			    w.total - w.nbytes + avail < 2 * XTS_BLOCK_SIZE) {
+				if (!enc) {
+					if (second_pass)
+						rctx->t = t;
+					gf128mul_x_ble(&t, &t);
+				}
+				le128_xor(wdst, &t, wsrc);
+				if (enc && second_pass)
+					gf128mul_x_ble(&rctx->t, &t);
+				skcipher_walk_done(&w, avail - bs);
+				return 0;
+			}
+
+			le128_xor(wdst++, &t, wsrc++);
+			gf128mul_x_ble(&t, &t);
 		} while ((avail -= bs) >= bs);
 
 		err = skcipher_walk_done(&w, avail);
 	}
 
-	skcipher_request_set_crypt(subreq, rctx->dst, rctx->dst,
-				   cryptlen, NULL);
-
-	if (err || !more)
-		goto out;
-
-	rctx->src = rctx->srcbuf;
-
-	scatterwalk_done(&w.in, 0, 1);
-	sg = w.in.sg;
-	offset = w.in.offset;
-
-	if (rctx->src != sg) {
-		rctx->src[0] = *sg;
-		sg_unmark_end(rctx->src);
-		scatterwalk_crypto_chain(rctx->src, sg_next(sg), 0, 2);
-	}
-	rctx->src[0].length -= offset - sg->offset;
-	rctx->src[0].offset = offset;
-
-out:
 	return err;
 }
 
-static int init_crypt(struct skcipher_request *req, crypto_completion_t done)
+static int xor_tweak_pre(struct skcipher_request *req, bool enc)
+{
+	return xor_tweak(req, false, enc);
+}
+
+static int xor_tweak_post(struct skcipher_request *req, bool enc)
+{
+	return xor_tweak(req, true, enc);
+}
+
+static void cts_done(struct crypto_async_request *areq, int err)
+{
+	struct skcipher_request *req = areq->data;
+	le128 b;
+
+	if (!err) {
+		struct rctx *rctx = skcipher_request_ctx(req);
+
+		scatterwalk_map_and_copy(&b, rctx->tail, 0, XTS_BLOCK_SIZE, 0);
+		le128_xor(&b, &rctx->t, &b);
+		scatterwalk_map_and_copy(&b, rctx->tail, 0, XTS_BLOCK_SIZE, 1);
+	}
+
+	skcipher_request_complete(req, err);
+}
+
+static int cts_final(struct skcipher_request *req,
+		     int (*crypt)(struct skcipher_request *req))
+{
+	struct priv *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
+	int offset = req->cryptlen & ~(XTS_BLOCK_SIZE - 1);
+	struct rctx *rctx = skcipher_request_ctx(req);
+	struct skcipher_request *subreq = &rctx->subreq;
+	int tail = req->cryptlen % XTS_BLOCK_SIZE;
+	le128 b[2];
+	int err;
+
+	rctx->tail = scatterwalk_ffwd(rctx->sg, req->dst,
+				      offset - XTS_BLOCK_SIZE);
+
+	scatterwalk_map_and_copy(b, rctx->tail, 0, XTS_BLOCK_SIZE, 0);
+	memcpy(b + 1, b, tail);
+	scatterwalk_map_and_copy(b, req->src, offset, tail, 0);
+
+	le128_xor(b, &rctx->t, b);
+
+	scatterwalk_map_and_copy(b, rctx->tail, 0, XTS_BLOCK_SIZE + tail, 1);
+
+	skcipher_request_set_tfm(subreq, ctx->child);
+	skcipher_request_set_callback(subreq, req->base.flags, cts_done, req);
+	skcipher_request_set_crypt(subreq, rctx->tail, rctx->tail,
+				   XTS_BLOCK_SIZE, NULL);
+
+	err = crypt(subreq);
+	if (err)
+		return err;
+
+	scatterwalk_map_and_copy(b, rctx->tail, 0, XTS_BLOCK_SIZE, 0);
+	le128_xor(b, &rctx->t, b);
+	scatterwalk_map_and_copy(b, rctx->tail, 0, XTS_BLOCK_SIZE, 1);
+
+	return 0;
+}
+
+static void encrypt_done(struct crypto_async_request *areq, int err)
+{
+	struct skcipher_request *req = areq->data;
+
+	if (!err) {
+		struct rctx *rctx = skcipher_request_ctx(req);
+
+		rctx->subreq.base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
+		err = xor_tweak_post(req, true);
+
+		if (!err && unlikely(req->cryptlen % XTS_BLOCK_SIZE)) {
+			err = cts_final(req, crypto_skcipher_encrypt);
+			if (err == -EINPROGRESS)
+				return;
+		}
+	}
+
+	skcipher_request_complete(req, err);
+}
+
+static void decrypt_done(struct crypto_async_request *areq, int err)
+{
+	struct skcipher_request *req = areq->data;
+
+	if (!err) {
+		struct rctx *rctx = skcipher_request_ctx(req);
+
+		rctx->subreq.base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
+		err = xor_tweak_post(req, false);
+
+		if (!err && unlikely(req->cryptlen % XTS_BLOCK_SIZE)) {
+			err = cts_final(req, crypto_skcipher_decrypt);
+			if (err == -EINPROGRESS)
+				return;
+		}
+	}
+
+	skcipher_request_complete(req, err);
+}
+
+static int init_crypt(struct skcipher_request *req, crypto_completion_t compl)
 {
 	struct priv *ctx = crypto_skcipher_ctx(crypto_skcipher_reqtfm(req));
 	struct rctx *rctx = skcipher_request_ctx(req);
-	struct skcipher_request *subreq;
-	gfp_t gfp;
+	struct skcipher_request *subreq = &rctx->subreq;
 
-	subreq = &rctx->subreq;
+	if (req->cryptlen < XTS_BLOCK_SIZE)
+		return -EINVAL;
+
 	skcipher_request_set_tfm(subreq, ctx->child);
-	skcipher_request_set_callback(subreq, req->base.flags, done, req);
-
-	gfp = req->base.flags & CRYPTO_TFM_REQ_MAY_SLEEP ? GFP_KERNEL :
-							   GFP_ATOMIC;
-	rctx->ext = NULL;
-
-	subreq->cryptlen = XTS_BUFFER_SIZE;
-	if (req->cryptlen > XTS_BUFFER_SIZE) {
-		unsigned int n = min(req->cryptlen, (unsigned int)PAGE_SIZE);
-
-		rctx->ext = kmalloc(n, gfp);
-		if (rctx->ext)
-			subreq->cryptlen = n;
-	}
-
-	rctx->src = req->src;
-	rctx->dst = req->dst;
-	rctx->left = req->cryptlen;
+	skcipher_request_set_callback(subreq, req->base.flags, compl, req);
+	skcipher_request_set_crypt(subreq, req->dst, req->dst,
+				   req->cryptlen & ~(XTS_BLOCK_SIZE - 1), NULL);
 
 	/* calculate first value of T */
 	crypto_cipher_encrypt_one(ctx->tweak, (u8 *)&rctx->t, req->iv);
@@ -247,187 +258,39 @@ static int init_crypt(struct skcipher_request *req, crypto_completion_t done)
 	return 0;
 }
 
-static void exit_crypt(struct skcipher_request *req)
-{
-	struct rctx *rctx = skcipher_request_ctx(req);
-
-	rctx->left = 0;
-
-	if (rctx->ext)
-		kzfree(rctx->ext);
-}
-
-static int do_encrypt(struct skcipher_request *req, int err)
-{
-	struct rctx *rctx = skcipher_request_ctx(req);
-	struct skcipher_request *subreq;
-
-	subreq = &rctx->subreq;
-
-	while (!err && rctx->left) {
-		err = pre_crypt(req) ?:
-		      crypto_skcipher_encrypt(subreq) ?:
-		      post_crypt(req);
-
-		if (err == -EINPROGRESS || err == -EBUSY)
-			return err;
-	}
-
-	exit_crypt(req);
-	return err;
-}
-
-static void encrypt_done(struct crypto_async_request *areq, int err)
-{
-	struct skcipher_request *req = areq->data;
-	struct skcipher_request *subreq;
-	struct rctx *rctx;
-
-	rctx = skcipher_request_ctx(req);
-
-	if (err == -EINPROGRESS) {
-		if (rctx->left != req->cryptlen)
-			return;
-		goto out;
-	}
-
-	subreq = &rctx->subreq;
-	subreq->base.flags &= CRYPTO_TFM_REQ_MAY_BACKLOG;
-
-	err = do_encrypt(req, err ?: post_crypt(req));
-	if (rctx->left)
-		return;
-
-out:
-	skcipher_request_complete(req, err);
-}
-
 static int encrypt(struct skcipher_request *req)
 {
-	return do_encrypt(req, init_crypt(req, encrypt_done));
-}
-
-static int do_decrypt(struct skcipher_request *req, int err)
-{
 	struct rctx *rctx = skcipher_request_ctx(req);
-	struct skcipher_request *subreq;
+	struct skcipher_request *subreq = &rctx->subreq;
+	int err;
 
-	subreq = &rctx->subreq;
+	err = init_crypt(req, encrypt_done) ?:
+	      xor_tweak_pre(req, true) ?:
+	      crypto_skcipher_encrypt(subreq) ?:
+	      xor_tweak_post(req, true);
 
-	while (!err && rctx->left) {
-		err = pre_crypt(req) ?:
-		      crypto_skcipher_decrypt(subreq) ?:
-		      post_crypt(req);
+	if (err || likely((req->cryptlen % XTS_BLOCK_SIZE) == 0))
+		return err;
 
-		if (err == -EINPROGRESS || err == -EBUSY)
-			return err;
-	}
-
-	exit_crypt(req);
-	return err;
-}
-
-static void decrypt_done(struct crypto_async_request *areq, int err)
-{
-	struct skcipher_request *req = areq->data;
-	struct skcipher_request *subreq;
-	struct rctx *rctx;
-
-	rctx = skcipher_request_ctx(req);
-
-	if (err == -EINPROGRESS) {
-		if (rctx->left != req->cryptlen)
-			return;
-		goto out;
-	}
-
-	subreq = &rctx->subreq;
-	subreq->base.flags &= CRYPTO_TFM_REQ_MAY_BACKLOG;
-
-	err = do_decrypt(req, err ?: post_crypt(req));
-	if (rctx->left)
-		return;
-
-out:
-	skcipher_request_complete(req, err);
+	return cts_final(req, crypto_skcipher_encrypt);
 }
 
 static int decrypt(struct skcipher_request *req)
 {
-	return do_decrypt(req, init_crypt(req, decrypt_done));
-}
+	struct rctx *rctx = skcipher_request_ctx(req);
+	struct skcipher_request *subreq = &rctx->subreq;
+	int err;
 
-int xts_crypt(struct blkcipher_desc *desc, struct scatterlist *sdst,
-	      struct scatterlist *ssrc, unsigned int nbytes,
-	      struct xts_crypt_req *req)
-{
-	const unsigned int bsize = XTS_BLOCK_SIZE;
-	const unsigned int max_blks = req->tbuflen / bsize;
-	struct blkcipher_walk walk;
-	unsigned int nblocks;
-	le128 *src, *dst, *t;
-	le128 *t_buf = req->tbuf;
-	int err, i;
+	err = init_crypt(req, decrypt_done) ?:
+	      xor_tweak_pre(req, false) ?:
+	      crypto_skcipher_decrypt(subreq) ?:
+	      xor_tweak_post(req, false);
 
-	BUG_ON(max_blks < 1);
-
-	blkcipher_walk_init(&walk, sdst, ssrc, nbytes);
-
-	err = blkcipher_walk_virt(desc, &walk);
-	nbytes = walk.nbytes;
-	if (!nbytes)
+	if (err || likely((req->cryptlen % XTS_BLOCK_SIZE) == 0))
 		return err;
 
-	nblocks = min(nbytes / bsize, max_blks);
-	src = (le128 *)walk.src.virt.addr;
-	dst = (le128 *)walk.dst.virt.addr;
-
-	/* calculate first value of T */
-	req->tweak_fn(req->tweak_ctx, (u8 *)&t_buf[0], walk.iv);
-
-	i = 0;
-	goto first;
-
-	for (;;) {
-		do {
-			for (i = 0; i < nblocks; i++) {
-				gf128mul_x_ble(&t_buf[i], t);
-first:
-				t = &t_buf[i];
-
-				/* PP <- T xor P */
-				le128_xor(dst + i, t, src + i);
-			}
-
-			/* CC <- E(Key2,PP) */
-			req->crypt_fn(req->crypt_ctx, (u8 *)dst,
-				      nblocks * bsize);
-
-			/* C <- T xor CC */
-			for (i = 0; i < nblocks; i++)
-				le128_xor(dst + i, dst + i, &t_buf[i]);
-
-			src += nblocks;
-			dst += nblocks;
-			nbytes -= nblocks * bsize;
-			nblocks = min(nbytes / bsize, max_blks);
-		} while (nblocks > 0);
-
-		*(le128 *)walk.iv = *t;
-
-		err = blkcipher_walk_done(desc, &walk, nbytes);
-		nbytes = walk.nbytes;
-		if (!nbytes)
-			break;
-
-		nblocks = min(nbytes / bsize, max_blks);
-		src = (le128 *)walk.src.virt.addr;
-		dst = (le128 *)walk.dst.virt.addr;
-	}
-
-	return err;
+	return cts_final(req, crypto_skcipher_decrypt);
 }
-EXPORT_SYMBOL_GPL(xts_crypt);
 
 static int init_tfm(struct crypto_skcipher *tfm)
 {
@@ -608,7 +471,7 @@ static void __exit crypto_module_exit(void)
 	crypto_unregister_template(&crypto_tmpl);
 }
 
-module_init(crypto_module_init);
+subsys_initcall(crypto_module_init);
 module_exit(crypto_module_exit);
 
 MODULE_LICENSE("GPL");

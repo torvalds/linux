@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/ctype.h>
@@ -90,10 +86,12 @@ const char *aa_splitn_fqname(const char *fqname, size_t n, const char **ns_name,
 	const char *end = fqname + n;
 	const char *name = skipn_spaces(fqname, n);
 
-	if (!name)
-		return NULL;
 	*ns_name = NULL;
 	*ns_len = 0;
+
+	if (!name)
+		return NULL;
+
 	if (name[0] == ':') {
 		char *split = strnchr(&name[1], end - &name[1], ':');
 		*ns_name = skipn_spaces(&name[1], end - &name[1]);
@@ -198,20 +196,30 @@ const char *aa_file_perm_names[] = {
 /**
  * aa_perm_mask_to_str - convert a perm mask to its short string
  * @str: character buffer to store string in (at least 10 characters)
+ * @str_size: size of the @str buffer
+ * @chrs: NUL-terminated character buffer of permission characters
  * @mask: permission mask to convert
  */
-void aa_perm_mask_to_str(char *str, const char *chrs, u32 mask)
+void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs, u32 mask)
 {
 	unsigned int i, perm = 1;
+	size_t num_chrs = strlen(chrs);
 
-	for (i = 0; i < 32; perm <<= 1, i++) {
-		if (mask & perm)
+	for (i = 0; i < num_chrs; perm <<= 1, i++) {
+		if (mask & perm) {
+			/* Ensure that one byte is left for NUL-termination */
+			if (WARN_ON_ONCE(str_size <= 1))
+				break;
+
 			*str++ = chrs[i];
+			str_size--;
+		}
 	}
 	*str = '\0';
 }
 
-void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask)
+void aa_audit_perm_names(struct audit_buffer *ab, const char * const *names,
+			 u32 mask)
 {
 	const char *fmt = "%s";
 	unsigned int i, perm = 1;
@@ -229,13 +237,13 @@ void aa_audit_perm_names(struct audit_buffer *ab, const char **names, u32 mask)
 }
 
 void aa_audit_perm_mask(struct audit_buffer *ab, u32 mask, const char *chrs,
-			u32 chrsmask, const char **names, u32 namesmask)
+			u32 chrsmask, const char * const *names, u32 namesmask)
 {
 	char str[33];
 
 	audit_log_format(ab, "\"");
 	if ((mask & chrsmask) && chrs) {
-		aa_perm_mask_to_str(str, chrs, mask & chrsmask);
+		aa_perm_mask_to_str(str, sizeof(str), chrs, mask & chrsmask);
 		mask &= ~chrsmask;
 		audit_log_format(ab, "%s", str);
 		if (mask & namesmask)
@@ -407,7 +415,7 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
  * @request: requested perms
  * @deny: Returns: explicit deny set
  * @sa: initialized audit structure (MAY BE NULL if not auditing)
- * @cb: callback fn for tpye specific fields (MAY BE NULL)
+ * @cb: callback fn for type specific fields (MAY BE NULL)
  *
  * Returns: 0 if permission else error code
  *

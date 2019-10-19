@@ -1,17 +1,14 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-2.0-only
 
 # Script to create/update include/generated/autoksyms.h and dependency files
 #
 # Copyright:	(C) 2016  Linaro Limited
 # Created by:	Nicolas Pitre, January 2016
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License version 2 as
-# published by the Free Software Foundation.
 
 # Create/update the include/generated/autoksyms.h file from the list
-# of all module's needed symbols as recorded on the third line of
-# .tmp_versions/*.mod files.
+# of all module's needed symbols as recorded on the second line of *.mod files.
 #
 # For each symbol being added or removed, the corresponding dependency
 # file's timestamp is updated to force a rebuild of the affected source
@@ -39,17 +36,7 @@ case "$KBUILD_VERBOSE" in
 esac
 
 # We need access to CONFIG_ symbols
-case "${KCONFIG_CONFIG}" in
-*/*)
-	. "${KCONFIG_CONFIG}"
-	;;
-*)
-	# Force using a file from the current directory
-	. "./${KCONFIG_CONFIG}"
-esac
-
-# In case it doesn't exist yet...
-if [ -e "$cur_ksyms_file" ]; then touch "$cur_ksyms_file"; fi
+. include/config/auto.conf
 
 # Generate a new ksym list file with symbols needed by the current
 # set of modules.
@@ -59,14 +46,10 @@ cat > "$new_ksyms_file" << EOT
  */
 
 EOT
-[ "$(ls -A "$MODVERDIR")" ] &&
-sed -ns -e '3{s/ /\n/g;/^$/!p;}' "$MODVERDIR"/*.mod | sort -u |
-while read sym; do
-	if [ -n "$CONFIG_HAVE_UNDERSCORE_SYMBOL_PREFIX" ]; then
-		sym="${sym#_}"
-	fi
-	echo "#define __KSYM_${sym} 1"
-done >> "$new_ksyms_file"
+sed 's/ko$/mod/' modules.order |
+xargs -n1 sed -n -e '2{s/ /\n/g;/^$/!p;}' -- |
+sort -u |
+sed -e 's/\(.*\)/#define __KSYM_\1 1/' >> "$new_ksyms_file"
 
 # Special case for modversions (see modpost.c)
 if [ -n "$CONFIG_MODVERSIONS" ]; then
@@ -81,9 +64,16 @@ sort "$cur_ksyms_file" "$new_ksyms_file" | uniq -u |
 sed -n 's/^#define __KSYM_\(.*\) 1/\1/p' | tr "A-Z_" "a-z/" |
 while read sympath; do
 	if [ -z "$sympath" ]; then continue; fi
-	depfile="include/config/ksym/${sympath}.h"
+	depfile="include/ksym/${sympath}.h"
 	mkdir -p "$(dirname "$depfile")"
 	touch "$depfile"
+	# Filesystems with coarse time precision may create timestamps
+	# equal to the one from a file that was very recently built and that
+	# needs to be rebuild. Let's guard against that by making sure our
+	# dep files are always newer than the first file we created here.
+	while [ ! "$depfile" -nt "$new_ksyms_file" ]; do
+		touch "$depfile"
+	done
 	echo $((count += 1))
 done | tail -1 )
 changed=${changed:-0}

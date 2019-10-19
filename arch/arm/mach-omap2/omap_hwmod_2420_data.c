@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod_2420_data.c - hardware modules present on the OMAP2420 chips
  *
@@ -5,18 +6,12 @@
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 
-#include <linux/i2c-omap.h>
-#include <linux/platform_data/spi-omap2-mcspi.h>
+#include <linux/platform_data/i2c-omap.h>
 #include <linux/omap-dma.h>
-#include <plat/dmtimer.h>
 
 #include "omap_hwmod.h"
 #include "l3_2xxx.h"
@@ -93,15 +88,7 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 static struct omap_hwmod_class i2c_class = {
 	.name		= "i2c",
 	.sysc		= &i2c_sysc,
-	.rev		= OMAP_I2C_IP_VERSION_1,
 	.reset		= &omap_i2c_reset,
-};
-
-static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.flags		= OMAP_I2C_FLAG_NO_FIFO |
-			  OMAP_I2C_FLAG_SIMPLE_CLOCK |
-			  OMAP_I2C_FLAG_16BIT_DATA_REG |
-			  OMAP_I2C_FLAG_BUS_SHIFT_2,
 };
 
 /* I2C1 */
@@ -116,7 +103,6 @@ static struct omap_hwmod omap2420_i2c1_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c_dev_attr,
 	/*
 	 * From mach-omap2/pm24xx.c: "Putting MPU into the WFI state
 	 * while a transfer is active seems to cause the I2C block to
@@ -137,7 +123,6 @@ static struct omap_hwmod omap2420_i2c2_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c_dev_attr,
 	.flags		= HWMOD_16BIT_REG,
 };
 

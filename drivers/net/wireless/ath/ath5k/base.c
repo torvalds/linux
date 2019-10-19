@@ -73,16 +73,16 @@
 #include "trace.h"
 
 bool ath5k_modparam_nohwcrypt;
-module_param_named(nohwcrypt, ath5k_modparam_nohwcrypt, bool, S_IRUGO);
+module_param_named(nohwcrypt, ath5k_modparam_nohwcrypt, bool, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
 
 static bool modparam_fastchanswitch;
-module_param_named(fastchanswitch, modparam_fastchanswitch, bool, S_IRUGO);
+module_param_named(fastchanswitch, modparam_fastchanswitch, bool, 0444);
 MODULE_PARM_DESC(fastchanswitch, "Enable fast channel switching for AR2413/AR5413 radios.");
 
 static bool ath5k_modparam_no_hw_rfkill_switch;
 module_param_named(no_hw_rfkill_switch, ath5k_modparam_no_hw_rfkill_switch,
-								bool, S_IRUGO);
+		   bool, 0444);
 MODULE_PARM_DESC(no_hw_rfkill_switch, "Ignore the GPIO RFKill switch state");
 
 
@@ -837,7 +837,6 @@ ath5k_txbuf_setup(struct ath5k_hw *ah, struct ath5k_buf *bf,
 
 	txq->link = &ds->ds_link;
 	ath5k_hw_start_tx_dma(ah, txq->qnum);
-	mmiowb();
 	spin_unlock_bh(&txq->lock);
 
 	return 0;
@@ -2174,7 +2173,6 @@ ath5k_beacon_config(struct ath5k_hw *ah)
 	}
 
 	ath5k_hw_set_imr(ah, ah->imask);
-	mmiowb();
 	spin_unlock_bh(&ah->block);
 }
 
@@ -2779,7 +2777,6 @@ int ath5k_start(struct ieee80211_hw *hw)
 
 	ret = 0;
 done:
-	mmiowb();
 	mutex_unlock(&ah->lock);
 
 	set_bit(ATH_STAT_STARTED, ah->status);
@@ -2839,7 +2836,6 @@ void ath5k_stop(struct ieee80211_hw *hw)
 				"putting device to sleep\n");
 	}
 
-	mmiowb();
 	mutex_unlock(&ah->lock);
 
 	ath5k_stop_tasklets(ah);

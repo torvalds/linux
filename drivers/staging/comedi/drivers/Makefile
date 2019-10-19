@@ -11,7 +11,6 @@ obj-$(CONFIG_COMEDI_ISADMA)		+= comedi_isadma.o
 obj-$(CONFIG_COMEDI_BOND)		+= comedi_bond.o
 obj-$(CONFIG_COMEDI_TEST)		+= comedi_test.o
 obj-$(CONFIG_COMEDI_PARPORT)		+= comedi_parport.o
-obj-$(CONFIG_COMEDI_SERIAL2002)		+= serial2002.o
 
 # Comedi ISA drivers
 obj-$(CONFIG_COMEDI_AMPLC_DIO200_ISA)	+= amplc_dio200.o
@@ -138,6 +137,33 @@ obj-$(CONFIG_COMEDI_VMK80XX)		+= vmk80xx.o
 obj-$(CONFIG_COMEDI_MITE)		+= mite.o
 obj-$(CONFIG_COMEDI_NI_TIO)		+= ni_tio.o
 obj-$(CONFIG_COMEDI_NI_TIOCMD)		+= ni_tiocmd.o
+obj-$(CONFIG_COMEDI_NI_ROUTING)		+= ni_routing.o
+ni_routing-objs				+= ni_routes.o \
+					   ni_routing/ni_route_values.o \
+					   ni_routing/ni_route_values/ni_660x.o \
+					   ni_routing/ni_route_values/ni_eseries.o \
+					   ni_routing/ni_route_values/ni_mseries.o \
+					   ni_routing/ni_device_routes.o \
+					   ni_routing/ni_device_routes/pxi-6030e.o \
+					   ni_routing/ni_device_routes/pci-6070e.o \
+					   ni_routing/ni_device_routes/pci-6220.o \
+					   ni_routing/ni_device_routes/pci-6221.o \
+					   ni_routing/ni_device_routes/pxi-6224.o \
+					   ni_routing/ni_device_routes/pxi-6225.o \
+					   ni_routing/ni_device_routes/pci-6229.o \
+					   ni_routing/ni_device_routes/pci-6251.o \
+					   ni_routing/ni_device_routes/pxi-6251.o \
+					   ni_routing/ni_device_routes/pxie-6251.o \
+					   ni_routing/ni_device_routes/pci-6254.o \
+					   ni_routing/ni_device_routes/pci-6259.o \
+					   ni_routing/ni_device_routes/pci-6534.o \
+					   ni_routing/ni_device_routes/pxie-6535.o \
+					   ni_routing/ni_device_routes/pci-6602.o \
+					   ni_routing/ni_device_routes/pci-6713.o \
+					   ni_routing/ni_device_routes/pci-6723.o \
+					   ni_routing/ni_device_routes/pci-6733.o \
+					   ni_routing/ni_device_routes/pxi-6733.o \
+					   ni_routing/ni_device_routes/pxie-6738.o
 obj-$(CONFIG_COMEDI_NI_LABPC)		+= ni_labpc_common.o
 obj-$(CONFIG_COMEDI_NI_LABPC_ISADMA)	+= ni_labpc_isadma.o
 
@@ -146,3 +172,4 @@ obj-$(CONFIG_COMEDI_8255_SA)		+= 8255.o
 obj-$(CONFIG_COMEDI_AMPLC_DIO200)	+= amplc_dio200_common.o
 obj-$(CONFIG_COMEDI_AMPLC_PC236)	+= amplc_pc236_common.o
 obj-$(CONFIG_COMEDI_DAS08)		+= das08.o
+obj-$(CONFIG_COMEDI_TESTS)		+= tests/

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 **
 **  PCI Lower Bus Adapter (LBA) manager
@@ -5,10 +6,6 @@
 **	(c) Copyright 1999,2000 Grant Grundler
 **	(c) Copyright 1999,2000 Hewlett-Packard Company
 **
-**	This program is free software; you can redistribute it and/or modify
-**	it under the terms of the GNU General Public License as published by
-**      the Free Software Foundation; either version 2 of the License, or
-**      (at your option) any later version.
 **
 **
 ** This module primarily provides access to PCI bus (config/IOport
@@ -48,6 +45,8 @@
 #include <asm/hardware.h>	/* for register_parisc_driver() stuff */
 #include <asm/parisc-device.h>
 #include <asm/io.h>		/* read/write stuff */
+
+#include "iommu.h"
 
 #undef DEBUG_LBA	/* general stuff */
 #undef DEBUG_LBA_PORT	/* debug I/O Port access */
@@ -109,12 +108,10 @@ static u32 lba_t32;
 
 #define LBA_SKIP_PROBE(d) ((d)->flags & LBA_FLAG_SKIP_PROBE)
 
-
-/* Looks nice and keeps the compiler happy */
-#define LBA_DEV(d) ({				\
-	void *__pdata = d;			\
-	BUG_ON(!__pdata);			\
-	(struct lba_device *)__pdata; })
+static inline struct lba_device *LBA_DEV(struct pci_hba_data *hba)
+{
+	return container_of(hba, struct lba_device, hba);
+}
 
 /*
 ** Only allow 8 subsidiary busses per LBA
@@ -1275,7 +1272,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		r->flags = IORESOURCE_MEM;
 		/* mmio_mask also clears Enable bit */
 		r->start &= mmio_mask;
-		r->start = PCI_HOST_ADDR(HBA_DATA(lba_dev), r->start);
+		r->start = PCI_HOST_ADDR(&lba_dev->hba, r->start);
 		rsize = ~ READ_REG32(lba_dev->hba.base_addr + LBA_LMMIO_MASK);
 
 		/*
@@ -1321,7 +1318,7 @@ lba_legacy_resources(struct parisc_device *pa_dev, struct lba_device *lba_dev)
 		r->flags = IORESOURCE_MEM;
 		/* mmio_mask also clears Enable bit */
 		r->start &= mmio_mask;
-		r->start = PCI_HOST_ADDR(HBA_DATA(lba_dev), r->start);
+		r->start = PCI_HOST_ADDR(&lba_dev->hba, r->start);
 		rsize = READ_REG32(lba_dev->hba.base_addr + LBA_ELMMIO_MASK);
 		r->end = r->start + ~rsize;
 	}
@@ -1403,9 +1400,27 @@ lba_hw_init(struct lba_device *d)
 		WRITE_REG32(stat, d->hba.base_addr + LBA_ERROR_CONFIG);
 	}
 
-	/* Set HF mode as the default (vs. -1 mode). */
+
+	/*
+	 * Hard Fail vs. Soft Fail on PCI "Master Abort".
+	 *
+	 * "Master Abort" means the MMIO transaction timed out - usually due to
+	 * the device not responding to an MMIO read. We would like HF to be
+	 * enabled to find driver problems, though it means the system will
+	 * crash with a HPMC.
+	 *
+	 * In SoftFail mode "~0L" is returned as a result of a timeout on the
+	 * pci bus. This is like how PCI busses on x86 and most other
+	 * architectures behave.  In order to increase compatibility with
+	 * existing (x86) PCI hardware and existing Linux drivers we enable
+	 * Soft Faul mode on PA-RISC now too.
+	 */
         stat = READ_REG32(d->hba.base_addr + LBA_STAT_CTL);
+#if defined(ENABLE_HARDFAIL)
 	WRITE_REG32(stat | HF_ENABLE, d->hba.base_addr + LBA_STAT_CTL);
+#else
+	WRITE_REG32(stat & ~HF_ENABLE, d->hba.base_addr + LBA_STAT_CTL);
+#endif
 
 	/*
 	** Writing a zero to STAT_CTL.rf (bit 0) will clear reset signal
@@ -1544,7 +1559,7 @@ lba_driver_probe(struct parisc_device *dev)
 
 	/* ------------ Second : initialize common stuff ---------- */
 	pci_bios = &lba_bios_ops;
-	pcibios_register_hba(HBA_DATA(lba_dev));
+	pcibios_register_hba(&lba_dev->hba);
 	spin_lock_init(&lba_dev->lba_lock);
 
 	if (lba_hw_init(lba_dev))
@@ -1725,3 +1740,15 @@ static void quirk_diva_aux_disable(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_DIVA_AUX,
 	quirk_diva_aux_disable);
+
+static void quirk_tosca_aux_disable(struct pci_dev *dev)
+{
+	if (dev->subsystem_vendor != PCI_VENDOR_ID_HP ||
+	    dev->subsystem_device != 0x104a)
+		return;
+
+	dev_info(&dev->dev, "Hiding Tosca secondary built-in AUX serial device");
+	dev->device = 0;
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_DIVA,
+	quirk_tosca_aux_disable);

@@ -407,7 +407,7 @@ xpnet_send(struct sk_buff *skb, struct xpnet_pending_msg *queued_msg,
  * destination partid.  If the destination partid octets are 0xffff,
  * this packet is to be broadcast to all connected partitions.
  */
-static int
+static netdev_tx_t
 xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct xpnet_pending_msg *queued_msg;
@@ -515,13 +515,14 @@ xpnet_init(void)
 {
 	int result;
 
-	if (!is_shub() && !is_uv())
+	if (!is_uv())
 		return -ENODEV;
 
 	dev_info(xpnet, "registering network device %s\n", XPNET_DEVICE_NAME);
 
-	xpnet_broadcast_partitions = kzalloc(BITS_TO_LONGS(xp_max_npartitions) *
-					     sizeof(long), GFP_KERNEL);
+	xpnet_broadcast_partitions = kcalloc(BITS_TO_LONGS(xp_max_npartitions),
+					     sizeof(long),
+					     GFP_KERNEL);
 	if (xpnet_broadcast_partitions == NULL)
 		return -ENOMEM;
 

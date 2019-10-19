@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux WiMAX
  * Initialization, addition and removal of wimax devices
  *
- *
  * Copyright (C) 2005-2006 Intel Corporation <linux-wimax@intel.com>
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301, USA.
- *
  *
  * This implements:
  *
@@ -419,26 +404,26 @@ static const struct nla_policy wimax_gnl_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 static const struct genl_ops wimax_gnl_ops[] = {
 	{
 		.cmd = WIMAX_GNL_OP_MSG_FROM_USER,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_msg_from_user,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RESET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_reset,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_RFKILL,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_rfkill,
 	},
 	{
 		.cmd = WIMAX_GNL_OP_STATE_GET,
+		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
 		.flags = GENL_ADMIN_PERM,
-		.policy = wimax_gnl_policy,
 		.doit = wimax_gnl_doit_state_get,
 	},
 };
@@ -486,7 +471,8 @@ int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
 	d_fnstart(3, dev, "(wimax_dev %p net_dev %p)\n", wimax_dev, net_dev);
 
 	/* Do the RFKILL setup before locking, as RFKILL will call
-	 * into our functions. */
+	 * into our functions.
+	 */
 	wimax_dev->net_dev = net_dev;
 	result = wimax_rfkill_add(wimax_dev);
 	if (result < 0)
@@ -495,12 +481,7 @@ int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
 	/* Set up user-space interaction */
 	mutex_lock(&wimax_dev->mutex);
 	wimax_id_table_add(wimax_dev);
-	result = wimax_debugfs_add(wimax_dev);
-	if (result < 0) {
-		dev_err(dev, "cannot initialize debugfs: %d\n",
-			result);
-		goto error_debugfs_add;
-	}
+	wimax_debugfs_add(wimax_dev);
 
 	__wimax_state_set(wimax_dev, WIMAX_ST_DOWN);
 	mutex_unlock(&wimax_dev->mutex);
@@ -512,10 +493,6 @@ int wimax_dev_add(struct wimax_dev *wimax_dev, struct net_device *net_dev)
 	d_fnend(3, dev, "(wimax_dev %p net_dev %p) = 0\n", wimax_dev, net_dev);
 	return 0;
 
-error_debugfs_add:
-	wimax_id_table_rm(wimax_dev);
-	mutex_unlock(&wimax_dev->mutex);
-	wimax_rfkill_rm(wimax_dev);
 error_rfkill_add:
 	d_fnend(3, dev, "(wimax_dev %p net_dev %p) = %d\n",
 		wimax_dev, net_dev, result);
@@ -581,6 +558,7 @@ struct genl_family wimax_gnl_family __ro_after_init = {
 	.version = WIMAX_GNL_VERSION,
 	.hdrsize = 0,
 	.maxattr = WIMAX_GNL_ATTR_MAX,
+	.policy = wimax_gnl_policy,
 	.module = THIS_MODULE,
 	.ops = wimax_gnl_ops,
 	.n_ops = ARRAY_SIZE(wimax_gnl_ops),
@@ -629,4 +607,3 @@ module_exit(wimax_subsys_exit);
 MODULE_AUTHOR("Intel Corporation <linux-wimax@intel.com>");
 MODULE_DESCRIPTION("Linux WiMAX stack");
 MODULE_LICENSE("GPL");
-

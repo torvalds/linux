@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
- * rcar_du_crtc.c  --  R-Car Display Unit CRTCs
+ * Generic LVDS panel driver
  *
  * Copyright (C) 2016 Laurent Pinchart
  * Copyright (C) 2016 Renesas Electronics Corporation
  *
  * Contact: Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/backlight.h>
@@ -20,13 +16,12 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_panel.h>
-
 #include <video/display_timing.h>
 #include <video/of_display_timing.h>
 #include <video/videomode.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_panel.h>
 
 struct panel_lvds {
 	struct drm_panel panel;
@@ -152,8 +147,11 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 	int ret;
 
 	ret = of_get_display_timing(np, "panel-timing", &timing);
-	if (ret < 0)
+	if (ret < 0) {
+		dev_err(lvds->dev, "%pOF: problems parsing panel-timing (%d)\n",
+			np, ret);
 		return ret;
+	}
 
 	videomode_from_timing(&timing, &lvds->video_mode);
 
@@ -282,7 +280,6 @@ static int panel_lvds_remove(struct platform_device *pdev)
 {
 	struct panel_lvds *lvds = dev_get_drvdata(&pdev->dev);
 
-	drm_panel_detach(&lvds->panel);
 	drm_panel_remove(&lvds->panel);
 
 	panel_lvds_disable(&lvds->panel);

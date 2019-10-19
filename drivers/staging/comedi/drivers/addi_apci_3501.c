@@ -258,8 +258,15 @@ static int apci3501_eeprom_insn_read(struct comedi_device *dev,
 {
 	struct apci3501_private *devpriv = dev->private;
 	unsigned short addr = CR_CHAN(insn->chanspec);
+	unsigned int val;
+	unsigned int i;
 
-	data[0] = apci3501_eeprom_readw(devpriv->amcc, 2 * addr);
+	if (insn->n) {
+		/* No point reading the same EEPROM location more than once. */
+		val = apci3501_eeprom_readw(devpriv->amcc, 2 * addr);
+		for (i = 0; i < insn->n; i++)
+			data[i] = val;
+	}
 
 	return insn->n;
 }

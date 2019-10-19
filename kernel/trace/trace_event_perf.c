@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * trace event based perf event profiling/tracing
  *
@@ -8,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include "trace.h"
+#include "trace_probe.h"
 
 static char __percpu *perf_trace_buf[PERF_NR_CONTEXTS];
 
@@ -237,6 +239,110 @@ void perf_trace_destroy(struct perf_event *p_event)
 	mutex_unlock(&event_mutex);
 }
 
+#ifdef CONFIG_KPROBE_EVENTS
+int perf_kprobe_init(struct perf_event *p_event, bool is_retprobe)
+{
+	int ret;
+	char *func = NULL;
+	struct trace_event_call *tp_event;
+
+	if (p_event->attr.kprobe_func) {
+		func = kzalloc(KSYM_NAME_LEN, GFP_KERNEL);
+		if (!func)
+			return -ENOMEM;
+		ret = strncpy_from_user(
+			func, u64_to_user_ptr(p_event->attr.kprobe_func),
+			KSYM_NAME_LEN);
+		if (ret == KSYM_NAME_LEN)
+			ret = -E2BIG;
+		if (ret < 0)
+			goto out;
+
+		if (func[0] == '\0') {
+			kfree(func);
+			func = NULL;
+		}
+	}
+
+	tp_event = create_local_trace_kprobe(
+		func, (void *)(unsigned long)(p_event->attr.kprobe_addr),
+		p_event->attr.probe_offset, is_retprobe);
+	if (IS_ERR(tp_event)) {
+		ret = PTR_ERR(tp_event);
+		goto out;
+	}
+
+	ret = perf_trace_event_init(tp_event, p_event);
+	if (ret)
+		destroy_local_trace_kprobe(tp_event);
+out:
+	kfree(func);
+	return ret;
+}
+
+void perf_kprobe_destroy(struct perf_event *p_event)
+{
+	perf_trace_event_close(p_event);
+	perf_trace_event_unreg(p_event);
+
+	destroy_local_trace_kprobe(p_event->tp_event);
+}
+#endif /* CONFIG_KPROBE_EVENTS */
+
+#ifdef CONFIG_UPROBE_EVENTS
+int perf_uprobe_init(struct perf_event *p_event,
+		     unsigned long ref_ctr_offset, bool is_retprobe)
+{
+	int ret;
+	char *path = NULL;
+	struct trace_event_call *tp_event;
+
+	if (!p_event->attr.uprobe_path)
+		return -EINVAL;
+
+	path = strndup_user(u64_to_user_ptr(p_event->attr.uprobe_path),
+			    PATH_MAX);
+	if (IS_ERR(path)) {
+		ret = PTR_ERR(path);
+		return (ret == -EINVAL) ? -E2BIG : ret;
+	}
+	if (path[0] == '\0') {
+		ret = -EINVAL;
+		goto out;
+	}
+
+	tp_event = create_local_trace_uprobe(path, p_event->attr.probe_offset,
+					     ref_ctr_offset, is_retprobe);
+	if (IS_ERR(tp_event)) {
+		ret = PTR_ERR(tp_event);
+		goto out;
+	}
+
+	/*
+	 * local trace_uprobe need to hold event_mutex to call
+	 * uprobe_buffer_enable() and uprobe_buffer_disable().
+	 * event_mutex is not required for local trace_kprobes.
+	 */
+	mutex_lock(&event_mutex);
+	ret = perf_trace_event_init(tp_event, p_event);
+	if (ret)
+		destroy_local_trace_uprobe(tp_event);
+	mutex_unlock(&event_mutex);
+out:
+	kfree(path);
+	return ret;
+}
+
+void perf_uprobe_destroy(struct perf_event *p_event)
+{
+	mutex_lock(&event_mutex);
+	perf_trace_event_close(p_event);
+	perf_trace_event_unreg(p_event);
+	mutex_unlock(&event_mutex);
+	destroy_local_trace_uprobe(p_event->tp_event);
+}
+#endif /* CONFIG_UPROBE_EVENTS */
+
 int perf_trace_add(struct perf_event *p_event, int flags)
 {
 	struct trace_event_call *tp_event = p_event->tp_event;
@@ -310,8 +416,7 @@ void perf_trace_buf_update(void *record, u16 type)
 	unsigned long flags;
 
 	local_save_flags(flags);
-	tracing_generic_entry_update(entry, flags, pc);
-	entry->type = type;
+	tracing_generic_entry_update(entry, type, flags, pc);
 }
 NOKPROBE_SYMBOL(perf_trace_buf_update);
 

@@ -23,13 +23,18 @@
 #ifndef __DRM_FRAMEBUFFER_H__
 #define __DRM_FRAMEBUFFER_H__
 
-#include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/list.h>
+#include <linux/sched.h>
+
 #include <drm/drm_mode_object.h>
 
-struct drm_framebuffer;
-struct drm_file;
+struct drm_clip_rect;
 struct drm_device;
+struct drm_file;
+struct drm_format_info;
+struct drm_framebuffer;
+struct drm_gem_object;
 
 /**
  * struct drm_framebuffer_funcs - framebuffer hooks
@@ -81,6 +86,9 @@ struct drm_framebuffer_funcs {
 	 * See documentation in drm_mode.h for the struct drm_mode_fb_dirty_cmd
 	 * for more information as all the semantics and arguments have a one to
 	 * one mapping on this function.
+	 *
+	 * Atomic drivers should use drm_atomic_helper_dirtyfb() to implement
+	 * this hook.
 	 *
 	 * RETURNS:
 	 *
@@ -238,30 +246,6 @@ static inline void drm_framebuffer_get(struct drm_framebuffer *fb)
 static inline void drm_framebuffer_put(struct drm_framebuffer *fb)
 {
 	drm_mode_object_put(&fb->base);
-}
-
-/**
- * drm_framebuffer_reference - acquire a framebuffer reference
- * @fb: DRM framebuffer
- *
- * This is a compatibility alias for drm_framebuffer_get() and should not be
- * used by new code.
- */
-static inline void drm_framebuffer_reference(struct drm_framebuffer *fb)
-{
-	drm_framebuffer_get(fb);
-}
-
-/**
- * drm_framebuffer_unreference - release a framebuffer reference
- * @fb: DRM framebuffer
- *
- * This is a compatibility alias for drm_framebuffer_put() and should not be
- * used by new code.
- */
-static inline void drm_framebuffer_unreference(struct drm_framebuffer *fb)
-{
-	drm_framebuffer_put(fb);
 }
 
 /**

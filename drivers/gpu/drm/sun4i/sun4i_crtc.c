@@ -1,20 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2015 Free Electrons
  * Copyright (C) 2015 NextThing Co
  *
  * Maxime Ripard <maxime.ripard@free-electrons.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
-
-#include <drm/drmP.h>
-#include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
-#include <drm/drm_modes.h>
 
 #include <linux/clk-provider.h>
 #include <linux/ioport.h>
@@ -25,6 +15,14 @@
 
 #include <video/videomode.h>
 
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_crtc.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
+
+#include "sun4i_backend.h"
 #include "sun4i_crtc.h"
 #include "sun4i_drv.h"
 #include "sunxi_engine.h"
@@ -46,11 +44,25 @@ static struct drm_encoder *sun4i_crtc_get_encoder(struct drm_crtc *crtc)
 	return NULL;
 }
 
+static int sun4i_crtc_atomic_check(struct drm_crtc *crtc,
+				    struct drm_crtc_state *state)
+{
+	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
+	struct sunxi_engine *engine = scrtc->engine;
+	int ret = 0;
+
+	if (engine && engine->ops && engine->ops->atomic_check)
+		ret = engine->ops->atomic_check(engine, state);
+
+	return ret;
+}
+
 static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 				    struct drm_crtc_state *old_state)
 {
 	struct sun4i_crtc *scrtc = drm_crtc_to_sun4i_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
+	struct sunxi_engine *engine = scrtc->engine;
 	unsigned long flags;
 
 	if (crtc->state->event) {
@@ -60,7 +72,10 @@ static void sun4i_crtc_atomic_begin(struct drm_crtc *crtc,
 		scrtc->event = crtc->state->event;
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		crtc->state->event = NULL;
-	 }
+	}
+
+	if (engine->ops->atomic_begin)
+		engine->ops->atomic_begin(engine, old_state);
 }
 
 static void sun4i_crtc_atomic_flush(struct drm_crtc *crtc,
@@ -93,6 +108,8 @@ static void sun4i_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	DRM_DEBUG_DRIVER("Disabling the CRTC\n");
 
+	drm_crtc_vblank_off(crtc);
+
 	sun4i_tcon_set_status(scrtc->tcon, encoder, false);
 
 	if (crtc->state->event && !crtc->state->active) {
@@ -113,6 +130,8 @@ static void sun4i_crtc_atomic_enable(struct drm_crtc *crtc,
 	DRM_DEBUG_DRIVER("Enabling the CRTC\n");
 
 	sun4i_tcon_set_status(scrtc->tcon, encoder, true);
+
+	drm_crtc_vblank_on(crtc);
 }
 
 static void sun4i_crtc_mode_set_nofb(struct drm_crtc *crtc)
@@ -125,6 +144,7 @@ static void sun4i_crtc_mode_set_nofb(struct drm_crtc *crtc)
 }
 
 static const struct drm_crtc_helper_funcs sun4i_crtc_helper_funcs = {
+	.atomic_check	= sun4i_crtc_atomic_check,
 	.atomic_begin	= sun4i_crtc_atomic_begin,
 	.atomic_flush	= sun4i_crtc_atomic_flush,
 	.atomic_enable	= sun4i_crtc_atomic_enable,
@@ -219,7 +239,7 @@ struct sun4i_crtc *sun4i_crtc_init(struct drm_device *drm,
 
 	/* Set possible_crtcs to this crtc for overlay planes */
 	for (i = 0; planes[i]; i++) {
-		uint32_t possible_crtcs = BIT(drm_crtc_index(&scrtc->crtc));
+		uint32_t possible_crtcs = drm_crtc_mask(&scrtc->crtc);
 		struct drm_plane *plane = planes[i];
 
 		if (plane->type == DRM_PLANE_TYPE_OVERLAY)

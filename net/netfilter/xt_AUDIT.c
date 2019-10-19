@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Creates audit record for dropped/accepted packets
  *
  * (C) 2010-2011 Thomas Graf <tgraf@redhat.com>
  * (C) 2010-2011 Red Hat, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -72,7 +69,7 @@ audit_tg(struct sk_buff *skb, const struct xt_action_param *par)
 	struct audit_buffer *ab;
 	int fam = -1;
 
-	if (audit_enabled == 0)
+	if (audit_enabled == AUDIT_OFF)
 		goto errout;
 	ab = audit_log_start(NULL, GFP_ATOMIC, AUDIT_NETFILTER_PKT);
 	if (ab == NULL)
@@ -120,8 +117,8 @@ static int audit_tg_check(const struct xt_tgchk_param *par)
 	const struct xt_audit_info *info = par->targinfo;
 
 	if (info->type > XT_AUDIT_TYPE_MAX) {
-		pr_info("Audit type out of range (valid range: 0..%hhu)\n",
-			XT_AUDIT_TYPE_MAX);
+		pr_info_ratelimited("Audit type out of range (valid range: 0..%hhu)\n",
+				    XT_AUDIT_TYPE_MAX);
 		return -ERANGE;
 	}
 

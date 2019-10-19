@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -21,7 +18,7 @@
 #include <net/route.h>
 
 #include <linux/netfilter.h>
-#include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/netfilter_ipv6.h>
 #include <linux/netfilter/xt_LOG.h>
 #include <net/netfilter/nf_log.h>
 
@@ -36,7 +33,7 @@ static const struct nf_loginfo default_loginfo = {
 };
 
 /* One level of recursion won't kill us */
-static void dump_ipv6_packet(struct nf_log_buf *m,
+static void dump_ipv6_packet(struct net *net, struct nf_log_buf *m,
 			     const struct nf_loginfo *info,
 			     const struct sk_buff *skb, unsigned int ip6hoff,
 			     int recurse)
@@ -73,7 +70,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 	fragment = 0;
 	ptr = ip6hoff + sizeof(struct ipv6hdr);
 	currenthdr = ih->nexthdr;
-	while (currenthdr != NEXTHDR_NONE && ip6t_ext_hdr(currenthdr)) {
+	while (currenthdr != NEXTHDR_NONE && nf_ip6_ext_hdr(currenthdr)) {
 		struct ipv6_opt_hdr _hdr;
 		const struct ipv6_opt_hdr *hp;
 
@@ -158,7 +155,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 
 			}
 
-			hdrlen = (hp->hdrlen+2)<<2;
+			hdrlen = ipv6_authlen(hp);
 			break;
 		case IPPROTO_ESP:
 			if (logflags & NF_LOG_IPOPT) {
@@ -258,7 +255,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 			/* Max length: 3+maxlen */
 			if (recurse) {
 				nf_log_buf_add(m, "[");
-				dump_ipv6_packet(m, info, skb,
+				dump_ipv6_packet(net, m, info, skb,
 						 ptr + sizeof(_icmp6h), 0);
 				nf_log_buf_add(m, "] ");
 			}
@@ -278,7 +275,7 @@ static void dump_ipv6_packet(struct nf_log_buf *m,
 
 	/* Max length: 15 "UID=4294967295 " */
 	if ((logflags & NF_LOG_UID) && recurse)
-		nf_log_dump_sk_uid_gid(m, skb->sk);
+		nf_log_dump_sk_uid_gid(net, m, skb->sk);
 
 	/* Max length: 16 "MARK=0xFFFFFFFF " */
 	if (recurse && skb->mark)
@@ -365,7 +362,7 @@ static void nf_log_ip6_packet(struct net *net, u_int8_t pf,
 	if (in != NULL)
 		dump_ipv6_mac_header(m, loginfo, skb);
 
-	dump_ipv6_packet(m, loginfo, skb, skb_network_offset(skb), 1);
+	dump_ipv6_packet(net, m, loginfo, skb, skb_network_offset(skb), 1);
 
 	nf_log_buf_close(m);
 }

@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: dsobject - Dispatcher object management routines
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -52,7 +18,6 @@
 #define _COMPONENT          ACPI_DISPATCHER
 ACPI_MODULE_NAME("dsobject")
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_build_internal_object
@@ -333,8 +298,6 @@ acpi_ds_create_node(struct acpi_walk_state *walk_state,
 	return_ACPI_STATUS(status);
 }
 
-#endif				/* ACPI_NO_METHOD_EXECUTION */
-
 /*******************************************************************************
  *
  * FUNCTION:    acpi_ds_init_object_from_op
@@ -438,9 +401,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 				/* Truncate value if we are executing from a 32-bit ACPI table */
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 				(void)acpi_ex_truncate_for32bit_table(obj_desc);
-#endif
 				break;
 
 			case AML_REVISION_OP:
@@ -462,7 +423,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 			obj_desc->integer.value = op->common.value.integer;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 			if (acpi_ex_truncate_for32bit_table(obj_desc)) {
 
 				/* Warn if we found a 64-bit constant in a 32-bit table */
@@ -473,7 +433,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 								 value.integer),
 					      (u32)obj_desc->integer.value));
 			}
-#endif
 			break;
 
 		default:
@@ -511,7 +470,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			    ((u32)opcode) - AML_FIRST_LOCAL_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_LOCAL;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 			status =
 			    acpi_ds_method_data_get_node(ACPI_REFCLASS_LOCAL,
 							 obj_desc->reference.
@@ -521,7 +479,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 							  acpi_namespace_node,
 							  &obj_desc->reference.
 							  object));
-#endif
 			break;
 
 		case AML_TYPE_METHOD_ARGUMENT:
@@ -532,7 +489,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			    ((u32)opcode) - AML_FIRST_ARG_OP;
 			obj_desc->reference.class = ACPI_REFCLASS_ARG;
 
-#ifndef ACPI_NO_METHOD_EXECUTION
 			status = acpi_ds_method_data_get_node(ACPI_REFCLASS_ARG,
 							      obj_desc->
 							      reference.value,
@@ -543,7 +499,6 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 							       &obj_desc->
 							       reference.
 							       object));
-#endif
 			break;
 
 		default:	/* Object name or Debug object */

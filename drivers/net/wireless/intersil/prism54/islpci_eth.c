@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2002 Intersil Americas Inc.
  *  Copyright (C) 2004 Aurelien Alleaume <slts@free.fr>
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <linux/module.h>
@@ -57,7 +46,7 @@ islpci_eth_cleanup_transmit(islpci_private *priv,
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 			DEBUG(SHOW_TRACING,
-			      "cleanup skb %p skb->data %p skb->len %u truesize %u\n ",
+			      "cleanup skb %p skb->data %p skb->len %u truesize %u\n",
 			      skb, skb->data, skb->len, skb->truesize);
 #endif
 
@@ -328,7 +317,7 @@ islpci_eth_receive(islpci_private *priv)
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 	DEBUG(SHOW_TRACING,
-	      "frq->addr %x skb->data %p skb->len %u offset %u truesize %u\n ",
+	      "frq->addr %x skb->data %p skb->len %u offset %u truesize %u\n",
 	      control_block->rx_data_low[priv->free_data_rx].address, skb->data,
 	      skb->len, offset, skb->truesize);
 #endif
@@ -436,7 +425,7 @@ islpci_eth_receive(islpci_private *priv)
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
 		DEBUG(SHOW_TRACING,
-		      "new alloc skb %p skb->data %p skb->len %u index %u truesize %u\n ",
+		      "new alloc skb %p skb->data %p skb->len %u index %u truesize %u\n",
 		      skb, skb->data, skb->len, index, skb->truesize);
 #endif
 

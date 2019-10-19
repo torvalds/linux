@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  * rtl871x_security.c
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
  * Linux device driver for RTL8192SU
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -40,6 +28,7 @@
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/atomic.h>
+#include <linux/crc32poly.h>
 #include <linux/semaphore.h>
 
 #include "osdep_service.h"
@@ -48,8 +37,6 @@
 #include "osdep_intf.h"
 
 /* =====WEP related===== */
-
-#define CRC32_POLY 0x04c11db7
 
 struct arc4context {
 	u32 x;
@@ -135,7 +122,7 @@ static void crc32_init(void)
 	for (i = 0; i < 256; ++i) {
 		k = crc32_reverseBit((u8)i);
 		for (c = ((u32)k) << 24, j = 8; j > 0; --j)
-			c = c & 0x80000000 ? (c << 1) ^ CRC32_POLY : (c << 1);
+			c = c & 0x80000000 ? (c << 1) ^ CRC32_POLY_BE : (c << 1);
 		p1 = (u8 *)&crc32_table[i];
 		p1[0] = crc32_reverseBit(p[3]);
 		p1[1] = crc32_reverseBit(p[2]);
@@ -649,7 +636,7 @@ u32 r8712_tkip_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 }
 
 /* The hlen doesn't include the IV */
-u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
+void r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 {	/* exclude ICV */
 	u16 pnl;
 	u32 pnh;
@@ -678,12 +665,12 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 			length = ((union recv_frame *)precvframe)->
 				 u.hdr.len - prxattrib->hdrlen -
 				 prxattrib->iv_len;
-			if (IS_MCAST(prxattrib->ra)) {
+			if (is_multicast_ether_addr(prxattrib->ra)) {
 				idx = iv[3];
 				prwskey = &psecuritypriv->XGrpKey[
 					 ((idx >> 6) & 0x3) - 1].skey[0];
 				if (!psecuritypriv->binstallGrpkey)
-					return _FAIL;
+					return;
 			} else {
 				prwskey = &stainfo->x_UncstKey.skey[0];
 			}
@@ -699,16 +686,8 @@ u32 r8712_tkip_decrypt(struct _adapter *padapter, u8 *precvframe)
 			arcfour_encrypt(&mycontext, payload, payload, length);
 			*((__le32 *)crc) = cpu_to_le32(getcrc32(payload,
 					length - 4));
-			if (crc[3] != payload[length - 1] ||
-			    crc[2] != payload[length - 2] ||
-			    crc[1] != payload[length - 3] ||
-			    crc[0] != payload[length - 4])
-				return _FAIL;
-		} else {
-			return _FAIL;
 		}
 	}
-	return _SUCCESS;
 }
 
 /* 3 =====AES related===== */
@@ -1032,8 +1011,8 @@ static void bitwise_xor(u8 *ina, u8 *inb, u8 *out)
 		out[i] = ina[i] ^ inb[i];
 }
 
-static sint aes_cipher(u8 *key, uint	hdrlen,
-			u8 *pframe, uint plen)
+static void aes_cipher(u8 *key, uint hdrlen,
+		       u8 *pframe, uint plen)
 {
 	uint qc_exists, a4_exists, i, j, payload_remainder;
 	uint num_blocks, payload_index;
@@ -1153,7 +1132,6 @@ static sint aes_cipher(u8 *key, uint	hdrlen,
 	bitwise_xor(aes_out, padded_buffer, chain_buffer);
 	for (j = 0; j < 8; j++)
 		pframe[payload_index++] = chain_buffer[j];
-	return _SUCCESS;
 }
 
 u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
@@ -1206,8 +1184,8 @@ u32 r8712_aes_encrypt(struct _adapter *padapter, u8 *pxmitframe)
 	return res;
 }
 
-static sint aes_decipher(u8 *key, uint	hdrlen,
-			u8 *pframe, uint plen)
+static void aes_decipher(u8 *key, uint hdrlen,
+			 u8 *pframe, uint plen)
 {
 	static u8 message[MAX_MSG_SIZE];
 	uint qc_exists, a4_exists, i, j, payload_remainder;
@@ -1361,10 +1339,9 @@ static sint aes_decipher(u8 *key, uint	hdrlen,
 	for (j = 0; j < 8; j++)
 		message[payload_index++] = chain_buffer[j];
 	/* compare the mic */
-	return _SUCCESS;
 }
 
-u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
+void r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 {	/* exclude ICV */
 	/* Intermediate Buffers */
 	sint		length;
@@ -1381,13 +1358,13 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 		stainfo = r8712_get_stainfo(&padapter->stapriv,
 					    &prxattrib->ta[0]);
 		if (stainfo != NULL) {
-			if (IS_MCAST(prxattrib->ra)) {
+			if (is_multicast_ether_addr(prxattrib->ra)) {
 				iv = pframe + prxattrib->hdrlen;
 				idx = iv[3];
 				prwskey = &psecuritypriv->XGrpKey[
 					  ((idx >> 6) & 0x3) - 1].skey[0];
 				if (!psecuritypriv->binstallGrpkey)
-					return _FAIL;
+					return;
 
 			} else {
 				prwskey = &stainfo->x_UncstKey.skey[0];
@@ -1397,11 +1374,8 @@ u32 r8712_aes_decrypt(struct _adapter *padapter, u8 *precvframe)
 				 prxattrib->iv_len;
 			aes_decipher(prwskey, prxattrib->hdrlen, pframe,
 				     length);
-		} else {
-			return _FAIL;
 		}
 	}
-	return _SUCCESS;
 }
 
 void r8712_use_tkipkey_handler(struct timer_list *t)

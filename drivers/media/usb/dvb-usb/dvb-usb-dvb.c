@@ -56,9 +56,6 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 	 * for reception.
 	 */
 	if (adap->feedcount == onoff && adap->feedcount > 0) {
-		deb_ts("submitting all URBs\n");
-		usb_urb_submit(&adap->fe_adap[adap->active_fe].stream);
-
 		deb_ts("controlling pid parser\n");
 		if (adap->props.fe[adap->active_fe].caps & DVB_USB_ADAP_HAS_PID_FILTER &&
 			adap->props.fe[adap->active_fe].caps &
@@ -80,6 +77,8 @@ static int dvb_usb_ctrl_feed(struct dvb_demux_feed *dvbdmxfeed, int onoff)
 			}
 		}
 
+		deb_ts("submitting all URBs\n");
+		usb_urb_submit(&adap->fe_adap[adap->active_fe].stream);
 	}
 	return 0;
 }
@@ -132,10 +131,14 @@ static void dvb_usb_media_device_unregister(struct dvb_usb_adapter *adap)
 	if (!adap->dvb_adap.mdev)
 		return;
 
+	mutex_lock(&adap->dvb_adap.mdev_lock);
+
 	media_device_unregister(adap->dvb_adap.mdev);
 	media_device_cleanup(adap->dvb_adap.mdev);
 	kfree(adap->dvb_adap.mdev);
 	adap->dvb_adap.mdev = NULL;
+
+	mutex_unlock(&adap->dvb_adap.mdev_lock);
 #endif
 }
 

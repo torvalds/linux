@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
@@ -15,13 +15,6 @@
 #define __DEVICE_CONFIG_H
 
 #include <linux/types.h>
-
-typedef
-struct _version {
-	unsigned char   major;
-	unsigned char   minor;
-	unsigned char   build;
-} version_t, *pversion_t;
 
 #define VID_TABLE_SIZE      64
 #define MCAST_TABLE_SIZE    64
@@ -51,9 +44,5 @@ struct _version {
 #endif
 
 #define PKT_BUF_SZ          2390
-
-typedef enum  _chip_type {
-	VT3253 = 1
-} CHIP_TYPE, *PCHIP_TYPE;
 
 #endif

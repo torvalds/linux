@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * r8a7792 Clock Pulse Generator / Module Standby and Software Reset
  *
@@ -6,10 +7,6 @@
  * Based on clk-rcar-gen2.c
  *
  * Copyright (C) 2013 Ideas On Board SPRL
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  */
 
 #include <linux/device.h>
@@ -53,7 +50,6 @@ static const struct cpg_core_clk r8a7792_core_clks[] __initconst = {
 	DEF_FIXED(".pll1_div2", CLK_PLL1_DIV2, CLK_PLL1, 2, 1),
 
 	/* Core Clock Outputs */
-	DEF_BASE("lb",   R8A7792_CLK_LB,   CLK_TYPE_GEN2_LB,   CLK_PLL1),
 	DEF_BASE("qspi", R8A7792_CLK_QSPI, CLK_TYPE_GEN2_QSPI, CLK_PLL1_DIV2),
 
 	DEF_FIXED("z",      R8A7792_CLK_Z,     CLK_PLL0,          1, 1),
@@ -63,6 +59,7 @@ static const struct cpg_core_clk r8a7792_core_clks[] __initconst = {
 	DEF_FIXED("hp",     R8A7792_CLK_HP,    CLK_PLL1,         12, 1),
 	DEF_FIXED("i",      R8A7792_CLK_I,     CLK_PLL1,          3, 1),
 	DEF_FIXED("b",      R8A7792_CLK_B,     CLK_PLL1,         12, 1),
+	DEF_FIXED("lb",     R8A7792_CLK_LB,    CLK_PLL1,         24, 1),
 	DEF_FIXED("p",      R8A7792_CLK_P,     CLK_PLL1,         24, 1),
 	DEF_FIXED("cl",     R8A7792_CLK_CL,    CLK_PLL1,         48, 1),
 	DEF_FIXED("m2",     R8A7792_CLK_M2,    CLK_PLL1,          8, 1),
@@ -98,6 +95,7 @@ static const struct mssr_mod_clk r8a7792_mod_clks[] __initconst = {
 	DEF_MOD("tpu0",			 304,	R8A7792_CLK_CP),
 	DEF_MOD("sdhi0",		 314,	R8A7792_CLK_SD),
 	DEF_MOD("cmt1",			 329,	R8A7792_CLK_R),
+	DEF_MOD("rwdt",			 402,	R8A7792_CLK_R),
 	DEF_MOD("irqc",			 407,	R8A7792_CLK_CP),
 	DEF_MOD("intc-sys",		 408,	R8A7792_CLK_ZS),
 	DEF_MOD("audio-dmac0",		 502,	R8A7792_CLK_HP),
@@ -154,6 +152,7 @@ static const struct mssr_mod_clk r8a7792_mod_clks[] __initconst = {
 };
 
 static const unsigned int r8a7792_crit_mod_clks[] __initconst = {
+	MOD_CLK_ID(402),	/* RWDT */
 	MOD_CLK_ID(408),	/* INTC-SYS (GIC) */
 };
 

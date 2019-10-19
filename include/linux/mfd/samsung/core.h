@@ -1,14 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- * core.h
- *
- * copyright (c) 2011 Samsung Electronics Co., Ltd
+ * Copyright (c) 2011 Samsung Electronics Co., Ltd
  *              http://www.samsung.com
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #ifndef __LINUX_MFD_SEC_CORE_H
@@ -27,6 +20,7 @@
 #define MIN_850_MV		850000
 #define MIN_800_MV		800000
 #define MIN_750_MV		750000
+#define MIN_650_MV		650000
 #define MIN_600_MV		600000
 #define MIN_500_MV		500000
 
@@ -38,6 +32,8 @@
 #define STEP_25_MV		25000
 #define STEP_12_5_MV		12500
 #define STEP_6_25_MV		6250
+
+struct gpio_desc;
 
 enum sec_device_type {
 	S5M8751X,
@@ -151,7 +147,7 @@ struct sec_regulator_data {
 	int				id;
 	struct regulator_init_data	*initdata;
 	struct device_node		*reg_node;
-	int				ext_control_gpio;
+	struct gpio_desc		*ext_control_gpiod;
 };
 
 /*

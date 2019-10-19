@@ -38,6 +38,8 @@
 
 #include "timing_generator.h"
 
+#define DC_LOGGER \
+	tg->ctx->logger
 /** ********************************************************************************
  *
  * DCE11 Timing Generator Implementation
@@ -433,6 +435,11 @@ static void dce110_timing_generator_v_set_blank(struct timing_generator *tg,
 
 static void dce110_timing_generator_v_program_timing(struct timing_generator *tg,
 	const struct dc_crtc_timing *timing,
+	int vready_offset,
+	int vstartup_start,
+	int vupdate_offset,
+	int vupdate_width,
+	const enum signal_type signal,
 	bool use_vbios)
 {
 	if (use_vbios)
@@ -606,8 +613,7 @@ static uint32_t dce110_timing_generator_v_get_vblank_counter(struct timing_gener
 static bool dce110_timing_generator_v_did_triggered_reset_occur(
 	struct timing_generator *tg)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
-					"Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
 	return false;
 }
 
@@ -615,8 +621,7 @@ static void dce110_timing_generator_v_setup_global_swap_lock(
 	struct timing_generator *tg,
 	const struct dcp_gsl_params *gsl_params)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
-					"Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
 	return;
 }
 
@@ -624,24 +629,21 @@ static void dce110_timing_generator_v_enable_reset_trigger(
 	struct timing_generator *tg,
 	int source_tg_inst)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
-					"Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
 	return;
 }
 
 static void dce110_timing_generator_v_disable_reset_trigger(
 	struct timing_generator *tg)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
-						"Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
 	return;
 }
 
 static void dce110_timing_generator_v_tear_down_global_swap_lock(
 	struct timing_generator *tg)
 {
-	dm_logger_write(tg->ctx->logger, LOG_ERROR,
-						"Timing Sync not supported on underlay pipe\n");
+	DC_LOG_ERROR("Timing Sync not supported on underlay pipe\n");
 	return;
 }
 
@@ -649,12 +651,6 @@ static void dce110_timing_generator_v_disable_vga(
 	struct timing_generator *tg)
 {
 	return;
-}
-
-static bool dce110_tg_v_is_blanked(struct timing_generator *tg)
-{
-	/* Signal comes from the primary pipe, underlay is never blanked. */
-	return false;
 }
 
 /** ********************************************************************************************
@@ -673,7 +669,6 @@ static const struct timing_generator_funcs dce110_tg_v_funcs = {
 		.set_early_control = dce110_timing_generator_v_set_early_control,
 		.wait_for_state = dce110_timing_generator_v_wait_for_state,
 		.set_blank = dce110_timing_generator_v_set_blank,
-		.is_blanked = dce110_tg_v_is_blanked,
 		.set_colors = dce110_timing_generator_v_set_colors,
 		.set_overscan_blank_color =
 				dce110_timing_generator_v_set_overscan_color_black,

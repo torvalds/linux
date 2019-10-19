@@ -6,7 +6,6 @@ Required properties:
 
 - compatible: should be "al,alpine-msix"
 - reg: physical base address and size of the registers
-- interrupt-parent: specifies the parent interrupt controller.
 - interrupt-controller: identifies the node as an interrupt controller
 - msi-controller: identifies the node as an PCI Message Signaled Interrupt
 		  controller

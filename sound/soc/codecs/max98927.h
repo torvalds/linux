@@ -1,14 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * max98927.h  --  MAX98927 ALSA Soc Audio driver
  *
  * Copyright (C) 2016-2017 Maxim Integrated Products
  * Author: Ryan Lee <ryans.lee@maximintegrated.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 #ifndef _MAX98927_H
 #define _MAX98927_H
@@ -258,7 +253,7 @@
 
 struct max98927_priv {
 	struct regmap *regmap;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct max98927_pdata *pdata;
 	unsigned int spk_gain;
 	unsigned int sysclk;

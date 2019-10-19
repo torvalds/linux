@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Common time prototypes and such for all ppc machines.
  *
  * Written by Cort Dougan (cort@cs.nmt.edu) to merge
  * Paul Mackerras' version and mine for PReP and Pmac.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef __POWERPC_TIME_H
@@ -26,17 +22,17 @@ extern unsigned long tb_ticks_per_usec;
 extern unsigned long tb_ticks_per_sec;
 extern struct clock_event_device decrementer_clockevent;
 
-struct rtc_time;
-extern void to_tm(int tim, struct rtc_time * tm);
-extern void tick_broadcast_ipi_handler(void);
 
 extern void generic_calibrate_decr(void);
+extern void hdec_interrupt(struct pt_regs *regs);
 
 /* Some sane defaults: 125 MHz timebase, 1GHz processor */
 extern unsigned long ppc_proc_freq;
 #define DEFAULT_PROC_FREQ	(DEFAULT_TB_FREQ * 8)
 extern unsigned long ppc_tb_freq;
 #define DEFAULT_TB_FREQ		125000000UL
+
+extern bool tb_invalid;
 
 struct div_result {
 	u64 result_high;
@@ -45,11 +41,7 @@ struct div_result {
 
 /* Accessor functions for the timebase (RTC on 601) registers. */
 /* If one day CONFIG_POWER is added just define __USE_RTC as 1 */
-#ifdef CONFIG_6xx
-#define __USE_RTC()	(!cpu_has_feature(CPU_FTR_USE_TB))
-#else
-#define __USE_RTC()	0
-#endif
+#define __USE_RTC()	(IS_ENABLED(CONFIG_PPC_BOOK3S_601))
 
 #ifdef CONFIG_PPC64
 
@@ -195,15 +187,8 @@ extern u64 mulhdu(u64, u64);
 extern void div128_by_32(u64 dividend_high, u64 dividend_low,
 			 unsigned divisor, struct div_result *dr);
 
-/* Used to store Processor Utilization register (purr) values */
-
-struct cpu_usage {
-        u64 current_tb;  /* Holds the current purr register values */
-};
-
-DECLARE_PER_CPU(struct cpu_usage, cpu_usage_array);
-
 extern void secondary_cpu_time_init(void);
+extern void __init time_init(void);
 
 DECLARE_PER_CPU(u64, decrementers_next_tb);
 

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  psb GEM interface
  *
  * Copyright (c) 2011, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  * Authors: Alan Cox
  *
@@ -23,10 +11,11 @@
  *		accelerated operations on a GEM object)
  */
 
-#include <drm/drmP.h>
+#include <linux/pagemap.h>
+
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
 #include <drm/drm_vma_manager.h>
+
 #include "psb_drv.h"
 
 void psb_gem_free_object(struct drm_gem_object *obj)
@@ -93,7 +82,7 @@ int psb_gem_create(struct drm_file *file, struct drm_device *dev, u64 size,
 		return ret;
 	}
 	/* We have the initial and handle reference but need only one now */
-	drm_gem_object_unreference_unlocked(&r->gem);
+	drm_gem_object_put_unlocked(&r->gem);
 	*handlep = handle;
 	return 0;
 }
@@ -134,12 +123,13 @@ int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
  *	vma->vm_private_data points to the GEM object that is backing this
  *	mapping.
  */
-int psb_gem_fault(struct vm_fault *vmf)
+vm_fault_t psb_gem_fault(struct vm_fault *vmf)
 {
 	struct vm_area_struct *vma = vmf->vma;
 	struct drm_gem_object *obj;
 	struct gtt_range *r;
-	int ret;
+	int err;
+	vm_fault_t ret;
 	unsigned long pfn;
 	pgoff_t page_offset;
 	struct drm_device *dev;
@@ -158,9 +148,10 @@ int psb_gem_fault(struct vm_fault *vmf)
 	/* For now the mmap pins the object and it stays pinned. As things
 	   stand that will do us no harm */
 	if (r->mmapping == 0) {
-		ret = psb_gtt_pin(r);
-		if (ret < 0) {
-			dev_err(dev->dev, "gma500: pin failed: %d\n", ret);
+		err = psb_gtt_pin(r);
+		if (err < 0) {
+			dev_err(dev->dev, "gma500: pin failed: %d\n", err);
+			ret = vmf_error(err);
 			goto fail;
 		}
 		r->mmapping = 1;
@@ -175,18 +166,9 @@ int psb_gem_fault(struct vm_fault *vmf)
 		pfn = (dev_priv->stolen_base + r->offset) >> PAGE_SHIFT;
 	else
 		pfn = page_to_pfn(r->pages[page_offset]);
-	ret = vm_insert_pfn(vma, vmf->address, pfn);
-
+	ret = vmf_insert_pfn(vma, vmf->address, pfn);
 fail:
 	mutex_unlock(&dev_priv->mmap_mutex);
-	switch (ret) {
-	case 0:
-	case -ERESTARTSYS:
-	case -EINTR:
-		return VM_FAULT_NOPAGE;
-	case -ENOMEM:
-		return VM_FAULT_OOM;
-	default:
-		return VM_FAULT_SIGBUS;
-	}
+
+	return ret;
 }

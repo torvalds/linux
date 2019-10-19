@@ -1,19 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*******************************************************************************
   This contains the functions to handle the platform driver.
 
   Copyright (C) 2007-2011  STMicroelectronics Ltd
 
-  This program is free software; you can redistribute it and/or modify it
-  under the terms and conditions of the GNU General Public License,
-  version 2, as published by the Free Software Foundation.
-
-  This program is distributed in the hope it will be useful, but WITHOUT
-  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
-  more details.
-
-  The full GNU General Public License is included in this distribution in
-  the file called "COPYING".
 
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
@@ -33,6 +23,7 @@
 
 /**
  * dwmac1000_validate_mcast_bins - validates the number of Multicast filter bins
+ * @dev: struct device of the platform device
  * @mcast_bins: Multicast filtering bins
  * Description:
  * this function validates the number of Multicast filtering bins specified
@@ -43,7 +34,7 @@
  * invalid and will cause the filtering algorithm to use Multicast
  * promiscuous mode.
  */
-static int dwmac1000_validate_mcast_bins(int mcast_bins)
+static int dwmac1000_validate_mcast_bins(struct device *dev, int mcast_bins)
 {
 	int x = mcast_bins;
 
@@ -54,8 +45,8 @@ static int dwmac1000_validate_mcast_bins(int mcast_bins)
 		break;
 	default:
 		x = 0;
-		pr_info("Hash table entries set to unexpected value %d",
-			mcast_bins);
+		dev_info(dev, "Hash table entries set to unexpected value %d\n",
+			 mcast_bins);
 		break;
 	}
 	return x;
@@ -63,29 +54,30 @@ static int dwmac1000_validate_mcast_bins(int mcast_bins)
 
 /**
  * dwmac1000_validate_ucast_entries - validate the Unicast address entries
+ * @dev: struct device of the platform device
  * @ucast_entries: number of Unicast address entries
  * Description:
  * This function validates the number of Unicast address entries supported
  * by a particular Synopsys 10/100/1000 controller. The Synopsys controller
- * supports 1, 32, 64, or 128 Unicast filter entries for it's Unicast filter
+ * supports 1..32, 64, or 128 Unicast filter entries for it's Unicast filter
  * logic. This function validates a valid, supported configuration is
  * selected, and defaults to 1 Unicast address if an unsupported
  * configuration is selected.
  */
-static int dwmac1000_validate_ucast_entries(int ucast_entries)
+static int dwmac1000_validate_ucast_entries(struct device *dev,
+					    int ucast_entries)
 {
 	int x = ucast_entries;
 
 	switch (x) {
-	case 1:
-	case 32:
+	case 1 ... 32:
 	case 64:
 	case 128:
 		break;
 	default:
 		x = 1;
-		pr_info("Unicast table entries set to unexpected value %d\n",
-			ucast_entries);
+		dev_info(dev, "Unicast table entries set to unexpected value %d\n",
+			 ucast_entries);
 		break;
 	}
 	return x;
@@ -94,7 +86,6 @@ static int dwmac1000_validate_ucast_entries(int ucast_entries)
 /**
  * stmmac_axi_setup - parse DT parameters for programming the AXI register
  * @pdev: platform device
- * @priv: driver private struct.
  * Description:
  * if required, from device-tree the AXI internal register can be tuned
  * by using platform parameters.
@@ -135,13 +126,14 @@ static struct stmmac_axi *stmmac_axi_setup(struct platform_device *pdev)
  * stmmac_mtl_setup - parse DT parameters for multiple queues configuration
  * @pdev: platform device
  */
-static void stmmac_mtl_setup(struct platform_device *pdev,
-			     struct plat_stmmacenet_data *plat)
+static int stmmac_mtl_setup(struct platform_device *pdev,
+			    struct plat_stmmacenet_data *plat)
 {
 	struct device_node *q_node;
 	struct device_node *rx_node;
 	struct device_node *tx_node;
 	u8 queue = 0;
+	int ret = 0;
 
 	/* For backwards-compatibility with device trees that don't have any
 	 * snps,mtl-rx-config or snps,mtl-tx-config properties, we fall back
@@ -159,12 +151,12 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 
 	rx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-rx-config", 0);
 	if (!rx_node)
-		return;
+		return ret;
 
 	tx_node = of_parse_phandle(pdev->dev.of_node, "snps,mtl-tx-config", 0);
 	if (!tx_node) {
 		of_node_put(rx_node);
-		return;
+		return ret;
 	}
 
 	/* Processing RX queues common config */
@@ -219,6 +211,11 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 			plat->rx_queues_cfg[queue].pkt_route = 0x0;
 
 		queue++;
+	}
+	if (queue != plat->rx_queues_to_use) {
+		ret = -EINVAL;
+		dev_err(&pdev->dev, "Not all RX queues were configured\n");
+		goto out;
 	}
 
 	/* Processing TX queues common config */
@@ -281,10 +278,18 @@ static void stmmac_mtl_setup(struct platform_device *pdev,
 
 		queue++;
 	}
+	if (queue != plat->tx_queues_to_use) {
+		ret = -EINVAL;
+		dev_err(&pdev->dev, "Not all TX queues were configured\n");
+		goto out;
+	}
 
+out:
 	of_node_put(rx_node);
 	of_node_put(tx_node);
 	of_node_put(q_node);
+
+	return ret;
 }
 
 /**
@@ -321,21 +326,6 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 		{},
 	};
 
-	/* If phy-handle property is passed from DT, use it as the PHY */
-	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
-	if (plat->phy_node)
-		dev_dbg(dev, "Found phy-handle subnode\n");
-
-	/* If phy-handle is not specified, check if we have a fixed-phy */
-	if (!plat->phy_node && of_phy_is_fixed_link(np)) {
-		if ((of_phy_register_fixed_link(np) < 0))
-			return -ENODEV;
-
-		dev_dbg(dev, "Found fixed-link subnode\n");
-		plat->phy_node = of_node_get(np);
-		mdio = false;
-	}
-
 	if (of_match_node(need_mdio_ids, np)) {
 		plat->mdio_node = of_get_child_by_name(np, "mdio");
 	} else {
@@ -355,11 +345,43 @@ static int stmmac_dt_phy(struct plat_stmmacenet_data *plat,
 		mdio = true;
 	}
 
-	if (mdio)
+	if (mdio) {
 		plat->mdio_bus_data =
 			devm_kzalloc(dev, sizeof(struct stmmac_mdio_bus_data),
 				     GFP_KERNEL);
+		if (!plat->mdio_bus_data)
+			return -ENOMEM;
+
+		plat->mdio_bus_data->needs_reset = true;
+	}
+
 	return 0;
+}
+
+/**
+ * stmmac_of_get_mac_mode - retrieves the interface of the MAC
+ * @np - device-tree node
+ * Description:
+ * Similar to `of_get_phy_mode()`, this function will retrieve (from
+ * the device-tree) the interface mode on the MAC side. This assumes
+ * that there is mode converter in-between the MAC & PHY
+ * (e.g. GMII-to-RGMII).
+ */
+static int stmmac_of_get_mac_mode(struct device_node *np)
+{
+	const char *pm;
+	int err, i;
+
+	err = of_property_read_string(np, "mac-mode", &pm);
+	if (err < 0)
+		return err;
+
+	for (i = 0; i < PHY_INTERFACE_MODE_MAX; i++) {
+		if (!strcasecmp(pm, phy_modes(i)))
+			return i;
+	}
+
+	return -ENODEV;
 }
 
 /**
@@ -376,13 +398,34 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	struct device_node *np = pdev->dev.of_node;
 	struct plat_stmmacenet_data *plat;
 	struct stmmac_dma_cfg *dma_cfg;
+	int rc;
 
 	plat = devm_kzalloc(&pdev->dev, sizeof(*plat), GFP_KERNEL);
 	if (!plat)
 		return ERR_PTR(-ENOMEM);
 
 	*mac = of_get_mac_address(np);
-	plat->interface = of_get_phy_mode(np);
+	if (IS_ERR(*mac)) {
+		if (PTR_ERR(*mac) == -EPROBE_DEFER)
+			return ERR_CAST(*mac);
+
+		*mac = NULL;
+	}
+
+	plat->phy_interface = of_get_phy_mode(np);
+	if (plat->phy_interface < 0)
+		return ERR_PTR(plat->phy_interface);
+
+	plat->interface = stmmac_of_get_mac_mode(np);
+	if (plat->interface < 0)
+		plat->interface = plat->phy_interface;
+
+	/* Some wrapper drivers still rely on phy_node. Let's save it while
+	 * they are not converted to phylink. */
+	plat->phy_node = of_parse_phandle(np, "phy-handle", 0);
+
+	/* PHYLINK automatically parses the phy-handle property */
+	plat->phylink_node = np;
 
 	/* Get max speed of operation from device tree */
 	if (of_property_read_u32(np, "max-speed", &plat->max_speed))
@@ -395,6 +438,12 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	/* Default to phy auto-detection */
 	plat->phy_addr = -1;
 
+	/* Default to get clk_csr from stmmac_clk_crs_set(),
+	 * or get clk_csr from device tree.
+	 */
+	plat->clk_csr = -1;
+	of_property_read_u32(np, "clk_csr", &plat->clk_csr);
+
 	/* "snps,phy-addr" is not a standard property. Mark it as deprecated
 	 * and warn of its use. Remove this when phy node support is added.
 	 */
@@ -402,8 +451,9 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		dev_warn(&pdev->dev, "snps,phy-addr property is deprecated\n");
 
 	/* To Configure PHY by using all device-tree supported properties */
-	if (stmmac_dt_phy(plat, np, &pdev->dev))
-		return ERR_PTR(-ENODEV);
+	rc = stmmac_dt_phy(plat, np, &pdev->dev);
+	if (rc)
+		return ERR_PTR(rc);
 
 	of_property_read_u32(np, "tx-fifo-depth", &plat->tx_fifo_size);
 
@@ -448,15 +498,16 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		of_property_read_u32(np, "snps,perfect-filter-entries",
 				     &plat->unicast_filter_entries);
 		plat->unicast_filter_entries = dwmac1000_validate_ucast_entries(
-					       plat->unicast_filter_entries);
+				&pdev->dev, plat->unicast_filter_entries);
 		plat->multicast_filter_bins = dwmac1000_validate_mcast_bins(
-					      plat->multicast_filter_bins);
+				&pdev->dev, plat->multicast_filter_bins);
 		plat->has_gmac = 1;
 		plat->pmt = 1;
 	}
 
 	if (of_device_is_compatible(np, "snps,dwmac-4.00") ||
-	    of_device_is_compatible(np, "snps,dwmac-4.10a")) {
+	    of_device_is_compatible(np, "snps,dwmac-4.10a") ||
+	    of_device_is_compatible(np, "snps,dwmac-4.20a")) {
 		plat->has_gmac4 = 1;
 		plat->has_gmac = 0;
 		plat->pmt = 1;
@@ -468,6 +519,12 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 		plat->enh_desc = 1;
 		plat->bugged_jumbo = 1;
 		plat->force_sf_dma_mode = 1;
+	}
+
+	if (of_device_is_compatible(np, "snps,dwxgmac")) {
+		plat->has_xgmac = 1;
+		plat->pmt = 1;
+		plat->tso_en = of_property_read_bool(np, "snps,tso");
 	}
 
 	dma_cfg = devm_kzalloc(&pdev->dev, sizeof(*dma_cfg),
@@ -492,23 +549,30 @@ stmmac_probe_config_dt(struct platform_device *pdev, const char **mac)
 	plat->force_thresh_dma_mode = of_property_read_bool(np, "snps,force_thresh_dma_mode");
 	if (plat->force_thresh_dma_mode) {
 		plat->force_sf_dma_mode = 0;
-		pr_warn("force_sf_dma_mode is ignored if force_thresh_dma_mode is set.");
+		dev_warn(&pdev->dev,
+			 "force_sf_dma_mode is ignored if force_thresh_dma_mode is set.\n");
 	}
 
 	of_property_read_u32(np, "snps,ps-speed", &plat->mac_port_sel_speed);
 
 	plat->axi = stmmac_axi_setup(pdev);
 
-	stmmac_mtl_setup(pdev, plat);
+	rc = stmmac_mtl_setup(pdev, plat);
+	if (rc) {
+		stmmac_remove_config_dt(pdev, plat);
+		return ERR_PTR(rc);
+	}
 
 	/* clock setup */
-	plat->stmmac_clk = devm_clk_get(&pdev->dev,
-					STMMAC_RESOURCE_NAME);
-	if (IS_ERR(plat->stmmac_clk)) {
-		dev_warn(&pdev->dev, "Cannot get CSR clock\n");
-		plat->stmmac_clk = NULL;
+	if (!of_device_is_compatible(np, "snps,dwc-qos-ethernet-4.10")) {
+		plat->stmmac_clk = devm_clk_get(&pdev->dev,
+						STMMAC_RESOURCE_NAME);
+		if (IS_ERR(plat->stmmac_clk)) {
+			dev_warn(&pdev->dev, "Cannot get CSR clock\n");
+			plat->stmmac_clk = NULL;
+		}
+		clk_prepare_enable(plat->stmmac_clk);
 	}
-	clk_prepare_enable(plat->stmmac_clk);
 
 	plat->pclk = devm_clk_get(&pdev->dev, "pclk");
 	if (IS_ERR(plat->pclk)) {
@@ -560,10 +624,6 @@ error_pclk_get:
 void stmmac_remove_config_dt(struct platform_device *pdev,
 			     struct plat_stmmacenet_data *plat)
 {
-	struct device_node *np = pdev->dev.of_node;
-
-	if (of_phy_is_fixed_link(np))
-		of_phy_deregister_fixed_link(np);
 	of_node_put(plat->phy_node);
 	of_node_put(plat->mdio_node);
 }
@@ -593,13 +653,8 @@ int stmmac_get_platform_resources(struct platform_device *pdev,
 	 * probe if needed before we went too far with resource allocation.
 	 */
 	stmmac_res->irq = platform_get_irq_byname(pdev, "macirq");
-	if (stmmac_res->irq < 0) {
-		if (stmmac_res->irq != -EPROBE_DEFER) {
-			dev_err(&pdev->dev,
-				"MAC IRQ configuration information not found\n");
-		}
+	if (stmmac_res->irq < 0)
 		return stmmac_res->irq;
-	}
 
 	/* On some platforms e.g. SPEAr the wake up irq differs from the mac irq
 	 * The external wake up irq can be passed through the platform code

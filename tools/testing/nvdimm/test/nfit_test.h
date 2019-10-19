@@ -1,17 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #ifndef __NFIT_TEST_H__
 #define __NFIT_TEST_H__
+#include <linux/acpi.h>
 #include <linux/list.h>
 #include <linux/uuid.h>
 #include <linux/ioport.h>
@@ -93,6 +86,7 @@ struct nd_cmd_ars_err_inj_stat {
 #define ND_INTEL_FW_FINISH_UPDATE	15
 #define ND_INTEL_FW_FINISH_QUERY	16
 #define ND_INTEL_SMART_SET_THRESHOLD	17
+#define ND_INTEL_SMART_INJECT		18
 
 #define ND_INTEL_SMART_HEALTH_VALID             (1 << 0)
 #define ND_INTEL_SMART_SPARES_VALID             (1 << 1)
@@ -111,30 +105,10 @@ struct nd_cmd_ars_err_inj_stat {
 #define ND_INTEL_SMART_NON_CRITICAL_HEALTH      (1 << 0)
 #define ND_INTEL_SMART_CRITICAL_HEALTH          (1 << 1)
 #define ND_INTEL_SMART_FATAL_HEALTH             (1 << 2)
-
-struct nd_intel_smart {
-	__u32 status;
-	union {
-		struct {
-			__u32 flags;
-			__u8 reserved0[4];
-			__u8 health;
-			__u8 spares;
-			__u8 life_used;
-			__u8 alarm_flags;
-			__u16 media_temperature;
-			__u16 ctrl_temperature;
-			__u32 shutdown_count;
-			__u8 ait_status;
-			__u16 pmic_temperature;
-			__u8 reserved1[8];
-			__u8 shutdown_state;
-			__u32 vendor_size;
-			__u8 vendor_data[92];
-		} __packed;
-		__u8 data[128];
-	};
-} __packed;
+#define ND_INTEL_SMART_INJECT_MTEMP		(1 << 0)
+#define ND_INTEL_SMART_INJECT_SPARE		(1 << 1)
+#define ND_INTEL_SMART_INJECT_FATAL		(1 << 2)
+#define ND_INTEL_SMART_INJECT_SHUTDOWN		(1 << 3)
 
 struct nd_intel_smart_threshold {
 	__u32 status;
@@ -155,6 +129,17 @@ struct nd_intel_smart_set_threshold {
 	__u8 spares;
 	__u16 media_temperature;
 	__u16 ctrl_temperature;
+	__u32 status;
+} __packed;
+
+struct nd_intel_smart_inject {
+	__u64 flags;
+	__u8 mtemp_enable;
+	__u16 media_temperature;
+	__u8 spare_enable;
+	__u8 spares;
+	__u8 fatal_enable;
+	__u8 unsafe_shutdown_enable;
 	__u32 status;
 } __packed;
 
@@ -217,9 +202,6 @@ struct nd_intel_lss {
 	__u8 enable;
 	__u32 status;
 } __packed;
-
-union acpi_object;
-typedef void *acpi_handle;
 
 typedef struct nfit_test_resource *(*nfit_test_lookup_fn)(resource_size_t);
 typedef union acpi_object *(*nfit_test_evaluate_dsm_fn)(acpi_handle handle,

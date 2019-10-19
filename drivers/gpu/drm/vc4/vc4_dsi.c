@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 /**
@@ -29,21 +18,25 @@
  * hopefully present.
  */
 
+#include <linux/clk-provider.h>
+#include <linux/clk.h>
+#include <linux/completion.h>
+#include <linux/component.h>
+#include <linux/dma-mapping.h>
+#include <linux/dmaengine.h>
+#include <linux/i2c.h>
+#include <linux/io.h>
+#include <linux/of_address.h>
+#include <linux/of_platform.h>
+#include <linux/pm_runtime.h>
+
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
-#include <linux/clk.h>
-#include <linux/clk-provider.h>
-#include <linux/completion.h>
-#include <linux/component.h>
-#include <linux/dmaengine.h>
-#include <linux/i2c.h>
-#include <linux/of_address.h>
-#include <linux/of_platform.h>
-#include <linux/pm_runtime.h>
+#include <drm/drm_probe_helper.h>
+
 #include "vc4_drv.h"
 #include "vc4_regs.h"
 
@@ -545,6 +538,8 @@ struct vc4_dsi {
 
 	struct completion xfer_completion;
 	int xfer_result;
+
+	struct debugfs_regset32 regset;
 };
 
 #define host_to_dsi(host) container_of(host, struct vc4_dsi, dsi_host)
@@ -605,112 +600,55 @@ to_vc4_dsi_encoder(struct drm_encoder *encoder)
 	return container_of(encoder, struct vc4_dsi_encoder, base.base);
 }
 
-#define DSI_REG(reg) { reg, #reg }
-static const struct {
-	u32 reg;
-	const char *name;
-} dsi0_regs[] = {
-	DSI_REG(DSI0_CTRL),
-	DSI_REG(DSI0_STAT),
-	DSI_REG(DSI0_HSTX_TO_CNT),
-	DSI_REG(DSI0_LPRX_TO_CNT),
-	DSI_REG(DSI0_TA_TO_CNT),
-	DSI_REG(DSI0_PR_TO_CNT),
-	DSI_REG(DSI0_DISP0_CTRL),
-	DSI_REG(DSI0_DISP1_CTRL),
-	DSI_REG(DSI0_INT_STAT),
-	DSI_REG(DSI0_INT_EN),
-	DSI_REG(DSI0_PHYC),
-	DSI_REG(DSI0_HS_CLT0),
-	DSI_REG(DSI0_HS_CLT1),
-	DSI_REG(DSI0_HS_CLT2),
-	DSI_REG(DSI0_HS_DLT3),
-	DSI_REG(DSI0_HS_DLT4),
-	DSI_REG(DSI0_HS_DLT5),
-	DSI_REG(DSI0_HS_DLT6),
-	DSI_REG(DSI0_HS_DLT7),
-	DSI_REG(DSI0_PHY_AFEC0),
-	DSI_REG(DSI0_PHY_AFEC1),
-	DSI_REG(DSI0_ID),
+static const struct debugfs_reg32 dsi0_regs[] = {
+	VC4_REG32(DSI0_CTRL),
+	VC4_REG32(DSI0_STAT),
+	VC4_REG32(DSI0_HSTX_TO_CNT),
+	VC4_REG32(DSI0_LPRX_TO_CNT),
+	VC4_REG32(DSI0_TA_TO_CNT),
+	VC4_REG32(DSI0_PR_TO_CNT),
+	VC4_REG32(DSI0_DISP0_CTRL),
+	VC4_REG32(DSI0_DISP1_CTRL),
+	VC4_REG32(DSI0_INT_STAT),
+	VC4_REG32(DSI0_INT_EN),
+	VC4_REG32(DSI0_PHYC),
+	VC4_REG32(DSI0_HS_CLT0),
+	VC4_REG32(DSI0_HS_CLT1),
+	VC4_REG32(DSI0_HS_CLT2),
+	VC4_REG32(DSI0_HS_DLT3),
+	VC4_REG32(DSI0_HS_DLT4),
+	VC4_REG32(DSI0_HS_DLT5),
+	VC4_REG32(DSI0_HS_DLT6),
+	VC4_REG32(DSI0_HS_DLT7),
+	VC4_REG32(DSI0_PHY_AFEC0),
+	VC4_REG32(DSI0_PHY_AFEC1),
+	VC4_REG32(DSI0_ID),
 };
 
-static const struct {
-	u32 reg;
-	const char *name;
-} dsi1_regs[] = {
-	DSI_REG(DSI1_CTRL),
-	DSI_REG(DSI1_STAT),
-	DSI_REG(DSI1_HSTX_TO_CNT),
-	DSI_REG(DSI1_LPRX_TO_CNT),
-	DSI_REG(DSI1_TA_TO_CNT),
-	DSI_REG(DSI1_PR_TO_CNT),
-	DSI_REG(DSI1_DISP0_CTRL),
-	DSI_REG(DSI1_DISP1_CTRL),
-	DSI_REG(DSI1_INT_STAT),
-	DSI_REG(DSI1_INT_EN),
-	DSI_REG(DSI1_PHYC),
-	DSI_REG(DSI1_HS_CLT0),
-	DSI_REG(DSI1_HS_CLT1),
-	DSI_REG(DSI1_HS_CLT2),
-	DSI_REG(DSI1_HS_DLT3),
-	DSI_REG(DSI1_HS_DLT4),
-	DSI_REG(DSI1_HS_DLT5),
-	DSI_REG(DSI1_HS_DLT6),
-	DSI_REG(DSI1_HS_DLT7),
-	DSI_REG(DSI1_PHY_AFEC0),
-	DSI_REG(DSI1_PHY_AFEC1),
-	DSI_REG(DSI1_ID),
+static const struct debugfs_reg32 dsi1_regs[] = {
+	VC4_REG32(DSI1_CTRL),
+	VC4_REG32(DSI1_STAT),
+	VC4_REG32(DSI1_HSTX_TO_CNT),
+	VC4_REG32(DSI1_LPRX_TO_CNT),
+	VC4_REG32(DSI1_TA_TO_CNT),
+	VC4_REG32(DSI1_PR_TO_CNT),
+	VC4_REG32(DSI1_DISP0_CTRL),
+	VC4_REG32(DSI1_DISP1_CTRL),
+	VC4_REG32(DSI1_INT_STAT),
+	VC4_REG32(DSI1_INT_EN),
+	VC4_REG32(DSI1_PHYC),
+	VC4_REG32(DSI1_HS_CLT0),
+	VC4_REG32(DSI1_HS_CLT1),
+	VC4_REG32(DSI1_HS_CLT2),
+	VC4_REG32(DSI1_HS_DLT3),
+	VC4_REG32(DSI1_HS_DLT4),
+	VC4_REG32(DSI1_HS_DLT5),
+	VC4_REG32(DSI1_HS_DLT6),
+	VC4_REG32(DSI1_HS_DLT7),
+	VC4_REG32(DSI1_PHY_AFEC0),
+	VC4_REG32(DSI1_PHY_AFEC1),
+	VC4_REG32(DSI1_ID),
 };
-
-static void vc4_dsi_dump_regs(struct vc4_dsi *dsi)
-{
-	int i;
-
-	if (dsi->port == 0) {
-		for (i = 0; i < ARRAY_SIZE(dsi0_regs); i++) {
-			DRM_INFO("0x%04x (%s): 0x%08x\n",
-				 dsi0_regs[i].reg, dsi0_regs[i].name,
-				 DSI_READ(dsi0_regs[i].reg));
-		}
-	} else {
-		for (i = 0; i < ARRAY_SIZE(dsi1_regs); i++) {
-			DRM_INFO("0x%04x (%s): 0x%08x\n",
-				 dsi1_regs[i].reg, dsi1_regs[i].name,
-				 DSI_READ(dsi1_regs[i].reg));
-		}
-	}
-}
-
-#ifdef CONFIG_DEBUG_FS
-int vc4_dsi_debugfs_regs(struct seq_file *m, void *unused)
-{
-	struct drm_info_node *node = (struct drm_info_node *)m->private;
-	struct drm_device *drm = node->minor->dev;
-	struct vc4_dev *vc4 = to_vc4_dev(drm);
-	int dsi_index = (uintptr_t)node->info_ent->data;
-	struct vc4_dsi *dsi = (dsi_index == 1 ? vc4->dsi1 : NULL);
-	int i;
-
-	if (!dsi)
-		return 0;
-
-	if (dsi->port == 0) {
-		for (i = 0; i < ARRAY_SIZE(dsi0_regs); i++) {
-			seq_printf(m, "0x%04x (%s): 0x%08x\n",
-				   dsi0_regs[i].reg, dsi0_regs[i].name,
-				   DSI_READ(dsi0_regs[i].reg));
-		}
-	} else {
-		for (i = 0; i < ARRAY_SIZE(dsi1_regs); i++) {
-			seq_printf(m, "0x%04x (%s): 0x%08x\n",
-				   dsi1_regs[i].reg, dsi1_regs[i].name,
-				   DSI_READ(dsi1_regs[i].reg));
-		}
-	}
-
-	return 0;
-}
-#endif
 
 static void vc4_dsi_encoder_destroy(struct drm_encoder *encoder)
 {
@@ -753,6 +691,11 @@ static void vc4_dsi_ulps(struct vc4_dsi *dsi, bool ulps)
 			 (dsi->lanes > 2 ? DSI1_STAT_PHY_D2_STOP : 0) |
 			 (dsi->lanes > 3 ? DSI1_STAT_PHY_D3_STOP : 0));
 	int ret;
+	bool ulps_currently_enabled = (DSI_PORT_READ(PHY_AFEC0) &
+				       DSI_PORT_BIT(PHY_AFEC0_LATCH_ULPS));
+
+	if (ulps == ulps_currently_enabled)
+		return;
 
 	DSI_PORT_WRITE(STAT, stat_ulps);
 	DSI_PORT_WRITE(PHYC, DSI_PORT_READ(PHYC) | phyc_ulps);
@@ -809,7 +752,9 @@ static void vc4_dsi_encoder_disable(struct drm_encoder *encoder)
 	struct vc4_dsi *dsi = vc4_encoder->dsi;
 	struct device *dev = &dsi->pdev->dev;
 
+	drm_bridge_disable(dsi->bridge);
 	vc4_dsi_ulps(dsi, true);
+	drm_bridge_post_disable(dsi->bridge);
 
 	clk_disable_unprepare(dsi->pll_phy_clock);
 	clk_disable_unprepare(dsi->escape_clock);
@@ -893,8 +838,9 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	}
 
 	if (debug_dump_regs) {
-		DRM_INFO("DSI regs before:\n");
-		vc4_dsi_dump_regs(dsi);
+		struct drm_printer p = drm_info_printer(&dsi->pdev->dev);
+		dev_info(&dsi->pdev->dev, "DSI regs before:\n");
+		drm_print_regset32(&p, &dsi->regset);
 	}
 
 	/* Round up the clk_set_rate() request slightly, since
@@ -1084,21 +1030,6 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 	/* Display reset sequence timeout */
 	DSI_PORT_WRITE(PR_TO_CNT, 100000);
 
-	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
-		DSI_PORT_WRITE(DISP0_CTRL,
-			       VC4_SET_FIELD(dsi->divider,
-					     DSI_DISP0_PIX_CLK_DIV) |
-			       VC4_SET_FIELD(dsi->format, DSI_DISP0_PFORMAT) |
-			       VC4_SET_FIELD(DSI_DISP0_LP_STOP_PERFRAME,
-					     DSI_DISP0_LP_STOP_CTRL) |
-			       DSI_DISP0_ST_END |
-			       DSI_DISP0_ENABLE);
-	} else {
-		DSI_PORT_WRITE(DISP0_CTRL,
-			       DSI_DISP0_COMMAND_MODE |
-			       DSI_DISP0_ENABLE);
-	}
-
 	/* Set up DISP1 for transferring long command payloads through
 	 * the pixfifo.
 	 */
@@ -1123,9 +1054,29 @@ static void vc4_dsi_encoder_enable(struct drm_encoder *encoder)
 
 	vc4_dsi_ulps(dsi, false);
 
+	drm_bridge_pre_enable(dsi->bridge);
+
+	if (dsi->mode_flags & MIPI_DSI_MODE_VIDEO) {
+		DSI_PORT_WRITE(DISP0_CTRL,
+			       VC4_SET_FIELD(dsi->divider,
+					     DSI_DISP0_PIX_CLK_DIV) |
+			       VC4_SET_FIELD(dsi->format, DSI_DISP0_PFORMAT) |
+			       VC4_SET_FIELD(DSI_DISP0_LP_STOP_PERFRAME,
+					     DSI_DISP0_LP_STOP_CTRL) |
+			       DSI_DISP0_ST_END |
+			       DSI_DISP0_ENABLE);
+	} else {
+		DSI_PORT_WRITE(DISP0_CTRL,
+			       DSI_DISP0_COMMAND_MODE |
+			       DSI_DISP0_ENABLE);
+	}
+
+	drm_bridge_enable(dsi->bridge);
+
 	if (debug_dump_regs) {
-		DRM_INFO("DSI regs after:\n");
-		vc4_dsi_dump_regs(dsi);
+		struct drm_printer p = drm_info_printer(&dsi->pdev->dev);
+		dev_info(&dsi->pdev->dev, "DSI regs after:\n");
+		drm_print_regset32(&p, &dsi->regset);
 	}
 }
 
@@ -1516,6 +1467,15 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 
+	dsi->regset.base = dsi->regs;
+	if (dsi->port == 0) {
+		dsi->regset.regs = dsi0_regs;
+		dsi->regset.nregs = ARRAY_SIZE(dsi0_regs);
+	} else {
+		dsi->regset.regs = dsi1_regs;
+		dsi->regset.nregs = ARRAY_SIZE(dsi1_regs);
+	}
+
 	if (DSI_PORT_READ(ID) != DSI_ID_VALUE) {
 		dev_err(dev, "Port returned 0x%08x for ID instead of 0x%08x\n",
 			DSI_PORT_READ(ID), DSI_ID_VALUE);
@@ -1601,8 +1561,18 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 0, 0,
 					  &panel, &dsi->bridge);
-	if (ret)
+	if (ret) {
+		/* If the bridge or panel pointed by dev->of_node is not
+		 * enabled, just return 0 here so that we don't prevent the DRM
+		 * dev from being registered. Of course that means the DSI
+		 * encoder won't be exposed, but that's not a problem since
+		 * nothing is connected to it.
+		 */
+		if (ret == -ENODEV)
+			return 0;
+
 		return ret;
+	}
 
 	if (panel) {
 		dsi->bridge = devm_drm_panel_bridge_add(dev, panel,
@@ -1634,6 +1604,17 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 		dev_err(dev, "bridge attach failed: %d\n", ret);
 		return ret;
 	}
+	/* Disable the atomic helper calls into the bridge.  We
+	 * manually call the bridge pre_enable / enable / etc. calls
+	 * from our driver, since we need to sequence them within the
+	 * encoder's enable/disable paths.
+	 */
+	dsi->encoder->bridge = NULL;
+
+	if (dsi->port == 0)
+		vc4_debugfs_add_regset32(drm, "dsi0_regs", &dsi->regset);
+	else
+		vc4_debugfs_add_regset32(drm, "dsi1_regs", &dsi->regset);
 
 	pm_runtime_enable(dev);
 
@@ -1647,7 +1628,8 @@ static void vc4_dsi_unbind(struct device *dev, struct device *master,
 	struct vc4_dev *vc4 = to_vc4_dev(drm);
 	struct vc4_dsi *dsi = dev_get_drvdata(dev);
 
-	pm_runtime_disable(dev);
+	if (dsi->bridge)
+		pm_runtime_disable(dev);
 
 	vc4_dsi_encoder_destroy(dsi->encoder);
 

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # DMA engine configuration
 #
@@ -99,9 +100,10 @@ config AT_XDMAC
 
 config AXI_DMAC
 	tristate "Analog Devices AXI-DMAC DMA support"
-	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_SOCFPGA || COMPILE_TEST
+	depends on MICROBLAZE || NIOS2 || ARCH_ZYNQ || ARCH_ZYNQMP || ARCH_SOCFPGA || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
+	select REGMAP_MMIO
 	help
 	  Enable support for the Analog Devices AXI-DMAC peripheral. This DMA
 	  controller is often used in Analog Device's reference designs for FPGA
@@ -135,28 +137,15 @@ config DMA_BCM2835
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 
-config DMA_JZ4740
-	tristate "JZ4740 DMA support"
-	depends on MACH_JZ4740 || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-
 config DMA_JZ4780
 	tristate "JZ4780 DMA support"
-	depends on MACH_JZ4780 || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
 	  This selects support for the DMA controller in Ingenic JZ4780 SoCs.
 	  If you have a board based on such a SoC and wish to use DMA for
 	  devices which can use the DMA controller, say Y or M here.
-
-config DMA_OMAP
-	tristate "OMAP DMA support"
-	depends on ARCH_OMAP || COMPILE_TEST
-	select DMA_ENGINE
-	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if (SOC_DRA7XX || COMPILE_TEST)
 
 config DMA_SA11X0
 	tristate "SA-11x0 DMA support"
@@ -187,6 +176,16 @@ config DMA_SUN6I
 	help
 	  Support for the DMA engine first found in Allwinner A31 SoCs.
 
+config DW_AXI_DMAC
+	tristate "Synopsys DesignWare AXI DMA support"
+	depends on OF || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for Synopsys DesignWare AXI DMA controller.
+	  NOTE: This driver wasn't tested on 64 bit platform because
+	  of lack 64 bit platform with Synopsys DW AXI DMAC.
+
 config EP93XX_DMA
 	bool "Cirrus Logic EP93xx DMA support"
 	depends on ARCH_EP93XX || COMPILE_TEST
@@ -214,6 +213,20 @@ config FSL_EDMA
 	  Support the Freescale eDMA engine with programmable channel
 	  multiplexing capability for DMA request sources(slot).
 	  This module can be found on Freescale Vybrid and LS-1 SoCs.
+
+config FSL_QDMA
+       tristate "NXP Layerscape qDMA engine support"
+       depends on ARM || ARM64
+       select DMA_ENGINE
+       select DMA_VIRTUAL_CHANNELS
+       select DMA_ENGINE_RAID
+       select ASYNC_TX_ENABLE_CHANNEL_SWITCH
+       help
+         Support the NXP Layerscape qDMA engine with command queue and legacy mode.
+         Channel virtualization is supported through enqueuing of DMA jobs to,
+         or dequeuing DMA jobs from, different work queues.
+         This module can be found on NXP Layerscape SoCs.
+	  The qdma driver only work on  SoCs with a DPAA hardware block.
 
 config FSL_RAID
         tristate "Freescale RAID engine Support"
@@ -247,6 +260,7 @@ config IMX_SDMA
 	tristate "i.MX SDMA support"
 	depends on ARCH_MXC
 	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
 	help
 	  Support the i.MX SDMA engine. This engine is integrated into
 	  Freescale i.MX25/31/35/51/53/6 chips.
@@ -274,8 +288,8 @@ config INTEL_IOATDMA
 	  If unsure, say N.
 
 config INTEL_IOP_ADMA
-	tristate "Intel IOP ADMA support"
-	depends on ARCH_IOP32X || ARCH_IOP33X || ARCH_IOP13XX
+	tristate "Intel IOP32x ADMA support"
+	depends on ARCH_IOP32X || COMPILE_TEST
 	select DMA_ENGINE
 	select ASYNC_TX_ENABLE_CHANNEL_SWITCH
 	help
@@ -316,6 +330,17 @@ config LPC18XX_DMAMUX
 	help
 	  Enable support for DMA on NXP LPC18xx/43xx platforms
 	  with PL080 and multiplexed DMA request lines.
+
+config MCF_EDMA
+	tristate "Freescale eDMA engine support, ColdFire mcf5441x SoCs"
+	depends on M5441x || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the Freescale ColdFire eDMA engine, 64-channel
+	  implementation that performs complex data transfers with
+	  minimal intervention from a host processor.
+	  This module can be found on Freescale ColdFire mcf5441x SoCs.
 
 config MMP_PDMA
 	bool "MMP PDMA support"
@@ -409,6 +434,14 @@ config NBPFAXI_DMA
 	depends on ARM || COMPILE_TEST
 	help
 	  Support for "Type-AXI" NBPF DMA IPs from Renesas
+
+config OWL_DMA
+	tristate "Actions Semi Owl SoCs DMA support"
+	depends on ARCH_ACTIONS
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Enable support for the Actions Semi Owl SoCs DMA controller.
 
 config PCH_DMA
 	tristate "Intel EG20T PCH / LAPIS Semicon IOH(ML7213/ML7223/ML7831) DMA"
@@ -546,7 +579,7 @@ config TEGRA20_APB_DMA
 
 config TEGRA210_ADMA
 	tristate "NVIDIA Tegra210 ADMA support"
-	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST) && PM_CLK
+	depends on (ARCH_TEGRA_210_SOC || COMPILE_TEST)
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -564,27 +597,16 @@ config TIMB_DMA
 	help
 	  Enable support for the Timberdale FPGA DMA engine.
 
-config TI_CPPI41
-	tristate "CPPI 4.1 DMA support"
-	depends on (ARCH_OMAP || ARCH_DAVINCI_DA8XX)
-	select DMA_ENGINE
-	help
-	  The Communications Port Programming Interface (CPPI) 4.1 DMA engine
-	  is currently used by the USB driver on AM335x and DA8xx platforms.
-
-config TI_DMA_CROSSBAR
-	bool
-
-config TI_EDMA
-	bool "TI EDMA support"
-	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE || COMPILE_TEST
+config UNIPHIER_MDMAC
+	tristate "UniPhier MIO DMAC"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
-	select TI_DMA_CROSSBAR if (ARCH_OMAP || COMPILE_TEST)
-	default n
 	help
-	  Enable support for the TI EDMA controller. This DMA
-	  engine is found on TI DaVinci and AM33xx parts.
+	  Enable support for the MIO DMAC (Media I/O DMA controller) on the
+	  UniPhier platform.  This DMA controller is used as the external
+	  DMA engine of the SD/eMMC controllers of the LD4, Pro4, sLD8 SoCs.
 
 config XGENE_DMA
 	tristate "APM X-Gene DMA support"
@@ -633,13 +655,19 @@ config ZX_DMA
 # driver files
 source "drivers/dma/bestcomm/Kconfig"
 
+source "drivers/dma/mediatek/Kconfig"
+
 source "drivers/dma/qcom/Kconfig"
 
 source "drivers/dma/dw/Kconfig"
 
+source "drivers/dma/dw-edma/Kconfig"
+
 source "drivers/dma/hsu/Kconfig"
 
 source "drivers/dma/sh/Kconfig"
+
+source "drivers/dma/ti/Kconfig"
 
 # clients
 comment "DMA Clients"

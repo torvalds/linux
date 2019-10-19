@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * IPVS:        Locality-Based Least-Connection scheduling module
  *
  * Authors:     Wensong Zhang <wensong@gnuchina.org>
- *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
  *
  * Changes:
  *     Martin Hamilton         :    fixed the terrible locking bugs
@@ -18,7 +14,6 @@
  *     Julian Anastasov        :    replaced del_timer call with del_timer_sync
  *                                   to avoid the possible race between timer
  *                                   handler and del_timer thread in SMP
- *
  */
 
 /*
@@ -48,6 +43,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/jiffies.h>
+#include <linux/hash.h>
 
 /* for sysctl */
 #include <linux/fs.h>
@@ -160,7 +156,7 @@ ip_vs_lblc_hashkey(int af, const union nf_inet_addr *addr)
 		addr_fold = addr->ip6[0]^addr->ip6[1]^
 			    addr->ip6[2]^addr->ip6[3];
 #endif
-	return (ntohl(addr_fold)*2654435761UL) & IP_VS_LBLC_TAB_MASK;
+	return hash_32(ntohl(addr_fold), IP_VS_LBLC_TAB_BITS);
 }
 
 
@@ -238,7 +234,7 @@ static void ip_vs_lblc_flush(struct ip_vs_service *svc)
 	int i;
 
 	spin_lock_bh(&svc->sched_lock);
-	tbl->dead = 1;
+	tbl->dead = true;
 	for (i = 0; i < IP_VS_LBLC_TAB_SIZE; i++) {
 		hlist_for_each_entry_safe(en, next, &tbl->bucket[i], list) {
 			ip_vs_lblc_del(en);
@@ -369,8 +365,9 @@ static int ip_vs_lblc_init_svc(struct ip_vs_service *svc)
 	tbl->max_size = IP_VS_LBLC_TAB_SIZE*16;
 	tbl->rover = 0;
 	tbl->counter = 1;
-	tbl->dead = 0;
+	tbl->dead = false;
 	tbl->svc = svc;
+	atomic_set(&tbl->entries, 0);
 
 	/*
 	 *    Hook periodic timer for garbage collection

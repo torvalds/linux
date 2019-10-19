@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Integrator/AP timer driver
  * Copyright (C) 2000-2003 Deep Blue Solutions Ltd
  * Copyright (c) 2014, Linaro Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/clk.h>
@@ -181,8 +168,7 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 	int irq;
 	struct clk *clk;
 	unsigned long rate;
-	struct device_node *pri_node;
-	struct device_node *sec_node;
+	struct device_node *alias_node;
 
 	base = of_io_request_and_map(node, 0, "integrator-timer");
 	if (IS_ERR(base))
@@ -190,7 +176,7 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 
 	clk = of_clk_get(node, 0);
 	if (IS_ERR(clk)) {
-		pr_err("No clock for %s\n", node->name);
+		pr_err("No clock for %pOFn\n", node);
 		return PTR_ERR(clk);
 	}
 	clk_prepare_enable(clk);
@@ -204,7 +190,18 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 		return err;
 	}
 
-	pri_node = of_find_node_by_path(path);
+	alias_node = of_find_node_by_path(path);
+
+	/*
+	 * The pointer is used as an identifier not as a pointer, we
+	 * can drop the refcount on the of__node immediately after
+	 * getting it.
+	 */
+	of_node_put(alias_node);
+
+	if (node == alias_node)
+		/* The primary timer lacks IRQ, use as clocksource */
+		return integrator_clocksource_init(rate, base);
 
 	err = of_property_read_string(of_aliases,
 				"arm,timer-secondary", &path);
@@ -213,14 +210,11 @@ static int __init integrator_ap_timer_init_of(struct device_node *node)
 		return err;
 	}
 
+	alias_node = of_find_node_by_path(path);
 
-	sec_node = of_find_node_by_path(path);
+	of_node_put(alias_node);
 
-	if (node == pri_node)
-		/* The primary timer lacks IRQ, use as clocksource */
-		return integrator_clocksource_init(rate, base);
-
-	if (node == sec_node) {
+	if (node == alias_node) {
 		/* The secondary timer will drive the clock event */
 		irq = irq_of_parse_and_map(node, 0);
 		return integrator_clockevent_init(rate, base, irq);

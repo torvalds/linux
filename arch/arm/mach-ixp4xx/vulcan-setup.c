@@ -22,6 +22,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
+#include "irqs.h"
+
 static struct flash_platform_data vulcan_flash_data = {
 	.map_name	= "cfi_probe",
 	.width		= 2,

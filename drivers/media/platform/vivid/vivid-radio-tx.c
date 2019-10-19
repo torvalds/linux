@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vivid-radio-tx.c - radio transmitter support functions.
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/errno.h>
@@ -115,7 +103,7 @@ int vidioc_g_modulator(struct file *file, void *fh, struct v4l2_modulator *a)
 	if (a->index > 0)
 		return -EINVAL;
 
-	strlcpy(a->name, "AM/FM/SW Transmitter", sizeof(a->name));
+	strscpy(a->name, "AM/FM/SW Transmitter", sizeof(a->name));
 	a->capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_FREQ_BANDS | V4L2_TUNER_CAP_RDS |
 			(dev->radio_tx_rds_controls ?

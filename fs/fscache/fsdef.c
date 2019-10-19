@@ -1,28 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Filesystem index definition
  *
  * Copyright (C) 2004-2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define FSCACHE_DEBUG_LEVEL CACHE
 #include <linux/module.h>
 #include "internal.h"
 
-static uint16_t fscache_fsdef_netfs_get_key(const void *cookie_netfs_data,
-					    void *buffer, uint16_t bufmax);
-
-static uint16_t fscache_fsdef_netfs_get_aux(const void *cookie_netfs_data,
-					    void *buffer, uint16_t bufmax);
-
 static
 enum fscache_checkaux fscache_fsdef_netfs_check_aux(void *cookie_netfs_data,
 						    const void *data,
-						    uint16_t datalen);
+						    uint16_t datalen,
+						    loff_t object_size);
 
 /*
  * The root index is owned by FS-Cache itself.
@@ -60,6 +51,7 @@ struct fscache_cookie fscache_fsdef_index = {
 	.backing_objects = HLIST_HEAD_INIT,
 	.def		= &fscache_fsdef_index_def,
 	.flags		= 1 << FSCACHE_COOKIE_ENABLED,
+	.type		= FSCACHE_COOKIE_TYPE_INDEX,
 };
 EXPORT_SYMBOL(fscache_fsdef_index);
 
@@ -71,50 +63,8 @@ EXPORT_SYMBOL(fscache_fsdef_index);
 struct fscache_cookie_def fscache_fsdef_netfs_def = {
 	.name		= "FSDEF.netfs",
 	.type		= FSCACHE_COOKIE_TYPE_INDEX,
-	.get_key	= fscache_fsdef_netfs_get_key,
-	.get_aux	= fscache_fsdef_netfs_get_aux,
 	.check_aux	= fscache_fsdef_netfs_check_aux,
 };
-
-/*
- * get the key data for an FSDEF index record - this is the name of the netfs
- * for which this entry is created
- */
-static uint16_t fscache_fsdef_netfs_get_key(const void *cookie_netfs_data,
-					    void *buffer, uint16_t bufmax)
-{
-	const struct fscache_netfs *netfs = cookie_netfs_data;
-	unsigned klen;
-
-	_enter("{%s.%u},", netfs->name, netfs->version);
-
-	klen = strlen(netfs->name);
-	if (klen > bufmax)
-		return 0;
-
-	memcpy(buffer, netfs->name, klen);
-	return klen;
-}
-
-/*
- * get the auxiliary data for an FSDEF index record - this is the index
- * structure version number of the netfs for which this version is created
- */
-static uint16_t fscache_fsdef_netfs_get_aux(const void *cookie_netfs_data,
-					    void *buffer, uint16_t bufmax)
-{
-	const struct fscache_netfs *netfs = cookie_netfs_data;
-	unsigned dlen;
-
-	_enter("{%s.%u},", netfs->name, netfs->version);
-
-	dlen = sizeof(uint32_t);
-	if (dlen > bufmax)
-		return 0;
-
-	memcpy(buffer, &netfs->version, dlen);
-	return dlen;
-}
 
 /*
  * check that the index structure version number stored in the auxiliary data
@@ -123,7 +73,8 @@ static uint16_t fscache_fsdef_netfs_get_aux(const void *cookie_netfs_data,
 static enum fscache_checkaux fscache_fsdef_netfs_check_aux(
 	void *cookie_netfs_data,
 	const void *data,
-	uint16_t datalen)
+	uint16_t datalen,
+	loff_t object_size)
 {
 	struct fscache_netfs *netfs = cookie_netfs_data;
 	uint32_t version;

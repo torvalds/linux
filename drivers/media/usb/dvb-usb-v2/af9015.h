@@ -1,26 +1,17 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * DVB USB Linux driver for Afatech AF9015 DVB-T USB2.0 receiver
  *
  * Copyright (C) 2007 Antti Palosaari <crope@iki.fi>
  *
  * Thanks to Afatech who kindly provided information.
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
  */
 
 #ifndef AF9015_H
 #define AF9015_H
 
 #include <linux/hash.h>
+#include <linux/regmap.h>
 #include "dvb_usb.h"
 #include "af9013.h"
 #include "dvb-pll.h"
@@ -33,19 +24,6 @@
 #include "mxl5007t.h"
 
 #define AF9015_FIRMWARE "dvb-usb-af9015.fw"
-
-/* Windows driver uses packet count 21 for USB1.1 and 348 for USB2.0.
-   We use smaller - about 1/4 from the original, 5 and 87. */
-#define TS_PACKET_SIZE            188
-
-#define TS_USB20_PACKET_COUNT      87
-#define TS_USB20_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB20_PACKET_COUNT)
-
-#define TS_USB11_PACKET_COUNT       5
-#define TS_USB11_FRAME_SIZE       (TS_PACKET_SIZE*TS_USB11_PACKET_COUNT)
-
-#define TS_USB20_MAX_PACKET_SIZE  512
-#define TS_USB11_MAX_PACKET_SIZE   64
 
 #define AF9015_I2C_EEPROM  0x50
 #define AF9015_I2C_DEMOD   0x1c
@@ -113,6 +91,7 @@ enum af9015_ir_mode {
 
 #define BUF_LEN 63
 struct af9015_state {
+	struct regmap *regmap;
 	u8 buf[BUF_LEN]; /* bulk USB control message */
 	u8 ir_mode;
 	u8 rc_repeat;
@@ -125,7 +104,10 @@ struct af9015_state {
 	u16 firmware_size;
 	u16 firmware_checksum;
 	u32 eeprom_sum;
-	struct af9013_config af9013_config[2];
+	struct af9013_platform_data af9013_pdata[2];
+	struct i2c_client *demod_i2c_client[2];
+	u8 af9013_i2c_addr[2];
+	bool usb_ts_if_configured[2];
 
 	/* for demod callback override */
 	int (*set_frontend[2]) (struct dvb_frontend *fe);

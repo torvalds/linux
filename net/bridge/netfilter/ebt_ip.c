@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ebt_ip
  *
@@ -19,9 +20,18 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_ip.h>
 
-struct tcpudphdr {
-	__be16 src;
-	__be16 dst;
+union pkthdr {
+	struct {
+		__be16 src;
+		__be16 dst;
+	} tcpudphdr;
+	struct {
+		u8 type;
+		u8 code;
+	} icmphdr;
+	struct {
+		u8 type;
+	} igmphdr;
 };
 
 static bool
@@ -30,8 +40,8 @@ ebt_ip_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	const struct ebt_ip_info *info = par->matchinfo;
 	const struct iphdr *ih;
 	struct iphdr _iph;
-	const struct tcpudphdr *pptr;
-	struct tcpudphdr _ports;
+	const union pkthdr *pptr;
+	union pkthdr _pkthdr;
 
 	ih = skb_header_pointer(skb, 0, sizeof(_iph), &_iph);
 	if (ih == NULL)
@@ -50,29 +60,43 @@ ebt_ip_mt(const struct sk_buff *skb, struct xt_action_param *par)
 	if (info->bitmask & EBT_IP_PROTO) {
 		if (NF_INVF(info, EBT_IP_PROTO, info->protocol != ih->protocol))
 			return false;
-		if (!(info->bitmask & EBT_IP_DPORT) &&
-		    !(info->bitmask & EBT_IP_SPORT))
+		if (!(info->bitmask & (EBT_IP_DPORT | EBT_IP_SPORT |
+				       EBT_IP_ICMP | EBT_IP_IGMP)))
 			return true;
 		if (ntohs(ih->frag_off) & IP_OFFSET)
 			return false;
+
+		/* min icmp/igmp headersize is 4, so sizeof(_pkthdr) is ok. */
 		pptr = skb_header_pointer(skb, ih->ihl*4,
-					  sizeof(_ports), &_ports);
+					  sizeof(_pkthdr), &_pkthdr);
 		if (pptr == NULL)
 			return false;
 		if (info->bitmask & EBT_IP_DPORT) {
-			u32 dst = ntohs(pptr->dst);
+			u32 dst = ntohs(pptr->tcpudphdr.dst);
 			if (NF_INVF(info, EBT_IP_DPORT,
 				    dst < info->dport[0] ||
 				    dst > info->dport[1]))
 				return false;
 		}
 		if (info->bitmask & EBT_IP_SPORT) {
-			u32 src = ntohs(pptr->src);
+			u32 src = ntohs(pptr->tcpudphdr.src);
 			if (NF_INVF(info, EBT_IP_SPORT,
 				    src < info->sport[0] ||
 				    src > info->sport[1]))
 				return false;
 		}
+		if ((info->bitmask & EBT_IP_ICMP) &&
+		    NF_INVF(info, EBT_IP_ICMP,
+			    pptr->icmphdr.type < info->icmp_type[0] ||
+			    pptr->icmphdr.type > info->icmp_type[1] ||
+			    pptr->icmphdr.code < info->icmp_code[0] ||
+			    pptr->icmphdr.code > info->icmp_code[1]))
+			return false;
+		if ((info->bitmask & EBT_IP_IGMP) &&
+		    NF_INVF(info, EBT_IP_IGMP,
+			    pptr->igmphdr.type < info->igmp_type[0] ||
+			    pptr->igmphdr.type > info->igmp_type[1]))
+			return false;
 	}
 	return true;
 }
@@ -101,6 +125,21 @@ static int ebt_ip_mt_check(const struct xt_mtchk_param *par)
 		return -EINVAL;
 	if (info->bitmask & EBT_IP_SPORT && info->sport[0] > info->sport[1])
 		return -EINVAL;
+	if (info->bitmask & EBT_IP_ICMP) {
+		if ((info->invflags & EBT_IP_PROTO) ||
+		    info->protocol != IPPROTO_ICMP)
+			return -EINVAL;
+		if (info->icmp_type[0] > info->icmp_type[1] ||
+		    info->icmp_code[0] > info->icmp_code[1])
+			return -EINVAL;
+	}
+	if (info->bitmask & EBT_IP_IGMP) {
+		if ((info->invflags & EBT_IP_PROTO) ||
+		    info->protocol != IPPROTO_IGMP)
+			return -EINVAL;
+		if (info->igmp_type[0] > info->igmp_type[1])
+			return -EINVAL;
+	}
 	return 0;
 }
 

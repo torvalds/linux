@@ -22,7 +22,9 @@ struct clk_omap_divider {
 	u8			shift;
 	u8			width;
 	u8			flags;
+	s8			latch;
 	const struct clk_div_table	*table;
+	u32		context;
 };
 
 #define to_clk_omap_divider(_hw) container_of(_hw, struct clk_omap_divider, hw)
@@ -33,7 +35,9 @@ struct clk_omap_mux {
 	u32			*table;
 	u32			mask;
 	u8			shift;
+	s8			latch;
 	u8			flags;
+	u8			saved_parent;
 };
 
 #define to_clk_omap_mux(_hw) container_of(_hw, struct clk_omap_mux, hw)
@@ -73,6 +77,18 @@ enum {
 #define CLKF_PER			(1 << 8)
 #define CLKF_CORE			(1 << 9)
 #define CLKF_J_TYPE			(1 << 10)
+
+/* CLKCTRL flags */
+#define CLKF_SW_SUP			BIT(5)
+#define CLKF_HW_SUP			BIT(6)
+#define CLKF_NO_IDLEST			BIT(7)
+
+#define CLKF_SOC_MASK			GENMASK(11, 8)
+
+#define CLKF_SOC_NONSEC			BIT(8)
+#define CLKF_SOC_DRA72			BIT(9)
+#define CLKF_SOC_DRA74			BIT(10)
+#define CLKF_SOC_DRA76			BIT(11)
 
 #define CLK(dev, con, ck)		\
 	{				\
@@ -177,22 +193,29 @@ struct omap_clkctrl_data {
 extern const struct omap_clkctrl_data omap4_clkctrl_data[];
 extern const struct omap_clkctrl_data omap5_clkctrl_data[];
 extern const struct omap_clkctrl_data dra7_clkctrl_data[];
+extern const struct omap_clkctrl_data dra7_clkctrl_compat_data[];
+extern struct ti_dt_clk dra7xx_compat_clks[];
 extern const struct omap_clkctrl_data am3_clkctrl_data[];
+extern const struct omap_clkctrl_data am3_clkctrl_compat_data[];
+extern struct ti_dt_clk am33xx_compat_clks[];
 extern const struct omap_clkctrl_data am4_clkctrl_data[];
+extern const struct omap_clkctrl_data am4_clkctrl_compat_data[];
+extern struct ti_dt_clk am43xx_compat_clks[];
 extern const struct omap_clkctrl_data am438x_clkctrl_data[];
+extern const struct omap_clkctrl_data am438x_clkctrl_compat_data[];
 extern const struct omap_clkctrl_data dm814_clkctrl_data[];
 extern const struct omap_clkctrl_data dm816_clkctrl_data[];
-
-#define CLKF_SW_SUP	BIT(0)
-#define CLKF_HW_SUP	BIT(1)
-#define CLKF_NO_IDLEST	BIT(2)
 
 typedef void (*ti_of_clk_init_cb_t)(void *, struct device_node *);
 
 struct clk *ti_clk_register(struct device *dev, struct clk_hw *hw,
 			    const char *con);
+struct clk *ti_clk_register_omap_hw(struct device *dev, struct clk_hw *hw,
+				    const char *con);
 int ti_clk_add_alias(struct device *dev, struct clk *clk, const char *con);
 void ti_clk_add_aliases(void);
+
+void ti_clk_latch(struct clk_omap_reg *reg, s8 shift);
 
 struct clk_hw *ti_clk_build_component_mux(struct ti_clk_mux *setup);
 
@@ -207,7 +230,6 @@ int ti_clk_retry_init(struct device_node *node, void *user,
 		      ti_of_clk_init_cb_t func);
 int ti_clk_add_component(struct device_node *node, struct clk_hw *hw, int type);
 
-void omap2_init_clk_hw_omap_clocks(struct clk_hw *hw);
 int of_ti_clk_autoidle_setup(struct device_node *node);
 void omap2_clk_enable_init_clocks(const char **clk_names, u8 num_clocks);
 
@@ -227,6 +249,8 @@ extern const struct clk_hw_omap_ops clkhwops_am35xx_ipss_wait;
 extern const struct clk_ops ti_clk_divider_ops;
 extern const struct clk_ops ti_clk_mux_ops;
 extern const struct clk_ops omap_gate_clk_ops;
+
+extern struct ti_clk_features ti_clk_features;
 
 void omap2_init_clk_clkdm(struct clk_hw *hw);
 int omap2_clkops_enable_clkdm(struct clk_hw *hw);
@@ -285,6 +309,7 @@ long omap4_dpll_regm4xen_round_rate(struct clk_hw *hw,
 				    unsigned long *parent_rate);
 int omap4_dpll_regm4xen_determine_rate(struct clk_hw *hw,
 				       struct clk_rate_request *req);
+int omap2_clk_for_each(int (*fn)(struct clk_hw_omap *hw));
 
 extern struct ti_clk_ll_ops *ti_clk_ll_ops;
 

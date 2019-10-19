@@ -1,26 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * Copyright (c) 2014 Samsung Electronics Co., Ltd.
  * Author: Andrey Ryabinin <a.ryabinin@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #define pr_fmt(fmt) "kasan test: %s " fmt, __func__
 
+#include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/kasan.h>
 #include <linux/kernel.h>
-#include <linux/mman.h>
 #include <linux/mm.h>
+#include <linux/mman.h>
+#include <linux/module.h>
 #include <linux/printk.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/uaccess.h>
-#include <linux/module.h>
-#include <linux/kasan.h>
+#include <linux/io.h>
+
+#include <asm/page.h>
 
 /*
  * Note: test functions are marked noinline so that their names appear in
@@ -340,6 +340,42 @@ static noinline void __init kmalloc_uaf2(void)
 	kfree(ptr2);
 }
 
+static noinline void __init kfree_via_page(void)
+{
+	char *ptr;
+	size_t size = 8;
+	struct page *page;
+	unsigned long offset;
+
+	pr_info("invalid-free false positive (via page)\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	page = virt_to_page(ptr);
+	offset = offset_in_page(ptr);
+	kfree(page_address(page) + offset);
+}
+
+static noinline void __init kfree_via_phys(void)
+{
+	char *ptr;
+	size_t size = 8;
+	phys_addr_t phys;
+
+	pr_info("invalid-free false positive (via phys)\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	phys = virt_to_phys(ptr);
+	kfree(phys_to_virt(phys));
+}
+
 static noinline void __init kmem_cache_oob(void)
 {
 	char *p;
@@ -480,29 +516,6 @@ static noinline void __init copy_user_test(void)
 	kfree(kmem);
 }
 
-static noinline void __init use_after_scope_test(void)
-{
-	volatile char *volatile p;
-
-	pr_info("use-after-scope on int\n");
-	{
-		int local = 0;
-
-		p = (char *)&local;
-	}
-	p[0] = 1;
-	p[3] = 1;
-
-	pr_info("use-after-scope on array\n");
-	{
-		char local[1024] = {0};
-
-		p = local;
-	}
-	p[0] = 1;
-	p[1023] = 1;
-}
-
 static noinline void __init kasan_alloca_oob_left(void)
 {
 	volatile int i = 10;
@@ -567,8 +580,172 @@ static noinline void __init kmem_cache_invalid_free(void)
 		return;
 	}
 
+	/* Trigger invalid free, the object doesn't get freed */
 	kmem_cache_free(cache, p + 1);
+
+	/*
+	 * Properly free the object to prevent the "Objects remaining in
+	 * test_cache on __kmem_cache_shutdown" BUG failure.
+	 */
+	kmem_cache_free(cache, p);
+
 	kmem_cache_destroy(cache);
+}
+
+static noinline void __init kasan_memchr(void)
+{
+	char *ptr;
+	size_t size = 24;
+
+	pr_info("out-of-bounds in memchr\n");
+	ptr = kmalloc(size, GFP_KERNEL | __GFP_ZERO);
+	if (!ptr)
+		return;
+
+	memchr(ptr, '1', size + 1);
+	kfree(ptr);
+}
+
+static noinline void __init kasan_memcmp(void)
+{
+	char *ptr;
+	size_t size = 24;
+	int arr[9];
+
+	pr_info("out-of-bounds in memcmp\n");
+	ptr = kmalloc(size, GFP_KERNEL | __GFP_ZERO);
+	if (!ptr)
+		return;
+
+	memset(arr, 0, sizeof(arr));
+	memcmp(ptr, arr, size+1);
+	kfree(ptr);
+}
+
+static noinline void __init kasan_strings(void)
+{
+	char *ptr;
+	size_t size = 24;
+
+	pr_info("use-after-free in strchr\n");
+	ptr = kmalloc(size, GFP_KERNEL | __GFP_ZERO);
+	if (!ptr)
+		return;
+
+	kfree(ptr);
+
+	/*
+	 * Try to cause only 1 invalid access (less spam in dmesg).
+	 * For that we need ptr to point to zeroed byte.
+	 * Skip metadata that could be stored in freed object so ptr
+	 * will likely point to zeroed byte.
+	 */
+	ptr += 16;
+	strchr(ptr, '1');
+
+	pr_info("use-after-free in strrchr\n");
+	strrchr(ptr, '1');
+
+	pr_info("use-after-free in strcmp\n");
+	strcmp(ptr, "2");
+
+	pr_info("use-after-free in strncmp\n");
+	strncmp(ptr, "2", 1);
+
+	pr_info("use-after-free in strlen\n");
+	strlen(ptr);
+
+	pr_info("use-after-free in strnlen\n");
+	strnlen(ptr, 1);
+}
+
+static noinline void __init kasan_bitops(void)
+{
+	/*
+	 * Allocate 1 more byte, which causes kzalloc to round up to 16-bytes;
+	 * this way we do not actually corrupt other memory.
+	 */
+	long *bits = kzalloc(sizeof(*bits) + 1, GFP_KERNEL);
+	if (!bits)
+		return;
+
+	/*
+	 * Below calls try to access bit within allocated memory; however, the
+	 * below accesses are still out-of-bounds, since bitops are defined to
+	 * operate on the whole long the bit is in.
+	 */
+	pr_info("out-of-bounds in set_bit\n");
+	set_bit(BITS_PER_LONG, bits);
+
+	pr_info("out-of-bounds in __set_bit\n");
+	__set_bit(BITS_PER_LONG, bits);
+
+	pr_info("out-of-bounds in clear_bit\n");
+	clear_bit(BITS_PER_LONG, bits);
+
+	pr_info("out-of-bounds in __clear_bit\n");
+	__clear_bit(BITS_PER_LONG, bits);
+
+	pr_info("out-of-bounds in clear_bit_unlock\n");
+	clear_bit_unlock(BITS_PER_LONG, bits);
+
+	pr_info("out-of-bounds in __clear_bit_unlock\n");
+	__clear_bit_unlock(BITS_PER_LONG, bits);
+
+	pr_info("out-of-bounds in change_bit\n");
+	change_bit(BITS_PER_LONG, bits);
+
+	pr_info("out-of-bounds in __change_bit\n");
+	__change_bit(BITS_PER_LONG, bits);
+
+	/*
+	 * Below calls try to access bit beyond allocated memory.
+	 */
+	pr_info("out-of-bounds in test_and_set_bit\n");
+	test_and_set_bit(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+	pr_info("out-of-bounds in __test_and_set_bit\n");
+	__test_and_set_bit(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+	pr_info("out-of-bounds in test_and_set_bit_lock\n");
+	test_and_set_bit_lock(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+	pr_info("out-of-bounds in test_and_clear_bit\n");
+	test_and_clear_bit(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+	pr_info("out-of-bounds in __test_and_clear_bit\n");
+	__test_and_clear_bit(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+	pr_info("out-of-bounds in test_and_change_bit\n");
+	test_and_change_bit(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+	pr_info("out-of-bounds in __test_and_change_bit\n");
+	__test_and_change_bit(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+	pr_info("out-of-bounds in test_bit\n");
+	(void)test_bit(BITS_PER_LONG + BITS_PER_BYTE, bits);
+
+#if defined(clear_bit_unlock_is_negative_byte)
+	pr_info("out-of-bounds in clear_bit_unlock_is_negative_byte\n");
+	clear_bit_unlock_is_negative_byte(BITS_PER_LONG + BITS_PER_BYTE, bits);
+#endif
+	kfree(bits);
+}
+
+static noinline void __init kmalloc_double_kzfree(void)
+{
+	char *ptr;
+	size_t size = 16;
+
+	pr_info("double-free (kzfree)\n");
+	ptr = kmalloc(size, GFP_KERNEL);
+	if (!ptr) {
+		pr_err("Allocation failed\n");
+		return;
+	}
+
+	kzfree(ptr);
+	kzfree(ptr);
 }
 
 static int __init kmalloc_tests_init(void)
@@ -599,6 +776,8 @@ static int __init kmalloc_tests_init(void)
 	kmalloc_uaf();
 	kmalloc_uaf_memset();
 	kmalloc_uaf2();
+	kfree_via_page();
+	kfree_via_phys();
 	kmem_cache_oob();
 	memcg_accounted_kmem_cache();
 	kasan_stack_oob();
@@ -607,9 +786,13 @@ static int __init kmalloc_tests_init(void)
 	kasan_alloca_oob_right();
 	ksize_unpoisons_memory();
 	copy_user_test();
-	use_after_scope_test();
 	kmem_cache_double_free();
 	kmem_cache_invalid_free();
+	kasan_memchr();
+	kasan_memcmp();
+	kasan_strings();
+	kasan_bitops();
+	kmalloc_double_kzfree();
 
 	kasan_restore_multi_shot(multishot);
 

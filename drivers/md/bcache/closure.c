@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Asynchronous refcounty things
  *
@@ -46,7 +47,7 @@ void closure_sub(struct closure *cl, int v)
 }
 EXPORT_SYMBOL(closure_sub);
 
-/**
+/*
  * closure_put - decrement a closure's refcount
  */
 void closure_put(struct closure *cl)
@@ -55,7 +56,7 @@ void closure_put(struct closure *cl)
 }
 EXPORT_SYMBOL(closure_put);
 
-/**
+/*
  * closure_wake_up - wake up all closures on a wait list, without memory barrier
  */
 void __closure_wake_up(struct closure_waitlist *wait_list)
@@ -79,9 +80,9 @@ EXPORT_SYMBOL(__closure_wake_up);
 
 /**
  * closure_wait - add a closure to a waitlist
- *
- * @waitlist will own a ref on @cl, which will be released when
+ * @waitlist: will own a ref on @cl, which will be released when
  * closure_wake_up() is called on @waitlist.
+ * @cl: closure pointer.
  *
  */
 bool closure_wait(struct closure_waitlist *waitlist, struct closure *cl)
@@ -104,8 +105,14 @@ struct closure_syncer {
 
 static void closure_sync_fn(struct closure *cl)
 {
-	cl->s->done = 1;
-	wake_up_process(cl->s->task);
+	struct closure_syncer *s = cl->s;
+	struct task_struct *p;
+
+	rcu_read_lock();
+	p = READ_ONCE(s->task);
+	s->done = 1;
+	wake_up_process(p);
+	rcu_read_unlock();
 }
 
 void __sched __closure_sync(struct closure *cl)
@@ -157,17 +164,18 @@ void closure_debug_destroy(struct closure *cl)
 }
 EXPORT_SYMBOL(closure_debug_destroy);
 
-static struct dentry *debug;
+static struct dentry *closure_debug;
 
 static int debug_seq_show(struct seq_file *f, void *data)
 {
 	struct closure *cl;
+
 	spin_lock_irq(&closure_list_lock);
 
 	list_for_each_entry(cl, &closure_list, all) {
 		int r = atomic_read(&cl->remaining);
 
-		seq_printf(f, "%p: %pF -> %pf p %p r %i ",
+		seq_printf(f, "%p: %pS -> %pS p %p r %i ",
 			   cl, (void *) cl->ip, cl->fn, cl->parent,
 			   r & CLOSURE_REMAINING_MASK);
 
@@ -177,7 +185,7 @@ static int debug_seq_show(struct seq_file *f, void *data)
 			   r & CLOSURE_RUNNING	? "R" : "");
 
 		if (r & CLOSURE_WAITING)
-			seq_printf(f, " W %pF\n",
+			seq_printf(f, " W %pS\n",
 				   (void *) cl->waiting_on);
 
 		seq_printf(f, "\n");
@@ -199,11 +207,17 @@ static const struct file_operations debug_ops = {
 	.release	= single_release
 };
 
-void __init closure_debug_init(void)
+void  __init closure_debug_init(void)
 {
-	debug = debugfs_create_file("closures", 0400, NULL, NULL, &debug_ops);
+	if (!IS_ERR_OR_NULL(bcache_debug))
+		/*
+		 * it is unnecessary to check return value of
+		 * debugfs_create_file(), we should not care
+		 * about this.
+		 */
+		closure_debug = debugfs_create_file(
+			"closures", 0400, bcache_debug, NULL, &debug_ops);
 }
-
 #endif
 
 MODULE_AUTHOR("Kent Overstreet <koverstreet@google.com>");

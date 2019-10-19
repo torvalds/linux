@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* ir-jvc-decoder.c - handle JVC IR Pulse/Space protocol
  *
  * Copyright (C) 2010 by David Härdeman <david@hardeman.nu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitrev.h>
@@ -56,8 +48,8 @@ static int ir_jvc_decode(struct rc_dev *dev, struct ir_raw_event ev)
 	if (!geq_margin(ev.duration, JVC_UNIT, JVC_UNIT / 2))
 		goto out;
 
-	IR_dprintk(2, "JVC decode started at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "JVC decode started at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 again:
 	switch (data->state) {
@@ -136,15 +128,15 @@ again:
 			u32 scancode;
 			scancode = (bitrev8((data->bits >> 8) & 0xff) << 8) |
 				   (bitrev8((data->bits >> 0) & 0xff) << 0);
-			IR_dprintk(1, "JVC scancode 0x%04x\n", scancode);
+			dev_dbg(&dev->dev, "JVC scancode 0x%04x\n", scancode);
 			rc_keydown(dev, RC_PROTO_JVC, scancode, data->toggle);
 			data->first = false;
 			data->old_bits = data->bits;
 		} else if (data->bits == data->old_bits) {
-			IR_dprintk(1, "JVC repeat\n");
+			dev_dbg(&dev->dev, "JVC repeat\n");
 			rc_repeat(dev);
 		} else {
-			IR_dprintk(1, "JVC invalid repeat msg\n");
+			dev_dbg(&dev->dev, "JVC invalid repeat msg\n");
 			break;
 		}
 
@@ -164,8 +156,8 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "JVC decode failed at state %d (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "JVC decode failed at state %d (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
@@ -213,6 +205,7 @@ static struct ir_raw_handler jvc_handler = {
 	.decode		= ir_jvc_decode,
 	.encode		= ir_jvc_encode,
 	.carrier	= 38000,
+	.min_timeout	= JVC_TRAILER_SPACE,
 };
 
 static int __init ir_jvc_decode_init(void)

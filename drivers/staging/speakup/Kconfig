@@ -1,9 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
 menu "Speakup console speech"
 
 config SPEAKUP
-	depends on VT && !MN10300
+	depends on VT
 	tristate "Speakup core"
-	---help---
+	help
 		This is the Speakup screen reader.  Think of it as a
 		video console for blind people.  If built in to the
 		kernel, it can speak everything on the text console from
@@ -43,7 +44,7 @@ config SPEAKUP
 if SPEAKUP
 config SPEAKUP_SYNTH_ACNTSA
 	tristate "Accent SA synthesizer support"
-	---help---
+	help
 		This is the Speakup driver for the Accent SA
 		synthesizer.  You can say y to build it into the kernel,
 		or m to build it as a module.  See the configuration
@@ -52,7 +53,7 @@ config SPEAKUP_SYNTH_ACNTSA
 config SPEAKUP_SYNTH_ACNTPC
 	tristate "Accent PC synthesizer support"
 	depends on ISA || COMPILE_TEST
-	---help---
+	help
 		This is the Speakup driver for the accent pc
 		synthesizer.  You can say y to build it into the kernel,
 		or m to build it as a module.  See the configuration
@@ -60,7 +61,7 @@ config SPEAKUP_SYNTH_ACNTPC
 
 config SPEAKUP_SYNTH_APOLLO
 	tristate "Apollo II synthesizer support"
-	---help---
+	help
 		This is the Speakup driver for the Apollo II
 		synthesizer.  You can say y to build it into the kernel,
 		or m to build it as a module.  See the configuration
@@ -68,7 +69,7 @@ config SPEAKUP_SYNTH_APOLLO
 
 config SPEAKUP_SYNTH_AUDPTR
 	tristate "Audapter synthesizer support"
-	---help---
+	help
 		This is the Speakup driver for the Audapter synthesizer.
 		 You can say y to build it into the kernel, or m to
 		build it as a module.  See the configuration help on the
@@ -76,7 +77,7 @@ config SPEAKUP_SYNTH_AUDPTR
 
 config SPEAKUP_SYNTH_BNS
 	tristate "Braille 'n' Speak synthesizer support"
-	---help---
+	help
 		This is the Speakup driver for the Braille 'n' Speak
 		synthesizer.  You can say y to build it into the kernel,
 		or m to build it as a module.  See the configuration
@@ -84,7 +85,7 @@ config SPEAKUP_SYNTH_BNS
 
 config SPEAKUP_SYNTH_DECTLK
 	tristate "DECtalk Express synthesizer support"
-	---help---
+	help
 
 		This is the Speakup driver for the DecTalk Express
 		synthesizer.  You can say y to build it into the kernel,
@@ -93,7 +94,7 @@ config SPEAKUP_SYNTH_DECTLK
 
 config SPEAKUP_SYNTH_DECEXT
 	tristate "DECtalk External (old) synthesizer support"
-	---help---
+	help
 
 		This is the Speakup driver for the DecTalk External
 		(old) synthesizer.  You can say y to build it into the
@@ -105,7 +106,7 @@ config SPEAKUP_SYNTH_DECPC
 	depends on m
 	depends on ISA || COMPILE_TEST
 	tristate "DECtalk PC (big ISA card) synthesizer support"
-	---help---
+	help
 
 		This is the Speakup driver for the DecTalk PC (full
 		length ISA) synthesizer.  You can say m to build it as
@@ -127,7 +128,7 @@ config SPEAKUP_SYNTH_DECPC
 config SPEAKUP_SYNTH_DTLK
 	tristate "DoubleTalk PC synthesizer support"
 	depends on ISA || COMPILE_TEST
-	---help---
+	help
 
 		This is the Speakup driver for the internal DoubleTalk
 		PC synthesizer.  You can say y to build it into the
@@ -138,7 +139,7 @@ config SPEAKUP_SYNTH_DTLK
 config SPEAKUP_SYNTH_KEYPC
 	tristate "Keynote Gold PC synthesizer support"
 	depends on ISA || COMPILE_TEST
-	---help---
+	help
 
 		This is the Speakup driver for the Keynote Gold
 		PC synthesizer.  You can say y to build it into the
@@ -148,7 +149,7 @@ config SPEAKUP_SYNTH_KEYPC
 
 config SPEAKUP_SYNTH_LTLK
 	tristate "DoubleTalk LT/LiteTalk synthesizer support"
----help---
+help
 
 		This is the Speakup driver for the LiteTalk/DoubleTalk
 		LT synthesizer.  You can say y to build it into the
@@ -158,7 +159,7 @@ config SPEAKUP_SYNTH_LTLK
 
 config SPEAKUP_SYNTH_SOFT
 	tristate "Userspace software synthesizer support"
-	---help---
+	help
 
 		This is the software synthesizer device node.  It will
 		register a device /dev/softsynth which midware programs
@@ -169,7 +170,7 @@ config SPEAKUP_SYNTH_SOFT
 
 config SPEAKUP_SYNTH_SPKOUT
 	tristate "Speak Out synthesizer support"
-	---help---
+	help
 
 		This is the Speakup driver for the Speakout synthesizer.
 		 You can say y to build it into the kernel, or m to
@@ -178,7 +179,7 @@ config SPEAKUP_SYNTH_SPKOUT
 
 config SPEAKUP_SYNTH_TXPRT
 	tristate "Transport synthesizer support"
-	---help---
+	help
 
 		This is the Speakup driver for the Transport
 		synthesizer.  You can say y to build it into the kernel,
@@ -187,7 +188,7 @@ config SPEAKUP_SYNTH_TXPRT
 
 config SPEAKUP_SYNTH_DUMMY
 	tristate "Dummy synthesizer driver (for testing)"
-	---help---
+	help
 
 		This is a dummy Speakup driver for plugging a mere serial
 		terminal.  This is handy if you want to test speakup but

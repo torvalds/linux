@@ -12,7 +12,7 @@ The /chosen node should contain a 'linux,sysrq-reset-seq' child node to define
 a set of keys.
 
 Required property:
-sysrq-reset-seq: array of Linux keycodes, one keycode per cell.
+keyset: array of Linux keycodes, one keycode per cell.
 
 Optional property:
 timeout-ms: duration keys must be pressed together in milliseconds before

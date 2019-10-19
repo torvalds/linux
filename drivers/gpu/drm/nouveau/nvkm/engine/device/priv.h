@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DEVICE_PRIV_H__
 #define __NVKM_DEVICE_PRIV_H__
 #include <core/device.h>
@@ -8,9 +8,11 @@
 #include <subdev/bus.h>
 #include <subdev/clk.h>
 #include <subdev/devinit.h>
+#include <subdev/fault.h>
 #include <subdev/fb.h>
 #include <subdev/fuse.h>
 #include <subdev/gpio.h>
+#include <subdev/gsp.h>
 #include <subdev/i2c.h>
 #include <subdev/ibus.h>
 #include <subdev/iccsense.h>

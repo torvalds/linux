@@ -24,24 +24,14 @@ static unsigned long stack_maxrandom_size(void)
 {
 	if (!(current->flags & PF_RANDOMIZE))
 		return 0;
-	if (current->personality & ADDR_NO_RANDOMIZE)
-		return 0;
 	return STACK_RND_MASK << PAGE_SHIFT;
 }
 
-/*
- * Top of mmap area (just below the process stack).
- *
- * Leave at least a ~32 MB hole.
- */
-#define MIN_GAP (32*1024*1024)
-#define MAX_GAP (STACK_TOP/6*5)
-
-static inline int mmap_is_legacy(void)
+static inline int mmap_is_legacy(struct rlimit *rlim_stack)
 {
 	if (current->personality & ADDR_COMPAT_LAYOUT)
 		return 1;
-	if (rlimit(RLIMIT_STACK) == RLIM_INFINITY)
+	if (rlim_stack->rlim_cur == RLIM_INFINITY)
 		return 1;
 	return sysctl_legacy_va_layout;
 }
@@ -56,16 +46,30 @@ static unsigned long mmap_base_legacy(unsigned long rnd)
 	return TASK_UNMAPPED_BASE + rnd;
 }
 
-static inline unsigned long mmap_base(unsigned long rnd)
+static inline unsigned long mmap_base(unsigned long rnd,
+				      struct rlimit *rlim_stack)
 {
-	unsigned long gap = rlimit(RLIMIT_STACK);
+	unsigned long gap = rlim_stack->rlim_cur;
+	unsigned long pad = stack_maxrandom_size() + stack_guard_gap;
+	unsigned long gap_min, gap_max;
 
-	if (gap < MIN_GAP)
-		gap = MIN_GAP;
-	else if (gap > MAX_GAP)
-		gap = MAX_GAP;
-	gap &= PAGE_MASK;
-	return STACK_TOP - stack_maxrandom_size() - rnd - gap;
+	/* Values close to RLIM_INFINITY can overflow. */
+	if (gap + pad > gap)
+		gap += pad;
+
+	/*
+	 * Top of mmap area (just below the process stack).
+	 * Leave at least a ~32 MB hole.
+	 */
+	gap_min = 32 * 1024 * 1024UL;
+	gap_max = (STACK_TOP / 6) * 5;
+
+	if (gap < gap_min)
+		gap = gap_min;
+	else if (gap > gap_max)
+		gap = gap_max;
+
+	return PAGE_ALIGN(STACK_TOP - gap - rnd);
 }
 
 unsigned long
@@ -184,7 +188,7 @@ check_asce_limit:
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
  */
-void arch_pick_mmap_layout(struct mm_struct *mm)
+void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 {
 	unsigned long random_factor = 0UL;
 
@@ -195,11 +199,11 @@ void arch_pick_mmap_layout(struct mm_struct *mm)
 	 * Fall back to the standard layout if the personality
 	 * bit is set, or if the expected stack growth is unlimited:
 	 */
-	if (mmap_is_legacy()) {
+	if (mmap_is_legacy(rlim_stack)) {
 		mm->mmap_base = mmap_base_legacy(random_factor);
 		mm->get_unmapped_area = arch_get_unmapped_area;
 	} else {
-		mm->mmap_base = mmap_base(random_factor);
+		mm->mmap_base = mmap_base(random_factor, rlim_stack);
 		mm->get_unmapped_area = arch_get_unmapped_area_topdown;
 	}
 }

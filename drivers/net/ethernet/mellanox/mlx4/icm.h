@@ -47,11 +47,21 @@ enum {
 	MLX4_ICM_PAGE_SIZE	= 1 << MLX4_ICM_PAGE_SHIFT,
 };
 
+struct mlx4_icm_buf {
+	void			*addr;
+	size_t			size;
+	dma_addr_t		dma_addr;
+};
+
 struct mlx4_icm_chunk {
 	struct list_head	list;
 	int			npages;
 	int			nsg;
-	struct scatterlist	mem[MLX4_ICM_CHUNK_LEN];
+	bool			coherent;
+	union {
+		struct scatterlist	sg[MLX4_ICM_CHUNK_LEN];
+		struct mlx4_icm_buf	buf[MLX4_ICM_CHUNK_LEN];
+	};
 };
 
 struct mlx4_icm {
@@ -114,12 +124,18 @@ static inline void mlx4_icm_next(struct mlx4_icm_iter *iter)
 
 static inline dma_addr_t mlx4_icm_addr(struct mlx4_icm_iter *iter)
 {
-	return sg_dma_address(&iter->chunk->mem[iter->page_idx]);
+	if (iter->chunk->coherent)
+		return iter->chunk->buf[iter->page_idx].dma_addr;
+	else
+		return sg_dma_address(&iter->chunk->sg[iter->page_idx]);
 }
 
 static inline unsigned long mlx4_icm_size(struct mlx4_icm_iter *iter)
 {
-	return sg_dma_len(&iter->chunk->mem[iter->page_idx]);
+	if (iter->chunk->coherent)
+		return iter->chunk->buf[iter->page_idx].size;
+	else
+		return sg_dma_len(&iter->chunk->sg[iter->page_idx]);
 }
 
 int mlx4_MAP_ICM_AUX(struct mlx4_dev *dev, struct mlx4_icm *icm);

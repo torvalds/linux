@@ -19,6 +19,9 @@ Required properties:
       4 = active high level-sensitive.
       8 = active low level-sensitive.
 
+Optional properties:
+- clocks: the clock for clocking the GPIO silicon
+
 Example:
 
 gpio0: gpio@73f84000 {

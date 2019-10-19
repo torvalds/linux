@@ -1,12 +1,14 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NTB_IDT
 	tristate "IDT PCIe-switch Non-Transparent Bridge support"
 	depends on PCI
+	select HWMON
 	help
-	 This driver supports NTB of cappable IDT PCIe-switches.
+	 This driver supports NTB of capable IDT PCIe-switches.
 
 	 Some of the pre-initializations must be made before IDT PCIe-switch
-	 exposes it NT-functions correctly. It should be done by either proper
-	 initialisation of EEPROM connected to master smbus of the switch or
+	 exposes its NT-functions correctly. It should be done by either proper
+	 initialization of EEPROM connected to master SMbus of the switch or
 	 by BIOS using slave-SMBus interface changing corresponding registers
 	 value. Evidently it must be done before PCI bus enumeration is
 	 finished in Linux kernel.
@@ -23,9 +25,7 @@ config NTB_IDT
 	 BAR settings of peer NT-functions, the BAR setups can't be done over
 	 kernel PCI fixups. That's why the alternative pre-initialization
 	 techniques like BIOS using SMBus interface or EEPROM should be
-	 utilized. Additionally if one needs to have temperature sensor
-	 information printed to system log, the corresponding registers must
-	 be initialized within BIOS/EEPROM as well.
+	 utilized.
 
 	 If unsure, say N.
 

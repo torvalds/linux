@@ -1,16 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * CTF writing support via babeltrace.
  *
  * Copyright (C) 2014, Jiri Olsa <jolsa@redhat.com>
  * Copyright (C) 2014, Sebastian Andrzej Siewior <bigeasy@linutronix.de>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
+#include <linux/zalloc.h>
 #include <babeltrace/ctf-writer/writer.h>
 #include <babeltrace/ctf-writer/clock.h>
 #include <babeltrace/ctf-writer/stream.h>
@@ -23,14 +23,14 @@
 #include "asm/bug.h"
 #include "data-convert-bt.h"
 #include "session.h"
-#include "util.h"
 #include "debug.h"
 #include "tool.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "machine.h"
 #include "config.h"
-#include "sane_ctype.h"
+#include <linux/ctype.h>
+#include <linux/err.h>
 
 #define pr_N(n, fmt, ...) \
 	eprintf(n, debug_data_convert, fmt, ##__VA_ARGS__)
@@ -182,20 +182,20 @@ err_put_field:
 }
 
 static struct bt_ctf_field_type*
-get_tracepoint_field_type(struct ctf_writer *cw, struct format_field *field)
+get_tracepoint_field_type(struct ctf_writer *cw, struct tep_format_field *field)
 {
 	unsigned long flags = field->flags;
 
-	if (flags & FIELD_IS_STRING)
+	if (flags & TEP_FIELD_IS_STRING)
 		return cw->data.string;
 
-	if (!(flags & FIELD_IS_SIGNED)) {
+	if (!(flags & TEP_FIELD_IS_SIGNED)) {
 		/* unsigned long are mostly pointers */
-		if (flags & FIELD_IS_LONG || flags & FIELD_IS_POINTER)
+		if (flags & TEP_FIELD_IS_LONG || flags & TEP_FIELD_IS_POINTER)
 			return cw->data.u64_hex;
 	}
 
-	if (flags & FIELD_IS_SIGNED) {
+	if (flags & TEP_FIELD_IS_SIGNED) {
 		if (field->size == 8)
 			return cw->data.s64;
 		else
@@ -271,7 +271,7 @@ static int string_set_value(struct bt_ctf_field *field, const char *string)
 				if (i > 0)
 					strncpy(buffer, string, i);
 			}
-			strncat(buffer + p, numstr, 4);
+			memcpy(buffer + p, numstr, 4);
 			p += 3;
 		}
 	}
@@ -287,7 +287,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 				      struct bt_ctf_event_class *event_class,
 				      struct bt_ctf_event *event,
 				      struct perf_sample *sample,
-				      struct format_field *fmtf)
+				      struct tep_format_field *fmtf)
 {
 	struct bt_ctf_field_type *type;
 	struct bt_ctf_field *array_field;
@@ -304,20 +304,20 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	name = fmtf->alias;
 	offset = fmtf->offset;
 	len = fmtf->size;
-	if (flags & FIELD_IS_STRING)
-		flags &= ~FIELD_IS_ARRAY;
+	if (flags & TEP_FIELD_IS_STRING)
+		flags &= ~TEP_FIELD_IS_ARRAY;
 
-	if (flags & FIELD_IS_DYNAMIC) {
+	if (flags & TEP_FIELD_IS_DYNAMIC) {
 		unsigned long long tmp_val;
 
-		tmp_val = pevent_read_number(fmtf->event->pevent,
-				data + offset, len);
+		tmp_val = tep_read_number(fmtf->event->tep,
+					  data + offset, len);
 		offset = tmp_val;
 		len = offset >> 16;
 		offset &= 0xffff;
 	}
 
-	if (flags & FIELD_IS_ARRAY) {
+	if (flags & TEP_FIELD_IS_ARRAY) {
 
 		type = bt_ctf_event_class_get_field_by_name(
 				event_class, name);
@@ -338,7 +338,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 	type = get_tracepoint_field_type(cw, fmtf);
 
 	for (i = 0; i < n_items; i++) {
-		if (flags & FIELD_IS_ARRAY)
+		if (flags & TEP_FIELD_IS_ARRAY)
 			field = bt_ctf_field_array_get_field(array_field, i);
 		else
 			field = bt_ctf_field_create(type);
@@ -348,16 +348,16 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 			return -1;
 		}
 
-		if (flags & FIELD_IS_STRING)
+		if (flags & TEP_FIELD_IS_STRING)
 			ret = string_set_value(field, data + offset + i * len);
 		else {
 			unsigned long long value_int;
 
-			value_int = pevent_read_number(
-					fmtf->event->pevent,
+			value_int = tep_read_number(
+					fmtf->event->tep,
 					data + offset + i * len, len);
 
-			if (!(flags & FIELD_IS_SIGNED))
+			if (!(flags & TEP_FIELD_IS_SIGNED))
 				ret = bt_ctf_field_unsigned_integer_set_value(
 						field, value_int);
 			else
@@ -369,7 +369,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 			pr_err("failed to set file value %s\n", name);
 			goto err_put_field;
 		}
-		if (!(flags & FIELD_IS_ARRAY)) {
+		if (!(flags & TEP_FIELD_IS_ARRAY)) {
 			ret = bt_ctf_event_set_payload(event, name, field);
 			if (ret) {
 				pr_err("failed to set payload %s\n", name);
@@ -378,7 +378,7 @@ static int add_tracepoint_field_value(struct ctf_writer *cw,
 		}
 		bt_ctf_field_put(field);
 	}
-	if (flags & FIELD_IS_ARRAY) {
+	if (flags & TEP_FIELD_IS_ARRAY) {
 		ret = bt_ctf_event_set_payload(event, name, array_field);
 		if (ret) {
 			pr_err("Failed add payload array %s\n", name);
@@ -396,10 +396,10 @@ err_put_field:
 static int add_tracepoint_fields_values(struct ctf_writer *cw,
 					struct bt_ctf_event_class *event_class,
 					struct bt_ctf_event *event,
-					struct format_field *fields,
+					struct tep_format_field *fields,
 					struct perf_sample *sample)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	int ret;
 
 	for (field = fields; field; field = field->next) {
@@ -414,11 +414,11 @@ static int add_tracepoint_fields_values(struct ctf_writer *cw,
 static int add_tracepoint_values(struct ctf_writer *cw,
 				 struct bt_ctf_event_class *event_class,
 				 struct bt_ctf_event *event,
-				 struct perf_evsel *evsel,
+				 struct evsel *evsel,
 				 struct perf_sample *sample)
 {
-	struct format_field *common_fields = evsel->tp_format->format.common_fields;
-	struct format_field *fields        = evsel->tp_format->format.fields;
+	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
+	struct tep_format_field *fields        = evsel->tp_format->format.fields;
 	int ret;
 
 	ret = add_tracepoint_fields_values(cw, event_class, event,
@@ -585,10 +585,10 @@ put_len_type:
 
 static int add_generic_values(struct ctf_writer *cw,
 			      struct bt_ctf_event *event,
-			      struct perf_evsel *evsel,
+			      struct evsel *evsel,
 			      struct perf_sample *sample)
 {
-	u64 type = evsel->attr.sample_type;
+	u64 type = evsel->core.attr.sample_type;
 	int ret;
 
 	/*
@@ -754,11 +754,11 @@ static struct ctf_stream *ctf_stream(struct ctf_writer *cw, int cpu)
 }
 
 static int get_sample_cpu(struct ctf_writer *cw, struct perf_sample *sample,
-			  struct perf_evsel *evsel)
+			  struct evsel *evsel)
 {
 	int cpu = 0;
 
-	if (evsel->attr.sample_type & PERF_SAMPLE_CPU)
+	if (evsel->core.attr.sample_type & PERF_SAMPLE_CPU)
 		cpu = sample->cpu;
 
 	if (cpu > cw->stream_cnt) {
@@ -786,7 +786,7 @@ static bool is_flush_needed(struct ctf_stream *cs)
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *_event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine __maybe_unused)
 {
 	struct convert *c = container_of(tool, struct convert, tool);
@@ -796,7 +796,7 @@ static int process_sample_event(struct perf_tool *tool,
 	struct bt_ctf_event_class *event_class;
 	struct bt_ctf_event *event;
 	int ret;
-	unsigned long type = evsel->attr.sample_type;
+	unsigned long type = evsel->core.attr.sample_type;
 
 	if (WARN_ONCE(!priv, "Failed to setup all events.\n"))
 		return 0;
@@ -821,7 +821,7 @@ static int process_sample_event(struct perf_tool *tool,
 	if (ret)
 		return -1;
 
-	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		ret = add_tracepoint_values(cw, event_class, event,
 					    evsel, sample);
 		if (ret)
@@ -970,7 +970,7 @@ out:
 
 static int event_class_add_field(struct bt_ctf_event_class *event_class,
 		struct bt_ctf_field_type *type,
-		struct format_field *field)
+		struct tep_format_field *field)
 {
 	struct bt_ctf_field_type *t = NULL;
 	char *name;
@@ -1009,10 +1009,10 @@ static int event_class_add_field(struct bt_ctf_event_class *event_class,
 }
 
 static int add_tracepoint_fields_types(struct ctf_writer *cw,
-				       struct format_field *fields,
+				       struct tep_format_field *fields,
 				       struct bt_ctf_event_class *event_class)
 {
-	struct format_field *field;
+	struct tep_format_field *field;
 	int ret;
 
 	for (field = fields; field; field = field->next) {
@@ -1030,15 +1030,15 @@ static int add_tracepoint_fields_types(struct ctf_writer *cw,
 		 * type and don't care that it is an array. What we don't
 		 * support is an array of strings.
 		 */
-		if (flags & FIELD_IS_STRING)
-			flags &= ~FIELD_IS_ARRAY;
+		if (flags & TEP_FIELD_IS_STRING)
+			flags &= ~TEP_FIELD_IS_ARRAY;
 
-		if (flags & FIELD_IS_ARRAY)
+		if (flags & TEP_FIELD_IS_ARRAY)
 			type = bt_ctf_field_type_array_create(type, field->arraylen);
 
 		ret = event_class_add_field(event_class, type, field);
 
-		if (flags & FIELD_IS_ARRAY)
+		if (flags & TEP_FIELD_IS_ARRAY)
 			bt_ctf_field_type_put(type);
 
 		if (ret) {
@@ -1052,11 +1052,11 @@ static int add_tracepoint_fields_types(struct ctf_writer *cw,
 }
 
 static int add_tracepoint_types(struct ctf_writer *cw,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct bt_ctf_event_class *class)
 {
-	struct format_field *common_fields = evsel->tp_format->format.common_fields;
-	struct format_field *fields        = evsel->tp_format->format.fields;
+	struct tep_format_field *common_fields = evsel->tp_format->format.common_fields;
+	struct tep_format_field *fields        = evsel->tp_format->format.fields;
 	int ret;
 
 	ret = add_tracepoint_fields_types(cw, common_fields, class);
@@ -1085,10 +1085,10 @@ static int add_bpf_output_types(struct ctf_writer *cw,
 	return bt_ctf_event_class_add_field(class, seq_type, "raw_data");
 }
 
-static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
+static int add_generic_types(struct ctf_writer *cw, struct evsel *evsel,
 			     struct bt_ctf_event_class *event_class)
 {
-	u64 type = evsel->attr.sample_type;
+	u64 type = evsel->core.attr.sample_type;
 
 	/*
 	 * missing:
@@ -1151,14 +1151,14 @@ static int add_generic_types(struct ctf_writer *cw, struct perf_evsel *evsel,
 	return 0;
 }
 
-static int add_event(struct ctf_writer *cw, struct perf_evsel *evsel)
+static int add_event(struct ctf_writer *cw, struct evsel *evsel)
 {
 	struct bt_ctf_event_class *event_class;
 	struct evsel_priv *priv;
 	const char *name = perf_evsel__name(evsel);
 	int ret;
 
-	pr("Adding event '%s' (type %d)\n", name, evsel->attr.type);
+	pr("Adding event '%s' (type %d)\n", name, evsel->core.attr.type);
 
 	event_class = bt_ctf_event_class_create(name);
 	if (!event_class)
@@ -1168,7 +1168,7 @@ static int add_event(struct ctf_writer *cw, struct perf_evsel *evsel)
 	if (ret)
 		goto err;
 
-	if (evsel->attr.type == PERF_TYPE_TRACEPOINT) {
+	if (evsel->core.attr.type == PERF_TYPE_TRACEPOINT) {
 		ret = add_tracepoint_types(cw, evsel, event_class);
 		if (ret)
 			goto err;
@@ -1202,8 +1202,8 @@ err:
 
 static int setup_events(struct ctf_writer *cw, struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel;
 	int ret;
 
 	evlist__for_each_entry(evlist, evsel) {
@@ -1309,8 +1309,8 @@ static int setup_non_sample_events(struct ctf_writer *cw,
 
 static void cleanup_events(struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel;
 
 	evlist__for_each_entry(evlist, evsel) {
 		struct evsel_priv *priv;
@@ -1320,7 +1320,7 @@ static void cleanup_events(struct perf_session *session)
 		zfree(&evsel->priv);
 	}
 
-	perf_evlist__delete(evlist);
+	evlist__delete(evlist);
 	session->evlist = NULL;
 }
 
@@ -1354,7 +1354,7 @@ static void free_streams(struct ctf_writer *cw)
 	for (cpu = 0; cpu < cw->stream_cnt; cpu++)
 		ctf_stream__delete(cw->stream[cpu]);
 
-	free(cw->stream);
+	zfree(&cw->stream);
 }
 
 static int ctf_writer__setup_env(struct ctf_writer *cw,
@@ -1578,7 +1578,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 {
 	struct perf_session *session;
 	struct perf_data data = {
-		.file.path = input,
+		.path	   = input,
 		.mode      = PERF_DATA_MODE_READ,
 		.force     = opts->force,
 	};
@@ -1620,8 +1620,10 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 	err = -1;
 	/* perf.data session */
 	session = perf_session__new(&data, 0, &c.tool);
-	if (!session)
+	if (IS_ERR(session)) {
+		err = PTR_ERR(session);
 		goto free_writer;
+	}
 
 	if (c.queue_size) {
 		ordered_events__set_alloc_size(&session->ordered_events,
@@ -1650,7 +1652,7 @@ int bt_convert__perf2ctf(const char *input, const char *path,
 
 	fprintf(stderr,
 		"[ perf data convert: Converted '%s' into CTF data '%s' ]\n",
-		data.file.path, path);
+		data.path, path);
 
 	fprintf(stderr,
 		"[ perf data convert: Converted and wrote %.3f MB (%" PRIu64 " samples",

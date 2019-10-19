@@ -199,10 +199,10 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		ret = -ENOMEM;
 		goto err_disable_clk;
 	}
-	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_register_fixed_factor(
-			&pdev->dev, clk_name,
-			__clk_get_name(clk_wzrd->clk_in1),
-			0, reg, 1);
+	clk_wzrd->clks_internal[wzrd_clk_mul] = clk_register_fixed_factor
+			(&pdev->dev, clk_name,
+			 __clk_get_name(clk_wzrd->clk_in1),
+			 0, reg, 1);
 	kfree(clk_name);
 	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul])) {
 		dev_err(&pdev->dev, "unable to register fixed-factor clock\n");
@@ -219,10 +219,10 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		goto err_rm_int_clk;
 	}
 
-	clk_wzrd->clks_internal[wzrd_clk_mul_div] = clk_register_fixed_factor(
-			&pdev->dev, clk_name,
-			__clk_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
-			0, 1, reg);
+	clk_wzrd->clks_internal[wzrd_clk_mul_div] = clk_register_fixed_factor
+			(&pdev->dev, clk_name,
+			 __clk_get_name(clk_wzrd->clks_internal[wzrd_clk_mul]),
+			 0, 1, reg);
 	if (IS_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div])) {
 		dev_err(&pdev->dev, "unable to register divider clock\n");
 		ret = PTR_ERR(clk_wzrd->clks_internal[wzrd_clk_mul_div]);
@@ -243,8 +243,8 @@ static int clk_wzrd_probe(struct platform_device *pdev)
 		reg = readl(clk_wzrd->base + WZRD_CLK_CFG_REG(2) + i * 12);
 		reg &= WZRD_CLKOUT_DIVIDE_MASK;
 		reg >>= WZRD_CLKOUT_DIVIDE_SHIFT;
-		clk_wzrd->clkout[i] = clk_register_fixed_factor(&pdev->dev,
-				clkout_name, clk_name, 0, 1, reg);
+		clk_wzrd->clkout[i] = clk_register_fixed_factor
+			(&pdev->dev, clkout_name, clk_name, 0, 1, reg);
 		if (IS_ERR(clk_wzrd->clkout[i])) {
 			int j;
 

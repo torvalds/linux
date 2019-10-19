@@ -33,10 +33,6 @@
 #define CA_WRITEBACK	(0x4)
 #endif
 
-#ifndef XCHAL_SPANNING_WAY
-#define XCHAL_SPANNING_WAY 0
-#endif
-
 #ifdef __ASSEMBLY__
 
 #define XTENSA_HWVERSION_RC_2009_0 230000
@@ -46,7 +42,7 @@
 #if XCHAL_HAVE_S32C1I && (XCHAL_HW_MIN_VERSION >= XTENSA_HWVERSION_RC_2009_0)
 /*
  * We Have Atomic Operation Control (ATOMCTL) Register; Initialize it.
- * For details see Documentation/xtensa/atomctl.txt
+ * For details see Documentation/xtensa/atomctl.rst
  */
 #if XCHAL_DCACHE_IS_COHERENT
 	movi	a3, 0x25	/* For SMP/MX -- internal for writeback,
@@ -177,36 +173,68 @@
 #endif /* defined(CONFIG_MMU) && XCHAL_HAVE_PTP_MMU &&
 	  XCHAL_HAVE_SPANNING_WAY */
 
-#if !defined(CONFIG_MMU) && XCHAL_HAVE_TLBS && \
-		(XCHAL_DCACHE_SIZE || XCHAL_ICACHE_SIZE)
-	/* Enable data and instruction cache in the DEFAULT_MEMORY region
-	 * if the processor has DTLB and ITLB.
-	 */
+	.endm
 
-	movi	a5, PLATFORM_DEFAULT_MEM_START | XCHAL_SPANNING_WAY
-	movi	a6, ~_PAGE_ATTRIB_MASK
-	movi	a7, CA_WRITEBACK
-	movi	a8, 0x20000000
-	movi	a9, PLATFORM_DEFAULT_MEM_SIZE
-	j	2f
+	.macro	initialize_cacheattr
+
+#if !defined(CONFIG_MMU) && (XCHAL_HAVE_TLBS || XCHAL_HAVE_MPU)
+#if CONFIG_MEMMAP_CACHEATTR == 0x22222222 && XCHAL_HAVE_PTP_MMU
+#error Default MEMMAP_CACHEATTR of 0x22222222 does not work with full MMU.
+#endif
+
+#if XCHAL_HAVE_MPU
+	.data
+	.align	4
+.Lattribute_table:
+	.long 0x000000, 0x1fff00, 0x1ddf00, 0x1eef00
+	.long 0x006600, 0x000000, 0x000000, 0x000000
+	.long 0x000000, 0x000000, 0x000000, 0x000000
+	.long 0x000000, 0x000000, 0x000000, 0x000000
+	.previous
+
+	movi	a3, .Lattribute_table
+	movi	a4, CONFIG_MEMMAP_CACHEATTR
+	movi	a5, 1
+	movi	a6, XCHAL_MPU_ENTRIES
+	movi	a10, 0x20000000
+	movi	a11, -1
 1:
-	sub	a9, a9, a8
+	sub	a5, a5, a10
+	extui	a8, a4, 28, 4
+	beq	a8, a11, 2f
+	addi	a6, a6, -1
+	mov	a11, a8
 2:
-#if XCHAL_DCACHE_SIZE
-	rdtlb1	a3, a5
-	and	a3, a3, a6
-	or	a3, a3, a7
-	wdtlb	a3, a5
-#endif
-#if XCHAL_ICACHE_SIZE
-	ritlb1	a4, a5
-	and	a4, a4, a6
-	or	a4, a4, a7
-	witlb	a4, a5
-#endif
-	add	a5, a5, a8
-	bltu	a8, a9, 1b
+	addx4	a9, a8, a3
+	l32i	a9, a9, 0
+	or	a9, a9, a6
+	wptlb	a9, a5
+	slli	a4, a4, 4
+	bgeu	a5, a10, 1b
 
+#else
+	movi	a5, XCHAL_SPANNING_WAY
+	movi	a6, ~_PAGE_ATTRIB_MASK
+	movi	a4, CONFIG_MEMMAP_CACHEATTR
+	movi	a8, 0x20000000
+1:
+	rdtlb1	a3, a5
+	xor	a3, a3, a4
+	and	a3, a3, a6
+	xor	a3, a3, a4
+	wdtlb	a3, a5
+	ritlb1	a3, a5
+	xor	a3, a3, a4
+	and	a3, a3, a6
+	xor	a3, a3, a4
+	witlb	a3, a5
+
+	add	a5, a5, a8
+	srli	a4, a4, 4
+	bgeu	a5, a8, 1b
+
+	isync
+#endif
 #endif
 
 	.endm

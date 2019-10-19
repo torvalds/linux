@@ -68,6 +68,7 @@ enum psmouse_type {
 	PSMOUSE_VMMOUSE,
 	PSMOUSE_BYD,
 	PSMOUSE_SYNAPTICS_SMBUS,
+	PSMOUSE_ELANTECH_SMBUS,
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
@@ -131,7 +132,6 @@ struct psmouse {
 
 void psmouse_queue_work(struct psmouse *psmouse, struct delayed_work *work,
 		unsigned long delay);
-int psmouse_sliced_command(struct psmouse *psmouse, unsigned char command);
 int psmouse_reset(struct psmouse *psmouse);
 void psmouse_set_state(struct psmouse *psmouse, enum psmouse_state new_state);
 void psmouse_set_resolution(struct psmouse *psmouse, unsigned int resolution);
@@ -139,6 +139,10 @@ psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse);
 int psmouse_activate(struct psmouse *psmouse);
 int psmouse_deactivate(struct psmouse *psmouse);
 bool psmouse_matches_pnp_id(struct psmouse *psmouse, const char * const ids[]);
+
+void psmouse_report_standard_buttons(struct input_dev *, u8 buttons);
+void psmouse_report_standard_motion(struct input_dev *, u8 *packet);
+void psmouse_report_standard_packet(struct input_dev *, u8 *packet);
 
 struct psmouse_attribute {
 	struct device_attribute dattr;
@@ -221,6 +225,7 @@ struct i2c_board_info;
 int psmouse_smbus_init(struct psmouse *psmouse,
 		       const struct i2c_board_info *board,
 		       const void *pdata, size_t pdata_size,
+		       bool need_deactivate,
 		       bool leave_breadcrumbs);
 void psmouse_smbus_cleanup(struct psmouse *psmouse);
 

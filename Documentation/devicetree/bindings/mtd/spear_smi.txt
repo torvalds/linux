@@ -5,8 +5,6 @@ Required properties:
 - reg : Address range of the mtd chip
 - #address-cells, #size-cells : Must be present if the device has sub-nodes
   representing partitions.
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the STMMAC interrupts
 - clock-rate : Functional clock rate of SMI in Hz
 

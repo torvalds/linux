@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Bluetooth subsystem configuration
 #
@@ -9,7 +10,8 @@ menuconfig BT
 	select CRC16
 	select CRYPTO
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_AES
+	select CRYPTO_LIB_AES
+	imply CRYPTO_AES
 	select CRYPTO_CMAC
 	select CRYPTO_ECB
 	select CRYPTO_SHA256

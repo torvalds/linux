@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* imm.c   --  low level driver for the IOMEGA MatchMaker
  * parallel port SCSI host adapter.
  * 
@@ -686,7 +687,7 @@ static int imm_completion(struct scsi_cmnd *cmd)
 		if (cmd->SCp.buffer && !cmd->SCp.this_residual) {
 			/* if scatter/gather, advance to the next segment */
 			if (cmd->SCp.buffers_residual--) {
-				cmd->SCp.buffer++;
+				cmd->SCp.buffer = sg_next(cmd->SCp.buffer);
 				cmd->SCp.this_residual =
 				    cmd->SCp.buffer->length;
 				cmd->SCp.ptr = sg_virt(cmd->SCp.buffer);
@@ -796,21 +797,21 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			return 0;
 		}
 		return 1;	/* wait until imm_wakeup claims parport */
-		/* Phase 1 - Connected */
-	case 1:
+
+	case 1:		/* Phase 1 - Connected */
 		imm_connect(dev, CONNECT_EPP_MAYBE);
 		cmd->SCp.phase++;
+		/* fall through */
 
-		/* Phase 2 - We are now talking to the scsi bus */
-	case 2:
+	case 2:		/* Phase 2 - We are now talking to the scsi bus */
 		if (!imm_select(dev, scmd_id(cmd))) {
 			imm_fail(dev, DID_NO_CONNECT);
 			return 0;
 		}
 		cmd->SCp.phase++;
+		/* fall through */
 
-		/* Phase 3 - Ready to accept a command */
-	case 3:
+	case 3:		/* Phase 3 - Ready to accept a command */
 		w_ctr(ppb, 0x0c);
 		if (!(r_str(ppb) & 0x80))
 			return 1;
@@ -818,9 +819,9 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 		if (!imm_send_command(cmd))
 			return 0;
 		cmd->SCp.phase++;
+		/* fall through */
 
-		/* Phase 4 - Setup scatter/gather buffers */
-	case 4:
+	case 4:		/* Phase 4 - Setup scatter/gather buffers */
 		if (scsi_bufflen(cmd)) {
 			cmd->SCp.buffer = scsi_sglist(cmd);
 			cmd->SCp.this_residual = cmd->SCp.buffer->length;
@@ -834,8 +835,9 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 		cmd->SCp.phase++;
 		if (cmd->SCp.this_residual & 0x01)
 			cmd->SCp.this_residual++;
-		/* Phase 5 - Pre-Data transfer stage */
-	case 5:
+		/* fall through */
+
+	case 5:		/* Phase 5 - Pre-Data transfer stage */
 		/* Spin lock for BUSY */
 		w_ctr(ppb, 0x0c);
 		if (!(r_str(ppb) & 0x80))
@@ -850,9 +852,9 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			if (imm_negotiate(dev))
 				return 0;
 		cmd->SCp.phase++;
+		/* fall through */
 
-		/* Phase 6 - Data transfer stage */
-	case 6:
+	case 6:		/* Phase 6 - Data transfer stage */
 		/* Spin lock for BUSY */
 		w_ctr(ppb, 0x0c);
 		if (!(r_str(ppb) & 0x80))
@@ -866,9 +868,9 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 				return 1;
 		}
 		cmd->SCp.phase++;
+		/* fall through */
 
-		/* Phase 7 - Post data transfer stage */
-	case 7:
+	case 7:		/* Phase 7 - Post data transfer stage */
 		if ((dev->dp) && (dev->rd)) {
 			if ((dev->mode == IMM_NIBBLE) || (dev->mode == IMM_PS2)) {
 				w_ctr(ppb, 0x4);
@@ -878,9 +880,9 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			}
 		}
 		cmd->SCp.phase++;
+		/* fall through */
 
-		/* Phase 8 - Read status/message */
-	case 8:
+	case 8:		/* Phase 8 - Read status/message */
 		/* Check for data overrun */
 		if (imm_wait(dev) != (unsigned char) 0xb8) {
 			imm_fail(dev, DID_ERROR);
@@ -892,7 +894,7 @@ static int imm_engine(imm_struct *dev, struct scsi_cmnd *cmd)
 			/* Check for optional message byte */
 			if (imm_wait(dev) == (unsigned char) 0xb8)
 				imm_in(dev, &h, 1);
-			cmd->result = (DID_OK << 16) + (l & STATUS_MASK);
+			cmd->result = (DID_OK << 16) | (l & STATUS_MASK);
 		}
 		if ((dev->mode == IMM_NIBBLE) || (dev->mode == IMM_PS2)) {
 			w_ctr(ppb, 0x4);
@@ -1110,7 +1112,6 @@ static struct scsi_host_template imm_template = {
 	.bios_param		= imm_biosparam,
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
-	.use_clustering		= ENABLE_CLUSTERING,
 	.can_queue		= 1,
 	.slave_alloc		= imm_adjust_queue,
 };

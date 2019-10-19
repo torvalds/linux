@@ -8,14 +8,18 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/seq_file.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_atomic_helper.h>
+#include <drm/drm_debugfs.h>
+#include <drm/drm_device.h>
+#include <drm/drm_file.h>
+#include <drm/drm_print.h>
 
 #include "sti_crtc.h"
 #include "sti_drv.h"
@@ -665,10 +669,9 @@ sti_tvout_create_dvo_encoder(struct drm_device *dev,
 
 	encoder->tvout = tvout;
 
-	drm_encoder = (struct drm_encoder *)encoder;
+	drm_encoder = &encoder->encoder;
 
 	drm_encoder->possible_crtcs = ENCODER_CRTC_MASK;
-	drm_encoder->possible_clones = 1 << 0;
 
 	drm_encoder_init(dev, drm_encoder,
 			 &sti_tvout_encoder_funcs, DRM_MODE_ENCODER_LVDS,
@@ -718,10 +721,9 @@ static struct drm_encoder *sti_tvout_create_hda_encoder(struct drm_device *dev,
 
 	encoder->tvout = tvout;
 
-	drm_encoder = (struct drm_encoder *) encoder;
+	drm_encoder = &encoder->encoder;
 
 	drm_encoder->possible_crtcs = ENCODER_CRTC_MASK;
-	drm_encoder->possible_clones = 1 << 0;
 
 	drm_encoder_init(dev, drm_encoder,
 			&sti_tvout_encoder_funcs, DRM_MODE_ENCODER_DAC, NULL);
@@ -767,10 +769,9 @@ static struct drm_encoder *sti_tvout_create_hdmi_encoder(struct drm_device *dev,
 
 	encoder->tvout = tvout;
 
-	drm_encoder = (struct drm_encoder *) encoder;
+	drm_encoder = &encoder->encoder;
 
 	drm_encoder->possible_crtcs = ENCODER_CRTC_MASK;
-	drm_encoder->possible_clones = 1 << 1;
 
 	drm_encoder_init(dev, drm_encoder,
 			&sti_tvout_encoder_funcs, DRM_MODE_ENCODER_TMDS, NULL);
@@ -786,6 +787,13 @@ static void sti_tvout_create_encoders(struct drm_device *dev,
 	tvout->hdmi = sti_tvout_create_hdmi_encoder(dev, tvout);
 	tvout->hda = sti_tvout_create_hda_encoder(dev, tvout);
 	tvout->dvo = sti_tvout_create_dvo_encoder(dev, tvout);
+
+	tvout->hdmi->possible_clones = drm_encoder_mask(tvout->hdmi) |
+		drm_encoder_mask(tvout->hda) | drm_encoder_mask(tvout->dvo);
+	tvout->hda->possible_clones = drm_encoder_mask(tvout->hdmi) |
+		drm_encoder_mask(tvout->hda) | drm_encoder_mask(tvout->dvo);
+	tvout->dvo->possible_clones = drm_encoder_mask(tvout->hdmi) |
+		drm_encoder_mask(tvout->hda) | drm_encoder_mask(tvout->dvo);
 }
 
 static void sti_tvout_destroy_encoders(struct sti_tvout *tvout)

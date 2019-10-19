@@ -62,11 +62,13 @@ VBG_LOG(vbg_err, pr_err);
 VBG_LOG(vbg_debug, pr_debug);
 #endif
 
-void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type)
+void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type,
+		    u32 requestor)
 {
 	struct vmmdev_request_header *req;
+	int order = get_order(PAGE_ALIGN(len));
 
-	req = kmalloc(len, GFP_KERNEL | __GFP_DMA32);
+	req = (void *)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
 	if (!req)
 		return NULL;
 
@@ -77,9 +79,17 @@ void *vbg_req_alloc(size_t len, enum vmmdev_request_type req_type)
 	req->request_type = req_type;
 	req->rc = VERR_GENERAL_FAILURE;
 	req->reserved1 = 0;
-	req->reserved2 = 0;
+	req->requestor = requestor;
 
 	return req;
+}
+
+void vbg_req_free(void *req, size_t len)
+{
+	if (!req)
+		return;
+
+	free_pages((unsigned long)req, get_order(PAGE_ALIGN(len)));
 }
 
 /* Note this function returns a VBox status code, not a negative errno!! */
@@ -110,7 +120,7 @@ static bool hgcm_req_done(struct vbg_dev *gdev,
 	return done;
 }
 
-int vbg_hgcm_connect(struct vbg_dev *gdev,
+int vbg_hgcm_connect(struct vbg_dev *gdev, u32 requestor,
 		     struct vmmdev_hgcm_service_location *loc,
 		     u32 *client_id, int *vbox_status)
 {
@@ -118,7 +128,7 @@ int vbg_hgcm_connect(struct vbg_dev *gdev,
 	int rc;
 
 	hgcm_connect = vbg_req_alloc(sizeof(*hgcm_connect),
-				     VMMDEVREQ_HGCM_CONNECT);
+				     VMMDEVREQ_HGCM_CONNECT, requestor);
 	if (!hgcm_connect)
 		return -ENOMEM;
 
@@ -137,20 +147,22 @@ int vbg_hgcm_connect(struct vbg_dev *gdev,
 		rc = hgcm_connect->header.result;
 	}
 
-	kfree(hgcm_connect);
+	vbg_req_free(hgcm_connect, sizeof(*hgcm_connect));
 
 	*vbox_status = rc;
 	return 0;
 }
 EXPORT_SYMBOL(vbg_hgcm_connect);
 
-int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 client_id, int *vbox_status)
+int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 requestor,
+			u32 client_id, int *vbox_status)
 {
 	struct vmmdev_hgcm_disconnect *hgcm_disconnect = NULL;
 	int rc;
 
 	hgcm_disconnect = vbg_req_alloc(sizeof(*hgcm_disconnect),
-					VMMDEVREQ_HGCM_DISCONNECT);
+					VMMDEVREQ_HGCM_DISCONNECT,
+					requestor);
 	if (!hgcm_disconnect)
 		return -ENOMEM;
 
@@ -166,7 +178,7 @@ int vbg_hgcm_disconnect(struct vbg_dev *gdev, u32 client_id, int *vbox_status)
 	if (rc >= 0)
 		rc = hgcm_disconnect->header.result;
 
-	kfree(hgcm_disconnect);
+	vbg_req_free(hgcm_disconnect, sizeof(*hgcm_disconnect));
 
 	*vbox_status = rc;
 	return 0;
@@ -208,6 +220,8 @@ static int hgcm_call_preprocess_linaddr(
 	if (!bounce_buf)
 		return -ENOMEM;
 
+	*bounce_buf_ret = bounce_buf;
+
 	if (copy_in) {
 		ret = copy_from_user(bounce_buf, (void __user *)buf, len);
 		if (ret)
@@ -216,7 +230,6 @@ static int hgcm_call_preprocess_linaddr(
 		memset(bounce_buf, 0, len);
 	}
 
-	*bounce_buf_ret = bounce_buf;
 	hgcm_call_add_pagelist_size(bounce_buf, len, extra);
 	return 0;
 }
@@ -584,9 +597,10 @@ static int hgcm_call_copy_back_result(
 	return 0;
 }
 
-int vbg_hgcm_call(struct vbg_dev *gdev, u32 client_id, u32 function,
-		  u32 timeout_ms, struct vmmdev_hgcm_function_parameter *parms,
-		  u32 parm_count, int *vbox_status)
+int vbg_hgcm_call(struct vbg_dev *gdev, u32 requestor, u32 client_id,
+		  u32 function, u32 timeout_ms,
+		  struct vmmdev_hgcm_function_parameter *parms, u32 parm_count,
+		  int *vbox_status)
 {
 	struct vmmdev_hgcm_call *call;
 	void **bounce_bufs = NULL;
@@ -606,7 +620,7 @@ int vbg_hgcm_call(struct vbg_dev *gdev, u32 client_id, u32 function,
 		goto free_bounce_bufs;
 	}
 
-	call = vbg_req_alloc(size, VMMDEVREQ_HGCM_CALL);
+	call = vbg_req_alloc(size, VMMDEVREQ_HGCM_CALL, requestor);
 	if (!call) {
 		ret = -ENOMEM;
 		goto free_bounce_bufs;
@@ -623,7 +637,7 @@ int vbg_hgcm_call(struct vbg_dev *gdev, u32 client_id, u32 function,
 	}
 
 	if (!leak_it)
-		kfree(call);
+		vbg_req_free(call, size);
 
 free_bounce_bufs:
 	if (bounce_bufs) {
@@ -638,9 +652,9 @@ EXPORT_SYMBOL(vbg_hgcm_call);
 
 #ifdef CONFIG_COMPAT
 int vbg_hgcm_call32(
-	struct vbg_dev *gdev, u32 client_id, u32 function, u32 timeout_ms,
-	struct vmmdev_hgcm_function_parameter32 *parm32, u32 parm_count,
-	int *vbox_status)
+	struct vbg_dev *gdev, u32 requestor, u32 client_id, u32 function,
+	u32 timeout_ms, struct vmmdev_hgcm_function_parameter32 *parm32,
+	u32 parm_count, int *vbox_status)
 {
 	struct vmmdev_hgcm_function_parameter *parm64 = NULL;
 	u32 i, size;
@@ -680,7 +694,7 @@ int vbg_hgcm_call32(
 			goto out_free;
 	}
 
-	ret = vbg_hgcm_call(gdev, client_id, function, timeout_ms,
+	ret = vbg_hgcm_call(gdev, requestor, client_id, function, timeout_ms,
 			    parm64, parm_count, vbox_status);
 	if (ret < 0)
 		goto out_free;

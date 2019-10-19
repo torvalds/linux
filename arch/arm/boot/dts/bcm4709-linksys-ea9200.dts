@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
  * Copyright (C) 2017 Rafał Miłecki <rafal@milecki.pl>
- *
- * Licensed under the ISC license.
  */
 
 /dts-v1/;
@@ -18,6 +17,7 @@
 	};
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x08000000
 		       0x88000000 0x08000000>;
 	};
@@ -39,4 +39,8 @@
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&usb3_phy {
+	status = "okay";
 };

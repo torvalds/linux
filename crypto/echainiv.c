@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * echainiv: Encrypted Chain IV Generator
  *
@@ -10,12 +11,6 @@
  * is performed after encryption (i.e., authenc).
  *
  * Copyright (c) 2015 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/geniv.h>
@@ -47,9 +42,9 @@ static int echainiv_encrypt(struct aead_request *req)
 	info = req->iv;
 
 	if (req->src != req->dst) {
-		SKCIPHER_REQUEST_ON_STACK(nreq, ctx->sknull);
+		SYNC_SKCIPHER_REQUEST_ON_STACK(nreq, ctx->sknull);
 
-		skcipher_request_set_tfm(nreq, ctx->sknull);
+		skcipher_request_set_sync_tfm(nreq, ctx->sknull);
 		skcipher_request_set_callback(nreq, req->base.flags,
 					      NULL, NULL);
 		skcipher_request_set_crypt(nreq, req->src, req->dst,
@@ -174,7 +169,7 @@ static void __exit echainiv_module_exit(void)
 	crypto_unregister_template(&echainiv_tmpl);
 }
 
-module_init(echainiv_module_init);
+subsys_initcall(echainiv_module_init);
 module_exit(echainiv_module_exit);
 
 MODULE_LICENSE("GPL");

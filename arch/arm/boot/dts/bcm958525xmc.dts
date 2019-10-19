@@ -39,15 +39,11 @@
 	model = "NorthStar Plus XMC (BCM958525xmc)";
 	compatible = "brcm,bcm58525", "brcm,nsp";
 
-	aliases {
-		serial0 = &uart0;
-	};
-
 	chosen {
 		stdout-path = "serial0:115200n8";
 	};
 
-	memory {
+	memory@60000000 {
 		device_type = "memory";
 		reg = <0x60000000 0x40000000>;
 	};

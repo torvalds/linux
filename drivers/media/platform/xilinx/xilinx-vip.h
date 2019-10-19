@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Xilinx Video IP Core
  *
@@ -6,15 +7,12 @@
  *
  * Contacts: Hyun Kwon <hyun.kwon@xilinx.com>
  *           Laurent Pinchart <laurent.pinchart@ideasonboard.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __XILINX_VIP_H__
 #define __XILINX_VIP_H__
 
+#include <linux/bitops.h>
 #include <linux/io.h>
 #include <media/v4l2-subdev.h>
 
@@ -38,23 +36,23 @@ struct clk;
 
 /* Xilinx Video IP Control Registers */
 #define XVIP_CTRL_CONTROL			0x0000
-#define XVIP_CTRL_CONTROL_SW_ENABLE		(1 << 0)
-#define XVIP_CTRL_CONTROL_REG_UPDATE		(1 << 1)
-#define XVIP_CTRL_CONTROL_BYPASS		(1 << 4)
-#define XVIP_CTRL_CONTROL_TEST_PATTERN		(1 << 5)
-#define XVIP_CTRL_CONTROL_FRAME_SYNC_RESET	(1 << 30)
-#define XVIP_CTRL_CONTROL_SW_RESET		(1 << 31)
+#define XVIP_CTRL_CONTROL_SW_ENABLE		BIT(0)
+#define XVIP_CTRL_CONTROL_REG_UPDATE		BIT(1)
+#define XVIP_CTRL_CONTROL_BYPASS		BIT(4)
+#define XVIP_CTRL_CONTROL_TEST_PATTERN		BIT(5)
+#define XVIP_CTRL_CONTROL_FRAME_SYNC_RESET	BIT(30)
+#define XVIP_CTRL_CONTROL_SW_RESET		BIT(31)
 #define XVIP_CTRL_STATUS			0x0004
-#define XVIP_CTRL_STATUS_PROC_STARTED		(1 << 0)
-#define XVIP_CTRL_STATUS_EOF			(1 << 1)
+#define XVIP_CTRL_STATUS_PROC_STARTED		BIT(0)
+#define XVIP_CTRL_STATUS_EOF			BIT(1)
 #define XVIP_CTRL_ERROR				0x0008
-#define XVIP_CTRL_ERROR_SLAVE_EOL_EARLY		(1 << 0)
-#define XVIP_CTRL_ERROR_SLAVE_EOL_LATE		(1 << 1)
-#define XVIP_CTRL_ERROR_SLAVE_SOF_EARLY		(1 << 2)
-#define XVIP_CTRL_ERROR_SLAVE_SOF_LATE		(1 << 3)
+#define XVIP_CTRL_ERROR_SLAVE_EOL_EARLY		BIT(0)
+#define XVIP_CTRL_ERROR_SLAVE_EOL_LATE		BIT(1)
+#define XVIP_CTRL_ERROR_SLAVE_SOF_EARLY		BIT(2)
+#define XVIP_CTRL_ERROR_SLAVE_SOF_LATE		BIT(3)
 #define XVIP_CTRL_IRQ_ENABLE			0x000c
-#define XVIP_CTRL_IRQ_ENABLE_PROC_STARTED	(1 << 0)
-#define XVIP_CTRL_IRQ_EOF			(1 << 1)
+#define XVIP_CTRL_IRQ_ENABLE_PROC_STARTED	BIT(0)
+#define XVIP_CTRL_IRQ_EOF			BIT(1)
 #define XVIP_CTRL_VERSION			0x0010
 #define XVIP_CTRL_VERSION_MAJOR_MASK		(0xff << 24)
 #define XVIP_CTRL_VERSION_MAJOR_SHIFT		24
@@ -111,7 +109,6 @@ struct xvip_device {
  * @code: media bus format code
  * @bpp: bytes per pixel (when stored in memory)
  * @fourcc: V4L2 pixel format FCC identifier
- * @description: format description, suitable for userspace
  */
 struct xvip_video_format {
 	unsigned int vf_code;
@@ -120,7 +117,6 @@ struct xvip_video_format {
 	unsigned int code;
 	unsigned int bpp;
 	u32 fourcc;
-	const char *description;
 };
 
 const struct xvip_video_format *xvip_get_format_by_code(unsigned int code);

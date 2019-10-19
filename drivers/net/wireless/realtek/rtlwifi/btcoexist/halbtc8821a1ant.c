@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2012  Realtek Corporation.*/
 
 /**************************************************************
  * Description:
@@ -424,39 +402,6 @@ static void btc8821a1ant_query_bt_info(struct btc_coexist *btcoexist)
 		 h2c_parameter[0]);
 
 	btcoexist->btc_fill_h2c(btcoexist, 0x61, 1, h2c_parameter);
-}
-
-bool btc8821a1ant_is_wifi_status_changed(struct btc_coexist *btcoexist)
-{
-	static bool pre_wifi_busy = true;
-	static bool pre_under_4way = true;
-	static bool pre_bt_hs_on = true;
-	bool wifi_busy = false, under_4way = false, bt_hs_on = false;
-	bool wifi_connected = false;
-
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_CONNECTED,
-			   &wifi_connected);
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_BUSY, &wifi_busy);
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_HS_OPERATION, &bt_hs_on);
-	btcoexist->btc_get(btcoexist, BTC_GET_BL_WIFI_4_WAY_PROGRESS,
-			   &under_4way);
-
-	if (wifi_connected) {
-		if (wifi_busy != pre_wifi_busy) {
-			pre_wifi_busy = wifi_busy;
-			return true;
-		}
-		if (under_4way != pre_under_4way) {
-			pre_under_4way = under_4way;
-			return true;
-		}
-		if (bt_hs_on != pre_bt_hs_on) {
-			pre_bt_hs_on = bt_hs_on;
-			return true;
-		}
-	}
-
-	return false;
 }
 
 static void btc8821a1ant_update_bt_link_info(struct btc_coexist *btcoexist)
@@ -1617,11 +1562,7 @@ static void btc8821a1ant_act_bt_sco_hid_only_busy(struct btc_coexist *btcoexist,
 	/* tdma and coex table */
 	btc8821a1ant_ps_tdma(btcoexist, NORMAL_EXEC, true, 5);
 
-	if (BT_8821A_1ANT_WIFI_STATUS_NON_CONNECTED_ASSO_AUTH_SCAN ==
-	    wifi_status)
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
-	else
-		btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
+	btc8821a1ant_coex_table_with_type(btcoexist, NORMAL_EXEC, 1);
 }
 
 static void btc8821a1ant_act_wifi_con_bt_acl_busy(struct btc_coexist *btcoexist,
@@ -2024,16 +1965,9 @@ static void btc8821a1ant_run_coexist_mechanism(struct btc_coexist *btcoexist)
 			wifi_rssi_state =
 				btc8821a1ant_wifi_rssi_state(btcoexist, 1, 2,
 							     30, 0);
-			if ((wifi_rssi_state == BTC_RSSI_STATE_HIGH) ||
-			    (wifi_rssi_state == BTC_RSSI_STATE_STAY_HIGH)) {
-				btc8821a1ant_limited_tx(btcoexist,
-							NORMAL_EXEC, 1, 1,
-							0, 1);
-			} else {
-				btc8821a1ant_limited_tx(btcoexist,
-							NORMAL_EXEC, 1, 1,
-							0, 1);
-			}
+			btc8821a1ant_limited_tx(btcoexist,
+						NORMAL_EXEC, 1, 1,
+						0, 1);
 		} else {
 			btc8821a1ant_limited_tx(btcoexist, NORMAL_EXEC,
 						0, 0, 0, 0);

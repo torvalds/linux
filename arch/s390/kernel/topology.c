@@ -8,7 +8,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/workqueue.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/uaccess.h>
 #include <linux/sysctl.h>
 #include <linux/cpuset.h>
@@ -311,7 +311,8 @@ int arch_update_cpu_topology(void)
 	on_each_cpu(__arch_update_dedicated_flag, NULL, 0);
 	for_each_online_cpu(cpu) {
 		dev = get_cpu_device(cpu);
-		kobject_uevent(&dev->kobj, KOBJ_CHANGE);
+		if (dev)
+			kobject_uevent(&dev->kobj, KOBJ_CHANGE);
 	}
 	return rc;
 }
@@ -519,7 +520,10 @@ static void __init alloc_masks(struct sysinfo_15_1_x *info,
 		nr_masks *= info->mag[TOPOLOGY_NR_MAG - offset - 1 - i];
 	nr_masks = max(nr_masks, 1);
 	for (i = 0; i < nr_masks; i++) {
-		mask->next = memblock_virt_alloc(sizeof(*mask->next), 8);
+		mask->next = memblock_alloc(sizeof(*mask->next), 8);
+		if (!mask->next)
+			panic("%s: Failed to allocate %zu bytes align=0x%x\n",
+			      __func__, sizeof(*mask->next), 8);
 		mask = mask->next;
 	}
 }
@@ -537,7 +541,10 @@ void __init topology_init_early(void)
 	}
 	if (!MACHINE_HAS_TOPOLOGY)
 		goto out;
-	tl_info = memblock_virt_alloc(PAGE_SIZE, PAGE_SIZE);
+	tl_info = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+	if (!tl_info)
+		panic("%s: Failed to allocate %lu bytes align=0x%lx\n",
+		      __func__, PAGE_SIZE, PAGE_SIZE);
 	info = tl_info;
 	store_topology(info);
 	pr_info("The CPU configuration topology of the machine is: %d %d %d %d %d %d / %d\n",
@@ -579,41 +586,31 @@ early_param("topology", topology_setup);
 static int topology_ctl_handler(struct ctl_table *ctl, int write,
 				void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-	unsigned int len;
+	int enabled = topology_is_enabled();
 	int new_mode;
-	char buf[2];
+	int rc;
+	struct ctl_table ctl_entry = {
+		.procname	= ctl->procname,
+		.data		= &enabled,
+		.maxlen		= sizeof(int),
+		.extra1		= SYSCTL_ZERO,
+		.extra2		= SYSCTL_ONE,
+	};
 
-	if (!*lenp || *ppos) {
-		*lenp = 0;
-		return 0;
-	}
-	if (!write) {
-		strncpy(buf, topology_is_enabled() ? "1\n" : "0\n",
-			ARRAY_SIZE(buf));
-		len = strnlen(buf, ARRAY_SIZE(buf));
-		if (len > *lenp)
-			len = *lenp;
-		if (copy_to_user(buffer, buf, len))
-			return -EFAULT;
-		goto out;
-	}
-	len = *lenp;
-	if (copy_from_user(buf, buffer, len > sizeof(buf) ? sizeof(buf) : len))
-		return -EFAULT;
-	if (buf[0] != '0' && buf[0] != '1')
-		return -EINVAL;
+	rc = proc_douintvec_minmax(&ctl_entry, write, buffer, lenp, ppos);
+	if (rc < 0 || !write)
+		return rc;
+
 	mutex_lock(&smp_cpu_state_mutex);
-	new_mode = topology_get_mode(buf[0] == '1');
+	new_mode = topology_get_mode(enabled);
 	if (topology_mode != new_mode) {
 		topology_mode = new_mode;
 		topology_schedule_update();
 	}
 	mutex_unlock(&smp_cpu_state_mutex);
 	topology_flush_work();
-out:
-	*lenp = len;
-	*ppos += len;
-	return 0;
+
+	return rc;
 }
 
 static struct ctl_table topology_ctl_table[] = {

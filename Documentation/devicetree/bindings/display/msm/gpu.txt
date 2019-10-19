@@ -1,21 +1,37 @@
 Qualcomm adreno/snapdragon GPU
 
 Required properties:
-- compatible: "qcom,adreno-XYZ.W", "qcom,adreno"
+- compatible: "qcom,adreno-XYZ.W", "qcom,adreno" or
+	      "amd,imageon-XYZ.W", "amd,imageon"
     for example: "qcom,adreno-306.0", "qcom,adreno"
   Note that you need to list the less specific "qcom,adreno" (since this
   is what the device is matched on), in addition to the more specific
   with the chip-id.
+  If "amd,imageon" is used, there should be no top level msm device.
 - reg: Physical base address and length of the controller's registers.
 - interrupts: The interrupt signal from the gpu.
-- clocks: device clocks
+- clocks: device clocks (if applicable)
   See ../clocks/clock-bindings.txt for details.
-- clock-names: the following clocks are required:
+- clock-names: the following clocks are required by a3xx, a4xx and a5xx
+  cores:
   * "core"
   * "iface"
   * "mem_iface"
+  For GMU attached devices the GPU clocks are not used and are not required. The
+  following devices should not list clocks:
+   - qcom,adreno-630.2
+- iommus: optional phandle to an adreno iommu instance
+- operating-points-v2: optional phandle to the OPP operating points
+- interconnects: optional phandle to an interconnect provider.  See
+  ../interconnect/interconnect.txt for details.
+- qcom,gmu: For GMU attached devices a phandle to the GMU device that will
+  control the power for the GPU. Applicable targets:
+    - qcom,adreno-630.2
+- zap-shader: For a5xx and a6xx devices this node contains a memory-region that
+  points to reserved memory to store the zap shader that can be used to help
+  bring the GPU out of secure mode.
 
-Example:
+Example 3xx/4xx/a5xx:
 
 / {
 	...
@@ -25,7 +41,6 @@ Example:
 		reg = <0x04300000 0x20000>;
 		reg-names = "kgsl_3d0_reg_memory";
 		interrupts = <GIC_SPI 80 0>;
-		interrupt-names = "kgsl_3d0_irq";
 		clock-names =
 		    "core",
 		    "iface",
@@ -34,5 +49,38 @@ Example:
 		    <&mmcc GFX3D_CLK>,
 		    <&mmcc GFX3D_AHB_CLK>,
 		    <&mmcc MMSS_IMEM_AHB_CLK>;
+	};
+};
+
+Example a6xx (with GMU):
+
+/ {
+	...
+
+	gpu@5000000 {
+		compatible = "qcom,adreno-630.2", "qcom,adreno";
+		#stream-id-cells = <16>;
+
+		reg = <0x5000000 0x40000>, <0x509e000 0x10>;
+		reg-names = "kgsl_3d0_reg_memory", "cx_mem";
+
+		/*
+		 * Look ma, no clocks! The GPU clocks and power are
+		 * controlled entirely by the GMU
+		 */
+
+		interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
+
+		iommus = <&adreno_smmu 0>;
+
+		operating-points-v2 = <&gpu_opp_table>;
+
+		interconnects = <&rsc_hlos MASTER_GFX3D &rsc_hlos SLAVE_EBI1>;
+
+		qcom,gmu = <&gmu>;
+
+		zap-shader {
+			memory-region = <&zap_shader_region>;
+		};
 	};
 };

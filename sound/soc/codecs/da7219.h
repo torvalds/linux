@@ -1,19 +1,18 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * da7219.h - DA7219 ALSA SoC Codec Driver
  *
  * Copyright (c) 2015 Dialog Semiconductor
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef __DA7219_H
 #define __DA7219_H
 
+#include <linux/clk.h>
+#include <linux/clkdev.h>
+#include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <sound/da7219.h>
@@ -778,8 +777,10 @@
 #define DA7219_SYS_STAT_CHECK_DELAY	50
 
 /* Power up/down Delays */
-#define DA7219_SETTLING_DELAY	40
-#define DA7219_MIN_GAIN_DELAY	30
+#define DA7219_SETTLING_DELAY		40
+#define DA7219_MIN_GAIN_DELAY		30
+#define DA7219_MIC_PGA_BASE_DELAY	100
+#define DA7219_MIC_PGA_OFFSET_DELAY	40
 
 enum da7219_clk_src {
 	DA7219_CLKSRC_MCLK = 0,
@@ -804,6 +805,7 @@ struct da7219_aad_priv;
 
 /* Private data */
 struct da7219_priv {
+	struct snd_soc_component *component;
 	struct da7219_aad_priv *aad;
 	struct da7219_pdata *pdata;
 
@@ -813,15 +815,24 @@ struct da7219_priv {
 	struct mutex ctrl_lock;
 	struct mutex pll_lock;
 
+#ifdef CONFIG_COMMON_CLK
+	struct clk_hw dai_clks_hw[DA7219_DAI_NUM_CLKS];
+#endif
+	struct clk_lookup *dai_clks_lookup[DA7219_DAI_NUM_CLKS];
+	struct clk *dai_clks[DA7219_DAI_NUM_CLKS];
+
 	struct clk *mclk;
 	unsigned int mclk_rate;
 	int clk_src;
 
 	bool master;
+	bool tdm_en;
 	bool alc_en;
+	bool micbias_on_event;
+	unsigned int mic_pga_delay;
 	u8 gain_ramp_ctrl;
 };
 
-int da7219_set_pll(struct snd_soc_codec *codec, int source, unsigned int fout);
+int da7219_set_pll(struct snd_soc_component *component, int source, unsigned int fout);
 
 #endif /* __DA7219_H */

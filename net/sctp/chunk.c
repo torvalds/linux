@@ -1,25 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2003, 2004
  *
  * This file is part of the SCTP kernel implementation
  *
  * This file contains the code relating the chunk abstraction.
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -86,11 +71,10 @@ void sctp_datamsg_free(struct sctp_datamsg *msg)
 /* Final destructruction of datamsg memory. */
 static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 {
+	struct sctp_association *asoc = NULL;
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
-	struct sctp_sock *sp;
 	struct sctp_ulpevent *ev;
-	struct sctp_association *asoc = NULL;
 	int error = 0, notify;
 
 	/* If we failed, we may need to notify. */
@@ -108,9 +92,8 @@ static void sctp_datamsg_destroy(struct sctp_datamsg *msg)
 			else
 				error = asoc->outqueue.error;
 
-			sp = sctp_sk(asoc->base.sk);
-			notify = sctp_ulpevent_type_enabled(SCTP_SEND_FAILED,
-							    &sp->subscribe);
+			notify = sctp_ulpevent_type_enabled(asoc->subscribe,
+							    SCTP_SEND_FAILED);
 		}
 
 		/* Generate a SEND FAILED event only if enabled. */
@@ -168,6 +151,7 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 {
 	size_t len, first_len, max_data, remaining;
 	size_t msg_len = iov_iter_count(from);
+	struct sctp_shared_key *shkey = NULL;
 	struct list_head *pos, *temp;
 	struct sctp_chunk *chunk;
 	struct sctp_datamsg *msg;
@@ -189,10 +173,13 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* This is the biggest possible DATA chunk that can fit into
 	 * the packet
 	 */
-	max_data = asoc->pathmtu -
-		   sctp_sk(asoc->base.sk)->pf->af->net_header_len -
-		   sizeof(struct sctphdr) - sctp_datachk_len(&asoc->stream);
-	max_data = SCTP_TRUNC4(max_data);
+	max_data = asoc->frag_point;
+	if (unlikely(!max_data)) {
+		max_data = sctp_min_frag_point(sctp_sk(asoc->base.sk),
+					       sctp_datachk_len(&asoc->stream));
+		pr_warn_ratelimited("%s: asoc:%p frag_point is zero, forcing max_data to default minimum (%zu)",
+				    __func__, asoc, max_data);
+	}
 
 	/* If the the peer requested that we authenticate DATA chunks
 	 * we need to account for bundling of the AUTH chunks along with
@@ -204,10 +191,18 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		if (hmac_desc)
 			max_data -= SCTP_PAD4(sizeof(struct sctp_auth_chunk) +
 					      hmac_desc->hmac_len);
-	}
 
-	/* Check what's our max considering the above */
-	max_data = min_t(size_t, max_data, asoc->frag_point);
+		if (sinfo->sinfo_tsn &&
+		    sinfo->sinfo_ssn != asoc->active_key_id) {
+			shkey = sctp_auth_get_shkey(asoc, sinfo->sinfo_ssn);
+			if (!shkey) {
+				err = -EINVAL;
+				goto errout;
+			}
+		} else {
+			shkey = asoc->shkey;
+		}
+	}
 
 	/* Set first_len and then account for possible bundles on first frag */
 	first_len = max_data;
@@ -231,7 +226,9 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 	/* Account for a different sized first fragment */
 	if (msg_len >= first_len) {
 		msg->can_delay = 0;
-		SCTP_INC_STATS(sock_net(asoc->base.sk), SCTP_MIB_FRAGUSRMSGS);
+		if (msg_len > first_len)
+			SCTP_INC_STATS(sock_net(asoc->base.sk),
+				       SCTP_MIB_FRAGUSRMSGS);
 	} else {
 		/* Which may be the only one... */
 		first_len = msg_len;
@@ -275,6 +272,8 @@ struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *asoc,
 		if (err < 0)
 			goto errout_chunk_free;
 
+		chunk->shkey = shkey;
+
 		/* Put the chunk->skb back into the form expected by send.  */
 		__skb_pull(chunk->skb, (__u8 *)chunk->chunk_hdr -
 				       chunk->skb->data);
@@ -315,7 +314,8 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 	if (SCTP_PR_TTL_ENABLED(chunk->sinfo.sinfo_flags) &&
 	    time_after(jiffies, chunk->msg->expires_at)) {
 		struct sctp_stream_out *streamout =
-			&chunk->asoc->stream.out[chunk->sinfo.sinfo_stream];
+			SCTP_SO(&chunk->asoc->stream,
+				chunk->sinfo.sinfo_stream);
 
 		if (chunk->sent_count) {
 			chunk->asoc->abandoned_sent[SCTP_PR_INDEX(TTL)]++;
@@ -329,7 +329,8 @@ int sctp_chunk_abandoned(struct sctp_chunk *chunk)
 	} else if (SCTP_PR_RTX_ENABLED(chunk->sinfo.sinfo_flags) &&
 		   chunk->sent_count > chunk->sinfo.sinfo_timetolive) {
 		struct sctp_stream_out *streamout =
-			&chunk->asoc->stream.out[chunk->sinfo.sinfo_stream];
+			SCTP_SO(&chunk->asoc->stream,
+				chunk->sinfo.sinfo_stream);
 
 		chunk->asoc->abandoned_sent[SCTP_PR_INDEX(RTX)]++;
 		streamout->ext->abandoned_sent[SCTP_PR_INDEX(RTX)]++;

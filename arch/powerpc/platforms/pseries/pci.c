@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2001 Dave Engebretsen, IBM Corporation
  * Copyright (C) 2003 Anton Blanchard <anton@au.ibm.com>, IBM
  *
  * pSeries specific routines for PCI.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -29,6 +16,7 @@
 #include <asm/pci-bridge.h>
 #include <asm/prom.h>
 #include <asm/ppc-pci.h>
+#include <asm/pci.h>
 #include "pseries.h"
 
 #if 0
@@ -237,14 +225,37 @@ static void __init pSeries_request_regions(void)
 
 void __init pSeries_final_fixup(void)
 {
+	struct pci_controller *hose;
+
 	pSeries_request_regions();
 
-	eeh_addr_cache_build();
+	eeh_show_enabled();
 
 #ifdef CONFIG_PCI_IOV
 	ppc_md.pcibios_sriov_enable = pseries_pcibios_sriov_enable;
 	ppc_md.pcibios_sriov_disable = pseries_pcibios_sriov_disable;
 #endif
+	list_for_each_entry(hose, &hose_list, list_node) {
+		struct device_node *dn = hose->dn, *nvdn;
+
+		while (1) {
+			dn = of_find_all_nodes(dn);
+			if (!dn)
+				break;
+			nvdn = of_parse_phandle(dn, "ibm,nvlink", 0);
+			if (!nvdn)
+				continue;
+			if (!of_device_is_compatible(nvdn, "ibm,npu-link"))
+				continue;
+			if (!of_device_is_compatible(nvdn->parent,
+						"ibm,power9-npu"))
+				continue;
+#ifdef CONFIG_PPC_POWERNV
+			WARN_ON_ONCE(pnv_npu2_init(hose));
+#endif
+			break;
+		}
+	}
 }
 
 /*

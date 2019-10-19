@@ -61,7 +61,7 @@ struct shadow_indirect_ctx {
 	unsigned long guest_gma;
 	unsigned long shadow_gma;
 	void *shadow_va;
-	uint32_t size;
+	u32 size;
 };
 
 #define PER_CTX_ADDR_MASK 0xfffff000
@@ -80,10 +80,10 @@ struct intel_shadow_wa_ctx {
 struct intel_vgpu_workload {
 	struct intel_vgpu *vgpu;
 	int ring_id;
-	struct drm_i915_gem_request *req;
+	struct i915_request *req;
 	/* if this workload has been dispatched to i915? */
 	bool dispatched;
-	bool shadowed;
+	bool shadow;      /* if workload has done shadow of guest request */
 	int status;
 
 	struct intel_vgpu_mm *shadow_mm;
@@ -100,6 +100,7 @@ struct intel_vgpu_workload {
 	struct execlist_ctx_descriptor_format ctx_desc;
 	struct execlist_ring_context *ring_context;
 	unsigned long rb_head, rb_tail, rb_ctl, rb_start, rb_len;
+	unsigned long guest_rb_head;
 	bool restore_inhibit;
 	struct intel_vgpu_elsp_dwords elsp_dwords;
 	bool emulate_schedule_in;
@@ -110,6 +111,10 @@ struct intel_vgpu_workload {
 	/* shadow batch buffer */
 	struct list_head shadow_bb;
 	struct intel_shadow_wa_ctx wa_ctx;
+
+	/* oa registers */
+	u32 oactxctrl;
+	u32 flex_mmio[7];
 };
 
 struct intel_vgpu_shadow_bb {
@@ -120,6 +125,8 @@ struct intel_vgpu_shadow_bb {
 	u32 *bb_start_cmd_va;
 	unsigned int clflush;
 	bool accessing;
+	unsigned long bb_offset;
+	bool ppgtt;
 };
 
 #define workload_q_head(vgpu, ring_id) \
@@ -136,12 +143,12 @@ void intel_gvt_wait_vgpu_idle(struct intel_vgpu *vgpu);
 int intel_vgpu_setup_submission(struct intel_vgpu *vgpu);
 
 void intel_vgpu_reset_submission(struct intel_vgpu *vgpu,
-				 unsigned long engine_mask);
+				 intel_engine_mask_t engine_mask);
 
 void intel_vgpu_clean_submission(struct intel_vgpu *vgpu);
 
 int intel_vgpu_select_submission_ops(struct intel_vgpu *vgpu,
-				     unsigned long engine_mask,
+				     intel_engine_mask_t engine_mask,
 				     unsigned int interface);
 
 extern const struct intel_vgpu_submission_ops
@@ -152,5 +159,8 @@ intel_vgpu_create_workload(struct intel_vgpu *vgpu, int ring_id,
 			   struct execlist_ctx_descriptor_format *desc);
 
 void intel_vgpu_destroy_workload(struct intel_vgpu_workload *workload);
+
+void intel_vgpu_clean_workloads(struct intel_vgpu *vgpu,
+				intel_engine_mask_t engine_mask);
 
 #endif

@@ -22,7 +22,6 @@
 #include <linux/seq_file.h>
 #include <linux/ftrace.h>
 #include <linux/irq.h>
-#include <linux/kmemleak.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -916,7 +915,7 @@ static void map_prom_timers(void)
 	dp = of_find_node_by_path("/");
 	dp = dp->child;
 	while (dp) {
-		if (!strcmp(dp->name, "counter-timer"))
+		if (of_node_name_eq(dp, "counter-timer"))
 			break;
 		dp = dp->sibling;
 	}

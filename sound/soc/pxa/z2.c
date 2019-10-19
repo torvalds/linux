@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/sound/soc/pxa/z2.c
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2009 Ken McGuire <kenm@desertweyr.com>
  * Copyright (C) 2010 Marek Vasut <marek.vasut@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -157,17 +154,19 @@ static const struct snd_soc_ops z2_ops = {
 };
 
 /* z2 digital audio interface glue - connects codec <--> CPU */
+SND_SOC_DAILINK_DEFS(wm8750,
+	DAILINK_COMP_ARRAY(COMP_CPU("pxa2xx-i2s")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8750.0-001b", "wm8750-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("pxa-pcm-audio")));
+
 static struct snd_soc_dai_link z2_dai = {
 	.name		= "wm8750",
 	.stream_name	= "WM8750",
-	.cpu_dai_name	= "pxa2xx-i2s",
-	.codec_dai_name	= "wm8750-hifi",
-	.platform_name = "pxa-pcm-audio",
-	.codec_name	= "wm8750.0-001b",
 	.init		= z2_wm8750_init,
 	.dai_fmt	= SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			  SND_SOC_DAIFMT_CBS_CFS,
 	.ops		= &z2_ops,
+	SND_SOC_DAILINK_REG(wm8750),
 };
 
 /* z2 audio machine driver */

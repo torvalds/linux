@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * via-cputemp.c - Driver for VIA CPU core temperature monitoring
  * Copyright (C) 2009 VIA Technologies, Inc.
@@ -5,20 +6,6 @@
  * based on existing coretemp.c, which is
  *
  * Copyright (C) 2007 Rudolf Marek <r.marek@assembler.cz>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
- * 02110-1301 USA.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -60,8 +47,8 @@ struct via_cputemp_data {
  * Sysfs stuff
  */
 
-static ssize_t show_name(struct device *dev, struct device_attribute
-			  *devattr, char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	int ret;
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -74,8 +61,8 @@ static ssize_t show_name(struct device *dev, struct device_attribute
 	return ret;
 }
 
-static ssize_t show_temp(struct device *dev,
-			 struct device_attribute *devattr, char *buf)
+static ssize_t temp_show(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
 {
 	struct via_cputemp_data *data = dev_get_drvdata(dev);
 	u32 eax, edx;
@@ -102,10 +89,9 @@ static ssize_t cpu0_vid_show(struct device *dev,
 	return sprintf(buf, "%d\n", vid_from_reg(~edx & 0x7f, data->vrm));
 }
 
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL,
-			  SHOW_TEMP);
-static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_name, NULL, SHOW_LABEL);
-static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, SHOW_NAME);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, temp, SHOW_TEMP);
+static SENSOR_DEVICE_ATTR_RO(temp1_label, name, SHOW_LABEL);
+static SENSOR_DEVICE_ATTR_RO(name, name, SHOW_NAME);
 
 static struct attribute *via_cputemp_attributes[] = {
 	&sensor_dev_attr_name.dev_attr.attr,
@@ -136,20 +122,24 @@ static int via_cputemp_probe(struct platform_device *pdev)
 	data->id = pdev->id;
 	data->name = "via_cputemp";
 
-	switch (c->x86_model) {
-	case 0xA:
-		/* C7 A */
-	case 0xD:
-		/* C7 D */
-		data->msr_temp = 0x1169;
-		data->msr_vid = 0x198;
-		break;
-	case 0xF:
-		/* Nano */
+	if (c->x86 == 7) {
 		data->msr_temp = 0x1423;
-		break;
-	default:
-		return -ENODEV;
+	} else {
+		switch (c->x86_model) {
+		case 0xA:
+			/* C7 A */
+		case 0xD:
+			/* C7 D */
+			data->msr_temp = 0x1169;
+			data->msr_vid = 0x198;
+			break;
+		case 0xF:
+			/* Nano */
+			data->msr_temp = 0x1423;
+			break;
+		default:
+			return -ENODEV;
+		}
 	}
 
 	/* test if we can access the TEMPERATURE MSR */
@@ -283,6 +273,7 @@ static const struct x86_cpu_id __initconst cputemp_ids[] = {
 	{ X86_VENDOR_CENTAUR, 6, 0xa, }, /* C7 A */
 	{ X86_VENDOR_CENTAUR, 6, 0xd, }, /* C7 D */
 	{ X86_VENDOR_CENTAUR, 6, 0xf, }, /* Nano */
+	{ X86_VENDOR_CENTAUR, 7, X86_MODEL_ANY, },
 	{}
 };
 MODULE_DEVICE_TABLE(x86cpu, cputemp_ids);

@@ -1,18 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012,2013 - ARM Ltd
  * Author: Marc Zyngier <marc.zyngier@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/linkage.h>
@@ -57,6 +46,7 @@ __invalid:
 	 * x0: HYP pgd
 	 * x1: HYP stack
 	 * x2: HYP vectors
+	 * x3: per-CPU offset
 	 */
 __do_hyp_init:
 	/* Check for a stub HVC call */
@@ -64,6 +54,9 @@ __do_hyp_init:
 	b.lo	__kvm_handle_stub_hvc
 
 	phys_to_ttbr x4, x0
+alternative_if ARM64_HAS_CNP
+	orr	x4, x4, #TTBR_CNP_BIT
+alternative_else_nop_endif
 	msr	ttbr0_el2, x4
 
 	mrs	x4, tcr_el1
@@ -117,12 +110,10 @@ CPU_BE(	orr	x4, x4, #SCTLR_ELx_EE)
 	/* Set the stack and new vectors */
 	kern_hyp_va	x1
 	mov	sp, x1
-	kern_hyp_va	x2
 	msr	vbar_el2, x2
 
-	/* copy tpidr_el1 into tpidr_el2 for use by HYP */
-	mrs	x1, tpidr_el1
-	msr	tpidr_el2, x1
+	/* Set tpidr_el2 for use by HYP */
+	msr	tpidr_el2, x3
 
 	/* Hello, World! */
 	eret

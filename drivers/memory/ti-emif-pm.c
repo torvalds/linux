@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * TI AM33XX SRAM EMIF Driver
  *
  * Copyright (C) 2016-2017 Texas Instruments Inc.
  *	Dave Gerlach
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/err.h>
@@ -138,6 +130,9 @@ static int ti_emif_alloc_sram(struct device *dev,
 	emif_data->pm_functions.exit_sr =
 		sram_resume_address(emif_data,
 				    (unsigned long)ti_emif_exit_sr);
+	emif_data->pm_functions.run_hw_leveling =
+		sram_resume_address(emif_data,
+				    (unsigned long)ti_emif_run_hw_leveling);
 
 	emif_data->pm_data.regs_virt =
 		(struct emif_regs_amx3 *)emif_data->ti_emif_sram_data_virt;
@@ -249,6 +244,34 @@ static const struct of_device_id ti_emif_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, ti_emif_of_match);
 
+#ifdef CONFIG_PM_SLEEP
+static int ti_emif_resume(struct device *dev)
+{
+	unsigned long tmp =
+			__raw_readl((void *)emif_instance->ti_emif_sram_virt);
+
+	/*
+	 * Check to see if what we are copying is already present in the
+	 * first byte at the destination, only copy if it is not which
+	 * indicates we have lost context and sram no longer contains
+	 * the PM code
+	 */
+	if (tmp != ti_emif_sram)
+		ti_emif_push_sram(dev, emif_instance);
+
+	return 0;
+}
+
+static int ti_emif_suspend(struct device *dev)
+{
+	/*
+	 * The contents will be present in DDR hence no need to
+	 * explicitly save
+	 */
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
+
 static int ti_emif_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -271,7 +294,6 @@ static int ti_emif_probe(struct platform_device *pdev)
 	emif_data->pm_data.ti_emif_base_addr_virt = devm_ioremap_resource(dev,
 									  res);
 	if (IS_ERR(emif_data->pm_data.ti_emif_base_addr_virt)) {
-		dev_err(dev, "could not ioremap emif mem\n");
 		ret = PTR_ERR(emif_data->pm_data.ti_emif_base_addr_virt);
 		return ret;
 	}
@@ -309,12 +331,17 @@ static int ti_emif_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops ti_emif_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(ti_emif_suspend, ti_emif_resume)
+};
+
 static struct platform_driver ti_emif_driver = {
 	.probe = ti_emif_probe,
 	.remove = ti_emif_remove,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.of_match_table = of_match_ptr(ti_emif_of_match),
+		.pm = &ti_emif_pm_ops,
 	},
 };
 module_platform_driver(ti_emif_driver);

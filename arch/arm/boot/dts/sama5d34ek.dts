@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * sama5d34ek.dts - Device Tree file for SAMA5D34-EK board
  *
  *  Copyright (C) 2013 Atmel,
  *                2013 Ludovic Desroches <ludovic.desroches@atmel.com>
- *
- * Licensed under GPLv2 or later.
  */
 /dts-v1/;
 #include "sama5d34.dtsi"
@@ -38,7 +37,7 @@
 				status = "okay";
 
 				24c256@50 {
-					compatible = "24c256";
+					compatible = "atmel,24c256";
 					reg = <0x50>;
 					pagesize = <64>;
 				};

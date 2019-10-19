@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: dsopcode - Dispatcher support for regions and fields
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -164,8 +130,8 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 		/* Must have a valid (>0) bit count */
 
 		if (bit_count == 0) {
-			ACPI_ERROR((AE_INFO,
-				    "Attempt to CreateField of length zero"));
+			ACPI_BIOS_ERROR((AE_INFO,
+					 "Attempt to CreateField of length zero"));
 			status = AE_AML_OPERAND_VALUE;
 			goto cleanup;
 		}
@@ -228,12 +194,13 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	/* Entire field must fit within the current length of the buffer */
 
 	if ((bit_offset + bit_count) > (8 * (u32)buffer_desc->buffer.length)) {
-		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] at bit offset/length %u/%u "
-			    "exceeds size of target Buffer (%u bits)",
-			    acpi_ut_get_node_name(result_desc), bit_offset,
-			    bit_count, 8 * (u32)buffer_desc->buffer.length));
 		status = AE_AML_BUFFER_LIMIT;
+		ACPI_BIOS_EXCEPTION((AE_INFO, status,
+				     "Field [%4.4s] at bit offset/length %u/%u "
+				     "exceeds size of target Buffer (%u bits)",
+				     acpi_ut_get_node_name(result_desc),
+				     bit_offset, bit_count,
+				     8 * (u32)buffer_desc->buffer.length));
 		goto cleanup;
 	}
 
@@ -389,6 +356,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	union acpi_operand_object *operand_desc;
 	struct acpi_namespace_node *node;
 	union acpi_parse_object *next_op;
+	acpi_adr_space_type space_id;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_eval_region_operands, op);
 
@@ -401,6 +369,7 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	/* next_op points to the op that holds the space_ID */
 
 	next_op = op->common.value.arg;
+	space_id = (acpi_adr_space_type)next_op->common.value.integer;
 
 	/* next_op points to address op */
 
@@ -436,6 +405,15 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 	obj_desc->region.length = (u32) operand_desc->integer.value;
 	acpi_ut_remove_reference(operand_desc);
 
+	/* A zero-length operation region is unusable. Just warn */
+
+	if (!obj_desc->region.length
+	    && (space_id < ACPI_NUM_PREDEFINED_REGIONS)) {
+		ACPI_WARNING((AE_INFO,
+			      "Operation Region [%4.4s] has zero length (SpaceId %X)",
+			      node->name.ascii, space_id));
+	}
+
 	/*
 	 * Get the address and save it
 	 * (at top of stack - 1)
@@ -450,6 +428,10 @@ acpi_ds_eval_region_operands(struct acpi_walk_state *walk_state,
 			  obj_desc,
 			  ACPI_FORMAT_UINT64(obj_desc->region.address),
 			  obj_desc->region.length));
+
+	status = acpi_ut_add_address_range(obj_desc->region.space_id,
+					   obj_desc->region.address,
+					   obj_desc->region.length, node);
 
 	/* Now the address and length are valid for this opregion */
 
@@ -603,8 +585,8 @@ acpi_ds_eval_data_object_operands(struct acpi_walk_state *walk_state,
 
 	if (!op->common.value.arg) {
 		ACPI_ERROR((AE_INFO,
-			    "Dispatch: Missing child while executing TermArg for %X",
-			    op->common.aml_opcode));
+			    "Missing child while evaluating opcode %4.4X, Op %p",
+			    op->common.aml_opcode, op));
 		return_ACPI_STATUS(AE_OK);
 	}
 

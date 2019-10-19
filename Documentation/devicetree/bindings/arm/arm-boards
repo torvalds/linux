@@ -197,9 +197,9 @@ Required nodes:
 The description for the board must include:
    - a "psci" node describing the boot method used for the secondary CPUs.
      A detailed description of the bindings used for "psci" nodes is present
-     in the psci.txt file.
+     in the psci.yaml file.
    - a "cpus" node describing the available cores and their associated
-     "enable-method"s. For more details see cpus.txt file.
+     "enable-method"s. For more details see cpus.yaml file.
 
 Example:
 
@@ -216,7 +216,7 @@ Example:
 		#size-cells = <0>;
 
 		A57_0: cpu@0 {
-			compatible = "arm,cortex-a57","arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x0 0x0>;
 			device_type = "cpu";
 			enable-method = "psci";
@@ -225,7 +225,7 @@ Example:
 		.....
 
 		A53_0: cpu@100 {
-			compatible = "arm,cortex-a53","arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x100>;
 			device_type = "cpu";
 			enable-method = "psci";

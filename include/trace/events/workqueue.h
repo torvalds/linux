@@ -25,6 +25,8 @@ DECLARE_EVENT_CLASS(workqueue_work,
 	TP_printk("work struct %p", __entry->work)
 );
 
+struct pool_workqueue;
+
 /**
  * workqueue_queue_work - called when a work gets queued
  * @req_cpu:	the requested cpu
@@ -58,7 +60,7 @@ TRACE_EVENT(workqueue_queue_work,
 		__entry->cpu		= pwq->pool->cpu;
 	),
 
-	TP_printk("work struct=%p function=%pf workqueue=%p req_cpu=%u cpu=%u",
+	TP_printk("work struct=%p function=%ps workqueue=%p req_cpu=%u cpu=%u",
 		  __entry->work, __entry->function, __entry->workqueue,
 		  __entry->req_cpu, __entry->cpu)
 );
@@ -100,7 +102,7 @@ TRACE_EVENT(workqueue_execute_start,
 		__entry->function	= work->func;
 	),
 
-	TP_printk("work struct %p: function %pf", __entry->work, __entry->function)
+	TP_printk("work struct %p: function %ps", __entry->work, __entry->function)
 );
 
 /**

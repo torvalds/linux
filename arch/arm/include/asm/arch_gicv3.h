@@ -1,19 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm/include/asm/arch_gicv3.h
  *
  * Copyright (C) 2015 ARM Ltd.
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #ifndef __ASM_ARCH_GICV3_H
 #define __ASM_ARCH_GICV3_H
@@ -34,6 +23,19 @@
 #define ICC_SRE				__ACCESS_CP15(c12, 0, c12, 5)
 #define ICC_IGRPEN1			__ACCESS_CP15(c12, 0, c12, 7)
 #define ICC_BPR1			__ACCESS_CP15(c12, 0, c12, 3)
+#define ICC_RPR				__ACCESS_CP15(c12, 0, c11, 3)
+
+#define __ICC_AP0Rx(x)			__ACCESS_CP15(c12, 0, c8, 4 | x)
+#define ICC_AP0R0			__ICC_AP0Rx(0)
+#define ICC_AP0R1			__ICC_AP0Rx(1)
+#define ICC_AP0R2			__ICC_AP0Rx(2)
+#define ICC_AP0R3			__ICC_AP0Rx(3)
+
+#define __ICC_AP1Rx(x)			__ACCESS_CP15(c12, 0, c9, x)
+#define ICC_AP1R0			__ICC_AP1Rx(0)
+#define ICC_AP1R1			__ICC_AP1Rx(1)
+#define ICC_AP1R2			__ICC_AP1Rx(2)
+#define ICC_AP1R3			__ICC_AP1Rx(3)
 
 #define ICC_HSRE			__ACCESS_CP15(c12, 4, c9, 5)
 
@@ -42,7 +44,7 @@
 #define ICH_VTR				__ACCESS_CP15(c12, 4, c11, 1)
 #define ICH_MISR			__ACCESS_CP15(c12, 4, c11, 2)
 #define ICH_EISR			__ACCESS_CP15(c12, 4, c11, 3)
-#define ICH_ELSR			__ACCESS_CP15(c12, 4, c11, 5)
+#define ICH_ELRSR			__ACCESS_CP15(c12, 4, c11, 5)
 #define ICH_VMCR			__ACCESS_CP15(c12, 4, c11, 7)
 
 #define __LR0(x)			__ACCESS_CP15(c12, 4, c12, x)
@@ -86,17 +88,17 @@
 #define ICH_LRC14			__LRC8(6)
 #define ICH_LRC15			__LRC8(7)
 
-#define __AP0Rx(x)			__ACCESS_CP15(c12, 4, c8, x)
-#define ICH_AP0R0			__AP0Rx(0)
-#define ICH_AP0R1			__AP0Rx(1)
-#define ICH_AP0R2			__AP0Rx(2)
-#define ICH_AP0R3			__AP0Rx(3)
+#define __ICH_AP0Rx(x)			__ACCESS_CP15(c12, 4, c8, x)
+#define ICH_AP0R0			__ICH_AP0Rx(0)
+#define ICH_AP0R1			__ICH_AP0Rx(1)
+#define ICH_AP0R2			__ICH_AP0Rx(2)
+#define ICH_AP0R3			__ICH_AP0Rx(3)
 
-#define __AP1Rx(x)			__ACCESS_CP15(c12, 4, c9, x)
-#define ICH_AP1R0			__AP1Rx(0)
-#define ICH_AP1R1			__AP1Rx(1)
-#define ICH_AP1R2			__AP1Rx(2)
-#define ICH_AP1R3			__AP1Rx(3)
+#define __ICH_AP1Rx(x)			__ACCESS_CP15(c12, 4, c9, x)
+#define ICH_AP1R0			__ICH_AP1Rx(0)
+#define ICH_AP1R1			__ICH_AP1Rx(1)
+#define ICH_AP1R2			__ICH_AP1Rx(2)
+#define ICH_AP1R3			__ICH_AP1Rx(3)
 
 /* A32-to-A64 mappings used by VGIC save/restore */
 
@@ -125,11 +127,21 @@ static inline u64 read_ ## a64(void)		\
 	return val; 				\
 }
 
+CPUIF_MAP(ICC_PMR, ICC_PMR_EL1)
+CPUIF_MAP(ICC_AP0R0, ICC_AP0R0_EL1)
+CPUIF_MAP(ICC_AP0R1, ICC_AP0R1_EL1)
+CPUIF_MAP(ICC_AP0R2, ICC_AP0R2_EL1)
+CPUIF_MAP(ICC_AP0R3, ICC_AP0R3_EL1)
+CPUIF_MAP(ICC_AP1R0, ICC_AP1R0_EL1)
+CPUIF_MAP(ICC_AP1R1, ICC_AP1R1_EL1)
+CPUIF_MAP(ICC_AP1R2, ICC_AP1R2_EL1)
+CPUIF_MAP(ICC_AP1R3, ICC_AP1R3_EL1)
+
 CPUIF_MAP(ICH_HCR, ICH_HCR_EL2)
 CPUIF_MAP(ICH_VTR, ICH_VTR_EL2)
 CPUIF_MAP(ICH_MISR, ICH_MISR_EL2)
 CPUIF_MAP(ICH_EISR, ICH_EISR_EL2)
-CPUIF_MAP(ICH_ELSR, ICH_ELSR_EL2)
+CPUIF_MAP(ICH_ELRSR, ICH_ELRSR_EL2)
 CPUIF_MAP(ICH_VMCR, ICH_VMCR_EL2)
 CPUIF_MAP(ICH_AP0R3, ICH_AP0R3_EL2)
 CPUIF_MAP(ICH_AP0R2, ICH_AP0R2_EL2)
@@ -185,11 +197,6 @@ static inline u32 gic_read_iar(void)
 	return irqstat;
 }
 
-static inline void gic_write_pmr(u32 val)
-{
-	write_sysreg(val, ICC_PMR);
-}
-
 static inline void gic_write_ctlr(u32 val)
 {
 	write_sysreg(val, ICC_CTLR);
@@ -226,6 +233,21 @@ static inline void gic_write_sre(u32 val)
 static inline void gic_write_bpr1(u32 val)
 {
 	write_sysreg(val, ICC_BPR1);
+}
+
+static inline u32 gic_read_pmr(void)
+{
+	return read_sysreg(ICC_PMR);
+}
+
+static inline void gic_write_pmr(u32 val)
+{
+	write_sysreg(val, ICC_PMR);
+}
+
+static inline u32 gic_read_rpr(void)
+{
+	return read_sysreg(ICC_RPR);
 }
 
 /*
@@ -329,6 +351,23 @@ static inline void gits_write_vpendbaser(u64 val, void * __iomem addr)
 }
 
 #define gits_read_vpendbaser(c)		__gic_readq_nonatomic(c)
+
+static inline bool gic_prio_masking_enabled(void)
+{
+	return false;
+}
+
+static inline void gic_pmr_mask_irqs(void)
+{
+	/* Should not get called. */
+	WARN_ON_ONCE(true);
+}
+
+static inline void gic_arch_enable_irqs(void)
+{
+	/* Should not get called. */
+	WARN_ON_ONCE(true);
+}
 
 #endif /* !__ASSEMBLY__ */
 #endif /* !__ASM_ARCH_GICV3_H */

@@ -35,7 +35,7 @@ int smp_call_function_single(int cpuid, smp_call_func_t func, void *info,
 /*
  * Call a function on all processors
  */
-int on_each_cpu(smp_call_func_t func, void *info, int wait);
+void on_each_cpu(smp_call_func_t func, void *info, int wait);
 
 /*
  * Call a function on processors specified by mask, which might include
@@ -52,6 +52,10 @@ void on_each_cpu_mask(const struct cpumask *mask, smp_call_func_t func,
 void on_each_cpu_cond(bool (*cond_func)(int cpu, void *info),
 		smp_call_func_t func, void *info, bool wait,
 		gfp_t gfp_flags);
+
+void on_each_cpu_cond_mask(bool (*cond_func)(int cpu, void *info),
+		smp_call_func_t func, void *info, bool wait,
+		gfp_t gfp_flags, const struct cpumask *mask);
 
 int smp_call_function_single_async(int cpu, call_single_data_t *csd);
 
@@ -97,7 +101,7 @@ extern void smp_cpus_done(unsigned int max_cpus);
 /*
  * Call a function on all other processors
  */
-int smp_call_function(smp_call_func_t func, void *info, int wait);
+void smp_call_function(smp_call_func_t func, void *info, int wait);
 void smp_call_function_many(const struct cpumask *mask,
 			    smp_call_func_t func, void *info, bool wait);
 
@@ -140,9 +144,8 @@ static inline void smp_send_stop(void) { }
  *	These macros fold the SMP functionality into a single CPU system
  */
 #define raw_smp_processor_id()			0
-static inline int up_smp_call_function(smp_call_func_t func, void *info)
+static inline void up_smp_call_function(smp_call_func_t func, void *info)
 {
-	return 0;
 }
 #define smp_call_function(func, info, wait) \
 			(up_smp_call_function(func, info))
@@ -177,29 +180,46 @@ static inline int get_boot_cpu_id(void)
 
 #endif /* !SMP */
 
-/*
- * smp_processor_id(): get the current CPU ID.
+/**
+ * raw_processor_id() - get the current (unstable) CPU id
  *
- * if DEBUG_PREEMPT is enabled then we check whether it is
- * used in a preemption-safe way. (smp_processor_id() is safe
- * if it's used in a preemption-off critical section, or in
- * a thread that is bound to the current CPU.)
- *
- * NOTE: raw_smp_processor_id() is for internal use only
- * (smp_processor_id() is the preferred variant), but in rare
- * instances it might also be used to turn off false positives
- * (i.e. smp_processor_id() use that the debugging code reports but
- * which use for some reason is legal). Don't use this to hack around
- * the warning message, as your code might not work under PREEMPT.
+ * For then you know what you are doing and need an unstable
+ * CPU id.
  */
+
+/**
+ * smp_processor_id() - get the current (stable) CPU id
+ *
+ * This is the normal accessor to the CPU id and should be used
+ * whenever possible.
+ *
+ * The CPU id is stable when:
+ *
+ *  - IRQs are disabled;
+ *  - preemption is disabled;
+ *  - the task is CPU affine.
+ *
+ * When CONFIG_DEBUG_PREEMPT; we verify these assumption and WARN
+ * when smp_processor_id() is used when the CPU id is not stable.
+ */
+
+/*
+ * Allow the architecture to differentiate between a stable and unstable read.
+ * For example, x86 uses an IRQ-safe asm-volatile read for the unstable but a
+ * regular asm read for the stable.
+ */
+#ifndef __smp_processor_id
+#define __smp_processor_id(x) raw_smp_processor_id(x)
+#endif
+
 #ifdef CONFIG_DEBUG_PREEMPT
   extern unsigned int debug_smp_processor_id(void);
 # define smp_processor_id() debug_smp_processor_id()
 #else
-# define smp_processor_id() raw_smp_processor_id()
+# define smp_processor_id() __smp_processor_id()
 #endif
 
-#define get_cpu()		({ preempt_disable(); smp_processor_id(); })
+#define get_cpu()		({ preempt_disable(); __smp_processor_id(); })
 #define put_cpu()		preempt_enable()
 
 /*

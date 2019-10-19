@@ -22,42 +22,38 @@
  *
  */
 
-#include "mock_engine.h"
+#include "gem/selftests/igt_gem_utils.h"
+#include "gt/mock_engine.h"
+
 #include "mock_request.h"
 
-struct drm_i915_gem_request *
-mock_request(struct intel_engine_cs *engine,
-	     struct i915_gem_context *context,
-	     unsigned long delay)
+struct i915_request *
+mock_request(struct intel_context *ce, unsigned long delay)
 {
-	struct drm_i915_gem_request *request;
-	struct mock_request *mock;
+	struct i915_request *request;
 
 	/* NB the i915->requests slab cache is enlarged to fit mock_request */
-	request = i915_gem_request_alloc(engine, context);
+	request = intel_context_create_request(ce);
 	if (IS_ERR(request))
 		return NULL;
 
-	mock = container_of(request, typeof(*mock), base);
-	mock->delay = delay;
-
-	return &mock->base;
+	request->mock.delay = delay;
+	return request;
 }
 
-bool mock_cancel_request(struct drm_i915_gem_request *request)
+bool mock_cancel_request(struct i915_request *request)
 {
-	struct mock_request *mock = container_of(request, typeof(*mock), base);
 	struct mock_engine *engine =
 		container_of(request->engine, typeof(*engine), base);
 	bool was_queued;
 
 	spin_lock_irq(&engine->hw_lock);
-	was_queued = !list_empty(&mock->link);
-	list_del_init(&mock->link);
+	was_queued = !list_empty(&request->mock.link);
+	list_del_init(&request->mock.link);
 	spin_unlock_irq(&engine->hw_lock);
 
 	if (was_queued)
-		i915_gem_request_unsubmit(request);
+		i915_request_unsubmit(request);
 
 	return was_queued;
 }

@@ -12,7 +12,7 @@ Required properties:
           See: Documentation/devicetree/bindings/clock/clock-bindings.txt
 - pinctrl-names: A pinctrl state names "default" must be defined.
 - pinctrl-0: Phandle referencing pin configuration of the SDHCI controller.
-             See: Documentation/devicetree/bindings/pinctrl/pinctrl-binding.txt
+             See: Documentation/devicetree/bindings/pinctrl/pinctrl-bindings.txt
 
 Example:
 

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  cobalt V4L2 API
  *
@@ -5,19 +6,6 @@
  *
  *  Copyright 2012-2015 Cisco Systems, Inc. and/or its affiliates.
  *  All rights reserved.
- *
- *  This program is free software; you may redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- *  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- *  BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- *  ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- *  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- *  SOFTWARE.
  */
 
 #include <linux/dma-mapping.h>
@@ -387,7 +375,7 @@ static void cobalt_dma_stop_streaming(struct cobalt_stream *s)
 	}
 	spin_unlock_irqrestore(&s->irqlock, flags);
 
-	/* Wait 100 milisecond for DMA to finish, abort on timeout. */
+	/* Wait 100 millisecond for DMA to finish, abort on timeout. */
 	if (!wait_event_timeout(s->q.done_wq, is_dma_done(s),
 				msecs_to_jiffies(timeout_msec))) {
 		omni_sg_dma_abort_channel(s);
@@ -491,17 +479,12 @@ static int cobalt_querycap(struct file *file, void *priv_fh,
 	struct cobalt_stream *s = video_drvdata(file);
 	struct cobalt *cobalt = s->cobalt;
 
-	strlcpy(vcap->driver, "cobalt", sizeof(vcap->driver));
-	strlcpy(vcap->card, "cobalt", sizeof(vcap->card));
+	strscpy(vcap->driver, "cobalt", sizeof(vcap->driver));
+	strscpy(vcap->card, "cobalt", sizeof(vcap->card));
 	snprintf(vcap->bus_info, sizeof(vcap->bus_info),
 		 "PCIe:%s", pci_name(cobalt->pci_dev));
-	vcap->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
-	if (s->is_output)
-		vcap->device_caps |= V4L2_CAP_VIDEO_OUTPUT;
-	else
-		vcap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
-	vcap->capabilities = vcap->device_caps | V4L2_CAP_DEVICE_CAPS |
-		V4L2_CAP_VIDEO_CAPTURE;
+	vcap->capabilities = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE |
+		V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_DEVICE_CAPS;
 	if (cobalt->have_hsma_tx)
 		vcap->capabilities |= V4L2_CAP_VIDEO_OUTPUT;
 	return 0;
@@ -705,15 +688,12 @@ static int cobalt_enum_fmt_vid_cap(struct file *file, void *priv_fh,
 {
 	switch (f->index) {
 	case 0:
-		strlcpy(f->description, "YUV 4:2:2", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 		break;
 	case 1:
-		strlcpy(f->description, "RGB24", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_RGB24;
 		break;
 	case 2:
-		strlcpy(f->description, "RGB32", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_BGR32;
 		break;
 	default:
@@ -805,7 +785,6 @@ static int cobalt_try_fmt_vid_cap(struct file *file, void *priv_fh,
 
 	pix->sizeimage = pix->bytesperline * pix->height;
 	pix->field = V4L2_FIELD_NONE;
-	pix->priv = 0;
 
 	return 0;
 }
@@ -910,11 +889,9 @@ static int cobalt_enum_fmt_vid_out(struct file *file, void *priv_fh,
 {
 	switch (f->index) {
 	case 0:
-		strlcpy(f->description, "YUV 4:2:2", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_YUYV;
 		break;
 	case 1:
-		strlcpy(f->description, "RGB32", sizeof(f->description));
 		f->pixelformat = V4L2_PIX_FMT_BGR32;
 		break;
 	default:
@@ -1076,32 +1053,68 @@ static int cobalt_subscribe_event(struct v4l2_fh *fh,
 
 static int cobalt_g_parm(struct file *file, void *fh, struct v4l2_streamparm *a)
 {
+	struct cobalt_stream *s = video_drvdata(file);
+	struct v4l2_fract fps;
+
 	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-	a->parm.capture.timeperframe.numerator = 1;
-	a->parm.capture.timeperframe.denominator = 60;
+
+	fps = v4l2_calc_timeperframe(&s->timings);
+	a->parm.capture.timeperframe.numerator = fps.numerator;
+	a->parm.capture.timeperframe.denominator = fps.denominator;
 	a->parm.capture.readbuffers = 3;
 	return 0;
 }
 
-static int cobalt_cropcap(struct file *file, void *fh, struct v4l2_cropcap *cc)
+static int cobalt_g_pixelaspect(struct file *file, void *fh,
+				int type, struct v4l2_fract *f)
 {
 	struct cobalt_stream *s = video_drvdata(file);
 	struct v4l2_dv_timings timings;
 	int err = 0;
 
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
+
 	if (s->input == 1)
 		timings = cea1080p60;
 	else
 		err = v4l2_subdev_call(s->sd, video, g_dv_timings, &timings);
-	if (!err) {
-		cc->bounds.width = cc->defrect.width = timings.bt.width;
-		cc->bounds.height = cc->defrect.height = timings.bt.height;
-		cc->pixelaspect = v4l2_dv_timings_aspect_ratio(&timings);
-	}
+	if (!err)
+		*f = v4l2_dv_timings_aspect_ratio(&timings);
 	return err;
+}
+
+static int cobalt_g_selection(struct file *file, void *fh,
+			      struct v4l2_selection *sel)
+{
+	struct cobalt_stream *s = video_drvdata(file);
+	struct v4l2_dv_timings timings;
+	int err = 0;
+
+	if (sel->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+		return -EINVAL;
+
+	if (s->input == 1)
+		timings = cea1080p60;
+	else
+		err = v4l2_subdev_call(s->sd, video, g_dv_timings, &timings);
+
+	if (err)
+		return err;
+
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+		sel->r.top = 0;
+		sel->r.left = 0;
+		sel->r.width = timings.bt.width;
+		sel->r.height = timings.bt.height;
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
 }
 
 static const struct v4l2_ioctl_ops cobalt_ioctl_ops = {
@@ -1110,7 +1123,8 @@ static const struct v4l2_ioctl_ops cobalt_ioctl_ops = {
 	.vidioc_log_status		= cobalt_log_status,
 	.vidioc_streamon		= vb2_ioctl_streamon,
 	.vidioc_streamoff		= vb2_ioctl_streamoff,
-	.vidioc_cropcap			= cobalt_cropcap,
+	.vidioc_g_pixelaspect		= cobalt_g_pixelaspect,
+	.vidioc_g_selection		= cobalt_g_selection,
 	.vidioc_enum_input		= cobalt_enum_input,
 	.vidioc_g_input			= cobalt_g_input,
 	.vidioc_s_input			= cobalt_s_input,
@@ -1249,6 +1263,11 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 	q->lock = &s->lock;
 	q->dev = &cobalt->pci_dev->dev;
 	vdev->queue = q;
+	vdev->device_caps = V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	if (s->is_output)
+		vdev->device_caps |= V4L2_CAP_VIDEO_OUTPUT;
+	else
+		vdev->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
 
 	video_set_drvdata(vdev, s);
 	ret = vb2_queue_init(q);

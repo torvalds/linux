@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * HiSilicon SPI Nor Flash Controller Driver
  *
  * Copyright (c) 2015-2016 HiSilicon Technologies Co., Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/bitops.h>
 #include <linux/clk.h>
@@ -112,7 +100,7 @@ struct hifmc_host {
 	u32 num_chip;
 };
 
-static inline int wait_op_finish(struct hifmc_host *host)
+static inline int hisi_spi_nor_wait_op_finish(struct hifmc_host *host)
 {
 	u32 reg;
 
@@ -120,7 +108,7 @@ static inline int wait_op_finish(struct hifmc_host *host)
 		(reg & FMC_INT_OP_DONE), 0, FMC_WAIT_TIMEOUT);
 }
 
-static int get_if_type(enum spi_nor_protocol proto)
+static int hisi_spi_nor_get_if_type(enum spi_nor_protocol proto)
 {
 	enum hifmc_iftype if_type;
 
@@ -208,7 +196,7 @@ static int hisi_spi_nor_op_reg(struct spi_nor *nor,
 	reg = FMC_OP_CMD1_EN | FMC_OP_REG_OP_START | optype;
 	writel(reg, host->regbase + FMC_OP);
 
-	return wait_op_finish(host);
+	return hisi_spi_nor_wait_op_finish(host);
 }
 
 static int hisi_spi_nor_read_reg(struct spi_nor *nor, u8 opcode, u8 *buf,
@@ -259,9 +247,9 @@ static int hisi_spi_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
 
 	reg = OP_CFG_FM_CS(priv->chipselect);
 	if (op_type == FMC_OP_READ)
-		if_type = get_if_type(nor->read_proto);
+		if_type = hisi_spi_nor_get_if_type(nor->read_proto);
 	else
-		if_type = get_if_type(nor->write_proto);
+		if_type = hisi_spi_nor_get_if_type(nor->write_proto);
 	reg |= OP_CFG_MEM_IF_TYPE(if_type);
 	if (op_type == FMC_OP_READ)
 		reg |= OP_CFG_DUMMY_NUM(nor->read_dummy >> 3);
@@ -274,7 +262,7 @@ static int hisi_spi_nor_dma_transfer(struct spi_nor *nor, loff_t start_off,
 		: OP_CTRL_WR_OPCODE(nor->program_opcode);
 	writel(reg, host->regbase + FMC_OP_DMA);
 
-	return wait_op_finish(host);
+	return hisi_spi_nor_wait_op_finish(host);
 }
 
 static ssize_t hisi_spi_nor_read(struct spi_nor *nor, loff_t from, size_t len,
@@ -413,6 +401,7 @@ static int hisi_spi_nor_register_all(struct hifmc_host *host)
 
 		if (host->num_chip == HIFMC_MAX_CHIP_NUM) {
 			dev_warn(dev, "Flash device number exceeds the maximum chipselect number\n");
+			of_node_put(np);
 			break;
 		}
 	}

@@ -1,21 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2016 Oracle.  All Rights Reserved.
- *
  * Author: Darrick J. Wong <darrick.wong@oracle.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -23,11 +9,11 @@
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_bit.h"
+#include "xfs_shared.h"
 #include "xfs_mount.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
-#include "xfs_buf_item.h"
 #include "xfs_rmap_item.h"
 #include "xfs_log.h"
 #include "xfs_rmap.h"
@@ -49,6 +35,24 @@ xfs_rui_item_free(
 		kmem_free(ruip);
 	else
 		kmem_zone_free(xfs_rui_zone, ruip);
+}
+
+/*
+ * Freeing the RUI requires that we remove it from the AIL if it has already
+ * been placed there. However, the RUI may not yet have been placed in the AIL
+ * when called by xfs_rui_release() from RUD processing due to the ordering of
+ * committed vs unpin operations in bulk insert operations. Hence the reference
+ * count to ensure only the last caller frees the RUI.
+ */
+void
+xfs_rui_release(
+	struct xfs_rui_log_item	*ruip)
+{
+	ASSERT(atomic_read(&ruip->rui_refcount) > 0);
+	if (atomic_dec_and_test(&ruip->rui_refcount)) {
+		xfs_trans_ail_remove(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
+		xfs_rui_item_free(ruip);
+	}
 }
 
 STATIC void
@@ -89,15 +93,6 @@ xfs_rui_item_format(
 }
 
 /*
- * Pinning has no meaning for an rui item, so just return.
- */
-STATIC void
-xfs_rui_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
  * The unpin operation is the last place an RUI is manipulated in the log. It is
  * either inserted in the AIL or aborted in the event of a log I/O error. In
  * either case, the RUI transaction has been successfully committed to make it
@@ -116,71 +111,22 @@ xfs_rui_item_unpin(
 }
 
 /*
- * RUI items have no locking or pushing.  However, since RUIs are pulled from
- * the AIL when their corresponding RUDs are committed to disk, their situation
- * is very similar to being pinned.  Return XFS_ITEM_PINNED so that the caller
- * will eventually flush the log.  This should help in getting the RUI out of
- * the AIL.
- */
-STATIC uint
-xfs_rui_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The RUI has been either committed or aborted if the transaction has been
  * cancelled. If the transaction was cancelled, an RUD isn't going to be
  * constructed and thus we free the RUI here directly.
  */
 STATIC void
-xfs_rui_item_unlock(
+xfs_rui_item_release(
 	struct xfs_log_item	*lip)
 {
-	if (lip->li_flags & XFS_LI_ABORTED)
-		xfs_rui_item_free(RUI_ITEM(lip));
+	xfs_rui_release(RUI_ITEM(lip));
 }
 
-/*
- * The RUI is logged only once and cannot be moved in the log, so simply return
- * the lsn at which it's been logged.
- */
-STATIC xfs_lsn_t
-xfs_rui_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-	return lsn;
-}
-
-/*
- * The RUI dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
-STATIC void
-xfs_rui_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
-{
-}
-
-/*
- * This is the ops vector shared by all rui log items.
- */
 static const struct xfs_item_ops xfs_rui_item_ops = {
 	.iop_size	= xfs_rui_item_size,
 	.iop_format	= xfs_rui_item_format,
-	.iop_pin	= xfs_rui_item_pin,
 	.iop_unpin	= xfs_rui_item_unpin,
-	.iop_unlock	= xfs_rui_item_unlock,
-	.iop_committed	= xfs_rui_item_committed,
-	.iop_push	= xfs_rui_item_push,
-	.iop_committing = xfs_rui_item_committing,
+	.iop_release	= xfs_rui_item_release,
 };
 
 /*
@@ -196,9 +142,9 @@ xfs_rui_init(
 
 	ASSERT(nextents > 0);
 	if (nextents > XFS_RUI_MAX_FAST_EXTENTS)
-		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), KM_SLEEP);
+		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), 0);
 	else
-		ruip = kmem_zone_zalloc(xfs_rui_zone, KM_SLEEP);
+		ruip = kmem_zone_zalloc(xfs_rui_zone, 0);
 
 	xfs_log_item_init(mp, &ruip->rui_item, XFS_LI_RUI, &xfs_rui_item_ops);
 	ruip->rui_format.rui_nextents = nextents;
@@ -230,24 +176,6 @@ xfs_rui_copy_format(
 
 	memcpy(dst_rui_fmt, src_rui_fmt, len);
 	return 0;
-}
-
-/*
- * Freeing the RUI requires that we remove it from the AIL if it has already
- * been placed there. However, the RUI may not yet have been placed in the AIL
- * when called by xfs_rui_release() from RUD processing due to the ordering of
- * committed vs unpin operations in bulk insert operations. Hence the reference
- * count to ensure only the last caller frees the RUI.
- */
-void
-xfs_rui_release(
-	struct xfs_rui_log_item	*ruip)
-{
-	ASSERT(atomic_read(&ruip->rui_refcount) > 0);
-	if (atomic_dec_and_test(&ruip->rui_refcount)) {
-		xfs_trans_ail_remove(&ruip->rui_item, SHUTDOWN_LOG_IO_ERROR);
-		xfs_rui_item_free(ruip);
-	}
 }
 
 static inline struct xfs_rud_log_item *RUD_ITEM(struct xfs_log_item *lip)
@@ -288,125 +216,270 @@ xfs_rud_item_format(
 }
 
 /*
- * Pinning has no meaning for an rud item, so just return.
- */
-STATIC void
-xfs_rud_item_pin(
-	struct xfs_log_item	*lip)
-{
-}
-
-/*
- * Since pinning has no meaning for an rud item, unpinning does
- * not either.
- */
-STATIC void
-xfs_rud_item_unpin(
-	struct xfs_log_item	*lip,
-	int			remove)
-{
-}
-
-/*
- * There isn't much you can do to push on an rud item.  It is simply stuck
- * waiting for the log to be flushed to disk.
- */
-STATIC uint
-xfs_rud_item_push(
-	struct xfs_log_item	*lip,
-	struct list_head	*buffer_list)
-{
-	return XFS_ITEM_PINNED;
-}
-
-/*
  * The RUD is either committed or aborted if the transaction is cancelled. If
  * the transaction is cancelled, drop our reference to the RUI and free the
  * RUD.
  */
 STATIC void
-xfs_rud_item_unlock(
+xfs_rud_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
-	if (lip->li_flags & XFS_LI_ABORTED) {
-		xfs_rui_release(rudp->rud_ruip);
-		kmem_zone_free(xfs_rud_zone, rudp);
+	xfs_rui_release(rudp->rud_ruip);
+	kmem_zone_free(xfs_rud_zone, rudp);
+}
+
+static const struct xfs_item_ops xfs_rud_item_ops = {
+	.flags		= XFS_ITEM_RELEASE_WHEN_COMMITTED,
+	.iop_size	= xfs_rud_item_size,
+	.iop_format	= xfs_rud_item_format,
+	.iop_release	= xfs_rud_item_release,
+};
+
+static struct xfs_rud_log_item *
+xfs_trans_get_rud(
+	struct xfs_trans		*tp,
+	struct xfs_rui_log_item		*ruip)
+{
+	struct xfs_rud_log_item		*rudp;
+
+	rudp = kmem_zone_zalloc(xfs_rud_zone, 0);
+	xfs_log_item_init(tp->t_mountp, &rudp->rud_item, XFS_LI_RUD,
+			  &xfs_rud_item_ops);
+	rudp->rud_ruip = ruip;
+	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
+
+	xfs_trans_add_item(tp, &rudp->rud_item);
+	return rudp;
+}
+
+/* Set the map extent flags for this reverse mapping. */
+static void
+xfs_trans_set_rmap_flags(
+	struct xfs_map_extent		*rmap,
+	enum xfs_rmap_intent_type	type,
+	int				whichfork,
+	xfs_exntst_t			state)
+{
+	rmap->me_flags = 0;
+	if (state == XFS_EXT_UNWRITTEN)
+		rmap->me_flags |= XFS_RMAP_EXTENT_UNWRITTEN;
+	if (whichfork == XFS_ATTR_FORK)
+		rmap->me_flags |= XFS_RMAP_EXTENT_ATTR_FORK;
+	switch (type) {
+	case XFS_RMAP_MAP:
+		rmap->me_flags |= XFS_RMAP_EXTENT_MAP;
+		break;
+	case XFS_RMAP_MAP_SHARED:
+		rmap->me_flags |= XFS_RMAP_EXTENT_MAP_SHARED;
+		break;
+	case XFS_RMAP_UNMAP:
+		rmap->me_flags |= XFS_RMAP_EXTENT_UNMAP;
+		break;
+	case XFS_RMAP_UNMAP_SHARED:
+		rmap->me_flags |= XFS_RMAP_EXTENT_UNMAP_SHARED;
+		break;
+	case XFS_RMAP_CONVERT:
+		rmap->me_flags |= XFS_RMAP_EXTENT_CONVERT;
+		break;
+	case XFS_RMAP_CONVERT_SHARED:
+		rmap->me_flags |= XFS_RMAP_EXTENT_CONVERT_SHARED;
+		break;
+	case XFS_RMAP_ALLOC:
+		rmap->me_flags |= XFS_RMAP_EXTENT_ALLOC;
+		break;
+	case XFS_RMAP_FREE:
+		rmap->me_flags |= XFS_RMAP_EXTENT_FREE;
+		break;
+	default:
+		ASSERT(0);
 	}
 }
 
 /*
- * When the rud item is committed to disk, all we need to do is delete our
- * reference to our partner rui item and then free ourselves. Since we're
- * freeing ourselves we must return -1 to keep the transaction code from
- * further referencing this item.
+ * Finish an rmap update and log it to the RUD. Note that the transaction is
+ * marked dirty regardless of whether the rmap update succeeds or fails to
+ * support the RUI/RUD lifecycle rules.
  */
-STATIC xfs_lsn_t
-xfs_rud_item_committed(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
+static int
+xfs_trans_log_finish_rmap_update(
+	struct xfs_trans		*tp,
+	struct xfs_rud_log_item		*rudp,
+	enum xfs_rmap_intent_type	type,
+	uint64_t			owner,
+	int				whichfork,
+	xfs_fileoff_t			startoff,
+	xfs_fsblock_t			startblock,
+	xfs_filblks_t			blockcount,
+	xfs_exntst_t			state,
+	struct xfs_btree_cur		**pcur)
 {
-	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
+	int				error;
+
+	error = xfs_rmap_finish_one(tp, type, owner, whichfork, startoff,
+			startblock, blockcount, state, pcur);
 
 	/*
-	 * Drop the RUI reference regardless of whether the RUD has been
-	 * aborted. Once the RUD transaction is constructed, it is the sole
-	 * responsibility of the RUD to release the RUI (even if the RUI is
-	 * aborted due to log I/O error).
+	 * Mark the transaction dirty, even on error. This ensures the
+	 * transaction is aborted, which:
+	 *
+	 * 1.) releases the RUI and frees the RUD
+	 * 2.) shuts down the filesystem
 	 */
-	xfs_rui_release(rudp->rud_ruip);
-	kmem_zone_free(xfs_rud_zone, rudp);
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	set_bit(XFS_LI_DIRTY, &rudp->rud_item.li_flags);
 
-	return (xfs_lsn_t)-1;
+	return error;
 }
 
-/*
- * The RUD dependency tracking op doesn't do squat.  It can't because
- * it doesn't know where the free extent is coming from.  The dependency
- * tracking has to be handled by the "enclosing" metadata object.  For
- * example, for inodes, the inode is locked throughout the extent freeing
- * so the dependency should be recorded there.
- */
+/* Sort rmap intents by AG. */
+static int
+xfs_rmap_update_diff_items(
+	void				*priv,
+	struct list_head		*a,
+	struct list_head		*b)
+{
+	struct xfs_mount		*mp = priv;
+	struct xfs_rmap_intent		*ra;
+	struct xfs_rmap_intent		*rb;
+
+	ra = container_of(a, struct xfs_rmap_intent, ri_list);
+	rb = container_of(b, struct xfs_rmap_intent, ri_list);
+	return  XFS_FSB_TO_AGNO(mp, ra->ri_bmap.br_startblock) -
+		XFS_FSB_TO_AGNO(mp, rb->ri_bmap.br_startblock);
+}
+
+/* Get an RUI. */
+STATIC void *
+xfs_rmap_update_create_intent(
+	struct xfs_trans		*tp,
+	unsigned int			count)
+{
+	struct xfs_rui_log_item		*ruip;
+
+	ASSERT(tp != NULL);
+	ASSERT(count > 0);
+
+	ruip = xfs_rui_init(tp->t_mountp, count);
+	ASSERT(ruip != NULL);
+
+	/*
+	 * Get a log_item_desc to point at the new item.
+	 */
+	xfs_trans_add_item(tp, &ruip->rui_item);
+	return ruip;
+}
+
+/* Log rmap updates in the intent item. */
 STATIC void
-xfs_rud_item_committing(
-	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
+xfs_rmap_update_log_item(
+	struct xfs_trans		*tp,
+	void				*intent,
+	struct list_head		*item)
 {
+	struct xfs_rui_log_item		*ruip = intent;
+	struct xfs_rmap_intent		*rmap;
+	uint				next_extent;
+	struct xfs_map_extent		*map;
+
+	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
+
+	tp->t_flags |= XFS_TRANS_DIRTY;
+	set_bit(XFS_LI_DIRTY, &ruip->rui_item.li_flags);
+
+	/*
+	 * atomic_inc_return gives us the value after the increment;
+	 * we want to use it as an array index so we need to subtract 1 from
+	 * it.
+	 */
+	next_extent = atomic_inc_return(&ruip->rui_next_extent) - 1;
+	ASSERT(next_extent < ruip->rui_format.rui_nextents);
+	map = &ruip->rui_format.rui_extents[next_extent];
+	map->me_owner = rmap->ri_owner;
+	map->me_startblock = rmap->ri_bmap.br_startblock;
+	map->me_startoff = rmap->ri_bmap.br_startoff;
+	map->me_len = rmap->ri_bmap.br_blockcount;
+	xfs_trans_set_rmap_flags(map, rmap->ri_type, rmap->ri_whichfork,
+			rmap->ri_bmap.br_state);
 }
 
-/*
- * This is the ops vector shared by all rud log items.
- */
-static const struct xfs_item_ops xfs_rud_item_ops = {
-	.iop_size	= xfs_rud_item_size,
-	.iop_format	= xfs_rud_item_format,
-	.iop_pin	= xfs_rud_item_pin,
-	.iop_unpin	= xfs_rud_item_unpin,
-	.iop_unlock	= xfs_rud_item_unlock,
-	.iop_committed	= xfs_rud_item_committed,
-	.iop_push	= xfs_rud_item_push,
-	.iop_committing = xfs_rud_item_committing,
+/* Get an RUD so we can process all the deferred rmap updates. */
+STATIC void *
+xfs_rmap_update_create_done(
+	struct xfs_trans		*tp,
+	void				*intent,
+	unsigned int			count)
+{
+	return xfs_trans_get_rud(tp, intent);
+}
+
+/* Process a deferred rmap update. */
+STATIC int
+xfs_rmap_update_finish_item(
+	struct xfs_trans		*tp,
+	struct list_head		*item,
+	void				*done_item,
+	void				**state)
+{
+	struct xfs_rmap_intent		*rmap;
+	int				error;
+
+	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
+	error = xfs_trans_log_finish_rmap_update(tp, done_item,
+			rmap->ri_type,
+			rmap->ri_owner, rmap->ri_whichfork,
+			rmap->ri_bmap.br_startoff,
+			rmap->ri_bmap.br_startblock,
+			rmap->ri_bmap.br_blockcount,
+			rmap->ri_bmap.br_state,
+			(struct xfs_btree_cur **)state);
+	kmem_free(rmap);
+	return error;
+}
+
+/* Clean up after processing deferred rmaps. */
+STATIC void
+xfs_rmap_update_finish_cleanup(
+	struct xfs_trans	*tp,
+	void			*state,
+	int			error)
+{
+	struct xfs_btree_cur	*rcur = state;
+
+	xfs_rmap_finish_one_cleanup(tp, rcur, error);
+}
+
+/* Abort all pending RUIs. */
+STATIC void
+xfs_rmap_update_abort_intent(
+	void				*intent)
+{
+	xfs_rui_release(intent);
+}
+
+/* Cancel a deferred rmap update. */
+STATIC void
+xfs_rmap_update_cancel_item(
+	struct list_head		*item)
+{
+	struct xfs_rmap_intent		*rmap;
+
+	rmap = container_of(item, struct xfs_rmap_intent, ri_list);
+	kmem_free(rmap);
+}
+
+const struct xfs_defer_op_type xfs_rmap_update_defer_type = {
+	.max_items	= XFS_RUI_MAX_FAST_EXTENTS,
+	.diff_items	= xfs_rmap_update_diff_items,
+	.create_intent	= xfs_rmap_update_create_intent,
+	.abort_intent	= xfs_rmap_update_abort_intent,
+	.log_item	= xfs_rmap_update_log_item,
+	.create_done	= xfs_rmap_update_create_done,
+	.finish_item	= xfs_rmap_update_finish_item,
+	.finish_cleanup = xfs_rmap_update_finish_cleanup,
+	.cancel_item	= xfs_rmap_update_cancel_item,
 };
-
-/*
- * Allocate and initialize an rud item with the given number of extents.
- */
-struct xfs_rud_log_item *
-xfs_rud_init(
-	struct xfs_mount		*mp,
-	struct xfs_rui_log_item		*ruip)
-
-{
-	struct xfs_rud_log_item	*rudp;
-
-	rudp = kmem_zone_zalloc(xfs_rud_zone, KM_SLEEP);
-	xfs_log_item_init(mp, &rudp->rud_item, XFS_LI_RUD, &xfs_rud_item_ops);
-	rudp->rud_ruip = ruip;
-	rudp->rud_format.rud_rui_id = ruip->rui_format.rui_id;
-
-	return rudp;
-}
 
 /*
  * Process an rmap update intent item that was recovered from the log.
@@ -470,7 +543,8 @@ xfs_rui_recover(
 		}
 	}
 
-	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate, 0, 0, 0, &tp);
+	error = xfs_trans_alloc(mp, &M_RES(mp)->tr_itruncate,
+			mp->m_rmap_maxlevels, 0, XFS_TRANS_RESERVE, &tp);
 	if (error)
 		return error;
 	rudp = xfs_trans_get_rud(tp, ruip);

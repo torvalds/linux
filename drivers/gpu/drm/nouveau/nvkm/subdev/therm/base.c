@@ -21,8 +21,10 @@
  *
  * Authors: Martin Peres
  */
-#include <nvkm/core/option.h>
 #include "priv.h"
+
+#include <core/option.h>
+#include <subdev/pmu.h>
 
 int
 nvkm_therm_temp_get(struct nvkm_therm *therm)
@@ -132,11 +134,12 @@ nvkm_therm_update(struct nvkm_therm *therm, int mode)
 			duty = nvkm_therm_update_linear(therm);
 			break;
 		case NVBIOS_THERM_FAN_OTHER:
-			if (therm->cstate)
+			if (therm->cstate) {
 				duty = therm->cstate;
-			else
+				poll = false;
+			} else {
 				duty = nvkm_therm_update_linear_fallback(therm);
-			poll = false;
+			}
 			break;
 		}
 		immd = false;
@@ -191,8 +194,7 @@ nvkm_therm_fan_mode(struct nvkm_therm *therm, int mode)
 
 	/* The default PPWR ucode on fermi interferes with fan management */
 	if ((mode >= ARRAY_SIZE(name)) ||
-	    (mode != NVKM_THERM_CTRL_NONE && device->card_type >= NV_C0 &&
-	     !device->pmu))
+	    (mode != NVKM_THERM_CTRL_NONE && nvkm_pmu_fan_controlled(device)))
 		return -EINVAL;
 
 	/* do not allow automatic fan management if the thermal sensor is
@@ -301,7 +303,7 @@ nvkm_therm_attr_set(struct nvkm_therm *therm,
 void
 nvkm_therm_clkgate_enable(struct nvkm_therm *therm)
 {
-	if (!therm->func->clkgate_enable || !therm->clkgating_enabled)
+	if (!therm || !therm->func->clkgate_enable || !therm->clkgating_enabled)
 		return;
 
 	nvkm_debug(&therm->subdev,
@@ -312,7 +314,7 @@ nvkm_therm_clkgate_enable(struct nvkm_therm *therm)
 void
 nvkm_therm_clkgate_fini(struct nvkm_therm *therm, bool suspend)
 {
-	if (!therm->func->clkgate_fini || !therm->clkgating_enabled)
+	if (!therm || !therm->func->clkgate_fini || !therm->clkgating_enabled)
 		return;
 
 	nvkm_debug(&therm->subdev,
@@ -395,7 +397,7 @@ void
 nvkm_therm_clkgate_init(struct nvkm_therm *therm,
 			const struct nvkm_therm_clkgate_pack *p)
 {
-	if (!therm->func->clkgate_init || !therm->clkgating_enabled)
+	if (!therm || !therm->func->clkgate_init || !therm->clkgating_enabled)
 		return;
 
 	therm->func->clkgate_init(therm, p);

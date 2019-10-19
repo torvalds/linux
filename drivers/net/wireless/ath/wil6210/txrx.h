@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2012-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,6 +18,9 @@
 #ifndef WIL6210_TXRX_H
 #define WIL6210_TXRX_H
 
+#include "wil6210.h"
+#include "txrx_edma.h"
+
 #define BUF_SW_OWNED    (1)
 #define BUF_HW_OWNED    (0)
 
@@ -28,19 +32,13 @@
 
 /* Tx/Rx path */
 
-/* Common representation of physical address in Vring */
-struct vring_dma_addr {
-	__le32 addr_low;
-	__le16 addr_high;
-} __packed;
-
-static inline dma_addr_t wil_desc_addr(struct vring_dma_addr *addr)
+static inline dma_addr_t wil_desc_addr(struct wil_ring_dma_addr *addr)
 {
 	return le32_to_cpu(addr->addr_low) |
 			   ((u64)le16_to_cpu(addr->addr_high) << 32);
 }
 
-static inline void wil_desc_addr_set(struct vring_dma_addr *addr,
+static inline void wil_desc_addr_set(struct wil_ring_dma_addr *addr,
 				     dma_addr_t pa)
 {
 	addr->addr_low = cpu_to_le32(lower_32_bits(pa));
@@ -63,7 +61,9 @@ static inline void wil_desc_addr_set(struct vring_dma_addr *addr,
  * [dword 1]
  * bit  0.. 3 : pkt_mode:4
  * bit      4 : pkt_mode_en:1
- * bit  5..14 : reserved0:10
+ * bit      5 : mac_id_en:1
+ * bit   6..7 : mac_id:2
+ * bit  8..14 : reserved0:7
  * bit     15 : ack_policy_en:1
  * bit 16..19 : dst_index:4
  * bit     20 : dst_index_en:1
@@ -131,6 +131,14 @@ struct vring_tx_mac {
 #define MAC_CFG_DESC_TX_1_PKT_MODE_EN_POS 4
 #define MAC_CFG_DESC_TX_1_PKT_MODE_EN_LEN 1
 #define MAC_CFG_DESC_TX_1_PKT_MODE_EN_MSK 0x10
+
+#define MAC_CFG_DESC_TX_1_MAC_ID_EN_POS 5
+#define MAC_CFG_DESC_TX_1_MAC_ID_EN_LEN 1
+#define MAC_CFG_DESC_TX_1_MAC_ID_EN_MSK 0x20
+
+#define MAC_CFG_DESC_TX_1_MAC_ID_POS 6
+#define MAC_CFG_DESC_TX_1_MAC_ID_LEN 2
+#define MAC_CFG_DESC_TX_1_MAC_ID_MSK 0xc0
 
 #define MAC_CFG_DESC_TX_1_ACK_POLICY_EN_POS 15
 #define MAC_CFG_DESC_TX_1_ACK_POLICY_EN_LEN 1
@@ -283,7 +291,7 @@ struct vring_tx_mac {
  */
 struct vring_tx_dma {
 	u32 d0;
-	struct vring_dma_addr addr;
+	struct wil_ring_dma_addr addr;
 	u8  ip_length;
 	u8  b11;       /* 0..6: mac_length; 7:ip_version */
 	u8  error;     /* 0..2: err; 3..7: reserved; */
@@ -304,7 +312,7 @@ enum {
  * bit  0.. 3 : tid:4 The QoS (b3-0) TID Field
  * bit  4.. 6 : cid:3 The Source index that  was found during parsing the TA.
  *		This field is used to define the source of the packet
- * bit      7 : reserved:1
+ * bit      7 : MAC_id_valid:1, 1 if MAC virtual number is valid.
  * bit  8.. 9 : mid:2 The MAC virtual number
  * bit 10..11 : frame_type:2 : The FC (b3-2) - MPDU Type
  *		(management, data, control and extension)
@@ -395,6 +403,7 @@ struct vring_rx_mac {
 #define RX_DMA_D0_CMD_DMA_EOP	BIT(8)
 #define RX_DMA_D0_CMD_DMA_RT	BIT(9)  /* always 1 */
 #define RX_DMA_D0_CMD_DMA_IT	BIT(10) /* interrupt */
+#define RX_MAC_D0_MAC_ID_VALID	BIT(7)
 
 /* Error field */
 #define RX_DMA_ERROR_FCS	BIT(0)
@@ -414,9 +423,49 @@ struct vring_rx_mac {
 #define RX_DMA_STATUS_PHY_INFO	BIT(6)
 #define RX_DMA_STATUS_FFM	BIT(7) /* EtherType Flex Filter Match */
 
+/* IEEE 802.11, 8.5.2 EAPOL-Key frames */
+#define WIL_KEY_INFO_KEY_TYPE BIT(3) /* val of 1 = Pairwise, 0 = Group key */
+
+#define WIL_KEY_INFO_MIC BIT(8)
+#define WIL_KEY_INFO_ENCR_KEY_DATA BIT(12) /* for rsn only */
+
+#define WIL_EAP_NONCE_LEN 32
+#define WIL_EAP_KEY_RSC_LEN 8
+#define WIL_EAP_REPLAY_COUNTER_LEN 8
+#define WIL_EAP_KEY_IV_LEN 16
+#define WIL_EAP_KEY_ID_LEN 8
+
+enum {
+	WIL_1X_TYPE_EAP_PACKET = 0,
+	WIL_1X_TYPE_EAPOL_START = 1,
+	WIL_1X_TYPE_EAPOL_LOGOFF = 2,
+	WIL_1X_TYPE_EAPOL_KEY = 3,
+};
+
+#define WIL_EAPOL_KEY_TYPE_RSN 2
+#define WIL_EAPOL_KEY_TYPE_WPA 254
+
+struct wil_1x_hdr {
+	u8 version;
+	u8 type;
+	__be16 length;
+	/* followed by data */
+} __packed;
+
+struct wil_eapol_key {
+	u8 type;
+	__be16 key_info;
+	__be16 key_length;
+	u8 replay_counter[WIL_EAP_REPLAY_COUNTER_LEN];
+	u8 key_nonce[WIL_EAP_NONCE_LEN];
+	u8 key_iv[WIL_EAP_KEY_IV_LEN];
+	u8 key_rsc[WIL_EAP_KEY_RSC_LEN];
+	u8 key_id[WIL_EAP_KEY_ID_LEN];
+} __packed;
+
 struct vring_rx_dma {
 	u32 d0;
-	struct vring_dma_addr addr;
+	struct wil_ring_dma_addr addr;
 	u8  ip_length;
 	u8  b11;
 	u8  error;
@@ -429,15 +478,37 @@ struct vring_tx_desc {
 	struct vring_tx_dma dma;
 } __packed;
 
+union wil_tx_desc {
+	struct vring_tx_desc legacy;
+	struct wil_tx_enhanced_desc enhanced;
+} __packed;
+
 struct vring_rx_desc {
 	struct vring_rx_mac mac;
 	struct vring_rx_dma dma;
 } __packed;
 
-union vring_desc {
-	struct vring_tx_desc tx;
-	struct vring_rx_desc rx;
+union wil_rx_desc {
+	struct vring_rx_desc legacy;
+	struct wil_rx_enhanced_desc enhanced;
 } __packed;
+
+union wil_ring_desc {
+	union wil_tx_desc tx;
+	union wil_rx_desc rx;
+} __packed;
+
+struct packet_rx_info {
+	u8 cid;
+};
+
+/* this struct will be stored in the skb cb buffer
+ * max length of the struct is limited to 48 bytes
+ */
+struct skb_rx_info {
+	struct vring_rx_desc rx_desc;
+	struct packet_rx_info rx_info;
+};
 
 static inline int wil_rxdesc_tid(struct vring_rx_desc *d)
 {
@@ -451,7 +522,8 @@ static inline int wil_rxdesc_cid(struct vring_rx_desc *d)
 
 static inline int wil_rxdesc_mid(struct vring_rx_desc *d)
 {
-	return WIL_GET_BITS(d->mac.d0, 8, 9);
+	return (d->mac.d0 & RX_MAC_D0_MAC_ID_VALID) ?
+		WIL_GET_BITS(d->mac.d0, 8, 9) : 0;
 }
 
 static inline int wil_rxdesc_ftype(struct vring_rx_desc *d)
@@ -480,6 +552,11 @@ static inline int wil_rxdesc_ext_subtype(struct vring_rx_desc *d)
 	return WIL_GET_BITS(d->mac.d0, 28, 31);
 }
 
+static inline int wil_rxdesc_retry(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 31, 31);
+}
+
 static inline int wil_rxdesc_key_id(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->mac.d1, 4, 5);
@@ -505,22 +582,122 @@ static inline int wil_rxdesc_mcast(struct vring_rx_desc *d)
 	return WIL_GET_BITS(d->mac.d1, 13, 14);
 }
 
-static inline int wil_rxdesc_phy_length(struct vring_rx_desc *d)
-{
-	return WIL_GET_BITS(d->dma.d0, 16, 29);
-}
-
 static inline struct vring_rx_desc *wil_skb_rxdesc(struct sk_buff *skb)
 {
 	return (void *)skb->cb;
 }
 
+static inline int wil_ring_is_empty(struct wil_ring *ring)
+{
+	return ring->swhead == ring->swtail;
+}
+
+static inline u32 wil_ring_next_tail(struct wil_ring *ring)
+{
+	return (ring->swtail + 1) % ring->size;
+}
+
+static inline void wil_ring_advance_head(struct wil_ring *ring, int n)
+{
+	ring->swhead = (ring->swhead + n) % ring->size;
+}
+
+static inline int wil_ring_is_full(struct wil_ring *ring)
+{
+	return wil_ring_next_tail(ring) == ring->swhead;
+}
+
+static inline u8 *wil_skb_get_da(struct sk_buff *skb)
+{
+	struct ethhdr *eth = (void *)skb->data;
+
+	return eth->h_dest;
+}
+
+static inline u8 *wil_skb_get_sa(struct sk_buff *skb)
+{
+	struct ethhdr *eth = (void *)skb->data;
+
+	return eth->h_source;
+}
+
+static inline bool wil_need_txstat(struct sk_buff *skb)
+{
+	const u8 *da = wil_skb_get_da(skb);
+
+	return is_unicast_ether_addr(da) && skb->sk &&
+	       (skb_shinfo(skb)->tx_flags & SKBTX_WIFI_STATUS);
+}
+
+static inline void wil_consume_skb(struct sk_buff *skb, bool acked)
+{
+	if (unlikely(wil_need_txstat(skb)))
+		skb_complete_wifi_ack(skb, acked);
+	else
+		acked ? dev_consume_skb_any(skb) : dev_kfree_skb_any(skb);
+}
+
+/* Used space in Tx ring */
+static inline int wil_ring_used_tx(struct wil_ring *ring)
+{
+	u32 swhead = ring->swhead;
+	u32 swtail = ring->swtail;
+
+	return (ring->size + swhead - swtail) % ring->size;
+}
+
+/* Available space in Tx ring */
+static inline int wil_ring_avail_tx(struct wil_ring *ring)
+{
+	return ring->size - wil_ring_used_tx(ring) - 1;
+}
+
+static inline int wil_get_min_tx_ring_id(struct wil6210_priv *wil)
+{
+	/* In Enhanced DMA ring 0 is reserved for RX */
+	return wil->use_enhanced_dma_hw ? 1 : 0;
+}
+
+/* similar to ieee80211_ version, but FC contain only 1-st byte */
+static inline int wil_is_back_req(u8 fc)
+{
+	return (fc & (IEEE80211_FCTL_FTYPE | IEEE80211_FCTL_STYPE)) ==
+	       (IEEE80211_FTYPE_CTL | IEEE80211_STYPE_BACK_REQ);
+}
+
+/* wil_val_in_range - check if value in [min,max) */
+static inline bool wil_val_in_range(int val, int min, int max)
+{
+	return val >= min && val < max;
+}
+
+static inline u8 wil_skb_get_cid(struct sk_buff *skb)
+{
+	struct skb_rx_info *skb_rx_info = (void *)skb->cb;
+
+	return skb_rx_info->rx_info.cid;
+}
+
+static inline void wil_skb_set_cid(struct sk_buff *skb, u8 cid)
+{
+	struct skb_rx_info *skb_rx_info = (void *)skb->cb;
+
+	skb_rx_info->rx_info.cid = cid;
+}
+
 void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev);
+void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
+		  struct wil_net_stats *stats, bool gro);
 void wil_rx_reorder(struct wil6210_priv *wil, struct sk_buff *skb);
-void wil_rx_bar(struct wil6210_priv *wil, u8 cid, u8 tid, u16 seq);
+void wil_rx_bar(struct wil6210_priv *wil, struct wil6210_vif *vif,
+		u8 cid, u8 tid, u16 seq);
 struct wil_tid_ampdu_rx *wil_tid_ampdu_rx_alloc(struct wil6210_priv *wil,
 						int size, u16 ssn);
 void wil_tid_ampdu_rx_free(struct wil6210_priv *wil,
 			   struct wil_tid_ampdu_rx *r);
+void wil_tx_data_init(struct wil_ring_tx_data *txdata);
+void wil_init_txrx_ops_legacy_dma(struct wil6210_priv *wil);
+void wil_tx_latency_calc(struct wil6210_priv *wil, struct sk_buff *skb,
+			 struct wil_sta_info *sta);
 
 #endif /* WIL6210_TXRX_H */

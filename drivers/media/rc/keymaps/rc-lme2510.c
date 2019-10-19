@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* LME2510 remote control
  *
- *
  * Copyright (C) 2010 Malcolm Priestley (tvboxspy@gmail.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <media/rc-map.h>
@@ -15,16 +10,16 @@
 
 static struct rc_map_table lme2510_rc[] = {
 	/* Type 1 - 26 buttons */
-	{ 0xef12ba45, KEY_0 },
-	{ 0xef12a05f, KEY_1 },
-	{ 0xef12af50, KEY_2 },
-	{ 0xef12a25d, KEY_3 },
-	{ 0xef12be41, KEY_4 },
-	{ 0xef12f50a, KEY_5 },
-	{ 0xef12bd42, KEY_6 },
-	{ 0xef12b847, KEY_7 },
-	{ 0xef12b649, KEY_8 },
-	{ 0xef12fa05, KEY_9 },
+	{ 0xef12ba45, KEY_NUMERIC_0 },
+	{ 0xef12a05f, KEY_NUMERIC_1 },
+	{ 0xef12af50, KEY_NUMERIC_2 },
+	{ 0xef12a25d, KEY_NUMERIC_3 },
+	{ 0xef12be41, KEY_NUMERIC_4 },
+	{ 0xef12f50a, KEY_NUMERIC_5 },
+	{ 0xef12bd42, KEY_NUMERIC_6 },
+	{ 0xef12b847, KEY_NUMERIC_7 },
+	{ 0xef12b649, KEY_NUMERIC_8 },
+	{ 0xef12fa05, KEY_NUMERIC_9 },
 	{ 0xef12bc43, KEY_POWER },
 	{ 0xef12b946, KEY_SUBTITLE },
 	{ 0xef12f906, KEY_PAUSE },
@@ -42,16 +37,16 @@ static struct rc_map_table lme2510_rc[] = {
 	{ 0xef12f807, KEY_EPG },
 	{ 0xef12fe01, KEY_STOP },
 	/* Type 2 - 20 buttons */
-	{ 0xff40ea15, KEY_0 },
-	{ 0xff40f708, KEY_1 },
-	{ 0xff40f609, KEY_2 },
-	{ 0xff40f50a, KEY_3 },
-	{ 0xff40f30c, KEY_4 },
-	{ 0xff40f20d, KEY_5 },
-	{ 0xff40f10e, KEY_6 },
-	{ 0xff40ef10, KEY_7 },
-	{ 0xff40ee11, KEY_8 },
-	{ 0xff40ed12, KEY_9 },
+	{ 0xff40ea15, KEY_NUMERIC_0 },
+	{ 0xff40f708, KEY_NUMERIC_1 },
+	{ 0xff40f609, KEY_NUMERIC_2 },
+	{ 0xff40f50a, KEY_NUMERIC_3 },
+	{ 0xff40f30c, KEY_NUMERIC_4 },
+	{ 0xff40f20d, KEY_NUMERIC_5 },
+	{ 0xff40f10e, KEY_NUMERIC_6 },
+	{ 0xff40ef10, KEY_NUMERIC_7 },
+	{ 0xff40ee11, KEY_NUMERIC_8 },
+	{ 0xff40ed12, KEY_NUMERIC_9 },
 	{ 0xff40ff00, KEY_POWER },
 	{ 0xff40fb04, KEY_MEDIA_REPEAT}, /* Recall */
 	{ 0xff40e51a, KEY_PAUSE }, /* Timeshift */
@@ -63,16 +58,16 @@ static struct rc_map_table lme2510_rc[] = {
 	{ 0xff40e718, KEY_RECORD },
 	{ 0xff40e916, KEY_STOP },
 	/* Type 3 - 20 buttons */
-	{ 0xff00e31c, KEY_0 },
-	{ 0xff00f807, KEY_1 },
-	{ 0xff00ea15, KEY_2 },
-	{ 0xff00f609, KEY_3 },
-	{ 0xff00e916, KEY_4 },
-	{ 0xff00e619, KEY_5 },
-	{ 0xff00f20d, KEY_6 },
-	{ 0xff00f30c, KEY_7 },
-	{ 0xff00e718, KEY_8 },
-	{ 0xff00a15e, KEY_9 },
+	{ 0xff00e31c, KEY_NUMERIC_0 },
+	{ 0xff00f807, KEY_NUMERIC_1 },
+	{ 0xff00ea15, KEY_NUMERIC_2 },
+	{ 0xff00f609, KEY_NUMERIC_3 },
+	{ 0xff00e916, KEY_NUMERIC_4 },
+	{ 0xff00e619, KEY_NUMERIC_5 },
+	{ 0xff00f20d, KEY_NUMERIC_6 },
+	{ 0xff00f30c, KEY_NUMERIC_7 },
+	{ 0xff00e718, KEY_NUMERIC_8 },
+	{ 0xff00a15e, KEY_NUMERIC_9 },
 	{ 0xff00ba45, KEY_POWER },
 	{ 0xff00bb44, KEY_MEDIA_REPEAT}, /* Recall */
 	{ 0xff00b54a, KEY_PAUSE }, /* Timeshift */

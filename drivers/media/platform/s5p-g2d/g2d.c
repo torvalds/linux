@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Samsung S5P G2D - 2D Graphics Accelerator Driver
  *
  * Copyright (c) 2011 Samsung Electronics Co., Ltd.
  * Kamil Debski, <k.debski@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version
  */
 
 #include <linux/module.h>
@@ -33,31 +29,26 @@
 
 static struct g2d_fmt formats[] = {
 	{
-		.name	= "XRGB_8888",
 		.fourcc	= V4L2_PIX_FMT_RGB32,
 		.depth	= 32,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_8888),
 	},
 	{
-		.name	= "RGB_565",
 		.fourcc	= V4L2_PIX_FMT_RGB565X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_RGB_565),
 	},
 	{
-		.name	= "XRGB_1555",
 		.fourcc	= V4L2_PIX_FMT_RGB555X,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_1555),
 	},
 	{
-		.name	= "XRGB_4444",
 		.fourcc	= V4L2_PIX_FMT_RGB444,
 		.depth	= 16,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_XRGB_4444),
 	},
 	{
-		.name	= "PACKED_RGB_888",
 		.fourcc	= V4L2_PIX_FMT_RGB24,
 		.depth	= 24,
 		.hw	= COLOR_MODE(ORDER_XRGB, MODE_PACKED_RGB_888),
@@ -89,7 +80,7 @@ static struct g2d_fmt *find_fmt(struct v4l2_format *f)
 
 
 static struct g2d_frame *get_frame(struct g2d_ctx *ctx,
-							enum v4l2_buf_type type)
+				   enum v4l2_buf_type type)
 {
 	switch (type) {
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
@@ -142,6 +133,8 @@ static const struct vb2_ops g2d_qops = {
 	.queue_setup	= g2d_queue_setup,
 	.buf_prepare	= g2d_buf_prepare,
 	.buf_queue	= g2d_buf_queue,
+	.wait_prepare	= vb2_ops_wait_prepare,
+	.wait_finish	= vb2_ops_wait_finish,
 };
 
 static int queue_init(void *priv, struct vb2_queue *src_vq,
@@ -295,22 +288,17 @@ static int g2d_release(struct file *file)
 static int vidioc_querycap(struct file *file, void *priv,
 				struct v4l2_capability *cap)
 {
-	strncpy(cap->driver, G2D_NAME, sizeof(cap->driver) - 1);
-	strncpy(cap->card, G2D_NAME, sizeof(cap->card) - 1);
+	strscpy(cap->driver, G2D_NAME, sizeof(cap->driver));
+	strscpy(cap->card, G2D_NAME, sizeof(cap->card));
 	cap->bus_info[0] = 0;
-	cap->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
 static int vidioc_enum_fmt(struct file *file, void *prv, struct v4l2_fmtdesc *f)
 {
-	struct g2d_fmt *fmt;
 	if (f->index >= NUM_FORMATS)
 		return -EINVAL;
-	fmt = &formats[f->index];
-	f->pixelformat = fmt->fourcc;
-	strncpy(f->description, fmt->name, sizeof(f->description) - 1);
+	f->pixelformat = formats[f->index].fourcc;
 	return 0;
 }
 
@@ -406,51 +394,76 @@ static int vidioc_s_fmt(struct file *file, void *prv, struct v4l2_format *f)
 	return 0;
 }
 
-static int vidioc_cropcap(struct file *file, void *priv,
-					struct v4l2_cropcap *cr)
-{
-	struct g2d_ctx *ctx = priv;
-	struct g2d_frame *f;
-
-	f = get_frame(ctx, cr->type);
-	if (IS_ERR(f))
-		return PTR_ERR(f);
-
-	cr->bounds.left		= 0;
-	cr->bounds.top		= 0;
-	cr->bounds.width	= f->width;
-	cr->bounds.height	= f->height;
-	cr->defrect		= cr->bounds;
-	return 0;
-}
-
-static int vidioc_g_crop(struct file *file, void *prv, struct v4l2_crop *cr)
+static int vidioc_g_selection(struct file *file, void *prv,
+			      struct v4l2_selection *s)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_frame *f;
 
-	f = get_frame(ctx, cr->type);
+	f = get_frame(ctx, s->type);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 
-	cr->c.left	= f->o_height;
-	cr->c.top	= f->o_width;
-	cr->c.width	= f->c_width;
-	cr->c.height	= f->c_height;
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		if (s->type != V4L2_BUF_TYPE_VIDEO_OUTPUT)
+			return -EINVAL;
+		break;
+	case V4L2_SEL_TGT_COMPOSE:
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		if (s->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (s->target) {
+	case V4L2_SEL_TGT_CROP:
+	case V4L2_SEL_TGT_COMPOSE:
+		s->r.left = f->o_height;
+		s->r.top = f->o_width;
+		s->r.width = f->c_width;
+		s->r.height = f->c_height;
+		break;
+	case V4L2_SEL_TGT_CROP_DEFAULT:
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
+	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
+		s->r.left = 0;
+		s->r.top = 0;
+		s->r.width = f->width;
+		s->r.height = f->height;
+		break;
+	default:
+		return -EINVAL;
+	}
 	return 0;
 }
 
-static int vidioc_try_crop(struct file *file, void *prv, const struct v4l2_crop *cr)
+static int vidioc_try_selection(struct file *file, void *prv,
+				const struct v4l2_selection *s)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
 	struct g2d_frame *f;
 
-	f = get_frame(ctx, cr->type);
+	f = get_frame(ctx, s->type);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 
-	if (cr->c.top < 0 || cr->c.left < 0) {
+	if (s->type == V4L2_BUF_TYPE_VIDEO_CAPTURE) {
+		if (s->target != V4L2_SEL_TGT_COMPOSE)
+			return -EINVAL;
+	} else if (s->type == V4L2_BUF_TYPE_VIDEO_OUTPUT) {
+		if (s->target != V4L2_SEL_TGT_CROP)
+			return -EINVAL;
+	}
+
+	if (s->r.top < 0 || s->r.left < 0) {
 		v4l2_err(&dev->v4l2_dev,
 			"doesn't support negative values for top & left\n");
 		return -EINVAL;
@@ -459,46 +472,34 @@ static int vidioc_try_crop(struct file *file, void *prv, const struct v4l2_crop 
 	return 0;
 }
 
-static int vidioc_s_crop(struct file *file, void *prv, const struct v4l2_crop *cr)
+static int vidioc_s_selection(struct file *file, void *prv,
+			      struct v4l2_selection *s)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_frame *f;
 	int ret;
 
-	ret = vidioc_try_crop(file, prv, cr);
+	ret = vidioc_try_selection(file, prv, s);
 	if (ret)
 		return ret;
-	f = get_frame(ctx, cr->type);
+	f = get_frame(ctx, s->type);
 	if (IS_ERR(f))
 		return PTR_ERR(f);
 
-	f->c_width	= cr->c.width;
-	f->c_height	= cr->c.height;
-	f->o_width	= cr->c.left;
-	f->o_height	= cr->c.top;
+	f->c_width	= s->r.width;
+	f->c_height	= s->r.height;
+	f->o_width	= s->r.left;
+	f->o_height	= s->r.top;
 	f->bottom	= f->o_height + f->c_height;
 	f->right	= f->o_width + f->c_width;
 	return 0;
-}
-
-static void job_abort(void *prv)
-{
-	struct g2d_ctx *ctx = prv;
-	struct g2d_dev *dev = ctx->dev;
-
-	if (dev->curr == NULL) /* No job currently running */
-		return;
-
-	wait_event_timeout(dev->irq_queue,
-			   dev->curr == NULL,
-			   msecs_to_jiffies(G2D_TIMEOUT));
 }
 
 static void device_run(void *prv)
 {
 	struct g2d_ctx *ctx = prv;
 	struct g2d_dev *dev = ctx->dev;
-	struct vb2_buffer *src, *dst;
+	struct vb2_v4l2_buffer *src, *dst;
 	unsigned long flags;
 	u32 cmd = 0;
 
@@ -513,10 +514,10 @@ static void device_run(void *prv)
 	spin_lock_irqsave(&dev->ctrl_lock, flags);
 
 	g2d_set_src_size(dev, &ctx->in);
-	g2d_set_src_addr(dev, vb2_dma_contig_plane_dma_addr(src, 0));
+	g2d_set_src_addr(dev, vb2_dma_contig_plane_dma_addr(&src->vb2_buf, 0));
 
 	g2d_set_dst_size(dev, &ctx->out);
-	g2d_set_dst_addr(dev, vb2_dma_contig_plane_dma_addr(dst, 0));
+	g2d_set_dst_addr(dev, vb2_dma_contig_plane_dma_addr(&dst->vb2_buf, 0));
 
 	g2d_set_rop4(dev, ctx->rop);
 	g2d_set_flip(dev, ctx->flip);
@@ -563,7 +564,6 @@ static irqreturn_t g2d_isr(int irq, void *prv)
 	v4l2_m2m_job_finish(dev->m2m_dev, ctx->fh.m2m_ctx);
 
 	dev->curr = NULL;
-	wake_up(&dev->irq_queue);
 	return IRQ_HANDLED;
 }
 
@@ -597,9 +597,8 @@ static const struct v4l2_ioctl_ops g2d_ioctl_ops = {
 	.vidioc_streamon		= v4l2_m2m_ioctl_streamon,
 	.vidioc_streamoff		= v4l2_m2m_ioctl_streamoff,
 
-	.vidioc_g_crop			= vidioc_g_crop,
-	.vidioc_s_crop			= vidioc_s_crop,
-	.vidioc_cropcap			= vidioc_cropcap,
+	.vidioc_g_selection		= vidioc_g_selection,
+	.vidioc_s_selection		= vidioc_s_selection,
 };
 
 static const struct video_device g2d_videodev = {
@@ -613,7 +612,6 @@ static const struct video_device g2d_videodev = {
 
 static const struct v4l2_m2m_ops g2d_m2m_ops = {
 	.device_run	= device_run,
-	.job_abort	= job_abort,
 };
 
 static const struct of_device_id exynos_g2d_match[];
@@ -633,7 +631,6 @@ static int g2d_probe(struct platform_device *pdev)
 	spin_lock_init(&dev->ctrl_lock);
 	mutex_init(&dev->mutex);
 	atomic_set(&dev->num_inst, 0);
-	init_waitqueue_head(&dev->irq_queue);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
@@ -694,15 +691,16 @@ static int g2d_probe(struct platform_device *pdev)
 		goto unreg_v4l2_dev;
 	}
 	*vfd = g2d_videodev;
+	set_bit(V4L2_FL_QUIRK_INVERTED_CROP, &vfd->flags);
 	vfd->lock = &dev->mutex;
 	vfd->v4l2_dev = &dev->v4l2_dev;
+	vfd->device_caps = V4L2_CAP_VIDEO_M2M | V4L2_CAP_STREAMING;
 	ret = video_register_device(vfd, VFL_TYPE_GRABBER, 0);
 	if (ret) {
 		v4l2_err(&dev->v4l2_dev, "Failed to register video device\n");
 		goto rel_vdev;
 	}
 	video_set_drvdata(vfd, dev);
-	snprintf(vfd->name, sizeof(vfd->name), "%s", g2d_videodev.name);
 	dev->vfd = vfd;
 	v4l2_info(&dev->v4l2_dev, "device registered as /dev/video%d\n",
 								vfd->num);

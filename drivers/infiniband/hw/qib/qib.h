@@ -52,6 +52,7 @@
 #include <linux/kref.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
+#include <linux/xarray.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/rdma_vt.h>
 
@@ -471,9 +472,6 @@ enum qib_sdma_events {
 	qib_sdma_event_e7322_err_halted,
 	qib_sdma_event_e90_timer_tick,
 };
-
-extern char *qib_sdma_state_names[];
-extern char *qib_sdma_event_names[];
 
 struct sdma_set_state_action {
 	unsigned op_enable:1;
@@ -1108,8 +1106,7 @@ struct qib_filedata {
 	int rec_cpu_num; /* for cpu affinity; -1 if none */
 };
 
-extern struct list_head qib_dev_list;
-extern spinlock_t qib_devs_lock;
+extern struct xarray qib_dev_table;
 extern struct qib_devdata *qib_lookup(int unit);
 extern u32 qib_cpulist_count;
 extern unsigned long *qib_cpulist;
@@ -1231,6 +1228,7 @@ static inline struct qib_ibport *to_iport(struct ib_device *ibdev, u8 port)
 #define QIB_BADINTR           0x8000 /* severe interrupt problems */
 #define QIB_DCA_ENABLED       0x10000 /* Direct Cache Access enabled */
 #define QIB_HAS_QSFP          0x20000 /* device (card instance) has QSFP */
+#define QIB_SHUTDOWN          0x40000 /* device is shutting down */
 
 /*
  * values for ppd->lflags (_ib_port_ related flags)
@@ -1392,13 +1390,13 @@ static inline u32 qib_get_hdrqtail(const struct qib_ctxtdata *rcd)
  */
 
 extern const char ib_qib_version[];
+extern const struct attribute_group qib_attr_group;
 
 int qib_device_create(struct qib_devdata *);
 void qib_device_remove(struct qib_devdata *);
 
 int qib_create_port_files(struct ib_device *ibdev, u8 port_num,
 			  struct kobject *kobj);
-int qib_verbs_register_sysfs(struct qib_devdata *);
 void qib_verbs_unregister_sysfs(struct qib_devdata *);
 /* Hook for sysfs read of QSFP */
 extern int qib_qsfp_dump(struct qib_pportdata *ppd, char *buf, int len);
@@ -1426,8 +1424,7 @@ u64 qib_sps_ints(void);
 /*
  * dma_addr wrappers - all 0's invalid for hw
  */
-dma_addr_t qib_map_page(struct pci_dev *, struct page *, unsigned long,
-			  size_t, int);
+int qib_map_page(struct pci_dev *d, struct page *p, dma_addr_t *daddr);
 struct pci_dev *qib_get_pci_dev(struct rvt_dev_info *rdi);
 
 /*

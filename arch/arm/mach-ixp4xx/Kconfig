@@ -1,13 +1,27 @@
+# SPDX-License-Identifier: GPL-2.0-only
 if ARCH_IXP4XX
 
 menu "Intel IXP4xx Implementation Options"
 
 comment "IXP4xx Platforms"
 
+config MACH_IXP4XX_OF
+	bool
+	prompt "Devce Tree IXP4xx boards"
+	default y
+	select ARM_APPENDED_DTB # Old Redboot bootloaders deployed
+	select I2C
+	select I2C_IOP3XX
+	select PCI
+	select TIMER_OF
+	select USE_OF
+	help
+	  Say 'Y' here to support Device Tree-based IXP4xx platforms.
+
 config MACH_NSLU2
 	bool
 	prompt "Linksys NSLU2"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support Linksys's
 	  NSLU2 NAS device. For more information on this platform,
@@ -15,11 +29,11 @@ config MACH_NSLU2
 
 config MACH_AVILA
 	bool "Avila"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support the Gateworks
 	  Avila Network Platform. For more information on this platform,
-	  see <file:Documentation/arm/IXP4xx>.
+	  see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_LOFT
     bool "Loft"
@@ -31,15 +45,15 @@ config MACH_LOFT
 
 config ARCH_ADI_COYOTE
 	bool "Coyote"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support the ADI 
 	  Engineering Coyote Gateway Reference Platform. For more
-	  information on this platform, see <file:Documentation/arm/IXP4xx>.
+	  information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_GATEWAY7001
 	bool "Gateway 7001"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support Gateway's
 	  7001 Access Point. For more information on this platform,
@@ -47,7 +61,7 @@ config MACH_GATEWAY7001
 
 config MACH_WG302V2
 	bool "Netgear WG302 v2 / WAG302 v2"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support Netgear's
 	  WG302 v2 or WAG302 v2 Access Points. For more information
@@ -58,21 +72,21 @@ config ARCH_IXDP425
 	help
 	  Say 'Y' here if you want your kernel to support Intel's 
 	  IXDP425 Development Platform (Also known as Richfield).  
-	  For more information on this platform, see <file:Documentation/arm/IXP4xx>.
+	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_IXDPG425
 	bool "IXDPG425"
 	help
 	  Say 'Y' here if you want your kernel to support Intel's
 	  IXDPG425 Development Platform (Also known as Montajade).
-	  For more information on this platform, see <file:Documentation/arm/IXP4xx>.
+	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_IXDP465
 	bool "IXDP465"
 	help
 	  Say 'Y' here if you want your kernel to support Intel's
 	  IXDP465 Development Platform (Also known as BMP).
-	  For more information on this platform, see <file:Documentation/arm/IXP4xx>.
+	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_GORAMO_MLR
 	bool "GORAMO Multi Link Router"
@@ -85,7 +99,7 @@ config MACH_KIXRP435
 	help
 	  Say 'Y' here if you want your kernel to support Intel's
 	  KIXRP435 Reference Platform.
-	  For more information on this platform, see <file:Documentation/arm/IXP4xx>.
+	  For more information on this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 #
 # IXCDP1100 is the exact same HW as IXDP425, but with a different machine 
@@ -102,12 +116,12 @@ config ARCH_PRPMC1100
 	help
 	  Say 'Y' here if you want your kernel to support the Motorola
 	  PrPCM1100 Processor Mezanine Module. For more information on
-	  this platform, see <file:Documentation/arm/IXP4xx>.
+	  this platform, see <file:Documentation/arm/ixp4xx.rst>.
 
 config MACH_NAS100D
 	bool
 	prompt "NAS100D"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support Iomega's
 	  NAS 100d device. For more information on this platform,
@@ -116,7 +130,7 @@ config MACH_NAS100D
 config MACH_DSMG600
 	bool
 	prompt "D-Link DSM-G600 RevA"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support D-Link's
 	  DSM-G600 RevA device. For more information on this platform,
@@ -130,7 +144,7 @@ config	ARCH_IXDP4XX
 config MACH_FSG
 	bool
 	prompt "Freecom FSG-3"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support Freecom's
 	  FSG-3 device. For more information on this platform,
@@ -139,7 +153,7 @@ config MACH_FSG
 config MACH_ARCOM_VULCAN
 	bool
 	prompt "Arcom/Eurotech Vulcan"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support Arcom's
 	  Vulcan board.
@@ -160,7 +174,7 @@ config CPU_IXP43X
 config MACH_GTWX5715
 	bool "Gemtek WX5715 (Linksys WRV54G)"
 	depends on ARCH_IXP4XX
-	select PCI
+	select FORCE_PCI
 	help
 		This board is currently inside the Linksys WRV54G Gateways.
 
@@ -183,7 +197,7 @@ config MACH_DEVIXP
 
 config MACH_MICCPT
 	bool "Omicron MICCPT"
-	select PCI
+	select FORCE_PCI
 	help
 	  Say 'Y' here if you want your kernel to support the MICCPT
 	  board from OMICRON electronics GmbH.
@@ -221,19 +235,6 @@ config IXP4XX_INDIRECT_PCI
 	  By default, the direct method is used. Choose this option if you
 	  need to use the indirect method instead. If you don't know
 	  what you need, leave this option unselected.
-
-config IXP4XX_QMGR
-	tristate "IXP4xx Queue Manager support"
-	help
-	  This driver supports IXP4xx built-in hardware queue manager
-	  and is automatically selected by Ethernet and HSS drivers.
-
-config IXP4XX_NPE
-	tristate "IXP4xx Network Processor Engine support"
-	select FW_LOADER
-	help
-	  This driver supports IXP4xx built-in network coprocessors
-	  and is automatically selected by Ethernet and HSS drivers.
 
 endmenu
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * INET		An implementation of the TCP/IP protocol suite for the LINUX
  *		operating system.  INET is implemented using the  BSD Socket
@@ -7,11 +8,6 @@
  *
  * Authors:	Many, reorganised here by
  * 		Arnaldo Carvalho de Melo <acme@mandriva.com>
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  */
 #ifndef _INET_SOCK_H
 #define _INET_SOCK_H
@@ -130,10 +126,25 @@ static inline int inet_request_bound_dev_if(const struct sock *sk,
 	return sk->sk_bound_dev_if;
 }
 
-static inline struct ip_options_rcu *ireq_opt_deref(const struct inet_request_sock *ireq)
+static inline int inet_sk_bound_l3mdev(const struct sock *sk)
 {
-	return rcu_dereference_check(ireq->ireq_opt,
-				     refcount_read(&ireq->req.rsk_refcnt) > 0);
+#ifdef CONFIG_NET_L3_MASTER_DEV
+	struct net *net = sock_net(sk);
+
+	if (!net->ipv4.sysctl_tcp_l3mdev_accept)
+		return l3mdev_master_ifindex_by_index(net,
+						      sk->sk_bound_dev_if);
+#endif
+
+	return 0;
+}
+
+static inline bool inet_bound_dev_eq(bool l3mdev_accept, int bound_dev_if,
+				     int dif, int sdif)
+{
+	if (!bound_dev_if)
+		return !sdif || l3mdev_accept;
+	return bound_dev_if == dif || bound_dev_if == sdif;
 }
 
 struct inet_cork {
@@ -147,6 +158,9 @@ struct inet_cork {
 	__u8			ttl;
 	__s16			tos;
 	char			priority;
+	__u16			gso_size;
+	u64			transmit_time;
+	u32			mark;
 };
 
 struct inet_cork_full {
@@ -355,6 +369,14 @@ static inline void inet_dec_convert_csum(struct sock *sk)
 static inline bool inet_get_convert_csum(struct sock *sk)
 {
 	return !!inet_sk(sk)->convert_csum;
+}
+
+
+static inline bool inet_can_nonlocal_bind(struct net *net,
+					  struct inet_sock *inet)
+{
+	return net->ipv4.sysctl_ip_nonlocal_bind ||
+		inet->freebind || inet->transparent;
 }
 
 #endif	/* _INET_SOCK_H */

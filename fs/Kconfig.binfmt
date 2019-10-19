@@ -1,6 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "Executable file formats"
+
 config BINFMT_ELF
 	bool "Kernel support for ELF binaries"
-	depends on MMU && (BROKEN || !FRV)
+	depends on MMU
 	select ELFCORE
 	default y
 	---help---
@@ -35,7 +39,7 @@ config ARCH_BINFMT_ELF_STATE
 config BINFMT_ELF_FDPIC
 	bool "Kernel support for FDPIC ELF binaries"
 	default y if !BINFMT_ELF
-	depends on (ARM || FRV || BLACKFIN || (SUPERH32 && !MMU) || C6X)
+	depends on (ARM || (SUPERH32 && !MMU) || C6X)
 	select ELFCORE
 	help
 	  ELF FDPIC binaries are based on ELF, but allow the individual load
@@ -87,12 +91,27 @@ config BINFMT_SCRIPT
 
 	  Most systems will not boot if you say M or N here.  If unsure, say Y.
 
+config ARCH_HAS_BINFMT_FLAT
+	bool
+
 config BINFMT_FLAT
 	bool "Kernel support for flat binaries"
-	depends on !MMU || ARM || M68K
-	depends on !FRV || BROKEN
+	depends on ARCH_HAS_BINFMT_FLAT
 	help
 	  Support uClinux FLAT format binaries.
+
+config BINFMT_FLAT_ARGVP_ENVP_ON_STACK
+	bool
+
+config BINFMT_FLAT_OLD_ALWAYS_RAM
+	bool
+
+config BINFMT_FLAT_OLD
+	bool "Enable support for very old legacy flat binaries"
+	depends on BINFMT_FLAT
+	help
+	  Support decade old uClinux FLAT format binaries.  Unless you know
+	  you have some of those say N here.
 
 config BINFMT_ZFLAT
 	bool "Enable ZFLAT support"
@@ -169,7 +188,7 @@ config BINFMT_MISC
 	  will automatically feed it to the correct interpreter.
 
 	  You can do other nice things, too. Read the file
-	  <file:Documentation/binfmt_misc.txt> to learn how to use this
+	  <file:Documentation/admin-guide/binfmt-misc.rst> to learn how to use this
 	  feature, <file:Documentation/admin-guide/java.rst> for information about how
 	  to include Java support. and <file:Documentation/admin-guide/mono.rst> for
           information about how to include Mono-based .NET support.
@@ -188,3 +207,5 @@ config COREDUMP
 	  This option enables support for performing core dumps. You almost
 	  certainly want to say Y here. Not necessary on systems that never
 	  need debugging or only ever run flawless code.
+
+endmenu

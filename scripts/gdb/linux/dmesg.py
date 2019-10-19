@@ -16,6 +16,8 @@ import sys
 
 from linux import utils
 
+printk_log_type = utils.CachedType("struct printk_log")
+
 
 class LxDmesg(gdb.Command):
     """Print Linux kernel log buffer."""
@@ -42,9 +44,14 @@ class LxDmesg(gdb.Command):
             b = utils.read_memoryview(inf, log_buf_addr, log_next_idx)
             log_buf = a.tobytes() + b.tobytes()
 
+        length_offset = printk_log_type.get_type()['len'].bitpos // 8
+        text_len_offset = printk_log_type.get_type()['text_len'].bitpos // 8
+        time_stamp_offset = printk_log_type.get_type()['ts_nsec'].bitpos // 8
+        text_offset = printk_log_type.get_type().sizeof
+
         pos = 0
         while pos < log_buf.__len__():
-            length = utils.read_u16(log_buf[pos + 8:pos + 10])
+            length = utils.read_u16(log_buf, pos + length_offset)
             if length == 0:
                 if log_buf_2nd_half == -1:
                     gdb.write("Corrupted log buffer!\n")
@@ -52,10 +59,11 @@ class LxDmesg(gdb.Command):
                 pos = log_buf_2nd_half
                 continue
 
-            text_len = utils.read_u16(log_buf[pos + 10:pos + 12])
-            text = log_buf[pos + 16:pos + 16 + text_len].decode(
+            text_len = utils.read_u16(log_buf, pos + text_len_offset)
+            text_start = pos + text_offset
+            text = log_buf[text_start:text_start + text_len].decode(
                 encoding='utf8', errors='replace')
-            time_stamp = utils.read_u64(log_buf[pos:pos + 8])
+            time_stamp = utils.read_u64(log_buf, pos + time_stamp_offset)
 
             for line in text.splitlines():
                 msg = u"[{time:12.6f}] {line}\n".format(

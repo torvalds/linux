@@ -52,6 +52,7 @@ enum {
 	INTERCEPT_MWAIT,
 	INTERCEPT_MWAIT_COND,
 	INTERCEPT_XSETBV,
+	INTERCEPT_RDPRU,
 };
 
 
@@ -60,7 +61,8 @@ struct __attribute__ ((__packed__)) vmcb_control_area {
 	u32 intercept_dr;
 	u32 intercept_exceptions;
 	u64 intercept;
-	u8 reserved_1[42];
+	u8 reserved_1[40];
+	u16 pause_filter_thresh;
 	u16 pause_filter_count;
 	u64 iopm_base_pa;
 	u64 msrpm_base_pa;
@@ -288,12 +290,5 @@ struct __attribute__ ((__packed__)) vmcb {
 #define SVM_EXITINFO_REG_MASK 0x0F
 
 #define SVM_CR0_SELECTIVE_MASK (X86_CR0_TS | X86_CR0_MP)
-
-#define SVM_VMLOAD ".byte 0x0f, 0x01, 0xda"
-#define SVM_VMRUN  ".byte 0x0f, 0x01, 0xd8"
-#define SVM_VMSAVE ".byte 0x0f, 0x01, 0xdb"
-#define SVM_CLGI   ".byte 0x0f, 0x01, 0xdd"
-#define SVM_STGI   ".byte 0x0f, 0x01, 0xdc"
-#define SVM_INVLPGA ".byte 0x0f, 0x01, 0xdf"
 
 #endif

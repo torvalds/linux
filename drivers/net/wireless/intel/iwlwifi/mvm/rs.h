@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
  * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2017 Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * Contact Information:
  *  Intel Linux Wireless <linuxwifi@intel.com>
@@ -147,8 +133,13 @@ enum {
 
 #define LINK_QUAL_AGG_FRAME_LIMIT_DEF	(63)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MAX	(63)
-#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF	(64)
-#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_MAX	(64)
+/*
+ * FIXME - various places in firmware API still use u8,
+ * e.g. LQ command and SCD config command.
+ * This should be 256 instead.
+ */
+#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_DEF	(255)
+#define LINK_QUAL_AGG_FRAME_LIMIT_GEN2_MAX	(255)
 #define LINK_QUAL_AGG_FRAME_LIMIT_MIN	(0)
 
 #define LQ_SIZE		2	/* 2 mode tables:  "Active" and "Search" */
@@ -165,6 +156,8 @@ enum iwl_table_type {
 	LQ_HT_MIMO2,
 	LQ_VHT_SISO,    /* VHT types */
 	LQ_VHT_MIMO2,
+	LQ_HE_SISO,     /* HE types */
+	LQ_HE_MIMO2,
 	LQ_MAX,
 };
 
@@ -186,11 +179,16 @@ struct rs_rate {
 #define is_type_ht_mimo2(type) ((type) == LQ_HT_MIMO2)
 #define is_type_vht_siso(type) ((type) == LQ_VHT_SISO)
 #define is_type_vht_mimo2(type) ((type) == LQ_VHT_MIMO2)
-#define is_type_siso(type) (is_type_ht_siso(type) || is_type_vht_siso(type))
-#define is_type_mimo2(type) (is_type_ht_mimo2(type) || is_type_vht_mimo2(type))
+#define is_type_he_siso(type) ((type) == LQ_HE_SISO)
+#define is_type_he_mimo2(type) ((type) == LQ_HE_MIMO2)
+#define is_type_siso(type) (is_type_ht_siso(type) || is_type_vht_siso(type) || \
+			    is_type_he_siso(type))
+#define is_type_mimo2(type) (is_type_ht_mimo2(type) || \
+			     is_type_vht_mimo2(type) || is_type_he_mimo2(type))
 #define is_type_mimo(type) (is_type_mimo2(type))
 #define is_type_ht(type) (is_type_ht_siso(type) || is_type_ht_mimo2(type))
 #define is_type_vht(type) (is_type_vht_siso(type) || is_type_vht_mimo2(type))
+#define is_type_he(type) (is_type_he_siso(type) || is_type_he_mimo2(type))
 #define is_type_a_band(type) ((type) == LQ_LEGACY_A)
 #define is_type_g_band(type) ((type) == LQ_LEGACY_G)
 
@@ -204,6 +202,7 @@ struct rs_rate {
 #define is_mimo(rate)         is_type_mimo((rate)->type)
 #define is_ht(rate)           is_type_ht((rate)->type)
 #define is_vht(rate)          is_type_vht((rate)->type)
+#define is_he(rate)           is_type_he((rate)->type)
 #define is_a_band(rate)       is_type_a_band((rate)->type)
 #define is_g_band(rate)       is_type_g_band((rate)->type)
 
@@ -391,6 +390,7 @@ struct iwl_lq_sta {
 		s8 last_rssi;
 		struct rs_rate_stats tx_stats[RS_COLUMN_COUNT][IWL_RATE_COUNT];
 		struct iwl_mvm *drv;
+		spinlock_t lock; /* for races in reinit/update table */
 	} pers;
 };
 
@@ -451,8 +451,9 @@ void rs_remove_sta_debugfs(void *mvm, void *mvm_sta);
 
 void iwl_mvm_rs_add_sta(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta);
 void rs_fw_rate_init(struct iwl_mvm *mvm, struct ieee80211_sta *sta,
-		     enum nl80211_band band);
+		     enum nl80211_band band, bool update);
 int rs_fw_tx_protection(struct iwl_mvm *mvm, struct iwl_mvm_sta *mvmsta,
 			bool enable);
-void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm, struct iwl_rx_packet *pkt);
+void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
+			      struct iwl_rx_cmd_buffer *rxb);
 #endif /* __rs__ */

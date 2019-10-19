@@ -1,0 +1,108 @@
+What:		/sys/bus/platform/devices/dfl-fme.0/ports_num
+Date:		June 2018
+KernelVersion:  4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. One DFL FPGA device may have more than 1
+		port/Accelerator Function Unit (AFU). It returns the
+		number of ports on the FPGA device when read it.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/bitstream_id
+Date:		June 2018
+KernelVersion:  4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns Bitstream (static FPGA region)
+		identifier number, which includes the detailed version
+		and other information of this static FPGA region.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/bitstream_metadata
+Date:		June 2018
+KernelVersion:  4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns Bitstream (static FPGA region) meta
+		data, which includes the synthesis date, seed and other
+		information of this static FPGA region.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/cache_size
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns cache size of this FPGA device.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/fabric_version
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns fabric version of this FPGA device.
+		Userspace applications need this information to select
+		best data channels per different fabric design.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/socket_id
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns socket_id to indicate which socket
+		this FPGA belongs to, only valid for integrated solution.
+		User only needs this information, in case standard numa node
+		can't provide correct information.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/pcie0_errors
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Write. Read this file for errors detected on pcie0 link.
+		Write this file to clear errors logged in pcie0_errors. Write
+		fails with -EINVAL if input parsing fails or input error code
+		doesn't match.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/pcie1_errors
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Write. Read this file for errors detected on pcie1 link.
+		Write this file to clear errors logged in pcie1_errors. Write
+		fails with -EINVAL if input parsing fails or input error code
+		doesn't match.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/nonfatal_errors
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns non-fatal errors detected.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/catfatal_errors
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. It returns catastrophic and fatal errors detected.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/inject_errors
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Write. Read this file to check errors injected. Write this
+		file to inject errors for testing purpose. Write fails with
+		-EINVAL if input parsing fails or input inject error code isn't
+		supported.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/fme_errors
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-Write. Read this file to get errors detected on FME.
+		Write this file to clear errors logged in fme_errors. Write
+		fials with -EINVAL if input parsing fails or input error code
+		doesn't match.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/first_error
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Read this file to get the first error detected by
+		hardware.
+
+What:		/sys/bus/platform/devices/dfl-fme.0/errors/next_error
+Date:		August 2019
+KernelVersion:  5.4
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	Read-only. Read this file to get the second error detected by
+		hardware.

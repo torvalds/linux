@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * mac80211 glue code for mac80211 ST-Ericsson CW1200 drivers
  *
@@ -14,10 +15,6 @@
  *   Copyright 2004-2006 Jean-Baptiste Note <jbnote@gmail.com>, et al.
  * - stlc45xx driver
  *   Copyright (C) 2008 Nokia Corporation and/or its subsidiary(-ies).
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -46,7 +43,7 @@ MODULE_ALIAS("cw1200_core");
 
 /* Accept MAC address of the form macaddr=0x00,0x80,0xE1,0x30,0x40,0x50 */
 static u8 cw1200_mac_template[ETH_ALEN] = {0x02, 0x80, 0xe1, 0x00, 0x00, 0x00};
-module_param_array_named(macaddr, cw1200_mac_template, byte, NULL, S_IRUGO);
+module_param_array_named(macaddr, cw1200_mac_template, byte, NULL, 0444);
 MODULE_PARM_DESC(macaddr, "Override platform_data MAC address");
 
 static char *cw1200_sdd_path;
@@ -345,6 +342,11 @@ static struct ieee80211_hw *cw1200_init_common(const u8 *macaddr,
 	mutex_init(&priv->wsm_cmd_mux);
 	mutex_init(&priv->conf_mutex);
 	priv->workqueue = create_singlethread_workqueue("cw1200_wq");
+	if (!priv->workqueue) {
+		ieee80211_free_hw(hw);
+		return NULL;
+	}
+
 	sema_init(&priv->scan.lock, 1);
 	INIT_WORK(&priv->scan.work, cw1200_scan_work);
 	INIT_DELAYED_WORK(&priv->scan.probe_work, cw1200_probe_work);

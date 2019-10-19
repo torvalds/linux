@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 # Makefile for firmware loading selftests
 
 # No binaries, but make sure arg-less "make" doesn't trigger "run_tests"
 all:
 
-TEST_PROGS := fw_filesystem.sh fw_fallback.sh
+TEST_PROGS := fw_run_tests.sh
+TEST_FILES := fw_fallback.sh fw_filesystem.sh fw_lib.sh
 
 include ../lib.mk
 

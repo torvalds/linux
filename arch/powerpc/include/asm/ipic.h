@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * IPIC external definitions and structure.
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
  *
  * Copyright 2005 Freescale Semiconductor, Inc
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 #ifdef __KERNEL__
 #ifndef __ASM_IPIC_H__
@@ -69,11 +65,7 @@ enum ipic_mcp_irq {
 	IPIC_MCP_MU   = 7,
 };
 
-extern int ipic_set_priority(unsigned int irq, unsigned int priority);
-extern void ipic_set_highest_priority(unsigned int irq);
 extern void ipic_set_default_priority(void);
-extern void ipic_enable_mcp(enum ipic_mcp_irq mcp_irq);
-extern void ipic_disable_mcp(enum ipic_mcp_irq mcp_irq);
 extern u32 ipic_get_mcp_status(void);
 extern void ipic_clear_mcp_status(u32 mask);
 

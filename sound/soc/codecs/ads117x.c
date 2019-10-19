@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ads117x.c  --  Driver for ads1174/8 ADC chips
  *
  * Copyright 2009 ShotSpotter Inc.
  * Author: Graeme Gregory <gg@slimlogic.co.uk>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -58,25 +54,21 @@ static struct snd_soc_dai_driver ads117x_dai = {
 		.formats = ADS117X_FORMATS,},
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_ads117x = {
-	.component_driver = {
-		.dapm_widgets		= ads117x_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ads117x_dapm_widgets),
-		.dapm_routes		= ads117x_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(ads117x_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_ads117x = {
+	.dapm_widgets		= ads117x_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ads117x_dapm_widgets),
+	.dapm_routes		= ads117x_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(ads117x_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int ads117x_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_ads117x, &ads117x_dai, 1);
-}
-
-static int ads117x_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
+	return devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_ads117x, &ads117x_dai, 1);
 }
 
 #if defined(CONFIG_OF)
@@ -95,7 +87,6 @@ static struct platform_driver ads117x_codec_driver = {
 	},
 
 	.probe = ads117x_probe,
-	.remove = ads117x_remove,
 };
 
 module_platform_driver(ads117x_codec_driver);

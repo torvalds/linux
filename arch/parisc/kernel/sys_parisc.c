@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 
 /*
  *    PARISC specific syscalls
@@ -6,21 +7,6 @@
  *    Copyright (C) 2000-2003 Paul Bame <bame at parisc-linux.org>
  *    Copyright (C) 2001 Thomas Bogendoerfer <tsbogend at parisc-linux.org>
  *    Copyright (C) 1999-2014 Helge Deller <deller@gmx.de>
- *
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License
- *    along with this program; if not, write to the Free Software
- *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
 #include <linux/uaccess.h>
@@ -70,17 +56,24 @@ static inline unsigned long COLOR_ALIGN(unsigned long addr,
  * Top of mmap area (just below the process stack).
  */
 
-static unsigned long mmap_upper_limit(void)
+/*
+ * When called from arch_get_unmapped_area(), rlim_stack will be NULL,
+ * indicating that "current" should be used instead of a passed-in
+ * value from the exec bprm as done with arch_pick_mmap_layout().
+ */
+static unsigned long mmap_upper_limit(struct rlimit *rlim_stack)
 {
 	unsigned long stack_base;
 
 	/* Limit stack size - see setup_arg_pages() in fs/exec.c */
-	stack_base = rlimit_max(RLIMIT_STACK);
+	stack_base = rlim_stack ? rlim_stack->rlim_max
+				: rlimit_max(RLIMIT_STACK);
 	if (stack_base > STACK_SIZE_MAX)
 		stack_base = STACK_SIZE_MAX;
 
 	/* Add space for stack randomization. */
-	stack_base += (STACK_RND_MASK << PAGE_SHIFT);
+	if (current->flags & PF_RANDOMIZE)
+		stack_base += (STACK_RND_MASK << PAGE_SHIFT);
 
 	return PAGE_ALIGN(STACK_TOP - stack_base);
 }
@@ -127,7 +120,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	info.flags = 0;
 	info.length = len;
 	info.low_limit = mm->mmap_legacy_base;
-	info.high_limit = mmap_upper_limit();
+	info.high_limit = mmap_upper_limit(NULL);
 	info.align_mask = last_mmap ? (PAGE_MASK & (SHM_COLOUR - 1)) : 0;
 	info.align_offset = shared_align_offset(last_mmap, pgoff);
 	addr = vm_unmapped_area(&info);
@@ -149,11 +142,6 @@ arch_get_unmapped_area_topdown(struct file *filp, const unsigned long addr0,
 	unsigned long addr = addr0;
 	int do_color_align, last_mmap;
 	struct vm_unmapped_area_info info;
-
-#ifdef CONFIG_64BIT
-	/* This should only ever run for 32-bit processes.  */
-	BUG_ON(!test_thread_flag(TIF_32BIT));
-#endif
 
 	/* requested length too big for entire address space */
 	if (len > TASK_SIZE)
@@ -250,10 +238,10 @@ static unsigned long mmap_legacy_base(void)
  * This function, called very early during the creation of a new
  * process VM image, sets up which VM layout function to use:
  */
-void arch_pick_mmap_layout(struct mm_struct *mm)
+void arch_pick_mmap_layout(struct mm_struct *mm, struct rlimit *rlim_stack)
 {
 	mm->mmap_legacy_base = mmap_legacy_base();
-	mm->mmap_base = mmap_upper_limit();
+	mm->mmap_base = mmap_upper_limit(rlim_stack);
 
 	if (mmap_is_legacy()) {
 		mm->mmap_base = mm->mmap_legacy_base;
@@ -270,8 +258,8 @@ asmlinkage unsigned long sys_mmap2(unsigned long addr, unsigned long len,
 {
 	/* Make sure the shift for mmap2 is constant (12), no matter what PAGE_SIZE
 	   we have. */
-	return sys_mmap_pgoff(addr, len, prot, flags, fd,
-			      pgoff >> (PAGE_SHIFT - 12));
+	return ksys_mmap_pgoff(addr, len, prot, flags, fd,
+			       pgoff >> (PAGE_SHIFT - 12));
 }
 
 asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
@@ -279,7 +267,7 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 		unsigned long offset)
 {
 	if (!(offset & ~PAGE_MASK)) {
-		return sys_mmap_pgoff(addr, len, prot, flags, fd,
+		return ksys_mmap_pgoff(addr, len, prot, flags, fd,
 					offset >> PAGE_SHIFT);
 	} else {
 		return -EINVAL;
@@ -292,24 +280,24 @@ asmlinkage unsigned long sys_mmap(unsigned long addr, unsigned long len,
 asmlinkage long parisc_truncate64(const char __user * path,
 					unsigned int high, unsigned int low)
 {
-	return sys_truncate(path, (long)high << 32 | low);
+	return ksys_truncate(path, (long)high << 32 | low);
 }
 
 asmlinkage long parisc_ftruncate64(unsigned int fd,
 					unsigned int high, unsigned int low)
 {
-	return sys_ftruncate(fd, (long)high << 32 | low);
+	return ksys_ftruncate(fd, (long)high << 32 | low);
 }
 
 /* stubs for the benefit of the syscall_table since truncate64 and truncate 
  * are identical on LP64 */
 asmlinkage long sys_truncate64(const char __user * path, unsigned long length)
 {
-	return sys_truncate(path, length);
+	return ksys_truncate(path, length);
 }
 asmlinkage long sys_ftruncate64(unsigned int fd, unsigned long length)
 {
-	return sys_ftruncate(fd, length);
+	return ksys_ftruncate(fd, length);
 }
 asmlinkage long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg)
 {
@@ -320,7 +308,7 @@ asmlinkage long sys_fcntl64(unsigned int fd, unsigned int cmd, unsigned long arg
 asmlinkage long parisc_truncate64(const char __user * path,
 					unsigned int high, unsigned int low)
 {
-	return sys_truncate64(path, (loff_t)high << 32 | low);
+	return ksys_truncate(path, (loff_t)high << 32 | low);
 }
 
 asmlinkage long parisc_ftruncate64(unsigned int fd,
@@ -333,26 +321,26 @@ asmlinkage long parisc_ftruncate64(unsigned int fd,
 asmlinkage ssize_t parisc_pread64(unsigned int fd, char __user *buf, size_t count,
 					unsigned int high, unsigned int low)
 {
-	return sys_pread64(fd, buf, count, (loff_t)high << 32 | low);
+	return ksys_pread64(fd, buf, count, (loff_t)high << 32 | low);
 }
 
 asmlinkage ssize_t parisc_pwrite64(unsigned int fd, const char __user *buf,
 			size_t count, unsigned int high, unsigned int low)
 {
-	return sys_pwrite64(fd, buf, count, (loff_t)high << 32 | low);
+	return ksys_pwrite64(fd, buf, count, (loff_t)high << 32 | low);
 }
 
 asmlinkage ssize_t parisc_readahead(int fd, unsigned int high, unsigned int low,
 		                    size_t count)
 {
-	return sys_readahead(fd, (loff_t)high << 32 | low, count);
+	return ksys_readahead(fd, (loff_t)high << 32 | low, count);
 }
 
 asmlinkage long parisc_fadvise64_64(int fd,
 			unsigned int high_off, unsigned int low_off,
 			unsigned int high_len, unsigned int low_len, int advice)
 {
-	return sys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
+	return ksys_fadvise64_64(fd, (loff_t)high_off << 32 | low_off,
 			(loff_t)high_len << 32 | low_len, advice);
 }
 
@@ -360,15 +348,15 @@ asmlinkage long parisc_sync_file_range(int fd,
 			u32 hi_off, u32 lo_off, u32 hi_nbytes, u32 lo_nbytes,
 			unsigned int flags)
 {
-	return sys_sync_file_range(fd, (loff_t)hi_off << 32 | lo_off,
+	return ksys_sync_file_range(fd, (loff_t)hi_off << 32 | lo_off,
 			(loff_t)hi_nbytes << 32 | lo_nbytes, flags);
 }
 
 asmlinkage long parisc_fallocate(int fd, int mode, u32 offhi, u32 offlo,
 				u32 lenhi, u32 lenlo)
 {
-        return sys_fallocate(fd, mode, ((u64)offhi << 32) | offlo,
-                             ((u64)lenhi << 32) | lenlo);
+	return ksys_fallocate(fd, mode, ((u64)offhi << 32) | offlo,
+			      ((u64)lenhi << 32) | lenlo);
 }
 
 long parisc_personality(unsigned long personality)

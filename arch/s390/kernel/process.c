@@ -29,6 +29,7 @@
 #include <linux/random.h>
 #include <linux/export.h>
 #include <linux/init_task.h>
+#include <asm/cpu_mf.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/vtimer.h>
@@ -36,6 +37,7 @@
 #include <asm/irq.h>
 #include <asm/nmi.h>
 #include <asm/smp.h>
+#include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 #include <asm/runtime_instr.h>
 #include "entry.h"
@@ -46,6 +48,15 @@ extern void kernel_thread_starter(void);
 
 void flush_thread(void)
 {
+}
+
+void arch_setup_new_exec(void)
+{
+	if (S390_lowcore.current_pid != current->pid) {
+		S390_lowcore.current_pid = current->pid;
+		if (test_facility(40))
+			lpp(&S390_lowcore.lpp);
+	}
 }
 
 void arch_release_task_struct(struct task_struct *tsk)
@@ -173,20 +184,30 @@ unsigned long get_wchan(struct task_struct *p)
 
 	if (!p || p == current || p->state == TASK_RUNNING || !task_stack_page(p))
 		return 0;
+
+	if (!try_get_task_stack(p))
+		return 0;
+
 	low = task_stack_page(p);
 	high = (struct stack_frame *) task_pt_regs(p);
 	sf = (struct stack_frame *) p->thread.ksp;
-	if (sf <= low || sf > high)
-		return 0;
-	for (count = 0; count < 16; count++) {
-		sf = (struct stack_frame *) sf->back_chain;
-		if (sf <= low || sf > high)
-			return 0;
-		return_address = sf->gprs[8];
-		if (!in_sched_functions(return_address))
-			return return_address;
+	if (sf <= low || sf > high) {
+		return_address = 0;
+		goto out;
 	}
-	return 0;
+	for (count = 0; count < 16; count++) {
+		sf = (struct stack_frame *)READ_ONCE_NOCHECK(sf->back_chain);
+		if (sf <= low || sf > high) {
+			return_address = 0;
+			goto out;
+		}
+		return_address = READ_ONCE_NOCHECK(sf->gprs[8]);
+		if (!in_sched_functions(return_address))
+			goto out;
+	}
+out:
+	put_task_stack(p);
+	return return_address;
 }
 
 unsigned long arch_align_stack(unsigned long sp)

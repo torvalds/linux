@@ -1,23 +1,7 @@
-/*
- * cros_ec_lightbar - expose the Chromebook Pixel lightbar to userspace
- *
- * Copyright (C) 2014 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
-
-#define pr_fmt(fmt) "cros_ec_lightbar: " fmt
+// SPDX-License-Identifier: GPL-2.0+
+// Expose the Chromebook Pixel lightbar to userspace
+//
+// Copyright (C) 2014 Google, Inc.
 
 #include <linux/ctype.h>
 #include <linux/delay.h>
@@ -25,13 +9,16 @@
 #include <linux/fs.h>
 #include <linux/kobject.h>
 #include <linux/mfd/cros_ec.h>
-#include <linux/mfd/cros_ec_commands.h>
 #include <linux/module.h>
+#include <linux/platform_data/cros_ec_commands.h>
+#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+
+#define DRV_NAME "cros-ec-lightbar"
 
 /* Rate-limit the lightbar interface to prevent DoS. */
 static unsigned long lb_interval_jiffies = 50 * HZ / 1000;
@@ -41,7 +28,6 @@ static unsigned long lb_interval_jiffies = 50 * HZ / 1000;
  * If this is true, we won't do anything during suspend/resume.
  */
 static bool userspace_control;
-static struct cros_ec_dev *ec_with_lightbar;
 
 static ssize_t interval_msec_show(struct device *dev,
 				  struct device_attribute *attr, char *buf)
@@ -170,8 +156,7 @@ static ssize_t version_show(struct device *dev,
 			    struct device_attribute *attr, char *buf)
 {
 	uint32_t version = 0, flags = 0;
-	struct cros_ec_dev *ec = container_of(dev,
-					      struct cros_ec_dev, class_dev);
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 	int ret;
 
 	ret = lb_throttle();
@@ -193,8 +178,7 @@ static ssize_t brightness_store(struct device *dev,
 	struct cros_ec_command *msg;
 	int ret;
 	unsigned int val;
-	struct cros_ec_dev *ec = container_of(dev,
-					      struct cros_ec_dev, class_dev);
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 
 	if (kstrtouint(buf, 0, &val))
 		return -EINVAL;
@@ -238,8 +222,7 @@ static ssize_t led_rgb_store(struct device *dev, struct device_attribute *attr,
 {
 	struct ec_params_lightbar *param;
 	struct cros_ec_command *msg;
-	struct cros_ec_dev *ec = container_of(dev,
-					      struct cros_ec_dev, class_dev);
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 	unsigned int val[4];
 	int ret, i = 0, j = 0, ok = 0;
 
@@ -311,8 +294,7 @@ static ssize_t sequence_show(struct device *dev,
 	struct ec_response_lightbar *resp;
 	struct cros_ec_command *msg;
 	int ret;
-	struct cros_ec_dev *ec = container_of(dev,
-					      struct cros_ec_dev, class_dev);
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
@@ -377,14 +359,11 @@ error:
 	return ret;
 }
 
-int lb_manual_suspend_ctrl(struct cros_ec_dev *ec, uint8_t enable)
+static int lb_manual_suspend_ctrl(struct cros_ec_dev *ec, uint8_t enable)
 {
 	struct ec_params_lightbar *param;
 	struct cros_ec_command *msg;
 	int ret;
-
-	if (ec != ec_with_lightbar)
-		return 0;
 
 	msg = alloc_lightbar_cmd_msg(ec);
 	if (!msg)
@@ -412,25 +391,6 @@ error:
 
 	return ret;
 }
-EXPORT_SYMBOL(lb_manual_suspend_ctrl);
-
-int lb_suspend(struct cros_ec_dev *ec)
-{
-	if (userspace_control || ec != ec_with_lightbar)
-		return 0;
-
-	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_SUSPEND);
-}
-EXPORT_SYMBOL(lb_suspend);
-
-int lb_resume(struct cros_ec_dev *ec)
-{
-	if (userspace_control || ec != ec_with_lightbar)
-		return 0;
-
-	return lb_send_empty_cmd(ec, LIGHTBAR_CMD_RESUME);
-}
-EXPORT_SYMBOL(lb_resume);
 
 static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 			      const char *buf, size_t count)
@@ -439,8 +399,7 @@ static ssize_t sequence_store(struct device *dev, struct device_attribute *attr,
 	struct cros_ec_command *msg;
 	unsigned int num;
 	int ret, len;
-	struct cros_ec_dev *ec = container_of(dev,
-					      struct cros_ec_dev, class_dev);
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 
 	for (len = 0; len < count; len++)
 		if (!isalnum(buf[len]))
@@ -488,8 +447,7 @@ static ssize_t program_store(struct device *dev, struct device_attribute *attr,
 	int extra_bytes, max_size, ret;
 	struct ec_params_lightbar *param;
 	struct cros_ec_command *msg;
-	struct cros_ec_dev *ec = container_of(dev, struct cros_ec_dev,
-					      class_dev);
+	struct cros_ec_dev *ec = to_cros_ec_dev(dev);
 
 	/*
 	 * We might need to reject the program for size reasons. The EC
@@ -590,37 +548,91 @@ static struct attribute *__lb_cmds_attrs[] = {
 	NULL,
 };
 
-bool ec_has_lightbar(struct cros_ec_dev *ec)
+static struct attribute_group cros_ec_lightbar_attr_group = {
+	.name = "lightbar",
+	.attrs = __lb_cmds_attrs,
+};
+
+static int cros_ec_lightbar_probe(struct platform_device *pd)
 {
-	return !!get_lightbar_version(ec, NULL, NULL);
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
+	struct cros_ec_platform *pdata = dev_get_platdata(ec_dev->dev);
+	struct device *dev = &pd->dev;
+	int ret;
+
+	/*
+	 * Only instantiate the lightbar if the EC name is 'cros_ec'. Other EC
+	 * devices like 'cros_pd' doesn't have a lightbar.
+	 */
+	if (strcmp(pdata->ec_name, CROS_EC_DEV_NAME) != 0)
+		return -ENODEV;
+
+	/*
+	 * Ask then for the lightbar version, if it's 0 then the 'cros_ec'
+	 * doesn't have a lightbar.
+	 */
+	if (!get_lightbar_version(ec_dev, NULL, NULL))
+		return -ENODEV;
+
+	/* Take control of the lightbar from the EC. */
+	lb_manual_suspend_ctrl(ec_dev, 1);
+
+	ret = sysfs_create_group(&ec_dev->class_dev.kobj,
+				 &cros_ec_lightbar_attr_group);
+	if (ret < 0)
+		dev_err(dev, "failed to create %s attributes. err=%d\n",
+			cros_ec_lightbar_attr_group.name, ret);
+
+	return ret;
 }
 
-static umode_t cros_ec_lightbar_attrs_are_visible(struct kobject *kobj,
-						  struct attribute *a, int n)
+static int cros_ec_lightbar_remove(struct platform_device *pd)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct cros_ec_dev *ec = container_of(dev,
-					      struct cros_ec_dev, class_dev);
-	struct platform_device *pdev = to_platform_device(ec->dev);
-	struct cros_ec_platform *pdata = pdev->dev.platform_data;
-	int is_cros_ec;
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(pd->dev.parent);
 
-	is_cros_ec = strcmp(pdata->ec_name, CROS_EC_DEV_NAME);
+	sysfs_remove_group(&ec_dev->class_dev.kobj,
+			   &cros_ec_lightbar_attr_group);
 
-	if (is_cros_ec != 0)
-		return 0;
+	/* Let the EC take over the lightbar again. */
+	lb_manual_suspend_ctrl(ec_dev, 0);
 
-	/* Only instantiate this stuff if the EC has a lightbar */
-	if (ec_has_lightbar(ec)) {
-		ec_with_lightbar = ec;
-		return a->mode;
-	}
 	return 0;
 }
 
-struct attribute_group cros_ec_lightbar_attr_group = {
-	.name = "lightbar",
-	.attrs = __lb_cmds_attrs,
-	.is_visible = cros_ec_lightbar_attrs_are_visible,
+static int __maybe_unused cros_ec_lightbar_resume(struct device *dev)
+{
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
+
+	if (userspace_control)
+		return 0;
+
+	return lb_send_empty_cmd(ec_dev, LIGHTBAR_CMD_RESUME);
+}
+
+static int __maybe_unused cros_ec_lightbar_suspend(struct device *dev)
+{
+	struct cros_ec_dev *ec_dev = dev_get_drvdata(dev->parent);
+
+	if (userspace_control)
+		return 0;
+
+	return lb_send_empty_cmd(ec_dev, LIGHTBAR_CMD_SUSPEND);
+}
+
+static SIMPLE_DEV_PM_OPS(cros_ec_lightbar_pm_ops,
+			 cros_ec_lightbar_suspend, cros_ec_lightbar_resume);
+
+static struct platform_driver cros_ec_lightbar_driver = {
+	.driver = {
+		.name = DRV_NAME,
+		.pm = &cros_ec_lightbar_pm_ops,
+	},
+	.probe = cros_ec_lightbar_probe,
+	.remove = cros_ec_lightbar_remove,
 };
-EXPORT_SYMBOL(cros_ec_lightbar_attr_group);
+
+module_platform_driver(cros_ec_lightbar_driver);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Expose the Chromebook Pixel's lightbar to userspace");
+MODULE_ALIAS("platform:" DRV_NAME);

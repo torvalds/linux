@@ -3,7 +3,6 @@ Maxim MAX14656 / AL32 USB Charger Detector
 Required properties :
 - compatible : "maxim,max14656";
 - reg: i2c slave address
-- interrupt-parent: the phandle for the interrupt controller
 - interrupts: interrupt line
 
 Example:

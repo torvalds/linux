@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 STMicroelectronics Limited
  *
  * Authors: Francesco Virlinzi <francesco.virlinzi@st.com>
  *	    Alexandre Torgue <alexandre.torgue@st.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/init.h>
@@ -156,7 +153,7 @@ static int st_ahci_probe(struct platform_device *pdev)
 	if (!drv_data)
 		return -ENOMEM;
 
-	hpriv = ahci_platform_get_resources(pdev);
+	hpriv = ahci_platform_get_resources(pdev, 0);
 	if (IS_ERR(hpriv))
 		return PTR_ERR(hpriv);
 	hpriv->plat_data = drv_data;

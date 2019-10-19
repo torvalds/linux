@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # This test is for checking rtnetlink callpaths, and get as much coverage as possible.
 #
@@ -6,6 +6,9 @@
 
 devdummy="test-dummy0"
 ret=0
+
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 # set global exit status, but never reset nonzero one.
 check_err()
@@ -202,6 +205,8 @@ kci_test_polrouting()
 
 kci_test_route_get()
 {
+	local hash_policy=$(sysctl -n net.ipv4.fib_multipath_hash_policy)
+
 	ret=0
 
 	ip route get 127.0.0.1 > /dev/null
@@ -220,6 +225,19 @@ kci_test_route_get()
 	check_err $?
 	ip route get 10.23.7.11 from 10.23.7.12 iif "$devdummy" > /dev/null
 	check_err $?
+	ip route add 10.23.8.0/24 \
+		nexthop via 10.23.7.13 dev "$devdummy" \
+		nexthop via 10.23.7.14 dev "$devdummy"
+	check_err $?
+	sysctl -wq net.ipv4.fib_multipath_hash_policy=0
+	ip route get 10.23.8.11 > /dev/null
+	check_err $?
+	sysctl -wq net.ipv4.fib_multipath_hash_policy=1
+	ip route get 10.23.8.11 > /dev/null
+	check_err $?
+	sysctl -wq net.ipv4.fib_multipath_hash_policy="$hash_policy"
+	ip route del 10.23.8.0/24
+	check_err $?
 	ip addr del dev "$devdummy" 10.23.7.11/24
 	check_err $?
 
@@ -229,6 +247,45 @@ kci_test_route_get()
 	fi
 
 	echo "PASS: route get"
+}
+
+kci_test_addrlft()
+{
+	for i in $(seq 10 100) ;do
+		lft=$(((RANDOM%3) + 1))
+		ip addr add 10.23.11.$i/32 dev "$devdummy" preferred_lft $lft valid_lft $((lft+1))
+		check_err $?
+	done
+
+	sleep 5
+
+	ip addr show dev "$devdummy" | grep "10.23.11."
+	if [ $? -eq 0 ]; then
+		echo "FAIL: preferred_lft addresses remaining"
+		check_err 1
+		return
+	fi
+
+	echo "PASS: preferred_lft addresses have expired"
+}
+
+kci_test_promote_secondaries()
+{
+	promote=$(sysctl -n net.ipv4.conf.$devdummy.promote_secondaries)
+
+	sysctl -q net.ipv4.conf.$devdummy.promote_secondaries=1
+
+	for i in $(seq 2 254);do
+		IP="10.23.11.$i"
+		ip -f inet addr add $IP/16 brd + dev "$devdummy"
+		ifconfig "$devdummy" $IP netmask 255.255.0.0
+	done
+
+	ip addr flush dev "$devdummy"
+
+	[ $promote -eq 0 ] && sysctl -q net.ipv4.conf.$devdummy.promote_secondaries=0
+
+	echo "PASS: promote_secondaries complete"
 }
 
 kci_test_addrlabel()
@@ -333,7 +390,7 @@ kci_test_vrf()
 	ip link show type vrf 2>/dev/null
 	if [ $? -ne 0 ]; then
 		echo "SKIP: vrf: iproute2 too old"
-		return 0
+		return $ksft_skip
 	fi
 
 	ip link add "$vrfname" type vrf table 10
@@ -373,7 +430,7 @@ kci_test_encap_vxlan()
 	vlan="test-vlan0"
 	testns="$1"
 
-	ip netns exec "$testns" ip link add "$vxlan" type vxlan id 42 group 239.1.1.1 \
+	ip -netns "$testns" link add "$vxlan" type vxlan id 42 group 239.1.1.1 \
 		dev "$devdummy" dstport 4789 2>/dev/null
 	if [ $? -ne 0 ]; then
 		echo "FAIL: can't add vxlan interface, skipping test"
@@ -381,16 +438,68 @@ kci_test_encap_vxlan()
 	fi
 	check_err $?
 
-	ip netns exec "$testns" ip addr add 10.2.11.49/24 dev "$vxlan"
+	ip -netns "$testns" addr add 10.2.11.49/24 dev "$vxlan"
 	check_err $?
 
-	ip netns exec "$testns" ip link set up dev "$vxlan"
+	ip -netns "$testns" link set up dev "$vxlan"
 	check_err $?
 
-	ip netns exec "$testns" ip link add link "$vxlan" name "$vlan" type vlan id 1
+	ip -netns "$testns" link add link "$vxlan" name "$vlan" type vlan id 1
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$vxlan"
+	# changelink testcases
+	ip -netns "$testns" link set dev "$vxlan" type vxlan vni 43 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan group ffe5::5 dev "$devdummy" 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan ttl inherit 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan ttl 64
+	check_err $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan nolearning
+	check_err $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan proxy 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan norsc 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan l2miss 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan l3miss 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan external 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan udpcsum 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan udp6zerocsumtx 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan udp6zerocsumrx 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan remcsumtx 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan remcsumrx 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan gbp 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link set dev "$vxlan" type vxlan gpe 2>/dev/null
+	check_fail $?
+
+	ip -netns "$testns" link del "$vxlan"
 	check_err $?
 
 	if [ $ret -ne 0 ]; then
@@ -409,22 +518,22 @@ kci_test_encap_fou()
 	ip fou help 2>&1 |grep -q 'Usage: ip fou'
 	if [ $? -ne 0 ];then
 		echo "SKIP: fou: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
-	ip netns exec "$testns" ip fou add port 7777 ipproto 47 2>/dev/null
+	ip -netns "$testns" fou add port 7777 ipproto 47 2>/dev/null
 	if [ $? -ne 0 ];then
 		echo "FAIL: can't add fou port 7777, skipping test"
 		return 1
 	fi
 
-	ip netns exec "$testns" ip fou add port 8888 ipproto 4
+	ip -netns "$testns" fou add port 8888 ipproto 4
 	check_err $?
 
-	ip netns exec "$testns" ip fou del port 9999 2>/dev/null
+	ip -netns "$testns" fou del port 9999 2>/dev/null
 	check_fail $?
 
-	ip netns exec "$testns" ip fou del port 7777
+	ip -netns "$testns" fou del port 7777
 	check_err $?
 
 	if [ $ret -ne 0 ]; then
@@ -444,15 +553,15 @@ kci_test_encap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP encap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
-	ip netns exec "$testns" ip link set lo up
+	ip -netns "$testns" link set lo up
 	check_err $?
 
-	ip netns exec "$testns" ip link add name "$devdummy" type dummy
+	ip -netns "$testns" link add name "$devdummy" type dummy
 	check_err $?
-	ip netns exec "$testns" ip link set "$devdummy" up
+	ip -netns "$testns" link set "$devdummy" up
 	check_err $?
 
 	kci_test_encap_vxlan "$testns"
@@ -469,7 +578,7 @@ kci_test_macsec()
 	ip macsec help 2>&1 | grep -q "^Usage: ip macsec"
 	if [ $? -ne 0 ]; then
 		echo "SKIP: macsec: iproute2 too old"
-		return 0
+		return $ksft_skip
 	fi
 
 	ip link add link "$devdummy" "$msname" type macsec port 42 encrypt on
@@ -502,6 +611,232 @@ kci_test_macsec()
 	echo "PASS: macsec"
 }
 
+#-------------------------------------------------------------------
+# Example commands
+#   ip x s add proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07 replay-window 32 \
+#            aead 'rfc4106(gcm(aes))' 1234567890123456dcba 128 \
+#            sel src 14.0.0.52/24 dst 14.0.0.70/24
+#   ip x p add dir out src 14.0.0.52/24 dst 14.0.0.70/24 \
+#            tmpl proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07
+#
+# Subcommands not tested
+#    ip x s update
+#    ip x s allocspi
+#    ip x s deleteall
+#    ip x p update
+#    ip x p deleteall
+#    ip x p set
+#-------------------------------------------------------------------
+kci_test_ipsec()
+{
+	ret=0
+	algo="aead rfc4106(gcm(aes)) 0x3132333435363738393031323334353664636261 128"
+	srcip=192.168.123.1
+	dstip=192.168.123.2
+	spi=7
+
+	ip addr add $srcip dev $devdummy
+
+	# flush to be sure there's nothing configured
+	ip x s flush ; ip x p flush
+	check_err $?
+
+	# start the monitor in the background
+	tmpfile=`mktemp /var/run/ipsectestXXX`
+	mpid=`(ip x m > $tmpfile & echo $!) 2>/dev/null`
+	sleep 0.2
+
+	ipsecid="proto esp src $srcip dst $dstip spi 0x07"
+	ip x s add $ipsecid \
+            mode transport reqid 0x07 replay-window 32 \
+            $algo sel src $srcip/24 dst $dstip/24
+	check_err $?
+
+	lines=`ip x s list | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x s count | grep -q "SAD count 1"
+	check_err $?
+
+	lines=`ip x s get $ipsecid | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x s delete $ipsecid
+	check_err $?
+
+	lines=`ip x s list | wc -l`
+	test $lines -eq 0
+	check_err $?
+
+	ipsecsel="dir out src $srcip/24 dst $dstip/24"
+	ip x p add $ipsecsel \
+		    tmpl proto esp src $srcip dst $dstip \
+		    spi 0x07 mode transport reqid 0x07
+	check_err $?
+
+	lines=`ip x p list | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x p count | grep -q "SPD IN  0 OUT 1 FWD 0"
+	check_err $?
+
+	lines=`ip x p get $ipsecsel | grep $srcip | grep $dstip | wc -l`
+	test $lines -eq 2
+	check_err $?
+
+	ip x p delete $ipsecsel
+	check_err $?
+
+	lines=`ip x p list | wc -l`
+	test $lines -eq 0
+	check_err $?
+
+	# check the monitor results
+	kill $mpid
+	lines=`wc -l $tmpfile | cut "-d " -f1`
+	test $lines -eq 20
+	check_err $?
+	rm -rf $tmpfile
+
+	# clean up any leftovers
+	ip x s flush
+	check_err $?
+	ip x p flush
+	check_err $?
+	ip addr del $srcip/32 dev $devdummy
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: ipsec"
+		return 1
+	fi
+	echo "PASS: ipsec"
+}
+
+#-------------------------------------------------------------------
+# Example commands
+#   ip x s add proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07 replay-window 32 \
+#            aead 'rfc4106(gcm(aes))' 1234567890123456dcba 128 \
+#            sel src 14.0.0.52/24 dst 14.0.0.70/24
+#            offload dev sim1 dir out
+#   ip x p add dir out src 14.0.0.52/24 dst 14.0.0.70/24 \
+#            tmpl proto esp src 14.0.0.52 dst 14.0.0.70 \
+#            spi 0x07 mode transport reqid 0x07
+#
+#-------------------------------------------------------------------
+kci_test_ipsec_offload()
+{
+	ret=0
+	algo="aead rfc4106(gcm(aes)) 0x3132333435363738393031323334353664636261 128"
+	srcip=192.168.123.3
+	dstip=192.168.123.4
+	sysfsd=/sys/kernel/debug/netdevsim/netdevsim0/ports/0/
+	sysfsf=$sysfsd/ipsec
+	sysfsnet=/sys/bus/netdevsim/devices/netdevsim0/net/
+	probed=false
+
+	# setup netdevsim since dummydev doesn't have offload support
+	if [ ! -w /sys/bus/netdevsim/new_device ] ; then
+		modprobe -q netdevsim
+		check_err $?
+		if [ $ret -ne 0 ]; then
+			echo "SKIP: ipsec_offload can't load netdevsim"
+			return $ksft_skip
+		fi
+		probed=true
+	fi
+
+	echo "0" > /sys/bus/netdevsim/new_device
+	while [ ! -d $sysfsnet ] ; do :; done
+	udevadm settle
+	dev=`ls $sysfsnet`
+
+	ip addr add $srcip dev $dev
+	ip link set $dev up
+	if [ ! -d $sysfsd ] ; then
+		echo "FAIL: ipsec_offload can't create device $dev"
+		return 1
+	fi
+	if [ ! -f $sysfsf ] ; then
+		echo "FAIL: ipsec_offload netdevsim doesn't support IPsec offload"
+		return 1
+	fi
+
+	# flush to be sure there's nothing configured
+	ip x s flush ; ip x p flush
+
+	# create offloaded SAs, both in and out
+	ip x p add dir out src $srcip/24 dst $dstip/24 \
+	    tmpl proto esp src $srcip dst $dstip spi 9 \
+	    mode transport reqid 42
+	check_err $?
+	ip x p add dir out src $dstip/24 dst $srcip/24 \
+	    tmpl proto esp src $dstip dst $srcip spi 9 \
+	    mode transport reqid 42
+	check_err $?
+
+	ip x s add proto esp src $srcip dst $dstip spi 9 \
+	    mode transport reqid 42 $algo sel src $srcip/24 dst $dstip/24 \
+	    offload dev $dev dir out
+	check_err $?
+	ip x s add proto esp src $dstip dst $srcip spi 9 \
+	    mode transport reqid 42 $algo sel src $dstip/24 dst $srcip/24 \
+	    offload dev $dev dir in
+	check_err $?
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: ipsec_offload can't create SA"
+		return 1
+	fi
+
+	# does offload show up in ip output
+	lines=`ip x s list | grep -c "crypto offload parameters: dev $dev dir"`
+	if [ $lines -ne 2 ] ; then
+		echo "FAIL: ipsec_offload SA offload missing from list output"
+		check_err 1
+	fi
+
+	# use ping to exercise the Tx path
+	ping -I $dev -c 3 -W 1 -i 0 $dstip >/dev/null
+
+	# does driver have correct offload info
+	diff $sysfsf - << EOF
+SA count=2 tx=3
+sa[0] tx ipaddr=0x00000000 00000000 00000000 00000000
+sa[0]    spi=0x00000009 proto=0x32 salt=0x61626364 crypt=1
+sa[0]    key=0x34333231 38373635 32313039 36353433
+sa[1] rx ipaddr=0x00000000 00000000 00000000 037ba8c0
+sa[1]    spi=0x00000009 proto=0x32 salt=0x61626364 crypt=1
+sa[1]    key=0x34333231 38373635 32313039 36353433
+EOF
+	if [ $? -ne 0 ] ; then
+		echo "FAIL: ipsec_offload incorrect driver data"
+		check_err 1
+	fi
+
+	# does offload get removed from driver
+	ip x s flush
+	ip x p flush
+	lines=`grep -c "SA count=0" $sysfsf`
+	if [ $lines -ne 1 ] ; then
+		echo "FAIL: ipsec_offload SA not removed from driver"
+		check_err 1
+	fi
+
+	# clean up any leftovers
+	$probed && rmmod netdevsim
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: ipsec_offload"
+		return 1
+	fi
+	echo "PASS: ipsec_offload"
+}
+
 kci_test_gretap()
 {
 	testns="testns"
@@ -511,38 +846,40 @@ kci_test_gretap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP gretap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip link help gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: gretap: iproute2 too old"
-		return 1
+		ip netns del "$testns"
+		return $ksft_skip
 	fi
 
 	# test native tunnel
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type gretap seq \
+	ip -netns "$testns" link add dev "$DEV_NS" type gretap seq \
 		key 102 local 172.16.1.100 remote 172.16.1.200
 	check_err $?
 
-	ip netns exec "$testns" ip addr add dev "$DEV_NS" 10.1.1.100/24
+	ip -netns "$testns" addr add dev "$DEV_NS" 10.1.1.100/24
 	check_err $?
 
-	ip netns exec "$testns" ip link set dev $DEV_NS up
+	ip -netns "$testns" link set dev $DEV_NS up
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	# test external mode
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type gretap external
+	ip -netns "$testns" link add dev "$DEV_NS" type gretap external
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: gretap"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: gretap"
@@ -559,38 +896,40 @@ kci_test_ip6gretap()
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP ip6gretap tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip link help ip6gretap 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: ip6gretap: iproute2 too old"
-		return 1
+		ip netns del "$testns"
+		return $ksft_skip
 	fi
 
 	# test native tunnel
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type ip6gretap seq \
+	ip -netns "$testns" link add dev "$DEV_NS" type ip6gretap seq \
 		key 102 local fc00:100::1 remote fc00:100::2
 	check_err $?
 
-	ip netns exec "$testns" ip addr add dev "$DEV_NS" fc00:200::1/96
+	ip -netns "$testns" addr add dev "$DEV_NS" fc00:200::1/96
 	check_err $?
 
-	ip netns exec "$testns" ip link set dev $DEV_NS up
+	ip -netns "$testns" link set dev $DEV_NS up
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	# test external mode
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type ip6gretap external
+	ip -netns "$testns" link add dev "$DEV_NS" type ip6gretap external
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: ip6gretap"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: ip6gretap"
@@ -607,54 +946,55 @@ kci_test_erspan()
 	ip link help erspan 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: erspan: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP erspan tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel erspan v1
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type erspan seq \
+	ip -netns "$testns" link add dev "$DEV_NS" type erspan seq \
 		key 102 local 172.16.1.100 remote 172.16.1.200 \
 		erspan_ver 1 erspan 488
 	check_err $?
 
-	ip netns exec "$testns" ip addr add dev "$DEV_NS" 10.1.1.100/24
+	ip -netns "$testns" addr add dev "$DEV_NS" 10.1.1.100/24
 	check_err $?
 
-	ip netns exec "$testns" ip link set dev $DEV_NS up
+	ip -netns "$testns" link set dev $DEV_NS up
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	# test native tunnel erspan v2
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type erspan seq \
+	ip -netns "$testns" link add dev "$DEV_NS" type erspan seq \
 		key 102 local 172.16.1.100 remote 172.16.1.200 \
 		erspan_ver 2 erspan_dir ingress erspan_hwid 7
 	check_err $?
 
-	ip netns exec "$testns" ip addr add dev "$DEV_NS" 10.1.1.100/24
+	ip -netns "$testns" addr add dev "$DEV_NS" 10.1.1.100/24
 	check_err $?
 
-	ip netns exec "$testns" ip link set dev $DEV_NS up
+	ip -netns "$testns" link set dev $DEV_NS up
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	# test external mode
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type erspan external
+	ip -netns "$testns" link add dev "$DEV_NS" type erspan external
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: erspan"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: erspan"
@@ -671,60 +1011,166 @@ kci_test_ip6erspan()
 	ip link help ip6erspan 2>&1 | grep -q "^Usage:"
 	if [ $? -ne 0 ];then
 		echo "SKIP: ip6erspan: iproute2 too old"
-		return 1
+		return $ksft_skip
 	fi
 
 	ip netns add "$testns"
 	if [ $? -ne 0 ]; then
 		echo "SKIP ip6erspan tests: cannot add net namespace $testns"
-		return 1
+		return $ksft_skip
 	fi
 
 	# test native tunnel ip6erspan v1
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type ip6erspan seq \
+	ip -netns "$testns" link add dev "$DEV_NS" type ip6erspan seq \
 		key 102 local fc00:100::1 remote fc00:100::2 \
 		erspan_ver 1 erspan 488
 	check_err $?
 
-	ip netns exec "$testns" ip addr add dev "$DEV_NS" 10.1.1.100/24
+	ip -netns "$testns" addr add dev "$DEV_NS" 10.1.1.100/24
 	check_err $?
 
-	ip netns exec "$testns" ip link set dev $DEV_NS up
+	ip -netns "$testns" link set dev $DEV_NS up
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	# test native tunnel ip6erspan v2
-	ip netns exec "$testns" ip link add dev "$DEV_NS" type ip6erspan seq \
+	ip -netns "$testns" link add dev "$DEV_NS" type ip6erspan seq \
 		key 102 local fc00:100::1 remote fc00:100::2 \
 		erspan_ver 2 erspan_dir ingress erspan_hwid 7
 	check_err $?
 
-	ip netns exec "$testns" ip addr add dev "$DEV_NS" 10.1.1.100/24
+	ip -netns "$testns" addr add dev "$DEV_NS" 10.1.1.100/24
 	check_err $?
 
-	ip netns exec "$testns" ip link set dev $DEV_NS up
+	ip -netns "$testns" link set dev $DEV_NS up
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	# test external mode
-	ip netns exec "$testns" ip link add dev "$DEV_NS" \
+	ip -netns "$testns" link add dev "$DEV_NS" \
 		type ip6erspan external
 	check_err $?
 
-	ip netns exec "$testns" ip link del "$DEV_NS"
+	ip -netns "$testns" link del "$DEV_NS"
 	check_err $?
 
 	if [ $ret -ne 0 ]; then
 		echo "FAIL: ip6erspan"
+		ip netns del "$testns"
 		return 1
 	fi
 	echo "PASS: ip6erspan"
 
 	ip netns del "$testns"
+}
+
+kci_test_fdb_get()
+{
+	IP="ip -netns testns"
+	BRIDGE="bridge -netns testns"
+	brdev="test-br0"
+	vxlandev="vxlan10"
+	test_mac=de:ad:be:ef:13:37
+	localip="10.0.2.2"
+	dstip="10.0.2.3"
+	ret=0
+
+	bridge fdb help 2>&1 |grep -q 'bridge fdb get'
+	if [ $? -ne 0 ];then
+		echo "SKIP: fdb get tests: iproute2 too old"
+		return $ksft_skip
+	fi
+
+	ip netns add testns
+	if [ $? -ne 0 ]; then
+		echo "SKIP fdb get tests: cannot add net namespace $testns"
+		return $ksft_skip
+	fi
+
+	$IP link add "$vxlandev" type vxlan id 10 local $localip \
+                dstport 4789 2>/dev/null
+	check_err $?
+	$IP link add name "$brdev" type bridge &>/dev/null
+	check_err $?
+	$IP link set dev "$vxlandev" master "$brdev" &>/dev/null
+	check_err $?
+	$BRIDGE fdb add $test_mac dev "$vxlandev" master &>/dev/null
+	check_err $?
+	$BRIDGE fdb add $test_mac dev "$vxlandev" dst $dstip self &>/dev/null
+	check_err $?
+
+	$BRIDGE fdb get $test_mac brport "$vxlandev" 2>/dev/null | grep -q "dev $vxlandev master $brdev"
+	check_err $?
+	$BRIDGE fdb get $test_mac br "$brdev" 2>/dev/null | grep -q "dev $vxlandev master $brdev"
+	check_err $?
+	$BRIDGE fdb get $test_mac dev "$vxlandev" self 2>/dev/null | grep -q "dev $vxlandev dst $dstip"
+	check_err $?
+
+	ip netns del testns &>/dev/null
+
+	if [ $ret -ne 0 ]; then
+		echo "FAIL: bridge fdb get"
+		return 1
+	fi
+
+	echo "PASS: bridge fdb get"
+}
+
+kci_test_neigh_get()
+{
+	dstmac=de:ad:be:ef:13:37
+	dstip=10.0.2.4
+	dstip6=dead::2
+	ret=0
+
+	ip neigh help 2>&1 |grep -q 'ip neigh get'
+	if [ $? -ne 0 ];then
+		echo "SKIP: fdb get tests: iproute2 too old"
+		return $ksft_skip
+	fi
+
+	# ipv4
+	ip neigh add $dstip lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+	ip neigh get $dstip dev "$devdummy" 2> /dev/null | grep -q "$dstmac"
+	check_err $?
+	ip neigh del $dstip lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+
+	# ipv4 proxy
+	ip neigh add proxy $dstip dev "$devdummy" > /dev/null
+	check_err $?
+	ip neigh get proxy $dstip dev "$devdummy" 2>/dev/null | grep -q "$dstip"
+	check_err $?
+	ip neigh del proxy $dstip dev "$devdummy" > /dev/null
+	check_err $?
+
+	# ipv6
+	ip neigh add $dstip6 lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+	ip neigh get $dstip6 dev "$devdummy" 2> /dev/null | grep -q "$dstmac"
+	check_err $?
+	ip neigh del $dstip6 lladdr $dstmac dev "$devdummy"  > /dev/null
+	check_err $?
+
+	# ipv6 proxy
+	ip neigh add proxy $dstip6 dev "$devdummy" > /dev/null
+	check_err $?
+	ip neigh get proxy $dstip6 dev "$devdummy" 2>/dev/null | grep -q "$dstip6"
+	check_err $?
+	ip neigh del proxy $dstip6 dev "$devdummy" > /dev/null
+	check_err $?
+
+	if [ $ret -ne 0 ];then
+		echo "FAIL: neigh get"
+		return 1
+	fi
+
+	echo "PASS: neigh get"
 }
 
 kci_test_rtnl()
@@ -737,6 +1183,8 @@ kci_test_rtnl()
 
 	kci_test_polrouting
 	kci_test_route_get
+	kci_test_addrlft
+	kci_test_promote_secondaries
 	kci_test_tc
 	kci_test_gre
 	kci_test_gretap
@@ -749,6 +1197,10 @@ kci_test_rtnl()
 	kci_test_vrf
 	kci_test_encap
 	kci_test_macsec
+	kci_test_ipsec
+	kci_test_ipsec_offload
+	kci_test_fdb_get
+	kci_test_neigh_get
 
 	kci_del_dummy
 }
@@ -756,14 +1208,14 @@ kci_test_rtnl()
 #check for needed privileges
 if [ "$(id -u)" -ne 0 ];then
 	echo "SKIP: Need root privileges"
-	exit 0
+	exit $ksft_skip
 fi
 
 for x in ip tc;do
 	$x -Version 2>/dev/null >/dev/null
 	if [ $? -ne 0 ];then
 		echo "SKIP: Could not run test without the $x tool"
-		exit 0
+		exit $ksft_skip
 	fi
 done
 

@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM clk
@@ -190,6 +182,42 @@ DEFINE_EVENT(clk_phase, clk_set_phase_complete,
 	TP_PROTO(struct clk_core *core, int phase),
 
 	TP_ARGS(core, phase)
+);
+
+DECLARE_EVENT_CLASS(clk_duty_cycle,
+
+	TP_PROTO(struct clk_core *core, struct clk_duty *duty),
+
+	TP_ARGS(core, duty),
+
+	TP_STRUCT__entry(
+		__string(        name,           core->name              )
+		__field( unsigned int,           num                     )
+		__field( unsigned int,           den                     )
+	),
+
+	TP_fast_assign(
+		__assign_str(name, core->name);
+		__entry->num = duty->num;
+		__entry->den = duty->den;
+	),
+
+	TP_printk("%s %u/%u", __get_str(name), (unsigned int)__entry->num,
+		  (unsigned int)__entry->den)
+);
+
+DEFINE_EVENT(clk_duty_cycle, clk_set_duty_cycle,
+
+	TP_PROTO(struct clk_core *core, struct clk_duty *duty),
+
+	TP_ARGS(core, duty)
+);
+
+DEFINE_EVENT(clk_duty_cycle, clk_set_duty_cycle_complete,
+
+	TP_PROTO(struct clk_core *core, struct clk_duty *duty),
+
+	TP_ARGS(core, duty)
 );
 
 #endif /* _TRACE_CLK_H */

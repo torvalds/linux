@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  This file was based upon code in Powertweak Linux (http://powertweak.sf.net)
  *  (C) 2000-2003  Dave Jones, Arjan van de Ven, Janne Pänkälä,
  *                 Dominik Brodowski.
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  *
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
  */
@@ -214,8 +213,9 @@ have_busfreq:
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.transition_latency = 500000;
+	policy->freq_table = clock_ratio;
 
-	return cpufreq_table_validate_and_show(policy, clock_ratio);
+	return 0;
 }
 
 

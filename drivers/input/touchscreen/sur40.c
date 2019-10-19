@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Surface2.0/SUR40/PixelSense input driver
  *
@@ -14,11 +15,6 @@
  *
  * and from the v4l2-pci-skeleton driver,
  * Copyright (c) Copyright 2014 Cisco Systems, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -38,6 +34,7 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-ctrls.h>
 #include <media/videobuf2-v4l2.h>
 #include <media/videobuf2-dma-sg.h>
 
@@ -81,7 +78,10 @@ struct sur40_blob {
 
 	__le32 area;       /* size in pixels/pressure (?) */
 
-	u8 padding[32];
+	u8 padding[24];
+
+	__le32 tag_id;     /* valid when type == 0x04 (SUR40_TAG) */
+	__le32 unknown;
 
 } __packed;
 
@@ -146,13 +146,47 @@ struct sur40_image_header {
 #define SUR40_TOUCH	0x02
 #define SUR40_TAG	0x04
 
+/* video controls */
+#define SUR40_BRIGHTNESS_MAX 0xff
+#define SUR40_BRIGHTNESS_MIN 0x00
+#define SUR40_BRIGHTNESS_DEF 0xff
+
+#define SUR40_CONTRAST_MAX 0x0f
+#define SUR40_CONTRAST_MIN 0x00
+#define SUR40_CONTRAST_DEF 0x0a
+
+#define SUR40_GAIN_MAX 0x09
+#define SUR40_GAIN_MIN 0x00
+#define SUR40_GAIN_DEF 0x08
+
+#define SUR40_BACKLIGHT_MAX 0x01
+#define SUR40_BACKLIGHT_MIN 0x00
+#define SUR40_BACKLIGHT_DEF 0x01
+
+#define sur40_str(s) #s
+#define SUR40_PARAM_RANGE(lo, hi) " (range " sur40_str(lo) "-" sur40_str(hi) ")"
+
+/* module parameters */
+static uint brightness = SUR40_BRIGHTNESS_DEF;
+module_param(brightness, uint, 0644);
+MODULE_PARM_DESC(brightness, "set initial brightness"
+	SUR40_PARAM_RANGE(SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX));
+static uint contrast = SUR40_CONTRAST_DEF;
+module_param(contrast, uint, 0644);
+MODULE_PARM_DESC(contrast, "set initial contrast"
+	SUR40_PARAM_RANGE(SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX));
+static uint gain = SUR40_GAIN_DEF;
+module_param(gain, uint, 0644);
+MODULE_PARM_DESC(gain, "set initial gain"
+	SUR40_PARAM_RANGE(SUR40_GAIN_MIN, SUR40_GAIN_MAX));
+
 static const struct v4l2_pix_format sur40_pix_format[] = {
 	{
 		.pixelformat = V4L2_TCH_FMT_TU08,
 		.width  = SENSOR_RES_X / 2,
 		.height = SENSOR_RES_Y / 2,
 		.field = V4L2_FIELD_NONE,
-		.colorspace = V4L2_COLORSPACE_SRGB,
+		.colorspace = V4L2_COLORSPACE_RAW,
 		.bytesperline = SENSOR_RES_X / 2,
 		.sizeimage = (SENSOR_RES_X/2) * (SENSOR_RES_Y/2),
 	},
@@ -161,7 +195,7 @@ static const struct v4l2_pix_format sur40_pix_format[] = {
 		.width  = SENSOR_RES_X / 2,
 		.height = SENSOR_RES_Y / 2,
 		.field = V4L2_FIELD_NONE,
-		.colorspace = V4L2_COLORSPACE_SRGB,
+		.colorspace = V4L2_COLORSPACE_RAW,
 		.bytesperline = SENSOR_RES_X / 2,
 		.sizeimage = (SENSOR_RES_X/2) * (SENSOR_RES_Y/2),
 	}
@@ -178,6 +212,7 @@ struct sur40_state {
 	struct video_device vdev;
 	struct mutex lock;
 	struct v4l2_pix_format pix_fmt;
+	struct v4l2_ctrl_handler hdl;
 
 	struct vb2_queue queue;
 	struct list_head buf_list;
@@ -187,6 +222,7 @@ struct sur40_state {
 	struct sur40_data *bulk_in_buffer;
 	size_t bulk_in_size;
 	u8 bulk_in_epaddr;
+	u8 vsvideo;
 
 	char phys[64];
 };
@@ -200,6 +236,11 @@ struct sur40_buffer {
 static const struct video_device sur40_video_device;
 static const struct vb2_queue sur40_queue;
 static void sur40_process_video(struct sur40_state *sur40);
+static int sur40_s_ctrl(struct v4l2_ctrl *ctrl);
+
+static const struct v4l2_ctrl_ops sur40_ctrl_ops = {
+	.s_ctrl = sur40_s_ctrl,
+};
 
 /*
  * Note: an earlier, non-public version of this driver used USB_RECIP_ENDPOINT
@@ -218,6 +259,81 @@ static int sur40_command(struct sur40_state *dev,
 			       command,
 			       USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 			       0x00, index, buffer, size, 1000);
+}
+
+/* poke a byte in the panel register space */
+static int sur40_poke(struct sur40_state *dev, u8 offset, u8 value)
+{
+	int result;
+	u8 index = 0x96; // 0xae for permanent write
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x32, index, NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(5);
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x72, offset, NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(5);
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0xb2, value, NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(5);
+
+error:
+	return result;
+}
+
+static int sur40_set_preprocessor(struct sur40_state *dev, u8 value)
+{
+	u8 setting_07[2] = { 0x01, 0x00 };
+	u8 setting_17[2] = { 0x85, 0x80 };
+	int result;
+
+	if (value > 1)
+		return -ERANGE;
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x07, setting_07[value], NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(5);
+
+	result = usb_control_msg(dev->usbdev, usb_sndctrlpipe(dev->usbdev, 0),
+		SUR40_POKE, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
+		0x17, setting_17[value], NULL, 0, 1000);
+	if (result < 0)
+		goto error;
+	msleep(5);
+
+error:
+	return result;
+}
+
+static void sur40_set_vsvideo(struct sur40_state *handle, u8 value)
+{
+	int i;
+
+	for (i = 0; i < 4; i++)
+		sur40_poke(handle, 0x1c+i, value);
+	handle->vsvideo = value;
+}
+
+static void sur40_set_irlevel(struct sur40_state *handle, u8 value)
+{
+	int i;
+
+	for (i = 0; i < 8; i++)
+		sur40_poke(handle, 0x08+(2*i), value);
 }
 
 /* Initialization routine, called from sur40_open */
@@ -631,6 +747,36 @@ static int sur40_probe(struct usb_interface *interface,
 	sur40->vdev.queue = &sur40->queue;
 	video_set_drvdata(&sur40->vdev, sur40);
 
+	/* initialize the control handler for 4 controls */
+	v4l2_ctrl_handler_init(&sur40->hdl, 4);
+	sur40->v4l2.ctrl_handler = &sur40->hdl;
+	sur40->vsvideo = (SUR40_CONTRAST_DEF << 4) | SUR40_GAIN_DEF;
+
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops, V4L2_CID_BRIGHTNESS,
+	  SUR40_BRIGHTNESS_MIN, SUR40_BRIGHTNESS_MAX, 1, clamp(brightness,
+	  (uint)SUR40_BRIGHTNESS_MIN, (uint)SUR40_BRIGHTNESS_MAX));
+
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops, V4L2_CID_CONTRAST,
+	  SUR40_CONTRAST_MIN, SUR40_CONTRAST_MAX, 1, clamp(contrast,
+	  (uint)SUR40_CONTRAST_MIN, (uint)SUR40_CONTRAST_MAX));
+
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops, V4L2_CID_GAIN,
+	  SUR40_GAIN_MIN, SUR40_GAIN_MAX, 1, clamp(gain,
+	  (uint)SUR40_GAIN_MIN, (uint)SUR40_GAIN_MAX));
+
+	v4l2_ctrl_new_std(&sur40->hdl, &sur40_ctrl_ops,
+	  V4L2_CID_BACKLIGHT_COMPENSATION, SUR40_BACKLIGHT_MIN,
+	  SUR40_BACKLIGHT_MAX, 1, SUR40_BACKLIGHT_DEF);
+
+	v4l2_ctrl_handler_setup(&sur40->hdl);
+
+	if (sur40->hdl.error) {
+		dev_err(&interface->dev,
+			"Unable to register video controls.");
+		v4l2_ctrl_handler_free(&sur40->hdl);
+		goto err_unreg_v4l2;
+	}
+
 	error = video_register_device(&sur40->vdev, VFL_TYPE_TOUCH, -1);
 	if (error) {
 		dev_err(&interface->dev,
@@ -663,6 +809,7 @@ static void sur40_disconnect(struct usb_interface *interface)
 {
 	struct sur40_state *sur40 = usb_get_intfdata(interface);
 
+	v4l2_ctrl_handler_free(&sur40->hdl);
 	video_unregister_device(&sur40->vdev);
 	v4l2_device_unregister(&sur40->v4l2);
 
@@ -782,10 +929,6 @@ static int sur40_vidioc_querycap(struct file *file, void *priv,
 	strlcpy(cap->driver, DRIVER_SHORT, sizeof(cap->driver));
 	strlcpy(cap->card, DRIVER_LONG, sizeof(cap->card));
 	usb_make_path(sur40->usbdev, cap->bus_info, sizeof(cap->bus_info));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -853,6 +996,31 @@ static int sur40_vidioc_g_fmt(struct file *file, void *priv,
 	struct sur40_state *sur40 = video_drvdata(file);
 
 	f->fmt.pix = sur40->pix_fmt;
+	return 0;
+}
+
+static int sur40_s_ctrl(struct v4l2_ctrl *ctrl)
+{
+	struct sur40_state *sur40  = container_of(ctrl->handler,
+	  struct sur40_state, hdl);
+	u8 value = sur40->vsvideo;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		sur40_set_irlevel(sur40, ctrl->val);
+		break;
+	case V4L2_CID_CONTRAST:
+		value = (value & 0x0f) | (ctrl->val << 4);
+		sur40_set_vsvideo(sur40, value);
+		break;
+	case V4L2_CID_GAIN:
+		value = (value & 0xf0) | (ctrl->val);
+		sur40_set_vsvideo(sur40, value);
+		break;
+	case V4L2_CID_BACKLIGHT_COMPENSATION:
+		sur40_set_preprocessor(sur40, ctrl->val);
+		break;
+	}
 	return 0;
 }
 
@@ -990,6 +1158,8 @@ static const struct video_device sur40_video_device = {
 	.fops = &sur40_video_fops,
 	.ioctl_ops = &sur40_video_ioctl_ops,
 	.release = video_device_release_empty,
+	.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TOUCH |
+		       V4L2_CAP_READWRITE | V4L2_CAP_STREAMING,
 };
 
 /* USB-specific object needed to register this driver with the USB subsystem. */

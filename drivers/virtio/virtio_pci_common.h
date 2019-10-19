@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 #ifndef _DRIVERS_VIRTIO_VIRTIO_PCI_COMMON_H
 #define _DRIVERS_VIRTIO_VIRTIO_PCI_COMMON_H
 /*
@@ -13,10 +14,6 @@
  *  Anthony Liguori  <aliguori@us.ibm.com>
  *  Rusty Russell <rusty@rustcorp.com.au>
  *  Michael S. Tsirkin <mst@redhat.com>
- *
- * This work is licensed under the terms of the GNU GPL, version 2 or later.
- * See the COPYING file in the top-level directory.
- *
  */
 
 #include <linux/module.h>
@@ -141,7 +138,7 @@ const char *vp_bus_name(struct virtio_device *vdev);
  * - OR over all affinities for shared MSI
  * - ignore the affinity request if we're using INTX
  */
-int vp_set_vq_affinity(struct virtqueue *vq, int cpu);
+int vp_set_vq_affinity(struct virtqueue *vq, const struct cpumask *cpu_mask);
 
 const struct cpumask *vp_get_vq_affinity(struct virtio_device *vdev, int index);
 

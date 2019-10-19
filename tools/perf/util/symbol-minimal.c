@@ -1,14 +1,17 @@
-// SPDX-License-Identifier: GPL-2.0
+#include "dso.h"
 #include "symbol.h"
-#include "util.h"
+#include "symsrc.h"
 
 #include <errno.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <string.h>
+#include <stdlib.h>
 #include <byteswap.h>
 #include <sys/stat.h>
-
+#include <linux/zalloc.h>
+#include <internal/lib.h>
 
 static bool check_need_swap(int file_endian)
 {
@@ -288,8 +291,7 @@ void symsrc__destroy(struct symsrc *ss)
 }
 
 int dso__synthesize_plt_symbols(struct dso *dso __maybe_unused,
-				struct symsrc *ss __maybe_unused,
-				struct map *map __maybe_unused)
+				struct symsrc *ss __maybe_unused)
 {
 	return 0;
 }

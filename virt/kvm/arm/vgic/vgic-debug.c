@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Linaro
  * Author: Christoffer Dall <christoffer.dall@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/cpu.h>
@@ -36,9 +25,12 @@
 struct vgic_state_iter {
 	int nr_cpus;
 	int nr_spis;
+	int nr_lpis;
 	int dist_id;
 	int vcpu_id;
 	int intid;
+	int lpi_idx;
+	u32 *lpi_array;
 };
 
 static void iter_next(struct vgic_state_iter *iter)
@@ -52,6 +44,12 @@ static void iter_next(struct vgic_state_iter *iter)
 	if (iter->intid == VGIC_NR_PRIVATE_IRQS &&
 	    ++iter->vcpu_id < iter->nr_cpus)
 		iter->intid = 0;
+
+	if (iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS)) {
+		if (iter->lpi_idx < iter->nr_lpis)
+			iter->intid = iter->lpi_array[iter->lpi_idx];
+		iter->lpi_idx++;
+	}
 }
 
 static void iter_init(struct kvm *kvm, struct vgic_state_iter *iter,
@@ -63,6 +61,11 @@ static void iter_init(struct kvm *kvm, struct vgic_state_iter *iter,
 
 	iter->nr_cpus = nr_cpus;
 	iter->nr_spis = kvm->arch.vgic.nr_spis;
+	if (kvm->arch.vgic.vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) {
+		iter->nr_lpis = vgic_copy_lpi_list(kvm, NULL, &iter->lpi_array);
+		if (iter->nr_lpis < 0)
+			iter->nr_lpis = 0;
+	}
 
 	/* Fast forward to the right position if needed */
 	while (pos--)
@@ -73,7 +76,8 @@ static bool end_of_vgic(struct vgic_state_iter *iter)
 {
 	return iter->dist_id > 0 &&
 		iter->vcpu_id == iter->nr_cpus &&
-		(iter->intid - VGIC_NR_PRIVATE_IRQS) == iter->nr_spis;
+		iter->intid >= (iter->nr_spis + VGIC_NR_PRIVATE_IRQS) &&
+		iter->lpi_idx > iter->nr_lpis;
 }
 
 static void *vgic_debug_start(struct seq_file *s, loff_t *pos)
@@ -130,6 +134,7 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 
 	mutex_lock(&kvm->lock);
 	iter = kvm->arch.vgic.iter;
+	kfree(iter->lpi_array);
 	kfree(iter);
 	kvm->arch.vgic.iter = NULL;
 	mutex_unlock(&kvm->lock);
@@ -137,17 +142,20 @@ static void vgic_debug_stop(struct seq_file *s, void *v)
 
 static void print_dist_state(struct seq_file *s, struct vgic_dist *dist)
 {
+	bool v3 = dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3;
+
 	seq_printf(s, "Distributor\n");
 	seq_printf(s, "===========\n");
-	seq_printf(s, "vgic_model:\t%s\n",
-		   (dist->vgic_model == KVM_DEV_TYPE_ARM_VGIC_V3) ?
-		   "GICv3" : "GICv2");
+	seq_printf(s, "vgic_model:\t%s\n", v3 ? "GICv3" : "GICv2");
 	seq_printf(s, "nr_spis:\t%d\n", dist->nr_spis);
+	if (v3)
+		seq_printf(s, "nr_lpis:\t%d\n", dist->lpi_list_count);
 	seq_printf(s, "enabled:\t%d\n", dist->enabled);
 	seq_printf(s, "\n");
 
 	seq_printf(s, "P=pending_latch, L=line_level, A=active\n");
 	seq_printf(s, "E=enabled, H=hw, C=config (level=1, edge=0)\n");
+	seq_printf(s, "G=group\n");
 }
 
 static void print_header(struct seq_file *s, struct vgic_irq *irq,
@@ -162,8 +170,8 @@ static void print_header(struct seq_file *s, struct vgic_irq *irq,
 	}
 
 	seq_printf(s, "\n");
-	seq_printf(s, "%s%2d TYP   ID TGT_ID PLAEHC     HWID   TARGET SRC PRI VCPU_ID\n", hdr, id);
-	seq_printf(s, "---------------------------------------------------------------\n");
+	seq_printf(s, "%s%2d TYP   ID TGT_ID PLAEHCG     HWID   TARGET SRC PRI VCPU_ID\n", hdr, id);
+	seq_printf(s, "----------------------------------------------------------------\n");
 }
 
 static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
@@ -174,15 +182,17 @@ static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
 		type = "SGI";
 	else if (irq->intid < VGIC_NR_PRIVATE_IRQS)
 		type = "PPI";
-	else
+	else if (irq->intid < VGIC_MAX_SPI)
 		type = "SPI";
+	else
+		type = "LPI";
 
 	if (irq->intid ==0 || irq->intid == VGIC_NR_PRIVATE_IRQS)
 		print_header(s, irq, vcpu);
 
 	seq_printf(s, "       %s %4d "
 		      "    %2d "
-		      "%d%d%d%d%d%d "
+		      "%d%d%d%d%d%d%d "
 		      "%8d "
 		      "%8x "
 		      " %2x "
@@ -197,12 +207,12 @@ static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
 			irq->enabled,
 			irq->hw,
 			irq->config == VGIC_CONFIG_LEVEL,
+			irq->group,
 			irq->hwintid,
 			irq->mpidr,
 			irq->source,
 			irq->priority,
 			(irq->vcpu) ? irq->vcpu->vcpu_id : -1);
-
 }
 
 static int vgic_debug_show(struct seq_file *s, void *v)
@@ -211,6 +221,7 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	struct vgic_state_iter *iter = (struct vgic_state_iter *)v;
 	struct vgic_irq *irq;
 	struct kvm_vcpu *vcpu = NULL;
+	unsigned long flags;
 
 	if (iter->dist_id == 0) {
 		print_dist_state(s, &kvm->arch.vgic);
@@ -220,17 +231,20 @@ static int vgic_debug_show(struct seq_file *s, void *v)
 	if (!kvm->arch.vgic.initialized)
 		return 0;
 
-	if (iter->vcpu_id < iter->nr_cpus) {
+	if (iter->vcpu_id < iter->nr_cpus)
 		vcpu = kvm_get_vcpu(kvm, iter->vcpu_id);
-		irq = &vcpu->arch.vgic_cpu.private_irqs[iter->intid];
-	} else {
-		irq = &kvm->arch.vgic.spis[iter->intid - VGIC_NR_PRIVATE_IRQS];
+
+	irq = vgic_get_irq(kvm, vcpu, iter->intid);
+	if (!irq) {
+		seq_printf(s, "       LPI %4d freed\n", iter->intid);
+		return 0;
 	}
 
-	spin_lock(&irq->irq_lock);
+	raw_spin_lock_irqsave(&irq->irq_lock, flags);
 	print_irq_state(s, irq, vcpu);
-	spin_unlock(&irq->irq_lock);
+	raw_spin_unlock_irqrestore(&irq->irq_lock, flags);
 
+	vgic_put_irq(kvm, irq);
 	return 0;
 }
 
@@ -263,21 +277,12 @@ static const struct file_operations vgic_debug_fops = {
 	.release = seq_release
 };
 
-int vgic_debug_init(struct kvm *kvm)
+void vgic_debug_init(struct kvm *kvm)
 {
-	if (!kvm->debugfs_dentry)
-		return -ENOENT;
-
-	if (!debugfs_create_file("vgic-state", 0444,
-				 kvm->debugfs_dentry,
-				 kvm,
-				 &vgic_debug_fops))
-		return -ENOMEM;
-
-	return 0;
+	debugfs_create_file("vgic-state", 0444, kvm->debugfs_dentry, kvm,
+			    &vgic_debug_fops);
 }
 
-int vgic_debug_destroy(struct kvm *kvm)
+void vgic_debug_destroy(struct kvm *kvm)
 {
-	return 0;
 }

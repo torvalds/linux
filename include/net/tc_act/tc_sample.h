@@ -20,7 +20,7 @@ struct tcf_sample {
 static inline bool is_tcf_sample(const struct tc_action *a)
 {
 #ifdef CONFIG_NET_CLS_ACT
-	return a->ops && a->ops->type == TCA_ACT_SAMPLE;
+	return a->ops && a->ops->id == TCA_ID_SAMPLE;
 #else
 	return false;
 #endif
@@ -39,12 +39,6 @@ static inline bool tcf_sample_truncate(const struct tc_action *a)
 static inline int tcf_sample_trunc_size(const struct tc_action *a)
 {
 	return to_sample(a)->trunc_size;
-}
-
-static inline struct psample_group *
-tcf_sample_psample_group(const struct tc_action *a)
-{
-	return rcu_dereference(to_sample(a)->psample_group);
 }
 
 #endif /* __NET_TC_SAMPLE_H */

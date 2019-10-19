@@ -3,6 +3,7 @@
 #define _TRACE_SPUFS_H
 
 #include <linux/tracepoint.h>
+#include <linux/stringify.h>
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM spufs

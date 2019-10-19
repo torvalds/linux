@@ -1,14 +1,7 @@
-/*
- * Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
- * Copyright 2014 Freescale Semiconductor, Inc.
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Copyright 2013 Eukréa Electromatique <denis@eukrea.com>
+// Copyright 2014 Freescale Semiconductor, Inc.
 
 /dts-v1/;
 #include "imx35.dtsi"
@@ -17,7 +10,8 @@
 	model = "Freescale i.MX35 Product Development Kit";
 	compatible = "fsl,imx35-pdk", "fsl,imx35";
 
-	memory {
+	memory@80000000 {
+		device_type = "memory";
 		reg = <0x80000000 0x8000000>,
 		      <0x90000000 0x8000000>;
 	};

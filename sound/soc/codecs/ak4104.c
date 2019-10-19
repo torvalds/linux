@@ -1,19 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AK4104 ALSA SoC (ASoC) driver
  *
  * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/spi/spi.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regulator/consumer.h>
 #include <sound/asoundef.h>
 #include <sound/core.h>
@@ -65,8 +61,8 @@ static const struct snd_soc_dapm_route ak4104_dapm_routes[] = {
 static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int format)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct ak4104_private *ak4104 = snd_soc_component_get_drvdata(component);
 	int val = 0;
 	int ret;
 
@@ -81,7 +77,7 @@ static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		val |= AK4104_CONTROL1_DIF0 | AK4104_CONTROL1_DIF1;
 		break;
 	default:
-		dev_err(codec->dev, "invalid dai format\n");
+		dev_err(component->dev, "invalid dai format\n");
 		return -EINVAL;
 	}
 
@@ -102,8 +98,8 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct ak4104_private *ak4104 = snd_soc_component_get_drvdata(component);
 	int ret, val = 0;
 
 	/* set the IEC958 bits: consumer mode, no copyright bit */
@@ -141,7 +137,7 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 		val |= IEC958_AES3_CON_FS_192000;
 		break;
 	default:
-		dev_err(codec->dev, "unsupported sampling rate\n");
+		dev_err(component->dev, "unsupported sampling rate\n");
 		return -EINVAL;
 	}
 
@@ -174,14 +170,14 @@ static struct snd_soc_dai_driver ak4104_dai = {
 	.ops = &ak4101_dai_ops,
 };
 
-static int ak4104_probe(struct snd_soc_codec *codec)
+static int ak4104_probe(struct snd_soc_component *component)
 {
-	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+	struct ak4104_private *ak4104 = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	ret = regulator_enable(ak4104->regulator);
 	if (ret < 0) {
-		dev_err(codec->dev, "Unable to enable regulator: %d\n", ret);
+		dev_err(component->dev, "Unable to enable regulator: %d\n", ret);
 		return ret;
 	}
 
@@ -205,30 +201,28 @@ exit_disable_regulator:
 	return ret;
 }
 
-static int ak4104_remove(struct snd_soc_codec *codec)
+static void ak4104_remove(struct snd_soc_component *component)
 {
-	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+	struct ak4104_private *ak4104 = snd_soc_component_get_drvdata(component);
 
 	regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
 			   AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN, 0);
 	regulator_disable(ak4104->regulator);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM
-static int ak4104_soc_suspend(struct snd_soc_codec *codec)
+static int ak4104_soc_suspend(struct snd_soc_component *component)
 {
-	struct ak4104_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct ak4104_private *priv = snd_soc_component_get_drvdata(component);
 
 	regulator_disable(priv->regulator);
 
 	return 0;
 }
 
-static int ak4104_soc_resume(struct snd_soc_codec *codec)
+static int ak4104_soc_resume(struct snd_soc_component *component)
 {
-	struct ak4104_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct ak4104_private *priv = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	ret = regulator_enable(priv->regulator);
@@ -242,18 +236,19 @@ static int ak4104_soc_resume(struct snd_soc_codec *codec)
 #define ak4104_soc_resume	NULL
 #endif /* CONFIG_PM */
 
-static const struct snd_soc_codec_driver soc_codec_device_ak4104 = {
-	.probe = ak4104_probe,
-	.remove = ak4104_remove,
-	.suspend = ak4104_soc_suspend,
-	.resume = ak4104_soc_resume,
-
-	.component_driver = {
-		.dapm_widgets		= ak4104_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(ak4104_dapm_widgets),
-		.dapm_routes		= ak4104_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(ak4104_dapm_routes),
-	}
+static const struct snd_soc_component_driver soc_component_device_ak4104 = {
+	.probe			= ak4104_probe,
+	.remove			= ak4104_remove,
+	.suspend		= ak4104_soc_suspend,
+	.resume			= ak4104_soc_resume,
+	.dapm_widgets		= ak4104_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(ak4104_dapm_widgets),
+	.dapm_routes		= ak4104_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(ak4104_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ak4104_regmap = {
@@ -269,8 +264,8 @@ static const struct regmap_config ak4104_regmap = {
 
 static int ak4104_spi_probe(struct spi_device *spi)
 {
-	struct device_node *np = spi->dev.of_node;
 	struct ak4104_private *ak4104;
+	struct gpio_desc *reset_gpiod;
 	unsigned int val;
 	int ret;
 
@@ -298,19 +293,11 @@ static int ak4104_spi_probe(struct spi_device *spi)
 		return ret;
 	}
 
-	if (np) {
-		enum of_gpio_flags flags;
-		int gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &flags);
-
-		if (gpio_is_valid(gpio)) {
-			ret = devm_gpio_request_one(&spi->dev, gpio,
-				     flags & OF_GPIO_ACTIVE_LOW ?
-					GPIOF_OUT_INIT_LOW : GPIOF_OUT_INIT_HIGH,
-				     "ak4104 reset");
-			if (ret < 0)
-				return ret;
-		}
-	}
+	reset_gpiod = devm_gpiod_get_optional(&spi->dev, "reset",
+					      GPIOD_OUT_HIGH);
+	if (IS_ERR(reset_gpiod) &&
+	    PTR_ERR(reset_gpiod) == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	/* read the 'reserved' register - according to the datasheet, it
 	 * should contain 0x5b. Not a good way to verify the presence of
@@ -323,15 +310,9 @@ static int ak4104_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, ak4104);
 
-	ret = snd_soc_register_codec(&spi->dev,
-			&soc_codec_device_ak4104, &ak4104_dai, 1);
+	ret = devm_snd_soc_register_component(&spi->dev,
+			&soc_component_device_ak4104, &ak4104_dai, 1);
 	return ret;
-}
-
-static int ak4104_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-	return 0;
 }
 
 static const struct of_device_id ak4104_of_match[] = {
@@ -353,7 +334,6 @@ static struct spi_driver ak4104_spi_driver = {
 	},
 	.id_table = ak4104_id_table,
 	.probe  = ak4104_spi_probe,
-	.remove = ak4104_spi_remove,
 };
 
 module_spi_driver(ak4104_spi_driver);

@@ -14,8 +14,6 @@ Required properties:
   "ralink,rt3050-eth", "ralink,rt3883-eth", "ralink,rt5350-eth",
   "mediatek,mt7620-eth", "mediatek,mt7621-eth"
 - reg: Address and length of the register set for the device
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupts: Should contain the frame engines interrupt
 - resets: Should contain the frame engines resets
 - reset-names: Should contain the reset names "fe". If a switch is present

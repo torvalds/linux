@@ -216,14 +216,14 @@ You can use the ``interdiff`` program (http://cyberelk.net/tim/patchutils/) to
 generate a patch representing the differences between two patches and then
 apply the result.
 
-This will let you move from something like 4.7.2 to 4.7.3 in a single
+This will let you move from something like 5.7.2 to 5.7.3 in a single
 step. The -z flag to interdiff will even let you feed it patches in gzip or
 bzip2 compressed form directly without the use of zcat or bzcat or manual
 decompression.
 
-Here's how you'd go from 4.7.2 to 4.7.3 in a single step::
+Here's how you'd go from 5.7.2 to 5.7.3 in a single step::
 
-	interdiff -z ../patch-4.7.2.gz ../patch-4.7.3.gz | patch -p1
+	interdiff -z ../patch-5.7.2.gz ../patch-5.7.3.gz | patch -p1
 
 Although interdiff may save you a step or two you are generally advised to
 do the additional steps since interdiff can get things wrong in some cases.
@@ -245,62 +245,67 @@ The patches are available at http://kernel.org/
 Most recent patches are linked from the front page, but they also have
 specific homes.
 
-The 4.x.y (-stable) and 4.x patches live at
+The 5.x.y (-stable) and 5.x patches live at
 
-	https://www.kernel.org/pub/linux/kernel/v4.x/
+	https://www.kernel.org/pub/linux/kernel/v5.x/
 
-The -rc patches live at
+The -rc patches are not stored on the webserver but are generated on
+demand from git tags such as
 
-	https://www.kernel.org/pub/linux/kernel/v4.x/testing/
+	https://git.kernel.org/torvalds/p/v5.1-rc1/v5.0
+
+The stable -rc patches live at
+
+	https://www.kernel.org/pub/linux/kernel/v5.x/stable-review/
 
 
-The 4.x kernels
+The 5.x kernels
 ===============
 
 These are the base stable releases released by Linus. The highest numbered
 release is the most recent.
 
 If regressions or other serious flaws are found, then a -stable fix patch
-will be released (see below) on top of this base. Once a new 4.x base
+will be released (see below) on top of this base. Once a new 5.x base
 kernel is released, a patch is made available that is a delta between the
-previous 4.x kernel and the new one.
+previous 5.x kernel and the new one.
 
-To apply a patch moving from 4.6 to 4.7, you'd do the following (note
-that such patches do **NOT** apply on top of 4.x.y kernels but on top of the
-base 4.x kernel -- if you need to move from 4.x.y to 4.x+1 you need to
-first revert the 4.x.y patch).
+To apply a patch moving from 5.6 to 5.7, you'd do the following (note
+that such patches do **NOT** apply on top of 5.x.y kernels but on top of the
+base 5.x kernel -- if you need to move from 5.x.y to 5.x+1 you need to
+first revert the 5.x.y patch).
 
 Here are some examples::
 
-	# moving from 4.6 to 4.7
+	# moving from 5.6 to 5.7
 
-	$ cd ~/linux-4.6		# change to kernel source dir
-	$ patch -p1 < ../patch-4.7	# apply the 4.7 patch
+	$ cd ~/linux-5.6		# change to kernel source dir
+	$ patch -p1 < ../patch-5.7	# apply the 5.7 patch
 	$ cd ..
-	$ mv linux-4.6 linux-4.7	# rename source dir
+	$ mv linux-5.6 linux-5.7	# rename source dir
 
-	# moving from 4.6.1 to 4.7
+	# moving from 5.6.1 to 5.7
 
-	$ cd ~/linux-4.6.1		# change to kernel source dir
-	$ patch -p1 -R < ../patch-4.6.1	# revert the 4.6.1 patch
-					# source dir is now 4.6
-	$ patch -p1 < ../patch-4.7	# apply new 4.7 patch
+	$ cd ~/linux-5.6.1		# change to kernel source dir
+	$ patch -p1 -R < ../patch-5.6.1	# revert the 5.6.1 patch
+					# source dir is now 5.6
+	$ patch -p1 < ../patch-5.7	# apply new 5.7 patch
 	$ cd ..
-	$ mv linux-4.6.1 linux-4.7	# rename source dir
+	$ mv linux-5.6.1 linux-5.7	# rename source dir
 
 
-The 4.x.y kernels
+The 5.x.y kernels
 =================
 
 Kernels with 3-digit versions are -stable kernels. They contain small(ish)
 critical fixes for security problems or significant regressions discovered
-in a given 4.x kernel.
+in a given 5.x kernel.
 
 This is the recommended branch for users who want the most recent stable
 kernel and are not interested in helping test development/experimental
 versions.
 
-If no 4.x.y kernel is available, then the highest numbered 4.x kernel is
+If no 5.x.y kernel is available, then the highest numbered 5.x kernel is
 the current stable kernel.
 
 .. note::
@@ -308,23 +313,23 @@ the current stable kernel.
  The -stable team usually do make incremental patches available as well
  as patches against the latest mainline release, but I only cover the
  non-incremental ones below. The incremental ones can be found at
- https://www.kernel.org/pub/linux/kernel/v4.x/incr/
+ https://www.kernel.org/pub/linux/kernel/v5.x/incr/
 
-These patches are not incremental, meaning that for example the 4.7.3
-patch does not apply on top of the 4.7.2 kernel source, but rather on top
-of the base 4.7 kernel source.
+These patches are not incremental, meaning that for example the 5.7.3
+patch does not apply on top of the 5.7.2 kernel source, but rather on top
+of the base 5.7 kernel source.
 
-So, in order to apply the 4.7.3 patch to your existing 4.7.2 kernel
-source you have to first back out the 4.7.2 patch (so you are left with a
-base 4.7 kernel source) and then apply the new 4.7.3 patch.
+So, in order to apply the 5.7.3 patch to your existing 5.7.2 kernel
+source you have to first back out the 5.7.2 patch (so you are left with a
+base 5.7 kernel source) and then apply the new 5.7.3 patch.
 
 Here's a small example::
 
-	$ cd ~/linux-4.7.2		# change to the kernel source dir
-	$ patch -p1 -R < ../patch-4.7.2	# revert the 4.7.2 patch
-	$ patch -p1 < ../patch-4.7.3	# apply the new 4.7.3 patch
+	$ cd ~/linux-5.7.2		# change to the kernel source dir
+	$ patch -p1 -R < ../patch-5.7.2	# revert the 5.7.2 patch
+	$ patch -p1 < ../patch-5.7.3	# apply the new 5.7.3 patch
 	$ cd ..
-	$ mv linux-4.7.2 linux-4.7.3	# rename the kernel source dir
+	$ mv linux-5.7.2 linux-5.7.3	# rename the kernel source dir
 
 The -rc kernels
 ===============
@@ -343,38 +348,38 @@ This is a good branch to run for people who want to help out testing
 development kernels but do not want to run some of the really experimental
 stuff (such people should see the sections about -next and -mm kernels below).
 
-The -rc patches are not incremental, they apply to a base 4.x kernel, just
-like the 4.x.y patches described above. The kernel version before the -rcN
+The -rc patches are not incremental, they apply to a base 5.x kernel, just
+like the 5.x.y patches described above. The kernel version before the -rcN
 suffix denotes the version of the kernel that this -rc kernel will eventually
 turn into.
 
-So, 4.8-rc5 means that this is the fifth release candidate for the 4.8
-kernel and the patch should be applied on top of the 4.7 kernel source.
+So, 5.8-rc5 means that this is the fifth release candidate for the 5.8
+kernel and the patch should be applied on top of the 5.7 kernel source.
 
 Here are 3 examples of how to apply these patches::
 
-	# first an example of moving from 4.7 to 4.8-rc3
+	# first an example of moving from 5.7 to 5.8-rc3
 
-	$ cd ~/linux-4.7			# change to the 4.7 source dir
-	$ patch -p1 < ../patch-4.8-rc3		# apply the 4.8-rc3 patch
+	$ cd ~/linux-5.7			# change to the 5.7 source dir
+	$ patch -p1 < ../patch-5.8-rc3		# apply the 5.8-rc3 patch
 	$ cd ..
-	$ mv linux-4.7 linux-4.8-rc3		# rename the source dir
+	$ mv linux-5.7 linux-5.8-rc3		# rename the source dir
 
-	# now let's move from 4.8-rc3 to 4.8-rc5
+	# now let's move from 5.8-rc3 to 5.8-rc5
 
-	$ cd ~/linux-4.8-rc3			# change to the 4.8-rc3 dir
-	$ patch -p1 -R < ../patch-4.8-rc3	# revert the 4.8-rc3 patch
-	$ patch -p1 < ../patch-4.8-rc5		# apply the new 4.8-rc5 patch
+	$ cd ~/linux-5.8-rc3			# change to the 5.8-rc3 dir
+	$ patch -p1 -R < ../patch-5.8-rc3	# revert the 5.8-rc3 patch
+	$ patch -p1 < ../patch-5.8-rc5		# apply the new 5.8-rc5 patch
 	$ cd ..
-	$ mv linux-4.8-rc3 linux-4.8-rc5	# rename the source dir
+	$ mv linux-5.8-rc3 linux-5.8-rc5	# rename the source dir
 
-	# finally let's try and move from 4.7.3 to 4.8-rc5
+	# finally let's try and move from 5.7.3 to 5.8-rc5
 
-	$ cd ~/linux-4.7.3			# change to the kernel source dir
-	$ patch -p1 -R < ../patch-4.7.3		# revert the 4.7.3 patch
-	$ patch -p1 < ../patch-4.8-rc5		# apply new 4.8-rc5 patch
+	$ cd ~/linux-5.7.3			# change to the kernel source dir
+	$ patch -p1 -R < ../patch-5.7.3		# revert the 5.7.3 patch
+	$ patch -p1 < ../patch-5.8-rc5		# apply new 5.8-rc5 patch
 	$ cd ..
-	$ mv linux-4.7.3 linux-4.8-rc5		# rename the kernel source dir
+	$ mv linux-5.7.3 linux-5.8-rc5		# rename the kernel source dir
 
 
 The -mm patches and the linux-next tree

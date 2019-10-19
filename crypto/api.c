@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Scatterlist Cryptographic API.
  *
@@ -7,12 +8,6 @@
  *
  * Portions derived from Cryptoapi, by Alexander Kjeldaas <astor@fast.no>
  * and Nettle, by Niels Möller.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <linux/err.h>
@@ -193,17 +188,29 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	return alg;
 }
 
-struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask)
+static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
+					    u32 mask)
 {
 	struct crypto_alg *alg;
+	u32 test = 0;
+
+	if (!((type | mask) & CRYPTO_ALG_TESTED))
+		test |= CRYPTO_ALG_TESTED;
 
 	down_read(&crypto_alg_sem);
-	alg = __crypto_alg_lookup(name, type, mask);
+	alg = __crypto_alg_lookup(name, type | test, mask | test);
+	if (!alg && test) {
+		alg = __crypto_alg_lookup(name, type, mask);
+		if (alg && !crypto_is_larval(alg)) {
+			/* Test failed */
+			crypto_mod_put(alg);
+			alg = ERR_PTR(-ELIBBAD);
+		}
+	}
 	up_read(&crypto_alg_sem);
 
 	return alg;
 }
-EXPORT_SYMBOL_GPL(crypto_alg_lookup);
 
 static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
 					       u32 mask)
@@ -217,7 +224,7 @@ static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
 	mask &= ~(CRYPTO_ALG_LARVAL | CRYPTO_ALG_DEAD);
 
 	alg = crypto_alg_lookup(name, type, mask);
-	if (!alg) {
+	if (!alg && !(mask & CRYPTO_NOLOAD)) {
 		request_module("crypto-%s", name);
 
 		if (!((type ^ CRYPTO_ALG_NEED_FALLBACK) & mask &
@@ -227,10 +234,12 @@ static struct crypto_alg *crypto_larval_lookup(const char *name, u32 type,
 		alg = crypto_alg_lookup(name, type, mask);
 	}
 
-	if (alg)
-		return crypto_is_larval(alg) ? crypto_larval_wait(alg) : alg;
+	if (!IS_ERR_OR_NULL(alg) && crypto_is_larval(alg))
+		alg = crypto_larval_wait(alg);
+	else if (!alg)
+		alg = crypto_larval_add(name, type, mask);
 
-	return crypto_larval_add(name, type, mask);
+	return alg;
 }
 
 int crypto_probing_notify(unsigned long val, void *v)
@@ -252,11 +261,6 @@ struct crypto_alg *crypto_alg_mod_lookup(const char *name, u32 type, u32 mask)
 	struct crypto_alg *alg;
 	struct crypto_alg *larval;
 	int ok;
-
-	if (!((type | mask) & CRYPTO_ALG_TESTED)) {
-		type |= CRYPTO_ALG_TESTED;
-		mask |= CRYPTO_ALG_TESTED;
-	}
 
 	/*
 	 * If the internal flag is set for a cipher, require a caller to
@@ -485,20 +489,14 @@ struct crypto_alg *crypto_find_alg(const char *alg_name,
 				   const struct crypto_type *frontend,
 				   u32 type, u32 mask)
 {
-	struct crypto_alg *(*lookup)(const char *name, u32 type, u32 mask) =
-		crypto_alg_mod_lookup;
-
 	if (frontend) {
 		type &= frontend->maskclear;
 		mask &= frontend->maskclear;
 		type |= frontend->type;
 		mask |= frontend->maskset;
-
-		if (frontend->lookup)
-			lookup = frontend->lookup;
 	}
 
-	return lookup(alg_name, type, mask);
+	return crypto_alg_mod_lookup(alg_name, type, mask);
 }
 EXPORT_SYMBOL_GPL(crypto_find_alg);
 

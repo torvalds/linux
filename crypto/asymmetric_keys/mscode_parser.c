@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Parse a Microsoft Individual Code Signing blob
  *
  * Copyright (C) 2014 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "MSCODE: "fmt
@@ -16,7 +12,7 @@
 #include <linux/oid_registry.h>
 #include <crypto/pkcs7.h>
 #include "verify_pefile.h"
-#include "mscode-asn1.h"
+#include "mscode.asn1.h"
 
 /*
  * Parse a Microsoft Individual Code Signing blob

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * motu-pcm.c - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include <sound/pcm_params.h>
@@ -190,8 +189,8 @@ static int pcm_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int capture_hw_params(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *hw_params)
+static int pcm_hw_params(struct snd_pcm_substream *substream,
+			 struct snd_pcm_hw_params *hw_params)
 {
 	struct snd_motu *motu = substream->private_data;
 	int err;
@@ -202,57 +201,26 @@ static int capture_hw_params(struct snd_pcm_substream *substream,
 		return err;
 
 	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
+		unsigned int rate = params_rate(hw_params);
+
 		mutex_lock(&motu->mutex);
-		motu->capture_substreams++;
+		err = snd_motu_stream_reserve_duplex(motu, rate);
+		if (err >= 0)
+			++motu->substreams_counter;
 		mutex_unlock(&motu->mutex);
 	}
 
-	return 0;
-}
-static int playback_hw_params(struct snd_pcm_substream *substream,
-			      struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_motu *motu = substream->private_data;
-	int err;
-
-	err = snd_pcm_lib_alloc_vmalloc_buffer(substream,
-					       params_buffer_bytes(hw_params));
-	if (err < 0)
-		return err;
-
-	if (substream->runtime->status->state == SNDRV_PCM_STATE_OPEN) {
-		mutex_lock(&motu->mutex);
-		motu->playback_substreams++;
-		mutex_unlock(&motu->mutex);
-	}
-
-	return 0;
+	return err;
 }
 
-static int capture_hw_free(struct snd_pcm_substream *substream)
+static int pcm_hw_free(struct snd_pcm_substream *substream)
 {
 	struct snd_motu *motu = substream->private_data;
 
 	mutex_lock(&motu->mutex);
 
 	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		motu->capture_substreams--;
-
-	snd_motu_stream_stop_duplex(motu);
-
-	mutex_unlock(&motu->mutex);
-
-	return snd_pcm_lib_free_vmalloc_buffer(substream);
-}
-
-static int playback_hw_free(struct snd_pcm_substream *substream)
-{
-	struct snd_motu *motu = substream->private_data;
-
-	mutex_lock(&motu->mutex);
-
-	if (substream->runtime->status->state != SNDRV_PCM_STATE_OPEN)
-		motu->playback_substreams--;
+		--motu->substreams_counter;
 
 	snd_motu_stream_stop_duplex(motu);
 
@@ -267,7 +235,7 @@ static int capture_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&motu->mutex);
-	err = snd_motu_stream_start_duplex(motu, substream->runtime->rate);
+	err = snd_motu_stream_start_duplex(motu);
 	mutex_unlock(&motu->mutex);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&motu->tx_stream);
@@ -280,7 +248,7 @@ static int playback_prepare(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&motu->mutex);
-	err = snd_motu_stream_start_duplex(motu, substream->runtime->rate);
+	err = snd_motu_stream_start_duplex(motu);
 	mutex_unlock(&motu->mutex);
 	if (err >= 0)
 		amdtp_stream_pcm_prepare(&motu->rx_stream);
@@ -356,27 +324,25 @@ int snd_motu_create_pcm_devices(struct snd_motu *motu)
 		.open      = pcm_open,
 		.close     = pcm_close,
 		.ioctl     = snd_pcm_lib_ioctl,
-		.hw_params = capture_hw_params,
-		.hw_free   = capture_hw_free,
+		.hw_params = pcm_hw_params,
+		.hw_free   = pcm_hw_free,
 		.prepare   = capture_prepare,
 		.trigger   = capture_trigger,
 		.pointer   = capture_pointer,
 		.ack       = capture_ack,
 		.page      = snd_pcm_lib_get_vmalloc_page,
-		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
 	static const struct snd_pcm_ops playback_ops = {
 		.open      = pcm_open,
 		.close     = pcm_close,
 		.ioctl     = snd_pcm_lib_ioctl,
-		.hw_params = playback_hw_params,
-		.hw_free   = playback_hw_free,
+		.hw_params = pcm_hw_params,
+		.hw_free   = pcm_hw_free,
 		.prepare   = playback_prepare,
 		.trigger   = playback_trigger,
 		.pointer   = playback_pointer,
 		.ack       = playback_ack,
 		.page      = snd_pcm_lib_get_vmalloc_page,
-		.mmap      = snd_pcm_lib_mmap_vmalloc,
 	};
 	struct snd_pcm *pcm;
 	int err;

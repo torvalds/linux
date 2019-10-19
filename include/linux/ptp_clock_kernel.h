@@ -1,21 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * PTP 1588 clock support
  *
  * Copyright (C) 2010 OMICRON electronics GmbH
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _PTP_CLOCK_KERNEL_H_
@@ -39,6 +26,15 @@ struct ptp_clock_request {
 };
 
 struct system_device_crosststamp;
+
+/**
+ * struct ptp_system_timestamp - system time corresponding to a PHC timestamp
+ */
+struct ptp_system_timestamp {
+	struct timespec64 pre_ts;
+	struct timespec64 post_ts;
+};
+
 /**
  * struct ptp_clock_info - decribes a PTP hardware clock
  *
@@ -73,7 +69,17 @@ struct system_device_crosststamp;
  *            parameter delta: Desired change in nanoseconds.
  *
  * @gettime64:  Reads the current time from the hardware clock.
+ *              This method is deprecated.  New drivers should implement
+ *              the @gettimex64 method instead.
  *              parameter ts: Holds the result.
+ *
+ * @gettimex64:  Reads the current time from the hardware clock and optionally
+ *               also the system clock.
+ *               parameter ts: Holds the PHC timestamp.
+ *               parameter sts: If not NULL, it holds a pair of timestamps from
+ *               the system clock. The first reading is made right before
+ *               reading the lowest bits of the PHC timestamp and the second
+ *               reading immediately follows that.
  *
  * @getcrosststamp:  Reads the current time from the hardware clock and
  *                   system clock simultaneously.
@@ -124,6 +130,8 @@ struct ptp_clock_info {
 	int (*adjfreq)(struct ptp_clock_info *ptp, s32 delta);
 	int (*adjtime)(struct ptp_clock_info *ptp, s64 delta);
 	int (*gettime64)(struct ptp_clock_info *ptp, struct timespec64 *ts);
+	int (*gettimex64)(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			  struct ptp_system_timestamp *sts);
 	int (*getcrosststamp)(struct ptp_clock_info *ptp,
 			      struct system_device_crosststamp *cts);
 	int (*settime64)(struct ptp_clock_info *p, const struct timespec64 *ts);
@@ -205,6 +213,14 @@ extern void ptp_clock_event(struct ptp_clock *ptp,
 extern int ptp_clock_index(struct ptp_clock *ptp);
 
 /**
+ * scaled_ppm_to_ppb() - convert scaled ppm to ppb
+ *
+ * @ppm:    Parts per million, but with a 16 bit binary fractional field
+ */
+
+extern s32 scaled_ppm_to_ppb(long ppm);
+
+/**
  * ptp_find_pin() - obtain the pin index of a given auxiliary function
  *
  * @ptp:    The clock obtained from ptp_clock_register().
@@ -246,5 +262,17 @@ static inline int ptp_schedule_worker(struct ptp_clock *ptp,
 { return -EOPNOTSUPP; }
 
 #endif
+
+static inline void ptp_read_system_prets(struct ptp_system_timestamp *sts)
+{
+	if (sts)
+		ktime_get_real_ts64(&sts->pre_ts);
+}
+
+static inline void ptp_read_system_postts(struct ptp_system_timestamp *sts)
+{
+	if (sts)
+		ktime_get_real_ts64(&sts->post_ts);
+}
 
 #endif

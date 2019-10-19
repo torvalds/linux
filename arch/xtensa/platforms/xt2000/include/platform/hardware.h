@@ -15,19 +15,8 @@
 #ifndef _XTENSA_XT2000_HARDWARE_H
 #define _XTENSA_XT2000_HARDWARE_H
 
-#include <variant/core.h>
+#include <asm/core.h>
 
-/* 
- * Memory configuration.
- */
-
-#define PLATFORM_DEFAULT_MEM_START 0x00000000
-#define PLATFORM_DEFAULT_MEM_SIZE 0x08000000
-
-/*
- * Number of platform IRQs
- */
-#define PLATFORM_NR_IRQS 3
 /*
  * On-board components.
  */

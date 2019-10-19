@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP MPUSS low power code
  *
@@ -30,11 +31,6 @@
  *
  * Note: CPU0 is the master core and it is the last CPU to go down
  * and first to wake-up when MPUSS low power states are excercised
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kernel.h>

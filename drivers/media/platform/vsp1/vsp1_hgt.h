@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * vsp1_hgt.h  --  R-Car VSP1 Histogram Generator 2D
  *
  * Copyright (C) 2016 Renesas Electronics Corporation
  *
  * Contact: Niklas Söderlund (niklas.soderlund@ragnatech.se)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef __VSP1_HGT_H__
 #define __VSP1_HGT_H__

@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Special handling for DW core on Intel MID platform
  *
  * Copyright (c) 2009, 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/dma-mapping.h>
@@ -112,10 +104,10 @@ static irqreturn_t dma_transfer(struct dw_spi *dws)
 	return IRQ_HANDLED;
 }
 
-static bool mid_spi_can_dma(struct spi_master *master, struct spi_device *spi,
-		struct spi_transfer *xfer)
+static bool mid_spi_can_dma(struct spi_controller *master,
+		struct spi_device *spi, struct spi_transfer *xfer)
 {
-	struct dw_spi *dws = spi_master_get_devdata(master);
+	struct dw_spi *dws = spi_controller_get_devdata(master);
 
 	if (!dws->dma_inited)
 		return false;

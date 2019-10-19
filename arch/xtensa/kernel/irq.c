@@ -158,7 +158,6 @@ void __init init_IRQ(void)
 #ifdef CONFIG_SMP
 	ipi_init();
 #endif
-	variant_init_irq();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

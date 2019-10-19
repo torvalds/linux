@@ -1,9 +1,0 @@
-Axis Communications AB
-ARTPEC series SoC Device Tree Bindings
-
-
-CRISv32 based SoCs are ETRAX FS and ARTPEC-3:
-
-    - compatible = "axis,crisv32";
-
-

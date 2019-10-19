@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB frontend part of the Linux driver for the TwinhanDTV StarBox USB2.0
  * DVB-S receiver.
  *
@@ -11,12 +12,7 @@
  * This file can be removed soon, after the DST-driver is rewritten to provice
  * the frontend-controlling separately.
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/dvb/README.dvb-usb for more information
- *
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 #include "vp702x.h"
 
@@ -349,10 +345,9 @@ static const struct dvb_frontend_ops vp702x_fe_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name           = "Twinhan DST-like frontend (VP7021/VP7020) DVB-S",
-		.frequency_min       = 950000,
-		.frequency_max       = 2150000,
-		.frequency_stepsize  = 1000,   /* kHz for QPSK frontends */
-		.frequency_tolerance = 0,
+		.frequency_min_hz       =  950 * MHz,
+		.frequency_max_hz       = 2150 * MHz,
+		.frequency_stepsize_hz  =    1 * MHz,
 		.symbol_rate_min     = 1000000,
 		.symbol_rate_max     = 45000000,
 		.symbol_rate_tolerance = 500,  /* ppm */

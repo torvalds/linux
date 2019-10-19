@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 InforceComputing
  * Author: Vinay Simha BN <simhavcs@gmail.com>
@@ -8,31 +9,21 @@
  * From internet archives, the panel for Nexus 7 2nd Gen, 2013 model is a
  * JDI model LT070ME05000, and its data sheet is at:
  * http://panelone.net/en/7-0-inch/JDI_LT070ME05000_7.0_inch-datasheet
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
+#include <video/mipi_display.h>
+
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
-
-#include <video/mipi_display.h>
 
 static const char * const regulator_names[] = {
 	"vddp",
@@ -192,8 +183,7 @@ static int jdi_panel_disable(struct drm_panel *panel)
 	if (!jdi->enabled)
 		return 0;
 
-	jdi->backlight->props.power = FB_BLANK_POWERDOWN;
-	backlight_update_status(jdi->backlight);
+	backlight_disable(jdi->backlight);
 
 	jdi->enabled = false;
 
@@ -289,8 +279,7 @@ static int jdi_panel_enable(struct drm_panel *panel)
 	if (jdi->enabled)
 		return 0;
 
-	jdi->backlight->props.power = FB_BLANK_UNBLANK;
-	backlight_update_status(jdi->backlight);
+	backlight_enable(jdi->backlight);
 
 	jdi->enabled = true;
 
@@ -502,7 +491,6 @@ static int jdi_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n",
 			ret);
 
-	drm_panel_detach(&jdi->base);
 	jdi_panel_del(jdi);
 
 	return 0;

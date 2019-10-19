@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HiSilicon SoC Hardware event counters support
  *
@@ -6,10 +7,6 @@
  *         Shaokun Zhang <zhangshaokun@hisilicon.com>
  *
  * This code is based on the uncore PMUs like arm-cci and arm-ccn.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/bitmap.h>
 #include <linux/bitops.h>
@@ -82,8 +79,7 @@ static bool hisi_validate_event_group(struct perf_event *event)
 			counters++;
 	}
 
-	list_for_each_entry(sibling, &event->group_leader->sibling_list,
-			    group_entry) {
+	for_each_sibling_event(sibling, event->group_leader) {
 		if (is_software_event(sibling))
 			continue;
 		if (sibling->pmu != event->pmu)
@@ -142,15 +138,6 @@ int hisi_uncore_pmu_event_init(struct perf_event *event)
 	 */
 	if (is_sampling_event(event) || event->attach_state & PERF_ATTACH_TASK)
 		return -EOPNOTSUPP;
-
-	/* counters do not have these bits */
-	if (event->attr.exclude_user	||
-	    event->attr.exclude_kernel	||
-	    event->attr.exclude_host	||
-	    event->attr.exclude_guest	||
-	    event->attr.exclude_hv	||
-	    event->attr.exclude_idle)
-		return -EINVAL;
 
 	/*
 	 *  The uncore counters not specific to any CPU, so cannot
@@ -351,19 +338,21 @@ void hisi_uncore_pmu_disable(struct pmu *pmu)
 
 /*
  * Read Super CPU cluster and CPU cluster ID from MPIDR_EL1.
- * If multi-threading is supported, SCCL_ID is in MPIDR[aff3] and CCL_ID
- * is in MPIDR[aff2]; if not, SCCL_ID is in MPIDR[aff2] and CCL_ID is
- * in MPIDR[aff1]. If this changes in future, this shall be updated.
+ * If multi-threading is supported, CCL_ID is the low 3-bits in MPIDR[Aff2]
+ * and SCCL_ID is the upper 5-bits of Aff2 field; if not, SCCL_ID
+ * is in MPIDR[Aff2] and CCL_ID is in MPIDR[Aff1].
  */
 static void hisi_read_sccl_and_ccl_id(int *sccl_id, int *ccl_id)
 {
 	u64 mpidr = read_cpuid_mpidr();
 
 	if (mpidr & MPIDR_MT_BITMASK) {
+		int aff2 = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+
 		if (sccl_id)
-			*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 3);
+			*sccl_id = aff2 >> 3;
 		if (ccl_id)
-			*ccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);
+			*ccl_id = aff2 & 0x7;
 	} else {
 		if (sccl_id)
 			*sccl_id = MPIDR_AFFINITY_LEVEL(mpidr, 2);

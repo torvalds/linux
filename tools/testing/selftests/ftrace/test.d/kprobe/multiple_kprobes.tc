@@ -12,11 +12,6 @@ case `uname -m` in
   *) OFFS=0;;
 esac
 
-if [ -d events/kprobes ]; then
-  echo 0 > events/kprobes/enable
-  echo > kprobe_events
-fi
-
 N=0
 echo "Setup up kprobes on first available 256 text symbols"
 grep -i " t " /proc/kallsyms | cut -f3 -d" " | grep -v .*\\..* | \

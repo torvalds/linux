@@ -1,24 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2007 Jon Loeliger, Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
- *                                                                   USA
  */
 
-#ifndef _SRCPOS_H_
-#define _SRCPOS_H_
+#ifndef SRCPOS_H
+#define SRCPOS_H
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -74,6 +60,7 @@ struct srcpos {
     int last_line;
     int last_column;
     struct srcfile_state *file;
+    struct srcpos *next;
 };
 
 #define YYLTYPE struct srcpos
@@ -93,19 +80,18 @@ struct srcpos {
 				YYRHSLOC(Rhs, 0).last_column;			\
 			(Current).file = YYRHSLOC (Rhs, 0).file;		\
 		}								\
+		(Current).next = NULL;						\
 	} while (0)
 
 
-/*
- * Fictional source position used for IR nodes that are
- * created without otherwise knowing a true source position.
- * For example,constant definitions from the command line.
- */
-extern struct srcpos srcpos_empty;
-
 extern void srcpos_update(struct srcpos *pos, const char *text, int len);
 extern struct srcpos *srcpos_copy(struct srcpos *pos);
+extern struct srcpos *srcpos_extend(struct srcpos *new_srcpos,
+				    struct srcpos *old_srcpos);
 extern char *srcpos_string(struct srcpos *pos);
+extern char *srcpos_string_first(struct srcpos *pos, int level);
+extern char *srcpos_string_last(struct srcpos *pos, int level);
+
 
 extern void PRINTF(3, 0) srcpos_verror(struct srcpos *pos, const char *prefix,
 					const char *fmt, va_list va);
@@ -114,4 +100,4 @@ extern void PRINTF(3, 4) srcpos_error(struct srcpos *pos, const char *prefix,
 
 extern void srcpos_set_line(char *f, int l);
 
-#endif /* _SRCPOS_H_ */
+#endif /* SRCPOS_H */

@@ -1,9 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Texas Instruments Incorporated - http://www.ti.com/
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  * Based on "omap4.dtsi"
  */
 
@@ -18,6 +16,16 @@
 			compatible = "arm,cortex-a15";
 			reg = <1>;
 			operating-points-v2 = <&cpu0_opp_table>;
+
+			clocks = <&dpll_mpu_ck>;
+			clock-names = "cpu";
+
+			clock-latency = <300000>; /* From omap-cpufreq driver */
+
+			/* cooling options */
+			#cooling-cells = <2>; /* min followed by max */
+
+			vbb-supply = <&abb_mpu>;
 		};
 	};
 
@@ -93,9 +101,9 @@
 	reg-names = "dss", "pll1_clkctrl", "pll1",
 		    "pll2_clkctrl", "pll2";
 
-	clocks = <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 8>,
-		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 12>,
-		 <&dss_clkctrl DRA7_DSS_CORE_CLKCTRL 13>;
+	clocks = <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 8>,
+		 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 12>,
+		 <&dss_clkctrl DRA7_DSS_DSS_CORE_CLKCTRL 13>;
 	clock-names = "fck", "video1_clk", "video2_clk";
 };
 

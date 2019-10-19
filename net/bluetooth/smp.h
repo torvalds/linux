@@ -181,7 +181,8 @@ enum smp_key_pref {
 };
 
 /* SMP Commands */
-void smp_cancel_pairing(struct hci_conn *hcon);
+int smp_cancel_and_remove_pairing(struct hci_dev *hdev, bdaddr_t *bdaddr,
+				  u8 addr_type);
 bool smp_sufficient_security(struct hci_conn *hcon, u8 sec_level,
 			     enum smp_key_pref key_pref);
 int smp_conn_security(struct hci_conn *hcon, __u8 sec_level);

@@ -24,7 +24,6 @@
  *
  */
 
-#include <drm/drmP.h>
 #include "nouveau_drv.h"
 #include "nouveau_reg.h"
 #include "nouveau_encoder.h"
@@ -244,7 +243,7 @@ nv04_tv_create(struct drm_connector *connector, struct dcb_output *entry)
 
 	/* Attach it to the specified connector. */
 	get_slave_funcs(encoder)->create_resources(encoder, connector);
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 
 	return 0;
 

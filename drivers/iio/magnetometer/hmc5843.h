@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Header file for hmc5843 driver
  *
  * Split from hmc5843.c
  * Copyright (C) Josef Gajdusek <atx@atx.name>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef HMC5843_CORE_H
@@ -31,7 +28,7 @@ enum hmc5843_ids {
 };
 
 /**
- * struct hcm5843_data	- device specific data
+ * struct hmc5843_data	- device specific data
  * @dev:		actual device
  * @lock:		update and read regmap data
  * @regmap:		hardware access register maps
@@ -43,6 +40,7 @@ struct hmc5843_data {
 	struct mutex lock;
 	struct regmap *regmap;
 	const struct hmc5843_chip_info *variant;
+	struct iio_mount_matrix orientation;
 	__be16 buffer[8];
 };
 

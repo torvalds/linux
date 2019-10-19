@@ -99,20 +99,24 @@ struct compat_kexec_segment {
 
 #ifdef CONFIG_KEXEC_FILE
 struct purgatory_info {
-	/* Pointer to elf header of read only purgatory */
-	Elf_Ehdr *ehdr;
-
-	/* Pointer to purgatory sechdrs which are modifiable */
+	/*
+	 * Pointer to elf header at the beginning of kexec_purgatory.
+	 * Note: kexec_purgatory is read only
+	 */
+	const Elf_Ehdr *ehdr;
+	/*
+	 * Temporary, modifiable buffer for sechdrs used for relocation.
+	 * This memory can be freed post image load.
+	 */
 	Elf_Shdr *sechdrs;
 	/*
-	 * Temporary buffer location where purgatory is loaded and relocated
-	 * This memory can be freed post image load
+	 * Temporary, modifiable buffer for stripped purgatory used for
+	 * relocation. This memory can be freed post image load.
 	 */
 	void *purgatory_buf;
-
-	/* Address where purgatory is finally loaded and is executed from */
-	unsigned long purgatory_load_addr;
 };
+
+struct kimage;
 
 typedef int (kexec_probe_t)(const char *kernel_buf, unsigned long kernel_size);
 typedef void *(kexec_load_t)(struct kimage *image, char *kernel_buf,
@@ -121,7 +125,7 @@ typedef void *(kexec_load_t)(struct kimage *image, char *kernel_buf,
 			     unsigned long cmdline_len);
 typedef int (kexec_cleanup_t)(void *loader_data);
 
-#ifdef CONFIG_KEXEC_VERIFY_SIG
+#ifdef CONFIG_KEXEC_SIG
 typedef int (kexec_verify_sig_t)(const char *kernel_buf,
 				 unsigned long kernel_len);
 #endif
@@ -130,10 +134,24 @@ struct kexec_file_ops {
 	kexec_probe_t *probe;
 	kexec_load_t *load;
 	kexec_cleanup_t *cleanup;
-#ifdef CONFIG_KEXEC_VERIFY_SIG
+#ifdef CONFIG_KEXEC_SIG
 	kexec_verify_sig_t *verify_sig;
 #endif
 };
+
+extern const struct kexec_file_ops * const kexec_file_loaders[];
+
+int kexec_image_probe_default(struct kimage *image, void *buf,
+			      unsigned long buf_len);
+int kexec_image_post_load_cleanup_default(struct kimage *image);
+
+/*
+ * If kexec_buf.mem is set to this value, kexec_locate_mem_hole()
+ * will try to allocate free memory. Arch may overwrite it.
+ */
+#ifndef KEXEC_BUF_MEM_UNKNOWN
+#define KEXEC_BUF_MEM_UNKNOWN 0
+#endif
 
 /**
  * struct kexec_buf - parameters for finding a place for a buffer in memory
@@ -159,12 +177,70 @@ struct kexec_buf {
 	bool top_down;
 };
 
-int __weak arch_kexec_walk_mem(struct kexec_buf *kbuf,
-			       int (*func)(struct resource *, void *));
+int kexec_load_purgatory(struct kimage *image, struct kexec_buf *kbuf);
+int kexec_purgatory_get_set_symbol(struct kimage *image, const char *name,
+				   void *buf, unsigned int size,
+				   bool get_value);
+void *kexec_purgatory_get_symbol_addr(struct kimage *image, const char *name);
+
+int __weak arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
+					 unsigned long buf_len);
+void * __weak arch_kexec_kernel_image_load(struct kimage *image);
+int __weak arch_kexec_apply_relocations_add(struct purgatory_info *pi,
+					    Elf_Shdr *section,
+					    const Elf_Shdr *relsec,
+					    const Elf_Shdr *symtab);
+int __weak arch_kexec_apply_relocations(struct purgatory_info *pi,
+					Elf_Shdr *section,
+					const Elf_Shdr *relsec,
+					const Elf_Shdr *symtab);
+
 extern int kexec_add_buffer(struct kexec_buf *kbuf);
 int kexec_locate_mem_hole(struct kexec_buf *kbuf);
+
+/* Alignment required for elf header segment */
+#define ELF_CORE_HEADER_ALIGN   4096
+
+struct crash_mem_range {
+	u64 start, end;
+};
+
+struct crash_mem {
+	unsigned int max_nr_ranges;
+	unsigned int nr_ranges;
+	struct crash_mem_range ranges[0];
+};
+
+extern int crash_exclude_mem_range(struct crash_mem *mem,
+				   unsigned long long mstart,
+				   unsigned long long mend);
+extern int crash_prepare_elf64_headers(struct crash_mem *mem, int kernel_map,
+				       void **addr, unsigned long *sz);
 #endif /* CONFIG_KEXEC_FILE */
 
+#ifdef CONFIG_KEXEC_ELF
+struct kexec_elf_info {
+	/*
+	 * Where the ELF binary contents are kept.
+	 * Memory managed by the user of the struct.
+	 */
+	const char *buffer;
+
+	const struct elfhdr *ehdr;
+	const struct elf_phdr *proghdrs;
+};
+
+int kexec_build_elf_info(const char *buf, size_t len, struct elfhdr *ehdr,
+			       struct kexec_elf_info *elf_info);
+
+int kexec_elf_load(struct kimage *image, struct elfhdr *ehdr,
+			 struct kexec_elf_info *elf_info,
+			 struct kexec_buf *kbuf,
+			 unsigned long *lowest_load_addr);
+
+void kexec_free_elf_info(struct kexec_elf_info *elf_info);
+int kexec_elf_probe(const char *buf, unsigned long len);
+#endif
 struct kimage {
 	kimage_entry_t head;
 	kimage_entry_t *entry;
@@ -209,7 +285,7 @@ struct kimage {
 	unsigned long cmdline_buf_len;
 
 	/* File operations provided by image loader */
-	struct kexec_file_ops *fops;
+	const struct kexec_file_ops *fops;
 
 	/* Image loader handling the kernel can store a pointer here */
 	void *image_loader_data;
@@ -223,21 +299,9 @@ struct kimage {
 extern void machine_kexec(struct kimage *image);
 extern int machine_kexec_prepare(struct kimage *image);
 extern void machine_kexec_cleanup(struct kimage *image);
-extern asmlinkage long sys_kexec_load(unsigned long entry,
-					unsigned long nr_segments,
-					struct kexec_segment __user *segments,
-					unsigned long flags);
 extern int kernel_kexec(void);
 extern struct page *kimage_alloc_control_pages(struct kimage *image,
 						unsigned int order);
-extern int kexec_load_purgatory(struct kimage *image, unsigned long min,
-				unsigned long max, int top_down,
-				unsigned long *load_addr);
-extern int kexec_purgatory_get_set_symbol(struct kimage *image,
-					  const char *name, void *buf,
-					  unsigned int size, bool get_value);
-extern void *kexec_purgatory_get_symbol_addr(struct kimage *image,
-					     const char *name);
 extern void __crash_kexec(struct pt_regs *);
 extern void crash_kexec(struct pt_regs *);
 int kexec_should_crash(struct task_struct *);
@@ -277,16 +341,6 @@ int crash_shrink_memory(unsigned long new_size);
 size_t crash_get_memory_size(void);
 void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
 
-int __weak arch_kexec_kernel_image_probe(struct kimage *image, void *buf,
-					 unsigned long buf_len);
-void * __weak arch_kexec_kernel_image_load(struct kimage *image);
-int __weak arch_kimage_file_post_load_cleanup(struct kimage *image);
-int __weak arch_kexec_kernel_verify_sig(struct kimage *image, void *buf,
-					unsigned long buf_len);
-int __weak arch_kexec_apply_relocations_add(const Elf_Ehdr *ehdr,
-					Elf_Shdr *sechdrs, unsigned int relsec);
-int __weak arch_kexec_apply_relocations(const Elf_Ehdr *ehdr, Elf_Shdr *sechdrs,
-					unsigned int relsec);
 void arch_kexec_protect_crashkres(void);
 void arch_kexec_unprotect_crashkres(void);
 

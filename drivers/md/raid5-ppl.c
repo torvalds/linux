@@ -1,26 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Partial Parity Log for closing the RAID5 write hole
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/slab.h>
 #include <linux/crc32c.h>
-#include <linux/flex_array.h>
 #include <linux/async_tx.h>
 #include <linux/raid/md_p.h>
 #include "md.h"
 #include "raid5.h"
+#include "raid5-log.h"
 
 /*
  * PPL consists of a 4KB header (struct ppl_header) and at least 128KB for
@@ -105,9 +97,9 @@ struct ppl_conf {
 	atomic64_t seq;		/* current log write sequence number */
 
 	struct kmem_cache *io_kc;
-	mempool_t *io_pool;
-	struct bio_set *bs;
-	struct bio_set *flush_bs;
+	mempool_t io_pool;
+	struct bio_set bs;
+	struct bio_set flush_bs;
 
 	/* used only for recovery */
 	int recovered_entries;
@@ -116,6 +108,8 @@ struct ppl_conf {
 	/* stripes to retry if failed to allocate io_unit */
 	struct list_head no_mem_stripes;
 	spinlock_t no_mem_stripes_lock;
+
+	unsigned short write_hint;
 };
 
 struct ppl_log {
@@ -165,7 +159,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 		       struct dma_async_tx_descriptor *tx)
 {
 	int disks = sh->disks;
-	struct page **srcs = flex_array_get(percpu->scribble, 0);
+	struct page **srcs = percpu->scribble;
 	int count = 0, pd_idx = sh->pd_idx, i;
 	struct async_submit_ctl submit;
 
@@ -196,8 +190,7 @@ ops_run_partial_parity(struct stripe_head *sh, struct raid5_percpu *percpu,
 	}
 
 	init_async_submit(&submit, ASYNC_TX_FENCE|ASYNC_TX_XOR_ZERO_DST, tx,
-			  NULL, sh, flex_array_get(percpu->scribble, 0)
-			  + sizeof(struct page *) * (sh->disks + 2));
+			  NULL, sh, (void *) (srcs + sh->disks + 2));
 
 	if (count == 1)
 		tx = async_memcpy(sh->ppl_page, srcs[0], 0, 0, PAGE_SIZE,
@@ -244,7 +237,7 @@ static struct ppl_io_unit *ppl_new_iounit(struct ppl_log *log,
 	struct ppl_header *pplhdr;
 	struct page *header_page;
 
-	io = mempool_alloc(ppl_conf->io_pool, GFP_NOWAIT);
+	io = mempool_alloc(&ppl_conf->io_pool, GFP_NOWAIT);
 	if (!io)
 		return NULL;
 
@@ -476,6 +469,7 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 	bio_set_dev(bio, log->rdev->bdev);
 	bio->bi_iter.bi_sector = log->next_io_sector;
 	bio_add_page(bio, io->header_page, PAGE_SIZE, 0);
+	bio->bi_write_hint = ppl_conf->write_hint;
 
 	pr_debug("%s: log->current_io_sector: %llu\n", __func__,
 	    (unsigned long long)log->next_io_sector);
@@ -503,8 +497,9 @@ static void ppl_submit_iounit(struct ppl_io_unit *io)
 			struct bio *prev = bio;
 
 			bio = bio_alloc_bioset(GFP_NOIO, BIO_MAX_PAGES,
-					       ppl_conf->bs);
+					       &ppl_conf->bs);
 			bio->bi_opf = prev->bi_opf;
+			bio->bi_write_hint = prev->bi_write_hint;
 			bio_copy_dev(bio, prev);
 			bio->bi_iter.bi_sector = bio_end_sector(prev);
 			bio_add_page(bio, sh->ppl_page, PAGE_SIZE, 0);
@@ -570,7 +565,7 @@ static void ppl_io_unit_finished(struct ppl_io_unit *io)
 	list_del(&io->log_sibling);
 	spin_unlock(&log->io_list_lock);
 
-	mempool_free(io, ppl_conf->io_pool);
+	mempool_free(io, &ppl_conf->io_pool);
 
 	spin_lock(&ppl_conf->no_mem_stripes_lock);
 	if (!list_empty(&ppl_conf->no_mem_stripes)) {
@@ -642,7 +637,7 @@ static void ppl_do_flush(struct ppl_io_unit *io)
 			struct bio *bio;
 			char b[BDEVNAME_SIZE];
 
-			bio = bio_alloc_bioset(GFP_NOIO, 0, ppl_conf->flush_bs);
+			bio = bio_alloc_bioset(GFP_NOIO, 0, &ppl_conf->flush_bs);
 			bio_set_dev(bio, bdev);
 			bio->bi_private = io;
 			bio->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
@@ -691,6 +686,16 @@ void ppl_quiesce(struct r5conf *conf, int quiesce)
 			spin_unlock_irq(&log->io_list_lock);
 		}
 	}
+}
+
+int ppl_handle_flush_request(struct r5l_log *log, struct bio *bio)
+{
+	if (bio->bi_iter.bi_size == 0) {
+		bio_endio(bio);
+		return 0;
+	}
+	bio->bi_opf &= ~REQ_PREFLUSH;
+	return -EAGAIN;
 }
 
 void ppl_stripe_write_finished(struct stripe_head *sh)
@@ -1236,11 +1241,9 @@ static void __ppl_exit_log(struct ppl_conf *ppl_conf)
 
 	kfree(ppl_conf->child_logs);
 
-	if (ppl_conf->bs)
-		bioset_free(ppl_conf->bs);
-	if (ppl_conf->flush_bs)
-		bioset_free(ppl_conf->flush_bs);
-	mempool_destroy(ppl_conf->io_pool);
+	bioset_exit(&ppl_conf->bs);
+	bioset_exit(&ppl_conf->flush_bs);
+	mempool_exit(&ppl_conf->io_pool);
 	kmem_cache_destroy(ppl_conf->io_kc);
 
 	kfree(ppl_conf);
@@ -1377,24 +1380,18 @@ int ppl_init_log(struct r5conf *conf)
 		goto err;
 	}
 
-	ppl_conf->io_pool = mempool_create(conf->raid_disks, ppl_io_pool_alloc,
-					   ppl_io_pool_free, ppl_conf->io_kc);
-	if (!ppl_conf->io_pool) {
-		ret = -ENOMEM;
+	ret = mempool_init(&ppl_conf->io_pool, conf->raid_disks, ppl_io_pool_alloc,
+			   ppl_io_pool_free, ppl_conf->io_kc);
+	if (ret)
 		goto err;
-	}
 
-	ppl_conf->bs = bioset_create(conf->raid_disks, 0, BIOSET_NEED_BVECS);
-	if (!ppl_conf->bs) {
-		ret = -ENOMEM;
+	ret = bioset_init(&ppl_conf->bs, conf->raid_disks, 0, BIOSET_NEED_BVECS);
+	if (ret)
 		goto err;
-	}
 
-	ppl_conf->flush_bs = bioset_create(conf->raid_disks, 0, 0);
-	if (!ppl_conf->flush_bs) {
-		ret = -ENOMEM;
+	ret = bioset_init(&ppl_conf->flush_bs, conf->raid_disks, 0, 0);
+	if (ret)
 		goto err;
-	}
 
 	ppl_conf->count = conf->raid_disks;
 	ppl_conf->child_logs = kcalloc(ppl_conf->count, sizeof(struct ppl_log),
@@ -1407,6 +1404,7 @@ int ppl_init_log(struct r5conf *conf)
 	atomic64_set(&ppl_conf->seq, 0);
 	INIT_LIST_HEAD(&ppl_conf->no_mem_stripes);
 	spin_lock_init(&ppl_conf->no_mem_stripes_lock);
+	ppl_conf->write_hint = RWF_WRITE_LIFE_NOT_SET;
 
 	if (!mddev->external) {
 		ppl_conf->signature = ~crc32c_le(~0, mddev->uuid, sizeof(mddev->uuid));
@@ -1501,3 +1499,60 @@ int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add)
 
 	return ret;
 }
+
+static ssize_t
+ppl_write_hint_show(struct mddev *mddev, char *buf)
+{
+	size_t ret = 0;
+	struct r5conf *conf;
+	struct ppl_conf *ppl_conf = NULL;
+
+	spin_lock(&mddev->lock);
+	conf = mddev->private;
+	if (conf && raid5_has_ppl(conf))
+		ppl_conf = conf->log_private;
+	ret = sprintf(buf, "%d\n", ppl_conf ? ppl_conf->write_hint : 0);
+	spin_unlock(&mddev->lock);
+
+	return ret;
+}
+
+static ssize_t
+ppl_write_hint_store(struct mddev *mddev, const char *page, size_t len)
+{
+	struct r5conf *conf;
+	struct ppl_conf *ppl_conf;
+	int err = 0;
+	unsigned short new;
+
+	if (len >= PAGE_SIZE)
+		return -EINVAL;
+	if (kstrtou16(page, 10, &new))
+		return -EINVAL;
+
+	err = mddev_lock(mddev);
+	if (err)
+		return err;
+
+	conf = mddev->private;
+	if (!conf) {
+		err = -ENODEV;
+	} else if (raid5_has_ppl(conf)) {
+		ppl_conf = conf->log_private;
+		if (!ppl_conf)
+			err = -EINVAL;
+		else
+			ppl_conf->write_hint = new;
+	} else {
+		err = -EINVAL;
+	}
+
+	mddev_unlock(mddev);
+
+	return err ?: len;
+}
+
+struct md_sysfs_entry
+ppl_write_hint = __ATTR(ppl_write_hint, S_IRUGO | S_IWUSR,
+			ppl_write_hint_show,
+			ppl_write_hint_store);

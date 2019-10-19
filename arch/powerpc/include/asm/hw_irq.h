@@ -30,6 +30,16 @@
 #define PACA_IRQ_PMI		0x40
 
 /*
+ * Some soft-masked interrupts must be hard masked until they are replayed
+ * (e.g., because the soft-masked handler does not clear the exception).
+ */
+#ifdef CONFIG_PPC_BOOK3S
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE|PACA_IRQ_PMI)
+#else
+#define PACA_IRQ_MUST_HARD_MASK	(PACA_IRQ_EE)
+#endif
+
+/*
  * flags for paca->irq_soft_mask
  */
 #define IRQS_ENABLED		0
@@ -45,6 +55,7 @@ extern void replay_system_reset(void);
 extern void __replay_interrupt(unsigned int vector);
 
 extern void timer_interrupt(struct pt_regs *);
+extern void timer_broadcast_interrupt(void);
 extern void performance_monitor_exception(struct pt_regs *regs);
 extern void WatchdogException(struct pt_regs *regs);
 extern void unknown_exception(struct pt_regs *regs);
@@ -218,8 +229,8 @@ static inline bool arch_irqs_disabled(void)
 #define __hard_irq_enable()	asm volatile("wrteei 1" : : : "memory")
 #define __hard_irq_disable()	asm volatile("wrteei 0" : : : "memory")
 #else
-#define __hard_irq_enable()	__mtmsrd(local_paca->kernel_msr | MSR_EE, 1)
-#define __hard_irq_disable()	__mtmsrd(local_paca->kernel_msr, 1)
+#define __hard_irq_enable()	__mtmsrd(MSR_EE|MSR_RI, 1)
+#define __hard_irq_disable()	__mtmsrd(MSR_RI, 1)
 #endif
 
 #define hard_irq_disable()	do {					\
@@ -227,8 +238,12 @@ static inline bool arch_irqs_disabled(void)
 	__hard_irq_disable();						\
 	flags = irq_soft_mask_set_return(IRQS_ALL_DISABLED);		\
 	local_paca->irq_happened |= PACA_IRQ_HARD_DIS;			\
-	if (!arch_irqs_disabled_flags(flags))				\
+	if (!arch_irqs_disabled_flags(flags)) {				\
+		asm ("stdx %%r1, 0, %1 ;"				\
+		     : "=m" (local_paca->saved_r1)			\
+		     : "b" (&local_paca->saved_r1));			\
 		trace_hardirqs_off();					\
+	}								\
 } while(0)
 
 static inline bool lazy_irq_pending(void)
@@ -238,14 +253,16 @@ static inline bool lazy_irq_pending(void)
 
 /*
  * This is called by asynchronous interrupts to conditionally
- * re-enable hard interrupts when soft-disabled after having
- * cleared the source of the interrupt
+ * re-enable hard interrupts after having cleared the source
+ * of the interrupt. They are kept disabled if there is a different
+ * soft-masked interrupt pending that requires hard masking.
  */
 static inline void may_hard_irq_enable(void)
 {
-	get_paca()->irq_happened &= ~PACA_IRQ_HARD_DIS;
-	if (!(get_paca()->irq_happened & PACA_IRQ_EE))
+	if (!(get_paca()->irq_happened & PACA_IRQ_MUST_HARD_MASK)) {
+		get_paca()->irq_happened &= ~PACA_IRQ_HARD_DIS;
 		__hard_irq_enable();
+	}
 }
 
 static inline bool arch_irq_disabled_regs(struct pt_regs *regs)

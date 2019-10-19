@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 NVIDIA Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/clk.h>
@@ -11,14 +8,15 @@
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/module.h>
 #include <linux/of_gpio.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
-#include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
-#include <linux/reset.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
+#include <linux/reset.h>
 #include <linux/workqueue.h>
 
 #include <drm/drm_dp_helper.h>
@@ -485,11 +483,16 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	dpaux->vdd = devm_regulator_get(&pdev->dev, "vdd");
+	dpaux->vdd = devm_regulator_get_optional(&pdev->dev, "vdd");
 	if (IS_ERR(dpaux->vdd)) {
-		dev_err(&pdev->dev, "failed to get VDD supply: %ld\n",
-			PTR_ERR(dpaux->vdd));
-		return PTR_ERR(dpaux->vdd);
+		if (PTR_ERR(dpaux->vdd) != -ENODEV) {
+			if (PTR_ERR(dpaux->vdd) != -EPROBE_DEFER)
+				dev_err(&pdev->dev,
+					"failed to get VDD supply: %ld\n",
+					PTR_ERR(dpaux->vdd));
+
+			return PTR_ERR(dpaux->vdd);
+		}
 	}
 
 	platform_set_drvdata(pdev, dpaux);
@@ -521,7 +524,7 @@ static int tegra_dpaux_probe(struct platform_device *pdev)
 	 * is no possibility to perform the I2C mode configuration in the
 	 * HDMI path.
 	 */
-	err = tegra_dpaux_pad_config(dpaux, DPAUX_HYBRID_PADCTL_MODE_I2C);
+	err = tegra_dpaux_pad_config(dpaux, DPAUX_PADCTL_FUNC_I2C);
 	if (err < 0)
 		return err;
 
@@ -639,6 +642,7 @@ static const struct dev_pm_ops tegra_dpaux_pm_ops = {
 };
 
 static const struct of_device_id tegra_dpaux_of_match[] = {
+	{ .compatible = "nvidia,tegra194-dpaux", },
 	{ .compatible = "nvidia,tegra186-dpaux", },
 	{ .compatible = "nvidia,tegra210-dpaux", },
 	{ .compatible = "nvidia,tegra124-dpaux", },

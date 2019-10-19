@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2000-2015 Avago Technologies.  All rights reserved.
+ * Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *          Name:  mpi2.h
@@ -9,7 +9,7 @@
  *                 scatter/gather formats.
  * Creation Date:  June 21, 2006
  *
- * mpi2.h Version:  02.00.48
+ *  mpi2.h Version:  02.00.54
  *
  * NOTE: Names (typedefs, defines, etc.) beginning with an MPI25 or Mpi25
  *       prefix are for use only on MPI v2.5 products, and must not be used
@@ -114,7 +114,15 @@
  * 09-02-16  02.00.46  Bumped MPI2_HEADER_VERSION_UNIT.
  * 11-23-16  02.00.47  Bumped MPI2_HEADER_VERSION_UNIT.
  * 02-03-17  02.00.48  Bumped MPI2_HEADER_VERSION_UNIT.
- * --------------------------------------------------------------------------
+ * 06-13-17  02.00.49  Bumped MPI2_HEADER_VERSION_UNIT.
+ * 09-29-17  02.00.50  Bumped MPI2_HEADER_VERSION_UNIT.
+ * 07-22-18  02.00.51  Added SECURE_BOOT define.
+ *                     Bumped MPI2_HEADER_VERSION_UNIT
+ * 08-15-18  02.00.52  Bumped MPI2_HEADER_VERSION_UNIT.
+ * 08-28-18  02.00.53  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                     Added MPI2_IOCSTATUS_FAILURE
+ * 12-17-18  02.00.54  Bumped MPI2_HEADER_VERSION_UNIT
+ *  --------------------------------------------------------------------------
  */
 
 #ifndef MPI2_H
@@ -152,8 +160,9 @@
 					MPI26_VERSION_MINOR)
 #define MPI2_VERSION_02_06		    (0x0206)
 
-/*Unit and Dev versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x30)
+
+/* Unit and Dev versioning for this MPI header set */
+#define MPI2_HEADER_VERSION_UNIT            (0x36)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -253,6 +262,8 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS {
  *Defines for the HostDiagnostic register
  */
 #define MPI2_HOST_DIAGNOSTIC_OFFSET             (0x00000008)
+
+#define MPI26_DIAG_SECURE_BOOT                  (0x80000000)
 
 #define MPI2_DIAG_SBR_RELOAD                    (0x00002000)
 
@@ -684,7 +695,9 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION {
 #define MPI2_IOCSTATUS_INVALID_FIELD                (0x0007)
 #define MPI2_IOCSTATUS_INVALID_STATE                (0x0008)
 #define MPI2_IOCSTATUS_OP_STATE_NOT_SUPPORTED       (0x0009)
+/*MPI v2.6 and later */
 #define MPI2_IOCSTATUS_INSUFFICIENT_POWER           (0x000A)
+#define MPI2_IOCSTATUS_FAILURE                      (0x000F)
 
 /****************************************************************************
 * Config IOCStatus values

@@ -1,14 +1,10 @@
-/*
- * Freescale ASRC ALSA SoC Platform (DMA) driver
- *
- * Copyright (C) 2014 Freescale Semiconductor, Inc.
- *
- * Author: Nicolin Chen <nicoleotsuka@gmail.com>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2. This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Freescale ASRC ALSA SoC Platform (DMA) driver
+//
+// Copyright (C) 2014 Freescale Semiconductor, Inc.
+//
+// Author: Nicolin Chen <nicoleotsuka@gmail.com>
 
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
@@ -64,7 +60,8 @@ static int fsl_asrc_dma_prepare_and_submit(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
-	struct device *dev = rtd->platform->dev;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct device *dev = component->dev;
 	unsigned long flags = DMA_CTRL_ACK;
 
 	/* Prepare and submit Front-End DMA channel */
@@ -137,12 +134,13 @@ static int fsl_asrc_dma_hw_params(struct snd_pcm_substream *substream,
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	struct snd_dmaengine_dai_dma_data *dma_params_fe = NULL;
 	struct snd_dmaengine_dai_dma_data *dma_params_be = NULL;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_asrc_pair *pair = runtime->private_data;
 	struct fsl_asrc *asrc_priv = pair->asrc_priv;
 	struct dma_slave_config config_fe, config_be;
 	enum asrc_pair_index index = pair->index;
-	struct device *dev = rtd->platform->dev;
+	struct device *dev = component->dev;
 	int stream = substream->stream;
 	struct imx_dma_data *tmp_data;
 	struct snd_soc_dpcm *dpcm;
@@ -153,7 +151,7 @@ static int fsl_asrc_dma_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	/* Fetch the Back-End dma_data from DPCM */
-	list_for_each_entry(dpcm, &rtd->dpcm[stream].be_clients, list_be) {
+	for_each_dpcm_be(rtd, stream, dpcm) {
 		struct snd_soc_pcm_runtime *be = dpcm->be;
 		struct snd_pcm_substream *substream_be;
 		struct snd_soc_dai *dai = be->cpu_dai;
@@ -274,7 +272,8 @@ static int fsl_asrc_dma_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct device *dev = rtd->platform->dev;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct device *dev = component->dev;
 	struct fsl_asrc *asrc_priv = dev_get_drvdata(dev);
 	struct fsl_asrc_pair *pair;
 
@@ -381,9 +380,10 @@ static void fsl_asrc_dma_pcm_free(struct snd_pcm *pcm)
 	}
 }
 
-struct snd_soc_platform_driver fsl_asrc_platform = {
+struct snd_soc_component_driver fsl_asrc_component = {
+	.name		= DRV_NAME,
 	.ops		= &fsl_asrc_dma_pcm_ops,
 	.pcm_new	= fsl_asrc_dma_pcm_new,
 	.pcm_free	= fsl_asrc_dma_pcm_free,
 };
-EXPORT_SYMBOL_GPL(fsl_asrc_platform);
+EXPORT_SYMBOL_GPL(fsl_asrc_component);

@@ -1,22 +1,12 @@
-/*
- * max14577.c - mfd core driver for the Maxim 14577/77836
- *
- * Copyright (C) 2014 Samsung Electronics
- * Chanwoo Choi <cw00.choi@samsung.com>
- * Krzysztof Kozlowski <krzk@kernel.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * This driver is based on max8997.c
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// max14577.c - mfd core driver for the Maxim 14577/77836
+//
+// Copyright (C) 2014 Samsung Electronics
+// Chanwoo Choi <cw00.choi@samsung.com>
+// Krzysztof Kozlowski <krzk@kernel.org>
+//
+// This driver is based on max8997.c
 
 #include <linux/err.h>
 #include <linux/module.h>
@@ -307,11 +297,11 @@ static int max77836_init(struct max14577 *max14577)
 	int ret;
 	u8 intsrc_mask;
 
-	max14577->i2c_pmic = i2c_new_dummy(max14577->i2c->adapter,
+	max14577->i2c_pmic = i2c_new_dummy_device(max14577->i2c->adapter,
 			I2C_ADDR_PMIC);
-	if (!max14577->i2c_pmic) {
+	if (IS_ERR(max14577->i2c_pmic)) {
 		dev_err(max14577->dev, "Failed to register PMIC I2C device\n");
-		return -ENODEV;
+		return PTR_ERR(max14577->i2c_pmic);
 	}
 	i2c_set_clientdata(max14577->i2c_pmic, max14577);
 

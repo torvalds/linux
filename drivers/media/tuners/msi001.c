@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Mirics MSi001 silicon tuner driver
  *
  * Copyright (C) 2013 Antti Palosaari <crope@iki.fi>
  * Copyright (C) 2014 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -291,25 +282,12 @@ err:
 	return ret;
 }
 
-static int msi001_s_power(struct v4l2_subdev *sd, int on)
+static int msi001_standby(struct v4l2_subdev *sd)
 {
 	struct msi001_dev *dev = sd_to_msi001_dev(sd);
-	struct spi_device *spi = dev->spi;
-	int ret;
 
-	dev_dbg(&spi->dev, "on=%d\n", on);
-
-	if (on)
-		ret = 0;
-	else
-		ret = msi001_wreg(dev, 0x000000);
-
-	return ret;
+	return msi001_wreg(dev, 0x000000);
 }
-
-static const struct v4l2_subdev_core_ops msi001_core_ops = {
-	.s_power                  = msi001_s_power,
-};
 
 static int msi001_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 {
@@ -318,7 +296,7 @@ static int msi001_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 
 	dev_dbg(&spi->dev, "index=%d\n", v->index);
 
-	strlcpy(v->name, "Mirics MSi001", sizeof(v->name));
+	strscpy(v->name, "Mirics MSi001", sizeof(v->name));
 	v->type = V4L2_TUNER_RF;
 	v->capability = V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
 	v->rangelow =    49000000;
@@ -386,6 +364,7 @@ static int msi001_enum_freq_bands(struct v4l2_subdev *sd,
 }
 
 static const struct v4l2_subdev_tuner_ops msi001_tuner_ops = {
+	.standby                  = msi001_standby,
 	.g_tuner                  = msi001_g_tuner,
 	.s_tuner                  = msi001_s_tuner,
 	.g_frequency              = msi001_g_frequency,
@@ -394,7 +373,6 @@ static const struct v4l2_subdev_tuner_ops msi001_tuner_ops = {
 };
 
 static const struct v4l2_subdev_ops msi001_ops = {
-	.core                     = &msi001_core_ops,
 	.tuner                    = &msi001_tuner_ops,
 };
 

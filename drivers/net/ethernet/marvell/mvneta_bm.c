@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/skbuff.h>
 #include <net/hwbm.h>
@@ -189,7 +190,7 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 			SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 		hwbm_pool->construct = mvneta_bm_construct;
 		hwbm_pool->priv = new_pool;
-		spin_lock_init(&hwbm_pool->lock);
+		mutex_init(&hwbm_pool->buf_lock);
 
 		/* Create new pool */
 		err = mvneta_bm_pool_create(priv, new_pool);
@@ -200,7 +201,7 @@ struct mvneta_bm_pool *mvneta_bm_pool_use(struct mvneta_bm *priv, u8 pool_id,
 		}
 
 		/* Allocate buffers for this pool */
-		num = hwbm_pool_add(hwbm_pool, hwbm_pool->size, GFP_ATOMIC);
+		num = hwbm_pool_add(hwbm_pool, hwbm_pool->size);
 		if (num != hwbm_pool->size) {
 			WARN(1, "pool %d: %d of %d allocated\n",
 			     new_pool->id, num, hwbm_pool->size);
@@ -392,19 +393,31 @@ static void mvneta_bm_put_sram(struct mvneta_bm *priv)
 		      MVNETA_BM_BPPI_SIZE);
 }
 
+struct mvneta_bm *mvneta_bm_get(struct device_node *node)
+{
+	struct platform_device *pdev = of_find_device_by_node(node);
+
+	return pdev ? platform_get_drvdata(pdev) : NULL;
+}
+EXPORT_SYMBOL_GPL(mvneta_bm_get);
+
+void mvneta_bm_put(struct mvneta_bm *priv)
+{
+	platform_device_put(priv->pdev);
+}
+EXPORT_SYMBOL_GPL(mvneta_bm_put);
+
 static int mvneta_bm_probe(struct platform_device *pdev)
 {
 	struct device_node *dn = pdev->dev.of_node;
 	struct mvneta_bm *priv;
-	struct resource *res;
 	int err;
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(struct mvneta_bm), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->reg_base = devm_ioremap_resource(&pdev->dev, res);
+	priv->reg_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->reg_base))
 		return PTR_ERR(priv->reg_base);
 

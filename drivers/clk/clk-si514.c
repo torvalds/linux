@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for Silicon Labs Si514 Programmable Oscillator
  *
  * Copyright (C) 2015 Topic Embedded Products
  *
  * Author: Mike Looijmans <mike.looijmans@topic.nl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
@@ -72,6 +63,33 @@ static int si514_enable_output(struct clk_si514 *data, bool enable)
 {
 	return regmap_update_bits(data->regmap, SI514_REG_CONTROL,
 		SI514_CONTROL_OE, enable ? SI514_CONTROL_OE : 0);
+}
+
+static int si514_prepare(struct clk_hw *hw)
+{
+	struct clk_si514 *data = to_clk_si514(hw);
+
+	return si514_enable_output(data, true);
+}
+
+static void si514_unprepare(struct clk_hw *hw)
+{
+	struct clk_si514 *data = to_clk_si514(hw);
+
+	si514_enable_output(data, false);
+}
+
+static int si514_is_prepared(struct clk_hw *hw)
+{
+	struct clk_si514 *data = to_clk_si514(hw);
+	unsigned int val;
+	int err;
+
+	err = regmap_read(data->regmap, SI514_REG_CONTROL, &val);
+	if (err < 0)
+		return err;
+
+	return !!(val & SI514_CONTROL_OE);
 }
 
 /* Retrieve clock multiplier and dividers from hardware */
@@ -235,9 +253,14 @@ static int si514_set_rate(struct clk_hw *hw, unsigned long rate,
 {
 	struct clk_si514 *data = to_clk_si514(hw);
 	struct clk_si514_muldiv settings;
+	unsigned int old_oe_state;
 	int err;
 
 	err = si514_calc_muldiv(&settings, rate);
+	if (err)
+		return err;
+
+	err = regmap_read(data->regmap, SI514_REG_CONTROL, &old_oe_state);
 	if (err)
 		return err;
 
@@ -255,12 +278,16 @@ static int si514_set_rate(struct clk_hw *hw, unsigned long rate,
 	/* Applying a new frequency can take up to 10ms */
 	usleep_range(10000, 12000);
 
-	si514_enable_output(data, true);
+	if (old_oe_state & SI514_CONTROL_OE)
+		si514_enable_output(data, true);
 
 	return err;
 }
 
 static const struct clk_ops si514_clk_ops = {
+	.prepare = si514_prepare,
+	.unprepare = si514_unprepare,
+	.is_prepared = si514_is_prepared,
 	.recalc_rate = si514_recalc_rate,
 	.round_rate = si514_round_rate,
 	.set_rate = si514_set_rate,

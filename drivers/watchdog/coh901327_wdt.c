@@ -1,12 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * coh901327_wdt.c
  *
  * Copyright (C) 2008-2009 ST-Ericsson AB
- * License terms: GNU General Public License (GPL) version 2
  * Watchdog driver for the ST-Ericsson AB COH 901 327 IP core
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
-#include <linux/module.h>
+#include <linux/moduleparam.h>
+#include <linux/mod_devicetable.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/interrupt.h>
@@ -67,7 +68,9 @@
 #define U300_WDOG_IFR_WILL_BARK_IRQ_FORCE_ENABLE			0x0001U
 
 /* Default timeout in seconds = 1 minute */
-static unsigned int margin = 60;
+#define U300_WDOG_DEFAULT_TIMEOUT					60
+
+static unsigned int margin;
 static int irq;
 static void __iomem *virtbase;
 static struct device *parent;
@@ -235,31 +238,20 @@ static struct watchdog_device coh901327_wdt = {
 	 * timeout register is max
 	 * 0x7FFF = 327670ms ~= 327s.
 	 */
-	.min_timeout = 0,
+	.min_timeout = 1,
 	.max_timeout = 327,
+	.timeout = U300_WDOG_DEFAULT_TIMEOUT,
 };
-
-static int __exit coh901327_remove(struct platform_device *pdev)
-{
-	watchdog_unregister_device(&coh901327_wdt);
-	coh901327_disable();
-	free_irq(irq, pdev);
-	clk_disable_unprepare(clk);
-	clk_put(clk);
-	return 0;
-}
 
 static int __init coh901327_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
 	u16 val;
-	struct resource *res;
 
 	parent = dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	virtbase = devm_ioremap_resource(dev, res);
+	virtbase = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(virtbase))
 		return PTR_ERR(virtbase);
 
@@ -315,16 +307,15 @@ static int __init coh901327_probe(struct platform_device *pdev)
 		goto out_no_irq;
 	}
 
-	ret = watchdog_init_timeout(&coh901327_wdt, margin, dev);
-	if (ret < 0)
-		coh901327_wdt.timeout = 60;
+	watchdog_init_timeout(&coh901327_wdt, margin, dev);
 
 	coh901327_wdt.parent = dev;
 	ret = watchdog_register_device(&coh901327_wdt);
 	if (ret)
 		goto out_no_wdog;
 
-	dev_info(dev, "initialized. timer margin=%d sec\n", margin);
+	dev_info(dev, "initialized. (timeout=%d sec)\n",
+			coh901327_wdt.timeout);
 	return 0;
 
 out_no_wdog:
@@ -405,19 +396,13 @@ static struct platform_driver coh901327_driver = {
 	.driver = {
 		.name	= "coh901327_wdog",
 		.of_match_table = coh901327_dt_match,
+		.suppress_bind_attrs = true,
 	},
-	.remove		= __exit_p(coh901327_remove),
 	.suspend	= coh901327_suspend,
 	.resume		= coh901327_resume,
 };
+builtin_platform_driver_probe(coh901327_driver, coh901327_probe);
 
-module_platform_driver_probe(coh901327_driver, coh901327_probe);
-
-MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
-MODULE_DESCRIPTION("COH 901 327 Watchdog");
-
+/* not really modular, but ... */
 module_param(margin, uint, 0);
 MODULE_PARM_DESC(margin, "Watchdog margin in seconds (default 60s)");
-
-MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:coh901327-watchdog");

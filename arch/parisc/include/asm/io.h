@@ -183,15 +183,15 @@ static inline unsigned char readb(const volatile void __iomem *addr)
 }
 static inline unsigned short readw(const volatile void __iomem *addr)
 {
-	return le16_to_cpu(__raw_readw(addr));
+	return le16_to_cpu((__le16 __force) __raw_readw(addr));
 }
 static inline unsigned int readl(const volatile void __iomem *addr)
 {
-	return le32_to_cpu(__raw_readl(addr));
+	return le32_to_cpu((__le32 __force) __raw_readl(addr));
 }
 static inline unsigned long long readq(const volatile void __iomem *addr)
 {
-	return le64_to_cpu(__raw_readq(addr));
+	return le64_to_cpu((__le64 __force) __raw_readq(addr));
 }
 
 static inline void writeb(unsigned char b, volatile void __iomem *addr)
@@ -200,15 +200,15 @@ static inline void writeb(unsigned char b, volatile void __iomem *addr)
 }
 static inline void writew(unsigned short w, volatile void __iomem *addr)
 {
-	__raw_writew(cpu_to_le16(w), addr);
+	__raw_writew((__u16 __force) cpu_to_le16(w), addr);
 }
 static inline void writel(unsigned int l, volatile void __iomem *addr)
 {
-	__raw_writel(cpu_to_le32(l), addr);
+	__raw_writel((__u32 __force) cpu_to_le32(l), addr);
 }
 static inline void writeq(unsigned long long q, volatile void __iomem *addr)
 {
-	__raw_writeq(cpu_to_le64(q), addr);
+	__raw_writeq((__u64 __force) cpu_to_le64(q), addr);
 }
 
 #define	readb	readb
@@ -228,8 +228,6 @@ static inline void writeq(unsigned long long q, volatile void __iomem *addr)
 #define writew_relaxed(w, addr)	writew(w, addr)
 #define writel_relaxed(l, addr)	writel(l, addr)
 #define writeq_relaxed(q, addr)	writeq(q, addr)
-
-#define mmiowb() do { } while (0)
 
 void memset_io(volatile void __iomem *addr, unsigned char val, int count);
 void memcpy_fromio(void *dst, const volatile void __iomem *src, int count);
@@ -310,6 +308,15 @@ extern void outsl (unsigned long port, const void *src, unsigned long count);
  * bit I/O address (still with the leading f) and outputs the correct
  * value for either 32 or 64 bit mode */
 #define F_EXTEND(x) ((unsigned long)((x) | (0xffffffff00000000ULL)))
+
+#define ioread64 ioread64
+#define ioread64be ioread64be
+#define iowrite64 iowrite64
+#define iowrite64be iowrite64be
+extern u64 ioread64(void __iomem *addr);
+extern u64 ioread64be(void __iomem *addr);
+extern void iowrite64(u64 val, void __iomem *addr);
+extern void iowrite64be(u64 val, void __iomem *addr);
 
 #include <asm-generic/iomap.h>
 

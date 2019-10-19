@@ -229,6 +229,8 @@ struct acr_r352_lsf_wpr_header {
 struct ls_ucode_img_r352 {
 	struct ls_ucode_img base;
 
+	const struct acr_r352_lsf_func *func;
+
 	struct acr_r352_lsf_wpr_header wpr_header;
 	struct acr_r352_lsf_lsb_header lsb_header;
 };
@@ -243,6 +245,7 @@ acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
 			   enum nvkm_secboot_falcon falcon_id)
 {
 	const struct nvkm_subdev *subdev = acr->base.subdev;
+	const struct acr_r352_ls_func *func = acr->func->ls_func[falcon_id];
 	struct ls_ucode_img_r352 *img;
 	int ret;
 
@@ -252,14 +255,15 @@ acr_r352_ls_ucode_img_load(const struct acr_r352 *acr,
 
 	img->base.falcon_id = falcon_id;
 
-	ret = acr->func->ls_func[falcon_id]->load(sb, &img->base);
-
-	if (ret) {
+	ret = func->load(sb, func->version_max, &img->base);
+	if (ret < 0) {
 		kfree(img->base.ucode_data);
 		kfree(img->base.sig);
 		kfree(img);
 		return ERR_PTR(ret);
 	}
+
+	img->func = func->version[ret];
 
 	/* Check that the signature size matches our expectations... */
 	if (img->base.sig_size != sizeof(img->lsb_header.signature)) {
@@ -302,8 +306,7 @@ acr_r352_ls_img_fill_headers(struct acr_r352 *acr,
 	struct acr_r352_lsf_wpr_header *whdr = &img->wpr_header;
 	struct acr_r352_lsf_lsb_header *lhdr = &img->lsb_header;
 	struct ls_ucode_img_desc *desc = &_img->ucode_desc;
-	const struct acr_r352_ls_func *func =
-					    acr->func->ls_func[_img->falcon_id];
+	const struct acr_r352_lsf_func *func = img->func;
 
 	/* Fill WPR header */
 	whdr->falcon_id = _img->falcon_id;
@@ -414,14 +417,26 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 {
 	struct ls_ucode_img *_img;
 	u32 pos = 0;
+	u32 max_desc_size = 0;
+	u8 *gdesc;
+
+	/* Figure out how large we need gdesc to be. */
+	list_for_each_entry(_img, imgs, node) {
+		struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
+		const struct acr_r352_lsf_func *ls_func = img->func;
+
+		max_desc_size = max(max_desc_size, ls_func->bl_desc_size);
+	}
+
+	gdesc = kmalloc(max_desc_size, GFP_KERNEL);
+	if (!gdesc)
+		return -ENOMEM;
 
 	nvkm_kmap(wpr_blob);
 
 	list_for_each_entry(_img, imgs, node) {
 		struct ls_ucode_img_r352 *img = ls_ucode_img_r352(_img);
-		const struct acr_r352_ls_func *ls_func =
-					    acr->func->ls_func[_img->falcon_id];
-		u8 gdesc[ls_func->bl_desc_size];
+		const struct acr_r352_lsf_func *ls_func = img->func;
 
 		nvkm_gpuobj_memcpy_to(wpr_blob, pos, &img->wpr_header,
 				      sizeof(img->wpr_header));
@@ -446,6 +461,8 @@ acr_r352_ls_write_wpr(struct acr_r352 *acr, struct list_head *imgs,
 	nvkm_wo32(wpr_blob, pos, NVKM_SECBOOT_FALCON_INVALID);
 
 	nvkm_done(wpr_blob);
+
+	kfree(gdesc);
 
 	return 0;
 }
@@ -771,7 +788,11 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 	struct fw_bl_desc *hsbl_desc;
 	void *bl, *blob_data, *hsbl_code, *hsbl_data;
 	u32 code_size;
-	u8 bl_desc[bl_desc_size];
+	u8 *bl_desc;
+
+	bl_desc = kzalloc(bl_desc_size, GFP_KERNEL);
+	if (!bl_desc)
+		return -ENOMEM;
 
 	/* Find the bootloader descriptor for our blob and copy it */
 	if (blob == acr->load_blob) {
@@ -782,6 +803,7 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 		bl = acr->hsbl_unload_blob;
 	} else {
 		nvkm_error(_acr->subdev, "invalid secure boot blob!\n");
+		kfree(bl_desc);
 		return -EINVAL;
 	}
 
@@ -802,7 +824,6 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 			      code_size, hsbl_desc->start_tag, 0, false);
 
 	/* Generate the BL header */
-	memset(bl_desc, 0, bl_desc_size);
 	acr->func->generate_hs_bl_desc(load_hdr, bl_desc, offset);
 
 	/*
@@ -811,6 +832,7 @@ acr_r352_load(struct nvkm_acr *_acr, struct nvkm_falcon *falcon,
 	nvkm_falcon_load_dmem(falcon, bl_desc, hsbl_desc->dmem_load_off,
 			      bl_desc_size, 0);
 
+	kfree(bl_desc);
 	return hsbl_desc->start_tag << 8;
 }
 
@@ -833,7 +855,7 @@ acr_r352_shutdown(struct acr_r352 *acr, struct nvkm_secboot *sb)
 		 * and the expected behavior on RM as well
 		 */
 		if (ret && ret != 0x1d) {
-			nvkm_error(subdev, "HS unload failed, ret 0x%08x", ret);
+			nvkm_error(subdev, "HS unload failed, ret 0x%08x\n", ret);
 			return -EINVAL;
 		}
 		nvkm_debug(subdev, "HS unload blob completed\n");
@@ -902,7 +924,7 @@ acr_r352_bootstrap(struct acr_r352 *acr, struct nvkm_secboot *sb)
 	if (ret < 0) {
 		return ret;
 	} else if (ret > 0) {
-		nvkm_error(subdev, "HS load failed, ret 0x%08x", ret);
+		nvkm_error(subdev, "HS load failed, ret 0x%08x\n", ret);
 		return -EINVAL;
 	}
 	nvkm_debug(subdev, "HS load blob completed\n");
@@ -1043,20 +1065,36 @@ acr_r352_dtor(struct nvkm_acr *_acr)
 	kfree(acr);
 }
 
-const struct acr_r352_ls_func
-acr_r352_ls_fecs_func = {
-	.load = acr_ls_ucode_load_fecs,
+static const struct acr_r352_lsf_func
+acr_r352_ls_fecs_func_0 = {
 	.generate_bl_desc = acr_r352_generate_flcn_bl_desc,
 	.bl_desc_size = sizeof(struct acr_r352_flcn_bl_desc),
 };
 
 const struct acr_r352_ls_func
-acr_r352_ls_gpccs_func = {
-	.load = acr_ls_ucode_load_gpccs,
+acr_r352_ls_fecs_func = {
+	.load = acr_ls_ucode_load_fecs,
+	.version_max = 0,
+	.version = {
+		&acr_r352_ls_fecs_func_0,
+	}
+};
+
+static const struct acr_r352_lsf_func
+acr_r352_ls_gpccs_func_0 = {
 	.generate_bl_desc = acr_r352_generate_flcn_bl_desc,
 	.bl_desc_size = sizeof(struct acr_r352_flcn_bl_desc),
 	/* GPCCS will be loaded using PRI */
 	.lhdr_flags = LSF_FLAG_FORCE_PRIV_LOAD,
+};
+
+static const struct acr_r352_ls_func
+acr_r352_ls_gpccs_func = {
+	.load = acr_ls_ucode_load_gpccs,
+	.version_max = 0,
+	.version = {
+		&acr_r352_ls_gpccs_func_0,
+	}
 };
 
 
@@ -1130,12 +1168,20 @@ acr_r352_generate_pmu_bl_desc(const struct nvkm_acr *acr,
 	desc->argv = addr_args;
 }
 
+static const struct acr_r352_lsf_func
+acr_r352_ls_pmu_func_0 = {
+	.generate_bl_desc = acr_r352_generate_pmu_bl_desc,
+	.bl_desc_size = sizeof(struct acr_r352_pmu_bl_desc),
+};
+
 static const struct acr_r352_ls_func
 acr_r352_ls_pmu_func = {
 	.load = acr_ls_ucode_load_pmu,
-	.generate_bl_desc = acr_r352_generate_pmu_bl_desc,
-	.bl_desc_size = sizeof(struct acr_r352_pmu_bl_desc),
 	.post_run = acr_ls_pmu_post_run,
+	.version_max = 0,
+	.version = {
+		&acr_r352_ls_pmu_func_0,
+	}
 };
 
 const struct acr_r352_func

@@ -36,21 +36,26 @@ struct gpio_service {
 	/*
 	 * @brief
 	 * Business storage.
-	 * For each member of 'enum gpio_id',
-	 * store array of bits (packed into uint32_t slots),
-	 * index individual bit by 'en' value */
-	uint32_t *busyness[GPIO_ID_COUNT];
+	 * one byte For each member of 'enum gpio_id'
+	 */
+	char *busyness[GPIO_ID_COUNT];
 };
 
 enum gpio_result dal_gpio_service_open(
-	struct gpio_service *service,
-	enum gpio_id id,
-	uint32_t en,
-	enum gpio_mode mode,
-	struct hw_gpio_pin **ptr);
+	struct gpio *gpio);
 
 void dal_gpio_service_close(
 	struct gpio_service *service,
 	struct hw_gpio_pin **ptr);
+
+enum gpio_result dal_gpio_service_lock(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en);
+
+enum gpio_result dal_gpio_service_unlock(
+	struct gpio_service *service,
+	enum gpio_id id,
+	uint32_t en);
 
 #endif

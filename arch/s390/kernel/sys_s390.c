@@ -53,11 +53,12 @@ SYSCALL_DEFINE1(mmap2, struct s390_mmap_arg_struct __user *, arg)
 
 	if (copy_from_user(&a, arg, sizeof(a)))
 		goto out;
-	error = sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
+	error = ksys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
 out:
 	return error;
 }
 
+#ifdef CONFIG_SYSVIPC
 /*
  * sys_ipc() is the de-multiplexer for the SysV IPC calls.
  */
@@ -74,19 +75,28 @@ SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
 	 * Therefore we can call the generic variant by simply passing the
 	 * third parameter also as fifth parameter.
 	 */
-	return sys_ipc(call, first, second, third, ptr, third);
+	return ksys_ipc(call, first, second, third, ptr, third);
 }
+#endif /* CONFIG_SYSVIPC */
 
 SYSCALL_DEFINE1(s390_personality, unsigned int, personality)
 {
-	unsigned int ret;
+	unsigned int ret = current->personality;
 
 	if (personality(current->personality) == PER_LINUX32 &&
 	    personality(personality) == PER_LINUX)
 		personality |= PER_LINUX32;
-	ret = sys_personality(personality);
+
+	if (personality != 0xffffffff)
+		set_personality(personality);
+
 	if (personality(ret) == PER_LINUX32)
 		ret &= ~PER_LINUX32;
 
 	return ret;
+}
+
+SYSCALL_DEFINE0(ni_syscall)
+{
+	return -ENOSYS;
 }

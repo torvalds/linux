@@ -54,8 +54,8 @@ static int ir_rc5_decode(struct rc_dev *dev, struct ir_raw_event ev)
 		goto out;
 
 again:
-	IR_dprintk(2, "RC5(x/sz) decode started at state %i (%uus %s)\n",
-		   data->state, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "RC5(x/sz) decode started at state %i (%uus %s)\n",
+		data->state, TO_US(ev.duration), TO_STR(ev.pulse));
 
 	if (!geq_margin(ev.duration, RC5_UNIT, RC5_UNIT / 2))
 		return 0;
@@ -88,9 +88,6 @@ again:
 		return 0;
 
 	case STATE_BIT_END:
-		if (!is_transition(&ev, &dev->raw->prev_ev))
-			break;
-
 		if (data->count == CHECK_RC5X_NBITS)
 			data->state = STATE_CHECK_RC5X;
 		else
@@ -157,8 +154,8 @@ again:
 		} else
 			break;
 
-		IR_dprintk(1, "RC5(x/sz) scancode 0x%06x (p: %u, t: %u)\n",
-			   scancode, protocol, toggle);
+		dev_dbg(&dev->dev, "RC5(x/sz) scancode 0x%06x (p: %u, t: %u)\n",
+			scancode, protocol, toggle);
 
 		rc_keydown(dev, protocol, scancode, toggle);
 		data->state = STATE_INACTIVE;
@@ -166,8 +163,8 @@ again:
 	}
 
 out:
-	IR_dprintk(1, "RC5(x/sz) decode failed at state %i count %d (%uus %s)\n",
-		   data->state, data->count, TO_US(ev.duration), TO_STR(ev.pulse));
+	dev_dbg(&dev->dev, "RC5(x/sz) decode failed at state %i count %d (%uus %s)\n",
+		data->state, data->count, TO_US(ev.duration), TO_STR(ev.pulse));
 	data->state = STATE_INACTIVE;
 	return -EINVAL;
 }
@@ -274,6 +271,7 @@ static struct ir_raw_handler rc5_handler = {
 	.decode		= ir_rc5_decode,
 	.encode		= ir_rc5_encode,
 	.carrier	= 36000,
+	.min_timeout	= RC5_TRAILER,
 };
 
 static int __init ir_rc5_decode_init(void)

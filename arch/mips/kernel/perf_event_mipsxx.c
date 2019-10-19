@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Linux performance counter support for MIPS.
  *
@@ -9,10 +10,6 @@
  * based on the sparc64 perf event code and the x86 code. Performance
  * counter access is based on the MIPS Oprofile code. And the callchain
  * support references the code of MIPS stacktrace.c.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpumask.h>
@@ -64,17 +61,11 @@ struct mips_perf_event {
 	#define CNTR_EVEN	0x55555555
 	#define CNTR_ODD	0xaaaaaaaa
 	#define CNTR_ALL	0xffffffff
-#ifdef CONFIG_MIPS_MT_SMP
 	enum {
 		T  = 0,
 		V  = 1,
 		P  = 2,
 	} range;
-#else
-	#define T
-	#define V
-	#define P
-#endif
 };
 
 static struct mips_perf_event raw_event;
@@ -129,20 +120,14 @@ static struct mips_pmu mipspmu;
 
 
 #ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
-static int cpu_has_mipsmt_pertccounters;
-
 static DEFINE_RWLOCK(pmuint_rwlock);
 
 #if defined(CONFIG_CPU_BMIPS5000)
 #define vpe_id()	(cpu_has_mipsmt_pertccounters ? \
 			 0 : (smp_processor_id() & MIPS_CPUID_TO_COUNTER_MASK))
 #else
-/*
- * FIXME: For VSMP, vpe_id() is redefined for Perf-events, because
- * cpu_data[cpuid].vpe_id reports 0 for _both_ CPUs.
- */
 #define vpe_id()	(cpu_has_mipsmt_pertccounters ? \
-			 0 : smp_processor_id())
+			 0 : cpu_vpe_id(&current_cpu_data))
 #endif
 
 /* Copied from op_model_mipsxx.c */
@@ -329,7 +314,9 @@ static int mipsxx_pmu_alloc_counter(struct cpu_hw_events *cpuc,
 
 static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 {
+	struct perf_event *event = container_of(evt, struct perf_event, hw);
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
+	unsigned int range = evt->event_base >> 24;
 
 	WARN_ON(idx < 0 || idx >= mipspmu.num_counters);
 
@@ -337,11 +324,30 @@ static void mipsxx_pmu_enable_event(struct hw_perf_event *evt, int idx)
 		(evt->config_base & M_PERFCTL_CONFIG_MASK) |
 		/* Make sure interrupt enabled. */
 		MIPS_PERFCTRL_IE;
-	if (IS_ENABLED(CONFIG_CPU_BMIPS5000))
+
+	if (IS_ENABLED(CONFIG_CPU_BMIPS5000)) {
 		/* enable the counter for the calling thread */
 		cpuc->saved_ctrl[idx] |=
 			(1 << (12 + vpe_id())) | BRCM_PERFCTRL_TC;
+	} else if (IS_ENABLED(CONFIG_MIPS_MT_SMP) && range > V) {
+		/* The counter is processor wide. Set it up to count all TCs. */
+		pr_debug("Enabling perf counter for all TCs\n");
+		cpuc->saved_ctrl[idx] |= M_TC_EN_ALL;
+	} else {
+		unsigned int cpu, ctrl;
 
+		/*
+		 * Set up the counter for a particular CPU when event->cpu is
+		 * a valid CPU number. Otherwise set up the counter for the CPU
+		 * scheduling this thread.
+		 */
+		cpu = (event->cpu >= 0) ? event->cpu : smp_processor_id();
+
+		ctrl = M_PERFCTL_VPEID(cpu_vpe_id(&cpu_data[cpu]));
+		ctrl |= M_TC_EN_VPE;
+		cpuc->saved_ctrl[idx] |= ctrl;
+		pr_debug("Enabling perf counter for CPU%d\n", cpu);
+	}
 	/*
 	 * We do not actually let the counter run. Leave it until start().
 	 */
@@ -655,13 +661,14 @@ static unsigned int mipspmu_perf_event_encode(const struct mips_perf_event *pev)
  * event_id.
  */
 #ifdef CONFIG_MIPS_MT_SMP
-	return ((unsigned int)pev->range << 24) |
-		(pev->cntr_mask & 0xffff00) |
-		(pev->event_id & 0xff);
-#else
-	return (pev->cntr_mask & 0xffff00) |
-		(pev->event_id & 0xff);
-#endif
+	if (num_possible_cpus() > 1)
+		return ((unsigned int)pev->range << 24) |
+			(pev->cntr_mask & 0xffff00) |
+			(pev->event_id & 0xff);
+	else
+#endif /* CONFIG_MIPS_MT_SMP */
+		return ((pev->cntr_mask & 0xffff00) |
+			(pev->event_id & 0xff));
 }
 
 static const struct mips_perf_event *mipspmu_map_general_event(int idx)
@@ -711,7 +718,7 @@ static int validate_group(struct perf_event *event)
 	if (mipsxx_pmu_alloc_counter(&fake_cpuc, &leader->hw) < 0)
 		return -EINVAL;
 
-	list_for_each_entry(sibling, &leader->sibling_list, group_entry) {
+	for_each_sibling_event(sibling, leader) {
 		if (mipsxx_pmu_alloc_counter(&fake_cpuc, &sibling->hw) < 0)
 			return -EINVAL;
 	}
@@ -783,15 +790,19 @@ static void reset_counters(void *arg)
 	case 4:
 		mipsxx_pmu_write_control(3, 0);
 		mipspmu.write_counter(3, 0);
+		/* fall through */
 	case 3:
 		mipsxx_pmu_write_control(2, 0);
 		mipspmu.write_counter(2, 0);
+		/* fall through */
 	case 2:
 		mipsxx_pmu_write_control(1, 0);
 		mipspmu.write_counter(1, 0);
+		/* fall through */
 	case 1:
 		mipsxx_pmu_write_control(0, 0);
 		mipspmu.write_counter(0, 0);
+		/* fall through */
 	}
 }
 
@@ -1265,37 +1276,6 @@ static const struct mips_perf_event xlp_cache_map
 },
 };
 
-#ifdef CONFIG_MIPS_MT_SMP
-static void check_and_calc_range(struct perf_event *event,
-				 const struct mips_perf_event *pev)
-{
-	struct hw_perf_event *hwc = &event->hw;
-
-	if (event->cpu >= 0) {
-		if (pev->range > V) {
-			/*
-			 * The user selected an event that is processor
-			 * wide, while expecting it to be VPE wide.
-			 */
-			hwc->config_base |= M_TC_EN_ALL;
-		} else {
-			/*
-			 * FIXME: cpu_data[event->cpu].vpe_id reports 0
-			 * for both CPUs.
-			 */
-			hwc->config_base |= M_PERFCTL_VPEID(event->cpu);
-			hwc->config_base |= M_TC_EN_VPE;
-		}
-	} else
-		hwc->config_base |= M_TC_EN_ALL;
-}
-#else
-static void check_and_calc_range(struct perf_event *event,
-				 const struct mips_perf_event *pev)
-{
-}
-#endif
-
 static int __hw_perf_event_init(struct perf_event *event)
 {
 	struct perf_event_attr *attr = &event->attr;
@@ -1330,10 +1310,6 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 * by the single CPU operates (the mode exclusion and the range).
 	 */
 	hwc->config_base = MIPS_PERFCTRL_IE;
-
-	/* Calculate range bits and validate it. */
-	if (num_possible_cpus() > 1)
-		check_and_calc_range(event, pev);
 
 	hwc->event_base = mipspmu_perf_event_encode(pev);
 	if (PERF_TYPE_RAW == event->attr.type)
@@ -1408,7 +1384,7 @@ static int mipsxx_pmu_handle_shared_irq(void)
 	struct perf_sample_data data;
 	unsigned int counters = mipspmu.num_counters;
 	u64 counter;
-	int handled = IRQ_NONE;
+	int n, handled = IRQ_NONE;
 	struct pt_regs *regs;
 
 	if (cpu_has_perf_cntr_intr_bit && !(read_c0_cause() & CAUSEF_PCI))
@@ -1429,20 +1405,16 @@ static int mipsxx_pmu_handle_shared_irq(void)
 
 	perf_sample_data_init(&data, 0, 0);
 
-	switch (counters) {
-#define HANDLE_COUNTER(n)						\
-	case n + 1:							\
-		if (test_bit(n, cpuc->used_mask)) {			\
-			counter = mipspmu.read_counter(n);		\
-			if (counter & mipspmu.overflow) {		\
-				handle_associated_event(cpuc, n, &data, regs); \
-				handled = IRQ_HANDLED;			\
-			}						\
-		}
-	HANDLE_COUNTER(3)
-	HANDLE_COUNTER(2)
-	HANDLE_COUNTER(1)
-	HANDLE_COUNTER(0)
+	for (n = counters - 1; n >= 0; n--) {
+		if (!test_bit(n, cpuc->used_mask))
+			continue;
+
+		counter = mipspmu.read_counter(n);
+		if (!(counter & mipspmu.overflow))
+			continue;
+
+		handle_associated_event(cpuc, n, &data, regs);
+		handled = IRQ_HANDLED;
 	}
 
 #ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
@@ -1723,7 +1695,6 @@ init_hw_perf_events(void)
 	}
 
 #ifdef CONFIG_MIPS_PERF_SHARED_TC_COUNTERS
-	cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
 	if (!cpu_has_mipsmt_pertccounters)
 		counters = counters_total_to_per_cpu(counters);
 #endif

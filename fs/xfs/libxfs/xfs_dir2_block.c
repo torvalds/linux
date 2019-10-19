@@ -1,39 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_inode_item.h"
 #include "xfs_bmap.h"
 #include "xfs_buf_item.h"
 #include "xfs_dir2.h"
 #include "xfs_dir2_priv.h"
 #include "xfs_error.h"
 #include "xfs_trace.h"
-#include "xfs_cksum.h"
 #include "xfs_log.h"
 
 /*
@@ -62,20 +47,18 @@ static xfs_failaddr_t
 xfs_dir3_block_verify(
 	struct xfs_buf		*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 
+	if (!xfs_verify_magic(bp, hdr3->magic))
+		return __this_address;
+
 	if (xfs_sb_version_hascrc(&mp->m_sb)) {
-		if (hdr3->magic != cpu_to_be32(XFS_DIR3_BLOCK_MAGIC))
-			return __this_address;
 		if (!uuid_equal(&hdr3->uuid, &mp->m_sb.sb_meta_uuid))
 			return __this_address;
 		if (be64_to_cpu(hdr3->blkno) != bp->b_bn)
 			return __this_address;
 		if (!xfs_log_check_lsn(mp, be64_to_cpu(hdr3->lsn)))
-			return __this_address;
-	} else {
-		if (hdr3->magic != cpu_to_be32(XFS_DIR2_BLOCK_MAGIC))
 			return __this_address;
 	}
 	return __xfs_dir3_data_check(NULL, bp);
@@ -85,7 +68,7 @@ static void
 xfs_dir3_block_read_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	xfs_failaddr_t		fa;
 
 	if (xfs_sb_version_hascrc(&mp->m_sb) &&
@@ -102,7 +85,7 @@ static void
 xfs_dir3_block_write_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_mount	*mp = bp->b_mount;
 	struct xfs_buf_log_item	*bip = bp->b_log_item;
 	struct xfs_dir3_blk_hdr	*hdr3 = bp->b_addr;
 	xfs_failaddr_t		fa;
@@ -124,6 +107,8 @@ xfs_dir3_block_write_verify(
 
 const struct xfs_buf_ops xfs_dir3_block_buf_ops = {
 	.name = "xfs_dir3_block",
+	.magic = { cpu_to_be32(XFS_DIR2_BLOCK_MAGIC),
+		   cpu_to_be32(XFS_DIR3_BLOCK_MAGIC) },
 	.verify_read = xfs_dir3_block_read_verify,
 	.verify_write = xfs_dir3_block_write_verify,
 	.verify_struct = xfs_dir3_block_verify,
@@ -451,15 +436,19 @@ xfs_dir2_block_addname(
 	 * No stale entries, will use enddup space to hold new leaf.
 	 */
 	if (!btp->stale) {
+		xfs_dir2_data_aoff_t	aoff;
+
 		/*
 		 * Mark the space needed for the new leaf entry, now in use.
 		 */
-		xfs_dir2_data_use_free(args, bp, enddup,
-			(xfs_dir2_data_aoff_t)
-			((char *)enddup - (char *)hdr + be16_to_cpu(enddup->length) -
-			 sizeof(*blp)),
-			(xfs_dir2_data_aoff_t)sizeof(*blp),
-			&needlog, &needscan);
+		aoff = (xfs_dir2_data_aoff_t)((char *)enddup - (char *)hdr +
+				be16_to_cpu(enddup->length) - sizeof(*blp));
+		error = xfs_dir2_data_use_free(args, bp, enddup, aoff,
+				(xfs_dir2_data_aoff_t)sizeof(*blp), &needlog,
+				&needscan);
+		if (error)
+			return error;
+
 		/*
 		 * Update the tail (entry count).
 		 */
@@ -510,8 +499,8 @@ xfs_dir2_block_addname(
 			if (mid - lowstale)
 				memmove(&blp[lowstale], &blp[lowstale + 1],
 					(mid - lowstale) * sizeof(*blp));
-			lfloglow = MIN(lowstale, lfloglow);
-			lfloghigh = MAX(mid, lfloghigh);
+			lfloglow = min(lowstale, lfloglow);
+			lfloghigh = max(mid, lfloghigh);
 		}
 		/*
 		 * Move entries toward the high-numbered stale entry.
@@ -522,8 +511,8 @@ xfs_dir2_block_addname(
 			if (highstale - mid)
 				memmove(&blp[mid + 1], &blp[mid],
 					(highstale - mid) * sizeof(*blp));
-			lfloglow = MIN(mid, lfloglow);
-			lfloghigh = MAX(highstale, lfloghigh);
+			lfloglow = min(mid, lfloglow);
+			lfloghigh = max(highstale, lfloghigh);
 		}
 		be32_add_cpu(&btp->stale, -1);
 	}
@@ -541,9 +530,11 @@ xfs_dir2_block_addname(
 	/*
 	 * Mark space for the data entry used.
 	 */
-	xfs_dir2_data_use_free(args, bp, dup,
-		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr),
-		(xfs_dir2_data_aoff_t)len, &needlog, &needscan);
+	error = xfs_dir2_data_use_free(args, bp, dup,
+			(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr),
+			(xfs_dir2_data_aoff_t)len, &needlog, &needscan);
+	if (error)
+		return error;
 	/*
 	 * Create the new data entry.
 	 */
@@ -997,8 +988,10 @@ xfs_dir2_leaf_to_block(
 	/*
 	 * Use up the space at the end of the block (blp/btp).
 	 */
-	xfs_dir2_data_use_free(args, dbp, dup, args->geo->blksize - size, size,
-		&needlog, &needscan);
+	error = xfs_dir2_data_use_free(args, dbp, dup,
+			args->geo->blksize - size, size, &needlog, &needscan);
+	if (error)
+		return error;
 	/*
 	 * Initialize the block tail.
 	 */
@@ -1099,29 +1092,25 @@ xfs_dir2_sf_to_block(
 	 * Copy the directory into a temporary buffer.
 	 * Then pitch the incore inode data so we can make extents.
 	 */
-	sfp = kmem_alloc(ifp->if_bytes, KM_SLEEP);
+	sfp = kmem_alloc(ifp->if_bytes, 0);
 	memcpy(sfp, oldsfp, ifp->if_bytes);
 
 	xfs_idata_realloc(dp, -ifp->if_bytes, XFS_DATA_FORK);
-	xfs_bmap_local_to_extents_empty(dp, XFS_DATA_FORK);
+	xfs_bmap_local_to_extents_empty(tp, dp, XFS_DATA_FORK);
 	dp->i_d.di_size = 0;
 
 	/*
 	 * Add block 0 to the inode.
 	 */
 	error = xfs_dir2_grow_inode(args, XFS_DIR2_DATA_SPACE, &blkno);
-	if (error) {
-		kmem_free(sfp);
-		return error;
-	}
+	if (error)
+		goto out_free;
 	/*
 	 * Initialize the data block, then convert it to block format.
 	 */
 	error = xfs_dir3_data_init(args, blkno, &bp);
-	if (error) {
-		kmem_free(sfp);
-		return error;
-	}
+	if (error)
+		goto out_free;
 	xfs_dir3_block_init(mp, tp, bp, dp);
 	hdr = bp->b_addr;
 
@@ -1136,8 +1125,10 @@ xfs_dir2_sf_to_block(
 	 */
 	dup = dp->d_ops->data_unused_p(hdr);
 	needlog = needscan = 0;
-	xfs_dir2_data_use_free(args, bp, dup, args->geo->blksize - i,
-			       i, &needlog, &needscan);
+	error = xfs_dir2_data_use_free(args, bp, dup, args->geo->blksize - i,
+			i, &needlog, &needscan);
+	if (error)
+		goto out_free;
 	ASSERT(needscan == 0);
 	/*
 	 * Fill in the tail.
@@ -1150,9 +1141,11 @@ xfs_dir2_sf_to_block(
 	/*
 	 * Remove the freespace, we'll manage it.
 	 */
-	xfs_dir2_data_use_free(args, bp, dup,
-		(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr),
-		be16_to_cpu(dup->length), &needlog, &needscan);
+	error = xfs_dir2_data_use_free(args, bp, dup,
+			(xfs_dir2_data_aoff_t)((char *)dup - (char *)hdr),
+			be16_to_cpu(dup->length), &needlog, &needscan);
+	if (error)
+		goto out_free;
 	/*
 	 * Create entry for .
 	 */
@@ -1256,4 +1249,7 @@ xfs_dir2_sf_to_block(
 	xfs_dir2_block_log_tail(tp, bp);
 	xfs_dir3_data_check(dp, bp);
 	return 0;
+out_free:
+	kmem_free(sfp);
+	return error;
 }

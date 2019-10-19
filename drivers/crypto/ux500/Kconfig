@@ -1,7 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Copyright (C) ST-Ericsson SA 2010
 # Author: Shujuan Chen (shujuan.chen@stericsson.com)
-# License terms: GNU General Public License (GPL) version 2
 #
 
 config CRYPTO_DEV_UX500_CRYP
@@ -9,7 +9,7 @@ config CRYPTO_DEV_UX500_CRYP
 	depends on CRYPTO_DEV_UX500
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	help
         This selects the crypto driver for the UX500_CRYP hardware. It supports
         AES-ECB, CBC and CTR with keys sizes of 128, 192 and 256 bit sizes.

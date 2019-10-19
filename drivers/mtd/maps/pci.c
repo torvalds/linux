@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mtd/maps/pci.c
  *
  *  Copyright (C) 2001 Russell King, All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Generic PCI memory map driver.  We support the following boards:
  *  - Intel IQ80310 ATU.

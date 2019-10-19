@@ -79,7 +79,7 @@ struct hfi1_user_info {
 };
 
 struct hfi1_ctxt_info {
-	__u64 runtime_flags;    /* chip/drv runtime flags (HFI1_CAP_*) */
+	__aligned_u64 runtime_flags;    /* chip/drv runtime flags (HFI1_CAP_*) */
 	__u32 rcvegr_size;      /* size of each eager buffer */
 	__u16 num_active;       /* number of active units */
 	__u16 unit;             /* unit (chip) assigned to caller */
@@ -98,9 +98,9 @@ struct hfi1_ctxt_info {
 
 struct hfi1_tid_info {
 	/* virtual address of first page in transfer */
-	__u64 vaddr;
+	__aligned_u64 vaddr;
 	/* pointer to tid array. this array is big enough */
-	__u64 tidlist;
+	__aligned_u64 tidlist;
 	/* number of tids programmed by this request */
 	__u32 tidcnt;
 	/* length of transfer buffer programmed by this request */
@@ -131,23 +131,23 @@ struct hfi1_base_info {
 	 */
 	__u32 bthqp;
 	/* PIO credit return address, */
-	__u64 sc_credits_addr;
+	__aligned_u64 sc_credits_addr;
 	/*
 	 * Base address of write-only pio buffers for this process.
 	 * Each buffer has sendpio_credits*64 bytes.
 	 */
-	__u64 pio_bufbase_sop;
+	__aligned_u64 pio_bufbase_sop;
 	/*
 	 * Base address of write-only pio buffers for this process.
 	 * Each buffer has sendpio_credits*64 bytes.
 	 */
-	__u64 pio_bufbase;
+	__aligned_u64 pio_bufbase;
 	/* address where receive buffer queue is mapped into */
-	__u64 rcvhdr_bufbase;
+	__aligned_u64 rcvhdr_bufbase;
 	/* base address of Eager receive buffers. */
-	__u64 rcvegr_bufbase;
+	__aligned_u64 rcvegr_bufbase;
 	/* base address of SDMA completion ring */
-	__u64 sdma_comp_bufbase;
+	__aligned_u64 sdma_comp_bufbase;
 	/*
 	 * User register base for init code, not to be used directly by
 	 * protocol or applications.  Always maps real chip register space.
@@ -155,20 +155,20 @@ struct hfi1_base_info {
 	 * ur_rcvhdrhead, ur_rcvhdrtail, ur_rcvegrhead, ur_rcvegrtail,
 	 * ur_rcvtidflow
 	 */
-	__u64 user_regbase;
+	__aligned_u64 user_regbase;
 	/* notification events */
-	__u64 events_bufbase;
+	__aligned_u64 events_bufbase;
 	/* status page */
-	__u64 status_bufbase;
+	__aligned_u64 status_bufbase;
 	/* rcvhdrtail update */
-	__u64 rcvhdrtail_base;
+	__aligned_u64 rcvhdrtail_base;
 	/*
 	 * shared memory pages for subctxts if ctxt is shared; these cover
 	 * all the processes in the group sharing a single context.
 	 * all have enough space for the num_subcontexts value on this job.
 	 */
-	__u64 subctxt_uregbase;
-	__u64 subctxt_rcvegrbuf;
-	__u64 subctxt_rcvhdrbuf;
+	__aligned_u64 subctxt_uregbase;
+	__aligned_u64 subctxt_rcvegrbuf;
+	__aligned_u64 subctxt_rcvhdrbuf;
 };
 #endif /* _LINIUX__HFI1_IOCTL_H */

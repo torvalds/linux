@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/ia64/kernel/time.c
  *
@@ -24,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/sched/cputime.h>
 
-#include <asm/machvec.h>
 #include <asm/delay.h>
 #include <asm/hw_irq.h>
 #include <asm/ptrace.h>
@@ -165,8 +165,6 @@ timer_interrupt (int irq, void *dev_id)
 	if (cpu_is_offline(smp_processor_id())) {
 		return IRQ_HANDLED;
 	}
-
-	platform_timer_interrupt(irq, dev_id);
 
 	new_itm = local_cpu_data->itm_next;
 

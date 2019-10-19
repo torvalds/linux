@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2011 Google, Inc.
  *
@@ -5,16 +6,6 @@
  *	Colin Cross <ccross@android.com>
  *
  * Copyright (C) 2010,2013, NVIDIA Corporation
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/cpu_pm.h>
@@ -72,7 +63,7 @@ static const struct of_device_id tegra114_dt_gic_match[] __initconst = {
 	{ }
 };
 
-static void tegra114_gic_cpu_pm_registration(void)
+static void __init tegra114_gic_cpu_pm_registration(void)
 {
 	struct device_node *dn;
 
@@ -85,7 +76,7 @@ static void tegra114_gic_cpu_pm_registration(void)
 	cpu_pm_register_notifier(&tegra_gic_notifier_block);
 }
 #else
-static void tegra114_gic_cpu_pm_registration(void) { }
+static void __init tegra114_gic_cpu_pm_registration(void) { }
 #endif
 
 static const struct of_device_id tegra_ictlr_match[] __initconst = {

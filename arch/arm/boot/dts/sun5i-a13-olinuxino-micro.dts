@@ -77,30 +77,21 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_olinuxinom>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 0 GPIO_ACTIVE_HIGH>; /* PG0 */
-	cd-inverted;
+	cd-gpios = <&pio 6 0 GPIO_ACTIVE_LOW>; /* PG0 */
 	status = "okay";
 };
 
@@ -113,56 +104,26 @@
 };
 
 &pio {
-	mmc0_cd_pin_olinuxinom: mmc0_cd_pin@0 {
-		pins = "PG0";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	led_pins_olinuxinom: led_pins@0 {
+	led_pins_olinuxinom: led-pin {
 		pins = "PG9";
 		function = "gpio_out";
 		drive-strength = <20>;
 	};
-
-	usb0_id_detect_pin: usb0_id_detect_pin@0 {
-		pins = "PG2";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb0_vbus_detect_pin: usb0_vbus_detect_pin@0 {
-		pins = "PG1";
-		function = "gpio_in";
-		bias-pull-down;
-	};
-
-	usb0_vbus_pin_olinuxinom: usb0_vbus_pin@0 {
-		pins = "PG12";
-		function = "gpio_out";
-	};
-
-	usb1_vbus_pin_olinuxinom: usb1_vbus_pin@0 {
-		pins = "PG11";
-		function = "gpio_out";
-	};
 };
 
 &reg_usb0_vbus {
-	pinctrl-0 = <&usb0_vbus_pin_olinuxinom>;
 	gpio = <&pio 6 12 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_olinuxinom>;
 	gpio = <&pio 6 11 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &uart1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart1_pins_b>;
+	pinctrl-0 = <&uart1_pg_pins>;
 	status = "okay";
 };
 
@@ -172,10 +133,8 @@
 };
 
 &usbphy {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb0_id_detect_pin>, <&usb0_vbus_detect_pin>;
-	usb0_id_det-gpio = <&pio 6 2 GPIO_ACTIVE_HIGH>; /* PG2 */
-	usb0_vbus_det-gpio = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
+	usb0_id_det-gpios = <&pio 6 2 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PG2 */
+	usb0_vbus_det-gpios = <&pio 6 1 (GPIO_ACTIVE_HIGH | GPIO_PULL_DOWN)>; /* PG1 */
 	usb0_vbus-supply = <&reg_usb0_vbus>;
 	usb1_vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";

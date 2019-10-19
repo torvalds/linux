@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Device Tree Source for OMAP5 clock data
  *
  * Copyright (C) 2013 Texas Instruments, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 &cm_core_aon_clocks {
 	pad_clks_src_ck: pad_clks_src_ck {
@@ -1149,6 +1146,20 @@
 		};
 	};
 
+	gpu_cm: clock-controller@1500 {
+		compatible = "ti,omap4-cm";
+		reg = <0x1500 0x100>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0x1500 0x100>;
+
+		gpu_clkctrl: clk@20 {
+			compatible = "ti,clkctrl";
+			reg = <0x20 0x4>;
+			#clock-cells = <2>;
+		};
+	};
+
 	l3init_cm: l3init_cm@1600 {
 		compatible = "ti,omap4-cm";
 		reg = <0x1600 0x100>;
@@ -1177,5 +1188,15 @@
 			reg = <0x20 0x5c>;
 			#clock-cells = <2>;
 		};
+	};
+};
+
+&scm_wkup_pad_conf_clocks {
+	fref_xtal_ck: fref_xtal_ck {
+		#clock-cells = <0>;
+		compatible = "ti,gate-clock";
+		clocks = <&sys_clkin>;
+		ti,bit-shift = <28>;
+		reg = <0x14>;
 	};
 };

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Cryptographic API.
  *
@@ -6,12 +7,6 @@
  *
  * SHA-3 code by Jeff Garzik <jeff@garzik.org>
  *               Ard Biesheuvel <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)•
- * any later version.
- *
  */
 #include <crypto/internal/hash.h>
 #include <linux/init.h>
@@ -21,7 +16,7 @@
 #include <asm/unaligned.h>
 
 /*
- * On some 32-bit architectures (mn10300 and h8300), GCC ends up using
+ * On some 32-bit architectures (h8300), GCC ends up using
  * over 1 KB of stack if we inline the round calculation into the loop
  * in keccakf(). On the other hand, on 64-bit architectures with plenty
  * of [64-bit wide] general purpose registers, not inlining it severely
@@ -152,7 +147,7 @@ static SHA3_INLINE void keccakf_round(u64 st[25])
 	st[24] ^= bc[ 4];
 }
 
-static void __optimize("O3") keccakf(u64 st[25])
+static void keccakf(u64 st[25])
 {
 	int round;
 
@@ -250,7 +245,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-224",
 	.base.cra_driver_name	= "sha3-224-generic",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_224_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -261,7 +255,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-256",
 	.base.cra_driver_name	= "sha3-256-generic",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_256_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -272,7 +265,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-384",
 	.base.cra_driver_name	= "sha3-384-generic",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_384_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 }, {
@@ -283,7 +275,6 @@ static struct shash_alg algs[] = { {
 	.descsize		= sizeof(struct sha3_state),
 	.base.cra_name		= "sha3-512",
 	.base.cra_driver_name	= "sha3-512-generic",
-	.base.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 	.base.cra_blocksize	= SHA3_512_BLOCK_SIZE,
 	.base.cra_module	= THIS_MODULE,
 } };
@@ -298,7 +289,7 @@ static void __exit sha3_generic_mod_fini(void)
 	crypto_unregister_shashes(algs, ARRAY_SIZE(algs));
 }
 
-module_init(sha3_generic_mod_init);
+subsys_initcall(sha3_generic_mod_init);
 module_exit(sha3_generic_mod_fini);
 
 MODULE_LICENSE("GPL");

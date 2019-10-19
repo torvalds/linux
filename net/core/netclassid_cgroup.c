@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * net/core/netclassid_cgroup.c	Classid Cgroupfs Handling
- *
- *		This program is free software; you can redistribute it and/or
- *		modify it under the terms of the GNU General Public License
- *		as published by the Free Software Foundation; either version
- *		2 of the License, or (at your option) any later version.
  *
  * Authors:	Thomas Graf <tgraf@suug.ch>
  */
@@ -106,6 +102,7 @@ static int write_classid(struct cgroup_subsys_state *css, struct cftype *cft,
 		iterate_fd(p->files, 0, update_classid_sock,
 			   (void *)(unsigned long)cs->classid);
 		task_unlock(p);
+		cond_resched();
 	}
 	css_task_iter_end(&it);
 

@@ -7,7 +7,7 @@ Intro
 =====
 
 The MSG_ZEROCOPY flag enables copy avoidance for socket send calls.
-The feature is currently implemented for TCP sockets.
+The feature is currently implemented for TCP and UDP sockets.
 
 
 Opportunity and Caveats
@@ -50,7 +50,7 @@ the excellent reporting over at LWN.net or read the original code.
 
   patchset
     [PATCH net-next v4 0/9] socket sendmsg MSG_ZEROCOPY
-    http://lkml.kernel.org/r/20170803202945.70750-1-willemdebruijn.kernel@gmail.com
+    https://lkml.kernel.org/netdev/20170803202945.70750-1-willemdebruijn.kernel@gmail.com
 
 
 Interface
@@ -71,11 +71,6 @@ this flag, a process must first signal intent by setting a socket option:
 
 	if (setsockopt(fd, SOL_SOCKET, SO_ZEROCOPY, &one, sizeof(one)))
 		error(1, errno, "setsockopt zerocopy");
-
-Setting the socket option only works when the socket is in its initial
-(TCP_CLOSED) state.  Trying to set the option for a socket returned by accept(),
-for example, will lead to an EBUSY error. In this case, the option should be set
-to the listening socket and it will be inherited by the accepted sockets.
 
 Transmission
 ------------

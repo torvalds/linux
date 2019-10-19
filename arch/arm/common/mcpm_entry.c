@@ -1,14 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/common/mcpm_entry.c -- entry point for multi-cluster PM
  *
  * Created by:  Nicolas Pitre, March 2012
  * Copyright:   (C) 2012-2013  Linaro Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
+#include <linux/export.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/irqflags.h>
@@ -23,7 +21,7 @@
 /*
  * The public API for this code is documented in arch/arm/include/asm/mcpm.h.
  * For a comprehensive description of the main algorithm used here, please
- * see Documentation/arm/cluster-pm-race-avoidance.txt.
+ * see Documentation/arm/cluster-pm-race-avoidance.rst.
  */
 
 struct sync_struct mcpm_sync;
@@ -174,6 +172,7 @@ bool mcpm_is_available(void)
 {
 	return (platform_ops) ? true : false;
 }
+EXPORT_SYMBOL_GPL(mcpm_is_available);
 
 /*
  * We can't use regular spinlocks. In the switcher case, it is possible
@@ -379,7 +378,7 @@ static int __init nocache_trampoline(unsigned long _arg)
 	unsigned int cluster = MPIDR_AFFINITY_LEVEL(mpidr, 1);
 	phys_reset_t phys_reset;
 
-	mcpm_set_entry_vector(cpu, cluster, cpu_resume);
+	mcpm_set_entry_vector(cpu, cluster, cpu_resume_no_hyp);
 	setup_mm_for_reboot();
 
 	__mcpm_cpu_going_down(cpu, cluster);

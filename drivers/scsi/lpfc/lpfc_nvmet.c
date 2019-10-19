@@ -1,8 +1,8 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channsel Host Bus Adapters.                               *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -36,7 +36,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include <scsi/fc/fc_fs.h>
 
-#include <../drivers/nvme/host/nvme.h>
+#include <linux/nvme.h>
 #include <linux/nvme-fc-driver.h>
 #include <linux/nvme-fc.h>
 
@@ -71,25 +71,220 @@ static int lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *,
 static int lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *,
 					   struct lpfc_nvmet_rcv_ctx *,
 					   uint32_t, uint16_t);
+static void lpfc_nvmet_wqfull_flush(struct lpfc_hba *, struct lpfc_queue *,
+				    struct lpfc_nvmet_rcv_ctx *);
+static void lpfc_nvmet_fcp_rqst_defer_work(struct work_struct *);
 
+static void lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf);
+
+static union lpfc_wqe128 lpfc_tsend_cmd_template;
+static union lpfc_wqe128 lpfc_treceive_cmd_template;
+static union lpfc_wqe128 lpfc_trsp_cmd_template;
+
+/* Setup WQE templates for NVME IOs */
 void
+lpfc_nvmet_cmd_template(void)
+{
+	union lpfc_wqe128 *wqe;
+
+	/* TSEND template */
+	wqe = &lpfc_tsend_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - payload_offset_len is zero */
+
+	/* Word 4 - relative_offset is variable */
+
+	/* Word 5 - is zero */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 - wqe_ar is variable */
+	bf_set(wqe_cmnd, &wqe->fcp_tsend.wqe_com, CMD_FCP_TSEND64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_tsend.wqe_com, PARM_REL_OFF);
+	bf_set(wqe_class, &wqe->fcp_tsend.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_tsend.wqe_com, SLI4_CT_RPI);
+	bf_set(wqe_ar, &wqe->fcp_tsend.wqe_com, 1);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag, rcvoxid is variable */
+
+	/* Word 10 - wqes, xc is variable */
+	bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
+	bf_set(wqe_dbde, &wqe->fcp_tsend.wqe_com, 1);
+	bf_set(wqe_wqes, &wqe->fcp_tsend.wqe_com, 0);
+	bf_set(wqe_xc, &wqe->fcp_tsend.wqe_com, 1);
+	bf_set(wqe_iod, &wqe->fcp_tsend.wqe_com, LPFC_WQE_IOD_WRITE);
+	bf_set(wqe_lenloc, &wqe->fcp_tsend.wqe_com, LPFC_WQE_LENLOC_WORD12);
+
+	/* Word 11 - sup, irsp, irsplen is variable */
+	bf_set(wqe_cmd_type, &wqe->fcp_tsend.wqe_com, FCP_COMMAND_TSEND);
+	bf_set(wqe_cqid, &wqe->fcp_tsend.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_sup, &wqe->fcp_tsend.wqe_com, 0);
+	bf_set(wqe_irsp, &wqe->fcp_tsend.wqe_com, 0);
+	bf_set(wqe_irsplen, &wqe->fcp_tsend.wqe_com, 0);
+	bf_set(wqe_pbde, &wqe->fcp_tsend.wqe_com, 0);
+
+	/* Word 12 - fcp_data_len is variable */
+
+	/* Word 13, 14, 15 - PBDE is zero */
+
+	/* TRECEIVE template */
+	wqe = &lpfc_treceive_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 */
+	wqe->fcp_treceive.payload_offset_len = TXRDY_PAYLOAD_LEN;
+
+	/* Word 4 - relative_offset is variable */
+
+	/* Word 5 - is zero */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_treceive.wqe_com, CMD_FCP_TRECEIVE64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_treceive.wqe_com, PARM_REL_OFF);
+	bf_set(wqe_class, &wqe->fcp_treceive.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_treceive.wqe_com, SLI4_CT_RPI);
+	bf_set(wqe_ar, &wqe->fcp_treceive.wqe_com, 0);
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag, rcvoxid is variable */
+
+	/* Word 10 - xc is variable */
+	bf_set(wqe_dbde, &wqe->fcp_treceive.wqe_com, 1);
+	bf_set(wqe_wqes, &wqe->fcp_treceive.wqe_com, 0);
+	bf_set(wqe_nvme, &wqe->fcp_treceive.wqe_com, 1);
+	bf_set(wqe_iod, &wqe->fcp_treceive.wqe_com, LPFC_WQE_IOD_READ);
+	bf_set(wqe_lenloc, &wqe->fcp_treceive.wqe_com, LPFC_WQE_LENLOC_WORD12);
+	bf_set(wqe_xc, &wqe->fcp_tsend.wqe_com, 1);
+
+	/* Word 11 - pbde is variable */
+	bf_set(wqe_cmd_type, &wqe->fcp_treceive.wqe_com, FCP_COMMAND_TRECEIVE);
+	bf_set(wqe_cqid, &wqe->fcp_treceive.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_sup, &wqe->fcp_treceive.wqe_com, 0);
+	bf_set(wqe_irsp, &wqe->fcp_treceive.wqe_com, 0);
+	bf_set(wqe_irsplen, &wqe->fcp_treceive.wqe_com, 0);
+	bf_set(wqe_pbde, &wqe->fcp_treceive.wqe_com, 1);
+
+	/* Word 12 - fcp_data_len is variable */
+
+	/* Word 13, 14, 15 - PBDE is variable */
+
+	/* TRSP template */
+	wqe = &lpfc_trsp_cmd_template;
+	memset(wqe, 0, sizeof(union lpfc_wqe128));
+
+	/* Word 0, 1, 2 - BDE is variable */
+
+	/* Word 3 - response_len is variable */
+
+	/* Word 4, 5 - is zero */
+
+	/* Word 6 - ctxt_tag, xri_tag is variable */
+
+	/* Word 7 */
+	bf_set(wqe_cmnd, &wqe->fcp_trsp.wqe_com, CMD_FCP_TRSP64_WQE);
+	bf_set(wqe_pu, &wqe->fcp_trsp.wqe_com, PARM_UNUSED);
+	bf_set(wqe_class, &wqe->fcp_trsp.wqe_com, CLASS3);
+	bf_set(wqe_ct, &wqe->fcp_trsp.wqe_com, SLI4_CT_RPI);
+	bf_set(wqe_ag, &wqe->fcp_trsp.wqe_com, 1); /* wqe_ar */
+
+	/* Word 8 - abort_tag is variable */
+
+	/* Word 9  - reqtag is variable */
+
+	/* Word 10 wqes, xc is variable */
+	bf_set(wqe_dbde, &wqe->fcp_trsp.wqe_com, 1);
+	bf_set(wqe_nvme, &wqe->fcp_trsp.wqe_com, 1);
+	bf_set(wqe_wqes, &wqe->fcp_trsp.wqe_com, 0);
+	bf_set(wqe_xc, &wqe->fcp_trsp.wqe_com, 0);
+	bf_set(wqe_iod, &wqe->fcp_trsp.wqe_com, LPFC_WQE_IOD_NONE);
+	bf_set(wqe_lenloc, &wqe->fcp_trsp.wqe_com, LPFC_WQE_LENLOC_WORD3);
+
+	/* Word 11 irsp, irsplen is variable */
+	bf_set(wqe_cmd_type, &wqe->fcp_trsp.wqe_com, FCP_COMMAND_TRSP);
+	bf_set(wqe_cqid, &wqe->fcp_trsp.wqe_com, LPFC_WQE_CQ_ID_DEFAULT);
+	bf_set(wqe_sup, &wqe->fcp_trsp.wqe_com, 0);
+	bf_set(wqe_irsp, &wqe->fcp_trsp.wqe_com, 0);
+	bf_set(wqe_irsplen, &wqe->fcp_trsp.wqe_com, 0);
+	bf_set(wqe_pbde, &wqe->fcp_trsp.wqe_com, 0);
+
+	/* Word 12, 13, 14, 15 - is zero */
+}
+
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
+static struct lpfc_nvmet_rcv_ctx *
+lpfc_nvmet_get_ctx_for_xri(struct lpfc_hba *phba, u16 xri)
+{
+	struct lpfc_nvmet_rcv_ctx *ctxp;
+	unsigned long iflag;
+	bool found = false;
+
+	spin_lock_irqsave(&phba->sli4_hba.t_active_list_lock, iflag);
+	list_for_each_entry(ctxp, &phba->sli4_hba.t_active_ctx_list, list) {
+		if (ctxp->ctxbuf->sglq->sli4_xritag != xri)
+			continue;
+
+		found = true;
+		break;
+	}
+	spin_unlock_irqrestore(&phba->sli4_hba.t_active_list_lock, iflag);
+	if (found)
+		return ctxp;
+
+	return NULL;
+}
+
+static struct lpfc_nvmet_rcv_ctx *
+lpfc_nvmet_get_ctx_for_oxid(struct lpfc_hba *phba, u16 oxid, u32 sid)
+{
+	struct lpfc_nvmet_rcv_ctx *ctxp;
+	unsigned long iflag;
+	bool found = false;
+
+	spin_lock_irqsave(&phba->sli4_hba.t_active_list_lock, iflag);
+	list_for_each_entry(ctxp, &phba->sli4_hba.t_active_ctx_list, list) {
+		if (ctxp->oxid != oxid || ctxp->sid != sid)
+			continue;
+
+		found = true;
+		break;
+	}
+	spin_unlock_irqrestore(&phba->sli4_hba.t_active_list_lock, iflag);
+	if (found)
+		return ctxp;
+
+	return NULL;
+}
+#endif
+
+static void
 lpfc_nvmet_defer_release(struct lpfc_hba *phba, struct lpfc_nvmet_rcv_ctx *ctxp)
 {
-	unsigned long iflag;
+	lockdep_assert_held(&ctxp->ctxlock);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6313 NVMET Defer ctx release xri x%x flg x%x\n",
+			"6313 NVMET Defer ctx release oxid x%x flg x%x\n",
 			ctxp->oxid, ctxp->flag);
 
-	spin_lock_irqsave(&phba->sli4_hba.abts_nvme_buf_list_lock, iflag);
-	if (ctxp->flag & LPFC_NVMET_CTX_RLS) {
-		spin_unlock_irqrestore(&phba->sli4_hba.abts_nvme_buf_list_lock,
-				       iflag);
+	if (ctxp->flag & LPFC_NVMET_CTX_RLS)
 		return;
-	}
+
 	ctxp->flag |= LPFC_NVMET_CTX_RLS;
+	spin_lock(&phba->sli4_hba.t_active_list_lock);
+	list_del(&ctxp->list);
+	spin_unlock(&phba->sli4_hba.t_active_list_lock);
+	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	list_add_tail(&ctxp->list, &phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
-	spin_unlock_irqrestore(&phba->sli4_hba.abts_nvme_buf_list_lock, iflag);
+	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 }
 
 /**
@@ -130,7 +325,7 @@ lpfc_nvmet_xmt_ls_rsp_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	if (tgtp) {
 		if (status) {
 			atomic_inc(&tgtp->xmt_ls_rsp_error);
-			if (status == IOERR_ABORT_REQUESTED)
+			if (result == IOERR_ABORT_REQUESTED)
 				atomic_inc(&tgtp->xmt_ls_rsp_aborted);
 			if (bf_get(lpfc_wcqe_c_xb, wcqe))
 				atomic_inc(&tgtp->xmt_ls_rsp_xb_set);
@@ -179,8 +374,7 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	struct fc_frame_header *fc_hdr;
 	struct rqb_dmabuf *nvmebuf;
 	struct lpfc_nvmet_ctx_info *infop;
-	uint32_t *payload;
-	uint32_t size, oxid, sid, rc;
+	uint32_t size, oxid, sid;
 	int cpu;
 	unsigned long iflag;
 
@@ -196,6 +390,27 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 				"6411 NVMET free, already free IO x%x: %d %d\n",
 				ctxp->oxid, ctxp->state, ctxp->entry_cnt);
 	}
+
+	if (ctxp->rqb_buffer) {
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
+		nvmebuf = ctxp->rqb_buffer;
+		/* check if freed in another path whilst acquiring lock */
+		if (nvmebuf) {
+			ctxp->rqb_buffer = NULL;
+			if (ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) {
+				ctxp->flag &= ~LPFC_NVMET_CTX_REUSE_WQ;
+				spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+				nvmebuf->hrq->rqbp->rqb_free_buffer(phba,
+								    nvmebuf);
+			} else {
+				spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+				/* repost */
+				lpfc_rq_buf_free(phba, &nvmebuf->hbuf);
+			}
+		} else {
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+		}
+	}
 	ctxp->state = LPFC_NVMET_STE_FREE;
 
 	spin_lock_irqsave(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
@@ -210,7 +425,6 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
 		oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-		payload = (uint32_t *)(nvmebuf->dbuf.virt);
 		size = nvmebuf->bytes_recv;
 		sid = sli4_sid_from_fc_hdr(fc_hdr);
 
@@ -230,8 +444,9 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-		if (ctxp->ts_cmd_nvme) {
-			ctxp->ts_cmd_nvme = ktime_get_ns();
+		/* NOTE: isr time stamp is stale when context is re-assigned*/
+		if (ctxp->ts_isr_cmd) {
+			ctxp->ts_cmd_nvme = 0;
 			ctxp->ts_nvme_data = 0;
 			ctxp->ts_data_wqput = 0;
 			ctxp->ts_isr_data = 0;
@@ -243,47 +458,28 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 		}
 #endif
 		atomic_inc(&tgtp->rcv_fcp_cmd_in);
-		/*
-		 * The calling sequence should be:
-		 * nvmet_fc_rcv_fcp_req->lpfc_nvmet_xmt_fcp_op/cmp- req->done
-		 * lpfc_nvmet_xmt_fcp_op_cmp should free the allocated ctxp.
-		 * When we return from nvmet_fc_rcv_fcp_req, all relevant info
-		 * the NVME command / FC header is stored.
-		 * A buffer has already been reposted for this IO, so just free
-		 * the nvmebuf.
-		 */
-		rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
-					  payload, size);
 
-		/* Process FCP command */
-		if (rc == 0) {
-			atomic_inc(&tgtp->rcv_fcp_cmd_out);
-			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
-			return;
+		/* Indicate that a replacement buffer has been posted */
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
+		ctxp->flag |= LPFC_NVMET_CTX_REUSE_WQ;
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+
+		if (!queue_work(phba->wq, &ctx_buf->defer_work)) {
+			atomic_inc(&tgtp->rcv_fcp_cmd_drop);
+			lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+					"6181 Unable to queue deferred work "
+					"for oxid x%x. "
+					"FCP Drop IO [x%x x%x x%x]\n",
+					ctxp->oxid,
+					atomic_read(&tgtp->rcv_fcp_cmd_in),
+					atomic_read(&tgtp->rcv_fcp_cmd_out),
+					atomic_read(&tgtp->xmt_fcp_release));
+
+			spin_lock_irqsave(&ctxp->ctxlock, iflag);
+			lpfc_nvmet_defer_release(phba, ctxp);
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+			lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
 		}
-
-		/* Processing of FCP command is deferred */
-		if (rc == -EOVERFLOW) {
-			lpfc_nvmeio_data(phba,
-					 "NVMET RCV BUSY: xri x%x sz %d "
-					 "from %06x\n",
-					 oxid, size, sid);
-			/* defer repost rcv buffer till .defer_rcv callback */
-			ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
-			atomic_inc(&tgtp->rcv_fcp_cmd_out);
-			return;
-		}
-		atomic_inc(&tgtp->rcv_fcp_cmd_drop);
-		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"2582 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
-				ctxp->oxid, rc,
-				atomic_read(&tgtp->rcv_fcp_cmd_in),
-				atomic_read(&tgtp->rcv_fcp_cmd_out),
-				atomic_read(&tgtp->xmt_fcp_release));
-
-		lpfc_nvmet_defer_release(phba, ctxp);
-		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
-		nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
 		return;
 	}
 	spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
@@ -292,7 +488,10 @@ lpfc_nvmet_ctxbuf_post(struct lpfc_hba *phba, struct lpfc_nvmet_ctxbuf *ctx_buf)
 	 * Use the CPU context list, from the MRQ the IO was received on
 	 * (ctxp->idx), to save context structure.
 	 */
-	cpu = smp_processor_id();
+	spin_lock_irqsave(&phba->sli4_hba.t_active_list_lock, iflag);
+	list_del_init(&ctxp->list);
+	spin_unlock_irqrestore(&phba->sli4_hba.t_active_list_lock, iflag);
+	cpu = raw_smp_processor_id();
 	infop = lpfc_get_ctx_list(phba, cpu, ctxp->idx);
 	spin_lock_irqsave(&infop->nvmet_ctx_list_lock, iflag);
 	list_add_tail(&ctx_buf->list, &infop->nvmet_ctx_list);
@@ -541,7 +740,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		rsp->transferred_length = 0;
 		if (tgtp) {
 			atomic_inc(&tgtp->xmt_fcp_rsp_error);
-			if (status == IOERR_ABORT_REQUESTED)
+			if (result == IOERR_ABORT_REQUESTED)
 				atomic_inc(&tgtp->xmt_fcp_rsp_aborted);
 		}
 
@@ -559,8 +758,10 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		}
 
 		lpfc_printf_log(phba, KERN_INFO, logerr,
-				"6315 IO Error Cmpl xri x%x: %x/%x XBUSY:x%x\n",
-				ctxp->oxid, status, result, ctxp->flag);
+				"6315 IO Error Cmpl oxid: x%x xri: x%x %x/%x "
+				"XBUSY:x%x\n",
+				ctxp->oxid, ctxp->ctxbuf->sglq->sli4_xritag,
+				status, result, ctxp->flag);
 
 	} else {
 		rsp->fcp_error = NVME_SC_SUCCESS;
@@ -600,16 +801,6 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 					ktime_get_ns();
 			}
 		}
-		if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-			id = smp_processor_id();
-			if (ctxp->cpu != id)
-				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-						"6703 CPU Check cmpl: "
-						"cpu %d expect %d\n",
-						id, ctxp->cpu);
-			if (ctxp->cpu < LPFC_CHECK_CPU_CNT)
-				phba->cpucheck_cmpl_io[id]++;
-		}
 #endif
 		rsp->done(rsp);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
@@ -627,19 +818,22 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 			ctxp->ts_isr_data = cmdwqe->isr_timestamp;
 			ctxp->ts_data_nvme = ktime_get_ns();
 		}
-		if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-			id = smp_processor_id();
-			if (ctxp->cpu != id)
-				lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-						"6704 CPU Check cmdcmpl: "
-						"cpu %d expect %d\n",
-						id, ctxp->cpu);
-			if (ctxp->cpu < LPFC_CHECK_CPU_CNT)
-				phba->cpucheck_ccmpl_io[id]++;
-		}
 #endif
 		rsp->done(rsp);
 	}
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
+		id = raw_smp_processor_id();
+		if (id < LPFC_CHECK_CPU_CNT) {
+			if (ctxp->cpu != id)
+				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+						"6704 CPU Check cmdcmpl: "
+						"cpu %d expect %d\n",
+						id, ctxp->cpu);
+			phba->sli4_hba.hdwq[rsp->hwqid].cpucheck_cmpl_io[id]++;
+		}
+	}
+#endif
 }
 
 static int
@@ -708,14 +902,13 @@ lpfc_nvmet_xmt_ls_rsp(struct nvmet_fc_target_port *tgtport,
 	lpfc_nvmeio_data(phba, "NVMET LS  RESP: xri x%x wqidx x%x len x%x\n",
 			 ctxp->oxid, nvmewqeq->hba_wqidx, rsp->rsplen);
 
-	rc = lpfc_sli4_issue_wqe(phba, LPFC_ELS_RING, nvmewqeq);
+	rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, nvmewqeq);
 	if (rc == WQE_SUCCESS) {
 		/*
 		 * Okay to repost buffer here, but wait till cmpl
 		 * before freeing ctxp and iocbq.
 		 */
 		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
-		ctxp->rqb_buffer = 0;
 		atomic_inc(&nvmep->xmt_ls_rsp);
 		return 0;
 	}
@@ -741,7 +934,10 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_nvmet_rcv_ctx *ctxp =
 		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
 	struct lpfc_hba *phba = ctxp->phba;
+	struct lpfc_queue *wq;
 	struct lpfc_iocbq *nvmewqeq;
+	struct lpfc_sli_ring *pring;
+	unsigned long iflags;
 	int rc;
 
 	if (phba->pport->load_flag & FC_UNLOADING) {
@@ -761,18 +957,22 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		else
 			ctxp->ts_nvme_data = ktime_get_ns();
 	}
+
+	/* Setup the hdw queue if not already set */
+	if (!ctxp->hdwq)
+		ctxp->hdwq = &phba->sli4_hba.hdwq[rsp->hwqid];
+
 	if (phba->cpucheck_on & LPFC_CHECK_NVMET_IO) {
-		int id = smp_processor_id();
-		ctxp->cpu = id;
-		if (id < LPFC_CHECK_CPU_CNT)
-			phba->cpucheck_xmt_io[id]++;
-		if (rsp->hwqid != id) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-					"6705 CPU Check OP: "
-					"cpu %d expect %d\n",
-					id, rsp->hwqid);
-			ctxp->cpu = rsp->hwqid;
+		int id = raw_smp_processor_id();
+		if (id < LPFC_CHECK_CPU_CNT) {
+			if (rsp->hwqid != id)
+				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+						"6705 CPU Check OP: "
+						"cpu %d expect %d\n",
+						id, rsp->hwqid);
+			phba->sli4_hba.hdwq[rsp->hwqid].cpucheck_xmt_io[id]++;
 		}
+		ctxp->cpu = id; /* Setup cpu for cmpl check */
 	}
 #endif
 
@@ -781,7 +981,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 	    (ctxp->state == LPFC_NVMET_STE_ABORT)) {
 		atomic_inc(&lpfc_nvmep->xmt_fcp_drop);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6102 IO xri x%x aborted\n",
+				"6102 IO oxid x%x aborted\n",
 				ctxp->oxid);
 		rc = -ENXIO;
 		goto aerr;
@@ -807,7 +1007,7 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 			 ctxp->oxid, rsp->op, rsp->rsplen);
 
 	ctxp->flag |= LPFC_NVMET_IO_INP;
-	rc = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, nvmewqeq);
+	rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, nvmewqeq);
 	if (rc == WQE_SUCCESS) {
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 		if (!ctxp->ts_cmd_nvme)
@@ -817,6 +1017,22 @@ lpfc_nvmet_xmt_fcp_op(struct nvmet_fc_target_port *tgtport,
 		else
 			ctxp->ts_data_wqput = ktime_get_ns();
 #endif
+		return 0;
+	}
+
+	if (rc == -EBUSY) {
+		/*
+		 * WQ was full, so queue nvmewqeq to be sent after
+		 * WQE release CQE
+		 */
+		ctxp->flag |= LPFC_NVMET_DEFER_WQFULL;
+		wq = ctxp->hdwq->io_wq;
+		pring = wq->pring;
+		spin_lock_irqsave(&pring->ring_lock, iflags);
+		list_add_tail(&nvmewqeq->list, &wq->wqfull_list);
+		wq->q_flag |= HBA_NVMET_WQFULL;
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
+		atomic_inc(&lpfc_nvmep->defer_wqfull);
 		return 0;
 	}
 
@@ -840,7 +1056,8 @@ lpfc_nvmet_targetport_delete(struct nvmet_fc_target_port *targetport)
 	struct lpfc_nvmet_tgtport *tport = targetport->private;
 
 	/* release any threads waiting for the unreg to complete */
-	complete(&tport->tport_unreg_done);
+	if (tport->phba->targetport)
+		complete(tport->tport_unreg_cmp);
 }
 
 static void
@@ -851,6 +1068,7 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	struct lpfc_nvmet_rcv_ctx *ctxp =
 		container_of(req, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
 	struct lpfc_hba *phba = ctxp->phba;
+	struct lpfc_queue *wq;
 	unsigned long flags;
 
 	if (phba->pport->load_flag & FC_UNLOADING)
@@ -859,8 +1077,11 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	if (phba->pport->load_flag & FC_UNLOADING)
 		return;
 
+	if (!ctxp->hdwq)
+		ctxp->hdwq = &phba->sli4_hba.hdwq[0];
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6103 NVMET Abort op: oxri x%x flg x%x ste %d\n",
+			"6103 NVMET Abort op: oxid x%x flg x%x ste %d\n",
 			ctxp->oxid, ctxp->flag, ctxp->state);
 
 	lpfc_nvmeio_data(phba, "NVMET FCP ABRT: xri x%x flg x%x ste x%x\n",
@@ -869,16 +1090,25 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	atomic_inc(&lpfc_nvmep->xmt_fcp_abort);
 
 	spin_lock_irqsave(&ctxp->ctxlock, flags);
-	ctxp->state = LPFC_NVMET_STE_ABORT;
 
 	/* Since iaab/iaar are NOT set, we need to check
 	 * if the firmware is in process of aborting IO
 	 */
-	if (ctxp->flag & LPFC_NVMET_XBUSY) {
+	if (ctxp->flag & (LPFC_NVMET_XBUSY | LPFC_NVMET_ABORT_OP)) {
 		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		return;
 	}
 	ctxp->flag |= LPFC_NVMET_ABORT_OP;
+
+	if (ctxp->flag & LPFC_NVMET_DEFER_WQFULL) {
+		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
+		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+						 ctxp->oxid);
+		wq = ctxp->hdwq->io_wq;
+		lpfc_nvmet_wqfull_flush(phba, wq, ctxp);
+		return;
+	}
+	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 
 	/* An state of LPFC_NVMET_STE_RCV means we have just received
 	 * the NVME command and have not started processing it.
@@ -890,7 +1120,6 @@ lpfc_nvmet_xmt_fcp_abort(struct nvmet_fc_target_port *tgtport,
 	else
 		lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
 					       ctxp->oxid);
-	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 }
 
 static void
@@ -904,14 +1133,18 @@ lpfc_nvmet_xmt_fcp_release(struct nvmet_fc_target_port *tgtport,
 	unsigned long flags;
 	bool aborting = false;
 
-	if (ctxp->state != LPFC_NVMET_STE_DONE &&
-	    ctxp->state != LPFC_NVMET_STE_ABORT) {
+	spin_lock_irqsave(&ctxp->ctxlock, flags);
+	if (ctxp->flag & LPFC_NVMET_XBUSY)
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+				"6027 NVMET release with XBUSY flag x%x"
+				" oxid x%x\n",
+				ctxp->flag, ctxp->oxid);
+	else if (ctxp->state != LPFC_NVMET_STE_DONE &&
+		 ctxp->state != LPFC_NVMET_STE_ABORT)
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6413 NVMET release bad state %d %d oxid x%x\n",
 				ctxp->state, ctxp->entry_cnt, ctxp->oxid);
-	}
 
-	spin_lock_irqsave(&ctxp->ctxlock, flags);
 	if ((ctxp->flag & LPFC_NVMET_ABORT_OP) ||
 	    (ctxp->flag & LPFC_NVMET_XBUSY)) {
 		aborting = true;
@@ -924,6 +1157,7 @@ lpfc_nvmet_xmt_fcp_release(struct nvmet_fc_target_port *tgtport,
 			 ctxp->state, aborting);
 
 	atomic_inc(&lpfc_nvmep->xmt_fcp_release);
+	ctxp->flag &= ~LPFC_NVMET_TNOTIFY;
 
 	if (aborting)
 		return;
@@ -940,17 +1174,45 @@ lpfc_nvmet_defer_rcv(struct nvmet_fc_target_port *tgtport,
 		container_of(rsp, struct lpfc_nvmet_rcv_ctx, ctx.fcp_req);
 	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
 	struct lpfc_hba *phba = ctxp->phba;
+	unsigned long iflag;
+
 
 	lpfc_nvmeio_data(phba, "NVMET DEFERRCV: xri x%x sz %d CPU %02x\n",
-			 ctxp->oxid, ctxp->size, smp_processor_id());
+			 ctxp->oxid, ctxp->size, raw_smp_processor_id());
+
+	if (!nvmebuf) {
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+				"6425 Defer rcv: no buffer oxid x%x: "
+				"flg %x ste %x\n",
+				ctxp->oxid, ctxp->flag, ctxp->state);
+		return;
+	}
 
 	tgtp = phba->targetport->private;
-	atomic_inc(&tgtp->rcv_fcp_cmd_defer);
-	if (ctxp->flag & LPFC_NVMET_DEFER_RCV_REPOST)
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
-	else
-		nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
-	ctxp->flag &= ~LPFC_NVMET_DEFER_RCV_REPOST;
+	if (tgtp)
+		atomic_inc(&tgtp->rcv_fcp_cmd_defer);
+
+	/* Free the nvmebuf since a new buffer already replaced it */
+	nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+	spin_lock_irqsave(&ctxp->ctxlock, iflag);
+	ctxp->rqb_buffer = NULL;
+	spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+}
+
+static void
+lpfc_nvmet_discovery_event(struct nvmet_fc_target_port *tgtport)
+{
+	struct lpfc_nvmet_tgtport *tgtp;
+	struct lpfc_hba *phba;
+	uint32_t rc;
+
+	tgtp = tgtport->private;
+	phba = tgtp->phba;
+
+	rc = lpfc_issue_els_rscn(phba->pport, 0);
+	lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+			"6420 NVMET subsystem change: Notification %s\n",
+			(rc) ? "Failed" : "Sent");
 }
 
 static struct nvmet_fc_target_template lpfc_tgttemplate = {
@@ -960,6 +1222,7 @@ static struct nvmet_fc_target_template lpfc_tgttemplate = {
 	.fcp_abort      = lpfc_nvmet_xmt_fcp_abort,
 	.fcp_req_release = lpfc_nvmet_xmt_fcp_release,
 	.defer_rcv	= lpfc_nvmet_defer_rcv,
+	.discovery_event = lpfc_nvmet_discovery_event,
 
 	.max_hw_queues  = 1,
 	.max_sgl_segments = LPFC_NVMET_DEFAULT_SEGS,
@@ -982,9 +1245,9 @@ __lpfc_nvmet_clean_io_for_cpu(struct lpfc_hba *phba,
 	spin_lock_irqsave(&infop->nvmet_ctx_list_lock, flags);
 	list_for_each_entry_safe(ctx_buf, next_ctx_buf,
 				&infop->nvmet_ctx_list, list) {
-		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_del_init(&ctx_buf->list);
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 
 		__lpfc_clear_active_sglq(phba, ctx_buf->sglq->sli4_lxritag);
 		ctx_buf->sglq->state = SGL_FREED;
@@ -1014,9 +1277,9 @@ lpfc_nvmet_cleanup_io_context(struct lpfc_hba *phba)
 
 	/* Cycle the the entire CPU context list for every MRQ */
 	for (i = 0; i < phba->cfg_nvmet_mrq; i++) {
-		for (j = 0; j < phba->sli4_hba.num_present_cpu; j++) {
+		for_each_present_cpu(j) {
+			infop = lpfc_get_ctx_list(phba, j, i);
 			__lpfc_nvmet_clean_io_for_cpu(phba, infop);
-			infop++; /* next */
 		}
 	}
 	kfree(phba->sli4_hba.nvmet_ctx_info);
@@ -1031,14 +1294,14 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	union lpfc_wqe128 *wqe;
 	struct lpfc_nvmet_ctx_info *last_infop;
 	struct lpfc_nvmet_ctx_info *infop;
-	int i, j, idx;
+	int i, j, idx, cpu;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
 			"6403 Allocate NVMET resources for %d XRIs\n",
 			phba->sli4_hba.nvmet_xri_cnt);
 
 	phba->sli4_hba.nvmet_ctx_info = kcalloc(
-		phba->sli4_hba.num_present_cpu * phba->cfg_nvmet_mrq,
+		phba->sli4_hba.num_possible_cpu * phba->cfg_nvmet_mrq,
 		sizeof(struct lpfc_nvmet_ctx_info), GFP_KERNEL);
 	if (!phba->sli4_hba.nvmet_ctx_info) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -1066,13 +1329,12 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	 * of the IO completion. Thus a context that was allocated for MRQ A
 	 * whose IO completed on CPU B will be freed to cpuB/mrqA.
 	 */
-	infop = phba->sli4_hba.nvmet_ctx_info;
-	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+	for_each_possible_cpu(i) {
 		for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
+			infop = lpfc_get_ctx_list(phba, i, j);
 			INIT_LIST_HEAD(&infop->nvmet_ctx_list);
 			spin_lock_init(&infop->nvmet_ctx_list_lock);
 			infop->nvmet_ctx_list_cnt = 0;
-			infop++;
 		}
 	}
 
@@ -1082,8 +1344,10 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	 * MRQ 1 cycling thru CPUs 0 - X, and so on.
 	 */
 	for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
-		last_infop = lpfc_get_ctx_list(phba, 0, j);
-		for (i = phba->sli4_hba.num_present_cpu - 1;  i >= 0; i--) {
+		last_infop = lpfc_get_ctx_list(phba,
+					       cpumask_first(cpu_present_mask),
+					       j);
+		for (i = phba->sli4_hba.num_possible_cpu - 1;  i >= 0; i--) {
 			infop = lpfc_get_ctx_list(phba, i, j);
 			infop->nvmet_ctx_next_cpu = last_infop;
 			last_infop = infop;
@@ -1094,6 +1358,7 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 	 * received command on a per xri basis.
 	 */
 	idx = 0;
+	cpu = cpumask_first(cpu_present_mask);
 	for (i = 0; i < phba->sli4_hba.nvmet_xri_cnt; i++) {
 		ctx_buf = kzalloc(sizeof(*ctx_buf), GFP_KERNEL);
 		if (!ctx_buf) {
@@ -1124,16 +1389,10 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 		}
 		ctx_buf->iocbq->iocb_flag = LPFC_IO_NVMET;
 		nvmewqe = ctx_buf->iocbq;
-		wqe = (union lpfc_wqe128 *)&nvmewqe->wqe;
+		wqe = &nvmewqe->wqe;
+
 		/* Initialize WQE */
 		memset(wqe, 0, sizeof(union lpfc_wqe));
-		/* Word 7 */
-		bf_set(wqe_ct, &wqe->generic.wqe_com, SLI4_CT_RPI);
-		bf_set(wqe_class, &wqe->generic.wqe_com, CLASS3);
-		/* Word 10 */
-		bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
-		bf_set(wqe_ebde_cnt, &wqe->generic.wqe_com, 0);
-		bf_set(wqe_qosd, &wqe->generic.wqe_com, 0);
 
 		ctx_buf->iocbq->context1 = NULL;
 		spin_lock(&phba->sli4_hba.sgl_list_lock);
@@ -1147,13 +1406,14 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 					"6407 Ran out of NVMET XRIs\n");
 			return -ENOMEM;
 		}
+		INIT_WORK(&ctx_buf->defer_work, lpfc_nvmet_fcp_rqst_defer_work);
 
 		/*
 		 * Add ctx to MRQidx context list. Our initial assumption
 		 * is MRQidx will be associated with CPUidx. This association
 		 * can change on the fly.
 		 */
-		infop = lpfc_get_ctx_list(phba, idx, idx);
+		infop = lpfc_get_ctx_list(phba, cpu, idx);
 		spin_lock(&infop->nvmet_ctx_list_lock);
 		list_add_tail(&ctx_buf->list, &infop->nvmet_ctx_list);
 		infop->nvmet_ctx_list_cnt++;
@@ -1161,19 +1421,25 @@ lpfc_nvmet_setup_io_context(struct lpfc_hba *phba)
 
 		/* Spread ctx structures evenly across all MRQs */
 		idx++;
-		if (idx >= phba->cfg_nvmet_mrq)
+		if (idx >= phba->cfg_nvmet_mrq) {
 			idx = 0;
+			cpu = cpumask_first(cpu_present_mask);
+			continue;
+		}
+		cpu = cpumask_next(cpu, cpu_present_mask);
+		if (cpu == nr_cpu_ids)
+			cpu = cpumask_first(cpu_present_mask);
+
 	}
 
-	infop = phba->sli4_hba.nvmet_ctx_info;
-	for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
-		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+	for_each_present_cpu(i) {
+		for (j = 0; j < phba->cfg_nvmet_mrq; j++) {
+			infop = lpfc_get_ctx_list(phba, i, j);
 			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
 					"6408 TOTAL NVMET ctx for CPU %d "
-					"MRQ %d: cnt %d nextcpu %p\n",
+					"MRQ %d: cnt %d nextcpu x%px\n",
 					i, j, infop->nvmet_ctx_list_cnt,
 					infop->nvmet_ctx_next_cpu);
-			infop++;
 		}
 	}
 	return 0;
@@ -1199,19 +1465,12 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 	pinfo.port_name = wwn_to_u64(vport->fc_portname.u.wwn);
 	pinfo.port_id = vport->fc_myDID;
 
-	/* Limit to LPFC_MAX_NVME_SEG_CNT.
-	 * For now need + 1 to get around NVME transport logic.
+	/* We need to tell the transport layer + 1 because it takes page
+	 * alignment into account. When space for the SGL is allocated we
+	 * allocate + 3, one for cmd, one for rsp and one for this alignment
 	 */
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
-		lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
-				"6400 Reducing sg segment cnt to %d\n",
-				LPFC_MAX_NVME_SEG_CNT);
-		phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
-	} else {
-		phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
-	}
 	lpfc_tgttemplate.max_sgl_segments = phba->cfg_nvme_seg_cnt + 1;
-	lpfc_tgttemplate.max_hw_queues = phba->cfg_nvme_io_channel;
+	lpfc_tgttemplate.max_hw_queues = phba->cfg_hdw_queue;
 	lpfc_tgttemplate.target_features = NVMET_FCTGTFEAT_READDATA_RSP;
 
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
@@ -1241,7 +1500,7 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_DISC,
 				"6026 Registered NVME "
-				"targetport: %p, private %p "
+				"targetport: x%px, private x%px "
 				"portnm %llx nodenm %llx segs %d qs %d\n",
 				phba->targetport, tgtp,
 				pinfo.port_name, pinfo.node_name,
@@ -1280,6 +1539,9 @@ lpfc_nvmet_create_targetport(struct lpfc_hba *phba)
 		atomic_set(&tgtp->xmt_abort_sol, 0);
 		atomic_set(&tgtp->xmt_abort_rsp, 0);
 		atomic_set(&tgtp->xmt_abort_rsp_error, 0);
+		atomic_set(&tgtp->defer_ctx, 0);
+		atomic_set(&tgtp->defer_fod, 0);
+		atomic_set(&tgtp->defer_wqfull, 0);
 	}
 	return error;
 }
@@ -1293,7 +1555,7 @@ lpfc_nvmet_update_targetport(struct lpfc_hba *phba)
 		return 0;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-			 "6007 Update NVMET port %p did x%x\n",
+			 "6007 Update NVMET port x%px did x%x\n",
 			 phba->targetport, vport->fc_myDID);
 
 	phba->targetport->port_id = vport->fc_myDID;
@@ -1312,10 +1574,12 @@ void
 lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 			    struct sli4_wcqe_xri_aborted *axri)
 {
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	uint16_t xri = bf_get(lpfc_wcqe_xa_xri, axri);
 	uint16_t rxid = bf_get(lpfc_wcqe_xa_remote_xid, axri);
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
+	struct nvmefc_tgt_fcp_req *req = NULL;
 	struct lpfc_nodelist *ndlp;
 	unsigned long iflag = 0;
 	int rrq_empty = 0;
@@ -1333,23 +1597,25 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 	}
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	list_for_each_entry_safe(ctxp, next_ctxp,
 				 &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				 list) {
 		if (ctxp->ctxbuf->sglq->sli4_xritag != xri)
 			continue;
 
+		spin_lock(&ctxp->ctxlock);
 		/* Check if we already received a free context call
 		 * and we have completed processing an abort situation.
 		 */
 		if (ctxp->flag & LPFC_NVMET_CTX_RLS &&
 		    !(ctxp->flag & LPFC_NVMET_ABORT_OP)) {
-			list_del(&ctxp->list);
+			list_del_init(&ctxp->list);
 			released = true;
 		}
 		ctxp->flag &= ~LPFC_NVMET_XBUSY;
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		spin_unlock(&ctxp->ctxlock);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 
 		rrq_empty = list_empty(&phba->active_rrq_list);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
@@ -1364,7 +1630,7 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 		}
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-				"6318 XB aborted oxid %x flg x%x (%x)\n",
+				"6318 XB aborted oxid x%x flg x%x (%x)\n",
 				ctxp->oxid, ctxp->flag, released);
 		if (released)
 			lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
@@ -1373,33 +1639,63 @@ lpfc_sli4_nvmet_xri_aborted(struct lpfc_hba *phba,
 			lpfc_worker_wake_up(phba);
 		return;
 	}
-	spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
+
+	ctxp = lpfc_nvmet_get_ctx_for_xri(phba, xri);
+	if (ctxp) {
+		/*
+		 *  Abort already done by FW, so BA_ACC sent.
+		 *  However, the transport may be unaware.
+		 */
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
+				"6323 NVMET Rcv ABTS xri x%x ctxp state x%x "
+				"flag x%x oxid x%x rxid x%x\n",
+				xri, ctxp->state, ctxp->flag, ctxp->oxid,
+				rxid);
+
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
+		ctxp->flag |= LPFC_NVMET_ABTS_RCV;
+		ctxp->state = LPFC_NVMET_STE_ABORT;
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+
+		lpfc_nvmeio_data(phba,
+				 "NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
+				 xri, raw_smp_processor_id(), 0);
+
+		req = &ctxp->ctx.fcp_req;
+		if (req)
+			nvmet_fc_rcv_fcp_abort(phba->targetport, req);
+	}
+#endif
 }
 
 int
 lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 			   struct fc_frame_header *fc_hdr)
-
 {
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_hba *phba = vport->phba;
 	struct lpfc_nvmet_rcv_ctx *ctxp, *next_ctxp;
 	struct nvmefc_tgt_fcp_req *rsp;
-	uint16_t xri;
+	uint32_t sid;
+	uint16_t oxid, xri;
 	unsigned long iflag = 0;
 
-	xri = be16_to_cpu(fc_hdr->fh_ox_id);
+	sid = sli4_sid_from_fc_hdr(fc_hdr);
+	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 
 	spin_lock_irqsave(&phba->hbalock, iflag);
-	spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	list_for_each_entry_safe(ctxp, next_ctxp,
 				 &phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
 				 list) {
-		if (ctxp->ctxbuf->sglq->sli4_xritag != xri)
+		if (ctxp->oxid != oxid || ctxp->sid != sid)
 			continue;
 
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+		xri = ctxp->ctxbuf->sglq->sli4_xritag;
+
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
 
 		spin_lock_irqsave(&ctxp->ctxlock, iflag);
@@ -1408,7 +1704,7 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 
 		lpfc_nvmeio_data(phba,
 			"NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
-			xri, smp_processor_id(), 0);
+			xri, raw_smp_processor_id(), 0);
 
 		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
 				"6319 NVMET Rcv ABTS:acc xri x%x\n", xri);
@@ -1420,14 +1716,92 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
 		return 0;
 	}
-	spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
+	spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 	spin_unlock_irqrestore(&phba->hbalock, iflag);
 
-	lpfc_nvmeio_data(phba, "NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
-			 xri, smp_processor_id(), 1);
+	/* check the wait list */
+	if (phba->sli4_hba.nvmet_io_wait_cnt) {
+		struct rqb_dmabuf *nvmebuf;
+		struct fc_frame_header *fc_hdr_tmp;
+		u32 sid_tmp;
+		u16 oxid_tmp;
+		bool found = false;
+
+		spin_lock_irqsave(&phba->sli4_hba.nvmet_io_wait_lock, iflag);
+
+		/* match by oxid and s_id */
+		list_for_each_entry(nvmebuf,
+				    &phba->sli4_hba.lpfc_nvmet_io_wait_list,
+				    hbuf.list) {
+			fc_hdr_tmp = (struct fc_frame_header *)
+					(nvmebuf->hbuf.virt);
+			oxid_tmp = be16_to_cpu(fc_hdr_tmp->fh_ox_id);
+			sid_tmp = sli4_sid_from_fc_hdr(fc_hdr_tmp);
+			if (oxid_tmp != oxid || sid_tmp != sid)
+				continue;
+
+			lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
+					"6321 NVMET Rcv ABTS oxid x%x from x%x "
+					"is waiting for a ctxp\n",
+					oxid, sid);
+
+			list_del_init(&nvmebuf->hbuf.list);
+			phba->sli4_hba.nvmet_io_wait_cnt--;
+			found = true;
+			break;
+		}
+		spin_unlock_irqrestore(&phba->sli4_hba.nvmet_io_wait_lock,
+				       iflag);
+
+		/* free buffer since already posted a new DMA buffer to RQ */
+		if (found) {
+			nvmebuf->hrq->rqbp->rqb_free_buffer(phba, nvmebuf);
+			/* Respond with BA_ACC accordingly */
+			lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
+			return 0;
+		}
+	}
+
+	/* check active list */
+	ctxp = lpfc_nvmet_get_ctx_for_oxid(phba, oxid, sid);
+	if (ctxp) {
+		xri = ctxp->ctxbuf->sglq->sli4_xritag;
+
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
+		ctxp->flag |= (LPFC_NVMET_ABTS_RCV | LPFC_NVMET_ABORT_OP);
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+
+		lpfc_nvmeio_data(phba,
+				 "NVMET ABTS RCV: xri x%x CPU %02x rjt %d\n",
+				 xri, raw_smp_processor_id(), 0);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
+				"6322 NVMET Rcv ABTS:acc oxid x%x xri x%x "
+				"flag x%x state x%x\n",
+				ctxp->oxid, xri, ctxp->flag, ctxp->state);
+
+		if (ctxp->flag & LPFC_NVMET_TNOTIFY) {
+			/* Notify the transport */
+			nvmet_fc_rcv_fcp_abort(phba->targetport,
+					       &ctxp->ctx.fcp_req);
+		} else {
+			cancel_work_sync(&ctxp->ctxbuf->defer_work);
+			spin_lock_irqsave(&ctxp->ctxlock, iflag);
+			lpfc_nvmet_defer_release(phba, ctxp);
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
+		}
+		lpfc_nvmet_sol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+					       ctxp->oxid);
+
+		lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 1);
+		return 0;
+	}
+
+	lpfc_nvmeio_data(phba, "NVMET ABTS RCV: oxid x%x CPU %02x rjt %d\n",
+			 oxid, raw_smp_processor_id(), 1);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6320 NVMET Rcv ABTS:rjt xri x%x\n", xri);
+			"6320 NVMET Rcv ABTS:rjt oxid x%x\n", oxid);
 
 	/* Respond with BA_RJT accordingly */
 	lpfc_sli4_seq_abort_rsp(vport, fc_hdr, 0);
@@ -1435,19 +1809,125 @@ lpfc_nvmet_rcv_unsol_abort(struct lpfc_vport *vport,
 	return 0;
 }
 
+static void
+lpfc_nvmet_wqfull_flush(struct lpfc_hba *phba, struct lpfc_queue *wq,
+			struct lpfc_nvmet_rcv_ctx *ctxp)
+{
+	struct lpfc_sli_ring *pring;
+	struct lpfc_iocbq *nvmewqeq;
+	struct lpfc_iocbq *next_nvmewqeq;
+	unsigned long iflags;
+	struct lpfc_wcqe_complete wcqe;
+	struct lpfc_wcqe_complete *wcqep;
+
+	pring = wq->pring;
+	wcqep = &wcqe;
+
+	/* Fake an ABORT error code back to cmpl routine */
+	memset(wcqep, 0, sizeof(struct lpfc_wcqe_complete));
+	bf_set(lpfc_wcqe_c_status, wcqep, IOSTAT_LOCAL_REJECT);
+	wcqep->parameter = IOERR_ABORT_REQUESTED;
+
+	spin_lock_irqsave(&pring->ring_lock, iflags);
+	list_for_each_entry_safe(nvmewqeq, next_nvmewqeq,
+				 &wq->wqfull_list, list) {
+		if (ctxp) {
+			/* Checking for a specific IO to flush */
+			if (nvmewqeq->context2 == ctxp) {
+				list_del(&nvmewqeq->list);
+				spin_unlock_irqrestore(&pring->ring_lock,
+						       iflags);
+				lpfc_nvmet_xmt_fcp_op_cmp(phba, nvmewqeq,
+							  wcqep);
+				return;
+			}
+			continue;
+		} else {
+			/* Flush all IOs */
+			list_del(&nvmewqeq->list);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
+			lpfc_nvmet_xmt_fcp_op_cmp(phba, nvmewqeq, wcqep);
+			spin_lock_irqsave(&pring->ring_lock, iflags);
+		}
+	}
+	if (!ctxp)
+		wq->q_flag &= ~HBA_NVMET_WQFULL;
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
+}
+
+void
+lpfc_nvmet_wqfull_process(struct lpfc_hba *phba,
+			  struct lpfc_queue *wq)
+{
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
+	struct lpfc_sli_ring *pring;
+	struct lpfc_iocbq *nvmewqeq;
+	struct lpfc_nvmet_rcv_ctx *ctxp;
+	unsigned long iflags;
+	int rc;
+
+	/*
+	 * Some WQE slots are available, so try to re-issue anything
+	 * on the WQ wqfull_list.
+	 */
+	pring = wq->pring;
+	spin_lock_irqsave(&pring->ring_lock, iflags);
+	while (!list_empty(&wq->wqfull_list)) {
+		list_remove_head(&wq->wqfull_list, nvmewqeq, struct lpfc_iocbq,
+				 list);
+		spin_unlock_irqrestore(&pring->ring_lock, iflags);
+		ctxp = (struct lpfc_nvmet_rcv_ctx *)nvmewqeq->context2;
+		rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, nvmewqeq);
+		spin_lock_irqsave(&pring->ring_lock, iflags);
+		if (rc == -EBUSY) {
+			/* WQ was full again, so put it back on the list */
+			list_add(&nvmewqeq->list, &wq->wqfull_list);
+			spin_unlock_irqrestore(&pring->ring_lock, iflags);
+			return;
+		}
+		if (rc == WQE_SUCCESS) {
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+			if (ctxp->ts_cmd_nvme) {
+				if (ctxp->ctx.fcp_req.op == NVMET_FCOP_RSP)
+					ctxp->ts_status_wqput = ktime_get_ns();
+				else
+					ctxp->ts_data_wqput = ktime_get_ns();
+			}
+#endif
+		} else {
+			WARN_ON(rc);
+		}
+	}
+	wq->q_flag &= ~HBA_NVMET_WQFULL;
+	spin_unlock_irqrestore(&pring->ring_lock, iflags);
+
+#endif
+}
+
 void
 lpfc_nvmet_destroy_targetport(struct lpfc_hba *phba)
 {
 #if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
 	struct lpfc_nvmet_tgtport *tgtp;
+	struct lpfc_queue *wq;
+	uint32_t qidx;
+	DECLARE_COMPLETION_ONSTACK(tport_unreg_cmp);
 
 	if (phba->nvmet_support == 0)
 		return;
 	if (phba->targetport) {
 		tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-		init_completion(&tgtp->tport_unreg_done);
+		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
+			wq = phba->sli4_hba.hdwq[qidx].io_wq;
+			lpfc_nvmet_wqfull_flush(phba, wq, NULL);
+		}
+		tgtp->tport_unreg_cmp = &tport_unreg_cmp;
 		nvmet_fc_unregister_targetport(phba->targetport);
-		wait_for_completion_timeout(&tgtp->tport_unreg_done, 5);
+		if (!wait_for_completion_timeout(tgtp->tport_unreg_cmp,
+					msecs_to_jiffies(LPFC_NVMET_WAIT_TMO)))
+			lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+					"6179 Unreg targetport x%px timeout "
+					"reached.\n", phba->targetport);
 		lpfc_nvmet_cleanup_io_context(phba);
 	}
 	phba->targetport = NULL;
@@ -1478,9 +1958,12 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	uint32_t *payload;
 	uint32_t size, oxid, sid, rc;
 
-	if (!nvmebuf || !phba->targetport) {
+	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
+	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
+
+	if (!phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-				"6154 LS Drop IO\n");
+				"6154 LS Drop IO x%x\n", oxid);
 		oxid = 0;
 		size = 0;
 		sid = 0;
@@ -1490,9 +1973,7 @@ lpfc_nvmet_unsol_ls_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	payload = (uint32_t *)(nvmebuf->dbuf.virt);
-	fc_hdr = (struct fc_frame_header *)(nvmebuf->hbuf.virt);
 	size = bf_get(lpfc_rcqe_length,  &nvmebuf->cq_event.cqe.rcqe_cmpl);
-	oxid = be16_to_cpu(fc_hdr->fh_ox_id);
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 
 	ctxp = kzalloc(sizeof(struct lpfc_nvmet_rcv_ctx), GFP_ATOMIC);
@@ -1505,8 +1986,7 @@ dropit:
 		lpfc_nvmeio_data(phba, "NVMET LS  DROP: "
 				 "xri x%x sz %d from %06x\n",
 				 oxid, size, sid);
-		if (nvmebuf)
-			lpfc_in_buf_free(phba, &nvmebuf->dbuf);
+		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 		return;
 	}
 	ctxp->phba = phba;
@@ -1517,6 +1997,7 @@ dropit:
 	ctxp->state = LPFC_NVMET_STE_LS_RCV;
 	ctxp->entry_cnt = 1;
 	ctxp->rqb_buffer = (void *)nvmebuf;
+	ctxp->hdwq = &phba->sli4_hba.hdwq[0];
 
 	lpfc_nvmeio_data(phba, "NVMET LS   RCV: xri x%x sz %d from %06x\n",
 			 oxid, size, sid);
@@ -1549,11 +2030,126 @@ dropit:
 			ctxp->oxid, rc);
 
 	/* We assume a rcv'ed cmd ALWAYs fits into 1 buffer */
-	if (nvmebuf)
-		lpfc_in_buf_free(phba, &nvmebuf->dbuf);
+	lpfc_in_buf_free(phba, &nvmebuf->dbuf);
 
 	atomic_inc(&tgtp->xmt_ls_abort);
 	lpfc_nvmet_unsol_ls_issue_abort(phba, ctxp, sid, oxid);
+#endif
+}
+
+static void
+lpfc_nvmet_process_rcv_fcp_req(struct lpfc_nvmet_ctxbuf *ctx_buf)
+{
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
+	struct lpfc_nvmet_rcv_ctx *ctxp = ctx_buf->context;
+	struct lpfc_hba *phba = ctxp->phba;
+	struct rqb_dmabuf *nvmebuf = ctxp->rqb_buffer;
+	struct lpfc_nvmet_tgtport *tgtp;
+	uint32_t *payload, qno;
+	uint32_t rc;
+	unsigned long iflags;
+
+	if (!nvmebuf) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+			"6159 process_rcv_fcp_req, nvmebuf is NULL, "
+			"oxid: x%x flg: x%x state: x%x\n",
+			ctxp->oxid, ctxp->flag, ctxp->state);
+		spin_lock_irqsave(&ctxp->ctxlock, iflags);
+		lpfc_nvmet_defer_release(phba, ctxp);
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid,
+						 ctxp->oxid);
+		return;
+	}
+
+	if (ctxp->flag & LPFC_NVMET_ABTS_RCV) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+				"6324 IO oxid x%x aborted\n",
+				ctxp->oxid);
+		return;
+	}
+
+	payload = (uint32_t *)(nvmebuf->dbuf.virt);
+	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+	ctxp->flag |= LPFC_NVMET_TNOTIFY;
+#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
+	if (ctxp->ts_isr_cmd)
+		ctxp->ts_cmd_nvme = ktime_get_ns();
+#endif
+	/*
+	 * The calling sequence should be:
+	 * nvmet_fc_rcv_fcp_req->lpfc_nvmet_xmt_fcp_op/cmp- req->done
+	 * lpfc_nvmet_xmt_fcp_op_cmp should free the allocated ctxp.
+	 * When we return from nvmet_fc_rcv_fcp_req, all relevant info
+	 * the NVME command / FC header is stored.
+	 * A buffer has already been reposted for this IO, so just free
+	 * the nvmebuf.
+	 */
+	rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
+				  payload, ctxp->size);
+	/* Process FCP command */
+	if (rc == 0) {
+		atomic_inc(&tgtp->rcv_fcp_cmd_out);
+		spin_lock_irqsave(&ctxp->ctxlock, iflags);
+		if ((ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) ||
+		    (nvmebuf != ctxp->rqb_buffer)) {
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+			return;
+		}
+		ctxp->rqb_buffer = NULL;
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+		return;
+	}
+
+	/* Processing of FCP command is deferred */
+	if (rc == -EOVERFLOW) {
+		lpfc_nvmeio_data(phba, "NVMET RCV BUSY: xri x%x sz %d "
+				 "from %06x\n",
+				 ctxp->oxid, ctxp->size, ctxp->sid);
+		atomic_inc(&tgtp->rcv_fcp_cmd_out);
+		atomic_inc(&tgtp->defer_fod);
+		spin_lock_irqsave(&ctxp->ctxlock, iflags);
+		if (ctxp->flag & LPFC_NVMET_CTX_REUSE_WQ) {
+			spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+			return;
+		}
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+		/*
+		 * Post a replacement DMA buffer to RQ and defer
+		 * freeing rcv buffer till .defer_rcv callback
+		 */
+		qno = nvmebuf->idx;
+		lpfc_post_rq_buffer(
+			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
+			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
+		return;
+	}
+	ctxp->flag &= ~LPFC_NVMET_TNOTIFY;
+	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
+	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+			"2582 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
+			ctxp->oxid, rc,
+			atomic_read(&tgtp->rcv_fcp_cmd_in),
+			atomic_read(&tgtp->rcv_fcp_cmd_out),
+			atomic_read(&tgtp->xmt_fcp_release));
+	lpfc_nvmeio_data(phba, "NVMET FCP DROP: xri x%x sz %d from %06x\n",
+			 ctxp->oxid, ctxp->size, ctxp->sid);
+	spin_lock_irqsave(&ctxp->ctxlock, iflags);
+	lpfc_nvmet_defer_release(phba, ctxp);
+	spin_unlock_irqrestore(&ctxp->ctxlock, iflags);
+	lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, ctxp->sid, ctxp->oxid);
+#endif
+}
+
+static void
+lpfc_nvmet_fcp_rqst_defer_work(struct work_struct *work)
+{
+#if (IS_ENABLED(CONFIG_NVME_TARGET_FC))
+	struct lpfc_nvmet_ctxbuf *ctx_buf =
+		container_of(work, struct lpfc_nvmet_ctxbuf, defer_work);
+
+	lpfc_nvmet_process_rcv_fcp_req(ctx_buf);
 #endif
 }
 
@@ -1581,7 +2177,7 @@ lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
 	else
 		get_infop = current_infop->nvmet_ctx_next_cpu;
 
-	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+	for (i = 0; i < phba->sli4_hba.num_possible_cpu; i++) {
 		if (get_infop == current_infop) {
 			get_infop = get_infop->nvmet_ctx_next_cpu;
 			continue;
@@ -1619,6 +2215,8 @@ lpfc_nvmet_replenish_context(struct lpfc_hba *phba,
  * @phba: pointer to lpfc hba data structure.
  * @idx: relative index of MRQ vector
  * @nvmebuf: pointer to lpfc nvme command HBQ data structure.
+ * @isr_timestamp: in jiffies.
+ * @cqflag: cq processing information regarding workload.
  *
  * This routine is used for processing the WQE associated with a unsolicited
  * event. It first determines whether there is an existing ndlp that matches
@@ -1631,20 +2229,17 @@ static void
 lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 			    uint32_t idx,
 			    struct rqb_dmabuf *nvmebuf,
-			    uint64_t isr_timestamp)
+			    uint64_t isr_timestamp,
+			    uint8_t cqflag)
 {
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct fc_frame_header *fc_hdr;
 	struct lpfc_nvmet_ctxbuf *ctx_buf;
 	struct lpfc_nvmet_ctx_info *current_infop;
-	uint32_t *payload;
-	uint32_t size, oxid, sid, rc, qno;
+	uint32_t size, oxid, sid, qno;
 	unsigned long iflag;
 	int current_cpu;
-#ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	uint32_t id;
-#endif
 
 	if (!IS_ENABLED(CONFIG_NVME_TARGET_FC))
 		return;
@@ -1653,11 +2248,9 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	if (!nvmebuf || !phba->targetport) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6157 NVMET FCP Drop IO\n");
-		oxid = 0;
-		size = 0;
-		sid = 0;
-		ctxp = NULL;
-		goto dropit;
+		if (nvmebuf)
+			lpfc_rq_buf_free(phba, &nvmebuf->hbuf);
+		return;
 	}
 
 	/*
@@ -1667,7 +2260,7 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	 * be empty, thus it would need to be replenished with the
 	 * context list from another CPU for this MRQ.
 	 */
-	current_cpu = smp_processor_id();
+	current_cpu = raw_smp_processor_id();
 	current_infop = lpfc_get_ctx_list(phba, current_cpu, idx);
 	spin_lock_irqsave(&current_infop->nvmet_ctx_list_lock, iflag);
 	if (current_infop->nvmet_ctx_list_cnt) {
@@ -1685,14 +2278,21 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	if (phba->cpucheck_on & LPFC_CHECK_NVMET_RCV) {
-		id = smp_processor_id();
-		if (id < LPFC_CHECK_CPU_CNT)
-			phba->cpucheck_rcv_io[id]++;
+		if (current_cpu < LPFC_CHECK_CPU_CNT) {
+			if (idx != current_cpu)
+				lpfc_printf_log(phba, KERN_INFO, LOG_NVME_IOERR,
+						"6703 CPU Check rcv: "
+						"cpu %d expect %d\n",
+						current_cpu, idx);
+			phba->sli4_hba.hdwq[idx].cpucheck_rcv_io[current_cpu]++;
+		}
 	}
 #endif
 
 	lpfc_nvmeio_data(phba, "NVMET FCP  RCV: xri x%x sz %d CPU %02x\n",
-			 oxid, size, smp_processor_id());
+			 oxid, size, raw_smp_processor_id());
+
+	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 
 	if (!ctx_buf) {
 		/* Queue this NVME IO to process later */
@@ -1709,14 +2309,17 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 		lpfc_post_rq_buffer(
 			phba, phba->sli4_hba.nvmet_mrq_hdr[qno],
 			phba->sli4_hba.nvmet_mrq_data[qno], 1, qno);
+
+		atomic_inc(&tgtp->defer_ctx);
 		return;
 	}
 
-	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
-	payload = (uint32_t *)(nvmebuf->dbuf.virt);
 	sid = sli4_sid_from_fc_hdr(fc_hdr);
 
 	ctxp = (struct lpfc_nvmet_rcv_ctx *)ctx_buf->context;
+	spin_lock_irqsave(&phba->sli4_hba.t_active_list_lock, iflag);
+	list_add_tail(&ctxp->list, &phba->sli4_hba.t_active_ctx_list);
+	spin_unlock_irqrestore(&phba->sli4_hba.t_active_list_lock, iflag);
 	if (ctxp->state != LPFC_NVMET_STE_FREE) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6414 NVMET Context corrupt %d %d oxid x%x\n",
@@ -1735,79 +2338,45 @@ lpfc_nvmet_unsol_fcp_buffer(struct lpfc_hba *phba,
 	ctxp->flag = 0;
 	ctxp->ctxbuf = ctx_buf;
 	ctxp->rqb_buffer = (void *)nvmebuf;
+	ctxp->hdwq = NULL;
 	spin_lock_init(&ctxp->ctxlock);
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
-	if (isr_timestamp) {
+	if (isr_timestamp)
 		ctxp->ts_isr_cmd = isr_timestamp;
-		ctxp->ts_cmd_nvme = ktime_get_ns();
-		ctxp->ts_nvme_data = 0;
-		ctxp->ts_data_wqput = 0;
-		ctxp->ts_isr_data = 0;
-		ctxp->ts_data_nvme = 0;
-		ctxp->ts_nvme_status = 0;
-		ctxp->ts_status_wqput = 0;
-		ctxp->ts_isr_status = 0;
-		ctxp->ts_status_nvme = 0;
-	} else {
-		ctxp->ts_cmd_nvme = 0;
-	}
+	ctxp->ts_cmd_nvme = 0;
+	ctxp->ts_nvme_data = 0;
+	ctxp->ts_data_wqput = 0;
+	ctxp->ts_isr_data = 0;
+	ctxp->ts_data_nvme = 0;
+	ctxp->ts_nvme_status = 0;
+	ctxp->ts_status_wqput = 0;
+	ctxp->ts_isr_status = 0;
+	ctxp->ts_status_nvme = 0;
 #endif
 
 	atomic_inc(&tgtp->rcv_fcp_cmd_in);
-	/*
-	 * The calling sequence should be:
-	 * nvmet_fc_rcv_fcp_req -> lpfc_nvmet_xmt_fcp_op/cmp -> req->done
-	 * lpfc_nvmet_xmt_fcp_op_cmp should free the allocated ctxp.
-	 * When we return from nvmet_fc_rcv_fcp_req, all relevant info in
-	 * the NVME command / FC header is stored, so we are free to repost
-	 * the buffer.
-	 */
-	rc = nvmet_fc_rcv_fcp_req(phba->targetport, &ctxp->ctx.fcp_req,
-				  payload, size);
-
-	/* Process FCP command */
-	if (rc == 0) {
-		ctxp->rqb_buffer = NULL;
-		atomic_inc(&tgtp->rcv_fcp_cmd_out);
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
+	/* check for cq processing load */
+	if (!cqflag) {
+		lpfc_nvmet_process_rcv_fcp_req(ctx_buf);
 		return;
 	}
 
-	/* Processing of FCP command is deferred */
-	if (rc == -EOVERFLOW) {
-		lpfc_nvmeio_data(phba,
-				 "NVMET RCV BUSY: xri x%x sz %d from %06x\n",
-				 oxid, size, sid);
-		/* defer reposting rcv buffer till .defer_rcv callback */
-		ctxp->flag |= LPFC_NVMET_DEFER_RCV_REPOST;
-		atomic_inc(&tgtp->rcv_fcp_cmd_out);
-		return;
-	}
-	ctxp->rqb_buffer = nvmebuf;
+	if (!queue_work(phba->wq, &ctx_buf->defer_work)) {
+		atomic_inc(&tgtp->rcv_fcp_cmd_drop);
+		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
+				"6325 Unable to queue work for oxid x%x. "
+				"FCP Drop IO [x%x x%x x%x]\n",
+				ctxp->oxid,
+				atomic_read(&tgtp->rcv_fcp_cmd_in),
+				atomic_read(&tgtp->rcv_fcp_cmd_out),
+				atomic_read(&tgtp->xmt_fcp_release));
 
-	atomic_inc(&tgtp->rcv_fcp_cmd_drop);
-	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
-			"6159 FCP Drop IO x%x: err x%x: x%x x%x x%x\n",
-			ctxp->oxid, rc,
-			atomic_read(&tgtp->rcv_fcp_cmd_in),
-			atomic_read(&tgtp->rcv_fcp_cmd_out),
-			atomic_read(&tgtp->xmt_fcp_release));
-dropit:
-	lpfc_nvmeio_data(phba, "NVMET FCP DROP: xri x%x sz %d from %06x\n",
-			 oxid, size, sid);
-	if (oxid) {
+		spin_lock_irqsave(&ctxp->ctxlock, iflag);
 		lpfc_nvmet_defer_release(phba, ctxp);
+		spin_unlock_irqrestore(&ctxp->ctxlock, iflag);
 		lpfc_nvmet_unsol_fcp_issue_abort(phba, ctxp, sid, oxid);
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
-		return;
 	}
-
-	if (ctx_buf)
-		lpfc_nvmet_ctxbuf_post(phba, ctx_buf);
-
-	if (nvmebuf)
-		lpfc_rq_buf_free(phba, &nvmebuf->hbuf); /* repost */
 }
 
 /**
@@ -1844,6 +2413,8 @@ lpfc_nvmet_unsol_ls_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
  * @phba: pointer to lpfc hba data structure.
  * @idx: relative index of MRQ vector
  * @nvmebuf: pointer to received nvme data structure.
+ * @isr_timestamp: in jiffies.
+ * @cqflag: cq processing information regarding workload.
  *
  * This routine is used to process an unsolicited event received from a SLI
  * (Service Level Interface) ring. The actual processing of the data buffer
@@ -1855,14 +2426,14 @@ void
 lpfc_nvmet_unsol_fcp_event(struct lpfc_hba *phba,
 			   uint32_t idx,
 			   struct rqb_dmabuf *nvmebuf,
-			   uint64_t isr_timestamp)
+			   uint64_t isr_timestamp,
+			   uint8_t cqflag)
 {
 	if (phba->nvmet_support == 0) {
 		lpfc_rq_buf_free(phba, &nvmebuf->hbuf);
 		return;
 	}
-	lpfc_nvmet_unsol_fcp_buffer(phba, idx, nvmebuf,
-				    isr_timestamp);
+	lpfc_nvmet_unsol_fcp_buffer(phba, idx, nvmebuf, isr_timestamp, cqflag);
 }
 
 /**
@@ -1897,7 +2468,7 @@ lpfc_nvmet_prep_ls_wqe(struct lpfc_hba *phba,
 {
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_iocbq *nvmewqe;
-	union lpfc_wqe *wqe;
+	union lpfc_wqe128 *wqe;
 
 	if (!lpfc_is_link_up(phba)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_DISC,
@@ -2023,9 +2594,11 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	struct lpfc_iocbq *nvmewqe;
 	struct scatterlist *sgel;
 	union lpfc_wqe128 *wqe;
+	struct ulp_bde64 *bde;
 	uint32_t *txrdy;
 	dma_addr_t physaddr;
 	int i, cnt;
+	int do_pbde;
 	int xc = 1;
 
 	if (!lpfc_is_link_up(phba)) {
@@ -2078,7 +2651,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	if (((ctxp->state == LPFC_NVMET_STE_RCV) &&
 	    (ctxp->entry_cnt == 1)) ||
 	    (ctxp->state == LPFC_NVMET_STE_DATA)) {
-		wqe = (union lpfc_wqe128 *)&nvmewqe->wqe;
+		wqe = &nvmewqe->wqe;
 	} else {
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
 				"6111 Wrong state NVMET FCP: %d  cnt %d\n",
@@ -2090,6 +2663,11 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	switch (rsp->op) {
 	case NVMET_FCOP_READDATA:
 	case NVMET_FCOP_READDATA_RSP:
+		/* From the tsend template, initialize words 7 - 11 */
+		memcpy(&wqe->words[7],
+		       &lpfc_tsend_cmd_template.words[7],
+		       sizeof(uint32_t) * 5);
+
 		/* Words 0 - 2 : The first sg segment */
 		sgel = &rsp->sg[0];
 		physaddr = sg_dma_address(sgel);
@@ -2106,6 +2684,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		wqe->fcp_tsend.relative_offset = ctxp->offset;
 
 		/* Word 5 */
+		wqe->fcp_tsend.reserved = 0;
 
 		/* Word 6 */
 		bf_set(wqe_ctxt_tag, &wqe->fcp_tsend.wqe_com,
@@ -2113,9 +2692,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		bf_set(wqe_xri_tag, &wqe->fcp_tsend.wqe_com,
 		       nvmewqe->sli4_xritag);
 
-		/* Word 7 */
-		bf_set(wqe_pu, &wqe->fcp_tsend.wqe_com, 1);
-		bf_set(wqe_cmnd, &wqe->fcp_tsend.wqe_com, CMD_FCP_TSEND64_WQE);
+		/* Word 7 - set ar later */
 
 		/* Word 8 */
 		wqe->fcp_tsend.wqe_com.abort_tag = nvmewqe->iotag;
@@ -2124,23 +2701,12 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		bf_set(wqe_reqtag, &wqe->fcp_tsend.wqe_com, nvmewqe->iotag);
 		bf_set(wqe_rcvoxid, &wqe->fcp_tsend.wqe_com, ctxp->oxid);
 
-		/* Word 10 */
-		bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
-		bf_set(wqe_dbde, &wqe->fcp_tsend.wqe_com, 1);
-		bf_set(wqe_iod, &wqe->fcp_tsend.wqe_com, LPFC_WQE_IOD_WRITE);
-		bf_set(wqe_lenloc, &wqe->fcp_tsend.wqe_com,
-		       LPFC_WQE_LENLOC_WORD12);
-		bf_set(wqe_ebde_cnt, &wqe->fcp_tsend.wqe_com, 0);
-		bf_set(wqe_xc, &wqe->fcp_tsend.wqe_com, xc);
-		bf_set(wqe_nvme, &wqe->fcp_tsend.wqe_com, 1);
-		if (phba->cfg_nvme_oas)
-			bf_set(wqe_oas, &wqe->fcp_tsend.wqe_com, 1);
+		/* Word 10 - set wqes later, in template xc=1 */
+		if (!xc)
+			bf_set(wqe_xc, &wqe->fcp_tsend.wqe_com, 0);
 
-		/* Word 11 */
-		bf_set(wqe_cqid, &wqe->fcp_tsend.wqe_com,
-		       LPFC_WQE_CQ_ID_DEFAULT);
-		bf_set(wqe_cmd_type, &wqe->fcp_tsend.wqe_com,
-		       FCP_COMMAND_TSEND);
+		/* Word 11 - set sup, irsp, irsplen later */
+		do_pbde = 0;
 
 		/* Word 12 */
 		wqe->fcp_tsend.fcp_data_len = rsp->transfer_length;
@@ -2162,15 +2728,14 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		sgl++;
 		if (rsp->op == NVMET_FCOP_READDATA_RSP) {
 			atomic_inc(&tgtp->xmt_fcp_read_rsp);
-			bf_set(wqe_ar, &wqe->fcp_tsend.wqe_com, 1);
-			if ((ndlp->nlp_flag & NLP_SUPPRESS_RSP) &&
-			    (rsp->rsplen == 12)) {
-				bf_set(wqe_sup, &wqe->fcp_tsend.wqe_com, 1);
-				bf_set(wqe_wqes, &wqe->fcp_tsend.wqe_com, 0);
-				bf_set(wqe_irsp, &wqe->fcp_tsend.wqe_com, 0);
-				bf_set(wqe_irsplen, &wqe->fcp_tsend.wqe_com, 0);
+
+			/* In template ar=1 wqes=0 sup=0 irsp=0 irsplen=0 */
+
+			if (rsp->rsplen == LPFC_NVMET_SUCCESS_LEN) {
+				if (ndlp->nlp_flag & NLP_SUPPRESS_RSP)
+					bf_set(wqe_sup,
+					       &wqe->fcp_tsend.wqe_com, 1);
 			} else {
-				bf_set(wqe_sup, &wqe->fcp_tsend.wqe_com, 0);
 				bf_set(wqe_wqes, &wqe->fcp_tsend.wqe_com, 1);
 				bf_set(wqe_irsp, &wqe->fcp_tsend.wqe_com, 1);
 				bf_set(wqe_irsplen, &wqe->fcp_tsend.wqe_com,
@@ -2181,15 +2746,17 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		} else {
 			atomic_inc(&tgtp->xmt_fcp_read);
 
-			bf_set(wqe_sup, &wqe->fcp_tsend.wqe_com, 0);
-			bf_set(wqe_wqes, &wqe->fcp_tsend.wqe_com, 0);
-			bf_set(wqe_irsp, &wqe->fcp_tsend.wqe_com, 0);
+			/* In template ar=1 wqes=0 sup=0 irsp=0 irsplen=0 */
 			bf_set(wqe_ar, &wqe->fcp_tsend.wqe_com, 0);
-			bf_set(wqe_irsplen, &wqe->fcp_tsend.wqe_com, 0);
 		}
 		break;
 
 	case NVMET_FCOP_WRITEDATA:
+		/* From the treceive template, initialize words 3 - 11 */
+		memcpy(&wqe->words[3],
+		       &lpfc_treceive_cmd_template.words[3],
+		       sizeof(uint32_t) * 9);
+
 		/* Words 0 - 2 : The first sg segment */
 		txrdy = dma_pool_alloc(phba->txrdy_payload_pool,
 				       GFP_KERNEL, &physaddr);
@@ -2208,13 +2775,8 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		wqe->fcp_treceive.bde.addrHigh =
 			cpu_to_le32(putPaddrHigh(physaddr));
 
-		/* Word 3 */
-		wqe->fcp_treceive.payload_offset_len = TXRDY_PAYLOAD_LEN;
-
 		/* Word 4 */
 		wqe->fcp_treceive.relative_offset = ctxp->offset;
-
-		/* Word 5 */
 
 		/* Word 6 */
 		bf_set(wqe_ctxt_tag, &wqe->fcp_treceive.wqe_com,
@@ -2223,10 +2785,6 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		       nvmewqe->sli4_xritag);
 
 		/* Word 7 */
-		bf_set(wqe_pu, &wqe->fcp_treceive.wqe_com, 1);
-		bf_set(wqe_ar, &wqe->fcp_treceive.wqe_com, 0);
-		bf_set(wqe_cmnd, &wqe->fcp_treceive.wqe_com,
-		       CMD_FCP_TRECEIVE64_WQE);
 
 		/* Word 8 */
 		wqe->fcp_treceive.wqe_com.abort_tag = nvmewqe->iotag;
@@ -2235,26 +2793,17 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		bf_set(wqe_reqtag, &wqe->fcp_treceive.wqe_com, nvmewqe->iotag);
 		bf_set(wqe_rcvoxid, &wqe->fcp_treceive.wqe_com, ctxp->oxid);
 
-		/* Word 10 */
-		bf_set(wqe_nvme, &wqe->fcp_treceive.wqe_com, 1);
-		bf_set(wqe_dbde, &wqe->fcp_treceive.wqe_com, 1);
-		bf_set(wqe_iod, &wqe->fcp_treceive.wqe_com, LPFC_WQE_IOD_READ);
-		bf_set(wqe_lenloc, &wqe->fcp_treceive.wqe_com,
-		       LPFC_WQE_LENLOC_WORD12);
-		bf_set(wqe_xc, &wqe->fcp_treceive.wqe_com, xc);
-		bf_set(wqe_wqes, &wqe->fcp_treceive.wqe_com, 0);
-		bf_set(wqe_irsp, &wqe->fcp_treceive.wqe_com, 0);
-		bf_set(wqe_irsplen, &wqe->fcp_treceive.wqe_com, 0);
-		bf_set(wqe_nvme, &wqe->fcp_treceive.wqe_com, 1);
-		if (phba->cfg_nvme_oas)
-			bf_set(wqe_oas, &wqe->fcp_treceive.wqe_com, 1);
+		/* Word 10 - in template xc=1 */
+		if (!xc)
+			bf_set(wqe_xc, &wqe->fcp_treceive.wqe_com, 0);
 
-		/* Word 11 */
-		bf_set(wqe_cqid, &wqe->fcp_treceive.wqe_com,
-		       LPFC_WQE_CQ_ID_DEFAULT);
-		bf_set(wqe_cmd_type, &wqe->fcp_treceive.wqe_com,
-		       FCP_COMMAND_TRECEIVE);
-		bf_set(wqe_sup, &wqe->fcp_tsend.wqe_com, 0);
+		/* Word 11 - set pbde later */
+		if (phba->cfg_enable_pbde) {
+			do_pbde = 1;
+		} else {
+			bf_set(wqe_pbde, &wqe->fcp_treceive.wqe_com, 0);
+			do_pbde = 0;
+		}
 
 		/* Word 12 */
 		wqe->fcp_tsend.fcp_data_len = rsp->transfer_length;
@@ -2282,6 +2831,11 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		break;
 
 	case NVMET_FCOP_RSP:
+		/* From the treceive template, initialize words 4 - 11 */
+		memcpy(&wqe->words[4],
+		       &lpfc_trsp_cmd_template.words[4],
+		       sizeof(uint32_t) * 8);
+
 		/* Words 0 - 2 */
 		physaddr = rsp->rspdma;
 		wqe->fcp_trsp.bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
@@ -2294,12 +2848,6 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		/* Word 3 */
 		wqe->fcp_trsp.response_len = rsp->rsplen;
 
-		/* Word 4 */
-		wqe->fcp_trsp.rsvd_4_5[0] = 0;
-
-
-		/* Word 5 */
-
 		/* Word 6 */
 		bf_set(wqe_ctxt_tag, &wqe->fcp_trsp.wqe_com,
 		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
@@ -2307,9 +2855,6 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		       nvmewqe->sli4_xritag);
 
 		/* Word 7 */
-		bf_set(wqe_pu, &wqe->fcp_trsp.wqe_com, 0);
-		bf_set(wqe_ag, &wqe->fcp_trsp.wqe_com, 1);
-		bf_set(wqe_cmnd, &wqe->fcp_trsp.wqe_com, CMD_FCP_TRSP64_WQE);
 
 		/* Word 8 */
 		wqe->fcp_trsp.wqe_com.abort_tag = nvmewqe->iotag;
@@ -2319,35 +2864,23 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 		bf_set(wqe_rcvoxid, &wqe->fcp_trsp.wqe_com, ctxp->oxid);
 
 		/* Word 10 */
-		bf_set(wqe_nvme, &wqe->fcp_trsp.wqe_com, 1);
-		bf_set(wqe_dbde, &wqe->fcp_trsp.wqe_com, 0);
-		bf_set(wqe_iod, &wqe->fcp_trsp.wqe_com, LPFC_WQE_IOD_WRITE);
-		bf_set(wqe_lenloc, &wqe->fcp_trsp.wqe_com,
-		       LPFC_WQE_LENLOC_WORD3);
-		bf_set(wqe_xc, &wqe->fcp_trsp.wqe_com, xc);
-		bf_set(wqe_nvme, &wqe->fcp_trsp.wqe_com, 1);
-		if (phba->cfg_nvme_oas)
-			bf_set(wqe_oas, &wqe->fcp_trsp.wqe_com, 1);
+		if (xc)
+			bf_set(wqe_xc, &wqe->fcp_trsp.wqe_com, 1);
 
 		/* Word 11 */
-		bf_set(wqe_cqid, &wqe->fcp_trsp.wqe_com,
-		       LPFC_WQE_CQ_ID_DEFAULT);
-		bf_set(wqe_cmd_type, &wqe->fcp_trsp.wqe_com,
-		       FCP_COMMAND_TRSP);
-		bf_set(wqe_sup, &wqe->fcp_tsend.wqe_com, 0);
-
-		if (rsp->rsplen == LPFC_NVMET_SUCCESS_LEN) {
-			/* Good response - all zero's on wire */
-			bf_set(wqe_wqes, &wqe->fcp_trsp.wqe_com, 0);
-			bf_set(wqe_irsp, &wqe->fcp_trsp.wqe_com, 0);
-			bf_set(wqe_irsplen, &wqe->fcp_trsp.wqe_com, 0);
-		} else {
+		/* In template wqes=0 irsp=0 irsplen=0 - good response */
+		if (rsp->rsplen != LPFC_NVMET_SUCCESS_LEN) {
+			/* Bad response - embed it */
 			bf_set(wqe_wqes, &wqe->fcp_trsp.wqe_com, 1);
 			bf_set(wqe_irsp, &wqe->fcp_trsp.wqe_com, 1);
 			bf_set(wqe_irsplen, &wqe->fcp_trsp.wqe_com,
 			       ((rsp->rsplen >> 2) - 1));
 			memcpy(&wqe->words[16], rsp->rspaddr, rsp->rsplen);
 		}
+		do_pbde = 0;
+
+		/* Word 12 */
+		wqe->fcp_trsp.rsvd_12_15[0] = 0;
 
 		/* Use rspbuf, NOT sg list */
 		rsp->sg_cnt = 0;
@@ -2367,8 +2900,7 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 	nvmewqe->drvrTimeout = (phba->fc_ratov * 3) + LPFC_DRVR_TIMEOUT;
 	nvmewqe->context1 = ndlp;
 
-	for (i = 0; i < rsp->sg_cnt; i++) {
-		sgel = &rsp->sg[i];
+	for_each_sg(rsp->sg, sgel, rsp->sg_cnt, i) {
 		physaddr = sg_dma_address(sgel);
 		cnt = sg_dma_len(sgel);
 		sgl->addr_hi = putPaddrHigh(physaddr);
@@ -2380,6 +2912,20 @@ lpfc_nvmet_prep_fcp_wqe(struct lpfc_hba *phba,
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
 		sgl->sge_len = cpu_to_le32(cnt);
+		if (i == 0) {
+			bde = (struct ulp_bde64 *)&wqe->words[13];
+			if (do_pbde) {
+				/* Words 13-15  (PBDE) */
+				bde->addrLow = sgl->addr_lo;
+				bde->addrHigh = sgl->addr_hi;
+				bde->tus.f.bdeSize =
+					le32_to_cpu(sgl->sge_len);
+				bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+				bde->tus.w = cpu_to_le32(bde->tus.w);
+			} else {
+				memset(bde, 0, sizeof(struct ulp_bde64));
+			}
+		}
 		sgl++;
 		ctxp->offset += cnt;
 	}
@@ -2404,27 +2950,28 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 {
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
-	uint32_t status, result;
+	uint32_t result;
 	unsigned long flags;
 	bool released = false;
 
 	ctxp = cmdwqe->context2;
-	status = bf_get(lpfc_wcqe_c_status, wcqe);
 	result = wcqe->parameter;
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	if (ctxp->flag & LPFC_NVMET_ABORT_OP)
 		atomic_inc(&tgtp->xmt_fcp_abort_cmpl);
 
+	spin_lock_irqsave(&ctxp->ctxlock, flags);
 	ctxp->state = LPFC_NVMET_STE_DONE;
 
 	/* Check if we already received a free context call
 	 * and we have completed processing an abort situation.
 	 */
-	spin_lock_irqsave(&ctxp->ctxlock, flags);
 	if ((ctxp->flag & LPFC_NVMET_CTX_RLS) &&
 	    !(ctxp->flag & LPFC_NVMET_XBUSY)) {
-		list_del(&ctxp->list);
+		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		list_del_init(&ctxp->list);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		released = true;
 	}
 	ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
@@ -2432,7 +2979,7 @@ lpfc_nvmet_sol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	atomic_inc(&tgtp->xmt_abort_rsp);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6165 ABORT cmpl: xri x%x flg x%x (%d) "
+			"6165 ABORT cmpl: oxid x%x flg x%x (%d) "
 			"WCQE: %08x %08x %08x %08x\n",
 			ctxp->oxid, ctxp->flag, released,
 			wcqe->word0, wcqe->total_data_placed,
@@ -2473,11 +3020,10 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
 	unsigned long flags;
-	uint32_t status, result;
+	uint32_t result;
 	bool released = false;
 
 	ctxp = cmdwqe->context2;
-	status = bf_get(lpfc_wcqe_c_status, wcqe);
 	result = wcqe->parameter;
 
 	if (!ctxp) {
@@ -2490,6 +3036,7 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	}
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
+	spin_lock_irqsave(&ctxp->ctxlock, flags);
 	if (ctxp->flag & LPFC_NVMET_ABORT_OP)
 		atomic_inc(&tgtp->xmt_fcp_abort_cmpl);
 
@@ -2504,10 +3051,11 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	 * and we have completed processing an abort situation.
 	 */
 	ctxp->state = LPFC_NVMET_STE_DONE;
-	spin_lock_irqsave(&ctxp->ctxlock, flags);
 	if ((ctxp->flag & LPFC_NVMET_CTX_RLS) &&
 	    !(ctxp->flag & LPFC_NVMET_XBUSY)) {
-		list_del(&ctxp->list);
+		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		list_del_init(&ctxp->list);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		released = true;
 	}
 	ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
@@ -2515,7 +3063,7 @@ lpfc_nvmet_unsol_fcp_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	atomic_inc(&tgtp->xmt_abort_rsp);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6316 ABTS cmpl xri x%x flg x%x (%x) "
+			"6316 ABTS cmpl oxid x%x flg x%x (%x) "
 			"WCQE: %08x %08x %08x %08x\n",
 			ctxp->oxid, ctxp->flag, released,
 			wcqe->word0, wcqe->total_data_placed,
@@ -2552,17 +3100,16 @@ lpfc_nvmet_xmt_ls_abort_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 {
 	struct lpfc_nvmet_rcv_ctx *ctxp;
 	struct lpfc_nvmet_tgtport *tgtp;
-	uint32_t status, result;
+	uint32_t result;
 
 	ctxp = cmdwqe->context2;
-	status = bf_get(lpfc_wcqe_c_status, wcqe);
 	result = wcqe->parameter;
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
 	atomic_inc(&tgtp->xmt_ls_abort_cmpl);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
-			"6083 Abort cmpl: ctx %p WCQE:%08x %08x %08x %08x\n",
+			"6083 Abort cmpl: ctx x%px WCQE:%08x %08x %08x %08x\n",
 			ctxp, wcqe->word0, wcqe->total_data_placed,
 			result, wcqe->word3);
 
@@ -2597,7 +3144,7 @@ lpfc_nvmet_unsol_issue_abort(struct lpfc_hba *phba,
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_iocbq *abts_wqeq;
-	union lpfc_wqe *wqe_abts;
+	union lpfc_wqe128 *wqe_abts;
 	struct lpfc_nodelist *ndlp;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
@@ -2692,7 +3239,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_iocbq *abts_wqeq;
-	union lpfc_wqe *abts_wqe;
+	union lpfc_wqe128 *abts_wqe;
 	struct lpfc_nodelist *ndlp;
 	unsigned long flags;
 	int rc;
@@ -2713,12 +3260,15 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 				(ndlp) ? ndlp->nlp_state : NLP_STE_MAX_STATE);
 
 		/* No failure to an ABTS request. */
+		spin_lock_irqsave(&ctxp->ctxlock, flags);
 		ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
+		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		return 0;
 	}
 
 	/* Issue ABTS for this WQE based on iotag */
 	ctxp->abort_wqeq = lpfc_sli_get_iocbq(phba);
+	spin_lock_irqsave(&ctxp->ctxlock, flags);
 	if (!ctxp->abort_wqeq) {
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
@@ -2726,11 +3276,13 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 				"xri: x%x\n", ctxp->oxid);
 		/* No failure to an ABTS request. */
 		ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
+		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		return 0;
 	}
 	abts_wqeq = ctxp->abort_wqeq;
 	abts_wqe = &abts_wqeq->wqe;
 	ctxp->state = LPFC_NVMET_STE_ABORT;
+	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 
 	/* Announce entry to new IO submit field. */
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME_ABTS,
@@ -2743,7 +3295,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	 */
 	spin_lock_irqsave(&phba->hbalock, flags);
 	/* driver queued commands are in process of being flushed */
-	if (phba->hba_flag & HBA_NVME_IOQ_FLUSH) {
+	if (phba->hba_flag & HBA_IOQ_FLUSH) {
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		atomic_inc(&tgtp->xmt_abort_rsp_error);
 		lpfc_printf_log(phba, KERN_ERR, LOG_NVME,
@@ -2751,7 +3303,9 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 				"NVME Req now. hba_flag x%x oxid x%x\n",
 				phba->hba_flag, ctxp->oxid);
 		lpfc_sli_release_iocbq(phba, abts_wqeq);
+		spin_lock_irqsave(&ctxp->ctxlock, flags);
 		ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
+		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		return 0;
 	}
 
@@ -2764,7 +3318,9 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 				"still pending on oxid x%x\n",
 				ctxp->oxid);
 		lpfc_sli_release_iocbq(phba, abts_wqeq);
+		spin_lock_irqsave(&ctxp->ctxlock, flags);
 		ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
+		spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 		return 0;
 	}
 
@@ -2774,7 +3330,7 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	/* WQEs are reused.  Clear stale data and set key fields to
 	 * zero like ia, iaab, iaar, xri_tag, and ctxt_tag.
 	 */
-	memset(abts_wqe, 0, sizeof(union lpfc_wqe));
+	memset(abts_wqe, 0, sizeof(*abts_wqe));
 
 	/* word 3 */
 	bf_set(abort_cmd_criteria, &abts_wqe->abort_cmd, T_XRI_TAG);
@@ -2808,7 +3364,10 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	abts_wqeq->iocb_flag |= LPFC_IO_NVME;
 	abts_wqeq->context2 = ctxp;
 	abts_wqeq->vport = phba->pport;
-	rc = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abts_wqeq);
+	if (!ctxp->hdwq)
+		ctxp->hdwq = &phba->sli4_hba.hdwq[abts_wqeq->hba_wqidx];
+
+	rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, abts_wqeq);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	if (rc == WQE_SUCCESS) {
 		atomic_inc(&tgtp->xmt_abort_sol);
@@ -2816,7 +3375,9 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 	}
 
 	atomic_inc(&tgtp->xmt_abort_rsp_error);
+	spin_lock_irqsave(&ctxp->ctxlock, flags);
 	ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
+	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
 	lpfc_sli_release_iocbq(phba, abts_wqeq);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
 			"6166 Failed ABORT issue_wqe with status x%x "
@@ -2824,7 +3385,6 @@ lpfc_nvmet_sol_fcp_issue_abort(struct lpfc_hba *phba,
 			rc, ctxp->oxid);
 	return 1;
 }
-
 
 static int
 lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *phba,
@@ -2834,6 +3394,7 @@ lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *phba,
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_iocbq *abts_wqeq;
 	unsigned long flags;
+	bool released = false;
 	int rc;
 
 	tgtp = (struct lpfc_nvmet_tgtport *)phba->targetport->private;
@@ -2860,18 +3421,33 @@ lpfc_nvmet_unsol_fcp_issue_abort(struct lpfc_hba *phba,
 	abts_wqeq->wqe_cmpl = lpfc_nvmet_unsol_fcp_abort_cmp;
 	abts_wqeq->iocb_cmpl = NULL;
 	abts_wqeq->iocb_flag |= LPFC_IO_NVMET;
-	rc = lpfc_sli4_issue_wqe(phba, LPFC_FCP_RING, abts_wqeq);
+	if (!ctxp->hdwq)
+		ctxp->hdwq = &phba->sli4_hba.hdwq[abts_wqeq->hba_wqidx];
+
+	rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, abts_wqeq);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	if (rc == WQE_SUCCESS) {
 		return 0;
 	}
 
 aerr:
-	ctxp->flag &= ~LPFC_NVMET_ABORT_OP;
+	spin_lock_irqsave(&ctxp->ctxlock, flags);
+	if (ctxp->flag & LPFC_NVMET_CTX_RLS) {
+		spin_lock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		list_del_init(&ctxp->list);
+		spin_unlock(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		released = true;
+	}
+	ctxp->flag &= ~(LPFC_NVMET_ABORT_OP | LPFC_NVMET_CTX_RLS);
+	spin_unlock_irqrestore(&ctxp->ctxlock, flags);
+
 	atomic_inc(&tgtp->xmt_abort_rsp_error);
 	lpfc_printf_log(phba, KERN_ERR, LOG_NVME_ABTS,
-			"6135 Failed to Issue ABTS for oxid x%x. Status x%x\n",
-			ctxp->oxid, rc);
+			"6135 Failed to Issue ABTS for oxid x%x. Status x%x "
+			"(%x)\n",
+			ctxp->oxid, rc, released);
+	if (released)
+		lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
 	return 1;
 }
 
@@ -2882,7 +3458,6 @@ lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *phba,
 {
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct lpfc_iocbq *abts_wqeq;
-	union lpfc_wqe *wqe_abts;
 	unsigned long flags;
 	int rc;
 
@@ -2912,7 +3487,6 @@ lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *phba,
 		}
 	}
 	abts_wqeq = ctxp->wqeq;
-	wqe_abts = &abts_wqeq->wqe;
 
 	if (lpfc_nvmet_unsol_issue_abort(phba, ctxp, sid, xri) == 0) {
 		rc = WQE_BUSY;
@@ -2923,7 +3497,7 @@ lpfc_nvmet_unsol_ls_issue_abort(struct lpfc_hba *phba,
 	abts_wqeq->wqe_cmpl = lpfc_nvmet_xmt_ls_abort_cmp;
 	abts_wqeq->iocb_cmpl = 0;
 	abts_wqeq->iocb_flag |=  LPFC_IO_NVME_LS;
-	rc = lpfc_sli4_issue_wqe(phba, LPFC_ELS_RING, abts_wqeq);
+	rc = lpfc_sli4_issue_wqe(phba, ctxp->hdwq, abts_wqeq);
 	spin_unlock_irqrestore(&phba->hbalock, flags);
 	if (rc == WQE_SUCCESS) {
 		atomic_inc(&tgtp->xmt_abort_unsol);

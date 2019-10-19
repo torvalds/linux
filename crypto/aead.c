@@ -1,15 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * AEAD: Authenticated Encryption with Associated Data
  *
  * This file provides API support for AEAD algorithms.
  *
  * Copyright (c) 2007-2015 Herbert Xu <herbert@gondor.apana.org.au>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
- *
  */
 
 #include <crypto/internal/geniv.h>
@@ -61,8 +56,10 @@ int crypto_aead_setkey(struct crypto_aead *tfm,
 	else
 		err = crypto_aead_alg(tfm)->setkey(tfm, key, keylen);
 
-	if (err)
+	if (unlikely(err)) {
+		crypto_aead_set_flags(tfm, CRYPTO_TFM_NEED_KEY);
 		return err;
+	}
 
 	crypto_aead_clear_flags(tfm, CRYPTO_TFM_NEED_KEY);
 	return 0;
@@ -73,7 +70,8 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 {
 	int err;
 
-	if (authsize > crypto_aead_maxauthsize(tfm))
+	if ((!authsize && crypto_aead_maxauthsize(tfm)) ||
+	    authsize > crypto_aead_maxauthsize(tfm))
 		return -EINVAL;
 
 	if (crypto_aead_alg(tfm)->setauthsize) {
@@ -86,6 +84,42 @@ int crypto_aead_setauthsize(struct crypto_aead *tfm, unsigned int authsize)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(crypto_aead_setauthsize);
+
+int crypto_aead_encrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_alg *alg = aead->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
+	int ret;
+
+	crypto_stats_get(alg);
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		ret = -ENOKEY;
+	else
+		ret = crypto_aead_alg(aead)->encrypt(req);
+	crypto_stats_aead_encrypt(cryptlen, alg, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_aead_encrypt);
+
+int crypto_aead_decrypt(struct aead_request *req)
+{
+	struct crypto_aead *aead = crypto_aead_reqtfm(req);
+	struct crypto_alg *alg = aead->base.__crt_alg;
+	unsigned int cryptlen = req->cryptlen;
+	int ret;
+
+	crypto_stats_get(alg);
+	if (crypto_aead_get_flags(aead) & CRYPTO_TFM_NEED_KEY)
+		ret = -ENOKEY;
+	else if (req->cryptlen < crypto_aead_authsize(aead))
+		ret = -EINVAL;
+	else
+		ret = crypto_aead_alg(aead)->decrypt(req);
+	crypto_stats_aead_decrypt(cryptlen, alg, ret);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(crypto_aead_decrypt);
 
 static void crypto_aead_exit_tfm(struct crypto_tfm *tfm)
 {
@@ -119,20 +153,16 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_report_aead raead;
 	struct aead_alg *aead = container_of(alg, struct aead_alg, base);
 
-	strncpy(raead.type, "aead", sizeof(raead.type));
-	strncpy(raead.geniv, "<none>", sizeof(raead.geniv));
+	memset(&raead, 0, sizeof(raead));
+
+	strscpy(raead.type, "aead", sizeof(raead.type));
+	strscpy(raead.geniv, "<none>", sizeof(raead.geniv));
 
 	raead.blocksize = alg->cra_blocksize;
 	raead.maxauthsize = aead->maxauthsize;
 	raead.ivsize = aead->ivsize;
 
-	if (nla_put(skb, CRYPTOCFGA_REPORT_AEAD,
-		    sizeof(struct crypto_report_aead), &raead))
-		goto nla_put_failure;
-	return 0;
-
-nla_put_failure:
-	return -EMSGSIZE;
+	return nla_put(skb, CRYPTOCFGA_REPORT_AEAD, sizeof(raead), &raead);
 }
 #else
 static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)

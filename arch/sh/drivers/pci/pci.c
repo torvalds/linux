@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * New-style PCI core.
  *
@@ -6,10 +7,6 @@
  *
  * Modelled after arch/mips/pci/pci.c:
  *  Copyright (C) 2003, 04 Ralf Baechle (ralf@linux-mips.org)
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -49,6 +46,8 @@ static void pcibios_scanbus(struct pci_channel *hose)
 	for (i = 0; i < hose->nr_resources; i++) {
 		res = hose->resources + i;
 		offset = 0;
+		if (res->flags & IORESOURCE_DISABLED)
+			continue;
 		if (res->flags & IORESOURCE_IO)
 			offset = hose->io_offset;
 		else if (res->flags & IORESOURCE_MEM)
@@ -102,6 +101,9 @@ int register_pci_controller(struct pci_channel *hose)
 	for (i = 0; i < hose->nr_resources; i++) {
 		struct resource *res = hose->resources + i;
 
+		if (res->flags & IORESOURCE_DISABLED)
+			continue;
+
 		if (res->flags & IORESOURCE_IO) {
 			if (request_resource(&ioport_resource, res) < 0)
 				goto out;
@@ -154,8 +156,6 @@ static int __init pcibios_init(void)
 	/* Scan all of the recorded PCI controllers.  */
 	for (hose = hose_head; hose; hose = hose->next)
 		pcibios_scanbus(hose);
-
-	dma_debug_add_bus(&pci_bus_type);
 
 	pci_initialized = 1;
 

@@ -21,7 +21,6 @@
 #include "hfsplus_fs.h"
 #include "hfsplus_raw.h"
 #include "xattr.h"
-#include "acl.h"
 
 static int hfsplus_readpage(struct file *file, struct page *page)
 {
@@ -262,17 +261,32 @@ static int hfsplus_setattr(struct dentry *dentry, struct iattr *attr)
 		}
 		truncate_setsize(inode, attr->ia_size);
 		hfsplus_file_truncate(inode);
+		inode->i_mtime = inode->i_ctime = current_time(inode);
 	}
 
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
 
-	if (attr->ia_valid & ATTR_MODE) {
-		error = posix_acl_chmod(inode, inode->i_mode);
-		if (unlikely(error))
-			return error;
-	}
+	return 0;
+}
 
+int hfsplus_getattr(const struct path *path, struct kstat *stat,
+		    u32 request_mask, unsigned int query_flags)
+{
+	struct inode *inode = d_inode(path->dentry);
+	struct hfsplus_inode_info *hip = HFSPLUS_I(inode);
+
+	if (inode->i_flags & S_APPEND)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (inode->i_flags & S_IMMUTABLE)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (hip->userflags & HFSPLUS_FLG_NODUMP)
+		stat->attributes |= STATX_ATTR_NODUMP;
+
+	stat->attributes_mask |= STATX_ATTR_APPEND | STATX_ATTR_IMMUTABLE |
+				 STATX_ATTR_NODUMP;
+
+	generic_fillattr(inode, stat);
 	return 0;
 }
 
@@ -335,11 +349,8 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 
 static const struct inode_operations hfsplus_file_inode_operations = {
 	.setattr	= hfsplus_setattr,
+	.getattr	= hfsplus_getattr,
 	.listxattr	= hfsplus_listxattr,
-#ifdef CONFIG_HFSPLUS_FS_POSIX_ACL
-	.get_acl	= hfsplus_get_posix_acl,
-	.set_acl	= hfsplus_set_posix_acl,
-#endif
 };
 
 static const struct file_operations hfsplus_file_operations = {
@@ -493,9 +504,9 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		hfsplus_get_perms(inode, &folder->permissions, 1);
 		set_nlink(inode, 1);
 		inode->i_size = 2 + be32_to_cpu(folder->valence);
-		inode->i_atime = hfsp_mt2ut(folder->access_date);
-		inode->i_mtime = hfsp_mt2ut(folder->content_mod_date);
-		inode->i_ctime = hfsp_mt2ut(folder->attribute_mod_date);
+		inode->i_atime = timespec_to_timespec64(hfsp_mt2ut(folder->access_date));
+		inode->i_mtime = timespec_to_timespec64(hfsp_mt2ut(folder->content_mod_date));
+		inode->i_ctime = timespec_to_timespec64(hfsp_mt2ut(folder->attribute_mod_date));
 		HFSPLUS_I(inode)->create_date = folder->create_date;
 		HFSPLUS_I(inode)->fs_blocks = 0;
 		if (folder->flags & cpu_to_be16(HFSPLUS_HAS_FOLDER_COUNT)) {
@@ -531,9 +542,9 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 			init_special_inode(inode, inode->i_mode,
 					   be32_to_cpu(file->permissions.dev));
 		}
-		inode->i_atime = hfsp_mt2ut(file->access_date);
-		inode->i_mtime = hfsp_mt2ut(file->content_mod_date);
-		inode->i_ctime = hfsp_mt2ut(file->attribute_mod_date);
+		inode->i_atime = timespec_to_timespec64(hfsp_mt2ut(file->access_date));
+		inode->i_mtime = timespec_to_timespec64(hfsp_mt2ut(file->content_mod_date));
+		inode->i_ctime = timespec_to_timespec64(hfsp_mt2ut(file->attribute_mod_date));
 		HFSPLUS_I(inode)->create_date = file->create_date;
 	} else {
 		pr_err("bad catalog entry used to create inode\n");

@@ -3584,7 +3584,7 @@ static u32 MXL_Ceiling(u32 value, u32 resolution)
 	return value / resolution + (value % resolution > 0 ? 1 : 0);
 }
 
-/* Retrieve the Initialzation Registers */
+/* Retrieve the Initialization Registers */
 static u16 MXL_GetInitRegister(struct dvb_frontend *fe, u8 *RegNum,
 	u8 *RegVal, int *count)
 {
@@ -4075,10 +4075,10 @@ static void mxl5005s_release(struct dvb_frontend *fe)
 
 static const struct dvb_tuner_ops mxl5005s_tuner_ops = {
 	.info = {
-		.name           = "MaxLinear MXL5005S",
-		.frequency_min  =  48000000,
-		.frequency_max  = 860000000,
-		.frequency_step =     50000,
+		.name              = "MaxLinear MXL5005S",
+		.frequency_min_hz  =  48 * MHz,
+		.frequency_max_hz  = 860 * MHz,
+		.frequency_step_hz =  50 * kHz,
 	},
 
 	.release       = mxl5005s_release,

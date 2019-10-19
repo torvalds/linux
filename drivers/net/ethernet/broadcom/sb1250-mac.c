@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2001,2002,2003,2004 Broadcom Corporation
  * Copyright (c) 2006, 2007  Maciej W. Rozycki
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
- *
  *
  * This driver is designed for the Broadcom SiByte SOC built-in
  * Ethernet controllers. Written by Mitch Lichtenberg at Broadcom Corp.
@@ -63,24 +50,24 @@ MODULE_DESCRIPTION("Broadcom SiByte SOC GB Ethernet driver");
 
 /* 1 normal messages, 0 quiet .. 7 verbose. */
 static int debug = 1;
-module_param(debug, int, S_IRUGO);
+module_param(debug, int, 0444);
 MODULE_PARM_DESC(debug, "Debug messages");
 
 #ifdef CONFIG_SBMAC_COALESCE
 static int int_pktcnt_tx = 255;
-module_param(int_pktcnt_tx, int, S_IRUGO);
+module_param(int_pktcnt_tx, int, 0444);
 MODULE_PARM_DESC(int_pktcnt_tx, "TX packet count");
 
 static int int_timeout_tx = 255;
-module_param(int_timeout_tx, int, S_IRUGO);
+module_param(int_timeout_tx, int, 0444);
 MODULE_PARM_DESC(int_timeout_tx, "TX timeout value");
 
 static int int_pktcnt_rx = 64;
-module_param(int_pktcnt_rx, int, S_IRUGO);
+module_param(int_pktcnt_rx, int, 0444);
 MODULE_PARM_DESC(int_pktcnt_rx, "RX packet count");
 
 static int int_timeout_rx = 64;
-module_param(int_timeout_rx, int, S_IRUGO);
+module_param(int_timeout_rx, int, 0444);
 MODULE_PARM_DESC(int_timeout_rx, "RX timeout value");
 #endif
 
@@ -156,7 +143,7 @@ enum sbmac_state {
 			  (d)->sbdma_dscrtable : (d)->f+1)
 
 
-#define NUMCACHEBLKS(x) (((x)+SMP_CACHE_BYTES-1)/SMP_CACHE_BYTES)
+#define NUMCACHEBLKS(x) DIV_ROUND_UP(x, SMP_CACHE_BYTES)
 
 #define SBMAC_MAX_TXDESCR	256
 #define SBMAC_MAX_RXDESCR	256
@@ -299,7 +286,7 @@ static enum sbmac_state sbmac_set_channel_state(struct sbmac_softc *,
 static void sbmac_promiscuous_mode(struct sbmac_softc *sc, int onoff);
 static uint64_t sbmac_addr2reg(unsigned char *ptr);
 static irqreturn_t sbmac_intr(int irq, void *dev_instance);
-static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev);
 static void sbmac_setmulti(struct sbmac_softc *sc);
 static int sbmac_init(struct platform_device *pldev, long long base);
 static int sbmac_set_speed(struct sbmac_softc *s, enum sbmac_speed speed);
@@ -1288,7 +1275,7 @@ static void sbdma_tx_process(struct sbmac_softc *sc, struct sbmacdma *d,
 		 * for transmits, we just free buffers.
 		 */
 
-		dev_kfree_skb_irq(sb);
+		dev_consume_skb_irq(sb);
 
 		/*
 		 * .. and advance to the next buffer.
@@ -2028,7 +2015,7 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance)
  *  Return value:
  *  	   nothing
  ********************************************************************* */
-static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
+static netdev_tx_t sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
 	unsigned long flags;
@@ -2357,20 +2344,10 @@ static int sbmac_mii_probe(struct net_device *dev)
 	}
 
 	/* Remove any features not supported by the controller */
-	phy_dev->supported &= SUPPORTED_10baseT_Half |
-			      SUPPORTED_10baseT_Full |
-			      SUPPORTED_100baseT_Half |
-			      SUPPORTED_100baseT_Full |
-			      SUPPORTED_1000baseT_Half |
-			      SUPPORTED_1000baseT_Full |
-			      SUPPORTED_Autoneg |
-			      SUPPORTED_MII |
-			      SUPPORTED_Pause |
-			      SUPPORTED_Asym_Pause;
+	phy_set_max_speed(phy_dev, SPEED_1000);
+	phy_support_asym_pause(phy_dev);
 
 	phy_attached_info(phy_dev);
-
-	phy_dev->advertising = phy_dev->supported;
 
 	sc->phy_dev = phy_dev;
 

@@ -8,11 +8,11 @@
  */
 #include "builtin.h"
 
-#include "util/util.h"
 #include "util/color.h"
 #include <linux/list.h>
 #include "util/cache.h"
 #include <linux/rbtree.h>
+#include <linux/zalloc.h>
 #include "util/symbol.h"
 
 #include "perf.h"
@@ -24,26 +24,32 @@
 #include "util/event.h"
 #include <subcmd/parse-options.h>
 #include "util/parse-events.h"
-#include "util/thread.h"
 #include "util/sort.h"
 #include "util/hist.h"
+#include "util/dso.h"
+#include "util/machine.h"
+#include "util/map.h"
 #include "util/session.h"
 #include "util/tool.h"
 #include "util/data.h"
 #include "arch/common.h"
 #include "util/block-range.h"
+#include "util/map_symbol.h"
+#include "util/branch.h"
 
 #include <dlfcn.h>
 #include <errno.h>
 #include <linux/bitmap.h>
+#include <linux/err.h>
 
 struct perf_annotate {
 	struct perf_tool tool;
 	struct perf_session *session;
-	bool	   use_tui, use_stdio, use_gtk;
-	bool	   full_paths;
-	bool	   print_line;
+	struct annotation_options opts;
+	bool	   use_tui, use_stdio, use_stdio2, use_gtk;
 	bool	   skip_missing;
+	bool	   has_br_stack;
+	bool	   group_set;
 	const char *sym_hist_filter;
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -146,16 +152,78 @@ static void process_branch_stack(struct branch_stack *bs, struct addr_location *
 	free(bi);
 }
 
-static int perf_evsel__add_sample(struct perf_evsel *evsel,
+static int hist_iter__branch_callback(struct hist_entry_iter *iter,
+				      struct addr_location *al __maybe_unused,
+				      bool single __maybe_unused,
+				      void *arg __maybe_unused)
+{
+	struct hist_entry *he = iter->he;
+	struct branch_info *bi;
+	struct perf_sample *sample = iter->sample;
+	struct evsel *evsel = iter->evsel;
+	int err;
+
+	bi = he->branch_info;
+	err = addr_map_symbol__inc_samples(&bi->from, sample, evsel);
+
+	if (err)
+		goto out;
+
+	err = addr_map_symbol__inc_samples(&bi->to, sample, evsel);
+
+out:
+	return err;
+}
+
+static int process_branch_callback(struct evsel *evsel,
+				   struct perf_sample *sample,
+				   struct addr_location *al __maybe_unused,
+				   struct perf_annotate *ann,
+				   struct machine *machine)
+{
+	struct hist_entry_iter iter = {
+		.evsel		= evsel,
+		.sample		= sample,
+		.add_entry_cb	= hist_iter__branch_callback,
+		.hide_unresolved	= symbol_conf.hide_unresolved,
+		.ops		= &hist_iter_branch,
+	};
+
+	struct addr_location a;
+	int ret;
+
+	if (machine__resolve(machine, &a, sample) < 0)
+		return -1;
+
+	if (a.sym == NULL)
+		return 0;
+
+	if (a.map != NULL)
+		a.map->dso->hit = 1;
+
+	hist__account_cycles(sample->branch_stack, al, sample, false);
+
+	ret = hist_entry_iter__add(&iter, &a, PERF_MAX_STACK_DEPTH, ann);
+	return ret;
+}
+
+static bool has_annotation(struct perf_annotate *ann)
+{
+	return ui__has_annotation() || ann->use_stdio2;
+}
+
+static int perf_evsel__add_sample(struct evsel *evsel,
 				  struct perf_sample *sample,
 				  struct addr_location *al,
-				  struct perf_annotate *ann)
+				  struct perf_annotate *ann,
+				  struct machine *machine)
 {
 	struct hists *hists = evsel__hists(evsel);
 	struct hist_entry *he;
 	int ret;
 
-	if (ann->sym_hist_filter != NULL &&
+	if ((!ann->has_br_stack || !has_annotation(ann)) &&
+	    ann->sym_hist_filter != NULL &&
 	    (al->sym == NULL ||
 	     strcmp(ann->sym_hist_filter, al->sym->name) != 0)) {
 		/* We're only interested in a symbol named sym_hist_filter */
@@ -164,8 +232,8 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 		 * the DSO?
 		 */
 		if (al->sym != NULL) {
-			rb_erase(&al->sym->rb_node,
-				 &al->map->dso->symbols[al->map->type]);
+			rb_erase_cached(&al->sym->rb_node,
+				 &al->map->dso->symbols);
 			symbol__delete(al->sym);
 			dso__reset_find_symbol_cache(al->map->dso);
 		}
@@ -178,11 +246,14 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 	 */
 	process_branch_stack(sample->branch_stack, al, sample);
 
+	if (ann->has_br_stack && has_annotation(ann))
+		return process_branch_callback(evsel, sample, al, ann, machine);
+
 	he = hists__add_entry(hists, al, NULL, NULL, NULL, sample, true);
 	if (he == NULL)
 		return -ENOMEM;
 
-	ret = hist_entry__inc_addr_samples(he, sample, evsel->idx, al->addr);
+	ret = hist_entry__inc_addr_samples(he, sample, evsel, al->addr);
 	hists__inc_nr_samples(hists, true);
 	return ret;
 }
@@ -190,7 +261,7 @@ static int perf_evsel__add_sample(struct perf_evsel *evsel,
 static int process_sample_event(struct perf_tool *tool,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct perf_annotate *ann = container_of(tool, struct perf_annotate, tool);
@@ -206,7 +277,8 @@ static int process_sample_event(struct perf_tool *tool,
 	if (ann->cpu_list && !test_bit(sample->cpu, ann->cpu_bitmap))
 		goto out_put;
 
-	if (!al.filtered && perf_evsel__add_sample(evsel, sample, &al, ann)) {
+	if (!al.filtered &&
+	    perf_evsel__add_sample(evsel, sample, &al, ann, machine)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		ret = -1;
@@ -216,19 +288,29 @@ out_put:
 	return ret;
 }
 
+static int process_feature_event(struct perf_session *session,
+				 union perf_event *event)
+{
+	if (event->feat.feat_id < HEADER_LAST_FEATURE)
+		return perf_event__process_feature(session, event);
+	return 0;
+}
+
 static int hist_entry__tty_annotate(struct hist_entry *he,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct perf_annotate *ann)
 {
-	return symbol__tty_annotate(he->ms.sym, he->ms.map, evsel,
-				    ann->print_line, ann->full_paths, 0, 0);
+	if (!ann->use_stdio2)
+		return symbol__tty_annotate(he->ms.sym, he->ms.map, evsel, &ann->opts);
+
+	return symbol__tty_annotate2(he->ms.sym, he->ms.map, evsel, &ann->opts);
 }
 
 static void hists__find_annotations(struct hists *hists,
-				    struct perf_evsel *evsel,
+				    struct evsel *evsel,
 				    struct perf_annotate *ann)
 {
-	struct rb_node *nd = rb_first(&hists->entries), *next;
+	struct rb_node *nd = rb_first_cached(&hists->entries), *next;
 	int key = K_RIGHT;
 
 	while (nd) {
@@ -236,6 +318,10 @@ static void hists__find_annotations(struct hists *hists,
 		struct annotation *notes;
 
 		if (he->ms.sym == NULL || he->ms.map->dso->annotate_warned)
+			goto find_next;
+
+		if (ann->sym_hist_filter &&
+		    (strcmp(he->ms.sym->name, ann->sym_hist_filter) != 0))
 			goto find_next;
 
 		notes = symbol__annotation(he->ms.sym);
@@ -251,7 +337,7 @@ find_next:
 		if (use_browser == 2) {
 			int ret;
 			int (*annotate)(struct hist_entry *he,
-					struct perf_evsel *evsel,
+					struct evsel *evsel,
 					struct hist_browser_timer *hbt);
 
 			annotate = dlsym(perf_gtk_handle,
@@ -268,7 +354,8 @@ find_next:
 			/* skip missing symbols */
 			nd = rb_next(nd);
 		} else if (use_browser == 1) {
-			key = hist_entry__tui_annotate(he, evsel, NULL);
+			key = hist_entry__tui_annotate(he, evsel, NULL, &ann->opts);
+
 			switch (key) {
 			case -1:
 				if (!ann->skip_missing)
@@ -304,7 +391,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 {
 	int ret;
 	struct perf_session *session = ann->session;
-	struct perf_evsel *pos;
+	struct evsel *pos;
 	u64 total_nr_samples;
 
 	if (ann->cpu_list) {
@@ -314,8 +401,9 @@ static int __cmd_annotate(struct perf_annotate *ann)
 			goto out;
 	}
 
-	if (!objdump_path) {
-		ret = perf_env__lookup_objdump(&session->header.env);
+	if (!ann->opts.objdump_path) {
+		ret = perf_env__lookup_objdump(&session->header.env,
+					       &ann->opts.objdump_path);
 		if (ret)
 			goto out;
 	}
@@ -357,7 +445,7 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	}
 
 	if (total_nr_samples == 0) {
-		ui__error("The %s file has no samples!\n", session->data->file.path);
+		ui__error("The %s data has no samples!\n", session->data->path);
 		goto out;
 	}
 
@@ -396,10 +484,11 @@ int cmd_annotate(int argc, const char **argv)
 			.attr	= perf_event__process_attr,
 			.build_id = perf_event__process_build_id,
 			.tracing_data   = perf_event__process_tracing_data,
-			.feature	= perf_event__process_feature,
+			.feature	= process_feature_event,
 			.ordered_events = true,
 			.ordering_requires_timestamps = true,
 		},
+		.opts = annotation__default_options,
 	};
 	struct perf_data data = {
 		.mode  = PERF_DATA_MODE_READ,
@@ -420,27 +509,33 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_BOOLEAN(0, "gtk", &annotate.use_gtk, "Use the GTK interface"),
 	OPT_BOOLEAN(0, "tui", &annotate.use_tui, "Use the TUI interface"),
 	OPT_BOOLEAN(0, "stdio", &annotate.use_stdio, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "stdio2", &annotate.use_stdio2, "Use the stdio interface"),
+	OPT_BOOLEAN(0, "ignore-vmlinux", &symbol_conf.ignore_vmlinux,
+                    "don't load vmlinux even if found"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('l', "print-line", &annotate.print_line,
+	OPT_BOOLEAN('l', "print-line", &annotate.opts.print_lines,
 		    "print matching source lines (may be slow)"),
-	OPT_BOOLEAN('P', "full-paths", &annotate.full_paths,
+	OPT_BOOLEAN('P', "full-paths", &annotate.opts.full_path,
 		    "Don't shorten the displayed pathnames"),
 	OPT_BOOLEAN(0, "skip-missing", &annotate.skip_missing,
 		    "Skip symbols that cannot be annotated"),
+	OPT_BOOLEAN_SET(0, "group", &symbol_conf.event_group,
+			&annotate.group_set,
+			"Show event group information together"),
 	OPT_STRING('C', "cpu", &annotate.cpu_list, "cpu", "list of cpus to profile"),
 	OPT_CALLBACK(0, "symfs", NULL, "directory",
 		     "Look for files with symbols relative to this directory",
 		     symbol__config_symfs),
-	OPT_BOOLEAN(0, "source", &symbol_conf.annotate_src,
+	OPT_BOOLEAN(0, "source", &annotate.opts.annotate_src,
 		    "Interleave source code with assembly code (default)"),
-	OPT_BOOLEAN(0, "asm-raw", &symbol_conf.annotate_asm_raw,
+	OPT_BOOLEAN(0, "asm-raw", &annotate.opts.show_asm_raw,
 		    "Display raw encoding of assembly instructions (default)"),
-	OPT_STRING('M', "disassembler-style", &disassembler_style, "disassembler style",
+	OPT_STRING('M', "disassembler-style", &annotate.opts.disassembler_style, "disassembler style",
 		   "Specify disassembler style (e.g. -M intel for intel syntax)"),
-	OPT_STRING(0, "objdump", &objdump_path, "path",
+	OPT_STRING(0, "objdump", &annotate.opts.objdump_path, "path",
 		   "objdump binary to use for disassembly and annotations"),
 	OPT_BOOLEAN(0, "group", &symbol_conf.event_group,
 		    "Show event group information together"),
@@ -451,6 +546,10 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_CALLBACK_DEFAULT(0, "stdio-color", NULL, "mode",
 			     "'always' (default), 'never' or 'auto' only applicable to --stdio mode",
 			     stdio__config_color, "always"),
+	OPT_CALLBACK(0, "percent-type", &annotate.opts, "local-period",
+		     "Set percent type local/global-period/hits",
+		     annotate_parse_percent_type),
+
 	OPT_END()
 	};
 	int ret;
@@ -483,15 +582,23 @@ int cmd_annotate(int argc, const char **argv)
 	if (quiet)
 		perf_quiet_option();
 
-	data.file.path = input_name;
+	data.path = input_name;
 
 	annotate.session = perf_session__new(&data, false, &annotate.tool);
-	if (annotate.session == NULL)
-		return -1;
+	if (IS_ERR(annotate.session))
+		return PTR_ERR(annotate.session);
+
+	annotate.has_br_stack = perf_header__has_feat(&annotate.session->header,
+						      HEADER_BRANCH_STACK);
+
+	if (annotate.group_set)
+		perf_evlist__force_leader(annotate.session->evlist);
 
 	ret = symbol__annotation_init();
 	if (ret < 0)
 		goto out_delete;
+
+	annotation_config__init();
 
 	symbol_conf.try_vmlinux_path = true;
 
@@ -499,10 +606,7 @@ int cmd_annotate(int argc, const char **argv)
 	if (ret < 0)
 		goto out_delete;
 
-	if (setup_sorting(NULL) < 0)
-		usage_with_options(annotate_usage, options);
-
-	if (annotate.use_stdio)
+	if (annotate.use_stdio || annotate.use_stdio2)
 		use_browser = 0;
 	else if (annotate.use_tui)
 		use_browser = 1;
@@ -510,6 +614,15 @@ int cmd_annotate(int argc, const char **argv)
 		use_browser = 2;
 
 	setup_browser(true);
+
+	if ((use_browser == 1 || annotate.use_stdio2) && annotate.has_br_stack) {
+		sort__mode = SORT_MODE__BRANCH;
+		if (setup_sorting(annotate.session->evlist) < 0)
+			usage_with_options(annotate_usage, options);
+	} else {
+		if (setup_sorting(NULL) < 0)
+			usage_with_options(annotate_usage, options);
+	}
 
 	ret = __cmd_annotate(&annotate);
 

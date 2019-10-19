@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  *  This files contains card eeprom (93c46 or 93c56) programming routines,
  *  memory is addressed by 16 bits words.
  *
  *  This is part of rtl8180 OpenSource driver.
  *  Copyright (C) Andrea Merello 2004  <andrea.merello@gmail.com>
- *  Released under the terms of GPL (General Public Licence)
  *
  *  Parts of this driver are based on the GPL part of the
  *  official realtek driver.
@@ -39,7 +39,6 @@ static void eprom_cs(struct net_device *dev, short bit)
 	udelay(EPROM_DELAY);
 }
 
-
 static void eprom_ck_cycle(struct net_device *dev)
 {
 	u8 cmdreg;
@@ -58,7 +57,6 @@ static void eprom_ck_cycle(struct net_device *dev)
 	udelay(EPROM_DELAY);
 }
 
-
 static void eprom_w(struct net_device *dev, short bit)
 {
 	u8 cmdreg;
@@ -75,7 +73,6 @@ static void eprom_w(struct net_device *dev, short bit)
 	force_pci_posting(dev);
 	udelay(EPROM_DELAY);
 }
-
 
 static short eprom_r(struct net_device *dev)
 {
@@ -94,7 +91,6 @@ static short eprom_r(struct net_device *dev)
 	return 0;
 }
 
-
 static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
 {
 	int i;
@@ -104,7 +100,6 @@ static void eprom_send_bits_string(struct net_device *dev, short b[], int len)
 		eprom_ck_cycle(dev);
 	}
 }
-
 
 int eprom_read(struct net_device *dev, u32 addr)
 {
@@ -119,27 +114,27 @@ int eprom_read(struct net_device *dev, u32 addr)
 	ret = 0;
 	/* enable EPROM programming */
 	write_nic_byte_E(dev, EPROM_CMD,
-		       (EPROM_CMD_PROGRAM<<EPROM_CMD_OPERATING_MODE_SHIFT));
+		       (EPROM_CMD_PROGRAM << EPROM_CMD_OPERATING_MODE_SHIFT));
 	force_pci_posting(dev);
 	udelay(EPROM_DELAY);
 
 	if (priv->epromtype == EPROM_93c56) {
 		addr_str[7] = addr & 1;
-		addr_str[6] = addr & (1<<1);
-		addr_str[5] = addr & (1<<2);
-		addr_str[4] = addr & (1<<3);
-		addr_str[3] = addr & (1<<4);
-		addr_str[2] = addr & (1<<5);
-		addr_str[1] = addr & (1<<6);
-		addr_str[0] = addr & (1<<7);
+		addr_str[6] = addr & BIT(1);
+		addr_str[5] = addr & BIT(2);
+		addr_str[4] = addr & BIT(3);
+		addr_str[3] = addr & BIT(4);
+		addr_str[2] = addr & BIT(5);
+		addr_str[1] = addr & BIT(6);
+		addr_str[0] = addr & BIT(7);
 		addr_len = 8;
 	} else {
 		addr_str[5] = addr & 1;
-		addr_str[4] = addr & (1<<1);
-		addr_str[3] = addr & (1<<2);
-		addr_str[2] = addr & (1<<3);
-		addr_str[1] = addr & (1<<4);
-		addr_str[0] = addr & (1<<5);
+		addr_str[4] = addr & BIT(1);
+		addr_str[3] = addr & BIT(2);
+		addr_str[2] = addr & BIT(3);
+		addr_str[1] = addr & BIT(4);
+		addr_str[0] = addr & BIT(5);
 		addr_len = 6;
 	}
 	eprom_cs(dev, 1);
@@ -162,7 +157,7 @@ int eprom_read(struct net_device *dev, u32 addr)
 		if (err < 0)
 			return err;
 
-		ret |= err<<(15-i);
+		ret |= err << (15 - i);
 	}
 
 	eprom_cs(dev, 0);
@@ -170,6 +165,6 @@ int eprom_read(struct net_device *dev, u32 addr)
 
 	/* disable EPROM programming */
 	write_nic_byte_E(dev, EPROM_CMD,
-		       (EPROM_CMD_NORMAL<<EPROM_CMD_OPERATING_MODE_SHIFT));
+		       (EPROM_CMD_NORMAL << EPROM_CMD_OPERATING_MODE_SHIFT));
 	return ret;
 }

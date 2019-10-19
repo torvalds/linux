@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* DVB USB compliant Linux driver for the
  *  - GENPIX 8pks/qpsk/DCII USB2.0 DVB-S module
  *
@@ -8,11 +9,7 @@
  *
  * This module is based off the vp7045 and vp702x modules
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License as published by the Free
- *	Software Foundation, version 2.
- *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 #include "gp8psk.h"
 #include "gp8psk-fe.h"
@@ -135,7 +132,7 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 	u8 *buf;
 	if ((ret = request_firmware(&fw, bcm4500_firmware,
 					&d->udev->dev)) != 0) {
-		err("did not find the bcm4500 firmware file. (%s) Please see linux/Documentation/dvb/ for more details on firmware-problems. (%d)",
+		err("did not find the bcm4500 firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware",
 			bcm4500_firmware,ret);
 		return ret;
 	}
@@ -148,7 +145,7 @@ static int gp8psk_load_bcm4500fw(struct dvb_usb_device *d)
 	info("downloading bcm4500 firmware from file '%s'",bcm4500_firmware);
 
 	ptr = fw->data;
-	buf = kmalloc(64, GFP_KERNEL | GFP_DMA);
+	buf = kmalloc(64, GFP_KERNEL);
 	if (!buf) {
 		ret = -ENOMEM;
 		goto out_rel_fw;

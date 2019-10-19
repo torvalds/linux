@@ -34,14 +34,16 @@ INTERACTIVE COMMANDS
 *c*::	clear filter
 
 *f*::	filter by regular expression
+ ::     *Note*: Child events pull in their parents, and parents' stats summarize
+                all child events, not just the filtered ones
 
-*g*::	filter by guest name
+*g*::	filter by guest name/PID
 
 *h*::	display interactive commands reference
 
 *o*::   toggle sorting order (Total vs CurAvg/s)
 
-*p*::	filter by PID
+*p*::	filter by guest name/PID
 
 *q*::	quit
 

@@ -1,12 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* ----------------------------------------------------------------------- *
  *
  *   Copyright 2000-2008 H. Peter Anvin - All Rights Reserved
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation, Inc., 675 Mass Ave, Cambridge MA 02139,
- *   USA; either version 2 of the License, or (at your option) any later
- *   version; incorporated herein by reference.
  *
  * ----------------------------------------------------------------------- */
 
@@ -40,6 +35,7 @@
 #include <linux/notifier.h>
 #include <linux/uaccess.h>
 #include <linux/gfp.h>
+#include <linux/completion.h>
 
 #include <asm/processor.h>
 #include <asm/msr.h>
@@ -47,19 +43,27 @@
 static struct class *cpuid_class;
 static enum cpuhp_state cpuhp_cpuid_state;
 
+struct cpuid_regs_done {
+	struct cpuid_regs regs;
+	struct completion done;
+};
+
 static void cpuid_smp_cpuid(void *cmd_block)
 {
-	struct cpuid_regs *cmd = (struct cpuid_regs *)cmd_block;
+	struct cpuid_regs_done *cmd = cmd_block;
 
-	cpuid_count(cmd->eax, cmd->ecx,
-		    &cmd->eax, &cmd->ebx, &cmd->ecx, &cmd->edx);
+	cpuid_count(cmd->regs.eax, cmd->regs.ecx,
+		    &cmd->regs.eax, &cmd->regs.ebx,
+		    &cmd->regs.ecx, &cmd->regs.edx);
+
+	complete(&cmd->done);
 }
 
 static ssize_t cpuid_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	char __user *tmp = buf;
-	struct cpuid_regs cmd;
+	struct cpuid_regs_done cmd;
 	int cpu = iminor(file_inode(file));
 	u64 pos = *ppos;
 	ssize_t bytes = 0;
@@ -68,19 +72,28 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	if (count % 16)
 		return -EINVAL;	/* Invalid chunk size */
 
+	init_completion(&cmd.done);
 	for (; count; count -= 16) {
-		cmd.eax = pos;
-		cmd.ecx = pos >> 32;
-		err = smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1);
+		call_single_data_t csd = {
+			.func = cpuid_smp_cpuid,
+			.info = &cmd,
+		};
+
+		cmd.regs.eax = pos;
+		cmd.regs.ecx = pos >> 32;
+
+		err = smp_call_function_single_async(cpu, &csd);
 		if (err)
 			break;
-		if (copy_to_user(tmp, &cmd, 16)) {
+		wait_for_completion(&cmd.done);
+		if (copy_to_user(tmp, &cmd.regs, 16)) {
 			err = -EFAULT;
 			break;
 		}
 		tmp += 16;
 		bytes += 16;
 		*ppos = ++pos;
+		reinit_completion(&cmd.done);
 	}
 
 	return bytes ? bytes : err;

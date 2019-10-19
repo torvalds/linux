@@ -18,9 +18,12 @@
 #include <linux/phy/tegra/xusb.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/slab.h>
+#include <soc/tegra/pmc.h>
 
 #include "xhci.h"
 
@@ -105,35 +108,35 @@
 #define IMEM_BLOCK_SIZE				256
 
 struct tegra_xusb_fw_header {
-	u32 boot_loadaddr_in_imem;
-	u32 boot_codedfi_offset;
-	u32 boot_codetag;
-	u32 boot_codesize;
-	u32 phys_memaddr;
-	u16 reqphys_memsize;
-	u16 alloc_phys_memsize;
-	u32 rodata_img_offset;
-	u32 rodata_section_start;
-	u32 rodata_section_end;
-	u32 main_fnaddr;
-	u32 fwimg_cksum;
-	u32 fwimg_created_time;
-	u32 imem_resident_start;
-	u32 imem_resident_end;
-	u32 idirect_start;
-	u32 idirect_end;
-	u32 l2_imem_start;
-	u32 l2_imem_end;
-	u32 version_id;
+	__le32 boot_loadaddr_in_imem;
+	__le32 boot_codedfi_offset;
+	__le32 boot_codetag;
+	__le32 boot_codesize;
+	__le32 phys_memaddr;
+	__le16 reqphys_memsize;
+	__le16 alloc_phys_memsize;
+	__le32 rodata_img_offset;
+	__le32 rodata_section_start;
+	__le32 rodata_section_end;
+	__le32 main_fnaddr;
+	__le32 fwimg_cksum;
+	__le32 fwimg_created_time;
+	__le32 imem_resident_start;
+	__le32 imem_resident_end;
+	__le32 idirect_start;
+	__le32 idirect_end;
+	__le32 l2_imem_start;
+	__le32 l2_imem_end;
+	__le32 version_id;
 	u8 init_ddirect;
 	u8 reserved[3];
-	u32 phys_addr_log_buffer;
-	u32 total_log_entries;
-	u32 dequeue_ptr;
-	u32 dummy_var[2];
-	u32 fwimg_len;
+	__le32 phys_addr_log_buffer;
+	__le32 total_log_entries;
+	__le32 dequeue_ptr;
+	__le32 dummy_var[2];
+	__le32 fwimg_len;
 	u8 magic[8];
-	u32 ss_low_power_entry_timeout;
+	__le32 ss_low_power_entry_timeout;
 	u8 num_hsic_port;
 	u8 padding[139]; /* Pad to 256 bytes */
 };
@@ -158,6 +161,7 @@ struct tegra_xusb_soc {
 	} ports;
 
 	bool scale_ss_clock;
+	bool has_ipfs;
 };
 
 struct tegra_xusb {
@@ -191,6 +195,11 @@ struct tegra_xusb {
 
 	struct reset_control *host_rst;
 	struct reset_control *ss_rst;
+
+	struct device *genpd_dev_host;
+	struct device *genpd_dev_ss;
+	struct device_link *genpd_dl_host;
+	struct device_link *genpd_dl_ss;
 
 	struct phy **phys;
 	unsigned int num_phys;
@@ -345,29 +354,6 @@ enum tegra_xusb_mbox_cmd {
 	MBOX_CMD_NAK
 };
 
-static const char * const mbox_cmd_name[] = {
-	[  1] = "MSG_ENABLE",
-	[  2] = "INC_FALCON_CLOCK",
-	[  3] = "DEC_FALCON_CLOCK",
-	[  4] = "INC_SSPI_CLOCK",
-	[  5] = "DEC_SSPI_CLOCK",
-	[  6] = "SET_BW",
-	[  7] = "SET_SS_PWR_GATING",
-	[  8] = "SET_SS_PWR_UNGATING",
-	[  9] = "SAVE_DFE_CTLE_CTX",
-	[ 10] = "AIRPLANE_MODE_ENABLED",
-	[ 11] = "AIRPLANE_MODE_DISABLED",
-	[ 12] = "START_HSIC_IDLE",
-	[ 13] = "STOP_HSIC_IDLE",
-	[ 14] = "DBC_WAKE_STACK",
-	[ 15] = "HSIC_PRETEND_CONNECT",
-	[ 16] = "RESET_SSPI",
-	[ 17] = "DISABLE_SS_LFPS_DETECTION",
-	[ 18] = "ENABLE_SS_LFPS_DETECTION",
-	[128] = "ACK",
-	[129] = "NAK",
-};
-
 struct tegra_xusb_mbox_msg {
 	u32 cmd;
 	u32 data;
@@ -479,7 +465,7 @@ static void tegra_xusb_mbox_handle(struct tegra_xusb *tegra,
 	unsigned long mask;
 	unsigned int port;
 	bool idle, enable;
-	int err;
+	int err = 0;
 
 	memset(&rsp, 0, sizeof(rsp));
 
@@ -629,16 +615,18 @@ static irqreturn_t tegra_xusb_mbox_thread(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void tegra_xusb_ipfs_config(struct tegra_xusb *tegra,
-				   struct resource *regs)
+static void tegra_xusb_config(struct tegra_xusb *tegra,
+			      struct resource *regs)
 {
 	u32 value;
 
-	value = ipfs_readl(tegra, IPFS_XUSB_HOST_CONFIGURATION_0);
-	value |= IPFS_EN_FPCI;
-	ipfs_writel(tegra, value, IPFS_XUSB_HOST_CONFIGURATION_0);
+	if (tegra->soc->has_ipfs) {
+		value = ipfs_readl(tegra, IPFS_XUSB_HOST_CONFIGURATION_0);
+		value |= IPFS_EN_FPCI;
+		ipfs_writel(tegra, value, IPFS_XUSB_HOST_CONFIGURATION_0);
 
-	usleep_range(10, 20);
+		usleep_range(10, 20);
+	}
 
 	/* Program BAR0 space */
 	value = fpci_readl(tegra, XUSB_CFG_4);
@@ -653,13 +641,15 @@ static void tegra_xusb_ipfs_config(struct tegra_xusb *tegra,
 	value |= XUSB_IO_SPACE_EN | XUSB_MEM_SPACE_EN | XUSB_BUS_MASTER_EN;
 	fpci_writel(tegra, value, XUSB_CFG_1);
 
-	/* Enable interrupt assertion */
-	value = ipfs_readl(tegra, IPFS_XUSB_HOST_INTR_MASK_0);
-	value |= IPFS_IP_INT_MASK;
-	ipfs_writel(tegra, value, IPFS_XUSB_HOST_INTR_MASK_0);
+	if (tegra->soc->has_ipfs) {
+		/* Enable interrupt assertion */
+		value = ipfs_readl(tegra, IPFS_XUSB_HOST_INTR_MASK_0);
+		value |= IPFS_IP_INT_MASK;
+		ipfs_writel(tegra, value, IPFS_XUSB_HOST_INTR_MASK_0);
 
-	/* Set hysteresis */
-	ipfs_writel(tegra, 0x80, IPFS_XUSB_HOST_CLKGATE_HYSTERESIS_0);
+		/* Set hysteresis */
+		ipfs_writel(tegra, 0x80, IPFS_XUSB_HOST_CLKGATE_HYSTERESIS_0);
+	}
 }
 
 static int tegra_xusb_clk_enable(struct tegra_xusb *tegra)
@@ -759,6 +749,49 @@ static void tegra_xusb_phy_disable(struct tegra_xusb *tegra)
 		phy_power_off(tegra->phys[i]);
 		phy_exit(tegra->phys[i]);
 	}
+}
+
+static int tegra_xusb_runtime_suspend(struct device *dev)
+{
+	struct tegra_xusb *tegra = dev_get_drvdata(dev);
+
+	tegra_xusb_phy_disable(tegra);
+	regulator_bulk_disable(tegra->soc->num_supplies, tegra->supplies);
+	tegra_xusb_clk_disable(tegra);
+
+	return 0;
+}
+
+static int tegra_xusb_runtime_resume(struct device *dev)
+{
+	struct tegra_xusb *tegra = dev_get_drvdata(dev);
+	int err;
+
+	err = tegra_xusb_clk_enable(tegra);
+	if (err) {
+		dev_err(dev, "failed to enable clocks: %d\n", err);
+		return err;
+	}
+
+	err = regulator_bulk_enable(tegra->soc->num_supplies, tegra->supplies);
+	if (err) {
+		dev_err(dev, "failed to enable regulators: %d\n", err);
+		goto disable_clk;
+	}
+
+	err = tegra_xusb_phy_enable(tegra);
+	if (err < 0) {
+		dev_err(dev, "failed to enable PHYs: %d\n", err);
+		goto disable_regulator;
+	}
+
+	return 0;
+
+disable_regulator:
+	regulator_bulk_disable(tegra->soc->num_supplies, tegra->supplies);
+disable_clk:
+	tegra_xusb_clk_disable(tegra);
+	return err;
 }
 
 static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
@@ -883,6 +916,57 @@ static int tegra_xusb_load_firmware(struct tegra_xusb *tegra)
 	return 0;
 }
 
+static void tegra_xusb_powerdomain_remove(struct device *dev,
+					  struct tegra_xusb *tegra)
+{
+	if (tegra->genpd_dl_ss)
+		device_link_del(tegra->genpd_dl_ss);
+	if (tegra->genpd_dl_host)
+		device_link_del(tegra->genpd_dl_host);
+	if (!IS_ERR_OR_NULL(tegra->genpd_dev_ss))
+		dev_pm_domain_detach(tegra->genpd_dev_ss, true);
+	if (!IS_ERR_OR_NULL(tegra->genpd_dev_host))
+		dev_pm_domain_detach(tegra->genpd_dev_host, true);
+}
+
+static int tegra_xusb_powerdomain_init(struct device *dev,
+				       struct tegra_xusb *tegra)
+{
+	int err;
+
+	tegra->genpd_dev_host = dev_pm_domain_attach_by_name(dev, "xusb_host");
+	if (IS_ERR(tegra->genpd_dev_host)) {
+		err = PTR_ERR(tegra->genpd_dev_host);
+		dev_err(dev, "failed to get host pm-domain: %d\n", err);
+		return err;
+	}
+
+	tegra->genpd_dev_ss = dev_pm_domain_attach_by_name(dev, "xusb_ss");
+	if (IS_ERR(tegra->genpd_dev_ss)) {
+		err = PTR_ERR(tegra->genpd_dev_ss);
+		dev_err(dev, "failed to get superspeed pm-domain: %d\n", err);
+		return err;
+	}
+
+	tegra->genpd_dl_host = device_link_add(dev, tegra->genpd_dev_host,
+					       DL_FLAG_PM_RUNTIME |
+					       DL_FLAG_STATELESS);
+	if (!tegra->genpd_dl_host) {
+		dev_err(dev, "adding host device link failed!\n");
+		return -ENODEV;
+	}
+
+	tegra->genpd_dl_ss = device_link_add(dev, tegra->genpd_dev_ss,
+					     DL_FLAG_PM_RUNTIME |
+					     DL_FLAG_STATELESS);
+	if (!tegra->genpd_dl_ss) {
+		dev_err(dev, "adding superspeed device link failed!\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int tegra_xusb_probe(struct platform_device *pdev)
 {
 	struct tegra_xusb_mbox_msg msg;
@@ -913,10 +997,12 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	if (IS_ERR(tegra->fpci_base))
 		return PTR_ERR(tegra->fpci_base);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
-	tegra->ipfs_base = devm_ioremap_resource(&pdev->dev, res);
-	if (IS_ERR(tegra->ipfs_base))
-		return PTR_ERR(tegra->ipfs_base);
+	if (tegra->soc->has_ipfs) {
+		res = platform_get_resource(pdev, IORESOURCE_MEM, 2);
+		tegra->ipfs_base = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(tegra->ipfs_base))
+			return PTR_ERR(tegra->ipfs_base);
+	}
 
 	tegra->xhci_irq = platform_get_irq(pdev, 0);
 	if (tegra->xhci_irq < 0)
@@ -929,20 +1015,6 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	tegra->padctl = tegra_xusb_padctl_get(&pdev->dev);
 	if (IS_ERR(tegra->padctl))
 		return PTR_ERR(tegra->padctl);
-
-	tegra->host_rst = devm_reset_control_get(&pdev->dev, "xusb_host");
-	if (IS_ERR(tegra->host_rst)) {
-		err = PTR_ERR(tegra->host_rst);
-		dev_err(&pdev->dev, "failed to get xusb_host reset: %d\n", err);
-		goto put_padctl;
-	}
-
-	tegra->ss_rst = devm_reset_control_get(&pdev->dev, "xusb_ss");
-	if (IS_ERR(tegra->ss_rst)) {
-		err = PTR_ERR(tegra->ss_rst);
-		dev_err(&pdev->dev, "failed to get xusb_ss reset: %d\n", err);
-		goto put_padctl;
-	}
 
 	tegra->host_clk = devm_clk_get(&pdev->dev, "xusb_host");
 	if (IS_ERR(tegra->host_clk)) {
@@ -1007,11 +1079,53 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 		goto put_padctl;
 	}
 
+	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+		tegra->host_rst = devm_reset_control_get(&pdev->dev,
+							 "xusb_host");
+		if (IS_ERR(tegra->host_rst)) {
+			err = PTR_ERR(tegra->host_rst);
+			dev_err(&pdev->dev,
+				"failed to get xusb_host reset: %d\n", err);
+			goto put_padctl;
+		}
+
+		tegra->ss_rst = devm_reset_control_get(&pdev->dev, "xusb_ss");
+		if (IS_ERR(tegra->ss_rst)) {
+			err = PTR_ERR(tegra->ss_rst);
+			dev_err(&pdev->dev, "failed to get xusb_ss reset: %d\n",
+				err);
+			goto put_padctl;
+		}
+
+		err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_XUSBA,
+							tegra->ss_clk,
+							tegra->ss_rst);
+		if (err) {
+			dev_err(&pdev->dev,
+				"failed to enable XUSBA domain: %d\n", err);
+			goto put_padctl;
+		}
+
+		err = tegra_powergate_sequence_power_up(TEGRA_POWERGATE_XUSBC,
+							tegra->host_clk,
+							tegra->host_rst);
+		if (err) {
+			tegra_powergate_power_off(TEGRA_POWERGATE_XUSBA);
+			dev_err(&pdev->dev,
+				"failed to enable XUSBC domain: %d\n", err);
+			goto put_padctl;
+		}
+	} else {
+		err = tegra_xusb_powerdomain_init(&pdev->dev, tegra);
+		if (err)
+			goto put_powerdomains;
+	}
+
 	tegra->supplies = devm_kcalloc(&pdev->dev, tegra->soc->num_supplies,
 				       sizeof(*tegra->supplies), GFP_KERNEL);
 	if (!tegra->supplies) {
 		err = -ENOMEM;
-		goto put_padctl;
+		goto put_powerdomains;
 	}
 
 	for (i = 0; i < tegra->soc->num_supplies; i++)
@@ -1021,7 +1135,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 				      tegra->supplies);
 	if (err) {
 		dev_err(&pdev->dev, "failed to get regulators: %d\n", err);
-		goto put_padctl;
+		goto put_powerdomains;
 	}
 
 	for (i = 0; i < tegra->soc->num_types; i++)
@@ -1031,7 +1145,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 				   sizeof(*tegra->phys), GFP_KERNEL);
 	if (!tegra->phys) {
 		err = -ENOMEM;
-		goto put_padctl;
+		goto put_powerdomains;
 	}
 
 	for (i = 0, k = 0; i < tegra->soc->num_types; i++) {
@@ -1047,44 +1161,18 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 					"failed to get PHY %s: %ld\n", prop,
 					PTR_ERR(phy));
 				err = PTR_ERR(phy);
-				goto put_padctl;
+				goto put_powerdomains;
 			}
 
 			tegra->phys[k++] = phy;
 		}
 	}
 
-	err = tegra_xusb_clk_enable(tegra);
-	if (err) {
-		dev_err(&pdev->dev, "failed to enable clocks: %d\n", err);
-		goto put_padctl;
-	}
-
-	err = regulator_bulk_enable(tegra->soc->num_supplies, tegra->supplies);
-	if (err) {
-		dev_err(&pdev->dev, "failed to enable regulators: %d\n", err);
-		goto disable_clk;
-	}
-
-	err = tegra_xusb_phy_enable(tegra);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to enable PHYs: %d\n", err);
-		goto disable_regulator;
-	}
-
-	tegra_xusb_ipfs_config(tegra, regs);
-
-	err = tegra_xusb_load_firmware(tegra);
-	if (err < 0) {
-		dev_err(&pdev->dev, "failed to load firmware: %d\n", err);
-		goto disable_phy;
-	}
-
 	tegra->hcd = usb_create_hcd(&tegra_xhci_hc_driver, &pdev->dev,
 				    dev_name(&pdev->dev));
 	if (!tegra->hcd) {
 		err = -ENOMEM;
-		goto disable_phy;
+		goto put_powerdomains;
 	}
 
 	/*
@@ -1093,6 +1181,35 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	 */
 	platform_set_drvdata(pdev, tegra);
 
+	pm_runtime_enable(&pdev->dev);
+	if (pm_runtime_enabled(&pdev->dev))
+		err = pm_runtime_get_sync(&pdev->dev);
+	else
+		err = tegra_xusb_runtime_resume(&pdev->dev);
+
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to enable device: %d\n", err);
+		goto disable_rpm;
+	}
+
+	tegra_xusb_config(tegra, regs);
+
+	/*
+	 * The XUSB Falcon microcontroller can only address 40 bits, so set
+	 * the DMA mask accordingly.
+	 */
+	err = dma_set_mask_and_coherent(tegra->dev, DMA_BIT_MASK(40));
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to set DMA mask: %d\n", err);
+		goto put_rpm;
+	}
+
+	err = tegra_xusb_load_firmware(tegra);
+	if (err < 0) {
+		dev_err(&pdev->dev, "failed to load firmware: %d\n", err);
+		goto put_rpm;
+	}
+
 	tegra->hcd->regs = tegra->regs;
 	tegra->hcd->rsrc_start = regs->start;
 	tegra->hcd->rsrc_len = resource_size(regs);
@@ -1100,7 +1217,7 @@ static int tegra_xusb_probe(struct platform_device *pdev)
 	err = usb_add_hcd(tegra->hcd, tegra->xhci_irq, IRQF_SHARED);
 	if (err < 0) {
 		dev_err(&pdev->dev, "failed to add USB HCD: %d\n", err);
-		goto put_usb2;
+		goto put_rpm;
 	}
 
 	device_wakeup_enable(tegra->hcd->self.controller);
@@ -1155,14 +1272,19 @@ put_usb3:
 	usb_put_hcd(xhci->shared_hcd);
 remove_usb2:
 	usb_remove_hcd(tegra->hcd);
-put_usb2:
+put_rpm:
+	if (!pm_runtime_status_suspended(&pdev->dev))
+		tegra_xusb_runtime_suspend(&pdev->dev);
+disable_rpm:
+	pm_runtime_disable(&pdev->dev);
 	usb_put_hcd(tegra->hcd);
-disable_phy:
-	tegra_xusb_phy_disable(tegra);
-disable_regulator:
-	regulator_bulk_disable(tegra->soc->num_supplies, tegra->supplies);
-disable_clk:
-	tegra_xusb_clk_disable(tegra);
+put_powerdomains:
+	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBC);
+		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBA);
+	} else {
+		tegra_xusb_powerdomain_remove(&pdev->dev, tegra);
+	}
 put_padctl:
 	tegra_xusb_padctl_put(tegra->padctl);
 	return err;
@@ -1175,15 +1297,22 @@ static int tegra_xusb_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_put_hcd(xhci->shared_hcd);
+	xhci->shared_hcd = NULL;
 	usb_remove_hcd(tegra->hcd);
 	usb_put_hcd(tegra->hcd);
 
 	dma_free_coherent(&pdev->dev, tegra->fw.size, tegra->fw.virt,
 			  tegra->fw.phys);
 
-	tegra_xusb_phy_disable(tegra);
-	regulator_bulk_disable(tegra->soc->num_supplies, tegra->supplies);
-	tegra_xusb_clk_disable(tegra);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
+
+	if (!of_property_read_bool(pdev->dev.of_node, "power-domains")) {
+		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBC);
+		tegra_powergate_power_off(TEGRA_POWERGATE_XUSBA);
+	} else {
+		tegra_xusb_powerdomain_remove(&pdev->dev, tegra);
+	}
 
 	tegra_xusb_padctl_put(tegra->padctl);
 
@@ -1211,6 +1340,8 @@ static int tegra_xusb_resume(struct device *dev)
 #endif
 
 static const struct dev_pm_ops tegra_xusb_pm_ops = {
+	SET_RUNTIME_PM_OPS(tegra_xusb_runtime_suspend,
+			   tegra_xusb_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(tegra_xusb_suspend, tegra_xusb_resume)
 };
 
@@ -1243,6 +1374,7 @@ static const struct tegra_xusb_soc tegra124_soc = {
 		.usb3 = { .offset = 0, .count = 2, },
 	},
 	.scale_ss_clock = true,
+	.has_ipfs = true,
 };
 MODULE_FIRMWARE("nvidia/tegra124/xusb.bin");
 
@@ -1274,12 +1406,38 @@ static const struct tegra_xusb_soc tegra210_soc = {
 		.usb3 = { .offset = 0, .count = 4, },
 	},
 	.scale_ss_clock = false,
+	.has_ipfs = true,
 };
 MODULE_FIRMWARE("nvidia/tegra210/xusb.bin");
+
+static const char * const tegra186_supply_names[] = {
+};
+
+static const struct tegra_xusb_phy_type tegra186_phy_types[] = {
+	{ .name = "usb3", .num = 3, },
+	{ .name = "usb2", .num = 3, },
+	{ .name = "hsic", .num = 1, },
+};
+
+static const struct tegra_xusb_soc tegra186_soc = {
+	.firmware = "nvidia/tegra186/xusb.bin",
+	.supply_names = tegra186_supply_names,
+	.num_supplies = ARRAY_SIZE(tegra186_supply_names),
+	.phy_types = tegra186_phy_types,
+	.num_types = ARRAY_SIZE(tegra186_phy_types),
+	.ports = {
+		.usb3 = { .offset = 0, .count = 3, },
+		.usb2 = { .offset = 3, .count = 3, },
+		.hsic = { .offset = 6, .count = 1, },
+	},
+	.scale_ss_clock = false,
+	.has_ipfs = false,
+};
 
 static const struct of_device_id tegra_xusb_of_match[] = {
 	{ .compatible = "nvidia,tegra124-xusb", .data = &tegra124_soc },
 	{ .compatible = "nvidia,tegra210-xusb", .data = &tegra210_soc },
+	{ .compatible = "nvidia,tegra186-xusb", .data = &tegra186_soc },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_xusb_of_match);

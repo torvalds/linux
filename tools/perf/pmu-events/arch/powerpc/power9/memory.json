@@ -45,11 +45,6 @@
     "BriefDescription": "count of Loads completed"
   },
   {,
-    "EventCode": "0x2D156",
-    "EventName": "PM_MRK_DTLB_MISS_4K",
-    "BriefDescription": "Marked Data TLB Miss page size 4k"
-  },
-  {,
     "EventCode": "0x4C042",
     "EventName": "PM_DATA_FROM_L3",
     "BriefDescription": "The processor's data cache was reloaded from local core's L3 due to a demand load"
@@ -57,7 +52,7 @@
   {,
     "EventCode": "0x4D02C",
     "EventName": "PM_PMC1_REWIND",
-    "BriefDescription": ""
+    "BriefDescription": "PMC1 rewind event"
   },
   {,
     "EventCode": "0x15158",

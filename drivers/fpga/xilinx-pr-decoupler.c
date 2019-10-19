@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017, National Instruments Corp.
  * Copyright (c) 2017, Xilix Inc
  *
  * FPGA Bridge Driver for the Xilinx LogiCORE Partial Reconfiguration
  * Decoupler IP Core.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -94,6 +86,7 @@ MODULE_DEVICE_TABLE(of, xlnx_pr_decoupler_of_match);
 static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 {
 	struct xlnx_pr_decoupler_data *priv;
+	struct fpga_bridge *br;
 	int err;
 	struct resource *res;
 
@@ -120,16 +113,27 @@ static int xlnx_pr_decoupler_probe(struct platform_device *pdev)
 
 	clk_disable(priv->clk);
 
-	err = fpga_bridge_register(&pdev->dev, "Xilinx PR Decoupler",
-				   &xlnx_pr_decoupler_br_ops, priv);
+	br = devm_fpga_bridge_create(&pdev->dev, "Xilinx PR Decoupler",
+				     &xlnx_pr_decoupler_br_ops, priv);
+	if (!br) {
+		err = -ENOMEM;
+		goto err_clk;
+	}
 
+	platform_set_drvdata(pdev, br);
+
+	err = fpga_bridge_register(br);
 	if (err) {
 		dev_err(&pdev->dev, "unable to register Xilinx PR Decoupler");
-		clk_unprepare(priv->clk);
-		return err;
+		goto err_clk;
 	}
 
 	return 0;
+
+err_clk:
+	clk_unprepare(priv->clk);
+
+	return err;
 }
 
 static int xlnx_pr_decoupler_remove(struct platform_device *pdev)
@@ -137,7 +141,7 @@ static int xlnx_pr_decoupler_remove(struct platform_device *pdev)
 	struct fpga_bridge *bridge = platform_get_drvdata(pdev);
 	struct xlnx_pr_decoupler_data *p = bridge->priv;
 
-	fpga_bridge_unregister(&pdev->dev);
+	fpga_bridge_unregister(bridge);
 
 	clk_unprepare(p->clk);
 

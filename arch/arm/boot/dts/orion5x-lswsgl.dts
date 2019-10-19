@@ -55,12 +55,13 @@
 	compatible = "buffalo,lswsgl", "marvell,orion5x-88f5182", "marvell,orion5x";
 
 	memory {
+		device_type = "memory";
 		reg = <0x00000000 0x8000000>; /* 128 MB */
 	};
 
 	chosen {
 		bootargs = "console=ttyS0,115200 earlyprintk";
-		linux,stdout-path = &uart0;
+		stdout-path = &uart0;
 	};
 
 	soc {

@@ -751,7 +751,7 @@ S: Santa Cruz, California
 S: USA
 
 N: Luis Correia
-E: lfcorreia@users.sf.net
+E: luisfcorreia@gmail.com
 D: Ralink rt2x00 WLAN driver
 S: Belas, Portugal
 
@@ -842,10 +842,9 @@ D: ax25-utils maintainer.
 
 N: Helge Deller
 E: deller@gmx.de
-E: hdeller@redhat.de
-D: PA-RISC Linux hacker, LASI-, ASP-, WAX-, LCD/LED-driver
-S: Schimmelsrain 1
-S: D-69231 Rauenberg
+W: http://www.parisc-linux.org/
+D: PA-RISC Linux architecture maintainer
+D: LASI-, ASP-, WAX-, LCD/LED-driver
 S: Germany
 
 N: Jean Delvare
@@ -1222,7 +1221,7 @@ S: Brazil
 
 N: Oded Gabbay
 E: oded.gabbay@gmail.com
-D: AMD KFD maintainer
+D: HabanaLabs and AMD KFD maintainer
 S: 12 Shraga Raphaeli
 S: Petah-Tikva, 4906418
 S: Israel
@@ -1361,7 +1360,7 @@ S: Stellenbosch, Western Cape
 S: South Africa
 
 N: Grant Grundler
-E: grundler@parisc-linux.org
+E: grantgrundler@gmail.com
 W: http://obmouse.sourceforge.net/
 W: http://www.parisc-linux.org/
 D: obmouse - rewrote Olivier Florent's Omnibook 600 "pop-up" mouse driver
@@ -1564,6 +1563,11 @@ W: http://www.carumba.com/
 D: bug toaster (A1 sauce makes all the difference)
 D: Random linux hacker
 
+N: James Hogan
+E: jhogan@kernel.org
+D: Metag architecture maintainer
+D: TZ1090 SoC maintainer
+
 N: Tim Hockin
 E: thockin@hockin.org
 W: http://www.hockin.org/~thockin
@@ -1632,6 +1636,10 @@ D: Some other hacks to get different kinds of programs to work for linux
 S: Panoramastrasse 18
 S: D-69126 Heidelberg
 S: Germany
+
+N: Simon Horman
+M: horms@verge.net.au
+D: Renesas ARM/ARM64 SoC maintainer
 
 N: Christopher Horn
 E: chorn@warwick.net
@@ -1766,7 +1774,6 @@ S: USA
 
 N: Dave Jones
 E: davej@codemonkey.org.uk
-W: http://www.codemonkey.org.uk
 D: Assorted VIA x86 support.
 D: 2.5 AGPGART overhaul.
 D: CPUFREQ maintenance.
@@ -1796,7 +1803,7 @@ S: 2300 Copenhagen S.
 S: Denmark
 
 N: Jozsef Kadlecsik
-E: kadlec@blackhole.kfki.hu
+E: kadlec@netfilter.org
 P: 1024D/470DB964 4CB3 1A05 713E 9BF7 FAC5  5809 DD8C B7B1 470D B964
 D: netfilter: TCP window tracking code
 D: netfilter: raw table
@@ -2133,6 +2140,10 @@ E: paul@laufernet.com
 D: Soundblaster driver fixes, ISAPnP quirk
 S: California, USA
 
+N: Jarkko Lavinen
+E: jarkko.lavinen@nokia.com
+D: OMAP MMC support
+
 N: Jonathan Layes
 D: ARPD support
 
@@ -2194,6 +2205,16 @@ D: Promised to send money if I would put his name in the source tree.
 S: Post Office Box 371
 S: North Little Rock, Arkansas 72115
 S: USA
+
+N: Christopher Li
+E: sparse@chrisli.org
+D: Sparse maintainer 2009 - 2018
+
+N: Shaohua Li
+D: Worked on many parts of the kernel, from core x86, ACPI, PCI, KVM, MM,
+D: and much more. He was the maintainer of MD from 2016 to 2018. Shaohua
+D: passed away late 2018, he will be greatly missed.
+W: https://www.spinics.net/lists/raid/msg61993.html
 
 N: Stephan Linz
 E: linz@mazet.de
@@ -2473,7 +2494,7 @@ S: Syracuse, New York 13206
 S: USA
 
 N: Kyle McMartin
-E: kyle@parisc-linux.org
+E: kyle@mcmartin.ca
 D: Linux/PARISC hacker
 D: AD1889 sound driver
 S: Ottawa, Canada
@@ -2528,6 +2549,10 @@ S: Ormond
 S: Victoria 3163
 S: Australia
 
+N: Eric Miao
+E: eric.y.miao@gmail.com
+D: MMP support
+
 N: Pauline Middelink
 E: middelin@polyware.nl
 D: General low-level bug fixes, /proc fixes, identd support
@@ -2565,6 +2590,11 @@ S: Editorial Board iX Mag
 S: Helstorfer Str. 7
 S: D-30625 Hannover
 S: Germany
+
+N: Ron Minnich
+E: rminnich@sandia.gov
+E: rminnich@gmail.com
+D: 9p filesystem development
 
 N: Corey Minyard
 E: minyard@wf-rch.cirr.com
@@ -3093,7 +3123,7 @@ S: France
 N: Rik van Riel
 E: riel@redhat.com
 W: http://www.surriel.com/
-D: Linux-MM site, Documentation/sysctl/*, swap/mm readaround
+D: Linux-MM site, Documentation/admin-guide/sysctl/*, swap/mm readaround
 D: kswapd fixes, random kernel hacker, rmap VM,
 D: nl.linux.org administrator, minor scheduler additions
 S: Red Hat Boston
@@ -3336,6 +3366,14 @@ S: Pengutronix
 S: Braunschweiger Strasse 79
 S: 31134 Hildesheim
 S: Germany
+
+N: Martin Schwidefsky
+D: Martin was the most significant contributor to the initial s390
+D: port of the Linux Kernel and later the maintainer of the s390
+D: architecture backend for almost two decades.
+D: He passed away in 2019, and will be greatly missed.
+S: Germany
+W: https://lwn.net/Articles/789028/
 
 N: Marcel Selhorst
 E: tpmdd@selhorst.net
@@ -3752,14 +3790,13 @@ S: 21513 Conradia Ct
 S: Cupertino, CA 95014
 S: USA
 
-N: Thibaut Varene
-E: T-Bone@parisc-linux.org
-W: http://www.parisc-linux.org/~varenet/
-P: 1024D/B7D2F063 E67C 0D43 A75E 12A5 BB1C  FA2F 1E32 C3DA B7D2 F063
+N: Thibaut Varène
+E: hacks+kernel@slashdirt.org
+W: http://hacks.slashdirt.org/
 D: PA-RISC port minion, PDC and GSCPS2 drivers, debuglocks and other bits
 D: Some ARM at91rm9200 bits, S1D13XXX FB driver, random patches here and there
 D: AD1889 sound driver
-S: Paris, France
+S: France
 
 N: Heikki Vatiainen
 E: hessu@cs.tut.fi
@@ -4096,6 +4133,10 @@ D: XFree86 and kernel development
 S: 1507 145th Place SE #B5
 S: Bellevue, Washington 98007
 S: USA
+
+N: Haojian Zhuang
+E: haojian.zhuang@gmail.com
+D: MMP support
 
 N: Richard Zidlicky
 E: rz@linux-m68k.org, rdzidlic@geocities.com

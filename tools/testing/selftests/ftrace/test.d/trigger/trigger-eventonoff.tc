@@ -3,14 +3,7 @@
 # description: event trigger - test event enable/disable trigger
 # flags: instance
 
-do_reset() {
-    reset_trigger
-    echo > set_event
-    clear_trace
-}
-
 fail() { #msg
-    do_reset
     echo $1
     exit_fail
 }
@@ -24,9 +17,6 @@ if [ ! -f events/sched/sched_process_fork/trigger ]; then
     echo "event trigger is not supported"
     exit_unsupported
 fi
-
-reset_tracer
-do_reset
 
 FEATURE=`grep enable_event events/sched/sched_process_fork/trigger`
 if [ -z "$FEATURE" ]; then
@@ -60,7 +50,5 @@ echo "Test semantic error for event enable/disable trigger"
 echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
 ! echo 'enable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
 ! echo 'disable_event:sched:sched_switch' > events/sched/sched_process_fork/trigger
-
-do_reset
 
 exit 0

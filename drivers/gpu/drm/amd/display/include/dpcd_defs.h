@@ -27,6 +27,9 @@
 #define __DAL_DPCD_DEFS_H__
 
 #include <drm/drm_dp_helper.h>
+#ifndef DP_SINK_HW_REVISION_START // can remove this once the define gets into linux drm_dp_helper.h
+#define DP_SINK_HW_REVISION_START 0x409
+#endif
 
 enum dpcd_revision {
 	DPCD_REV_10 = 0x10,
@@ -40,7 +43,7 @@ enum dpcd_revision {
 enum dpcd_downstream_port_type {
 	DOWNSTREAM_DP = 0,
 	DOWNSTREAM_VGA,
-	DOWNSTREAM_DVI_HDMI,
+	DOWNSTREAM_DVI_HDMI_DP_PLUS_PLUS,/* DVI, HDMI, DP++ */
 	DOWNSTREAM_NONDDC /* has no EDID (TV,CV) */
 };
 

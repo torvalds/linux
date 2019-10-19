@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hyper-V transport for vsock
  *
@@ -6,16 +7,6 @@
  * support in the VM by introducing the new vsock transport.
  *
  * Copyright (c) 2017, Microsoft Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 #include <linux/module.h>
 #include <linux/vmalloc.h>
@@ -23,17 +14,20 @@
 #include <net/sock.h>
 #include <net/af_vsock.h>
 
-/* The host side's design of the feature requires 6 exact 4KB pages for
- * recv/send rings respectively -- this is suboptimal considering memory
- * consumption, however unluckily we have to live with it, before the
- * host comes up with a better design in the future.
+/* Older (VMBUS version 'VERSION_WIN10' or before) Windows hosts have some
+ * stricter requirements on the hv_sock ring buffer size of six 4K pages. Newer
+ * hosts don't have this limitation; but, keep the defaults the same for compat.
  */
 #define PAGE_SIZE_4K		4096
 #define RINGBUFFER_HVS_RCV_SIZE (PAGE_SIZE_4K * 6)
 #define RINGBUFFER_HVS_SND_SIZE (PAGE_SIZE_4K * 6)
+#define RINGBUFFER_HVS_MAX_SIZE (PAGE_SIZE_4K * 64)
 
 /* The MTU is 16KB per the host side's design */
 #define HVS_MTU_SIZE		(1024 * 16)
+
+/* How long to wait for graceful shutdown of a connection */
+#define HVS_CLOSE_TIMEOUT (8 * HZ)
 
 struct vmpipe_proto_header {
 	u32 pkt_type;
@@ -52,8 +46,9 @@ struct hvs_recv_buf {
 };
 
 /* We can send up to HVS_MTU_SIZE bytes of payload to the host, but let's use
- * a small size, i.e. HVS_SEND_BUF_SIZE, to minimize the dynamically-allocated
- * buffer, because tests show there is no significant performance difference.
+ * a smaller size, i.e. HVS_SEND_BUF_SIZE, to maximize concurrency between the
+ * guest and the host processing as one VMBUS packet is the smallest processing
+ * unit.
  *
  * Note: the buffer can be eliminated in the future when we add new VMBus
  * ringbuffer APIs that allow us to directly copy data from userspace buffer
@@ -82,11 +77,11 @@ struct hvs_send_buf {
 					 VMBUS_PKT_TRAILER_SIZE)
 
 union hvs_service_id {
-	uuid_le	srv_id;
+	guid_t	srv_id;
 
 	struct {
 		unsigned int svm_port;
-		unsigned char b[sizeof(uuid_le) - sizeof(unsigned int)];
+		unsigned char b[sizeof(guid_t) - sizeof(unsigned int)];
 	};
 };
 
@@ -94,8 +89,8 @@ union hvs_service_id {
 struct hvsock {
 	struct vsock_sock *vsk;
 
-	uuid_le vm_srv_id;
-	uuid_le host_srv_id;
+	guid_t vm_srv_id;
+	guid_t host_srv_id;
 
 	struct vmbus_channel *chan;
 	struct vmpacket_descriptor *recv_desc;
@@ -164,21 +159,21 @@ struct hvsock {
 #define MIN_HOST_EPHEMERAL_PORT		(MAX_HOST_LISTEN_PORT + 1)
 
 /* 00000000-facb-11e6-bd58-64006a7986d3 */
-static const uuid_le srv_id_template =
-	UUID_LE(0x00000000, 0xfacb, 0x11e6, 0xbd, 0x58,
-		0x64, 0x00, 0x6a, 0x79, 0x86, 0xd3);
+static const guid_t srv_id_template =
+	GUID_INIT(0x00000000, 0xfacb, 0x11e6, 0xbd, 0x58,
+		  0x64, 0x00, 0x6a, 0x79, 0x86, 0xd3);
 
-static bool is_valid_srv_id(const uuid_le *id)
+static bool is_valid_srv_id(const guid_t *id)
 {
-	return !memcmp(&id->b[4], &srv_id_template.b[4], sizeof(uuid_le) - 4);
+	return !memcmp(&id->b[4], &srv_id_template.b[4], sizeof(guid_t) - 4);
 }
 
-static unsigned int get_port_by_srv_id(const uuid_le *svr_id)
+static unsigned int get_port_by_srv_id(const guid_t *svr_id)
 {
 	return *((unsigned int *)svr_id);
 }
 
-static void hvs_addr_init(struct sockaddr_vm *addr, const uuid_le *svr_id)
+static void hvs_addr_init(struct sockaddr_vm *addr, const guid_t *svr_id)
 {
 	unsigned int port = get_port_by_srv_id(svr_id);
 
@@ -217,18 +212,6 @@ static void hvs_set_channel_pending_send_size(struct vmbus_channel *chan)
 	set_channel_pending_send_size(chan,
 				      HVS_PKT_LEN(HVS_SEND_BUF_SIZE));
 
-	/* See hvs_stream_has_space(): we must make sure the host has seen
-	 * the new pending send size, before we can re-check the writable
-	 * bytes.
-	 */
-	virt_mb();
-}
-
-static void hvs_clear_channel_pending_send_size(struct vmbus_channel *chan)
-{
-	set_channel_pending_send_size(chan, 0);
-
-	/* Ditto */
 	virt_mb();
 }
 
@@ -298,39 +281,57 @@ static void hvs_channel_cb(void *ctx)
 	if (hvs_channel_readable(chan))
 		sk->sk_data_ready(sk);
 
-	/* See hvs_stream_has_space(): when we reach here, the writable bytes
-	 * may be already less than HVS_PKT_LEN(HVS_SEND_BUF_SIZE).
-	 */
 	if (hv_get_bytes_to_write(&chan->outbound) > 0)
 		sk->sk_write_space(sk);
+}
+
+static void hvs_do_close_lock_held(struct vsock_sock *vsk,
+				   bool cancel_timeout)
+{
+	struct sock *sk = sk_vsock(vsk);
+
+	sock_set_flag(sk, SOCK_DONE);
+	vsk->peer_shutdown = SHUTDOWN_MASK;
+	if (vsock_stream_has_data(vsk) <= 0)
+		sk->sk_state = TCP_CLOSING;
+	sk->sk_state_change(sk);
+	if (vsk->close_work_scheduled &&
+	    (!cancel_timeout || cancel_delayed_work(&vsk->close_work))) {
+		vsk->close_work_scheduled = false;
+		vsock_remove_sock(vsk);
+
+		/* Release the reference taken while scheduling the timeout */
+		sock_put(sk);
+	}
 }
 
 static void hvs_close_connection(struct vmbus_channel *chan)
 {
 	struct sock *sk = get_per_channel_state(chan);
-	struct vsock_sock *vsk = vsock_sk(sk);
 
 	lock_sock(sk);
-
-	sk->sk_state = TCP_CLOSE;
-	sock_set_flag(sk, SOCK_DONE);
-	vsk->peer_shutdown |= SEND_SHUTDOWN | RCV_SHUTDOWN;
-
-	sk->sk_state_change(sk);
-
+	hvs_do_close_lock_held(vsock_sk(sk), true);
 	release_sock(sk);
+
+	/* Release the refcnt for the channel that's opened in
+	 * hvs_open_connection().
+	 */
+	sock_put(sk);
 }
 
 static void hvs_open_connection(struct vmbus_channel *chan)
 {
-	uuid_le *if_instance, *if_type;
+	guid_t *if_instance, *if_type;
 	unsigned char conn_from_host;
 
 	struct sockaddr_vm addr;
 	struct sock *sk, *new = NULL;
-	struct vsock_sock *vnew;
-	struct hvsock *hvs, *hvs_new;
+	struct vsock_sock *vnew = NULL;
+	struct hvsock *hvs = NULL;
+	struct hvsock *hvs_new = NULL;
+	int rcvbuf;
 	int ret;
+	int sndbuf;
 
 	if_type = &chan->offermsg.offer.if_type;
 	if_instance = &chan->offermsg.offer.if_instance;
@@ -372,9 +373,34 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	}
 
 	set_channel_read_mode(chan, HV_CALL_DIRECT);
-	ret = vmbus_open(chan, RINGBUFFER_HVS_SND_SIZE,
-			 RINGBUFFER_HVS_RCV_SIZE, NULL, 0,
-			 hvs_channel_cb, conn_from_host ? new : sk);
+
+	/* Use the socket buffer sizes as hints for the VMBUS ring size. For
+	 * server side sockets, 'sk' is the parent socket and thus, this will
+	 * allow the child sockets to inherit the size from the parent. Keep
+	 * the mins to the default value and align to page size as per VMBUS
+	 * requirements.
+	 * For the max, the socket core library will limit the socket buffer
+	 * size that can be set by the user, but, since currently, the hv_sock
+	 * VMBUS ring buffer is physically contiguous allocation, restrict it
+	 * further.
+	 * Older versions of hv_sock host side code cannot handle bigger VMBUS
+	 * ring buffer size. Use the version number to limit the change to newer
+	 * versions.
+	 */
+	if (vmbus_proto_version < VERSION_WIN10_V5) {
+		sndbuf = RINGBUFFER_HVS_SND_SIZE;
+		rcvbuf = RINGBUFFER_HVS_RCV_SIZE;
+	} else {
+		sndbuf = max_t(int, sk->sk_sndbuf, RINGBUFFER_HVS_SND_SIZE);
+		sndbuf = min_t(int, sndbuf, RINGBUFFER_HVS_MAX_SIZE);
+		sndbuf = ALIGN(sndbuf, PAGE_SIZE);
+		rcvbuf = max_t(int, sk->sk_rcvbuf, RINGBUFFER_HVS_RCV_SIZE);
+		rcvbuf = min_t(int, rcvbuf, RINGBUFFER_HVS_MAX_SIZE);
+		rcvbuf = ALIGN(rcvbuf, PAGE_SIZE);
+	}
+
+	ret = vmbus_open(chan, sndbuf, rcvbuf, NULL, 0, hvs_channel_cb,
+			 conn_from_host ? new : sk);
 	if (ret != 0) {
 		if (conn_from_host) {
 			hvs_new->chan = NULL;
@@ -386,7 +412,17 @@ static void hvs_open_connection(struct vmbus_channel *chan)
 	}
 
 	set_per_channel_state(chan, conn_from_host ? new : sk);
+
+	/* This reference will be dropped by hvs_close_connection(). */
+	sock_hold(conn_from_host ? new : sk);
 	vmbus_set_chn_rescind_callback(chan, hvs_close_connection);
+
+	/* Set the pending send size to max packet size to always get
+	 * notifications from the host when there is enough writable space.
+	 * The host is optimized to send notifications only when the pending
+	 * size boundary is crossed, and not always.
+	 */
+	hvs_set_channel_pending_send_size(chan);
 
 	if (conn_from_host) {
 		new->sk_state = TCP_ESTABLISHED;
@@ -425,6 +461,7 @@ static u32 hvs_get_local_cid(void)
 static int hvs_sock_init(struct vsock_sock *vsk, struct vsock_sock *psk)
 {
 	struct hvsock *hvs;
+	struct sock *sk = sk_vsock(vsk);
 
 	hvs = kzalloc(sizeof(*hvs), GFP_KERNEL);
 	if (!hvs)
@@ -432,7 +469,8 @@ static int hvs_sock_init(struct vsock_sock *vsk, struct vsock_sock *psk)
 
 	vsk->trans = hvs;
 	hvs->vsk = vsk;
-
+	sk->sk_sndbuf = RINGBUFFER_HVS_SND_SIZE;
+	sk->sk_rcvbuf = RINGBUFFER_HVS_RCV_SIZE;
 	return 0;
 }
 
@@ -452,50 +490,80 @@ static int hvs_connect(struct vsock_sock *vsk)
 	return vmbus_send_tl_connect_request(&h->vm_srv_id, &h->host_srv_id);
 }
 
+static void hvs_shutdown_lock_held(struct hvsock *hvs, int mode)
+{
+	struct vmpipe_proto_header hdr;
+
+	if (hvs->fin_sent || !hvs->chan)
+		return;
+
+	/* It can't fail: see hvs_channel_writable_bytes(). */
+	(void)hvs_send_data(hvs->chan, (struct hvs_send_buf *)&hdr, 0);
+	hvs->fin_sent = true;
+}
+
 static int hvs_shutdown(struct vsock_sock *vsk, int mode)
 {
 	struct sock *sk = sk_vsock(vsk);
-	struct vmpipe_proto_header hdr;
-	struct hvs_send_buf *send_buf;
-	struct hvsock *hvs;
 
 	if (!(mode & SEND_SHUTDOWN))
 		return 0;
 
 	lock_sock(sk);
-
-	hvs = vsk->trans;
-	if (hvs->fin_sent)
-		goto out;
-
-	send_buf = (struct hvs_send_buf *)&hdr;
-
-	/* It can't fail: see hvs_channel_writable_bytes(). */
-	(void)hvs_send_data(hvs->chan, send_buf, 0);
-
-	hvs->fin_sent = true;
-out:
+	hvs_shutdown_lock_held(vsk->trans, mode);
 	release_sock(sk);
 	return 0;
+}
+
+static void hvs_close_timeout(struct work_struct *work)
+{
+	struct vsock_sock *vsk =
+		container_of(work, struct vsock_sock, close_work.work);
+	struct sock *sk = sk_vsock(vsk);
+
+	sock_hold(sk);
+	lock_sock(sk);
+	if (!sock_flag(sk, SOCK_DONE))
+		hvs_do_close_lock_held(vsk, false);
+
+	vsk->close_work_scheduled = false;
+	release_sock(sk);
+	sock_put(sk);
+}
+
+/* Returns true, if it is safe to remove socket; false otherwise */
+static bool hvs_close_lock_held(struct vsock_sock *vsk)
+{
+	struct sock *sk = sk_vsock(vsk);
+
+	if (!(sk->sk_state == TCP_ESTABLISHED ||
+	      sk->sk_state == TCP_CLOSING))
+		return true;
+
+	if ((sk->sk_shutdown & SHUTDOWN_MASK) != SHUTDOWN_MASK)
+		hvs_shutdown_lock_held(vsk->trans, SHUTDOWN_MASK);
+
+	if (sock_flag(sk, SOCK_DONE))
+		return true;
+
+	/* This reference will be dropped by the delayed close routine */
+	sock_hold(sk);
+	INIT_DELAYED_WORK(&vsk->close_work, hvs_close_timeout);
+	vsk->close_work_scheduled = true;
+	schedule_delayed_work(&vsk->close_work, HVS_CLOSE_TIMEOUT);
+	return false;
 }
 
 static void hvs_release(struct vsock_sock *vsk)
 {
 	struct sock *sk = sk_vsock(vsk);
-	struct hvsock *hvs = vsk->trans;
-	struct vmbus_channel *chan;
+	bool remove_sock;
 
-	lock_sock(sk);
-
-	sk->sk_state = TCP_CLOSING;
-	vsock_remove_sock(vsk);
-
+	lock_sock_nested(sk, SINGLE_DEPTH_NESTING);
+	remove_sock = hvs_close_lock_held(vsk);
 	release_sock(sk);
-
-	chan = hvs->chan;
-	if (chan)
-		hvs_shutdown(vsk, RCV_SHUTDOWN | SEND_SHUTDOWN);
-
+	if (remove_sock)
+		vsock_remove_sock(vsk);
 }
 
 static void hvs_destruct(struct vsock_sock *vsk)
@@ -598,7 +666,9 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 	struct hvsock *hvs = vsk->trans;
 	struct vmbus_channel *chan = hvs->chan;
 	struct hvs_send_buf *send_buf;
-	ssize_t to_write, max_writable, ret;
+	ssize_t to_write, max_writable;
+	ssize_t ret = 0;
+	ssize_t bytes_written = 0;
 
 	BUILD_BUG_ON(sizeof(*send_buf) != PAGE_SIZE_4K);
 
@@ -606,20 +676,34 @@ static ssize_t hvs_stream_enqueue(struct vsock_sock *vsk, struct msghdr *msg,
 	if (!send_buf)
 		return -ENOMEM;
 
-	max_writable = hvs_channel_writable_bytes(chan);
-	to_write = min_t(ssize_t, len, max_writable);
-	to_write = min_t(ssize_t, to_write, HVS_SEND_BUF_SIZE);
+	/* Reader(s) could be draining data from the channel as we write.
+	 * Maximize bandwidth, by iterating until the channel is found to be
+	 * full.
+	 */
+	while (len) {
+		max_writable = hvs_channel_writable_bytes(chan);
+		if (!max_writable)
+			break;
+		to_write = min_t(ssize_t, len, max_writable);
+		to_write = min_t(ssize_t, to_write, HVS_SEND_BUF_SIZE);
+		/* memcpy_from_msg is safe for loop as it advances the offsets
+		 * within the message iterator.
+		 */
+		ret = memcpy_from_msg(send_buf->data, msg, to_write);
+		if (ret < 0)
+			goto out;
 
-	ret = memcpy_from_msg(send_buf->data, msg, to_write);
-	if (ret < 0)
-		goto out;
+		ret = hvs_send_data(hvs->chan, send_buf, to_write);
+		if (ret < 0)
+			goto out;
 
-	ret = hvs_send_data(hvs->chan, send_buf, to_write);
-	if (ret < 0)
-		goto out;
-
-	ret = to_write;
+		bytes_written += to_write;
+		len -= to_write;
+	}
 out:
+	/* If any data has been sent, return that */
+	if (bytes_written)
+		ret = bytes_written;
 	kfree(send_buf);
 	return ret;
 }
@@ -651,23 +735,8 @@ static s64 hvs_stream_has_data(struct vsock_sock *vsk)
 static s64 hvs_stream_has_space(struct vsock_sock *vsk)
 {
 	struct hvsock *hvs = vsk->trans;
-	struct vmbus_channel *chan = hvs->chan;
-	s64 ret;
 
-	ret = hvs_channel_writable_bytes(chan);
-	if (ret > 0)  {
-		hvs_clear_channel_pending_send_size(chan);
-	} else {
-		/* See hvs_channel_cb() */
-		hvs_set_channel_pending_send_size(chan);
-
-		/* Re-check the writable bytes to avoid race */
-		ret = hvs_channel_writable_bytes(chan);
-		if (ret > 0)
-			hvs_clear_channel_pending_send_size(chan);
-	}
-
-	return ret;
+	return hvs_channel_writable_bytes(hvs->chan);
 }
 
 static u64 hvs_stream_rcvhiwat(struct vsock_sock *vsk)

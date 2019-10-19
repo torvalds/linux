@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Board setup routines for the Emerson/Artesyn MVME2500
  *
@@ -9,13 +10,7 @@
  *	Tom Armistead (tom.armistead@emerson.com)
  *	Copyright 2012 Emerson
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  * Author Alessio Igor Bogani <alessio.bogani@elettra.eu>
- *
  */
 
 #include <linux/pci.h>

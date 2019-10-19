@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8524.c  --  WM8524 ALSA SoC Audio driver
  *
@@ -5,10 +6,6 @@
  * Copyright 2017 NXP
  *
  * Based on WM8523 ALSA SoC Audio driver written by Mark Brown
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -62,14 +59,14 @@ static const struct {
 static int wm8524_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct wm8524_priv *wm8524 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct wm8524_priv *wm8524 = snd_soc_component_get_drvdata(component);
 
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
 	 */
 	if (!wm8524->sysclk) {
-		dev_err(codec->dev,
+		dev_err(component->dev,
 			"No MCLK configured, call set_sysclk() on init\n");
 		return -EINVAL;
 	}
@@ -86,8 +83,8 @@ static int wm8524_startup(struct snd_pcm_substream *substream,
 static void wm8524_shutdown(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct wm8524_priv *wm8524 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct wm8524_priv *wm8524 = snd_soc_component_get_drvdata(component);
 
 	gpiod_set_value_cansleep(wm8524->mute, 0);
 }
@@ -95,8 +92,8 @@ static void wm8524_shutdown(struct snd_pcm_substream *substream,
 static int wm8524_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8524_priv *wm8524 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct wm8524_priv *wm8524 = snd_soc_component_get_drvdata(component);
 	unsigned int val;
 	int i, j = 0;
 
@@ -118,13 +115,13 @@ static int wm8524_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		case 96000:
 		case 176400:
 		case 192000:
-			dev_dbg(codec->dev, "Supported sample rate: %dHz\n",
+			dev_dbg(component->dev, "Supported sample rate: %dHz\n",
 				val);
 			wm8524->rate_constraint_list[j++] = val;
 			wm8524->rate_constraint.count++;
 			break;
 		default:
-			dev_dbg(codec->dev, "Skipping sample rate: %dHz\n",
+			dev_dbg(component->dev, "Skipping sample rate: %dHz\n",
 				val);
 		}
 	}
@@ -152,7 +149,7 @@ static int wm8524_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 static int wm8524_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
-	struct wm8524_priv *wm8524 = snd_soc_codec_get_drvdata(dai->codec);
+	struct wm8524_priv *wm8524 = snd_soc_component_get_drvdata(dai->component);
 
 	if (wm8524->mute)
 		gpiod_set_value_cansleep(wm8524->mute, mute);
@@ -184,9 +181,9 @@ static struct snd_soc_dai_driver wm8524_dai = {
 	.ops = &wm8524_dai_ops,
 };
 
-static int wm8524_probe(struct snd_soc_codec *codec)
+static int wm8524_probe(struct snd_soc_component *component)
 {
-	struct wm8524_priv *wm8524 = snd_soc_codec_get_drvdata(codec);
+	struct wm8524_priv *wm8524 = snd_soc_component_get_drvdata(component);
 
 	wm8524->rate_constraint.list = &wm8524->rate_constraint_list[0];
 	wm8524->rate_constraint.count =
@@ -195,15 +192,16 @@ static int wm8524_probe(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm8524 = {
-	.probe =	wm8524_probe,
-
-	.component_driver = {
-		.dapm_widgets		= wm8524_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm8524_dapm_widgets),
-		.dapm_routes		= wm8524_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(wm8524_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm8524 = {
+	.probe			= wm8524_probe,
+	.dapm_widgets		= wm8524_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8524_dapm_widgets),
+	.dapm_routes		= wm8524_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(wm8524_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8524_of_match[] = {
@@ -231,23 +229,16 @@ static int wm8524_codec_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret =  snd_soc_register_codec(&pdev->dev,
-			&soc_codec_dev_wm8524, &wm8524_dai, 1);
+	ret = devm_snd_soc_register_component(&pdev->dev,
+			&soc_component_dev_wm8524, &wm8524_dai, 1);
 	if (ret < 0)
-		dev_err(&pdev->dev, "Failed to register codec: %d\n", ret);
+		dev_err(&pdev->dev, "Failed to register component: %d\n", ret);
 
 	return ret;
 }
 
-static int wm8524_codec_remove(struct platform_device *pdev)
-{
-	snd_soc_unregister_codec(&pdev->dev);
-	return 0;
-}
-
 static struct platform_driver wm8524_codec_driver = {
 	.probe		= wm8524_codec_probe,
-	.remove		= wm8524_codec_remove,
 	.driver		= {
 		.name	= "wm8524-codec",
 		.of_match_table = wm8524_of_match,

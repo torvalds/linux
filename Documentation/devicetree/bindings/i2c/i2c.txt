@@ -84,7 +84,7 @@ Binding may contain optional "interrupts" property, describing interrupts
 used by the device. I2C core will assign "irq" interrupt (or the very first
 interrupt if not using interrupt names) as primary interrupt for the slave.
 
-Alternatively, devices supporting SMbus Host Notify, and connected to
+Alternatively, devices supporting SMBus Host Notify, and connected to
 adapters that support this feature, may use "host-notify" property. I2C
 core will create a virtual interrupt for Host Notify and assign it as
 primary interrupt for the slave.

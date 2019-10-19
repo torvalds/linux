@@ -11,16 +11,12 @@
 #ifndef _XTENSA_PCI_H
 #define _XTENSA_PCI_H
 
-#ifdef __KERNEL__
-
 /* Can be used to override the logic in pci_scan_bus for skipping
  * already-configured bus numbers - to be used for buggy BIOSes
  * or architectures with incomplete PCI setup by the loader
  */
 
 #define pcibios_assign_all_busses()	0
-
-extern struct pci_controller* pcibios_alloc_controller(void);
 
 /* Assume some values. (We should revise them, if necessary) */
 
@@ -42,13 +38,10 @@ extern struct pci_controller* pcibios_alloc_controller(void);
  * decisions.
  */
 
-#define PCI_DMA_BUS_IS_PHYS	(1)
-
-/* Tell drivers/pci/proc.c that we have pci_mmap_page_range() */
-#define HAVE_PCI_MMAP		1
-#define arch_can_pci_mmap_io()	1
-
-#endif /* __KERNEL__ */
+/* Tell PCI code what kind of PCI resource mappings we support */
+#define HAVE_PCI_MMAP			1
+#define ARCH_GENERIC_PCI_MMAP_RESOURCE	1
+#define arch_can_pci_mmap_io()		1
 
 /* Generic PCI */
 #include <asm-generic/pci.h>

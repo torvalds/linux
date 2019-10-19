@@ -1,14 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Copyright (C) 2016 National Instruments Corp.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #ifndef __PHY_LED_TRIGGERS
 #define __PHY_LED_TRIGGERS
@@ -20,7 +11,7 @@ struct phy_device;
 #include <linux/leds.h>
 #include <linux/phy.h>
 
-#define PHY_LED_TRIGGER_SPEED_SUFFIX_SIZE	10
+#define PHY_LED_TRIGGER_SPEED_SUFFIX_SIZE	11
 
 #define PHY_LINK_LED_TRIGGER_NAME_SIZE (MII_BUS_ID_SIZE + \
 				       FIELD_SIZEOF(struct mdio_device, addr)+\

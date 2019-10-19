@@ -53,7 +53,7 @@
 	vref-supply = <&reg_aldo3>;
 	status = "okay";
 
-	button@1000 {
+	button-1000 {
 		label = "Home";
 		linux,code = <KEY_HOMEPAGE>;
 		channel = <0>;

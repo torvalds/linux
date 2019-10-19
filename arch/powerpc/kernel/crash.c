@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Architecture specific (PPC64) functions for kexec based crash dumps.
  *
  * Copyright (C) 2005, IBM Corp.
  *
  * Created by: Haren Myneni
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -23,7 +20,6 @@
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/kexec.h>
-#include <asm/kdump.h>
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/setjmp.h>
@@ -238,7 +234,7 @@ static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 		if (i == cpu)
 			continue;
 
-		while (paca[i].kexec_state < KEXEC_STATE_REAL_MODE) {
+		while (paca_ptrs[i]->kexec_state < KEXEC_STATE_REAL_MODE) {
 			barrier();
 			if (!cpu_possible(i) || !cpu_online(i) || (msecs <= 0))
 				break;

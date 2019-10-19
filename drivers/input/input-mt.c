@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Input Multitouch Library
  *
  * Copyright (c) 2008-2010 Henrik Rydberg
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/input/mt.h>
@@ -49,7 +46,7 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 	if (mt)
 		return mt->num_slots != num_slots ? -EINVAL : 0;
 
-	mt = kzalloc(sizeof(*mt) + num_slots * sizeof(*mt->slots), GFP_KERNEL);
+	mt = kzalloc(struct_size(mt, slots, num_slots), GFP_KERNEL);
 	if (!mt)
 		goto err_mem;
 
@@ -131,8 +128,10 @@ EXPORT_SYMBOL(input_mt_destroy_slots);
  * inactive, or if the tool type is changed, a new tracking id is
  * assigned to the slot. The tool type is only reported if the
  * corresponding absbit field is set.
+ *
+ * Returns true if contact is active.
  */
-void input_mt_report_slot_state(struct input_dev *dev,
+bool input_mt_report_slot_state(struct input_dev *dev,
 				unsigned int tool_type, bool active)
 {
 	struct input_mt *mt = dev->mt;
@@ -140,22 +139,24 @@ void input_mt_report_slot_state(struct input_dev *dev,
 	int id;
 
 	if (!mt)
-		return;
+		return false;
 
 	slot = &mt->slots[mt->slot];
 	slot->frame = mt->frame;
 
 	if (!active) {
 		input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, -1);
-		return;
+		return false;
 	}
 
 	id = input_mt_get_value(slot, ABS_MT_TRACKING_ID);
-	if (id < 0 || input_mt_get_value(slot, ABS_MT_TOOL_TYPE) != tool_type)
+	if (id < 0)
 		id = input_mt_new_trkid(mt);
 
 	input_event(dev, EV_ABS, ABS_MT_TRACKING_ID, id);
 	input_event(dev, EV_ABS, ABS_MT_TOOL_TYPE, tool_type);
+
+	return true;
 }
 EXPORT_SYMBOL(input_mt_report_slot_state);
 

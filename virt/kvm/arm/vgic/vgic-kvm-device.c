@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * VGIC: KVM DEVICE API
  *
  * Copyright (C) 2015 ARM Ltd.
  * Author: Marc Zyngier <marc.zyngier@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 #include <linux/kvm_host.h>
 #include <kvm/arm_vgic.h>
@@ -25,7 +17,7 @@
 int vgic_check_ioaddr(struct kvm *kvm, phys_addr_t *ioaddr,
 		      phys_addr_t addr, phys_addr_t alignment)
 {
-	if (addr & ~KVM_PHYS_MASK)
+	if (addr & ~kvm_phys_mask(kvm))
 		return -E2BIG;
 
 	if (!IS_ALIGNED(addr, alignment))
@@ -66,6 +58,7 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 	int r = 0;
 	struct vgic_dist *vgic = &kvm->arch.vgic;
 	phys_addr_t *addr_ptr, alignment;
+	u64 undef_value = VGIC_ADDR_UNDEF;
 
 	mutex_lock(&kvm->lock);
 	switch (type) {
@@ -84,16 +77,61 @@ int kvm_vgic_addr(struct kvm *kvm, unsigned long type, u64 *addr, bool write)
 		addr_ptr = &vgic->vgic_dist_base;
 		alignment = SZ_64K;
 		break;
-	case KVM_VGIC_V3_ADDR_TYPE_REDIST:
+	case KVM_VGIC_V3_ADDR_TYPE_REDIST: {
+		struct vgic_redist_region *rdreg;
+
 		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V3);
 		if (r)
 			break;
 		if (write) {
-			r = vgic_v3_set_redist_base(kvm, *addr);
+			r = vgic_v3_set_redist_base(kvm, 0, *addr, 0);
 			goto out;
 		}
-		addr_ptr = &vgic->vgic_redist_base;
+		rdreg = list_first_entry(&vgic->rd_regions,
+					 struct vgic_redist_region, list);
+		if (!rdreg)
+			addr_ptr = &undef_value;
+		else
+			addr_ptr = &rdreg->base;
 		break;
+	}
+	case KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION:
+	{
+		struct vgic_redist_region *rdreg;
+		u8 index;
+
+		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V3);
+		if (r)
+			break;
+
+		index = *addr & KVM_VGIC_V3_RDIST_INDEX_MASK;
+
+		if (write) {
+			gpa_t base = *addr & KVM_VGIC_V3_RDIST_BASE_MASK;
+			u32 count = (*addr & KVM_VGIC_V3_RDIST_COUNT_MASK)
+					>> KVM_VGIC_V3_RDIST_COUNT_SHIFT;
+			u8 flags = (*addr & KVM_VGIC_V3_RDIST_FLAGS_MASK)
+					>> KVM_VGIC_V3_RDIST_FLAGS_SHIFT;
+
+			if (!count || flags)
+				r = -EINVAL;
+			else
+				r = vgic_v3_set_redist_base(kvm, index,
+							    base, count);
+			goto out;
+		}
+
+		rdreg = vgic_v3_rdist_region_from_index(kvm, index);
+		if (!rdreg) {
+			r = -ENOENT;
+			goto out;
+		}
+
+		*addr = index;
+		*addr |= rdreg->base;
+		*addr |= (u64)rdreg->count << KVM_VGIC_V3_RDIST_COUNT_SHIFT;
+		goto out;
+	}
 	default:
 		r = -ENODEV;
 	}
@@ -665,6 +703,7 @@ static int vgic_v3_has_attr(struct kvm_device *dev,
 		switch (attr->attr) {
 		case KVM_VGIC_V3_ADDR_TYPE_DIST:
 		case KVM_VGIC_V3_ADDR_TYPE_REDIST:
+		case KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION:
 			return 0;
 		}
 		break;

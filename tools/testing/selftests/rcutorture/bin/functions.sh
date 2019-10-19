@@ -1,24 +1,11 @@
 #!/bin/bash
+# SPDX-License-Identifier: GPL-2.0+
 #
 # Shell functions for the rest of the scripts.
 #
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation; either version 2 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program; if not, you can access it online at
-# http://www.gnu.org/licenses/gpl-2.0.html.
-#
 # Copyright (C) IBM Corporation, 2013
 #
-# Authors: Paul E. McKenney <paulmck@linux.vnet.ibm.com>
+# Authors: Paul E. McKenney <paulmck@linux.ibm.com>
 
 # bootparam_hotplug_cpu bootparam-string
 #
@@ -136,6 +123,9 @@ identify_boot_image () {
 		qemu-system-x86_64|qemu-system-i386)
 			echo arch/x86/boot/bzImage
 			;;
+		qemu-system-aarch64)
+			echo arch/arm64/boot/Image
+			;;
 		*)
 			echo vmlinux
 			;;
@@ -158,6 +148,9 @@ identify_qemu () {
 	elif echo $u | grep -q "Intel 80386"
 	then
 		echo qemu-system-i386
+	elif echo $u | grep -q aarch64
+	then
+		echo qemu-system-aarch64
 	elif uname -a | grep -q ppc64
 	then
 		echo qemu-system-ppc64
@@ -176,16 +169,20 @@ identify_qemu () {
 # Output arguments for the qemu "-append" string based on CPU type
 # and the TORTURE_QEMU_INTERACTIVE environment variable.
 identify_qemu_append () {
+	local console=ttyS0
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
-		echo noapic selinux=0 initcall_debug debug
+		echo selinux=0 initcall_debug debug
+		;;
+	qemu-system-aarch64)
+		console=ttyAMA0
 		;;
 	esac
 	if test -n "$TORTURE_QEMU_INTERACTIVE"
 	then
 		echo root=/dev/sda
 	else
-		echo console=ttyS0
+		echo console=$console
 	fi
 }
 
@@ -194,8 +191,22 @@ identify_qemu_append () {
 # Output arguments for qemu arguments based on the TORTURE_QEMU_MAC
 # and TORTURE_QEMU_INTERACTIVE environment variables.
 identify_qemu_args () {
+	local KVM_CPU=""
+	case "$1" in
+	qemu-system-x86_64)
+		KVM_CPU=kvm64
+		;;
+	qemu-system-i386)
+		KVM_CPU=kvm32
+		;;
+	esac
 	case "$1" in
 	qemu-system-x86_64|qemu-system-i386)
+		echo -machine q35,accel=kvm
+		echo -cpu ${KVM_CPU}
+		;;
+	qemu-system-aarch64)
+		echo -machine virt,gic-version=host -cpu host
 		;;
 	qemu-system-ppc64)
 		echo -enable-kvm -M pseries -nodefaults
@@ -254,7 +265,7 @@ specify_qemu_cpus () {
 		echo $2
 	else
 		case "$1" in
-		qemu-system-x86_64|qemu-system-i386)
+		qemu-system-x86_64|qemu-system-i386|qemu-system-aarch64)
 			echo $2 -smp $3
 			;;
 		qemu-system-ppc64)

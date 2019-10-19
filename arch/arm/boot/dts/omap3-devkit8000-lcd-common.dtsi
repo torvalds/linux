@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Author: Anthoine Bourgeois <anthoine.bourgois@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "omap3-devkit8000-common.dtsi"
@@ -30,7 +27,10 @@
 
 &dss {
 	port {
-		dpi_lcd_out: endpoint {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dpi_lcd_out: endpoint@1 {
+			reg = <1>;
 			remote-endpoint = <&lcd_in>;
 			data-lines = <24>;
 		};

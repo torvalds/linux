@@ -3,16 +3,29 @@
 # Makefile for ppc-specific library files..
 #
 
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
-
 ccflags-$(CONFIG_PPC64)	:= $(NO_MINIMAL_TOC)
 
 CFLAGS_REMOVE_code-patching.o = $(CC_FLAGS_FTRACE)
 CFLAGS_REMOVE_feature-fixups.o = $(CC_FLAGS_FTRACE)
 
-obj-y += string.o alloc.o code-patching.o feature-fixups.o
+KASAN_SANITIZE_code-patching.o := n
+KASAN_SANITIZE_feature-fixups.o := n
+
+ifdef CONFIG_KASAN
+CFLAGS_code-patching.o += -DDISABLE_BRANCH_PROFILING
+CFLAGS_feature-fixups.o += -DDISABLE_BRANCH_PROFILING
+endif
+
+obj-y += alloc.o code-patching.o feature-fixups.o pmem.o
+
+ifndef CONFIG_KASAN
+obj-y	+=	string.o memcmp_$(BITS).o
+obj-$(CONFIG_PPC32)	+= strlen_32.o
+endif
 
 obj-$(CONFIG_PPC32)	+= div64.o copy_32.o crtsavres.o
+
+obj-$(CONFIG_FUNCTION_ERROR_INJECTION)	+= error-inject.o
 
 # See corresponding test in arch/powerpc/Makefile
 # 64-bit linker creates .sfpr on demand for final link (vmlinux),
@@ -22,17 +35,22 @@ ifeq ($(call ld-ifversion, -lt, 225000000, y),y)
 extra-$(CONFIG_PPC64)	+= crtsavres.o
 endif
 
+obj-$(CONFIG_PPC_BOOK3S_64) += copyuser_power7.o copypage_power7.o \
+			       memcpy_power7.o
+
 obj64-y	+= copypage_64.o copyuser_64.o mem_64.o hweight_64.o \
-	   copyuser_power7.o string_64.o copypage_power7.o memcpy_power7.o \
-	   memcpy_64.o memcmp_64.o pmem.o
+	   memcpy_64.o memcpy_mcsafe_64.o
 
 obj64-$(CONFIG_SMP)	+= locks.o
 obj64-$(CONFIG_ALTIVEC)	+= vmx-helper.o
-obj64-$(CONFIG_KPROBES_SANITY_TEST) += test_emulate_step.o
+obj64-$(CONFIG_KPROBES_SANITY_TEST)	+= test_emulate_step.o \
+					   test_emulate_step_exec_instr.o
 
-obj-y			+= checksum_$(BITS).o checksum_wrappers.o
+obj-y			+= checksum_$(BITS).o checksum_wrappers.o \
+			   string_$(BITS).o
 
-obj-y			+= sstep.o ldstfp.o quad.o
+obj-y			+= sstep.o
+obj-$(CONFIG_PPC_FPU)	+= ldstfp.o
 obj64-y			+= quad.o
 
 obj-$(CONFIG_PPC_LIB_RHEAP) += rheap.o

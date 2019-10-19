@@ -185,7 +185,7 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 			    struct fb_fix_screeninfo *fix)
 {
 	int ret;
-	disp_output_t disp_set;
+	enum disp_output disp_set;
 	int channel;
 
 	ret = 0;
@@ -207,7 +207,7 @@ int hw_sm750_output_setMode(struct lynxfb_output *output,
 			if (output->paths & sm750_crt)
 				disp_set |= do_CRT_SEC;
 		}
-		ddk750_setLogicalDispOut(disp_set);
+		ddk750_set_logical_disp_out(disp_set);
 	} else {
 		/* just open DISPLAY_CONTROL_750LE register bit 3:0 */
 		u32 reg;
@@ -254,7 +254,7 @@ int hw_sm750_crtc_setMode(struct lynxfb_crtc *crtc,
 	int ret, fmt;
 	u32 reg;
 	struct mode_parameter modparm;
-	clock_type_t clock;
+	enum clock_type clock;
 	struct sm750_dev *sm750_dev;
 	struct lynxfb_par *par;
 

@@ -1,11 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
 
 config TRACE_IRQFLAGS_SUPPORT
 	bool
 	default y
-
-source "lib/Kconfig.debug"
 
 config EARLY_PRINTK
 	bool "Early printk" if EXPERT
@@ -155,5 +152,3 @@ config MIPS_CPS_NS16550_SHIFT
 	  adjacent ns16550 registers in the system.
 
 endif # MIPS_CPS_NS16550_BOOL
-
-endmenu

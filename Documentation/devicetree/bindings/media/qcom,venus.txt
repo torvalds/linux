@@ -6,6 +6,7 @@
 	Definition: Value should contain one of:
 		- "qcom,msm8916-venus"
 		- "qcom,msm8996-venus"
+		- "qcom,sdm845-venus"
 - reg:
 	Usage: required
 	Value type: <prop-encoded-array>
@@ -52,7 +53,8 @@
 
 * Subnodes
 The Venus video-codec node must contain two subnodes representing
-video-decoder and video-encoder.
+video-decoder and video-encoder, and one optional firmware subnode.
+Firmware subnode is needed when the platform does not have TrustZone.
 
 Every of video-encoder or video-decoder subnode should have:
 
@@ -77,6 +79,13 @@ Every of video-encoder or video-decoder subnode should have:
 	Definition: A phandle and power domain specifier pairs to the
 		    power domain which is responsible for collapsing
 		    and restoring power to the subcore.
+
+The firmware subnode must have:
+
+- iommus:
+	Usage: required
+	Value type: <prop-encoded-array>
+	Definition: A list of phandle and IOMMU specifier pairs.
 
 * An Example
 	video-codec@1d00000 {
@@ -103,5 +112,9 @@ Every of video-encoder or video-decoder subnode should have:
 			clocks = <&mmcc VIDEO_SUBCORE1_CLK>;
 			clock-names = "core";
 			power-domains = <&mmcc VENUS_CORE1_GDSC>;
+		};
+
+		video-firmware {
+			iommus = <&apps_iommu 0x10b2 0x0>;
 		};
 	};

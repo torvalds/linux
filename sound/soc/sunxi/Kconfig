@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Allwinner SoC Audio support"
 	depends on ARCH_SUNXI || COMPILE_TEST
 
@@ -12,7 +13,7 @@ config SND_SUN4I_CODEC
 config SND_SUN8I_CODEC
 	tristate "Allwinner SUN8I audio codec"
 	depends on OF
-	depends on MACH_SUN8I || COMPILE_TEST
+	depends on MACH_SUN8I || (ARM64 && ARCH_SUNXI) || COMPILE_TEST
 	select REGMAP_MMIO
 	help
 	  This option enables the digital part of the internal audio codec for
@@ -23,10 +24,18 @@ config SND_SUN8I_CODEC
 config SND_SUN8I_CODEC_ANALOG
 	tristate "Allwinner sun8i Codec Analog Controls Support"
 	depends on MACH_SUN8I || (ARM64 && ARCH_SUNXI) || COMPILE_TEST
-	select REGMAP
+	select SND_SUN8I_ADDA_PR_REGMAP
 	help
 	  Say Y or M if you want to add support for the analog controls for
 	  the codec embedded in newer Allwinner SoCs.
+
+config SND_SUN50I_CODEC_ANALOG
+	tristate "Allwinner sun50i Codec Analog Controls Support"
+	depends on (ARM64 && ARCH_SUNXI) || COMPILE_TEST
+	select SND_SUN8I_ADDA_PR_REGMAP
+	help
+	  Say Y or M if you want to add support for the analog controls for
+	  the codec embedded in Allwinner A64 SoC.
 
 config SND_SUN4I_I2S
 	tristate "Allwinner A10 I2S Support"
@@ -45,4 +54,9 @@ config SND_SUN4I_SPDIF
 	help
 	  Say Y or M to add support for the S/PDIF audio block in the Allwinner
 	  A10 and affiliated SoCs.
+
+config SND_SUN8I_ADDA_PR_REGMAP
+	tristate
+	select REGMAP
+
 endmenu

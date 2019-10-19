@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VFIO_IOMMU_TYPE1
 	tristate
 	depends on VFIO
@@ -21,11 +22,10 @@ config VFIO_VIRQFD
 menuconfig VFIO
 	tristate "VFIO Non-Privileged userspace driver framework"
 	depends on IOMMU_API
-	select VFIO_IOMMU_TYPE1 if (X86 || S390 || ARM_SMMU || ARM_SMMU_V3)
-	select ANON_INODES
+	select VFIO_IOMMU_TYPE1 if (X86 || S390 || ARM || ARM64)
 	help
 	  VFIO provides a framework for secure userspace device drivers.
-	  See Documentation/vfio.txt for more details.
+	  See Documentation/driver-api/vfio.rst for more details.
 
 	  If you don't know what to do here, say N.
 

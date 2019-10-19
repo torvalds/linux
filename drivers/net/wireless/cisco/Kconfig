@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config WLAN_VENDOR_CISCO
 	bool "Cisco devices"
 	default y
@@ -5,8 +6,8 @@ config WLAN_VENDOR_CISCO
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about  cards. If you say Y, you will be asked for
+	  kernel: saying N will just cause the configurator to skip all the
+	  questions about these cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
 
 if WLAN_VENDOR_CISCO
@@ -16,6 +17,7 @@ config AIRO
 	depends on CFG80211 && ISA_DMA_API && (PCI || BROKEN)
 	select WIRELESS_EXT
 	select CRYPTO
+	select CRYPTO_BLKCIPHER
 	select WEXT_SPY
 	select WEXT_PRIV
 	---help---
@@ -33,12 +35,13 @@ config AIRO
 
 config AIRO_CS
 	tristate "Cisco/Aironet 34X/35X/4500/4800 PCMCIA cards"
-	depends on CFG80211 && PCMCIA && (BROKEN || !M32R)
+	depends on CFG80211 && PCMCIA
 	select WIRELESS_EXT
 	select WEXT_SPY
 	select WEXT_PRIV
 	select CRYPTO
 	select CRYPTO_AES
+	select CRYPTO_CTR
 	---help---
 	  This is the standard Linux driver to support Cisco/Aironet PCMCIA
 	  802.11 wireless cards.  This driver is the same as the Aironet

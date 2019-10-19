@@ -57,19 +57,11 @@ transition notifiers.
 2.1 CPUFreq policy notifiers
 ----------------------------
 
-These are notified when a new policy is intended to be set. Each
-CPUFreq policy notifier is called twice for a policy transition:
+These are notified when a new policy is created or removed.
 
-1.) During CPUFREQ_ADJUST all CPUFreq notifiers may change the limit if
-    they see a need for this - may it be thermal considerations or
-    hardware limitations.
-
-2.) And during CPUFREQ_NOTIFY all notifiers are informed of the new policy
-   - if two hardware drivers failed to agree on a new policy before this
-   stage, the incompatible hardware shall be shut down, and the user
-   informed of this.
-
-The phase is specified in the second argument to the notifier.
+The phase is specified in the second argument to the notifier.  The phase is
+CPUFREQ_CREATE_POLICY when the policy is first created and it is
+CPUFREQ_REMOVE_POLICY when the policy is removed.
 
 The third argument, a void *pointer, points to a struct cpufreq_policy
 consisting of several values, including min, max (the lower and upper
@@ -95,14 +87,12 @@ flags	- flags of the cpufreq driver
 
 3. CPUFreq Table Generation with Operating Performance Point (OPP)
 ==================================================================
-For details about OPP, see Documentation/power/opp.txt
+For details about OPP, see Documentation/power/opp.rst
 
-dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
-	cpufreq_table_validate_and_show() which is provided with the list of
-	frequencies that are available for operation. This function provides
-	a ready to use conversion routine to translate the OPP layer's internal
-	information about the available frequencies into a format readily
-	providable to cpufreq.
+dev_pm_opp_init_cpufreq_table -
+	This function provides a ready to use conversion routine to translate
+	the OPP layer's internal information about the available frequencies
+	into a format readily providable to cpufreq.
 
 	WARNING: Do not use this function in interrupt context.
 
@@ -112,7 +102,7 @@ dev_pm_opp_init_cpufreq_table - cpufreq framework typically is initialized with
 		/* Do things */
 		r = dev_pm_opp_init_cpufreq_table(dev, &freq_table);
 		if (!r)
-			cpufreq_table_validate_and_show(policy, freq_table);
+			policy->freq_table = freq_table;
 		/* Do other things */
 	 }
 

@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * This file is part of UBIFS.
  *
  * Copyright (C) 2006-2008 Nokia Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc., 51
- * Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
  * Authors: Artem Bityutskiy (Битюцкий Артём)
  *          Adrian Hunter
@@ -71,10 +59,10 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 {
 	int total_freed = 0;
 	struct ubifs_znode *znode, *zprev;
-	int time = get_seconds();
+	time64_t time = ktime_get_seconds();
 
-	ubifs_assert(mutex_is_locked(&c->umount_mutex));
-	ubifs_assert(mutex_is_locked(&c->tnc_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->umount_mutex));
+	ubifs_assert(c, mutex_is_locked(&c->tnc_mutex));
 
 	if (!c->zroot.znode || atomic_long_read(&c->clean_zn_cnt) == 0)
 		return 0;
@@ -89,7 +77,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 	 * changed only when the 'c->tnc_mutex' is held.
 	 */
 	zprev = NULL;
-	znode = ubifs_tnc_levelorder_next(c->zroot.znode, NULL);
+	znode = ubifs_tnc_levelorder_next(c, c->zroot.znode, NULL);
 	while (znode && total_freed < nr &&
 	       atomic_long_read(&c->clean_zn_cnt) > 0) {
 		int freed;
@@ -125,7 +113,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 			else
 				c->zroot.znode = NULL;
 
-			freed = ubifs_destroy_tnc_subtree(znode);
+			freed = ubifs_destroy_tnc_subtree(c, znode);
 			atomic_long_sub(freed, &ubifs_clean_zn_cnt);
 			atomic_long_sub(freed, &c->clean_zn_cnt);
 			total_freed += freed;
@@ -136,7 +124,7 @@ static int shrink_tnc(struct ubifs_info *c, int nr, int age, int *contention)
 			break;
 
 		zprev = znode;
-		znode = ubifs_tnc_levelorder_next(c->zroot.znode, znode);
+		znode = ubifs_tnc_levelorder_next(c, c->zroot.znode, znode);
 		cond_resched();
 	}
 

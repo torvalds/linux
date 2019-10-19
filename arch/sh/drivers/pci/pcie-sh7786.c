@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Low-Level PCI Express Support for the SH7786
  *
  *  Copyright (C) 2009 - 2011  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #define pr_fmt(fmt) "PCI: " fmt
 
@@ -19,8 +16,9 @@
 #include <linux/clk.h>
 #include <linux/sh_clk.h>
 #include <linux/sh_intc.h>
+#include <cpu/sh7786.h>
 #include "pcie-sh7786.h"
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 
 struct sh7786_pcie_port {
 	struct pci_channel	*hose;
@@ -32,6 +30,7 @@ struct sh7786_pcie_port {
 
 static struct sh7786_pcie_port *sh7786_pcie_ports;
 static unsigned int nr_ports;
+static unsigned long dma_pfn_offset;
 
 static struct sh7786_pcie_hwops {
 	int (*core_init)(void);
@@ -40,73 +39,73 @@ static struct sh7786_pcie_hwops {
 
 static struct resource sh7786_pci0_resources[] = {
 	{
-		.name	= "PCIe0 IO",
+		.name	= "PCIe0 MEM 0",
 		.start	= 0xfd000000,
 		.end	= 0xfd000000 + SZ_8M - 1,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe0 MEM 0",
+		.name	= "PCIe0 MEM 1",
 		.start	= 0xc0000000,
 		.end	= 0xc0000000 + SZ_512M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe0 MEM 1",
+		.name	= "PCIe0 MEM 2",
 		.start	= 0x10000000,
 		.end	= 0x10000000 + SZ_64M - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe0 MEM 2",
+		.name	= "PCIe0 IO",
 		.start	= 0xfe100000,
 		.end	= 0xfe100000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	},
 };
 
 static struct resource sh7786_pci1_resources[] = {
 	{
-		.name	= "PCIe1 IO",
+		.name	= "PCIe1 MEM 0",
 		.start	= 0xfd800000,
 		.end	= 0xfd800000 + SZ_8M - 1,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe1 MEM 0",
+		.name	= "PCIe1 MEM 1",
 		.start	= 0xa0000000,
 		.end	= 0xa0000000 + SZ_512M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe1 MEM 1",
+		.name	= "PCIe1 MEM 2",
 		.start	= 0x30000000,
 		.end	= 0x30000000 + SZ_256M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe1 MEM 2",
+		.name	= "PCIe1 IO",
 		.start	= 0xfe300000,
 		.end	= 0xfe300000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	},
 };
 
 static struct resource sh7786_pci2_resources[] = {
 	{
-		.name	= "PCIe2 IO",
+		.name	= "PCIe2 MEM 0",
 		.start	= 0xfc800000,
 		.end	= 0xfc800000 + SZ_4M - 1,
-		.flags	= IORESOURCE_IO,
+		.flags	= IORESOURCE_MEM,
 	}, {
-		.name	= "PCIe2 MEM 0",
+		.name	= "PCIe2 MEM 1",
 		.start	= 0x80000000,
 		.end	= 0x80000000 + SZ_512M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe2 MEM 1",
+		.name	= "PCIe2 MEM 2",
 		.start	= 0x20000000,
 		.end	= 0x20000000 + SZ_256M - 1,
 		.flags	= IORESOURCE_MEM | IORESOURCE_MEM_32BIT,
 	}, {
-		.name	= "PCIe2 MEM 2",
+		.name	= "PCIe2 IO",
 		.start	= 0xfcd00000,
 		.end	= 0xfcd00000 + SZ_1M - 1,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	},
 };
 
@@ -301,7 +300,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 {
 	struct pci_channel *chan = port->hose;
 	unsigned int data;
-	phys_addr_t memphys;
+	phys_addr_t memstart, memend;
 	size_t memsize;
 	int ret, i, win;
 
@@ -357,15 +356,26 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	data |= (0xff << 16);
 	pci_write_reg(chan, data, SH4A_PCIEMACCTLR);
 
-	memphys = __pa(memory_start);
-	memsize = roundup_pow_of_two(memory_end - memory_start);
+	memstart = __pa(memory_start);
+	memend   = __pa(memory_end);
+	memsize = roundup_pow_of_two(memend - memstart);
+
+	/*
+	 * The start address must be aligned on its size. So we round
+	 * it down, and then recalculate the size so that it covers
+	 * the entire memory.
+	 */
+	memstart = ALIGN_DOWN(memstart, memsize);
+	memsize = roundup_pow_of_two(memend - memstart);
+
+	dma_pfn_offset = memstart >> PAGE_SHIFT;
 
 	/*
 	 * If there's more than 512MB of memory, we need to roll over to
 	 * LAR1/LAMR1.
 	 */
 	if (memsize > SZ_512M) {
-		pci_write_reg(chan, memphys + SZ_512M, SH4A_PCIELAR1);
+		pci_write_reg(chan, memstart + SZ_512M, SH4A_PCIELAR1);
 		pci_write_reg(chan, ((memsize - SZ_512M) - SZ_256) | 1,
 			      SH4A_PCIELAMR1);
 		memsize = SZ_512M;
@@ -381,7 +391,7 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 	 * LAR0/LAMR0 covers up to the first 512MB, which is enough to
 	 * cover all of lowmem on most platforms.
 	 */
-	pci_write_reg(chan, memphys, SH4A_PCIELAR0);
+	pci_write_reg(chan, memstart, SH4A_PCIELAR0);
 	pci_write_reg(chan, (memsize - SZ_256) | 1, SH4A_PCIELAMR0);
 
 	/* Finish initialization */
@@ -438,6 +448,9 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 		 * mode, so just skip them entirely.
 		 */
 		if ((res->flags & IORESOURCE_MEM_32BIT) && __in_29bit_mode())
+			res->flags |= IORESOURCE_DISABLED;
+
+		if (res->flags & IORESOURCE_DISABLED)
 			continue;
 
 		pci_write_reg(chan, 0x00000000, SH4A_PCIEPTCTLR(win));
@@ -470,6 +483,11 @@ static int __init pcie_init(struct sh7786_pcie_port *port)
 int pcibios_map_platform_irq(const struct pci_dev *pdev, u8 slot, u8 pin)
 {
         return evt2irq(0xae0);
+}
+
+void pcibios_bus_add_device(struct pci_dev *pdev)
+{
+	pdev->dev.dma_pfn_offset = dma_pfn_offset;
 }
 
 static int __init sh7786_pcie_core_init(void)
@@ -527,6 +545,7 @@ static struct sh7786_pcie_hwops sh7786_65nm_pcie_hwops __initdata = {
 static int __init sh7786_pcie_init(void)
 {
 	struct clk *platclk;
+	u32 mm_sel;
 	int i;
 
 	printk(KERN_NOTICE "PCI: Starting initialization.\n");
@@ -539,7 +558,7 @@ static int __init sh7786_pcie_init(void)
 	if (unlikely(nr_ports == 0))
 		return -ENODEV;
 
-	sh7786_pcie_ports = kzalloc(nr_ports * sizeof(struct sh7786_pcie_port),
+	sh7786_pcie_ports = kcalloc(nr_ports, sizeof(struct sh7786_pcie_port),
 				    GFP_KERNEL);
 	if (unlikely(!sh7786_pcie_ports))
 		return -ENOMEM;
@@ -559,6 +578,16 @@ static int __init sh7786_pcie_init(void)
 	}
 
 	clk_enable(platclk);
+
+	mm_sel = sh7786_mm_sel();
+
+	/*
+	 * Depending on the MMSELR register value, the PCIe0 MEM 1
+	 * area may not be available. See Table 13.11 of the SH7786
+	 * datasheet.
+	 */
+	if (mm_sel != 1 && mm_sel != 2 && mm_sel != 5 && mm_sel != 6)
+		sh7786_pci0_resources[2].flags |= IORESOURCE_DISABLED;
 
 	printk(KERN_NOTICE "PCI: probing %d ports.\n", nr_ports);
 

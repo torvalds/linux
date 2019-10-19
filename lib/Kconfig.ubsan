@@ -1,8 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config ARCH_HAS_UBSAN_SANITIZE_ALL
 	bool
-
-config ARCH_WANTS_UBSAN_NO_NULL
-	def_bool n
 
 config UBSAN
 	bool "Undefined behaviour sanity checker"
@@ -30,19 +28,22 @@ config UBSAN_SANITIZE_ALL
 	  Enabling this option will get kernel image size increased
 	  significantly.
 
-config UBSAN_ALIGNMENT
-	bool "Enable checking of pointers alignment"
+config UBSAN_NO_ALIGNMENT
+	bool "Disable checking of pointers alignment"
 	depends on UBSAN
-	default y if !HAVE_EFFICIENT_UNALIGNED_ACCESS
+	default y if HAVE_EFFICIENT_UNALIGNED_ACCESS
 	help
-	  This option enables detection of unaligned memory accesses.
-	  Enabling this option on architectures that support unaligned
+	  This option disables the check of unaligned memory accesses.
+	  This option should be used when building allmodconfig.
+	  Disabling this option on architectures that support unaligned
 	  accesses may produce a lot of false positives.
 
-config UBSAN_NULL
-	bool "Enable checking of null pointers"
-	depends on UBSAN
-	default y if !ARCH_WANTS_UBSAN_NO_NULL
+config UBSAN_ALIGNMENT
+	def_bool !UBSAN_NO_ALIGNMENT
+
+config TEST_UBSAN
+	tristate "Module for testing for undefined behavior detection"
+	depends on m && UBSAN
 	help
-	  This option enables detection of memory accesses via a
-	  null pointer.
+	  This is a test module for UBSAN.
+	  It triggers various undefined behavior, and detect it.

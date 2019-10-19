@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Allwinner sun4i low res adc attached tablet keys driver
  *
  * Copyright (C) 2014 Hans de Goede <hdegoede@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -46,6 +37,7 @@
 #define CONTINUE_TIME_SEL(x)	((x) << 16) /* 4 bits */
 #define KEY_MODE_SEL(x)		((x) << 12) /* 2 bits */
 #define LEVELA_B_CNT(x)		((x) << 8)  /* 4 bits */
+#define HOLD_KEY_EN(x)		((x) << 7)
 #define HOLD_EN(x)		((x) << 6)
 #define LEVELB_VOL(x)		((x) << 4)  /* 2 bits */
 #define SAMPLE_RATE(x)		((x) << 2)  /* 2 bits */
@@ -63,6 +55,25 @@
 #define	CHAN0_KEYDOWN_IRQ	BIT(1)
 #define CHAN0_DATA_IRQ		BIT(0)
 
+/* struct lradc_variant - Describe sun4i-a10-lradc-keys hardware variant
+ * @divisor_numerator:		The numerator of lradc Vref internally divisor
+ * @divisor_denominator:	The denominator of lradc Vref internally divisor
+ */
+struct lradc_variant {
+	u8 divisor_numerator;
+	u8 divisor_denominator;
+};
+
+static const struct lradc_variant lradc_variant_a10 = {
+	.divisor_numerator = 2,
+	.divisor_denominator = 3
+};
+
+static const struct lradc_variant r_lradc_variant_a83t = {
+	.divisor_numerator = 3,
+	.divisor_denominator = 4
+};
+
 struct sun4i_lradc_keymap {
 	u32 voltage;
 	u32 keycode;
@@ -74,6 +85,7 @@ struct sun4i_lradc_data {
 	void __iomem *base;
 	struct regulator *vref_supply;
 	struct sun4i_lradc_keymap *chan0_map;
+	const struct lradc_variant *variant;
 	u32 chan0_map_count;
 	u32 chan0_keycode;
 	u32 vref;
@@ -128,9 +140,9 @@ static int sun4i_lradc_open(struct input_dev *dev)
 	if (error)
 		return error;
 
-	/* lradc Vref internally is divided by 2/3 */
-	lradc->vref = regulator_get_voltage(lradc->vref_supply) * 2 / 3;
-
+	lradc->vref = regulator_get_voltage(lradc->vref_supply) *
+		      lradc->variant->divisor_numerator /
+		      lradc->variant->divisor_denominator;
 	/*
 	 * Set sample time to 4 ms / 250 Hz. Wait 2 * 4 ms for key to
 	 * stabilize on press, wait (1 + 1) * 4 ms for key release
@@ -185,19 +197,22 @@ static int sun4i_lradc_load_dt_keymap(struct device *dev,
 
 		error = of_property_read_u32(pp, "channel", &channel);
 		if (error || channel != 0) {
-			dev_err(dev, "%s: Inval channel prop\n", pp->name);
+			dev_err(dev, "%pOFn: Inval channel prop\n", pp);
+			of_node_put(pp);
 			return -EINVAL;
 		}
 
 		error = of_property_read_u32(pp, "voltage", &map->voltage);
 		if (error) {
-			dev_err(dev, "%s: Inval voltage prop\n", pp->name);
+			dev_err(dev, "%pOFn: Inval voltage prop\n", pp);
+			of_node_put(pp);
 			return -EINVAL;
 		}
 
 		error = of_property_read_u32(pp, "linux,code", &map->keycode);
 		if (error) {
-			dev_err(dev, "%s: Inval linux,code prop\n", pp->name);
+			dev_err(dev, "%pOFn: Inval linux,code prop\n", pp);
+			of_node_put(pp);
 			return -EINVAL;
 		}
 
@@ -221,6 +236,12 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 	error = sun4i_lradc_load_dt_keymap(dev, lradc);
 	if (error)
 		return error;
+
+	lradc->variant = of_device_get_match_data(&pdev->dev);
+	if (!lradc->variant) {
+		dev_err(&pdev->dev, "Missing sun4i-a10-lradc-keys variant\n");
+		return -EINVAL;
+	}
 
 	lradc->vref_supply = devm_regulator_get(dev, "vref");
 	if (IS_ERR(lradc->vref_supply))
@@ -265,7 +286,10 @@ static int sun4i_lradc_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id sun4i_lradc_of_match[] = {
-	{ .compatible = "allwinner,sun4i-a10-lradc-keys", },
+	{ .compatible = "allwinner,sun4i-a10-lradc-keys",
+		.data = &lradc_variant_a10 },
+	{ .compatible = "allwinner,sun8i-a83t-r-lradc",
+		.data = &r_lradc_variant_a83t },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sun4i_lradc_of_match);

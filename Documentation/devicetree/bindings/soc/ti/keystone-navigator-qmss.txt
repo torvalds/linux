@@ -17,7 +17,8 @@ pool management.
 
 
 Required properties:
-- compatible	: Must be "ti,keystone-navigator-qmss";
+- compatible	: Must be "ti,keystone-navigator-qmss".
+		: Must be "ti,66ak2g-navss-qm" for QMSS on K2G SoC.
 - clocks	: phandle to the reference clock for this device.
 - queue-range	: <start number> total range of queue numbers for the device.
 - linkram0	: <address size> for internal link ram, where size is the total
@@ -39,6 +40,12 @@ Required properties:
 			  - Descriptor memory setup region.
 			  - Queue Management/Queue Proxy region for queue Push.
 			  - Queue Management/Queue Proxy region for queue Pop.
+
+For QMSS on K2G SoC, following QM reg indexes are used in that order
+			  - Queue Peek region.
+			  - Queue configuration region.
+			  - Queue Management/Queue Proxy region for queue Push/Pop.
+
 - queue-pools	: child node classifying the queue ranges into pools.
 		  Queue ranges are grouped into 3 type of pools:
 		  - qpend	    : pool of qpend(interruptible) queues

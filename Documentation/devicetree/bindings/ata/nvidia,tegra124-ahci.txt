@@ -1,9 +1,10 @@
-Tegra124 SoC SATA AHCI controller
+Tegra SoC SATA AHCI controller
 
 Required properties :
-- compatible : For Tegra124, must contain "nvidia,tegra124-ahci".  Otherwise,
-  must contain '"nvidia,<chip>-ahci", "nvidia,tegra124-ahci"', where <chip>
-  is tegra132.
+- compatible : Must be one of:
+  - Tegra124 : "nvidia,tegra124-ahci"
+  - Tegra132 : "nvidia,tegra132-ahci", "nvidia,tegra124-ahci"
+  - Tegra210 : "nvidia,tegra210-ahci"
 - reg : Should contain 2 entries:
   - AHCI register set (SATA BAR5)
   - SATA register set
@@ -13,8 +14,6 @@ Required properties :
 - clock-names : Must include the following entries:
   - sata
   - sata-oob
-  - cml1
-  - pll_e
 - resets : Must contain an entry for each entry in reset-names.
   See ../reset/reset.txt for details.
 - reset-names : Must include the following entries:
@@ -24,9 +23,22 @@ Required properties :
 - phys : Must contain an entry for each entry in phy-names.
   See ../phy/phy-bindings.txt for details.
 - phy-names : Must include the following entries:
-  - sata-phy : XUSB PADCTL SATA PHY
-- hvdd-supply : Defines the SATA HVDD regulator
-- vddio-supply : Defines the SATA VDDIO regulator
-- avdd-supply : Defines the SATA AVDD regulator
-- target-5v-supply : Defines the SATA 5V power regulator
-- target-12v-supply : Defines the SATA 12V power regulator
+  - For Tegra124 and Tegra132:
+    - sata-phy : XUSB PADCTL SATA PHY
+- For Tegra124 and Tegra132:
+  - hvdd-supply : Defines the SATA HVDD regulator
+  - vddio-supply : Defines the SATA VDDIO regulator
+  - avdd-supply : Defines the SATA AVDD regulator
+  - target-5v-supply : Defines the SATA 5V power regulator
+  - target-12v-supply : Defines the SATA 12V power regulator
+
+Optional properties:
+- reg :
+  - AUX register set
+- clock-names :
+  - cml1 :
+    cml1 clock should be defined here if the PHY driver
+    doesn't manage them. If it does, they should not be.
+- phy-names :
+  - For T210:
+    - sata-phy

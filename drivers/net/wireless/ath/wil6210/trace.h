@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2013-2016 Qualcomm Atheros, Inc.
+ * Copyright (c) 2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -181,10 +182,44 @@ TRACE_EVENT(wil6210_rx,
 		__entry->seq = wil_rxdesc_seq(d);
 		__entry->mcs = wil_rxdesc_mcs(d);
 	),
-	TP_printk("index %d len %d mid %d cid %d tid %d mcs %d seq 0x%03x"
+	TP_printk("index %d len %d mid %d cid (%%8) %d tid %d mcs %d seq 0x%03x"
 		  " type 0x%1x subtype 0x%1x", __entry->index, __entry->len,
 		  __entry->mid, __entry->cid, __entry->tid, __entry->mcs,
 		  __entry->seq, __entry->type, __entry->subtype)
+);
+
+TRACE_EVENT(wil6210_rx_status,
+	    TP_PROTO(struct wil6210_priv *wil, u8 use_compressed, u16 buff_id,
+		     void *msg),
+	    TP_ARGS(wil, use_compressed, buff_id, msg),
+	    TP_STRUCT__entry(__field(u8, use_compressed)
+			     __field(u16, buff_id)
+			     __field(unsigned int, len)
+			     __field(u8, mid)
+			     __field(u8, cid)
+			     __field(u8, tid)
+			     __field(u8, type)
+			     __field(u8, subtype)
+			     __field(u16, seq)
+			     __field(u8, mcs)
+	    ),
+	    TP_fast_assign(__entry->use_compressed = use_compressed;
+			   __entry->buff_id = buff_id;
+			   __entry->len = wil_rx_status_get_length(msg);
+			   __entry->mid = wil_rx_status_get_mid(msg);
+			   __entry->cid = wil_rx_status_get_cid(msg);
+			   __entry->tid = wil_rx_status_get_tid(msg);
+			   __entry->type = wil_rx_status_get_frame_type(wil,
+									msg);
+			   __entry->subtype = wil_rx_status_get_fc1(wil, msg);
+			   __entry->seq = wil_rx_status_get_seq(wil, msg);
+			   __entry->mcs = wil_rx_status_get_mcs(msg);
+	    ),
+	    TP_printk(
+		      "compressed %d buff_id %d len %d mid %d cid %d tid %d mcs %d seq 0x%03x type 0x%1x subtype 0x%1x",
+		      __entry->use_compressed, __entry->buff_id, __entry->len,
+		      __entry->mid, __entry->cid, __entry->tid, __entry->mcs,
+		      __entry->seq, __entry->type, __entry->subtype)
 );
 
 TRACE_EVENT(wil6210_tx,
@@ -224,6 +259,31 @@ TRACE_EVENT(wil6210_tx_done,
 	TP_printk("vring %d index %d len %d err 0x%02x",
 		  __entry->vring, __entry->index, __entry->len,
 		  __entry->err)
+);
+
+TRACE_EVENT(wil6210_tx_status,
+	    TP_PROTO(struct wil_ring_tx_status *msg, u16 index,
+		     unsigned int len),
+	    TP_ARGS(msg, index, len),
+	    TP_STRUCT__entry(__field(u16, index)
+			     __field(unsigned int, len)
+			     __field(u8, num_descs)
+			     __field(u8, ring_id)
+			     __field(u8, status)
+			     __field(u8, mcs)
+
+	    ),
+	    TP_fast_assign(__entry->index = index;
+			   __entry->len = len;
+			   __entry->num_descs = msg->num_descriptors;
+			   __entry->ring_id = msg->ring_id;
+			   __entry->status = msg->status;
+			   __entry->mcs = wil_tx_status_get_mcs(msg);
+	    ),
+	    TP_printk(
+		      "ring_id %d swtail 0x%x len %d num_descs %d status 0x%x mcs %d",
+		      __entry->ring_id, __entry->index, __entry->len,
+		      __entry->num_descs, __entry->status, __entry->mcs)
 );
 
 #endif /* WIL6210_TRACE_H || TRACE_HEADER_MULTI_READ*/

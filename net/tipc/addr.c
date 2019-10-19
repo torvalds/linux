@@ -1,7 +1,7 @@
 /*
  * net/tipc/addr.c: TIPC address utility routines
  *
- * Copyright (c) 2000-2006, Ericsson AB
+ * Copyright (c) 2000-2006, 2018, Ericsson AB
  * Copyright (c) 2004-2005, 2010-2011, Wind River Systems
  * All rights reserved.
  *
@@ -34,113 +34,91 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <linux/kernel.h>
 #include "addr.h"
 #include "core.h"
 
-/**
- * in_own_cluster - test for cluster inclusion; <0.0.0> always matches
- */
-int in_own_cluster(struct net *net, u32 addr)
-{
-	return in_own_cluster_exact(net, addr) || !addr;
-}
-
-int in_own_cluster_exact(struct net *net, u32 addr)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	return !((addr ^ tn->own_addr) >> 12);
-}
-
-/**
- * in_own_node - test for node inclusion; <0.0.0> always matches
- */
-int in_own_node(struct net *net, u32 addr)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	return (addr == tn->own_addr) || !addr;
-}
-
-/**
- * addr_domain - convert 2-bit scope value to equivalent message lookup domain
- *
- * Needed when address of a named message must be looked up a second time
- * after a network hop.
- */
-u32 addr_domain(struct net *net, u32 sc)
-{
-	struct tipc_net *tn = net_generic(net, tipc_net_id);
-
-	if (likely(sc == TIPC_NODE_SCOPE))
-		return tn->own_addr;
-	if (sc == TIPC_CLUSTER_SCOPE)
-		return tipc_cluster_mask(tn->own_addr);
-	return tipc_zone_mask(tn->own_addr);
-}
-
-/**
- * tipc_addr_domain_valid - validates a network domain address
- *
- * Accepts <Z.C.N>, <Z.C.0>, <Z.0.0>, and <0.0.0>,
- * where Z, C, and N are non-zero.
- *
- * Returns 1 if domain address is valid, otherwise 0
- */
-int tipc_addr_domain_valid(u32 addr)
-{
-	u32 n = tipc_node(addr);
-	u32 c = tipc_cluster(addr);
-	u32 z = tipc_zone(addr);
-
-	if (n && (!z || !c))
-		return 0;
-	if (c && !z)
-		return 0;
-	return 1;
-}
-
-/**
- * tipc_addr_node_valid - validates a proposed network address for this node
- *
- * Accepts <Z.C.N>, where Z, C, and N are non-zero.
- *
- * Returns 1 if address can be used, otherwise 0
- */
-int tipc_addr_node_valid(u32 addr)
-{
-	return tipc_addr_domain_valid(addr) && tipc_node(addr);
-}
-
-int tipc_in_scope(u32 domain, u32 addr)
+bool tipc_in_scope(bool legacy_format, u32 domain, u32 addr)
 {
 	if (!domain || (domain == addr))
-		return 1;
+		return true;
+	if (!legacy_format)
+		return false;
 	if (domain == tipc_cluster_mask(addr)) /* domain <Z.C.0> */
-		return 1;
-	if (domain == tipc_zone_mask(addr)) /* domain <Z.0.0> */
-		return 1;
-	return 0;
+		return true;
+	if (domain == (addr & TIPC_ZONE_CLUSTER_MASK)) /* domain <Z.C.0> */
+		return true;
+	if (domain == (addr & TIPC_ZONE_MASK)) /* domain <Z.0.0> */
+		return true;
+	return false;
 }
 
-/**
- * tipc_addr_scope - convert message lookup domain to a 2-bit scope value
- */
-int tipc_addr_scope(u32 domain)
+void tipc_set_node_id(struct net *net, u8 *id)
 {
-	if (likely(!domain))
-		return TIPC_ZONE_SCOPE;
-	if (tipc_node(domain))
-		return TIPC_NODE_SCOPE;
-	if (tipc_cluster(domain))
-		return TIPC_CLUSTER_SCOPE;
-	return TIPC_ZONE_SCOPE;
+	struct tipc_net *tn = tipc_net(net);
+	u32 *tmp = (u32 *)id;
+
+	memcpy(tn->node_id, id, NODE_ID_LEN);
+	tipc_nodeid2string(tn->node_id_string, id);
+	tn->trial_addr = tmp[0] ^ tmp[1] ^ tmp[2] ^ tmp[3];
+	pr_info("Own node identity %s, cluster identity %u\n",
+		tipc_own_id_string(net), tn->net_id);
 }
 
-char *tipc_addr_string_fill(char *string, u32 addr)
+void tipc_set_node_addr(struct net *net, u32 addr)
 {
-	snprintf(string, 16, "<%u.%u.%u>",
-		 tipc_zone(addr), tipc_cluster(addr), tipc_node(addr));
-	return string;
+	struct tipc_net *tn = tipc_net(net);
+	u8 node_id[NODE_ID_LEN] = {0,};
+
+	tn->node_addr = addr;
+	if (!tipc_own_id(net)) {
+		sprintf(node_id, "%x", addr);
+		tipc_set_node_id(net, node_id);
+	}
+	tn->trial_addr = addr;
+	tn->addr_trial_end = jiffies;
+	pr_info("32-bit node address hash set to %x\n", addr);
+}
+
+char *tipc_nodeid2string(char *str, u8 *id)
+{
+	int i;
+	u8 c;
+
+	/* Already a string ? */
+	for (i = 0; i < NODE_ID_LEN; i++) {
+		c = id[i];
+		if (c >= '0' && c <= '9')
+			continue;
+		if (c >= 'A' && c <= 'Z')
+			continue;
+		if (c >= 'a' && c <= 'z')
+			continue;
+		if (c == '.')
+			continue;
+		if (c == ':')
+			continue;
+		if (c == '_')
+			continue;
+		if (c == '-')
+			continue;
+		if (c == '@')
+			continue;
+		if (c != 0)
+			break;
+	}
+	if (i == NODE_ID_LEN) {
+		memcpy(str, id, NODE_ID_LEN);
+		str[NODE_ID_LEN] = 0;
+		return str;
+	}
+
+	/* Translate to hex string */
+	for (i = 0; i < NODE_ID_LEN; i++)
+		sprintf(&str[2 * i], "%02x", id[i]);
+
+	/* Strip off trailing zeroes */
+	for (i = NODE_ID_STR_LEN - 2; str[i] == '0'; i--)
+		str[i] = 0;
+
+	return str;
 }

@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2014 Oleksij Rempel <linux@rempel-privat.de>.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -273,8 +262,7 @@ static void __init asm9260_acc_init(struct device_node *np)
 	int n;
 	u32 accuracy = 0;
 
-	clk_data = kzalloc(sizeof(*clk_data) +
-			   sizeof(*clk_data->hws) * MAX_CLKS, GFP_KERNEL);
+	clk_data = kzalloc(struct_size(clk_data, hws, MAX_CLKS), GFP_KERNEL);
 	if (!clk_data)
 		return;
 	clk_data->num = MAX_CLKS;
@@ -282,7 +270,7 @@ static void __init asm9260_acc_init(struct device_node *np)
 
 	base = of_io_request_and_map(np, 0, np->name);
 	if (IS_ERR(base))
-		panic("%s: unable to map resource", np->name);
+		panic("%pOFn: unable to map resource", np);
 
 	/* register pll */
 	rate = (ioread32(base + HW_SYSPLLCTRL) & 0xffff) * 1000000;
@@ -293,7 +281,7 @@ static void __init asm9260_acc_init(struct device_node *np)
 			ref_clk, 0, rate, accuracy);
 
 	if (IS_ERR(hw))
-		panic("%s: can't register REFCLK. Check DT!", np->name);
+		panic("%pOFn: can't register REFCLK. Check DT!", np);
 
 	for (n = 0; n < ARRAY_SIZE(asm9260_mux_clks); n++) {
 		const struct asm9260_mux_clock *mc = &asm9260_mux_clks[n];

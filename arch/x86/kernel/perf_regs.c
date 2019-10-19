@@ -59,18 +59,37 @@ static unsigned int pt_regs_offset[PERF_REG_X86_MAX] = {
 
 u64 perf_reg_value(struct pt_regs *regs, int idx)
 {
+	struct x86_perf_regs *perf_regs;
+
+	if (idx >= PERF_REG_X86_XMM0 && idx < PERF_REG_X86_XMM_MAX) {
+		perf_regs = container_of(regs, struct x86_perf_regs, regs);
+		if (!perf_regs->xmm_regs)
+			return 0;
+		return perf_regs->xmm_regs[idx - PERF_REG_X86_XMM0];
+	}
+
 	if (WARN_ON_ONCE(idx >= ARRAY_SIZE(pt_regs_offset)))
 		return 0;
 
 	return regs_get_register(regs, pt_regs_offset[idx]);
 }
 
-#define REG_RESERVED (~((1ULL << PERF_REG_X86_MAX) - 1ULL))
+#define PERF_REG_X86_RESERVED	(((1ULL << PERF_REG_X86_XMM0) - 1) & \
+				 ~((1ULL << PERF_REG_X86_MAX) - 1))
 
 #ifdef CONFIG_X86_32
+#define REG_NOSUPPORT ((1ULL << PERF_REG_X86_R8) | \
+		       (1ULL << PERF_REG_X86_R9) | \
+		       (1ULL << PERF_REG_X86_R10) | \
+		       (1ULL << PERF_REG_X86_R11) | \
+		       (1ULL << PERF_REG_X86_R12) | \
+		       (1ULL << PERF_REG_X86_R13) | \
+		       (1ULL << PERF_REG_X86_R14) | \
+		       (1ULL << PERF_REG_X86_R15))
+
 int perf_reg_validate(u64 mask)
 {
-	if (!mask || mask & REG_RESERVED)
+	if (!mask || (mask & (REG_NOSUPPORT | PERF_REG_X86_RESERVED)))
 		return -EINVAL;
 
 	return 0;
@@ -96,10 +115,7 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 
 int perf_reg_validate(u64 mask)
 {
-	if (!mask || mask & REG_RESERVED)
-		return -EINVAL;
-
-	if (mask & REG_NOSUPPORT)
+	if (!mask || (mask & (REG_NOSUPPORT | PERF_REG_X86_RESERVED)))
 		return -EINVAL;
 
 	return 0;
@@ -151,17 +167,19 @@ void perf_get_regs_user(struct perf_regs *regs_user,
 	regs_user_copy->sp = user_regs->sp;
 	regs_user_copy->cs = user_regs->cs;
 	regs_user_copy->ss = user_regs->ss;
-
 	/*
-	 * Most system calls don't save these registers, don't report them.
+	 * Store user space frame-pointer value on sample
+	 * to facilitate stack unwinding for cases when
+	 * user space executable code has such support
+	 * enabled at compile time:
 	 */
+	regs_user_copy->bp = user_regs->bp;
+
 	regs_user_copy->bx = -1;
-	regs_user_copy->bp = -1;
 	regs_user_copy->r12 = -1;
 	regs_user_copy->r13 = -1;
 	regs_user_copy->r14 = -1;
 	regs_user_copy->r15 = -1;
-
 	/*
 	 * For this to be at all useful, we need a reasonable guess for
 	 * the ABI.  Be careful: we're in NMI context, and we're

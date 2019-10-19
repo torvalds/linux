@@ -55,8 +55,6 @@ static LIST_HEAD(mc_devices);
  */
 static const char *edac_mc_owner;
 
-static struct bus_type mc_bus[EDAC_MAX_MCS];
-
 int edac_get_report_status(void)
 {
 	return edac_report;
@@ -116,8 +114,8 @@ static const struct kernel_param_ops edac_report_ops = {
 
 module_param_cb(edac_report, &edac_report_ops, &edac_report, 0644);
 
-unsigned edac_dimm_info_location(struct dimm_info *dimm, char *buf,
-			         unsigned len)
+unsigned int edac_dimm_info_location(struct dimm_info *dimm, char *buf,
+				     unsigned int len)
 {
 	struct mem_ctl_info *mci = dimm->mci;
 	int i, n, count = 0;
@@ -195,26 +193,28 @@ static void edac_mc_dump_mci(struct mem_ctl_info *mci)
 #endif				/* CONFIG_EDAC_DEBUG */
 
 const char * const edac_mem_types[] = {
-	[MEM_EMPTY]	= "Empty csrow",
-	[MEM_RESERVED]	= "Reserved csrow type",
-	[MEM_UNKNOWN]	= "Unknown csrow type",
-	[MEM_FPM]	= "Fast page mode RAM",
-	[MEM_EDO]	= "Extended data out RAM",
-	[MEM_BEDO]	= "Burst Extended data out RAM",
-	[MEM_SDR]	= "Single data rate SDRAM",
-	[MEM_RDR]	= "Registered single data rate SDRAM",
-	[MEM_DDR]	= "Double data rate SDRAM",
-	[MEM_RDDR]	= "Registered Double data rate SDRAM",
-	[MEM_RMBS]	= "Rambus DRAM",
-	[MEM_DDR2]	= "Unbuffered DDR2 RAM",
-	[MEM_FB_DDR2]	= "Fully buffered DDR2",
-	[MEM_RDDR2]	= "Registered DDR2 RAM",
-	[MEM_XDR]	= "Rambus XDR",
-	[MEM_DDR3]	= "Unbuffered DDR3 RAM",
-	[MEM_RDDR3]	= "Registered DDR3 RAM",
-	[MEM_LRDDR3]	= "Load-Reduced DDR3 RAM",
-	[MEM_DDR4]	= "Unbuffered DDR4 RAM",
-	[MEM_RDDR4]	= "Registered DDR4 RAM",
+	[MEM_EMPTY]	= "Empty",
+	[MEM_RESERVED]	= "Reserved",
+	[MEM_UNKNOWN]	= "Unknown",
+	[MEM_FPM]	= "FPM",
+	[MEM_EDO]	= "EDO",
+	[MEM_BEDO]	= "BEDO",
+	[MEM_SDR]	= "Unbuffered-SDR",
+	[MEM_RDR]	= "Registered-SDR",
+	[MEM_DDR]	= "Unbuffered-DDR",
+	[MEM_RDDR]	= "Registered-DDR",
+	[MEM_RMBS]	= "RMBS",
+	[MEM_DDR2]	= "Unbuffered-DDR2",
+	[MEM_FB_DDR2]	= "FullyBuffered-DDR2",
+	[MEM_RDDR2]	= "Registered-DDR2",
+	[MEM_XDR]	= "XDR",
+	[MEM_DDR3]	= "Unbuffered-DDR3",
+	[MEM_RDDR3]	= "Registered-DDR3",
+	[MEM_LRDDR3]	= "Load-Reduced-DDR3-RAM",
+	[MEM_DDR4]	= "Unbuffered-DDR4",
+	[MEM_RDDR4]	= "Registered-DDR4",
+	[MEM_LRDDR4]	= "Load-Reduced-DDR4-RAM",
+	[MEM_NVDIMM]	= "Non-volatile-RAM",
 };
 EXPORT_SYMBOL_GPL(edac_mem_types);
 
@@ -236,9 +236,9 @@ EXPORT_SYMBOL_GPL(edac_mem_types);
  * At return, the pointer 'p' will be incremented to be used on a next call
  * to this function.
  */
-void *edac_align_ptr(void **p, unsigned size, int n_elems)
+void *edac_align_ptr(void **p, unsigned int size, int n_elems)
 {
-	unsigned align, r;
+	unsigned int align, r;
 	void *ptr = *p;
 
 	*p += size * n_elems;
@@ -275,38 +275,37 @@ void *edac_align_ptr(void **p, unsigned size, int n_elems)
 
 static void _edac_mc_free(struct mem_ctl_info *mci)
 {
-	int i, chn, row;
 	struct csrow_info *csr;
-	const unsigned int tot_dimms = mci->tot_dimms;
-	const unsigned int tot_channels = mci->num_cschannel;
-	const unsigned int tot_csrows = mci->nr_csrows;
+	int i, chn, row;
 
 	if (mci->dimms) {
-		for (i = 0; i < tot_dimms; i++)
+		for (i = 0; i < mci->tot_dimms; i++)
 			kfree(mci->dimms[i]);
 		kfree(mci->dimms);
 	}
+
 	if (mci->csrows) {
-		for (row = 0; row < tot_csrows; row++) {
+		for (row = 0; row < mci->nr_csrows; row++) {
 			csr = mci->csrows[row];
-			if (csr) {
-				if (csr->channels) {
-					for (chn = 0; chn < tot_channels; chn++)
-						kfree(csr->channels[chn]);
-					kfree(csr->channels);
-				}
-				kfree(csr);
+			if (!csr)
+				continue;
+
+			if (csr->channels) {
+				for (chn = 0; chn < mci->num_cschannel; chn++)
+					kfree(csr->channels[chn]);
+				kfree(csr->channels);
 			}
+			kfree(csr);
 		}
 		kfree(mci->csrows);
 	}
 	kfree(mci);
 }
 
-struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
-				   unsigned n_layers,
+struct mem_ctl_info *edac_mc_alloc(unsigned int mc_num,
+				   unsigned int n_layers,
 				   struct edac_mc_layer *layers,
-				   unsigned sz_pvt)
+				   unsigned int sz_pvt)
 {
 	struct mem_ctl_info *mci;
 	struct edac_mc_layer *layer;
@@ -314,9 +313,9 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	struct rank_info *chan;
 	struct dimm_info *dimm;
 	u32 *ce_per_layer[EDAC_MAX_LAYERS], *ue_per_layer[EDAC_MAX_LAYERS];
-	unsigned pos[EDAC_MAX_LAYERS];
-	unsigned size, tot_dimms = 1, count = 1;
-	unsigned tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
+	unsigned int pos[EDAC_MAX_LAYERS];
+	unsigned int size, tot_dimms = 1, count = 1;
+	unsigned int tot_csrows = 1, tot_channels = 1, tot_errcount = 0;
 	void *pvt, *p, *ptr = NULL;
 	int i, j, row, chn, n, len, off;
 	bool per_rank = false;
@@ -679,22 +678,18 @@ static int del_mc_from_global_list(struct mem_ctl_info *mci)
 
 struct mem_ctl_info *edac_mc_find(int idx)
 {
-	struct mem_ctl_info *mci = NULL;
+	struct mem_ctl_info *mci;
 	struct list_head *item;
 
 	mutex_lock(&mem_ctls_mutex);
 
 	list_for_each(item, &mc_devices) {
 		mci = list_entry(item, struct mem_ctl_info, link);
-
-		if (mci->mc_idx >= idx) {
-			if (mci->mc_idx == idx) {
-				goto unlock;
-			}
-			break;
-		}
+		if (mci->mc_idx == idx)
+			goto unlock;
 	}
 
+	mci = NULL;
 unlock:
 	mutex_unlock(&mem_ctls_mutex);
 	return mci;
@@ -713,11 +708,6 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 {
 	int ret = -EINVAL;
 	edac_dbg(0, "\n");
-
-	if (mci->mc_idx >= EDAC_MAX_MCS) {
-		pr_warn_once("Too many memory controllers: %d\n", mci->mc_idx);
-		return -ENODEV;
-	}
 
 #ifdef CONFIG_EDAC_DEBUG
 	if (edac_debug_level >= 3)
@@ -758,7 +748,7 @@ int edac_mc_add_mc_with_groups(struct mem_ctl_info *mci,
 	/* set load time so that error rate can be tracked */
 	mci->start_time = jiffies;
 
-	mci->bus = &mc_bus[mci->mc_idx];
+	mci->bus = edac_get_sysfs_subsys();
 
 	if (edac_create_sysfs_mci_device(mci, groups)) {
 		edac_mc_printk(mci, KERN_WARNING,
@@ -1244,9 +1234,13 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 	if (p > e->location)
 		*(p - 1) = '\0';
 
-	/* Report the error via the trace interface */
-	grain_bits = fls_long(e->grain) + 1;
+	/* Sanity-check driver-supplied grain value. */
+	if (WARN_ON_ONCE(!e->grain))
+		e->grain = 1;
 
+	grain_bits = fls_long(e->grain - 1);
+
+	/* Report the error via the trace interface */
 	if (IS_ENABLED(CONFIG_RAS))
 		trace_mc_event(type, e->msg, e->label, e->error_count,
 			       mci->mc_idx, e->top_layer, e->mid_layer,

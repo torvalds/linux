@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vivid-sdr-cap.c - software defined radio support functions.
  *
  * Copyright 2014 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <linux/errno.h>
@@ -114,6 +102,10 @@ static void vivid_thread_sdr_cap_tick(struct vivid_dev *dev)
 
 	if (sdr_cap_buf) {
 		sdr_cap_buf->vb.sequence = dev->sdr_cap_seq_count;
+		v4l2_ctrl_request_setup(sdr_cap_buf->vb.vb2_buf.req_obj.req,
+					&dev->ctrl_hdl_sdr_cap);
+		v4l2_ctrl_request_complete(sdr_cap_buf->vb.vb2_buf.req_obj.req,
+					   &dev->ctrl_hdl_sdr_cap);
 		vivid_sdr_cap_process(dev, sdr_cap_buf);
 		sdr_cap_buf->vb.vb2_buf.timestamp =
 			ktime_get_ns() + dev->time_wrap_offset;
@@ -305,6 +297,8 @@ static void sdr_cap_stop_streaming(struct vb2_queue *vq)
 		buf = list_entry(dev->sdr_cap_active.next,
 				struct vivid_buffer, list);
 		list_del(&buf->list);
+		v4l2_ctrl_request_complete(buf->vb.vb2_buf.req_obj.req,
+					   &dev->ctrl_hdl_sdr_cap);
 		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
 	}
 
@@ -315,12 +309,20 @@ static void sdr_cap_stop_streaming(struct vb2_queue *vq)
 	mutex_lock(&dev->mutex);
 }
 
+static void sdr_cap_buf_request_complete(struct vb2_buffer *vb)
+{
+	struct vivid_dev *dev = vb2_get_drv_priv(vb->vb2_queue);
+
+	v4l2_ctrl_request_complete(vb->req_obj.req, &dev->ctrl_hdl_sdr_cap);
+}
+
 const struct vb2_ops vivid_sdr_cap_qops = {
 	.queue_setup		= sdr_cap_queue_setup,
 	.buf_prepare		= sdr_cap_buf_prepare,
 	.buf_queue		= sdr_cap_buf_queue,
 	.start_streaming	= sdr_cap_start_streaming,
 	.stop_streaming		= sdr_cap_stop_streaming,
+	.buf_request_complete	= sdr_cap_buf_request_complete,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
 };
@@ -408,7 +410,7 @@ int vivid_sdr_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 {
 	switch (vt->index) {
 	case 0:
-		strlcpy(vt->name, "ADC", sizeof(vt->name));
+		strscpy(vt->name, "ADC", sizeof(vt->name));
 		vt->type = V4L2_TUNER_ADC;
 		vt->capability =
 			V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;
@@ -416,7 +418,7 @@ int vivid_sdr_g_tuner(struct file *file, void *fh, struct v4l2_tuner *vt)
 		vt->rangehigh = bands_adc[2].rangehigh;
 		return 0;
 	case 1:
-		strlcpy(vt->name, "RF", sizeof(vt->name));
+		strscpy(vt->name, "RF", sizeof(vt->name));
 		vt->type = V4L2_TUNER_RF;
 		vt->capability =
 			V4L2_TUNER_CAP_1HZ | V4L2_TUNER_CAP_FREQ_BANDS;

@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: psloop - Main AML parse loop
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 /*
  * Parse the AML and build an operation tree as most interpreters, (such as
@@ -56,6 +22,7 @@
 #include "acdispat.h"
 #include "amlcode.h"
 #include "acconvert.h"
+#include "acnamesp.h"
 
 #define _COMPONENT          ACPI_PARSER
 ACPI_MODULE_NAME("psloop")
@@ -64,10 +31,6 @@ ACPI_MODULE_NAME("psloop")
 static acpi_status
 acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		      u8 * aml_op_start, union acpi_parse_object *op);
-
-static void
-acpi_ps_link_module_code(union acpi_parse_object *parent_op,
-			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id);
 
 /*******************************************************************************
  *
@@ -89,7 +52,6 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 {
 	acpi_status status = AE_OK;
 	union acpi_parse_object *arg = NULL;
-	const struct acpi_opcode_info *op_info;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_get_arguments, walk_state);
 
@@ -165,91 +127,9 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 		}
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Final argument count: %u pass %u\n",
+				  "Final argument count: %8.8X pass %u\n",
 				  walk_state->arg_count,
 				  walk_state->pass_number));
-
-		/*
-		 * Handle executable code at "module-level". This refers to
-		 * executable opcodes that appear outside of any control method.
-		 */
-		if ((walk_state->pass_number <= ACPI_IMODE_LOAD_PASS2) &&
-		    ((walk_state->parse_flags & ACPI_PARSE_DISASSEMBLE) == 0)) {
-			/*
-			 * We want to skip If/Else/While constructs during Pass1 because we
-			 * want to actually conditionally execute the code during Pass2.
-			 *
-			 * Except for disassembly, where we always want to walk the
-			 * If/Else/While packages
-			 */
-			switch (op->common.aml_opcode) {
-			case AML_IF_OP:
-			case AML_ELSE_OP:
-			case AML_WHILE_OP:
-				/*
-				 * Currently supported module-level opcodes are:
-				 * IF/ELSE/WHILE. These appear to be the most common,
-				 * and easiest to support since they open an AML
-				 * package.
-				 */
-				if (walk_state->pass_number ==
-				    ACPI_IMODE_LOAD_PASS1) {
-					acpi_ps_link_module_code(op->common.
-								 parent,
-								 aml_op_start,
-								 (u32)
-								 (walk_state->
-								 parser_state.
-								 pkg_end -
-								 aml_op_start),
-								 walk_state->
-								 owner_id);
-				}
-
-				ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-						  "Pass1: Skipping an If/Else/While body\n"));
-
-				/* Skip body of if/else/while in pass 1 */
-
-				walk_state->parser_state.aml =
-				    walk_state->parser_state.pkg_end;
-				walk_state->arg_count = 0;
-				break;
-
-			default:
-				/*
-				 * Check for an unsupported executable opcode at module
-				 * level. We must be in PASS1, the parent must be a SCOPE,
-				 * The opcode class must be EXECUTE, and the opcode must
-				 * not be an argument to another opcode.
-				 */
-				if ((walk_state->pass_number ==
-				     ACPI_IMODE_LOAD_PASS1)
-				    && (op->common.parent->common.aml_opcode ==
-					AML_SCOPE_OP)) {
-					op_info =
-					    acpi_ps_get_opcode_info(op->common.
-								    aml_opcode);
-					if ((op_info->class ==
-					     AML_CLASS_EXECUTE) && (!arg)) {
-						ACPI_WARNING((AE_INFO,
-							      "Unsupported module-level executable opcode "
-							      "0x%.2X at table offset 0x%.4X",
-							      op->common.
-							      aml_opcode,
-							      (u32)
-							      (ACPI_PTR_DIFF
-							       (aml_op_start,
-								walk_state->
-								parser_state.
-								aml_start) +
-							       sizeof(struct
-								      acpi_table_header))));
-					}
-				}
-				break;
-			}
-		}
 
 		/* Special processing for certain opcodes */
 
@@ -327,94 +207,6 @@ acpi_ps_get_arguments(struct acpi_walk_state *walk_state,
 
 /*******************************************************************************
  *
- * FUNCTION:    acpi_ps_link_module_code
- *
- * PARAMETERS:  parent_op           - Parent parser op
- *              aml_start           - Pointer to the AML
- *              aml_length          - Length of executable AML
- *              owner_id            - owner_id of module level code
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Wrap the module-level code with a method object and link the
- *              object to the global list. Note, the mutex field of the method
- *              object is used to link multiple module-level code objects.
- *
- ******************************************************************************/
-
-static void
-acpi_ps_link_module_code(union acpi_parse_object *parent_op,
-			 u8 *aml_start, u32 aml_length, acpi_owner_id owner_id)
-{
-	union acpi_operand_object *prev;
-	union acpi_operand_object *next;
-	union acpi_operand_object *method_obj;
-	struct acpi_namespace_node *parent_node;
-
-	ACPI_FUNCTION_TRACE(ps_link_module_code);
-
-	/* Get the tail of the list */
-
-	prev = next = acpi_gbl_module_code_list;
-	while (next) {
-		prev = next;
-		next = next->method.mutex;
-	}
-
-	/*
-	 * Insert the module level code into the list. Merge it if it is
-	 * adjacent to the previous element.
-	 */
-	if (!prev ||
-	    ((prev->method.aml_start + prev->method.aml_length) != aml_start)) {
-
-		/* Create, initialize, and link a new temporary method object */
-
-		method_obj = acpi_ut_create_internal_object(ACPI_TYPE_METHOD);
-		if (!method_obj) {
-			return_VOID;
-		}
-
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Create/Link new code block: %p\n",
-				  method_obj));
-
-		if (parent_op->common.node) {
-			parent_node = parent_op->common.node;
-		} else {
-			parent_node = acpi_gbl_root_node;
-		}
-
-		method_obj->method.aml_start = aml_start;
-		method_obj->method.aml_length = aml_length;
-		method_obj->method.owner_id = owner_id;
-		method_obj->method.info_flags |= ACPI_METHOD_MODULE_LEVEL;
-
-		/*
-		 * Save the parent node in next_object. This is cheating, but we
-		 * don't want to expand the method object.
-		 */
-		method_obj->method.next_object =
-		    ACPI_CAST_PTR(union acpi_operand_object, parent_node);
-
-		if (!prev) {
-			acpi_gbl_module_code_list = method_obj;
-		} else {
-			prev->method.mutex = method_obj;
-		}
-	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Appending to existing code block: %p\n",
-				  prev));
-
-		prev->method.aml_length += aml_length;
-	}
-
-	return_VOID;
-}
-
-/*******************************************************************************
- *
  * FUNCTION:    acpi_ps_parse_loop
  *
  * PARAMETERS:  walk_state          - Current state
@@ -432,6 +224,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	union acpi_parse_object *op = NULL;	/* current op */
 	struct acpi_parse_state *parser_state;
 	u8 *aml_op_start = NULL;
+	u8 opcode_length;
 
 	ACPI_FUNCTION_TRACE_PTR(ps_parse_loop, walk_state);
 
@@ -442,7 +235,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 	parser_state = &walk_state->parser_state;
 	walk_state->arg_types = 0;
 
-#if (!defined (ACPI_NO_METHOD_EXECUTION) && !defined (ACPI_CONSTANT_EVAL_ONLY))
+#ifndef ACPI_CONSTANT_EVAL_ONLY
 
 	if (walk_state->walk_type & ACPI_WALK_METHOD_RESTART) {
 
@@ -513,6 +306,19 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			status =
 			    acpi_ps_create_op(walk_state, aml_op_start, &op);
 			if (ACPI_FAILURE(status)) {
+				/*
+				 * ACPI_PARSE_MODULE_LEVEL means that we are loading a table by
+				 * executing it as a control method. However, if we encounter
+				 * an error while loading the table, we need to keep trying to
+				 * load the table rather than aborting the table load. Set the
+				 * status to AE_OK to proceed with the table load.
+				 */
+				if ((walk_state->
+				     parse_flags & ACPI_PARSE_MODULE_LEVEL)
+				    && ((status == AE_ALREADY_EXISTS)
+					|| (status == AE_NOT_FOUND))) {
+					status = AE_OK;
+				}
 				if (status == AE_CTRL_PARSE_CONTINUE) {
 					continue;
 				}
@@ -530,6 +336,34 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 							status);
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
+				}
+				if (acpi_ns_opens_scope
+				    (acpi_ps_get_opcode_info
+				     (walk_state->opcode)->object_type)) {
+					/*
+					 * If the scope/device op fails to parse, skip the body of
+					 * the scope op because the parse failure indicates that
+					 * the device may not exist.
+					 */
+					ACPI_INFO(("Skipping parse of AML opcode: %s (0x%4.4X)", acpi_ps_get_opcode_name(walk_state->opcode), walk_state->opcode));
+
+					/*
+					 * Determine the opcode length before skipping the opcode.
+					 * An opcode can be 1 byte or 2 bytes in length.
+					 */
+					opcode_length = 1;
+					if ((walk_state->opcode & 0xFF00) ==
+					    AML_EXTENDED_OPCODE) {
+						opcode_length = 2;
+					}
+					walk_state->parser_state.aml =
+					    walk_state->aml + opcode_length;
+
+					walk_state->parser_state.aml =
+					    acpi_ps_get_next_package_end
+					    (&walk_state->parser_state);
+					walk_state->aml =
+					    walk_state->parser_state.aml;
 				}
 
 				continue;
@@ -573,7 +407,40 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 				if (ACPI_FAILURE(status)) {
 					return_ACPI_STATUS(status);
 				}
+				if ((walk_state->control_state) &&
+				    ((walk_state->control_state->control.
+				      opcode == AML_IF_OP)
+				     || (walk_state->control_state->control.
+					 opcode == AML_WHILE_OP))) {
+					/*
+					 * If the if/while op fails to parse, we will skip parsing
+					 * the body of the op.
+					 */
+					parser_state->aml =
+					    walk_state->control_state->control.
+					    aml_predicate_start + 1;
+					parser_state->aml =
+					    acpi_ps_get_next_package_end
+					    (parser_state);
+					walk_state->aml = parser_state->aml;
 
+					ACPI_ERROR((AE_INFO,
+						    "Skipping While/If block"));
+					if (*walk_state->aml == AML_ELSE_OP) {
+						ACPI_ERROR((AE_INFO,
+							    "Skipping Else block"));
+						walk_state->parser_state.aml =
+						    walk_state->aml + 1;
+						walk_state->parser_state.aml =
+						    acpi_ps_get_next_package_end
+						    (parser_state);
+						walk_state->aml =
+						    parser_state->aml;
+					}
+					ACPI_FREE(acpi_ut_pop_generic_state
+						  (&walk_state->control_state));
+				}
+				op = NULL;
 				continue;
 			}
 		}
@@ -581,7 +448,7 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 		/* Check for arguments that need to be processed */
 
 		ACPI_DEBUG_PRINT((ACPI_DB_PARSE,
-				  "Parseloop: argument count: %u\n",
+				  "Parseloop: argument count: %8.8X\n",
 				  walk_state->arg_count));
 
 		if (walk_state->arg_count) {
@@ -660,6 +527,25 @@ acpi_status acpi_ps_parse_loop(struct acpi_walk_state *walk_state)
 			status =
 			    acpi_ps_next_parse_state(walk_state, op, status);
 			if (status == AE_CTRL_PENDING) {
+				status = AE_OK;
+			} else
+			    if ((walk_state->
+				 parse_flags & ACPI_PARSE_MODULE_LEVEL)
+				&& (ACPI_AML_EXCEPTION(status)
+				    || status == AE_ALREADY_EXISTS
+				    || status == AE_NOT_FOUND)) {
+				/*
+				 * ACPI_PARSE_MODULE_LEVEL flag means that we
+				 * are currently loading a table by executing
+				 * it as a control method. However, if we
+				 * encounter an error while loading the table,
+				 * we need to keep trying to load the table
+				 * rather than aborting the table load (setting
+				 * the status to AE_OK continues the table
+				 * load). If we get a failure at this point, it
+				 * means that the dispatcher got an error while
+				 * trying to execute the Op.
+				 */
 				status = AE_OK;
 			}
 		}

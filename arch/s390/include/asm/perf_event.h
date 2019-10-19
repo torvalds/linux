@@ -12,7 +12,6 @@
 
 #include <linux/perf_event.h>
 #include <linux/device.h>
-#include <asm/cpu_mf.h>
 
 /* Per-CPU flags for PMU states */
 #define PMU_F_RESERVED			0x1000
@@ -55,11 +54,13 @@ struct perf_sf_sde_regs {
 #define PERF_CPUM_SF_MAX_CTR		2
 #define PERF_EVENT_CPUM_SF		0xB0000UL /* Event: Basic-sampling */
 #define PERF_EVENT_CPUM_SF_DIAG		0xBD000UL /* Event: Combined-sampling */
+#define PERF_EVENT_CPUM_CF_DIAG		0xBC000UL /* Event: Counter sets */
 #define PERF_CPUM_SF_BASIC_MODE		0x0001	  /* Basic-sampling flag */
 #define PERF_CPUM_SF_DIAG_MODE		0x0002	  /* Diagnostic-sampling flag */
 #define PERF_CPUM_SF_MODE_MASK		(PERF_CPUM_SF_BASIC_MODE| \
 					 PERF_CPUM_SF_DIAG_MODE)
 #define PERF_CPUM_SF_FULL_BLOCKS	0x0004	  /* Process full SDBs only */
+#define PERF_CPUM_SF_FREQ_MODE		0x0008	  /* Sampling with frequency */
 
 #define REG_NONE		0
 #define REG_OVERFLOW		1
@@ -70,5 +71,6 @@ struct perf_sf_sde_regs {
 #define SAMPL_FLAGS(hwc)	((hwc)->config_base)
 #define SAMPL_DIAG_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_DIAG_MODE)
 #define SDB_FULL_BLOCKS(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FULL_BLOCKS)
+#define SAMPLE_FREQ_MODE(hwc)	(SAMPL_FLAGS(hwc) & PERF_CPUM_SF_FREQ_MODE)
 
 #endif /* _ASM_S390_PERF_EVENT_H */

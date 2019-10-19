@@ -247,6 +247,13 @@
 			status = "disabled";
 		};
 
+		watchdog: watchdog@4067e8 {
+			clocks = <&upg_clk>;
+			compatible = "brcm,bcm7038-wdt";
+			reg = <0x4067e8 0x14>;
+			status = "disabled";
+		};
+
 		aon_pm_l2_intc: interrupt-controller@408440 {
 			compatible = "brcm,l2-intc";
 			reg = <0x408440 0x30>;
@@ -255,6 +262,17 @@
 			interrupt-parent = <&periph_intc>;
 			interrupts = <54>;
 			brcm,irq-can-wake;
+		};
+
+		aon_ctrl: syscon@408000 {
+			compatible = "brcm,brcmstb-aon-ctrl";
+			reg = <0x408000 0x100>, <0x408200 0x200>;
+			reg-names = "aon-ctrl", "aon-sram";
+		};
+
+		timers: timer@4067c0 {
+			compatible = "brcm,brcmstb-timers";
+			reg = <0x4067c0 0x40>;
 		};
 
 		upg_gio: gpio@406700 {
@@ -508,6 +526,77 @@
 			interrupt-parent = <&upg_aon_irq0_intc>;
 			interrupt-names = "mspi_done";
 			status = "disabled";
+		};
+
+		waketimer: waketimer@409580 {
+			compatible = "brcm,brcmstb-waketimer";
+			reg = <0x409580 0x14>;
+			interrupts = <0x3>;
+			interrupt-parent = <&aon_pm_l2_intc>;
+			interrupt-names = "timer";
+			clocks = <&upg_clk>;
+			status = "disabled";
+		};
+	};
+
+	memory_controllers {
+		compatible = "simple-bus";
+		ranges = <0x0 0x103b0000 0x1a000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		memory-controller@0 {
+			compatible = "brcm,brcmstb-memc", "simple-bus";
+			ranges = <0x0 0x0 0xa000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			memc-arb@1000 {
+				compatible = "brcm,brcmstb-memc-arb";
+				reg = <0x1000 0x248>;
+			};
+
+			memc-ddr@2000 {
+				compatible = "brcm,brcmstb-memc-ddr";
+				reg = <0x2000 0x300>;
+			};
+
+			ddr-phy@6000 {
+				compatible = "brcm,brcmstb-ddr-phy";
+				reg = <0x6000 0xc8>;
+			};
+
+			shimphy@8000 {
+				compatible = "brcm,brcmstb-ddr-shimphy";
+				reg = <0x8000 0x13c>;
+			};
+		};
+
+		memory-controller@1 {
+			compatible = "brcm,brcmstb-memc", "simple-bus";
+			ranges = <0x0 0x10000 0xa000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			memc-arb@1000 {
+				compatible = "brcm,brcmstb-memc-arb";
+				reg = <0x1000 0x248>;
+			};
+
+			memc-ddr@2000 {
+				compatible = "brcm,brcmstb-memc-ddr";
+				reg = <0x2000 0x300>;
+			};
+
+			ddr-phy@6000 {
+				compatible = "brcm,brcmstb-ddr-phy";
+				reg = <0x6000 0xc8>;
+			};
+
+			shimphy@8000 {
+				compatible = "brcm,brcmstb-ddr-shimphy";
+				reg = <0x8000 0x13c>;
+			};
 		};
 	};
 };

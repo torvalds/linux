@@ -43,14 +43,14 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 {
 	ide_drive_t *drive = cdi->handle;
 	struct media_event_desc med;
-	struct request_sense sense;
+	struct scsi_sense_hdr sshdr;
 	int stat;
 
 	if (slot_nr != CDSL_CURRENT)
 		return -EINVAL;
 
-	stat = cdrom_check_status(drive, &sense);
-	if (!stat || sense.sense_key == UNIT_ATTENTION)
+	stat = cdrom_check_status(drive, &sshdr);
+	if (!stat || sshdr.sense_key == UNIT_ATTENTION)
 		return CDS_DISC_OK;
 
 	if (!cdrom_get_media_event(cdi, &med)) {
@@ -62,8 +62,8 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 			return CDS_NO_DISC;
 	}
 
-	if (sense.sense_key == NOT_READY && sense.asc == 0x04
-			&& sense.ascq == 0x04)
+	if (sshdr.sense_key == NOT_READY && sshdr.asc == 0x04
+			&& sshdr.ascq == 0x04)
 		return CDS_DISC_OK;
 
 	/*
@@ -71,8 +71,8 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 	 * just return TRAY_OPEN since ATAPI doesn't provide
 	 * any other way to detect this...
 	 */
-	if (sense.sense_key == NOT_READY) {
-		if (sense.asc == 0x3a && sense.ascq == 1)
+	if (sshdr.sense_key == NOT_READY) {
+		if (sshdr.asc == 0x3a && sshdr.ascq == 1)
 			return CDS_NO_DISC;
 		else
 			return CDS_TRAY_OPEN;
@@ -82,8 +82,9 @@ int ide_cdrom_drive_status(struct cdrom_device_info *cdi, int slot_nr)
 
 /*
  * ide-cd always generates media changed event if media is missing, which
- * makes it impossible to use for proper event reporting, so disk->events
- * is cleared to 0 and the following function is used only to trigger
+ * makes it impossible to use for proper event reporting, so
+ * DISK_EVENT_FLAG_UEVENT is cleared in disk->event_flags
+ * and the following function is used only to trigger
  * revalidation and never propagated to userland.
  */
 unsigned int ide_cdrom_check_events_real(struct cdrom_device_info *cdi,
@@ -105,8 +106,7 @@ unsigned int ide_cdrom_check_events_real(struct cdrom_device_info *cdi,
 /* Eject the disk if EJECTFLAG is 0.
    If EJECTFLAG is 1, try to reload the disk. */
 static
-int cdrom_eject(ide_drive_t *drive, int ejectflag,
-		struct request_sense *sense)
+int cdrom_eject(ide_drive_t *drive, int ejectflag)
 {
 	struct cdrom_info *cd = drive->driver_data;
 	struct cdrom_device_info *cdi = &cd->devinfo;
@@ -129,19 +129,15 @@ int cdrom_eject(ide_drive_t *drive, int ejectflag,
 	cmd[0] = GPCMD_START_STOP_UNIT;
 	cmd[4] = loej | (ejectflag != 0);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, NULL, 0, 0);
 }
 
 /* Lock the door if LOCKFLAG is nonzero; unlock it otherwise. */
 static
-int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
-		    struct request_sense *sense)
+int ide_cd_lockdoor(ide_drive_t *drive, int lockflag)
 {
-	struct request_sense my_sense;
+	struct scsi_sense_hdr sshdr;
 	int stat;
-
-	if (sense == NULL)
-		sense = &my_sense;
 
 	/* If the drive cannot lock the door, just pretend. */
 	if ((drive->dev_flags & IDE_DFLAG_DOORLOCKING) == 0) {
@@ -155,14 +151,14 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 		cmd[4] = lockflag ? 1 : 0;
 
 		stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL,
-				       sense, 0, 0);
+				       &sshdr, 0, 0);
 	}
 
 	/* If we got an illegal field error, the drive
 	   probably cannot lock the door. */
 	if (stat != 0 &&
-	    sense->sense_key == ILLEGAL_REQUEST &&
-	    (sense->asc == 0x24 || sense->asc == 0x20)) {
+	    sshdr.sense_key == ILLEGAL_REQUEST &&
+	    (sshdr.asc == 0x24 || sshdr.asc == 0x20)) {
 		printk(KERN_ERR "%s: door locking not supported\n",
 			drive->name);
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;
@@ -170,7 +166,7 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 	}
 
 	/* no medium, that's alright. */
-	if (stat != 0 && sense->sense_key == NOT_READY && sense->asc == 0x3a)
+	if (stat != 0 && sshdr.sense_key == NOT_READY && sshdr.asc == 0x3a)
 		stat = 0;
 
 	if (stat == 0) {
@@ -186,23 +182,22 @@ int ide_cd_lockdoor(ide_drive_t *drive, int lockflag,
 int ide_cdrom_tray_move(struct cdrom_device_info *cdi, int position)
 {
 	ide_drive_t *drive = cdi->handle;
-	struct request_sense sense;
 
 	if (position) {
-		int stat = ide_cd_lockdoor(drive, 0, &sense);
+		int stat = ide_cd_lockdoor(drive, 0);
 
 		if (stat)
 			return stat;
 	}
 
-	return cdrom_eject(drive, !position, &sense);
+	return cdrom_eject(drive, !position);
 }
 
 int ide_cdrom_lock_door(struct cdrom_device_info *cdi, int lock)
 {
 	ide_drive_t *drive = cdi->handle;
 
-	return ide_cd_lockdoor(drive, lock, NULL);
+	return ide_cd_lockdoor(drive, lock);
 }
 
 /*
@@ -213,7 +208,6 @@ int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 {
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *cd = drive->driver_data;
-	struct request_sense sense;
 	u8 buf[ATAPI_CAPABILITIES_PAGE_SIZE];
 	int stat;
 	unsigned char cmd[BLK_MAX_CDB];
@@ -236,7 +230,7 @@ int ide_cdrom_select_speed(struct cdrom_device_info *cdi, int speed)
 		cmd[5] = speed & 0xff;
 	}
 
-	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
+	stat = ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, NULL, 0, 0);
 
 	if (!ide_cdrom_get_capabilities(drive, buf)) {
 		ide_cdrom_update_speed(drive, buf);
@@ -252,11 +246,10 @@ int ide_cdrom_get_last_session(struct cdrom_device_info *cdi,
 	struct atapi_toc *toc;
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *info = drive->driver_data;
-	struct request_sense sense;
 	int ret;
 
 	if ((drive->atapi_flags & IDE_AFLAG_TOC_VALID) == 0 || !info->toc) {
-		ret = ide_cd_read_toc(drive, &sense);
+		ret = ide_cd_read_toc(drive);
 		if (ret)
 			return ret;
 	}
@@ -300,11 +293,10 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 {
 	ide_drive_t *drive = cdi->handle;
 	struct cdrom_info *cd = drive->driver_data;
-	struct request_sense sense;
 	struct request *rq;
 	int ret;
 
-	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, __GFP_RECLAIM);
+	rq = blk_get_request(drive->queue, REQ_OP_DRV_IN, 0);
 	ide_req(rq)->type = ATA_PRIV_MISC;
 	rq->rq_flags = RQF_QUIET;
 	blk_execute_rq(drive->queue, cd->disk, rq, 0);
@@ -315,7 +307,7 @@ int ide_cdrom_reset(struct cdrom_device_info *cdi)
 	 * lock it again.
 	 */
 	if (drive->atapi_flags & IDE_AFLAG_DOOR_LOCKED)
-		(void)ide_cd_lockdoor(drive, 1, &sense);
+		(void)ide_cd_lockdoor(drive, 1);
 
 	return ret;
 }
@@ -355,7 +347,6 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	struct atapi_toc_entry *first_toc, *last_toc;
 	unsigned long lba_start, lba_end;
 	int stat;
-	struct request_sense sense;
 	unsigned char cmd[BLK_MAX_CDB];
 
 	stat = ide_cd_get_toc_entry(drive, ti->cdti_trk0, &first_toc);
@@ -380,7 +371,7 @@ static int ide_cd_fake_play_trkind(ide_drive_t *drive, void *arg)
 	lba_to_msf(lba_start,   &cmd[3], &cmd[4], &cmd[5]);
 	lba_to_msf(lba_end - 1, &cmd[6], &cmd[7], &cmd[8]);
 
-	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, &sense, 0, 0);
+	return ide_cd_queue_pc(drive, cmd, 0, NULL, NULL, NULL, 0, 0);
 }
 
 static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)
@@ -391,7 +382,7 @@ static int ide_cd_read_tochdr(ide_drive_t *drive, void *arg)
 	int stat;
 
 	/* Make sure our saved TOC is valid. */
-	stat = ide_cd_read_toc(drive, NULL);
+	stat = ide_cd_read_toc(drive);
 	if (stat)
 		return stat;
 
@@ -461,8 +452,8 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 	   layer. the packet must be complete, as we do not
 	   touch it at all. */
 
-	if (cgc->sense)
-		memset(cgc->sense, 0, sizeof(struct request_sense));
+	if (cgc->sshdr)
+		memset(cgc->sshdr, 0, sizeof(*cgc->sshdr));
 
 	if (cgc->quiet)
 		flags |= RQF_QUIET;
@@ -470,7 +461,7 @@ int ide_cdrom_packet(struct cdrom_device_info *cdi,
 	cgc->stat = ide_cd_queue_pc(drive, cgc->cmd,
 				    cgc->data_direction == CGC_DATA_WRITE,
 				    cgc->buffer, &len,
-				    cgc->sense, cgc->timeout, flags);
+				    cgc->sshdr, cgc->timeout, flags);
 	if (!cgc->stat)
 		cgc->buflen -= len;
 	return cgc->stat;

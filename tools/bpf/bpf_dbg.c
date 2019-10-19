@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Minimal BPF debugger
  *
@@ -28,7 +29,6 @@
  *  7) > step [-<n>, +<n>] (performs single stepping through the BPF)
  *
  * Copyright 2013 Daniel Borkmann <borkmann@redhat.com>
- * Licensed under the GNU General Public License, version 2.0 (GPLv2)
  */
 
 #include <stdio.h>
@@ -1063,7 +1063,7 @@ static int cmd_load_pcap(char *file)
 
 static int cmd_load(char *arg)
 {
-	char *subcmd, *cont, *tmp = strdup(arg);
+	char *subcmd, *cont = NULL, *tmp = strdup(arg);
 	int ret = CMD_OK;
 
 	subcmd = strtok_r(tmp, " ", &cont);
@@ -1073,7 +1073,10 @@ static int cmd_load(char *arg)
 		bpf_reset();
 		bpf_reset_breakpoints();
 
-		ret = cmd_load_bpf(cont);
+		if (!cont)
+			ret = CMD_ERR;
+		else
+			ret = cmd_load_bpf(cont);
 	} else if (matches(subcmd, "pcap") == 0) {
 		ret = cmd_load_pcap(cont);
 	} else {

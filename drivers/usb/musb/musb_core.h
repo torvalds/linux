@@ -53,12 +53,6 @@ struct musb_ep;
 #define is_peripheral_active(m)		(!(m)->is_host)
 #define is_host_active(m)		((m)->is_host)
 
-enum {
-	MUSB_PORT_MODE_HOST	= 1,
-	MUSB_PORT_MODE_GADGET,
-	MUSB_PORT_MODE_DUAL_ROLE,
-};
-
 /****************************** CONSTANTS ********************************/
 
 #ifndef MUSB_C_NUM_EPS
@@ -127,8 +121,6 @@ struct musb_io;
  * @writeb:	write 8 bits
  * @readw:	read 16 bits
  * @writew:	write 16 bits
- * @readl:	read 32 bits
- * @writel:	write 32 bits
  * @read_fifo:	reads the fifo
  * @write_fifo:	writes to fifo
  * @dma_init:	platform specific dma init function
@@ -140,7 +132,6 @@ struct musb_io;
  * @recover:	platform-specific babble recovery
  * @vbus_status: returns vbus status if possible
  * @set_vbus:	forces vbus status
- * @adjust_channel_params: pre check for standard dma channel_program func
  * @pre_root_reset_end: called before the root usb port reset flag gets cleared
  * @post_root_reset_end: called after the root usb port reset flag gets cleared
  * @phy_callback: optional callback function for the phy to call
@@ -174,8 +165,6 @@ struct musb_platform_ops {
 	void	(*writeb)(void __iomem *addr, unsigned offset, u8 data);
 	u16	(*readw)(const void __iomem *addr, unsigned offset);
 	void	(*writew)(void __iomem *addr, unsigned offset, u16 data);
-	u32	(*readl)(const void __iomem *addr, unsigned offset);
-	void	(*writel)(void __iomem *addr, unsigned offset, u32 data);
 	void	(*read_fifo)(struct musb_hw_ep *hw_ep, u16 len, u8 *buf);
 	void	(*write_fifo)(struct musb_hw_ep *hw_ep, u16 len, const u8 *buf);
 	struct dma_controller *
@@ -188,9 +177,6 @@ struct musb_platform_ops {
 	int	(*vbus_status)(struct musb *musb);
 	void	(*set_vbus)(struct musb *musb, int on);
 
-	int	(*adjust_channel_params)(struct dma_channel *channel,
-				u16 packet_sz, u8 *mode,
-				dma_addr_t *dma_addr, u32 *len);
 	void	(*pre_root_reset_end)(struct musb *musb);
 	void	(*post_root_reset_end)(struct musb *musb);
 	int	(*phy_callback)(enum musb_vbus_id_status status);
@@ -359,7 +345,7 @@ struct musb {
 
 	u8			min_power;	/* vbus for periph, in mA/2 */
 
-	int			port_mode;	/* MUSB_PORT_MODE_* */
+	enum musb_mode		port_mode;
 	bool			session;
 	unsigned long		quirk_retries;
 	bool			is_host;
@@ -414,19 +400,6 @@ struct musb {
 	struct usb_gadget_driver *gadget_driver;	/* its driver */
 	struct usb_hcd		*hcd;			/* the usb hcd */
 
-	/*
-	 * FIXME: Remove this flag.
-	 *
-	 * This is only added to allow Blackfin to work
-	 * with current driver. For some unknown reason
-	 * Blackfin doesn't work with double buffering
-	 * and that's enabled by default.
-	 *
-	 * We added this flag to forcefully disable double
-	 * buffering until we get it working.
-	 */
-	unsigned                double_buffer_not_ok:1;
-
 	const struct musb_hdrc_config *config;
 
 	int			xceiv_old_state;
@@ -467,34 +440,6 @@ static inline char *musb_ep_xfertype_string(u8 type)
 	return s;
 }
 
-#ifdef CONFIG_BLACKFIN
-static inline int musb_read_fifosize(struct musb *musb,
-		struct musb_hw_ep *hw_ep, u8 epnum)
-{
-	musb->nr_endpoints++;
-	musb->epmask |= (1 << epnum);
-
-	if (epnum < 5) {
-		hw_ep->max_packet_sz_tx = 128;
-		hw_ep->max_packet_sz_rx = 128;
-	} else {
-		hw_ep->max_packet_sz_tx = 1024;
-		hw_ep->max_packet_sz_rx = 1024;
-	}
-	hw_ep->is_shared_fifo = false;
-
-	return 0;
-}
-
-static inline void musb_configure_ep0(struct musb *musb)
-{
-	musb->endpoints[0].max_packet_sz_tx = MUSB_EP0_FIFOSIZE;
-	musb->endpoints[0].max_packet_sz_rx = MUSB_EP0_FIFOSIZE;
-	musb->endpoints[0].is_shared_fifo = true;
-}
-
-#else
-
 static inline int musb_read_fifosize(struct musb *musb,
 		struct musb_hw_ep *hw_ep, u8 epnum)
 {
@@ -531,8 +476,6 @@ static inline void musb_configure_ep0(struct musb *musb)
 	musb->endpoints[0].max_packet_sz_rx = MUSB_EP0_FIFOSIZE;
 	musb->endpoints[0].is_shared_fifo = true;
 }
-#endif /* CONFIG_BLACKFIN */
-
 
 /***************************** Glue it together *****************************/
 

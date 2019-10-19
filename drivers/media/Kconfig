@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Multimedia device configuration
 #
@@ -31,14 +32,14 @@ comment "Multimedia core support"
 #
 config MEDIA_CAMERA_SUPPORT
 	bool "Cameras/video grabbers support"
-	---help---
+	help
 	  Enable support for webcams and video grabbers.
 
 	  Say Y when you have a webcam or a video capture grabber board.
 
 config MEDIA_ANALOG_TV_SUPPORT
 	bool "Analog TV support"
-	---help---
+	help
 	  Enable analog TV support.
 
 	  Say Y when you have a TV board with analog support or with a
@@ -50,7 +51,7 @@ config MEDIA_ANALOG_TV_SUPPORT
 
 config MEDIA_DIGITAL_TV_SUPPORT
 	bool "Digital TV support"
-	---help---
+	help
 	  Enable digital TV support.
 
 	  Say Y when you have a board with digital support or a board with
@@ -58,7 +59,7 @@ config MEDIA_DIGITAL_TV_SUPPORT
 
 config MEDIA_RADIO_SUPPORT
 	bool "AM/FM radio receivers/transmitters support"
-	---help---
+	help
 	  Enable AM/FM radio support.
 
 	  Additional info and docs are available on the web at
@@ -72,43 +73,23 @@ config MEDIA_RADIO_SUPPORT
 
 config MEDIA_SDR_SUPPORT
 	bool "Software defined radio support"
-	---help---
+	help
 	  Enable software defined radio support.
 
 	  Say Y when you have a software defined radio device.
 
 config MEDIA_CEC_SUPPORT
-       bool "HDMI CEC support"
-       ---help---
-	 Enable support for HDMI CEC (Consumer Electronics Control),
-	 which is an optional HDMI feature.
+	bool "HDMI CEC support"
+	help
+	  Enable support for HDMI CEC (Consumer Electronics Control),
+	  which is an optional HDMI feature.
 
-	 Say Y when you have an HDMI receiver, transmitter or a USB CEC
-	 adapter that supports HDMI CEC.
+	  Say Y when you have an HDMI receiver, transmitter or a USB CEC
+	  adapter that supports HDMI CEC.
 
 source "drivers/media/cec/Kconfig"
 
-#
-# Media controller
-#	Selectable only for webcam/grabbers, as other drivers don't use it
-#
-
-config MEDIA_CONTROLLER
-	bool "Media Controller API"
-	depends on MEDIA_CAMERA_SUPPORT || MEDIA_ANALOG_TV_SUPPORT || MEDIA_DIGITAL_TV_SUPPORT
-	---help---
-	  Enable the media controller API used to query media devices internal
-	  topology and configure it dynamically.
-
-	  This API is mostly used by camera interfaces in embedded platforms.
-
-config MEDIA_CONTROLLER_DVB
-	bool "Enable Media controller for DVB (EXPERIMENTAL)"
-	depends on MEDIA_CONTROLLER && DVB_CORE
-	---help---
-	  Enable the media controller API support for DVB.
-
-	  This is currently experimental.
+source "drivers/media/mc/Kconfig"
 
 #
 # Video4Linux support
@@ -124,7 +105,7 @@ config VIDEO_DEV
 config VIDEO_V4L2_SUBDEV_API
 	bool "V4L2 sub-device userspace API"
 	depends on VIDEO_DEV && MEDIA_CONTROLLER
-	---help---
+	help
 	  Enables the V4L2 sub-device pad-level userspace API used to configure
 	  video format, size and frame rate between hardware blocks.
 
@@ -141,15 +122,17 @@ config DVB_CORE
 	tristate
 	depends on MEDIA_SUPPORT
 	depends on MEDIA_DIGITAL_TV_SUPPORT
+	depends on (I2C || I2C=n)
 	default y
 	select CRC32
 
 config DVB_MMAP
 	bool "Enable DVB memory-mapped API (EXPERIMENTAL)"
 	depends on DVB_CORE
-	default n
+	depends on VIDEO_V4L2=y || VIDEO_V4L2=DVB_CORE
+	select VIDEOBUF2_VMALLOC
 	help
-	  This option enables DVB experimental memory-mapped API, with
+	  This option enables DVB experimental memory-mapped API, which
 	  reduces the number of context switches to read DVB buffers, as
 	  the buffers can use mmap() syscalls.
 
@@ -173,7 +156,6 @@ config DVB_NET
 config TTPCI_EEPROM
 	tristate
 	depends on I2C
-	default n
 
 source "drivers/media/dvb-core/Kconfig"
 
@@ -208,7 +190,7 @@ config MEDIA_SUBDRV_AUTOSELECT
 	depends on HAS_IOMEM
 	select I2C
 	select I2C_MUX
-	default y
+	default y if !EMBEDDED
 	help
 	  By default, a media driver auto-selects all possible ancillary
 	  devices such as tuners, sensors, video encoders/decoders and
@@ -224,6 +206,11 @@ config MEDIA_SUBDRV_AUTOSELECT
 	  the needed demodulators).
 
 	  If unsure say Y.
+
+config MEDIA_HIDE_ANCILLARY_SUBDRV
+        bool
+        depends on MEDIA_SUBDRV_AUTOSELECT && !COMPILE_TEST && !EXPERT
+        default y
 
 config MEDIA_ATTACH
 	bool

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* qlogicpti.c: Performance Technologies QlogicISP sbus card driver.
  *
  * Copyright (C) 1996, 2006, 2008 David S. Miller (davem@davemloft.net)
@@ -199,10 +200,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Write mailbox command registers. */
 	switch (mbox_param[param[0]] >> 4) {
 	case 6: sbus_writew(param[5], qpti->qregs + MBOX5);
+		/* Fall through */
 	case 5: sbus_writew(param[4], qpti->qregs + MBOX4);
+		/* Fall through */
 	case 4: sbus_writew(param[3], qpti->qregs + MBOX3);
+		/* Fall through */
 	case 3: sbus_writew(param[2], qpti->qregs + MBOX2);
+		/* Fall through */
 	case 2: sbus_writew(param[1], qpti->qregs + MBOX1);
+		/* Fall through */
 	case 1: sbus_writew(param[0], qpti->qregs + MBOX0);
 	}
 
@@ -253,10 +259,15 @@ static int qlogicpti_mbox_command(struct qlogicpti *qpti, u_short param[], int f
 	/* Read back output parameters. */
 	switch (mbox_param[param[0]] & 0xf) {
 	case 6: param[5] = sbus_readw(qpti->qregs + MBOX5);
+		/* Fall through */
 	case 5: param[4] = sbus_readw(qpti->qregs + MBOX4);
+		/* Fall through */
 	case 4: param[3] = sbus_readw(qpti->qregs + MBOX3);
+		/* Fall through */
 	case 3: param[2] = sbus_readw(qpti->qregs + MBOX2);
+		/* Fall through */
 	case 2: param[1] = sbus_readw(qpti->qregs + MBOX1);
+		/* Fall through */
 	case 1: param[0] = sbus_readw(qpti->qregs + MBOX0);
 	}
 
@@ -959,7 +970,7 @@ static inline void update_can_queue(struct Scsi_Host *host, u_int in_ptr, u_int 
 	/* Temporary workaround until bug is found and fixed (one bug has been found
 	   already, but fixing it makes things even worse) -jj */
 	int num_free = QLOGICPTI_REQ_QUEUE_LEN - REQ_QUEUE_DEPTH(in_ptr, out_ptr) - 64;
-	host->can_queue = atomic_read(&host->host_busy) + num_free;
+	host->can_queue = scsi_host_busy(host) + num_free;
 	host->sg_tablesize = QLOGICPTI_MAX_SG(num_free);
 }
 
@@ -1287,7 +1298,6 @@ static struct scsi_host_template qpti_template = {
 	.can_queue		= QLOGICPTI_REQ_QUEUE_LEN,
 	.this_id		= 7,
 	.sg_tablesize		= QLOGICPTI_MAX_SG(QLOGICPTI_REQ_QUEUE_LEN),
-	.use_clustering		= ENABLE_CLUSTERING,
 };
 
 static const struct of_device_id qpti_match[];
@@ -1315,8 +1325,7 @@ static int qpti_sbus_probe(struct platform_device *op)
 	qpti->qhost = host;
 	qpti->op = op;
 	qpti->qpti_id = nqptis;
-	strcpy(qpti->prom_name, op->dev.of_node->name);
-	qpti->is_pti = strcmp(qpti->prom_name, "QLGC,isp");
+	qpti->is_pti = !of_node_name_eq(op->dev.of_node, "QLGC,isp");
 
 	if (qpti_map_regs(qpti) < 0)
 		goto fail_unlink;
@@ -1385,15 +1394,15 @@ fail_unmap_queues:
 			  qpti->req_cpu, qpti->req_dvma);
 #undef QSIZE
 
+fail_free_irq:
+	free_irq(qpti->irq, qpti);
+
 fail_unmap_regs:
 	of_iounmap(&op->resource[0], qpti->qregs,
 		   resource_size(&op->resource[0]));
 	if (qpti->is_pti)
 		of_iounmap(&op->resource[0], qpti->sreg,
 			   sizeof(unsigned char));
-
-fail_free_irq:
-	free_irq(qpti->irq, qpti);
 
 fail_unlink:
 	scsi_host_put(host);

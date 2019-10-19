@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * DVB USB framework
  *
  * Copyright (C) 2004-6 Patrick Boettcher <patrick.boettcher@posteo.de>
  * Copyright (C) 2012 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "dvb_usb_common.h"
@@ -47,7 +34,7 @@ static int dvb_usbv2_download_firmware(struct dvb_usb_device *d,
 	ret = request_firmware(&fw, name, &d->udev->dev);
 	if (ret < 0) {
 		dev_err(&d->udev->dev,
-				"%s: Did not find the firmware file '%s'. Please see linux/Documentation/dvb/ for more details on firmware-problems. Status %d\n",
+				"%s: Did not find the firmware file '%s' (status %d). You can use <kernel_dir>/scripts/get_dvb_firmware to get the firmware\n",
 				KBUILD_MODNAME, name, ret);
 		goto err;
 	}
@@ -74,7 +61,7 @@ static int dvb_usbv2_i2c_init(struct dvb_usb_device *d)
 	if (!d->props->i2c_algo)
 		return 0;
 
-	strlcpy(d->i2c_adap.name, d->name, sizeof(d->i2c_adap.name));
+	strscpy(d->i2c_adap.name, d->name, sizeof(d->i2c_adap.name));
 	d->i2c_adap.algo = d->props->i2c_algo;
 	d->i2c_adap.dev.parent = &d->udev->dev;
 	i2c_set_adapdata(&d->i2c_adap, d);
@@ -854,8 +841,6 @@ static int dvb_usbv2_exit(struct dvb_usb_device *d)
 	dvb_usbv2_remote_exit(d);
 	dvb_usbv2_adapter_exit(d);
 	dvb_usbv2_i2c_exit(d);
-	kfree(d->priv);
-	kfree(d);
 
 	return 0;
 }
@@ -934,7 +919,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 	if (intf->cur_altsetting->desc.bInterfaceNumber !=
 			d->props->bInterfaceNumber) {
 		ret = -ENODEV;
-		goto err_free_all;
+		goto err_kfree_d;
 	}
 
 	mutex_init(&d->usb_mutex);
@@ -946,16 +931,20 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 			dev_err(&d->udev->dev, "%s: kzalloc() failed\n",
 					KBUILD_MODNAME);
 			ret = -ENOMEM;
-			goto err_free_all;
+			goto err_kfree_d;
 		}
+	}
+
+	if (d->props->probe) {
+		ret = d->props->probe(d);
+		if (ret)
+			goto err_kfree_priv;
 	}
 
 	if (d->props->identify_state) {
 		const char *name = NULL;
 		ret = d->props->identify_state(d, &name);
-		if (ret == 0) {
-			;
-		} else if (ret == COLD) {
+		if (ret == COLD) {
 			dev_info(&d->udev->dev,
 					"%s: found a '%s' in cold state\n",
 					KBUILD_MODNAME, d->name);
@@ -980,7 +969,7 @@ int dvb_usbv2_probe(struct usb_interface *intf,
 			} else {
 				goto err_free_all;
 			}
-		} else {
+		} else if (ret != WARM) {
 			goto err_free_all;
 		}
 	}
@@ -1001,6 +990,12 @@ exit:
 	return 0;
 err_free_all:
 	dvb_usbv2_exit(d);
+	if (d->props->disconnect)
+		d->props->disconnect(d);
+err_kfree_priv:
+	kfree(d->priv);
+err_kfree_d:
+	kfree(d);
 err:
 	dev_dbg(&udev->dev, "%s: failed=%d\n", __func__, ret);
 	return ret;
@@ -1020,6 +1015,12 @@ void dvb_usbv2_disconnect(struct usb_interface *intf)
 		d->props->exit(d);
 
 	dvb_usbv2_exit(d);
+
+	if (d->props->disconnect)
+		d->props->disconnect(d);
+
+	kfree(d->priv);
+	kfree(d);
 
 	pr_info("%s: '%s:%s' successfully deinitialized and disconnected\n",
 		KBUILD_MODNAME, drvname, devname);

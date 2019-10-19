@@ -1,13 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Driver for the 1250-EV1 audio I/O module
  *
  * Copyright 2011 Wolfson Microelectronics plc
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #include <linux/init.h>
@@ -32,10 +27,10 @@ struct wm1250_priv {
 	struct gpio gpios[WM1250_EV1_NUM_GPIOS];
 };
 
-static int wm1250_ev1_set_bias_level(struct snd_soc_codec *codec,
+static int wm1250_ev1_set_bias_level(struct snd_soc_component *component,
 				     enum snd_soc_bias_level level)
 {
-	struct wm1250_priv *wm1250 = dev_get_drvdata(codec->dev);
+	struct wm1250_priv *wm1250 = dev_get_drvdata(component->dev);
 	int ena;
 
 	if (wm1250)
@@ -81,7 +76,7 @@ static int wm1250_ev1_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
 {
-	struct wm1250_priv *wm1250 = snd_soc_codec_get_drvdata(dai->codec);
+	struct wm1250_priv *wm1250 = snd_soc_component_get_drvdata(dai->component);
 
 	switch (params_rate(params)) {
 	case 8000:
@@ -141,15 +136,15 @@ static struct snd_soc_dai_driver wm1250_ev1_dai = {
 	.ops = &wm1250_ev1_ops,
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm1250_ev1 = {
-	.component_driver = {
-		.dapm_widgets		= wm1250_ev1_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm1250_ev1_dapm_widgets),
-		.dapm_routes		= wm1250_ev1_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(wm1250_ev1_dapm_routes),
-	},
-	.set_bias_level = wm1250_ev1_set_bias_level,
-	.idle_bias_off = true,
+static const struct snd_soc_component_driver soc_component_dev_wm1250_ev1 = {
+	.dapm_widgets		= wm1250_ev1_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm1250_ev1_dapm_widgets),
+	.dapm_routes		= wm1250_ev1_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(wm1250_ev1_dapm_routes),
+	.set_bias_level		= wm1250_ev1_set_bias_level,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int wm1250_ev1_pdata(struct i2c_client *i2c)
@@ -224,7 +219,7 @@ static int wm1250_ev1_probe(struct i2c_client *i2c,
 	if (ret != 0)
 		return ret;
 
-	ret = snd_soc_register_codec(&i2c->dev, &soc_codec_dev_wm1250_ev1,
+	ret = devm_snd_soc_register_component(&i2c->dev, &soc_component_dev_wm1250_ev1,
 				     &wm1250_ev1_dai, 1);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register CODEC: %d\n", ret);
@@ -237,7 +232,6 @@ static int wm1250_ev1_probe(struct i2c_client *i2c,
 
 static int wm1250_ev1_remove(struct i2c_client *i2c)
 {
-	snd_soc_unregister_codec(&i2c->dev);
 	wm1250_ev1_free(i2c);
 
 	return 0;

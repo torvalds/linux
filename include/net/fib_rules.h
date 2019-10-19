@@ -26,7 +26,8 @@ struct fib_rule {
 	u32			table;
 	u8			action;
 	u8			l3mdev;
-	/* 2 bytes hole, try to use */
+	u8                      proto;
+	u8			ip_proto;
 	u32			target;
 	__be64			tun_id;
 	struct fib_rule __rcu	*ctarget;
@@ -39,11 +40,14 @@ struct fib_rule {
 	char			iifname[IFNAMSIZ];
 	char			oifname[IFNAMSIZ];
 	struct fib_kuid_range	uid_range;
+	struct fib_rule_port_range	sport_range;
+	struct fib_rule_port_range	dport_range;
 	struct rcu_head		rcu;
 };
 
 struct fib_lookup_arg {
 	void			*lookup_ptr;
+	const void		*lookup_data;
 	void			*result;
 	struct fib_rule		*rule;
 	u32			table;
@@ -71,7 +75,8 @@ struct fib_rules_ops {
 	int			(*configure)(struct fib_rule *,
 					     struct sk_buff *,
 					     struct fib_rule_hdr *,
-					     struct nlattr **);
+					     struct nlattr **,
+					     struct netlink_ext_ack *);
 	int			(*delete)(struct fib_rule *);
 	int			(*compare)(struct fib_rule *,
 					   struct fib_rule_hdr *,
@@ -98,6 +103,7 @@ struct fib_rule_notifier_info {
 };
 
 #define FRA_GENERIC_POLICY \
+	[FRA_UNSPEC]	= { .strict_start_type = FRA_DPORT_RANGE + 1 }, \
 	[FRA_IIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
 	[FRA_OIFNAME]	= { .type = NLA_STRING, .len = IFNAMSIZ - 1 }, \
 	[FRA_PRIORITY]	= { .type = NLA_U32 }, \
@@ -108,7 +114,12 @@ struct fib_rule_notifier_info {
 	[FRA_SUPPRESS_IFGROUP] = { .type = NLA_U32 }, \
 	[FRA_GOTO]	= { .type = NLA_U32 }, \
 	[FRA_L3MDEV]	= { .type = NLA_U8 }, \
-	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) }
+	[FRA_UID_RANGE]	= { .len = sizeof(struct fib_rule_uid_range) }, \
+	[FRA_PROTOCOL]  = { .type = NLA_U8 }, \
+	[FRA_IP_PROTO]  = { .type = NLA_U8 }, \
+	[FRA_SPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }, \
+	[FRA_DPORT_RANGE] = { .len = sizeof(struct fib_rule_port_range) }
+
 
 static inline void fib_rule_get(struct fib_rule *rule)
 {
@@ -140,6 +151,38 @@ static inline u32 frh_get_table(struct fib_rule_hdr *frh, struct nlattr **nla)
 	if (nla[FRA_TABLE])
 		return nla_get_u32(nla[FRA_TABLE]);
 	return frh->table;
+}
+
+static inline bool fib_rule_port_range_set(const struct fib_rule_port_range *range)
+{
+	return range->start != 0 && range->end != 0;
+}
+
+static inline bool fib_rule_port_inrange(const struct fib_rule_port_range *a,
+					 __be16 port)
+{
+	return ntohs(port) >= a->start &&
+		ntohs(port) <= a->end;
+}
+
+static inline bool fib_rule_port_range_valid(const struct fib_rule_port_range *a)
+{
+	return a->start != 0 && a->end != 0 && a->end < 0xffff &&
+		a->start <= a->end;
+}
+
+static inline bool fib_rule_port_range_compare(struct fib_rule_port_range *a,
+					       struct fib_rule_port_range *b)
+{
+	return a->start == b->start &&
+		a->end == b->end;
+}
+
+static inline bool fib_rule_requires_fldissect(struct fib_rule *rule)
+{
+	return rule->iifindex != LOOPBACK_IFINDEX && (rule->ip_proto ||
+		fib_rule_port_range_set(&rule->sport_range) ||
+		fib_rule_port_range_set(&rule->dport_range));
 }
 
 struct fib_rules_ops *fib_rules_register(const struct fib_rules_ops *,

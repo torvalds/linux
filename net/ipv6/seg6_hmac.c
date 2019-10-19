@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  SR-IPv6 implementation -- HMAC functions
  *
  *  Author:
  *  David Lebrun <david.lebrun@uclouvain.be>
- *
- *
- *  This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #include <linux/errno.h>
@@ -22,6 +17,7 @@
 #include <linux/icmpv6.h>
 #include <linux/mroute6.h>
 #include <linux/slab.h>
+#include <linux/rhashtable.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv6.h>
@@ -373,7 +369,7 @@ static int seg6_hmac_init_algo(void)
 			return -ENOMEM;
 
 		for_each_possible_cpu(cpu) {
-			tfm = crypto_alloc_shash(algo->name, 0, GFP_KERNEL);
+			tfm = crypto_alloc_shash(algo->name, 0, 0);
 			if (IS_ERR(tfm))
 				return PTR_ERR(tfm);
 			p_tfm = per_cpu_ptr(algo->tfms, cpu);

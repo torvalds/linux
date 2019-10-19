@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __LINUX_IMX6Q_IOMUXC_GPR_H
@@ -243,6 +240,8 @@
 #define IMX6Q_GPR4_IPU_RD_CACHE_CTL		BIT(0)
 
 #define IMX6Q_GPR5_L2_CLK_STOP			BIT(8)
+#define IMX6Q_GPR5_SATA_SW_PD			BIT(10)
+#define IMX6Q_GPR5_SATA_SW_RST			BIT(11)
 
 #define IMX6Q_GPR6_IPU1_ID00_WR_QOS_MASK	(0xf << 0)
 #define IMX6Q_GPR6_IPU1_ID01_WR_QOS_MASK	(0xf << 4)
@@ -408,6 +407,15 @@
 #define IMX6SX_GPR1_FEC_CLOCK_PAD_DIR_MASK		(0x3 << 17)
 #define IMX6SX_GPR1_FEC_CLOCK_MUX_SEL_EXT		(0x3 << 13)
 
+#define IMX6SX_GPR2_MQS_OVERSAMPLE_MASK			(0x1 << 26)
+#define IMX6SX_GPR2_MQS_OVERSAMPLE_SHIFT		(26)
+#define IMX6SX_GPR2_MQS_EN_MASK				(0x1 << 25)
+#define IMX6SX_GPR2_MQS_EN_SHIFT			(25)
+#define IMX6SX_GPR2_MQS_SW_RST_MASK			(0x1 << 24)
+#define IMX6SX_GPR2_MQS_SW_RST_SHIFT			(24)
+#define IMX6SX_GPR2_MQS_CLK_DIV_MASK			(0xFF << 16)
+#define IMX6SX_GPR2_MQS_CLK_DIV_SHIFT			(16)
+
 #define IMX6SX_GPR4_FEC_ENET1_STOP_REQ			(0x1 << 3)
 #define IMX6SX_GPR4_FEC_ENET2_STOP_REQ			(0x1 << 4)
 
@@ -438,6 +446,7 @@
 #define IMX6SX_GPR5_DISP_MUX_DCIC1_MASK			(0x1 << 1)
 
 #define IMX6SX_GPR12_PCIE_TEST_POWERDOWN		BIT(30)
+#define IMX6SX_GPR12_PCIE_PM_TURN_OFF			BIT(16)
 #define IMX6SX_GPR12_PCIE_RX_EQ_MASK			(0x7 << 0)
 #define IMX6SX_GPR12_PCIE_RX_EQ_2			(0x2 << 0)
 
@@ -454,5 +463,8 @@
 #define IMX6UL_GPR1_SAI_MCLK_MASK		(0x7 << 19)
 #define MCLK_DIR(x) (x == 1 ? IMX6UL_GPR1_SAI1_MCLK_DIR : x == 2 ? \
 		     IMX6UL_GPR1_SAI2_MCLK_DIR : IMX6UL_GPR1_SAI3_MCLK_DIR)
+
+/* For imx6sll iomux gpr register field define */
+#define IMX6SLL_GPR5_AFCG_X_BYPASS_MASK		(0x1f << 11)
 
 #endif /* __LINUX_IMX6Q_IOMUXC_GPR_H */

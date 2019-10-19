@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * lmp91000.c - Support for Texas Instruments digital potentiostats
  *
- * Copyright (C) 2016 Matt Ranostay <mranostay@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (C) 2016, 2018
+ * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * TODO: bias voltage + polarity control, and multiple chip support
  */
@@ -121,7 +113,7 @@ static int lmp91000_read(struct lmp91000_data *data, int channel, int *val)
 		return -EINVAL;
 
 	/* delay till first temperature reading is complete */
-	if ((state != channel) && (channel == LMP91000_REG_MODECN_TEMP))
+	if (state != channel && channel == LMP91000_REG_MODECN_TEMP)
 		usleep_range(3000, 4000);
 
 	data->chan_select = channel != LMP91000_REG_MODECN_3LEAD;
@@ -219,12 +211,11 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 
 	ret = of_property_read_u32(np, "ti,tia-gain-ohm", &val);
 	if (ret) {
-		if (of_property_read_bool(np, "ti,external-tia-resistor"))
-			val = 0;
-		else {
-			dev_err(dev, "no ti,tia-gain-ohm defined");
+		if (!of_property_read_bool(np, "ti,external-tia-resistor")) {
+			dev_err(dev, "no ti,tia-gain-ohm defined and external resistor not specified\n");
 			return ret;
 		}
+		val = 0;
 	}
 
 	ret = -EINVAL;
@@ -263,8 +254,8 @@ static int lmp91000_read_config(struct lmp91000_data *data)
 
 	regmap_write(data->regmap, LMP91000_REG_LOCK, 0);
 	regmap_write(data->regmap, LMP91000_REG_TIACN, reg);
-	regmap_write(data->regmap, LMP91000_REG_REFCN, LMP91000_REG_REFCN_EXT_REF
-					| LMP91000_REG_REFCN_50_ZERO);
+	regmap_write(data->regmap, LMP91000_REG_REFCN,
+		     LMP91000_REG_REFCN_EXT_REF | LMP91000_REG_REFCN_50_ZERO);
 	regmap_write(data->regmap, LMP91000_REG_LOCK, 1);
 
 	return 0;
@@ -283,7 +274,6 @@ static int lmp91000_buffer_cb(const void *val, void *private)
 
 static const struct iio_trigger_ops lmp91000_trigger_ops = {
 };
-
 
 static int lmp91000_buffer_preenable(struct iio_dev *indio_dev)
 {
@@ -419,12 +409,14 @@ static int lmp91000_remove(struct i2c_client *client)
 
 static const struct of_device_id lmp91000_of_match[] = {
 	{ .compatible = "ti,lmp91000", },
+	{ .compatible = "ti,lmp91002", },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, lmp91000_of_match);
 
 static const struct i2c_device_id lmp91000_id[] = {
 	{ "lmp91000", 0 },
+	{ "lmp91002", 0 },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, lmp91000_id);
@@ -440,6 +432,6 @@ static struct i2c_driver lmp91000_driver = {
 };
 module_i2c_driver(lmp91000_driver);
 
-MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("LMP91000 digital potentiostat");
 MODULE_LICENSE("GPL");

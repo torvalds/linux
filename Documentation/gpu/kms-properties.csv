@@ -1,5 +1,4 @@
 Owner Module/Drivers,Group,Property Name,Type,Property Values,Object attached,Description/Restrictions
-,,“scaling mode”,ENUM,"{ ""None"", ""Full"", ""Center"", ""Full aspect"" }",Connector,"Supported by: amdgpu, gma500, i915, nouveau and radeon."
 ,DVI-I,“subconnector”,ENUM,"{ “Unknown”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,,“select subconnector”,ENUM,"{ “Automatic”, “DVI-D”, “DVI-A” }",Connector,TBD
 ,TV,“subconnector”,ENUM,"{ ""Unknown"", ""Composite"", ""SVIDEO"", ""Component"", ""SCART"" }",Connector,TBD
@@ -99,5 +98,4 @@ radeon,DVI-I,“coherent”,RANGE,"Min=0, Max=1",Connector,TBD
 ,,"""underscan vborder""",RANGE,"Min=0, Max=128",Connector,TBD
 ,Audio,“audio”,ENUM,"{ ""off"", ""on"", ""auto"" }",Connector,TBD
 ,FMT Dithering,“dither”,ENUM,"{ ""off"", ""on"" }",Connector,TBD
-rcar-du,Generic,"""alpha""",RANGE,"Min=0, Max=255",Plane,TBD
 ,,"""colorkey""",RANGE,"Min=0, Max=0x01ffffff",Plane,TBD

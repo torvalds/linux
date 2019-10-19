@@ -1,21 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *   ALSA sequencer Queue handling
  *   Copyright (c) 1998-1999 by Frank van de Pol <fvdpol@coil.demon.nl>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 #ifndef __SND_SEQ_QUEUE_H
 #define __SND_SEQ_QUEUE_H
@@ -63,9 +49,6 @@ struct snd_seq_queue {
 /* get the number of current queues */
 int snd_seq_queue_get_cur_queues(void);
 
-/* init queues structure */
-int snd_seq_queues_init(void);
-
 /* delete queues */ 
 void snd_seq_queues_delete(void);
 
@@ -111,29 +94,5 @@ int snd_seq_queue_use(int queueid, int client, int use);
 int snd_seq_queue_is_used(int queueid, int client);
 
 int snd_seq_control_queue(struct snd_seq_event *ev, int atomic, int hop);
-
-/*
- * 64bit division - for sync stuff..
- */
-#if defined(i386) || defined(i486)
-
-#define udiv_qrnnd(q, r, n1, n0, d) \
-  __asm__ ("divl %4"		\
-	   : "=a" ((u32)(q)),	\
-	     "=d" ((u32)(r))	\
-	   : "0" ((u32)(n0)),	\
-	     "1" ((u32)(n1)),	\
-	     "rm" ((u32)(d)))
-
-#define u64_div(x,y,q) do {u32 __tmp; udiv_qrnnd(q, __tmp, (x)>>32, x, y);} while (0)
-#define u64_mod(x,y,r) do {u32 __tmp; udiv_qrnnd(__tmp, q, (x)>>32, x, y);} while (0)
-#define u64_divmod(x,y,q,r) udiv_qrnnd(q, r, (x)>>32, x, y)
-
-#else
-#define u64_div(x,y,q)	((q) = (u32)((u64)(x) / (u64)(y)))
-#define u64_mod(x,y,r)	((r) = (u32)((u64)(x) % (u64)(y)))
-#define u64_divmod(x,y,q,r) (u64_div(x,y,q), u64_mod(x,y,r))
-#endif
-
 
 #endif

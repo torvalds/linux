@@ -4,8 +4,6 @@
 #include <asm/patch.h>
 #include <asm/insn.h>
 
-#ifdef HAVE_JUMP_LABEL
-
 static void __arch_jump_label_transform(struct jump_entry *entry,
 					enum jump_label_type type,
 					bool is_static)
@@ -35,5 +33,3 @@ void arch_jump_label_transform_static(struct jump_entry *entry,
 {
 	__arch_jump_label_transform(entry, type, true);
 }
-
-#endif

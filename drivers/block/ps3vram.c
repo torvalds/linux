@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ps3vram - Use extra PS3 video ram as block device.
  *
@@ -407,8 +408,9 @@ static int ps3vram_cache_init(struct ps3_system_bus_device *dev)
 
 	priv->cache.page_count = CACHE_PAGE_COUNT;
 	priv->cache.page_size = CACHE_PAGE_SIZE;
-	priv->cache.tags = kzalloc(sizeof(struct ps3vram_tag) *
-				   CACHE_PAGE_COUNT, GFP_KERNEL);
+	priv->cache.tags = kcalloc(CACHE_PAGE_COUNT,
+				   sizeof(struct ps3vram_tag),
+				   GFP_KERNEL);
 	if (!priv->cache.tags)
 		return -ENOMEM;
 
@@ -521,26 +523,13 @@ static int ps3vram_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ps3vram_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ps3vram_proc_show, PDE_DATA(inode));
-}
-
-static const struct file_operations ps3vram_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ps3vram_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static void ps3vram_proc_init(struct ps3_system_bus_device *dev)
 {
 	struct ps3vram_priv *priv = ps3_system_bus_get_drvdata(dev);
 	struct proc_dir_entry *pde;
 
-	pde = proc_create_data(DEVICE_NAME, 0444, NULL, &ps3vram_proc_fops,
-			       priv);
+	pde = proc_create_single_data(DEVICE_NAME, 0444, NULL,
+			ps3vram_proc_show, priv);
 	if (!pde)
 		dev_warn(&dev->core, "failed to create /proc entry\n");
 }
@@ -778,10 +767,10 @@ static int ps3vram_probe(struct ps3_system_bus_device *dev)
 	strlcpy(gendisk->disk_name, DEVICE_NAME, sizeof(gendisk->disk_name));
 	set_capacity(gendisk, priv->size >> 9);
 
-	dev_info(&dev->core, "%s: Using %lu MiB of GPU memory\n",
+	dev_info(&dev->core, "%s: Using %llu MiB of GPU memory\n",
 		 gendisk->disk_name, get_capacity(gendisk) >> 11);
 
-	device_add_disk(&dev->core, gendisk);
+	device_add_disk(&dev->core, gendisk, NULL);
 	return 0;
 
 fail_cleanup_queue:

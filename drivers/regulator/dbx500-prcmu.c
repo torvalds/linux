@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson SA 2010
  *
- * License Terms: GNU General Public License v2
  * Authors: Sundar Iyer <sundar.iyer@stericsson.com> for ST-Ericsson
  *          Bengt Jonsson <bengt.g.jonsson@stericsson.com> for ST-Ericsson
  *
@@ -75,7 +75,7 @@ static struct ux500_regulator_debug {
 	u8 *state_after_suspend;
 } rdebug;
 
-static int ux500_regulator_power_state_cnt_print(struct seq_file *s, void *p)
+static int ux500_regulator_power_state_cnt_show(struct seq_file *s, void *p)
 {
 	/* print power state count */
 	seq_printf(s, "ux500-regulator power state count: %i\n",
@@ -83,23 +83,9 @@ static int ux500_regulator_power_state_cnt_print(struct seq_file *s, void *p)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(ux500_regulator_power_state_cnt);
 
-static int ux500_regulator_power_state_cnt_open(struct inode *inode,
-	struct file *file)
-{
-	return single_open(file, ux500_regulator_power_state_cnt_print,
-		inode->i_private);
-}
-
-static const struct file_operations ux500_regulator_power_state_cnt_fops = {
-	.open = ux500_regulator_power_state_cnt_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
-
-static int ux500_regulator_status_print(struct seq_file *s, void *p)
+static int ux500_regulator_status_show(struct seq_file *s, void *p)
 {
 	int i;
 
@@ -122,20 +108,7 @@ static int ux500_regulator_status_print(struct seq_file *s, void *p)
 
 	return 0;
 }
-
-static int ux500_regulator_status_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, ux500_regulator_status_print,
-		inode->i_private);
-}
-
-static const struct file_operations ux500_regulator_status_fops = {
-	.open = ux500_regulator_status_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.owner = THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(ux500_regulator_status);
 
 int __attribute__((weak)) dbx500_regulator_testcase(
 	struct dbx500_regulator_info *regulator_info,

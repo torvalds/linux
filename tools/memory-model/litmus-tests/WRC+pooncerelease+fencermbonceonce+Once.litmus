@@ -1,0 +1,38 @@
+C WRC+pooncerelease+fencermbonceonce+Once
+
+(*
+ * Result: Never
+ *
+ * This litmus test is an extension of the message-passing pattern, where
+ * the first write is moved to a separate process.  Because it features
+ * a release and a read memory barrier, it should be forbidden.  More
+ * specifically, this litmus test is forbidden because smp_store_release()
+ * is A-cumulative in LKMM.
+ *)
+
+{}
+
+P0(int *x)
+{
+	WRITE_ONCE(*x, 1);
+}
+
+P1(int *x, int *y)
+{
+	int r0;
+
+	r0 = READ_ONCE(*x);
+	smp_store_release(y, 1);
+}
+
+P2(int *x, int *y)
+{
+	int r0;
+	int r1;
+
+	r0 = READ_ONCE(*y);
+	smp_rmb();
+	r1 = READ_ONCE(*x);
+}
+
+exists (1:r0=1 /\ 2:r0=1 /\ 2:r1=0)

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Dynamic reconfiguration memory support
  *
  * Copyright 2017 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) "drmem: " fmt
@@ -98,7 +94,7 @@ static void init_drconf_v2_cell(struct of_drconf_cell_v2 *dr_cell,
 	dr_cell->base_addr = cpu_to_be64(lmb->base_addr);
 	dr_cell->drc_index = cpu_to_be32(lmb->drc_index);
 	dr_cell->aa_index = cpu_to_be32(lmb->aa_index);
-	dr_cell->flags = cpu_to_be32(lmb->flags);
+	dr_cell->flags = cpu_to_be32(drmem_lmb_flags(lmb));
 }
 
 static int drmem_update_dt_v2(struct device_node *memory,
@@ -121,7 +117,7 @@ static int drmem_update_dt_v2(struct device_node *memory,
 		}
 
 		if (prev_lmb->aa_index != lmb->aa_index ||
-		    prev_lmb->flags != lmb->flags)
+		    drmem_lmb_flags(prev_lmb) != drmem_lmb_flags(lmb))
 			lmb_sets++;
 
 		prev_lmb = lmb;
@@ -150,7 +146,7 @@ static int drmem_update_dt_v2(struct device_node *memory,
 		}
 
 		if (prev_lmb->aa_index != lmb->aa_index ||
-		    prev_lmb->flags != lmb->flags) {
+		    drmem_lmb_flags(prev_lmb) != drmem_lmb_flags(lmb)) {
 			/* end of one set, start of another */
 			dr_cell->seq_lmbs = cpu_to_be32(seq_lmbs);
 			dr_cell++;
@@ -216,6 +212,8 @@ static void __init __walk_drmem_v1_lmbs(const __be32 *prop, const __be32 *usm,
 	u32 i, n_lmbs;
 
 	n_lmbs = of_read_number(prop++, 1);
+	if (n_lmbs == 0)
+		return;
 
 	for (i = 0; i < n_lmbs; i++) {
 		read_drconf_v1_cell(&lmb, &prop);
@@ -245,6 +243,8 @@ static void __init __walk_drmem_v2_lmbs(const __be32 *prop, const __be32 *usm,
 	u32 i, j, lmb_sets;
 
 	lmb_sets = of_read_number(prop++, 1);
+	if (lmb_sets == 0)
+		return;
 
 	for (i = 0; i < lmb_sets; i++) {
 		read_drconf_v2_cell(&dr_cell, &prop);
@@ -354,14 +354,18 @@ static void __init init_drmem_v1_lmbs(const __be32 *prop)
 	struct drmem_lmb *lmb;
 
 	drmem_info->n_lmbs = of_read_number(prop++, 1);
+	if (drmem_info->n_lmbs == 0)
+		return;
 
 	drmem_info->lmbs = kcalloc(drmem_info->n_lmbs, sizeof(*lmb),
 				   GFP_KERNEL);
 	if (!drmem_info->lmbs)
 		return;
 
-	for_each_drmem_lmb(lmb)
+	for_each_drmem_lmb(lmb) {
 		read_drconf_v1_cell(lmb, &prop);
+		lmb_set_nid(lmb);
+	}
 }
 
 static void __init init_drmem_v2_lmbs(const __be32 *prop)
@@ -373,6 +377,8 @@ static void __init init_drmem_v2_lmbs(const __be32 *prop)
 	int lmb_index;
 
 	lmb_sets = of_read_number(prop++, 1);
+	if (lmb_sets == 0)
+		return;
 
 	/* first pass, calculate the number of LMBs */
 	p = prop;
@@ -404,6 +410,8 @@ static void __init init_drmem_v2_lmbs(const __be32 *prop)
 
 			lmb->aa_index = dr_cell.aa_index;
 			lmb->flags = dr_cell.flags;
+
+			lmb_set_nid(lmb);
 		}
 	}
 }

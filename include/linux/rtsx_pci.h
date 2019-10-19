@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
@@ -36,12 +24,12 @@
 #define   CHECK_REG_CMD			2
 
 #define RTSX_HDBAR			0x08
-#define   SG_INT			0x04
-#define   SG_END			0x02
-#define   SG_VALID			0x01
-#define   SG_NO_OP			0x00
-#define   SG_TRANS_DATA			(0x02 << 4)
-#define   SG_LINK_DESC			(0x03 << 4)
+#define   RTSX_SG_INT			0x04
+#define   RTSX_SG_END			0x02
+#define   RTSX_SG_VALID			0x01
+#define   RTSX_SG_NO_OP			0x00
+#define   RTSX_SG_TRANS_DATA		(0x02 << 4)
+#define   RTSX_SG_LINK_DESC		(0x03 << 4)
 #define RTSX_HDBCTLR			0x0C
 #define   SDMA_MODE			0x00
 #define   ADMA_MODE			(0x02 << 26)

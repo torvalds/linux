@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 ST-Ericsson AB
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
 #include "ste-hrefprev60.dtsi"
 #include "ste-href-stuib.dtsi"
 
@@ -29,12 +25,16 @@
 		i2c@80110000 {
 			/* Only one of these will be used */
 			bu21013_tp@5c {
-				touch-gpio = <&gpio2 12 0x4>;
-				reset-gpio = <&tc3589x_gpio 13 0x4>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+				touch-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&tc3589x_gpio 13 GPIO_LINE_OPEN_DRAIN>;
 			};
 			bu21013_tp@5d {
-				touch-gpio = <&gpio2 12 0x4>;
-				reset-gpio = <&tc3589x_gpio 13 0x4>;
+				interrupt-parent = <&gpio2>;
+				interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+				touch-gpios = <&gpio2 12 GPIO_ACTIVE_LOW>;
+				reset-gpios = <&tc3589x_gpio 13 GPIO_LINE_OPEN_DRAIN>;
 			};
 		};
 	};

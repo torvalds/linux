@@ -1,25 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /******************************************************************************
  *
- * GPL LICENSE SUMMARY
- *
  * Copyright(c) 2008 - 2011 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
- *
- * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -128,25 +110,12 @@ EXPORT_SYMBOL(il_update_stats);
 
 /* create and remove of files */
 #define DEBUGFS_ADD_FILE(name, parent, mode) do {			\
-	if (!debugfs_create_file(#name, mode, parent, il,		\
-			 &il_dbgfs_##name##_ops))		\
-		goto err;						\
+	debugfs_create_file(#name, mode, parent, il,			\
+			    &il_dbgfs_##name##_ops);			\
 } while (0)
 
 #define DEBUGFS_ADD_BOOL(name, parent, ptr) do {			\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_bool(#name, S_IWUSR | S_IRUSR,		\
-				    parent, ptr);			\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
-} while (0)
-
-#define DEBUGFS_ADD_X32(name, parent, ptr) do {				\
-	struct dentry *__tmp;						\
-	__tmp = debugfs_create_x32(#name, S_IWUSR | S_IRUSR,		\
-				   parent, ptr);			\
-	if (IS_ERR(__tmp) || !__tmp)					\
-		goto err;						\
+	debugfs_create_bool(#name, 0600, parent, ptr);			\
 } while (0)
 
 /* file operation */
@@ -1343,57 +1312,48 @@ DEBUGFS_WRITE_FILE_OPS(wd_timeout);
  * Create the debugfs files and directories
  *
  */
-int
+void
 il_dbgfs_register(struct il_priv *il, const char *name)
 {
 	struct dentry *phyd = il->hw->wiphy->debugfsdir;
 	struct dentry *dir_drv, *dir_data, *dir_rf, *dir_debug;
 
 	dir_drv = debugfs_create_dir(name, phyd);
-	if (!dir_drv)
-		return -ENOMEM;
-
 	il->debugfs_dir = dir_drv;
 
 	dir_data = debugfs_create_dir("data", dir_drv);
-	if (!dir_data)
-		goto err;
 	dir_rf = debugfs_create_dir("rf", dir_drv);
-	if (!dir_rf)
-		goto err;
 	dir_debug = debugfs_create_dir("debug", dir_drv);
-	if (!dir_debug)
-		goto err;
 
-	DEBUGFS_ADD_FILE(nvm, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(sram, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(stations, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(channels, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(status, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(interrupt, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(qos, dir_data, S_IRUSR);
-	DEBUGFS_ADD_FILE(disable_ht40, dir_data, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(rx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(tx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(rx_queue, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(tx_queue, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(power_save_status, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(clear_ucode_stats, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(clear_traffic_stats, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(fh_reg, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(force_reset, dir_debug, S_IWUSR | S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, S_IRUSR);
+	DEBUGFS_ADD_FILE(nvm, dir_data, 0400);
+	DEBUGFS_ADD_FILE(sram, dir_data, 0600);
+	DEBUGFS_ADD_FILE(stations, dir_data, 0400);
+	DEBUGFS_ADD_FILE(channels, dir_data, 0400);
+	DEBUGFS_ADD_FILE(status, dir_data, 0400);
+	DEBUGFS_ADD_FILE(interrupt, dir_data, 0600);
+	DEBUGFS_ADD_FILE(qos, dir_data, 0400);
+	DEBUGFS_ADD_FILE(disable_ht40, dir_data, 0600);
+	DEBUGFS_ADD_FILE(rx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(tx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(rx_queue, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(tx_queue, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(power_save_status, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(clear_ucode_stats, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(clear_traffic_stats, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(fh_reg, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(force_reset, dir_debug, 0600);
+	DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(ucode_general_stats, dir_debug, 0400);
 
 	if (il->cfg->sensitivity_calib_by_driver)
-		DEBUGFS_ADD_FILE(sensitivity, dir_debug, S_IRUSR);
+		DEBUGFS_ADD_FILE(sensitivity, dir_debug, 0400);
 	if (il->cfg->chain_noise_calib_by_driver)
-		DEBUGFS_ADD_FILE(chain_noise, dir_debug, S_IRUSR);
-	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, S_IWUSR);
-	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, S_IWUSR);
+		DEBUGFS_ADD_FILE(chain_noise, dir_debug, 0400);
+	DEBUGFS_ADD_FILE(rxon_flags, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(rxon_filter_flags, dir_debug, 0200);
+	DEBUGFS_ADD_FILE(wd_timeout, dir_debug, 0200);
 	if (il->cfg->sensitivity_calib_by_driver)
 		DEBUGFS_ADD_BOOL(disable_sensitivity, dir_rf,
 				 &il->disable_sens_cal);
@@ -1401,12 +1361,6 @@ il_dbgfs_register(struct il_priv *il, const char *name)
 		DEBUGFS_ADD_BOOL(disable_chain_noise, dir_rf,
 				 &il->disable_chain_noise_cal);
 	DEBUGFS_ADD_BOOL(disable_tx_power, dir_rf, &il->disable_tx_power_cal);
-	return 0;
-
-err:
-	IL_ERR("Can't create the debugfs directory\n");
-	il_dbgfs_unregister(il);
-	return -ENOMEM;
 }
 EXPORT_SYMBOL(il_dbgfs_register);
 

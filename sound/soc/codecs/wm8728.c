@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * wm8728.c  --  WM8728 ALSA SoC Audio driver
  *
  * Copyright 2008 Wolfson Microelectronics plc
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -74,13 +71,13 @@ static const struct snd_soc_dapm_route wm8728_intercon[] = {
 
 static int wm8728_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	u16 mute_reg = snd_soc_read(codec, WM8728_DACCTL);
+	struct snd_soc_component *component = dai->component;
+	u16 mute_reg = snd_soc_component_read32(component, WM8728_DACCTL);
 
 	if (mute)
-		snd_soc_write(codec, WM8728_DACCTL, mute_reg | 1);
+		snd_soc_component_write(component, WM8728_DACCTL, mute_reg | 1);
 	else
-		snd_soc_write(codec, WM8728_DACCTL, mute_reg & ~1);
+		snd_soc_component_write(component, WM8728_DACCTL, mute_reg & ~1);
 
 	return 0;
 }
@@ -89,8 +86,8 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params,
 	struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	u16 dac = snd_soc_read(codec, WM8728_DACCTL);
+	struct snd_soc_component *component = dai->component;
+	u16 dac = snd_soc_component_read32(component, WM8728_DACCTL);
 
 	dac &= ~0x18;
 
@@ -107,7 +104,7 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, WM8728_DACCTL, dac);
+	snd_soc_component_write(component, WM8728_DACCTL, dac);
 
 	return 0;
 }
@@ -115,8 +112,8 @@ static int wm8728_hw_params(struct snd_pcm_substream *substream,
 static int wm8728_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		unsigned int fmt)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	u16 iface = snd_soc_read(codec, WM8728_IFCTL);
+	struct snd_soc_component *component = codec_dai->component;
+	u16 iface = snd_soc_component_read32(component, WM8728_IFCTL);
 
 	/* Currently only I2S is supported by the driver, though the
 	 * hardware is more flexible.
@@ -156,24 +153,24 @@ static int wm8728_set_dai_fmt(struct snd_soc_dai *codec_dai,
 		return -EINVAL;
 	}
 
-	snd_soc_write(codec, WM8728_IFCTL, iface);
+	snd_soc_component_write(component, WM8728_IFCTL, iface);
 	return 0;
 }
 
-static int wm8728_set_bias_level(struct snd_soc_codec *codec,
+static int wm8728_set_bias_level(struct snd_soc_component *component,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8728_priv *wm8728 = snd_soc_codec_get_drvdata(codec);
+	struct wm8728_priv *wm8728 = snd_soc_component_get_drvdata(component);
 	u16 reg;
 
 	switch (level) {
 	case SND_SOC_BIAS_ON:
 	case SND_SOC_BIAS_PREPARE:
 	case SND_SOC_BIAS_STANDBY:
-		if (snd_soc_codec_get_bias_level(codec) == SND_SOC_BIAS_OFF) {
+		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_OFF) {
 			/* Power everything up... */
-			reg = snd_soc_read(codec, WM8728_DACCTL);
-			snd_soc_write(codec, WM8728_DACCTL, reg & ~0x4);
+			reg = snd_soc_component_read32(component, WM8728_DACCTL);
+			snd_soc_component_write(component, WM8728_DACCTL, reg & ~0x4);
 
 			/* ..then sync in the register cache. */
 			regcache_sync(wm8728->regmap);
@@ -181,8 +178,8 @@ static int wm8728_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		reg = snd_soc_read(codec, WM8728_DACCTL);
-		snd_soc_write(codec, WM8728_DACCTL, reg | 0x4);
+		reg = snd_soc_component_read32(component, WM8728_DACCTL);
+		snd_soc_component_write(component, WM8728_DACCTL, reg | 0x4);
 		break;
 	}
 	return 0;
@@ -211,18 +208,19 @@ static struct snd_soc_dai_driver wm8728_dai = {
 	.ops = &wm8728_dai_ops,
 };
 
-static const struct snd_soc_codec_driver soc_codec_dev_wm8728 = {
-	.set_bias_level = wm8728_set_bias_level,
-	.suspend_bias_off = true,
-
-	.component_driver = {
-		.controls		= wm8728_snd_controls,
-		.num_controls		= ARRAY_SIZE(wm8728_snd_controls),
-		.dapm_widgets		= wm8728_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wm8728_dapm_widgets),
-		.dapm_routes		= wm8728_intercon,
-		.num_dapm_routes	= ARRAY_SIZE(wm8728_intercon),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wm8728 = {
+	.set_bias_level		= wm8728_set_bias_level,
+	.controls		= wm8728_snd_controls,
+	.num_controls		= ARRAY_SIZE(wm8728_snd_controls),
+	.dapm_widgets		= wm8728_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wm8728_dapm_widgets),
+	.dapm_routes		= wm8728_intercon,
+	.num_dapm_routes	= ARRAY_SIZE(wm8728_intercon),
+	.suspend_bias_off	= 1,
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id wm8728_of_match[] = {
@@ -258,17 +256,10 @@ static int wm8728_spi_probe(struct spi_device *spi)
 
 	spi_set_drvdata(spi, wm8728);
 
-	ret = snd_soc_register_codec(&spi->dev,
-			&soc_codec_dev_wm8728, &wm8728_dai, 1);
+	ret = devm_snd_soc_register_component(&spi->dev,
+			&soc_component_dev_wm8728, &wm8728_dai, 1);
 
 	return ret;
-}
-
-static int wm8728_spi_remove(struct spi_device *spi)
-{
-	snd_soc_unregister_codec(&spi->dev);
-
-	return 0;
 }
 
 static struct spi_driver wm8728_spi_driver = {
@@ -277,7 +268,6 @@ static struct spi_driver wm8728_spi_driver = {
 		.of_match_table = wm8728_of_match,
 	},
 	.probe		= wm8728_spi_probe,
-	.remove		= wm8728_spi_remove,
 };
 #endif /* CONFIG_SPI_MASTER */
 
@@ -299,16 +289,10 @@ static int wm8728_i2c_probe(struct i2c_client *i2c,
 
 	i2c_set_clientdata(i2c, wm8728);
 
-	ret =  snd_soc_register_codec(&i2c->dev,
-			&soc_codec_dev_wm8728, &wm8728_dai, 1);
+	ret =  devm_snd_soc_register_component(&i2c->dev,
+			&soc_component_dev_wm8728, &wm8728_dai, 1);
 
 	return ret;
-}
-
-static int wm8728_i2c_remove(struct i2c_client *client)
-{
-	snd_soc_unregister_codec(&client->dev);
-	return 0;
 }
 
 static const struct i2c_device_id wm8728_i2c_id[] = {
@@ -323,7 +307,6 @@ static struct i2c_driver wm8728_i2c_driver = {
 		.of_match_table = wm8728_of_match,
 	},
 	.probe =    wm8728_i2c_probe,
-	.remove =   wm8728_i2c_remove,
 	.id_table = wm8728_i2c_id,
 };
 #endif

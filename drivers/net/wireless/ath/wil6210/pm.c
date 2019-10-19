@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2014,2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,13 +21,72 @@
 
 #define WIL6210_AUTOSUSPEND_DELAY_MS (1000)
 
+static void wil_pm_wake_connected_net_queues(struct wil6210_priv *wil)
+{
+	int i;
+
+	mutex_lock(&wil->vif_mutex);
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
+		struct wil6210_vif *vif = wil->vifs[i];
+
+		if (vif && test_bit(wil_vif_fwconnected, vif->status))
+			wil_update_net_queues_bh(wil, vif, NULL, false);
+	}
+	mutex_unlock(&wil->vif_mutex);
+}
+
+static void wil_pm_stop_all_net_queues(struct wil6210_priv *wil)
+{
+	int i;
+
+	mutex_lock(&wil->vif_mutex);
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
+		struct wil6210_vif *vif = wil->vifs[i];
+
+		if (vif)
+			wil_update_net_queues_bh(wil, vif, NULL, true);
+	}
+	mutex_unlock(&wil->vif_mutex);
+}
+
+static bool
+wil_can_suspend_vif(struct wil6210_priv *wil, struct wil6210_vif *vif,
+		    bool is_runtime)
+{
+	struct wireless_dev *wdev = vif_to_wdev(vif);
+
+	switch (wdev->iftype) {
+	case NL80211_IFTYPE_MONITOR:
+		wil_dbg_pm(wil, "Sniffer\n");
+		return false;
+
+	/* for STA-like interface, don't runtime suspend */
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_P2P_CLIENT:
+		if (test_bit(wil_vif_fwconnecting, vif->status)) {
+			wil_dbg_pm(wil, "Delay suspend when connecting\n");
+			return false;
+		}
+		if (is_runtime) {
+			wil_dbg_pm(wil, "STA-like interface\n");
+			return false;
+		}
+		break;
+	/* AP-like interface - can't suspend */
+	default:
+		wil_dbg_pm(wil, "AP-like interface\n");
+		return false;
+	}
+
+	return true;
+}
+
 int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 {
-	int rc = 0;
-	struct wireless_dev *wdev = wil->wdev;
-	struct net_device *ndev = wil_to_ndev(wil);
+	int rc = 0, i;
 	bool wmi_only = test_bit(WMI_FW_CAPABILITY_WMI_ONLY,
 				 wil->fw_capabilities);
+	bool active_ifaces;
 
 	wil_dbg_pm(wil, "can_suspend: %s\n", is_runtime ? "runtime" : "system");
 
@@ -40,7 +100,12 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 		rc = -EBUSY;
 		goto out;
 	}
-	if (!(ndev->flags & IFF_UP)) {
+
+	mutex_lock(&wil->vif_mutex);
+	active_ifaces = wil_has_active_ifaces(wil, true, false);
+	mutex_unlock(&wil->vif_mutex);
+
+	if (!active_ifaces) {
 		/* can always sleep when down */
 		wil_dbg_pm(wil, "Interface is down\n");
 		goto out;
@@ -57,32 +122,19 @@ int wil_can_suspend(struct wil6210_priv *wil, bool is_runtime)
 	}
 
 	/* interface is running */
-	switch (wdev->iftype) {
-	case NL80211_IFTYPE_MONITOR:
-		wil_dbg_pm(wil, "Sniffer\n");
-		rc = -EBUSY;
-		goto out;
-	/* for STA-like interface, don't runtime suspend */
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_P2P_CLIENT:
-		if (test_bit(wil_status_fwconnecting, wil->status)) {
-			wil_dbg_pm(wil, "Delay suspend when connecting\n");
+	mutex_lock(&wil->vif_mutex);
+	for (i = 0; i < GET_MAX_VIFS(wil); i++) {
+		struct wil6210_vif *vif = wil->vifs[i];
+
+		if (!vif)
+			continue;
+		if (!wil_can_suspend_vif(wil, vif, is_runtime)) {
 			rc = -EBUSY;
+			mutex_unlock(&wil->vif_mutex);
 			goto out;
 		}
-		/* Runtime pm not supported in case the interface is up */
-		if (is_runtime) {
-			wil_dbg_pm(wil, "STA-like interface\n");
-			rc = -EBUSY;
-			goto out;
-		}
-		break;
-	/* AP-like interface - can't suspend */
-	default:
-		wil_dbg_pm(wil, "AP-like interface\n");
-		rc = -EBUSY;
-		break;
 	}
+	mutex_unlock(&wil->vif_mutex);
 
 out:
 	wil_dbg_pm(wil, "can_suspend: %s => %s (%d)\n",
@@ -127,8 +179,7 @@ static int wil_resume_keep_radio_on(struct wil6210_priv *wil)
 	}
 
 	/* Wake all queues */
-	if (test_bit(wil_status_fwconnected, wil->status))
-		wil_update_net_queues_bh(wil, NULL, false);
+	wil_pm_wake_connected_net_queues(wil);
 
 out:
 	if (rc)
@@ -139,20 +190,24 @@ out:
 static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 {
 	int rc = 0;
-	unsigned long start, data_comp_to;
+	unsigned long data_comp_to;
 
 	wil_dbg_pm(wil, "suspend keep radio on\n");
 
 	/* Prevent handling of new tx and wmi commands */
-	set_bit(wil_status_suspending, wil->status);
-	if (test_bit(wil_status_collecting_dumps, wil->status)) {
-		/* Device collects crash dump, cancel the suspend */
-		wil_dbg_pm(wil, "reject suspend while collecting crash dump\n");
-		clear_bit(wil_status_suspending, wil->status);
+	rc = down_write_trylock(&wil->mem_lock);
+	if (!rc) {
+		wil_err(wil,
+			"device is busy. down_write_trylock failed, returned (0x%x)\n",
+			rc);
 		wil->suspend_stats.rejected_by_host++;
 		return -EBUSY;
 	}
-	wil_update_net_queues_bh(wil, NULL, true);
+
+	set_bit(wil_status_suspending, wil->status);
+	up_write(&wil->mem_lock);
+
+	wil_pm_stop_all_net_queues(wil);
 
 	if (!wil_is_tx_idle(wil)) {
 		wil_dbg_pm(wil, "Pending TX data, reject suspend\n");
@@ -160,7 +215,7 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 		goto reject_suspend;
 	}
 
-	if (!wil_is_rx_idle(wil)) {
+	if (!wil->txrx_ops.is_rx_idle(wil)) {
 		wil_dbg_pm(wil, "Pending RX data, reject suspend\n");
 		wil->suspend_stats.rejected_by_host++;
 		goto reject_suspend;
@@ -181,12 +236,11 @@ static int wil_suspend_keep_radio_on(struct wil6210_priv *wil)
 	}
 
 	/* Wait for completion of the pending RX packets */
-	start = jiffies;
 	data_comp_to = jiffies + msecs_to_jiffies(WIL_DATA_COMPLETION_TO_MS);
 	if (test_bit(wil_status_napi_en, wil->status)) {
-		while (!wil_is_rx_idle(wil)) {
+		while (!wil->txrx_ops.is_rx_idle(wil)) {
 			if (time_after(jiffies, data_comp_to)) {
-				if (wil_is_rx_idle(wil))
+				if (wil->txrx_ops.is_rx_idle(wil))
 					break;
 				wil_err(wil,
 					"TO waiting for idle RX, suspend failed\n");
@@ -243,36 +297,41 @@ resume_after_fail:
 	/* if resume succeeded, reject the suspend */
 	if (!rc) {
 		rc = -EBUSY;
-		if (test_bit(wil_status_fwconnected, wil->status))
-			wil_update_net_queues_bh(wil, NULL, false);
+		wil_pm_wake_connected_net_queues(wil);
 	}
 	return rc;
 
 reject_suspend:
 	clear_bit(wil_status_suspending, wil->status);
-	if (test_bit(wil_status_fwconnected, wil->status))
-		wil_update_net_queues_bh(wil, NULL, false);
+	wil_pm_wake_connected_net_queues(wil);
 	return -EBUSY;
 }
 
 static int wil_suspend_radio_off(struct wil6210_priv *wil)
 {
 	int rc = 0;
-	struct net_device *ndev = wil_to_ndev(wil);
+	bool active_ifaces;
 
 	wil_dbg_pm(wil, "suspend radio off\n");
 
-	set_bit(wil_status_suspending, wil->status);
-	if (test_bit(wil_status_collecting_dumps, wil->status)) {
-		/* Device collects crash dump, cancel the suspend */
-		wil_dbg_pm(wil, "reject suspend while collecting crash dump\n");
-		clear_bit(wil_status_suspending, wil->status);
+	rc = down_write_trylock(&wil->mem_lock);
+	if (!rc) {
+		wil_err(wil,
+			"device is busy. down_write_trylock failed, returned (0x%x)\n",
+			rc);
 		wil->suspend_stats.rejected_by_host++;
 		return -EBUSY;
 	}
 
+	set_bit(wil_status_suspending, wil->status);
+	up_write(&wil->mem_lock);
+
 	/* if netif up, hardware is alive, shut it down */
-	if (ndev->flags & IFF_UP) {
+	mutex_lock(&wil->vif_mutex);
+	active_ifaces = wil_has_active_ifaces(wil, true, false);
+	mutex_unlock(&wil->vif_mutex);
+
+	if (active_ifaces) {
 		rc = wil_down(wil);
 		if (rc) {
 			wil_err(wil, "wil_down : %d\n", rc);
@@ -306,16 +365,19 @@ out:
 static int wil_resume_radio_off(struct wil6210_priv *wil)
 {
 	int rc = 0;
-	struct net_device *ndev = wil_to_ndev(wil);
+	bool active_ifaces;
 
 	wil_dbg_pm(wil, "Enabling PCIe IRQ\n");
 	wil_enable_irq(wil);
-	/* if netif up, bring hardware up
+	/* if any netif up, bring hardware up
 	 * During open(), IFF_UP set after actual device method
 	 * invocation. This prevent recursive call to wil_up()
 	 * wil_status_suspended will be cleared in wil_reset
 	 */
-	if (ndev->flags & IFF_UP)
+	mutex_lock(&wil->vif_mutex);
+	active_ifaces = wil_has_active_ifaces(wil, true, false);
+	mutex_unlock(&wil->vif_mutex);
+	if (active_ifaces)
 		rc = wil_up(wil);
 	else
 		clear_bit(wil_status_suspended, wil->status);

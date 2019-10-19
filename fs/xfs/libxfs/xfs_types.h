@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_TYPES_H__
 #define	__XFS_TYPES_H__
@@ -30,7 +18,7 @@ typedef int64_t		xfs_fsize_t;	/* bytes in a file */
 typedef uint64_t	xfs_ufsize_t;	/* unsigned bytes in a file */
 
 typedef int32_t		xfs_suminfo_t;	/* type of bitmap summary info */
-typedef int32_t		xfs_rtword_t;	/* word type for bitmap manipulations */
+typedef uint32_t	xfs_rtword_t;	/* word type for bitmap manipulations */
 
 typedef int64_t		xfs_lsn_t;	/* log sequence number */
 typedef int32_t		xfs_tid_t;	/* transaction identifier */
@@ -112,14 +100,36 @@ typedef void *		xfs_failaddr_t;
  */
 #define MAXNAMELEN	256
 
+/*
+ * This enum is used in string mapping in xfs_trace.h; please keep the
+ * TRACE_DEFINE_ENUMs for it up to date.
+ */
 typedef enum {
 	XFS_LOOKUP_EQi, XFS_LOOKUP_LEi, XFS_LOOKUP_GEi
 } xfs_lookup_t;
 
+#define XFS_AG_BTREE_CMP_FORMAT_STR \
+	{ XFS_LOOKUP_EQi,	"eq" }, \
+	{ XFS_LOOKUP_LEi,	"le" }, \
+	{ XFS_LOOKUP_GEi,	"ge" }
+
+/*
+ * This enum is used in string mapping in xfs_trace.h and scrub/trace.h;
+ * please keep the TRACE_DEFINE_ENUMs for it up to date.
+ */
 typedef enum {
 	XFS_BTNUM_BNOi, XFS_BTNUM_CNTi, XFS_BTNUM_RMAPi, XFS_BTNUM_BMAPi,
 	XFS_BTNUM_INOi, XFS_BTNUM_FINOi, XFS_BTNUM_REFCi, XFS_BTNUM_MAX
 } xfs_btnum_t;
+
+#define XFS_BTNUM_STRINGS \
+	{ XFS_BTNUM_BNOi,	"bnobt" }, \
+	{ XFS_BTNUM_CNTi,	"cntbt" }, \
+	{ XFS_BTNUM_RMAPi,	"rmapbt" }, \
+	{ XFS_BTNUM_BMAPi,	"bmbt" }, \
+	{ XFS_BTNUM_INOi,	"inobt" }, \
+	{ XFS_BTNUM_FINOi,	"finobt" }, \
+	{ XFS_BTNUM_REFCi,	"refcbt" }
 
 struct xfs_name {
 	const unsigned char	*name;
@@ -158,5 +168,38 @@ typedef struct xfs_bmbt_irec
 	xfs_filblks_t	br_blockcount;	/* number of blocks */
 	xfs_exntst_t	br_state;	/* extent state */
 } xfs_bmbt_irec_t;
+
+/* per-AG block reservation types */
+enum xfs_ag_resv_type {
+	XFS_AG_RESV_NONE = 0,
+	XFS_AG_RESV_AGFL,
+	XFS_AG_RESV_METADATA,
+	XFS_AG_RESV_RMAPBT,
+};
+
+/*
+ * Type verifier functions
+ */
+struct xfs_mount;
+
+xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agno);
+bool xfs_verify_agbno(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agblock_t agbno);
+bool xfs_verify_fsbno(struct xfs_mount *mp, xfs_fsblock_t fsbno);
+
+void xfs_agino_range(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agino_t *first, xfs_agino_t *last);
+bool xfs_verify_agino(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agino_t agino);
+bool xfs_verify_agino_or_null(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agino_t agino);
+bool xfs_verify_ino(struct xfs_mount *mp, xfs_ino_t ino);
+bool xfs_internal_inum(struct xfs_mount *mp, xfs_ino_t ino);
+bool xfs_verify_dir_ino(struct xfs_mount *mp, xfs_ino_t ino);
+bool xfs_verify_rtbno(struct xfs_mount *mp, xfs_rtblock_t rtbno);
+bool xfs_verify_icount(struct xfs_mount *mp, unsigned long long icount);
+bool xfs_verify_dablk(struct xfs_mount *mp, xfs_fileoff_t off);
+void xfs_icount_range(struct xfs_mount *mp, unsigned long long *min,
+		unsigned long long *max);
 
 #endif	/* __XFS_TYPES_H__ */

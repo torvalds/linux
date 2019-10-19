@@ -30,11 +30,6 @@
     "BriefDescription": "Store finish count. Includes speculative activity"
   },
   {,
-    "EventCode": "0x44042",
-    "EventName": "PM_INST_FROM_L3",
-    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 due to an instruction fetch (not prefetch)"
-  },
-  {,
     "EventCode": "0x1504A",
     "EventName": "PM_IPTEG_FROM_RL2L3_SHR",
     "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a instruction side request"
@@ -123,6 +118,11 @@
     "EventCode": "0x4D010",
     "EventName": "PM_PMC1_SAVED",
     "BriefDescription": "PMC1 Rewind Value saved"
+  },
+  {,
+    "EventCode": "0x44042",
+    "EventName": "PM_INST_FROM_L3",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L3 due to an instruction fetch (not prefetch)"
   },
   {,
     "EventCode": "0x200FE",

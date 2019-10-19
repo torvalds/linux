@@ -1,8 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config DRM_ETNAVIV
 	tristate "ETNAVIV (DRM support for Vivante GPU IP cores)"
 	depends on DRM
-	depends on ARCH_MXC || ARCH_DOVE || (ARM && COMPILE_TEST)
 	depends on MMU
 	select SHMEM
 	select SYNC_FILE
@@ -11,6 +11,7 @@ config DRM_ETNAVIV
 	select WANT_DEV_COREDUMP
 	select CMA if HAVE_DMA_CONTIGUOUS
 	select DMA_CMA if HAVE_DMA_CONTIGUOUS
+	select DRM_SCHED
 	help
 	  DRM driver for Vivante GPUs.
 
@@ -21,11 +22,3 @@ config DRM_ETNAVIV_THERMAL
 	help
 	  Compile in support for thermal throttling.
 	  Say Y unless you want to risk burning your SoC.
-
-config DRM_ETNAVIV_REGISTER_LOGGING
-	bool "enable ETNAVIV register logging"
-	depends on DRM_ETNAVIV
-	help
-	  Compile in support for logging register reads/writes in a format
-	  that can be parsed by envytools demsm tool.  If enabled, register
-	  logging can be switched on via etnaviv.reglog=y module param.

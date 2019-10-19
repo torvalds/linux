@@ -7,6 +7,7 @@
  */
 
 #include <asm/page.h>
+#include <asm/setup.h>
 #include <asm/sn/addrs.h>
 #include <asm/sn/sn0/hub.h>
 #include <asm/sn/klconfig.h>
@@ -34,6 +35,7 @@ void prom_putchar(char c)
 {
 	struct ioc3_uartregs *uart = console_uart();
 
-	while ((uart->iu_lsr & 0x20) == 0);
-	uart->iu_thr = c;
+	while ((readb(&uart->iu_lsr) & 0x20) == 0)
+		;
+	writeb(c, &uart->iu_thr);
 }

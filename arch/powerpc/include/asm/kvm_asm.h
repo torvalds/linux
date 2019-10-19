@@ -1,16 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2008
  *
@@ -84,7 +73,6 @@
 #define BOOK3S_INTERRUPT_INST_STORAGE	0x400
 #define BOOK3S_INTERRUPT_INST_SEGMENT	0x480
 #define BOOK3S_INTERRUPT_EXTERNAL	0x500
-#define BOOK3S_INTERRUPT_EXTERNAL_LEVEL	0x501
 #define BOOK3S_INTERRUPT_EXTERNAL_HV	0x502
 #define BOOK3S_INTERRUPT_ALIGNMENT	0x600
 #define BOOK3S_INTERRUPT_PROGRAM	0x700
@@ -107,6 +95,8 @@
 #define BOOK3S_INTERRUPT_H_FAC_UNAVAIL	0xf80
 
 /* book3s_hv */
+
+#define BOOK3S_INTERRUPT_HV_SOFTPATCH	0x1500
 
 /*
  * Special trap used to indicate to host that this is a
@@ -132,8 +122,7 @@
 #define BOOK3S_IRQPRIO_EXTERNAL			14
 #define BOOK3S_IRQPRIO_DECREMENTER		15
 #define BOOK3S_IRQPRIO_PERFORMANCE_MONITOR	16
-#define BOOK3S_IRQPRIO_EXTERNAL_LEVEL		17
-#define BOOK3S_IRQPRIO_MAX			18
+#define BOOK3S_IRQPRIO_MAX			17
 
 #define BOOK3S_HFLAG_DCBZ32			0x1
 #define BOOK3S_HFLAG_SLB			0x2

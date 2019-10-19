@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef __ASM_PCI_H
 #define __ASM_PCI_H
-#ifdef __KERNEL__
 
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -17,11 +16,6 @@
  */
 #define pcibios_assign_all_busses() \
 	(pci_has_flag(PCI_REASSIGN_ALL_BUS))
-
-/*
- * PCI address space differs from physical memory address space
- */
-#define PCI_DMA_BUS_IS_PHYS	(0)
 
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE	1
 
@@ -40,5 +34,4 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 }
 #endif  /* CONFIG_PCI */
 
-#endif  /* __KERNEL__ */
 #endif  /* __ASM_PCI_H */

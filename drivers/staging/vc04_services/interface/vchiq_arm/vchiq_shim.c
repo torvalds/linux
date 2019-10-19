@@ -1,35 +1,5 @@
-/**
- * Copyright (c) 2010-2012 Broadcom. All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. The names of the above-listed copyright holders may not be used
- *    to endorse or promote products derived from this software without
- *    specific prior written permission.
- *
- * ALTERNATIVELY, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2, as published by the Free
- * Software Foundation.
- *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
- * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
- * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
- * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- */
+// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
+/* Copyright (c) 2010-2012 Broadcom. All rights reserved. */
 #include <linux/module.h>
 #include <linux/types.h>
 
@@ -44,38 +14,11 @@
 struct shim_service {
 	VCHIQ_SERVICE_HANDLE_T handle;
 
-	VCHIU_QUEUE_T queue;
+	struct vchiu_queue queue;
 
 	VCHI_CALLBACK_T callback;
 	void *callback_param;
 };
-
-/* ----------------------------------------------------------------------
- * return pointer to the mphi message driver function table
- * -------------------------------------------------------------------- */
-const VCHI_MESSAGE_DRIVER_T *
-vchi_mphi_message_driver_func_table(void)
-{
-	return NULL;
-}
-
-/* ----------------------------------------------------------------------
- * return a pointer to the 'single' connection driver fops
- * -------------------------------------------------------------------- */
-const VCHI_CONNECTION_API_T *
-single_get_func_table(void)
-{
-	return NULL;
-}
-
-VCHI_CONNECTION_T *vchi_create_connection(
-	const VCHI_CONNECTION_API_T *function_table,
-	const VCHI_MESSAGE_DRIVER_T *low_level)
-{
-	(void)function_table;
-	(void)low_level;
-	return NULL;
-}
 
 /***********************************************************
  * Name: vchi_msg_peek
@@ -99,7 +42,7 @@ int32_t vchi_msg_peek(VCHI_SERVICE_HANDLE_T handle,
 	VCHI_FLAGS_T flags)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
 		(flags != VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE));
@@ -131,7 +74,7 @@ EXPORT_SYMBOL(vchi_msg_peek);
 int32_t vchi_msg_remove(VCHI_SERVICE_HANDLE_T handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	header = vchiu_queue_pop(&service->queue);
 
@@ -384,7 +327,7 @@ int32_t vchi_msg_dequeue(VCHI_SERVICE_HANDLE_T handle,
 	VCHI_FLAGS_T flags)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
 		(flags != VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE));
@@ -409,7 +352,7 @@ EXPORT_SYMBOL(vchi_msg_dequeue);
 /***********************************************************
  * Name: vchi_held_msg_release
  *
- * Arguments:  VCHI_HELD_MSG_T *message
+ * Arguments:  struct vchi_held_msg *message
  *
  * Description: Routine to release a held message (after it has been read with
  *              vchi_msg_hold)
@@ -417,7 +360,7 @@ EXPORT_SYMBOL(vchi_msg_dequeue);
  * Returns: int32_t - success == 0
  *
  ***********************************************************/
-int32_t vchi_held_msg_release(VCHI_HELD_MSG_T *message)
+int32_t vchi_held_msg_release(struct vchi_held_msg *message)
 {
 	/*
 	 * Convert the service field pointer back to an
@@ -428,7 +371,7 @@ int32_t vchi_held_msg_release(VCHI_HELD_MSG_T *message)
 	 */
 
 	vchiq_release_message((VCHIQ_SERVICE_HANDLE_T)(long)message->service,
-			      (VCHIQ_HEADER_T *)message->message);
+			      (struct vchiq_header *)message->message);
 
 	return 0;
 }
@@ -441,7 +384,7 @@ EXPORT_SYMBOL(vchi_held_msg_release);
  *             void **data,
  *             uint32_t *msg_size,
  *             VCHI_FLAGS_T flags,
- *             VCHI_HELD_MSG_T *message_handle
+ *             struct vchi_held_msg *message_handle
  *
  * Description: Routine to return a pointer to the current message (to allow
  *              in place processing). The message is dequeued - don't forget
@@ -455,10 +398,10 @@ int32_t vchi_msg_hold(VCHI_SERVICE_HANDLE_T handle,
 	void **data,
 	uint32_t *msg_size,
 	VCHI_FLAGS_T flags,
-	VCHI_HELD_MSG_T *message_handle)
+	struct vchi_held_msg *message_handle)
 {
 	struct shim_service *service = (struct shim_service *)handle;
-	VCHIQ_HEADER_T *header;
+	struct vchiq_header *header;
 
 	WARN_ON((flags != VCHI_FLAGS_NONE) &&
 		(flags != VCHI_FLAGS_BLOCK_UNTIL_OP_COMPLETE));
@@ -517,9 +460,7 @@ EXPORT_SYMBOL(vchi_initialise);
 /***********************************************************
  * Name: vchi_connect
  *
- * Arguments: VCHI_CONNECTION_T **connections
- *            const uint32_t num_connections
- *            VCHI_INSTANCE_T instance_handle)
+ * Arguments: VCHI_INSTANCE_T instance_handle
  *
  * Description: Starts the command service on each connection,
  *              causing INIT messages to be pinged back and forth
@@ -527,14 +468,9 @@ EXPORT_SYMBOL(vchi_initialise);
  * Returns: 0 if successful, failure otherwise
  *
  ***********************************************************/
-int32_t vchi_connect(VCHI_CONNECTION_T **connections,
-	const uint32_t num_connections,
-	VCHI_INSTANCE_T instance_handle)
+int32_t vchi_connect(VCHI_INSTANCE_T instance_handle)
 {
 	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
-
-	(void)connections;
-	(void)num_connections;
 
 	return vchiq_connect(instance);
 }
@@ -564,7 +500,7 @@ EXPORT_SYMBOL(vchi_disconnect);
  * Name: vchi_service_create
  *
  * Arguments: VCHI_INSTANCE_T *instance_handle
- *            SERVICE_CREATION_T *setup,
+ *            struct service_creation *setup,
  *            VCHI_SERVICE_HANDLE_T *handle
  *
  * Description: Routine to open a service
@@ -574,7 +510,9 @@ EXPORT_SYMBOL(vchi_disconnect);
  ***********************************************************/
 
 static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
-	VCHIQ_HEADER_T *header, VCHIQ_SERVICE_HANDLE_T handle, void *bulk_user)
+				    struct vchiq_header *header,
+				    VCHIQ_SERVICE_HANDLE_T handle,
+				    void *bulk_user)
 {
 	struct shim_service *service =
 		(struct shim_service *)VCHIQ_GET_SERVICE_USERDATA(handle);
@@ -590,7 +528,6 @@ static VCHIQ_STATUS_T shim_callback(VCHIQ_REASON_T reason,
 				  VCHI_CALLBACK_MSG_AVAILABLE, NULL);
 
 		goto done;
-		break;
 
 	case VCHIQ_BULK_TRANSMIT_DONE:
 		service->callback(service->callback_param,
@@ -635,7 +572,7 @@ done:
 }
 
 static struct shim_service *service_alloc(VCHIQ_INSTANCE_T instance,
-	SERVICE_CREATION_T *setup)
+	struct service_creation *setup)
 {
 	struct shim_service *service = kzalloc(sizeof(struct shim_service), GFP_KERNEL);
 
@@ -663,7 +600,7 @@ static void service_free(struct shim_service *service)
 }
 
 int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
-	SERVICE_CREATION_T *setup,
+	struct service_creation *setup,
 	VCHI_SERVICE_HANDLE_T *handle)
 {
 	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
@@ -672,7 +609,7 @@ int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
 	*handle = (VCHI_SERVICE_HANDLE_T)service;
 
 	if (service) {
-		VCHIQ_SERVICE_PARAMS_T params;
+		struct vchiq_service_params params;
 		VCHIQ_STATUS_T status;
 
 		memset(&params, 0, sizeof(params));
@@ -695,38 +632,6 @@ int32_t vchi_service_open(VCHI_INSTANCE_T instance_handle,
 }
 EXPORT_SYMBOL(vchi_service_open);
 
-int32_t vchi_service_create(VCHI_INSTANCE_T instance_handle,
-	SERVICE_CREATION_T *setup,
-	VCHI_SERVICE_HANDLE_T *handle)
-{
-	VCHIQ_INSTANCE_T instance = (VCHIQ_INSTANCE_T)instance_handle;
-	struct shim_service *service = service_alloc(instance, setup);
-
-	*handle = (VCHI_SERVICE_HANDLE_T)service;
-
-	if (service) {
-		VCHIQ_SERVICE_PARAMS_T params;
-		VCHIQ_STATUS_T status;
-
-		memset(&params, 0, sizeof(params));
-		params.fourcc = setup->service_id;
-		params.callback = shim_callback;
-		params.userdata = service;
-		params.version = setup->version.version;
-		params.version_min = setup->version.version_min;
-		status = vchiq_add_service(instance, &params, &service->handle);
-
-		if (status != VCHIQ_SUCCESS) {
-			service_free(service);
-			service = NULL;
-			*handle = NULL;
-		}
-	}
-
-	return (service != NULL) ? 0 : -1;
-}
-EXPORT_SYMBOL(vchi_service_create);
-
 int32_t vchi_service_close(const VCHI_SERVICE_HANDLE_T handle)
 {
 	int32_t ret = -1;
@@ -734,10 +639,8 @@ int32_t vchi_service_close(const VCHI_SERVICE_HANDLE_T handle)
 
 	if (service) {
 		VCHIQ_STATUS_T status = vchiq_close_service(service->handle);
-		if (status == VCHIQ_SUCCESS) {
+		if (status == VCHIQ_SUCCESS)
 			service_free(service);
-			service = NULL;
-		}
 
 		ret = vchiq_status_to_vchi(status);
 	}

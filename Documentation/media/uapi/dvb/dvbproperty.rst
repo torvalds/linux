@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _frontend-properties:
 
@@ -37,7 +44,7 @@ with supports all digital TV delivery systems.
       struct :c:type:`dvb_frontend_parameters`.
 
    2. Don't use DVB API version 3 calls on hardware with supports
-      newer standards. Such API provides no suport or a very limited
+      newer standards. Such API provides no support or a very limited
       support to new standards and/or new hardware.
 
    3. Nowadays, most frontends support multiple delivery systems.

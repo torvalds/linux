@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RackMac vu-meter driver
  *
  * (c) Copyright 2006 Benjamin Herrenschmidt, IBM Corp.
  *                    <benh@kernel.crashing.org>
- *
- * Released under the term of the GNU GPL v2.
  *
  * Support the CPU-meter LEDs of the Xserve G5
  *
@@ -12,7 +11,6 @@
  * interface for fun. Also, the CPU-meter could be made nicer by being
  * a bit less "immediate" but giving instead a more average load over
  * time. Patches welcome :-)
- *
  */
 #undef DEBUG
 
@@ -154,8 +152,8 @@ static void rackmeter_do_pause(struct rackmeter *rm, int pause)
 		DBDMA_DO_STOP(rm->dma_regs);
 		return;
 	}
-	memset(rdma->buf1, 0, ARRAY_SIZE(rdma->buf1));
-	memset(rdma->buf2, 0, ARRAY_SIZE(rdma->buf2));
+	memset(rdma->buf1, 0, sizeof(rdma->buf1));
+	memset(rdma->buf2, 0, sizeof(rdma->buf2));
 
 	rm->dma_buf_v->mark = 0;
 
@@ -376,18 +374,19 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	pr_debug("rackmeter_probe()\n");
 
 	/* Get i2s-a node */
-	while ((i2s = of_get_next_child(mdev->ofdev.dev.of_node, i2s)) != NULL)
-	       if (strcmp(i2s->name, "i2s-a") == 0)
-		       break;
+	for_each_child_of_node(mdev->ofdev.dev.of_node, i2s)
+		if (of_node_name_eq(i2s, "i2s-a"))
+			break;
+
 	if (i2s == NULL) {
 		pr_debug("  i2s-a child not found\n");
 		goto bail;
 	}
 	/* Get lightshow or virtual sound */
-	while ((np = of_get_next_child(i2s, np)) != NULL) {
-	       if (strcmp(np->name, "lightshow") == 0)
+	for_each_child_of_node(i2s, np) {
+	       if (of_node_name_eq(np, "lightshow"))
 		       break;
-	       if ((strcmp(np->name, "sound") == 0) &&
+	       if (of_node_name_eq(np, "sound") &&
 		   of_get_property(np, "virtual", NULL) != NULL)
 		       break;
 	}
@@ -397,7 +396,7 @@ static int rackmeter_probe(struct macio_dev* mdev,
 	}
 
 	/* Create and initialize our instance data */
-	rm = kzalloc(sizeof(struct rackmeter), GFP_KERNEL);
+	rm = kzalloc(sizeof(*rm), GFP_KERNEL);
 	if (rm == NULL) {
 		printk(KERN_ERR "rackmeter: failed to allocate memory !\n");
 		rc = -ENOMEM;

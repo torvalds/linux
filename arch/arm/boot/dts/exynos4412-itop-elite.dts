@@ -116,19 +116,19 @@
 		compatible = "pwm-beeper";
 		pwms = <&pwm 0 4000000 PWM_POLARITY_INVERTED>;
 	};
-
-	camera: camera {
-		pinctrl-0 = <&cam_port_a_clk_active>;
-		pinctrl-names = "default";
-		status = "okay";
-		assigned-clocks = <&clock CLK_MOUT_CAM0>;
-		assigned-clock-parents = <&clock CLK_XUSBXTI>;
-	};
 };
 
 &adc {
 	vdd-supply = <&ldo3_reg>;
 	status = "okay";
+};
+
+&camera {
+	pinctrl-0 = <&cam_port_a_clk_active>;
+	pinctrl-names = "default";
+	status = "okay";
+	assigned-clocks = <&clock CLK_MOUT_CAM0>;
+	assigned-clock-parents = <&clock CLK_XUSBXTI>;
 };
 
 &clock_audss {
@@ -146,13 +146,8 @@
 	/* In order to reset USB ethernet */
 	samsung,vbus-gpio = <&gpc0 1 GPIO_ACTIVE_HIGH>;
 
-	port@0 {
-		status = "okay";
-	};
-
-	port@2 {
-		status = "okay";
-	};
+	phys = <&exynos_usbphy 1>, <&exynos_usbphy 3>;
+	phy-names = "host", "hsic1";
 };
 
 &exynos_usbphy {

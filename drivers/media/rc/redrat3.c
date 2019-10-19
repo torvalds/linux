@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * USB RedRat3 IR Transceiver rc-core driver
  *
@@ -28,17 +29,6 @@
  * It uses its own little protocol to communicate, the required
  * parts of which are embedded within this driver.
  * --
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <asm/unaligned.h>
@@ -140,7 +130,7 @@ MODULE_PARM_DESC(length_fuzz, "Length Fuzz (0-127)");
  * When receiving a continuous ir stream (for example when a user is
  * holding a button down on a remote), this specifies the minimum size
  * of a space when the redrat3 sends a irdata packet to the host. Specified
- * in miliseconds. Default value 18ms.
+ * in milliseconds. Default value 18ms.
  * The value can be between 2 and 30 inclusive.
  */
 static int minimum_pause = 18;
@@ -348,7 +338,7 @@ static u32 redrat3_us_to_len(u32 microsec)
 
 static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 {
-	DEFINE_IR_RAW_EVENT(rawir);
+	struct ir_raw_event rawir = {};
 	struct device *dev;
 	unsigned int i, sig_size, single_len, offset, val;
 	u32 mod_freq;
@@ -358,10 +348,10 @@ static void redrat3_process_ir_data(struct redrat3_dev *rr3)
 	mod_freq = redrat3_val_to_mod_freq(&rr3->irdata);
 	dev_dbg(dev, "Got mod_freq of %u\n", mod_freq);
 	if (mod_freq && rr3->wideband) {
-		DEFINE_IR_RAW_EVENT(ev);
-
-		ev.carrier_report = 1;
-		ev.carrier = mod_freq;
+		struct ir_raw_event ev = {
+			.carrier_report = 1,
+			.carrier = mod_freq
+		};
 
 		ir_raw_event_store(rr3->rc, &ev);
 	}

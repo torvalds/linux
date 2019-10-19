@@ -1,24 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Meson GXL and GXM USB2 PHY driver
  *
  * Copyright (C) 2017 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_device.h>
 #include <linux/regmap.h>
+#include <linux/reset.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
-#include <linux/usb/of.h>
 
 /* bits [31:27] are read-only */
 #define U2P_R0							0x0
@@ -70,12 +65,11 @@
 
 /* bits [31:14] are read-only */
 #define U2P_R2							0x8
-	#define U2P_R2_DATA_IN_MASK				GENMASK(3, 0)
-	#define U2P_R2_DATA_IN_EN_MASK				GENMASK(7, 4)
-	#define U2P_R2_ADDR_MASK				GENMASK(11, 8)
-	#define U2P_R2_DATA_OUT_SEL				BIT(12)
-	#define U2P_R2_CLK					BIT(13)
-	#define U2P_R2_DATA_OUT_MASK				GENMASK(17, 14)
+	#define U2P_R2_TESTDATA_IN_MASK				GENMASK(7, 0)
+	#define U2P_R2_TESTADDR_MASK				GENMASK(11, 8)
+	#define U2P_R2_TESTDATA_OUT_SEL				BIT(12)
+	#define U2P_R2_TESTCLK					BIT(13)
+	#define U2P_R2_TESTDATA_OUT_MASK			GENMASK(17, 14)
 	#define U2P_R2_ACA_PIN_RANGE_C				BIT(18)
 	#define U2P_R2_ACA_PIN_RANGE_B				BIT(19)
 	#define U2P_R2_ACA_PIN_RANGE_A				BIT(20)
@@ -99,6 +93,8 @@ struct phy_meson_gxl_usb2_priv {
 	struct regmap		*regmap;
 	enum phy_mode		mode;
 	int			is_enabled;
+	struct clk		*clk;
+	struct reset_control	*reset;
 };
 
 static const struct regmap_config phy_meson_gxl_usb2_regmap_conf = {
@@ -107,6 +103,31 @@ static const struct regmap_config phy_meson_gxl_usb2_regmap_conf = {
 	.reg_stride = 4,
 	.max_register = U2P_R3,
 };
+
+static int phy_meson_gxl_usb2_init(struct phy *phy)
+{
+	struct phy_meson_gxl_usb2_priv *priv = phy_get_drvdata(phy);
+	int ret;
+
+	ret = reset_control_reset(priv->reset);
+	if (ret)
+		return ret;
+
+	ret = clk_prepare_enable(priv->clk);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static int phy_meson_gxl_usb2_exit(struct phy *phy)
+{
+	struct phy_meson_gxl_usb2_priv *priv = phy_get_drvdata(phy);
+
+	clk_disable_unprepare(priv->clk);
+
+	return 0;
+}
 
 static int phy_meson_gxl_usb2_reset(struct phy *phy)
 {
@@ -125,7 +146,8 @@ static int phy_meson_gxl_usb2_reset(struct phy *phy)
 	return 0;
 }
 
-static int phy_meson_gxl_usb2_set_mode(struct phy *phy, enum phy_mode mode)
+static int phy_meson_gxl_usb2_set_mode(struct phy *phy,
+				       enum phy_mode mode, int submode)
 {
 	struct phy_meson_gxl_usb2_priv *priv = phy_get_drvdata(phy);
 
@@ -182,7 +204,7 @@ static int phy_meson_gxl_usb2_power_on(struct phy *phy)
 	/* power on the PHY by taking it out of reset mode */
 	regmap_update_bits(priv->regmap, U2P_R0, U2P_R0_POWER_ON_RESET, 0);
 
-	ret = phy_meson_gxl_usb2_set_mode(phy, priv->mode);
+	ret = phy_meson_gxl_usb2_set_mode(phy, priv->mode, 0);
 	if (ret) {
 		phy_meson_gxl_usb2_power_off(phy);
 
@@ -195,6 +217,8 @@ static int phy_meson_gxl_usb2_power_on(struct phy *phy)
 }
 
 static const struct phy_ops phy_meson_gxl_usb2_ops = {
+	.init		= phy_meson_gxl_usb2_init,
+	.exit		= phy_meson_gxl_usb2_exit,
 	.power_on	= phy_meson_gxl_usb2_power_on,
 	.power_off	= phy_meson_gxl_usb2_power_off,
 	.set_mode	= phy_meson_gxl_usb2_set_mode,
@@ -210,6 +234,7 @@ static int phy_meson_gxl_usb2_probe(struct platform_device *pdev)
 	struct phy_meson_gxl_usb2_priv *priv;
 	struct phy *phy;
 	void __iomem *base;
+	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -222,28 +247,29 @@ static int phy_meson_gxl_usb2_probe(struct platform_device *pdev)
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
-	switch (of_usb_get_dr_mode_by_phy(dev->of_node, -1)) {
-	case USB_DR_MODE_PERIPHERAL:
-		priv->mode = PHY_MODE_USB_DEVICE;
-		break;
-	case USB_DR_MODE_OTG:
-		priv->mode = PHY_MODE_USB_OTG;
-		break;
-	case USB_DR_MODE_HOST:
-	default:
-		priv->mode = PHY_MODE_USB_HOST;
-		break;
-	}
+	/* start in host mode */
+	priv->mode = PHY_MODE_USB_HOST;
 
 	priv->regmap = devm_regmap_init_mmio(dev, base,
 					     &phy_meson_gxl_usb2_regmap_conf);
 	if (IS_ERR(priv->regmap))
 		return PTR_ERR(priv->regmap);
 
+	priv->clk = devm_clk_get_optional(dev, "phy");
+	if (IS_ERR(priv->clk))
+		return PTR_ERR(priv->clk);
+
+	priv->reset = devm_reset_control_get_optional_shared(dev, "phy");
+	if (IS_ERR(priv->reset))
+		return PTR_ERR(priv->reset);
+
 	phy = devm_phy_create(dev, NULL, &phy_meson_gxl_usb2_ops);
 	if (IS_ERR(phy)) {
-		dev_err(dev, "failed to create PHY\n");
-		return PTR_ERR(phy);
+		ret = PTR_ERR(phy);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to create PHY\n");
+
+		return ret;
 	}
 
 	phy_set_drvdata(phy, priv);

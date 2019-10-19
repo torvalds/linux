@@ -126,6 +126,8 @@ disable_ext_identify   Disable the extension list configured by mkfs, so f2fs
                        does not aware of cold files such as media files.
 inline_xattr           Enable the inline xattrs feature.
 noinline_xattr         Disable the inline xattrs feature.
+inline_xattr_size=%u   Support configuring inline xattr size, it depends on
+		       flexible inline xattr feature.
 inline_data            Enable the inline data feature: New created small(<~3.4k)
                        files can be written into inode block.
 inline_dentry          Enable the inline dir feature: data in new created
@@ -155,8 +157,32 @@ noinline_data          Disable the inline data feature, inline data feature is
                        enabled by default.
 data_flush             Enable data flushing before checkpoint in order to
                        persist data of regular and symlink.
+reserve_root=%d        Support configuring reserved space which is used for
+                       allocation from a privileged user with specified uid or
+                       gid, unit: 4KB, the default limit is 0.2% of user blocks.
+resuid=%d              The user ID which may use the reserved blocks.
+resgid=%d              The group ID which may use the reserved blocks.
 fault_injection=%d     Enable fault injection in all supported types with
                        specified injection rate.
+fault_type=%d          Support configuring fault injection type, should be
+                       enabled with fault_injection option, fault type value
+                       is shown below, it supports single or combined type.
+                       Type_Name		Type_Value
+                       FAULT_KMALLOC		0x000000001
+                       FAULT_KVMALLOC		0x000000002
+                       FAULT_PAGE_ALLOC		0x000000004
+                       FAULT_PAGE_GET		0x000000008
+                       FAULT_ALLOC_BIO		0x000000010
+                       FAULT_ALLOC_NID		0x000000020
+                       FAULT_ORPHAN		0x000000040
+                       FAULT_BLOCK		0x000000080
+                       FAULT_DIR_DEPTH		0x000000100
+                       FAULT_EVICT_INODE	0x000000200
+                       FAULT_TRUNCATE		0x000000400
+                       FAULT_READ_IO		0x000000800
+                       FAULT_CHECKPOINT		0x000001000
+                       FAULT_DISCARD		0x000002000
+                       FAULT_WRITE_IO		0x000004000
 mode=%s                Control block allocation mode which supports "adaptive"
                        and "lfs". In "lfs" mode, there should be no random
                        writes towards main area.
@@ -174,6 +200,41 @@ offgrpjquota           Turn off group journelled quota.
 offprjjquota           Turn off project journelled quota.
 quota                  Enable plain user disk quota accounting.
 noquota                Disable all plain disk quota option.
+whint_mode=%s          Control which write hints are passed down to block
+                       layer. This supports "off", "user-based", and
+                       "fs-based".  In "off" mode (default), f2fs does not pass
+                       down hints. In "user-based" mode, f2fs tries to pass
+                       down hints given by users. And in "fs-based" mode, f2fs
+                       passes down hints with its policy.
+alloc_mode=%s          Adjust block allocation policy, which supports "reuse"
+                       and "default".
+fsync_mode=%s          Control the policy of fsync. Currently supports "posix",
+                       "strict", and "nobarrier". In "posix" mode, which is
+                       default, fsync will follow POSIX semantics and does a
+                       light operation to improve the filesystem performance.
+                       In "strict" mode, fsync will be heavy and behaves in line
+                       with xfs, ext4 and btrfs, where xfstest generic/342 will
+                       pass, but the performance will regress. "nobarrier" is
+                       based on "posix", but doesn't issue flush command for
+                       non-atomic files likewise "nobarrier" mount option.
+test_dummy_encryption  Enable dummy encryption, which provides a fake fscrypt
+                       context. The fake fscrypt context is used by xfstests.
+checkpoint=%s[:%u[%]]     Set to "disable" to turn off checkpointing. Set to "enable"
+                       to reenable checkpointing. Is enabled by default. While
+                       disabled, any unmounting or unexpected shutdowns will cause
+                       the filesystem contents to appear as they did when the
+                       filesystem was mounted with that option.
+                       While mounting with checkpoint=disabled, the filesystem must
+                       run garbage collection to ensure that all available space can
+                       be used. If this takes too much time, the mount may return
+                       EAGAIN. You may optionally add a value to indicate how much
+                       of the disk you would be willing to temporarily give up to
+                       avoid additional garbage collection. This can be given as a
+                       number of blocks, or as a percent. For instance, mounting
+                       with checkpoint=disable:100% would always succeed, but it may
+                       hide up to all remaining free space. The actual space that
+                       would be unusable can be viewed at /sys/fs/f2fs/<disk>/unusable
+                       This space is reclaimed once checkpoint=enable.
 
 ================================================================================
 DEBUGFS ENTRIES
@@ -201,11 +262,14 @@ Files in /sys/fs/f2fs/<devname>
 ..............................................................................
  File                         Content
 
- gc_max_sleep_time            This tuning parameter controls the maximum sleep
+ gc_urgent_sleep_time         This parameter controls sleep time for gc_urgent.
+                              500 ms is set by default. See above gc_urgent.
+
+ gc_min_sleep_time            This tuning parameter controls the minimum sleep
                               time for the garbage collection thread. Time is
                               in milliseconds.
 
- gc_min_sleep_time            This tuning parameter controls the minimum sleep
+ gc_max_sleep_time            This tuning parameter controls the maximum sleep
                               time for the garbage collection thread. Time is
                               in milliseconds.
 
@@ -225,9 +289,6 @@ Files in /sys/fs/f2fs/<devname>
                               to 1, background thread starts to do GC by given
                               gc_urgent_sleep_time interval.
 
- gc_urgent_sleep_time         This parameter controls sleep time for gc_urgent.
-                              500 ms is set by default. See above gc_urgent.
-
  reclaim_segments             This parameter controls the number of prefree
                               segments to be reclaimed. If the number of prefree
 			      segments is larger than the number of segments
@@ -242,7 +303,16 @@ Files in /sys/fs/f2fs/<devname>
 			      checkpoint is triggered, and issued during the
 			      checkpoint. By default, it is disabled with 0.
 
- trim_sections                This parameter controls the number of sections
+ discard_granularity	      This parameter controls the granularity of discard
+			      command size. It will issue discard commands iif
+			      the size is larger than given granularity. Its
+			      unit size is 4KB, and 4 (=16KB) is set by default.
+			      The maximum value is 128 (=512KB).
+
+ reserved_blocks	      This parameter indicates the number of blocks that
+			      f2fs reserves internally for root.
+
+ batched_trim_sections	      This parameter controls the number of sections
                               to be trimmed out in batch mode when FITRIM
                               conducts. 32 sections is set by default.
 
@@ -264,10 +334,34 @@ Files in /sys/fs/f2fs/<devname>
 			      the number is less than this value, it triggers
 			      in-place-updates.
 
+ min_seq_blocks		      This parameter controls the threshold to serialize
+			      write IOs issued by multiple threads in parallel.
+
+ min_hot_blocks		      This parameter controls the threshold to allocate
+			      a hot data log for pending data blocks to write.
+
+ min_ssr_sections	      This parameter adds the threshold when deciding
+			      SSR block allocation. If this is large, SSR mode
+			      will be enabled early.
+
+ ram_thresh                   This parameter controls the memory footprint used
+			      by free nids and cached nat entries. By default,
+			      10 is set, which indicates 10 MB / 1 GB RAM.
+
+ ra_nid_pages		      When building free nids, F2FS reads NAT blocks
+			      ahead for speed up. Default is 0.
+
+ dirty_nats_ratio	      Given dirty ratio of cached nat entries, F2FS
+			      determines flushing them in background.
+
  max_victim_search	      This parameter controls the number of trials to
 			      find a victim segment when conducting SSR and
 			      cleaning operations. The default value is 4096
 			      which covers 8GB block address range.
+
+ migration_granularity	      For large-sized sections, F2FS can stop GC given
+			      this granularity instead of reclaiming entire
+			      section.
 
  dir_level                    This parameter controls the directory level to
 			      support large directory. If a directory has a
@@ -276,9 +370,56 @@ Files in /sys/fs/f2fs/<devname>
 			      Otherwise, it needs to decrease this value to
 			      reduce the space overhead. The default value is 0.
 
- ram_thresh                   This parameter controls the memory footprint used
-			      by free nids and cached nat entries. By default,
-			      10 is set, which indicates 10 MB / 1 GB RAM.
+ cp_interval		      F2FS tries to do checkpoint periodically, 60 secs
+			      by default.
+
+ idle_interval		      F2FS detects system is idle, if there's no F2FS
+			      operations during given interval, 5 secs by
+			      default.
+
+ discard_idle_interval	      F2FS detects the discard thread is idle, given
+			      time interval. Default is 5 secs.
+
+ gc_idle_interval	      F2FS detects the GC thread is idle, given time
+			      interval. Default is 5 secs.
+
+ umount_discard_timeout       When unmounting the disk, F2FS waits for finishing
+			      queued discard commands which can take huge time.
+			      This gives time out for it, 5 secs by default.
+
+ iostat_enable		      This controls to enable/disable iostat in F2FS.
+
+ readdir_ra		      This enables/disabled readahead of inode blocks
+			      in readdir, and default is enabled.
+
+ gc_pin_file_thresh	      This indicates how many GC can be failed for the
+			      pinned file. If it exceeds this, F2FS doesn't
+			      guarantee its pinning state. 2048 trials is set
+			      by default.
+
+ extension_list		      This enables to change extension_list for hot/cold
+			      files in runtime.
+
+ inject_rate		      This controls injection rate of arbitrary faults.
+
+ inject_type		      This controls injection type of arbitrary faults.
+
+ dirty_segments 	      This shows # of dirty segments.
+
+ lifetime_write_kbytes	      This shows # of data written to the disk.
+
+ features		      This shows current features enabled on F2FS.
+
+ current_reserved_blocks      This shows # of blocks currently reserved.
+
+ unusable                     If checkpoint=disable, this shows the number of
+                              blocks that are unusable.
+                              If checkpoint=enable it shows the number of blocks
+                              that would be unusable if checkpoint=disable were
+                              to be set.
+
+encoding 	              This shows the encoding used for casefolding.
+                              If casefolding is not enabled, returns (none)
 
 ================================================================================
 USAGE
@@ -611,3 +752,88 @@ algorithm.
 In order to identify whether the data in the victim segment are valid or not,
 F2FS manages a bitmap. Each bit represents the validity of a block, and the
 bitmap is composed of a bit stream covering whole blocks in main area.
+
+Write-hint Policy
+-----------------
+
+1) whint_mode=off. F2FS only passes down WRITE_LIFE_NOT_SET.
+
+2) whint_mode=user-based. F2FS tries to pass down hints given by
+users.
+
+User                  F2FS                     Block
+----                  ----                     -----
+                      META                     WRITE_LIFE_NOT_SET
+                      HOT_NODE                 "
+                      WARM_NODE                "
+                      COLD_NODE                "
+*ioctl(COLD)          COLD_DATA                WRITE_LIFE_EXTREME
+*extension list       "                        "
+
+-- buffered io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        "
+WRITE_LIFE_MEDIUM     "                        "
+WRITE_LIFE_LONG       "                        "
+
+-- direct io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
+WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
+WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
+
+3) whint_mode=fs-based. F2FS passes down hints with its policy.
+
+User                  F2FS                     Block
+----                  ----                     -----
+                      META                     WRITE_LIFE_MEDIUM;
+                      HOT_NODE                 WRITE_LIFE_NOT_SET
+                      WARM_NODE                "
+                      COLD_NODE                WRITE_LIFE_NONE
+ioctl(COLD)           COLD_DATA                WRITE_LIFE_EXTREME
+extension list        "                        "
+
+-- buffered io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_LONG
+WRITE_LIFE_NONE       "                        "
+WRITE_LIFE_MEDIUM     "                        "
+WRITE_LIFE_LONG       "                        "
+
+-- direct io
+WRITE_LIFE_EXTREME    COLD_DATA                WRITE_LIFE_EXTREME
+WRITE_LIFE_SHORT      HOT_DATA                 WRITE_LIFE_SHORT
+WRITE_LIFE_NOT_SET    WARM_DATA                WRITE_LIFE_NOT_SET
+WRITE_LIFE_NONE       "                        WRITE_LIFE_NONE
+WRITE_LIFE_MEDIUM     "                        WRITE_LIFE_MEDIUM
+WRITE_LIFE_LONG       "                        WRITE_LIFE_LONG
+
+Fallocate(2) Policy
+-------------------
+
+The default policy follows the below posix rule.
+
+Allocating disk space
+    The default operation (i.e., mode is zero) of fallocate() allocates
+    the disk space within the range specified by offset and len.  The
+    file size (as reported by stat(2)) will be changed if offset+len is
+    greater than the file size.  Any subregion within the range specified
+    by offset and len that did not contain data before the call will be
+    initialized to zero.  This default behavior closely resembles the
+    behavior of the posix_fallocate(3) library function, and is intended
+    as a method of optimally implementing that function.
+
+However, once F2FS receives ioctl(fd, F2FS_IOC_SET_PIN_FILE) in prior to
+fallocate(fd, DEFAULT_MODE), it allocates on-disk blocks addressess having
+zero or random data, which is useful to the below scenario where:
+ 1. create(fd)
+ 2. ioctl(fd, F2FS_IOC_SET_PIN_FILE)
+ 3. fallocate(fd, 0, 0, size)
+ 4. address = fibmap(fd, offset)
+ 5. open(blkdev)
+ 6. write(blkdev, address)

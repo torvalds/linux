@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	STB0899 Multistandard Frontend driver
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
 	Copyright (C) ST Microelectronics
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #ifndef __STB0899_REG_H
@@ -374,22 +362,22 @@
 
 #define STB0899_OFF0_IF_AGC_GAIN		0xf30c
 #define STB0899_BASE_IF_AGC_GAIN		0x00000000
-#define STB0899_IF_AGC_GAIN			(0x3fff < 0)
+#define STB0899_IF_AGC_GAIN			(0x3fff << 0)
 #define STB0899_OFFST_IF_AGC_GAIN		0
 #define STB0899_WIDTH_IF_AGC_GAIN		14
 
 #define STB0899_OFF0_BB_AGC_GAIN		0xf310
 #define STB0899_BASE_BB_AGC_GAIN		0x00000000
-#define STB0899_BB_AGC_GAIN			(0x3fff < 0)
+#define STB0899_BB_AGC_GAIN			(0x3fff << 0)
 #define STB0899_OFFST_BB_AGC_GAIN		0
 #define STB0899_WIDTH_BB_AGC_GAIN		14
 
 #define STB0899_OFF0_DC_OFFSET			0xf314
 #define STB0899_BASE_DC_OFFSET			0x00000000
-#define STB0899_I				(0xff < 8)
+#define STB0899_I				(0xff << 8)
 #define STB0899_OFFST_I				8
 #define STB0899_WIDTH_I				8
-#define STB0899_Q				(0xff < 0)
+#define STB0899_Q				(0xff << 0)
 #define STB0899_OFFST_Q				8
 #define STB0899_WIDTH_Q				8
 

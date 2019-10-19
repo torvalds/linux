@@ -28,7 +28,7 @@ PM implementation to put the processor in different idle states (which include
 states listed above; "off" state is not an idle state since it does not have
 wake-up capabilities, hence it is not considered in this document).
 
-Idle state parameters (eg entry latency) are platform specific and need to be
+Idle state parameters (e.g. entry latency) are platform specific and need to be
 characterized with bindings that provide the required information to OS PM
 code so that it can build the required tables and use them at runtime.
 
@@ -90,24 +90,24 @@ These timing parameters can be used by an OS in different circumstances.
 
 An idle CPU requires the expected min-residency time to select the most
 appropriate idle state based on the expected expiry time of the next IRQ
-(ie wake-up) that causes the CPU to return to the EXEC phase.
+(i.e. wake-up) that causes the CPU to return to the EXEC phase.
 
 An operating system scheduler may need to compute the shortest wake-up delay
 for CPUs in the system by detecting how long will it take to get a CPU out
-of an idle state, eg:
+of an idle state, e.g.:
 
 wakeup-delay = exit-latency + max(entry-latency - (now - entry-timestamp), 0)
 
 In other words, the scheduler can make its scheduling decision by selecting
-(eg waking-up) the CPU with the shortest wake-up latency.
-The wake-up latency must take into account the entry latency if that period
+(e.g. waking-up) the CPU with the shortest wake-up delay.
+The wake-up delay must take into account the entry latency if that period
 has not expired. The abortable nature of the PREP period can be ignored
 if it cannot be relied upon (e.g. the PREP deadline may occur much sooner than
-the worst case since it depends on the CPU operating conditions, ie caches
+the worst case since it depends on the CPU operating conditions, i.e. caches
 state).
 
 An OS has to reliably probe the wakeup-latency since some devices can enforce
-latency constraints guarantees to work properly, so the OS has to detect the
+latency constraint guarantees to work properly, so the OS has to detect the
 worst case wake-up latency it can incur if a CPU is allowed to enter an
 idle state, and possibly to prevent that to guarantee reliable device
 functioning.
@@ -142,7 +142,7 @@ characterised by the following graph:
 
 The graph is split in two parts delimited by time 1ms on the X-axis.
 The graph curve with X-axis values = { x | 0 < x < 1ms } has a steep slope
-and denotes the energy costs incurred whilst entering and leaving the idle
+and denotes the energy costs incurred while entering and leaving the idle
 state.
 The graph curve in the area delimited by X-axis values = {x | x > 1ms } has
 shallower slope and essentially represents the energy consumption of the idle
@@ -183,15 +183,15 @@ and IDLE2:
 		Graph 2: idle states min-residency example
 
 In graph 2 above, that takes into account idle states entry/exit energy
-costs, it is clear that if the idle state residency time (ie time till next
+costs, it is clear that if the idle state residency time (i.e. time till next
 wake-up IRQ) is less than IDLE2-min-residency, IDLE1 is the better idle state
 choice energywise.
 
 This is mainly down to the fact that IDLE1 entry/exit energy costs are lower
 than IDLE2.
 
-However, the lower power consumption (ie shallower energy curve slope) of idle
-state IDLE2 implies that after a suitable time, IDLE2 becomes more energy
+However, the lower power consumption (i.e. shallower energy curve slope) of
+idle state IDLE2 implies that after a suitable time, IDLE2 becomes more energy
 efficient.
 
 The time at which IDLE2 becomes more energy efficient than IDLE1 (and other
@@ -214,8 +214,8 @@ processor idle states, defined as device tree nodes, are listed.
 
 	Usage: Optional - On ARM systems, it is a container of processor idle
 			  states nodes. If the system does not provide CPU
-			  power management capabilities or the processor just
-			  supports idle_standby an idle-states node is not
+			  power management capabilities, or the processor just
+			  supports idle_standby, an idle-states node is not
 			  required.
 
 	Description: idle-states node is a container node, where its
@@ -237,13 +237,17 @@ processor idle states, defined as device tree nodes, are listed.
 		Value type: <stringlist>
 		Usage and definition depend on ARM architecture version.
 			# On ARM v8 64-bit this property is required and must
-			  be one of:
-			   - "psci" (see bindings in [2])
+			  be:
+			   - "psci"
 			# On ARM 32-bit systems this property is optional
 
-The nodes describing the idle states (state) can only be defined within the
-idle-states node, any other configuration is considered invalid and therefore
-must be ignored.
+This assumes that the "enable-method" property is set to "psci" in the cpu
+node[6] that is responsible for setting up CPU idle management in the OS
+implementation.
+
+The nodes describing the idle states (state) can only be defined
+within the idle-states node, any other configuration is considered invalid
+and therefore must be ignored.
 
 ===========================================
 4 - state node
@@ -283,14 +287,14 @@ follows:
 		Value type: <prop-encoded-array>
 		Definition: u32 value representing worst case latency in
 			    microseconds required to enter the idle state.
-			    The exit-latency-us duration may be guaranteed
-			    only after entry-latency-us has passed.
 
 	- exit-latency-us
 		Usage: Required
 		Value type: <prop-encoded-array>
 		Definition: u32 value representing worst case latency
 			    in microseconds required to exit the idle state.
+			    The exit-latency-us duration may be guaranteed
+			    only after entry-latency-us has passed.
 
 	- min-residency-us
 		Usage: Required
@@ -338,8 +342,8 @@ follows:
 			    state.
 
 	In addition to the properties listed above, a state node may require
-	additional properties specifics to the entry-method defined in the
-	idle-states node, please refer to the entry-method bindings
+	additional properties specific to the entry-method defined in the
+	idle-states node. Please refer to the entry-method bindings
 	documentation for properties definitions.
 
 ===========================================
@@ -684,10 +688,10 @@ cpus {
 ===========================================
 
 [1] ARM Linux Kernel documentation - CPUs bindings
-    Documentation/devicetree/bindings/arm/cpus.txt
+    Documentation/devicetree/bindings/arm/cpus.yaml
 
 [2] ARM Linux Kernel documentation - PSCI bindings
-    Documentation/devicetree/bindings/arm/psci.txt
+    Documentation/devicetree/bindings/arm/psci.yaml
 
 [3] ARM Server Base System Architecture (SBSA)
     http://infocenter.arm.com/help/index.jsp
@@ -697,3 +701,6 @@ cpus {
 
 [5] Devicetree Specification
     https://www.devicetree.org/specifications/
+
+[6] ARM Linux Kernel documentation - Booting AArch64 Linux
+    Documentation/arm64/booting.rst

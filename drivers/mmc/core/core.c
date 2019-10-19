@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/drivers/mmc/core/core.c
  *
@@ -5,10 +6,6 @@
  *  SD support Copyright (C) 2004 Ian Molton, All Rights Reserved.
  *  Copyright (C) 2005-2008 Pierre Ossman, All Rights Reserved.
  *  MMCv4 support Copyright (C) 2006 Philip Langdale, All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -21,7 +18,6 @@
 #include <linux/leds.h>
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
-#include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeup.h>
 #include <linux/suspend.h>
@@ -50,11 +46,9 @@
 #include "sd_ops.h"
 #include "sdio_ops.h"
 
-/* If the device is not responding */
-#define MMC_CORE_TIMEOUT_MS	(10 * 60 * 1000) /* 10 minute timeout */
-
 /* The max erase timeout, used when host->max_busy_timeout isn't specified */
 #define MMC_ERASE_TIMEOUT_MS	(60 * 1000) /* 60 s */
+#define SD_DISCARD_TIMEOUT_MS	(250)
 
 static const unsigned freqs[] = { 400000, 300000, 200000, 100000 };
 
@@ -98,7 +92,7 @@ static void mmc_should_fail_request(struct mmc_host *host,
 	if (!data)
 		return;
 
-	if (cmd->error || data->error ||
+	if ((cmd && cmd->error) || data->error ||
 	    !should_fail(&host->fail_mmc_request, data->blksz * data->blocks))
 		return;
 
@@ -147,8 +141,9 @@ void mmc_request_done(struct mmc_host *host, struct mmc_request *mrq)
 	int err = cmd->error;
 
 	/* Flag re-tuning needed on CRC errors */
-	if ((cmd->opcode != MMC_SEND_TUNING_BLOCK &&
-	    cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200) &&
+	if (cmd->opcode != MMC_SEND_TUNING_BLOCK &&
+	    cmd->opcode != MMC_SEND_TUNING_BLOCK_HS200 &&
+	    !host->retune_crc_disable &&
 	    (err == -EILSEQ || (mrq->sbc && mrq->sbc->error == -EILSEQ) ||
 	    (mrq->data && mrq->data->error == -EILSEQ) ||
 	    (mrq->stop && mrq->stop->error == -EILSEQ)))
@@ -761,33 +756,6 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 }
 EXPORT_SYMBOL(mmc_set_data_timeout);
 
-/**
- *	mmc_align_data_size - pads a transfer size to a more optimal value
- *	@card: the MMC card associated with the data transfer
- *	@sz: original transfer size
- *
- *	Pads the original data size with a number of extra bytes in
- *	order to avoid controller bugs and/or performance hits
- *	(e.g. some controllers revert to PIO for certain sizes).
- *
- *	Returns the improved size, which might be unmodified.
- *
- *	Note that this function is only relevant when issuing a
- *	single scatter gather entry.
- */
-unsigned int mmc_align_data_size(struct mmc_card *card, unsigned int sz)
-{
-	/*
-	 * FIXME: We don't have a system for the controller to tell
-	 * the core about its problems yet, so for now we just 32-bit
-	 * align the size.
-	 */
-	sz = ((sz + 3) / 4) * 4;
-
-	return sz;
-}
-EXPORT_SYMBOL(mmc_align_data_size);
-
 /*
  * Allow claiming an already claimed host if the context is the same or there is
  * no context but the task is the same.
@@ -890,7 +858,10 @@ void mmc_release_host(struct mmc_host *host)
 		spin_unlock_irqrestore(&host->lock, flags);
 		wake_up(&host->wq);
 		pm_runtime_mark_last_busy(mmc_dev(host));
-		pm_runtime_put_autosuspend(mmc_dev(host));
+		if (host->caps & MMC_CAP_SYNC_RUNTIME_PM)
+			pm_runtime_put_sync_suspend(mmc_dev(host));
+		else
+			pm_runtime_put_autosuspend(mmc_dev(host));
 	}
 }
 EXPORT_SYMBOL(mmc_release_host);
@@ -1112,55 +1083,6 @@ u32 mmc_vddrange_to_ocrmask(int vdd_min, int vdd_max)
 
 	return mask;
 }
-EXPORT_SYMBOL(mmc_vddrange_to_ocrmask);
-
-#ifdef CONFIG_OF
-
-/**
- * mmc_of_parse_voltage - return mask of supported voltages
- * @np: The device node need to be parsed.
- * @mask: mask of voltages available for MMC/SD/SDIO
- *
- * Parse the "voltage-ranges" DT property, returning zero if it is not
- * found, negative errno if the voltage-range specification is invalid,
- * or one if the voltage-range is specified and successfully parsed.
- */
-int mmc_of_parse_voltage(struct device_node *np, u32 *mask)
-{
-	const u32 *voltage_ranges;
-	int num_ranges, i;
-
-	voltage_ranges = of_get_property(np, "voltage-ranges", &num_ranges);
-	num_ranges = num_ranges / sizeof(*voltage_ranges) / 2;
-	if (!voltage_ranges) {
-		pr_debug("%pOF: voltage-ranges unspecified\n", np);
-		return 0;
-	}
-	if (!num_ranges) {
-		pr_err("%pOF: voltage-ranges empty\n", np);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < num_ranges; i++) {
-		const int j = i * 2;
-		u32 ocr_mask;
-
-		ocr_mask = mmc_vddrange_to_ocrmask(
-				be32_to_cpu(voltage_ranges[j]),
-				be32_to_cpu(voltage_ranges[j + 1]));
-		if (!ocr_mask) {
-			pr_err("%pOF: voltage-range #%d is invalid\n",
-				np, i);
-			return -EINVAL;
-		}
-		*mask |= ocr_mask;
-	}
-
-	return 1;
-}
-EXPORT_SYMBOL(mmc_of_parse_voltage);
-
-#endif /* CONFIG_OF */
 
 static int mmc_of_get_func_num(struct device_node *node)
 {
@@ -1189,246 +1111,6 @@ struct device_node *mmc_of_find_child_device(struct mmc_host *host,
 
 	return NULL;
 }
-
-#ifdef CONFIG_REGULATOR
-
-/**
- * mmc_ocrbitnum_to_vdd - Convert a OCR bit number to its voltage
- * @vdd_bit:	OCR bit number
- * @min_uV:	minimum voltage value (mV)
- * @max_uV:	maximum voltage value (mV)
- *
- * This function returns the voltage range according to the provided OCR
- * bit number. If conversion is not possible a negative errno value returned.
- */
-static int mmc_ocrbitnum_to_vdd(int vdd_bit, int *min_uV, int *max_uV)
-{
-	int		tmp;
-
-	if (!vdd_bit)
-		return -EINVAL;
-
-	/*
-	 * REVISIT mmc_vddrange_to_ocrmask() may have set some
-	 * bits this regulator doesn't quite support ... don't
-	 * be too picky, most cards and regulators are OK with
-	 * a 0.1V range goof (it's a small error percentage).
-	 */
-	tmp = vdd_bit - ilog2(MMC_VDD_165_195);
-	if (tmp == 0) {
-		*min_uV = 1650 * 1000;
-		*max_uV = 1950 * 1000;
-	} else {
-		*min_uV = 1900 * 1000 + tmp * 100 * 1000;
-		*max_uV = *min_uV + 100 * 1000;
-	}
-
-	return 0;
-}
-
-/**
- * mmc_regulator_get_ocrmask - return mask of supported voltages
- * @supply: regulator to use
- *
- * This returns either a negative errno, or a mask of voltages that
- * can be provided to MMC/SD/SDIO devices using the specified voltage
- * regulator.  This would normally be called before registering the
- * MMC host adapter.
- */
-int mmc_regulator_get_ocrmask(struct regulator *supply)
-{
-	int			result = 0;
-	int			count;
-	int			i;
-	int			vdd_uV;
-	int			vdd_mV;
-
-	count = regulator_count_voltages(supply);
-	if (count < 0)
-		return count;
-
-	for (i = 0; i < count; i++) {
-		vdd_uV = regulator_list_voltage(supply, i);
-		if (vdd_uV <= 0)
-			continue;
-
-		vdd_mV = vdd_uV / 1000;
-		result |= mmc_vddrange_to_ocrmask(vdd_mV, vdd_mV);
-	}
-
-	if (!result) {
-		vdd_uV = regulator_get_voltage(supply);
-		if (vdd_uV <= 0)
-			return vdd_uV;
-
-		vdd_mV = vdd_uV / 1000;
-		result = mmc_vddrange_to_ocrmask(vdd_mV, vdd_mV);
-	}
-
-	return result;
-}
-EXPORT_SYMBOL_GPL(mmc_regulator_get_ocrmask);
-
-/**
- * mmc_regulator_set_ocr - set regulator to match host->ios voltage
- * @mmc: the host to regulate
- * @supply: regulator to use
- * @vdd_bit: zero for power off, else a bit number (host->ios.vdd)
- *
- * Returns zero on success, else negative errno.
- *
- * MMC host drivers may use this to enable or disable a regulator using
- * a particular supply voltage.  This would normally be called from the
- * set_ios() method.
- */
-int mmc_regulator_set_ocr(struct mmc_host *mmc,
-			struct regulator *supply,
-			unsigned short vdd_bit)
-{
-	int			result = 0;
-	int			min_uV, max_uV;
-
-	if (vdd_bit) {
-		mmc_ocrbitnum_to_vdd(vdd_bit, &min_uV, &max_uV);
-
-		result = regulator_set_voltage(supply, min_uV, max_uV);
-		if (result == 0 && !mmc->regulator_enabled) {
-			result = regulator_enable(supply);
-			if (!result)
-				mmc->regulator_enabled = true;
-		}
-	} else if (mmc->regulator_enabled) {
-		result = regulator_disable(supply);
-		if (result == 0)
-			mmc->regulator_enabled = false;
-	}
-
-	if (result)
-		dev_err(mmc_dev(mmc),
-			"could not set regulator OCR (%d)\n", result);
-	return result;
-}
-EXPORT_SYMBOL_GPL(mmc_regulator_set_ocr);
-
-static int mmc_regulator_set_voltage_if_supported(struct regulator *regulator,
-						  int min_uV, int target_uV,
-						  int max_uV)
-{
-	/*
-	 * Check if supported first to avoid errors since we may try several
-	 * signal levels during power up and don't want to show errors.
-	 */
-	if (!regulator_is_supported_voltage(regulator, min_uV, max_uV))
-		return -EINVAL;
-
-	return regulator_set_voltage_triplet(regulator, min_uV, target_uV,
-					     max_uV);
-}
-
-/**
- * mmc_regulator_set_vqmmc - Set VQMMC as per the ios
- *
- * For 3.3V signaling, we try to match VQMMC to VMMC as closely as possible.
- * That will match the behavior of old boards where VQMMC and VMMC were supplied
- * by the same supply.  The Bus Operating conditions for 3.3V signaling in the
- * SD card spec also define VQMMC in terms of VMMC.
- * If this is not possible we'll try the full 2.7-3.6V of the spec.
- *
- * For 1.2V and 1.8V signaling we'll try to get as close as possible to the
- * requested voltage.  This is definitely a good idea for UHS where there's a
- * separate regulator on the card that's trying to make 1.8V and it's best if
- * we match.
- *
- * This function is expected to be used by a controller's
- * start_signal_voltage_switch() function.
- */
-int mmc_regulator_set_vqmmc(struct mmc_host *mmc, struct mmc_ios *ios)
-{
-	struct device *dev = mmc_dev(mmc);
-	int ret, volt, min_uV, max_uV;
-
-	/* If no vqmmc supply then we can't change the voltage */
-	if (IS_ERR(mmc->supply.vqmmc))
-		return -EINVAL;
-
-	switch (ios->signal_voltage) {
-	case MMC_SIGNAL_VOLTAGE_120:
-		return mmc_regulator_set_voltage_if_supported(mmc->supply.vqmmc,
-						1100000, 1200000, 1300000);
-	case MMC_SIGNAL_VOLTAGE_180:
-		return mmc_regulator_set_voltage_if_supported(mmc->supply.vqmmc,
-						1700000, 1800000, 1950000);
-	case MMC_SIGNAL_VOLTAGE_330:
-		ret = mmc_ocrbitnum_to_vdd(mmc->ios.vdd, &volt, &max_uV);
-		if (ret < 0)
-			return ret;
-
-		dev_dbg(dev, "%s: found vmmc voltage range of %d-%duV\n",
-			__func__, volt, max_uV);
-
-		min_uV = max(volt - 300000, 2700000);
-		max_uV = min(max_uV + 200000, 3600000);
-
-		/*
-		 * Due to a limitation in the current implementation of
-		 * regulator_set_voltage_triplet() which is taking the lowest
-		 * voltage possible if below the target, search for a suitable
-		 * voltage in two steps and try to stay close to vmmc
-		 * with a 0.3V tolerance at first.
-		 */
-		if (!mmc_regulator_set_voltage_if_supported(mmc->supply.vqmmc,
-						min_uV, volt, max_uV))
-			return 0;
-
-		return mmc_regulator_set_voltage_if_supported(mmc->supply.vqmmc,
-						2700000, volt, 3600000);
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL_GPL(mmc_regulator_set_vqmmc);
-
-#endif /* CONFIG_REGULATOR */
-
-/**
- * mmc_regulator_get_supply - try to get VMMC and VQMMC regulators for a host
- * @mmc: the host to regulate
- *
- * Returns 0 or errno. errno should be handled, it is either a critical error
- * or -EPROBE_DEFER. 0 means no critical error but it does not mean all
- * regulators have been found because they all are optional. If you require
- * certain regulators, you need to check separately in your driver if they got
- * populated after calling this function.
- */
-int mmc_regulator_get_supply(struct mmc_host *mmc)
-{
-	struct device *dev = mmc_dev(mmc);
-	int ret;
-
-	mmc->supply.vmmc = devm_regulator_get_optional(dev, "vmmc");
-	mmc->supply.vqmmc = devm_regulator_get_optional(dev, "vqmmc");
-
-	if (IS_ERR(mmc->supply.vmmc)) {
-		if (PTR_ERR(mmc->supply.vmmc) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_dbg(dev, "No vmmc regulator found\n");
-	} else {
-		ret = mmc_regulator_get_ocrmask(mmc->supply.vmmc);
-		if (ret > 0)
-			mmc->ocr_avail = ret;
-		else
-			dev_warn(dev, "Failed getting OCR mask: %d\n", ret);
-	}
-
-	if (IS_ERR(mmc->supply.vqmmc)) {
-		if (PTR_ERR(mmc->supply.vqmmc) == -EPROBE_DEFER)
-			return -EPROBE_DEFER;
-		dev_dbg(dev, "No vqmmc regulator found\n");
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(mmc_regulator_get_supply);
 
 /*
  * Mask off any voltages we don't support and select
@@ -1482,6 +1164,17 @@ int mmc_set_signal_voltage(struct mmc_host *host, int signal_voltage)
 
 	return err;
 
+}
+
+void mmc_set_initial_signal_voltage(struct mmc_host *host)
+{
+	/* Try to set signal voltage to 3.3V but fall back to 1.8v or 1.2v */
+	if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330))
+		dev_dbg(mmc_dev(host), "Initial signal voltage of 3.3v\n");
+	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180))
+		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.8v\n");
+	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120))
+		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.2v\n");
 }
 
 int mmc_host_set_uhs_voltage(struct mmc_host *host)
@@ -1646,19 +1339,13 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	/* Set initial state and call mmc_set_ios */
 	mmc_set_initial_state(host);
 
-	/* Try to set signal voltage to 3.3V but fall back to 1.8v or 1.2v */
-	if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_330))
-		dev_dbg(mmc_dev(host), "Initial signal voltage of 3.3v\n");
-	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180))
-		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.8v\n");
-	else if (!mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120))
-		dev_dbg(mmc_dev(host), "Initial signal voltage of 1.2v\n");
+	mmc_set_initial_signal_voltage(host);
 
 	/*
 	 * This delay should be sufficient to allow the power supply
 	 * to reach the minimum voltage.
 	 */
-	mmc_delay(10);
+	mmc_delay(host->ios.power_delay_ms);
 
 	mmc_pwrseq_post_power_on(host);
 
@@ -1671,7 +1358,7 @@ void mmc_power_up(struct mmc_host *host, u32 ocr)
 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
 	 * time required to reach a stable voltage.
 	 */
-	mmc_delay(10);
+	mmc_delay(host->ios.power_delay_ms);
 }
 
 void mmc_power_off(struct mmc_host *host)
@@ -1931,6 +1618,12 @@ static unsigned int mmc_sd_erase_timeout(struct mmc_card *card,
 {
 	unsigned int erase_timeout;
 
+	/* for DISCARD none of the below calculation applies.
+	 * the busy timeout is 250msec per discard command.
+	 */
+	if (arg == SD_DISCARD_ARG)
+		return SD_DISCARD_TIMEOUT_MS;
+
 	if (card->ssr.erase_timeout) {
 		/* Erase timeout specified in SD Status Register (SSR) */
 		erase_timeout = card->ssr.erase_timeout * qty +
@@ -1967,6 +1660,7 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 	unsigned int qty = 0, busy_timeout = 0;
 	bool use_r1b_resp = false;
 	unsigned long timeout;
+	int loop_udelay=64, udelay_max=32768;
 	int err;
 
 	mmc_retune_hold(card->host);
@@ -2075,7 +1769,7 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		/* Do not retry else we can't see errors */
 		err = mmc_wait_for_cmd(card->host, &cmd, 0);
-		if (err || (cmd.resp[0] & 0xFDF92000)) {
+		if (err || R1_STATUS(cmd.resp[0])) {
 			pr_err("error %d requesting status %#x\n",
 				err, cmd.resp[0]);
 			err = -EIO;
@@ -2091,9 +1785,15 @@ static int mmc_do_erase(struct mmc_card *card, unsigned int from,
 			err =  -EIO;
 			goto out;
 		}
+		if ((cmd.resp[0] & R1_READY_FOR_DATA) &&
+		    R1_CURRENT_STATE(cmd.resp[0]) != R1_STATE_PRG)
+			break;
 
-	} while (!(cmd.resp[0] & R1_READY_FOR_DATA) ||
-		 (R1_CURRENT_STATE(cmd.resp[0]) == R1_STATE_PRG));
+		usleep_range(loop_udelay, loop_udelay*2);
+		if (loop_udelay < udelay_max)
+			loop_udelay *= 2;
+	} while (1);
+
 out:
 	mmc_retune_release(card->host);
 	return err;
@@ -2152,7 +1852,7 @@ static unsigned int mmc_align_erase_size(struct mmc_card *card,
  * @card: card to erase
  * @from: first sector to erase
  * @nr: number of sectors to erase
- * @arg: erase command argument (SD supports only %MMC_ERASE_ARG)
+ * @arg: erase command argument
  *
  * Caller must claim host before calling this function.
  */
@@ -2169,14 +1869,14 @@ int mmc_erase(struct mmc_card *card, unsigned int from, unsigned int nr,
 	if (!card->erase_size)
 		return -EOPNOTSUPP;
 
-	if (mmc_card_sd(card) && arg != MMC_ERASE_ARG)
+	if (mmc_card_sd(card) && arg != SD_ERASE_ARG && arg != SD_DISCARD_ARG)
 		return -EOPNOTSUPP;
 
-	if ((arg & MMC_SECURE_ARGS) &&
+	if (mmc_card_mmc(card) && (arg & MMC_SECURE_ARGS) &&
 	    !(card->ext_csd.sec_feature_support & EXT_CSD_SEC_ER_EN))
 		return -EOPNOTSUPP;
 
-	if ((arg & MMC_TRIM_ARGS) &&
+	if (mmc_card_mmc(card) && (arg & MMC_TRIM_ARGS) &&
 	    !(card->ext_csd.sec_feature_support & EXT_CSD_SEC_GB_CL_EN))
 		return -EOPNOTSUPP;
 
@@ -2371,7 +2071,7 @@ unsigned int mmc_calc_max_discard(struct mmc_card *card)
 	max_discard = mmc_do_calc_max_discard(card, MMC_ERASE_ARG);
 	if (mmc_can_trim(card)) {
 		max_trim = mmc_do_calc_max_discard(card, MMC_TRIM_ARG);
-		if (max_trim < max_discard)
+		if (max_trim < max_discard || max_discard == 0)
 			max_discard = max_trim;
 	} else if (max_discard < card->erase_size) {
 		max_discard = 0;
@@ -2404,20 +2104,6 @@ int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
 }
 EXPORT_SYMBOL(mmc_set_blocklen);
 
-int mmc_set_blockcount(struct mmc_card *card, unsigned int blockcount,
-			bool is_rel_write)
-{
-	struct mmc_command cmd = {};
-
-	cmd.opcode = MMC_SET_BLOCK_COUNT;
-	cmd.arg = blockcount & 0x0000FFFF;
-	if (is_rel_write)
-		cmd.arg |= 1 << 31;
-	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
-	return mmc_wait_for_cmd(card->host, &cmd, 5);
-}
-EXPORT_SYMBOL(mmc_set_blockcount);
-
 static void mmc_hw_reset_for_init(struct mmc_host *host)
 {
 	mmc_pwrseq_reset(host);
@@ -2435,21 +2121,45 @@ int mmc_hw_reset(struct mmc_host *host)
 		return -EINVAL;
 
 	mmc_bus_get(host);
-	if (!host->bus_ops || host->bus_dead || !host->bus_ops->reset) {
+	if (!host->bus_ops || host->bus_dead || !host->bus_ops->hw_reset) {
 		mmc_bus_put(host);
 		return -EOPNOTSUPP;
 	}
 
-	ret = host->bus_ops->reset(host);
+	ret = host->bus_ops->hw_reset(host);
 	mmc_bus_put(host);
 
 	if (ret)
-		pr_warn("%s: tried to reset card, got error %d\n",
+		pr_warn("%s: tried to HW reset card, got error %d\n",
 			mmc_hostname(host), ret);
 
 	return ret;
 }
 EXPORT_SYMBOL(mmc_hw_reset);
+
+int mmc_sw_reset(struct mmc_host *host)
+{
+	int ret;
+
+	if (!host->card)
+		return -EINVAL;
+
+	mmc_bus_get(host);
+	if (!host->bus_ops || host->bus_dead || !host->bus_ops->sw_reset) {
+		mmc_bus_put(host);
+		return -EOPNOTSUPP;
+	}
+
+	ret = host->bus_ops->sw_reset(host);
+	mmc_bus_put(host);
+
+	if (ret)
+		pr_warn("%s: tried to SW reset card, got error %d\n",
+			mmc_hostname(host), ret);
+
+	return ret;
+}
+EXPORT_SYMBOL(mmc_sw_reset);
 
 static int mmc_rescan_try_freq(struct mmc_host *host, unsigned freq)
 {
@@ -2655,8 +2365,7 @@ void mmc_start_host(struct mmc_host *host)
 void mmc_stop_host(struct mmc_host *host)
 {
 	if (host->slot.cd_irq >= 0) {
-		if (host->slot.cd_wake_enabled)
-			disable_irq_wake(host->slot.cd_irq);
+		mmc_gpio_set_cd_wake(host, false);
 		disable_irq(host->slot.cd_irq);
 	}
 
@@ -2683,52 +2392,6 @@ void mmc_stop_host(struct mmc_host *host)
 	mmc_power_off(host);
 	mmc_release_host(host);
 }
-
-int mmc_power_save_host(struct mmc_host *host)
-{
-	int ret = 0;
-
-	pr_debug("%s: %s: powering down\n", mmc_hostname(host), __func__);
-
-	mmc_bus_get(host);
-
-	if (!host->bus_ops || host->bus_dead) {
-		mmc_bus_put(host);
-		return -EINVAL;
-	}
-
-	if (host->bus_ops->power_save)
-		ret = host->bus_ops->power_save(host);
-
-	mmc_bus_put(host);
-
-	mmc_power_off(host);
-
-	return ret;
-}
-EXPORT_SYMBOL(mmc_power_save_host);
-
-int mmc_power_restore_host(struct mmc_host *host)
-{
-	int ret;
-
-	pr_debug("%s: %s: powering up\n", mmc_hostname(host), __func__);
-
-	mmc_bus_get(host);
-
-	if (!host->bus_ops || host->bus_dead) {
-		mmc_bus_put(host);
-		return -EINVAL;
-	}
-
-	mmc_power_up(host, host->card->ocr);
-	ret = host->bus_ops->power_restore(host);
-
-	mmc_bus_put(host);
-
-	return ret;
-}
-EXPORT_SYMBOL(mmc_power_restore_host);
 
 #ifdef CONFIG_PM_SLEEP
 /* Do the card removal on suspend if card is assumed removeable

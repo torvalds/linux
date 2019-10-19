@@ -123,6 +123,9 @@ struct ovs_vport_stats {
 /* Allow datapath to associate multiple Netlink PIDs to each vport */
 #define OVS_DP_F_VPORT_PIDS	(1 << 1)
 
+/* Allow tc offload recirc sharing */
+#define OVS_DP_F_TC_RECIRC_SHARING	(1 << 2)
+
 /* Fixed logical ports. */
 #define OVSP_LOCAL      ((__u32)0)
 
@@ -364,6 +367,7 @@ enum ovs_tunnel_key_attr {
 	OVS_TUNNEL_KEY_ATTR_IPV6_DST,		/* struct in6_addr dst IPv6 address. */
 	OVS_TUNNEL_KEY_ATTR_PAD,
 	OVS_TUNNEL_KEY_ATTR_ERSPAN_OPTS,	/* struct erspan_metadata */
+	OVS_TUNNEL_KEY_ATTR_IPV4_INFO_BRIDGE,	/* No argument. IPV4_INFO_BRIDGE mode.*/
 	__OVS_TUNNEL_KEY_ATTR_MAX
 };
 
@@ -734,6 +738,7 @@ struct ovs_action_hash {
  * be received on NFNLGRP_CONNTRACK_NEW and NFNLGRP_CONNTRACK_DESTROY groups,
  * respectively.  Remaining bits control the changes for which an event is
  * delivered on the NFNLGRP_CONNTRACK_UPDATE group.
+ * @OVS_CT_ATTR_TIMEOUT: Variable length string defining conntrack timeout.
  */
 enum ovs_ct_attr {
 	OVS_CT_ATTR_UNSPEC,
@@ -746,6 +751,8 @@ enum ovs_ct_attr {
 	OVS_CT_ATTR_NAT,        /* Nested OVS_NAT_ATTR_* */
 	OVS_CT_ATTR_FORCE_COMMIT,  /* No argument */
 	OVS_CT_ATTR_EVENTMASK,  /* u32 mask of IPCT_* events. */
+	OVS_CT_ATTR_TIMEOUT,	/* Associate timeout with this connection for
+				 * fine-grain timeout tuning. */
 	__OVS_CT_ATTR_MAX
 };
 
@@ -798,6 +805,44 @@ struct ovs_action_push_eth {
 	struct ovs_key_ethernet addresses;
 };
 
+/*
+ * enum ovs_check_pkt_len_attr - Attributes for %OVS_ACTION_ATTR_CHECK_PKT_LEN.
+ *
+ * @OVS_CHECK_PKT_LEN_ATTR_PKT_LEN: u16 Packet length to check for.
+ * @OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_GREATER: Nested OVS_ACTION_ATTR_*
+ * actions to apply if the packer length is greater than the specified
+ * length in the attr - OVS_CHECK_PKT_LEN_ATTR_PKT_LEN.
+ * @OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_LESS_EQUAL - Nested OVS_ACTION_ATTR_*
+ * actions to apply if the packer length is lesser or equal to the specified
+ * length in the attr - OVS_CHECK_PKT_LEN_ATTR_PKT_LEN.
+ */
+enum ovs_check_pkt_len_attr {
+	OVS_CHECK_PKT_LEN_ATTR_UNSPEC,
+	OVS_CHECK_PKT_LEN_ATTR_PKT_LEN,
+	OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_GREATER,
+	OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_LESS_EQUAL,
+	__OVS_CHECK_PKT_LEN_ATTR_MAX,
+
+#ifdef __KERNEL__
+	OVS_CHECK_PKT_LEN_ATTR_ARG          /* struct check_pkt_len_arg  */
+#endif
+};
+
+#define OVS_CHECK_PKT_LEN_ATTR_MAX (__OVS_CHECK_PKT_LEN_ATTR_MAX - 1)
+
+#ifdef __KERNEL__
+struct check_pkt_len_arg {
+	u16 pkt_len;	/* Same value as OVS_CHECK_PKT_LEN_ATTR_PKT_LEN'. */
+	bool exec_for_greater;	/* When true, actions in IF_GREATER will
+				 * not change flow keys. False otherwise.
+				 */
+	bool exec_for_lesser_equal; /* When true, actions in IF_LESS_EQUAL
+				     * will not change flow keys. False
+				     * otherwise.
+				     */
+};
+#endif
+
 /**
  * enum ovs_action_attr - Action types.
  *
@@ -840,6 +885,11 @@ struct ovs_action_push_eth {
  * @OVS_ACTION_ATTR_POP_NSH: pop the outermost NSH header off the packet.
  * @OVS_ACTION_ATTR_METER: Run packet through a meter, which may drop the
  * packet, or modify the packet (e.g., change the DSCP field).
+ * @OVS_ACTION_ATTR_CLONE: make a copy of the packet and execute a list of
+ * actions without affecting the original packet and key.
+ * @OVS_ACTION_ATTR_CHECK_PKT_LEN: Check the packet length and execute a set
+ * of actions if greater than the specified packet length, else execute
+ * another set of actions.
  *
  * Only a single header can be set with a single %OVS_ACTION_ATTR_SET.  Not all
  * fields within a header are modifiable, e.g. the IPv4 protocol and fragment
@@ -873,6 +923,8 @@ enum ovs_action_attr {
 	OVS_ACTION_ATTR_PUSH_NSH,     /* Nested OVS_NSH_KEY_ATTR_*. */
 	OVS_ACTION_ATTR_POP_NSH,      /* No argument. */
 	OVS_ACTION_ATTR_METER,        /* u32 meter ID. */
+	OVS_ACTION_ATTR_CLONE,        /* Nested OVS_CLONE_ATTR_*.  */
+	OVS_ACTION_ATTR_CHECK_PKT_LEN, /* Nested OVS_CHECK_PKT_LEN_ATTR_*. */
 
 	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
 				       * from userspace. */
@@ -936,5 +988,33 @@ enum ovs_meter_band_type {
 };
 
 #define OVS_METER_BAND_TYPE_MAX (__OVS_METER_BAND_TYPE_MAX - 1)
+
+/* Conntrack limit */
+#define OVS_CT_LIMIT_FAMILY  "ovs_ct_limit"
+#define OVS_CT_LIMIT_MCGROUP "ovs_ct_limit"
+#define OVS_CT_LIMIT_VERSION 0x1
+
+enum ovs_ct_limit_cmd {
+	OVS_CT_LIMIT_CMD_UNSPEC,
+	OVS_CT_LIMIT_CMD_SET,		/* Add or modify ct limit. */
+	OVS_CT_LIMIT_CMD_DEL,		/* Delete ct limit. */
+	OVS_CT_LIMIT_CMD_GET		/* Get ct limit. */
+};
+
+enum ovs_ct_limit_attr {
+	OVS_CT_LIMIT_ATTR_UNSPEC,
+	OVS_CT_LIMIT_ATTR_ZONE_LIMIT,	/* Nested struct ovs_zone_limit. */
+	__OVS_CT_LIMIT_ATTR_MAX
+};
+
+#define OVS_CT_LIMIT_ATTR_MAX (__OVS_CT_LIMIT_ATTR_MAX - 1)
+
+#define OVS_ZONE_LIMIT_DEFAULT_ZONE -1
+
+struct ovs_zone_limit {
+	int zone_id;
+	__u32 limit;
+	__u32 count;
+};
 
 #endif /* _LINUX_OPENVSWITCH_H */

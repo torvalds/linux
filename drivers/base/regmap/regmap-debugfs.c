@@ -1,14 +1,10 @@
-/*
- * Register map access API - debugfs
- *
- * Copyright 2011 Wolfson Microelectronics plc
- *
- * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Register map access API - debugfs
+//
+// Copyright 2011 Wolfson Microelectronics plc
+//
+// Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
 
 #include <linux/slab.h>
 #include <linux/mutex.h>
@@ -25,6 +21,7 @@ struct regmap_debugfs_node {
 	struct list_head link;
 };
 
+static unsigned int dummy_index;
 static struct dentry *regmap_debugfs_root;
 static LIST_HEAD(regmap_debugfs_early_list);
 static DEFINE_MUTEX(regmap_debugfs_early_lock);
@@ -40,6 +37,7 @@ static ssize_t regmap_name_read_file(struct file *file,
 				     loff_t *ppos)
 {
 	struct regmap *map = file->private_data;
+	const char *name = "nodev";
 	int ret;
 	char *buf;
 
@@ -47,7 +45,10 @@ static ssize_t regmap_name_read_file(struct file *file,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = snprintf(buf, PAGE_SIZE, "%s\n", map->dev->driver->name);
+	if (map->dev && map->dev->driver)
+		name = map->dev->driver->name;
+
+	ret = snprintf(buf, PAGE_SIZE, "%s\n", name);
 	if (ret < 0) {
 		kfree(buf);
 		return ret;
@@ -190,6 +191,28 @@ static inline void regmap_calc_tot_len(struct regmap *map,
 	}
 }
 
+static int regmap_next_readable_reg(struct regmap *map, int reg)
+{
+	struct regmap_debugfs_off_cache *c;
+	int ret = -EINVAL;
+
+	if (regmap_printable(map, reg + map->reg_stride)) {
+		ret = reg + map->reg_stride;
+	} else {
+		mutex_lock(&map->cache_lock);
+		list_for_each_entry(c, &map->debugfs_off_cache, list) {
+			if (reg > c->max_reg)
+				continue;
+			if (reg < c->base_reg) {
+				ret = c->base_reg;
+				break;
+			}
+		}
+		mutex_unlock(&map->cache_lock);
+	}
+	return ret;
+}
+
 static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 				   unsigned int to, char __user *user_buf,
 				   size_t count, loff_t *ppos)
@@ -213,12 +236,8 @@ static ssize_t regmap_read_debugfs(struct regmap *map, unsigned int from,
 	/* Work out which register we're starting at */
 	start_reg = regmap_debugfs_get_dump_start(map, from, *ppos, &p);
 
-	for (i = start_reg; i <= to; i += map->reg_stride) {
-		if (!regmap_readable(map, i) && !regmap_cached(map, i))
-			continue;
-
-		if (regmap_precious(map, i))
-			continue;
+	for (i = start_reg; i >= 0 && i <= to;
+	     i = regmap_next_readable_reg(map, i)) {
 
 		/* If we're in the region the user is trying to read */
 		if (p >= *ppos) {
@@ -430,17 +449,7 @@ static int regmap_access_show(struct seq_file *s, void *ignored)
 	return 0;
 }
 
-static int access_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, regmap_access_show, inode->i_private);
-}
-
-static const struct file_operations regmap_access_fops = {
-	.open		= access_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(regmap_access);
 
 static ssize_t regmap_cache_only_write_file(struct file *file,
 					    const char __user *user_buf,
@@ -569,11 +578,16 @@ void regmap_debugfs_init(struct regmap *map, const char *name)
 		name = devname;
 	}
 
-	map->debugfs = debugfs_create_dir(name, regmap_debugfs_root);
-	if (!map->debugfs) {
-		dev_warn(map->dev, "Failed to create debugfs directory\n");
-		return;
+	if (!strcmp(name, "dummy")) {
+		kfree(map->debugfs_name);
+
+		map->debugfs_name = kasprintf(GFP_KERNEL, "dummy%d",
+						dummy_index);
+		name = map->debugfs_name;
+		dummy_index++;
 	}
+
+	map->debugfs = debugfs_create_dir(name, regmap_debugfs_root);
 
 	debugfs_create_file("name", 0400, map->debugfs,
 			    map, &regmap_name_fops);
@@ -650,10 +664,6 @@ void regmap_debugfs_initcall(void)
 	struct regmap_debugfs_node *node, *tmp;
 
 	regmap_debugfs_root = debugfs_create_dir("regmap", NULL);
-	if (!regmap_debugfs_root) {
-		pr_warn("regmap: Failed to create debugfs root\n");
-		return;
-	}
 
 	mutex_lock(&regmap_debugfs_early_lock);
 	list_for_each_entry_safe(node, tmp, &regmap_debugfs_early_list, link) {

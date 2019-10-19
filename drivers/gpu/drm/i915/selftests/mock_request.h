@@ -27,20 +27,11 @@
 
 #include <linux/list.h>
 
-#include "../i915_gem_request.h"
+#include "../i915_request.h"
 
-struct mock_request {
-	struct drm_i915_gem_request base;
+struct i915_request *
+mock_request(struct intel_context *ce, unsigned long delay);
 
-	struct list_head link;
-	unsigned long delay;
-};
-
-struct drm_i915_gem_request *
-mock_request(struct intel_engine_cs *engine,
-	     struct i915_gem_context *context,
-	     unsigned long delay);
-
-bool mock_cancel_request(struct drm_i915_gem_request *request);
+bool mock_cancel_request(struct i915_request *request);
 
 #endif /* !__MOCK_REQUEST__ */

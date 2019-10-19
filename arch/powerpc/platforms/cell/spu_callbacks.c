@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * System call callback functions for SPUs
  */
@@ -34,20 +35,9 @@
  */
 
 static void *spu_syscall_table[] = {
-#define SYSCALL(func)		sys_ni_syscall,
-#define COMPAT_SYS(func)	sys_ni_syscall,
-#define PPC_SYS(func)		sys_ni_syscall,
-#define OLDSYS(func)		sys_ni_syscall,
-#define SYS32ONLY(func)		sys_ni_syscall,
-#define PPC64ONLY(func)		sys_ni_syscall,
-#define SYSX(f, f3264, f32)	sys_ni_syscall,
-
-#define SYSCALL_SPU(func)	sys_##func,
-#define COMPAT_SYS_SPU(func)	sys_##func,
-#define PPC_SYS_SPU(func)	ppc_##func,
-#define SYSX_SPU(f, f3264, f32)	f,
-
-#include <asm/systbl.h>
+#define __SYSCALL(nr, entry)	entry,
+#include <asm/syscall_table_spu.h>
+#undef __SYSCALL
 };
 
 long spu_sys_callback(struct spu_syscall_block *s)

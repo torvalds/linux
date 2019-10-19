@@ -22,7 +22,8 @@ ssize_t nfs_dns_resolve_name(struct net *net, char *name, size_t namelen,
 	char *ip_addr = NULL;
 	int ip_len;
 
-	ip_len = dns_query(NULL, name, namelen, NULL, &ip_addr, NULL);
+	ip_len = dns_query(net, NULL, name, namelen, NULL, &ip_addr, NULL,
+			   false);
 	if (ip_len > 0)
 		ret = rpc_pton(net, ip_addr, ip_len, sa, salen);
 	else
@@ -65,6 +66,7 @@ struct nfs_dns_ent {
 
 	struct sockaddr_storage addr;
 	size_t addrlen;
+	struct rcu_head rcu_head;
 };
 
 
@@ -101,13 +103,21 @@ static void nfs_dns_ent_init(struct cache_head *cnew,
 	}
 }
 
+static void nfs_dns_ent_free_rcu(struct rcu_head *head)
+{
+	struct nfs_dns_ent *item;
+
+	item = container_of(head, struct nfs_dns_ent, rcu_head);
+	kfree(item->hostname);
+	kfree(item);
+}
+
 static void nfs_dns_ent_put(struct kref *ref)
 {
 	struct nfs_dns_ent *item;
 
 	item = container_of(ref, struct nfs_dns_ent, h.ref);
-	kfree(item->hostname);
-	kfree(item);
+	call_rcu(&item->rcu_head, nfs_dns_ent_free_rcu);
 }
 
 static struct cache_head *nfs_dns_ent_alloc(void)
@@ -195,7 +205,7 @@ static struct nfs_dns_ent *nfs_dns_lookup(struct cache_detail *cd,
 {
 	struct cache_head *ch;
 
-	ch = sunrpc_cache_lookup(cd,
+	ch = sunrpc_cache_lookup_rcu(cd,
 			&key->h,
 			nfs_dns_hash(key));
 	if (!ch)

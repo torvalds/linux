@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include "omap5.dtsi"
 #include <dt-bindings/interrupt-controller/irq.h>
@@ -317,7 +314,8 @@
 
 	palmas_sys_nirq_pins: pinmux_palmas_sys_nirq_pins {
 		pinctrl-single,pins = <
-			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0) /* sys_nirq1 */
+			/* sys_nirq1 is pulled down as the SoC is inverting it for GIC */
+			OMAP5_IOPAD(0x068, PIN_INPUT_PULLUP | MUX_MODE0)
 		>;
 	};
 
@@ -364,7 +362,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&wlcore_irq_pin>;
 		interrupt-parent = <&gpio1>;
-		interrupts = <14 IRQ_TYPE_LEVEL_HIGH>;	/* gpio 14 */
+		interrupts = <14 IRQ_TYPE_EDGE_RISING>;	/* gpio 14 */
 		ref-clock-frequency = <26000000>;
 	};
 };
@@ -385,7 +383,8 @@
 
 	palmas: palmas@48 {
 		compatible = "ti,palmas";
-		interrupts = <GIC_SPI 7 IRQ_TYPE_NONE>; /* IRQ_SYS_1N */
+		/* sys_nirq/ext_sys_irq pins get inverted at mpuss wakeupgen */
+		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_LOW>;
 		reg = <0x48>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
@@ -651,7 +650,8 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&twl6040_pins>;
 
-		interrupts = <GIC_SPI 119 IRQ_TYPE_NONE>; /* IRQ_SYS_2N cascaded to gic */
+		/* sys_nirq/ext_sys_irq pins get inverted at mpuss wakeupgen */
+		interrupts = <GIC_SPI 119 IRQ_TYPE_LEVEL_LOW>;
 
 		/* audpwron gpio defined in the board specific dts */
 
@@ -659,19 +659,21 @@
 		v2v1-supply = <&smps9_reg>;
 		enable-active-high;
 
-		clocks = <&clk32kgaudio>;
-		clock-names = "clk32k";
+		clocks = <&clk32kgaudio>, <&fref_xtal_ck>;
+		clock-names = "clk32k", "mclk";
 	};
 };
 
-&mcpdm {
+&mcpdm_module {
+	/* Module on the SoC needs external clock from the PMIC */
 	pinctrl-names = "default";
 	pinctrl-0 = <&mcpdm_pins>;
+	status = "okay";
+};
 
+&mcpdm {
 	clocks = <&twl6040>;
 	clock-names = "pdmclk";
-
-	status = "okay";
 };
 
 &mcbsp1 {
@@ -698,6 +700,11 @@
 &usb3 {
 	extcon = <&extcon_usb3>;
 	vbus-supply = <&smps10_out1_reg>;
+};
+
+&dwc3 {
+	extcon = <&extcon_usb3>;
+	dr_mode = "otg";
 };
 
 &mcspi1 {

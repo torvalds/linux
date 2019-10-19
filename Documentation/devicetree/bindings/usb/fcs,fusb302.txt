@@ -5,16 +5,12 @@ Required properties :
 - reg                    : I2C slave address
 - interrupts             : Interrupt specifier
 
-Optional properties :
-- fcs,max-sink-microvolt : Maximum voltage to negotiate when configured as sink
-- fcs,max-sink-microamp  : Maximum current to negotiate when configured as sink
-- fcs,max-sink-microwatt : Maximum power to negotiate when configured as sink
-			   If this is less then max-sink-microvolt *
-			   max-sink-microamp then the configured current will
-			   be clamped.
-- fcs,operating-sink-microwatt :
-			   Minimum amount of power accepted from a sink
-			   when negotiating
+Required sub-node:
+- connector : The "usb-c-connector" attached to the FUSB302 IC. The bindings
+  of the connector node are specified in:
+
+	Documentation/devicetree/bindings/connector/usb-connector.txt
+
 
 Example:
 
@@ -23,7 +19,16 @@ fusb302: typec-portc@54 {
 	reg = <0x54>;
 	interrupt-parent = <&nmi_intc>;
 	interrupts = <0 IRQ_TYPE_LEVEL_LOW>;
-	fcs,max-sink-microvolt = <12000000>;
-	fcs,max-sink-microamp = <3000000>;
-	fcs,max-sink-microwatt = <36000000>;
+
+	usb_con: connector {
+		compatible = "usb-c-connector";
+		label = "USB-C";
+		power-role = "dual";
+		try-power-role = "sink";
+		source-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)>;
+		sink-pdos = <PDO_FIXED(5000, 3000, PDO_FIXED_USB_COMM)
+			     PDO_VAR(3000, 12000, 3000)
+			     PDO_PPS_APDO(3000, 11000, 3000)>;
+		op-sink-microwatt = <10000000>;
+	};
 };

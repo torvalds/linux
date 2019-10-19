@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Flash memory access on SA11x0 based devices
  *
@@ -20,7 +21,7 @@
 #include <linux/mtd/concat.h>
 
 #include <mach/hardware.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/mach/flash.h>
 
 struct sa_subdev_info {
@@ -80,6 +81,7 @@ static int sa1100_probe_subdev(struct sa_subdev_info *subdev, struct resource *r
 	default:
 		printk(KERN_WARNING "SA1100 flash: unknown base address "
 		       "0x%08lx, assuming CS0\n", phys);
+		/* Fall through */
 
 	case SA1100_CS0_PHYS:
 		subdev->map.bankwidth = (MSC0 & MSC_RBW) ? 2 : 4;
@@ -221,7 +223,14 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 		info->mtd = info->subdev[0].mtd;
 		ret = 0;
 	} else if (info->num_subdev > 1) {
-		struct mtd_info *cdev[nr];
+		struct mtd_info **cdev;
+
+		cdev = kmalloc_array(nr, sizeof(*cdev), GFP_KERNEL);
+		if (!cdev) {
+			ret = -ENOMEM;
+			goto err;
+		}
+
 		/*
 		 * We detected multiple devices.  Concatenate them together.
 		 */
@@ -230,6 +239,7 @@ static struct sa_info *sa1100_setup_mtd(struct platform_device *pdev,
 
 		info->mtd = mtd_concat_create(cdev, info->num_subdev,
 					      plat->name);
+		kfree(cdev);
 		if (info->mtd == NULL) {
 			ret = -ENXIO;
 			goto err;

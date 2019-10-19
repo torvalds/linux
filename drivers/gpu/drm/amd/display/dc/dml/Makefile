@@ -24,19 +24,46 @@
 # It provides the general basic services required by other DAL
 # subcomponents.
 
-CFLAGS_display_mode_vba.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_display_mode_lib.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_display_pipe_clocks.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_display_rq_dlg_calc.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_dml1_display_rq_dlg_calc.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_display_rq_dlg_helpers.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_soc_bounding_box.o := -mhard-float -msse -mpreferred-stack-boundary=4
-CFLAGS_dml_common_defs.o := -mhard-float -msse -mpreferred-stack-boundary=4
+ifneq ($(call cc-option, -mpreferred-stack-boundary=4),)
+	cc_stack_align := -mpreferred-stack-boundary=4
+else ifneq ($(call cc-option, -mstack-alignment=16),)
+	cc_stack_align := -mstack-alignment=16
+endif
 
+dml_ccflags := -mhard-float -msse $(cc_stack_align)
 
-DML = display_mode_lib.o display_rq_dlg_calc.o \
-	  display_rq_dlg_helpers.o dml1_display_rq_dlg_calc.o \
-	  soc_bounding_box.o dml_common_defs.o display_mode_vba.o
+ifdef CONFIG_CC_IS_CLANG
+dml_ccflags += -msse2
+endif
+
+CFLAGS_$(AMDDALPATH)/dc/dml/display_mode_lib.o := $(dml_ccflags)
+
+ifdef CONFIG_DRM_AMD_DC_DCN2_0
+CFLAGS_$(AMDDALPATH)/dc/dml/display_mode_vba.o := $(dml_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dml/dcn20/display_mode_vba_20.o := $(dml_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dml/dcn20/display_rq_dlg_calc_20.o := $(dml_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dml/dcn20/display_mode_vba_20v2.o := $(dml_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dml/dcn20/display_rq_dlg_calc_20v2.o := $(dml_ccflags)
+endif
+ifdef CONFIG_DRM_AMD_DC_DCN2_1
+CFLAGS_$(AMDDALPATH)/dc/dml/dcn21/display_mode_vba_21.o := $(dml_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dml/dcn21/display_rq_dlg_calc_21.o := $(dml_ccflags)
+endif
+CFLAGS_$(AMDDALPATH)/dc/dml/dml1_display_rq_dlg_calc.o := $(dml_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dml/display_rq_dlg_helpers.o := $(dml_ccflags)
+CFLAGS_$(AMDDALPATH)/dc/dml/dml_common_defs.o := $(dml_ccflags)
+
+DML = display_mode_lib.o display_rq_dlg_helpers.o dml1_display_rq_dlg_calc.o \
+	dml_common_defs.o
+
+ifdef CONFIG_DRM_AMD_DC_DCN2_0
+DML += display_mode_vba.o dcn20/display_rq_dlg_calc_20.o dcn20/display_mode_vba_20.o
+DML += dcn20/display_rq_dlg_calc_20v2.o dcn20/display_mode_vba_20v2.o
+endif
+ifdef CONFIG_DRM_AMD_DC_DCN2_1
+DML += dcn21/display_rq_dlg_calc_21.o dcn21/display_mode_vba_21.o
+endif
+
 
 AMD_DAL_DML = $(addprefix $(AMDDALPATH)/dc/dml/,$(DML))
 

@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright (C) 2018 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -94,14 +96,7 @@ enum {
 
 #define IWL_ALIVE_FLG_RFKILL	BIT(0)
 
-struct iwl_lmac_alive {
-	__le32 ucode_major;
-	__le32 ucode_minor;
-	u8 ver_subtype;
-	u8 ver_type;
-	u8 mac;
-	u8 opt;
-	__le32 timestamp;
+struct iwl_lmac_debug_addrs {
 	__le32 error_event_table_ptr;	/* SRAM address for error log */
 	__le32 log_event_table_ptr;	/* SRAM address for LMAC event log */
 	__le32 cpu_register_ptr;
@@ -110,13 +105,28 @@ struct iwl_lmac_alive {
 	__le32 scd_base_ptr;		/* SRAM address for SCD */
 	__le32 st_fwrd_addr;		/* pointer to Store and forward */
 	__le32 st_fwrd_size;
+} __packed; /* UCODE_DEBUG_ADDRS_API_S_VER_2 */
+
+struct iwl_lmac_alive {
+	__le32 ucode_major;
+	__le32 ucode_minor;
+	u8 ver_subtype;
+	u8 ver_type;
+	u8 mac;
+	u8 opt;
+	__le32 timestamp;
+	struct iwl_lmac_debug_addrs dbg_ptrs;
 } __packed; /* UCODE_ALIVE_NTFY_API_S_VER_3 */
+
+struct iwl_umac_debug_addrs {
+	__le32 error_info_addr;		/* SRAM address for UMAC error log */
+	__le32 dbg_print_buff_addr;
+} __packed; /* UMAC_DEBUG_ADDRS_API_S_VER_1 */
 
 struct iwl_umac_alive {
 	__le32 umac_major;		/* UMAC version: major */
 	__le32 umac_minor;		/* UMAC version: minor */
-	__le32 error_info_addr;		/* SRAM address for UMAC error log */
-	__le32 dbg_print_buff_addr;
+	struct iwl_umac_debug_addrs dbg_ptrs;
 } __packed; /* UMAC_ALIVE_DATA_API_S_VER_2 */
 
 struct mvm_alive_resp_v3 {
@@ -188,19 +198,23 @@ struct iwl_card_state_notif {
 } __packed; /* CARD_STATE_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_fseq_ver_mismatch_nty - Notification about version
- *
- * This notification does not have a direct impact on the init flow.
- * It means that another core (not WiFi) has initiated the FSEQ flow
- * and updated the FSEQ version.  The driver only prints an error when
- * this occurs.
- *
- * @aux_read_fseq_ver: auxiliary read FSEQ version
- * @wifi_fseq_ver: FSEQ version (embedded in WiFi)
+ * enum iwl_error_recovery_flags - flags for error recovery cmd
+ * @ERROR_RECOVERY_UPDATE_DB: update db from blob sent
+ * @ERROR_RECOVERY_END_OF_RECOVERY: end of recovery
  */
-struct iwl_fseq_ver_mismatch_ntf {
-	__le32 aux_read_fseq_ver;
-	__le32 wifi_fseq_ver;
-} __packed; /* FSEQ_VER_MISMATCH_NTFY_API_S_VER_1 */
+enum iwl_error_recovery_flags {
+	ERROR_RECOVERY_UPDATE_DB = BIT(0),
+	ERROR_RECOVERY_END_OF_RECOVERY = BIT(1),
+};
+
+/**
+ * struct iwl_fw_error_recovery_cmd - recovery cmd sent upon assert
+ * @flags: &enum iwl_error_recovery_flags
+ * @buf_size: db buffer size in bytes
+ */
+struct iwl_fw_error_recovery_cmd {
+	__le32 flags;
+	__le32 buf_size;
+} __packed; /* ERROR_RECOVERY_CMD_HDR_API_S_VER_1 */
 
 #endif /* __iwl_fw_api_alive_h__ */

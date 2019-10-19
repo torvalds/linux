@@ -1,11 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* vmu-flash.c
  * Driver for SEGA Dreamcast Visual Memory Unit
  *
  * Copyright (c) Adrian McMenamin 2002 - 2009
  * Copyright (c) Paul Mundt 2001
- *
- * Licensed under version 2 of the
- * GNU General Public Licence
  */
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -629,15 +627,15 @@ static int vmu_connect(struct maple_device *mdev)
 	* Not sure there are actually any multi-partition devices in the
 	* real world, but the hardware supports them, so, so will we
 	*/
-	card->parts = kmalloc(sizeof(struct vmupart) * card->partitions,
-		GFP_KERNEL);
+	card->parts = kmalloc_array(card->partitions, sizeof(struct vmupart),
+				    GFP_KERNEL);
 	if (!card->parts) {
 		error = -ENOMEM;
 		goto fail_partitions;
 	}
 
-	card->mtd = kmalloc(sizeof(struct mtd_info) * card->partitions,
-		GFP_KERNEL);
+	card->mtd = kmalloc_array(card->partitions, sizeof(struct mtd_info),
+				  GFP_KERNEL);
 	if (!card->mtd) {
 		error = -ENOMEM;
 		goto fail_mtd_info;

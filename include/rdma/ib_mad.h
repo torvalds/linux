@@ -198,7 +198,7 @@ struct ib_sa_hdr {
 	__be16			attr_offset;
 	__be16			reserved;
 	ib_sa_comp_mask		comp_mask;
-} __attribute__ ((packed));
+} __packed;
 
 struct ib_mad {
 	struct ib_mad_hdr	mad_hdr;
@@ -227,7 +227,7 @@ struct ib_sa_mad {
 	struct ib_rmpp_hdr	rmpp_hdr;
 	struct ib_sa_hdr	sa_hdr;
 	u8			data[IB_MGMT_SA_DATA];
-} __attribute__ ((packed));
+} __packed;
 
 struct ib_vendor_mad {
 	struct ib_mad_hdr	mad_hdr;
@@ -260,6 +260,49 @@ struct ib_class_port_info {
 	__be16			trap_pkey;
 	__be32			trap_hlqp;
 	__be32			trap_qkey;
+};
+
+/* PortInfo CapabilityMask */
+enum ib_port_capability_mask_bits {
+	IB_PORT_SM = 1 << 1,
+	IB_PORT_NOTICE_SUP = 1 << 2,
+	IB_PORT_TRAP_SUP = 1 << 3,
+	IB_PORT_OPT_IPD_SUP = 1 << 4,
+	IB_PORT_AUTO_MIGR_SUP = 1 << 5,
+	IB_PORT_SL_MAP_SUP = 1 << 6,
+	IB_PORT_MKEY_NVRAM = 1 << 7,
+	IB_PORT_PKEY_NVRAM = 1 << 8,
+	IB_PORT_LED_INFO_SUP = 1 << 9,
+	IB_PORT_SM_DISABLED = 1 << 10,
+	IB_PORT_SYS_IMAGE_GUID_SUP = 1 << 11,
+	IB_PORT_PKEY_SW_EXT_PORT_TRAP_SUP = 1 << 12,
+	IB_PORT_EXTENDED_SPEEDS_SUP = 1 << 14,
+	IB_PORT_CAP_MASK2_SUP = 1 << 15,
+	IB_PORT_CM_SUP = 1 << 16,
+	IB_PORT_SNMP_TUNNEL_SUP = 1 << 17,
+	IB_PORT_REINIT_SUP = 1 << 18,
+	IB_PORT_DEVICE_MGMT_SUP = 1 << 19,
+	IB_PORT_VENDOR_CLASS_SUP = 1 << 20,
+	IB_PORT_DR_NOTICE_SUP = 1 << 21,
+	IB_PORT_CAP_MASK_NOTICE_SUP = 1 << 22,
+	IB_PORT_BOOT_MGMT_SUP = 1 << 23,
+	IB_PORT_LINK_LATENCY_SUP = 1 << 24,
+	IB_PORT_CLIENT_REG_SUP = 1 << 25,
+	IB_PORT_OTHER_LOCAL_CHANGES_SUP = 1 << 26,
+	IB_PORT_LINK_SPEED_WIDTH_TABLE_SUP = 1 << 27,
+	IB_PORT_VENDOR_SPECIFIC_MADS_TABLE_SUP = 1 << 28,
+	IB_PORT_MCAST_PKEY_TRAP_SUPPRESSION_SUP = 1 << 29,
+	IB_PORT_MCAST_FDB_TOP_SUP = 1 << 30,
+	IB_PORT_HIERARCHY_INFO_SUP = 1ULL << 31,
+};
+
+enum ib_port_capability_mask2_bits {
+	IB_PORT_SET_NODE_DESC_SUP		= 1 << 0,
+	IB_PORT_EX_PORT_INFO_EX_SUP		= 1 << 1,
+	IB_PORT_VIRT_SUP			= 1 << 2,
+	IB_PORT_SWITCH_PORT_STATE_TABLE_SUP	= 1 << 3,
+	IB_PORT_LINK_WIDTH_2X_SUP		= 1 << 4,
+	IB_PORT_LINK_SPEED_HDR_SUP		= 1 << 5,
 };
 
 #define OPA_CLASS_PORT_INFO_PR_SUPPORT BIT(26)
@@ -573,12 +616,11 @@ struct ib_mad_agent {
 	void			*context;
 	u32			hi_tid;
 	u32			flags;
+	void			*security;
+	struct list_head	mad_agent_sec_list;
 	u8			port_num;
 	u8			rmpp_version;
-	void			*security;
 	bool			smp_allowed;
-	bool			lsm_nb_reg;
-	struct notifier_block   lsm_nb;
 };
 
 /**

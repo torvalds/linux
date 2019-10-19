@@ -10,8 +10,10 @@
 #include <linux/hdmi.h>
 #include <linux/platform_device.h>
 
-#include <drm/drmP.h>
 #include <media/cec-notifier.h>
+
+#include <drm/drm_modes.h>
+#include <drm/drm_property.h>
 
 #define HDMI_STA           0x0010
 #define HDMI_STA_DLL_LCK   BIT(5)

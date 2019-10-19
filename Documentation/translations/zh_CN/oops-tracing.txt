@@ -1,4 +1,4 @@
-Chinese translated version of Documentation/admin-guide/oops-tracing.rst
+Chinese translated version of Documentation/admin-guide/bug-hunting.rst
 
 If you have any comment or update to the content, please contact the
 original document maintainer directly.  However, if you have a problem
@@ -8,7 +8,7 @@ or if there is a problem with the translation.
 
 Chinese maintainer: Dave Young <hidave.darkstar@gmail.com>
 ---------------------------------------------------------------------
-Documentation/admin-guide/oops-tracing.rst 的中文翻译
+Documentation/admin-guide/bug-hunting.rst 的中文翻译
 
 如果想评论或更新本文的内容，请直接联系原文档的维护者。如果你使用英文
 交流有困难的话，也可以向中文版维护者求助。如果本翻译更新不及时或者翻
@@ -16,7 +16,7 @@ Documentation/admin-guide/oops-tracing.rst 的中文翻译
 
 中文版维护者： 杨瑞 Dave Young <hidave.darkstar@gmail.com>
 中文版翻译者： 杨瑞 Dave Young <hidave.darkstar@gmail.com>
-中文版校译者： 李阳 Li Yang <leo@zh-kernel.org>
+中文版校译者： 李阳 Li Yang <leoyang.li@nxp.com>
                王聪 Wang Cong <xiyou.wangcong@gmail.com>
 
 以下为正文
@@ -53,8 +53,8 @@ cat /proc/kmsg > file， 然而你必须介入中止传输， kmsg是一个“�
 （2）用串口终端启动（请参看Documentation/admin-guide/serial-console.rst），运行一个null
 modem到另一台机器并用你喜欢的通讯工具获取输出。Minicom工作地很好。
 
-（3）使用Kdump（请参看Documentation/kdump/kdump.txt），
-使用在Documentation/kdump/gdbmacros.txt中定义的dmesg gdb宏，从旧的内存中提取内核
+（3）使用Kdump（请参看Documentation/admin-guide/kdump/kdump.rst），
+使用在Documentation/admin-guide/kdump/gdbmacros.txt中定义的dmesg gdb宏，从旧的内存中提取内核
 环形缓冲区。
 
 完整信息

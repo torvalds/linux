@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2009 Patrick McHardy <kaber@trash.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  */
@@ -26,9 +23,9 @@ struct nft_lookup {
 	struct nft_set_binding		binding;
 };
 
-static void nft_lookup_eval(const struct nft_expr *expr,
-			    struct nft_regs *regs,
-			    const struct nft_pktinfo *pkt)
+void nft_lookup_eval(const struct nft_expr *expr,
+		     struct nft_regs *regs,
+		     const struct nft_pktinfo *pkt)
 {
 	const struct nft_lookup *priv = nft_expr_priv(expr);
 	const struct nft_set *set = priv->set;
@@ -71,13 +68,10 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	    tb[NFTA_LOOKUP_SREG] == NULL)
 		return -EINVAL;
 
-	set = nft_set_lookup(ctx->net, ctx->table, tb[NFTA_LOOKUP_SET],
-			     tb[NFTA_LOOKUP_SET_ID], genmask);
+	set = nft_set_lookup_global(ctx->net, ctx->table, tb[NFTA_LOOKUP_SET],
+				    tb[NFTA_LOOKUP_SET_ID], genmask);
 	if (IS_ERR(set))
 		return PTR_ERR(set);
-
-	if (set->flags & NFT_SET_EVAL)
-		return -EOPNOTSUPP;
 
 	priv->sreg = nft_parse_register(tb[NFTA_LOOKUP_SREG]);
 	err = nft_validate_register_load(priv->sreg, set->klen);
@@ -121,12 +115,29 @@ static int nft_lookup_init(const struct nft_ctx *ctx,
 	return 0;
 }
 
+static void nft_lookup_deactivate(const struct nft_ctx *ctx,
+				  const struct nft_expr *expr,
+				  enum nft_trans_phase phase)
+{
+	struct nft_lookup *priv = nft_expr_priv(expr);
+
+	nf_tables_deactivate_set(ctx, priv->set, &priv->binding, phase);
+}
+
+static void nft_lookup_activate(const struct nft_ctx *ctx,
+				const struct nft_expr *expr)
+{
+	struct nft_lookup *priv = nft_expr_priv(expr);
+
+	priv->set->use++;
+}
+
 static void nft_lookup_destroy(const struct nft_ctx *ctx,
 			       const struct nft_expr *expr)
 {
 	struct nft_lookup *priv = nft_expr_priv(expr);
 
-	nf_tables_unbind_set(ctx, priv->set, &priv->binding);
+	nf_tables_destroy_set(ctx, priv->set);
 }
 
 static int nft_lookup_dump(struct sk_buff *skb, const struct nft_expr *expr)
@@ -149,13 +160,71 @@ nla_put_failure:
 	return -1;
 }
 
+static int nft_lookup_validate_setelem(const struct nft_ctx *ctx,
+				       struct nft_set *set,
+				       const struct nft_set_iter *iter,
+				       struct nft_set_elem *elem)
+{
+	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+	struct nft_ctx *pctx = (struct nft_ctx *)ctx;
+	const struct nft_data *data;
+	int err;
+
+	if (nft_set_ext_exists(ext, NFT_SET_EXT_FLAGS) &&
+	    *nft_set_ext_flags(ext) & NFT_SET_ELEM_INTERVAL_END)
+		return 0;
+
+	data = nft_set_ext_data(ext);
+	switch (data->verdict.code) {
+	case NFT_JUMP:
+	case NFT_GOTO:
+		pctx->level++;
+		err = nft_chain_validate(ctx, data->verdict.chain);
+		if (err < 0)
+			return err;
+		pctx->level--;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int nft_lookup_validate(const struct nft_ctx *ctx,
+			       const struct nft_expr *expr,
+			       const struct nft_data **d)
+{
+	const struct nft_lookup *priv = nft_expr_priv(expr);
+	struct nft_set_iter iter;
+
+	if (!(priv->set->flags & NFT_SET_MAP) ||
+	    priv->set->dtype != NFT_DATA_VERDICT)
+		return 0;
+
+	iter.genmask	= nft_genmask_next(ctx->net);
+	iter.skip	= 0;
+	iter.count	= 0;
+	iter.err	= 0;
+	iter.fn		= nft_lookup_validate_setelem;
+
+	priv->set->ops->walk(ctx, priv->set, &iter);
+	if (iter.err < 0)
+		return iter.err;
+
+	return 0;
+}
+
 static const struct nft_expr_ops nft_lookup_ops = {
 	.type		= &nft_lookup_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_lookup)),
 	.eval		= nft_lookup_eval,
 	.init		= nft_lookup_init,
+	.activate	= nft_lookup_activate,
+	.deactivate	= nft_lookup_deactivate,
 	.destroy	= nft_lookup_destroy,
 	.dump		= nft_lookup_dump,
+	.validate	= nft_lookup_validate,
 };
 
 struct nft_expr_type nft_lookup_type __read_mostly = {

@@ -24,6 +24,7 @@
  */
 
 #include "display_rq_dlg_helpers.h"
+#include "dml_logger.h"
 
 void print__rq_params_st(struct display_mode_lib *mode_lib, display_rq_params_st rq_param)
 {
@@ -320,6 +321,9 @@ void print__dlg_regs_st(struct display_mode_lib *mode_lib, display_dlg_regs_st d
 	dml_print(
 			"DML_RQ_DLG_CALC:    xfc_reg_remote_surface_flip_latency = 0x%0x\n",
 			dlg_regs.xfc_reg_remote_surface_flip_latency);
+	dml_print(
+			"DML_RQ_DLG_CALC:    refcyc_per_vm_dmdata            = 0x%0x\n",
+			dlg_regs.refcyc_per_vm_dmdata);
 
 	dml_print("DML_RQ_DLG_CALC: =====================================\n");
 }

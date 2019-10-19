@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	IPV4 GSO/GRO offload support
  *	Linux INET implementation
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *	GRE GSO support
  */
@@ -108,10 +104,10 @@ out:
 	return segs;
 }
 
-static struct sk_buff **gre_gro_receive(struct sk_buff **head,
-					struct sk_buff *skb)
+static struct sk_buff *gre_gro_receive(struct list_head *head,
+				       struct sk_buff *skb)
 {
-	struct sk_buff **pp = NULL;
+	struct sk_buff *pp = NULL;
 	struct sk_buff *p;
 	const struct gre_base_hdr *greh;
 	unsigned int hlen, grehlen;
@@ -182,7 +178,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 					     null_compute_pseudo);
 	}
 
-	for (p = *head; p; p = p->next) {
+	list_for_each_entry(p, head, list) {
 		const struct gre_base_hdr *greh2;
 
 		if (!NAPI_GRO_CB(p)->same_flow)
@@ -223,7 +219,7 @@ static struct sk_buff **gre_gro_receive(struct sk_buff **head,
 out_unlock:
 	rcu_read_unlock();
 out:
-	NAPI_GRO_CB(skb)->flush |= flush;
+	skb_gro_flush_final(skb, pp, flush);
 
 	return pp;
 }

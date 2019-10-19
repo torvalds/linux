@@ -104,7 +104,6 @@ static void AX88190_init(struct net_device *dev, int startp);
 static int ax_open(struct net_device *dev);
 static int ax_close(struct net_device *dev);
 static irqreturn_t ax_interrupt(int irq, void *dev_id);
-static u32 axnet_msg_enable;
 
 /*====================================================================*/
 
@@ -151,7 +150,6 @@ static int axnet_probe(struct pcmcia_device *link)
 	return -ENOMEM;
 
     ei_local = netdev_priv(dev);
-    ei_local->msg_enable = axnet_msg_enable;
     spin_lock_init(&ei_local->page_lock);
 
     info = PRIV(dev);
@@ -612,6 +610,7 @@ static int axnet_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
     switch (cmd) {
     case SIOCGMIIPHY:
 	data->phy_id = info->phy_id;
+	/* Fall through */
     case SIOCGMIIREG:		/* Read MII PHY register. */
 	data->val_out = mdio_read(mii_addr, data->phy_id, data->reg_num & 0x1f);
 	return 0;

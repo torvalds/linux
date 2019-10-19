@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/pxa3xx-ulpi.c
  *
@@ -7,10 +8,6 @@
  *
  * 2010-13-07: Igor Grinberg <grinberg@compulab.co.il>
  *             initial version: pxa310 USB Host mode support
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -256,7 +253,7 @@ int pxa3xx_u2d_start_hc(struct usb_bus *host)
 	if (!u2d)
 		return 0;
 
-	clk_enable(u2d->clk);
+	clk_prepare_enable(u2d->clk);
 
 	if (cpu_is_pxa310()) {
 		pxa310_u2d_setup_otg_hc();
@@ -276,7 +273,7 @@ void pxa3xx_u2d_stop_hc(struct usb_bus *host)
 	if (cpu_is_pxa310())
 		pxa310_stop_otg_hc();
 
-	clk_disable(u2d->clk);
+	clk_disable_unprepare(u2d->clk);
 }
 EXPORT_SYMBOL_GPL(pxa3xx_u2d_stop_hc);
 
@@ -331,7 +328,7 @@ static int pxa3xx_u2d_probe(struct platform_device *pdev)
 			goto err_free_plat;
 	}
 
-	platform_set_drvdata(pdev, &u2d);
+	platform_set_drvdata(pdev, u2d);
 
 	return 0;
 

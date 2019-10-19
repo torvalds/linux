@@ -1,19 +1,14 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * fsl_ssi.h - ALSA SSI interface for the Freescale MPC8610 and i.MX SoC
  *
  * Author: Timur Tabi <timur@freescale.com>
  *
- * Copyright 2007-2008 Freescale Semiconductor, Inc.  This file is licensed
- * under the terms of the GNU General Public License version 2.  This
- * program is licensed "as is" without any warranty of any kind, whether
- * express or implied.
+ * Copyright 2007-2008 Freescale Semiconductor, Inc.
  */
 
 #ifndef _MPC8610_I2S_H
 #define _MPC8610_I2S_H
-
-#define RX 0
-#define TX 1
 
 /* -- SSI Register Map -- */
 
@@ -275,7 +270,6 @@ struct device;
 
 struct fsl_ssi_dbg {
 	struct dentry *dbg_dir;
-	struct dentry *dbg_stats;
 
 	struct {
 		unsigned int rfrc;
@@ -304,7 +298,7 @@ struct fsl_ssi_dbg {
 
 void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *ssi_dbg, u32 sisr);
 
-int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev);
+void fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg, struct device *dev);
 
 void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg);
 
@@ -317,10 +311,9 @@ static inline void fsl_ssi_dbg_isr(struct fsl_ssi_dbg *stats, u32 sisr)
 {
 }
 
-static inline int fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg,
-					 struct device *dev)
+static inline void fsl_ssi_debugfs_create(struct fsl_ssi_dbg *ssi_dbg,
+					  struct device *dev)
 {
-	return 0;
 }
 
 static inline void fsl_ssi_debugfs_remove(struct fsl_ssi_dbg *ssi_dbg)

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Common functions for kernel modules using Dell SMBIOS
  *
@@ -7,10 +8,6 @@
  *
  *  Based on documentation in the libsmbios package:
  *  Copyright (C) 2005-2014 Dell Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #ifndef _DELL_SMBIOS_H_
@@ -75,4 +72,29 @@ int dell_laptop_register_notifier(struct notifier_block *nb);
 int dell_laptop_unregister_notifier(struct notifier_block *nb);
 void dell_laptop_call_notifier(unsigned long action, void *data);
 
-#endif
+/* for the supported backends */
+#ifdef CONFIG_DELL_SMBIOS_WMI
+int init_dell_smbios_wmi(void);
+void exit_dell_smbios_wmi(void);
+#else /* CONFIG_DELL_SMBIOS_WMI */
+static inline int init_dell_smbios_wmi(void)
+{
+	return -ENODEV;
+}
+static inline void exit_dell_smbios_wmi(void)
+{}
+#endif /* CONFIG_DELL_SMBIOS_WMI */
+
+#ifdef CONFIG_DELL_SMBIOS_SMM
+int init_dell_smbios_smm(void);
+void exit_dell_smbios_smm(void);
+#else /* CONFIG_DELL_SMBIOS_SMM */
+static inline int init_dell_smbios_smm(void)
+{
+	return -ENODEV;
+}
+static inline void exit_dell_smbios_smm(void)
+{}
+#endif /* CONFIG_DELL_SMBIOS_SMM */
+
+#endif /* _DELL_SMBIOS_H_ */

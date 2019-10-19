@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * I2C bus driver for CSR SiRFprimaII
  *
  * Copyright (c) 2011 Cambridge Silicon Radio Limited, a CSR plc group company.
- *
- * Licensed under GPLv2 or later.
  */
 
 #include <linux/interrupt.h>
@@ -341,7 +340,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, adap);
 	init_completion(&siic->done);
 
-	/* Controller Initalisation */
+	/* Controller initialisation */
 
 	writel(SIRFSOC_I2C_RESET, siic->base + SIRFSOC_I2C_CTRL);
 	while (readl(siic->base + SIRFSOC_I2C_CTRL) & SIRFSOC_I2C_RESET)
@@ -369,7 +368,7 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	 * but they start to affect the speed when clock is set to faster
 	 * frequencies.
 	 * Through the actual tests, use the different user_div value(which
-	 * in the divider formular 'Fio / (Fi2c * user_div)') to adapt
+	 * in the divider formula 'Fio / (Fi2c * user_div)') to adapt
 	 * the different ranges of i2c bus clock frequency, to make the SCL
 	 * more accurate.
 	 */

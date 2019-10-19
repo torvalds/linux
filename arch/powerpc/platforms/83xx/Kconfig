@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 menuconfig PPC_83xx
 	bool "83xx-based boards"
-	depends on 6xx
+	depends on PPC_BOOK3S_32
 	select PPC_UDBG_16550
-	select PPC_PCI_CHOICE
+	select HAVE_PCI
 	select FSL_PCI if PCI
 	select FSL_SOC
 	select IPIC
@@ -89,13 +89,6 @@ config MPC837x_RDB
 	select PPC_MPC837x
 	help
 	  This option enables support for the MPC837x RDB and WLAN Boards.
-
-config SBC834x
-	bool "Wind River SBC834x"
-	select DEFAULT_UIMAGE
-	select PPC_MPC834x
-	help
-	  This option enables support for the Wind River SBC834x board.
 
 config ASP834x
 	bool "Analogue & Micro ASP 834x"

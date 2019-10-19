@@ -58,16 +58,17 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->nop_packet = nop.u32all;
 	switch (type) {
 	case KFD_QUEUE_TYPE_DIQ:
+		kq->mqd_mgr = dev->dqm->mqd_mgrs[KFD_MQD_TYPE_DIQ];
+		break;
 	case KFD_QUEUE_TYPE_HIQ:
-		kq->mqd = dev->dqm->ops.get_mqd_manager(dev->dqm,
-						KFD_MQD_TYPE_HIQ);
+		kq->mqd_mgr = dev->dqm->mqd_mgrs[KFD_MQD_TYPE_HIQ];
 		break;
 	default:
 		pr_err("Invalid queue type %d\n", type);
 		return false;
 	}
 
-	if (!kq->mqd)
+	if (!kq->mqd_mgr)
 		return false;
 
 	prop.doorbell_ptr = kfd_get_kernel_doorbell(dev, &prop.doorbell_off);
@@ -99,7 +100,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->rptr_kernel = kq->rptr_mem->cpu_ptr;
 	kq->rptr_gpu_addr = kq->rptr_mem->gpu_addr;
 
-	retval = kfd_gtt_sa_allocate(dev, sizeof(*kq->wptr_kernel),
+	retval = kfd_gtt_sa_allocate(dev, dev->device_info->doorbell_size,
 					&kq->wptr_mem);
 
 	if (retval != 0)
@@ -123,6 +124,7 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	prop.write_ptr = (uint32_t *) kq->wptr_gpu_addr;
 	prop.eop_ring_buffer_address = kq->eop_gpu_addr;
 	prop.eop_ring_buffer_size = PAGE_SIZE;
+	prop.cu_mask = NULL;
 
 	if (init_queue(&kq->queue, &prop) != 0)
 		goto err_init_queue;
@@ -130,21 +132,22 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 	kq->queue->device = dev;
 	kq->queue->process = kfd_get_process(current);
 
-	retval = kq->mqd->init_mqd(kq->mqd, &kq->queue->mqd,
-					&kq->queue->mqd_mem_obj,
+	kq->queue->mqd_mem_obj = kq->mqd_mgr->allocate_mqd(kq->mqd_mgr->dev,
+					&kq->queue->properties);
+	if (!kq->queue->mqd_mem_obj)
+		goto err_allocate_mqd;
+	kq->mqd_mgr->init_mqd(kq->mqd_mgr, &kq->queue->mqd,
+					kq->queue->mqd_mem_obj,
 					&kq->queue->gart_mqd_addr,
 					&kq->queue->properties);
-	if (retval != 0)
-		goto err_init_mqd;
-
 	/* assign HIQ to HQD */
 	if (type == KFD_QUEUE_TYPE_HIQ) {
 		pr_debug("Assigning hiq to hqd\n");
 		kq->queue->pipe = KFD_CIK_HIQ_PIPE;
 		kq->queue->queue = KFD_CIK_HIQ_QUEUE;
-		kq->mqd->load_mqd(kq->mqd, kq->queue->mqd, kq->queue->pipe,
-				  kq->queue->queue, &kq->queue->properties,
-				  NULL);
+		kq->mqd_mgr->load_mqd(kq->mqd_mgr, kq->queue->mqd,
+				kq->queue->pipe, kq->queue->queue,
+				&kq->queue->properties, NULL);
 	} else {
 		/* allocate fence for DIQ */
 
@@ -162,7 +165,8 @@ static bool initialize(struct kernel_queue *kq, struct kfd_dev *dev,
 
 	return true;
 err_alloc_fence:
-err_init_mqd:
+	kq->mqd_mgr->free_mqd(kq->mqd_mgr, kq->queue->mqd, kq->queue->mqd_mem_obj);
+err_allocate_mqd:
 	uninit_queue(kq->queue);
 err_init_queue:
 	kfd_gtt_sa_free(dev, kq->wptr_mem);
@@ -182,7 +186,7 @@ err_get_kernel_doorbell:
 static void uninitialize(struct kernel_queue *kq)
 {
 	if (kq->queue->properties.type == KFD_QUEUE_TYPE_HIQ)
-		kq->mqd->destroy_mqd(kq->mqd,
+		kq->mqd_mgr->destroy_mqd(kq->mqd_mgr,
 					kq->queue->mqd,
 					KFD_PREEMPT_TYPE_WAVEFRONT_RESET,
 					KFD_UNMAP_LATENCY_MS,
@@ -191,7 +195,8 @@ static void uninitialize(struct kernel_queue *kq)
 	else if (kq->queue->properties.type == KFD_QUEUE_TYPE_DIQ)
 		kfd_gtt_sa_free(kq->dev, kq->fence_mem_obj);
 
-	kq->mqd->uninit_mqd(kq->mqd, kq->queue->mqd, kq->queue->mqd_mem_obj);
+	kq->mqd_mgr->free_mqd(kq->mqd_mgr, kq->queue->mqd,
+				kq->queue->mqd_mem_obj);
 
 	kfd_gtt_sa_free(kq->dev, kq->rptr_mem);
 	kfd_gtt_sa_free(kq->dev, kq->wptr_mem);
@@ -208,6 +213,7 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	size_t available_size;
 	size_t queue_size_dwords;
 	uint32_t wptr, rptr;
+	uint64_t wptr64;
 	unsigned int *queue_address;
 
 	/* When rptr == wptr, the buffer is empty.
@@ -216,7 +222,8 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 	 * the opposite. So we can only use up to queue_size_dwords - 1 dwords.
 	 */
 	rptr = *kq->rptr_kernel;
-	wptr = *kq->wptr_kernel;
+	wptr = kq->pending_wptr;
+	wptr64 = kq->pending_wptr64;
 	queue_address = (unsigned int *)kq->pq_kernel_addr;
 	queue_size_dwords = kq->queue->properties.queue_size / 4;
 
@@ -232,29 +239,33 @@ static int acquire_packet_buffer(struct kernel_queue *kq,
 		 * make sure calling functions know
 		 * acquire_packet_buffer() failed
 		 */
-		*buffer_ptr = NULL;
-		return -ENOMEM;
+		goto err_no_space;
 	}
 
 	if (wptr + packet_size_in_dwords >= queue_size_dwords) {
 		/* make sure after rolling back to position 0, there is
 		 * still enough space.
 		 */
-		if (packet_size_in_dwords >= rptr) {
-			*buffer_ptr = NULL;
-			return -ENOMEM;
-		}
+		if (packet_size_in_dwords >= rptr)
+			goto err_no_space;
+
 		/* fill nops, roll back and start at position 0 */
 		while (wptr > 0) {
 			queue_address[wptr] = kq->nop_packet;
 			wptr = (wptr + 1) % queue_size_dwords;
+			wptr64++;
 		}
 	}
 
 	*buffer_ptr = &queue_address[wptr];
 	kq->pending_wptr = wptr + packet_size_in_dwords;
+	kq->pending_wptr64 = wptr64 + packet_size_in_dwords;
 
 	return 0;
+
+err_no_space:
+	*buffer_ptr = NULL;
+	return -ENOMEM;
 }
 
 static void submit_packet(struct kernel_queue *kq)
@@ -270,14 +281,18 @@ static void submit_packet(struct kernel_queue *kq)
 	pr_debug("\n");
 #endif
 
-	*kq->wptr_kernel = kq->pending_wptr;
-	write_kernel_doorbell(kq->queue->properties.doorbell_ptr,
-				kq->pending_wptr);
+	kq->ops_asic_specific.submit_packet(kq);
 }
 
 static void rollback_packet(struct kernel_queue *kq)
 {
-	kq->pending_wptr = *kq->queue->properties.write_ptr;
+	if (kq->dev->device_info->doorbell_size == 8) {
+		kq->pending_wptr64 = *kq->wptr64_kernel;
+		kq->pending_wptr = *kq->wptr_kernel %
+			(kq->queue->properties.queue_size / 4);
+	} else {
+		kq->pending_wptr = *kq->wptr_kernel;
+	}
 }
 
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
@@ -297,11 +312,29 @@ struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 
 	switch (dev->device_info->asic_family) {
 	case CHIP_CARRIZO:
+	case CHIP_TONGA:
+	case CHIP_FIJI:
+	case CHIP_POLARIS10:
+	case CHIP_POLARIS11:
+	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		kernel_queue_init_vi(&kq->ops_asic_specific);
 		break;
 
 	case CHIP_KAVERI:
+	case CHIP_HAWAII:
 		kernel_queue_init_cik(&kq->ops_asic_specific);
+		break;
+
+	case CHIP_VEGA10:
+	case CHIP_VEGA12:
+	case CHIP_VEGA20:
+	case CHIP_RAVEN:
+	case CHIP_ARCTURUS:
+		kernel_queue_init_v9(&kq->ops_asic_specific);
+		break;
+	case CHIP_NAVI10:
+		kernel_queue_init_v10(&kq->ops_asic_specific);
 		break;
 	default:
 		WARN(1, "Unexpected ASIC family %u",

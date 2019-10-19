@@ -1,18 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * vimc-common.h Virtual Media Controller Driver
  *
  * Copyright (C) 2015-2017 Helen Koike <helen.fornazier@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #ifndef _VIMC_COMMON_H_
@@ -21,6 +11,8 @@
 #include <linux/slab.h>
 #include <media/media-device.h>
 #include <media/v4l2-device.h>
+
+#define VIMC_PDEV_NAME "vimc"
 
 /* VIMC-specific controls */
 #define VIMC_CID_VIMC_BASE		(0x00f00000 | 0xf000)
@@ -113,22 +105,11 @@ struct vimc_pix_map {
 struct vimc_ent_device {
 	struct media_entity *ent;
 	struct media_pad *pads;
-	void (*process_frame)(struct vimc_ent_device *ved,
-			      struct media_pad *sink, const void *frame);
+	void * (*process_frame)(struct vimc_ent_device *ved,
+				const void *frame);
 	void (*vdev_get_format)(struct vimc_ent_device *ved,
 			      struct v4l2_pix_format *fmt);
 };
-
-/**
- * vimc_propagate_frame - propagate a frame through the topology
- *
- * @src:	the source pad where the frame is being originated
- * @frame:	the frame to be propagated
- *
- * This function will call the process_frame callback from the vimc_ent_device
- * struct of the nodes directly connected to the @src pad
- */
-int vimc_propagate_frame(struct media_pad *src, const void *frame);
 
 /**
  * vimc_pads_init - initialize pads
@@ -196,6 +177,7 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  * @function:	media entity function defined by MEDIA_ENT_F_* macros
  * @num_pads:	number of pads to initialize
  * @pads_flag:	flags to use in each pad
+ * @sd_int_ops:	pointer to &struct v4l2_subdev_internal_ops
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
  * Helper function initialize and register the struct vimc_ent_device and struct
@@ -208,6 +190,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 u32 function,
 			 u16 num_pads,
 			 const unsigned long *pads_flag,
+			 const struct v4l2_subdev_internal_ops *sd_int_ops,
 			 const struct v4l2_subdev_ops *sd_ops);
 
 /**

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * This code is derived from the VIA reference driver (copyright message
  * below) provided to Red Hat by VIA Networking Technologies, Inc. for
@@ -24,22 +25,11 @@
  * Copyright (c) 1996, 2003 VIA Networking Technologies, Inc.
  * All rights reserved.
  *
- * This software may be redistributed and/or modified under
- * the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or
- * any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
- * or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
- * for more details.
- *
  * Author: Chuang Liang-Shing, AJ Jiang
  *
  * Date: Jan 24, 2003
  *
  * MODULE_LICENSE("GPL");
- *
  */
 
 #include <linux/module.h>
@@ -1740,7 +1730,7 @@ static void velocity_free_tx_buf(struct velocity_info *vptr,
 		dma_unmap_single(vptr->dev, tdinfo->skb_dma[i],
 				 le16_to_cpu(pktlen), DMA_TO_DEVICE);
 	}
-	dev_kfree_skb_irq(skb);
+	dev_consume_skb_irq(skb);
 	tdinfo->skb = NULL;
 }
 
@@ -3605,7 +3595,7 @@ static const char velocity_gstrings[][ETH_GSTRING_LEN] = {
 	"tx_jumbo",
 	"rx_mac_control_frames",
 	"tx_mac_control_frames",
-	"rx_frame_alignement_errors",
+	"rx_frame_alignment_errors",
 	"rx_long_ok",
 	"rx_long_err",
 	"tx_sqe_errors",

@@ -15,8 +15,6 @@ Required properties for dp-controller:
 		from common clock binding: handle to dp clock.
 	-clock-names:
 		from common clock binding: Shall be "dp".
-	-interrupt-parent:
-		phandle to Interrupt combiner node.
 	-phys:
 		from general PHY binding: the phandle for the PHY device.
 	-phy-names:

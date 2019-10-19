@@ -8,7 +8,7 @@
 #define _Q40_MASTER_H
 
 #include <asm/raw_io.h>
-
+#include <asm/kmap.h>
 
 #define q40_master_addr 0xff000000
 

@@ -1,23 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * maxim_thermocouple.c  - Support for Maxim thermocouple chips
  *
- * Copyright (C) 2016 Matt Ranostay <mranostay@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (C) 2016-2018 Matt Ranostay
+ * Author: <matt.ranostay@konsulko.com>
  */
 
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/mutex.h>
 #include <linux/err.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/trigger.h>
@@ -236,51 +230,39 @@ static int maxim_thermocouple_probe(struct spi_device *spi)
 	data->spi = spi;
 	data->chip = chip;
 
-	ret = iio_triggered_buffer_setup(indio_dev, NULL,
+	ret = devm_iio_triggered_buffer_setup(&spi->dev,
+				indio_dev, NULL,
 				maxim_thermocouple_trigger_handler, NULL);
 	if (ret)
 		return ret;
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto error_unreg_buffer;
-
-	return 0;
-
-error_unreg_buffer:
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return ret;
-}
-
-static int maxim_thermocouple_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-
-	iio_device_unregister(indio_dev);
-	iio_triggered_buffer_cleanup(indio_dev);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct spi_device_id maxim_thermocouple_id[] = {
 	{"max6675", MAX6675},
 	{"max31855", MAX31855},
-	{"max31856", MAX31855},
 	{},
 };
 MODULE_DEVICE_TABLE(spi, maxim_thermocouple_id);
 
+static const struct of_device_id maxim_thermocouple_of_match[] = {
+        { .compatible = "maxim,max6675" },
+        { .compatible = "maxim,max31855" },
+        { },
+};
+MODULE_DEVICE_TABLE(of, maxim_thermocouple_of_match);
+
 static struct spi_driver maxim_thermocouple_driver = {
 	.driver = {
 		.name	= MAXIM_THERMOCOUPLE_DRV_NAME,
+		.of_match_table = maxim_thermocouple_of_match,
 	},
 	.probe		= maxim_thermocouple_probe,
-	.remove		= maxim_thermocouple_remove,
 	.id_table	= maxim_thermocouple_id,
 };
 module_spi_driver(maxim_thermocouple_driver);
 
-MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
 MODULE_DESCRIPTION("Maxim thermocouple sensors");
 MODULE_LICENSE("GPL");

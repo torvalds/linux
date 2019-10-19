@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * rt5514.h  --  RT5514 ALSA SoC audio driver
  *
  * Copyright 2015 Realtek Microelectronics
  * Author: Oder Chiou <oder_chiou@realtek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __RT5514_H__
@@ -272,7 +269,7 @@ enum {
 
 struct rt5514_priv {
 	struct rt5514_platform_data pdata;
-	struct snd_soc_codec *codec;
+	struct snd_soc_component *component;
 	struct regmap *i2c_regmap, *regmap;
 	struct clk *mclk, *dsp_calib_clk;
 	int sysclk;

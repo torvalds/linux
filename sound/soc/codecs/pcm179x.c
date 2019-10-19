@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PCM179X ASoC codec driver
  *
  * Copyright (c) Amarula Solutions B.V. 2013
  *
  *     Michael Trimarchi <michael@amarulasolutions.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -77,8 +68,8 @@ struct pcm179x_private {
 static int pcm179x_set_dai_fmt(struct snd_soc_dai *codec_dai,
                              unsigned int format)
 {
-	struct snd_soc_codec *codec = codec_dai->codec;
-	struct pcm179x_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = codec_dai->component;
+	struct pcm179x_private *priv = snd_soc_component_get_drvdata(component);
 
 	priv->format = format;
 
@@ -87,8 +78,8 @@ static int pcm179x_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 static int pcm179x_digital_mute(struct snd_soc_dai *dai, int mute)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct pcm179x_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct pcm179x_private *priv = snd_soc_component_get_drvdata(component);
 	int ret;
 
 	ret = regmap_update_bits(priv->regmap, PCM179X_SOFT_MUTE,
@@ -103,8 +94,8 @@ static int pcm179x_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params,
 			     struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct pcm179x_private *priv = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct pcm179x_private *priv = snd_soc_component_get_drvdata(component);
 	int val = 0, ret;
 
 	priv->rate = params_rate(params);
@@ -137,7 +128,7 @@ static int pcm179x_hw_params(struct snd_pcm_substream *substream,
 		}
 		break;
 	default:
-		dev_err(codec->dev, "Invalid DAI format\n");
+		dev_err(component->dev, "Invalid DAI format\n");
 		return -EINVAL;
 	}
 
@@ -205,15 +196,17 @@ const struct regmap_config pcm179x_regmap_config = {
 };
 EXPORT_SYMBOL_GPL(pcm179x_regmap_config);
 
-static const struct snd_soc_codec_driver soc_codec_dev_pcm179x = {
-	.component_driver = {
-		.controls		= pcm179x_controls,
-		.num_controls		= ARRAY_SIZE(pcm179x_controls),
-		.dapm_widgets		= pcm179x_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(pcm179x_dapm_widgets),
-		.dapm_routes		= pcm179x_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(pcm179x_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_pcm179x = {
+	.controls		= pcm179x_controls,
+	.num_controls		= ARRAY_SIZE(pcm179x_controls),
+	.dapm_widgets		= pcm179x_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(pcm179x_dapm_widgets),
+	.dapm_routes		= pcm179x_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(pcm179x_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 int pcm179x_common_init(struct device *dev, struct regmap *regmap)
@@ -228,17 +221,10 @@ int pcm179x_common_init(struct device *dev, struct regmap *regmap)
 	pcm179x->regmap = regmap;
 	dev_set_drvdata(dev, pcm179x);
 
-	return snd_soc_register_codec(dev,
-			&soc_codec_dev_pcm179x, &pcm179x_dai, 1);
+	return devm_snd_soc_register_component(dev,
+			&soc_component_dev_pcm179x, &pcm179x_dai, 1);
 }
 EXPORT_SYMBOL_GPL(pcm179x_common_init);
-
-int pcm179x_common_exit(struct device *dev)
-{
-	snd_soc_unregister_codec(dev);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pcm179x_common_exit);
 
 MODULE_DESCRIPTION("ASoC PCM179X driver");
 MODULE_AUTHOR("Michael Trimarchi <michael@amarulasolutions.com>");

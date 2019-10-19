@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # I2C subsystem configuration
 #
@@ -53,7 +54,7 @@ config I2C_CHARDEV
 	  Say Y here to use i2c-* device files, usually found in the /dev
 	  directory on your system.  They make it possible to have user-space
 	  programs use the I2C bus.  Information on how to do this is
-	  contained in the file <file:Documentation/i2c/dev-interface>.
+	  contained in the file <file:Documentation/i2c/dev-interface.rst>.
 
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-dev.
@@ -68,7 +69,7 @@ config I2C_MUX
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-mux.
 
-source drivers/i2c/muxes/Kconfig
+source "drivers/i2c/muxes/Kconfig"
 
 config I2C_HELPER_AUTO
 	bool "Autoselect pertinent helper modules"
@@ -94,8 +95,8 @@ config I2C_SMBUS
 	  This support is also available as a module.  If so, the module
 	  will be called i2c-smbus.
 
-source drivers/i2c/algos/Kconfig
-source drivers/i2c/busses/Kconfig
+source "drivers/i2c/algos/Kconfig"
+source "drivers/i2c/busses/Kconfig"
 
 config I2C_STUB
 	tristate "I2C/SMBus Test Stub"
@@ -106,7 +107,7 @@ config I2C_STUB
 	  especially for certain kinds of sensor chips.
 
 	  If you do build this module, be sure to read the notes and warnings
-	  in <file:Documentation/i2c/i2c-stub>.
+	  in <file:Documentation/i2c/i2c-stub.rst>.
 
 	  If you don't know what to do here, definitely say N.
 

@@ -1,22 +1,5 @@
-/* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k_vf.h"
 
@@ -215,7 +198,7 @@ static s32 fm10k_update_vlan_vf(struct fm10k_hw *hw, u32 vid, u8 vsi, bool set)
  *  This function should determine the MAC address for the VF
  **/
 s32 fm10k_msg_mac_vlan_vf(struct fm10k_hw *hw, u32 **results,
-			  struct fm10k_mbx_info *mbx)
+			  struct fm10k_mbx_info __always_unused *mbx)
 {
 	u8 perm_addr[ETH_ALEN];
 	u16 vid;
@@ -284,8 +267,10 @@ static s32 fm10k_read_mac_addr_vf(struct fm10k_hw *hw)
  *  This function is used to add or remove unicast MAC addresses for
  *  the VF.
  **/
-static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw, u16 glort,
-				   const u8 *mac, u16 vid, bool add, u8 flags)
+static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw,
+				   u16 __always_unused glort,
+				   const u8 *mac, u16 vid, bool add,
+				   u8 __always_unused flags)
 {
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[7];
@@ -326,7 +311,8 @@ static s32 fm10k_update_uc_addr_vf(struct fm10k_hw *hw, u16 glort,
  *  This function is used to add or remove multicast MAC addresses for
  *  the VF.
  **/
-static s32 fm10k_update_mc_addr_vf(struct fm10k_hw *hw, u16 glort,
+static s32 fm10k_update_mc_addr_vf(struct fm10k_hw *hw,
+				   u16 __always_unused glort,
 				   const u8 *mac, u16 vid, bool add)
 {
 	struct fm10k_mbx_info *mbx = &hw->mbx;
@@ -390,7 +376,7 @@ const struct fm10k_tlv_attr fm10k_lport_state_msg_attr[] = {
  *  are ready to bring up the interface.
  **/
 s32 fm10k_msg_lport_state_vf(struct fm10k_hw *hw, u32 **results,
-			     struct fm10k_mbx_info *mbx)
+			     struct fm10k_mbx_info __always_unused *mbx)
 {
 	hw->mac.dglort_map = !results[FM10K_LPORT_STATE_MSG_READY] ?
 			     FM10K_DGLORTMAP_NONE : FM10K_DGLORTMAP_ZERO;
@@ -409,8 +395,9 @@ s32 fm10k_msg_lport_state_vf(struct fm10k_hw *hw, u32 **results,
  *  enabled we can add filters, if it is disabled all filters for this
  *  logical port are flushed.
  **/
-static s32 fm10k_update_lport_state_vf(struct fm10k_hw *hw, u16 glort,
-				       u16 count, bool enable)
+static s32 fm10k_update_lport_state_vf(struct fm10k_hw *hw,
+				       u16 __always_unused glort,
+				       u16 __always_unused count, bool enable)
 {
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[2];
@@ -437,7 +424,8 @@ static s32 fm10k_update_lport_state_vf(struct fm10k_hw *hw, u16 glort,
  *  so that it can enable either multicast, multicast promiscuous, or
  *  promiscuous mode of operation.
  **/
-static s32 fm10k_update_xcast_mode_vf(struct fm10k_hw *hw, u16 glort, u8 mode)
+static s32 fm10k_update_xcast_mode_vf(struct fm10k_hw *hw,
+				      u16 __always_unused glort, u8 mode)
 {
 	struct fm10k_mbx_info *mbx = &hw->mbx;
 	u32 msg[3];
@@ -492,7 +480,7 @@ static void fm10k_rebind_hw_stats_vf(struct fm10k_hw *hw,
  *  that information to then populate a DGLORTMAP/DEC entry and the queues
  *  to which it has been assigned.
  **/
-static s32 fm10k_configure_dglort_map_vf(struct fm10k_hw *hw,
+static s32 fm10k_configure_dglort_map_vf(struct fm10k_hw __always_unused *hw,
 					 struct fm10k_dglort_cfg *dglort)
 {
 	/* verify the dglort pointer */

@@ -14,7 +14,7 @@
  * The "ascii-art picture" below (in comments, first row
  * is the keycode in hex, and subsequent row(s) shows
  * the button labels (several variants when appropriate)
- * helps to descide which keycodes to assign to the buttons.
+ * helps to decide which keycodes to assign to the buttons.
  */
 
 static struct rc_map_table behold_columbus[] = {
@@ -37,24 +37,24 @@ static struct rc_map_table behold_columbus[] = {
 	 *  0x07    0x08    0x09  0x10    *
 	 *   7       8       9    Zoom	  *
 	 *                                */
-	{ 0x01, KEY_1 },
-	{ 0x02, KEY_2 },
-	{ 0x03, KEY_3 },
+	{ 0x01, KEY_NUMERIC_1 },
+	{ 0x02, KEY_NUMERIC_2 },
+	{ 0x03, KEY_NUMERIC_3 },
 	{ 0x0D, KEY_SETUP },	  /* Setup key */
-	{ 0x04, KEY_4 },
-	{ 0x05, KEY_5 },
-	{ 0x06, KEY_6 },
+	{ 0x04, KEY_NUMERIC_4 },
+	{ 0x05, KEY_NUMERIC_5 },
+	{ 0x06, KEY_NUMERIC_6 },
 	{ 0x19, KEY_CAMERA },	/* Snapshot key */
-	{ 0x07, KEY_7 },
-	{ 0x08, KEY_8 },
-	{ 0x09, KEY_9 },
+	{ 0x07, KEY_NUMERIC_7 },
+	{ 0x08, KEY_NUMERIC_8 },
+	{ 0x09, KEY_NUMERIC_9 },
 	{ 0x10, KEY_ZOOM },
 
 	/*  0x0A    0x00    0x0B       0x0C   *
 	 * RECALL    0    ChannelUp  VolumeUp *
 	 *                                    */
 	{ 0x0A, KEY_AGAIN },
-	{ 0x00, KEY_0 },
+	{ 0x00, KEY_NUMERIC_0 },
 	{ 0x0B, KEY_CHANNELUP },
 	{ 0x0C, KEY_VOLUMEUP },
 
@@ -68,7 +68,7 @@ static struct rc_map_table behold_columbus[] = {
 	{ 0x18, KEY_VOLUMEDOWN },
 
 	/*   0x0E   0x1E     0x0F     0x1A  *
-	 *   Stop   Pause  Previouse  Next  *
+	 *   Stop   Pause  Previous   Next  *
 	 *                                  */
 
 	{ 0x0E, KEY_STOP },

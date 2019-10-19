@@ -1,17 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
- *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #include <linux/i2c.h>
@@ -343,11 +333,11 @@ static int i2c_hack_cx25840(struct pvr2_hdw *hdw,
 
 	if ((ret != 0) || (*rdata == 0x04) || (*rdata == 0x0a)) {
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "WARNING: Detected a wedged cx25840 chip; the device will not work.");
+			   "***WARNING*** Detected a wedged cx25840 chip; the device will not work.");
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "WARNING: Try power cycling the pvrusb2 device.");
+			   "***WARNING*** Try power cycling the pvrusb2 device.");
 		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
-			   "WARNING: Disabling further access to the device to prevent other foul-ups.");
+			   "***WARNING*** Disabling further access to the device to prevent other foul-ups.");
 		// This blocks all further communication with the part.
 		hdw->i2c_func[0x44] = NULL;
 		pvr2_hdw_render_useless(hdw);
@@ -478,8 +468,7 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 		unsigned int idx,offs,cnt;
 		for (idx = 0; idx < num; idx++) {
 			cnt = msgs[idx].len;
-			printk(KERN_INFO
-			       "pvrusb2 i2c xfer %u/%u: addr=0x%x len=%d %s",
+			pr_info("pvrusb2 i2c xfer %u/%u: addr=0x%x len=%d %s",
 			       idx+1,num,
 			       msgs[idx].addr,
 			       cnt,
@@ -487,22 +476,21 @@ static int pvr2_i2c_xfer(struct i2c_adapter *i2c_adap,
 				"read" : "write"));
 			if ((ret > 0) || !(msgs[idx].flags & I2C_M_RD)) {
 				if (cnt > 8) cnt = 8;
-				printk(KERN_CONT " [");
+				pr_cont(" [");
 				for (offs = 0; offs < cnt; offs++) {
-					if (offs) printk(KERN_CONT " ");
-					printk(KERN_CONT "%02x",msgs[idx].buf[offs]);
+					if (offs) pr_cont(" ");
+					pr_cont("%02x", msgs[idx].buf[offs]);
 				}
-				if (offs < cnt) printk(KERN_CONT " ...");
-				printk(KERN_CONT "]");
+				if (offs < cnt) pr_cont(" ...");
+				pr_cont("]");
 			}
 			if (idx+1 == num) {
-				printk(KERN_CONT " result=%d",ret);
+				pr_cont(" result=%d", ret);
 			}
-			printk(KERN_CONT "\n");
+			pr_cont("\n");
 		}
 		if (!num) {
-			printk(KERN_INFO
-			       "pvrusb2 i2c xfer null transfer result=%d\n",
+			pr_info("pvrusb2 i2c xfer null transfer result=%d\n",
 			       ret);
 		}
 	}
@@ -542,14 +530,14 @@ static int do_i2c_probe(struct pvr2_hdw *hdw, int addr)
 static void do_i2c_scan(struct pvr2_hdw *hdw)
 {
 	int i;
-	printk(KERN_INFO "%s: i2c scan beginning\n", hdw->name);
+	pr_info("%s: i2c scan beginning\n", hdw->name);
 	for (i = 0; i < 128; i++) {
 		if (do_i2c_probe(hdw, i)) {
-			printk(KERN_INFO "%s: i2c scan: found device @ 0x%x\n",
+			pr_info("%s: i2c scan: found device @ 0x%x\n",
 			       hdw->name, i);
 		}
 	}
-	printk(KERN_INFO "%s: i2c scan done.\n", hdw->name);
+	pr_info("%s: i2c scan done.\n", hdw->name);
 }
 
 static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
@@ -573,7 +561,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 		/* IR Receiver */
 		info.addr          = 0x18;
 		info.platform_data = init_data;
-		strlcpy(info.type, "ir_video", I2C_NAME_SIZE);
+		strscpy(info.type, "ir_video", I2C_NAME_SIZE);
 		pvr2_trace(PVR2_TRACE_INFO, "Binding %s to i2c address 0x%02x.",
 			   info.type, info.addr);
 		i2c_new_device(&hdw->i2c_adap, &info);
@@ -588,7 +576,7 @@ static void pvr2_i2c_register_ir(struct pvr2_hdw *hdw)
 		/* IR Transceiver */
 		info.addr = 0x71;
 		info.platform_data = init_data;
-		strlcpy(info.type, "ir_z8f0811_haup", I2C_NAME_SIZE);
+		strscpy(info.type, "ir_z8f0811_haup", I2C_NAME_SIZE);
 		pvr2_trace(PVR2_TRACE_INFO, "Binding %s to i2c address 0x%02x.",
 			   info.type, info.addr);
 		i2c_new_device(&hdw->i2c_adap, &info);
@@ -612,7 +600,7 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 
 	/* However, deal with various special cases for 24xxx hardware. */
 	if (ir_mode[hdw->unit_number] == 0) {
-		printk(KERN_INFO "%s: IR disabled\n",hdw->name);
+		pr_info("%s: IR disabled\n", hdw->name);
 		hdw->i2c_func[0x18] = i2c_black_hole;
 	} else if (ir_mode[hdw->unit_number] == 1) {
 		if (hdw->ir_scheme_active == PVR2_IR_SCHEME_24XXX) {
@@ -631,7 +619,7 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	// Configure the adapter and set up everything else related to it.
 	hdw->i2c_adap = pvr2_i2c_adap_template;
 	hdw->i2c_algo = pvr2_i2c_algo_template;
-	strlcpy(hdw->i2c_adap.name,hdw->name,sizeof(hdw->i2c_adap.name));
+	strscpy(hdw->i2c_adap.name, hdw->name, sizeof(hdw->i2c_adap.name));
 	hdw->i2c_adap.dev.parent = &hdw->usb_dev->dev;
 	hdw->i2c_adap.algo = &hdw->i2c_algo;
 	hdw->i2c_adap.algo_data = hdw;

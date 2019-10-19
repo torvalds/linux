@@ -1,9 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Potentiometer drivers
 #
 # When adding new entries keep the list in alphabetical order
 
 menu "Digital potentiometers"
+
+config AD5272
+	tristate "Analog Devices AD5272 and similar Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Analog Devices AD5272 and AD5274
+	  digital potentiometer chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad5272.
 
 config DS1803
 	tristate "Maxim Integrated DS1803 Digital Potentiometer driver"
@@ -15,27 +26,49 @@ config DS1803
 	  To compile this driver as a module, choose M here: the
 	  module will be called ds1803.
 
-config MAX5481
-        tristate "Maxim MAX5481-MAX5484 Digital Potentiometer driver"
-        depends on SPI
-        help
-          Say yes here to build support for the Maxim
-          MAX5481, MAX5482, MAX5483, MAX5484 digital potentiometer
-          chips.
+config MAX5432
+	tristate "Maxim MAX5432-MAX5435 Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Maxim
+	  MAX5432, MAX5433, MAX5434 and MAX5435 digital
+	  potentiometer chips.
 
-          To compile this driver as a module, choose M here: the
-          module will be called max5481.
+	  To compile this driver as a module, choose M here: the
+	  module will be called max5432.
+
+config MAX5481
+	tristate "Maxim MAX5481-MAX5484 Digital Potentiometer driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Maxim
+	  MAX5481, MAX5482, MAX5483, MAX5484 digital potentiometer
+	  chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called max5481.
 
 config MAX5487
-        tristate "Maxim MAX5487/MAX5488/MAX5489 Digital Potentiometer driver"
-        depends on SPI
-        help
-          Say yes here to build support for the Maxim
-          MAX5487, MAX5488, MAX5489 digital potentiometer
-          chips.
+	tristate "Maxim MAX5487/MAX5488/MAX5489 Digital Potentiometer driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Maxim
+	  MAX5487, MAX5488, MAX5489 digital potentiometer
+	  chips.
 
-          To compile this driver as a module, choose M here: the
-          module will be called max5487.
+	  To compile this driver as a module, choose M here: the
+	  module will be called max5487.
+
+config MCP4018
+	tristate "Microchip MCP4017/18/19 Digital Potentiometer driver"
+	depends on I2C
+	help
+	  Say yes here to build support for the Microchip
+	  MCP4017, MCP4018, MCP4019
+	  digital potentiometer chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcp4018.
 
 config MCP4131
 	tristate "Microchip MCP413X/414X/415X/416X/423X/424X/425X/426X Digital Potentiometer driver"
@@ -68,6 +101,18 @@ config MCP4531
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mcp4531.
+
+config MCP41010
+	tristate "Microchip MCP41xxx/MCP42xxx Digital Potentiometer driver"
+	depends on SPI
+	help
+	  Say yes here to build support for the Microchip
+	  MCP41010, MCP41050, MCP41100,
+	  MCP42010, MCP42050, MCP42100
+	  digital potentiometer chips.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called mcp41010.
 
 config TPL0102
 	tristate "Texas Instruments digital potentiometer driver"

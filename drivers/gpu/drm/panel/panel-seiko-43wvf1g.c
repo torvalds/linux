@@ -1,25 +1,24 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 NXP Semiconductors.
  * Author: Marco Franchi <marco.franchi@nxp.com>
  *
  * Based on Panel Simple driver by Thierry Reding <treding@nvidia.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
 
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
-
-#include <drm/drmP.h>
-#include <drm/drm_crtc.h>
-#include <drm/drm_panel.h>
 
 #include <video/display_timing.h>
 #include <video/videomode.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
+#include <drm/drm_panel.h>
 
 struct seiko_panel_desc {
 	const struct drm_display_mode *modes;
@@ -292,7 +291,6 @@ static int seiko_panel_remove(struct platform_device *pdev)
 {
 	struct seiko_panel *panel = dev_get_drvdata(&pdev->dev);
 
-	drm_panel_detach(&panel->base);
 	drm_panel_remove(&panel->base);
 
 	seiko_panel_disable(&panel->base);
@@ -332,7 +330,7 @@ static const struct seiko_panel_desc seiko_43wvf1g = {
 		.height = 57,
 	},
 	.bus_format = MEDIA_BUS_FMT_RGB888_1X24,
-	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_NEGEDGE,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH | DRM_BUS_FLAG_PIXDATA_DRIVE_NEGEDGE,
 };
 
 static const struct of_device_id platform_of_match[] = {
@@ -367,6 +365,6 @@ static struct platform_driver seiko_panel_platform_driver = {
 };
 module_platform_driver(seiko_panel_platform_driver);
 
-MODULE_AUTHOR("Marco Franchi <marco.franchi@nxp.com");
+MODULE_AUTHOR("Marco Franchi <marco.franchi@nxp.com>");
 MODULE_DESCRIPTION("Seiko 43WVF1G panel driver");
 MODULE_LICENSE("GPL v2");

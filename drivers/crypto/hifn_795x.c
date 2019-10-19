@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * 2007+ Copyright (c) Evgeniy Polyakov <johnpol@2ka.mipt.ru>
  * All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -30,7 +21,7 @@
 #include <linux/ktime.h>
 
 #include <crypto/algapi.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 
 static char hifn_pll_ref[sizeof("extNNN")] = "ext";
 module_param_string(hifn_pll_ref, hifn_pll_ref, sizeof(hifn_pll_ref), 0444);
@@ -1948,24 +1939,32 @@ static void hifn_flush(struct hifn_device *dev)
 static int hifn_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
 		unsigned int len)
 {
-	struct crypto_tfm *tfm = crypto_ablkcipher_tfm(cipher);
-	struct hifn_context *ctx = crypto_tfm_ctx(tfm);
+	struct hifn_context *ctx = crypto_ablkcipher_ctx(cipher);
 	struct hifn_device *dev = ctx->dev;
+	int err;
 
-	if (len > HIFN_MAX_CRYPT_KEY_LENGTH) {
-		crypto_ablkcipher_set_flags(cipher, CRYPTO_TFM_RES_BAD_KEY_LEN);
-		return -1;
-	}
+	err = verify_ablkcipher_des_key(cipher, key);
+	if (err)
+		return err;
 
-	if (len == HIFN_DES_KEY_LENGTH) {
-		u32 tmp[DES_EXPKEY_WORDS];
-		int ret = des_ekey(tmp, key);
+	dev->flags &= ~HIFN_FLAG_OLD_KEY;
 
-		if (unlikely(ret == 0) && (tfm->crt_flags & CRYPTO_TFM_REQ_WEAK_KEY)) {
-			tfm->crt_flags |= CRYPTO_TFM_RES_WEAK_KEY;
-			return -EINVAL;
-		}
-	}
+	memcpy(ctx->key, key, len);
+	ctx->keysize = len;
+
+	return 0;
+}
+
+static int hifn_des3_setkey(struct crypto_ablkcipher *cipher, const u8 *key,
+			    unsigned int len)
+{
+	struct hifn_context *ctx = crypto_ablkcipher_ctx(cipher);
+	struct hifn_device *dev = ctx->dev;
+	int err;
+
+	err = verify_ablkcipher_des3_key(cipher, key);
+	if (err)
+		return err;
 
 	dev->flags &= ~HIFN_FLAG_OLD_KEY;
 
@@ -2239,7 +2238,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.setkey		=	hifn_setkey,
+			.setkey		=	hifn_des3_setkey,
 			.encrypt	=	hifn_encrypt_3des_cfb,
 			.decrypt	=	hifn_decrypt_3des_cfb,
 		},
@@ -2249,7 +2248,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.setkey		=	hifn_setkey,
+			.setkey		=	hifn_des3_setkey,
 			.encrypt	=	hifn_encrypt_3des_ofb,
 			.decrypt	=	hifn_decrypt_3des_ofb,
 		},
@@ -2260,7 +2259,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 			.ivsize		=	HIFN_IV_LENGTH,
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.setkey		=	hifn_setkey,
+			.setkey		=	hifn_des3_setkey,
 			.encrypt	=	hifn_encrypt_3des_cbc,
 			.decrypt	=	hifn_decrypt_3des_cbc,
 		},
@@ -2270,7 +2269,7 @@ static struct hifn_alg_template hifn_alg_templates[] = {
 		.ablkcipher = {
 			.min_keysize	=	HIFN_3DES_KEY_LENGTH,
 			.max_keysize	=	HIFN_3DES_KEY_LENGTH,
-			.setkey		=	hifn_setkey,
+			.setkey		=	hifn_des3_setkey,
 			.encrypt	=	hifn_encrypt_3des_ecb,
 			.decrypt	=	hifn_decrypt_3des_ecb,
 		},

@@ -1,7 +1,8 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 #ifndef __BPF_ENDIAN__
 #define __BPF_ENDIAN__
 
+#include <linux/stddef.h>
 #include <linux/swab.h>
 
 /* LLVM's BPF target selects the endianness of the CPU
@@ -28,6 +29,10 @@
 # define __bpf_htonl(x)			__builtin_bswap32(x)
 # define __bpf_constant_ntohl(x)	___constant_swab32(x)
 # define __bpf_constant_htonl(x)	___constant_swab32(x)
+# define __bpf_be64_to_cpu(x)		__builtin_bswap64(x)
+# define __bpf_cpu_to_be64(x)		__builtin_bswap64(x)
+# define __bpf_constant_be64_to_cpu(x)	___constant_swab64(x)
+# define __bpf_constant_cpu_to_be64(x)	___constant_swab64(x)
 #elif __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
 # define __bpf_ntohs(x)			(x)
 # define __bpf_htons(x)			(x)
@@ -37,6 +42,10 @@
 # define __bpf_htonl(x)			(x)
 # define __bpf_constant_ntohl(x)	(x)
 # define __bpf_constant_htonl(x)	(x)
+# define __bpf_be64_to_cpu(x)		(x)
+# define __bpf_cpu_to_be64(x)		(x)
+# define __bpf_constant_be64_to_cpu(x)  (x)
+# define __bpf_constant_cpu_to_be64(x)  (x)
 #else
 # error "Fix your compiler's __BYTE_ORDER__?!"
 #endif
@@ -53,5 +62,11 @@
 #define bpf_ntohl(x)				\
 	(__builtin_constant_p(x) ?		\
 	 __bpf_constant_ntohl(x) : __bpf_ntohl(x))
+#define bpf_cpu_to_be64(x)			\
+	(__builtin_constant_p(x) ?		\
+	 __bpf_constant_cpu_to_be64(x) : __bpf_cpu_to_be64(x))
+#define bpf_be64_to_cpu(x)			\
+	(__builtin_constant_p(x) ?		\
+	 __bpf_constant_be64_to_cpu(x) : __bpf_be64_to_cpu(x))
 
 #endif /* __BPF_ENDIAN__ */

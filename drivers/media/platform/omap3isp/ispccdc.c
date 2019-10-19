@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ispccdc.c
  *
@@ -8,10 +9,6 @@
  *
  * Contacts: Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -735,7 +732,7 @@ static int ccdc_config(struct isp_ccdc_device *ccdc,
 				return -ENOMEM;
 
 			if (copy_from_user(fpc_new.addr,
-					   (__force void __user *)fpc.fpcaddr,
+					   (__force void __user *)(long)fpc.fpcaddr,
 					   size)) {
 				dma_free_coherent(isp->dev, size, fpc_new.addr,
 						  fpc_new.dma);
@@ -1594,7 +1591,7 @@ static int ccdc_isr_buffer(struct isp_ccdc_device *ccdc)
 		return 0;
 
 	/* We're in continuous mode, and memory writes were disabled due to a
-	 * buffer underrun. Reenable them now that we have a buffer. The buffer
+	 * buffer underrun. Re-enable them now that we have a buffer. The buffer
 	 * address has been set in ccdc_video_queue.
 	 */
 	if (ccdc->state == ISP_PIPELINE_STREAM_CONTINUOUS && ccdc->underrun) {
@@ -1712,7 +1709,7 @@ static void ccdc_vd1_isr(struct isp_ccdc_device *ccdc)
 	 * data to memory the CCDC and LSC are stopped immediately but
 	 * without change the CCDC stopping state machine. The CCDC
 	 * stopping state machine should be used only when user request
-	 * for stopping is received (SINGLESHOT is an exeption).
+	 * for stopping is received (SINGLESHOT is an exception).
 	 */
 	switch (ccdc->state) {
 	case ISP_PIPELINE_STREAM_SINGLESHOT:
@@ -2605,6 +2602,7 @@ int omap3isp_ccdc_register_entities(struct isp_ccdc_device *ccdc,
 	int ret;
 
 	/* Register the subdev and video node. */
+	ccdc->subdev.dev = vdev->mdev->dev;
 	ret = v4l2_device_register_subdev(vdev, &ccdc->subdev);
 	if (ret < 0)
 		goto error;
@@ -2641,7 +2639,7 @@ static int ccdc_init_entities(struct isp_ccdc_device *ccdc)
 
 	v4l2_subdev_init(sd, &ccdc_v4l2_ops);
 	sd->internal_ops = &ccdc_v4l2_internal_ops;
-	strlcpy(sd->name, "OMAP3 ISP CCDC", sizeof(sd->name));
+	strscpy(sd->name, "OMAP3 ISP CCDC", sizeof(sd->name));
 	sd->grp_id = 1 << 16;	/* group ID for isp subdevs */
 	v4l2_set_subdevdata(sd, ccdc);
 	sd->flags |= V4L2_SUBDEV_FL_HAS_EVENTS | V4L2_SUBDEV_FL_HAS_DEVNODE;

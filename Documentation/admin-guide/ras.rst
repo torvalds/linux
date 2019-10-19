@@ -54,7 +54,7 @@ those errors are correctable.
 Types of errors
 ---------------
 
-Most mechanisms used on modern systems use use technologies like Hamming
+Most mechanisms used on modern systems use technologies like Hamming
 Codes that allow error correction when the number of errors on a bit packet
 is below a threshold. If the number of errors is above, those mechanisms
 can indicate with a high degree of confidence that an error happened, but
@@ -199,7 +199,7 @@ Architecture (MCA)\ [#f3]_.
   mode).
 
 .. [#f3] For more details about the Machine Check Architecture (MCA),
-  please read Documentation/x86/x86_64/machinecheck at the Kernel tree.
+  please read Documentation/x86/x86_64/machinecheck.rst at the Kernel tree.
 
 EDAC - Error Detection And Correction
 *************************************

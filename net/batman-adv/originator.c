@@ -1,19 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
-/* Copyright (C) 2009-2017  B.A.T.M.A.N. contributors:
+/* Copyright (C) 2009-2019  B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "originator.h"
@@ -39,6 +27,7 @@
 #include <linux/stddef.h>
 #include <linux/workqueue.h>
 #include <net/sock.h>
+#include <uapi/linux/batadv_packet.h>
 #include <uapi/linux/batman_adv.h>
 
 #include "bat_algo.h"
@@ -904,9 +893,6 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 
 	batadv_frag_purge_orig(orig_node, NULL);
 
-	if (orig_node->bat_priv->algo_ops->orig.free)
-		orig_node->bat_priv->algo_ops->orig.free(orig_node);
-
 	kfree(orig_node->tt_buff);
 	kfree(orig_node);
 }
@@ -1058,7 +1044,8 @@ struct batadv_orig_node *batadv_orig_node_new(struct batadv_priv *bat_priv,
 	orig_node->bcast_seqno_reset = reset_time;
 
 #ifdef CONFIG_BATMAN_ADV_MCAST
-	orig_node->mcast_flags = BATADV_NO_FLAGS;
+	orig_node->mcast_flags = BATADV_MCAST_WANT_NO_RTR4;
+	orig_node->mcast_flags |= BATADV_MCAST_WANT_NO_RTR6;
 	INIT_HLIST_NODE(&orig_node->mcast_want_all_unsnoopables_node);
 	INIT_HLIST_NODE(&orig_node->mcast_want_all_ipv4_node);
 	INIT_HLIST_NODE(&orig_node->mcast_want_all_ipv6_node);
@@ -1339,7 +1326,11 @@ static bool batadv_purge_orig_node(struct batadv_priv *bat_priv,
 	return false;
 }
 
-static void _batadv_purge_orig(struct batadv_priv *bat_priv)
+/**
+ * batadv_purge_orig_ref() - Purge all outdated originators
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+void batadv_purge_orig_ref(struct batadv_priv *bat_priv)
 {
 	struct batadv_hashtable *hash = bat_priv->orig_hash;
 	struct hlist_node *node_tmp;
@@ -1385,19 +1376,10 @@ static void batadv_purge_orig(struct work_struct *work)
 
 	delayed_work = to_delayed_work(work);
 	bat_priv = container_of(delayed_work, struct batadv_priv, orig_work);
-	_batadv_purge_orig(bat_priv);
+	batadv_purge_orig_ref(bat_priv);
 	queue_delayed_work(batadv_event_workqueue,
 			   &bat_priv->orig_work,
 			   msecs_to_jiffies(BATADV_ORIG_WORK_PERIOD));
-}
-
-/**
- * batadv_purge_orig_ref() - Purge all outdated originators
- * @bat_priv: the bat priv with all the soft interface information
- */
-void batadv_purge_orig_ref(struct batadv_priv *bat_priv)
-{
-	_batadv_purge_orig(bat_priv);
 }
 
 #ifdef CONFIG_BATMAN_ADV_DEBUGFS
@@ -1559,108 +1541,4 @@ int batadv_orig_dump(struct sk_buff *msg, struct netlink_callback *cb)
 		dev_put(soft_iface);
 
 	return ret;
-}
-
-/**
- * batadv_orig_hash_add_if() - Add interface to originators in orig_hash
- * @hard_iface: hard interface to add (already slave of the soft interface)
- * @max_if_num: new number of interfaces
- *
- * Return: 0 on success or negative error number in case of failure
- */
-int batadv_orig_hash_add_if(struct batadv_hard_iface *hard_iface,
-			    int max_if_num)
-{
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct batadv_algo_ops *bao = bat_priv->algo_ops;
-	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct hlist_head *head;
-	struct batadv_orig_node *orig_node;
-	u32 i;
-	int ret;
-
-	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
-	 * if_num
-	 */
-	for (i = 0; i < hash->size; i++) {
-		head = &hash->table[i];
-
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			ret = 0;
-			if (bao->orig.add_if)
-				ret = bao->orig.add_if(orig_node, max_if_num);
-			if (ret == -ENOMEM)
-				goto err;
-		}
-		rcu_read_unlock();
-	}
-
-	return 0;
-
-err:
-	rcu_read_unlock();
-	return -ENOMEM;
-}
-
-/**
- * batadv_orig_hash_del_if() - Remove interface from originators in orig_hash
- * @hard_iface: hard interface to remove (still slave of the soft interface)
- * @max_if_num: new number of interfaces
- *
- * Return: 0 on success or negative error number in case of failure
- */
-int batadv_orig_hash_del_if(struct batadv_hard_iface *hard_iface,
-			    int max_if_num)
-{
-	struct batadv_priv *bat_priv = netdev_priv(hard_iface->soft_iface);
-	struct batadv_hashtable *hash = bat_priv->orig_hash;
-	struct hlist_head *head;
-	struct batadv_hard_iface *hard_iface_tmp;
-	struct batadv_orig_node *orig_node;
-	struct batadv_algo_ops *bao = bat_priv->algo_ops;
-	u32 i;
-	int ret;
-
-	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
-	 * if_num
-	 */
-	for (i = 0; i < hash->size; i++) {
-		head = &hash->table[i];
-
-		rcu_read_lock();
-		hlist_for_each_entry_rcu(orig_node, head, hash_entry) {
-			ret = 0;
-			if (bao->orig.del_if)
-				ret = bao->orig.del_if(orig_node, max_if_num,
-						       hard_iface->if_num);
-			if (ret == -ENOMEM)
-				goto err;
-		}
-		rcu_read_unlock();
-	}
-
-	/* renumber remaining batman interfaces _inside_ of orig_hash_lock */
-	rcu_read_lock();
-	list_for_each_entry_rcu(hard_iface_tmp, &batadv_hardif_list, list) {
-		if (hard_iface_tmp->if_status == BATADV_IF_NOT_IN_USE)
-			continue;
-
-		if (hard_iface == hard_iface_tmp)
-			continue;
-
-		if (hard_iface->soft_iface != hard_iface_tmp->soft_iface)
-			continue;
-
-		if (hard_iface_tmp->if_num > hard_iface->if_num)
-			hard_iface_tmp->if_num--;
-	}
-	rcu_read_unlock();
-
-	hard_iface->if_num = -1;
-	return 0;
-
-err:
-	rcu_read_unlock();
-	return -ENOMEM;
 }

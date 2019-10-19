@@ -1,15 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  *    Copyright 2017 NXP
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
  *
  *    CORTINA is a registered trademark of Cortina Systems, Inc.
  *
@@ -28,14 +19,6 @@ static int cortina_read_reg(struct phy_device *phydev, u16 regnum)
 {
 	return mdiobus_read(phydev->mdio.bus, phydev->mdio.addr,
 			    MII_ADDR_C45 | regnum);
-}
-
-static int cortina_config_aneg(struct phy_device *phydev)
-{
-	phydev->supported = SUPPORTED_10000baseT_Full;
-	phydev->advertising = SUPPORTED_10000baseT_Full;
-
-	return 0;
 }
 
 static int cortina_read_status(struct phy_device *phydev)
@@ -59,11 +42,6 @@ static int cortina_read_status(struct phy_device *phydev)
 
 err:
 	return ret;
-}
-
-static int cortina_soft_reset(struct phy_device *phydev)
-{
-	return 0;
 }
 
 static int cortina_probe(struct phy_device *phydev)
@@ -101,9 +79,10 @@ static struct phy_driver cortina_driver[] = {
 	.phy_id		= PHY_ID_CS4340,
 	.phy_id_mask	= 0xffffffff,
 	.name		= "Cortina CS4340",
-	.config_aneg	= cortina_config_aneg,
+	.features       = PHY_10GBIT_FEATURES,
+	.config_aneg	= gen10g_config_aneg,
 	.read_status	= cortina_read_status,
-	.soft_reset	= cortina_soft_reset,
+	.soft_reset	= genphy_no_soft_reset,
 	.probe		= cortina_probe,
 },
 };

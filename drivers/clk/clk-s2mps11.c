@@ -1,19 +1,8 @@
-/*
- * clk-s2mps11.c - Clock driver for S2MPS11.
- *
- * Copyright (C) 2013,2014 Samsung Electornics
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// clk-s2mps11.c - Clock driver for S2MPS11.
+//
+// Copyright (C) 2013,2014 Samsung Electornics
 
 #include <linux/module.h>
 #include <linux/err.h>
@@ -28,12 +17,7 @@
 #include <linux/mfd/samsung/s5m8767.h>
 #include <linux/mfd/samsung/core.h>
 
-enum {
-	S2MPS11_CLK_AP = 0,
-	S2MPS11_CLK_CP,
-	S2MPS11_CLK_BT,
-	S2MPS11_CLKS_NUM,
-};
+#include <dt-bindings/clock/samsung,s2mps11.h>
 
 struct s2mps11_clk {
 	struct sec_pmic_dev *iodev;
@@ -87,7 +71,7 @@ static unsigned long s2mps11_clk_recalc_rate(struct clk_hw *hw,
 	return 32768;
 }
 
-static struct clk_ops s2mps11_clk_ops = {
+static const struct clk_ops s2mps11_clk_ops = {
 	.prepare	= s2mps11_clk_prepare,
 	.unprepare	= s2mps11_clk_unprepare,
 	.is_prepared	= s2mps11_clk_is_prepared,
@@ -147,8 +131,8 @@ static int s2mps11_clk_probe(struct platform_device *pdev)
 	if (!s2mps11_clks)
 		return -ENOMEM;
 
-	clk_data = devm_kzalloc(&pdev->dev, sizeof(*clk_data) +
-				sizeof(*clk_data->hws) * S2MPS11_CLKS_NUM,
+	clk_data = devm_kzalloc(&pdev->dev,
+				struct_size(clk_data, hws, S2MPS11_CLKS_NUM),
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
@@ -244,6 +228,36 @@ static const struct platform_device_id s2mps11_clk_id[] = {
 	{ },
 };
 MODULE_DEVICE_TABLE(platform, s2mps11_clk_id);
+
+#ifdef CONFIG_OF
+/*
+ * Device is instantiated through parent MFD device and device matching is done
+ * through platform_device_id.
+ *
+ * However if device's DT node contains proper clock compatible and driver is
+ * built as a module, then the *module* matching will be done trough DT aliases.
+ * This requires of_device_id table.  In the same time this will not change the
+ * actual *device* matching so do not add .of_match_table.
+ */
+static const struct of_device_id s2mps11_dt_match[] __used = {
+	{
+		.compatible = "samsung,s2mps11-clk",
+		.data = (void *)S2MPS11X,
+	}, {
+		.compatible = "samsung,s2mps13-clk",
+		.data = (void *)S2MPS13X,
+	}, {
+		.compatible = "samsung,s2mps14-clk",
+		.data = (void *)S2MPS14X,
+	}, {
+		.compatible = "samsung,s5m8767-clk",
+		.data = (void *)S5M8767X,
+	}, {
+		/* Sentinel */
+	},
+};
+MODULE_DEVICE_TABLE(of, s2mps11_dt_match);
+#endif
 
 static struct platform_driver s2mps11_clk_driver = {
 	.driver = {

@@ -1,8 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lib/parser.c - simple parser for mount, etc. options.
- *
- * This source code is licensed under the GNU General Public License,
- * Version 2.  See the file COPYING for more details.
  */
 
 #include <linux/ctype.h>
@@ -131,13 +129,10 @@ static int match_number(substring_t *s, int *result, int base)
 	char *buf;
 	int ret;
 	long val;
-	size_t len = s->to - s->from;
 
-	buf = kmalloc(len + 1, GFP_KERNEL);
+	buf = match_strdup(s);
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, s->from, len);
-	buf[len] = '\0';
 
 	ret = 0;
 	val = simple_strtol(buf, &endp, base);
@@ -166,13 +161,10 @@ static int match_u64int(substring_t *s, u64 *result, int base)
 	char *buf;
 	int ret;
 	u64 val;
-	size_t len = s->to - s->from;
 
-	buf = kmalloc(len + 1, GFP_KERNEL);
+	buf = match_strdup(s);
 	if (!buf)
 		return -ENOMEM;
-	memcpy(buf, s->from, len);
-	buf[len] = '\0';
 
 	ret = kstrtoull(buf, base, &val);
 	if (!ret)
@@ -327,10 +319,6 @@ EXPORT_SYMBOL(match_strlcpy);
  */
 char *match_strdup(const substring_t *s)
 {
-	size_t sz = s->to - s->from + 1;
-	char *p = kmalloc(sz, GFP_KERNEL);
-	if (p)
-		match_strlcpy(p, s, sz);
-	return p;
+	return kmemdup_nul(s->from, s->to - s->from, GFP_KERNEL);
 }
 EXPORT_SYMBOL(match_strdup);

@@ -2,23 +2,16 @@
 /*
  * Copyright (c) 2014 Christoph Hellwig.
  */
-#include <linux/iomap.h>
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
-#include "xfs_sb.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
 #include "xfs_trans.h"
-#include "xfs_log.h"
 #include "xfs_bmap.h"
-#include "xfs_bmap_util.h"
-#include "xfs_error.h"
 #include "xfs_iomap.h"
-#include "xfs_shared.h"
-#include "xfs_bit.h"
-#include "xfs_pnfs.h"
 
 /*
  * Ensure that we do not have any outstanding pNFS layouts that can be used by
@@ -31,19 +24,20 @@
  * rules in the page fault path we don't bother.
  */
 int
-xfs_break_layouts(
+xfs_break_leased_layouts(
 	struct inode		*inode,
-	uint			*iolock)
+	uint			*iolock,
+	bool			*did_unlock)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	int			error;
 
-	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
-
-	while ((error = break_layout(inode, false) == -EWOULDBLOCK)) {
+	while ((error = break_layout(inode, false)) == -EWOULDBLOCK) {
 		xfs_iunlock(ip, *iolock);
+		*did_unlock = true;
 		error = break_layout(inode, true);
-		*iolock = XFS_IOLOCK_EXCL;
+		*iolock &= ~XFS_IOLOCK_SHARED;
+		*iolock |= XFS_IOLOCK_EXCL;
 		xfs_ilock(ip, *iolock);
 	}
 
@@ -120,8 +114,8 @@ xfs_fs_map_blocks(
 	 * Lock out any other I/O before we flush and invalidate the pagecache,
 	 * and then hand out a layout to the remote system.  This is very
 	 * similar to direct I/O, except that the synchronization is much more
-	 * complicated.  See the comment near xfs_break_layouts for a detailed
-	 * explanation.
+	 * complicated.  See the comment near xfs_break_leased_layouts
+	 * for a detailed explanation.
 	 */
 	xfs_ilock(ip, XFS_IOLOCK_EXCL);
 
@@ -184,7 +178,7 @@ xfs_fs_map_blocks(
 	}
 	xfs_iunlock(ip, XFS_IOLOCK_EXCL);
 
-	xfs_bmbt_to_iomap(ip, iomap, &imap);
+	error = xfs_bmbt_to_iomap(ip, iomap, &imap, false);
 	*device_generation = mp->m_generation;
 	return error;
 out_unlock:

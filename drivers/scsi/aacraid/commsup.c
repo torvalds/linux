@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Adaptec AAC series RAID controller driver
  *	(c) Copyright 2001 Red Hat Inc.
@@ -9,26 +10,11 @@
  *               2010-2015 PMC-Sierra, Inc. (aacraid@pmc-sierra.com)
  *		 2016-2017 Microsemi Corp. (aacraid@microsemi.com)
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.
- *
  * Module Name:
  *  commsup.c
  *
  * Abstract: Contain all routines that are required for FSA host/adapter
  *    communication.
- *
  */
 
 #include <linux/kernel.h>
@@ -44,7 +30,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/interrupt.h>
-#include <linux/semaphore.h>
 #include <linux/bcd.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
@@ -189,7 +174,7 @@ int aac_fib_setup(struct aac_dev * dev)
 		fibptr->hw_fib_va = hw_fib;
 		fibptr->data = (void *) fibptr->hw_fib_va->data;
 		fibptr->next = fibptr+1;	/* Forward chain the fibs */
-		sema_init(&fibptr->event_wait, 0);
+		init_completion(&fibptr->event_wait);
 		spin_lock_init(&fibptr->event_lock);
 		hw_fib->header.XferState = cpu_to_le32(0xffffffff);
 		hw_fib->header.SenderSize =
@@ -514,7 +499,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 	 *	The only invalid cases are if the caller requests to wait and
 	 *	does not request a response and if the caller does not want a
 	 *	response and the Fib is not allocated from pool. If a response
-	 *	is not requesed the Fib will just be deallocaed by the DPC
+	 *	is not requested the Fib will just be deallocaed by the DPC
 	 *	routine when the response comes back from the adapter. No
 	 *	further processing will be done besides deleting the Fib. We
 	 *	will have a debug mode where the adapter can notify the host
@@ -623,7 +608,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 		}
 		if (wait) {
 			fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
-			if (down_interruptible(&fibptr->event_wait)) {
+			if (wait_for_completion_interruptible(&fibptr->event_wait)) {
 				fibptr->flags &= ~FIB_CONTEXT_FLAG_WAIT;
 				return -EFAULT;
 			}
@@ -659,7 +644,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 			 * hardware failure has occurred.
 			 */
 			unsigned long timeout = jiffies + (180 * HZ); /* 3 minutes */
-			while (down_trylock(&fibptr->event_wait)) {
+			while (!try_wait_for_completion(&fibptr->event_wait)) {
 				int blink;
 				if (time_is_before_eq_jiffies(timeout)) {
 					struct aac_queue * q = &dev->queues->queue[AdapNormCmdQueue];
@@ -673,7 +658,7 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 					return -ETIMEDOUT;
 				}
 
-				if (unlikely(pci_channel_offline(dev->pdev)))
+				if (unlikely(aac_pci_offline(dev)))
 					return -EFAULT;
 
 				if ((blink = aac_adapter_check_health(dev)) > 0) {
@@ -689,9 +674,9 @@ int aac_fib_send(u16 command, struct fib *fibptr, unsigned long size,
 				 */
 				schedule();
 			}
-		} else if (down_interruptible(&fibptr->event_wait)) {
+		} else if (wait_for_completion_interruptible(&fibptr->event_wait)) {
 			/* Do nothing ... satisfy
-			 * down_interruptible must_check */
+			 * wait_for_completion_interruptible must_check */
 		}
 
 		spin_lock_irqsave(&fibptr->event_lock, flags);
@@ -724,6 +709,8 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 	int wait;
 	unsigned long flags = 0;
 	unsigned long mflags = 0;
+	struct aac_hba_cmd_req *hbacmd = (struct aac_hba_cmd_req *)
+			fibptr->hw_fib_va;
 
 	fibptr->flags = (FIB_CONTEXT_FLAG | FIB_CONTEXT_FLAG_NATIVE_HBA);
 	if (callback) {
@@ -734,11 +721,9 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 		wait = 1;
 
 
-	if (command == HBA_IU_TYPE_SCSI_CMD_REQ) {
-		struct aac_hba_cmd_req *hbacmd =
-			(struct aac_hba_cmd_req *)fibptr->hw_fib_va;
+	hbacmd->iu_type = command;
 
-		hbacmd->iu_type = command;
+	if (command == HBA_IU_TYPE_SCSI_CMD_REQ) {
 		/* bit1 of request_id must be 0 */
 		hbacmd->request_id =
 			cpu_to_le32((((u32)(fibptr - dev->fibs)) << 2) + 1);
@@ -773,11 +758,11 @@ int aac_hba_send(u8 command, struct fib *fibptr, fib_callback callback,
 
 		spin_unlock_irqrestore(&fibptr->event_lock, flags);
 
-		if (unlikely(pci_channel_offline(dev->pdev)))
+		if (unlikely(aac_pci_offline(dev)))
 			return -EFAULT;
 
 		fibptr->flags |= FIB_CONTEXT_FLAG_WAIT;
-		if (down_interruptible(&fibptr->event_wait))
+		if (wait_for_completion_interruptible(&fibptr->event_wait))
 			fibptr->done = 2;
 		fibptr->flags &= ~(FIB_CONTEXT_FLAG_WAIT);
 
@@ -1304,8 +1289,9 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 				  ADD : DELETE;
 				break;
 			}
-			case AifBuManagerEvent:
-				aac_handle_aif_bu(dev, aifcmd);
+			break;
+		case AifBuManagerEvent:
+			aac_handle_aif_bu(dev, aifcmd);
 			break;
 		}
 
@@ -1377,18 +1363,19 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 
 	container = 0;
 retry_next:
-	if (device_config_needed == NOTHING)
-	for (; container < dev->maximum_num_containers; ++container) {
-		if ((dev->fsa_dev[container].config_waiting_on == 0) &&
-			(dev->fsa_dev[container].config_needed != NOTHING) &&
-			time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT)) {
-			device_config_needed =
-				dev->fsa_dev[container].config_needed;
-			dev->fsa_dev[container].config_needed = NOTHING;
-			channel = CONTAINER_TO_CHANNEL(container);
-			id = CONTAINER_TO_ID(container);
-			lun = CONTAINER_TO_LUN(container);
-			break;
+	if (device_config_needed == NOTHING) {
+		for (; container < dev->maximum_num_containers; ++container) {
+			if ((dev->fsa_dev[container].config_waiting_on == 0) &&
+			    (dev->fsa_dev[container].config_needed != NOTHING) &&
+			    time_before(jiffies, dev->fsa_dev[container].config_waiting_stamp + AIF_SNIFF_TIMEOUT)) {
+				device_config_needed =
+					dev->fsa_dev[container].config_needed;
+				dev->fsa_dev[container].config_needed = NOTHING;
+				channel = CONTAINER_TO_CHANNEL(container);
+				id = CONTAINER_TO_ID(container);
+				lun = CONTAINER_TO_LUN(container);
+				break;
+			}
 		}
 	}
 	if (device_config_needed == NOTHING)
@@ -1502,9 +1489,10 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 	host = aac->scsi_host_ptr;
 	scsi_block_requests(host);
 	aac_adapter_disable_int(aac);
-	if (aac->thread->pid != current->pid) {
+	if (aac->thread && aac->thread->pid != current->pid) {
 		spin_unlock_irq(host->host_lock);
 		kthread_stop(aac->thread);
+		aac->thread = NULL;
 		jafo = 1;
 	}
 
@@ -1537,7 +1525,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 		  || fib->flags & FIB_CONTEXT_FLAG_WAIT) {
 			unsigned long flagv;
 			spin_lock_irqsave(&fib->event_lock, flagv);
-			up(&fib->event_wait);
+			complete(&fib->event_wait);
 			spin_unlock_irqrestore(&fib->event_lock, flagv);
 			schedule();
 			retval = 0;
@@ -1591,6 +1579,7 @@ static int _aac_reset_adapter(struct aac_dev *aac, int forced, u8 reset_type)
 					  aac->name);
 		if (IS_ERR(aac->thread)) {
 			retval = PTR_ERR(aac->thread);
+			aac->thread = NULL;
 			goto out;
 		}
 	}
@@ -1826,7 +1815,7 @@ int aac_check_health(struct aac_dev * aac)
 			 * Set the event to wake up the
 			 * thread that will waiting.
 			 */
-			up(&fibctx->wait_sem);
+			complete(&fibctx->completion);
 		} else {
 			printk(KERN_WARNING "aifd: didn't allocate NewFib.\n");
 			kfree(fib);
@@ -2163,7 +2152,7 @@ static void wakeup_fibctx_threads(struct aac_dev *dev,
 		 * Set the event to wake up the
 		 * thread that is waiting.
 		 */
-		up(&fibctx->wait_sem);
+		complete(&fibctx->completion);
 
 		entry = entry->next;
 	}
@@ -2584,9 +2573,7 @@ int aac_acquire_irq(struct aac_dev *dev)
 void aac_free_irq(struct aac_dev *dev)
 {
 	int i;
-	int cpu;
 
-	cpu = cpumask_first(cpu_online_mask);
 	if (aac_is_src(dev)) {
 		if (dev->max_msix > 1) {
 			for (i = 0; i < dev->max_msix; i++)

@@ -2,11 +2,12 @@
 #include <errno.h>
 #include <string.h>
 #include <regex.h>
+#include <linux/zalloc.h>
 
-#include "../../perf.h"
-#include "../../util/util.h"
 #include "../../util/perf_regs.h"
 #include "../../util/debug.h"
+
+#include <linux/kernel.h>
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(r0, PERF_REG_POWERPC_R0),
@@ -52,6 +53,8 @@ const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(trap, PERF_REG_POWERPC_TRAP),
 	SMPL_REG(dar, PERF_REG_POWERPC_DAR),
 	SMPL_REG(dsisr, PERF_REG_POWERPC_DSISR),
+	SMPL_REG(sier, PERF_REG_POWERPC_SIER),
+	SMPL_REG(mmcra, PERF_REG_POWERPC_MMCRA),
 	SMPL_REG_END
 };
 

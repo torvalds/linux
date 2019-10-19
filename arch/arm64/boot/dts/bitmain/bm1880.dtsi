@@ -1,0 +1,198 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2019 Linaro Ltd.
+ * Author: Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
+ */
+
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/bitmain,bm1880-reset.h>
+
+/ {
+	compatible = "bitmain,bm1880";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x0>;
+			enable-method = "psci";
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <0x1>;
+			enable-method = "psci";
+		};
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		secmon@100000000 {
+			reg = <0x1 0x00000000 0x0 0x20000>;
+			no-map;
+		};
+
+		jpu@130000000 {
+			reg = <0x1 0x30000000 0x0 0x08000000>; // 128M
+			no-map;
+		};
+
+		vpu@138000000 {
+			reg = <0x1 0x38000000 0x0 0x08000000>; // 128M
+			no-map;
+		};
+	};
+
+	psci {
+		compatible = "arm,psci-0.2";
+		method = "smc";
+	};
+
+	timer {
+		compatible = "arm,armv8-timer";
+		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 14 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 11 IRQ_TYPE_LEVEL_LOW>,
+			     <GIC_PPI 10 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	soc {
+		compatible = "simple-bus";
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		gic: interrupt-controller@50001000 {
+			compatible = "arm,gic-400";
+			reg = <0x0 0x50001000 0x0 0x1000>,
+			      <0x0 0x50002000 0x0 0x2000>;
+			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_LOW>;
+			interrupt-controller;
+			#interrupt-cells = <3>;
+		};
+
+		sctrl: system-controller@50010000 {
+			compatible = "bitmain,bm1880-sctrl", "syscon",
+				     "simple-mfd";
+			reg = <0x0 0x50010000 0x0 0x1000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0x0 0x0 0x50010000 0x1000>;
+
+			pinctrl: pinctrl@400 {
+				compatible = "bitmain,bm1880-pinctrl";
+				reg = <0x400 0x120>;
+			};
+
+			rst: reset-controller@c00 {
+				compatible = "bitmain,bm1880-reset";
+				reg = <0xc00 0x8>;
+				#reset-cells = <1>;
+			};
+		};
+
+		gpio0: gpio@50027000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0x50027000 0x0 0x400>;
+
+			porta: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio1: gpio@50027400 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0x50027400 0x0 0x400>;
+
+			portb: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <32>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 67 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		gpio2: gpio@50027800 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "snps,dw-apb-gpio";
+			reg = <0x0 0x50027800 0x0 0x400>;
+
+			portc: gpio-controller@0 {
+				compatible = "snps,dw-apb-gpio-port";
+				gpio-controller;
+				#gpio-cells = <2>;
+				snps,nr-gpios = <8>;
+				reg = <0>;
+				interrupt-controller;
+				#interrupt-cells = <2>;
+				interrupts = <GIC_SPI 66 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
+
+		uart0: serial@58018000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x58018000 0x0 0x2000>;
+			interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART0_1_CLK>;
+			status = "disabled";
+		};
+
+		uart1: serial@5801A000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x5801a000 0x0 0x2000>;
+			interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART0_1_ACLK>;
+			status = "disabled";
+		};
+
+		uart2: serial@5801C000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x5801c000 0x0 0x2000>;
+			interrupts = <GIC_SPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART2_3_CLK>;
+			status = "disabled";
+		};
+
+		uart3: serial@5801E000 {
+			compatible = "snps,dw-apb-uart";
+			reg = <0x0 0x5801e000 0x0 0x2000>;
+			interrupts = <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>;
+			reg-shift = <2>;
+			reg-io-width = <4>;
+			resets = <&rst BM1880_RST_UART2_3_ACLK>;
+			status = "disabled";
+		};
+	};
+};

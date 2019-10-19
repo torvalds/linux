@@ -155,26 +155,26 @@ unsigned int rop2)   /* ROP value */
 	if (sBase == dBase && sPitch == dPitch) {
 		/* Determine direction of operation */
 		if (sy < dy) {
-			/* +----------+
-			 * |S         |
-			 * |   +----------+
-			 * |   |      |   |
-			 * |   |      |   |
-			 * +---|------+   |
-			 * |         D|
-			 * +----------+
+			/*  +----------+
+			 *  |S         |
+			 *  |   +----------+
+			 *  |   |      |   |
+			 *  |   |      |   |
+			 *  +---|------+   |
+			 *	|         D|
+			 *	+----------+
 			 */
 
 			nDirection = BOTTOM_TO_TOP;
 		} else if (sy > dy) {
-			/* +----------+
-			 * |D         |
-			 * |   +----------+
-			 * |   |      |   |
-			 * |   |      |   |
-			 * +---|------+   |
-			 * |         S|
-			 * +----------+
+			/*  +----------+
+			 *  |D         |
+			 *  |   +----------+
+			 *  |   |      |   |
+			 *  |   |      |   |
+			 *  +---|------+   |
+			 *	|         S|
+			 *	+----------+
 			 */
 
 			nDirection = TOP_TO_BOTTOM;
@@ -383,7 +383,8 @@ int sm750_hw_imageblit(struct lynx_accel *accel,
 			write_dpPort(accel, *(unsigned int *)(pSrcbuf + (j * 4)));
 
 		if (ulBytesRemain) {
-			memcpy(ajRemain, pSrcbuf+ul4BytesPerScan, ulBytesRemain);
+			memcpy(ajRemain, pSrcbuf + ul4BytesPerScan,
+			       ulBytesRemain);
 			write_dpPort(accel, *(unsigned int *)ajRemain);
 		}
 

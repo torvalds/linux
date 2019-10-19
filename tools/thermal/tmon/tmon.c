@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * tmon.c Thermal Monitor (TMON) main function and entry point
  *
  * Copyright (C) 2012 Intel Corporation. All rights reserved.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 or later as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  * Author: Jacob Pan <jacob.jun.pan@linux.intel.com>
- *
  */
 
 #include <getopt.h>
@@ -336,7 +327,6 @@ int main(int argc, char **argv)
 			show_data_w();
 			show_cooling_device();
 		}
-		cur_thermal_record++;
 		time_elapsed += ticktime;
 		controller_handler(trec[0].temp[target_tz_index] / 1000,
 				&yk);

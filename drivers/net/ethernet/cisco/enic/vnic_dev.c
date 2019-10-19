@@ -1071,7 +1071,7 @@ struct vnic_dev *vnic_dev_register(struct vnic_dev *vdev,
 	unsigned int num_bars)
 {
 	if (!vdev) {
-		vdev = kzalloc(sizeof(struct vnic_dev), GFP_ATOMIC);
+		vdev = kzalloc(sizeof(struct vnic_dev), GFP_KERNEL);
 		if (!vdev)
 			return NULL;
 	}
@@ -1269,16 +1269,36 @@ int vnic_dev_overlay_offload_cfg(struct vnic_dev *vdev, u8 overlay,
 }
 
 int vnic_dev_get_supported_feature_ver(struct vnic_dev *vdev, u8 feature,
-				       u64 *supported_versions)
+				       u64 *supported_versions, u64 *a1)
 {
 	u64 a0 = feature;
 	int wait = 1000;
-	u64 a1 = 0;
 	int ret;
 
-	ret = vnic_dev_cmd(vdev, CMD_GET_SUPP_FEATURE_VER, &a0, &a1, wait);
+	ret = vnic_dev_cmd(vdev, CMD_GET_SUPP_FEATURE_VER, &a0, a1, wait);
 	if (!ret)
 		*supported_versions = a0;
 
 	return ret;
+}
+
+int vnic_dev_capable_rss_hash_type(struct vnic_dev *vdev, u8 *rss_hash_type)
+{
+	u64 a0 = CMD_NIC_CFG, a1 = 0;
+	int wait = 1000;
+	int err;
+
+	err = vnic_dev_cmd(vdev, CMD_CAPABILITY, &a0, &a1, wait);
+	/* rss_hash_type is valid only when a0 is 1. Adapter which does not
+	 * support CMD_CAPABILITY for rss_hash_type has a0 = 0
+	 */
+	if (err || (a0 != 1))
+		return -EOPNOTSUPP;
+
+	a1 = (a1 >> NIC_CFG_RSS_HASH_TYPE_SHIFT) &
+	     NIC_CFG_RSS_HASH_TYPE_MASK_FIELD;
+
+	*rss_hash_type = (u8)a1;
+
+	return 0;
 }

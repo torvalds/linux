@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * TerraTec Cinergy T2/qanu USB2 DVB-T adapter.
  *
@@ -10,17 +11,6 @@
  *                  Holger Waechtler <holger@qanu.de>
  *
  *  Protocol Spec published on http://qanu.de/specs/terratec_cinergyT2.pdf
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include "cinergyT2.h"
@@ -33,7 +23,7 @@
  *  This function is probably reusable and may better get placed in a support
  *  library.
  *
- *  We replace errornous fields by default TPS fields (the ones with value 0).
+ *  We replace erroneous fields by default TPS fields (the ones with value 0).
  */
 
 static uint16_t compute_tps(struct dtv_frontend_properties *op)
@@ -295,9 +285,9 @@ static const struct dvb_frontend_ops cinergyt2_fe_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= DRIVER_NAME,
-		.frequency_min		= 174000000,
-		.frequency_max		= 862000000,
-		.frequency_stepsize	= 166667,
+		.frequency_min_hz	= 174 * MHz,
+		.frequency_max_hz	= 862 * MHz,
+		.frequency_stepsize_hz	= 166667,
 		.caps = FE_CAN_INVERSION_AUTO | FE_CAN_FEC_1_2
 			| FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4
 			| FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8

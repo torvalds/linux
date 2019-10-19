@@ -127,13 +127,13 @@ void ath9k_hw_read_array(struct ath_hw *ah, u32 array[][2], int size)
 	u32 *tmp_reg_list, *tmp_data;
 	int i;
 
-	tmp_reg_list = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	tmp_reg_list = kmalloc_array(size, sizeof(u32), GFP_KERNEL);
 	if (!tmp_reg_list) {
 		dev_err(ah->dev, "%s: tmp_reg_list: alloc filed\n", __func__);
 		return;
 	}
 
-	tmp_data = kmalloc(size * sizeof(u32), GFP_KERNEL);
+	tmp_data = kmalloc_array(size, sizeof(u32), GFP_KERNEL);
 	if (!tmp_data) {
 		dev_err(ah->dev, "%s tmp_data: alloc filed\n", __func__);
 		goto error_tmp_data;
@@ -184,7 +184,8 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 		break;
 	case WLAN_RC_PHY_OFDM:
 		if (ah->curchan && IS_CHAN_QUARTER_RATE(ah->curchan)) {
-			bitsPerSymbol =	(kbps * OFDM_SYMBOL_TIME_QUARTER) / 1000;
+			bitsPerSymbol =
+				((kbps >> 2) * OFDM_SYMBOL_TIME_QUARTER) / 1000;
 			numBits = OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols = DIV_ROUND_UP(numBits, bitsPerSymbol);
 			txTime = OFDM_SIFS_TIME_QUARTER
@@ -192,7 +193,8 @@ u16 ath9k_hw_computetxtime(struct ath_hw *ah,
 				+ (numSymbols * OFDM_SYMBOL_TIME_QUARTER);
 		} else if (ah->curchan &&
 			   IS_CHAN_HALF_RATE(ah->curchan)) {
-			bitsPerSymbol =	(kbps * OFDM_SYMBOL_TIME_HALF) / 1000;
+			bitsPerSymbol =
+				((kbps >> 1) * OFDM_SYMBOL_TIME_HALF) / 1000;
 			numBits = OFDM_PLCP_BITS + (frameLen << 3);
 			numSymbols = DIV_ROUND_UP(numBits, bitsPerSymbol);
 			txTime = OFDM_SIFS_TIME_HALF +
@@ -250,8 +252,9 @@ void ath9k_hw_get_channel_centers(struct ath_hw *ah,
 /* Chip Revisions */
 /******************/
 
-static void ath9k_hw_read_revisions(struct ath_hw *ah)
+static bool ath9k_hw_read_revisions(struct ath_hw *ah)
 {
+	u32 srev;
 	u32 val;
 
 	if (ah->get_mac_revision)
@@ -267,25 +270,33 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 			val = REG_READ(ah, AR_SREV);
 			ah->hw_version.macRev = MS(val, AR_SREV_REVISION2);
 		}
-		return;
+		return true;
 	case AR9300_DEVID_AR9340:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9340;
-		return;
+		return true;
 	case AR9300_DEVID_QCA955X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9550;
-		return;
+		return true;
 	case AR9300_DEVID_AR953X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9531;
-		return;
+		return true;
 	case AR9300_DEVID_QCA956X:
 		ah->hw_version.macVersion = AR_SREV_VERSION_9561;
-		return;
+		return true;
 	}
 
-	val = REG_READ(ah, AR_SREV) & AR_SREV_ID;
+	srev = REG_READ(ah, AR_SREV);
+
+	if (srev == -EIO) {
+		ath_err(ath9k_hw_common(ah),
+			"Failed to read SREV register");
+		return false;
+	}
+
+	val = srev & AR_SREV_ID;
 
 	if (val == 0xFF) {
-		val = REG_READ(ah, AR_SREV);
+		val = srev;
 		ah->hw_version.macVersion =
 			(val & AR_SREV_VERSION2) >> AR_SREV_TYPE2_S;
 		ah->hw_version.macRev = MS(val, AR_SREV_REVISION2);
@@ -304,6 +315,8 @@ static void ath9k_hw_read_revisions(struct ath_hw *ah)
 		if (ah->hw_version.macVersion == AR_SREV_VERSION_5416_PCIE)
 			ah->is_pciexpress = true;
 	}
+
+	return true;
 }
 
 /************************************/
@@ -444,7 +457,7 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	struct ath_regulatory *regulatory = ath9k_hw_regulatory(ah);
 
 	regulatory->country_code = CTRY_DEFAULT;
-	regulatory->power_limit = MAX_RATE_POWER;
+	regulatory->power_limit = MAX_COMBINED_POWER;
 
 	ah->hw_version.magic = AR5416_MAGIC;
 	ah->hw_version.subvendorid = 0;
@@ -494,7 +507,7 @@ static void ath9k_hw_init_macaddr(struct ath_hw *ah)
 	ath_err(common, "eeprom contains invalid mac address: %pM\n",
 		common->macaddr);
 
-	random_ether_addr(common->macaddr);
+	eth_random_addr(common->macaddr);
 	ath_err(common, "random mac address will be used: %pM\n",
 		common->macaddr);
 
@@ -557,7 +570,10 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	int r = 0;
 
-	ath9k_hw_read_revisions(ah);
+	if (!ath9k_hw_read_revisions(ah)) {
+		ath_err(common, "Could not read hardware revisions");
+		return -EOPNOTSUPP;
+	}
 
 	switch (ah->hw_version.macVersion) {
 	case AR_SREV_VERSION_5416_PCI:
@@ -1036,7 +1052,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 	int acktimeout, ctstimeout, ack_offset = 0;
 	int slottime;
 	int sifstime;
-	int rx_lat = 0, tx_lat = 0, eifs = 0;
+	int rx_lat = 0, tx_lat = 0, eifs = 0, ack_shift = 0;
 	u32 reg;
 
 	ath_dbg(ath9k_hw_common(ah), RESET, "ah->misc_mode 0x%x\n",
@@ -1068,6 +1084,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 
 		sifstime = 32;
 		ack_offset = 16;
+		ack_shift = 3;
 		slottime = 13;
 	} else if (IS_CHAN_QUARTER_RATE(chan)) {
 		eifs = 340;
@@ -1078,6 +1095,7 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 
 		sifstime = 64;
 		ack_offset = 32;
+		ack_shift = 1;
 		slottime = 21;
 	} else {
 		if (AR_SREV_9287(ah) && AR_SREV_9287_13_OR_LATER(ah)) {
@@ -1134,6 +1152,10 @@ void ath9k_hw_init_global_settings(struct ath_hw *ah)
 		SM(tx_lat, AR_USEC_TX_LAT),
 		AR_USEC_TX_LAT | AR_USEC_RX_LAT | AR_USEC_USEC);
 
+	if (IS_CHAN_HALF_RATE(chan) || IS_CHAN_QUARTER_RATE(chan))
+		REG_RMW(ah, AR_TXSIFS,
+			sifstime | SM(ack_shift, AR_TXSIFS_ACK_SHIFT),
+			(AR_TXSIFS_TIME | AR_TXSIFS_ACK_SHIFT));
 }
 EXPORT_SYMBOL(ath9k_hw_init_global_settings);
 
@@ -1827,13 +1849,13 @@ fail:
 	return -EINVAL;
 }
 
-u32 ath9k_hw_get_tsf_offset(struct timespec *last, struct timespec *cur)
+u32 ath9k_hw_get_tsf_offset(struct timespec64 *last, struct timespec64 *cur)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 	s64 usec;
 
 	if (!cur) {
-		getrawmonotonic(&ts);
+		ktime_get_raw_ts64(&ts);
 		cur = &ts;
 	}
 
@@ -1851,7 +1873,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	u32 saveLedState;
 	u32 saveDefAntenna;
 	u32 macStaId1;
-	struct timespec tsf_ts;
+	struct timespec64 tsf_ts;
 	u32 tsf_offset;
 	u64 tsf = 0;
 	int r;
@@ -1897,7 +1919,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	macStaId1 = REG_READ(ah, AR_STA_ID1) & AR_STA_ID1_BASE_RATE_11B;
 
 	/* Save TSF before chip reset, a cold reset clears it */
-	getrawmonotonic(&tsf_ts);
+	ktime_get_raw_ts64(&tsf_ts);
 	tsf = ath9k_hw_gettsf64(ah);
 
 	saveLedState = REG_READ(ah, AR_CFG_LED) &
@@ -2271,6 +2293,7 @@ void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period)
 	case NL80211_IFTYPE_ADHOC:
 		REG_SET_BIT(ah, AR_TXCFG,
 			    AR_TXCFG_ADHOC_BEACON_ATIM_TX_POLICY);
+		/* fall through */
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		REG_WRITE(ah, AR_NEXT_TBTT_TIMER, next_beacon);
@@ -2934,16 +2957,19 @@ void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan,
 	struct ath_regulatory *reg = ath9k_hw_regulatory(ah);
 	struct ieee80211_channel *channel;
 	int chan_pwr, new_pwr;
+	u16 ctl = NO_CTL;
 
 	if (!chan)
 		return;
 
+	if (!test)
+		ctl = ath9k_regd_get_ctl(reg, chan);
+
 	channel = chan->chan;
-	chan_pwr = min_t(int, channel->max_power * 2, MAX_RATE_POWER);
+	chan_pwr = min_t(int, channel->max_power * 2, MAX_COMBINED_POWER);
 	new_pwr = min_t(int, chan_pwr, reg->power_limit);
 
-	ah->eep_ops->set_txpower(ah, chan,
-				 ath9k_regd_get_ctl(reg, chan),
+	ah->eep_ops->set_txpower(ah, chan, ctl,
 				 get_antenna_gain(ah, chan), new_pwr, test);
 }
 
@@ -2953,9 +2979,9 @@ void ath9k_hw_set_txpowerlimit(struct ath_hw *ah, u32 limit, bool test)
 	struct ath9k_channel *chan = ah->curchan;
 	struct ieee80211_channel *channel = chan->chan;
 
-	reg->power_limit = min_t(u32, limit, MAX_RATE_POWER);
+	reg->power_limit = min_t(u32, limit, MAX_COMBINED_POWER);
 	if (test)
-		channel->max_power = MAX_RATE_POWER / 2;
+		channel->max_power = MAX_COMBINED_POWER / 2;
 
 	ath9k_hw_apply_txpower(ah, chan, test);
 

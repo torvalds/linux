@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # TI device configuration
 #
@@ -18,9 +19,8 @@ if NET_VENDOR_TI
 
 config TI_DAVINCI_EMAC
 	tristate "TI DaVinci EMAC Support"
-	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 )
+	depends on ARM && ( ARCH_DAVINCI || ARCH_OMAP3 ) || COMPILE_TEST
 	select TI_DAVINCI_MDIO
-	select TI_DAVINCI_CPDMA
 	select PHYLIB
 	---help---
 	  This driver supports TI's DaVinci Ethernet .
@@ -30,7 +30,7 @@ config TI_DAVINCI_EMAC
 
 config TI_DAVINCI_MDIO
 	tristate "TI DaVinci MDIO Support"
-	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE
+	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || ARCH_KEYSTONE || COMPILE_TEST
 	select PHYLIB
 	---help---
 	  This driver supports TI's DaVinci MDIO module.
@@ -38,34 +38,19 @@ config TI_DAVINCI_MDIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called davinci_mdio.  This is recommended.
 
-config TI_DAVINCI_CPDMA
-	tristate "TI DaVinci CPDMA Support"
-	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS
-	---help---
-	  This driver supports TI's DaVinci CPDMA dma engine.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called davinci_cpdma.  This is recommended.
-
 config TI_CPSW_PHY_SEL
-	bool
+	bool "TI CPSW Phy mode Selection (DEPRECATED)"
+	default n
 	---help---
 	  This driver supports configuring of the phy mode connected to
-	  the CPSW.
-
-config TI_CPSW_ALE
-	tristate "TI CPSW ALE Support"
-	---help---
-	  This driver supports TI's CPSW ALE module.
+	  the CPSW. DEPRECATED: use PHY_TI_GMII_SEL.
 
 config TI_CPSW
 	tristate "TI CPSW Switch Support"
-	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS
-	select TI_DAVINCI_CPDMA
+	depends on ARCH_DAVINCI || ARCH_OMAP2PLUS || COMPILE_TEST
 	select TI_DAVINCI_MDIO
-	select TI_CPSW_PHY_SEL
-	select TI_CPSW_ALE
 	select MFD_SYSCON
+	select PAGE_POOL
 	select REGMAP
 	---help---
 	  This driver supports TI's CPSW Ethernet Switch.
@@ -75,7 +60,8 @@ config TI_CPSW
 
 config TI_CPTS
 	bool "TI Common Platform Time Sync (CPTS) Support"
-	depends on TI_CPSW || TI_KEYSTONE_NETCP
+	depends on TI_CPSW || TI_KEYSTONE_NETCP || COMPILE_TEST
+	depends on COMMON_CLK
 	depends on POSIX_TIMERS
 	---help---
 	  This driver supports the Common Platform Time Sync unit of
@@ -93,7 +79,6 @@ config TI_CPTS_MOD
 
 config TI_KEYSTONE_NETCP
 	tristate "TI Keystone NETCP Core Support"
-	select TI_CPSW_ALE
 	select TI_DAVINCI_MDIO
 	depends on OF
 	depends on KEYSTONE_NAVIGATOR_DMA && KEYSTONE_NAVIGATOR_QMSS
@@ -120,7 +105,8 @@ config TLAN
 
 	  Devices currently supported by this driver are Compaq Netelligent,
 	  Compaq NetFlex and Olicom cards.  Please read the file
-	  <file:Documentation/networking/tlan.txt> for more details.
+	  <file:Documentation/networking/device_drivers/ti/tlan.txt>
+	  for more details.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called tlan.

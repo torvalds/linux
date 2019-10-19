@@ -7,6 +7,8 @@
  *
  */
 
+/ {
+	smb@8000000 {
 		mb_clk24mhz: clk24mhz {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
@@ -54,48 +56,46 @@
 				regulator-always-on;
 			};
 
-			gpio_keys {
+			gpio-keys {
 				compatible = "gpio-keys";
-				#address-cells = <1>;
-				#size-cells = <0>;
 
 				power-button {
-					debounce_interval = <50>;
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <116>;
 					label = "POWER";
 					gpios = <&iofpga_gpio0 0 0x4>;
 				};
 				home-button {
-					debounce_interval = <50>;
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <102>;
 					label = "HOME";
 					gpios = <&iofpga_gpio0 1 0x4>;
 				};
 				rlock-button {
-					debounce_interval = <50>;
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <152>;
 					label = "RLOCK";
 					gpios = <&iofpga_gpio0 2 0x4>;
 				};
 				vol-up-button {
-					debounce_interval = <50>;
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <115>;
 					label = "VOL+";
 					gpios = <&iofpga_gpio0 3 0x4>;
 				};
 				vol-down-button {
-					debounce_interval = <50>;
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <114>;
 					label = "VOL-";
 					gpios = <&iofpga_gpio0 4 0x4>;
 				};
 				nmi-button {
-					debounce_interval = <50>;
+					debounce-interval = <50>;
 					wakeup-source;
 					linux,code = <99>;
 					label = "NMI";
@@ -106,7 +106,6 @@
 			flash@0,00000000 {
 				/* 2 * 32MiB NOR Flash memory mounted on CS0 */
 				compatible = "arm,vexpress-flash", "cfi-flash";
-				linux,part-probe = "afs";
 				reg = <0 0x00000000 0x04000000>;
 				bank-width = <4>;
 				/*
@@ -116,6 +115,9 @@
 				 * flash hardware access is disabled by default.
 				 */
 				status = "disabled";
+				partitions {
+					compatible = "arm,arm-firmware-suite";
+				};
 			};
 
 			ethernet@2,00000000 {
@@ -289,3 +291,5 @@
 				};
 			};
 		};
+	};
+};

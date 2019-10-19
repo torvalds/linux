@@ -1,28 +1,5 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40e.h"
 #include <linux/ptp_classify.h>
@@ -39,9 +16,9 @@
  * At 1Gb link, the period is multiplied by 20. (32ns)
  * 1588 functionality is not supported at 100Mbps.
  */
-#define I40E_PTP_40GB_INCVAL 0x0199999999ULL
-#define I40E_PTP_10GB_INCVAL 0x0333333333ULL
-#define I40E_PTP_1GB_INCVAL  0x2000000000ULL
+#define I40E_PTP_40GB_INCVAL		0x0199999999ULL
+#define I40E_PTP_10GB_INCVAL_MULT	2
+#define I40E_PTP_1GB_INCVAL_MULT	20
 
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V1  BIT(I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (2 << \
@@ -51,19 +28,23 @@
  * i40e_ptp_read - Read the PHC time from the device
  * @pf: Board private structure
  * @ts: timespec structure to hold the current time value
+ * @sts: structure to hold the system time before and after reading the PHC
  *
  * This function reads the PRTTSYN_TIME registers and stores them in a
  * timespec. However, since the registers are 64 bits of nanoseconds, we must
  * convert the result to a timespec before we can return.
  **/
-static void i40e_ptp_read(struct i40e_pf *pf, struct timespec64 *ts)
+static void i40e_ptp_read(struct i40e_pf *pf, struct timespec64 *ts,
+			  struct ptp_system_timestamp *sts)
 {
 	struct i40e_hw *hw = &pf->hw;
 	u32 hi, lo;
 	u64 ns;
 
 	/* The timer latches on the lowest register read. */
+	ptp_read_system_prets(sts);
 	lo = rd32(hw, I40E_PRTTSYN_TIME_L);
+	ptp_read_system_postts(sts);
 	hi = rd32(hw, I40E_PRTTSYN_TIME_H);
 
 	ns = (((u64)hi) << 32) | lo;
@@ -129,17 +110,24 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		ppb = -ppb;
 	}
 
-	smp_mb(); /* Force any pending update before accessing. */
-	adj = READ_ONCE(pf->ptp_base_adj);
-
-	freq = adj;
+	freq = I40E_PTP_40GB_INCVAL;
 	freq *= ppb;
 	diff = div_u64(freq, 1000000000ULL);
 
 	if (neg_adj)
-		adj -= diff;
+		adj = I40E_PTP_40GB_INCVAL - diff;
 	else
-		adj += diff;
+		adj = I40E_PTP_40GB_INCVAL + diff;
+
+	/* At some link speeds, the base incval is so large that directly
+	 * multiplying by ppb would result in arithmetic overflow even when
+	 * using a u64. Avoid this by instead calculating the new incval
+	 * always in terms of the 40GbE clock rate and then multiplying by the
+	 * link speed factor afterwards. This does result in slightly lower
+	 * precision at lower link speeds, but it is fairly minor.
+	 */
+	smp_mb(); /* Force any pending update before accessing. */
+	adj *= READ_ONCE(pf->ptp_adj_mult);
 
 	wr32(hw, I40E_PRTTSYN_INC_L, adj & 0xFFFFFFFF);
 	wr32(hw, I40E_PRTTSYN_INC_H, adj >> 32);
@@ -152,18 +140,18 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
  * @ptp: The PTP clock structure
  * @delta: Offset in nanoseconds to adjust the PHC time by
  *
- * Adjust the frequency of the PHC by the indicated parts per billion from the
- * base frequency.
+ * Adjust the current clock time by a delta specified in nanoseconds.
  **/
 static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
-	struct timespec64 now;
+	struct timespec64 now, then;
 
+	then = ns_to_timespec64(delta);
 	mutex_lock(&pf->tmreg_lock);
 
-	i40e_ptp_read(pf, &now);
-	timespec64_add_ns(&now, delta);
+	i40e_ptp_read(pf, &now, NULL);
+	now = timespec64_add(now, then);
 	i40e_ptp_write(pf, (const struct timespec64 *)&now);
 
 	mutex_unlock(&pf->tmreg_lock);
@@ -172,19 +160,21 @@ static int i40e_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 }
 
 /**
- * i40e_ptp_gettime - Get the time of the PHC
+ * i40e_ptp_gettimex - Get the time of the PHC
  * @ptp: The PTP clock structure
  * @ts: timespec structure to hold the current time value
+ * @sts: structure to hold the system time before and after reading the PHC
  *
  * Read the device clock and return the correct value on ns, after converting it
  * into a timespec struct.
  **/
-static int i40e_ptp_gettime(struct ptp_clock_info *ptp, struct timespec64 *ts)
+static int i40e_ptp_gettimex(struct ptp_clock_info *ptp, struct timespec64 *ts,
+			     struct ptp_system_timestamp *sts)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
 
 	mutex_lock(&pf->tmreg_lock);
-	i40e_ptp_read(pf, ts);
+	i40e_ptp_read(pf, ts, sts);
 	mutex_unlock(&pf->tmreg_lock);
 
 	return 0;
@@ -333,10 +323,12 @@ void i40e_ptp_rx_hang(struct i40e_pf *pf)
  * This watchdog task is run periodically to make sure that we clear the Tx
  * timestamp logic if we don't obtain a timestamp in a reasonable amount of
  * time. It is unexpected in the normal case but if it occurs it results in
- * permanently prevent timestamps of future packets
+ * permanently preventing timestamps of future packets.
  **/
 void i40e_ptp_tx_hang(struct i40e_pf *pf)
 {
+	struct sk_buff *skb;
+
 	if (!(pf->flags & I40E_FLAG_PTP) || !pf->ptp_tx)
 		return;
 
@@ -349,9 +341,12 @@ void i40e_ptp_tx_hang(struct i40e_pf *pf)
 	 * within a second it is reasonable to assume that we never will.
 	 */
 	if (time_is_before_jiffies(pf->ptp_tx_start + HZ)) {
-		dev_kfree_skb_any(pf->ptp_tx_skb);
+		skb = pf->ptp_tx_skb;
 		pf->ptp_tx_skb = NULL;
 		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+
+		/* Free the skb after we clear the bitlock */
+		dev_kfree_skb_any(skb);
 		pf->tx_hwtstamp_timeouts++;
 	}
 }
@@ -461,6 +456,7 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	struct i40e_link_status *hw_link_info;
 	struct i40e_hw *hw = &pf->hw;
 	u64 incval;
+	u32 mult;
 
 	hw_link_info = &hw->phy.link_info;
 
@@ -468,10 +464,10 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 
 	switch (hw_link_info->link_speed) {
 	case I40E_LINK_SPEED_10GB:
-		incval = I40E_PTP_10GB_INCVAL;
+		mult = I40E_PTP_10GB_INCVAL_MULT;
 		break;
 	case I40E_LINK_SPEED_1GB:
-		incval = I40E_PTP_1GB_INCVAL;
+		mult = I40E_PTP_1GB_INCVAL_MULT;
 		break;
 	case I40E_LINK_SPEED_100MB:
 	{
@@ -482,14 +478,19 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 				 "1588 functionality is not supported at 100 Mbps. Stopping the PHC.\n");
 			warn_once++;
 		}
-		incval = 0;
+		mult = 0;
 		break;
 	}
 	case I40E_LINK_SPEED_40GB:
 	default:
-		incval = I40E_PTP_40GB_INCVAL;
+		mult = 1;
 		break;
 	}
+
+	/* The increment value is calculated by taking the base 40GbE incvalue
+	 * and multiplying it by a factor based on the link speed.
+	 */
+	incval = I40E_PTP_40GB_INCVAL * mult;
 
 	/* Write the new increment value into the increment register. The
 	 * hardware will not update the clock until both registers have been
@@ -499,14 +500,14 @@ void i40e_ptp_set_increment(struct i40e_pf *pf)
 	wr32(hw, I40E_PRTTSYN_INC_H, incval >> 32);
 
 	/* Update the base adjustement value. */
-	WRITE_ONCE(pf->ptp_base_adj, incval);
+	WRITE_ONCE(pf->ptp_adj_mult, mult);
 	smp_mb(); /* Force the above update. */
 }
 
 /**
  * i40e_ptp_get_ts_config - ioctl interface to read the HW timestamping
  * @pf: Board private structure
- * @ifreq: ioctl data
+ * @ifr: ioctl data
  *
  * Obtain the current hardware timestamping settigs as requested. To do this,
  * keep a shadow copy of the timestamp settings rather than attempting to
@@ -650,7 +651,7 @@ static int i40e_ptp_set_timestamp_mode(struct i40e_pf *pf,
 /**
  * i40e_ptp_set_ts_config - ioctl interface to control the HW timestamping
  * @pf: Board private structure
- * @ifreq: ioctl data
+ * @ifr: ioctl data
  *
  * Respond to the user filter requests and make the appropriate hardware
  * changes here. The XL710 cannot support splitting of the Tx/Rx timestamping
@@ -699,14 +700,15 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 	if (!IS_ERR_OR_NULL(pf->ptp_clock))
 		return 0;
 
-	strncpy(pf->ptp_caps.name, i40e_driver_name, sizeof(pf->ptp_caps.name));
+	strlcpy(pf->ptp_caps.name, i40e_driver_name,
+		sizeof(pf->ptp_caps.name) - 1);
 	pf->ptp_caps.owner = THIS_MODULE;
 	pf->ptp_caps.max_adj = 999999999;
 	pf->ptp_caps.n_ext_ts = 0;
 	pf->ptp_caps.pps = 0;
 	pf->ptp_caps.adjfreq = i40e_ptp_adjfreq;
 	pf->ptp_caps.adjtime = i40e_ptp_adjtime;
-	pf->ptp_caps.gettime64 = i40e_ptp_gettime;
+	pf->ptp_caps.gettimex64 = i40e_ptp_gettimex;
 	pf->ptp_caps.settime64 = i40e_ptp_settime;
 	pf->ptp_caps.enable = i40e_ptp_feature_enable;
 
@@ -722,7 +724,54 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 	pf->tstamp_config.rx_filter = HWTSTAMP_FILTER_NONE;
 	pf->tstamp_config.tx_type = HWTSTAMP_TX_OFF;
 
+	/* Set the previous "reset" time to the current Kernel clock time */
+	ktime_get_real_ts64(&pf->ptp_prev_hw_time);
+	pf->ptp_reset_start = ktime_get();
+
 	return 0;
+}
+
+/**
+ * i40e_ptp_save_hw_time - Save the current PTP time as ptp_prev_hw_time
+ * @pf: Board private structure
+ *
+ * Read the current PTP time and save it into pf->ptp_prev_hw_time. This should
+ * be called at the end of preparing to reset, just before hardware reset
+ * occurs, in order to preserve the PTP time as close as possible across
+ * resets.
+ */
+void i40e_ptp_save_hw_time(struct i40e_pf *pf)
+{
+	/* don't try to access the PTP clock if it's not enabled */
+	if (!(pf->flags & I40E_FLAG_PTP))
+		return;
+
+	i40e_ptp_gettimex(&pf->ptp_caps, &pf->ptp_prev_hw_time, NULL);
+	/* Get a monotonic starting time for this reset */
+	pf->ptp_reset_start = ktime_get();
+}
+
+/**
+ * i40e_ptp_restore_hw_time - Restore the ptp_prev_hw_time + delta to PTP regs
+ * @pf: Board private structure
+ *
+ * Restore the PTP hardware clock registers. We previously cached the PTP
+ * hardware time as pf->ptp_prev_hw_time. To be as accurate as possible,
+ * update this value based on the time delta since the time was saved, using
+ * CLOCK_MONOTONIC (via ktime_get()) to calculate the time difference.
+ *
+ * This ensures that the hardware clock is restored to nearly what it should
+ * have been if a reset had not occurred.
+ */
+void i40e_ptp_restore_hw_time(struct i40e_pf *pf)
+{
+	ktime_t delta = ktime_sub(ktime_get(), pf->ptp_reset_start);
+
+	/* Update the previous HW time with the ktime delta */
+	timespec64_add_ns(&pf->ptp_prev_hw_time, ktime_to_ns(delta));
+
+	/* Restore the hardware clock registers */
+	i40e_ptp_settime(&pf->ptp_caps, &pf->ptp_prev_hw_time);
 }
 
 /**
@@ -732,6 +781,11 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
  * This function sets device up for 1588 support. The first time it is run, it
  * will create a PHC clock device. It does not create a clock device if one
  * already exists. It also reconfigures the device after a reset.
+ *
+ * The first time a clock is created, i40e_ptp_create_clock will set
+ * pf->ptp_prev_hw_time to the current system time. During resets, it is
+ * expected that this timespec will be set to the last known PTP clock time,
+ * in order to preserve the clock time as close as possible across a reset.
  **/
 void i40e_ptp_init(struct i40e_pf *pf)
 {
@@ -763,7 +817,6 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		dev_err(&pf->pdev->dev, "%s: ptp_clock_register failed\n",
 			__func__);
 	} else if (pf->ptp_clock) {
-		struct timespec64 ts;
 		u32 regval;
 
 		if (pf->hw.debug_mask & I40E_DEBUG_LAN)
@@ -784,9 +837,8 @@ void i40e_ptp_init(struct i40e_pf *pf)
 		/* reset timestamping mode */
 		i40e_ptp_set_timestamp_mode(pf, &pf->tstamp_config);
 
-		/* Set the clock value. */
-		ts = ktime_to_timespec64(ktime_get_real());
-		i40e_ptp_settime(&pf->ptp_caps, &ts);
+		/* Restore the clock time based on last known value */
+		i40e_ptp_restore_hw_time(pf);
 	}
 }
 
@@ -804,9 +856,11 @@ void i40e_ptp_stop(struct i40e_pf *pf)
 	pf->ptp_rx = false;
 
 	if (pf->ptp_tx_skb) {
-		dev_kfree_skb_any(pf->ptp_tx_skb);
+		struct sk_buff *skb = pf->ptp_tx_skb;
+
 		pf->ptp_tx_skb = NULL;
 		clear_bit_unlock(__I40E_PTP_TX_IN_PROGRESS, pf->state);
+		dev_kfree_skb_any(skb);
 	}
 
 	if (pf->ptp_clock) {

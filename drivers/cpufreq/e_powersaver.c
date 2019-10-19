@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Based on documentation provided by Dave Jones. Thanks!
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  *
  *  BIG FAT DISCLAIMER: Work in progress code. Possibly *dangerous*
  */
@@ -184,7 +183,6 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	struct cpufreq_frequency_table *f_table;
 	int k, step, voltage;
-	int ret;
 	int states;
 #if IS_ENABLED(CONFIG_ACPI_PROCESSOR)
 	unsigned int limit;
@@ -324,9 +322,8 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 		states = 2;
 
 	/* Allocate private data and frequency table for current cpu */
-	centaur = kzalloc(sizeof(*centaur)
-		    + (states + 1) * sizeof(struct cpufreq_frequency_table),
-		    GFP_KERNEL);
+	centaur = kzalloc(struct_size(centaur, freq_table, states + 1),
+			  GFP_KERNEL);
 	if (!centaur)
 		return -ENOMEM;
 	eps_cpu[0] = centaur;
@@ -359,12 +356,7 @@ static int eps_cpu_init(struct cpufreq_policy *policy)
 	}
 
 	policy->cpuinfo.transition_latency = 140000; /* 844mV -> 700mV in ns */
-
-	ret = cpufreq_table_validate_and_show(policy, &centaur->freq_table[0]);
-	if (ret) {
-		kfree(centaur);
-		return ret;
-	}
+	policy->freq_table = &centaur->freq_table[0];
 
 	return 0;
 }

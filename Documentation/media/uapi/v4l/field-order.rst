@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _field-order:
 
@@ -44,6 +51,11 @@ determined by the video standard. Hence the distinction between temporal
 and spatial order of fields. The diagrams below should make this
 clearer.
 
+In V4L it is assumed that all video cameras transmit fields on the media
+bus in the same order they were captured, so if the top field was
+captured first (is the older field), the top field is also transmitted
+first on the bus.
+
 All video capture and output devices must report the current field
 order. Some drivers may permit the selection of a different order, to
 this end applications initialize the ``field`` field of struct
@@ -57,7 +69,9 @@ enum v4l2_field
 
 .. c:type:: v4l2_field
 
-.. tabularcolumns:: |p{6.6cm}|p{2.2cm}|p{8.7cm}|
+.. tabularcolumns:: |p{5.8cm}|p{0.6cm}|p{11.1cm}|
+
+.. cssclass:: longtable
 
 .. flat-table::
     :header-rows:  0
@@ -66,12 +80,11 @@ enum v4l2_field
 
     * - ``V4L2_FIELD_ANY``
       - 0
-      - Applications request this field order when any one of the
-	``V4L2_FIELD_NONE``, ``V4L2_FIELD_TOP``, ``V4L2_FIELD_BOTTOM``, or
-	``V4L2_FIELD_INTERLACED`` formats is acceptable. Drivers choose
-	depending on hardware capabilities or e. g. the requested image
-	size, and return the actual field order. Drivers must never return
-	``V4L2_FIELD_ANY``. If multiple field orders are possible the
+      - Applications request this field order when any field format
+	is acceptable. Drivers choose depending on hardware capabilities or
+	e.g. the requested image size, and return the actual field order.
+	Drivers must never return ``V4L2_FIELD_ANY``.
+	If multiple field orders are possible the
 	driver must choose one of the possible field orders during
 	:ref:`VIDIOC_S_FMT <VIDIOC_G_FMT>` or
 	:ref:`VIDIOC_TRY_FMT <VIDIOC_G_FMT>`. struct
@@ -79,9 +92,8 @@ enum v4l2_field
 	``V4L2_FIELD_ANY``.
     * - ``V4L2_FIELD_NONE``
       - 1
-      - Images are in progressive format, not interlaced. The driver may
-	also indicate this order when it cannot distinguish between
-	``V4L2_FIELD_TOP`` and ``V4L2_FIELD_BOTTOM``.
+      - Images are in progressive (frame-based) format, not interlaced
+        (field-based).
     * - ``V4L2_FIELD_TOP``
       - 2
       - Images consist of the top (aka odd) field only.
@@ -94,10 +106,10 @@ enum v4l2_field
     * - ``V4L2_FIELD_INTERLACED``
       - 4
       - Images contain both fields, interleaved line by line. The temporal
-	order of the fields (whether the top or bottom field is first
-	transmitted) depends on the current video standard. M/NTSC
-	transmits the bottom field first, all other standards the top
-	field first.
+	order of the fields (whether the top or bottom field is older)
+	depends on the current video standard. In M/NTSC the bottom
+	field is the older field. In all other standards the top field
+	is the older field.
     * - ``V4L2_FIELD_SEQ_TB``
       - 5
       - Images contain both fields, the top field lines are stored first
@@ -128,11 +140,11 @@ enum v4l2_field
     * - ``V4L2_FIELD_INTERLACED_TB``
       - 8
       - Images contain both fields, interleaved line by line, top field
-	first. The top field is transmitted first.
+	first. The top field is the older field.
     * - ``V4L2_FIELD_INTERLACED_BT``
       - 9
       - Images contain both fields, interleaved line by line, top field
-	first. The bottom field is transmitted first.
+	first. The bottom field is the older field.
 
 
 

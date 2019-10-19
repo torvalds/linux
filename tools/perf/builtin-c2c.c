@@ -13,25 +13,35 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <linux/compiler.h>
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/stringify.h>
+#include <linux/zalloc.h>
 #include <asm/bug.h>
 #include <sys/param.h>
-#include "util.h"
 #include "debug.h"
 #include "builtin.h"
+#include <perf/cpumap.h>
+#include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
+#include "map_symbol.h"
 #include "mem-events.h"
 #include "session.h"
 #include "hist.h"
 #include "sort.h"
 #include "tool.h"
+#include "cacheline.h"
 #include "data.h"
 #include "event.h"
 #include "evlist.h"
 #include "evsel.h"
 #include "ui/browsers/hists.h"
 #include "thread.h"
+#include "mem2node.h"
+#include "symbol.h"
+#include "ui/ui.h"
+#include "ui/progress.h"
+#include "../perf.h"
 
 struct c2c_hists {
 	struct hists		hists;
@@ -49,10 +59,16 @@ struct c2c_hist_entry {
 	struct c2c_hists	*hists;
 	struct c2c_stats	 stats;
 	unsigned long		*cpuset;
+	unsigned long		*nodeset;
 	struct c2c_stats	*node_stats;
 	unsigned int		 cacheline_idx;
 
 	struct compute_stats	 cstats;
+
+	unsigned long		 paddr;
+	unsigned long		 paddr_cnt;
+	bool			 paddr_zero;
+	char			*nodestr;
 
 	/*
 	 * must be at the end,
@@ -61,11 +77,12 @@ struct c2c_hist_entry {
 	struct hist_entry	he;
 };
 
-static char const *coalesce_default = "pid,iaddr";
+static char const *coalesce_default = "iaddr";
 
 struct perf_c2c {
 	struct perf_tool	tool;
 	struct c2c_hists	hists;
+	struct mem2node		mem2node;
 
 	unsigned long		**nodes;
 	int			 nodes_cnt;
@@ -123,6 +140,10 @@ static void *c2c_he_zalloc(size_t size)
 	if (!c2c_he->cpuset)
 		return NULL;
 
+	c2c_he->nodeset = bitmap_alloc(c2c.nodes_cnt);
+	if (!c2c_he->nodeset)
+		return NULL;
+
 	c2c_he->node_stats = zalloc(c2c.nodes_cnt * sizeof(*c2c_he->node_stats));
 	if (!c2c_he->node_stats)
 		return NULL;
@@ -145,6 +166,8 @@ static void c2c_he_free(void *he)
 	}
 
 	free(c2c_he->cpuset);
+	free(c2c_he->nodeset);
+	free(c2c_he->nodestr);
 	free(c2c_he->node_stats);
 	free(c2c_he);
 }
@@ -194,6 +217,28 @@ static void c2c_he__set_cpu(struct c2c_hist_entry *c2c_he,
 	set_bit(sample->cpu, c2c_he->cpuset);
 }
 
+static void c2c_he__set_node(struct c2c_hist_entry *c2c_he,
+			     struct perf_sample *sample)
+{
+	int node;
+
+	if (!sample->phys_addr) {
+		c2c_he->paddr_zero = true;
+		return;
+	}
+
+	node = mem2node__node(&c2c.mem2node, sample->phys_addr);
+	if (WARN_ONCE(node < 0, "WARNING: failed to find node\n"))
+		return;
+
+	set_bit(node, c2c_he->nodeset);
+
+	if (c2c_he->paddr != sample->phys_addr) {
+		c2c_he->paddr_cnt++;
+		c2c_he->paddr = sample->phys_addr;
+	}
+}
+
 static void compute_stats(struct c2c_hist_entry *c2c_he,
 			  struct c2c_stats *stats,
 			  u64 weight)
@@ -211,7 +256,7 @@ static void compute_stats(struct c2c_hist_entry *c2c_he,
 static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				union perf_event *event,
 				struct perf_sample *sample,
-				struct perf_evsel *evsel,
+				struct evsel *evsel,
 				struct machine *machine)
 {
 	struct c2c_hists *c2c_hists = &c2c.hists;
@@ -237,9 +282,12 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 	if (mi == NULL)
 		return -ENOMEM;
 
-	mi_dup = memdup(mi, sizeof(*mi));
-	if (!mi_dup)
-		goto free_mi;
+	/*
+	 * The mi object is released in hists__add_entry_ops,
+	 * if it gets sorted out into existing data, so we need
+	 * to take the copy now.
+	 */
+	mi_dup = mem_info__get(mi);
 
 	c2c_decode_stats(&stats, mi);
 
@@ -247,13 +295,14 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 				  &al, NULL, NULL, mi,
 				  sample, true);
 	if (he == NULL)
-		goto free_mi_dup;
+		goto free_mi;
 
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 	c2c_add_stats(&c2c_he->stats, &stats);
 	c2c_add_stats(&c2c_hists->stats, &stats);
 
 	c2c_he__set_cpu(c2c_he, sample);
+	c2c_he__set_node(c2c_he, sample);
 
 	hists__inc_nr_samples(&c2c_hists->hists, he->filtered);
 	ret = hist_entry__append_callchain(he, sample);
@@ -272,19 +321,15 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 
 		mi = mi_dup;
 
-		mi_dup = memdup(mi, sizeof(*mi));
-		if (!mi_dup)
-			goto free_mi;
-
 		c2c_hists = he__get_c2c_hists(he, c2c.cl_sort, 2);
 		if (!c2c_hists)
-			goto free_mi_dup;
+			goto free_mi;
 
 		he = hists__add_entry_ops(&c2c_hists->hists, &c2c_entry_ops,
 					  &al, NULL, NULL, mi,
 					  sample, true);
 		if (he == NULL)
-			goto free_mi_dup;
+			goto free_mi;
 
 		c2c_he = container_of(he, struct c2c_hist_entry, he);
 		c2c_add_stats(&c2c_he->stats, &stats);
@@ -294,6 +339,7 @@ static int process_sample_event(struct perf_tool *tool __maybe_unused,
 		compute_stats(c2c_he, &stats, sample->weight);
 
 		c2c_he__set_cpu(c2c_he, sample);
+		c2c_he__set_node(c2c_he, sample);
 
 		hists__inc_nr_samples(&c2c_hists->hists, he->filtered);
 		ret = hist_entry__append_callchain(he, sample);
@@ -303,10 +349,9 @@ out:
 	addr_location__put(&al);
 	return ret;
 
-free_mi_dup:
-	free(mi_dup);
 free_mi:
-	free(mi);
+	mem_info__put(mi_dup);
+	mem_info__put(mi);
 	ret = -ENOMEM;
 	goto out;
 }
@@ -455,6 +500,31 @@ static int dcacheline_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		addr = cl_address(he->mem_info->daddr.addr);
 
 	return scnprintf(hpp->buf, hpp->size, "%*s", width, HEX_STR(buf, addr));
+}
+
+static int
+dcacheline_node_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		      struct hist_entry *he)
+{
+	struct c2c_hist_entry *c2c_he;
+	int width = c2c_width(fmt, hpp, he->hists);
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	if (WARN_ON_ONCE(!c2c_he->nodestr))
+		return 0;
+
+	return scnprintf(hpp->buf, hpp->size, "%*s", width, c2c_he->nodestr);
+}
+
+static int
+dcacheline_node_count(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
+		      struct hist_entry *he)
+{
+	struct c2c_hist_entry *c2c_he;
+	int width = c2c_width(fmt, hpp, he->hists);
+
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+	return scnprintf(hpp->buf, hpp->size, "%*lu", width, c2c_he->paddr_cnt);
 }
 
 static int offset_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
@@ -1044,7 +1114,7 @@ node_entry(struct perf_hpp_fmt *fmt __maybe_unused, struct perf_hpp *hpp,
 			break;
 		case 1:
 		{
-			int num = bitmap_weight(c2c_he->cpuset, c2c.cpus_cnt);
+			int num = bitmap_weight(set, c2c.cpus_cnt);
 			struct c2c_stats *stats = &c2c_he->node_stats[node];
 
 			ret = scnprintf(hpp->buf, hpp->size, "%2d{%2d ", node, num);
@@ -1202,21 +1272,45 @@ cl_idx_empty_entry(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	}
 
 static struct c2c_dimension dim_dcacheline = {
-	.header		= HEADER_LOW("Cacheline"),
+	.header		= HEADER_SPAN("--- Cacheline ----", "Address", 2),
 	.name		= "dcacheline",
 	.cmp		= dcacheline_cmp,
 	.entry		= dcacheline_entry,
 	.width		= 18,
 };
 
-static struct c2c_header header_offset_tui = HEADER_LOW("Off");
+static struct c2c_dimension dim_dcacheline_node = {
+	.header		= HEADER_LOW("Node"),
+	.name		= "dcacheline_node",
+	.cmp		= empty_cmp,
+	.entry		= dcacheline_node_entry,
+	.width		= 4,
+};
+
+static struct c2c_dimension dim_dcacheline_count = {
+	.header		= HEADER_LOW("PA cnt"),
+	.name		= "dcacheline_count",
+	.cmp		= empty_cmp,
+	.entry		= dcacheline_node_count,
+	.width		= 6,
+};
+
+static struct c2c_header header_offset_tui = HEADER_SPAN("-----", "Off", 2);
 
 static struct c2c_dimension dim_offset = {
-	.header		= HEADER_BOTH("Data address", "Offset"),
+	.header		= HEADER_SPAN("--- Data address -", "Offset", 2),
 	.name		= "offset",
 	.cmp		= offset_cmp,
 	.entry		= offset_entry,
 	.width		= 18,
+};
+
+static struct c2c_dimension dim_offset_node = {
+	.header		= HEADER_LOW("Node"),
+	.name		= "offset_node",
+	.cmp		= empty_cmp,
+	.entry		= dcacheline_node_entry,
+	.width		= 4,
 };
 
 static struct c2c_dimension dim_iaddr = {
@@ -1538,7 +1632,10 @@ static struct c2c_dimension dim_dcacheline_num_empty = {
 
 static struct c2c_dimension *dimensions[] = {
 	&dim_dcacheline,
+	&dim_dcacheline_node,
+	&dim_dcacheline_count,
 	&dim_offset,
+	&dim_offset_node,
 	&dim_iaddr,
 	&dim_tot_hitm,
 	&dim_lcl_hitm,
@@ -1790,7 +1887,7 @@ static int c2c_hists__reinit(struct c2c_hists *c2c_hists,
 	return hpp_list__parse(&c2c_hists->list, output, sort);
 }
 
-#define DISPLAY_LINE_LIMIT  0.0005
+#define DISPLAY_LINE_LIMIT  0.001
 
 static bool he__display(struct hist_entry *he, struct c2c_stats *stats)
 {
@@ -1841,20 +1938,56 @@ static inline int valid_hitm_or_store(struct hist_entry *he)
 	return has_hitm || c2c_he->stats.store;
 }
 
-static void calc_width(struct hist_entry *he)
+static void set_node_width(struct c2c_hist_entry *c2c_he, int len)
+{
+	struct c2c_dimension *dim;
+
+	dim = &c2c.hists == c2c_he->hists ?
+	      &dim_dcacheline_node : &dim_offset_node;
+
+	if (len > dim->width)
+		dim->width = len;
+}
+
+static int set_nodestr(struct c2c_hist_entry *c2c_he)
+{
+	char buf[30];
+	int len;
+
+	if (c2c_he->nodestr)
+		return 0;
+
+	if (bitmap_weight(c2c_he->nodeset, c2c.nodes_cnt)) {
+		len = bitmap_scnprintf(c2c_he->nodeset, c2c.nodes_cnt,
+				      buf, sizeof(buf));
+	} else {
+		len = scnprintf(buf, sizeof(buf), "N/A");
+	}
+
+	set_node_width(c2c_he, len);
+	c2c_he->nodestr = strdup(buf);
+	return c2c_he->nodestr ? 0 : -ENOMEM;
+}
+
+static void calc_width(struct c2c_hist_entry *c2c_he)
 {
 	struct c2c_hists *c2c_hists;
 
-	c2c_hists = container_of(he->hists, struct c2c_hists, hists);
-	hists__calc_col_len(&c2c_hists->hists, he);
+	c2c_hists = container_of(c2c_he->he.hists, struct c2c_hists, hists);
+	hists__calc_col_len(&c2c_hists->hists, &c2c_he->he);
+	set_nodestr(c2c_he);
 }
 
-static int filter_cb(struct hist_entry *he)
+static int filter_cb(struct hist_entry *he, void *arg __maybe_unused)
 {
-	if (c2c.show_src && !he->srcline)
-		he->srcline = hist_entry__get_srcline(he);
+	struct c2c_hist_entry *c2c_he;
 
-	calc_width(he);
+	c2c_he = container_of(he, struct c2c_hist_entry, he);
+
+	if (c2c.show_src && !he->srcline)
+		he->srcline = hist_entry__srcline(he);
+
+	calc_width(c2c_he);
 
 	if (!valid_hitm_or_store(he))
 		he->filtered = HIST_FILTER__C2C;
@@ -1862,7 +1995,7 @@ static int filter_cb(struct hist_entry *he)
 	return 0;
 }
 
-static int resort_cl_cb(struct hist_entry *he)
+static int resort_cl_cb(struct hist_entry *he, void *arg __maybe_unused)
 {
 	struct c2c_hist_entry *c2c_he;
 	struct c2c_hists *c2c_hists;
@@ -1871,12 +2004,11 @@ static int resort_cl_cb(struct hist_entry *he)
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
 	c2c_hists = c2c_he->hists;
 
-	calc_width(he);
-
 	if (display && c2c_hists) {
 		static unsigned int idx;
 
 		c2c_he->cacheline_idx = idx++;
+		calc_width(c2c_he);
 
 		c2c_hists__reinit(c2c_hists, c2c.cl_output, c2c.cl_resort);
 
@@ -1903,7 +2035,7 @@ static int setup_nodes(struct perf_session *session)
 		c2c.node_info = 2;
 
 	c2c.nodes_cnt = session->header.env.nr_numa_nodes;
-	c2c.cpus_cnt  = session->header.env.nr_cpus_online;
+	c2c.cpus_cnt  = session->header.env.nr_cpus_avail;
 
 	n = session->header.env.numa_nodes;
 	if (!n)
@@ -1925,12 +2057,18 @@ static int setup_nodes(struct perf_session *session)
 	c2c.cpu2node = cpu2node;
 
 	for (node = 0; node < c2c.nodes_cnt; node++) {
-		struct cpu_map *map = n[node].map;
+		struct perf_cpu_map *map = n[node].map;
 		unsigned long *set;
 
 		set = bitmap_alloc(c2c.cpus_cnt);
 		if (!set)
 			return -ENOMEM;
+
+		nodes[node] = set;
+
+		/* empty node, skip */
+		if (perf_cpu_map__empty(map))
+			continue;
 
 		for (cpu = 0; cpu < map->nr; cpu++) {
 			set_bit(map->map[cpu], set);
@@ -1940,8 +2078,6 @@ static int setup_nodes(struct perf_session *session)
 
 			cpu2node[map->map[cpu]] = node;
 		}
-
-		nodes[node] = set;
 	}
 
 	setup_nodes_header();
@@ -1950,7 +2086,7 @@ static int setup_nodes(struct perf_session *session)
 
 #define HAS_HITMS(__h) ((__h)->stats.lcl_hitm || (__h)->stats.rmt_hitm)
 
-static int resort_hitm_cb(struct hist_entry *he)
+static int resort_hitm_cb(struct hist_entry *he, void *arg __maybe_unused)
 {
 	struct c2c_hist_entry *c2c_he;
 	c2c_he = container_of(he, struct c2c_hist_entry, he);
@@ -1965,14 +2101,14 @@ static int resort_hitm_cb(struct hist_entry *he)
 
 static int hists__iterate_cb(struct hists *hists, hists__resort_cb_t cb)
 {
-	struct rb_node *next = rb_first(&hists->entries);
+	struct rb_node *next = rb_first_cached(&hists->entries);
 	int ret = 0;
 
 	while (next) {
 		struct hist_entry *he;
 
 		he = rb_entry(next, struct hist_entry, rb_node);
-		ret = cb(he);
+		ret = cb(he, NULL);
 		if (ret)
 			break;
 		next = rb_next(&he->rb_node);
@@ -2070,7 +2206,7 @@ static void print_cacheline(struct c2c_hists *c2c_hists,
 	fprintf(out, "%s\n", bf);
 	fprintf(out, "  -------------------------------------------------------------\n");
 
-	hists__fprintf(&c2c_hists->hists, false, 0, 0, 0, out, true);
+	hists__fprintf(&c2c_hists->hists, false, 0, 0, 0, out, false);
 }
 
 static void print_pareto(FILE *out)
@@ -2092,7 +2228,7 @@ static void print_pareto(FILE *out)
 	if (WARN_ONCE(ret, "failed to setup sort entries\n"))
 		return;
 
-	nd = rb_first(&c2c.hists.hists.entries);
+	nd = rb_first_cached(&c2c.hists.hists.entries);
 
 	for (; nd; nd = rb_next(nd)) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
@@ -2108,8 +2244,8 @@ static void print_pareto(FILE *out)
 
 static void print_c2c_info(FILE *out, struct perf_session *session)
 {
-	struct perf_evlist *evlist = session->evlist;
-	struct perf_evsel *evsel;
+	struct evlist *evlist = session->evlist;
+	struct evsel *evsel;
 	bool first = true;
 
 	fprintf(out, "=================================================\n");
@@ -2145,7 +2281,7 @@ static void perf_c2c__hists_fprintf(FILE *out, struct perf_session *session)
 	fprintf(out, "=================================================\n");
 	fprintf(out, "#\n");
 
-	hists__fprintf(&c2c.hists.hists, true, 0, 0, 0, stdout, false);
+	hists__fprintf(&c2c.hists.hists, true, 0, 0, 0, stdout, true);
 
 	fprintf(out, "\n");
 	fprintf(out, "=================================================\n");
@@ -2160,7 +2296,7 @@ static void perf_c2c__hists_fprintf(FILE *out, struct perf_session *session)
 static void c2c_browser__update_nr_entries(struct hist_browser *hb)
 {
 	u64 nr_entries = 0;
-	struct rb_node *nd = rb_first(&hb->hists->entries);
+	struct rb_node *nd = rb_first_cached(&hb->hists->entries);
 
 	while (nd) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
@@ -2220,11 +2356,14 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	struct c2c_cacheline_browser *cl_browser;
 	struct hist_browser *browser;
 	int key = -1;
-	const char help[] =
+	static const char help[] =
 	" ENTER         Toggle callchains (if present) \n"
 	" n             Toggle Node details info \n"
 	" s             Toggle full length of symbol and source line columns \n"
 	" q             Return back to cacheline list \n";
+
+	if (!he)
+		return 0;
 
 	/* Display compact version first. */
 	c2c.symbol_full = false;
@@ -2245,7 +2384,7 @@ static int perf_c2c__browse_cacheline(struct hist_entry *he)
 	c2c_browser__update_nr_entries(browser);
 
 	while (1) {
-		key = hist_browser__run(browser, "? - help");
+		key = hist_browser__run(browser, "? - help", true);
 
 		switch (key) {
 		case 's':
@@ -2298,7 +2437,7 @@ static int perf_c2c__hists_browse(struct hists *hists)
 {
 	struct hist_browser *browser;
 	int key = -1;
-	const char help[] =
+	static const char help[] =
 	" d             Display cacheline details \n"
 	" ENTER         Toggle callchains (if present) \n"
 	" q             Quit \n";
@@ -2314,7 +2453,7 @@ static int perf_c2c__hists_browse(struct hists *hists)
 	c2c_browser__update_nr_entries(browser);
 
 	while (1) {
-		key = hist_browser__run(browser, "? - help");
+		key = hist_browser__run(browser, "? - help", true);
 
 		switch (key) {
 		case 'q':
@@ -2350,14 +2489,66 @@ static void perf_c2c_display(struct perf_session *session)
 }
 #endif /* HAVE_SLANG_SUPPORT */
 
-static void ui_quirks(void)
+static char *fill_line(const char *orig, int len)
 {
+	int i, j, olen = strlen(orig);
+	char *buf;
+
+	buf = zalloc(len + 1);
+	if (!buf)
+		return NULL;
+
+	j = len / 2 - olen / 2;
+
+	for (i = 0; i < j - 1; i++)
+		buf[i] = '-';
+
+	buf[i++] = ' ';
+
+	strcpy(buf + i, orig);
+
+	i += olen;
+
+	buf[i++] = ' ';
+
+	for (; i < len; i++)
+		buf[i] = '-';
+
+	return buf;
+}
+
+static int ui_quirks(void)
+{
+	const char *nodestr = "Data address";
+	char *buf;
+
 	if (!c2c.use_stdio) {
 		dim_offset.width  = 5;
 		dim_offset.header = header_offset_tui;
+		nodestr = "CL";
 	}
 
 	dim_percent_hitm.header = percent_hitm_header[c2c.display];
+
+	/* Fix the zero line for dcacheline column. */
+	buf = fill_line("Cacheline", dim_dcacheline.width +
+				     dim_dcacheline_node.width +
+				     dim_dcacheline_count.width + 4);
+	if (!buf)
+		return -ENOMEM;
+
+	dim_dcacheline.header.line[0].text = buf;
+
+	/* Fix the zero line for offset column. */
+	buf = fill_line(nodestr, dim_offset.width +
+			         dim_offset_node.width +
+				 dim_dcacheline_count.width + 4);
+	if (!buf)
+		return -ENOMEM;
+
+	dim_offset.header.line[0].text = buf;
+
+	return 0;
 }
 
 #define CALLCHAIN_DEFAULT_OPT  "graph,0.5,caller,function,percent"
@@ -2384,7 +2575,7 @@ parse_callchain_opt(const struct option *opt, const char *arg, int unset)
 	return parse_callchain_report_opt(arg);
 }
 
-static int setup_callchain(struct perf_evlist *evlist)
+static int setup_callchain(struct evlist *evlist)
 {
 	u64 sample_type = perf_evlist__combined_sample_type(evlist);
 	enum perf_call_graph_mode mode = CALLCHAIN_NONE;
@@ -2473,7 +2664,7 @@ static int build_cl_output(char *cl_sort, bool no_source)
 		"percent_lcl_hitm,"
 		"percent_stores_l1hit,"
 		"percent_stores_l1miss,"
-		"offset,",
+		"offset,offset_node,dcacheline_count,",
 		add_pid   ? "pid," : "",
 		add_tid   ? "tid," : "",
 		add_iaddr ? "iaddr," : "",
@@ -2571,8 +2762,8 @@ static int perf_c2c__report(int argc, const char **argv)
 	if (!input_name || !strlen(input_name))
 		input_name = "perf.data";
 
-	data.file.path = input_name;
-	data.force     = symbol_conf.force;
+	data.path  = input_name;
+	data.force = symbol_conf.force;
 
 	err = setup_display(display);
 	if (err)
@@ -2591,8 +2782,9 @@ static int perf_c2c__report(int argc, const char **argv)
 	}
 
 	session = perf_session__new(&data, 0, &c2c.tool);
-	if (session == NULL) {
-		pr_debug("No memory for session\n");
+	if (IS_ERR(session)) {
+		err = PTR_ERR(session);
+		pr_debug("Error creating perf session\n");
 		goto out;
 	}
 
@@ -2602,17 +2794,21 @@ static int perf_c2c__report(int argc, const char **argv)
 		goto out;
 	}
 
-	err = setup_callchain(session->evlist);
+	err = mem2node__init(&c2c.mem2node, &session->header.env);
 	if (err)
 		goto out_session;
 
+	err = setup_callchain(session->evlist);
+	if (err)
+		goto out_mem2node;
+
 	if (symbol__init(&session->header.env) < 0)
-		goto out_session;
+		goto out_mem2node;
 
 	/* No pipe support at the moment. */
 	if (perf_data__is_pipe(session->data)) {
 		pr_debug("No pipe support at the moment.\n");
-		goto out_session;
+		goto out_mem2node;
 	}
 
 	if (c2c.use_stdio)
@@ -2625,12 +2821,14 @@ static int perf_c2c__report(int argc, const char **argv)
 	err = perf_session__process_events(session);
 	if (err) {
 		pr_err("failed to process sample\n");
-		goto out_session;
+		goto out_mem2node;
 	}
 
 	c2c_hists__reinit(&c2c.hists,
 			"cl_idx,"
 			"dcacheline,"
+			"dcacheline_node,"
+			"dcacheline_count,"
 			"tot_recs,"
 			"percent_hitm,"
 			"tot_hitm,lcl_hitm,rmt_hitm,"
@@ -2652,10 +2850,15 @@ static int perf_c2c__report(int argc, const char **argv)
 
 	ui_progress__finish();
 
-	ui_quirks();
+	if (ui_quirks()) {
+		pr_err("failed to setup UI\n");
+		goto out_mem2node;
+	}
 
 	perf_c2c_display(session);
 
+out_mem2node:
+	mem2node__exit(&c2c.mem2node);
 out_session:
 	perf_session__delete(session);
 out:
@@ -2706,7 +2909,7 @@ static int perf_c2c__record(int argc, const char **argv)
 	argc = parse_options(argc, argv, options, record_mem_usage,
 			     PARSE_OPT_KEEP_UNKNOWN);
 
-	rec_argc = argc + 10; /* max number of arguments */
+	rec_argc = argc + 11; /* max number of arguments */
 	rec_argv = calloc(rec_argc + 1, sizeof(char *));
 	if (!rec_argv)
 		return -1;
@@ -2722,6 +2925,7 @@ static int perf_c2c__record(int argc, const char **argv)
 		rec_argv[i++] = "-W";
 
 	rec_argv[i++] = "-d";
+	rec_argv[i++] = "--phys-data";
 	rec_argv[i++] = "--sample-cpu";
 
 	for (j = 0; j < PERF_MEM_EVENTS__MAX; j++) {

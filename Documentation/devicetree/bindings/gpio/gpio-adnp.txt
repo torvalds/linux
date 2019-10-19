@@ -3,7 +3,6 @@ Avionic Design N-bit GPIO expander bindings
 Required properties:
 - compatible: should be "ad,gpio-adnp"
 - reg: The I2C slave address for this device.
-- interrupt-parent: phandle of the parent interrupt controller.
 - interrupts: Interrupt specifier for the controllers interrupt.
 - #gpio-cells: Should be 2. The first cell is the GPIO number and the
   second cell is used to specify optional parameters:

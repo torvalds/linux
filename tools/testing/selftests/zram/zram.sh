@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: GPL-2.0
 TCID="zram.sh"
 
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
+
 . ./zram_lib.sh
 
 run_zram () {
@@ -24,5 +27,5 @@ elif [ -b /dev/zram0 ]; then
 else
 	echo "$TCID : No zram.ko module or /dev/zram0 device file not found"
 	echo "$TCID : CONFIG_ZRAM is not set"
-	exit 1
+	exit $ksft_skip
 fi

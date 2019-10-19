@@ -14,6 +14,7 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/sound/samsung-i2s.h>
 
 / {
 	aliases {
@@ -112,8 +113,8 @@
 
 	sound {
 		compatible = "samsung,tm2-audio";
-		audio-codec = <&wm5110>;
-		i2s-controller = <&i2s0>;
+		audio-codec = <&wm5110>, <&hdmi>;
+		i2s-controller = <&i2s0 0>, <&i2s1 0>;
 		audio-amplifier = <&max98504>;
 		mic-bias-gpios = <&gpr3 2 GPIO_ACTIVE_HIGH>;
 		model = "wm5110";
@@ -217,8 +218,40 @@
 };
 
 &cmu_aud {
-	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>;
-	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>;
+	assigned-clocks = <&cmu_aud CLK_MOUT_AUD_PLL_USER>,
+		<&cmu_aud CLK_MOUT_SCLK_AUD_I2S>,
+		<&cmu_aud CLK_MOUT_SCLK_AUD_PCM>,
+		<&cmu_top CLK_MOUT_AUD_PLL>,
+		<&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
+		<&cmu_top CLK_MOUT_SCLK_AUDIO0>,
+		<&cmu_top CLK_MOUT_SCLK_AUDIO1>,
+		<&cmu_top CLK_MOUT_SCLK_SPDIF>,
+
+		<&cmu_aud CLK_DIV_AUD_CA5>,
+		<&cmu_aud CLK_DIV_ACLK_AUD>,
+		<&cmu_aud CLK_DIV_PCLK_DBG_AUD>,
+		<&cmu_aud CLK_DIV_SCLK_AUD_I2S>,
+		<&cmu_aud CLK_DIV_SCLK_AUD_PCM>,
+		<&cmu_aud CLK_DIV_SCLK_AUD_SLIMBUS>,
+		<&cmu_aud CLK_DIV_SCLK_AUD_UART>,
+		<&cmu_top CLK_DIV_SCLK_AUDIO0>,
+		<&cmu_top CLK_DIV_SCLK_AUDIO1>,
+		<&cmu_top CLK_DIV_SCLK_PCM1>,
+		<&cmu_top CLK_DIV_SCLK_I2S1>;
+
+	assigned-clock-parents = <&cmu_top CLK_FOUT_AUD_PLL>,
+		<&cmu_aud CLK_MOUT_AUD_PLL_USER>,
+		<&cmu_aud CLK_MOUT_AUD_PLL_USER>,
+		<&cmu_top CLK_FOUT_AUD_PLL>,
+		<&cmu_top CLK_MOUT_AUD_PLL>,
+		<&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
+		<&cmu_top CLK_MOUT_AUD_PLL_USER_T>,
+		<&cmu_top CLK_SCLK_AUDIO0>;
+
+	assigned-clock-rates = <0>, <0>, <0>, <0>, <0>, <0>, <0>, <0>,
+		<196608001>, <65536001>, <32768001>, <49152001>,
+		<2048001>, <24576001>, <196608001>,
+		<24576001>, <98304001>, <2048001>, <49152001>;
 };
 
 &cmu_fsys {
@@ -256,6 +289,12 @@
 	assigned-clock-parents = <&cmu_top CLK_ACLK_MFC_400>;
 };
 
+&cmu_mif {
+	assigned-clocks = <&cmu_mif CLK_MOUT_SCLK_DSD_A>, <&cmu_mif CLK_DIV_SCLK_DSD>;
+	assigned-clock-parents = <&cmu_mif CLK_MOUT_MFC_PLL_DIV2>;
+	assigned-clock-rates = <0>, <333000000>;
+};
+
 &cmu_mscl {
 	assigned-clocks = <&cmu_mscl CLK_MOUT_ACLK_MSCL_400_USER>,
 			  <&cmu_mscl CLK_MOUT_SCLK_JPEG_USER>,
@@ -265,6 +304,11 @@
 				 <&cmu_top CLK_SCLK_JPEG_MSCL>,
 				 <&cmu_mscl CLK_MOUT_SCLK_JPEG_USER>,
 				 <&cmu_top CLK_MOUT_BUS_PLL_USER>;
+};
+
+&cmu_top {
+	assigned-clocks = <&cmu_top CLK_FOUT_AUD_PLL>;
+	assigned-clock-rates = <196608001>;
 };
 
 &cpu0 {
@@ -304,6 +348,11 @@
 	samsung,pll-clock-frequency = <24000000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&te_irq>;
+};
+
+&gpu {
+	mali-supply = <&buck6_reg>;
+	status = "okay";
 };
 
 &hdmi {
@@ -779,9 +828,22 @@
 		clocks = <&pmu_system_controller 0>;
 		clock-names = "xtal";
 
-		port {
-			mhl_to_hdmi: endpoint {
-				remote-endpoint = <&hdmi_to_mhl>;
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+				mhl_to_hdmi: endpoint {
+					remote-endpoint = <&hdmi_to_mhl>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+				mhl_to_musb_con: endpoint {
+					remote-endpoint = <&musb_con_to_mhl>;
+				};
 			};
 		};
 	};
@@ -798,6 +860,33 @@
 
 		muic: max77843-muic {
 			compatible = "maxim,max77843-muic";
+
+			musb_con: musb_connector {
+				compatible = "samsung,usb-connector-11pin",
+					     "usb-b-connector";
+				label = "micro-USB";
+				type = "micro";
+
+				ports {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					port@3 {
+						reg = <3>;
+						musb_con_to_mhl: endpoint {
+							remote-endpoint = <&mhl_to_musb_con>;
+						};
+					};
+				};
+			};
+
+			ports {
+				port {
+					muic_to_usb: endpoint {
+						remote-endpoint = <&usb_to_muic>;
+					};
+				};
+			};
 		};
 
 		regulators {
@@ -838,6 +927,12 @@
 	status = "okay";
 };
 
+&i2s1 {
+	assigned-clocks = <&i2s1 CLK_I2S_RCLK_SRC>;
+	assigned-clock-parents = <&cmu_peric CLK_SCLK_I2S1>;
+	status = "okay";
+};
+
 &mshc_0 {
 	status = "okay";
 	mmc-hs200-1_8v;
@@ -863,8 +958,7 @@
 	status = "okay";
 	cap-sd-highspeed;
 	disable-wp;
-	cd-gpios = <&gpa2 4 GPIO_ACTIVE_HIGH>;
-	cd-inverted;
+	cd-gpios = <&gpa2 4 GPIO_ACTIVE_LOW>;
 	card-detect-delay = <200>;
 	samsung,dw-mshc-ciu-div = <3>;
 	samsung,dw-mshc-sdr-timing = <0 4>;
@@ -1119,6 +1213,20 @@
 	status = "okay";
 };
 
+&serial_3 {
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <3000000>;
+		shutdown-gpios = <&gpd4 0 GPIO_ACTIVE_HIGH>;
+		device-wakeup-gpios = <&gpr3 7 GPIO_ACTIVE_HIGH>;
+		host-wakeup-gpios = <&gpa2 2 GPIO_ACTIVE_HIGH>;
+		clocks = <&s2mps13_osc S2MPS11_CLK_BT>;
+		clock-names = "extclk";
+	};
+};
+
 &spi_1 {
 	cs-gpios = <&gpd6 3 GPIO_ACTIVE_HIGH>;
 	status = "okay";
@@ -1207,12 +1315,17 @@
 
 &usbdrd_dwc3 {
 	dr_mode = "otg";
-	extcon = <&muic>;
 };
 
 &usbdrd30_phy {
 	vbus-supply = <&safeout1_reg>;
 	status = "okay";
+
+	port {
+		usb_to_muic: endpoint {
+			remote-endpoint = <&muic_to_usb>;
+		};
+	};
 };
 
 &xxti {

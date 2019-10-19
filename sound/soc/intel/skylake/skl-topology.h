@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  skl_topology.h - Intel HDA Platform topology header file
  *
@@ -5,17 +6,7 @@
  *  Author: Jeeja KP <jeeja.kp@intel.com>
  *  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful, but
- *  WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- *  General Public License for more details.
- *
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
  */
 
 #ifndef __SKL_TOPOLOGY_H__
@@ -25,8 +16,8 @@
 
 #include <sound/hdaudio_ext.h>
 #include <sound/soc.h>
+#include <uapi/sound/skl-tplg-interface.h>
 #include "skl.h"
-#include "skl-tplg-interface.h"
 
 #define BITS_PER_BYTE 8
 #define MAX_TS_GROUPS 8
@@ -110,7 +101,7 @@ struct skl_audio_data_format {
 } __packed;
 
 struct skl_base_cfg {
-	u32 cps;
+	u32 cpc;
 	u32 ibs;
 	u32 obs;
 	u32 is_pages;
@@ -147,11 +138,6 @@ struct skl_cpr_pin_fmt {
 struct skl_src_module_cfg {
 	struct skl_base_cfg base_cfg;
 	enum skl_s_freq src_cfg;
-} __packed;
-
-struct notification_mask {
-	u32 notify;
-	u32 enable;
 } __packed;
 
 struct skl_up_down_mixer_cfg {
@@ -221,13 +207,22 @@ struct skl_mod_inst_map {
 	u16 inst_id;
 };
 
+struct skl_uuid_inst_map {
+	u16 inst_id;
+	u16 reserved;
+	guid_t mod_uuid;
+} __packed;
+
 struct skl_kpb_params {
 	u32 num_modules;
-	struct skl_mod_inst_map map[0];
+	union {
+		struct skl_mod_inst_map map[0];
+		struct skl_uuid_inst_map map_uuid[0];
+	} u;
 };
 
 struct skl_module_inst_id {
-	uuid_le mod_uuid;
+	guid_t mod_uuid;
 	int module_id;
 	u32 instance_id;
 	int pvt_id;
@@ -348,7 +343,6 @@ struct skl_module_pin_resources {
 struct skl_module_res {
 	u8 id;
 	u32 is_pages;
-	u32 cps;
 	u32 ibs;
 	u32 obs;
 	u32 dma_buffer_size;
@@ -360,7 +354,7 @@ struct skl_module_res {
 };
 
 struct skl_module {
-	uuid_le uuid;
+	guid_t uuid;
 	u8 loadable;
 	u8 input_pin_type;
 	u8 output_pin_type;
@@ -389,9 +383,6 @@ struct skl_module_cfg {
 	u8 out_queue_mask;
 	u8 in_queue;
 	u8 out_queue;
-	u32 mcps;
-	u32 ibs;
-	u32 obs;
 	u8 is_loadable;
 	u8 core_id;
 	u8 dev_type;
@@ -447,52 +438,54 @@ enum skl_channel {
 	SKL_CH_QUATRO = 4,
 };
 
-static inline struct skl *get_skl_ctx(struct device *dev)
+static inline struct skl_dev *get_skl_ctx(struct device *dev)
 {
-	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_bus *bus = dev_get_drvdata(dev);
 
-	return ebus_to_skl(ebus);
+	return bus_to_skl(bus);
 }
 
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params);
-int skl_dsp_set_dma_control(struct skl_sst *ctx, u32 *caps,
+int skl_dsp_set_dma_control(struct skl_dev *skl, u32 *caps,
 			u32 caps_size, u32 node_id);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params, int stream);
-int skl_tplg_init(struct snd_soc_platform *platform,
-				struct hdac_ext_bus *ebus);
+int skl_tplg_init(struct snd_soc_component *component,
+				struct hdac_bus *ebus);
+void skl_tplg_exit(struct snd_soc_component *component,
+				struct hdac_bus *bus);
 struct skl_module_cfg *skl_tplg_fe_get_cpr_module(
 		struct snd_soc_dai *dai, int stream);
 int skl_tplg_update_pipe_params(struct device *dev,
 		struct skl_module_cfg *mconfig, struct skl_pipe_params *params);
 
-void skl_tplg_d0i3_get(struct skl *skl, enum d0i3_capability caps);
-void skl_tplg_d0i3_put(struct skl *skl, enum d0i3_capability caps);
+void skl_tplg_d0i3_get(struct skl_dev *skl, enum d0i3_capability caps);
+void skl_tplg_d0i3_put(struct skl_dev *skl, enum d0i3_capability caps);
 
-int skl_create_pipeline(struct skl_sst *ctx, struct skl_pipe *pipe);
+int skl_create_pipeline(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_run_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+int skl_run_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_pause_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+int skl_pause_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+int skl_delete_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+int skl_stop_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_reset_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
+int skl_reset_pipe(struct skl_dev *skl, struct skl_pipe *pipe);
 
-int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config);
+int skl_init_module(struct skl_dev *skl, struct skl_module_cfg *module_config);
 
-int skl_bind_modules(struct skl_sst *ctx, struct skl_module_cfg
+int skl_bind_modules(struct skl_dev *skl, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
 
-int skl_unbind_modules(struct skl_sst *ctx, struct skl_module_cfg
+int skl_unbind_modules(struct skl_dev *skl, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
 
-int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
+int skl_set_module_params(struct skl_dev *skl, u32 *params, int size,
 			u32 param_id, struct skl_module_cfg *mcfg);
-int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
+int skl_get_module_params(struct skl_dev *skl, u32 *params, int size,
 			  u32 param_id, struct skl_module_cfg *mcfg);
 
 struct skl_module_cfg *skl_tplg_be_get_cpr_module(struct snd_soc_dai *dai,
@@ -503,6 +496,9 @@ int skl_pcm_host_dma_prepare(struct device *dev,
 int skl_pcm_link_dma_prepare(struct device *dev,
 			struct skl_pipe_params *params);
 
-int skl_dai_load(struct snd_soc_component *cmp,
-		 struct snd_soc_dai_driver *pcm_dai);
+int skl_dai_load(struct snd_soc_component *cmp, int index,
+		struct snd_soc_dai_driver *dai_drv,
+		struct snd_soc_tplg_pcm *pcm, struct snd_soc_dai *dai);
+void skl_tplg_add_moduleid_in_bind_params(struct skl_dev *skl,
+				struct snd_soc_dapm_widget *w);
 #endif

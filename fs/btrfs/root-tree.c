@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/err.h>
@@ -22,6 +9,8 @@
 #include "transaction.h"
 #include "disk-io.h"
 #include "print-tree.h"
+#include "qgroup.h"
+#include "space-info.h"
 
 /*
  * Read a root item from the tree. In case we detect a root item smaller then
@@ -34,12 +23,12 @@ static void btrfs_read_root_item(struct extent_buffer *eb, int slot,
 				struct btrfs_root_item *item)
 {
 	uuid_le uuid;
-	int len;
+	u32 len;
 	int need_reset = 0;
 
 	len = btrfs_item_size_nr(eb, slot);
 	read_extent_buffer(eb, item, btrfs_item_ptr_offset(eb, slot),
-			min_t(int, len, (int)sizeof(*item)));
+			   min_t(u32, len, sizeof(*item)));
 	if (len < sizeof(*item))
 		need_reset = 1;
 	if (!need_reset && btrfs_root_generation(item)
@@ -145,16 +134,17 @@ int btrfs_update_root(struct btrfs_trans_handle *trans, struct btrfs_root
 		return -ENOMEM;
 
 	ret = btrfs_search_slot(trans, root, key, path, 0, 1);
-	if (ret < 0) {
+	if (ret < 0)
+		goto out;
+
+	if (ret > 0) {
+		btrfs_crit(fs_info,
+			"unable to find root key (%llu %u %llu) in tree %llu",
+			key->objectid, key->type, key->offset,
+			root->root_key.objectid);
+		ret = -EUCLEAN;
 		btrfs_abort_transaction(trans, ret);
 		goto out;
-	}
-
-	if (ret != 0) {
-		btrfs_print_leaf(path->nodes[0]);
-		btrfs_crit(fs_info, "unable to update root key %llu %u %llu",
-			   key->objectid, key->type, key->offset);
-		BUG_ON(1);
 	}
 
 	l = path->nodes[0];
@@ -276,8 +266,10 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 		if (root) {
 			WARN_ON(!test_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED,
 					  &root->state));
-			if (btrfs_root_refs(&root->root_item) == 0)
+			if (btrfs_root_refs(&root->root_item) == 0) {
+				set_bit(BTRFS_ROOT_DEAD_TREE, &root->state);
 				btrfs_add_dead_root(root);
+			}
 			continue;
 		}
 
@@ -323,8 +315,10 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 			break;
 		}
 
-		if (btrfs_root_refs(&root->root_item) == 0)
+		if (btrfs_root_refs(&root->root_item) == 0) {
+			set_bit(BTRFS_ROOT_DEAD_TREE, &root->state);
 			btrfs_add_dead_root(root);
+		}
 	}
 
 	btrfs_free_path(path);
@@ -333,9 +327,9 @@ int btrfs_find_orphan_roots(struct btrfs_fs_info *fs_info)
 
 /* drop the root item for 'key' from the tree root */
 int btrfs_del_root(struct btrfs_trans_handle *trans,
-		   struct btrfs_fs_info *fs_info, const struct btrfs_key *key)
+		   const struct btrfs_key *key)
 {
-	struct btrfs_root *root = fs_info->tree_root;
+	struct btrfs_root *root = trans->fs_info->tree_root;
 	struct btrfs_path *path;
 	int ret;
 
@@ -354,13 +348,12 @@ out:
 	return ret;
 }
 
-int btrfs_del_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info,
-		       u64 root_id, u64 ref_id, u64 dirid, u64 *sequence,
-		       const char *name, int name_len)
+int btrfs_del_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
+		       u64 ref_id, u64 dirid, u64 *sequence, const char *name,
+		       int name_len)
 
 {
-	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct btrfs_root *tree_root = trans->fs_info->tree_root;
 	struct btrfs_path *path;
 	struct btrfs_root_ref *ref;
 	struct extent_buffer *leaf;
@@ -426,12 +419,11 @@ out:
  *
  * Will return 0, -ENOMEM, or anything from the CoW path
  */
-int btrfs_add_root_ref(struct btrfs_trans_handle *trans,
-		       struct btrfs_fs_info *fs_info,
-		       u64 root_id, u64 ref_id, u64 dirid, u64 sequence,
-		       const char *name, int name_len)
+int btrfs_add_root_ref(struct btrfs_trans_handle *trans, u64 root_id,
+		       u64 ref_id, u64 dirid, u64 sequence, const char *name,
+		       int name_len)
 {
-	struct btrfs_root *tree_root = fs_info->tree_root;
+	struct btrfs_root *tree_root = trans->fs_info->tree_root;
 	struct btrfs_key key;
 	int ret;
 	struct btrfs_path *path;
@@ -498,12 +490,66 @@ void btrfs_update_root_times(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
 	struct btrfs_root_item *item = &root->root_item;
-	struct timespec ct;
+	struct timespec64 ct;
 
-	ktime_get_real_ts(&ct);
+	ktime_get_real_ts64(&ct);
 	spin_lock(&root->root_item_lock);
 	btrfs_set_root_ctransid(item, trans->transid);
 	btrfs_set_stack_timespec_sec(&item->ctime, ct.tv_sec);
 	btrfs_set_stack_timespec_nsec(&item->ctime, ct.tv_nsec);
 	spin_unlock(&root->root_item_lock);
+}
+
+/*
+ * btrfs_subvolume_reserve_metadata() - reserve space for subvolume operation
+ * root: the root of the parent directory
+ * rsv: block reservation
+ * items: the number of items that we need do reservation
+ * use_global_rsv: allow fallback to the global block reservation
+ *
+ * This function is used to reserve the space for snapshot/subvolume
+ * creation and deletion. Those operations are different with the
+ * common file/directory operations, they change two fs/file trees
+ * and root tree, the number of items that the qgroup reserves is
+ * different with the free space reservation. So we can not use
+ * the space reservation mechanism in start_transaction().
+ */
+int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
+				     struct btrfs_block_rsv *rsv, int items,
+				     bool use_global_rsv)
+{
+	u64 qgroup_num_bytes = 0;
+	u64 num_bytes;
+	int ret;
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_block_rsv *global_rsv = &fs_info->global_block_rsv;
+
+	if (test_bit(BTRFS_FS_QUOTA_ENABLED, &fs_info->flags)) {
+		/* One for parent inode, two for dir entries */
+		qgroup_num_bytes = 3 * fs_info->nodesize;
+		ret = btrfs_qgroup_reserve_meta_prealloc(root,
+				qgroup_num_bytes, true);
+		if (ret)
+			return ret;
+	}
+
+	num_bytes = btrfs_calc_insert_metadata_size(fs_info, items);
+	rsv->space_info = btrfs_find_space_info(fs_info,
+					    BTRFS_BLOCK_GROUP_METADATA);
+	ret = btrfs_block_rsv_add(root, rsv, num_bytes,
+				  BTRFS_RESERVE_FLUSH_ALL);
+
+	if (ret == -ENOSPC && use_global_rsv)
+		ret = btrfs_block_rsv_migrate(global_rsv, rsv, num_bytes, true);
+
+	if (ret && qgroup_num_bytes)
+		btrfs_qgroup_free_meta_prealloc(root, qgroup_num_bytes);
+
+	return ret;
+}
+
+void btrfs_subvolume_release_metadata(struct btrfs_fs_info *fs_info,
+				      struct btrfs_block_rsv *rsv)
+{
+	btrfs_block_rsv_release(fs_info, rsv, (u64)-1);
 }

@@ -136,10 +136,83 @@ struct pp_atomfwctrl_bios_boot_up_values {
 	uint32_t   ulUClk;
 	uint32_t   ulSocClk;
 	uint32_t   ulDCEFClk;
+	uint32_t   ulEClk;
+	uint32_t   ulVClk;
+	uint32_t   ulDClk;
+	uint32_t   ulFClk;
 	uint16_t   usVddc;
 	uint16_t   usVddci;
 	uint16_t   usMvddc;
 	uint16_t   usVddGfx;
+	uint8_t    ucCoolingID;
+};
+
+struct pp_atomfwctrl_smc_dpm_parameters
+{
+  uint8_t  liquid1_i2c_address;
+  uint8_t  liquid2_i2c_address;
+  uint8_t  vr_i2c_address;
+  uint8_t  plx_i2c_address;
+  uint8_t  liquid_i2c_linescl;
+  uint8_t  liquid_i2c_linesda;
+  uint8_t  vr_i2c_linescl;
+  uint8_t  vr_i2c_linesda;
+  uint8_t  plx_i2c_linescl;
+  uint8_t  plx_i2c_linesda;
+  uint8_t  vrsensorpresent;
+  uint8_t  liquidsensorpresent;
+  uint16_t maxvoltagestepgfx;
+  uint16_t maxvoltagestepsoc;
+  uint8_t  vddgfxvrmapping;
+  uint8_t  vddsocvrmapping;
+  uint8_t  vddmem0vrmapping;
+  uint8_t  vddmem1vrmapping;
+  uint8_t  gfxulvphasesheddingmask;
+  uint8_t  soculvphasesheddingmask;
+
+  uint16_t gfxmaxcurrent;
+  uint8_t  gfxoffset;
+  uint8_t  padding_telemetrygfx;
+  uint16_t socmaxcurrent;
+  uint8_t  socoffset;
+  uint8_t  padding_telemetrysoc;
+  uint16_t mem0maxcurrent;
+  uint8_t  mem0offset;
+  uint8_t  padding_telemetrymem0;
+  uint16_t mem1maxcurrent;
+  uint8_t  mem1offset;
+  uint8_t  padding_telemetrymem1;
+
+  uint8_t  acdcgpio;
+  uint8_t  acdcpolarity;
+  uint8_t  vr0hotgpio;
+  uint8_t  vr0hotpolarity;
+  uint8_t  vr1hotgpio;
+  uint8_t  vr1hotpolarity;
+  uint8_t  padding1;
+  uint8_t  padding2;
+
+  uint8_t  ledpin0;
+  uint8_t  ledpin1;
+  uint8_t  ledpin2;
+
+	uint8_t  pllgfxclkspreadenabled;
+	uint8_t  pllgfxclkspreadpercent;
+	uint16_t pllgfxclkspreadfreq;
+
+  uint8_t  uclkspreadenabled;
+  uint8_t  uclkspreadpercent;
+  uint16_t uclkspreadfreq;
+
+  uint8_t socclkspreadenabled;
+  uint8_t socclkspreadpercent;
+  uint16_t socclkspreadfreq;
+
+	uint8_t  acggfxclkspreadenabled;
+	uint8_t  acggfxclkspreadpercent;
+	uint16_t acggfxclkspreadfreq;
+
+	uint8_t Vr2_I2C_address;
 };
 
 int pp_atomfwctrl_get_gpu_pll_dividers_vega10(struct pp_hwmgr *hwmgr,
@@ -161,6 +234,11 @@ int pp_atomfwctrl_get_gpio_information(struct pp_hwmgr *hwmgr,
 
 int pp_atomfwctrl_get_vbios_bootup_values(struct pp_hwmgr *hwmgr,
 			struct pp_atomfwctrl_bios_boot_up_values *boot_values);
+int pp_atomfwctrl_get_smc_dpm_information(struct pp_hwmgr *hwmgr,
+			struct pp_atomfwctrl_smc_dpm_parameters *param);
+int pp_atomfwctrl_get_clk_information_by_clkid(struct pp_hwmgr *hwmgr,
+					uint8_t clk_id, uint8_t syspll_id,
+					uint32_t *frequency);
 
 #endif
 

@@ -38,12 +38,13 @@
 #define AMDGPU_GTT_MAX_TRANSFER_SIZE	512
 #define AMDGPU_GTT_NUM_TRANSFER_WINDOWS	2
 
+#define AMDGPU_POISON	0xd0bed0be
+
 struct amdgpu_mman {
-	struct ttm_bo_global_ref        bo_global_ref;
-	struct drm_global_reference	mem_global_ref;
 	struct ttm_bo_device		bdev;
 	bool				mem_global_referenced;
 	bool				initialized;
+	void __iomem			*aper_base_kaddr;
 
 #if defined(CONFIG_DEBUG_FS)
 	struct dentry			*debugfs_entries[8];
@@ -52,6 +53,7 @@ struct amdgpu_mman {
 	/* buffer handling */
 	const struct amdgpu_buffer_funcs	*buffer_funcs;
 	struct amdgpu_ring			*buffer_funcs_ring;
+	bool					buffer_funcs_enabled;
 
 	struct mutex				gtt_window_lock;
 	/* Scheduler entity for buffer moves */
@@ -71,32 +73,52 @@ bool amdgpu_gtt_mgr_has_gart_addr(struct ttm_mem_reg *mem);
 uint64_t amdgpu_gtt_mgr_usage(struct ttm_mem_type_manager *man);
 int amdgpu_gtt_mgr_recover(struct ttm_mem_type_manager *man);
 
+u64 amdgpu_vram_mgr_bo_visible_size(struct amdgpu_bo *bo);
 uint64_t amdgpu_vram_mgr_usage(struct ttm_mem_type_manager *man);
 uint64_t amdgpu_vram_mgr_vis_usage(struct ttm_mem_type_manager *man);
 
+int amdgpu_ttm_init(struct amdgpu_device *adev);
+void amdgpu_ttm_late_init(struct amdgpu_device *adev);
+void amdgpu_ttm_fini(struct amdgpu_device *adev);
+void amdgpu_ttm_set_buffer_funcs_status(struct amdgpu_device *adev,
+					bool enable);
+
 int amdgpu_copy_buffer(struct amdgpu_ring *ring, uint64_t src_offset,
 		       uint64_t dst_offset, uint32_t byte_count,
-		       struct reservation_object *resv,
+		       struct dma_resv *resv,
 		       struct dma_fence **fence, bool direct_submit,
 		       bool vm_needs_flush);
 int amdgpu_ttm_copy_mem_to_mem(struct amdgpu_device *adev,
 			       struct amdgpu_copy_mem *src,
 			       struct amdgpu_copy_mem *dst,
 			       uint64_t size,
-			       struct reservation_object *resv,
+			       struct dma_resv *resv,
 			       struct dma_fence **f);
 int amdgpu_fill_buffer(struct amdgpu_bo *bo,
-			uint64_t src_data,
-			struct reservation_object *resv,
+			uint32_t src_data,
+			struct dma_resv *resv,
 			struct dma_fence **fence);
 
 int amdgpu_mmap(struct file *filp, struct vm_area_struct *vma);
 int amdgpu_ttm_alloc_gart(struct ttm_buffer_object *bo);
 int amdgpu_ttm_recover_gart(struct ttm_buffer_object *tbo);
 
-int amdgpu_ttm_tt_get_user_pages(struct ttm_tt *ttm, struct page **pages);
+#if IS_ENABLED(CONFIG_DRM_AMDGPU_USERPTR)
+int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages);
+bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm);
+#else
+static inline int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo,
+					       struct page **pages)
+{
+	return -EPERM;
+}
+static inline bool amdgpu_ttm_tt_get_user_pages_done(struct ttm_tt *ttm)
+{
+	return false;
+}
+#endif
+
 void amdgpu_ttm_tt_set_user_pages(struct ttm_tt *ttm, struct page **pages);
-void amdgpu_ttm_tt_mark_user_pages(struct ttm_tt *ttm);
 int amdgpu_ttm_tt_set_userptr(struct ttm_tt *ttm, uint64_t addr,
 				     uint32_t flags);
 bool amdgpu_ttm_tt_has_userptr(struct ttm_tt *ttm);
@@ -105,8 +127,9 @@ bool amdgpu_ttm_tt_affect_userptr(struct ttm_tt *ttm, unsigned long start,
 				  unsigned long end);
 bool amdgpu_ttm_tt_userptr_invalidated(struct ttm_tt *ttm,
 				       int *last_invalidated);
-bool amdgpu_ttm_tt_userptr_needs_pages(struct ttm_tt *ttm);
+bool amdgpu_ttm_tt_is_userptr(struct ttm_tt *ttm);
 bool amdgpu_ttm_tt_is_readonly(struct ttm_tt *ttm);
+uint64_t amdgpu_ttm_tt_pde_flags(struct ttm_tt *ttm, struct ttm_mem_reg *mem);
 uint64_t amdgpu_ttm_tt_pte_flags(struct amdgpu_device *adev, struct ttm_tt *ttm,
 				 struct ttm_mem_reg *mem);
 

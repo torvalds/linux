@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Driver for Realtek PCI-Express card reader
  *
  * Copyright(c) 2009-2013 Realtek Semiconductor Corp. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2, or (at your option) any
- * later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program; if not, see <http://www.gnu.org/licenses/>.
  *
  * Author:
  *   Wei WANG <wei_wang@realsil.com.cn>
@@ -80,7 +68,7 @@ static inline void rtsx_pci_disable_aspm(struct rtsx_pcr *pcr)
 		0xFC, 0);
 }
 
-int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
+static int rtsx_comm_set_ltr_latency(struct rtsx_pcr *pcr, u32 latency)
 {
 	rtsx_pci_write_register(pcr, MSGTXDATA0,
 				MASK_8_BIT_DEF, (u8) (latency & 0xFF));
@@ -143,7 +131,7 @@ int rtsx_set_l1off_sub(struct rtsx_pcr *pcr, u8 val)
 	return 0;
 }
 
-void rtsx_set_l1off_sub_cfg_d0(struct rtsx_pcr *pcr, int active)
+static void rtsx_set_l1off_sub_cfg_d0(struct rtsx_pcr *pcr, int active)
 {
 	if (pcr->ops->set_l1off_cfg_sub_d0)
 		pcr->ops->set_l1off_cfg_sub_d0(pcr, active);
@@ -162,7 +150,7 @@ static void rtsx_comm_pm_full_on(struct rtsx_pcr *pcr)
 		rtsx_set_l1off_sub_cfg_d0(pcr, 1);
 }
 
-void rtsx_pm_full_on(struct rtsx_pcr *pcr)
+static void rtsx_pm_full_on(struct rtsx_pcr *pcr)
 {
 	if (pcr->ops->full_on)
 		pcr->ops->full_on(pcr);
@@ -444,12 +432,12 @@ static void rtsx_pci_add_sg_tbl(struct rtsx_pcr *pcr,
 {
 	u64 *ptr = (u64 *)(pcr->host_sg_tbl_ptr) + pcr->sgi;
 	u64 val;
-	u8 option = SG_VALID | SG_TRANS_DATA;
+	u8 option = RTSX_SG_VALID | RTSX_SG_TRANS_DATA;
 
 	pcr_dbg(pcr, "DMA addr: 0x%x, Len: 0x%x\n", (unsigned int)addr, len);
 
 	if (end)
-		option |= SG_END;
+		option |= RTSX_SG_END;
 	val = ((u64)addr << 32) | ((u64)len << 12) | option;
 
 	put_unaligned_le64(val, ptr);
@@ -703,7 +691,10 @@ EXPORT_SYMBOL_GPL(rtsx_pci_card_pull_ctl_disable);
 
 static void rtsx_pci_enable_bus_int(struct rtsx_pcr *pcr)
 {
-	pcr->bier = TRANS_OK_INT_EN | TRANS_FAIL_INT_EN | SD_INT_EN;
+	struct rtsx_hw_param *hw_param = &pcr->hw_param;
+
+	pcr->bier = TRANS_OK_INT_EN | TRANS_FAIL_INT_EN | SD_INT_EN
+		| hw_param->interrupt_en;
 
 	if (pcr->num_slots > 1)
 		pcr->bier |= MS_INT_EN;
@@ -967,13 +958,24 @@ static void rtsx_pci_card_detect(struct work_struct *work)
 				pcr->slots[RTSX_MS_CARD].p_dev);
 }
 
-void rtsx_pci_process_ocp(struct rtsx_pcr *pcr)
+static void rtsx_pci_process_ocp(struct rtsx_pcr *pcr)
 {
-	if (pcr->ops->process_ocp)
+	if (pcr->ops->process_ocp) {
 		pcr->ops->process_ocp(pcr);
+	} else {
+		if (!pcr->option.ocp_en)
+			return;
+		rtsx_pci_get_ocpstat(pcr, &pcr->ocp_stat);
+		if (pcr->ocp_stat & (SD_OC_NOW | SD_OC_EVER)) {
+			rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
+			rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
+			rtsx_pci_clear_ocpstat(pcr);
+			pcr->ocp_stat = 0;
+		}
+	}
 }
 
-int rtsx_pci_process_ocp_interrupt(struct rtsx_pcr *pcr)
+static int rtsx_pci_process_ocp_interrupt(struct rtsx_pcr *pcr)
 {
 	if (pcr->option.ocp_en)
 		rtsx_pci_process_ocp(pcr);
@@ -1039,7 +1041,7 @@ static irqreturn_t rtsx_pci_isr(int irq, void *dev_id)
 		}
 	}
 
-	if (pcr->card_inserted || pcr->card_removed)
+	if ((pcr->card_inserted || pcr->card_removed) && !(int_reg & SD_OC_INT))
 		schedule_delayed_work(&pcr->carddet_work,
 				msecs_to_jiffies(200));
 
@@ -1094,7 +1096,7 @@ static void rtsx_comm_pm_power_saving(struct rtsx_pcr *pcr)
 	rtsx_enable_aspm(pcr);
 }
 
-void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
+static void rtsx_pm_power_saving(struct rtsx_pcr *pcr)
 {
 	if (pcr->ops->power_saving)
 		pcr->ops->power_saving(pcr);
@@ -1144,10 +1146,12 @@ void rtsx_pci_enable_ocp(struct rtsx_pcr *pcr)
 {
 	u8 val = SD_OCP_INT_EN | SD_DETECT_EN;
 
-	if (pcr->ops->enable_ocp)
+	if (pcr->ops->enable_ocp) {
 		pcr->ops->enable_ocp(pcr);
-	else
+	} else {
+		rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN, 0);
 		rtsx_pci_write_register(pcr, REG_OCPCTL, 0xFF, val);
+	}
 
 }
 
@@ -1155,10 +1159,13 @@ void rtsx_pci_disable_ocp(struct rtsx_pcr *pcr)
 {
 	u8 mask = SD_OCP_INT_EN | SD_DETECT_EN;
 
-	if (pcr->ops->disable_ocp)
+	if (pcr->ops->disable_ocp) {
 		pcr->ops->disable_ocp(pcr);
-	else
+	} else {
 		rtsx_pci_write_register(pcr, REG_OCPCTL, mask, 0);
+		rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN,
+				OC_POWER_DOWN);
+	}
 }
 
 void rtsx_pci_init_ocp(struct rtsx_pcr *pcr)
@@ -1169,7 +1176,7 @@ void rtsx_pci_init_ocp(struct rtsx_pcr *pcr)
 		struct rtsx_cr_option *option = &(pcr->option);
 
 		if (option->ocp_en) {
-			u8 val = option->sd_400mA_ocp_thd;
+			u8 val = option->sd_800mA_ocp_thd;
 
 			rtsx_pci_write_register(pcr, FPDCTL, OC_POWER_DOWN, 0);
 			rtsx_pci_write_register(pcr, REG_OCPPARA1,
@@ -1204,6 +1211,7 @@ void rtsx_pci_clear_ocpstat(struct rtsx_pcr *pcr)
 		u8 val = SD_OCP_INT_CLR | SD_OC_CLR;
 
 		rtsx_pci_write_register(pcr, REG_OCPCTL, mask, val);
+		udelay(100);
 		rtsx_pci_write_register(pcr, REG_OCPCTL, mask, 0);
 	}
 }
@@ -1213,7 +1221,6 @@ int rtsx_sd_power_off_card3v3(struct rtsx_pcr *pcr)
 	rtsx_pci_write_register(pcr, CARD_CLK_EN, SD_CLK_EN |
 		MS_CLK_EN | SD40_CLK_EN, 0);
 	rtsx_pci_write_register(pcr, CARD_OE, SD_OUTPUT_EN, 0);
-
 	rtsx_pci_card_power_off(pcr, RTSX_SD_CARD);
 
 	msleep(50);
@@ -1312,6 +1319,9 @@ static int rtsx_pci_init_hw(struct rtsx_pcr *pcr)
 	default:
 		break;
 	}
+
+	/*init ocp*/
+	rtsx_pci_init_ocp(pcr);
 
 	/* Enable clk_request_n to enable clock power management */
 	rtsx_pci_write_config_byte(pcr, pcr->pcie_cap + PCI_EXP_LNKCTL + 1, 1);

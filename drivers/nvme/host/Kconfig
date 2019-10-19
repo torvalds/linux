@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config NVME_CORE
 	tristate
 
@@ -27,7 +28,7 @@ config NVME_FABRICS
 
 config NVME_RDMA
 	tristate "NVM Express over Fabrics RDMA host driver"
-	depends on INFINIBAND && BLOCK
+	depends on INFINIBAND && INFINIBAND_ADDR_TRANS && BLOCK
 	select NVME_CORE
 	select NVME_FABRICS
 	select SG_POOL
@@ -51,6 +52,22 @@ config NVME_FC
 	help
 	  This provides support for the NVMe over Fabrics protocol using
 	  the FC transport.  This allows you to use remote block devices
+	  exported using the NVMe protocol set.
+
+	  To configure a NVMe over Fabrics controller use the nvme-cli tool
+	  from https://github.com/linux-nvme/nvme-cli.
+
+	  If unsure, say N.
+
+config NVME_TCP
+	tristate "NVM Express over Fabrics TCP host driver"
+	depends on INET
+	depends on BLK_DEV_NVME
+	select NVME_FABRICS
+	select CRYPTO_CRC32C
+	help
+	  This provides support for the NVMe over Fabrics protocol using
+	  the TCP transport.  This allows you to use remote block devices
 	  exported using the NVMe protocol set.
 
 	  To configure a NVMe over Fabrics controller use the nvme-cli tool

@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _CXL_H_
@@ -93,11 +89,6 @@ static const cxl_p1_reg_t CXL_PSL_FIR_CNTL  = {0x0148};
 static const cxl_p1_reg_t CXL_PSL_DSNDCTL   = {0x0150};
 static const cxl_p1_reg_t CXL_PSL_SNWRALLOC = {0x0158};
 static const cxl_p1_reg_t CXL_PSL_TRACE     = {0x0170};
-/* XSL registers (Mellanox CX4) */
-static const cxl_p1_reg_t CXL_XSL_Timebase  = {0x0100};
-static const cxl_p1_reg_t CXL_XSL_TB_CTLSTAT = {0x0108};
-static const cxl_p1_reg_t CXL_XSL_FEC       = {0x0158};
-static const cxl_p1_reg_t CXL_XSL_DSNCTL    = {0x0168};
 /* PSL registers - CAIA 2 */
 static const cxl_p1_reg_t CXL_PSL9_CONTROL  = {0x0020};
 static const cxl_p1_reg_t CXL_XSL9_INV      = {0x0110};
@@ -369,6 +360,9 @@ static const cxl_p2n_reg_t CXL_PSL_WED_An     = {0x0A0};
 #define CXL_PSL_TFC_An_AE (1ull << (63-30)) /* Restart PSL with address error */
 #define CXL_PSL_TFC_An_R  (1ull << (63-31)) /* Restart PSL transaction */
 
+/****** CXL_PSL_DEBUG *****************************************************/
+#define CXL_PSL_DEBUG_CDC  (1ull << (63-27)) /* Coherent Data cache support */
+
 /****** CXL_XSL9_IERAT_ERAT - CAIA 2 **********************************/
 #define CXL_XSL9_IERAT_MLPID    (1ull << (63-0))  /* Match LPID */
 #define CXL_XSL9_IERAT_MPID     (1ull << (63-1))  /* Match PID */
@@ -610,7 +604,6 @@ struct cxl_context {
 	bool pe_inserted;
 	bool master;
 	bool kernel;
-	bool real_mode;
 	bool pending_irq;
 	bool pending_fault;
 	bool pending_afu_err;
@@ -620,14 +613,6 @@ struct cxl_context {
 	atomic_t afu_driver_events;
 
 	struct rcu_head rcu;
-
-	/*
-	 * Only used when more interrupts are allocated via
-	 * pci_enable_msix_range than are supported in the default context, to
-	 * use additional contexts to overcome the limitation. i.e. Mellanox
-	 * CX4 only:
-	 */
-	struct list_head extra_irq_contexts;
 
 	struct mm_struct *mm;
 
@@ -669,6 +654,7 @@ struct cxl_native {
 	irq_hw_number_t err_hwirq;
 	unsigned int err_virq;
 	u64 ps_off;
+	bool no_data_cache; /* set if no data cache on the card */
 	const struct cxl_service_layer_ops *sl_ops;
 };
 
@@ -700,7 +686,6 @@ struct cxl {
 	struct bin_attribute cxl_attr;
 	int adapter_num;
 	int user_irqs;
-	int min_pe;
 	u64 ps_size;
 	u16 psl_rev;
 	u16 base_image;
@@ -713,6 +698,7 @@ struct cxl {
 	bool perst_select_user;
 	bool perst_same_image;
 	bool psl_timebase_synced;
+	bool tunneled_ops_supported;
 
 	/*
 	 * number of contexts mapped on to this card. Possible values are:
@@ -860,32 +846,12 @@ static inline bool cxl_is_power9(void)
 	return false;
 }
 
-static inline bool cxl_is_power9_dd1(void)
-{
-	if ((pvr_version_is(PVR_POWER9)) &&
-	    cpu_has_feature(CPU_FTR_POWER9_DD1))
-		return true;
-	return false;
-}
-
 ssize_t cxl_pci_afu_read_err_buffer(struct cxl_afu *afu, char *buf,
 				loff_t off, size_t count);
 
-/* Internal functions wrapped in cxl_base to allow PHB to call them */
-bool _cxl_pci_associate_default_context(struct pci_dev *dev, struct cxl_afu *afu);
-void _cxl_pci_disable_device(struct pci_dev *dev);
-int _cxl_next_msi_hwirq(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq);
-int _cxl_cx4_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type);
-void _cxl_cx4_teardown_msi_irqs(struct pci_dev *pdev);
 
 struct cxl_calls {
 	void (*cxl_slbia)(struct mm_struct *mm);
-	bool (*cxl_pci_associate_default_context)(struct pci_dev *dev, struct cxl_afu *afu);
-	void (*cxl_pci_disable_device)(struct pci_dev *dev);
-	int (*cxl_next_msi_hwirq)(struct pci_dev *pdev, struct cxl_context **ctx, int *afu_irq);
-	int (*cxl_cx4_setup_msi_irqs)(struct pci_dev *pdev, int nvec, int type);
-	void (*cxl_cx4_teardown_msi_irqs)(struct pci_dev *pdev);
-
 	struct module *owner;
 };
 int register_cxl_calls(struct cxl_calls *calls);
@@ -942,41 +908,37 @@ void cxl_update_dedicated_ivtes_psl8(struct cxl_context *ctx);
 
 #ifdef CONFIG_DEBUG_FS
 
-int cxl_debugfs_init(void);
+void cxl_debugfs_init(void);
 void cxl_debugfs_exit(void);
-int cxl_debugfs_adapter_add(struct cxl *adapter);
+void cxl_debugfs_adapter_add(struct cxl *adapter);
 void cxl_debugfs_adapter_remove(struct cxl *adapter);
-int cxl_debugfs_afu_add(struct cxl_afu *afu);
+void cxl_debugfs_afu_add(struct cxl_afu *afu);
 void cxl_debugfs_afu_remove(struct cxl_afu *afu);
 void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter, struct dentry *dir);
 void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter, struct dentry *dir);
-void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter, struct dentry *dir);
 void cxl_debugfs_add_afu_regs_psl9(struct cxl_afu *afu, struct dentry *dir);
 void cxl_debugfs_add_afu_regs_psl8(struct cxl_afu *afu, struct dentry *dir);
 
 #else /* CONFIG_DEBUG_FS */
 
-static inline int __init cxl_debugfs_init(void)
+static inline void __init cxl_debugfs_init(void)
 {
-	return 0;
 }
 
 static inline void cxl_debugfs_exit(void)
 {
 }
 
-static inline int cxl_debugfs_adapter_add(struct cxl *adapter)
+static inline void cxl_debugfs_adapter_add(struct cxl *adapter)
 {
-	return 0;
 }
 
 static inline void cxl_debugfs_adapter_remove(struct cxl *adapter)
 {
 }
 
-static inline int cxl_debugfs_afu_add(struct cxl_afu *afu)
+static inline void cxl_debugfs_afu_add(struct cxl_afu *afu)
 {
-	return 0;
 }
 
 static inline void cxl_debugfs_afu_remove(struct cxl_afu *afu)
@@ -989,11 +951,6 @@ static inline void cxl_debugfs_add_adapter_regs_psl9(struct cxl *adapter,
 }
 
 static inline void cxl_debugfs_add_adapter_regs_psl8(struct cxl *adapter,
-						    struct dentry *dir)
-{
-}
-
-static inline void cxl_debugfs_add_adapter_regs_xsl(struct cxl *adapter,
 						    struct dentry *dir)
 {
 }
@@ -1065,7 +1022,7 @@ int cxl_psl_purge(struct cxl_afu *afu);
 int cxl_calc_capp_routing(struct pci_dev *dev, u64 *chipid,
 			  u32 *phb_index, u64 *capp_unit_id);
 int cxl_slot_is_switched(struct pci_dev *dev);
-int cxl_get_xsl9_dsnctl(u64 capp_unit_id, u64 *reg);
+int cxl_get_xsl9_dsnctl(struct pci_dev *dev, u64 capp_unit_id, u64 *reg);
 u64 cxl_calculate_sr(bool master, bool kernel, bool real_mode, bool p9);
 
 void cxl_native_irq_dump_regs_psl9(struct cxl_context *ctx);

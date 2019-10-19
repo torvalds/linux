@@ -1,18 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * lib80211 crypt: host-based TKIP encryption implementation for lib80211
  *
  * Copyright (c) 2003-2004, Jouni Malinen <j@w1.fi>
  * Copyright (c) 2008, John W. Linville <linville@tuxdriver.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/err.h>
+#include <linux/fips.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -29,8 +26,9 @@
 #include <linux/ieee80211.h>
 #include <net/iw_handler.h>
 
+#include <crypto/arc4.h>
 #include <crypto/hash.h>
-#include <crypto/skcipher.h>
+#include <linux/crypto.h>
 #include <linux/crc32.h>
 
 #include <net/lib80211.h>
@@ -64,10 +62,10 @@ struct lib80211_tkip_data {
 
 	int key_idx;
 
-	struct crypto_skcipher *rx_tfm_arc4;
-	struct crypto_ahash *rx_tfm_michael;
-	struct crypto_skcipher *tx_tfm_arc4;
-	struct crypto_ahash *tx_tfm_michael;
+	struct arc4_ctx rx_ctx_arc4;
+	struct arc4_ctx tx_ctx_arc4;
+	struct crypto_shash *rx_tfm_michael;
+	struct crypto_shash *tx_tfm_michael;
 
 	/* scratch buffers for virt_to_page() (crypto API) */
 	u8 rx_hdr[16], tx_hdr[16];
@@ -93,35 +91,22 @@ static void *lib80211_tkip_init(int key_idx)
 {
 	struct lib80211_tkip_data *priv;
 
+	if (fips_enabled)
+		return NULL;
+
 	priv = kzalloc(sizeof(*priv), GFP_ATOMIC);
 	if (priv == NULL)
 		goto fail;
 
 	priv->key_idx = key_idx;
 
-	priv->tx_tfm_arc4 = crypto_alloc_skcipher("ecb(arc4)", 0,
-						  CRYPTO_ALG_ASYNC);
-	if (IS_ERR(priv->tx_tfm_arc4)) {
-		priv->tx_tfm_arc4 = NULL;
-		goto fail;
-	}
-
-	priv->tx_tfm_michael = crypto_alloc_ahash("michael_mic", 0,
-						  CRYPTO_ALG_ASYNC);
+	priv->tx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->tx_tfm_michael)) {
 		priv->tx_tfm_michael = NULL;
 		goto fail;
 	}
 
-	priv->rx_tfm_arc4 = crypto_alloc_skcipher("ecb(arc4)", 0,
-						  CRYPTO_ALG_ASYNC);
-	if (IS_ERR(priv->rx_tfm_arc4)) {
-		priv->rx_tfm_arc4 = NULL;
-		goto fail;
-	}
-
-	priv->rx_tfm_michael = crypto_alloc_ahash("michael_mic", 0,
-						  CRYPTO_ALG_ASYNC);
+	priv->rx_tfm_michael = crypto_alloc_shash("michael_mic", 0, 0);
 	if (IS_ERR(priv->rx_tfm_michael)) {
 		priv->rx_tfm_michael = NULL;
 		goto fail;
@@ -131,10 +116,8 @@ static void *lib80211_tkip_init(int key_idx)
 
       fail:
 	if (priv) {
-		crypto_free_ahash(priv->tx_tfm_michael);
-		crypto_free_skcipher(priv->tx_tfm_arc4);
-		crypto_free_ahash(priv->rx_tfm_michael);
-		crypto_free_skcipher(priv->rx_tfm_arc4);
+		crypto_free_shash(priv->tx_tfm_michael);
+		crypto_free_shash(priv->rx_tfm_michael);
 		kfree(priv);
 	}
 
@@ -145,12 +128,10 @@ static void lib80211_tkip_deinit(void *priv)
 {
 	struct lib80211_tkip_data *_priv = priv;
 	if (_priv) {
-		crypto_free_ahash(_priv->tx_tfm_michael);
-		crypto_free_skcipher(_priv->tx_tfm_arc4);
-		crypto_free_ahash(_priv->rx_tfm_michael);
-		crypto_free_skcipher(_priv->rx_tfm_arc4);
+		crypto_free_shash(_priv->tx_tfm_michael);
+		crypto_free_shash(_priv->rx_tfm_michael);
 	}
-	kfree(priv);
+	kzfree(priv);
 }
 
 static inline u16 RotR1(u16 val)
@@ -346,12 +327,9 @@ static int lib80211_tkip_hdr(struct sk_buff *skb, int hdr_len,
 static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct lib80211_tkip_data *tkey = priv;
-	SKCIPHER_REQUEST_ON_STACK(req, tkey->tx_tfm_arc4);
 	int len;
 	u8 rc4key[16], *pos, *icv;
 	u32 crc;
-	struct scatterlist sg;
-	int err;
 
 	if (tkey->flags & IEEE80211_CRYPTO_TKIP_COUNTERMEASURES) {
 		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -376,14 +354,10 @@ static int lib80211_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	icv[2] = crc >> 16;
 	icv[3] = crc >> 24;
 
-	crypto_skcipher_setkey(tkey->tx_tfm_arc4, rc4key, 16);
-	sg_init_one(&sg, pos, len + 4);
-	skcipher_request_set_tfm(req, tkey->tx_tfm_arc4);
-	skcipher_request_set_callback(req, 0, NULL, NULL);
-	skcipher_request_set_crypt(req, &sg, &sg, len + 4, NULL);
-	err = crypto_skcipher_encrypt(req);
-	skcipher_request_zero(req);
-	return err;
+	arc4_setkey(&tkey->tx_ctx_arc4, rc4key, 16);
+	arc4_crypt(&tkey->tx_ctx_arc4, pos, pos, len + 4);
+
+	return 0;
 }
 
 /*
@@ -402,7 +376,6 @@ static inline int tkip_replay_check(u32 iv32_n, u16 iv16_n,
 static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 {
 	struct lib80211_tkip_data *tkey = priv;
-	SKCIPHER_REQUEST_ON_STACK(req, tkey->rx_tfm_arc4);
 	u8 rc4key[16];
 	u8 keyidx, *pos;
 	u32 iv32;
@@ -410,9 +383,7 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	struct ieee80211_hdr *hdr;
 	u8 icv[4];
 	u32 crc;
-	struct scatterlist sg;
 	int plen;
-	int err;
 
 	hdr = (struct ieee80211_hdr *)skb->data;
 
@@ -465,18 +436,8 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 
 	plen = skb->len - hdr_len - 12;
 
-	crypto_skcipher_setkey(tkey->rx_tfm_arc4, rc4key, 16);
-	sg_init_one(&sg, pos, plen + 4);
-	skcipher_request_set_tfm(req, tkey->rx_tfm_arc4);
-	skcipher_request_set_callback(req, 0, NULL, NULL);
-	skcipher_request_set_crypt(req, &sg, &sg, plen + 4, NULL);
-	err = crypto_skcipher_decrypt(req);
-	skcipher_request_zero(req);
-	if (err) {
-		net_dbg_ratelimited("TKIP: failed to decrypt received packet from %pM\n",
-				    hdr->addr2);
-		return -7;
-	}
+	arc4_setkey(&tkey->rx_ctx_arc4, rc4key, 16);
+	arc4_crypt(&tkey->rx_ctx_arc4, pos, pos, plen + 4);
 
 	crc = ~crc32_le(~0, pos, plen);
 	icv[0] = crc;
@@ -510,29 +471,35 @@ static int lib80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	return keyidx;
 }
 
-static int michael_mic(struct crypto_ahash *tfm_michael, u8 * key, u8 * hdr,
-		       u8 * data, size_t data_len, u8 * mic)
+static int michael_mic(struct crypto_shash *tfm_michael, u8 *key, u8 *hdr,
+		       u8 *data, size_t data_len, u8 *mic)
 {
-	AHASH_REQUEST_ON_STACK(req, tfm_michael);
-	struct scatterlist sg[2];
+	SHASH_DESC_ON_STACK(desc, tfm_michael);
 	int err;
 
 	if (tfm_michael == NULL) {
 		pr_warn("%s(): tfm_michael == NULL\n", __func__);
 		return -1;
 	}
-	sg_init_table(sg, 2);
-	sg_set_buf(&sg[0], hdr, 16);
-	sg_set_buf(&sg[1], data, data_len);
 
-	if (crypto_ahash_setkey(tfm_michael, key, 8))
+	desc->tfm = tfm_michael;
+
+	if (crypto_shash_setkey(tfm_michael, key, 8))
 		return -1;
 
-	ahash_request_set_tfm(req, tfm_michael);
-	ahash_request_set_callback(req, 0, NULL, NULL);
-	ahash_request_set_crypt(req, sg, mic, data_len + 16);
-	err = crypto_ahash_digest(req);
-	ahash_request_zero(req);
+	err = crypto_shash_init(desc);
+	if (err)
+		goto out;
+	err = crypto_shash_update(desc, hdr, 16);
+	if (err)
+		goto out;
+	err = crypto_shash_update(desc, data, data_len);
+	if (err)
+		goto out;
+	err = crypto_shash_final(desc, mic);
+
+out:
+	shash_desc_zero(desc);
 	return err;
 }
 
@@ -654,18 +621,18 @@ static int lib80211_tkip_set_key(void *key, int len, u8 * seq, void *priv)
 {
 	struct lib80211_tkip_data *tkey = priv;
 	int keyidx;
-	struct crypto_ahash *tfm = tkey->tx_tfm_michael;
-	struct crypto_skcipher *tfm2 = tkey->tx_tfm_arc4;
-	struct crypto_ahash *tfm3 = tkey->rx_tfm_michael;
-	struct crypto_skcipher *tfm4 = tkey->rx_tfm_arc4;
+	struct crypto_shash *tfm = tkey->tx_tfm_michael;
+	struct arc4_ctx *tfm2 = &tkey->tx_ctx_arc4;
+	struct crypto_shash *tfm3 = tkey->rx_tfm_michael;
+	struct arc4_ctx *tfm4 = &tkey->rx_ctx_arc4;
 
 	keyidx = tkey->key_idx;
 	memset(tkey, 0, sizeof(*tkey));
 	tkey->key_idx = keyidx;
 	tkey->tx_tfm_michael = tfm;
-	tkey->tx_tfm_arc4 = tfm2;
+	tkey->tx_ctx_arc4 = *tfm2;
 	tkey->rx_tfm_michael = tfm3;
-	tkey->rx_tfm_arc4 = tfm4;
+	tkey->rx_ctx_arc4 = *tfm4;
 	if (len == TKIP_KEY_LEN) {
 		memcpy(tkey->key, key, TKIP_KEY_LEN);
 		tkey->key_set = 1;

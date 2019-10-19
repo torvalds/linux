@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # RCU-related configuration options
 #
@@ -6,7 +7,7 @@ menu "RCU Subsystem"
 
 config TREE_RCU
 	bool
-	default y if !PREEMPT && SMP
+	default y if !PREEMPTION && SMP
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or
@@ -15,7 +16,7 @@ config TREE_RCU
 
 config PREEMPT_RCU
 	bool
-	default y if PREEMPT
+	default y if PREEMPTION
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP systems with hundreds or
@@ -27,7 +28,7 @@ config PREEMPT_RCU
 
 config TINY_RCU
 	bool
-	default y if !PREEMPT && !SMP
+	default y if !PREEMPTION && !SMP
 	help
 	  This option selects the RCU implementation that is
 	  designed for UP systems from which real-time response
@@ -69,7 +70,7 @@ config TREE_SRCU
 	  This option selects the full-fledged version of SRCU.
 
 config TASKS_RCU
-	def_bool PREEMPT
+	def_bool PREEMPTION
 	select SRCU
 	help
 	  This option enables a task-based RCU implementation that uses
@@ -86,36 +87,6 @@ config RCU_STALL_COMMON
 
 config RCU_NEED_SEGCBLIST
 	def_bool ( TREE_RCU || PREEMPT_RCU || TREE_SRCU )
-
-config CONTEXT_TRACKING
-       bool
-
-config CONTEXT_TRACKING_FORCE
-	bool "Force context tracking"
-	depends on CONTEXT_TRACKING
-	default y if !NO_HZ_FULL
-	help
-	  The major pre-requirement for full dynticks to work is to
-	  support the context tracking subsystem. But there are also
-	  other dependencies to provide in order to make the full
-	  dynticks working.
-
-	  This option stands for testing when an arch implements the
-	  context tracking backend but doesn't yet fullfill all the
-	  requirements to make the full dynticks feature working.
-	  Without the full dynticks, there is no way to test the support
-	  for context tracking and the subsystems that rely on it: RCU
-	  userspace extended quiescent state and tickless cputime
-	  accounting. This option copes with the absence of the full
-	  dynticks subsystem by forcing the context tracking on all
-	  CPUs in the system.
-
-	  Say Y only if you're working on the development of an
-	  architecture backend for the context tracking.
-
-	  Say N otherwise, this option brings an overhead that you
-	  don't want in production.
-
 
 config RCU_FANOUT
 	int "Tree-based hierarchical RCU fanout value"
@@ -196,7 +167,7 @@ config RCU_BOOST
 	  This option boosts the priority of preempted RCU readers that
 	  block the current preemptible RCU grace period for too long.
 	  This option also prevents heavy loads from blocking RCU
-	  callback invocation for all flavors of RCU.
+	  callback invocation.
 
 	  Say Y here if you are working with real-time apps or heavy loads
 	  Say N here if you are unsure.
@@ -225,12 +196,12 @@ config RCU_NOCB_CPU
 	  callback invocation to energy-efficient CPUs in battery-powered
 	  asymmetric multiprocessors.
 
-	  This option offloads callback invocation from the set of
-	  CPUs specified at boot time by the rcu_nocbs parameter.
-	  For each such CPU, a kthread ("rcuox/N") will be created to
-	  invoke callbacks, where the "N" is the CPU being offloaded,
-	  and where the "x" is "b" for RCU-bh, "p" for RCU-preempt, and
-	  "s" for RCU-sched.  Nothing prevents this kthread from running
+	  This option offloads callback invocation from the set of CPUs
+	  specified at boot time by the rcu_nocbs parameter.  For each
+	  such CPU, a kthread ("rcuox/N") will be created to invoke
+	  callbacks, where the "N" is the CPU being offloaded, and where
+	  the "p" for RCU-preempt (PREEMPT kernels) and "s" for RCU-sched
+	  (!PREEMPT kernels).  Nothing prevents this kthread from running
 	  on the specified CPUs, but (1) the kthreads may be preempted
 	  between each callback, and (2) affinity or cgroups can be used
 	  to force the kthreads to run on whatever set of CPUs is desired.

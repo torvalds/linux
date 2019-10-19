@@ -1,27 +1,23 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 Avionic Design GmbH
  * Copyright (C) 2012-2013 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef HOST1X_DRM_H
 #define HOST1X_DRM_H 1
 
-#include <uapi/drm/tegra_drm.h>
 #include <linux/host1x.h>
 #include <linux/iova.h>
 #include <linux/of_gpio.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fixed.h>
+#include <drm/drm_probe_helper.h>
+#include <uapi/drm/tegra_drm.h>
 
 #include "gem.h"
 #include "hub.h"
@@ -29,32 +25,12 @@
 
 struct reset_control;
 
-struct tegra_fb {
-	struct drm_framebuffer base;
-	struct tegra_bo **planes;
-	unsigned int num_planes;
-};
-
 #ifdef CONFIG_DRM_FBDEV_EMULATION
 struct tegra_fbdev {
 	struct drm_fb_helper base;
-	struct tegra_fb *fb;
+	struct drm_framebuffer *fb;
 };
 #endif
-
-struct tegra_atomic_state {
-	struct drm_atomic_state base;
-
-	struct clk *clk_disp;
-	struct tegra_dc *dc;
-	unsigned long rate;
-};
-
-static inline struct tegra_atomic_state *
-to_tegra_atomic_state(struct drm_atomic_state *state)
-{
-	return container_of(state, struct tegra_atomic_state, base);
-}
 
 struct tegra_drm {
 	struct drm_device *drm;
@@ -80,8 +56,6 @@ struct tegra_drm {
 	unsigned int pitch_align;
 
 	struct tegra_display_hub *hub;
-
-	struct drm_atomic_state *state;
 };
 
 struct tegra_drm_client;
@@ -110,7 +84,9 @@ int tegra_drm_submit(struct tegra_drm_context *context,
 struct tegra_drm_client {
 	struct host1x_client base;
 	struct list_head list;
+	struct tegra_drm *drm;
 
+	unsigned int version;
 	const struct tegra_drm_client_ops *ops;
 };
 
@@ -124,6 +100,10 @@ int tegra_drm_register_client(struct tegra_drm *tegra,
 			      struct tegra_drm_client *client);
 int tegra_drm_unregister_client(struct tegra_drm *tegra,
 				struct tegra_drm_client *client);
+struct iommu_group *host1x_client_iommu_attach(struct host1x_client *client,
+					       bool shared);
+void host1x_client_iommu_detach(struct host1x_client *client,
+				struct iommu_group *group);
 
 int tegra_drm_init(struct tegra_drm *tegra, struct drm_device *drm);
 int tegra_drm_exit(struct tegra_drm *tegra);
@@ -141,10 +121,9 @@ struct tegra_output {
 	struct drm_panel *panel;
 	struct i2c_adapter *ddc;
 	const struct edid *edid;
-	struct cec_notifier *notifier;
+	struct cec_notifier *cec;
 	unsigned int hpd_irq;
-	int hpd_gpio;
-	enum of_gpio_flags hpd_gpio_flags;
+	struct gpio_desc *hpd_gpio;
 
 	struct drm_encoder encoder;
 	struct drm_connector connector;
@@ -201,8 +180,6 @@ int tegra_drm_fb_prepare(struct drm_device *drm);
 void tegra_drm_fb_free(struct drm_device *drm);
 int tegra_drm_fb_init(struct drm_device *drm);
 void tegra_drm_fb_exit(struct drm_device *drm);
-void tegra_drm_fb_suspend(struct drm_device *drm);
-void tegra_drm_fb_resume(struct drm_device *drm);
 
 extern struct platform_driver tegra_display_hub_driver;
 extern struct platform_driver tegra_dc_driver;

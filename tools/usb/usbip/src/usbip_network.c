@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 matt mooney <mfm@muteddisk.com>
  *               2005-2007 Takahiro Hirofuchi
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <sys/socket.h>
@@ -163,7 +151,7 @@ int usbip_net_send_op_common(int sockfd, uint32_t code, uint32_t status)
 	return 0;
 }
 
-int usbip_net_recv_op_common(int sockfd, uint16_t *code)
+int usbip_net_recv_op_common(int sockfd, uint16_t *code, int *status)
 {
 	struct op_common op_common;
 	int rc;
@@ -179,8 +167,8 @@ int usbip_net_recv_op_common(int sockfd, uint16_t *code)
 	PACK_OP_COMMON(0, &op_common);
 
 	if (op_common.version != USBIP_VERSION) {
-		dbg("version mismatch: %d %d", op_common.version,
-		    USBIP_VERSION);
+		err("USBIP Kernel and tool version mismatch: %d %d:",
+		    op_common.version, USBIP_VERSION);
 		goto err;
 	}
 
@@ -191,9 +179,13 @@ int usbip_net_recv_op_common(int sockfd, uint16_t *code)
 		if (op_common.code != *code) {
 			dbg("unexpected pdu %#0x for %#0x", op_common.code,
 			    *code);
+			/* return error status */
+			*status = ST_ERROR;
 			goto err;
 		}
 	}
+
+	*status = op_common.status;
 
 	if (op_common.status != ST_OK) {
 		dbg("request failed at peer: %d", op_common.status);

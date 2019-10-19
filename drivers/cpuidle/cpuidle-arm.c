@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ARM/ARM64 generic CPU idle driver.
  *
  * Copyright (C) 2014 ARM Ltd.
  * Author: Lorenzo Pieralisi <lorenzo.pieralisi@arm.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #define pr_fmt(fmt) "CPUidle arm: " fmt
@@ -18,7 +15,6 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/slab.h>
-#include <linux/topology.h>
 
 #include <asm/cpuidle.h>
 
@@ -82,7 +78,6 @@ static int __init arm_idle_init_cpu(int cpu)
 {
 	int ret;
 	struct cpuidle_driver *drv;
-	struct cpuidle_device *dev;
 
 	drv = kmemdup(&arm_idle_driver, sizeof(*drv), GFP_KERNEL);
 	if (!drv)
@@ -103,12 +98,6 @@ static int __init arm_idle_init_cpu(int cpu)
 		goto out_kfree_drv;
 	}
 
-	ret = cpuidle_register_driver(drv);
-	if (ret) {
-		pr_err("Failed to register cpuidle driver\n");
-		goto out_kfree_drv;
-	}
-
 	/*
 	 * Call arch CPU operations in order to initialize
 	 * idle states suspend back-end specific data
@@ -116,38 +105,27 @@ static int __init arm_idle_init_cpu(int cpu)
 	ret = arm_cpuidle_init(cpu);
 
 	/*
-	 * Skip the cpuidle device initialization if the reported
-	 * failure is a HW misconfiguration/breakage (-ENXIO).
+	 * Allow the initialization to continue for other CPUs, if the
+	 * reported failure is a HW misconfiguration/breakage (-ENXIO).
+	 *
+	 * Some platforms do not support idle operations
+	 * (arm_cpuidle_init() returning -EOPNOTSUPP), we should
+	 * not flag this case as an error, it is a valid
+	 * configuration.
 	 */
-	if (ret == -ENXIO)
-		return 0;
-
 	if (ret) {
-		pr_err("CPU %d failed to init idle CPU ops\n", cpu);
-		goto out_unregister_drv;
+		if (ret != -EOPNOTSUPP)
+			pr_err("CPU %d failed to init idle CPU ops\n", cpu);
+		ret = ret == -ENXIO ? 0 : ret;
+		goto out_kfree_drv;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (!dev) {
-		pr_err("Failed to allocate cpuidle device\n");
-		ret = -ENOMEM;
-		goto out_unregister_drv;
-	}
-	dev->cpu = cpu;
-
-	ret = cpuidle_register_device(dev);
-	if (ret) {
-		pr_err("Failed to register cpuidle device for CPU %d\n",
-		       cpu);
-		goto out_kfree_dev;
-	}
+	ret = cpuidle_register(drv, NULL);
+	if (ret)
+		goto out_kfree_drv;
 
 	return 0;
 
-out_kfree_dev:
-	kfree(dev);
-out_unregister_drv:
-	cpuidle_unregister_driver(drv);
 out_kfree_drv:
 	kfree(drv);
 	return ret;
@@ -178,9 +156,7 @@ out_fail:
 	while (--cpu >= 0) {
 		dev = per_cpu(cpuidle_devices, cpu);
 		drv = cpuidle_get_cpu_driver(dev);
-		cpuidle_unregister_device(dev);
-		cpuidle_unregister_driver(drv);
-		kfree(dev);
+		cpuidle_unregister(drv);
 		kfree(drv);
 	}
 

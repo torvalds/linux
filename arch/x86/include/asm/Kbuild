@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 
 
 generated-y += syscalls_32.h
@@ -8,5 +9,7 @@ generated-y += xen-hypercalls.h
 
 generic-y += dma-contiguous.h
 generic-y += early_ioremap.h
+generic-y += export.h
 generic-y += mcs_spinlock.h
 generic-y += mm-arch-hooks.h
+generic-y += mmiowb.h

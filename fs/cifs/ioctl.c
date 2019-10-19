@@ -32,7 +32,50 @@
 #include "cifs_debug.h"
 #include "cifsfs.h"
 #include "cifs_ioctl.h"
+#include "smb2proto.h"
 #include <linux/btrfs.h>
+
+static long cifs_ioctl_query_info(unsigned int xid, struct file *filep,
+				  unsigned long p)
+{
+	struct inode *inode = file_inode(filep);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifs_tcon *tcon = cifs_sb_master_tcon(cifs_sb);
+	struct dentry *dentry = filep->f_path.dentry;
+	unsigned char *path;
+	__le16 *utf16_path = NULL, root_path;
+	int rc = 0;
+
+	path = build_path_from_dentry(dentry);
+	if (path == NULL)
+		return -ENOMEM;
+
+	cifs_dbg(FYI, "%s %s\n", __func__, path);
+
+	if (!path[0]) {
+		root_path = 0;
+		utf16_path = &root_path;
+	} else {
+		utf16_path = cifs_convert_path_to_utf16(path + 1, cifs_sb);
+		if (!utf16_path) {
+			rc = -ENOMEM;
+			goto ici_exit;
+		}
+	}
+
+	if (tcon->ses->server->ops->ioctl_query_info)
+		rc = tcon->ses->server->ops->ioctl_query_info(
+				xid, tcon, utf16_path,
+				filep->private_data ? 0 : 1, p);
+	else
+		rc = -EOPNOTSUPP;
+
+ ici_exit:
+	if (utf16_path != &root_path)
+		kfree(utf16_path);
+	kfree(path);
+	return rc;
+}
 
 static long cifs_ioctl_copychunk(unsigned int xid, struct file *dst_file,
 			unsigned long srcfd)
@@ -121,9 +164,9 @@ static long smb_mnt_get_fsinfo(unsigned int xid, struct cifs_tcon *tcon,
 long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 {
 	struct inode *inode = file_inode(filep);
+	struct smb3_key_debug_info pkey_inf;
 	int rc = -ENOTTY; /* strange error - but the precedent */
 	unsigned int xid;
-	struct cifs_sb_info *cifs_sb;
 	struct cifsFileInfo *pSMBFile = filep->private_data;
 	struct cifs_tcon *tcon;
 	__u64	ExtAttrBits = 0;
@@ -131,7 +174,6 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 
 	xid = get_xid();
 
-	cifs_sb = CIFS_SB(inode->i_sb);
 	cifs_dbg(FYI, "cifs ioctl 0x%x\n", command);
 	switch (command) {
 		case FS_IOC_GETFLAGS:
@@ -196,6 +238,9 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 		case CIFS_IOC_COPYCHUNK_FILE:
 			rc = cifs_ioctl_copychunk(xid, filep, arg);
 			break;
+		case CIFS_QUERY_INFO:
+			rc = cifs_ioctl_query_info(xid, filep, arg);
+			break;
 		case CIFS_IOC_SET_INTEGRITY:
 			if (pSMBFile == NULL)
 				break;
@@ -225,6 +270,34 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 						pSMBFile, (void __user *)arg);
 			else
 				rc = -EOPNOTSUPP;
+			break;
+		case CIFS_DUMP_KEY:
+			if (pSMBFile == NULL)
+				break;
+			if (!capable(CAP_SYS_ADMIN)) {
+				rc = -EACCES;
+				break;
+			}
+
+			tcon = tlink_tcon(pSMBFile->tlink);
+			if (!smb3_encryption_required(tcon)) {
+				rc = -EOPNOTSUPP;
+				break;
+			}
+			pkey_inf.cipher_type =
+				le16_to_cpu(tcon->ses->server->cipher_type);
+			pkey_inf.Suid = tcon->ses->Suid;
+			memcpy(pkey_inf.auth_key, tcon->ses->auth_key.response,
+					16 /* SMB2_NTLMV2_SESSKEY_SIZE */);
+			memcpy(pkey_inf.smb3decryptionkey,
+			      tcon->ses->smb3decryptionkey, SMB3_SIGN_KEY_SIZE);
+			memcpy(pkey_inf.smb3encryptionkey,
+			      tcon->ses->smb3encryptionkey, SMB3_SIGN_KEY_SIZE);
+			if (copy_to_user((void __user *)arg, &pkey_inf,
+					sizeof(struct smb3_key_debug_info)))
+				rc = -EFAULT;
+			else
+				rc = 0;
 			break;
 		default:
 			cifs_dbg(FYI, "unsupported ioctl\n");

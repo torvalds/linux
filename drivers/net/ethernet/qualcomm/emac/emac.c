@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 /* Qualcomm Technologies, Inc. EMAC Gigabit Ethernet Driver */
@@ -253,7 +245,7 @@ static int emac_open(struct net_device *netdev)
 		return ret;
 	}
 
-	ret = adpt->phy.open(adpt);
+	ret = emac_sgmii_open(adpt);
 	if (ret) {
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
@@ -264,7 +256,7 @@ static int emac_open(struct net_device *netdev)
 	if (ret) {
 		emac_mac_rx_tx_rings_free_all(adpt);
 		free_irq(irq->irq, irq);
-		adpt->phy.close(adpt);
+		emac_sgmii_close(adpt);
 		return ret;
 	}
 
@@ -278,7 +270,7 @@ static int emac_close(struct net_device *netdev)
 
 	mutex_lock(&adpt->reset_lock);
 
-	adpt->phy.close(adpt);
+	emac_sgmii_close(adpt);
 	emac_mac_down(adpt);
 	emac_mac_rx_tx_rings_free_all(adpt);
 
@@ -552,7 +544,6 @@ static int emac_probe_resources(struct platform_device *pdev,
 				struct emac_adapter *adpt)
 {
 	struct net_device *netdev = adpt->netdev;
-	struct resource *res;
 	char maddr[ETH_ALEN];
 	int ret = 0;
 
@@ -564,22 +555,17 @@ static int emac_probe_resources(struct platform_device *pdev,
 
 	/* Core 0 interrupt */
 	ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev,
-			"error: missing core0 irq resource (error=%i)\n", ret);
+	if (ret < 0)
 		return ret;
-	}
 	adpt->irq.irq = ret;
 
 	/* base register address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	adpt->base = devm_ioremap_resource(&pdev->dev, res);
+	adpt->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(adpt->base))
 		return PTR_ERR(adpt->base);
 
 	/* CSR register address */
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	adpt->csr = devm_ioremap_resource(&pdev->dev, res);
+	adpt->csr = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(adpt->csr))
 		return PTR_ERR(adpt->csr);
 
@@ -761,11 +747,10 @@ static void emac_shutdown(struct platform_device *pdev)
 {
 	struct net_device *netdev = dev_get_drvdata(&pdev->dev);
 	struct emac_adapter *adpt = netdev_priv(netdev);
-	struct emac_sgmii *sgmii = &adpt->phy;
 
 	if (netdev->flags & IFF_UP) {
 		/* Closing the SGMII turns off its interrupts */
-		sgmii->close(adpt);
+		emac_sgmii_close(adpt);
 
 		/* Resetting the MAC turns off all DMA and its interrupts */
 		emac_mac_reset(adpt);

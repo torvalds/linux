@@ -12,24 +12,33 @@
 #include <linux/err.h>
 #include <linux/usb/otg.h>
 #include <linux/platform_data/mv_usb.h>
+#include <linux/io.h>
+
+#include <linux/usb/hcd.h>
+
+#include "ehci.h"
+
+/* registers */
+#define U2x_CAPREGS_OFFSET       0x100
 
 #define CAPLENGTH_MASK         (0xff)
 
-struct ehci_hcd_mv {
-	struct usb_hcd *hcd;
+#define hcd_to_ehci_hcd_mv(h) ((struct ehci_hcd_mv *)hcd_to_ehci(h)->priv)
 
+struct ehci_hcd_mv {
 	/* Which mode does this ehci running OTG/Host ? */
 	int mode;
 
-	void __iomem *phy_regs;
+	void __iomem *base;
 	void __iomem *cap_regs;
 	void __iomem *op_regs;
 
 	struct usb_phy *otg;
-
-	struct mv_usb_platform_data *pdata;
-
 	struct clk *clk;
+
+	struct phy *phy;
+
+	int (*set_vbus)(unsigned int vbus);
 };
 
 static void ehci_clock_enable(struct ehci_hcd_mv *ehci_mv)
@@ -44,29 +53,20 @@ static void ehci_clock_disable(struct ehci_hcd_mv *ehci_mv)
 
 static int mv_ehci_enable(struct ehci_hcd_mv *ehci_mv)
 {
-	int retval;
-
 	ehci_clock_enable(ehci_mv);
-	if (ehci_mv->pdata->phy_init) {
-		retval = ehci_mv->pdata->phy_init(ehci_mv->phy_regs);
-		if (retval)
-			return retval;
-	}
-
-	return 0;
+	return phy_init(ehci_mv->phy);
 }
 
 static void mv_ehci_disable(struct ehci_hcd_mv *ehci_mv)
 {
-	if (ehci_mv->pdata->phy_deinit)
-		ehci_mv->pdata->phy_deinit(ehci_mv->phy_regs);
+	phy_exit(ehci_mv->phy);
 	ehci_clock_disable(ehci_mv);
 }
 
 static int mv_ehci_reset(struct usb_hcd *hcd)
 {
 	struct device *dev = hcd->self.controller;
-	struct ehci_hcd_mv *ehci_mv = dev_get_drvdata(dev);
+	struct ehci_hcd_mv *ehci_mv = hcd_to_ehci_hcd_mv(hcd);
 	int retval;
 
 	if (ehci_mv == NULL) {
@@ -83,46 +83,11 @@ static int mv_ehci_reset(struct usb_hcd *hcd)
 	return retval;
 }
 
-static const struct hc_driver mv_ehci_hc_driver = {
-	.description = hcd_name,
-	.product_desc = "Marvell EHCI",
-	.hcd_priv_size = sizeof(struct ehci_hcd),
+static struct hc_driver __read_mostly ehci_platform_hc_driver;
 
-	/*
-	 * generic hardware linkage
-	 */
-	.irq = ehci_irq,
-	.flags = HCD_MEMORY | HCD_USB2 | HCD_BH,
-
-	/*
-	 * basic lifecycle operations
-	 */
-	.reset = mv_ehci_reset,
-	.start = ehci_run,
-	.stop = ehci_stop,
-	.shutdown = ehci_shutdown,
-
-	/*
-	 * managing i/o requests and associated device resources
-	 */
-	.urb_enqueue = ehci_urb_enqueue,
-	.urb_dequeue = ehci_urb_dequeue,
-	.endpoint_disable = ehci_endpoint_disable,
-	.endpoint_reset = ehci_endpoint_reset,
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
-
-	/*
-	 * scheduling support
-	 */
-	.get_frame_number = ehci_get_frame,
-
-	/*
-	 * root hub support
-	 */
-	.hub_status_data = ehci_hub_status_data,
-	.hub_control = ehci_hub_control,
-	.bus_suspend = ehci_bus_suspend,
-	.bus_resume = ehci_bus_resume,
+static const struct ehci_driver_overrides platform_overrides __initconst = {
+	.reset =		mv_ehci_reset,
+	.extra_priv_size =	sizeof(struct ehci_hcd_mv),
 };
 
 static int mv_ehci_probe(struct platform_device *pdev)
@@ -135,27 +100,29 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	int retval = -ENODEV;
 	u32 offset;
 
-	if (!pdata) {
-		dev_err(&pdev->dev, "missing platform_data\n");
-		return -ENODEV;
-	}
-
 	if (usb_disabled())
 		return -ENODEV;
 
-	hcd = usb_create_hcd(&mv_ehci_hc_driver, &pdev->dev, "mv ehci");
+	hcd = usb_create_hcd(&ehci_platform_hc_driver, &pdev->dev, "mv ehci");
 	if (!hcd)
 		return -ENOMEM;
 
-	ehci_mv = devm_kzalloc(&pdev->dev, sizeof(*ehci_mv), GFP_KERNEL);
-	if (ehci_mv == NULL) {
-		retval = -ENOMEM;
-		goto err_put_hcd;
+	platform_set_drvdata(pdev, hcd);
+	ehci_mv = hcd_to_ehci_hcd_mv(hcd);
+
+	ehci_mv->mode = MV_USB_MODE_HOST;
+	if (pdata) {
+		ehci_mv->mode = pdata->mode;
+		ehci_mv->set_vbus = pdata->set_vbus;
 	}
 
-	platform_set_drvdata(pdev, ehci_mv);
-	ehci_mv->pdata = pdata;
-	ehci_mv->hcd = hcd;
+	ehci_mv->phy = devm_phy_get(&pdev->dev, "usb");
+	if (IS_ERR(ehci_mv->phy)) {
+		retval = PTR_ERR(ehci_mv->phy);
+		if (retval != -EPROBE_DEFER)
+			dev_err(&pdev->dev, "Failed to get phy.\n");
+		goto err_put_hcd;
+	}
 
 	ehci_mv->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(ehci_mv->clk)) {
@@ -164,17 +131,12 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "phyregs");
-	ehci_mv->phy_regs = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(ehci_mv->phy_regs)) {
-		retval = PTR_ERR(ehci_mv->phy_regs);
-		goto err_put_hcd;
-	}
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "capregs");
-	ehci_mv->cap_regs = devm_ioremap_resource(&pdev->dev, r);
-	if (IS_ERR(ehci_mv->cap_regs)) {
-		retval = PTR_ERR(ehci_mv->cap_regs);
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	ehci_mv->base = devm_ioremap_resource(&pdev->dev, r);
+	if (IS_ERR(ehci_mv->base)) {
+		retval = PTR_ERR(ehci_mv->base);
 		goto err_put_hcd;
 	}
 
@@ -184,6 +146,8 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
+	ehci_mv->cap_regs =
+		(void __iomem *) ((unsigned long) ehci_mv->base + U2x_CAPREGS_OFFSET);
 	offset = readl(ehci_mv->cap_regs) & CAPLENGTH_MASK;
 	ehci_mv->op_regs =
 		(void __iomem *) ((unsigned long) ehci_mv->cap_regs + offset);
@@ -202,7 +166,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	ehci = hcd_to_ehci(hcd);
 	ehci->caps = (struct ehci_caps *) ehci_mv->cap_regs;
 
-	ehci_mv->mode = pdata->mode;
 	if (ehci_mv->mode == MV_USB_MODE_OTG) {
 		ehci_mv->otg = devm_usb_get_phy(&pdev->dev, USB_PHY_TYPE_USB2);
 		if (IS_ERR(ehci_mv->otg)) {
@@ -227,8 +190,8 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		/* otg will enable clock before use as host */
 		mv_ehci_disable(ehci_mv);
 	} else {
-		if (pdata->set_vbus)
-			pdata->set_vbus(1);
+		if (ehci_mv->set_vbus)
+			ehci_mv->set_vbus(1);
 
 		retval = usb_add_hcd(hcd, hcd->irq, IRQF_SHARED);
 		if (retval) {
@@ -239,9 +202,6 @@ static int mv_ehci_probe(struct platform_device *pdev)
 		device_wakeup_enable(hcd->self.controller);
 	}
 
-	if (pdata->private_init)
-		pdata->private_init(ehci_mv->op_regs, ehci_mv->phy_regs);
-
 	dev_info(&pdev->dev,
 		 "successful find EHCI device with regs 0x%p irq %d"
 		 " working in %s mode\n", hcd->regs, hcd->irq,
@@ -250,8 +210,8 @@ static int mv_ehci_probe(struct platform_device *pdev)
 	return 0;
 
 err_set_vbus:
-	if (pdata->set_vbus)
-		pdata->set_vbus(0);
+	if (ehci_mv->set_vbus)
+		ehci_mv->set_vbus(0);
 err_disable_clk:
 	mv_ehci_disable(ehci_mv);
 err_put_hcd:
@@ -262,8 +222,8 @@ err_put_hcd:
 
 static int mv_ehci_remove(struct platform_device *pdev)
 {
-	struct ehci_hcd_mv *ehci_mv = platform_get_drvdata(pdev);
-	struct usb_hcd *hcd = ehci_mv->hcd;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
+	struct ehci_hcd_mv *ehci_mv = hcd_to_ehci_hcd_mv(hcd);
 
 	if (hcd->rh_registered)
 		usb_remove_hcd(hcd);
@@ -272,8 +232,8 @@ static int mv_ehci_remove(struct platform_device *pdev)
 		otg_set_host(ehci_mv->otg->otg, NULL);
 
 	if (ehci_mv->mode == MV_USB_MODE_HOST) {
-		if (ehci_mv->pdata->set_vbus)
-			ehci_mv->pdata->set_vbus(0);
+		if (ehci_mv->set_vbus)
+			ehci_mv->set_vbus(0);
 
 		mv_ehci_disable(ehci_mv);
 	}
@@ -295,8 +255,7 @@ static const struct platform_device_id ehci_id_table[] = {
 
 static void mv_ehci_shutdown(struct platform_device *pdev)
 {
-	struct ehci_hcd_mv *ehci_mv = platform_get_drvdata(pdev);
-	struct usb_hcd *hcd = ehci_mv->hcd;
+	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	if (!hcd->rh_registered)
 		return;
@@ -305,13 +264,42 @@ static void mv_ehci_shutdown(struct platform_device *pdev)
 		hcd->driver->shutdown(hcd);
 }
 
+static const struct of_device_id ehci_mv_dt_ids[] = {
+	{ .compatible = "marvell,pxau2o-ehci", },
+	{},
+};
+
 static struct platform_driver ehci_mv_driver = {
 	.probe = mv_ehci_probe,
 	.remove = mv_ehci_remove,
 	.shutdown = mv_ehci_shutdown,
 	.driver = {
-		   .name = "mv-ehci",
-		   .bus = &platform_bus_type,
-		   },
+		.name = "mv-ehci",
+		.bus = &platform_bus_type,
+		.of_match_table = ehci_mv_dt_ids,
+	},
 	.id_table = ehci_id_table,
 };
+
+static int __init ehci_platform_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
+	return platform_driver_register(&ehci_mv_driver);
+}
+module_init(ehci_platform_init);
+
+static void __exit ehci_platform_cleanup(void)
+{
+	platform_driver_unregister(&ehci_mv_driver);
+}
+module_exit(ehci_platform_cleanup);
+
+MODULE_DESCRIPTION("Marvell EHCI driver");
+MODULE_AUTHOR("Chao Xie <chao.xie@marvell.com>");
+MODULE_AUTHOR("Neil Zhang <zhangwm@marvell.com>");
+MODULE_ALIAS("mv-ehci");
+MODULE_LICENSE("GPL");
+MODULE_DEVICE_TABLE(of, ehci_mv_dt_ids);

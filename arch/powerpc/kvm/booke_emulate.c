@@ -1,16 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * Copyright IBM Corp. 2008
  * Copyright 2011 Freescale Semiconductor, Inc.
@@ -34,19 +23,19 @@
 
 static void kvmppc_emul_rfi(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.shared->srr0;
+	vcpu->arch.regs.nip = vcpu->arch.shared->srr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.shared->srr1);
 }
 
 static void kvmppc_emul_rfdi(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.dsrr0;
+	vcpu->arch.regs.nip = vcpu->arch.dsrr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.dsrr1);
 }
 
 static void kvmppc_emul_rfci(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.pc = vcpu->arch.csrr0;
+	vcpu->arch.regs.nip = vcpu->arch.csrr0;
 	kvmppc_set_msr(vcpu, vcpu->arch.csrr1);
 }
 

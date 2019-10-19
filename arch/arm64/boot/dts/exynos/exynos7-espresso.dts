@@ -23,7 +23,7 @@
 	};
 
 	chosen {
-		linux,stdout-path = &serial_2;
+		stdout-path = &serial_2;
 	};
 
 	memory@40000000 {
@@ -57,6 +57,11 @@
 
 &fin_pll {
 	clock-frequency = <24000000>;
+};
+
+&gpu {
+	mali-supply = <&buck6_reg>;
+	status = "okay";
 };
 
 &serial_2 {

@@ -1,15 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	pci_syscall.c
- *
- * For architectures where we want to allow direct access
- * to the PCI config stuff - it would probably be preferable
- * on PCs too, but there people just do it by hand with the
- * magic northbridge registers..
+ * For architectures where we want to allow direct access to the PCI config
+ * stuff - it would probably be preferable on PCs too, but there people
+ * just do it by hand with the magic northbridge registers.
  */
 
 #include <linux/errno.h>
 #include <linux/pci.h>
+#include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
 #include "pci.h"
@@ -93,7 +91,8 @@ SYSCALL_DEFINE5(pciconfig_write, unsigned long, bus, unsigned long, dfn,
 	u32 dword;
 	int err = 0;
 
-	if (!capable(CAP_SYS_ADMIN))
+	if (!capable(CAP_SYS_ADMIN) ||
+	    security_locked_down(LOCKDOWN_PCI_ACCESS))
 		return -EPERM;
 
 	dev = pci_get_domain_bus_and_slot(0, bus, dfn);

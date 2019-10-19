@@ -30,7 +30,6 @@ Optional properties:
   - #interrupt-cells: Number of cells to encode an interrupt source, shall be 2.
     - first cell is the pin number
     - second cell is used to specify flags
-  - interrupt-parent: phandle of the parent interrupt controller.
   - interrupts: Interrupt specifier for the controllers interrupt.
 
 Please refer to gpio.txt in this directory for details of the common GPIO

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  *******************************************************************************/
 #define _SDIO_OPS_LINUX_C_
@@ -20,7 +12,7 @@
 static bool rtw_sdio_claim_host_needed(struct sdio_func *func)
 {
 	struct dvobj_priv *dvobj = sdio_get_drvdata(func);
-	PSDIO_DATA sdio_data = &dvobj->intf_data;
+	struct sdio_data *sdio_data = &dvobj->intf_data;
 
 	if (sdio_data->sys_sdio_irq_thd && sdio_data->sys_sdio_irq_thd == current)
 		return false;
@@ -29,7 +21,7 @@ static bool rtw_sdio_claim_host_needed(struct sdio_func *func)
 
 inline void rtw_sdio_set_irq_thd(struct dvobj_priv *dvobj, void *thd_hdl)
 {
-	PSDIO_DATA sdio_data = &dvobj->intf_data;
+	struct sdio_data *sdio_data = &dvobj->intf_data;
 
 	sdio_data->sys_sdio_irq_thd = thd_hdl;
 }
@@ -38,7 +30,7 @@ u8 sd_f0_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	u8 v = 0;
 	struct sdio_func *func;
@@ -75,7 +67,7 @@ s32 _sd_cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	int err = 0, i;
 	struct sdio_func *func;
@@ -110,7 +102,7 @@ s32 sd_cmd52_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	int err = 0;
 	struct sdio_func *func;
@@ -145,7 +137,7 @@ s32 _sd_cmd52_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	int err = 0, i;
 	struct sdio_func *func;
@@ -180,7 +172,7 @@ s32 sd_cmd52_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	int err = 0;
 	struct sdio_func *func;
@@ -210,7 +202,7 @@ u8 sd_read8(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	u8 v = 0;
 	struct sdio_func *func;
@@ -242,7 +234,7 @@ u32 sd_read32(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 	u32 v = 0;
 	struct sdio_func *func;
 	bool claim_needed;
@@ -265,15 +257,13 @@ u32 sd_read32(struct intf_hdl *pintfhdl, u32 addr, s32 *err)
 	if (claim_needed)
 		sdio_release_host(func);
 
-	if (err && *err)
-	{
+	if (err && *err) {
 		int i;
 
 		DBG_871X(KERN_ERR "%s: (%d) addr = 0x%05x, val = 0x%x\n", __func__, *err, addr, v);
 
 		*err = 0;
-		for (i = 0; i < SD_IO_TRY_CNT; i++)
-		{
+		for (i = 0; i < SD_IO_TRY_CNT; i++) {
 			if (claim_needed) sdio_claim_host(func);
 			v = sdio_readl(func, addr, err);
 			if (claim_needed) sdio_release_host(func);
@@ -307,7 +297,7 @@ void sd_write8(struct intf_hdl *pintfhdl, u32 addr, u8 v, s32 *err)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 	struct sdio_func *func;
 	bool claim_needed;
 
@@ -336,7 +326,7 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 	struct sdio_func *func;
 	bool claim_needed;
 
@@ -358,15 +348,13 @@ void sd_write32(struct intf_hdl *pintfhdl, u32 addr, u32 v, s32 *err)
 	if (claim_needed)
 		sdio_release_host(func);
 
-	if (err && *err)
-	{
+	if (err && *err) {
 		int i;
 
 		DBG_871X(KERN_ERR "%s: (%d) addr = 0x%05x val = 0x%08x\n", __func__, *err, addr, v);
 
 		*err = 0;
-		for (i = 0; i < SD_IO_TRY_CNT; i++)
-		{
+		for (i = 0; i < SD_IO_TRY_CNT; i++) {
 			if (claim_needed) sdio_claim_host(func);
 			sdio_writel(func, v, addr, err);
 			if (claim_needed) sdio_release_host(func);
@@ -412,7 +400,7 @@ s32 _sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	int err = -EPERM;
 	struct sdio_func *func;
@@ -428,13 +416,11 @@ s32 _sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 
 	func = psdio->func;
 
-	if (unlikely((cnt == 1) || (cnt == 2)))
-	{
+	if (unlikely((cnt == 1) || (cnt == 2))) {
 		int i;
 		u8 *pbuf = pdata;
 
-		for (i = 0; i < cnt; i++)
-		{
+		for (i = 0; i < cnt; i++) {
 			*(pbuf+i) = sdio_readb(func, addr+i, &err);
 
 			if (err) {
@@ -469,7 +455,7 @@ s32 sd_read(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	struct sdio_func *func;
 	bool claim_needed;
@@ -513,7 +499,7 @@ s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 
 	struct sdio_func *func;
 	u32 size;
@@ -531,13 +517,11 @@ s32 _sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 	func = psdio->func;
 /*	size = sdio_align_size(func, cnt); */
 
-	if (unlikely((cnt == 1) || (cnt == 2)))
-	{
+	if (unlikely((cnt == 1) || (cnt == 2))) {
 		int i;
 		u8 *pbuf = pdata;
 
-		for (i = 0; i < cnt; i++)
-		{
+		for (i = 0; i < cnt; i++) {
 			sdio_writeb(func, *(pbuf+i), addr+i, &err);
 			if (err) {
 				DBG_871X(KERN_ERR "%s: FAIL!(%d) addr = 0x%05x val = 0x%02x\n", __func__, err, addr, *(pbuf+i));
@@ -573,7 +557,7 @@ s32 sd_write(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, void *pdata)
 {
 	struct adapter *padapter;
 	struct dvobj_priv *psdiodev;
-	PSDIO_DATA psdio;
+	struct sdio_data *psdio;
 	struct sdio_func *func;
 	bool claim_needed;
 	s32 err =  -EPERM;

@@ -22,9 +22,7 @@ In contrast to cluster filesystems like GFS, OCFS2, and GPFS that rely
 on symmetric access by all clients to shared block devices, Ceph
 separates data and metadata management into independent server
 clusters, similar to Lustre.  Unlike Lustre, however, metadata and
-storage nodes run entirely as user space daemons.  Storage nodes
-utilize btrfs to store data objects, leveraging its advanced features
-(checksumming, metadata replication, etc.).  File data is striped
+storage nodes run entirely as user space daemons.  File data is striped
 across storage nodes in large chunks to distribute workload and
 facilitate high throughputs.  When storage nodes fail, data is
 re-replicated in a distributed fashion by the storage nodes themselves
@@ -62,6 +60,18 @@ subdirectories, and a summation of all nested file sizes.  This makes
 the identification of large disk space consumers relatively quick, as
 no 'du' or similar recursive scan of the file system is required.
 
+Finally, Ceph also allows quotas to be set on any directory in the system.
+The quota can restrict the number of bytes or the number of files stored
+beneath that point in the directory hierarchy.  Quotas can be set using
+extended attributes 'ceph.quota.max_files' and 'ceph.quota.max_bytes', eg:
+
+ setfattr -n ceph.quota.max_bytes -v 100000000 /some/dir
+ getfattr -n ceph.quota.max_bytes /some/dir
+
+A limitation of the current quotas implementation is that it relies on the
+cooperation of the client mounting the file system to stop writers when a
+limit is reached.  A modified or adversarial client cannot be prevented
+from writing as much data as it needs.
 
 Mount Syntax
 ============
@@ -93,20 +103,22 @@ Mount Options
 	address its connection to the monitor originates from.
 
   wsize=X
-	Specify the maximum write size in bytes.  By default there is no
-	maximum.  Ceph will normally size writes based on the file stripe
-	size.
+	Specify the maximum write size in bytes.  Default: 16 MB.
 
   rsize=X
-	Specify the maximum read size in bytes.  Default: 64 MB.
+	Specify the maximum read size in bytes.  Default: 16 MB.
 
   rasize=X
-	Specify the maximum readahead.  Default: 8 MB.
+	Specify the maximum readahead size in bytes.  Default: 8 MB.
 
   mount_timeout=X
 	Specify the timeout value for mount (in seconds), in the case
 	of a non-responsive Ceph file system.  The default is 30
 	seconds.
+
+  caps_max=X
+	Specify the maximum number of caps to hold. Unused caps are released
+	when number of caps exceeds the limit. The default is 0 (no limit)
 
   rbytes
 	When stat() is called on a directory, set st_size to 'rbytes',
@@ -137,15 +149,38 @@ Mount Options
   noasyncreaddir
 	Do not use the dcache as above for readdir.
 
+  noquotadf
+        Report overall filesystem usage in statfs instead of using the root
+        directory quota.
+
+  nocopyfrom
+        Don't use the RADOS 'copy-from' operation to perform remote object
+        copies.  Currently, it's only used in copy_file_range, which will revert
+        to the default VFS implementation if this option is used.
+
+  recover_session=<no|clean>
+	Set auto reconnect mode in the case where the client is blacklisted. The
+	available modes are "no" and "clean". The default is "no".
+
+	* no: never attempt to reconnect when client detects that it has been
+	blacklisted. Operations will generally fail after being blacklisted.
+
+	* clean: client reconnects to the ceph cluster automatically when it
+	detects that it has been blacklisted. During reconnect, client drops
+	dirty data/metadata, invalidates page caches and writable file handles.
+	After reconnect, file locks become stale because the MDS loses track
+	of them. If an inode contains any stale file locks, read/write on the
+	inode is not allowed until applications release all stale file locks.
+
 More Information
 ================
 
 For more information on Ceph, see the home page at
-	http://ceph.newdream.net/
+	https://ceph.com/
 
 The Linux kernel client source tree is available at
-	git://ceph.newdream.net/git/ceph-client.git
+	https://github.com/ceph/ceph-client.git
 	git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
 
 and the source for the full system is at
-	git://ceph.newdream.net/git/ceph.git
+	https://github.com/ceph/ceph.git

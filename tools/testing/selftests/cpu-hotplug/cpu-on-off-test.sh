@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 SYSFS=
+# Kselftest framework requirement - SKIP code is 4.
+ksft_skip=4
 
 prerequisite()
 {
@@ -9,7 +11,7 @@ prerequisite()
 
 	if [ $UID != 0 ]; then
 		echo $msg must be run as root >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	taskset -p 01 $$
@@ -18,12 +20,12 @@ prerequisite()
 
 	if [ ! -d "$SYSFS" ]; then
 		echo $msg sysfs is not mounted >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if ! ls $SYSFS/devices/system/cpu/cpu* > /dev/null 2>&1; then
 		echo $msg cpu hotplug is not supported >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	echo "CPU online/offline summary:"
@@ -32,8 +34,12 @@ prerequisite()
 
 	if [[ "$online_cpus" = "$online_max" ]]; then
 		echo "$msg: since there is only one cpu: $online_cpus"
-		exit 0
+		exit $ksft_skip
 	fi
+
+	present_cpus=`cat $SYSFS/devices/system/cpu/present`
+	present_max=${present_cpus##*-}
+	echo "present_cpus = $present_cpus present_max = $present_max"
 
 	echo -e "\t Cpus in online state: $online_cpus"
 
@@ -149,6 +155,8 @@ online_cpus=0
 online_max=0
 offline_cpus=0
 offline_max=0
+present_cpus=0
+present_max=0
 
 while getopts e:ahp: opt; do
 	case $opt in
@@ -188,9 +196,10 @@ if [ $allcpus -eq 0 ]; then
 	online_cpu_expect_success $online_max
 
 	if [[ $offline_cpus -gt 0 ]]; then
-		echo -e "\t offline to online to offline: cpu $offline_max"
-		online_cpu_expect_success $offline_max
-		offline_cpu_expect_success $offline_max
+		echo -e "\t offline to online to offline: cpu $present_max"
+		online_cpu_expect_success $present_max
+		offline_cpu_expect_success $present_max
+		online_cpu $present_max
 	fi
 	exit 0
 else
@@ -237,12 +246,12 @@ prerequisite_extra()
 
 	if [ ! -d "$DEBUGFS" ]; then
 		echo $msg debugfs is not mounted >&2
-		exit 0
+		exit $ksft_skip
 	fi
 
 	if [ ! -d $NOTIFIER_ERR_INJECT_DIR ]; then
 		echo $msg cpu-notifier-error-inject module is not available >&2
-		exit 0
+		exit $ksft_skip
 	fi
 }
 

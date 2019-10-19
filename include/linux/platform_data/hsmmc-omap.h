@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * MMC definitions for OMAP2
  *
  * Copyright (C) 2006 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -70,9 +67,6 @@ struct omap_hsmmc_platform_data {
 	/* string specifying a particular variant of hardware */
 	char *version;
 
-	int gpio_cd;			/* gpio (card detect) */
-	int gpio_cod;			/* gpio (cover detect) */
-	int gpio_wp;			/* gpio (write protect) */
 	/* if we have special card, init it using this callback */
 	void (*init_card)(struct mmc_card *card);
 

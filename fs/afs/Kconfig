@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config AFS_FS
 	tristate "Andrew File System support (AFS)"
 	depends on INET
@@ -27,3 +28,15 @@ config AFS_FSCACHE
 	help
 	  Say Y here if you want AFS data to be cached locally on disk through
 	  the generic filesystem cache manager
+
+config AFS_DEBUG_CURSOR
+	bool "AFS server cursor debugging"
+	depends on AFS_FS
+	help
+	  Say Y here to cause the contents of a server cursor to be dumped to
+	  the dmesg log if the server rotation algorithm fails to successfully
+	  contact a server.
+
+	  See <file:Documentation/filesystems/afs.txt> for more information.
+
+	  If unsure, say N.

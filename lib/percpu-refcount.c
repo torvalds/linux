@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "%s: " fmt "\n", __func__
 
 #include <linux/kernel.h>
@@ -69,11 +70,14 @@ int percpu_ref_init(struct percpu_ref *ref, percpu_ref_func_t *release,
 		return -ENOMEM;
 
 	ref->force_atomic = flags & PERCPU_REF_INIT_ATOMIC;
+	ref->allow_reinit = flags & PERCPU_REF_ALLOW_REINIT;
 
-	if (flags & (PERCPU_REF_INIT_ATOMIC | PERCPU_REF_INIT_DEAD))
+	if (flags & (PERCPU_REF_INIT_ATOMIC | PERCPU_REF_INIT_DEAD)) {
 		ref->percpu_count_ptr |= __PERCPU_REF_ATOMIC;
-	else
+		ref->allow_reinit = true;
+	} else {
 		start_count += PERCPU_COUNT_BIAS;
+	}
 
 	if (flags & PERCPU_REF_INIT_DEAD)
 		ref->percpu_count_ptr |= __PERCPU_REF_DEAD;
@@ -119,6 +123,9 @@ static void percpu_ref_call_confirm_rcu(struct rcu_head *rcu)
 	ref->confirm_switch = NULL;
 	wake_up_all(&percpu_ref_switch_waitq);
 
+	if (!ref->allow_reinit)
+		percpu_ref_exit(ref);
+
 	/* drop ref from percpu_ref_switch_to_atomic() */
 	percpu_ref_put(ref);
 }
@@ -151,7 +158,7 @@ static void percpu_ref_switch_to_atomic_rcu(struct rcu_head *rcu)
 	atomic_long_add((long)count - PERCPU_COUNT_BIAS, &ref->count);
 
 	WARN_ONCE(atomic_long_read(&ref->count) <= 0,
-		  "percpu ref (%pf) <= 0 (%ld) after switching to atomic",
+		  "percpu ref (%ps) <= 0 (%ld) after switching to atomic",
 		  ref->release, atomic_long_read(&ref->count));
 
 	/* @ref is viewed as dead on all CPUs, send out switch confirmation */
@@ -181,7 +188,7 @@ static void __percpu_ref_switch_to_atomic(struct percpu_ref *ref,
 	ref->confirm_switch = confirm_switch ?: percpu_ref_noop_confirm_switch;
 
 	percpu_ref_get(ref);	/* put after confirmation */
-	call_rcu_sched(&ref->rcu, percpu_ref_switch_to_atomic_rcu);
+	call_rcu(&ref->rcu, percpu_ref_switch_to_atomic_rcu);
 }
 
 static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
@@ -192,6 +199,9 @@ static void __percpu_ref_switch_to_percpu(struct percpu_ref *ref)
 	BUG_ON(!percpu_count);
 
 	if (!(ref->percpu_count_ptr & __PERCPU_REF_ATOMIC))
+		return;
+
+	if (WARN_ON_ONCE(!ref->allow_reinit))
 		return;
 
 	atomic_long_add(PERCPU_COUNT_BIAS, &ref->count);
@@ -322,6 +332,8 @@ EXPORT_SYMBOL_GPL(percpu_ref_switch_to_percpu);
  * This function normally doesn't block and can be called from any context
  * but it may block if @confirm_kill is specified and @ref is in the
  * process of switching to atomic mode by percpu_ref_switch_to_atomic().
+ *
+ * There are no implied RCU grace periods between kill and release.
  */
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill)
@@ -331,7 +343,7 @@ void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 	spin_lock_irqsave(&percpu_ref_switch_lock, flags);
 
 	WARN_ONCE(ref->percpu_count_ptr & __PERCPU_REF_DEAD,
-		  "%s called more than once on %pf!", __func__, ref->release);
+		  "%s called more than once on %ps!", __func__, ref->release);
 
 	ref->percpu_count_ptr |= __PERCPU_REF_DEAD;
 	__percpu_ref_switch_mode(ref, confirm_kill);
@@ -354,11 +366,35 @@ EXPORT_SYMBOL_GPL(percpu_ref_kill_and_confirm);
  */
 void percpu_ref_reinit(struct percpu_ref *ref)
 {
+	WARN_ON_ONCE(!percpu_ref_is_zero(ref));
+
+	percpu_ref_resurrect(ref);
+}
+EXPORT_SYMBOL_GPL(percpu_ref_reinit);
+
+/**
+ * percpu_ref_resurrect - modify a percpu refcount from dead to live
+ * @ref: perpcu_ref to resurrect
+ *
+ * Modify @ref so that it's in the same state as before percpu_ref_kill() was
+ * called. @ref must be dead but must not yet have exited.
+ *
+ * If @ref->release() frees @ref then the caller is responsible for
+ * guaranteeing that @ref->release() does not get called while this
+ * function is in progress.
+ *
+ * Note that percpu_ref_tryget[_live]() are safe to perform on @ref while
+ * this function is in progress.
+ */
+void percpu_ref_resurrect(struct percpu_ref *ref)
+{
+	unsigned long __percpu *percpu_count;
 	unsigned long flags;
 
 	spin_lock_irqsave(&percpu_ref_switch_lock, flags);
 
-	WARN_ON_ONCE(!percpu_ref_is_zero(ref));
+	WARN_ON_ONCE(!(ref->percpu_count_ptr & __PERCPU_REF_DEAD));
+	WARN_ON_ONCE(__ref_is_percpu(ref, &percpu_count));
 
 	ref->percpu_count_ptr &= ~__PERCPU_REF_DEAD;
 	percpu_ref_get(ref);
@@ -366,4 +402,4 @@ void percpu_ref_reinit(struct percpu_ref *ref)
 
 	spin_unlock_irqrestore(&percpu_ref_switch_lock, flags);
 }
-EXPORT_SYMBOL_GPL(percpu_ref_reinit);
+EXPORT_SYMBOL_GPL(percpu_ref_resurrect);

@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * dtsi file for Cavium ThunderX2 CN99XX processor
  *
  * Copyright (c) 2017 Cavium Inc.
  * Copyright (c) 2013-2016 Broadcom
  * Author: Zi Shen Lim <zlim@broadcom.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -27,28 +23,28 @@
 
 		cpu@0 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 		};
 
 		cpu@1 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 		};
 
 		cpu@2 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 		};
 
 		cpu@3 {
 			device_type = "cpu";
-			compatible = "cavium,thunder2", "brcm,vulcan", "arm,armv8";
+			compatible = "cavium,thunder2", "brcm,vulcan";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 		};
@@ -98,7 +94,7 @@
 		clock-output-names = "clk125mhz";
 	};
 
-	pci {
+	pcie@30000000 {
 		compatible = "pci-host-ecam-generic";
 		device_type = "pci";
 		#interrupt-cells = <1>;
@@ -118,6 +114,7 @@
 		ranges =
 		  <0x02000000    0 0x40000000    0 0x40000000    0 0x20000000
 		   0x43000000 0x40 0x00000000 0x40 0x00000000 0x20 0x00000000>;
+		bus-range = <0 0xff>;
 		interrupt-map-mask = <0 0 0 7>;
 		interrupt-map =
 		      /* addr  pin  ic   icaddr  icintr */

@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 /*-------------------------------------------------------------------------------
@@ -45,10 +37,6 @@ enum _NIC_VERSION {
 
 #include <rtw_ht.h>
 
-#ifdef CONFIG_INTEL_WIDI
-#include <rtw_intel_widi.h>
-#endif
-
 #include <rtw_cmd.h>
 #include <cmd_osdep.h>
 #include <rtw_security.h>
@@ -73,7 +61,6 @@ enum _NIC_VERSION {
 #include <rtw_event.h>
 #include <rtw_mlme_ext.h>
 #include <rtw_ap.h>
-#include <rtw_efuse.h>
 #include <rtw_version.h>
 #include <rtw_odm.h>
 
@@ -229,7 +216,6 @@ struct registry_priv
 #define BSSID_SZ(field)   sizeof(((struct wlan_bssid_ex *) 0)->field)
 
 #include <drv_types_sdio.h>
-#define INTF_DATA SDIO_DATA
 
 #define is_primary_adapter(adapter) (1)
 #define get_iface_type(adapter) (IFACE_PORT0)
@@ -389,7 +375,7 @@ struct debug_priv {
 	u32 dbg_enwow_dload_fw_fail_cnt;
 	u32 dbg_ips_drvopen_fail_cnt;
 	u32 dbg_poll_fail_cnt;
-	u32 dbg_rpwm_toogle_cnt;
+	u32 dbg_rpwm_toggle_cnt;
 	u32 dbg_rpwm_timeout_fail_cnt;
 	u64 dbg_rx_fifo_last_overflow;
 	u64 dbg_rx_fifo_curr_overflow;
@@ -485,15 +471,14 @@ struct dvobj_priv
 
 /*-------- below is for SDIO INTERFACE --------*/
 
-#ifdef INTF_DATA
-	INTF_DATA intf_data;
-#endif
+struct sdio_data intf_data;
+
 };
 
 #define dvobj_to_pwrctl(dvobj) (&(dvobj->pwrctl_priv))
 #define pwrctl_to_dvobj(pwrctl) container_of(pwrctl, struct dvobj_priv, pwrctl_priv)
 
-__inline static struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
+static inline struct device *dvobj_to_dev(struct dvobj_priv *dvobj)
 {
 	/* todo: get interface type from dvobj and the return the dev accordingly */
 #ifdef RTW_DVOBJ_CHIP_HW_TYPE
@@ -591,8 +576,6 @@ struct adapter {
 	int bup;
 	struct net_device_stats stats;
 	struct iw_statistics iwstats;
-	struct proc_dir_entry *dir_dev;/*  for proc directory */
-	struct proc_dir_entry *dir_odm;
 
 	struct wireless_dev *rtw_wdev;
 	struct rtw_wdev_priv wdev_data;
@@ -651,14 +634,14 @@ struct adapter {
 
 /* define RTW_DISABLE_FUNC(padapter, func) (atomic_add(&adapter_to_dvobj(padapter)->disable_func, (func))) */
 /* define RTW_ENABLE_FUNC(padapter, func) (atomic_sub(&adapter_to_dvobj(padapter)->disable_func, (func))) */
-__inline static void RTW_DISABLE_FUNC(struct adapter *padapter, int func_bit)
+static inline void RTW_DISABLE_FUNC(struct adapter *padapter, int func_bit)
 {
 	int	df = atomic_read(&adapter_to_dvobj(padapter)->disable_func);
 	df |= func_bit;
 	atomic_set(&adapter_to_dvobj(padapter)->disable_func, df);
 }
 
-__inline static void RTW_ENABLE_FUNC(struct adapter *padapter, int func_bit)
+static inline void RTW_ENABLE_FUNC(struct adapter *padapter, int func_bit)
 {
 	int	df = atomic_read(&adapter_to_dvobj(padapter)->disable_func);
 	df &= ~(func_bit);
@@ -688,13 +671,13 @@ int rtw_config_gpio(struct net_device *netdev, int gpio_num, bool isOutput);
 #endif
 
 #ifdef CONFIG_WOWLAN
-int rtw_suspend_wow(struct adapter *padapter);
+void rtw_suspend_wow(struct adapter *padapter);
 int rtw_resume_process_wow(struct adapter *padapter);
 #endif
 
-__inline static u8 *myid(struct eeprom_priv *peepriv)
+static inline u8 *myid(struct eeprom_priv *peepriv)
 {
-	return (peepriv->mac_addr);
+	return peepriv->mac_addr;
 }
 
 /*  HCI Related header file */

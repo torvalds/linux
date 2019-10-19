@@ -4,6 +4,8 @@
 
 #include "ui/browser.h"
 
+struct annotation_options;
+
 struct hist_browser {
 	struct ui_browser   b;
 	struct hists	    *hists;
@@ -12,6 +14,7 @@ struct hist_browser {
 	struct hist_browser_timer *hbt;
 	struct pstack	    *pstack;
 	struct perf_env	    *env;
+	struct annotation_options *annotation_opts;
 	int		     print_seq;
 	bool		     show_dso;
 	bool		     show_headers;
@@ -28,7 +31,8 @@ struct hist_browser {
 
 struct hist_browser *hist_browser__new(struct hists *hists);
 void hist_browser__delete(struct hist_browser *browser);
-int hist_browser__run(struct hist_browser *browser, const char *help);
+int hist_browser__run(struct hist_browser *browser, const char *help,
+		      bool warn_lost_event);
 void hist_browser__init(struct hist_browser *browser,
 			struct hists *hists);
 #endif /* _PERF_UI_BROWSER_HISTS_H_ */

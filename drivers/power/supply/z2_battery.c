@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Battery measurement code for Zipit Z2
  *
  * Copyright (C) 2009 Peter Edwards <sweetlilmre@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <linux/module.h>
@@ -146,7 +142,7 @@ static int z2_batt_ps_init(struct z2_charger *charger, int props)
 	if (info->min_voltage >= 0)
 		props++;	/* POWER_SUPPLY_PROP_VOLTAGE_MIN */
 
-	prop = kzalloc(props * sizeof(*prop), GFP_KERNEL);
+	prop = kcalloc(props, sizeof(*prop), GFP_KERNEL);
 	if (!prop)
 		return -ENOMEM;
 

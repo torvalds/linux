@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2009 Wolfgang Grandegger <wg@grandegger.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/kernel.h>
@@ -48,27 +37,27 @@ static unsigned char ocr[MAXDEV] = {[0 ... (MAXDEV - 1)] = 0xff};
 static int indirect[MAXDEV] = {[0 ... (MAXDEV - 1)] = -1};
 static spinlock_t indirect_lock[MAXDEV];  /* lock for indirect access mode */
 
-module_param_hw_array(port, ulong, ioport, NULL, S_IRUGO);
+module_param_hw_array(port, ulong, ioport, NULL, 0444);
 MODULE_PARM_DESC(port, "I/O port number");
 
-module_param_hw_array(mem, ulong, iomem, NULL, S_IRUGO);
+module_param_hw_array(mem, ulong, iomem, NULL, 0444);
 MODULE_PARM_DESC(mem, "I/O memory address");
 
-module_param_hw_array(indirect, int, ioport, NULL, S_IRUGO);
+module_param_hw_array(indirect, int, ioport, NULL, 0444);
 MODULE_PARM_DESC(indirect, "Indirect access via address and data port");
 
-module_param_hw_array(irq, int, irq, NULL, S_IRUGO);
+module_param_hw_array(irq, int, irq, NULL, 0444);
 MODULE_PARM_DESC(irq, "IRQ number");
 
-module_param_array(clk, int, NULL, S_IRUGO);
+module_param_array(clk, int, NULL, 0444);
 MODULE_PARM_DESC(clk, "External oscillator clock frequency "
 		 "(default=16000000 [16 MHz])");
 
-module_param_array(cdr, byte, NULL, S_IRUGO);
+module_param_array(cdr, byte, NULL, 0444);
 MODULE_PARM_DESC(cdr, "Clock divider register "
 		 "(default=0x48 [CDR_CBP | CDR_CLK_OFF])");
 
-module_param_array(ocr, byte, NULL, S_IRUGO);
+module_param_array(ocr, byte, NULL, 0444);
 MODULE_PARM_DESC(ocr, "Output control register "
 		 "(default=0x18 [OCR_TX0_PUSHPULL])");
 

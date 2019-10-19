@@ -1,22 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Copyright (C) 2017 Stefan Wahren <stefan.wahren@i2se.com>
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /dts-v1/;
 #include "bcm2835.dtsi"
 #include "bcm2835-rpi.dtsi"
-#include "bcm283x-rpi-usb-host.dtsi"
+#include "bcm283x-rpi-usb-otg.dtsi"
 
 / {
 	compatible = "raspberrypi,model-zero-w", "brcm,bcm2835";
 	model = "Raspberry Pi Zero W";
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0 0x20000000>;
+	};
 
 	chosen {
 		/* 8250 auxiliary UART instead of pl011 */
@@ -31,8 +30,6 @@
 
 	wifi_pwrseq: wifi-pwrseq {
 		compatible = "mmc-pwrseq-simple";
-		pinctrl-names = "default";
-		pinctrl-0 = <&wl_on>;
 		reset-gpios = <&gpio 41 GPIO_ACTIVE_LOW>;
 	};
 };
@@ -46,8 +43,8 @@
 	 * "FOO" = GPIO line named "FOO" on the schematic
 	 * "FOO_N" = GPIO line named "FOO" on schematic, active low
 	 */
-	gpio-line-names = "GPIO0",
-			  "GPIO1",
+	gpio-line-names = "ID_SDA",
+			  "ID_SCL",
 			  "SDA1",
 			  "SCL1",
 			  "GPIO_GCLK",
@@ -104,15 +101,12 @@
 			  "SD_DATA3_R";
 
 	pinctrl-0 = <&gpioout &alt0>;
-
-	wl_on: wl-on {
-		brcm,pins = <41>;
-		brcm,function = <BCM2835_FSEL_GPIO_OUT>;
-	};
 };
 
 &hdmi {
 	hpd-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
+	power-domains = <&power RPI_POWER_DOMAIN_HDMI>;
+	status = "okay";
 };
 
 &sdhci {
@@ -129,8 +123,27 @@
 	};
 };
 
+&sdhost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdhost_gpio48>;
+	bus-width = <4>;
+	status = "okay";
+};
+
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_gpio14>;
+	pinctrl-0 = <&uart0_gpio32 &uart0_ctsrts_gpio30>;
+	status = "okay";
+
+	bluetooth {
+		compatible = "brcm,bcm43438-bt";
+		max-speed = <2000000>;
+		shutdown-gpios = <&gpio 45 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&uart1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart1_gpio14>;
 	status = "okay";
 };

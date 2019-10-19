@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * max30102.c - Support for MAX30102 heart rate and pulse oximeter sensor
  *
@@ -5,16 +6,6 @@
  *
  * Support for MAX30105 optical particle sensor
  * Copyright (C) 2017 Peter Meerwald-Stadler <pmeerw@pmeerw.net>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  *
  * 7-bit I2C chip address: 0x57
  * TODO: proximity power saving feature
@@ -282,9 +273,11 @@ static int max30102_read_measurement(struct max30102_data *data,
 	switch (measurements) {
 	case 3:
 		MAX30102_COPY_DATA(2);
-	case 2: /* fall-through */
+		/* fall through */
+	case 2:
 		MAX30102_COPY_DATA(1);
-	case 1: /* fall-through */
+		/* fall through */
+	case 1:
 		MAX30102_COPY_DATA(0);
 		break;
 	default:

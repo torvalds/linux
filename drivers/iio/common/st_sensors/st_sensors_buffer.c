@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * STMicroelectronics sensors buffer library driver
  *
  * Copyright 2012-2013 STMicroelectronics Inc.
  *
  * Denis Ciocca <denis.ciocca@st.com>
- *
- * Licensed under the GPL-2.
  */
 
 #include <linux/kernel.h>
@@ -18,15 +17,16 @@
 #include <linux/iio/trigger_consumer.h>
 #include <linux/iio/triggered_buffer.h>
 #include <linux/irqreturn.h>
+#include <linux/regmap.h>
 
 #include <linux/iio/common/st_sensors.h>
 
 
 static int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 {
-	int i;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 	unsigned int num_data_channels = sdata->num_data_channels;
+	int i;
 
 	for_each_set_bit(i, indio_dev->active_scan_mask, num_data_channels) {
 		const struct iio_chan_spec *channel = &indio_dev->channels[i];
@@ -37,11 +37,8 @@ static int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf)
 			channel->scan_type.storagebits >> 3;
 
 		buf = PTR_ALIGN(buf, storage_bytes);
-		if (sdata->tf->read_multiple_byte(&sdata->tb, sdata->dev,
-						  channel->address,
-						  bytes_to_read, buf,
-						  sdata->multiread_bit) <
-		    bytes_to_read)
+		if (regmap_bulk_read(sdata->regmap, channel->address,
+				     buf, bytes_to_read) < 0)
 			return -EIO;
 
 		/* Advance the buffer pointer */

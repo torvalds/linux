@@ -1,20 +1,28 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include "mt7601u.h"
 #include "trace.h"
 #include <linux/etherdevice.h>
+
+void mt7601u_set_macaddr(struct mt7601u_dev *dev, const u8 *addr)
+{
+	ether_addr_copy(dev->macaddr, addr);
+
+	if (!is_valid_ether_addr(dev->macaddr)) {
+		eth_random_addr(dev->macaddr);
+		dev_info(dev->dev,
+			 "Invalid MAC address, using random address %pM\n",
+			 dev->macaddr);
+	}
+
+	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
+	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
+		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
+}
 
 static void
 mt76_mac_process_tx_rate(struct ieee80211_tx_rate *txrate, u16 rate)
@@ -437,7 +445,7 @@ mt7601u_rx_monitor_beacon(struct mt7601u_dev *dev, struct mt7601u_rxwi *rxwi,
 {
 	dev->bcn_freq_off = rxwi->freq_off;
 	dev->bcn_phy_mode = FIELD_GET(MT_RXWI_RATE_PHY, rate);
-	dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+	ewma_rssi_add(&dev->avg_rssi, -rssi);
 }
 
 static int
@@ -464,8 +472,16 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 
 	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_DECRYPT)) {
 		status->flag |= RX_FLAG_DECRYPTED;
-		status->flag |= RX_FLAG_IV_STRIPPED | RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MMIC_STRIPPED;
+		status->flag |= RX_FLAG_MIC_STRIPPED;
+		status->flag |= RX_FLAG_ICV_STRIPPED;
+		status->flag |= RX_FLAG_IV_STRIPPED;
 	}
+	/* let mac80211 take care of PN validation since apparently
+	 * the hardware does not support it
+	 */
+	if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_PN_LEN))
+		status->flag &= ~RX_FLAG_IV_STRIPPED;
 
 	status->chains = BIT(0);
 	rssi = mt7601u_phy_get_rssi(dev, rxwi, rate);
@@ -479,7 +495,7 @@ u32 mt76_mac_process_rx(struct mt7601u_dev *dev, struct sk_buff *skb,
 	if (mt7601u_rx_is_our_beacon(dev, data))
 		mt7601u_rx_monitor_beacon(dev, rxwi, rate, rssi);
 	else if (rxwi->rxinfo & cpu_to_le32(MT_RXINFO_U2M))
-		dev->avg_rssi = (dev->avg_rssi * 15) / 16 + (rssi << 8);
+		ewma_rssi_add(&dev->avg_rssi, -rssi);
 	spin_unlock_bh(&dev->con_mon_lock);
 
 	return len;

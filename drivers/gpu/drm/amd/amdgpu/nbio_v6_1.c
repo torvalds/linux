@@ -27,11 +27,8 @@
 #include "nbio/nbio_6_1_default.h"
 #include "nbio/nbio_6_1_offset.h"
 #include "nbio/nbio_6_1_sh_mask.h"
+#include "nbio/nbio_6_1_smn.h"
 #include "vega10_enum.h"
-
-#define smnCPM_CONTROL                                                                                  0x11180460
-#define smnPCIE_CNTL2                                                                                   0x11180070
-#define smnPCIE_CONFIG_CNTL                                                                             0x11180044
 
 static u32 nbio_v6_1_get_rev_id(struct amdgpu_device *adev)
 {
@@ -53,9 +50,16 @@ static void nbio_v6_1_mc_access_enable(struct amdgpu_device *adev, bool enable)
 		WREG32_SOC15(NBIO, 0, mmBIF_FB_EN, 0);
 }
 
-static void nbio_v6_1_hdp_flush(struct amdgpu_device *adev)
+static void nbio_v6_1_hdp_flush(struct amdgpu_device *adev,
+				struct amdgpu_ring *ring)
 {
-	WREG32_SOC15_NO_KIQ(NBIO, 0, mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL, 0);
+	if (!ring || !ring->funcs->emit_wreg)
+		WREG32_SOC15_NO_KIQ(NBIO, 0,
+				    mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL,
+				    0);
+	else
+		amdgpu_ring_emit_wreg(ring, SOC15_REG_OFFSET(
+			NBIO, 0, mmBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL), 0);
 }
 
 static u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
@@ -64,7 +68,7 @@ static u32 nbio_v6_1_get_memsize(struct amdgpu_device *adev)
 }
 
 static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instance,
-				  bool use_doorbell, int doorbell_index)
+			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
 	u32 reg = instance == 0 ? SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA0_DOORBELL_RANGE) :
 			SOC15_REG_OFFSET(NBIO, 0, mmBIF_SDMA1_DOORBELL_RANGE);
@@ -73,7 +77,7 @@ static void nbio_v6_1_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 
 	if (use_doorbell) {
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, OFFSET, doorbell_index);
-		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 2);
+		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, doorbell_size);
 	} else
 		doorbell_range = REG_SET_FIELD(doorbell_range, BIF_SDMA0_DOORBELL_RANGE, SIZE, 0);
 
@@ -114,7 +118,8 @@ static void nbio_v6_1_ih_doorbell_range(struct amdgpu_device *adev,
 
 	if (use_doorbell) {
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, OFFSET, doorbell_index);
-		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 2);
+		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range,
+						  BIF_IH_DOORBELL_RANGE, SIZE, 6);
 	} else
 		ih_doorbell_range = REG_SET_FIELD(ih_doorbell_range, BIF_IH_DOORBELL_RANGE, SIZE, 0);
 
@@ -126,7 +131,7 @@ static void nbio_v6_1_ih_control(struct amdgpu_device *adev)
 	u32 interrupt_cntl;
 
 	/* setup interrupt control */
-	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL2, adev->dummy_page.addr >> 8);
+	WREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL2, adev->dummy_page_addr >> 8);
 	interrupt_cntl = RREG32_SOC15(NBIO, 0, mmINTERRUPT_CNTL);
 	/* INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=0 - dummy read disabled with msi, enabled without msi
 	 * INTERRUPT_CNTL__IH_DUMMY_RD_OVERRIDE_MASK=1 - dummy read controlled by IH_DUMMY_RD_EN
@@ -213,12 +218,12 @@ static u32 nbio_v6_1_get_hdp_flush_done_offset(struct amdgpu_device *adev)
 
 static u32 nbio_v6_1_get_pcie_index_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX);
+	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_INDEX2);
 }
 
 static u32 nbio_v6_1_get_pcie_data_offset(struct amdgpu_device *adev)
 {
-	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA);
+	return SOC15_REG_OFFSET(NBIO, 0, mmPCIE_DATA2);
 }
 
 static const struct nbio_hdp_flush_reg nbio_v6_1_hdp_flush_reg = {
@@ -263,6 +268,12 @@ static void nbio_v6_1_init_registers(struct amdgpu_device *adev)
 
 	if (def != data)
 		WREG32_PCIE(smnPCIE_CONFIG_CNTL, data);
+
+	def = data = RREG32_PCIE(smnPCIE_CI_CNTL);
+	data = REG_SET_FIELD(data, PCIE_CI_CNTL, CI_SLV_ORDERING_DIS, 1);
+
+	if (def != data)
+		WREG32_PCIE(smnPCIE_CI_CNTL, data);
 }
 
 const struct amdgpu_nbio_funcs nbio_v6_1_funcs = {

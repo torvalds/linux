@@ -8,6 +8,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -17,11 +18,6 @@
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110,
- * USA
  *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
@@ -35,6 +31,7 @@
  * Copyright(c) 2012 - 2014 Intel Corporation. All rights reserved.
  * Copyright(c) 2013 - 2015 Intel Mobile Communications GmbH
  * Copyright(c) 2016 - 2017 Intel Deutschland GmbH
+ * Copyright(c) 2018 - 2019 Intel Corporation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -75,16 +72,26 @@
 #define IWL_DENSE_EBS_SCAN_RATIO 5
 #define IWL_SPARSE_EBS_SCAN_RATIO 1
 
-enum iwl_mvm_traffic_load {
-	IWL_MVM_TRAFFIC_LOW,
-	IWL_MVM_TRAFFIC_MEDIUM,
-	IWL_MVM_TRAFFIC_HIGH,
-};
-
 #define IWL_SCAN_DWELL_ACTIVE		10
 #define IWL_SCAN_DWELL_PASSIVE		110
 #define IWL_SCAN_DWELL_FRAGMENTED	44
 #define IWL_SCAN_DWELL_EXTENDED		90
+#define IWL_SCAN_NUM_OF_FRAGS		3
+#define IWL_SCAN_LAST_2_4_CHN		14
+
+#define IWL_SCAN_BAND_5_2		0
+#define IWL_SCAN_BAND_2_4		1
+
+/* adaptive dwell max budget time [TU] for full scan */
+#define IWL_SCAN_ADWELL_MAX_BUDGET_FULL_SCAN 300
+/* adaptive dwell max budget time [TU] for directed scan */
+#define IWL_SCAN_ADWELL_MAX_BUDGET_DIRECTED_SCAN 100
+/* adaptive dwell default high band APs number */
+#define IWL_SCAN_ADWELL_DEFAULT_HB_N_APS 8
+/* adaptive dwell default low band APs number */
+#define IWL_SCAN_ADWELL_DEFAULT_LB_N_APS 2
+/* adaptive dwell default APs number in social channels (1, 6, 11) */
+#define IWL_SCAN_ADWELL_DEFAULT_N_APS_SOCIAL 10
 
 struct iwl_mvm_scan_timing_params {
 	u32 suspend_time;
@@ -108,10 +115,16 @@ static struct iwl_mvm_scan_timing_params scan_timing[] = {
 		.suspend_time = 95,
 		.max_out_time = 44,
 	},
+	[IWL_SCAN_TYPE_FAST_BALANCE] = {
+		.suspend_time = 30,
+		.max_out_time = 37,
+	},
 };
 
 struct iwl_mvm_scan_params {
+	/* For CDB this is low band scan type, for non-CDB - type. */
 	enum iwl_mvm_scan_type type;
+	enum iwl_mvm_scan_type hb_type;
 	u32 n_channels;
 	u16 delay;
 	int n_ssids;
@@ -134,13 +147,33 @@ static inline void *iwl_mvm_get_scan_req_umac_data(struct iwl_mvm *mvm)
 {
 	struct iwl_scan_req_umac *cmd = mvm->scan_cmd;
 
+	if (iwl_mvm_is_adaptive_dwell_v2_supported(mvm))
+		return (void *)&cmd->v8.data;
+
 	if (iwl_mvm_is_adaptive_dwell_supported(mvm))
 		return (void *)&cmd->v7.data;
 
-	if (iwl_mvm_has_new_tx_api(mvm))
+	if (iwl_mvm_cdb_scan_api(mvm))
 		return (void *)&cmd->v6.data;
 
 	return (void *)&cmd->v1.data;
+}
+
+static inline struct iwl_scan_umac_chan_param *
+iwl_mvm_get_scan_req_umac_channel(struct iwl_mvm *mvm)
+{
+	struct iwl_scan_req_umac *cmd = mvm->scan_cmd;
+
+	if (iwl_mvm_is_adaptive_dwell_v2_supported(mvm))
+		return &cmd->v8.channel;
+
+	if (iwl_mvm_is_adaptive_dwell_supported(mvm))
+		return &cmd->v7.channel;
+
+	if (iwl_mvm_cdb_scan_api(mvm))
+		return &cmd->v6.channel;
+
+	return &cmd->v1.channel;
 }
 
 static u8 iwl_mvm_scan_rx_ant(struct iwl_mvm *mvm)
@@ -177,9 +210,7 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum nl80211_band band,
 {
 	u32 tx_ant;
 
-	mvm->scan_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, iwl_mvm_get_valid_tx_ant(mvm),
-				     mvm->scan_last_antenna_idx);
+	iwl_mvm_toggle_tx_ant(mvm, &mvm->scan_last_antenna_idx);
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 
 	if (band == NL80211_BAND_2GHZ && !no_cck)
@@ -202,15 +233,45 @@ static void iwl_mvm_scan_condition_iterator(void *data, u8 *mac,
 
 static enum iwl_mvm_traffic_load iwl_mvm_get_traffic_load(struct iwl_mvm *mvm)
 {
-	return IWL_MVM_TRAFFIC_LOW;
+	return mvm->tcm.result.global_load;
+}
+
+static enum iwl_mvm_traffic_load
+iwl_mvm_get_traffic_load_band(struct iwl_mvm *mvm, enum nl80211_band band)
+{
+	return mvm->tcm.result.band_load[band];
+}
+
+struct iwl_is_dcm_with_go_iterator_data {
+	struct ieee80211_vif *current_vif;
+	bool is_dcm_with_p2p_go;
+};
+
+static void iwl_mvm_is_dcm_with_go_iterator(void *_data, u8 *mac,
+					    struct ieee80211_vif *vif)
+{
+	struct iwl_is_dcm_with_go_iterator_data *data = _data;
+	struct iwl_mvm_vif *other_mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif *curr_mvmvif =
+		iwl_mvm_vif_from_mac80211(data->current_vif);
+
+	/* exclude the given vif */
+	if (vif == data->current_vif)
+		return;
+
+	if (vif->type == NL80211_IFTYPE_AP && vif->p2p &&
+	    other_mvmvif->phy_ctxt && curr_mvmvif->phy_ctxt &&
+	    other_mvmvif->phy_ctxt->id != curr_mvmvif->phy_ctxt->id)
+		data->is_dcm_with_p2p_go = true;
 }
 
 static enum
-iwl_mvm_scan_type iwl_mvm_get_scan_type(struct iwl_mvm *mvm, bool p2p_device)
+iwl_mvm_scan_type _iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
+					 struct ieee80211_vif *vif,
+					 enum iwl_mvm_traffic_load load,
+					 bool low_latency)
 {
 	int global_cnt = 0;
-	enum iwl_mvm_traffic_load load;
-	bool low_latency;
 
 	ieee80211_iterate_active_interfaces_atomic(mvm->hw,
 					    IEEE80211_IFACE_ITER_NORMAL,
@@ -219,12 +280,30 @@ iwl_mvm_scan_type iwl_mvm_get_scan_type(struct iwl_mvm *mvm, bool p2p_device)
 	if (!global_cnt)
 		return IWL_SCAN_TYPE_UNASSOC;
 
-	load = iwl_mvm_get_traffic_load(mvm);
-	low_latency = iwl_mvm_low_latency(mvm);
+	if (fw_has_api(&mvm->fw->ucode_capa,
+		       IWL_UCODE_TLV_API_FRAGMENTED_SCAN)) {
+		if ((load == IWL_MVM_TRAFFIC_HIGH || low_latency) &&
+		    (!vif || vif->type != NL80211_IFTYPE_P2P_DEVICE))
+			return IWL_SCAN_TYPE_FRAGMENTED;
 
-	if ((load == IWL_MVM_TRAFFIC_HIGH || low_latency) && !p2p_device &&
-	    fw_has_api(&mvm->fw->ucode_capa, IWL_UCODE_TLV_API_FRAGMENTED_SCAN))
-		return IWL_SCAN_TYPE_FRAGMENTED;
+		/* in case of DCM with GO where BSS DTIM interval < 220msec
+		 * set all scan requests as fast-balance scan
+		 * */
+		if (vif && vif->type == NL80211_IFTYPE_STATION &&
+		    vif->bss_conf.dtim_period < 220) {
+			struct iwl_is_dcm_with_go_iterator_data data = {
+				.current_vif = vif,
+				.is_dcm_with_p2p_go = false,
+			};
+
+			ieee80211_iterate_active_interfaces_atomic(mvm->hw,
+						IEEE80211_IFACE_ITER_NORMAL,
+						iwl_mvm_is_dcm_with_go_iterator,
+						&data);
+			if (data.is_dcm_with_p2p_go)
+				return IWL_SCAN_TYPE_FAST_BALANCE;
+		}
+	}
 
 	if (load >= IWL_MVM_TRAFFIC_MEDIUM || low_latency)
 		return IWL_SCAN_TYPE_MILD;
@@ -232,25 +311,58 @@ iwl_mvm_scan_type iwl_mvm_get_scan_type(struct iwl_mvm *mvm, bool p2p_device)
 	return IWL_SCAN_TYPE_WILD;
 }
 
+static enum
+iwl_mvm_scan_type iwl_mvm_get_scan_type(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif)
+{
+	enum iwl_mvm_traffic_load load;
+	bool low_latency;
+
+	load = iwl_mvm_get_traffic_load(mvm);
+	low_latency = iwl_mvm_low_latency(mvm);
+
+	return _iwl_mvm_get_scan_type(mvm, vif, load, low_latency);
+}
+
+static enum
+iwl_mvm_scan_type iwl_mvm_get_scan_type_band(struct iwl_mvm *mvm,
+					     struct ieee80211_vif *vif,
+					     enum nl80211_band band)
+{
+	enum iwl_mvm_traffic_load load;
+	bool low_latency;
+
+	load = iwl_mvm_get_traffic_load_band(mvm, band);
+	low_latency = iwl_mvm_low_latency_band(mvm, band);
+
+	return _iwl_mvm_get_scan_type(mvm, vif, load, low_latency);
+}
+
 static int
 iwl_mvm_get_measurement_dwell(struct iwl_mvm *mvm,
 			      struct cfg80211_scan_request *req,
 			      struct iwl_mvm_scan_params *params)
 {
+	u32 duration = scan_timing[params->type].max_out_time;
+
 	if (!req->duration)
 		return 0;
 
-	if (req->duration_mandatory &&
-	    req->duration > scan_timing[params->type].max_out_time) {
+	if (iwl_mvm_is_cdb_supported(mvm)) {
+		u32 hb_time = scan_timing[params->hb_type].max_out_time;
+
+		duration = min_t(u32, duration, hb_time);
+	}
+
+	if (req->duration_mandatory && req->duration > duration) {
 		IWL_DEBUG_SCAN(mvm,
 			       "Measurement scan - too long dwell %hu (max out time %u)\n",
 			       req->duration,
-			       scan_timing[params->type].max_out_time);
+			       duration);
 		return -EOPNOTSUPP;
 	}
 
-	return min_t(u32, (u32)req->duration,
-		     scan_timing[params->type].max_out_time);
+	return min_t(u32, (u32)req->duration, duration);
 }
 
 static inline bool iwl_mvm_rrm_scan_needed(struct iwl_mvm *mvm)
@@ -403,8 +515,8 @@ void iwl_mvm_rx_lmac_scan_complete_notif(struct iwl_mvm *mvm,
 
 		mvm->scan_status &= ~IWL_MVM_SCAN_REGULAR;
 		ieee80211_scan_completed(mvm->hw, &info);
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
+		iwl_mvm_resume_tcm(mvm);
 	} else {
 		IWL_ERR(mvm,
 			"got scan complete notification but no scan is running\n");
@@ -501,7 +613,7 @@ iwl_mvm_config_sched_scan_profiles(struct iwl_mvm *mvm,
 	else
 		blacklist_len = IWL_SCAN_MAX_BLACKLIST_LEN;
 
-	blacklist = kzalloc(sizeof(*blacklist) * blacklist_len, GFP_KERNEL);
+	blacklist = kcalloc(blacklist_len, sizeof(*blacklist), GFP_KERNEL);
 	if (!blacklist)
 		return -ENOMEM;
 
@@ -773,22 +885,37 @@ static inline bool iwl_mvm_scan_use_ebs(struct iwl_mvm *mvm,
 					struct ieee80211_vif *vif)
 {
 	const struct iwl_ucode_capabilities *capa = &mvm->fw->ucode_capa;
+	bool low_latency;
+
+	if (iwl_mvm_is_cdb_supported(mvm))
+		low_latency = iwl_mvm_low_latency_band(mvm, NL80211_BAND_5GHZ);
+	else
+		low_latency = iwl_mvm_low_latency(mvm);
 
 	/* We can only use EBS if:
 	 *	1. the feature is supported;
 	 *	2. the last EBS was successful;
 	 *	3. if only single scan, the single scan EBS API is supported;
 	 *	4. it's not a p2p find operation.
+	 *	5. we are not in low latency mode,
+	 *	   or if fragmented ebs is supported by the FW
 	 */
 	return ((capa->flags & IWL_UCODE_TLV_FLAGS_EBS_SUPPORT) &&
 		mvm->last_ebs_successful && IWL_MVM_ENABLE_EBS &&
-		vif->type != NL80211_IFTYPE_P2P_DEVICE);
+		vif->type != NL80211_IFTYPE_P2P_DEVICE &&
+		(!low_latency || iwl_mvm_is_frag_ebs_supported(mvm)));
 }
 
 static inline bool iwl_mvm_is_regular_scan(struct iwl_mvm_scan_params *params)
 {
 	return params->n_scan_plans == 1 &&
 		params->scan_plans[0].iterations == 1;
+}
+
+static bool iwl_mvm_is_scan_fragmented(enum iwl_mvm_scan_type type)
+{
+	return (type == IWL_SCAN_TYPE_FRAGMENTED ||
+		type == IWL_SCAN_TYPE_FAST_BALANCE);
 }
 
 static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
@@ -803,7 +930,7 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 	if (params->n_ssids == 1 && params->ssids[0].ssid_len != 0)
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_PRE_CONNECTION;
 
-	if (params->type == IWL_SCAN_TYPE_FRAGMENTED)
+	if (iwl_mvm_is_scan_fragmented(params->type))
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_FRAGMENTED;
 
 	if (iwl_mvm_rrm_scan_needed(mvm) &&
@@ -826,17 +953,30 @@ static int iwl_mvm_scan_lmac_flags(struct iwl_mvm *mvm,
 
 	if (iwl_mvm_is_regular_scan(params) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
-	    params->type != IWL_SCAN_TYPE_FRAGMENTED)
+	    !iwl_mvm_is_scan_fragmented(params->type))
 		flags |= IWL_MVM_LMAC_SCAN_FLAG_EXTENDED_DWELL;
 
 	return flags;
+}
+
+static void
+iwl_mvm_scan_set_legacy_probe_req(struct iwl_scan_probe_req_v1 *p_req,
+				  struct iwl_scan_probe_req *src_p_req)
+{
+	int i;
+
+	p_req->mac_header = src_p_req->mac_header;
+	for (i = 0; i < SCAN_NUM_BAND_PROBE_DATA_V_1; i++)
+		p_req->band_data[i] = src_p_req->band_data[i];
+	p_req->common_data = src_p_req->common_data;
+	memcpy(p_req->buf, src_p_req->buf, sizeof(p_req->buf));
 }
 
 static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     struct iwl_mvm_scan_params *params)
 {
 	struct iwl_scan_req_lmac *cmd = mvm->scan_cmd;
-	struct iwl_scan_probe_req *preq =
+	struct iwl_scan_probe_req_v1 *preq =
 		(void *)(cmd->data + sizeof(struct iwl_scan_channel_cfg_lmac) *
 			 mvm->fw->ucode_capa.n_scan_channels);
 	u32 ssid_bitmap = 0;
@@ -906,7 +1046,7 @@ static int iwl_mvm_scan_lmac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	iwl_mvm_lmac_scan_cfg_channels(mvm, params->channels,
 				       params->n_channels, ssid_bitmap, cmd);
 
-	*preq = params->preq;
+	iwl_mvm_scan_set_legacy_probe_req(preq, &params->preq);
 
 	return 0;
 }
@@ -959,23 +1099,25 @@ static void iwl_mvm_fill_scan_dwell(struct iwl_mvm *mvm,
 	dwell->extended = IWL_SCAN_DWELL_EXTENDED;
 }
 
-static void iwl_mvm_fill_channels(struct iwl_mvm *mvm, u8 *channels)
+static void iwl_mvm_fill_channels(struct iwl_mvm *mvm, u8 *channels,
+				  u32 max_channels)
 {
 	struct ieee80211_supported_band *band;
 	int i, j = 0;
 
 	band = &mvm->nvm_data->bands[NL80211_BAND_2GHZ];
-	for (i = 0; i < band->n_channels; i++, j++)
+	for (i = 0; i < band->n_channels && j < max_channels; i++, j++)
 		channels[j] = band->channels[i].hw_value;
 	band = &mvm->nvm_data->bands[NL80211_BAND_5GHZ];
-	for (i = 0; i < band->n_channels; i++, j++)
+	for (i = 0; i < band->n_channels && j < max_channels; i++, j++)
 		channels[j] = band->channels[i].hw_value;
 }
 
 static void iwl_mvm_fill_scan_config_v1(struct iwl_mvm *mvm, void *config,
-					u32 flags, u8 channel_flags)
+					u32 flags, u8 channel_flags,
+					u32 max_channels)
 {
-	enum iwl_mvm_scan_type type = iwl_mvm_get_scan_type(mvm, false);
+	enum iwl_mvm_scan_type type = iwl_mvm_get_scan_type(mvm, NULL);
 	struct iwl_scan_config_v1 *cfg = config;
 
 	cfg->flags = cpu_to_le32(flags);
@@ -992,28 +1134,45 @@ static void iwl_mvm_fill_scan_config_v1(struct iwl_mvm *mvm, void *config,
 	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
 	cfg->channel_flags = channel_flags;
 
-	iwl_mvm_fill_channels(mvm, cfg->channel_array);
+	iwl_mvm_fill_channels(mvm, cfg->channel_array, max_channels);
 }
 
 static void iwl_mvm_fill_scan_config(struct iwl_mvm *mvm, void *config,
-				     u32 flags, u8 channel_flags)
+				     u32 flags, u8 channel_flags,
+				     u32 max_channels)
 {
-	enum iwl_mvm_scan_type type = iwl_mvm_get_scan_type(mvm, false);
 	struct iwl_scan_config *cfg = config;
 
 	cfg->flags = cpu_to_le32(flags);
 	cfg->tx_chains = cpu_to_le32(iwl_mvm_get_valid_tx_ant(mvm));
 	cfg->rx_chains = cpu_to_le32(iwl_mvm_scan_rx_ant(mvm));
 	cfg->legacy_rates = iwl_mvm_scan_config_rates(mvm);
-	cfg->out_of_channel_time[0] =
-		cpu_to_le32(scan_timing[type].max_out_time);
-	cfg->suspend_time[0] = cpu_to_le32(scan_timing[type].suspend_time);
 
 	if (iwl_mvm_is_cdb_supported(mvm)) {
-		cfg->suspend_time[1] =
-			cpu_to_le32(scan_timing[type].suspend_time);
-		cfg->out_of_channel_time[1] =
+		enum iwl_mvm_scan_type lb_type, hb_type;
+
+		lb_type = iwl_mvm_get_scan_type_band(mvm, NULL,
+						     NL80211_BAND_2GHZ);
+		hb_type = iwl_mvm_get_scan_type_band(mvm, NULL,
+						     NL80211_BAND_5GHZ);
+
+		cfg->out_of_channel_time[SCAN_LB_LMAC_IDX] =
+			cpu_to_le32(scan_timing[lb_type].max_out_time);
+		cfg->suspend_time[SCAN_LB_LMAC_IDX] =
+			cpu_to_le32(scan_timing[lb_type].suspend_time);
+
+		cfg->out_of_channel_time[SCAN_HB_LMAC_IDX] =
+			cpu_to_le32(scan_timing[hb_type].max_out_time);
+		cfg->suspend_time[SCAN_HB_LMAC_IDX] =
+			cpu_to_le32(scan_timing[hb_type].suspend_time);
+	} else {
+		enum iwl_mvm_scan_type type =
+			iwl_mvm_get_scan_type(mvm, NULL);
+
+		cfg->out_of_channel_time[SCAN_LB_LMAC_IDX] =
 			cpu_to_le32(scan_timing[type].max_out_time);
+		cfg->suspend_time[SCAN_LB_LMAC_IDX] =
+			cpu_to_le32(scan_timing[type].suspend_time);
 	}
 
 	iwl_mvm_fill_scan_dwell(mvm, &cfg->dwell);
@@ -1023,7 +1182,7 @@ static void iwl_mvm_fill_scan_config(struct iwl_mvm *mvm, void *config,
 	cfg->bcast_sta_id = mvm->aux_sta.sta_id;
 	cfg->channel_flags = channel_flags;
 
-	iwl_mvm_fill_channels(mvm, cfg->channel_array);
+	iwl_mvm_fill_channels(mvm, cfg->channel_array, max_channels);
 }
 
 int iwl_mvm_config_scan(struct iwl_mvm *mvm)
@@ -1033,7 +1192,8 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	struct iwl_host_cmd cmd = {
 		.id = iwl_cmd_id(SCAN_CFG_CMD, IWL_ALWAYS_LONG_GROUP, 0),
 	};
-	enum iwl_mvm_scan_type type = iwl_mvm_get_scan_type(mvm, false);
+	enum iwl_mvm_scan_type type;
+	enum iwl_mvm_scan_type hb_type = IWL_SCAN_TYPE_NOT_SET;
 	int num_channels =
 		mvm->nvm_data->bands[NL80211_BAND_2GHZ].n_channels +
 		mvm->nvm_data->bands[NL80211_BAND_5GHZ].n_channels;
@@ -1041,16 +1201,26 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	u8 channel_flags;
 
 	if (WARN_ON(num_channels > mvm->fw->ucode_capa.n_scan_channels))
-		return -ENOBUFS;
+		num_channels = mvm->fw->ucode_capa.n_scan_channels;
 
-	if (type == mvm->scan_type)
-		return 0;
+	if (iwl_mvm_is_cdb_supported(mvm)) {
+		type = iwl_mvm_get_scan_type_band(mvm, NULL,
+						  NL80211_BAND_2GHZ);
+		hb_type = iwl_mvm_get_scan_type_band(mvm, NULL,
+						     NL80211_BAND_5GHZ);
+		if (type == mvm->scan_type && hb_type == mvm->hb_scan_type)
+			return 0;
+	} else {
+		type = iwl_mvm_get_scan_type(mvm, NULL);
+		if (type == mvm->scan_type)
+			return 0;
+	}
 
-	if (iwl_mvm_has_new_tx_api(mvm))
+	if (iwl_mvm_cdb_scan_api(mvm))
 		cmd_size = sizeof(struct iwl_scan_config);
 	else
 		cmd_size = sizeof(struct iwl_scan_config_v1);
-	cmd_size += mvm->fw->ucode_capa.n_scan_channels;
+	cmd_size += num_channels;
 
 	cfg = kzalloc(cmd_size, GFP_KERNEL);
 	if (!cfg)
@@ -1066,7 +1236,7 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 		 SCAN_CONFIG_FLAG_SET_MAC_ADDR |
 		 SCAN_CONFIG_FLAG_SET_CHANNEL_FLAGS |
 		 SCAN_CONFIG_N_CHANNELS(num_channels) |
-		 (type == IWL_SCAN_TYPE_FRAGMENTED ?
+		 (iwl_mvm_is_scan_fragmented(type) ?
 		  SCAN_CONFIG_FLAG_SET_FRAGMENTED :
 		  SCAN_CONFIG_FLAG_CLEAR_FRAGMENTED);
 
@@ -1075,13 +1245,20 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 			IWL_CHANNEL_FLAG_EBS_ADD |
 			IWL_CHANNEL_FLAG_PRE_SCAN_PASSIVE2ACTIVE;
 
-	if (iwl_mvm_has_new_tx_api(mvm)) {
-		flags |= (type == IWL_SCAN_TYPE_FRAGMENTED) ?
-			 SCAN_CONFIG_FLAG_SET_LMAC2_FRAGMENTED :
-			 SCAN_CONFIG_FLAG_CLEAR_LMAC2_FRAGMENTED;
-		iwl_mvm_fill_scan_config(mvm, cfg, flags, channel_flags);
+	/*
+	 * Check for fragmented scan on LMAC2 - high band.
+	 * LMAC1 - low band is checked above.
+	 */
+	if (iwl_mvm_cdb_scan_api(mvm)) {
+		if (iwl_mvm_is_cdb_supported(mvm))
+			flags |= (iwl_mvm_is_scan_fragmented(hb_type)) ?
+				 SCAN_CONFIG_FLAG_SET_LMAC2_FRAGMENTED :
+				 SCAN_CONFIG_FLAG_CLEAR_LMAC2_FRAGMENTED;
+		iwl_mvm_fill_scan_config(mvm, cfg, flags, channel_flags,
+					 num_channels);
 	} else {
-		iwl_mvm_fill_scan_config_v1(mvm, cfg, flags, channel_flags);
+		iwl_mvm_fill_scan_config_v1(mvm, cfg, flags, channel_flags,
+					    num_channels);
 	}
 
 	cmd.data[0] = cfg;
@@ -1091,8 +1268,10 @@ int iwl_mvm_config_scan(struct iwl_mvm *mvm)
 	IWL_DEBUG_SCAN(mvm, "Sending UMAC scan config\n");
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
-	if (!ret)
+	if (!ret) {
 		mvm->scan_type = type;
+		mvm->hb_scan_type = hb_type;
+	}
 
 	kfree(cfg);
 	return ret;
@@ -1113,67 +1292,102 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 				    struct iwl_scan_req_umac *cmd,
 				    struct iwl_mvm_scan_params *params)
 {
-	struct iwl_mvm_scan_timing_params *timing = &scan_timing[params->type];
+	struct iwl_mvm_scan_timing_params *timing, *hb_timing;
+	u8 active_dwell, passive_dwell;
 
-	if (iwl_mvm_is_regular_scan(params))
-		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
-	else
-		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_2);
+	timing = &scan_timing[params->type];
+	active_dwell = params->measurement_dwell ?
+		params->measurement_dwell : IWL_SCAN_DWELL_ACTIVE;
+	passive_dwell = params->measurement_dwell ?
+		params->measurement_dwell : IWL_SCAN_DWELL_PASSIVE;
 
 	if (iwl_mvm_is_adaptive_dwell_supported(mvm)) {
-		if (params->measurement_dwell) {
-			cmd->v7.active_dwell = params->measurement_dwell;
-			cmd->v7.passive_dwell = params->measurement_dwell;
-		} else {
-			cmd->v7.active_dwell = IWL_SCAN_DWELL_ACTIVE;
-			cmd->v7.passive_dwell = IWL_SCAN_DWELL_PASSIVE;
-		}
-		cmd->v7.fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
+		cmd->v7.adwell_default_n_aps_social =
+			IWL_SCAN_ADWELL_DEFAULT_N_APS_SOCIAL;
+		cmd->v7.adwell_default_n_aps =
+			IWL_SCAN_ADWELL_DEFAULT_LB_N_APS;
+
+		if (iwl_mvm_is_adwell_hb_ap_num_supported(mvm))
+			cmd->v9.adwell_default_hb_n_aps =
+				IWL_SCAN_ADWELL_DEFAULT_HB_N_APS;
+
+		/* if custom max budget was configured with debugfs */
+		if (IWL_MVM_ADWELL_MAX_BUDGET)
+			cmd->v7.adwell_max_budget =
+				cpu_to_le16(IWL_MVM_ADWELL_MAX_BUDGET);
+		else if (params->ssids && params->ssids[0].ssid_len)
+			cmd->v7.adwell_max_budget =
+				cpu_to_le16(IWL_SCAN_ADWELL_MAX_BUDGET_DIRECTED_SCAN);
+		else
+			cmd->v7.adwell_max_budget =
+				cpu_to_le16(IWL_SCAN_ADWELL_MAX_BUDGET_FULL_SCAN);
 
 		cmd->v7.scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
 		cmd->v7.max_out_time[SCAN_LB_LMAC_IDX] =
 			cpu_to_le32(timing->max_out_time);
 		cmd->v7.suspend_time[SCAN_LB_LMAC_IDX] =
 			cpu_to_le32(timing->suspend_time);
+
 		if (iwl_mvm_is_cdb_supported(mvm)) {
+			hb_timing = &scan_timing[params->hb_type];
+
 			cmd->v7.max_out_time[SCAN_HB_LMAC_IDX] =
-				cpu_to_le32(timing->max_out_time);
+				cpu_to_le32(hb_timing->max_out_time);
 			cmd->v7.suspend_time[SCAN_HB_LMAC_IDX] =
-				cpu_to_le32(timing->suspend_time);
+				cpu_to_le32(hb_timing->suspend_time);
 		}
 
-		return;
-	}
-
-	if (params->measurement_dwell) {
-		cmd->v1.active_dwell = params->measurement_dwell;
-		cmd->v1.passive_dwell = params->measurement_dwell;
-		cmd->v1.extended_dwell = params->measurement_dwell;
+		if (!iwl_mvm_is_adaptive_dwell_v2_supported(mvm)) {
+			cmd->v7.active_dwell = active_dwell;
+			cmd->v7.passive_dwell = passive_dwell;
+			cmd->v7.fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
+		} else {
+			cmd->v8.active_dwell[SCAN_LB_LMAC_IDX] = active_dwell;
+			cmd->v8.passive_dwell[SCAN_LB_LMAC_IDX] = passive_dwell;
+			if (iwl_mvm_is_cdb_supported(mvm)) {
+				cmd->v8.active_dwell[SCAN_HB_LMAC_IDX] =
+					active_dwell;
+				cmd->v8.passive_dwell[SCAN_HB_LMAC_IDX] =
+					passive_dwell;
+			}
+		}
 	} else {
-		cmd->v1.active_dwell = IWL_SCAN_DWELL_ACTIVE;
-		cmd->v1.passive_dwell = IWL_SCAN_DWELL_PASSIVE;
-		cmd->v1.extended_dwell = IWL_SCAN_DWELL_EXTENDED;
-	}
-	cmd->v1.fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
+		cmd->v1.extended_dwell = params->measurement_dwell ?
+			params->measurement_dwell : IWL_SCAN_DWELL_EXTENDED;
+		cmd->v1.active_dwell = active_dwell;
+		cmd->v1.passive_dwell = passive_dwell;
+		cmd->v1.fragmented_dwell = IWL_SCAN_DWELL_FRAGMENTED;
 
-	if (iwl_mvm_has_new_tx_api(mvm)) {
-		cmd->v6.scan_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
-		cmd->v6.max_out_time[SCAN_LB_LMAC_IDX] =
-			cpu_to_le32(timing->max_out_time);
-		cmd->v6.suspend_time[SCAN_LB_LMAC_IDX] =
-			cpu_to_le32(timing->suspend_time);
 		if (iwl_mvm_is_cdb_supported(mvm)) {
+			hb_timing = &scan_timing[params->hb_type];
+
 			cmd->v6.max_out_time[SCAN_HB_LMAC_IDX] =
-				cpu_to_le32(timing->max_out_time);
+					cpu_to_le32(hb_timing->max_out_time);
 			cmd->v6.suspend_time[SCAN_HB_LMAC_IDX] =
+					cpu_to_le32(hb_timing->suspend_time);
+		}
+
+		if (iwl_mvm_cdb_scan_api(mvm)) {
+			cmd->v6.scan_priority =
+				cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+			cmd->v6.max_out_time[SCAN_LB_LMAC_IDX] =
+				cpu_to_le32(timing->max_out_time);
+			cmd->v6.suspend_time[SCAN_LB_LMAC_IDX] =
+				cpu_to_le32(timing->suspend_time);
+		} else {
+			cmd->v1.scan_priority =
+				cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+			cmd->v1.max_out_time =
+				cpu_to_le32(timing->max_out_time);
+			cmd->v1.suspend_time =
 				cpu_to_le32(timing->suspend_time);
 		}
-	} else {
-		cmd->v1.max_out_time = cpu_to_le32(timing->max_out_time);
-		cmd->v1.suspend_time = cpu_to_le32(timing->suspend_time);
-		cmd->v1.scan_priority =
-			cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
 	}
+
+	if (iwl_mvm_is_regular_scan(params))
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_6);
+	else
+		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_2);
 }
 
 static void
@@ -1186,9 +1400,17 @@ iwl_mvm_umac_scan_cfg_channels(struct iwl_mvm *mvm,
 
 	for (i = 0; i < n_channels; i++) {
 		channel_cfg[i].flags = cpu_to_le32(ssid_bitmap);
-		channel_cfg[i].channel_num = channels[i]->hw_value;
-		channel_cfg[i].iter_count = 1;
-		channel_cfg[i].iter_interval = 0;
+		channel_cfg[i].v1.channel_num = channels[i]->hw_value;
+		if (iwl_mvm_is_scan_ext_chan_supported(mvm)) {
+			channel_cfg[i].v2.band =
+				channels[i]->hw_value <= IWL_SCAN_LAST_2_4_CHN ?
+					IWL_SCAN_BAND_2_4 : IWL_SCAN_BAND_5_2;
+			channel_cfg[i].v2.iter_count = 1;
+			channel_cfg[i].v2.iter_interval = 0;
+		} else {
+			channel_cfg[i].v1.iter_count = 1;
+			channel_cfg[i].v1.iter_interval = 0;
+		}
 	}
 }
 
@@ -1204,11 +1426,12 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (params->n_ssids == 1 && params->ssids[0].ssid_len != 0)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_PRE_CONNECT;
 
-	if (params->type == IWL_SCAN_TYPE_FRAGMENTED) {
+	if (iwl_mvm_is_scan_fragmented(params->type))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_FRAGMENTED;
-		if (iwl_mvm_is_cdb_supported(mvm))
-			flags |= IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED;
-	}
+
+	if (iwl_mvm_is_cdb_supported(mvm) &&
+	    iwl_mvm_is_scan_fragmented(params->hb_type))
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED;
 
 	if (iwl_mvm_rrm_scan_needed(mvm) &&
 	    fw_has_capa(&mvm->fw->ucode_capa,
@@ -1234,10 +1457,38 @@ static u16 iwl_mvm_scan_umac_flags(struct iwl_mvm *mvm,
 	if (mvm->sched_scan_pass_all == SCHED_SCAN_PASS_ALL_ENABLED)
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ITER_COMPLETE;
 
+	if (iwl_mvm_is_adaptive_dwell_supported(mvm) && IWL_MVM_ADWELL_ENABLE &&
+	    vif->type != NL80211_IFTYPE_P2P_DEVICE)
+		flags |= IWL_UMAC_SCAN_GEN_FLAGS_ADAPTIVE_DWELL;
+
+	/*
+	 * Extended dwell is relevant only for low band to start with, as it is
+	 * being used for social channles only (1, 6, 11), so we can check
+	 * only scan type on low band also for CDB.
+	 */
 	if (iwl_mvm_is_regular_scan(params) &&
 	    vif->type != NL80211_IFTYPE_P2P_DEVICE &&
-	    params->type != IWL_SCAN_TYPE_FRAGMENTED)
+	    !iwl_mvm_is_scan_fragmented(params->type) &&
+	    !iwl_mvm_is_adaptive_dwell_supported(mvm) &&
+	    !iwl_mvm_is_oce_supported(mvm))
 		flags |= IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL;
+
+	if (iwl_mvm_is_oce_supported(mvm)) {
+		if ((params->flags &
+		     NL80211_SCAN_FLAG_OCE_PROBE_REQ_HIGH_TX_RATE))
+			flags |= IWL_UMAC_SCAN_GEN_FLAGS_PROB_REQ_HIGH_TX_RATE;
+		/* Since IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL and
+		 * NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION shares
+		 * the same bit, we need to make sure that we use this bit here
+		 * only when IWL_UMAC_SCAN_GEN_FLAGS_EXTENDED_DWELL cannot be
+		 * used. */
+		if ((params->flags &
+		     NL80211_SCAN_FLAG_OCE_PROBE_REQ_DEFERRAL_SUPPRESSION) &&
+		     !WARN_ON_ONCE(!iwl_mvm_is_adaptive_dwell_supported(mvm)))
+			flags |= IWL_UMAC_SCAN_GEN_FLAGS_PROB_REQ_DEFER_SUPP;
+		if ((params->flags & NL80211_SCAN_FLAG_FILS_MAX_CHANNEL_TIME))
+			flags |= IWL_UMAC_SCAN_GEN_FLAGS_MAX_CHNL_TIME;
+	}
 
 	return flags;
 }
@@ -1247,14 +1498,21 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			     int type)
 {
 	struct iwl_scan_req_umac *cmd = mvm->scan_cmd;
+	struct iwl_scan_umac_chan_param *chan_param;
 	void *cmd_data = iwl_mvm_get_scan_req_umac_data(mvm);
-	struct iwl_scan_req_umac_tail *sec_part = cmd_data +
-		sizeof(struct iwl_scan_channel_cfg_umac) *
-			mvm->fw->ucode_capa.n_scan_channels;
+	void *sec_part = cmd_data + sizeof(struct iwl_scan_channel_cfg_umac) *
+		mvm->fw->ucode_capa.n_scan_channels;
+	struct iwl_scan_req_umac_tail_v2 *tail_v2 =
+		(struct iwl_scan_req_umac_tail_v2 *)sec_part;
+	struct iwl_scan_req_umac_tail_v1 *tail_v1;
+	struct iwl_ssid_ie *direct_scan;
 	int uid, i;
 	u32 ssid_bitmap = 0;
 	u8 channel_flags = 0;
+	u16 gen_flags;
 	struct iwl_mvm_vif *scan_vif = iwl_mvm_vif_from_mac80211(vif);
+
+	chan_param = iwl_mvm_get_scan_req_umac_channel(mvm);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1272,41 +1530,49 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	mvm->scan_uid_status[uid] = type;
 
 	cmd->uid = cpu_to_le32(uid);
-	cmd->general_flags = cpu_to_le16(iwl_mvm_scan_umac_flags(mvm, params,
-								 vif));
+	gen_flags = iwl_mvm_scan_umac_flags(mvm, params, vif);
+	cmd->general_flags = cpu_to_le16(gen_flags);
+	if (iwl_mvm_is_adaptive_dwell_v2_supported(mvm)) {
+		if (gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_FRAGMENTED)
+			cmd->v8.num_of_fragments[SCAN_LB_LMAC_IDX] =
+							IWL_SCAN_NUM_OF_FRAGS;
+		if (gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED)
+			cmd->v8.num_of_fragments[SCAN_HB_LMAC_IDX] =
+							IWL_SCAN_NUM_OF_FRAGS;
+
+		cmd->v8.general_flags2 =
+			IWL_UMAC_SCAN_GEN_FLAGS2_ALLOW_CHNL_REORDER;
+	}
+
 	cmd->scan_start_mac_id = scan_vif->id;
 
 	if (type == IWL_MVM_SCAN_SCHED || type == IWL_MVM_SCAN_NETDETECT)
 		cmd->flags = cpu_to_le32(IWL_UMAC_SCAN_FLAG_PREEMPTIVE);
 
-	if (iwl_mvm_scan_use_ebs(mvm, vif))
+	if (iwl_mvm_scan_use_ebs(mvm, vif)) {
 		channel_flags = IWL_SCAN_CHANNEL_FLAG_EBS |
 				IWL_SCAN_CHANNEL_FLAG_EBS_ACCURATE |
 				IWL_SCAN_CHANNEL_FLAG_CACHE_ADD;
 
-	if (iwl_mvm_is_adaptive_dwell_supported(mvm)) {
-		cmd->v7.channel_flags = channel_flags;
-		cmd->v7.n_channels = params->n_channels;
-	} else if (iwl_mvm_has_new_tx_api(mvm)) {
-		cmd->v6.channel_flags = channel_flags;
-		cmd->v6.n_channels = params->n_channels;
-	} else {
-		cmd->v1.channel_flags = channel_flags;
-		cmd->v1.n_channels = params->n_channels;
+		/* set fragmented ebs for fragmented scan on HB channels */
+		if (iwl_mvm_is_frag_ebs_supported(mvm)) {
+			if (gen_flags &
+			    IWL_UMAC_SCAN_GEN_FLAGS_LMAC2_FRAGMENTED ||
+			    (!iwl_mvm_is_cdb_supported(mvm) &&
+			     gen_flags & IWL_UMAC_SCAN_GEN_FLAGS_FRAGMENTED))
+				channel_flags |= IWL_SCAN_CHANNEL_FLAG_EBS_FRAG;
+		}
 	}
 
-	iwl_scan_build_ssids(params, sec_part->direct_scan, &ssid_bitmap);
-
-	iwl_mvm_umac_scan_cfg_channels(mvm, params->channels,
-				       params->n_channels, ssid_bitmap,
-				       cmd_data);
+	chan_param->flags = channel_flags;
+	chan_param->count = params->n_channels;
 
 	for (i = 0; i < params->n_scan_plans; i++) {
 		struct cfg80211_sched_scan_plan *scan_plan =
 			&params->scan_plans[i];
 
-		sec_part->schedule[i].iter_count = scan_plan->iterations;
-		sec_part->schedule[i].interval =
+		tail_v2->schedule[i].iter_count = scan_plan->iterations;
+		tail_v2->schedule[i].interval =
 			cpu_to_le16(scan_plan->interval);
 	}
 
@@ -1316,12 +1582,24 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * For example, when regular scan is requested the driver sets one scan
 	 * plan with one iteration.
 	 */
-	if (!sec_part->schedule[i - 1].iter_count)
-		sec_part->schedule[i - 1].iter_count = 0xff;
+	if (!tail_v2->schedule[i - 1].iter_count)
+		tail_v2->schedule[i - 1].iter_count = 0xff;
 
-	sec_part->delay = cpu_to_le16(params->delay);
-	sec_part->preq = params->preq;
+	tail_v2->delay = cpu_to_le16(params->delay);
 
+	if (iwl_mvm_is_scan_ext_chan_supported(mvm)) {
+		tail_v2->preq = params->preq;
+		direct_scan = tail_v2->direct_scan;
+	} else {
+		tail_v1 = (struct iwl_scan_req_umac_tail_v1 *)sec_part;
+		iwl_mvm_scan_set_legacy_probe_req(&tail_v1->preq,
+						  &params->preq);
+		direct_scan = tail_v1->direct_scan;
+	}
+	iwl_scan_build_ssids(params, direct_scan, &ssid_bitmap);
+	iwl_mvm_umac_scan_cfg_channels(mvm, params->channels,
+				       params->n_channels, ssid_bitmap,
+				       cmd_data);
 	return 0;
 }
 
@@ -1344,6 +1622,11 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 	 * compatibility with old wpa_supplicant that wouldn't stop a
 	 * scheduled scan before starting a normal scan.
 	 */
+
+	/* FW supports only a single periodic scan */
+	if ((type == IWL_MVM_SCAN_SCHED || type == IWL_MVM_SCAN_NETDETECT) &&
+	    mvm->scan_status & (IWL_MVM_SCAN_SCHED | IWL_MVM_SCAN_NETDETECT))
+		return -EBUSY;
 
 	if (iwl_mvm_num_scans(mvm) < mvm->max_scans)
 		return 0;
@@ -1381,10 +1664,10 @@ static int iwl_mvm_check_running_scans(struct iwl_mvm *mvm, int type)
 		if (mvm->scan_status & IWL_MVM_SCAN_SCHED_MASK)
 			return iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_SCHED,
 						 true);
-
-		/* fall through, something is wrong if no scan was
-		 * running but we ran out of scans.
+		/* Something is wrong if no scan was running but we
+		 * ran out of scans.
 		 */
+		/* fall through */
 	default:
 		WARN_ON(1);
 		break;
@@ -1404,6 +1687,22 @@ void iwl_mvm_scan_timeout_wk(struct work_struct *work)
 	IWL_ERR(mvm, "regular scan timed out\n");
 
 	iwl_force_nmi(mvm->trans);
+}
+
+static void iwl_mvm_fill_scan_type(struct iwl_mvm *mvm,
+				   struct iwl_mvm_scan_params *params,
+				   struct ieee80211_vif *vif)
+{
+	if (iwl_mvm_is_cdb_supported(mvm)) {
+		params->type =
+			iwl_mvm_get_scan_type_band(mvm, vif,
+						   NL80211_BAND_2GHZ);
+		params->hb_type =
+			iwl_mvm_get_scan_type_band(mvm, vif,
+						   NL80211_BAND_5GHZ);
+	} else {
+		params->type = iwl_mvm_get_scan_type(mvm, vif);
+	}
 }
 
 int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -1453,9 +1752,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	params.scan_plans = &scan_plan;
 	params.n_scan_plans = 1;
 
-	params.type =
-		iwl_mvm_get_scan_type(mvm,
-				      vif->type == NL80211_IFTYPE_P2P_DEVICE);
+	iwl_mvm_fill_scan_type(mvm, &params, vif);
 
 	ret = iwl_mvm_get_measurement_dwell(mvm, req, &params);
 	if (ret < 0)
@@ -1477,6 +1774,8 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
+	iwl_mvm_pause_tcm(mvm, false);
+
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (ret) {
 		/* If the scan failed, it usually means that the FW was unable
@@ -1484,13 +1783,13 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		 * should try to send the command again with different params.
 		 */
 		IWL_ERR(mvm, "Scan failed! ret %d\n", ret);
+		iwl_mvm_resume_tcm(mvm);
 		return ret;
 	}
 
 	IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
 	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
 	mvm->scan_vif = iwl_mvm_vif_from_mac80211(vif);
-	iwl_mvm_ref(mvm, IWL_MVM_REF_SCAN);
 
 	schedule_delayed_work(&mvm->scan_timeout_dwork,
 			      msecs_to_jiffies(SCAN_TIMEOUT));
@@ -1547,9 +1846,7 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	params.n_scan_plans = req->n_scan_plans;
 	params.scan_plans = req->scan_plans;
 
-	params.type =
-		iwl_mvm_get_scan_type(mvm,
-				      vif->type == NL80211_IFTYPE_P2P_DEVICE);
+	iwl_mvm_fill_scan_type(mvm, &params, vif);
 
 	/* In theory, LMAC scans can handle a 32-bit delay, but since
 	 * waiting for over 18 hours to start the scan is a bit silly
@@ -1618,8 +1915,8 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		memcpy(info.tsf_bssid, mvm->scan_vif->bssid, ETH_ALEN);
 		ieee80211_scan_completed(mvm->hw, &info);
 		mvm->scan_vif = NULL;
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
+		iwl_mvm_resume_tcm(mvm);
 	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED) {
 		ieee80211_sched_scan_stopped(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
@@ -1723,30 +2020,37 @@ static int iwl_mvm_scan_stop_wait(struct iwl_mvm *mvm, int type)
 		return ret;
 	}
 
-	ret = iwl_wait_notification(&mvm->notif_wait, &wait_scan_done, 1 * HZ);
-
-	return ret;
+	return iwl_wait_notification(&mvm->notif_wait, &wait_scan_done,
+				     1 * HZ);
 }
 
 int iwl_mvm_scan_size(struct iwl_mvm *mvm)
 {
 	int base_size = IWL_SCAN_REQ_UMAC_SIZE_V1;
+	int tail_size;
 
-	if (iwl_mvm_is_adaptive_dwell_supported(mvm))
+	if (iwl_mvm_is_adaptive_dwell_v2_supported(mvm))
+		base_size = IWL_SCAN_REQ_UMAC_SIZE_V8;
+	else if (iwl_mvm_is_adaptive_dwell_supported(mvm))
 		base_size = IWL_SCAN_REQ_UMAC_SIZE_V7;
-	else if (iwl_mvm_has_new_tx_api(mvm))
+	else if (iwl_mvm_cdb_scan_api(mvm))
 		base_size = IWL_SCAN_REQ_UMAC_SIZE_V6;
 
-	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN))
+	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_UMAC_SCAN)) {
+		if (iwl_mvm_is_scan_ext_chan_supported(mvm))
+			tail_size = sizeof(struct iwl_scan_req_umac_tail_v2);
+		else
+			tail_size = sizeof(struct iwl_scan_req_umac_tail_v1);
+
 		return base_size +
 			sizeof(struct iwl_scan_channel_cfg_umac) *
 				mvm->fw->ucode_capa.n_scan_channels +
-			sizeof(struct iwl_scan_req_umac_tail);
-
+			tail_size;
+	}
 	return sizeof(struct iwl_scan_req_lmac) +
 		sizeof(struct iwl_scan_channel_cfg_lmac) *
 		mvm->fw->ucode_capa.n_scan_channels +
-		sizeof(struct iwl_scan_probe_req);
+		sizeof(struct iwl_scan_probe_req_v1);
 }
 
 /*
@@ -1829,10 +2133,6 @@ out:
 	mvm->scan_status &= ~type;
 
 	if (type == IWL_MVM_SCAN_REGULAR) {
-		/* Since the rx handler won't do anything now, we have
-		 * to release the scan reference here.
-		 */
-		iwl_mvm_unref(mvm, IWL_MVM_REF_SCAN);
 		cancel_delayed_work(&mvm->scan_timeout_dwork);
 		if (notify) {
 			struct cfg80211_scan_info info = {

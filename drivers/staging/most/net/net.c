@@ -69,13 +69,13 @@ struct net_dev_context {
 
 static struct list_head net_devices = LIST_HEAD_INIT(net_devices);
 static struct mutex probe_disc_mt; /* ch->linked = true, most_nd_open */
-static struct spinlock list_lock; /* list_head, ch->linked = false, dev_hold */
+static DEFINE_SPINLOCK(list_lock); /* list_head, ch->linked = false, dev_hold */
 static struct core_component comp;
 
 static int skb_to_mamac(const struct sk_buff *skb, struct mbo *mbo)
 {
 	u8 *buff = mbo->virt_address;
-	const u8 broadcast[] = { 0x03, 0xFF };
+	static const u8 broadcast[] = { 0x03, 0xFF };
 	const u8 *dest_addr = skb->data + 4;
 	const u8 *eth_type = skb->data + 12;
 	unsigned int payload_len = skb->len - ETH_HLEN;
@@ -293,7 +293,8 @@ static struct net_dev_context *get_net_dev_hold(struct most_interface *iface)
 }
 
 static int comp_probe_channel(struct most_interface *iface, int channel_idx,
-			      struct most_channel_config *ccfg, char *name)
+			      struct most_channel_config *ccfg, char *name,
+			      char *args)
 {
 	struct net_dev_context *nd;
 	struct net_dev_channel *ch;
@@ -506,13 +507,23 @@ static struct core_component comp = {
 
 static int __init most_net_init(void)
 {
-	spin_lock_init(&list_lock);
+	int err;
+
 	mutex_init(&probe_disc_mt);
-	return most_register_component(&comp);
+	err = most_register_component(&comp);
+	if (err)
+		return err;
+	err = most_register_configfs_subsys(&comp);
+	if (err) {
+		most_deregister_component(&comp);
+		return err;
+	}
+	return 0;
 }
 
 static void __exit most_net_exit(void)
 {
+	most_deregister_configfs_subsys(&comp);
 	most_deregister_component(&comp);
 }
 

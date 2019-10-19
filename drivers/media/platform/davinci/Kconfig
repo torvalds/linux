@@ -1,8 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_DAVINCI_VPIF_DISPLAY
 	tristate "TI DaVinci VPIF V4L2-Display driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
 	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
 	select VIDEO_ADV7343 if MEDIA_SUBDRV_AUTOSELECT
@@ -19,7 +19,6 @@ config VIDEO_DAVINCI_VPIF_CAPTURE
 	tristate "TI DaVinci VPIF video capture driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
 	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_FWNODE
@@ -35,7 +34,6 @@ config VIDEO_DM6446_CCDC
 	tristate "TI DM6446 CCDC video capture driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
 	depends on I2C
 	select VIDEOBUF_DMA_CONTIG
 	help
@@ -52,7 +50,6 @@ config VIDEO_DM355_CCDC
 	tristate "TI DM355 CCDC video capture driver"
 	depends on VIDEO_V4L2
 	depends on ARCH_DAVINCI || COMPILE_TEST
-	depends on HAS_DMA
 	depends on I2C
 	select VIDEOBUF_DMA_CONTIG
 	help
@@ -67,8 +64,8 @@ config VIDEO_DM355_CCDC
 
 config VIDEO_DM365_ISIF
 	tristate "TI DM365 ISIF video capture driver"
-	depends on VIDEO_V4L2 && ARCH_DAVINCI
-	depends on HAS_DMA
+	depends on VIDEO_V4L2
+	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
 	select VIDEOBUF_DMA_CONTIG
 	help
@@ -81,8 +78,8 @@ config VIDEO_DM365_ISIF
 
 config VIDEO_DAVINCI_VPBE_DISPLAY
 	tristate "TI DaVinci VPBE V4L2-Display driver"
-	depends on VIDEO_V4L2 && ARCH_DAVINCI
-	depends on HAS_DMA
+	depends on VIDEO_V4L2
+	depends on ARCH_DAVINCI || COMPILE_TEST
 	depends on I2C
 	select VIDEOBUF2_DMA_CONTIG
 	help

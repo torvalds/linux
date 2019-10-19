@@ -1,0 +1,71 @@
+Kernel driver ltc4261
+=====================
+
+Supported chips:
+
+  * Linear Technology LTC4261
+
+    Prefix: 'ltc4261'
+
+    Addresses scanned: -
+
+    Datasheet:
+
+	http://cds.linear.com/docs/Datasheet/42612fb.pdf
+
+Author: Guenter Roeck <linux@roeck-us.net>
+
+
+Description
+-----------
+
+The LTC4261/LTC4261-2 negative voltage Hot Swap controllers allow a board
+to be safely inserted and removed from a live backplane.
+
+
+Usage Notes
+-----------
+
+This driver does not probe for LTC4261 devices, since there is no register
+which can be safely used to identify the chip. You will have to instantiate
+the devices explicitly.
+
+Example: the following will load the driver for an LTC4261 at address 0x10
+on I2C bus #1::
+
+	$ modprobe ltc4261
+	$ echo ltc4261 0x10 > /sys/bus/i2c/devices/i2c-1/new_device
+
+
+Sysfs entries
+-------------
+
+Voltage readings provided by this driver are reported as obtained from the ADC
+registers. If a set of voltage divider resistors is installed, calculate the
+real voltage by multiplying the reported value with (R1+R2)/R2, where R1 is the
+value of the divider resistor against the measured voltage and R2 is the value
+of the divider resistor against Ground.
+
+Current reading provided by this driver is reported as obtained from the ADC
+Current Sense register. The reported value assumes that a 1 mOhm sense resistor
+is installed. If a different sense resistor is installed, calculate the real
+current by dividing the reported value by the sense resistor value in mOhm.
+
+The chip has two voltage sensors, but only one set of voltage alarm status bits.
+In many many designs, those alarms are associated with the ADIN2 sensor, due to
+the proximity of the ADIN2 pin to the OV pin. ADIN2 is, however, not available
+on all chip variants. To ensure that the alarm condition is reported to the user,
+report it with both voltage sensors.
+
+======================= =============================
+in1_input		ADIN2 voltage (mV)
+in1_min_alarm		ADIN/ADIN2 Undervoltage alarm
+in1_max_alarm		ADIN/ADIN2 Overvoltage alarm
+
+in2_input		ADIN voltage (mV)
+in2_min_alarm		ADIN/ADIN2 Undervoltage alarm
+in2_max_alarm		ADIN/ADIN2 Overvoltage alarm
+
+curr1_input		SENSE current (mA)
+curr1_alarm		SENSE overcurrent alarm
+======================= =============================

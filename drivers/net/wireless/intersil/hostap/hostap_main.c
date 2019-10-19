@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Host AP (software wireless LAN access point) driver for
  * Intersil Prism2/2.5/3 - hostap.o module, common routines
@@ -5,11 +6,6 @@
  * Copyright (c) 2001-2002, SSH Communications Security Corp and Jouni Malinen
  * <j@w1.fi>
  * Copyright (c) 2002-2005, Jouni Malinen <j@w1.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation. See README and COPYING for
- * more details.
  */
 
 #include <linux/module.h>
@@ -690,7 +686,7 @@ static int prism2_open(struct net_device *dev)
 		/* Master radio interface is needed for all operation, so open
 		 * it automatically when any virtual net_device is opened. */
 		local->master_dev_auto_open = 1;
-		dev_open(local->dev);
+		dev_open(local->dev, NULL);
 	}
 
 	netif_device_attach(dev);

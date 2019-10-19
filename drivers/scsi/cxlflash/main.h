@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * CXL Flash Device Driver
  *
@@ -5,11 +6,6 @@
  *             Matthew R. Ochs <mrochs@linux.vnet.ibm.com>, IBM Corporation
  *
  * Copyright (C) 2015 IBM Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #ifndef _CXLFLASH_MAIN_H
@@ -19,6 +15,8 @@
 #include <linux/types.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
+
+#include "backend.h"
 
 #define CXLFLASH_NAME		"cxlflash"
 #define CXLFLASH_ADAPTER_NAME	"IBM POWER CXL Flash Adapter"
@@ -97,7 +95,26 @@ struct dev_dependent_vals {
 	u64 flags;
 #define CXLFLASH_NOTIFY_SHUTDOWN	0x0000000000000001ULL
 #define CXLFLASH_WWPN_VPD_REQUIRED	0x0000000000000002ULL
+#define CXLFLASH_OCXL_DEV		0x0000000000000004ULL
 };
+
+static inline const struct cxlflash_backend_ops *
+cxlflash_assign_ops(struct dev_dependent_vals *ddv)
+{
+	const struct cxlflash_backend_ops *ops = NULL;
+
+#ifdef CONFIG_OCXL_BASE
+	if (ddv->flags & CXLFLASH_OCXL_DEV)
+		ops = &cxlflash_ocxl_ops;
+#endif
+
+#ifdef CONFIG_CXL_BASE
+	if (!(ddv->flags & CXLFLASH_OCXL_DEV))
+		ops = &cxlflash_cxl_ops;
+#endif
+
+	return ops;
+}
 
 struct asyc_intr_info {
 	u64 status;

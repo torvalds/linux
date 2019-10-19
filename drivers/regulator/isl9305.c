@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * isl9305 - Intersil ISL9305 DCDC regulator
  *
  * Copyright 2014 Linaro Ltd
  *
  * Author: Mark Brown <broonie@kernel.org>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
  */
 
 #include <linux/module.h>
@@ -84,6 +80,7 @@ static const struct regulator_desc isl9305_regulators[] = {
 		.enable_mask =	ISL9305_DCD1_EN,
 		.supply_name =	"VINDCD1",
 		.ops =		&isl9305_ops,
+		.owner =	THIS_MODULE,
 	},
 	[ISL9305_DCD2] = {
 		.name =		"DCD2",
@@ -98,6 +95,7 @@ static const struct regulator_desc isl9305_regulators[] = {
 		.enable_mask =	ISL9305_DCD2_EN,
 		.supply_name =	"VINDCD2",
 		.ops =		&isl9305_ops,
+		.owner =	THIS_MODULE,
 	},
 	[ISL9305_LDO1] = {
 		.name =		"LDO1",
@@ -112,6 +110,7 @@ static const struct regulator_desc isl9305_regulators[] = {
 		.enable_mask =	ISL9305_LDO1_EN,
 		.supply_name =	"VINLDO1",
 		.ops =		&isl9305_ops,
+		.owner =	THIS_MODULE,
 	},
 	[ISL9305_LDO2] = {
 		.name =		"LDO2",
@@ -126,6 +125,7 @@ static const struct regulator_desc isl9305_regulators[] = {
 		.enable_mask =	ISL9305_LDO2_EN,
 		.supply_name =	"VINLDO2",
 		.ops =		&isl9305_ops,
+		.owner =	THIS_MODULE,
 	},
 };
 

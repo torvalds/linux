@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FB_PRIV_H__
 #define __NVKM_FB_PRIV_H__
 #define nvkm_fb(p) container_of((p), struct nvkm_fb, subdev)
@@ -11,6 +11,7 @@ struct nvkm_fb_func {
 	u32 (*tags)(struct nvkm_fb *);
 	int (*oneinit)(struct nvkm_fb *);
 	void (*init)(struct nvkm_fb *);
+	void (*init_remapper)(struct nvkm_fb *);
 	int (*init_page)(struct nvkm_fb *);
 	void (*init_unkn)(struct nvkm_fb *);
 	void (*intr)(struct nvkm_fb *);
@@ -68,4 +69,7 @@ int gf100_fb_oneinit(struct nvkm_fb *);
 int gf100_fb_init_page(struct nvkm_fb *);
 
 int gm200_fb_init_page(struct nvkm_fb *);
+
+void gp100_fb_init_remapper(struct nvkm_fb *);
+void gp100_fb_init_unkn(struct nvkm_fb *);
 #endif

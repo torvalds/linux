@@ -1,35 +1,5 @@
-/*
- * Copyright (C) 2015-2017 Netronome Systems, Inc.
- *
- * This software is dual licensed under the GNU General License Version 2,
- * June 1991 as shown in the file COPYING in the top-level directory of this
- * source tree or the BSD 2-Clause License provided below.  You have the
- * option to license this software under the complete terms of either license.
- *
- * The BSD 2-Clause License:
- *
- *     Redistribution and use in source and binary forms, with or
- *     without modification, are permitted provided that the following
- *     conditions are met:
- *
- *      1. Redistributions of source code must retain the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer.
- *
- *      2. Redistributions in binary form must reproduce the above
- *         copyright notice, this list of conditions and the following
- *         disclaimer in the documentation and/or other materials
- *         provided with the distribution.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
- */
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/* Copyright (C) 2015-2018 Netronome Systems, Inc. */
 
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -57,6 +27,11 @@ static u32 nfp_mutex_locked(u16 interface)
 static u32 nfp_mutex_unlocked(u16 interface)
 {
 	return (u32)interface << 16 | 0x0000;
+}
+
+static u32 nfp_mutex_owner(u32 val)
+{
+	return val >> 16;
 }
 
 static bool nfp_mutex_is_locked(u32 val)
@@ -211,8 +186,11 @@ int nfp_cpp_mutex_lock(struct nfp_cpp_mutex *mutex)
 			break;
 
 		err = msleep_interruptible(timeout_ms);
-		if (err != 0)
+		if (err != 0) {
+			nfp_info(mutex->cpp,
+				 "interrupted waiting for NFP mutex\n");
 			return -ERESTARTSYS;
+		}
 
 		if (time_is_before_eq_jiffies(warn_at)) {
 			warn_at = jiffies + NFP_MUTEX_WAIT_NEXT_WARN * HZ;
@@ -347,4 +325,44 @@ int nfp_cpp_mutex_trylock(struct nfp_cpp_mutex *mutex)
 	}
 
 	return nfp_mutex_is_locked(tmp) ? -EBUSY : -EINVAL;
+}
+
+/**
+ * nfp_cpp_mutex_reclaim() - Unlock mutex if held by local endpoint
+ * @cpp:	NFP CPP handle
+ * @target:	NFP CPP target ID (ie NFP_CPP_TARGET_CLS or NFP_CPP_TARGET_MU)
+ * @address:	Offset into the address space of the NFP CPP target ID
+ *
+ * Release lock if held by local system.  Extreme care is advised, call only
+ * when no local lock users can exist.
+ *
+ * Return:      0 if the lock was OK, 1 if locked by us, -errno on invalid mutex
+ */
+int nfp_cpp_mutex_reclaim(struct nfp_cpp *cpp, int target,
+			  unsigned long long address)
+{
+	const u32 mur = NFP_CPP_ID(target, 3, 0);	/* atomic_read */
+	const u32 muw = NFP_CPP_ID(target, 4, 0);	/* atomic_write */
+	u16 interface = nfp_cpp_interface(cpp);
+	int err;
+	u32 tmp;
+
+	err = nfp_cpp_mutex_validate(interface, &target, address);
+	if (err)
+		return err;
+
+	/* Check lock */
+	err = nfp_cpp_readl(cpp, mur, address, &tmp);
+	if (err < 0)
+		return err;
+
+	if (nfp_mutex_is_unlocked(tmp) || nfp_mutex_owner(tmp) != interface)
+		return 0;
+
+	/* Bust the lock */
+	err = nfp_cpp_writel(cpp, muw, address, nfp_mutex_unlocked(interface));
+	if (err < 0)
+		return err;
+
+	return 1;
 }

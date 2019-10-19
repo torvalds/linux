@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  ebt_limit
  *
@@ -72,8 +73,8 @@ static int ebt_limit_mt_check(const struct xt_mtchk_param *par)
 	/* Check for overflow. */
 	if (info->burst == 0 ||
 	    user2credits(info->avg * info->burst) < user2credits(info->avg)) {
-		pr_info("overflow, try lower: %u/%u\n",
-			info->avg, info->burst);
+		pr_info_ratelimited("overflow, try lower: %u/%u\n",
+				    info->avg, info->burst);
 		return -EINVAL;
 	}
 

@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * vineetg: June 2011
  *  -"/proc/meminfo | grep PageTables" kept on increasing
@@ -90,8 +87,7 @@ static inline int __get_order_pte(void)
 	return get_order(PTRS_PER_PTE * sizeof(pte_t));
 }
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-					unsigned long address)
+static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm)
 {
 	pte_t *pte;
 
@@ -102,7 +98,7 @@ static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
 }
 
 static inline pgtable_t
-pte_alloc_one(struct mm_struct *mm, unsigned long address)
+pte_alloc_one(struct mm_struct *mm)
 {
 	pgtable_t pte_pg;
 	struct page *page;
@@ -112,7 +108,7 @@ pte_alloc_one(struct mm_struct *mm, unsigned long address)
 		return 0;
 	memzero((void *)pte_pg, PTRS_PER_PTE * sizeof(pte_t));
 	page = virt_to_page(pte_pg);
-	if (!pgtable_page_ctor(page)) {
+	if (!pgtable_pte_page_ctor(page)) {
 		__free_page(page);
 		return 0;
 	}
@@ -127,13 +123,12 @@ static inline void pte_free_kernel(struct mm_struct *mm, pte_t *pte)
 
 static inline void pte_free(struct mm_struct *mm, pgtable_t ptep)
 {
-	pgtable_page_dtor(virt_to_page(ptep));
+	pgtable_pte_page_dtor(virt_to_page(ptep));
 	free_pages((unsigned long)ptep, __get_order_pte());
 }
 
 #define __pte_free_tlb(tlb, pte, addr)  pte_free((tlb)->mm, pte)
 
-#define check_pgt_cache()   do { } while (0)
 #define pmd_pgtable(pmd)	((pgtable_t) pmd_page_vaddr(pmd))
 
 #endif /* _ASM_ARC_PGALLOC_H */

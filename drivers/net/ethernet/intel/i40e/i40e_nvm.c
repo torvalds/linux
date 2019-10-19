@@ -1,28 +1,5 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2014 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include "i40e_prototype.h"
 
@@ -345,6 +322,77 @@ i40e_status i40e_read_nvm_word(struct i40e_hw *hw, u16 offset,
 }
 
 /**
+ * i40e_read_nvm_module_data - Reads NVM Buffer to specified memory location
+ * @hw: pointer to the HW structure
+ * @module_ptr: Pointer to module in words with respect to NVM beginning
+ * @offset: offset in words from module start
+ * @words_data_size: Words to read from NVM
+ * @data_ptr: Pointer to memory location where resulting buffer will be stored
+ **/
+i40e_status i40e_read_nvm_module_data(struct i40e_hw *hw,
+				      u8 module_ptr, u16 offset,
+				      u16 words_data_size,
+				      u16 *data_ptr)
+{
+	i40e_status status;
+	u16 ptr_value = 0;
+	u32 flat_offset;
+
+	if (module_ptr != 0) {
+		status = i40e_read_nvm_word(hw, module_ptr, &ptr_value);
+		if (status) {
+			i40e_debug(hw, I40E_DEBUG_ALL,
+				   "Reading nvm word failed.Error code: %d.\n",
+				   status);
+			return I40E_ERR_NVM;
+		}
+	}
+#define I40E_NVM_INVALID_PTR_VAL 0x7FFF
+#define I40E_NVM_INVALID_VAL 0xFFFF
+
+	/* Pointer not initialized */
+	if (ptr_value == I40E_NVM_INVALID_PTR_VAL ||
+	    ptr_value == I40E_NVM_INVALID_VAL)
+		return I40E_ERR_BAD_PTR;
+
+	/* Check whether the module is in SR mapped area or outside */
+	if (ptr_value & I40E_PTR_TYPE) {
+		/* Pointer points outside of the Shared RAM mapped area */
+		ptr_value &= ~I40E_PTR_TYPE;
+
+		/* PtrValue in 4kB units, need to convert to words */
+		ptr_value /= 2;
+		flat_offset = ((u32)ptr_value * 0x1000) + (u32)offset;
+		status = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+		if (!status) {
+			status = i40e_aq_read_nvm(hw, 0, 2 * flat_offset,
+						  2 * words_data_size,
+						  data_ptr, true, NULL);
+			i40e_release_nvm(hw);
+			if (status) {
+				i40e_debug(hw, I40E_DEBUG_ALL,
+					   "Reading nvm aq failed.Error code: %d.\n",
+					   status);
+				return I40E_ERR_NVM;
+			}
+		} else {
+			return I40E_ERR_NVM;
+		}
+	} else {
+		/* Read from the Shadow RAM */
+		status = i40e_read_nvm_buffer(hw, ptr_value + offset,
+					      &words_data_size, data_ptr);
+		if (status) {
+			i40e_debug(hw, I40E_DEBUG_ALL,
+				   "Reading nvm buffer failed.Error code: %d.\n",
+				   status);
+		}
+	}
+
+	return status;
+}
+
+/**
  * i40e_read_nvm_buffer_srctl - Reads Shadow RAM buffer via SRCTL register
  * @hw: pointer to the HW structure
  * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
@@ -450,6 +498,36 @@ static i40e_status __i40e_read_nvm_buffer(struct i40e_hw *hw,
 		return i40e_read_nvm_buffer_aq(hw, offset, words, data);
 
 	return i40e_read_nvm_buffer_srctl(hw, offset, words, data);
+}
+
+/**
+ * i40e_read_nvm_buffer - Reads Shadow RAM buffer and acquire lock if necessary
+ * @hw: pointer to the HW structure
+ * @offset: offset of the Shadow RAM word to read (0x000000 - 0x001FFF).
+ * @words: (in) number of words to read; (out) number of words actually read
+ * @data: words read from the Shadow RAM
+ *
+ * Reads 16 bit words (data buffer) from the SR using the i40e_read_nvm_srrd()
+ * method. The buffer read is preceded by the NVM ownership take
+ * and followed by the release.
+ **/
+i40e_status i40e_read_nvm_buffer(struct i40e_hw *hw, u16 offset,
+				 u16 *words, u16 *data)
+{
+	i40e_status ret_code = 0;
+
+	if (hw->flags & I40E_HW_FLAG_AQ_SRCTL_ACCESS_ENABLE) {
+		ret_code = i40e_acquire_nvm(hw, I40E_RESOURCE_READ);
+		if (!ret_code) {
+			ret_code = i40e_read_nvm_buffer_aq(hw, offset, words,
+							   data);
+			i40e_release_nvm(hw);
+		}
+	} else {
+		ret_code = i40e_read_nvm_buffer_srctl(hw, offset, words, data);
+	}
+
+	return ret_code;
 }
 
 /**
@@ -601,11 +679,10 @@ i40e_status i40e_update_nvm_checksum(struct i40e_hw *hw)
 	__le16 le_sum;
 
 	ret_code = i40e_calc_nvm_checksum(hw, &checksum);
-	if (!ret_code) {
-		le_sum = cpu_to_le16(checksum);
+	le_sum = cpu_to_le16(checksum);
+	if (!ret_code)
 		ret_code = i40e_write_nvm_aq(hw, 0x00, I40E_SR_SW_CHECKSUM_WORD,
 					     1, &le_sum, true);
-	}
 
 	return ret_code;
 }
@@ -1172,6 +1249,7 @@ void i40e_nvmupd_clear_wait_state(struct i40e_hw *hw)
  * i40e_nvmupd_check_wait_event - handle NVM update operation events
  * @hw: pointer to the hardware structure
  * @opcode: the event that just happened
+ * @desc: AdminQ descriptor
  **/
 void i40e_nvmupd_check_wait_event(struct i40e_hw *hw, u16 opcode,
 				  struct i40e_aq_desc *desc)

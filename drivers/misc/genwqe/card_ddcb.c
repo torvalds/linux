@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * IBM Accelerator Family 'GenWQE'
  *
@@ -7,15 +8,6 @@
  * Author: Joerg-Stephan Vogt <jsvogt@de.ibm.com>
  * Author: Michael Jung <mijung@gmx.net>
  * Author: Michael Ruettger <michael@ibmra.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (version 2 only)
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 /*
@@ -27,7 +19,6 @@
  */
 
 #include <linux/types.h>
-#include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/pci.h>
@@ -1048,15 +1039,16 @@ static int setup_ddcb_queue(struct genwqe_dev *cd, struct ddcb_queue *queue)
 			"[%s] **err: could not allocate DDCB **\n", __func__);
 		return -ENOMEM;
 	}
-	queue->ddcb_req = kzalloc(sizeof(struct ddcb_requ *) *
-				  queue->ddcb_max, GFP_KERNEL);
+	queue->ddcb_req = kcalloc(queue->ddcb_max, sizeof(struct ddcb_requ *),
+				  GFP_KERNEL);
 	if (!queue->ddcb_req) {
 		rc = -ENOMEM;
 		goto free_ddcbs;
 	}
 
-	queue->ddcb_waitqs = kzalloc(sizeof(wait_queue_head_t) *
-				     queue->ddcb_max, GFP_KERNEL);
+	queue->ddcb_waitqs = kcalloc(queue->ddcb_max,
+				     sizeof(wait_queue_head_t),
+				     GFP_KERNEL);
 	if (!queue->ddcb_waitqs) {
 		rc = -ENOMEM;
 		goto free_requs;

@@ -1,36 +1,38 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2016 Texas Instruments
  * Author: Jyri Sarha <jsarha@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
  */
 
 #include <linux/delay.h>
 #include <linux/fwnode.h>
 #include <linux/gpio/consumer.h>
+#include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
-#include <linux/i2c.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 #define HOTPLUG_DEBOUNCE_MS		1100
 
 struct tfp410 {
 	struct drm_bridge	bridge;
 	struct drm_connector	connector;
+	unsigned int		connector_type;
 
+	u32			bus_format;
 	struct i2c_adapter	*ddc;
 	struct gpio_desc	*hpd;
+	int			hpd_irq;
 	struct delayed_work	hpd_work;
+	struct gpio_desc	*powerdown;
+
+	struct drm_bridge_timings timings;
 
 	struct device *dev;
 };
@@ -62,9 +64,14 @@ static int tfp410_get_modes(struct drm_connector *connector)
 		goto fallback;
 	}
 
-	drm_mode_connector_update_edid_property(connector, edid);
+	drm_connector_update_edid_property(connector, edid);
 
-	return drm_add_edid_modes(connector, edid);
+	ret = drm_add_edid_modes(connector, edid);
+
+	kfree(edid);
+
+	return ret;
+
 fallback:
 	/* No EDID, fallback on the XGA standard modes */
 	ret = drm_add_modes_noedid(connector, 1920, 1200);
@@ -120,26 +127,49 @@ static int tfp410_attach(struct drm_bridge *bridge)
 		return -ENODEV;
 	}
 
-	if (dvi->hpd)
+	if (dvi->hpd_irq >= 0)
 		dvi->connector.polled = DRM_CONNECTOR_POLL_HPD;
+	else
+		dvi->connector.polled = DRM_CONNECTOR_POLL_CONNECT | DRM_CONNECTOR_POLL_DISCONNECT;
 
 	drm_connector_helper_add(&dvi->connector,
 				 &tfp410_con_helper_funcs);
-	ret = drm_connector_init(bridge->dev, &dvi->connector,
-				 &tfp410_con_funcs, DRM_MODE_CONNECTOR_HDMIA);
+	ret = drm_connector_init_with_ddc(bridge->dev, &dvi->connector,
+					  &tfp410_con_funcs,
+					  dvi->connector_type,
+					  dvi->ddc);
 	if (ret) {
 		dev_err(dvi->dev, "drm_connector_init() failed: %d\n", ret);
 		return ret;
 	}
 
-	drm_mode_connector_attach_encoder(&dvi->connector,
+	drm_display_info_set_bus_formats(&dvi->connector.display_info,
+					 &dvi->bus_format, 1);
+
+	drm_connector_attach_encoder(&dvi->connector,
 					  bridge->encoder);
 
 	return 0;
 }
 
+static void tfp410_enable(struct drm_bridge *bridge)
+{
+	struct tfp410 *dvi = drm_bridge_to_tfp410(bridge);
+
+	gpiod_set_value_cansleep(dvi->powerdown, 0);
+}
+
+static void tfp410_disable(struct drm_bridge *bridge)
+{
+	struct tfp410 *dvi = drm_bridge_to_tfp410(bridge);
+
+	gpiod_set_value_cansleep(dvi->powerdown, 1);
+}
+
 static const struct drm_bridge_funcs tfp410_bridge_funcs = {
 	.attach		= tfp410_attach,
+	.enable		= tfp410_enable,
+	.disable	= tfp410_disable,
 };
 
 static void tfp410_hpd_work_func(struct work_struct *work)
@@ -162,6 +192,83 @@ static irqreturn_t tfp410_hpd_irq_thread(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
+static const struct drm_bridge_timings tfp410_default_timings = {
+	.input_bus_flags = DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE
+			 | DRM_BUS_FLAG_DE_HIGH,
+	.setup_time_ps = 1200,
+	.hold_time_ps = 1300,
+};
+
+static int tfp410_parse_timings(struct tfp410 *dvi, bool i2c)
+{
+	struct drm_bridge_timings *timings = &dvi->timings;
+	struct device_node *ep;
+	u32 pclk_sample = 0;
+	u32 bus_width = 24;
+	s32 deskew = 0;
+
+	/* Start with defaults. */
+	*timings = tfp410_default_timings;
+
+	if (i2c)
+		/*
+		 * In I2C mode timings are configured through the I2C interface.
+		 * As the driver doesn't support I2C configuration yet, we just
+		 * go with the defaults (BSEL=1, DSEL=1, DKEN=0, EDGE=1).
+		 */
+		return 0;
+
+	/*
+	 * In non-I2C mode, timings are configured through the BSEL, DSEL, DKEN
+	 * and EDGE pins. They are specified in DT through endpoint properties
+	 * and vendor-specific properties.
+	 */
+	ep = of_graph_get_endpoint_by_regs(dvi->dev->of_node, 0, 0);
+	if (!ep)
+		return -EINVAL;
+
+	/* Get the sampling edge from the endpoint. */
+	of_property_read_u32(ep, "pclk-sample", &pclk_sample);
+	of_property_read_u32(ep, "bus-width", &bus_width);
+	of_node_put(ep);
+
+	timings->input_bus_flags = DRM_BUS_FLAG_DE_HIGH;
+
+	switch (pclk_sample) {
+	case 0:
+		timings->input_bus_flags |= DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE
+					 |  DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE;
+		break;
+	case 1:
+		timings->input_bus_flags |= DRM_BUS_FLAG_PIXDATA_SAMPLE_POSEDGE
+					 |  DRM_BUS_FLAG_SYNC_SAMPLE_POSEDGE;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	switch (bus_width) {
+	case 12:
+		dvi->bus_format = MEDIA_BUS_FMT_RGB888_2X12_LE;
+		break;
+	case 24:
+		dvi->bus_format = MEDIA_BUS_FMT_RGB888_1X24;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Get the setup and hold time from vendor-specific properties. */
+	of_property_read_u32(dvi->dev->of_node, "ti,deskew", (u32 *)&deskew);
+	if (deskew < -4 || deskew > 3)
+		return -EINVAL;
+
+	timings->setup_time_ps = min(0, 1200 - 350 * deskew);
+	timings->hold_time_ps = min(0, 1300 + 350 * deskew);
+
+	return 0;
+}
+
 static int tfp410_get_connector_properties(struct tfp410 *dvi)
 {
 	struct device_node *connector_node, *ddc_phandle;
@@ -171,6 +278,11 @@ static int tfp410_get_connector_properties(struct tfp410 *dvi)
 	connector_node = of_graph_get_remote_node(dvi->dev->of_node, 1, -1);
 	if (!connector_node)
 		return -ENODEV;
+
+	if (of_device_is_compatible(connector_node, "hdmi-connector"))
+		dvi->connector_type = DRM_MODE_CONNECTOR_HDMIA;
+	else
+		dvi->connector_type = DRM_MODE_CONNECTOR_DVID;
 
 	dvi->hpd = fwnode_get_named_gpiod(&connector_node->fwnode,
 					"hpd-gpios", 0, GPIOD_IN, "hpd");
@@ -200,7 +312,7 @@ fail:
 	return ret;
 }
 
-static int tfp410_init(struct device *dev)
+static int tfp410_init(struct device *dev, bool i2c)
 {
 	struct tfp410 *dvi;
 	int ret;
@@ -217,16 +329,33 @@ static int tfp410_init(struct device *dev)
 
 	dvi->bridge.funcs = &tfp410_bridge_funcs;
 	dvi->bridge.of_node = dev->of_node;
+	dvi->bridge.timings = &dvi->timings;
 	dvi->dev = dev;
+
+	ret = tfp410_parse_timings(dvi, i2c);
+	if (ret)
+		goto fail;
 
 	ret = tfp410_get_connector_properties(dvi);
 	if (ret)
 		goto fail;
 
-	if (dvi->hpd) {
+	dvi->powerdown = devm_gpiod_get_optional(dev, "powerdown",
+						 GPIOD_OUT_HIGH);
+	if (IS_ERR(dvi->powerdown)) {
+		dev_err(dev, "failed to parse powerdown gpio\n");
+		return PTR_ERR(dvi->powerdown);
+	}
+
+	if (dvi->hpd)
+		dvi->hpd_irq = gpiod_to_irq(dvi->hpd);
+	else
+		dvi->hpd_irq = -ENXIO;
+
+	if (dvi->hpd_irq >= 0) {
 		INIT_DELAYED_WORK(&dvi->hpd_work, tfp410_hpd_work_func);
 
-		ret = devm_request_threaded_irq(dev, gpiod_to_irq(dvi->hpd),
+		ret = devm_request_threaded_irq(dev, dvi->hpd_irq,
 			NULL, tfp410_hpd_irq_thread, IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"hdmi-hpd", dvi);
@@ -250,7 +379,8 @@ static int tfp410_fini(struct device *dev)
 {
 	struct tfp410 *dvi = dev_get_drvdata(dev);
 
-	cancel_delayed_work_sync(&dvi->hpd_work);
+	if (dvi->hpd_irq >= 0)
+		cancel_delayed_work_sync(&dvi->hpd_work);
 
 	drm_bridge_remove(&dvi->bridge);
 
@@ -264,7 +394,7 @@ static int tfp410_fini(struct device *dev)
 
 static int tfp410_probe(struct platform_device *pdev)
 {
-	return tfp410_init(&pdev->dev);
+	return tfp410_init(&pdev->dev, false);
 }
 
 static int tfp410_remove(struct platform_device *pdev)
@@ -301,7 +431,7 @@ static int tfp410_i2c_probe(struct i2c_client *client,
 		return -ENXIO;
 	}
 
-	return tfp410_init(&client->dev);
+	return tfp410_init(&client->dev, true);
 }
 
 static int tfp410_i2c_remove(struct i2c_client *client)

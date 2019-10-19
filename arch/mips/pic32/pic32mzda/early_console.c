@@ -1,18 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Joshua Henderson <joshua.henderson@microchip.com>
  * Copyright (C) 2015 Microchip Technology Inc.  All rights reserved.
- *
- *  This program is free software; you can distribute it and/or modify it
- *  under the terms of the GNU General Public License (Version 2) as
- *  published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- *  for more details.
  */
 #include <asm/mach-pic32/pic32.h>
 #include <asm/fw/fw.h>
+#include <asm/setup.h>
 
 #include "pic32mzda.h"
 #include "early_pin.h"
@@ -157,7 +150,7 @@ void __init fw_init_early_console(char port)
 	setup_early_console(port, baud);
 }
 
-int prom_putchar(char c)
+void prom_putchar(char c)
 {
 	if (console_port >= 0) {
 		while (__raw_readl(
@@ -166,6 +159,4 @@ int prom_putchar(char c)
 
 		__raw_writel(c, uart_base + U_TXR(console_port));
 	}
-
-	return 1;
 }

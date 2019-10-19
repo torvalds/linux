@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * PowerNV OPAL Firmware Update Interface
  *
  * Copyright 2013 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define DEBUG
@@ -303,26 +299,9 @@ invalid_img:
 	return rc;
 }
 
-/* Return CPUs to OPAL before starting FW update */
-static void flash_return_cpu(void *info)
-{
-	int cpu = smp_processor_id();
-
-	if (!cpu_online(cpu))
-		return;
-
-	/* Disable IRQ */
-	hard_irq_disable();
-
-	/* Return the CPU to OPAL */
-	opal_return_cpu();
-}
-
 /* This gets called just before system reboots */
-void opal_flash_term_callback(void)
+void opal_flash_update_print_message(void)
 {
-	struct cpumask mask;
-
 	if (update_flash_data.status != FLASH_IMG_READY)
 		return;
 
@@ -333,15 +312,6 @@ void opal_flash_term_callback(void)
 
 	/* Small delay to help getting the above message out */
 	msleep(500);
-
-	/* Return secondary CPUs to firmware */
-	cpumask_copy(&mask, cpu_online_mask);
-	cpumask_clear_cpu(smp_processor_id(), &mask);
-	if (!cpumask_empty(&mask))
-		smp_call_function_many(&mask,
-				       flash_return_cpu, NULL, false);
-	/* Hard disable interrupts */
-	hard_irq_disable();
 }
 
 /*
@@ -418,12 +388,12 @@ static int alloc_image_buf(char *buffer, size_t count)
 	void *addr;
 	int size;
 
-	if (count < sizeof(struct image_header_t)) {
+	if (count < sizeof(image_header)) {
 		pr_warn("FLASH: Invalid candidate image\n");
 		return -EINVAL;
 	}
 
-	memcpy(&image_header, (void *)buffer, sizeof(struct image_header_t));
+	memcpy(&image_header, (void *)buffer, sizeof(image_header));
 	image_data.size = be32_to_cpu(image_header.size);
 	pr_debug("FLASH: Candidate image size = %u\n", image_data.size);
 

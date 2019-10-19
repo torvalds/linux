@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * pcm_local.h - a local header file for snd-pcm module.
  *
  * Copyright (c) Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef __SOUND_CORE_PCM_LOCAL_H
@@ -36,6 +35,24 @@ int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream);
 void snd_pcm_playback_silence(struct snd_pcm_substream *substream,
 			      snd_pcm_uframes_t new_hw_ptr);
 
+static inline snd_pcm_uframes_t
+snd_pcm_avail(struct snd_pcm_substream *substream)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return snd_pcm_playback_avail(substream->runtime);
+	else
+		return snd_pcm_capture_avail(substream->runtime);
+}
+
+static inline snd_pcm_uframes_t
+snd_pcm_hw_avail(struct snd_pcm_substream *substream)
+{
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		return snd_pcm_playback_hw_avail(substream->runtime);
+	else
+		return snd_pcm_capture_hw_avail(substream->runtime);
+}
+
 #ifdef CONFIG_SND_PCM_TIMER
 void snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream);
 void snd_pcm_timer_init(struct snd_pcm_substream *substream);
@@ -46,5 +63,8 @@ snd_pcm_timer_resolution_change(struct snd_pcm_substream *substream) {}
 static inline void snd_pcm_timer_init(struct snd_pcm_substream *substream) {}
 static inline void snd_pcm_timer_done(struct snd_pcm_substream *substream) {}
 #endif
+
+void __snd_pcm_xrun(struct snd_pcm_substream *substream);
+void snd_pcm_group_init(struct snd_pcm_group *group);
 
 #endif	/* __SOUND_CORE_PCM_LOCAL_H */

@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
-#ifndef __DISKIO__
-#define __DISKIO__
+#ifndef BTRFS_DISK_IO_H
+#define BTRFS_DISK_IO_H
 
 #define BTRFS_SUPER_INFO_OFFSET SZ_64K
 #define BTRFS_SUPER_INFO_SIZE 4096
@@ -34,11 +21,11 @@
 #define BTRFS_BDEV_BLOCKSIZE	(4096)
 
 enum btrfs_wq_endio_type {
-	BTRFS_WQ_ENDIO_DATA = 0,
-	BTRFS_WQ_ENDIO_METADATA = 1,
-	BTRFS_WQ_ENDIO_FREE_SPACE = 2,
-	BTRFS_WQ_ENDIO_RAID56 = 3,
-	BTRFS_WQ_ENDIO_DIO_REPAIR = 4,
+	BTRFS_WQ_ENDIO_DATA,
+	BTRFS_WQ_ENDIO_METADATA,
+	BTRFS_WQ_ENDIO_FREE_SPACE,
+	BTRFS_WQ_ENDIO_RAID56,
+	BTRFS_WQ_ENDIO_DIO_REPAIR,
 };
 
 static inline u64 btrfs_sb_offset(int mirror)
@@ -52,15 +39,16 @@ static inline u64 btrfs_sb_offset(int mirror)
 struct btrfs_device;
 struct btrfs_fs_devices;
 
-struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info,
-				      u64 bytenr, u64 parent_transid);
+int btrfs_verify_level_key(struct extent_buffer *eb, int level,
+			   struct btrfs_key *first_key, u64 parent_transid);
+struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
+				      u64 parent_transid, int level,
+				      struct btrfs_key *first_key);
 void readahead_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr);
-int reada_tree_block_flagged(struct btrfs_fs_info *fs_info, u64 bytenr,
-			 int mirror_num, struct extent_buffer **eb);
 struct extent_buffer *btrfs_find_create_tree_block(
 						struct btrfs_fs_info *fs_info,
 						u64 bytenr);
-void clean_tree_block(struct btrfs_fs_info *fs_info, struct extent_buffer *buf);
+void btrfs_clean_tree_block(struct extent_buffer *buf);
 int open_ctree(struct super_block *sb,
 	       struct btrfs_fs_devices *fs_devices,
 	       char *options);
@@ -123,19 +111,16 @@ static inline void btrfs_put_fs_root(struct btrfs_root *root)
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
-int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid);
-u32 btrfs_csum_data(const char *data, u32 seed, size_t len);
-void btrfs_csum_final(u32 crc, u8 *result);
+int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid, int level,
+		      struct btrfs_key *first_key);
 blk_status_t btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 			enum btrfs_wq_endio_type metadata);
 blk_status_t btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 			int mirror_num, unsigned long bio_flags,
 			u64 bio_offset, void *private_data,
-			extent_submit_bio_hook_t *submit_bio_start,
-			extent_submit_bio_hook_t *submit_bio_done);
-unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info);
-int btrfs_write_tree_block(struct extent_buffer *buf);
-void btrfs_wait_tree_block_writeback(struct extent_buffer *buf);
+			extent_submit_bio_start_t *submit_bio_start);
+blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
+			  int mirror_num);
 int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info);
 int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
@@ -145,7 +130,6 @@ void btrfs_cleanup_dirty_bgs(struct btrfs_transaction *trans,
 void btrfs_cleanup_one_transaction(struct btrfs_transaction *trans,
 				  struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_create_tree(struct btrfs_trans_handle *trans,
-				     struct btrfs_fs_info *fs_info,
 				     u64 objectid);
 int btree_lock_page_hook(struct page *page, void *data,
 				void (*flush_fn)(void *));
@@ -154,7 +138,7 @@ struct extent_map *btree_get_extent(struct btrfs_inode *inode,
 		int create);
 int btrfs_get_num_tolerated_disk_barrier_failures(u64 flags);
 int __init btrfs_end_io_wq_init(void);
-void btrfs_end_io_wq_exit(void);
+void __cold btrfs_end_io_wq_exit(void);
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 void btrfs_init_lockdep(void);
@@ -168,4 +152,5 @@ static inline void btrfs_set_buffer_lockdep_class(u64 objectid,
 {
 }
 #endif
+
 #endif

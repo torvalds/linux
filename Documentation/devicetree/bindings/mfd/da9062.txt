@@ -32,8 +32,6 @@ Required properties:
     "dlg,da9061" for DA9061
 - reg : Specifies the I2C slave address (this defaults to 0x58 but it can be
   modified to match the chip's OTP settings).
-- interrupt-parent : Specifies the reference to the interrupt controller for
-  the DA9062 or DA9061.
 - interrupts : IRQ line information.
 - interrupt-controller
 

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2010 MontaVista Software, LLC.
  *
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _DRIVERS_MMC_SDHCI_PLTFM_H
@@ -90,7 +87,12 @@ static inline void sdhci_be32bs_writeb(struct sdhci_host *host, u8 val, int reg)
 }
 #endif /* CONFIG_MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER */
 
-extern void sdhci_get_of_property(struct platform_device *pdev);
+void sdhci_get_property(struct platform_device *pdev);
+
+static inline void sdhci_get_of_property(struct platform_device *pdev)
+{
+	return sdhci_get_property(pdev);
+}
 
 extern struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
 					  const struct sdhci_pltfm_data *pdata,

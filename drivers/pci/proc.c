@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *	Procfs interface for the PCI bus.
+ * Procfs interface for the PCI bus
  *
- *	Copyright (c) 1997--1999 Martin Mares <mj@ucw.cz>
+ * Copyright (c) 1997--1999 Martin Mares <mj@ucw.cz>
  */
 
 #include <linux/init.h>
@@ -13,6 +13,7 @@
 #include <linux/seq_file.h>
 #include <linux/capability.h>
 #include <linux/uaccess.h>
+#include <linux/security.h>
 #include <asm/byteorder.h>
 #include "pci.h"
 
@@ -52,7 +53,7 @@ static ssize_t proc_bus_pci_read(struct file *file, char __user *buf,
 		nbytes = size - pos;
 	cnt = nbytes;
 
-	if (!access_ok(VERIFY_WRITE, buf, cnt))
+	if (!access_ok(buf, cnt))
 		return -EINVAL;
 
 	pci_config_pm_runtime_get(dev);
@@ -115,7 +116,11 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 	struct pci_dev *dev = PDE_DATA(ino);
 	int pos = *ppos;
 	int size = dev->cfg_size;
-	int cnt;
+	int cnt, ret;
+
+	ret = security_locked_down(LOCKDOWN_PCI_ACCESS);
+	if (ret)
+		return ret;
 
 	if (pos >= size)
 		return 0;
@@ -125,7 +130,7 @@ static ssize_t proc_bus_pci_write(struct file *file, const char __user *buf,
 		nbytes = size - pos;
 	cnt = nbytes;
 
-	if (!access_ok(VERIFY_READ, buf, cnt))
+	if (!access_ok(buf, cnt))
 		return -EINVAL;
 
 	pci_config_pm_runtime_get(dev);
@@ -196,6 +201,10 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 #endif /* HAVE_PCI_MMAP */
 	int ret = 0;
 
+	ret = security_locked_down(LOCKDOWN_PCI_ACCESS);
+	if (ret)
+		return ret;
+
 	switch (cmd) {
 	case PCIIOC_CONTROLLER:
 		ret = pci_domain_nr(dev->bus);
@@ -222,6 +231,7 @@ static long proc_bus_pci_ioctl(struct file *file, unsigned int cmd,
 		}
 		/* If arch decided it can't, fall through... */
 #endif /* HAVE_PCI_MMAP */
+		/* fall through */
 	default:
 		ret = -EINVAL;
 		break;
@@ -237,7 +247,8 @@ static int proc_bus_pci_mmap(struct file *file, struct vm_area_struct *vma)
 	struct pci_filp_private *fpriv = file->private_data;
 	int i, ret, write_combine = 0, res_bit = IORESOURCE_MEM;
 
-	if (!capable(CAP_SYS_RAWIO))
+	if (!capable(CAP_SYS_RAWIO) ||
+	    security_locked_down(LOCKDOWN_PCI_ACCESS))
 		return -EPERM;
 
 	if (fpriv->mmap_state == pci_mmap_io) {
@@ -376,7 +387,7 @@ static int show_device(struct seq_file *m, void *v)
 	}
 	seq_putc(m, '\t');
 	if (drv)
-		seq_printf(m, "%s", drv->name);
+		seq_puts(m, drv->name);
 	seq_putc(m, '\n');
 	return 0;
 }
@@ -435,25 +446,12 @@ int pci_proc_detach_bus(struct pci_bus *bus)
 	return 0;
 }
 
-static int proc_bus_pci_dev_open(struct inode *inode, struct file *file)
-{
-	return seq_open(file, &proc_bus_pci_devices_op);
-}
-
-static const struct file_operations proc_bus_pci_dev_operations = {
-	.owner		= THIS_MODULE,
-	.open		= proc_bus_pci_dev_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= seq_release,
-};
-
 static int __init pci_proc_init(void)
 {
 	struct pci_dev *dev = NULL;
 	proc_bus_pci_dir = proc_mkdir("bus/pci", NULL);
-	proc_create("devices", 0, proc_bus_pci_dir,
-		    &proc_bus_pci_dev_operations);
+	proc_create_seq("devices", 0, proc_bus_pci_dir,
+		    &proc_bus_pci_devices_op);
 	proc_initialized = 1;
 	for_each_pci_dev(dev)
 		pci_proc_attach_device(dev);

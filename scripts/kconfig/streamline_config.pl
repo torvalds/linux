@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0
 #
 # Copyright 2005-2009 - Steven Rostedt
-# Licensed under the terms of the GNU GPL License version 2
 #
 #  It's simple enough to figure out how this works.
 #  If not, then you can ask me at stripconfig@goodmis.org
@@ -165,10 +165,10 @@ sub read_kconfig {
     my $last_source = "";
 
     # Check for any environment variables used
-    while ($source =~ /\$(\w+)/ && $last_source ne $source) {
+    while ($source =~ /\$\((\w+)\)/ && $last_source ne $source) {
 	my $env = $1;
 	$last_source = $source;
-	$source =~ s/\$$env/$ENV{$env}/;
+	$source =~ s/\$\($env\)/$ENV{$env}/;
     }
 
     open(my $kinfile, '<', $source) || die "Can't open $kconfig";

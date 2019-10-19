@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson AB 2010
  * Author:  Daniel Martensson
- * License terms: GNU General Public License (GPL) version 2.
  */
 
 #include <linux/init.h>
@@ -35,27 +35,27 @@ MODULE_DESCRIPTION("CAIF SPI driver");
 #define PAD_POW2(x, pow) ((((x)&((pow)-1))==0) ? 0 : (((pow)-((x)&((pow)-1)))))
 
 static bool spi_loop;
-module_param(spi_loop, bool, S_IRUGO);
+module_param(spi_loop, bool, 0444);
 MODULE_PARM_DESC(spi_loop, "SPI running in loopback mode.");
 
 /* SPI frame alignment. */
-module_param(spi_frm_align, int, S_IRUGO);
+module_param(spi_frm_align, int, 0444);
 MODULE_PARM_DESC(spi_frm_align, "SPI frame alignment.");
 
 /*
  * SPI padding options.
  * Warning: must be a base of 2 (& operation used) and can not be zero !
  */
-module_param(spi_up_head_align, int, S_IRUGO);
+module_param(spi_up_head_align, int, 0444);
 MODULE_PARM_DESC(spi_up_head_align, "SPI uplink head alignment.");
 
-module_param(spi_up_tail_align, int, S_IRUGO);
+module_param(spi_up_tail_align, int, 0444);
 MODULE_PARM_DESC(spi_up_tail_align, "SPI uplink tail alignment.");
 
-module_param(spi_down_head_align, int, S_IRUGO);
+module_param(spi_down_head_align, int, 0444);
 MODULE_PARM_DESC(spi_down_head_align, "SPI downlink head alignment.");
 
-module_param(spi_down_tail_align, int, S_IRUGO);
+module_param(spi_down_tail_align, int, 0444);
 MODULE_PARM_DESC(spi_down_tail_align, "SPI downlink tail alignment.");
 
 #ifdef CONFIG_ARM
@@ -73,35 +73,37 @@ MODULE_PARM_DESC(spi_down_tail_align, "SPI downlink tail alignment.");
 #define LOW_WATER_MARK   100
 #define HIGH_WATER_MARK  (LOW_WATER_MARK*5)
 
-#ifdef CONFIG_UML
+#ifndef CONFIG_HAS_DMA
 
 /*
  * We sometimes use UML for debugging, but it cannot handle
  * dma_alloc_coherent so we have to wrap it.
  */
-static inline void *dma_alloc(dma_addr_t *daddr)
+static inline void *dma_alloc(struct cfspi *cfspi, dma_addr_t *daddr)
 {
 	return kmalloc(SPI_DMA_BUF_LEN, GFP_KERNEL);
 }
 
-static inline void dma_free(void *cpu_addr, dma_addr_t handle)
+static inline void dma_free(struct cfspi *cfspi, void *cpu_addr,
+		dma_addr_t handle)
 {
 	kfree(cpu_addr);
 }
 
 #else
 
-static inline void *dma_alloc(dma_addr_t *daddr)
+static inline void *dma_alloc(struct cfspi *cfspi, dma_addr_t *daddr)
 {
-	return dma_alloc_coherent(NULL, SPI_DMA_BUF_LEN, daddr,
+	return dma_alloc_coherent(&cfspi->pdev->dev, SPI_DMA_BUF_LEN, daddr,
 				GFP_KERNEL);
 }
 
-static inline void dma_free(void *cpu_addr, dma_addr_t handle)
+static inline void dma_free(struct cfspi *cfspi, void *cpu_addr,
+		dma_addr_t handle)
 {
-	dma_free_coherent(NULL, SPI_DMA_BUF_LEN, cpu_addr, handle);
+	dma_free_coherent(&cfspi->pdev->dev, SPI_DMA_BUF_LEN, cpu_addr, handle);
 }
-#endif	/* CONFIG_UML */
+#endif	/* CONFIG_HAS_DMA */
 
 #ifdef CONFIG_DEBUG_FS
 
@@ -250,10 +252,10 @@ static const struct file_operations dbgfs_frame_fops = {
 static inline void dev_debugfs_add(struct cfspi *cfspi)
 {
 	cfspi->dbgfs_dir = debugfs_create_dir(cfspi->pdev->name, dbgfs_root);
-	cfspi->dbgfs_state = debugfs_create_file("state", S_IRUGO,
+	cfspi->dbgfs_state = debugfs_create_file("state", 0444,
 						 cfspi->dbgfs_dir, cfspi,
 						 &dbgfs_state_fops);
-	cfspi->dbgfs_frame = debugfs_create_file("frame", S_IRUGO,
+	cfspi->dbgfs_frame = debugfs_create_file("frame", 0444,
 						 cfspi->dbgfs_dir, cfspi,
 						 &dbgfs_frame_fops);
 }
@@ -610,13 +612,13 @@ static int cfspi_init(struct net_device *dev)
 	}
 
 	/* Allocate DMA buffers. */
-	cfspi->xfer.va_tx[0] = dma_alloc(&cfspi->xfer.pa_tx[0]);
+	cfspi->xfer.va_tx[0] = dma_alloc(cfspi, &cfspi->xfer.pa_tx[0]);
 	if (!cfspi->xfer.va_tx[0]) {
 		res = -ENODEV;
 		goto err_dma_alloc_tx_0;
 	}
 
-	cfspi->xfer.va_rx = dma_alloc(&cfspi->xfer.pa_rx);
+	cfspi->xfer.va_rx = dma_alloc(cfspi, &cfspi->xfer.pa_rx);
 
 	if (!cfspi->xfer.va_rx) {
 		res = -ENODEV;
@@ -665,9 +667,9 @@ static int cfspi_init(struct net_device *dev)
 	return 0;
 
  err_create_wq:
-	dma_free(cfspi->xfer.va_rx, cfspi->xfer.pa_rx);
+	dma_free(cfspi, cfspi->xfer.va_rx, cfspi->xfer.pa_rx);
  err_dma_alloc_rx:
-	dma_free(cfspi->xfer.va_tx[0], cfspi->xfer.pa_tx[0]);
+	dma_free(cfspi, cfspi->xfer.va_tx[0], cfspi->xfer.pa_tx[0]);
  err_dma_alloc_tx_0:
 	return res;
 }
@@ -683,8 +685,8 @@ static void cfspi_uninit(struct net_device *dev)
 
 	cfspi->ndev = NULL;
 	/* Free DMA buffers. */
-	dma_free(cfspi->xfer.va_rx, cfspi->xfer.pa_rx);
-	dma_free(cfspi->xfer.va_tx[0], cfspi->xfer.pa_tx[0]);
+	dma_free(cfspi, cfspi->xfer.va_rx, cfspi->xfer.pa_rx);
+	dma_free(cfspi, cfspi->xfer.va_tx[0], cfspi->xfer.pa_tx[0]);
 	set_bit(SPI_TERMINATE, &cfspi->state);
 	wake_up_interruptible(&cfspi->wait);
 	destroy_workqueue(cfspi->wq);

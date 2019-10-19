@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* 
  *  Copyright (C) 1997	Wu Ching Chen
  *  2.1.x update (C) 1998  Krzysztof G. Baranowski
@@ -194,12 +195,11 @@ static irqreturn_t atp870u_intr_handle(int irq, void *dev_id)
 				((unsigned char *) &adrcnt)[2] = atp_readb_io(dev, c, 0x12);
 				((unsigned char *) &adrcnt)[1] = atp_readb_io(dev, c, 0x13);
 				((unsigned char *) &adrcnt)[0] = atp_readb_io(dev, c, 0x14);
-				if (dev->id[c][target_id].last_len != adrcnt)
-				{
-			   		k = dev->id[c][target_id].last_len;
+				if (dev->id[c][target_id].last_len != adrcnt) {
+					k = dev->id[c][target_id].last_len;
 			   		k -= adrcnt;
 			   		dev->id[c][target_id].tran_len = k;			   
-			   	dev->id[c][target_id].last_len = adrcnt;			   
+					dev->id[c][target_id].last_len = adrcnt;
 				}
 #ifdef ED_DBGP
 				printk("dev->id[c][target_id].last_len = %d dev->id[c][target_id].tran_len = %d\n",dev->id[c][target_id].last_len,dev->id[c][target_id].tran_len);
@@ -1055,7 +1055,7 @@ static void tscam(struct Scsi_Host *host, bool wide_chip, u8 scam_on)
 	udelay(2);		/* 2 deskew delay(45ns*2=90ns) */
 	val &= 0x007f;		/* no bsy  */
 	atp_writew_io(dev, 0, 0x1c, val);
-	mdelay(128);
+	msleep(128);
 	val &= 0x00fb;		/* after 1ms no msg */
 	atp_writew_io(dev, 0, 0x1c, val);
 	while ((atp_readb_io(dev, 0, 0x1c) & 0x04) != 0)
@@ -1193,7 +1193,7 @@ static void atp870u_free_tables(struct Scsi_Host *host)
 		for (k = 0; k < 16; k++) {
 			if (!atp_dev->id[j][k].prd_table)
 				continue;
-			pci_free_consistent(atp_dev->pdev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prd_bus);
+			dma_free_coherent(&atp_dev->pdev->dev, 1024, atp_dev->id[j][k].prd_table, atp_dev->id[j][k].prd_bus);
 			atp_dev->id[j][k].prd_table = NULL;
 		}
 	}
@@ -1205,7 +1205,7 @@ static int atp870u_init_tables(struct Scsi_Host *host)
 	int c,k;
 	for(c=0;c < 2;c++) {
 	   	for(k=0;k<16;k++) {
-	   			atp_dev->id[c][k].prd_table = pci_alloc_consistent(atp_dev->pdev, 1024, &(atp_dev->id[c][k].prd_bus));
+				atp_dev->id[c][k].prd_table = dma_alloc_coherent(&atp_dev->pdev->dev, 1024, &(atp_dev->id[c][k].prd_bus), GFP_KERNEL);
 	   			if (!atp_dev->id[c][k].prd_table) {
 	   				printk("atp870u_init_tables fail\n");
 				atp870u_free_tables(host);
@@ -1286,9 +1286,9 @@ static void atp870_init(struct Scsi_Host *shpnt)
 	k = (atp_readb_base(atpdev, 0x3a) & 0xf3) | 0x10;
 	atp_writeb_base(atpdev, 0x3a, k);
 	atp_writeb_base(atpdev, 0x3a, k & 0xdf);
-	mdelay(32);
+	msleep(32);
 	atp_writeb_base(atpdev, 0x3a, k);
-	mdelay(32);
+	msleep(32);
 	atp_set_host_id(atpdev, 0, host_id);
 
 	tscam(shpnt, wide_chip, scam_on);
@@ -1370,9 +1370,9 @@ static void atp880_init(struct Scsi_Host *shpnt)
 	k = atp_readb_base(atpdev, 0x38) & 0x80;
 	atp_writeb_base(atpdev, 0x38, k);
 	atp_writeb_base(atpdev, 0x3b, 0x20);
-	mdelay(32);
+	msleep(32);
 	atp_writeb_base(atpdev, 0x3b, 0);
-	mdelay(32);
+	msleep(32);
 	atp_readb_io(atpdev, 0, 0x1b);
 	atp_readb_io(atpdev, 0, 0x17);
 
@@ -1413,11 +1413,11 @@ static void atp885_init(struct Scsi_Host *shpnt)
 			atpdev->global_map[m] = 0;
 			for (k = 0; k < 4; k++) {
 				atp_writew_base(atpdev, 0x3c, n++);
-				((unsigned long *)&setupdata[m][0])[k] = atp_readl_base(atpdev, 0x38);
+				((u32 *)&setupdata[m][0])[k] = atp_readl_base(atpdev, 0x38);
 			}
 			for (k = 0; k < 4; k++) {
 				atp_writew_base(atpdev, 0x3c, n++);
-				((unsigned long *)&atpdev->sp[m][0])[k] = atp_readl_base(atpdev, 0x38);
+				((u32 *)&atpdev->sp[m][0])[k] = atp_readl_base(atpdev, 0x38);
 			}
 			n += 8;
 		}
@@ -1454,10 +1454,10 @@ static void atp885_init(struct Scsi_Host *shpnt)
 	atp_writeb_base(atpdev, 0x28, k);
 	atp_writeb_pci(atpdev, 0, 1, 0x80);
 	atp_writeb_pci(atpdev, 1, 1, 0x80);
-	mdelay(100);
+	msleep(100);
 	atp_writeb_pci(atpdev, 0, 1, 0);
 	atp_writeb_pci(atpdev, 1, 1, 0);
-	mdelay(1000);
+	msleep(1000);
 	atp_readb_io(atpdev, 0, 0x1b);
 	atp_readb_io(atpdev, 0, 0x17);
 	atp_readb_io(atpdev, 1, 0x1b);
@@ -1473,7 +1473,7 @@ static void atp885_init(struct Scsi_Host *shpnt)
 		k = (k & 0x07) | 0x40;
 	atp_set_host_id(atpdev, 1, k);
 
-	mdelay(600); /* this delay used to be called tscam_885() */
+	msleep(600); /* this delay used to be called tscam_885() */
 	dev_info(&pdev->dev, "Scanning Channel A SCSI Device ...\n");
 	atp_is(atpdev, 0, true, atp_readb_io(atpdev, 0, 0x1b) >> 7);
 	atp_writeb_io(atpdev, 0, 0x16, 0x80);
@@ -1509,7 +1509,7 @@ static int atp870u_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		goto fail;
 
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pdev->dev, DMA_BIT_MASK(32))) {
                 printk(KERN_ERR "atp870u: DMA mask required but not available.\n");
                 err = -EIO;
                 goto disable_device;
@@ -1681,7 +1681,6 @@ static struct scsi_host_template atp870u_template = {
      .can_queue         	= qcnt			/* can_queue */,
      .this_id           	= 7			/* SCSI ID */,
      .sg_tablesize      	= ATP870U_SCATTER	/*SG_ALL*/ /*SG_NONE*/,
-     .use_clustering    	= ENABLE_CLUSTERING,
      .max_sectors		= ATP870U_MAX_SECTORS,
 };
 

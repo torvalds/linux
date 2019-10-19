@@ -30,7 +30,56 @@
 
 #define MAX_NAME_LEN 32
 
+#define DC_LOG_ERROR(...) DRM_ERROR(__VA_ARGS__)
+#define DC_LOG_WARNING(...) DRM_WARN(__VA_ARGS__)
+#define DC_LOG_DEBUG(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_DC(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_DTN(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_SURFACE(...) pr_debug("[SURFACE]:"__VA_ARGS__)
+#define DC_LOG_HW_HOTPLUG(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_HW_LINK_TRAINING(...) pr_debug("[HW_LINK_TRAINING]:"__VA_ARGS__)
+#define DC_LOG_HW_SET_MODE(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_HW_RESUME_S3(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_HW_AUDIO(...) pr_debug("[HW_AUDIO]:"__VA_ARGS__)
+#define DC_LOG_HW_HPD_IRQ(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_MST(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_SCALER(...) pr_debug("[SCALER]:"__VA_ARGS__)
+#define DC_LOG_BIOS(...) pr_debug("[BIOS]:"__VA_ARGS__)
+#define DC_LOG_BANDWIDTH_CALCS(...) pr_debug("[BANDWIDTH_CALCS]:"__VA_ARGS__)
+#define DC_LOG_BANDWIDTH_VALIDATION(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_I2C_AUX(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_SYNC(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_BACKLIGHT(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_FEATURE_OVERRIDE(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_DETECTION_EDID_PARSER(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_DETECTION_DP_CAPS(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_RESOURCE(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_DML(...) pr_debug("[DML]:"__VA_ARGS__)
+#define DC_LOG_EVENT_MODE_SET(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_DETECTION(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_LINK_TRAINING(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_LINK_LOSS(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_EVENT_UNDERFLOW(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_IF_TRACE(...) pr_debug("[IF_TRACE]:"__VA_ARGS__)
+#define DC_LOG_PERF_TRACE(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_RETIMER_REDRIVER(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#define DC_LOG_GAMMA(...) pr_debug("[GAMMA]:"__VA_ARGS__)
+#define DC_LOG_ALL_GAMMA(...) pr_debug("[GAMMA]:"__VA_ARGS__)
+#define DC_LOG_ALL_TF_CHANNELS(...) pr_debug("[GAMMA]:"__VA_ARGS__)
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+#define DC_LOG_DSC(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#endif
+#if defined(CONFIG_DRM_AMD_DC_DCN3_0) || defined(CONFIG_DRM_AMD_DC_DCN2_0)
+#define DC_LOG_DWB(...) DRM_DEBUG_KMS(__VA_ARGS__)
+#endif
+
 struct dal_logger;
+
+struct dc_log_buffer_ctx {
+	char *buf;
+	size_t pos;
+	size_t size;
+};
 
 enum dc_log_type {
 	LOG_ERROR = 0,
@@ -65,7 +114,16 @@ enum dc_log_type {
 	LOG_EVENT_UNDERFLOW,
 	LOG_IF_TRACE,
 	LOG_PERF_TRACE,
-
+	LOG_DISPLAYSTATS,
+	LOG_HDMI_RETIMER_REDRIVER,
+#ifdef CONFIG_DRM_AMD_DC_DSC_SUPPORT
+	LOG_DSC,
+#endif
+	LOG_DWB,
+	LOG_GAMMA_DEBUG,
+	LOG_MAX_HW_POINTS,
+	LOG_ALL_TF_CHANNELS,
+	LOG_SAMPLE_1DLUT,
 	LOG_SECTION_TOTAL_COUNT
 };
 
@@ -103,64 +161,5 @@ enum dc_log_type {
 		(1 << LOG_HW_LINK_TRAINING) | \
 		(1 << LOG_HW_AUDIO)| \
 		(1 << LOG_BANDWIDTH_CALCS)*/
-
-union logger_flags {
-	struct {
-		uint32_t ENABLE_CONSOLE:1; /* Print to console */
-		uint32_t ENABLE_BUFFER:1; /* Print to buffer */
-		uint32_t RESERVED:30;
-	} bits;
-	uint32_t value;
-};
-
-struct log_entry {
-	struct dal_logger *logger;
-	enum dc_log_type type;
-
-	char *buf;
-	uint32_t buf_offset;
-	uint32_t max_buf_bytes;
-};
-
-/**
-* Structure for enumerating log types
-*/
-struct dc_log_type_info {
-	enum dc_log_type type;
-	char name[MAX_NAME_LEN];
-};
-
-/* Structure for keeping track of offsets, buffer, etc */
-
-#define DAL_LOGGER_BUFFER_MAX_SIZE 2048
-
-/*Connectivity log needs to output EDID, which needs at lease 256x3 bytes,
- * change log line size to 896 to meet the request.
- */
-#define LOG_MAX_LINE_SIZE 896
-
-struct dal_logger {
-
-	/* How far into the circular buffer has been read by dsat
-	 * Read offset should never cross write offset. Write \0's to
-	 * read data just to be sure?
-	 */
-	uint32_t buffer_read_offset;
-
-	/* How far into the circular buffer we have written
-	 * Write offset should never cross read offset
-	 */
-	uint32_t buffer_write_offset;
-
-	uint32_t open_count;
-
-	char *log_buffer;	/* Pointer to malloc'ed buffer */
-	uint32_t log_buffer_size; /* Size of circular buffer */
-
-	uint32_t mask; /*array of masks for major elements*/
-
-	union logger_flags flags;
-	struct dc_context *ctx;
-};
 
 #endif /* __DAL_LOGGER_TYPES_H__ */

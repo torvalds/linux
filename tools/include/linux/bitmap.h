@@ -15,6 +15,7 @@ void __bitmap_or(unsigned long *dst, const unsigned long *bitmap1,
 		 const unsigned long *bitmap2, int bits);
 int __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
 		 const unsigned long *bitmap2, unsigned int bits);
+void bitmap_clear(unsigned long *map, unsigned int start, int len);
 
 #define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) & (BITS_PER_LONG - 1)))
 
@@ -97,8 +98,25 @@ static inline int test_and_set_bit(int nr, unsigned long *addr)
 }
 
 /**
+ * test_and_clear_bit - Clear a bit and return its old value
+ * @nr: Bit to clear
+ * @addr: Address to count from
+ */
+static inline int test_and_clear_bit(int nr, unsigned long *addr)
+{
+	unsigned long mask = BIT_MASK(nr);
+	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
+	unsigned long old;
+
+	old = *p;
+	*p = old & ~mask;
+
+	return (old & mask) != 0;
+}
+
+/**
  * bitmap_alloc - Allocate bitmap
- * @nr: Bit to set
+ * @nbits: Number of bits
  */
 static inline unsigned long *bitmap_alloc(int nbits)
 {

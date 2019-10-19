@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: tbxfload - Table load/unload external interfaces
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #define EXPORT_ACPI_INTERFACES
 
@@ -103,21 +69,18 @@ acpi_status ACPI_INIT_FUNCTION acpi_load_tables(void)
 				"While loading namespace from ACPI tables"));
 	}
 
-	if (acpi_gbl_parse_table_as_term_list
-	    || !acpi_gbl_group_module_level_code) {
-		/*
-		 * Initialize the objects that remain uninitialized. This
-		 * runs the executable AML that may be part of the
-		 * declaration of these objects:
-		 * operation_regions, buffer_fields, Buffers, and Packages.
-		 */
-		status = acpi_ns_initialize_objects();
-		if (ACPI_FAILURE(status)) {
-			return_ACPI_STATUS(status);
-		}
+	/*
+	 * Initialize the objects in the namespace that remain uninitialized.
+	 * This runs the executable AML that may be part of the declaration of
+	 * these name objects:
+	 *     operation_regions, buffer_fields, Buffers, and Packages.
+	 *
+	 */
+	status = acpi_ns_initialize_objects();
+	if (ACPI_SUCCESS(status)) {
+		acpi_gbl_namespace_initialized = TRUE;
 	}
 
-	acpi_gbl_namespace_initialized = TRUE;
 	return_ACPI_STATUS(status);
 }
 
@@ -155,7 +118,7 @@ acpi_status acpi_tb_load_namespace(void)
 	table = &acpi_gbl_root_table_list.tables[acpi_gbl_dsdt_index];
 
 	if (!acpi_gbl_root_table_list.current_table_count ||
-	    !ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_DSDT) ||
+	    !ACPI_COMPARE_NAMESEG(table->signature.ascii, ACPI_SIG_DSDT) ||
 	    ACPI_FAILURE(acpi_tb_validate_table(table))) {
 		status = AE_NO_ACPI_TABLES;
 		goto unlock_and_exit;
@@ -207,11 +170,12 @@ acpi_status acpi_tb_load_namespace(void)
 		table = &acpi_gbl_root_table_list.tables[i];
 
 		if (!table->address ||
-		    (!ACPI_COMPARE_NAME(table->signature.ascii, ACPI_SIG_SSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_PSDT)
-		     && !ACPI_COMPARE_NAME(table->signature.ascii,
-					   ACPI_SIG_OSDT))
+		    (!ACPI_COMPARE_NAMESEG
+		     (table->signature.ascii, ACPI_SIG_SSDT)
+		     && !ACPI_COMPARE_NAMESEG(table->signature.ascii,
+					      ACPI_SIG_PSDT)
+		     && !ACPI_COMPARE_NAMESEG(table->signature.ascii,
+					      ACPI_SIG_OSDT))
 		    || ACPI_FAILURE(acpi_tb_validate_table(table))) {
 			continue;
 		}
@@ -333,6 +297,13 @@ acpi_status acpi_load_table(struct acpi_table_header *table)
 	status = acpi_tb_install_and_load_table(ACPI_PTR_TO_PHYSADDR(table),
 						ACPI_TABLE_ORIGIN_EXTERNAL_VIRTUAL,
 						FALSE, &table_index);
+	if (ACPI_SUCCESS(status)) {
+
+		/* Complete the initialization/resolution of new objects */
+
+		acpi_ns_initialize_objects();
+	}
+
 	return_ACPI_STATUS(status);
 }
 
@@ -401,7 +372,7 @@ acpi_status acpi_unload_parent_table(acpi_handle object)
 		 * only these types can contain AML and thus are the only types
 		 * that can create namespace objects.
 		 */
-		if (ACPI_COMPARE_NAME
+		if (ACPI_COMPARE_NAMESEG
 		    (acpi_gbl_root_table_list.tables[i].signature.ascii,
 		     ACPI_SIG_DSDT)) {
 			status = AE_TYPE;

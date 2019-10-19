@@ -1168,7 +1168,7 @@ static void dump_int(struct seq_file *s, char *label, u32 mask)
 		   mask & HCINT_SF ? " sof" : "", mask & HCINT_SO ? " so" : "");
 }
 
-static int isp116x_show_dbg(struct seq_file *s, void *unused)
+static int isp116x_debug_show(struct seq_file *s, void *unused)
 {
 	struct isp116x *isp116x = s->private;
 
@@ -1196,27 +1196,13 @@ static int isp116x_show_dbg(struct seq_file *s, void *unused)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(isp116x_debug);
 
-static int isp116x_open_seq(struct inode *inode, struct file *file)
-{
-	return single_open(file, isp116x_show_dbg, inode->i_private);
-}
-
-static const struct file_operations isp116x_debug_fops = {
-	.open = isp116x_open_seq,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
-
-static int create_debug_file(struct isp116x *isp116x)
+static void create_debug_file(struct isp116x *isp116x)
 {
 	isp116x->dentry = debugfs_create_file(hcd_name,
 					      S_IRUGO, NULL, isp116x,
 					      &isp116x_debug_fops);
-	if (!isp116x->dentry)
-		return -ENOMEM;
-	return 0;
 }
 
 static void remove_debug_file(struct isp116x *isp116x)
@@ -1226,8 +1212,8 @@ static void remove_debug_file(struct isp116x *isp116x)
 
 #else
 
-#define	create_debug_file(d)	0
-#define	remove_debug_file(d)	do{}while(0)
+static inline void create_debug_file(struct isp116x *isp116x) { }
+static inline void remove_debug_file(struct isp116x *isp116x) { }
 
 #endif				/* CONFIG_DEBUG_FS */
 
@@ -1595,12 +1581,6 @@ static int isp116x_probe(struct platform_device *pdev)
 	irq = ires->start;
 	irqflags = ires->flags & IRQF_TRIGGER_MASK;
 
-	if (pdev->dev.dma_mask) {
-		DBG("DMA not supported\n");
-		ret = -EINVAL;
-		goto err1;
-	}
-
 	if (!request_mem_region(addr->start, 2, hcd_name)) {
 		ret = -EBUSY;
 		goto err1;
@@ -1654,16 +1634,10 @@ static int isp116x_probe(struct platform_device *pdev)
 
 	device_wakeup_enable(hcd->self.controller);
 
-	ret = create_debug_file(isp116x);
-	if (ret) {
-		ERR("Couldn't create debugfs entry\n");
-		goto err7;
-	}
+	create_debug_file(isp116x);
 
 	return 0;
 
-      err7:
-	usb_remove_hcd(hcd);
       err6:
 	usb_put_hcd(hcd);
       err5:

@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _media_ioc_enum_links:
 
@@ -26,6 +33,7 @@ Arguments
     File descriptor returned by :ref:`open() <media-func-open>`.
 
 ``argp``
+    Pointer to struct :c:type:`media_links_enum`.
 
 
 Description
@@ -62,33 +70,24 @@ returned during the enumeration process.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
+    *  -  __u32
        -  ``entity``
-
        -  Entity id, set by the application.
 
-    -  .. row 2
-
-       -  struct :c:type:`media_pad_desc`
-
+    *  -  struct :c:type:`media_pad_desc`
        -  \*\ ``pads``
-
        -  Pointer to a pads array allocated by the application. Ignored if
 	  NULL.
 
-    -  .. row 3
-
-       -  struct :c:type:`media_link_desc`
-
+    *  -  struct :c:type:`media_link_desc`
        -  \*\ ``links``
-
        -  Pointer to a links array allocated by the application. Ignored if
 	  NULL.
 
+    *  -  __u32
+       -  ``reserved[4]``
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
 
 
 .. c:type:: media_pad_desc
@@ -100,30 +99,22 @@ returned during the enumeration process.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  __u32
-
+    *  -  __u32
        -  ``entity``
-
        -  ID of the entity this pad belongs to.
 
-    -  .. row 2
-
-       -  __u16
-
+    *  -  __u16
        -  ``index``
+       -  Pad index, starts at 0.
 
-       -  0-based pad index.
-
-    -  .. row 3
-
-       -  __u32
-
+    *  -  __u32
        -  ``flags``
-
        -  Pad flags, see :ref:`media-pad-flag` for more details.
+
+    *  -  __u32
+       -  ``reserved[2]``
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
 
 
 
@@ -136,30 +127,22 @@ returned during the enumeration process.
     :stub-columns: 0
     :widths:       1 1 2
 
-
-    -  .. row 1
-
-       -  struct :c:type:`media_pad_desc`
-
+    *  -  struct :c:type:`media_pad_desc`
        -  ``source``
-
        -  Pad at the origin of this link.
 
-    -  .. row 2
-
-       -  struct :c:type:`media_pad_desc`
-
+    *  -  struct :c:type:`media_pad_desc`
        -  ``sink``
-
        -  Pad at the target of this link.
 
-    -  .. row 3
-
-       -  __u32
-
+    *  -  __u32
        -  ``flags``
-
        -  Link flags, see :ref:`media-link-flag` for more details.
+
+    *  -  __u32
+       -  ``reserved[2]``
+       -  Reserved for future extensions. Drivers and applications must set
+          the array to zero.
 
 
 Return Value

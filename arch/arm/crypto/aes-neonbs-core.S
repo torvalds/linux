@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Bit sliced AES using NEON instructions
  *
  * Copyright (C) 2017 Linaro Ltd.
  * Author: Ard Biesheuvel <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /*
@@ -890,19 +887,17 @@ ENDPROC(aesbs_ctr_encrypt)
 	veor		\out, \out, \tmp
 	.endm
 
-	.align		4
-.Lxts_mul_x:
-	.quad		1, 0x87
-
 	/*
 	 * aesbs_xts_encrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		     int blocks, u8 iv[])
+	 *		     int blocks, u8 iv[], int reorder_last_tweak)
 	 * aesbs_xts_decrypt(u8 out[], u8 const in[], u8 const rk[], int rounds,
-	 *		     int blocks, u8 iv[])
+	 *		     int blocks, u8 iv[], int reorder_last_tweak)
 	 */
 __xts_prepare8:
 	vld1.8		{q14}, [r7]		// load iv
-	__ldr		q15, .Lxts_mul_x	// load tweak mask
+	vmov.i32	d30, #0x87		// compose tweak mask vector
+	vmovl.u32	q15, d30
+	vshr.u64	d30, d31, #7
 	vmov		q12, q14
 
 	__adr		ip, 0f
@@ -949,17 +944,25 @@ __xts_prepare8:
 
 	vld1.8		{q7}, [r1]!
 	next_tweak	q14, q12, q15, q13
-	veor		q7, q7, q12
+THUMB(	itt		le		)
+	W(cmple)	r8, #0
+	ble		1f
+0:	veor		q7, q7, q12
 	vst1.8		{q12}, [r4, :128]
 
-0:	vst1.8		{q14}, [r7]		// store next iv
+	vst1.8		{q14}, [r7]		// store next iv
 	bx		lr
+
+1:	vswp		q12, q14
+	b		0b
 ENDPROC(__xts_prepare8)
 
 	.macro		__xts_crypt, do8, o0, o1, o2, o3, o4, o5, o6, o7
 	push		{r4-r8, lr}
 	mov		r5, sp			// preserve sp
 	ldrd		r6, r7, [sp, #24]	// get blocks and iv args
+	ldr		r8, [sp, #32]		// reorder final tweak?
+	rsb		r8, r8, #1
 	sub		ip, sp, #128		// make room for 8x tweak
 	bic		ip, ip, #0xf		// align sp to 16 bytes
 	mov		sp, ip

@@ -30,6 +30,7 @@
 #include <linux/memory.h>
 #include "kfd_priv.h"
 #include "kfd_events.h"
+#include "kfd_iommu.h"
 #include <linux/device.h>
 
 /*
@@ -51,6 +52,7 @@ struct kfd_event_waiter {
 struct kfd_signal_page {
 	uint64_t *kernel_address;
 	uint64_t __user *user_address;
+	bool need_to_free_pages;
 };
 
 
@@ -78,6 +80,7 @@ static struct kfd_signal_page *allocate_signal_page(struct kfd_process *p)
 	       KFD_SIGNAL_EVENT_LIMIT * 8);
 
 	page->kernel_address = backing_store;
+	page->need_to_free_pages = true;
 	pr_debug("Allocated new event signal page at %p, for process %p\n",
 			page, p);
 
@@ -268,8 +271,9 @@ static void shutdown_signal_page(struct kfd_process *p)
 	struct kfd_signal_page *page = p->signal_page;
 
 	if (page) {
-		free_pages((unsigned long)page->kernel_address,
-				get_order(KFD_SIGNAL_EVENT_LIMIT * 8));
+		if (page->need_to_free_pages)
+			free_pages((unsigned long)page->kernel_address,
+				   get_order(KFD_SIGNAL_EVENT_LIMIT * 8));
 		kfree(page);
 	}
 }
@@ -289,6 +293,30 @@ static bool event_can_be_gpu_signaled(const struct kfd_event *ev)
 static bool event_can_be_cpu_signaled(const struct kfd_event *ev)
 {
 	return ev->type == KFD_EVENT_TYPE_SIGNAL;
+}
+
+int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
+		       uint64_t size)
+{
+	struct kfd_signal_page *page;
+
+	if (p->signal_page)
+		return -EBUSY;
+
+	page = kzalloc(sizeof(*page), GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
+
+	/* Initialize all events to unsignaled */
+	memset(kernel_address, (uint8_t) UNSIGNALED_EVENT_SLOT,
+	       KFD_SIGNAL_EVENT_LIMIT * 8);
+
+	page->kernel_address = kernel_address;
+
+	p->signal_page = page;
+	p->signal_mapped_size = size;
+
+	return 0;
 }
 
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
@@ -317,7 +345,7 @@ int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 	case KFD_EVENT_TYPE_DEBUG:
 		ret = create_signal_event(devkfd, p, ev);
 		if (!ret) {
-			*event_page_offset = KFD_MMAP_EVENTS_MASK;
+			*event_page_offset = KFD_MMAP_TYPE_EVENTS;
 			*event_page_offset <<= PAGE_SHIFT;
 			*event_slot_index = ev->event_id;
 		}
@@ -468,7 +496,7 @@ void kfd_signal_event_interrupt(unsigned int pasid, uint32_t partial_id,
 			pr_debug_ratelimited("Partial ID invalid: %u (%u valid bits)\n",
 					     partial_id, valid_id_bits);
 
-		if (p->signal_event_count < KFD_SIGNAL_EVENT_LIMIT/2) {
+		if (p->signal_event_count < KFD_SIGNAL_EVENT_LIMIT / 64) {
 			/* With relatively few events, it's faster to
 			 * iterate over the event IDR
 			 */
@@ -822,6 +850,13 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 				ev->memory_exception_data = *ev_data;
 		}
 
+	if (type == KFD_EVENT_TYPE_MEMORY) {
+		dev_warn(kfd_device,
+			"Sending SIGSEGV to HSA Process with PID %d ",
+				p->lead_thread->pid);
+		send_sig(SIGSEGV, p->lead_thread, 0);
+	}
+
 	/* Send SIGTERM no event of type "type" has been found*/
 	if (send_signal) {
 		if (send_sigterm) {
@@ -837,6 +872,7 @@ static void lookup_events_by_type_and_signal(struct kfd_process *p,
 	}
 }
 
+#ifdef KFD_SUPPORT_IOMMU_V2
 void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 		unsigned long address, bool is_write_requested,
 		bool is_execute_requested)
@@ -875,36 +911,44 @@ void kfd_signal_iommu_event(struct kfd_dev *dev, unsigned int pasid,
 	memory_exception_data.failure.NotPresent = 1;
 	memory_exception_data.failure.NoExecute = 0;
 	memory_exception_data.failure.ReadOnly = 0;
-	if (vma) {
-		if (vma->vm_start > address) {
-			memory_exception_data.failure.NotPresent = 1;
-			memory_exception_data.failure.NoExecute = 0;
+	if (vma && address >= vma->vm_start) {
+		memory_exception_data.failure.NotPresent = 0;
+
+		if (is_write_requested && !(vma->vm_flags & VM_WRITE))
+			memory_exception_data.failure.ReadOnly = 1;
+		else
 			memory_exception_data.failure.ReadOnly = 0;
-		} else {
-			memory_exception_data.failure.NotPresent = 0;
-			if (is_write_requested && !(vma->vm_flags & VM_WRITE))
-				memory_exception_data.failure.ReadOnly = 1;
-			else
-				memory_exception_data.failure.ReadOnly = 0;
-			if (is_execute_requested && !(vma->vm_flags & VM_EXEC))
-				memory_exception_data.failure.NoExecute = 1;
-			else
-				memory_exception_data.failure.NoExecute = 0;
-		}
+
+		if (is_execute_requested && !(vma->vm_flags & VM_EXEC))
+			memory_exception_data.failure.NoExecute = 1;
+		else
+			memory_exception_data.failure.NoExecute = 0;
 	}
 
 	up_read(&mm->mmap_sem);
 	mmput(mm);
 
-	mutex_lock(&p->event_mutex);
+	pr_debug("notpresent %d, noexecute %d, readonly %d\n",
+			memory_exception_data.failure.NotPresent,
+			memory_exception_data.failure.NoExecute,
+			memory_exception_data.failure.ReadOnly);
 
-	/* Lookup events by type and signal them */
-	lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
-			&memory_exception_data);
+	/* Workaround on Raven to not kill the process when memory is freed
+	 * before IOMMU is able to finish processing all the excessive PPRs
+	 */
+	if (dev->device_info->asic_family != CHIP_RAVEN) {
+		mutex_lock(&p->event_mutex);
 
-	mutex_unlock(&p->event_mutex);
+		/* Lookup events by type and signal them */
+		lookup_events_by_type_and_signal(p, KFD_EVENT_TYPE_MEMORY,
+				&memory_exception_data);
+
+		mutex_unlock(&p->event_mutex);
+	}
+
 	kfd_unref_process(p);
 }
+#endif /* KFD_SUPPORT_IOMMU_V2 */
 
 void kfd_signal_hw_exception_event(unsigned int pasid)
 {
@@ -925,4 +969,84 @@ void kfd_signal_hw_exception_event(unsigned int pasid)
 
 	mutex_unlock(&p->event_mutex);
 	kfd_unref_process(p);
+}
+
+void kfd_signal_vm_fault_event(struct kfd_dev *dev, unsigned int pasid,
+				struct kfd_vm_fault_info *info)
+{
+	struct kfd_event *ev;
+	uint32_t id;
+	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
+	struct kfd_hsa_memory_exception_data memory_exception_data;
+
+	if (!p)
+		return; /* Presumably process exited. */
+	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
+	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.failure.imprecise = true;
+	/* Set failure reason */
+	if (info) {
+		memory_exception_data.va = (info->page_addr) << PAGE_SHIFT;
+		memory_exception_data.failure.NotPresent =
+			info->prot_valid ? 1 : 0;
+		memory_exception_data.failure.NoExecute =
+			info->prot_exec ? 1 : 0;
+		memory_exception_data.failure.ReadOnly =
+			info->prot_write ? 1 : 0;
+		memory_exception_data.failure.imprecise = 0;
+	}
+	mutex_lock(&p->event_mutex);
+
+	id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+	idr_for_each_entry_continue(&p->event_idr, ev, id)
+		if (ev->type == KFD_EVENT_TYPE_MEMORY) {
+			ev->memory_exception_data = memory_exception_data;
+			set_event(ev);
+		}
+
+	mutex_unlock(&p->event_mutex);
+	kfd_unref_process(p);
+}
+
+void kfd_signal_reset_event(struct kfd_dev *dev)
+{
+	struct kfd_hsa_hw_exception_data hw_exception_data;
+	struct kfd_hsa_memory_exception_data memory_exception_data;
+	struct kfd_process *p;
+	struct kfd_event *ev;
+	unsigned int temp;
+	uint32_t id, idx;
+	int reset_cause = atomic_read(&dev->sram_ecc_flag) ?
+			KFD_HW_EXCEPTION_ECC :
+			KFD_HW_EXCEPTION_GPU_HANG;
+
+	/* Whole gpu reset caused by GPU hang and memory is lost */
+	memset(&hw_exception_data, 0, sizeof(hw_exception_data));
+	hw_exception_data.gpu_id = dev->id;
+	hw_exception_data.memory_lost = 1;
+	hw_exception_data.reset_cause = reset_cause;
+
+	memset(&memory_exception_data, 0, sizeof(memory_exception_data));
+	memory_exception_data.ErrorType = KFD_MEM_ERR_SRAM_ECC;
+	memory_exception_data.gpu_id = dev->id;
+	memory_exception_data.failure.imprecise = true;
+
+	idx = srcu_read_lock(&kfd_processes_srcu);
+	hash_for_each_rcu(kfd_processes_table, temp, p, kfd_processes) {
+		mutex_lock(&p->event_mutex);
+		id = KFD_FIRST_NONSIGNAL_EVENT_ID;
+		idr_for_each_entry_continue(&p->event_idr, ev, id) {
+			if (ev->type == KFD_EVENT_TYPE_HW_EXCEPTION) {
+				ev->hw_exception_data = hw_exception_data;
+				set_event(ev);
+			}
+			if (ev->type == KFD_EVENT_TYPE_MEMORY &&
+			    reset_cause == KFD_HW_EXCEPTION_ECC) {
+				ev->memory_exception_data = memory_exception_data;
+				set_event(ev);
+			}
+		}
+		mutex_unlock(&p->event_mutex);
+	}
+	srcu_read_unlock(&kfd_processes_srcu, idx);
 }

@@ -1,7 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2002 - 2003 Dominik Brodowski <linux@brodo.de>
- *
- *  Licensed under the terms of the GNU GPL License version 2.
  *
  *  Library for common functions for Intel SpeedStep v.1 and v.2 support
  *
@@ -252,7 +251,7 @@ EXPORT_SYMBOL_GPL(speedstep_get_frequency);
  *********************************************************************/
 
 /* Keep in sync with the x86_cpu_id tables in the different modules */
-unsigned int speedstep_detect_processor(void)
+enum speedstep_processor speedstep_detect_processor(void)
 {
 	struct cpuinfo_x86 *c = &cpu_data(0);
 	u32 ebx, msr_lo, msr_hi;
@@ -272,9 +271,9 @@ unsigned int speedstep_detect_processor(void)
 		ebx = cpuid_ebx(0x00000001);
 		ebx &= 0x000000FF;
 
-		pr_debug("ebx value is %x, x86_mask is %x\n", ebx, c->x86_mask);
+		pr_debug("ebx value is %x, x86_stepping is %x\n", ebx, c->x86_stepping);
 
-		switch (c->x86_mask) {
+		switch (c->x86_stepping) {
 		case 4:
 			/*
 			 * B-stepping [M-P4-M]
@@ -361,7 +360,7 @@ unsigned int speedstep_detect_processor(void)
 				msr_lo, msr_hi);
 		if ((msr_hi & (1<<18)) &&
 		    (relaxed_check ? 1 : (msr_hi & (3<<24)))) {
-			if (c->x86_mask == 0x01) {
+			if (c->x86_stepping == 0x01) {
 				pr_debug("early PIII version\n");
 				return SPEEDSTEP_CPU_PIII_C_EARLY;
 			} else

@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * omap-usb-host.c - The USBHS core driver for OMAP EHCI & OHCI
  *
  * Copyright (C) 2011-2013 Texas Instruments Incorporated - http://www.ti.com
  * Author: Keshava Munegowda <keshava_mgowda@ti.com>
  * Author: Roger Quadros <rogerq@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -152,27 +141,6 @@ static const char * const port_modes[] = {
 	[OMAP_OHCI_PORT_MODE_TLL_2PIN_DATSE0]	= "ohci-tll-2pin-datse0",
 	[OMAP_OHCI_PORT_MODE_TLL_2PIN_DPDM]	= "ohci-tll-2pin-dpdm",
 };
-
-/**
- * omap_usbhs_get_dt_port_mode - Get the 'enum usbhs_omap_port_mode'
- * from the port mode string.
- * @mode: The port mode string, usually obtained from device tree.
- *
- * The function returns the 'enum usbhs_omap_port_mode' that matches the
- * provided port mode string as per the port_modes table.
- * If no match is found it returns -ENODEV
- */
-static int omap_usbhs_get_dt_port_mode(const char *mode)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(port_modes); i++) {
-		if (!strcmp(mode, port_modes[i]))
-			return i;
-	}
-
-	return -ENODEV;
-}
 
 static struct platform_device *omap_usbhs_alloc_child(const char *name,
 			struct resource	*res, int num_resources, void *pdata,
@@ -340,7 +308,7 @@ static int usbhs_runtime_resume(struct device *dev)
 					 i, r);
 				}
 			}
-		/* Fall through as HSIC mode needs utmi_clk */
+		/* Fall through - as HSIC mode needs utmi_clk */
 
 		case OMAP_EHCI_PORT_MODE_TLL:
 			if (!IS_ERR(omap->utmi_clk[i])) {
@@ -376,7 +344,7 @@ static int usbhs_runtime_suspend(struct device *dev)
 
 			if (!IS_ERR(omap->hsic480m_clk[i]))
 				clk_disable_unprepare(omap->hsic480m_clk[i]);
-		/* Fall through as utmi_clks were used in HSIC mode */
+		/* Fall through - as utmi_clks were used in HSIC mode */
 
 		case OMAP_EHCI_PORT_MODE_TLL:
 			if (!IS_ERR(omap->utmi_clk[i]))
@@ -529,7 +497,8 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 		if (ret < 0)
 			continue;
 
-		ret = omap_usbhs_get_dt_port_mode(mode);
+		/* get 'enum usbhs_omap_port_mode' from port mode string */
+		ret = match_string(port_modes, ARRAY_SIZE(port_modes), mode);
 		if (ret < 0) {
 			dev_warn(dev, "Invalid port%d-mode \"%s\" in device tree\n",
 					i, mode);
@@ -548,8 +517,8 @@ static int usbhs_omap_get_dt_pdata(struct device *dev,
 }
 
 static const struct of_device_id usbhs_child_match_table[] = {
-	{ .compatible = "ti,omap-ehci", },
-	{ .compatible = "ti,omap-ohci", },
+	{ .compatible = "ti,ehci-omap", },
+	{ .compatible = "ti,ohci-omap3", },
 	{ }
 };
 
@@ -875,6 +844,7 @@ static struct platform_driver usbhs_omap_driver = {
 		.pm		= &usbhsomap_dev_pm_ops,
 		.of_match_table = usbhs_omap_dt_ids,
 	},
+	.probe		= usbhs_omap_probe,
 	.remove		= usbhs_omap_remove,
 };
 
@@ -884,9 +854,9 @@ MODULE_ALIAS("platform:" USBHS_DRIVER_NAME);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("usb host common core driver for omap EHCI and OHCI");
 
-static int __init omap_usbhs_drvinit(void)
+static int omap_usbhs_drvinit(void)
 {
-	return platform_driver_probe(&usbhs_omap_driver, usbhs_omap_probe);
+	return platform_driver_register(&usbhs_omap_driver);
 }
 
 /*
@@ -898,7 +868,7 @@ static int __init omap_usbhs_drvinit(void)
  */
 fs_initcall_sync(omap_usbhs_drvinit);
 
-static void __exit omap_usbhs_drvexit(void)
+static void omap_usbhs_drvexit(void)
 {
 	platform_driver_unregister(&usbhs_omap_driver);
 }

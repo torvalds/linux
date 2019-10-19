@@ -1,20 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * HID Sensors Driver
  * Copyright (c) 2012, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  */
 #ifndef _HID_SENSORS_HUB_H
 #define _HID_SENSORS_HUB_H
@@ -177,6 +164,7 @@ int sensor_hub_input_get_attribute_info(struct hid_sensor_hub_device *hsdev,
 * @attr_usage_id:	Attribute usage id as per spec
 * @report_id:	Report id to look for
 * @flag:      Synchronous or asynchronous read
+* @is_signed:   If true then fields < 32 bits will be sign-extended
 *
 * Issues a synchronous or asynchronous read request for an input attribute.
 * Returns data upto 32 bits.
@@ -190,7 +178,8 @@ enum sensor_hub_read_flags {
 int sensor_hub_input_attr_get_raw_value(struct hid_sensor_hub_device *hsdev,
  					u32 usage_id,
  					u32 attr_usage_id, u32 report_id,
- 					enum sensor_hub_read_flags flag
+					enum sensor_hub_read_flags flag,
+					bool is_signed
 );
 
 /**

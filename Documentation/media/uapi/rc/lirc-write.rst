@@ -1,4 +1,11 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _lirc-write:
 
@@ -57,7 +64,8 @@ driver returns ``EINVAL``.
 When in :ref:`LIRC_MODE_SCANCODE <lirc-mode-scancode>` mode, one
 ``struct lirc_scancode`` must be written to the chardev at a time, else
 ``EINVAL`` is returned. Set the desired scancode in the ``scancode`` member,
-and the protocol in the :c:type:`rc_proto`: member. All other members must be
+and the :ref:`IR protocol <Remote_controllers_Protocols>` in the
+:c:type:`rc_proto`: member. All other members must be
 set to 0, else ``EINVAL`` is returned. If there is no protocol encoder
 for the protocol or the scancode is not valid for the specified protocol,
 ``EINVAL`` is returned. The write function blocks until the scancode

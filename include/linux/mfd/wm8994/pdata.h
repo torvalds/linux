@@ -1,15 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/linux/mfd/wm8994/pdata.h -- Platform data for WM8994
  *
  * Copyright 2009 Wolfson Microelectronics PLC.
  *
  * Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- *
  */
 
 #ifndef __MFD_WM8994_PDATA_H__
@@ -20,9 +15,6 @@
 #define WM8994_NUM_AIF   3
 
 struct wm8994_ldo_pdata {
-	/** GPIOs to enable regulator, 0 or less if not available */
-	int enable;
-
 	const struct regulator_init_data *init_data;
 };
 
@@ -221,6 +213,12 @@ struct wm8994_pdata {
 	 * system.
 	 */
 	bool spkmode_pu;
+
+	/*
+	 * CS/ADDR must be pulled internally by the device on this
+	 * system.
+	 */
+	bool csnaddr_pd;
 
 	/**
 	 * Maximum number of channels clocks will be generated for,

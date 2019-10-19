@@ -1,16 +1,11 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Framework and drivers for configuring and reading different PHYs
- * Based on code in sungem_phy.c and gianfar_phy.c
+ * Based on code in sungem_phy.c and (long-removed) gianfar_phy.c
  *
  * Author: Andy Fleming
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #ifndef __PHY_H
@@ -19,6 +14,7 @@
 #include <linux/compiler.h>
 #include <linux/spinlock.h>
 #include <linux/ethtool.h>
+#include <linux/linkmode.h>
 #include <linux/mdio.h>
 #include <linux/mii.h>
 #include <linux/module.h>
@@ -41,13 +37,31 @@
 #define PHY_1000BT_FEATURES	(SUPPORTED_1000baseT_Half | \
 				 SUPPORTED_1000baseT_Full)
 
-#define PHY_BASIC_FEATURES	(PHY_10BT_FEATURES | \
-				 PHY_100BT_FEATURES | \
-				 PHY_DEFAULT_FEATURES)
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_basic_t1_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_fibre_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_gbit_all_ports_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_fec_features) __ro_after_init;
+extern __ETHTOOL_DECLARE_LINK_MODE_MASK(phy_10gbit_full_features) __ro_after_init;
 
-#define PHY_GBIT_FEATURES	(PHY_BASIC_FEATURES | \
-				 PHY_1000BT_FEATURES)
+#define PHY_BASIC_FEATURES ((unsigned long *)&phy_basic_features)
+#define PHY_BASIC_T1_FEATURES ((unsigned long *)&phy_basic_t1_features)
+#define PHY_GBIT_FEATURES ((unsigned long *)&phy_gbit_features)
+#define PHY_GBIT_FIBRE_FEATURES ((unsigned long *)&phy_gbit_fibre_features)
+#define PHY_GBIT_ALL_PORTS_FEATURES ((unsigned long *)&phy_gbit_all_ports_features)
+#define PHY_10GBIT_FEATURES ((unsigned long *)&phy_10gbit_features)
+#define PHY_10GBIT_FEC_FEATURES ((unsigned long *)&phy_10gbit_fec_features)
+#define PHY_10GBIT_FULL_FEATURES ((unsigned long *)&phy_10gbit_full_features)
 
+extern const int phy_basic_ports_array[3];
+extern const int phy_fibre_port_array[1];
+extern const int phy_all_ports_features_array[7];
+extern const int phy_10_100_features_array[4];
+extern const int phy_basic_t1_features_array[2];
+extern const int phy_gbit_features_array[2];
+extern const int phy_10gbit_features_array[1];
 
 /*
  * Set phydev->irq to PHY_POLL if interrupts are not supported,
@@ -57,9 +71,8 @@
 #define PHY_POLL		-1
 #define PHY_IGNORE_INTERRUPT	-2
 
-#define PHY_HAS_INTERRUPT	0x00000001
-#define PHY_IS_INTERNAL		0x00000002
-#define PHY_RST_AFTER_CLK_EN	0x00000004
+#define PHY_IS_INTERNAL		0x00000001
+#define PHY_RST_AFTER_CLK_EN	0x00000002
 #define MDIO_DEVICE_IS_PHY	0x80000000
 
 /* Interface Mode definitions */
@@ -88,6 +101,7 @@ typedef enum {
 	PHY_INTERFACE_MODE_XAUI,
 	/* 10GBASE-KR, XFI, SFI - single lane 10G Serdes */
 	PHY_INTERFACE_MODE_10GKR,
+	PHY_INTERFACE_MODE_USXGMII,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
 
@@ -97,9 +111,9 @@ typedef enum {
  * @speeds: buffer to store supported speeds in.
  * @size: size of speeds buffer.
  *
- * Description: Returns the number of supported speeds, and
- * fills the speeds * buffer with the supported speeds. If speeds buffer is
- * too small to contain * all currently supported speeds, will return as
+ * Description: Returns the number of supported speeds, and fills
+ * the speeds buffer with the supported speeds. If speeds buffer is
+ * too small to contain all currently supported speeds, will return as
  * many speeds as can fit.
  */
 unsigned int phy_supported_speeds(struct phy_device *phy,
@@ -107,7 +121,10 @@ unsigned int phy_supported_speeds(struct phy_device *phy,
 				      unsigned int size);
 
 /**
- * It maps 'enum phy_interface_t' found in include/linux/phy.h
+ * phy_modes - map phy_interface_t enum to device tree binding of phy-mode
+ * @interface: enum phy_interface_t value
+ *
+ * Description: maps 'enum phy_interface_t' defined in this file
  * into the device tree binding of 'phy-mode', so that Ethernet
  * device driver can get phy interface from device tree.
  */
@@ -160,6 +177,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 		return "xaui";
 	case PHY_INTERFACE_MODE_10GKR:
 		return "10gbase-kr";
+	case PHY_INTERFACE_MODE_USXGMII:
+		return "usxgmii";
 	default:
 		return "unknown";
 	}
@@ -167,9 +186,7 @@ static inline const char *phy_modes(phy_interface_t interface)
 
 
 #define PHY_INIT_TIMEOUT	100000
-#define PHY_STATE_TIME		1
 #define PHY_FORCE_TIMEOUT	10
-#define PHY_AN_TIMEOUT		10
 
 #define PHY_MAX_ADDR	32
 
@@ -181,6 +198,8 @@ static inline const char *phy_modes(phy_interface_t interface)
 /* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
    IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips. */
 #define MII_ADDR_C45 (1<<30)
+#define MII_DEVADDR_C45_SHIFT	16
+#define MII_REGADDR_C45_MASK	GENMASK(15, 0)
 
 struct device;
 struct phylink;
@@ -255,102 +274,45 @@ static inline struct mii_bus *devm_mdiobus_alloc(struct device *dev)
 void devm_mdiobus_free(struct device *dev, struct mii_bus *bus);
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
 
-#define PHY_INTERRUPT_DISABLED	0x0
-#define PHY_INTERRUPT_ENABLED	0x80000000
+#define PHY_INTERRUPT_DISABLED	false
+#define PHY_INTERRUPT_ENABLED	true
 
 /* PHY state machine states:
  *
  * DOWN: PHY device and driver are not ready for anything.  probe
  * should be called if and only if the PHY is in this state,
  * given that the PHY device exists.
- * - PHY driver probe function will, depending on the PHY, set
- * the state to STARTING or READY
- *
- * STARTING:  PHY device is coming up, and the ethernet driver is
- * not ready.  PHY drivers may set this in the probe function.
- * If they do, they are responsible for making sure the state is
- * eventually set to indicate whether the PHY is UP or READY,
- * depending on the state when the PHY is done starting up.
- * - PHY driver will set the state to READY
- * - start will set the state to PENDING
+ * - PHY driver probe function will set the state to READY
  *
  * READY: PHY is ready to send and receive packets, but the
  * controller is not.  By default, PHYs which do not implement
- * probe will be set to this state by phy_probe().  If the PHY
- * driver knows the PHY is ready, and the PHY state is STARTING,
- * then it sets this STATE.
+ * probe will be set to this state by phy_probe().
  * - start will set the state to UP
- *
- * PENDING: PHY device is coming up, but the ethernet driver is
- * ready.  phy_start will set this state if the PHY state is
- * STARTING.
- * - PHY driver will set the state to UP when the PHY is ready
  *
  * UP: The PHY and attached device are ready to do work.
  * Interrupts should be started here.
- * - timer moves to AN
- *
- * AN: The PHY is currently negotiating the link state.  Link is
- * therefore down for now.  phy_timer will set this state when it
- * detects the state is UP.  config_aneg will set this state
- * whenever called with phydev->autoneg set to AUTONEG_ENABLE.
- * - If autonegotiation finishes, but there's no link, it sets
- *   the state to NOLINK.
- * - If aneg finishes with link, it sets the state to RUNNING,
- *   and calls adjust_link
- * - If autonegotiation did not finish after an arbitrary amount
- *   of time, autonegotiation should be tried again if the PHY
- *   supports "magic" autonegotiation (back to AN)
- * - If it didn't finish, and no magic_aneg, move to FORCING.
+ * - timer moves to NOLINK or RUNNING
  *
  * NOLINK: PHY is up, but not currently plugged in.
- * - If the timer notes that the link comes back, we move to RUNNING
- * - config_aneg moves to AN
- * - phy_stop moves to HALTED
- *
- * FORCING: PHY is being configured with forced settings
- * - if link is up, move to RUNNING
- * - If link is down, we drop to the next highest setting, and
- *   retry (FORCING) after a timeout
+ * - irq or timer will set RUNNING if link comes back
  * - phy_stop moves to HALTED
  *
  * RUNNING: PHY is currently up, running, and possibly sending
  * and/or receiving packets
- * - timer will set CHANGELINK if we're polling (this ensures the
- *   link state is polled every other cycle of this state machine,
- *   which makes it every other second)
- * - irq will set CHANGELINK
- * - config_aneg will set AN
- * - phy_stop moves to HALTED
- *
- * CHANGELINK: PHY experienced a change in link state
- * - timer moves to RUNNING if link
- * - timer moves to NOLINK if the link is down
+ * - irq or timer will set NOLINK if link goes down
  * - phy_stop moves to HALTED
  *
  * HALTED: PHY is up, but no polling or interrupts are done. Or
  * PHY is in an error state.
- *
- * - phy_start moves to RESUMING
- *
- * RESUMING: PHY was halted, but now wants to run again.
- * - If we are forcing, or aneg is done, timer moves to RUNNING
- * - If aneg is not done, timer moves to AN
- * - phy_stop moves to HALTED
+ * - phy_start moves to UP
  */
 enum phy_state {
 	PHY_DOWN = 0,
-	PHY_STARTING,
 	PHY_READY,
-	PHY_PENDING,
+	PHY_HALTED,
 	PHY_UP,
-	PHY_AN,
 	PHY_RUNNING,
 	PHY_NOLINK,
-	PHY_FORCING,
-	PHY_CHANGELINK,
-	PHY_HALTED,
-	PHY_RESUMING
 };
 
 /**
@@ -371,17 +333,15 @@ struct phy_c45_device_ids {
  * is_c45:  Set to true if this phy uses clause 45 addressing.
  * is_internal: Set to true if this phy is internal to a MAC.
  * is_pseudo_fixed_link: Set to true if this phy is an Ethernet switch, etc.
+ * is_gigabit_capable: Set to true if PHY supports 1000Mbps
  * has_fixups: Set to true if this phy has fixups/quirks.
  * suspended: Set to true if this phy has been suspended successfully.
  * sysfs_links: Internal boolean tracking sysfs symbolic links setup/removal.
  * loopback_enabled: Set true if this phy has been loopbacked successfully.
  * state: state of the PHY for management purposes
  * dev_flags: Device-specific flags used by the PHY driver.
- * link_timeout: The number of timer firings to wait before the
- * giving up on the current attempt at acquiring a link
  * irq: IRQ number of the PHY's interrupt (-1 if none)
  * phy_timer: The timer for handling the state machine
- * phy_queue: A work_queue for the phy_mac_interrupt
  * attached_dev: The attached enet driver's device instance ptr
  * adjust_link: Callback for the enet controller to respond to
  * changes in the link state.
@@ -406,13 +366,22 @@ struct phy_device {
 	u32 phy_id;
 
 	struct phy_c45_device_ids c45_ids;
-	bool is_c45;
-	bool is_internal;
-	bool is_pseudo_fixed_link;
-	bool has_fixups;
-	bool suspended;
-	bool sysfs_links;
-	bool loopback_enabled;
+	unsigned is_c45:1;
+	unsigned is_internal:1;
+	unsigned is_pseudo_fixed_link:1;
+	unsigned is_gigabit_capable:1;
+	unsigned has_fixups:1;
+	unsigned suspended:1;
+	unsigned sysfs_links:1;
+	unsigned loopback_enabled:1;
+
+	unsigned autoneg:1;
+	/* The most recently read link state */
+	unsigned link:1;
+	unsigned autoneg_complete:1;
+
+	/* Interrupts are enabled */
+	unsigned interrupts:1;
 
 	enum phy_state state;
 
@@ -429,24 +398,16 @@ struct phy_device {
 	int pause;
 	int asym_pause;
 
-	/* The most recently read link state */
-	int link;
-
-	/* Enabled Interrupts */
-	u32 interrupts;
-
-	/* Union of PHY and Attached devices' supported modes */
-	/* See mii.h for more info */
-	u32 supported;
-	u32 advertising;
-	u32 lp_advertising;
+	/* Union of PHY and Attached devices' supported link modes */
+	/* See ethtool.h for more info */
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertising);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertising);
+	/* used with phy_speed_down */
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(adv_old);
 
 	/* Energy efficient ethernet modes which should be prohibited */
 	u32 eee_broken_modes;
-
-	int autoneg;
-
-	int link_timeout;
 
 #ifdef CONFIG_LED_TRIGGER_PHY
 	struct phy_led_trigger *phy_led_triggers;
@@ -467,7 +428,6 @@ struct phy_device {
 	void *priv;
 
 	/* Interrupt and Polling infrastructure */
-	struct work_struct phy_queue;
 	struct delayed_work state_queue;
 
 	struct mutex lock;
@@ -492,8 +452,8 @@ struct phy_device {
  *   only works for PHYs with IDs which match this field
  * name: The friendly name of this PHY type
  * phy_id_mask: Defines the important bits of the phy_id
- * features: A list of features (speed, duplex, etc) supported
- *   by this PHY
+ * features: A mandatory list of features (speed, duplex, etc)
+ *   supported by this PHY
  * flags: A bitfield defining certain other features this PHY
  *   supports (like interrupts)
  *
@@ -510,7 +470,7 @@ struct phy_driver {
 	u32 phy_id;
 	char *name;
 	u32 phy_id_mask;
-	u32 features;
+	const unsigned long * const features;
 	u32 flags;
 	const void *driver_data;
 
@@ -530,6 +490,12 @@ struct phy_driver {
 	 * up device-specific structures, if any
 	 */
 	int (*probe)(struct phy_device *phydev);
+
+	/*
+	 * Probe the hardware to determine what abilities it has.
+	 * Should only set phydev->supported.
+	 */
+	int (*get_features)(struct phy_device *phydev);
 
 	/* PHY Power Management */
 	int (*suspend)(struct phy_device *phydev);
@@ -560,6 +526,9 @@ struct phy_driver {
 	 * For multi-PHY devices with shared PHY interrupt pin
 	 */
 	int (*did_interrupt)(struct phy_device *phydev);
+
+	/* Override default interrupt handling */
+	int (*handle_interrupt)(struct phy_device *phydev);
 
 	/* Clears up any memory if needed */
 	void (*remove)(struct phy_device *phydev);
@@ -666,6 +635,10 @@ struct phy_driver {
 #define PHY_ANY_ID "MATCH ANY PHY"
 #define PHY_ANY_UID 0xffffffff
 
+#define PHY_ID_MATCH_EXACT(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 0)
+#define PHY_ID_MATCH_MODEL(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 4)
+#define PHY_ID_MATCH_VENDOR(id) .phy_id = (id), .phy_id_mask = GENMASK(31, 10)
+
 /* A Structure for boards to register fixups with the PHY Lib */
 struct phy_fixup {
 	struct list_head list;
@@ -689,22 +662,24 @@ struct phy_setting {
 
 const struct phy_setting *
 phy_lookup_setting(int speed, int duplex, const unsigned long *mask,
-		   size_t maxbit, bool exact);
+		   bool exact);
 size_t phy_speeds(unsigned int *speeds, size_t size,
-		  unsigned long *mask, size_t maxbit);
-
-void phy_resolve_aneg_linkmode(struct phy_device *phydev);
+		  unsigned long *mask);
+void of_set_phy_supported(struct phy_device *phydev);
+void of_set_phy_eee_broken(struct phy_device *phydev);
+int phy_speed_down_core(struct phy_device *phydev);
 
 /**
- * phy_read_mmd - Convenience function for reading a register
- * from an MMD on a given PHY.
+ * phy_is_started - Convenience function to check whether PHY is started
  * @phydev: The phy_device struct
- * @devad: The MMD to read from
- * @regnum: The register on the MMD to read
- *
- * Same rules as for phy_read();
  */
-int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
+static inline bool phy_is_started(struct phy_device *phydev)
+{
+	return phydev->state >= PHY_UP;
+}
+
+void phy_resolve_aneg_pause(struct phy_device *phydev);
+void phy_resolve_aneg_linkmode(struct phy_device *phydev);
 
 /**
  * phy_read - Convenience function for reading a given PHY register
@@ -761,8 +736,67 @@ static inline int __phy_write(struct phy_device *phydev, u32 regnum, u16 val)
 			       val);
 }
 
+/**
+ * phy_read_mmd - Convenience function for reading a register
+ * from an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to read from
+ * @regnum: The register on the MMD to read
+ *
+ * Same rules as for phy_read();
+ */
+int phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
+
+/**
+ * __phy_read_mmd - Convenience function for reading a register
+ * from an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to read from
+ * @regnum: The register on the MMD to read
+ *
+ * Same rules as for __phy_read();
+ */
+int __phy_read_mmd(struct phy_device *phydev, int devad, u32 regnum);
+
+/**
+ * phy_write_mmd - Convenience function for writing a register
+ * on an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to write to
+ * @regnum: The register on the MMD to read
+ * @val: value to write to @regnum
+ *
+ * Same rules as for phy_write();
+ */
+int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
+
+/**
+ * __phy_write_mmd - Convenience function for writing a register
+ * on an MMD on a given PHY.
+ * @phydev: The phy_device struct
+ * @devad: The MMD to write to
+ * @regnum: The register on the MMD to read
+ * @val: value to write to @regnum
+ *
+ * Same rules as for __phy_write();
+ */
+int __phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
+
+int __phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask,
+			 u16 set);
+int phy_modify_changed(struct phy_device *phydev, u32 regnum, u16 mask,
+		       u16 set);
 int __phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
 int phy_modify(struct phy_device *phydev, u32 regnum, u16 mask, u16 set);
+
+int __phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
+			     u16 mask, u16 set);
+int phy_modify_mmd_changed(struct phy_device *phydev, int devad, u32 regnum,
+			   u16 mask, u16 set);
+int __phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
+		     u16 mask, u16 set);
+int phy_modify_mmd(struct phy_device *phydev, int devad, u32 regnum,
+		   u16 mask, u16 set);
 
 /**
  * __phy_set_bits - Convenience function for setting bits in a PHY register
@@ -814,6 +848,66 @@ static inline int phy_clear_bits(struct phy_device *phydev, u32 regnum, u16 val)
 }
 
 /**
+ * __phy_set_bits_mmd - Convenience function for setting bits in a register
+ * on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @val: bits to set
+ *
+ * The caller must have taken the MDIO bus lock.
+ */
+static inline int __phy_set_bits_mmd(struct phy_device *phydev, int devad,
+		u32 regnum, u16 val)
+{
+	return __phy_modify_mmd(phydev, devad, regnum, 0, val);
+}
+
+/**
+ * __phy_clear_bits_mmd - Convenience function for clearing bits in a register
+ * on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @val: bits to clear
+ *
+ * The caller must have taken the MDIO bus lock.
+ */
+static inline int __phy_clear_bits_mmd(struct phy_device *phydev, int devad,
+		u32 regnum, u16 val)
+{
+	return __phy_modify_mmd(phydev, devad, regnum, val, 0);
+}
+
+/**
+ * phy_set_bits_mmd - Convenience function for setting bits in a register
+ * on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @val: bits to set
+ */
+static inline int phy_set_bits_mmd(struct phy_device *phydev, int devad,
+		u32 regnum, u16 val)
+{
+	return phy_modify_mmd(phydev, devad, regnum, 0, val);
+}
+
+/**
+ * phy_clear_bits_mmd - Convenience function for clearing bits in a register
+ * on MMD
+ * @phydev: the phy_device struct
+ * @devad: the MMD containing register to modify
+ * @regnum: register number to modify
+ * @val: bits to clear
+ */
+static inline int phy_clear_bits_mmd(struct phy_device *phydev, int devad,
+		u32 regnum, u16 val)
+{
+	return phy_modify_mmd(phydev, devad, regnum, val, 0);
+}
+
+/**
  * phy_interrupt_is_valid - Convenience function for testing a given PHY irq
  * @phydev: the phy_device struct
  *
@@ -823,6 +917,16 @@ static inline int phy_clear_bits(struct phy_device *phydev, u32 regnum, u16 val)
 static inline bool phy_interrupt_is_valid(struct phy_device *phydev)
 {
 	return phydev->irq != PHY_POLL && phydev->irq != PHY_IGNORE_INTERRUPT;
+}
+
+/**
+ * phy_polling_mode - Convenience function for testing whether polling is
+ * used to detect PHY status changes
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_polling_mode(struct phy_device *phydev)
+{
+	return phydev->irq == PHY_POLL;
 }
 
 /**
@@ -879,23 +983,13 @@ static inline bool phy_is_pseudo_fixed_link(struct phy_device *phydev)
 	return phydev->is_pseudo_fixed_link;
 }
 
-/**
- * phy_write_mmd - Convenience function for writing a register
- * on an MMD on a given PHY.
- * @phydev: The phy_device struct
- * @devad: The MMD to read from
- * @regnum: The register on the MMD to read
- * @val: value to write to @regnum
- *
- * Same rules as for phy_write();
- */
-int phy_write_mmd(struct phy_device *phydev, int devad, u32 regnum, u16 val);
-
 int phy_save_page(struct phy_device *phydev);
 int phy_select_page(struct phy_device *phydev, int page);
 int phy_restore_page(struct phy_device *phydev, int oldpage, int ret);
 int phy_read_paged(struct phy_device *phydev, int page, u32 regnum);
 int phy_write_paged(struct phy_device *phydev, int page, u32 regnum, u16 val);
+int phy_modify_paged_changed(struct phy_device *phydev, int page, u32 regnum,
+			     u16 mask, u16 set);
 int phy_modify_paged(struct phy_device *phydev, int page, u32 regnum,
 		     u16 mask, u16 set);
 
@@ -924,6 +1018,7 @@ void phy_device_remove(struct phy_device *phydev);
 int phy_init_hw(struct phy_device *phydev);
 int phy_suspend(struct phy_device *phydev);
 int phy_resume(struct phy_device *phydev);
+int __phy_resume(struct phy_device *phydev);
 int phy_loopback(struct phy_device *phydev, bool enable);
 struct phy_device *phy_attach(struct net_device *dev, const char *bus_id,
 			      phy_interface_t interface);
@@ -942,8 +1037,9 @@ void phy_start(struct phy_device *phydev);
 void phy_stop(struct phy_device *phydev);
 int phy_start_aneg(struct phy_device *phydev);
 int phy_aneg_done(struct phy_device *phydev);
+int phy_speed_down(struct phy_device *phydev, bool sync);
+int phy_speed_up(struct phy_device *phydev);
 
-int phy_stop_interrupts(struct phy_device *phydev);
 int phy_restart_aneg(struct phy_device *phydev);
 int phy_reset_after_clk_enable(struct phy_device *phydev);
 
@@ -954,6 +1050,12 @@ static inline void phy_device_reset(struct phy_device *phydev, int value)
 
 #define phydev_err(_phydev, format, args...)	\
 	dev_err(&_phydev->mdio.dev, format, ##args)
+
+#define phydev_info(_phydev, format, args...)	\
+	dev_info(&_phydev->mdio.dev, format, ##args)
+
+#define phydev_warn(_phydev, format, args...)	\
+	dev_warn(&_phydev->mdio.dev, format, ##args)
 
 #define phydev_dbg(_phydev, format, args...)	\
 	dev_dbg(&_phydev->mdio.dev, format, ##args)
@@ -968,31 +1070,59 @@ void phy_attached_print(struct phy_device *phydev, const char *fmt, ...)
 void phy_attached_info(struct phy_device *phydev);
 
 /* Clause 22 PHY */
-int genphy_config_init(struct phy_device *phydev);
+int genphy_read_abilities(struct phy_device *phydev);
 int genphy_setup_forced(struct phy_device *phydev);
 int genphy_restart_aneg(struct phy_device *phydev);
-int genphy_config_aneg(struct phy_device *phydev);
+int genphy_config_eee_advert(struct phy_device *phydev);
+int __genphy_config_aneg(struct phy_device *phydev, bool changed);
 int genphy_aneg_done(struct phy_device *phydev);
 int genphy_update_link(struct phy_device *phydev);
+int genphy_read_lpa(struct phy_device *phydev);
 int genphy_read_status(struct phy_device *phydev);
 int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
 int genphy_soft_reset(struct phy_device *phydev);
+
+static inline int genphy_config_aneg(struct phy_device *phydev)
+{
+	return __genphy_config_aneg(phydev, false);
+}
+
 static inline int genphy_no_soft_reset(struct phy_device *phydev)
 {
 	return 0;
 }
+static inline int genphy_no_ack_interrupt(struct phy_device *phydev)
+{
+	return 0;
+}
+static inline int genphy_no_config_intr(struct phy_device *phydev)
+{
+	return 0;
+}
+int genphy_read_mmd_unsupported(struct phy_device *phdev, int devad,
+				u16 regnum);
+int genphy_write_mmd_unsupported(struct phy_device *phdev, int devnum,
+				 u16 regnum, u16 val);
 
 /* Clause 45 PHY */
 int genphy_c45_restart_aneg(struct phy_device *phydev);
+int genphy_c45_check_and_restart_aneg(struct phy_device *phydev, bool restart);
 int genphy_c45_aneg_done(struct phy_device *phydev);
-int genphy_c45_read_link(struct phy_device *phydev, u32 mmd_mask);
+int genphy_c45_read_link(struct phy_device *phydev);
 int genphy_c45_read_lpa(struct phy_device *phydev);
 int genphy_c45_read_pma(struct phy_device *phydev);
 int genphy_c45_pma_setup_forced(struct phy_device *phydev);
+int genphy_c45_an_config_aneg(struct phy_device *phydev);
 int genphy_c45_an_disable_aneg(struct phy_device *phydev);
 int genphy_c45_read_mdix(struct phy_device *phydev);
+int genphy_c45_pma_read_abilities(struct phy_device *phydev);
+int genphy_c45_read_status(struct phy_device *phydev);
+int genphy_c45_config_aneg(struct phy_device *phydev);
+
+/* The gen10g_* functions are the old Clause 45 stub */
+int gen10g_config_aneg(struct phy_device *phydev);
 
 static inline int phy_read_status(struct phy_device *phydev)
 {
@@ -1011,21 +1141,29 @@ int phy_driver_register(struct phy_driver *new_driver, struct module *owner);
 int phy_drivers_register(struct phy_driver *new_driver, int n,
 			 struct module *owner);
 void phy_state_machine(struct work_struct *work);
-void phy_change(struct phy_device *phydev);
-void phy_change_work(struct work_struct *work);
+void phy_queue_state_machine(struct phy_device *phydev, unsigned long jiffies);
 void phy_mac_interrupt(struct phy_device *phydev);
 void phy_start_machine(struct phy_device *phydev);
 void phy_stop_machine(struct phy_device *phydev);
-void phy_trigger_machine(struct phy_device *phydev, bool sync);
 int phy_ethtool_sset(struct phy_device *phydev, struct ethtool_cmd *cmd);
 void phy_ethtool_ksettings_get(struct phy_device *phydev,
 			       struct ethtool_link_ksettings *cmd);
 int phy_ethtool_ksettings_set(struct phy_device *phydev,
 			      const struct ethtool_link_ksettings *cmd);
 int phy_mii_ioctl(struct phy_device *phydev, struct ifreq *ifr, int cmd);
-int phy_start_interrupts(struct phy_device *phydev);
+void phy_request_interrupt(struct phy_device *phydev);
+void phy_free_interrupt(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
 int phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
+void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode);
+void phy_advertise_supported(struct phy_device *phydev);
+void phy_support_sym_pause(struct phy_device *phydev);
+void phy_support_asym_pause(struct phy_device *phydev);
+void phy_set_sym_pause(struct phy_device *phydev, bool rx, bool tx,
+		       bool autoneg);
+void phy_set_asym_pause(struct phy_device *phydev, bool rx, bool tx);
+bool phy_validate_pause(struct phy_device *phydev,
+			struct ethtool_pauseparam *pp);
 
 int phy_register_fixup(const char *bus_id, u32 phy_uid, u32 phy_uid_mask,
 		       int (*run)(struct phy_device *));
@@ -1055,6 +1193,52 @@ int phy_ethtool_nway_reset(struct net_device *ndev);
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);
 #endif
+
+/* Inline function for use within net/core/ethtool.c (built-in) */
+static inline int phy_ethtool_get_strings(struct phy_device *phydev, u8 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_strings(phydev, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
+
+static inline int phy_ethtool_get_sset_count(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->drv)
+		return -EIO;
+
+	if (phydev->drv->get_sset_count &&
+	    phydev->drv->get_strings &&
+	    phydev->drv->get_stats) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->get_sset_count(phydev);
+		mutex_unlock(&phydev->lock);
+
+		return ret;
+	}
+
+	return -EOPNOTSUPP;
+}
+
+static inline int phy_ethtool_get_stats(struct phy_device *phydev,
+					struct ethtool_stats *stats, u64 *data)
+{
+	if (!phydev->drv)
+		return -EIO;
+
+	mutex_lock(&phydev->lock);
+	phydev->drv->get_stats(phydev, stats, data);
+	mutex_unlock(&phydev->lock);
+
+	return 0;
+}
 
 extern struct bus_type mdio_bus_type;
 
@@ -1099,5 +1283,8 @@ module_exit(phy_module_exit)
 
 #define module_phy_driver(__phy_drivers)				\
 	phy_module_driver(__phy_drivers, ARRAY_SIZE(__phy_drivers))
+
+bool phy_driver_is_genphy(struct phy_device *phydev);
+bool phy_driver_is_genphy_10g(struct phy_device *phydev);
 
 #endif /* __PHY_H */

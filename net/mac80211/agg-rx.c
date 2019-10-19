@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HT handling
  *
@@ -8,10 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
+ * Copyright (C) 2018        Intel Corporation
  */
 
 /**
@@ -180,17 +178,54 @@ static void sta_rx_agg_reorder_timer_expired(struct timer_list *t)
 	rcu_read_unlock();
 }
 
-static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *da, u16 tid,
-				      u8 dialog_token, u16 status, u16 policy,
-				      u16 buf_size, u16 timeout)
+static void ieee80211_add_addbaext(struct ieee80211_sub_if_data *sdata,
+				   struct sk_buff *skb,
+				   const struct ieee80211_addba_ext_ie *req)
 {
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_addba_ext_ie *resp;
+	const struct ieee80211_sta_he_cap *he_cap;
+	u8 frag_level, cap_frag_level;
+	u8 *pos;
+
+	sband = ieee80211_get_sband(sdata);
+	if (!sband)
+		return;
+	he_cap = ieee80211_get_he_iftype_cap(sband, sdata->vif.type);
+	if (!he_cap)
+		return;
+
+	pos = skb_put_zero(skb, 2 + sizeof(struct ieee80211_addba_ext_ie));
+	*pos++ = WLAN_EID_ADDBA_EXT;
+	*pos++ = sizeof(struct ieee80211_addba_ext_ie);
+	resp = (struct ieee80211_addba_ext_ie *)pos;
+	resp->data = req->data & IEEE80211_ADDBA_EXT_NO_FRAG;
+
+	frag_level = u32_get_bits(req->data,
+				  IEEE80211_ADDBA_EXT_FRAG_LEVEL_MASK);
+	cap_frag_level = u32_get_bits(he_cap->he_cap_elem.mac_cap_info[0],
+				      IEEE80211_HE_MAC_CAP0_DYNAMIC_FRAG_MASK);
+	if (frag_level > cap_frag_level)
+		frag_level = cap_frag_level;
+	resp->data |= u8_encode_bits(frag_level,
+				     IEEE80211_ADDBA_EXT_FRAG_LEVEL_MASK);
+}
+
+static void ieee80211_send_addba_resp(struct sta_info *sta, u8 *da, u16 tid,
+				      u8 dialog_token, u16 status, u16 policy,
+				      u16 buf_size, u16 timeout,
+				      const struct ieee80211_addba_ext_ie *addbaext)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	bool amsdu = ieee80211_hw_check(&local->hw, SUPPORTS_AMSDU_IN_AMPDU);
 	u16 capab;
 
-	skb = dev_alloc_skb(sizeof(*mgmt) + local->hw.extra_tx_headroom);
+	skb = dev_alloc_skb(sizeof(*mgmt) +
+		    2 + sizeof(struct ieee80211_addba_ext_ie) +
+		    local->hw.extra_tx_headroom);
 	if (!skb)
 		return;
 
@@ -224,13 +259,17 @@ static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *d
 	mgmt->u.action.u.addba_resp.timeout = cpu_to_le16(timeout);
 	mgmt->u.action.u.addba_resp.status = cpu_to_le16(status);
 
+	if (sta->sta.he_cap.has_he && addbaext)
+		ieee80211_add_addbaext(sdata, skb, addbaext);
+
 	ieee80211_tx_skb(sdata, skb);
 }
 
 void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 				      u8 dialog_token, u16 timeout,
 				      u16 start_seq_num, u16 ba_policy, u16 tid,
-				      u16 buf_size, bool tx, bool auto_seq)
+				      u16 buf_size, bool tx, bool auto_seq,
+				      const struct ieee80211_addba_ext_ie *addbaext)
 {
 	struct ieee80211_local *local = sta->sdata->local;
 	struct tid_ampdu_rx *tid_agg_rx;
@@ -244,6 +283,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 	};
 	int i, ret = -EOPNOTSUPP;
 	u16 status = WLAN_STATUS_REQUEST_DECLINED;
+	u16 max_buf_size;
 
 	if (tid >= IEEE80211_FIRST_TSPEC_TSID) {
 		ht_dbg(sta->sdata,
@@ -267,13 +307,18 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 		goto end;
 	}
 
+	if (sta->sta.he_cap.has_he)
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF;
+	else
+		max_buf_size = IEEE80211_MAX_AMPDU_BUF_HT;
+
 	/* sanity check for incoming parameters:
 	 * check if configuration can support the BA policy
 	 * and if buffer size does not exceeds max value */
 	/* XXX: check own ht delayed BA capability?? */
 	if (((ba_policy != 1) &&
 	     (!(sta->sta.ht_cap.cap & IEEE80211_HT_CAP_DELAY_BA))) ||
-	    (buf_size > IEEE80211_MAX_AMPDU_BUF)) {
+	    (buf_size > max_buf_size)) {
 		status = WLAN_STATUS_INVALID_QOS_PARAM;
 		ht_dbg_ratelimited(sta->sdata,
 				   "AddBA Req with bad params from %pM on tid %u. policy %d, buffer size %d\n",
@@ -282,7 +327,7 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 	}
 	/* determine default buffer size */
 	if (buf_size == 0)
-		buf_size = IEEE80211_MAX_AMPDU_BUF;
+		buf_size = max_buf_size;
 
 	/* make sure the size doesn't exceed the maximum supported by the hw */
 	if (buf_size > sta->sta.max_rx_aggregation_subframes)
@@ -297,16 +342,23 @@ void ___ieee80211_start_rx_ba_session(struct sta_info *sta,
 
 	if (test_bit(tid, sta->ampdu_mlme.agg_session_valid)) {
 		if (sta->ampdu_mlme.tid_rx_token[tid] == dialog_token) {
+			struct tid_ampdu_rx *tid_rx;
+
 			ht_dbg_ratelimited(sta->sdata,
 					   "updated AddBA Req from %pM on tid %u\n",
 					   sta->sta.addr, tid);
 			/* We have no API to update the timeout value in the
-			 * driver so reject the timeout update.
+			 * driver so reject the timeout update if the timeout
+			 * changed. If if did not change, i.e., no real update,
+			 * just reply with success.
 			 */
-			status = WLAN_STATUS_REQUEST_DECLINED;
-			ieee80211_send_addba_resp(sta->sdata, sta->sta.addr,
-						  tid, dialog_token, status,
-						  1, buf_size, timeout);
+			rcu_read_lock();
+			tid_rx = rcu_dereference(sta->ampdu_mlme.tid_rx[tid]);
+			if (tid_rx && tid_rx->timeout == timeout)
+				status = WLAN_STATUS_SUCCESS;
+			else
+				status = WLAN_STATUS_REQUEST_DECLINED;
+			rcu_read_unlock();
 			goto end;
 		}
 
@@ -399,21 +451,22 @@ end:
 	}
 
 	if (tx)
-		ieee80211_send_addba_resp(sta->sdata, sta->sta.addr, tid,
+		ieee80211_send_addba_resp(sta, sta->sta.addr, tid,
 					  dialog_token, status, 1, buf_size,
-					  timeout);
+					  timeout, addbaext);
 }
 
 static void __ieee80211_start_rx_ba_session(struct sta_info *sta,
 					    u8 dialog_token, u16 timeout,
 					    u16 start_seq_num, u16 ba_policy,
 					    u16 tid, u16 buf_size, bool tx,
-					    bool auto_seq)
+					    bool auto_seq,
+					    const struct ieee80211_addba_ext_ie *addbaext)
 {
 	mutex_lock(&sta->ampdu_mlme.mtx);
 	___ieee80211_start_rx_ba_session(sta, dialog_token, timeout,
 					 start_seq_num, ba_policy, tid,
-					 buf_size, tx, auto_seq);
+					 buf_size, tx, auto_seq, addbaext);
 	mutex_unlock(&sta->ampdu_mlme.mtx);
 }
 
@@ -423,7 +476,9 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     size_t len)
 {
 	u16 capab, tid, timeout, ba_policy, buf_size, start_seq_num;
+	struct ieee802_11_elems elems = { 0 };
 	u8 dialog_token;
+	int ies_len;
 
 	/* extract session parameters from addba request frame */
 	dialog_token = mgmt->u.action.u.addba_req.dialog_token;
@@ -436,9 +491,19 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	tid = (capab & IEEE80211_ADDBA_PARAM_TID_MASK) >> 2;
 	buf_size = (capab & IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK) >> 6;
 
+	ies_len = len - offsetof(struct ieee80211_mgmt,
+				 u.action.u.addba_req.variable);
+	if (ies_len) {
+		ieee802_11_parse_elems(mgmt->u.action.u.addba_req.variable,
+                                ies_len, true, &elems, mgmt->bssid, NULL);
+		if (elems.parse_error)
+			return;
+	}
+
 	__ieee80211_start_rx_ba_session(sta, dialog_token, timeout,
 					start_seq_num, ba_policy, tid,
-					buf_size, true, false);
+					buf_size, true, false,
+					elems.addba_ext_ie);
 }
 
 void ieee80211_manage_rx_ba_offl(struct ieee80211_vif *vif,

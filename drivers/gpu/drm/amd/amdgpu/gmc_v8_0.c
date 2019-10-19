@@ -20,11 +20,17 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  */
+
 #include <linux/firmware.h>
-#include <drm/drmP.h>
+#include <linux/module.h>
+#include <linux/pci.h>
+
+#include <drm/drm_cache.h>
 #include "amdgpu.h"
 #include "gmc_v8_0.h"
 #include "amdgpu_ucode.h"
+#include "amdgpu_amdkfd.h"
+#include "amdgpu_gem.h"
 
 #include "gmc/gmc_8_1_d.h"
 #include "gmc/gmc_8_1_sh_mask.h"
@@ -43,8 +49,9 @@
 
 #include "amdgpu_atombios.h"
 
+#include "ivsrcid/ivsrcid_vislands30.h"
 
-static void gmc_v8_0_set_gart_funcs(struct amdgpu_device *adev);
+static void gmc_v8_0_set_gmc_funcs(struct amdgpu_device *adev);
 static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev);
 static int gmc_v8_0_wait_for_idle(void *handle);
 
@@ -52,6 +59,9 @@ MODULE_FIRMWARE("amdgpu/tonga_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris11_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris10_mc.bin");
 MODULE_FIRMWARE("amdgpu/polaris12_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris11_k_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris10_k_mc.bin");
+MODULE_FIRMWARE("amdgpu/polaris12_k_mc.bin");
 
 static const u32 golden_settings_tonga_a11[] =
 {
@@ -137,6 +147,7 @@ static void gmc_v8_0_init_golden_registers(struct amdgpu_device *adev)
 		break;
 	case CHIP_POLARIS11:
 	case CHIP_POLARIS12:
+	case CHIP_VEGAM:
 		amdgpu_device_program_register_sequence(adev,
 							golden_settings_polaris11_a11,
 							ARRAY_SIZE(golden_settings_polaris11_a11));
@@ -219,32 +230,59 @@ static int gmc_v8_0_init_microcode(struct amdgpu_device *adev)
 		chip_name = "tonga";
 		break;
 	case CHIP_POLARIS11:
-		chip_name = "polaris11";
+		if (((adev->pdev->device == 0x67ef) &&
+		     ((adev->pdev->revision == 0xe0) ||
+		      (adev->pdev->revision == 0xe5))) ||
+		    ((adev->pdev->device == 0x67ff) &&
+		     ((adev->pdev->revision == 0xcf) ||
+		      (adev->pdev->revision == 0xef) ||
+		      (adev->pdev->revision == 0xff))))
+			chip_name = "polaris11_k";
+		else if ((adev->pdev->device == 0x67ef) &&
+			 (adev->pdev->revision == 0xe2))
+			chip_name = "polaris11_k";
+		else
+			chip_name = "polaris11";
 		break;
 	case CHIP_POLARIS10:
-		chip_name = "polaris10";
+		if ((adev->pdev->device == 0x67df) &&
+		    ((adev->pdev->revision == 0xe1) ||
+		     (adev->pdev->revision == 0xf7)))
+			chip_name = "polaris10_k";
+		else
+			chip_name = "polaris10";
 		break;
 	case CHIP_POLARIS12:
-		chip_name = "polaris12";
+		if (((adev->pdev->device == 0x6987) &&
+		     ((adev->pdev->revision == 0xc0) ||
+		      (adev->pdev->revision == 0xc3))) ||
+		    ((adev->pdev->device == 0x6981) &&
+		     ((adev->pdev->revision == 0x00) ||
+		      (adev->pdev->revision == 0x01) ||
+		      (adev->pdev->revision == 0x10))))
+			chip_name = "polaris12_k";
+		else
+			chip_name = "polaris12";
 		break;
 	case CHIP_FIJI:
 	case CHIP_CARRIZO:
 	case CHIP_STONEY:
+	case CHIP_VEGAM:
 		return 0;
 	default: BUG();
 	}
 
 	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_mc.bin", chip_name);
-	err = request_firmware(&adev->mc.fw, fw_name, adev->dev);
+	err = request_firmware(&adev->gmc.fw, fw_name, adev->dev);
 	if (err)
 		goto out;
-	err = amdgpu_ucode_validate(adev->mc.fw);
+	err = amdgpu_ucode_validate(adev->gmc.fw);
 
 out:
 	if (err) {
 		pr_err("mc: Failed to load firmware \"%s\"\n", fw_name);
-		release_firmware(adev->mc.fw);
-		adev->mc.fw = NULL;
+		release_firmware(adev->gmc.fw);
+		adev->gmc.fw = NULL;
 	}
 	return err;
 }
@@ -254,7 +292,7 @@ out:
  *
  * @adev: amdgpu_device pointer
  *
- * Load the GDDR MC ucode into the hw (CIK).
+ * Load the GDDR MC ucode into the hw (VI).
  * Returns 0 on success, error on failure.
  */
 static int gmc_v8_0_tonga_mc_load_microcode(struct amdgpu_device *adev)
@@ -273,19 +311,19 @@ static int gmc_v8_0_tonga_mc_load_microcode(struct amdgpu_device *adev)
 	if (amdgpu_sriov_bios(adev))
 		return 0;
 
-	if (!adev->mc.fw)
+	if (!adev->gmc.fw)
 		return -EINVAL;
 
-	hdr = (const struct mc_firmware_header_v1_0 *)adev->mc.fw->data;
+	hdr = (const struct mc_firmware_header_v1_0 *)adev->gmc.fw->data;
 	amdgpu_ucode_print_mc_hdr(&hdr->header);
 
-	adev->mc.fw_version = le32_to_cpu(hdr->header.ucode_version);
+	adev->gmc.fw_version = le32_to_cpu(hdr->header.ucode_version);
 	regs_size = le32_to_cpu(hdr->io_debug_size_bytes) / (4 * 2);
 	io_mc_regs = (const __le32 *)
-		(adev->mc.fw->data + le32_to_cpu(hdr->io_debug_array_offset_bytes));
+		(adev->gmc.fw->data + le32_to_cpu(hdr->io_debug_array_offset_bytes));
 	ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
 	fw_data = (const __le32 *)
-		(adev->mc.fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+		(adev->gmc.fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
 	running = REG_GET_FIELD(RREG32(mmMC_SEQ_SUP_CNTL), MC_SEQ_SUP_CNTL, RUN);
 
@@ -331,7 +369,7 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 	const struct mc_firmware_header_v1_0 *hdr;
 	const __le32 *fw_data = NULL;
 	const __le32 *io_mc_regs = NULL;
-	u32 data, vbios_version;
+	u32 data;
 	int i, ucode_size, regs_size;
 
 	/* Skip MC ucode loading on SR-IOV capable boards.
@@ -342,26 +380,19 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 	if (amdgpu_sriov_bios(adev))
 		return 0;
 
-	WREG32(mmMC_SEQ_IO_DEBUG_INDEX, 0x9F);
-	data = RREG32(mmMC_SEQ_IO_DEBUG_DATA);
-	vbios_version = data & 0xf;
-
-	if (vbios_version == 0)
-		return 0;
-
-	if (!adev->mc.fw)
+	if (!adev->gmc.fw)
 		return -EINVAL;
 
-	hdr = (const struct mc_firmware_header_v1_0 *)adev->mc.fw->data;
+	hdr = (const struct mc_firmware_header_v1_0 *)adev->gmc.fw->data;
 	amdgpu_ucode_print_mc_hdr(&hdr->header);
 
-	adev->mc.fw_version = le32_to_cpu(hdr->header.ucode_version);
+	adev->gmc.fw_version = le32_to_cpu(hdr->header.ucode_version);
 	regs_size = le32_to_cpu(hdr->io_debug_size_bytes) / (4 * 2);
 	io_mc_regs = (const __le32 *)
-		(adev->mc.fw->data + le32_to_cpu(hdr->io_debug_array_offset_bytes));
+		(adev->gmc.fw->data + le32_to_cpu(hdr->io_debug_array_offset_bytes));
 	ucode_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
 	fw_data = (const __le32 *)
-		(adev->mc.fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
+		(adev->gmc.fw->data + le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 
 	data = RREG32(mmMC_SEQ_MISC0);
 	data &= ~(0x40);
@@ -397,7 +428,7 @@ static int gmc_v8_0_polaris_mc_load_microcode(struct amdgpu_device *adev)
 }
 
 static void gmc_v8_0_vram_gtt_location(struct amdgpu_device *adev,
-				       struct amdgpu_mc *mc)
+				       struct amdgpu_gmc *mc)
 {
 	u64 base = 0;
 
@@ -405,8 +436,8 @@ static void gmc_v8_0_vram_gtt_location(struct amdgpu_device *adev,
 		base = RREG32(mmMC_VM_FB_LOCATION) & 0xFFFF;
 	base <<= 24;
 
-	amdgpu_device_vram_location(adev, &adev->mc, base);
-	amdgpu_device_gart_location(adev, mc);
+	amdgpu_gmc_vram_location(adev, mc, base);
+	amdgpu_gmc_gart_location(adev, mc);
 }
 
 /**
@@ -415,7 +446,7 @@ static void gmc_v8_0_vram_gtt_location(struct amdgpu_device *adev,
  * @adev: amdgpu_device pointer
  *
  * Set the location of vram, gart, and AGP in the GPU's
- * physical address space (CIK).
+ * physical address space (VI).
  */
 static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
 {
@@ -448,18 +479,18 @@ static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
 	}
 	/* Update configuration */
 	WREG32(mmMC_VM_SYSTEM_APERTURE_LOW_ADDR,
-	       adev->mc.vram_start >> 12);
+	       adev->gmc.vram_start >> 12);
 	WREG32(mmMC_VM_SYSTEM_APERTURE_HIGH_ADDR,
-	       adev->mc.vram_end >> 12);
+	       adev->gmc.vram_end >> 12);
 	WREG32(mmMC_VM_SYSTEM_APERTURE_DEFAULT_ADDR,
 	       adev->vram_scratch.gpu_addr >> 12);
 
 	if (amdgpu_sriov_vf(adev)) {
-		tmp = ((adev->mc.vram_end >> 24) & 0xFFFF) << 16;
-		tmp |= ((adev->mc.vram_start >> 24) & 0xFFFF);
+		tmp = ((adev->gmc.vram_end >> 24) & 0xFFFF) << 16;
+		tmp |= ((adev->gmc.vram_start >> 24) & 0xFFFF);
 		WREG32(mmMC_VM_FB_LOCATION, tmp);
 		/* XXX double check these! */
-		WREG32(mmHDP_NONSURFACE_BASE, (adev->mc.vram_start >> 8));
+		WREG32(mmHDP_NONSURFACE_BASE, (adev->gmc.vram_start >> 8));
 		WREG32(mmHDP_NONSURFACE_INFO, (2 << 7) | (1 << 30));
 		WREG32(mmHDP_NONSURFACE_SIZE, 0x3FFFFFFF);
 	}
@@ -487,15 +518,15 @@ static void gmc_v8_0_mc_program(struct amdgpu_device *adev)
  * @adev: amdgpu_device pointer
  *
  * Look up the amount of vram, vram width, and decide how to place
- * vram and gart within the GPU's physical address space (CIK).
+ * vram and gart within the GPU's physical address space (VI).
  * Returns 0 for success.
  */
 static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	adev->mc.vram_width = amdgpu_atombios_get_vram_width(adev);
-	if (!adev->mc.vram_width) {
+	adev->gmc.vram_width = amdgpu_atombios_get_vram_width(adev);
+	if (!adev->gmc.vram_width) {
 		u32 tmp;
 		int chansize, numchan;
 
@@ -537,53 +568,54 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
 			numchan = 16;
 			break;
 		}
-		adev->mc.vram_width = numchan * chansize;
+		adev->gmc.vram_width = numchan * chansize;
 	}
 	/* size in MB on si */
-	adev->mc.mc_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
-	adev->mc.real_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+	adev->gmc.mc_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+	adev->gmc.real_vram_size = RREG32(mmCONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 
 	if (!(adev->flags & AMD_IS_APU)) {
 		r = amdgpu_device_resize_fb_bar(adev);
 		if (r)
 			return r;
 	}
-	adev->mc.aper_base = pci_resource_start(adev->pdev, 0);
-	adev->mc.aper_size = pci_resource_len(adev->pdev, 0);
+	adev->gmc.aper_base = pci_resource_start(adev->pdev, 0);
+	adev->gmc.aper_size = pci_resource_len(adev->pdev, 0);
 
 #ifdef CONFIG_X86_64
 	if (adev->flags & AMD_IS_APU) {
-		adev->mc.aper_base = ((u64)RREG32(mmMC_VM_FB_OFFSET)) << 22;
-		adev->mc.aper_size = adev->mc.real_vram_size;
+		adev->gmc.aper_base = ((u64)RREG32(mmMC_VM_FB_OFFSET)) << 22;
+		adev->gmc.aper_size = adev->gmc.real_vram_size;
 	}
 #endif
 
 	/* In case the PCI BAR is larger than the actual amount of vram */
-	adev->mc.visible_vram_size = adev->mc.aper_size;
-	if (adev->mc.visible_vram_size > adev->mc.real_vram_size)
-		adev->mc.visible_vram_size = adev->mc.real_vram_size;
+	adev->gmc.visible_vram_size = adev->gmc.aper_size;
+	if (adev->gmc.visible_vram_size > adev->gmc.real_vram_size)
+		adev->gmc.visible_vram_size = adev->gmc.real_vram_size;
 
 	/* set the gart size */
 	if (amdgpu_gart_size == -1) {
 		switch (adev->asic_type) {
-		case CHIP_POLARIS11: /* all engines support GPUVM */
 		case CHIP_POLARIS10: /* all engines support GPUVM */
+		case CHIP_POLARIS11: /* all engines support GPUVM */
 		case CHIP_POLARIS12: /* all engines support GPUVM */
+		case CHIP_VEGAM:     /* all engines support GPUVM */
 		default:
-			adev->mc.gart_size = 256ULL << 20;
+			adev->gmc.gart_size = 256ULL << 20;
 			break;
 		case CHIP_TONGA:   /* UVD, VCE do not support GPUVM */
 		case CHIP_FIJI:    /* UVD, VCE do not support GPUVM */
 		case CHIP_CARRIZO: /* UVD, VCE do not support GPUVM, DCE SG support */
 		case CHIP_STONEY:  /* UVD does not support GPUVM, DCE SG support */
-			adev->mc.gart_size = 1024ULL << 20;
+			adev->gmc.gart_size = 1024ULL << 20;
 			break;
 		}
 	} else {
-		adev->mc.gart_size = (u64)amdgpu_gart_size << 20;
+		adev->gmc.gart_size = (u64)amdgpu_gart_size << 20;
 	}
 
-	gmc_v8_0_vram_gtt_location(adev, &adev->mc);
+	gmc_v8_0_vram_gtt_location(adev, &adev->gmc);
 
 	return 0;
 }
@@ -596,69 +628,63 @@ static int gmc_v8_0_mc_init(struct amdgpu_device *adev)
  */
 
 /**
- * gmc_v8_0_gart_flush_gpu_tlb - gart tlb flush callback
+ * gmc_v8_0_flush_gpu_tlb - gart tlb flush callback
  *
  * @adev: amdgpu_device pointer
  * @vmid: vm instance to flush
  *
- * Flush the TLB for the requested page table (CIK).
+ * Flush the TLB for the requested page table (VI).
  */
-static void gmc_v8_0_gart_flush_gpu_tlb(struct amdgpu_device *adev,
-					uint32_t vmid)
+static void gmc_v8_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
+					uint32_t vmhub, uint32_t flush_type)
 {
-	/* flush hdp cache */
-	WREG32(mmHDP_MEM_COHERENCY_FLUSH_CNTL, 0);
-
 	/* bits 0-15 are the VM contexts0-15 */
 	WREG32(mmVM_INVALIDATE_REQUEST, 1 << vmid);
 }
 
-/**
- * gmc_v8_0_gart_set_pte_pde - update the page tables using MMIO
- *
- * @adev: amdgpu_device pointer
- * @cpu_pt_addr: cpu address of the page table
- * @gpu_page_idx: entry in the page table to update
- * @addr: dst addr to write into pte/pde
- * @flags: access flags
- *
- * Update the page tables using the CPU.
- */
-static int gmc_v8_0_gart_set_pte_pde(struct amdgpu_device *adev,
-				     void *cpu_pt_addr,
-				     uint32_t gpu_page_idx,
-				     uint64_t addr,
-				     uint64_t flags)
+static uint64_t gmc_v8_0_emit_flush_gpu_tlb(struct amdgpu_ring *ring,
+					    unsigned vmid, uint64_t pd_addr)
 {
-	void __iomem *ptr = (void *)cpu_pt_addr;
-	uint64_t value;
+	uint32_t reg;
 
-	/*
-	 * PTE format on VI:
-	 * 63:40 reserved
-	 * 39:12 4k physical page base address
-	 * 11:7 fragment
-	 * 6 write
-	 * 5 read
-	 * 4 exe
-	 * 3 reserved
-	 * 2 snooped
-	 * 1 system
-	 * 0 valid
-	 *
-	 * PDE format on VI:
-	 * 63:59 block fragment size
-	 * 58:40 reserved
-	 * 39:1 physical base address of PTE
-	 * bits 5:1 must be 0.
-	 * 0 valid
-	 */
-	value = addr & 0x000000FFFFFFF000ULL;
-	value |= flags;
-	writeq(value, ptr + (gpu_page_idx * 8));
+	if (vmid < 8)
+		reg = mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + vmid;
+	else
+		reg = mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + vmid - 8;
+	amdgpu_ring_emit_wreg(ring, reg, pd_addr >> 12);
 
-	return 0;
+	/* bits 0-15 are the VM contexts0-15 */
+	amdgpu_ring_emit_wreg(ring, mmVM_INVALIDATE_REQUEST, 1 << vmid);
+
+	return pd_addr;
 }
+
+static void gmc_v8_0_emit_pasid_mapping(struct amdgpu_ring *ring, unsigned vmid,
+					unsigned pasid)
+{
+	amdgpu_ring_emit_wreg(ring, mmIH_VMID_0_LUT + vmid, pasid);
+}
+
+/*
+ * PTE format on VI:
+ * 63:40 reserved
+ * 39:12 4k physical page base address
+ * 11:7 fragment
+ * 6 write
+ * 5 read
+ * 4 exe
+ * 3 reserved
+ * 2 snooped
+ * 1 system
+ * 0 valid
+ *
+ * PDE format on VI:
+ * 63:59 block fragment size
+ * 58:40 reserved
+ * 39:1 physical base address of PTE
+ * bits 5:1 must be 0.
+ * 0 valid
+ */
 
 static uint64_t gmc_v8_0_get_vm_pte_flags(struct amdgpu_device *adev,
 					  uint32_t flags)
@@ -722,9 +748,9 @@ static void gmc_v8_0_set_prt(struct amdgpu_device *adev, bool enable)
 {
 	u32 tmp;
 
-	if (enable && !adev->mc.prt_warning) {
+	if (enable && !adev->gmc.prt_warning) {
 		dev_warn(adev->dev, "Disabling VM faults because of PRT request!\n");
-		adev->mc.prt_warning = true;
+		adev->gmc.prt_warning = true;
 	}
 
 	tmp = RREG32(mmVM_PRT_CNTL);
@@ -746,7 +772,8 @@ static void gmc_v8_0_set_prt(struct amdgpu_device *adev, bool enable)
 
 	if (enable) {
 		uint32_t low = AMDGPU_VA_RESERVED_SIZE >> AMDGPU_GPU_PAGE_SHIFT;
-		uint32_t high = adev->vm_manager.max_pfn;
+		uint32_t high = adev->vm_manager.max_pfn -
+			(AMDGPU_VA_RESERVED_SIZE >> AMDGPU_GPU_PAGE_SHIFT);
 
 		WREG32(mmVM_PRT_APERTURE0_LOW_ADDR, low);
 		WREG32(mmVM_PRT_APERTURE1_LOW_ADDR, low);
@@ -776,21 +803,25 @@ static void gmc_v8_0_set_prt(struct amdgpu_device *adev, bool enable)
  * This sets up the TLBs, programs the page tables for VMID0,
  * sets up the hw for VMIDs 1-15 which are allocated on
  * demand, and sets up the global locations for the LDS, GDS,
- * and GPUVM for FSA64 clients (CIK).
+ * and GPUVM for FSA64 clients (VI).
  * Returns 0 for success, errors for failure.
  */
 static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 {
+	uint64_t table_addr;
 	int r, i;
 	u32 tmp, field;
 
-	if (adev->gart.robj == NULL) {
+	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
 	r = amdgpu_gart_table_vram_pin(adev);
 	if (r)
 		return r;
+
+	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
+
 	/* Setup TLB control */
 	tmp = RREG32(mmMC_VM_MX_L1_TLB_CNTL);
 	tmp = REG_SET_FIELD(tmp, MC_VM_MX_L1_TLB_CNTL, ENABLE_L1_TLB, 1);
@@ -836,11 +867,11 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	tmp = REG_SET_FIELD(tmp, VM_L2_CNTL4, VMC_TAP_CONTEXT1_PTE_REQUEST_SNOOP, 0);
 	WREG32(mmVM_L2_CNTL4, tmp);
 	/* setup context0 */
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->mc.gart_start >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->mc.gart_end >> 12);
-	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, adev->gart.table_addr >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_START_ADDR, adev->gmc.gart_start >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_END_ADDR, adev->gmc.gart_end >> 12);
+	WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR, table_addr >> 12);
 	WREG32(mmVM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
-			(u32)(adev->dummy_page.addr >> 12));
+			(u32)(adev->dummy_page_addr >> 12));
 	WREG32(mmVM_CONTEXT0_CNTL2, 0);
 	tmp = RREG32(mmVM_CONTEXT0_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT0_CNTL, ENABLE_CONTEXT, 1);
@@ -862,15 +893,15 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	for (i = 1; i < 16; i++) {
 		if (i < 8)
 			WREG32(mmVM_CONTEXT0_PAGE_TABLE_BASE_ADDR + i,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 		else
 			WREG32(mmVM_CONTEXT8_PAGE_TABLE_BASE_ADDR + i - 8,
-			       adev->gart.table_addr >> 12);
+			       table_addr >> 12);
 	}
 
 	/* enable context1-15 */
 	WREG32(mmVM_CONTEXT1_PROTECTION_FAULT_DEFAULT_ADDR,
-	       (u32)(adev->dummy_page.addr >> 12));
+	       (u32)(adev->dummy_page_addr >> 12));
 	WREG32(mmVM_CONTEXT1_CNTL2, 4);
 	tmp = RREG32(mmVM_CONTEXT1_CNTL);
 	tmp = REG_SET_FIELD(tmp, VM_CONTEXT1_CNTL, ENABLE_CONTEXT, 1);
@@ -890,10 +921,10 @@ static int gmc_v8_0_gart_enable(struct amdgpu_device *adev)
 	else
 		gmc_v8_0_set_fault_enable_default(adev, true);
 
-	gmc_v8_0_gart_flush_gpu_tlb(adev, 0);
+	gmc_v8_0_flush_gpu_tlb(adev, 0, 0, 0);
 	DRM_INFO("PCIE GART of %uM enabled (table at 0x%016llX).\n",
-		 (unsigned)(adev->mc.gart_size >> 20),
-		 (unsigned long long)adev->gart.table_addr);
+		 (unsigned)(adev->gmc.gart_size >> 20),
+		 (unsigned long long)table_addr);
 	adev->gart.ready = true;
 	return 0;
 }
@@ -902,7 +933,7 @@ static int gmc_v8_0_gart_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	if (adev->gart.robj) {
+	if (adev->gart.bo) {
 		WARN(1, "R600 PCIE GART already initialized\n");
 		return 0;
 	}
@@ -920,7 +951,7 @@ static int gmc_v8_0_gart_init(struct amdgpu_device *adev)
  *
  * @adev: amdgpu_device pointer
  *
- * This disables all VM page table (CIK).
+ * This disables all VM page table (VI).
  */
 static void gmc_v8_0_gart_disable(struct amdgpu_device *adev)
 {
@@ -944,42 +975,29 @@ static void gmc_v8_0_gart_disable(struct amdgpu_device *adev)
 }
 
 /**
- * gmc_v8_0_gart_fini - vm fini callback
- *
- * @adev: amdgpu_device pointer
- *
- * Tears down the driver GART/VM setup (CIK).
- */
-static void gmc_v8_0_gart_fini(struct amdgpu_device *adev)
-{
-	amdgpu_gart_table_vram_free(adev);
-	amdgpu_gart_fini(adev);
-}
-
-/**
  * gmc_v8_0_vm_decode_fault - print human readable fault info
  *
  * @adev: amdgpu_device pointer
  * @status: VM_CONTEXT1_PROTECTION_FAULT_STATUS register value
  * @addr: VM_CONTEXT1_PROTECTION_FAULT_ADDR register value
  *
- * Print human readable fault information (CIK).
+ * Print human readable fault information (VI).
  */
-static void gmc_v8_0_vm_decode_fault(struct amdgpu_device *adev,
-				     u32 status, u32 addr, u32 mc_client)
+static void gmc_v8_0_vm_decode_fault(struct amdgpu_device *adev, u32 status,
+				     u32 addr, u32 mc_client, unsigned pasid)
 {
-	u32 mc_id;
 	u32 vmid = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS, VMID);
 	u32 protections = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 					PROTECTIONS);
 	char block[5] = { mc_client >> 24, (mc_client >> 16) & 0xff,
 		(mc_client >> 8) & 0xff, mc_client & 0xff, 0 };
+	u32 mc_id;
 
 	mc_id = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			      MEMORY_CLIENT_ID);
 
-	dev_err(adev->dev, "VM fault (0x%02x, vmid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
-	       protections, vmid, addr,
+	dev_err(adev->dev, "VM fault (0x%02x, vmid %d, pasid %d) at page %u, %s from '%s' (0x%08x) (%d)\n",
+	       protections, vmid, pasid, addr,
 	       REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
 			     MEMORY_CLIENT_RW) ?
 	       "write" : "read", block, mc_client, mc_id);
@@ -1011,16 +1029,16 @@ static int gmc_v8_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	gmc_v8_0_set_gart_funcs(adev);
+	gmc_v8_0_set_gmc_funcs(adev);
 	gmc_v8_0_set_irq_funcs(adev);
 
-	adev->mc.shared_aperture_start = 0x2000000000000000ULL;
-	adev->mc.shared_aperture_end =
-		adev->mc.shared_aperture_start + (4ULL << 30) - 1;
-	adev->mc.private_aperture_start =
-		adev->mc.shared_aperture_end + 1;
-	adev->mc.private_aperture_end =
-		adev->mc.private_aperture_start + (4ULL << 30) - 1;
+	adev->gmc.shared_aperture_start = 0x2000000000000000ULL;
+	adev->gmc.shared_aperture_end =
+		adev->gmc.shared_aperture_start + (4ULL << 30) - 1;
+	adev->gmc.private_aperture_start =
+		adev->gmc.shared_aperture_end + 1;
+	adev->gmc.private_aperture_end =
+		adev->gmc.private_aperture_start + (4ULL << 30) - 1;
 
 	return 0;
 }
@@ -1029,10 +1047,31 @@ static int gmc_v8_0_late_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	amdgpu_bo_late_init(adev);
+
 	if (amdgpu_vm_fault_stop != AMDGPU_VM_FAULT_STOP_ALWAYS)
-		return amdgpu_irq_get(adev, &adev->mc.vm_fault, 0);
+		return amdgpu_irq_get(adev, &adev->gmc.vm_fault, 0);
 	else
 		return 0;
+}
+
+static unsigned gmc_v8_0_get_vbios_fb_size(struct amdgpu_device *adev)
+{
+	u32 d1vga_control = RREG32(mmD1VGA_CONTROL);
+	unsigned size;
+
+	if (REG_GET_FIELD(d1vga_control, D1VGA_CONTROL, D1VGA_MODE_ENABLE)) {
+		size = 9 * 1024 * 1024; /* reserve 8MB for vga emulator and 1 MB for FB */
+	} else {
+		u32 viewport = RREG32(mmVIEWPORT_SIZE);
+		size = (REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_HEIGHT) *
+			REG_GET_FIELD(viewport, VIEWPORT_SIZE, VIEWPORT_WIDTH) *
+			4);
+	}
+	/* return 0 if the pre-OS buffer uses up most of vram */
+	if ((adev->gmc.real_vram_size - size) < (8 * 1024 * 1024))
+		return 0;
+	return size;
 }
 
 #define mmMC_SEQ_MISC0_FIJI 0xA71
@@ -1040,27 +1079,29 @@ static int gmc_v8_0_late_init(void *handle)
 static int gmc_v8_0_sw_init(void *handle)
 {
 	int r;
-	int dma_bits;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
+	adev->num_vmhubs = 1;
+
 	if (adev->flags & AMD_IS_APU) {
-		adev->mc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
+		adev->gmc.vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
 	} else {
 		u32 tmp;
 
-		if (adev->asic_type == CHIP_FIJI)
+		if ((adev->asic_type == CHIP_FIJI) ||
+		    (adev->asic_type == CHIP_VEGAM))
 			tmp = RREG32(mmMC_SEQ_MISC0_FIJI);
 		else
 			tmp = RREG32(mmMC_SEQ_MISC0);
 		tmp &= MC_SEQ_MISC0__MT__MASK;
-		adev->mc.vram_type = gmc_v8_0_convert_vram_type(tmp);
+		adev->gmc.vram_type = gmc_v8_0_convert_vram_type(tmp);
 	}
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 146, &adev->mc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_PAGE_INV_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
-	r = amdgpu_irq_add_id(adev, AMDGPU_IH_CLIENTID_LEGACY, 147, &adev->mc.vm_fault);
+	r = amdgpu_irq_add_id(adev, AMDGPU_IRQ_CLIENTID_LEGACY, VISLANDS30_IV_SRCID_GFX_MEM_PROT_FAULT, &adev->gmc.vm_fault);
 	if (r)
 		return r;
 
@@ -1074,28 +1115,14 @@ static int gmc_v8_0_sw_init(void *handle)
 	 * This is the max address of the GPU's
 	 * internal address space.
 	 */
-	adev->mc.mc_mask = 0xffffffffffULL; /* 40 bit MC */
+	adev->gmc.mc_mask = 0xffffffffffULL; /* 40 bit MC */
 
-	adev->mc.stolen_size = 256 * 1024;
-
-	/* set DMA mask + need_dma32 flags.
-	 * PCIE - can handle 40-bits.
-	 * IGP - can handle 40-bits
-	 * PCI - dma32 for legacy pci gart, 40 bits on newer asics
-	 */
-	adev->need_dma32 = false;
-	dma_bits = adev->need_dma32 ? 32 : 40;
-	r = pci_set_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
+	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(40));
 	if (r) {
-		adev->need_dma32 = true;
-		dma_bits = 32;
 		pr_warn("amdgpu: No suitable DMA available\n");
+		return r;
 	}
-	r = pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(dma_bits));
-	if (r) {
-		pci_set_consistent_dma_mask(adev->pdev, DMA_BIT_MASK(32));
-		pr_warn("amdgpu: No coherent DMA available\n");
-	}
+	adev->need_swiotlb = drm_need_swiotlb(40);
 
 	r = gmc_v8_0_init_microcode(adev);
 	if (r) {
@@ -1106,6 +1133,8 @@ static int gmc_v8_0_sw_init(void *handle)
 	r = gmc_v8_0_mc_init(adev);
 	if (r)
 		return r;
+
+	adev->gmc.stolen_size = gmc_v8_0_get_vbios_fb_size(adev);
 
 	/* Memory manager */
 	r = amdgpu_bo_init(adev);
@@ -1135,6 +1164,12 @@ static int gmc_v8_0_sw_init(void *handle)
 		adev->vm_manager.vram_base_offset = 0;
 	}
 
+	adev->gmc.vm_fault_info = kmalloc(sizeof(struct kfd_vm_fault_info),
+					GFP_KERNEL);
+	if (!adev->gmc.vm_fault_info)
+		return -ENOMEM;
+	atomic_set(&adev->gmc.vm_fault_info_updated, 0);
+
 	return 0;
 }
 
@@ -1144,10 +1179,12 @@ static int gmc_v8_0_sw_fini(void *handle)
 
 	amdgpu_gem_force_release(adev);
 	amdgpu_vm_manager_fini(adev);
-	gmc_v8_0_gart_fini(adev);
+	kfree(adev->gmc.vm_fault_info);
+	amdgpu_gart_table_vram_free(adev);
 	amdgpu_bo_fini(adev);
-	release_firmware(adev->mc.fw);
-	adev->mc.fw = NULL;
+	amdgpu_gart_fini(adev);
+	release_firmware(adev->gmc.fw);
+	adev->gmc.fw = NULL;
 
 	return 0;
 }
@@ -1188,7 +1225,7 @@ static int gmc_v8_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	amdgpu_irq_put(adev, &adev->mc.vm_fault, 0);
+	amdgpu_irq_put(adev, &adev->gmc.vm_fault, 0);
 	gmc_v8_0_gart_disable(adev);
 
 	return 0;
@@ -1268,10 +1305,10 @@ static bool gmc_v8_0_check_soft_reset(void *handle)
 							SRBM_SOFT_RESET, SOFT_RESET_MC, 1);
 	}
 	if (srbm_soft_reset) {
-		adev->mc.srbm_soft_reset = srbm_soft_reset;
+		adev->gmc.srbm_soft_reset = srbm_soft_reset;
 		return true;
 	} else {
-		adev->mc.srbm_soft_reset = 0;
+		adev->gmc.srbm_soft_reset = 0;
 		return false;
 	}
 }
@@ -1280,7 +1317,7 @@ static int gmc_v8_0_pre_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!adev->mc.srbm_soft_reset)
+	if (!adev->gmc.srbm_soft_reset)
 		return 0;
 
 	gmc_v8_0_mc_stop(adev);
@@ -1296,9 +1333,9 @@ static int gmc_v8_0_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	u32 srbm_soft_reset;
 
-	if (!adev->mc.srbm_soft_reset)
+	if (!adev->gmc.srbm_soft_reset)
 		return 0;
-	srbm_soft_reset = adev->mc.srbm_soft_reset;
+	srbm_soft_reset = adev->gmc.srbm_soft_reset;
 
 	if (srbm_soft_reset) {
 		u32 tmp;
@@ -1326,7 +1363,7 @@ static int gmc_v8_0_post_soft_reset(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (!adev->mc.srbm_soft_reset)
+	if (!adev->gmc.srbm_soft_reset)
 		return 0;
 
 	gmc_v8_0_mc_resume(adev);
@@ -1379,7 +1416,7 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	u32 addr, status, mc_client;
+	u32 addr, status, mc_client, vmid;
 
 	if (amdgpu_sriov_vf(adev)) {
 		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
@@ -1401,13 +1438,43 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
 	if (printk_ratelimit()) {
-		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
-			entry->src_id, entry->src_data[0]);
+		struct amdgpu_task_info task_info;
+
+		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
+		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+
+		dev_err(adev->dev, "GPU fault detected: %d 0x%08x for process %s pid %d thread %s pid %d\n",
+			entry->src_id, entry->src_data[0], task_info.process_name,
+			task_info.tgid, task_info.task_name, task_info.pid);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
 			addr);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 			status);
-		gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client);
+		gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client,
+					 entry->pasid);
+	}
+
+	vmid = REG_GET_FIELD(status, VM_CONTEXT1_PROTECTION_FAULT_STATUS,
+			     VMID);
+	if (amdgpu_amdkfd_is_kfd_vmid(adev, vmid)
+		&& !atomic_read(&adev->gmc.vm_fault_info_updated)) {
+		struct kfd_vm_fault_info *info = adev->gmc.vm_fault_info;
+		u32 protections = REG_GET_FIELD(status,
+					VM_CONTEXT1_PROTECTION_FAULT_STATUS,
+					PROTECTIONS);
+
+		info->vmid = vmid;
+		info->mc_id = REG_GET_FIELD(status,
+					    VM_CONTEXT1_PROTECTION_FAULT_STATUS,
+					    MEMORY_CLIENT_ID);
+		info->status = status;
+		info->page_addr = addr;
+		info->prot_valid = protections & 0x7 ? true : false;
+		info->prot_read = protections & 0x8 ? true : false;
+		info->prot_write = protections & 0x10 ? true : false;
+		info->prot_exec = protections & 0x20 ? true : false;
+		mb();
+		atomic_set(&adev->gmc.vm_fault_info_updated, 1);
 	}
 
 	return 0;
@@ -1639,9 +1706,10 @@ static const struct amd_ip_funcs gmc_v8_0_ip_funcs = {
 	.get_clockgating_state = gmc_v8_0_get_clockgating_state,
 };
 
-static const struct amdgpu_gart_funcs gmc_v8_0_gart_funcs = {
-	.flush_gpu_tlb = gmc_v8_0_gart_flush_gpu_tlb,
-	.set_pte_pde = gmc_v8_0_gart_set_pte_pde,
+static const struct amdgpu_gmc_funcs gmc_v8_0_gmc_funcs = {
+	.flush_gpu_tlb = gmc_v8_0_flush_gpu_tlb,
+	.emit_flush_gpu_tlb = gmc_v8_0_emit_flush_gpu_tlb,
+	.emit_pasid_mapping = gmc_v8_0_emit_pasid_mapping,
 	.set_prt = gmc_v8_0_set_prt,
 	.get_vm_pte_flags = gmc_v8_0_get_vm_pte_flags,
 	.get_vm_pde = gmc_v8_0_get_vm_pde
@@ -1652,16 +1720,15 @@ static const struct amdgpu_irq_src_funcs gmc_v8_0_irq_funcs = {
 	.process = gmc_v8_0_process_interrupt,
 };
 
-static void gmc_v8_0_set_gart_funcs(struct amdgpu_device *adev)
+static void gmc_v8_0_set_gmc_funcs(struct amdgpu_device *adev)
 {
-	if (adev->gart.gart_funcs == NULL)
-		adev->gart.gart_funcs = &gmc_v8_0_gart_funcs;
+	adev->gmc.gmc_funcs = &gmc_v8_0_gmc_funcs;
 }
 
 static void gmc_v8_0_set_irq_funcs(struct amdgpu_device *adev)
 {
-	adev->mc.vm_fault.num_types = 1;
-	adev->mc.vm_fault.funcs = &gmc_v8_0_irq_funcs;
+	adev->gmc.vm_fault.num_types = 1;
+	adev->gmc.vm_fault.funcs = &gmc_v8_0_irq_funcs;
 }
 
 const struct amdgpu_ip_block_version gmc_v8_0_ip_block =

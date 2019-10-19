@@ -1,26 +1,18 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Ingenic JZ4740 SoC CGU driver
  *
  * Copyright (c) 2015 Imagination Technologies
  * Author: Paul Burton <paul.burton@mips.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk-provider.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/of.h>
 #include <dt-bindings/clock/jz4740-cgu.h>
-#include <asm/mach-jz4740/clock.h>
 #include "cgu.h"
+#include "pm.h"
 
 /* CGU register offsets */
 #define CGU_REG_CPCCR		0x00
@@ -57,6 +49,14 @@ static const s8 pll_od_encoding[4] = {
 	0x0, 0x1, -1, 0x3,
 };
 
+static const u8 jz4740_cgu_cpccr_div_table[] = {
+	1, 2, 3, 4, 6, 8, 12, 16, 24, 32,
+};
+
+static const u8 jz4740_cgu_pll_half_div_table[] = {
+	2, 1,
+};
+
 static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 
 	/* External clocks */
@@ -90,37 +90,55 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 	[JZ4740_CLK_PLL_HALF] = {
 		"pll half", CGU_CLK_DIV,
 		.parents = { JZ4740_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 21, 1, 1, -1, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 21, 1, 1, -1, -1, -1,
+			jz4740_cgu_pll_half_div_table,
+		},
 	},
 
 	[JZ4740_CLK_CCLK] = {
 		"cclk", CGU_CLK_DIV,
 		.parents = { JZ4740_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1,
+			jz4740_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4740_CLK_HCLK] = {
 		"hclk", CGU_CLK_DIV,
 		.parents = { JZ4740_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 4, 1, 4, 22, -1, -1,
+			jz4740_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4740_CLK_PCLK] = {
 		"pclk", CGU_CLK_DIV,
 		.parents = { JZ4740_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 8, 1, 4, 22, -1, -1,
+			jz4740_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4740_CLK_MCLK] = {
 		"mclk", CGU_CLK_DIV,
 		.parents = { JZ4740_CLK_PLL, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1,
+			jz4740_cgu_cpccr_div_table,
+		},
 	},
 
 	[JZ4740_CLK_LCD] = {
 		"lcd", CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4740_CLK_PLL_HALF, -1, -1, -1 },
-		.div = { CGU_REG_CPCCR, 16, 1, 5, 22, -1, -1 },
+		.div = {
+			CGU_REG_CPCCR, 16, 1, 5, 22, -1, -1,
+			jz4740_cgu_cpccr_div_table,
+		},
 		.gate = { CGU_REG_CLKGR, 10 },
 	},
 
@@ -134,7 +152,7 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 		"i2s", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4740_CLK_EXT, JZ4740_CLK_PLL_HALF, -1, -1 },
 		.mux = { CGU_REG_CPCCR, 31, 1 },
-		.div = { CGU_REG_I2SCDR, 0, 1, 8, -1, -1, -1 },
+		.div = { CGU_REG_I2SCDR, 0, 1, 9, -1, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 6 },
 	},
 
@@ -161,11 +179,11 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 	},
 
 	[JZ4740_CLK_UDC] = {
-		"udc", CGU_CLK_MUX | CGU_CLK_DIV,
+		"udc", CGU_CLK_MUX | CGU_CLK_DIV | CGU_CLK_GATE,
 		.parents = { JZ4740_CLK_EXT, JZ4740_CLK_PLL_HALF, -1, -1 },
 		.mux = { CGU_REG_CPCCR, 29, 1 },
 		.div = { CGU_REG_CPCCR, 23, 1, 6, -1, -1, -1 },
-		.gate = { CGU_REG_SCR, 6 },
+		.gate = { CGU_REG_SCR, 6, true },
 	},
 
 	/* Gate-only clocks */
@@ -211,6 +229,12 @@ static const struct ingenic_cgu_clk_info jz4740_cgu_clocks[] = {
 		.parents = { JZ4740_CLK_EXT, -1, -1, -1 },
 		.gate = { CGU_REG_CLKGR, 5 },
 	},
+
+	[JZ4740_CLK_TCU] = {
+		"tcu", CGU_CLK_GATE,
+		.parents = { JZ4740_CLK_EXT, -1, -1, -1 },
+		.gate = { CGU_REG_CLKGR, 1 },
+	},
 };
 
 static void __init jz4740_cgu_init(struct device_node *np)
@@ -227,77 +251,7 @@ static void __init jz4740_cgu_init(struct device_node *np)
 	retval = ingenic_cgu_register_clocks(cgu);
 	if (retval)
 		pr_err("%s: failed to register CGU Clocks\n", __func__);
+
+	ingenic_cgu_register_syscore_ops(cgu);
 }
-CLK_OF_DECLARE(jz4740_cgu, "ingenic,jz4740-cgu", jz4740_cgu_init);
-
-void jz4740_clock_set_wait_mode(enum jz4740_wait_mode mode)
-{
-	uint32_t lcr = readl(cgu->base + CGU_REG_LCR);
-
-	switch (mode) {
-	case JZ4740_WAIT_MODE_IDLE:
-		lcr &= ~LCR_SLEEP;
-		break;
-
-	case JZ4740_WAIT_MODE_SLEEP:
-		lcr |= LCR_SLEEP;
-		break;
-	}
-
-	writel(lcr, cgu->base + CGU_REG_LCR);
-}
-
-void jz4740_clock_udc_disable_auto_suspend(void)
-{
-	uint32_t clkgr = readl(cgu->base + CGU_REG_CLKGR);
-
-	clkgr &= ~CLKGR_UDC;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-}
-EXPORT_SYMBOL_GPL(jz4740_clock_udc_disable_auto_suspend);
-
-void jz4740_clock_udc_enable_auto_suspend(void)
-{
-	uint32_t clkgr = readl(cgu->base + CGU_REG_CLKGR);
-
-	clkgr |= CLKGR_UDC;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-}
-EXPORT_SYMBOL_GPL(jz4740_clock_udc_enable_auto_suspend);
-
-#define JZ_CLOCK_GATE_UART0	BIT(0)
-#define JZ_CLOCK_GATE_TCU	BIT(1)
-#define JZ_CLOCK_GATE_DMAC	BIT(12)
-
-void jz4740_clock_suspend(void)
-{
-	uint32_t clkgr, cppcr;
-
-	clkgr = readl(cgu->base + CGU_REG_CLKGR);
-	clkgr |= JZ_CLOCK_GATE_TCU | JZ_CLOCK_GATE_DMAC | JZ_CLOCK_GATE_UART0;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-
-	cppcr = readl(cgu->base + CGU_REG_CPPCR);
-	cppcr &= ~BIT(jz4740_cgu_clocks[JZ4740_CLK_PLL].pll.enable_bit);
-	writel(cppcr, cgu->base + CGU_REG_CPPCR);
-}
-
-void jz4740_clock_resume(void)
-{
-	uint32_t clkgr, cppcr, stable;
-
-	cppcr = readl(cgu->base + CGU_REG_CPPCR);
-	cppcr |= BIT(jz4740_cgu_clocks[JZ4740_CLK_PLL].pll.enable_bit);
-	writel(cppcr, cgu->base + CGU_REG_CPPCR);
-
-	stable = BIT(jz4740_cgu_clocks[JZ4740_CLK_PLL].pll.stable_bit);
-	do {
-		cppcr = readl(cgu->base + CGU_REG_CPPCR);
-	} while (!(cppcr & stable));
-
-	clkgr = readl(cgu->base + CGU_REG_CLKGR);
-	clkgr &= ~JZ_CLOCK_GATE_TCU;
-	clkgr &= ~JZ_CLOCK_GATE_DMAC;
-	clkgr &= ~JZ_CLOCK_GATE_UART0;
-	writel(clkgr, cgu->base + CGU_REG_CLKGR);
-}
+CLK_OF_DECLARE_DRIVER(jz4740_cgu, "ingenic,jz4740-cgu", jz4740_cgu_init);

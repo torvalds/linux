@@ -19,6 +19,7 @@
 #include <asm/mipsprom.h>
 #include <asm/mipsregs.h>
 #include <asm/bootinfo.h>
+#include <asm/setup.h>
 
 /* special SNI prom calls */
 /*
@@ -42,7 +43,7 @@
 
 /* O32 stack has to be 8-byte aligned. */
 static u64 o32_stk[4096];
-#define O32_STK	  &o32_stk[sizeof(o32_stk)]
+#define O32_STK	  (&o32_stk[ARRAY_SIZE(o32_stk)])
 
 #define __PROM_O32(fun, arg) fun arg __asm__(#fun); \
 				     __asm__(#fun " = call_o32")

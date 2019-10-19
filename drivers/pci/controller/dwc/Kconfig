@@ -1,0 +1,271 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "DesignWare PCI Core Support"
+	depends on PCI
+
+config PCIE_DW
+	bool
+
+config PCIE_DW_HOST
+        bool
+	depends on PCI_MSI_IRQ_DOMAIN
+        select PCIE_DW
+
+config PCIE_DW_EP
+	bool
+	depends on PCI_ENDPOINT
+	select PCIE_DW
+
+config PCI_DRA7XX
+	bool
+
+config PCI_DRA7XX_HOST
+	bool "TI DRA7xx PCIe controller Host Mode"
+	depends on SOC_DRA7XX || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	depends on OF && HAS_IOMEM && TI_PIPE3
+	select PCIE_DW_HOST
+	select PCI_DRA7XX
+	default y
+	help
+	  Enables support for the PCIe controller in the DRA7xx SoC to work in
+	  host mode. There are two instances of PCIe controller in DRA7xx.
+	  This controller can work either as EP or RC. In order to enable
+	  host-specific features PCI_DRA7XX_HOST must be selected and in order
+	  to enable device-specific features PCI_DRA7XX_EP must be selected.
+	  This uses the DesignWare core.
+
+config PCI_DRA7XX_EP
+	bool "TI DRA7xx PCIe controller Endpoint Mode"
+	depends on SOC_DRA7XX || COMPILE_TEST
+	depends on PCI_ENDPOINT
+	depends on OF && HAS_IOMEM && TI_PIPE3
+	select PCIE_DW_EP
+	select PCI_DRA7XX
+	help
+	  Enables support for the PCIe controller in the DRA7xx SoC to work in
+	  endpoint mode. There are two instances of PCIe controller in DRA7xx.
+	  This controller can work either as EP or RC. In order to enable
+	  host-specific features PCI_DRA7XX_HOST must be selected and in order
+	  to enable device-specific features PCI_DRA7XX_EP must be selected.
+	  This uses the DesignWare core.
+
+config PCIE_DW_PLAT
+	bool
+
+config PCIE_DW_PLAT_HOST
+	bool "Platform bus based DesignWare PCIe Controller - Host mode"
+	depends on PCI && PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	select PCIE_DW_PLAT
+	help
+	  Enables support for the PCIe controller in the Designware IP to
+	  work in host mode. There are two instances of PCIe controller in
+	  Designware IP.
+	  This controller can work either as EP or RC. In order to enable
+	  host-specific features PCIE_DW_PLAT_HOST must be selected and in
+	  order to enable device-specific features PCI_DW_PLAT_EP must be
+	  selected.
+
+config PCIE_DW_PLAT_EP
+	bool "Platform bus based DesignWare PCIe Controller - Endpoint mode"
+	depends on PCI && PCI_MSI_IRQ_DOMAIN
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCIE_DW_PLAT
+	help
+	  Enables support for the PCIe controller in the Designware IP to
+	  work in endpoint mode. There are two instances of PCIe controller
+	  in Designware IP.
+	  This controller can work either as EP or RC. In order to enable
+	  host-specific features PCIE_DW_PLAT_HOST must be selected and in
+	  order to enable device-specific features PCI_DW_PLAT_EP must be
+	  selected.
+
+config PCI_EXYNOS
+	bool "Samsung Exynos PCIe controller"
+	depends on SOC_EXYNOS5440 || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+
+config PCI_IMX6
+	bool "Freescale i.MX6/7/8 PCIe controller"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+
+config PCIE_SPEAR13XX
+	bool "STMicroelectronics SPEAr PCIe controller"
+	depends on ARCH_SPEAR13XX || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe support on SPEAr13XX SoCs.
+
+config PCI_KEYSTONE
+	bool
+
+config PCI_KEYSTONE_HOST
+	bool "PCI Keystone Host Mode"
+	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	select PCI_KEYSTONE
+	default y
+	help
+	  Enables support for the PCIe controller in the Keystone SoC to
+	  work in host mode. The PCI controller on Keystone is based on
+	  DesignWare hardware and therefore the driver re-uses the
+	  DesignWare core functions to implement the driver.
+
+config PCI_KEYSTONE_EP
+	bool "PCI Keystone Endpoint Mode"
+	depends on ARCH_KEYSTONE || ARCH_K3 || ((ARM || ARM64) && COMPILE_TEST)
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCI_KEYSTONE
+	help
+	  Enables support for the PCIe controller in the Keystone SoC to
+	  work in endpoint mode. The PCI controller on Keystone is based
+	  on DesignWare hardware and therefore the driver re-uses the
+	  DesignWare core functions to implement the driver.
+
+config PCI_LAYERSCAPE
+	bool "Freescale Layerscape PCIe controller - Host mode"
+	depends on OF && (ARM || ARCH_LAYERSCAPE || COMPILE_TEST)
+	depends on PCI_MSI_IRQ_DOMAIN
+	select MFD_SYSCON
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want to enable PCIe controller support on Layerscape
+	  SoCs to work in Host mode.
+	  This controller can work either as EP or RC. The RCW[HOST_AGT_PEX]
+	  determines which PCIe controller works in EP mode and which PCIe
+	  controller works in RC mode.
+
+config PCI_LAYERSCAPE_EP
+	bool "Freescale Layerscape PCIe controller - Endpoint mode"
+	depends on OF && (ARM || ARCH_LAYERSCAPE || COMPILE_TEST)
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	help
+	  Say Y here if you want to enable PCIe controller support on Layerscape
+	  SoCs to work in Endpoint mode.
+	  This controller can work either as EP or RC. The RCW[HOST_AGT_PEX]
+	  determines which PCIe controller works in EP mode and which PCIe
+	  controller works in RC mode.
+
+config PCI_HISI
+	depends on OF && (ARM64 || COMPILE_TEST)
+	bool "HiSilicon Hip05 and Hip06 SoCs PCIe controllers"
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	select PCI_HOST_COMMON
+	help
+	  Say Y here if you want PCIe controller support on HiSilicon
+	  Hip05 and Hip06 SoCs
+
+config PCIE_QCOM
+	bool "Qualcomm PCIe controller"
+	depends on OF && (ARCH_QCOM || COMPILE_TEST)
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here to enable PCIe controller support on Qualcomm SoCs. The
+	  PCIe controller uses the DesignWare core plus Qualcomm-specific
+	  hardware wrappers.
+
+config PCIE_ARMADA_8K
+	bool "Marvell Armada-8K PCIe controller"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want to enable PCIe controller support on
+	  Armada-8K SoCs. The PCIe controller on Armada-8K is based on
+	  DesignWare hardware and therefore the driver re-uses the
+	  DesignWare core functions to implement the driver.
+
+config PCIE_ARTPEC6
+	bool
+
+config PCIE_ARTPEC6_HOST
+	bool "Axis ARTPEC-6 PCIe controller Host Mode"
+	depends on MACH_ARTPEC6 || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	select PCIE_ARTPEC6
+	help
+	  Enables support for the PCIe controller in the ARTPEC-6 SoC to work in
+	  host mode. This uses the DesignWare core.
+
+config PCIE_ARTPEC6_EP
+	bool "Axis ARTPEC-6 PCIe controller Endpoint Mode"
+	depends on MACH_ARTPEC6 || COMPILE_TEST
+	depends on PCI_ENDPOINT
+	select PCIE_DW_EP
+	select PCIE_ARTPEC6
+	help
+	  Enables support for the PCIe controller in the ARTPEC-6 SoC to work in
+	  endpoint mode. This uses the DesignWare core.
+
+config PCIE_KIRIN
+	depends on OF && (ARM64 || COMPILE_TEST)
+	bool "HiSilicon Kirin series SoCs PCIe controllers"
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support
+	  on HiSilicon Kirin series SoCs.
+
+config PCIE_HISI_STB
+	bool "HiSilicon STB SoCs PCIe controllers"
+	depends on ARCH_HISI || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+          Say Y here if you want PCIe controller support on HiSilicon STB SoCs
+
+config PCI_MESON
+	bool "MESON PCIe controller"
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want to enable PCI controller support on Amlogic
+	  SoCs. The PCI controller on Amlogic is based on DesignWare hardware
+	  and therefore the driver re-uses the DesignWare core functions to
+	  implement the driver.
+
+config PCIE_TEGRA194
+	tristate "NVIDIA Tegra194 (and later) PCIe controller"
+	depends on ARCH_TEGRA_194_SOC || COMPILE_TEST
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	select PHY_TEGRA194_P2U
+	help
+	  Say Y here if you want support for DesignWare core based PCIe host
+	  controller found in NVIDIA Tegra194 SoC.
+
+config PCIE_UNIPHIER
+	bool "Socionext UniPhier PCIe controllers"
+	depends on ARCH_UNIPHIER || COMPILE_TEST
+	depends on OF && HAS_IOMEM
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here if you want PCIe controller support on UniPhier SoCs.
+	  This driver supports LD20 and PXs3 SoCs.
+
+config PCIE_AL
+	bool "Amazon Annapurna Labs PCIe controller"
+	depends on OF && (ARM64 || COMPILE_TEST)
+	depends on PCI_MSI_IRQ_DOMAIN
+	select PCIE_DW_HOST
+	help
+	  Say Y here to enable support of the Amazon's Annapurna Labs PCIe
+	  controller IP on Amazon SoCs. The PCIe controller uses the DesignWare
+	  core plus Annapurna Labs proprietary hardware wrappers. This is
+	  required only for DT-based platforms. ACPI platforms with the
+	  Annapurna Labs PCIe controller don't need to enable this.
+
+endmenu

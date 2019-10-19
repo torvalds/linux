@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Author: Tarek Dakhran <t.dakhran@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Common Clock Framework support for Exynos5410 SoC.
 */
@@ -209,6 +206,7 @@ static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
 	GATE(CLK_USI1, "usi1", "aclk66", GATE_IP_PERIC, 11, 0, 0),
 	GATE(CLK_USI2, "usi2", "aclk66", GATE_IP_PERIC, 12, 0, 0),
 	GATE(CLK_USI3, "usi3", "aclk66", GATE_IP_PERIC, 13, 0, 0),
+	GATE(CLK_TSADC, "tsadc", "aclk66", GATE_IP_PERIC, 15, 0, 0),
 	GATE(CLK_PWM, "pwm", "aclk66", GATE_IP_PERIC, 24, 0, 0),
 
 	GATE(CLK_SCLK_UART0, "sclk_uart0", "div_uart0",
@@ -226,16 +224,16 @@ static const struct samsung_gate_clock exynos5410_gate_clks[] __initconst = {
 };
 
 static const struct samsung_pll_rate_table exynos5410_pll2550x_24mhz_tbl[] __initconst = {
-	PLL_36XX_RATE(400000000U, 200, 3, 2, 0),
-	PLL_36XX_RATE(333000000U, 111, 2, 2, 0),
-	PLL_36XX_RATE(300000000U, 100, 2, 2, 0),
-	PLL_36XX_RATE(266000000U, 266, 3, 3, 0),
-	PLL_36XX_RATE(200000000U, 200, 3, 3, 0),
-	PLL_36XX_RATE(192000000U, 192, 3, 3, 0),
-	PLL_36XX_RATE(166000000U, 166, 3, 3, 0),
-	PLL_36XX_RATE(133000000U, 266, 3, 4, 0),
-	PLL_36XX_RATE(100000000U, 200, 3, 4, 0),
-	PLL_36XX_RATE(66000000U,  176, 2, 5, 0),
+	PLL_36XX_RATE(24 * MHZ, 400000000U, 200, 3, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 333000000U, 111, 2, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 300000000U, 100, 2, 2, 0),
+	PLL_36XX_RATE(24 * MHZ, 266000000U, 266, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 200000000U, 200, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 192000000U, 192, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 166000000U, 166, 3, 3, 0),
+	PLL_36XX_RATE(24 * MHZ, 133000000U, 266, 3, 4, 0),
+	PLL_36XX_RATE(24 * MHZ, 100000000U, 200, 3, 4, 0),
+	PLL_36XX_RATE(24 * MHZ, 66000000U,  176, 2, 5, 0),
 };
 
 static struct samsung_pll_clock exynos5410_plls[nr_plls] __initdata = {

@@ -21,13 +21,15 @@
  *
  */
 
-#include <drm/drmP.h>
-#include "radeon.h"
-#include "cikd.h"
-#include "r600_dpm.h"
-#include "kv_dpm.h"
-#include "radeon_asic.h"
 #include <linux/seq_file.h>
+
+#include <drm/drm_pci.h>
+
+#include "cikd.h"
+#include "kv_dpm.h"
+#include "r600_dpm.h"
+#include "radeon.h"
+#include "radeon_asic.h"
 
 #define KV_MAX_DEEPSLEEP_DIVIDER_ID     5
 #define KV_MINIMUM_ENGINE_CLOCK         800
@@ -2660,8 +2662,9 @@ static int kv_parse_power_table(struct radeon_device *rdev)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
-	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
-				  state_array->ucNumEntries, GFP_KERNEL);
+	rdev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
+				  sizeof(struct radeon_ps),
+				  GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;

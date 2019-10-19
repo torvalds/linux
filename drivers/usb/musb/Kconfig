@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # USB Dual Role (OTG-ready) Controller Drivers
 # for silicon based on Mentor Graphics INVENTRA designs
@@ -5,7 +6,7 @@
 
 # (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
 config USB_MUSB_HDRC
-	tristate 'Inventra Highspeed Dual Role Controller (TI, ADI, AW, ...)'
+	tristate 'Inventra Highspeed Dual Role Controller'
 	depends on (USB || USB_GADGET)
 	depends on HAS_IOMEM
 	help
@@ -17,9 +18,6 @@ config USB_MUSB_HDRC
 
 	  Texas Instruments families using this IP include DaVinci
 	  (35x, 644x ...), OMAP 243x, OMAP 3, and TUSB 6010.
-
-	  Analog Devices parts using this IP include Blackfin BF54x,
-	  BF525 and BF527.
 
 	  Allwinner SoCs using this IP include A10, A13, A20, ...
 
@@ -69,7 +67,7 @@ config USB_MUSB_SUNXI
 	depends on NOP_USB_XCEIV
 	depends on PHY_SUN4I_USB
 	depends on EXTCON
-	depends on GENERIC_PHY
+	select GENERIC_PHY
 	select SUNXI_SRAM
 
 config USB_MUSB_DAVINCI
@@ -87,7 +85,7 @@ config USB_MUSB_DA8XX
 config USB_MUSB_TUSB6010
 	tristate "TUSB6010"
 	depends on HAS_IOMEM
-	depends on (ARCH_OMAP2PLUS || COMPILE_TEST) && !BLACKFIN
+	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	depends on NOP_USB_XCEIV = USB_MUSB_HDRC # both built-in or both modules
 
 config USB_MUSB_OMAP2PLUS
@@ -107,11 +105,6 @@ config USB_MUSB_DSPS
 	depends on ARCH_OMAP2PLUS || COMPILE_TEST
 	depends on OF_IRQ
 
-config USB_MUSB_BLACKFIN
-	tristate "Blackfin"
-	depends on (BF54x && !BF544) || (BF52x && ! BF522 && !BF523)
-	depends on NOP_USB_XCEIV
-
 config USB_MUSB_UX500
 	tristate "Ux500 platforms"
 	depends on ARCH_U8500 || COMPILE_TEST
@@ -119,9 +112,9 @@ config USB_MUSB_UX500
 config USB_MUSB_JZ4740
 	tristate "JZ4740"
 	depends on NOP_USB_XCEIV
-	depends on MACH_JZ4740 || COMPILE_TEST
+	depends on MIPS || COMPILE_TEST
 	depends on USB_MUSB_GADGET
-	depends on USB_OTG_BLACKLIST_HUB
+	depends on USB=n || USB_OTG_BLACKLIST_HUB
 
 config USB_MUSB_AM335X_CHILD
 	tristate
@@ -149,7 +142,7 @@ config USB_UX500_DMA
 
 config USB_INVENTRA_DMA
 	bool 'Inventra'
-	depends on USB_MUSB_OMAP2PLUS || USB_MUSB_BLACKFIN
+	depends on USB_MUSB_OMAP2PLUS
 	help
 	  Enable DMA transfers using Mentor's engine.
 

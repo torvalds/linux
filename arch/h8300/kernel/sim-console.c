@@ -13,12 +13,13 @@
 
 static void sim_write(struct console *con, const char *s, unsigned n)
 {
-	register const int fd __asm__("er0") = 1; /* stdout */
 	register const char *_ptr __asm__("er1") = s;
 	register const unsigned _len __asm__("er2") = n;
 
-	__asm__(".byte 0x5e,0x00,0x00,0xc7\n\t" /* jsr @0xc7 (sys_write) */
-		: : "g"(fd), "g"(_ptr), "g"(_len));
+	__asm__("sub.l er0,er0\n\t"		/* er0 = 1 (stdout) */
+		"inc.l #1,er0\n\t"
+		".byte 0x5e,0x00,0x00,0xc7\n\t" /* jsr @0xc7 (sys_write) */
+		: : "g"(_ptr), "g"(_len):"er0");
 }
 
 static int __init sim_setup(struct earlycon_device *device, const char *opt)

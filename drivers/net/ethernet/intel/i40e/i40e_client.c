@@ -1,28 +1,5 @@
-/*******************************************************************************
- *
- * Intel Ethernet Controller XL710 Family Linux Driver
- * Copyright(c) 2013 - 2017 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- *
- ******************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2018 Intel Corporation. */
 
 #include <linux/list.h>
 #include <linux/errno.h>
@@ -63,7 +40,7 @@ static struct i40e_ops i40e_lan_ops = {
 /**
  * i40e_client_get_params - Get the params that can change at runtime
  * @vsi: the VSI with the message
- * @param: clinet param struct
+ * @params: client param struct
  *
  **/
 static
@@ -287,6 +264,17 @@ out:
 	return capable;
 }
 
+void i40e_client_update_msix_info(struct i40e_pf *pf)
+{
+	struct i40e_client_instance *cdev = pf->cinst;
+
+	if (!cdev || !cdev->client)
+		return;
+
+	cdev->lan_info.msix_count = pf->num_iwarp_msix;
+	cdev->lan_info.msix_entries = &pf->msix_entries[pf->iwarp_base_vector];
+}
+
 /**
  * i40e_client_add_instance - add a client instance struct to the instance list
  * @pf: pointer to the board struct
@@ -328,9 +316,6 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 		return;
 	}
 
-	cdev->lan_info.msix_count = pf->num_iwarp_msix;
-	cdev->lan_info.msix_entries = &pf->msix_entries[pf->iwarp_base_vector];
-
 	mac = list_first_entry(&cdev->lan_info.netdev->dev_addrs.list,
 			       struct netdev_hw_addr, list);
 	if (mac)
@@ -340,6 +325,8 @@ static void i40e_client_add_instance(struct i40e_pf *pf)
 
 	cdev->client = registered_client;
 	pf->cinst = cdev;
+
+	i40e_client_update_msix_info(pf);
 }
 
 /**
@@ -365,9 +352,8 @@ void i40e_client_subtask(struct i40e_pf *pf)
 	struct i40e_vsi *vsi = pf->vsi[pf->lan_vsi];
 	int ret = 0;
 
-	if (!(pf->flags & I40E_FLAG_SERVICE_CLIENT_REQUESTED))
+	if (!test_and_clear_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state))
 		return;
-	pf->flags &= ~I40E_FLAG_SERVICE_CLIENT_REQUESTED;
 	cdev = pf->cinst;
 
 	/* If we're down or resetting, just bail */
@@ -448,7 +434,7 @@ int i40e_lan_add_device(struct i40e_pf *pf)
 	 * added, we can schedule a subtask to go initiate the clients if
 	 * they can be launched at probe time.
 	 */
-	pf->flags |= I40E_FLAG_SERVICE_CLIENT_REQUESTED;
+	set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
 	i40e_service_event_schedule(pf);
 
 out:
@@ -543,7 +529,7 @@ static void i40e_client_prepare(struct i40e_client *client)
 		pf = ldev->pf;
 		i40e_client_add_instance(pf);
 		/* Start the client subtask */
-		pf->flags |= I40E_FLAG_SERVICE_CLIENT_REQUESTED;
+		set_bit(__I40E_CLIENT_SERVICE_REQUESTED, pf->state);
 		i40e_service_event_schedule(pf);
 	}
 	mutex_unlock(&i40e_device_mutex);
@@ -580,7 +566,7 @@ static int i40e_client_virtchnl_send(struct i40e_info *ldev,
  * i40e_client_setup_qvlist
  * @ldev: pointer to L2 context.
  * @client: Client pointer.
- * @qv_info: queue and vector list
+ * @qvlist_info: queue and vector list
  *
  * Return 0 on success or < 0 on error
  **/
@@ -592,11 +578,9 @@ static int i40e_client_setup_qvlist(struct i40e_info *ldev,
 	struct i40e_hw *hw = &pf->hw;
 	struct i40e_qv_info *qv_info;
 	u32 v_idx, i, reg_idx, reg;
-	u32 size;
 
-	size = sizeof(struct i40e_qvlist_info) +
-	       (sizeof(struct i40e_qv_info) * (qvlist_info->num_vectors - 1));
-	ldev->qvlist_info = kzalloc(size, GFP_KERNEL);
+	ldev->qvlist_info = kzalloc(struct_size(ldev->qvlist_info, qv_info,
+				    qvlist_info->num_vectors - 1), GFP_KERNEL);
 	if (!ldev->qvlist_info)
 		return -ENOMEM;
 	ldev->qvlist_info->num_vectors = qvlist_info->num_vectors;
@@ -655,7 +639,7 @@ err:
  * i40e_client_request_reset
  * @ldev: pointer to L2 context.
  * @client: Client pointer.
- * @level: reset level
+ * @reset_level: reset level
  **/
 static void i40e_client_request_reset(struct i40e_info *ldev,
 				      struct i40e_client *client,

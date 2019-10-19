@@ -1,17 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * apds9960.c - Support for Avago APDS9960 gesture/RGB/ALS/proximity sensor
  *
- * Copyright (C) 2015 Matt Ranostay <mranostay@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (C) 2015, 2018
+ * Author: Matt Ranostay <matt.ranostay@konsulko.com>
  *
  * TODO: gesture + proximity calib offsets
  */
@@ -214,7 +206,8 @@ static const struct regmap_config apds9960_regmap_config = {
 	.name = APDS9960_REGMAP_NAME,
 	.reg_bits = 8,
 	.val_bits = 8,
-	.use_single_rw = 1,
+	.use_single_read = true,
+	.use_single_write = true,
 
 	.volatile_table = &apds9960_volatile_table,
 	.precious_table = &apds9960_precious_table,
@@ -1141,6 +1134,6 @@ static struct i2c_driver apds9960_driver = {
 };
 module_i2c_driver(apds9960_driver);
 
-MODULE_AUTHOR("Matt Ranostay <mranostay@gmail.com>");
-MODULE_DESCRIPTION("ADPS9960 Gesture/RGB/ALS/Proximity sensor");
+MODULE_AUTHOR("Matt Ranostay <matt.ranostay@konsulko.com>");
+MODULE_DESCRIPTION("APDS9960 Gesture/RGB/ALS/Proximity sensor");
 MODULE_LICENSE("GPL");

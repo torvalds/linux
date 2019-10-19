@@ -38,41 +38,68 @@
 #include <linux/sched.h>
 #include <linux/if_link.h>
 #include <linux/firmware.h>
+#include <linux/ptp_clock_kernel.h>
+#include <linux/mlx5/cq.h>
+#include <linux/mlx5/fs.h>
+#include <linux/mlx5/driver.h>
 
 #define DRIVER_NAME "mlx5_core"
 #define DRIVER_VERSION "5.0-0"
 
-#define MLX5_TOTAL_VPORTS(mdev) (1 + pci_sriov_get_totalvfs(mdev->pdev))
-#define MLX5_VPORT_MANAGER(mdev) \
-	(MLX5_CAP_GEN(mdev, vport_group_manager) && \
-	(MLX5_CAP_GEN(mdev, port_type) == MLX5_CAP_PORT_TYPE_ETH) && \
-	 mlx5_core_is_pf(mdev))
-
 extern uint mlx5_core_debug_mask;
 
 #define mlx5_core_dbg(__dev, format, ...)				\
-	dev_dbg(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,		\
+	dev_dbg((__dev)->device, "%s:%d:(pid %d): " format,		\
 		 __func__, __LINE__, current->pid,			\
 		 ##__VA_ARGS__)
 
-#define mlx5_core_dbg_mask(__dev, mask, format, ...)			\
-do {									\
-	if ((mask) & mlx5_core_debug_mask)				\
-		mlx5_core_dbg(__dev, format, ##__VA_ARGS__);		\
+#define mlx5_core_dbg_once(__dev, format, ...)		\
+	dev_dbg_once((__dev)->device,		\
+		     "%s:%d:(pid %d): " format,		\
+		     __func__, __LINE__, current->pid,	\
+		     ##__VA_ARGS__)
+
+#define mlx5_core_dbg_mask(__dev, mask, format, ...)		\
+do {								\
+	if ((mask) & mlx5_core_debug_mask)			\
+		mlx5_core_dbg(__dev, format, ##__VA_ARGS__);	\
 } while (0)
 
-#define mlx5_core_err(__dev, format, ...)				\
-	dev_err(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
-		__func__, __LINE__, current->pid,	\
+#define mlx5_core_err(__dev, format, ...)			\
+	dev_err((__dev)->device, "%s:%d:(pid %d): " format,	\
+		__func__, __LINE__, current->pid,		\
 	       ##__VA_ARGS__)
 
-#define mlx5_core_warn(__dev, format, ...)				\
-	dev_warn(&(__dev)->pdev->dev, "%s:%d:(pid %d): " format,	\
-		 __func__, __LINE__, current->pid,			\
-		##__VA_ARGS__)
+#define mlx5_core_err_rl(__dev, format, ...)			\
+	dev_err_ratelimited((__dev)->device,			\
+			    "%s:%d:(pid %d): " format,		\
+			    __func__, __LINE__, current->pid,	\
+			    ##__VA_ARGS__)
 
-#define mlx5_core_info(__dev, format, ...)				\
-	dev_info(&(__dev)->pdev->dev, format, ##__VA_ARGS__)
+#define mlx5_core_warn(__dev, format, ...)			\
+	dev_warn((__dev)->device, "%s:%d:(pid %d): " format,	\
+		 __func__, __LINE__, current->pid,		\
+		 ##__VA_ARGS__)
+
+#define mlx5_core_warn_once(__dev, format, ...)				\
+	dev_warn_once((__dev)->device, "%s:%d:(pid %d): " format,	\
+		      __func__, __LINE__, current->pid,			\
+		      ##__VA_ARGS__)
+
+#define mlx5_core_warn_rl(__dev, format, ...)			\
+	dev_warn_ratelimited((__dev)->device,			\
+			     "%s:%d:(pid %d): " format,		\
+			     __func__, __LINE__, current->pid,	\
+			     ##__VA_ARGS__)
+
+#define mlx5_core_info(__dev, format, ...)		\
+	dev_info((__dev)->device, format, ##__VA_ARGS__)
+
+#define mlx5_core_info_rl(__dev, format, ...)			\
+	dev_info_ratelimited((__dev)->device,			\
+			     "%s:%d:(pid %d): " format,		\
+			     __func__, __LINE__, current->pid,	\
+			     ##__VA_ARGS__)
 
 enum {
 	MLX5_CMD_DATA, /* print command payload only */
@@ -84,18 +111,19 @@ enum {
 	MLX5_DRIVER_SYND = 0xbadd00de,
 };
 
+enum mlx5_semaphore_space_address {
+	MLX5_SEMAPHORE_SPACE_DOMAIN     = 0xA,
+	MLX5_SEMAPHORE_SW_RESET         = 0x20,
+};
+
 int mlx5_query_hca_caps(struct mlx5_core_dev *dev);
 int mlx5_query_board_id(struct mlx5_core_dev *dev);
 int mlx5_cmd_init_hca(struct mlx5_core_dev *dev, uint32_t *sw_owner_id);
 int mlx5_cmd_teardown_hca(struct mlx5_core_dev *dev);
 int mlx5_cmd_force_teardown_hca(struct mlx5_core_dev *dev);
-void mlx5_core_event(struct mlx5_core_dev *dev, enum mlx5_dev_event event,
-		     unsigned long param);
-void mlx5_core_page_fault(struct mlx5_core_dev *dev,
-			  struct mlx5_pagefault *pfault);
-void mlx5_pps_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
-void mlx5_port_module_event(struct mlx5_core_dev *dev, struct mlx5_eqe *eqe);
+int mlx5_cmd_fast_teardown_hca(struct mlx5_core_dev *dev);
 void mlx5_enter_error_state(struct mlx5_core_dev *dev, bool force);
+void mlx5_error_sw_reset(struct mlx5_core_dev *dev);
 void mlx5_disable_device(struct mlx5_core_dev *dev);
 void mlx5_recover_device(struct mlx5_core_dev *dev);
 int mlx5_sriov_init(struct mlx5_core_dev *dev);
@@ -103,7 +131,6 @@ void mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
 int mlx5_sriov_attach(struct mlx5_core_dev *dev);
 void mlx5_sriov_detach(struct mlx5_core_dev *dev);
 int mlx5_core_sriov_configure(struct pci_dev *dev, int num_vfs);
-bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev);
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_create_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
@@ -113,11 +140,14 @@ int mlx5_modify_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 				       u32 modify_bitmask);
 int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 					u32 element_id);
-int mlx5_wait_for_vf_pages(struct mlx5_core_dev *dev);
-u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev);
-struct mlx5_eq *mlx5_eqn2eq(struct mlx5_core_dev *dev, int eqn);
-u32 mlx5_eq_poll_irq_disabled(struct mlx5_eq *eq);
-void mlx5_cq_tasklet_cb(unsigned long data);
+int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages);
+u64 mlx5_read_internal_timer(struct mlx5_core_dev *dev,
+			     struct ptp_system_timestamp *sts);
+
+void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev);
+void mlx5_cmd_flush(struct mlx5_core_dev *dev);
+void mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
+void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
 
 int mlx5_query_pcam_reg(struct mlx5_core_dev *dev, u32 *pcam, u8 feature_group,
 			u8 access_reg_group);
@@ -128,6 +158,24 @@ int mlx5_query_qcam_reg(struct mlx5_core_dev *mdev, u32 *qcam,
 
 void mlx5_lag_add(struct mlx5_core_dev *dev, struct net_device *netdev);
 void mlx5_lag_remove(struct mlx5_core_dev *dev);
+
+int mlx5_irq_table_init(struct mlx5_core_dev *dev);
+void mlx5_irq_table_cleanup(struct mlx5_core_dev *dev);
+int mlx5_irq_table_create(struct mlx5_core_dev *dev);
+void mlx5_irq_table_destroy(struct mlx5_core_dev *dev);
+int mlx5_irq_attach_nb(struct mlx5_irq_table *irq_table, int vecidx,
+		       struct notifier_block *nb);
+int mlx5_irq_detach_nb(struct mlx5_irq_table *irq_table, int vecidx,
+		       struct notifier_block *nb);
+struct cpumask *
+mlx5_irq_get_affinity_mask(struct mlx5_irq_table *irq_table, int vecidx);
+struct cpu_rmap *mlx5_irq_get_rmap(struct mlx5_irq_table *table);
+int mlx5_irq_get_num_comp(struct mlx5_irq_table *table);
+
+int mlx5_events_init(struct mlx5_core_dev *dev);
+void mlx5_events_cleanup(struct mlx5_core_dev *dev);
+void mlx5_events_start(struct mlx5_core_dev *dev);
+void mlx5_events_stop(struct mlx5_core_dev *dev);
 
 void mlx5_add_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
 void mlx5_remove_device(struct mlx5_interface *intf, struct mlx5_priv *priv);
@@ -142,17 +190,6 @@ struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev);
 void mlx5_dev_list_lock(void);
 void mlx5_dev_list_unlock(void);
 int mlx5_dev_list_trylock(void);
-int mlx5_encap_alloc(struct mlx5_core_dev *dev,
-		     int header_type,
-		     size_t size,
-		     void *encap_header,
-		     u32 *encap_id);
-void mlx5_encap_dealloc(struct mlx5_core_dev *dev, u32 encap_id);
-
-int mlx5_modify_header_alloc(struct mlx5_core_dev *dev,
-			     u8 namespace, u8 num_actions,
-			     void *modify_actions, u32 *modify_header_id);
-void mlx5_modify_header_dealloc(struct mlx5_core_dev *dev, u32 modify_header_id);
 
 bool mlx5_lag_intf_add(struct mlx5_interface *intf, struct mlx5_priv *priv);
 
@@ -161,15 +198,26 @@ int mlx5_set_mtpps(struct mlx5_core_dev *mdev, u32 *mtpps, u32 mtpps_size);
 int mlx5_query_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 *arm, u8 *mode);
 int mlx5_set_mtppse(struct mlx5_core_dev *mdev, u8 pin, u8 arm, u8 mode);
 
+struct mlx5_dm *mlx5_dm_create(struct mlx5_core_dev *dev);
+void mlx5_dm_cleanup(struct mlx5_core_dev *dev);
+
 #define MLX5_PPS_CAP(mdev) (MLX5_CAP_GEN((mdev), pps) &&		\
 			    MLX5_CAP_GEN((mdev), pps_modify) &&		\
 			    MLX5_CAP_MCAM_FEATURE((mdev), mtpps_fs) &&	\
 			    MLX5_CAP_MCAM_FEATURE((mdev), mtpps_enh_out_per_adj))
 
-int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw);
+int mlx5_firmware_flash(struct mlx5_core_dev *dev, const struct firmware *fw,
+			struct netlink_ext_ack *extack);
+int mlx5_fw_version_query(struct mlx5_core_dev *dev,
+			  u32 *running_ver, u32 *stored_ver);
 
 void mlx5e_init(void);
 void mlx5e_cleanup(void);
+
+static inline bool mlx5_sriov_is_enabled(struct mlx5_core_dev *dev)
+{
+	return pci_num_vf(dev->pdev) ? true : false;
+}
 
 static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 {
@@ -183,7 +231,16 @@ static inline int mlx5_lag_is_lacp_owner(struct mlx5_core_dev *dev)
 		    MLX5_CAP_GEN(dev, lag_master);
 }
 
-int mlx5_lag_allow(struct mlx5_core_dev *dev);
-int mlx5_lag_forbid(struct mlx5_core_dev *dev);
+void mlx5_reload_interface(struct mlx5_core_dev *mdev, int protocol);
+void mlx5_lag_update(struct mlx5_core_dev *dev);
 
+enum {
+	MLX5_NIC_IFC_FULL		= 0,
+	MLX5_NIC_IFC_DISABLED		= 1,
+	MLX5_NIC_IFC_NO_DRAM_NIC	= 2,
+	MLX5_NIC_IFC_SW_RESET		= 7
+};
+
+u8 mlx5_get_nic_state(struct mlx5_core_dev *dev);
+void mlx5_set_nic_state(struct mlx5_core_dev *dev, u8 state);
 #endif /* __MLX5_CORE_H__ */

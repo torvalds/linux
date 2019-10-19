@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Huawei HiNIC PCI Express Linux driver
  * Copyright(c) 2017 Huawei Technologies Co., Ltd
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
- * for more details.
- *
  */
 
 #include <linux/kernel.h>
@@ -593,10 +584,10 @@ static int alloc_eq_pages(struct hinic_eq *eq)
 	}
 
 	for (pg = 0; pg < eq->num_pages; pg++) {
-		eq->virt_addr[pg] = dma_zalloc_coherent(&pdev->dev,
-							eq->page_size,
-							&eq->dma_addr[pg],
-							GFP_KERNEL);
+		eq->virt_addr[pg] = dma_alloc_coherent(&pdev->dev,
+						       eq->page_size,
+						       &eq->dma_addr[pg],
+						       GFP_KERNEL);
 		if (!eq->virt_addr[pg]) {
 			err = -ENOMEM;
 			goto err_dma_alloc;

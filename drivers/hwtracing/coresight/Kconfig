@@ -1,8 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Coresight configuration
 #
 menuconfig CORESIGHT
 	bool "CoreSight Tracing Support"
+	depends on OF || ACPI
 	select ARM_AMBA
 	select PERF_EVENTS
 	help
@@ -30,6 +32,17 @@ config CORESIGHT_LINK_AND_SINK_TMC
 	  trace router - ETR) or sink (embedded trace FIFO).  The driver
 	  complies with the generic implementation of the component without
 	  special enhancement or added features.
+
+config CORESIGHT_CATU
+	bool "Coresight Address Translation Unit (CATU) driver"
+	depends on CORESIGHT_LINK_AND_SINK_TMC
+	help
+	   Enable support for the Coresight Address Translation Unit (CATU).
+	   CATU supports a scatter gather table of 4K pages, with forward/backward
+	   lookup. CATU helps TMC ETR to use a large physically non-contiguous trace
+	   buffer by translating the addresses used by ETR to the physical address
+	   by looking up the provided table. CATU can also be used in pass-through
+	   mode where the address is not translated.
 
 config CORESIGHT_SINK_TPIU
 	bool "Coresight generic TPIU driver"
@@ -64,19 +77,12 @@ config CORESIGHT_SOURCE_ETM4X
 	bool "CoreSight Embedded Trace Macrocell 4.x driver"
 	depends on ARM64
 	select CORESIGHT_LINKS_AND_SINKS
+	select PID_IN_CONTEXTIDR
 	help
 	  This driver provides support for the ETM4.x tracer module, tracing the
 	  instructions that a processor is executing. This is primarily useful
 	  for instruction level tracing. Depending on the implemented version
 	  data tracing may also be available.
-
-config CORESIGHT_DYNAMIC_REPLICATOR
-	bool "CoreSight Programmable Replicator driver"
-	depends on CORESIGHT_LINKS_AND_SINKS
-	help
-	  This enables support for dynamic CoreSight replicator link driver.
-	  The programmable ATB replicator allows independent filtering of the
-	  trace data based on the traceid.
 
 config CORESIGHT_STM
 	bool "CoreSight System Trace Macrocell driver"
@@ -100,7 +106,7 @@ config CORESIGHT_CPU_DEBUG
 	  can quickly get to know program counter (PC), secure state,
 	  exception level, etc. Before use debugging functionality, platform
 	  needs to ensure the clock domain and power domain are enabled
-	  properly, please refer Documentation/trace/coresight-cpu-debug.txt
+	  properly, please refer Documentation/trace/coresight-cpu-debug.rst
 	  for detailed description and the example for usage.
 
 endif

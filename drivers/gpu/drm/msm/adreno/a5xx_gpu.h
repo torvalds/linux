@@ -1,14 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2016-2017 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 #ifndef __A5XX_GPU_H__
 #define __A5XX_GPU_H__
@@ -48,6 +39,10 @@ struct a5xx_gpu {
 };
 
 #define to_a5xx_gpu(x) container_of(x, struct a5xx_gpu, base)
+
+#ifdef CONFIG_DEBUG_FS
+int a5xx_debugfs_init(struct msm_gpu *gpu, struct drm_minor *minor);
+#endif
 
 /*
  * In order to do lockless preemption we use a simple state machine to progress

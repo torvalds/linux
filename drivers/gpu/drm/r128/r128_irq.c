@@ -30,8 +30,11 @@
  *    Eric Anholt <anholt@FreeBSD.org>
  */
 
-#include <drm/drmP.h>
+#include <drm/drm_device.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 #include <drm/r128_drm.h>
+
 #include "r128_drv.h"
 
 u32 r128_get_vblank_counter(struct drm_device *dev, unsigned int pipe)

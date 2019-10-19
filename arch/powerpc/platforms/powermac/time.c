@@ -34,6 +34,8 @@
 #include <asm/nvram.h>
 #include <asm/smu.h>
 
+#include "pmac.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -41,9 +43,6 @@
 #else
 #define DBG(x...)
 #endif
-
-/* Apparently the RTC stores seconds since 1 Jan 1904 */
-#define RTC_OFFSET	2082844800
 
 /*
  * Calibrate the decrementer frequency with the VIA timer 1.
@@ -69,7 +68,7 @@
 long __init pmac_time_init(void)
 {
 	s32 delta = 0;
-#ifdef CONFIG_NVRAM
+#if defined(CONFIG_NVRAM) && defined(CONFIG_PPC32)
 	int dst;
 	
 	delta = ((s32)pmac_xpram_read(PMAC_XPRAM_MACHINE_LOC + 0x9)) << 16;
@@ -84,136 +83,34 @@ long __init pmac_time_init(void)
 	return delta;
 }
 
-#if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU)
-static void to_rtc_time(unsigned long now, struct rtc_time *tm)
-{
-	to_tm(now, tm);
-	tm->tm_year -= 1900;
-	tm->tm_mon -= 1;
-}
-#endif
-
-#if defined(CONFIG_ADB_CUDA) || defined(CONFIG_ADB_PMU) || \
-    defined(CONFIG_PMAC_SMU)
-static unsigned long from_rtc_time(struct rtc_time *tm)
-{
-	return mktime(tm->tm_year+1900, tm->tm_mon+1, tm->tm_mday,
-		      tm->tm_hour, tm->tm_min, tm->tm_sec);
-}
-#endif
-
-#ifdef CONFIG_ADB_CUDA
-static unsigned long cuda_get_time(void)
-{
-	struct adb_request req;
-	unsigned int now;
-
-	if (cuda_request(&req, NULL, 2, CUDA_PACKET, CUDA_GET_TIME) < 0)
-		return 0;
-	while (!req.complete)
-		cuda_poll();
-	if (req.reply_len != 7)
-		printk(KERN_ERR "cuda_get_time: got %d byte reply\n",
-		       req.reply_len);
-	now = (req.reply[3] << 24) + (req.reply[4] << 16)
-		+ (req.reply[5] << 8) + req.reply[6];
-	return ((unsigned long)now) - RTC_OFFSET;
-}
-
-#define cuda_get_rtc_time(tm)	to_rtc_time(cuda_get_time(), (tm))
-
-static int cuda_set_rtc_time(struct rtc_time *tm)
-{
-	unsigned int nowtime;
-	struct adb_request req;
-
-	nowtime = from_rtc_time(tm) + RTC_OFFSET;
-	if (cuda_request(&req, NULL, 6, CUDA_PACKET, CUDA_SET_TIME,
-			 nowtime >> 24, nowtime >> 16, nowtime >> 8,
-			 nowtime) < 0)
-		return -ENXIO;
-	while (!req.complete)
-		cuda_poll();
-	if ((req.reply_len != 3) && (req.reply_len != 7))
-		printk(KERN_ERR "cuda_set_rtc_time: got %d byte reply\n",
-		       req.reply_len);
-	return 0;
-}
-
-#else
-#define cuda_get_time()		0
-#define cuda_get_rtc_time(tm)
-#define cuda_set_rtc_time(tm)	0
-#endif
-
-#ifdef CONFIG_ADB_PMU
-static unsigned long pmu_get_time(void)
-{
-	struct adb_request req;
-	unsigned int now;
-
-	if (pmu_request(&req, NULL, 1, PMU_READ_RTC) < 0)
-		return 0;
-	pmu_wait_complete(&req);
-	if (req.reply_len != 4)
-		printk(KERN_ERR "pmu_get_time: got %d byte reply from PMU\n",
-		       req.reply_len);
-	now = (req.reply[0] << 24) + (req.reply[1] << 16)
-		+ (req.reply[2] << 8) + req.reply[3];
-	return ((unsigned long)now) - RTC_OFFSET;
-}
-
-#define pmu_get_rtc_time(tm)	to_rtc_time(pmu_get_time(), (tm))
-
-static int pmu_set_rtc_time(struct rtc_time *tm)
-{
-	unsigned int nowtime;
-	struct adb_request req;
-
-	nowtime = from_rtc_time(tm) + RTC_OFFSET;
-	if (pmu_request(&req, NULL, 5, PMU_SET_RTC, nowtime >> 24,
-			nowtime >> 16, nowtime >> 8, nowtime) < 0)
-		return -ENXIO;
-	pmu_wait_complete(&req);
-	if (req.reply_len != 0)
-		printk(KERN_ERR "pmu_set_rtc_time: %d byte reply from PMU\n",
-		       req.reply_len);
-	return 0;
-}
-
-#else
-#define pmu_get_time()		0
-#define pmu_get_rtc_time(tm)
-#define pmu_set_rtc_time(tm)	0
-#endif
-
 #ifdef CONFIG_PMAC_SMU
-static unsigned long smu_get_time(void)
+static time64_t smu_get_time(void)
 {
 	struct rtc_time tm;
 
 	if (smu_get_rtc_time(&tm, 1))
 		return 0;
-	return from_rtc_time(&tm);
+	return rtc_tm_to_time64(&tm);
 }
-
-#else
-#define smu_get_time()			0
-#define smu_get_rtc_time(tm, spin)
-#define smu_set_rtc_time(tm, spin)	0
 #endif
 
 /* Can't be __init, it's called when suspending and resuming */
-unsigned long pmac_get_boot_time(void)
+time64_t pmac_get_boot_time(void)
 {
 	/* Get the time from the RTC, used only at boot time */
 	switch (sys_ctrler) {
+#ifdef CONFIG_ADB_CUDA
 	case SYS_CTRLER_CUDA:
 		return cuda_get_time();
+#endif
+#ifdef CONFIG_ADB_PMU
 	case SYS_CTRLER_PMU:
 		return pmu_get_time();
+#endif
+#ifdef CONFIG_PMAC_SMU
 	case SYS_CTRLER_SMU:
 		return smu_get_time();
+#endif
 	default:
 		return 0;
 	}
@@ -223,15 +120,21 @@ void pmac_get_rtc_time(struct rtc_time *tm)
 {
 	/* Get the time from the RTC, used only at boot time */
 	switch (sys_ctrler) {
+#ifdef CONFIG_ADB_CUDA
 	case SYS_CTRLER_CUDA:
-		cuda_get_rtc_time(tm);
+		rtc_time64_to_tm(cuda_get_time(), tm);
 		break;
+#endif
+#ifdef CONFIG_ADB_PMU
 	case SYS_CTRLER_PMU:
-		pmu_get_rtc_time(tm);
+		rtc_time64_to_tm(pmu_get_time(), tm);
 		break;
+#endif
+#ifdef CONFIG_PMAC_SMU
 	case SYS_CTRLER_SMU:
 		smu_get_rtc_time(tm, 1);
 		break;
+#endif
 	default:
 		;
 	}
@@ -240,12 +143,18 @@ void pmac_get_rtc_time(struct rtc_time *tm)
 int pmac_set_rtc_time(struct rtc_time *tm)
 {
 	switch (sys_ctrler) {
+#ifdef CONFIG_ADB_CUDA
 	case SYS_CTRLER_CUDA:
 		return cuda_set_rtc_time(tm);
+#endif
+#ifdef CONFIG_ADB_PMU
 	case SYS_CTRLER_PMU:
 		return pmu_set_rtc_time(tm);
+#endif
+#ifdef CONFIG_PMAC_SMU
 	case SYS_CTRLER_SMU:
 		return smu_set_rtc_time(tm, 1);
+#endif
 	default:
 		return -ENODEV;
 	}
@@ -256,7 +165,7 @@ int pmac_set_rtc_time(struct rtc_time *tm)
  * Calibrate the decrementer register using VIA timer 1.
  * This is used both on powermacs and CHRP machines.
  */
-int __init via_calibrate_decr(void)
+static int __init via_calibrate_decr(void)
 {
 	struct device_node *vias;
 	volatile unsigned char __iomem *via;

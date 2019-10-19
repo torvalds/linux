@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0
 #include <linux/types.h>
+#include "../../../../arch/x86/include/asm/insn.h"
+#include <string.h>
 
 #include "debug.h"
 #include "tests/tests.h"
 #include "arch-tests.h"
 
-#include "intel-pt-decoder/insn.h"
 #include "intel-pt-decoder/intel-pt-insn-decoder.h"
 
 struct test_data {
@@ -170,7 +171,7 @@ static int test_data_set(struct test_data *dat_set, int x86_64)
  *
  * If the test passes %0 is returned, otherwise %-1 is returned.  Use the
  * verbose (-v) option to see all the instructions and whether or not they
- * decoded successfuly.
+ * decoded successfully.
  */
 int test__insn_x86(struct test *test __maybe_unused, int subtest __maybe_unused)
 {

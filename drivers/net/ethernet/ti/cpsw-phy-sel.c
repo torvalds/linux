@@ -1,17 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /* Texas Instruments Ethernet Switch Driver
  *
  * Copyright (C) 2013 Texas Instruments
  *
  * Module Author: Mugunthan V N <mugunthanvnm@ti.com>
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed "as is" WITHOUT ANY WARRANTY of any
- * kind, whether express or implied; without even the implied warranty
- * of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/platform_device.h>
@@ -78,7 +71,7 @@ static void cpsw_gmii_sel_am3352(struct cpsw_phy_sel_priv *priv,
 	case PHY_INTERFACE_MODE_MII:
 		mode = AM33XX_GMII_SEL_MODE_MII;
 		break;
-	};
+	}
 
 	mask = GMII_SEL_MODE_MASK << (slave * 2) | BIT(slave + 6);
 	mask |= BIT(slave + 4);
@@ -133,7 +126,7 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 	case PHY_INTERFACE_MODE_MII:
 		mode = AM33XX_GMII_SEL_MODE_MII;
 		break;
-	};
+	}
 
 	switch (slave) {
 	case 0:
@@ -158,9 +151,9 @@ static void cpsw_gmii_sel_dra7xx(struct cpsw_phy_sel_priv *priv,
 }
 
 static struct platform_driver cpsw_phy_sel_driver;
-static int match(struct device *dev, void *data)
+static int match(struct device *dev, const void *data)
 {
-	struct device_node *node = (struct device_node *)data;
+	const struct device_node *node = (const struct device_node *)data;
 	return dev->of_node == node &&
 		dev->driver == &cpsw_phy_sel_driver.driver;
 }
@@ -170,19 +163,28 @@ void cpsw_phy_sel(struct device *dev, phy_interface_t phy_mode, int slave)
 	struct device_node *node;
 	struct cpsw_phy_sel_priv *priv;
 
-	node = of_get_child_by_name(dev->of_node, "cpsw-phy-sel");
+	node = of_parse_phandle(dev->of_node, "cpsw-phy-sel", 0);
 	if (!node) {
-		dev_err(dev, "Phy mode driver DT not found\n");
-		return;
+		node = of_get_child_by_name(dev->of_node, "cpsw-phy-sel");
+		if (!node) {
+			dev_err(dev, "Phy mode driver DT not found\n");
+			return;
+		}
 	}
 
 	dev = bus_find_device(&platform_bus_type, NULL, node, match);
-	of_node_put(node);
+	if (!dev) {
+		dev_err(dev, "unable to find platform device for %pOF\n", node);
+		goto out;
+	}
+
 	priv = dev_get_drvdata(dev);
 
 	priv->cpsw_phy_sel(priv, phy_mode, slave);
 
 	put_device(dev);
+out:
+	of_node_put(node);
 }
 EXPORT_SYMBOL_GPL(cpsw_phy_sel);
 

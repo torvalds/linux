@@ -1,16 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_OMAP2_VOUT_VRFB
 	bool
+	default y
+	depends on VIDEO_OMAP2_VOUT && (OMAP2_VRFB || COMPILE_TEST)
 
 config VIDEO_OMAP2_VOUT
 	tristate "OMAP2/OMAP3 V4L2-Display driver"
 	depends on MMU
-	depends on ARCH_OMAP2 || ARCH_OMAP3
-	depends on FB_OMAP2
-	select VIDEOBUF_GEN
-	select VIDEOBUF_DMA_CONTIG
+	depends on FB_OMAP2 || (COMPILE_TEST && FB_OMAP2=n)
+	depends on ARCH_OMAP2 || ARCH_OMAP3 || COMPILE_TEST
+	depends on VIDEO_V4L2
+	select VIDEOBUF2_DMA_CONTIG
 	select OMAP2_VRFB if ARCH_OMAP2 || ARCH_OMAP3
-	select VIDEO_OMAP2_VOUT_VRFB if VIDEO_OMAP2_VOUT && OMAP2_VRFB
 	select FRAME_VECTOR
-	default n
-	---help---
+	help
 	  V4L2 Display driver support for OMAP2/3 based boards.

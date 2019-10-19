@@ -1,24 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *
  *  Bluetooth support for Broadcom devices
  *
  *  Copyright (C) 2015  Intel Corporation
- *
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
  */
 
 #include <linux/module.h>
@@ -33,8 +18,13 @@
 #define VERSION "0.1"
 
 #define BDADDR_BCM20702A0 (&(bdaddr_t) {{0x00, 0xa0, 0x02, 0x70, 0x20, 0x00}})
+#define BDADDR_BCM20702A1 (&(bdaddr_t) {{0x00, 0x00, 0xa0, 0x02, 0x70, 0x20}})
+#define BDADDR_BCM2076B1 (&(bdaddr_t) {{0x79, 0x56, 0x00, 0xa0, 0x76, 0x20}})
+#define BDADDR_BCM43430A0 (&(bdaddr_t) {{0xac, 0x1f, 0x12, 0xa0, 0x43, 0x43}})
 #define BDADDR_BCM4324B3 (&(bdaddr_t) {{0x00, 0x00, 0x00, 0xb3, 0x24, 0x43}})
 #define BDADDR_BCM4330B1 (&(bdaddr_t) {{0x00, 0x00, 0x00, 0xb1, 0x30, 0x43}})
+#define BDADDR_BCM4345C5 (&(bdaddr_t) {{0xac, 0x1f, 0x00, 0xc5, 0x45, 0x43}})
+#define BDADDR_BCM43341B (&(bdaddr_t) {{0xac, 0x1f, 0x00, 0x1b, 0x34, 0x43}})
 
 int btbcm_check_bdaddr(struct hci_dev *hdev)
 {
@@ -64,15 +54,29 @@ int btbcm_check_bdaddr(struct hci_dev *hdev)
 	 * The address 00:20:70:02:A0:00 indicates a BCM20702A0 controller
 	 * with no configured address.
 	 *
+	 * The address 20:70:02:A0:00:00 indicates a BCM20702A1 controller
+	 * with no configured address.
+	 *
+	 * The address 20:76:A0:00:56:79 indicates a BCM2076B1 controller
+	 * with no configured address.
+	 *
 	 * The address 43:24:B3:00:00:00 indicates a BCM4324B3 controller
 	 * with waiting for configuration state.
 	 *
 	 * The address 43:30:B1:00:00:00 indicates a BCM4330B1 controller
 	 * with waiting for configuration state.
+	 *
+	 * The address 43:43:A0:12:1F:AC indicates a BCM43430A0 controller
+	 * with no configured address.
 	 */
 	if (!bacmp(&bda->bdaddr, BDADDR_BCM20702A0) ||
+	    !bacmp(&bda->bdaddr, BDADDR_BCM20702A1) ||
+	    !bacmp(&bda->bdaddr, BDADDR_BCM2076B1) ||
 	    !bacmp(&bda->bdaddr, BDADDR_BCM4324B3) ||
-	    !bacmp(&bda->bdaddr, BDADDR_BCM4330B1)) {
+	    !bacmp(&bda->bdaddr, BDADDR_BCM4330B1) ||
+	    !bacmp(&bda->bdaddr, BDADDR_BCM4345C5) ||
+	    !bacmp(&bda->bdaddr, BDADDR_BCM43430A0) ||
+	    !bacmp(&bda->bdaddr, BDADDR_BCM43341B)) {
 		bt_dev_info(hdev, "BCM: Using default device address (%pMR)",
 			    &bda->bdaddr);
 		set_bit(HCI_QUIRK_INVALID_BDADDR, &hdev->quirks);
@@ -315,113 +319,30 @@ static int btbcm_read_info(struct hci_dev *hdev)
 	return 0;
 }
 
-static const struct {
+struct bcm_subver_table {
 	u16 subver;
 	const char *name;
-} bcm_uart_subver_table[] = {
+};
+
+static const struct bcm_subver_table bcm_uart_subver_table[] = {
 	{ 0x4103, "BCM4330B1"	},	/* 002.001.003 */
 	{ 0x410e, "BCM43341B0"	},	/* 002.001.014 */
+	{ 0x4204, "BCM2076B1"	},	/* 002.002.004 */
 	{ 0x4406, "BCM4324B3"	},	/* 002.004.006 */
+	{ 0x6109, "BCM4335C0"	},	/* 003.001.009 */
 	{ 0x610c, "BCM4354"	},	/* 003.001.012 */
 	{ 0x2122, "BCM4343A0"	},	/* 001.001.034 */
 	{ 0x2209, "BCM43430A1"  },	/* 001.002.009 */
 	{ 0x6119, "BCM4345C0"	},	/* 003.001.025 */
+	{ 0x6606, "BCM4345C5"	},	/* 003.006.006 */
 	{ 0x230f, "BCM4356A2"	},	/* 001.003.015 */
+	{ 0x220e, "BCM20702A1"  },	/* 001.002.014 */
+	{ 0x4217, "BCM4329B1"   },	/* 002.002.023 */
+	{ 0x6106, "BCM4359C0"	},	/* 003.001.006 */
 	{ }
 };
 
-int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len)
-{
-	u16 subver, rev;
-	const char *hw_name = NULL;
-	struct sk_buff *skb;
-	struct hci_rp_read_local_version *ver;
-	int i, err;
-
-	/* Reset */
-	err = btbcm_reset(hdev);
-	if (err)
-		return err;
-
-	/* Read Local Version Info */
-	skb = btbcm_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	ver = (struct hci_rp_read_local_version *)skb->data;
-	rev = le16_to_cpu(ver->hci_rev);
-	subver = le16_to_cpu(ver->lmp_subver);
-	kfree_skb(skb);
-
-	/* Read controller information */
-	err = btbcm_read_info(hdev);
-	if (err)
-		return err;
-
-	switch ((rev & 0xf000) >> 12) {
-	case 0:
-	case 1:
-	case 2:
-	case 3:
-		for (i = 0; bcm_uart_subver_table[i].name; i++) {
-			if (subver == bcm_uart_subver_table[i].subver) {
-				hw_name = bcm_uart_subver_table[i].name;
-				break;
-			}
-		}
-
-		snprintf(fw_name, len, "brcm/%s.hcd", hw_name ? : "BCM");
-		break;
-	default:
-		return 0;
-	}
-
-	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name ? : "BCM", (subver & 0xe000) >> 13,
-		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(btbcm_initialize);
-
-int btbcm_finalize(struct hci_dev *hdev)
-{
-	struct sk_buff *skb;
-	struct hci_rp_read_local_version *ver;
-	u16 subver, rev;
-	int err;
-
-	/* Reset */
-	err = btbcm_reset(hdev);
-	if (err)
-		return err;
-
-	/* Read Local Version Info */
-	skb = btbcm_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	ver = (struct hci_rp_read_local_version *)skb->data;
-	rev = le16_to_cpu(ver->hci_rev);
-	subver = le16_to_cpu(ver->lmp_subver);
-	kfree_skb(skb);
-
-	bt_dev_info(hdev, "BCM (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    (subver & 0xe000) >> 13, (subver & 0x1f00) >> 8,
-		    (subver & 0x00ff), rev & 0x0fff);
-
-	btbcm_check_bdaddr(hdev);
-
-	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(btbcm_finalize);
-
-static const struct {
-	u16 subver;
-	const char *name;
-} bcm_usb_subver_table[] = {
+static const struct bcm_subver_table bcm_usb_subver_table[] = {
 	{ 0x210b, "BCM43142A0"	},	/* 001.001.011 */
 	{ 0x2112, "BCM4314A0"	},	/* 001.001.018 */
 	{ 0x2118, "BCM20702A0"	},	/* 001.001.024 */
@@ -435,14 +356,14 @@ static const struct {
 	{ }
 };
 
-int btbcm_setup_patchram(struct hci_dev *hdev)
+int btbcm_initialize(struct hci_dev *hdev, char *fw_name, size_t len,
+		     bool reinit)
 {
-	char fw_name[64];
-	const struct firmware *fw;
 	u16 subver, rev, pid, vid;
-	const char *hw_name = NULL;
+	const char *hw_name = "BCM";
 	struct sk_buff *skb;
 	struct hci_rp_read_local_version *ver;
+	const struct bcm_subver_table *bcm_subver_table;
 	int i, err;
 
 	/* Reset */
@@ -461,25 +382,27 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 	kfree_skb(skb);
 
 	/* Read controller information */
-	err = btbcm_read_info(hdev);
-	if (err)
-		return err;
+	if (!reinit) {
+		err = btbcm_read_info(hdev);
+		if (err)
+			return err;
+	}
 
-	switch ((rev & 0xf000) >> 12) {
-	case 0:
-	case 3:
-		for (i = 0; bcm_uart_subver_table[i].name; i++) {
-			if (subver == bcm_uart_subver_table[i].subver) {
-				hw_name = bcm_uart_subver_table[i].name;
-				break;
-			}
+	/* Upper nibble of rev should be between 0 and 3? */
+	if (((rev & 0xf000) >> 12) > 3)
+		return 0;
+
+	bcm_subver_table = (hdev->bus == HCI_USB) ? bcm_usb_subver_table :
+						    bcm_uart_subver_table;
+
+	for (i = 0; bcm_subver_table[i].name; i++) {
+		if (subver == bcm_subver_table[i].subver) {
+			hw_name = bcm_subver_table[i].name;
+			break;
 		}
+	}
 
-		snprintf(fw_name, sizeof(fw_name), "brcm/%s.hcd",
-			 hw_name ? : "BCM");
-		break;
-	case 1:
-	case 2:
+	if (hdev->bus == HCI_USB) {
 		/* Read USB Product Info */
 		skb = btbcm_read_usb_product(hdev);
 		if (IS_ERR(skb))
@@ -489,23 +412,49 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 		pid = get_unaligned_le16(skb->data + 3);
 		kfree_skb(skb);
 
-		for (i = 0; bcm_usb_subver_table[i].name; i++) {
-			if (subver == bcm_usb_subver_table[i].subver) {
-				hw_name = bcm_usb_subver_table[i].name;
-				break;
-			}
-		}
-
-		snprintf(fw_name, sizeof(fw_name), "brcm/%s-%4.4x-%4.4x.hcd",
-			 hw_name ? : "BCM", vid, pid);
-		break;
-	default:
-		return 0;
+		snprintf(fw_name, len, "brcm/%s-%4.4x-%4.4x.hcd",
+			 hw_name, vid, pid);
+	} else {
+		snprintf(fw_name, len, "brcm/%s.hcd", hw_name);
 	}
 
 	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name ? : "BCM", (subver & 0xe000) >> 13,
+		    hw_name, (subver & 0xe000) >> 13,
 		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btbcm_initialize);
+
+int btbcm_finalize(struct hci_dev *hdev)
+{
+	char fw_name[64];
+	int err;
+
+	/* Re-initialize */
+	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
+	if (err)
+		return err;
+
+	btbcm_check_bdaddr(hdev);
+
+	set_bit(HCI_QUIRK_STRICT_DUPLICATE_FILTER, &hdev->quirks);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(btbcm_finalize);
+
+int btbcm_setup_patchram(struct hci_dev *hdev)
+{
+	char fw_name[64];
+	const struct firmware *fw;
+	struct sk_buff *skb;
+	int err;
+
+	/* Initialize */
+	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), false);
+	if (err)
+		return err;
 
 	err = request_firmware(&fw, fw_name, &hdev->dev);
 	if (err < 0) {
@@ -517,24 +466,10 @@ int btbcm_setup_patchram(struct hci_dev *hdev)
 
 	release_firmware(fw);
 
-	/* Reset */
-	err = btbcm_reset(hdev);
+	/* Re-initialize */
+	err = btbcm_initialize(hdev, fw_name, sizeof(fw_name), true);
 	if (err)
 		return err;
-
-	/* Read Local Version Info */
-	skb = btbcm_read_local_version(hdev);
-	if (IS_ERR(skb))
-		return PTR_ERR(skb);
-
-	ver = (struct hci_rp_read_local_version *)skb->data;
-	rev = le16_to_cpu(ver->hci_rev);
-	subver = le16_to_cpu(ver->lmp_subver);
-	kfree_skb(skb);
-
-	bt_dev_info(hdev, "%s (%3.3u.%3.3u.%3.3u) build %4.4u",
-		    hw_name ? : "BCM", (subver & 0xe000) >> 13,
-		    (subver & 0x1f00) >> 8, (subver & 0x00ff), rev & 0x0fff);
 
 	/* Read Local Name */
 	skb = btbcm_read_local_name(hdev);

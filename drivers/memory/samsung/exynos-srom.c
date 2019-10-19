@@ -1,14 +1,10 @@
-/*
- * Copyright (c) 2015 Samsung Electronics Co., Ltd.
- *	      http://www.samsung.com/
- *
- * EXYNOS - SROM Controller support
- * Author: Pankaj Dubey <pankaj.dubey@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0
+//
+// Copyright (c) 2015 Samsung Electronics Co., Ltd.
+//	      http://www.samsung.com/
+//
+// EXYNOS - SROM Controller support
+// Author: Pankaj Dubey <pankaj.dubey@samsung.com>
 
 #include <linux/io.h>
 #include <linux/init.h>
@@ -143,8 +139,8 @@ static int exynos_srom_probe(struct platform_device *pdev)
 	for_each_child_of_node(np, child) {
 		if (exynos_srom_configure_bank(srom, child)) {
 			dev_err(dev,
-				"Could not decode bank configuration for %s\n",
-				child->name);
+				"Could not decode bank configuration for %pOFn\n",
+				child);
 			bad_bank_config = true;
 		}
 	}

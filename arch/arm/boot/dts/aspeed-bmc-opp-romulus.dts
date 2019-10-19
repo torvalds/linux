@@ -21,14 +21,33 @@
 		#size-cells = <1>;
 		ranges;
 
-		vga_memory: framebuffer@bf000000 {
+		vga_memory: framebuffer@9f000000 {
 			no-map;
-			reg = <0xbf000000 0x01000000>; /* 16M */
+			reg = <0x9f000000 0x01000000>; /* 16M */
 		};
 
 		flash_memory: region@98000000 {
 			no-map;
 			reg = <0x98000000 0x04000000>; /* 64M */
+		};
+
+		coldfire_memory: codefire_memory@9ef00000 {
+			reg = <0x9ef00000 0x00100000>;
+			no-map;
+		};
+
+		gfx_memory: framebuffer {
+			size = <0x01000000>;
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
+		};
+
+		video_engine_memory: jpegbuffer {
+			size = <0x02000000>;	/* 32M */
+			alignment = <0x01000000>;
+			compatible = "shared-dma-pool";
+			reusable;
 		};
 	};
 
@@ -49,9 +68,14 @@
 	};
 
 	fsi: gpio-fsi {
-		compatible = "fsi-master-gpio", "fsi-master";
+		compatible = "aspeed,ast2500-cf-fsi-master", "fsi-master";
 		#address-cells = <2>;
 		#size-cells = <0>;
+		no-gpio-delays;
+
+		memory-region = <&coldfire_memory>;
+		aspeed,sram = <&sram>;
+		aspeed,cvic = <&cvic>;
 
 		clock-gpios = <&gpio ASPEED_GPIO(AA, 0) GPIO_ACTIVE_HIGH>;
 		data-gpios = <&gpio ASPEED_GPIO(AA, 2) GPIO_ACTIVE_HIGH>;
@@ -68,6 +92,17 @@
 			gpios = <&gpio ASPEED_GPIO(J, 2) GPIO_ACTIVE_LOW>;
 			linux,code = <ASPEED_GPIO(J, 2)>;
 		};
+
+		id-button {
+			label = "id-button";
+			gpios = <&gpio ASPEED_GPIO(Q, 7) GPIO_ACTIVE_LOW>;
+			linux,code = <ASPEED_GPIO(Q, 7)>;
+		};
+	};
+
+	iio-hwmon-battery {
+		compatible = "iio-hwmon";
+		io-channels = <&adc 12>;
 	};
 };
 
@@ -184,9 +219,9 @@
 &i2c12 {
 	status = "okay";
 
-	max31785@52 {
-		compatible = "maxim,max31785";
-		reg = <0x52>;
+	w83773g@4c {
+		compatible = "nuvoton,w83773g";
+		reg = <0x4c>;
 	};
 };
 
@@ -203,6 +238,12 @@
 		output-low;
 		line-name = "nic_func_mode1";
 	};
+	seq_cont {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(S, 7) GPIO_ACTIVE_HIGH>;
+		output-low;
+		line-name = "seq_cont";
+	};
 };
 
 &vuart {
@@ -211,6 +252,7 @@
 
 &gfx {
 	status = "okay";
+	memory-region = <&gfx_memory>;
 };
 
 &pinctrl {
@@ -257,3 +299,22 @@
 		aspeed,fan-tach-ch = /bits/ 8 <0x0e>;
 	};
 };
+
+&ibt {
+	status = "okay";
+};
+
+&vhub {
+	status = "okay";
+};
+
+&adc {
+	status = "okay";
+};
+
+&video {
+	status = "okay";
+	memory-region = <&video_engine_memory>;
+};
+
+#include "ibm-power9-dual.dtsi"

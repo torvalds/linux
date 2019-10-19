@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2001,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_fs.h"
 #include "xfs_log_format.h"
@@ -61,6 +50,9 @@ static unsigned int xfs_errortag_random_default[] = {
 	XFS_RANDOM_LOG_BAD_CRC,
 	XFS_RANDOM_LOG_ITEM_PIN,
 	XFS_RANDOM_BUF_LRU_REF,
+	XFS_RANDOM_FORCE_SCRUB_REPAIR,
+	XFS_RANDOM_FORCE_SUMMARY_RECALC,
+	XFS_RANDOM_IUNLINK_FALLBACK,
 };
 
 struct xfs_errortag_attr {
@@ -167,6 +159,9 @@ XFS_ERRORTAG_ATTR_RW(drop_writes,	XFS_ERRTAG_DROP_WRITES);
 XFS_ERRORTAG_ATTR_RW(log_bad_crc,	XFS_ERRTAG_LOG_BAD_CRC);
 XFS_ERRORTAG_ATTR_RW(log_item_pin,	XFS_ERRTAG_LOG_ITEM_PIN);
 XFS_ERRORTAG_ATTR_RW(buf_lru_ref,	XFS_ERRTAG_BUF_LRU_REF);
+XFS_ERRORTAG_ATTR_RW(force_repair,	XFS_ERRTAG_FORCE_SCRUB_REPAIR);
+XFS_ERRORTAG_ATTR_RW(bad_summary,	XFS_ERRTAG_FORCE_SUMMARY_RECALC);
+XFS_ERRORTAG_ATTR_RW(iunlink_fallback,	XFS_ERRTAG_IUNLINK_FALLBACK);
 
 static struct attribute *xfs_errortag_attrs[] = {
 	XFS_ERRORTAG_ATTR_LIST(noerror),
@@ -201,6 +196,9 @@ static struct attribute *xfs_errortag_attrs[] = {
 	XFS_ERRORTAG_ATTR_LIST(log_bad_crc),
 	XFS_ERRORTAG_ATTR_LIST(log_item_pin),
 	XFS_ERRORTAG_ATTR_LIST(buf_lru_ref),
+	XFS_ERRORTAG_ATTR_LIST(force_repair),
+	XFS_ERRORTAG_ATTR_LIST(bad_summary),
+	XFS_ERRORTAG_ATTR_LIST(iunlink_fallback),
 	NULL,
 };
 
@@ -215,7 +213,7 @@ xfs_errortag_init(
 	struct xfs_mount	*mp)
 {
 	mp->m_errortag = kmem_zalloc(sizeof(unsigned int) * XFS_ERRTAG_MAX,
-			KM_SLEEP | KM_MAYFAIL);
+			KM_MAYFAIL);
 	if (!mp->m_errortag)
 		return -ENOMEM;
 
@@ -331,15 +329,54 @@ xfs_corruption_error(
 	const char		*tag,
 	int			level,
 	struct xfs_mount	*mp,
-	void			*p,
+	void			*buf,
+	size_t			bufsize,
 	const char		*filename,
 	int			linenum,
 	xfs_failaddr_t		failaddr)
 {
 	if (level <= xfs_error_level)
-		xfs_hex_dump(p, XFS_CORRUPTION_DUMP_LEN);
+		xfs_hex_dump(buf, bufsize);
 	xfs_error_report(tag, level, mp, filename, linenum, failaddr);
 	xfs_alert(mp, "Corruption detected. Unmount and run xfs_repair");
+}
+
+/*
+ * Warnings specifically for verifier errors.  Differentiate CRC vs. invalid
+ * values, and omit the stack trace unless the error level is tuned high.
+ */
+void
+xfs_buf_verifier_error(
+	struct xfs_buf		*bp,
+	int			error,
+	const char		*name,
+	void			*buf,
+	size_t			bufsz,
+	xfs_failaddr_t		failaddr)
+{
+	struct xfs_mount	*mp = bp->b_mount;
+	xfs_failaddr_t		fa;
+	int			sz;
+
+	fa = failaddr ? failaddr : __return_address;
+	__xfs_buf_ioerror(bp, error, fa);
+
+	xfs_alert_tag(mp, XFS_PTAG_VERIFIER_ERROR,
+		  "Metadata %s detected at %pS, %s block 0x%llx %s",
+		  bp->b_error == -EFSBADCRC ? "CRC error" : "corruption",
+		  fa, bp->b_ops->name, bp->b_bn, name);
+
+	xfs_alert(mp, "Unmount and run xfs_repair");
+
+	if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
+		sz = min_t(size_t, XFS_CORRUPTION_DUMP_LEN, bufsz);
+		xfs_alert(mp, "First %d bytes of corrupted metadata buffer:",
+				sz);
+		xfs_hex_dump(buf, sz);
+	}
+
+	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)
+		xfs_stack_trace();
 }
 
 /*
@@ -352,26 +389,8 @@ xfs_verifier_error(
 	int			error,
 	xfs_failaddr_t		failaddr)
 {
-	struct xfs_mount	*mp = bp->b_target->bt_mount;
-	xfs_failaddr_t		fa;
-
-	fa = failaddr ? failaddr : __return_address;
-	__xfs_buf_ioerror(bp, error, fa);
-
-	xfs_alert(mp, "Metadata %s detected at %pS, %s block 0x%llx",
-		  bp->b_error == -EFSBADCRC ? "CRC error" : "corruption",
-		  fa, bp->b_ops->name, bp->b_bn);
-
-	xfs_alert(mp, "Unmount and run xfs_repair");
-
-	if (xfs_error_level >= XFS_ERRLEVEL_LOW) {
-		xfs_alert(mp, "First %d bytes of corrupted metadata buffer:",
-				XFS_CORRUPTION_DUMP_LEN);
-		xfs_hex_dump(xfs_buf_offset(bp, 0), XFS_CORRUPTION_DUMP_LEN);
-	}
-
-	if (xfs_error_level >= XFS_ERRLEVEL_HIGH)
-		xfs_stack_trace();
+	return xfs_buf_verifier_error(bp, error, "", xfs_buf_offset(bp, 0),
+			XFS_CORRUPTION_DUMP_LEN, failaddr);
 }
 
 /*

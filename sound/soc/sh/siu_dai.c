@@ -1,23 +1,9 @@
-/*
- * siu_dai.c - ALSA SoC driver for Renesas SH7343, SH7722 SIU peripheral.
- *
- * Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// siu_dai.c - ALSA SoC driver for Renesas SH7343, SH7722 SIU peripheral.
+//
+// Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+// Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
 
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -727,10 +713,6 @@ static struct snd_soc_dai_driver siu_i2s_dai = {
 	.ops = &siu_dai_ops,
 };
 
-static const struct snd_soc_component_driver siu_i2s_component = {
-	.name		= "siu-i2s",
-};
-
 static int siu_probe(struct platform_device *pdev)
 {
 	const struct firmware *fw_entry;
@@ -786,12 +768,8 @@ static int siu_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, info);
 
 	/* register using ARRAY version so we can keep dai name */
-	ret = devm_snd_soc_register_component(&pdev->dev, &siu_i2s_component,
+	ret = devm_snd_soc_register_component(&pdev->dev, &siu_component,
 					      &siu_i2s_dai, 1);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_snd_soc_register_platform(&pdev->dev, &siu_platform);
 	if (ret < 0)
 		return ret;
 

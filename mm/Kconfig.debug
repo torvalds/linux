@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config PAGE_EXTENSION
 	bool "Extend memmap on extra space for more information on page"
 	---help---
@@ -11,19 +12,25 @@ config DEBUG_PAGEALLOC
 	bool "Debug page memory allocations"
 	depends on DEBUG_KERNEL
 	depends on !HIBERNATION || ARCH_SUPPORTS_DEBUG_PAGEALLOC && !PPC && !SPARC
-	select PAGE_EXTENSION
 	select PAGE_POISONING if !ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	---help---
 	  Unmap pages from the kernel linear mapping after free_pages().
 	  Depending on runtime enablement, this results in a small or large
 	  slowdown, but helps to find certain types of memory corruption.
 
+	  Also, the state of page tracking structures is checked more often as
+	  pages are being allocated and freed, as unexpected state changes
+	  often happen for same reasons as memory corruption (e.g. double free,
+	  use-after-free). The error reports for these checks can be augmented
+	  with stack traces of last allocation and freeing of the page, when
+	  PAGE_OWNER is also selected and enabled on boot.
+
 	  For architectures which don't enable ARCH_SUPPORTS_DEBUG_PAGEALLOC,
 	  fill the pages with poison patterns after free_pages() and verify
-	  the patterns before alloc_pages().  Additionally,
-	  this option cannot be enabled in combination with hibernation as
-	  that would result in incorrect warnings of memory corruption after
-	  a resume because free pages are not saved to the suspend image.
+	  the patterns before alloc_pages(). Additionally, this option cannot
+	  be enabled in combination with hibernation as that would result in
+	  incorrect warnings of memory corruption after a resume because free
+	  pages are not saved to the suspend image.
 
 	  By default this option will have a small overhead, e.g. by not
 	  allowing the kernel mapping to be backed by large pages on some
@@ -33,11 +40,27 @@ config DEBUG_PAGEALLOC
 
 config DEBUG_PAGEALLOC_ENABLE_DEFAULT
 	bool "Enable debug page memory allocations by default?"
-	default n
 	depends on DEBUG_PAGEALLOC
 	---help---
 	  Enable debug page memory allocations by default? This value
 	  can be overridden by debug_pagealloc=off|on.
+
+config PAGE_OWNER
+	bool "Track page owner"
+	depends on DEBUG_KERNEL && STACKTRACE_SUPPORT
+	select DEBUG_FS
+	select STACKTRACE
+	select STACKDEPOT
+	select PAGE_EXTENSION
+	help
+	  This keeps track of what call chain is the owner of a page, may
+	  help to find bare alloc_page(s) leaks. Even if you include this
+	  feature on your build, it is disabled in default. You should pass
+	  "page_owner=on" to boot parameter in order to enable it. Eats
+	  a fair amount of memory if enabled. See tools/vm/page_owner_sort.c
+	  for user-space helper.
+
+	  If unsure, say N.
 
 config PAGE_POISONING
 	bool "Poison pages after freeing"
@@ -46,7 +69,8 @@ config PAGE_POISONING
 	  Fill the pages with poison patterns after free_pages() and verify
 	  the patterns before alloc_pages. The filling of the memory helps
 	  reduce the risk of information leaks from freed data. This does
-	  have a potential performance impact.
+	  have a potential performance impact if enabled with the
+	  "page_poison=1" kernel boot option.
 
 	  Note that "poison" here is not the same thing as the "HWPoison"
 	  for CONFIG_MEMORY_FAILURE. This is software poisoning only.
@@ -65,7 +89,7 @@ config PAGE_POISONING_NO_SANITY
 	   say N.
 
 config PAGE_POISONING_ZERO
-	bool "Use zero for poisoning instead of random data"
+	bool "Use zero for poisoning instead of debugging value"
 	depends on PAGE_POISONING
 	---help---
 	   Instead of using the existing poison value, fill the pages with
@@ -75,7 +99,6 @@ config PAGE_POISONING_ZERO
 	   allocation.
 
 	   If unsure, say N
-	bool
 
 config DEBUG_PAGE_REF
 	bool "Enable tracepoint to track down page reference manipulation"

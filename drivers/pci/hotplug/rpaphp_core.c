@@ -52,7 +52,7 @@ module_param_named(debug, rpaphp_debug, bool, 0644);
 static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 {
 	int rc;
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	switch (value) {
 	case 0:
@@ -66,7 +66,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 
 	rc = rtas_set_indicator(DR_INDICATOR, slot->index, value);
 	if (!rc)
-		hotplug_slot->info->attention_status = value;
+		slot->attention_status = value;
 
 	return rc;
 }
@@ -79,7 +79,7 @@ static int set_attention_status(struct hotplug_slot *hotplug_slot, u8 value)
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
 	int retval, level;
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 
 	retval = rtas_get_power_level(slot->power_domain, &level);
 	if (!retval)
@@ -94,14 +94,14 @@ static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)
  */
 static int get_attention_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
-	*value = slot->hotplug_slot->info->attention_status;
+	struct slot *slot = to_slot(hotplug_slot);
+	*value = slot->attention_status;
 	return 0;
 }
 
 static int get_adapter_status(struct hotplug_slot *hotplug_slot, u8 *value)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 	int rc, state;
 
 	rc = rpaphp_get_sensor_state(slot, &state);
@@ -230,7 +230,7 @@ static int rpaphp_check_drc_props_v2(struct device_node *dn, char *drc_name,
 	struct of_drc_info drc;
 	const __be32 *value;
 	char cell_drc_name[MAX_DRC_NAME_LEN];
-	int j, fndit;
+	int j;
 
 	info = of_find_property(dn->parent, "ibm,drc-info", NULL);
 	if (info == NULL)
@@ -245,17 +245,13 @@ static int rpaphp_check_drc_props_v2(struct device_node *dn, char *drc_name,
 
 		/* Should now know end of current entry */
 
-		if (my_index > drc.last_drc_index)
-			continue;
-
-		fndit = 1;
-		break;
+		/* Found it */
+		if (my_index <= drc.last_drc_index) {
+			sprintf(cell_drc_name, "%s%d", drc.drc_name_prefix,
+				my_index);
+			break;
+		}
 	}
-	/* Found it */
-
-	if (fndit)
-		sprintf(cell_drc_name, "%s%d", drc.drc_name_prefix, 
-			my_index);
 
 	if (((drc_name == NULL) ||
 	     (drc_name && !strcmp(drc_name, cell_drc_name))) &&
@@ -404,15 +400,14 @@ static void __exit cleanup_slots(void)
 	/*
 	 * Unregister all of our slots with the pci_hotplug subsystem,
 	 * and free up all memory that we had allocated.
-	 * memory will be freed in release_slot callback.
 	 */
 
 	list_for_each_entry_safe(slot, next, &rpaphp_slot_head,
 				 rpaphp_slot_list) {
 		list_del(&slot->rpaphp_slot_list);
-		pci_hp_deregister(slot->hotplug_slot);
+		pci_hp_deregister(&slot->hotplug_slot);
+		dealloc_slot_struct(slot);
 	}
-	return;
 }
 
 static int __init rpaphp_init(void)
@@ -434,7 +429,7 @@ static void __exit rpaphp_exit(void)
 
 static int enable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 	int state;
 	int retval;
 
@@ -464,7 +459,7 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 
 static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
-	struct slot *slot = (struct slot *)hotplug_slot->private;
+	struct slot *slot = to_slot(hotplug_slot);
 	if (slot->state == NOT_CONFIGURED)
 		return -EINVAL;
 
@@ -477,7 +472,7 @@ static int disable_slot(struct hotplug_slot *hotplug_slot)
 	return 0;
 }
 
-struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
+const struct hotplug_slot_ops rpaphp_hotplug_slot_ops = {
 	.enable_slot = enable_slot,
 	.disable_slot = disable_slot,
 	.set_attention_status = set_attention_status,

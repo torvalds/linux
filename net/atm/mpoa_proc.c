@@ -307,9 +307,3 @@ void mpc_proc_clean(void)
 }
 
 #endif /* CONFIG_PROC_FS */
-
-
-
-
-
-

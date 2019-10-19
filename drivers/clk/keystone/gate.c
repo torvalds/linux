@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Clock driver for Keystone 2 based devices
  *
  * Copyright (C) 2013 Texas Instruments.
  *	Murali Karicheri <m-karicheri2@ti.com>
  *	Santosh Shilimkar <santosh.shilimkar@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #include <linux/clk-provider.h>
 #include <linux/err.h>
@@ -245,7 +241,7 @@ static void __init of_psc_clk_init(struct device_node *node, spinlock_t *lock)
 		return;
 	}
 
-	pr_err("%s: error registering clk %s\n", __func__, node->name);
+	pr_err("%s: error registering clk %pOFn\n", __func__, node);
 
 unmap_domain:
 	iounmap(data->domain_base);
@@ -266,3 +262,8 @@ static void __init of_keystone_psc_clk_init(struct device_node *node)
 }
 CLK_OF_DECLARE(keystone_gate_clk, "ti,keystone,psc-clock",
 					of_keystone_psc_clk_init);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Clock driver for Keystone 2 based devices");
+MODULE_AUTHOR("Murali Karicheri <m-karicheri2@ti.com>");
+MODULE_AUTHOR("Santosh Shilimkar <santosh.shilimkar@ti.com>");

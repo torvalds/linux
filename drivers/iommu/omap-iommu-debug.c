@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap iommu: debugfs interface
  *
  * Copyright (C) 2008-2009 Nokia Corporation
  *
  * Written by Hiroshi DOYU <Hiroshi.DOYU@nokia.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -159,7 +156,7 @@ static size_t omap_dump_tlb_entries(struct omap_iommu *obj, struct seq_file *s)
 	return 0;
 }
 
-static int debug_read_tlb(struct seq_file *s, void *data)
+static int tlb_show(struct seq_file *s, void *data)
 {
 	struct omap_iommu *obj = s->private;
 
@@ -210,7 +207,7 @@ static void dump_ioptable(struct seq_file *s)
 	spin_unlock(&obj->page_table_lock);
 }
 
-static int debug_read_pagetable(struct seq_file *s, void *data)
+static int pagetable_show(struct seq_file *s, void *data)
 {
 	struct omap_iommu *obj = s->private;
 
@@ -228,40 +225,16 @@ static int debug_read_pagetable(struct seq_file *s, void *data)
 	return 0;
 }
 
-#define DEBUG_SEQ_FOPS_RO(name)						       \
-	static int debug_open_##name(struct inode *inode, struct file *file)   \
-	{								       \
-		return single_open(file, debug_read_##name, inode->i_private); \
-	}								       \
-									       \
-	static const struct file_operations debug_##name##_fops = {	       \
-		.open		= debug_open_##name,			       \
-		.read		= seq_read,				       \
-		.llseek		= seq_lseek,				       \
-		.release	= single_release,			       \
-	}
-
 #define DEBUG_FOPS_RO(name)						\
-	static const struct file_operations debug_##name##_fops = {	\
+	static const struct file_operations name##_fops = {	        \
 		.open = simple_open,					\
 		.read = debug_read_##name,				\
 		.llseek = generic_file_llseek,				\
 	}
 
 DEBUG_FOPS_RO(regs);
-DEBUG_SEQ_FOPS_RO(tlb);
-DEBUG_SEQ_FOPS_RO(pagetable);
-
-#define __DEBUG_ADD_FILE(attr, mode)					\
-	{								\
-		struct dentry *dent;					\
-		dent = debugfs_create_file(#attr, mode, obj->debug_dir,	\
-					   obj, &debug_##attr##_fops);	\
-		if (!dent)						\
-			goto err;					\
-	}
-
-#define DEBUG_ADD_FILE_RO(name) __DEBUG_ADD_FILE(name, 0400)
+DEFINE_SHOW_ATTRIBUTE(tlb);
+DEFINE_SHOW_ATTRIBUTE(pagetable);
 
 void omap_iommu_debugfs_add(struct omap_iommu *obj)
 {
@@ -270,23 +243,13 @@ void omap_iommu_debugfs_add(struct omap_iommu *obj)
 	if (!iommu_debug_root)
 		return;
 
-	obj->debug_dir = debugfs_create_dir(obj->name, iommu_debug_root);
-	if (!obj->debug_dir)
-		return;
+	d = debugfs_create_dir(obj->name, iommu_debug_root);
+	obj->debug_dir = d;
 
-	d = debugfs_create_u32("nr_tlb_entries", 0400, obj->debug_dir,
-			       &obj->nr_tlb_entries);
-	if (!d)
-		return;
-
-	DEBUG_ADD_FILE_RO(regs);
-	DEBUG_ADD_FILE_RO(tlb);
-	DEBUG_ADD_FILE_RO(pagetable);
-
-	return;
-
-err:
-	debugfs_remove_recursive(obj->debug_dir);
+	debugfs_create_u32("nr_tlb_entries", 0400, d, &obj->nr_tlb_entries);
+	debugfs_create_file("regs", 0400, d, obj, &regs_fops);
+	debugfs_create_file("tlb", 0400, d, obj, &tlb_fops);
+	debugfs_create_file("pagetable", 0400, d, obj, &pagetable_fops);
 }
 
 void omap_iommu_debugfs_remove(struct omap_iommu *obj)
@@ -300,8 +263,6 @@ void omap_iommu_debugfs_remove(struct omap_iommu *obj)
 void __init omap_iommu_debugfs_init(void)
 {
 	iommu_debug_root = debugfs_create_dir("omap_iommu", NULL);
-	if (!iommu_debug_root)
-		pr_err("can't create debugfs dir\n");
 }
 
 void __exit omap_iommu_debugfs_exit(void)

@@ -56,7 +56,7 @@ command -v ${SIZE} >/dev/null 2>&1 || die "size isn't installed"
 command -v ${NM} >/dev/null 2>&1 || die "nm isn't installed"
 
 usage() {
-	echo "usage: faddr2line <object file> <func+offset> <func+offset>..." >&2
+	echo "usage: faddr2line [--list] <object file> <func+offset> <func+offset>..." >&2
 	exit 1
 }
 
@@ -71,7 +71,7 @@ die() {
 
 # Try to figure out the source directory prefix so we can remove it from the
 # addr2line output.  HACK ALERT: This assumes that start_kernel() is in
-# kernel/init.c!  This only works for vmlinux.  Otherwise it falls back to
+# init/main.c!  This only works for vmlinux.  Otherwise it falls back to
 # printing the absolute path.
 find_dir_prefix() {
 	local objfile=$1
@@ -163,7 +163,30 @@ __faddr2line() {
 
 		# pass real address to addr2line
 		echo "$func+$offset/$sym_size:"
-		${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;"
+		local file_lines=$(${ADDR2LINE} -fpie $objfile $addr | sed "s; $dir_prefix\(\./\)*; ;")
+		[[ -z $file_lines ]] && return
+
+		if [[ $LIST = 0 ]]; then
+			echo "$file_lines" | while read -r line
+			do
+				echo $line
+			done
+			DONE=1;
+			return
+		fi
+
+		# show each line with context
+		echo "$file_lines" | while read -r line
+		do
+			echo
+			echo $line
+			n=$(echo $line | sed 's/.*:\([0-9]\+\).*/\1/g')
+			n1=$[$n-5]
+			n2=$[$n+5]
+			f=$(echo $line | sed 's/.*at \(.\+\):.*/\1/g')
+			awk 'NR>=strtonum("'$n1'") && NR<=strtonum("'$n2'") { if (NR=='$n') printf(">%d<", NR); else printf(" %d ", NR); printf("\t%s\n", $0)}' $f
+		done
+
 		DONE=1
 
 	done < <(${NM} -n $objfile | awk -v fn=$func -v end=$file_end '$3 == fn { found=1; line=$0; start=$1; next } found == 1 { found=0; print line, "0x"$1 } END {if (found == 1) print line, end; }')
@@ -172,6 +195,10 @@ __faddr2line() {
 [[ $# -lt 2 ]] && usage
 
 objfile=$1
+
+LIST=0
+[[ "$objfile" == "--list" ]] && LIST=1 && shift && objfile=$1
+
 [[ ! -f $objfile ]] && die "can't find objfile $objfile"
 shift
 

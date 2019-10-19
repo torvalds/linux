@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * clk-si5351.c: Silicon Laboratories Si5351A/B/C I2C Clock Generator
  *
@@ -9,11 +10,6 @@
  *     http://www.silabs.com/Support%20Documents/TechnicalDocs/Si5351.pdf
  * [2] "Manually Generating an Si5351 Register Map"
  *     http://www.silabs.com/Support%20Documents/TechnicalDocs/AN619.pdf
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/module.h>
@@ -1215,8 +1211,8 @@ static int si5351_dt_parse(struct i2c_client *client,
 	/* per clkout properties */
 	for_each_child_of_node(np, child) {
 		if (of_property_read_u32(child, "reg", &num)) {
-			dev_err(&client->dev, "missing reg property of %s\n",
-				child->name);
+			dev_err(&client->dev, "missing reg property of %pOFn\n",
+				child);
 			goto put_child;
 		}
 

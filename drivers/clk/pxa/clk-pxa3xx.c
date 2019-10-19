@@ -1,13 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Marvell PXA3xxx family clocks
  *
  * Copyright (C) 2014 Robert Jarzmik
  *
  * Heavily inspired from former arch/arm/mach-pxa/pxa3xx.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
  *
  * For non-devicetree platforms. Once pxa is fully converted to devicetree, this
  * should go away.
@@ -286,9 +283,10 @@ static void __init pxa3xx_register_plls(void)
 	clk_register_fixed_rate(NULL, "osc_13mhz", NULL,
 				CLK_GET_RATE_NOCACHE,
 				13 * MHz);
-	clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
-				CLK_GET_RATE_NOCACHE,
-				32768);
+	clkdev_pxa_register(CLK_OSC32k768, "osc_32_768khz", NULL,
+			    clk_register_fixed_rate(NULL, "osc_32_768khz", NULL,
+						    CLK_GET_RATE_NOCACHE,
+						    32768));
 	clk_register_fixed_rate(NULL, "ring_osc_120mhz", NULL,
 				CLK_GET_RATE_NOCACHE,
 				120 * MHz);

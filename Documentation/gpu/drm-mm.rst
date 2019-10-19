@@ -72,16 +72,12 @@ object TTM to provide a pool for buffer object allocation by clients and
 the kernel itself. The type of this object should be
 TTM_GLOBAL_TTM_BO, and its size should be sizeof(struct
 ttm_bo_global). Again, driver-specific init and release functions may
-be provided, likely eventually calling ttm_bo_global_init() and
-ttm_bo_global_release(), respectively. Also, like the previous
+be provided, likely eventually calling ttm_bo_global_ref_init() and
+ttm_bo_global_ref_release(), respectively. Also, like the previous
 object, ttm_global_item_ref() is used to create an initial reference
 count for the TTM, which will call your initialization function.
 
 See the radeon_ttm.c file for an example of usage.
-
-.. kernel-doc:: drivers/gpu/drm/drm_global.c
-   :export:
-
 
 The Graphics Execution Manager (GEM)
 ====================================
@@ -297,7 +293,7 @@ made up of several fields, the more interesting ones being:
 	struct vm_operations_struct {
 		void (*open)(struct vm_area_struct * area);
 		void (*close)(struct vm_area_struct * area);
-		int (*fault)(struct vm_fault *vmf);
+		vm_fault_t (*fault)(struct vm_fault *vmf);
 	};
 
 
@@ -383,6 +379,39 @@ GEM CMA Helper Functions Reference
 .. kernel-doc:: drivers/gpu/drm/drm_gem_cma_helper.c
    :export:
 
+VRAM Helper Function Reference
+==============================
+
+.. kernel-doc:: drivers/gpu/drm/drm_vram_helper_common.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_gem_vram_helper.h
+   :internal:
+
+GEM VRAM Helper Functions Reference
+-----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_vram_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_gem_vram_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_gem_vram_helper.c
+   :export:
+
+VRAM MM Helper Functions Reference
+----------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_vram_mm_helper.c
+   :doc: overview
+
+.. kernel-doc:: include/drm/drm_vram_mm_helper.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_vram_mm_helper.c
+   :export:
+
 VMA Offset Manager
 ==================
 
@@ -395,6 +424,8 @@ VMA Offset Manager
 .. kernel-doc:: drivers/gpu/drm/drm_vma_manager.c
    :export:
 
+.. _prime_buffer_sharing:
+
 PRIME Buffer Sharing
 ====================
 
@@ -402,43 +433,11 @@ PRIME is the cross device buffer sharing framework in drm, originally
 created for the OPTIMUS range of multi-gpu platforms. To userspace PRIME
 buffers are dma-buf based file descriptors.
 
-Overview and Driver Interface
------------------------------
+Overview and Lifetime Rules
+---------------------------
 
-Similar to GEM global names, PRIME file descriptors are also used to
-share buffer objects across processes. They offer additional security:
-as file descriptors must be explicitly sent over UNIX domain sockets to
-be shared between applications, they can't be guessed like the globally
-unique GEM names.
-
-Drivers that support the PRIME API must set the DRIVER_PRIME bit in the
-struct :c:type:`struct drm_driver <drm_driver>`
-driver_features field, and implement the prime_handle_to_fd and
-prime_fd_to_handle operations.
-
-int (\*prime_handle_to_fd)(struct drm_device \*dev, struct drm_file
-\*file_priv, uint32_t handle, uint32_t flags, int \*prime_fd); int
-(\*prime_fd_to_handle)(struct drm_device \*dev, struct drm_file
-\*file_priv, int prime_fd, uint32_t \*handle); Those two operations
-convert a handle to a PRIME file descriptor and vice versa. Drivers must
-use the kernel dma-buf buffer sharing framework to manage the PRIME file
-descriptors. Similar to the mode setting API PRIME is agnostic to the
-underlying buffer object manager, as long as handles are 32bit unsigned
-integers.
-
-While non-GEM drivers must implement the operations themselves, GEM
-drivers must use the :c:func:`drm_gem_prime_handle_to_fd()` and
-:c:func:`drm_gem_prime_fd_to_handle()` helper functions. Those
-helpers rely on the driver gem_prime_export and gem_prime_import
-operations to create a dma-buf instance from a GEM object (dma-buf
-exporter role) and to create a GEM object from a dma-buf instance
-(dma-buf importer role).
-
-struct dma_buf \* (\*gem_prime_export)(struct drm_device \*dev,
-struct drm_gem_object \*obj, int flags); struct drm_gem_object \*
-(\*gem_prime_import)(struct drm_device \*dev, struct dma_buf
-\*dma_buf); These two operations are mandatory for GEM drivers that
-support PRIME.
+.. kernel-doc:: drivers/gpu/drm/drm_prime.c
+   :doc: overview and lifetime rules
 
 PRIME Helper Functions
 ----------------------
@@ -495,4 +494,22 @@ DRM Sync Objects
    :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_syncobj.c
+   :export:
+
+GPU Scheduler
+=============
+
+Overview
+--------
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
+   :doc: Overview
+
+Scheduler Function References
+-----------------------------
+
+.. kernel-doc:: include/drm/gpu_scheduler.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/scheduler/sched_main.c
    :export:

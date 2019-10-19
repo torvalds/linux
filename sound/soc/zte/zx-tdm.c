@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ZTE's TDM driver
  *
  * Copyright (C) 2017 ZTE Ltd
  *
  * Author: Baoyou Xie <baoyou.xie@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/clk.h>
@@ -144,8 +143,8 @@ static void zx_tdm_rx_dma_en(struct zx_tdm_info *tdm, bool on)
 #define ZX_TDM_RATES	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000)
 
 #define ZX_TDM_FMTBIT \
-	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FORMAT_MU_LAW | \
-	SNDRV_PCM_FORMAT_A_LAW)
+	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_MU_LAW | \
+	SNDRV_PCM_FMTBIT_A_LAW)
 
 static int zx_tdm_dai_probe(struct snd_soc_dai *dai)
 {
@@ -212,7 +211,6 @@ static int zx_tdm_hw_params(struct snd_pcm_substream *substream,
 		ts_width = 1;
 		break;
 	default:
-		ts_width = 0;
 		dev_err(socdai->dev, "Unknown data format\n");
 		return -EINVAL;
 	}

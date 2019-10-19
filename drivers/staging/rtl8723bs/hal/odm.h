@@ -1,22 +1,13 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
 
 #ifndef	__HALDMOUTSRC_H__
 #define __HALDMOUTSRC_H__
-
 
 #include "odm_EdcaTurboCheck.h"
 #include "odm_DIG.h"
@@ -31,7 +22,6 @@
 #define	TRAFFIC_LOW	0
 #define	TRAFFIC_HIGH	1
 #define	NONE			0
-
 
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
@@ -81,7 +71,6 @@
 #define		AUX_ANT		2		/* AntB or Ant Aux */
 #define		MAX_ANT		3		/*  3 for AP using */
 
-
 /* Antenna Diversity Type */
 #define	SW_ANTDIV	0
 #define	HW_ANTDIV	1
@@ -93,15 +82,15 @@
 
 /* Remove DIG by yuchen */
 
-typedef struct _Dynamic_Primary_CCA {
+struct dynamic_primary_CCA {
 	u8 PriCCA_flag;
 	u8 intf_flag;
 	u8 intf_type;
 	u8 DupRTS_flag;
 	u8 Monitor_flag;
 	u8 CH_offset;
-	u8 	MF_state;
-} Pri_CCA_T, *pPri_CCA_T;
+	u8 MF_state;
+};
 
 typedef struct _Rate_Adaptive_Table_ {
 	u8 firstconnect;
@@ -200,7 +189,6 @@ typedef struct _ODM_RATE_ADAPTIVE {
 
 } ODM_RATE_ADAPTIVE, *PODM_RATE_ADAPTIVE;
 
-
 #define IQK_MAC_REG_NUM		4
 #define IQK_ADDA_REG_NUM		16
 #define IQK_BB_REG_NUM_MAX	10
@@ -229,51 +217,51 @@ typedef struct _ODM_RATE_ADAPTIVE {
 #define MAX_PATH_NUM_8814A		4
 #define MAX_PATH_NUM_8822B		2
 
-
 #define IQK_THRESHOLD			8
 #define DPK_THRESHOLD			4
 
-typedef struct _ODM_Phy_Status_Info_ {
-	/*  */
-	/*  Be care, if you want to add any element please insert between */
-	/*  RxPWDBAll & SignalStrength. */
-	/*  */
-	u8 RxPWDBAll;
+struct odm_phy_info {
+	/*
+	 *  Be care, if you want to add any element, please insert it between
+	 *  rx_pwd_ball and signal_strength.
+	 */
+	u8 rx_pwd_ba11;
 
-	u8 SignalQuality;			/*  in 0-100 index. */
-	s8 RxMIMOSignalQuality[4];	/* per-path's EVM */
-	u8 RxMIMOEVMdbm[4];		/* per-path's EVM dbm */
+	u8 signal_quality;             /* in 0-100 index. */
+	s8 rx_mimo_signal_quality[4];  /* per-path's EVM */
+	u8 rx_mimo_evm_dbm[4];         /* per-path's EVM dbm */
 
-	u8 RxMIMOSignalStrength[4];/*  in 0~100 index */
+	u8 rx_mimo_signal_strength[4]; /* in 0~100 index */
 
-	u16 Cfo_short[4];			/*  per-path's Cfo_short */
-	u16 Cfo_tail[4];			/*  per-path's Cfo_tail */
+	u16 cfo_short[4];              /* per-path's Cfo_short */
+	u16 cfo_tail[4];               /* per-path's Cfo_tail */
 
-	s8 RxPower;				/*  in dBm Translate from PWdB */
-	s8 RecvSignalPower;		/*  Real power in dBm for this packet, no beautification and aggregation. Keep this raw info to be used for the other procedures. */
-	u8 BTRxRSSIPercentage;
-	u8 SignalStrength;			/*  in 0-100 index. */
+	s8 rx_power;                   /* in dBm Translate from PWdB */
 
-	s8 RxPwr[4];				/* per-path's pwdb */
+	/*
+	 * Real power in dBm for this packet, no beautification and
+	 * aggregation. Keep this raw info to be used for the other procedures.
+	 */
+	s8 recv_signal_power;
+	u8 bt_rx_rssi_percentage;
+	u8 signal_strength;	       /* in 0-100 index. */
 
-	u8 RxSNR[4];				/* per-path's SNR */
-	u8 BandWidth;
-	u8 btCoexPwrAdjust;
-} ODM_PHY_INFO_T, *PODM_PHY_INFO_T;
+	s8 rx_pwr[4];                  /* per-path's pwdb */
 
+	u8 rx_snr[4];                  /* per-path's SNR */
+	u8 band_width;
+	u8 bt_coex_pwr_adjust;
+};
 
-typedef struct _ODM_Per_Pkt_Info_ {
-	/* u8 Rate; */
-	u8 DataRate;
-	u8 StationID;
-	bool bPacketMatchBSSID;
-	bool bPacketToSelf;
-	bool bPacketBeacon;
-	bool bToSelf;
-} ODM_PACKET_INFO_T, *PODM_PACKET_INFO_T;
+struct odm_packet_info {
+	u8 data_rate;
+	u8 station_id;
+	bool bssid_match;
+	bool to_self;
+	bool is_beacon;
+};
 
-
-typedef struct _ODM_Phy_Dbg_Info_ {
+struct odm_phy_dbg_info {
 	/* ODM Write, debug info */
 	s8 RxSNRdB[4];
 	u32 NumQryPhyStatus;
@@ -283,13 +271,11 @@ typedef struct _ODM_Phy_Dbg_Info_ {
 	/* Others */
 	s32 RxEVM[4];
 
-} ODM_PHY_DBG_INFO_T;
+};
 
-
-typedef struct _ODM_Mac_Status_Info_ {
+struct odm_mac_status_info {
 	u8 test;
-} ODM_MAC_INFO;
-
+};
 
 typedef enum tag_Dynamic_ODM_Support_Ability_Type {
 	/*  BB Team */
@@ -369,7 +355,6 @@ typedef enum _ODM_Common_Info_Definition {
 	ODM_CMNINFO_SMART_CONCURRENT,
 	/* HOOK BEFORE REG INIT----------- */
 
-
 	/*  Dynamic value: */
 /*  POINTER REFERENCE----------- */
 	ODM_CMNINFO_MAC_PHY_MODE,	/*  ODM_MAC_PHY_MODE_E */
@@ -427,8 +412,6 @@ typedef enum _ODM_Common_Info_Definition {
 	ODM_CMNINFO_MAC_STATUS,
 
 	ODM_CMNINFO_MAX,
-
-
 } ODM_CMNINFO_E;
 
 /*  2011/10/20 MH Define ODM support ability.  ODM_CMNINFO_ABILITY */
@@ -509,7 +492,6 @@ typedef enum tag_ODM_RF_Path_Bit_Definition {
 	ODM_RF_RX_D	=	BIT7,
 } ODM_RF_PATH_E;
 
-
 typedef enum tag_ODM_RF_Type_Definition {
 	ODM_1T1R	=	0,
 	ODM_1T2R	=	1,
@@ -520,7 +502,6 @@ typedef enum tag_ODM_RF_Type_Definition {
 	ODM_3T4R	=	6,
 	ODM_4T4R	=	7,
 } ODM_RF_TYPE_E;
-
 
 /*  */
 /*  ODM Dynamic common info value definition */
@@ -537,7 +518,6 @@ typedef enum tag_ODM_MAC_PHY_Mode_Definition {
 	ODM_DMSP	= 1,
 	ODM_DMDP	= 2,
 } ODM_MAC_PHY_MODE_E;
-
 
 typedef enum tag_BT_Coexist_Definition {
 	ODM_BT_BUSY		= 1,
@@ -607,7 +587,6 @@ typedef enum tag_Bandwidth_Definition {
 	ODM_BW10M		= 4,
 } ODM_BW_E;
 
-
 /*  ODM_CMNINFO_BOARD_TYPE */
 /*  For non-AC-series IC , ODM_BOARD_5G_EXT_PA and ODM_BOARD_5G_EXT_LNA are ignored */
 /*  For AC-series IC, external PA & LNA can be indivisuallly added on 2.4G and/or 5G */
@@ -661,7 +640,6 @@ typedef enum tag_CCA_Path {
 	ODM_CCA_1R_B		= 2,
 } ODM_CCA_PATH_E;
 
-
 typedef struct _ODM_RA_Info_ {
 	u8 RateID;
 	u32 RateMask;
@@ -700,7 +678,6 @@ typedef struct _IQK_MATRIX_REGS_SETTING {
 	bool bBWIqkResultSaved[3];
 } IQK_MATRIX_REGS_SETTING, *PIQK_MATRIX_REGS_SETTING;
 
-
 /* Remove PATHDIV_PARA struct to odm_PathDiv.h */
 
 typedef struct ODM_RF_Calibration_Structure {
@@ -735,7 +712,6 @@ typedef struct ODM_RF_Calibration_Structure {
 	bool bReloadtxpowerindex;
 	u8 bRfPiEnable;
 	u32 TXPowerTrackingCallbackCnt; /* cosa add for debug */
-
 
 	/*  Tx power Tracking ------------------------- */
 	u8 bCCKinCH14;
@@ -791,7 +767,6 @@ typedef struct ODM_RF_Calibration_Structure {
 	u32 TxIQC_8723B[2][3][2]; /*  { {S1: 0xc94, 0xc80, 0xc4c} , {S0: 0xc9c, 0xc88, 0xc4c}} */
 	u32 RxIQC_8723B[2][2][2]; /*  { {S1: 0xc14, 0xca0} ,           {S0: 0xc14, 0xca0}} */
 
-
 	/* for APK */
 	u32 APKoutput[2][2]; /* path A/B; output1_1a/output1_2a */
 	u8 bAPKdone;
@@ -839,7 +814,6 @@ typedef struct _FAST_ANTENNA_TRAINNING_ {
 	u32 OFDM_counter_main;
 	u32 OFDM_counter_aux;
 
-
 	u32 CCK_CtrlFrame_Cnt_main;
 	u32 CCK_CtrlFrame_Cnt_aux;
 	u32 OFDM_CtrlFrame_Cnt_main;
@@ -875,12 +849,10 @@ typedef struct _ODM_PATH_DIVERSITY_ {
 	u32 PathB_Cnt[ODM_ASSOCIATE_ENTRY_NUM];
 } PATHDIV_T, *pPATHDIV_T;
 
-
 typedef enum _BASEBAND_CONFIG_PHY_REG_PG_VALUE_TYPE{
 	PHY_REG_PG_RELATIVE_VALUE = 0,
 	PHY_REG_PG_EXACT_VALUE = 1
 } PHY_REG_PG_TYPE;
-
 
 /*  */
 /*  Antenna detection information from single tone mechanism, added by Roger, 2012.11.27. */
@@ -933,7 +905,6 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	/* bool			bSlaveOfDMSP; */
 /* REMOVED COMMON INFO---------- */
 
-
 /* 1  COMMON INFORMATION */
 
 	/*  */
@@ -942,7 +913,7 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 /* HOOK BEFORE REG INIT----------- */
 	/*  ODM Platform info AP/ADSL/CE/MP = 1/2/3/4 */
 	u8 SupportPlatform;
-	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/ ?K?K = 1/2/3/?K */
+	/*  ODM Support Ability DIG/RATR/TX_PWR_TRACK/... = 1/2/3/... */
 	u32 SupportAbility;
 	/*  ODM PCIE/USB/SDIO = 1/2/3 */
 	u8 SupportInterface;
@@ -1105,7 +1076,6 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	u8 Adaptivity_IGI_upper;
 	u8 NHM_cnt_0;
 
-
 	ODM_NOISE_MONITOR noise_level;/* ODM_MAX_CHANNEL_NUM]; */
 	/*  */
 	/* 2 Define STA info. */
@@ -1122,11 +1092,11 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	/*  Define ........... */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_PHY_DBG_INFO_T PhyDbgInfo;
+	struct odm_phy_dbg_info PhyDbgInfo;
 	/* PHY_INFO_88E		PhyInfo; */
 
 	/*  Latest packet phy info (ODM write) */
-	ODM_MAC_INFO *pMacInfo;
+	struct odm_mac_status_info *pMacInfo;
 	/* MAC_INFO_88E		MacInfo; */
 
 	/*  Different Team independt structure?? */
@@ -1142,7 +1112,7 @@ typedef  struct DM_Out_Source_Dynamic_Mechanism_Structure {
 	FAT_T DM_FatTable;
 	DIG_T DM_DigTable;
 	PS_T DM_PSTable;
-	Pri_CCA_T DM_PriCCA;
+	struct dynamic_primary_CCA DM_PriCCA;
 	RXHP_T DM_RXHP_Table;
 	RA_T DM_RA_Table;
 	false_ALARM_STATISTICS FalseAlmCnt;
@@ -1367,7 +1337,6 @@ typedef enum tag_SW_Antenna_Switch_Definition {
 	Antenna_MAX = 3,
 } DM_SWAS_E;
 
-
 /*  Maximal number of antenna detection mechanism needs to perform, added by Roger, 2011.12.28. */
 #define	MAX_ANTENNA_DETECTION_CNT	10
 
@@ -1396,11 +1365,6 @@ extern  u32 TxScalingTable_Jaguar[TXSCALE_TABLE_SIZE];
 #define SWAW_STEP_PEAK		0
 #define SWAW_STEP_DETERMINE	1
 
-/* Remove DIG by yuchen */
-
-void ODM_SetAntenna(PDM_ODM_T pDM_Odm, u8 Antenna);
-
-
 /* Remove BB power saving by Yuchen */
 
 #define dm_CheckTXPowerTracking ODM_TXPowerTrackingCheck
@@ -1417,7 +1381,7 @@ bool ODM_RAStateCheck(
 void ODM_SwAntDivChkPerPktRssi(
 	PDM_ODM_T pDM_Odm,
 	u8 StationID,
-	PODM_PHY_INFO_T pPhyInfo
+	struct odm_phy_info *pPhyInfo
 );
 
 u32 ODM_Get_Rate_Bitmap(

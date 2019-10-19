@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * arch/arm/mach-spear13xx/platsmp.c
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2012 ST Microelectronics Ltd.
  * Shiraz Hashim <shiraz.linux.kernel@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -20,16 +17,21 @@
 #include <mach/spear.h>
 #include "generic.h"
 
+/* XXX spear_pen_release is cargo culted code - DO NOT COPY XXX */
+volatile int spear_pen_release = -1;
+
 /*
- * Write pen_release in a way that is guaranteed to be visible to all
- * observers, irrespective of whether they're taking part in coherency
+ * XXX CARGO CULTED CODE - DO NOT COPY XXX
+ *
+ * Write spear_pen_release in a way that is guaranteed to be visible to
+ * all observers, irrespective of whether they're taking part in coherency
  * or not.  This is necessary for the hotplug code to work reliably.
  */
-static void write_pen_release(int val)
+static void spear_write_pen_release(int val)
 {
-	pen_release = val;
+	spear_pen_release = val;
 	smp_wmb();
-	sync_cache_w(&pen_release);
+	sync_cache_w(&spear_pen_release);
 }
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -42,7 +44,7 @@ static void spear13xx_secondary_init(unsigned int cpu)
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point
 	 */
-	write_pen_release(-1);
+	spear_write_pen_release(-1);
 
 	/*
 	 * Synchronise with the boot thread.
@@ -64,17 +66,17 @@ static int spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	/*
 	 * The secondary processor is waiting to be released from
 	 * the holding pen - release it, then wait for it to flag
-	 * that it has been released by resetting pen_release.
+	 * that it has been released by resetting spear_pen_release.
 	 *
-	 * Note that "pen_release" is the hardware CPU ID, whereas
+	 * Note that "spear_pen_release" is the hardware CPU ID, whereas
 	 * "cpu" is Linux's internal ID.
 	 */
-	write_pen_release(cpu);
+	spear_write_pen_release(cpu);
 
 	timeout = jiffies + (1 * HZ);
 	while (time_before(jiffies, timeout)) {
 		smp_rmb();
-		if (pen_release == -1)
+		if (spear_pen_release == -1)
 			break;
 
 		udelay(10);
@@ -86,7 +88,7 @@ static int spear13xx_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	 */
 	spin_unlock(&boot_lock);
 
-	return pen_release != -1 ? -ENOSYS : 0;
+	return spear_pen_release != -1 ? -ENOSYS : 0;
 }
 
 /*

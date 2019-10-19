@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * drivers/staging/android/ion/ion_heap.c
+ * ION Memory Allocator generic heap helpers
  *
  * Copyright (C) 2011 Google, Inc.
  */
@@ -14,6 +14,7 @@
 #include <uapi/linux/sched/types.h>
 #include <linux/scatterlist.h>
 #include <linux/vmalloc.h>
+
 #include "ion.h"
 
 void *ion_heap_map_kernel(struct ion_heap *heap,
@@ -25,11 +26,12 @@ void *ion_heap_map_kernel(struct ion_heap *heap,
 	pgprot_t pgprot;
 	struct sg_table *table = buffer->sg_table;
 	int npages = PAGE_ALIGN(buffer->size) / PAGE_SIZE;
-	struct page **pages = vmalloc(sizeof(struct page *) * npages);
+	struct page **pages = vmalloc(array_size(npages,
+						 sizeof(struct page *)));
 	struct page **tmp = pages;
 
 	if (!pages)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	if (buffer->flags & ION_FLAG_CACHED)
 		pgprot = PAGE_KERNEL;
@@ -91,6 +93,7 @@ int ion_heap_map_user(struct ion_heap *heap, struct ion_buffer *buffer,
 		if (addr >= vma->vm_end)
 			return 0;
 	}
+
 	return 0;
 }
 
@@ -253,6 +256,7 @@ int ion_heap_init_deferred_free(struct ion_heap *heap)
 		return PTR_ERR_OR_ZERO(heap->task);
 	}
 	sched_setscheduler(heap->task, SCHED_IDLE, &param);
+
 	return 0;
 }
 
@@ -264,8 +268,10 @@ static unsigned long ion_heap_shrink_count(struct shrinker *shrinker,
 	int total = 0;
 
 	total = ion_heap_freelist_size(heap) / PAGE_SIZE;
+
 	if (heap->ops->shrink)
 		total += heap->ops->shrink(heap, sc->gfp_mask, 0);
+
 	return total;
 }
 
@@ -294,6 +300,7 @@ static unsigned long ion_heap_shrink_scan(struct shrinker *shrinker,
 
 	if (heap->ops->shrink)
 		freed += heap->ops->shrink(heap, sc->gfp_mask, to_scan);
+
 	return freed;
 }
 

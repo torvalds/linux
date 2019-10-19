@@ -18,6 +18,7 @@
 #include <asm/unaligned.h>
 #include <linux/scatterlist.h>
 
+struct bio_vec;
 struct rpc_rqst;
 
 /*
@@ -52,12 +53,14 @@ struct xdr_buf {
 	struct kvec	head[1],	/* RPC header + non-page data */
 			tail[1];	/* Appended after page data */
 
+	struct bio_vec	*bvec;
 	struct page **	pages;		/* Array of pages */
 	unsigned int	page_base,	/* Start of page data */
 			page_len,	/* Length of page data */
 			flags;		/* Flags for data disposition */
 #define XDRBUF_READ		0x01		/* target of file read */
 #define XDRBUF_WRITE		0x02		/* source of file write */
+#define XDRBUF_SPARSE_PAGES	0x04		/* Page array is sparse */
 
 	unsigned int	buflen,		/* Total length of storage buffer */
 			len;		/* Length of XDR encoded message */
@@ -69,6 +72,7 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 	buf->head[0].iov_base = start;
 	buf->head[0].iov_len = len;
 	buf->tail[0].iov_len = 0;
+	buf->pages = NULL;
 	buf->page_len = 0;
 	buf->flags = 0;
 	buf->len = 0;
@@ -83,6 +87,16 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	xdr_one		cpu_to_be32(1)
 #define	xdr_two		cpu_to_be32(2)
 
+#define	rpc_auth_null	cpu_to_be32(RPC_AUTH_NULL)
+#define	rpc_auth_unix	cpu_to_be32(RPC_AUTH_UNIX)
+#define	rpc_auth_short	cpu_to_be32(RPC_AUTH_SHORT)
+#define	rpc_auth_gss	cpu_to_be32(RPC_AUTH_GSS)
+
+#define	rpc_call	cpu_to_be32(RPC_CALL)
+#define	rpc_reply	cpu_to_be32(RPC_REPLY)
+
+#define	rpc_msg_accepted	cpu_to_be32(RPC_MSG_ACCEPTED)
+
 #define	rpc_success		cpu_to_be32(RPC_SUCCESS)
 #define	rpc_prog_unavail	cpu_to_be32(RPC_PROG_UNAVAIL)
 #define	rpc_prog_mismatch	cpu_to_be32(RPC_PROG_MISMATCH)
@@ -90,6 +104,9 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	rpc_garbage_args	cpu_to_be32(RPC_GARBAGE_ARGS)
 #define	rpc_system_err		cpu_to_be32(RPC_SYSTEM_ERR)
 #define	rpc_drop_reply		cpu_to_be32(RPC_DROP_REPLY)
+
+#define	rpc_mismatch		cpu_to_be32(RPC_MISMATCH)
+#define	rpc_auth_error		cpu_to_be32(RPC_AUTH_ERROR)
 
 #define	rpc_auth_ok		cpu_to_be32(RPC_AUTH_OK)
 #define	rpc_autherr_badcred	cpu_to_be32(RPC_AUTH_BADCRED)
@@ -99,7 +116,6 @@ xdr_buf_init(struct xdr_buf *buf, void *start, size_t len)
 #define	rpc_autherr_tooweak	cpu_to_be32(RPC_AUTH_TOOWEAK)
 #define	rpcsec_gsserr_credproblem	cpu_to_be32(RPCSEC_GSS_CREDPROBLEM)
 #define	rpcsec_gsserr_ctxproblem	cpu_to_be32(RPCSEC_GSS_CTXPROBLEM)
-#define	rpc_autherr_oldseqnum	cpu_to_be32(101)
 
 /*
  * Miscellaneous XDR helper functions
@@ -115,6 +131,9 @@ __be32 *xdr_decode_netobj(__be32 *p, struct xdr_netobj *);
 void	xdr_inline_pages(struct xdr_buf *, unsigned int,
 			 struct page **, unsigned int, unsigned int);
 void	xdr_terminate_string(struct xdr_buf *, const u32);
+size_t	xdr_buf_pagecount(struct xdr_buf *buf);
+int	xdr_alloc_bvec(struct xdr_buf *buf, gfp_t gfp);
+void	xdr_free_bvec(struct xdr_buf *buf);
 
 static inline __be32 *xdr_encode_array(__be32 *p, const void *s, unsigned int len)
 {
@@ -145,6 +164,13 @@ xdr_decode_opaque_fixed(__be32 *p, void *ptr, unsigned int len)
 	return p + XDR_QUADLEN(len);
 }
 
+static inline void xdr_netobj_dup(struct xdr_netobj *dst,
+				  struct xdr_netobj *src, gfp_t gfp_mask)
+{
+	dst->data = kmemdup(src->data, src->len, gfp_mask);
+	dst->len = src->len;
+}
+
 /*
  * Adjust kvec to reflect end of xdr'ed data (RPC client XDR)
  */
@@ -160,8 +186,7 @@ xdr_adjust_iovec(struct kvec *iov, __be32 *p)
 extern void xdr_shift_buf(struct xdr_buf *, size_t);
 extern void xdr_buf_from_iov(struct kvec *, struct xdr_buf *);
 extern int xdr_buf_subsegment(struct xdr_buf *, struct xdr_buf *, unsigned int, unsigned int);
-extern void xdr_buf_trim(struct xdr_buf *, unsigned int);
-extern int xdr_buf_read_netobj(struct xdr_buf *, struct xdr_netobj *, unsigned int);
+extern int xdr_buf_read_mic(struct xdr_buf *, struct xdr_netobj *, unsigned int);
 extern int read_bytes_from_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
 extern int write_bytes_to_xdr_buf(struct xdr_buf *, unsigned int, void *, unsigned int);
 
@@ -177,10 +202,7 @@ struct xdr_skb_reader {
 
 typedef size_t (*xdr_skb_read_actor)(struct xdr_skb_reader *desc, void *to, size_t len);
 
-size_t xdr_skb_read_bits(struct xdr_skb_reader *desc, void *to, size_t len);
 extern int csum_partial_copy_to_xdr(struct xdr_buf *, struct sk_buff *);
-extern ssize_t xdr_partial_copy_from_skb(struct xdr_buf *, unsigned int,
-		struct xdr_skb_reader *, xdr_skb_read_actor);
 
 extern int xdr_encode_word(struct xdr_buf *, unsigned int, u32);
 extern int xdr_decode_word(struct xdr_buf *, unsigned int, u32 *);
@@ -213,6 +235,8 @@ struct xdr_stream {
 	struct kvec scratch;	/* Scratch buffer */
 	struct page **page_ptr;	/* pointer to the current page */
 	unsigned int nwords;	/* Remaining decode buffer length */
+
+	struct rpc_rqst *rqst;	/* For debugging */
 };
 
 /*
@@ -223,7 +247,8 @@ typedef void	(*kxdreproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 typedef int	(*kxdrdproc_t)(struct rpc_rqst *rqstp, struct xdr_stream *xdr,
 		void *obj);
 
-extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p);
+extern void xdr_init_encode(struct xdr_stream *xdr, struct xdr_buf *buf,
+			    __be32 *p, struct rpc_rqst *rqst);
 extern __be32 *xdr_reserve_space(struct xdr_stream *xdr, size_t nbytes);
 extern void xdr_commit_encode(struct xdr_stream *xdr);
 extern void xdr_truncate_encode(struct xdr_stream *xdr, size_t len);
@@ -231,7 +256,8 @@ extern int xdr_restrict_buflen(struct xdr_stream *xdr, int newbuflen);
 extern void xdr_write_pages(struct xdr_stream *xdr, struct page **pages,
 		unsigned int base, unsigned int len);
 extern unsigned int xdr_stream_pos(const struct xdr_stream *xdr);
-extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf, __be32 *p);
+extern void xdr_init_decode(struct xdr_stream *xdr, struct xdr_buf *buf,
+			    __be32 *p, struct rpc_rqst *rqst);
 extern void xdr_init_decode_pages(struct xdr_stream *xdr, struct xdr_buf *buf,
 		struct page **pages, unsigned int len);
 extern void xdr_set_scratch_buffer(struct xdr_stream *xdr, void *buf, size_t buflen);
@@ -253,6 +279,12 @@ xdr_stream_remaining(const struct xdr_stream *xdr)
 	return xdr->nwords << 2;
 }
 
+ssize_t xdr_stream_decode_opaque(struct xdr_stream *xdr, void *ptr,
+		size_t size);
+ssize_t xdr_stream_decode_opaque_dup(struct xdr_stream *xdr, void **ptr,
+		size_t maxlen, gfp_t gfp_flags);
+ssize_t xdr_stream_decode_string(struct xdr_stream *xdr, char *str,
+		size_t size);
 ssize_t xdr_stream_decode_string_dup(struct xdr_stream *xdr, char **str,
 		size_t maxlen, gfp_t gfp_flags);
 /**
@@ -313,6 +345,31 @@ xdr_stream_encode_u64(struct xdr_stream *xdr, __u64 n)
 }
 
 /**
+ * xdr_stream_encode_opaque_inline - Encode opaque xdr data
+ * @xdr: pointer to xdr_stream
+ * @ptr: pointer to void pointer
+ * @len: size of object
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_encode_opaque_inline(struct xdr_stream *xdr, void **ptr, size_t len)
+{
+	size_t count = sizeof(__u32) + xdr_align_size(len);
+	__be32 *p = xdr_reserve_space(xdr, count);
+
+	if (unlikely(!p)) {
+		*ptr = NULL;
+		return -EMSGSIZE;
+	}
+	xdr_encode_opaque(p, NULL, len);
+	*ptr = ++p;
+	return count;
+}
+
+/**
  * xdr_stream_encode_opaque_fixed - Encode fixed length opaque xdr data
  * @xdr: pointer to xdr_stream
  * @ptr: pointer to opaque data object
@@ -353,6 +410,31 @@ xdr_stream_encode_opaque(struct xdr_stream *xdr, const void *ptr, size_t len)
 		return -EMSGSIZE;
 	xdr_encode_opaque(p, ptr, len);
 	return count;
+}
+
+/**
+ * xdr_stream_encode_uint32_array - Encode variable length array of integers
+ * @xdr: pointer to xdr_stream
+ * @array: array of integers
+ * @array_size: number of elements in @array
+ *
+ * Return values:
+ *   On success, returns length in bytes of XDR buffer consumed
+ *   %-EMSGSIZE on XDR buffer overflow
+ */
+static inline ssize_t
+xdr_stream_encode_uint32_array(struct xdr_stream *xdr,
+		const __u32 *array, size_t array_size)
+{
+	ssize_t ret = (array_size+1) * sizeof(__u32);
+	__be32 *p = xdr_reserve_space(xdr, ret);
+
+	if (unlikely(!p))
+		return -EMSGSIZE;
+	*p++ = cpu_to_be32(array_size);
+	for (; array_size > 0; p++, array++, array_size--)
+		*p = cpu_to_be32p(array);
+	return ret;
 }
 
 /**
@@ -431,6 +513,44 @@ xdr_stream_decode_opaque_inline(struct xdr_stream *xdr, void **ptr, size_t maxle
 		*ptr = p;
 	}
 	return len;
+}
+
+/**
+ * xdr_stream_decode_uint32_array - Decode variable length array of integers
+ * @xdr: pointer to xdr_stream
+ * @array: location to store the integer array or NULL
+ * @array_size: number of elements to store
+ *
+ * Return values:
+ *   On success, returns number of elements stored in @array
+ *   %-EBADMSG on XDR buffer overflow
+ *   %-EMSGSIZE if the size of the array exceeds @array_size
+ */
+static inline ssize_t
+xdr_stream_decode_uint32_array(struct xdr_stream *xdr,
+		__u32 *array, size_t array_size)
+{
+	__be32 *p;
+	__u32 len;
+	ssize_t retval;
+
+	if (unlikely(xdr_stream_decode_u32(xdr, &len) < 0))
+		return -EBADMSG;
+	p = xdr_inline_decode(xdr, len * sizeof(*p));
+	if (unlikely(!p))
+		return -EBADMSG;
+	if (array == NULL)
+		return len;
+	if (len <= array_size) {
+		if (len < array_size)
+			memset(array+len, 0, (array_size-len)*sizeof(*array));
+		array_size = len;
+		retval = len;
+	} else
+		retval = -EMSGSIZE;
+	for (; array_size > 0; p++, array++, array_size--)
+		*array = be32_to_cpup(p);
+	return retval;
 }
 #endif /* __KERNEL__ */
 

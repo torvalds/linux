@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_EEPROM_H__
@@ -118,11 +110,5 @@ struct eeprom_priv {
 	u8		EepromOrEfuse;
 	u8		efuse_eeprom_data[HWSET_MAX_SIZE_512];
 };
-
-void eeprom_write16(struct adapter *padapter, u16 reg, u16 data);
-u16 eeprom_read16(struct adapter *padapter, u16 reg);
-void read_eeprom_content(struct adapter *padapter);
-void eeprom_read_sz(struct adapter *adapt, u16 reg, u8 *data, u32 sz);
-void read_eeprom_content_by_attrib(struct adapter *padapter);
 
 #endif  /* __RTL871X_EEPROM_H__ */

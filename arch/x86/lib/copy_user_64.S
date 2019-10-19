@@ -1,7 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2008 Vitaly Mayatskikh <vmayatsk@redhat.com>
  * Copyright 2002 Andi Kleen, SuSE Labs.
- * Subject to the GNU Public License v2.
  *
  * Functions to copy from and to user space.
  */
@@ -15,6 +15,30 @@
 #include <asm/asm.h>
 #include <asm/smap.h>
 #include <asm/export.h>
+
+.macro ALIGN_DESTINATION
+	/* check for bad alignment of destination */
+	movl %edi,%ecx
+	andl $7,%ecx
+	jz 102f				/* already aligned */
+	subl $8,%ecx
+	negl %ecx
+	subl %ecx,%edx
+100:	movb (%rsi),%al
+101:	movb %al,(%rdi)
+	incq %rsi
+	incq %rdi
+	decl %ecx
+	jnz 100b
+102:
+	.section .fixup,"ax"
+103:	addl %ecx,%edx			/* ecx is zerorest also */
+	jmp .Lcopy_user_handle_tail
+	.previous
+
+	_ASM_EXTABLE_UA(100b, 103b)
+	_ASM_EXTABLE_UA(101b, 103b)
+	.endm
 
 /*
  * copy_user_generic_unrolled - memory copy with exception handling.
@@ -89,29 +113,29 @@ ENTRY(copy_user_generic_unrolled)
 40:	leal (%rdx,%rcx,8),%edx
 	jmp 60f
 50:	movl %ecx,%edx
-60:	jmp copy_user_handle_tail /* ecx is zerorest also */
+60:	jmp .Lcopy_user_handle_tail /* ecx is zerorest also */
 	.previous
 
-	_ASM_EXTABLE(1b,30b)
-	_ASM_EXTABLE(2b,30b)
-	_ASM_EXTABLE(3b,30b)
-	_ASM_EXTABLE(4b,30b)
-	_ASM_EXTABLE(5b,30b)
-	_ASM_EXTABLE(6b,30b)
-	_ASM_EXTABLE(7b,30b)
-	_ASM_EXTABLE(8b,30b)
-	_ASM_EXTABLE(9b,30b)
-	_ASM_EXTABLE(10b,30b)
-	_ASM_EXTABLE(11b,30b)
-	_ASM_EXTABLE(12b,30b)
-	_ASM_EXTABLE(13b,30b)
-	_ASM_EXTABLE(14b,30b)
-	_ASM_EXTABLE(15b,30b)
-	_ASM_EXTABLE(16b,30b)
-	_ASM_EXTABLE(18b,40b)
-	_ASM_EXTABLE(19b,40b)
-	_ASM_EXTABLE(21b,50b)
-	_ASM_EXTABLE(22b,50b)
+	_ASM_EXTABLE_UA(1b, 30b)
+	_ASM_EXTABLE_UA(2b, 30b)
+	_ASM_EXTABLE_UA(3b, 30b)
+	_ASM_EXTABLE_UA(4b, 30b)
+	_ASM_EXTABLE_UA(5b, 30b)
+	_ASM_EXTABLE_UA(6b, 30b)
+	_ASM_EXTABLE_UA(7b, 30b)
+	_ASM_EXTABLE_UA(8b, 30b)
+	_ASM_EXTABLE_UA(9b, 30b)
+	_ASM_EXTABLE_UA(10b, 30b)
+	_ASM_EXTABLE_UA(11b, 30b)
+	_ASM_EXTABLE_UA(12b, 30b)
+	_ASM_EXTABLE_UA(13b, 30b)
+	_ASM_EXTABLE_UA(14b, 30b)
+	_ASM_EXTABLE_UA(15b, 30b)
+	_ASM_EXTABLE_UA(16b, 30b)
+	_ASM_EXTABLE_UA(18b, 40b)
+	_ASM_EXTABLE_UA(19b, 40b)
+	_ASM_EXTABLE_UA(21b, 50b)
+	_ASM_EXTABLE_UA(22b, 50b)
 ENDPROC(copy_user_generic_unrolled)
 EXPORT_SYMBOL(copy_user_generic_unrolled)
 
@@ -153,11 +177,11 @@ ENTRY(copy_user_generic_string)
 	.section .fixup,"ax"
 11:	leal (%rdx,%rcx,8),%ecx
 12:	movl %ecx,%edx		/* ecx is zerorest also */
-	jmp copy_user_handle_tail
+	jmp .Lcopy_user_handle_tail
 	.previous
 
-	_ASM_EXTABLE(1b,11b)
-	_ASM_EXTABLE(3b,12b)
+	_ASM_EXTABLE_UA(1b, 11b)
+	_ASM_EXTABLE_UA(3b, 12b)
 ENDPROC(copy_user_generic_string)
 EXPORT_SYMBOL(copy_user_generic_string)
 
@@ -186,12 +210,36 @@ ENTRY(copy_user_enhanced_fast_string)
 
 	.section .fixup,"ax"
 12:	movl %ecx,%edx		/* ecx is zerorest also */
-	jmp copy_user_handle_tail
+	jmp .Lcopy_user_handle_tail
 	.previous
 
-	_ASM_EXTABLE(1b,12b)
+	_ASM_EXTABLE_UA(1b, 12b)
 ENDPROC(copy_user_enhanced_fast_string)
 EXPORT_SYMBOL(copy_user_enhanced_fast_string)
+
+/*
+ * Try to copy last bytes and clear the rest if needed.
+ * Since protection fault in copy_from/to_user is not a normal situation,
+ * it is not necessary to optimize tail handling.
+ *
+ * Input:
+ * rdi destination
+ * rsi source
+ * rdx count
+ *
+ * Output:
+ * eax uncopied bytes or 0 if successful.
+ */
+ALIGN;
+.Lcopy_user_handle_tail:
+	movl %edx,%ecx
+1:	rep movsb
+2:	mov %ecx,%eax
+	ASM_CLAC
+	ret
+
+	_ASM_EXTABLE_UA(1b, 2b)
+END(.Lcopy_user_handle_tail)
 
 /*
  * copy_user_nocache - Uncached memory copy with exception handling
@@ -316,30 +364,30 @@ ENTRY(__copy_user_nocache)
 	movl %ecx,%edx
 .L_fixup_handle_tail:
 	sfence
-	jmp copy_user_handle_tail
+	jmp .Lcopy_user_handle_tail
 	.previous
 
-	_ASM_EXTABLE(1b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(2b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(3b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(4b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(5b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(6b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(7b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(8b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(9b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(10b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(11b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(12b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(13b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(14b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(15b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(16b,.L_fixup_4x8b_copy)
-	_ASM_EXTABLE(20b,.L_fixup_8b_copy)
-	_ASM_EXTABLE(21b,.L_fixup_8b_copy)
-	_ASM_EXTABLE(30b,.L_fixup_4b_copy)
-	_ASM_EXTABLE(31b,.L_fixup_4b_copy)
-	_ASM_EXTABLE(40b,.L_fixup_1b_copy)
-	_ASM_EXTABLE(41b,.L_fixup_1b_copy)
+	_ASM_EXTABLE_UA(1b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(2b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(3b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(4b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(5b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(6b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(7b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(8b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(9b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(10b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(11b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(12b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(13b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(14b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(15b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(16b, .L_fixup_4x8b_copy)
+	_ASM_EXTABLE_UA(20b, .L_fixup_8b_copy)
+	_ASM_EXTABLE_UA(21b, .L_fixup_8b_copy)
+	_ASM_EXTABLE_UA(30b, .L_fixup_4b_copy)
+	_ASM_EXTABLE_UA(31b, .L_fixup_4b_copy)
+	_ASM_EXTABLE_UA(40b, .L_fixup_1b_copy)
+	_ASM_EXTABLE_UA(41b, .L_fixup_1b_copy)
 ENDPROC(__copy_user_nocache)
 EXPORT_SYMBOL(__copy_user_nocache)

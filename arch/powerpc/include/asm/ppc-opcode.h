@@ -1,10 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright 2009 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  *
  * provides masks and opcode images for use by code generation, emulation
  * and for instructions that older assemblers might not know about
@@ -12,8 +8,7 @@
 #ifndef _ASM_POWERPC_PPC_OPCODE_H
 #define _ASM_POWERPC_PPC_OPCODE_H
 
-#include <linux/stringify.h>
-#include <asm/asm-compat.h>
+#include <asm/asm-const.h>
 
 #define	__REG_R0	0
 #define	__REG_R1	1
@@ -105,6 +100,7 @@
 #define OP_31_XOP_LHZUX     311
 #define OP_31_XOP_MSGSNDP   142
 #define OP_31_XOP_MSGCLRP   174
+#define OP_31_XOP_TLBIE     306
 #define OP_31_XOP_MFSPR     339
 #define OP_31_XOP_LWAX      341
 #define OP_31_XOP_LHAX      343
@@ -162,6 +158,7 @@
 /* VMX Vector Store Instructions */
 #define OP_31_XOP_STVX          231
 
+#define OP_31   31
 #define OP_LWZ  32
 #define OP_STFS 52
 #define OP_STFSU 53
@@ -232,6 +229,7 @@
 #define PPC_INST_MSGSYNC		0x7c0006ec
 #define PPC_INST_MSGSNDP		0x7c00011c
 #define PPC_INST_MSGCLRP		0x7c00015c
+#define PPC_INST_MTMSRD			0x7c000164
 #define PPC_INST_MTTMR			0x7c0003dc
 #define PPC_INST_NOP			0x60000000
 #define PPC_INST_PASTE			0x7c20070d
@@ -239,8 +237,10 @@
 #define PPC_INST_POPCNTB_MASK		0xfc0007fe
 #define PPC_INST_POPCNTD		0x7c0003f4
 #define PPC_INST_POPCNTW		0x7c0002f4
+#define PPC_INST_RFEBB			0x4c000124
 #define PPC_INST_RFCI			0x4c000066
 #define PPC_INST_RFDI			0x4c00004e
+#define PPC_INST_RFID			0x4c000024
 #define PPC_INST_RFMCI			0x4c00004c
 #define PPC_INST_MFSPR			0x7c0002a6
 #define PPC_INST_MFSPR_DSCR		0x7c1102a6
@@ -253,6 +253,7 @@
 #define PPC_INST_MTSPR_DSCR_USER_MASK	0xfc1ffffe
 #define PPC_INST_MFVSRD			0x7c000066
 #define PPC_INST_MTVSRD			0x7c000166
+#define PPC_INST_SC			0x44000002
 #define PPC_INST_SLBFEE			0x7c0007a7
 #define PPC_INST_SLBIA			0x7c0003e4
 
@@ -271,12 +272,14 @@
 #define PPC_INST_TLBSRX_DOT		0x7c0006a5
 #define PPC_INST_VPMSUMW		0x10000488
 #define PPC_INST_VPMSUMD		0x100004c8
+#define PPC_INST_VPERMXOR		0x1000002d
 #define PPC_INST_XXLOR			0xf0000490
 #define PPC_INST_XXSWAPD		0xf0000250
 #define PPC_INST_XVCPSGNDP		0xf0000780
 #define PPC_INST_TRECHKPT		0x7c0007dd
 #define PPC_INST_TRECLAIM		0x7c00075d
 #define PPC_INST_TABORT			0x7c00071d
+#define PPC_INST_TSR			0x7c0005dd
 
 #define PPC_INST_NAP			0x4c000364
 #define PPC_INST_SLEEP			0x4c0003a4
@@ -295,6 +298,7 @@
 /* Misc instructions for BPF compiler */
 #define PPC_INST_LBZ			0x88000000
 #define PPC_INST_LD			0xe8000000
+#define PPC_INST_LDX			0x7c00002a
 #define PPC_INST_LHZ			0xa0000000
 #define PPC_INST_LWZ			0x80000000
 #define PPC_INST_LHBRX			0x7c00062c
@@ -302,6 +306,7 @@
 #define PPC_INST_STB			0x98000000
 #define PPC_INST_STH			0xb0000000
 #define PPC_INST_STD			0xf8000000
+#define PPC_INST_STDX			0x7c00012a
 #define PPC_INST_STDU			0xf8000001
 #define PPC_INST_STW			0x90000000
 #define PPC_INST_STWU			0x94000000
@@ -319,6 +324,7 @@
 #define PPC_INST_ADDI			0x38000000
 #define PPC_INST_ADDIS			0x3c000000
 #define PPC_INST_ADD			0x7c000214
+#define PPC_INST_ADDC			0x7c000014
 #define PPC_INST_SUB			0x7c000050
 #define PPC_INST_BLR			0x4e800020
 #define PPC_INST_BLRL			0x4e800021
@@ -327,15 +333,22 @@
 #define PPC_INST_MULLW			0x7c0001d6
 #define PPC_INST_MULHWU			0x7c000016
 #define PPC_INST_MULLI			0x1c000000
+#define PPC_INST_MADDHD			0x10000030
+#define PPC_INST_MADDHDU		0x10000031
+#define PPC_INST_MADDLD			0x10000033
 #define PPC_INST_DIVWU			0x7c000396
 #define PPC_INST_DIVD			0x7c0003d2
+#define PPC_INST_DIVDU			0x7c000392
 #define PPC_INST_RLWINM			0x54000000
+#define PPC_INST_RLWINM_DOT		0x54000001
 #define PPC_INST_RLWIMI			0x50000000
 #define PPC_INST_RLDICL			0x78000000
 #define PPC_INST_RLDICR			0x78000004
 #define PPC_INST_SLW			0x7c000030
 #define PPC_INST_SLD			0x7c000036
 #define PPC_INST_SRW			0x7c000430
+#define PPC_INST_SRAW			0x7c000630
+#define PPC_INST_SRAWI			0x7c000670
 #define PPC_INST_SRD			0x7c000436
 #define PPC_INST_SRAD			0x7c000634
 #define PPC_INST_SRADI			0x7c000674
@@ -361,10 +374,13 @@
 #define PPC_INST_STFDX			0x7c0005ae
 #define PPC_INST_LVX			0x7c0000ce
 #define PPC_INST_STVX			0x7c0001ce
+#define PPC_INST_VCMPEQUD		0x100000c7
+#define PPC_INST_VCMPEQUB		0x10000006
 
 /* macros to insert fields into opcodes */
 #define ___PPC_RA(a)	(((a) & 0x1f) << 16)
 #define ___PPC_RB(b)	(((b) & 0x1f) << 11)
+#define ___PPC_RC(c)	(((c) & 0x1f) << 6)
 #define ___PPC_RS(s)	(((s) & 0x1f) << 21)
 #define ___PPC_RT(t)	___PPC_RS(t)
 #define ___PPC_R(r)	(((r) & 0x1) << 16)
@@ -384,13 +400,23 @@
 #define __PPC_WS(w)	(((w) & 0x1f) << 11)
 #define __PPC_SH(s)	__PPC_WS(s)
 #define __PPC_SH64(s)	(__PPC_SH(s) | (((s) & 0x20) >> 4))
-#define __PPC_MB(s)	(((s) & 0x1f) << 6)
+#define __PPC_MB(s)	___PPC_RC(s)
 #define __PPC_ME(s)	(((s) & 0x1f) << 1)
 #define __PPC_MB64(s)	(__PPC_MB(s) | ((s) & 0x20))
 #define __PPC_ME64(s)	__PPC_MB64(s)
 #define __PPC_BI(s)	(((s) & 0x1f) << 16)
 #define __PPC_CT(t)	(((t) & 0x0f) << 21)
 #define __PPC_SPR(r)	((((r) & 0x1f) << 16) | ((((r) >> 5) & 0x1f) << 11))
+#define __PPC_RC21	(0x1 << 10)
+
+/*
+ * Both low and high 16 bits are added as SIGNED additions, so if low 16 bits
+ * has high bit set, high 16 bits must be adjusted. These macros do that (stolen
+ * from binutils).
+ */
+#define PPC_LO(v)	((v) & 0xffff)
+#define PPC_HI(v)	(((v) >> 16) & 0xffff)
+#define PPC_HA(v)	PPC_HI((v) + 0x8000)
 
 /*
  * Only use the larx hint bit on 64bit CPUs. e500v1/v2 based CPUs will treat a
@@ -425,6 +451,15 @@
 #define PPC_STQCX(t, a, b)	stringify_in_c(.long PPC_INST_STQCX | \
 					___PPC_RT(t) | ___PPC_RA(a) | \
 					___PPC_RB(b))
+#define PPC_MADDHD(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDHD | \
+					___PPC_RT(t) | ___PPC_RA(a)  | \
+					___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_MADDHDU(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDHDU | \
+					___PPC_RT(t) | ___PPC_RA(a)   | \
+					___PPC_RB(b) | ___PPC_RC(c))
+#define PPC_MADDLD(t, a, b, c)	stringify_in_c(.long PPC_INST_MADDLD | \
+					___PPC_RT(t) | ___PPC_RA(a)  | \
+					___PPC_RB(b) | ___PPC_RC(c))
 #define PPC_MSGSND(b)		stringify_in_c(.long PPC_INST_MSGSND | \
 					___PPC_RB(b))
 #define PPC_MSGSYNC		stringify_in_c(.long PPC_INST_MSGSYNC)
@@ -484,6 +519,8 @@
 					__PPC_RS(t) | __PPC_RA0(a) | __PPC_RB(b))
 #define PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE | \
 					__PPC_RT(t) | __PPC_RB(b))
+#define __PPC_SLBFEE_DOT(t, b)	stringify_in_c(.long PPC_INST_SLBFEE |	\
+					       ___PPC_RT(t) | ___PPC_RB(b))
 #define PPC_ICBT(c,a,b)		stringify_in_c(.long PPC_INST_ICBT | \
 				       __PPC_CT(c) | __PPC_RA0(a) | __PPC_RB(b))
 /* PASemi instructions */
@@ -516,6 +553,11 @@
 					       VSX_XX3((t), a, a))
 #define XVCPSGNDP(t, a, b)	stringify_in_c(.long (PPC_INST_XVCPSGNDP | \
 					       VSX_XX3((t), (a), (b))))
+
+#define VPERMXOR(vrt, vra, vrb, vrc)				\
+	stringify_in_c(.long (PPC_INST_VPERMXOR |		\
+			      ___PPC_RT(vrt) | ___PPC_RA(vra) | \
+			      ___PPC_RB(vrb) | (((vrc) & 0x1f) << 6)))
 
 #define PPC_NAP			stringify_in_c(.long PPC_INST_NAP)
 #define PPC_SLEEP		stringify_in_c(.long PPC_INST_SLEEP)
@@ -555,6 +597,23 @@
 
 #define PPC_SLBIA(IH)	stringify_in_c(.long PPC_INST_SLBIA | \
 				       ((IH & 0x7) << 21))
-#define PPC_INVALIDATE_ERAT	PPC_SLBIA(7)
+
+/*
+ * These may only be used on ISA v3.0 or later (aka. CPU_FTR_ARCH_300, radix
+ * implies CPU_FTR_ARCH_300). USER/GUEST invalidates may only be used by radix
+ * mode (on HPT these would also invalidate various SLBEs which may not be
+ * desired).
+ */
+#define PPC_ISA_3_0_INVALIDATE_ERAT	PPC_SLBIA(7)
+#define PPC_RADIX_INVALIDATE_ERAT_USER	PPC_SLBIA(3)
+#define PPC_RADIX_INVALIDATE_ERAT_GUEST	PPC_SLBIA(6)
+
+#define VCMPEQUD_RC(vrt, vra, vrb)	stringify_in_c(.long PPC_INST_VCMPEQUD | \
+			      ___PPC_RT(vrt) | ___PPC_RA(vra) | \
+			      ___PPC_RB(vrb) | __PPC_RC21)
+
+#define VCMPEQUB_RC(vrt, vra, vrb)	stringify_in_c(.long PPC_INST_VCMPEQUB | \
+			      ___PPC_RT(vrt) | ___PPC_RA(vra) | \
+			      ___PPC_RB(vrb) | __PPC_RC21)
 
 #endif /* _ASM_POWERPC_PPC_OPCODE_H */

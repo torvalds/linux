@@ -22,7 +22,7 @@
 #include "rsi_main.h"
 
 #define MAX_MGMT_PKT_SIZE               512
-#define RSI_NEEDED_HEADROOM             80
+#define RSI_NEEDED_HEADROOM             84
 #define RSI_RCV_BUFFER_LEN              2000
 
 #define RSI_11B_MODE                    0
@@ -33,6 +33,7 @@
 #define WMM_SHORT_SLOT_TIME             9
 #define SIFS_DURATION                   16
 
+#define EAPOL4_PACKET_LEN		0x85
 #define KEY_TYPE_CLEAR                  0
 #define RSI_PAIRWISE_KEY                1
 #define RSI_GROUP_KEY                   2
@@ -57,12 +58,17 @@
 #define WOW_PATTERN_SIZE 256
 
 /* Receive Frame Types */
+#define RSI_RX_DESC_MSG_TYPE_OFFSET	2
 #define TA_CONFIRM_TYPE                 0x01
 #define RX_DOT11_MGMT                   0x02
 #define TX_STATUS_IND                   0x04
 #define BEACON_EVENT_IND		0x08
+#define EAPOL4_CONFIRM                  1
 #define PROBEREQ_CONFIRM                2
 #define CARD_READY_IND                  0x00
+#define SLEEP_NOTIFY_IND                0x06
+#define RSI_TX_STATUS_TYPE		15
+#define RSI_TX_STATUS			12
 
 #define RSI_DELETE_PEER                 0x0
 #define RSI_ADD_PEER                    0x1
@@ -219,6 +225,12 @@
 #define RSI_WOW_DISCONNECT		BIT(5)
 #endif
 
+#define RSI_MAX_TX_AGGR_FRMS		8
+#define RSI_MAX_RX_AGGR_FRMS		8
+
+#define RSI_MAX_SCAN_SSIDS		16
+#define RSI_MAX_SCAN_IE_LEN		256
+
 enum opmode {
 	RSI_OPMODE_UNSUPPORTED = -1,
 	RSI_OPMODE_AP = 0,
@@ -282,6 +294,7 @@ enum cmd_frame_type {
 	COMMON_DEV_CONFIG = 0x28,
 	RADIO_PARAMS_UPDATE = 0x29,
 	WOWLAN_CONFIG_PARAMS = 0x2B,
+	FEATURES_ENABLE = 0x33,
 	WOWLAN_WAKEUP_REASON = 0xc5
 };
 
@@ -298,6 +311,12 @@ struct rsi_mac_frame {
 #define REQUIRE_TSF_SYNC_CONFIRM	BIT(6)
 #define ENCAP_MGMT_PKT			BIT(7)
 #define DESC_IMMEDIATE_WAKEUP		BIT(15)
+
+struct rsi_xtended_desc {
+	u8 confirm_frame_type;
+	u8 retry_cnt;
+	u16 reserved;
+};
 
 struct rsi_cmd_desc_dword0 {
 	__le16 len_qno;
@@ -331,6 +350,15 @@ struct rsi_cmd_desc {
 struct rsi_boot_params {
 	__le16 desc_word[8];
 	struct bootup_params bootup_params;
+} __packed;
+
+struct rsi_boot_params_9116 {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	struct rsi_cmd_desc_dword1 desc_dword1;
+	struct rsi_cmd_desc_dword2 desc_dword2;
+	__le16 reserved;
+	__le16 umac_clk;
+	struct bootup_params_9116 bootup_params;
 } __packed;
 
 struct rsi_peer_notify {
@@ -608,6 +636,50 @@ struct rsi_wowlan_req {
 	u16 host_sleep_status;
 } __packed;
 
+#define RSI_START_BGSCAN		1
+#define RSI_STOP_BGSCAN			0
+#define HOST_BG_SCAN_TRIG		BIT(4)
+struct rsi_bgscan_config {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	__le64 reserved;
+	__le32 reserved1;
+	__le16 bgscan_threshold;
+	__le16 roam_threshold;
+	__le16 bgscan_periodicity;
+	u8 num_bgscan_channels;
+	u8 two_probe;
+	__le16 active_scan_duration;
+	__le16 passive_scan_duration;
+	__le16 channels2scan[MAX_BGSCAN_CHANNELS_DUAL_BAND];
+} __packed;
+
+struct rsi_bgscan_probe {
+	struct rsi_cmd_desc_dword0 desc_dword0;
+	__le64 reserved;
+	__le32 reserved1;
+	__le16 mgmt_rate;
+	__le16 flags;
+	__le16 def_chan;
+	__le16 channel_scan_time;
+	__le16 probe_req_length;
+} __packed;
+
+#define RSI_DUTY_CYCLING	BIT(0)
+#define RSI_END_OF_FRAME	BIT(1)
+#define RSI_SIFS_TX_ENABLE	BIT(2)
+#define RSI_DPD			BIT(3)
+struct rsi_wlan_9116_features {
+	struct rsi_cmd_desc desc;
+	u8 pll_mode;
+	u8 rf_type;
+	u8 wireless_mode;
+	u8 enable_ppe;
+	u8 afe_type;
+	u8 reserved1;
+	__le16 reserved2;
+	__le32 feature_enable;
+};
+
 static inline u32 rsi_get_queueno(u8 *addr, u16 offset)
 {
 	return (le16_to_cpu(*(__le16 *)&addr[offset]) & 0x7000) >> 12;
@@ -638,6 +710,7 @@ static inline void rsi_set_len_qno(__le16 *addr, u16 len, u8 qno)
 	*addr = cpu_to_le16(len | ((qno & 7) << 12));
 }
 
+int rsi_handle_card_ready(struct rsi_common *common, u8 *msg);
 int rsi_mgmt_pkt_recv(struct rsi_common *common, u8 *msg);
 int rsi_set_vap_capabilities(struct rsi_common *common, enum opmode mode,
 			     u8 *mac_addr, u8 vap_id, u8 vap_status);
@@ -651,10 +724,14 @@ int rsi_set_channel(struct rsi_common *common,
 		    struct ieee80211_channel *channel);
 int rsi_send_vap_dynamic_update(struct rsi_common *common);
 int rsi_send_block_unblock_frame(struct rsi_common *common, bool event);
+int rsi_hal_send_sta_notify_frame(struct rsi_common *common, enum opmode opmode,
+				  u8 notify_event, const unsigned char *bssid,
+				  u8 qos_enable, u16 aid, u16 sta_id,
+				  struct ieee80211_vif *vif);
 void rsi_inform_bss_status(struct rsi_common *common, enum opmode opmode,
 			   u8 status, const u8 *addr, u8 qos_enable, u16 aid,
 			   struct ieee80211_sta *sta, u16 sta_id,
-			   struct ieee80211_vif *vif);
+			   u16 assoc_cap, struct ieee80211_vif *vif);
 void rsi_indicate_pkt_to_os(struct rsi_common *common, struct sk_buff *skb);
 int rsi_mac80211_attach(struct rsi_common *common);
 void rsi_indicate_tx_status(struct rsi_hw *common, struct sk_buff *skb,
@@ -674,4 +751,8 @@ int rsi_send_wowlan_request(struct rsi_common *common, u16 flags,
 #endif
 int rsi_send_ps_request(struct rsi_hw *adapter, bool enable,
 			struct ieee80211_vif *vif);
+void init_bgscan_params(struct rsi_common *common);
+int rsi_send_bgscan_params(struct rsi_common *common, int enable);
+int rsi_send_bgscan_probe_req(struct rsi_common *common,
+			      struct ieee80211_vif *vif);
 #endif

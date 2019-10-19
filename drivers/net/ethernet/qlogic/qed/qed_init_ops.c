@@ -131,7 +131,7 @@ static int qed_init_rt(struct qed_hwfn	*p_hwfn,
 
 		rc = qed_dmae_host2grc(p_hwfn, p_ptt,
 				       (uintptr_t)(p_init_val + i),
-				       addr + (i << 2), segment, 0);
+				       addr + (i << 2), segment, NULL);
 		if (rc)
 			return rc;
 
@@ -149,12 +149,12 @@ int qed_init_alloc(struct qed_hwfn *p_hwfn)
 	if (IS_VF(p_hwfn->cdev))
 		return 0;
 
-	rt_data->b_valid = kzalloc(sizeof(bool) * RUNTIME_ARRAY_SIZE,
+	rt_data->b_valid = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(bool),
 				   GFP_KERNEL);
 	if (!rt_data->b_valid)
 		return -ENOMEM;
 
-	rt_data->init_val = kzalloc(sizeof(u32) * RUNTIME_ARRAY_SIZE,
+	rt_data->init_val = kcalloc(RUNTIME_ARRAY_SIZE, sizeof(u32),
 				    GFP_KERNEL);
 	if (!rt_data->init_val) {
 		kfree(rt_data->b_valid);
@@ -194,7 +194,7 @@ static int qed_init_array_dmae(struct qed_hwfn *p_hwfn,
 	} else {
 		rc = qed_dmae_host2grc(p_hwfn, p_ptt,
 				       (uintptr_t)(buf + dmae_data_offset),
-				       addr, size, 0);
+				       addr, size, NULL);
 	}
 
 	return rc;
@@ -205,6 +205,7 @@ static int qed_init_fill_dmae(struct qed_hwfn *p_hwfn,
 			      u32 addr, u32 fill, u32 fill_count)
 {
 	static u32 zero_buffer[DMAE_MAX_RW_SIZE];
+	struct qed_dmae_params params = {};
 
 	memset(zero_buffer, 0, sizeof(u32) * DMAE_MAX_RW_SIZE);
 
@@ -214,10 +215,10 @@ static int qed_init_fill_dmae(struct qed_hwfn *p_hwfn,
 	 * 3. p_hwfb->temp_data,
 	 * 4. fill_count
 	 */
-
+	params.flags = QED_DMAE_FLAG_RW_REPL_SRC;
 	return qed_dmae_host2grc(p_hwfn, p_ptt,
 				 (uintptr_t)(&zero_buffer[0]),
-				 addr, fill_count, QED_DMAE_FLAG_RW_REPL_SRC);
+				 addr, fill_count, &params);
 }
 
 static void qed_init_fill(struct qed_hwfn *p_hwfn,
@@ -407,7 +408,7 @@ static void qed_init_cmd_rd(struct qed_hwfn *p_hwfn,
 
 	if (i == QED_INIT_MAX_POLL_COUNT) {
 		DP_ERR(p_hwfn,
-		       "Timeout when polling reg: 0x%08x [ Waiting-for: %08x Got: %08x (comparsion %08x)]\n",
+		       "Timeout when polling reg: 0x%08x [ Waiting-for: %08x Got: %08x (comparison %08x)]\n",
 		       addr, le32_to_cpu(cmd->expected_val),
 		       val, le32_to_cpu(cmd->op_data));
 	}

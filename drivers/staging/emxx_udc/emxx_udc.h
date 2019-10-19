@@ -19,17 +19,14 @@
 #define	USE_DMA	1
 #define USE_SUSPEND_WAIT	1
 
-#ifndef TRUE
-#define TRUE	1
-#define FALSE	0
-#endif
-
 /*------------ Board dependence(Resource) */
 #define	VBUS_VALUE		GPIO_VBUS
 
 /* below hacked up for staging integration */
 #define GPIO_VBUS 0 /* GPIO_P153 on KZM9D */
 #define INT_VBUS 0 /* IRQ for GPIO_P153 */
+struct gpio_desc *vbus_gpio;
+int vbus_irq;
 
 /*------------ Board dependence(Wait) */
 
@@ -582,7 +579,7 @@ struct nbu2ss_udc {
 
 	u32		curr_config;	/* Current Configuration Number */
 
-	struct fc_regs		*p_regs;
+	struct fc_regs __iomem *p_regs;
 };
 
 /* USB register access structure */

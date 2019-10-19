@@ -1,16 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * auxtrace.c: AUX area tracing support
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #include <errno.h>
@@ -25,27 +16,23 @@
 #include "../../util/evlist.h"
 
 static
-struct auxtrace_record *auxtrace_record__init_intel(struct perf_evlist *evlist,
+struct auxtrace_record *auxtrace_record__init_intel(struct evlist *evlist,
 						    int *err)
 {
 	struct perf_pmu *intel_pt_pmu;
 	struct perf_pmu *intel_bts_pmu;
-	struct perf_evsel *evsel;
+	struct evsel *evsel;
 	bool found_pt = false;
 	bool found_bts = false;
 
 	intel_pt_pmu = perf_pmu__find(INTEL_PT_PMU_NAME);
 	intel_bts_pmu = perf_pmu__find(INTEL_BTS_PMU_NAME);
 
-	if (evlist) {
-		evlist__for_each_entry(evlist, evsel) {
-			if (intel_pt_pmu &&
-			    evsel->attr.type == intel_pt_pmu->type)
-				found_pt = true;
-			if (intel_bts_pmu &&
-			    evsel->attr.type == intel_bts_pmu->type)
-				found_bts = true;
-		}
+	evlist__for_each_entry(evlist, evsel) {
+		if (intel_pt_pmu && evsel->core.attr.type == intel_pt_pmu->type)
+			found_pt = true;
+		if (intel_bts_pmu && evsel->core.attr.type == intel_bts_pmu->type)
+			found_bts = true;
 	}
 
 	if (found_pt && found_bts) {
@@ -63,7 +50,7 @@ struct auxtrace_record *auxtrace_record__init_intel(struct perf_evlist *evlist,
 	return NULL;
 }
 
-struct auxtrace_record *auxtrace_record__init(struct perf_evlist *evlist,
+struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 					      int *err)
 {
 	char buffer[64];

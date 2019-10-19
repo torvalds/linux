@@ -19,24 +19,13 @@
 
 #include <net/dst.h>
 
-#include <asm/octeon/octeon.h>
-
-#include "ethernet-defines.h"
 #include "octeon-ethernet.h"
+#include "ethernet-defines.h"
 #include "ethernet-mem.h"
 #include "ethernet-rx.h"
 #include "ethernet-tx.h"
 #include "ethernet-mdio.h"
 #include "ethernet-util.h"
-
-#include <asm/octeon/cvmx-pip.h>
-#include <asm/octeon/cvmx-pko.h>
-#include <asm/octeon/cvmx-fau.h>
-#include <asm/octeon/cvmx-ipd.h>
-#include <asm/octeon/cvmx-helper.h>
-#include <asm/octeon/cvmx-asxx-defs.h>
-#include <asm/octeon/cvmx-gmxx-defs.h>
-#include <asm/octeon/cvmx-smix-defs.h>
 
 #define OCTEON_MAX_MTU 65392
 
@@ -141,8 +130,8 @@ static void cvm_oct_periodic_worker(struct work_struct *work)
 	if (priv->poll)
 		priv->poll(cvm_oct_device[priv->port]);
 
-	cvm_oct_device[priv->port]->netdev_ops->ndo_get_stats(
-						cvm_oct_device[priv->port]);
+	cvm_oct_device[priv->port]->netdev_ops->ndo_get_stats
+						(cvm_oct_device[priv->port]);
 
 	if (!atomic_read(&cvm_oct_poll_queue_stopping))
 		schedule_delayed_work(&priv->port_periodic_work, HZ);
@@ -422,7 +411,7 @@ int cvm_oct_common_init(struct net_device *dev)
 	if (priv->of_node)
 		mac = of_get_mac_address(priv->of_node);
 
-	if (mac)
+	if (!IS_ERR_OR_NULL(mac))
 		ether_addr_copy(dev->dev_addr, mac);
 	else
 		eth_hw_addr_random(dev);
@@ -621,8 +610,8 @@ static const struct net_device_ops cvm_oct_pow_netdev_ops = {
 #endif
 };
 
-static struct device_node *cvm_oct_of_get_child(
-				const struct device_node *parent, int reg_val)
+static struct device_node *cvm_oct_of_get_child
+				(const struct device_node *parent, int reg_val)
 {
 	struct device_node *node = NULL;
 	int size;
@@ -654,14 +643,37 @@ static struct device_node *cvm_oct_node_for_port(struct device_node *pip,
 	return np;
 }
 
-static void cvm_set_rgmii_delay(struct device_node *np, int iface, int port)
+static void cvm_set_rgmii_delay(struct octeon_ethernet *priv, int iface,
+				int port)
 {
+	struct device_node *np = priv->of_node;
 	u32 delay_value;
+	bool rx_delay;
+	bool tx_delay;
 
-	if (!of_property_read_u32(np, "rx-delay", &delay_value))
+	/* By default, both RX/TX delay is enabled in
+	 * __cvmx_helper_rgmii_enable().
+	 */
+	rx_delay = true;
+	tx_delay = true;
+
+	if (!of_property_read_u32(np, "rx-delay", &delay_value)) {
 		cvmx_write_csr(CVMX_ASXX_RX_CLK_SETX(port, iface), delay_value);
-	if (!of_property_read_u32(np, "tx-delay", &delay_value))
+		rx_delay = delay_value > 0;
+	}
+	if (!of_property_read_u32(np, "tx-delay", &delay_value)) {
 		cvmx_write_csr(CVMX_ASXX_TX_CLK_SETX(port, iface), delay_value);
+		tx_delay = delay_value > 0;
+	}
+
+	if (!rx_delay && !tx_delay)
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII_ID;
+	else if (!rx_delay)
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII_RXID;
+	else if (!tx_delay)
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII_TXID;
+	else
+		priv->phy_mode = PHY_INTERFACE_MODE_RGMII;
 }
 
 static int cvm_oct_probe(struct platform_device *pdev)
@@ -772,7 +784,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			priv->imode = CVMX_HELPER_INTERFACE_MODE_DISABLED;
 			priv->port = CVMX_PIP_NUM_INPUT_PORTS;
 			priv->queue = -1;
-			strcpy(dev->name, "pow%d");
+			strscpy(dev->name, "pow%d", sizeof(dev->name));
 			for (qos = 0; qos < 16; qos++)
 				skb_queue_head_init(&priv->tx_free_list[qos]);
 			dev->min_mtu = VLAN_ETH_ZLEN - mtu_overhead;
@@ -818,7 +830,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			priv = netdev_priv(dev);
 			priv->netdev = dev;
 			priv->of_node = cvm_oct_node_for_port(pip, interface,
-								port_index);
+							      port_index);
 
 			INIT_DELAYED_WORK(&priv->port_periodic_work,
 					  cvm_oct_periodic_worker);
@@ -826,6 +838,7 @@ static int cvm_oct_probe(struct platform_device *pdev)
 			priv->port = port;
 			priv->queue = cvmx_pko_get_base_queue(priv->port);
 			priv->fau = fau - cvmx_pko_get_num_queues(port) * 4;
+			priv->phy_mode = PHY_INTERFACE_MODE_NA;
 			for (qos = 0; qos < 16; qos++)
 				skb_queue_head_init(&priv->tx_free_list[qos]);
 			for (qos = 0; qos < cvmx_pko_get_num_queues(port);
@@ -843,34 +856,40 @@ static int cvm_oct_probe(struct platform_device *pdev)
 
 			case CVMX_HELPER_INTERFACE_MODE_NPI:
 				dev->netdev_ops = &cvm_oct_npi_netdev_ops;
-				strcpy(dev->name, "npi%d");
+				strscpy(dev->name, "npi%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_XAUI:
 				dev->netdev_ops = &cvm_oct_xaui_netdev_ops;
-				strcpy(dev->name, "xaui%d");
+				strscpy(dev->name, "xaui%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_LOOP:
 				dev->netdev_ops = &cvm_oct_npi_netdev_ops;
-				strcpy(dev->name, "loop%d");
+				strscpy(dev->name, "loop%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_SGMII:
+				priv->phy_mode = PHY_INTERFACE_MODE_SGMII;
 				dev->netdev_ops = &cvm_oct_sgmii_netdev_ops;
-				strcpy(dev->name, "eth%d");
+				strscpy(dev->name, "eth%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_SPI:
 				dev->netdev_ops = &cvm_oct_spi_netdev_ops;
-				strcpy(dev->name, "spi%d");
+				strscpy(dev->name, "spi%d", sizeof(dev->name));
+				break;
+
+			case CVMX_HELPER_INTERFACE_MODE_GMII:
+				priv->phy_mode = PHY_INTERFACE_MODE_GMII;
+				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
+				strscpy(dev->name, "eth%d", sizeof(dev->name));
 				break;
 
 			case CVMX_HELPER_INTERFACE_MODE_RGMII:
-			case CVMX_HELPER_INTERFACE_MODE_GMII:
 				dev->netdev_ops = &cvm_oct_rgmii_netdev_ops;
-				strcpy(dev->name, "eth%d");
-				cvm_set_rgmii_delay(priv->of_node, interface,
+				strscpy(dev->name, "eth%d", sizeof(dev->name));
+				cvm_set_rgmii_delay(priv, interface,
 						    port_index);
 				break;
 			}

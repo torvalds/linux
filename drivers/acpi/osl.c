@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  acpi_osl.c - OS-dependent functions ($Revision: 83 $)
  *
@@ -6,21 +7,6 @@
  *  Copyright (C) 2001, 2002 Paul Diefenbaugh <paul.s.diefenbaugh@intel.com>
  *  Copyright (c) 2008 Intel Corporation
  *   Author: Matthew Wilcox <willy@linux.intel.com>
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
- *
  */
 
 #include <linux/module.h>
@@ -28,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/lockdep.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/kmod.h>
@@ -40,11 +27,14 @@
 #include <linux/list.h>
 #include <linux/jiffies.h>
 #include <linux/semaphore.h>
+#include <linux/security.h>
 
 #include <asm/io.h>
 #include <linux/uaccess.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
+#include "acpica/accommon.h"
+#include "acpica/acnamesp.h"
 #include "internal.h"
 
 #define _COMPONENT		ACPI_OS_SERVICES
@@ -92,6 +82,7 @@ struct acpi_ioremap {
 
 static LIST_HEAD(acpi_ioremaps);
 static DEFINE_MUTEX(acpi_ioremap_lock);
+#define acpi_ioremap_lock_held() lock_is_held(&acpi_ioremap_lock.dep_map)
 
 static void __init acpi_request_region (struct acpi_generic_address *gas,
 	unsigned int length, char *desc)
@@ -189,12 +180,26 @@ early_param("acpi_rsdp", setup_acpi_rsdp);
 
 acpi_physical_address __init acpi_os_get_root_pointer(void)
 {
-	acpi_physical_address pa = 0;
+	acpi_physical_address pa;
 
 #ifdef CONFIG_KEXEC
-	if (acpi_rsdp)
+	/*
+	 * We may have been provided with an RSDP on the command line,
+	 * but if a malicious user has done so they may be pointing us
+	 * at modified ACPI tables that could alter kernel behaviour -
+	 * so, we check the lockdown status before making use of
+	 * it. If we trust it then also stash it in an architecture
+	 * specific location (if appropriate) so it can be carried
+	 * over further kexec()s.
+	 */
+	if (acpi_rsdp && !security_locked_down(LOCKDOWN_ACPI_TABLES)) {
+		acpi_arch_set_root_pointer(acpi_rsdp);
 		return acpi_rsdp;
+	}
 #endif
+	pa = acpi_arch_get_root_pointer();
+	if (pa)
+		return pa;
 
 	if (efi_enabled(EFI_CONFIG_TABLES)) {
 		if (efi.acpi20 != EFI_INVALID_TABLE_ADDR)
@@ -215,7 +220,7 @@ acpi_map_lookup(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
-	list_for_each_entry_rcu(map, &acpi_ioremaps, list)
+	list_for_each_entry_rcu(map, &acpi_ioremaps, list, acpi_ioremap_lock_held())
 		if (map->phys <= phys &&
 		    phys + size <= map->phys + map->size)
 			return map;
@@ -258,7 +263,7 @@ acpi_map_lookup_virt(void __iomem *virt, acpi_size size)
 {
 	struct acpi_ioremap *map;
 
-	list_for_each_entry_rcu(map, &acpi_ioremaps, list)
+	list_for_each_entry_rcu(map, &acpi_ioremaps, list, acpi_ioremap_lock_held())
 		if (map->virt <= virt &&
 		    virt + size <= map->virt + map->size)
 			return map;
@@ -310,8 +315,8 @@ static void acpi_unmap(acpi_physical_address pg_off, void __iomem *vaddr)
  * During early init (when acpi_permanent_mmap has not been set yet) this
  * routine simply calls __acpi_map_table() to get the job done.
  */
-void __iomem *__ref
-acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
+void __iomem __ref
+*acpi_os_map_iomem(acpi_physical_address phys, acpi_size size)
 {
 	struct acpi_ioremap *map;
 	void __iomem *virt;
@@ -612,15 +617,18 @@ void acpi_os_stall(u32 us)
 }
 
 /*
- * Support ACPI 3.0 AML Timer operand
- * Returns 64-bit free-running, monotonically increasing timer
- * with 100ns granularity
+ * Support ACPI 3.0 AML Timer operand. Returns a 64-bit free-running,
+ * monotonically increasing timer with 100ns granularity. Do not use
+ * ktime_get() to implement this function because this function may get
+ * called after timekeeping has been suspended. Note: calling this function
+ * after timekeeping has been suspended may lead to unexpected results
+ * because when timekeeping is suspended the jiffies counter is not
+ * incremented. See also timekeeping_suspend().
  */
 u64 acpi_os_get_timer(void)
 {
-	u64 time_ns = ktime_to_ns(ktime_get());
-	do_div(time_ns, 100);
-	return time_ns;
+	return (get_jiffies_64() - INITIAL_JIFFIES) *
+		(ACPI_100NSEC_PER_SEC / HZ);
 }
 
 acpi_status acpi_os_read_port(acpi_io_address port, u32 * value, u32 width)
@@ -761,6 +769,7 @@ acpi_os_write_memory(acpi_physical_address phys_addr, u64 value, u32 width)
 	return AE_OK;
 }
 
+#ifdef CONFIG_PCI
 acpi_status
 acpi_os_read_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
 			       u64 *value, u32 width)
@@ -819,6 +828,7 @@ acpi_os_write_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
 
 	return (result ? AE_ERROR : AE_OK);
 }
+#endif
 
 static void acpi_os_execute_deferred(struct work_struct *work)
 {
@@ -1124,6 +1134,7 @@ void acpi_os_wait_events_complete(void)
 	flush_workqueue(kacpid_wq);
 	flush_workqueue(kacpi_notify_wq);
 }
+EXPORT_SYMBOL(acpi_os_wait_events_complete);
 
 struct acpi_hp_work {
 	struct work_struct work;
@@ -1486,6 +1497,76 @@ int acpi_check_region(resource_size_t start, resource_size_t n,
 	return acpi_check_resource_conflict(&res);
 }
 EXPORT_SYMBOL(acpi_check_region);
+
+static acpi_status acpi_deactivate_mem_region(acpi_handle handle, u32 level,
+					      void *_res, void **return_value)
+{
+	struct acpi_mem_space_context **mem_ctx;
+	union acpi_operand_object *handler_obj;
+	union acpi_operand_object *region_obj2;
+	union acpi_operand_object *region_obj;
+	struct resource *res = _res;
+	acpi_status status;
+
+	region_obj = acpi_ns_get_attached_object(handle);
+	if (!region_obj)
+		return AE_OK;
+
+	handler_obj = region_obj->region.handler;
+	if (!handler_obj)
+		return AE_OK;
+
+	if (region_obj->region.space_id != ACPI_ADR_SPACE_SYSTEM_MEMORY)
+		return AE_OK;
+
+	if (!(region_obj->region.flags & AOPOBJ_SETUP_COMPLETE))
+		return AE_OK;
+
+	region_obj2 = acpi_ns_get_secondary_object(region_obj);
+	if (!region_obj2)
+		return AE_OK;
+
+	mem_ctx = (void *)&region_obj2->extra.region_context;
+
+	if (!(mem_ctx[0]->address >= res->start &&
+	      mem_ctx[0]->address < res->end))
+		return AE_OK;
+
+	status = handler_obj->address_space.setup(region_obj,
+						  ACPI_REGION_DEACTIVATE,
+						  NULL, (void **)mem_ctx);
+	if (ACPI_SUCCESS(status))
+		region_obj->region.flags &= ~(AOPOBJ_SETUP_COMPLETE);
+
+	return status;
+}
+
+/**
+ * acpi_release_memory - Release any mappings done to a memory region
+ * @handle: Handle to namespace node
+ * @res: Memory resource
+ * @level: A level that terminates the search
+ *
+ * Walks through @handle and unmaps all SystemMemory Operation Regions that
+ * overlap with @res and that have already been activated (mapped).
+ *
+ * This is a helper that allows drivers to place special requirements on memory
+ * region that may overlap with operation regions, primarily allowing them to
+ * safely map the region as non-cached memory.
+ *
+ * The unmapped Operation Regions will be automatically remapped next time they
+ * are called, so the drivers do not need to do anything else.
+ */
+acpi_status acpi_release_memory(acpi_handle handle, struct resource *res,
+				u32 level)
+{
+	if (!(res->flags & IORESOURCE_MEM))
+		return AE_TYPE;
+
+	return acpi_walk_namespace(ACPI_TYPE_REGION, handle, level,
+				   acpi_deactivate_mem_region, NULL, res, NULL);
+}
+EXPORT_SYMBOL_GPL(acpi_release_memory);
 
 /*
  * Let drivers know whether the resource checks are effective

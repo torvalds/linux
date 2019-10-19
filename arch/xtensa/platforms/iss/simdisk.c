@@ -21,7 +21,6 @@
 #include <platform/simcall.h>
 
 #define SIMDISK_MAJOR 240
-#define SECTOR_SHIFT 9
 #define SIMDISK_MINORS 1
 #define MAX_SIMDISK_COUNT 10
 
@@ -298,8 +297,7 @@ out_alloc_disk:
 	blk_cleanup_queue(dev->queue);
 	dev->queue = NULL;
 out_alloc_queue:
-	simc_close(dev->fd);
-	return -EIO;
+	return -ENOMEM;
 }
 
 static int __init simdisk_init(void)

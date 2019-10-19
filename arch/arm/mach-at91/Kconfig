@@ -1,5 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_AT91
-	bool "Atmel SoCs"
+	bool "AT91/Microchip SoCs"
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5 || ARCH_MULTI_V7 || ARM_SINGLE_ARMV7M
 	select ARM_CPU_SUSPEND if PM && ARCH_MULTI_V7
 	select COMMON_CLK_AT91
@@ -13,7 +14,7 @@ config SOC_SAMV7
 	select COMMON_CLK_AT91
 	select PINCTRL_AT91
 	help
-	  Select this if you are using an SoC from Atmel's SAME7, SAMS7 or SAMV7
+	  Select this if you are using an SoC from Microchip's SAME7, SAMS7 or SAMV7
 	  families.
 
 config SOC_SAMA5D2
@@ -21,27 +22,26 @@ config SOC_SAMA5D2
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_H32MX
 	select HAVE_AT91_GENERATED_CLK
 	select HAVE_AT91_AUDIO_PLL
+	select HAVE_AT91_I2S_MUX_CLK
 	select PINCTRL_AT91PIO4
 	help
-	  Select this if ou are using one of Atmel's SAMA5D2 family SoC.
+	  Select this if ou are using one of Microchip's SAMA5D2 family SoC.
 
 config SOC_SAMA5D3
 	bool "SAMA5D3 family"
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
 	select PINCTRL_AT91
 	help
-	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
+	  Select this if you are using one of Microchip's SAMA5D3 family SoC.
 	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35, SAMA5D36.
 
 config SOC_SAMA5D4
@@ -49,14 +49,13 @@ config SOC_SAMA5D4
 	depends on ARCH_MULTI_V7
 	select SOC_SAMA5
 	select CACHE_L2X0
-	select HAVE_FB_ATMEL
 	select HAVE_AT91_UTMI
 	select HAVE_AT91_SMD
 	select HAVE_AT91_USB_CLK
 	select HAVE_AT91_H32MX
 	select PINCTRL_AT91
 	help
-	  Select this if you are using one of Atmel's SAMA5D4 family SoC.
+	  Select this if you are using one of Microchip's SAMA5D4 family SoC.
 
 config SOC_AT91RM9200
 	bool "AT91RM9200"
@@ -70,7 +69,7 @@ config SOC_AT91RM9200
 	select SOC_SAM_V4_V5
 	select SRAM if PM
 	help
-	  Select this if you are using Atmel's AT91RM9200 SoC.
+	  Select this if you are using Microchip's AT91RM9200 SoC.
 
 config SOC_AT91SAM9
 	bool "AT91SAM9"
@@ -88,7 +87,7 @@ config SOC_AT91SAM9
 	select SOC_SAM_V4_V5
 	select SRAM if PM
 	help
-	  Select this if you are using one of those Atmel SoC:
+	  Select this if you are using one of those Microchip SoC:
 	    AT91SAM9260
 	    AT91SAM9261
 	    AT91SAM9263
@@ -105,6 +104,29 @@ config SOC_AT91SAM9
 	    AT91SAM9X25
 	    AT91SAM9X35
 	    AT91SAM9XE
+
+comment "Clocksource driver selection"
+
+config ATMEL_CLOCKSOURCE_PIT
+	bool "Periodic Interval Timer (PIT) support"
+	depends on SOC_AT91SAM9 || SOC_SAMA5
+	default SOC_AT91SAM9 || SOC_SAMA5
+	select ATMEL_PIT
+	help
+	  Select this to get a clocksource based on the Atmel Periodic Interval
+	  Timer. It has a relatively low resolution and the TC Block clocksource
+	  should be preferred.
+
+config ATMEL_CLOCKSOURCE_TCB
+	bool "Timer Counter Blocks (TCB) support"
+	default SOC_AT91RM9200 || SOC_AT91SAM9 || SOC_SAMA5
+	select ATMEL_TCB_CLKSRC
+	help
+	  Select this to get a high precision clocksource based on a
+	  TC block with a 5+ MHz base clock rate.
+	  On platforms with 16-bit counters, two timer channels are combined
+	  to make a single 32-bit timer.
+	  It can also be used as a clock event device supporting oneshot mode.
 
 config HAVE_AT91_UTMI
 	bool
@@ -127,6 +149,9 @@ config HAVE_AT91_GENERATED_CLK
 	bool
 
 config HAVE_AT91_AUDIO_PLL
+	bool
+
+config HAVE_AT91_I2S_MUX_CLK
 	bool
 
 config SOC_SAM_V4_V5

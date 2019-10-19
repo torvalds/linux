@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Pressure drivers
 #
@@ -51,6 +52,17 @@ config IIO_CROS_EC_BARO
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called cros_ec_baro.
+
+config DPS310
+	tristate "Infineon DPS310 pressure and temperature sensor"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Support for the Infineon DPS310 digital barometric pressure sensor.
+	  It can be accessed over I2C bus.
+
+	  This driver can also be built as a module.  If so, the module will be
+	  called dps310.
 
 config HID_SENSOR_PRESS
 	depends on HID_SENSOR_HUB
@@ -165,7 +177,7 @@ config IIO_ST_PRESS
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics pressure
-	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB.
+	  sensors: LPS001WP, LPS25H, LPS331AP, LPS22HB, LPS22HH.
 
 	  This driver can also be built as a module. If so, these modules
 	  will be created:

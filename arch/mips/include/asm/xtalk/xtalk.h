@@ -47,15 +47,6 @@ typedef struct xtalk_piomap_s *xtalk_piomap_t;
 #define XIO_PORT(x)	((xwidgetnum_t)(((x)&XIO_PORT_BITS) >> XIO_PORT_SHIFT))
 #define XIO_PACK(p, o)	((((uint64_t)(p))<<XIO_PORT_SHIFT) | ((o)&XIO_ADDR_BITS))
 
-#ifdef CONFIG_PCI
-extern int bridge_probe(nasid_t nasid, int widget, int masterwid);
-#else
-static inline int bridge_probe(nasid_t nasid, int widget, int masterwid)
-{
-	return 0;
-}
-#endif
-
 #endif /* !__ASSEMBLY__ */
 
 #endif /* _ASM_XTALK_XTALK_H */

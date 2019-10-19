@@ -1,9 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * motu.h - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef SOUND_FIREWIRE_MOTU_H_INCLUDED
@@ -60,8 +59,7 @@ struct snd_motu {
 	struct amdtp_stream rx_stream;
 	struct fw_iso_resources tx_resources;
 	struct fw_iso_resources rx_resources;
-	unsigned int capture_substreams;
-	unsigned int playback_substreams;
+	unsigned int substreams_counter;
 
 	/* For notification. */
 	struct fw_address_handler async_handler;
@@ -71,6 +69,8 @@ struct snd_motu {
 	int dev_lock_count;
 	bool dev_lock_changed;
 	wait_queue_head_t hwdep_wait;
+
+	struct amdtp_domain domain;
 };
 
 enum snd_motu_spec_flags {
@@ -79,13 +79,14 @@ enum snd_motu_spec_flags {
 	SND_MOTU_SPEC_TX_MICINST_CHUNK	= 0x0004,
 	SND_MOTU_SPEC_TX_RETURN_CHUNK	= 0x0008,
 	SND_MOTU_SPEC_TX_REVERB_CHUNK	= 0x0010,
-	SND_MOTU_SPEC_TX_AESEBU_CHUNK	= 0x0020,
+	SND_MOTU_SPEC_HAS_AESEBU_IFACE	= 0x0020,
 	SND_MOTU_SPEC_HAS_OPT_IFACE_A	= 0x0040,
 	SND_MOTU_SPEC_HAS_OPT_IFACE_B	= 0x0080,
 	SND_MOTU_SPEC_RX_MIDI_2ND_Q	= 0x0100,
 	SND_MOTU_SPEC_RX_MIDI_3RD_Q	= 0x0200,
 	SND_MOTU_SPEC_TX_MIDI_2ND_Q	= 0x0400,
 	SND_MOTU_SPEC_TX_MIDI_3RD_Q	= 0x0800,
+	SND_MOTU_SPEC_RX_SEPARETED_MAIN	= 0x1000,
 };
 
 #define SND_MOTU_CLOCK_RATE_COUNT	6
@@ -128,6 +129,9 @@ struct snd_motu_spec {
 extern const struct snd_motu_protocol snd_motu_protocol_v2;
 extern const struct snd_motu_protocol snd_motu_protocol_v3;
 
+extern const struct snd_motu_spec snd_motu_spec_traveler;
+extern const struct snd_motu_spec snd_motu_spec_8pre;
+
 int amdtp_motu_init(struct amdtp_stream *s, struct fw_unit *unit,
 		    enum amdtp_stream_direction dir,
 		    const struct snd_motu_protocol *const protocol);
@@ -150,7 +154,8 @@ void snd_motu_transaction_unregister(struct snd_motu *motu);
 int snd_motu_stream_init_duplex(struct snd_motu *motu);
 void snd_motu_stream_destroy_duplex(struct snd_motu *motu);
 int snd_motu_stream_cache_packet_formats(struct snd_motu *motu);
-int snd_motu_stream_start_duplex(struct snd_motu *motu, unsigned int rate);
+int snd_motu_stream_reserve_duplex(struct snd_motu *motu, unsigned int rate);
+int snd_motu_stream_start_duplex(struct snd_motu *motu);
 void snd_motu_stream_stop_duplex(struct snd_motu *motu);
 int snd_motu_stream_lock_try(struct snd_motu *motu);
 void snd_motu_stream_lock_release(struct snd_motu *motu);

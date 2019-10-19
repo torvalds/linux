@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * (C) 2013 Astaro GmbH & Co KG
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -15,7 +12,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Florian Westphal <fw@strlen.de>");
-MODULE_DESCRIPTION("Xtables: add/match connection trackling labels");
+MODULE_DESCRIPTION("Xtables: add/match connection tracking labels");
 MODULE_ALIAS("ipt_connlabel");
 MODULE_ALIAS("ip6t_connlabel");
 
@@ -57,14 +54,15 @@ static int connlabel_mt_check(const struct xt_mtchk_param *par)
 	int ret;
 
 	if (info->options & ~options) {
-		pr_err("Unknown options in mask %x\n", info->options);
+		pr_info_ratelimited("Unknown options in mask %x\n",
+				    info->options);
 		return -EINVAL;
 	}
 
 	ret = nf_ct_netns_get(par->net, par->family);
 	if (ret < 0) {
-		pr_info("cannot load conntrack support for proto=%u\n",
-							par->family);
+		pr_info_ratelimited("cannot load conntrack support for proto=%u\n",
+				    par->family);
 		return ret;
 	}
 

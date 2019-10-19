@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /**
  * xhci-dbgtty.c - tty glue for xHCI debug capability
  *
@@ -92,21 +93,23 @@ static void dbc_start_rx(struct dbc_port *port)
 static void
 dbc_read_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 {
+	unsigned long		flags;
 	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
-	spin_lock(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	list_add_tail(&req->list_pool, &port->read_queue);
 	tasklet_schedule(&port->push);
-	spin_unlock(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
 static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 {
+	unsigned long		flags;
 	struct xhci_dbc		*dbc = xhci->dbc;
 	struct dbc_port		*port = &dbc->port;
 
-	spin_lock(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	list_add(&req->list_pool, &port->write_pool);
 	switch (req->status) {
 	case 0:
@@ -119,7 +122,7 @@ static void dbc_write_complete(struct xhci_hcd *xhci, struct dbc_request *req)
 			  req->status);
 		break;
 	}
-	spin_unlock(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
 static void xhci_dbc_free_req(struct dbc_ep *dep, struct dbc_request *req)
@@ -136,14 +139,14 @@ xhci_dbc_alloc_requests(struct dbc_ep *dep, struct list_head *head,
 	struct dbc_request	*req;
 
 	for (i = 0; i < DBC_QUEUE_SIZE; i++) {
-		req = dbc_alloc_request(dep, GFP_ATOMIC);
+		req = dbc_alloc_request(dep, GFP_KERNEL);
 		if (!req)
 			break;
 
 		req->length = DBC_MAX_PACKET;
 		req->buf = kmalloc(req->length, GFP_KERNEL);
 		if (!req->buf) {
-			xhci_dbc_free_req(dep, req);
+			dbc_free_request(dep, req);
 			break;
 		}
 
@@ -318,21 +321,24 @@ int xhci_dbc_tty_register_driver(struct xhci_hcd *xhci)
 
 void xhci_dbc_tty_unregister_driver(void)
 {
-	tty_unregister_driver(dbc_tty_driver);
-	put_tty_driver(dbc_tty_driver);
-	dbc_tty_driver = NULL;
+	if (dbc_tty_driver) {
+		tty_unregister_driver(dbc_tty_driver);
+		put_tty_driver(dbc_tty_driver);
+		dbc_tty_driver = NULL;
+	}
 }
 
 static void dbc_rx_push(unsigned long _port)
 {
 	struct dbc_request	*req;
 	struct tty_struct	*tty;
+	unsigned long		flags;
 	bool			do_push = false;
 	bool			disconnect = false;
 	struct dbc_port		*port = (void *)_port;
 	struct list_head	*queue = &port->read_queue;
 
-	spin_lock_irq(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	tty = port->port.tty;
 	while (!list_empty(queue)) {
 		req = list_first_entry(queue, struct dbc_request, list_pool);
@@ -392,16 +398,17 @@ static void dbc_rx_push(unsigned long _port)
 	if (!disconnect)
 		dbc_start_rx(port);
 
-	spin_unlock_irq(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
 static int dbc_port_activate(struct tty_port *_port, struct tty_struct *tty)
 {
+	unsigned long	flags;
 	struct dbc_port	*port = container_of(_port, struct dbc_port, port);
 
-	spin_lock_irq(&port->port_lock);
+	spin_lock_irqsave(&port->port_lock, flags);
 	dbc_start_rx(port);
-	spin_unlock_irq(&port->port_lock);
+	spin_unlock_irqrestore(&port->port_lock, flags);
 
 	return 0;
 }
@@ -443,9 +450,10 @@ int xhci_dbc_tty_register_device(struct xhci_hcd *xhci)
 	xhci_dbc_tty_init_port(xhci, port);
 	tty_dev = tty_port_register_device(&port->port,
 					   dbc_tty_driver, 0, NULL);
-	ret = IS_ERR_OR_NULL(tty_dev);
-	if (ret)
+	if (IS_ERR(tty_dev)) {
+		ret = PTR_ERR(tty_dev);
 		goto register_fail;
+	}
 
 	ret = kfifo_alloc(&port->write_fifo, DBC_WRITE_BUF_SIZE, GFP_KERNEL);
 	if (ret)

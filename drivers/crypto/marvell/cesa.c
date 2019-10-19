@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Support for Marvell's Cryptographic Engine and Security Accelerator (CESA)
  * that can be found on the following platform: Orion, Kirkwood, Armada. This
@@ -8,10 +9,6 @@
  *
  * This work is based on an initial version written by
  * Sebastian Andrzej Siewior < sebastian at breakpoint dot cc >
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/delay.h>
@@ -25,7 +22,6 @@
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
 #include <linux/module.h>
-#include <linux/dma-direct.h> /* XXX: drivers shall never use this directly! */
 #include <linux/clk.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -472,7 +468,7 @@ static int mv_cesa_probe(struct platform_device *pdev)
 		sram_size = CESA_SA_MIN_SRAM_SIZE;
 
 	cesa->sram_size = sram_size;
-	cesa->engines = devm_kzalloc(dev, caps->nengines * sizeof(*engines),
+	cesa->engines = devm_kcalloc(dev, caps->nengines, sizeof(*engines),
 				     GFP_KERNEL);
 	if (!cesa->engines)
 		return -ENOMEM;

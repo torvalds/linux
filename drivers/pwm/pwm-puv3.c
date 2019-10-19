@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/unicore32/kernel/pwm.c
  *
@@ -5,10 +6,6 @@
  *
  *	Maintained by GUAN Xue-tao <gxt@mprc.pku.edu.cn>
  *	Copyright (C) 2001-2010 Guan Xuetao
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -107,10 +104,8 @@ static int pwm_probe(struct platform_device *pdev)
 	int ret;
 
 	puv3 = devm_kzalloc(&pdev->dev, sizeof(*puv3), GFP_KERNEL);
-	if (puv3 == NULL) {
-		dev_err(&pdev->dev, "failed to allocate memory\n");
+	if (!puv3)
 		return -ENOMEM;
-	}
 
 	puv3->clk = devm_clk_get(&pdev->dev, "OST_CLK");
 	if (IS_ERR(puv3->clk))

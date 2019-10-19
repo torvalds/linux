@@ -109,6 +109,12 @@ static const struct mmc_fixup mmc_ext_csd_fixups[] = {
 	 */
 	MMC_FIXUP_EXT_CSD_REV(CID_NAME_ANY, CID_MANFID_HYNIX,
 			      0x014a, add_quirk, MMC_QUIRK_BROKEN_HPI, 5),
+	/*
+	 * Certain Micron (Numonyx) eMMC 4.5 cards might get broken when HPI
+	 * feature is used so disable the HPI feature for such buggy cards.
+	 */
+	MMC_FIXUP_EXT_CSD_REV(CID_NAME_ANY, CID_MANFID_NUMONYX,
+			      0x014e, add_quirk, MMC_QUIRK_BROKEN_HPI, 6),
 
 	END_FIXUP
 };
@@ -125,6 +131,9 @@ static const struct mmc_fixup sdio_fixup_methods[] = {
 
 	SDIO_FIXUP(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797_F0,
 		   add_quirk, MMC_QUIRK_BROKEN_IRQ_POLLING),
+
+	SDIO_FIXUP(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8887WLAN,
+		   add_limit_rate_quirk, 150000000),
 
 	END_FIXUP
 };
@@ -150,7 +159,7 @@ static inline void mmc_fixup_device(struct mmc_card *card,
 		    (f->ext_csd_rev == EXT_CSD_REV_ANY ||
 		     f->ext_csd_rev == card->ext_csd.rev) &&
 		    rev >= f->rev_start && rev <= f->rev_end) {
-			dev_dbg(&card->dev, "calling %pf\n", f->vendor_fixup);
+			dev_dbg(&card->dev, "calling %ps\n", f->vendor_fixup);
 			f->vendor_fixup(card, f->data);
 		}
 	}

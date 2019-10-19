@@ -15,12 +15,27 @@ reset_tracer() { # reset the current tracer
     echo nop > current_tracer
 }
 
-reset_trigger() { # reset all current setting triggers
-    grep -v ^# events/*/*/trigger |
+reset_trigger_file() {
+    # remove action triggers first
+    grep -H ':on[^:]*(' $@ |
     while read line; do
-        cmd=`echo $line | cut -f2- -d: | cut -f1 -d" "`
-	echo "!$cmd" > `echo $line | cut -f1 -d:`
+        cmd=`echo $line | cut -f2- -d: | cut -f1 -d"["`
+	file=`echo $line | cut -f1 -d:`
+	echo "!$cmd" >> $file
     done
+    grep -Hv ^# $@ |
+    while read line; do
+        cmd=`echo $line | cut -f2- -d: | cut -f1 -d"["`
+	file=`echo $line | cut -f1 -d:`
+	echo "!$cmd" > $file
+    done
+}
+
+reset_trigger() { # reset all current setting triggers
+    if [ -d events/synthetic ]; then
+        reset_trigger_file events/synthetic/*/trigger
+    fi
+    reset_trigger_file events/*/*/trigger
 }
 
 reset_events_filter() { # reset all current setting filters
@@ -59,6 +74,13 @@ disable_events() {
     echo 0 > events/enable
 }
 
+clear_synthetic_events() { # reset all current synthetic events
+    grep -v ^# synthetic_events |
+    while read line; do
+        echo "!$line" >> synthetic_events
+    done
+}
+
 initialize_ftrace() { # Reset ftrace to initial-state
 # As the initial state, ftrace will be set to nop tracer,
 # no events, no triggers, no filters, no function filters,
@@ -67,12 +89,35 @@ initialize_ftrace() { # Reset ftrace to initial-state
     reset_tracer
     reset_trigger
     reset_events_filter
+    reset_ftrace_filter
     disable_events
-    echo > set_event_pid	# event tracer is always on
+    [ -f set_event_pid ] && echo > set_event_pid
+    [ -f set_ftrace_pid ] && echo > set_ftrace_pid
     [ -f set_ftrace_filter ] && echo | tee set_ftrace_*
     [ -f set_graph_function ] && echo | tee set_graph_*
     [ -f stack_trace_filter ] && echo > stack_trace_filter
     [ -f kprobe_events ] && echo > kprobe_events
     [ -f uprobe_events ] && echo > uprobe_events
+    [ -f synthetic_events ] && echo > synthetic_events
+    [ -f snapshot ] && echo 0 > snapshot
+    clear_trace
     enable_tracing
+}
+
+LOCALHOST=127.0.0.1
+
+yield() {
+    ping $LOCALHOST -c 1 || sleep .001 || usleep 1 || sleep 1
+}
+
+ftrace_errlog_check() { # err-prefix command-with-error-pos-by-^ command-file
+    pos=$(echo -n "${2%^*}" | wc -c) # error position
+    command=$(echo "$2" | tr -d ^)
+    echo "Test command: $command"
+    echo > error_log
+    (! echo "$command" >> "$3" ) 2> /dev/null
+    grep "$1: error:" -A 3 error_log
+    N=$(tail -n 1 error_log | wc -c)
+    # "  Command: " and "^\n" => 13
+    test $(expr 13 + $pos) -eq $N
 }

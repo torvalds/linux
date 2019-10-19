@@ -1,9 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Adaptrum Anarion DWMAC glue layer
  *
  * Copyright (C) 2017, Adaptrum, Inc.
  * (Written by Alexandru Gagniuc <alex.g at adaptrum.com> for Adaptrum, Inc.)
- * Licensed under the GPLv2 or (at your option) any later version.
  */
 
 #include <linux/io.h>
@@ -62,12 +62,10 @@ static void anarion_gmac_exit(struct platform_device *pdev, void *priv)
 static struct anarion_gmac *anarion_config_dt(struct platform_device *pdev)
 {
 	int phy_mode;
-	struct resource *res;
 	void __iomem *ctl_block;
 	struct anarion_gmac *gmac;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	ctl_block = devm_ioremap_resource(&pdev->dev, res);
+	ctl_block = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(ctl_block)) {
 		dev_err(&pdev->dev, "Cannot get reset region (%ld)!\n",
 			PTR_ERR(ctl_block));

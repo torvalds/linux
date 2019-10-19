@@ -4,12 +4,10 @@
 #
 
 ddbridge-objs := ddbridge-main.o ddbridge-core.o ddbridge-ci.o \
-		ddbridge-hw.o ddbridge-i2c.o ddbridge-max.o
+		ddbridge-hw.o ddbridge-i2c.o ddbridge-max.o ddbridge-mci.o \
+		ddbridge-sx8.o
 
 obj-$(CONFIG_DVB_DDBRIDGE) += ddbridge.o
 
-ccflags-y += -Idrivers/media/dvb-frontends/
-ccflags-y += -Idrivers/media/tuners/
-
-# For the staging CI driver cxd2099
-ccflags-y += -Idrivers/staging/media/cxd2099/
+ccflags-y += -I $(srctree)/drivers/media/dvb-frontends/
+ccflags-y += -I $(srctree)/drivers/media/tuners/

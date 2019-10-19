@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2010 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin Street, Fifth Floor, Boston, MA 02110, USA
  *
  * Modifications for inclusion into the Linux staging tree are
  * Copyright(c) 2010 Larry Finger. All rights reserved.
@@ -184,11 +172,11 @@ void r8712_wpspbc_event_callback(struct _adapter *adapter, u8 *pbuf);
 void r8712_free_network_queue(struct _adapter *adapter);
 int r8712_init_mlme_priv(struct _adapter *adapter);
 void r8712_free_mlme_priv(struct mlme_priv *pmlmepriv);
-sint r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv);
-sint r8712_set_key(struct _adapter *adapter,
-		   struct security_priv *psecuritypriv, sint keyid);
-sint r8712_set_auth(struct _adapter *adapter,
-		    struct security_priv *psecuritypriv);
+int r8712_select_and_join_from_scan(struct mlme_priv *pmlmepriv);
+int r8712_set_key(struct _adapter *adapter,
+		  struct security_priv *psecuritypriv, sint keyid);
+int r8712_set_auth(struct _adapter *adapter,
+		   struct security_priv *psecuritypriv);
 uint r8712_get_wlan_bssid_ex_sz(struct wlan_bssid_ex *bss);
 void r8712_generate_random_ibss(u8 *pibss);
 u8 *r8712_get_capability_from_ie(u8 *ie);
@@ -207,7 +195,6 @@ void _r8712_sitesurvey_ctrl_handler(struct _adapter *adapter);
 void _r8712_join_timeout_handler(struct _adapter *adapter);
 void r8712_scan_timeout_handler(struct _adapter *adapter);
 void _r8712_dhcp_timeout_handler(struct _adapter *adapter);
-void _r8712_wdg_timeout_handler(struct _adapter *adapter);
 struct wlan_network *_r8712_alloc_network(struct mlme_priv *pmlmepriv);
 sint r8712_if_up(struct _adapter *padapter);
 void r8712_joinbss_reset(struct _adapter *padapter);

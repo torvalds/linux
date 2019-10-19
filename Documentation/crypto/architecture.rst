@@ -157,10 +157,6 @@ applicable to a cipher, it is not displayed:
 
    -  rng for random number generator
 
-   -  givcipher for cipher with associated IV generator (see the geniv
-      entry below for the specification of the IV generator type used by
-      the cipher implementation)
-
    -  kpp for a Key-agreement Protocol Primitive (KPP) cipher such as
       an ECDH or DH implementation
 
@@ -174,16 +170,7 @@ applicable to a cipher, it is not displayed:
 
 -  digestsize: output size of the message digest
 
--  geniv: IV generation type:
-
-   -  eseqiv for encrypted sequence number based IV generation
-
-   -  seqiv for sequence number based IV generation
-
-   -  chainiv for chain iv generation
-
-   -  <builtin> is a marker that the cipher implements IV generation and
-      handling as it is specific to the given cipher
+-  geniv: IV generator (obsolete)
 
 Key Sizes
 ---------
@@ -218,16 +205,10 @@ the aforementioned cipher types:
 
 -  CRYPTO_ALG_TYPE_ABLKCIPHER Asynchronous multi-block cipher
 
--  CRYPTO_ALG_TYPE_GIVCIPHER Asynchronous multi-block cipher packed
-   together with an IV generator (see geniv field in the /proc/crypto
-   listing for the known IV generators)
-
 -  CRYPTO_ALG_TYPE_KPP Key-agreement Protocol Primitive (KPP) such as
    an ECDH or DH implementation
 
--  CRYPTO_ALG_TYPE_DIGEST Raw message digest
-
--  CRYPTO_ALG_TYPE_HASH Alias for CRYPTO_ALG_TYPE_DIGEST
+-  CRYPTO_ALG_TYPE_HASH Raw message digest
 
 -  CRYPTO_ALG_TYPE_SHASH Synchronous multi-block hash
 
@@ -338,18 +319,14 @@ uses the API applicable to the cipher type specified for the block.
 
 The following call sequence is applicable when the IPSEC layer triggers
 an encryption operation with the esp_output function. During
-configuration, the administrator set up the use of rfc4106(gcm(aes)) as
-the cipher for ESP. The following call sequence is now depicted in the
-ASCII art above:
+configuration, the administrator set up the use of seqiv(rfc4106(gcm(aes)))
+as the cipher for ESP. The following call sequence is now depicted in
+the ASCII art above:
 
 1. esp_output() invokes crypto_aead_encrypt() to trigger an
    encryption operation of the AEAD cipher with IV generator.
 
-   In case of GCM, the SEQIV implementation is registered as GIVCIPHER
-   in crypto_rfc4106_alloc().
-
-   The SEQIV performs its operation to generate an IV where the core
-   function is seqiv_geniv().
+   The SEQIV generates the IV.
 
 2. Now, SEQIV uses the AEAD API function calls to invoke the associated
    AEAD cipher. In our case, during the instantiation of SEQIV, the

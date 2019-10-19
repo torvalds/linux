@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for Atmel SAMA5D4 Watchdog Timer
  *
  * Copyright (C) 2015 Atmel Corporation
- *
- * Licensed under GPLv2.
  */
 
 #include <linux/delay.h>
@@ -33,7 +32,7 @@ struct sama5d4_wdt {
 	unsigned long		last_ping;
 };
 
-static int wdt_timeout = WDT_DEFAULT_TIMEOUT;
+static int wdt_timeout;
 static bool nowayout = WATCHDOG_NOWAYOUT;
 
 module_param(wdt_timeout, int, 0);
@@ -111,9 +110,7 @@ static int sama5d4_wdt_set_timeout(struct watchdog_device *wdd,
 	u32 value = WDT_SEC2TICKS(timeout);
 
 	wdt->mr &= ~AT91_WDT_WDV;
-	wdt->mr &= ~AT91_WDT_WDD;
 	wdt->mr |= AT91_WDT_SET_WDV(value);
-	wdt->mr |= AT91_WDT_SET_WDD(value);
 
 	/*
 	 * WDDIS has to be 0 when updating WDD/WDV. The datasheet states: When
@@ -199,20 +196,20 @@ static int sama5d4_wdt_init(struct sama5d4_wdt *wdt)
 
 static int sama5d4_wdt_probe(struct platform_device *pdev)
 {
+	struct device *dev = &pdev->dev;
 	struct watchdog_device *wdd;
 	struct sama5d4_wdt *wdt;
-	struct resource *res;
 	void __iomem *regs;
 	u32 irq = 0;
 	u32 timeout;
 	int ret;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
 	wdd = &wdt->wdd;
-	wdd->timeout = wdt_timeout;
+	wdd->timeout = WDT_DEFAULT_TIMEOUT;
 	wdd->info = &sama5d4_wdt_info;
 	wdd->ops = &sama5d4_wdt_ops;
 	wdd->min_timeout = MIN_WDT_TIMEOUT;
@@ -221,41 +218,35 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_drvdata(wdd, wdt);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
 	wdt->reg_base = regs;
 
-	irq = irq_of_parse_and_map(pdev->dev.of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_node, 0);
 	if (!irq)
-		dev_warn(&pdev->dev, "failed to get IRQ from DT\n");
+		dev_warn(dev, "failed to get IRQ from DT\n");
 
-	ret = of_sama5d4_wdt_init(pdev->dev.of_node, wdt);
+	ret = of_sama5d4_wdt_init(dev->of_node, wdt);
 	if (ret)
 		return ret;
 
 	if ((wdt->mr & AT91_WDT_WDFIEN) && irq) {
-		ret = devm_request_irq(&pdev->dev, irq, sama5d4_wdt_irq_handler,
+		ret = devm_request_irq(dev, irq, sama5d4_wdt_irq_handler,
 				       IRQF_SHARED | IRQF_IRQPOLL |
 				       IRQF_NO_SUSPEND, pdev->name, pdev);
 		if (ret) {
-			dev_err(&pdev->dev,
-				"cannot register interrupt handler\n");
+			dev_err(dev, "cannot register interrupt handler\n");
 			return ret;
 		}
 	}
 
-	ret = watchdog_init_timeout(wdd, wdt_timeout, &pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to set timeout value\n");
-		return ret;
-	}
+	watchdog_init_timeout(wdd, wdt_timeout, dev);
 
 	timeout = WDT_SEC2TICKS(wdd->timeout);
 
-	wdt->mr |= AT91_WDT_SET_WDD(timeout);
+	wdt->mr |= AT91_WDT_SET_WDD(WDT_SEC2TICKS(MAX_WDT_TIMEOUT));
 	wdt->mr |= AT91_WDT_SET_WDV(timeout);
 
 	ret = sama5d4_wdt_init(wdt);
@@ -264,27 +255,15 @@ static int sama5d4_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_nowayout(wdd, nowayout);
 
-	ret = watchdog_register_device(wdd);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to register watchdog device\n");
+	watchdog_stop_on_unregister(wdd);
+	ret = devm_watchdog_register_device(dev, wdd);
+	if (ret)
 		return ret;
-	}
 
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(&pdev->dev, "initialized (timeout = %d sec, nowayout = %d)\n",
-		 wdt_timeout, nowayout);
-
-	return 0;
-}
-
-static int sama5d4_wdt_remove(struct platform_device *pdev)
-{
-	struct sama5d4_wdt *wdt = platform_get_drvdata(pdev);
-
-	sama5d4_wdt_stop(&wdt->wdd);
-
-	watchdog_unregister_device(&wdt->wdd);
+	dev_info(dev, "initialized (timeout = %d sec, nowayout = %d)\n",
+		 wdd->timeout, nowayout);
 
 	return 0;
 }
@@ -296,7 +275,17 @@ static const struct of_device_id sama5d4_wdt_of_match[] = {
 MODULE_DEVICE_TABLE(of, sama5d4_wdt_of_match);
 
 #ifdef CONFIG_PM_SLEEP
-static int sama5d4_wdt_resume(struct device *dev)
+static int sama5d4_wdt_suspend_late(struct device *dev)
+{
+	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
+
+	if (watchdog_active(&wdt->wdd))
+		sama5d4_wdt_stop(&wdt->wdd);
+
+	return 0;
+}
+
+static int sama5d4_wdt_resume_early(struct device *dev)
 {
 	struct sama5d4_wdt *wdt = dev_get_drvdata(dev);
 
@@ -307,16 +296,20 @@ static int sama5d4_wdt_resume(struct device *dev)
 	 */
 	sama5d4_wdt_init(wdt);
 
+	if (watchdog_active(&wdt->wdd))
+		sama5d4_wdt_start(&wdt->wdd);
+
 	return 0;
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(sama5d4_wdt_pm_ops, NULL,
-			 sama5d4_wdt_resume);
+static const struct dev_pm_ops sama5d4_wdt_pm_ops = {
+	SET_LATE_SYSTEM_SLEEP_PM_OPS(sama5d4_wdt_suspend_late,
+			sama5d4_wdt_resume_early)
+};
 
 static struct platform_driver sama5d4_wdt_driver = {
 	.probe		= sama5d4_wdt_probe,
-	.remove		= sama5d4_wdt_remove,
 	.driver		= {
 		.name	= "sama5d4_wdt",
 		.pm	= &sama5d4_wdt_pm_ops,

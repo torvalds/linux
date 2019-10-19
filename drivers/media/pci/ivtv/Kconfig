@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config VIDEO_IVTV
 	tristate "Conexant cx23416/cx23415 MPEG encoder/decoder support"
 	depends on VIDEO_V4L2 && PCI && I2C
@@ -18,7 +19,7 @@ config VIDEO_IVTV
 	select VIDEO_VP27SMPX
 	select VIDEO_UPD64031A
 	select VIDEO_UPD64083
-	---help---
+	help
 	  This is a video4linux driver for Conexant cx23416 or cx23415 based
 	  PCI personal video recorder devices.
 
@@ -31,8 +32,7 @@ config VIDEO_IVTV
 config VIDEO_IVTV_DEPRECATED_IOCTLS
 	bool "enable the DVB ioctls abuse on ivtv driver"
 	depends on VIDEO_IVTV
-	default n
-	---help---
+	help
 	  Enable the usage of the a DVB set of ioctls that were abused by
 	  IVTV driver for a while.
 
@@ -45,7 +45,7 @@ config VIDEO_IVTV_ALSA
 	tristate "Conexant cx23415/cx23416 ALSA interface for PCM audio capture"
 	depends on VIDEO_IVTV && SND
 	select SND_PCM
-	---help---
+	help
 	  This driver provides an ALSA interface as another method for user
 	  applications to obtain PCM audio data from Conexant cx23415/cx23416
 	  based PCI TV cards supported by the ivtv driver.
@@ -63,15 +63,31 @@ config VIDEO_FB_IVTV
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
-	---help---
+	help
 	  This is a framebuffer driver for the Conexant cx23415 MPEG
 	  encoder/decoder.
 
 	  This is used in the Hauppauge PVR-350 card. There is a driver
 	  homepage at <http://www.ivtvdriver.org>.
 
-	  In order to use this module, you will need to boot with PAT disabled
-	  on x86 systems, using the nopat kernel parameter.
-
 	  To compile this driver as a module, choose M here: the
 	  module will be called ivtvfb.
+
+config VIDEO_FB_IVTV_FORCE_PAT
+	bool "force cx23415 framebuffer init with x86 PAT enabled"
+	depends on VIDEO_FB_IVTV && X86_PAT
+	help
+	  With PAT enabled, the cx23415 framebuffer driver does not
+	  utilize write-combined caching on the framebuffer memory.
+	  For this reason, the driver will by default disable itself
+	  when initializied on a kernel with PAT enabled (i.e. not
+	  using the nopat kernel parameter).
+
+	  The driver is not easily upgradable to the PAT-aware
+	  ioremap_wc() API since the firmware hides the address
+	  ranges that should be marked write-combined from the driver.
+
+	  With this setting enabled, the framebuffer will initialize on
+	  PAT-enabled systems but the framebuffer memory will be uncached.
+
+	  If unsure, say N.

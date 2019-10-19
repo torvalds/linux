@@ -1,10 +1,14 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 ===================
 System Sleep States
 ===================
 
-::
+:Copyright: |copy| 2017 Intel Corporation
 
- Copyright (c) 2017 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+
 
 Sleep states are global low-power states of the entire system in which user
 space code cannot be executed and the overall system activity is significantly
@@ -15,7 +19,7 @@ Sleep States That Can Be Supported
 ==================================
 
 Depending on its configuration and the capabilities of the platform it runs on,
-the Linux kernel can support up to four system sleep states, includig
+the Linux kernel can support up to four system sleep states, including
 hibernation and up to three variants of system suspend.  The sleep states that
 can be supported by the kernel are listed below.
 

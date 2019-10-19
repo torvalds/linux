@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * vivid-cec.c - A Virtual Video Test Driver, cec emulation
  *
  * Copyright 2016 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #include <media/cec.h>
@@ -82,11 +70,18 @@ static void vivid_cec_pin_adap_events(struct cec_adapter *adap, ktime_t ts,
 
 	if (adap == NULL)
 		return;
-	ts = ktime_sub_us(ts, (CEC_TIM_START_BIT_TOTAL +
-			       len * 10 * CEC_TIM_DATA_BIT_TOTAL));
-	cec_queue_pin_cec_event(adap, false, ts);
+
+	/*
+	 * Suffix ULL on constant 10 makes the expression
+	 * CEC_TIM_START_BIT_TOTAL + 10ULL * len * CEC_TIM_DATA_BIT_TOTAL
+	 * to be evaluated using 64-bit unsigned arithmetic (u64), which
+	 * is what ktime_sub_us expects as second argument.
+	 */
+	ts = ktime_sub_us(ts, CEC_TIM_START_BIT_TOTAL +
+			       10ULL * len * CEC_TIM_DATA_BIT_TOTAL);
+	cec_queue_pin_cec_event(adap, false, false, ts);
 	ts = ktime_add_us(ts, CEC_TIM_START_BIT_LOW);
-	cec_queue_pin_cec_event(adap, true, ts);
+	cec_queue_pin_cec_event(adap, true, false, ts);
 	ts = ktime_add_us(ts, CEC_TIM_START_BIT_HIGH);
 
 	for (i = 0; i < 10 * len; i++) {
@@ -101,12 +96,12 @@ static void vivid_cec_pin_adap_events(struct cec_adapter *adap, ktime_t ts,
 			bit = cec_msg_is_broadcast(msg) ^ nacked;
 			break;
 		}
-		cec_queue_pin_cec_event(adap, false, ts);
+		cec_queue_pin_cec_event(adap, false, false, ts);
 		if (bit)
 			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_1_LOW);
 		else
 			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_0_LOW);
-		cec_queue_pin_cec_event(adap, true, ts);
+		cec_queue_pin_cec_event(adap, true, false, ts);
 		if (bit)
 			ts = ktime_add_us(ts, CEC_TIM_DATA_BIT_1_HIGH);
 		else
@@ -246,11 +241,11 @@ static int vivid_received(struct cec_adapter *adap, struct cec_msg *msg)
 		cec_ops_set_osd_string(msg, &disp_ctl, osd);
 		switch (disp_ctl) {
 		case CEC_OP_DISP_CTL_DEFAULT:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = jiffies;
 			break;
 		case CEC_OP_DISP_CTL_UNTIL_CLEARED:
-			strcpy(dev->osd, osd);
+			strscpy(dev->osd, osd, sizeof(dev->osd));
 			dev->osd_jiffies = 0;
 			break;
 		case CEC_OP_DISP_CTL_CLEAR:

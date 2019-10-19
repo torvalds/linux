@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * Copyright (C) 2008, Creative Technology Ltd. All Rights Reserved.
- *
- * This source file is released under GPL v2 license (no other versions).
- * See the COPYING file included in the main directory of this source
- * distribution for the license terms and conditions.
  *
  * @File	cthw20k1.c
  *
@@ -12,7 +9,6 @@
  *
  * @Author	Liu Chun
  * @Date 	Jun 24 2008
- *
  */
 
 #include <linux/types.h>
@@ -1319,7 +1315,7 @@ static int hw_pll_init(struct hw *hw, unsigned int rsr)
 			break;
 
 		hw_write_20kx(hw, PLLCTL, pllctl);
-		mdelay(40);
+		msleep(40);
 	}
 	if (i >= 3) {
 		dev_alert(hw->card->dev, "PLL initialization failed!!!\n");
@@ -1407,7 +1403,7 @@ static int hw_reset_dac(struct hw *hw)
 	/* To be effective, need to reset the DAC twice. */
 	for (i = 0; i < 2;  i++) {
 		/* set gpio */
-		mdelay(100);
+		msleep(100);
 		gpioorg = (u16)hw_read_20kx(hw, GPIO);
 		gpioorg &= 0xfffd;
 		hw_write_20kx(hw, GPIO, gpioorg);
@@ -2030,7 +2026,7 @@ static int hw_card_init(struct hw *hw, struct card_conf *info)
 	hw_write_20kx(hw, GIE, 0);
 	/* Reset all SRC pending interrupts */
 	hw_write_20kx(hw, SRCIP, 0);
-	mdelay(30);
+	msleep(30);
 
 	/* Detect the card ID and configure GPIO accordingly. */
 	switch (hw->model) {

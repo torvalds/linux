@@ -9,26 +9,17 @@
 #include <asm/export.h>
 #include <asm/nospec-branch.h>
 #include <asm/unwind_hints.h>
+#include <asm/frame.h>
 
 	.code64
 	.section .entry.text, "ax"
 
-#ifdef CC_USING_FENTRY
 # define function_hook	__fentry__
 EXPORT_SYMBOL(__fentry__)
-#else
-# define function_hook	mcount
-EXPORT_SYMBOL(mcount)
-#endif
 
 #ifdef CONFIG_FRAME_POINTER
-# ifdef CC_USING_FENTRY
 /* Save parent and function stack frames (rip and rbp) */
 #  define MCOUNT_FRAME_SIZE	(8+16*2)
-# else
-/* Save just function stack frame (rip and rbp) */
-#  define MCOUNT_FRAME_SIZE	(8+16)
-# endif
 #else
 /* No need to save a stack frame */
 # define MCOUNT_FRAME_SIZE	0
@@ -75,17 +66,13 @@ EXPORT_SYMBOL(mcount)
 	 * fentry is called before the stack frame is set up, where as mcount
 	 * is called afterward.
 	 */
-#ifdef CC_USING_FENTRY
+
 	/* Save the parent pointer (skip orig rbp and our return address) */
 	pushq \added+8*2(%rsp)
 	pushq %rbp
 	movq %rsp, %rbp
 	/* Save the return address (now skip orig rbp, rbp and parent) */
 	pushq \added+8*3(%rsp)
-#else
-	/* Can't assume that rip is before this (unless added was zero) */
-	pushq \added+8(%rsp)
-#endif
 	pushq %rbp
 	movq %rsp, %rbp
 #endif /* CONFIG_FRAME_POINTER */
@@ -113,12 +100,7 @@ EXPORT_SYMBOL(mcount)
 	movq %rdx, RBP(%rsp)
 
 	/* Copy the parent address into %rsi (second parameter) */
-#ifdef CC_USING_FENTRY
 	movq MCOUNT_REG_SIZE+8+\added(%rsp), %rsi
-#else
-	/* %rdx contains original %rbp */
-	movq 8(%rdx), %rsi
-#endif
 
 	 /* Move RIP to its proper location */
 	movq MCOUNT_REG_SIZE+\added(%rsp), %rdi
@@ -171,9 +153,6 @@ GLOBAL(ftrace_call)
 	restore_mcount_regs
 
 	/*
-	 * The copied trampoline must call ftrace_epilogue as it
-	 * still may need to call the function graph tracer.
-	 *
 	 * The code up to this label is copied into trampolines so
 	 * think twice before adding any new code or changing the
 	 * layout here.
@@ -185,7 +164,10 @@ GLOBAL(ftrace_graph_call)
 	jmp ftrace_stub
 #endif
 
-/* This is weak to keep gas from relaxing the jumps */
+/*
+ * This is weak to keep gas from relaxing the jumps.
+ * It is also used to copy the retq for trampolines.
+ */
 WEAK(ftrace_stub)
 	retq
 ENDPROC(ftrace_caller)
@@ -221,6 +203,8 @@ GLOBAL(ftrace_regs_caller_op_ptr)
 	/* Stack - skipping return address and flags */
 	leaq MCOUNT_REG_SIZE+8*2(%rsp), %rcx
 	movq %rcx, RSP(%rsp)
+
+	ENCODE_FRAME_POINTER
 
 	/* regs go into 4th parameter */
 	leaq (%rsp), %rcx
@@ -303,15 +287,8 @@ ENTRY(ftrace_graph_caller)
 	/* Saves rbp into %rdx and fills first parameter  */
 	save_mcount_regs
 
-#ifdef CC_USING_FENTRY
 	leaq MCOUNT_REG_SIZE+8(%rsp), %rsi
 	movq $0, %rdx	/* No framepointers needed */
-#else
-	/* Save address of the return address of traced function */
-	leaq 8(%rdx), %rsi
-	/* ftrace does sanity checks against frame pointers */
-	movq (%rdx), %rdx
-#endif
 	call	prepare_ftrace_return
 
 	restore_mcount_regs

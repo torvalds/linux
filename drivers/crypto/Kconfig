@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 menuconfig CRYPTO_HW
 	bool "Hardware crypto devices"
@@ -26,7 +27,7 @@ config CRYPTO_DEV_PADLOCK_AES
 	tristate "PadLock driver for AES algorithm"
 	depends on CRYPTO_DEV_PADLOCK
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_AES
+	select CRYPTO_LIB_AES
 	help
 	  Use VIA PadLock for AES algorithm.
 
@@ -72,6 +73,17 @@ config ZCRYPT
 	  + Crypto Express 2,3,4 or 5 Coprocessor (CEXxC)
 	  + Crypto Express 2,3,4 or 5 Accelerator (CEXxA)
 	  + Crypto Express 4 or 5 EP11 Coprocessor (CEXxP)
+
+config ZCRYPT_MULTIDEVNODES
+	bool "Support for multiple zcrypt device nodes"
+	default y
+	depends on S390
+	depends on ZCRYPT
+	help
+	  With this option enabled the zcrypt device driver can
+	  provide multiple devices nodes in /dev. Each device
+	  node can get customized to limit access and narrow
+	  down the use of the available crypto hardware.
 
 config PKEY
 	tristate "Kernel API for protected key handling"
@@ -133,12 +145,32 @@ config CRYPTO_SHA512_S390
 
 	  It is available as of z10.
 
+config CRYPTO_SHA3_256_S390
+	tristate "SHA3_224 and SHA3_256 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA3_256 secure hash standard.
+
+	  It is available as of z14.
+
+config CRYPTO_SHA3_512_S390
+	tristate "SHA3_384 and SHA3_512 digest algorithm"
+	depends on S390
+	select CRYPTO_HASH
+	help
+	  This is the s390 hardware accelerated implementation of the
+	  SHA3_512 secure hash standard.
+
+	  It is available as of z14.
+
 config CRYPTO_DES_S390
 	tristate "DES and Triple DES cipher algorithms"
 	depends on S390
 	select CRYPTO_ALGAPI
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	help
 	  This is the s390 hardware accelerated implementation of the
 	  DES cipher algorithm (FIPS 46-2), and Triple DES EDE (FIPS 46-3).
@@ -177,12 +209,12 @@ config S390_PRNG
 	  It is available as of z9.
 
 config CRYPTO_GHASH_S390
-	tristate "GHASH digest algorithm"
+	tristate "GHASH hash function"
 	depends on S390
 	select CRYPTO_HASH
 	help
-	  This is the s390 hardware accelerated implementation of the
-	  GHASH message digest algorithm for GCM (Galois/Counter Mode).
+	  This is the s390 hardware accelerated implementation of GHASH,
+	  the hash function used in GCM (Galois/Counter mode).
 
 	  It is available as of z196.
 
@@ -202,8 +234,8 @@ config CRYPTO_CRC32_S390
 config CRYPTO_DEV_MARVELL_CESA
 	tristate "Marvell's Cryptographic Engine driver"
 	depends on PLAT_ORION || ARCH_MVEBU
-	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_AES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_HASH
 	select SRAM
@@ -215,7 +247,7 @@ config CRYPTO_DEV_MARVELL_CESA
 
 config CRYPTO_DEV_NIAGARA2
        tristate "Niagara2 Stream Processing Unit driver"
-       select CRYPTO_DES
+       select CRYPTO_LIB_DES
        select CRYPTO_BLKCIPHER
        select CRYPTO_HASH
        select CRYPTO_MD5
@@ -232,7 +264,7 @@ config CRYPTO_DEV_NIAGARA2
 
 config CRYPTO_DEV_HIFN_795X
 	tristate "Driver HIFN 795x crypto accelerator chips"
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	select HW_RANDOM if CRYPTO_DEV_HIFN_795X_RNG
 	depends on PCI
@@ -247,7 +279,7 @@ config CRYPTO_DEV_HIFN_795X_RNG
 	  Select this option if you want to enable the random number generator
 	  on the HIFN 795x crypto adapters.
 
-source drivers/crypto/caam/Kconfig
+source "drivers/crypto/caam/Kconfig"
 
 config CRYPTO_DEV_TALITOS
 	tristate "Talitos Freescale Security Engine (SEC)"
@@ -288,7 +320,7 @@ config CRYPTO_DEV_TALITOS2
 config CRYPTO_DEV_IXP4XX
 	tristate "Driver for IXP4xx crypto hardware acceleration"
 	depends on ARCH_IXP4XX && IXP4XX_QMGR && IXP4XX_NPE
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_AEAD
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
@@ -300,8 +332,9 @@ config CRYPTO_DEV_PPC4XX
 	depends on PPC && 4xx
 	select CRYPTO_HASH
 	select CRYPTO_AEAD
-	select CRYPTO_AES
+	select CRYPTO_LIB_AES
 	select CRYPTO_CCM
+	select CRYPTO_CTR
 	select CRYPTO_GCM
 	select CRYPTO_BLKCIPHER
 	help
@@ -353,7 +386,7 @@ config CRYPTO_DEV_OMAP_AES
 config CRYPTO_DEV_OMAP_DES
 	tristate "Support for OMAP DES/3DES hw engine"
 	depends on ARCH_OMAP2PLUS
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_ENGINE
 	help
@@ -371,7 +404,7 @@ config CRYPTO_DEV_PICOXCELL
 	select CRYPTO_AES
 	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_CBC
 	select CRYPTO_ECB
 	select CRYPTO_SEQIV
@@ -380,7 +413,7 @@ config CRYPTO_DEV_PICOXCELL
 	  Picochip picoXcell SoC devices. Select this for IPSEC ESP offload
 	  and for 3gpp Layer 2 ciphering support.
 
-	  Saying m here will build a module named pipcoxcell_crypto.
+	  Saying m here will build a module named picoxcell_crypto.
 
 config CRYPTO_DEV_SAHARA
 	tristate "Support for SAHARA crypto accelerator"
@@ -391,15 +424,6 @@ config CRYPTO_DEV_SAHARA
 	help
 	  This option enables support for the SAHARA HW crypto accelerator
 	  found in some Freescale i.MX chips.
-
-config CRYPTO_DEV_MXC_SCC
-	tristate "Support for Freescale Security Controller (SCC)"
-	depends on ARCH_MXC && OF
-	select CRYPTO_BLKCIPHER
-	select CRYPTO_DES
-	help
-	  This option enables support for the Security Controller (SCC)
-	  found in Freescale i.MX25 chips.
 
 config CRYPTO_DEV_EXYNOS_RNG
 	tristate "EXYNOS HW pseudo random number generator support"
@@ -419,7 +443,7 @@ config CRYPTO_DEV_EXYNOS_RNG
 config CRYPTO_DEV_S5P
 	tristate "Support for Samsung S5PV210/Exynos crypto accelerator"
 	depends on ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST
-	depends on HAS_IOMEM && HAS_DMA
+	depends on HAS_IOMEM
 	select CRYPTO_AES
 	select CRYPTO_BLKCIPHER
 	help
@@ -464,16 +488,8 @@ if CRYPTO_DEV_UX500
 	source "drivers/crypto/ux500/Kconfig"
 endif # if CRYPTO_DEV_UX500
 
-config CRYPTO_DEV_BFIN_CRC
-	tristate "Support for Blackfin CRC hardware"
-	depends on BF60x
-	help
-	  Newer Blackfin processors have CRC hardware. Select this if you
-	  want to use the Blackfin CRC module.
-
 config CRYPTO_DEV_ATMEL_AUTHENC
 	tristate "Support for Atmel IPSEC/SSL hw accelerator"
-	depends on HAS_DMA
 	depends on ARCH_AT91 || COMPILE_TEST
 	select CRYPTO_AUTHENC
 	select CRYPTO_DEV_ATMEL_AES
@@ -486,7 +502,6 @@ config CRYPTO_DEV_ATMEL_AUTHENC
 
 config CRYPTO_DEV_ATMEL_AES
 	tristate "Support for Atmel AES hw accelerator"
-	depends on HAS_DMA
 	depends on ARCH_AT91 || COMPILE_TEST
 	select CRYPTO_AES
 	select CRYPTO_AEAD
@@ -501,9 +516,8 @@ config CRYPTO_DEV_ATMEL_AES
 
 config CRYPTO_DEV_ATMEL_TDES
 	tristate "Support for Atmel DES/TDES hw accelerator"
-	depends on HAS_DMA
 	depends on ARCH_AT91 || COMPILE_TEST
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	help
 	  Some Atmel processors have DES/TDES hw accelerator.
@@ -515,7 +529,6 @@ config CRYPTO_DEV_ATMEL_TDES
 
 config CRYPTO_DEV_ATMEL_SHA
 	tristate "Support for Atmel SHA hw accelerator"
-	depends on HAS_DMA
 	depends on ARCH_AT91 || COMPILE_TEST
 	select CRYPTO_HASH
 	help
@@ -527,10 +540,13 @@ config CRYPTO_DEV_ATMEL_SHA
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-sha.
 
+config CRYPTO_DEV_ATMEL_I2C
+	tristate
+
 config CRYPTO_DEV_ATMEL_ECC
 	tristate "Support for Microchip / Atmel ECC hw accelerator"
-	depends on ARCH_AT91 || COMPILE_TEST
 	depends on I2C
+	select CRYPTO_DEV_ATMEL_I2C
 	select CRYPTO_ECDH
 	select CRC16
 	help
@@ -540,6 +556,21 @@ config CRYPTO_DEV_ATMEL_ECC
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called atmel-ecc.
+
+config CRYPTO_DEV_ATMEL_SHA204A
+	tristate "Support for Microchip / Atmel SHA accelerator and RNG"
+	depends on I2C
+	select CRYPTO_DEV_ATMEL_I2C
+	select HW_RANDOM
+	select CRC16
+	help
+	  Microhip / Atmel SHA accelerator and RNG.
+	  Select this if you want to use the Microchip / Atmel SHA204A
+	  module as a random number generator. (Other functions of the
+	  chip are currently not exposed by this driver)
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called atmel-sha204a.
 
 config CRYPTO_DEV_CCP
 	bool "Support for AMD Secure Processor"
@@ -581,9 +612,10 @@ config CRYPTO_DEV_CAVIUM_ZIP
 
 config CRYPTO_DEV_QCE
 	tristate "Qualcomm crypto engine accelerator"
-	depends on (ARCH_QCOM || COMPILE_TEST) && HAS_DMA && HAS_IOMEM
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on HAS_IOMEM
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_ECB
 	select CRYPTO_CBC
 	select CRYPTO_XTS
@@ -593,6 +625,17 @@ config CRYPTO_DEV_QCE
 	  This driver supports Qualcomm crypto engine accelerator
 	  hardware. To compile this driver as a module, choose M here. The
 	  module will be called qcrypto.
+
+config CRYPTO_DEV_QCOM_RNG
+	tristate "Qualcomm Random Number Generator Driver"
+	depends on ARCH_QCOM || COMPILE_TEST
+	select CRYPTO_RNG
+	help
+	  This driver provides support for the Random Number
+	  Generator hardware found on Qualcomm SoCs.
+
+	  To compile this driver as a module, choose M here. The
+          module will be called qcom-rng. If unsure, say N.
 
 config CRYPTO_DEV_VMX
 	bool "Support for VMX cryptographic acceleration instructions"
@@ -605,7 +648,6 @@ source "drivers/crypto/vmx/Kconfig"
 config CRYPTO_DEV_IMGTEC_HASH
 	tristate "Imagination Technologies hardware hash accelerator"
 	depends on MIPS || COMPILE_TEST
-	depends on HAS_DMA
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
@@ -621,7 +663,7 @@ config CRYPTO_DEV_SUN4I_SS
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_BLKCIPHER
 	help
 	  Some Allwinner SoC have a crypto accelerator named
@@ -644,7 +686,7 @@ config CRYPTO_DEV_ROCKCHIP
 	tristate "Rockchip's Cryptographic Engine driver"
 	depends on OF && ARCH_ROCKCHIP
 	select CRYPTO_AES
-	select CRYPTO_DES
+	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
@@ -657,7 +699,6 @@ config CRYPTO_DEV_ROCKCHIP
 
 config CRYPTO_DEV_MEDIATEK
 	tristate "MediaTek's EIP97 Cryptographic Engine driver"
-	depends on HAS_DMA
 	depends on (ARM && ARCH_MEDIATEK) || COMPILE_TEST
 	select CRYPTO_AES
 	select CRYPTO_AEAD
@@ -681,7 +722,8 @@ config CRYPTO_DEV_BCM_SPU
 	depends on ARCH_BCM_IPROC
 	depends on MAILBOX
 	default m
-	select CRYPTO_DES
+	select CRYPTO_AUTHENC
+	select CRYPTO_LIB_DES
 	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
@@ -695,25 +737,27 @@ source "drivers/crypto/stm32/Kconfig"
 
 config CRYPTO_DEV_SAFEXCEL
 	tristate "Inside Secure's SafeXcel cryptographic engine driver"
-	depends on HAS_DMA && OF
-	depends on (ARM64 && ARCH_MVEBU) || (COMPILE_TEST && 64BIT)
-	select CRYPTO_AES
+	depends on OF || PCI || COMPILE_TEST
+	select CRYPTO_LIB_AES
+	select CRYPTO_AUTHENC
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_LIB_DES
 	select CRYPTO_HASH
 	select CRYPTO_HMAC
+	select CRYPTO_MD5
 	select CRYPTO_SHA1
 	select CRYPTO_SHA256
 	select CRYPTO_SHA512
 	help
-	  This driver interfaces with the SafeXcel EIP-197 cryptographic engine
-	  designed by Inside Secure. Select this if you want to use CBC/ECB
-	  chain mode, AES cipher mode and SHA1/SHA224/SHA256/SHA512 hash
-	  algorithms.
+	  This driver interfaces with the SafeXcel EIP-97 and EIP-197 cryptographic
+	  engines designed by Inside Secure. It currently accelerates DES, 3DES and
+	  AES block ciphers in ECB and CBC mode, as well as SHA1, SHA224, SHA256,
+	  SHA384 and SHA512 hash algorithms for both basic hash and HMAC.
+	  Additionally, it accelerates combined AES-CBC/HMAC-SHA AEAD operations.
 
 config CRYPTO_DEV_ARTPEC6
 	tristate "Support for Axis ARTPEC-6/7 hardware crypto acceleration."
 	depends on ARM && (ARCH_ARTPEC || COMPILE_TEST)
-	depends on HAS_DMA
 	depends on OF
 	select CRYPTO_AEAD
 	select CRYPTO_AES
@@ -729,5 +773,36 @@ config CRYPTO_DEV_ARTPEC6
 	  of Axis ARTPEC SoCs.
 
 	  To compile this driver as a module, choose M here.
+
+config CRYPTO_DEV_CCREE
+	tristate "Support for ARM TrustZone CryptoCell family of security processors"
+	depends on CRYPTO && CRYPTO_HW && OF && HAS_DMA
+	default n
+	select CRYPTO_HASH
+	select CRYPTO_BLKCIPHER
+	select CRYPTO_LIB_DES
+	select CRYPTO_AEAD
+	select CRYPTO_AUTHENC
+	select CRYPTO_SHA1
+	select CRYPTO_MD5
+	select CRYPTO_SHA256
+	select CRYPTO_SHA512
+	select CRYPTO_HMAC
+	select CRYPTO_AES
+	select CRYPTO_CBC
+	select CRYPTO_ECB
+	select CRYPTO_CTR
+	select CRYPTO_XTS
+	select CRYPTO_SM4
+	select CRYPTO_SM3
+	help
+	  Say 'Y' to enable a driver for the REE interface of the Arm
+	  TrustZone CryptoCell family of processors. Currently the
+	  CryptoCell 713, 703, 712, 710 and 630 are supported.
+	  Choose this if you wish to use hardware acceleration of
+	  cryptographic operations on the system REE.
+	  If unsure say Y.
+
+source "drivers/crypto/hisilicon/Kconfig"
 
 endif # CRYPTO_HW

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ARConnect IP Support (Multi core enabler: Cross core IPI, RTC ...)
  *
  * Copyright (C) 2014-15 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __SOC_ARC_MCIP_H
@@ -15,6 +12,7 @@
 
 #define ARC_REG_MCIP_BCR	0x0d0
 #define ARC_REG_MCIP_IDU_BCR	0x0D5
+#define ARC_REG_GFRC_BUILD	0x0D6
 #define ARC_REG_MCIP_CMD	0x600
 #define ARC_REG_MCIP_WDATA	0x601
 #define ARC_REG_MCIP_READBACK	0x602
@@ -36,15 +34,21 @@ struct mcip_cmd {
 #define CMD_SEMA_RELEASE		0x12
 
 #define CMD_DEBUG_SET_MASK		0x34
+#define CMD_DEBUG_READ_MASK		0x35
 #define CMD_DEBUG_SET_SELECT		0x36
+#define CMD_DEBUG_READ_SELECT		0x37
 
 #define CMD_GFRC_READ_LO		0x42
 #define CMD_GFRC_READ_HI		0x43
+#define CMD_GFRC_SET_CORE		0x47
+#define CMD_GFRC_READ_CORE		0x48
 
 #define CMD_IDU_ENABLE			0x71
 #define CMD_IDU_DISABLE			0x72
 #define CMD_IDU_SET_MODE		0x74
+#define CMD_IDU_READ_MODE		0x75
 #define CMD_IDU_SET_DEST		0x76
+#define CMD_IDU_ACK_CIRQ		0x79
 #define CMD_IDU_SET_MASK		0x7C
 
 #define IDU_M_TRIG_LEVEL		0x0
@@ -115,6 +119,15 @@ static inline void __mcip_cmd_data(unsigned int cmd, unsigned int param,
 	write_aux_reg(ARC_REG_MCIP_WDATA, data);
 
 	__mcip_cmd(cmd, param);
+}
+
+/*
+ * Read MCIP register
+ */
+static inline unsigned int __mcip_cmd_read(unsigned int cmd, unsigned int param)
+{
+	__mcip_cmd(cmd, param);
+	return read_aux_reg(ARC_REG_MCIP_READBACK);
 }
 
 #endif

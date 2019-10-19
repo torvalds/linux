@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/delay.h>
+
 #include "dm_services.h"
 #include "core_types.h"
 #include "timing_generator.h"
@@ -45,8 +47,10 @@ enum dc_color_space_type {
 	COLOR_SPACE_RGB_LIMITED_TYPE,
 	COLOR_SPACE_YCBCR601_TYPE,
 	COLOR_SPACE_YCBCR709_TYPE,
+	COLOR_SPACE_YCBCR2020_TYPE,
 	COLOR_SPACE_YCBCR601_LIMITED_TYPE,
-	COLOR_SPACE_YCBCR709_LIMITED_TYPE
+	COLOR_SPACE_YCBCR709_LIMITED_TYPE,
+	COLOR_SPACE_YCBCR709_BLACK_TYPE,
 };
 
 static const struct tg_color black_color_format[] = {
@@ -80,7 +84,6 @@ static const struct out_csc_color_matrix_type output_csc_matrix[] = {
 	{ COLOR_SPACE_YCBCR709_TYPE,
 		{ 0xE04, 0xF345, 0xFEB7, 0x1004, 0x5D3, 0x1399, 0x1FA,
 				0x201, 0xFCCA, 0xF533, 0xE04, 0x1004} },
-
 	/* TODO: correct values below */
 	{ COLOR_SPACE_YCBCR601_LIMITED_TYPE,
 		{ 0xE00, 0xF447, 0xFDB9, 0x1000, 0x991,
@@ -88,6 +91,12 @@ static const struct out_csc_color_matrix_type output_csc_matrix[] = {
 	{ COLOR_SPACE_YCBCR709_LIMITED_TYPE,
 		{ 0xE00, 0xF349, 0xFEB7, 0x1000, 0x6CE, 0x16E3,
 				0x24F, 0x200, 0xFCCB, 0xF535, 0xE00, 0x1000} },
+	{ COLOR_SPACE_YCBCR2020_TYPE,
+		{ 0x1000, 0xF149, 0xFEB7, 0x0000, 0x0868, 0x15B2,
+				0x01E6, 0x0000, 0xFB88, 0xF478, 0x1000, 0x0000} },
+	{ COLOR_SPACE_YCBCR709_BLACK_TYPE,
+		{ 0x0000, 0x0000, 0x0000, 0x1000, 0x0000, 0x0000,
+				0x0000, 0x0200, 0x0000, 0x0000, 0x0000, 0x1000} },
 };
 
 static bool is_rgb_type(
@@ -149,6 +158,16 @@ static bool is_ycbcr709_type(
 	return ret;
 }
 
+static bool is_ycbcr2020_type(
+	enum dc_color_space color_space)
+{
+	bool ret = false;
+
+	if (color_space == COLOR_SPACE_2020_YCBCR)
+		ret = true;
+	return ret;
+}
+
 static bool is_ycbcr709_limited_type(
 		enum dc_color_space color_space)
 {
@@ -174,7 +193,12 @@ enum dc_color_space_type get_color_space_type(enum dc_color_space color_space)
 		type = COLOR_SPACE_YCBCR601_LIMITED_TYPE;
 	else if (is_ycbcr709_limited_type(color_space))
 		type = COLOR_SPACE_YCBCR709_LIMITED_TYPE;
-
+	else if (is_ycbcr2020_type(color_space))
+		type = COLOR_SPACE_YCBCR2020_TYPE;
+	else if (color_space == COLOR_SPACE_YCBCR709)
+		type = COLOR_SPACE_YCBCR709_BLACK_TYPE;
+	else if (color_space == COLOR_SPACE_YCBCR709_BLACK)
+		type = COLOR_SPACE_YCBCR709_BLACK_TYPE;
 	return type;
 }
 
@@ -206,8 +230,10 @@ void color_space_to_black_color(
 	switch (colorspace) {
 	case COLOR_SPACE_YCBCR601:
 	case COLOR_SPACE_YCBCR709:
+	case COLOR_SPACE_YCBCR709_BLACK:
 	case COLOR_SPACE_YCBCR601_LIMITED:
 	case COLOR_SPACE_YCBCR709_LIMITED:
+	case COLOR_SPACE_2020_YCBCR:
 		*black_color = black_color_format[BLACK_COLOR_FORMAT_YUV_CV];
 		break;
 
@@ -216,7 +242,25 @@ void color_space_to_black_color(
 			black_color_format[BLACK_COLOR_FORMAT_RGB_LIMITED];
 		break;
 
-	default:
+	/**
+	 * Remove default and add case for all color space
+	 * so when we forget to add new color space
+	 * compiler will give a warning
+	 */
+	case COLOR_SPACE_UNKNOWN:
+	case COLOR_SPACE_SRGB:
+	case COLOR_SPACE_XR_RGB:
+	case COLOR_SPACE_MSREF_SCRGB:
+	case COLOR_SPACE_XV_YCC_709:
+	case COLOR_SPACE_XV_YCC_601:
+	case COLOR_SPACE_2020_RGB_FULLRANGE:
+	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
+	case COLOR_SPACE_ADOBERGB:
+	case COLOR_SPACE_DCIP3:
+	case COLOR_SPACE_DISPLAYNATIVE:
+	case COLOR_SPACE_DOLBYVISION:
+	case COLOR_SPACE_APPCTRL:
+	case COLOR_SPACE_CUSTOMPOINTS:
 		/* fefault is sRGB black (full range). */
 		*black_color =
 			black_color_format[BLACK_COLOR_FORMAT_RGB_FULLRANGE];
@@ -230,6 +274,9 @@ bool hwss_wait_for_blank_complete(
 {
 	int counter;
 
+	/* Not applicable if the pipe is not primary, save 300ms of boot time */
+	if (!tg->funcs->is_blanked)
+		return true;
 	for (counter = 0; counter < 100; counter++) {
 		if (tg->funcs->is_blanked(tg))
 			break;

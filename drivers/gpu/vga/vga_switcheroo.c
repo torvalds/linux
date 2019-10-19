@@ -35,6 +35,7 @@
 #include <linux/debugfs.h>
 #include <linux/fb.h>
 #include <linux/fs.h>
+#include <linux/fbcon.h>
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_domain.h>
@@ -92,7 +93,8 @@
  * struct vga_switcheroo_client - registered client
  * @pdev: client pci device
  * @fb_info: framebuffer to which console is remapped on switching
- * @pwr_state: current power state
+ * @pwr_state: current power state if manual power control is used.
+ *	For driver power control, call vga_switcheroo_pwr_state().
  * @ops: client callbacks
  * @id: client identifier. Determining the id requires the handler,
  *	so gpus are initially assigned VGA_SWITCHEROO_UNKNOWN_ID
@@ -102,10 +104,11 @@
  *	runtime pm. If true, writing ON and OFF to the vga_switcheroo debugfs
  *	interface is a no-op so as not to interfere with runtime pm
  * @list: client list
+ * @vga_dev: pci device, indicate which GPU is bound to current audio client
  *
  * Registered client. A client can be either a GPU or an audio device on a GPU.
- * For audio clients, the @fb_info, @active and @driver_power_control members
- * are bogus.
+ * For audio clients, the @fb_info and @active members are bogus. For GPU
+ * clients, the @vga_dev is bogus.
  */
 struct vga_switcheroo_client {
 	struct pci_dev *pdev;
@@ -116,6 +119,7 @@ struct vga_switcheroo_client {
 	bool active;
 	bool driver_power_control;
 	struct list_head list;
+	struct pci_dev *vga_dev;
 };
 
 /*
@@ -130,7 +134,6 @@ static DEFINE_MUTEX(vgasr_mutex);
  * @delayed_switch_active: whether a delayed switch is pending
  * @delayed_client_id: client to which a delayed switch is pending
  * @debugfs_root: directory for vga_switcheroo debugfs interface
- * @switch_file: file for vga_switcheroo debugfs interface
  * @registered_clients: number of registered GPUs
  *	(counting only vga clients, not audio clients)
  * @clients: list of registered clients
@@ -149,7 +152,6 @@ struct vgasr_priv {
 	enum vga_switcheroo_client_id delayed_client_id;
 
 	struct dentry *debugfs_root;
-	struct dentry *switch_file;
 
 	int registered_clients;
 	struct list_head clients;
@@ -161,12 +163,11 @@ struct vgasr_priv {
 };
 
 #define ID_BIT_AUDIO		0x100
-#define client_is_audio(c)	((c)->id & ID_BIT_AUDIO)
-#define client_is_vga(c)	((c)->id == VGA_SWITCHEROO_UNKNOWN_ID || \
-				 !client_is_audio(c))
+#define client_is_audio(c)		((c)->id & ID_BIT_AUDIO)
+#define client_is_vga(c)		(!client_is_audio(c))
 #define client_id(c)		((c)->id & ~ID_BIT_AUDIO)
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
+static void vga_switcheroo_debugfs_init(struct vgasr_priv *priv);
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv);
 
 /* only one switcheroo per system */
@@ -192,14 +193,31 @@ static void vga_switcheroo_enable(void)
 		vgasr_priv.handler->init();
 
 	list_for_each_entry(client, &vgasr_priv.clients, list) {
-		if (client->id != VGA_SWITCHEROO_UNKNOWN_ID)
+		if (!client_is_vga(client) ||
+		     client_id(client) != VGA_SWITCHEROO_UNKNOWN_ID)
 			continue;
+
 		ret = vgasr_priv.handler->get_client_id(client->pdev);
 		if (ret < 0)
 			return;
 
 		client->id = ret;
 	}
+
+	list_for_each_entry(client, &vgasr_priv.clients, list) {
+		if (!client_is_audio(client) ||
+		     client_id(client) != VGA_SWITCHEROO_UNKNOWN_ID)
+			continue;
+
+		ret = vgasr_priv.handler->get_client_id(client->vga_dev);
+		if (ret < 0)
+			return;
+
+		client->id = ret | ID_BIT_AUDIO;
+		if (client->ops->gpu_bound)
+			client->ops->gpu_bound(client->pdev, ret);
+	}
+
 	vga_switcheroo_debugfs_init(&vgasr_priv);
 	vgasr_priv.active = true;
 }
@@ -272,7 +290,9 @@ EXPORT_SYMBOL(vga_switcheroo_handler_flags);
 
 static int register_client(struct pci_dev *pdev,
 			   const struct vga_switcheroo_client_ops *ops,
-			   enum vga_switcheroo_client_id id, bool active,
+			   enum vga_switcheroo_client_id id,
+			   struct pci_dev *vga_dev,
+			   bool active,
 			   bool driver_power_control)
 {
 	struct vga_switcheroo_client *client;
@@ -287,6 +307,7 @@ static int register_client(struct pci_dev *pdev,
 	client->id = id;
 	client->active = active;
 	client->driver_power_control = driver_power_control;
+	client->vga_dev = vga_dev;
 
 	mutex_lock(&vgasr_mutex);
 	list_add_tail(&client->list, &vgasr_priv.clients);
@@ -319,7 +340,7 @@ int vga_switcheroo_register_client(struct pci_dev *pdev,
 				   const struct vga_switcheroo_client_ops *ops,
 				   bool driver_power_control)
 {
-	return register_client(pdev, ops, VGA_SWITCHEROO_UNKNOWN_ID,
+	return register_client(pdev, ops, VGA_SWITCHEROO_UNKNOWN_ID, NULL,
 			       pdev == vga_default_device(),
 			       driver_power_control);
 }
@@ -329,19 +350,43 @@ EXPORT_SYMBOL(vga_switcheroo_register_client);
  * vga_switcheroo_register_audio_client - register audio client
  * @pdev: client pci device
  * @ops: client callbacks
- * @id: client identifier
+ * @vga_dev:  pci device which is bound to current audio client
  *
- * Register audio client (audio device on a GPU). The power state of the
- * client is assumed to be ON. Beforehand, vga_switcheroo_client_probe_defer()
+ * Register audio client (audio device on a GPU). The client is assumed
+ * to use runtime PM. Beforehand, vga_switcheroo_client_probe_defer()
  * shall be called to ensure that all prerequisites are met.
  *
- * Return: 0 on success, -ENOMEM on memory allocation error.
+ * Return: 0 on success, -ENOMEM on memory allocation error, -EINVAL on getting
+ * client id error.
  */
 int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 			const struct vga_switcheroo_client_ops *ops,
-			enum vga_switcheroo_client_id id)
+			struct pci_dev *vga_dev)
 {
-	return register_client(pdev, ops, id | ID_BIT_AUDIO, false, false);
+	enum vga_switcheroo_client_id id = VGA_SWITCHEROO_UNKNOWN_ID;
+
+	/*
+	 * if vga_switcheroo has enabled, that mean two GPU clients and also
+	 * handler are registered. Get audio client id from bound GPU client
+	 * id directly, otherwise, set it as VGA_SWITCHEROO_UNKNOWN_ID,
+	 * it will set to correct id in later when vga_switcheroo_enable()
+	 * is called.
+	 */
+	mutex_lock(&vgasr_mutex);
+	if (vgasr_priv.active) {
+		id = vgasr_priv.handler->get_client_id(vga_dev);
+		if (id < 0) {
+			mutex_unlock(&vgasr_mutex);
+			return -EINVAL;
+		}
+		/* notify if GPU has been already bound */
+		if (ops->gpu_bound)
+			ops->gpu_bound(pdev, id);
+	}
+	mutex_unlock(&vgasr_mutex);
+
+	return register_client(pdev, ops, id | ID_BIT_AUDIO, vga_dev,
+			       false, true);
 }
 EXPORT_SYMBOL(vga_switcheroo_register_audio_client);
 
@@ -406,6 +451,19 @@ bool vga_switcheroo_client_probe_defer(struct pci_dev *pdev)
 }
 EXPORT_SYMBOL(vga_switcheroo_client_probe_defer);
 
+static enum vga_switcheroo_state
+vga_switcheroo_pwr_state(struct vga_switcheroo_client *client)
+{
+	if (client->driver_power_control)
+		if (pm_runtime_enabled(&client->pdev->dev) &&
+		    pm_runtime_active(&client->pdev->dev))
+			return VGA_SWITCHEROO_ON;
+		else
+			return VGA_SWITCHEROO_OFF;
+	else
+		return client->pwr_state;
+}
+
 /**
  * vga_switcheroo_get_client_state() - obtain power state of a given client
  * @pdev: client pci device
@@ -425,7 +483,7 @@ enum vga_switcheroo_state vga_switcheroo_get_client_state(struct pci_dev *pdev)
 	if (!client)
 		ret = VGA_SWITCHEROO_NOT_FOUND;
 	else
-		ret = client->pwr_state;
+		ret = vga_switcheroo_pwr_state(client);
 	mutex_unlock(&vgasr_mutex);
 	return ret;
 }
@@ -598,7 +656,7 @@ static int vga_switcheroo_show(struct seq_file *m, void *v)
 			   client_is_vga(client) ? "" : "-Audio",
 			   client->active ? '+' : ' ',
 			   client->driver_power_control ? "Dyn" : "",
-			   client->pwr_state ? "Pwr" : "Off",
+			   vga_switcheroo_pwr_state(client) ? "Pwr" : "Off",
 			   pci_name(client->pdev));
 		i++;
 	}
@@ -641,10 +699,8 @@ static void set_audio_state(enum vga_switcheroo_client_id id,
 	struct vga_switcheroo_client *client;
 
 	client = find_client_from_id(&vgasr_priv.clients, id | ID_BIT_AUDIO);
-	if (client && client->pwr_state != state) {
+	if (client)
 		client->ops->set_gpu_state(client->pdev, state);
-		client->pwr_state = state;
-	}
 }
 
 /* stage one happens before delay */
@@ -656,7 +712,7 @@ static int vga_switchto_stage1(struct vga_switcheroo_client *new_client)
 	if (!active)
 		return 0;
 
-	if (new_client->pwr_state == VGA_SWITCHEROO_OFF)
+	if (vga_switcheroo_pwr_state(new_client) == VGA_SWITCHEROO_OFF)
 		vga_switchon(new_client);
 
 	vga_set_default_device(new_client->pdev);
@@ -675,16 +731,12 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 
 	active->active = false;
 
-	set_audio_state(active->id, VGA_SWITCHEROO_OFF);
+	/* let HDA controller autosuspend if GPU uses driver power control */
+	if (!active->driver_power_control)
+		set_audio_state(active->id, VGA_SWITCHEROO_OFF);
 
-	if (new_client->fb_info) {
-		struct fb_event event;
-
-		console_lock();
-		event.info = new_client->fb_info;
-		fb_notifier_call_chain(FB_EVENT_REMAP_ALL_CONSOLE, &event);
-		console_unlock();
-	}
+	if (new_client->fb_info)
+		fbcon_remap_all(new_client->fb_info);
 
 	mutex_lock(&vgasr_priv.mux_hw_lock);
 	ret = vgasr_priv.handler->switchto(new_client->id);
@@ -695,10 +747,12 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 	if (new_client->ops->reprobe)
 		new_client->ops->reprobe(new_client->pdev);
 
-	if (active->pwr_state == VGA_SWITCHEROO_ON)
+	if (vga_switcheroo_pwr_state(active) == VGA_SWITCHEROO_ON)
 		vga_switchoff(active);
 
-	set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
+	/* let HDA controller autoresume if GPU uses driver power control */
+	if (!new_client->driver_power_control)
+		set_audio_state(new_client->id, VGA_SWITCHEROO_ON);
 
 	new_client->active = true;
 	return 0;
@@ -853,38 +907,20 @@ static const struct file_operations vga_switcheroo_debugfs_fops = {
 
 static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv)
 {
-	debugfs_remove(priv->switch_file);
-	priv->switch_file = NULL;
-
-	debugfs_remove(priv->debugfs_root);
+	debugfs_remove_recursive(priv->debugfs_root);
 	priv->debugfs_root = NULL;
 }
 
-static int vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
+static void vga_switcheroo_debugfs_init(struct vgasr_priv *priv)
 {
-	static const char mp[] = "/sys/kernel/debug";
-
 	/* already initialised */
 	if (priv->debugfs_root)
-		return 0;
+		return;
+
 	priv->debugfs_root = debugfs_create_dir("vgaswitcheroo", NULL);
 
-	if (!priv->debugfs_root) {
-		pr_err("Cannot create %s/vgaswitcheroo\n", mp);
-		goto fail;
-	}
-
-	priv->switch_file = debugfs_create_file("switch", 0644,
-						priv->debugfs_root, NULL,
-						&vga_switcheroo_debugfs_fops);
-	if (!priv->switch_file) {
-		pr_err("cannot create %s/vgaswitcheroo/switch\n", mp);
-		goto fail;
-	}
-	return 0;
-fail:
-	vga_switcheroo_debugfs_fini(priv);
-	return -1;
+	debugfs_create_file("switch", 0644, priv->debugfs_root, NULL,
+			    &vga_switcheroo_debugfs_fops);
 }
 
 /**
@@ -939,11 +975,6 @@ EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
  * Specifying nouveau.runpm=0, radeon.runpm=0 or amdgpu.runpm=0 on the kernel
  * command line disables it.
  *
- * When the driver decides to power up or down, it notifies vga_switcheroo
- * thereof so that it can (a) power the audio device on the GPU up or down,
- * and (b) update its internal power state representation for the device.
- * This is achieved by vga_switcheroo_set_dynamic_switch().
- *
  * After the GPU has been suspended, the handler needs to be called to cut
  * power to the GPU. Likewise it needs to reinstate power before the GPU
  * can resume. This is achieved by vga_switcheroo_init_domain_pm_ops(),
@@ -951,8 +982,9 @@ EXPORT_SYMBOL(vga_switcheroo_process_delayed_switch);
  * calls to the handler.
  *
  * When the audio device resumes, the GPU needs to be woken. This is achieved
- * by vga_switcheroo_init_domain_pm_optimus_hdmi_audio(), which augments the
- * audio device's resume function.
+ * by a PCI quirk which calls device_link_add() to declare a dependency on the
+ * GPU. That way, the GPU is kept awake whenever and as long as the audio
+ * device is in use.
  *
  * On muxed machines, if the mux is initially switched to the discrete GPU,
  * the user ends up with a black screen when the GPU powers down after boot.
@@ -978,35 +1010,6 @@ static void vga_switcheroo_power_switch(struct pci_dev *pdev,
 	vgasr_priv.handler->power_state(client->id, state);
 }
 
-/**
- * vga_switcheroo_set_dynamic_switch() - helper for driver power control
- * @pdev: client pci device
- * @dynamic: new power state
- *
- * Helper for GPUs whose power state is controlled by the driver's runtime pm.
- * When the driver decides to power up or down, it notifies vga_switcheroo
- * thereof using this helper so that it can (a) power the audio device on
- * the GPU up or down, and (b) update its internal power state representation
- * for the device.
- */
-void vga_switcheroo_set_dynamic_switch(struct pci_dev *pdev,
-				       enum vga_switcheroo_state dynamic)
-{
-	struct vga_switcheroo_client *client;
-
-	mutex_lock(&vgasr_mutex);
-	client = find_client_from_pci(&vgasr_priv.clients, pdev);
-	if (!client || !client->driver_power_control) {
-		mutex_unlock(&vgasr_mutex);
-		return;
-	}
-
-	client->pwr_state = dynamic;
-	set_audio_state(client->id, dynamic);
-	mutex_unlock(&vgasr_mutex);
-}
-EXPORT_SYMBOL(vga_switcheroo_set_dynamic_switch);
-
 /* switcheroo power domain */
 static int vga_switcheroo_runtime_suspend(struct device *dev)
 {
@@ -1022,6 +1025,7 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 		vgasr_priv.handler->switchto(VGA_SWITCHEROO_IGD);
 		mutex_unlock(&vgasr_priv.mux_hw_lock);
 	}
+	pci_bus_set_current_state(pdev->bus, PCI_D3cold);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_OFF);
 	mutex_unlock(&vgasr_mutex);
 	return 0;
@@ -1035,6 +1039,7 @@ static int vga_switcheroo_runtime_resume(struct device *dev)
 	mutex_lock(&vgasr_mutex);
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_ON);
 	mutex_unlock(&vgasr_mutex);
+	pci_wakeup_bus(pdev->bus);
 	ret = dev->bus->pm->runtime_resume(dev);
 	if (ret)
 		return ret;
@@ -1076,69 +1081,3 @@ void vga_switcheroo_fini_domain_pm_ops(struct device *dev)
 	dev_pm_domain_set(dev, NULL);
 }
 EXPORT_SYMBOL(vga_switcheroo_fini_domain_pm_ops);
-
-static int vga_switcheroo_runtime_resume_hdmi_audio(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-	struct vga_switcheroo_client *client;
-	struct device *video_dev = NULL;
-	int ret;
-
-	/* we need to check if we have to switch back on the video
-	 * device so the audio device can come back
-	 */
-	mutex_lock(&vgasr_mutex);
-	list_for_each_entry(client, &vgasr_priv.clients, list) {
-		if (PCI_SLOT(client->pdev->devfn) == PCI_SLOT(pdev->devfn) &&
-		    client_is_vga(client)) {
-			video_dev = &client->pdev->dev;
-			break;
-		}
-	}
-	mutex_unlock(&vgasr_mutex);
-
-	if (video_dev) {
-		ret = pm_runtime_get_sync(video_dev);
-		if (ret && ret != 1)
-			return ret;
-	}
-	ret = dev->bus->pm->runtime_resume(dev);
-
-	/* put the reference for the gpu */
-	if (video_dev) {
-		pm_runtime_mark_last_busy(video_dev);
-		pm_runtime_put_autosuspend(video_dev);
-	}
-	return ret;
-}
-
-/**
- * vga_switcheroo_init_domain_pm_optimus_hdmi_audio() - helper for driver
- *	power control
- * @dev: audio client device
- * @domain: power domain
- *
- * Helper for GPUs whose power state is controlled by the driver's runtime pm.
- * When the audio device resumes, the GPU needs to be woken. This helper
- * augments the audio device's resume function to do that.
- *
- * Return: 0 on success, -EINVAL if no power management operations are
- * defined for this device.
- */
-int
-vga_switcheroo_init_domain_pm_optimus_hdmi_audio(struct device *dev,
-						 struct dev_pm_domain *domain)
-{
-	/* copy over all the bus versions */
-	if (dev->bus && dev->bus->pm) {
-		domain->ops = *dev->bus->pm;
-		domain->ops.runtime_resume =
-			vga_switcheroo_runtime_resume_hdmi_audio;
-
-		dev_pm_domain_set(dev, domain);
-		return 0;
-	}
-	dev_pm_domain_set(dev, NULL);
-	return -EINVAL;
-}
-EXPORT_SYMBOL(vga_switcheroo_init_domain_pm_optimus_hdmi_audio);

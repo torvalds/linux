@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /**************************************************************************/
 /*                                                                        */
 /*  IBM System i and System p Virtual NIC Device Driver                   */
@@ -6,18 +7,6 @@
 /*  Thomas Falcon (tlfalcon@linux.vnet.ibm.com)                           */
 /*  John Allen (jallen@linux.vnet.ibm.com)                                */
 /*                                                                        */
-/*  This program is free software; you can redistribute it and/or modify  */
-/*  it under the terms of the GNU General Public License as published by  */
-/*  the Free Software Foundation; either version 2 of the License, or     */
-/*  (at your option) any later version.                                   */
-/*                                                                        */
-/*  This program is distributed in the hope that it will be useful,       */
-/*  but WITHOUT ANY WARRANTY; without even the implied warranty of        */
-/*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         */
-/*  GNU General Public License for more details.                          */
-/*                                                                        */
-/*  You should have received a copy of the GNU General Public License     */
-/*  along with this program.                                              */
 /*                                                                        */
 /* This module contains the implementation of a virtual ethernet device   */
 /* for use with IBM i/pSeries LPAR Linux.  It utilizes the logical LAN    */
@@ -31,6 +20,7 @@
 #define IBMVNIC_INVALID_MAP	-1
 #define IBMVNIC_STATS_TIMEOUT	1
 #define IBMVNIC_INIT_FAILED	2
+#define IBMVNIC_OPEN_FAILED	3
 
 /* basic structures plus 100 2k buffers */
 #define IBMVNIC_IO_ENTITLEMENT_DEFAULT	610305
@@ -39,13 +29,22 @@
 #define IBMVNIC_RX_WEIGHT		16
 /* when changing this, update IBMVNIC_IO_ENTITLEMENT_DEFAULT */
 #define IBMVNIC_BUFFS_PER_POOL	100
-#define IBMVNIC_MAX_QUEUES	10
+#define IBMVNIC_MAX_QUEUES	16
+#define IBMVNIC_MAX_QUEUE_SZ   4096
 
 #define IBMVNIC_TSO_BUF_SZ	65536
 #define IBMVNIC_TSO_BUFS	64
+#define IBMVNIC_TSO_POOL_MASK	0x80000000
 
 #define IBMVNIC_MAX_LTB_SIZE ((1 << (MAX_ORDER - 1)) * PAGE_SIZE)
 #define IBMVNIC_BUFFER_HLEN 500
+
+#define IBMVNIC_RESET_DELAY 100
+
+static const char ibmvnic_priv_flags[][ETH_GSTRING_LEN] = {
+#define IBMVNIC_USE_SERVER_MAXES 0x1
+	"use-server-maxes"
+};
 
 struct ibmvnic_login_buffer {
 	__be32 len;
@@ -370,11 +369,16 @@ struct ibmvnic_phys_parms {
 	u8 flags2;
 #define IBMVNIC_LOGICAL_LNK_ACTIVE 0x80
 	__be32 speed;
-#define IBMVNIC_AUTONEG		0x80
-#define IBMVNIC_10MBPS		0x40
-#define IBMVNIC_100MBPS		0x20
-#define IBMVNIC_1GBPS		0x10
-#define IBMVNIC_10GBPS		0x08
+#define IBMVNIC_AUTONEG		0x80000000
+#define IBMVNIC_10MBPS		0x40000000
+#define IBMVNIC_100MBPS		0x20000000
+#define IBMVNIC_1GBPS		0x10000000
+#define IBMVNIC_10GBP		0x08000000
+#define IBMVNIC_40GBPS		0x04000000
+#define IBMVNIC_100GBPS		0x02000000
+#define IBMVNIC_25GBPS		0x01000000
+#define IBMVNIC_50GBPS		0x00800000
+#define IBMVNIC_200GBPS		0x00400000
 	__be32 mtu;
 	struct ibmvnic_rc rc;
 } __packed __aligned(8);
@@ -509,24 +513,6 @@ struct ibmvnic_error_indication {
 	__be32 detail_error_sz;
 	__be16 error_cause;
 	u8 reserved2[2];
-} __packed __aligned(8);
-
-struct ibmvnic_request_error_info {
-	u8 first;
-	u8 cmd;
-	u8 reserved[2];
-	__be32 ioba;
-	__be32 len;
-	__be32 error_id;
-} __packed __aligned(8);
-
-struct ibmvnic_request_error_rsp {
-	u8 first;
-	u8 cmd;
-	u8 reserved[2];
-	__be32 error_id;
-	__be32 len;
-	struct ibmvnic_rc rc;
 } __packed __aligned(8);
 
 struct ibmvnic_link_state_indication {
@@ -708,8 +694,6 @@ union ibmvnic_crq {
 	struct ibmvnic_request_debug_stats request_debug_stats;
 	struct ibmvnic_request_debug_stats request_debug_stats_rsp;
 	struct ibmvnic_error_indication error_indication;
-	struct ibmvnic_request_error_info request_error_info;
-	struct ibmvnic_request_error_rsp request_error_rsp;
 	struct ibmvnic_link_state_indication link_state_indication;
 	struct ibmvnic_change_mac_addr change_mac_addr;
 	struct ibmvnic_change_mac_addr change_mac_addr_rsp;
@@ -808,8 +792,6 @@ enum ibmvnic_commands {
 	SET_PHYS_PARMS = 0x07,
 	SET_PHYS_PARMS_RSP = 0x87,
 	ERROR_INDICATION = 0x08,
-	REQUEST_ERROR_INFO = 0x09,
-	REQUEST_ERROR_RSP = 0x89,
 	LOGICAL_LINK_STATE = 0x0C,
 	LOGICAL_LINK_STATE_RSP = 0x8C,
 	REQUEST_STATISTICS = 0x0D,
@@ -864,6 +846,8 @@ struct ibmvnic_crq_queue {
 	int size, cur;
 	dma_addr_t msg_token;
 	spinlock_t lock;
+	bool active;
+	char name[32];
 };
 
 union sub_crq {
@@ -890,6 +874,7 @@ struct ibmvnic_sub_crq_queue {
 	struct sk_buff *rx_skb_top;
 	struct ibmvnic_adapter *adapter;
 	atomic_t used;
+	char name[32];
 };
 
 struct ibmvnic_long_term_buff {
@@ -909,6 +894,7 @@ struct ibmvnic_tx_buff {
 	union sub_crq indir_arr[6];
 	u8 hdr_data[140];
 	dma_addr_t indir_dma;
+	int num_entries;
 };
 
 struct ibmvnic_tx_pool {
@@ -916,11 +902,9 @@ struct ibmvnic_tx_pool {
 	int *free_map;
 	int consumer_index;
 	int producer_index;
-	wait_queue_head_t ibmvnic_tx_comp_q;
-	struct task_struct *work_thread;
 	struct ibmvnic_long_term_buff long_term_buff;
-	struct ibmvnic_long_term_buff tso_ltb;
-	int tso_index;
+	int num_buffers;
+	int buf_size;
 };
 
 struct ibmvnic_rx_buff {
@@ -942,14 +926,6 @@ struct ibmvnic_rx_pool {
 	int next_alloc;
 	int active;
 	struct ibmvnic_long_term_buff long_term_buff;
-};
-
-struct ibmvnic_error_buff {
-	char *buff;
-	dma_addr_t dma;
-	int len;
-	struct list_head list;
-	__be32 error_id;
 };
 
 struct ibmvnic_vpd {
@@ -985,7 +961,6 @@ struct ibmvnic_tunables {
 	u64 rx_entries;
 	u64 tx_entries;
 	u64 mtu;
-	struct sockaddr mac;
 };
 
 struct ibmvnic_adapter {
@@ -998,6 +973,7 @@ struct ibmvnic_adapter {
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
 	u32 msg_enable;
+	u32 priv_flags;
 
 	/* Vital Product Data (VPD) */
 	struct ibmvnic_vpd *vpd;
@@ -1021,6 +997,9 @@ struct ibmvnic_adapter {
 	int phys_link_state;
 	int logical_link_state;
 
+	u32 speed;
+	u8 duplex;
+
 	/* login data */
 	struct ibmvnic_login_buffer *login_buf;
 	dma_addr_t login_buf_token;
@@ -1035,7 +1014,6 @@ struct ibmvnic_adapter {
 
 	struct ibmvnic_sub_crq_queue **tx_scrq;
 	struct ibmvnic_sub_crq_queue **rx_scrq;
-	bool renegotiate;
 
 	/* rx structs */
 	struct napi_struct *napi;
@@ -1043,11 +1021,9 @@ struct ibmvnic_adapter {
 	u64 promisc;
 
 	struct ibmvnic_tx_pool *tx_pool;
+	struct ibmvnic_tx_pool *tso_pool;
 	struct completion init_done;
 	int init_done_rc;
-
-	struct list_head errors;
-	spinlock_t error_list_lock;
 
 	struct completion fw_done;
 	int fw_done_rc;
@@ -1091,19 +1067,24 @@ struct ibmvnic_adapter {
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
 	u8 map_id;
-	u64 num_active_rx_pools;
-	u64 num_active_tx_pools;
+	u32 num_active_rx_scrqs;
+	u32 num_active_rx_pools;
+	u32 num_active_rx_napi;
+	u32 num_active_tx_scrqs;
+	u32 num_active_tx_pools;
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
 	enum ibmvnic_reset_reason reset_reason;
-	struct mutex reset_lock, rwi_lock;
+	spinlock_t rwi_lock;
 	struct list_head rwi_list;
 	struct work_struct ibmvnic_reset;
-	bool resetting;
+	struct delayed_work ibmvnic_delayed_reset;
+	unsigned long resetting;
 	bool napi_enabled, from_passive_init;
 
-	bool mac_change_pending;
+	bool failover_pending;
+	bool force_reset_recovery;
 
 	struct ibmvnic_tunables desired;
 	struct ibmvnic_tunables fallback;

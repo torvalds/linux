@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Linus Walleij <linus.walleij@linaro.org>
  * Parts of this file were based on sources as follows:
@@ -7,11 +8,6 @@
  * Copyright (C) 2007 Dave Airlie <airlied@linux.ie>
  * Copyright (C) 2011 Texas Instruments
  * Copyright (C) 2017 Eric Anholt
- *
- * This program is free software and is provided to you under the terms of the
- * GNU General Public License version 2 as published by the Free Software
- * Foundation, and any use by you of this program is subject to the terms of
- * such GNU licence.
  */
 
 /**
@@ -41,16 +37,17 @@
 #include <linux/slab.h>
 #include <linux/version.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_bridge.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_fb_helper.h>
-#include <drm/drm_fb_cma_helper.h>
-#include <drm/drm_panel.h>
 #include <drm/drm_of.h>
-#include <drm/drm_bridge.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_probe_helper.h>
+#include <drm/drm_vblank.h>
 
 #include "tve200_drm.h"
 
@@ -126,12 +123,6 @@ static int tve200_modeset_init(struct drm_device *dev)
 	}
 
 	drm_mode_config_reset(dev);
-
-	/*
-	 * Passing in 16 here will make the RGB656 mode the default
-	 * Passing in 32 will use XRGB8888 mode
-	 */
-	drm_fb_cma_fbdev_init(dev, 16, 0);
 	drm_kms_helper_poll_init(dev);
 
 	goto finish;
@@ -147,9 +138,7 @@ finish:
 DEFINE_DRM_GEM_CMA_FOPS(drm_fops);
 
 static struct drm_driver tve200_drm_driver = {
-	.driver_features =
-		DRIVER_MODESET | DRIVER_GEM | DRIVER_PRIME | DRIVER_ATOMIC,
-	.lastclose = drm_fb_helper_lastclose,
+	.driver_features = DRIVER_MODESET | DRIVER_GEM | DRIVER_ATOMIC,
 	.ioctls = NULL,
 	.fops = &drm_fops,
 	.name = "tve200",
@@ -162,13 +151,8 @@ static struct drm_driver tve200_drm_driver = {
 	.gem_free_object_unlocked = drm_gem_cma_free_object,
 	.gem_vm_ops = &drm_gem_cma_vm_ops,
 
-	.enable_vblank = tve200_enable_vblank,
-	.disable_vblank = tve200_disable_vblank,
-
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
-	.gem_prime_import = drm_gem_prime_import,
-	.gem_prime_export = drm_gem_prime_export,
 	.gem_prime_get_sg_table	= drm_gem_cma_prime_get_sg_table,
 	.gem_prime_import_sg_table = drm_gem_cma_prime_import_sg_table,
 	.gem_prime_vmap = drm_gem_cma_prime_vmap,
@@ -248,12 +232,18 @@ static int tve200_probe(struct platform_device *pdev)
 	if (ret < 0)
 		goto clk_disable;
 
+	/*
+	 * Passing in 16 here will make the RGB565 mode the default
+	 * Passing in 32 will use XRGB8888 mode
+	 */
+	drm_fbdev_generic_setup(drm, 16);
+
 	return 0;
 
 clk_disable:
 	clk_disable_unprepare(priv->pclk);
 dev_unref:
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 	return ret;
 }
 
@@ -263,12 +253,11 @@ static int tve200_remove(struct platform_device *pdev)
 	struct tve200_drm_dev_private *priv = drm->dev_private;
 
 	drm_dev_unregister(drm);
-	drm_fb_cma_fbdev_fini(drm);
 	if (priv->panel)
 		drm_panel_bridge_remove(priv->bridge);
 	drm_mode_config_cleanup(drm);
 	clk_disable_unprepare(priv->pclk);
-	drm_dev_unref(drm);
+	drm_dev_put(drm);
 
 	return 0;
 }

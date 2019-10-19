@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright 2000-2015 Avago Technologies.  All rights reserved.
+ * Copyright 2000-2020 Broadcom Inc. All rights reserved.
  *
  *
  *          Name:  mpi2_init.h
@@ -75,7 +75,7 @@
 
 typedef struct _MPI2_SCSI_IO_CDB_EEDP32 {
 	U8 CDB[20];		/*0x00 */
-	U32 PrimaryReferenceTag;	/*0x14 */
+	__be32 PrimaryReferenceTag;	/*0x14 */
 	U16 PrimaryApplicationTag;	/*0x18 */
 	U16 PrimaryApplicationTagMask;	/*0x1A */
 	U32 TransferLength;	/*0x1C */

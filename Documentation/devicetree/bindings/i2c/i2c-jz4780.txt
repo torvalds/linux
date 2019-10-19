@@ -11,10 +11,6 @@ Recommended properties:
 - pinctrl-names: should be "default";
 - pinctrl-0: phandle to pinctrl function
 
-Optional properties:
-- interrupt-parent: Should be the phandle of the interrupt controller that
-  delivers interrupts to the I2C block.
-
 Example
 
 / {

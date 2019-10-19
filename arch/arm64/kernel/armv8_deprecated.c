@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2014 ARM Limited
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpu.h>
@@ -13,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
+#include <linux/uaccess.h>
 
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
@@ -20,8 +18,6 @@
 #include <asm/system_misc.h>
 #include <asm/traps.h>
 #include <asm/kprobes.h>
-#include <linux/uaccess.h>
-#include <asm/cpufeature.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace-events-emulation.h"
@@ -178,6 +174,9 @@ static void __init register_insn_emulation(struct insn_emulation_ops *ops)
 	struct insn_emulation *insn;
 
 	insn = kzalloc(sizeof(*insn), GFP_KERNEL);
+	if (!insn)
+		return;
+
 	insn->ops = ops;
 	insn->min = INSN_UNDEF;
 
@@ -235,8 +234,10 @@ static void __init register_insn_emulation_sysctl(void)
 	struct insn_emulation *insn;
 	struct ctl_table *insns_sysctl, *sysctl;
 
-	insns_sysctl = kzalloc(sizeof(*sysctl) * (nr_insn_emulated + 1),
-			      GFP_KERNEL);
+	insns_sysctl = kcalloc(nr_insn_emulated + 1, sizeof(*sysctl),
+			       GFP_KERNEL);
+	if (!insns_sysctl)
+		return;
 
 	raw_spin_lock_irqsave(&insn_emulation_lock, flags);
 	list_for_each_entry(insn, &insn_emulation, node) {
@@ -370,6 +371,7 @@ static unsigned int __kprobes aarch32_check_condition(u32 opcode, u32 psr)
 static int swp_handler(struct pt_regs *regs, u32 instr)
 {
 	u32 destreg, data, type, address = 0;
+	const void __user *user_ptr;
 	int rn, rt2, res = 0;
 
 	perf_sw_event(PERF_COUNT_SW_EMULATION_FAULTS, 1, regs, regs->pc);
@@ -401,7 +403,8 @@ static int swp_handler(struct pt_regs *regs, u32 instr)
 		aarch32_insn_extract_reg_num(instr, A32_RT2_OFFSET), data);
 
 	/* Check access in reasonable access range for both SWP and SWPB */
-	if (!access_ok(VERIFY_WRITE, (address & ~3), 4)) {
+	user_ptr = (const void __user *)(unsigned long)(address & ~3);
+	if (!access_ok(user_ptr, 4)) {
 		pr_debug("SWP{B} emulation: access to 0x%08x not allowed!\n",
 			address);
 		goto fault;
@@ -427,7 +430,7 @@ ret:
 
 fault:
 	pr_debug("SWP{B} emulation: access caused memory abort!\n");
-	arm64_notify_segfault(regs, address);
+	arm64_notify_segfault(address);
 
 	return 0;
 }
@@ -440,8 +443,8 @@ static struct undef_hook swp_hooks[] = {
 	{
 		.instr_mask	= 0x0fb00ff0,
 		.instr_val	= 0x01000090,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= swp_handler
 	},
 	{ }
@@ -510,9 +513,9 @@ ret:
 static int cp15_barrier_set_hw_mode(bool enable)
 {
 	if (enable)
-		config_sctlr_el1(0, SCTLR_EL1_CP15BEN);
+		sysreg_clear_set(sctlr_el1, 0, SCTLR_EL1_CP15BEN);
 	else
-		config_sctlr_el1(SCTLR_EL1_CP15BEN, 0);
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_CP15BEN, 0);
 	return 0;
 }
 
@@ -520,15 +523,15 @@ static struct undef_hook cp15_barrier_hooks[] = {
 	{
 		.instr_mask	= 0x0fff0fdf,
 		.instr_val	= 0x0e070f9a,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= cp15barrier_handler,
 	},
 	{
 		.instr_mask	= 0x0fff0fff,
 		.instr_val	= 0x0e070f95,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= cp15barrier_handler,
 	},
 	{ }
@@ -547,9 +550,9 @@ static int setend_set_hw_mode(bool enable)
 		return -EINVAL;
 
 	if (enable)
-		config_sctlr_el1(SCTLR_EL1_SED, 0);
+		sysreg_clear_set(sctlr_el1, SCTLR_EL1_SED, 0);
 	else
-		config_sctlr_el1(0, SCTLR_EL1_SED);
+		sysreg_clear_set(sctlr_el1, 0, SCTLR_EL1_SED);
 	return 0;
 }
 
@@ -561,10 +564,10 @@ static int compat_setend_handler(struct pt_regs *regs, u32 big_endian)
 
 	if (big_endian) {
 		insn = "setend be";
-		regs->pstate |= COMPAT_PSR_E_BIT;
+		regs->pstate |= PSR_AA32_E_BIT;
 	} else {
 		insn = "setend le";
-		regs->pstate &= ~COMPAT_PSR_E_BIT;
+		regs->pstate &= ~PSR_AA32_E_BIT;
 	}
 
 	trace_instruction_emulation(insn, regs->pc);
@@ -592,16 +595,16 @@ static struct undef_hook setend_hooks[] = {
 	{
 		.instr_mask	= 0xfffffdff,
 		.instr_val	= 0xf1010000,
-		.pstate_mask	= COMPAT_PSR_MODE_MASK,
-		.pstate_val	= COMPAT_PSR_MODE_USR,
+		.pstate_mask	= PSR_AA32_MODE_MASK,
+		.pstate_val	= PSR_AA32_MODE_USR,
 		.fn		= a32_setend_handler,
 	},
 	{
 		/* Thumb mode */
 		.instr_mask	= 0x0000fff7,
 		.instr_val	= 0x0000b650,
-		.pstate_mask	= (COMPAT_PSR_T_BIT | COMPAT_PSR_MODE_MASK),
-		.pstate_val	= (COMPAT_PSR_T_BIT | COMPAT_PSR_MODE_USR),
+		.pstate_mask	= (PSR_AA32_T_BIT | PSR_AA32_MODE_MASK),
+		.pstate_val	= (PSR_AA32_T_BIT | PSR_AA32_MODE_USR),
 		.fn		= t16_setend_handler,
 	},
 	{}

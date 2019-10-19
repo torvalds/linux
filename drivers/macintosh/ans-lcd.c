@@ -64,7 +64,7 @@ anslcd_write( struct file * file, const char __user * buf,
 	printk(KERN_DEBUG "LCD: write\n");
 #endif
 
-	if (!access_ok(VERIFY_READ, buf, count))
+	if (!access_ok(buf, count))
 		return -EFAULT;
 
 	mutex_lock(&anslcd_mutex);
@@ -160,7 +160,7 @@ anslcd_init(void)
 	struct device_node* node;
 
 	node = of_find_node_by_name(NULL, "lcd");
-	if (!node || !node->parent || strcmp(node->parent->name, "gc")) {
+	if (!node || !of_node_name_eq(node->parent, "gc")) {
 		of_node_put(node);
 		return -ENODEV;
 	}
@@ -201,3 +201,4 @@ anslcd_exit(void)
 
 module_init(anslcd_init);
 module_exit(anslcd_exit);
+MODULE_LICENSE("GPL v2");

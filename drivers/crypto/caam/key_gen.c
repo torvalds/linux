@@ -15,15 +15,14 @@ void split_key_done(struct device *dev, u32 *desc, u32 err,
 			   void *context)
 {
 	struct split_key_result *res = context;
+	int ecode = 0;
 
-#ifdef DEBUG
-	dev_err(dev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
-#endif
+	dev_dbg(dev, "%s %d: err 0x%x\n", __func__, __LINE__, err);
 
 	if (err)
-		caam_jr_strstatus(dev, err);
+		ecode = caam_jr_strstatus(dev, err);
 
-	res->err = err;
+	res->err = ecode;
 
 	complete(&res->completion);
 }
@@ -48,21 +47,21 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 {
 	u32 *desc;
 	struct split_key_result result;
-	dma_addr_t dma_addr_in, dma_addr_out;
+	dma_addr_t dma_addr;
+	unsigned int local_max;
 	int ret = -ENOMEM;
 
 	adata->keylen = split_key_len(adata->algtype & OP_ALG_ALGSEL_MASK);
 	adata->keylen_pad = split_key_pad_len(adata->algtype &
 					      OP_ALG_ALGSEL_MASK);
+	local_max = max(keylen, adata->keylen_pad);
 
-#ifdef DEBUG
-	dev_err(jrdev, "split keylen %d split keylen padded %d\n",
+	dev_dbg(jrdev, "split keylen %d split keylen padded %d\n",
 		adata->keylen, adata->keylen_pad);
-	print_hex_dump(KERN_ERR, "ctx.key@" __stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
-#endif
+	print_hex_dump_debug("ctx.key@" __stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
 
-	if (adata->keylen_pad > max_keylen)
+	if (local_max > max_keylen)
 		return -EINVAL;
 
 	desc = kmalloc(CAAM_CMD_SZ * 6 + CAAM_PTR_SZ * 2, GFP_KERNEL | GFP_DMA);
@@ -71,22 +70,16 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 		return ret;
 	}
 
-	dma_addr_in = dma_map_single(jrdev, (void *)key_in, keylen,
-				     DMA_TO_DEVICE);
-	if (dma_mapping_error(jrdev, dma_addr_in)) {
-		dev_err(jrdev, "unable to map key input memory\n");
+	memcpy(key_out, key_in, keylen);
+
+	dma_addr = dma_map_single(jrdev, key_out, local_max, DMA_BIDIRECTIONAL);
+	if (dma_mapping_error(jrdev, dma_addr)) {
+		dev_err(jrdev, "unable to map key memory\n");
 		goto out_free;
 	}
 
-	dma_addr_out = dma_map_single(jrdev, key_out, adata->keylen_pad,
-				      DMA_FROM_DEVICE);
-	if (dma_mapping_error(jrdev, dma_addr_out)) {
-		dev_err(jrdev, "unable to map key output memory\n");
-		goto out_unmap_in;
-	}
-
 	init_job_desc(desc, 0);
-	append_key(desc, dma_addr_in, keylen, CLASS_2 | KEY_DEST_CLASS_REG);
+	append_key(desc, dma_addr, keylen, CLASS_2 | KEY_DEST_CLASS_REG);
 
 	/* Sets MDHA up into an HMAC-INIT */
 	append_operation(desc, (adata->algtype & OP_ALG_ALGSEL_MASK) |
@@ -104,15 +97,12 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 	 * FIFO_STORE with the explicit split-key content store
 	 * (0x26 output type)
 	 */
-	append_fifo_store(desc, dma_addr_out, adata->keylen,
+	append_fifo_store(desc, dma_addr, adata->keylen,
 			  LDST_CLASS_2_CCB | FIFOST_TYPE_SPLIT_KEK);
 
-#ifdef DEBUG
-	print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, key_in, keylen, 1);
-	print_hex_dump(KERN_ERR, "jobdesc@"__stringify(__LINE__)": ",
-		       DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc), 1);
-#endif
+	print_hex_dump_debug("jobdesc@"__stringify(__LINE__)": ",
+			     DUMP_PREFIX_ADDRESS, 16, 4, desc, desc_bytes(desc),
+			     1);
 
 	result.err = 0;
 	init_completion(&result.completion);
@@ -122,17 +112,13 @@ int gen_split_key(struct device *jrdev, u8 *key_out,
 		/* in progress */
 		wait_for_completion(&result.completion);
 		ret = result.err;
-#ifdef DEBUG
-		print_hex_dump(KERN_ERR, "ctx.key@"__stringify(__LINE__)": ",
-			       DUMP_PREFIX_ADDRESS, 16, 4, key_out,
-			       adata->keylen_pad, 1);
-#endif
+
+		print_hex_dump_debug("ctx.key@"__stringify(__LINE__)": ",
+				     DUMP_PREFIX_ADDRESS, 16, 4, key_out,
+				     adata->keylen_pad, 1);
 	}
 
-	dma_unmap_single(jrdev, dma_addr_out, adata->keylen_pad,
-			 DMA_FROM_DEVICE);
-out_unmap_in:
-	dma_unmap_single(jrdev, dma_addr_in, keylen, DMA_TO_DEVICE);
+	dma_unmap_single(jrdev, dma_addr, local_max, DMA_BIDIRECTIONAL);
 out_free:
 	kfree(desc);
 	return ret;

@@ -24,9 +24,14 @@ Required properties:
   "allwinner,sun8i-h3-pinctrl"
   "allwinner,sun8i-h3-r-pinctrl"
   "allwinner,sun8i-r40-pinctrl"
+  "allwinner,sun8i-v3-pinctrl"
+  "allwinner,sun8i-v3s-pinctrl"
   "allwinner,sun50i-a64-pinctrl"
   "allwinner,sun50i-a64-r-pinctrl"
   "allwinner,sun50i-h5-pinctrl"
+  "allwinner,sun50i-h6-pinctrl"
+  "allwinner,sun50i-h6-r-pinctrl"
+  "allwinner,suniv-f1c100s-pinctrl"
   "nextthing,gr8-pinctrl"
 
 - reg: Should contain the register physical address and length for the
@@ -40,6 +45,19 @@ Required properties:
 Note: For backward compatibility reasons, the hosc and losc clocks are only
 required if you need to use the optional input-debounce property. Any new
 device tree should set them.
+
+Each pin bank, depending on the SoC, can have an associated regulator:
+
+- vcc-pa-supply: for the A10, A20, A31, A31s, A80 and R40 SoCs
+- vcc-pb-supply: for the A31, A31s, A80 and V3s SoCs
+- vcc-pc-supply: for the A10, A20, A31, A31s, A64, A80, H5, R40 and V3s SoCs
+- vcc-pd-supply: for the A23, A31, A31s, A64, A80, A83t, H3, H5 and R40 SoCs
+- vcc-pe-supply: for the A10, A20, A31, A31s, A64, A80, R40 and V3s SoCs
+- vcc-pf-supply: for the A10, A20, A31, A31s, A80, R40 and V3s SoCs
+- vcc-pg-supply: for the A10, A20, A31, A31s, A64, A80, H3, H5, R40 and V3s SoCs
+- vcc-ph-supply: for the A31, A31s and A80 SoCs
+- vcc-pl-supply: for the r-pinctrl of the A64, A80 and A83t SoCs
+- vcc-pm-supply: for the r-pinctrl of the A31, A31s and A80 SoCs
 
 Optional properties:
   - input-debounce: Array of debouncing periods in microseconds. One period per
@@ -55,9 +73,9 @@ pins it needs, and how they should be configured, with regard to muxer
 configuration, drive strength and pullups. If one of these options is
 not set, its actual value will be unspecified.
 
-This driver supports the generic pin multiplexing and configuration
-bindings. For details on each properties, you can refer to
-./pinctrl-bindings.txt.
+Allwinner A1X Pin Controller supports the generic pin multiplexing and
+configuration bindings. For details on each properties, you can refer to
+ ./pinctrl-bindings.txt.
 
 Required sub-node properties:
   - pins

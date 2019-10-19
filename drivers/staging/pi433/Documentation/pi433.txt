@@ -8,13 +8,13 @@ Introduction
 This driver is for controlling pi433, a radio module for the Raspberry Pi
 (www.pi433.de). It supports transmission and reception. It can be opened
 by multiple applications for transmission and reception. While transmit
-jobs were queued and process automatically in the background, the first
+jobs are queued and processed automatically in the background, the first
 application asking for reception will block out all other applications
 until something gets received terminates the read request.
 The driver supports on the fly reloading of the hardware fifo of the rf
-chip, thus enabling for much longer telegrams then hardware fifo size.
+chip, thus enabling for much longer telegrams than the hardware fifo size.
 
-Discription of driver operation
+Description of driver operation
 ===============================
 
 a) transmission
@@ -46,10 +46,10 @@ configuration set is written to the rf module and it gets set into receiving mod
 Now the driver is waiting, that a predefined RSSI level (signal strength at the
 receiver) is reached. Until this hasn't happened, the reception can be
 interrupted by the transmission thread at any time to insert a transmission cycle.
-As soon as the predefined RSSI level is meat, a receiving cycle starts. Similar
+As soon as the predefined RSSI level is met, a receiving cycle starts. Similar
 as described for the transmission cycle the read out of the hardware fifo is done
 dynamically. Upon each hardware fifo threshold interrupt, a portion of data gets
-read. So also for reception it is possible to receive more data then the hardware
+read. So also for reception it is possible to receive more data than the hardware
 fifo can hold.
 
 
@@ -92,7 +92,7 @@ rf params:
 		shaping0_3	- gauss filter with BT 0.3 (FSK only)
 		shapingBR	- filter cut off at BR (OOK only)
 		shaping2BR	- filter cut off at 2*BR (OOK only)
-	paRamp (FSK only)
+	pa_ramp (FSK only)
 		ramp3400	- amp ramps up in 3.4ms
 		ramp2000	- amp ramps up in 2.0ms
 		ramp1000	- amp ramps up in 1ms
@@ -180,7 +180,7 @@ rf params:
 		threshold value for the signal strength on the receiver input.
 		If this value is exceeded, a reception cycle starts
 		Allowed values: 0...255
-	thresholdDecrement
+	threshold_decrement
 		in order to adapt to different levels of singnal strength, over
 		time the receiver gets more and more sensitive. This value
 		determs, how fast the sensitivity increases.
@@ -192,11 +192,11 @@ rf params:
 		step_4_0db	- increase in 4 db steps
 		step_5_0db	- increase in 5 db steps
 		step_6_0db	- increase in 6 db steps
-	antennaImpedance
+	antenna_impedance
 		sets the electrical adoption of the antenna
-		fiftyOhm	- for antennas with an impedance of 50Ohm
-		twohundretOhm	- for antennas with an impedance of 200Ohm
-	lnaGain
+		fifty_ohm	- for antennas with an impedance of 50Ohm
+		two_hundred_ohm	- for antennas with an impedance of 200Ohm
+	lna_gain
 		sets the gain of the low noise amp
 		automatic	- lna gain is determined by an agc
 		max		- lna gain is set to maximum
@@ -215,9 +215,9 @@ rf params:
 		Allowd values: 0...7
 	dagc;
 		operation mode of the digital automatic gain control
-		normalMode
+		normal_mode
 		improve
-		improve4LowModulationIndex
+		improve_for_low_modulation_index
 
  packet format:
 	enable_sync
@@ -225,19 +225,19 @@ rf params:
 			    isn't found, telegram will be internally discarded
 		optionOff - sync detection is disabled.
 	enable_length_byte
-		optionOn   - First byte of payload will be used as length byte,
+		optionOn   - First byte of payload will be used as a length byte,
 			     regardless of the amount of bytes that were requested
 			     by the read request.
 		optionOff  - Number of bytes to be read will be set according to
 			     amount of bytes that were requested by the read request.
 		Attention: should be used in combination with sync, only
 	enable_address_filtering;
-		filteringOff		- no address filtering will take place
-		nodeAddress		- all telegrams, not matching the node
-					  address will be internally discarded
-		nodeOrBroadcastAddress	- all telegrams, neither matching the
-					  node, nor the broadcast address will
-					  be internally discarded
+		filtering_off		  - no address filtering will take place
+		node_address		  - all telegrams, not matching the node
+					    address will be internally discarded
+		node_or_broadcast_address - all telegrams, neither matching the
+					    node, nor the broadcast address will
+					    be internally discarded
 		Attention: Sync option must be enabled in order to use this feature
 	enable_crc
 		optionOn	- a crc will be calculated over the payload of

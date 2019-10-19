@@ -1,18 +1,17 @@
-/*
+/* SPDX-License-Identifier: GPL-2.0
+ *
  * SH7786 Pinmux
  *
  * Copyright (C) 2008, 2009  Renesas Solutions Corp.
  * Kuninori Morimoto <morimoto.kuninori@renesas.com>
  *
  *  Based on sh7785.h
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #ifndef __CPU_SH7786_H__
 #define __CPU_SH7786_H__
+
+#include <linux/io.h>
 
 enum {
 	/* PA */
@@ -130,5 +129,10 @@ enum {
 	/* INTC */
 	GPIO_FN_IRL7, GPIO_FN_IRL6, GPIO_FN_IRL5, GPIO_FN_IRL4,
 };
+
+static inline u32 sh7786_mm_sel(void)
+{
+	return __raw_readl((const volatile void __iomem *)0xFC400020) & 0x7;
+}
 
 #endif /* __CPU_SH7786_H__ */

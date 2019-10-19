@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/etherdevice.h>
@@ -98,7 +90,25 @@ static struct sk_buff *qca_tag_rcv(struct sk_buff *skb, struct net_device *dev,
 	return skb;
 }
 
-const struct dsa_device_ops qca_netdev_ops = {
+static int qca_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
+                                int *offset)
+{
+	*offset = QCA_HDR_LEN;
+	*proto = ((__be16 *)skb->data)[0];
+
+	return 0;
+}
+
+static const struct dsa_device_ops qca_netdev_ops = {
+	.name	= "qca",
+	.proto	= DSA_TAG_PROTO_QCA,
 	.xmit	= qca_tag_xmit,
 	.rcv	= qca_tag_rcv,
+	.flow_dissect = qca_tag_flow_dissect,
+	.overhead = QCA_HDR_LEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_QCA);
+
+module_dsa_tag_driver(qca_netdev_ops);

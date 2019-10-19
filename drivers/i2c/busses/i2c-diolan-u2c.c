@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Diolan u2c-12 USB-I2C adapter
  *
@@ -6,10 +7,6 @@
  * Derived from:
  *  i2c-tiny-usb.c
  *  Copyright (C) 2006-2007 Till Harbaum (Till@Harbaum.org)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
  */
 
 #include <linux/kernel.h>
@@ -360,11 +357,11 @@ static int diolan_usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 			if (ret < 0)
 				goto abort;
 		}
+		ret = diolan_i2c_put_byte_ack(dev,
+					      i2c_8bit_addr_from_msg(pmsg));
+		if (ret < 0)
+			goto abort;
 		if (pmsg->flags & I2C_M_RD) {
-			ret =
-			    diolan_i2c_put_byte_ack(dev, (pmsg->addr << 1) | 1);
-			if (ret < 0)
-				goto abort;
 			for (j = 0; j < pmsg->len; j++) {
 				u8 byte;
 				bool ack = j < pmsg->len - 1;
@@ -393,9 +390,6 @@ static int diolan_usb_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 				pmsg->buf[j] = byte;
 			}
 		} else {
-			ret = diolan_i2c_put_byte_ack(dev, pmsg->addr << 1);
-			if (ret < 0)
-				goto abort;
 			for (j = 0; j < pmsg->len; j++) {
 				ret = diolan_i2c_put_byte_ack(dev,
 							      pmsg->buf[j]);

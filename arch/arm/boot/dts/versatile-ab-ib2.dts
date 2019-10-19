@@ -1,0 +1,26 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * The Versatile AB with the IB2 expansion board mounted.
+ * This works as a superset of the Versatile AB.
+ */
+
+#include "versatile-ab.dts"
+
+/ {
+	model = "ARM Versatile AB + IB2 board";
+
+	/* Special IB2 control register */
+	ib2_syscon@27000000 {
+		compatible = "arm,versatile-ib2-syscon", "syscon", "simple-mfd";
+		reg = <0x27000000 0x4>;
+
+		led@00.4 {
+			compatible = "register-bit-led";
+			offset = <0x00>;
+			mask = <0x10>;
+			label = "versatile-ib2:0";
+			linux,default-trigger = "heartbeat";
+			default-state = "on";
+		};
+	};
+};

@@ -1,35 +1,25 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Red Hat
  * Copyright (C) 2015 Sony Mobile Communications Inc.
  * Author: Werner Johansson <werner.johansson@sonymobile.com>
  *
  * Based on AUO panel driver by Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/regulator/consumer.h>
 
-#include <drm/drmP.h>
+#include <video/mipi_display.h>
+
 #include <drm/drm_crtc.h>
+#include <drm/drm_device.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_panel.h>
-
-#include <video/mipi_display.h>
 
 struct sharp_nt_panel {
 	struct drm_panel base;
@@ -117,10 +107,7 @@ static int sharp_nt_panel_disable(struct drm_panel *panel)
 	if (!sharp_nt->enabled)
 		return 0;
 
-	if (sharp_nt->backlight) {
-		sharp_nt->backlight->props.power = FB_BLANK_POWERDOWN;
-		backlight_update_status(sharp_nt->backlight);
-	}
+	backlight_disable(sharp_nt->backlight);
 
 	sharp_nt->enabled = false;
 
@@ -203,10 +190,7 @@ static int sharp_nt_panel_enable(struct drm_panel *panel)
 	if (sharp_nt->enabled)
 		return 0;
 
-	if (sharp_nt->backlight) {
-		sharp_nt->backlight->props.power = FB_BLANK_UNBLANK;
-		backlight_update_status(sharp_nt->backlight);
-	}
+	backlight_enable(sharp_nt->backlight);
 
 	sharp_nt->enabled = true;
 
@@ -259,8 +243,6 @@ static const struct drm_panel_funcs sharp_nt_panel_funcs = {
 static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 {
 	struct device *dev = &sharp_nt->dsi->dev;
-	struct device_node *np;
-	int ret;
 
 	sharp_nt->mode = &default_mode;
 
@@ -277,39 +259,22 @@ static int sharp_nt_panel_add(struct sharp_nt_panel *sharp_nt)
 		gpiod_set_value(sharp_nt->reset_gpio, 0);
 	}
 
-	np = of_parse_phandle(dev->of_node, "backlight", 0);
-	if (np) {
-		sharp_nt->backlight = of_find_backlight_by_node(np);
-		of_node_put(np);
+	sharp_nt->backlight = devm_of_find_backlight(dev);
 
-		if (!sharp_nt->backlight)
-			return -EPROBE_DEFER;
-	}
+	if (IS_ERR(sharp_nt->backlight))
+		return PTR_ERR(sharp_nt->backlight);
 
 	drm_panel_init(&sharp_nt->base);
 	sharp_nt->base.funcs = &sharp_nt_panel_funcs;
 	sharp_nt->base.dev = &sharp_nt->dsi->dev;
 
-	ret = drm_panel_add(&sharp_nt->base);
-	if (ret < 0)
-		goto put_backlight;
-
-	return 0;
-
-put_backlight:
-	if (sharp_nt->backlight)
-		put_device(&sharp_nt->backlight->dev);
-
-	return ret;
+	return drm_panel_add(&sharp_nt->base);
 }
 
 static void sharp_nt_panel_del(struct sharp_nt_panel *sharp_nt)
 {
 	if (sharp_nt->base.dev)
 		drm_panel_remove(&sharp_nt->base);
-
-	if (sharp_nt->backlight)
-		put_device(&sharp_nt->backlight->dev);
 }
 
 static int sharp_nt_panel_probe(struct mipi_dsi_device *dsi)
@@ -352,7 +317,6 @@ static int sharp_nt_panel_remove(struct mipi_dsi_device *dsi)
 	if (ret < 0)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", ret);
 
-	drm_panel_detach(&sharp_nt->base);
 	sharp_nt_panel_del(sharp_nt);
 
 	return 0;

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * include/linux/uio_driver.h
  *
@@ -7,13 +8,12 @@
  * Copyright(C) 2006, Greg Kroah-Hartman <greg@kroah.com>
  *
  * Userspace IO driver.
- *
- * Licensed under the GPLv2 only.
  */
 
 #ifndef _UIO_DRIVER_H_
 #define _UIO_DRIVER_H_
 
+#include <linux/device.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 
@@ -68,12 +68,13 @@ struct uio_port {
 
 struct uio_device {
         struct module           *owner;
-        struct device           *dev;
+	struct device		dev;
         int                     minor;
         atomic_t                event;
         struct fasync_struct    *async_queue;
         wait_queue_head_t       wait;
         struct uio_info         *info;
+	struct mutex		info_lock;
         struct kobject          *map_dir;
         struct kobject          *portio_dir;
 };
@@ -131,6 +132,7 @@ extern void uio_event_notify(struct uio_info *info);
 #define UIO_MEM_PHYS	1
 #define UIO_MEM_LOGICAL	2
 #define UIO_MEM_VIRTUAL 3
+#define UIO_MEM_IOVA	4
 
 /* defines for uio_port->porttype */
 #define UIO_PORT_NONE	0

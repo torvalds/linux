@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  PowerPC version 
  *    Copyright (C) 1995-1996 Gary Thomas (gdt@linuxppc.org)
@@ -5,11 +6,6 @@
  *  Derived from "arch/i386/kernel/signal.c"
  *    Copyright (C) 1991, 1992 Linus Torvalds
  *    1997-11-28  Modified for POSIX.1b signals by Richard Henderson
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version
- *  2 of the License, or (at your option) any later version.
  */
 
 #include <linux/sched.h>
@@ -24,6 +20,7 @@
 #include <linux/elf.h>
 #include <linux/ptrace.h>
 #include <linux/ratelimit.h>
+#include <linux/syscalls.h>
 
 #include <asm/sigcontext.h>
 #include <asm/ucontext.h>
@@ -382,7 +379,7 @@ static long restore_sigcontext(struct task_struct *tsk, sigset_t *set, int sig,
 	err |= __get_user(v_regs, &sc->v_regs);
 	if (err)
 		return err;
-	if (v_regs && !access_ok(VERIFY_READ, v_regs, 34 * sizeof(vector128)))
+	if (v_regs && !access_ok(v_regs, 34 * sizeof(vector128)))
 		return -EFAULT;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
 	if (v_regs != NULL && (msr & MSR_VEC) != 0) {
@@ -466,20 +463,6 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	if (MSR_TM_RESV(msr))
 		return -EINVAL;
 
-	/* pull in MSR TS bits from user context */
-	regs->msr = (regs->msr & ~MSR_TS_MASK) | (msr & MSR_TS_MASK);
-
-	/*
-	 * Ensure that TM is enabled in regs->msr before we leave the signal
-	 * handler. It could be the case that (a) user disabled the TM bit
-	 * through the manipulation of the MSR bits in uc_mcontext or (b) the
-	 * TM bit was disabled because a sufficient number of context switches
-	 * happened whilst in the signal handler and load_tm overflowed,
-	 * disabling the TM bit. In either case we can end up with an illegal
-	 * TM state leading to a TM Bad Thing when we return to userspace.
-	 */
-	regs->msr |= MSR_TM;
-
 	/* pull in MSR LE from user context */
 	regs->msr = (regs->msr & ~MSR_LE) | (msr & MSR_LE);
 
@@ -515,10 +498,9 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	err |= __get_user(tm_v_regs, &tm_sc->v_regs);
 	if (err)
 		return err;
-	if (v_regs && !access_ok(VERIFY_READ, v_regs, 34 * sizeof(vector128)))
+	if (v_regs && !access_ok(v_regs, 34 * sizeof(vector128)))
 		return -EFAULT;
-	if (tm_v_regs && !access_ok(VERIFY_READ,
-				    tm_v_regs, 34 * sizeof(vector128)))
+	if (tm_v_regs && !access_ok(tm_v_regs, 34 * sizeof(vector128)))
 		return -EFAULT;
 	/* Copy 33 vec registers (vr0..31 and vscr) from the stack */
 	if (v_regs != NULL && tm_v_regs != NULL && (msr & MSR_VEC) != 0) {
@@ -571,6 +553,34 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 	tm_enable();
 	/* Make sure the transaction is marked as failed */
 	tsk->thread.tm_texasr |= TEXASR_FS;
+
+	/*
+	 * Disabling preemption, since it is unsafe to be preempted
+	 * with MSR[TS] set without recheckpointing.
+	 */
+	preempt_disable();
+
+	/* pull in MSR TS bits from user context */
+	regs->msr |= msr & MSR_TS_MASK;
+
+	/*
+	 * Ensure that TM is enabled in regs->msr before we leave the signal
+	 * handler. It could be the case that (a) user disabled the TM bit
+	 * through the manipulation of the MSR bits in uc_mcontext or (b) the
+	 * TM bit was disabled because a sufficient number of context switches
+	 * happened whilst in the signal handler and load_tm overflowed,
+	 * disabling the TM bit. In either case we can end up with an illegal
+	 * TM state leading to a TM Bad Thing when we return to userspace.
+	 *
+	 * CAUTION:
+	 * After regs->MSR[TS] being updated, make sure that get_user(),
+	 * put_user() or similar functions are *not* called. These
+	 * functions can generate page faults which will cause the process
+	 * to be de-scheduled with MSR[TS] set but without calling
+	 * tm_recheckpoint(). This can cause a bug.
+	 */
+	regs->msr |= MSR_TM;
+
 	/* This loads the checkpointed FP/VEC state, if used */
 	tm_recheckpoint(&tsk->thread);
 
@@ -583,6 +593,8 @@ static long restore_tm_sigcontexts(struct task_struct *tsk,
 		load_vr_state(&tsk->thread.vr_state);
 		regs->msr |= MSR_VEC;
 	}
+
+	preempt_enable();
 
 	return err;
 }
@@ -597,11 +609,12 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 	long err = 0;
 
 	/* addi r1, r1, __SIGNAL_FRAMESIZE  # Pop the dummy stackframe */
-	err |= __put_user(0x38210000UL | (__SIGNAL_FRAMESIZE & 0xffff), &tramp[0]);
+	err |= __put_user(PPC_INST_ADDI | __PPC_RT(R1) | __PPC_RA(R1) |
+			  (__SIGNAL_FRAMESIZE & 0xffff), &tramp[0]);
 	/* li r0, __NR_[rt_]sigreturn| */
-	err |= __put_user(0x38000000UL | (syscall & 0xffff), &tramp[1]);
+	err |= __put_user(PPC_INST_ADDI | (syscall & 0xffff), &tramp[1]);
 	/* sc */
-	err |= __put_user(0x44000002UL, &tramp[2]);
+	err |= __put_user(PPC_INST_SC, &tramp[2]);
 
 	/* Minimal traceback info */
 	for (i=TRAMP_TRACEBACK; i < TRAMP_SIZE ;i++)
@@ -624,16 +637,13 @@ static long setup_trampoline(unsigned int syscall, unsigned int __user *tramp)
 /*
  * Handle {get,set,swap}_context operations
  */
-int sys_swapcontext(struct ucontext __user *old_ctx,
-		    struct ucontext __user *new_ctx,
-		    long ctx_size, long r6, long r7, long r8, struct pt_regs *regs)
+SYSCALL_DEFINE3(swapcontext, struct ucontext __user *, old_ctx,
+		struct ucontext __user *, new_ctx, long, ctx_size)
 {
 	unsigned char tmp;
 	sigset_t set;
 	unsigned long new_msr = 0;
 	int ctx_has_vsx_region = 0;
-
-	BUG_ON(regs != current->thread.regs);
 
 	if (new_ctx &&
 	    get_user(new_msr, &new_ctx->uc_mcontext.gp_regs[PT_MSR]))
@@ -656,7 +666,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 		ctx_has_vsx_region = 1;
 
 	if (old_ctx != NULL) {
-		if (!access_ok(VERIFY_WRITE, old_ctx, ctx_size)
+		if (!access_ok(old_ctx, ctx_size)
 		    || setup_sigcontext(&old_ctx->uc_mcontext, current, 0, NULL, 0,
 					ctx_has_vsx_region)
 		    || __copy_to_user(&old_ctx->uc_sigmask,
@@ -665,7 +675,7 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
 	}
 	if (new_ctx == NULL)
 		return 0;
-	if (!access_ok(VERIFY_READ, new_ctx, ctx_size)
+	if (!access_ok(new_ctx, ctx_size)
 	    || __get_user(tmp, (u8 __user *) new_ctx)
 	    || __get_user(tmp, (u8 __user *) new_ctx + ctx_size - 1))
 		return -EFAULT;
@@ -698,22 +708,19 @@ int sys_swapcontext(struct ucontext __user *old_ctx,
  * Do a signal return; undo the signal stack.
  */
 
-int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
-		     unsigned long r6, unsigned long r7, unsigned long r8,
-		     struct pt_regs *regs)
+SYSCALL_DEFINE0(rt_sigreturn)
 {
+	struct pt_regs *regs = current_pt_regs();
 	struct ucontext __user *uc = (struct ucontext __user *)regs->gpr[1];
 	sigset_t set;
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	unsigned long msr;
 #endif
 
-	BUG_ON(current->thread.regs != regs);
-
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
 
-	if (!access_ok(VERIFY_READ, uc, sizeof(*uc)))
+	if (!access_ok(uc, sizeof(*uc)))
 		goto badframe;
 
 	if (__copy_from_user(&set, &uc->uc_sigmask, sizeof(set)))
@@ -734,22 +741,65 @@ int sys_rt_sigreturn(unsigned long r3, unsigned long r4, unsigned long r5,
 	if (MSR_TM_SUSPENDED(mfmsr()))
 		tm_reclaim_current(0);
 
+	/*
+	 * Disable MSR[TS] bit also, so, if there is an exception in the
+	 * code below (as a page fault in copy_ckvsx_to_user()), it does
+	 * not recheckpoint this task if there was a context switch inside
+	 * the exception.
+	 *
+	 * A major page fault can indirectly call schedule(). A reschedule
+	 * process in the middle of an exception can have a side effect
+	 * (Changing the CPU MSR[TS] state), since schedule() is called
+	 * with the CPU MSR[TS] disable and returns with MSR[TS]=Suspended
+	 * (switch_to() calls tm_recheckpoint() for the 'new' process). In
+	 * this case, the process continues to be the same in the CPU, but
+	 * the CPU state just changed.
+	 *
+	 * This can cause a TM Bad Thing, since the MSR in the stack will
+	 * have the MSR[TS]=0, and this is what will be used to RFID.
+	 *
+	 * Clearing MSR[TS] state here will avoid a recheckpoint if there
+	 * is any process reschedule in kernel space. The MSR[TS] state
+	 * does not need to be saved also, since it will be replaced with
+	 * the MSR[TS] that came from user context later, at
+	 * restore_tm_sigcontexts.
+	 */
+	regs->msr &= ~MSR_TS_MASK;
+
 	if (__get_user(msr, &uc->uc_mcontext.gp_regs[PT_MSR]))
 		goto badframe;
 	if (MSR_TM_ACTIVE(msr)) {
 		/* We recheckpoint on return. */
 		struct ucontext __user *uc_transact;
+
+		/* Trying to start TM on non TM system */
+		if (!cpu_has_feature(CPU_FTR_TM))
+			goto badframe;
+
 		if (__get_user(uc_transact, &uc->uc_link))
 			goto badframe;
 		if (restore_tm_sigcontexts(current, &uc->uc_mcontext,
 					   &uc_transact->uc_mcontext))
 			goto badframe;
-	}
-	else
-	/* Fall through, for non-TM restore */
+	} else
 #endif
-	if (restore_sigcontext(current, NULL, 1, &uc->uc_mcontext))
-		goto badframe;
+	{
+		/*
+		 * Fall through, for non-TM restore
+		 *
+		 * Unset MSR[TS] on the thread regs since MSR from user
+		 * context does not have MSR active, and recheckpoint was
+		 * not called since restore_tm_sigcontexts() was not called
+		 * also.
+		 *
+		 * If not unsetting it, the code can RFID to userspace with
+		 * MSR[TS] set, but without CPU in the proper state,
+		 * causing a TM bad thing.
+		 */
+		current->thread.regs->msr &= ~MSR_TS_MASK;
+		if (restore_sigcontext(current, NULL, 1, &uc->uc_mcontext))
+			goto badframe;
+	}
 
 	if (restore_altstack(&uc->uc_stack))
 		goto badframe;
@@ -763,7 +813,7 @@ badframe:
 				   current->comm, current->pid, "rt_sigreturn",
 				   (long)uc, regs->nip, regs->link);
 
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

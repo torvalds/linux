@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*------------------------------------------------------------------------
  . smc91x.h - macros for SMSC's 91C9x/91C1xx single-chip Ethernet device.
  .
@@ -7,18 +8,6 @@
  . Copyright (C) 2003 Monta Vista Software, Inc.
  .	Unified SMC91x driver by Nicolas Pitre
  .
- . This program is free software; you can redistribute it and/or modify
- . it under the terms of the GNU General Public License as published by
- . the Free Software Foundation; either version 2 of the License, or
- . (at your option) any later version.
- .
- . This program is distributed in the hope that it will be useful,
- . but WITHOUT ANY WARRANTY; without even the implied warranty of
- . MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- . GNU General Public License for more details.
- .
- . You should have received a copy of the GNU General Public License
- . along with this program; if not, see <http://www.gnu.org/licenses/>.
  .
  . Information contained in this file was obtained from the LAN91C111
  . manual from SMC.  To get a copy, if you really want one, you can find
@@ -143,32 +132,6 @@ static inline void _SMC_outw_align4(u16 val, void __iomem *ioaddr, int reg,
 #define SMC_outsw(a, r, p, l)	outsw((a) + (r) - 0xa0000000, p, l)
 
 #define SMC_IRQ_FLAGS		(0)
-
-#elif   defined(CONFIG_M32R)
-
-#define SMC_CAN_USE_8BIT	0
-#define SMC_CAN_USE_16BIT	1
-#define SMC_CAN_USE_32BIT	0
-
-#define SMC_inb(a, r)		inb(((u32)a) + (r))
-#define SMC_inw(a, r)		inw(((u32)a) + (r))
-#define SMC_outb(v, a, r)	outb(v, ((u32)a) + (r))
-#define SMC_outw(lp, v, a, r)	outw(v, ((u32)a) + (r))
-#define SMC_insw(a, r, p, l)	insw(((u32)a) + (r), p, l)
-#define SMC_outsw(a, r, p, l)	outsw(((u32)a) + (r), p, l)
-
-#define SMC_IRQ_FLAGS		(0)
-
-#define RPC_LSA_DEFAULT		RPC_LED_TX_RX
-#define RPC_LSB_DEFAULT		RPC_LED_100_10
-
-#elif defined(CONFIG_MN10300)
-
-/*
- * MN10300/AM33 configuration
- */
-
-#include <unit/smc91111.h>
 
 #elif defined(CONFIG_ATARI)
 
@@ -327,7 +290,6 @@ struct smc_local {
  * as RX which can overrun memory and lose packets.
  */
 #include <linux/dma-mapping.h>
-#include <linux/dma/pxa-dma.h>
 
 #ifdef SMC_insl
 #undef SMC_insl

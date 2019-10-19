@@ -71,11 +71,10 @@ mwifiex_uap_del_tx_pkts_in_ralist(struct mwifiex_private *priv,
  */
 static void mwifiex_uap_cleanup_tx_queues(struct mwifiex_private *priv)
 {
-	unsigned long flags;
 	struct list_head *ra_list;
 	int i;
 
-	spin_lock_irqsave(&priv->wmm.ra_list_spinlock, flags);
+	spin_lock_bh(&priv->wmm.ra_list_spinlock);
 
 	for (i = 0; i < MAX_NUM_TID; i++, priv->del_list_idx++) {
 		if (priv->del_list_idx == MAX_NUM_TID)
@@ -87,7 +86,7 @@ static void mwifiex_uap_cleanup_tx_queues(struct mwifiex_private *priv)
 		}
 	}
 
-	spin_unlock_irqrestore(&priv->wmm.ra_list_spinlock, flags);
+	spin_unlock_bh(&priv->wmm.ra_list_spinlock);
 }
 
 
@@ -289,32 +288,6 @@ int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 		src_node->stats.rx_packets++;
 	}
 
-	skb->dev = priv->netdev;
-	skb->protocol = eth_type_trans(skb, priv->netdev);
-	skb->ip_summed = CHECKSUM_NONE;
-
-	/* This is required only in case of 11n and USB/PCIE as we alloc
-	 * a buffer of 4K only if its 11N (to be able to receive 4K
-	 * AMSDU packets). In case of SD we allocate buffers based
-	 * on the size of packet and hence this is not needed.
-	 *
-	 * Modifying the truesize here as our allocation for each
-	 * skb is 4K but we only receive 2K packets and this cause
-	 * the kernel to start dropping packets in case where
-	 * application has allocated buffer based on 2K size i.e.
-	 * if there a 64K packet received (in IP fragments and
-	 * application allocates 64K to receive this packet but
-	 * this packet would almost double up because we allocate
-	 * each 1.5K fragment in 4K and pass it up. As soon as the
-	 * 64K limit hits kernel will start to drop rest of the
-	 * fragments. Currently we fail the Filesndl-ht.scr script
-	 * for UDP, hence this fix
-	 */
-	if ((adapter->iface_type == MWIFIEX_USB ||
-	     adapter->iface_type == MWIFIEX_PCIE) &&
-	    (skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE))
-		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
-
 	if (is_multicast_ether_addr(p_ethhdr->h_dest) ||
 	    mwifiex_get_sta_entry(priv, p_ethhdr->h_dest)) {
 		if (skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN)
@@ -350,6 +323,32 @@ int mwifiex_uap_recv_packet(struct mwifiex_private *priv,
 			return 0;
 	}
 
+	skb->dev = priv->netdev;
+	skb->protocol = eth_type_trans(skb, priv->netdev);
+	skb->ip_summed = CHECKSUM_NONE;
+
+	/* This is required only in case of 11n and USB/PCIE as we alloc
+	 * a buffer of 4K only if its 11N (to be able to receive 4K
+	 * AMSDU packets). In case of SD we allocate buffers based
+	 * on the size of packet and hence this is not needed.
+	 *
+	 * Modifying the truesize here as our allocation for each
+	 * skb is 4K but we only receive 2K packets and this cause
+	 * the kernel to start dropping packets in case where
+	 * application has allocated buffer based on 2K size i.e.
+	 * if there a 64K packet received (in IP fragments and
+	 * application allocates 64K to receive this packet but
+	 * this packet would almost double up because we allocate
+	 * each 1.5K fragment in 4K and pass it up. As soon as the
+	 * 64K limit hits kernel will start to drop rest of the
+	 * fragments. Currently we fail the Filesndl-ht.scr script
+	 * for UDP, hence this fix
+	 */
+	if ((adapter->iface_type == MWIFIEX_USB ||
+	     adapter->iface_type == MWIFIEX_PCIE) &&
+	    skb->truesize > MWIFIEX_RX_DATA_BUF_SIZE)
+		skb->truesize += (skb->len - MWIFIEX_RX_DATA_BUF_SIZE);
+
 	/* Forward multicast/broadcast packet to upper layer*/
 	if (in_interrupt())
 		netif_rx(skb);
@@ -378,7 +377,6 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 	struct rx_packet_hdr *rx_pkt_hdr;
 	u16 rx_pkt_type;
 	u8 ta[ETH_ALEN], pkt_type;
-	unsigned long flags;
 	struct mwifiex_sta_node *node;
 
 	uap_rx_pd = (struct uap_rxpd *)(skb->data);
@@ -413,12 +411,12 @@ int mwifiex_process_uap_rx_packet(struct mwifiex_private *priv,
 
 
 	if (rx_pkt_type != PKT_TYPE_BAR && uap_rx_pd->priority < MAX_NUM_TID) {
-		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		spin_lock_bh(&priv->sta_list_spinlock);
 		node = mwifiex_get_sta_entry(priv, ta);
 		if (node)
 			node->rx_seq[uap_rx_pd->priority] =
 						le16_to_cpu(uap_rx_pd->seq_num);
-		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+		spin_unlock_bh(&priv->sta_list_spinlock);
 	}
 
 	if (!priv->ap_11n_enabled ||

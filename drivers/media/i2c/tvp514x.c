@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * drivers/media/i2c/tvp514x.c
  *
@@ -13,16 +14,6 @@
  *     Manjunath Hadli <mrh@ti.com>
  *     Karicheri Muralidharan <m-karicheri2@ti.com>
  *     Prabhakar Lad <prabhakar.lad@ti.com>
- *
- * This package is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
  */
 
 #include <linux/i2c.h>
@@ -67,7 +58,7 @@ enum tvp514x_std {
 };
 
 /**
- * struct tvp514x_std_info - Structure to store standard informations
+ * struct tvp514x_std_info - Structure to store standard information
  * @width: Line width in pixels
  * @height:Number of active lines
  * @video_std: Value to write in REG_VIDEO_STD register
@@ -747,60 +738,47 @@ static int tvp514x_s_ctrl(struct v4l2_ctrl *ctrl)
 }
 
 /**
- * tvp514x_g_parm() - V4L2 decoder interface handler for g_parm
+ * tvp514x_g_frame_interval() - V4L2 decoder interface handler
  * @sd: pointer to standard V4L2 sub-device structure
- * @a: pointer to standard V4L2 VIDIOC_G_PARM ioctl structure
+ * @ival: pointer to a v4l2_subdev_frame_interval structure
  *
  * Returns the decoder's video CAPTURE parameters.
  */
 static int
-tvp514x_g_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
+tvp514x_g_frame_interval(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_frame_interval *ival)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
-	struct v4l2_captureparm *cparm;
 	enum tvp514x_std current_std;
 
-	if (a == NULL)
-		return -EINVAL;
-
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		return -EINVAL;
 
 	/* get the current standard */
 	current_std = decoder->current_std;
 
-	cparm = &a->parm.capture;
-	cparm->capability = V4L2_CAP_TIMEPERFRAME;
-	cparm->timeperframe =
+	ival->interval =
 		decoder->std_list[current_std].standard.frameperiod;
 
 	return 0;
 }
 
 /**
- * tvp514x_s_parm() - V4L2 decoder interface handler for s_parm
+ * tvp514x_s_frame_interval() - V4L2 decoder interface handler
  * @sd: pointer to standard V4L2 sub-device structure
- * @a: pointer to standard V4L2 VIDIOC_S_PARM ioctl structure
+ * @ival: pointer to a v4l2_subdev_frame_interval structure
  *
  * Configures the decoder to use the input parameters, if possible. If
  * not possible, returns the appropriate error code.
  */
 static int
-tvp514x_s_parm(struct v4l2_subdev *sd, struct v4l2_streamparm *a)
+tvp514x_s_frame_interval(struct v4l2_subdev *sd,
+			 struct v4l2_subdev_frame_interval *ival)
 {
 	struct tvp514x_decoder *decoder = to_decoder(sd);
 	struct v4l2_fract *timeperframe;
 	enum tvp514x_std current_std;
 
-	if (a == NULL)
-		return -EINVAL;
 
-	if (a->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		/* only capture is supported */
-		return -EINVAL;
-
-	timeperframe = &a->parm.capture.timeperframe;
+	timeperframe = &ival->interval;
 
 	/* get the current standard */
 	current_std = decoder->current_std;
@@ -961,8 +939,8 @@ static const struct v4l2_subdev_video_ops tvp514x_video_ops = {
 	.s_std = tvp514x_s_std,
 	.s_routing = tvp514x_s_routing,
 	.querystd = tvp514x_querystd,
-	.g_parm = tvp514x_g_parm,
-	.s_parm = tvp514x_s_parm,
+	.g_frame_interval = tvp514x_g_frame_interval,
+	.s_frame_interval = tvp514x_s_frame_interval,
 	.s_stream = tvp514x_s_stream,
 };
 
@@ -1002,7 +980,7 @@ static struct tvp514x_platform_data *
 tvp514x_get_pdata(struct i2c_client *client)
 {
 	struct tvp514x_platform_data *pdata = NULL;
-	struct v4l2_fwnode_endpoint bus_cfg;
+	struct v4l2_fwnode_endpoint bus_cfg = { .bus_type = 0 };
 	struct device_node *endpoint;
 	unsigned int flags;
 
@@ -1097,7 +1075,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	decoder->pad.flags = MEDIA_PAD_FL_SOURCE;
 	decoder->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	decoder->sd.entity.flags |= MEDIA_ENT_F_ATV_DECODER;
+	decoder->sd.entity.function = MEDIA_ENT_F_ATV_DECODER;
 
 	ret = media_entity_pads_init(&decoder->sd.entity, 1, &decoder->pad);
 	if (ret < 0) {

@@ -6,7 +6,7 @@ export TESTNAME=test_libbpf
 # Determine selftest success via shell exit code
 exit_handler()
 {
-	if (( $? == 0 )); then
+	if [ $? -eq 0 ]; then
 		echo "selftests: $TESTNAME [PASS]";
 	else
 		echo "$TESTNAME: failed at file $LAST_LOADED" 1>&2
@@ -33,17 +33,11 @@ trap exit_handler 0 2 3 6 9
 
 libbpf_open_file test_l4lb.o
 
-# TODO: fix libbpf to load noinline functions
-# [warning] libbpf: incorrect bpf_call opcode
-#libbpf_open_file test_l4lb_noinline.o
+# Load a program with BPF-to-BPF calls
+libbpf_open_file test_l4lb_noinline.o
 
-# TODO: fix test_xdp_meta.c to load with libbpf
-# [warning] libbpf: test_xdp_meta.o doesn't provide kernel version
-#libbpf_open_file test_xdp_meta.o
-
-# TODO: fix libbpf to handle .eh_frame
-# [warning] libbpf: relocation failed: no section(10)
-#libbpf_open_file ../../../../samples/bpf/tracex3_kern.o
+# Load a program compiled without the "-target bpf" flag
+libbpf_open_file test_xdp.o
 
 # Success
 exit 0

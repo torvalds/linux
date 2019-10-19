@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Support for MediaTek cryptographic accelerator.
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Ryder Lee <ryder.lee@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License.
- *
  */
 
 #ifndef __MTK_REGS_H__

@@ -1,17 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2012
  *
@@ -19,7 +7,10 @@
  */
 #include <asm/ppc_asm.h>
 
-_GLOBAL(memcpy_power7)
+#ifndef SELFTEST_CASE
+/* 0 == don't use VMX, 1 == use VMX */
+#define SELFTEST_CASE	0
+#endif
 
 #ifdef __BIG_ENDIAN__
 #define LVS(VRT,RA,RB)		lvsl	VRT,RA,RB
@@ -29,20 +20,17 @@ _GLOBAL(memcpy_power7)
 #define VPERM(VRT,VRA,VRB,VRC)	vperm	VRT,VRB,VRA,VRC
 #endif
 
-#ifdef CONFIG_ALTIVEC
+_GLOBAL(memcpy_power7)
 	cmpldi	r5,16
 	cmpldi	cr1,r5,4096
-
 	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-
 	blt	.Lshort_copy
-	bgt	cr1,.Lvmx_copy
-#else
-	cmpldi	r5,16
 
-	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-
-	blt	.Lshort_copy
+#ifdef CONFIG_ALTIVEC
+test_feature = SELFTEST_CASE
+BEGIN_FTR_SECTION
+	bgt	cr1, .Lvmx_copy
+END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 
 .Lnonvmx_copy:
@@ -223,14 +211,14 @@ _GLOBAL(memcpy_power7)
 	addi	r1,r1,STACKFRAMESIZE
 	b	.Lnonvmx_copy
 
-#ifdef CONFIG_ALTIVEC
 .Lvmx_copy:
+#ifdef CONFIG_ALTIVEC
 	mflr	r0
 	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
 	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
-	bl	enter_vmx_copy
+	bl	enter_vmx_ops
 	cmpwi	cr1,r3,0
 	ld	r0,STACKFRAMESIZE+16(r1)
 	ld	r3,STK_REG(R31)(r1)
@@ -259,15 +247,12 @@ _GLOBAL(memcpy_power7)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	dcbt	0,r6,0b01000
 	dcbt	0,r7,0b01010
 	dcbtst	0,r9,0b01000
 	dcbtst	0,r10,0b01010
 	eieio
 	dcbt	0,r8,0b01010	/* GO */
-.machine pop
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 
@@ -448,7 +433,7 @@ _GLOBAL(memcpy_power7)
 
 15:	addi	r1,r1,STACKFRAMESIZE
 	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-	b	exit_vmx_copy		/* tail call optimise */
+	b	exit_vmx_ops		/* tail call optimise */
 
 .Lvmx_unaligned_copy:
 	/* Get the destination 16B aligned */
@@ -652,5 +637,5 @@ _GLOBAL(memcpy_power7)
 
 15:	addi	r1,r1,STACKFRAMESIZE
 	ld	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-	b	exit_vmx_copy		/* tail call optimise */
+	b	exit_vmx_ops		/* tail call optimise */
 #endif /* CONFIG_ALTIVEC */

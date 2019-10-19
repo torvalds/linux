@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the TXx9 SoC DMA Controller
  *
  * Copyright (C) 2009 Atsushi Nemoto
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
@@ -327,7 +324,6 @@ static void txx9dmac_reset_chan(struct txx9dmac_chan *dc)
 	channel_writel(dc, SAIR, 0);
 	channel_writel(dc, DAIR, 0);
 	channel_writel(dc, CCR, 0);
-	mmiowb();
 }
 
 /* Called with dc->lock held and bh disabled */
@@ -954,7 +950,6 @@ static void txx9dmac_chain_dynamic(struct txx9dmac_chan *dc,
 	dma_sync_single_for_device(chan2parent(&dc->chan),
 				   prev->txd.phys, ddev->descsize,
 				   DMA_TO_DEVICE);
-	mmiowb();
 	if (!(channel_readl(dc, CSR) & TXX9_DMA_CSR_CHNEN) &&
 	    channel_read_CHAR(dc) == prev->txd.phys)
 		/* Restart chain DMA */
@@ -1080,7 +1075,6 @@ static void txx9dmac_free_chan_resources(struct dma_chan *chan)
 static void txx9dmac_off(struct txx9dmac_dev *ddev)
 {
 	dma_writel(ddev, MCR, 0);
-	mmiowb();
 }
 
 static int __init txx9dmac_chan_probe(struct platform_device *pdev)
@@ -1244,8 +1238,7 @@ static void txx9dmac_shutdown(struct platform_device *pdev)
 
 static int txx9dmac_suspend_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
+	struct txx9dmac_dev *ddev = dev_get_drvdata(dev);
 
 	txx9dmac_off(ddev);
 	return 0;
@@ -1253,9 +1246,8 @@ static int txx9dmac_suspend_noirq(struct device *dev)
 
 static int txx9dmac_resume_noirq(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct txx9dmac_dev *ddev = platform_get_drvdata(pdev);
-	struct txx9dmac_platform_data *pdata = dev_get_platdata(&pdev->dev);
+	struct txx9dmac_dev *ddev = dev_get_drvdata(dev);
+	struct txx9dmac_platform_data *pdata = dev_get_platdata(dev);
 	u32 mcr;
 
 	mcr = TXX9_DMA_MCR_MSTEN | MCR_LE;

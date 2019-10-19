@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_vec.c: Definition of common structure for vector of Rx and Tx rings.
@@ -35,12 +32,12 @@ struct aq_vec_s {
 static int aq_vec_poll(struct napi_struct *napi, int budget)
 {
 	struct aq_vec_s *self = container_of(napi, struct aq_vec_s, napi);
+	unsigned int sw_tail_old = 0U;
 	struct aq_ring_s *ring = NULL;
+	bool was_tx_cleaned = true;
+	unsigned int i = 0U;
 	int work_done = 0;
 	int err = 0;
-	unsigned int i = 0U;
-	unsigned int sw_tail_old = 0U;
-	bool was_tx_cleaned = false;
 
 	if (!self) {
 		err = -EINVAL;
@@ -57,9 +54,8 @@ static int aq_vec_poll(struct napi_struct *napi, int budget)
 
 			if (ring[AQ_VEC_TX_ID].sw_head !=
 			    ring[AQ_VEC_TX_ID].hw_head) {
-				aq_ring_tx_clean(&ring[AQ_VEC_TX_ID]);
+				was_tx_cleaned = aq_ring_tx_clean(&ring[AQ_VEC_TX_ID]);
 				aq_ring_update_queue_state(&ring[AQ_VEC_TX_ID]);
-				was_tx_cleaned = true;
 			}
 
 			err = self->aq_hw_ops->hw_ring_rx_receive(self->aq_hw,
@@ -90,7 +86,8 @@ static int aq_vec_poll(struct napi_struct *napi, int budget)
 			}
 		}
 
-		if (was_tx_cleaned)
+err_exit:
+		if (!was_tx_cleaned)
 			work_done = budget;
 
 		if (work_done < budget) {
@@ -99,7 +96,7 @@ static int aq_vec_poll(struct napi_struct *napi, int budget)
 					1U << self->aq_ring_param.vec_idx);
 		}
 	}
-err_exit:
+
 	return work_done;
 }
 
@@ -309,15 +306,13 @@ irqreturn_t aq_vec_isr_legacy(int irq, void *private)
 {
 	struct aq_vec_s *self = private;
 	u64 irq_mask = 0U;
-	irqreturn_t err = 0;
+	int err;
 
-	if (!self) {
-		err = -EINVAL;
-		goto err_exit;
-	}
+	if (!self)
+		return IRQ_NONE;
 	err = self->aq_hw_ops->hw_irq_read(self->aq_hw, &irq_mask);
 	if (err < 0)
-		goto err_exit;
+		return IRQ_NONE;
 
 	if (irq_mask) {
 		self->aq_hw_ops->hw_irq_disable(self->aq_hw,
@@ -325,11 +320,10 @@ irqreturn_t aq_vec_isr_legacy(int irq, void *private)
 		napi_schedule(&self->napi);
 	} else {
 		self->aq_hw_ops->hw_irq_enable(self->aq_hw, 1U);
-		err = IRQ_NONE;
+		return IRQ_NONE;
 	}
 
-err_exit:
-	return err >= 0 ? IRQ_HANDLED : IRQ_NONE;
+	return IRQ_HANDLED;
 }
 
 cpumask_t *aq_vec_get_affinity_mask(struct aq_vec_s *self)
@@ -354,6 +348,9 @@ void aq_vec_add_stats(struct aq_vec_s *self,
 		stats_rx->errors += rx->errors;
 		stats_rx->jumbo_packets += rx->jumbo_packets;
 		stats_rx->lro_packets += rx->lro_packets;
+		stats_rx->pg_losts += rx->pg_losts;
+		stats_rx->pg_flips += rx->pg_flips;
+		stats_rx->pg_reuses += rx->pg_reuses;
 
 		stats_tx->packets += tx->packets;
 		stats_tx->bytes += tx->bytes;

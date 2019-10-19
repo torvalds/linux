@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP Crypto driver common support routines.
  *
  * Copyright (c) 2017 Texas Instruments Incorporated
  *   Tero Kristo <t-kristo@ti.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -104,6 +101,10 @@ static int omap_crypto_check_sg(struct scatterlist *sg, int total, int bs,
 			return OMAP_CRYPTO_NOT_ALIGNED;
 		if (!IS_ALIGNED(sg->length, bs))
 			return OMAP_CRYPTO_NOT_ALIGNED;
+#ifdef CONFIG_ZONE_DMA
+		if (page_zonenum(sg_page(sg)) != ZONE_DMA)
+			return OMAP_CRYPTO_NOT_ALIGNED;
+#endif
 
 		len += sg->length;
 		sg = sg_next(sg);

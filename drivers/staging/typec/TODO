@@ -1,5 +1,0 @@
-tcpci:
-- Test with real hardware
-
-Please send patches to Guenter Roeck <linux@roeck-us.net> and copy
-Heikki Krogerus <heikki.krogerus@linux.intel.com>.

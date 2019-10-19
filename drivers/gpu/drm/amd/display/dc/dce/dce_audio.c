@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "reg_helper.h"
 #include "dce_audio.h"
 #include "dce/dce_11_0_d.h"
@@ -33,6 +35,9 @@
 
 #define CTX \
 	aud->base.ctx
+
+#define DC_LOGGER_INIT()
+
 #define REG(reg)\
 	(aud->regs->reg)
 
@@ -63,8 +68,7 @@ static void write_indirect_azalia_reg(struct audio *audio,
 	REG_SET(AZALIA_F0_CODEC_ENDPOINT_DATA, 0,
 			AZALIA_ENDPOINT_REG_DATA, reg_data);
 
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-		"AUDIO:write_indirect_azalia_reg: index: %u  data: %u\n",
+	DC_LOG_HW_AUDIO("AUDIO:write_indirect_azalia_reg: index: %u  data: %u\n",
 		reg_index, reg_data);
 }
 
@@ -81,8 +85,7 @@ static uint32_t read_indirect_azalia_reg(struct audio *audio, uint32_t reg_index
 	/* AZALIA_F0_CODEC_ENDPOINT_DATA  endpoint data  */
 	value = REG_READ(AZALIA_F0_CODEC_ENDPOINT_DATA);
 
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-		"AUDIO:read_indirect_azalia_reg: index: %u  data: %u\n",
+	DC_LOG_HW_AUDIO("AUDIO:read_indirect_azalia_reg: index: %u  data: %u\n",
 		reg_index, value);
 
 	return value;
@@ -142,20 +145,20 @@ static void check_audio_bandwidth_hdmi(
 	if (channel_count > 2) {
 
 		/* Based on HDMI spec 1.3 Table 7.5 */
-		if ((crtc_info->requested_pixel_clock <= 27000) &&
+		if ((crtc_info->requested_pixel_clock_100Hz <= 270000) &&
 		(crtc_info->v_active <= 576) &&
 		!(crtc_info->interlaced) &&
 		!(crtc_info->pixel_repetition == 2 ||
 		crtc_info->pixel_repetition == 4)) {
 			limit_freq_to_48_khz = true;
 
-		} else if ((crtc_info->requested_pixel_clock <= 27000) &&
+		} else if ((crtc_info->requested_pixel_clock_100Hz <= 270000) &&
 				(crtc_info->v_active <= 576) &&
 				(crtc_info->interlaced) &&
 				(crtc_info->pixel_repetition == 2)) {
 			limit_freq_to_88_2_khz = true;
 
-		} else if ((crtc_info->requested_pixel_clock <= 54000) &&
+		} else if ((crtc_info->requested_pixel_clock_100Hz <= 540000) &&
 				(crtc_info->v_active <= 576) &&
 				!(crtc_info->interlaced)) {
 			limit_freq_to_174_4_khz = true;
@@ -348,8 +351,8 @@ static void set_audio_latency(
 
 void dce_aud_az_enable(struct audio *audio)
 {
-	struct dce_audio *aud = DCE_AUD(audio);
 	uint32_t value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	DC_LOGGER_INIT();
 
 	set_reg_field_value(value, 1,
 			    AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
@@ -359,19 +362,25 @@ void dce_aud_az_enable(struct audio *audio)
 			    AUDIO_ENABLED);
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
-	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 0,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-			"\n\t========= AUDIO:dce_aud_az_enable: index: %u  data: 0x%x\n",
+	DC_LOG_HW_AUDIO("\n\t========= AUDIO:dce_aud_az_enable: index: %u  data: 0x%x\n",
 			audio->inst, value);
 }
 
 void dce_aud_az_disable(struct audio *audio)
 {
 	uint32_t value;
-	struct dce_audio *aud = DCE_AUD(audio);
+	DC_LOGGER_INIT();
 
 	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 1,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 
 	set_reg_field_value(value, 0,
 		AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
@@ -383,8 +392,7 @@ void dce_aud_az_disable(struct audio *audio)
 			CLOCK_GATING_DISABLE);
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
-	dm_logger_write(CTX->logger, LOG_HW_AUDIO,
-			"\n\t========= AUDIO:dce_aud_az_disable: index: %u  data: 0x%x\n",
+	DC_LOG_HW_AUDIO("\n\t========= AUDIO:dce_aud_az_disable: index: %u  data: 0x%x\n",
 			audio->inst, value);
 }
 
@@ -605,6 +613,8 @@ void dce_aud_az_configure(
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_SINK_INFO1,
 		value);
+	DC_LOG_HW_AUDIO("\n\tAUDIO:az_configure: index: %u data, 0x%x, displayName %s: \n",
+		audio->inst, value, audio_info->display_name);
 
 	/*
 	*write the port ID:
@@ -716,6 +726,11 @@ void dce_aud_az_configure(
 		DESCRIPTION17);
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_SINK_INFO8, value);
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL);
+	set_reg_field_value(value, 0,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 }
 
 /*
@@ -724,8 +739,8 @@ void dce_aud_az_configure(
 
 /* search pixel clock value for Azalia HDMI Audio */
 static void get_azalia_clock_info_hdmi(
-	uint32_t crtc_pixel_clock_in_khz,
-	uint32_t actual_pixel_clock_in_khz,
+	uint32_t crtc_pixel_clock_100hz,
+	uint32_t actual_pixel_clock_100Hz,
 	struct azalia_clock_info *azalia_clock_info)
 {
 	/* audio_dto_phase= 24 * 10,000;
@@ -736,11 +751,11 @@ static void get_azalia_clock_info_hdmi(
 	/* audio_dto_module = PCLKFrequency * 10,000;
 	 *  [khz] -> [100Hz] */
 	azalia_clock_info->audio_dto_module =
-			actual_pixel_clock_in_khz * 10;
+			actual_pixel_clock_100Hz;
 }
 
 static void get_azalia_clock_info_dp(
-	uint32_t requested_pixel_clock_in_khz,
+	uint32_t requested_pixel_clock_100Hz,
 	const struct audio_pll_info *pll_info,
 	struct azalia_clock_info *azalia_clock_info)
 {
@@ -779,16 +794,15 @@ void dce_aud_wall_dto_setup(
 
 		/* calculate DTO settings */
 		get_azalia_clock_info_hdmi(
-			crtc_info->requested_pixel_clock,
-			crtc_info->calculated_pixel_clock,
+			crtc_info->requested_pixel_clock_100Hz,
+			crtc_info->calculated_pixel_clock_100Hz,
 			&clock_info);
 
-		dm_logger_write(audio->ctx->logger, LOG_HW_AUDIO,\
-				"\n%s:Input::requested_pixel_clock = %d"\
-				"calculated_pixel_clock =%d\n"\
+		DC_LOG_HW_AUDIO("\n%s:Input::requested_pixel_clock_100Hz = %d"\
+				"calculated_pixel_clock_100Hz =%d\n"\
 				"audio_dto_module = %d audio_dto_phase =%d \n\n", __func__,\
-				crtc_info->requested_pixel_clock,\
-				crtc_info->calculated_pixel_clock,\
+				crtc_info->requested_pixel_clock_100Hz,\
+				crtc_info->calculated_pixel_clock_100Hz,\
 				clock_info.audio_dto_module,\
 				clock_info.audio_dto_phase);
 
@@ -821,7 +835,7 @@ void dce_aud_wall_dto_setup(
 
 		calculate DTO settings */
 		get_azalia_clock_info_dp(
-			crtc_info->requested_pixel_clock,
+			crtc_info->requested_pixel_clock_100Hz,
 			pll_info,
 			&clock_info);
 
@@ -831,8 +845,6 @@ void dce_aud_wall_dto_setup(
 		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
 				DCCG_AUDIO_DTO_SEL, 1);
 
-		REG_UPDATE(DCCG_AUDIO_DTO_SOURCE,
-			DCCG_AUDIO_DTO_SEL, 1);
 			/* DCCG_AUDIO_DTO2_USE_512FBR_DTO, 1)
 			 * Select 512fs for DP TODO: web register definition
 			 * does not match register header file
@@ -897,6 +909,10 @@ void dce_aud_hw_init(
 	REG_UPDATE_2(AZALIA_F0_CODEC_FUNCTION_PARAMETER_POWER_STATES,
 			CLKSTOP, 1,
 			EPSS, 1);
+	set_reg_field_value(value, 0,
+			AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL,
+			CLOCK_GATING_DISABLE);
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_HOT_PLUG_CONTROL, value);
 }
 
 static const struct audio_funcs funcs = {
@@ -908,7 +924,6 @@ static const struct audio_funcs funcs = {
 	.az_configure = dce_aud_az_configure,
 	.destroy = dce_aud_destroy,
 };
-
 void dce_aud_destroy(struct audio **audio)
 {
 	struct dce_audio *aud = DCE_AUD(*audio);
@@ -922,7 +937,7 @@ struct audio *dce_audio_create(
 		unsigned int inst,
 		const struct dce_audio_registers *reg,
 		const struct dce_audio_shift *shifts,
-		const struct dce_aduio_mask *masks
+		const struct dce_audio_mask *masks
 		)
 {
 	struct dce_audio *audio = kzalloc(sizeof(*audio), GFP_KERNEL);
@@ -939,7 +954,6 @@ struct audio *dce_audio_create(
 	audio->regs = reg;
 	audio->shifts = shifts;
 	audio->masks = masks;
-
 	return &audio->base;
 }
 

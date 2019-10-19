@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * ASPEED Static Memory Controller driver
  *
  * Copyright (c) 2015-2016, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/bug.h>
@@ -840,8 +836,10 @@ static int aspeed_smc_setup_flash(struct aspeed_smc_controller *controller,
 		controller->chips[cs] = chip;
 	}
 
-	if (ret)
+	if (ret) {
+		of_node_put(child);
 		aspeed_smc_unregister(controller);
+	}
 
 	return ret;
 }
@@ -861,8 +859,9 @@ static int aspeed_smc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	info = match->data;
 
-	controller = devm_kzalloc(&pdev->dev, sizeof(*controller) +
-		info->nce * sizeof(controller->chips[0]), GFP_KERNEL);
+	controller = devm_kzalloc(&pdev->dev,
+				  struct_size(controller, chips, info->nce),
+				  GFP_KERNEL);
 	if (!controller)
 		return -ENOMEM;
 	controller->info = info;

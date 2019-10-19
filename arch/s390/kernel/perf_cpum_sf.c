@@ -2,7 +2,7 @@
 /*
  * Performance event support for the System z CPU-measurement Sampling Facility
  *
- * Copyright IBM Corp. 2013
+ * Copyright IBM Corp. 2013, 2018
  * Author(s): Hendrik Brueckner <brueckner@linux.vnet.ibm.com>
  */
 #define KMSG_COMPONENT	"cpum_sf"
@@ -514,7 +514,6 @@ static void extend_sampling_buffer(struct sf_buffer *sfb,
 				    sfb_pending_allocs(sfb, hwc));
 }
 
-
 /* Number of perf events counting hardware events */
 static atomic_t num_events;
 /* Used to avoid races in calling reserve/release_cpumf_hardware */
@@ -665,7 +664,7 @@ static void cpumsf_output_event_pid(struct perf_event *event,
 		goto out;
 
 	/* Update the process ID (see also kernel/events/core.c) */
-	data->tid_entry.pid = cpumsf_pid_type(event, pid, __PIDTYPE_TGID);
+	data->tid_entry.pid = cpumsf_pid_type(event, pid, PIDTYPE_TGID);
 	data->tid_entry.tid = cpumsf_pid_type(event, pid, PIDTYPE_PID);
 
 	perf_output_sample(&handle, &header, data, event);
@@ -674,13 +673,89 @@ out:
 	rcu_read_unlock();
 }
 
+static unsigned long getrate(bool freq, unsigned long sample,
+			     struct hws_qsi_info_block *si)
+{
+	unsigned long rate;
+
+	if (freq) {
+		rate = freq_to_sample_rate(si, sample);
+		rate = hw_limit_rate(si, rate);
+	} else {
+		/* The min/max sampling rates specifies the valid range
+		 * of sample periods.  If the specified sample period is
+		 * out of range, limit the period to the range boundary.
+		 */
+		rate = hw_limit_rate(si, sample);
+
+		/* The perf core maintains a maximum sample rate that is
+		 * configurable through the sysctl interface.  Ensure the
+		 * sampling rate does not exceed this value.  This also helps
+		 * to avoid throttling when pushing samples with
+		 * perf_event_overflow().
+		 */
+		if (sample_rate_to_freq(si, rate) >
+		    sysctl_perf_event_sample_rate) {
+			debug_sprintf_event(sfdbg, 1,
+					    "Sampling rate exceeds maximum "
+					    "perf sample rate\n");
+			rate = 0;
+		}
+	}
+	return rate;
+}
+
+/* The sampling information (si) contains information about the
+ * min/max sampling intervals and the CPU speed.  So calculate the
+ * correct sampling interval and avoid the whole period adjust
+ * feedback loop.
+ *
+ * Since the CPU Measurement sampling facility can not handle frequency
+ * calculate the sampling interval when frequency is specified using
+ * this formula:
+ *	interval := cpu_speed * 1000000 / sample_freq
+ *
+ * Returns errno on bad input and zero on success with parameter interval
+ * set to the correct sampling rate.
+ *
+ * Note: This function turns off freq bit to avoid calling function
+ * perf_adjust_period(). This causes frequency adjustment in the common
+ * code part which causes tremendous variations in the counter values.
+ */
+static int __hw_perf_event_init_rate(struct perf_event *event,
+				     struct hws_qsi_info_block *si)
+{
+	struct perf_event_attr *attr = &event->attr;
+	struct hw_perf_event *hwc = &event->hw;
+	unsigned long rate;
+
+	if (attr->freq) {
+		if (!attr->sample_freq)
+			return -EINVAL;
+		rate = getrate(attr->freq, attr->sample_freq, si);
+		attr->freq = 0;		/* Don't call  perf_adjust_period() */
+		SAMPL_FLAGS(hwc) |= PERF_CPUM_SF_FREQ_MODE;
+	} else {
+		rate = getrate(attr->freq, attr->sample_period, si);
+		if (!rate)
+			return -EINVAL;
+	}
+	attr->sample_period = rate;
+	SAMPL_RATE(hwc) = rate;
+	hw_init_period(hwc, SAMPL_RATE(hwc));
+	debug_sprintf_event(sfdbg, 4, "__hw_perf_event_init_rate:"
+			    "cpu:%d period:%llx freq:%d,%#lx\n", event->cpu,
+			    event->attr.sample_period, event->attr.freq,
+			    SAMPLE_FREQ_MODE(hwc));
+	return 0;
+}
+
 static int __hw_perf_event_init(struct perf_event *event)
 {
 	struct cpu_hw_sf *cpuhw;
 	struct hws_qsi_info_block si;
 	struct perf_event_attr *attr = &event->attr;
 	struct hw_perf_event *hwc = &event->hw;
-	unsigned long rate;
 	int cpu, err;
 
 	/* Reserve CPU-measurement sampling facility */
@@ -728,6 +803,12 @@ static int __hw_perf_event_init(struct perf_event *event)
 		goto out;
 	}
 
+	if (si.ribm & CPU_MF_SF_RIBM_NOTAV) {
+		pr_warn("CPU Measurement Facility sampling is temporarily not available\n");
+		err = -EBUSY;
+		goto out;
+	}
+
 	/* Always enable basic sampling */
 	SAMPL_FLAGS(hwc) = PERF_CPUM_SF_BASIC_MODE;
 
@@ -746,39 +827,9 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if (attr->config1 & PERF_CPUM_SF_FULL_BLOCKS)
 		SAMPL_FLAGS(hwc) |= PERF_CPUM_SF_FULL_BLOCKS;
 
-	/* The sampling information (si) contains information about the
-	 * min/max sampling intervals and the CPU speed.  So calculate the
-	 * correct sampling interval and avoid the whole period adjust
-	 * feedback loop.
-	 */
-	rate = 0;
-	if (attr->freq) {
-		rate = freq_to_sample_rate(&si, attr->sample_freq);
-		rate = hw_limit_rate(&si, rate);
-		attr->freq = 0;
-		attr->sample_period = rate;
-	} else {
-		/* The min/max sampling rates specifies the valid range
-		 * of sample periods.  If the specified sample period is
-		 * out of range, limit the period to the range boundary.
-		 */
-		rate = hw_limit_rate(&si, hwc->sample_period);
-
-		/* The perf core maintains a maximum sample rate that is
-		 * configurable through the sysctl interface.  Ensure the
-		 * sampling rate does not exceed this value.  This also helps
-		 * to avoid throttling when pushing samples with
-		 * perf_event_overflow().
-		 */
-		if (sample_rate_to_freq(&si, rate) >
-		      sysctl_perf_event_sample_rate) {
-			err = -EINVAL;
-			debug_sprintf_event(sfdbg, 1, "Sampling rate exceeds maximum perf sample rate\n");
-			goto out;
-		}
-	}
-	SAMPL_RATE(hwc) = rate;
-	hw_init_period(hwc, SAMPL_RATE(hwc));
+	err =  __hw_perf_event_init_rate(event, &si);
+	if (err)
+		goto out;
 
 	/* Initialize sample data overflow accounting */
 	hwc->extra_reg.reg = REG_OVERFLOW;
@@ -850,7 +901,7 @@ static int cpumsf_pmu_event_init(struct perf_event *event)
 
 	/* Check online status of the CPU to which the event is pinned */
 	if (event->cpu >= 0 && !cpu_online(event->cpu))
-			return -ENODEV;
+		return -ENODEV;
 
 	/* Force reset of idle/hv excludes regardless of what the
 	 * user requested.
@@ -901,6 +952,8 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 			if (sfb_has_pending_allocs(&cpuhw->sfb, hwc))
 				extend_sampling_buffer(&cpuhw->sfb, hwc);
 		}
+		/* Rate may be adjusted with ioctl() */
+		cpuhw->lsctl.interval = SAMPL_RATE(&cpuhw->event->hw);
 	}
 
 	/* (Re)enable the PMU and sampling facility */
@@ -919,9 +972,11 @@ static void cpumsf_pmu_enable(struct pmu *pmu)
 	lpp(&S390_lowcore.lpp);
 
 	debug_sprintf_event(sfdbg, 6, "pmu_enable: es=%i cs=%i ed=%i cd=%i "
-			    "tear=%p dear=%p\n", cpuhw->lsctl.es, cpuhw->lsctl.cs,
-			    cpuhw->lsctl.ed, cpuhw->lsctl.cd,
-			    (void *) cpuhw->lsctl.tear, (void *) cpuhw->lsctl.dear);
+			    "interval:%lx tear=%p dear=%p\n",
+			    cpuhw->lsctl.es, cpuhw->lsctl.cs, cpuhw->lsctl.ed,
+			    cpuhw->lsctl.cd, cpuhw->lsctl.interval,
+			    (void *) cpuhw->lsctl.tear,
+			    (void *) cpuhw->lsctl.dear);
 }
 
 static void cpumsf_pmu_disable(struct pmu *pmu)
@@ -1079,7 +1134,8 @@ static void debug_sample_entry(struct hws_basic_entry *sample,
 			       struct hws_trailer_entry *te)
 {
 	debug_sprintf_event(sfdbg, 4, "hw_collect_samples: Found unknown "
-			    "sampling data entry: te->f=%i basic.def=%04x (%p)\n",
+			    "sampling data entry: te->f=%i basic.def=%04x "
+			    "(%p)\n",
 			    te->f, sample->def, sample);
 }
 
@@ -1212,7 +1268,7 @@ static void hw_perf_event_update(struct perf_event *event, int flush_all)
 
 		/* Timestamps are valid for full sample-data-blocks only */
 		debug_sprintf_event(sfdbg, 6, "hw_perf_event_update: sdbt=%p "
-				    "overflow=%llu timestamp=0x%llx\n",
+				    "overflow=%llu timestamp=%#llx\n",
 				    sdbt, te->overflow,
 				    (te->f) ? trailer_timestamp(te) : 0ULL);
 
@@ -1583,9 +1639,20 @@ static void aux_buffer_free(void *data)
 			    "%lu SDBTs\n", num_sdbt);
 }
 
+static void aux_sdb_init(unsigned long sdb)
+{
+	struct hws_trailer_entry *te;
+
+	te = (struct hws_trailer_entry *)trailer_entry_ptr(sdb);
+
+	/* Save clock base */
+	te->clock_base = 1;
+	memcpy(&te->progusage2, &tod_clock_base[1], 8);
+}
+
 /*
  * aux_buffer_setup() - Setup AUX buffer for diagnostic mode sampling
- * @cpu:	On which to allocate, -1 means current
+ * @event:	Event the buffer is setup for, event->cpu == -1 means current
  * @pages:	Array of pointers to buffer pages passed from perf core
  * @nr_pages:	Total pages
  * @snapshot:	Flag for snapshot mode
@@ -1597,8 +1664,8 @@ static void aux_buffer_free(void *data)
  *
  * Return the private AUX buffer structure if success or NULL if fails.
  */
-static void *aux_buffer_setup(int cpu, void **pages, int nr_pages,
-			      bool snapshot)
+static void *aux_buffer_setup(struct perf_event *event, void **pages,
+			      int nr_pages, bool snapshot)
 {
 	struct sf_buffer *sfb;
 	struct aux_buffer *aux;
@@ -1662,6 +1729,7 @@ static void *aux_buffer_setup(int cpu, void **pages, int nr_pages,
 		/* Tail is the entry in a SDBT */
 		*tail = (unsigned long)pages[i];
 		aux->sdb_index[i] = (unsigned long)pages[i];
+		aux_sdb_init((unsigned long)pages[i]);
 	}
 	sfb->num_sdb = nr_pages;
 
@@ -1698,6 +1766,44 @@ no_aux:
 static void cpumsf_pmu_read(struct perf_event *event)
 {
 	/* Nothing to do ... updates are interrupt-driven */
+}
+
+/* Check if the new sampling period/freqeuncy is appropriate.
+ *
+ * Return non-zero on error and zero on passed checks.
+ */
+static int cpumsf_pmu_check_period(struct perf_event *event, u64 value)
+{
+	struct hws_qsi_info_block si;
+	unsigned long rate;
+	bool do_freq;
+
+	memset(&si, 0, sizeof(si));
+	if (event->cpu == -1) {
+		if (qsi(&si))
+			return -ENODEV;
+	} else {
+		/* Event is pinned to a particular CPU, retrieve the per-CPU
+		 * sampling structure for accessing the CPU-specific QSI.
+		 */
+		struct cpu_hw_sf *cpuhw = &per_cpu(cpu_hw_sf, event->cpu);
+
+		si = cpuhw->qsi;
+	}
+
+	do_freq = !!SAMPLE_FREQ_MODE(&event->hw);
+	rate = getrate(do_freq, value, &si);
+	if (!rate)
+		return -EINVAL;
+
+	event->attr.sample_period = rate;
+	SAMPL_RATE(&event->hw) = rate;
+	hw_init_period(&event->hw, SAMPL_RATE(&event->hw));
+	debug_sprintf_event(sfdbg, 4, "cpumsf_pmu_check_period:"
+			    "cpu:%d value:%llx period:%llx freq:%d\n",
+			    event->cpu, value,
+			    event->attr.sample_period, do_freq);
+	return 0;
 }
 
 /* Activate sampling control.
@@ -1826,10 +1932,30 @@ static void cpumsf_pmu_del(struct perf_event *event, int flags)
 CPUMF_EVENT_ATTR(SF, SF_CYCLES_BASIC, PERF_EVENT_CPUM_SF);
 CPUMF_EVENT_ATTR(SF, SF_CYCLES_BASIC_DIAG, PERF_EVENT_CPUM_SF_DIAG);
 
-static struct attribute *cpumsf_pmu_events_attr[] = {
-	CPUMF_EVENT_PTR(SF, SF_CYCLES_BASIC),
-	NULL,
-	NULL,
+/* Attribute list for CPU_SF.
+ *
+ * The availablitiy depends on the CPU_MF sampling facility authorization
+ * for basic + diagnositic samples. This is determined at initialization
+ * time by the sampling facility device driver.
+ * If the authorization for basic samples is turned off, it should be
+ * also turned off for diagnostic sampling.
+ *
+ * During initialization of the device driver, check the authorization
+ * level for diagnostic sampling and installs the attribute
+ * file for diagnostic sampling if necessary.
+ *
+ * For now install a placeholder to reference all possible attributes:
+ * SF_CYCLES_BASIC and SF_CYCLES_BASIC_DIAG.
+ * Add another entry for the final NULL pointer.
+ */
+enum {
+	SF_CYCLES_BASIC_ATTR_IDX = 0,
+	SF_CYCLES_BASIC_DIAG_ATTR_IDX,
+	SF_CYCLES_ATTR_MAX
+};
+
+static struct attribute *cpumsf_pmu_events_attr[SF_CYCLES_ATTR_MAX + 1] = {
+	[SF_CYCLES_BASIC_ATTR_IDX] = CPUMF_EVENT_PTR(SF, SF_CYCLES_BASIC)
 };
 
 PMU_FORMAT_ATTR(event, "config:0-63");
@@ -1843,10 +1969,12 @@ static struct attribute_group cpumsf_pmu_events_group = {
 	.name = "events",
 	.attrs = cpumsf_pmu_events_attr,
 };
+
 static struct attribute_group cpumsf_pmu_format_group = {
 	.name = "format",
 	.attrs = cpumsf_pmu_format_attr,
 };
+
 static const struct attribute_group *cpumsf_pmu_attr_groups[] = {
 	&cpumsf_pmu_events_group,
 	&cpumsf_pmu_format_group,
@@ -1869,6 +1997,8 @@ static struct pmu cpumf_sampling = {
 
 	.setup_aux    = aux_buffer_setup,
 	.free_aux     = aux_buffer_free,
+
+	.check_period = cpumsf_pmu_check_period,
 };
 
 static void cpumf_measurement_alert(struct ext_code ext_code,
@@ -1902,7 +2032,8 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 
 	/* Report measurement alerts only for non-PRA codes */
 	if (alert != CPU_MF_INT_SF_PRA)
-		debug_sprintf_event(sfdbg, 6, "measurement alert: 0x%x\n", alert);
+		debug_sprintf_event(sfdbg, 6, "measurement alert: %#x\n",
+				    alert);
 
 	/* Sampling authorization change request */
 	if (alert & CPU_MF_INT_SF_SACA)
@@ -1923,6 +2054,7 @@ static void cpumf_measurement_alert(struct ext_code ext_code,
 		sf_disable();
 	}
 }
+
 static int cpusf_pmu_setup(unsigned int cpu, int flags)
 {
 	/* Ignore the notification if no events are scheduled on the PMU.
@@ -2024,19 +2156,25 @@ static int __init init_cpum_sampling_pmu(void)
 
 	if (si.ad) {
 		sfb_set_limits(CPUM_SF_MIN_SDB, CPUM_SF_MAX_SDB);
-		cpumsf_pmu_events_attr[1] =
+		/* Sampling of diagnostic data authorized,
+		 * install event into attribute list of PMU device.
+		 */
+		cpumsf_pmu_events_attr[SF_CYCLES_BASIC_DIAG_ATTR_IDX] =
 			CPUMF_EVENT_PTR(SF, SF_CYCLES_BASIC_DIAG);
 	}
 
 	sfdbg = debug_register(KMSG_COMPONENT, 2, 1, 80);
-	if (!sfdbg)
+	if (!sfdbg) {
 		pr_err("Registering for s390dbf failed\n");
+		return -ENOMEM;
+	}
 	debug_register_view(sfdbg, &debug_sprintf_view);
 
 	err = register_external_irq(EXT_IRQ_MEASURE_ALERT,
 				    cpumf_measurement_alert);
 	if (err) {
 		pr_cpumsf_err(RS_INIT_FAILURE_ALRT);
+		debug_unregister(sfdbg);
 		goto out;
 	}
 
@@ -2045,6 +2183,7 @@ static int __init init_cpum_sampling_pmu(void)
 		pr_cpumsf_err(RS_INIT_FAILURE_PERF);
 		unregister_external_irq(EXT_IRQ_MEASURE_ALERT,
 					cpumf_measurement_alert);
+		debug_unregister(sfdbg);
 		goto out;
 	}
 
@@ -2053,5 +2192,6 @@ static int __init init_cpum_sampling_pmu(void)
 out:
 	return err;
 }
+
 arch_initcall(init_cpum_sampling_pmu);
 core_param(cpum_sfb_size, CPUM_SF_MAX_SDB, sfb_size, 0640);

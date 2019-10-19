@@ -21,11 +21,11 @@ vulnerable to DMA attacks.
 Security levels and how to use them
 -----------------------------------
 Starting with Intel Falcon Ridge Thunderbolt controller there are 4
-security levels available. The reason for these is the fact that the
-connected devices can be DMA masters and thus read contents of the host
-memory without CPU and OS knowing about it. There are ways to prevent
-this by setting up an IOMMU but it is not always available for various
-reasons.
+security levels available. Intel Titan Ridge added one more security level
+(usbonly). The reason for these is the fact that the connected devices can
+be DMA masters and thus read contents of the host memory without CPU and OS
+knowing about it. There are ways to prevent this by setting up an IOMMU but
+it is not always available for various reasons.
 
 The security levels are as follows:
 
@@ -51,6 +51,11 @@ The security levels are as follows:
     The firmware automatically creates tunnels for Display Port and
     USB. No PCIe tunneling is done. In BIOS settings this is
     typically called *Display Port Only*.
+
+  usbonly
+    The firmware automatically creates tunnels for the USB controller and
+    Display Port in a dock. All PCIe links downstream of the dock are
+    removed.
 
 The current security level can be read from
 ``/sys/bus/thunderbolt/devices/domainX/security`` where ``domainX`` is
@@ -127,6 +132,26 @@ returned to the user.
 If the user still wants to connect the device they can either approve
 the device without a key or write a new key and write 1 to the
 ``authorized`` file to get the new key stored on the device NVM.
+
+DMA protection utilizing IOMMU
+------------------------------
+Recent systems from 2018 and forward with Thunderbolt ports may natively
+support IOMMU. This means that Thunderbolt security is handled by an IOMMU
+so connected devices cannot access memory regions outside of what is
+allocated for them by drivers. When Linux is running on such system it
+automatically enables IOMMU if not enabled by the user already. These
+systems can be identified by reading ``1`` from
+``/sys/bus/thunderbolt/devices/domainX/iommu_dma_protection`` attribute.
+
+The driver does not do anything special in this case but because DMA
+protection is handled by the IOMMU, security levels (if set) are
+redundant. For this reason some systems ship with security level set to
+``none``. Other systems have security level set to ``user`` in order to
+support downgrade to older OS, so users who want to automatically
+authorize devices when IOMMU DMA protection is enabled can use the
+following ``udev`` rule::
+
+  ACTION=="add", SUBSYSTEM=="thunderbolt", ATTRS{iommu_dma_protection}=="1", ATTR{authorized}=="0", ATTR{authorized}="1"
 
 Upgrading NVM on Thunderbolt device or host
 -------------------------------------------

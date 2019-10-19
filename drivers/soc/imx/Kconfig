@@ -1,10 +1,20 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "i.MX SoC drivers"
 
-config IMX7_PM_DOMAINS
-	bool "i.MX7 PM domains"
-	depends on SOC_IMX7D || (COMPILE_TEST && OF)
+config IMX_GPCV2_PM_DOMAINS
+	bool "i.MX GPCv2 PM domains"
+	depends on ARCH_MXC || (COMPILE_TEST && OF)
 	depends on PM
 	select PM_GENERIC_DOMAINS
 	default y if SOC_IMX7D
+
+config IMX_SCU_SOC
+	bool "i.MX System Controller Unit SoC info support"
+	depends on IMX_SCU
+	select SOC_BUS
+	help
+	  If you say yes here you get support for the NXP i.MX System
+	  Controller Unit SoC info module, it will provide the SoC info
+	  like SoC family, ID and revision etc.
 
 endmenu

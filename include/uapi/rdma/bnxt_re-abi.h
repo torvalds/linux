@@ -44,6 +44,14 @@
 
 #define BNXT_RE_ABI_VERSION	1
 
+#define BNXT_RE_CHIP_ID0_CHIP_NUM_SFT		0x00
+#define BNXT_RE_CHIP_ID0_CHIP_REV_SFT		0x10
+#define BNXT_RE_CHIP_ID0_CHIP_MET_SFT		0x18
+
+enum {
+	BNXT_RE_UCNTX_CMASK_HAVE_CCTX = 0x1ULL
+};
+
 struct bnxt_re_uctx_resp {
 	__u32 dev_id;
 	__u32 max_qp;
@@ -51,17 +59,25 @@ struct bnxt_re_uctx_resp {
 	__u32 cqe_sz;
 	__u32 max_cqd;
 	__u32 rsvd;
+	__aligned_u64 comp_mask;
+	__u32 chip_id0;
+	__u32 chip_id1;
 };
 
+/*
+ * This struct is placed after the ib_uverbs_alloc_pd_resp struct, which is
+ * not 8 byted aligned. To avoid undesired padding in various cases we have to
+ * set this struct to packed.
+ */
 struct bnxt_re_pd_resp {
 	__u32 pdid;
 	__u32 dpi;
 	__u64 dbr;
-};
+} __attribute__((packed, aligned(4)));
 
 struct bnxt_re_cq_req {
-	__u64 cq_va;
-	__u64 cq_handle;
+	__aligned_u64 cq_va;
+	__aligned_u64 cq_handle;
 };
 
 struct bnxt_re_cq_resp {
@@ -72,9 +88,9 @@ struct bnxt_re_cq_resp {
 };
 
 struct bnxt_re_qp_req {
-	__u64 qpsva;
-	__u64 qprva;
-	__u64 qp_handle;
+	__aligned_u64 qpsva;
+	__aligned_u64 qprva;
+	__aligned_u64 qp_handle;
 };
 
 struct bnxt_re_qp_resp {
@@ -83,8 +99,8 @@ struct bnxt_re_qp_resp {
 };
 
 struct bnxt_re_srq_req {
-	__u64 srqva;
-	__u64 srq_handle;
+	__aligned_u64 srqva;
+	__aligned_u64 srq_handle;
 };
 
 struct bnxt_re_srq_resp {

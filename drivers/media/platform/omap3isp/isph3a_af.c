@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * isph3a_af.c
  *
@@ -9,10 +10,6 @@
  * Contacts: David Cohen <dacohen@gmail.com>
  *	     Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /* Linux specific include files */
@@ -314,6 +311,8 @@ static long h3a_af_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		return omap3isp_stat_config(stat, arg);
 	case VIDIOC_OMAP3ISP_STAT_REQ:
 		return omap3isp_stat_request_statistics(stat, arg);
+	case VIDIOC_OMAP3ISP_STAT_REQ_TIME32:
+		return omap3isp_stat_request_statistics_time32(stat, arg);
 	case VIDIOC_OMAP3ISP_STAT_EN: {
 		int *en = arg;
 		return omap3isp_stat_enable(stat, !!*en);
@@ -352,9 +351,10 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 {
 	struct ispstat *af = &isp->isp_af;
 	struct omap3isp_h3a_af_config *af_cfg;
-	struct omap3isp_h3a_af_config *af_recover_cfg;
+	struct omap3isp_h3a_af_config *af_recover_cfg = NULL;
+	int ret;
 
-	af_cfg = devm_kzalloc(isp->dev, sizeof(*af_cfg), GFP_KERNEL);
+	af_cfg = kzalloc(sizeof(*af_cfg), GFP_KERNEL);
 	if (af_cfg == NULL)
 		return -ENOMEM;
 
@@ -364,12 +364,12 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	af->isp = isp;
 
 	/* Set recover state configuration */
-	af_recover_cfg = devm_kzalloc(isp->dev, sizeof(*af_recover_cfg),
-				      GFP_KERNEL);
+	af_recover_cfg = kzalloc(sizeof(*af_recover_cfg), GFP_KERNEL);
 	if (!af_recover_cfg) {
 		dev_err(af->isp->dev,
 			"AF: cannot allocate memory for recover configuration.\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	af_recover_cfg->paxel.h_start = OMAP3ISP_AF_PAXEL_HZSTART_MIN;
@@ -381,13 +381,22 @@ int omap3isp_h3a_af_init(struct isp_device *isp)
 	if (h3a_af_validate_params(af, af_recover_cfg)) {
 		dev_err(af->isp->dev,
 			"AF: recover configuration is invalid.\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err;
 	}
 
 	af_recover_cfg->buf_size = h3a_af_get_buf_size(af_recover_cfg);
 	af->recover_priv = af_recover_cfg;
 
-	return omap3isp_stat_init(af, "AF", &h3a_af_subdev_ops);
+	ret = omap3isp_stat_init(af, "AF", &h3a_af_subdev_ops);
+
+err:
+	if (ret) {
+		kfree(af_cfg);
+		kfree(af_recover_cfg);
+	}
+
+	return ret;
 }
 
 void omap3isp_h3a_af_cleanup(struct isp_device *isp)

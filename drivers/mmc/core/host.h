@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  linux/drivers/mmc/core/host.h
  *
  *  Copyright (C) 2003 Russell King, All Rights Reserved.
  *  Copyright 2007 Pierre Ossman
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #ifndef _MMC_CORE_HOST_H
 #define _MMC_CORE_HOST_H
@@ -56,7 +53,8 @@ static inline int mmc_host_uhs(struct mmc_host *host)
 	return host->caps &
 		(MMC_CAP_UHS_SDR12 | MMC_CAP_UHS_SDR25 |
 		 MMC_CAP_UHS_SDR50 | MMC_CAP_UHS_SDR104 |
-		 MMC_CAP_UHS_DDR50);
+		 MMC_CAP_UHS_DDR50) &&
+	       host->caps & MMC_CAP_4_BIT_DATA;
 }
 
 static inline bool mmc_card_hs200(struct mmc_card *card)

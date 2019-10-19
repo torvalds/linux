@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * vineetg: March 2009
  *  -Implemented task_pt_regs( )
@@ -97,14 +94,6 @@ extern void start_thread(struct pt_regs * regs, unsigned long pc,
 			 unsigned long usp);
 
 extern unsigned int get_wchan(struct task_struct *p);
-
-/*
- * Default implementation of macro that returns current
- * instruction pointer ("program counter").
- * Should the PC register be read instead ? This macro does not seem to
- * be used in many places so this wont be all that bad.
- */
-#define current_text_addr() ({ __label__ _l; _l: &&_l; })
 
 #endif /* !__ASSEMBLY__ */
 

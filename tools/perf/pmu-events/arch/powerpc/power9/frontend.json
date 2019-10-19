@@ -155,11 +155,6 @@
     "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked load"
   },
   {,
-    "EventCode": "0x3C056",
-    "EventName": "PM_DTLB_MISS_64K",
-    "BriefDescription": "Data TLB Miss page size 64K"
-  },
-  {,
     "EventCode": "0x30060",
     "EventName": "PM_TM_TRANS_RUN_INST",
     "BriefDescription": "Run instructions completed in transactional state (gated by the run latch)"
@@ -343,11 +338,6 @@
     "EventCode": "0x40116",
     "EventName": "PM_MRK_LARX_FIN",
     "BriefDescription": "Larx finished"
-  },
-  {,
-    "EventCode": "0x4C056",
-    "EventName": "PM_DTLB_MISS_16M",
-    "BriefDescription": "Data TLB Miss page size 16M"
   },
   {,
     "EventCode": "0x1003A",

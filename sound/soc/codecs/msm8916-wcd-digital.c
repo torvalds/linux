@@ -1,14 +1,5 @@
-/* Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+// Copyright (c) 2016, The Linux Foundation. All rights reserved.
 
 #include <linux/module.h>
 #include <linux/err.h>
@@ -196,6 +187,43 @@
 #define MSM8916_WCD_DIGITAL_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
 				     SNDRV_PCM_FMTBIT_S32_LE)
 
+/* Codec supports 2 IIR filters */
+enum {
+	IIR1 = 0,
+	IIR2,
+	IIR_MAX,
+};
+
+/* Codec supports 5 bands */
+enum {
+	BAND1 = 0,
+	BAND2,
+	BAND3,
+	BAND4,
+	BAND5,
+	BAND_MAX,
+};
+
+#define WCD_IIR_FILTER_SIZE	(sizeof(u32)*BAND_MAX)
+
+#define WCD_IIR_FILTER_CTL(xname, iidx, bidx) \
+{       .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = wcd_iir_filter_info, \
+	.get = msm8x16_wcd_get_iir_band_audio_mixer, \
+	.put = msm8x16_wcd_put_iir_band_audio_mixer, \
+	.private_value = (unsigned long)&(struct wcd_iir_filter_ctl) { \
+		.iir_idx = iidx, \
+		.band_idx = bidx, \
+		.bytes_ext = {.max = WCD_IIR_FILTER_SIZE, }, \
+	} \
+}
+
+struct wcd_iir_filter_ctl {
+	unsigned int iir_idx;
+	unsigned int band_idx;
+	struct soc_bytes_ext bytes_ext;
+};
+
 struct msm8916_wcd_digital_priv {
 	struct clk *ahbclk, *mclk;
 };
@@ -220,8 +248,6 @@ static const char *const dec_mux_text[] = {
 };
 
 static const char *const cic_mux_text[] = { "AMIC", "DMIC" };
-static const char *const rx_mix2_text[] = { "ZERO", "IIR1", "IIR2" };
-static const char *const adc2_mux_text[] = { "ZERO", "INP2", "INP3" };
 
 /* RX1 MIX1 */
 static const struct soc_enum rx_mix1_inp_enum[] = {
@@ -230,20 +256,12 @@ static const struct soc_enum rx_mix1_inp_enum[] = {
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX1_B2_CTL, 0, 6, rx_mix1_text),
 };
 
-/* RX1 MIX2 */
-static const struct soc_enum rx_mix2_inp1_chain_enum = SOC_ENUM_SINGLE(
-				LPASS_CDC_CONN_RX1_B3_CTL, 0, 3, rx_mix2_text);
-
 /* RX2 MIX1 */
 static const struct soc_enum rx2_mix1_inp_enum[] = {
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B1_CTL, 0, 6, rx_mix1_text),
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B1_CTL, 3, 6, rx_mix1_text),
 	SOC_ENUM_SINGLE(LPASS_CDC_CONN_RX2_B2_CTL, 0, 6, rx_mix1_text),
 };
-
-/* RX2 MIX2 */
-static const struct soc_enum rx2_mix2_inp1_chain_enum = SOC_ENUM_SINGLE(
-				LPASS_CDC_CONN_RX2_B3_CTL, 0, 3, rx_mix2_text);
 
 /* RX3 MIX1 */
 static const struct soc_enum rx3_mix1_inp_enum[] = {
@@ -317,6 +335,161 @@ static SOC_ENUM_SINGLE_DECL(rx2_dcb_cutoff_enum, LPASS_CDC_RX2_B4_CTL, 0,
 static SOC_ENUM_SINGLE_DECL(rx3_dcb_cutoff_enum, LPASS_CDC_RX3_B4_CTL, 0,
 			    dc_blocker_cutoff_text);
 
+static int msm8x16_wcd_codec_set_iir_gain(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component =
+			snd_soc_dapm_to_component(w->dapm);
+	int value = 0, reg = 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (w->shift == 0)
+			reg = LPASS_CDC_IIR1_GAIN_B1_CTL;
+		else if (w->shift == 1)
+			reg = LPASS_CDC_IIR2_GAIN_B1_CTL;
+		value = snd_soc_component_read32(component, reg);
+		snd_soc_component_write(component, reg, value);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static uint32_t get_iir_band_coeff(struct snd_soc_component *component,
+				   int iir_idx, int band_idx,
+				   int coeff_idx)
+{
+	uint32_t value = 0;
+
+	/* Address does not automatically update if reading */
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B1_CTL + 64 * iir_idx),
+		((band_idx * BAND_MAX + coeff_idx)
+		* sizeof(uint32_t)) & 0x7F);
+
+	value |= snd_soc_component_read32(component,
+		(LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx));
+
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B1_CTL + 64 * iir_idx),
+		((band_idx * BAND_MAX + coeff_idx)
+		* sizeof(uint32_t) + 1) & 0x7F);
+
+	value |= (snd_soc_component_read32(component,
+		(LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx)) << 8);
+
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B1_CTL + 64 * iir_idx),
+		((band_idx * BAND_MAX + coeff_idx)
+		* sizeof(uint32_t) + 2) & 0x7F);
+
+	value |= (snd_soc_component_read32(component,
+		(LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx)) << 16);
+
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B1_CTL + 64 * iir_idx),
+		((band_idx * BAND_MAX + coeff_idx)
+		* sizeof(uint32_t) + 3) & 0x7F);
+
+	/* Mask bits top 2 bits since they are reserved */
+	value |= ((snd_soc_component_read32(component,
+		 (LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx)) & 0x3f) << 24);
+	return value;
+
+}
+
+static int msm8x16_wcd_get_iir_band_audio_mixer(
+					struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct wcd_iir_filter_ctl *ctl =
+			(struct wcd_iir_filter_ctl *)kcontrol->private_value;
+	struct soc_bytes_ext *params = &ctl->bytes_ext;
+	int iir_idx = ctl->iir_idx;
+	int band_idx = ctl->band_idx;
+	u32 coeff[BAND_MAX];
+
+	coeff[0] = get_iir_band_coeff(component, iir_idx, band_idx, 0);
+	coeff[1] = get_iir_band_coeff(component, iir_idx, band_idx, 1);
+	coeff[2] = get_iir_band_coeff(component, iir_idx, band_idx, 2);
+	coeff[3] = get_iir_band_coeff(component, iir_idx, band_idx, 3);
+	coeff[4] = get_iir_band_coeff(component, iir_idx, band_idx, 4);
+
+	memcpy(ucontrol->value.bytes.data, &coeff[0], params->max);
+
+	return 0;
+}
+
+static void set_iir_band_coeff(struct snd_soc_component *component,
+				int iir_idx, int band_idx,
+				uint32_t value)
+{
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx),
+		(value & 0xFF));
+
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx),
+		(value >> 8) & 0xFF);
+
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx),
+		(value >> 16) & 0xFF);
+
+	/* Mask top 2 bits, 7-8 are reserved */
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B2_CTL + 64 * iir_idx),
+		(value >> 24) & 0x3F);
+}
+
+static int msm8x16_wcd_put_iir_band_audio_mixer(
+					struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct wcd_iir_filter_ctl *ctl =
+			(struct wcd_iir_filter_ctl *)kcontrol->private_value;
+	struct soc_bytes_ext *params = &ctl->bytes_ext;
+	int iir_idx = ctl->iir_idx;
+	int band_idx = ctl->band_idx;
+	u32 coeff[BAND_MAX];
+
+	memcpy(&coeff[0], ucontrol->value.bytes.data, params->max);
+
+	/* Mask top bit it is reserved */
+	/* Updates addr automatically for each B2 write */
+	snd_soc_component_write(component,
+		(LPASS_CDC_IIR1_COEF_B1_CTL + 64 * iir_idx),
+		(band_idx * BAND_MAX * sizeof(uint32_t)) & 0x7F);
+
+	set_iir_band_coeff(component, iir_idx, band_idx, coeff[0]);
+	set_iir_band_coeff(component, iir_idx, band_idx, coeff[1]);
+	set_iir_band_coeff(component, iir_idx, band_idx, coeff[2]);
+	set_iir_band_coeff(component, iir_idx, band_idx, coeff[3]);
+	set_iir_band_coeff(component, iir_idx, band_idx, coeff[4]);
+
+	return 0;
+}
+
+static int wcd_iir_filter_info(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_info *ucontrol)
+{
+	struct wcd_iir_filter_ctl *ctl =
+		(struct wcd_iir_filter_ctl *)kcontrol->private_value;
+	struct soc_bytes_ext *params = &ctl->bytes_ext;
+
+	ucontrol->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+	ucontrol->count = params->max;
+
+	return 0;
+}
+
 static const struct snd_kcontrol_new msm8916_wcd_digital_snd_controls[] = {
 	SOC_SINGLE_S8_TLV("RX1 Digital Volume", LPASS_CDC_RX1_VOL_CTL_B2_CTL,
 			  -128, 127, digital_gain),
@@ -341,6 +514,44 @@ static const struct snd_kcontrol_new msm8916_wcd_digital_snd_controls[] = {
 	SOC_SINGLE("RX1 Mute Switch", LPASS_CDC_RX1_B6_CTL, 0, 1, 0),
 	SOC_SINGLE("RX2 Mute Switch", LPASS_CDC_RX2_B6_CTL, 0, 1, 0),
 	SOC_SINGLE("RX3 Mute Switch", LPASS_CDC_RX3_B6_CTL, 0, 1, 0),
+
+	SOC_SINGLE("IIR1 Band1 Switch", LPASS_CDC_IIR1_CTL, 0, 1, 0),
+	SOC_SINGLE("IIR1 Band2 Switch", LPASS_CDC_IIR1_CTL, 1, 1, 0),
+	SOC_SINGLE("IIR1 Band3 Switch", LPASS_CDC_IIR1_CTL, 2, 1, 0),
+	SOC_SINGLE("IIR1 Band4 Switch", LPASS_CDC_IIR1_CTL, 3, 1, 0),
+	SOC_SINGLE("IIR1 Band5 Switch", LPASS_CDC_IIR1_CTL, 4, 1, 0),
+	SOC_SINGLE("IIR2 Band1 Switch", LPASS_CDC_IIR2_CTL, 0, 1, 0),
+	SOC_SINGLE("IIR2 Band2 Switch", LPASS_CDC_IIR2_CTL, 1, 1, 0),
+	SOC_SINGLE("IIR2 Band3 Switch", LPASS_CDC_IIR2_CTL, 2, 1, 0),
+	SOC_SINGLE("IIR2 Band4 Switch", LPASS_CDC_IIR2_CTL, 3, 1, 0),
+	SOC_SINGLE("IIR2 Band5 Switch", LPASS_CDC_IIR2_CTL, 4, 1, 0),
+	WCD_IIR_FILTER_CTL("IIR1 Band1", IIR1, BAND1),
+	WCD_IIR_FILTER_CTL("IIR1 Band2", IIR1, BAND2),
+	WCD_IIR_FILTER_CTL("IIR1 Band3", IIR1, BAND3),
+	WCD_IIR_FILTER_CTL("IIR1 Band4", IIR1, BAND4),
+	WCD_IIR_FILTER_CTL("IIR1 Band5", IIR1, BAND5),
+	WCD_IIR_FILTER_CTL("IIR2 Band1", IIR2, BAND1),
+	WCD_IIR_FILTER_CTL("IIR2 Band2", IIR2, BAND2),
+	WCD_IIR_FILTER_CTL("IIR2 Band3", IIR2, BAND3),
+	WCD_IIR_FILTER_CTL("IIR2 Band4", IIR2, BAND4),
+	WCD_IIR_FILTER_CTL("IIR2 Band5", IIR2, BAND5),
+	SOC_SINGLE_SX_TLV("IIR1 INP1 Volume", LPASS_CDC_IIR1_GAIN_B1_CTL,
+			0,  -84, 40, digital_gain),
+	SOC_SINGLE_SX_TLV("IIR1 INP2 Volume", LPASS_CDC_IIR1_GAIN_B2_CTL,
+			0,  -84, 40, digital_gain),
+	SOC_SINGLE_SX_TLV("IIR1 INP3 Volume", LPASS_CDC_IIR1_GAIN_B3_CTL,
+			0,  -84, 40, digital_gain),
+	SOC_SINGLE_SX_TLV("IIR1 INP4 Volume", LPASS_CDC_IIR1_GAIN_B4_CTL,
+			0,  -84,	40, digital_gain),
+	SOC_SINGLE_SX_TLV("IIR2 INP1 Volume", LPASS_CDC_IIR2_GAIN_B1_CTL,
+			0,  -84, 40, digital_gain),
+	SOC_SINGLE_SX_TLV("IIR2 INP2 Volume", LPASS_CDC_IIR2_GAIN_B2_CTL,
+			0,  -84, 40, digital_gain),
+	SOC_SINGLE_SX_TLV("IIR2 INP3 Volume", LPASS_CDC_IIR2_GAIN_B3_CTL,
+			0,  -84, 40, digital_gain),
+	SOC_SINGLE_SX_TLV("IIR2 INP4 Volume", LPASS_CDC_IIR2_GAIN_B4_CTL,
+			0,  -84, 40, digital_gain),
+
 };
 
 static int msm8916_wcd_digital_enable_interpolator(
@@ -348,14 +559,14 @@ static int msm8916_wcd_digital_enable_interpolator(
 						struct snd_kcontrol *kcontrol,
 						int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		/* apply the digital gain after the interpolator is enabled */
 		usleep_range(10000, 10100);
-		snd_soc_write(codec, rx_gain_reg[w->shift],
-			      snd_soc_read(codec, rx_gain_reg[w->shift]));
+		snd_soc_component_write(component, rx_gain_reg[w->shift],
+			      snd_soc_component_read32(component, rx_gain_reg[w->shift]));
 		break;
 	}
 	return 0;
@@ -365,7 +576,7 @@ static int msm8916_wcd_digital_enable_dec(struct snd_soc_dapm_widget *w,
 					  struct snd_kcontrol *kcontrol,
 					  int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	unsigned int decimator = w->shift + 1;
 	u16 dec_reset_reg, tx_vol_ctl_reg, tx_mux_ctl_reg;
 	u8 dec_hpf_cut_of_freq;
@@ -377,46 +588,46 @@ static int msm8916_wcd_digital_enable_dec(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		/* Enable TX digital mute */
-		snd_soc_update_bits(codec, tx_vol_ctl_reg,
+		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
 				    TX_VOL_CTL_CFG_MUTE_EN_MASK,
 				    TX_VOL_CTL_CFG_MUTE_EN_ENABLE);
-		dec_hpf_cut_of_freq = snd_soc_read(codec, tx_mux_ctl_reg) &
+		dec_hpf_cut_of_freq = snd_soc_component_read32(component, tx_mux_ctl_reg) &
 					TX_MUX_CTL_CUT_OFF_FREQ_MASK;
 		dec_hpf_cut_of_freq >>= TX_MUX_CTL_CUT_OFF_FREQ_SHIFT;
 		if (dec_hpf_cut_of_freq != TX_MUX_CTL_CF_NEG_3DB_150HZ) {
 			/* set cut of freq to CF_MIN_3DB_150HZ (0x1) */
-			snd_soc_update_bits(codec, tx_mux_ctl_reg,
+			snd_soc_component_update_bits(component, tx_mux_ctl_reg,
 					    TX_MUX_CTL_CUT_OFF_FREQ_MASK,
 					    TX_MUX_CTL_CF_NEG_3DB_150HZ);
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		/* enable HPF */
-		snd_soc_update_bits(codec, tx_mux_ctl_reg,
+		snd_soc_component_update_bits(component, tx_mux_ctl_reg,
 				    TX_MUX_CTL_HPF_BP_SEL_MASK,
 				    TX_MUX_CTL_HPF_BP_SEL_NO_BYPASS);
 		/* apply the digital gain after the decimator is enabled */
-		snd_soc_write(codec, tx_gain_reg[w->shift],
-			      snd_soc_read(codec, tx_gain_reg[w->shift]));
-		snd_soc_update_bits(codec, tx_vol_ctl_reg,
+		snd_soc_component_write(component, tx_gain_reg[w->shift],
+			      snd_soc_component_read32(component, tx_gain_reg[w->shift]));
+		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
 				    TX_VOL_CTL_CFG_MUTE_EN_MASK, 0);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec, tx_vol_ctl_reg,
+		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
 				    TX_VOL_CTL_CFG_MUTE_EN_MASK,
 				    TX_VOL_CTL_CFG_MUTE_EN_ENABLE);
-		snd_soc_update_bits(codec, tx_mux_ctl_reg,
+		snd_soc_component_update_bits(component, tx_mux_ctl_reg,
 				    TX_MUX_CTL_HPF_BP_SEL_MASK,
 				    TX_MUX_CTL_HPF_BP_SEL_BYPASS);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_update_bits(codec, dec_reset_reg, 1 << w->shift,
+		snd_soc_component_update_bits(component, dec_reset_reg, 1 << w->shift,
 				    1 << w->shift);
-		snd_soc_update_bits(codec, dec_reset_reg, 1 << w->shift, 0x0);
-		snd_soc_update_bits(codec, tx_mux_ctl_reg,
+		snd_soc_component_update_bits(component, dec_reset_reg, 1 << w->shift, 0x0);
+		snd_soc_component_update_bits(component, tx_mux_ctl_reg,
 				    TX_MUX_CTL_HPF_BP_SEL_MASK,
 				    TX_MUX_CTL_HPF_BP_SEL_BYPASS);
-		snd_soc_update_bits(codec, tx_vol_ctl_reg,
+		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
 				    TX_VOL_CTL_CFG_MUTE_EN_MASK, 0);
 		break;
 	}
@@ -428,35 +639,35 @@ static int msm8916_wcd_digital_enable_dmic(struct snd_soc_dapm_widget *w,
 					   struct snd_kcontrol *kcontrol,
 					   int event)
 {
-	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 	unsigned int dmic;
 	int ret;
 	/* get dmic number out of widget name */
 	char *dmic_num = strpbrk(w->name, "12");
 
 	if (dmic_num == NULL) {
-		dev_err(codec->dev, "Invalid DMIC\n");
+		dev_err(component->dev, "Invalid DMIC\n");
 		return -EINVAL;
 	}
 	ret = kstrtouint(dmic_num, 10, &dmic);
 	if (ret < 0 || dmic > 2) {
-		dev_err(codec->dev, "Invalid DMIC line on the codec\n");
+		dev_err(component->dev, "Invalid DMIC line on the component\n");
 		return -EINVAL;
 	}
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		snd_soc_update_bits(codec, LPASS_CDC_CLK_DMIC_B1_CTL,
+		snd_soc_component_update_bits(component, LPASS_CDC_CLK_DMIC_B1_CTL,
 				    DMIC_B1_CTL_DMIC0_CLK_SEL_MASK,
 				    DMIC_B1_CTL_DMIC0_CLK_SEL_DIV3);
 		switch (dmic) {
 		case 1:
-			snd_soc_update_bits(codec, LPASS_CDC_TX1_DMIC_CTL,
+			snd_soc_component_update_bits(component, LPASS_CDC_TX1_DMIC_CTL,
 					    TXN_DMIC_CTL_CLK_SEL_MASK,
 					    TXN_DMIC_CTL_CLK_SEL_DIV3);
 			break;
 		case 2:
-			snd_soc_update_bits(codec, LPASS_CDC_TX2_DMIC_CTL,
+			snd_soc_component_update_bits(component, LPASS_CDC_TX2_DMIC_CTL,
 					    TXN_DMIC_CTL_CLK_SEL_MASK,
 					    TXN_DMIC_CTL_CLK_SEL_DIV3);
 			break;
@@ -466,6 +677,24 @@ static int msm8916_wcd_digital_enable_dmic(struct snd_soc_dapm_widget *w,
 
 	return 0;
 }
+
+static const char * const iir_inp1_text[] = {
+	"ZERO", "DEC1", "DEC2", "RX1", "RX2", "RX3"
+};
+
+static const struct soc_enum iir1_inp1_mux_enum =
+	SOC_ENUM_SINGLE(LPASS_CDC_CONN_EQ1_B1_CTL,
+		0, 6, iir_inp1_text);
+
+static const struct soc_enum iir2_inp1_mux_enum =
+	SOC_ENUM_SINGLE(LPASS_CDC_CONN_EQ2_B1_CTL,
+		0, 6, iir_inp1_text);
+
+static const struct snd_kcontrol_new iir1_inp1_mux =
+	SOC_DAPM_ENUM("IIR1 INP1 Mux", iir1_inp1_mux_enum);
+
+static const struct snd_kcontrol_new iir2_inp1_mux =
+	SOC_DAPM_ENUM("IIR2 INP1 Mux", iir2_inp1_mux_enum);
 
 static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	/*RX stuff */
@@ -553,6 +782,15 @@ static const struct snd_soc_dapm_widget msm8916_wcd_digital_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic1", NULL),
 	SND_SOC_DAPM_MIC("Digital Mic2", NULL),
 
+	/* Sidetone */
+	SND_SOC_DAPM_MUX("IIR1 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir1_inp1_mux),
+	SND_SOC_DAPM_PGA_E("IIR1", LPASS_CDC_CLK_SD_CTL, 0, 0, NULL, 0,
+		msm8x16_wcd_codec_set_iir_gain, SND_SOC_DAPM_POST_PMU),
+
+	SND_SOC_DAPM_MUX("IIR2 INP1 MUX", SND_SOC_NOPM, 0, 0, &iir2_inp1_mux),
+	SND_SOC_DAPM_PGA_E("IIR2", LPASS_CDC_CLK_SD_CTL, 1, 0, NULL, 0,
+		msm8x16_wcd_codec_set_iir_gain, SND_SOC_DAPM_POST_PMU),
+
 };
 
 static int msm8916_wcd_digital_get_clks(struct platform_device *pdev,
@@ -575,20 +813,20 @@ static int msm8916_wcd_digital_get_clks(struct platform_device *pdev,
 	return 0;
 }
 
-static int msm8916_wcd_digital_codec_probe(struct snd_soc_codec *codec)
+static int msm8916_wcd_digital_component_probe(struct snd_soc_component *component)
 {
-	struct msm8916_wcd_digital_priv *priv = dev_get_drvdata(codec->dev);
+	struct msm8916_wcd_digital_priv *priv = dev_get_drvdata(component->dev);
 
-	snd_soc_codec_set_drvdata(codec, priv);
+	snd_soc_component_set_drvdata(component, priv);
 
 	return 0;
 }
 
-static int msm8916_wcd_digital_codec_set_sysclk(struct snd_soc_codec *codec,
+static int msm8916_wcd_digital_component_set_sysclk(struct snd_soc_component *component,
 						int clk_id, int source,
 						unsigned int freq, int dir)
 {
-	struct msm8916_wcd_digital_priv *p = dev_get_drvdata(codec->dev);
+	struct msm8916_wcd_digital_priv *p = dev_get_drvdata(component->dev);
 
 	return clk_set_rate(p->mclk, freq);
 }
@@ -618,18 +856,18 @@ static int msm8916_wcd_digital_hw_params(struct snd_pcm_substream *substream,
 		rx_fs_rate = RX_I2S_CTL_RX_I2S_FS_RATE_F_48_KHZ;
 		break;
 	default:
-		dev_err(dai->codec->dev, "Invalid sampling rate %d\n",
+		dev_err(dai->component->dev, "Invalid sampling rate %d\n",
 			params_rate(params));
 		return -EINVAL;
 	}
 
 	switch (substream->stream) {
 	case SNDRV_PCM_STREAM_CAPTURE:
-		snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_TX_I2S_CTL,
+		snd_soc_component_update_bits(dai->component, LPASS_CDC_CLK_TX_I2S_CTL,
 				    TX_I2S_CTL_TX_I2S_FS_RATE_MASK, tx_fs_rate);
 		break;
 	case SNDRV_PCM_STREAM_PLAYBACK:
-		snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_RX_I2S_CTL,
+		snd_soc_component_update_bits(dai->component, LPASS_CDC_CLK_RX_I2S_CTL,
 				    RX_I2S_CTL_RX_I2S_FS_RATE_MASK, rx_fs_rate);
 		break;
 	default:
@@ -638,18 +876,19 @@ static int msm8916_wcd_digital_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_TX_I2S_CTL,
+		snd_soc_component_update_bits(dai->component, LPASS_CDC_CLK_TX_I2S_CTL,
 				    TX_I2S_CTL_TX_I2S_MODE_MASK,
 				    TX_I2S_CTL_TX_I2S_MODE_16);
-		snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_RX_I2S_CTL,
+		snd_soc_component_update_bits(dai->component, LPASS_CDC_CLK_RX_I2S_CTL,
 				    RX_I2S_CTL_RX_I2S_MODE_MASK,
 				    RX_I2S_CTL_RX_I2S_MODE_16);
 		break;
+
 	case SNDRV_PCM_FORMAT_S32_LE:
-		snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_TX_I2S_CTL,
+		snd_soc_component_update_bits(dai->component, LPASS_CDC_CLK_TX_I2S_CTL,
 				    TX_I2S_CTL_TX_I2S_MODE_MASK,
 				    TX_I2S_CTL_TX_I2S_MODE_32);
-		snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_RX_I2S_CTL,
+		snd_soc_component_update_bits(dai->component, LPASS_CDC_CLK_RX_I2S_CTL,
 				    RX_I2S_CTL_RX_I2S_MODE_MASK,
 				    RX_I2S_CTL_RX_I2S_MODE_32);
 		break;
@@ -726,10 +965,14 @@ static const struct snd_soc_dapm_route msm8916_wcd_digital_audio_map[] = {
 	{"RX1 MIX1 INP1", "RX1", "I2S RX1"},
 	{"RX1 MIX1 INP1", "RX2", "I2S RX2"},
 	{"RX1 MIX1 INP1", "RX3", "I2S RX3"},
+	{"RX1 MIX1 INP1", "IIR1", "IIR1"},
+	{"RX1 MIX1 INP1", "IIR2", "IIR2"},
 
 	{"RX1 MIX1 INP2", "RX1", "I2S RX1"},
 	{"RX1 MIX1 INP2", "RX2", "I2S RX2"},
 	{"RX1 MIX1 INP2", "RX3", "I2S RX3"},
+	{"RX1 MIX1 INP2", "IIR1", "IIR1"},
+	{"RX1 MIX1 INP2", "IIR2", "IIR2"},
 
 	{"RX1 MIX1 INP3", "RX1", "I2S RX1"},
 	{"RX1 MIX1 INP3", "RX2", "I2S RX2"},
@@ -746,10 +989,14 @@ static const struct snd_soc_dapm_route msm8916_wcd_digital_audio_map[] = {
 	{"RX2 MIX1 INP1", "RX1", "I2S RX1"},
 	{"RX2 MIX1 INP1", "RX2", "I2S RX2"},
 	{"RX2 MIX1 INP1", "RX3", "I2S RX3"},
+	{"RX2 MIX1 INP1", "IIR1", "IIR1"},
+	{"RX2 MIX1 INP1", "IIR2", "IIR2"},
 
 	{"RX2 MIX1 INP2", "RX1", "I2S RX1"},
 	{"RX2 MIX1 INP2", "RX2", "I2S RX2"},
 	{"RX2 MIX1 INP2", "RX3", "I2S RX3"},
+	{"RX2 MIX1 INP1", "IIR1", "IIR1"},
+	{"RX2 MIX1 INP1", "IIR2", "IIR2"},
 
 	{"RX2 MIX1 INP3", "RX1", "I2S RX1"},
 	{"RX2 MIX1 INP3", "RX2", "I2S RX2"},
@@ -766,10 +1013,27 @@ static const struct snd_soc_dapm_route msm8916_wcd_digital_audio_map[] = {
 	{"RX3 MIX1 INP1", "RX1", "I2S RX1"},
 	{"RX3 MIX1 INP1", "RX2", "I2S RX2"},
 	{"RX3 MIX1 INP1", "RX3", "I2S RX3"},
+	{"RX3 MIX1 INP1", "IIR1", "IIR1"},
+	{"RX3 MIX1 INP1", "IIR2", "IIR2"},
 
 	{"RX3 MIX1 INP2", "RX1", "I2S RX1"},
 	{"RX3 MIX1 INP2", "RX2", "I2S RX2"},
 	{"RX3 MIX1 INP2", "RX3", "I2S RX3"},
+	{"RX3 MIX1 INP2", "IIR1", "IIR1"},
+	{"RX3 MIX1 INP2", "IIR2", "IIR2"},
+
+	{"RX1 MIX2 INP1", "IIR1", "IIR1"},
+	{"RX2 MIX2 INP1", "IIR1", "IIR1"},
+	{"RX1 MIX2 INP1", "IIR2", "IIR2"},
+	{"RX2 MIX2 INP1", "IIR2", "IIR2"},
+
+	{"IIR1", NULL, "IIR1 INP1 MUX"},
+	{"IIR1 INP1 MUX", "DEC1", "DEC1 MUX"},
+	{"IIR1 INP1 MUX", "DEC2", "DEC2 MUX"},
+
+	{"IIR2", NULL, "IIR2 INP1 MUX"},
+	{"IIR2 INP1 MUX", "DEC1", "DEC1 MUX"},
+	{"IIR2 INP1 MUX", "DEC2", "DEC2 MUX"},
 
 	{"RX3 MIX1 INP3", "RX1", "I2S RX1"},
 	{"RX3 MIX1 INP3", "RX2", "I2S RX2"},
@@ -780,32 +1044,32 @@ static const struct snd_soc_dapm_route msm8916_wcd_digital_audio_map[] = {
 static int msm8916_wcd_digital_startup(struct snd_pcm_substream *substream,
 				       struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
+	struct snd_soc_component *component = dai->component;
 	struct msm8916_wcd_digital_priv *msm8916_wcd;
 	unsigned long mclk_rate;
 
-	msm8916_wcd = snd_soc_codec_get_drvdata(codec);
-	snd_soc_update_bits(codec, LPASS_CDC_CLK_MCLK_CTL,
+	msm8916_wcd = snd_soc_component_get_drvdata(component);
+	snd_soc_component_update_bits(component, LPASS_CDC_CLK_MCLK_CTL,
 			    MCLK_CTL_MCLK_EN_MASK,
 			    MCLK_CTL_MCLK_EN_ENABLE);
-	snd_soc_update_bits(codec, LPASS_CDC_CLK_PDM_CTL,
+	snd_soc_component_update_bits(component, LPASS_CDC_CLK_PDM_CTL,
 			    LPASS_CDC_CLK_PDM_CTL_PDM_CLK_SEL_MASK,
 			    LPASS_CDC_CLK_PDM_CTL_PDM_CLK_SEL_FB);
 
 	mclk_rate = clk_get_rate(msm8916_wcd->mclk);
 	switch (mclk_rate) {
 	case 12288000:
-		snd_soc_update_bits(codec, LPASS_CDC_TOP_CTL,
+		snd_soc_component_update_bits(component, LPASS_CDC_TOP_CTL,
 				    TOP_CTL_DIG_MCLK_FREQ_MASK,
 				    TOP_CTL_DIG_MCLK_FREQ_F_12_288MHZ);
 		break;
 	case 9600000:
-		snd_soc_update_bits(codec, LPASS_CDC_TOP_CTL,
+		snd_soc_component_update_bits(component, LPASS_CDC_TOP_CTL,
 				    TOP_CTL_DIG_MCLK_FREQ_MASK,
 				    TOP_CTL_DIG_MCLK_FREQ_F_9_6MHZ);
 		break;
 	default:
-		dev_err(codec->dev, "Invalid mclk rate %ld\n", mclk_rate);
+		dev_err(component->dev, "Invalid mclk rate %ld\n", mclk_rate);
 		break;
 	}
 	return 0;
@@ -814,7 +1078,7 @@ static int msm8916_wcd_digital_startup(struct snd_pcm_substream *substream,
 static void msm8916_wcd_digital_shutdown(struct snd_pcm_substream *substream,
 					 struct snd_soc_dai *dai)
 {
-	snd_soc_update_bits(dai->codec, LPASS_CDC_CLK_PDM_CTL,
+	snd_soc_component_update_bits(dai->component, LPASS_CDC_CLK_PDM_CTL,
 			    LPASS_CDC_CLK_PDM_CTL_PDM_CLK_SEL_MASK, 0);
 }
 
@@ -851,18 +1115,19 @@ static struct snd_soc_dai_driver msm8916_wcd_digital_dai[] = {
 	       },
 };
 
-static const struct snd_soc_codec_driver msm8916_wcd_digital = {
-	.probe = msm8916_wcd_digital_codec_probe,
-	.set_sysclk = msm8916_wcd_digital_codec_set_sysclk,
-	.component_driver = {
-		.controls = msm8916_wcd_digital_snd_controls,
-		.num_controls = ARRAY_SIZE(msm8916_wcd_digital_snd_controls),
-		.dapm_widgets = msm8916_wcd_digital_dapm_widgets,
-		.num_dapm_widgets =
-				 ARRAY_SIZE(msm8916_wcd_digital_dapm_widgets),
-		.dapm_routes = msm8916_wcd_digital_audio_map,
-		.num_dapm_routes = ARRAY_SIZE(msm8916_wcd_digital_audio_map),
-	},
+static const struct snd_soc_component_driver msm8916_wcd_digital = {
+	.probe			= msm8916_wcd_digital_component_probe,
+	.set_sysclk		= msm8916_wcd_digital_component_set_sysclk,
+	.controls		= msm8916_wcd_digital_snd_controls,
+	.num_controls		= ARRAY_SIZE(msm8916_wcd_digital_snd_controls),
+	.dapm_widgets		= msm8916_wcd_digital_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(msm8916_wcd_digital_dapm_widgets),
+	.dapm_routes		= msm8916_wcd_digital_audio_map,
+	.num_dapm_routes	= ARRAY_SIZE(msm8916_wcd_digital_audio_map),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config msm8916_codec_regmap_config = {
@@ -878,7 +1143,6 @@ static int msm8916_wcd_digital_probe(struct platform_device *pdev)
 	struct msm8916_wcd_digital_priv *priv;
 	struct device *dev = &pdev->dev;
 	void __iomem *base;
-	struct resource *mem_res;
 	struct regmap *digital_map;
 	int ret;
 
@@ -886,8 +1150,7 @@ static int msm8916_wcd_digital_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	base = devm_ioremap_resource(&pdev->dev, mem_res);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 
@@ -915,7 +1178,7 @@ static int msm8916_wcd_digital_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(dev, priv);
 
-	return snd_soc_register_codec(dev, &msm8916_wcd_digital,
+	return devm_snd_soc_register_component(dev, &msm8916_wcd_digital,
 				      msm8916_wcd_digital_dai,
 				      ARRAY_SIZE(msm8916_wcd_digital_dai));
 }
@@ -924,7 +1187,6 @@ static int msm8916_wcd_digital_remove(struct platform_device *pdev)
 {
 	struct msm8916_wcd_digital_priv *priv = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_codec(&pdev->dev);
 	clk_disable_unprepare(priv->mclk);
 	clk_disable_unprepare(priv->ahbclk);
 

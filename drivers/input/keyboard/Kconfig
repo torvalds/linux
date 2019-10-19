@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Input core configuration
 #
@@ -70,6 +71,24 @@ config KEYBOARD_AMIGA
 config ATARI_KBD_CORE
 	bool
 
+config KEYBOARD_APPLESPI
+	tristate "Apple SPI keyboard and trackpad"
+	depends on ACPI && EFI
+	depends on SPI
+	depends on X86 || COMPILE_TEST
+	depends on LEDS_CLASS
+	select CRC16
+	help
+	  Say Y here if you are running Linux on any Apple MacBook8,1 or later,
+	  or any MacBookPro13,* or MacBookPro14,*.
+
+	  You will also need to enable appropriate SPI master controllers:
+	  spi_pxa2xx_platform and spi_pxa2xx_pci for MacBook8,1, and
+	  spi_pxa2xx_platform and intel_lpss_pci for the rest.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called applespi.
+
 config KEYBOARD_ATARI
 	tristate "Atari keyboard"
 	depends on ATARI
@@ -137,6 +156,17 @@ config KEYBOARD_ATKBD_RDI_KEYCODES
 	  right-hand column will be interpreted as the key shown in the
 	  left-hand column.
 
+config KEYBOARD_QT1050
+	tristate "Microchip AT42QT1050 Touch Sensor Chip"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y here if you want to use Microchip AT42QT1050 QTouch
+	  Sensor chip as input device.
+
+	  To compile this driver as a module, choose M here:
+	  the module will be called qt1050
+
 config KEYBOARD_QT1070
        tristate "Atmel AT42QT1070 Touch Sensor Chip"
        depends on I2C
@@ -156,15 +186,6 @@ config KEYBOARD_QT2160
 
 	  This driver can also be built as a module. If so, the module
 	  will be called qt2160.
-
-config KEYBOARD_BFIN
-	tristate "Blackfin BF54x keypad support"
-	depends on (BF54x && !BF544)
-	help
-	  Say Y here if you want to use the BF54x keypad.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bf54x-keys.
 
 config KEYBOARD_CLPS711X
 	tristate "CLPS711X Keypad support"
@@ -203,7 +224,7 @@ config KEYBOARD_LKKBD
 
 config KEYBOARD_EP93XX
 	tristate "EP93xx Matrix Keypad support"
-	depends on ARCH_EP93XX
+	depends on ARCH_EP93XX || COMPILE_TEST
 	select INPUT_MATRIXKMAP
 	help
 	  Say Y here to enable the matrix keypad on the Cirrus EP93XX.
@@ -429,7 +450,7 @@ config KEYBOARD_MPR121
 
 config KEYBOARD_SNVS_PWRKEY
 	tristate "IMX SNVS Power Key Driver"
-	depends on SOC_IMX6SX
+	depends on ARCH_MXC || COMPILE_TEST
 	depends on OF
 	help
 	  This is the snvs powerkey driver for the Freescale i.MX application
@@ -712,25 +733,14 @@ config KEYBOARD_XTKBD
 	  To compile this driver as a module, choose M here: the
 	  module will be called xtkbd.
 
-config KEYBOARD_W90P910
-	tristate "W90P910 Matrix Keypad support"
-	depends on ARCH_W90X900
-	select INPUT_MATRIXKMAP
-	help
-	  Say Y here to enable the matrix keypad on evaluation board
-	  based on W90P910.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w90p910_keypad.
-
 config KEYBOARD_CROS_EC
 	tristate "ChromeOS EC keyboard"
 	select INPUT_MATRIXKMAP
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  Say Y here to enable the matrix keyboard used by ChromeOS devices
 	  and implemented on the ChromeOS EC. You must enable one bus option
-	  (MFD_CROS_EC_I2C or MFD_CROS_EC_SPI) to use this.
+	  (CROS_EC_I2C or CROS_EC_SPI) to use this.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cros_ec_keyb.
@@ -755,5 +765,14 @@ config KEYBOARD_BCM
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm-keypad.
+
+config KEYBOARD_MTK_PMIC
+	tristate "MediaTek PMIC keys support"
+	depends on MFD_MT6397
+	help
+	  Say Y here if you want to use the pmic keys (powerkey/homekey).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pmic-keys.
 
 endif

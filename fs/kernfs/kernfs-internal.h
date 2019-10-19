@@ -1,11 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * fs/kernfs/kernfs-internal.h - kernfs internal header file
  *
  * Copyright (c) 2001-3 Patrick Mochel
  * Copyright (c) 2007 SUSE Linux Products GmbH
  * Copyright (c) 2007, 2013 Tejun Heo <teheo@suse.de>
- *
- * This file is released under the GPLv2.
  */
 
 #ifndef __KERNFS_INTERNAL_H
@@ -17,11 +16,14 @@
 #include <linux/xattr.h>
 
 #include <linux/kernfs.h>
+#include <linux/fs_context.h>
 
 struct kernfs_iattrs {
-	struct iattr		ia_iattr;
-	void			*ia_secdata;
-	u32			ia_secdata_len;
+	kuid_t			ia_uid;
+	kgid_t			ia_gid;
+	struct timespec64	ia_atime;
+	struct timespec64	ia_mtime;
+	struct timespec64	ia_ctime;
 
 	struct simple_xattrs	xattrs;
 };
@@ -78,7 +80,7 @@ static inline struct kernfs_node *kernfs_dentry_node(struct dentry *dentry)
 }
 
 extern const struct super_operations kernfs_sops;
-extern struct kmem_cache *kernfs_node_cache;
+extern struct kmem_cache *kernfs_node_cache, *kernfs_iattrs_cache;
 
 /*
  * inode.c
@@ -90,6 +92,7 @@ int kernfs_iop_setattr(struct dentry *dentry, struct iattr *iattr);
 int kernfs_iop_getattr(const struct path *path, struct kstat *stat,
 		       u32 request_mask, unsigned int query_flags);
 ssize_t kernfs_iop_listxattr(struct dentry *dentry, char *buf, size_t size);
+int __kernfs_setattr(struct kernfs_node *kn, const struct iattr *iattr);
 
 /*
  * dir.c
@@ -104,6 +107,7 @@ void kernfs_put_active(struct kernfs_node *kn);
 int kernfs_add_one(struct kernfs_node *kn);
 struct kernfs_node *kernfs_new_node(struct kernfs_node *parent,
 				    const char *name, umode_t mode,
+				    kuid_t uid, kgid_t gid,
 				    unsigned flags);
 struct kernfs_node *kernfs_find_and_get_node_by_ino(struct kernfs_root *root,
 						    unsigned int ino);

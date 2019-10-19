@@ -257,6 +257,7 @@ struct stripe_head {
 		sector_t	sector;			/* sector of this page */
 		unsigned long	flags;
 		u32		log_checksum;
+		unsigned short	write_hint;
 	} dev[1]; /* allocated with extra space depending of RAID geometry */
 };
 
@@ -356,7 +357,6 @@ enum {
 	STRIPE_FULL_WRITE,	/* all blocks are set to be overwritten */
 	STRIPE_BIOFILL_RUN,
 	STRIPE_COMPUTE_RUN,
-	STRIPE_OPS_REQ_PENDING,
 	STRIPE_ON_UNPLUG_LIST,
 	STRIPE_DISCARD,
 	STRIPE_ON_RELEASE_LIST,
@@ -450,6 +450,18 @@ enum {
  * HANDLE gets cleared if stripe_handle leaves nothing locked.
  */
 
+/* Note: disk_info.rdev can be set to NULL asynchronously by raid5_remove_disk.
+ * There are three safe ways to access disk_info.rdev.
+ * 1/ when holding mddev->reconfig_mutex
+ * 2/ when resync/recovery/reshape is known to be happening - i.e. in code that
+ *    is called as part of performing resync/recovery/reshape.
+ * 3/ while holding rcu_read_lock(), use rcu_dereference to get the pointer
+ *    and if it is non-NULL, increment rdev->nr_pending before dropping the RCU
+ *    lock.
+ * When .rdev is set to NULL, the nr_pending count checked again and if
+ * it has been incremented, the pointer is put back in .rdev.
+ */
+
 struct disk_info {
 	struct md_rdev	*rdev, *replacement;
 	struct page	*extra_page; /* extra page to use in prexor */
@@ -480,9 +492,7 @@ struct disk_info {
  */
 static inline struct bio *r5_next_bio(struct bio *bio, sector_t sector)
 {
-	int sectors = bio_sectors(bio);
-
-	if (bio->bi_iter.bi_sector + sectors < sector + STRIPE_SECTORS)
+	if (bio_end_sector(bio) < sector + STRIPE_SECTORS)
 		return bio->bi_next;
 	else
 		return NULL;
@@ -625,10 +635,11 @@ struct r5conf {
 	/* per cpu variables */
 	struct raid5_percpu {
 		struct page	*spare_page; /* Used when checking P/Q in raid6 */
-		struct flex_array *scribble;   /* space for constructing buffer
-					      * lists and performing address
-					      * conversions
-					      */
+		void		*scribble;  /* space for constructing buffer
+					     * lists and performing address
+					     * conversions
+					     */
+		int scribble_obj_size;
 	} __percpu *percpu;
 	int scribble_disks;
 	int scribble_sectors;
@@ -657,7 +668,7 @@ struct r5conf {
 	int			pool_size; /* number of disks in stripeheads in pool */
 	spinlock_t		device_lock;
 	struct disk_info	*disks;
-	struct bio_set		*bio_split;
+	struct bio_set		bio_split;
 
 	/* When taking over an array from a different personality, we store
 	 * the new thread here until we fully activate the array.

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the Diolan DLN-2 USB-GPIO adapter
  *
  * Copyright (c) 2014 Intel Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2.
  */
 
 #include <linux/kernel.h>
@@ -15,7 +12,6 @@
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
 #include <linux/irqchip/chained_irq.h>
-#include <linux/gpio.h>
 #include <linux/gpio/driver.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/dln2.h>
@@ -204,9 +200,9 @@ static int dln2_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
 	struct dln2_gpio *dln2 = gpiochip_get_data(chip);
 
 	if (test_bit(offset, dln2->output_enabled))
-		return GPIOF_DIR_OUT;
+		return 0;
 
-	return GPIOF_DIR_IN;
+	return 1;
 }
 
 static int dln2_gpio_get(struct gpio_chip *chip, unsigned int offset)
@@ -218,7 +214,7 @@ static int dln2_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	if (dir < 0)
 		return dir;
 
-	if (dir == GPIOF_DIR_IN)
+	if (dir == 1)
 		return dln2_gpio_pin_get_in_val(dln2, offset);
 
 	return dln2_gpio_pin_get_out_val(dln2, offset);

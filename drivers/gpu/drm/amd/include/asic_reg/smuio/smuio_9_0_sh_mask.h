@@ -254,5 +254,11 @@
 //ROM_SW_DATA_64
 #define ROM_SW_DATA_64__ROM_SW_DATA__SHIFT                                                                    0x0
 #define ROM_SW_DATA_64__ROM_SW_DATA_MASK                                                                      0xFFFFFFFFL
+/* SMUSVI0_PLANE0_CURRENTVID */
+#define SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID__SHIFT                                             0x18
+#define SMUSVI0_PLANE0_CURRENTVID__CURRENT_SVI0_PLANE0_VID_MASK                                               0xFF000000L
+
+#define SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR__SHIFT                                                         0x10
+#define SMUSVI0_TEL_PLANE0__SVI0_PLANE0_VDDCOR_MASK                                                           0x01FF0000L
 
 #endif

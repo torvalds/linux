@@ -1,10 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2000 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #include <linux/module.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/mm.h>
 #include <linux/pfn.h>
 #include <asm/page.h>
@@ -80,28 +80,23 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 			  unsigned long len, unsigned long long highmem)
 {
 	unsigned long reserve = reserve_end - start;
-	unsigned long pfn = PFN_UP(__pa(reserve_end));
-	unsigned long delta = (len - reserve) >> PAGE_SHIFT;
-	unsigned long offset, bootmap_size;
-	long map_size;
+	long map_size = len - reserve;
 	int err;
 
-	offset = uml_reserved - uml_physmem;
-	map_size = len - offset;
 	if(map_size <= 0) {
 		os_warn("Too few physical memory! Needed=%lu, given=%lu\n",
-			offset, len);
+			reserve, len);
 		exit(1);
 	}
 
 	physmem_fd = create_mem_file(len + highmem);
 
-	err = os_map_memory((void *) uml_reserved, physmem_fd, offset,
+	err = os_map_memory((void *) reserve_end, physmem_fd, reserve,
 			    map_size, 1, 1, 1);
 	if (err < 0) {
 		os_warn("setup_physmem - mapping %ld bytes of memory at 0x%p "
 			"failed - errno = %d\n", map_size,
-			(void *) uml_reserved, err);
+			(void *) reserve_end, err);
 		exit(1);
 	}
 
@@ -113,9 +108,11 @@ void __init setup_physmem(unsigned long start, unsigned long reserve_end,
 	os_write_file(physmem_fd, __syscall_stub_start, PAGE_SIZE);
 	os_fsync_file(physmem_fd);
 
-	bootmap_size = init_bootmem(pfn, pfn + delta);
-	free_bootmem(__pa(reserve_end) + bootmap_size,
-		     len - bootmap_size - reserve);
+	memblock_add(__pa(start), len + highmem);
+	memblock_reserve(__pa(start), reserve);
+
+	min_low_pfn = PFN_UP(__pa(reserve_end));
+	max_low_pfn = min_low_pfn + (map_size >> PAGE_SHIFT);
 }
 
 int phys_mapping(unsigned long phys, unsigned long long *offset_out)
@@ -146,6 +143,7 @@ int phys_mapping(unsigned long phys, unsigned long long *offset_out)
 
 	return fd;
 }
+EXPORT_SYMBOL(phys_mapping);
 
 static int __init uml_mem_setup(char *line, int *add)
 {

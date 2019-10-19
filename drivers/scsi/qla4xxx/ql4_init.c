@@ -153,8 +153,8 @@ int qla4xxx_get_sys_info(struct scsi_qla_host *ha)
 	dma_addr_t sys_info_dma;
 	int status = QLA_ERROR;
 
-	sys_info = dma_zalloc_coherent(&ha->pdev->dev, sizeof(*sys_info),
-				       &sys_info_dma, GFP_KERNEL);
+	sys_info = dma_alloc_coherent(&ha->pdev->dev, sizeof(*sys_info),
+				      &sys_info_dma, GFP_KERNEL);
 	if (sys_info == NULL) {
 		DEBUG2(printk("scsi%ld: %s: Unable to allocate dma buffer.\n",
 			      ha->host_no, __func__));
@@ -766,12 +766,10 @@ int ql4xxx_lock_drvr_wait(struct scsi_qla_host *a)
 	while (drvr_wait) {
 		if (ql4xxx_lock_drvr(a) == 0) {
 			ssleep(QL4_LOCK_DRVR_SLEEP);
-			if (drvr_wait) {
-				DEBUG2(printk("scsi%ld: %s: Waiting for "
-					      "Global Init Semaphore(%d)...\n",
-					      a->host_no,
-					      __func__, drvr_wait));
-			}
+			DEBUG2(printk("scsi%ld: %s: Waiting for "
+				      "Global Init Semaphore(%d)...\n",
+				      a->host_no,
+				      __func__, drvr_wait));
 			drvr_wait -= QL4_LOCK_DRVR_SLEEP;
 		} else {
 			DEBUG2(printk("scsi%ld: %s: Global Init Semaphore "

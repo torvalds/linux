@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ALSA SoC WL1273 codec driver
  *
  * Author:      Matti Aaltonen, <matti.j.aaltonen@nokia.com>
  *
  * Copyright:   (C) 2010, 2011 Nokia Corporation
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
- * 02110-1301 USA
- *
  */
 
 #include <linux/mfd/wl1273-core.h>
@@ -172,8 +158,8 @@ out:
 static int snd_wl1273_get_audio_route(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 
 	ucontrol->value.enumerated.item[0] = wl1273->mode;
 
@@ -190,14 +176,14 @@ static const char * const wl1273_audio_route[] = { "Bt", "FmRx", "FmTx" };
 static int snd_wl1273_set_audio_route(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 
 	if (wl1273->mode == ucontrol->value.enumerated.item[0])
 		return 0;
 
 	/* Do not allow changes while stream is running */
-	if (snd_soc_codec_is_active(codec))
+	if (snd_soc_component_is_active(component))
 		return -EPERM;
 
 	if (ucontrol->value.enumerated.item[0] >=  ARRAY_SIZE(wl1273_audio_route))
@@ -213,10 +199,10 @@ static SOC_ENUM_SINGLE_EXT_DECL(wl1273_enum, wl1273_audio_route);
 static int snd_wl1273_fm_audio_get(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s: enter.\n", __func__);
+	dev_dbg(component->dev, "%s: enter.\n", __func__);
 
 	ucontrol->value.enumerated.item[0] = wl1273->core->audio_mode;
 
@@ -226,11 +212,11 @@ static int snd_wl1273_fm_audio_get(struct snd_kcontrol *kcontrol,
 static int snd_wl1273_fm_audio_put(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 	int val, r = 0;
 
-	dev_dbg(codec->dev, "%s: enter.\n", __func__);
+	dev_dbg(component->dev, "%s: enter.\n", __func__);
 
 	val = ucontrol->value.enumerated.item[0];
 	if (wl1273->core->audio_mode == val)
@@ -250,10 +236,10 @@ static SOC_ENUM_SINGLE_EXT_DECL(wl1273_audio_enum, wl1273_audio_strings);
 static int snd_wl1273_fm_volume_get(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s: enter.\n", __func__);
+	dev_dbg(component->dev, "%s: enter.\n", __func__);
 
 	ucontrol->value.integer.value[0] = wl1273->core->volume;
 
@@ -263,11 +249,11 @@ static int snd_wl1273_fm_volume_get(struct snd_kcontrol *kcontrol,
 static int snd_wl1273_fm_volume_put(struct snd_kcontrol *kcontrol,
 				    struct snd_ctl_elem_value *ucontrol)
 {
-	struct snd_soc_codec *codec = snd_soc_kcontrol_codec(kcontrol);
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = snd_soc_kcontrol_component(kcontrol);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 	int r;
 
-	dev_dbg(codec->dev, "%s: enter.\n", __func__);
+	dev_dbg(component->dev, "%s: enter.\n", __func__);
 
 	r = wl1273->core->set_volume(wl1273->core,
 				     ucontrol->value.integer.value[0]);
@@ -301,8 +287,8 @@ static const struct snd_soc_dapm_route wl1273_dapm_routes[] = {
 static int wl1273_startup(struct snd_pcm_substream *substream,
 			  struct snd_soc_dai *dai)
 {
-	struct snd_soc_codec *codec = dai->codec;
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct snd_soc_component *component = dai->component;
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 
 	switch (wl1273->mode) {
 	case WL1273_MODE_BT:
@@ -335,7 +321,7 @@ static int wl1273_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_pcm_hw_params *params,
 			    struct snd_soc_dai *dai)
 {
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(dai->codec);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(dai->component);
 	struct wl1273_core *core = wl1273->core;
 	unsigned int rate, width, r;
 
@@ -415,14 +401,14 @@ static struct snd_soc_dai_driver wl1273_dai = {
 };
 
 /* Audio interface format for the soc_card driver */
-int wl1273_get_format(struct snd_soc_codec *codec, unsigned int *fmt)
+int wl1273_get_format(struct snd_soc_component *component, unsigned int *fmt)
 {
 	struct wl1273_priv *wl1273;
 
-	if (codec == NULL || fmt == NULL)
+	if (component == NULL || fmt == NULL)
 		return -EINVAL;
 
-	wl1273 = snd_soc_codec_get_drvdata(codec);
+	wl1273 = snd_soc_component_get_drvdata(component);
 
 	switch (wl1273->mode) {
 	case WL1273_MODE_FM_RX:
@@ -446,15 +432,15 @@ int wl1273_get_format(struct snd_soc_codec *codec, unsigned int *fmt)
 }
 EXPORT_SYMBOL_GPL(wl1273_get_format);
 
-static int wl1273_probe(struct snd_soc_codec *codec)
+static int wl1273_probe(struct snd_soc_component *component)
 {
-	struct wl1273_core **core = codec->dev->platform_data;
+	struct wl1273_core **core = component->dev->platform_data;
 	struct wl1273_priv *wl1273;
 
-	dev_dbg(codec->dev, "%s.\n", __func__);
+	dev_dbg(component->dev, "%s.\n", __func__);
 
 	if (!core) {
-		dev_err(codec->dev, "Platform data is missing.\n");
+		dev_err(component->dev, "Platform data is missing.\n");
 		return -EINVAL;
 	}
 
@@ -465,44 +451,43 @@ static int wl1273_probe(struct snd_soc_codec *codec)
 	wl1273->mode = WL1273_MODE_BT;
 	wl1273->core = *core;
 
-	snd_soc_codec_set_drvdata(codec, wl1273);
+	snd_soc_component_set_drvdata(component, wl1273);
 
 	return 0;
 }
 
-static int wl1273_remove(struct snd_soc_codec *codec)
+static void wl1273_remove(struct snd_soc_component *component)
 {
-	struct wl1273_priv *wl1273 = snd_soc_codec_get_drvdata(codec);
+	struct wl1273_priv *wl1273 = snd_soc_component_get_drvdata(component);
 
-	dev_dbg(codec->dev, "%s\n", __func__);
+	dev_dbg(component->dev, "%s\n", __func__);
 	kfree(wl1273);
-
-	return 0;
 }
 
-static const struct snd_soc_codec_driver soc_codec_dev_wl1273 = {
-	.probe = wl1273_probe,
-	.remove = wl1273_remove,
-
-	.component_driver = {
-		.controls		= wl1273_controls,
-		.num_controls		= ARRAY_SIZE(wl1273_controls),
-		.dapm_widgets		= wl1273_dapm_widgets,
-		.num_dapm_widgets	= ARRAY_SIZE(wl1273_dapm_widgets),
-		.dapm_routes		= wl1273_dapm_routes,
-		.num_dapm_routes	= ARRAY_SIZE(wl1273_dapm_routes),
-	},
+static const struct snd_soc_component_driver soc_component_dev_wl1273 = {
+	.probe			= wl1273_probe,
+	.remove			= wl1273_remove,
+	.controls		= wl1273_controls,
+	.num_controls		= ARRAY_SIZE(wl1273_controls),
+	.dapm_widgets		= wl1273_dapm_widgets,
+	.num_dapm_widgets	= ARRAY_SIZE(wl1273_dapm_widgets),
+	.dapm_routes		= wl1273_dapm_routes,
+	.num_dapm_routes	= ARRAY_SIZE(wl1273_dapm_routes),
+	.idle_bias_on		= 1,
+	.use_pmdown_time	= 1,
+	.endianness		= 1,
+	.non_legacy_dai_naming	= 1,
 };
 
 static int wl1273_platform_probe(struct platform_device *pdev)
 {
-	return snd_soc_register_codec(&pdev->dev, &soc_codec_dev_wl1273,
+	return devm_snd_soc_register_component(&pdev->dev,
+				      &soc_component_dev_wl1273,
 				      &wl1273_dai, 1);
 }
 
 static int wl1273_platform_remove(struct platform_device *pdev)
 {
-	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
 }
 

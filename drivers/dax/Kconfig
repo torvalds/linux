@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config DAX_DRIVER
+	select DAX
+	bool
+
 menuconfig DAX
 	tristate "DAX: direct access to differentiated memory"
 	select SRCU
@@ -16,7 +21,6 @@ config DEV_DAX
 	  baseline memory pool.  Mappings of a /dev/daxX.Y device impose
 	  restrictions that make the mapping behavior deterministic.
 
-
 config DEV_DAX_PMEM
 	tristate "PMEM DAX: direct access to persistent memory"
 	depends on LIBNVDIMM && NVDIMM_DAX && DEV_DAX
@@ -26,6 +30,31 @@ config DEV_DAX_PMEM
 	  driver consumes memory ranges allocated and exported by the
 	  libnvdimm sub-system.
 
-	  Say Y if unsure
+	  Say M if unsure
+
+config DEV_DAX_KMEM
+	tristate "KMEM DAX: volatile-use of persistent memory"
+	default DEV_DAX
+	depends on DEV_DAX
+	depends on MEMORY_HOTPLUG # for add_memory() and friends
+	help
+	  Support access to persistent memory as if it were RAM.  This
+	  allows easier use of persistent memory by unmodified
+	  applications.
+
+	  To use this feature, a DAX device must be unbound from the
+	  device_dax driver (PMEM DAX) and bound to this kmem driver
+	  on each boot.
+
+	  Say N if unsure.
+
+config DEV_DAX_PMEM_COMPAT
+	tristate "PMEM DAX: support the deprecated /sys/class/dax interface"
+	depends on m && DEV_DAX_PMEM=m
+	default DEV_DAX_PMEM
+	help
+	  Older versions of the libdaxctl library expect to find all
+	  device-dax instances under /sys/class/dax. If libdaxctl in
+	  your distribution is older than v58 say M, otherwise say N.
 
 endif

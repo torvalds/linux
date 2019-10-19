@@ -1,20 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * cec-pin.h - low-level CEC pin control
  *
  * Copyright 2017 Cisco Systems, Inc. and/or its affiliates. All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 #ifndef LINUX_CEC_PIN_H
@@ -37,6 +25,9 @@
  * @read_hpd:	read the HPD pin. Return true if high, false if low or
  *		an error if negative. If NULL or -ENOTTY is returned,
  *		then this is not supported.
+ * @read_5v:	read the 5V pin. Return true if high, false if low or
+ *		an error if negative. If NULL or -ENOTTY is returned,
+ *		then this is not supported.
  *
  * These operations are used by the cec pin framework to manipulate
  * the CEC pin.
@@ -50,6 +41,7 @@ struct cec_pin_ops {
 	void (*free)(struct cec_adapter *adap);
 	void (*status)(struct cec_adapter *adap, struct seq_file *file);
 	int  (*read_hpd)(struct cec_adapter *adap);
+	int  (*read_5v)(struct cec_adapter *adap);
 };
 
 /**

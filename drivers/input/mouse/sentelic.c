@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*-
  * Finger Sensing Pad PS/2 mouse driver.
  *
  * Copyright (C) 2005-2007 Asia Vital Components Co., Ltd.
  * Copyright (C) 2005-2012 Tai-hwa Liang, Sentelic Corporation.
- *
- *   This program is free software; you can redistribute it and/or
- *   modify it under the terms of the GNU General Public License
- *   as published by the Free Software Foundation; either version 2
- *   of the License, or (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/module.h>
@@ -710,7 +697,6 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 	unsigned char *packet = psmouse->packet;
 	unsigned char button_status = 0, lscroll = 0, rscroll = 0;
 	unsigned short abs_x, abs_y, fgrs = 0;
-	int rel_x, rel_y;
 
 	if (psmouse->pktcnt < 4)
 		return PSMOUSE_GOOD_DATA;
@@ -840,15 +826,7 @@ static psmouse_ret_t fsp_process_byte(struct psmouse *psmouse)
 		/*
 		 * Standard PS/2 Mouse
 		 */
-		input_report_key(dev, BTN_LEFT, packet[0] & 1);
-		input_report_key(dev, BTN_MIDDLE, (packet[0] >> 2) & 1);
-		input_report_key(dev, BTN_RIGHT, (packet[0] >> 1) & 1);
-
-		rel_x = packet[1] ? (int)packet[1] - (int)((packet[0] << 4) & 0x100) : 0;
-		rel_y = packet[2] ? (int)((packet[0] << 3) & 0x100) - (int)packet[2] : 0;
-
-		input_report_rel(dev, REL_X, rel_x);
-		input_report_rel(dev, REL_Y, rel_y);
+		psmouse_report_standard_packet(dev, packet);
 		break;
 	}
 

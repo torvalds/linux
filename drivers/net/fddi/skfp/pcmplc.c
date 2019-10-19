@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /******************************************************************************
  *
  *	(C)Copyright 1998,1999 SysKonnect,
  *	a business unit of Schneider & Koch & Co. Datensysteme GmbH.
  *
  *	See the file "skfddi.c" for further information.
- *
- *	This program is free software; you can redistribute it and/or modify
- *	it under the terms of the GNU General Public License as published by
- *	the Free Software Foundation; either version 2 of the License, or
- *	(at your option) any later version.
  *
  *	The information in this file is provided "AS IS" without warranty.
  *
@@ -30,7 +26,6 @@
  * 	The following external HW dependent functions are referenced :
  * 		sm_pm_control()
  *		sm_ph_linestate()
- *		sm_pm_ls_latch()
  *
  * 	The following HW dependent events are required :
  *		PC_QLS
@@ -852,6 +847,7 @@ static void pcm_fsm(struct s_smc *smc, struct s_phy *phy, int cmd)
 
 	case ACTIONS(PC5_SIGNAL) :
 		ACTIONS_DONE() ;
+		/* fall through */
 	case PC5_SIGNAL :
 		if ((cmd != PC_SIGNAL) && (cmd != PC_TIMEOUT_LCT))
 			break ;
@@ -1247,16 +1243,6 @@ static void sm_ph_lem_stop(struct s_smc *smc, int np)
 	lem->lem_on = 0 ;
 	CLEAR(PLC(np,PL_INTR_MASK),PL_LE_CTR) ;
 }
-
-/* ARGSUSED */
-void sm_pm_ls_latch(struct s_smc *smc, int phy, int on_off)
-/* int on_off;	en- or disable ident. ls */
-{
-	SK_UNUSED(smc) ;
-
-	phy = phy ; on_off = on_off ;
-}
-
 
 /*
  * PCM pseudo code

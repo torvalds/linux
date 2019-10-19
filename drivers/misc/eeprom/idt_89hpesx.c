@@ -115,7 +115,6 @@ static struct dentry *csr_dbgdir;
  * @client:	i2c client used to perform IO operations
  *
  * @ee_file:	EEPROM read/write sysfs-file
- * @csr_file:	CSR read/write debugfs-node
  */
 struct idt_smb_seq;
 struct idt_89hpesx_dev {
@@ -137,7 +136,6 @@ struct idt_89hpesx_dev {
 
 	struct bin_attribute *ee_file;
 	struct dentry *csr_dir;
-	struct dentry *csr_file;
 };
 
 /*
@@ -938,7 +936,7 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 {
 	struct idt_89hpesx_dev *pdev = filep->private_data;
 	char *colon_ch, *csraddr_str, *csrval_str;
-	int ret, csraddr_len, csrval_len;
+	int ret, csraddr_len;
 	u32 csraddr, csrval;
 	char *buf;
 
@@ -964,7 +962,7 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 	if (colon_ch != NULL) {
 		csraddr_len = colon_ch - buf;
 		csraddr_str =
-			kmalloc(sizeof(char)*(csraddr_len + 1), GFP_KERNEL);
+			kmalloc(csraddr_len + 1, GFP_KERNEL);
 		if (csraddr_str == NULL) {
 			ret = -ENOMEM;
 			goto free_buf;
@@ -974,12 +972,10 @@ static ssize_t idt_dbgfs_csr_write(struct file *filep, const char __user *ubuf,
 		csraddr_str[csraddr_len] = '\0';
 		/* Register value must follow the colon */
 		csrval_str = colon_ch + 1;
-		csrval_len = strnlen(csrval_str, count - csraddr_len);
 	} else /* if (str_colon == NULL) */ {
 		csraddr_str = (char *)buf; /* Just to shut warning up */
 		csraddr_len = strnlen(csraddr_str, count);
 		csrval_str = NULL;
-		csrval_len = 0;
 	}
 
 	/* Convert CSR address to u32 value */
@@ -1130,7 +1126,7 @@ static void idt_get_fw_data(struct idt_89hpesx_dev *pdev)
 
 	device_for_each_child_node(dev, fwnode) {
 		ee_id = idt_ee_match_id(fwnode);
-		if (IS_ERR_OR_NULL(ee_id)) {
+		if (!ee_id) {
 			dev_warn(dev, "Skip unsupported EEPROM device");
 			continue;
 		} else
@@ -1380,8 +1376,8 @@ static void idt_create_dbgfs_files(struct idt_89hpesx_dev *pdev)
 	pdev->csr_dir = debugfs_create_dir(fname, csr_dbgdir);
 
 	/* Create Debugfs file for CSR read/write operations */
-	pdev->csr_file = debugfs_create_file(cli->name, 0600,
-		pdev->csr_dir, pdev, &csr_dbgfs_ops);
+	debugfs_create_file(cli->name, 0600, pdev->csr_dir, pdev,
+			    &csr_dbgfs_ops);
 }
 
 /*

@@ -139,7 +139,7 @@ enum pcm186x_type {
 #define PCM186X_MAX_REGISTER		PCM186X_CURR_TRIM_CTRL
 
 /* PCM186X_PAGE */
-#define PCM186X_RESET			0xff
+#define PCM186X_RESET			0xfe
 
 /* PCM186X_ADCX_INPUT_SEL_X */
 #define PCM186X_ADC_INPUT_SEL_POL	BIT(7)
@@ -215,6 +215,5 @@ extern const struct regmap_config pcm186x_regmap;
 
 int pcm186x_probe(struct device *dev, enum pcm186x_type type, int irq,
 		  struct regmap *regmap);
-int pcm186x_remove(struct device *dev);
 
 #endif /* _PCM186X_H_ */

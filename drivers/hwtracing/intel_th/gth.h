@@ -1,16 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Intel(R) Trace Hub Global Trace Hub (GTH) data structures
  *
  * Copyright (C) 2014-2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #ifndef __INTEL_TH_GTH_H__
@@ -57,6 +49,12 @@ enum {
 	REG_GTH_SCRPD3		= 0xec, /* ScratchPad[3] */
 	REG_TSCU_TSUCTRL	= 0x2000, /* TSCU control register */
 	REG_TSCU_TSCUSTAT	= 0x2004, /* TSCU status register */
+
+	/* Common Capture Sequencer (CTS) registers */
+	REG_CTS_C0S0_EN		= 0x30c0, /* clause_event_enable_c0s0 */
+	REG_CTS_C0S0_ACT	= 0x3180, /* clause_action_control_c0s0 */
+	REG_CTS_STAT		= 0x32a0, /* cts_status */
+	REG_CTS_CTL		= 0x32a4, /* cts_control */
 };
 
 /* waiting for Pipeline Empty bit(s) to assert for GTH */
@@ -64,5 +62,18 @@ enum {
 
 #define TSUCTRL_CTCRESYNC	BIT(0)
 #define TSCUSTAT_CTCSYNCING	BIT(1)
+
+/* waiting for Trigger status to assert for CTS */
+#define CTS_TRIG_WAITLOOP_DEPTH	10000
+
+#define CTS_EVENT_ENABLE_IF_ANYTHING	BIT(31)
+#define CTS_ACTION_CONTROL_STATE_OFF	27
+#define CTS_ACTION_CONTROL_SET_STATE(x)	\
+	(((x) & 0x1f) << CTS_ACTION_CONTROL_STATE_OFF)
+#define CTS_ACTION_CONTROL_TRIGGER	BIT(4)
+
+#define CTS_STATE_IDLE			0x10u
+
+#define CTS_CTL_SEQUENCER_ENABLE	BIT(0)
 
 #endif /* __INTEL_TH_GTH_H__ */

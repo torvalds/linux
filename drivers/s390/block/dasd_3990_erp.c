@@ -2214,15 +2214,28 @@ static void dasd_3990_erp_disable_path(struct dasd_device *device, __u8 lpum)
 {
 	int pos = pathmask_to_pos(lpum);
 
+	if (!(device->features & DASD_FEATURE_PATH_AUTODISABLE)) {
+		dev_err(&device->cdev->dev,
+			"Path %x.%02x (pathmask %02x) is operational despite excessive IFCCs\n",
+			device->path[pos].cssid, device->path[pos].chpid, lpum);
+		goto out;
+	}
+
 	/* no remaining path, cannot disable */
-	if (!(dasd_path_get_opm(device) & ~lpum))
-		return;
+	if (!(dasd_path_get_opm(device) & ~lpum)) {
+		dev_err(&device->cdev->dev,
+			"Last path %x.%02x (pathmask %02x) is operational despite excessive IFCCs\n",
+			device->path[pos].cssid, device->path[pos].chpid, lpum);
+		goto out;
+	}
 
 	dev_err(&device->cdev->dev,
 		"Path %x.%02x (pathmask %02x) is disabled - IFCC threshold exceeded\n",
 		device->path[pos].cssid, device->path[pos].chpid, lpum);
 	dasd_path_remove_opm(device, lpum);
 	dasd_path_add_ifccpm(device, lpum);
+
+out:
 	device->path[pos].errorclk = 0;
 	atomic_set(&device->path[pos].error_count, 0);
 }

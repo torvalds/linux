@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /* SCTP kernel implementation
  * (C) Copyright IBM Corp. 2001, 2004
  * Copyright (c) 1999-2000 Cisco, Inc.
@@ -11,22 +12,6 @@
  * upwards to the ULP.
  *
  * This file is part of the SCTP kernel implementation
- *
- * This SCTP implementation is free software;
- * you can redistribute it and/or modify it under the terms of
- * the GNU General Public License as published by
- * the Free Software Foundation; either version 2, or (at your option)
- * any later version.
- *
- * This SCTP implementation is distributed in the hope that it
- * will be useful, but WITHOUT ANY WARRANTY; without even the implied
- *                 ************************
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with GNU CC; see the file COPYING.  If not, see
- * <http://www.gnu.org/licenses/>.
  *
  * Please send any bug reports or fixes you make to the
  * email address(es):
@@ -164,30 +149,39 @@ void sctp_ulpevent_read_nxtinfo(const struct sctp_ulpevent *event,
 
 __u16 sctp_ulpevent_get_notification_type(const struct sctp_ulpevent *event);
 
-/* Is this event type enabled? */
-static inline int sctp_ulpevent_type_enabled(__u16 sn_type,
-					     struct sctp_event_subscribe *mask)
+static inline void sctp_ulpevent_type_set(__u16 *subscribe,
+					  __u16 sn_type, __u8 on)
 {
-	int offset = sn_type - SCTP_SN_TYPE_BASE;
-	char *amask = (char *) mask;
+	if (sn_type > SCTP_SN_TYPE_MAX)
+		return;
 
-	if (offset >= sizeof(struct sctp_event_subscribe))
-		return 0;
-	return amask[offset];
+	if (on)
+		*subscribe |=  (1 << (sn_type - SCTP_SN_TYPE_BASE));
+	else
+		*subscribe &= ~(1 << (sn_type - SCTP_SN_TYPE_BASE));
+}
+
+/* Is this event type enabled? */
+static inline bool sctp_ulpevent_type_enabled(__u16 subscribe, __u16 sn_type)
+{
+	if (sn_type > SCTP_SN_TYPE_MAX)
+		return false;
+
+	return subscribe & (1 << (sn_type - SCTP_SN_TYPE_BASE));
 }
 
 /* Given an event subscription, is this event enabled? */
-static inline int sctp_ulpevent_is_enabled(const struct sctp_ulpevent *event,
-					   struct sctp_event_subscribe *mask)
+static inline bool sctp_ulpevent_is_enabled(const struct sctp_ulpevent *event,
+					    __u16 subscribe)
 {
 	__u16 sn_type;
-	int enabled = 1;
 
-	if (sctp_ulpevent_is_notification(event)) {
-		sn_type = sctp_ulpevent_get_notification_type(event);
-		enabled = sctp_ulpevent_type_enabled(sn_type, mask);
-	}
-	return enabled;
+	if (!sctp_ulpevent_is_notification(event))
+		return true;
+
+	sn_type = sctp_ulpevent_get_notification_type(event);
+
+	return sctp_ulpevent_type_enabled(subscribe, sn_type);
 }
 
 #endif /* __sctp_ulpevent_h__ */

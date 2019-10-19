@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * PXA2xx SPI DMA engine support.
  *
  * Copyright (C) 2013, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/device.h>
@@ -23,7 +20,7 @@
 static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 					     bool error)
 {
-	struct spi_message *msg = drv_data->master->cur_msg;
+	struct spi_message *msg = drv_data->controller->cur_msg;
 
 	/*
 	 * It is possible that one CPU is handling ROR interrupt and other
@@ -51,19 +48,15 @@ static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 		if (!pxa25x_ssp_comp(drv_data))
 			pxa2xx_spi_write(drv_data, SSTO, 0);
 
-		if (!error) {
-			msg->actual_length += drv_data->len;
-			msg->state = pxa2xx_spi_next_transfer(drv_data);
-		} else {
+		if (error) {
 			/* In case we got an error we disable the SSP now */
 			pxa2xx_spi_write(drv_data, SSCR0,
 					 pxa2xx_spi_read(drv_data, SSCR0)
 					 & ~SSCR0_SSE);
-
-			msg->state = ERROR_STATE;
+			msg->status = -EIO;
 		}
 
-		tasklet_schedule(&drv_data->pump_transfers);
+		spi_finalize_current_transfer(drv_data->controller);
 	}
 }
 
@@ -74,11 +67,11 @@ static void pxa2xx_spi_dma_callback(void *data)
 
 static struct dma_async_tx_descriptor *
 pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
-			   enum dma_transfer_direction dir)
+			   enum dma_transfer_direction dir,
+			   struct spi_transfer *xfer)
 {
 	struct chip_data *chip =
-		spi_get_ctldata(drv_data->master->cur_msg->spi);
-	struct spi_transfer *xfer = drv_data->cur_transfer;
+		spi_get_ctldata(drv_data->controller->cur_msg->spi);
 	enum dma_slave_buswidth width;
 	struct dma_slave_config cfg;
 	struct dma_chan *chan;
@@ -106,14 +99,14 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 		cfg.dst_maxburst = chip->dma_burst_size;
 
 		sgt = &xfer->tx_sg;
-		chan = drv_data->master->dma_tx;
+		chan = drv_data->controller->dma_tx;
 	} else {
 		cfg.src_addr = drv_data->ssdr_physical;
 		cfg.src_addr_width = width;
 		cfg.src_maxburst = chip->dma_burst_size;
 
 		sgt = &xfer->rx_sg;
-		chan = drv_data->master->dma_rx;
+		chan = drv_data->controller->dma_rx;
 	}
 
 	ret = dmaengine_slave_config(chan, &cfg);
@@ -134,8 +127,8 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 	if (status & SSSR_ROR) {
 		dev_err(&drv_data->pdev->dev, "FIFO overrun\n");
 
-		dmaengine_terminate_async(drv_data->master->dma_rx);
-		dmaengine_terminate_async(drv_data->master->dma_tx);
+		dmaengine_terminate_async(drv_data->controller->dma_rx);
+		dmaengine_terminate_async(drv_data->controller->dma_tx);
 
 		pxa2xx_spi_dma_transfer_complete(drv_data, true);
 		return IRQ_HANDLED;
@@ -144,12 +137,13 @@ irqreturn_t pxa2xx_spi_dma_transfer(struct driver_data *drv_data)
 	return IRQ_NONE;
 }
 
-int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
+int pxa2xx_spi_dma_prepare(struct driver_data *drv_data,
+			   struct spi_transfer *xfer)
 {
 	struct dma_async_tx_descriptor *tx_desc, *rx_desc;
 	int err;
 
-	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV);
+	tx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_MEM_TO_DEV, xfer);
 	if (!tx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA TX descriptor\n");
@@ -157,7 +151,7 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 		goto err_tx;
 	}
 
-	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM);
+	rx_desc = pxa2xx_spi_dma_prepare_one(drv_data, DMA_DEV_TO_MEM, xfer);
 	if (!rx_desc) {
 		dev_err(&drv_data->pdev->dev,
 			"failed to get DMA RX descriptor\n");
@@ -174,39 +168,46 @@ int pxa2xx_spi_dma_prepare(struct driver_data *drv_data, u32 dma_burst)
 	return 0;
 
 err_rx:
-	dmaengine_terminate_async(drv_data->master->dma_tx);
+	dmaengine_terminate_async(drv_data->controller->dma_tx);
 err_tx:
 	return err;
 }
 
 void pxa2xx_spi_dma_start(struct driver_data *drv_data)
 {
-	dma_async_issue_pending(drv_data->master->dma_rx);
-	dma_async_issue_pending(drv_data->master->dma_tx);
+	dma_async_issue_pending(drv_data->controller->dma_rx);
+	dma_async_issue_pending(drv_data->controller->dma_tx);
 
 	atomic_set(&drv_data->dma_running, 1);
 }
 
+void pxa2xx_spi_dma_stop(struct driver_data *drv_data)
+{
+	atomic_set(&drv_data->dma_running, 0);
+	dmaengine_terminate_sync(drv_data->controller->dma_rx);
+	dmaengine_terminate_sync(drv_data->controller->dma_tx);
+}
+
 int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 {
-	struct pxa2xx_spi_master *pdata = drv_data->master_info;
+	struct pxa2xx_spi_controller *pdata = drv_data->controller_info;
 	struct device *dev = &drv_data->pdev->dev;
-	struct spi_master *master = drv_data->master;
+	struct spi_controller *controller = drv_data->controller;
 	dma_cap_mask_t mask;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
-	master->dma_tx = dma_request_slave_channel_compat(mask,
+	controller->dma_tx = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->tx_param, dev, "tx");
-	if (!master->dma_tx)
+	if (!controller->dma_tx)
 		return -ENODEV;
 
-	master->dma_rx = dma_request_slave_channel_compat(mask,
+	controller->dma_rx = dma_request_slave_channel_compat(mask,
 				pdata->dma_filter, pdata->rx_param, dev, "rx");
-	if (!master->dma_rx) {
-		dma_release_channel(master->dma_tx);
-		master->dma_tx = NULL;
+	if (!controller->dma_rx) {
+		dma_release_channel(controller->dma_tx);
+		controller->dma_tx = NULL;
 		return -ENODEV;
 	}
 
@@ -215,17 +216,17 @@ int pxa2xx_spi_dma_setup(struct driver_data *drv_data)
 
 void pxa2xx_spi_dma_release(struct driver_data *drv_data)
 {
-	struct spi_master *master = drv_data->master;
+	struct spi_controller *controller = drv_data->controller;
 
-	if (master->dma_rx) {
-		dmaengine_terminate_sync(master->dma_rx);
-		dma_release_channel(master->dma_rx);
-		master->dma_rx = NULL;
+	if (controller->dma_rx) {
+		dmaengine_terminate_sync(controller->dma_rx);
+		dma_release_channel(controller->dma_rx);
+		controller->dma_rx = NULL;
 	}
-	if (master->dma_tx) {
-		dmaengine_terminate_sync(master->dma_tx);
-		dma_release_channel(master->dma_tx);
-		master->dma_tx = NULL;
+	if (controller->dma_tx) {
+		dmaengine_terminate_sync(controller->dma_tx);
+		dma_release_channel(controller->dma_tx);
+		controller->dma_tx = NULL;
 	}
 }
 
@@ -235,13 +236,15 @@ int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
 					   u32 *threshold)
 {
 	struct pxa2xx_spi_chip *chip_info = spi->controller_data;
+	struct driver_data *drv_data = spi_controller_get_devdata(spi->controller);
+	u32 dma_burst_size = drv_data->controller_info->dma_burst_size;
 
 	/*
 	 * If the DMA burst size is given in chip_info we use that,
 	 * otherwise we use the default. Also we use the default FIFO
 	 * thresholds for now.
 	 */
-	*burst_code = chip_info ? chip_info->dma_burst_size : 1;
+	*burst_code = chip_info ? chip_info->dma_burst_size : dma_burst_size;
 	*threshold = SSCR1_RxTresh(RX_THRESH_DFLT)
 		   | SSCR1_TxTresh(TX_THRESH_DFLT);
 

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /* include/video/samsung_fimd.h
  *
  * Copyright 2008 Openmoko, Inc.
@@ -10,10 +11,6 @@
  * This is the register set for the fimd and new style framebuffer interface
  * found from the S3C2443 onwards into the S3C2416, S3C2450, the
  * S3C64XX series such as the S3C6400 and S3C6410, and EXYNOS series.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
 */
 
 /* VIDCON0 */
@@ -198,6 +195,7 @@
 #define WINCONx_BURSTLEN_8WORD			(0x1 << 9)
 #define WINCONx_BURSTLEN_4WORD			(0x2 << 9)
 #define WINCONx_ENWIN				(1 << 0)
+#define WINCONx_BLEND_MODE_MASK			(0xc2)
 
 #define WINCON0_BPPMODE_MASK			(0xf << 2)
 #define WINCON0_BPPMODE_SHIFT			2
@@ -211,6 +209,7 @@
 #define WINCON0_BPPMODE_24BPP_888		(0xb << 2)
 
 #define WINCON1_LOCALSEL_CAMIF			(1 << 23)
+#define WINCON1_ALPHA_MUL			(1 << 7)
 #define WINCON1_BLD_PIX				(1 << 6)
 #define WINCON1_BPPMODE_MASK			(0xf << 2)
 #define WINCON1_BPPMODE_SHIFT			2
@@ -437,6 +436,14 @@
 #define WPALCON_W0PAL_16BPP_565			(0x6 << 0)
 
 /* Blending equation control */
+#define BLENDEQx(_win)				(0x244 + ((_win - 1) * 4))
+#define BLENDEQ_ZERO				0x0
+#define BLENDEQ_ONE				0x1
+#define BLENDEQ_ALPHA_A				0x2
+#define BLENDEQ_ONE_MINUS_ALPHA_A		0x3
+#define BLENDEQ_ALPHA0				0x6
+#define BLENDEQ_B_FUNC_F(_x)			(_x << 6)
+#define BLENDEQ_A_FUNC_F(_x)			(_x << 0)
 #define BLENDCON				0x260
 #define BLENDCON_NEW_MASK			(1 << 0)
 #define BLENDCON_NEW_8BIT_ALPHA_VALUE		(1 << 0)

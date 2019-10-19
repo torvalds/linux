@@ -156,7 +156,7 @@ The classic stack buffer overflow involves writing past the expected end
 of a variable stored on the stack, ultimately writing a controlled value
 to the stack frame's stored return address. The most widely used defense
 is the presence of a stack canary between the stack variables and the
-return address (``CONFIG_CC_STACKPROTECTOR``), which is verified just before
+return address (``CONFIG_STACKPROTECTOR``), which is verified just before
 the function returns. Other defenses include things like shadow stacks.
 
 Stack depth overflow
@@ -302,11 +302,11 @@ sure structure holes are cleared.
 Memory poisoning
 ----------------
 
-When releasing memory, it is best to poison the contents (clear stack on
-syscall return, wipe heap memory on a free), to avoid reuse attacks that
-rely on the old contents of memory. This frustrates many uninitialized
-variable attacks, stack content exposures, heap content exposures, and
-use-after-free attacks.
+When releasing memory, it is best to poison the contents, to avoid reuse
+attacks that rely on the old contents of memory. E.g., clear stack on a
+syscall return (``CONFIG_GCC_PLUGIN_STACKLEAK``), wipe heap memory on a
+free. This frustrates many uninitialized variable attacks, stack content
+exposures, heap content exposures, and use-after-free attacks.
 
 Destination tracking
 --------------------

@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2016 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
  * Intel Virtio Over PCIe (VOP) driver.
- *
  */
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -101,23 +89,7 @@ static int vop_dp_show(struct seq_file *s, void *pos)
 	return 0;
 }
 
-static int vop_dp_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vop_dp_show, inode->i_private);
-}
-
-static int vop_dp_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations dp_ops = {
-	.owner   = THIS_MODULE,
-	.open    = vop_dp_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = vop_dp_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(vop_dp);
 
 static int vop_vdev_info_show(struct seq_file *s, void *unused)
 {
@@ -194,23 +166,7 @@ static int vop_vdev_info_show(struct seq_file *s, void *unused)
 	return 0;
 }
 
-static int vop_vdev_info_debug_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, vop_vdev_info_show, inode->i_private);
-}
-
-static int vop_vdev_info_debug_release(struct inode *inode, struct file *file)
-{
-	return single_release(inode, file);
-}
-
-static const struct file_operations vdev_info_ops = {
-	.owner   = THIS_MODULE,
-	.open    = vop_vdev_info_debug_open,
-	.read    = seq_read,
-	.llseek  = seq_lseek,
-	.release = vop_vdev_info_debug_release
-};
+DEFINE_SHOW_ATTRIBUTE(vop_vdev_info);
 
 void vop_init_debugfs(struct vop_info *vi)
 {
@@ -218,12 +174,8 @@ void vop_init_debugfs(struct vop_info *vi)
 
 	snprintf(name, sizeof(name), "%s%d", KBUILD_MODNAME, vi->vpdev->dnode);
 	vi->dbg = debugfs_create_dir(name, NULL);
-	if (!vi->dbg) {
-		pr_err("can't create debugfs dir vop\n");
-		return;
-	}
-	debugfs_create_file("dp", 0444, vi->dbg, vi, &dp_ops);
-	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vdev_info_ops);
+	debugfs_create_file("dp", 0444, vi->dbg, vi, &vop_dp_fops);
+	debugfs_create_file("vdev_info", 0444, vi->dbg, vi, &vop_vdev_info_fops);
 }
 
 void vop_exit_debugfs(struct vop_info *vi)

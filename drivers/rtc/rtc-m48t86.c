@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ST M48T86 / Dallas DS12887 RTC driver
  * Copyright (c) 2006 Tower Technologies
  *
  * Author: Alessandro Zummo <a.zummo@towertech.it>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * This drivers only supports the clock running in BCD and 24H mode.
  * If it will be ever adapted to binary and 12H mode, care must be taken
@@ -100,7 +97,7 @@ static int m48t86_rtc_read_time(struct device *dev, struct rtc_time *tm)
 		if (m48t86_readb(dev, M48T86_HOUR) & 0x80)
 			tm->tm_hour += 12;
 
-	return rtc_valid_tm(tm);
+	return 0;
 }
 
 static int m48t86_rtc_set_time(struct device *dev, struct rtc_time *tm)
@@ -218,21 +215,21 @@ static bool m48t86_verify_chip(struct platform_device *pdev)
 	return false;
 }
 
-static struct nvmem_config m48t86_nvmem_cfg = {
-	.name = "m48t86_nvram",
-	.word_size = 1,
-	.stride = 1,
-	.size = M48T86_NVRAM_LEN,
-	.reg_read = m48t86_nvram_read,
-	.reg_write = m48t86_nvram_write,
-};
-
 static int m48t86_rtc_probe(struct platform_device *pdev)
 {
 	struct m48t86_rtc_info *info;
 	struct resource *res;
 	unsigned char reg;
 	int err;
+	struct nvmem_config m48t86_nvmem_cfg = {
+		.name = "m48t86_nvram",
+		.word_size = 1,
+		.stride = 1,
+		.size = M48T86_NVRAM_LEN,
+		.reg_read = m48t86_nvram_read,
+		.reg_write = m48t86_nvram_write,
+		.priv = &pdev->dev,
+	};
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -264,14 +261,13 @@ static int m48t86_rtc_probe(struct platform_device *pdev)
 		return PTR_ERR(info->rtc);
 
 	info->rtc->ops = &m48t86_rtc_ops;
-
-	m48t86_nvmem_cfg.priv = &pdev->dev;
-	info->rtc->nvmem_config = &m48t86_nvmem_cfg;
 	info->rtc->nvram_old_abi = true;
 
 	err = rtc_register_device(info->rtc);
 	if (err)
 		return err;
+
+	rtc_nvmem_register(info->rtc, &m48t86_nvmem_cfg);
 
 	/* read battery status */
 	reg = m48t86_readb(&pdev->dev, M48T86_D);

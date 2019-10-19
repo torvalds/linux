@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR BSD-2-Clause) */
+/* SPDX-License-Identifier: ((GPL-2.0 WITH Linux-syscall-note) OR Linux-OpenIB) */
 /*
  * Copyright (c) 2005-2006 Intel Corporation.  All rights reserved.
  *
@@ -70,6 +70,14 @@ enum {
 	RDMA_USER_CM_CMD_JOIN_MCAST
 };
 
+/* See IBTA Annex A11, servies ID bytes 4 & 5 */
+enum rdma_ucm_port_space {
+	RDMA_PS_IPOIB = 0x0002,
+	RDMA_PS_IB    = 0x013F,
+	RDMA_PS_TCP   = 0x0106,
+	RDMA_PS_UDP   = 0x0111,
+};
+
 /*
  * command ABI structures.
  */
@@ -80,9 +88,9 @@ struct rdma_ucm_cmd_hdr {
 };
 
 struct rdma_ucm_create_id {
-	__u64 uid;
-	__u64 response;
-	__u16 ps;
+	__aligned_u64 uid;
+	__aligned_u64 response;
+	__u16 ps;                  /* use enum rdma_ucm_port_space */
 	__u8  qp_type;
 	__u8  reserved[5];
 };
@@ -92,7 +100,7 @@ struct rdma_ucm_create_id_resp {
 };
 
 struct rdma_ucm_destroy_id {
-	__u64 response;
+	__aligned_u64 response;
 	__u32 id;
 	__u32 reserved;
 };
@@ -102,7 +110,7 @@ struct rdma_ucm_destroy_id_resp {
 };
 
 struct rdma_ucm_bind_ip {
-	__u64 response;
+	__aligned_u64 response;
 	struct sockaddr_in6 addr;
 	__u32 id;
 };
@@ -143,13 +151,13 @@ enum {
 };
 
 struct rdma_ucm_query {
-	__u64 response;
+	__aligned_u64 response;
 	__u32 id;
 	__u32 option;
 };
 
 struct rdma_ucm_query_route_resp {
-	__u64 node_guid;
+	__aligned_u64 node_guid;
 	struct ib_user_path_rec ib_route[2];
 	struct sockaddr_in6 src_addr;
 	struct sockaddr_in6 dst_addr;
@@ -159,7 +167,7 @@ struct rdma_ucm_query_route_resp {
 };
 
 struct rdma_ucm_query_addr_resp {
-	__u64 node_guid;
+	__aligned_u64 node_guid;
 	__u8  port_num;
 	__u8  reserved;
 	__u16 pkey;
@@ -210,7 +218,7 @@ struct rdma_ucm_listen {
 };
 
 struct rdma_ucm_accept {
-	__u64 uid;
+	__aligned_u64 uid;
 	struct rdma_ucm_conn_param conn_param;
 	__u32 id;
 	__u32 reserved;
@@ -228,7 +236,7 @@ struct rdma_ucm_disconnect {
 };
 
 struct rdma_ucm_init_qp_attr {
-	__u64 response;
+	__aligned_u64 response;
 	__u32 id;
 	__u32 qp_state;
 };
@@ -239,8 +247,8 @@ struct rdma_ucm_notify {
 };
 
 struct rdma_ucm_join_ip_mcast {
-	__u64 response;		/* rdma_ucm_create_id_resp */
-	__u64 uid;
+	__aligned_u64 response;		/* rdma_ucm_create_id_resp */
+	__aligned_u64 uid;
 	struct sockaddr_in6 addr;
 	__u32 id;
 };
@@ -253,8 +261,8 @@ enum {
 };
 
 struct rdma_ucm_join_mcast {
-	__u64 response;		/* rdma_ucma_create_id_resp */
-	__u64 uid;
+	__aligned_u64 response;		/* rdma_ucma_create_id_resp */
+	__aligned_u64 uid;
 	__u32 id;
 	__u16 addr_size;
 	__u16 join_flags;
@@ -262,18 +270,23 @@ struct rdma_ucm_join_mcast {
 };
 
 struct rdma_ucm_get_event {
-	__u64 response;
+	__aligned_u64 response;
 };
 
 struct rdma_ucm_event_resp {
-	__u64 uid;
+	__aligned_u64 uid;
 	__u32 id;
 	__u32 event;
 	__u32 status;
+	/*
+	 * NOTE: This union is not aligned to 8 bytes so none of the union
+	 * members may contain a u64 or anything with higher alignment than 4.
+	 */
 	union {
 		struct rdma_ucm_conn_param conn;
 		struct rdma_ucm_ud_param   ud;
 	} param;
+	__u32 reserved;
 };
 
 /* Option levels */
@@ -287,11 +300,15 @@ enum {
 	RDMA_OPTION_ID_TOS	 = 0,
 	RDMA_OPTION_ID_REUSEADDR = 1,
 	RDMA_OPTION_ID_AFONLY	 = 2,
+	RDMA_OPTION_ID_ACK_TIMEOUT = 3
+};
+
+enum {
 	RDMA_OPTION_IB_PATH	 = 1
 };
 
 struct rdma_ucm_set_option {
-	__u64 optval;
+	__aligned_u64 optval;
 	__u32 id;
 	__u32 level;
 	__u32 optname;
@@ -299,7 +316,7 @@ struct rdma_ucm_set_option {
 };
 
 struct rdma_ucm_migrate_id {
-	__u64 response;
+	__aligned_u64 response;
 	__u32 id;
 	__u32 fd;
 };

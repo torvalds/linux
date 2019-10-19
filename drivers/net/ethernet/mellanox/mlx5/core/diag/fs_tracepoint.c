@@ -96,10 +96,10 @@ static void print_lyr_2_4_hdrs(struct trace_seq *p,
 					  "%pI4");
 		} else if (ethertype.v == ETH_P_IPV6) {
 			static const struct in6_addr full_ones = {
-				.in6_u.u6_addr32 = {htonl(0xffffffff),
-						    htonl(0xffffffff),
-						    htonl(0xffffffff),
-						    htonl(0xffffffff)},
+				.in6_u.u6_addr32 = {__constant_htonl(0xffffffff),
+						    __constant_htonl(0xffffffff),
+						    __constant_htonl(0xffffffff),
+						    __constant_htonl(0xffffffff)},
 			};
 			DECLARE_MASK_VAL(struct in6_addr, src_ipv6);
 			DECLARE_MASK_VAL(struct in6_addr, dst_ipv6);
@@ -161,10 +161,10 @@ static void print_misc_parameters_hdrs(struct trace_seq *p,
 	PRINT_MASKED_VAL(name, p, format);		   \
 }
 	DECLARE_MASK_VAL(u64, gre_key) = {
-		.m = MLX5_GET(fte_match_set_misc, mask, gre_key_h) << 8 |
-		     MLX5_GET(fte_match_set_misc, mask, gre_key_l),
-		.v = MLX5_GET(fte_match_set_misc, value, gre_key_h) << 8 |
-		     MLX5_GET(fte_match_set_misc, value, gre_key_l)};
+		.m = MLX5_GET(fte_match_set_misc, mask, gre_key.nvgre.hi) << 8 |
+		     MLX5_GET(fte_match_set_misc, mask, gre_key.nvgre.lo),
+		.v = MLX5_GET(fte_match_set_misc, value, gre_key.nvgre.hi) << 8 |
+		     MLX5_GET(fte_match_set_misc, value, gre_key.nvgre.lo)};
 
 	PRINT_MASKED_VAL(gre_key, p, "%llu");
 	PRINT_MASKED_VAL_MISC(u32, source_sqn, source_sqn, p, "%u");
@@ -235,10 +235,13 @@ const char *parse_fs_dst(struct trace_seq *p,
 
 	switch (dst->type) {
 	case MLX5_FLOW_DESTINATION_TYPE_VPORT:
-		trace_seq_printf(p, "vport=%u\n", dst->vport_num);
+		trace_seq_printf(p, "vport=%u\n", dst->vport.num);
 		break;
 	case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE:
 		trace_seq_printf(p, "ft=%p\n", dst->ft);
+		break;
+	case MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE_NUM:
+		trace_seq_printf(p, "ft_num=%u\n", dst->ft_num);
 		break;
 	case MLX5_FLOW_DESTINATION_TYPE_TIR:
 		trace_seq_printf(p, "tir=%u\n", dst->tir_num);
@@ -246,12 +249,17 @@ const char *parse_fs_dst(struct trace_seq *p,
 	case MLX5_FLOW_DESTINATION_TYPE_COUNTER:
 		trace_seq_printf(p, "counter_id=%u\n", counter_id);
 		break;
+	case MLX5_FLOW_DESTINATION_TYPE_PORT:
+		trace_seq_printf(p, "port\n");
+		break;
 	}
 
 	trace_seq_putc(p, 0);
 	return ret;
 }
 
+EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_add_ft);
+EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_del_ft);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_add_fg);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_del_fg);
 EXPORT_TRACEPOINT_SYMBOL(mlx5_fs_set_fte);

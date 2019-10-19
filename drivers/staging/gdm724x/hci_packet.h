@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #ifndef _HCI_PACKET_H_
 #define _HCI_PACKET_H_
@@ -50,7 +40,7 @@ struct tlv {
 struct sdu_header {
 	__dev16 cmd_evt;
 	__dev16 len;
-	__dev32 dftEpsId;
+	__dev32 dft_eps_id;
 	__dev32 bearer_ID;
 	__dev32 nic_type;
 } __packed;

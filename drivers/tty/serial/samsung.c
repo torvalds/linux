@@ -856,33 +856,52 @@ static void s3c24xx_serial_break_ctl(struct uart_port *port, int break_state)
 static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 {
 	struct s3c24xx_uart_dma	*dma = p->dma;
+	struct dma_slave_caps dma_caps;
+	const char *reason = NULL;
 	int ret;
 
 	/* Default slave configuration parameters */
 	dma->rx_conf.direction		= DMA_DEV_TO_MEM;
 	dma->rx_conf.src_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
 	dma->rx_conf.src_addr		= p->port.mapbase + S3C2410_URXH;
-	dma->rx_conf.src_maxburst	= 16;
+	dma->rx_conf.src_maxburst	= 1;
 
 	dma->tx_conf.direction		= DMA_MEM_TO_DEV;
 	dma->tx_conf.dst_addr_width	= DMA_SLAVE_BUSWIDTH_1_BYTE;
 	dma->tx_conf.dst_addr		= p->port.mapbase + S3C2410_UTXH;
-	if (dma_get_cache_alignment() >= 16)
-		dma->tx_conf.dst_maxburst = 16;
-	else
-		dma->tx_conf.dst_maxburst = 1;
+	dma->tx_conf.dst_maxburst	= 1;
 
 	dma->rx_chan = dma_request_chan(p->port.dev, "rx");
 
-	if (IS_ERR(dma->rx_chan))
-		return PTR_ERR(dma->rx_chan);
+	if (IS_ERR(dma->rx_chan)) {
+		reason = "DMA RX channel request failed";
+		ret = PTR_ERR(dma->rx_chan);
+		goto err_warn;
+	}
+
+	ret = dma_get_slave_caps(dma->rx_chan, &dma_caps);
+	if (ret < 0 ||
+	    dma_caps.residue_granularity < DMA_RESIDUE_GRANULARITY_BURST) {
+		reason = "insufficient DMA RX engine capabilities";
+		ret = -EOPNOTSUPP;
+		goto err_release_rx;
+	}
 
 	dmaengine_slave_config(dma->rx_chan, &dma->rx_conf);
 
 	dma->tx_chan = dma_request_chan(p->port.dev, "tx");
 	if (IS_ERR(dma->tx_chan)) {
+		reason = "DMA TX channel request failed";
 		ret = PTR_ERR(dma->tx_chan);
 		goto err_release_rx;
+	}
+
+	ret = dma_get_slave_caps(dma->tx_chan, &dma_caps);
+	if (ret < 0 ||
+	    dma_caps.residue_granularity < DMA_RESIDUE_GRANULARITY_BURST) {
+		reason = "insufficient DMA TX engine capabilities";
+		ret = -EOPNOTSUPP;
+		goto err_release_tx;
 	}
 
 	dmaengine_slave_config(dma->tx_chan, &dma->tx_conf);
@@ -899,6 +918,7 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	dma->rx_addr = dma_map_single(p->port.dev, dma->rx_buf,
 				dma->rx_size, DMA_FROM_DEVICE);
 	if (dma_mapping_error(p->port.dev, dma->rx_addr)) {
+		reason = "DMA mapping error for RX buffer";
 		ret = -EIO;
 		goto err_free_rx;
 	}
@@ -907,6 +927,7 @@ static int s3c24xx_serial_request_dma(struct s3c24xx_uart_port *p)
 	dma->tx_addr = dma_map_single(p->port.dev, p->port.state->xmit.buf,
 				UART_XMIT_SIZE, DMA_TO_DEVICE);
 	if (dma_mapping_error(p->port.dev, dma->tx_addr)) {
+		reason = "DMA mapping error for TX buffer";
 		ret = -EIO;
 		goto err_unmap_rx;
 	}
@@ -922,6 +943,9 @@ err_release_tx:
 	dma_release_channel(dma->tx_chan);
 err_release_rx:
 	dma_release_channel(dma->rx_chan);
+err_warn:
+	if (reason)
+		dev_warn(p->port.dev, "%s, DMA will not be used\n", reason);
 	return ret;
 }
 
@@ -1040,8 +1064,6 @@ static int s3c64xx_serial_startup(struct uart_port *port)
 	if (ourport->dma) {
 		ret = s3c24xx_serial_request_dma(ourport);
 		if (ret < 0) {
-			dev_warn(port->dev,
-				 "DMA request failed, DMA will not be used\n");
 			devm_kfree(port->dev, ourport->dma);
 			ourport->dma = NULL;
 		}
@@ -1265,7 +1287,7 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	 * Ask the core to calculate the divisor for us.
 	 */
 
-	baud = uart_get_baud_rate(port, termios, old, 0, 115200*8);
+	baud = uart_get_baud_rate(port, termios, old, 0, 3000000);
 	quot = s3c24xx_serial_getclk(ourport, baud, &clk, &clk_sel);
 	if (baud == 38400 && (port->flags & UPF_SPD_MASK) == UPF_SPD_CUST)
 		quot = port->custom_divisor;
@@ -1343,11 +1365,14 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 	wr_regl(port, S3C2410_ULCON, ulcon);
 	wr_regl(port, S3C2410_UBRDIV, quot);
 
+	port->status &= ~UPSTAT_AUTOCTS;
+
 	umcon = rd_regl(port, S3C2410_UMCON);
 	if (termios->c_cflag & CRTSCTS) {
 		umcon |= S3C2410_UMCOM_AFC;
 		/* Disable RTS when RX FIFO contains 63 bytes */
 		umcon &= ~S3C2412_UMCON_AFC_8;
+		port->status = UPSTAT_AUTOCTS;
 	} else {
 		umcon &= ~S3C2410_UMCOM_AFC;
 	}
@@ -1669,6 +1694,42 @@ s3c24xx_serial_cpufreq_deregister(struct s3c24xx_uart_port *port)
 }
 #endif
 
+static int s3c24xx_serial_enable_baudclk(struct s3c24xx_uart_port *ourport)
+{
+	struct device *dev = ourport->port.dev;
+	struct s3c24xx_uart_info *info = ourport->info;
+	char clk_name[MAX_CLK_NAME_LENGTH];
+	unsigned int clk_sel;
+	struct clk *clk;
+	int clk_num;
+	int ret;
+
+	clk_sel = ourport->cfg->clk_sel ? : info->def_clk_sel;
+	for (clk_num = 0; clk_num < info->num_clks; clk_num++) {
+		if (!(clk_sel & (1 << clk_num)))
+			continue;
+
+		sprintf(clk_name, "clk_uart_baud%d", clk_num);
+		clk = clk_get(dev, clk_name);
+		if (IS_ERR(clk))
+			continue;
+
+		ret = clk_prepare_enable(clk);
+		if (ret) {
+			clk_put(clk);
+			continue;
+		}
+
+		ourport->baudclk = clk;
+		ourport->baudclk_rate = clk_get_rate(clk);
+		s3c24xx_serial_setsource(&ourport->port, clk_num);
+
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
 /* s3c24xx_serial_init_port
  *
  * initialise a single serial port from the platform device given
@@ -1763,6 +1824,10 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 		goto err;
 	}
 
+	ret = s3c24xx_serial_enable_baudclk(ourport);
+	if (ret)
+		pr_warn("uart: failed to enable baudclk\n");
+
 	/* Keep all interrupts masked and cleared */
 	if (s3c24xx_serial_has_interrupt_mask(port)) {
 		wr_regl(port, S3C64XX_UINTM, 0xf);
@@ -1818,6 +1883,10 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 
 	dbg("s3c24xx_serial_probe(%p) %d\n", pdev, index);
 
+	if (index >= ARRAY_SIZE(s3c24xx_serial_ports)) {
+		dev_err(&pdev->dev, "serial%d out of range\n", index);
+		return -EINVAL;
+	}
 	ourport = &s3c24xx_serial_ports[index];
 
 	ourport->drv_data = s3c24xx_get_driver_data(pdev);
@@ -1872,6 +1941,8 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	 * and keeps the clock enabled in this case.
 	 */
 	clk_disable_unprepare(ourport->clk);
+	if (!IS_ERR(ourport->baudclk))
+		clk_disable_unprepare(ourport->baudclk);
 
 	ret = s3c24xx_serial_cpufreq_register(ourport);
 	if (ret < 0)
@@ -1915,7 +1986,11 @@ static int s3c24xx_serial_resume(struct device *dev)
 
 	if (port) {
 		clk_prepare_enable(ourport->clk);
+		if (!IS_ERR(ourport->baudclk))
+			clk_prepare_enable(ourport->baudclk);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
+		if (!IS_ERR(ourport->baudclk))
+			clk_disable_unprepare(ourport->baudclk);
 		clk_disable_unprepare(ourport->clk);
 
 		uart_resume_port(&s3c24xx_uart_drv, port);
@@ -1938,7 +2013,11 @@ static int s3c24xx_serial_resume_noirq(struct device *dev)
 			if (rx_enabled(port))
 				uintm &= ~S3C64XX_UINTM_RXD_MSK;
 			clk_prepare_enable(ourport->clk);
+			if (!IS_ERR(ourport->baudclk))
+				clk_prepare_enable(ourport->baudclk);
 			wr_regl(port, S3C64XX_UINTM, uintm);
+			if (!IS_ERR(ourport->baudclk))
+				clk_disable_unprepare(ourport->baudclk);
 			clk_disable_unprepare(ourport->clk);
 		}
 	}

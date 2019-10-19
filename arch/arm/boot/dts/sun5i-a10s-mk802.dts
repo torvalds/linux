@@ -59,8 +59,6 @@
 
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_mk802>;
 
 		red {
 			label = "mk802:red:usr";
@@ -74,8 +72,6 @@
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "okay";
 
 	axp152: pmic@30 {
@@ -88,18 +84,13 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_mk802>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 6 1 GPIO_ACTIVE_HIGH>; /* PG1 */
-	cd-inverted;
+	cd-gpios = <&pio 6 1 GPIO_ACTIVE_LOW>; /* PG1 */
 	status = "okay";
 };
 
 &mmc1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins_a>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
 	non-removable;
@@ -114,33 +105,14 @@
 	status = "okay";
 };
 
-&pio {
-	led_pins_mk802: led_pins@0 {
-		pins = "PB2";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_mk802: mmc0_cd_pin@0 {
-		pins = "PG1";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb1_vbus_pin_mk802: usb1_vbus_pin@0 {
-		pins = "PB10";
-		function = "gpio_out";
-	};
-};
-
 &reg_usb1_vbus {
-	pinctrl-0 = <&usb1_vbus_pin_mk802>;
 	gpio = <&pio 1 10 GPIO_ACTIVE_HIGH>; /* PB10 */
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

@@ -231,10 +231,27 @@ config EDAC_SBRIDGE
 
 config EDAC_SKX
 	tristate "Intel Skylake server Integrated MC"
-	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG && ACPI
+	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_SKX can't be y
+	select DMI
+	select ACPI_ADXL
 	help
 	  Support for error detection and correction the Intel
-	  Skylake server Integrated Memory Controllers.
+	  Skylake server Integrated Memory Controllers. If your
+	  system has non-volatile DIMMs you should also manually
+	  select CONFIG_ACPI_NFIT.
+
+config EDAC_I10NM
+	tristate "Intel 10nm server Integrated MC"
+	depends on PCI && X86_64 && X86_MCE_INTEL && PCI_MMCONFIG && ACPI
+	depends on ACPI_NFIT || !ACPI_NFIT # if ACPI_NFIT=m, EDAC_I10NM can't be y
+	select DMI
+	select ACPI_ADXL
+	help
+	  Support for error detection and correction the Intel
+	  10nm server Integrated Memory Controllers. If your
+	  system has non-volatile DIMMs you should also manually
+	  select CONFIG_ACPI_NFIT.
 
 config EDAC_PND2
 	tristate "Intel Pondicherry2"
@@ -246,15 +263,15 @@ config EDAC_PND2
 	  micro-server but may appear on others in the future.
 
 config EDAC_MPC85XX
-	tristate "Freescale MPC83xx / MPC85xx"
-	depends on FSL_SOC
+	bool "Freescale MPC83xx / MPC85xx"
+	depends on FSL_SOC && EDAC=y
 	help
 	  Support for error detection and correction on the Freescale
 	  MPC8349, MPC8560, MPC8540, MPC8548, T4240
 
 config EDAC_LAYERSCAPE
 	tristate "Freescale Layerscape DDR"
-	depends on ARCH_LAYERSCAPE
+	depends on ARCH_LAYERSCAPE || SOC_LS1021A
 	help
 	  Support for error detection and correction on Freescale memory
 	  controllers on Layerscape SoCs.
@@ -317,14 +334,6 @@ config EDAC_CPC925
 	  a companion chip to the PowerPC 970 family of
 	  processors.
 
-config EDAC_TILE
-	tristate "Tilera Memory Controller"
-	depends on TILE
-	default y
-	help
-	  Support for error detection and correction on the
-	  Tilera memory controller.
-
 config EDAC_HIGHBANK_MC
 	tristate "Highbank Memory Controller"
 	depends on ARCH_HIGHBANK
@@ -379,12 +388,20 @@ config EDAC_THUNDERX
 
 config EDAC_ALTERA
 	bool "Altera SOCFPGA ECC"
-	depends on EDAC=y && ARCH_SOCFPGA
+	depends on EDAC=y && (ARCH_SOCFPGA || ARCH_STRATIX10)
 	help
 	  Support for error detection and correction on the
-	  Altera SOCs. This must be selected for SDRAM ECC.
-	  Note that the preloader must initialize the SDRAM
-	  before loading the kernel.
+	  Altera SOCs. This is the global enable for the
+	  various Altera peripherals.
+
+config EDAC_ALTERA_SDRAM
+	bool "Altera SDRAM ECC"
+	depends on EDAC_ALTERA=y
+	help
+	  Support for error detection and correction on the
+	  Altera SDRAM Memory for Altera SoCs. Note that the
+	  preloader must initialize the SDRAM before loading
+	  the kernel.
 
 config EDAC_ALTERA_L2C
 	bool "Altera L2 Cache ECC"
@@ -443,9 +460,22 @@ config EDAC_ALTERA_SDMMC
 	  Support for error detection and correction on the
 	  Altera SDMMC FIFO Memory for Altera SoCs.
 
+config EDAC_SIFIVE
+	bool "Sifive platform EDAC driver"
+	depends on EDAC=y && RISCV
+	help
+	  Support for error detection and correction on the SiFive SoCs.
+
+config EDAC_ARMADA_XP
+	bool "Marvell Armada XP DDR and L2 Cache ECC"
+	depends on MACH_MVEBU_V7
+	help
+	  Support for error correction and detection on the Marvell Aramada XP
+	  DDR RAM and L2 cache controllers.
+
 config EDAC_SYNOPSYS
 	tristate "Synopsys DDR Memory Controller"
-	depends on ARCH_ZYNQ
+	depends on ARCH_ZYNQ || ARCH_ZYNQMP
 	help
 	  Support for error detection and correction on the Synopsys DDR
 	  memory controller.
@@ -463,5 +493,35 @@ config EDAC_TI
 	help
 	  Support for error detection and correction on the
           TI SoCs.
+
+config EDAC_QCOM
+	tristate "QCOM EDAC Controller"
+	depends on ARCH_QCOM && QCOM_LLCC
+	help
+	  Support for error detection and correction on the
+	  Qualcomm Technologies, Inc. SoCs.
+
+	  This driver reports Single Bit Errors (SBEs) and Double Bit Errors (DBEs).
+	  As of now, it supports error reporting for Last Level Cache Controller (LLCC)
+	  of Tag RAM and Data RAM.
+
+	  For debugging issues having to do with stability and overall system
+	  health, you should probably say 'Y' here.
+
+config EDAC_ASPEED
+	tristate "Aspeed AST 2500 SoC"
+	depends on MACH_ASPEED_G5
+	help
+	  Support for error detection and correction on the Aspeed AST 2500 SoC.
+
+	  First, ECC must be configured in the bootloader. Then, this driver
+	  will expose error counters via the EDAC kernel framework.
+
+config EDAC_BLUEFIELD
+	tristate "Mellanox BlueField Memory ECC"
+	depends on ARM64 && ((MELLANOX_PLATFORM && ACPI) || COMPILE_TEST)
+	help
+	  Support for error detection and correction on the
+	  Mellanox BlueField SoCs.
 
 endif # EDAC

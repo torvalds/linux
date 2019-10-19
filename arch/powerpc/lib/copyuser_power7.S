@@ -1,23 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  *
  * Copyright (C) IBM Corporation, 2011
  *
  * Author: Anton Blanchard <anton@au.ibm.com>
  */
 #include <asm/ppc_asm.h>
+
+#ifndef SELFTEST_CASE
+/* 0 == don't use VMX, 1 == use VMX */
+#define SELFTEST_CASE	0
+#endif
 
 #ifdef __BIG_ENDIAN__
 #define LVS(VRT,RA,RB)		lvsl	VRT,RA,RB
@@ -80,7 +73,6 @@
 
 
 _GLOBAL(__copy_tofrom_user_power7)
-#ifdef CONFIG_ALTIVEC
 	cmpldi	r5,16
 	cmpldi	cr1,r5,3328
 
@@ -89,15 +81,12 @@ _GLOBAL(__copy_tofrom_user_power7)
 	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
 
 	blt	.Lshort_copy
-	bge	cr1,.Lvmx_copy
-#else
-	cmpldi	r5,16
 
-	std	r3,-STACKFRAMESIZE+STK_REG(R31)(r1)
-	std	r4,-STACKFRAMESIZE+STK_REG(R30)(r1)
-	std	r5,-STACKFRAMESIZE+STK_REG(R29)(r1)
-
-	blt	.Lshort_copy
+#ifdef CONFIG_ALTIVEC
+test_feature = SELFTEST_CASE
+BEGIN_FTR_SECTION
+	bgt	cr1,.Lvmx_copy
+END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 #endif
 
 .Lnonvmx_copy:
@@ -278,8 +267,8 @@ err1;	stb	r0,0(r3)
 	addi	r1,r1,STACKFRAMESIZE
 	b	.Lnonvmx_copy
 
-#ifdef CONFIG_ALTIVEC
 .Lvmx_copy:
+#ifdef CONFIG_ALTIVEC
 	mflr	r0
 	std	r0,16(r1)
 	stdu	r1,-STACKFRAMESIZE(r1)
@@ -312,8 +301,6 @@ err1;	stb	r0,0(r3)
 	lis	r8,0x8000	/* GO=1 */
 	clrldi	r8,r8,32
 
-.machine push
-.machine "power4"
 	/* setup read stream 0 */
 	dcbt	0,r6,0b01000   /* addr from */
 	dcbt	0,r7,0b01010   /* length and depth from */
@@ -322,7 +309,6 @@ err1;	stb	r0,0(r3)
 	dcbtst	0,r10,0b01010  /* length and depth to */
 	eieio
 	dcbt	0,r8,0b01010	/* all streams GO */
-.machine pop
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 

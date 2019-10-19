@@ -7,6 +7,8 @@
 #ifndef __LINUX_USB_GADGET_USBA_UDC_H__
 #define __LINUX_USB_GADGET_USBA_UDC_H__
 
+#include <linux/gpio/consumer.h>
+
 /* USB register offsets */
 #define USBA_CTRL				0x0000
 #define USBA_FNUM				0x0004
@@ -285,9 +287,6 @@ struct usba_ep {
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	u32					last_dma_status;
 	struct dentry				*debugfs_dir;
-	struct dentry				*debugfs_queue;
-	struct dentry				*debugfs_dma_status;
-	struct dentry				*debugfs_state;
 #endif
 };
 
@@ -323,8 +322,7 @@ struct usba_udc {
 	struct platform_device *pdev;
 	const struct usba_udc_errata *errata;
 	int irq;
-	int vbus_pin;
-	int vbus_pin_inverted;
+	struct gpio_desc *vbus_pin;
 	int num_ep;
 	int configured_ep;
 	struct usba_fifo_cfg *fifo_cfg;
@@ -333,6 +331,7 @@ struct usba_udc {
 	struct usba_ep *usba_ep;
 	bool bias_pulse_needed;
 	bool clocked;
+	bool suspended;
 
 	u16 devstatus;
 
@@ -343,7 +342,6 @@ struct usba_udc {
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 	struct dentry *debugfs_root;
-	struct dentry *debugfs_regs;
 #endif
 
 	struct regmap *pmc;

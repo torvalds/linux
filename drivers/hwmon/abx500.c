@@ -1,8 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) ST-Ericsson 2010 - 2013
  * Author: Martin Persson <martin.persson@stericsson.com>
  *         Hongbo Zhang <hongbo.zhang@linaro.org>
- * License Terms: GNU General Public License v2
  *
  * ABX500 does not provide auto ADC, so to monitor the required temperatures,
  * a periodic work is used. It is more important to not wake up the CPU than
@@ -121,7 +121,7 @@ static void gpadc_monitor(struct work_struct *work)
 }
 
 /* HWMON sysfs interfaces */
-static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
+static ssize_t name_show(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -129,7 +129,7 @@ static ssize_t show_name(struct device *dev, struct device_attribute *devattr,
 	return data->ops.show_name(dev, devattr, buf);
 }
 
-static ssize_t show_label(struct device *dev,
+static ssize_t label_show(struct device *dev,
 			  struct device_attribute *devattr, char *buf)
 {
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -137,7 +137,7 @@ static ssize_t show_label(struct device *dev,
 	return data->ops.show_label(dev, devattr, buf);
 }
 
-static ssize_t show_input(struct device *dev,
+static ssize_t input_show(struct device *dev,
 			  struct device_attribute *devattr, char *buf)
 {
 	int ret, temp;
@@ -153,8 +153,8 @@ static ssize_t show_input(struct device *dev,
 }
 
 /* Set functions (RW nodes) */
-static ssize_t set_min(struct device *dev, struct device_attribute *devattr,
-		       const char *buf, size_t count)
+static ssize_t min_store(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count)
 {
 	unsigned long val;
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -173,8 +173,8 @@ static ssize_t set_min(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
-static ssize_t set_max(struct device *dev, struct device_attribute *devattr,
-		       const char *buf, size_t count)
+static ssize_t max_store(struct device *dev, struct device_attribute *devattr,
+			 const char *buf, size_t count)
 {
 	unsigned long val;
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -193,9 +193,9 @@ static ssize_t set_max(struct device *dev, struct device_attribute *devattr,
 	return count;
 }
 
-static ssize_t set_max_hyst(struct device *dev,
-			    struct device_attribute *devattr,
-			    const char *buf, size_t count)
+static ssize_t max_hyst_store(struct device *dev,
+			      struct device_attribute *devattr,
+			      const char *buf, size_t count)
 {
 	unsigned long val;
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -215,8 +215,8 @@ static ssize_t set_max_hyst(struct device *dev,
 }
 
 /* Show functions (RO nodes) */
-static ssize_t show_min(struct device *dev,
-			struct device_attribute *devattr, char *buf)
+static ssize_t min_show(struct device *dev, struct device_attribute *devattr,
+			char *buf)
 {
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -224,8 +224,8 @@ static ssize_t show_min(struct device *dev,
 	return sprintf(buf, "%lu\n", data->min[attr->index]);
 }
 
-static ssize_t show_max(struct device *dev,
-			struct device_attribute *devattr, char *buf)
+static ssize_t max_show(struct device *dev, struct device_attribute *devattr,
+			char *buf)
 {
 	struct abx500_temp *data = dev_get_drvdata(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -233,7 +233,7 @@ static ssize_t show_max(struct device *dev,
 	return sprintf(buf, "%lu\n", data->max[attr->index]);
 }
 
-static ssize_t show_max_hyst(struct device *dev,
+static ssize_t max_hyst_show(struct device *dev,
 			     struct device_attribute *devattr, char *buf)
 {
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -242,7 +242,7 @@ static ssize_t show_max_hyst(struct device *dev,
 	return sprintf(buf, "%lu\n", data->max_hyst[attr->index]);
 }
 
-static ssize_t show_min_alarm(struct device *dev,
+static ssize_t min_alarm_show(struct device *dev,
 			      struct device_attribute *devattr, char *buf)
 {
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -251,7 +251,7 @@ static ssize_t show_min_alarm(struct device *dev,
 	return sprintf(buf, "%d\n", data->min_alarm[attr->index]);
 }
 
-static ssize_t show_max_alarm(struct device *dev,
+static ssize_t max_alarm_show(struct device *dev,
 			      struct device_attribute *devattr, char *buf)
 {
 	struct abx500_temp *data = dev_get_drvdata(dev);
@@ -273,47 +273,43 @@ static umode_t abx500_attrs_visible(struct kobject *kobj,
 }
 
 /* Chip name, required by hwmon */
-static SENSOR_DEVICE_ATTR(name, S_IRUGO, show_name, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(name, name, 0);
 
 /* GPADC - SENSOR1 */
-static SENSOR_DEVICE_ATTR(temp1_label, S_IRUGO, show_label, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_input, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_min, set_min, 0);
-static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_max, set_max, 0);
-static SENSOR_DEVICE_ATTR(temp1_max_hyst, S_IWUSR | S_IRUGO,
-			  show_max_hyst, set_max_hyst, 0);
-static SENSOR_DEVICE_ATTR(temp1_min_alarm, S_IRUGO, show_min_alarm, NULL, 0);
-static SENSOR_DEVICE_ATTR(temp1_max_alarm, S_IRUGO, show_max_alarm, NULL, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_label, label, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_input, input, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_min, min, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max, max, 0);
+static SENSOR_DEVICE_ATTR_RW(temp1_max_hyst, max_hyst, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_min_alarm, min_alarm, 0);
+static SENSOR_DEVICE_ATTR_RO(temp1_max_alarm, max_alarm, 0);
 
 /* GPADC - SENSOR2 */
-static SENSOR_DEVICE_ATTR(temp2_label, S_IRUGO, show_label, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_input, S_IRUGO, show_input, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_min, S_IWUSR | S_IRUGO, show_min, set_min, 1);
-static SENSOR_DEVICE_ATTR(temp2_max, S_IWUSR | S_IRUGO, show_max, set_max, 1);
-static SENSOR_DEVICE_ATTR(temp2_max_hyst, S_IWUSR | S_IRUGO,
-			  show_max_hyst, set_max_hyst, 1);
-static SENSOR_DEVICE_ATTR(temp2_min_alarm, S_IRUGO, show_min_alarm, NULL, 1);
-static SENSOR_DEVICE_ATTR(temp2_max_alarm, S_IRUGO, show_max_alarm, NULL, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_label, label, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_input, input, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_min, min, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_max, max, 1);
+static SENSOR_DEVICE_ATTR_RW(temp2_max_hyst, max_hyst, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_min_alarm, min_alarm, 1);
+static SENSOR_DEVICE_ATTR_RO(temp2_max_alarm, max_alarm, 1);
 
 /* GPADC - SENSOR3 */
-static SENSOR_DEVICE_ATTR(temp3_label, S_IRUGO, show_label, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp3_input, S_IRUGO, show_input, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp3_min, S_IWUSR | S_IRUGO, show_min, set_min, 2);
-static SENSOR_DEVICE_ATTR(temp3_max, S_IWUSR | S_IRUGO, show_max, set_max, 2);
-static SENSOR_DEVICE_ATTR(temp3_max_hyst, S_IWUSR | S_IRUGO,
-			  show_max_hyst, set_max_hyst, 2);
-static SENSOR_DEVICE_ATTR(temp3_min_alarm, S_IRUGO, show_min_alarm, NULL, 2);
-static SENSOR_DEVICE_ATTR(temp3_max_alarm, S_IRUGO, show_max_alarm, NULL, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_label, label, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_input, input, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_min, min, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_max, max, 2);
+static SENSOR_DEVICE_ATTR_RW(temp3_max_hyst, max_hyst, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_min_alarm, min_alarm, 2);
+static SENSOR_DEVICE_ATTR_RO(temp3_max_alarm, max_alarm, 2);
 
 /* GPADC - SENSOR4 */
-static SENSOR_DEVICE_ATTR(temp4_label, S_IRUGO, show_label, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp4_input, S_IRUGO, show_input, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp4_min, S_IWUSR | S_IRUGO, show_min, set_min, 3);
-static SENSOR_DEVICE_ATTR(temp4_max, S_IWUSR | S_IRUGO, show_max, set_max, 3);
-static SENSOR_DEVICE_ATTR(temp4_max_hyst, S_IWUSR | S_IRUGO,
-			  show_max_hyst, set_max_hyst, 3);
-static SENSOR_DEVICE_ATTR(temp4_min_alarm, S_IRUGO, show_min_alarm, NULL, 3);
-static SENSOR_DEVICE_ATTR(temp4_max_alarm, S_IRUGO, show_max_alarm, NULL, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_label, label, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_input, input, 3);
+static SENSOR_DEVICE_ATTR_RW(temp4_min, min, 3);
+static SENSOR_DEVICE_ATTR_RW(temp4_max, max, 3);
+static SENSOR_DEVICE_ATTR_RW(temp4_max_hyst, max_hyst, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_min_alarm, min_alarm, 3);
+static SENSOR_DEVICE_ATTR_RO(temp4_max_alarm, max_alarm, 3);
 
 static struct attribute *abx500_temp_attributes[] = {
 	&sensor_dev_attr_name.dev_attr.attr,

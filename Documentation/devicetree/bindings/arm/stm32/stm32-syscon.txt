@@ -1,0 +1,16 @@
+STMicroelectronics STM32 Platforms System Controller
+
+Properties:
+   - compatible : should contain two values. First value must be :
+                 - " st,stm32mp157-syscfg " - for stm32mp157 based SoCs,
+                 second value must be always "syscon".
+   - reg : offset and length of the register set.
+   - clocks: phandle to the syscfg clock
+
+ Example:
+         syscfg: syscon@50020000 {
+                 compatible = "st,stm32mp157-syscfg", "syscon";
+                 reg = <0x50020000 0x400>;
+                 clocks = <&rcc SYSCFG>;
+         };
+

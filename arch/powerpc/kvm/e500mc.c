@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010,2012 Freescale Semiconductor, Inc. All rights reserved.
  *
@@ -6,10 +7,6 @@
  * Description:
  * This file is derived from arch/powerpc/kvm/e500.c,
  * by Yu Liu <yu.liu@freescale.com>.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
  */
 
 #include <linux/kvm_host.h>
@@ -21,7 +18,6 @@
 
 #include <asm/reg.h>
 #include <asm/cputable.h>
-#include <asm/tlbflush.h>
 #include <asm/kvm_ppc.h>
 #include <asm/dbell.h>
 

@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2017 NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef TEGRA_PLANE_H
@@ -34,6 +31,11 @@ static inline struct tegra_plane *to_tegra_plane(struct drm_plane *plane)
 	return container_of(plane, struct tegra_plane, base);
 }
 
+struct tegra_plane_legacy_blending_state {
+	bool alpha;
+	bool top;
+};
+
 struct tegra_plane_state {
 	struct drm_plane_state base;
 
@@ -41,9 +43,11 @@ struct tegra_plane_state {
 	u32 format;
 	u32 swap;
 
+	bool bottom_up;
+
 	/* used for legacy blending support only */
+	struct tegra_plane_legacy_blending_state blending[2];
 	bool opaque;
-	bool dependent[3];
 };
 
 static inline struct tegra_plane_state *
@@ -62,9 +66,7 @@ int tegra_plane_state_add(struct tegra_plane *plane,
 
 int tegra_plane_format(u32 fourcc, u32 *format, u32 *swap);
 bool tegra_plane_format_is_yuv(unsigned int format, bool *planar);
-bool tegra_plane_format_has_alpha(unsigned int format);
-int tegra_plane_format_get_alpha(unsigned int opaque, unsigned int *alpha);
-void tegra_plane_check_dependent(struct tegra_plane *tegra,
-				 struct tegra_plane_state *state);
+int tegra_plane_setup_legacy_state(struct tegra_plane *tegra,
+				   struct tegra_plane_state *state);
 
 #endif /* TEGRA_PLANE_H */

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap3-n9.dts - Device Tree file for Nokia N9
  *
  * Written by: Aaro Koskinen <aaro.koskinen@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 /dts-v1/;
@@ -36,6 +33,13 @@
 				remote-endpoint = <&csi2a_ep>;
 			};
 		};
+	};
+};
+
+&i2c3 {
+	ak8975@f {
+		compatible = "asahi-kasei,ak8975";
+		reg = <0x0f>;
 	};
 };
 

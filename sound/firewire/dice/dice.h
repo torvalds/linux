@@ -1,10 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * dice.h - a part of driver for Dice based devices
  *
  * Copyright (c) Clemens Ladisch
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #ifndef SOUND_DICE_H_INCLUDED
@@ -63,6 +62,16 @@
  */
 #define MAX_STREAMS	2
 
+enum snd_dice_rate_mode {
+	SND_DICE_RATE_MODE_LOW = 0,
+	SND_DICE_RATE_MODE_MIDDLE,
+	SND_DICE_RATE_MODE_HIGH,
+	SND_DICE_RATE_MODE_COUNT,
+};
+
+struct snd_dice;
+typedef int (*snd_dice_detect_formats_t)(struct snd_dice *dice);
+
 struct snd_dice {
 	struct snd_card *card;
 	struct fw_unit *unit;
@@ -80,6 +89,11 @@ struct snd_dice {
 	unsigned int rsrv_offset;
 
 	unsigned int clock_caps;
+	unsigned int tx_pcm_chs[MAX_STREAMS][SND_DICE_RATE_MODE_COUNT];
+	unsigned int rx_pcm_chs[MAX_STREAMS][SND_DICE_RATE_MODE_COUNT];
+	unsigned int tx_midi_ports[MAX_STREAMS];
+	unsigned int rx_midi_ports[MAX_STREAMS];
+	snd_dice_detect_formats_t detect_formats;
 
 	struct fw_address_handler notification_handler;
 	int owner_generation;
@@ -99,7 +113,7 @@ struct snd_dice {
 	struct completion clock_accepted;
 	unsigned int substreams_counter;
 
-	bool force_two_pcms;
+	struct amdtp_domain domain;
 };
 
 enum snd_dice_addr_type {
@@ -190,11 +204,15 @@ void snd_dice_transaction_destroy(struct snd_dice *dice);
 #define SND_DICE_RATES_COUNT	7
 extern const unsigned int snd_dice_rates[SND_DICE_RATES_COUNT];
 
-int snd_dice_stream_start_duplex(struct snd_dice *dice, unsigned int rate);
+int snd_dice_stream_get_rate_mode(struct snd_dice *dice, unsigned int rate,
+				  enum snd_dice_rate_mode *mode);
+int snd_dice_stream_start_duplex(struct snd_dice *dice);
 void snd_dice_stream_stop_duplex(struct snd_dice *dice);
 int snd_dice_stream_init_duplex(struct snd_dice *dice);
 void snd_dice_stream_destroy_duplex(struct snd_dice *dice);
+int snd_dice_stream_reserve_duplex(struct snd_dice *dice, unsigned int rate);
 void snd_dice_stream_update_duplex(struct snd_dice *dice);
+int snd_dice_stream_detect_current_formats(struct snd_dice *dice);
 
 int snd_dice_stream_lock_try(struct snd_dice *dice);
 void snd_dice_stream_lock_release(struct snd_dice *dice);
@@ -206,5 +224,11 @@ int snd_dice_create_hwdep(struct snd_dice *dice);
 void snd_dice_create_proc(struct snd_dice *dice);
 
 int snd_dice_create_midi(struct snd_dice *dice);
+
+int snd_dice_detect_tcelectronic_formats(struct snd_dice *dice);
+int snd_dice_detect_alesis_formats(struct snd_dice *dice);
+int snd_dice_detect_extension_formats(struct snd_dice *dice);
+int snd_dice_detect_mytek_formats(struct snd_dice *dice);
+int snd_dice_detect_presonus_formats(struct snd_dice *dice);
 
 #endif

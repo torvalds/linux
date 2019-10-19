@@ -9,5 +9,6 @@
 
 #define GL861_REQ_I2C_WRITE	0x01
 #define GL861_REQ_I2C_READ	0x02
+#define GL861_REQ_I2C_RAW	0x03
 
 #endif

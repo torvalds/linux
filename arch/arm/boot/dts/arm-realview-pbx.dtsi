@@ -22,9 +22,10 @@
 
 #include <dt-bindings/interrupt-controller/irq.h>
 #include <dt-bindings/gpio/gpio.h>
-#include "skeleton.dtsi"
 
 / {
+	#address-cells = <1>;
+	#size-cells = <1>;
 	compatible = "arm,realview-pbx";
 
 	chosen { };
@@ -34,16 +35,18 @@
 		serial1 = &serial1;
 		serial2 = &serial2;
 		serial3 = &serial3;
-		i2c0 = &i2c;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
 	};
 
 	memory {
+		device_type = "memory";
 		/* 128 MiB memory @ 0x0 */
 		reg = <0x00000000 0x08000000>;
 	};
 
 	/* The voltage to the MMC card is hardwired at 3.3V */
-	vmmc: fixedregulator@0 {
+	vmmc: regulator-vmmc {
 		compatible = "regulator-fixed";
 		regulator-name = "vmmc";
 		regulator-min-microvolt = <3300000>;
@@ -51,7 +54,7 @@
 		regulator-boot-on;
         };
 
-	veth: fixedregulator@0 {
+	veth: regulator-veth {
 		compatible = "regulator-fixed";
 		regulator-name = "veth";
 		regulator-min-microvolt = <3300000>;
@@ -131,6 +134,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x40000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	flash1@44000000 {
@@ -138,6 +144,9 @@
 		compatible = "arm,versatile-flash", "cfi-flash";
 		reg = <0x44000000 0x04000000>;
 		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
 	};
 
 	/* SMSC 9118 ethernet with PHY and EEPROM */
@@ -156,6 +165,49 @@
 		compatible = "nxp,usb-isp1761";
 		reg = <0x4f000000 0x20000>;
 		port1-otg;
+	};
+
+	bridge {
+		compatible = "ti,ths8134a", "ti,ths8134";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				vga_bridge_in: endpoint {
+					remote-endpoint = <&clcd_pads>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				vga_bridge_out: endpoint {
+					remote-endpoint = <&vga_con_in>;
+				};
+			};
+		};
+	};
+
+	vga {
+		/*
+		 * This DDC I2C is connected directly to the DVI portions
+		 * of the connector, so it's not really working when the
+		 * monitor is connected to the VGA connector.
+		 */
+		compatible = "vga-connector";
+		ddc-i2c-bus = <&i2c1>;
+
+		port {
+			vga_con_in: endpoint {
+				remote-endpoint = <&vga_bridge_out>;
+			};
+		};
 	};
 
 	soc: soc@0 {
@@ -285,7 +337,7 @@
 					       <&timclk>;
 		};
 
-		i2c: i2c@10002000 {
+		i2c0: i2c@10002000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "arm,versatile-i2c";
@@ -318,7 +370,7 @@
 			clock-names = "uartclk", "apb_pclk";
 		};
 
-		ssp: ssp@1000d000 {
+		ssp: spi@1000d000 {
 			compatible = "arm,pl022", "arm,primecell";
 			reg = <0x1000d000 0x1000>;
 			clocks = <&sspclk>, <&pclk>;
@@ -396,7 +448,12 @@
 			clock-names = "apb_pclk";
 		};
 
-		/* DVI serial bus control is at 10016000 */
+		i2c1: i2c@10016000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "arm,versatile-i2c";
+			reg = <0x10016000 0x1000>;
+		};
 
 		rtc: rtc@10017000 {
 			compatible = "arm,pl031", "arm,primecell";
@@ -506,37 +563,15 @@
 			interrupt-names = "combined";
 			clocks = <&oscclk4>, <&pclk>;
 			clock-names = "clcdclk", "apb_pclk";
+			/* 1024x768 16bpp @65MHz works fine */
+			max-memory-bandwidth = <95000000>;
 
 			port {
 				clcd_pads: endpoint {
-					remote-endpoint = <&clcd_panel>;
+					remote-endpoint = <&vga_bridge_in>;
 					arm,pl11x,tft-r0g0b0-pads = <0 8 16>;
-				};
-			};
-
-			panel {
-				compatible = "panel-dpi";
-
-				port {
-					clcd_panel: endpoint {
-						remote-endpoint = <&clcd_pads>;
-					};
-				};
-
-				/* Standard 640x480 VGA timings */
-				panel-timing {
-					clock-frequency = <25175000>;
-					hactive = <640>;
-					hback-porch = <48>;
-					hfront-porch = <16>;
-					hsync-len = <96>;
-					vactive = <480>;
-					vback-porch = <33>;
-					vfront-porch = <10>;
-					vsync-len = <2>;
 				};
 			};
 		};
 	};
 };
-

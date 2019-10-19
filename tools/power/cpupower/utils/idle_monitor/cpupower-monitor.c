@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  (C) 2010,2011       Thomas Renninger <trenn@suse.de>, Novell Inc.
  *
- *  Licensed under the terms of the GNU GPL License version 2.
- *
  *  Output format inspired by Len Brown's <lenb@kernel.org> turbostat tool.
- *
  */
 
 
@@ -70,36 +68,43 @@ void print_n_spaces(int n)
 		printf(" ");
 }
 
-/* size of s must be at least n + 1 */
+/*s is filled with left and right spaces
+ *to make its length atleast n+1
+ */
 int fill_string_with_spaces(char *s, int n)
 {
+	char *temp;
 	int len = strlen(s);
-	if (len > n)
+
+	if (len >= n)
 		return -1;
+
+	temp = malloc(sizeof(char) * (n+1));
 	for (; len < n; len++)
 		s[len] = ' ';
 	s[len] = '\0';
+	snprintf(temp, n+1, " %s", s);
+	strcpy(s, temp);
+	free(temp);
 	return 0;
 }
 
+#define MAX_COL_WIDTH 6
 void print_header(int topology_depth)
 {
 	int unsigned mon;
 	int state, need_len;
 	cstate_t s;
 	char buf[128] = "";
-	int percent_width = 4;
 
 	fill_string_with_spaces(buf, topology_depth * 5 - 1);
 	printf("%s|", buf);
 
 	for (mon = 0; mon < avail_monitors; mon++) {
-		need_len = monitors[mon]->hw_states_num * (percent_width + 3)
+		need_len = monitors[mon]->hw_states_num * (MAX_COL_WIDTH + 1)
 			- 1;
-		if (mon != 0) {
-			printf("|| ");
-			need_len--;
-		}
+		if (mon != 0)
+			printf("||");
 		sprintf(buf, "%s", monitors[mon]->name);
 		fill_string_with_spaces(buf, need_len);
 		printf("%s", buf);
@@ -107,23 +112,21 @@ void print_header(int topology_depth)
 	printf("\n");
 
 	if (topology_depth > 2)
-		printf("PKG |");
+		printf(" PKG|");
 	if (topology_depth > 1)
 		printf("CORE|");
 	if (topology_depth > 0)
-		printf("CPU |");
+		printf(" CPU|");
 
 	for (mon = 0; mon < avail_monitors; mon++) {
 		if (mon != 0)
-			printf("|| ");
-		else
-			printf(" ");
+			printf("||");
 		for (state = 0; state < monitors[mon]->hw_states_num; state++) {
 			if (state != 0)
-				printf(" | ");
+				printf("|");
 			s = monitors[mon]->hw_states[state];
 			sprintf(buf, "%s", s.name);
-			fill_string_with_spaces(buf, percent_width);
+			fill_string_with_spaces(buf, MAX_COL_WIDTH);
 			printf("%s", buf);
 		}
 		printf(" ");

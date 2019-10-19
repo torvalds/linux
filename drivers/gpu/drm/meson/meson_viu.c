@@ -1,31 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2016 BayLibre, SAS
  * Author: Neil Armstrong <narmstrong@baylibre.com>
  * Copyright (C) 2015 Amlogic, Inc. All rights reserved.
  * Copyright (C) 2014 Endless Mobile
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <drm/drmP.h>
+#include <linux/export.h>
+
 #include "meson_drv.h"
 #include "meson_viu.h"
-#include "meson_vpp.h"
-#include "meson_venc.h"
-#include "meson_canvas.h"
 #include "meson_registers.h"
 
 /**
@@ -91,8 +75,36 @@ static int eotf_bypass_coeff[EOTF_COEFF_SIZE] = {
 	EOTF_COEFF_RIGHTSHIFT /* right shift */
 };
 
-void meson_viu_set_osd_matrix(struct meson_drm *priv,
-			      enum viu_matrix_sel_e m_select,
+static void meson_viu_set_g12a_osd1_matrix(struct meson_drm *priv,
+					   int *m, bool csc_on)
+{
+	/* VPP WRAP OSD1 matrix */
+	writel(((m[0] & 0xfff) << 16) | (m[1] & 0xfff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET0_1));
+	writel(m[2] & 0xfff,
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_PRE_OFFSET2));
+	writel(((m[3] & 0x1fff) << 16) | (m[4] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF00_01));
+	writel(((m[5] & 0x1fff) << 16) | (m[6] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF02_10));
+	writel(((m[7] & 0x1fff) << 16) | (m[8] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF11_12));
+	writel(((m[9] & 0x1fff) << 16) | (m[10] & 0x1fff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_COEF20_21));
+	writel((m[11] & 0x1fff) << 16,
+		priv->io_base +	_REG(VPP_WRAP_OSD1_MATRIX_COEF22));
+
+	writel(((m[18] & 0xfff) << 16) | (m[19] & 0xfff),
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_OFFSET0_1));
+	writel(m[20] & 0xfff,
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_OFFSET2));
+
+	writel_bits_relaxed(BIT(0), csc_on ? BIT(0) : 0,
+		priv->io_base + _REG(VPP_WRAP_OSD1_MATRIX_EN_CTRL));
+}
+
+static void meson_viu_set_osd_matrix(struct meson_drm *priv,
+				     enum viu_matrix_sel_e m_select,
 			      int *m, bool csc_on)
 {
 	if (m_select == VIU_MATRIX_OSD) {
@@ -160,10 +172,10 @@ void meson_viu_set_osd_matrix(struct meson_drm *priv,
 #define OSD_EOTF_LUT_SIZE 33
 #define OSD_OETF_LUT_SIZE 41
 
-void meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
-			   unsigned int *r_map, unsigned int *g_map,
-			   unsigned int *b_map,
-			   bool csc_on)
+static void
+meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
+		      unsigned int *r_map, unsigned int *g_map,
+		      unsigned int *b_map, bool csc_on)
 {
 	unsigned int addr_port;
 	unsigned int data_port;
@@ -184,18 +196,18 @@ void meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
 	if (lut_sel == VIU_LUT_OSD_OETF) {
 		writel(0, priv->io_base + _REG(addr_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_OETF_LUT_SIZE / 2); i++)
 			writel(r_map[i * 2] | (r_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 
 		writel(r_map[OSD_OETF_LUT_SIZE - 1] | (g_map[0] << 16),
 			priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_OETF_LUT_SIZE / 2); i++)
 			writel(g_map[i * 2 + 1] | (g_map[i * 2 + 2] << 16),
 				priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_OETF_LUT_SIZE / 2); i++)
 			writel(b_map[i * 2] | (b_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 
@@ -211,18 +223,18 @@ void meson_viu_set_osd_lut(struct meson_drm *priv, enum viu_lut_sel_e lut_sel,
 	} else if (lut_sel == VIU_LUT_OSD_EOTF) {
 		writel(0, priv->io_base + _REG(addr_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_EOTF_LUT_SIZE / 2); i++)
 			writel(r_map[i * 2] | (r_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 
 		writel(r_map[OSD_EOTF_LUT_SIZE - 1] | (g_map[0] << 16),
 			priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_EOTF_LUT_SIZE / 2); i++)
 			writel(g_map[i * 2 + 1] | (g_map[i * 2 + 2] << 16),
 				priv->io_base + _REG(data_port));
 
-		for (i = 0; i < 20; i++)
+		for (i = 0; i < (OSD_EOTF_LUT_SIZE / 2); i++)
 			writel(b_map[i * 2] | (b_map[i * 2 + 1] << 16),
 				priv->io_base + _REG(data_port));
 
@@ -296,28 +308,70 @@ static void meson_viu_load_matrix(struct meson_drm *priv)
 				 true);
 }
 
+/* VIU OSD1 Reset as workaround for GXL+ Alpha OSD Bug */
+void meson_viu_osd1_reset(struct meson_drm *priv)
+{
+	uint32_t osd1_fifo_ctrl_stat, osd1_ctrl_stat2;
+
+	/* Save these 2 registers state */
+	osd1_fifo_ctrl_stat = readl_relaxed(
+				priv->io_base + _REG(VIU_OSD1_FIFO_CTRL_STAT));
+	osd1_ctrl_stat2 = readl_relaxed(
+				priv->io_base + _REG(VIU_OSD1_CTRL_STAT2));
+
+	/* Reset OSD1 */
+	writel_bits_relaxed(VIU_SW_RESET_OSD1, VIU_SW_RESET_OSD1,
+			    priv->io_base + _REG(VIU_SW_RESET));
+	writel_bits_relaxed(VIU_SW_RESET_OSD1, 0,
+			    priv->io_base + _REG(VIU_SW_RESET));
+
+	/* Rewrite these registers state lost in the reset */
+	writel_relaxed(osd1_fifo_ctrl_stat,
+		       priv->io_base + _REG(VIU_OSD1_FIFO_CTRL_STAT));
+	writel_relaxed(osd1_ctrl_stat2,
+		       priv->io_base + _REG(VIU_OSD1_CTRL_STAT2));
+
+	/* Reload the conversion matrix */
+	meson_viu_load_matrix(priv);
+}
+
+static inline uint32_t meson_viu_osd_burst_length_reg(uint32_t length)
+{
+	uint32_t val = (((length & 0x80) % 24) / 12);
+
+	return (((val & 0x3) << 10) | (((val & 0x4) >> 2) << 31));
+}
+
 void meson_viu_init(struct meson_drm *priv)
 {
 	uint32_t reg;
 
 	/* Disable OSDs */
-	writel_bits_relaxed(BIT(0) | BIT(21), 0,
-			priv->io_base + _REG(VIU_OSD1_CTRL_STAT));
-	writel_bits_relaxed(BIT(0) | BIT(21), 0,
-			priv->io_base + _REG(VIU_OSD2_CTRL_STAT));
+	writel_bits_relaxed(VIU_OSD1_OSD_BLK_ENABLE | VIU_OSD1_OSD_ENABLE, 0,
+			    priv->io_base + _REG(VIU_OSD1_CTRL_STAT));
+	writel_bits_relaxed(VIU_OSD1_OSD_BLK_ENABLE | VIU_OSD1_OSD_ENABLE, 0,
+			    priv->io_base + _REG(VIU_OSD2_CTRL_STAT));
 
 	/* On GXL/GXM, Use the 10bit HDR conversion matrix */
-	if (meson_vpu_is_compatible(priv, "amlogic,meson-gxm-vpu") ||
-	    meson_vpu_is_compatible(priv, "amlogic,meson-gxl-vpu"))
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXM) ||
+	    meson_vpu_is_compatible(priv, VPU_COMPATIBLE_GXL))
 		meson_viu_load_matrix(priv);
+	else if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
+		meson_viu_set_g12a_osd1_matrix(priv, RGB709_to_YUV709l_coeff,
+					       true);
 
 	/* Initialize OSD1 fifo control register */
-	reg = BIT(0) |	/* Urgent DDR request priority */
-	      (4 << 5) | /* hold_fifo_lines */
-	      (3 << 10) | /* burst length 64 */
-	      (32 << 12) | /* fifo_depth_val: 32*8=256 */
-	      (2 << 22) | /* 4 words in 1 burst */
-	      (2 << 24);
+	reg = VIU_OSD_DDR_PRIORITY_URGENT |
+		VIU_OSD_HOLD_FIFO_LINES(4) |
+		VIU_OSD_FIFO_DEPTH_VAL(32) | /* fifo_depth_val: 32*8=256 */
+		VIU_OSD_WORDS_PER_BURST(4) | /* 4 words in 1 burst */
+		VIU_OSD_FIFO_LIMITS(2);      /* fifo_lim: 2*16=32 */
+
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A))
+		reg |= meson_viu_osd_burst_length_reg(32);
+	else
+		reg |= meson_viu_osd_burst_length_reg(64);
+
 	writel_relaxed(reg, priv->io_base + _REG(VIU_OSD1_FIFO_CTRL_STAT));
 	writel_relaxed(reg, priv->io_base + _REG(VIU_OSD2_FIFO_CTRL_STAT));
 
@@ -328,6 +382,45 @@ void meson_viu_init(struct meson_drm *priv)
 	writel_bits_relaxed(0xff << OSD_REPLACE_SHIFT,
 			    0xff << OSD_REPLACE_SHIFT,
 			    priv->io_base + _REG(VIU_OSD2_CTRL_STAT2));
+
+	/* Disable VD1 AFBC */
+	/* di_mif0_en=0 mif0_to_vpp_en=0 di_mad_en=0 and afbc vd1 set=0*/
+	writel_bits_relaxed(VIU_CTRL0_VD1_AFBC_MASK, 0,
+			    priv->io_base + _REG(VIU_MISC_CTRL0));
+	writel_relaxed(0, priv->io_base + _REG(AFBC_ENABLE));
+
+	writel_relaxed(0x00FF00C0,
+			priv->io_base + _REG(VD1_IF0_LUMA_FIFO_SIZE));
+	writel_relaxed(0x00FF00C0,
+			priv->io_base + _REG(VD2_IF0_LUMA_FIFO_SIZE));
+
+	if (meson_vpu_is_compatible(priv, VPU_COMPATIBLE_G12A)) {
+		writel_relaxed(VIU_OSD_BLEND_REORDER(0, 1) |
+			       VIU_OSD_BLEND_REORDER(1, 0) |
+			       VIU_OSD_BLEND_REORDER(2, 0) |
+			       VIU_OSD_BLEND_REORDER(3, 0) |
+			       VIU_OSD_BLEND_DIN_EN(1) |
+			       VIU_OSD_BLEND1_DIN3_BYPASS_TO_DOUT1 |
+			       VIU_OSD_BLEND1_DOUT_BYPASS_TO_BLEND2 |
+			       VIU_OSD_BLEND_DIN0_BYPASS_TO_DOUT0 |
+			       VIU_OSD_BLEND_BLEN2_PREMULT_EN(1) |
+			       VIU_OSD_BLEND_HOLD_LINES(4),
+			       priv->io_base + _REG(VIU_OSD_BLEND_CTRL));
+
+		writel_relaxed(OSD_BLEND_PATH_SEL_ENABLE,
+			       priv->io_base + _REG(OSD1_BLEND_SRC_CTRL));
+		writel_relaxed(OSD_BLEND_PATH_SEL_ENABLE,
+			       priv->io_base + _REG(OSD2_BLEND_SRC_CTRL));
+		writel_relaxed(0, priv->io_base + _REG(VD1_BLEND_SRC_CTRL));
+		writel_relaxed(0, priv->io_base + _REG(VD2_BLEND_SRC_CTRL));
+		writel_relaxed(0,
+				priv->io_base + _REG(VIU_OSD_BLEND_DUMMY_DATA0));
+		writel_relaxed(0,
+				priv->io_base + _REG(VIU_OSD_BLEND_DUMMY_ALPHA));
+
+		writel_bits_relaxed(DOLBY_BYPASS_EN(0xc), DOLBY_BYPASS_EN(0xc),
+				    priv->io_base + _REG(DOLBY_PATH_CTRL));
+	}
 
 	priv->viu.osd1_enabled = false;
 	priv->viu.osd1_commit = false;

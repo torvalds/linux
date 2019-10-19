@@ -3,8 +3,6 @@
 Required properties:
 - compatible: "arasan,cf-spear1340"
 - reg: Address range of the CF registers
-- interrupt-parent: Should be the phandle for the interrupt controller
-  that services interrupts for this device
 - interrupt: Should contain the CF interrupt number
 - clock-frequency: Interface clock rate, in Hz, one of
        25000000

@@ -13,8 +13,6 @@
 #ifndef _XTENSA_BITOPS_H
 #define _XTENSA_BITOPS_H
 
-#ifdef __KERNEL__
-
 #ifndef _LINUX_BITOPS_H
 #error only <linux/bitops.h> can be included directly
 #endif
@@ -98,7 +96,126 @@ static inline unsigned long __fls(unsigned long word)
 
 #include <asm-generic/bitops/fls64.h>
 
-#if XCHAL_HAVE_S32C1I
+#if XCHAL_HAVE_EXCLUSIVE
+
+static inline void set_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %0, %2\n"
+			"       or      %0, %0, %1\n"
+			"       s32ex   %0, %2\n"
+			"       getex   %0\n"
+			"       beqz    %0, 1b\n"
+			: "=&a" (tmp)
+			: "a" (mask), "a" (p)
+			: "memory");
+}
+
+static inline void clear_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %0, %2\n"
+			"       and     %0, %0, %1\n"
+			"       s32ex   %0, %2\n"
+			"       getex   %0\n"
+			"       beqz    %0, 1b\n"
+			: "=&a" (tmp)
+			: "a" (~mask), "a" (p)
+			: "memory");
+}
+
+static inline void change_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %0, %2\n"
+			"       xor     %0, %0, %1\n"
+			"       s32ex   %0, %2\n"
+			"       getex   %0\n"
+			"       beqz    %0, 1b\n"
+			: "=&a" (tmp)
+			: "a" (mask), "a" (p)
+			: "memory");
+}
+
+static inline int
+test_and_set_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %1, %3\n"
+			"       or      %0, %1, %2\n"
+			"       s32ex   %0, %3\n"
+			"       getex   %0\n"
+			"       beqz    %0, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (mask), "a" (p)
+			: "memory");
+
+	return value & mask;
+}
+
+static inline int
+test_and_clear_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %1, %3\n"
+			"       and     %0, %1, %2\n"
+			"       s32ex   %0, %3\n"
+			"       getex   %0\n"
+			"       beqz    %0, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (~mask), "a" (p)
+			: "memory");
+
+	return value & mask;
+}
+
+static inline int
+test_and_change_bit(unsigned int bit, volatile unsigned long *p)
+{
+	unsigned long tmp, value;
+	unsigned long mask = 1UL << (bit & 31);
+
+	p += bit >> 5;
+
+	__asm__ __volatile__(
+			"1:     l32ex   %1, %3\n"
+			"       xor     %0, %1, %2\n"
+			"       s32ex   %0, %3\n"
+			"       getex   %0\n"
+			"       beqz    %0, 1b\n"
+			: "=&a" (tmp), "=&a" (value)
+			: "a" (mask), "a" (p)
+			: "memory");
+
+	return value & mask;
+}
+
+#elif XCHAL_HAVE_S32C1I
 
 static inline void set_bit(unsigned int bit, volatile unsigned long *p)
 {
@@ -231,7 +348,5 @@ test_and_change_bit(unsigned int bit, volatile unsigned long *p)
 #include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/sched.h>
-
-#endif	/* __KERNEL__ */
 
 #endif	/* _XTENSA_BITOPS_H */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2012 by Oracle Inc
  * Author: Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>
@@ -5,16 +6,6 @@
  * This code borrows ideas from https://lkml.org/lkml/2011/11/30/249
  * so many thanks go to Kevin Tian <kevin.tian@intel.com>
  * and Yu Ke <ke.yu@intel.com>.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -53,6 +44,8 @@ static unsigned long *acpi_ids_done;
 static unsigned long *acpi_id_present;
 /* And if there is an _CST definition (or a PBLK) for the ACPI IDs */
 static unsigned long *acpi_id_cst_present;
+/* Which ACPI P-State dependencies for a enumerated processor */
+static struct acpi_psd_package *acpi_psd;
 
 static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 {
@@ -360,17 +353,30 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 	default:
 		return AE_OK;
 	}
+	if (invalid_phys_cpuid(acpi_get_phys_id(handle,
+						acpi_type == ACPI_TYPE_DEVICE,
+						acpi_id))) {
+		pr_debug("CPU with ACPI ID %u is unavailable\n", acpi_id);
+		return AE_OK;
+	}
 	/* There are more ACPI Processor objects than in x2APIC or MADT.
 	 * This can happen with incorrect ACPI SSDT declerations. */
-	if (acpi_id > nr_acpi_bits) {
-		pr_debug("We only have %u, trying to set %u\n",
-			 nr_acpi_bits, acpi_id);
+	if (acpi_id >= nr_acpi_bits) {
+		pr_debug("max acpi id %u, trying to set %u\n",
+			 nr_acpi_bits - 1, acpi_id);
 		return AE_OK;
 	}
 	/* OK, There is a ACPI Processor object */
 	__set_bit(acpi_id, acpi_id_present);
 
 	pr_debug("ACPI CPU%u w/ PBLK:0x%lx\n", acpi_id, (unsigned long)pblk);
+
+	/* It has P-state dependencies */
+	if (!acpi_processor_get_psd(handle, &acpi_psd[acpi_id])) {
+		pr_debug("ACPI CPU%u w/ PST:coord_type = %llu domain = %llu\n",
+			 acpi_id, acpi_psd[acpi_id].coord_type,
+			 acpi_psd[acpi_id].domain);
+	}
 
 	status = acpi_evaluate_object(handle, "_CST", NULL, &buffer);
 	if (ACPI_FAILURE(status)) {
@@ -395,13 +401,21 @@ static int check_acpi_ids(struct acpi_processor *pr_backup)
 	/* All online CPUs have been processed at this stage. Now verify
 	 * whether in fact "online CPUs" == physical CPUs.
 	 */
-	acpi_id_present = kcalloc(BITS_TO_LONGS(nr_acpi_bits), sizeof(unsigned long), GFP_KERNEL);
+	acpi_id_present = bitmap_zalloc(nr_acpi_bits, GFP_KERNEL);
 	if (!acpi_id_present)
 		return -ENOMEM;
 
-	acpi_id_cst_present = kcalloc(BITS_TO_LONGS(nr_acpi_bits), sizeof(unsigned long), GFP_KERNEL);
+	acpi_id_cst_present = bitmap_zalloc(nr_acpi_bits, GFP_KERNEL);
 	if (!acpi_id_cst_present) {
-		kfree(acpi_id_present);
+		bitmap_free(acpi_id_present);
+		return -ENOMEM;
+	}
+
+	acpi_psd = kcalloc(nr_acpi_bits, sizeof(struct acpi_psd_package),
+			   GFP_KERNEL);
+	if (!acpi_psd) {
+		bitmap_free(acpi_id_present);
+		bitmap_free(acpi_id_cst_present);
 		return -ENOMEM;
 	}
 
@@ -417,6 +431,12 @@ upload:
 			pr_backup->acpi_id = i;
 			/* Mask out C-states if there are no _CST or PBLK */
 			pr_backup->flags.power = test_bit(i, acpi_id_cst_present);
+			/* num_entries is non-zero if we evaluated _PSD */
+			if (acpi_psd[i].num_entries) {
+				memcpy(&pr_backup->performance->domain_info,
+				       &acpi_psd[i],
+				       sizeof(struct acpi_psd_package));
+			}
 			(void)upload_pm_data(pr_backup);
 		}
 	}
@@ -504,14 +524,14 @@ static int __init xen_acpi_processor_init(void)
 		return -ENODEV;
 
 	nr_acpi_bits = get_max_acpi_id() + 1;
-	acpi_ids_done = kcalloc(BITS_TO_LONGS(nr_acpi_bits), sizeof(unsigned long), GFP_KERNEL);
+	acpi_ids_done = bitmap_zalloc(nr_acpi_bits, GFP_KERNEL);
 	if (!acpi_ids_done)
 		return -ENOMEM;
 
 	acpi_perf_data = alloc_percpu(struct acpi_processor_performance);
 	if (!acpi_perf_data) {
 		pr_debug("Memory allocation error for acpi_perf_data\n");
-		kfree(acpi_ids_done);
+		bitmap_free(acpi_ids_done);
 		return -ENOMEM;
 	}
 	for_each_possible_cpu(i) {
@@ -555,7 +575,7 @@ err_unregister:
 err_out:
 	/* Freeing a NULL pointer is OK: alloc_percpu zeroes. */
 	free_acpi_perf_data();
-	kfree(acpi_ids_done);
+	bitmap_free(acpi_ids_done);
 	return rc;
 }
 static void __exit xen_acpi_processor_exit(void)
@@ -563,9 +583,10 @@ static void __exit xen_acpi_processor_exit(void)
 	int i;
 
 	unregister_syscore_ops(&xap_syscore_ops);
-	kfree(acpi_ids_done);
-	kfree(acpi_id_present);
-	kfree(acpi_id_cst_present);
+	bitmap_free(acpi_ids_done);
+	bitmap_free(acpi_id_present);
+	bitmap_free(acpi_id_cst_present);
+	kfree(acpi_psd);
 	for_each_possible_cpu(i)
 		acpi_processor_unregister_performance(i);
 

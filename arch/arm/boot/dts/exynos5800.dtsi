@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SAMSUNG EXYNOS5800 SoC device tree source
  *
@@ -7,10 +8,6 @@
  * SAMSUNG EXYNOS5800 SoC device nodes are listed in this file.
  * EXYNOS5800 based board files can include this file and provide
  * values for board specfic bindings.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "exynos5420.dtsi"
@@ -133,4 +130,13 @@
 
 &mfc {
 	compatible = "samsung,mfc-v8";
+};
+
+&soc {
+	cam_pd: power-domain@10045100 {
+		compatible = "samsung,exynos4210-pd";
+		reg = <0x10045100 0x20>;
+		#power-domain-cells = <0>;
+		label = "CAM";
+	};
 };

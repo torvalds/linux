@@ -1,0 +1,11 @@
+cat <<EOF
+static inline bool
+${atomic}_try_cmpxchg${order}(${atomic}_t *v, ${int} *old, ${int} new)
+{
+	${int} r, o = *old;
+	r = ${atomic}_cmpxchg${order}(v, o, new);
+	if (unlikely(r != o))
+		*old = r;
+	return likely(r == o);
+}
+EOF

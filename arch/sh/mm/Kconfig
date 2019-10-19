@@ -1,9 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 menu "Memory management options"
 
-config QUICKLIST
-	def_bool y
-
 config MMU
         bool "Support for memory management hardware"
 	depends on !CPU_SH2
@@ -224,8 +221,6 @@ config HUGETLB_PAGE_SIZE_512MB
 	depends on CPU_SH5
 
 endchoice
-
-source "mm/Kconfig"
 
 config SCHED_MC
 	bool "Multi-core scheduler support"

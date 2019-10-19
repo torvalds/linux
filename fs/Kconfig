@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # File system configuration
 #
@@ -7,6 +8,12 @@ menu "File systems"
 # Use unaligned word dcache accesses
 config DCACHE_WORD_ACCESS
        bool
+
+config VALIDATE_FS_PARSER
+	bool "Validate filesystem parameter description"
+	help
+	  Enable this to perform validation of the parameter description for a
+	  filesystem when it is registered.
 
 if BLOCK
 
@@ -38,6 +45,7 @@ config FS_DAX
 	bool "Direct Access (DAX) support"
 	depends on MMU
 	depends on !(ARM || MIPS || SPARC)
+	select DEV_PAGEMAP_OPS if (ZONE_DEVICE && !FS_DAX_LIMITED)
 	select FS_IOMAP
 	select DAX
 	help
@@ -104,11 +112,13 @@ config MANDATORY_FILE_LOCKING
 
 source "fs/crypto/Kconfig"
 
+source "fs/verity/Kconfig"
+
 source "fs/notify/Kconfig"
 
 source "fs/quota/Kconfig"
 
-source "fs/autofs4/Kconfig"
+source "fs/autofs/Kconfig"
 source "fs/fuse/Kconfig"
 source "fs/overlayfs/Kconfig"
 
@@ -196,12 +206,15 @@ config HUGETLBFS
 	help
 	  hugetlbfs is a filesystem backing for HugeTLB pages, based on
 	  ramfs. For architectures that support it, say Y here and read
-	  <file:Documentation/vm/hugetlbpage.txt> for details.
+	  <file:Documentation/admin-guide/mm/hugetlbpage.rst> for details.
 
 	  If unsure, say N.
 
 config HUGETLB_PAGE
 	def_bool HUGETLBFS
+
+config MEMFD_CREATE
+	def_bool TMPFS || HUGETLBFS
 
 config ARCH_HAS_GIGANTIC_PAGE
 	bool
@@ -250,11 +263,9 @@ source "fs/romfs/Kconfig"
 source "fs/pstore/Kconfig"
 source "fs/sysv/Kconfig"
 source "fs/ufs/Kconfig"
-source "fs/exofs/Kconfig"
+source "fs/erofs/Kconfig"
 
 endif # MISC_FILESYSTEMS
-
-source "fs/exofs/Kconfig.ore"
 
 menuconfig NETWORK_FILESYSTEMS
 	bool "Network File Systems"
@@ -309,5 +320,6 @@ endif # NETWORK_FILESYSTEMS
 
 source "fs/nls/Kconfig"
 source "fs/dlm/Kconfig"
+source "fs/unicode/Kconfig"
 
 endmenu

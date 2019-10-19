@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * drivers/net/ethernet/ibm/emac/emac.h
  *
@@ -15,12 +16,6 @@
  *      Matt Porter <mporter@kernel.crashing.org>
  *      Armin Kuster <akuster@mvista.com>
  * 	Copyright 2002-2004 MontaVista Software Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 #ifndef __IBM_NEWEMAC_H
 #define __IBM_NEWEMAC_H
@@ -231,7 +226,7 @@ struct emac_regs {
 #define EMAC_STACR_PHYE			0x00004000
 #define EMAC_STACR_STAC_MASK		0x00003000
 #define EMAC_STACR_STAC_READ		0x00001000
-#define EMAC_STACR_STAC_WRITE		0x00000800
+#define EMAC_STACR_STAC_WRITE		0x00002000
 #define EMAC_STACR_OPBC_MASK		0x00000C00
 #define EMAC_STACR_OPBC_50		0x00000000
 #define EMAC_STACR_OPBC_66		0x00000400

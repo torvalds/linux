@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/arch/arm/mach-pxa/icontrol.c
  *
@@ -7,10 +8,6 @@
  * Copyright (C) 2009 TMT Services & Supplies (Pty) Ltd.
  *
  * 2010-01-21 Hennie van der Merve <hvdmerwe@tmtservies.co.za>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/irq.h>
@@ -115,12 +112,12 @@ static struct spi_board_info mcp251x_board_info[] = {
 	}
 };
 
-static struct pxa2xx_spi_master pxa_ssp3_spi_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp3_spi_master_info = {
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };
 
-static struct pxa2xx_spi_master pxa_ssp4_spi_master_info = {
+static struct pxa2xx_spi_controller pxa_ssp4_spi_master_info = {
 	.num_chipselect = 2,
 	.enable_dma     = 1
 };

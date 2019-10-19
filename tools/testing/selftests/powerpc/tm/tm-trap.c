@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017, Gustavo Romero, IBM Corp.
- * Licensed under GPLv2.
  *
  * Check if thread endianness is flipped inadvertently to BE on trap
  * caught in TM whilst MSR.FP and MSR.VEC are zero (i.e. just after
@@ -254,6 +254,8 @@ int tm_trap_test(void)
 	cpu_set_t cpuset;
 
 	struct sigaction trap_sa;
+
+	SKIP_IF(!have_htm());
 
 	trap_sa.sa_flags = SA_SIGINFO;
 	trap_sa.sa_sigaction = trap_signal_handler;

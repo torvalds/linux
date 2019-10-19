@@ -1,19 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) STMicroelectronics SA 2017
  *
  * Authors: Philippe Cornu <philippe.cornu@st.com>
  *          Yannick Fertre <yannick.fertre@st.com>
- *
- * License terms:  GNU General Public License (GPL), version 2
  */
-#include <drm/drmP.h>
-#include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
+
 #include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
+#include <linux/regulator/consumer.h>
+
 #include <video/mipi_display.h>
 
-#define DRV_NAME "orisetech_otm8009a"
+#include <drm/drm_mipi_dsi.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
+#include <drm/drm_print.h>
 
 #define OTM8009A_BACKLIGHT_DEFAULT	240
 #define OTM8009A_BACKLIGHT_MAX		255
@@ -62,20 +66,21 @@ struct otm8009a {
 	struct drm_panel panel;
 	struct backlight_device *bl_dev;
 	struct gpio_desc *reset_gpio;
+	struct regulator *supply;
 	bool prepared;
 	bool enabled;
 };
 
 static const struct drm_display_mode default_mode = {
-	.clock = 32729,
+	.clock = 29700,
 	.hdisplay = 480,
-	.hsync_start = 480 + 120,
-	.hsync_end = 480 + 120 + 63,
-	.htotal = 480 + 120 + 63 + 120,
+	.hsync_start = 480 + 98,
+	.hsync_end = 480 + 98 + 32,
+	.htotal = 480 + 98 + 32 + 98,
 	.vdisplay = 800,
-	.vsync_start = 800 + 12,
-	.vsync_end = 800 + 12 + 12,
-	.vtotal = 800 + 12 + 12 + 12,
+	.vsync_start = 800 + 15,
+	.vsync_end = 800 + 15 + 10,
+	.vtotal = 800 + 15 + 10 + 14,
 	.vrefresh = 50,
 	.flags = 0,
 	.width_mm = 52,
@@ -94,6 +99,20 @@ static void otm8009a_dcs_write_buf(struct otm8009a *ctx, const void *data,
 
 	if (mipi_dsi_dcs_write_buffer(dsi, data, len) < 0)
 		DRM_WARN("mipi dsi dcs write buffer failed\n");
+}
+
+static void otm8009a_dcs_write_buf_hs(struct otm8009a *ctx, const void *data,
+				      size_t len)
+{
+	struct mipi_dsi_device *dsi = to_mipi_dsi_device(ctx->dev);
+
+	/* data will be sent in dsi hs mode (ie. no lpm) */
+	dsi->mode_flags &= ~MIPI_DSI_MODE_LPM;
+
+	otm8009a_dcs_write_buf(ctx, data, len);
+
+	/* restore back the dsi lpm mode */
+	dsi->mode_flags |= MIPI_DSI_MODE_LPM;
 }
 
 #define dcs_write_seq(ctx, seq...)			\
@@ -234,6 +253,9 @@ static int otm8009a_init_sequence(struct otm8009a *ctx)
 	/* Send Command GRAM memory write (no parameters) */
 	dcs_write_seq(ctx, MIPI_DCS_WRITE_MEMORY_START);
 
+	/* Wait a short while to let the panel be ready before the 1st frame */
+	mdelay(10);
+
 	return 0;
 }
 
@@ -246,11 +268,7 @@ static int otm8009a_disable(struct drm_panel *panel)
 	if (!ctx->enabled)
 		return 0; /* This is not an issue so we return 0 here */
 
-	/* Power off the backlight. Note: end-user still controls brightness */
-	ctx->bl_dev->props.power = FB_BLANK_POWERDOWN;
-	ret = backlight_update_status(ctx->bl_dev);
-	if (ret)
-		return ret;
+	backlight_disable(ctx->bl_dev);
 
 	ret = mipi_dsi_dcs_set_display_off(dsi);
 	if (ret)
@@ -279,6 +297,8 @@ static int otm8009a_unprepare(struct drm_panel *panel)
 		msleep(20);
 	}
 
+	regulator_disable(ctx->supply);
+
 	ctx->prepared = false;
 
 	return 0;
@@ -291,6 +311,12 @@ static int otm8009a_prepare(struct drm_panel *panel)
 
 	if (ctx->prepared)
 		return 0;
+
+	ret = regulator_enable(ctx->supply);
+	if (ret < 0) {
+		DRM_ERROR("failed to enable supply: %d\n", ret);
+		return ret;
+	}
 
 	if (ctx->reset_gpio) {
 		gpiod_set_value_cansleep(ctx->reset_gpio, 0);
@@ -306,19 +332,17 @@ static int otm8009a_prepare(struct drm_panel *panel)
 
 	ctx->prepared = true;
 
-	/*
-	 * Power on the backlight. Note: end-user still controls brightness
-	 * Note: ctx->prepared must be true before updating the backlight.
-	 */
-	ctx->bl_dev->props.power = FB_BLANK_UNBLANK;
-	backlight_update_status(ctx->bl_dev);
-
 	return 0;
 }
 
 static int otm8009a_enable(struct drm_panel *panel)
 {
 	struct otm8009a *ctx = panel_to_otm8009a(panel);
+
+	if (ctx->enabled)
+		return 0;
+
+	backlight_enable(ctx->bl_dev);
 
 	ctx->enabled = true;
 
@@ -377,7 +401,7 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 		 */
 		data[0] = MIPI_DCS_SET_DISPLAY_BRIGHTNESS;
 		data[1] = bd->props.brightness;
-		otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+		otm8009a_dcs_write_buf_hs(ctx, data, ARRAY_SIZE(data));
 
 		/* set Brightness Control & Backlight on */
 		data[1] = 0x24;
@@ -389,7 +413,7 @@ static int otm8009a_backlight_update_status(struct backlight_device *bd)
 
 	/* Update Brightness Control & Backlight */
 	data[0] = MIPI_DCS_WRITE_CONTROL_DISPLAY;
-	otm8009a_dcs_write_buf(ctx, data, ARRAY_SIZE(data));
+	otm8009a_dcs_write_buf_hs(ctx, data, ARRAY_SIZE(data));
 
 	return 0;
 }
@@ -414,6 +438,14 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 		return PTR_ERR(ctx->reset_gpio);
 	}
 
+	ctx->supply = devm_regulator_get(dev, "power");
+	if (IS_ERR(ctx->supply)) {
+		ret = PTR_ERR(ctx->supply);
+		if (ret != -EPROBE_DEFER)
+			dev_err(dev, "failed to request regulator: %d\n", ret);
+		return ret;
+	}
+
 	mipi_dsi_set_drvdata(dsi, ctx);
 
 	ctx->dev = dev;
@@ -427,11 +459,14 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 	ctx->panel.dev = dev;
 	ctx->panel.funcs = &otm8009a_drm_funcs;
 
-	ctx->bl_dev = backlight_device_register(DRV_NAME "_backlight", dev, ctx,
-						&otm8009a_backlight_ops, NULL);
+	ctx->bl_dev = devm_backlight_device_register(dev, dev_name(dev),
+						     dsi->host->dev, ctx,
+						     &otm8009a_backlight_ops,
+						     NULL);
 	if (IS_ERR(ctx->bl_dev)) {
-		dev_err(dev, "failed to register backlight device\n");
-		return PTR_ERR(ctx->bl_dev);
+		ret = PTR_ERR(ctx->bl_dev);
+		dev_err(dev, "failed to register backlight: %d\n", ret);
+		return ret;
 	}
 
 	ctx->bl_dev->props.max_brightness = OTM8009A_BACKLIGHT_MAX;
@@ -449,11 +484,6 @@ static int otm8009a_probe(struct mipi_dsi_device *dsi)
 		return ret;
 	}
 
-	DRM_INFO(DRV_NAME "_panel %ux%u@%u %ubpp dsi %udl - ready\n",
-		 default_mode.hdisplay, default_mode.vdisplay,
-		 default_mode.vrefresh,
-		 mipi_dsi_pixel_format_to_bpp(dsi->format), dsi->lanes);
-
 	return 0;
 }
 
@@ -463,8 +493,6 @@ static int otm8009a_remove(struct mipi_dsi_device *dsi)
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&ctx->panel);
-
-	backlight_device_unregister(ctx->bl_dev);
 
 	return 0;
 }
@@ -479,7 +507,7 @@ static struct mipi_dsi_driver orisetech_otm8009a_driver = {
 	.probe  = otm8009a_probe,
 	.remove = otm8009a_remove,
 	.driver = {
-		.name = DRV_NAME "_panel",
+		.name = "panel-orisetech-otm8009a",
 		.of_match_table = orisetech_otm8009a_of_match,
 	},
 };

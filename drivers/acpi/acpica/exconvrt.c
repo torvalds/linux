@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -357,7 +323,7 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
 
 		/* hex_length: 2 ascii hex chars per data byte */
 
-		hex_length = ACPI_MUL_2(data_width);
+		hex_length = (data_width * 2);
 		for (i = 0, j = (hex_length - 1); i < hex_length; i++, j--) {
 
 			/* Get one hex digit, most significant digits first */
@@ -398,7 +364,8 @@ acpi_ex_convert_to_ascii(u64 integer, u16 base, u8 *string, u8 data_width)
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Convert an ACPI Object to a string
+ * DESCRIPTION: Convert an ACPI Object to a string. Supports both implicit
+ *              and explicit conversions and related rules.
  *
  ******************************************************************************/
 
@@ -427,9 +394,11 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 
 		switch (type) {
 		case ACPI_EXPLICIT_CONVERT_DECIMAL:
-
-			/* Make room for maximum decimal number */
-
+			/*
+			 * From to_decimal_string, integer source.
+			 *
+			 * Make room for the maximum decimal number size
+			 */
 			string_length = ACPI_MAX_DECIMAL_DIGITS;
 			base = 10;
 			break;
@@ -474,8 +443,10 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		switch (type) {
 		case ACPI_EXPLICIT_CONVERT_DECIMAL:	/* Used by to_decimal_string */
 			/*
-			 * From ACPI: "If Data is a buffer, it is converted to a string of
-			 * decimal values separated by commas."
+			 * Explicit conversion from the to_decimal_string ASL operator.
+			 *
+			 * From ACPI: "If the input is a buffer, it is converted to a
+			 * a string of decimal values separated by commas."
 			 */
 			base = 10;
 
@@ -496,20 +467,29 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 
 		case ACPI_IMPLICIT_CONVERT_HEX:
 			/*
+			 * Implicit buffer-to-string conversion
+			 *
 			 * From the ACPI spec:
-			 *"The entire contents of the buffer are converted to a string of
+			 * "The entire contents of the buffer are converted to a string of
 			 * two-character hexadecimal numbers, each separated by a space."
+			 *
+			 * Each hex number is prefixed with 0x (11/2018)
 			 */
 			separator = ' ';
-			string_length = (obj_desc->buffer.length * 3);
+			string_length = (obj_desc->buffer.length * 5);
 			break;
 
-		case ACPI_EXPLICIT_CONVERT_HEX:	/* Used by to_hex_string */
+		case ACPI_EXPLICIT_CONVERT_HEX:
 			/*
+			 * Explicit conversion from the to_hex_string ASL operator.
+			 *
 			 * From ACPI: "If Data is a buffer, it is converted to a string of
 			 * hexadecimal values separated by commas."
+			 *
+			 * Each hex number is prefixed with 0x (11/2018)
 			 */
-			string_length = (obj_desc->buffer.length * 3);
+			separator = ',';
+			string_length = (obj_desc->buffer.length * 5);
 			break;
 
 		default:
@@ -538,10 +518,21 @@ acpi_ex_convert_to_string(union acpi_operand_object * obj_desc,
 		 * (separated by commas or spaces)
 		 */
 		for (i = 0; i < obj_desc->buffer.length; i++) {
+			if (base == 16) {
+
+				/* Emit 0x prefix for explicit/implicit hex conversion */
+
+				*new_buf++ = '0';
+				*new_buf++ = 'x';
+			}
+
 			new_buf += acpi_ex_convert_to_ascii((u64) obj_desc->
 							    buffer.pointer[i],
 							    base, new_buf, 1);
-			*new_buf++ = separator;	/* each separated by a comma or space */
+
+			/* Each digit is separated by either a comma or space */
+
+			*new_buf++ = separator;
 		}
 
 		/*
@@ -598,6 +589,7 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 	 */
 	switch (GET_CURRENT_ARG_TYPE(walk_state->op_info->runtime_args)) {
 	case ARGI_SIMPLE_TARGET:
+	case ARGI_FIXED_TARGET:
 	case ARGI_INTEGER_REF:	/* Handles Increment, Decrement cases */
 
 		switch (destination_type) {

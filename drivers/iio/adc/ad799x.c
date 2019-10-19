@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * iio/adc/ad799x.c
  * Copyright (C) 2010-2011 Michael Hennerich, Analog Devices Inc.
@@ -11,15 +12,10 @@
  * based on linux/drivers/acron/char/pcf8583.c
  * Copyright (C) 2000 Russell King
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * ad799x.c
  *
  * Support for ad7991, ad7995, ad7999, ad7992, ad7993, ad7994, ad7997,
  * ad7998 and similar chips.
- *
  */
 
 #include <linux/interrupt.h>
@@ -814,10 +810,10 @@ static int ad799x_probe(struct i2c_client *client,
 
 	ret = ad799x_write_config(st, st->chip_config->default_config);
 	if (ret < 0)
-		goto error_disable_reg;
+		goto error_disable_vref;
 	ret = ad799x_read_config(st);
 	if (ret < 0)
-		goto error_disable_reg;
+		goto error_disable_vref;
 	st->config = ret;
 
 	ret = iio_triggered_buffer_setup(indio_dev, NULL,
@@ -892,6 +888,6 @@ static struct i2c_driver ad799x_driver = {
 };
 module_i2c_driver(ad799x_driver);
 
-MODULE_AUTHOR("Michael Hennerich <hennerich@blackfin.uclinux.org>");
+MODULE_AUTHOR("Michael Hennerich <michael.hennerich@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD799x ADC");
 MODULE_LICENSE("GPL v2");

@@ -1,18 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Samsung s5h1432 VSB/QAM demodulator driver
  *
  *  Copyright (C) 2009 Bill Liu <Bill.Liu@Conexant.com>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
  */
 
 #ifndef __S5H1432_H__
@@ -42,10 +32,10 @@ struct s5h1432_config {
 	u8 gpio;
 
 	/* MPEG signal timing */
-#define S5H1432_MPEGTIMING_CONTINOUS_INVERTING_CLOCK       0
-#define S5H1432_MPEGTIMING_CONTINOUS_NONINVERTING_CLOCK    1
-#define S5H1432_MPEGTIMING_NONCONTINOUS_INVERTING_CLOCK    2
-#define S5H1432_MPEGTIMING_NONCONTINOUS_NONINVERTING_CLOCK 3
+#define S5H1432_MPEGTIMING_CONTINUOUS_INVERTING_CLOCK       0
+#define S5H1432_MPEGTIMING_CONTINUOUS_NONINVERTING_CLOCK    1
+#define S5H1432_MPEGTIMING_NONCONTINUOUS_INVERTING_CLOCK    2
+#define S5H1432_MPEGTIMING_NONCONTINUOUS_NONINVERTING_CLOCK 3
 	u16 mpeg_timing;
 
 	/* IF Freq for QAM and VSB in KHz */

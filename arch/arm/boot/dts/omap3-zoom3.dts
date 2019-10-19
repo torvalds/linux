@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 /dts-v1/;
 
@@ -202,7 +199,7 @@
 		compatible = "ti,wl1271";
 		reg = <2>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <2 IRQ_TYPE_LEVEL_HIGH>; /* gpio 162 */
+		interrupts = <2 IRQ_TYPE_EDGE_RISING>; /* gpio 162 */
 		ref-clock-frequency = <26000000>;
 	};
 };

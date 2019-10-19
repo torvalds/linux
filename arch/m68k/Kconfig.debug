@@ -1,7 +1,4 @@
 # SPDX-License-Identifier: GPL-2.0
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
 
 config BOOTPARAM
 	bool 'Compiled-in Kernel Boot Parameter'
@@ -51,5 +48,3 @@ config BDM_DISABLE
 	  Disable the ColdFire CPU's BDM signals.
 
 endif
-
-endmenu

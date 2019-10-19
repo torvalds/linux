@@ -427,7 +427,7 @@ static int carl9170_rx_mac_status(struct ar9170 *ar,
 		if (head->plcp[6] & 0x80)
 			status->enc_flags |= RX_ENC_FLAG_SHORT_GI;
 
-		status->rate_idx = clamp(0, 75, head->plcp[3] & 0x7f);
+		status->rate_idx = clamp(head->plcp[3] & 0x7f, 0, 75);
 		status->encoding = RX_ENC_HT;
 		break;
 
@@ -766,6 +766,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 
 			goto drop;
 		}
+		/* fall through */
 
 	case AR9170_RX_STATUS_MPDU_MIDDLE:
 		/*  These are just data + mac status */
@@ -794,7 +795,7 @@ static void carl9170_rx_untie_data(struct ar9170 *ar, u8 *buf, int len)
 		break;
 
 	default:
-		BUG_ON(1);
+		BUG();
 		break;
 	}
 

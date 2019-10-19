@@ -141,10 +141,7 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 			       fibh->ebh->b_data,
 			       sizeof(struct fileIdentDesc) + fibh->soffset);
 
-			fi_len = (sizeof(struct fileIdentDesc) +
-				  cfi->lengthFileIdent +
-				  le16_to_cpu(cfi->lengthOfImpUse) + 3) & ~3;
-
+			fi_len = udf_dir_entry_len(cfi);
 			*nf_pos += fi_len - (fibh->eoffset - fibh->soffset);
 			fibh->eoffset = fibh->soffset + fi_len;
 		} else {
@@ -152,6 +149,9 @@ struct fileIdentDesc *udf_fileident_read(struct inode *dir, loff_t *nf_pos,
 			       sizeof(struct fileIdentDesc));
 		}
 	}
+	/* Got last entry outside of dir size - fs is corrupted! */
+	if (*nf_pos > dir->i_size)
+		return NULL;
 	return fi;
 }
 

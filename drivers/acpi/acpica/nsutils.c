@@ -1,46 +1,12 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: nsutils - Utilities for accessing ACPI namespace, accessing
  *                        parents and siblings and Scope manipulation
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -212,7 +178,7 @@ void acpi_ns_get_internal_name_length(struct acpi_namestring_info *info)
 		}
 	}
 
-	info->length = (ACPI_NAME_SIZE * info->num_segments) +
+	info->length = (ACPI_NAMESEG_SIZE * info->num_segments) +
 	    4 + info->num_carats;
 
 	info->next_external_char = next_external_char;
@@ -283,7 +249,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 	/* Build the name (minus path separators) */
 
 	for (; num_segments; num_segments--) {
-		for (i = 0; i < ACPI_NAME_SIZE; i++) {
+		for (i = 0; i < ACPI_NAMESEG_SIZE; i++) {
 			if (ACPI_IS_PATH_SEPARATOR(*external_name) ||
 			    (*external_name == 0)) {
 
@@ -308,7 +274,7 @@ acpi_status acpi_ns_build_internal_name(struct acpi_namestring_info *info)
 		/* Move on the next segment */
 
 		external_name++;
-		result += ACPI_NAME_SIZE;
+		result += ACPI_NAMESEG_SIZE;
 	}
 
 	/* Terminate the string */
@@ -384,7 +350,7 @@ acpi_ns_internalize_name(const char *external_name, char **converted_name)
  *
  * FUNCTION:    acpi_ns_externalize_name
  *
- * PARAMETERS:  internal_name_length - Lenth of the internal name below
+ * PARAMETERS:  internal_name_length - Length of the internal name below
  *              internal_name       - Internal representation of name
  *              converted_name_length - Where the length is returned
  *              converted_name      - Where the resulting external name
@@ -523,12 +489,12 @@ acpi_ns_externalize_name(u32 internal_name_length,
 
 			/* Copy and validate the 4-char name segment */
 
-			ACPI_MOVE_NAME(&(*converted_name)[j],
-				       &internal_name[names_index]);
+			ACPI_COPY_NAMESEG(&(*converted_name)[j],
+					  &internal_name[names_index]);
 			acpi_ut_repair_name(&(*converted_name)[j]);
 
-			j += ACPI_NAME_SIZE;
-			names_index += ACPI_NAME_SIZE;
+			j += ACPI_NAMESEG_SIZE;
+			names_index += ACPI_NAMESEG_SIZE;
 		}
 	}
 
@@ -594,20 +560,8 @@ struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle)
 void acpi_ns_terminate(void)
 {
 	acpi_status status;
-	union acpi_operand_object *prev;
-	union acpi_operand_object *next;
 
 	ACPI_FUNCTION_TRACE(ns_terminate);
-
-	/* Delete any module-level code blocks */
-
-	next = acpi_gbl_module_code_list;
-	while (next) {
-		prev = next;
-		next = next->method.mutex;
-		prev->method.mutex = NULL;	/* Clear the Mutex (cheated) field */
-		acpi_ut_remove_reference(prev);
-	}
 
 	/*
 	 * Free the entire namespace -- all nodes and all objects

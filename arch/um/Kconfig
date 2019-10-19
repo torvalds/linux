@@ -1,0 +1,202 @@
+# SPDX-License-Identifier: GPL-2.0
+
+menu "UML-specific options"
+
+config UML
+	bool
+	default y
+	select ARCH_HAS_KCOV
+	select ARCH_NO_PREEMPT
+	select HAVE_ARCH_AUDITSYSCALL
+	select HAVE_ARCH_SECCOMP_FILTER
+	select HAVE_ASM_MODVERSIONS
+	select HAVE_UID16
+	select HAVE_FUTEX_CMPXCHG if FUTEX
+	select HAVE_DEBUG_KMEMLEAK
+	select HAVE_DEBUG_BUGVERBOSE
+	select GENERIC_IRQ_SHOW
+	select GENERIC_CPU_DEVICES
+	select GENERIC_CLOCKEVENTS
+	select HAVE_GCC_PLUGINS
+	select TTY # Needed for line.c
+
+config MMU
+	bool
+	default y
+
+config NO_IOMEM
+	def_bool y
+
+config ISA
+	bool
+
+config SBUS
+	bool
+
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	default y
+
+config LOCKDEP_SUPPORT
+	bool
+	default y
+
+config STACKTRACE_SUPPORT
+	bool
+	default y
+	select STACKTRACE
+
+config GENERIC_CALIBRATE_DELAY
+	bool
+	default y
+
+config HZ
+	int
+	default 100
+
+config NR_CPUS
+	int
+	range 1 1
+	default 1
+
+source "arch/$(HEADER_ARCH)/um/Kconfig"
+
+config STATIC_LINK
+	bool "Force a static link"
+	default n
+	help
+	  This option gives you the ability to force a static link of UML.
+	  Normally, UML is linked as a shared binary.  This is inconvenient for
+	  use in a chroot jail.  So, if you intend to run UML inside a chroot,
+	  you probably want to say Y here.
+	  Additionally, this option enables using higher memory spaces (up to
+	  2.75G) for UML.
+
+config LD_SCRIPT_STATIC
+	bool
+	default y
+	depends on STATIC_LINK
+
+config LD_SCRIPT_DYN
+	bool
+	default y
+	depends on !LD_SCRIPT_STATIC
+	select MODULE_REL_CRCS if MODVERSIONS
+
+config HOSTFS
+	tristate "Host filesystem"
+	help
+	  While the User-Mode Linux port uses its own root file system for
+	  booting and normal file access, this module lets the UML user
+	  access files stored on the host.  It does not require any
+	  network connection between the Host and UML.  An example use of
+	  this might be:
+
+	  mount none /tmp/fromhost -t hostfs -o /tmp/umlshare
+
+	  where /tmp/fromhost is an empty directory inside UML and
+	  /tmp/umlshare is a directory on the host with files the UML user
+	  wishes to access.
+
+	  For more information, see
+	  <http://user-mode-linux.sourceforge.net/hostfs.html>.
+
+	  If you'd like to be able to work with files stored on the host,
+	  say Y or M here; otherwise say N.
+
+config MCONSOLE
+	bool "Management console"
+	depends on PROC_FS
+	default y
+	help
+	  The user mode linux management console is a low-level interface to
+	  the kernel, somewhat like the i386 SysRq interface.  Since there is
+	  a full-blown operating system running under every user mode linux
+	  instance, there is much greater flexibility possible than with the
+	  SysRq mechanism.
+
+	  If you answer 'Y' to this option, to use this feature, you need the
+	  mconsole client (called uml_mconsole) which is present in CVS in
+	  2.4.5-9um and later (path /tools/mconsole), and is also in the
+	  distribution RPM package in 2.4.6 and later.
+
+	  It is safe to say 'Y' here.
+
+config MAGIC_SYSRQ
+	bool "Magic SysRq key"
+	depends on MCONSOLE
+	help
+	  If you say Y here, you will have some control over the system even
+	  if the system crashes for example during kernel debugging (e.g., you
+	  will be able to flush the buffer cache to disk, reboot the system
+	  immediately or dump some status information). A key for each of the
+	  possible requests is provided.
+
+	  This is the feature normally accomplished by pressing a key
+	  while holding SysRq (Alt+PrintScreen).
+
+	  On UML, this is accomplished by sending a "sysrq" command with
+	  mconsole, followed by the letter for the requested command.
+
+	  The keys are documented in <file:Documentation/admin-guide/sysrq.rst>. Don't say Y
+	  unless you really know what this hack does.
+
+config KERNEL_STACK_ORDER
+	int "Kernel stack size order"
+	default 2 if 64BIT
+	range 2 10 if 64BIT
+	default 1 if !64BIT
+	help
+	  This option determines the size of UML kernel stacks.  They will
+	  be 1 << order pages.  The default is OK unless you're running Valgrind
+	  on UML, in which case, set this to 3.
+	  It is possible to reduce the stack to 1 for 64BIT and 0 for 32BIT on
+	  older (pre-2017) CPUs. It is not recommended on newer CPUs due to the
+	  increase in the size of the state which needs to be saved when handling
+          signals.
+
+config MMAPPER
+	tristate "iomem emulation driver"
+	help
+	  This driver allows a host file to be used as emulated IO memory inside
+	  UML.
+
+config NO_DMA
+	def_bool y
+
+config PGTABLE_LEVELS
+	int
+	default 3 if 3_LEVEL_PGTABLES
+	default 2
+
+config SECCOMP
+	def_bool y
+	prompt "Enable seccomp to safely compute untrusted bytecode"
+	---help---
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl(PR_SET_SECCOMP), it cannot be disabled
+	  and the task is only allowed to execute a few safe syscalls
+	  defined by each seccomp mode.
+
+	  If unsure, say Y.
+
+config UML_TIME_TRAVEL_SUPPORT
+	bool
+	prompt "Support time-travel mode (e.g. for test execution)"
+	help
+	  Enable this option to support time travel inside the UML instance.
+
+	  After enabling this option, two modes are accessible at runtime
+	  (selected by the kernel command line), see the kernel's command-
+	  line help for more details.
+
+	  It is safe to say Y, but you probably don't need this.
+
+endmenu
+
+source "arch/um/drivers/Kconfig"

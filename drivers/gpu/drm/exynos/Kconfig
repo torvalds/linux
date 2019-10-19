@@ -1,6 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config DRM_EXYNOS
 	tristate "DRM Support for Samsung SoC EXYNOS Series"
-	depends on OF && DRM && (ARCH_S3C64XX || ARCH_EXYNOS || ARCH_MULTIPLATFORM)
+	depends on OF && DRM && (ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || ARCH_MULTIPLATFORM || COMPILE_TEST)
+	depends on MMU
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
 	select SND_SOC_HDMI_CODEC if SND_SOC
@@ -9,11 +11,6 @@ config DRM_EXYNOS
 	  If M is selected the module will be called exynosdrm.
 
 if DRM_EXYNOS
-
-config DRM_EXYNOS_IOMMU
-	bool
-	depends on EXYNOS_IOMMU
-	default y
 
 comment "CRTCs"
 
@@ -90,26 +87,36 @@ comment "Sub-drivers"
 
 config DRM_EXYNOS_G2D
 	bool "G2D"
-	depends on VIDEO_SAMSUNG_S5P_G2D=n
+	depends on VIDEO_SAMSUNG_S5P_G2D=n || COMPILE_TEST
 	select FRAME_VECTOR
 	help
 	  Choose this option if you want to use Exynos G2D for DRM.
 
+config DRM_EXYNOS_IPP
+	bool
+
 config DRM_EXYNOS_FIMC
 	bool "FIMC"
-	depends on BROKEN && MFD_SYSCON
+	select DRM_EXYNOS_IPP
 	help
 	  Choose this option if you want to use Exynos FIMC for DRM.
 
 config DRM_EXYNOS_ROTATOR
 	bool "Rotator"
-	depends on BROKEN
+	select DRM_EXYNOS_IPP
 	help
 	  Choose this option if you want to use Exynos Rotator for DRM.
 
+config DRM_EXYNOS_SCALER
+	bool "Scaler"
+	select DRM_EXYNOS_IPP
+	help
+	  Choose this option if you want to use Exynos Scaler for DRM.
+
 config DRM_EXYNOS_GSC
 	bool "GScaler"
-	depends on BROKEN && ARCH_EXYNOS5 && VIDEO_SAMSUNG_EXYNOS_GSC=n
+	depends on VIDEO_SAMSUNG_EXYNOS_GSC=n || COMPILE_TEST
+	select DRM_EXYNOS_IPP
 	help
 	  Choose this option if you want to use Exynos GSC for DRM.
 

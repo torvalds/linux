@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config PARISC
 	def_bool y
+	select ARCH_32BIT_OFF_T if !64BIT
 	select ARCH_MIGHT_HAVE_PC_PARPORT
 	select HAVE_IDE
 	select HAVE_OPROFILE
@@ -11,15 +12,14 @@ config PARISC
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_STRICT_KERNEL_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
-	select ARCH_WANTS_UBSAN_NO_NULL
+	select ARCH_NO_SG_CHAIN
 	select ARCH_SUPPORTS_MEMORY_FAILURE
 	select RTC_CLASS
 	select RTC_DRV_GENERIC
 	select INIT_ALL_POSSIBLE
-	select HAVE_MEMBLOCK
-	select NO_BOOTMEM
 	select BUG
 	select BUILDTIME_EXTABLE_SORT
+	select HAVE_PCI
 	select HAVE_PERF_EVENTS
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
@@ -44,13 +44,24 @@ config PARISC
 	select HAVE_DEBUG_STACKOVERFLOW
 	select HAVE_ARCH_AUDITSYSCALL
 	select HAVE_ARCH_HASH
+	select HAVE_ARCH_JUMP_LABEL
+	select HAVE_ARCH_JUMP_LABEL_RELATIVE
 	select HAVE_ARCH_SECCOMP_FILTER
 	select HAVE_ARCH_TRACEHOOK
+	select HAVE_REGS_AND_STACK_ACCESS_API
 	select GENERIC_SCHED_CLOCK
 	select HAVE_UNSTABLE_SCHED_CLOCK if SMP
 	select GENERIC_CLOCKEVENTS
-	select ARCH_NO_COHERENT_DMA_MMAP
 	select CPU_NO_EFFICIENT_FFS
+	select NEED_DMA_MAP_STATE
+	select NEED_SG_DMA_LENGTH
+	select HAVE_ARCH_KGDB
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_DYNAMIC_FTRACE if $(cc-option,-fpatchable-function-entry=1,1)
+	select HAVE_FTRACE_MCOUNT_RECORD if HAVE_DYNAMIC_FTRACE
+	select HAVE_KPROBES_ON_FTRACE
+	select HAVE_DYNAMIC_FTRACE_WITH_REGS
 
 	help
 	  The PA-RISC microprocessor is designed by Hewlett-Packard and used
@@ -71,12 +82,6 @@ config GENERIC_LOCKBREAK
 	bool
 	default y
 	depends on SMP && PREEMPT
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
-
-config RWSEM_XCHGADD_ALGORITHM
-	bool
 
 config ARCH_HAS_ILOG2_U32
 	bool
@@ -111,12 +116,6 @@ config PM
 config STACKTRACE_SUPPORT
 	def_bool y
 
-config NEED_DMA_MAP_STATE
-	def_bool y
-
-config NEED_SG_DMA_LENGTH
-	def_bool y
-
 config ISA_DMA_API
 	bool
 
@@ -132,10 +131,6 @@ config PGTABLE_LEVELS
 
 config SYS_SUPPORTS_HUGETLBFS
 	def_bool y if PA20
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
 
 
 menu "Processor type and features"
@@ -192,6 +187,9 @@ config PA20
 config PA11
 	def_bool y
 	depends on PA7000 || PA7100LC || PA7200 || PA7300LC
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
+	select DMA_NONCOHERENT_CACHE_SYNC
 
 config PREFETCH
 	def_bool y
@@ -199,7 +197,8 @@ config PREFETCH
 
 config MLONGCALLS
 	bool "Enable the -mlong-calls compiler option for big kernels"
-	def_bool y if (!MODULES)
+	default y if !MODULES || UBSAN || FTRACE
+	default n
 	depends on PA8X00
 	help
 	  If you configure the kernel to include many drivers built-in instead
@@ -248,11 +247,11 @@ config PARISC_PAGE_SIZE_4KB
 
 config PARISC_PAGE_SIZE_16KB
 	bool "16KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 config PARISC_PAGE_SIZE_64KB
 	bool "64KB"
-	depends on PA8X00
+	depends on PA8X00 && BROKEN
 
 endchoice
 
@@ -276,12 +275,10 @@ config SMP
 	  than one CPU, say Y.
 
 	  If you say N here, the kernel will run on uni- and multiprocessor
-	  machines, but will use only one CPU of a multiprocessor machine. If
-	  you say Y here, the kernel will run on many, but not all,
-	  uniprocessor machines. On a uniprocessor machine, the kernel
-	  will run faster if you say N here.
+	  machines, but will use only one CPU of a multiprocessor machine.
+	  On a uniprocessor machine, the kernel will run faster if you say N.
 
-	  See also <file:Documentation/nmi_watchdog.txt> and the SMP-HOWTO
+	  See also <file:Documentation/admin-guide/lockup-watchdogs.rst> and the SMP-HOWTO
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
@@ -317,29 +314,23 @@ config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 	depends on 64BIT
 
-config ARCH_DISCONTIGMEM_ENABLE
+config ARCH_SPARSEMEM_ENABLE
 	def_bool y
 	depends on 64BIT
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
 
-config ARCH_DISCONTIGMEM_DEFAULT
+config ARCH_SPARSEMEM_DEFAULT
 	def_bool y
-	depends on ARCH_DISCONTIGMEM_ENABLE
+	depends on ARCH_SPARSEMEM_ENABLE
 
-config NODES_SHIFT
-	int
-	default "3"
-	depends on NEED_MULTIPLE_NODES
-
-source "kernel/Kconfig.preempt"
 source "kernel/Kconfig.hz"
-source "mm/Kconfig"
 
 config COMPAT
 	def_bool y
 	depends on 64BIT
+	select COMPAT_BINFMT_ELF if BINFMT_ELF
 
 config SYSVIPC_COMPAT
 	def_bool y
@@ -352,27 +343,35 @@ config NR_CPUS
 	int "Maximum number of CPUs (2-32)"
 	range 2 32
 	depends on SMP
-	default "32"
+	default "4"
+
+config KEXEC
+	bool "Kexec system call"
+	select KEXEC_CORE
+	help
+	  kexec is a system call that implements the ability to shutdown your
+	  current kernel, and to start another kernel.  It is like a reboot
+	  but it is independent of the system firmware.   And like a reboot
+	  you can start any kernel with it, not just Linux.
+
+	  It is an ongoing process to be certain the hardware in a machine
+	  shutdown, so do not be surprised if this code does not
+	  initially work for you.
+
+config KEXEC_FILE
+	bool "kexec file based system call"
+	select KEXEC_CORE
+	select KEXEC_ELF
+	help
+	  This enables the kexec_file_load() System call. This is
+	  file based and takes file descriptors as system call argument
+	  for kernel and initramfs as opposed to list of segments as
+	  accepted by previous system call.
 
 endmenu
 
 
 source "drivers/parisc/Kconfig"
-
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "arch/parisc/Kconfig.debug"
 
 config SECCOMP
 	def_bool y
@@ -389,9 +388,3 @@ config SECCOMP
 	  defined by each seccomp mode.
 
 	  If unsure, say Y. Only embedded should say N here.
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"

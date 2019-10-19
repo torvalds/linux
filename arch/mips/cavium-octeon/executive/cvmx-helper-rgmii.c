@@ -4,7 +4,7 @@
  * Contact: support@caviumnetworks.com
  * This file is part of the OCTEON SDK
  *
- * Copyright (c) 2003-2008 Cavium Networks
+ * Copyright (C) 2003-2018 Cavium, Inc.
  *
  * This file is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, Version 2, as
@@ -41,9 +41,6 @@
 #include <asm/octeon/cvmx-gmxx-defs.h>
 #include <asm/octeon/cvmx-asxx-defs.h>
 #include <asm/octeon/cvmx-dbg-defs.h>
-
-void __cvmx_interrupt_gmxx_enable(int interface);
-void __cvmx_interrupt_asxx_enable(int block);
 
 /**
  * Probe RGMII ports and determine the number present
@@ -451,72 +448,4 @@ int __cvmx_helper_rgmii_link_set(int ipd_port,
 	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), new_gmx_cfg.u64);
 
 	return result;
-}
-
-/**
- * Configure a port for internal and/or external loopback. Internal loopback
- * causes packets sent by the port to be received by Octeon. External loopback
- * causes packets received from the wire to sent out again.
- *
- * @ipd_port: IPD/PKO port to loopback.
- * @enable_internal:
- *		   Non zero if you want internal loopback
- * @enable_external:
- *		   Non zero if you want external loopback
- *
- * Returns Zero on success, negative on failure.
- */
-int __cvmx_helper_rgmii_configure_loopback(int ipd_port, int enable_internal,
-					   int enable_external)
-{
-	int interface = cvmx_helper_get_interface_num(ipd_port);
-	int index = cvmx_helper_get_interface_index_num(ipd_port);
-	int original_enable;
-	union cvmx_gmxx_prtx_cfg gmx_cfg;
-	union cvmx_asxx_prt_loop asxx_prt_loop;
-
-	/* Read the current enable state and save it */
-	gmx_cfg.u64 = cvmx_read_csr(CVMX_GMXX_PRTX_CFG(index, interface));
-	original_enable = gmx_cfg.s.en;
-	/* Force port to be disabled */
-	gmx_cfg.s.en = 0;
-	if (enable_internal) {
-		/* Force speed if we're doing internal loopback */
-		gmx_cfg.s.duplex = 1;
-		gmx_cfg.s.slottime = 1;
-		gmx_cfg.s.speed = 1;
-		cvmx_write_csr(CVMX_GMXX_TXX_CLK(index, interface), 1);
-		cvmx_write_csr(CVMX_GMXX_TXX_SLOT(index, interface), 0x200);
-		cvmx_write_csr(CVMX_GMXX_TXX_BURST(index, interface), 0x2000);
-	}
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-
-	/* Set the loopback bits */
-	asxx_prt_loop.u64 = cvmx_read_csr(CVMX_ASXX_PRT_LOOP(interface));
-	if (enable_internal)
-		asxx_prt_loop.s.int_loop |= 1 << index;
-	else
-		asxx_prt_loop.s.int_loop &= ~(1 << index);
-	if (enable_external)
-		asxx_prt_loop.s.ext_loop |= 1 << index;
-	else
-		asxx_prt_loop.s.ext_loop &= ~(1 << index);
-	cvmx_write_csr(CVMX_ASXX_PRT_LOOP(interface), asxx_prt_loop.u64);
-
-	/* Force enables in internal loopback */
-	if (enable_internal) {
-		uint64_t tmp;
-		tmp = cvmx_read_csr(CVMX_ASXX_TX_PRT_EN(interface));
-		cvmx_write_csr(CVMX_ASXX_TX_PRT_EN(interface),
-			       (1 << index) | tmp);
-		tmp = cvmx_read_csr(CVMX_ASXX_RX_PRT_EN(interface));
-		cvmx_write_csr(CVMX_ASXX_RX_PRT_EN(interface),
-			       (1 << index) | tmp);
-		original_enable = 1;
-	}
-
-	/* Restore the enable state */
-	gmx_cfg.s.en = original_enable;
-	cvmx_write_csr(CVMX_GMXX_PRTX_CFG(index, interface), gmx_cfg.u64);
-	return 0;
 }

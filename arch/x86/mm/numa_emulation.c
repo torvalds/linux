@@ -6,7 +6,6 @@
 #include <linux/errno.h>
 #include <linux/topology.h>
 #include <linux/memblock.h>
-#include <linux/bootmem.h>
 #include <asm/dma.h>
 
 #include "numa_internal.h"
@@ -61,7 +60,7 @@ static int __init emu_setup_memblk(struct numa_meminfo *ei,
 	eb->nid = nid;
 
 	if (emu_nid_to_phys[nid] == NUMA_NO_NODE)
-		emu_nid_to_phys[nid] = nid;
+		emu_nid_to_phys[nid] = pb->nid;
 
 	pb->start += size;
 	if (pb->start >= pb->end) {
@@ -198,40 +197,73 @@ static u64 __init find_end_of_node(u64 start, u64 max_addr, u64 size)
 	return end;
 }
 
+static u64 uniform_size(u64 max_addr, u64 base, u64 hole, int nr_nodes)
+{
+	unsigned long max_pfn = PHYS_PFN(max_addr);
+	unsigned long base_pfn = PHYS_PFN(base);
+	unsigned long hole_pfns = PHYS_PFN(hole);
+
+	return PFN_PHYS((max_pfn - base_pfn - hole_pfns) / nr_nodes);
+}
+
 /*
  * Sets up fake nodes of `size' interleaved over physical nodes ranging from
  * `addr' to `max_addr'.
  *
  * Returns zero on success or negative on error.
  */
-static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
+static int __init split_nodes_size_interleave_uniform(struct numa_meminfo *ei,
 					      struct numa_meminfo *pi,
-					      u64 addr, u64 max_addr, u64 size)
+					      u64 addr, u64 max_addr, u64 size,
+					      int nr_nodes, struct numa_memblk *pblk,
+					      int nid)
 {
 	nodemask_t physnode_mask = numa_nodes_parsed;
+	int i, ret, uniform = 0;
 	u64 min_size;
-	int nid = 0;
-	int i, ret;
 
-	if (!size)
+	if ((!size && !nr_nodes) || (nr_nodes && !pblk))
 		return -1;
+
 	/*
-	 * The limit on emulated nodes is MAX_NUMNODES, so the size per node is
-	 * increased accordingly if the requested size is too small.  This
-	 * creates a uniform distribution of node sizes across the entire
-	 * machine (but not necessarily over physical nodes).
+	 * In the 'uniform' case split the passed in physical node by
+	 * nr_nodes, in the non-uniform case, ignore the passed in
+	 * physical block and try to create nodes of at least size
+	 * @size.
+	 *
+	 * In the uniform case, split the nodes strictly by physical
+	 * capacity, i.e. ignore holes. In the non-uniform case account
+	 * for holes and treat @size as a minimum floor.
 	 */
-	min_size = (max_addr - addr - mem_hole_size(addr, max_addr)) / MAX_NUMNODES;
-	min_size = max(min_size, FAKE_NODE_MIN_SIZE);
-	if ((min_size & FAKE_NODE_MIN_HASH_MASK) < min_size)
-		min_size = (min_size + FAKE_NODE_MIN_SIZE) &
-						FAKE_NODE_MIN_HASH_MASK;
+	if (!nr_nodes)
+		nr_nodes = MAX_NUMNODES;
+	else {
+		nodes_clear(physnode_mask);
+		node_set(pblk->nid, physnode_mask);
+		uniform = 1;
+	}
+
+	if (uniform) {
+		min_size = uniform_size(max_addr, addr, 0, nr_nodes);
+		size = min_size;
+	} else {
+		/*
+		 * The limit on emulated nodes is MAX_NUMNODES, so the
+		 * size per node is increased accordingly if the
+		 * requested size is too small.  This creates a uniform
+		 * distribution of node sizes across the entire machine
+		 * (but not necessarily over physical nodes).
+		 */
+		min_size = uniform_size(max_addr, addr,
+				mem_hole_size(addr, max_addr), nr_nodes);
+	}
+	min_size = ALIGN(max(min_size, FAKE_NODE_MIN_SIZE), FAKE_NODE_MIN_SIZE);
 	if (size < min_size) {
 		pr_err("Fake node size %LuMB too small, increasing to %LuMB\n",
 			size >> 20, min_size >> 20);
 		size = min_size;
 	}
-	size &= FAKE_NODE_MIN_HASH_MASK;
+	size = ALIGN_DOWN(size, FAKE_NODE_MIN_SIZE);
 
 	/*
 	 * Fill physical nodes with fake nodes of size until there is no memory
@@ -248,10 +280,14 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 				node_clear(i, physnode_mask);
 				continue;
 			}
+
 			start = pi->blk[phys_blk].start;
 			limit = pi->blk[phys_blk].end;
 
-			end = find_end_of_node(start, limit, size);
+			if (uniform)
+				end = start + size;
+			else
+				end = find_end_of_node(start, limit, size);
 			/*
 			 * If there won't be at least FAKE_NODE_MIN_SIZE of
 			 * non-reserved memory in ZONE_DMA32 for the next node,
@@ -266,7 +302,8 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 			 * next node, this one must extend to the end of the
 			 * physical node.
 			 */
-			if (limit - end - mem_hole_size(end, limit) < size)
+			if ((limit - end - mem_hole_size(end, limit) < size)
+					&& !uniform)
 				end = limit;
 
 			ret = emu_setup_memblk(ei, pi, nid++ % MAX_NUMNODES,
@@ -276,7 +313,15 @@ static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
 				return ret;
 		}
 	}
-	return 0;
+	return nid;
+}
+
+static int __init split_nodes_size_interleave(struct numa_meminfo *ei,
+					      struct numa_meminfo *pi,
+					      u64 addr, u64 max_addr, u64 size)
+{
+	return split_nodes_size_interleave_uniform(ei, pi, addr, max_addr, size,
+			0, NULL, NUMA_NO_NODE);
 }
 
 int __init setup_emu2phys_nid(int *dfl_phys_nid)
@@ -346,7 +391,36 @@ void __init numa_emulation(struct numa_meminfo *numa_meminfo, int numa_dist_cnt)
 	 * the fixed node size.  Otherwise, if it is just a single number N,
 	 * split the system RAM into N fake nodes.
 	 */
-	if (strchr(emu_cmdline, 'M') || strchr(emu_cmdline, 'G')) {
+	if (strchr(emu_cmdline, 'U')) {
+		nodemask_t physnode_mask = numa_nodes_parsed;
+		unsigned long n;
+		int nid = 0;
+
+		n = simple_strtoul(emu_cmdline, &emu_cmdline, 0);
+		ret = -1;
+		for_each_node_mask(i, physnode_mask) {
+			/*
+			 * The reason we pass in blk[0] is due to
+			 * numa_remove_memblk_from() called by
+			 * emu_setup_memblk() will delete entry 0
+			 * and then move everything else up in the pi.blk
+			 * array. Therefore we should always be looking
+			 * at blk[0].
+			 */
+			ret = split_nodes_size_interleave_uniform(&ei, &pi,
+					pi.blk[0].start, pi.blk[0].end, 0,
+					n, &pi.blk[0], nid);
+			if (ret < 0)
+				break;
+			if (ret < n) {
+				pr_info("%s: phys: %d only got %d of %ld nodes, failing\n",
+						__func__, i, ret, n);
+				ret = -1;
+				break;
+			}
+			nid = ret;
+		}
+	} else if (strchr(emu_cmdline, 'M') || strchr(emu_cmdline, 'G')) {
 		u64 size;
 
 		size = memparse(emu_cmdline, &emu_cmdline);

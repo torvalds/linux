@@ -1,0 +1,36 @@
+* Freescale IMX8MM IOMUX Controller
+
+Please refer to fsl,imx-pinctrl.txt and pinctrl-bindings.txt in this directory
+for common binding part and usage.
+
+Required properties:
+- compatible: "fsl,imx8mm-iomuxc"
+- reg: should contain the base physical address and size of the iomuxc
+  registers.
+
+Required properties in sub-nodes:
+- fsl,pins: each entry consists of 6 integers and represents the mux and config
+  setting for one pin.  The first 5 integers <mux_reg conf_reg input_reg mux_val
+  input_val> are specified using a PIN_FUNC_ID macro, which can be found in
+  <arch/arm64/boot/dts/freescale/imx8mm-pinfunc.h>. The last integer CONFIG is
+  the pad setting value like pull-up on this pin.  Please refer to i.MX8M Mini
+  Reference Manual for detailed CONFIG settings.
+
+Examples:
+
+&uart1 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&pinctrl_uart1>;
+};
+
+iomuxc: pinctrl@30330000 {
+        compatible = "fsl,imx8mm-iomuxc";
+        reg = <0x0 0x30330000 0x0 0x10000>;
+
+        pinctrl_uart1: uart1grp {
+                fsl,pins = <
+                        MX8MM_IOMUXC_UART1_RXD_UART1_DCE_RX             0x140
+                        MX8MM_IOMUXC_UART1_TXD_UART1_DCE_TX             0x140
+                >;
+        };
+};

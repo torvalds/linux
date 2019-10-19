@@ -10,8 +10,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/greybus.h>
 
-#include "greybus.h"
 #include "gbphy.h"
 
 struct gb_i2c_device {
@@ -31,7 +31,14 @@ static u32 gb_i2c_functionality_map(u32 gb_i2c_functionality)
 	return gb_i2c_functionality;	/* All bits the same for now */
 }
 
-static int gb_i2c_functionality_operation(struct gb_i2c_device *gb_i2c_dev)
+/*
+ * Do initial setup of the i2c device.  This includes verifying we
+ * can support it (based on the protocol version it advertises).
+ * If that's OK, we get and cached its functionality bits.
+ *
+ * Note: gb_i2c_dev->connection is assumed to have been valid.
+ */
+static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
 {
 	struct gb_i2c_functionality_response response;
 	u32 functionality;
@@ -107,7 +114,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 
 	/* Response consists only of incoming data */
 	operation = gb_operation_create(connection, GB_I2C_TYPE_TRANSFER,
-				request_size, data_in_size, GFP_KERNEL);
+					request_size, data_in_size, GFP_KERNEL);
 	if (!operation)
 		return NULL;
 
@@ -137,7 +144,7 @@ gb_i2c_operation_create(struct gb_connection *connection,
 }
 
 static void gb_i2c_decode_response(struct i2c_msg *msgs, u32 msg_count,
-				struct gb_i2c_transfer_response *response)
+				   struct gb_i2c_transfer_response *response)
 {
 	struct i2c_msg *msg = msgs;
 	u8 *data;
@@ -164,7 +171,7 @@ static bool gb_i2c_expected_transfer_error(int errno)
 }
 
 static int gb_i2c_transfer_operation(struct gb_i2c_device *gb_i2c_dev,
-					struct i2c_msg *msgs, u32 msg_count)
+				     struct i2c_msg *msgs, u32 msg_count)
 {
 	struct gb_connection *connection = gb_i2c_dev->connection;
 	struct device *dev = &gb_i2c_dev->gbphy_dev->dev;
@@ -199,7 +206,7 @@ exit_operation_put:
 }
 
 static int gb_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
-		int msg_count)
+			      int msg_count)
 {
 	struct gb_i2c_device *gb_i2c_dev;
 
@@ -211,8 +218,8 @@ static int gb_i2c_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msgs,
 #if 0
 /* Later */
 static int gb_i2c_smbus_xfer(struct i2c_adapter *adap,
-			u16 addr, unsigned short flags, char read_write,
-			u8 command, int size, union i2c_smbus_data *data)
+			     u16 addr, unsigned short flags, char read_write,
+			     u8 command, int size, union i2c_smbus_data *data)
 {
 	struct gb_i2c_device *gb_i2c_dev;
 
@@ -235,21 +242,8 @@ static const struct i2c_algorithm gb_i2c_algorithm = {
 	.functionality	= gb_i2c_functionality,
 };
 
-/*
- * Do initial setup of the i2c device.  This includes verifying we
- * can support it (based on the protocol version it advertises).
- * If that's OK, we get and cached its functionality bits.
- *
- * Note: gb_i2c_dev->connection is assumed to have been valid.
- */
-static int gb_i2c_device_setup(struct gb_i2c_device *gb_i2c_dev)
-{
-	/* Assume the functionality never changes, just get it once */
-	return gb_i2c_functionality_operation(gb_i2c_dev);
-}
-
 static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
-			 const struct gbphy_device_id *id)
+			const struct gbphy_device_id *id)
 {
 	struct gb_connection *connection;
 	struct gb_i2c_device *gb_i2c_dev;
@@ -260,9 +254,10 @@ static int gb_i2c_probe(struct gbphy_device *gbphy_dev,
 	if (!gb_i2c_dev)
 		return -ENOMEM;
 
-	connection = gb_connection_create(gbphy_dev->bundle,
-					  le16_to_cpu(gbphy_dev->cport_desc->id),
-					  NULL);
+	connection =
+		gb_connection_create(gbphy_dev->bundle,
+				     le16_to_cpu(gbphy_dev->cport_desc->id),
+				     NULL);
 	if (IS_ERR(connection)) {
 		ret = PTR_ERR(connection);
 		goto exit_i2cdev_free;

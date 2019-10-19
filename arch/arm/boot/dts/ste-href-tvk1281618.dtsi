@@ -1,12 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2012 ST-Ericsson AB
- *
- * The code contained herein is licensed under the GNU General Public
- * License. You may obtain a copy of the GNU General Public License
- * Version 2 or later at the following locations:
- *
- * http://www.opensource.org/licenses/gpl-license.html
- * http://www.gnu.org/copyleft/gpl.html
  *
  * Device Tree for the TVK1281618 UIB
  */
@@ -271,6 +265,19 @@
 						pins = "GPIO84_C2";
 						ste,config = <&gpio_in_pu>;
 					};
+				};
+			};
+		};
+
+		mcde@a0350000 {
+			status = "okay";
+
+			dsi@a0351000 {
+				panel {
+					compatible = "samsung,s6d16d0";
+					reg = <0>;
+					vdd1-supply = <&ab8500_ldo_aux1_reg>;
+					reset-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 				};
 			};
 		};

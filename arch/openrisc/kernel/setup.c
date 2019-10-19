@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * OpenRISC setup.c
  *
@@ -8,11 +9,6 @@
  * Modifications for the OpenRISC architecture:
  * Copyright (C) 2003 Matjaz Breskvar <phoenix@bsemi.com>
  * Copyright (C) 2010-2011 Jonas Bonn <jonas@southpole.se>
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  *
  * This file handles the architecture-dependent parts of initialization
  */
@@ -30,17 +26,15 @@
 #include <linux/delay.h>
 #include <linux/console.h>
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/seq_file.h>
 #include <linux/serial.h>
 #include <linux/initrd.h>
 #include <linux/of_fdt.h>
 #include <linux/of.h>
-#include <linux/memblock.h>
 #include <linux/device.h>
 
 #include <asm/sections.h>
-#include <asm/segment.h>
 #include <asm/pgtable.h>
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -158,9 +152,8 @@ static struct device_node *setup_find_cpu_node(int cpu)
 {
 	u32 hwid;
 	struct device_node *cpun;
-	struct device_node *cpus = of_find_node_by_path("/cpus");
 
-	for_each_available_child_of_node(cpus, cpun) {
+	for_each_of_cpu_node(cpun) {
 		if (of_property_read_u32(cpun, "reg", &hwid))
 			continue;
 		if (hwid == cpu)

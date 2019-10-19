@@ -17,7 +17,8 @@
 		stdout-path = &uart1;
 	};
 
-	memory {
+	memory@90000000 {
+		device_type = "memory";
 		reg = <0x90000000 0x10000000>;
 	};
 

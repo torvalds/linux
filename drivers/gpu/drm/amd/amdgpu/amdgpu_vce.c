@@ -27,7 +27,7 @@
 
 #include <linux/firmware.h>
 #include <linux/module.h>
-#include <drm/drmP.h>
+
 #include <drm/drm.h>
 
 #include "amdgpu.h"
@@ -40,21 +40,24 @@
 
 /* Firmware Names */
 #ifdef CONFIG_DRM_AMDGPU_CIK
-#define FIRMWARE_BONAIRE	"radeon/bonaire_vce.bin"
-#define FIRMWARE_KABINI	"radeon/kabini_vce.bin"
-#define FIRMWARE_KAVERI	"radeon/kaveri_vce.bin"
-#define FIRMWARE_HAWAII	"radeon/hawaii_vce.bin"
-#define FIRMWARE_MULLINS	"radeon/mullins_vce.bin"
+#define FIRMWARE_BONAIRE	"amdgpu/bonaire_vce.bin"
+#define FIRMWARE_KABINI	"amdgpu/kabini_vce.bin"
+#define FIRMWARE_KAVERI	"amdgpu/kaveri_vce.bin"
+#define FIRMWARE_HAWAII	"amdgpu/hawaii_vce.bin"
+#define FIRMWARE_MULLINS	"amdgpu/mullins_vce.bin"
 #endif
 #define FIRMWARE_TONGA		"amdgpu/tonga_vce.bin"
 #define FIRMWARE_CARRIZO	"amdgpu/carrizo_vce.bin"
 #define FIRMWARE_FIJI		"amdgpu/fiji_vce.bin"
 #define FIRMWARE_STONEY		"amdgpu/stoney_vce.bin"
 #define FIRMWARE_POLARIS10	"amdgpu/polaris10_vce.bin"
-#define FIRMWARE_POLARIS11         "amdgpu/polaris11_vce.bin"
-#define FIRMWARE_POLARIS12         "amdgpu/polaris12_vce.bin"
+#define FIRMWARE_POLARIS11	"amdgpu/polaris11_vce.bin"
+#define FIRMWARE_POLARIS12	"amdgpu/polaris12_vce.bin"
+#define FIRMWARE_VEGAM		"amdgpu/vegam_vce.bin"
 
 #define FIRMWARE_VEGA10		"amdgpu/vega10_vce.bin"
+#define FIRMWARE_VEGA12		"amdgpu/vega12_vce.bin"
+#define FIRMWARE_VEGA20		"amdgpu/vega20_vce.bin"
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 MODULE_FIRMWARE(FIRMWARE_BONAIRE);
@@ -70,8 +73,11 @@ MODULE_FIRMWARE(FIRMWARE_STONEY);
 MODULE_FIRMWARE(FIRMWARE_POLARIS10);
 MODULE_FIRMWARE(FIRMWARE_POLARIS11);
 MODULE_FIRMWARE(FIRMWARE_POLARIS12);
+MODULE_FIRMWARE(FIRMWARE_VEGAM);
 
 MODULE_FIRMWARE(FIRMWARE_VEGA10);
+MODULE_FIRMWARE(FIRMWARE_VEGA12);
+MODULE_FIRMWARE(FIRMWARE_VEGA20);
 
 static void amdgpu_vce_idle_work_handler(struct work_struct *work);
 
@@ -84,8 +90,6 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work);
  */
 int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 {
-	struct amdgpu_ring *ring;
-	struct drm_sched_rq *rq;
 	const char *fw_name;
 	const struct common_firmware_header *hdr;
 	unsigned ucode_version, version_major, version_minor, binary_id;
@@ -127,11 +131,20 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 	case CHIP_POLARIS11:
 		fw_name = FIRMWARE_POLARIS11;
 		break;
+	case CHIP_POLARIS12:
+		fw_name = FIRMWARE_POLARIS12;
+		break;
+	case CHIP_VEGAM:
+		fw_name = FIRMWARE_VEGAM;
+		break;
 	case CHIP_VEGA10:
 		fw_name = FIRMWARE_VEGA10;
 		break;
-	case CHIP_POLARIS12:
-		fw_name = FIRMWARE_POLARIS12;
+	case CHIP_VEGA12:
+		fw_name = FIRMWARE_VEGA12;
+		break;
+	case CHIP_VEGA20:
+		fw_name = FIRMWARE_VEGA20;
 		break;
 
 	default:
@@ -173,15 +186,6 @@ int amdgpu_vce_sw_init(struct amdgpu_device *adev, unsigned long size)
 		return r;
 	}
 
-	ring = &adev->vce.ring[0];
-	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
-	r = drm_sched_entity_init(&ring->sched, &adev->vce.entity,
-				  rq, amdgpu_sched_jobs, NULL);
-	if (r != 0) {
-		DRM_ERROR("Failed setting up VCE run queue.\n");
-		return r;
-	}
-
 	for (i = 0; i < AMDGPU_MAX_VCE_HANDLES; ++i) {
 		atomic_set(&adev->vce.handles[i], 0);
 		adev->vce.filp[i] = NULL;
@@ -207,7 +211,7 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
 
-	drm_sched_entity_fini(&adev->vce.ring[0].sched, &adev->vce.entity);
+	drm_sched_entity_destroy(&adev->vce.entity);
 
 	amdgpu_bo_free_kernel(&adev->vce.vcpu_bo, &adev->vce.gpu_addr,
 		(void **)&adev->vce.cpu_addr);
@@ -222,6 +226,29 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_vce_entity_init - init entity
+ *
+ * @adev: amdgpu_device pointer
+ *
+ */
+int amdgpu_vce_entity_init(struct amdgpu_device *adev)
+{
+	struct amdgpu_ring *ring;
+	struct drm_sched_rq *rq;
+	int r;
+
+	ring = &adev->vce.ring[0];
+	rq = &ring->sched.sched_rq[DRM_SCHED_PRIORITY_NORMAL];
+	r = drm_sched_entity_init(&adev->vce.entity, &rq, 1, NULL);
+	if (r != 0) {
+		DRM_ERROR("Failed setting up VCE run queue.\n");
+		return r;
+	}
+
+	return 0;
+}
+
+/**
  * amdgpu_vce_suspend - unpin VCE fw memory
  *
  * @adev: amdgpu_device pointer
@@ -230,6 +257,8 @@ int amdgpu_vce_sw_fini(struct amdgpu_device *adev)
 int amdgpu_vce_suspend(struct amdgpu_device *adev)
 {
 	int i;
+
+	cancel_delayed_work_sync(&adev->vce.idle_work);
 
 	if (adev->vce.vcpu_bo == NULL)
 		return 0;
@@ -241,7 +270,6 @@ int amdgpu_vce_suspend(struct amdgpu_device *adev)
 	if (i == AMDGPU_MAX_VCE_HANDLES)
 		return 0;
 
-	cancel_delayed_work_sync(&adev->vce.idle_work);
 	/* TODO: suspending running encoding sessions isn't supported */
 	return -EINVAL;
 }
@@ -299,9 +327,6 @@ static void amdgpu_vce_idle_work_handler(struct work_struct *work)
 	struct amdgpu_device *adev =
 		container_of(work, struct amdgpu_device, vce.idle_work.work);
 	unsigned i, count = 0;
-
-	if (amdgpu_sriov_vf(adev))
-		return;
 
 	for (i = 0; i < adev->vce.num_rings; i++)
 		count += amdgpu_fence_count_emitted(&adev->vce.ring[i]);
@@ -362,7 +387,8 @@ void amdgpu_vce_ring_begin_use(struct amdgpu_ring *ring)
  */
 void amdgpu_vce_ring_end_use(struct amdgpu_ring *ring)
 {
-	schedule_delayed_work(&ring->adev->vce.idle_work, VCE_IDLE_TIMEOUT);
+	if (!amdgpu_sriov_vf(ring->adev))
+		schedule_delayed_work(&ring->adev->vce.idle_work, VCE_IDLE_TIMEOUT);
 }
 
 /**
@@ -457,12 +483,10 @@ int amdgpu_vce_get_create_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-	job->fence = dma_fence_get(f);
+	r = amdgpu_job_submit_direct(job, ring, &f);
 	if (r)
 		goto err;
 
-	amdgpu_job_free(job);
 	if (fence)
 		*fence = dma_fence_get(f);
 	dma_fence_put(f);
@@ -519,19 +543,13 @@ int amdgpu_vce_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 	for (i = ib->length_dw; i < ib_size_dw; ++i)
 		ib->ptr[i] = 0x0;
 
-	if (direct) {
-		r = amdgpu_ib_schedule(ring, 1, ib, NULL, &f);
-		job->fence = dma_fence_get(f);
-		if (r)
-			goto err;
-
-		amdgpu_job_free(job);
-	} else {
-		r = amdgpu_job_submit(job, ring, &ring->adev->vce.entity,
+	if (direct)
+		r = amdgpu_job_submit_direct(job, ring, &f);
+	else
+		r = amdgpu_job_submit(job, &ring->adev->vce.entity,
 				      AMDGPU_FENCE_OWNER_UNDEFINED, &f);
-		if (r)
-			goto err;
-	}
+	if (r)
+		goto err;
 
 	if (fence)
 		*fence = dma_fence_get(f);
@@ -752,6 +770,18 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 			if (r)
 				goto out;
 			break;
+
+		case 0x0500000d: /* MV buffer */
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 3,
+							idx + 2, 0, 0);
+			if (r)
+				goto out;
+
+			r = amdgpu_vce_validate_bo(p, ib_idx, idx + 8,
+							idx + 7, 0, 0);
+			if (r)
+				goto out;
+			break;
 		}
 
 		idx += len / 4;
@@ -853,6 +883,18 @@ int amdgpu_vce_ring_parse_cs(struct amdgpu_cs_parser *p, uint32_t ib_idx)
 		case 0x05000005: /* feedback buffer */
 			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3, idx + 2,
 						4096, fb_idx);
+			if (r)
+				goto out;
+			break;
+
+		case 0x0500000d: /* MV buffer */
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 3,
+							idx + 2, *size, 0);
+			if (r)
+				goto out;
+
+			r = amdgpu_vce_cs_reloc(p, ib_idx, idx + 8,
+							idx + 7, *size / 12, 0);
 			if (r)
 				goto out;
 			break;
@@ -990,8 +1032,10 @@ out:
  * @ib: the IB to execute
  *
  */
-void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring, struct amdgpu_ib *ib,
-			     unsigned vmid, bool ctx_switch)
+void amdgpu_vce_ring_emit_ib(struct amdgpu_ring *ring,
+				struct amdgpu_job *job,
+				struct amdgpu_ib *ib,
+				uint32_t flags)
 {
 	amdgpu_ring_write(ring, VCE_CMD_IB);
 	amdgpu_ring_write(ring, lower_32_bits(ib->gpu_addr));
@@ -1028,7 +1072,7 @@ void amdgpu_vce_ring_emit_fence(struct amdgpu_ring *ring, u64 addr, u64 seq,
 int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	uint32_t rptr = amdgpu_ring_get_rptr(ring);
+	uint32_t rptr;
 	unsigned i;
 	int r, timeout = adev->usec_timeout;
 
@@ -1037,28 +1081,22 @@ int amdgpu_vce_ring_test_ring(struct amdgpu_ring *ring)
 		return 0;
 
 	r = amdgpu_ring_alloc(ring, 16);
-	if (r) {
-		DRM_ERROR("amdgpu: vce failed to lock ring %d (%d).\n",
-			  ring->idx, r);
+	if (r)
 		return r;
-	}
+
+	rptr = amdgpu_ring_get_rptr(ring);
+
 	amdgpu_ring_write(ring, VCE_CMD_END);
 	amdgpu_ring_commit(ring);
 
 	for (i = 0; i < timeout; i++) {
 		if (amdgpu_ring_get_rptr(ring) != rptr)
 			break;
-		DRM_UDELAY(1);
+		udelay(1);
 	}
 
-	if (i < timeout) {
-		DRM_DEBUG("ring test on %d succeeded in %d usecs\n",
-			 ring->idx, i);
-	} else {
-		DRM_ERROR("amdgpu: ring %d test failed\n",
-			  ring->idx);
+	if (i >= timeout)
 		r = -ETIMEDOUT;
-	}
 
 	return r;
 }
@@ -1079,27 +1117,19 @@ int amdgpu_vce_ring_test_ib(struct amdgpu_ring *ring, long timeout)
 		return 0;
 
 	r = amdgpu_vce_get_create_msg(ring, 1, NULL);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get create msg (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = amdgpu_vce_get_destroy_msg(ring, 1, true, &fence);
-	if (r) {
-		DRM_ERROR("amdgpu: failed to get destroy ib (%ld).\n", r);
+	if (r)
 		goto error;
-	}
 
 	r = dma_fence_wait_timeout(fence, false, timeout);
-	if (r == 0) {
-		DRM_ERROR("amdgpu: IB test timed out.\n");
+	if (r == 0)
 		r = -ETIMEDOUT;
-	} else if (r < 0) {
-		DRM_ERROR("amdgpu: fence wait failed (%ld).\n", r);
-	} else {
-		DRM_DEBUG("ib test on ring %d succeeded\n", ring->idx);
+	else if (r > 0)
 		r = 0;
-	}
+
 error:
 	dma_fence_put(fence);
 	return r;

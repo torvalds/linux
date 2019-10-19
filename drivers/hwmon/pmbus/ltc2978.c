@@ -1,19 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for LTC2978 and compatible chips.
  *
  * Copyright (c) 2011 Ericsson AB.
  * Copyright (c) 2013, 2014, 2015 Guenter Roeck
  * Copyright (c) 2015 Linear Technology
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (c) 2018 Analog Devices Inc.
  */
 
 #include <linux/delay.h>
@@ -28,7 +20,7 @@
 #include "pmbus.h"
 
 enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
-	ltc3883, ltc3886, ltc3887, ltm2987, ltm4675, ltm4676 };
+	ltc3883, ltc3886, ltc3887, ltm2987, ltm4675, ltm4676, ltm4686 };
 
 /* Common for all chips */
 #define LTC2978_MFR_VOUT_PEAK		0xdd
@@ -81,6 +73,7 @@ enum chips { ltc2974, ltc2975, ltc2977, ltc2978, ltc2980, ltc3880, ltc3882,
 #define LTM4676_ID_REV1			0x4400
 #define LTM4676_ID_REV2			0x4480
 #define LTM4676A_ID			0x47e0
+#define LTM4686_ID			0x4770
 
 #define LTC2974_NUM_PAGES		4
 #define LTC2978_NUM_PAGES		8
@@ -512,6 +505,7 @@ static const struct i2c_device_id ltc2978_id[] = {
 	{"ltm2987", ltm2987},
 	{"ltm4675", ltm4675},
 	{"ltm4676", ltm4676},
+	{"ltm4686", ltm4686},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, ltc2978_id);
@@ -588,6 +582,8 @@ static int ltc2978_get_id(struct i2c_client *client)
 	else if (chip_id == LTM4676_ID_REV1 || chip_id == LTM4676_ID_REV2 ||
 		 chip_id == LTM4676A_ID)
 		return ltm4676;
+	else if (chip_id == LTM4686_ID)
+		return ltm4686;
 
 	dev_err(&client->dev, "Unsupported chip ID 0x%x\n", chip_id);
 	return -ENODEV;
@@ -684,6 +680,7 @@ static int ltc2978_probe(struct i2c_client *client,
 	case ltc3887:
 	case ltm4675:
 	case ltm4676:
+	case ltm4686:
 		data->features |= FEAT_CLEAR_PEAKS | FEAT_NEEDS_POLLING;
 		info->read_word_data = ltc3880_read_word_data;
 		info->pages = LTC3880_NUM_PAGES;
@@ -770,6 +767,7 @@ static const struct of_device_id ltc2978_of_match[] = {
 	{ .compatible = "lltc,ltm2987" },
 	{ .compatible = "lltc,ltm4675" },
 	{ .compatible = "lltc,ltm4676" },
+	{ .compatible = "lltc,ltm4686" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ltc2978_of_match);
@@ -788,5 +786,5 @@ static struct i2c_driver ltc2978_driver = {
 module_i2c_driver(ltc2978_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
-MODULE_DESCRIPTION("PMBus driver for LTC2978 and comppatible chips");
+MODULE_DESCRIPTION("PMBus driver for LTC2978 and compatible chips");
 MODULE_LICENSE("GPL");

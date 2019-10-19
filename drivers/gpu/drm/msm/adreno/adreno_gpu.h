@@ -1,26 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  *
  * Copyright (c) 2014,2017 The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __ADRENO_GPU_H__
 #define __ADRENO_GPU_H__
 
 #include <linux/firmware.h>
+#include <linux/iopoll.h>
 
 #include "msm_gpu.h"
 
@@ -48,9 +38,19 @@ enum adreno_regs {
 	REG_ADRENO_REGISTER_MAX,
 };
 
+enum {
+	ADRENO_FW_PM4 = 0,
+	ADRENO_FW_SQE = 0, /* a6xx */
+	ADRENO_FW_PFP = 1,
+	ADRENO_FW_GMU = 1, /* a6xx */
+	ADRENO_FW_GPMU = 2,
+	ADRENO_FW_MAX,
+};
+
 enum adreno_quirks {
 	ADRENO_QUIRK_TWO_PASS_USE_WFI = 1,
 	ADRENO_QUIRK_FAULT_DETECT_MASK = 2,
+	ADRENO_QUIRK_LMLOADKILL_DISABLE = 3,
 };
 
 struct adreno_rev {
@@ -72,12 +72,12 @@ struct adreno_info {
 	struct adreno_rev rev;
 	uint32_t revn;
 	const char *name;
-	const char *pm4fw, *pfpfw;
-	const char *gpmufw;
+	const char *fw[ADRENO_FW_MAX];
 	uint32_t gmem;
 	enum adreno_quirks quirks;
 	struct msm_gpu *(*init)(struct drm_device *dev);
 	const char *zapfw;
+	u32 inactive_period;
 };
 
 const struct adreno_info *adreno_info(struct adreno_rev rev);
@@ -115,7 +115,7 @@ struct adreno_gpu {
 	} fwloc;
 
 	/* firmware: */
-	const struct firmware *pm4, *pfp;
+	const struct firmware *fw[ADRENO_FW_MAX];
 
 	/*
 	 * Register offsets are different between some GPUs.
@@ -145,6 +145,20 @@ struct adreno_platform_config {
 	__ret;                                             \
 })
 
+static inline bool adreno_is_a2xx(struct adreno_gpu *gpu)
+{
+	return (gpu->revn < 300);
+}
+
+static inline bool adreno_is_a20x(struct adreno_gpu *gpu)
+{
+	return (gpu->revn < 210);
+}
+
+static inline bool adreno_is_a225(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 225;
+}
 
 static inline bool adreno_is_a3xx(struct adreno_gpu *gpu)
 {
@@ -197,17 +211,25 @@ static inline int adreno_is_a530(struct adreno_gpu *gpu)
 	return gpu->revn == 530;
 }
 
+static inline int adreno_is_a540(struct adreno_gpu *gpu)
+{
+	return gpu->revn == 540;
+}
+
 int adreno_get_param(struct msm_gpu *gpu, uint32_t param, uint64_t *value);
 const struct firmware *adreno_request_fw(struct adreno_gpu *adreno_gpu,
 		const char *fwname);
+struct drm_gem_object *adreno_fw_create_bo(struct msm_gpu *gpu,
+		const struct firmware *fw, u64 *iova);
 int adreno_hw_init(struct msm_gpu *gpu);
 void adreno_recover(struct msm_gpu *gpu);
 void adreno_submit(struct msm_gpu *gpu, struct msm_gem_submit *submit,
 		struct msm_file_private *ctx);
 void adreno_flush(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
 bool adreno_idle(struct msm_gpu *gpu, struct msm_ringbuffer *ring);
-#ifdef CONFIG_DEBUG_FS
-void adreno_show(struct msm_gpu *gpu, struct seq_file *m);
+#if defined(CONFIG_DEBUG_FS) || defined(CONFIG_DEV_COREDUMP)
+void adreno_show(struct msm_gpu *gpu, struct msm_gpu_state *state,
+		struct drm_printer *p);
 #endif
 void adreno_dump_info(struct msm_gpu *gpu);
 void adreno_dump(struct msm_gpu *gpu);
@@ -218,7 +240,18 @@ int adreno_gpu_init(struct drm_device *drm, struct platform_device *pdev,
 		struct adreno_gpu *gpu, const struct adreno_gpu_funcs *funcs,
 		int nr_rings);
 void adreno_gpu_cleanup(struct adreno_gpu *gpu);
+int adreno_load_fw(struct adreno_gpu *adreno_gpu);
 
+void adreno_gpu_state_destroy(struct msm_gpu_state *state);
+
+int adreno_gpu_state_get(struct msm_gpu *gpu, struct msm_gpu_state *state);
+int adreno_gpu_state_put(struct msm_gpu_state *state);
+
+/*
+ * For a5xx and a6xx targets load the zap shader that is used to pull the GPU
+ * out of secure mode
+ */
+int adreno_zap_shader_load(struct msm_gpu *gpu, u32 pasid);
 
 /* ringbuffer helpers (the parts that are adreno specific) */
 
@@ -317,9 +350,11 @@ static inline void adreno_gpu_write(struct adreno_gpu *gpu,
 		gpu_write(&gpu->base, reg - 1, data);
 }
 
+struct msm_gpu *a2xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a3xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a4xx_gpu_init(struct drm_device *dev);
 struct msm_gpu *a5xx_gpu_init(struct drm_device *dev);
+struct msm_gpu *a6xx_gpu_init(struct drm_device *dev);
 
 static inline void adreno_gpu_write64(struct adreno_gpu *gpu,
 		enum adreno_regs lo, enum adreno_regs hi, u64 data)
@@ -356,5 +391,10 @@ static inline uint32_t get_wptr(struct msm_ringbuffer *ring)
 #define ADRENO_PROTECT_RDONLY(_reg, _len) \
 	((1 << 29) \
 	((ilog2((_len)) & 0x1F) << 24) | (((_reg) << 2) & 0xFFFFF))
+
+
+#define gpu_poll_timeout(gpu, addr, val, cond, interval, timeout) \
+	readl_poll_timeout((gpu)->mmio + ((addr) << 2), val, cond, \
+		interval, timeout)
 
 #endif /* __ADRENO_GPU_H__ */

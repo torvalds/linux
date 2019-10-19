@@ -24,6 +24,10 @@
 		i2c7 = &i2c_max77836;
 	};
 
+	chosen {
+		stdout-path = &serial_1;
+	};
+
 	memory@40000000 {
 		device_type = "memory";
 		reg =  <0x40000000 0x1ff00000>;
@@ -112,11 +116,13 @@
 			cooling-maps {
 				map0 {
 					/* Corresponds to 500MHz */
-					cooling-device = <&cpu0 5 5>;
+					cooling-device = <&cpu0 5 5>,
+							 <&cpu1 5 5>;
 				};
 				map1 {
 					/* Corresponds to 200MHz */
-					cooling-device = <&cpu0 8 8>;
+					cooling-device = <&cpu0 8 8>,
+							 <&cpu1 8 8>;
 				};
 			};
 		};
@@ -236,6 +242,11 @@
 		wr-act = <1>;
 		wr-hold = <0>;
 	};
+};
+
+&gpu {
+	mali-supply = <&buck3_reg>;
+	status = "okay";
 };
 
 &i2c_0 {

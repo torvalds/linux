@@ -20,16 +20,18 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/delay.h>
+#include <linux/errno.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/init.h>
-#include <linux/errno.h>
 #include <linux/sched.h>
-#include <linux/i2c.h>
 #include <linux/seq_file.h>
+
 #include <drm/drm_dp_helper.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "drm_crtc_helper_internal.h"
 
@@ -119,53 +121,64 @@ u8 drm_dp_get_adjust_request_pre_emphasis(const u8 link_status[DP_LINK_STATUS_SI
 EXPORT_SYMBOL(drm_dp_get_adjust_request_pre_emphasis);
 
 void drm_dp_link_train_clock_recovery_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
+	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+			  DP_TRAINING_AUX_RD_MASK;
+
+	if (rd_interval > 4)
+		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+			      rd_interval);
+
+	if (rd_interval == 0 || dpcd[DP_DPCD_REV] >= DP_DPCD_REV_14)
 		udelay(100);
 	else
-		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		mdelay(rd_interval * 4);
 }
 EXPORT_SYMBOL(drm_dp_link_train_clock_recovery_delay);
 
 void drm_dp_link_train_channel_eq_delay(const u8 dpcd[DP_RECEIVER_CAP_SIZE]) {
-	if (dpcd[DP_TRAINING_AUX_RD_INTERVAL] == 0)
+	int rd_interval = dpcd[DP_TRAINING_AUX_RD_INTERVAL] &
+			  DP_TRAINING_AUX_RD_MASK;
+
+	if (rd_interval > 4)
+		DRM_DEBUG_KMS("AUX interval %d, out of range (max 4)\n",
+			      rd_interval);
+
+	if (rd_interval == 0)
 		udelay(400);
 	else
-		mdelay(dpcd[DP_TRAINING_AUX_RD_INTERVAL] * 4);
+		mdelay(rd_interval * 4);
 }
 EXPORT_SYMBOL(drm_dp_link_train_channel_eq_delay);
 
 u8 drm_dp_link_rate_to_bw_code(int link_rate)
 {
-	switch (link_rate) {
-	default:
-		WARN(1, "unknown DP link rate %d, using %x\n", link_rate,
-		     DP_LINK_BW_1_62);
-	case 162000:
-		return DP_LINK_BW_1_62;
-	case 270000:
-		return DP_LINK_BW_2_7;
-	case 540000:
-		return DP_LINK_BW_5_4;
-	}
+	/* Spec says link_bw = link_rate / 0.27Gbps */
+	return link_rate / 27000;
 }
 EXPORT_SYMBOL(drm_dp_link_rate_to_bw_code);
 
 int drm_dp_bw_code_to_link_rate(u8 link_bw)
 {
-	switch (link_bw) {
-	default:
-		WARN(1, "unknown DP link BW code %x, using 162000\n", link_bw);
-	case DP_LINK_BW_1_62:
-		return 162000;
-	case DP_LINK_BW_2_7:
-		return 270000;
-	case DP_LINK_BW_5_4:
-		return 540000;
-	}
+	/* Spec says link_rate = link_bw * 0.27Gbps */
+	return link_bw * 27000;
 }
 EXPORT_SYMBOL(drm_dp_bw_code_to_link_rate);
 
 #define AUX_RETRY_INTERVAL 500 /* us */
+
+static inline void
+drm_dp_dump_access(const struct drm_dp_aux *aux,
+		   u8 request, uint offset, void *buffer, int ret)
+{
+	const char *arrow = request == DP_AUX_NATIVE_READ ? "->" : "<-";
+
+	if (ret > 0)
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d) %*ph\n",
+			     aux->name, offset, arrow, ret, min(ret, 20), buffer);
+	else
+		DRM_DEBUG_DP("%s: 0x%05x AUX %s (ret=%3d)\n",
+			     aux->name, offset, arrow, ret);
+}
 
 /**
  * DOC: dp helpers
@@ -270,10 +283,14 @@ ssize_t drm_dp_dpcd_read(struct drm_dp_aux *aux, unsigned int offset,
 	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, DP_DPCD_REV, buffer,
 				 1);
 	if (ret != 1)
-		return ret;
+		goto out;
 
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
-				  size);
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_READ, offset, buffer,
+				 size);
+
+out:
+	drm_dp_dump_access(aux, DP_AUX_NATIVE_READ, offset, buffer, ret);
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_read);
 
@@ -294,8 +311,12 @@ EXPORT_SYMBOL(drm_dp_dpcd_read);
 ssize_t drm_dp_dpcd_write(struct drm_dp_aux *aux, unsigned int offset,
 			  void *buffer, size_t size)
 {
-	return drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
-				  size);
+	int ret;
+
+	ret = drm_dp_dpcd_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer,
+				 size);
+	drm_dp_dump_access(aux, DP_AUX_NATIVE_WRITE, offset, buffer, ret);
+	return ret;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_write);
 
@@ -512,6 +533,7 @@ int drm_dp_downstream_max_bpc(const u8 dpcd[DP_RECEIVER_CAP_SIZE],
 		case DP_DS_16BPC:
 			return 16;
 		}
+		/* fall through */
 	default:
 		return 0;
 	}
@@ -810,7 +832,8 @@ static int drm_dp_i2c_do_msg(struct drm_dp_aux *aux, struct drm_dp_aux_msg *msg)
 			return ret;
 
 		case DP_AUX_I2C_REPLY_NACK:
-			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu\n", ret, msg->size);
+			DRM_DEBUG_KMS("I2C nack (result=%d, size=%zu)\n",
+				      ret, msg->size);
 			aux->i2c_nack_count++;
 			return -EREMOTEIO;
 
@@ -843,7 +866,8 @@ static void drm_dp_i2c_msg_set_request(struct drm_dp_aux_msg *msg,
 {
 	msg->request = (i2c_msg->flags & I2C_M_RD) ?
 		DP_AUX_I2C_READ : DP_AUX_I2C_WRITE;
-	msg->request |= DP_AUX_I2C_MOT;
+	if (!(i2c_msg->flags & I2C_M_STOP))
+		msg->request |= DP_AUX_I2C_MOT;
 }
 
 /*
@@ -1069,6 +1093,7 @@ static void drm_dp_aux_crc_work(struct work_struct *work)
 void drm_dp_aux_init(struct drm_dp_aux *aux)
 {
 	mutex_init(&aux->hw_mutex);
+	mutex_init(&aux->cec.lock);
 	INIT_WORK(&aux->crc_work, drm_dp_aux_crc_work);
 
 	aux->ddc.algo = &drm_dp_i2c_algo;
@@ -1141,6 +1166,7 @@ int drm_dp_psr_setup_time(const u8 psr_cap[EDP_PSR_RECEIVER_CAP_SIZE])
 	static const u16 psr_setup_time_us[] = {
 		PSR_SETUP_TIME(330),
 		PSR_SETUP_TIME(275),
+		PSR_SETUP_TIME(220),
 		PSR_SETUP_TIME(165),
 		PSR_SETUP_TIME(110),
 		PSR_SETUP_TIME(55),
@@ -1214,15 +1240,26 @@ EXPORT_SYMBOL(drm_dp_stop_crc);
 
 struct dpcd_quirk {
 	u8 oui[3];
+	u8 device_id[6];
 	bool is_branch;
 	u32 quirks;
 };
 
 #define OUI(first, second, third) { (first), (second), (third) }
+#define DEVICE_ID(first, second, third, fourth, fifth, sixth) \
+	{ (first), (second), (third), (fourth), (fifth), (sixth) }
+
+#define DEVICE_ID_ANY	DEVICE_ID(0, 0, 0, 0, 0, 0)
 
 static const struct dpcd_quirk dpcd_quirk_list[] = {
 	/* Analogix 7737 needs reduced M and N at HBR2 link rates */
-	{ OUI(0x00, 0x22, 0xb9), true, BIT(DP_DPCD_QUIRK_LIMITED_M_N) },
+	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID_ANY, true, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
+	/* LG LP140WF6-SPM1 eDP panel */
+	{ OUI(0x00, 0x22, 0xb9), DEVICE_ID('s', 'i', 'v', 'a', 'r', 'T'), false, BIT(DP_DPCD_QUIRK_CONSTANT_N) },
+	/* Apple panels need some additional handling to support PSR */
+	{ OUI(0x00, 0x10, 0xfa), DEVICE_ID_ANY, false, BIT(DP_DPCD_QUIRK_NO_PSR) },
+	/* CH7511 seems to leave SINK_COUNT zeroed */
+	{ OUI(0x00, 0x00, 0x00), DEVICE_ID('C', 'H', '7', '5', '1', '1'), false, BIT(DP_DPCD_QUIRK_NO_SINK_COUNT) },
 };
 
 #undef OUI
@@ -1241,6 +1278,7 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
 	const struct dpcd_quirk *quirk;
 	u32 quirks = 0;
 	int i;
+	u8 any_device[] = DEVICE_ID_ANY;
 
 	for (i = 0; i < ARRAY_SIZE(dpcd_quirk_list); i++) {
 		quirk = &dpcd_quirk_list[i];
@@ -1251,11 +1289,18 @@ drm_dp_get_quirks(const struct drm_dp_dpcd_ident *ident, bool is_branch)
 		if (memcmp(quirk->oui, ident->oui, sizeof(ident->oui)) != 0)
 			continue;
 
+		if (memcmp(quirk->device_id, any_device, sizeof(any_device)) != 0 &&
+		    memcmp(quirk->device_id, ident->device_id, sizeof(ident->device_id)) != 0)
+			continue;
+
 		quirks |= quirk->quirks;
 	}
 
 	return quirks;
 }
+
+#undef DEVICE_ID_ANY
+#undef DEVICE_ID
 
 /**
  * drm_dp_read_desc - read sink/branch descriptor from DPCD
@@ -1294,3 +1339,140 @@ int drm_dp_read_desc(struct drm_dp_aux *aux, struct drm_dp_desc *desc,
 	return 0;
 }
 EXPORT_SYMBOL(drm_dp_read_desc);
+
+/**
+ * drm_dp_dsc_sink_max_slice_count() - Get the max slice count
+ * supported by the DSC sink.
+ * @dsc_dpcd: DSC capabilities from DPCD
+ * @is_edp: true if its eDP, false for DP
+ *
+ * Read the slice capabilities DPCD register from DSC sink to get
+ * the maximum slice count supported. This is used to populate
+ * the DSC parameters in the &struct drm_dsc_config by the driver.
+ * Driver creates an infoframe using these parameters to populate
+ * &struct drm_dsc_pps_infoframe. These are sent to the sink using DSC
+ * infoframe using the helper function drm_dsc_pps_infoframe_pack()
+ *
+ * Returns:
+ * Maximum slice count supported by DSC sink or 0 its invalid
+ */
+u8 drm_dp_dsc_sink_max_slice_count(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
+				   bool is_edp)
+{
+	u8 slice_cap1 = dsc_dpcd[DP_DSC_SLICE_CAP_1 - DP_DSC_SUPPORT];
+
+	if (is_edp) {
+		/* For eDP, register DSC_SLICE_CAPABILITIES_1 gives slice count */
+		if (slice_cap1 & DP_DSC_4_PER_DP_DSC_SINK)
+			return 4;
+		if (slice_cap1 & DP_DSC_2_PER_DP_DSC_SINK)
+			return 2;
+		if (slice_cap1 & DP_DSC_1_PER_DP_DSC_SINK)
+			return 1;
+	} else {
+		/* For DP, use values from DSC_SLICE_CAP_1 and DSC_SLICE_CAP2 */
+		u8 slice_cap2 = dsc_dpcd[DP_DSC_SLICE_CAP_2 - DP_DSC_SUPPORT];
+
+		if (slice_cap2 & DP_DSC_24_PER_DP_DSC_SINK)
+			return 24;
+		if (slice_cap2 & DP_DSC_20_PER_DP_DSC_SINK)
+			return 20;
+		if (slice_cap2 & DP_DSC_16_PER_DP_DSC_SINK)
+			return 16;
+		if (slice_cap1 & DP_DSC_12_PER_DP_DSC_SINK)
+			return 12;
+		if (slice_cap1 & DP_DSC_10_PER_DP_DSC_SINK)
+			return 10;
+		if (slice_cap1 & DP_DSC_8_PER_DP_DSC_SINK)
+			return 8;
+		if (slice_cap1 & DP_DSC_6_PER_DP_DSC_SINK)
+			return 6;
+		if (slice_cap1 & DP_DSC_4_PER_DP_DSC_SINK)
+			return 4;
+		if (slice_cap1 & DP_DSC_2_PER_DP_DSC_SINK)
+			return 2;
+		if (slice_cap1 & DP_DSC_1_PER_DP_DSC_SINK)
+			return 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_dsc_sink_max_slice_count);
+
+/**
+ * drm_dp_dsc_sink_line_buf_depth() - Get the line buffer depth in bits
+ * @dsc_dpcd: DSC capabilities from DPCD
+ *
+ * Read the DSC DPCD register to parse the line buffer depth in bits which is
+ * number of bits of precision within the decoder line buffer supported by
+ * the DSC sink. This is used to populate the DSC parameters in the
+ * &struct drm_dsc_config by the driver.
+ * Driver creates an infoframe using these parameters to populate
+ * &struct drm_dsc_pps_infoframe. These are sent to the sink using DSC
+ * infoframe using the helper function drm_dsc_pps_infoframe_pack()
+ *
+ * Returns:
+ * Line buffer depth supported by DSC panel or 0 its invalid
+ */
+u8 drm_dp_dsc_sink_line_buf_depth(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE])
+{
+	u8 line_buf_depth = dsc_dpcd[DP_DSC_LINE_BUF_BIT_DEPTH - DP_DSC_SUPPORT];
+
+	switch (line_buf_depth & DP_DSC_LINE_BUF_BIT_DEPTH_MASK) {
+	case DP_DSC_LINE_BUF_BIT_DEPTH_9:
+		return 9;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_10:
+		return 10;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_11:
+		return 11;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_12:
+		return 12;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_13:
+		return 13;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_14:
+		return 14;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_15:
+		return 15;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_16:
+		return 16;
+	case DP_DSC_LINE_BUF_BIT_DEPTH_8:
+		return 8;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(drm_dp_dsc_sink_line_buf_depth);
+
+/**
+ * drm_dp_dsc_sink_supported_input_bpcs() - Get all the input bits per component
+ * values supported by the DSC sink.
+ * @dsc_dpcd: DSC capabilities from DPCD
+ * @dsc_bpc: An array to be filled by this helper with supported
+ *           input bpcs.
+ *
+ * Read the DSC DPCD from the sink device to parse the supported bits per
+ * component values. This is used to populate the DSC parameters
+ * in the &struct drm_dsc_config by the driver.
+ * Driver creates an infoframe using these parameters to populate
+ * &struct drm_dsc_pps_infoframe. These are sent to the sink using DSC
+ * infoframe using the helper function drm_dsc_pps_infoframe_pack()
+ *
+ * Returns:
+ * Number of input BPC values parsed from the DPCD
+ */
+int drm_dp_dsc_sink_supported_input_bpcs(const u8 dsc_dpcd[DP_DSC_RECEIVER_CAP_SIZE],
+					 u8 dsc_bpc[3])
+{
+	int num_bpc = 0;
+	u8 color_depth = dsc_dpcd[DP_DSC_DEC_COLOR_DEPTH_CAP - DP_DSC_SUPPORT];
+
+	if (color_depth & DP_DSC_12_BPC)
+		dsc_bpc[num_bpc++] = 12;
+	if (color_depth & DP_DSC_10_BPC)
+		dsc_bpc[num_bpc++] = 10;
+	if (color_depth & DP_DSC_8_BPC)
+		dsc_bpc[num_bpc++] = 8;
+
+	return num_bpc;
+}
+EXPORT_SYMBOL(drm_dp_dsc_sink_supported_input_bpcs);

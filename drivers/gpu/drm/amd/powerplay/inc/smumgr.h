@@ -26,36 +26,9 @@
 #include "amd_powerplay.h"
 #include "hwmgr.h"
 
-#define smu_lower_32_bits(n) ((uint32_t)(n))
-#define smu_upper_32_bits(n) ((uint32_t)(((n)>>16)>>16))
-
-
-
-enum AVFS_BTC_STATUS {
-	AVFS_BTC_BOOT = 0,
-	AVFS_BTC_BOOT_STARTEDSMU,
-	AVFS_LOAD_VIRUS,
-	AVFS_BTC_VIRUS_LOADED,
-	AVFS_BTC_VIRUS_FAIL,
-	AVFS_BTC_COMPLETED_PREVIOUSLY,
-	AVFS_BTC_ENABLEAVFS,
-	AVFS_BTC_STARTED,
-	AVFS_BTC_FAILED,
-	AVFS_BTC_RESTOREVFT_FAILED,
-	AVFS_BTC_SAVEVFT_FAILED,
-	AVFS_BTC_DPMTABLESETUP_FAILED,
-	AVFS_BTC_COMPLETED_UNSAVED,
-	AVFS_BTC_COMPLETED_SAVED,
-	AVFS_BTC_COMPLETED_RESTORED,
-	AVFS_BTC_DISABLED,
-	AVFS_BTC_NOTSUPPORTED,
-	AVFS_BTC_SMUMSG_ERROR
-};
-
 enum SMU_TABLE {
 	SMU_UVD_TABLE = 0,
 	SMU_VCE_TABLE,
-	SMU_SAMU_TABLE,
 	SMU_BIF_TABLE,
 };
 
@@ -68,12 +41,12 @@ enum SMU_MEMBER {
 	HandshakeDisables = 0,
 	VoltageChangeTimeout,
 	AverageGraphicsActivity,
+	AverageMemoryActivity,
 	PreVBlankGap,
 	VBlankTimeout,
 	UcodeLoadStatus,
 	UvdBootLevel,
 	VceBootLevel,
-	SamuBootLevel,
 	LowSclkInterruptThreshold,
 	DRAM_LOG_ADDR_H,
 	DRAM_LOG_ADDR_L,
@@ -95,7 +68,20 @@ enum SMU_MAC_DEFINITION {
 	SMU_UVD_MCLK_HANDSHAKE_DISABLE,
 };
 
-extern int smum_get_argument(struct pp_hwmgr *hwmgr);
+enum SMU9_TABLE_ID {
+	PPTABLE = 0,
+	WMTABLE,
+	AVFSTABLE,
+	TOOLSTABLE,
+	AVFSFUSETABLE
+};
+
+enum SMU10_TABLE_ID {
+	SMU10_WMTABLE = 0,
+	SMU10_CLOCKTABLE,
+};
+
+extern uint32_t smum_get_argument(struct pp_hwmgr *hwmgr);
 
 extern int smum_download_powerplay_table(struct pp_hwmgr *hwmgr, void **table);
 
@@ -105,13 +91,6 @@ extern int smum_send_msg_to_smc(struct pp_hwmgr *hwmgr, uint16_t msg);
 
 extern int smum_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr,
 					uint16_t msg, uint32_t parameter);
-
-extern int smu_allocate_memory(void *device, uint32_t size,
-			 enum cgs_gpu_mem_type type,
-			 uint32_t byte_align, uint64_t *mc_addr,
-			 void **kptr, void *handle);
-
-extern int smu_free_memory(void *device, void *handle);
 
 extern int smum_update_sclk_threshold(struct pp_hwmgr *hwmgr);
 
@@ -129,10 +108,10 @@ extern uint32_t smum_get_mac_definition(struct pp_hwmgr *hwmgr, uint32_t value);
 
 extern bool smum_is_dpm_running(struct pp_hwmgr *hwmgr);
 
-extern int smum_populate_requested_graphic_levels(struct pp_hwmgr *hwmgr,
-		struct amd_pp_profile *request);
-
 extern bool smum_is_hw_avfs_present(struct pp_hwmgr *hwmgr);
 
+extern int smum_update_dpm_settings(struct pp_hwmgr *hwmgr, void *profile_setting);
+
+extern int smum_smc_table_manager(struct pp_hwmgr *hwmgr, uint8_t *table, uint16_t table_id, bool rw);
 
 #endif

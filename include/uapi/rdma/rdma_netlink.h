@@ -5,8 +5,7 @@
 #include <linux/types.h>
 
 enum {
-	RDMA_NL_RDMA_CM = 1,
-	RDMA_NL_IWCM,
+	RDMA_NL_IWCM = 2,
 	RDMA_NL_RSVD,
 	RDMA_NL_LS,	/* RDMA Local Services */
 	RDMA_NL_NLDEV,	/* RDMA device interface */
@@ -14,8 +13,7 @@ enum {
 };
 
 enum {
-	RDMA_NL_GROUP_CM = 1,
-	RDMA_NL_GROUP_IWPM,
+	RDMA_NL_GROUP_IWPM = 2,
 	RDMA_NL_GROUP_LS,
 	RDMA_NL_NUM_GROUPS
 };
@@ -24,15 +22,17 @@ enum {
 #define RDMA_NL_GET_OP(type) (type & ((1 << 10) - 1))
 #define RDMA_NL_GET_TYPE(client, op) ((client << 10) + op)
 
-enum {
-	RDMA_NL_RDMA_CM_ID_STATS = 0,
-	RDMA_NL_RDMA_CM_NUM_OPS
-};
+/* The minimum version that the iwpm kernel supports */
+#define IWPM_UABI_VERSION_MIN	3
 
+/* The latest version that the iwpm kernel supports */
+#define IWPM_UABI_VERSION	4
+
+/* iwarp port mapper message flags */
 enum {
-	RDMA_NL_RDMA_CM_ATTR_SRC_ADDR = 1,
-	RDMA_NL_RDMA_CM_ATTR_DST_ADDR,
-	RDMA_NL_RDMA_CM_NUM_ATTR,
+
+	/* Do not map the port for this IWPM request */
+	IWPM_FLAGS_NO_PORT_MAP = (1 << 0),
 };
 
 /* iwarp port mapper op-codes */
@@ -45,18 +45,8 @@ enum {
 	RDMA_NL_IWPM_HANDLE_ERR,
 	RDMA_NL_IWPM_MAPINFO,
 	RDMA_NL_IWPM_MAPINFO_NUM,
+	RDMA_NL_IWPM_HELLO,
 	RDMA_NL_IWPM_NUM_OPS
-};
-
-struct rdma_cm_id_stats {
-	__u32	qp_num;
-	__u32	bound_dev_if;
-	__u32	port_space;
-	__s32	pid;
-	__u8	cm_state;
-	__u8	node_type;
-	__u8	port_num;
-	__u8	qp_type;
 };
 
 enum {
@@ -83,20 +73,38 @@ enum {
 	IWPM_NLA_MANAGE_MAPPING_UNSPEC = 0,
 	IWPM_NLA_MANAGE_MAPPING_SEQ,
 	IWPM_NLA_MANAGE_ADDR,
-	IWPM_NLA_MANAGE_MAPPED_LOC_ADDR,
+	IWPM_NLA_MANAGE_FLAGS,
+	IWPM_NLA_MANAGE_MAPPING_MAX
+};
+
+enum {
+	IWPM_NLA_RMANAGE_MAPPING_UNSPEC = 0,
+	IWPM_NLA_RMANAGE_MAPPING_SEQ,
+	IWPM_NLA_RMANAGE_ADDR,
+	IWPM_NLA_RMANAGE_MAPPED_LOC_ADDR,
+	/* The following maintains bisectability of rdma-core */
+	IWPM_NLA_MANAGE_MAPPED_LOC_ADDR = IWPM_NLA_RMANAGE_MAPPED_LOC_ADDR,
 	IWPM_NLA_RMANAGE_MAPPING_ERR,
 	IWPM_NLA_RMANAGE_MAPPING_MAX
 };
 
-#define IWPM_NLA_MANAGE_MAPPING_MAX 3
-#define IWPM_NLA_QUERY_MAPPING_MAX  4
 #define IWPM_NLA_MAPINFO_SEND_MAX   3
+#define IWPM_NLA_REMOVE_MAPPING_MAX 3
 
 enum {
 	IWPM_NLA_QUERY_MAPPING_UNSPEC = 0,
 	IWPM_NLA_QUERY_MAPPING_SEQ,
 	IWPM_NLA_QUERY_LOCAL_ADDR,
 	IWPM_NLA_QUERY_REMOTE_ADDR,
+	IWPM_NLA_QUERY_FLAGS,
+	IWPM_NLA_QUERY_MAPPING_MAX,
+};
+
+enum {
+	IWPM_NLA_RQUERY_MAPPING_UNSPEC = 0,
+	IWPM_NLA_RQUERY_MAPPING_SEQ,
+	IWPM_NLA_RQUERY_LOCAL_ADDR,
+	IWPM_NLA_RQUERY_REMOTE_ADDR,
 	IWPM_NLA_RQUERY_MAPPED_LOC_ADDR,
 	IWPM_NLA_RQUERY_MAPPED_REM_ADDR,
 	IWPM_NLA_RQUERY_MAPPING_ERR,
@@ -114,6 +122,7 @@ enum {
 	IWPM_NLA_MAPINFO_UNSPEC = 0,
 	IWPM_NLA_MAPINFO_LOCAL_ADDR,
 	IWPM_NLA_MAPINFO_MAPPED_ADDR,
+	IWPM_NLA_MAPINFO_FLAGS,
 	IWPM_NLA_MAPINFO_MAX
 };
 
@@ -130,6 +139,24 @@ enum {
 	IWPM_NLA_ERR_SEQ,
 	IWPM_NLA_ERR_CODE,
 	IWPM_NLA_ERR_MAX
+};
+
+enum {
+	IWPM_NLA_HELLO_UNSPEC = 0,
+	IWPM_NLA_HELLO_ABI_VERSION,
+	IWPM_NLA_HELLO_MAX
+};
+
+/* For RDMA_NLDEV_ATTR_DEV_NODE_TYPE */
+enum {
+	/* IB values map to NodeInfo:NodeType. */
+	RDMA_NODE_IB_CA = 1,
+	RDMA_NODE_IB_SWITCH,
+	RDMA_NODE_IB_ROUTER,
+	RDMA_NODE_RNIC,
+	RDMA_NODE_USNIC,
+	RDMA_NODE_USNIC_UDP,
+	RDMA_NODE_UNSPECIFIED,
 };
 
 /*
@@ -227,23 +254,53 @@ enum rdma_nldev_command {
 	RDMA_NLDEV_CMD_UNSPEC,
 
 	RDMA_NLDEV_CMD_GET, /* can dump */
+	RDMA_NLDEV_CMD_SET,
 
-	/* 2 - 4 are free to use */
+	RDMA_NLDEV_CMD_NEWLINK,
 
-	RDMA_NLDEV_CMD_PORT_GET = 5, /* can dump */
+	RDMA_NLDEV_CMD_DELLINK,
 
-	/* 6 - 8 are free to use */
+	RDMA_NLDEV_CMD_PORT_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_SYS_GET,
+	RDMA_NLDEV_CMD_SYS_SET,
+
+	/* 8 is free to use */
 
 	RDMA_NLDEV_CMD_RES_GET = 9, /* can dump */
 
 	RDMA_NLDEV_CMD_RES_QP_GET, /* can dump */
 
+	RDMA_NLDEV_CMD_RES_CM_ID_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_CQ_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_MR_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_RES_PD_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_GET_CHARDEV,
+
+	RDMA_NLDEV_CMD_STAT_SET,
+
+	RDMA_NLDEV_CMD_STAT_GET, /* can dump */
+
+	RDMA_NLDEV_CMD_STAT_DEL,
+
 	RDMA_NLDEV_NUM_OPS
+};
+
+enum rdma_nldev_print_type {
+	RDMA_NLDEV_PRINT_TYPE_UNSPEC,
+	RDMA_NLDEV_PRINT_TYPE_HEX,
 };
 
 enum rdma_nldev_attr {
 	/* don't change the order or add anything between, this is ABI! */
 	RDMA_NLDEV_ATTR_UNSPEC,
+
+	/* Pad attribute for 64b alignment */
+	RDMA_NLDEV_ATTR_PAD = RDMA_NLDEV_ATTR_UNSPEC,
 
 	/* Identifier for ib_device */
 	RDMA_NLDEV_ATTR_DEV_INDEX,		/* u32 */
@@ -262,6 +319,9 @@ enum rdma_nldev_attr {
 
 	/*
 	 * Device and port capabilities
+	 *
+	 * When used for port info, first 32-bits are CapabilityMask followed by
+	 * 16-bit CapabilityMask2.
 	 */
 	RDMA_NLDEV_ATTR_CAP_FLAGS,		/* u64 */
 
@@ -350,6 +410,156 @@ enum rdma_nldev_attr {
 	 */
 	RDMA_NLDEV_ATTR_RES_KERN_NAME,		/* string */
 
+	RDMA_NLDEV_ATTR_RES_CM_ID,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_CM_ID_ENTRY,	/* nested table */
+	/*
+	 * rdma_cm_id port space.
+	 */
+	RDMA_NLDEV_ATTR_RES_PS,			/* u32 */
+	/*
+	 * Source and destination socket addresses
+	 */
+	RDMA_NLDEV_ATTR_RES_SRC_ADDR,		/* __kernel_sockaddr_storage */
+	RDMA_NLDEV_ATTR_RES_DST_ADDR,		/* __kernel_sockaddr_storage */
+
+	RDMA_NLDEV_ATTR_RES_CQ,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_CQ_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_CQE,		/* u32 */
+	RDMA_NLDEV_ATTR_RES_USECNT,		/* u64 */
+	RDMA_NLDEV_ATTR_RES_POLL_CTX,		/* u8 */
+
+	RDMA_NLDEV_ATTR_RES_MR,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_MR_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_RKEY,		/* u32 */
+	RDMA_NLDEV_ATTR_RES_LKEY,		/* u32 */
+	RDMA_NLDEV_ATTR_RES_IOVA,		/* u64 */
+	RDMA_NLDEV_ATTR_RES_MRLEN,		/* u64 */
+
+	RDMA_NLDEV_ATTR_RES_PD,			/* nested table */
+	RDMA_NLDEV_ATTR_RES_PD_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_RES_LOCAL_DMA_LKEY,	/* u32 */
+	RDMA_NLDEV_ATTR_RES_UNSAFE_GLOBAL_RKEY,	/* u32 */
+	/*
+	 * Provides logical name and index of netdevice which is
+	 * connected to physical port. This information is relevant
+	 * for RoCE and iWARP.
+	 *
+	 * The netdevices which are associated with containers are
+	 * supposed to be exported together with GID table once it
+	 * will be exposed through the netlink. Because the
+	 * associated netdevices are properties of GIDs.
+	 */
+	RDMA_NLDEV_ATTR_NDEV_INDEX,		/* u32 */
+	RDMA_NLDEV_ATTR_NDEV_NAME,		/* string */
+	/*
+	 * driver-specific attributes.
+	 */
+	RDMA_NLDEV_ATTR_DRIVER,			/* nested table */
+	RDMA_NLDEV_ATTR_DRIVER_ENTRY,		/* nested table */
+	RDMA_NLDEV_ATTR_DRIVER_STRING,		/* string */
+	/*
+	 * u8 values from enum rdma_nldev_print_type
+	 */
+	RDMA_NLDEV_ATTR_DRIVER_PRINT_TYPE,	/* u8 */
+	RDMA_NLDEV_ATTR_DRIVER_S32,		/* s32 */
+	RDMA_NLDEV_ATTR_DRIVER_U32,		/* u32 */
+	RDMA_NLDEV_ATTR_DRIVER_S64,		/* s64 */
+	RDMA_NLDEV_ATTR_DRIVER_U64,		/* u64 */
+
+	/*
+	 * Indexes to get/set secific entry,
+	 * for QP use RDMA_NLDEV_ATTR_RES_LQPN
+	 */
+	RDMA_NLDEV_ATTR_RES_PDN,               /* u32 */
+	RDMA_NLDEV_ATTR_RES_CQN,               /* u32 */
+	RDMA_NLDEV_ATTR_RES_MRN,               /* u32 */
+	RDMA_NLDEV_ATTR_RES_CM_IDN,            /* u32 */
+	RDMA_NLDEV_ATTR_RES_CTXN,	       /* u32 */
+	/*
+	 * Identifies the rdma driver. eg: "rxe" or "siw"
+	 */
+	RDMA_NLDEV_ATTR_LINK_TYPE,		/* string */
+
+	/*
+	 * net namespace mode for rdma subsystem:
+	 * either shared or exclusive among multiple net namespaces.
+	 */
+	RDMA_NLDEV_SYS_ATTR_NETNS_MODE,		/* u8 */
+	/*
+	 * Device protocol, e.g. ib, iw, usnic, roce and opa
+	 */
+	RDMA_NLDEV_ATTR_DEV_PROTOCOL,		/* string */
+
+	/*
+	 * File descriptor handle of the net namespace object
+	 */
+	RDMA_NLDEV_NET_NS_FD,			/* u32 */
+	/*
+	 * Information about a chardev.
+	 * CHARDEV_TYPE is the name of the chardev ABI (ie uverbs, umad, etc)
+	 * CHARDEV_ABI signals the ABI revision (historical)
+	 * CHARDEV_NAME is the kernel name for the /dev/ file (no directory)
+	 * CHARDEV is the 64 bit dev_t for the inode
+	 */
+	RDMA_NLDEV_ATTR_CHARDEV_TYPE,		/* string */
+	RDMA_NLDEV_ATTR_CHARDEV_NAME,		/* string */
+	RDMA_NLDEV_ATTR_CHARDEV_ABI,		/* u64 */
+	RDMA_NLDEV_ATTR_CHARDEV,		/* u64 */
+	RDMA_NLDEV_ATTR_UVERBS_DRIVER_ID,       /* u64 */
+	/*
+	 * Counter-specific attributes.
+	 */
+	RDMA_NLDEV_ATTR_STAT_MODE,		/* u32 */
+	RDMA_NLDEV_ATTR_STAT_RES,		/* u32 */
+	RDMA_NLDEV_ATTR_STAT_AUTO_MODE_MASK,	/* u32 */
+	RDMA_NLDEV_ATTR_STAT_COUNTER,		/* nested table */
+	RDMA_NLDEV_ATTR_STAT_COUNTER_ENTRY,	/* nested table */
+	RDMA_NLDEV_ATTR_STAT_COUNTER_ID,	/* u32 */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTERS,	/* nested table */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY,	/* nested table */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY_NAME,	/* string */
+	RDMA_NLDEV_ATTR_STAT_HWCOUNTER_ENTRY_VALUE,	/* u64 */
+
+	/*
+	 * CQ adaptive moderatio (DIM)
+	 */
+	RDMA_NLDEV_ATTR_DEV_DIM,                /* u8 */
+
+	/*
+	 * Always the end
+	 */
 	RDMA_NLDEV_ATTR_MAX
+};
+
+/*
+ * Supported counter bind modes. All modes are mutual-exclusive.
+ */
+enum rdma_nl_counter_mode {
+	RDMA_COUNTER_MODE_NONE,
+
+	/*
+	 * A qp is bound with a counter automatically during initialization
+	 * based on the auto mode (e.g., qp type, ...)
+	 */
+	RDMA_COUNTER_MODE_AUTO,
+
+	/*
+	 * Which qp are bound with which counter is explicitly specified
+	 * by the user
+	 */
+	RDMA_COUNTER_MODE_MANUAL,
+
+	/*
+	 * Always the end
+	 */
+	RDMA_COUNTER_MODE_MAX,
+};
+
+/*
+ * Supported criteria in counter auto mode.
+ * Currently only "qp type" is supported
+ */
+enum rdma_nl_counter_mask {
+	RDMA_COUNTER_MASK_QP_TYPE = 1,
 };
 #endif /* _UAPI_RDMA_NETLINK_H */

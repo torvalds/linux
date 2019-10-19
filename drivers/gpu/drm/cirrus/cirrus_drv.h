@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2012 Red Hat
- *
- * This file is subject to the terms and conditions of the GNU General
- * Public License version 2. See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Authors: Matthew Garrett
  *          Dave Airlie
@@ -92,7 +89,6 @@
 
 #define to_cirrus_crtc(x) container_of(x, struct cirrus_crtc, base)
 #define to_cirrus_encoder(x) container_of(x, struct cirrus_encoder, base)
-#define to_cirrus_framebuffer(x) container_of(x, struct cirrus_framebuffer, base)
 
 struct cirrus_crtc {
 	struct drm_crtc			base;
@@ -102,7 +98,6 @@ struct cirrus_crtc {
 
 struct cirrus_fbdev;
 struct cirrus_mode_info {
-	bool				mode_config_initialized;
 	struct cirrus_crtc		*crtc;
 	/* pointer to fbdev info structure */
 	struct cirrus_fbdev		*gfbdev;
@@ -115,11 +110,6 @@ struct cirrus_encoder {
 
 struct cirrus_connector {
 	struct drm_connector		base;
-};
-
-struct cirrus_framebuffer {
-	struct drm_framebuffer		base;
-	struct drm_gem_object *obj;
 };
 
 struct cirrus_mc {
@@ -142,8 +132,6 @@ struct cirrus_device {
 	int fb_mtrr;
 
 	struct {
-		struct drm_global_reference mem_global_ref;
-		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 	} ttm;
 	bool mm_inited;
@@ -151,8 +139,8 @@ struct cirrus_device {
 
 
 struct cirrus_fbdev {
-	struct drm_fb_helper helper;
-	struct cirrus_framebuffer gfb;
+	struct drm_fb_helper helper; /* must be first */
+	struct drm_framebuffer *gfb;
 	void *sysram;
 	int size;
 	int x1, y1, x2, y2; /* dirty rect */
@@ -177,7 +165,6 @@ cirrus_bo(struct ttm_buffer_object *bo)
 
 
 #define to_cirrus_obj(x) container_of(x, struct cirrus_gem_object, base)
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
 
 				/* cirrus_main.c */
 int cirrus_device_init(struct cirrus_device *cdev,
@@ -198,7 +185,7 @@ int cirrus_dumb_create(struct drm_file *file,
 		       struct drm_mode_create_dumb *args);
 
 int cirrus_framebuffer_init(struct drm_device *dev,
-			   struct cirrus_framebuffer *gfb,
+			    struct drm_framebuffer *gfb,
 			    const struct drm_mode_fb_cmd2 *mode_cmd,
 			    struct drm_gem_object *obj);
 

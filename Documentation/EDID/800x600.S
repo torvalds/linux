@@ -28,14 +28,13 @@
 #define YBLANK 28
 #define XOFFSET 40
 #define XPULSE 128
-#define YOFFSET (63+1)
-#define YPULSE (63+4)
+#define YOFFSET 1
+#define YPULSE 4
 #define DPI 72
 #define VFREQ 60 /* Hz */
 #define TIMING_NAME "Linux SVGA"
 #define ESTABLISHED_TIMING1_BITS 0x01 /* Bit 0: 800x600 @ 60Hz */
 #define HSYNC_POL 1
 #define VSYNC_POL 1
-#define CRC 0xc2
 
 #include "edid.S"

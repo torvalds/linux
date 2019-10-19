@@ -31,22 +31,16 @@ extern __printf(3, 4) void _udf_warn(struct super_block *sb,
 #define udf_info(fmt, ...)					\
 	pr_info("INFO " fmt, ##__VA_ARGS__)
 
-#undef UDFFS_DEBUG
-
-#ifdef UDFFS_DEBUG
 #define udf_debug(fmt, ...)					\
-	printk(KERN_DEBUG pr_fmt("%s:%d:%s: " fmt),		\
-	       __FILE__, __LINE__, __func__, ##__VA_ARGS__)
-#else
-#define udf_debug(fmt, ...)					\
-	no_printk(fmt, ##__VA_ARGS__)
-#endif
+	pr_debug("%s:%d:%s: " fmt, __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
 #define udf_fixed_to_variable(x) ( ( ( (x) >> 5 ) * 39 ) + ( (x) & 0x0000001F ) )
 #define udf_variable_to_fixed(x) ( ( ( (x) / 39 ) << 5 ) + ( (x) % 39 ) )
 
 #define UDF_EXTENT_LENGTH_MASK	0x3FFFFFFF
 #define UDF_EXTENT_FLAG_MASK	0xC0000000
+
+#define UDF_INVALID_ID ((uint32_t)-1)
 
 #define UDF_NAME_PAD		4
 #define UDF_NAME_LEN		254
@@ -130,6 +124,12 @@ struct inode *udf_find_metadata_inode_efe(struct super_block *sb,
 extern int udf_write_fi(struct inode *inode, struct fileIdentDesc *,
 			struct fileIdentDesc *, struct udf_fileident_bh *,
 			uint8_t *, uint8_t *);
+static inline unsigned int udf_dir_entry_len(struct fileIdentDesc *cfi)
+{
+	return ALIGN(sizeof(struct fileIdentDesc) +
+		le16_to_cpu(cfi->lengthOfImpUse) + cfi->lengthFileIdent,
+		UDF_NAME_PAD);
+}
 
 /* file.c */
 extern long udf_ioctl(struct file *, unsigned int, unsigned long);
@@ -165,12 +165,12 @@ extern int udf_add_aext(struct inode *, struct extent_position *,
 			struct kernel_lb_addr *, uint32_t, int);
 extern void udf_write_aext(struct inode *, struct extent_position *,
 			   struct kernel_lb_addr *, uint32_t, int);
-extern int8_t udf_delete_aext(struct inode *, struct extent_position,
-			      struct kernel_lb_addr, uint32_t);
+extern int8_t udf_delete_aext(struct inode *, struct extent_position);
 extern int8_t udf_next_aext(struct inode *, struct extent_position *,
 			    struct kernel_lb_addr *, uint32_t *, int);
 extern int8_t udf_current_aext(struct inode *, struct extent_position *,
 			       struct kernel_lb_addr *, uint32_t *, int);
+extern void udf_update_extra_perms(struct inode *inode, umode_t mode);
 
 /* misc.c */
 extern struct buffer_head *udf_tgetblk(struct super_block *sb,
@@ -218,7 +218,8 @@ extern int udf_get_filename(struct super_block *, const uint8_t *, int,
 			    uint8_t *, int);
 extern int udf_put_filename(struct super_block *, const uint8_t *, int,
 			    uint8_t *, int);
-extern int udf_dstrCS0toUTF8(uint8_t *, int, const uint8_t *, int);
+extern int udf_dstrCS0toChar(struct super_block *, uint8_t *, int,
+			     const uint8_t *, int);
 
 /* ialloc.c */
 extern void udf_free_inode(struct inode *);
@@ -227,7 +228,7 @@ extern struct inode *udf_new_inode(struct inode *, umode_t);
 /* truncate.c */
 extern void udf_truncate_tail_extent(struct inode *);
 extern void udf_discard_prealloc(struct inode *);
-extern void udf_truncate_extents(struct inode *);
+extern int udf_truncate_extents(struct inode *);
 
 /* balloc.c */
 extern void udf_free_blocks(struct super_block *, struct inode *,
@@ -250,8 +251,8 @@ extern struct long_ad *udf_get_filelongad(uint8_t *, int, uint32_t *, int);
 extern struct short_ad *udf_get_fileshortad(uint8_t *, int, uint32_t *, int);
 
 /* udftime.c */
-extern struct timespec *udf_disk_stamp_to_time(struct timespec *dest,
+extern void udf_disk_stamp_to_time(struct timespec64 *dest,
 						struct timestamp src);
-extern struct timestamp *udf_time_to_disk_stamp(struct timestamp *dest, struct timespec src);
+extern void udf_time_to_disk_stamp(struct timestamp *dest, struct timespec64 src);
 
 #endif				/* __UDF_DECL_H */

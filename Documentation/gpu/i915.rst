@@ -58,6 +58,12 @@ Intel GVT-g Host Support(vGPU device model)
 .. kernel-doc:: drivers/gpu/drm/i915/intel_gvt.c
    :internal:
 
+Workarounds
+-----------
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_workarounds.c
+   :doc: Hardware workarounds
+
 Display Hardware Handling
 =========================
 
@@ -76,25 +82,22 @@ change.
 Frontbuffer Tracking
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_frontbuffer.c
    :doc: frontbuffer tracking
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.h
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_frontbuffer.h
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_frontbuffer.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_frontbuffer.c
    :internal:
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem.c
-   :functions: i915_gem_track_fb
 
 Display FIFO Underrun Reporting
 -------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fifo_underrun.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fifo_underrun.c
    :doc: fifo underrun handling
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fifo_underrun.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fifo_underrun.c
    :internal:
 
 Plane Configuration
@@ -109,10 +112,10 @@ panel self refresh.
 Atomic Plane Helpers
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_atomic_plane.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
    :doc: atomic plane helpers
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_atomic_plane.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_atomic_plane.c
    :internal:
 
 Output Probing
@@ -126,19 +129,19 @@ probing, so those sections fully apply.
 Hotplug
 -------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_hotplug.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_hotplug.c
    :doc: Hotplug
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_hotplug.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_hotplug.c
    :internal:
 
 High Definition Audio
 ---------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_audio.c
    :doc: High Definition Audio over HDMI and Display Port
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_audio.c
    :internal:
 
 .. kernel-doc:: include/drm/i915_component.h
@@ -147,58 +150,58 @@ High Definition Audio
 Intel HDMI LPE Audio Support
 ----------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_lpe_audio.c
    :doc: LPE Audio integration for HDMI or DP playback
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_lpe_audio.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_lpe_audio.c
    :internal:
 
 Panel Self Refresh PSR (PSR/SRD)
 --------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_psr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_psr.c
    :doc: Panel Self Refresh (PSR/SRD)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_psr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_psr.c
    :internal:
 
 Frame Buffer Compression (FBC)
 ------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fbc.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fbc.c
    :doc: Frame Buffer Compression (FBC)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_fbc.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_fbc.c
    :internal:
 
 Display Refresh Rate Switching (DRRS)
 -------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :doc: Display Refresh Rate Switching (DRRS)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_dp_set_drrs_state
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_enable
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_disable
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_invalidate
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_edp_drrs_flush
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dp.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dp.c
    :functions: intel_dp_drrs_init
 
 DPIO
 ----
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpio_phy.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpio_phy.c
    :doc: DPIO
 
 CSR firmware support for DMC
@@ -213,34 +216,34 @@ CSR firmware support for DMC
 Video BIOS Table (VBT)
 ----------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_bios.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_bios.c
    :doc: Video BIOS Table (VBT)
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_bios.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_bios.c
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_vbt_defs.h
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_vbt_defs.h
    :internal:
 
 Display clocks
 --------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_cdclk.c
    :doc: CDCLK / RAWCLK
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_cdclk.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_cdclk.c
    :internal:
 
 Display PLLs
 ------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.c
    :doc: Display PLLs
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.c
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.c
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_dpll_mgr.h
+.. kernel-doc:: drivers/gpu/drm/i915/display/intel_dpll_mgr.h
    :internal:
 
 Memory Management and Command Submission
@@ -248,6 +251,103 @@ Memory Management and Command Submission
 
 This sections covers all things related to the GEM implementation in the
 i915 driver.
+
+Intel GPU Basics
+----------------
+
+An Intel GPU has multiple engines. There are several engine types.
+
+- RCS engine is for rendering 3D and performing compute, this is named
+  `I915_EXEC_RENDER` in user space.
+- BCS is a blitting (copy) engine, this is named `I915_EXEC_BLT` in user
+  space.
+- VCS is a video encode and decode engine, this is named `I915_EXEC_BSD`
+  in user space
+- VECS is video enhancement engine, this is named `I915_EXEC_VEBOX` in user
+  space.
+- The enumeration `I915_EXEC_DEFAULT` does not refer to specific engine;
+  instead it is to be used by user space to specify a default rendering
+  engine (for 3D) that may or may not be the same as RCS.
+
+The Intel GPU family is a family of integrated GPU's using Unified
+Memory Access. For having the GPU "do work", user space will feed the
+GPU batch buffers via one of the ioctls `DRM_IOCTL_I915_GEM_EXECBUFFER2`
+or `DRM_IOCTL_I915_GEM_EXECBUFFER2_WR`. Most such batchbuffers will
+instruct the GPU to perform work (for example rendering) and that work
+needs memory from which to read and memory to which to write. All memory
+is encapsulated within GEM buffer objects (usually created with the ioctl
+`DRM_IOCTL_I915_GEM_CREATE`). An ioctl providing a batchbuffer for the GPU
+to create will also list all GEM buffer objects that the batchbuffer reads
+and/or writes. For implementation details of memory management see
+`GEM BO Management Implementation Details`_.
+
+The i915 driver allows user space to create a context via the ioctl
+`DRM_IOCTL_I915_GEM_CONTEXT_CREATE` which is identified by a 32-bit
+integer. Such a context should be viewed by user-space as -loosely-
+analogous to the idea of a CPU process of an operating system. The i915
+driver guarantees that commands issued to a fixed context are to be
+executed so that writes of a previously issued command are seen by
+reads of following commands. Actions issued between different contexts
+(even if from the same file descriptor) are NOT given that guarantee
+and the only way to synchronize across contexts (even from the same
+file descriptor) is through the use of fences. At least as far back as
+Gen4, also have that a context carries with it a GPU HW context;
+the HW context is essentially (most of atleast) the state of a GPU.
+In addition to the ordering guarantees, the kernel will restore GPU
+state via HW context when commands are issued to a context, this saves
+user space the need to restore (most of atleast) the GPU state at the
+start of each batchbuffer. The non-deprecated ioctls to submit batchbuffer
+work can pass that ID (in the lower bits of drm_i915_gem_execbuffer2::rsvd1)
+to identify what context to use with the command.
+
+The GPU has its own memory management and address space. The kernel
+driver maintains the memory translation table for the GPU. For older
+GPUs (i.e. those before Gen8), there is a single global such translation
+table, a global Graphics Translation Table (GTT). For newer generation
+GPUs each context has its own translation table, called Per-Process
+Graphics Translation Table (PPGTT). Of important note, is that although
+PPGTT is named per-process it is actually per context. When user space
+submits a batchbuffer, the kernel walks the list of GEM buffer objects
+used by the batchbuffer and guarantees that not only is the memory of
+each such GEM buffer object resident but it is also present in the
+(PP)GTT. If the GEM buffer object is not yet placed in the (PP)GTT,
+then it is given an address. Two consequences of this are: the kernel
+needs to edit the batchbuffer submitted to write the correct value of
+the GPU address when a GEM BO is assigned a GPU address and the kernel
+might evict a different GEM BO from the (PP)GTT to make address room
+for another GEM BO. Consequently, the ioctls submitting a batchbuffer
+for execution also include a list of all locations within buffers that
+refer to GPU-addresses so that the kernel can edit the buffer correctly.
+This process is dubbed relocation.
+
+GEM BO Management Implementation Details
+----------------------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_vma.h
+   :doc: Virtual Memory Address
+
+Buffer Object Eviction
+----------------------
+
+This section documents the interface functions for evicting buffer
+objects to make space available in the virtual gpu address spaces. Note
+that this is mostly orthogonal to shrinking buffer objects caches, which
+has the goal to make main memory (shared with the gpu through the
+unified memory architecture) available.
+
+.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_evict.c
+   :internal:
+
+Buffer Object Memory Shrinking
+------------------------------
+
+This section documents the interface function for shrinking memory usage
+of buffer object caches. Shrinking is used to make main memory
+available. Note that this is mostly orthogonal to evicting buffer
+objects, which has the goal to make space in gpu virtual address spaces.
+
+.. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_shrinker.c
+   :internal:
 
 Batchbuffer Parsing
 -------------------
@@ -267,14 +367,17 @@ Batchbuffer Pools
 .. kernel-doc:: drivers/gpu/drm/i915/i915_gem_batch_pool.c
    :internal:
 
+User Batchbuffer Execution
+--------------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_execbuffer.c
+   :doc: User command execution
+
 Logical Rings, Logical Ring Contexts and Execlists
 --------------------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_lrc.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/intel_lrc.c
    :doc: Logical Rings, Logical Ring Contexts and Execlists
-
-.. kernel-doc:: drivers/gpu/drm/i915/intel_lrc.c
-   :internal:
 
 Global GTT views
 ----------------
@@ -306,58 +409,50 @@ Hardware Tiling and Swizzling Details
 Object Tiling IOCTLs
 --------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_tiling.c
+.. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_tiling.c
    :internal:
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_tiling.c
+.. kernel-doc:: drivers/gpu/drm/i915/gem/i915_gem_tiling.c
    :doc: buffer object tiling
 
-Buffer Object Eviction
-----------------------
+WOPCM
+=====
 
-This section documents the interface functions for evicting buffer
-objects to make space available in the virtual gpu address spaces. Note
-that this is mostly orthogonal to shrinking buffer objects caches, which
-has the goal to make main memory (shared with the gpu through the
-unified memory architecture) available.
+WOPCM Layout
+------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_evict.c
-   :internal:
-
-Buffer Object Memory Shrinking
-------------------------------
-
-This section documents the interface function for shrinking memory usage
-of buffer object caches. Shrinking is used to make main memory
-available. Note that this is mostly orthogonal to evicting buffer
-objects, which has the goal to make space in gpu virtual address spaces.
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_gem_shrinker.c
-   :internal:
+.. kernel-doc:: drivers/gpu/drm/i915/intel_wopcm.c
+   :doc: WOPCM Layout
 
 GuC
 ===
 
+Firmware Layout
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_uc_fw_abi.h
+   :doc: Firmware Layout
+
 GuC-specific firmware loader
 ----------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_fw.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_fw.c
    :internal:
 
 GuC-based command submission
 ----------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_submission.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :doc: GuC-based command submission
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_submission.c
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc_submission.c
    :internal:
 
-GuC Firmware Layout
--------------------
+GuC Address Space
+-----------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/intel_guc_fwif.h
-   :doc: GuC Firmware Layout
+.. kernel-doc:: drivers/gpu/drm/i915/gt/uc/intel_guc.c
+   :doc: GuC Address Space
 
 Tracing
 =======
@@ -376,12 +471,6 @@ i915_context_create and i915_context_free
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
    :doc: i915_context_create and i915_context_free tracepoints
-
-switch_mm
----------
-
-.. kernel-doc:: drivers/gpu/drm/i915/i915_trace.h
-   :doc: switch_mm tracepoint
 
 Perf
 ====

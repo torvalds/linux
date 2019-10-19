@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Aspeed AST2400/2500 ADC
  *
  * Copyright (C) 2017 Google, Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
  */
 
 #include <linux/clk.h>
@@ -243,7 +239,7 @@ static int aspeed_adc_probe(struct platform_device *pdev)
 					 ASPEED_ADC_INIT_POLLING_TIME,
 					 ASPEED_ADC_INIT_TIMEOUT);
 		if (ret)
-			goto scaler_error;
+			goto poll_timeout_error;
 	}
 
 	/* Start all channels in normal mode. */
@@ -274,9 +270,10 @@ iio_register_error:
 	writel(ASPEED_OPERATION_MODE_POWER_DOWN,
 		data->base + ASPEED_REG_ENGINE_CONTROL);
 	clk_disable_unprepare(data->clk_scaler->clk);
-reset_error:
-	reset_control_assert(data->rst);
 clk_enable_error:
+poll_timeout_error:
+	reset_control_assert(data->rst);
+reset_error:
 	clk_hw_unregister_divider(data->clk_scaler);
 scaler_error:
 	clk_hw_unregister_divider(data->clk_prescaler);

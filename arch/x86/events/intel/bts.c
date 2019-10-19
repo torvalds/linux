@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * BTS PMU driver for perf
  * Copyright (c) 2013-2014, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #undef DEBUG
@@ -23,7 +15,7 @@
 #include <linux/device.h>
 #include <linux/coredump.h>
 
-#include <asm-generic/sizes.h>
+#include <linux/sizes.h>
 #include <asm/perf_event.h>
 
 #include "../perf_event.h"
@@ -77,10 +69,12 @@ static size_t buf_size(struct page *page)
 }
 
 static void *
-bts_buffer_setup_aux(int cpu, void **pages, int nr_pages, bool overwrite)
+bts_buffer_setup_aux(struct perf_event *event, void **pages,
+		     int nr_pages, bool overwrite)
 {
 	struct bts_buffer *buf;
 	struct page *page;
+	int cpu = event->cpu;
 	int node = (cpu == -1) ? cpu : cpu_to_node(cpu);
 	unsigned long offset;
 	size_t size = nr_pages << PAGE_SHIFT;
@@ -589,7 +583,7 @@ static __init int bts_init(void)
 		 * the AUX buffer.
 		 *
 		 * However, since this driver supports per-CPU and per-task inherit
-		 * we cannot use the user mapping since it will not be availble
+		 * we cannot use the user mapping since it will not be available
 		 * if we're not running the owning process.
 		 *
 		 * With PTI we can't use the kernal map either, because its not

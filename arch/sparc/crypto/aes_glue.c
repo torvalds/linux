@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Glue code for AES encryption optimized for sparc64 crypto opcodes.
  *
  * This is based largely upon arch/x86/crypto/aesni-intel_glue.c
@@ -196,14 +197,14 @@ static int aes_set_key(struct crypto_tfm *tfm, const u8 *in_key,
 	return 0;
 }
 
-static void aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void crypto_aes_encrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct crypto_sparc64_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
 	ctx->ops->encrypt(&ctx->key[0], (const u32 *) src, (u32 *) dst);
 }
 
-static void aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
+static void crypto_aes_decrypt(struct crypto_tfm *tfm, u8 *dst, const u8 *src)
 {
 	struct crypto_sparc64_aes_ctx *ctx = crypto_tfm_ctx(tfm);
 
@@ -395,8 +396,8 @@ static struct crypto_alg algs[] = { {
 			.cia_min_keysize	= AES_MIN_KEY_SIZE,
 			.cia_max_keysize	= AES_MAX_KEY_SIZE,
 			.cia_setkey		= aes_set_key,
-			.cia_encrypt		= aes_encrypt,
-			.cia_decrypt		= aes_decrypt
+			.cia_encrypt		= crypto_aes_encrypt,
+			.cia_decrypt		= crypto_aes_decrypt
 		}
 	}
 }, {
@@ -476,11 +477,6 @@ static bool __init sparc64_has_aes_opcode(void)
 
 static int __init aes_sparc64_mod_init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(algs); i++)
-		INIT_LIST_HEAD(&algs[i].cra_list);
-
 	if (sparc64_has_aes_opcode()) {
 		pr_info("Using sparc64 aes opcodes optimized AES implementation\n");
 		return crypto_register_algs(algs, ARRAY_SIZE(algs));

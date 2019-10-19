@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Copyright (C) 2013-2015 Chelsio Communications.  All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms and conditions of the GNU General Public License,
- *  version 2, as published by the Free Software Foundation.
- *
- *  This program is distributed in the hope it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  The full GNU General Public License is included in this distribution in
- *  the file called "COPYING".
- *
  */
 
 #include <linux/firmware.h>
@@ -115,40 +103,8 @@ static char adapter_stats_strings[][ETH_GSTRING_LEN] = {
 	"db_drop                ",
 	"db_full                ",
 	"db_empty               ",
-	"tcp_ipv4_out_rsts      ",
-	"tcp_ipv4_in_segs       ",
-	"tcp_ipv4_out_segs      ",
-	"tcp_ipv4_retrans_segs  ",
-	"tcp_ipv6_out_rsts      ",
-	"tcp_ipv6_in_segs       ",
-	"tcp_ipv6_out_segs      ",
-	"tcp_ipv6_retrans_segs  ",
-	"usm_ddp_frames         ",
-	"usm_ddp_octets         ",
-	"usm_ddp_drops          ",
-	"rdma_no_rqe_mod_defer  ",
-	"rdma_no_rqe_pkt_defer  ",
-	"tp_err_ofld_no_neigh   ",
-	"tp_err_ofld_cong_defer ",
 	"write_coal_success     ",
 	"write_coal_fail        ",
-};
-
-static char channel_stats_strings[][ETH_GSTRING_LEN] = {
-	"--------Channel--------- ",
-	"tp_cpl_requests        ",
-	"tp_cpl_responses       ",
-	"tp_mac_in_errs         ",
-	"tp_hdr_in_errs         ",
-	"tp_tcp_in_errs         ",
-	"tp_tcp6_in_errs        ",
-	"tp_tnl_cong_drops      ",
-	"tp_tnl_tx_drops        ",
-	"tp_ofld_vlan_drops     ",
-	"tp_ofld_chan_drops     ",
-	"fcoe_octets_ddp        ",
-	"fcoe_frames_ddp        ",
-	"fcoe_frames_drop       ",
 };
 
 static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
@@ -177,14 +133,19 @@ static char loopback_stats_strings[][ETH_GSTRING_LEN] = {
 	"bg3_frames_trunc       ",
 };
 
+static const char cxgb4_priv_flags_strings[][ETH_GSTRING_LEN] = {
+	[PRIV_FLAG_PORT_TX_VM_BIT] = "port_tx_vm_wr",
+};
+
 static int get_sset_count(struct net_device *dev, int sset)
 {
 	switch (sset) {
 	case ETH_SS_STATS:
 		return ARRAY_SIZE(stats_strings) +
 		       ARRAY_SIZE(adapter_stats_strings) +
-		       ARRAY_SIZE(channel_stats_strings) +
 		       ARRAY_SIZE(loopback_stats_strings);
+	case ETH_SS_PRIV_FLAGS:
+		return ARRAY_SIZE(cxgb4_priv_flags_strings);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -235,6 +196,7 @@ static void get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 			 FW_HDR_FW_VER_MINOR_G(exprom_vers),
 			 FW_HDR_FW_VER_MICRO_G(exprom_vers),
 			 FW_HDR_FW_VER_BUILD_G(exprom_vers));
+	info->n_priv_flags = ARRAY_SIZE(cxgb4_priv_flags_strings);
 }
 
 static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
@@ -245,11 +207,11 @@ static void get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		memcpy(data, adapter_stats_strings,
 		       sizeof(adapter_stats_strings));
 		data += sizeof(adapter_stats_strings);
-		memcpy(data, channel_stats_strings,
-		       sizeof(channel_stats_strings));
-		data += sizeof(channel_stats_strings);
 		memcpy(data, loopback_stats_strings,
 		       sizeof(loopback_stats_strings));
+	} else if (stringset == ETH_SS_PRIV_FLAGS) {
+		memcpy(data, cxgb4_priv_flags_strings,
+		       sizeof(cxgb4_priv_flags_strings));
 	}
 }
 
@@ -270,39 +232,8 @@ struct adapter_stats {
 	u64 db_drop;
 	u64 db_full;
 	u64 db_empty;
-	u64 tcp_v4_out_rsts;
-	u64 tcp_v4_in_segs;
-	u64 tcp_v4_out_segs;
-	u64 tcp_v4_retrans_segs;
-	u64 tcp_v6_out_rsts;
-	u64 tcp_v6_in_segs;
-	u64 tcp_v6_out_segs;
-	u64 tcp_v6_retrans_segs;
-	u64 frames;
-	u64 octets;
-	u64 drops;
-	u64 rqe_dfr_mod;
-	u64 rqe_dfr_pkt;
-	u64 ofld_no_neigh;
-	u64 ofld_cong_defer;
 	u64 wc_success;
 	u64 wc_fail;
-};
-
-struct channel_stats {
-	u64 cpl_req;
-	u64 cpl_rsp;
-	u64 mac_in_errs;
-	u64 hdr_in_errs;
-	u64 tcp_in_errs;
-	u64 tcp6_in_errs;
-	u64 tnl_cong_drops;
-	u64 tnl_tx_drops;
-	u64 ofld_vlan_drops;
-	u64 ofld_chan_drops;
-	u64 octets_ddp;
-	u64 frames_ddp;
-	u64 frames_drop;
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -327,44 +258,13 @@ static void collect_sge_port_stats(const struct adapter *adap,
 
 static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
 {
-	struct tp_tcp_stats v4, v6;
-	struct tp_rdma_stats rdma_stats;
-	struct tp_err_stats err_stats;
-	struct tp_usm_stats usm_stats;
 	u64 val1, val2;
 
 	memset(s, 0, sizeof(*s));
 
-	spin_lock(&adap->stats_lock);
-	t4_tp_get_tcp_stats(adap, &v4, &v6, false);
-	t4_tp_get_rdma_stats(adap, &rdma_stats, false);
-	t4_get_usm_stats(adap, &usm_stats, false);
-	t4_tp_get_err_stats(adap, &err_stats, false);
-	spin_unlock(&adap->stats_lock);
-
 	s->db_drop = adap->db_stats.db_drop;
 	s->db_full = adap->db_stats.db_full;
 	s->db_empty = adap->db_stats.db_empty;
-
-	s->tcp_v4_out_rsts = v4.tcp_out_rsts;
-	s->tcp_v4_in_segs = v4.tcp_in_segs;
-	s->tcp_v4_out_segs = v4.tcp_out_segs;
-	s->tcp_v4_retrans_segs = v4.tcp_retrans_segs;
-	s->tcp_v6_out_rsts = v6.tcp_out_rsts;
-	s->tcp_v6_in_segs = v6.tcp_in_segs;
-	s->tcp_v6_out_segs = v6.tcp_out_segs;
-	s->tcp_v6_retrans_segs = v6.tcp_retrans_segs;
-
-	if (is_offload(adap)) {
-		s->frames = usm_stats.frames;
-		s->octets = usm_stats.octets;
-		s->drops = usm_stats.drops;
-		s->rqe_dfr_mod = rdma_stats.rqe_dfr_mod;
-		s->rqe_dfr_pkt = rdma_stats.rqe_dfr_pkt;
-	}
-
-	s->ofld_no_neigh = err_stats.ofld_no_neigh;
-	s->ofld_cong_defer = err_stats.ofld_cong_defer;
 
 	if (!is_t4(adap->params.chip)) {
 		int v;
@@ -377,36 +277,6 @@ static void collect_adapter_stats(struct adapter *adap, struct adapter_stats *s)
 			s->wc_fail = val2;
 		}
 	}
-}
-
-static void collect_channel_stats(struct adapter *adap, struct channel_stats *s,
-				  u8 i)
-{
-	struct tp_cpl_stats cpl_stats;
-	struct tp_err_stats err_stats;
-	struct tp_fcoe_stats fcoe_stats;
-
-	memset(s, 0, sizeof(*s));
-
-	spin_lock(&adap->stats_lock);
-	t4_tp_get_cpl_stats(adap, &cpl_stats, false);
-	t4_tp_get_err_stats(adap, &err_stats, false);
-	t4_get_fcoe_stats(adap, i, &fcoe_stats, false);
-	spin_unlock(&adap->stats_lock);
-
-	s->cpl_req = cpl_stats.req[i];
-	s->cpl_rsp = cpl_stats.rsp[i];
-	s->mac_in_errs = err_stats.mac_in_errs[i];
-	s->hdr_in_errs = err_stats.hdr_in_errs[i];
-	s->tcp_in_errs = err_stats.tcp_in_errs[i];
-	s->tcp6_in_errs = err_stats.tcp6_in_errs[i];
-	s->tnl_cong_drops = err_stats.tnl_cong_drops[i];
-	s->tnl_tx_drops = err_stats.tnl_tx_drops[i];
-	s->ofld_vlan_drops = err_stats.ofld_vlan_drops[i];
-	s->ofld_chan_drops = err_stats.ofld_chan_drops[i];
-	s->octets_ddp = fcoe_stats.octets_ddp;
-	s->frames_ddp = fcoe_stats.frames_ddp;
-	s->frames_drop = fcoe_stats.frames_drop;
 }
 
 static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
@@ -427,11 +297,6 @@ static void get_stats(struct net_device *dev, struct ethtool_stats *stats,
 	data += sizeof(struct queue_port_stats) / sizeof(u64);
 	collect_adapter_stats(adapter, (struct adapter_stats *)data);
 	data += sizeof(struct adapter_stats) / sizeof(u64);
-
-	*data++ = (u64)pi->port_id;
-	collect_channel_stats(adapter, (struct channel_stats *)data,
-			      pi->port_id);
-	data += sizeof(struct channel_stats) / sizeof(u64);
 
 	*data++ = (u64)pi->port_id;
 	memset(&s, 0, sizeof(s));
@@ -565,12 +430,14 @@ static unsigned int speed_to_fw_caps(int speed)
  *	Link Mode Mask.
  */
 static void fw_caps_to_lmm(enum fw_port_type port_type,
-			   unsigned int fw_caps,
+			   fw_port_cap32_t fw_caps,
 			   unsigned long *link_mode_mask)
 {
 	#define SET_LMM(__lmm_name) \
-		__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
-			  link_mode_mask)
+		do { \
+			__set_bit(ETHTOOL_LINK_MODE_ ## __lmm_name ## _BIT, \
+				  link_mode_mask); \
+		} while (0)
 
 	#define FW_CAPS_TO_LMM(__fw_name, __lmm_name) \
 		do { \
@@ -597,22 +464,22 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	case FW_PORT_TYPE_KR:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		break;
 
 	case FW_PORT_TYPE_BP_AP:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseR_FEC);
-		SET_LMM(10000baseKR_Full);
-		SET_LMM(1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseR_FEC);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		break;
 
 	case FW_PORT_TYPE_BP4_AP:
 		SET_LMM(Backplane);
-		SET_LMM(10000baseR_FEC);
-		SET_LMM(10000baseKR_Full);
-		SET_LMM(1000baseKX_Full);
-		SET_LMM(10000baseKX4_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseKX_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseR_FEC);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKX4_Full);
 		break;
 
 	case FW_PORT_TYPE_FIBER_XFI:
@@ -628,7 +495,9 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 	case FW_PORT_TYPE_BP40_BA:
 	case FW_PORT_TYPE_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(40000baseSR4_Full);
+		FW_CAPS_TO_LMM(SPEED_1G, 1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		break;
 
 	case FW_PORT_TYPE_CR_QSFP:
@@ -655,12 +524,14 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	case FW_PORT_TYPE_CR2_QSFP:
 		SET_LMM(FIBRE);
-		SET_LMM(50000baseSR2_Full);
+		FW_CAPS_TO_LMM(SPEED_50G, 50000baseSR2_Full);
 		break;
 
 	case FW_PORT_TYPE_KR4_100G:
 	case FW_PORT_TYPE_CR4_QSFP:
 		SET_LMM(FIBRE);
+		FW_CAPS_TO_LMM(SPEED_1G,  1000baseT_Full);
+		FW_CAPS_TO_LMM(SPEED_10G, 10000baseKR_Full);
 		FW_CAPS_TO_LMM(SPEED_40G, 40000baseSR4_Full);
 		FW_CAPS_TO_LMM(SPEED_25G, 25000baseCR_Full);
 		FW_CAPS_TO_LMM(SPEED_50G, 50000baseCR2_Full);
@@ -669,6 +540,13 @@ static void fw_caps_to_lmm(enum fw_port_type port_type,
 
 	default:
 		break;
+	}
+
+	if (fw_caps & FW_PORT_CAP32_FEC_V(FW_PORT_CAP32_FEC_M)) {
+		FW_CAPS_TO_LMM(FEC_RS, FEC_RS);
+		FW_CAPS_TO_LMM(FEC_BASER_RS, FEC_BASER);
+	} else {
+		SET_LMM(FEC_NONE);
 	}
 
 	FW_CAPS_TO_LMM(ANEG, Autoneg);
@@ -742,34 +620,18 @@ static int get_link_ksettings(struct net_device *dev,
 
 	fw_caps_to_lmm(pi->port_type, pi->link_cfg.pcaps,
 		       link_ksettings->link_modes.supported);
-	fw_caps_to_lmm(pi->port_type, pi->link_cfg.acaps,
+	fw_caps_to_lmm(pi->port_type,
+		       t4_link_acaps(pi->adapter,
+				     pi->lport,
+				     &pi->link_cfg),
 		       link_ksettings->link_modes.advertising);
 	fw_caps_to_lmm(pi->port_type, pi->link_cfg.lpacaps,
 		       link_ksettings->link_modes.lp_advertising);
 
-	if (netif_carrier_ok(dev)) {
-		base->speed = pi->link_cfg.speed;
-		base->duplex = DUPLEX_FULL;
-	} else {
-		base->speed = SPEED_UNKNOWN;
-		base->duplex = DUPLEX_UNKNOWN;
-	}
-
-	if (pi->link_cfg.fc & PAUSE_RX) {
-		if (pi->link_cfg.fc & PAUSE_TX) {
-			ethtool_link_ksettings_add_link_mode(link_ksettings,
-							     advertising,
-							     Pause);
-		} else {
-			ethtool_link_ksettings_add_link_mode(link_ksettings,
-							     advertising,
-							     Asym_Pause);
-		}
-	} else if (pi->link_cfg.fc & PAUSE_TX) {
-		ethtool_link_ksettings_add_link_mode(link_ksettings,
-						     advertising,
-						     Asym_Pause);
-	}
+	base->speed = (netif_carrier_ok(dev)
+		       ? pi->link_cfg.speed
+		       : SPEED_UNKNOWN);
+	base->duplex = DUPLEX_FULL;
 
 	base->autoneg = pi->link_cfg.autoneg;
 	if (pi->link_cfg.pcaps & FW_PORT_CAP32_ANEG)
@@ -796,27 +658,20 @@ static int set_link_ksettings(struct net_device *dev,
 	if (base->duplex != DUPLEX_FULL)
 		return -EINVAL;
 
-	if (!(lc->pcaps & FW_PORT_CAP32_ANEG)) {
-		/* PHY offers a single speed.  See if that's what's
-		 * being requested.
-		 */
-		if (base->autoneg == AUTONEG_DISABLE &&
-		    (lc->pcaps & speed_to_fw_caps(base->speed)))
-			return 0;
-		return -EINVAL;
-	}
-
 	old_lc = *lc;
-	if (base->autoneg == AUTONEG_DISABLE) {
+	if (!(lc->pcaps & FW_PORT_CAP32_ANEG) ||
+	    base->autoneg == AUTONEG_DISABLE) {
 		fw_caps = speed_to_fw_caps(base->speed);
 
+		/* Speed must be supported by Physical Port Capabilities. */
 		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
+
 		lc->speed_caps = fw_caps;
-		lc->acaps = 0;
+		lc->acaps = fw_caps;
 	} else {
 		fw_caps =
-			 lmm_to_fw_caps(link_ksettings->link_modes.advertising);
+			lmm_to_fw_caps(link_ksettings->link_modes.advertising);
 		if (!(lc->pcaps & fw_caps))
 			return -EINVAL;
 		lc->speed_caps = 0;
@@ -995,7 +850,7 @@ static int set_sge_param(struct net_device *dev, struct ethtool_ringparam *e)
 	    e->rx_pending < MIN_FL_ENTRIES || e->tx_pending < MIN_TXQ_ENTRIES)
 		return -EINVAL;
 
-	if (adapter->flags & FULL_INIT_DONE)
+	if (adapter->flags & CXGB4_FULL_INIT_DONE)
 		return -EBUSY;
 
 	for (i = 0; i < pi->nqsets; ++i) {
@@ -1052,11 +907,190 @@ static int get_adaptive_rx_setting(struct net_device *dev)
 	return q->rspq.adaptive_rx;
 }
 
-static int set_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
+/* Return the current global Adapter SGE Doorbell Queue Timer Tick for all
+ * Ethernet TX Queues.
+ */
+static int get_dbqtimer_tick(struct net_device *dev)
 {
-	set_adaptive_rx_setting(dev, c->use_adaptive_rx_coalesce);
-	return set_rx_intr_params(dev, c->rx_coalesce_usecs,
-				  c->rx_max_coalesced_frames);
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	return adap->sge.dbqtimer_tick;
+}
+
+/* Return the SGE Doorbell Queue Timer Value for the Ethernet TX Queues
+ * associated with a Network Device.
+ */
+static int get_dbqtimer(struct net_device *dev)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge_eth_txq *txq;
+
+	txq = &adap->sge.ethtxq[pi->first_qset];
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	/* all of the TX Queues use the same Timer Index */
+	return adap->sge.dbqtimer_val[txq->dbqtimerix];
+}
+
+/* Set the global Adapter SGE Doorbell Queue Timer Tick for all Ethernet TX
+ * Queues.  This is the fundamental "Tick" that sets the scale of values which
+ * can be used.  Individual Ethernet TX Queues index into a relatively small
+ * array of Tick Multipliers.  Changing the base Tick will thus change all of
+ * the resulting Timer Values associated with those multipliers for all
+ * Ethernet TX Queues.
+ */
+static int set_dbqtimer_tick(struct net_device *dev, int usecs)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge *s = &adap->sge;
+	u32 param, val;
+	int ret;
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	/* return early if it's the same Timer Tick we're already using */
+	if (s->dbqtimer_tick == usecs)
+		return 0;
+
+	/* attempt to set the new Timer Tick value */
+	param = (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DEV) |
+		 FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DEV_DBQ_TIMERTICK));
+	val = usecs;
+	ret = t4_set_params(adap, adap->mbox, adap->pf, 0, 1, &param, &val);
+	if (ret)
+		return ret;
+	s->dbqtimer_tick = usecs;
+
+	/* if successful, reread resulting dependent Timer values */
+	ret = t4_read_sge_dbqtimers(adap, ARRAY_SIZE(s->dbqtimer_val),
+				    s->dbqtimer_val);
+	return ret;
+}
+
+/* Set the SGE Doorbell Queue Timer Value for the Ethernet TX Queues
+ * associated with a Network Device.  There is a relatively small array of
+ * possible Timer Values so we need to pick the closest value available.
+ */
+static int set_dbqtimer(struct net_device *dev, int usecs)
+{
+	int qix, timerix, min_timerix, delta, min_delta;
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	struct sge *s = &adap->sge;
+	struct sge_eth_txq *txq;
+	u32 param, val;
+	int ret;
+
+	if (!(adap->flags & CXGB4_SGE_DBQ_TIMER))
+		return 0;
+
+	/* Find the SGE Doorbell Timer Value that's closest to the requested
+	 * value.
+	 */
+	min_delta = INT_MAX;
+	min_timerix = 0;
+	for (timerix = 0; timerix < ARRAY_SIZE(s->dbqtimer_val); timerix++) {
+		delta = s->dbqtimer_val[timerix] - usecs;
+		if (delta < 0)
+			delta = -delta;
+		if (delta < min_delta) {
+			min_delta = delta;
+			min_timerix = timerix;
+		}
+	}
+
+	/* Return early if it's the same Timer Index we're already using.
+	 * We use the same Timer Index for all of the TX Queues for an
+	 * interface so it's only necessary to check the first one.
+	 */
+	txq = &s->ethtxq[pi->first_qset];
+	if (txq->dbqtimerix == min_timerix)
+		return 0;
+
+	for (qix = 0; qix < pi->nqsets; qix++, txq++) {
+		if (adap->flags & CXGB4_FULL_INIT_DONE) {
+			param =
+			 (FW_PARAMS_MNEM_V(FW_PARAMS_MNEM_DMAQ) |
+			  FW_PARAMS_PARAM_X_V(FW_PARAMS_PARAM_DMAQ_EQ_TIMERIX) |
+			  FW_PARAMS_PARAM_YZ_V(txq->q.cntxt_id));
+			val = min_timerix;
+			ret = t4_set_params(adap, adap->mbox, adap->pf, 0,
+					    1, &param, &val);
+			if (ret)
+				return ret;
+		}
+		txq->dbqtimerix = min_timerix;
+	}
+	return 0;
+}
+
+/* Set the global Adapter SGE Doorbell Queue Timer Tick for all Ethernet TX
+ * Queues and the Timer Value for the Ethernet TX Queues associated with a
+ * Network Device.  Since changing the global Tick changes all of the
+ * available Timer Values, we need to do this first before selecting the
+ * resulting closest Timer Value.  Moreover, since the Tick is global,
+ * changing it affects the Timer Values for all Network Devices on the
+ * adapter.  So, before changing the Tick, we grab all of the current Timer
+ * Values for other Network Devices on this Adapter and then attempt to select
+ * new Timer Values which are close to the old values ...
+ */
+static int set_dbqtimer_tickval(struct net_device *dev,
+				int tick_usecs, int timer_usecs)
+{
+	struct port_info *pi = netdev_priv(dev);
+	struct adapter *adap = pi->adapter;
+	int timer[MAX_NPORTS];
+	unsigned int port;
+	int ret;
+
+	/* Grab the other adapter Network Interface current timers and fill in
+	 * the new one for this Network Interface.
+	 */
+	for_each_port(adap, port)
+		if (port == pi->port_id)
+			timer[port] = timer_usecs;
+		else
+			timer[port] = get_dbqtimer(adap->port[port]);
+
+	/* Change the global Tick first ... */
+	ret = set_dbqtimer_tick(dev, tick_usecs);
+	if (ret)
+		return ret;
+
+	/* ... and then set all of the Network Interface Timer Values ... */
+	for_each_port(adap, port) {
+		ret = set_dbqtimer(adap->port[port], timer[port]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int set_coalesce(struct net_device *dev,
+			struct ethtool_coalesce *coalesce)
+{
+	int ret;
+
+	set_adaptive_rx_setting(dev, coalesce->use_adaptive_rx_coalesce);
+
+	ret = set_rx_intr_params(dev, coalesce->rx_coalesce_usecs,
+				 coalesce->rx_max_coalesced_frames);
+	if (ret)
+		return ret;
+
+	return set_dbqtimer_tickval(dev,
+				    coalesce->tx_coalesce_usecs_irq,
+				    coalesce->tx_coalesce_usecs);
 }
 
 static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
@@ -1069,6 +1103,8 @@ static int get_coalesce(struct net_device *dev, struct ethtool_coalesce *c)
 	c->rx_max_coalesced_frames = (rq->intr_params & QINTR_CNT_EN_F) ?
 		adap->sge.counter_val[rq->pktcnt_idx] : 0;
 	c->use_adaptive_rx_coalesce = get_adaptive_rx_setting(dev);
+	c->tx_coalesce_usecs_irq = get_dbqtimer_tick(dev);
+	c->tx_coalesce_usecs = get_dbqtimer(dev);
 	return 0;
 }
 
@@ -1202,7 +1238,7 @@ static int set_flash(struct net_device *netdev, struct ethtool_flash *ef)
 	 * firmware image otherwise we'll try to do the entire job from the
 	 * host ... and we always "force" the operation in this path.
 	 */
-	if (adap->flags & FULL_INIT_DONE)
+	if (adap->flags & CXGB4_FULL_INIT_DONE)
 		mbox = adap->mbox;
 
 	ret = t4_fw_upgrade(adap, mbox, fw->data, fw->size, 1);
@@ -1281,7 +1317,7 @@ static int set_rss_table(struct net_device *dev, const u32 *p, const u8 *key,
 		return 0;
 
 	/* Interface must be brought up atleast once */
-	if (pi->adapter->flags & FULL_INIT_DONE) {
+	if (pi->adapter->flags & CXGB4_FULL_INIT_DONE) {
 		for (i = 0; i < pi->rss_size; i++)
 			pi->rss[i] = p[i];
 
@@ -1499,6 +1535,36 @@ static int cxgb4_get_module_eeprom(struct net_device *dev,
 			 offset, len, &data[eprom->len - len]);
 }
 
+static u32 cxgb4_get_priv_flags(struct net_device *netdev)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+
+	return (adapter->eth_flags | pi->eth_flags);
+}
+
+/**
+ *	set_flags - set/unset specified flags if passed in new_flags
+ *	@cur_flags: pointer to current flags
+ *	@new_flags: new incoming flags
+ *	@flags: set of flags to set/unset
+ */
+static inline void set_flags(u32 *cur_flags, u32 new_flags, u32 flags)
+{
+	*cur_flags = (*cur_flags & ~flags) | (new_flags & flags);
+}
+
+static int cxgb4_set_priv_flags(struct net_device *netdev, u32 flags)
+{
+	struct port_info *pi = netdev_priv(netdev);
+	struct adapter *adapter = pi->adapter;
+
+	set_flags(&adapter->eth_flags, flags, PRIV_FLAGS_ADAP);
+	set_flags(&pi->eth_flags, flags, PRIV_FLAGS_PORT);
+
+	return 0;
+}
+
 static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_link_ksettings = get_link_ksettings,
 	.set_link_ksettings = set_link_ksettings,
@@ -1535,6 +1601,8 @@ static const struct ethtool_ops cxgb_ethtool_ops = {
 	.get_dump_data     = get_dump_data,
 	.get_module_info   = cxgb4_get_module_info,
 	.get_module_eeprom = cxgb4_get_module_eeprom,
+	.get_priv_flags    = cxgb4_get_priv_flags,
+	.set_priv_flags    = cxgb4_set_priv_flags,
 };
 
 void cxgb4_set_ethtool_ops(struct net_device *netdev)

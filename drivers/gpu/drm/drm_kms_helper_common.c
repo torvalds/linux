@@ -26,7 +26,8 @@
  */
 
 #include <linux/module.h>
-#include <drm/drmP.h>
+
+#include <drm/drm_print.h>
 
 #include "drm_crtc_helper_internal.h"
 
@@ -39,7 +40,7 @@ MODULE_LICENSE("GPL and additional rights");
 /* Backward compatibility for drm_kms_helper.edid_firmware */
 static int edid_firmware_set(const char *val, const struct kernel_param *kp)
 {
-	DRM_NOTE("drm_kms_firmware.edid_firmware is deprecated, please use drm.edid_firmware intead.\n");
+	DRM_NOTE("drm_kms_helper.edid_firmware is deprecated, please use drm.edid_firmware instead.\n");
 
 	return __drm_set_edid_firmware_path(val);
 }

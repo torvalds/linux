@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014-2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __BCMGENET_H__
@@ -16,6 +13,7 @@
 #include <linux/mii.h>
 #include <linux/if_vlan.h>
 #include <linux/phy.h>
+#include <linux/dim.h>
 
 /* total number of Buffer Descriptors, same for Rx/Tx */
 #define TOTAL_DESC				256
@@ -184,6 +182,9 @@ struct bcmgenet_mib_counters {
 #define UMAC_MAC0			0x00C
 #define UMAC_MAC1			0x010
 #define UMAC_MAX_FRAME_LEN		0x014
+
+#define UMAC_MODE			0x44
+#define  MODE_LINK_STATUS		(1 << 5)
 
 #define UMAC_EEE_CTRL			0x064
 #define  EN_LPI_RX_PAUSE		(1 << 0)
@@ -572,6 +573,14 @@ struct bcmgenet_tx_ring {
 	struct bcmgenet_priv *priv;
 };
 
+struct bcmgenet_net_dim {
+	u16		use_dim;
+	u16		event_ctr;
+	unsigned long	packets;
+	unsigned long	bytes;
+	struct dim	dim;
+};
+
 struct bcmgenet_rx_ring {
 	struct napi_struct napi;	/* Rx NAPI struct */
 	unsigned long	bytes;
@@ -586,6 +595,9 @@ struct bcmgenet_rx_ring {
 	unsigned int	cb_ptr;		/* Rx ring initial CB ptr */
 	unsigned int	end_ptr;	/* Rx ring end CB ptr */
 	unsigned int	old_discards;
+	struct bcmgenet_net_dim dim;
+	u32		rx_max_coalesced_frames;
+	u32		rx_coalesce_usecs;
 	void (*int_enable)(struct bcmgenet_rx_ring *);
 	void (*int_disable)(struct bcmgenet_rx_ring *);
 	struct bcmgenet_priv *priv;

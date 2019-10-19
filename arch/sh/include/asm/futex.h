@@ -22,7 +22,7 @@ static inline int
 futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr,
 			      u32 oldval, u32 newval)
 {
-	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(u32)))
+	if (!access_ok(uaddr, sizeof(u32)))
 		return -EFAULT;
 
 	return atomic_futex_op_cmpxchg_inatomic(uval, uaddr, oldval, newval);
@@ -37,10 +37,7 @@ static inline int arch_futex_atomic_op_inuser(int op, u32 oparg, int *oval,
 	pagefault_disable();
 
 	do {
-		if (op == FUTEX_OP_SET)
-			ret = oldval = 0;
-		else
-			ret = get_user(oldval, uaddr);
+		ret = get_user(oldval, uaddr);
 
 		if (ret) break;
 

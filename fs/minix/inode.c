@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/fs/minix/inode.c
  *
@@ -68,15 +69,9 @@ static struct inode *minix_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
-static void minix_i_callback(struct rcu_head *head)
+static void minix_free_in_core_inode(struct inode *inode)
 {
-	struct inode *inode = container_of(head, struct inode, i_rcu);
 	kmem_cache_free(minix_inode_cachep, minix_i(inode));
-}
-
-static void minix_destroy_inode(struct inode *inode)
-{
-	call_rcu(&inode->i_rcu, minix_i_callback);
 }
 
 static void init_once(void *foo)
@@ -110,7 +105,7 @@ static void destroy_inodecache(void)
 
 static const struct super_operations minix_sops = {
 	.alloc_inode	= minix_alloc_inode,
-	.destroy_inode	= minix_destroy_inode,
+	.free_inode	= minix_free_in_core_inode,
 	.write_inode	= minix_write_inode,
 	.evict_inode	= minix_evict_inode,
 	.put_super	= minix_put_super,
@@ -282,6 +277,8 @@ static int minix_fill_super(struct super_block *s, void *data, int silent)
 
 	/* set up enough so that it can read an inode */
 	s->s_op = &minix_sops;
+	s->s_time_min = 0;
+	s->s_time_max = U32_MAX;
 	root_inode = minix_iget(s, MINIX_ROOT_INO);
 	if (IS_ERR(root_inode)) {
 		ret = PTR_ERR(root_inode);

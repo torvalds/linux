@@ -1,49 +1,8 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
 /*
  * Device Tree include file for SolidRun Clearfog 88F6828 based boards
  *
  *  Copyright (C) 2015 Russell King
- *
- * This board is in development; the contents of this file work with
- * the A1 rev 2.0 of the board, which does not represent final
- * production board.  Things will change, don't expect this file to
- * remain compatible info the future.
- *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPL or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This file is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License
- *     version 2 as published by the Free Software Foundation.
- *
- *     This file is distributed in the hope that it will be useful
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED , WITHOUT WARRANTY OF ANY KIND
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
  */
 
 #include "armada-388.dtsi"
@@ -89,7 +48,7 @@
 					     &clearfog_sdhci_cd_pins>;
 				pinctrl-names = "default";
 				status = "okay";
-				vmmc = <&reg_3p3v>;
+				vmmc-supply = <&reg_3p3v>;
 				wp-inverted;
 			};
 
@@ -117,6 +76,16 @@
 			};
 		};
 	};
+
+	sfp: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c1>;
+		los-gpio = <&expander0 12 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpio = <&expander0 15 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&expander0 14 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpio = <&expander0 13 GPIO_ACTIVE_HIGH>;
+		maximum-power-milliwatt = <2000>;
+	};
 };
 
 &eth1 {
@@ -124,6 +93,7 @@
 	bm,pool-long = <2>;
 	bm,pool-short = <1>;
 	buffer-manager = <&bm>;
+	phys = <&comphy1 1>;
 	phy-mode = "sgmii";
 	status = "okay";
 };
@@ -133,18 +103,15 @@
 	bm,pool-long = <3>;
 	bm,pool-short = <1>;
 	buffer-manager = <&bm>;
+	managed = "in-band-status";
+	phys = <&comphy5 2>;
 	phy-mode = "sgmii";
+	sfp = <&sfp>;
 	status = "okay";
-
-	fixed-link {
-		speed = <1000>;
-		full-duplex;
-	};
 };
 
 &i2c0 {
-	/* Is there anything on this? */
-	clock-frequency = <100000>;
+	clock-frequency = <400000>;
 	pinctrl-0 = <&i2c0_pins>;
 	pinctrl-names = "default";
 	status = "okay";
@@ -209,43 +176,13 @@
 			output-low;
 			line-name = "m.2 devslp";
 		};
-		sfp_los {
-			/* SFP loss of signal */
-			gpio-hog;
-			gpios = <12 GPIO_ACTIVE_HIGH>;
-			input;
-			line-name = "sfp-los";
-		};
-		sfp_tx_fault {
-			/* SFP laser fault */
-			gpio-hog;
-			gpios = <13 GPIO_ACTIVE_HIGH>;
-			input;
-			line-name = "sfp-tx-fault";
-		};
-		sfp_tx_disable {
-			/* SFP transmit disable */
-			gpio-hog;
-			gpios = <14 GPIO_ACTIVE_HIGH>;
-			output-low;
-			line-name = "sfp-tx-disable";
-		};
-		sfp_mod_def0 {
-			/* SFP module present */
-			gpio-hog;
-			gpios = <15 GPIO_ACTIVE_LOW>;
-			input;
-			line-name = "sfp-mod-def0";
-		};
 	};
 
-	/* The MCP3021 is 100kHz clock only */
+	/* The MCP3021 supports standard and fast modes */
 	mikrobus_adc: mcp3021@4c {
 		compatible = "microchip,mcp3021";
 		reg = <0x4c>;
 	};
-
-	/* Also something at 0x64 */
 };
 
 &i2c1 {
@@ -290,7 +227,7 @@
 &spi1 {
 	/*
 	 * Add SPI CS pins for clearfog:
-	 * CS0: W25Q32 (not populated on uSOM)
+	 * CS0: W25Q32
 	 * CS1: PIC microcontroller (Pro models)
 	 * CS2: mikrobus
 	 */

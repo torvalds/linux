@@ -16,36 +16,28 @@ enum { MAX_NESTED_LINKS = 8 };
  */
 enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 
-/*
- * The bitmask for a lookup event:
- *  - follow links at the end
- *  - require a directory
- *  - ending slashes ok even for nonexistent files
- *  - internal "there are more path components" flag
- *  - dentry cache is untrusted; force a real lookup
- *  - suppress terminal automount
- */
-#define LOOKUP_FOLLOW		0x0001
-#define LOOKUP_DIRECTORY	0x0002
-#define LOOKUP_AUTOMOUNT	0x0004
+/* pathwalk mode */
+#define LOOKUP_FOLLOW		0x0001	/* follow links at the end */
+#define LOOKUP_DIRECTORY	0x0002	/* require a directory */
+#define LOOKUP_AUTOMOUNT	0x0004  /* force terminal automount */
+#define LOOKUP_EMPTY		0x4000	/* accept empty path [user_... only] */
+#define LOOKUP_DOWN		0x8000	/* follow mounts in the starting point */
 
+#define LOOKUP_REVAL		0x0020	/* tell ->d_revalidate() to trust no cache */
+#define LOOKUP_RCU		0x0040	/* RCU pathwalk mode; semi-internal */
+
+/* These tell filesystem methods that we are dealing with the final component... */
+#define LOOKUP_OPEN		0x0100	/* ... in open */
+#define LOOKUP_CREATE		0x0200	/* ... in object creation */
+#define LOOKUP_EXCL		0x0400	/* ... in exclusive creation */
+#define LOOKUP_RENAME_TARGET	0x0800	/* ... in destination of rename() */
+
+/* internal use only */
 #define LOOKUP_PARENT		0x0010
-#define LOOKUP_REVAL		0x0020
-#define LOOKUP_RCU		0x0040
 #define LOOKUP_NO_REVAL		0x0080
-
-/*
- * Intent data
- */
-#define LOOKUP_OPEN		0x0100
-#define LOOKUP_CREATE		0x0200
-#define LOOKUP_EXCL		0x0400
-#define LOOKUP_RENAME_TARGET	0x0800
-
 #define LOOKUP_JUMPED		0x1000
 #define LOOKUP_ROOT		0x2000
-#define LOOKUP_EMPTY		0x4000
-#define LOOKUP_DOWN		0x8000
+#define LOOKUP_ROOT_GRABBED	0x0008
 
 extern int path_pts(struct path *path);
 
@@ -57,22 +49,6 @@ static inline int user_path_at(int dfd, const char __user *name, unsigned flags,
 	return user_path_at_empty(dfd, name, flags, path, NULL);
 }
 
-static inline int user_path(const char __user *name, struct path *path)
-{
-	return user_path_at_empty(AT_FDCWD, name, LOOKUP_FOLLOW, path, NULL);
-}
-
-static inline int user_lpath(const char __user *name, struct path *path)
-{
-	return user_path_at_empty(AT_FDCWD, name, 0, path, NULL);
-}
-
-static inline int user_path_dir(const char __user *name, struct path *path)
-{
-	return user_path_at_empty(AT_FDCWD, name,
-				  LOOKUP_FOLLOW | LOOKUP_DIRECTORY, path, NULL);
-}
-
 extern int kern_path(const char *, unsigned, struct path *);
 
 extern struct dentry *kern_path_create(int, const char *, struct path *, unsigned int);
@@ -81,6 +57,7 @@ extern void done_path_create(struct path *, struct dentry *);
 extern struct dentry *kern_path_locked(const char *, struct path *);
 extern int kern_path_mountpoint(int, const char *, struct path *, unsigned int);
 
+extern struct dentry *try_lookup_one_len(const char *, struct dentry *, int);
 extern struct dentry *lookup_one_len(const char *, struct dentry *, int);
 extern struct dentry *lookup_one_len_unlocked(const char *, struct dentry *, int);
 

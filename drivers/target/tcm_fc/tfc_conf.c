@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*******************************************************************************
  * Filename:  tcm_fc.c
  *
@@ -10,15 +11,6 @@
  *
  * Copyright (c) 2009,2010 Nicholas A. Bellinger <nab@linux-iscsi.org>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  ****************************************************************************/
 
 #include <linux/module.h>
@@ -223,10 +215,7 @@ static int ft_init_nodeacl(struct se_node_acl *nacl, const char *name)
 /*
  * local_port port_group (tpg) ops.
  */
-static struct se_portal_group *ft_add_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *ft_add_tpg(struct se_wwn *wwn, const char *name)
 {
 	struct ft_lport_wwn *ft_wwn;
 	struct ft_tpg *tpg;
@@ -395,11 +384,6 @@ static inline struct ft_tpg *ft_tpg(struct se_portal_group *se_tpg)
 	return container_of(se_tpg, struct ft_tpg, se_tpg);
 }
 
-static char *ft_get_fabric_name(void)
-{
-	return "fc";
-}
-
 static char *ft_get_fabric_wwn(struct se_portal_group *se_tpg)
 {
 	return ft_tpg(se_tpg)->lport_wwn->name;
@@ -430,9 +414,8 @@ static u32 ft_tpg_get_inst_index(struct se_portal_group *se_tpg)
 
 static const struct target_core_fabric_ops ft_fabric_ops = {
 	.module =			THIS_MODULE,
-	.name =				"fc",
+	.fabric_name =			"fc",
 	.node_acl_size =		sizeof(struct ft_node_acl),
-	.get_fabric_name =		ft_get_fabric_name,
 	.tpg_get_wwn =			ft_get_fabric_wwn,
 	.tpg_get_tag =			ft_get_tag,
 	.tpg_check_demo_mode =		ft_check_false,
@@ -446,7 +429,6 @@ static const struct target_core_fabric_ops ft_fabric_ops = {
 	.sess_get_index =		ft_sess_get_index,
 	.sess_get_initiator_sid =	NULL,
 	.write_pending =		ft_write_pending,
-	.write_pending_status =		ft_write_pending_status,
 	.set_default_node_attributes =	ft_set_default_node_attr,
 	.get_cmd_state =		ft_get_cmd_state,
 	.queue_data_in =		ft_queue_data_in,

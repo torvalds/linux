@@ -13,28 +13,30 @@ BEGIN {
 	system("uname -a")
 	printf("\n")
 
-	printversion("GNU C", version("gcc -dumpversion 2>&1"))
-	printversion("GNU Make", version("make --version 2>&1"))
-	printversion("Binutils", version("ld -v 2>&1"))
-	printversion("Util-linux", version("mount --version 2>&1"))
-	printversion("Mount", version("mount --version 2>&1"))
-	printversion("Module-init-tools", version("depmod -V  2>&1"))
-	printversion("E2fsprogs", version("tune2fs 2>&1"))
-	printversion("Jfsutils", version("fsck.jfs -V 2>&1"))
-	printversion("Reiserfsprogs", version("reiserfsck -V 2>&1"))
-	printversion("Reiser4fsprogs", version("fsck.reiser4 -V 2>&1"))
-	printversion("Xfsprogs", version("xfs_db -V 2>&1"))
-	printversion("Pcmciautils", version("pccardctl -V 2>&1"))
-	printversion("Pcmcia-cs", version("cardmgr -V 2>&1"))
-	printversion("Quota-tools", version("quota -V 2>&1"))
-	printversion("PPP", version("pppd --version 2>&1"))
-	printversion("Isdn4k-utils", version("isdnctrl 2>&1"))
-	printversion("Nfs-utils", version("showmount --version 2>&1"))
+	vernum = "[0-9]+([.]?[0-9]+)+"
 
-	if (system("test -r /proc/self/maps") == 0) {
-		while (getline <"/proc/self/maps" > 0) {
+	printversion("GNU C", version("gcc -dumpversion"))
+	printversion("GNU Make", version("make --version"))
+	printversion("Binutils", version("ld -v"))
+	printversion("Util-linux", version("mount --version"))
+	printversion("Mount", version("mount --version"))
+	printversion("Module-init-tools", version("depmod -V"))
+	printversion("E2fsprogs", version("tune2fs"))
+	printversion("Jfsutils", version("fsck.jfs -V"))
+	printversion("Reiserfsprogs", version("reiserfsck -V"))
+	printversion("Reiser4fsprogs", version("fsck.reiser4 -V"))
+	printversion("Xfsprogs", version("xfs_db -V"))
+	printversion("Pcmciautils", version("pccardctl -V"))
+	printversion("Pcmcia-cs", version("cardmgr -V"))
+	printversion("Quota-tools", version("quota -V"))
+	printversion("PPP", version("pppd --version"))
+	printversion("Isdn4k-utils", version("isdnctrl"))
+	printversion("Nfs-utils", version("showmount --version"))
+
+	while (getline <"/proc/self/maps" > 0) {
+		if (/libc.*\.so$/) {
 			n = split($0, procmaps, "/")
-			if (/libc.*so$/ && match(procmaps[n], /[0-9]+([.]?[0-9]+)+/)) {
+			if (match(procmaps[n], vernum)) {
 				ver = substr(procmaps[n], RSTART, RLENGTH)
 				printversion("Linux C Library", ver)
 				break
@@ -42,7 +44,7 @@ BEGIN {
 		}
 	}
 
-	printversion("Dynamic linker (ldd)", version("ldd --version 2>&1"))
+	printversion("Dynamic linker (ldd)", version("ldd --version"))
 
 	while ("ldconfig -p 2>/dev/null" | getline > 0) {
 		if (/(libg|stdc)[+]+\.so/) {
@@ -50,30 +52,27 @@ BEGIN {
 			break
 		}
 	}
-	if (system("test -r " libcpp) == 0)
-		printversion("Linux C++ Library", version("readlink " libcpp))
+	printversion("Linux C++ Library", version("readlink " libcpp))
+	printversion("Procps", version("ps --version"))
+	printversion("Net-tools", version("ifconfig --version"))
+	printversion("Kbd", version("loadkeys -V"))
+	printversion("Console-tools", version("loadkeys -V"))
+	printversion("Oprofile", version("oprofiled --version"))
+	printversion("Sh-utils", version("expr --v"))
+	printversion("Udev", version("udevadm --version"))
+	printversion("Wireless-tools", version("iwconfig --version"))
 
-	printversion("Procps", version("ps --version 2>&1"))
-	printversion("Net-tools", version("ifconfig --version 2>&1"))
-	printversion("Kbd", version("loadkeys -V 2>&1"))
-	printversion("Console-tools", version("loadkeys -V 2>&1"))
-	printversion("Oprofile", version("oprofiled --version 2>&1"))
-	printversion("Sh-utils", version("expr --v 2>&1"))
-	printversion("Udev", version("udevadm --version 2>&1"))
-	printversion("Wireless-tools", version("iwconfig --version 2>&1"))
-
-	if (system("test -r /proc/modules") == 0) {
-		while ("sort /proc/modules" | getline > 0) {
-			mods = mods sep $1
-			sep = " "
-		}
-		printversion("Modules Loaded", mods)
+	while ("sort /proc/modules" | getline > 0) {
+		mods = mods sep $1
+		sep = " "
 	}
+	printversion("Modules Loaded", mods)
 }
 
 function version(cmd,    ver) {
+	cmd = cmd " 2>&1"
 	while (cmd | getline > 0) {
-		if (!/ver_linux/ && match($0, /[0-9]+([.]?[0-9]+)+/)) {
+		if (match($0, vernum)) {
 			ver = substr($0, RSTART, RLENGTH)
 			break
 		}

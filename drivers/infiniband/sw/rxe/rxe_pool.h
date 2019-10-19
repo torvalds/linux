@@ -41,6 +41,7 @@ enum rxe_pool_flags {
 	RXE_POOL_ATOMIC		= BIT(0),
 	RXE_POOL_INDEX		= BIT(1),
 	RXE_POOL_KEY		= BIT(2),
+	RXE_POOL_NO_ALLOC	= BIT(4),
 };
 
 enum rxe_elem_type {
@@ -74,8 +75,8 @@ struct rxe_type_info {
 extern struct rxe_type_info rxe_type_info[];
 
 enum rxe_pool_state {
-	rxe_pool_invalid,
-	rxe_pool_valid,
+	RXE_POOL_STATE_INVALID,
+	RXE_POOL_STATE_VALID,
 };
 
 struct rxe_pool_entry {
@@ -90,7 +91,7 @@ struct rxe_pool_entry {
 
 struct rxe_pool {
 	struct rxe_dev		*rxe;
-	spinlock_t              pool_lock; /* pool spinlock */
+	rwlock_t		pool_lock; /* protects pool add/del/search */
 	size_t			elem_size;
 	struct kref		ref_cnt;
 	void			(*cleanup)(struct rxe_pool_entry *obj);
@@ -126,10 +127,13 @@ int rxe_pool_init(struct rxe_dev *rxe, struct rxe_pool *pool,
 		  enum rxe_elem_type type, u32 max_elem);
 
 /* free resources from object pool */
-int rxe_pool_cleanup(struct rxe_pool *pool);
+void rxe_pool_cleanup(struct rxe_pool *pool);
 
 /* allocate an object from pool */
 void *rxe_alloc(struct rxe_pool *pool);
+
+/* connect already allocated object to pool */
+int rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_entry *elem);
 
 /* assign an index to an indexed object and insert object into
  *  pool's rb tree

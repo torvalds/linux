@@ -1,12 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2011 - 2012 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com
  *
  * header file for Samsung EXYNOS5 SoC series G-Scaler driver
 
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef GSC_CORE_H_
@@ -105,7 +103,6 @@ enum gsc_yuv_fmt {
 /**
  * struct gsc_fmt - the driver's internal color format data
  * @mbus_code: Media Bus pixel code, -1 if not applicable
- * @name: format description
  * @pixelformat: the fourcc code for this format, 0 if not applicable
  * @yorder: Y/C order
  * @corder: Chrominance order control
@@ -116,7 +113,6 @@ enum gsc_yuv_fmt {
  */
 struct gsc_fmt {
 	u32 mbus_code;
-	char	*name;
 	u32	pixelformat;
 	u32	color;
 	u32	yorder;
@@ -387,13 +383,12 @@ void gsc_m2m_job_finish(struct gsc_ctx *ctx, int vb_state);
 u32 get_plane_size(struct gsc_frame *fr, unsigned int plane);
 const struct gsc_fmt *get_format(int index);
 const struct gsc_fmt *find_fmt(u32 *pixelformat, u32 *mbus_code, u32 index);
-int gsc_enum_fmt_mplane(struct v4l2_fmtdesc *f);
+int gsc_enum_fmt(struct v4l2_fmtdesc *f);
 int gsc_try_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);
 void gsc_set_frame_size(struct gsc_frame *frame, int width, int height);
 int gsc_g_fmt_mplane(struct gsc_ctx *ctx, struct v4l2_format *f);
 void gsc_check_crop_change(u32 tmp_w, u32 tmp_h, u32 *w, u32 *h);
-int gsc_g_crop(struct gsc_ctx *ctx, struct v4l2_crop *cr);
-int gsc_try_crop(struct gsc_ctx *ctx, struct v4l2_crop *cr);
+int gsc_try_selection(struct gsc_ctx *ctx, struct v4l2_selection *s);
 int gsc_cal_prescaler_ratio(struct gsc_variant *var, u32 src, u32 dst,
 							u32 *ratio);
 void gsc_get_prescaler_shfactor(u32 hratio, u32 vratio, u32 *sh);

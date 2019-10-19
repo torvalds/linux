@@ -1,8 +1,8 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -37,7 +37,9 @@
 #include <linux/miscdevice.h>
 #include <linux/percpu.h>
 #include <linux/msi.h>
+#include <linux/irq.h>
 #include <linux/bitops.h>
+#include <linux/crash_dump.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -64,15 +66,8 @@
 #include "lpfc_version.h"
 #include "lpfc_ids.h"
 
-char *_dump_buf_data;
-unsigned long _dump_buf_data_order;
-char *_dump_buf_dif;
-unsigned long _dump_buf_dif_order;
-spinlock_t _dump_buf_lock;
-
 /* Used when mapping IRQ vectors in a driver centric manner */
-uint16_t *lpfc_used_cpu;
-uint32_t lpfc_present_cpu;
+static uint32_t lpfc_present_cpu;
 
 static void lpfc_get_hba_model_desc(struct lpfc_hba *, uint8_t *, uint8_t *);
 static int lpfc_post_rcv_buf(struct lpfc_hba *);
@@ -93,6 +88,8 @@ static void lpfc_sli4_cq_event_release_all(struct lpfc_hba *);
 static void lpfc_sli4_disable_intr(struct lpfc_hba *);
 static uint32_t lpfc_sli4_enable_intr(struct lpfc_hba *, uint32_t);
 static void lpfc_sli4_oas_verify(struct lpfc_hba *phba);
+static uint16_t lpfc_find_cpu_handle(struct lpfc_hba *, uint16_t, int);
+static void lpfc_setup_bg(struct lpfc_hba *, struct Scsi_Host *);
 
 static struct scsi_transport_template *lpfc_transport_template = NULL;
 static struct scsi_transport_template *lpfc_vport_transport_template = NULL;
@@ -167,7 +164,11 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		       sizeof(phba->wwpn));
 	}
 
-	phba->sli3_options = 0x0;
+	/*
+	 * Clear all option bits except LPFC_SLI3_BG_ENABLED,
+	 * which was already set in lpfc_get_cfgparam()
+	 */
+	phba->sli3_options &= (uint32_t)LPFC_SLI3_BG_ENABLED;
 
 	/* Setup and issue mailbox READ REV command */
 	lpfc_read_rev(phba, pmb);
@@ -443,19 +444,19 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				"READ_SPARM mbxStatus x%x\n",
 				mb->mbxCommand, mb->mbxStatus);
 		phba->link_state = LPFC_HBA_ERROR;
-		mp = (struct lpfc_dmabuf *) pmb->context1;
+		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 		mempool_free(pmb, phba->mbox_mem_pool);
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		return -EIO;
 	}
 
-	mp = (struct lpfc_dmabuf *) pmb->context1;
+	mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
 
 	memcpy(&vport->fc_sparam, mp->virt, sizeof (struct serv_parm));
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
-	pmb->context1 = NULL;
+	pmb->ctx_buf = NULL;
 	lpfc_update_vport_wwn(vport);
 
 	/* Update the fc_host data structures with new wwn. */
@@ -731,7 +732,9 @@ lpfc_hba_init_link_fc_topology(struct lpfc_hba *phba, uint32_t fc_topology,
 	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_16G) &&
 	     !(phba->lmt & LMT_16Gb)) ||
 	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_32G) &&
-	     !(phba->lmt & LMT_32Gb))) {
+	     !(phba->lmt & LMT_32Gb)) ||
+	    ((phba->cfg_link_speed == LPFC_USER_LINK_SPEED_64G) &&
+	     !(phba->lmt & LMT_64Gb))) {
 		/* Reset link speed to auto */
 		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 			"1302 Invalid speed for this board:%d "
@@ -958,6 +961,7 @@ lpfc_hba_clean_txcmplq(struct lpfc_hba *phba)
 	struct lpfc_sli_ring *pring;
 	LIST_HEAD(completions);
 	int i;
+	struct lpfc_iocbq *piocb, *next_iocb;
 
 	if (phba->sli_rev != LPFC_SLI_REV4) {
 		for (i = 0; i < psli->num_rings; i++) {
@@ -983,6 +987,9 @@ lpfc_hba_clean_txcmplq(struct lpfc_hba *phba)
 		if (!pring)
 			continue;
 		spin_lock_irq(&pring->ring_lock);
+		list_for_each_entry_safe(piocb, next_iocb,
+					 &pring->txcmplq, list)
+			piocb->iocb_flag &= ~LPFC_IO_ON_TXCMPLQ;
 		list_splice_init(&pring->txcmplq, &completions);
 		pring->txcmplq_cnt = 0;
 		spin_unlock_irq(&pring->ring_lock);
@@ -1027,14 +1034,14 @@ lpfc_hba_down_post_s3(struct lpfc_hba *phba)
 static int
 lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 {
-	struct lpfc_scsi_buf *psb, *psb_next;
+	struct lpfc_io_buf *psb, *psb_next;
 	struct lpfc_nvmet_rcv_ctx *ctxp, *ctxp_next;
+	struct lpfc_sli4_hdw_queue *qp;
 	LIST_HEAD(aborts);
 	LIST_HEAD(nvme_aborts);
 	LIST_HEAD(nvmet_aborts);
-	unsigned long iflag = 0;
 	struct lpfc_sglq *sglq_entry = NULL;
-	int cnt;
+	int cnt, idx;
 
 
 	lpfc_sli_hbqbuf_free_all(phba);
@@ -1061,47 +1068,39 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 
 
 	spin_unlock(&phba->sli4_hba.sgl_list_lock);
-	/* abts_scsi_buf_list_lock required because worker thread uses this
+
+	/* abts_xxxx_buf_list_lock required because worker thread uses this
 	 * list.
 	 */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
-		spin_lock(&phba->sli4_hba.abts_scsi_buf_list_lock);
-		list_splice_init(&phba->sli4_hba.lpfc_abts_scsi_buf_list,
+	cnt = 0;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+
+		spin_lock(&qp->abts_io_buf_list_lock);
+		list_splice_init(&qp->lpfc_abts_io_buf_list,
 				 &aborts);
-		spin_unlock(&phba->sli4_hba.abts_scsi_buf_list_lock);
-	}
 
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		spin_lock(&phba->sli4_hba.abts_nvme_buf_list_lock);
-		list_splice_init(&phba->sli4_hba.lpfc_abts_nvme_buf_list,
-				 &nvme_aborts);
-		list_splice_init(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
-				 &nvmet_aborts);
-		spin_unlock(&phba->sli4_hba.abts_nvme_buf_list_lock);
-	}
-
-	spin_unlock_irq(&phba->hbalock);
-
-	list_for_each_entry_safe(psb, psb_next, &aborts, list) {
-		psb->pCmd = NULL;
-		psb->status = IOSTAT_SUCCESS;
-	}
-	spin_lock_irqsave(&phba->scsi_buf_list_put_lock, iflag);
-	list_splice(&aborts, &phba->lpfc_scsi_buf_list_put);
-	spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
-
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		cnt = 0;
-		list_for_each_entry_safe(psb, psb_next, &nvme_aborts, list) {
+		list_for_each_entry_safe(psb, psb_next, &aborts, list) {
 			psb->pCmd = NULL;
 			psb->status = IOSTAT_SUCCESS;
 			cnt++;
 		}
-		spin_lock_irqsave(&phba->nvme_buf_list_put_lock, iflag);
-		phba->put_nvme_bufs += cnt;
-		list_splice(&nvme_aborts, &phba->lpfc_nvme_buf_list_put);
-		spin_unlock_irqrestore(&phba->nvme_buf_list_put_lock, iflag);
+		spin_lock(&qp->io_buf_list_put_lock);
+		list_splice_init(&aborts, &qp->lpfc_io_buf_list_put);
+		qp->put_io_bufs += qp->abts_scsi_io_bufs;
+		qp->put_io_bufs += qp->abts_nvme_io_bufs;
+		qp->abts_scsi_io_bufs = 0;
+		qp->abts_nvme_io_bufs = 0;
+		spin_unlock(&qp->io_buf_list_put_lock);
+		spin_unlock(&qp->abts_io_buf_list_lock);
+	}
+	spin_unlock_irq(&phba->hbalock);
 
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		spin_lock_irq(&phba->sli4_hba.abts_nvmet_buf_list_lock);
+		list_splice_init(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list,
+				 &nvmet_aborts);
+		spin_unlock_irq(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		list_for_each_entry_safe(ctxp, ctxp_next, &nvmet_aborts, list) {
 			ctxp->flag &= ~(LPFC_NVMET_XBUSY | LPFC_NVMET_ABORT_OP);
 			lpfc_nvmet_ctxbuf_post(phba, ctxp->ctxbuf);
@@ -1109,7 +1108,7 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	}
 
 	lpfc_sli4_free_sp_events(phba);
-	return 0;
+	return cnt;
 }
 
 /**
@@ -1229,6 +1228,108 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	return;
 }
 
+static void
+lpfc_hb_eq_delay_work(struct work_struct *work)
+{
+	struct lpfc_hba *phba = container_of(to_delayed_work(work),
+					     struct lpfc_hba, eq_delay_work);
+	struct lpfc_eq_intr_info *eqi, *eqi_new;
+	struct lpfc_queue *eq, *eq_next;
+	unsigned char *eqcnt = NULL;
+	uint32_t usdelay;
+	int i;
+	bool update = false;
+
+	if (!phba->cfg_auto_imax || phba->pport->load_flag & FC_UNLOADING)
+		return;
+
+	if (phba->link_state == LPFC_HBA_ERROR ||
+	    phba->pport->fc_flag & FC_OFFLINE_MODE)
+		goto requeue;
+
+	eqcnt = kcalloc(num_possible_cpus(), sizeof(unsigned char),
+			GFP_KERNEL);
+	if (!eqcnt)
+		goto requeue;
+
+	if (phba->cfg_irq_chann > 1) {
+		/* Loop thru all IRQ vectors */
+		for (i = 0; i < phba->cfg_irq_chann; i++) {
+			/* Get the EQ corresponding to the IRQ vector */
+			eq = phba->sli4_hba.hba_eq_hdl[i].eq;
+			if (!eq)
+				continue;
+			if (eq->q_mode) {
+				update = true;
+				break;
+			}
+			if (eqcnt[eq->last_cpu] < 2)
+				eqcnt[eq->last_cpu]++;
+		}
+	} else
+		update = true;
+
+	for_each_present_cpu(i) {
+		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, i);
+		if (!update && eqcnt[i] < 2) {
+			eqi->icnt = 0;
+			continue;
+		}
+
+		usdelay = (eqi->icnt / LPFC_IMAX_THRESHOLD) *
+			   LPFC_EQ_DELAY_STEP;
+		if (usdelay > LPFC_MAX_AUTO_EQ_DELAY)
+			usdelay = LPFC_MAX_AUTO_EQ_DELAY;
+
+		eqi->icnt = 0;
+
+		list_for_each_entry_safe(eq, eq_next, &eqi->list, cpu_list) {
+			if (eq->last_cpu != i) {
+				eqi_new = per_cpu_ptr(phba->sli4_hba.eq_info,
+						      eq->last_cpu);
+				list_move_tail(&eq->cpu_list, &eqi_new->list);
+				continue;
+			}
+			if (usdelay != eq->q_mode)
+				lpfc_modify_hba_eq_delay(phba, eq->hdwq, 1,
+							 usdelay);
+		}
+	}
+
+	kfree(eqcnt);
+
+requeue:
+	queue_delayed_work(phba->wq, &phba->eq_delay_work,
+			   msecs_to_jiffies(LPFC_EQ_DELAY_MSECS));
+}
+
+/**
+ * lpfc_hb_mxp_handler - Multi-XRI pools handler to adjust XRI distribution
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * For each heartbeat, this routine does some heuristic methods to adjust
+ * XRI distribution. The goal is to fully utilize free XRIs.
+ **/
+static void lpfc_hb_mxp_handler(struct lpfc_hba *phba)
+{
+	u32 i;
+	u32 hwq_count;
+
+	hwq_count = phba->cfg_hdw_queue;
+	for (i = 0; i < hwq_count; i++) {
+		/* Adjust XRIs in private pool */
+		lpfc_adjust_pvt_pool_count(phba, i);
+
+		/* Adjust high watermark */
+		lpfc_adjust_high_watermark(phba, i);
+
+#ifdef LPFC_MXP_STAT
+		/* Snapshot pbl, pvt and busy count */
+		lpfc_snapshot_mxp(phba, i);
+#endif
+	}
+}
+
 /**
  * lpfc_hb_timeout_handler - The HBA-timer timeout handler
  * @phba: pointer to lpfc hba data structure.
@@ -1254,13 +1355,11 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 	int retval, i;
 	struct lpfc_sli *psli = &phba->sli;
 	LIST_HEAD(completions);
-	struct lpfc_queue *qp;
-	unsigned long time_elapsed;
-	uint32_t tick_cqe, max_cqe, val;
-	uint64_t tot, data1, data2, data3;
-	struct lpfc_nvmet_tgtport *tgtp;
-	struct lpfc_register reg_data;
-	void __iomem *eqdreg = phba->sli4_hba.u.if_type2.EQDregaddr;
+
+	if (phba->cfg_xri_rebalancing) {
+		/* Multi-XRI pools handler */
+		lpfc_hb_mxp_handler(phba);
+	}
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
@@ -1275,96 +1374,6 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 		(phba->pport->fc_flag & FC_OFFLINE_MODE))
 		return;
 
-	if (phba->cfg_auto_imax) {
-		if (!phba->last_eqdelay_time) {
-			phba->last_eqdelay_time = jiffies;
-			goto skip_eqdelay;
-		}
-		time_elapsed = jiffies - phba->last_eqdelay_time;
-		phba->last_eqdelay_time = jiffies;
-
-		tot = 0xffff;
-		/* Check outstanding IO count */
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			if (phba->nvmet_support) {
-				tgtp = phba->targetport->private;
-				/* Calculate outstanding IOs */
-				tot = atomic_read(&tgtp->rcv_fcp_cmd_drop);
-				tot += atomic_read(&tgtp->xmt_fcp_release);
-				tot = atomic_read(&tgtp->rcv_fcp_cmd_in) - tot;
-			} else {
-				tot = atomic_read(&phba->fc4NvmeIoCmpls);
-				data1 = atomic_read(
-					&phba->fc4NvmeInputRequests);
-				data2 = atomic_read(
-					&phba->fc4NvmeOutputRequests);
-				data3 = atomic_read(
-					&phba->fc4NvmeControlRequests);
-				tot =  (data1 + data2 + data3) - tot;
-			}
-		}
-
-		/* Interrupts per sec per EQ */
-		val = phba->cfg_fcp_imax / phba->io_channel_irqs;
-		tick_cqe = val / CONFIG_HZ; /* Per tick per EQ */
-
-		/* Assume 1 CQE/ISR, calc max CQEs allowed for time duration */
-		max_cqe = time_elapsed * tick_cqe;
-
-		for (i = 0; i < phba->io_channel_irqs; i++) {
-			/* Fast-path EQ */
-			qp = phba->sli4_hba.hba_eq[i];
-			if (!qp)
-				continue;
-
-			/* Use no EQ delay if we don't have many outstanding
-			 * IOs, or if we are only processing 1 CQE/ISR or less.
-			 * Otherwise, assume we can process up to lpfc_fcp_imax
-			 * interrupts per HBA.
-			 */
-			if (tot < LPFC_NODELAY_MAX_IO ||
-			    qp->EQ_cqe_cnt <= max_cqe)
-				val = 0;
-			else
-				val = phba->cfg_fcp_imax;
-
-			if (phba->sli.sli_flag & LPFC_SLI_USE_EQDR) {
-				/* Use EQ Delay Register method */
-
-				/* Convert for EQ Delay register */
-				if (val) {
-					/* First, interrupts per sec per EQ */
-					val = phba->cfg_fcp_imax /
-						phba->io_channel_irqs;
-
-					/* us delay between each interrupt */
-					val = LPFC_SEC_TO_USEC / val;
-				}
-				if (val != qp->q_mode) {
-					reg_data.word0 = 0;
-					bf_set(lpfc_sliport_eqdelay_id,
-					       &reg_data, qp->queue_id);
-					bf_set(lpfc_sliport_eqdelay_delay,
-					       &reg_data, val);
-					writel(reg_data.word0, eqdreg);
-				}
-			} else {
-				/* Use mbox command method */
-				if (val != qp->q_mode)
-					lpfc_modify_hba_eq_delay(phba, i,
-								 1, val);
-			}
-
-			/*
-			 * val is cfg_fcp_imax or 0 for mbox delay or us delay
-			 * between interrupts for EQDR.
-			 */
-			qp->q_mode = val;
-			qp->EQ_cqe_cnt = 0;
-		}
-	}
-
-skip_eqdelay:
 	spin_lock_irq(&phba->pport->work_port_lock);
 
 	if (time_after(phba->last_completion_time +
@@ -1513,6 +1522,7 @@ lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 
 	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
+	lpfc_sli_flush_io_rings(phba);
 	lpfc_offline(phba);
 	lpfc_hba_down_post(phba);
 	lpfc_unblock_mgmt_io(phba);
@@ -1757,7 +1767,7 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 	int rc;
 	uint32_t intr_mode;
 
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 	    LPFC_SLI_INTF_IF_TYPE_2) {
 		/*
 		 * On error status condition, driver need to wait for port
@@ -1774,10 +1784,16 @@ lpfc_sli4_port_sta_fn_reset(struct lpfc_hba *phba, int mbx_action,
 				"2887 Reset Needed: Attempting Port "
 				"Recovery...\n");
 	lpfc_offline_prep(phba, mbx_action);
+	lpfc_sli_flush_io_rings(phba);
 	lpfc_offline(phba);
 	/* release interrupt for possible resource change */
 	lpfc_sli4_disable_intr(phba);
-	lpfc_sli_brdrestart(phba);
+	rc = lpfc_sli_brdrestart(phba);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"6309 Failed to restart board\n");
+		return rc;
+	}
 	/* request and enable interrupt */
 	intr_mode = lpfc_sli4_enable_intr(phba, phba->intr_mode);
 	if (intr_mode == LPFC_INTR_ERROR) {
@@ -1819,8 +1835,12 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 	/* If the pci channel is offline, ignore possible errors, since
 	 * we cannot communicate with the pci card anyway.
 	 */
-	if (pci_channel_offline(phba->pcidev))
+	if (pci_channel_offline(phba->pcidev)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3166 pci channel is offline\n");
+		lpfc_sli4_offline_eratt(phba);
 		return;
+	}
 
 	memset(&portsmphr_reg, 0, sizeof(portsmphr_reg));
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
@@ -1884,10 +1904,11 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"7624 Firmware not ready: Failing UE recovery,"
 				" waited %dSec", i);
-		lpfc_sli4_offline_eratt(phba);
+		phba->link_state = LPFC_HBA_ERROR;
 		break;
 
 	case LPFC_SLI_INTF_IF_TYPE_2:
+	case LPFC_SLI_INTF_IF_TYPE_6:
 		pci_rd_rc1 = lpfc_readl(
 				phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&portstat_reg.word0);
@@ -1896,6 +1917,7 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3151 PCI bus read access failure: x%x\n",
 				readl(phba->sli4_hba.u.if_type2.STATUSregaddr));
+			lpfc_sli4_offline_eratt(phba);
 			return;
 		}
 		reg_err1 = readl(phba->sli4_hba.u.if_type2.ERR1regaddr);
@@ -1956,9 +1978,8 @@ lpfc_handle_eratt_s4(struct lpfc_hba *phba)
 		}
 		/* fall through for not able to recover */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3152 Unrecoverable error, bring the port "
-				"offline\n");
-		lpfc_sli4_offline_eratt(phba);
+				"3152 Unrecoverable error\n");
+		phba->link_state = LPFC_HBA_ERROR;
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
@@ -2269,7 +2290,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		&& descp && descp[0] != '\0')
 		return;
 
-	if (phba->lmt & LMT_32Gb)
+	if (phba->lmt & LMT_64Gb)
+		max_speed = 64;
+	else if (phba->lmt & LMT_32Gb)
 		max_speed = 32;
 	else if (phba->lmt & LMT_16Gb)
 		max_speed = 16;
@@ -2467,6 +2490,9 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		break;
 	case PCI_DEVICE_ID_LANCER_G6_FC:
 		m = (typeof(m)){"LPe32000", "PCIe", "Fibre Channel Adapter"};
+		break;
+	case PCI_DEVICE_ID_LANCER_G7_FC:
+		m = (typeof(m)){"LPe36000", "PCIe", "Fibre Channel Adapter"};
 		break;
 	case PCI_DEVICE_ID_SKYHAWK:
 	case PCI_DEVICE_ID_SKYHAWK_VF:
@@ -2825,7 +2851,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 						&vport->fc_nodes, nlp_listp) {
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
 						LOG_NODE,
-						"0282 did:x%x ndlp:x%p "
+						"0282 did:x%x ndlp:x%px "
 						"usgmap:x%x refcnt:%d\n",
 						ndlp->nlp_DID, (void *)ndlp,
 						ndlp->nlp_usg_map,
@@ -2908,7 +2934,9 @@ lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 void
 lpfc_stop_hba_timers(struct lpfc_hba *phba)
 {
-	lpfc_stop_vport_timers(phba->pport);
+	if (phba->pport)
+		lpfc_stop_vport_timers(phba->pport);
+	cancel_delayed_work_sync(&phba->eq_delay_work);
 	del_timer_sync(&phba->sli.mbox_tmo);
 	del_timer_sync(&phba->fabric_block_timer);
 	del_timer_sync(&phba->eratt_poll);
@@ -2925,7 +2953,7 @@ lpfc_stop_hba_timers(struct lpfc_hba *phba)
 		del_timer_sync(&phba->fcp_poll_timer);
 		break;
 	case LPFC_PCI_DEV_OC:
-		/* Stop any OneConnect device sepcific driver timers */
+		/* Stop any OneConnect device specific driver timers */
 		lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
 		break;
 	default:
@@ -3027,12 +3055,251 @@ lpfc_sli4_node_prep(struct lpfc_hba *phba)
 			ndlp->nlp_rpi = rpi;
 			lpfc_printf_vlog(ndlp->vport, KERN_INFO, LOG_NODE,
 					 "0009 rpi:%x DID:%x "
-					 "flg:%x map:%x %p\n", ndlp->nlp_rpi,
+					 "flg:%x map:%x x%px\n", ndlp->nlp_rpi,
 					 ndlp->nlp_DID, ndlp->nlp_flag,
 					 ndlp->nlp_usg_map, ndlp);
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
+}
+
+/**
+ * lpfc_create_expedite_pool - create expedite pool
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine moves a batch of XRIs from lpfc_io_buf_list_put of HWQ 0
+ * to expedite pool. Mark them as expedite.
+ **/
+static void lpfc_create_expedite_pool(struct lpfc_hba *phba)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	struct lpfc_epd_pool *epd_pool;
+	unsigned long iflag;
+
+	epd_pool = &phba->epd_pool;
+	qp = &phba->sli4_hba.hdwq[0];
+
+	spin_lock_init(&epd_pool->lock);
+	spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
+	spin_lock(&epd_pool->lock);
+	INIT_LIST_HEAD(&epd_pool->list);
+	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+				 &qp->lpfc_io_buf_list_put, list) {
+		list_move_tail(&lpfc_ncmd->list, &epd_pool->list);
+		lpfc_ncmd->expedite = true;
+		qp->put_io_bufs--;
+		epd_pool->count++;
+		if (epd_pool->count >= XRI_BATCH)
+			break;
+	}
+	spin_unlock(&epd_pool->lock);
+	spin_unlock_irqrestore(&qp->io_buf_list_put_lock, iflag);
+}
+
+/**
+ * lpfc_destroy_expedite_pool - destroy expedite pool
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine returns XRIs from expedite pool to lpfc_io_buf_list_put
+ * of HWQ 0. Clear the mark.
+ **/
+static void lpfc_destroy_expedite_pool(struct lpfc_hba *phba)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	struct lpfc_epd_pool *epd_pool;
+	unsigned long iflag;
+
+	epd_pool = &phba->epd_pool;
+	qp = &phba->sli4_hba.hdwq[0];
+
+	spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
+	spin_lock(&epd_pool->lock);
+	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+				 &epd_pool->list, list) {
+		list_move_tail(&lpfc_ncmd->list,
+			       &qp->lpfc_io_buf_list_put);
+		lpfc_ncmd->flags = false;
+		qp->put_io_bufs++;
+		epd_pool->count--;
+	}
+	spin_unlock(&epd_pool->lock);
+	spin_unlock_irqrestore(&qp->io_buf_list_put_lock, iflag);
+}
+
+/**
+ * lpfc_create_multixri_pools - create multi-XRI pools
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine initialize public, private per HWQ. Then, move XRIs from
+ * lpfc_io_buf_list_put to public pool. High and low watermark are also
+ * Initialized.
+ **/
+void lpfc_create_multixri_pools(struct lpfc_hba *phba)
+{
+	u32 i, j;
+	u32 hwq_count;
+	u32 count_per_hwq;
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	unsigned long iflag;
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_pbl_pool *pbl_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"1234 num_hdw_queue=%d num_present_cpu=%d common_xri_cnt=%d\n",
+			phba->cfg_hdw_queue, phba->sli4_hba.num_present_cpu,
+			phba->sli4_hba.io_xri_cnt);
+
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+		lpfc_create_expedite_pool(phba);
+
+	hwq_count = phba->cfg_hdw_queue;
+	count_per_hwq = phba->sli4_hba.io_xri_cnt / hwq_count;
+
+	for (i = 0; i < hwq_count; i++) {
+		multixri_pool = kzalloc(sizeof(*multixri_pool), GFP_KERNEL);
+
+		if (!multixri_pool) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"1238 Failed to allocate memory for "
+					"multixri_pool\n");
+
+			if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+				lpfc_destroy_expedite_pool(phba);
+
+			j = 0;
+			while (j < i) {
+				qp = &phba->sli4_hba.hdwq[j];
+				kfree(qp->p_multixri_pool);
+				j++;
+			}
+			phba->cfg_xri_rebalancing = 0;
+			return;
+		}
+
+		qp = &phba->sli4_hba.hdwq[i];
+		qp->p_multixri_pool = multixri_pool;
+
+		multixri_pool->xri_limit = count_per_hwq;
+		multixri_pool->rrb_next_hwqid = i;
+
+		/* Deal with public free xri pool */
+		pbl_pool = &multixri_pool->pbl_pool;
+		spin_lock_init(&pbl_pool->lock);
+		spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
+		spin_lock(&pbl_pool->lock);
+		INIT_LIST_HEAD(&pbl_pool->list);
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &qp->lpfc_io_buf_list_put, list) {
+			list_move_tail(&lpfc_ncmd->list, &pbl_pool->list);
+			qp->put_io_bufs--;
+			pbl_pool->count++;
+		}
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"1235 Moved %d buffers from PUT list over to pbl_pool[%d]\n",
+				pbl_pool->count, i);
+		spin_unlock(&pbl_pool->lock);
+		spin_unlock_irqrestore(&qp->io_buf_list_put_lock, iflag);
+
+		/* Deal with private free xri pool */
+		pvt_pool = &multixri_pool->pvt_pool;
+		pvt_pool->high_watermark = multixri_pool->xri_limit / 2;
+		pvt_pool->low_watermark = XRI_BATCH;
+		spin_lock_init(&pvt_pool->lock);
+		spin_lock_irqsave(&pvt_pool->lock, iflag);
+		INIT_LIST_HEAD(&pvt_pool->list);
+		pvt_pool->count = 0;
+		spin_unlock_irqrestore(&pvt_pool->lock, iflag);
+	}
+}
+
+/**
+ * lpfc_destroy_multixri_pools - destroy multi-XRI pools
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine returns XRIs from public/private to lpfc_io_buf_list_put.
+ **/
+static void lpfc_destroy_multixri_pools(struct lpfc_hba *phba)
+{
+	u32 i;
+	u32 hwq_count;
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_io_buf *lpfc_ncmd_next;
+	unsigned long iflag;
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_multixri_pool *multixri_pool;
+	struct lpfc_pbl_pool *pbl_pool;
+	struct lpfc_pvt_pool *pvt_pool;
+
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+		lpfc_destroy_expedite_pool(phba);
+
+	if (!(phba->pport->load_flag & FC_UNLOADING))
+		lpfc_sli_flush_io_rings(phba);
+
+	hwq_count = phba->cfg_hdw_queue;
+
+	for (i = 0; i < hwq_count; i++) {
+		qp = &phba->sli4_hba.hdwq[i];
+		multixri_pool = qp->p_multixri_pool;
+		if (!multixri_pool)
+			continue;
+
+		qp->p_multixri_pool = NULL;
+
+		spin_lock_irqsave(&qp->io_buf_list_put_lock, iflag);
+
+		/* Deal with public free xri pool */
+		pbl_pool = &multixri_pool->pbl_pool;
+		spin_lock(&pbl_pool->lock);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"1236 Moving %d buffers from pbl_pool[%d] TO PUT list\n",
+				pbl_pool->count, i);
+
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &pbl_pool->list, list) {
+			list_move_tail(&lpfc_ncmd->list,
+				       &qp->lpfc_io_buf_list_put);
+			qp->put_io_bufs++;
+			pbl_pool->count--;
+		}
+
+		INIT_LIST_HEAD(&pbl_pool->list);
+		pbl_pool->count = 0;
+
+		spin_unlock(&pbl_pool->lock);
+
+		/* Deal with private free xri pool */
+		pvt_pool = &multixri_pool->pvt_pool;
+		spin_lock(&pvt_pool->lock);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"1237 Moving %d buffers from pvt_pool[%d] TO PUT list\n",
+				pvt_pool->count, i);
+
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &pvt_pool->list, list) {
+			list_move_tail(&lpfc_ncmd->list,
+				       &qp->lpfc_io_buf_list_put);
+			qp->put_io_bufs++;
+			pvt_pool->count--;
+		}
+
+		INIT_LIST_HEAD(&pvt_pool->list);
+		pvt_pool->count = 0;
+
+		spin_unlock(&pvt_pool->lock);
+		spin_unlock_irqrestore(&qp->io_buf_list_put_lock, iflag);
+
+		kfree(multixri_pool);
+	}
 }
 
 /**
@@ -3116,6 +3383,9 @@ lpfc_online(struct lpfc_hba *phba)
 		}
 	}
 	lpfc_destroy_vport_work_array(phba, vports);
+
+	if (phba->cfg_xri_rebalancing)
+		lpfc_create_multixri_pools(phba);
 
 	lpfc_unblock_mgmt_io(phba);
 	return 0;
@@ -3205,7 +3475,7 @@ lpfc_offline_prep(struct lpfc_hba *phba, int mbx_action)
 					lpfc_printf_vlog(ndlp->vport,
 							 KERN_INFO, LOG_NODE,
 							 "0011 lpfc_offline: "
-							 "ndlp:x%p did %x "
+							 "ndlp:x%px did %x "
 							 "usgmap:x%x rpi:%x\n",
 							 ndlp, ndlp->nlp_DID,
 							 ndlp->nlp_usg_map,
@@ -3275,6 +3545,9 @@ lpfc_offline(struct lpfc_hba *phba)
 			spin_unlock_irq(shost->host_lock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
+
+	if (phba->cfg_xri_rebalancing)
+		lpfc_destroy_multixri_pools(phba);
 }
 
 /**
@@ -3288,7 +3561,7 @@ lpfc_offline(struct lpfc_hba *phba)
 static void
 lpfc_scsi_free(struct lpfc_hba *phba)
 {
-	struct lpfc_scsi_buf *sb, *sb_next;
+	struct lpfc_io_buf *sb, *sb_next;
 
 	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
 		return;
@@ -3320,50 +3593,59 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 	spin_unlock(&phba->scsi_buf_list_get_lock);
 	spin_unlock_irq(&phba->hbalock);
 }
+
 /**
- * lpfc_nvme_free - Free all the NVME buffers and IOCBs from driver lists
+ * lpfc_io_free - Free all the IO buffers and IOCBs from driver lists
  * @phba: pointer to lpfc hba data structure.
  *
- * This routine is to free all the NVME buffers and IOCBs from the driver
+ * This routine is to free all the IO buffers and IOCBs from the driver
  * list back to kernel. It is called from lpfc_pci_remove_one to free
  * the internal resources before the device is removed from the system.
  **/
-static void
-lpfc_nvme_free(struct lpfc_hba *phba)
+void
+lpfc_io_free(struct lpfc_hba *phba)
 {
-	struct lpfc_nvme_buf *lpfc_ncmd, *lpfc_ncmd_next;
+	struct lpfc_io_buf *lpfc_ncmd, *lpfc_ncmd_next;
+	struct lpfc_sli4_hdw_queue *qp;
+	int idx;
 
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
-		return;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+		/* Release all the lpfc_nvme_bufs maintained by this host. */
+		spin_lock(&qp->io_buf_list_put_lock);
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &qp->lpfc_io_buf_list_put,
+					 list) {
+			list_del(&lpfc_ncmd->list);
+			qp->put_io_bufs--;
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			if (phba->cfg_xpsgl && !phba->nvmet_support)
+				lpfc_put_sgl_per_hdwq(phba, lpfc_ncmd);
+			lpfc_put_cmd_rsp_buf_per_hdwq(phba, lpfc_ncmd);
+			kfree(lpfc_ncmd);
+			qp->total_io_bufs--;
+		}
+		spin_unlock(&qp->io_buf_list_put_lock);
 
-	spin_lock_irq(&phba->hbalock);
-
-	/* Release all the lpfc_nvme_bufs maintained by this host. */
-	spin_lock(&phba->nvme_buf_list_put_lock);
-	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &phba->lpfc_nvme_buf_list_put, list) {
-		list_del(&lpfc_ncmd->list);
-		phba->put_nvme_bufs--;
-		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
-			      lpfc_ncmd->dma_handle);
-		kfree(lpfc_ncmd);
-		phba->total_nvme_bufs--;
+		spin_lock(&qp->io_buf_list_get_lock);
+		list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+					 &qp->lpfc_io_buf_list_get,
+					 list) {
+			list_del(&lpfc_ncmd->list);
+			qp->get_io_bufs--;
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			if (phba->cfg_xpsgl && !phba->nvmet_support)
+				lpfc_put_sgl_per_hdwq(phba, lpfc_ncmd);
+			lpfc_put_cmd_rsp_buf_per_hdwq(phba, lpfc_ncmd);
+			kfree(lpfc_ncmd);
+			qp->total_io_bufs--;
+		}
+		spin_unlock(&qp->io_buf_list_get_lock);
 	}
-	spin_unlock(&phba->nvme_buf_list_put_lock);
-
-	spin_lock(&phba->nvme_buf_list_get_lock);
-	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &phba->lpfc_nvme_buf_list_get, list) {
-		list_del(&lpfc_ncmd->list);
-		phba->get_nvme_bufs--;
-		dma_pool_free(phba->lpfc_sg_dma_buf_pool, lpfc_ncmd->data,
-			      lpfc_ncmd->dma_handle);
-		kfree(lpfc_ncmd);
-		phba->total_nvme_bufs--;
-	}
-	spin_unlock(&phba->nvme_buf_list_get_lock);
-	spin_unlock_irq(&phba->hbalock);
 }
+
 /**
  * lpfc_sli4_els_sgl_update - update ELS xri-sgl sizing and mapping
  * @phba: pointer to lpfc hba data structure.
@@ -3605,8 +3887,102 @@ out_free_mem:
 	return rc;
 }
 
+int
+lpfc_io_buf_flush(struct lpfc_hba *phba, struct list_head *cbuf)
+{
+	LIST_HEAD(blist);
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_io_buf *lpfc_cmd;
+	struct lpfc_io_buf *iobufp, *prev_iobufp;
+	int idx, cnt, xri, inserted;
+
+	cnt = 0;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+		spin_lock_irq(&qp->io_buf_list_get_lock);
+		spin_lock(&qp->io_buf_list_put_lock);
+
+		/* Take everything off the get and put lists */
+		list_splice_init(&qp->lpfc_io_buf_list_get, &blist);
+		list_splice(&qp->lpfc_io_buf_list_put, &blist);
+		INIT_LIST_HEAD(&qp->lpfc_io_buf_list_get);
+		INIT_LIST_HEAD(&qp->lpfc_io_buf_list_put);
+		cnt += qp->get_io_bufs + qp->put_io_bufs;
+		qp->get_io_bufs = 0;
+		qp->put_io_bufs = 0;
+		qp->total_io_bufs = 0;
+		spin_unlock(&qp->io_buf_list_put_lock);
+		spin_unlock_irq(&qp->io_buf_list_get_lock);
+	}
+
+	/*
+	 * Take IO buffers off blist and put on cbuf sorted by XRI.
+	 * This is because POST_SGL takes a sequential range of XRIs
+	 * to post to the firmware.
+	 */
+	for (idx = 0; idx < cnt; idx++) {
+		list_remove_head(&blist, lpfc_cmd, struct lpfc_io_buf, list);
+		if (!lpfc_cmd)
+			return cnt;
+		if (idx == 0) {
+			list_add_tail(&lpfc_cmd->list, cbuf);
+			continue;
+		}
+		xri = lpfc_cmd->cur_iocbq.sli4_xritag;
+		inserted = 0;
+		prev_iobufp = NULL;
+		list_for_each_entry(iobufp, cbuf, list) {
+			if (xri < iobufp->cur_iocbq.sli4_xritag) {
+				if (prev_iobufp)
+					list_add(&lpfc_cmd->list,
+						 &prev_iobufp->list);
+				else
+					list_add(&lpfc_cmd->list, cbuf);
+				inserted = 1;
+				break;
+			}
+			prev_iobufp = iobufp;
+		}
+		if (!inserted)
+			list_add_tail(&lpfc_cmd->list, cbuf);
+	}
+	return cnt;
+}
+
+int
+lpfc_io_buf_replenish(struct lpfc_hba *phba, struct list_head *cbuf)
+{
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_io_buf *lpfc_cmd;
+	int idx, cnt;
+
+	qp = phba->sli4_hba.hdwq;
+	cnt = 0;
+	while (!list_empty(cbuf)) {
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			list_remove_head(cbuf, lpfc_cmd,
+					 struct lpfc_io_buf, list);
+			if (!lpfc_cmd)
+				return cnt;
+			cnt++;
+			qp = &phba->sli4_hba.hdwq[idx];
+			lpfc_cmd->hdwq_no = idx;
+			lpfc_cmd->hdwq = qp;
+			lpfc_cmd->cur_iocbq.wqe_cmpl = NULL;
+			lpfc_cmd->cur_iocbq.iocb_cmpl = NULL;
+			spin_lock(&qp->io_buf_list_put_lock);
+			list_add_tail(&lpfc_cmd->list,
+				      &qp->lpfc_io_buf_list_put);
+			qp->put_io_bufs++;
+			qp->total_io_bufs++;
+			spin_unlock(&qp->io_buf_list_put_lock);
+		}
+	}
+	return cnt;
+}
+
 /**
- * lpfc_sli4_scsi_sgl_update - update xri-sgl sizing and mapping
+ * lpfc_sli4_io_sgl_update - update xri-sgl sizing and mapping
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine first calculates the sizes of the current els and allocated
@@ -3618,92 +3994,188 @@ out_free_mem:
  *   0 - successful (for now, it always returns 0)
  **/
 int
-lpfc_sli4_scsi_sgl_update(struct lpfc_hba *phba)
+lpfc_sli4_io_sgl_update(struct lpfc_hba *phba)
 {
-	struct lpfc_scsi_buf *psb, *psb_next;
-	uint16_t i, lxri, els_xri_cnt, scsi_xri_cnt;
-	LIST_HEAD(scsi_sgl_list);
-	int rc;
+	struct lpfc_io_buf *lpfc_ncmd = NULL, *lpfc_ncmd_next = NULL;
+	uint16_t i, lxri, els_xri_cnt;
+	uint16_t io_xri_cnt, io_xri_max;
+	LIST_HEAD(io_sgl_list);
+	int rc, cnt;
 
 	/*
-	 * update on pci function's els xri-sgl list
+	 * update on pci function's allocated nvme xri-sgl list
 	 */
+
+	/* maximum number of xris available for nvme buffers */
 	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
-	phba->total_scsi_bufs = 0;
-
-	/*
-	 * update on pci function's allocated scsi xri-sgl list
-	 */
-	/* maximum number of xris available for scsi buffers */
-	phba->sli4_hba.scsi_xri_max = phba->sli4_hba.max_cfg_param.max_xri -
-				      els_xri_cnt;
-
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
-		return 0;
-
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-		phba->sli4_hba.scsi_xri_max =  /* Split them up */
-			(phba->sli4_hba.scsi_xri_max *
-			 phba->cfg_xri_split) / 100;
-
-	spin_lock_irq(&phba->scsi_buf_list_get_lock);
-	spin_lock(&phba->scsi_buf_list_put_lock);
-	list_splice_init(&phba->lpfc_scsi_buf_list_get, &scsi_sgl_list);
-	list_splice(&phba->lpfc_scsi_buf_list_put, &scsi_sgl_list);
-	spin_unlock(&phba->scsi_buf_list_put_lock);
-	spin_unlock_irq(&phba->scsi_buf_list_get_lock);
+	io_xri_max = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
+	phba->sli4_hba.io_xri_max = io_xri_max;
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"6060 Current allocated SCSI xri-sgl count:%d, "
-			"maximum  SCSI xri count:%d (split:%d)\n",
-			phba->sli4_hba.scsi_xri_cnt,
-			phba->sli4_hba.scsi_xri_max, phba->cfg_xri_split);
+			"6074 Current allocated XRI sgl count:%d, "
+			"maximum XRI count:%d\n",
+			phba->sli4_hba.io_xri_cnt,
+			phba->sli4_hba.io_xri_max);
 
-	if (phba->sli4_hba.scsi_xri_cnt > phba->sli4_hba.scsi_xri_max) {
-		/* max scsi xri shrinked below the allocated scsi buffers */
-		scsi_xri_cnt = phba->sli4_hba.scsi_xri_cnt -
-					phba->sli4_hba.scsi_xri_max;
-		/* release the extra allocated scsi buffers */
-		for (i = 0; i < scsi_xri_cnt; i++) {
-			list_remove_head(&scsi_sgl_list, psb,
-					 struct lpfc_scsi_buf, list);
-			if (psb) {
+	cnt = lpfc_io_buf_flush(phba, &io_sgl_list);
+
+	if (phba->sli4_hba.io_xri_cnt > phba->sli4_hba.io_xri_max) {
+		/* max nvme xri shrunk below the allocated nvme buffers */
+		io_xri_cnt = phba->sli4_hba.io_xri_cnt -
+					phba->sli4_hba.io_xri_max;
+		/* release the extra allocated nvme buffers */
+		for (i = 0; i < io_xri_cnt; i++) {
+			list_remove_head(&io_sgl_list, lpfc_ncmd,
+					 struct lpfc_io_buf, list);
+			if (lpfc_ncmd) {
 				dma_pool_free(phba->lpfc_sg_dma_buf_pool,
-					      psb->data, psb->dma_handle);
-				kfree(psb);
+					      lpfc_ncmd->data,
+					      lpfc_ncmd->dma_handle);
+				kfree(lpfc_ncmd);
 			}
 		}
-		spin_lock_irq(&phba->scsi_buf_list_get_lock);
-		phba->sli4_hba.scsi_xri_cnt -= scsi_xri_cnt;
-		spin_unlock_irq(&phba->scsi_buf_list_get_lock);
+		phba->sli4_hba.io_xri_cnt -= io_xri_cnt;
 	}
 
-	/* update xris associated to remaining allocated scsi buffers */
-	psb = NULL;
-	psb_next = NULL;
-	list_for_each_entry_safe(psb, psb_next, &scsi_sgl_list, list) {
+	/* update xris associated to remaining allocated nvme buffers */
+	lpfc_ncmd = NULL;
+	lpfc_ncmd_next = NULL;
+	phba->sli4_hba.io_xri_cnt = cnt;
+	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
+				 &io_sgl_list, list) {
 		lxri = lpfc_sli4_next_xritag(phba);
 		if (lxri == NO_XRI) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"2560 Failed to allocate xri for "
-					"scsi buffer\n");
+					"6075 Failed to allocate xri for "
+					"nvme buffer\n");
 			rc = -ENOMEM;
 			goto out_free_mem;
 		}
-		psb->cur_iocbq.sli4_lxritag = lxri;
-		psb->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
+		lpfc_ncmd->cur_iocbq.sli4_lxritag = lxri;
+		lpfc_ncmd->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 	}
-	spin_lock_irq(&phba->scsi_buf_list_get_lock);
-	spin_lock(&phba->scsi_buf_list_put_lock);
-	list_splice_init(&scsi_sgl_list, &phba->lpfc_scsi_buf_list_get);
-	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
-	spin_unlock(&phba->scsi_buf_list_put_lock);
-	spin_unlock_irq(&phba->scsi_buf_list_get_lock);
+	cnt = lpfc_io_buf_replenish(phba, &io_sgl_list);
 	return 0;
 
 out_free_mem:
-	lpfc_scsi_free(phba);
+	lpfc_io_free(phba);
 	return rc;
+}
+
+/**
+ * lpfc_new_io_buf - IO buffer allocator for HBA with SLI4 IF spec
+ * @vport: The virtual port for which this call being executed.
+ * @num_to_allocate: The requested number of buffers to allocate.
+ *
+ * This routine allocates nvme buffers for device with SLI-4 interface spec,
+ * the nvme buffer contains all the necessary information needed to initiate
+ * an I/O. After allocating up to @num_to_allocate IO buffers and put
+ * them on a list, it post them to the port by using SGL block post.
+ *
+ * Return codes:
+ *   int - number of IO buffers that were allocated and posted.
+ *   0 = failure, less than num_to_alloc is a partial failure.
+ **/
+int
+lpfc_new_io_buf(struct lpfc_hba *phba, int num_to_alloc)
+{
+	struct lpfc_io_buf *lpfc_ncmd;
+	struct lpfc_iocbq *pwqeq;
+	uint16_t iotag, lxri = 0;
+	int bcnt, num_posted;
+	LIST_HEAD(prep_nblist);
+	LIST_HEAD(post_nblist);
+	LIST_HEAD(nvme_nblist);
+
+	phba->sli4_hba.io_xri_cnt = 0;
+	for (bcnt = 0; bcnt < num_to_alloc; bcnt++) {
+		lpfc_ncmd = kzalloc(sizeof(*lpfc_ncmd), GFP_KERNEL);
+		if (!lpfc_ncmd)
+			break;
+		/*
+		 * Get memory from the pci pool to map the virt space to
+		 * pci bus space for an I/O. The DMA buffer includes the
+		 * number of SGE's necessary to support the sg_tablesize.
+		 */
+		lpfc_ncmd->data = dma_pool_zalloc(phba->lpfc_sg_dma_buf_pool,
+						  GFP_KERNEL,
+						  &lpfc_ncmd->dma_handle);
+		if (!lpfc_ncmd->data) {
+			kfree(lpfc_ncmd);
+			break;
+		}
+
+		if (phba->cfg_xpsgl && !phba->nvmet_support) {
+			INIT_LIST_HEAD(&lpfc_ncmd->dma_sgl_xtra_list);
+		} else {
+			/*
+			 * 4K Page alignment is CRITICAL to BlockGuard, double
+			 * check to be sure.
+			 */
+			if ((phba->sli3_options & LPFC_SLI3_BG_ENABLED) &&
+			    (((unsigned long)(lpfc_ncmd->data) &
+			    (unsigned long)(SLI4_PAGE_SIZE - 1)) != 0)) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FCP,
+						"3369 Memory alignment err: "
+						"addr=%lx\n",
+						(unsigned long)lpfc_ncmd->data);
+				dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+					      lpfc_ncmd->data,
+					      lpfc_ncmd->dma_handle);
+				kfree(lpfc_ncmd);
+				break;
+			}
+		}
+
+		INIT_LIST_HEAD(&lpfc_ncmd->dma_cmd_rsp_list);
+
+		lxri = lpfc_sli4_next_xritag(phba);
+		if (lxri == NO_XRI) {
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			kfree(lpfc_ncmd);
+			break;
+		}
+		pwqeq = &lpfc_ncmd->cur_iocbq;
+
+		/* Allocate iotag for lpfc_ncmd->cur_iocbq. */
+		iotag = lpfc_sli_next_iotag(phba, pwqeq);
+		if (iotag == 0) {
+			dma_pool_free(phba->lpfc_sg_dma_buf_pool,
+				      lpfc_ncmd->data, lpfc_ncmd->dma_handle);
+			kfree(lpfc_ncmd);
+			lpfc_printf_log(phba, KERN_ERR, LOG_NVME_IOERR,
+					"6121 Failed to allocate IOTAG for"
+					" XRI:0x%x\n", lxri);
+			lpfc_sli4_free_xri(phba, lxri);
+			break;
+		}
+		pwqeq->sli4_lxritag = lxri;
+		pwqeq->sli4_xritag = phba->sli4_hba.xri_ids[lxri];
+		pwqeq->context1 = lpfc_ncmd;
+
+		/* Initialize local short-hand pointers. */
+		lpfc_ncmd->dma_sgl = lpfc_ncmd->data;
+		lpfc_ncmd->dma_phys_sgl = lpfc_ncmd->dma_handle;
+		lpfc_ncmd->cur_iocbq.context1 = lpfc_ncmd;
+		spin_lock_init(&lpfc_ncmd->buf_lock);
+
+		/* add the nvme buffer to a post list */
+		list_add_tail(&lpfc_ncmd->list, &post_nblist);
+		phba->sli4_hba.io_xri_cnt++;
+	}
+	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
+			"6114 Allocate %d out of %d requested new NVME "
+			"buffers\n", bcnt, num_to_alloc);
+
+	/* post the list of nvme buffer sgls to port if available */
+	if (!list_empty(&post_nblist))
+		num_posted = lpfc_sli4_post_io_sgl_list(
+				phba, &post_nblist, bcnt);
+	else
+		num_posted = 0;
+
+	return num_posted;
 }
 
 static uint64_t
@@ -3739,111 +4211,6 @@ lpfc_get_wwpn(struct lpfc_hba *phba)
 		return be64_to_cpu(wwn);
 	else
 		return rol64(wwn, 32);
-}
-
-/**
- * lpfc_sli4_nvme_sgl_update - update xri-sgl sizing and mapping
- * @phba: pointer to lpfc hba data structure.
- *
- * This routine first calculates the sizes of the current els and allocated
- * scsi sgl lists, and then goes through all sgls to updates the physical
- * XRIs assigned due to port function reset. During port initialization, the
- * current els and allocated scsi sgl lists are 0s.
- *
- * Return codes
- *   0 - successful (for now, it always returns 0)
- **/
-int
-lpfc_sli4_nvme_sgl_update(struct lpfc_hba *phba)
-{
-	struct lpfc_nvme_buf *lpfc_ncmd = NULL, *lpfc_ncmd_next = NULL;
-	uint16_t i, lxri, els_xri_cnt;
-	uint16_t nvme_xri_cnt, nvme_xri_max;
-	LIST_HEAD(nvme_sgl_list);
-	int rc, cnt;
-
-	phba->total_nvme_bufs = 0;
-	phba->get_nvme_bufs = 0;
-	phba->put_nvme_bufs = 0;
-
-	if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME))
-		return 0;
-	/*
-	 * update on pci function's allocated nvme xri-sgl list
-	 */
-
-	/* maximum number of xris available for nvme buffers */
-	els_xri_cnt = lpfc_sli4_get_els_iocb_cnt(phba);
-	nvme_xri_max = phba->sli4_hba.max_cfg_param.max_xri - els_xri_cnt;
-	phba->sli4_hba.nvme_xri_max = nvme_xri_max;
-	phba->sli4_hba.nvme_xri_max -= phba->sli4_hba.scsi_xri_max;
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-			"6074 Current allocated NVME xri-sgl count:%d, "
-			"maximum  NVME xri count:%d\n",
-			phba->sli4_hba.nvme_xri_cnt,
-			phba->sli4_hba.nvme_xri_max);
-
-	spin_lock_irq(&phba->nvme_buf_list_get_lock);
-	spin_lock(&phba->nvme_buf_list_put_lock);
-	list_splice_init(&phba->lpfc_nvme_buf_list_get, &nvme_sgl_list);
-	list_splice(&phba->lpfc_nvme_buf_list_put, &nvme_sgl_list);
-	cnt = phba->get_nvme_bufs + phba->put_nvme_bufs;
-	phba->get_nvme_bufs = 0;
-	phba->put_nvme_bufs = 0;
-	spin_unlock(&phba->nvme_buf_list_put_lock);
-	spin_unlock_irq(&phba->nvme_buf_list_get_lock);
-
-	if (phba->sli4_hba.nvme_xri_cnt > phba->sli4_hba.nvme_xri_max) {
-		/* max nvme xri shrunk below the allocated nvme buffers */
-		spin_lock_irq(&phba->nvme_buf_list_get_lock);
-		nvme_xri_cnt = phba->sli4_hba.nvme_xri_cnt -
-					phba->sli4_hba.nvme_xri_max;
-		spin_unlock_irq(&phba->nvme_buf_list_get_lock);
-		/* release the extra allocated nvme buffers */
-		for (i = 0; i < nvme_xri_cnt; i++) {
-			list_remove_head(&nvme_sgl_list, lpfc_ncmd,
-					 struct lpfc_nvme_buf, list);
-			if (lpfc_ncmd) {
-				dma_pool_free(phba->lpfc_sg_dma_buf_pool,
-					      lpfc_ncmd->data,
-					      lpfc_ncmd->dma_handle);
-				kfree(lpfc_ncmd);
-			}
-		}
-		spin_lock_irq(&phba->nvme_buf_list_get_lock);
-		phba->sli4_hba.nvme_xri_cnt -= nvme_xri_cnt;
-		spin_unlock_irq(&phba->nvme_buf_list_get_lock);
-	}
-
-	/* update xris associated to remaining allocated nvme buffers */
-	lpfc_ncmd = NULL;
-	lpfc_ncmd_next = NULL;
-	list_for_each_entry_safe(lpfc_ncmd, lpfc_ncmd_next,
-				 &nvme_sgl_list, list) {
-		lxri = lpfc_sli4_next_xritag(phba);
-		if (lxri == NO_XRI) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
-					"6075 Failed to allocate xri for "
-					"nvme buffer\n");
-			rc = -ENOMEM;
-			goto out_free_mem;
-		}
-		lpfc_ncmd->cur_iocbq.sli4_lxritag = lxri;
-		lpfc_ncmd->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
-	}
-	spin_lock_irq(&phba->nvme_buf_list_get_lock);
-	spin_lock(&phba->nvme_buf_list_put_lock);
-	list_splice_init(&nvme_sgl_list, &phba->lpfc_nvme_buf_list_get);
-	phba->get_nvme_bufs = cnt;
-	INIT_LIST_HEAD(&phba->lpfc_nvme_buf_list_put);
-	spin_unlock(&phba->nvme_buf_list_put_lock);
-	spin_unlock_irq(&phba->nvme_buf_list_get_lock);
-	return 0;
-
-out_free_mem:
-	lpfc_nvme_free(phba);
-	return rc;
 }
 
 /**
@@ -3921,17 +4288,35 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	vport->fc_rscn_flush = 0;
 	lpfc_get_vport_cfgparam(vport);
 
+	/* Adjust value in vport */
+	vport->cfg_enable_fc4_type = phba->cfg_enable_fc4_type;
+
 	shost->unique_id = instance;
 	shost->max_id = LPFC_MAX_TARGET;
 	shost->max_lun = vport->cfg_max_luns;
 	shost->this_id = -1;
 	shost->max_cmd_len = 16;
-	shost->nr_hw_queues = phba->cfg_fcp_io_channel;
+
 	if (phba->sli_rev == LPFC_SLI_REV4) {
+		if (!phba->cfg_fcp_mq_threshold ||
+		    phba->cfg_fcp_mq_threshold > phba->cfg_hdw_queue)
+			phba->cfg_fcp_mq_threshold = phba->cfg_hdw_queue;
+
+		shost->nr_hw_queues = min_t(int, 2 * num_possible_nodes(),
+					    phba->cfg_fcp_mq_threshold);
+
 		shost->dma_boundary =
 			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
-		shost->sg_tablesize = phba->cfg_sg_seg_cnt;
-	}
+
+		if (phba->cfg_xpsgl && !phba->nvmet_support)
+			shost->sg_tablesize = LPFC_MAX_SG_TABLESIZE;
+		else
+			shost->sg_tablesize = phba->cfg_scsi_seg_cnt;
+	} else
+		/* SLI-3 has a limited number of hardware queues (3),
+		 * thus there is only one for FCP processing.
+		 */
+		shost->nr_hw_queues = 1;
 
 	/*
 	 * Set initial can_queue value since 0 is no longer supported and
@@ -3958,13 +4343,16 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 
 	timer_setup(&vport->delayed_disc_tmo, lpfc_delayed_disc_tmo, 0);
 
+	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED)
+		lpfc_setup_bg(phba, shost);
+
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
 		goto out_put_shost;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_add_tail(&vport->listentry, &phba->port_list);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 	return vport;
 
 out_put_shost:
@@ -3990,9 +4378,9 @@ destroy_port(struct lpfc_vport *vport)
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	lpfc_cleanup(vport);
 	return;
@@ -4076,6 +4464,32 @@ finished:
 	return stat;
 }
 
+static void lpfc_host_supported_speeds_set(struct Scsi_Host *shost)
+{
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	fc_host_supported_speeds(shost) = 0;
+	if (phba->lmt & LMT_128Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_128GBIT;
+	if (phba->lmt & LMT_64Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_64GBIT;
+	if (phba->lmt & LMT_32Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_32GBIT;
+	if (phba->lmt & LMT_16Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_16GBIT;
+	if (phba->lmt & LMT_10Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_10GBIT;
+	if (phba->lmt & LMT_8Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_8GBIT;
+	if (phba->lmt & LMT_4Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_4GBIT;
+	if (phba->lmt & LMT_2Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_2GBIT;
+	if (phba->lmt & LMT_1Gb)
+		fc_host_supported_speeds(shost) |= FC_PORTSPEED_1GBIT;
+}
+
 /**
  * lpfc_host_attrib_init - Initialize SCSI host attributes on a FC port
  * @shost: pointer to SCSI host data structure.
@@ -4103,21 +4517,7 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 	lpfc_vport_symbolic_node_name(vport, fc_host_symbolic_name(shost),
 				 sizeof fc_host_symbolic_name(shost));
 
-	fc_host_supported_speeds(shost) = 0;
-	if (phba->lmt & LMT_32Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_32GBIT;
-	if (phba->lmt & LMT_16Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_16GBIT;
-	if (phba->lmt & LMT_10Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_10GBIT;
-	if (phba->lmt & LMT_8Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_8GBIT;
-	if (phba->lmt & LMT_4Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_4GBIT;
-	if (phba->lmt & LMT_2Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_2GBIT;
-	if (phba->lmt & LMT_1Gb)
-		fc_host_supported_speeds(shost) |= FC_PORTSPEED_1GBIT;
+	lpfc_host_supported_speeds_set(shost);
 
 	fc_host_maxframe_size(shost) =
 		(((uint32_t) vport->fc_sparam.cmn.bbRcvSizeMsb & 0x0F) << 8) |
@@ -4173,7 +4573,8 @@ lpfc_stop_port_s4(struct lpfc_hba *phba)
 {
 	/* Reset some HBA SLI4 setup states */
 	lpfc_stop_hba_timers(phba);
-	phba->pport->work_port_events = 0;
+	if (phba->pport)
+		phba->pport->work_port_events = 0;
 	phba->sli4_hba.intr_enable = 0;
 }
 
@@ -4251,32 +4652,24 @@ lpfc_sli4_fcf_redisc_wait_tmo(struct timer_list *t)
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async link completion queue entry.
  *
- * This routine is to parse the SLI4 link-attention link fault code and
- * translate it into the base driver's read link attention mailbox command
- * status.
- *
- * Return: Link-attention status in terms of base driver's coding.
+ * This routine is to parse the SLI4 link-attention link fault code.
  **/
-static uint16_t
+static void
 lpfc_sli4_parse_latt_fault(struct lpfc_hba *phba,
 			   struct lpfc_acqe_link *acqe_link)
 {
-	uint16_t latt_fault;
-
 	switch (bf_get(lpfc_acqe_link_fault, acqe_link)) {
 	case LPFC_ASYNC_LINK_FAULT_NONE:
 	case LPFC_ASYNC_LINK_FAULT_LOCAL:
 	case LPFC_ASYNC_LINK_FAULT_REMOTE:
-		latt_fault = 0;
+	case LPFC_ASYNC_LINK_FAULT_LR_LRR:
 		break;
 	default:
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0398 Invalid link fault code: x%x\n",
+				"0398 Unknown link fault code: x%x\n",
 				bf_get(lpfc_acqe_link_fault, acqe_link));
-		latt_fault = MBXERR_ERROR;
 		break;
 	}
-	return latt_fault;
 }
 
 /**
@@ -4440,6 +4833,12 @@ lpfc_sli4_port_speed_parse(struct lpfc_hba *phba, uint32_t evt_code,
 		case LPFC_FC_LA_SPEED_32G:
 			port_speed = 32000;
 			break;
+		case LPFC_FC_LA_SPEED_64G:
+			port_speed = 64000;
+			break;
+		case LPFC_FC_LA_SPEED_128G:
+			port_speed = 128000;
+			break;
 		default:
 			port_speed = 0;
 		}
@@ -4548,9 +4947,12 @@ lpfc_sli4_async_link_evt(struct lpfc_hba *phba,
 	 * the READ_TOPOLOGY completion routine to continue without actually
 	 * sending the READ_TOPOLOGY mailbox command to the port.
 	 */
-	/* Parse and translate status field */
+	/* Initialize completion status */
 	mb = &pmb->u.mb;
-	mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba, acqe_link);
+	mb->mbxStatus = MBX_SUCCESS;
+
+	/* Parse port fault information field */
+	lpfc_sli4_parse_latt_fault(phba, acqe_link);
 
 	/* Parse and translate link attention fields */
 	la = (struct lpfc_mbx_read_top *) &pmb->u.mb.un.varReadTop;
@@ -4579,6 +4981,136 @@ out_free_pmb:
 }
 
 /**
+ * lpfc_async_link_speed_to_read_top - Parse async evt link speed code to read
+ * topology.
+ * @phba: pointer to lpfc hba data structure.
+ * @evt_code: asynchronous event code.
+ * @speed_code: asynchronous event link speed code.
+ *
+ * This routine is to parse the giving SLI4 async event link speed code into
+ * value of Read topology link speed.
+ *
+ * Return: link speed in terms of Read topology.
+ **/
+static uint8_t
+lpfc_async_link_speed_to_read_top(struct lpfc_hba *phba, uint8_t speed_code)
+{
+	uint8_t port_speed;
+
+	switch (speed_code) {
+	case LPFC_FC_LA_SPEED_1G:
+		port_speed = LPFC_LINK_SPEED_1GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_2G:
+		port_speed = LPFC_LINK_SPEED_2GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_4G:
+		port_speed = LPFC_LINK_SPEED_4GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_8G:
+		port_speed = LPFC_LINK_SPEED_8GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_16G:
+		port_speed = LPFC_LINK_SPEED_16GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_32G:
+		port_speed = LPFC_LINK_SPEED_32GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_64G:
+		port_speed = LPFC_LINK_SPEED_64GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_128G:
+		port_speed = LPFC_LINK_SPEED_128GHZ;
+		break;
+	case LPFC_FC_LA_SPEED_256G:
+		port_speed = LPFC_LINK_SPEED_256GHZ;
+		break;
+	default:
+		port_speed = 0;
+		break;
+	}
+
+	return port_speed;
+}
+
+#define trunk_link_status(__idx)\
+	bf_get(lpfc_acqe_fc_la_trunk_config_port##__idx, acqe_fc) ?\
+	       ((phba->trunk_link.link##__idx.state == LPFC_LINK_UP) ?\
+		"Link up" : "Link down") : "NA"
+/* Did port __idx reported an error */
+#define trunk_port_fault(__idx)\
+	bf_get(lpfc_acqe_fc_la_trunk_config_port##__idx, acqe_fc) ?\
+	       (port_fault & (1 << __idx) ? "YES" : "NO") : "NA"
+
+static void
+lpfc_update_trunk_link_status(struct lpfc_hba *phba,
+			      struct lpfc_acqe_fc_la *acqe_fc)
+{
+	uint8_t port_fault = bf_get(lpfc_acqe_fc_la_trunk_linkmask, acqe_fc);
+	uint8_t err = bf_get(lpfc_acqe_fc_la_trunk_fault, acqe_fc);
+
+	phba->sli4_hba.link_state.speed =
+		lpfc_sli4_port_speed_parse(phba, LPFC_TRAILER_CODE_FC,
+				bf_get(lpfc_acqe_fc_la_speed, acqe_fc));
+
+	phba->sli4_hba.link_state.logical_speed =
+				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
+	/* We got FC link speed, convert to fc_linkspeed (READ_TOPOLOGY) */
+	phba->fc_linkspeed =
+		 lpfc_async_link_speed_to_read_top(
+				phba,
+				bf_get(lpfc_acqe_fc_la_speed, acqe_fc));
+
+	if (bf_get(lpfc_acqe_fc_la_trunk_config_port0, acqe_fc)) {
+		phba->trunk_link.link0.state =
+			bf_get(lpfc_acqe_fc_la_trunk_link_status_port0, acqe_fc)
+			? LPFC_LINK_UP : LPFC_LINK_DOWN;
+		phba->trunk_link.link0.fault = port_fault & 0x1 ? err : 0;
+	}
+	if (bf_get(lpfc_acqe_fc_la_trunk_config_port1, acqe_fc)) {
+		phba->trunk_link.link1.state =
+			bf_get(lpfc_acqe_fc_la_trunk_link_status_port1, acqe_fc)
+			? LPFC_LINK_UP : LPFC_LINK_DOWN;
+		phba->trunk_link.link1.fault = port_fault & 0x2 ? err : 0;
+	}
+	if (bf_get(lpfc_acqe_fc_la_trunk_config_port2, acqe_fc)) {
+		phba->trunk_link.link2.state =
+			bf_get(lpfc_acqe_fc_la_trunk_link_status_port2, acqe_fc)
+			? LPFC_LINK_UP : LPFC_LINK_DOWN;
+		phba->trunk_link.link2.fault = port_fault & 0x4 ? err : 0;
+	}
+	if (bf_get(lpfc_acqe_fc_la_trunk_config_port3, acqe_fc)) {
+		phba->trunk_link.link3.state =
+			bf_get(lpfc_acqe_fc_la_trunk_link_status_port3, acqe_fc)
+			? LPFC_LINK_UP : LPFC_LINK_DOWN;
+		phba->trunk_link.link3.fault = port_fault & 0x8 ? err : 0;
+	}
+
+	lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+			"2910 Async FC Trunking Event - Speed:%d\n"
+			"\tLogical speed:%d "
+			"port0: %s port1: %s port2: %s port3: %s\n",
+			phba->sli4_hba.link_state.speed,
+			phba->sli4_hba.link_state.logical_speed,
+			trunk_link_status(0), trunk_link_status(1),
+			trunk_link_status(2), trunk_link_status(3));
+
+	if (port_fault)
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"3202 trunk error:0x%x (%s) seen on port0:%s "
+				/*
+				 * SLI-4: We have only 0xA error codes
+				 * defined as of now. print an appropriate
+				 * message in case driver needs to be updated.
+				 */
+				"port1:%s port2:%s port3:%s\n", err, err > 0xA ?
+				"UNDEFINED. update driver." : trunk_errmsg[err],
+				trunk_port_fault(0), trunk_port_fault(1),
+				trunk_port_fault(2), trunk_port_fault(3));
+}
+
+
+/**
  * lpfc_sli4_async_fc_evt - Process the asynchronous FC link event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_fc: pointer to the async fc completion queue entry.
@@ -4603,6 +5135,13 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 				bf_get(lpfc_trailer_type, acqe_fc));
 		return;
 	}
+
+	if (bf_get(lpfc_acqe_fc_la_att_type, acqe_fc) ==
+	    LPFC_FC_LA_TYPE_TRUNKING_EVENT) {
+		lpfc_update_trunk_link_status(phba, acqe_fc);
+		return;
+	}
+
 	/* Keep the link status for extra SLI4 state machine reference */
 	phba->sli4_hba.link_state.speed =
 			lpfc_sli4_port_speed_parse(phba, LPFC_TRAILER_CODE_FC,
@@ -4618,8 +5157,14 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 				bf_get(lpfc_acqe_fc_la_port_number, acqe_fc);
 	phba->sli4_hba.link_state.fault =
 				bf_get(lpfc_acqe_link_fault, acqe_fc);
-	phba->sli4_hba.link_state.logical_speed =
+
+	if (bf_get(lpfc_acqe_fc_la_att_type, acqe_fc) ==
+	    LPFC_FC_LA_TYPE_LINK_DOWN)
+		phba->sli4_hba.link_state.logical_speed = 0;
+	else if	(!phba->sli4_hba.conf_trunk)
+		phba->sli4_hba.link_state.logical_speed =
 				bf_get(lpfc_acqe_fc_la_llink_spd, acqe_fc) * 10;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
 			"2896 Async FC event - Speed:%dGBaud Topology:x%x "
 			"LA Type:x%x Port Type:%d Port Number:%d Logical speed:"
@@ -4678,10 +5223,12 @@ lpfc_sli4_async_fc_evt(struct lpfc_hba *phba, struct lpfc_acqe_fc_la *acqe_fc)
 			break;
 		}
 
-		/* Parse and translate status field */
+		/* Initialize completion status */
 		mb = &pmb->u.mb;
-		mb->mbxStatus = lpfc_sli4_parse_latt_fault(phba,
-							   (void *)acqe_fc);
+		mb->mbxStatus = MBX_SUCCESS;
+
+		/* Parse port fault information field */
+		lpfc_sli4_parse_latt_fault(phba, (void *)acqe_fc);
 
 		/* Parse and translate link attention fields */
 		la = (struct lpfc_mbx_read_top *)&pmb->u.mb.un.varReadTop;
@@ -4730,6 +5277,8 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 	struct temp_event temp_event_data;
 	struct lpfc_acqe_misconfigured_event *misconfigured;
 	struct Scsi_Host  *shost;
+	struct lpfc_vport **vports;
+	int rc, i;
 
 	evt_type = bf_get(lpfc_trailer_type, acqe_sli);
 
@@ -4855,6 +5404,25 @@ lpfc_sli4_async_sli_evt(struct lpfc_hba *phba, struct lpfc_acqe_sli *acqe_sli)
 			sprintf(message, "Unknown event status x%02x", status);
 			break;
 		}
+
+		/* Issue READ_CONFIG mbox command to refresh supported speeds */
+		rc = lpfc_sli4_read_config(phba);
+		if (rc) {
+			phba->lmt = 0;
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"3194 Unable to retrieve supported "
+					"speeds, rc = 0x%x\n", rc);
+		}
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports != NULL) {
+			for (i = 0; i <= phba->max_vports && vports[i] != NULL;
+					i++) {
+				shost = lpfc_shost_from_vport(vports[i]);
+				lpfc_host_supported_speeds_set(shost);
+			}
+		}
+		lpfc_destroy_vport_work_array(phba, vports);
+
 		phba->sli4_hba.lnk_info.optic_state = status;
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3176 Port Name %c %s\n", port_name, message);
@@ -5012,7 +5580,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			break;
 		}
 		/* If fast FCF failover rescan event is pending, do nothing */
-		if (phba->fcf.fcf_flag & FCF_REDISC_EVT) {
+		if (phba->fcf.fcf_flag & (FCF_REDISC_EVT | FCF_REDISC_PEND)) {
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
@@ -5086,7 +5654,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 					LOG_DISCOVERY,
-					"2772 Issue FCF rediscover mabilbox "
+					"2772 Issue FCF rediscover mailbox "
 					"command failed, fail through to FCF "
 					"dead event\n");
 			spin_lock_irq(&phba->hbalock);
@@ -5178,7 +5746,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 				lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
 						LOG_DISCOVERY,
 						"2774 Issue FCF rediscover "
-						"mabilbox command failed, "
+						"mailbox command failed, "
 						"through to CVL event\n");
 				spin_lock_irq(&phba->hbalock);
 				phba->fcf.fcf_flag &= ~FCF_ACVL_DISC;
@@ -5593,7 +6161,10 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	/* Initialize ndlp management spinlock */
 	spin_lock_init(&phba->ndlp_lock);
 
+	/* Initialize port_list spinlock */
+	spin_lock_init(&phba->port_list_lock);
 	INIT_LIST_HEAD(&phba->port_list);
+
 	INIT_LIST_HEAD(&phba->work_list);
 	init_waitqueue_head(&phba->wait_4_mlo_m_q);
 
@@ -5608,24 +6179,11 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 				"NVME" : " "),
 			(phba->nvmet_support ? "NVMET" : " "));
 
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
-		/* Initialize the scsi buffer list used by driver for scsi IO */
-		spin_lock_init(&phba->scsi_buf_list_get_lock);
-		INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_get);
-		spin_lock_init(&phba->scsi_buf_list_put_lock);
-		INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
-	}
-
-	if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
-		(phba->nvmet_support == 0)) {
-		/* Initialize the NVME buffer list used by driver for NVME IO */
-		spin_lock_init(&phba->nvme_buf_list_get_lock);
-		INIT_LIST_HEAD(&phba->lpfc_nvme_buf_list_get);
-		phba->get_nvme_bufs = 0;
-		spin_lock_init(&phba->nvme_buf_list_put_lock);
-		INIT_LIST_HEAD(&phba->lpfc_nvme_buf_list_put);
-		phba->put_nvme_bufs = 0;
-	}
+	/* Initialize the IO buffer list used by driver for SLI3 SCSI */
+	spin_lock_init(&phba->scsi_buf_list_get_lock);
+	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_get);
+	spin_lock_init(&phba->scsi_buf_list_put_lock);
+	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
 
 	/* Initialize the fabric iocb list */
 	INIT_LIST_HEAD(&phba->fabric_iocb_list);
@@ -5649,6 +6207,8 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	/* Heartbeat timer */
 	timer_setup(&phba->hb_tmofunc, lpfc_hb_timeout, 0);
 
+	INIT_DELAYED_WORK(&phba->eq_delay_work, lpfc_hb_eq_delay_work);
+
 	return 0;
 }
 
@@ -5666,7 +6226,7 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 static int
 lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 {
-	int rc;
+	int rc, entry_sz;
 
 	/*
 	 * Initialize timers used by driver
@@ -5695,8 +6255,9 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	if (!phba->sli.sli3_ring)
-		phba->sli.sli3_ring = kzalloc(LPFC_SLI3_MAX_RING *
-			sizeof(struct lpfc_sli_ring), GFP_KERNEL);
+		phba->sli.sli3_ring = kcalloc(LPFC_SLI3_MAX_RING,
+					      sizeof(struct lpfc_sli_ring),
+					      GFP_KERNEL);
 	if (!phba->sli.sli3_ring)
 		return -ENOMEM;
 
@@ -5709,6 +6270,11 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
 	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		entry_sz = sizeof(struct sli4_sge);
+	else
+		entry_sz = sizeof(struct ulp_bde64);
 
 	/* There are going to be 2 reserved BDEs: 1 FCP cmnd + 1 FCP rsp */
 	if (phba->cfg_enable_bg) {
@@ -5723,7 +6289,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 		 */
 		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 			sizeof(struct fcp_rsp) +
-			(LPFC_MAX_SG_SEG_CNT * sizeof(struct ulp_bde64));
+			(LPFC_MAX_SG_SEG_CNT * entry_sz);
 
 		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SEG_CNT_DIF)
 			phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT_DIF;
@@ -5738,7 +6304,7 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 		 */
 		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
 			sizeof(struct fcp_rsp) +
-			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
+			((phba->cfg_sg_seg_cnt + 2) * entry_sz);
 
 		/* Total BDEs in BPL for scsi_sg_list */
 		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + 2;
@@ -5763,6 +6329,24 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	if (lpfc_mem_alloc(phba, BPL_ALIGN_SZ))
 		return -ENOMEM;
 
+	phba->lpfc_sg_dma_buf_pool =
+		dma_pool_create("lpfc_sg_dma_buf_pool",
+				&phba->pcidev->dev, phba->cfg_sg_dma_buf_size,
+				BPL_ALIGN_SZ, 0);
+
+	if (!phba->lpfc_sg_dma_buf_pool)
+		goto fail_free_mem;
+
+	phba->lpfc_cmd_rsp_buf_pool =
+			dma_pool_create("lpfc_cmd_rsp_buf_pool",
+					&phba->pcidev->dev,
+					sizeof(struct fcp_cmnd) +
+					sizeof(struct fcp_rsp),
+					BPL_ALIGN_SZ, 0);
+
+	if (!phba->lpfc_cmd_rsp_buf_pool)
+		goto fail_free_dma_buf_pool;
+
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -5781,6 +6365,13 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 	}
 
 	return 0;
+
+fail_free_dma_buf_pool:
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
+fail_free_mem:
+	lpfc_mem_free(phba);
+	return -ENOMEM;
 }
 
 /**
@@ -5819,12 +6410,13 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
 	int longs;
-	int fof_vectors = 0;
 	int extra;
 	uint64_t wwn;
+	u32 if_type;
+	u32 if_fam;
 
-	phba->sli4_hba.num_online_cpu = num_online_cpus();
 	phba->sli4_hba.num_present_cpu = lpfc_present_cpu;
+	phba->sli4_hba.num_possible_cpu = num_possible_cpus();
 	phba->sli4_hba.curr_disp_cpu = 0;
 
 	/* Get all the module params for configuring this host */
@@ -5839,6 +6431,11 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	rc = lpfc_sli4_post_status_check(phba);
 	if (rc)
 		return -ENODEV;
+
+	/* Allocate all driver workqueues here */
+
+	/* The lpfc_wq workqueue for deferred irq use */
+	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
 
 	/*
 	 * Initialize timers used by driver
@@ -5874,82 +6471,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 * The WQ create will allocate the ring.
 	 */
 
-	/*
-	 * 1 for cmd, 1 for rsp, NVME adds an extra one
-	 * for boundary conditions in its max_sgl_segment template.
-	 */
-	extra = 2;
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-		extra++;
-
-	/*
-	 * It doesn't matter what family our adapter is in, we are
-	 * limited to 2 Pages, 512 SGEs, for our SGL.
-	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
-	 */
-	max_buf_size = (2 * SLI4_PAGE_SIZE);
-	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - extra)
-		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - extra;
-
-	/*
-	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
-	 * used to create the sg_dma_buf_pool must be calculated.
-	 */
-	if (phba->cfg_enable_bg) {
-		/*
-		 * The scsi_buf for a T10-DIF I/O holds the FCP cmnd,
-		 * the FCP rsp, and a SGE. Sice we have no control
-		 * over how many protection segments the SCSI Layer
-		 * will hand us (ie: there could be one for every block
-		 * in the IO), just allocate enough SGEs to accomidate
-		 * our max amount and we need to limit lpfc_sg_seg_cnt
-		 * to minimize the risk of running out.
-		 */
-		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
-				sizeof(struct fcp_rsp) + max_buf_size;
-
-		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
-		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
-
-		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SLI4_SEG_CNT_DIF)
-			phba->cfg_sg_seg_cnt =
-				LPFC_MAX_SG_SLI4_SEG_CNT_DIF;
-	} else {
-		/*
-		 * The scsi_buf for a regular I/O holds the FCP cmnd,
-		 * the FCP rsp, a SGE for each, and a SGE for up to
-		 * cfg_sg_seg_cnt data segments.
-		 */
-		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
-				sizeof(struct fcp_rsp) +
-				((phba->cfg_sg_seg_cnt + extra) *
-				sizeof(struct sli4_sge));
-
-		/* Total SGEs for scsi_sg_list */
-		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + extra;
-
-		/*
-		 * NOTE: if (phba->cfg_sg_seg_cnt + extra) <= 256 we only
-		 * need to post 1 page for the SGL.
-		 */
-	}
-
-	/* Initialize the host templates with the updated values. */
-	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
-	lpfc_template_no_hr.sg_tablesize = phba->cfg_sg_seg_cnt;
-
-	if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
-		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
-	else
-		phba->cfg_sg_dma_buf_size =
-			SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
-
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
-			"9087 sg_tablesize:%d dmabuf_size:%d total_sge:%d\n",
-			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
-			phba->cfg_total_seg_cnt);
-
 	/* Initialize buffer queue management fields */
 	INIT_LIST_HEAD(&phba->hbqs[LPFC_ELS_HBQ].hbq_buffer_list);
 	phba->hbqs[LPFC_ELS_HBQ].hbq_alloc_buffer = lpfc_sli4_rb_alloc;
@@ -5958,18 +6479,17 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	/*
 	 * Initialize the SLI Layer to run with lpfc SLI4 HBAs.
 	 */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
-		/* Initialize the Abort scsi buffer list used by driver */
-		spin_lock_init(&phba->sli4_hba.abts_scsi_buf_list_lock);
-		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
-	}
+	/* Initialize the Abort buffer list used by driver */
+	spin_lock_init(&phba->sli4_hba.abts_io_buf_list_lock);
+	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_io_buf_list);
 
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		/* Initialize the Abort nvme buffer list used by driver */
-		spin_lock_init(&phba->sli4_hba.abts_nvme_buf_list_lock);
-		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
+		spin_lock_init(&phba->sli4_hba.abts_nvmet_buf_list_lock);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 		INIT_LIST_HEAD(&phba->sli4_hba.lpfc_nvmet_io_wait_list);
+		spin_lock_init(&phba->sli4_hba.t_active_list_lock);
+		INIT_LIST_HEAD(&phba->sli4_hba.t_active_ctx_list);
 	}
 
 	/* This abort list used by worker thread */
@@ -6014,7 +6534,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		return -ENOMEM;
 
 	/* IF Type 2 ports get initialized now. */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) >=
 	    LPFC_SLI_INTF_IF_TYPE_2) {
 		rc = lpfc_pci_function_reset(phba);
 		if (unlikely(rc)) {
@@ -6103,6 +6623,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 						" NVME_TARGET_FC infrastructure"
 						" is not in kernel\n");
 #endif
+				/* Not supported for NVMET */
+				phba->cfg_xri_rebalancing = 0;
 				break;
 			}
 		}
@@ -6143,33 +6665,172 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	 */
 	rc = lpfc_get_sli4_parameters(phba, mboxq);
 	if (rc) {
+		if_type = bf_get(lpfc_sli_intf_if_type,
+				 &phba->sli4_hba.sli_intf);
+		if_fam = bf_get(lpfc_sli_intf_sli_family,
+				&phba->sli4_hba.sli_intf);
 		if (phba->sli4_hba.extents_in_use &&
 		    phba->sli4_hba.rpi_hdrs_in_use) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2999 Unsupported SLI4 Parameters "
 				"Extents and RPI headers enabled.\n");
+			if (if_type == LPFC_SLI_INTF_IF_TYPE_0 &&
+			    if_fam ==  LPFC_SLI_INTF_FAMILY_BE2) {
+				mempool_free(mboxq, phba->mbox_mem_pool);
+				rc = -EIO;
+				goto out_free_bsmbx;
+			}
 		}
-		mempool_free(mboxq, phba->mbox_mem_pool);
-		rc = -EIO;
-		goto out_free_bsmbx;
+		if (!(if_type == LPFC_SLI_INTF_IF_TYPE_0 &&
+		      if_fam == LPFC_SLI_INTF_FAMILY_BE2)) {
+			mempool_free(mboxq, phba->mbox_mem_pool);
+			rc = -EIO;
+			goto out_free_bsmbx;
+		}
 	}
+
+	/*
+	 * 1 for cmd, 1 for rsp, NVME adds an extra one
+	 * for boundary conditions in its max_sgl_segment template.
+	 */
+	extra = 2;
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
+		extra++;
+
+	/*
+	 * It doesn't matter what family our adapter is in, we are
+	 * limited to 2 Pages, 512 SGEs, for our SGL.
+	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
+	 */
+	max_buf_size = (2 * SLI4_PAGE_SIZE);
+
+	/*
+	 * Since lpfc_sg_seg_cnt is module param, the sg_dma_buf_size
+	 * used to create the sg_dma_buf_pool must be calculated.
+	 */
+	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED) {
+		/* Both cfg_enable_bg and cfg_external_dif code paths */
+
+		/*
+		 * The scsi_buf for a T10-DIF I/O holds the FCP cmnd,
+		 * the FCP rsp, and a SGE. Sice we have no control
+		 * over how many protection segments the SCSI Layer
+		 * will hand us (ie: there could be one for every block
+		 * in the IO), just allocate enough SGEs to accomidate
+		 * our max amount and we need to limit lpfc_sg_seg_cnt
+		 * to minimize the risk of running out.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+				sizeof(struct fcp_rsp) + max_buf_size;
+
+		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
+		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
+
+		/*
+		 * If supporting DIF, reduce the seg count for scsi to
+		 * allow room for the DIF sges.
+		 */
+		if (phba->cfg_enable_bg &&
+		    phba->cfg_sg_seg_cnt > LPFC_MAX_BG_SLI4_SEG_CNT_DIF)
+			phba->cfg_scsi_seg_cnt = LPFC_MAX_BG_SLI4_SEG_CNT_DIF;
+		else
+			phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
+
+	} else {
+		/*
+		 * The scsi_buf for a regular I/O holds the FCP cmnd,
+		 * the FCP rsp, a SGE for each, and a SGE for up to
+		 * cfg_sg_seg_cnt data segments.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+				sizeof(struct fcp_rsp) +
+				((phba->cfg_sg_seg_cnt + extra) *
+				sizeof(struct sli4_sge));
+
+		/* Total SGEs for scsi_sg_list */
+		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + extra;
+		phba->cfg_scsi_seg_cnt = phba->cfg_sg_seg_cnt;
+
+		/*
+		 * NOTE: if (phba->cfg_sg_seg_cnt + extra) <= 256 we only
+		 * need to post 1 page for the SGL.
+		 */
+	}
+
+	if (phba->cfg_xpsgl && !phba->nvmet_support)
+		phba->cfg_sg_dma_buf_size = LPFC_DEFAULT_XPSGL_SIZE;
+	else if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
+		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
+	else
+		phba->cfg_sg_dma_buf_size =
+				SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
+
+	phba->border_sge_num = phba->cfg_sg_dma_buf_size /
+			       sizeof(struct sli4_sge);
+
+	/* Limit to LPFC_MAX_NVME_SEG_CNT for NVME. */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_NVME_SEG_CNT) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_NVME | LOG_INIT,
+					"6300 Reducing NVME sg segment "
+					"cnt to %d\n",
+					LPFC_MAX_NVME_SEG_CNT);
+			phba->cfg_nvme_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
+		} else
+			phba->cfg_nvme_seg_cnt = phba->cfg_sg_seg_cnt;
+	}
+
+	/* Initialize the host templates with the updated values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_scsi_seg_cnt;
+	lpfc_template_no_hr.sg_tablesize = phba->cfg_scsi_seg_cnt;
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9087 sg_seg_cnt:%d dmabuf_size:%d "
+			"total:%d scsi:%d nvme:%d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
+			phba->cfg_total_seg_cnt,  phba->cfg_scsi_seg_cnt,
+			phba->cfg_nvme_seg_cnt);
+
+	if (phba->cfg_sg_dma_buf_size < SLI4_PAGE_SIZE)
+		i = phba->cfg_sg_dma_buf_size;
+	else
+		i = SLI4_PAGE_SIZE;
+
+	phba->lpfc_sg_dma_buf_pool =
+			dma_pool_create("lpfc_sg_dma_buf_pool",
+					&phba->pcidev->dev,
+					phba->cfg_sg_dma_buf_size,
+					i, 0);
+	if (!phba->lpfc_sg_dma_buf_pool)
+		goto out_free_bsmbx;
+
+	phba->lpfc_cmd_rsp_buf_pool =
+			dma_pool_create("lpfc_cmd_rsp_buf_pool",
+					&phba->pcidev->dev,
+					sizeof(struct fcp_cmnd) +
+					sizeof(struct fcp_rsp),
+					i, 0);
+	if (!phba->lpfc_cmd_rsp_buf_pool)
+		goto out_free_sg_dma_buf;
 
 	mempool_free(mboxq, phba->mbox_mem_pool);
 
 	/* Verify OAS is supported */
 	lpfc_sli4_oas_verify(phba);
-	if (phba->cfg_fof)
-		fof_vectors = 1;
+
+	/* Verify RAS support on adapter */
+	lpfc_sli4_ras_init(phba);
 
 	/* Verify all the SLI4 queues */
 	rc = lpfc_sli4_queue_verify(phba);
 	if (rc)
-		goto out_free_bsmbx;
+		goto out_free_cmd_rsp_buf;
 
 	/* Create driver internal CQE event pool */
 	rc = lpfc_sli4_cq_event_pool_create(phba);
 	if (rc)
-		goto out_free_bsmbx;
+		goto out_free_cmd_rsp_buf;
 
 	/* Initialize sgl lists per host */
 	lpfc_init_sgl_list(phba);
@@ -6190,7 +6851,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	/* Allocate eligible FCF bmask memory for FCF roundrobin failover */
 	longs = (LPFC_SLI4_FCF_TBL_INDX_MAX + BITS_PER_LONG - 1)/BITS_PER_LONG;
-	phba->fcf.fcf_rr_bmask = kzalloc(longs * sizeof(unsigned long),
+	phba->fcf.fcf_rr_bmask = kcalloc(longs, sizeof(unsigned long),
 					 GFP_KERNEL);
 	if (!phba->fcf.fcf_rr_bmask) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -6200,9 +6861,9 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_remove_rpi_hdrs;
 	}
 
-	phba->sli4_hba.hba_eq_hdl = kcalloc(fof_vectors + phba->io_channel_irqs,
-						sizeof(struct lpfc_hba_eq_hdl),
-						GFP_KERNEL);
+	phba->sli4_hba.hba_eq_hdl = kcalloc(phba->cfg_irq_chann,
+					    sizeof(struct lpfc_hba_eq_hdl),
+					    GFP_KERNEL);
 	if (!phba->sli4_hba.hba_eq_hdl) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2572 Failed allocate memory for "
@@ -6211,7 +6872,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_fcf_rr_bmask;
 	}
 
-	phba->sli4_hba.cpu_map = kcalloc(phba->sli4_hba.num_present_cpu,
+	phba->sli4_hba.cpu_map = kcalloc(phba->sli4_hba.num_possible_cpu,
 					sizeof(struct lpfc_vector_map_info),
 					GFP_KERNEL);
 	if (!phba->sli4_hba.cpu_map) {
@@ -6221,21 +6882,14 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_free_hba_eq_hdl;
 	}
-	if (lpfc_used_cpu == NULL) {
-		lpfc_used_cpu = kcalloc(lpfc_present_cpu, sizeof(uint16_t),
-						GFP_KERNEL);
-		if (!lpfc_used_cpu) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3335 Failed allocate memory for msi-x "
-					"interrupt vector mapping\n");
-			kfree(phba->sli4_hba.cpu_map);
-			rc = -ENOMEM;
-			goto out_free_hba_eq_hdl;
-		}
-		for (i = 0; i < lpfc_present_cpu; i++)
-			lpfc_used_cpu[i] = LPFC_VECTOR_MAP_EMPTY;
-	}
 
+	phba->sli4_hba.eq_info = alloc_percpu(struct lpfc_eq_intr_info);
+	if (!phba->sli4_hba.eq_info) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3321 Failed allocation for per_cpu stats\n");
+		rc = -ENOMEM;
+		goto out_free_hba_cpu_map;
+	}
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -6255,6 +6909,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	return 0;
 
+out_free_hba_cpu_map:
+	kfree(phba->sli4_hba.cpu_map);
 out_free_hba_eq_hdl:
 	kfree(phba->sli4_hba.hba_eq_hdl);
 out_free_fcf_rr_bmask:
@@ -6265,6 +6921,12 @@ out_free_active_sgl:
 	lpfc_free_active_sgl(phba);
 out_destroy_cq_event_pool:
 	lpfc_sli4_cq_event_pool_destroy(phba);
+out_free_cmd_rsp_buf:
+	dma_pool_destroy(phba->lpfc_cmd_rsp_buf_pool);
+	phba->lpfc_cmd_rsp_buf_pool = NULL;
+out_free_sg_dma_buf:
+	dma_pool_destroy(phba->lpfc_sg_dma_buf_pool);
+	phba->lpfc_sg_dma_buf_pool = NULL;
 out_free_bsmbx:
 	lpfc_destroy_bootstrap_mbox(phba);
 out_free_mem:
@@ -6284,10 +6946,12 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 {
 	struct lpfc_fcf_conn_entry *conn_entry, *next_conn_entry;
 
+	free_percpu(phba->sli4_hba.eq_info);
+
 	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
 	kfree(phba->sli4_hba.cpu_map);
+	phba->sli4_hba.num_possible_cpu = 0;
 	phba->sli4_hba.num_present_cpu = 0;
-	phba->sli4_hba.num_online_cpu = 0;
 	phba->sli4_hba.curr_disp_cpu = 0;
 
 	/* Free memory allocated for fast-path work queue handles */
@@ -6389,9 +7053,6 @@ lpfc_setup_driver_resource_phase2(struct lpfc_hba *phba)
 		return error;
 	}
 
-	/* workqueue for deferred irq use */
-	phba->wq = alloc_workqueue("lpfc_wq", WQ_MEM_RECLAIM, 0);
-
 	return 0;
 }
 
@@ -6413,7 +7074,8 @@ lpfc_unset_driver_resource_phase2(struct lpfc_hba *phba)
 	}
 
 	/* Stop kernel worker thread */
-	kthread_stop(phba->worker_thread);
+	if (phba->worker_thread)
+		kthread_stop(phba->worker_thread);
 }
 
 /**
@@ -6621,11 +7283,8 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
 	/* els xri-sgl book keeping */
 	phba->sli4_hba.els_xri_cnt = 0;
 
-	/* scsi xri-buffer book keeping */
-	phba->sli4_hba.scsi_xri_cnt = 0;
-
 	/* nvme xri-buffer book keeping */
-	phba->sli4_hba.nvme_xri_cnt = 0;
+	phba->sli4_hba.io_xri_cnt = 0;
 }
 
 /**
@@ -6719,9 +7378,9 @@ lpfc_sli4_create_rpi_hdr(struct lpfc_hba *phba)
 	if (!dmabuf)
 		return NULL;
 
-	dmabuf->virt = dma_zalloc_coherent(&phba->pcidev->dev,
-					   LPFC_HDR_TEMPLATE_SIZE,
-					   &dmabuf->phys, GFP_KERNEL);
+	dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev,
+					  LPFC_HDR_TEMPLATE_SIZE,
+					  &dmabuf->phys, GFP_KERNEL);
 	if (!dmabuf->virt) {
 		rpi_hdr = NULL;
 		goto err_free_dmabuf;
@@ -6839,6 +7498,9 @@ lpfc_hba_alloc(struct pci_dev *pdev)
 static void
 lpfc_hba_free(struct lpfc_hba *phba)
 {
+	if (phba->sli_rev == LPFC_SLI_REV4)
+		kfree(phba->sli4_hba.hdwq);
+
 	/* Release the driver assigned board number */
 	idr_remove(&lpfc_hba_index, phba->brd_no);
 
@@ -6874,16 +7536,6 @@ lpfc_create_shost(struct lpfc_hba *phba)
 	phba->fc_arbtov = FF_DEF_ARBTOV;
 
 	atomic_set(&phba->sdev_cnt, 0);
-	atomic_set(&phba->fc4ScsiInputRequests, 0);
-	atomic_set(&phba->fc4ScsiOutputRequests, 0);
-	atomic_set(&phba->fc4ScsiControlRequests, 0);
-	atomic_set(&phba->fc4ScsiIoCmpls, 0);
-	atomic_set(&phba->fc4NvmeInputRequests, 0);
-	atomic_set(&phba->fc4NvmeOutputRequests, 0);
-	atomic_set(&phba->fc4NvmeControlRequests, 0);
-	atomic_set(&phba->fc4NvmeIoCmpls, 0);
-	atomic_set(&phba->fc4NvmeLsRequests, 0);
-	atomic_set(&phba->fc4NvmeLsCmpls, 0);
 	vport = lpfc_create_port(phba, phba->brd_no, &phba->pcidev->dev);
 	if (!vport)
 		return -ENODEV;
@@ -6961,7 +7613,6 @@ lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 	uint32_t old_mask;
 	uint32_t old_guard;
 
-	int pagecnt = 10;
 	if (phba->cfg_prot_mask && phba->cfg_prot_guard) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"1478 Registering BlockGuard with the "
@@ -6998,56 +7649,6 @@ lpfc_setup_bg(struct lpfc_hba *phba, struct Scsi_Host *shost)
 				"layer, Bad protection parameters: %d %d\n",
 				old_mask, old_guard);
 	}
-
-	if (!_dump_buf_data) {
-		while (pagecnt) {
-			spin_lock_init(&_dump_buf_lock);
-			_dump_buf_data =
-				(char *) __get_free_pages(GFP_KERNEL, pagecnt);
-			if (_dump_buf_data) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-					"9043 BLKGRD: allocated %d pages for "
-				       "_dump_buf_data at 0x%p\n",
-				       (1 << pagecnt), _dump_buf_data);
-				_dump_buf_data_order = pagecnt;
-				memset(_dump_buf_data, 0,
-				       ((1 << PAGE_SHIFT) << pagecnt));
-				break;
-			} else
-				--pagecnt;
-		}
-		if (!_dump_buf_data_order)
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-				"9044 BLKGRD: ERROR unable to allocate "
-			       "memory for hexdump\n");
-	} else
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9045 BLKGRD: already allocated _dump_buf_data=0x%p"
-		       "\n", _dump_buf_data);
-	if (!_dump_buf_dif) {
-		while (pagecnt) {
-			_dump_buf_dif =
-				(char *) __get_free_pages(GFP_KERNEL, pagecnt);
-			if (_dump_buf_dif) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-					"9046 BLKGRD: allocated %d pages for "
-				       "_dump_buf_dif at 0x%p\n",
-				       (1 << pagecnt), _dump_buf_dif);
-				_dump_buf_dif_order = pagecnt;
-				memset(_dump_buf_dif, 0,
-				       ((1 << PAGE_SHIFT) << pagecnt));
-				break;
-			} else
-				--pagecnt;
-		}
-		if (!_dump_buf_dif_order)
-			lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9047 BLKGRD: ERROR unable to allocate "
-			       "memory for hexdump\n");
-	} else
-		lpfc_printf_log(phba, KERN_ERR, LOG_BG,
-			"9048 BLKGRD: already allocated _dump_buf_dif=0x%p\n",
-		       _dump_buf_dif);
 }
 
 /**
@@ -7072,8 +7673,6 @@ lpfc_post_init_setup(struct lpfc_hba *phba)
 	 */
 	shost = pci_get_drvdata(phba->pcidev);
 	shost->can_queue = phba->cfg_hba_queue_depth - 10;
-	if (phba->sli3_options & LPFC_SLI3_BG_ENABLED)
-		lpfc_setup_bg(phba, shost);
 
 	lpfc_host_attrib_init(shost);
 
@@ -7109,26 +7708,22 @@ lpfc_post_init_setup(struct lpfc_hba *phba)
 static int
 lpfc_sli_pci_mem_setup(struct lpfc_hba *phba)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = phba->pcidev;
 	unsigned long bar0map_len, bar2map_len;
 	int i, hbq_count;
 	void *ptr;
-	int error = -ENODEV;
+	int error;
 
-	/* Obtain PCI device reference */
-	if (!phba->pcidev)
-		return error;
-	else
-		pdev = phba->pcidev;
+	if (!pdev)
+		return -ENODEV;
 
 	/* Set the device DMA mask size */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0
-	 || pci_set_consistent_dma_mask(pdev,DMA_BIT_MASK(64)) != 0) {
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0
-		 || pci_set_consistent_dma_mask(pdev,DMA_BIT_MASK(32)) != 0) {
-			return error;
-		}
-	}
+	error = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (error)
+		error = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (error)
+		return error;
+	error = -ENODEV;
 
 	/* Get the bus address of Bar0 and Bar2 and the number of bytes
 	 * required by each mapping.
@@ -7156,8 +7751,8 @@ lpfc_sli_pci_mem_setup(struct lpfc_hba *phba)
 	}
 
 	/* Allocate memory for SLI-2 structures */
-	phba->slim2p.virt = dma_zalloc_coherent(&pdev->dev, SLI2_SLIM_SIZE,
-						&phba->slim2p.phys, GFP_KERNEL);
+	phba->slim2p.virt = dma_alloc_coherent(&pdev->dev, SLI2_SLIM_SIZE,
+					       &phba->slim2p.phys, GFP_KERNEL);
 	if (!phba->slim2p.virt)
 		goto out_iounmap;
 
@@ -7344,6 +7939,7 @@ lpfc_sli4_post_status_check(struct lpfc_hba *phba)
 			}
 			break;
 		case LPFC_SLI_INTF_IF_TYPE_2:
+		case LPFC_SLI_INTF_IF_TYPE_6:
 			/* Final checks.  The port status should be clean. */
 			if (lpfc_readl(phba->sli4_hba.u.if_type2.STATUSregaddr,
 				&reg_data.word0) ||
@@ -7426,10 +8022,33 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 		phba->sli4_hba.WQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p +
 						LPFC_ULP0_WQ_DOORBELL;
-		phba->sli4_hba.EQCQDBregaddr =
+		phba->sli4_hba.CQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_EQCQ_DOORBELL;
+		phba->sli4_hba.EQDBregaddr = phba->sli4_hba.CQDBregaddr;
 		phba->sli4_hba.MQDBregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_MQ_DOORBELL;
+		phba->sli4_hba.BMBXregaddr =
+			phba->sli4_hba.conf_regs_memmap_p + LPFC_BMBX;
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		phba->sli4_hba.u.if_type2.EQDregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_EQ_DELAY_OFFSET;
+		phba->sli4_hba.u.if_type2.ERR1regaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_ER1_OFFSET;
+		phba->sli4_hba.u.if_type2.ERR2regaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_ER2_OFFSET;
+		phba->sli4_hba.u.if_type2.CTRLregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_CTL_OFFSET;
+		phba->sli4_hba.u.if_type2.STATUSregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_STA_OFFSET;
+		phba->sli4_hba.PSMPHRregaddr =
+			phba->sli4_hba.conf_regs_memmap_p +
+						LPFC_CTL_PORT_SEM_OFFSET;
 		phba->sli4_hba.BMBXregaddr =
 			phba->sli4_hba.conf_regs_memmap_p + LPFC_BMBX;
 		break;
@@ -7446,20 +8065,43 @@ lpfc_sli4_bar0_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
  * lpfc_sli4_bar1_register_memmap - Set up SLI4 BAR1 register memory map.
  * @phba: pointer to lpfc hba data structure.
  *
- * This routine is invoked to set up SLI4 BAR1 control status register (CSR)
- * memory map.
+ * This routine is invoked to set up SLI4 BAR1 register memory map.
  **/
 static void
-lpfc_sli4_bar1_register_memmap(struct lpfc_hba *phba)
+lpfc_sli4_bar1_register_memmap(struct lpfc_hba *phba, uint32_t if_type)
 {
-	phba->sli4_hba.PSMPHRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_SLIPORT_IF0_SMPHR;
-	phba->sli4_hba.ISRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_HST_ISR0;
-	phba->sli4_hba.IMRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_HST_IMR0;
-	phba->sli4_hba.ISCRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
-		LPFC_HST_ISCR0;
+	switch (if_type) {
+	case LPFC_SLI_INTF_IF_TYPE_0:
+		phba->sli4_hba.PSMPHRregaddr =
+			phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_SLIPORT_IF0_SMPHR;
+		phba->sli4_hba.ISRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_HST_ISR0;
+		phba->sli4_hba.IMRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_HST_IMR0;
+		phba->sli4_hba.ISCRregaddr = phba->sli4_hba.ctrl_regs_memmap_p +
+			LPFC_HST_ISCR0;
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		phba->sli4_hba.RQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_RQ_DOORBELL;
+		phba->sli4_hba.WQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_WQ_DOORBELL;
+		phba->sli4_hba.CQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_CQ_DOORBELL;
+		phba->sli4_hba.EQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_EQ_DOORBELL;
+		phba->sli4_hba.MQDBregaddr = phba->sli4_hba.drbl_regs_memmap_p +
+			LPFC_IF6_MQ_DOORBELL;
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_2:
+	case LPFC_SLI_INTF_IF_TYPE_1:
+	default:
+		dev_err(&phba->pcidev->dev,
+			   "FATAL - unsupported SLI4 interface type - %d\n",
+			   if_type);
+		break;
+	}
 }
 
 /**
@@ -7484,8 +8126,10 @@ lpfc_sli4_bar2_register_memmap(struct lpfc_hba *phba, uint32_t vf)
 	phba->sli4_hba.WQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
 				vf * LPFC_VFR_PAGE_SIZE +
 					LPFC_ULP0_WQ_DOORBELL);
-	phba->sli4_hba.EQCQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
-				vf * LPFC_VFR_PAGE_SIZE + LPFC_EQCQ_DOORBELL);
+	phba->sli4_hba.CQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
+				vf * LPFC_VFR_PAGE_SIZE +
+					LPFC_EQCQ_DOORBELL);
+	phba->sli4_hba.EQDBregaddr = phba->sli4_hba.CQDBregaddr;
 	phba->sli4_hba.MQDBregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
 				vf * LPFC_VFR_PAGE_SIZE + LPFC_MQ_DOORBELL);
 	phba->sli4_hba.BMBXregaddr = (phba->sli4_hba.drbl_regs_memmap_p +
@@ -7526,8 +8170,8 @@ lpfc_create_bootstrap_mbox(struct lpfc_hba *phba)
 	 * plus an alignment restriction of 16 bytes.
 	 */
 	bmbx_size = sizeof(struct lpfc_bmbx_create) + (LPFC_ALIGN_16_BYTE - 1);
-	dmabuf->virt = dma_zalloc_coherent(&phba->pcidev->dev, bmbx_size,
-					   &dmabuf->phys, GFP_KERNEL);
+	dmabuf->virt = dma_alloc_coherent(&phba->pcidev->dev, bmbx_size,
+					  &dmabuf->phys, GFP_KERNEL);
 	if (!dmabuf->virt) {
 		kfree(dmabuf);
 		return -ENOMEM;
@@ -7616,7 +8260,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	struct lpfc_rsrc_desc_fcfcoe *desc;
 	char *pdesc_0;
 	uint16_t forced_link_speed;
-	uint32_t if_type;
+	uint32_t if_type, qmin;
 	int length, i, rc = 0, rc2;
 
 	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -7658,14 +8302,23 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 			phba->sli4_hba.bbscn_params.word0 = rd_config->word8;
 		}
 
+		phba->sli4_hba.conf_trunk =
+			bf_get(lpfc_mbx_rd_conf_trunk, rd_config);
 		phba->sli4_hba.extents_in_use =
 			bf_get(lpfc_mbx_rd_conf_extnts_inuse, rd_config);
 		phba->sli4_hba.max_cfg_param.max_xri =
 			bf_get(lpfc_mbx_rd_conf_xri_count, rd_config);
+		/* Reduce resource usage in kdump environment */
+		if (is_kdump_kernel() &&
+		    phba->sli4_hba.max_cfg_param.max_xri > 512)
+			phba->sli4_hba.max_cfg_param.max_xri = 512;
 		phba->sli4_hba.max_cfg_param.xri_base =
 			bf_get(lpfc_mbx_rd_conf_xri_base, rd_config);
 		phba->sli4_hba.max_cfg_param.max_vpi =
 			bf_get(lpfc_mbx_rd_conf_vpi_count, rd_config);
+		/* Limit the max we support */
+		if (phba->sli4_hba.max_cfg_param.max_vpi > LPFC_MAX_VPORTS)
+			phba->sli4_hba.max_cfg_param.max_vpi = LPFC_MAX_VPORTS;
 		phba->sli4_hba.max_cfg_param.vpi_base =
 			bf_get(lpfc_mbx_rd_conf_vpi_base, rd_config);
 		phba->sli4_hba.max_cfg_param.max_rpi =
@@ -7715,6 +8368,41 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->sli4_hba.max_cfg_param.max_wq,
 				phba->sli4_hba.max_cfg_param.max_rq);
 
+		/*
+		 * Calculate queue resources based on how
+		 * many WQ/CQ/EQs are available.
+		 */
+		qmin = phba->sli4_hba.max_cfg_param.max_wq;
+		if (phba->sli4_hba.max_cfg_param.max_cq < qmin)
+			qmin = phba->sli4_hba.max_cfg_param.max_cq;
+		if (phba->sli4_hba.max_cfg_param.max_eq < qmin)
+			qmin = phba->sli4_hba.max_cfg_param.max_eq;
+		/*
+		 * Whats left after this can go toward NVME / FCP.
+		 * The minus 4 accounts for ELS, NVME LS, MBOX
+		 * plus one extra. When configured for
+		 * NVMET, FCP io channel WQs are not created.
+		 */
+		qmin -= 4;
+
+		/* Check to see if there is enough for NVME */
+		if ((phba->cfg_irq_chann > qmin) ||
+		    (phba->cfg_hdw_queue > qmin)) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+					"2005 Reducing Queues: "
+					"WQ %d CQ %d EQ %d: min %d: "
+					"IRQ %d HDWQ %d\n",
+					phba->sli4_hba.max_cfg_param.max_wq,
+					phba->sli4_hba.max_cfg_param.max_cq,
+					phba->sli4_hba.max_cfg_param.max_eq,
+					qmin, phba->cfg_irq_chann,
+					phba->cfg_hdw_queue);
+
+			if (phba->cfg_irq_chann > qmin)
+				phba->cfg_irq_chann = qmin;
+			if (phba->cfg_hdw_queue > qmin)
+				phba->cfg_hdw_queue = qmin;
+		}
 	}
 
 	if (rc)
@@ -7722,7 +8410,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 
 	/* Update link speed if forced link speed is supported */
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
-	if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+	if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 		forced_link_speed =
 			bf_get(lpfc_mbx_rd_conf_link_speed, rd_config);
 		if (forced_link_speed) {
@@ -7757,6 +8445,10 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 				phba->cfg_link_speed =
 					LPFC_USER_LINK_SPEED_32G;
 				break;
+			case LINK_SPEED_64G:
+				phba->cfg_link_speed =
+					LPFC_USER_LINK_SPEED_64G;
+				break;
 			case 0xffff:
 				phba->cfg_link_speed =
 					LPFC_USER_LINK_SPEED_AUTO;
@@ -7782,7 +8474,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 		phba->cfg_hba_queue_depth = length;
 	}
 
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 	    LPFC_SLI_INTF_IF_TYPE_2)
 		goto read_cfg_out;
 
@@ -7838,7 +8530,7 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 	else
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"3028 GET_FUNCTION_CONFIG: failed to find "
-				"Resrouce Descriptor:x%x\n",
+				"Resource Descriptor:x%x\n",
 				LPFC_RSRC_DESC_TYPE_FCFCOE);
 
 read_cfg_out:
@@ -7896,6 +8588,7 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
 		}
 		mempool_free(mboxq, phba->mbox_mem_pool);
 		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
 	case LPFC_SLI_INTF_IF_TYPE_2:
 	case LPFC_SLI_INTF_IF_TYPE_1:
 	default:
@@ -7920,53 +8613,22 @@ lpfc_setup_endian_order(struct lpfc_hba *phba)
 static int
 lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 {
-	int io_channel;
-	int fof_vectors = phba->cfg_fof ? 1 : 0;
-
 	/*
 	 * Sanity check for configured queue parameters against the run-time
 	 * device parameters
 	 */
 
-	/* Sanity check on HBA EQ parameters */
-	io_channel = phba->io_channel_irqs;
-
-	if (phba->sli4_hba.num_online_cpu < io_channel) {
-		lpfc_printf_log(phba,
-				KERN_ERR, LOG_INIT,
-				"3188 Reducing IO channels to match number of "
-				"online CPUs: from %d to %d\n",
-				io_channel, phba->sli4_hba.num_online_cpu);
-		io_channel = phba->sli4_hba.num_online_cpu;
-	}
-
-	if (io_channel + fof_vectors > phba->sli4_hba.max_cfg_param.max_eq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2575 Reducing IO channels to match number of "
-				"available EQs: from %d to %d\n",
-				io_channel,
-				phba->sli4_hba.max_cfg_param.max_eq);
-		io_channel = phba->sli4_hba.max_cfg_param.max_eq - fof_vectors;
-	}
-
-	/* The actual number of FCP / NVME event queues adopted */
-	if (io_channel != phba->io_channel_irqs)
-		phba->io_channel_irqs = io_channel;
-	if (phba->cfg_fcp_io_channel > io_channel)
-		phba->cfg_fcp_io_channel = io_channel;
-	if (phba->cfg_nvme_io_channel > io_channel)
-		phba->cfg_nvme_io_channel = io_channel;
 	if (phba->nvmet_support) {
-		if (phba->cfg_nvme_io_channel < phba->cfg_nvmet_mrq)
-			phba->cfg_nvmet_mrq = phba->cfg_nvme_io_channel;
+		if (phba->cfg_irq_chann < phba->cfg_nvmet_mrq)
+			phba->cfg_nvmet_mrq = phba->cfg_irq_chann;
+		if (phba->cfg_nvmet_mrq > LPFC_NVMET_MRQ_MAX)
+			phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_MAX;
 	}
-	if (phba->cfg_nvmet_mrq > LPFC_NVMET_MRQ_MAX)
-		phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_MAX;
 
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2574 IO channels: irqs %d fcp %d nvme %d MRQ: %d\n",
-			phba->io_channel_irqs, phba->cfg_fcp_io_channel,
-			phba->cfg_nvme_io_channel, phba->cfg_nvmet_mrq);
+			"2574 IO channels: hdwQ %d IRQ %d MRQ: %d\n",
+			phba->cfg_hdw_queue, phba->cfg_irq_chann,
+			phba->cfg_nvmet_mrq);
 
 	/* Get EQ depth from module parameter, fake the default for now */
 	phba->sli4_hba.eq_esize = LPFC_EQE_SIZE_4B;
@@ -7979,74 +8641,56 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 }
 
 static int
-lpfc_alloc_nvme_wq_cq(struct lpfc_hba *phba, int wqidx)
+lpfc_alloc_io_wq_cq(struct lpfc_hba *phba, int idx)
 {
 	struct lpfc_queue *qdesc;
+	u32 wqesize;
+	int cpu;
 
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
-				      phba->sli4_hba.cq_esize,
-				      LPFC_CQE_EXP_COUNT);
-	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0508 Failed allocate fast-path NVME CQ (%d)\n",
-				wqidx);
-		return 1;
-	}
-	phba->sli4_hba.nvme_cq[wqidx] = qdesc;
-
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
-				      LPFC_WQE128_SIZE, LPFC_WQE_EXP_COUNT);
-	if (!qdesc) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0509 Failed allocate fast-path NVME WQ (%d)\n",
-				wqidx);
-		return 1;
-	}
-	phba->sli4_hba.nvme_wq[wqidx] = qdesc;
-	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
-	return 0;
-}
-
-static int
-lpfc_alloc_fcp_wq_cq(struct lpfc_hba *phba, int wqidx)
-{
-	struct lpfc_queue *qdesc;
-
-	/* Create Fast Path FCP CQs */
-	if (phba->fcp_embed_io)
+	cpu = lpfc_find_cpu_handle(phba, idx, LPFC_FIND_BY_HDWQ);
+	/* Create Fast Path IO CQs */
+	if (phba->enab_exp_wqcq_pages)
 		/* Increase the CQ size when WQEs contain an embedded cdb */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
 					      phba->sli4_hba.cq_esize,
-					      LPFC_CQE_EXP_COUNT);
+					      LPFC_CQE_EXP_COUNT, cpu);
 
 	else
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.cq_esize,
-					      phba->sli4_hba.cq_ecount);
+					      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0499 Failed allocate fast-path FCP CQ (%d)\n", wqidx);
+			"0499 Failed allocate fast-path IO CQ (%d)\n", idx);
 		return 1;
 	}
-	phba->sli4_hba.fcp_cq[wqidx] = qdesc;
+	qdesc->qe_valid = 1;
+	qdesc->hdwq = idx;
+	qdesc->chann = cpu;
+	phba->sli4_hba.hdwq[idx].io_cq = qdesc;
 
-	/* Create Fast Path FCP WQs */
-	if (phba->fcp_embed_io)
+	/* Create Fast Path IO WQs */
+	if (phba->enab_exp_wqcq_pages) {
 		/* Increase the WQ size when WQEs contain an embedded cdb */
+		wqesize = (phba->fcp_embed_io) ?
+			LPFC_WQE128_SIZE : phba->sli4_hba.wq_esize;
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_EXPANDED_PAGE_SIZE,
-					      LPFC_WQE128_SIZE,
-					      LPFC_WQE_EXP_COUNT);
-	else
+					      wqesize,
+					      LPFC_WQE_EXP_COUNT, cpu);
+	} else
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.wq_esize,
-					      phba->sli4_hba.wq_ecount);
+					      phba->sli4_hba.wq_ecount, cpu);
+
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0503 Failed allocate fast-path FCP WQ (%d)\n",
-				wqidx);
+				"0503 Failed allocate fast-path IO WQ (%d)\n",
+				idx);
 		return 1;
 	}
-	phba->sli4_hba.fcp_wq[wqidx] = qdesc;
+	qdesc->hdwq = idx;
+	qdesc->chann = cpu;
+	phba->sli4_hba.hdwq[idx].io_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	return 0;
 }
@@ -8069,16 +8713,16 @@ int
 lpfc_sli4_queue_create(struct lpfc_hba *phba)
 {
 	struct lpfc_queue *qdesc;
-	int idx, io_channel;
+	int idx, cpu, eqcpu;
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_vector_map_info *cpup;
+	struct lpfc_vector_map_info *eqcpup;
+	struct lpfc_eq_intr_info *eqi;
 
 	/*
 	 * Create HBA Record arrays.
 	 * Both NVME and FCP will share that same vectors / EQs
 	 */
-	io_channel = phba->io_channel_irqs;
-	if (!io_channel)
-		return -ERANGE;
-
 	phba->sli4_hba.mq_esize = LPFC_MQE_SIZE;
 	phba->sli4_hba.mq_ecount = LPFC_MQE_DEF_COUNT;
 	phba->sli4_hba.wq_esize = LPFC_WQE_SIZE;
@@ -8090,87 +8734,37 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	phba->sli4_hba.cq_esize = LPFC_CQE_SIZE;
 	phba->sli4_hba.cq_ecount = LPFC_CQE_DEF_COUNT;
 
-	phba->sli4_hba.hba_eq =  kcalloc(io_channel,
-					sizeof(struct lpfc_queue *),
-					GFP_KERNEL);
-	if (!phba->sli4_hba.hba_eq) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"2576 Failed allocate memory for "
-			"fast-path EQ record array\n");
-		goto out_error;
-	}
-
-	if (phba->cfg_fcp_io_channel) {
-		phba->sli4_hba.fcp_cq = kcalloc(phba->cfg_fcp_io_channel,
-						sizeof(struct lpfc_queue *),
-						GFP_KERNEL);
-		if (!phba->sli4_hba.fcp_cq) {
+	if (!phba->sli4_hba.hdwq) {
+		phba->sli4_hba.hdwq = kcalloc(
+			phba->cfg_hdw_queue, sizeof(struct lpfc_sli4_hdw_queue),
+			GFP_KERNEL);
+		if (!phba->sli4_hba.hdwq) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2577 Failed allocate memory for "
-					"fast-path CQ record array\n");
+					"6427 Failed allocate memory for "
+					"fast-path Hardware Queue array\n");
 			goto out_error;
 		}
-		phba->sli4_hba.fcp_wq = kcalloc(phba->cfg_fcp_io_channel,
-						sizeof(struct lpfc_queue *),
-						GFP_KERNEL);
-		if (!phba->sli4_hba.fcp_wq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2578 Failed allocate memory for "
-					"fast-path FCP WQ record array\n");
-			goto out_error;
-		}
-		/*
-		 * Since the first EQ can have multiple CQs associated with it,
-		 * this array is used to quickly see if we have a FCP fast-path
-		 * CQ match.
-		 */
-		phba->sli4_hba.fcp_cq_map = kcalloc(phba->cfg_fcp_io_channel,
-							sizeof(uint16_t),
-							GFP_KERNEL);
-		if (!phba->sli4_hba.fcp_cq_map) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2545 Failed allocate memory for "
-					"fast-path CQ map\n");
-			goto out_error;
+		/* Prepare hardware queues to take IO buffers */
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			qp = &phba->sli4_hba.hdwq[idx];
+			spin_lock_init(&qp->io_buf_list_get_lock);
+			spin_lock_init(&qp->io_buf_list_put_lock);
+			INIT_LIST_HEAD(&qp->lpfc_io_buf_list_get);
+			INIT_LIST_HEAD(&qp->lpfc_io_buf_list_put);
+			qp->get_io_bufs = 0;
+			qp->put_io_bufs = 0;
+			qp->total_io_bufs = 0;
+			spin_lock_init(&qp->abts_io_buf_list_lock);
+			INIT_LIST_HEAD(&qp->lpfc_abts_io_buf_list);
+			qp->abts_scsi_io_bufs = 0;
+			qp->abts_nvme_io_bufs = 0;
+			INIT_LIST_HEAD(&qp->sgl_list);
+			INIT_LIST_HEAD(&qp->cmd_rsp_buf_list);
+			spin_lock_init(&qp->hdwq_lock);
 		}
 	}
 
-	if (phba->cfg_nvme_io_channel) {
-		phba->sli4_hba.nvme_cq = kcalloc(phba->cfg_nvme_io_channel,
-						sizeof(struct lpfc_queue *),
-						GFP_KERNEL);
-		if (!phba->sli4_hba.nvme_cq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6077 Failed allocate memory for "
-					"fast-path CQ record array\n");
-			goto out_error;
-		}
-
-		phba->sli4_hba.nvme_wq = kcalloc(phba->cfg_nvme_io_channel,
-						sizeof(struct lpfc_queue *),
-						GFP_KERNEL);
-		if (!phba->sli4_hba.nvme_wq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"2581 Failed allocate memory for "
-					"fast-path NVME WQ record array\n");
-			goto out_error;
-		}
-
-		/*
-		 * Since the first EQ can have multiple CQs associated with it,
-		 * this array is used to quickly see if we have a NVME fast-path
-		 * CQ match.
-		 */
-		phba->sli4_hba.nvme_cq_map = kcalloc(phba->cfg_nvme_io_channel,
-							sizeof(uint16_t),
-							GFP_KERNEL);
-		if (!phba->sli4_hba.nvme_cq_map) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6078 Failed allocate memory for "
-					"fast-path CQ map\n");
-			goto out_error;
-		}
-
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		if (phba->nvmet_support) {
 			phba->sli4_hba.nvmet_cqset = kcalloc(
 					phba->cfg_nvmet_mrq,
@@ -8208,41 +8802,85 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_wq_list);
 
 	/* Create HBA Event Queues (EQs) */
-	for (idx = 0; idx < io_channel; idx++) {
-		/* Create EQs */
+	for_each_present_cpu(cpu) {
+		/* We only want to create 1 EQ per vector, even though
+		 * multiple CPUs might be using that vector. so only
+		 * selects the CPUs that are LPFC_CPU_FIRST_IRQ.
+		 */
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+		if (!(cpup->flag & LPFC_CPU_FIRST_IRQ))
+			continue;
+
+		/* Get a ptr to the Hardware Queue associated with this CPU */
+		qp = &phba->sli4_hba.hdwq[cpup->hdwq];
+
+		/* Allocate an EQ */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.eq_esize,
-					      phba->sli4_hba.eq_ecount);
+					      phba->sli4_hba.eq_ecount, cpu);
 		if (!qdesc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"0497 Failed allocate EQ (%d)\n", idx);
+					"0497 Failed allocate EQ (%d)\n",
+					cpup->hdwq);
 			goto out_error;
 		}
-		phba->sli4_hba.hba_eq[idx] = qdesc;
+		qdesc->qe_valid = 1;
+		qdesc->hdwq = cpup->hdwq;
+		qdesc->chann = cpu; /* First CPU this EQ is affinitized to */
+		qdesc->last_cpu = qdesc->chann;
+
+		/* Save the allocated EQ in the Hardware Queue */
+		qp->hba_eq = qdesc;
+
+		eqi = per_cpu_ptr(phba->sli4_hba.eq_info, qdesc->last_cpu);
+		list_add(&qdesc->cpu_list, &eqi->list);
 	}
 
-	/* FCP and NVME io channels are not required to be balanced */
+	/* Now we need to populate the other Hardware Queues, that share
+	 * an IRQ vector, with the associated EQ ptr.
+	 */
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
 
-	for (idx = 0; idx < phba->cfg_fcp_io_channel; idx++)
-		if (lpfc_alloc_fcp_wq_cq(phba, idx))
-			goto out_error;
+		/* Check for EQ already allocated in previous loop */
+		if (cpup->flag & LPFC_CPU_FIRST_IRQ)
+			continue;
 
-	for (idx = 0; idx < phba->cfg_nvme_io_channel; idx++)
-		if (lpfc_alloc_nvme_wq_cq(phba, idx))
+		/* Check for multiple CPUs per hdwq */
+		qp = &phba->sli4_hba.hdwq[cpup->hdwq];
+		if (qp->hba_eq)
+			continue;
+
+		/* We need to share an EQ for this hdwq */
+		eqcpu = lpfc_find_cpu_handle(phba, cpup->eq, LPFC_FIND_BY_EQ);
+		eqcpup = &phba->sli4_hba.cpu_map[eqcpu];
+		qp->hba_eq = phba->sli4_hba.hdwq[eqcpup->hdwq].hba_eq;
+	}
+
+	/* Allocate IO Path SLI4 CQ/WQs */
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		if (lpfc_alloc_io_wq_cq(phba, idx))
 			goto out_error;
+	}
 
 	if (phba->nvmet_support) {
 		for (idx = 0; idx < phba->cfg_nvmet_mrq; idx++) {
+			cpu = lpfc_find_cpu_handle(phba, idx,
+						   LPFC_FIND_BY_HDWQ);
 			qdesc = lpfc_sli4_queue_alloc(phba,
 						      LPFC_DEFAULT_PAGE_SIZE,
 						      phba->sli4_hba.cq_esize,
-						      phba->sli4_hba.cq_ecount);
+						      phba->sli4_hba.cq_ecount,
+						      cpu);
 			if (!qdesc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"3142 Failed allocate NVME "
-					"CQ Set (%d)\n", idx);
+						"3142 Failed allocate NVME "
+						"CQ Set (%d)\n", idx);
 				goto out_error;
 			}
+			qdesc->qe_valid = 1;
+			qdesc->hdwq = idx;
+			qdesc->chann = cpu;
 			phba->sli4_hba.nvmet_cqset[idx] = qdesc;
 		}
 	}
@@ -8251,26 +8889,30 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	 * Create Slow Path Completion Queues (CQs)
 	 */
 
+	cpu = lpfc_find_cpu_handle(phba, 0, LPFC_FIND_BY_EQ);
 	/* Create slow-path Mailbox Command Complete Queue */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.cq_esize,
-				      phba->sli4_hba.cq_ecount);
+				      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0500 Failed allocate slow-path mailbox CQ\n");
 		goto out_error;
 	}
+	qdesc->qe_valid = 1;
 	phba->sli4_hba.mbx_cq = qdesc;
 
 	/* Create slow-path ELS Complete Queue */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.cq_esize,
-				      phba->sli4_hba.cq_ecount);
+				      phba->sli4_hba.cq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0501 Failed allocate slow-path ELS CQ\n");
 		goto out_error;
 	}
+	qdesc->qe_valid = 1;
+	qdesc->chann = cpu;
 	phba->sli4_hba.els_cq = qdesc;
 
 
@@ -8282,12 +8924,13 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.mq_esize,
-				      phba->sli4_hba.mq_ecount);
+				      phba->sli4_hba.mq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0505 Failed allocate slow-path MQ\n");
 		goto out_error;
 	}
+	qdesc->chann = cpu;
 	phba->sli4_hba.mbx_wq = qdesc;
 
 	/*
@@ -8297,12 +8940,13 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* Create slow-path ELS Work Queue */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.wq_esize,
-				      phba->sli4_hba.wq_ecount);
+				      phba->sli4_hba.wq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0504 Failed allocate slow-path ELS WQ\n");
 		goto out_error;
 	}
+	qdesc->chann = cpu;
 	phba->sli4_hba.els_wq = qdesc;
 	list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 
@@ -8310,23 +8954,26 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 		/* Create NVME LS Complete Queue */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.cq_esize,
-					      phba->sli4_hba.cq_ecount);
+					      phba->sli4_hba.cq_ecount, cpu);
 		if (!qdesc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"6079 Failed allocate NVME LS CQ\n");
 			goto out_error;
 		}
+		qdesc->chann = cpu;
+		qdesc->qe_valid = 1;
 		phba->sli4_hba.nvmels_cq = qdesc;
 
 		/* Create NVME LS Work Queue */
 		qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 					      phba->sli4_hba.wq_esize,
-					      phba->sli4_hba.wq_ecount);
+					      phba->sli4_hba.wq_ecount, cpu);
 		if (!qdesc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"6080 Failed allocate NVME LS WQ\n");
 			goto out_error;
 		}
+		qdesc->chann = cpu;
 		phba->sli4_hba.nvmels_wq = qdesc;
 		list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
 	}
@@ -8338,7 +8985,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* Create Receive Queue for header */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.rq_esize,
-				      phba->sli4_hba.rq_ecount);
+				      phba->sli4_hba.rq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0506 Failed allocate receive HRQ\n");
@@ -8349,7 +8996,7 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	/* Create Receive Queue for data */
 	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
 				      phba->sli4_hba.rq_esize,
-				      phba->sli4_hba.rq_ecount);
+				      phba->sli4_hba.rq_ecount, cpu);
 	if (!qdesc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0507 Failed allocate receive DRQ\n");
@@ -8357,24 +9004,30 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 	}
 	phba->sli4_hba.dat_rq = qdesc;
 
-	if (phba->nvmet_support) {
+	if ((phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) &&
+	    phba->nvmet_support) {
 		for (idx = 0; idx < phba->cfg_nvmet_mrq; idx++) {
+			cpu = lpfc_find_cpu_handle(phba, idx,
+						   LPFC_FIND_BY_HDWQ);
 			/* Create NVMET Receive Queue for header */
 			qdesc = lpfc_sli4_queue_alloc(phba,
 						      LPFC_DEFAULT_PAGE_SIZE,
 						      phba->sli4_hba.rq_esize,
-						      LPFC_NVMET_RQE_DEF_COUNT);
+						      LPFC_NVMET_RQE_DEF_COUNT,
+						      cpu);
 			if (!qdesc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"3146 Failed allocate "
 						"receive HRQ\n");
 				goto out_error;
 			}
+			qdesc->hdwq = idx;
 			phba->sli4_hba.nvmet_mrq_hdr[idx] = qdesc;
 
 			/* Only needed for header of RQ pair */
-			qdesc->rqbp = kzalloc(sizeof(struct lpfc_rqb),
-					      GFP_KERNEL);
+			qdesc->rqbp = kzalloc_node(sizeof(*qdesc->rqbp),
+						   GFP_KERNEL,
+						   cpu_to_node(cpu));
 			if (qdesc->rqbp == NULL) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"6131 Failed allocate "
@@ -8389,20 +9042,37 @@ lpfc_sli4_queue_create(struct lpfc_hba *phba)
 			qdesc = lpfc_sli4_queue_alloc(phba,
 						      LPFC_DEFAULT_PAGE_SIZE,
 						      phba->sli4_hba.rq_esize,
-						      LPFC_NVMET_RQE_DEF_COUNT);
+						      LPFC_NVMET_RQE_DEF_COUNT,
+						      cpu);
 			if (!qdesc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 						"3156 Failed allocate "
 						"receive DRQ\n");
 				goto out_error;
 			}
+			qdesc->hdwq = idx;
 			phba->sli4_hba.nvmet_mrq_data[idx] = qdesc;
 		}
 	}
 
-	/* Create the Queues needed for Flash Optimized Fabric operations */
-	if (phba->cfg_fof)
-		lpfc_fof_queue_create(phba);
+#if defined(BUILD_NVME)
+	/* Clear NVME stats */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			memset(&phba->sli4_hba.hdwq[idx].nvme_cstat, 0,
+			       sizeof(phba->sli4_hba.hdwq[idx].nvme_cstat));
+		}
+	}
+#endif
+
+	/* Clear SCSI stats */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP) {
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			memset(&phba->sli4_hba.hdwq[idx].scsi_cstat, 0,
+			       sizeof(phba->sli4_hba.hdwq[idx].scsi_cstat));
+		}
+	}
+
 	return 0;
 
 out_error:
@@ -8435,11 +9105,31 @@ lpfc_sli4_release_queues(struct lpfc_queue ***qs, int max)
 }
 
 static inline void
-lpfc_sli4_release_queue_map(uint16_t **qmap)
+lpfc_sli4_release_hdwq(struct lpfc_hba *phba)
 {
-	if (*qmap != NULL) {
-		kfree(*qmap);
-		*qmap = NULL;
+	struct lpfc_sli4_hdw_queue *hdwq;
+	struct lpfc_queue *eq;
+	uint32_t idx;
+
+	hdwq = phba->sli4_hba.hdwq;
+
+	/* Loop thru all Hardware Queues */
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		/* Free the CQ/WQ corresponding to the Hardware Queue */
+		lpfc_sli4_queue_free(hdwq[idx].io_cq);
+		lpfc_sli4_queue_free(hdwq[idx].io_wq);
+		hdwq[idx].io_cq = NULL;
+		hdwq[idx].io_wq = NULL;
+		if (phba->cfg_xpsgl && !phba->nvmet_support)
+			lpfc_free_sgl_per_hdwq(phba, &hdwq[idx]);
+		lpfc_free_cmd_rsp_buf_per_hdwq(phba, &hdwq[idx]);
+	}
+	/* Loop thru all IRQ vectors */
+	for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
+		/* Free the EQ corresponding to the IRQ vector */
+		eq = phba->sli4_hba.hba_eq_hdl[idx].eq;
+		lpfc_sli4_queue_free(eq);
+		phba->sli4_hba.hba_eq_hdl[idx].eq = NULL;
 	}
 }
 
@@ -8458,33 +9148,23 @@ lpfc_sli4_release_queue_map(uint16_t **qmap)
 void
 lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 {
-	if (phba->cfg_fof)
-		lpfc_fof_queue_destroy(phba);
+	/*
+	 * Set FREE_INIT before beginning to free the queues.
+	 * Wait until the users of queues to acknowledge to
+	 * release queues by clearing FREE_WAIT.
+	 */
+	spin_lock_irq(&phba->hbalock);
+	phba->sli.sli_flag |= LPFC_QUEUE_FREE_INIT;
+	while (phba->sli.sli_flag & LPFC_QUEUE_FREE_WAIT) {
+		spin_unlock_irq(&phba->hbalock);
+		msleep(20);
+		spin_lock_irq(&phba->hbalock);
+	}
+	spin_unlock_irq(&phba->hbalock);
 
 	/* Release HBA eqs */
-	lpfc_sli4_release_queues(&phba->sli4_hba.hba_eq, phba->io_channel_irqs);
-
-	/* Release FCP cqs */
-	lpfc_sli4_release_queues(&phba->sli4_hba.fcp_cq,
-				 phba->cfg_fcp_io_channel);
-
-	/* Release FCP wqs */
-	lpfc_sli4_release_queues(&phba->sli4_hba.fcp_wq,
-				 phba->cfg_fcp_io_channel);
-
-	/* Release FCP CQ mapping array */
-	lpfc_sli4_release_queue_map(&phba->sli4_hba.fcp_cq_map);
-
-	/* Release NVME cqs */
-	lpfc_sli4_release_queues(&phba->sli4_hba.nvme_cq,
-					phba->cfg_nvme_io_channel);
-
-	/* Release NVME wqs */
-	lpfc_sli4_release_queues(&phba->sli4_hba.nvme_wq,
-					phba->cfg_nvme_io_channel);
-
-	/* Release NVME CQ mapping array */
-	lpfc_sli4_release_queue_map(&phba->sli4_hba.nvme_cq_map);
+	if (phba->sli4_hba.hdwq)
+		lpfc_sli4_release_hdwq(phba);
 
 	if (phba->nvmet_support) {
 		lpfc_sli4_release_queues(&phba->sli4_hba.nvmet_cqset,
@@ -8520,6 +9200,11 @@ lpfc_sli4_queue_destroy(struct lpfc_hba *phba)
 
 	/* Everything on this list has been freed */
 	INIT_LIST_HEAD(&phba->sli4_hba.lpfc_wq_list);
+
+	/* Done with freeing the queues */
+	spin_lock_irq(&phba->hbalock);
+	phba->sli.sli_flag &= ~LPFC_QUEUE_FREE_INIT;
+	spin_unlock_irq(&phba->hbalock);
 }
 
 int
@@ -8565,10 +9250,9 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 			qidx, (uint32_t)rc);
 		return rc;
 	}
-	cq->chann = qidx;
 
 	if (qtype != LPFC_MBOX) {
-		/* Setup nvme_cq_map for fast lookup */
+		/* Setup cq_map for fast lookup */
 		if (cq_map)
 			*cq_map = cq->queue_id;
 
@@ -8580,12 +9264,11 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 		rc = lpfc_wq_create(phba, wq, cq, qtype);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"6123 Fail setup fastpath WQ (%d), rc = 0x%x\n",
+				"4618 Fail setup fastpath WQ (%d), rc = 0x%x\n",
 				qidx, (uint32_t)rc);
 			/* no need to tear down cq - caller will do so */
 			return rc;
 		}
-		wq->chann = qidx;
 
 		/* Bind this CQ/WQ to the NVME ring */
 		pring = wq->pring;
@@ -8615,6 +9298,38 @@ lpfc_create_wq_cq(struct lpfc_hba *phba, struct lpfc_queue *eq,
 }
 
 /**
+ * lpfc_setup_cq_lookup - Setup the CQ lookup table
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine will populate the cq_lookup table by all
+ * available CQ queue_id's.
+ **/
+static void
+lpfc_setup_cq_lookup(struct lpfc_hba *phba)
+{
+	struct lpfc_queue *eq, *childq;
+	int qidx;
+
+	memset(phba->sli4_hba.cq_lookup, 0,
+	       (sizeof(struct lpfc_queue *) * (phba->sli4_hba.cq_max + 1)));
+	/* Loop thru all IRQ vectors */
+	for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
+		/* Get the EQ corresponding to the IRQ vector */
+		eq = phba->sli4_hba.hba_eq_hdl[qidx].eq;
+		if (!eq)
+			continue;
+		/* Loop through all CQs associated with that EQ */
+		list_for_each_entry(childq, &eq->child_list, list) {
+			if (childq->queue_id > phba->sli4_hba.cq_max)
+				continue;
+			if (childq->subtype == LPFC_IO)
+				phba->sli4_hba.cq_lookup[childq->queue_id] =
+					childq;
+		}
+	}
+}
+
+/**
  * lpfc_sli4_queue_setup - Set up all the SLI4 queues
  * @phba: pointer to lpfc hba data structure.
  *
@@ -8631,9 +9346,11 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 {
 	uint32_t shdr_status, shdr_add_status;
 	union lpfc_sli4_cfg_shdr *shdr;
+	struct lpfc_vector_map_info *cpup;
+	struct lpfc_sli4_hdw_queue *qp;
 	LPFC_MBOXQ_t *mboxq;
-	int qidx;
-	uint32_t length, io_channel;
+	int qidx, cpu;
+	uint32_t length, usdelay;
 	int rc = -ENOMEM;
 
 	/* Check for dual-ULP support */
@@ -8684,89 +9401,71 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 	/*
 	 * Set up HBA Event Queues (EQs)
 	 */
-	io_channel = phba->io_channel_irqs;
+	qp = phba->sli4_hba.hdwq;
 
 	/* Set up HBA event queue */
-	if (io_channel && !phba->sli4_hba.hba_eq) {
+	if (!qp) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3147 Fast-path EQs not allocated\n");
 		rc = -ENOMEM;
 		goto out_error;
 	}
-	for (qidx = 0; qidx < io_channel; qidx++) {
-		if (!phba->sli4_hba.hba_eq[qidx]) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"0522 Fast-path EQ (%d) not "
-					"allocated\n", qidx);
-			rc = -ENOMEM;
-			goto out_destroy;
+
+	/* Loop thru all IRQ vectors */
+	for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
+		/* Create HBA Event Queues (EQs) in order */
+		for_each_present_cpu(cpu) {
+			cpup = &phba->sli4_hba.cpu_map[cpu];
+
+			/* Look for the CPU thats using that vector with
+			 * LPFC_CPU_FIRST_IRQ set.
+			 */
+			if (!(cpup->flag & LPFC_CPU_FIRST_IRQ))
+				continue;
+			if (qidx != cpup->eq)
+				continue;
+
+			/* Create an EQ for that vector */
+			rc = lpfc_eq_create(phba, qp[cpup->hdwq].hba_eq,
+					    phba->cfg_fcp_imax);
+			if (rc) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"0523 Failed setup of fast-path"
+						" EQ (%d), rc = 0x%x\n",
+						cpup->eq, (uint32_t)rc);
+				goto out_destroy;
+			}
+
+			/* Save the EQ for that vector in the hba_eq_hdl */
+			phba->sli4_hba.hba_eq_hdl[cpup->eq].eq =
+				qp[cpup->hdwq].hba_eq;
+
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"2584 HBA EQ setup: queue[%d]-id=%d\n",
+					cpup->eq,
+					qp[cpup->hdwq].hba_eq->queue_id);
 		}
-		rc = lpfc_eq_create(phba, phba->sli4_hba.hba_eq[qidx],
-						phba->cfg_fcp_imax);
+	}
+
+	/* Loop thru all Hardware Queues */
+	for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
+		cpu = lpfc_find_cpu_handle(phba, qidx, LPFC_FIND_BY_HDWQ);
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* Create the CQ/WQ corresponding to the Hardware Queue */
+		rc = lpfc_create_wq_cq(phba,
+				       phba->sli4_hba.hdwq[cpup->hdwq].hba_eq,
+				       qp[qidx].io_cq,
+				       qp[qidx].io_wq,
+				       &phba->sli4_hba.hdwq[qidx].io_cq_map,
+				       qidx,
+				       LPFC_IO);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"0523 Failed setup of fast-path EQ "
-					"(%d), rc = 0x%x\n", qidx,
-					(uint32_t)rc);
-			goto out_destroy;
-		}
-		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-				"2584 HBA EQ setup: queue[%d]-id=%d\n",
-				qidx, phba->sli4_hba.hba_eq[qidx]->queue_id);
-	}
-
-	if (phba->cfg_nvme_io_channel) {
-		if (!phba->sli4_hba.nvme_cq || !phba->sli4_hba.nvme_wq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"6084 Fast-path NVME %s array not allocated\n",
-				(phba->sli4_hba.nvme_cq) ? "CQ" : "WQ");
-			rc = -ENOMEM;
-			goto out_destroy;
-		}
-
-		for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++) {
-			rc = lpfc_create_wq_cq(phba,
-					phba->sli4_hba.hba_eq[
-						qidx % io_channel],
-					phba->sli4_hba.nvme_cq[qidx],
-					phba->sli4_hba.nvme_wq[qidx],
-					&phba->sli4_hba.nvme_cq_map[qidx],
-					qidx, LPFC_NVME);
-			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6123 Failed to setup fastpath "
-					"NVME WQ/CQ (%d), rc = 0x%x\n",
-					qidx, (uint32_t)rc);
-				goto out_destroy;
-			}
-		}
-	}
-
-	if (phba->cfg_fcp_io_channel) {
-		/* Set up fast-path FCP Response Complete Queue */
-		if (!phba->sli4_hba.fcp_cq || !phba->sli4_hba.fcp_wq) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3148 Fast-path FCP %s array not allocated\n",
-				phba->sli4_hba.fcp_cq ? "WQ" : "CQ");
-			rc = -ENOMEM;
-			goto out_destroy;
-		}
-
-		for (qidx = 0; qidx < phba->cfg_fcp_io_channel; qidx++) {
-			rc = lpfc_create_wq_cq(phba,
-					phba->sli4_hba.hba_eq[
-						qidx % io_channel],
-					phba->sli4_hba.fcp_cq[qidx],
-					phba->sli4_hba.fcp_wq[qidx],
-					&phba->sli4_hba.fcp_cq_map[qidx],
-					qidx, LPFC_FCP);
-			if (rc) {
-				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 					"0535 Failed to setup fastpath "
-					"FCP WQ/CQ (%d), rc = 0x%x\n",
+					"IO WQ/CQ (%d), rc = 0x%x\n",
 					qidx, (uint32_t)rc);
-				goto out_destroy;
-			}
+			goto out_destroy;
 		}
 	}
 
@@ -8785,7 +9484,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		goto out_destroy;
 	}
 
-	rc = lpfc_create_wq_cq(phba, phba->sli4_hba.hba_eq[0],
+	rc = lpfc_create_wq_cq(phba, qp[0].hba_eq,
 			       phba->sli4_hba.mbx_cq,
 			       phba->sli4_hba.mbx_wq,
 			       NULL, 0, LPFC_MBOX);
@@ -8806,7 +9505,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		if (phba->cfg_nvmet_mrq > 1) {
 			rc = lpfc_cq_create_set(phba,
 					phba->sli4_hba.nvmet_cqset,
-					phba->sli4_hba.hba_eq,
+					qp,
 					LPFC_WCQ, LPFC_NVMET);
 			if (rc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -8818,7 +9517,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		} else {
 			/* Set up NVMET Receive Complete Queue */
 			rc = lpfc_cq_create(phba, phba->sli4_hba.nvmet_cqset[0],
-					    phba->sli4_hba.hba_eq[0],
+					    qp[0].hba_eq,
 					    LPFC_WCQ, LPFC_NVMET);
 			if (rc) {
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -8832,7 +9531,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 					"6090 NVMET CQ setup: cq-id=%d, "
 					"parent eq-id=%d\n",
 					phba->sli4_hba.nvmet_cqset[0]->queue_id,
-					phba->sli4_hba.hba_eq[0]->queue_id);
+					qp[0].hba_eq->queue_id);
 		}
 	}
 
@@ -8844,14 +9543,14 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 		rc = -ENOMEM;
 		goto out_destroy;
 	}
-	rc = lpfc_create_wq_cq(phba, phba->sli4_hba.hba_eq[0],
-					phba->sli4_hba.els_cq,
-					phba->sli4_hba.els_wq,
-					NULL, 0, LPFC_ELS);
+	rc = lpfc_create_wq_cq(phba, qp[0].hba_eq,
+			       phba->sli4_hba.els_cq,
+			       phba->sli4_hba.els_wq,
+			       NULL, 0, LPFC_ELS);
 	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0529 Failed setup of ELS WQ/CQ: rc = 0x%x\n",
-			(uint32_t)rc);
+				"0525 Failed setup of ELS WQ/CQ: rc = 0x%x\n",
+				(uint32_t)rc);
 		goto out_destroy;
 	}
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -8859,7 +9558,7 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.els_wq->queue_id,
 			phba->sli4_hba.els_cq->queue_id);
 
-	if (phba->cfg_nvme_io_channel) {
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
 		/* Set up NVME LS Complete Queue */
 		if (!phba->sli4_hba.nvmels_cq || !phba->sli4_hba.nvmels_wq) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -8868,14 +9567,14 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			rc = -ENOMEM;
 			goto out_destroy;
 		}
-		rc = lpfc_create_wq_cq(phba, phba->sli4_hba.hba_eq[0],
-					phba->sli4_hba.nvmels_cq,
-					phba->sli4_hba.nvmels_wq,
-					NULL, 0, LPFC_NVME_LS);
+		rc = lpfc_create_wq_cq(phba, qp[0].hba_eq,
+				       phba->sli4_hba.nvmels_cq,
+				       phba->sli4_hba.nvmels_wq,
+				       NULL, 0, LPFC_NVME_LS);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0529 Failed setup of NVVME LS WQ/CQ: "
-				"rc = 0x%x\n", (uint32_t)rc);
+					"0526 Failed setup of NVVME LS WQ/CQ: "
+					"rc = 0x%x\n", (uint32_t)rc);
 			goto out_destroy;
 		}
 
@@ -8961,20 +9660,29 @@ lpfc_sli4_queue_setup(struct lpfc_hba *phba)
 			phba->sli4_hba.dat_rq->queue_id,
 			phba->sli4_hba.els_cq->queue_id);
 
-	if (phba->cfg_fof) {
-		rc = lpfc_fof_queue_setup(phba);
-		if (rc) {
+	if (phba->cfg_fcp_imax)
+		usdelay = LPFC_SEC_TO_USEC / phba->cfg_fcp_imax;
+	else
+		usdelay = 0;
+
+	for (qidx = 0; qidx < phba->cfg_irq_chann;
+	     qidx += LPFC_MAX_EQ_DELAY_EQID_CNT)
+		lpfc_modify_hba_eq_delay(phba, qidx, LPFC_MAX_EQ_DELAY_EQID_CNT,
+					 usdelay);
+
+	if (phba->sli4_hba.cq_max) {
+		kfree(phba->sli4_hba.cq_lookup);
+		phba->sli4_hba.cq_lookup = kcalloc((phba->sli4_hba.cq_max + 1),
+			sizeof(struct lpfc_queue *), GFP_KERNEL);
+		if (!phba->sli4_hba.cq_lookup) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"0549 Failed setup of FOF Queues: "
-					"rc = 0x%x\n", rc);
+					"0549 Failed setup of CQ Lookup table: "
+					"size 0x%x\n", phba->sli4_hba.cq_max);
+			rc = -ENOMEM;
 			goto out_destroy;
 		}
+		lpfc_setup_cq_lookup(phba);
 	}
-
-	for (qidx = 0; qidx < io_channel; qidx += LPFC_MAX_EQ_DELAY_EQID_CNT)
-		lpfc_modify_hba_eq_delay(phba, qidx, LPFC_MAX_EQ_DELAY_EQID_CNT,
-					 phba->cfg_fcp_imax);
-
 	return 0;
 
 out_destroy:
@@ -8998,11 +9706,9 @@ out_error:
 void
 lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 {
+	struct lpfc_sli4_hdw_queue *qp;
+	struct lpfc_queue *eq;
 	int qidx;
-
-	/* Unset the queues created for Flash Optimized Fabric operations */
-	if (phba->cfg_fof)
-		lpfc_fof_queue_destroy(phba);
 
 	/* Unset mailbox command work queue */
 	if (phba->sli4_hba.mbx_wq)
@@ -9021,17 +9727,6 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 		lpfc_rq_destroy(phba, phba->sli4_hba.hdr_rq,
 				phba->sli4_hba.dat_rq);
 
-	/* Unset FCP work queue */
-	if (phba->sli4_hba.fcp_wq)
-		for (qidx = 0; qidx < phba->cfg_fcp_io_channel; qidx++)
-			lpfc_wq_destroy(phba, phba->sli4_hba.fcp_wq[qidx]);
-
-	/* Unset NVME work queue */
-	if (phba->sli4_hba.nvme_wq) {
-		for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++)
-			lpfc_wq_destroy(phba, phba->sli4_hba.nvme_wq[qidx]);
-	}
-
 	/* Unset mailbox command complete queue */
 	if (phba->sli4_hba.mbx_cq)
 		lpfc_cq_destroy(phba, phba->sli4_hba.mbx_cq);
@@ -9043,11 +9738,6 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 	/* Unset NVME LS complete queue */
 	if (phba->sli4_hba.nvmels_cq)
 		lpfc_cq_destroy(phba, phba->sli4_hba.nvmels_cq);
-
-	/* Unset NVME response complete queue */
-	if (phba->sli4_hba.nvme_cq)
-		for (qidx = 0; qidx < phba->cfg_nvme_io_channel; qidx++)
-			lpfc_cq_destroy(phba, phba->sli4_hba.nvme_cq[qidx]);
 
 	if (phba->nvmet_support) {
 		/* Unset NVMET MRQ queue */
@@ -9067,15 +9757,26 @@ lpfc_sli4_queue_unset(struct lpfc_hba *phba)
 		}
 	}
 
-	/* Unset FCP response complete queue */
-	if (phba->sli4_hba.fcp_cq)
-		for (qidx = 0; qidx < phba->cfg_fcp_io_channel; qidx++)
-			lpfc_cq_destroy(phba, phba->sli4_hba.fcp_cq[qidx]);
+	/* Unset fast-path SLI4 queues */
+	if (phba->sli4_hba.hdwq) {
+		/* Loop thru all Hardware Queues */
+		for (qidx = 0; qidx < phba->cfg_hdw_queue; qidx++) {
+			/* Destroy the CQ/WQ corresponding to Hardware Queue */
+			qp = &phba->sli4_hba.hdwq[qidx];
+			lpfc_wq_destroy(phba, qp->io_wq);
+			lpfc_cq_destroy(phba, qp->io_cq);
+		}
+		/* Loop thru all IRQ vectors */
+		for (qidx = 0; qidx < phba->cfg_irq_chann; qidx++) {
+			/* Destroy the EQ corresponding to the IRQ vector */
+			eq = phba->sli4_hba.hba_eq_hdl[qidx].eq;
+			lpfc_eq_destroy(phba, eq);
+		}
+	}
 
-	/* Unset fast-path event queue */
-	if (phba->sli4_hba.hba_eq)
-		for (qidx = 0; qidx < phba->io_channel_irqs; qidx++)
-			lpfc_eq_destroy(phba, phba->sli4_hba.hba_eq[qidx]);
+	kfree(phba->sli4_hba.cq_lookup);
+	phba->sli4_hba.cq_lookup = NULL;
+	phba->sli4_hba.cq_max = 0;
 }
 
 /**
@@ -9303,6 +10004,7 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 		}
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
+	case LPFC_SLI_INTF_IF_TYPE_6:
 wait:
 		/*
 		 * Poll the Port Status Register and wait for RDY for
@@ -9390,25 +10092,20 @@ out:
 static int
 lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 {
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = phba->pcidev;
 	unsigned long bar0map_len, bar1map_len, bar2map_len;
-	int error = -ENODEV;
+	int error;
 	uint32_t if_type;
 
-	/* Obtain PCI device reference */
-	if (!phba->pcidev)
-		return error;
-	else
-		pdev = phba->pcidev;
+	if (!pdev)
+		return -ENODEV;
 
 	/* Set the device DMA mask size */
-	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) != 0
-	 || pci_set_consistent_dma_mask(pdev,DMA_BIT_MASK(64)) != 0) {
-		if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0
-		 || pci_set_consistent_dma_mask(pdev,DMA_BIT_MASK(32)) != 0) {
-			return error;
-		}
-	}
+	error = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (error)
+		error = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	if (error)
+		return error;
 
 	/*
 	 * The BARs and register set definitions and offset locations are
@@ -9416,7 +10113,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	 */
 	if (pci_read_config_dword(pdev, LPFC_SLI_INTF,
 				  &phba->sli4_hba.sli_intf.word0)) {
-		return error;
+		return -ENODEV;
 	}
 
 	/* There is no SLI3 failback for SLI4 devices. */
@@ -9426,7 +10123,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 				"2894 SLI_INTF reg contents invalid "
 				"sli_intf reg 0x%x\n",
 				phba->sli4_hba.sli_intf.word0);
-		return error;
+		return -ENODEV;
 	}
 
 	if_type = bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf);
@@ -9450,7 +10147,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			dev_printk(KERN_ERR, &pdev->dev,
 				   "ioremap failed for SLI4 PCI config "
 				   "registers.\n");
-			goto out;
+			return -ENODEV;
 		}
 		phba->pci_bar0_memmap_p = phba->sli4_hba.conf_regs_memmap_p;
 		/* Set up BAR0 PCI config space register memory map */
@@ -9458,10 +10155,10 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 	} else {
 		phba->pci_bar0_map = pci_resource_start(pdev, 1);
 		bar0map_len = pci_resource_len(pdev, 1);
-		if (if_type == LPFC_SLI_INTF_IF_TYPE_2) {
+		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
 			dev_printk(KERN_ERR, &pdev->dev,
 			   "FATAL - No BAR0 mapping for SLI4, if_type 2\n");
-			goto out;
+			return -ENODEV;
 		}
 		phba->sli4_hba.conf_regs_memmap_p =
 				ioremap(phba->pci_bar0_map, bar0map_len);
@@ -9469,7 +10166,7 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			dev_printk(KERN_ERR, &pdev->dev,
 				"ioremap failed for SLI4 PCI config "
 				"registers.\n");
-				goto out;
+			return -ENODEV;
 		}
 		lpfc_sli4_bar0_register_memmap(phba, if_type);
 	}
@@ -9495,11 +10192,31 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 			}
 			phba->pci_bar2_memmap_p =
 					 phba->sli4_hba.ctrl_regs_memmap_p;
-			lpfc_sli4_bar1_register_memmap(phba);
+			lpfc_sli4_bar1_register_memmap(phba, if_type);
 		} else {
 			error = -ENOMEM;
 			goto out_iounmap_conf;
 		}
+	}
+
+	if ((if_type == LPFC_SLI_INTF_IF_TYPE_6) &&
+	    (pci_resource_start(pdev, PCI_64BIT_BAR2))) {
+		/*
+		 * Map SLI4 if type 6 HBA Doorbell Register base to a kernel
+		 * virtual address and setup the registers.
+		 */
+		phba->pci_bar1_map = pci_resource_start(pdev, PCI_64BIT_BAR2);
+		bar1map_len = pci_resource_len(pdev, PCI_64BIT_BAR2);
+		phba->sli4_hba.drbl_regs_memmap_p =
+				ioremap(phba->pci_bar1_map, bar1map_len);
+		if (!phba->sli4_hba.drbl_regs_memmap_p) {
+			dev_err(&pdev->dev,
+			   "ioremap failed for SLI4 HBA doorbell registers.\n");
+			error = -ENOMEM;
+			goto out_iounmap_conf;
+		}
+		phba->pci_bar2_memmap_p = phba->sli4_hba.drbl_regs_memmap_p;
+		lpfc_sli4_bar1_register_memmap(phba, if_type);
 	}
 
 	if (if_type == LPFC_SLI_INTF_IF_TYPE_0) {
@@ -9532,6 +10249,42 @@ lpfc_sli4_pci_mem_setup(struct lpfc_hba *phba)
 		}
 	}
 
+	if (if_type == LPFC_SLI_INTF_IF_TYPE_6 &&
+	    pci_resource_start(pdev, PCI_64BIT_BAR4)) {
+		/*
+		 * Map SLI4 if type 6 HBA DPP Register base to a kernel
+		 * virtual address and setup the registers.
+		 */
+		phba->pci_bar2_map = pci_resource_start(pdev, PCI_64BIT_BAR4);
+		bar2map_len = pci_resource_len(pdev, PCI_64BIT_BAR4);
+		phba->sli4_hba.dpp_regs_memmap_p =
+				ioremap(phba->pci_bar2_map, bar2map_len);
+		if (!phba->sli4_hba.dpp_regs_memmap_p) {
+			dev_err(&pdev->dev,
+			   "ioremap failed for SLI4 HBA dpp registers.\n");
+			error = -ENOMEM;
+			goto out_iounmap_ctrl;
+		}
+		phba->pci_bar4_memmap_p = phba->sli4_hba.dpp_regs_memmap_p;
+	}
+
+	/* Set up the EQ/CQ register handeling functions now */
+	switch (if_type) {
+	case LPFC_SLI_INTF_IF_TYPE_0:
+	case LPFC_SLI_INTF_IF_TYPE_2:
+		phba->sli4_hba.sli4_eq_clr_intr = lpfc_sli4_eq_clr_intr;
+		phba->sli4_hba.sli4_write_eq_db = lpfc_sli4_write_eq_db;
+		phba->sli4_hba.sli4_write_cq_db = lpfc_sli4_write_cq_db;
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		phba->sli4_hba.sli4_eq_clr_intr = lpfc_sli4_if6_eq_clr_intr;
+		phba->sli4_hba.sli4_write_eq_db = lpfc_sli4_if6_write_eq_db;
+		phba->sli4_hba.sli4_write_cq_db = lpfc_sli4_if6_write_cq_db;
+		break;
+	default:
+		break;
+	}
+
 	return 0;
 
 out_iounmap_all:
@@ -9540,7 +10293,7 @@ out_iounmap_ctrl:
 	iounmap(phba->sli4_hba.ctrl_regs_memmap_p);
 out_iounmap_conf:
 	iounmap(phba->sli4_hba.conf_regs_memmap_p);
-out:
+
 	return error;
 }
 
@@ -9564,6 +10317,10 @@ lpfc_sli4_pci_mem_unset(struct lpfc_hba *phba)
 		iounmap(phba->sli4_hba.conf_regs_memmap_p);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_2:
+		iounmap(phba->sli4_hba.conf_regs_memmap_p);
+		break;
+	case LPFC_SLI_INTF_IF_TYPE_6:
+		iounmap(phba->sli4_hba.drbl_regs_memmap_p);
 		iounmap(phba->sli4_hba.conf_regs_memmap_p);
 		break;
 	case LPFC_SLI_INTF_IF_TYPE_1:
@@ -9803,58 +10560,409 @@ lpfc_sli_disable_intr(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_find_cpu_handle - Find the CPU that corresponds to the specified Queue
+ * @phba: pointer to lpfc hba data structure.
+ * @id: EQ vector index or Hardware Queue index
+ * @match: LPFC_FIND_BY_EQ = match by EQ
+ *         LPFC_FIND_BY_HDWQ = match by Hardware Queue
+ * Return the CPU that matches the selection criteria
+ */
+static uint16_t
+lpfc_find_cpu_handle(struct lpfc_hba *phba, uint16_t id, int match)
+{
+	struct lpfc_vector_map_info *cpup;
+	int cpu;
+
+	/* Loop through all CPUs */
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* If we are matching by EQ, there may be multiple CPUs using
+		 * using the same vector, so select the one with
+		 * LPFC_CPU_FIRST_IRQ set.
+		 */
+		if ((match == LPFC_FIND_BY_EQ) &&
+		    (cpup->flag & LPFC_CPU_FIRST_IRQ) &&
+		    (cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
+		    (cpup->eq == id))
+			return cpu;
+
+		/* If matching by HDWQ, select the first CPU that matches */
+		if ((match == LPFC_FIND_BY_HDWQ) && (cpup->hdwq == id))
+			return cpu;
+	}
+	return 0;
+}
+
+#ifdef CONFIG_X86
+/**
+ * lpfc_find_hyper - Determine if the CPU map entry is hyper-threaded
+ * @phba: pointer to lpfc hba data structure.
+ * @cpu: CPU map index
+ * @phys_id: CPU package physical id
+ * @core_id: CPU core id
+ */
+static int
+lpfc_find_hyper(struct lpfc_hba *phba, int cpu,
+		uint16_t phys_id, uint16_t core_id)
+{
+	struct lpfc_vector_map_info *cpup;
+	int idx;
+
+	for_each_present_cpu(idx) {
+		cpup = &phba->sli4_hba.cpu_map[idx];
+		/* Does the cpup match the one we are looking for */
+		if ((cpup->phys_id == phys_id) &&
+		    (cpup->core_id == core_id) &&
+		    (cpu != idx))
+			return 1;
+	}
+	return 0;
+}
+#endif
+
+/**
  * lpfc_cpu_affinity_check - Check vector CPU affinity mappings
  * @phba: pointer to lpfc hba data structure.
  * @vectors: number of msix vectors allocated.
  *
  * The routine will figure out the CPU affinity assignment for every
- * MSI-X vector allocated for the HBA.  The hba_eq_hdl will be updated
- * with a pointer to the CPU mask that defines ALL the CPUs this vector
- * can be associated with. If the vector can be unquely associated with
- * a single CPU, that CPU will be recorded in hba_eq_hdl[index].cpu.
+ * MSI-X vector allocated for the HBA.
  * In addition, the CPU to IO channel mapping will be calculated
  * and the phba->sli4_hba.cpu_map array will reflect this.
  */
 static void
 lpfc_cpu_affinity_check(struct lpfc_hba *phba, int vectors)
 {
+	int i, cpu, idx, next_idx, new_cpu, start_cpu, first_cpu;
+	int max_phys_id, min_phys_id;
+	int max_core_id, min_core_id;
 	struct lpfc_vector_map_info *cpup;
-	int index = 0;
-	int vec = 0;
-	int cpu;
+	struct lpfc_vector_map_info *new_cpup;
+	const struct cpumask *maskp;
 #ifdef CONFIG_X86
 	struct cpuinfo_x86 *cpuinfo;
 #endif
 
 	/* Init cpu_map array */
-	memset(phba->sli4_hba.cpu_map, 0xff,
-	       (sizeof(struct lpfc_vector_map_info) *
-	       phba->sli4_hba.num_present_cpu));
+	for_each_possible_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+		cpup->phys_id = LPFC_VECTOR_MAP_EMPTY;
+		cpup->core_id = LPFC_VECTOR_MAP_EMPTY;
+		cpup->hdwq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->eq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->irq = LPFC_VECTOR_MAP_EMPTY;
+		cpup->flag = 0;
+	}
+
+	max_phys_id = 0;
+	min_phys_id = LPFC_VECTOR_MAP_EMPTY;
+	max_core_id = 0;
+	min_core_id = LPFC_VECTOR_MAP_EMPTY;
 
 	/* Update CPU map with physical id and core id of each CPU */
-	cpup = phba->sli4_hba.cpu_map;
-	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
 #ifdef CONFIG_X86
 		cpuinfo = &cpu_data(cpu);
 		cpup->phys_id = cpuinfo->phys_proc_id;
 		cpup->core_id = cpuinfo->cpu_core_id;
+		if (lpfc_find_hyper(phba, cpu, cpup->phys_id, cpup->core_id))
+			cpup->flag |= LPFC_CPU_MAP_HYPER;
 #else
 		/* No distinction between CPUs for other platforms */
 		cpup->phys_id = 0;
-		cpup->core_id = 0;
+		cpup->core_id = cpu;
 #endif
-		cpup->channel_id = index;  /* For now round robin */
-		cpup->irq = pci_irq_vector(phba->pcidev, vec);
-		vec++;
-		if (vec >= vectors)
-			vec = 0;
-		index++;
-		if (index >= phba->cfg_fcp_io_channel)
-			index = 0;
-		cpup++;
-	}
-}
 
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3328 CPU %d physid %d coreid %d flag x%x\n",
+				cpu, cpup->phys_id, cpup->core_id, cpup->flag);
+
+		if (cpup->phys_id > max_phys_id)
+			max_phys_id = cpup->phys_id;
+		if (cpup->phys_id < min_phys_id)
+			min_phys_id = cpup->phys_id;
+
+		if (cpup->core_id > max_core_id)
+			max_core_id = cpup->core_id;
+		if (cpup->core_id < min_core_id)
+			min_core_id = cpup->core_id;
+	}
+
+	for_each_possible_cpu(i) {
+		struct lpfc_eq_intr_info *eqi =
+			per_cpu_ptr(phba->sli4_hba.eq_info, i);
+
+		INIT_LIST_HEAD(&eqi->list);
+		eqi->icnt = 0;
+	}
+
+	/* This loop sets up all CPUs that are affinitized with a
+	 * irq vector assigned to the driver. All affinitized CPUs
+	 * will get a link to that vectors IRQ and EQ.
+	 *
+	 * NULL affinity mask handling:
+	 * If irq count is greater than one, log an error message.
+	 * If the null mask is received for the first irq, find the
+	 * first present cpu, and assign the eq index to ensure at
+	 * least one EQ is assigned.
+	 */
+	for (idx = 0; idx <  phba->cfg_irq_chann; idx++) {
+		/* Get a CPU mask for all CPUs affinitized to this vector */
+		maskp = pci_irq_get_affinity(phba->pcidev, idx);
+		if (!maskp) {
+			if (phba->cfg_irq_chann > 1)
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"3329 No affinity mask found "
+						"for vector %d (%d)\n",
+						idx, phba->cfg_irq_chann);
+			if (!idx) {
+				cpu = cpumask_first(cpu_present_mask);
+				cpup = &phba->sli4_hba.cpu_map[cpu];
+				cpup->eq = idx;
+				cpup->irq = pci_irq_vector(phba->pcidev, idx);
+				cpup->flag |= LPFC_CPU_FIRST_IRQ;
+			}
+			break;
+		}
+
+		i = 0;
+		/* Loop through all CPUs associated with vector idx */
+		for_each_cpu_and(cpu, maskp, cpu_present_mask) {
+			/* Set the EQ index and IRQ for that vector */
+			cpup = &phba->sli4_hba.cpu_map[cpu];
+			cpup->eq = idx;
+			cpup->irq = pci_irq_vector(phba->pcidev, idx);
+
+			/* If this is the first CPU thats assigned to this
+			 * vector, set LPFC_CPU_FIRST_IRQ.
+			 */
+			if (!i)
+				cpup->flag |= LPFC_CPU_FIRST_IRQ;
+			i++;
+
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3336 Set Affinity: CPU %d "
+					"irq %d eq %d flag x%x\n",
+					cpu, cpup->irq, cpup->eq, cpup->flag);
+		}
+	}
+
+	/* After looking at each irq vector assigned to this pcidev, its
+	 * possible to see that not ALL CPUs have been accounted for.
+	 * Next we will set any unassigned (unaffinitized) cpu map
+	 * entries to a IRQ on the same phys_id.
+	 */
+	first_cpu = cpumask_first(cpu_present_mask);
+	start_cpu = first_cpu;
+
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* Is this CPU entry unassigned */
+		if (cpup->eq == LPFC_VECTOR_MAP_EMPTY) {
+			/* Mark CPU as IRQ not assigned by the kernel */
+			cpup->flag |= LPFC_CPU_MAP_UNASSIGN;
+
+			/* If so, find a new_cpup thats on the the SAME
+			 * phys_id as cpup. start_cpu will start where we
+			 * left off so all unassigned entries don't get assgined
+			 * the IRQ of the first entry.
+			 */
+			new_cpu = start_cpu;
+			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
+				    (new_cpup->irq != LPFC_VECTOR_MAP_EMPTY) &&
+				    (new_cpup->phys_id == cpup->phys_id))
+					goto found_same;
+				new_cpu = cpumask_next(
+					new_cpu, cpu_present_mask);
+				if (new_cpu == nr_cpumask_bits)
+					new_cpu = first_cpu;
+			}
+			/* At this point, we leave the CPU as unassigned */
+			continue;
+found_same:
+			/* We found a matching phys_id, so copy the IRQ info */
+			cpup->eq = new_cpup->eq;
+			cpup->irq = new_cpup->irq;
+
+			/* Bump start_cpu to the next slot to minmize the
+			 * chance of having multiple unassigned CPU entries
+			 * selecting the same IRQ.
+			 */
+			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (start_cpu == nr_cpumask_bits)
+				start_cpu = first_cpu;
+
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3337 Set Affinity: CPU %d "
+					"irq %d from id %d same "
+					"phys_id (%d)\n",
+					cpu, cpup->irq, new_cpu, cpup->phys_id);
+		}
+	}
+
+	/* Set any unassigned cpu map entries to a IRQ on any phys_id */
+	start_cpu = first_cpu;
+
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* Is this entry unassigned */
+		if (cpup->eq == LPFC_VECTOR_MAP_EMPTY) {
+			/* Mark it as IRQ not assigned by the kernel */
+			cpup->flag |= LPFC_CPU_MAP_UNASSIGN;
+
+			/* If so, find a new_cpup thats on ANY phys_id
+			 * as the cpup. start_cpu will start where we
+			 * left off so all unassigned entries don't get
+			 * assigned the IRQ of the first entry.
+			 */
+			new_cpu = start_cpu;
+			for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+				new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+				if (!(new_cpup->flag & LPFC_CPU_MAP_UNASSIGN) &&
+				    (new_cpup->irq != LPFC_VECTOR_MAP_EMPTY))
+					goto found_any;
+				new_cpu = cpumask_next(
+					new_cpu, cpu_present_mask);
+				if (new_cpu == nr_cpumask_bits)
+					new_cpu = first_cpu;
+			}
+			/* We should never leave an entry unassigned */
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3339 Set Affinity: CPU %d "
+					"irq %d UNASSIGNED\n",
+					cpup->hdwq, cpup->irq);
+			continue;
+found_any:
+			/* We found an available entry, copy the IRQ info */
+			cpup->eq = new_cpup->eq;
+			cpup->irq = new_cpup->irq;
+
+			/* Bump start_cpu to the next slot to minmize the
+			 * chance of having multiple unassigned CPU entries
+			 * selecting the same IRQ.
+			 */
+			start_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (start_cpu == nr_cpumask_bits)
+				start_cpu = first_cpu;
+
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"3338 Set Affinity: CPU %d "
+					"irq %d from id %d (%d/%d)\n",
+					cpu, cpup->irq, new_cpu,
+					new_cpup->phys_id, new_cpup->core_id);
+		}
+	}
+
+	/* Assign hdwq indices that are unique across all cpus in the map
+	 * that are also FIRST_CPUs.
+	 */
+	idx = 0;
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* Only FIRST IRQs get a hdwq index assignment. */
+		if (!(cpup->flag & LPFC_CPU_FIRST_IRQ))
+			continue;
+
+		/* 1 to 1, the first LPFC_CPU_FIRST_IRQ cpus to a unique hdwq */
+		cpup->hdwq = idx;
+		idx++;
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3333 Set Affinity: CPU %d (phys %d core %d): "
+				"hdwq %d eq %d irq %d flg x%x\n",
+				cpu, cpup->phys_id, cpup->core_id,
+				cpup->hdwq, cpup->eq, cpup->irq, cpup->flag);
+	}
+	/* Finally we need to associate a hdwq with each cpu_map entry
+	 * This will be 1 to 1 - hdwq to cpu, unless there are less
+	 * hardware queues then CPUs. For that case we will just round-robin
+	 * the available hardware queues as they get assigned to CPUs.
+	 * The next_idx is the idx from the FIRST_CPU loop above to account
+	 * for irq_chann < hdwq.  The idx is used for round-robin assignments
+	 * and needs to start at 0.
+	 */
+	next_idx = idx;
+	start_cpu = 0;
+	idx = 0;
+	for_each_present_cpu(cpu) {
+		cpup = &phba->sli4_hba.cpu_map[cpu];
+
+		/* FIRST cpus are already mapped. */
+		if (cpup->flag & LPFC_CPU_FIRST_IRQ)
+			continue;
+
+		/* If the cfg_irq_chann < cfg_hdw_queue, set the hdwq
+		 * of the unassigned cpus to the next idx so that all
+		 * hdw queues are fully utilized.
+		 */
+		if (next_idx < phba->cfg_hdw_queue) {
+			cpup->hdwq = next_idx;
+			next_idx++;
+			continue;
+		}
+
+		/* Not a First CPU and all hdw_queues are used.  Reuse a
+		 * Hardware Queue for another CPU, so be smart about it
+		 * and pick one that has its IRQ/EQ mapped to the same phys_id
+		 * (CPU package) and core_id.
+		 */
+		new_cpu = start_cpu;
+		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+			new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+			if (new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY &&
+			    new_cpup->phys_id == cpup->phys_id &&
+			    new_cpup->core_id == cpup->core_id) {
+				goto found_hdwq;
+			}
+			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (new_cpu == nr_cpumask_bits)
+				new_cpu = first_cpu;
+		}
+
+		/* If we can't match both phys_id and core_id,
+		 * settle for just a phys_id match.
+		 */
+		new_cpu = start_cpu;
+		for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+			new_cpup = &phba->sli4_hba.cpu_map[new_cpu];
+			if (new_cpup->hdwq != LPFC_VECTOR_MAP_EMPTY &&
+			    new_cpup->phys_id == cpup->phys_id)
+				goto found_hdwq;
+
+			new_cpu = cpumask_next(new_cpu, cpu_present_mask);
+			if (new_cpu == nr_cpumask_bits)
+				new_cpu = first_cpu;
+		}
+
+		/* Otherwise just round robin on cfg_hdw_queue */
+		cpup->hdwq = idx % phba->cfg_hdw_queue;
+		idx++;
+		goto logit;
+ found_hdwq:
+		/* We found an available entry, copy the IRQ info */
+		start_cpu = cpumask_next(new_cpu, cpu_present_mask);
+		if (start_cpu == nr_cpumask_bits)
+			start_cpu = first_cpu;
+		cpup->hdwq = new_cpup->hdwq;
+ logit:
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3335 Set Affinity: CPU %d (phys %d core %d): "
+				"hdwq %d eq %d irq %d flg x%x\n",
+				cpu, cpup->phys_id, cpup->core_id,
+				cpup->hdwq, cpup->eq, cpup->irq, cpup->flag);
+	}
+
+	/* The cpu_map array will be used later during initialization
+	 * when EQ / CQ / WQs are allocated and configured.
+	 */
+	return;
+}
 
 /**
  * lpfc_sli4_enable_msix - Enable MSI-X interrupt mode to SLI-4 device
@@ -9874,12 +10982,10 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 	char *name;
 
 	/* Set up MSI-X multi-message vectors */
-	vectors = phba->io_channel_irqs;
-	if (phba->cfg_fof)
-		vectors++;
+	vectors = phba->cfg_irq_chann;
 
 	rc = pci_alloc_irq_vectors(phba->pcidev,
-				(phba->nvmet_support) ? 1 : 2,
+				1,
 				vectors, PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
 	if (rc < 0) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
@@ -9897,17 +11003,10 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 
 		phba->sli4_hba.hba_eq_hdl[index].idx = index;
 		phba->sli4_hba.hba_eq_hdl[index].phba = phba;
-		atomic_set(&phba->sli4_hba.hba_eq_hdl[index].hba_eq_in_use, 1);
-		if (phba->cfg_fof && (index == (vectors - 1)))
-			rc = request_irq(pci_irq_vector(phba->pcidev, index),
-				 &lpfc_sli4_fof_intr_handler, 0,
-				 name,
-				 &phba->sli4_hba.hba_eq_hdl[index]);
-		else
-			rc = request_irq(pci_irq_vector(phba->pcidev, index),
-				 &lpfc_sli4_hba_intr_handler, 0,
-				 name,
-				 &phba->sli4_hba.hba_eq_hdl[index]);
+		rc = request_irq(pci_irq_vector(phba->pcidev, index),
+			 &lpfc_sli4_hba_intr_handler, 0,
+			 name,
+			 &phba->sli4_hba.hba_eq_hdl[index]);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 					"0486 MSI-X fast-path (%d) "
@@ -9916,24 +11015,16 @@ lpfc_sli4_enable_msix(struct lpfc_hba *phba)
 		}
 	}
 
-	if (phba->cfg_fof)
-		vectors--;
-
-	if (vectors != phba->io_channel_irqs) {
+	if (vectors != phba->cfg_irq_chann) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"3238 Reducing IO channels to match number of "
 				"MSI-X vectors, requested %d got %d\n",
-				phba->io_channel_irqs, vectors);
-		if (phba->cfg_fcp_io_channel > vectors)
-			phba->cfg_fcp_io_channel = vectors;
-		if (phba->cfg_nvme_io_channel > vectors)
-			phba->cfg_nvme_io_channel = vectors;
-		if (phba->cfg_fcp_io_channel > phba->cfg_nvme_io_channel)
-			phba->io_channel_irqs = phba->cfg_fcp_io_channel;
-		else
-			phba->io_channel_irqs = phba->cfg_nvme_io_channel;
+				phba->cfg_irq_chann, vectors);
+		if (phba->cfg_irq_chann > vectors)
+			phba->cfg_irq_chann = vectors;
+		if (phba->nvmet_support && (phba->cfg_nvmet_mrq > vectors))
+			phba->cfg_nvmet_mrq = vectors;
 	}
-	lpfc_cpu_affinity_check(phba, vectors);
 
 	return rc;
 
@@ -9955,10 +11046,10 @@ vec_fail_out:
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is invoked to enable the MSI interrupt mode to device with
- * SLI-4 interface spec. The kernel function pci_enable_msi() is called
- * to enable the MSI vector. The device driver is responsible for calling
- * the request_irq() to register MSI vector with a interrupt the handler,
- * which is done in this function.
+ * SLI-4 interface spec. The kernel function pci_alloc_irq_vectors() is
+ * called to enable the MSI vector. The device driver is responsible for
+ * calling the request_irq() to register MSI vector with a interrupt the
+ * handler, which is done in this function.
  *
  * Return codes
  * 	0 - successful
@@ -9969,34 +11060,31 @@ lpfc_sli4_enable_msi(struct lpfc_hba *phba)
 {
 	int rc, index;
 
-	rc = pci_enable_msi(phba->pcidev);
-	if (!rc)
+	rc = pci_alloc_irq_vectors(phba->pcidev, 1, 1,
+				   PCI_IRQ_MSI | PCI_IRQ_AFFINITY);
+	if (rc > 0)
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0487 PCI enable MSI mode success.\n");
 	else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0488 PCI enable MSI mode failed (%d)\n", rc);
-		return rc;
+		return rc ? rc : -1;
 	}
 
 	rc = request_irq(phba->pcidev->irq, lpfc_sli4_intr_handler,
 			 0, LPFC_DRIVER_NAME, phba);
 	if (rc) {
-		pci_disable_msi(phba->pcidev);
+		pci_free_irq_vectors(phba->pcidev);
 		lpfc_printf_log(phba, KERN_WARNING, LOG_INIT,
 				"0490 MSI request_irq failed (%d)\n", rc);
 		return rc;
 	}
 
-	for (index = 0; index < phba->io_channel_irqs; index++) {
+	for (index = 0; index < phba->cfg_irq_chann; index++) {
 		phba->sli4_hba.hba_eq_hdl[index].idx = index;
 		phba->sli4_hba.hba_eq_hdl[index].phba = phba;
 	}
 
-	if (phba->cfg_fof) {
-		phba->sli4_hba.hba_eq_hdl[index].idx = index;
-		phba->sli4_hba.hba_eq_hdl[index].phba = phba;
-	}
 	return 0;
 }
 
@@ -10057,17 +11145,10 @@ lpfc_sli4_enable_intr(struct lpfc_hba *phba, uint32_t cfg_mode)
 			phba->intr_type = INTx;
 			intr_mode = 0;
 
-			for (idx = 0; idx < phba->io_channel_irqs; idx++) {
+			for (idx = 0; idx < phba->cfg_irq_chann; idx++) {
 				eqhdl = &phba->sli4_hba.hba_eq_hdl[idx];
 				eqhdl->idx = idx;
 				eqhdl->phba = phba;
-				atomic_set(&eqhdl->hba_eq_in_use, 1);
-			}
-			if (phba->cfg_fof) {
-				eqhdl = &phba->sli4_hba.hba_eq_hdl[idx];
-				eqhdl->idx = idx;
-				eqhdl->phba = phba;
-				atomic_set(&eqhdl->hba_eq_in_use, 1);
 			}
 		}
 	}
@@ -10091,13 +11172,13 @@ lpfc_sli4_disable_intr(struct lpfc_hba *phba)
 		int index;
 
 		/* Free up MSI-X multi-message vectors */
-		for (index = 0; index < phba->io_channel_irqs; index++)
+		for (index = 0; index < phba->cfg_irq_chann; index++) {
+			irq_set_affinity_hint(
+				pci_irq_vector(phba->pcidev, index),
+				NULL);
 			free_irq(pci_irq_vector(phba->pcidev, index),
 					&phba->sli4_hba.hba_eq_hdl[index]);
-
-		if (phba->cfg_fof)
-			free_irq(pci_irq_vector(phba->pcidev, index),
-					&phba->sli4_hba.hba_eq_hdl[index]);
+		}
 	} else {
 		free_irq(phba->pcidev->irq, phba);
 	}
@@ -10158,10 +11239,11 @@ lpfc_unset_hba(struct lpfc_hba *phba)
 static void
 lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 {
+	struct lpfc_sli4_hdw_queue *qp;
+	int idx, ccnt;
 	int wait_time = 0;
-	int nvme_xri_cmpl = 1;
+	int io_xri_cmpl = 1;
 	int nvmet_xri_cmpl = 1;
-	int fcp_xri_cmpl = 1;
 	int els_xri_cmpl = list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
 
 	/* Driver just aborted IOs during the hba_unset process.  Pause
@@ -10174,27 +11256,31 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
 		lpfc_nvme_wait_for_io_drain(phba);
 
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP)
-		fcp_xri_cmpl =
-			list_empty(&phba->sli4_hba.lpfc_abts_scsi_buf_list);
+	ccnt = 0;
+	for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+		qp = &phba->sli4_hba.hdwq[idx];
+		io_xri_cmpl = list_empty(&qp->lpfc_abts_io_buf_list);
+		if (!io_xri_cmpl) /* if list is NOT empty */
+			ccnt++;
+	}
+	if (ccnt)
+		io_xri_cmpl = 0;
+
 	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-		nvme_xri_cmpl =
-			list_empty(&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 		nvmet_xri_cmpl =
 			list_empty(&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 	}
 
-	while (!fcp_xri_cmpl || !els_xri_cmpl || !nvme_xri_cmpl ||
-	       !nvmet_xri_cmpl) {
+	while (!els_xri_cmpl || !io_xri_cmpl || !nvmet_xri_cmpl) {
 		if (wait_time > LPFC_XRI_EXCH_BUSY_WAIT_TMO) {
-			if (!nvme_xri_cmpl)
+			if (!nvmet_xri_cmpl)
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"6100 NVME XRI exchange busy "
+						"6424 NVMET XRI exchange busy "
 						"wait time: %d seconds.\n",
 						wait_time/1000);
-			if (!fcp_xri_cmpl)
+			if (!io_xri_cmpl)
 				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-						"2877 FCP XRI exchange busy "
+						"6100 IO XRI exchange busy "
 						"wait time: %d seconds.\n",
 						wait_time/1000);
 			if (!els_xri_cmpl)
@@ -10208,17 +11294,22 @@ lpfc_sli4_xri_exchange_busy_wait(struct lpfc_hba *phba)
 			msleep(LPFC_XRI_EXCH_BUSY_WAIT_T1);
 			wait_time += LPFC_XRI_EXCH_BUSY_WAIT_T1;
 		}
+
+		ccnt = 0;
+		for (idx = 0; idx < phba->cfg_hdw_queue; idx++) {
+			qp = &phba->sli4_hba.hdwq[idx];
+			io_xri_cmpl = list_empty(
+			    &qp->lpfc_abts_io_buf_list);
+			if (!io_xri_cmpl) /* if list is NOT empty */
+				ccnt++;
+		}
+		if (ccnt)
+			io_xri_cmpl = 0;
+
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			nvme_xri_cmpl = list_empty(
-				&phba->sli4_hba.lpfc_abts_nvme_buf_list);
 			nvmet_xri_cmpl = list_empty(
 				&phba->sli4_hba.lpfc_abts_nvmet_ctx_list);
 		}
-
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP)
-			fcp_xri_cmpl = list_empty(
-				&phba->sli4_hba.lpfc_abts_scsi_buf_list);
-
 		els_xri_cmpl =
 			list_empty(&phba->sli4_hba.lpfc_abts_els_sgl_list);
 
@@ -10243,7 +11334,8 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	struct pci_dev *pdev = phba->pcidev;
 
 	lpfc_stop_hba_timers(phba);
-	phba->sli4_hba.intr_enable = 0;
+	if (phba->pport)
+		phba->sli4_hba.intr_enable = 0;
 
 	/*
 	 * Gracefully wait out the potential current outstanding asynchronous
@@ -10287,6 +11379,9 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	/* Stop kthread signal shall trigger work_done one more time */
 	kthread_stop(phba->worker_thread);
 
+	/* Disable FW logging to host memory */
+	lpfc_ras_stop_fwlog(phba);
+
 	/* Unset the queues shared with the hardware then release all
 	 * allocated resources.
 	 */
@@ -10296,8 +11391,13 @@ lpfc_sli4_hba_unset(struct lpfc_hba *phba)
 	/* Reset SLI4 HBA FCoE function */
 	lpfc_pci_function_reset(phba);
 
+	/* Free RAS DMA memory */
+	if (phba->ras_fwlog.ras_enabled)
+		lpfc_sli4_ras_dma_free(phba);
+
 	/* Stop the SLI4 device port */
-	phba->pport->work_port_events = 0;
+	if (phba->pport)
+		phba->pport->work_port_events = 0;
 }
 
  /**
@@ -10392,6 +11492,7 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_pc_sli4_params *sli4_params;
 	uint32_t mbox_tmo;
 	int length;
+	bool exp_wqcq_pages = true;
 	struct lpfc_sli4_parameters *mbx_sli4_parameters;
 
 	/*
@@ -10435,7 +11536,10 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	sli4_params->mqv = bf_get(cfg_mqv, mbx_sli4_parameters);
 	sli4_params->wqv = bf_get(cfg_wqv, mbx_sli4_parameters);
 	sli4_params->rqv = bf_get(cfg_rqv, mbx_sli4_parameters);
+	sli4_params->eqav = bf_get(cfg_eqav, mbx_sli4_parameters);
+	sli4_params->cqav = bf_get(cfg_cqav, mbx_sli4_parameters);
 	sli4_params->wqsize = bf_get(cfg_wqsize, mbx_sli4_parameters);
+	sli4_params->bv1s = bf_get(cfg_bv1s, mbx_sli4_parameters);
 	sli4_params->sgl_pages_max = bf_get(cfg_sgl_page_cnt,
 					    mbx_sli4_parameters);
 	sli4_params->wqpcnt = bf_get(cfg_wqpcnt, mbx_sli4_parameters);
@@ -10443,30 +11547,76 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					   mbx_sli4_parameters);
 	phba->sli4_hba.extents_in_use = bf_get(cfg_ext, mbx_sli4_parameters);
 	phba->sli4_hba.rpi_hdrs_in_use = bf_get(cfg_hdrr, mbx_sli4_parameters);
-	phba->nvme_support = (bf_get(cfg_nvme, mbx_sli4_parameters) &&
-			      bf_get(cfg_xib, mbx_sli4_parameters));
 
-	if ((phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP) ||
-	    !phba->nvme_support) {
-		phba->nvme_support = 0;
-		phba->nvmet_support = 0;
-		phba->cfg_nvmet_mrq = LPFC_NVMET_MRQ_OFF;
-		phba->cfg_nvme_io_channel = 0;
-		phba->io_channel_irqs = phba->cfg_fcp_io_channel;
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_NVME,
-				"6101 Disabling NVME support: "
-				"Not supported by firmware: %d %d\n",
-				bf_get(cfg_nvme, mbx_sli4_parameters),
-				bf_get(cfg_xib, mbx_sli4_parameters));
+	/* Check for Extended Pre-Registered SGL support */
+	phba->cfg_xpsgl = bf_get(cfg_xpsgl, mbx_sli4_parameters);
 
-		/* If firmware doesn't support NVME, just use SCSI support */
-		if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
-			return -ENODEV;
-		phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
+	/* Check for firmware nvme support */
+	rc = (bf_get(cfg_nvme, mbx_sli4_parameters) &&
+		     bf_get(cfg_xib, mbx_sli4_parameters));
+
+	if (rc) {
+		/* Save this to indicate the Firmware supports NVME */
+		sli4_params->nvme = 1;
+
+		/* Firmware NVME support, check driver FC4 NVME support */
+		if (phba->cfg_enable_fc4_type == LPFC_ENABLE_FCP) {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_NVME,
+					"6133 Disabling NVME support: "
+					"FC4 type not supported: x%x\n",
+					phba->cfg_enable_fc4_type);
+			goto fcponly;
+		}
+	} else {
+		/* No firmware NVME support, check driver FC4 NVME support */
+		sli4_params->nvme = 0;
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_NVME,
+					"6101 Disabling NVME support: Not "
+					"supported by firmware (%d %d) x%x\n",
+					bf_get(cfg_nvme, mbx_sli4_parameters),
+					bf_get(cfg_xib, mbx_sli4_parameters),
+					phba->cfg_enable_fc4_type);
+fcponly:
+			phba->nvme_support = 0;
+			phba->nvmet_support = 0;
+			phba->cfg_nvmet_mrq = 0;
+			phba->cfg_nvme_seg_cnt = 0;
+
+			/* If no FC4 type support, move to just SCSI support */
+			if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP))
+				return -ENODEV;
+			phba->cfg_enable_fc4_type = LPFC_ENABLE_FCP;
+		}
 	}
 
-	if (bf_get(cfg_xib, mbx_sli4_parameters) && phba->cfg_suppress_rsp)
+	/* If the NVME FC4 type is enabled, scale the sg_seg_cnt to
+	 * accommodate 512K and 1M IOs in a single nvme buf and supply
+	 * enough NVME LS iocb buffers for larger connectivity counts.
+	 */
+	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+		phba->cfg_sg_seg_cnt = LPFC_MAX_NVME_SEG_CNT;
+		phba->cfg_iocb_cnt = 5;
+	}
+
+	/* Only embed PBDE for if_type 6, PBDE support requires xib be set */
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	    LPFC_SLI_INTF_IF_TYPE_6) || (!bf_get(cfg_xib, mbx_sli4_parameters)))
+		phba->cfg_enable_pbde = 0;
+
+	/*
+	 * To support Suppress Response feature we must satisfy 3 conditions.
+	 * lpfc_suppress_rsp module parameter must be set (default).
+	 * In SLI4-Parameters Descriptor:
+	 * Extended Inline Buffers (XIB) must be supported.
+	 * Suppress Response IU Not Supported (SRIUNS) must NOT be supported
+	 * (double negative).
+	 */
+	if (phba->cfg_suppress_rsp && bf_get(cfg_xib, mbx_sli4_parameters) &&
+	    !(bf_get(cfg_nosr, mbx_sli4_parameters)))
 		phba->sli.sli_flag |= LPFC_SLI_SUPPRESS_RSP;
+	else
+		phba->cfg_suppress_rsp = 0;
 
 	if (bf_get(cfg_eqdr, mbx_sli4_parameters))
 		phba->sli.sli_flag |= LPFC_SLI_USE_EQDR;
@@ -10476,15 +11626,35 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		sli4_params->sge_supp_len = LPFC_MAX_SGE_SIZE;
 
 	/*
-	 * Issue IOs with CDB embedded in WQE to minimized the number
-	 * of DMAs the firmware has to do. Setting this to 1 also forces
-	 * the driver to use 128 bytes WQEs for FCP IOs.
+	 * Check whether the adapter supports an embedded copy of the
+	 * FCP CMD IU within the WQE for FCP_Ixxx commands. In order
+	 * to use this option, 128-byte WQEs must be used.
 	 */
 	if (bf_get(cfg_ext_embed_cb, mbx_sli4_parameters))
 		phba->fcp_embed_io = 1;
 	else
 		phba->fcp_embed_io = 0;
 
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_NVME,
+			"6422 XIB %d PBDE %d: FCP %d NVME %d %d %d\n",
+			bf_get(cfg_xib, mbx_sli4_parameters),
+			phba->cfg_enable_pbde,
+			phba->fcp_embed_io, phba->nvme_support,
+			phba->cfg_nvme_embed_cmd, phba->cfg_suppress_rsp);
+
+	if ((bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) ==
+	    LPFC_SLI_INTF_IF_TYPE_2) &&
+	    (bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf) ==
+		 LPFC_SLI_INTF_FAMILY_LNCR_A0))
+		exp_wqcq_pages = false;
+
+	if ((bf_get(cfg_cqpsize, mbx_sli4_parameters) & LPFC_CQ_16K_PAGE_SZ) &&
+	    (bf_get(cfg_wqpsize, mbx_sli4_parameters) & LPFC_WQ_16K_PAGE_SZ) &&
+	    exp_wqcq_pages &&
+	    (sli4_params->wqsize & LPFC_WQ_SZ128_SUPPORT))
+		phba->enab_exp_wqcq_pages = 1;
+	else
+		phba->enab_exp_wqcq_pages = 0;
 	/*
 	 * Check if the SLI port supports MDS Diagnostics
 	 */
@@ -10492,6 +11662,15 @@ lpfc_get_sli4_parameters(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->mds_diags_support = 1;
 	else
 		phba->mds_diags_support = 0;
+
+	/*
+	 * Check if the SLI port supports NSLER
+	 */
+	if (bf_get(cfg_nsler, mbx_sli4_parameters))
+		phba->nsler = 1;
+	else
+		phba->nsler = 0;
+
 	return 0;
 }
 
@@ -10720,9 +11899,9 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	kfree(phba->vpi_ids);
 
 	lpfc_stop_hba_timers(phba);
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	lpfc_debugfs_terminate(vport);
 
@@ -10740,6 +11919,8 @@ lpfc_pci_remove_one_s3(struct pci_dev *pdev)
 	 * corresponding pools here.
 	 */
 	lpfc_scsi_free(phba);
+	lpfc_free_iocb_list(phba);
+
 	lpfc_mem_free_all(phba);
 
 	dma_free_coherent(&pdev->dev, lpfc_sli_hbq_size(),
@@ -10918,7 +12099,7 @@ lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 	lpfc_scsi_dev_block(phba);
 
 	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
-	lpfc_sli_flush_fcp_rings(phba);
+	lpfc_sli_flush_io_rings(phba);
 
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
@@ -10948,7 +12129,7 @@ lpfc_sli_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 	lpfc_stop_hba_timers(phba);
 
 	/* Clean up all driver's outstanding SCSI I/Os */
-	lpfc_sli_flush_fcp_rings(phba);
+	lpfc_sli_flush_io_rings(phba);
 }
 
 /**
@@ -11084,10 +12265,6 @@ lpfc_io_resume_s3(struct pci_dev *pdev)
 
 	/* Bring device online, it will be no-op for non-fatal error resume */
 	lpfc_online(phba);
-
-	/* Clean up Advanced Error Reporting (AER) if needed */
-	if (phba->hba_flag & HBA_AER_ENABLED)
-		pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 /**
@@ -11137,6 +12314,31 @@ lpfc_sli4_get_iocb_cnt(struct lpfc_hba *phba)
 }
 
 
+static void
+lpfc_log_write_firmware_error(struct lpfc_hba *phba, uint32_t offset,
+	uint32_t magic_number, uint32_t ftype, uint32_t fid, uint32_t fsize,
+	const struct firmware *fw)
+{
+	if ((offset == ADD_STATUS_FW_NOT_SUPPORTED) ||
+	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G6_FC &&
+	     magic_number != MAGIC_NUMER_G6) ||
+	    (phba->pcidev->device == PCI_DEVICE_ID_LANCER_G7_FC &&
+	     magic_number != MAGIC_NUMER_G7))
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"3030 This firmware version is not supported on "
+			"this HBA model. Device:%x Magic:%x Type:%x "
+			"ID:%x Size %d %zd\n",
+			phba->pcidev->device, magic_number, ftype, fid,
+			fsize, fw->size);
+	else
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+			"3022 FW Download failed. Device:%x Magic:%x Type:%x "
+			"ID:%x Size %d %zd\n",
+			phba->pcidev->device, magic_number, ftype, fid,
+			fsize, fw->size);
+}
+
+
 /**
  * lpfc_write_firmware - attempt to write a firmware image to the port
  * @fw: pointer to firmware image returned from request_firmware.
@@ -11164,20 +12366,10 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 
 	magic_number = be32_to_cpu(image->magic_number);
 	ftype = bf_get_be32(lpfc_grp_hdr_file_type, image);
-	fid = bf_get_be32(lpfc_grp_hdr_id, image),
+	fid = bf_get_be32(lpfc_grp_hdr_id, image);
 	fsize = be32_to_cpu(image->size);
 
 	INIT_LIST_HEAD(&dma_buffer_list);
-	if ((magic_number != LPFC_GROUP_OJECT_MAGIC_G5 &&
-	     magic_number != LPFC_GROUP_OJECT_MAGIC_G6) ||
-	    ftype != LPFC_FILE_TYPE_GROUP || fsize != fw->size) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"3022 Invalid FW image found. "
-				"Magic:%x Type:%x ID:%x Size %d %zd\n",
-				magic_number, ftype, fid, fsize, fw->size);
-		rc = -EINVAL;
-		goto release_out;
-	}
 	lpfc_decode_firmware_rev(phba, fwrev, 1);
 	if (strncmp(fwrev, image->revision, strnlen(image->revision, 16))) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -11218,11 +12410,18 @@ lpfc_write_firmware(const struct firmware *fw, void *context)
 			}
 			rc = lpfc_wr_object(phba, &dma_buffer_list,
 				    (fw->size - offset), &offset);
-			if (rc)
+			if (rc) {
+				lpfc_log_write_firmware_error(phba, offset,
+					magic_number, ftype, fid, fsize, fw);
 				goto release_out;
+			}
 		}
 		rc = offset;
-	}
+	} else
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3029 Skipped Firmware update, Current "
+				"Version:%s New Version:%s\n",
+				fwrev, image->revision);
 
 release_out:
 	list_for_each_entry_safe(dmabuf, next, &dma_buffer_list, list) {
@@ -11253,7 +12452,7 @@ lpfc_sli4_request_firmware_update(struct lpfc_hba *phba, uint8_t fw_upgrade)
 	const struct firmware *fw;
 
 	/* Only supported on SLI4 interface type 2 for now */
-	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) !=
+	if (bf_get(lpfc_sli_intf_if_type, &phba->sli4_hba.sli_intf) <
 	    LPFC_SLI_INTF_IF_TYPE_2)
 		return -EPERM;
 
@@ -11347,28 +12546,11 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* Get the default values for Model Name and Description */
 	lpfc_get_hba_model_desc(phba, phba->ModelName, phba->ModelDesc);
 
-	/* Create SCSI host to the physical port */
-	error = lpfc_create_shost(phba);
-	if (error) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1415 Failed to create scsi host.\n");
-		goto out_unset_driver_resource;
-	}
-
-	/* Configure sysfs attributes */
-	vport = phba->pport;
-	error = lpfc_alloc_sysfs_attr(vport);
-	if (error) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"1416 Failed to allocate sysfs attr\n");
-		goto out_destroy_shost;
-	}
-
-	shost = lpfc_shost_from_vport(vport); /* save shost for error cleanup */
 	/* Now, trying to enable interrupt and bring up the device */
 	cfg_mode = phba->cfg_use_msi;
 
 	/* Put device to a known state before enabling interrupt */
+	phba->pport = NULL;
 	lpfc_stop_port(phba);
 
 	/* Configure and enable interrupt */
@@ -11377,18 +12559,34 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0426 Failed to enable interrupt.\n");
 		error = -ENODEV;
-		goto out_free_sysfs_attr;
+		goto out_unset_driver_resource;
 	}
 	/* Default to single EQ for non-MSI-X */
 	if (phba->intr_type != MSIX) {
-		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_FCP)
-			phba->cfg_fcp_io_channel = 1;
+		phba->cfg_irq_chann = 1;
 		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
-			phba->cfg_nvme_io_channel = 1;
 			if (phba->nvmet_support)
 				phba->cfg_nvmet_mrq = 1;
 		}
-		phba->io_channel_irqs = 1;
+	}
+	lpfc_cpu_affinity_check(phba, phba->cfg_irq_chann);
+
+	/* Create SCSI host to the physical port */
+	error = lpfc_create_shost(phba);
+	if (error) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1415 Failed to create scsi host.\n");
+		goto out_disable_intr;
+	}
+	vport = phba->pport;
+	shost = lpfc_shost_from_vport(vport); /* save shost for error cleanup */
+
+	/* Configure sysfs attributes */
+	error = lpfc_alloc_sysfs_attr(vport);
+	if (error) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1416 Failed to allocate sysfs attr\n");
+		goto out_destroy_shost;
 	}
 
 	/* Set up SLI-4 HBA */
@@ -11396,7 +12594,7 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"1421 Failed to set up hba\n");
 		error = -ENODEV;
-		goto out_disable_intr;
+		goto out_free_sysfs_attr;
 	}
 
 	/* Log the current active interrupt mode */
@@ -11409,19 +12607,20 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 	/* NVME support in FW earlier in the driver load corrects the
 	 * FC4 type making a check for nvme_support unnecessary.
 	 */
-	if ((phba->nvmet_support == 0) &&
-	    (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
-		/* Create NVME binding with nvme_fc_transport. This
-		 * ensures the vport is initialized.  If the localport
-		 * create fails, it should not unload the driver to
-		 * support field issues.
-		 */
-		error = lpfc_nvme_create_localport(vport);
-		if (error) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-					"6004 NVME registration failed, "
-					"error x%x\n",
-					error);
+	if (phba->nvmet_support == 0) {
+		if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME) {
+			/* Create NVME binding with nvme_fc_transport. This
+			 * ensures the vport is initialized.  If the localport
+			 * create fails, it should not unload the driver to
+			 * support field issues.
+			 */
+			error = lpfc_nvme_create_localport(vport);
+			if (error) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+						"6004 NVME registration "
+						"failed, error x%x\n",
+						error);
+			}
 		}
 	}
 
@@ -11431,14 +12630,18 @@ lpfc_pci_probe_one_s4(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	/* Check if there are static vports to be created. */
 	lpfc_create_static_vport(phba);
+
+	/* Enable RAS FW log support */
+	lpfc_sli4_ras_setup(phba);
+
 	return 0;
 
-out_disable_intr:
-	lpfc_sli4_disable_intr(phba);
 out_free_sysfs_attr:
 	lpfc_free_sysfs_attr(vport);
 out_destroy_shost:
 	lpfc_destroy_shost(phba);
+out_disable_intr:
+	lpfc_sli4_disable_intr(phba);
 out_unset_driver_resource:
 	lpfc_unset_driver_resource_phase2(phba);
 out_unset_driver_resource_s4:
@@ -11493,13 +12696,6 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	/* Remove FC host and then SCSI host with the physical port */
 	fc_remove_host(shost);
 	scsi_remove_host(shost);
-	/*
-	 * Bring down the SLI Layer. This step disables all interrupts,
-	 * clears the rings, discards all mailbox commands, and resets
-	 * the HBA FCoE function.
-	 */
-	lpfc_debugfs_terminate(vport);
-	lpfc_sli4_hba_unset(phba);
 
 	/* Perform ndlp cleanup on the physical port.  The nvme and nvmet
 	 * localports are destroyed after to cleanup all transport memory.
@@ -11508,19 +12704,30 @@ lpfc_pci_remove_one_s4(struct pci_dev *pdev)
 	lpfc_nvmet_destroy_targetport(phba);
 	lpfc_nvme_destroy_localport(vport);
 
+	/* De-allocate multi-XRI pools */
+	if (phba->cfg_xri_rebalancing)
+		lpfc_destroy_multixri_pools(phba);
+
+	/*
+	 * Bring down the SLI Layer. This step disables all interrupts,
+	 * clears the rings, discards all mailbox commands, and resets
+	 * the HBA FCoE function.
+	 */
+	lpfc_debugfs_terminate(vport);
 
 	lpfc_stop_hba_timers(phba);
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->port_list_lock);
 	list_del_init(&vport->listentry);
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->port_list_lock);
 
 	/* Perform scsi free before driver resource_unset since scsi
 	 * buffers are released to their corresponding pools here.
 	 */
-	lpfc_scsi_free(phba);
-	lpfc_nvme_free(phba);
+	lpfc_io_free(phba);
 	lpfc_free_iocb_list(phba);
+	lpfc_sli4_hba_unset(phba);
 
+	lpfc_unset_driver_resource_phase2(phba);
 	lpfc_sli4_driver_resource_unset(phba);
 
 	/* Unmap adapter Control and Doorbell registers */
@@ -11694,12 +12901,8 @@ lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
 
-	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
-	lpfc_sli_flush_fcp_rings(phba);
-
-	/* Flush the outstanding NVME IOs if fc4 type enabled. */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-		lpfc_sli_flush_nvme_rings(phba);
+	/* Flush all driver's outstanding I/Os as we are to reset */
+	lpfc_sli_flush_io_rings(phba);
 
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
@@ -11730,12 +12933,8 @@ lpfc_sli4_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
 
-	/* Clean up all driver's outstanding SCSI I/Os */
-	lpfc_sli_flush_fcp_rings(phba);
-
-	/* Flush the outstanding NVME IOs if fc4 type enabled. */
-	if (phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)
-		lpfc_sli_flush_nvme_rings(phba);
+	/* Clean up all driver's outstanding I/Os */
+	lpfc_sli_flush_io_rings(phba);
 }
 
 /**
@@ -11876,10 +13075,6 @@ lpfc_io_resume_s4(struct pci_dev *pdev)
 		/* Bring the device back online */
 		lpfc_online(phba);
 	}
-
-	/* Clean up Advanced Error Reporting (AER) if needed */
-	if (phba->hba_flag & HBA_AER_ENABLED)
-		pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 /**
@@ -12140,7 +13335,7 @@ lpfc_io_resume(struct pci_dev *pdev)
  * is destroyed.
  *
  **/
-void
+static void
 lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 {
 
@@ -12160,158 +13355,30 @@ lpfc_sli4_oas_verify(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_fof_queue_setup - Set up all the fof queues
+ * lpfc_sli4_ras_init - Verify RAS-FW log is supported by this adapter
  * @phba: pointer to lpfc hba data structure.
  *
- * This routine is invoked to set up all the fof queues for the FC HBA
- * operation.
- *
- * Return codes
- *      0 - successful
- *      -ENOMEM - No available memory
+ * This routine checks to see if RAS is supported by the adapter. Check the
+ * function through which RAS support enablement is to be done.
  **/
-int
-lpfc_fof_queue_setup(struct lpfc_hba *phba)
+void
+lpfc_sli4_ras_init(struct lpfc_hba *phba)
 {
-	struct lpfc_sli_ring *pring;
-	int rc;
-
-	rc = lpfc_eq_create(phba, phba->sli4_hba.fof_eq, LPFC_MAX_IMAX);
-	if (rc)
-		return -ENOMEM;
-
-	if (phba->cfg_fof) {
-
-		rc = lpfc_cq_create(phba, phba->sli4_hba.oas_cq,
-				    phba->sli4_hba.fof_eq, LPFC_WCQ, LPFC_FCP);
-		if (rc)
-			goto out_oas_cq;
-
-		rc = lpfc_wq_create(phba, phba->sli4_hba.oas_wq,
-				    phba->sli4_hba.oas_cq, LPFC_FCP);
-		if (rc)
-			goto out_oas_wq;
-
-		/* Bind this CQ/WQ to the NVME ring */
-		pring = phba->sli4_hba.oas_wq->pring;
-		pring->sli.sli4.wqp =
-			(void *)phba->sli4_hba.oas_wq;
-		phba->sli4_hba.oas_cq->pring = pring;
-	}
-
-	return 0;
-
-out_oas_wq:
-	lpfc_cq_destroy(phba, phba->sli4_hba.oas_cq);
-out_oas_cq:
-	lpfc_eq_destroy(phba, phba->sli4_hba.fof_eq);
-	return rc;
-
-}
-
-/**
- * lpfc_fof_queue_create - Create all the fof queues
- * @phba: pointer to lpfc hba data structure.
- *
- * This routine is invoked to allocate all the fof queues for the FC HBA
- * operation. For each SLI4 queue type, the parameters such as queue entry
- * count (queue depth) shall be taken from the module parameter. For now,
- * we just use some constant number as place holder.
- *
- * Return codes
- *      0 - successful
- *      -ENOMEM - No availble memory
- *      -EIO - The mailbox failed to complete successfully.
- **/
-int
-lpfc_fof_queue_create(struct lpfc_hba *phba)
-{
-	struct lpfc_queue *qdesc;
-
-	/* Create FOF EQ */
-	qdesc = lpfc_sli4_queue_alloc(phba, LPFC_DEFAULT_PAGE_SIZE,
-				      phba->sli4_hba.eq_esize,
-				      phba->sli4_hba.eq_ecount);
-	if (!qdesc)
-		goto out_error;
-
-	phba->sli4_hba.fof_eq = qdesc;
-
-	if (phba->cfg_fof) {
-
-		/* Create OAS CQ */
-		if (phba->fcp_embed_io)
-			qdesc = lpfc_sli4_queue_alloc(phba,
-						      LPFC_EXPANDED_PAGE_SIZE,
-						      phba->sli4_hba.cq_esize,
-						      LPFC_CQE_EXP_COUNT);
+	switch (phba->pcidev->device) {
+	case PCI_DEVICE_ID_LANCER_G6_FC:
+	case PCI_DEVICE_ID_LANCER_G7_FC:
+		phba->ras_fwlog.ras_hwsupport = true;
+		if (phba->cfg_ras_fwlog_func == PCI_FUNC(phba->pcidev->devfn) &&
+		    phba->cfg_ras_fwlog_buffsize)
+			phba->ras_fwlog.ras_enabled = true;
 		else
-			qdesc = lpfc_sli4_queue_alloc(phba,
-						      LPFC_DEFAULT_PAGE_SIZE,
-						      phba->sli4_hba.cq_esize,
-						      phba->sli4_hba.cq_ecount);
-		if (!qdesc)
-			goto out_error;
-
-		phba->sli4_hba.oas_cq = qdesc;
-
-		/* Create OAS WQ */
-		if (phba->fcp_embed_io)
-			qdesc = lpfc_sli4_queue_alloc(phba,
-						      LPFC_EXPANDED_PAGE_SIZE,
-						      LPFC_WQE128_SIZE,
-						      LPFC_WQE_EXP_COUNT);
-		else
-			qdesc = lpfc_sli4_queue_alloc(phba,
-						      LPFC_DEFAULT_PAGE_SIZE,
-						      phba->sli4_hba.wq_esize,
-						      phba->sli4_hba.wq_ecount);
-		if (!qdesc)
-			goto out_error;
-
-		phba->sli4_hba.oas_wq = qdesc;
-		list_add_tail(&qdesc->wq_list, &phba->sli4_hba.lpfc_wq_list);
-
+			phba->ras_fwlog.ras_enabled = false;
+		break;
+	default:
+		phba->ras_fwlog.ras_hwsupport = false;
 	}
-	return 0;
-
-out_error:
-	lpfc_fof_queue_destroy(phba);
-	return -ENOMEM;
 }
 
-/**
- * lpfc_fof_queue_destroy - Destroy all the fof queues
- * @phba: pointer to lpfc hba data structure.
- *
- * This routine is invoked to release all the SLI4 queues with the FC HBA
- * operation.
- *
- * Return codes
- *      0 - successful
- **/
-int
-lpfc_fof_queue_destroy(struct lpfc_hba *phba)
-{
-	/* Release FOF Event queue */
-	if (phba->sli4_hba.fof_eq != NULL) {
-		lpfc_sli4_queue_free(phba->sli4_hba.fof_eq);
-		phba->sli4_hba.fof_eq = NULL;
-	}
-
-	/* Release OAS Completion queue */
-	if (phba->sli4_hba.oas_cq != NULL) {
-		lpfc_sli4_queue_free(phba->sli4_hba.oas_cq);
-		phba->sli4_hba.oas_cq = NULL;
-	}
-
-	/* Release OAS Work queue */
-	if (phba->sli4_hba.oas_wq != NULL) {
-		lpfc_sli4_queue_free(phba->sli4_hba.oas_wq);
-		phba->sli4_hba.oas_wq = NULL;
-	}
-	return 0;
-}
 
 MODULE_DEVICE_TABLE(pci, lpfc_id_table);
 
@@ -12379,9 +13446,10 @@ lpfc_init(void)
 		fc_release_transport(lpfc_transport_template);
 		return -ENOMEM;
 	}
+	lpfc_nvme_cmd_template();
+	lpfc_nvmet_cmd_template();
 
 	/* Initialize in case vector mapping is needed */
-	lpfc_used_cpu = NULL;
 	lpfc_present_cpu = num_present_cpus();
 
 	error = pci_register_driver(&lpfc_driver);
@@ -12407,20 +13475,6 @@ lpfc_exit(void)
 	pci_unregister_driver(&lpfc_driver);
 	fc_release_transport(lpfc_transport_template);
 	fc_release_transport(lpfc_vport_transport_template);
-	if (_dump_buf_data) {
-		printk(KERN_ERR	"9062 BLKGRD: freeing %lu pages for "
-				"_dump_buf_data at 0x%p\n",
-				(1L << _dump_buf_data_order), _dump_buf_data);
-		free_pages((unsigned long)_dump_buf_data, _dump_buf_data_order);
-	}
-
-	if (_dump_buf_dif) {
-		printk(KERN_ERR	"9049 BLKGRD: freeing %lu pages for "
-				"_dump_buf_dif at 0x%p\n",
-				(1L << _dump_buf_dif_order), _dump_buf_dif);
-		free_pages((unsigned long)_dump_buf_dif, _dump_buf_dif_order);
-	}
-	kfree(lpfc_used_cpu);
 	idr_destroy(&lpfc_hba_index);
 }
 

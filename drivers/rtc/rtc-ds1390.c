@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * rtc-ds1390.c -- driver for the Dallas/Maxim DS1390/93/94 SPI RTC
  *
  * Copyright (C) 2008 Mercury IMC Ltd
  * Written by Mark Jackson <mpfj@mimc.co.uk>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * NOTE: Currently this driver only supports the bare minimum for read
  * and write the RTC. The extra features provided by the chip family
@@ -153,7 +150,7 @@ static int ds1390_read_time(struct device *dev, struct rtc_time *dt)
 	/* adjust for century bit */
 	dt->tm_year = bcd2bin(chip->txrx_buf[6]) + ((chip->txrx_buf[5] & 0x80) ? 100 : 0);
 
-	return rtc_valid_tm(dt);
+	return 0;
 }
 
 static int ds1390_set_time(struct device *dev, struct rtc_time *dt)

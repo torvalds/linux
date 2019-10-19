@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Broadcom BCM7xxx internal transceivers support.
  *
  * Copyright (C) 2014-2017 Broadcom
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -41,76 +37,9 @@
 #define MII_BCM7XXX_SHD_3_TL4		0x23
 #define  MII_BCM7XXX_TL4_RST_MSK	(BIT(2) | BIT(1))
 
-/* 28nm only register definitions */
-#define MISC_ADDR(base, channel)	base, channel
-
-#define DSP_TAP10			MISC_ADDR(0x0a, 0)
-#define PLL_PLLCTRL_1			MISC_ADDR(0x32, 1)
-#define PLL_PLLCTRL_2			MISC_ADDR(0x32, 2)
-#define PLL_PLLCTRL_4			MISC_ADDR(0x33, 0)
-
-#define AFE_RXCONFIG_0			MISC_ADDR(0x38, 0)
-#define AFE_RXCONFIG_1			MISC_ADDR(0x38, 1)
-#define AFE_RXCONFIG_2			MISC_ADDR(0x38, 2)
-#define AFE_RX_LP_COUNTER		MISC_ADDR(0x38, 3)
-#define AFE_TX_CONFIG			MISC_ADDR(0x39, 0)
-#define AFE_VDCA_ICTRL_0		MISC_ADDR(0x39, 1)
-#define AFE_VDAC_OTHERS_0		MISC_ADDR(0x39, 3)
-#define AFE_HPF_TRIM_OTHERS		MISC_ADDR(0x3a, 0)
-
 struct bcm7xxx_phy_priv {
 	u64	*stats;
 };
-
-static void r_rc_cal_reset(struct phy_device *phydev)
-{
-	/* Reset R_CAL/RC_CAL Engine */
-	bcm_phy_write_exp(phydev, 0x00b0, 0x0010);
-
-	/* Disable Reset R_AL/RC_CAL Engine */
-	bcm_phy_write_exp(phydev, 0x00b0, 0x0000);
-}
-
-static int bcm7xxx_28nm_b0_afe_config_init(struct phy_device *phydev)
-{
-	/* Increase VCO range to prevent unlocking problem of PLL at low
-	 * temp
-	 */
-	bcm_phy_write_misc(phydev, PLL_PLLCTRL_1, 0x0048);
-
-	/* Change Ki to 011 */
-	bcm_phy_write_misc(phydev, PLL_PLLCTRL_2, 0x021b);
-
-	/* Disable loading of TVCO buffer to bandgap, set bandgap trim
-	 * to 111
-	 */
-	bcm_phy_write_misc(phydev, PLL_PLLCTRL_4, 0x0e20);
-
-	/* Adjust bias current trim by -3 */
-	bcm_phy_write_misc(phydev, DSP_TAP10, 0x690b);
-
-	/* Switch to CORE_BASE1E */
-	phy_write(phydev, MII_BRCM_CORE_BASE1E, 0xd);
-
-	r_rc_cal_reset(phydev);
-
-	/* write AFE_RXCONFIG_0 */
-	bcm_phy_write_misc(phydev, AFE_RXCONFIG_0, 0xeb19);
-
-	/* write AFE_RXCONFIG_1 */
-	bcm_phy_write_misc(phydev, AFE_RXCONFIG_1, 0x9a3f);
-
-	/* write AFE_RX_LP_COUNTER */
-	bcm_phy_write_misc(phydev, AFE_RX_LP_COUNTER, 0x7fc0);
-
-	/* write AFE_HPF_TRIM_OTHERS */
-	bcm_phy_write_misc(phydev, AFE_HPF_TRIM_OTHERS, 0x000b);
-
-	/* write AFTE_TX_CONFIG */
-	bcm_phy_write_misc(phydev, AFE_TX_CONFIG, 0x0800);
-
-	return 0;
-}
 
 static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 {
@@ -147,7 +76,7 @@ static int bcm7xxx_28nm_d0_afe_config_init(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
 
 	/* Reset R_CAL/RC_CAL engine */
-	r_rc_cal_reset(phydev);
+	bcm_phy_r_rc_cal_reset(phydev);
 
 	return 0;
 }
@@ -175,7 +104,7 @@ static int bcm7xxx_28nm_e0_plus_afe_config_init(struct phy_device *phydev)
 	bcm_phy_write_misc(phydev, DSP_TAP10, 0x011b);
 
 	/* Reset R_CAL/RC_CAL engine */
-	r_rc_cal_reset(phydev);
+	bcm_phy_r_rc_cal_reset(phydev);
 
 	return 0;
 }
@@ -200,7 +129,7 @@ static int bcm7xxx_28nm_a0_patch_afe_config_init(struct phy_device *phydev)
 	/* Enable ffe zero detection for Vitesse interoperability */
 	bcm_phy_write_misc(phydev, 0x26, 0x2, 0x0015);
 
-	r_rc_cal_reset(phydev);
+	bcm_phy_r_rc_cal_reset(phydev);
 
 	return 0;
 }
@@ -229,8 +158,9 @@ static int bcm7xxx_28nm_config_init(struct phy_device *phydev)
 	phy_read(phydev, MII_BMSR);
 
 	switch (rev) {
+	case 0xa0:
 	case 0xb0:
-		ret = bcm7xxx_28nm_b0_afe_config_init(phydev);
+		ret = bcm_phy_28nm_a0b0_afe_config_init(phydev);
 		break;
 	case 0xd0:
 		ret = bcm7xxx_28nm_d0_afe_config_init(phydev);
@@ -565,7 +495,7 @@ static int bcm7xxx_28nm_set_tunable(struct phy_device *phydev,
 	if (ret)
 		return ret;
 
-	/* Disable EEE advertisment since this prevents the PHY
+	/* Disable EEE advertisement since this prevents the PHY
 	 * from successfully linking up, trigger auto-negotiation restart
 	 * to let the MAC decide what to do.
 	 */
@@ -608,7 +538,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.phy_id		= (_oui),					\
 	.phy_id_mask	= 0xfffffff0,					\
 	.name		= _name,					\
-	.features	= PHY_GBIT_FEATURES,				\
+	/* PHY_GBIT_FEATURES */						\
 	.flags		= PHY_IS_INTERNAL,				\
 	.config_init	= bcm7xxx_28nm_config_init,			\
 	.resume		= bcm7xxx_28nm_resume,				\
@@ -625,7 +555,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.phy_id		= (_oui),					\
 	.phy_id_mask	= 0xfffffff0,					\
 	.name		= _name,					\
-	.features	= PHY_BASIC_FEATURES,				\
+	/* PHY_BASIC_FEATURES */					\
 	.flags		= PHY_IS_INTERNAL,				\
 	.config_init	= bcm7xxx_28nm_ephy_config_init,		\
 	.resume		= bcm7xxx_28nm_ephy_resume,			\
@@ -640,7 +570,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 	.phy_id         = (_oui),					\
 	.phy_id_mask    = 0xfffffff0,					\
 	.name           = _name,					\
-	.features       = PHY_BASIC_FEATURES,				\
+	/* PHY_BASIC_FEATURES */					\
 	.flags          = PHY_IS_INTERNAL,				\
 	.config_init    = bcm7xxx_config_init,				\
 	.suspend        = bcm7xxx_suspend,				\
@@ -649,6 +579,7 @@ static int bcm7xxx_28nm_probe(struct phy_device *phydev)
 
 static struct phy_driver bcm7xxx_driver[] = {
 	BCM7XXX_28NM_GPHY(PHY_ID_BCM7250, "Broadcom BCM7250"),
+	BCM7XXX_28NM_EPHY(PHY_ID_BCM7255, "Broadcom BCM7255"),
 	BCM7XXX_28NM_EPHY(PHY_ID_BCM7260, "Broadcom BCM7260"),
 	BCM7XXX_28NM_EPHY(PHY_ID_BCM7268, "Broadcom BCM7268"),
 	BCM7XXX_28NM_EPHY(PHY_ID_BCM7271, "Broadcom BCM7271"),
@@ -668,6 +599,7 @@ static struct phy_driver bcm7xxx_driver[] = {
 
 static struct mdio_device_id __maybe_unused bcm7xxx_tbl[] = {
 	{ PHY_ID_BCM7250, 0xfffffff0, },
+	{ PHY_ID_BCM7255, 0xfffffff0, },
 	{ PHY_ID_BCM7260, 0xfffffff0, },
 	{ PHY_ID_BCM7268, 0xfffffff0, },
 	{ PHY_ID_BCM7271, 0xfffffff0, },

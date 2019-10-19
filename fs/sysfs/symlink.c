@@ -23,7 +23,8 @@ static int sysfs_do_create_link_sd(struct kernfs_node *parent,
 {
 	struct kernfs_node *kn, *target = NULL;
 
-	BUG_ON(!name || !parent);
+	if (WARN_ON(!name || !parent))
+		return -EINVAL;
 
 	/*
 	 * We don't own @target_kobj and it may be removed at any time.
@@ -106,6 +107,7 @@ int sysfs_create_link_nowarn(struct kobject *kobj, struct kobject *target,
 {
 	return sysfs_do_create_link(kobj, target, name, 0);
 }
+EXPORT_SYMBOL_GPL(sysfs_create_link_nowarn);
 
 /**
  *	sysfs_delete_link - remove symlink in object's directory.

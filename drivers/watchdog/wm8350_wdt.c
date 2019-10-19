@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Watchdog driver for the wm8350
  *
  * Copyright (C) 2007, 2008 Wolfson Microelectronics <linux@wolfsonmicro.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt

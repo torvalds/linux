@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Watchdog timer driver for the WinSystems EBC-C384
  * Copyright (C) 2016 William Breathitt Gray
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #include <linux/device.h>
 #include <linux/dmi.h>
@@ -116,10 +108,7 @@ static int ebc_c384_wdt_probe(struct device *dev, unsigned int id)
 	wdd->max_timeout = WATCHDOG_MAX_TIMEOUT;
 
 	watchdog_set_nowayout(wdd, nowayout);
-
-	if (watchdog_init_timeout(wdd, timeout, dev))
-		dev_warn(dev, "Invalid timeout (%u seconds), using default (%u seconds)\n",
-			timeout, WATCHDOG_TIMEOUT);
+	watchdog_init_timeout(wdd, timeout, dev);
 
 	return devm_watchdog_register_device(dev, wdd);
 }

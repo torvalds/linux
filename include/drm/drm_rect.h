@@ -175,20 +175,13 @@ static inline bool drm_rect_equals(const struct drm_rect *r1,
 
 bool drm_rect_intersect(struct drm_rect *r, const struct drm_rect *clip);
 bool drm_rect_clip_scaled(struct drm_rect *src, struct drm_rect *dst,
-			  const struct drm_rect *clip,
-			  int hscale, int vscale);
+			  const struct drm_rect *clip);
 int drm_rect_calc_hscale(const struct drm_rect *src,
 			 const struct drm_rect *dst,
 			 int min_hscale, int max_hscale);
 int drm_rect_calc_vscale(const struct drm_rect *src,
 			 const struct drm_rect *dst,
 			 int min_vscale, int max_vscale);
-int drm_rect_calc_hscale_relaxed(struct drm_rect *src,
-				 struct drm_rect *dst,
-				 int min_hscale, int max_hscale);
-int drm_rect_calc_vscale_relaxed(struct drm_rect *src,
-				 struct drm_rect *dst,
-				 int min_vscale, int max_vscale);
 void drm_rect_debug_print(const char *prefix,
 			  const struct drm_rect *r, bool fixed_point);
 void drm_rect_rotate(struct drm_rect *r,

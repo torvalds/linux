@@ -1,23 +1,10 @@
-/*
- * siu_pcm.c - ALSA driver for Renesas SH7343, SH7722 SIU peripheral.
- *
- * Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- * Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// siu_pcm.c - ALSA driver for Renesas SH7343, SH7722 SIU peripheral.
+//
+// Copyright (C) 2009-2010 Guennadi Liakhovetski <g.liakhovetski@gmx.de>
+// Copyright (C) 2006 Carlos Munoz <carlos@kenati.com>
+
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
@@ -35,6 +22,7 @@
 
 #include "siu.h"
 
+#define DRV_NAME "siu-i2s"
 #define GET_MAX_PERIODS(buf_bytes, period_bytes) \
 				((buf_bytes) / (period_bytes))
 #define PERIOD_OFFSET(buf_addr, period_num, period_bytes) \
@@ -340,7 +328,8 @@ static int siu_pcm_open(struct snd_pcm_substream *ss)
 {
 	/* Playback / Capture */
 	struct snd_soc_pcm_runtime *rtd = ss->private_data;
-	struct siu_platform *pdata = rtd->platform->dev->platform_data;
+	struct snd_soc_component *component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
+	struct siu_platform *pdata = component->dev->platform_data;
 	struct siu_info *info = siu_i2s_data;
 	struct siu_port *port_info = siu_port_info(ss);
 	struct siu_stream *siu_stream;
@@ -552,15 +541,9 @@ static int siu_pcm_new(struct snd_soc_pcm_runtime *rtd)
 		if (ret < 0)
 			return ret;
 
-		ret = snd_pcm_lib_preallocate_pages_for_all(pcm,
-				SNDRV_DMA_TYPE_DEV, NULL,
+		snd_pcm_lib_preallocate_pages_for_all(pcm,
+				SNDRV_DMA_TYPE_DEV, card->dev,
 				SIU_BUFFER_BYTES_MAX, SIU_BUFFER_BYTES_MAX);
-		if (ret < 0) {
-			dev_err(card->dev,
-			       "snd_pcm_lib_preallocate_pages_for_all() err=%d",
-				ret);
-			goto fail;
-		}
 
 		(*port_info)->pcm = pcm;
 
@@ -573,11 +556,6 @@ static int siu_pcm_new(struct snd_soc_pcm_runtime *rtd)
 
 	dev_info(card->dev, "SuperH SIU driver initialized.\n");
 	return 0;
-
-fail:
-	siu_free_port(siu_ports[pdev->id]);
-	dev_err(card->dev, "SIU: failed to initialize.\n");
-	return ret;
 }
 
 static void siu_pcm_free(struct snd_pcm *pcm)
@@ -604,9 +582,10 @@ static const struct snd_pcm_ops siu_pcm_ops = {
 	.pointer	= siu_pcm_pointer_dma,
 };
 
-struct snd_soc_platform_driver siu_platform = {
+struct snd_soc_component_driver siu_component = {
+	.name		= DRV_NAME,
 	.ops			= &siu_pcm_ops,
 	.pcm_new	= siu_pcm_new,
 	.pcm_free	= siu_pcm_free,
 };
-EXPORT_SYMBOL_GPL(siu_platform);
+EXPORT_SYMBOL_GPL(siu_component);

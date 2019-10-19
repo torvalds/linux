@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *      uvc_debugfs.c --  USB Video Class driver - Debugging support
  *
  *      Copyright (C) 2011
  *          Laurent Pinchart (laurent.pinchart@ideasonboard.com)
- *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -79,12 +74,13 @@ void uvc_debugfs_init_stream(struct uvc_streaming *stream)
 {
 	struct usb_device *udev = stream->dev->udev;
 	struct dentry *dent;
-	char dir_name[32];
+	char dir_name[33];
 
 	if (uvc_debugfs_root_dir == NULL)
 		return;
 
-	sprintf(dir_name, "%u-%u", udev->bus->busnum, udev->devnum);
+	snprintf(dir_name, sizeof(dir_name), "%u-%u-%u", udev->bus->busnum,
+		 udev->devnum, stream->intfnum);
 
 	dent = debugfs_create_dir(dir_name, uvc_debugfs_root_dir);
 	if (IS_ERR_OR_NULL(dent)) {
@@ -106,9 +102,6 @@ void uvc_debugfs_init_stream(struct uvc_streaming *stream)
 
 void uvc_debugfs_cleanup_stream(struct uvc_streaming *stream)
 {
-	if (stream->debugfs_dir == NULL)
-		return;
-
 	debugfs_remove_recursive(stream->debugfs_dir);
 	stream->debugfs_dir = NULL;
 }
@@ -128,6 +121,5 @@ void uvc_debugfs_init(void)
 
 void uvc_debugfs_cleanup(void)
 {
-	if (uvc_debugfs_root_dir != NULL)
-		debugfs_remove_recursive(uvc_debugfs_root_dir);
+	debugfs_remove_recursive(uvc_debugfs_root_dir);
 }

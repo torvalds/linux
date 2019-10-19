@@ -10,11 +10,6 @@
     "BriefDescription": "Local memory above threshold for LSU medium"
   },
   {,
-    "EventCode": "0x2C056",
-    "EventName": "PM_DTLB_MISS_4K",
-    "BriefDescription": "Data TLB Miss page size 4k"
-  },
-  {,
     "EventCode": "0x40118",
     "EventName": "PM_MRK_DCACHE_RELOAD_INTV",
     "BriefDescription": "Combined Intervention event"

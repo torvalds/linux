@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Author: Anil Kumar <anilk4.v@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <dt-bindings/input/input.h>
@@ -349,9 +346,16 @@
 	vdda_dac-supply = <&vdac>;
 
 	port {
-		dpi_dvi_out: endpoint {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		dpi_dvi_out: endpoint@0 {
+			reg = <0>;
 			remote-endpoint = <&tfp410_in>;
 			data-lines = <24>;
+		};
+
+		endpoint@1 {
+			reg = <1>;
 		};
 	};
 };

@@ -1,22 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Parade PS8622 eDP/LVDS bridge driver
  *
  * Copyright (C) 2014 Google, Inc.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/err.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
@@ -24,12 +15,13 @@
 #include <linux/of_device.h>
 #include <linux/pm.h>
 #include <linux/regulator/consumer.h>
+
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_crtc_helper.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
-#include <drm/drmP.h>
+#include <drm/drm_print.h>
+#include <drm/drm_probe_helper.h>
 
 /* Brightness scale on the Parade chip */
 #define PS8622_MAX_BRIGHTNESS 0xff
@@ -503,7 +495,7 @@ static int ps8622_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(&ps8622->connector,
 					&ps8622_connector_helper_funcs);
 	drm_connector_register(&ps8622->connector);
-	drm_mode_connector_attach_encoder(&ps8622->connector,
+	drm_connector_attach_encoder(&ps8622->connector,
 							bridge->encoder);
 
 	if (ps8622->panel)

@@ -1,8 +1,8 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017 Broadcom. All Rights Reserved. The term      *
- * “Broadcom” refers to Broadcom Limited and/or its subsidiaries.  *
+ * Copyright (C) 2017-2019 Broadcom. All Rights Reserved. The term *
+ * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.broadcom.com                                                *
@@ -22,17 +22,20 @@
  ********************************************************************/
 
 #define LPFC_NVMET_DEFAULT_SEGS		(64 + 1)	/* 256K IOs */
-#define LPFC_NVMET_RQE_DEF_COUNT	512
-#define LPFC_NVMET_SUCCESS_LEN	12
+#define LPFC_NVMET_RQE_MIN_POST		128
+#define LPFC_NVMET_RQE_DEF_POST		512
+#define LPFC_NVMET_RQE_DEF_COUNT	2048
+#define LPFC_NVMET_SUCCESS_LEN		12
 
-#define LPFC_NVMET_MRQ_OFF		0xffff
 #define LPFC_NVMET_MRQ_AUTO		0
 #define LPFC_NVMET_MRQ_MAX		16
+
+#define LPFC_NVMET_WAIT_TMO		(5 * MSEC_PER_SEC)
 
 /* Used for NVME Target */
 struct lpfc_nvmet_tgtport {
 	struct lpfc_hba *phba;
-	struct completion tport_unreg_done;
+	struct completion *tport_unreg_cmp;
 
 	/* Stats counters - lpfc_nvmet_unsol_ls_buffer */
 	atomic_t rcv_ls_req_in;
@@ -72,7 +75,6 @@ struct lpfc_nvmet_tgtport {
 	atomic_t xmt_fcp_rsp_aborted;
 	atomic_t xmt_fcp_rsp_drop;
 
-
 	/* Stats counters - lpfc_nvmet_xmt_fcp_abort */
 	atomic_t xmt_fcp_xri_abort_cqe;
 	atomic_t xmt_fcp_abort;
@@ -81,6 +83,11 @@ struct lpfc_nvmet_tgtport {
 	atomic_t xmt_abort_unsol;
 	atomic_t xmt_abort_rsp;
 	atomic_t xmt_abort_rsp_error;
+
+	/* Stats counters - defer IO */
+	atomic_t defer_ctx;
+	atomic_t defer_fod;
+	atomic_t defer_wqfull;
 };
 
 struct lpfc_nvmet_ctx_info {
@@ -131,9 +138,12 @@ struct lpfc_nvmet_rcv_ctx {
 #define LPFC_NVMET_XBUSY		0x4  /* XB bit set on IO cmpl */
 #define LPFC_NVMET_CTX_RLS		0x8  /* ctx free requested */
 #define LPFC_NVMET_ABTS_RCV		0x10  /* ABTS received on exchange */
-#define LPFC_NVMET_DEFER_RCV_REPOST	0x20  /* repost to RQ on defer rcv */
+#define LPFC_NVMET_CTX_REUSE_WQ		0x20  /* ctx reused via WQ */
+#define LPFC_NVMET_DEFER_WQFULL		0x40  /* Waiting on a free WQE */
+#define LPFC_NVMET_TNOTIFY		0x80  /* notify transport of abts */
 	struct rqb_dmabuf *rqb_buffer;
 	struct lpfc_nvmet_ctxbuf *ctxbuf;
+	struct lpfc_sli4_hdw_queue *hdwq;
 
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	uint64_t ts_isr_cmd;

@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Felix Fietkau <nbd@openwrt.org>
  * Copyright (C) 2015 Jakub Kicinski <kubakici@wp.pl>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/of.h>
@@ -19,6 +11,7 @@
 #include <asm/unaligned.h>
 #include "mt7601u.h"
 #include "eeprom.h"
+#include "mac.h"
 
 static bool
 field_valid(u8 val)
@@ -74,7 +67,7 @@ static int
 mt7601u_efuse_physical_size_check(struct mt7601u_dev *dev)
 {
 	const int map_reads = DIV_ROUND_UP(MT_EFUSE_USAGE_MAP_SIZE, 16);
-	u8 data[map_reads * 16];
+	u8 data[round_up(MT_EFUSE_USAGE_MAP_SIZE, 16)];
 	int ret, i;
 	u32 start = 0, end = 0, cnt_free;
 
@@ -132,27 +125,6 @@ mt7601u_set_chip_cap(struct mt7601u_dev *dev, u8 *eeprom)
 	    FIELD_GET(MT_EE_NIC_CONF_0_TX_PATH, nic_conf0) > 1)
 		dev_err(dev->dev,
 			"Error: device has more than 1 RX/TX stream!\n");
-}
-
-static int
-mt7601u_set_macaddr(struct mt7601u_dev *dev, const u8 *eeprom)
-{
-	const void *src = eeprom + MT_EE_MAC_ADDR;
-
-	ether_addr_copy(dev->macaddr, src);
-
-	if (!is_valid_ether_addr(dev->macaddr)) {
-		eth_random_addr(dev->macaddr);
-		dev_info(dev->dev,
-			 "Invalid MAC address, using random address %pM\n",
-			 dev->macaddr);
-	}
-
-	mt76_wr(dev, MT_MAC_ADDR_DW0, get_unaligned_le32(dev->macaddr));
-	mt76_wr(dev, MT_MAC_ADDR_DW1, get_unaligned_le16(dev->macaddr + 4) |
-		FIELD_PREP(MT_MAC_ADDR_DW1_U2ME_MASK, 0xff));
-
-	return 0;
 }
 
 static void mt7601u_set_channel_target_power(struct mt7601u_dev *dev,
@@ -400,7 +372,7 @@ mt7601u_eeprom_init(struct mt7601u_dev *dev)
 	dev_info(dev->dev, "EEPROM ver:%02hhx fae:%02hhx\n",
 		 eeprom[MT_EE_VERSION_EE], eeprom[MT_EE_VERSION_FAE]);
 
-	mt7601u_set_macaddr(dev, eeprom);
+	mt7601u_set_macaddr(dev, eeprom + MT_EE_MAC_ADDR);
 	mt7601u_set_chip_cap(dev, eeprom);
 	mt7601u_set_channel_power(dev, eeprom);
 	mt7601u_set_country_reg(dev, eeprom);

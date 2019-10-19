@@ -349,7 +349,7 @@ qedr_iw_event_handler(void *context, struct qed_iwarp_cm_event_params *params)
 	default:
 		DP_NOTICE(dev, "Unknown event received %d\n", params->event);
 		break;
-	};
+	}
 	return 0;
 }
 
@@ -458,8 +458,7 @@ qedr_addr6_resolve(struct qedr_dev *dev,
 		}
 		return -EINVAL;
 	}
-	neigh = dst_neigh_lookup(dst, &dst_in);
-
+	neigh = dst_neigh_lookup(dst, &fl6.daddr);
 	if (neigh) {
 		rcu_read_lock();
 		if (neigh->nud_state & NUD_VALID) {
@@ -492,12 +491,18 @@ int qedr_iw_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 	int rc = 0;
 	int i;
 
-	qp = idr_find(&dev->qpidr, conn_param->qpn);
+	qp = xa_load(&dev->qps, conn_param->qpn);
+	if (unlikely(!qp))
+		return -EINVAL;
 
-	laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	raddr = (struct sockaddr_in *)&cm_id->remote_addr;
-	laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
-	raddr6 = (struct sockaddr_in6 *)&cm_id->remote_addr;
+	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
+	raddr = (struct sockaddr_in *)&cm_id->m_remote_addr;
+	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
+	raddr6 = (struct sockaddr_in6 *)&cm_id->m_remote_addr;
+
+	DP_DEBUG(dev, QEDR_MSG_IWARP, "MAPPED %d %d\n",
+		 ntohs(((struct sockaddr_in *)&cm_id->remote_addr)->sin_port),
+		 ntohs(raddr->sin_port));
 
 	DP_DEBUG(dev, QEDR_MSG_IWARP,
 		 "Connect source address: %pISpc, remote address: %pISpc\n",
@@ -599,8 +604,8 @@ int qedr_iw_create_listen(struct iw_cm_id *cm_id, int backlog)
 	int rc;
 	int i;
 
-	laddr = (struct sockaddr_in *)&cm_id->local_addr;
-	laddr6 = (struct sockaddr_in6 *)&cm_id->local_addr;
+	laddr = (struct sockaddr_in *)&cm_id->m_local_addr;
+	laddr6 = (struct sockaddr_in6 *)&cm_id->m_local_addr;
 
 	DP_DEBUG(dev, QEDR_MSG_IWARP,
 		 "Create Listener address: %pISpc\n", &cm_id->local_addr);
@@ -676,7 +681,7 @@ int qedr_iw_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param)
 
 	DP_DEBUG(dev, QEDR_MSG_IWARP, "Accept on qpid=%d\n", conn_param->qpn);
 
-	qp = idr_find(&dev->qpidr, conn_param->qpn);
+	qp = xa_load(&dev->qps, conn_param->qpn);
 	if (!qp) {
 		DP_ERR(dev, "Invalid QP number %d\n", conn_param->qpn);
 		return -EINVAL;
@@ -734,9 +739,7 @@ void qedr_iw_qp_rem_ref(struct ib_qp *ibqp)
 	struct qedr_qp *qp = get_qedr_qp(ibqp);
 
 	if (atomic_dec_and_test(&qp->refcnt)) {
-		spin_lock_irq(&qp->dev->idr_lock);
-		idr_remove(&qp->dev->qpidr, qp->qp_id);
-		spin_unlock_irq(&qp->dev->idr_lock);
+		xa_erase_irq(&qp->dev->qps, qp->qp_id);
 		kfree(qp);
 	}
 }
@@ -745,5 +748,5 @@ struct ib_qp *qedr_iw_get_qp(struct ib_device *ibdev, int qpn)
 {
 	struct qedr_dev *dev = get_qedr_dev(ibdev);
 
-	return idr_find(&dev->qpidr, qpn);
+	return xa_load(&dev->qps, qpn);
 }

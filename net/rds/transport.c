@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2017 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -33,6 +33,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/in.h>
+#include <linux/ipv6.h>
 
 #include "rds.h"
 #include "loop.h"
@@ -75,20 +76,26 @@ void rds_trans_put(struct rds_transport *trans)
 		module_put(trans->t_owner);
 }
 
-struct rds_transport *rds_trans_get_preferred(struct net *net, __be32 addr)
+struct rds_transport *rds_trans_get_preferred(struct net *net,
+					      const struct in6_addr *addr,
+					      __u32 scope_id)
 {
 	struct rds_transport *ret = NULL;
 	struct rds_transport *trans;
 	unsigned int i;
 
-	if (IN_LOOPBACK(ntohl(addr)))
+	if (ipv6_addr_v4mapped(addr)) {
+		if (*(u_int8_t *)&addr->s6_addr32[3] == IN_LOOPBACKNET)
+			return &rds_loop_transport;
+	} else if (ipv6_addr_loopback(addr)) {
 		return &rds_loop_transport;
+	}
 
 	down_read(&rds_trans_sem);
 	for (i = 0; i < RDS_TRANS_COUNT; i++) {
 		trans = transports[i];
 
-		if (trans && (trans->laddr_check(net, addr) == 0) &&
+		if (trans && (trans->laddr_check(net, addr, scope_id) == 0) &&
 		    (!trans->t_owner || try_module_get(trans->t_owner))) {
 			ret = trans;
 			break;
@@ -152,4 +159,3 @@ unsigned int rds_trans_stats_info_copy(struct rds_info_iterator *iter,
 
 	return total;
 }
-

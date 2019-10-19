@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * rtc-tps65910.c -- TPS65910 Real Time Clock interface
  *
@@ -7,11 +8,6 @@
  * Based on original TI driver rtc-twl.c
  *   Copyright (C) 2007 MontaVista Software, Inc
  *   Author: Alexandre Rusev <source@mvista.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -147,7 +143,7 @@ static int tps65910_rtc_read_alarm(struct device *dev, struct rtc_wkalrm *alm)
 	struct tps65910 *tps = dev_get_drvdata(dev->parent);
 	int ret;
 
-	ret = regmap_bulk_read(tps->regmap, TPS65910_SECONDS, alarm_data,
+	ret = regmap_bulk_read(tps->regmap, TPS65910_ALARM_SECONDS, alarm_data,
 		NUM_TIME_REGS);
 	if (ret < 0) {
 		dev_err(dev, "rtc_read_alarm error %d\n", ret);
@@ -380,6 +376,10 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	if (!tps_rtc)
 		return -ENOMEM;
 
+	tps_rtc->rtc = devm_rtc_allocate_device(&pdev->dev);
+	if (IS_ERR(tps_rtc->rtc))
+		return PTR_ERR(tps_rtc->rtc);
+
 	/* Clear pending interrupts */
 	ret = regmap_read(tps65910->regmap, TPS65910_RTC_STATUS, &rtc_reg);
 	if (ret < 0)
@@ -421,26 +421,11 @@ static int tps65910_rtc_probe(struct platform_device *pdev)
 	tps_rtc->irq = irq;
 	device_set_wakeup_capable(&pdev->dev, 1);
 
-	tps_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
-		&tps65910_rtc_ops, THIS_MODULE);
-	if (IS_ERR(tps_rtc->rtc)) {
-		ret = PTR_ERR(tps_rtc->rtc);
-		dev_err(&pdev->dev, "RTC device register: err %d\n", ret);
-		return ret;
-	}
+	tps_rtc->rtc->ops = &tps65910_rtc_ops;
+	tps_rtc->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
+	tps_rtc->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
-	return 0;
-}
-
-/*
- * Disable tps65910 RTC interrupts.
- * Sets status flag to free.
- */
-static int tps65910_rtc_remove(struct platform_device *pdev)
-{
-	tps65910_rtc_alarm_irq_enable(&pdev->dev, 0);
-
-	return 0;
+	return rtc_register_device(tps_rtc->rtc);
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -468,7 +453,6 @@ static SIMPLE_DEV_PM_OPS(tps65910_rtc_pm_ops, tps65910_rtc_suspend,
 
 static struct platform_driver tps65910_rtc_driver = {
 	.probe		= tps65910_rtc_probe,
-	.remove		= tps65910_rtc_remove,
 	.driver		= {
 		.name	= "tps65910-rtc",
 		.pm	= &tps65910_rtc_pm_ops,

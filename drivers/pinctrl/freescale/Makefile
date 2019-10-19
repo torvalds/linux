@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 # Freescale pin control drivers
 obj-$(CONFIG_PINCTRL_IMX)	+= pinctrl-imx.o
+obj-$(CONFIG_PINCTRL_IMX_SCU)	+= pinctrl-scu.o
 obj-$(CONFIG_PINCTRL_IMX1_CORE)	+= pinctrl-imx1-core.o
 obj-$(CONFIG_PINCTRL_IMX1)	+= pinctrl-imx1.o
 obj-$(CONFIG_PINCTRL_IMX21)	+= pinctrl-imx21.o
@@ -12,10 +13,16 @@ obj-$(CONFIG_PINCTRL_IMX53)	+= pinctrl-imx53.o
 obj-$(CONFIG_PINCTRL_IMX6Q)	+= pinctrl-imx6q.o
 obj-$(CONFIG_PINCTRL_IMX6Q)	+= pinctrl-imx6dl.o
 obj-$(CONFIG_PINCTRL_IMX6SL)	+= pinctrl-imx6sl.o
+obj-$(CONFIG_PINCTRL_IMX6SLL)	+= pinctrl-imx6sll.o
 obj-$(CONFIG_PINCTRL_IMX6SX)	+= pinctrl-imx6sx.o
 obj-$(CONFIG_PINCTRL_IMX6UL)	+= pinctrl-imx6ul.o
 obj-$(CONFIG_PINCTRL_IMX7D)	+= pinctrl-imx7d.o
 obj-$(CONFIG_PINCTRL_IMX7ULP)	+= pinctrl-imx7ulp.o
+obj-$(CONFIG_PINCTRL_IMX8MM)	+= pinctrl-imx8mm.o
+obj-$(CONFIG_PINCTRL_IMX8MN)	+= pinctrl-imx8mn.o
+obj-$(CONFIG_PINCTRL_IMX8MQ)	+= pinctrl-imx8mq.o
+obj-$(CONFIG_PINCTRL_IMX8QM)	+= pinctrl-imx8qm.o
+obj-$(CONFIG_PINCTRL_IMX8QXP)	+= pinctrl-imx8qxp.o
 obj-$(CONFIG_PINCTRL_VF610)	+= pinctrl-vf610.o
 obj-$(CONFIG_PINCTRL_MXS)	+= pinctrl-mxs.o
 obj-$(CONFIG_PINCTRL_IMX23)	+= pinctrl-imx23.o

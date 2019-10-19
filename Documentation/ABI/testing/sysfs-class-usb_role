@@ -1,0 +1,21 @@
+What:		/sys/class/usb_role/
+Date:		Jan 2018
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Place in sysfs for USB Role Switches. USB Role Switch is a
+		device that can select the data role (host or device) for USB
+		port.
+
+What:		/sys/class/usb_role/<switch>/role
+Date:		Jan 2018
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		The current role of the switch. This attribute can be used for
+		requesting role swapping with non-USB Type-C ports. With USB
+		Type-C ports, the ABI defined for USB Type-C connector class
+		must be used.
+
+		Valid values:
+		- none
+		- host
+		- device

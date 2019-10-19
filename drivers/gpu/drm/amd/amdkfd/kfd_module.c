@@ -20,86 +20,12 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#include <linux/module.h>
 #include <linux/sched.h>
-#include <linux/moduleparam.h>
 #include <linux/device.h>
-#include <linux/printk.h>
 #include "kfd_priv.h"
+#include "amdgpu_amdkfd.h"
 
-#define KFD_DRIVER_AUTHOR	"AMD Inc. and others"
-
-#define KFD_DRIVER_DESC		"Standalone HSA driver for AMD's GPUs"
-#define KFD_DRIVER_DATE		"20150421"
-#define KFD_DRIVER_MAJOR	0
-#define KFD_DRIVER_MINOR	7
-#define KFD_DRIVER_PATCHLEVEL	2
-
-static const struct kgd2kfd_calls kgd2kfd = {
-	.exit		= kgd2kfd_exit,
-	.probe		= kgd2kfd_probe,
-	.device_init	= kgd2kfd_device_init,
-	.device_exit	= kgd2kfd_device_exit,
-	.interrupt	= kgd2kfd_interrupt,
-	.suspend	= kgd2kfd_suspend,
-	.resume		= kgd2kfd_resume,
-};
-
-int sched_policy = KFD_SCHED_POLICY_HWS;
-module_param(sched_policy, int, 0444);
-MODULE_PARM_DESC(sched_policy,
-	"Scheduling policy (0 = HWS (Default), 1 = HWS without over-subscription, 2 = Non-HWS (Used for debugging only)");
-
-int hws_max_conc_proc = 8;
-module_param(hws_max_conc_proc, int, 0444);
-MODULE_PARM_DESC(hws_max_conc_proc,
-	"Max # processes HWS can execute concurrently when sched_policy=0 (0 = no concurrency, #VMIDs for KFD = Maximum(default))");
-
-int cwsr_enable = 1;
-module_param(cwsr_enable, int, 0444);
-MODULE_PARM_DESC(cwsr_enable, "CWSR enable (0 = Off, 1 = On (Default))");
-
-int max_num_of_queues_per_device = KFD_MAX_NUM_OF_QUEUES_PER_DEVICE_DEFAULT;
-module_param(max_num_of_queues_per_device, int, 0444);
-MODULE_PARM_DESC(max_num_of_queues_per_device,
-	"Maximum number of supported queues per device (1 = Minimum, 4096 = default)");
-
-int send_sigterm;
-module_param(send_sigterm, int, 0444);
-MODULE_PARM_DESC(send_sigterm,
-	"Send sigterm to HSA process on unhandled exception (0 = disable, 1 = enable)");
-
-int ignore_crat;
-module_param(ignore_crat, int, 0444);
-MODULE_PARM_DESC(ignore_crat,
-	"Ignore CRAT table during KFD initialization (0 = use CRAT (default), 1 = ignore CRAT)");
-
-static int amdkfd_init_completed;
-
-int kgd2kfd_init(unsigned int interface_version,
-		const struct kgd2kfd_calls **g2f)
-{
-	if (!amdkfd_init_completed)
-		return -EPROBE_DEFER;
-
-	/*
-	 * Only one interface version is supported,
-	 * no kfd/kgd version skew allowed.
-	 */
-	if (interface_version != KFD_INTERFACE_VERSION)
-		return -EINVAL;
-
-	*g2f = &kgd2kfd;
-
-	return 0;
-}
-EXPORT_SYMBOL(kgd2kfd_init);
-
-void kgd2kfd_exit(void)
-{
-}
-
-static int __init kfd_module_init(void)
+static int kfd_init(void)
 {
 	int err;
 
@@ -107,7 +33,7 @@ static int __init kfd_module_init(void)
 	if ((sched_policy < KFD_SCHED_POLICY_HWS) ||
 		(sched_policy > KFD_SCHED_POLICY_NO_HWS)) {
 		pr_err("sched_policy has invalid value\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	/* Verify module parameters */
@@ -115,7 +41,7 @@ static int __init kfd_module_init(void)
 		(max_num_of_queues_per_device >
 			KFD_MAX_NUM_OF_QUEUES_PER_DEVICE)) {
 		pr_err("max_num_of_queues_per_device must be between 1 to KFD_MAX_NUM_OF_QUEUES_PER_DEVICE\n");
-		return -1;
+		return -EINVAL;
 	}
 
 	err = kfd_chardev_init();
@@ -126,39 +52,42 @@ static int __init kfd_module_init(void)
 	if (err < 0)
 		goto err_topology;
 
-	kfd_process_create_wq();
+	err = kfd_process_create_wq();
+	if (err < 0)
+		goto err_create_wq;
+
+	/* Ignore the return value, so that we can continue
+	 * to init the KFD, even if procfs isn't craated
+	 */
+	kfd_procfs_init();
 
 	kfd_debugfs_init();
 
-	amdkfd_init_completed = 1;
-
-	dev_info(kfd_device, "Initialized module\n");
-
 	return 0;
 
+err_create_wq:
+	kfd_topology_shutdown();
 err_topology:
 	kfd_chardev_exit();
 err_ioctl:
 	return err;
 }
 
-static void __exit kfd_module_exit(void)
+static void kfd_exit(void)
 {
-	amdkfd_init_completed = 0;
-
 	kfd_debugfs_fini();
 	kfd_process_destroy_wq();
+	kfd_procfs_shutdown();
 	kfd_topology_shutdown();
 	kfd_chardev_exit();
-	pr_info("amdkfd: Removed module\n");
 }
 
-module_init(kfd_module_init);
-module_exit(kfd_module_exit);
+int kgd2kfd_init()
+{
+	return kfd_init();
+}
 
-MODULE_AUTHOR(KFD_DRIVER_AUTHOR);
-MODULE_DESCRIPTION(KFD_DRIVER_DESC);
-MODULE_LICENSE("GPL and additional rights");
-MODULE_VERSION(__stringify(KFD_DRIVER_MAJOR) "."
-	       __stringify(KFD_DRIVER_MINOR) "."
-	       __stringify(KFD_DRIVER_PATCHLEVEL));
+void kgd2kfd_exit(void)
+{
+	kfd_exit();
+}

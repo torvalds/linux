@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Network device driver for the BMAC ethernet controller on
  * Apple Powermacs.  Assumes it's under a DBDMA controller.
@@ -19,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
+#include <linux/crc32poly.h>
 #include <linux/bitrev.h>
 #include <linux/ethtool.h>
 #include <linux/slab.h>
@@ -36,11 +38,6 @@
 
 #define trunc_page(x)	((void *)(((unsigned long)(x)) & ~((unsigned long)(PAGE_SIZE - 1))))
 #define round_page(x)	trunc_page(((unsigned long)(x)) + ((unsigned long)(PAGE_SIZE - 1)))
-
-/*
- * CRC polynomial - used in working out multicast filter bits.
- */
-#define ENET_CRCPOLY 0x04c11db7
 
 /* switch to use multicast code lifted from sunhme driver */
 #define SUNHME_MULTICAST
@@ -158,7 +155,7 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id);
 static irqreturn_t bmac_rxdma_intr(int irq, void *dev_id);
 static void bmac_set_timeout(struct net_device *dev);
 static void bmac_tx_timeout(struct timer_list *t);
-static int bmac_output(struct sk_buff *skb, struct net_device *dev);
+static netdev_tx_t bmac_output(struct sk_buff *skb, struct net_device *dev);
 static void bmac_start(struct net_device *dev);
 
 #define	DBDMA_SET(x)	( ((x) | (x) << 16) )
@@ -781,7 +778,7 @@ static irqreturn_t bmac_txdma_intr(int irq, void *dev_id)
 
 		if (bp->tx_bufs[bp->tx_empty]) {
 			++dev->stats.tx_packets;
-			dev_kfree_skb_irq(bp->tx_bufs[bp->tx_empty]);
+			dev_consume_skb_irq(bp->tx_bufs[bp->tx_empty]);
 		}
 		bp->tx_bufs[bp->tx_empty] = NULL;
 		bp->tx_fullup = 0;
@@ -818,8 +815,8 @@ static int reverse6[64] = {
 static unsigned int
 crc416(unsigned int curval, unsigned short nxtval)
 {
-	register unsigned int counter, cur = curval, next = nxtval;
-	register int high_crc_set, low_data_set;
+	unsigned int counter, cur = curval, next = nxtval;
+	int high_crc_set, low_data_set;
 
 	/* Swap bytes */
 	next = ((next & 0x00FF) << 8) | (next >> 8);
@@ -838,7 +835,7 @@ crc416(unsigned int curval, unsigned short nxtval)
 		next = next >> 1;
 
 		/* do the XOR */
-		if (high_crc_set ^ low_data_set) cur = cur ^ ENET_CRCPOLY;
+		if (high_crc_set ^ low_data_set) cur = cur ^ CRC32_POLY_BE;
 	}
 	return cur;
 }
@@ -1460,7 +1457,7 @@ bmac_start(struct net_device *dev)
 	spin_unlock_irqrestore(&bp->lock, flags);
 }
 
-static int
+static netdev_tx_t
 bmac_output(struct sk_buff *skb, struct net_device *dev)
 {
 	struct bmac_data *bp = netdev_priv(dev);

@@ -16,6 +16,7 @@
  */
 
 #include <linux/firmware.h>
+#include <net/rsi_91x.h>
 #include "rsi_sdio.h"
 #include "rsi_common.h"
 
@@ -59,6 +60,43 @@ int rsi_sdio_master_access_msword(struct rsi_hw *adapter, u16 ms_word)
 	return status;
 }
 
+void rsi_sdio_rx_thread(struct rsi_common *common)
+{
+	struct rsi_hw *adapter = common->priv;
+	struct rsi_91x_sdiodev *sdev = adapter->rsi_dev;
+	struct sk_buff *skb;
+	int status;
+
+	do {
+		rsi_wait_event(&sdev->rx_thread.event, EVENT_WAIT_FOREVER);
+		rsi_reset_event(&sdev->rx_thread.event);
+
+		while (true) {
+			if (atomic_read(&sdev->rx_thread.thread_done))
+				goto out;
+
+			skb = skb_dequeue(&sdev->rx_q.head);
+			if (!skb)
+				break;
+			if (sdev->rx_q.num_rx_pkts > 0)
+				sdev->rx_q.num_rx_pkts--;
+			status = rsi_read_pkt(common, skb->data, skb->len);
+			if (status) {
+				rsi_dbg(ERR_ZONE, "Failed to read the packet\n");
+				dev_kfree_skb(skb);
+				break;
+			}
+			dev_kfree_skb(skb);
+		}
+	} while (1);
+
+out:
+	rsi_dbg(INFO_ZONE, "%s: Terminated SDIO RX thread\n", __func__);
+	skb_queue_purge(&sdev->rx_q.head);
+	atomic_inc(&sdev->rx_thread.thread_done);
+	complete_and_exit(&sdev->rx_thread.completion, 0);
+}
+
 /**
  * rsi_process_pkt() - This Function reads rx_blocks register and figures out
  *		       the size of the rx pkt.
@@ -75,6 +113,10 @@ static int rsi_process_pkt(struct rsi_common *common)
 	u32 rcv_pkt_len = 0;
 	int status = 0;
 	u8 value = 0;
+	struct sk_buff *skb;
+
+	if (dev->rx_q.num_rx_pkts >= RSI_MAX_RX_PKTS)
+		return 0;
 
 	num_blks = ((adapter->interrupt_status & 1) |
 			((adapter->interrupt_status >> RECV_NUM_BLOCKS) << 1));
@@ -102,27 +144,24 @@ static int rsi_process_pkt(struct rsi_common *common)
 
 	rcv_pkt_len = (num_blks * 256);
 
-	common->rx_data_pkt = kmalloc(rcv_pkt_len, GFP_KERNEL);
-	if (!common->rx_data_pkt) {
-		rsi_dbg(ERR_ZONE, "%s: Failed in memory allocation\n",
-			__func__);
+	skb = dev_alloc_skb(rcv_pkt_len);
+	if (!skb)
 		return -ENOMEM;
-	}
 
-	status = rsi_sdio_host_intf_read_pkt(adapter,
-					     common->rx_data_pkt,
-					     rcv_pkt_len);
+	status = rsi_sdio_host_intf_read_pkt(adapter, skb->data, rcv_pkt_len);
 	if (status) {
 		rsi_dbg(ERR_ZONE, "%s: Failed to read packet from card\n",
 			__func__);
-		goto fail;
+		dev_kfree_skb(skb);
+		return status;
 	}
+	skb_put(skb, rcv_pkt_len);
+	skb_queue_tail(&dev->rx_q.head, skb);
+	dev->rx_q.num_rx_pkts++;
 
-	status = rsi_read_pkt(common, rcv_pkt_len);
+	rsi_set_event(&dev->rx_thread.event);
 
-fail:
-	kfree(common->rx_data_pkt);
-	return status;
+	return 0;
 }
 
 /**
@@ -171,7 +210,7 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 	}
 
 	/* This tells SDIO FIFO when to start read to host */
-	rsi_dbg(INIT_ZONE, "%s: Initialzing SDIO read start level\n", __func__);
+	rsi_dbg(INIT_ZONE, "%s: Initializing SDIO read start level\n", __func__);
 	byte = 0x24;
 
 	status = rsi_sdio_write_register(adapter,
@@ -184,7 +223,7 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 		return -1;
 	}
 
-	rsi_dbg(INIT_ZONE, "%s: Initialzing FIFO ctrl registers\n", __func__);
+	rsi_dbg(INIT_ZONE, "%s: Initializing FIFO ctrl registers\n", __func__);
 	byte = (128 - 32);
 
 	status = rsi_sdio_write_register(adapter,

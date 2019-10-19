@@ -1,50 +1,12 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (C) 2016 Marvell Technology Group Ltd.
  *
- * This file is dual-licensed: you can use it either under the terms
- * of the GPLv2 or the X11 license, at your option. Note that this dual
- * licensing only applies to this file, and not this project as a
- * whole.
- *
- *  a) This library is free software; you can redistribute it and/or
- *     modify it under the terms of the GNU General Public License as
- *     published by the Free Software Foundation; either version 2 of the
- *     License, or (at your option) any later version.
- *
- *     This library is distributed in the hope that it will be useful,
- *     but WITHOUT ANY WARRANTY; without even the implied warranty of
- *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *     GNU General Public License for more details.
- *
- * Or, alternatively,
- *
- *  b) Permission is hereby granted, free of charge, to any person
- *     obtaining a copy of this software and associated documentation
- *     files (the "Software"), to deal in the Software without
- *     restriction, including without limitation the rights to use,
- *     copy, modify, merge, publish, distribute, sublicense, and/or
- *     sell copies of the Software, and to permit persons to whom the
- *     Software is furnished to do so, subject to the following
- *     conditions:
- *
- *     The above copyright notice and this permission notice shall be
- *     included in all copies or substantial portions of the Software.
- *
- *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
- *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
- *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
- *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
- *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
- *     OTHER DEALINGS IN THE SOFTWARE.
- */
-
-/*
  * Device Tree file for Marvell Armada AP806.
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/thermal/thermal.h>
 
 /dts-v1/;
 
@@ -64,6 +26,23 @@
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		/*
+		 * This area matches the mapping done with a
+		 * mainline U-Boot, and should be updated by the
+		 * bootloader.
+		 */
+
+		psci-area@4000000 {
+			reg = <0x0 0x4000000 0x0 0x200000>;
+			no-map;
+		};
 	};
 
 	ap806 {
@@ -161,6 +140,15 @@
 				#interrupt-cells = <1>;
 				interrupt-controller;
 				interrupts = <GIC_PPI 15 IRQ_TYPE_LEVEL_HIGH>;
+			};
+
+			sei: interrupt-controller@3f0200 {
+				compatible = "marvell,ap806-sei";
+				reg = <0x3f0200 0x40>;
+				interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>;
+				#interrupt-cells = <1>;
+				interrupt-controller;
+				msi-controller;
 			};
 
 			xor@400000 {
@@ -286,10 +274,184 @@
 				};
 			};
 
-			ap_thermal: thermal@6f808c {
-				compatible = "marvell,armada-ap806-thermal";
-				reg = <0x6f808c 0x4>,
-				      <0x6f8084 0x8>;
+			ap_syscon1: system-controller@6f8000 {
+				compatible = "syscon", "simple-mfd";
+				reg = <0x6f8000 0x1000>;
+				#address-cells = <1>;
+				#size-cells = <1>;
+
+				cpu_clk: clock-cpu@278 {
+					compatible = "marvell,ap806-cpu-clock";
+					clocks = <&ap_clk 0>, <&ap_clk 1>;
+					#clock-cells = <1>;
+					reg = <0x278 0xa30>;
+				};
+
+				ap_thermal: thermal-sensor@80 {
+					compatible = "marvell,armada-ap806-thermal";
+					reg = <0x80 0x10>;
+					interrupt-parent = <&sei>;
+					interrupts = <18>;
+					#thermal-sensor-cells = <1>;
+				};
+			};
+		};
+	};
+
+	/*
+	 * The thermal IP features one internal sensor plus, if applicable, one
+	 * remote channel wired to one sensor per CPU.
+	 *
+	 * Only one thermal zone per AP/CP may trigger interrupts at a time, the
+	 * first one that will have a critical trip point will be chosen.
+	 */
+	thermal-zones {
+		ap_thermal_ic: ap-thermal-ic {
+			polling-delay-passive = <0>; /* Interrupt driven */
+			polling-delay = <0>; /* Interrupt driven */
+
+			thermal-sensors = <&ap_thermal 0>;
+
+			trips {
+				ap_crit: ap-crit {
+					temperature = <100000>; /* mC degrees */
+					hysteresis = <2000>; /* mC degrees */
+					type = "critical";
+				};
+			};
+
+			cooling-maps { };
+		};
+
+		ap_thermal_cpu0: ap-thermal-cpu0 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 1>;
+
+			trips {
+				cpu0_hot: cpu0-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu0_emerg: cpu0-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0_hot: map0-hot {
+					trip = <&cpu0_hot>;
+					cooling-device = <&cpu0 1 2>,
+						<&cpu1 1 2>;
+				};
+				map0_emerg: map0-ermerg {
+					trip = <&cpu0_emerg>;
+					cooling-device = <&cpu0 3 3>,
+						<&cpu1 3 3>;
+				};
+			};
+		};
+
+		ap_thermal_cpu1: ap-thermal-cpu1 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 2>;
+
+			trips {
+				cpu1_hot: cpu1-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu1_emerg: cpu1-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map1_hot: map1-hot {
+					trip = <&cpu1_hot>;
+					cooling-device = <&cpu0 1 2>,
+						<&cpu1 1 2>;
+				};
+				map1_emerg: map1-emerg {
+					trip = <&cpu1_emerg>;
+					cooling-device = <&cpu0 3 3>,
+						<&cpu1 3 3>;
+				};
+			};
+		};
+
+		ap_thermal_cpu2: ap-thermal-cpu2 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 3>;
+
+			trips {
+				cpu2_hot: cpu2-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu2_emerg: cpu2-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map2_hot: map2-hot {
+					trip = <&cpu2_hot>;
+					cooling-device = <&cpu2 1 2>,
+						<&cpu3 1 2>;
+				};
+				map2_emerg: map2-emerg {
+					trip = <&cpu2_emerg>;
+					cooling-device = <&cpu2 3 3>,
+						<&cpu3 3 3>;
+				};
+			};
+		};
+
+		ap_thermal_cpu3: ap-thermal-cpu3 {
+			polling-delay-passive = <1000>;
+			polling-delay = <1000>;
+
+			thermal-sensors = <&ap_thermal 4>;
+
+			trips {
+				cpu3_hot: cpu3-hot {
+					temperature = <85000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+				cpu3_emerg: cpu3-emerg {
+					temperature = <95000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map3_hot: map3-bhot {
+					trip = <&cpu3_hot>;
+					cooling-device = <&cpu2 1 2>,
+						<&cpu3 1 2>;
+				};
+				map3_emerg: map3-emerg {
+					trip = <&cpu3_emerg>;
+					cooling-device = <&cpu2 3 3>,
+						<&cpu3 3 3>;
+				};
 			};
 		};
 	};

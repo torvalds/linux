@@ -1,18 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Z-Star/Vimicro zc301/zc302p/vc30x driver
  *
  * Copyright (C) 2009-2012 Jean-Francois Moine <http://moinejf.free.fr>
  * Copyright (C) 2004 2005 2006 Michel Xhaard mxhaard@magic.fr
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -3184,10 +3175,10 @@ static const struct usb_action ov7620_InitialScale[] = {	/* 320x240 */
 	{}
 };
 static const struct usb_action ov7620_50HZ[] = {
-	{0xaa, 0x13, 0x00a3},	/* 00,13,a3,aa */
 	{0xdd, 0x00, 0x0100},	/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0096},	/* 00,2b,96,aa */
-	{0xaa, 0x75, 0x008a},	/* 00,75,8a,aa */
+	/* enable 1/120s & 1/100s exposures for banding filter */
+	{0xaa, 0x75, 0x008e},
 	{0xaa, 0x2d, 0x0005},	/* 00,2d,05,aa */
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH},	/* 01,90,00,cc */
 	{0xa0, 0x04, ZC3XX_R191_EXPOSURELIMITMID},	/* 01,91,04,cc */
@@ -3195,18 +3186,16 @@ static const struct usb_action ov7620_50HZ[] = {
 	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH},	/* 01,95,00,cc */
 	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID},	/* 01,96,00,cc */
 	{0xa0, 0x83, ZC3XX_R197_ANTIFLICKERLOW},	/* 01,97,83,cc */
-	{0xaa, 0x10, 0x0082},				/* 00,10,82,aa */
 	{0xaa, 0x76, 0x0003},				/* 00,76,03,aa */
 /*	{0xa0, 0x40, ZC3XX_R002_CLOCKSELECT},		 * 00,02,40,cc
 							 * if mode0 (640x480) */
 	{}
 };
 static const struct usb_action ov7620_60HZ[] = {
-	{0xaa, 0x13, 0x00a3},			/* 00,13,a3,aa */
-						/* (bug in zs211.inf) */
 	{0xdd, 0x00, 0x0100},			/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0000},			/* 00,2b,00,aa */
-	{0xaa, 0x75, 0x008a},			/* 00,75,8a,aa */
+	/* enable 1/120s & 1/100s exposures for banding filter */
+	{0xaa, 0x75, 0x008e},
 	{0xaa, 0x2d, 0x0005},			/* 00,2d,05,aa */
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
 	{0xa0, 0x04, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,04,cc */
@@ -3214,7 +3203,6 @@ static const struct usb_action ov7620_60HZ[] = {
 	{0xa0, 0x00, ZC3XX_R195_ANTIFLICKERHIGH}, /* 01,95,00,cc */
 	{0xa0, 0x00, ZC3XX_R196_ANTIFLICKERMID}, /* 01,96,00,cc */
 	{0xa0, 0x83, ZC3XX_R197_ANTIFLICKERLOW}, /* 01,97,83,cc */
-	{0xaa, 0x10, 0x0020},			/* 00,10,20,aa */
 	{0xaa, 0x76, 0x0003},			/* 00,76,03,aa */
 /*	{0xa0, 0x40, ZC3XX_R002_CLOCKSELECT},	 * 00,02,40,cc
 						 * if mode0 (640x480) */
@@ -3224,11 +3212,10 @@ static const struct usb_action ov7620_60HZ[] = {
 	{}
 };
 static const struct usb_action ov7620_NoFliker[] = {
-	{0xaa, 0x13, 0x00a3},			/* 00,13,a3,aa */
-						/* (bug in zs211.inf) */
 	{0xdd, 0x00, 0x0100},			/* 00,01,00,dd */
 	{0xaa, 0x2b, 0x0000},			/* 00,2b,00,aa */
-	{0xaa, 0x75, 0x008e},			/* 00,75,8e,aa */
+	/* disable 1/120s & 1/100s exposures for banding filter */
+	{0xaa, 0x75, 0x008a},
 	{0xaa, 0x2d, 0x0001},			/* 00,2d,01,aa */
 	{0xa0, 0x00, ZC3XX_R190_EXPOSURELIMITHIGH}, /* 01,90,00,cc */
 	{0xa0, 0x04, ZC3XX_R191_EXPOSURELIMITMID}, /* 01,91,04,cc */
@@ -3606,7 +3593,7 @@ static const struct usb_action pas106b_InitialScale[] = {	/* 176x144 */
 	{0xaa, 0x14, 0x0081},
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
-/* Frame retreiving */
+/* Frame retrieving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
@@ -3722,7 +3709,7 @@ static const struct usb_action pas106b_Initial[] = {	/* 352x288 */
 	{0xaa, 0x14, 0x0081},
 /* Other registers */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
-/* Frame retreiving */
+/* Frame retrieving */
 	{0xa0, 0x00, ZC3XX_R019_AUTOADJUSTFPS},
 /* Gains */
 	{0xa0, 0xa0, ZC3XX_R1A8_DIGITALGAIN},
@@ -5778,16 +5765,34 @@ static void setcontrast(struct gspca_dev *gspca_dev,
 
 static s32 getexposure(struct gspca_dev *gspca_dev)
 {
-	return (i2c_read(gspca_dev, 0x25) << 9)
-		| (i2c_read(gspca_dev, 0x26) << 1)
-		| (i2c_read(gspca_dev, 0x27) >> 7);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+		return (i2c_read(gspca_dev, 0x25) << 9)
+			| (i2c_read(gspca_dev, 0x26) << 1)
+			| (i2c_read(gspca_dev, 0x27) >> 7);
+	case SENSOR_OV7620:
+		return i2c_read(gspca_dev, 0x10);
+	default:
+		return -1;
+	}
 }
 
 static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 {
-	i2c_write(gspca_dev, 0x25, val >> 9, 0x00);
-	i2c_write(gspca_dev, 0x26, val >> 1, 0x00);
-	i2c_write(gspca_dev, 0x27, val << 7, 0x00);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+		i2c_write(gspca_dev, 0x25, val >> 9, 0x00);
+		i2c_write(gspca_dev, 0x26, val >> 1, 0x00);
+		i2c_write(gspca_dev, 0x27, val << 7, 0x00);
+		break;
+	case SENSOR_OV7620:
+		i2c_write(gspca_dev, 0x10, val, 0x00);
+		break;
+	}
 }
 
 static void setquality(struct gspca_dev *gspca_dev)
@@ -5918,7 +5923,12 @@ static void setlightfreq(struct gspca_dev *gspca_dev, s32 val)
 
 static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 {
-	reg_w(gspca_dev, val ? 0x42 : 0x02, 0x0180);
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor == SENSOR_OV7620)
+		i2c_write(gspca_dev, 0x13, val ? 0xa3 : 0x80, 0x00);
+	else
+		reg_w(gspca_dev, val ? 0x42 : 0x02, 0x0180);
 }
 
 /*
@@ -6439,6 +6449,9 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 	if (sd->sensor == SENSOR_HV7131R)
 		sd->exposure = v4l2_ctrl_new_std(hdl, &zcxx_ctrl_ops,
 			V4L2_CID_EXPOSURE, 0x30d, 0x493e, 1, 0x927);
+	else if (sd->sensor == SENSOR_OV7620)
+		sd->exposure = v4l2_ctrl_new_std(hdl, &zcxx_ctrl_ops,
+			V4L2_CID_EXPOSURE, 0, 255, 1, 0x41);
 	sd->autogain = v4l2_ctrl_new_std(hdl, &zcxx_ctrl_ops,
 			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
 	if (sd->sensor != SENSOR_OV7630C)
@@ -6458,7 +6471,7 @@ static int sd_init_controls(struct gspca_dev *gspca_dev)
 		return hdl->error;
 	}
 	v4l2_ctrl_cluster(3, &sd->gamma);
-	if (sd->sensor == SENSOR_HV7131R)
+	if (sd->sensor == SENSOR_HV7131R || sd->sensor == SENSOR_OV7620)
 		v4l2_ctrl_auto_cluster(2, &sd->autogain, 0, true);
 	return 0;
 }
@@ -6753,7 +6766,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_HV7131R:
 	case SENSOR_TAS5130C:
 		reg_r(gspca_dev, 0x0008);
-		/* fall thru */
+		/* fall through */
 	case SENSOR_PO2030:
 		reg_w(gspca_dev, 0x03, 0x0008);
 		break;
@@ -6802,7 +6815,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_TAS5130C:
 		reg_w(gspca_dev, 0x09, 0x01ad);	/* (from win traces) */
 		reg_w(gspca_dev, 0x15, 0x01ae);
-		/* fall thru */
+		/* fall through */
 	case SENSOR_PAS202B:
 	case SENSOR_PO2030:
 /*		reg_w(gspca_dev, 0x40, ZC3XX_R117_GGAIN); in win traces */

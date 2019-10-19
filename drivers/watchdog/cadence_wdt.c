@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Cadence WDT driver - Used by Xilinx Zynq
  *
  * Copyright (C) 2010 - 2014 Xilinx, Inc.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/clk.h>
@@ -277,6 +274,11 @@ static const struct watchdog_ops cdns_wdt_ops = {
 	.set_timeout = cdns_wdt_settimeout,
 };
 
+static void cdns_clk_disable_unprepare(void *data)
+{
+	clk_disable_unprepare(data);
+}
+
 /************************Platform Operations*****************************/
 /**
  * cdns_wdt_probe - Probe call for the device.
@@ -288,13 +290,13 @@ static const struct watchdog_ops cdns_wdt_ops = {
  */
 static int cdns_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res;
+	struct device *dev = &pdev->dev;
 	int ret, irq;
 	unsigned long clock_f;
 	struct cdns_wdt *wdt;
 	struct watchdog_device *cdns_wdt_device;
 
-	wdt = devm_kzalloc(&pdev->dev, sizeof(*wdt), GFP_KERNEL);
+	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
 		return -ENOMEM;
 
@@ -305,19 +307,18 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	cdns_wdt_device->min_timeout = CDNS_WDT_MIN_TIMEOUT;
 	cdns_wdt_device->max_timeout = CDNS_WDT_MAX_TIMEOUT;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	wdt->regs = devm_ioremap_resource(&pdev->dev, res);
+	wdt->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(wdt->regs))
 		return PTR_ERR(wdt->regs);
 
 	/* Register the interrupt */
-	wdt->rst = of_property_read_bool(pdev->dev.of_node, "reset-on-timeout");
+	wdt->rst = of_property_read_bool(dev->of_node, "reset-on-timeout");
 	irq = platform_get_irq(pdev, 0);
 	if (!wdt->rst && irq >= 0) {
-		ret = devm_request_irq(&pdev->dev, irq, cdns_wdt_irq_handler, 0,
+		ret = devm_request_irq(dev, irq, cdns_wdt_irq_handler, 0,
 				       pdev->name, pdev);
 		if (ret) {
-			dev_err(&pdev->dev,
+			dev_err(dev,
 				"cannot register interrupt handler err=%d\n",
 				ret);
 			return ret;
@@ -325,30 +326,28 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 	}
 
 	/* Initialize the members of cdns_wdt structure */
-	cdns_wdt_device->parent = &pdev->dev;
+	cdns_wdt_device->parent = dev;
 
-	ret = watchdog_init_timeout(cdns_wdt_device, wdt_timeout, &pdev->dev);
-	if (ret) {
-		dev_err(&pdev->dev, "unable to set timeout value\n");
-		return ret;
-	}
-
+	watchdog_init_timeout(cdns_wdt_device, wdt_timeout, dev);
 	watchdog_set_nowayout(cdns_wdt_device, nowayout);
 	watchdog_stop_on_reboot(cdns_wdt_device);
 	watchdog_set_drvdata(cdns_wdt_device, wdt);
 
-	wdt->clk = devm_clk_get(&pdev->dev, NULL);
+	wdt->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(wdt->clk)) {
-		dev_err(&pdev->dev, "input clock not found\n");
-		ret = PTR_ERR(wdt->clk);
-		return ret;
+		dev_err(dev, "input clock not found\n");
+		return PTR_ERR(wdt->clk);
 	}
 
 	ret = clk_prepare_enable(wdt->clk);
 	if (ret) {
-		dev_err(&pdev->dev, "unable to enable clock\n");
+		dev_err(dev, "unable to enable clock\n");
 		return ret;
 	}
+	ret = devm_add_action_or_reset(dev, cdns_clk_disable_unprepare,
+				       wdt->clk);
+	if (ret)
+		return ret;
 
 	clock_f = clk_get_rate(wdt->clk);
 	if (clock_f <= CDNS_WDT_CLK_75MHZ) {
@@ -361,56 +360,18 @@ static int cdns_wdt_probe(struct platform_device *pdev)
 
 	spin_lock_init(&wdt->io_lock);
 
-	ret = watchdog_register_device(cdns_wdt_device);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to register wdt device\n");
-		goto err_clk_disable;
-	}
+	watchdog_stop_on_reboot(cdns_wdt_device);
+	watchdog_stop_on_unregister(cdns_wdt_device);
+	ret = devm_watchdog_register_device(dev, cdns_wdt_device);
+	if (ret)
+		return ret;
 	platform_set_drvdata(pdev, wdt);
 
-	dev_info(&pdev->dev, "Xilinx Watchdog Timer at %p with timeout %ds%s\n",
+	dev_info(dev, "Xilinx Watchdog Timer at %p with timeout %ds%s\n",
 		 wdt->regs, cdns_wdt_device->timeout,
 		 nowayout ? ", nowayout" : "");
 
 	return 0;
-
-err_clk_disable:
-	clk_disable_unprepare(wdt->clk);
-
-	return ret;
-}
-
-/**
- * cdns_wdt_remove - Probe call for the device.
- *
- * @pdev: handle to the platform device structure.
- * Return: 0 on success, otherwise negative error.
- *
- * Unregister the device after releasing the resources.
- */
-static int cdns_wdt_remove(struct platform_device *pdev)
-{
-	struct cdns_wdt *wdt = platform_get_drvdata(pdev);
-
-	cdns_wdt_stop(&wdt->cdns_wdt_device);
-	watchdog_unregister_device(&wdt->cdns_wdt_device);
-	clk_disable_unprepare(wdt->clk);
-
-	return 0;
-}
-
-/**
- * cdns_wdt_shutdown - Stop the device.
- *
- * @pdev: handle to the platform structure.
- *
- */
-static void cdns_wdt_shutdown(struct platform_device *pdev)
-{
-	struct cdns_wdt *wdt = platform_get_drvdata(pdev);
-
-	cdns_wdt_stop(&wdt->cdns_wdt_device);
-	clk_disable_unprepare(wdt->clk);
 }
 
 /**
@@ -421,8 +382,7 @@ static void cdns_wdt_shutdown(struct platform_device *pdev)
  */
 static int __maybe_unused cdns_wdt_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct cdns_wdt *wdt = platform_get_drvdata(pdev);
+	struct cdns_wdt *wdt = dev_get_drvdata(dev);
 
 	if (watchdog_active(&wdt->cdns_wdt_device)) {
 		cdns_wdt_stop(&wdt->cdns_wdt_device);
@@ -441,8 +401,7 @@ static int __maybe_unused cdns_wdt_suspend(struct device *dev)
 static int __maybe_unused cdns_wdt_resume(struct device *dev)
 {
 	int ret;
-	struct platform_device *pdev = to_platform_device(dev);
-	struct cdns_wdt *wdt = platform_get_drvdata(pdev);
+	struct cdns_wdt *wdt = dev_get_drvdata(dev);
 
 	if (watchdog_active(&wdt->cdns_wdt_device)) {
 		ret = clk_prepare_enable(wdt->clk);
@@ -467,8 +426,6 @@ MODULE_DEVICE_TABLE(of, cdns_wdt_of_match);
 /* Driver Structure */
 static struct platform_driver cdns_wdt_driver = {
 	.probe		= cdns_wdt_probe,
-	.remove		= cdns_wdt_remove,
-	.shutdown	= cdns_wdt_shutdown,
 	.driver		= {
 		.name	= "cdns-wdt",
 		.of_match_table = cdns_wdt_of_match,

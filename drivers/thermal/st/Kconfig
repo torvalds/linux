@@ -1,7 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# STMicroelectronics thermal drivers configuration
+#
+
 config ST_THERMAL
-       tristate "Thermal sensors on STMicroelectronics STi series of SoCs"
-       help
-         Support for thermal sensors on STMicroelectronics STi series of SoCs.
+	tristate "Thermal sensors on STMicroelectronics STi series of SoCs"
+	help
+	  Support for thermal sensors on STMicroelectronics STi series of SoCs.
 
 config ST_THERMAL_SYSCFG
 	select ST_THERMAL
@@ -10,3 +15,13 @@ config ST_THERMAL_SYSCFG
 config ST_THERMAL_MEMMAP
 	select ST_THERMAL
 	tristate "STi series memory mapped access based thermal sensors"
+
+config STM32_THERMAL
+	tristate "Thermal framework support on STMicroelectronics STM32 series of SoCs"
+	depends on MACH_STM32MP157
+	default y
+	help
+	  Support for thermal framework on STMicroelectronics STM32 series of
+	  SoCs. This thermal driver allows to access to general thermal framework
+	  functionalities and to acces to SoC sensor functionalities. This
+	  configuration is fully dependent of MACH_STM32MP157.

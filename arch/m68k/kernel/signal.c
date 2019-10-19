@@ -574,6 +574,67 @@ static inline int rt_save_fpu_state(struct ucontext __user *uc, struct pt_regs *
 
 #endif /* CONFIG_FPU */
 
+static inline void siginfo_build_tests(void)
+{
+	/*
+	 * This needs to be tested on m68k as it has a lesser
+	 * alignment requirement than x86 and that can cause surprises.
+	 */
+
+	/* This is part of the ABI and can never change in size: */
+	BUILD_BUG_ON(sizeof(siginfo_t) != 128);
+
+	/* Ensure the known fields never change in location */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_signo) != 0);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_errno) != 4);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_code)  != 8);
+
+	/* _kill */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid) != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_uid) != 0x10);
+
+	/* _timer */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_tid)     != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_overrun) != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_value)   != 0x14);
+
+	/* _rt */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)   != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)   != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_value) != 0x14);
+
+	/* _sigchld */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pid)    != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_uid)    != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_status) != 0x14);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_utime)  != 0x18);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_stime)  != 0x1c);
+
+	/* _sigfault */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_addr) != 0x0c);
+
+	/* _sigfault._mcerr */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_addr_lsb) != 0x10);
+
+	/* _sigfault._addr_bnd */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_lower) != 0x12);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_upper) != 0x16);
+
+	/* _sigfault._addr_pkey */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_pkey) != 0x12);
+
+	/* _sigpoll */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_band)   != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_fd)     != 0x10);
+
+	/* _sigsys */
+	BUILD_BUG_ON(offsetof(siginfo_t, si_call_addr) != 0x0c);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_syscall)   != 0x10);
+	BUILD_BUG_ON(offsetof(siginfo_t, si_arch)      != 0x14);
+
+	/* any new si_fields should be added here */
+}
+
 static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 			       void __user *fp)
 {
@@ -590,7 +651,8 @@ static int mangle_kernel_stack(struct pt_regs *regs, int formatvec,
 		regs->vector = formatvec & 0xfff;
 	} else {
 		struct switch_stack *sw = (struct switch_stack *)regs - 1;
-		unsigned long buf[fsize / 2]; /* yes, twice as much */
+		/* yes, twice as much as max(sizeof(frame.un.fmt<x>)) */
+		unsigned long buf[sizeof(((struct frame *)0)->un) / 2];
 
 		/* that'll make sure that expansion won't crap over data */
 		if (copy_from_user(buf + fsize / 4, fp, fsize))
@@ -634,6 +696,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *usc, void __u
 	int formatvec;
 	struct sigcontext context;
 	int err = 0;
+
+	siginfo_build_tests();
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
@@ -724,7 +788,7 @@ asmlinkage int do_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	struct sigframe __user *frame = (struct sigframe __user *)(usp - 4);
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__get_user(set.sig[0], &frame->sc.sc_mask) ||
 	    (_NSIG_WORDS > 1 &&
@@ -739,7 +803,7 @@ asmlinkage int do_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	return regs->d0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 
@@ -749,7 +813,7 @@ asmlinkage int do_rt_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)(usp - 4);
 	sigset_t set;
 
-	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
+	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
 	if (__copy_from_user(&set, &frame->uc.uc_sigmask, sizeof(set)))
 		goto badframe;
@@ -761,7 +825,7 @@ asmlinkage int do_rt_sigreturn(struct pt_regs *regs, struct switch_stack *sw)
 	return regs->d0;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	force_sig(SIGSEGV);
 	return 0;
 }
 

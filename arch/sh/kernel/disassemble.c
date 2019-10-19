@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Disassemble SuperH instructions.
  *
  * Copyright (C) 1999 kaz Kojima
  * Copyright (C) 2008 Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -478,8 +475,6 @@ static void print_sh_insn(u32 memaddr, u16 insn)
 				printk("dbr");
 				break;
 			case FD_REG_N:
-				if (0)
-					goto d_reg_n;
 			case F_REG_N:
 				printk("fr%d", rn);
 				break;
@@ -491,7 +486,7 @@ static void print_sh_insn(u32 memaddr, u16 insn)
 					printk("xd%d", rn & ~1);
 					break;
 				}
-			d_reg_n:
+				/* else, fall through */
 			case D_REG_N:
 				printk("dr%d", rn);
 				break;
@@ -500,6 +495,7 @@ static void print_sh_insn(u32 memaddr, u16 insn)
 					printk("xd%d", rm & ~1);
 					break;
 				}
+				/* else, fall through */
 			case D_REG_M:
 				printk("dr%d", rm);
 				break;

@@ -2,6 +2,7 @@
 #ifndef _PARISC_PGTABLE_H
 #define _PARISC_PGTABLE_H
 
+#include <asm/page.h>
 #include <asm-generic/4level-fixup.h>
 
 #include <asm/fixmap.h>
@@ -17,7 +18,7 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
-extern spinlock_t pa_tlb_lock;
+static inline spinlock_t *pgd_spinlock(pgd_t *);
 
 /*
  * kern_addr_valid(ADDR) tests if ADDR is pointing to valid kernel
@@ -34,17 +35,46 @@ extern spinlock_t pa_tlb_lock;
  */
 #define kern_addr_valid(addr)	(1)
 
-/* Purge data and instruction TLB entries.  Must be called holding
- * the pa_tlb_lock.  The TLB purge instructions are slow on SMP
- * machines since the purge must be broadcast to all CPUs.
+/* This is for the serialization of PxTLB broadcasts. At least on the N class
+ * systems, only one PxTLB inter processor broadcast can be active at any one
+ * time on the Merced bus.
+
+ * PTE updates are protected by locks in the PMD.
+ */
+extern spinlock_t pa_tlb_flush_lock;
+extern spinlock_t pa_swapper_pg_lock;
+#if defined(CONFIG_64BIT) && defined(CONFIG_SMP)
+extern int pa_serialize_tlb_flushes;
+#else
+#define pa_serialize_tlb_flushes        (0)
+#endif
+
+#define purge_tlb_start(flags)  do { \
+	if (pa_serialize_tlb_flushes)	\
+		spin_lock_irqsave(&pa_tlb_flush_lock, flags); \
+	else \
+		local_irq_save(flags);	\
+	} while (0)
+#define purge_tlb_end(flags)	do { \
+	if (pa_serialize_tlb_flushes)	\
+		spin_unlock_irqrestore(&pa_tlb_flush_lock, flags); \
+	else \
+		local_irq_restore(flags); \
+	} while (0)
+
+/* Purge data and instruction TLB entries. The TLB purge instructions
+ * are slow on SMP machines since the purge must be broadcast to all CPUs.
  */
 
 static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 {
+	unsigned long flags;
+
+	purge_tlb_start(flags);
 	mtsp(mm->context, 1);
 	pdtlb(addr);
-	if (unlikely(split_tlb))
-		pitlb(addr);
+	pitlb(addr);
+	purge_tlb_end(flags);
 }
 
 /* Certain architectures need to do special things when PTEs
@@ -56,25 +86,18 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
                 *(pteptr) = (pteval);                           \
         } while(0)
 
-#define pte_inserted(x)						\
-	((pte_val(x) & (_PAGE_PRESENT|_PAGE_ACCESSED))		\
-	 == (_PAGE_PRESENT|_PAGE_ACCESSED))
-
 #define set_pte_at(mm, addr, ptep, pteval)			\
 	do {							\
 		pte_t old_pte;					\
 		unsigned long flags;				\
-		spin_lock_irqsave(&pa_tlb_lock, flags);		\
+		spin_lock_irqsave(pgd_spinlock((mm)->pgd), flags);\
 		old_pte = *ptep;				\
-		if (pte_inserted(old_pte))			\
-			purge_tlb_entries(mm, addr);		\
 		set_pte(ptep, pteval);				\
-		spin_unlock_irqrestore(&pa_tlb_lock, flags);	\
+		purge_tlb_entries(mm, addr);			\
+		spin_unlock_irqrestore(pgd_spinlock((mm)->pgd), flags);\
 	} while (0)
 
 #endif /* !__ASSEMBLY__ */
-
-#include <asm/page.h>
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, pte_val(e))
@@ -94,10 +117,10 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #if CONFIG_PGTABLE_LEVELS == 3
 #define PGD_ORDER	1 /* Number of pages per pgd */
 #define PMD_ORDER	1 /* Number of pages per pmd */
-#define PGD_ALLOC_ORDER	2 /* first pgd contains pmd */
+#define PGD_ALLOC_ORDER	(2 + 1) /* first pgd contains pmd */
 #else
 #define PGD_ORDER	1 /* Number of pages per pgd */
-#define PGD_ALLOC_ORDER	PGD_ORDER
+#define PGD_ALLOC_ORDER	(PGD_ORDER + 1)
 #endif
 
 /* Definitions for 3rd level (we use PLD here for Page Lower directory
@@ -109,15 +132,13 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define PTRS_PER_PTE    (1UL << BITS_PER_PTE)
 
 /* Definitions for 2nd level */
-#define pgtable_cache_init()	do { } while (0)
-
 #define PMD_SHIFT       (PLD_SHIFT + BITS_PER_PTE)
 #define PMD_SIZE	(1UL << PMD_SHIFT)
 #define PMD_MASK	(~(PMD_SIZE-1))
 #if CONFIG_PGTABLE_LEVELS == 3
 #define BITS_PER_PMD	(PAGE_SHIFT + PMD_ORDER - BITS_PER_PMD_ENTRY)
 #else
-#define __PAGETABLE_PMD_FOLDED
+#define __PAGETABLE_PMD_FOLDED 1
 #define BITS_PER_PMD	0
 #endif
 #define PTRS_PER_PMD    (1UL << BITS_PER_PMD)
@@ -202,7 +223,7 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 #define _PAGE_HUGE     (1 << xlate_pabit(_PAGE_HPAGE_BIT))
 #define _PAGE_USER     (1 << xlate_pabit(_PAGE_USER_BIT))
 
-#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE |  _PAGE_DIRTY | _PAGE_ACCESSED)
+#define _PAGE_TABLE	(_PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE | _PAGE_DIRTY | _PAGE_ACCESSED)
 #define _PAGE_CHG_MASK	(PAGE_MASK | _PAGE_ACCESSED | _PAGE_DIRTY)
 #define _PAGE_KERNEL_RO	(_PAGE_PRESENT | _PAGE_READ | _PAGE_DIRTY | _PAGE_ACCESSED)
 #define _PAGE_KERNEL_EXEC	(_PAGE_KERNEL_RO | _PAGE_EXEC)
@@ -227,22 +248,22 @@ static inline void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 
 #ifndef __ASSEMBLY__
 
-#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED)
-#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE | _PAGE_ACCESSED)
+#define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_USER)
+#define PAGE_SHARED	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE)
 /* Others seem to make this executable, I don't know if that's correct
    or not.  The stack is mapped this way though so this is necessary
    in the short term - dhd@linuxcare.com, 2000-08-08 */
-#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_ACCESSED)
-#define PAGE_WRITEONLY  __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITE | _PAGE_ACCESSED)
-#define PAGE_EXECREAD   __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_EXEC |_PAGE_ACCESSED)
+#define PAGE_READONLY	__pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ)
+#define PAGE_WRITEONLY  __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_WRITE)
+#define PAGE_EXECREAD   __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_EXEC)
 #define PAGE_COPY       PAGE_EXECREAD
-#define PAGE_RWX        __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC |_PAGE_ACCESSED)
+#define PAGE_RWX        __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_READ | _PAGE_WRITE | _PAGE_EXEC)
 #define PAGE_KERNEL	__pgprot(_PAGE_KERNEL)
 #define PAGE_KERNEL_EXEC	__pgprot(_PAGE_KERNEL_EXEC)
 #define PAGE_KERNEL_RWX	__pgprot(_PAGE_KERNEL_RWX)
 #define PAGE_KERNEL_RO	__pgprot(_PAGE_KERNEL_RO)
 #define PAGE_KERNEL_UNC	__pgprot(_PAGE_KERNEL | _PAGE_NO_CACHE)
-#define PAGE_GATEWAY    __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_ACCESSED | _PAGE_GATEWAY| _PAGE_READ)
+#define PAGE_GATEWAY    __pgprot(_PAGE_PRESENT | _PAGE_USER | _PAGE_GATEWAY| _PAGE_READ)
 
 
 /*
@@ -465,6 +486,15 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)		((pte_t) { (x).val })
 
+
+static inline spinlock_t *pgd_spinlock(pgd_t *pgd)
+{
+	if (unlikely(pgd == swapper_pg_dir))
+		return &pa_swapper_pg_lock;
+	return (spinlock_t *)((char *)pgd + (PAGE_SIZE << (PGD_ALLOC_ORDER - 1)));
+}
+
+
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	pte_t pte;
@@ -473,15 +503,15 @@ static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned
 	if (!pte_young(*ptep))
 		return 0;
 
-	spin_lock_irqsave(&pa_tlb_lock, flags);
+	spin_lock_irqsave(pgd_spinlock(vma->vm_mm->pgd), flags);
 	pte = *ptep;
 	if (!pte_young(pte)) {
-		spin_unlock_irqrestore(&pa_tlb_lock, flags);
+		spin_unlock_irqrestore(pgd_spinlock(vma->vm_mm->pgd), flags);
 		return 0;
 	}
-	purge_tlb_entries(vma->vm_mm, addr);
 	set_pte(ptep, pte_mkold(pte));
-	spin_unlock_irqrestore(&pa_tlb_lock, flags);
+	purge_tlb_entries(vma->vm_mm, addr);
+	spin_unlock_irqrestore(pgd_spinlock(vma->vm_mm->pgd), flags);
 	return 1;
 }
 
@@ -491,12 +521,11 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 	pte_t old_pte;
 	unsigned long flags;
 
-	spin_lock_irqsave(&pa_tlb_lock, flags);
+	spin_lock_irqsave(pgd_spinlock(mm->pgd), flags);
 	old_pte = *ptep;
-	if (pte_inserted(old_pte))
-		purge_tlb_entries(mm, addr);
 	set_pte(ptep, __pte(0));
-	spin_unlock_irqrestore(&pa_tlb_lock, flags);
+	purge_tlb_entries(mm, addr);
+	spin_unlock_irqrestore(pgd_spinlock(mm->pgd), flags);
 
 	return old_pte;
 }
@@ -504,10 +533,10 @@ static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr,
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	unsigned long flags;
-	spin_lock_irqsave(&pa_tlb_lock, flags);
-	purge_tlb_entries(mm, addr);
+	spin_lock_irqsave(pgd_spinlock(mm->pgd), flags);
 	set_pte(ptep, pte_wrprotect(*ptep));
-	spin_unlock_irqrestore(&pa_tlb_lock, flags);
+	purge_tlb_entries(mm, addr);
+	spin_unlock_irqrestore(pgd_spinlock(mm->pgd), flags);
 }
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))

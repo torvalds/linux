@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: dswload2 - Dispatcher second pass namespace load callbacks
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -58,7 +24,7 @@ ACPI_MODULE_NAME("dswload2")
  * FUNCTION:    acpi_ds_load2_begin_op
  *
  * PARAMETERS:  walk_state      - Current state of the parse tree walk
- *              out_op          - Wher to return op if a new one is created
+ *              out_op          - Where to return op if a new one is created
  *
  * RETURN:      Status
  *
@@ -330,6 +296,14 @@ acpi_ds_load2_begin_op(struct acpi_walk_state *walk_state,
 		}
 #endif
 
+		/*
+		 * For name creation opcodes, the full namepath prefix must
+		 * exist, except for the final (new) nameseg.
+		 */
+		if (walk_state->op_info->flags & AML_NAMED) {
+			flags |= ACPI_NS_PREFIX_MUST_EXIST;
+		}
+
 		/* Add new entry or lookup existing entry */
 
 		status =
@@ -397,10 +371,8 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	struct acpi_namespace_node *node;
 	union acpi_parse_object *arg;
 	struct acpi_namespace_node *new_node;
-#ifndef ACPI_NO_METHOD_EXECUTION
 	u32 i;
 	u8 region_space;
-#endif
 
 	ACPI_FUNCTION_TRACE(ds_load2_end_op);
 
@@ -487,7 +459,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 	arg = op->common.value.arg;
 
 	switch (walk_state->op_info->type) {
-#ifndef ACPI_NO_METHOD_EXECUTION
 
 	case AML_TYPE_CREATE_FIELD:
 		/*
@@ -584,12 +555,10 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 		}
 
 		break;
-#endif				/* ACPI_NO_METHOD_EXECUTION */
 
 	case AML_TYPE_NAMED_COMPLEX:
 
 		switch (op->common.aml_opcode) {
-#ifndef ACPI_NO_METHOD_EXECUTION
 		case AML_REGION_OP:
 		case AML_DATA_REGION_OP:
 
@@ -676,8 +645,6 @@ acpi_status acpi_ds_load2_end_op(struct acpi_walk_state *walk_state)
 				}
 			}
 			break;
-
-#endif				/* ACPI_NO_METHOD_EXECUTION */
 
 		default:
 

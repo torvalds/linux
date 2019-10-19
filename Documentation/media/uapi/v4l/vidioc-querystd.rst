@@ -1,15 +1,22 @@
-.. -*- coding: utf-8; mode: rst -*-
+.. Permission is granted to copy, distribute and/or modify this
+.. document under the terms of the GNU Free Documentation License,
+.. Version 1.1 or any later version published by the Free Software
+.. Foundation, with no Invariant Sections, no Front-Cover Texts
+.. and no Back-Cover Texts. A copy of the license is included at
+.. Documentation/media/uapi/fdl-appendix.rst.
+..
+.. TODO: replace it to GFDL-1.1-or-later WITH no-invariant-sections
 
 .. _VIDIOC_QUERYSTD:
 
-*********************
-ioctl VIDIOC_QUERYSTD
-*********************
+*********************************************
+ioctl VIDIOC_QUERYSTD, VIDIOC_SUBDEV_QUERYSTD
+*********************************************
 
 Name
 ====
 
-VIDIOC_QUERYSTD - Sense the video standard received by the current input
+VIDIOC_QUERYSTD - VIDIOC_SUBDEV_QUERYSTD - Sense the video standard received by the current input
 
 
 Synopsis
@@ -17,6 +24,9 @@ Synopsis
 
 .. c:function:: int ioctl( int fd, VIDIOC_QUERYSTD, v4l2_std_id *argp )
     :name: VIDIOC_QUERYSTD
+
+.. c:function:: int ioctl( int fd, VIDIOC_SUBDEV_QUERYSTD, v4l2_std_id *argp )
+    :name: VIDIOC_SUBDEV_QUERYSTD
 
 
 Arguments

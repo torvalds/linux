@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* Management of Tx window, Tx resend, ACKs and out-of-sequence reception
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -47,8 +43,7 @@ static void rxrpc_propose_ping(struct rxrpc_call *call,
  * propose an ACK be sent
  */
 static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-				u16 skew, u32 serial, bool immediate,
-				bool background,
+				u32 serial, bool immediate, bool background,
 				enum rxrpc_propose_ack_trace why)
 {
 	enum rxrpc_propose_ack_outcome outcome = rxrpc_propose_ack_use;
@@ -73,14 +68,12 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		if (RXRPC_ACK_UPDATEABLE & (1 << ack_reason)) {
 			outcome = rxrpc_propose_ack_update;
 			call->ackr_serial = serial;
-			call->ackr_skew = skew;
 		}
 		if (!immediate)
 			goto trace;
 	} else if (prior > rxrpc_ack_priority[call->ackr_reason]) {
 		call->ackr_reason = ack_reason;
 		call->ackr_serial = serial;
-		call->ackr_skew = skew;
 	} else {
 		outcome = rxrpc_propose_ack_subsume;
 	}
@@ -123,6 +116,7 @@ static void __rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
 		else
 			ack_at = expiry;
 
+		ack_at += READ_ONCE(call->tx_backoff);
 		ack_at += now;
 		if (time_before(ack_at, call->ack_at)) {
 			WRITE_ONCE(call->ack_at, ack_at);
@@ -140,11 +134,11 @@ trace:
  * propose an ACK be sent, locking the call structure
  */
 void rxrpc_propose_ACK(struct rxrpc_call *call, u8 ack_reason,
-		       u16 skew, u32 serial, bool immediate, bool background,
+		       u32 serial, bool immediate, bool background,
 		       enum rxrpc_propose_ack_trace why)
 {
 	spin_lock_bh(&call->lock);
-	__rxrpc_propose_ACK(call, ack_reason, skew, serial,
+	__rxrpc_propose_ACK(call, ack_reason, serial,
 			    immediate, background, why);
 	spin_unlock_bh(&call->lock);
 }
@@ -162,7 +156,6 @@ static void rxrpc_congestion_timeout(struct rxrpc_call *call)
  */
 static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 {
-	struct rxrpc_skb_priv *sp;
 	struct sk_buff *skb;
 	unsigned long resend_at;
 	rxrpc_seq_t cursor, seq, top;
@@ -195,6 +188,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	 * the packets in the Tx buffer we're going to resend and what the new
 	 * resend timeout will be.
 	 */
+	trace_rxrpc_resend(call, (cursor + 1) & RXRPC_RXTX_BUFF_MASK);
 	oldest = now;
 	for (seq = cursor + 1; before_eq(seq, top); seq++) {
 		ix = seq & RXRPC_RXTX_BUFF_MASK;
@@ -205,8 +199,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_see_skb(skb, rxrpc_skb_tx_seen);
-		sp = rxrpc_skb(skb);
+		rxrpc_see_skb(skb, rxrpc_skb_seen);
 
 		if (anno_type == RXRPC_TX_ANNO_UNACK) {
 			if (ktime_after(skb->tstamp, max_age)) {
@@ -225,7 +218,7 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 				       ktime_to_ns(ktime_sub(skb->tstamp, max_age)));
 	}
 
-	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(oldest, now)));
+	resend_at = nsecs_to_jiffies(ktime_to_ns(ktime_sub(now, oldest)));
 	resend_at += jiffies + rxrpc_resend_timeout;
 	WRITE_ONCE(call->resend_at, resend_at);
 
@@ -237,13 +230,13 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 	 * retransmitting data.
 	 */
 	if (!retrans) {
-		rxrpc_reduce_call_timer(call, resend_at, now,
+		rxrpc_reduce_call_timer(call, resend_at, now_j,
 					rxrpc_timer_set_for_resend);
 		spin_unlock_bh(&call->lock);
 		ack_ts = ktime_sub(now, call->acks_latest_ts);
 		if (ktime_to_ns(ack_ts) < call->peer->rtt)
 			goto out;
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, true, false,
 				  rxrpc_propose_ack_ping_for_lost_ack);
 		rxrpc_send_ack_packet(call, true, NULL);
 		goto out;
@@ -262,18 +255,18 @@ static void rxrpc_resend(struct rxrpc_call *call, unsigned long now_j)
 			continue;
 
 		skb = call->rxtx_buffer[ix];
-		rxrpc_get_skb(skb, rxrpc_skb_tx_got);
+		rxrpc_get_skb(skb, rxrpc_skb_got);
 		spin_unlock_bh(&call->lock);
 
 		if (rxrpc_send_data_packet(call, skb, true) < 0) {
-			rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
+			rxrpc_free_skb(skb, rxrpc_skb_freed);
 			return;
 		}
 
 		if (rxrpc_is_client_call(call))
 			rxrpc_expose_client_call(call);
 
-		rxrpc_free_skb(skb, rxrpc_skb_tx_freed);
+		rxrpc_free_skb(skb, rxrpc_skb_freed);
 		spin_lock_bh(&call->lock);
 
 		/* We need to clear the retransmit state, but there are two
@@ -312,6 +305,7 @@ void rxrpc_process_call(struct work_struct *work)
 		container_of(work, struct rxrpc_call, processor);
 	rxrpc_serial_t *send_ack;
 	unsigned long now, next, t;
+	unsigned int iterations = 0;
 
 	rxrpc_see_call(call);
 
@@ -320,6 +314,11 @@ void rxrpc_process_call(struct work_struct *work)
 	       call->debug_id, rxrpc_call_states[call->state], call->events);
 
 recheck_state:
+	/* Limit the number of times we do this before returning to the manager */
+	iterations++;
+	if (iterations > 5)
+		goto requeue;
+
 	if (test_and_clear_bit(RXRPC_CALL_EV_ABORT, &call->events)) {
 		rxrpc_send_abort_packet(call);
 		goto recheck_state;
@@ -370,7 +369,7 @@ recheck_state:
 	if (time_after_eq(now, t)) {
 		trace_rxrpc_timer(call, rxrpc_timer_exp_keepalive, now);
 		cmpxchg(&call->keepalive_at, t, now + MAX_JIFFY_OFFSET);
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, true,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, true, true,
 				  rxrpc_propose_ack_ping_for_keepalive);
 		set_bit(RXRPC_CALL_EV_PING, &call->events);
 	}
@@ -391,7 +390,13 @@ recheck_state:
 
 	/* Process events */
 	if (test_and_clear_bit(RXRPC_CALL_EV_EXPIRED, &call->events)) {
-		rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ETIME);
+		if (test_bit(RXRPC_CALL_RX_HEARD, &call->flags) &&
+		    (int)call->conn->hi_serial - (int)call->rx_serial > 0) {
+			trace_rxrpc_call_reset(call);
+			rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ECONNRESET);
+		} else {
+			rxrpc_abort_call("EXP", call, 0, RX_USER_ABORT, -ETIME);
+		}
 		set_bit(RXRPC_CALL_EV_ABORT, &call->events);
 		goto recheck_state;
 	}
@@ -399,7 +404,7 @@ recheck_state:
 	send_ack = NULL;
 	if (test_and_clear_bit(RXRPC_CALL_EV_ACK_LOST, &call->events)) {
 		call->acks_lost_top = call->tx_top;
-		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, 0, true, false,
+		rxrpc_propose_ACK(call, RXRPC_ACK_PING, 0, true, false,
 				  rxrpc_propose_ack_ping_for_lost_ack);
 		send_ack = &call->acks_lost_ping;
 	}
@@ -442,13 +447,16 @@ recheck_state:
 	rxrpc_reduce_call_timer(call, next, now, rxrpc_timer_restart);
 
 	/* other events may have been raised since we started checking */
-	if (call->events && call->state < RXRPC_CALL_COMPLETE) {
-		__rxrpc_queue_call(call);
-		goto out;
-	}
+	if (call->events && call->state < RXRPC_CALL_COMPLETE)
+		goto requeue;
 
 out_put:
 	rxrpc_put_call(call, rxrpc_call_put);
 out:
 	_leave("");
+	return;
+
+requeue:
+	__rxrpc_queue_call(call);
+	goto out;
 }

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig IEEE802154_DRIVERS
 	tristate "IEEE 802.15.4 drivers"
 	depends on NETDEVICES && IEEE802154
@@ -104,3 +105,25 @@ config IEEE802154_CA8210_DEBUGFS
 	  exposes a debugfs node for each CA8210 instance which allows
 	  direct use of the Cascoda API, exposing the 802.15.4 MAC
 	  management entities.
+
+config IEEE802154_MCR20A
+       tristate "MCR20A transceiver driver"
+       depends on IEEE802154_DRIVERS && MAC802154
+       depends on SPI
+	---help---
+	  Say Y here to enable the MCR20A SPI 802.15.4 wireless
+	  controller.
+
+	  This driver can also be built as a module. To do so, say M here.
+	  the module will be called 'mcr20a'.
+
+config IEEE802154_HWSIM
+	depends on IEEE802154_DRIVERS && MAC802154
+	tristate "Simulated radio testing tool for mac802154"
+	---help---
+	  This driver is a developer testing tool that can be used to test
+	  IEEE 802.15.4 networking stack (mac802154) functionality. This is not
+	  needed for normal wpan usage and is only for testing.
+
+	  This driver can also be built as a module. To do so say M here.
+	  The module will be called 'mac802154_hwsim'.

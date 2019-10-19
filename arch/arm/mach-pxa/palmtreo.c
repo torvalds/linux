@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Hardware definitions for Palm Treo smartphones
  *
@@ -7,12 +8,7 @@
  *
  * Author:     Tomas Cech <sleep_walker@suse.cz>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * (find more info at www.hackndev.com)
- *
  */
 
 #include <linux/platform_device.h>
@@ -404,36 +400,6 @@ static void __init palmtreo_leds_init(void)
 }
 
 /******************************************************************************
- * diskonchip docg4 flash
- ******************************************************************************/
-#if defined(CONFIG_MACH_TREO680)
-/* REVISIT: does the centro have this device also? */
-#if IS_ENABLED(CONFIG_MTD_NAND_DOCG4)
-static struct resource docg4_resources[] = {
-	{
-		.start	= 0x00000000,
-		.end	= 0x00001FFF,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct platform_device treo680_docg4_flash = {
-	.name   = "docg4",
-	.id     = -1,
-	.resource = docg4_resources,
-	.num_resources = ARRAY_SIZE(docg4_resources),
-};
-
-static void __init treo680_docg4_flash_init(void)
-{
-	platform_device_register(&treo680_docg4_flash);
-}
-#else
-static inline void treo680_docg4_flash_init(void) {}
-#endif
-#endif
-
-/******************************************************************************
  * Machine init
  ******************************************************************************/
 static void __init treo_reserve(void)
@@ -510,24 +476,46 @@ void __init treo680_gpio_init(void)
 	gpio_free(GPIO_NR_TREO680_LCD_EN_N);
 }
 
+static struct gpiod_lookup_table treo680_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_TREO_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_TREO680_SD_READONLY,
+			    "wp", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_TREO680_SD_POWER,
+			    "power", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 static void __init treo680_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(treo680_pin_config));
 	palmphone_common_init();
 	treo680_gpio_init();
-	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, GPIO_NR_TREO680_SD_READONLY,
-			GPIO_NR_TREO680_SD_POWER, 0);
-	treo680_docg4_flash_init();
+	palm27x_mmc_init(&treo680_mci_gpio_table);
 }
 #endif
 
 #ifdef CONFIG_MACH_CENTRO
+
+static struct gpiod_lookup_table centro685_mci_gpio_table = {
+	.dev_id = "pxa2xx-mci.0",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_TREO_SD_DETECT_N,
+			    "cd", GPIO_ACTIVE_LOW),
+		GPIO_LOOKUP("gpio-pxa", GPIO_NR_CENTRO_SD_POWER,
+			    "power", GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init centro_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(centro685_pin_config));
 	palmphone_common_init();
-	palm27x_mmc_init(GPIO_NR_TREO_SD_DETECT_N, -1,
-			GPIO_NR_CENTRO_SD_POWER, 1);
+	palm27x_mmc_init(&centro685_mci_gpio_table);
 }
 #endif
 

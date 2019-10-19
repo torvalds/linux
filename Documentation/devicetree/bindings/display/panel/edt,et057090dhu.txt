@@ -1,7 +1,0 @@
-Emerging Display Technology Corp. 5.7" VGA TFT LCD panel
-
-Required properties:
-- compatible: should be "edt,et057090dhu"
-
-This binding is compatible with the simple-panel binding, which is specified
-in simple-panel.txt in this directory.

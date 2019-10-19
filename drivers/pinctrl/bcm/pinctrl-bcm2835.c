@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * Driver for Broadcom BCM2835 GPIO unit (pinctrl + GPIO)
  *
@@ -6,16 +7,6 @@
  * This driver is inspired by:
  * pinctrl-nomadik.c, please see original file for copyright information
  * pinctrl-tegra.c, please see original file for copyright information
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/bitmap.h>
@@ -36,11 +27,13 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
+#include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
+#include <dt-bindings/pinctrl/bcm2835.h>
 
 #define MODULE_NAME "pinctrl-bcm2835"
 #define BCM2835_NUM_GPIOS 54
@@ -64,25 +57,27 @@
 #define GPAFEN0		0x88	/* Pin Async Falling Edge Detect */
 #define GPPUD		0x94	/* Pin Pull-up/down Enable */
 #define GPPUDCLK0	0x98	/* Pin Pull-up/down Enable Clock */
+#define GP_GPIO_PUP_PDN_CNTRL_REG0 0xe4 /* 2711 Pin Pull-up/down select */
 
 #define FSEL_REG(p)		(GPFSEL0 + (((p) / 10) * 4))
 #define FSEL_SHIFT(p)		(((p) % 10) * 3)
 #define GPIO_REG_OFFSET(p)	((p) / 32)
 #define GPIO_REG_SHIFT(p)	((p) % 32)
 
-enum bcm2835_pinconf_param {
-	/* argument: bcm2835_pinconf_pull */
-	BCM2835_PINCONF_PARAM_PULL,
-};
+#define PUD_2711_MASK		0x3
+#define PUD_2711_REG_OFFSET(p)	((p) / 16)
+#define PUD_2711_REG_SHIFT(p)	(((p) % 16) * 2)
 
-#define BCM2835_PINCONF_PACK(_param_, _arg_) ((_param_) << 16 | (_arg_))
-#define BCM2835_PINCONF_UNPACK_PARAM(_conf_) ((_conf_) >> 16)
-#define BCM2835_PINCONF_UNPACK_ARG(_conf_) ((_conf_) & 0xffff)
+/* argument: bcm2835_pinconf_pull */
+#define BCM2835_PINCONF_PARAM_PULL	(PIN_CONFIG_END + 1)
+
+#define BCM2711_PULL_NONE	0x0
+#define BCM2711_PULL_UP		0x1
+#define BCM2711_PULL_DOWN	0x2
 
 struct bcm2835_pinctrl {
 	struct device *dev;
 	void __iomem *base;
-	int irq[BCM2835_NUM_IRQS];
 
 	/* note: locking assumes each bank will have its own unsigned long */
 	unsigned long enabled_irq_map[BCM2835_NUM_BANKS];
@@ -92,7 +87,7 @@ struct bcm2835_pinctrl {
 	struct gpio_chip gpio_chip;
 	struct pinctrl_gpio_range gpio_range;
 
-	spinlock_t irq_lock[BCM2835_NUM_BANKS];
+	raw_spinlock_t irq_lock[BCM2835_NUM_BANKS];
 };
 
 /* pins are just named GPIO0..GPIO53 */
@@ -213,14 +208,6 @@ static const char * const bcm2835_gpio_groups[] = {
 };
 
 enum bcm2835_fsel {
-	BCM2835_FSEL_GPIO_IN = 0,
-	BCM2835_FSEL_GPIO_OUT = 1,
-	BCM2835_FSEL_ALT0 = 4,
-	BCM2835_FSEL_ALT1 = 5,
-	BCM2835_FSEL_ALT2 = 6,
-	BCM2835_FSEL_ALT3 = 7,
-	BCM2835_FSEL_ALT4 = 3,
-	BCM2835_FSEL_ALT5 = 2,
 	BCM2835_FSEL_COUNT = 8,
 	BCM2835_FSEL_MASK = 0x7,
 };
@@ -362,6 +349,7 @@ static const struct gpio_chip bcm2835_gpio_chip = {
 	.get_direction = bcm2835_gpio_get_direction,
 	.get = bcm2835_gpio_get,
 	.set = bcm2835_gpio_set,
+	.set_config = gpiochip_generic_config,
 	.base = -1,
 	.ngpio = BCM2835_NUM_GPIOS,
 	.can_sleep = false,
@@ -393,14 +381,14 @@ static void bcm2835_gpio_irq_handler(struct irq_desc *desc)
 	int group;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pc->irq); i++) {
-		if (pc->irq[i] == irq) {
+	for (i = 0; i < BCM2835_NUM_IRQS; i++) {
+		if (chip->irq.parents[i] == irq) {
 			group = i;
 			break;
 		}
 	}
 	/* This should not happen, every IRQ has a bank */
-	if (i == ARRAY_SIZE(pc->irq))
+	if (i == BCM2835_NUM_IRQS)
 		BUG();
 
 	chained_irq_enter(host_chip, desc);
@@ -471,10 +459,10 @@ static void bcm2835_gpio_irq_enable(struct irq_data *data)
 	unsigned bank = GPIO_REG_OFFSET(gpio);
 	unsigned long flags;
 
-	spin_lock_irqsave(&pc->irq_lock[bank], flags);
+	raw_spin_lock_irqsave(&pc->irq_lock[bank], flags);
 	set_bit(offset, &pc->enabled_irq_map[bank]);
 	bcm2835_gpio_irq_config(pc, gpio, true);
-	spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
+	raw_spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
 }
 
 static void bcm2835_gpio_irq_disable(struct irq_data *data)
@@ -486,12 +474,12 @@ static void bcm2835_gpio_irq_disable(struct irq_data *data)
 	unsigned bank = GPIO_REG_OFFSET(gpio);
 	unsigned long flags;
 
-	spin_lock_irqsave(&pc->irq_lock[bank], flags);
+	raw_spin_lock_irqsave(&pc->irq_lock[bank], flags);
 	bcm2835_gpio_irq_config(pc, gpio, false);
 	/* Clear events that were latched prior to clearing event sources */
 	bcm2835_gpio_set_bit(pc, GPEDS0, gpio);
 	clear_bit(offset, &pc->enabled_irq_map[bank]);
-	spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
+	raw_spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
 }
 
 static int __bcm2835_gpio_irq_set_type_disabled(struct bcm2835_pinctrl *pc,
@@ -594,7 +582,7 @@ static int bcm2835_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&pc->irq_lock[bank], flags);
+	raw_spin_lock_irqsave(&pc->irq_lock[bank], flags);
 
 	if (test_bit(offset, &pc->enabled_irq_map[bank]))
 		ret = __bcm2835_gpio_irq_set_type_enabled(pc, gpio, type);
@@ -606,7 +594,7 @@ static int bcm2835_gpio_irq_set_type(struct irq_data *data, unsigned int type)
 	else
 		irq_set_handler_locked(data, handle_level_irq);
 
-	spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
+	raw_spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
 
 	return ret;
 }
@@ -714,7 +702,7 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 	configs = kzalloc(sizeof(*configs), GFP_KERNEL);
 	if (!configs)
 		return -ENOMEM;
-	configs[0] = BCM2835_PINCONF_PACK(BCM2835_PINCONF_PARAM_PULL, pull);
+	configs[0] = pinconf_to_config_packed(BCM2835_PINCONF_PARAM_PULL, pull);
 
 	map->type = PIN_MAP_TYPE_CONFIGS_PIN;
 	map->data.configs.group_or_pin = bcm2835_gpio_pins[pin].name;
@@ -727,7 +715,7 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 
 static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np,
-		struct pinctrl_map **map, unsigned *num_maps)
+		struct pinctrl_map **map, unsigned int *num_maps)
 {
 	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
 	struct property *pins, *funcs, *pulls;
@@ -736,6 +724,12 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	int i, err;
 	u32 pin, func, pull;
 
+	/* Check for generic binding in this node */
+	err = pinconf_generic_dt_node_to_map_all(pctldev, np, map, num_maps);
+	if (err || *num_maps)
+		return err;
+
+	/* Generic binding did not find anything continue with legacy parse */
 	pins = of_find_property(np, "brcm,pins", NULL);
 	if (!pins) {
 		dev_err(pc->dev, "%pOF: missing brcm,pins property\n", np);
@@ -775,8 +769,8 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		maps_per_pin++;
 	if (num_pulls)
 		maps_per_pin++;
-	cur_map = maps = kzalloc(num_pins * maps_per_pin * sizeof(*maps),
-				GFP_KERNEL);
+	cur_map = maps = kcalloc(num_pins * maps_per_pin, sizeof(*maps),
+				 GFP_KERNEL);
 	if (!maps)
 		return -ENOMEM;
 
@@ -917,45 +911,147 @@ static int bcm2835_pinconf_get(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
+static void bcm2835_pull_config_set(struct bcm2835_pinctrl *pc,
+		unsigned int pin, unsigned int arg)
+{
+	u32 off, bit;
+
+	off = GPIO_REG_OFFSET(pin);
+	bit = GPIO_REG_SHIFT(pin);
+
+	bcm2835_gpio_wr(pc, GPPUD, arg & 3);
+	/*
+	 * BCM2835 datasheet say to wait 150 cycles, but not of what.
+	 * But the VideoCore firmware delay for this operation
+	 * based nearly on the same amount of VPU cycles and this clock
+	 * runs at 250 MHz.
+	 */
+	udelay(1);
+	bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), BIT(bit));
+	udelay(1);
+	bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), 0);
+}
+
 static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
-			unsigned pin, unsigned long *configs,
-			unsigned num_configs)
+			unsigned int pin, unsigned long *configs,
+			unsigned int num_configs)
 {
 	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
-	enum bcm2835_pinconf_param param;
-	u16 arg;
-	u32 off, bit;
+	u32 param, arg;
 	int i;
 
 	for (i = 0; i < num_configs; i++) {
-		param = BCM2835_PINCONF_UNPACK_PARAM(configs[i]);
-		arg = BCM2835_PINCONF_UNPACK_ARG(configs[i]);
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
 
-		if (param != BCM2835_PINCONF_PARAM_PULL)
-			return -EINVAL;
+		switch (param) {
+		/* Set legacy brcm,pull */
+		case BCM2835_PINCONF_PARAM_PULL:
+			bcm2835_pull_config_set(pc, pin, arg);
+			break;
 
-		off = GPIO_REG_OFFSET(pin);
-		bit = GPIO_REG_SHIFT(pin);
+		/* Set pull generic bindings */
+		case PIN_CONFIG_BIAS_DISABLE:
+			bcm2835_pull_config_set(pc, pin, BCM2835_PUD_OFF);
+			break;
 
-		bcm2835_gpio_wr(pc, GPPUD, arg & 3);
-		/*
-		 * BCM2835 datasheet say to wait 150 cycles, but not of what.
-		 * But the VideoCore firmware delay for this operation
-		 * based nearly on the same amount of VPU cycles and this clock
-		 * runs at 250 MHz.
-		 */
-		udelay(1);
-		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), BIT(bit));
-		udelay(1);
-		bcm2835_gpio_wr(pc, GPPUDCLK0 + (off * 4), 0);
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			bcm2835_pull_config_set(pc, pin, BCM2835_PUD_DOWN);
+			break;
+
+		case PIN_CONFIG_BIAS_PULL_UP:
+			bcm2835_pull_config_set(pc, pin, BCM2835_PUD_UP);
+			break;
+
+		/* Set output-high or output-low */
+		case PIN_CONFIG_OUTPUT:
+			bcm2835_gpio_set_bit(pc, arg ? GPSET0 : GPCLR0, pin);
+			break;
+
+		default:
+			return -ENOTSUPP;
+
+		} /* switch param type */
 	} /* for each config */
 
 	return 0;
 }
 
 static const struct pinconf_ops bcm2835_pinconf_ops = {
+	.is_generic = true,
 	.pin_config_get = bcm2835_pinconf_get,
 	.pin_config_set = bcm2835_pinconf_set,
+};
+
+static void bcm2711_pull_config_set(struct bcm2835_pinctrl *pc,
+				    unsigned int pin, unsigned int arg)
+{
+	u32 shifter;
+	u32 value;
+	u32 off;
+
+	off = PUD_2711_REG_OFFSET(pin);
+	shifter = PUD_2711_REG_SHIFT(pin);
+
+	value = bcm2835_gpio_rd(pc, GP_GPIO_PUP_PDN_CNTRL_REG0 + (off * 4));
+	value &= ~(PUD_2711_MASK << shifter);
+	value |= (arg << shifter);
+	bcm2835_gpio_wr(pc, GP_GPIO_PUP_PDN_CNTRL_REG0 + (off * 4), value);
+}
+
+static int bcm2711_pinconf_set(struct pinctrl_dev *pctldev,
+			       unsigned int pin, unsigned long *configs,
+			       unsigned int num_configs)
+{
+	struct bcm2835_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
+	u32 param, arg;
+	int i;
+
+	for (i = 0; i < num_configs; i++) {
+		param = pinconf_to_config_param(configs[i]);
+		arg = pinconf_to_config_argument(configs[i]);
+
+		switch (param) {
+		/* convert legacy brcm,pull */
+		case BCM2835_PINCONF_PARAM_PULL:
+			if (arg == BCM2835_PUD_UP)
+				arg = BCM2711_PULL_UP;
+			else if (arg == BCM2835_PUD_DOWN)
+				arg = BCM2711_PULL_DOWN;
+			else
+				arg = BCM2711_PULL_NONE;
+
+			bcm2711_pull_config_set(pc, pin, arg);
+			break;
+
+		/* Set pull generic bindings */
+		case PIN_CONFIG_BIAS_DISABLE:
+			bcm2711_pull_config_set(pc, pin, BCM2711_PULL_NONE);
+			break;
+		case PIN_CONFIG_BIAS_PULL_DOWN:
+			bcm2711_pull_config_set(pc, pin, BCM2711_PULL_DOWN);
+			break;
+		case PIN_CONFIG_BIAS_PULL_UP:
+			bcm2711_pull_config_set(pc, pin, BCM2711_PULL_UP);
+			break;
+
+		/* Set output-high or output-low */
+		case PIN_CONFIG_OUTPUT:
+			bcm2835_gpio_set_bit(pc, arg ? GPSET0 : GPCLR0, pin);
+			break;
+
+		default:
+			return -ENOTSUPP;
+		}
+	} /* for each config */
+
+	return 0;
+}
+
+static const struct pinconf_ops bcm2711_pinconf_ops = {
+	.is_generic = true,
+	.pin_config_get = bcm2835_pinconf_get,
+	.pin_config_set = bcm2711_pinconf_set,
 };
 
 static struct pinctrl_desc bcm2835_pinctrl_desc = {
@@ -973,13 +1069,28 @@ static struct pinctrl_gpio_range bcm2835_pinctrl_gpio_range = {
 	.npins = BCM2835_NUM_GPIOS,
 };
 
+static const struct of_device_id bcm2835_pinctrl_match[] = {
+	{
+		.compatible = "brcm,bcm2835-gpio",
+		.data = &bcm2835_pinconf_ops,
+	},
+	{
+		.compatible = "brcm,bcm2711-gpio",
+		.data = &bcm2711_pinconf_ops,
+	},
+	{}
+};
+
 static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
 	struct bcm2835_pinctrl *pc;
+	struct gpio_irq_chip *girq;
 	struct resource iomem;
 	int err, i;
+	const struct of_device_id *match;
+
 	BUILD_BUG_ON(ARRAY_SIZE(bcm2835_gpio_pins) != BCM2835_NUM_GPIOS);
 	BUILD_BUG_ON(ARRAY_SIZE(bcm2835_gpio_groups) != BCM2835_NUM_GPIOS);
 
@@ -1021,8 +1132,29 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 		for_each_set_bit(offset, &events, 32)
 			bcm2835_gpio_wr(pc, GPEDS0 + i * 4, BIT(offset));
 
-		spin_lock_init(&pc->irq_lock[i]);
+		raw_spin_lock_init(&pc->irq_lock[i]);
 	}
+
+	girq = &pc->gpio_chip.irq;
+	girq->chip = &bcm2835_gpio_irq_chip;
+	girq->parent_handler = bcm2835_gpio_irq_handler;
+	girq->num_parents = BCM2835_NUM_IRQS;
+	girq->parents = devm_kcalloc(dev, BCM2835_NUM_IRQS,
+				     sizeof(*girq->parents),
+				     GFP_KERNEL);
+	if (!girq->parents)
+		return -ENOMEM;
+	/*
+	 * Use the same handler for all groups: this is necessary
+	 * since we use one gpiochip to cover all lines - the
+	 * irq handler then needs to figure out which group and
+	 * bank that was firing the IRQ and look up the per-group
+	 * and bank data.
+	 */
+	for (i = 0; i < BCM2835_NUM_IRQS; i++)
+		girq->parents[i] = irq_of_parse_and_map(np, i);
+	girq->default_type = IRQ_TYPE_NONE;
+	girq->handler = handle_level_irq;
 
 	err = gpiochip_add_data(&pc->gpio_chip, pc);
 	if (err) {
@@ -1030,30 +1162,10 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	err = gpiochip_irqchip_add(&pc->gpio_chip, &bcm2835_gpio_irq_chip,
-				   0, handle_level_irq, IRQ_TYPE_NONE);
-	if (err) {
-		dev_info(dev, "could not add irqchip\n");
-		return err;
-	}
-
-	for (i = 0; i < BCM2835_NUM_IRQS; i++) {
-		pc->irq[i] = irq_of_parse_and_map(np, i);
-
-		if (pc->irq[i] == 0)
-			continue;
-
-		/*
-		 * Use the same handler for all groups: this is necessary
-		 * since we use one gpiochip to cover all lines - the
-		 * irq handler then needs to figure out which group and
-		 * bank that was firing the IRQ and look up the per-group
-		 * and bank data.
-		 */
-		gpiochip_set_chained_irqchip(&pc->gpio_chip,
-					     &bcm2835_gpio_irq_chip,
-					     pc->irq[i],
-					     bcm2835_gpio_irq_handler);
+	match = of_match_node(bcm2835_pinctrl_match, pdev->dev.of_node);
+	if (match) {
+		bcm2835_pinctrl_desc.confops =
+			(const struct pinconf_ops *)match->data;
 	}
 
 	pc->pctl_dev = devm_pinctrl_register(dev, &bcm2835_pinctrl_desc, pc);
@@ -1069,11 +1181,6 @@ static int bcm2835_pinctrl_probe(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id bcm2835_pinctrl_match[] = {
-	{ .compatible = "brcm,bcm2835-gpio" },
-	{}
-};
 
 static struct platform_driver bcm2835_pinctrl_driver = {
 	.probe = bcm2835_pinctrl_probe,

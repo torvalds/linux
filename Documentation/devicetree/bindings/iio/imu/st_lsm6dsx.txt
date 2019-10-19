@@ -6,11 +6,20 @@ Required properties:
   "st,lsm6ds3h"
   "st,lsm6dsl"
   "st,lsm6dsm"
+  "st,ism330dlc"
+  "st,lsm6dso"
+  "st,asm330lhh"
+  "st,lsm6dsox"
+  "st,lsm6dsr"
+  "st,lsm6ds3tr-c"
+  "st,ism330dhcx"
+  "st,lsm9ds1-imu"
 - reg: i2c address of the sensor / spi cs line
 
 Optional properties:
 - st,drdy-int-pin: the pin on the package that will be used to signal
   "data ready" (valid values: 1 or 2).
+- st,pullups : enable/disable internal i2c controller pullup resistors.
 - drive-open-drain: the interrupt/data ready line will be configured
   as open drain, which is useful if several sensors share the same
   interrupt line. This is a boolean property.
@@ -19,7 +28,6 @@ Optional properties:
   IRQ_TYPE_EDGE_RISING a pull-down resistor is needed to drive the line
   when it is not active, whereas a pull-up one is needed when interrupt
   line is configured as IRQ_TYPE_LEVEL_LOW or IRQ_TYPE_EDGE_FALLING.
-- interrupt-parent: should be the phandle for the interrupt controller
 - interrupts: interrupt mapping for IRQ. It should be configured with
   flags IRQ_TYPE_LEVEL_HIGH, IRQ_TYPE_EDGE_RISING, IRQ_TYPE_LEVEL_LOW or
   IRQ_TYPE_EDGE_FALLING.

@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
  * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
  */
 
 /* File aq_hw.h: Declaration of abstract interface for NIC hardware specific
@@ -18,14 +15,27 @@
 #include "aq_rss.h"
 #include "hw_atl/hw_atl_utils.h"
 
+#define AQ_RX_FIRST_LOC_FVLANID     0U
+#define AQ_RX_LAST_LOC_FVLANID	   15U
+#define AQ_RX_FIRST_LOC_FETHERT    16U
+#define AQ_RX_LAST_LOC_FETHERT	   31U
+#define AQ_RX_FIRST_LOC_FL3L4	   32U
+#define AQ_RX_LAST_LOC_FL3L4	   39U
+#define AQ_RX_MAX_RXNFC_LOC	   AQ_RX_LAST_LOC_FL3L4
+#define AQ_VLAN_MAX_FILTERS   \
+			(AQ_RX_LAST_LOC_FVLANID - AQ_RX_FIRST_LOC_FVLANID + 1U)
+#define AQ_RX_QUEUE_NOT_ASSIGNED   0xFFU
+
 /* NIC H/W capabilities */
 struct aq_hw_caps_s {
 	u64 hw_features;
 	u64 link_speed_msk;
 	unsigned int hw_priv_flags;
 	u32 media_type;
-	u32 rxds;
-	u32 txds;
+	u32 rxds_max;
+	u32 txds_max;
+	u32 rxds_min;
+	u32 txds_min;
 	u32 txhwb_alignment;
 	u32 irq_mask;
 	u32 vecs;
@@ -75,6 +85,8 @@ struct aq_stats_s {
 #define AQ_HW_IRQ_MSI     2U
 #define AQ_HW_IRQ_MSIX    3U
 
+#define AQ_HW_SERVICE_IRQS   1U
+
 #define AQ_HW_POWER_STATE_D0   0U
 #define AQ_HW_POWER_STATE_D3   3U
 
@@ -98,6 +110,11 @@ struct aq_stats_s {
 #define AQ_HW_MEDIA_TYPE_TP    1U
 #define AQ_HW_MEDIA_TYPE_FIBRE 2U
 
+#define AQ_HW_TXD_MULTIPLE 8U
+#define AQ_HW_RXD_MULTIPLE 8U
+
+#define AQ_HW_MULTICAST_ADDRESS_MAX     32U
+
 struct aq_hw_s {
 	atomic_t flags;
 	u8 rbl_enabled:1;
@@ -105,7 +122,7 @@ struct aq_hw_s {
 	const struct aq_fw_ops *aq_fw_ops;
 	void __iomem *mmio;
 	struct aq_hw_link_status_s aq_link_status;
-	struct hw_aq_atl_utils_mbox mbox;
+	struct hw_atl_utils_mbox mbox;
 	struct hw_atl_stats_s last_stats;
 	struct aq_stats_s curr_stats;
 	u64 speed;
@@ -117,12 +134,13 @@ struct aq_hw_s {
 	u32 mbox_addr;
 	u32 rpc_addr;
 	u32 rpc_tid;
-	struct hw_aq_atl_utils_fw_rpc rpc;
+	struct hw_atl_utils_fw_rpc rpc;
 };
 
 struct aq_ring_s;
 struct aq_ring_param_s;
 struct sk_buff;
+struct aq_rx_filter_l3l4;
 
 struct aq_hw_ops {
 
@@ -176,8 +194,25 @@ struct aq_hw_ops {
 	int (*hw_packet_filter_set)(struct aq_hw_s *self,
 				    unsigned int packet_filter);
 
+	int (*hw_filter_l3l4_set)(struct aq_hw_s *self,
+				  struct aq_rx_filter_l3l4 *data);
+
+	int (*hw_filter_l3l4_clear)(struct aq_hw_s *self,
+				    struct aq_rx_filter_l3l4 *data);
+
+	int (*hw_filter_l2_set)(struct aq_hw_s *self,
+				struct aq_rx_filter_l2 *data);
+
+	int (*hw_filter_l2_clear)(struct aq_hw_s *self,
+				  struct aq_rx_filter_l2 *data);
+
+	int (*hw_filter_vlan_set)(struct aq_hw_s *self,
+				  struct aq_rx_filter_vlan *aq_vlans);
+
+	int (*hw_filter_vlan_ctrl)(struct aq_hw_s *self, bool enable);
+
 	int (*hw_multicast_list_set)(struct aq_hw_s *self,
-				     u8 ar_mac[AQ_CFG_MULTICAST_ADDRESS_MAX]
+				     u8 ar_mac[AQ_HW_MULTICAST_ADDRESS_MAX]
 				     [ETH_ALEN],
 				     u32 count);
 
@@ -197,25 +232,45 @@ struct aq_hw_ops {
 
 	int (*hw_get_fw_version)(struct aq_hw_s *self, u32 *fw_version);
 
-	int (*hw_deinit)(struct aq_hw_s *self);
+	int (*hw_set_offload)(struct aq_hw_s *self,
+			      struct aq_nic_cfg_s *aq_nic_cfg);
 
-	int (*hw_set_power)(struct aq_hw_s *self, unsigned int power_state);
+	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
 };
 
 struct aq_fw_ops {
 	int (*init)(struct aq_hw_s *self);
 
+	int (*deinit)(struct aq_hw_s *self);
+
 	int (*reset)(struct aq_hw_s *self);
+
+	int (*renegotiate)(struct aq_hw_s *self);
 
 	int (*get_mac_permanent)(struct aq_hw_s *self, u8 *mac);
 
 	int (*set_link_speed)(struct aq_hw_s *self, u32 speed);
 
-	int (*set_state)(struct aq_hw_s *self, enum hal_atl_utils_fw_state_e state);
+	int (*set_state)(struct aq_hw_s *self,
+			 enum hal_atl_utils_fw_state_e state);
 
 	int (*update_link_status)(struct aq_hw_s *self);
 
 	int (*update_stats)(struct aq_hw_s *self);
+
+	int (*get_phy_temp)(struct aq_hw_s *self, int *temp);
+
+	u32 (*get_flow_control)(struct aq_hw_s *self, u32 *fcmode);
+
+	int (*set_flow_control)(struct aq_hw_s *self);
+
+	int (*set_power)(struct aq_hw_s *self, unsigned int power_state,
+			 u8 *mac);
+
+	int (*set_eee_rate)(struct aq_hw_s *self, u32 speed);
+
+	int (*get_eee_rate)(struct aq_hw_s *self, u32 *rate,
+			    u32 *supported_rates);
 };
 
 #endif /* AQ_HW_H */

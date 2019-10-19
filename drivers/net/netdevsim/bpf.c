@@ -27,7 +27,7 @@
 	bpf_verifier_log_write(env, "[netdevsim] " fmt, ##__VA_ARGS__)
 
 struct nsim_bpf_bound_prog {
-	struct netdevsim *ns;
+	struct nsim_dev *nsim_dev;
 	struct bpf_prog *prog;
 	struct dentry *ddir;
 	const char *state;
@@ -48,7 +48,7 @@ struct nsim_bpf_bound_map {
 	struct list_head l;
 };
 
-static int nsim_debugfs_bpf_string_read(struct seq_file *file, void *data)
+static int nsim_bpf_string_show(struct seq_file *file, void *data)
 {
 	const char **str = file->private;
 
@@ -57,19 +57,7 @@ static int nsim_debugfs_bpf_string_read(struct seq_file *file, void *data)
 
 	return 0;
 }
-
-static int nsim_debugfs_bpf_string_open(struct inode *inode, struct file *f)
-{
-	return single_open(f, nsim_debugfs_bpf_string_read, inode->i_private);
-}
-
-static const struct file_operations nsim_bpf_string_fops = {
-	.owner = THIS_MODULE,
-	.open = nsim_debugfs_bpf_string_open,
-	.release = single_release,
-	.read = seq_read,
-	.llseek = seq_lseek
-};
+DEFINE_SHOW_ATTRIBUTE(nsim_bpf_string);
 
 static int
 nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
@@ -77,8 +65,8 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	struct nsim_bpf_bound_prog *state;
 
 	state = env->prog->aux->offload->dev_priv;
-	if (state->ns->bpf_bind_verifier_delay && !insn_idx)
-		msleep(state->ns->bpf_bind_verifier_delay);
+	if (state->nsim_dev->bpf_bind_verifier_delay && !insn_idx)
+		msleep(state->nsim_dev->bpf_bind_verifier_delay);
 
 	if (insn_idx == env->prog->len - 1)
 		pr_vlog(env, "Hello from netdevsim!\n");
@@ -86,13 +74,14 @@ nsim_bpf_verify_insn(struct bpf_verifier_env *env, int insn_idx, int prev_insn)
 	return 0;
 }
 
-static const struct bpf_prog_offload_ops nsim_bpf_analyzer_ops = {
-	.insn_hook = nsim_bpf_verify_insn,
-};
+static int nsim_bpf_finalize(struct bpf_verifier_env *env)
+{
+	return 0;
+}
 
 static bool nsim_xdp_offload_active(struct netdevsim *ns)
 {
-	return ns->xdp_prog_mode == XDP_ATTACHED_HW;
+	return ns->xdp_hw.prog;
 }
 
 static void nsim_prog_set_loaded(struct bpf_prog *prog, bool loaded)
@@ -195,14 +184,14 @@ static int nsim_xdp_offload_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
 	return nsim_bpf_offload(ns, bpf->prog, nsim_xdp_offload_active(ns));
 }
 
-static int nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
+static int
+nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf,
+		  struct xdp_attachment_info *xdp)
 {
 	int err;
 
-	if (ns->xdp_prog && (bpf->flags ^ ns->xdp_flags) & XDP_FLAGS_MODES) {
-		NSIM_EA(bpf->extack, "program loaded with different flags");
+	if (!xdp_attachment_flags_ok(xdp, bpf))
 		return -EBUSY;
-	}
 
 	if (bpf->command == XDP_SETUP_PROG && !ns->bpf_xdpdrv_accept) {
 		NSIM_EA(bpf->extack, "driver XDP disabled in DebugFS");
@@ -219,23 +208,13 @@ static int nsim_xdp_set_prog(struct netdevsim *ns, struct netdev_bpf *bpf)
 			return err;
 	}
 
-	if (ns->xdp_prog)
-		bpf_prog_put(ns->xdp_prog);
-
-	ns->xdp_prog = bpf->prog;
-	ns->xdp_flags = bpf->flags;
-
-	if (!bpf->prog)
-		ns->xdp_prog_mode = XDP_ATTACHED_NONE;
-	else if (bpf->command == XDP_SETUP_PROG)
-		ns->xdp_prog_mode = XDP_ATTACHED_DRV;
-	else
-		ns->xdp_prog_mode = XDP_ATTACHED_HW;
+	xdp_attachment_setup(xdp, bpf);
 
 	return 0;
 }
 
-static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
+static int nsim_bpf_create_prog(struct nsim_dev *nsim_dev,
+				struct bpf_prog *prog)
 {
 	struct nsim_bpf_bound_prog *state;
 	char name[16];
@@ -244,13 +223,13 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 	if (!state)
 		return -ENOMEM;
 
-	state->ns = ns;
+	state->nsim_dev = nsim_dev;
 	state->prog = prog;
 	state->state = "verify";
 
 	/* Program id is not populated yet when we create the state. */
-	sprintf(name, "%u", ns->prog_id_gen++);
-	state->ddir = debugfs_create_dir(name, ns->ddir_bpf_bound_progs);
+	sprintf(name, "%u", nsim_dev->prog_id_gen++);
+	state->ddir = debugfs_create_dir(name, nsim_dev->ddir_bpf_bound_progs);
 	if (IS_ERR_OR_NULL(state->ddir)) {
 		kfree(state);
 		return -ENOMEM;
@@ -261,10 +240,29 @@ static int nsim_bpf_create_prog(struct netdevsim *ns, struct bpf_prog *prog)
 			    &state->state, &nsim_bpf_string_fops);
 	debugfs_create_bool("loaded", 0400, state->ddir, &state->is_loaded);
 
-	list_add_tail(&state->l, &ns->bpf_bound_progs);
+	list_add_tail(&state->l, &nsim_dev->bpf_bound_progs);
 
 	prog->aux->offload->dev_priv = state;
 
+	return 0;
+}
+
+static int nsim_bpf_verifier_prep(struct bpf_prog *prog)
+{
+	struct nsim_dev *nsim_dev =
+			bpf_offload_dev_priv(prog->aux->offload->offdev);
+
+	if (!nsim_dev->bpf_bind_accept)
+		return -EOPNOTSUPP;
+
+	return nsim_bpf_create_prog(nsim_dev, prog);
+}
+
+static int nsim_bpf_translate(struct bpf_prog *prog)
+{
+	struct nsim_bpf_bound_prog *state = prog->aux->offload->dev_priv;
+
+	state->state = "xlated";
 	return 0;
 }
 
@@ -280,6 +278,14 @@ static void nsim_bpf_destroy_prog(struct bpf_prog *prog)
 	kfree(state);
 }
 
+static const struct bpf_prog_offload_ops nsim_bpf_dev_ops = {
+	.insn_hook	= nsim_bpf_verify_insn,
+	.finalize	= nsim_bpf_finalize,
+	.prepare	= nsim_bpf_verifier_prep,
+	.translate	= nsim_bpf_translate,
+	.destroy	= nsim_bpf_destroy_prog,
+};
+
 static int nsim_setup_prog_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 {
 	if (bpf->prog && bpf->prog->aux->offload) {
@@ -289,10 +295,6 @@ static int nsim_setup_prog_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 	if (ns->netdev->mtu > NSIM_XDP_MAX_MTU) {
 		NSIM_EA(bpf->extack, "MTU too large w/ XDP enabled");
 		return -EINVAL;
-	}
-	if (nsim_xdp_offload_active(ns)) {
-		NSIM_EA(bpf->extack, "xdp offload active, can't load drv prog");
-		return -EBUSY;
 	}
 	return 0;
 }
@@ -309,7 +311,7 @@ nsim_setup_prog_hw_checks(struct netdevsim *ns, struct netdev_bpf *bpf)
 		NSIM_EA(bpf->extack, "xdpoffload of non-bound program");
 		return -EINVAL;
 	}
-	if (bpf->prog->aux->offload->netdev != ns->netdev) {
+	if (!bpf_offload_dev_match(bpf->prog, ns->netdev)) {
 		NSIM_EA(bpf->extack, "program bound to different dev");
 		return -EINVAL;
 	}
@@ -512,7 +514,7 @@ nsim_bpf_map_alloc(struct netdevsim *ns, struct bpf_offloaded_map *offmap)
 	}
 
 	offmap->dev_ops = &nsim_bpf_map_ops;
-	list_add_tail(&nmap->l, &ns->bpf_bound_maps);
+	list_add_tail(&nmap->l, &ns->nsim_dev->bpf_bound_maps);
 
 	return 0;
 
@@ -542,47 +544,27 @@ static void nsim_bpf_map_free(struct bpf_offloaded_map *offmap)
 int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 {
 	struct netdevsim *ns = netdev_priv(dev);
-	struct nsim_bpf_bound_prog *state;
 	int err;
 
 	ASSERT_RTNL();
 
 	switch (bpf->command) {
-	case BPF_OFFLOAD_VERIFIER_PREP:
-		if (!ns->bpf_bind_accept)
-			return -EOPNOTSUPP;
-
-		err = nsim_bpf_create_prog(ns, bpf->verifier.prog);
-		if (err)
-			return err;
-
-		bpf->verifier.ops = &nsim_bpf_analyzer_ops;
-		return 0;
-	case BPF_OFFLOAD_TRANSLATE:
-		state = bpf->offload.prog->aux->offload->dev_priv;
-
-		state->state = "xlated";
-		return 0;
-	case BPF_OFFLOAD_DESTROY:
-		nsim_bpf_destroy_prog(bpf->offload.prog);
-		return 0;
 	case XDP_QUERY_PROG:
-		bpf->prog_attached = ns->xdp_prog_mode;
-		bpf->prog_id = ns->xdp_prog ? ns->xdp_prog->aux->id : 0;
-		bpf->prog_flags = ns->xdp_prog ? ns->xdp_flags : 0;
-		return 0;
+		return xdp_attachment_query(&ns->xdp, bpf);
+	case XDP_QUERY_PROG_HW:
+		return xdp_attachment_query(&ns->xdp_hw, bpf);
 	case XDP_SETUP_PROG:
 		err = nsim_setup_prog_checks(ns, bpf);
 		if (err)
 			return err;
 
-		return nsim_xdp_set_prog(ns, bpf);
+		return nsim_xdp_set_prog(ns, bpf, &ns->xdp);
 	case XDP_SETUP_PROG_HW:
 		err = nsim_setup_prog_hw_checks(ns, bpf);
 		if (err)
 			return err;
 
-		return nsim_xdp_set_prog(ns, bpf);
+		return nsim_xdp_set_prog(ns, bpf, &ns->xdp_hw);
 	case BPF_OFFLOAD_MAP_ALLOC:
 		if (!ns->bpf_map_accept)
 			return -EOPNOTSUPP;
@@ -596,38 +578,65 @@ int nsim_bpf(struct net_device *dev, struct netdev_bpf *bpf)
 	}
 }
 
-int nsim_bpf_init(struct netdevsim *ns)
+int nsim_bpf_dev_init(struct nsim_dev *nsim_dev)
 {
-	INIT_LIST_HEAD(&ns->bpf_bound_progs);
-	INIT_LIST_HEAD(&ns->bpf_bound_maps);
+	int err;
 
-	debugfs_create_u32("bpf_offloaded_id", 0400, ns->ddir,
-			   &ns->bpf_offloaded_id);
+	INIT_LIST_HEAD(&nsim_dev->bpf_bound_progs);
+	INIT_LIST_HEAD(&nsim_dev->bpf_bound_maps);
 
-	ns->bpf_bind_accept = true;
-	debugfs_create_bool("bpf_bind_accept", 0600, ns->ddir,
-			    &ns->bpf_bind_accept);
-	debugfs_create_u32("bpf_bind_verifier_delay", 0600, ns->ddir,
-			   &ns->bpf_bind_verifier_delay);
-	ns->ddir_bpf_bound_progs =
-		debugfs_create_dir("bpf_bound_progs", ns->ddir);
-	if (IS_ERR_OR_NULL(ns->ddir_bpf_bound_progs))
+	nsim_dev->ddir_bpf_bound_progs = debugfs_create_dir("bpf_bound_progs",
+							    nsim_dev->ddir);
+	if (IS_ERR_OR_NULL(nsim_dev->ddir_bpf_bound_progs))
 		return -ENOMEM;
 
+	nsim_dev->bpf_dev = bpf_offload_dev_create(&nsim_bpf_dev_ops, nsim_dev);
+	err = PTR_ERR_OR_ZERO(nsim_dev->bpf_dev);
+	if (err)
+		return err;
+
+	nsim_dev->bpf_bind_accept = true;
+	debugfs_create_bool("bpf_bind_accept", 0600, nsim_dev->ddir,
+			    &nsim_dev->bpf_bind_accept);
+	debugfs_create_u32("bpf_bind_verifier_delay", 0600, nsim_dev->ddir,
+			   &nsim_dev->bpf_bind_verifier_delay);
+	return 0;
+}
+
+void nsim_bpf_dev_exit(struct nsim_dev *nsim_dev)
+{
+	WARN_ON(!list_empty(&nsim_dev->bpf_bound_progs));
+	WARN_ON(!list_empty(&nsim_dev->bpf_bound_maps));
+	bpf_offload_dev_destroy(nsim_dev->bpf_dev);
+}
+
+int nsim_bpf_init(struct netdevsim *ns)
+{
+	struct dentry *ddir = ns->nsim_dev_port->ddir;
+	int err;
+
+	err = bpf_offload_dev_netdev_register(ns->nsim_dev->bpf_dev,
+					      ns->netdev);
+	if (err)
+		return err;
+
+	debugfs_create_u32("bpf_offloaded_id", 0400, ddir,
+			   &ns->bpf_offloaded_id);
+
 	ns->bpf_tc_accept = true;
-	debugfs_create_bool("bpf_tc_accept", 0600, ns->ddir,
+	debugfs_create_bool("bpf_tc_accept", 0600, ddir,
 			    &ns->bpf_tc_accept);
-	debugfs_create_bool("bpf_tc_non_bound_accept", 0600, ns->ddir,
+	debugfs_create_bool("bpf_tc_non_bound_accept", 0600, ddir,
 			    &ns->bpf_tc_non_bound_accept);
 	ns->bpf_xdpdrv_accept = true;
-	debugfs_create_bool("bpf_xdpdrv_accept", 0600, ns->ddir,
+	debugfs_create_bool("bpf_xdpdrv_accept", 0600, ddir,
 			    &ns->bpf_xdpdrv_accept);
 	ns->bpf_xdpoffload_accept = true;
-	debugfs_create_bool("bpf_xdpoffload_accept", 0600, ns->ddir,
+	debugfs_create_bool("bpf_xdpoffload_accept", 0600, ddir,
 			    &ns->bpf_xdpoffload_accept);
 
 	ns->bpf_map_accept = true;
-	debugfs_create_bool("bpf_map_accept", 0600, ns->ddir,
+	debugfs_create_bool("bpf_map_accept", 0600, ddir,
 			    &ns->bpf_map_accept);
 
 	return 0;
@@ -635,8 +644,8 @@ int nsim_bpf_init(struct netdevsim *ns)
 
 void nsim_bpf_uninit(struct netdevsim *ns)
 {
-	WARN_ON(!list_empty(&ns->bpf_bound_progs));
-	WARN_ON(!list_empty(&ns->bpf_bound_maps));
-	WARN_ON(ns->xdp_prog);
+	WARN_ON(ns->xdp.prog);
+	WARN_ON(ns->xdp_hw.prog);
 	WARN_ON(ns->bpf_offloaded);
+	bpf_offload_dev_netdev_unregister(ns->nsim_dev->bpf_dev, ns->netdev);
 }

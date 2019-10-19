@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Siano core API module
  *
@@ -6,15 +7,6 @@
  *  author: Uri Shkolnik
  *
  *  Copyright (c), 2005-2008 Siano Mobile Silicon, Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation;
- *
- *  Software distributed under the License is distributed on an "AS IS"
- *  basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.
- *
- *  See the GNU General Public License for more details.
  */
 
 #include "smscoreapi.h"
@@ -415,8 +407,8 @@ EXPORT_SYMBOL_GPL(smscore_get_board_id);
 
 struct smscore_registry_entry_t {
 	struct list_head entry;
-	char			devpath[32];
-	int				mode;
+	char devpath[32];
+	int mode;
 	enum sms_device_type_st	type;
 };
 
@@ -442,7 +434,7 @@ static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 	     next != &g_smscore_registry;
 	     next = next->next) {
 		entry = (struct smscore_registry_entry_t *) next;
-		if (!strcmp(entry->devpath, devpath)) {
+		if (!strncmp(entry->devpath, devpath, sizeof(entry->devpath))) {
 			kmutex_unlock(&g_smscore_registrylock);
 			return entry;
 		}
@@ -450,7 +442,7 @@ static struct smscore_registry_entry_t *smscore_find_registry(char *devpath)
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (entry) {
 		entry->mode = default_mode;
-		strcpy(entry->devpath, devpath);
+		strscpy(entry->devpath, devpath, sizeof(entry->devpath));
 		list_add(&entry->entry, &g_smscore_registry);
 	} else
 		pr_err("failed to create smscore_registry.\n");
@@ -631,7 +623,8 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 
 	cb->p = buffer;
 	cb->offset_in_common = buffer - (u8 *) common_buffer;
-	cb->phys = common_buffer_phys + cb->offset_in_common;
+	if (common_buffer_phys)
+		cb->phys = common_buffer_phys + cb->offset_in_common;
 
 	return cb;
 }
@@ -648,6 +641,7 @@ smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
  */
 int smscore_register_device(struct smsdevice_params_t *params,
 			    struct smscore_device_t **coredev,
+			    gfp_t gfp_buf_flags,
 			    void *mdev)
 {
 	struct smscore_device_t *dev;
@@ -660,6 +654,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	dev->media_dev = mdev;
 #endif
+	dev->gfp_buf_flags = gfp_buf_flags;
 
 	/* init list entry so it could be safe in smscore_unregister_device */
 	INIT_LIST_HEAD(&dev->entry);
@@ -690,17 +685,21 @@ int smscore_register_device(struct smsdevice_params_t *params,
 
 	/* alloc common buffer */
 	dev->common_buffer_size = params->buffer_size * params->num_buffers;
-	dev->common_buffer = dma_alloc_coherent(NULL, dev->common_buffer_size,
-						&dev->common_buffer_phys,
-						GFP_KERNEL | GFP_DMA);
-	if (!dev->common_buffer) {
+	if (params->usb_device)
+		buffer = kzalloc(dev->common_buffer_size, GFP_KERNEL);
+	else
+		buffer = dma_alloc_coherent(params->device,
+					    dev->common_buffer_size,
+					    &dev->common_buffer_phys,
+					    GFP_KERNEL | dev->gfp_buf_flags);
+	if (!buffer) {
 		smscore_unregister_device(dev);
 		return -ENOMEM;
 	}
+	dev->common_buffer = buffer;
 
 	/* prepare dma buffers */
-	for (buffer = dev->common_buffer;
-	     dev->num_buffers < params->num_buffers;
+	for (; dev->num_buffers < params->num_buffers;
 	     dev->num_buffers++, buffer += params->buffer_size) {
 		struct smscore_buffer_t *cb;
 
@@ -720,6 +719,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	dev->board_id = SMS_BOARD_UNKNOWN;
 	dev->context = params->context;
 	dev->device = params->device;
+	dev->usb_device = params->usb_device;
 	dev->setmode_handler = params->setmode_handler;
 	dev->detectmode_handler = params->detectmode_handler;
 	dev->sendrequest_handler = params->sendrequest_handler;
@@ -727,7 +727,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	dev->postload_handler = params->postload_handler;
 
 	dev->device_flags = params->flags;
-	strcpy(dev->devpath, params->devpath);
+	strscpy(dev->devpath, params->devpath, sizeof(dev->devpath));
 
 	smscore_registry_settype(dev->devpath, params->device_type);
 
@@ -786,7 +786,7 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 		else {
 			buffer = kmalloc(sizeof(struct sms_msg_data2) +
 						SMS_DMA_ALIGNMENT,
-						GFP_KERNEL | GFP_DMA);
+						GFP_KERNEL | coredev->gfp_buf_flags);
 			if (buffer) {
 				struct sms_msg_data2 *msg =
 				(struct sms_msg_data2 *)
@@ -927,7 +927,7 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 	}
 
 	/* PAGE_SIZE buffer shall be enough and dma aligned */
-	msg = kmalloc(PAGE_SIZE, GFP_KERNEL | GFP_DMA);
+	msg = kmalloc(PAGE_SIZE, GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!msg)
 		return -ENOMEM;
 
@@ -1162,7 +1162,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 	}
 	pr_debug("read fw %s, buffer size=0x%zx\n", fw_filename, fw->size);
 	fw_buf = kmalloc(ALIGN(fw->size + sizeof(struct sms_firmware),
-			 SMS_ALLOC_ALIGNMENT), GFP_KERNEL | GFP_DMA);
+			 SMS_ALLOC_ALIGNMENT), GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!fw_buf) {
 		pr_err("failed to allocate firmware buffer\n");
 		rc = -ENOMEM;
@@ -1231,10 +1231,15 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 
 	pr_debug("freed %d buffers\n", num_buffers);
 
-	if (coredev->common_buffer)
-		dma_free_coherent(NULL, coredev->common_buffer_size,
-			coredev->common_buffer, coredev->common_buffer_phys);
-
+	if (coredev->common_buffer) {
+		if (coredev->usb_device)
+			kfree(coredev->common_buffer);
+		else
+			dma_free_coherent(coredev->device,
+					  coredev->common_buffer_size,
+					  coredev->common_buffer,
+					  coredev->common_buffer_phys);
+	}
 	kfree(coredev->fw_buf);
 
 	list_del(&coredev->entry);
@@ -1249,7 +1254,7 @@ EXPORT_SYMBOL_GPL(smscore_unregister_device);
 static int smscore_detect_mode(struct smscore_device_t *coredev)
 {
 	void *buffer = kmalloc(sizeof(struct sms_msg_hdr) + SMS_DMA_ALIGNMENT,
-			       GFP_KERNEL | GFP_DMA);
+			       GFP_KERNEL | coredev->gfp_buf_flags);
 	struct sms_msg_hdr *msg =
 		(struct sms_msg_hdr *) SMS_ALIGN_ADDRESS(buffer);
 	int rc;
@@ -1298,7 +1303,7 @@ static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 	int rc = 0;
 
 	buffer = kmalloc(sizeof(struct sms_msg_data) +
-			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
+			SMS_DMA_ALIGNMENT, GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -1387,7 +1392,7 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		coredev->device_flags &= ~SMS_DEVICE_NOT_READY;
 
 		buffer = kmalloc(sizeof(struct sms_msg_data) +
-				 SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
+				 SMS_DMA_ALIGNMENT, GFP_KERNEL | coredev->gfp_buf_flags);
 		if (buffer) {
 			struct sms_msg_data *msg = (struct sms_msg_data *) SMS_ALIGN_ADDRESS(buffer);
 
@@ -1960,7 +1965,7 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 pin_num,
 	total_len = sizeof(struct sms_msg_hdr) + (sizeof(u32) * 6);
 
 	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
-			GFP_KERNEL | GFP_DMA);
+			GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -2032,7 +2037,7 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 pin_num,
 			(3 * sizeof(u32)); /* keep it 3 ! */
 
 	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
-			GFP_KERNEL | GFP_DMA);
+			GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!buffer)
 		return -ENOMEM;
 
@@ -2080,7 +2085,7 @@ int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 pin_num,
 	total_len = sizeof(struct sms_msg_hdr) + (2 * sizeof(u32));
 
 	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
-			GFP_KERNEL | GFP_DMA);
+			GFP_KERNEL | coredev->gfp_buf_flags);
 	if (!buffer)
 		return -ENOMEM;
 

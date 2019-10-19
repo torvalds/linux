@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ff.c - a part of driver for RME Fireface series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "ff.h"
@@ -27,20 +26,12 @@ static void name_card(struct snd_ff *ff)
 		 dev_name(&ff->unit->device), 100 << fw_dev->max_speed);
 }
 
-static void ff_free(struct snd_ff *ff)
-{
-	snd_ff_stream_destroy_duplex(ff);
-	snd_ff_transaction_unregister(ff);
-
-	fw_unit_put(ff->unit);
-
-	mutex_destroy(&ff->mutex);
-	kfree(ff);
-}
-
 static void ff_card_free(struct snd_card *card)
 {
-	ff_free(card->private_data);
+	struct snd_ff *ff = card->private_data;
+
+	snd_ff_stream_destroy_duplex(ff);
+	snd_ff_transaction_unregister(ff);
 }
 
 static void do_registration(struct work_struct *work)
@@ -55,6 +46,8 @@ static void do_registration(struct work_struct *work)
 			   &ff->card);
 	if (err < 0)
 		return;
+	ff->card->private_free = ff_card_free;
+	ff->card->private_data = ff;
 
 	err = snd_ff_transaction_register(ff);
 	if (err < 0)
@@ -84,14 +77,10 @@ static void do_registration(struct work_struct *work)
 	if (err < 0)
 		goto error;
 
-	ff->card->private_free = ff_card_free;
-	ff->card->private_data = ff;
 	ff->registered = true;
 
 	return;
 error:
-	snd_ff_transaction_unregister(ff);
-	snd_ff_stream_destroy_duplex(ff);
 	snd_card_free(ff->card);
 	dev_info(&ff->unit->device,
 		 "Sound card registration failed: %d\n", err);
@@ -102,11 +91,9 @@ static int snd_ff_probe(struct fw_unit *unit,
 {
 	struct snd_ff *ff;
 
-	ff = kzalloc(sizeof(struct snd_ff), GFP_KERNEL);
-	if (ff == NULL)
+	ff = devm_kzalloc(&unit->device, sizeof(struct snd_ff), GFP_KERNEL);
+	if (!ff)
 		return -ENOMEM;
-
-	/* initialize myself */
 	ff->unit = fw_unit_get(unit);
 	dev_set_drvdata(&unit->device, ff);
 
@@ -149,13 +136,25 @@ static void snd_ff_remove(struct fw_unit *unit)
 	cancel_work_sync(&ff->dwork.work);
 
 	if (ff->registered) {
-		/* No need to wait for releasing card object in this context. */
-		snd_card_free_when_closed(ff->card);
-	} else {
-		/* Don't forget this case. */
-		ff_free(ff);
+		// Block till all of ALSA character devices are released.
+		snd_card_free(ff->card);
 	}
+
+	mutex_destroy(&ff->mutex);
+	fw_unit_put(ff->unit);
 }
+
+static const struct snd_ff_spec spec_ff800 = {
+	.name = "Fireface800",
+	.pcm_capture_channels = {28, 20, 12},
+	.pcm_playback_channels = {28, 20, 12},
+	.midi_in_ports = 1,
+	.midi_out_ports = 1,
+	.protocol = &snd_ff_protocol_ff800,
+	.midi_high_addr = 0x000200000320ull,
+	.midi_addr_range = 12,
+	.midi_rx_addrs = {0x000080180000ull, 0},
+};
 
 static const struct snd_ff_spec spec_ff400 = {
 	.name = "Fireface400",
@@ -164,9 +163,36 @@ static const struct snd_ff_spec spec_ff400 = {
 	.midi_in_ports = 2,
 	.midi_out_ports = 2,
 	.protocol = &snd_ff_protocol_ff400,
+	.midi_high_addr = 0x0000801003f4ull,
+	.midi_addr_range = SND_FF_MAXIMIM_MIDI_QUADS * 4,
+	.midi_rx_addrs = {0x000080180000ull, 0x000080190000ull},
+};
+
+static const struct snd_ff_spec spec_ucx = {
+	.name = "FirefaceUCX",
+	.pcm_capture_channels = {18, 14, 12},
+	.pcm_playback_channels = {18, 14, 12},
+	.midi_in_ports = 2,
+	.midi_out_ports = 2,
+	.protocol = &snd_ff_protocol_latter,
+	.midi_high_addr = 0xffff00000034ull,
+	.midi_addr_range = 0x80,
+	.midi_rx_addrs = {0xffff00000030ull, 0xffff00000030ull},
 };
 
 static const struct ieee1394_device_id snd_ff_id_table[] = {
+	/* Fireface 800 */
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= OUI_RME,
+		.version	= 0x000001,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_ff800,
+	},
 	/* Fireface 400 */
 	{
 		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
@@ -174,10 +200,22 @@ static const struct ieee1394_device_id snd_ff_id_table[] = {
 				  IEEE1394_MATCH_VERSION |
 				  IEEE1394_MATCH_MODEL_ID,
 		.vendor_id	= OUI_RME,
-		.specifier_id	= 0x000a35,
+		.specifier_id	= OUI_RME,
 		.version	= 0x000002,
 		.model_id	= 0x101800,
 		.driver_data	= (kernel_ulong_t)&spec_ff400,
+	},
+	// Fireface UCX.
+	{
+		.match_flags	= IEEE1394_MATCH_VENDOR_ID |
+				  IEEE1394_MATCH_SPECIFIER_ID |
+				  IEEE1394_MATCH_VERSION |
+				  IEEE1394_MATCH_MODEL_ID,
+		.vendor_id	= OUI_RME,
+		.specifier_id	= OUI_RME,
+		.version	= 0x000004,
+		.model_id	= 0x101800,
+		.driver_data	= (kernel_ulong_t)&spec_ucx,
 	},
 	{}
 };

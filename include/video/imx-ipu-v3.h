@@ -246,6 +246,9 @@ struct ipu_image {
 	struct v4l2_rect rect;
 	dma_addr_t phys0;
 	dma_addr_t phys1;
+	/* chroma plane offset overrides */
+	u32 u_offset;
+	u32 v_offset;
 };
 
 void ipu_cpmem_zero(struct ipuv3_channel *ch);
@@ -255,7 +258,8 @@ void ipu_cpmem_set_stride(struct ipuv3_channel *ch, int stride);
 void ipu_cpmem_set_high_priority(struct ipuv3_channel *ch);
 void ipu_cpmem_set_buffer(struct ipuv3_channel *ch, int bufnum, dma_addr_t buf);
 void ipu_cpmem_set_uv_offset(struct ipuv3_channel *ch, u32 u_off, u32 v_off);
-void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride);
+void ipu_cpmem_interlaced_scan(struct ipuv3_channel *ch, int stride,
+			       u32 pixelformat);
 void ipu_cpmem_set_axi_id(struct ipuv3_channel *ch, u32 id);
 int ipu_cpmem_get_burstsize(struct ipuv3_channel *ch);
 void ipu_cpmem_set_burstsize(struct ipuv3_channel *ch, int burstsize);
@@ -345,14 +349,16 @@ int ipu_prg_channel_configure(struct ipuv3_channel *ipu_chan,
 			      unsigned int axi_id,  unsigned int width,
 			      unsigned int height, unsigned int stride,
 			      u32 format, uint64_t modifier, unsigned long *eba);
+bool ipu_prg_channel_configure_pending(struct ipuv3_channel *ipu_chan);
 
 /*
  * IPU CMOS Sensor Interface (csi) functions
  */
 struct ipu_csi;
 int ipu_csi_init_interface(struct ipu_csi *csi,
-			   struct v4l2_mbus_config *mbus_cfg,
-			   struct v4l2_mbus_framefmt *mbus_fmt);
+			   const struct v4l2_mbus_config *mbus_cfg,
+			   const struct v4l2_mbus_framefmt *infmt,
+			   const struct v4l2_mbus_framefmt *outfmt);
 bool ipu_csi_is_interlaced(struct ipu_csi *csi);
 void ipu_csi_get_window(struct ipu_csi *csi, struct v4l2_rect *w);
 void ipu_csi_set_window(struct ipu_csi *csi, struct v4l2_rect *w);
@@ -381,14 +387,64 @@ enum ipu_ic_task {
 	IC_NUM_TASKS,
 };
 
+/*
+ * The parameters that describe a colorspace according to the
+ * Image Converter:
+ *    - Y'CbCr encoding
+ *    - quantization
+ *    - "colorspace" (RGB or YUV).
+ */
+struct ipu_ic_colorspace {
+	enum v4l2_ycbcr_encoding enc;
+	enum v4l2_quantization quant;
+	enum ipu_color_space cs;
+};
+
+static inline void
+ipu_ic_fill_colorspace(struct ipu_ic_colorspace *ic_cs,
+		       enum v4l2_ycbcr_encoding enc,
+		       enum v4l2_quantization quant,
+		       enum ipu_color_space cs)
+{
+	ic_cs->enc = enc;
+	ic_cs->quant = quant;
+	ic_cs->cs = cs;
+}
+
+struct ipu_ic_csc_params {
+	s16 coeff[3][3];	/* signed 9-bit integer coefficients */
+	s16 offset[3];		/* signed 11+2-bit fixed point offset */
+	u8 scale:2;		/* scale coefficients * 2^(scale-1) */
+	bool sat:1;		/* saturate to (16, 235(Y) / 240(U, V)) */
+};
+
+struct ipu_ic_csc {
+	struct ipu_ic_colorspace in_cs;
+	struct ipu_ic_colorspace out_cs;
+	struct ipu_ic_csc_params params;
+};
+
 struct ipu_ic;
+
+int __ipu_ic_calc_csc(struct ipu_ic_csc *csc);
+int ipu_ic_calc_csc(struct ipu_ic_csc *csc,
+		    enum v4l2_ycbcr_encoding in_enc,
+		    enum v4l2_quantization in_quant,
+		    enum ipu_color_space in_cs,
+		    enum v4l2_ycbcr_encoding out_enc,
+		    enum v4l2_quantization out_quant,
+		    enum ipu_color_space out_cs);
 int ipu_ic_task_init(struct ipu_ic *ic,
+		     const struct ipu_ic_csc *csc,
 		     int in_width, int in_height,
-		     int out_width, int out_height,
-		     enum ipu_color_space in_cs,
-		     enum ipu_color_space out_cs);
+		     int out_width, int out_height);
+int ipu_ic_task_init_rsc(struct ipu_ic *ic,
+			 const struct ipu_ic_csc *csc,
+			 int in_width, int in_height,
+			 int out_width, int out_height,
+			 u32 rsc);
 int ipu_ic_task_graphics_init(struct ipu_ic *ic,
-			      enum ipu_color_space in_g_cs,
+			      const struct ipu_ic_colorspace *g_in_cs,
 			      bool galpha_en, u32 galpha,
 			      bool colorkey_en, u32 colorkey);
 void ipu_ic_task_enable(struct ipu_ic *ic);

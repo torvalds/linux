@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  tw68 functions to handle video data
  *
@@ -13,16 +14,6 @@
  *  Refactored and updated to the latest v4l core frameworks:
  *
  *  Copyright (C) 2014 Hans Verkuil <hverkuil@xs4all.nl>
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -43,53 +34,43 @@
  */
 static const struct tw68_format formats[] = {
 	{
-		.name		= "15 bpp RGB, le",
 		.fourcc		= V4L2_PIX_FMT_RGB555,
 		.depth		= 16,
 		.twformat	= ColorFormatRGB15,
 	}, {
-		.name		= "15 bpp RGB, be",
 		.fourcc		= V4L2_PIX_FMT_RGB555X,
 		.depth		= 16,
 		.twformat	= ColorFormatRGB15 | ColorFormatBSWAP,
 	}, {
-		.name		= "16 bpp RGB, le",
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.depth		= 16,
 		.twformat	= ColorFormatRGB16,
 	}, {
-		.name		= "16 bpp RGB, be",
 		.fourcc		= V4L2_PIX_FMT_RGB565X,
 		.depth		= 16,
 		.twformat	= ColorFormatRGB16 | ColorFormatBSWAP,
 	}, {
-		.name		= "24 bpp RGB, le",
 		.fourcc		= V4L2_PIX_FMT_BGR24,
 		.depth		= 24,
 		.twformat	= ColorFormatRGB24,
 	}, {
-		.name		= "24 bpp RGB, be",
 		.fourcc		= V4L2_PIX_FMT_RGB24,
 		.depth		= 24,
 		.twformat	= ColorFormatRGB24 | ColorFormatBSWAP,
 	}, {
-		.name		= "32 bpp RGB, le",
 		.fourcc		= V4L2_PIX_FMT_BGR32,
 		.depth		= 32,
 		.twformat	= ColorFormatRGB32,
 	}, {
-		.name		= "32 bpp RGB, be",
 		.fourcc		= V4L2_PIX_FMT_RGB32,
 		.depth		= 32,
 		.twformat	= ColorFormatRGB32 | ColorFormatBSWAP |
 				  ColorFormatWSWAP,
 	}, {
-		.name		= "4:2:2 packed, YUYV",
 		.fourcc		= V4L2_PIX_FMT_YUYV,
 		.depth		= 16,
 		.twformat	= ColorFormatYUY2,
 	}, {
-		.name		= "4:2:2 packed, UYVY",
 		.fourcc		= V4L2_PIX_FMT_UYVY,
 		.depth		= 16,
 		.twformat	= ColorFormatYUY2 | ColorFormatBSWAP,
@@ -446,7 +427,7 @@ static void tw68_buf_queue(struct vb2_buffer *vb)
 /*
  * buffer_prepare
  *
- * Set the ancilliary information into the buffer structure.  This
+ * Set the ancillary information into the buffer structure.  This
  * includes generating the necessary risc program if it hasn't already
  * been done for the current buffer format.
  * The structure fh contains the details of the format requested by the
@@ -601,7 +582,6 @@ static int tw68_g_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.sizeimage =
 		f->fmt.pix.height * f->fmt.pix.bytesperline;
 	f->fmt.pix.colorspace	= V4L2_COLORSPACE_SMPTE170M;
-	f->fmt.pix.priv = 0;
 	return 0;
 }
 
@@ -734,16 +714,10 @@ static int tw68_querycap(struct file *file, void  *priv,
 {
 	struct tw68_dev *dev = video_drvdata(file);
 
-	strcpy(cap->driver, "tw68");
-	strlcpy(cap->card, "Techwell Capture Card",
+	strscpy(cap->driver, "tw68", sizeof(cap->driver));
+	strscpy(cap->card, "Techwell Capture Card",
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->device_caps =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING;
-
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -788,9 +762,6 @@ static int tw68_enum_fmt_vid_cap(struct file *file, void  *priv,
 {
 	if (f->index >= FORMATS)
 		return -EINVAL;
-
-	strlcpy(f->description, formats[f->index].name,
-		sizeof(f->description));
 
 	f->pixelformat = formats[f->index].fourcc;
 
@@ -922,6 +893,8 @@ static const struct video_device tw68_video_template = {
 	.ioctl_ops		= &video_ioctl_ops,
 	.release		= video_device_release_empty,
 	.tvnorms		= TW68_NORMS,
+	.device_caps		= V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
+				  V4L2_CAP_STREAMING,
 };
 
 /* ------------------------------------------------------------------ */

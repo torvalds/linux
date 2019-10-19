@@ -1,22 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2003,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
-#include <linux/proc_fs.h>
 
 struct xstats xfsstats;
 
@@ -41,30 +28,30 @@ int xfs_stats_format(struct xfsstats __percpu *stats, char *buf)
 		char	*desc;
 		int	endpoint;
 	} xstats[] = {
-		{ "extent_alloc",	XFSSTAT_END_EXTENT_ALLOC	},
-		{ "abt",		XFSSTAT_END_ALLOC_BTREE		},
-		{ "blk_map",		XFSSTAT_END_BLOCK_MAPPING	},
-		{ "bmbt",		XFSSTAT_END_BLOCK_MAP_BTREE	},
-		{ "dir",		XFSSTAT_END_DIRECTORY_OPS	},
-		{ "trans",		XFSSTAT_END_TRANSACTIONS	},
-		{ "ig",			XFSSTAT_END_INODE_OPS		},
-		{ "log",		XFSSTAT_END_LOG_OPS		},
-		{ "push_ail",		XFSSTAT_END_TAIL_PUSHING	},
-		{ "xstrat",		XFSSTAT_END_WRITE_CONVERT	},
-		{ "rw",			XFSSTAT_END_READ_WRITE_OPS	},
-		{ "attr",		XFSSTAT_END_ATTRIBUTE_OPS	},
-		{ "icluster",		XFSSTAT_END_INODE_CLUSTER	},
-		{ "vnodes",		XFSSTAT_END_VNODE_OPS		},
-		{ "buf",		XFSSTAT_END_BUF			},
-		{ "abtb2",		XFSSTAT_END_ABTB_V2		},
-		{ "abtc2",		XFSSTAT_END_ABTC_V2		},
-		{ "bmbt2",		XFSSTAT_END_BMBT_V2		},
-		{ "ibt2",		XFSSTAT_END_IBT_V2		},
-		{ "fibt2",		XFSSTAT_END_FIBT_V2		},
-		{ "rmapbt",		XFSSTAT_END_RMAP_V2		},
-		{ "refcntbt",		XFSSTAT_END_REFCOUNT		},
+		{ "extent_alloc",	xfsstats_offset(xs_abt_lookup)	},
+		{ "abt",		xfsstats_offset(xs_blk_mapr)	},
+		{ "blk_map",		xfsstats_offset(xs_bmbt_lookup)	},
+		{ "bmbt",		xfsstats_offset(xs_dir_lookup)	},
+		{ "dir",		xfsstats_offset(xs_trans_sync)	},
+		{ "trans",		xfsstats_offset(xs_ig_attempts)	},
+		{ "ig",			xfsstats_offset(xs_log_writes)	},
+		{ "log",		xfsstats_offset(xs_try_logspace)},
+		{ "push_ail",		xfsstats_offset(xs_xstrat_quick)},
+		{ "xstrat",		xfsstats_offset(xs_write_calls)	},
+		{ "rw",			xfsstats_offset(xs_attr_get)	},
+		{ "attr",		xfsstats_offset(xs_iflush_count)},
+		{ "icluster",		xfsstats_offset(vn_active)	},
+		{ "vnodes",		xfsstats_offset(xb_get)		},
+		{ "buf",		xfsstats_offset(xs_abtb_2)	},
+		{ "abtb2",		xfsstats_offset(xs_abtc_2)	},
+		{ "abtc2",		xfsstats_offset(xs_bmbt_2)	},
+		{ "bmbt2",		xfsstats_offset(xs_ibt_2)	},
+		{ "ibt2",		xfsstats_offset(xs_fibt_2)	},
+		{ "fibt2",		xfsstats_offset(xs_rmap_2)	},
+		{ "rmapbt",		xfsstats_offset(xs_refcbt_2)	},
+		{ "refcntbt",		xfsstats_offset(xs_qm_dqreclaims)},
 		/* we print both series of quota information together */
-		{ "qm",			XFSSTAT_END_QM			},
+		{ "qm",			xfsstats_offset(xs_xstrat_bytes)},
 	};
 
 	/* Loop over all stats groups */
@@ -113,8 +100,13 @@ void xfs_stats_clearall(struct xfsstats __percpu *stats)
 	}
 }
 
+#ifdef CONFIG_PROC_FS
 /* legacy quota interfaces */
 #ifdef CONFIG_XFS_QUOTA
+
+#define XFSSTAT_START_XQMSTAT xfsstats_offset(xs_qm_dqreclaims)
+#define XFSSTAT_END_XQMSTAT xfsstats_offset(xs_qm_dquot)
+
 static int xqm_proc_show(struct seq_file *m, void *v)
 {
 	/* maximum; incore; ratio free to inuse; freelist */
@@ -124,45 +116,19 @@ static int xqm_proc_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int xqm_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, xqm_proc_show, NULL);
-}
-
-static const struct file_operations xqm_proc_fops = {
-	.open		= xqm_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 /* legacy quota stats interface no 2 */
 static int xqmstat_proc_show(struct seq_file *m, void *v)
 {
 	int j;
 
 	seq_printf(m, "qm");
-	for (j = XFSSTAT_END_IBT_V2; j < XFSSTAT_END_XQMSTAT; j++)
+	for (j = XFSSTAT_START_XQMSTAT; j < XFSSTAT_END_XQMSTAT; j++)
 		seq_printf(m, " %u", counter_val(xfsstats.xs_stats, j));
 	seq_putc(m, '\n');
 	return 0;
 }
-
-static int xqmstat_proc_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, xqmstat_proc_show, NULL);
-}
-
-static const struct file_operations xqmstat_proc_fops = {
-	.owner		= THIS_MODULE,
-	.open		= xqmstat_proc_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
 #endif /* CONFIG_XFS_QUOTA */
 
-#ifdef CONFIG_PROC_FS
 int
 xfs_init_procfs(void)
 {
@@ -174,11 +140,9 @@ xfs_init_procfs(void)
 		goto out;
 
 #ifdef CONFIG_XFS_QUOTA
-	if (!proc_create("fs/xfs/xqmstat", 0, NULL,
-			 &xqmstat_proc_fops))
+	if (!proc_create_single("fs/xfs/xqmstat", 0, NULL, xqmstat_proc_show))
 		goto out;
-	if (!proc_create("fs/xfs/xqm", 0, NULL,
-			 &xqm_proc_fops))
+	if (!proc_create_single("fs/xfs/xqm", 0, NULL, xqm_proc_show))
 		goto out;
 #endif
 	return 0;

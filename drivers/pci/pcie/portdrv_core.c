@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * File:	portdrv_core.c
  * Purpose:	PCI Express Port Bus Driver's Core Functions
  *
  * Copyright (C) 2004 Intel
@@ -15,22 +14,16 @@
 #include <linux/pm_runtime.h>
 #include <linux/string.h>
 #include <linux/slab.h>
-#include <linux/pcieport_if.h>
 #include <linux/aer.h>
 
 #include "../pci.h"
 #include "portdrv.h"
 
-bool pciehp_msi_disabled;
-
-static int __init pciehp_setup(char *str)
-{
-	if (!strncmp(str, "nomsi", 5))
-		pciehp_msi_disabled = true;
-
-	return 1;
-}
-__setup("pcie_hp=", pciehp_setup);
+struct portdrv_service_data {
+	struct pcie_port_service_driver *drv;
+	struct device *dev;
+	u32 service;
+};
 
 /**
  * release_pcie_device - free PCI Express port service device structure
@@ -52,7 +45,7 @@ static void release_pcie_device(struct device *dev)
 static int pcie_message_numbers(struct pci_dev *dev, int mask,
 				u32 *pme, u32 *aer, u32 *dpc)
 {
-	u32 nvec = 0, pos, reg32;
+	u32 nvec = 0, pos;
 	u16 reg16;
 
 	/*
@@ -62,14 +55,18 @@ static int pcie_message_numbers(struct pci_dev *dev, int mask,
 	 * 7.8.2, 7.10.10, 7.31.2.
 	 */
 
-	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP)) {
+	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP |
+		    PCIE_PORT_SERVICE_BWNOTIF)) {
 		pcie_capability_read_word(dev, PCI_EXP_FLAGS, &reg16);
 		*pme = (reg16 & PCI_EXP_FLAGS_IRQ) >> 9;
 		nvec = *pme + 1;
 	}
 
+#ifdef CONFIG_PCIEAER
 	if (mask & PCIE_PORT_SERVICE_AER) {
-		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
+		u32 reg32;
+
+		pos = dev->aer_cap;
 		if (pos) {
 			pci_read_config_dword(dev, pos + PCI_ERR_ROOT_STATUS,
 					      &reg32);
@@ -77,6 +74,7 @@ static int pcie_message_numbers(struct pci_dev *dev, int mask,
 			nvec = max(nvec, *aer + 1);
 		}
 	}
+#endif
 
 	if (mask & PCIE_PORT_SERVICE_DPC) {
 		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_DPC);
@@ -102,7 +100,7 @@ static int pcie_message_numbers(struct pci_dev *dev, int mask,
  */
 static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 {
-	int nr_entries, nvec;
+	int nr_entries, nvec, pcie_irq;
 	u32 pme = 0, aer = 0, dpc = 0;
 
 	/* Allocate the maximum possible number of MSI/MSI-X vectors */
@@ -138,10 +136,13 @@ static int pcie_port_enable_irq_vec(struct pci_dev *dev, int *irqs, int mask)
 			return nr_entries;
 	}
 
-	/* PME and hotplug share an MSI/MSI-X vector */
-	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP)) {
-		irqs[PCIE_PORT_SERVICE_PME_SHIFT] = pci_irq_vector(dev, pme);
-		irqs[PCIE_PORT_SERVICE_HP_SHIFT] = pci_irq_vector(dev, pme);
+	/* PME, hotplug and bandwidth notification share an MSI/MSI-X vector */
+	if (mask & (PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP |
+		    PCIE_PORT_SERVICE_BWNOTIF)) {
+		pcie_irq = pci_irq_vector(dev, pme);
+		irqs[PCIE_PORT_SERVICE_PME_SHIFT] = pcie_irq;
+		irqs[PCIE_PORT_SERVICE_HP_SHIFT] = pcie_irq;
+		irqs[PCIE_PORT_SERVICE_BWNOTIF_SHIFT] = pcie_irq;
 	}
 
 	if (mask & PCIE_PORT_SERVICE_AER)
@@ -169,14 +170,11 @@ static int pcie_init_service_irqs(struct pci_dev *dev, int *irqs, int mask)
 		irqs[i] = -1;
 
 	/*
-	 * If we support PME or hotplug, but we can't use MSI/MSI-X for
-	 * them, we have to fall back to INTx or other interrupts, e.g., a
-	 * system shared interrupt.
+	 * If we support PME but can't use MSI/MSI-X for it, we have to
+	 * fall back to INTx or other interrupts, e.g., a system shared
+	 * interrupt.
 	 */
 	if ((mask & PCIE_PORT_SERVICE_PME) && pcie_pme_no_msi())
-		goto legacy_irq;
-
-	if ((mask & PCIE_PORT_SERVICE_HP) && pciehp_no_msi())
 		goto legacy_irq;
 
 	/* Try to use MSI-X or MSI if supported */
@@ -189,10 +187,8 @@ legacy_irq:
 	if (ret < 0)
 		return -ENODEV;
 
-	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++) {
-		if (i != PCIE_PORT_SERVICE_VC_SHIFT)
-			irqs[i] = pci_irq_vector(dev, 0);
-	}
+	for (i = 0; i < PCIE_PORT_DEVICE_MAXSERVICES; i++)
+		irqs[i] = pci_irq_vector(dev, 0);
 
 	return 0;
 }
@@ -209,23 +205,13 @@ legacy_irq:
  */
 static int get_port_device_capability(struct pci_dev *dev)
 {
+	struct pci_host_bridge *host = pci_find_host_bridge(dev->bus);
 	int services = 0;
-	int cap_mask = 0;
 
-	if (pcie_ports_disabled)
-		return 0;
-
-	cap_mask = PCIE_PORT_SERVICE_PME | PCIE_PORT_SERVICE_HP
-			| PCIE_PORT_SERVICE_VC;
-	if (pci_aer_available())
-		cap_mask |= PCIE_PORT_SERVICE_AER | PCIE_PORT_SERVICE_DPC;
-
-	if (pcie_ports_auto)
-		pcie_port_platform_notify(dev, &cap_mask);
-
-	/* Hot-Plug Capable */
-	if ((cap_mask & PCIE_PORT_SERVICE_HP) && dev->is_hotplug_bridge) {
+	if (dev->is_hotplug_bridge &&
+	    (pcie_ports_native || host->native_pcie_hotplug)) {
 		services |= PCIE_PORT_SERVICE_HP;
+
 		/*
 		 * Disable hot-plug interrupts in case they have been enabled
 		 * by the BIOS and the hot-plug service driver is not loaded.
@@ -233,23 +219,29 @@ static int get_port_device_capability(struct pci_dev *dev)
 		pcie_capability_clear_word(dev, PCI_EXP_SLTCTL,
 			  PCI_EXP_SLTCTL_CCIE | PCI_EXP_SLTCTL_HPIE);
 	}
-	/* AER capable */
-	if ((cap_mask & PCIE_PORT_SERVICE_AER)
-	    && pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR)) {
+
+#ifdef CONFIG_PCIEAER
+	if (dev->aer_cap && pci_aer_available() &&
+	    (pcie_ports_native || host->native_aer)) {
 		services |= PCIE_PORT_SERVICE_AER;
+
 		/*
 		 * Disable AER on this port in case it's been enabled by the
 		 * BIOS (the AER service driver will enable it when necessary).
 		 */
 		pci_disable_pcie_error_reporting(dev);
 	}
-	/* VC support */
-	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_VC))
-		services |= PCIE_PORT_SERVICE_VC;
-	/* Root ports are capable of generating PME too */
-	if ((cap_mask & PCIE_PORT_SERVICE_PME)
-	    && pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT) {
+#endif
+
+	/*
+	 * Root ports are capable of generating PME too.  Root Complex
+	 * Event Collectors can also generate PMEs, but we don't handle
+	 * those yet.
+	 */
+	if (pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT &&
+	    (pcie_ports_native || host->native_pme)) {
 		services |= PCIE_PORT_SERVICE_PME;
+
 		/*
 		 * Disable PME interrupt on this port in case it's been enabled
 		 * by the BIOS (the PME service driver will enable it when
@@ -257,8 +249,14 @@ static int get_port_device_capability(struct pci_dev *dev)
 		 */
 		pcie_pme_interrupt_enable(dev, false);
 	}
-	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_DPC))
+
+	if (pci_find_ext_capability(dev, PCI_EXT_CAP_ID_DPC) &&
+	    pci_aer_available() && services & PCIE_PORT_SERVICE_AER)
 		services |= PCIE_PORT_SERVICE_DPC;
+
+	if (pci_pcie_type(dev) == PCI_EXP_TYPE_DOWNSTREAM ||
+	    pci_pcie_type(dev) == PCI_EXP_TYPE_ROOT_PORT)
+		services |= PCIE_PORT_SERVICE_BWNOTIF;
 
 	return services;
 }
@@ -335,7 +333,7 @@ int pcie_port_device_register(struct pci_dev *dev)
 	 */
 	status = pcie_init_service_irqs(dev, irqs, capabilities);
 	if (status) {
-		capabilities &= PCIE_PORT_SERVICE_VC | PCIE_PORT_SERVICE_HP;
+		capabilities &= PCIE_PORT_SERVICE_HP;
 		if (!capabilities)
 			goto error_disable;
 	}
@@ -363,14 +361,19 @@ error_disable:
 }
 
 #ifdef CONFIG_PM
-static int suspend_iter(struct device *dev, void *data)
+typedef int (*pcie_pm_callback_t)(struct pcie_device *);
+
+static int pm_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
+	size_t offset = *(size_t *)data;
+	pcie_pm_callback_t cb;
 
 	if ((dev->bus == &pcie_port_bus_type) && dev->driver) {
 		service_driver = to_service_driver(dev->driver);
-		if (service_driver->suspend)
-			service_driver->suspend(to_pcie_device(dev));
+		cb = *(pcie_pm_callback_t *)((void *)service_driver + offset);
+		if (cb)
+			return cb(to_pcie_device(dev));
 	}
 	return 0;
 }
@@ -381,20 +384,14 @@ static int suspend_iter(struct device *dev, void *data)
  */
 int pcie_port_device_suspend(struct device *dev)
 {
-	return device_for_each_child(dev, NULL, suspend_iter);
+	size_t off = offsetof(struct pcie_port_service_driver, suspend);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 
-static int resume_iter(struct device *dev, void *data)
+int pcie_port_device_resume_noirq(struct device *dev)
 {
-	struct pcie_port_service_driver *service_driver;
-
-	if ((dev->bus == &pcie_port_bus_type) &&
-	    (dev->driver)) {
-		service_driver = to_service_driver(dev->driver);
-		if (service_driver->resume)
-			service_driver->resume(to_pcie_device(dev));
-	}
-	return 0;
+	size_t off = offsetof(struct pcie_port_service_driver, resume_noirq);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 
 /**
@@ -403,7 +400,28 @@ static int resume_iter(struct device *dev, void *data)
  */
 int pcie_port_device_resume(struct device *dev)
 {
-	return device_for_each_child(dev, NULL, resume_iter);
+	size_t off = offsetof(struct pcie_port_service_driver, resume);
+	return device_for_each_child(dev, &off, pm_iter);
+}
+
+/**
+ * pcie_port_device_runtime_suspend - runtime suspend port services
+ * @dev: PCI Express port to handle
+ */
+int pcie_port_device_runtime_suspend(struct device *dev)
+{
+	size_t off = offsetof(struct pcie_port_service_driver, runtime_suspend);
+	return device_for_each_child(dev, &off, pm_iter);
+}
+
+/**
+ * pcie_port_device_runtime_resume - runtime resume port services
+ * @dev: PCI Express port to handle
+ */
+int pcie_port_device_runtime_resume(struct device *dev)
+{
+	size_t off = offsetof(struct pcie_port_service_driver, runtime_resume);
+	return device_for_each_child(dev, &off, pm_iter);
 }
 #endif /* PM */
 
@@ -413,6 +431,70 @@ static int remove_iter(struct device *dev, void *data)
 		device_unregister(dev);
 	return 0;
 }
+
+static int find_service_iter(struct device *device, void *data)
+{
+	struct pcie_port_service_driver *service_driver;
+	struct portdrv_service_data *pdrvs;
+	u32 service;
+
+	pdrvs = (struct portdrv_service_data *) data;
+	service = pdrvs->service;
+
+	if (device->bus == &pcie_port_bus_type && device->driver) {
+		service_driver = to_service_driver(device->driver);
+		if (service_driver->service == service) {
+			pdrvs->drv = service_driver;
+			pdrvs->dev = device;
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+/**
+ * pcie_port_find_service - find the service driver
+ * @dev: PCI Express port the service is associated with
+ * @service: Service to find
+ *
+ * Find PCI Express port service driver associated with given service
+ */
+struct pcie_port_service_driver *pcie_port_find_service(struct pci_dev *dev,
+							u32 service)
+{
+	struct pcie_port_service_driver *drv;
+	struct portdrv_service_data pdrvs;
+
+	pdrvs.drv = NULL;
+	pdrvs.service = service;
+	device_for_each_child(&dev->dev, &pdrvs, find_service_iter);
+
+	drv = pdrvs.drv;
+	return drv;
+}
+
+/**
+ * pcie_port_find_device - find the struct device
+ * @dev: PCI Express port the service is associated with
+ * @service: For the service to find
+ *
+ * Find the struct device associated with given service on a pci_dev
+ */
+struct device *pcie_port_find_device(struct pci_dev *dev,
+				      u32 service)
+{
+	struct device *device;
+	struct portdrv_service_data pdrvs;
+
+	pdrvs.dev = NULL;
+	pdrvs.service = service;
+	device_for_each_child(&dev->dev, &pdrvs, find_service_iter);
+
+	device = pdrvs.dev;
+	return device;
+}
+EXPORT_SYMBOL_GPL(pcie_port_find_device);
 
 /**
  * pcie_port_device_remove - unregister PCI Express port service devices

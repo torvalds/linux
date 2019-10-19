@@ -21,10 +21,29 @@ PROPERTIES
 		    the register region. An optional second element specifies
 		    the base address and size of the alias register region.
 
+- clocks:
+        Usage: required
+        Value type: <prop-encoded-array>
+        Definition: reference to the pll parents.
+
+- clock-names:
+        Usage: required
+        Value type: <stringlist>
+        Definition: must be "pll8_vote", "pxo".
+
+- clock-output-names:
+	Usage: optional
+	Value type: <string>
+	Definition: Name of the output clock. Typically acpuX_aux where X is a
+		    CPU number starting at 0.
+
 Example:
 
 	clock-controller@2088000 {
 		compatible = "qcom,kpss-acc-v2";
 		reg = <0x02088000 0x1000>,
 		      <0x02008000 0x1000>;
+		clocks = <&gcc PLL8_VOTE>, <&gcc PXO_SRC>;
+		clock-names = "pll8_vote", "pxo";
+		clock-output-names = "acpu0_aux";
 	};

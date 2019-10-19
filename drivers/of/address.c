@@ -2,8 +2,10 @@
 #define pr_fmt(fmt)	"OF: " fmt
 
 #include <linux/device.h>
+#include <linux/fwnode.h>
 #include <linux/io.h>
 #include <linux/ioport.h>
+#include <linux/logic_pio.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/pci.h>
@@ -108,8 +110,8 @@ static int of_bus_pci_match(struct device_node *np)
 	 * "vci" is for the /chaos bridge on 1st-gen PCI powermacs
 	 * "ht" is hypertransport
 	 */
-	return !strcmp(np->type, "pci") || !strcmp(np->type, "pciex") ||
-		!strcmp(np->type, "vci") || !strcmp(np->type, "ht");
+	return of_node_is_type(np, "pci") || of_node_is_type(np, "pciex") ||
+		of_node_is_type(np, "vci") || of_node_is_type(np, "ht");
 }
 
 static void of_bus_pci_count_cells(struct device_node *np,
@@ -333,7 +335,8 @@ int of_pci_range_to_resource(struct of_pci_range *range,
 
 	if (res->flags & IORESOURCE_IO) {
 		unsigned long port;
-		err = pci_register_io_range(range->cpu_addr, range->size);
+		err = pci_register_io_range(&np->fwnode, range->cpu_addr,
+				range->size);
 		if (err)
 			goto invalid_range;
 		port = pci_address_to_pio(range->cpu_addr);
@@ -368,7 +371,7 @@ EXPORT_SYMBOL(of_pci_range_to_resource);
 
 static int of_bus_isa_match(struct device_node *np)
 {
-	return !strcmp(np->name, "isa");
+	return of_node_name_eq(np, "isa");
 }
 
 static void of_bus_isa_count_cells(struct device_node *child,
@@ -560,9 +563,15 @@ static int of_translate_one(struct device_node *parent, struct of_bus *bus,
  * that translation is impossible (that is we are not dealing with a value
  * that can be mapped to a cpu physical address). This is not really specified
  * that way, but this is traditionally the way IBM at least do things
+ *
+ * Whenever the translation fails, the *host pointer will be set to the
+ * device that had registered logical PIO mapping, and the return code is
+ * relative to that node.
  */
 static u64 __of_translate_address(struct device_node *dev,
-				  const __be32 *in_addr, const char *rprop)
+				  struct device_node *(*get_parent)(const struct device_node *),
+				  const __be32 *in_addr, const char *rprop,
+				  struct device_node **host)
 {
 	struct device_node *parent = NULL;
 	struct of_bus *bus, *pbus;
@@ -575,8 +584,9 @@ static u64 __of_translate_address(struct device_node *dev,
 	/* Increase refcount at current level */
 	of_node_get(dev);
 
+	*host = NULL;
 	/* Get parent & match bus type */
-	parent = of_get_parent(dev);
+	parent = get_parent(dev);
 	if (parent == NULL)
 		goto bail;
 	bus = of_match_bus(parent);
@@ -595,15 +605,30 @@ static u64 __of_translate_address(struct device_node *dev,
 
 	/* Translate */
 	for (;;) {
+		struct logic_pio_hwaddr *iorange;
+
 		/* Switch to parent bus */
 		of_node_put(dev);
 		dev = parent;
-		parent = of_get_parent(dev);
+		parent = get_parent(dev);
 
 		/* If root, we have finished */
 		if (parent == NULL) {
 			pr_debug("reached root node\n");
 			result = of_read_number(addr, na);
+			break;
+		}
+
+		/*
+		 * For indirectIO device which has no ranges property, get
+		 * the address from reg directly.
+		 */
+		iorange = find_io_range_by_fwnode(&dev->fwnode);
+		if (iorange && (iorange->flags != LOGIC_PIO_CPU_MMIO)) {
+			result = of_read_number(addr + 1, na - 1);
+			pr_debug("indirectIO matched(%pOF) 0x%llx\n",
+				 dev, result);
+			*host = of_node_get(dev);
 			break;
 		}
 
@@ -638,13 +663,52 @@ static u64 __of_translate_address(struct device_node *dev,
 
 u64 of_translate_address(struct device_node *dev, const __be32 *in_addr)
 {
-	return __of_translate_address(dev, in_addr, "ranges");
+	struct device_node *host;
+	u64 ret;
+
+	ret = __of_translate_address(dev, of_get_parent,
+				     in_addr, "ranges", &host);
+	if (host) {
+		of_node_put(host);
+		return OF_BAD_ADDR;
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(of_translate_address);
 
+static struct device_node *__of_get_dma_parent(const struct device_node *np)
+{
+	struct of_phandle_args args;
+	int ret, index;
+
+	index = of_property_match_string(np, "interconnect-names", "dma-mem");
+	if (index < 0)
+		return of_get_parent(np);
+
+	ret = of_parse_phandle_with_args(np, "interconnects",
+					 "#interconnect-cells",
+					 index, &args);
+	if (ret < 0)
+		return of_get_parent(np);
+
+	return of_node_get(args.np);
+}
+
 u64 of_translate_dma_address(struct device_node *dev, const __be32 *in_addr)
 {
-	return __of_translate_address(dev, in_addr, "dma-ranges");
+	struct device_node *host;
+	u64 ret;
+
+	ret = __of_translate_address(dev, __of_get_dma_parent,
+				     in_addr, "dma-ranges", &host);
+
+	if (host) {
+		of_node_put(host);
+		return OF_BAD_ADDR;
+	}
+
+	return ret;
 }
 EXPORT_SYMBOL(of_translate_dma_address);
 
@@ -686,29 +750,49 @@ const __be32 *of_get_address(struct device_node *dev, int index, u64 *size,
 }
 EXPORT_SYMBOL(of_get_address);
 
+static u64 of_translate_ioport(struct device_node *dev, const __be32 *in_addr,
+			u64 size)
+{
+	u64 taddr;
+	unsigned long port;
+	struct device_node *host;
+
+	taddr = __of_translate_address(dev, of_get_parent,
+				       in_addr, "ranges", &host);
+	if (host) {
+		/* host-specific port access */
+		port = logic_pio_trans_hwaddr(&host->fwnode, taddr, size);
+		of_node_put(host);
+	} else {
+		/* memory-mapped I/O range */
+		port = pci_address_to_pio(taddr);
+	}
+
+	if (port == (unsigned long)-1)
+		return OF_BAD_ADDR;
+
+	return port;
+}
+
 static int __of_address_to_resource(struct device_node *dev,
 		const __be32 *addrp, u64 size, unsigned int flags,
 		const char *name, struct resource *r)
 {
 	u64 taddr;
 
-	if ((flags & (IORESOURCE_IO | IORESOURCE_MEM)) == 0)
+	if (flags & IORESOURCE_MEM)
+		taddr = of_translate_address(dev, addrp);
+	else if (flags & IORESOURCE_IO)
+		taddr = of_translate_ioport(dev, addrp, size);
+	else
 		return -EINVAL;
-	taddr = of_translate_address(dev, addrp);
+
 	if (taddr == OF_BAD_ADDR)
 		return -EINVAL;
 	memset(r, 0, sizeof(struct resource));
-	if (flags & IORESOURCE_IO) {
-		unsigned long port;
-		port = pci_address_to_pio(taddr);
-		if (port == (unsigned long)-1)
-			return -EINVAL;
-		r->start = port;
-		r->end = port + size - 1;
-	} else {
-		r->start = taddr;
-		r->end = taddr + size - 1;
-	}
+
+	r->start = taddr;
+	r->end = taddr + size - 1;
 	r->flags = flags;
 	r->name = name ? name : dev->full_name;
 
@@ -784,7 +868,7 @@ EXPORT_SYMBOL(of_iomap);
  *			   for a given device_node
  * @device:	the device whose io range will be mapped
  * @index:	index of the io range
- * @name:	name of the resource
+ * @name:	name "override" for the memory region request or NULL
  *
  * Returns a pointer to the requested and mapped memory or an ERR_PTR() encoded
  * error code on failure. Usage example:
@@ -794,7 +878,7 @@ EXPORT_SYMBOL(of_iomap);
  *		return PTR_ERR(base);
  */
 void __iomem *of_io_request_and_map(struct device_node *np, int index,
-					const char *name)
+				    const char *name)
 {
 	struct resource res;
 	void __iomem *mem;
@@ -802,6 +886,8 @@ void __iomem *of_io_request_and_map(struct device_node *np, int index,
 	if (of_address_to_resource(np, index, &res))
 		return IOMEM_ERR_PTR(-EINVAL);
 
+	if (!name)
+		name = res.name;
 	if (!request_mem_region(res.start, resource_size(&res), name))
 		return IOMEM_ERR_PTR(-EBUSY);
 
@@ -844,9 +930,15 @@ int of_dma_get_range(struct device_node *np, u64 *dma_addr, u64 *paddr, u64 *siz
 		return -EINVAL;
 
 	while (1) {
+		struct device_node *parent;
+
 		naddr = of_n_addr_cells(node);
 		nsize = of_n_size_cells(node);
-		node = of_get_next_parent(node);
+
+		parent = __of_get_dma_parent(node);
+		of_node_put(node);
+
+		node = parent;
 		if (!node)
 			break;
 

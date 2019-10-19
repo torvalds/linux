@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  linux/arch/arm/mach-pxa/viper.c
  *
@@ -14,10 +15,6 @@
  *  Author:	Nicolas Pitre
  *  Created:	Jun 15, 2001
  *  Copyright:	MontaVista Software Inc.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 
 #include <linux/types.h>
@@ -35,7 +32,7 @@
 #include <linux/sched.h>
 #include <linux/gpio.h>
 #include <linux/jiffies.h>
-#include <linux/i2c-gpio.h>
+#include <linux/platform_data/i2c-gpio.h>
 #include <linux/gpio/machine.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/serial_8250.h>
@@ -58,7 +55,7 @@
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/sizes.h>
+#include <linux/sizes.h>
 #include <asm/system_info.h>
 
 #include <asm/mach/arch.h>
@@ -460,7 +457,7 @@ static struct platform_device smc91x_device = {
 
 /* i2c */
 static struct gpiod_lookup_table viper_i2c_gpiod_table = {
-	.dev_id		= "i2c-gpio",
+	.dev_id		= "i2c-gpio.1",
 	.table		= {
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_RTC_I2C_SDA_GPIO,
 				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),
@@ -789,7 +786,7 @@ static int __init viper_tpm_setup(char *str)
 __setup("tpm=", viper_tpm_setup);
 
 struct gpiod_lookup_table viper_tpm_i2c_gpiod_table = {
-	.dev_id = "i2c-gpio",
+	.dev_id = "i2c-gpio.2",
 	.table = {
 		GPIO_LOOKUP_IDX("gpio-pxa", VIPER_TPM_I2C_SDA_GPIO,
 				NULL, 0, GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN),

@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (c) 2003-2007 Network Appliance, Inc. All rights reserved.
  *
@@ -48,9 +49,9 @@
  * fully-chunked NFS message (read chunks are the largest). Note only
  * a single chunk type per message is supported currently.
  */
-#define RPCRDMA_MIN_SLOT_TABLE	(2U)
+#define RPCRDMA_MIN_SLOT_TABLE	(4U)
 #define RPCRDMA_DEF_SLOT_TABLE	(128U)
-#define RPCRDMA_MAX_SLOT_TABLE	(256U)
+#define RPCRDMA_MAX_SLOT_TABLE	(16384U)
 
 #define RPCRDMA_MIN_INLINE  (1024)	/* min inline thresh */
 #define RPCRDMA_DEF_INLINE  (4096)	/* default inline thresh */

@@ -29,11 +29,10 @@
 		};
 	};
 
-	gpio-keys-polled {
-		compatible = "gpio-keys-polled";
+	gpio-keys {
+		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		poll-interval = <100>;
 
 		button@0 {
 			label = "reset";
@@ -76,4 +75,12 @@
 		spi-max-frequency = <104000000>;
 		reg = <0>;
 	};
+};
+
+&eth0 {
+	status = "okay";
+};
+
+&eth1 {
+	status = "okay";
 };

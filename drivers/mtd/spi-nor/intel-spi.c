@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel PCH/PCU SPI flash driver.
  *
  * Copyright (C) 2016, Intel Corporation
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/err.h>
@@ -136,6 +133,7 @@
  * @swseq_reg: Use SW sequencer in register reads/writes
  * @swseq_erase: Use SW sequencer in erase operation
  * @erase_64k: 64k erase supported
+ * @atomic_preopcode: Holds preopcode when atomic sequence is requested
  * @opcodes: Opcodes which are supported. This are programmed by BIOS
  *           before it locks down the controller.
  */
@@ -153,6 +151,7 @@ struct intel_spi {
 	bool swseq_reg;
 	bool swseq_erase;
 	bool erase_64k;
+	u8 atomic_preopcode;
 	u8 opcodes[8];
 };
 
@@ -285,7 +284,7 @@ static int intel_spi_wait_hw_busy(struct intel_spi *ispi)
 	u32 val;
 
 	return readl_poll_timeout(ispi->base + HSFSTS_CTL, val,
-				  !(val & HSFSTS_CTL_SCIP), 0,
+				  !(val & HSFSTS_CTL_SCIP), 40,
 				  INTEL_SPI_TIMEOUT * 1000);
 }
 
@@ -294,7 +293,7 @@ static int intel_spi_wait_sw_busy(struct intel_spi *ispi)
 	u32 val;
 
 	return readl_poll_timeout(ispi->sregs + SSFSTS_CTL, val,
-				  !(val & SSFSTS_CTL_SCIP), 0,
+				  !(val & SSFSTS_CTL_SCIP), 40,
 				  INTEL_SPI_TIMEOUT * 1000);
 }
 
@@ -474,7 +473,7 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len,
 			      int optype)
 {
 	u32 val = 0, status;
-	u16 preop;
+	u8 atomic_preopcode;
 	int ret;
 
 	ret = intel_spi_opcode_index(ispi, opcode, optype);
@@ -484,17 +483,42 @@ static int intel_spi_sw_cycle(struct intel_spi *ispi, u8 opcode, int len,
 	if (len > INTEL_SPI_FIFO_SZ)
 		return -EINVAL;
 
+	/*
+	 * Always clear it after each SW sequencer operation regardless
+	 * of whether it is successful or not.
+	 */
+	atomic_preopcode = ispi->atomic_preopcode;
+	ispi->atomic_preopcode = 0;
+
 	/* Only mark 'Data Cycle' bit when there is data to be transferred */
 	if (len > 0)
 		val = ((len - 1) << SSFSTS_CTL_DBC_SHIFT) | SSFSTS_CTL_DS;
 	val |= ret << SSFSTS_CTL_COP_SHIFT;
 	val |= SSFSTS_CTL_FCERR | SSFSTS_CTL_FDONE;
 	val |= SSFSTS_CTL_SCGO;
-	preop = readw(ispi->sregs + PREOP_OPTYPE);
-	if (preop) {
-		val |= SSFSTS_CTL_ACS;
-		if (preop >> 8)
-			val |= SSFSTS_CTL_SPOP;
+	if (atomic_preopcode) {
+		u16 preop;
+
+		switch (optype) {
+		case OPTYPE_WRITE_NO_ADDR:
+		case OPTYPE_WRITE_WITH_ADDR:
+			/* Pick matching preopcode for the atomic sequence */
+			preop = readw(ispi->sregs + PREOP_OPTYPE);
+			if ((preop & 0xff) == atomic_preopcode)
+				; /* Do nothing */
+			else if ((preop >> 8) == atomic_preopcode)
+				val |= SSFSTS_CTL_SPOP;
+			else
+				return -EINVAL;
+
+			/* Enable atomic sequence */
+			val |= SSFSTS_CTL_ACS;
+			break;
+
+		default:
+			return -EINVAL;
+		}
+
 	}
 	writel(val, ispi->sregs + SSFSTS_CTL);
 
@@ -538,13 +562,31 @@ static int intel_spi_write_reg(struct spi_nor *nor, u8 opcode, u8 *buf, int len)
 
 	/*
 	 * This is handled with atomic operation and preop code in Intel
-	 * controller so skip it here now. If the controller is not locked,
-	 * program the opcode to the PREOP register for later use.
+	 * controller so we only verify that it is available. If the
+	 * controller is not locked, program the opcode to the PREOP
+	 * register for later use.
+	 *
+	 * When hardware sequencer is used there is no need to program
+	 * any opcodes (it handles them automatically as part of a command).
 	 */
 	if (opcode == SPINOR_OP_WREN) {
-		if (!ispi->locked)
-			writel(opcode, ispi->sregs + PREOP_OPTYPE);
+		u16 preop;
 
+		if (!ispi->swseq_reg)
+			return 0;
+
+		preop = readw(ispi->sregs + PREOP_OPTYPE);
+		if ((preop & 0xff) != opcode && (preop >> 8) != opcode) {
+			if (ispi->locked)
+				return -EINVAL;
+			writel(opcode, ispi->sregs + PREOP_OPTYPE);
+		}
+
+		/*
+		 * This enables atomic sequence on next SW sycle. Will
+		 * be cleared after next operation.
+		 */
+		ispi->atomic_preopcode = opcode;
 		return 0;
 	}
 
@@ -569,9 +611,18 @@ static ssize_t intel_spi_read(struct spi_nor *nor, loff_t from, size_t len,
 	u32 val, status;
 	ssize_t ret;
 
+	/*
+	 * Atomic sequence is not expected with HW sequencer reads. Make
+	 * sure it is cleared regardless.
+	 */
+	if (WARN_ON_ONCE(ispi->atomic_preopcode))
+		ispi->atomic_preopcode = 0;
+
 	switch (nor->read_opcode) {
 	case SPINOR_OP_READ:
 	case SPINOR_OP_READ_FAST:
+	case SPINOR_OP_READ_4B:
+	case SPINOR_OP_READ_FAST_4B:
 		break;
 	default:
 		return -EINVAL;
@@ -579,6 +630,10 @@ static ssize_t intel_spi_read(struct spi_nor *nor, loff_t from, size_t len,
 
 	while (len > 0) {
 		block_size = min_t(size_t, len, INTEL_SPI_FIFO_SZ);
+
+		/* Read cannot cross 4K boundary */
+		block_size = min_t(loff_t, from + block_size,
+				   round_up(from + 1, SZ_4K)) - from;
 
 		writel(from, ispi->base + FADDR);
 
@@ -627,8 +682,15 @@ static ssize_t intel_spi_write(struct spi_nor *nor, loff_t to, size_t len,
 	u32 val, status;
 	ssize_t ret;
 
+	/* Not needed with HW sequencer write, make sure it is cleared */
+	ispi->atomic_preopcode = 0;
+
 	while (len > 0) {
 		block_size = min_t(size_t, len, INTEL_SPI_FIFO_SZ);
+
+		/* Write cannot cross 4K boundary */
+		block_size = min_t(loff_t, to + block_size,
+				   round_up(to + 1, SZ_4K)) - to;
 
 		writel(to, ispi->base + FADDR);
 
@@ -706,6 +768,9 @@ static int intel_spi_erase(struct spi_nor *nor, loff_t offs)
 
 		return 0;
 	}
+
+	/* Not needed with HW sequencer erase, make sure it is cleared */
+	ispi->atomic_preopcode = 0;
 
 	while (len > 0) {
 		writel(offs, ispi->base + FADDR);
@@ -850,7 +915,7 @@ struct intel_spi *intel_spi_probe(struct device *dev,
 	if (!ispi->writeable || !writeable)
 		ispi->nor.mtd.flags &= ~MTD_WRITEABLE;
 
-	ret = mtd_device_parse_register(&ispi->nor.mtd, NULL, NULL, &part, 1);
+	ret = mtd_device_register(&ispi->nor.mtd, &part, 1);
 	if (ret)
 		return ERR_PTR(ret);
 

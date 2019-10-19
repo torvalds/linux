@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /**************************************************************************
  * Copyright (c) 2007-2011, Intel Corporation.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  *
  **************************************************************************/
 
@@ -21,19 +9,19 @@
 #define _PSB_DRV_H_
 
 #include <linux/kref.h>
+#include <linux/mm_types.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_global.h>
-#include <drm/gma_drm.h>
-#include "psb_reg.h"
-#include "psb_intel_drv.h"
+#include <drm/drm_device.h>
+
 #include "gma_display.h"
-#include "intel_bios.h"
 #include "gtt.h"
-#include "power.h"
-#include "opregion.h"
-#include "oaktrail.h"
+#include "intel_bios.h"
 #include "mmu.h"
+#include "oaktrail.h"
+#include "opregion.h"
+#include "power.h"
+#include "psb_intel_drv.h"
+#include "psb_reg.h"
 
 #define DRIVER_AUTHOR "Alan Cox <alan@linux.intel.com> and others"
 
@@ -537,6 +525,7 @@ struct drm_psb_private {
 	int lvds_ssc_freq;
 	bool is_lvds_on;
 	bool is_mipi_on;
+	bool lvds_enabled_in_vbt;
 	u32 mipi_ctrl_display;
 
 	unsigned int core_freq;
@@ -749,7 +738,7 @@ extern int psb_gem_get_aperture(struct drm_device *dev, void *data,
 			struct drm_file *file);
 extern int psb_gem_dumb_create(struct drm_file *file, struct drm_device *dev,
 			struct drm_mode_create_dumb *args);
-extern int psb_gem_fault(struct vm_fault *vmf);
+extern vm_fault_t psb_gem_fault(struct vm_fault *vmf);
 
 /* psb_device.c */
 extern const struct psb_ops psb_chip_ops;

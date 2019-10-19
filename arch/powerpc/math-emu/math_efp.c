@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * arch/powerpc/math-emu/math_efp.c
  *
@@ -12,11 +13,6 @@
  * Description:
  * This file is the exception handler to make E500 SPE instructions
  * fully comply with IEEE-754 floating point standard.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/types.h>

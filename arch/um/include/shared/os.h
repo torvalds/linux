@@ -1,8 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (C) 2015 Anton Ivanov (aivanov@{brocade.com,kot-begemot.co.uk})
  * Copyright (C) 2015 Thomas Meyer (thomas@m3y3r.de)
  * Copyright (C) 2002 - 2007 Jeff Dike (jdike@{addtoit,linux.intel}.com)
- * Licensed under the GPL
  */
 
 #ifndef __OS_H__
@@ -35,6 +35,8 @@
 #else
 #define OS_LIB_PATH	"/usr/lib/"
 #endif
+
+#define OS_SENDMSG_MAX_FDS 8
 
 /*
  * types taken from stat_file() in hostfs_user.c
@@ -175,6 +177,10 @@ extern int os_fchange_dir(int fd);
 extern unsigned os_major(unsigned long long dev);
 extern unsigned os_minor(unsigned long long dev);
 extern unsigned long long os_makedev(unsigned major, unsigned minor);
+extern int os_falloc_punch(int fd, unsigned long long offset, int count);
+extern int os_eventfd(unsigned int initval, int flags);
+extern int os_sendmsg_fds(int fd, const void *buf, unsigned int len,
+			  const int *fds, unsigned int fds_num);
 
 /* start_up.c */
 extern void os_early_checks(void);
@@ -231,6 +237,7 @@ extern void block_signals(void);
 extern void unblock_signals(void);
 extern int get_signals(void);
 extern int set_signals(int enable);
+extern int set_signals_trace(int enable);
 extern int os_is_signal_stack(void);
 extern void deliver_alarm(void);
 
@@ -249,15 +256,13 @@ extern void os_warn(const char *fmt, ...)
 
 /* time.c */
 extern void os_idle_sleep(unsigned long long nsecs);
-extern int os_timer_create(void* timer);
-extern int os_timer_set_interval(void* timer, void* its);
-extern int os_timer_one_shot(int ticks);
-extern long long os_timer_disable(void);
-extern long os_timer_remain(void* timer);
+extern int os_timer_create(void);
+extern int os_timer_set_interval(unsigned long long nsecs);
+extern int os_timer_one_shot(unsigned long long nsecs);
+extern void os_timer_disable(void);
 extern void uml_idle_timer(void);
 extern long long os_persistent_clock_emulation(void);
 extern long long os_nsecs(void);
-extern long long os_vnsecs(void);
 
 /* skas/mem.c */
 extern long run_syscall_stub(struct mm_id * mm_idp,
@@ -290,15 +295,16 @@ extern void halt_skas(void);
 extern void reboot_skas(void);
 
 /* irq.c */
-extern int os_waiting_for_events(struct irq_fd *active_fds);
-extern int os_create_pollfd(int fd, int events, void *tmp_pfd, int size_tmpfds);
-extern void os_free_irq_by_cb(int (*test)(struct irq_fd *, void *), void *arg,
-		struct irq_fd *active_fds, struct irq_fd ***last_irq_ptr2);
-extern void os_free_irq_later(struct irq_fd *active_fds,
-		int irq, void *dev_id);
-extern int os_get_pollfd(int i);
-extern void os_set_pollfd(int i, int fd);
+extern int os_waiting_for_events_epoll(void);
+extern void *os_epoll_get_data_pointer(int index);
+extern int os_epoll_triggered(int index, int events);
+extern int os_event_mask(int irq_type);
+extern int os_setup_epoll(void);
+extern int os_add_epoll_fd(int events, int fd, void *data);
+extern int os_mod_epoll_fd(int events, int fd, void *data);
+extern int os_del_epoll_fd(int fd);
 extern void os_set_ioignore(void);
+extern void os_close_epoll_fd(void);
 
 /* sigio.c */
 extern int add_sigio_fd(int fd);
@@ -316,5 +322,11 @@ extern int get_pty(void);
 extern unsigned long os_get_top_address(void);
 
 long syscall(long number, ...);
+
+/* irqflags tracing */
+extern void block_signals_trace(void);
+extern void unblock_signals_trace(void);
+extern void um_trace_signals_on(void);
+extern void um_trace_signals_off(void);
 
 #endif

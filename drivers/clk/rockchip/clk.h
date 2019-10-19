@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (c) 2014 MundoReader S.L.
  * Author: Heiko Stuebner <heiko@sntech.de>
@@ -11,16 +12,6 @@
  * Copyright (c) 2013 Samsung Electronics Co., Ltd.
  * Copyright (c) 2013 Linaro Ltd.
  * Author: Thomas Abraham <thomas.ab@samsung.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef CLK_ROCKCHIP_CLK_H
@@ -34,7 +25,46 @@ struct clk;
 #define HIWORD_UPDATE(val, mask, shift) \
 		((val) << (shift) | (mask) << ((shift) + 16))
 
-/* register positions shared by RV1108, RK2928, RK3036, RK3066, RK3188 and RK3228 */
+/* register positions shared by PX30, RV1108, RK2928, RK3036, RK3066, RK3188 and RK3228 */
+#define BOOST_PLL_H_CON(x)		((x) * 0x4)
+#define BOOST_CLK_CON			0x0008
+#define BOOST_BOOST_CON			0x000c
+#define BOOST_SWITCH_CNT		0x0010
+#define BOOST_HIGH_PERF_CNT0		0x0014
+#define BOOST_HIGH_PERF_CNT1		0x0018
+#define BOOST_STATIS_THRESHOLD		0x001c
+#define BOOST_SHORT_SWITCH_CNT		0x0020
+#define BOOST_SWITCH_THRESHOLD		0x0024
+#define BOOST_FSM_STATUS		0x0028
+#define BOOST_PLL_L_CON(x)		((x) * 0x4 + 0x2c)
+#define BOOST_RECOVERY_MASK		0x1
+#define BOOST_RECOVERY_SHIFT		1
+#define BOOST_SW_CTRL_MASK		0x1
+#define BOOST_SW_CTRL_SHIFT		2
+#define BOOST_LOW_FREQ_EN_MASK		0x1
+#define BOOST_LOW_FREQ_EN_SHIFT		3
+#define BOOST_BUSY_STATE		BIT(8)
+
+#define PX30_PLL_CON(x)			((x) * 0x4)
+#define PX30_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define PX30_CLKGATE_CON(x)		((x) * 0x4 + 0x200)
+#define PX30_GLB_SRST_FST		0xb8
+#define PX30_GLB_SRST_SND		0xbc
+#define PX30_SOFTRST_CON(x)		((x) * 0x4 + 0x300)
+#define PX30_MODE_CON			0xa0
+#define PX30_MISC_CON			0xa4
+#define PX30_SDMMC_CON0			0x380
+#define PX30_SDMMC_CON1			0x384
+#define PX30_SDIO_CON0			0x388
+#define PX30_SDIO_CON1			0x38c
+#define PX30_EMMC_CON0			0x390
+#define PX30_EMMC_CON1			0x394
+
+#define PX30_PMU_PLL_CON(x)		((x) * 0x4)
+#define PX30_PMU_CLKSEL_CON(x)		((x) * 0x4 + 0x40)
+#define PX30_PMU_CLKGATE_CON(x)		((x) * 0x4 + 0x80)
+#define PX30_PMU_MODE			0x0020
+
 #define RV1108_PLL_CON(x)		((x) * 0x4)
 #define RV1108_CLKSEL_CON(x)		((x) * 0x4 + 0x60)
 #define RV1108_CLKGATE_CON(x)		((x) * 0x4 + 0x120)
@@ -90,6 +120,19 @@ struct clk;
 #define RK3288_SDIO1_CON1		0x214
 #define RK3288_EMMC_CON0		0x218
 #define RK3288_EMMC_CON1		0x21c
+
+#define RK3308_PLL_CON(x)		RK2928_PLL_CON(x)
+#define RK3308_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
+#define RK3308_CLKGATE_CON(x)		((x) * 0x4 + 0x300)
+#define RK3308_GLB_SRST_FST		0xb8
+#define RK3308_SOFTRST_CON(x)		((x) * 0x4 + 0x400)
+#define RK3308_MODE_CON			0xa0
+#define RK3308_SDMMC_CON0		0x480
+#define RK3308_SDMMC_CON1		0x484
+#define RK3308_SDIO_CON0		0x488
+#define RK3308_SDIO_CON1		0x48c
+#define RK3308_EMMC_CON0		0x490
+#define RK3308_EMMC_CON1		0x494
 
 #define RK3328_PLL_CON(x)		RK2928_PLL_CON(x)
 #define RK3328_CLKSEL_CON(x)		((x) * 0x4 + 0x100)
@@ -354,6 +397,7 @@ enum rockchip_clk_branch_type {
 	branch_inverter,
 	branch_factor,
 	branch_ddrclk,
+	branch_half_divider,
 };
 
 struct rockchip_clk_branch {
@@ -367,6 +411,7 @@ struct rockchip_clk_branch {
 	u8				mux_shift;
 	u8				mux_width;
 	u8				mux_flags;
+	int				div_offset;
 	u8				div_shift;
 	u8				div_width;
 	u8				div_flags;
@@ -390,6 +435,28 @@ struct rockchip_clk_branch {
 		.mux_shift	= ms,				\
 		.mux_width	= mw,				\
 		.mux_flags	= mf,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_DIV_OFFSET(_id, cname, pnames, f, mo, ms, mw,	\
+			     mf, do, ds, dw, df, go, gs, gf)	\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_composite,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_offset	= do,				\
 		.div_shift	= ds,				\
 		.div_width	= dw,				\
 		.div_flags	= df,				\
@@ -684,6 +751,83 @@ struct rockchip_clk_branch {
 		.gate_flags	= gf,				\
 	}
 
+#define COMPOSITE_HALFDIV(_id, cname, pnames, f, mo, ms, mw, mf, ds, dw,\
+			  df, go, gs, gf)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_half_divider,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define COMPOSITE_NOGATE_HALFDIV(_id, cname, pnames, f, mo, ms, mw, mf,	\
+				 ds, dw, df)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_half_divider,		\
+		.name		= cname,			\
+		.parent_names	= pnames,			\
+		.num_parents	= ARRAY_SIZE(pnames),		\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.mux_shift	= ms,				\
+		.mux_width	= mw,				\
+		.mux_flags	= mf,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= -1,				\
+	}
+
+#define COMPOSITE_NOMUX_HALFDIV(_id, cname, pname, f, mo, ds, dw, df,	\
+			go, gs, gf)				\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_half_divider,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.muxdiv_offset	= mo,				\
+		.div_shift	= ds,				\
+		.div_width	= dw,				\
+		.div_flags	= df,				\
+		.gate_offset	= go,				\
+		.gate_shift	= gs,				\
+		.gate_flags	= gf,				\
+	}
+
+#define DIV_HALF(_id, cname, pname, f, o, s, w, df)			\
+	{							\
+		.id		= _id,				\
+		.branch_type	= branch_half_divider,		\
+		.name		= cname,			\
+		.parent_names	= (const char *[]){ pname },	\
+		.num_parents	= 1,				\
+		.flags		= f,				\
+		.muxdiv_offset	= o,				\
+		.div_shift	= s,				\
+		.div_width	= w,				\
+		.div_flags	= df,				\
+		.gate_offset	= -1,				\
+	}
+
+/* SGRF clocks are only accessible from secure mode, so not controllable */
+#define SGRF_GATE(_id, cname, pname)				\
+		FACTOR(_id, cname, pname, 0, 1, 1)
+
 struct rockchip_clk_provider *rockchip_clk_init(struct device_node *np,
 			void __iomem *base, unsigned long nr_clks);
 void rockchip_clk_of_add_provider(struct device_node *np,
@@ -707,6 +851,17 @@ void rockchip_register_restart_notifier(struct rockchip_clk_provider *ctx,
 					unsigned int reg, void (*cb)(void));
 
 #define ROCKCHIP_SOFTRST_HIWORD_MASK	BIT(0)
+
+struct clk *rockchip_clk_register_halfdiv(const char *name,
+					  const char *const *parent_names,
+					  u8 num_parents, void __iomem *base,
+					  int muxdiv_offset, u8 mux_shift,
+					  u8 mux_width, u8 mux_flags,
+					  u8 div_shift, u8 div_width,
+					  u8 div_flags, int gate_offset,
+					  u8 gate_shift, u8 gate_flags,
+					  unsigned long flags,
+					  spinlock_t *lock);
 
 #ifdef CONFIG_RESET_CONTROLLER
 void rockchip_register_softrst(struct device_node *np,

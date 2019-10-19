@@ -58,10 +58,19 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "a";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
+	};
+
 	leds {
 		compatible = "gpio-leds";
-		pinctrl-names = "default";
-		pinctrl-0 = <&led_pins_i7>;
 
 		blue {
 			label = "i7:blue:usr";
@@ -93,6 +102,10 @@
 	status = "okay";
 };
 
+&de {
+	status = "okay";
+};
+
 &ehci0 {
 	status = "okay";
 };
@@ -103,67 +116,59 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_mii_a>;
-	phy = <&phy1>;
+	pinctrl-0 = <&gmac_mii_pins>;
+	phy-handle = <&phy1>;
 	phy-mode = "mii";
 	status = "okay";
+};
 
-	phy1: ethernet-phy@1 {
-		reg = <1>;
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
 	};
 };
 
 &ir {
 	pinctrl-names = "default";
-	pinctrl-0 = <&ir_pins_a>;
+	pinctrl-0 = <&s_ir_rx_pin>;
 	status = "okay";
+};
+
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_i7>;
 	vmmc-supply = <&reg_vcc3v3>;
 	bus-width = <4>;
-	cd-gpios = <&pio 7 22 GPIO_ACTIVE_HIGH>; /* PH22 */
-	cd-inverted;
+	cd-gpios = <&pio 7 22 GPIO_ACTIVE_LOW>; /* PH22 */
 	status = "okay";
 };
 
-&pio {
-	led_pins_i7: led_pins@0 {
-		pins = "PH13";
-		function = "gpio_out";
-	};
-
-	mmc0_cd_pin_i7: mmc0_cd_pin@0 {
-		pins = "PH22";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb1_vbus_pin_i7: usb1_vbus_pin@0 {
-		pins = "PC27";
-		function = "gpio_out";
-	};
-};
-
 &reg_usb1_vbus {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb1_vbus_pin_i7>;
 	gpio = <&pio 2 27 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &spdif {
 	pinctrl-names = "default";
-	pinctrl-0 = <&spdif_pins_a>;
-	spdif-out = "okay";
+	pinctrl-0 = <&spdif_tx_pin>;
+	status = "okay";
+};
+
+&tcon0 {
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

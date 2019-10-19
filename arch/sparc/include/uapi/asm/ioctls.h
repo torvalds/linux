@@ -27,6 +27,8 @@
 #define TIOCGEXCL	_IOR('T', 0x40, int) /* Get exclusive mode state */
 #define TIOCGRS485	_IOR('T', 0x41, struct serial_rs485)
 #define TIOCSRS485	_IOWR('T', 0x42, struct serial_rs485)
+#define TIOCGISO7816	_IOR('T', 0x43, struct serial_iso7816)
+#define TIOCSISO7816	_IOWR('T', 0x44, struct serial_iso7816)
 
 /* Note that all the ioctls that are not available in Linux have a
  * double underscore on the front to: a) avoid some programs to

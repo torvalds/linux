@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "Core Netfilter Configuration"
 	depends on NET && INET && NETFILTER
 
@@ -19,7 +20,7 @@ config NETFILTER_FAMILY_ARP
 	bool
 
 config NETFILTER_NETLINK_ACCT
-tristate "Netfilter NFACCT over NFNETLINK interface"
+	tristate "Netfilter NFACCT over NFNETLINK interface"
 	depends on NETFILTER_ADVANCED
 	select NETFILTER_NETLINK
 	help
@@ -33,7 +34,7 @@ config NETFILTER_NETLINK_QUEUE
 	help
 	  If this option is enabled, the kernel will include support
 	  for queueing packets via NFNETLINK.
-	  
+
 config NETFILTER_NETLINK_LOG
 	tristate "Netfilter LOG over NFNETLINK interface"
 	default m if NETFILTER_ADVANCED=n
@@ -46,9 +47,19 @@ config NETFILTER_NETLINK_LOG
 	  and is also scheduled to replace the old syslog-based ipt_LOG
 	  and ip6t_LOG modules.
 
+config NETFILTER_NETLINK_OSF
+	tristate "Netfilter OSF over NFNETLINK interface"
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK
+	help
+	  If this option is enabled, the kernel will include support
+	  for passive OS fingerprint via NFNETLINK.
+
 config NF_CONNTRACK
 	tristate "Netfilter connection tracking support"
 	default m if NETFILTER_ADVANCED=n
+	select NF_DEFRAG_IPV4
+	select NF_DEFRAG_IPV6 if IPV6 != n
 	help
 	  Connection tracking keeps a record of what packets have passed
 	  through your machine, in order to figure out how they are related
@@ -96,7 +107,6 @@ config NF_CONNTRACK_SECMARK
 config NF_CONNTRACK_ZONES
 	bool  'Connection tracking zones'
 	depends on NETFILTER_ADVANCED
-	depends on NETFILTER_XT_TARGET_CT
 	help
 	  This option enables support for connection tracking zones.
 	  Normally, each connection needs to have a unique system wide
@@ -148,10 +158,11 @@ config NF_CONNTRACK_TIMESTAMP
 	  If unsure, say `N'.
 
 config NF_CONNTRACK_LABELS
-	bool
+	bool "Connection tracking labels"
 	help
 	  This option enables support for assigning user-defined flag bits
-	  to connection tracking entries.  It selected by the connlabel match.
+	  to connection tracking entries.  It can be used with xtables connlabel
+	  match and the nftables ct expression.
 
 config NF_CT_PROTO_DCCP
 	bool 'DCCP protocol connection tracking support'
@@ -164,7 +175,7 @@ config NF_CT_PROTO_DCCP
 	  If unsure, say Y.
 
 config NF_CT_PROTO_GRE
-	tristate
+	bool
 
 config NF_CT_PROTO_SCTP
 	bool 'SCTP protocol connection tracking support'
@@ -212,8 +223,6 @@ config NF_CONNTRACK_FTP
 	  of Network Address Translation on them.
 
 	  This is FTP support on Layer 3 independent connection tracking.
-	  Layer 3 independent connection tracking is experimental scheme
-	  which generalize ip_conntrack to support other layer 3 protocols.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -327,7 +336,7 @@ config NF_CONNTRACK_SIP
 	help
 	  SIP is an application-layer control protocol that can establish,
 	  modify, and terminate multimedia sessions (conferences) such as
-	  Internet telephony calls. With the ip_conntrack_sip and
+	  Internet telephony calls. With the nf_conntrack_sip and
 	  the nf_nat_sip modules you can support the protocol on a connection
 	  tracking/NATing firewall.
 
@@ -355,6 +364,7 @@ config NF_CT_NETLINK_TIMEOUT
 	tristate  'Connection tracking timeout tuning via Netlink'
 	select NETFILTER_NETLINK
 	depends on NETFILTER_ADVANCED
+	depends on NF_CONNTRACK_TIMEOUT
 	help
 	  This option enables support for connection tracking timeout
 	  fine-grain tuning. This allows you to attach specific timeout
@@ -385,27 +395,13 @@ config NETFILTER_NETLINK_GLUE_CT
 	  the enqueued via NFNETLINK.
 
 config NF_NAT
-	tristate
-
-config NF_NAT_NEEDED
-	bool
-	depends on NF_NAT
-	default y
-
-config NF_NAT_PROTO_DCCP
-	bool
-	depends on NF_NAT && NF_CT_PROTO_DCCP
-	default NF_NAT && NF_CT_PROTO_DCCP
-
-config NF_NAT_PROTO_UDPLITE
-	bool
-	depends on NF_NAT && NF_CT_PROTO_UDPLITE
-	default NF_NAT && NF_CT_PROTO_UDPLITE
-
-config NF_NAT_PROTO_SCTP
-	bool
-	default NF_NAT && NF_CT_PROTO_SCTP
-	depends on NF_NAT && NF_CT_PROTO_SCTP
+	tristate "Network Address Translation support"
+	depends on NF_CONNTRACK
+	default m if NETFILTER_ADVANCED=n
+	help
+	  The NAT option allows masquerading, port forwarding and other
+	  forms of full Network Address Port Translation. This can be
+	  controlled by iptables, ip6tables or nft.
 
 config NF_NAT_AMANDA
 	tristate
@@ -433,11 +429,10 @@ config NF_NAT_TFTP
 	default NF_NAT && NF_CONNTRACK_TFTP
 
 config NF_NAT_REDIRECT
-        tristate "IPv4/IPv6 redirect support"
-	depends on NF_NAT
-        help
-          This is the kernel functionality to redirect packets to local
-          machine through NAT.
+	bool
+
+config NF_NAT_MASQUERADE
+	bool
 
 config NETFILTER_SYNPROXY
 	tristate
@@ -461,36 +456,25 @@ config NF_TABLES
 
 if NF_TABLES
 
+config NF_TABLES_SET
+	tristate "Netfilter nf_tables set infrastructure"
+	help
+	  This option enables the nf_tables set infrastructure that allows to
+	  look up for elements in a set and to build one-way mappings between
+	  matchings and actions.
+
 config NF_TABLES_INET
 	depends on IPV6
 	select NF_TABLES_IPV4
 	select NF_TABLES_IPV6
-	tristate "Netfilter nf_tables mixed IPv4/IPv6 tables support"
+	bool "Netfilter nf_tables mixed IPv4/IPv6 tables support"
 	help
 	  This option enables support for a mixed IPv4/IPv6 "inet" table.
 
 config NF_TABLES_NETDEV
-	tristate "Netfilter nf_tables netdev tables support"
+	bool "Netfilter nf_tables netdev tables support"
 	help
 	  This option enables support for the "netdev" table.
-
-config NFT_EXTHDR
-	tristate "Netfilter nf_tables exthdr module"
-	help
-	  This option adds the "exthdr" expression that you can use to match
-	  IPv6 extension headers and tcp options.
-
-config NFT_META
-	tristate "Netfilter nf_tables meta module"
-	help
-	  This option adds the "meta" expression that you can use to match and
-	  to set packet metainformation such as the packet mark.
-
-config NFT_RT
-	tristate "Netfilter nf_tables routing module"
-	help
-	  This option adds the "rt" expression that you can use to match
-	  packet routing information such as the packet nexthop.
 
 config NFT_NUMGEN
 	tristate "Netfilter nf_tables number generator module"
@@ -512,29 +496,20 @@ config NFT_FLOW_OFFLOAD
 	  This option adds the "flow_offload" expression that you can use to
 	  choose what flows are placed into the hardware.
 
-config NFT_SET_RBTREE
-	tristate "Netfilter nf_tables rbtree set module"
-	help
-	  This option adds the "rbtree" set type (Red Black tree) that is used
-	  to build interval-based sets.
-
-config NFT_SET_HASH
-	tristate "Netfilter nf_tables hash set module"
-	help
-	  This option adds the "hash" set type that is used to build one-way
-	  mappings between matchings and actions.
-
-config NFT_SET_BITMAP
-	tristate "Netfilter nf_tables bitmap set module"
-	help
-	  This option adds the "bitmap" set type that is used to build sets
-	  whose keys are smaller or equal to 16 bits.
-
 config NFT_COUNTER
 	tristate "Netfilter nf_tables counter module"
 	help
 	  This option adds the "counter" expression that you can use to
 	  include packet and byte counters in a rule.
+
+config NFT_CONNLIMIT
+	tristate "Netfilter nf_tables connlimit module"
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_CONNCOUNT
+	help
+	  This option adds the "connlimit" expression that you can use to
+	  ratelimit rule matchings per connections.
 
 config NFT_LOG
 	tristate "Netfilter nf_tables log module"
@@ -551,6 +526,7 @@ config NFT_LIMIT
 config NFT_MASQ
 	depends on NF_CONNTRACK
 	depends on NF_NAT
+	select NF_NAT_MASQUERADE
 	tristate "Netfilter nf_tables masquerade support"
 	help
 	  This option adds the "masquerade" expression that you can use
@@ -560,6 +536,7 @@ config NFT_REDIR
 	depends on NF_CONNTRACK
 	depends on NF_NAT
 	tristate "Netfilter nf_tables redirect support"
+	select NF_NAT_REDIRECT
 	help
 	  This options adds the "redirect" expression that you can use
 	  to perform NAT in the redirect flavour.
@@ -567,10 +544,17 @@ config NFT_REDIR
 config NFT_NAT
 	depends on NF_CONNTRACK
 	select NF_NAT
+	depends on NF_TABLES_IPV4 || NF_TABLES_IPV6
 	tristate "Netfilter nf_tables nat module"
 	help
 	  This option adds the "nat" expression that you can use to perform
 	  typical Network Address Translation (NAT) packet transformations.
+
+config NFT_TUNNEL
+	tristate "Netfilter nf_tables tunnel module"
+	help
+	  This option adds the "tunnel" expression that you can use to set
+	  tunneling policies.
 
 config NFT_OBJREF
 	tristate "Netfilter nf_tables stateful object reference module"
@@ -594,6 +578,7 @@ config NFT_QUOTA
 config NFT_REJECT
 	default m if NETFILTER_ADVANCED=n
 	tristate "Netfilter nf_tables reject support"
+	depends on !NF_TABLES_INET || (IPV6!=m || m)
 	help
 	  This option adds the "reject" expression that you can use to
 	  explicitly deny and notify via TCP reset/ICMP informational errors
@@ -631,6 +616,50 @@ config NFT_FIB_INET
 	  The lookup will be delegated to the IPv4 or IPv6 FIB depending
 	  on the protocol of the packet.
 
+config NFT_XFRM
+	tristate "Netfilter nf_tables xfrm/IPSec security association matching"
+	depends on XFRM
+	help
+	  This option adds an expression that you can use to extract properties
+	  of a packets security association.
+
+config NFT_SOCKET
+	tristate "Netfilter nf_tables socket match support"
+	depends on IPV6 || IPV6=n
+	select NF_SOCKET_IPV4
+	select NF_SOCKET_IPV6 if NF_TABLES_IPV6
+	help
+	  This option allows matching for the presence or absence of a
+	  corresponding socket and its attributes.
+
+config NFT_OSF
+	tristate "Netfilter nf_tables passive OS fingerprint support"
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_OSF
+	help
+	  This option allows matching packets from an specific OS.
+
+config NFT_TPROXY
+	tristate "Netfilter nf_tables tproxy support"
+	depends on IPV6 || IPV6=n
+	select NF_DEFRAG_IPV4
+	select NF_DEFRAG_IPV6 if NF_TABLES_IPV6
+	select NF_TPROXY_IPV4
+	select NF_TPROXY_IPV6 if NF_TABLES_IPV6
+	help
+	  This makes transparent proxy support available in nftables.
+
+config NFT_SYNPROXY
+	tristate "Netfilter nf_tables SYNPROXY expression support"
+	depends on NF_CONNTRACK && NETFILTER_ADVANCED
+	select NETFILTER_SYNPROXY
+	select SYN_COOKIES
+	help
+	  The SYNPROXY expression allows you to intercept TCP connections and
+	  establish them using syncookies before they are passed on to the
+	  server. This allows to avoid conntrack and server resource usage
+	  during SYN-flood attacks.
+
 if NF_TABLES_NETDEV
 
 config NF_DUP_NETDEV
@@ -666,10 +695,9 @@ endif # NF_TABLES
 
 config NF_FLOW_TABLE_INET
 	tristate "Netfilter flow table mixed IPv4/IPv6 module"
-	depends on NF_FLOW_TABLE_IPV4
-	depends on NF_FLOW_TABLE_IPV6
+	depends on NF_FLOW_TABLE
 	help
-          This option adds the flow table mixed IPv4/IPv6 support.
+	  This option adds the flow table mixed IPv4/IPv6 support.
 
 	  To compile it as a module, choose M here.
 
@@ -752,13 +780,13 @@ config NETFILTER_XT_TARGET_CHECKSUM
 	depends on NETFILTER_ADVANCED
 	---help---
 	  This option adds a `CHECKSUM' target, which can be used in the iptables mangle
-	  table.
+	  table to work around buggy DHCP clients in virtualized environments.
 
-	  You can use this target to compute and fill in the checksum in
-	  a packet that lacks a checksum.  This is particularly useful,
-	  if you need to work around old applications such as dhcp clients,
-	  that do not work well with checksum offloads, but don't want to disable
-	  checksum offload in your device.
+	  Some old DHCP clients drop packets because they are not aware
+	  that the checksum would normally be offloaded to hardware and
+	  thus should be considered valid.
+	  This target can be used to fill in the checksum using iptables
+	  when such packets are sent via a virtual network device.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -887,13 +915,13 @@ config NETFILTER_XT_TARGET_LED
 	    echo netfilter-ssh > /sys/class/leds/<ledname>/trigger
 
 	  For more information on the LEDs available on your system, see
-	  Documentation/leds/leds-class.txt
+	  Documentation/leds/leds-class.rst
 
 config NETFILTER_XT_TARGET_LOG
 	tristate "LOG target support"
 	select NF_LOG_COMMON
 	select NF_LOG_IPV4
-	select NF_LOG_IPV6 if IPV6
+	select NF_LOG_IPV6 if IP6_NF_IPTABLES
 	default m if NETFILTER_ADVANCED=n
 	help
 	  This option adds a `LOG' target, which allows you to create rules in
@@ -979,13 +1007,28 @@ config NETFILTER_XT_TARGET_REDIRECT
 
 	To compile it as a module, choose M here. If unsure, say N.
 
+config NETFILTER_XT_TARGET_MASQUERADE
+	tristate "MASQUERADE target support"
+	depends on NF_NAT
+	default m if NETFILTER_ADVANCED=n
+	select NF_NAT_MASQUERADE
+	help
+	  Masquerading is a special case of NAT: all outgoing connections are
+	  changed to seem to come from a particular interface's address, and
+	  if the interface goes down, those connections are lost.  This is
+	  only useful for dialup accounts with dynamic IP address (ie. your IP
+	  address will be different on next dialup).
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
 config NETFILTER_XT_TARGET_TEE
 	tristate '"TEE" - packet cloning to alternate destination'
 	depends on NETFILTER_ADVANCED
 	depends on IPV6 || IPV6=n
 	depends on !NF_CONNTRACK || NF_CONNTRACK
+	depends on IP6_NF_IPTABLES || !IP6_NF_IPTABLES
 	select NF_DUP_IPV4
-	select NF_DUP_IPV6 if IPV6
+	select NF_DUP_IPV6 if IP6_NF_IPTABLES
 	---help---
 	This option adds a "TEE" target with which a packet can be cloned and
 	this clone be rerouted to another nexthop.
@@ -999,6 +1042,8 @@ config NETFILTER_XT_TARGET_TPROXY
 	depends on IP_NF_MANGLE
 	select NF_DEFRAG_IPV4
 	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES != n
+	select NF_TPROXY_IPV4
+	select NF_TPROXY_IPV6 if IP6_NF_IPTABLES
 	help
 	  This option adds a `TPROXY' target, which is somewhat similar to
 	  REDIRECT.  It can only be used in the mangle table and is useful
@@ -1020,7 +1065,7 @@ config NETFILTER_XT_TARGET_TRACE
 	  the tables, chains, rules.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_TARGET_SECMARK
 	tristate '"SECMARK" target support'
@@ -1079,7 +1124,7 @@ config NETFILTER_XT_MATCH_ADDRTYPE
 	  eg. UNICAST, LOCAL, BROADCAST, ...
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_BPF
 	tristate '"bpf" match support'
@@ -1124,7 +1169,7 @@ config NETFILTER_XT_MATCH_COMMENT
 	  comments in your iptables ruleset.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNBYTES
 	tristate  '"connbytes" per-connection counter match support'
@@ -1135,7 +1180,7 @@ config NETFILTER_XT_MATCH_CONNBYTES
 	  number of bytes and/or packets for each direction within a connection.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_CONNLABEL
 	tristate '"connlabel" match support'
@@ -1201,7 +1246,7 @@ config NETFILTER_XT_MATCH_DCCP
 	  and DCCP flags.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_DEVGROUP
 	tristate '"devgroup" match support'
@@ -1266,7 +1311,7 @@ config NETFILTER_XT_MATCH_HELPER
 	depends on NETFILTER_ADVANCED
 	help
 	  Helper matching allows you to match packets in dynamic connections
-	  tracked by a conntrack-helper, ie. ip_conntrack_ftp
+	  tracked by a conntrack-helper, ie. nf_conntrack_ftp
 
 	  To compile it as a module, choose M here.  If unsure, say Y.
 
@@ -1376,7 +1421,8 @@ config NETFILTER_XT_MATCH_NFACCT
 
 config NETFILTER_XT_MATCH_OSF
 	tristate '"osf" Passive OS fingerprint match'
-	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_NETLINK_OSF
 	help
 	  This option selects the Passive OS Fingerprinting match module
 	  that allows to passively match the remote operating system by
@@ -1436,7 +1482,7 @@ config NETFILTER_XT_MATCH_QUOTA
 	  byte counter.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_RATEEST
 	tristate '"rateest" match support'
@@ -1456,11 +1502,11 @@ config NETFILTER_XT_MATCH_REALM
 	  This option adds a `realm' match, which allows you to use the realm
 	  key from the routing subsystem inside iptables.
 
-	  This match pretty much resembles the CONFIG_NET_CLS_ROUTE4 option 
+	  This match pretty much resembles the CONFIG_NET_CLS_ROUTE4 option
 	  in tc world.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_RECENT
 	tristate '"recent" match support'
@@ -1477,12 +1523,12 @@ config NETFILTER_XT_MATCH_SCTP
 	depends on NETFILTER_ADVANCED
 	default IP_SCTP
 	help
-	  With this option enabled, you will be able to use the 
+	  With this option enabled, you will be able to use the
 	  `sctp' match in order to match on SCTP source/destination ports
 	  and SCTP chunk types.
 
 	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  If unsure, say `N'.
+	  <file:Documentation/kbuild/modules.rst>.  If unsure, say `N'.
 
 config NETFILTER_XT_MATCH_SOCKET
 	tristate '"socket" match support'
@@ -1490,8 +1536,8 @@ config NETFILTER_XT_MATCH_SOCKET
 	depends on NETFILTER_ADVANCED
 	depends on IPV6 || IPV6=n
 	depends on IP6_NF_IPTABLES || IP6_NF_IPTABLES=n
-	depends on NF_SOCKET_IPV4
-	depends on NF_SOCKET_IPV6
+	select NF_SOCKET_IPV4
+	select NF_SOCKET_IPV6 if IP6_NF_IPTABLES
 	select NF_DEFRAG_IPV4
 	select NF_DEFRAG_IPV6 if IP6_NF_IPTABLES != n
 	help

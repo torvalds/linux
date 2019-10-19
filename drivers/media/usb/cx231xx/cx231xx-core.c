@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
    cx231xx-core.c - driver for Conexant Cx23100/101/102
 				USB video capture devices
@@ -5,19 +6,6 @@
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 				Based on em28xx driver
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include "cx231xx.h"
@@ -65,7 +53,7 @@ static DEFINE_MUTEX(cx231xx_devlist_mutex);
 /*
  * cx231xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices
- * called when the device gets disconected or at module unload
+ * called when the device gets disconnected or at module unload
 */
 void cx231xx_remove_from_devlist(struct cx231xx *dev)
 {
@@ -799,6 +787,7 @@ static void cx231xx_isoc_irq_callback(struct urb *urb)
 	struct cx231xx_video_mode *vmode =
 	    container_of(dma_q, struct cx231xx_video_mode, vidq);
 	struct cx231xx *dev = container_of(vmode, struct cx231xx, video_mode);
+	unsigned long flags;
 	int i;
 
 	switch (urb->status) {
@@ -815,9 +804,9 @@ static void cx231xx_isoc_irq_callback(struct urb *urb)
 	}
 
 	/* Copy data from URB */
-	spin_lock(&dev->video_mode.slock);
+	spin_lock_irqsave(&dev->video_mode.slock, flags);
 	dev->video_mode.isoc_ctl.isoc_copy(dev, urb);
-	spin_unlock(&dev->video_mode.slock);
+	spin_unlock_irqrestore(&dev->video_mode.slock, flags);
 
 	/* Reset urb buffers */
 	for (i = 0; i < urb->number_of_packets; i++) {
@@ -844,6 +833,7 @@ static void cx231xx_bulk_irq_callback(struct urb *urb)
 	struct cx231xx_video_mode *vmode =
 	    container_of(dma_q, struct cx231xx_video_mode, vidq);
 	struct cx231xx *dev = container_of(vmode, struct cx231xx, video_mode);
+	unsigned long flags;
 
 	switch (urb->status) {
 	case 0:		/* success */
@@ -862,9 +852,9 @@ static void cx231xx_bulk_irq_callback(struct urb *urb)
 	}
 
 	/* Copy data from URB */
-	spin_lock(&dev->video_mode.slock);
+	spin_lock_irqsave(&dev->video_mode.slock, flags);
 	dev->video_mode.bulk_ctl.bulk_copy(dev, urb);
-	spin_unlock(&dev->video_mode.slock);
+	spin_unlock_irqrestore(&dev->video_mode.slock, flags);
 
 	/* Reset urb buffers */
 	urb->status = usb_submit_urb(urb, GFP_ATOMIC);
@@ -1034,7 +1024,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 		dma_q->partial_buf[i] = 0;
 
 	dev->video_mode.isoc_ctl.urb =
-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
+	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.isoc_ctl.urb) {
 		dev_err(dev->dev,
 			"cannot alloc memory for usb buffers\n");
@@ -1042,7 +1032,7 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 	}
 
 	dev->video_mode.isoc_ctl.transfer_buffer =
-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
+	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.isoc_ctl.transfer_buffer) {
 		dev_err(dev->dev,
 			"cannot allocate memory for usbtransfer\n");
@@ -1169,7 +1159,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 		dma_q->partial_buf[i] = 0;
 
 	dev->video_mode.bulk_ctl.urb =
-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
+	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.bulk_ctl.urb) {
 		dev_err(dev->dev,
 			"cannot alloc memory for usb buffers\n");
@@ -1177,7 +1167,7 @@ int cx231xx_init_bulk(struct cx231xx *dev, int max_packets,
 	}
 
 	dev->video_mode.bulk_ctl.transfer_buffer =
-	    kzalloc(sizeof(void *) * num_bufs, GFP_KERNEL);
+	    kcalloc(num_bufs, sizeof(void *), GFP_KERNEL);
 	if (!dev->video_mode.bulk_ctl.transfer_buffer) {
 		dev_err(dev->dev,
 			"cannot allocate memory for usbtransfer\n");

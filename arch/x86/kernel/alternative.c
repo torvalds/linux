@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "SMP alternatives: " fmt
 
 #include <linux/module.h>
@@ -11,6 +12,9 @@
 #include <linux/stop_machine.h>
 #include <linux/slab.h>
 #include <linux/kdebug.h>
+#include <linux/kprobes.h>
+#include <linux/mmu_context.h>
+#include <linux/bsearch.h>
 #include <asm/text-patching.h>
 #include <asm/alternative.h>
 #include <asm/sections.h>
@@ -222,6 +226,10 @@ void __init arch_init_ideal_nops(void)
 		}
 		break;
 
+	case X86_VENDOR_HYGON:
+		ideal_nops = p6_nops;
+		return;
+
 	case X86_VENDOR_AMD:
 		if (boot_cpu_data.x86 > 0xf) {
 			ideal_nops = p6_nops;
@@ -259,7 +267,7 @@ static void __init_or_module add_nops(void *insns, unsigned int len)
 
 extern struct alt_instr __alt_instructions[], __alt_instructions_end[];
 extern s32 __smp_locks[], __smp_locks_end[];
-void *text_poke_early(void *addr, const void *opcode, size_t len);
+void text_poke_early(void *addr, const void *opcode, size_t len);
 
 /*
  * Are we looking at a near JMP with a 1 or 4-byte displacement.
@@ -270,7 +278,7 @@ static inline bool is_jmp(const u8 opcode)
 }
 
 static void __init_or_module
-recompute_jump(struct alt_instr *a, u8 *orig_insn, u8 *repl_insn, u8 *insnbuf)
+recompute_jump(struct alt_instr *a, u8 *orig_insn, u8 *repl_insn, u8 *insn_buff)
 {
 	u8 *next_rip, *tgt_rip;
 	s32 n_dspl, o_dspl;
@@ -279,7 +287,7 @@ recompute_jump(struct alt_instr *a, u8 *orig_insn, u8 *repl_insn, u8 *insnbuf)
 	if (a->replacementlen != 5)
 		return;
 
-	o_dspl = *(s32 *)(insnbuf + 1);
+	o_dspl = *(s32 *)(insn_buff + 1);
 
 	/* next_rip of the replacement JMP */
 	next_rip = repl_insn + a->replacementlen;
@@ -305,9 +313,9 @@ recompute_jump(struct alt_instr *a, u8 *orig_insn, u8 *repl_insn, u8 *insnbuf)
 two_byte_jmp:
 	n_dspl -= 2;
 
-	insnbuf[0] = 0xeb;
-	insnbuf[1] = (s8)n_dspl;
-	add_nops(insnbuf + 2, 3);
+	insn_buff[0] = 0xeb;
+	insn_buff[1] = (s8)n_dspl;
+	add_nops(insn_buff + 2, 3);
 
 	repl_len = 2;
 	goto done;
@@ -315,8 +323,8 @@ two_byte_jmp:
 five_byte_jmp:
 	n_dspl -= 5;
 
-	insnbuf[0] = 0xe9;
-	*(s32 *)&insnbuf[1] = n_dspl;
+	insn_buff[0] = 0xe9;
+	*(s32 *)&insn_buff[1] = n_dspl;
 
 	repl_len = 5;
 
@@ -363,7 +371,7 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 {
 	struct alt_instr *a;
 	u8 *instr, *replacement;
-	u8 insnbuf[MAX_PATCH_LEN];
+	u8 insn_buff[MAX_PATCH_LEN];
 
 	DPRINTK("alt table %px, -> %px", start, end);
 	/*
@@ -376,11 +384,11 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 	 * order.
 	 */
 	for (a = start; a < end; a++) {
-		int insnbuf_sz = 0;
+		int insn_buff_sz = 0;
 
 		instr = (u8 *)&a->instr_offset + a->instr_offset;
 		replacement = (u8 *)&a->repl_offset + a->repl_offset;
-		BUG_ON(a->instrlen > sizeof(insnbuf));
+		BUG_ON(a->instrlen > sizeof(insn_buff));
 		BUG_ON(a->cpuid >= (NCAPINTS + NBUGINTS) * 32);
 		if (!boot_cpu_has(a->cpuid)) {
 			if (a->padlen > 1)
@@ -389,17 +397,17 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 			continue;
 		}
 
-		DPRINTK("feat: %d*32+%d, old: (%px len: %d), repl: (%px, len: %d), pad: %d",
+		DPRINTK("feat: %d*32+%d, old: (%pS (%px) len: %d), repl: (%px, len: %d), pad: %d",
 			a->cpuid >> 5,
 			a->cpuid & 0x1f,
-			instr, a->instrlen,
+			instr, instr, a->instrlen,
 			replacement, a->replacementlen, a->padlen);
 
 		DUMP_BYTES(instr, a->instrlen, "%px: old_insn: ", instr);
 		DUMP_BYTES(replacement, a->replacementlen, "%px: rpl_insn: ", replacement);
 
-		memcpy(insnbuf, replacement, a->replacementlen);
-		insnbuf_sz = a->replacementlen;
+		memcpy(insn_buff, replacement, a->replacementlen);
+		insn_buff_sz = a->replacementlen;
 
 		/*
 		 * 0xe8 is a relative jump; fix the offset.
@@ -407,24 +415,24 @@ void __init_or_module noinline apply_alternatives(struct alt_instr *start,
 		 * Instruction length is checked before the opcode to avoid
 		 * accessing uninitialized bytes for zero-length replacements.
 		 */
-		if (a->replacementlen == 5 && *insnbuf == 0xe8) {
-			*(s32 *)(insnbuf + 1) += replacement - instr;
+		if (a->replacementlen == 5 && *insn_buff == 0xe8) {
+			*(s32 *)(insn_buff + 1) += replacement - instr;
 			DPRINTK("Fix CALL offset: 0x%x, CALL 0x%lx",
-				*(s32 *)(insnbuf + 1),
-				(unsigned long)instr + *(s32 *)(insnbuf + 1) + 5);
+				*(s32 *)(insn_buff + 1),
+				(unsigned long)instr + *(s32 *)(insn_buff + 1) + 5);
 		}
 
 		if (a->replacementlen && is_jmp(replacement[0]))
-			recompute_jump(a, instr, replacement, insnbuf);
+			recompute_jump(a, instr, replacement, insn_buff);
 
 		if (a->instrlen > a->replacementlen) {
-			add_nops(insnbuf + a->replacementlen,
+			add_nops(insn_buff + a->replacementlen,
 				 a->instrlen - a->replacementlen);
-			insnbuf_sz += a->instrlen - a->replacementlen;
+			insn_buff_sz += a->instrlen - a->replacementlen;
 		}
-		DUMP_BYTES(insnbuf, insnbuf_sz, "%px: final_insn: ", instr);
+		DUMP_BYTES(insn_buff, insn_buff_sz, "%px: final_insn: ", instr);
 
-		text_poke_early(instr, insnbuf, insnbuf_sz);
+		text_poke_early(instr, insn_buff, insn_buff_sz);
 	}
 }
 
@@ -586,40 +594,126 @@ void __init_or_module apply_paravirt(struct paravirt_patch_site *start,
 				     struct paravirt_patch_site *end)
 {
 	struct paravirt_patch_site *p;
-	char insnbuf[MAX_PATCH_LEN];
+	char insn_buff[MAX_PATCH_LEN];
 
 	for (p = start; p < end; p++) {
 		unsigned int used;
 
 		BUG_ON(p->len > MAX_PATCH_LEN);
 		/* prep the buffer with the original instructions */
-		memcpy(insnbuf, p->instr, p->len);
-		used = pv_init_ops.patch(p->instrtype, p->clobbers, insnbuf,
-					 (unsigned long)p->instr, p->len);
+		memcpy(insn_buff, p->instr, p->len);
+		used = pv_ops.init.patch(p->type, insn_buff, (unsigned long)p->instr, p->len);
 
 		BUG_ON(used > p->len);
 
 		/* Pad the rest with nops */
-		add_nops(insnbuf + used, p->len - used);
-		text_poke_early(p->instr, insnbuf, p->len);
+		add_nops(insn_buff + used, p->len - used);
+		text_poke_early(p->instr, insn_buff, p->len);
 	}
 }
 extern struct paravirt_patch_site __start_parainstructions[],
 	__stop_parainstructions[];
 #endif	/* CONFIG_PARAVIRT */
 
+/*
+ * Self-test for the INT3 based CALL emulation code.
+ *
+ * This exercises int3_emulate_call() to make sure INT3 pt_regs are set up
+ * properly and that there is a stack gap between the INT3 frame and the
+ * previous context. Without this gap doing a virtual PUSH on the interrupted
+ * stack would corrupt the INT3 IRET frame.
+ *
+ * See entry_{32,64}.S for more details.
+ */
+
+/*
+ * We define the int3_magic() function in assembly to control the calling
+ * convention such that we can 'call' it from assembly.
+ */
+
+extern void int3_magic(unsigned int *ptr); /* defined in asm */
+
+asm (
+"	.pushsection	.init.text, \"ax\", @progbits\n"
+"	.type		int3_magic, @function\n"
+"int3_magic:\n"
+"	movl	$1, (%" _ASM_ARG1 ")\n"
+"	ret\n"
+"	.size		int3_magic, .-int3_magic\n"
+"	.popsection\n"
+);
+
+extern __initdata unsigned long int3_selftest_ip; /* defined in asm below */
+
+static int __init
+int3_exception_notify(struct notifier_block *self, unsigned long val, void *data)
+{
+	struct die_args *args = data;
+	struct pt_regs *regs = args->regs;
+
+	if (!regs || user_mode(regs))
+		return NOTIFY_DONE;
+
+	if (val != DIE_INT3)
+		return NOTIFY_DONE;
+
+	if (regs->ip - INT3_INSN_SIZE != int3_selftest_ip)
+		return NOTIFY_DONE;
+
+	int3_emulate_call(regs, (unsigned long)&int3_magic);
+	return NOTIFY_STOP;
+}
+
+static void __init int3_selftest(void)
+{
+	static __initdata struct notifier_block int3_exception_nb = {
+		.notifier_call	= int3_exception_notify,
+		.priority	= INT_MAX-1, /* last */
+	};
+	unsigned int val = 0;
+
+	BUG_ON(register_die_notifier(&int3_exception_nb));
+
+	/*
+	 * Basically: int3_magic(&val); but really complicated :-)
+	 *
+	 * Stick the address of the INT3 instruction into int3_selftest_ip,
+	 * then trigger the INT3, padded with NOPs to match a CALL instruction
+	 * length.
+	 */
+	asm volatile ("1: int3; nop; nop; nop; nop\n\t"
+		      ".pushsection .init.data,\"aw\"\n\t"
+		      ".align " __ASM_SEL(4, 8) "\n\t"
+		      ".type int3_selftest_ip, @object\n\t"
+		      ".size int3_selftest_ip, " __ASM_SEL(4, 8) "\n\t"
+		      "int3_selftest_ip:\n\t"
+		      __ASM_SEL(.long, .quad) " 1b\n\t"
+		      ".popsection\n\t"
+		      : ASM_CALL_CONSTRAINT
+		      : __ASM_SEL_RAW(a, D) (&val)
+		      : "memory");
+
+	BUG_ON(val != 1);
+
+	unregister_die_notifier(&int3_exception_nb);
+}
+
 void __init alternative_instructions(void)
 {
-	/* The patching is not fully atomic, so try to avoid local interruptions
-	   that might execute the to be patched code.
-	   Other CPUs are not running. */
+	int3_selftest();
+
+	/*
+	 * The patching is not fully atomic, so try to avoid local
+	 * interruptions that might execute the to be patched code.
+	 * Other CPUs are not running.
+	 */
 	stop_nmi();
 
 	/*
 	 * Don't stop machine check exceptions while patching.
 	 * MCEs only happen when something got corrupted and in this
 	 * case we must do something about the corruption.
-	 * Ignoring it is worse than a unlikely patching race.
+	 * Ignoring it is worse than an unlikely patching race.
 	 * Also machine checks tend to be broadcast and if one CPU
 	 * goes into machine check the others follow quickly, so we don't
 	 * expect a machine check to cause undue problems during to code
@@ -637,10 +731,11 @@ void __init alternative_instructions(void)
 					    _text, _etext);
 	}
 
-	if (!uniproc_patched || num_possible_cpus() == 1)
+	if (!uniproc_patched || num_possible_cpus() == 1) {
 		free_init_pages("SMP alternatives",
 				(unsigned long)__smp_locks,
 				(unsigned long)__smp_locks_end);
+	}
 #endif
 
 	apply_paravirt(__parainstructions, __parainstructions_end);
@@ -658,18 +753,139 @@ void __init alternative_instructions(void)
  * When you use this code to patch more than one byte of an instruction
  * you need to make sure that other CPUs cannot execute this code in parallel.
  * Also no thread must be currently preempted in the middle of these
- * instructions. And on the local CPU you need to be protected again NMI or MCE
- * handlers seeing an inconsistent instruction while you patch.
+ * instructions. And on the local CPU you need to be protected against NMI or
+ * MCE handlers seeing an inconsistent instruction while you patch.
  */
-void *__init_or_module text_poke_early(void *addr, const void *opcode,
-					      size_t len)
+void __init_or_module text_poke_early(void *addr, const void *opcode,
+				      size_t len)
 {
 	unsigned long flags;
+
+	if (boot_cpu_has(X86_FEATURE_NX) &&
+	    is_module_text_address((unsigned long)addr)) {
+		/*
+		 * Modules text is marked initially as non-executable, so the
+		 * code cannot be running and speculative code-fetches are
+		 * prevented. Just change the code.
+		 */
+		memcpy(addr, opcode, len);
+	} else {
+		local_irq_save(flags);
+		memcpy(addr, opcode, len);
+		local_irq_restore(flags);
+		sync_core();
+
+		/*
+		 * Could also do a CLFLUSH here to speed up CPU recovery; but
+		 * that causes hangs on some VIA CPUs.
+		 */
+	}
+}
+
+__ro_after_init struct mm_struct *poking_mm;
+__ro_after_init unsigned long poking_addr;
+
+static void *__text_poke(void *addr, const void *opcode, size_t len)
+{
+	bool cross_page_boundary = offset_in_page(addr) + len > PAGE_SIZE;
+	struct page *pages[2] = {NULL};
+	temp_mm_state_t prev;
+	unsigned long flags;
+	pte_t pte, *ptep;
+	spinlock_t *ptl;
+	pgprot_t pgprot;
+
+	/*
+	 * While boot memory allocator is running we cannot use struct pages as
+	 * they are not yet initialized. There is no way to recover.
+	 */
+	BUG_ON(!after_bootmem);
+
+	if (!core_kernel_text((unsigned long)addr)) {
+		pages[0] = vmalloc_to_page(addr);
+		if (cross_page_boundary)
+			pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
+	} else {
+		pages[0] = virt_to_page(addr);
+		WARN_ON(!PageReserved(pages[0]));
+		if (cross_page_boundary)
+			pages[1] = virt_to_page(addr + PAGE_SIZE);
+	}
+	/*
+	 * If something went wrong, crash and burn since recovery paths are not
+	 * implemented.
+	 */
+	BUG_ON(!pages[0] || (cross_page_boundary && !pages[1]));
+
 	local_irq_save(flags);
-	memcpy(addr, opcode, len);
+
+	/*
+	 * Map the page without the global bit, as TLB flushing is done with
+	 * flush_tlb_mm_range(), which is intended for non-global PTEs.
+	 */
+	pgprot = __pgprot(pgprot_val(PAGE_KERNEL) & ~_PAGE_GLOBAL);
+
+	/*
+	 * The lock is not really needed, but this allows to avoid open-coding.
+	 */
+	ptep = get_locked_pte(poking_mm, poking_addr, &ptl);
+
+	/*
+	 * This must not fail; preallocated in poking_init().
+	 */
+	VM_BUG_ON(!ptep);
+
+	pte = mk_pte(pages[0], pgprot);
+	set_pte_at(poking_mm, poking_addr, ptep, pte);
+
+	if (cross_page_boundary) {
+		pte = mk_pte(pages[1], pgprot);
+		set_pte_at(poking_mm, poking_addr + PAGE_SIZE, ptep + 1, pte);
+	}
+
+	/*
+	 * Loading the temporary mm behaves as a compiler barrier, which
+	 * guarantees that the PTE will be set at the time memcpy() is done.
+	 */
+	prev = use_temporary_mm(poking_mm);
+
+	kasan_disable_current();
+	memcpy((u8 *)poking_addr + offset_in_page(addr), opcode, len);
+	kasan_enable_current();
+
+	/*
+	 * Ensure that the PTE is only cleared after the instructions of memcpy
+	 * were issued by using a compiler barrier.
+	 */
+	barrier();
+
+	pte_clear(poking_mm, poking_addr, ptep);
+	if (cross_page_boundary)
+		pte_clear(poking_mm, poking_addr + PAGE_SIZE, ptep + 1);
+
+	/*
+	 * Loading the previous page-table hierarchy requires a serializing
+	 * instruction that already allows the core to see the updated version.
+	 * Xen-PV is assumed to serialize execution in a similar manner.
+	 */
+	unuse_temporary_mm(prev);
+
+	/*
+	 * Flushing the TLB might involve IPIs, which would require enabled
+	 * IRQs, but not if the mm is not used, as it is in this point.
+	 */
+	flush_tlb_mm_range(poking_mm, poking_addr, poking_addr +
+			   (cross_page_boundary ? 2 : 1) * PAGE_SIZE,
+			   PAGE_SHIFT, false);
+
+	/*
+	 * If the text does not match what we just wrote then something is
+	 * fundamentally screwy; there's nothing we can really do about that.
+	 */
+	BUG_ON(memcmp(addr, opcode, len));
+
+	pte_unmap_unlock(ptep, ptl);
 	local_irq_restore(flags);
-	/* Could also do a CLFLUSH here to speed up CPU recovery; but
-	   that causes hangs on some VIA CPUs. */
 	return addr;
 }
 
@@ -684,41 +900,35 @@ void *__init_or_module text_poke_early(void *addr, const void *opcode,
  * in a way that permits an atomic write. It also makes sure we fit on a single
  * page.
  *
- * Note: Must be called under text_mutex.
+ * Note that the caller must ensure that if the modified code is part of a
+ * module, the module would not be removed during poking. This can be achieved
+ * by registering a module notifier, and ordering module removal and patching
+ * trough a mutex.
  */
 void *text_poke(void *addr, const void *opcode, size_t len)
 {
-	unsigned long flags;
-	char *vaddr;
-	struct page *pages[2];
-	int i;
+	lockdep_assert_held(&text_mutex);
 
-	if (!core_kernel_text((unsigned long)addr)) {
-		pages[0] = vmalloc_to_page(addr);
-		pages[1] = vmalloc_to_page(addr + PAGE_SIZE);
-	} else {
-		pages[0] = virt_to_page(addr);
-		WARN_ON(!PageReserved(pages[0]));
-		pages[1] = virt_to_page(addr + PAGE_SIZE);
-	}
-	BUG_ON(!pages[0]);
-	local_irq_save(flags);
-	set_fixmap(FIX_TEXT_POKE0, page_to_phys(pages[0]));
-	if (pages[1])
-		set_fixmap(FIX_TEXT_POKE1, page_to_phys(pages[1]));
-	vaddr = (char *)fix_to_virt(FIX_TEXT_POKE0);
-	memcpy(&vaddr[(unsigned long)addr & ~PAGE_MASK], opcode, len);
-	clear_fixmap(FIX_TEXT_POKE0);
-	if (pages[1])
-		clear_fixmap(FIX_TEXT_POKE1);
-	local_flush_tlb();
-	sync_core();
-	/* Could also do a CLFLUSH here to speed up CPU recovery; but
-	   that causes hangs on some VIA CPUs. */
-	for (i = 0; i < len; i++)
-		BUG_ON(((char *)addr)[i] != ((char *)opcode)[i]);
-	local_irq_restore(flags);
-	return addr;
+	return __text_poke(addr, opcode, len);
+}
+
+/**
+ * text_poke_kgdb - Update instructions on a live kernel by kgdb
+ * @addr: address to modify
+ * @opcode: source of the copy
+ * @len: length to copy
+ *
+ * Only atomic text poke/set should be allowed when not doing early patching.
+ * It means the size must be writable atomically and the address must be aligned
+ * in a way that permits an atomic write. It also makes sure we fit on a single
+ * page.
+ *
+ * Context: should only be used by kgdb, which ensures no other core is running,
+ *	    despite the fact it does not hold the text_mutex.
+ */
+void *text_poke_kgdb(void *addr, const void *opcode, size_t len)
+{
+	return __text_poke(addr, opcode, len);
 }
 
 static void do_sync_core(void *info)
@@ -726,34 +936,155 @@ static void do_sync_core(void *info)
 	sync_core();
 }
 
-static bool bp_patching_in_progress;
-static void *bp_int3_handler, *bp_int3_addr;
+static struct bp_patching_desc {
+	struct text_poke_loc *vec;
+	int nr_entries;
+} bp_patching;
+
+static int patch_cmp(const void *key, const void *elt)
+{
+	struct text_poke_loc *tp = (struct text_poke_loc *) elt;
+
+	if (key < tp->addr)
+		return -1;
+	if (key > tp->addr)
+		return 1;
+	return 0;
+}
+NOKPROBE_SYMBOL(patch_cmp);
 
 int poke_int3_handler(struct pt_regs *regs)
 {
+	struct text_poke_loc *tp;
+	unsigned char int3 = 0xcc;
+	void *ip;
+
 	/*
 	 * Having observed our INT3 instruction, we now must observe
-	 * bp_patching_in_progress.
+	 * bp_patching.nr_entries.
 	 *
-	 * 	in_progress = TRUE		INT3
+	 * 	nr_entries != 0			INT3
 	 * 	WMB				RMB
-	 * 	write INT3			if (in_progress)
+	 * 	write INT3			if (nr_entries)
 	 *
-	 * Idem for bp_int3_handler.
+	 * Idem for other elements in bp_patching.
 	 */
 	smp_rmb();
 
-	if (likely(!bp_patching_in_progress))
+	if (likely(!bp_patching.nr_entries))
 		return 0;
 
-	if (user_mode(regs) || regs->ip != (unsigned long)bp_int3_addr)
+	if (user_mode(regs))
 		return 0;
 
-	/* set up the specified breakpoint handler */
-	regs->ip = (unsigned long) bp_int3_handler;
+	/*
+	 * Discount the sizeof(int3). See text_poke_bp_batch().
+	 */
+	ip = (void *) regs->ip - sizeof(int3);
+
+	/*
+	 * Skip the binary search if there is a single member in the vector.
+	 */
+	if (unlikely(bp_patching.nr_entries > 1)) {
+		tp = bsearch(ip, bp_patching.vec, bp_patching.nr_entries,
+			     sizeof(struct text_poke_loc),
+			     patch_cmp);
+		if (!tp)
+			return 0;
+	} else {
+		tp = bp_patching.vec;
+		if (tp->addr != ip)
+			return 0;
+	}
+
+	/* set up the specified breakpoint detour */
+	regs->ip = (unsigned long) tp->detour;
 
 	return 1;
+}
+NOKPROBE_SYMBOL(poke_int3_handler);
 
+/**
+ * text_poke_bp_batch() -- update instructions on live kernel on SMP
+ * @tp:			vector of instructions to patch
+ * @nr_entries:		number of entries in the vector
+ *
+ * Modify multi-byte instruction by using int3 breakpoint on SMP.
+ * We completely avoid stop_machine() here, and achieve the
+ * synchronization using int3 breakpoint.
+ *
+ * The way it is done:
+ * 	- For each entry in the vector:
+ *		- add a int3 trap to the address that will be patched
+ *	- sync cores
+ *	- For each entry in the vector:
+ *		- update all but the first byte of the patched range
+ *	- sync cores
+ *	- For each entry in the vector:
+ *		- replace the first byte (int3) by the first byte of
+ *		  replacing opcode
+ *	- sync cores
+ */
+void text_poke_bp_batch(struct text_poke_loc *tp, unsigned int nr_entries)
+{
+	int patched_all_but_first = 0;
+	unsigned char int3 = 0xcc;
+	unsigned int i;
+
+	lockdep_assert_held(&text_mutex);
+
+	bp_patching.vec = tp;
+	bp_patching.nr_entries = nr_entries;
+
+	/*
+	 * Corresponding read barrier in int3 notifier for making sure the
+	 * nr_entries and handler are correctly ordered wrt. patching.
+	 */
+	smp_wmb();
+
+	/*
+	 * First step: add a int3 trap to the address that will be patched.
+	 */
+	for (i = 0; i < nr_entries; i++)
+		text_poke(tp[i].addr, &int3, sizeof(int3));
+
+	on_each_cpu(do_sync_core, NULL, 1);
+
+	/*
+	 * Second step: update all but the first byte of the patched range.
+	 */
+	for (i = 0; i < nr_entries; i++) {
+		if (tp[i].len - sizeof(int3) > 0) {
+			text_poke((char *)tp[i].addr + sizeof(int3),
+				  (const char *)tp[i].opcode + sizeof(int3),
+				  tp[i].len - sizeof(int3));
+			patched_all_but_first++;
+		}
+	}
+
+	if (patched_all_but_first) {
+		/*
+		 * According to Intel, this core syncing is very likely
+		 * not necessary and we'd be safe even without it. But
+		 * better safe than sorry (plus there's not only Intel).
+		 */
+		on_each_cpu(do_sync_core, NULL, 1);
+	}
+
+	/*
+	 * Third step: replace the first byte (int3) by the first byte of
+	 * replacing opcode.
+	 */
+	for (i = 0; i < nr_entries; i++)
+		text_poke(tp[i].addr, tp[i].opcode, sizeof(int3));
+
+	on_each_cpu(do_sync_core, NULL, 1);
+	/*
+	 * sync_core() implies an smp_mb() and orders this store against
+	 * the writing of the new instruction.
+	 */
+	bp_patching.vec = NULL;
+	bp_patching.nr_entries = 0;
 }
 
 /**
@@ -763,61 +1094,24 @@ int poke_int3_handler(struct pt_regs *regs)
  * @len:	length to copy
  * @handler:	address to jump to when the temporary breakpoint is hit
  *
- * Modify multi-byte instruction by using int3 breakpoint on SMP.
- * We completely avoid stop_machine() here, and achieve the
- * synchronization using int3 breakpoint.
- *
- * The way it is done:
- *	- add a int3 trap to the address that will be patched
- *	- sync cores
- *	- update all but the first byte of the patched range
- *	- sync cores
- *	- replace the first byte (int3) by the first byte of
- *	  replacing opcode
- *	- sync cores
- *
- * Note: must be called under text_mutex.
+ * Update a single instruction with the vector in the stack, avoiding
+ * dynamically allocated memory. This function should be used when it is
+ * not possible to allocate memory.
  */
-void *text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
+void text_poke_bp(void *addr, const void *opcode, size_t len, void *handler)
 {
-	unsigned char int3 = 0xcc;
+	struct text_poke_loc tp = {
+		.detour = handler,
+		.addr = addr,
+		.len = len,
+	};
 
-	bp_int3_handler = handler;
-	bp_int3_addr = (u8 *)addr + sizeof(int3);
-	bp_patching_in_progress = true;
-	/*
-	 * Corresponding read barrier in int3 notifier for making sure the
-	 * in_progress and handler are correctly ordered wrt. patching.
-	 */
-	smp_wmb();
-
-	text_poke(addr, &int3, sizeof(int3));
-
-	on_each_cpu(do_sync_core, NULL, 1);
-
-	if (len - sizeof(int3) > 0) {
-		/* patch all but the first byte */
-		text_poke((char *)addr + sizeof(int3),
-			  (const char *) opcode + sizeof(int3),
-			  len - sizeof(int3));
-		/*
-		 * According to Intel, this core syncing is very likely
-		 * not necessary and we'd be safe even without it. But
-		 * better safe than sorry (plus there's not only Intel).
-		 */
-		on_each_cpu(do_sync_core, NULL, 1);
+	if (len > POKE_MAX_OPCODE_SIZE) {
+		WARN_ONCE(1, "len is larger than %d\n", POKE_MAX_OPCODE_SIZE);
+		return;
 	}
 
-	/* patch the first byte */
-	text_poke(addr, opcode, sizeof(int3));
+	memcpy((void *)tp.opcode, opcode, len);
 
-	on_each_cpu(do_sync_core, NULL, 1);
-	/*
-	 * sync_core() implies an smp_mb() and orders this store against
-	 * the writing of the new instruction.
-	 */
-	bp_patching_in_progress = false;
-
-	return addr;
+	text_poke_bp_batch(&tp, 1);
 }
-

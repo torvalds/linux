@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Texas Instruments DMA drivers
+#
+
+config TI_CPPI41
+	tristate "Texas Instruments CPPI 4.1 DMA support"
+	depends on (ARCH_OMAP || ARCH_DAVINCI_DA8XX)
+	select DMA_ENGINE
+	help
+	  The Communications Port Programming Interface (CPPI) 4.1 DMA engine
+	  is currently used by the USB driver on AM335x and DA8xx platforms.
+
+config TI_EDMA
+	tristate "Texas Instruments EDMA support"
+	depends on ARCH_DAVINCI || ARCH_OMAP || ARCH_KEYSTONE || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select TI_DMA_CROSSBAR if (ARCH_OMAP || COMPILE_TEST)
+	default y
+	help
+	  Enable support for the TI EDMA (Enhanced DMA) controller. This DMA
+	  engine is found on TI DaVinci, AM33xx, AM43xx, DRA7xx and Keystone 2
+	  parts.
+
+config DMA_OMAP
+	tristate "Texas Instruments sDMA (omap-dma) support"
+	depends on ARCH_OMAP || COMPILE_TEST
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	select TI_DMA_CROSSBAR if (SOC_DRA7XX || COMPILE_TEST)
+	default y
+	help
+	  Enable support for the TI sDMA (System DMA or DMA4) controller. This
+	  DMA engine is found on OMAP and DRA7xx parts.
+
+config TI_DMA_CROSSBAR
+	bool

@@ -1,13 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/pcmcia/pxa/pxa_cm_x255.c
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * Compulab Ltd., 2003, 2007, 2008
  * Mike Rapoport <mike@compulab.co.il>
- *
  */
 
 #include <linux/platform_device.h>

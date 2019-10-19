@@ -131,7 +131,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 				  DISPLAY_CTRL_HSYNC_PHASE |
 				  DISPLAY_CTRL_TIMING | DISPLAY_CTRL_PLANE);
 
-			 poke32(CRT_DISPLAY_CTRL, tmp | reg);
+			poke32(CRT_DISPLAY_CTRL, tmp | reg);
 		}
 
 	} else if (pll->clockType == PRIMARY_PLL) {
@@ -206,7 +206,7 @@ static int programModeRegisters(struct mode_parameter *pModeParam,
 	return ret;
 }
 
-int ddk750_setModeTiming(struct mode_parameter *parm, clock_type_t clock)
+int ddk750_setModeTiming(struct mode_parameter *parm, enum clock_type clock)
 {
 	struct pll_value pll;
 	unsigned int uiActualPixelClk;

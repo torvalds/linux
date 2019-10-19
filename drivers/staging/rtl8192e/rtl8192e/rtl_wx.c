@@ -1,18 +1,9 @@
-/******************************************************************************
+// SPDX-License-Identifier: GPL-2.0
+/*
  * Copyright(c) 2008 - 2010 Realtek Corporation. All rights reserved.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- *****************************************************************************/
-
+ * Contact Information: wlanfae <wlanfae@realtek.com>
+ */
 #include <linux/string.h>
 #include "rtl_core.h"
 #include "rtl_wx.h"
@@ -35,7 +26,6 @@ static int _rtl92e_wx_get_freq(struct net_device *dev,
 
 	return rtllib_wx_get_freq(priv->rtllib, a, wrqu, b);
 }
-
 
 static int _rtl92e_wx_get_mode(struct net_device *dev,
 			       struct iw_request_info *a,
@@ -149,7 +139,6 @@ static int _rtl92e_wx_set_rawtx(struct net_device *dev,
 	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
-
 }
 
 static int _rtl92e_wx_force_reset(struct net_device *dev,
@@ -165,7 +154,6 @@ static int _rtl92e_wx_force_reset(struct net_device *dev,
 	priv->force_reset = *extra;
 	mutex_unlock(&priv->wx_mutex);
 	return 0;
-
 }
 
 static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
@@ -174,7 +162,7 @@ static int _rtl92e_wx_adapter_power_status(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&(priv->rtllib->PowerSaveControl));
+					(&priv->rtllib->PowerSaveControl);
 	struct rtllib_device *ieee = priv->rtllib;
 
 	mutex_lock(&priv->wx_mutex);
@@ -205,7 +193,7 @@ static int _rtl92e_wx_set_lps_awake_interval(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 	struct rt_pwr_save_ctrl *pPSC = (struct rt_pwr_save_ctrl *)
-					(&(priv->rtllib->PowerSaveControl));
+					(&priv->rtllib->PowerSaveControl);
 
 	mutex_lock(&priv->wx_mutex);
 
@@ -231,7 +219,6 @@ static int _rtl92e_wx_set_force_lps(struct net_device *dev,
 	priv->force_lps = *extra;
 	mutex_unlock(&priv->wx_mutex);
 	return 0;
-
 }
 
 static int _rtl92e_wx_set_debug(struct net_device *dev,
@@ -247,7 +234,7 @@ static int _rtl92e_wx_set_debug(struct net_device *dev,
 	netdev_info(dev, "=====>%s(), *extra:%x, debugflag:%x\n", __func__,
 		    *extra, rt_global_debug_component);
 	if (c > 0)
-		rt_global_debug_component |= (1<<c);
+		rt_global_debug_component |= (1 << c);
 	else
 		rt_global_debug_component &= BIT31;
 	return 0;
@@ -356,7 +343,7 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 	range->min_pmp = 0;
 	range->max_pmp = 5000000;
 	range->min_pmt = 0;
-	range->max_pmt = 65535*1000;
+	range->max_pmt = 65535 * 1000;
 	range->pmp_flags = IW_POWER_PERIOD;
 	range->pmt_flags = IW_POWER_TIMEOUT;
 	range->pm_capa = IW_POWER_PERIOD | IW_POWER_TIMEOUT | IW_POWER_ALL_R;
@@ -364,7 +351,7 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 	range->we_version_source = 18;
 
 	for (i = 0, val = 0; i < 14; i++) {
-		if ((priv->rtllib->active_channel_map)[i+1]) {
+		if ((priv->rtllib->active_channel_map)[i + 1]) {
 			range->freq[val].i = i + 1;
 			range->freq[val].m = rtllib_wlan_frequencies[i] *
 					     100000;
@@ -377,8 +364,8 @@ static int _rtl92e_wx_get_range(struct net_device *dev,
 	}
 	range->num_frequency = val;
 	range->num_channels = val;
-	range->enc_capa = IW_ENC_CAPA_WPA|IW_ENC_CAPA_WPA2|
-			  IW_ENC_CAPA_CIPHER_TKIP|IW_ENC_CAPA_CIPHER_CCMP;
+	range->enc_capa = IW_ENC_CAPA_WPA | IW_ENC_CAPA_WPA2 |
+			  IW_ENC_CAPA_CIPHER_TKIP | IW_ENC_CAPA_CIPHER_CCMP;
 	range->scan_capa = IW_SCAN_CAPA_ESSID | IW_SCAN_CAPA_TYPE;
 
 	/* Event capability (kernel + driver) */
@@ -475,12 +462,10 @@ static int _rtl92e_wx_set_scan(struct net_device *dev,
 	return ret;
 }
 
-
 static int _rtl92e_wx_get_scan(struct net_device *dev,
 			       struct iw_request_info *a,
 			       union iwreq_data *wrqu, char *b)
 {
-
 	int ret;
 	struct r8192_priv *priv = rtllib_priv(dev);
 
@@ -489,7 +474,6 @@ static int _rtl92e_wx_get_scan(struct net_device *dev,
 
 	if (priv->bHwRadioOff)
 		return 0;
-
 
 	mutex_lock(&priv->wx_mutex);
 
@@ -552,7 +536,6 @@ static int _rtl92e_wx_set_nick(struct net_device *dev,
 	memcpy(priv->nick, extra, wrqu->data.length);
 	mutex_unlock(&priv->wx_mutex);
 	return 0;
-
 }
 
 static int _rtl92e_wx_get_nick(struct net_device *dev,
@@ -596,7 +579,6 @@ static int _rtl92e_wx_get_name(struct net_device *dev,
 	return rtllib_wx_get_name(priv->rtllib, info, wrqu, extra);
 }
 
-
 static int _rtl92e_wx_set_frag(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -619,7 +601,6 @@ static int _rtl92e_wx_set_frag(struct net_device *dev,
 	return 0;
 }
 
-
 static int _rtl92e_wx_get_frag(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -632,7 +613,6 @@ static int _rtl92e_wx_get_frag(struct net_device *dev,
 
 	return 0;
 }
-
 
 static int _rtl92e_wx_set_wap(struct net_device *dev,
 			      struct iw_request_info *info,
@@ -651,9 +631,7 @@ static int _rtl92e_wx_set_wap(struct net_device *dev,
 	mutex_unlock(&priv->wx_mutex);
 
 	return ret;
-
 }
-
 
 static int _rtl92e_wx_get_wap(struct net_device *dev,
 			      struct iw_request_info *info,
@@ -663,7 +641,6 @@ static int _rtl92e_wx_get_wap(struct net_device *dev,
 
 	return rtllib_wx_get_wap(priv->rtllib, info, wrqu, extra);
 }
-
 
 static int _rtl92e_wx_get_enc(struct net_device *dev,
 			      struct iw_request_info *info,
@@ -707,7 +684,6 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 	ret = rtllib_wx_set_encode(priv->rtllib, info, wrqu, key);
 	mutex_unlock(&priv->wx_mutex);
 
-
 	if (wrqu->encoding.flags & IW_ENCODE_DISABLED) {
 		ieee->pairwise_key_type = ieee->group_key_type = KEY_TYPE_NA;
 		rtl92e_cam_reset(dev);
@@ -716,9 +692,8 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 		goto end_hw_sec;
 	}
 	if (wrqu->encoding.length != 0) {
-
 		for (i = 0; i < 4; i++) {
-			hwkey[i] |=  key[4*i+0]&mask;
+			hwkey[i] |=  key[4 * i + 0] & mask;
 			if (i == 1 && (4 * i + 1) == wrqu->encoding.length)
 				mask = 0x00;
 			if (i == 3 && (4 * i + 1) == wrqu->encoding.length)
@@ -754,7 +729,7 @@ static int _rtl92e_wx_set_enc(struct net_device *dev,
 
 		else if (wrqu->encoding.length == 0xd) {
 			ieee->pairwise_key_type = KEY_TYPE_WEP104;
-				rtl92e_enable_hw_security_config(dev);
+			rtl92e_enable_hw_security_config(dev);
 			rtl92e_set_key(dev, key_idx, key_idx, KEY_TYPE_WEP104,
 				       zero_addr[key_idx], 0, hwkey);
 			rtl92e_set_swcam(dev, key_idx, key_idx, KEY_TYPE_WEP104,
@@ -785,8 +760,6 @@ static int _rtl92e_wx_set_scan_type(struct net_device *dev,
 
 	return 1;
 }
-
-
 
 #define R8192_MAX_RETRY 255
 static int _rtl92e_wx_set_retry(struct net_device *dev,
@@ -833,7 +806,6 @@ static int _rtl92e_wx_get_retry(struct net_device *dev,
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-
 	wrqu->retry.disabled = 0; /* can't be disabled */
 
 	if ((wrqu->retry.flags & IW_RETRY_TYPE) ==
@@ -862,12 +834,10 @@ static int _rtl92e_wx_get_sens(struct net_device *dev,
 	return 0;
 }
 
-
 static int _rtl92e_wx_set_sens(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
-
 	struct r8192_priv *priv = rtllib_priv(dev);
 
 	short err = 0;
@@ -963,15 +933,12 @@ static int _rtl92e_wx_set_encode_ext(struct net_device *dev,
 			rtl92e_set_swcam(dev, 4, idx, alg,
 					 (u8 *)ieee->ap_mac_addr, 0, key, 0);
 		}
-
-
 	}
 
 end_hw_sec:
 	priv->rtllib->wx_set_enc = 0;
 	mutex_unlock(&priv->wx_mutex);
 	return ret;
-
 }
 
 static int _rtl92e_wx_set_auth(struct net_device *dev,
@@ -986,7 +953,7 @@ static int _rtl92e_wx_set_auth(struct net_device *dev,
 		return 0;
 
 	mutex_lock(&priv->wx_mutex);
-	ret = rtllib_wx_set_auth(priv->rtllib, info, &(data->param), extra);
+	ret = rtllib_wx_set_auth(priv->rtllib, info, &data->param, extra);
 	mutex_unlock(&priv->wx_mutex);
 	return ret;
 }
@@ -995,7 +962,6 @@ static int _rtl92e_wx_set_mlme(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
 {
-
 	int ret = 0;
 
 	struct r8192_priv *priv = rtllib_priv(dev);
@@ -1074,9 +1040,9 @@ static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
 					(bPromiscuousOn) ? (true) : (false);
 		ieee->IntelPromiscuousModeInfo.bFilterSourceStationFrame =
 			(bFilterSourceStationFrame) ? (true) : (false);
-			(bPromiscuousOn) ?
-			(rtllib_EnableIntelPromiscuousMode(dev, false)) :
-			(rtllib_DisableIntelPromiscuousMode(dev, false));
+		(bPromiscuousOn) ?
+		(rtllib_EnableIntelPromiscuousMode(dev, false)) :
+		(rtllib_DisableIntelPromiscuousMode(dev, false));
 
 		netdev_info(dev,
 			    "=======>%s(), on = %d, filter src sta = %d\n",
@@ -1088,7 +1054,6 @@ static int _rtl92e_wx_set_promisc_mode(struct net_device *dev,
 
 	return 0;
 }
-
 
 static int _rtl92e_wx_get_promisc_mode(struct net_device *dev,
 				       struct iw_request_info *info,
@@ -1108,7 +1073,6 @@ static int _rtl92e_wx_get_promisc_mode(struct net_device *dev,
 
 	return 0;
 }
-
 
 #define IW_IOCTL(x) ((x) - SIOCSIWCOMMIT)
 static iw_handler r8192_wx_handlers[] = {
@@ -1166,15 +1130,15 @@ static const struct iw_priv_args r8192_private_args[] = {
 		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, 0, "forcereset"
 	}, {
 		SIOCIWFIRSTPRIV + 0x6,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"set_power"
 	}, {
 		SIOCIWFIRSTPRIV + 0xa,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"lps_interv"
 	}, {
 		SIOCIWFIRSTPRIV + 0xb,
-		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED|1, IW_PRIV_TYPE_NONE,
+		IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1, IW_PRIV_TYPE_NONE,
 		"lps_force"
 	}, {
 		SIOCIWFIRSTPRIV + 0x16,

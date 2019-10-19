@@ -28,25 +28,46 @@ OPTIONS
 <command>...::
 	Any command you can specify in a shell.
 
+-i::
+--input=<file>::
+	Input file name.
+
+-f::
+--force::
+	Don't do ownership validation
+
 -t::
---type=::
+--type=<type>::
 	Select the memory operation type: load or store (default: load,store)
 
 -D::
---dump-raw-samples=::
+--dump-raw-samples::
 	Dump the raw decoded samples on the screen in a format that is easy to parse with
 	one sample per line.
 
 -x::
---field-separator::
+--field-separator=<separator>::
 	Specify the field separator used when dump raw samples (-D option). By default,
 	The separator is the space character.
 
 -C::
---cpu-list::
-	Restrict dump of raw samples to those provided via this option. Note that the same
-	option can be passed in record mode. It will be interpreted the same way as perf
-	record.
+--cpu=<cpu>::
+	Monitor only on the list of CPUs provided. Multiple CPUs can be provided as a
+        comma-separated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2. Default
+        is to monitor all CPUS.
+-U::
+--hide-unresolved::
+	Only display entries resolved to a symbol.
+
+-p::
+--phys-data::
+	Record/Report sample physical addresses
+
+RECORD OPTIONS
+--------------
+-e::
+--event <event>::
+	Event selector. Use 'perf mem record -e list' to list available events.
 
 -K::
 --all-kernel::
@@ -56,12 +77,15 @@ OPTIONS
 --all-user::
 	Configure all used events to run in user space.
 
---ldload::
-	Specify desired latency for loads event.
+-v::
+--verbose::
+	Be more verbose (show counter open errors, etc)
 
--p::
---phys-data::
-	Record/Report sample physical addresses
+--ldlat <n>::
+	Specify desired latency for loads event. (x86 only)
+
+In addition, for report all perf report options are valid, and for record
+all perf record options.
 
 SEE ALSO
 --------

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * adcxx.c
  *
@@ -18,20 +19,6 @@
  *
  * Handling of 8, 10 and 12 bits converters are the same, the
  * unavailable bits are 0 :)
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #include <linux/init.h>
@@ -57,8 +44,8 @@ struct adcxx {
 };
 
 /* sysfs hook function */
-static ssize_t adcxx_read(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t adcxx_show(struct device *dev,
+			  struct device_attribute *devattr, char *buf)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct sensor_device_attribute *attr = to_sensor_dev_attr(devattr);
@@ -94,15 +81,15 @@ out:
 	return status;
 }
 
-static ssize_t adcxx_show_min(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t adcxx_min_show(struct device *dev,
+			      struct device_attribute *devattr, char *buf)
 {
 	/* The minimum reference is 0 for this chip family */
 	return sprintf(buf, "0\n");
 }
 
-static ssize_t adcxx_show_max(struct device *dev,
-		struct device_attribute *devattr, char *buf)
+static ssize_t adcxx_max_show(struct device *dev,
+			      struct device_attribute *devattr, char *buf)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct adcxx *adc = spi_get_drvdata(spi);
@@ -118,8 +105,9 @@ static ssize_t adcxx_show_max(struct device *dev,
 	return sprintf(buf, "%d\n", reference);
 }
 
-static ssize_t adcxx_set_max(struct device *dev,
-	struct device_attribute *devattr, const char *buf, size_t count)
+static ssize_t adcxx_max_store(struct device *dev,
+			       struct device_attribute *devattr,
+			       const char *buf, size_t count)
 {
 	struct spi_device *spi = to_spi_device(dev);
 	struct adcxx *adc = spi_get_drvdata(spi);
@@ -138,25 +126,24 @@ static ssize_t adcxx_set_max(struct device *dev,
 	return count;
 }
 
-static ssize_t adcxx_show_name(struct device *dev, struct device_attribute
-			      *devattr, char *buf)
+static ssize_t adcxx_name_show(struct device *dev,
+			       struct device_attribute *devattr, char *buf)
 {
 	return sprintf(buf, "%s\n", to_spi_device(dev)->modalias);
 }
 
 static struct sensor_device_attribute ad_input[] = {
-	SENSOR_ATTR(name, S_IRUGO, adcxx_show_name, NULL, 0),
-	SENSOR_ATTR(in_min, S_IRUGO, adcxx_show_min, NULL, 0),
-	SENSOR_ATTR(in_max, S_IWUSR | S_IRUGO, adcxx_show_max,
-					adcxx_set_max, 0),
-	SENSOR_ATTR(in0_input, S_IRUGO, adcxx_read, NULL, 0),
-	SENSOR_ATTR(in1_input, S_IRUGO, adcxx_read, NULL, 1),
-	SENSOR_ATTR(in2_input, S_IRUGO, adcxx_read, NULL, 2),
-	SENSOR_ATTR(in3_input, S_IRUGO, adcxx_read, NULL, 3),
-	SENSOR_ATTR(in4_input, S_IRUGO, adcxx_read, NULL, 4),
-	SENSOR_ATTR(in5_input, S_IRUGO, adcxx_read, NULL, 5),
-	SENSOR_ATTR(in6_input, S_IRUGO, adcxx_read, NULL, 6),
-	SENSOR_ATTR(in7_input, S_IRUGO, adcxx_read, NULL, 7),
+	SENSOR_ATTR_RO(name, adcxx_name, 0),
+	SENSOR_ATTR_RO(in_min, adcxx_min, 0),
+	SENSOR_ATTR_RW(in_max, adcxx_max, 0),
+	SENSOR_ATTR_RO(in0_input, adcxx, 0),
+	SENSOR_ATTR_RO(in1_input, adcxx, 1),
+	SENSOR_ATTR_RO(in2_input, adcxx, 2),
+	SENSOR_ATTR_RO(in3_input, adcxx, 3),
+	SENSOR_ATTR_RO(in4_input, adcxx, 4),
+	SENSOR_ATTR_RO(in5_input, adcxx, 5),
+	SENSOR_ATTR_RO(in6_input, adcxx, 6),
+	SENSOR_ATTR_RO(in7_input, adcxx, 7),
 };
 
 /*----------------------------------------------------------------------*/

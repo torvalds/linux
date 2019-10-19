@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Fujitsu B-series Lifebook PS/2 TouchScreen driver
  *
@@ -6,10 +7,6 @@
  *
  * TouchScreen detection, absolute mode setting and packet layout is taken from
  * Harald Hoyer's description of the device.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/input.h>
@@ -17,6 +14,7 @@
 #include <linux/libps2.h>
 #include <linux/dmi.h>
 #include <linux/slab.h>
+#include <linux/types.h>
 
 #include "psmouse.h"
 #include "lifebook.h"
@@ -136,7 +134,7 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 	struct lifebook_data *priv = psmouse->private;
 	struct input_dev *dev1 = psmouse->dev;
 	struct input_dev *dev2 = priv ? priv->dev2 : NULL;
-	unsigned char *packet = psmouse->packet;
+	u8 *packet = psmouse->packet;
 	bool relative_packet = packet[0] & 0x08;
 
 	if (relative_packet || !lifebook_use_6byte_proto) {
@@ -188,14 +186,10 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 	}
 
 	if (dev2) {
-		if (relative_packet) {
-			input_report_rel(dev2, REL_X,
-				((packet[0] & 0x10) ? packet[1] - 256 : packet[1]));
-			input_report_rel(dev2, REL_Y,
-				 -(int)((packet[0] & 0x20) ? packet[2] - 256 : packet[2]));
-		}
-		input_report_key(dev2, BTN_LEFT, packet[0] & 0x01);
-		input_report_key(dev2, BTN_RIGHT, packet[0] & 0x02);
+		if (relative_packet)
+			psmouse_report_standard_motion(dev2, packet);
+
+		psmouse_report_standard_buttons(dev2, packet[0]);
 		input_sync(dev2);
 	}
 
@@ -205,10 +199,12 @@ static psmouse_ret_t lifebook_process_byte(struct psmouse *psmouse)
 static int lifebook_absolute_mode(struct psmouse *psmouse)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	unsigned char param;
+	u8 param;
+	int error;
 
-	if (psmouse_reset(psmouse))
-		return -1;
+	error = psmouse_reset(psmouse);
+	if (error)
+		return error;
 
 	/*
 	 * Enable absolute output -- ps2_command fails always but if
@@ -224,15 +220,15 @@ static int lifebook_absolute_mode(struct psmouse *psmouse)
 static void lifebook_relative_mode(struct psmouse *psmouse)
 {
 	struct ps2dev *ps2dev = &psmouse->ps2dev;
-	unsigned char param = 0x06;
+	u8 param = 0x06;
 
 	ps2_command(ps2dev, &param, PSMOUSE_CMD_SETRES);
 }
 
 static void lifebook_set_resolution(struct psmouse *psmouse, unsigned int resolution)
 {
-	static const unsigned char params[] = { 0, 1, 2, 2, 3 };
-	unsigned char p;
+	static const u8 params[] = { 0, 1, 2, 2, 3 };
+	u8 p;
 
 	if (resolution == 0 || resolution > 400)
 		resolution = 400;
@@ -257,11 +253,11 @@ static void lifebook_disconnect(struct psmouse *psmouse)
 int lifebook_detect(struct psmouse *psmouse, bool set_properties)
 {
 	if (!lifebook_present)
-		return -1;
+		return -ENXIO;
 
 	if (desired_serio_phys &&
 	    strcmp(psmouse->ps2dev.serio->phys, desired_serio_phys))
-		return -1;
+		return -ENXIO;
 
 	if (set_properties) {
 		psmouse->vendor = "Fujitsu";
@@ -294,10 +290,10 @@ static int lifebook_create_relative_device(struct psmouse *psmouse)
 	dev2->id.version = 0x0000;
 	dev2->dev.parent = &psmouse->ps2dev.serio->dev;
 
-	dev2->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REL);
-	dev2->relbit[BIT_WORD(REL_X)] = BIT_MASK(REL_X) | BIT_MASK(REL_Y);
-	dev2->keybit[BIT_WORD(BTN_LEFT)] =
-				BIT_MASK(BTN_LEFT) | BIT_MASK(BTN_RIGHT);
+	input_set_capability(dev2, EV_REL, REL_X);
+	input_set_capability(dev2, EV_REL, REL_Y);
+	input_set_capability(dev2, EV_KEY, BTN_LEFT);
+	input_set_capability(dev2, EV_KEY, BTN_RIGHT);
 
 	error = input_register_device(priv->dev2);
 	if (error)
@@ -316,21 +312,26 @@ int lifebook_init(struct psmouse *psmouse)
 {
 	struct input_dev *dev1 = psmouse->dev;
 	int max_coord = lifebook_use_6byte_proto ? 4096 : 1024;
+	int error;
 
-	if (lifebook_absolute_mode(psmouse))
-		return -1;
+	error = lifebook_absolute_mode(psmouse);
+	if (error)
+		return error;
 
-	dev1->evbit[0] = BIT_MASK(EV_ABS) | BIT_MASK(EV_KEY);
-	dev1->relbit[0] = 0;
-	dev1->keybit[BIT_WORD(BTN_MOUSE)] = 0;
-	dev1->keybit[BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH);
+	/* Clear default capabilities */
+	bitmap_zero(dev1->evbit, EV_CNT);
+	bitmap_zero(dev1->relbit, REL_CNT);
+	bitmap_zero(dev1->keybit, KEY_CNT);
+
+	input_set_capability(dev1, EV_KEY, BTN_TOUCH);
 	input_set_abs_params(dev1, ABS_X, 0, max_coord, 0, 0);
 	input_set_abs_params(dev1, ABS_Y, 0, max_coord, 0, 0);
 
 	if (!desired_serio_phys) {
-		if (lifebook_create_relative_device(psmouse)) {
+		error = lifebook_create_relative_device(psmouse);
+		if (error) {
 			lifebook_relative_mode(psmouse);
-			return -1;
+			return error;
 		}
 	}
 

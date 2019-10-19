@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2014 Free Electrons
  *
- * License Terms: GNU General Public License v2
  * Author: Boris BREZILLON <boris.brezillon@free-electrons.com>
  *
  * Allwinner PRCM (Power/Reset/Clock Management) driver
- *
  */
 
 #include <linux/mfd/core.h>
@@ -148,13 +147,12 @@ static const struct of_device_id sun6i_prcm_dt_ids[] = {
 
 static int sun6i_prcm_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
 	const struct of_device_id *match;
 	const struct prcm_data *data;
 	struct resource *res;
 	int ret;
 
-	match = of_match_node(sun6i_prcm_dt_ids, np);
+	match = of_match_node(sun6i_prcm_dt_ids, pdev->dev.of_node);
 	if (!match)
 		return -EINVAL;
 

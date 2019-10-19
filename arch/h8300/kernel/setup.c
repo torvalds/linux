@@ -13,17 +13,16 @@
 #include <linux/sched.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
 #include <linux/console.h>
 #include <linux/errno.h>
 #include <linux/string.h>
-#include <linux/bootmem.h>
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <linux/clk-provider.h>
 #include <linux/memblock.h>
@@ -71,10 +70,6 @@ void __init h8300_fdt_init(void *fdt, char *bootargs)
 
 static void __init bootmem_init(void)
 {
-	int bootmap_size;
-	unsigned long ram_start_pfn;
-	unsigned long free_ram_start_pfn;
-	unsigned long ram_end_pfn;
 	struct memblock_region *region;
 
 	memory_end = memory_start = 0;
@@ -88,33 +83,17 @@ static void __init bootmem_init(void)
 	if (!memory_end)
 		panic("No memory!");
 
-	ram_start_pfn = PFN_UP(memory_start);
-	/* free_ram_start_pfn is first page after kernel */
-	free_ram_start_pfn = PFN_UP(__pa(_end));
-	ram_end_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	/* setup bootmem globals (we use no_bootmem, but mm still depends on this) */
+	min_low_pfn = PFN_UP(memory_start);
+	max_low_pfn = PFN_DOWN(memblock_end_of_DRAM());
+	max_pfn = max_low_pfn;
 
-	max_pfn = ram_end_pfn;
+	memblock_reserve(__pa(_stext), _end - _stext);
 
-	/*
-	 * give all the memory to the bootmap allocator,  tell it to put the
-	 * boot mem_map at the start of memory
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-					 free_ram_start_pfn,
-					 0,
-					 ram_end_pfn);
-	/*
-	 * free the usable memory,  we have to make sure we do not free
-	 * the bootmem bitmap so we then reserve it after freeing it :-)
-	 */
-	free_bootmem(PFN_PHYS(free_ram_start_pfn),
-		     (ram_end_pfn - free_ram_start_pfn) << PAGE_SHIFT);
-	reserve_bootmem(PFN_PHYS(free_ram_start_pfn), bootmap_size,
-			BOOTMEM_DEFAULT);
+	early_init_fdt_reserve_self();
+	early_init_fdt_scan_reserved_mem();
 
-	for_each_memblock(reserved, region) {
-		reserve_bootmem(region->base, region->size, BOOTMEM_DEFAULT);
-	}
+	memblock_dump_all();
 }
 
 void __init setup_arch(char **cmdline_p)
@@ -187,15 +166,6 @@ const struct seq_operations cpuinfo_op = {
 	.stop	= c_stop,
 	.show	= show_cpuinfo,
 };
-
-static int __init device_probe(void)
-{
-	of_platform_populate(NULL, NULL, NULL, NULL);
-
-	return 0;
-}
-
-device_initcall(device_probe);
 
 #if defined(CONFIG_CPU_H8300H)
 #define get_wait(base, addr) ({		\

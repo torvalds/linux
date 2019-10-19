@@ -102,7 +102,7 @@ static int ipoib_set_coalesce(struct net_device *dev,
 	ret = rdma_set_cq_moderation(priv->recv_cq,
 				     coal->rx_max_coalesced_frames,
 				     coal->rx_coalesce_usecs);
-	if (ret && ret != -ENOSYS) {
+	if (ret && ret != -EOPNOTSUPP) {
 		ipoib_warn(priv, "failed modifying CQ (%d)\n", ret);
 		return ret;
 	}
@@ -138,7 +138,6 @@ static void ipoib_get_strings(struct net_device __always_unused *dev,
 			p += ETH_GSTRING_LEN;
 		}
 		break;
-	case ETH_SS_TEST:
 	default:
 		break;
 	}
@@ -149,7 +148,6 @@ static int ipoib_get_sset_count(struct net_device __always_unused *dev,
 	switch (sset) {
 	case ETH_SS_STATS:
 		return IPOIB_GLOBAL_STATS_LEN;
-	case ETH_SS_TEST:
 	default:
 		break;
 	}
@@ -222,6 +220,7 @@ static const struct ethtool_ops ipoib_ethtool_ops = {
 	.get_strings		= ipoib_get_strings,
 	.get_ethtool_stats	= ipoib_get_ethtool_stats,
 	.get_sset_count		= ipoib_get_sset_count,
+	.get_link		= ethtool_op_get_link,
 };
 
 void ipoib_set_ethtool_ops(struct net_device *dev)

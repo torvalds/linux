@@ -5,7 +5,6 @@
 #include <linux/rbtree.h>
 #include <linux/ceph/types.h>
 #include <linux/ceph/decode.h>
-#include <linux/ceph/ceph_fs.h>
 #include <linux/crush/crush.h>
 
 /*
@@ -111,16 +110,15 @@ struct ceph_object_id {
 	int name_len;
 };
 
+#define __CEPH_OID_INITIALIZER(oid) { .name = (oid).inline_name }
+
+#define CEPH_DEFINE_OID_ONSTACK(oid)				\
+	struct ceph_object_id oid = __CEPH_OID_INITIALIZER(oid)
+
 static inline void ceph_oid_init(struct ceph_object_id *oid)
 {
-	oid->name = oid->inline_name;
-	oid->name_len = 0;
+	*oid = (struct ceph_object_id) __CEPH_OID_INITIALIZER(*oid);
 }
-
-#define CEPH_OID_INIT_ONSTACK(oid)					\
-    ({ ceph_oid_init(&oid); oid; })
-#define CEPH_DEFINE_OID_ONSTACK(oid)					\
-	struct ceph_object_id oid = CEPH_OID_INIT_ONSTACK(oid)
 
 static inline bool ceph_oid_empty(const struct ceph_object_id *oid)
 {
@@ -280,15 +278,10 @@ bool ceph_osds_changed(const struct ceph_osds *old_acting,
 		       const struct ceph_osds *new_acting,
 		       bool any_change);
 
-/* calculate mapping of a file extent to an object */
-extern int ceph_calc_file_object_mapping(struct ceph_file_layout *layout,
-					 u64 off, u64 len,
-					 u64 *bno, u64 *oxoff, u64 *oxlen);
-
-int __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
-				const struct ceph_object_id *oid,
-				const struct ceph_object_locator *oloc,
-				struct ceph_pg *raw_pgid);
+void __ceph_object_locator_to_pg(struct ceph_pg_pool_info *pi,
+				 const struct ceph_object_id *oid,
+				 const struct ceph_object_locator *oloc,
+				 struct ceph_pg *raw_pgid);
 int ceph_object_locator_to_pg(struct ceph_osdmap *osdmap,
 			      const struct ceph_object_id *oid,
 			      const struct ceph_object_locator *oloc,

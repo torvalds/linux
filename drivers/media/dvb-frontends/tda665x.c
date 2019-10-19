@@ -1,20 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	TDA665x tuner driver
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/init.h>
@@ -231,9 +219,9 @@ struct dvb_frontend *tda665x_attach(struct dvb_frontend *fe,
 	info			 = &fe->ops.tuner_ops.info;
 
 	memcpy(info->name, config->name, sizeof(config->name));
-	info->frequency_min	= config->frequency_min;
-	info->frequency_max	= config->frequency_max;
-	info->frequency_step	= config->frequency_offst;
+	info->frequency_min_hz	= config->frequency_min;
+	info->frequency_max_hz	= config->frequency_max;
+	info->frequency_step_hz	= config->frequency_offst;
 
 	printk(KERN_DEBUG "%s: Attaching TDA665x (%s) tuner\n", __func__, info->name);
 

@@ -241,7 +241,7 @@ static int enic_set_ringparam(struct net_device *netdev,
 	}
 	enic_init_vnic_resources(enic);
 	if (running) {
-		err = dev_open(netdev);
+		err = dev_open(netdev, NULL);
 		if (err)
 			goto err_out;
 	}
@@ -474,6 +474,49 @@ static int enic_grxclsrule(struct enic *enic, struct ethtool_rxnfc *cmd)
 	return 0;
 }
 
+static int enic_get_rx_flow_hash(struct enic *enic, struct ethtool_rxnfc *cmd)
+{
+	u8 rss_hash_type = 0;
+	cmd->data = 0;
+
+	spin_lock_bh(&enic->devcmd_lock);
+	(void)vnic_dev_capable_rss_hash_type(enic->vdev, &rss_hash_type);
+	spin_unlock_bh(&enic->devcmd_lock);
+	switch (cmd->flow_type) {
+	case TCP_V6_FLOW:
+	case TCP_V4_FLOW:
+		cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3 |
+			     RXH_IP_SRC | RXH_IP_DST;
+		break;
+	case UDP_V6_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		if (rss_hash_type & NIC_CFG_RSS_HASH_TYPE_UDP_IPV6)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case UDP_V4_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		if (rss_hash_type & NIC_CFG_RSS_HASH_TYPE_UDP_IPV4)
+			cmd->data |= RXH_L4_B_0_1 | RXH_L4_B_2_3;
+		break;
+	case SCTP_V4_FLOW:
+	case AH_ESP_V4_FLOW:
+	case AH_V4_FLOW:
+	case ESP_V4_FLOW:
+	case SCTP_V6_FLOW:
+	case AH_ESP_V6_FLOW:
+	case AH_V6_FLOW:
+	case ESP_V6_FLOW:
+	case IPV4_FLOW:
+	case IPV6_FLOW:
+		cmd->data |= RXH_IP_SRC | RXH_IP_DST;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int enic_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 			  u32 *rule_locs)
 {
@@ -499,6 +542,9 @@ static int enic_get_rxnfc(struct net_device *dev, struct ethtool_rxnfc *cmd,
 		spin_lock_bh(&enic->rfs_h.lock);
 		ret = enic_grxclsrule(enic, cmd);
 		spin_unlock_bh(&enic->rfs_h.lock);
+		break;
+	case ETHTOOL_GRXFH:
+		ret = enic_get_rx_flow_hash(enic, cmd);
 		break;
 	default:
 		ret = -EOPNOTSUPP;

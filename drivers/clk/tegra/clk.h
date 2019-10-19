@@ -1,17 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 	/*
  * Copyright (c) 2012, NVIDIA CORPORATION.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef __TEGRA_CLK_H
@@ -19,6 +8,7 @@
 
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/delay.h>
 
 /**
  * struct tegra_clk_sync_source - external clock source from codec
@@ -40,7 +30,7 @@ extern const struct clk_ops tegra_clk_sync_source_ops;
 extern int *periph_clk_enb_refcnt;
 
 struct clk *tegra_clk_register_sync_source(const char *name,
-		unsigned long fixed_rate, unsigned long max_rate);
+					   unsigned long max_rate);
 
 /**
  * struct tegra_clk_frac_div - fractional divider clock
@@ -705,6 +695,32 @@ struct clk *tegra_clk_register_super_clk(const char *name,
 		const char * const *parent_names, u8 num_parents,
 		unsigned long flags, void __iomem *reg, u8 clk_super_flags,
 		spinlock_t *lock);
+
+/**
+ * struct tegra_sdmmc_mux - switch divider with Low Jitter inputs for SDMMC
+ *
+ * @hw:		handle between common and hardware-specific interfaces
+ * @reg:	register controlling mux and divider
+ * @flags:	hardware-specific flags
+ * @lock:	optional register lock
+ * @gate:	gate clock
+ * @gate_ops:	gate clock ops
+ */
+struct tegra_sdmmc_mux {
+	struct clk_hw		hw;
+	void __iomem		*reg;
+	spinlock_t		*lock;
+	const struct clk_ops	*gate_ops;
+	struct tegra_clk_periph_gate	gate;
+	u8			div_flags;
+};
+
+#define to_clk_sdmmc_mux(_hw) container_of(_hw, struct tegra_sdmmc_mux, hw)
+
+struct clk *tegra_clk_register_sdmmc_mux_div(const char *name,
+		void __iomem *clk_base, u32 offset, u32 clk_num, u8 div_flags,
+		unsigned long flags, void *lock);
+
 /**
  * struct clk_init_table - clock initialization table
  * @clk_id:	clock id as mentioned in device tree bindings
@@ -763,13 +779,13 @@ struct clk **tegra_clk_init(void __iomem *clk_base, int num, int periph_banks);
 
 struct clk **tegra_lookup_dt_id(int clk_id, struct tegra_clk *tegra_clk);
 
-void tegra_add_of_provider(struct device_node *np);
+void tegra_add_of_provider(struct device_node *np, void *clk_src_onecell_get);
 void tegra_register_devclks(struct tegra_devclk *dev_clks, int num);
 
 void tegra_audio_clk_init(void __iomem *clk_base,
 			void __iomem *pmc_base, struct tegra_clk *tegra_clks,
 			struct tegra_audio_clk_info *audio_info,
-			unsigned int num_plls);
+			unsigned int num_plls, unsigned long sync_max_rate);
 
 void tegra_periph_clk_init(void __iomem *clk_base, void __iomem *pmc_base,
 			struct tegra_clk *tegra_clks,
@@ -811,5 +827,15 @@ extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
 int tegra_pll_wait_for_lock(struct tegra_clk_pll *pll);
 u16 tegra_pll_get_fixed_mdiv(struct clk_hw *hw, unsigned long input_rate);
 int tegra_pll_p_div_to_hw(struct tegra_clk_pll *pll, u8 p_div);
+int div_frac_get(unsigned long rate, unsigned parent_rate, u8 width,
+		 u8 frac_width, u8 flags);
+
+
+/* Combined read fence with delay */
+#define fence_udelay(delay, reg)	\
+	do {				\
+		readl(reg);		\
+		udelay(delay);		\
+	} while (0)
 
 #endif /* TEGRA_CLK_H */

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * dts file for Hisilicon D03 Development Board
  *
  * Copyright (C) 2016 Hisilicon Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * publishhed by the Free Software Foundation.
- *
  */
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -87,7 +83,7 @@
 
 		cpu0: cpu@10000 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10000>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -95,7 +91,7 @@
 
 		cpu1: cpu@10001 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10001>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -103,7 +99,7 @@
 
 		cpu2: cpu@10002 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10002>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -111,7 +107,7 @@
 
 		cpu3: cpu@10003 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10003>;
 			enable-method = "psci";
 			next-level-cache = <&cluster0_l2>;
@@ -119,7 +115,7 @@
 
 		cpu4: cpu@10100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10100>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -127,7 +123,7 @@
 
 		cpu5: cpu@10101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10101>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -135,7 +131,7 @@
 
 		cpu6: cpu@10102 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10102>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -143,7 +139,7 @@
 
 		cpu7: cpu@10103 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10103>;
 			enable-method = "psci";
 			next-level-cache = <&cluster1_l2>;
@@ -151,7 +147,7 @@
 
 		cpu8: cpu@10200 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10200>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -159,7 +155,7 @@
 
 		cpu9: cpu@10201 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10201>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -167,7 +163,7 @@
 
 		cpu10: cpu@10202 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10202>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -175,7 +171,7 @@
 
 		cpu11: cpu@10203 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10203>;
 			enable-method = "psci";
 			next-level-cache = <&cluster2_l2>;
@@ -183,7 +179,7 @@
 
 		cpu12: cpu@10300 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10300>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
@@ -191,7 +187,7 @@
 
 		cpu13: cpu@10301 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10301>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
@@ -199,7 +195,7 @@
 
 		cpu14: cpu@10302 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10302>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
@@ -207,7 +203,7 @@
 
 		cpu15: cpu@10303 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a57", "arm,armv8";
+			compatible = "arm,cortex-a57";
 			reg = <0x10303>;
 			enable-method = "psci";
 			next-level-cache = <&cluster3_l2>;
@@ -291,6 +287,13 @@
 			#interrupt-cells = <2>;
 			num-pins = <128>;
 		};
+
+		mbigen_pcie0: intc_pcie0 {
+			msi-parent = <&its_dsa 0x40085>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			num-pins = <10>;
+		};
 	};
 
 	mbigen_dsa@c0080000 {
@@ -312,11 +315,57 @@
 		};
 	};
 
+	/**
+	 *  HiSilicon erratum 161010801: This describes the limitation
+	 *  of HiSilicon platforms hip06/hip07 to support the SMMUv3
+	 *  mappings for PCIe MSI transactions.
+	 *  PCIe controller on these platforms has to differentiate the
+	 *  MSI payload against other DMA payload and has to modify the
+	 *  MSI payload. This makes it difficult for these platforms to
+	 *  have a SMMU translation for MSI. In order to workaround this,
+	 *  ARM SMMUv3 driver requires a quirk to treat the MSI regions
+	 *  separately. Such a quirk is currently missing for DT based
+	 *  systems. Hence please make sure that the smmu pcie node on
+	 *  hip06 is disabled as this will break the PCIe functionality
+	 *  when iommu-map entry is used along with the PCIe node.
+	 *  Refer:https://www.spinics.net/lists/arm-kernel/msg602812.html
+	 */
+	smmu0: smmu_pcie {
+		compatible = "arm,smmu-v3";
+		reg = <0x0 0xa0040000 0x0 0x20000>;
+		#iommu-cells = <1>;
+		dma-coherent;
+		smmu-cb-memtype = <0x0 0x1>;
+		hisilicon,broken-prefetch-cmd;
+		status = "disabled";
+	};
+
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
+
+		isa@a01b0000 {
+			compatible = "hisilicon,hip06-lpc";
+			#size-cells = <1>;
+			#address-cells = <2>;
+			reg = <0x0 0xa01b0000 0x0 0x1000>;
+
+			ipmi0: bt@e4 {
+				compatible = "ipmi-bt";
+				device_type = "ipmi";
+				reg = <0x01 0xe4 0x04>;
+				status = "disabled";
+			};
+
+			uart0: lpc-uart@2f8 {
+				compatible = "ns16550a";
+				clock-frequency = <1843200>;
+				reg = <0x01 0x2f8 0x08>;
+				status = "disabled";
+			};
+		};
 
 		refclk: refclk {
 			compatible = "fixed-clock";
@@ -676,6 +725,30 @@
 				     <637 1>,<638 1>,<639 1>;
 			status = "disabled";
 		};
+
+		pcie0: pcie@a0090000 {
+			compatible = "hisilicon,hip06-pcie-ecam";
+			reg = <0 0xb0000000 0 0x2000000>,
+			      <0 0xa0090000 0 0x10000>;
+			bus-range = <0  31>;
+			msi-map = <0x0000 &its_dsa 0x0000 0x2000>;
+			msi-map-mask = <0xffff>;
+			#address-cells = <3>;
+			#size-cells = <2>;
+			device_type = "pci";
+			dma-coherent;
+			ranges = <0x02000000 0 0xb2000000 0x0 0xb2000000 0
+				 0x5ff0000 0x01000000 0 0 0 0xb7ff0000
+				 0 0x10000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
+			interrupt-map = <0x0 0 0 1 &mbigen_pcie0 650 4
+					0x0 0 0 2 &mbigen_pcie0 650 4
+					0x0 0 0 3 &mbigen_pcie0 650 4
+					0x0 0 0 4 &mbigen_pcie0 650 4>;
+			status = "disabled";
+		};
+
 	};
 
 };

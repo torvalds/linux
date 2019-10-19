@@ -1,23 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Driver for Digigram miXart soundcards
  *
  * definitions and makros for basic card access
  *
  * Copyright (c) 2003 by Digigram <alsa@digigram.com>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #ifndef __SOUND_MIXART_HWDEP_H
@@ -26,19 +13,19 @@
 #include <sound/hwdep.h>
 
 #ifndef readl_be
-#define readl_be(x) be32_to_cpu(__raw_readl(x))
+#define readl_be(x) be32_to_cpu((__force __be32)__raw_readl(x))
 #endif
 
 #ifndef writel_be
-#define writel_be(data,addr) __raw_writel(cpu_to_be32(data),addr)
+#define writel_be(data,addr) __raw_writel((__force u32)cpu_to_be32(data),addr)
 #endif
 
 #ifndef readl_le
-#define readl_le(x) le32_to_cpu(__raw_readl(x))
+#define readl_le(x) le32_to_cpu((__force __le32)__raw_readl(x))
 #endif
 
 #ifndef writel_le
-#define writel_le(data,addr) __raw_writel(cpu_to_le32(data),addr)
+#define writel_le(data,addr) __raw_writel((__force u32)cpu_to_le32(data),addr)
 #endif
 
 #define MIXART_MEM(mgr,x)	((mgr)->mem[0].virt + (x))

@@ -21,13 +21,15 @@
  *
  */
 
-#include <drm/drmP.h>
+#include <linux/seq_file.h>
+
+#include <drm/drm_pci.h>
+
+#include "r600_dpm.h"
 #include "radeon.h"
 #include "radeon_asic.h"
-#include "trinityd.h"
-#include "r600_dpm.h"
 #include "trinity_dpm.h"
-#include <linux/seq_file.h>
+#include "trinityd.h"
 
 #define TRINITY_MAX_DEEPSLEEP_DIVIDER_ID 5
 #define TRINITY_MINIMUM_ENGINE_CLOCK 800
@@ -1757,8 +1759,9 @@ static int trinity_parse_power_table(struct radeon_device *rdev)
 		(mode_info->atom_context->bios + data_offset +
 		 le16_to_cpu(power_info->pplib.usNonClockInfoArrayOffset));
 
-	rdev->pm.dpm.ps = kzalloc(sizeof(struct radeon_ps) *
-				  state_array->ucNumEntries, GFP_KERNEL);
+	rdev->pm.dpm.ps = kcalloc(state_array->ucNumEntries,
+				  sizeof(struct radeon_ps),
+				  GFP_KERNEL);
 	if (!rdev->pm.dpm.ps)
 		return -ENOMEM;
 	power_state_offset = (u8 *)state_array->states;

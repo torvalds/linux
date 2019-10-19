@@ -35,8 +35,9 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_cache.h>
 #include "mlx5_ib.h"
+#include "srq.h"
 
-static void mlx5_ib_cq_comp(struct mlx5_core_cq *cq)
+static void mlx5_ib_cq_comp(struct mlx5_core_cq *cq, struct mlx5_eqe *eqe)
 {
 	struct ib_cq *ibcq = &to_mibcq(cq)->ibcq;
 
@@ -64,14 +65,9 @@ static void mlx5_ib_cq_event(struct mlx5_core_cq *mcq, enum mlx5_event type)
 	}
 }
 
-static void *get_cqe_from_buf(struct mlx5_ib_cq_buf *buf, int n, int size)
-{
-	return mlx5_buf_offset(&buf->buf, n * size);
-}
-
 static void *get_cqe(struct mlx5_ib_cq *cq, int n)
 {
-	return get_cqe_from_buf(&cq->buf, n, cq->mcq.cqe_sz);
+	return mlx5_frag_buf_get_wqe(&cq->buf.fbc, n);
 }
 
 static u8 sw_ownership_bit(int n, int nent)
@@ -86,7 +82,7 @@ static void *get_sw_cqe(struct mlx5_ib_cq *cq, int n)
 
 	cqe64 = (cq->mcq.cqe_sz == 64) ? cqe : cqe + 64;
 
-	if (likely((cqe64->op_own) >> 4 != MLX5_CQE_INVALID) &&
+	if (likely(get_cqe_opcode(cqe64) != MLX5_CQE_INVALID) &&
 	    !((cqe64->op_own & MLX5_CQE_OWNER_MASK) ^ !!(n & (cq->ibcq.cqe + 1)))) {
 		return cqe;
 	} else {
@@ -182,8 +178,7 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 		struct mlx5_core_srq *msrq = NULL;
 
 		if (qp->ibqp.xrcd) {
-			msrq = mlx5_core_get_srq(dev->mdev,
-						 be32_to_cpu(cqe->srqn));
+			msrq = mlx5_cmd_get_srq(dev, be32_to_cpu(cqe->srqn));
 			srq = to_mibsrq(msrq);
 		} else {
 			srq = to_msrq(qp->ibqp.srq);
@@ -192,8 +187,8 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 			wqe_ctr = be16_to_cpu(cqe->wqe_counter);
 			wc->wr_id = srq->wrid[wqe_ctr];
 			mlx5_ib_free_srq_wqe(srq, wqe_ctr);
-			if (msrq && atomic_dec_and_test(&msrq->refcount))
-				complete(&msrq->free);
+			if (msrq)
+				mlx5_core_res_put(&msrq->common);
 		}
 	} else {
 		wq	  = &qp->rq;
@@ -202,7 +197,7 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	}
 	wc->byte_len = be32_to_cpu(cqe->byte_cnt);
 
-	switch (cqe->op_own >> 4) {
+	switch (get_cqe_opcode(cqe)) {
 	case MLX5_CQE_RESP_WR_IMM:
 		wc->opcode	= IB_WC_RECV_RDMA_WITH_IMM;
 		wc->wc_flags	= IB_WC_WITH_IMM;
@@ -226,7 +221,6 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 		wc->ex.invalidate_rkey = be32_to_cpu(cqe->imm_inval_pkey);
 		break;
 	}
-	wc->slid	   = be16_to_cpu(cqe->slid);
 	wc->src_qp	   = be32_to_cpu(cqe->flags_rqpn) & 0xffffff;
 	wc->dlid_path_bits = cqe->ml_path;
 	g = (be32_to_cpu(cqe->flags_rqpn) >> 28) & 3;
@@ -241,10 +235,12 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 	}
 
 	if (ll != IB_LINK_LAYER_ETHERNET) {
+		wc->slid = be16_to_cpu(cqe->slid);
 		wc->sl = (be32_to_cpu(cqe->flags_rqpn) >> 24) & 0xf;
 		return;
 	}
 
+	wc->slid = 0;
 	vlan_present = cqe->l4_l3_hdr_type & 0x1;
 	roce_packet_type   = (be32_to_cpu(cqe->flags_rqpn) >> 24) & 0x3;
 	if (vlan_present) {
@@ -271,14 +267,8 @@ static void handle_responder(struct ib_wc *wc, struct mlx5_cqe64 *cqe,
 
 static void dump_cqe(struct mlx5_ib_dev *dev, struct mlx5_err_cqe *cqe)
 {
-	__be32 *p = (__be32 *)cqe;
-	int i;
-
 	mlx5_ib_warn(dev, "dump error cqe\n");
-	for (i = 0; i < sizeof(*cqe) / 16; i++, p += 4)
-		pr_info("%08x %08x %08x %08x\n", be32_to_cpu(p[0]),
-			be32_to_cpu(p[1]), be32_to_cpu(p[2]),
-			be32_to_cpu(p[3]));
+	mlx5_dump_err_cqe(dev->mdev, cqe);
 }
 
 static void mlx5_handle_error_cqe(struct mlx5_ib_dev *dev,
@@ -340,70 +330,9 @@ static void mlx5_handle_error_cqe(struct mlx5_ib_dev *dev,
 		dump_cqe(dev, cqe);
 }
 
-static int is_atomic_response(struct mlx5_ib_qp *qp, uint16_t idx)
-{
-	/* TBD: waiting decision
-	*/
-	return 0;
-}
-
-static void *mlx5_get_atomic_laddr(struct mlx5_ib_qp *qp, uint16_t idx)
-{
-	struct mlx5_wqe_data_seg *dpseg;
-	void *addr;
-
-	dpseg = mlx5_get_send_wqe(qp, idx) + sizeof(struct mlx5_wqe_ctrl_seg) +
-		sizeof(struct mlx5_wqe_raddr_seg) +
-		sizeof(struct mlx5_wqe_atomic_seg);
-	addr = (void *)(unsigned long)be64_to_cpu(dpseg->addr);
-	return addr;
-}
-
-static void handle_atomic(struct mlx5_ib_qp *qp, struct mlx5_cqe64 *cqe64,
-			  uint16_t idx)
-{
-	void *addr;
-	int byte_count;
-	int i;
-
-	if (!is_atomic_response(qp, idx))
-		return;
-
-	byte_count = be32_to_cpu(cqe64->byte_cnt);
-	addr = mlx5_get_atomic_laddr(qp, idx);
-
-	if (byte_count == 4) {
-		*(uint32_t *)addr = be32_to_cpu(*((__be32 *)addr));
-	} else {
-		for (i = 0; i < byte_count; i += 8) {
-			*(uint64_t *)addr = be64_to_cpu(*((__be64 *)addr));
-			addr += 8;
-		}
-	}
-
-	return;
-}
-
-static void handle_atomics(struct mlx5_ib_qp *qp, struct mlx5_cqe64 *cqe64,
-			   u16 tail, u16 head)
-{
-	u16 idx;
-
-	do {
-		idx = tail & (qp->sq.wqe_cnt - 1);
-		handle_atomic(qp, cqe64, idx);
-		if (idx == head)
-			break;
-
-		tail = qp->sq.w_list[idx].next;
-	} while (1);
-	tail = qp->sq.w_list[idx].next;
-	qp->sq.last_poll = tail;
-}
-
 static void free_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf)
 {
-	mlx5_buf_free(dev->mdev, &buf->buf);
+	mlx5_frag_buf_free(dev->mdev, &buf->frag_buf);
 }
 
 static void get_sig_err_item(struct mlx5_sig_err_cqe *cqe,
@@ -438,45 +367,15 @@ static void get_sig_err_item(struct mlx5_sig_err_cqe *cqe,
 	item->key = be32_to_cpu(cqe->mkey);
 }
 
-static void sw_send_comp(struct mlx5_ib_qp *qp, int num_entries,
-			 struct ib_wc *wc, int *npolled)
-{
-	struct mlx5_ib_wq *wq;
-	unsigned int cur;
-	unsigned int idx;
-	int np;
-	int i;
-
-	wq = &qp->sq;
-	cur = wq->head - wq->tail;
-	np = *npolled;
-
-	if (cur == 0)
-		return;
-
-	for (i = 0;  i < cur && np < num_entries; i++) {
-		idx = wq->last_poll & (wq->wqe_cnt - 1);
-		wc->wr_id = wq->wrid[idx];
-		wc->status = IB_WC_WR_FLUSH_ERR;
-		wc->vendor_err = MLX5_CQE_SYNDROME_WR_FLUSH_ERR;
-		wq->tail++;
-		np++;
-		wc->qp = &qp->ibqp;
-		wc++;
-		wq->last_poll = wq->w_list[idx].next;
-	}
-	*npolled = np;
-}
-
-static void sw_recv_comp(struct mlx5_ib_qp *qp, int num_entries,
-			 struct ib_wc *wc, int *npolled)
+static void sw_comp(struct mlx5_ib_qp *qp, int num_entries, struct ib_wc *wc,
+		    int *npolled, int is_send)
 {
 	struct mlx5_ib_wq *wq;
 	unsigned int cur;
 	int np;
 	int i;
 
-	wq = &qp->rq;
+	wq = (is_send) ? &qp->sq : &qp->rq;
 	cur = wq->head - wq->tail;
 	np = *npolled;
 
@@ -503,13 +402,13 @@ static void mlx5_ib_poll_sw_comp(struct mlx5_ib_cq *cq, int num_entries,
 	*npolled = 0;
 	/* Find uncompleted WQEs belonging to that cq and return mmics ones */
 	list_for_each_entry(qp, &cq->list_send_qp, cq_send_list) {
-		sw_send_comp(qp, num_entries, wc + *npolled, npolled);
+		sw_comp(qp, num_entries, wc + *npolled, npolled, true);
 		if (*npolled >= num_entries)
 			return;
 	}
 
 	list_for_each_entry(qp, &cq->list_recv_qp, cq_recv_list) {
-		sw_recv_comp(qp, num_entries, wc + *npolled, npolled);
+		sw_comp(qp, num_entries, wc + *npolled, npolled, false);
 		if (*npolled >= num_entries)
 			return;
 	}
@@ -547,7 +446,7 @@ repoll:
 	 */
 	rmb();
 
-	opcode = cqe64->op_own >> 4;
+	opcode = get_cqe_opcode(cqe64);
 	if (unlikely(opcode == MLX5_CQE_RESIZE_CQ)) {
 		if (likely(cq->resize_buf)) {
 			free_cq_buf(dev, &cq->buf);
@@ -577,7 +476,6 @@ repoll:
 		wqe_ctr = be16_to_cpu(cqe64->wqe_counter);
 		idx = wqe_ctr & (wq->wqe_cnt - 1);
 		handle_good_req(wc, cqe64, wq, idx);
-		handle_atomics(*cur_qp, cqe64, wq->last_poll, idx);
 		wc->wr_id = wq->wrid[idx];
 		wq->tail = wq->wqe_head[idx] + 1;
 		wc->status = IB_WC_SUCCESS;
@@ -624,9 +522,9 @@ repoll:
 	case MLX5_CQE_SIG_ERR:
 		sig_err_cqe = (struct mlx5_sig_err_cqe *)cqe64;
 
-		read_lock(&dev->mdev->priv.mkey_table.lock);
-		mmkey = __mlx5_mr_lookup(dev->mdev,
-					 mlx5_base_mkey(be32_to_cpu(sig_err_cqe->mkey)));
+		xa_lock(&dev->mdev->priv.mkey_table);
+		mmkey = xa_load(&dev->mdev->priv.mkey_table,
+				mlx5_base_mkey(be32_to_cpu(sig_err_cqe->mkey)));
 		mr = to_mibmr(mmkey);
 		get_sig_err_item(sig_err_cqe, &mr->sig->err_item);
 		mr->sig->sig_err_exists = true;
@@ -639,7 +537,7 @@ repoll:
 			     mr->sig->err_item.expected,
 			     mr->sig->err_item.actual);
 
-		read_unlock(&dev->mdev->priv.mkey_table.lock);
+		xa_unlock(&dev->mdev->priv.mkey_table);
 		goto repoll;
 	}
 
@@ -647,7 +545,7 @@ repoll:
 }
 
 static int poll_soft_wc(struct mlx5_ib_cq *cq, int num_entries,
-			struct ib_wc *wc)
+			struct ib_wc *wc, bool is_fatal_err)
 {
 	struct mlx5_ib_dev *dev = to_mdev(cq->ibcq.device);
 	struct mlx5_ib_wc *soft_wc, *next;
@@ -660,6 +558,10 @@ static int poll_soft_wc(struct mlx5_ib_cq *cq, int num_entries,
 		mlx5_ib_dbg(dev, "polled software generated completion on CQ 0x%x\n",
 			    cq->mcq.cqn);
 
+		if (unlikely(is_fatal_err)) {
+			soft_wc->wc.status = IB_WC_WR_FLUSH_ERR;
+			soft_wc->wc.vendor_err = MLX5_CQE_SYNDROME_WR_FLUSH_ERR;
+		}
 		wc[npolled++] = soft_wc->wc;
 		list_del(&soft_wc->list);
 		kfree(soft_wc);
@@ -680,12 +582,17 @@ int mlx5_ib_poll_cq(struct ib_cq *ibcq, int num_entries, struct ib_wc *wc)
 
 	spin_lock_irqsave(&cq->lock, flags);
 	if (mdev->state == MLX5_DEVICE_STATE_INTERNAL_ERROR) {
-		mlx5_ib_poll_sw_comp(cq, num_entries, wc, &npolled);
+		/* make sure no soft wqe's are waiting */
+		if (unlikely(!list_empty(&cq->wc_list)))
+			soft_polled = poll_soft_wc(cq, num_entries, wc, true);
+
+		mlx5_ib_poll_sw_comp(cq, num_entries - soft_polled,
+				     wc + soft_polled, &npolled);
 		goto out;
 	}
 
 	if (unlikely(!list_empty(&cq->wc_list)))
-		soft_polled = poll_soft_wc(cq, num_entries, wc);
+		soft_polled = poll_soft_wc(cq, num_entries, wc, false);
 
 	for (npolled = 0; npolled < num_entries - soft_polled; npolled++) {
 		if (mlx5_poll_one(cq, &cur_qp, wc + soft_polled + npolled))
@@ -724,14 +631,24 @@ int mlx5_ib_arm_cq(struct ib_cq *ibcq, enum ib_cq_notify_flags flags)
 	return ret;
 }
 
-static int alloc_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf,
-			int nent, int cqe_size)
+static int alloc_cq_frag_buf(struct mlx5_ib_dev *dev,
+			     struct mlx5_ib_cq_buf *buf,
+			     int nent,
+			     int cqe_size)
 {
+	struct mlx5_frag_buf *frag_buf = &buf->frag_buf;
+	u8 log_wq_stride = 6 + (cqe_size == 128 ? 1 : 0);
+	u8 log_wq_sz     = ilog2(cqe_size);
 	int err;
 
-	err = mlx5_buf_alloc(dev->mdev, nent * cqe_size, &buf->buf);
+	err = mlx5_frag_buf_alloc_node(dev->mdev,
+				       nent * cqe_size,
+				       frag_buf,
+				       dev->mdev->priv.numa_node);
 	if (err)
 		return err;
+
+	mlx5_init_fbc(frag_buf->frags, log_wq_stride, log_wq_sz, &buf->fbc);
 
 	buf->cqe_size = cqe_size;
 	buf->nent = nent;
@@ -739,9 +656,30 @@ static int alloc_cq_buf(struct mlx5_ib_dev *dev, struct mlx5_ib_cq_buf *buf,
 	return 0;
 }
 
+enum {
+	MLX5_CQE_RES_FORMAT_HASH = 0,
+	MLX5_CQE_RES_FORMAT_CSUM = 1,
+	MLX5_CQE_RES_FORMAT_CSUM_STRIDX = 3,
+};
+
+static int mini_cqe_res_format_to_hw(struct mlx5_ib_dev *dev, u8 format)
+{
+	switch (format) {
+	case MLX5_IB_CQE_RES_FORMAT_HASH:
+		return MLX5_CQE_RES_FORMAT_HASH;
+	case MLX5_IB_CQE_RES_FORMAT_CSUM:
+		return MLX5_CQE_RES_FORMAT_CSUM;
+	case MLX5_IB_CQE_RES_FORMAT_CSUM_STRIDX:
+		if (MLX5_CAP_GEN(dev->mdev, mini_cqe_resp_stride_index))
+			return MLX5_CQE_RES_FORMAT_CSUM_STRIDX;
+		return -EOPNOTSUPP;
+	default:
+		return -EINVAL;
+	}
+}
+
 static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
-			  struct ib_ucontext *context, struct mlx5_ib_cq *cq,
-			  int entries, u32 **cqb,
+			  struct mlx5_ib_cq *cq, int entries, u32 **cqb,
 			  int *cqe_size, int *index, int *inlen)
 {
 	struct mlx5_ib_create_cq ucmd = {};
@@ -752,6 +690,8 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	int ncont;
 	void *cqc;
 	int err;
+	struct mlx5_ib_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
 
 	ucmdlen = udata->inlen < sizeof(ucmd) ?
 		  (sizeof(ucmd) - sizeof(ucmd.flags)) : sizeof(ucmd);
@@ -768,16 +708,15 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 
 	*cqe_size = ucmd.cqe_size;
 
-	cq->buf.umem = ib_umem_get(context, ucmd.buf_addr,
-				   entries * ucmd.cqe_size,
-				   IB_ACCESS_LOCAL_WRITE, 1);
+	cq->buf.umem =
+		ib_umem_get(udata, ucmd.buf_addr, entries * ucmd.cqe_size,
+			    IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(cq->buf.umem)) {
 		err = PTR_ERR(cq->buf.umem);
 		return err;
 	}
 
-	err = mlx5_ib_db_map_user(to_mucontext(context), ucmd.db_addr,
-				  &cq->db);
+	err = mlx5_ib_db_map_user(context, udata, ucmd.db_addr, &cq->db);
 	if (err)
 		goto err_umem;
 
@@ -801,9 +740,11 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 	MLX5_SET(cqc, cqc, log_page_size,
 		 page_shift - MLX5_ADAPTER_PAGE_SHIFT);
 
-	*index = to_mucontext(context)->bfregi.sys_pages[0];
+	*index = context->bfregi.sys_pages[0];
 
 	if (ucmd.cqe_comp_en == 1) {
+		int mini_cqe_format;
+
 		if (!((*cqe_size == 128 &&
 		       MLX5_CAP_GEN(dev->mdev, cqe_compression_128)) ||
 		      (*cqe_size == 64  &&
@@ -814,20 +755,18 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 			goto err_cqb;
 		}
 
-		if (unlikely(!ucmd.cqe_comp_res_format ||
-			     !(ucmd.cqe_comp_res_format <
-			       MLX5_IB_CQE_RES_RESERVED) ||
-			     (ucmd.cqe_comp_res_format &
-			      (ucmd.cqe_comp_res_format - 1)))) {
-			err = -EOPNOTSUPP;
-			mlx5_ib_warn(dev, "CQE compression res format %d is not supported!\n",
-				     ucmd.cqe_comp_res_format);
+		mini_cqe_format =
+			mini_cqe_res_format_to_hw(dev,
+						  ucmd.cqe_comp_res_format);
+		if (mini_cqe_format < 0) {
+			err = mini_cqe_format;
+			mlx5_ib_dbg(dev, "CQE compression res format %d error: %d\n",
+				    ucmd.cqe_comp_res_format, err);
 			goto err_cqb;
 		}
 
 		MLX5_SET(cqc, cqc, cqe_comp_en, 1);
-		MLX5_SET(cqc, cqc, mini_cqe_res_format,
-			 ilog2(ucmd.cqe_comp_res_format));
+		MLX5_SET(cqc, cqc, mini_cqe_res_format, mini_cqe_format);
 	}
 
 	if (ucmd.flags & MLX5_IB_CREATE_CQ_FLAGS_CQE_128B_PAD) {
@@ -843,33 +782,38 @@ static int create_cq_user(struct mlx5_ib_dev *dev, struct ib_udata *udata,
 		cq->private_flags |= MLX5_IB_CQ_PR_FLAGS_CQE_128_PAD;
 	}
 
+	MLX5_SET(create_cq_in, *cqb, uid, context->devx_uid);
 	return 0;
 
 err_cqb:
-	kfree(*cqb);
+	kvfree(*cqb);
 
 err_db:
-	mlx5_ib_db_unmap_user(to_mucontext(context), &cq->db);
+	mlx5_ib_db_unmap_user(context, &cq->db);
 
 err_umem:
 	ib_umem_release(cq->buf.umem);
 	return err;
 }
 
-static void destroy_cq_user(struct mlx5_ib_cq *cq, struct ib_ucontext *context)
+static void destroy_cq_user(struct mlx5_ib_cq *cq, struct ib_udata *udata)
 {
-	mlx5_ib_db_unmap_user(to_mucontext(context), &cq->db);
+	struct mlx5_ib_ucontext *context = rdma_udata_to_drv_context(
+		udata, struct mlx5_ib_ucontext, ibucontext);
+
+	mlx5_ib_db_unmap_user(context, &cq->db);
 	ib_umem_release(cq->buf.umem);
 }
 
-static void init_cq_buf(struct mlx5_ib_cq *cq, struct mlx5_ib_cq_buf *buf)
+static void init_cq_frag_buf(struct mlx5_ib_cq *cq,
+			     struct mlx5_ib_cq_buf *buf)
 {
 	int i;
 	void *cqe;
 	struct mlx5_cqe64 *cqe64;
 
 	for (i = 0; i < buf->nent; i++) {
-		cqe = get_cqe_from_buf(buf, i, buf->cqe_size);
+		cqe = get_cqe(cq, i);
 		cqe64 = buf->cqe_size == 64 ? cqe : cqe + 64;
 		cqe64->op_own = MLX5_CQE_INVALID << 4;
 	}
@@ -891,14 +835,15 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	cq->mcq.arm_db     = cq->db.db + 1;
 	cq->mcq.cqe_sz = cqe_size;
 
-	err = alloc_cq_buf(dev, &cq->buf, entries, cqe_size);
+	err = alloc_cq_frag_buf(dev, &cq->buf, entries, cqe_size);
 	if (err)
 		goto err_db;
 
-	init_cq_buf(cq, &cq->buf);
+	init_cq_frag_buf(cq, &cq->buf);
 
 	*inlen = MLX5_ST_SZ_BYTES(create_cq_in) +
-		 MLX5_FLD_SZ_BYTES(create_cq_in, pas[0]) * cq->buf.buf.npages;
+		 MLX5_FLD_SZ_BYTES(create_cq_in, pas[0]) *
+		 cq->buf.frag_buf.npages;
 	*cqb = kvzalloc(*inlen, GFP_KERNEL);
 	if (!*cqb) {
 		err = -ENOMEM;
@@ -906,11 +851,12 @@ static int create_cq_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	}
 
 	pas = (__be64 *)MLX5_ADDR_OF(create_cq_in, *cqb, pas);
-	mlx5_fill_page_array(&cq->buf.buf, pas);
+	mlx5_fill_page_frag_array(&cq->buf.frag_buf, pas);
 
 	cqc = MLX5_ADDR_OF(create_cq_in, *cqb, cq_context);
 	MLX5_SET(cqc, cqc, log_page_size,
-		 cq->buf.buf.page_shift - MLX5_ADAPTER_PAGE_SHIFT);
+		 cq->buf.frag_buf.page_shift -
+		 MLX5_ADAPTER_PAGE_SHIFT);
 
 	*index = dev->mdev->priv.uar->index;
 
@@ -938,15 +884,15 @@ static void notify_soft_wc_handler(struct work_struct *work)
 	cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
 
-struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
-				const struct ib_cq_init_attr *attr,
-				struct ib_ucontext *context,
-				struct ib_udata *udata)
+int mlx5_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
+		      struct ib_udata *udata)
 {
+	struct ib_device *ibdev = ibcq->device;
 	int entries = attr->cqe;
 	int vector = attr->comp_vector;
 	struct mlx5_ib_dev *dev = to_mdev(ibdev);
-	struct mlx5_ib_cq *cq;
+	struct mlx5_ib_cq *cq = to_mcq(ibcq);
+	u32 out[MLX5_ST_SZ_DW(create_cq_out)];
 	int uninitialized_var(index);
 	int uninitialized_var(inlen);
 	u32 *cqb = NULL;
@@ -958,18 +904,14 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 	if (entries < 0 ||
 	    (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz))))
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	if (check_cq_create_flags(attr->flags))
-		return ERR_PTR(-EOPNOTSUPP);
+		return -EOPNOTSUPP;
 
 	entries = roundup_pow_of_two(entries + 1);
 	if (entries > (1 << MLX5_CAP_GEN(dev->mdev, log_max_cq_sz)))
-		return ERR_PTR(-EINVAL);
-
-	cq = kzalloc(sizeof(*cq), GFP_KERNEL);
-	if (!cq)
-		return ERR_PTR(-ENOMEM);
+		return -EINVAL;
 
 	cq->ibcq.cqe = entries - 1;
 	mutex_init(&cq->resize_mutex);
@@ -980,17 +922,17 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	INIT_LIST_HEAD(&cq->list_send_qp);
 	INIT_LIST_HEAD(&cq->list_recv_qp);
 
-	if (context) {
-		err = create_cq_user(dev, udata, context, cq, entries,
-				     &cqb, &cqe_size, &index, &inlen);
+	if (udata) {
+		err = create_cq_user(dev, udata, cq, entries, &cqb, &cqe_size,
+				     &index, &inlen);
 		if (err)
-			goto err_create;
+			return err;
 	} else {
 		cqe_size = cache_line_size() == 128 ? 128 : 64;
 		err = create_cq_kernel(dev, cq, entries, cqe_size, &cqb,
 				       &index, &inlen);
 		if (err)
-			goto err_create;
+			return err;
 
 		INIT_WORK(&cq->notify_work, notify_soft_wc_handler);
 	}
@@ -1013,13 +955,13 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 	if (cq->create_flags & IB_UVERBS_CQ_FLAGS_IGNORE_OVERRUN)
 		MLX5_SET(cqc, cqc, oi, 1);
 
-	err = mlx5_core_create_cq(dev->mdev, &cq->mcq, cqb, inlen);
+	err = mlx5_core_create_cq(dev->mdev, &cq->mcq, cqb, inlen, out, sizeof(out));
 	if (err)
 		goto err_cqb;
 
 	mlx5_ib_dbg(dev, "cqn 0x%x\n", cq->mcq.cqn);
 	cq->mcq.irqn = irqn;
-	if (context)
+	if (udata)
 		cq->mcq.tasklet_ctx.comp = mlx5_ib_cq_comp;
 	else
 		cq->mcq.comp  = mlx5_ib_cq_comp;
@@ -1027,7 +969,7 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 	INIT_LIST_HEAD(&cq->wc_list);
 
-	if (context)
+	if (udata)
 		if (ib_copy_to_udata(udata, &cq->mcq.cqn, sizeof(__u32))) {
 			err = -EFAULT;
 			goto err_cmd;
@@ -1035,43 +977,30 @@ struct ib_cq *mlx5_ib_create_cq(struct ib_device *ibdev,
 
 
 	kvfree(cqb);
-	return &cq->ibcq;
+	return 0;
 
 err_cmd:
 	mlx5_core_destroy_cq(dev->mdev, &cq->mcq);
 
 err_cqb:
 	kvfree(cqb);
-	if (context)
-		destroy_cq_user(cq, context);
+	if (udata)
+		destroy_cq_user(cq, udata);
 	else
 		destroy_cq_kernel(dev, cq);
-
-err_create:
-	kfree(cq);
-
-	return ERR_PTR(err);
+	return err;
 }
 
-
-int mlx5_ib_destroy_cq(struct ib_cq *cq)
+void mlx5_ib_destroy_cq(struct ib_cq *cq, struct ib_udata *udata)
 {
 	struct mlx5_ib_dev *dev = to_mdev(cq->device);
 	struct mlx5_ib_cq *mcq = to_mcq(cq);
-	struct ib_ucontext *context = NULL;
-
-	if (cq->uobject)
-		context = cq->uobject->context;
 
 	mlx5_core_destroy_cq(dev->mdev, &mcq->mcq);
-	if (context)
-		destroy_cq_user(mcq, context);
+	if (udata)
+		destroy_cq_user(mcq, udata);
 	else
 		destroy_cq_kernel(dev, mcq);
-
-	kfree(mcq);
-
-	return 0;
 }
 
 static int is_equal_rsn(struct mlx5_cqe64 *cqe64, u32 rsn)
@@ -1147,7 +1076,7 @@ int mlx5_ib_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 	int err;
 
 	if (!MLX5_CAP_GEN(dev->mdev, cq_moderation))
-		return -ENOSYS;
+		return -EOPNOTSUPP;
 
 	if (cq_period > MLX5_MAX_CQ_PERIOD)
 		return -EINVAL;
@@ -1168,7 +1097,6 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	struct ib_umem *umem;
 	int err;
 	int npages;
-	struct ib_ucontext *context = cq->buf.umem->context;
 
 	err = ib_copy_from_udata(&ucmd, udata, sizeof(ucmd));
 	if (err)
@@ -1177,7 +1105,12 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (ucmd.reserved0 || ucmd.reserved1)
 		return -EINVAL;
 
-	umem = ib_umem_get(context, ucmd.buf_addr, entries * ucmd.cqe_size,
+	/* check multiplication overflow */
+	if (ucmd.cqe_size && SIZE_MAX / ucmd.cqe_size <= entries - 1)
+		return -EINVAL;
+
+	umem = ib_umem_get(udata, ucmd.buf_addr,
+			   (size_t)ucmd.cqe_size * entries,
 			   IB_ACCESS_LOCAL_WRITE, 1);
 	if (IS_ERR(umem)) {
 		err = PTR_ERR(umem);
@@ -1193,11 +1126,6 @@ static int resize_user(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	return 0;
 }
 
-static void un_resize_user(struct mlx5_ib_cq *cq)
-{
-	ib_umem_release(cq->resize_umem);
-}
-
 static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 			 int entries, int cqe_size)
 {
@@ -1207,23 +1135,17 @@ static int resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq,
 	if (!cq->resize_buf)
 		return -ENOMEM;
 
-	err = alloc_cq_buf(dev, cq->resize_buf, entries, cqe_size);
+	err = alloc_cq_frag_buf(dev, cq->resize_buf, entries, cqe_size);
 	if (err)
 		goto ex;
 
-	init_cq_buf(cq, cq->resize_buf);
+	init_cq_frag_buf(cq, cq->resize_buf);
 
 	return 0;
 
 ex:
 	kfree(cq->resize_buf);
 	return err;
-}
-
-static void un_resize_kernel(struct mlx5_ib_dev *dev, struct mlx5_ib_cq *cq)
-{
-	free_cq_buf(dev, cq->resize_buf);
-	cq->resize_buf = NULL;
 }
 
 static int copy_resize_cqes(struct mlx5_ib_cq *cq)
@@ -1255,10 +1177,9 @@ static int copy_resize_cqes(struct mlx5_ib_cq *cq)
 		return -EINVAL;
 	}
 
-	while ((scqe64->op_own >> 4) != MLX5_CQE_RESIZE_CQ) {
-		dcqe = get_cqe_from_buf(cq->resize_buf,
-					(i + 1) & (cq->resize_buf->nent),
-					dsize);
+	while (get_cqe_opcode(scqe64) != MLX5_CQE_RESIZE_CQ) {
+		dcqe = mlx5_frag_buf_get_wqe(&cq->resize_buf->fbc,
+					     (i + 1) & cq->resize_buf->nent);
 		dcqe64 = dsize == 64 ? dcqe : dcqe + 64;
 		sw_own = sw_ownership_bit(i + 1, cq->resize_buf->nent);
 		memcpy(dcqe, scqe, dsize);
@@ -1324,8 +1245,10 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		cqe_size = 64;
 		err = resize_kernel(dev, cq, entries, cqe_size);
 		if (!err) {
-			npas = cq->resize_buf->buf.npages;
-			page_shift = cq->resize_buf->buf.page_shift;
+			struct mlx5_frag_buf *frag_buf = &cq->resize_buf->frag_buf;
+
+			npas = frag_buf->npages;
+			page_shift = frag_buf->page_shift;
 		}
 	}
 
@@ -1346,7 +1269,7 @@ int mlx5_ib_resize_cq(struct ib_cq *ibcq, int entries, struct ib_udata *udata)
 		mlx5_ib_populate_pas(dev, cq->resize_umem, page_shift,
 				     pas, 0);
 	else
-		mlx5_fill_page_array(&cq->resize_buf->buf, pas);
+		mlx5_fill_page_frag_array(&cq->resize_buf->frag_buf, pas);
 
 	MLX5_SET(modify_cq_in, in,
 		 modify_field_select_resize_field_select.resize_field_select.resize_field_select,
@@ -1405,16 +1328,17 @@ ex_alloc:
 	kvfree(in);
 
 ex_resize:
-	if (udata)
-		un_resize_user(cq);
-	else
-		un_resize_kernel(dev, cq);
+	ib_umem_release(cq->resize_umem);
+	if (!udata) {
+		free_cq_buf(dev, cq->resize_buf);
+		cq->resize_buf = NULL;
+	}
 ex:
 	mutex_unlock(&cq->resize_mutex);
 	return err;
 }
 
-int mlx5_ib_get_cqe_size(struct mlx5_ib_dev *dev, struct ib_cq *ibcq)
+int mlx5_ib_get_cqe_size(struct ib_cq *ibcq)
 {
 	struct mlx5_ib_cq *cq;
 

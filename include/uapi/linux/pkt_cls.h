@@ -45,6 +45,7 @@ enum {
 				   * the skb and act like everything
 				   * is alright.
 				   */
+#define TC_ACT_VALUE_MAX	TC_ACT_TRAP
 
 /* There is a special kind of actions called "extended actions",
  * which need a value parameter. These have a local opcode located in
@@ -55,18 +56,59 @@ enum {
 #define __TC_ACT_EXT_SHIFT 28
 #define __TC_ACT_EXT(local) ((local) << __TC_ACT_EXT_SHIFT)
 #define TC_ACT_EXT_VAL_MASK ((1 << __TC_ACT_EXT_SHIFT) - 1)
-#define TC_ACT_EXT_CMP(combined, opcode) \
-	(((combined) & (~TC_ACT_EXT_VAL_MASK)) == opcode)
+#define TC_ACT_EXT_OPCODE(combined) ((combined) & (~TC_ACT_EXT_VAL_MASK))
+#define TC_ACT_EXT_CMP(combined, opcode) (TC_ACT_EXT_OPCODE(combined) == opcode)
 
 #define TC_ACT_JUMP __TC_ACT_EXT(1)
 #define TC_ACT_GOTO_CHAIN __TC_ACT_EXT(2)
+#define TC_ACT_EXT_OPCODE_MAX	TC_ACT_GOTO_CHAIN
+
+/* These macros are put here for binary compatibility with userspace apps that
+ * make use of them. For kernel code and new userspace apps, use the TCA_ID_*
+ * versions.
+ */
+#define TCA_ACT_GACT 5
+#define TCA_ACT_IPT 6
+#define TCA_ACT_PEDIT 7
+#define TCA_ACT_MIRRED 8
+#define TCA_ACT_NAT 9
+#define TCA_ACT_XT 10
+#define TCA_ACT_SKBEDIT 11
+#define TCA_ACT_VLAN 12
+#define TCA_ACT_BPF 13
+#define TCA_ACT_CONNMARK 14
+#define TCA_ACT_SKBMOD 15
+#define TCA_ACT_CSUM 16
+#define TCA_ACT_TUNNEL_KEY 17
+#define TCA_ACT_SIMP 22
+#define TCA_ACT_IFE 25
+#define TCA_ACT_SAMPLE 26
 
 /* Action type identifiers*/
-enum {
-	TCA_ID_UNSPEC=0,
-	TCA_ID_POLICE=1,
+enum tca_id {
+	TCA_ID_UNSPEC = 0,
+	TCA_ID_POLICE = 1,
+	TCA_ID_GACT = TCA_ACT_GACT,
+	TCA_ID_IPT = TCA_ACT_IPT,
+	TCA_ID_PEDIT = TCA_ACT_PEDIT,
+	TCA_ID_MIRRED = TCA_ACT_MIRRED,
+	TCA_ID_NAT = TCA_ACT_NAT,
+	TCA_ID_XT = TCA_ACT_XT,
+	TCA_ID_SKBEDIT = TCA_ACT_SKBEDIT,
+	TCA_ID_VLAN = TCA_ACT_VLAN,
+	TCA_ID_BPF = TCA_ACT_BPF,
+	TCA_ID_CONNMARK = TCA_ACT_CONNMARK,
+	TCA_ID_SKBMOD = TCA_ACT_SKBMOD,
+	TCA_ID_CSUM = TCA_ACT_CSUM,
+	TCA_ID_TUNNEL_KEY = TCA_ACT_TUNNEL_KEY,
+	TCA_ID_SIMP = TCA_ACT_SIMP,
+	TCA_ID_IFE = TCA_ACT_IFE,
+	TCA_ID_SAMPLE = TCA_ACT_SAMPLE,
+	TCA_ID_CTINFO,
+	TCA_ID_MPLS,
+	TCA_ID_CT,
 	/* other actions go here */
-	__TCA_ID_MAX=255
+	__TCA_ID_MAX = 255
 };
 
 #define TCA_ID_MAX __TCA_ID_MAX
@@ -118,6 +160,8 @@ enum {
 	TCA_POLICE_RESULT,
 	TCA_POLICE_TM,
 	TCA_POLICE_PAD,
+	TCA_POLICE_RATE64,
+	TCA_POLICE_PEAKRATE64,
 	__TCA_POLICE_MAX
 #define TCA_POLICE_RESULT TCA_POLICE_RESULT
 };
@@ -129,6 +173,7 @@ enum {
 #define TCA_CLS_FLAGS_SKIP_SW	(1 << 1) /* don't use filter in SW */
 #define TCA_CLS_FLAGS_IN_HW	(1 << 2) /* filter is offloaded to HW */
 #define TCA_CLS_FLAGS_NOT_IN_HW (1 << 3) /* filter isn't offloaded to HW */
+#define TCA_CLS_FLAGS_VERBOSE	(1 << 4) /* verbose logging */
 
 /* U32 filters */
 
@@ -254,7 +299,7 @@ enum {
 	TCA_FW_UNSPEC,
 	TCA_FW_CLASSID,
 	TCA_FW_POLICE,
-	TCA_FW_INDEV, /*  used by CONFIG_NET_CLS_IND */
+	TCA_FW_INDEV,
 	TCA_FW_ACT, /* used by CONFIG_NET_CLS_ACT */
 	TCA_FW_MASK,
 	__TCA_FW_MAX
@@ -330,12 +375,19 @@ enum {
 
 /* Basic filter */
 
+struct tc_basic_pcnt {
+	__u64 rcnt;
+	__u64 rhit;
+};
+
 enum {
 	TCA_BASIC_UNSPEC,
 	TCA_BASIC_CLASSID,
 	TCA_BASIC_EMATCHES,
 	TCA_BASIC_ACT,
 	TCA_BASIC_POLICE,
+	TCA_BASIC_PCNT,
+	TCA_BASIC_PAD,
 	__TCA_BASIC_MAX
 };
 
@@ -468,22 +520,89 @@ enum {
 	TCA_FLOWER_KEY_IP_TTL,		/* u8 */
 	TCA_FLOWER_KEY_IP_TTL_MASK,	/* u8 */
 
+	TCA_FLOWER_KEY_CVLAN_ID,	/* be16 */
+	TCA_FLOWER_KEY_CVLAN_PRIO,	/* u8   */
+	TCA_FLOWER_KEY_CVLAN_ETH_TYPE,	/* be16 */
+
+	TCA_FLOWER_KEY_ENC_IP_TOS,	/* u8 */
+	TCA_FLOWER_KEY_ENC_IP_TOS_MASK,	/* u8 */
+	TCA_FLOWER_KEY_ENC_IP_TTL,	/* u8 */
+	TCA_FLOWER_KEY_ENC_IP_TTL_MASK,	/* u8 */
+
+	TCA_FLOWER_KEY_ENC_OPTS,
+	TCA_FLOWER_KEY_ENC_OPTS_MASK,
+
+	TCA_FLOWER_IN_HW_COUNT,
+
+	TCA_FLOWER_KEY_PORT_SRC_MIN,	/* be16 */
+	TCA_FLOWER_KEY_PORT_SRC_MAX,	/* be16 */
+	TCA_FLOWER_KEY_PORT_DST_MIN,	/* be16 */
+	TCA_FLOWER_KEY_PORT_DST_MAX,	/* be16 */
+
+	TCA_FLOWER_KEY_CT_STATE,	/* u16 */
+	TCA_FLOWER_KEY_CT_STATE_MASK,	/* u16 */
+	TCA_FLOWER_KEY_CT_ZONE,		/* u16 */
+	TCA_FLOWER_KEY_CT_ZONE_MASK,	/* u16 */
+	TCA_FLOWER_KEY_CT_MARK,		/* u32 */
+	TCA_FLOWER_KEY_CT_MARK_MASK,	/* u32 */
+	TCA_FLOWER_KEY_CT_LABELS,	/* u128 */
+	TCA_FLOWER_KEY_CT_LABELS_MASK,	/* u128 */
+
 	__TCA_FLOWER_MAX,
 };
 
 #define TCA_FLOWER_MAX (__TCA_FLOWER_MAX - 1)
 
 enum {
-	TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT = (1 << 0),
+	TCA_FLOWER_KEY_CT_FLAGS_NEW = 1 << 0, /* Beginning of a new connection. */
+	TCA_FLOWER_KEY_CT_FLAGS_ESTABLISHED = 1 << 1, /* Part of an existing connection. */
+	TCA_FLOWER_KEY_CT_FLAGS_RELATED = 1 << 2, /* Related to an established connection. */
+	TCA_FLOWER_KEY_CT_FLAGS_TRACKED = 1 << 3, /* Conntrack has occurred. */
 };
 
+enum {
+	TCA_FLOWER_KEY_ENC_OPTS_UNSPEC,
+	TCA_FLOWER_KEY_ENC_OPTS_GENEVE, /* Nested
+					 * TCA_FLOWER_KEY_ENC_OPT_GENEVE_
+					 * attributes
+					 */
+	__TCA_FLOWER_KEY_ENC_OPTS_MAX,
+};
+
+#define TCA_FLOWER_KEY_ENC_OPTS_MAX (__TCA_FLOWER_KEY_ENC_OPTS_MAX - 1)
+
+enum {
+	TCA_FLOWER_KEY_ENC_OPT_GENEVE_UNSPEC,
+	TCA_FLOWER_KEY_ENC_OPT_GENEVE_CLASS,            /* u16 */
+	TCA_FLOWER_KEY_ENC_OPT_GENEVE_TYPE,             /* u8 */
+	TCA_FLOWER_KEY_ENC_OPT_GENEVE_DATA,             /* 4 to 128 bytes */
+
+	__TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX,
+};
+
+#define TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX \
+		(__TCA_FLOWER_KEY_ENC_OPT_GENEVE_MAX - 1)
+
+enum {
+	TCA_FLOWER_KEY_FLAGS_IS_FRAGMENT = (1 << 0),
+	TCA_FLOWER_KEY_FLAGS_FRAG_IS_FIRST = (1 << 1),
+};
+
+#define TCA_FLOWER_MASK_FLAGS_RANGE	(1 << 0) /* Range-based match */
+
 /* Match-all classifier */
+
+struct tc_matchall_pcnt {
+	__u64 rhit;
+};
 
 enum {
 	TCA_MATCHALL_UNSPEC,
 	TCA_MATCHALL_CLASSID,
 	TCA_MATCHALL_ACT,
 	TCA_MATCHALL_FLAGS,
+	TCA_MATCHALL_PCNT,
+	TCA_MATCHALL_PAD,
 	__TCA_MATCHALL_MAX,
 };
 
@@ -555,7 +674,8 @@ enum {
 #define	TCF_EM_VLAN		6
 #define	TCF_EM_CANID		7
 #define	TCF_EM_IPSET		8
-#define	TCF_EM_MAX		8
+#define	TCF_EM_IPT		9
+#define	TCF_EM_MAX		9
 
 enum {
 	TCF_EM_PROG_TC

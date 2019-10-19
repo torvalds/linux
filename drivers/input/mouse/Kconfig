@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Mouse driver configuration
 #
@@ -129,9 +130,21 @@ config MOUSE_PS2_ELANTECH
 
 	  This driver exposes some configuration registers via sysfs
 	  entries. For further information,
-	  see <file:Documentation/input/elantech.txt>.
+	  see <file:Documentation/input/devices/elantech.rst>.
 
 	  If unsure, say N.
+
+config MOUSE_PS2_ELANTECH_SMBUS
+	bool "Elantech PS/2 SMbus companion" if EXPERT
+	default y
+	depends on MOUSE_PS2 && MOUSE_PS2_ELANTECH
+	depends on I2C=y || I2C=MOUSE_PS2
+	select MOUSE_PS2_SMBUS
+	help
+	  Say Y here if you have a Elantech touchpad connected to
+	  to an SMBus, but enumerated through PS/2.
+
+	  If unsure, say Y.
 
 config MOUSE_PS2_SENTELIC
 	bool "Sentelic Finger Sensing Pad PS/2 protocol extension"
@@ -216,7 +229,7 @@ config MOUSE_APPLETOUCH
 	  scrolling in X11.
 
 	  For further information, see
-	  <file:Documentation/input/appletouch.txt>.
+	  <file:Documentation/input/devices/appletouch.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called appletouch.
@@ -239,7 +252,7 @@ config MOUSE_BCM5974
 
 	  The interface is currently identical to the appletouch interface,
 	  for further information, see
-	  <file:Documentation/input/appletouch.txt>.
+	  <file:Documentation/input/devices/appletouch.rst>.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called bcm5974.

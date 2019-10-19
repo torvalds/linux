@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: ISC
 config ATH_COMMON
 	tristate
 
@@ -8,8 +9,8 @@ config WLAN_VENDOR_ATH
 	  If you have a wireless card belonging to this class, say Y.
 
 	  Note that the answer to this question doesn't directly affect the
-	  kernel: saying N will just cause the configurator to skip all
-	  the questions about  cards. If you say Y, you will be asked for
+	  kernel: saying N will just cause the configurator to skip all the
+	  questions about these cards. If you say Y, you will be asked for
 	  your specific card in the following questions.
 
 	  For more information and documentation on this module you can visit:
@@ -33,7 +34,7 @@ config ATH_TRACEPOINTS
        depends on ATH_DEBUG
        depends on EVENT_TRACING
        ---help---
-         This option enables tracepoints for atheros wireless drivers.
+	 This option enables tracepoints for atheros wireless drivers.
 	 Currently, ath9k makes use of this facility.
 
 config ATH_REG_DYNAMIC_USER_REG_HINTS

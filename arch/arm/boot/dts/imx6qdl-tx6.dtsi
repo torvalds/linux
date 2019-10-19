@@ -50,19 +50,20 @@
 		can0 = &can2;
 		can1 = &can1;
 		ethernet0 = &fec;
-		lcdif_23bit_pins_a = &pinctrl_disp0_1;
-		lcdif_24bit_pins_a = &pinctrl_disp0_2;
+		lcdif-23bit-pins-a = &pinctrl_disp0_1;
+		lcdif-24bit-pins-a = &pinctrl_disp0_2;
 		pwm0 = &pwm1;
 		pwm1 = &pwm2;
-		reg_can_xcvr = &reg_can_xcvr;
+		reg-can-xcvr = &reg_can_xcvr;
 		stk5led = &user_led;
 		usbotg = &usbotg;
 		sdhc0 = &usdhc1;
 		sdhc1 = &usdhc2;
 	};
 
-	memory {
-		reg = <0 0>; /* will be filled by U-Boot */
+	memory@10000000 {
+		device_type = "memory";
+		reg = <0x10000000 0>; /* will be filled by U-Boot */
 	};
 
 	clocks {

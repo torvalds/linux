@@ -1,22 +1,5 @@
-/* Intel(R) Ethernet Switch Host Interface Driver
- * Copyright(c) 2013 - 2016 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2013 - 2019 Intel Corporation. */
 
 #include "fm10k_tlv.h"
 
@@ -120,6 +103,7 @@ static s32 fm10k_tlv_attr_get_null_string(u32 *attr, unsigned char *string)
  *  @msg: Pointer to message block
  *  @attr_id: Attribute ID
  *  @mac_addr: MAC address to be stored
+ *  @vlan: VLAN to be stored
  *
  *  This function will reorder a MAC address to be CPU endian and store it
  *  in the attribute buffer.  It will return success if provided with a
@@ -155,8 +139,8 @@ s32 fm10k_tlv_attr_put_mac_vlan(u32 *msg, u16 attr_id,
 /**
  *  fm10k_tlv_attr_get_mac_vlan - Get MAC/VLAN stored in attribute
  *  @attr: Pointer to attribute
- *  @attr_id: Attribute ID
  *  @mac_addr: location of buffer to store MAC address
+ *  @vlan: location of buffer to store VLAN
  *
  *  This function pulls the MAC address back out of the attribute and will
  *  place it in the array pointed by by mac_addr.  It will return success
@@ -488,7 +472,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
 				const struct fm10k_tlv_attr *tlv_attr)
 {
 	u32 i, attr_id, offset = 0;
-	s32 err = 0;
+	s32 err;
 	u16 len;
 
 	/* verify pointers are not NULL */
@@ -549,7 +533,7 @@ static s32 fm10k_tlv_attr_parse(u32 *attr, u32 **results,
  *  @hw: Pointer to hardware structure
  *  @msg: Pointer to message
  *  @mbx: Pointer to mailbox information structure
- *  @func: Function array containing list of message handling functions
+ *  @data: Pointer to message handler data structure
  *
  *  This function should be the first function called upon receiving a
  *  message.  The handler will identify the message type and call the correct
@@ -603,8 +587,9 @@ s32 fm10k_tlv_msg_parse(struct fm10k_hw *hw, u32 *msg,
  *  a minimum it just indicates that the message requested was
  *  unimplemented.
  **/
-s32 fm10k_tlv_msg_error(struct fm10k_hw *hw, u32 **results,
-			struct fm10k_mbx_info *mbx)
+s32 fm10k_tlv_msg_error(struct fm10k_hw __always_unused *hw,
+			u32 __always_unused **results,
+			struct fm10k_mbx_info __always_unused *mbx)
 {
 	return FM10K_NOT_IMPLEMENTED;
 }

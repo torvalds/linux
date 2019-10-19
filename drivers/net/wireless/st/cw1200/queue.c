@@ -1,12 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * O(1) TX queue with built-in allocator for ST-Ericsson CW1200 drivers
  *
  * Copyright (c) 2010, ST-Ericsson
  * Author: Dmitry Tarnyagin <dmitry.tarnyagin@lockless.no>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <net/mac80211.h>
@@ -154,7 +151,7 @@ int cw1200_queue_stats_init(struct cw1200_queue_stats *stats,
 	spin_lock_init(&stats->lock);
 	init_waitqueue_head(&stats->wait_link_id_empty);
 
-	stats->link_map_cache = kzalloc(sizeof(int) * map_capacity,
+	stats->link_map_cache = kcalloc(map_capacity, sizeof(int),
 					GFP_KERNEL);
 	if (!stats->link_map_cache)
 		return -ENOMEM;
@@ -181,13 +178,13 @@ int cw1200_queue_init(struct cw1200_queue *queue,
 	spin_lock_init(&queue->lock);
 	timer_setup(&queue->gc, cw1200_queue_gc, 0);
 
-	queue->pool = kzalloc(sizeof(struct cw1200_queue_item) * capacity,
-			GFP_KERNEL);
+	queue->pool = kcalloc(capacity, sizeof(struct cw1200_queue_item),
+			      GFP_KERNEL);
 	if (!queue->pool)
 		return -ENOMEM;
 
-	queue->link_map_cache = kzalloc(sizeof(int) * stats->map_capacity,
-			GFP_KERNEL);
+	queue->link_map_cache = kcalloc(stats->map_capacity, sizeof(int),
+					GFP_KERNEL);
 	if (!queue->link_map_cache) {
 		kfree(queue->pool);
 		queue->pool = NULL;
@@ -283,7 +280,6 @@ int cw1200_queue_put(struct cw1200_queue *queue,
 		     struct cw1200_txpriv *txpriv)
 {
 	int ret = 0;
-	LIST_HEAD(gc_list);
 	struct cw1200_queue_stats *stats = queue->stats;
 
 	if (txpriv->link_id >= queue->stats->map_capacity)

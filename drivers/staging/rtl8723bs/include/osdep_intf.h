@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -54,7 +46,7 @@ void devobj_deinit(struct dvobj_priv *pdvobj);
 
 u8 rtw_init_drv_sw(struct adapter *padapter);
 u8 rtw_free_drv_sw(struct adapter *padapter);
-u8 rtw_reset_drv_sw(struct adapter *padapter);
+void rtw_reset_drv_sw(struct adapter *padapter);
 void rtw_dev_unload(struct adapter *padapter);
 
 u32 rtw_start_drv_threads(struct adapter *padapter);
@@ -71,8 +63,6 @@ u16 rtw_recv_select_queue(struct sk_buff *skb);
 
 int rtw_ndev_notifier_register(void);
 void rtw_ndev_notifier_unregister(void);
-
-#include "../os_dep/rtw_proc.h"
 
 void rtw_ips_dev_unload(struct adapter *padapter);
 

@@ -1,45 +1,9 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /*******************************************************************************
  *
  * Module Name: dbinput - user front-end to the AML debugger
  *
  ******************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -629,7 +593,7 @@ static u32 acpi_db_get_line(char *input_buffer)
 	     input_buffer)) {
 		acpi_os_printf
 		    ("Buffer overflow while parsing input line (max %u characters)\n",
-		     sizeof(acpi_gbl_db_parsed_buf));
+		     (u32)sizeof(acpi_gbl_db_parsed_buf));
 		return (0);
 	}
 
@@ -799,7 +763,12 @@ acpi_db_command_dispatch(char *input_buffer,
 	case CMD_DISASSEMBLE:
 	case CMD_DISASM:
 
+#ifdef ACPI_DISASSEMBLER
 		(void)acpi_db_disassemble_method(acpi_gbl_db_args[1]);
+#else
+		acpi_os_printf
+		    ("The AML Disassembler is not configured/present\n");
+#endif
 		break;
 
 	case CMD_DUMP:
@@ -884,31 +853,36 @@ acpi_db_command_dispatch(char *input_buffer,
 
 		if (param_count == 0) {
 			acpi_os_printf
-			    ("Current debug level for file output is:    %8.8lX\n",
+			    ("Current debug level for file output is:    %8.8X\n",
 			     acpi_gbl_db_debug_level);
 			acpi_os_printf
-			    ("Current debug level for console output is: %8.8lX\n",
+			    ("Current debug level for console output is: %8.8X\n",
 			     acpi_gbl_db_console_debug_level);
 		} else if (param_count == 2) {
 			temp = acpi_gbl_db_console_debug_level;
 			acpi_gbl_db_console_debug_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for console output was %8.8lX, now %8.8lX\n",
+			    ("Debug Level for console output was %8.8X, now %8.8X\n",
 			     temp, acpi_gbl_db_console_debug_level);
 		} else {
 			temp = acpi_gbl_db_debug_level;
 			acpi_gbl_db_debug_level =
 			    strtoul(acpi_gbl_db_args[1], NULL, 16);
 			acpi_os_printf
-			    ("Debug Level for file output was %8.8lX, now %8.8lX\n",
+			    ("Debug Level for file output was %8.8X, now %8.8X\n",
 			     temp, acpi_gbl_db_debug_level);
 		}
 		break;
 
 	case CMD_LIST:
 
+#ifdef ACPI_DISASSEMBLER
 		acpi_db_disassemble_aml(acpi_gbl_db_args[1], op);
+#else
+		acpi_os_printf
+		    ("The AML Disassembler is not configured/present\n");
+#endif
 		break;
 
 	case CMD_LOCKS:

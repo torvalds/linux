@@ -1,7 +1,7 @@
 #ifndef _HFI1_KERNEL_H
 #define _HFI1_KERNEL_H
 /*
- * Copyright(c) 2015-2017 Intel Corporation.
+ * Copyright(c) 2015-2018 Intel Corporation.
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
@@ -54,7 +54,6 @@
 #include <linux/list.h>
 #include <linux/scatterlist.h>
 #include <linux/slab.h>
-#include <linux/idr.h>
 #include <linux/io.h>
 #include <linux/fs.h>
 #include <linux/completion.h>
@@ -65,15 +64,16 @@
 #include <linux/kthread.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/xarray.h>
 #include <rdma/ib_hdrs.h>
 #include <rdma/opa_addr.h>
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
 #include <rdma/rdma_vt.h>
-#include <rdma/opa_addr.h>
 
 #include "chip_registers.h"
 #include "common.h"
+#include "opfn.h"
 #include "verbs.h"
 #include "pio.h"
 #include "chip.h"
@@ -81,6 +81,7 @@
 #include "qsfp.h"
 #include "platform.h"
 #include "affinity.h"
+#include "msix.h"
 
 /* bumped 1 from s/w major version of TrueScale */
 #define HFI1_CHIP_VERS_MAJ 3U
@@ -97,6 +98,8 @@
 
 #define NEIGHBOR_TYPE_HFI		0
 #define NEIGHBOR_TYPE_SWITCH	1
+
+#define HFI1_MAX_ACTIVE_WORKQUEUE_ENTRIES 5
 
 extern unsigned long hfi1_cap_mask;
 #define HFI1_CAP_KGET_MASK(mask, cap) ((mask) & HFI1_CAP_##cap)
@@ -155,6 +158,8 @@ struct hfi1_ib_stats {
 extern struct hfi1_ib_stats hfi1_stats;
 extern const struct pci_error_handlers hfi1_pci_err_handler;
 
+extern int num_driver_cntrs;
+
 /*
  * First-cut criterion for "device is active" is
  * two thousand dwords combined Tx, Rx traffic per
@@ -170,12 +175,6 @@ extern const struct pci_error_handlers hfi1_pci_err_handler;
 struct hfi1_opcode_stats_perctx;
 
 struct ctxt_eager_bufs {
-	ssize_t size;            /* total size of eager buffers */
-	u32 count;               /* size of buffers array */
-	u32 numbufs;             /* number of buffers allocated */
-	u32 alloced;             /* number of rcvarray entries used */
-	u32 rcvtid_size;         /* size of each eager rcv tid */
-	u32 threshold;           /* head update threshold */
 	struct eager_buffer {
 		void *addr;
 		dma_addr_t dma;
@@ -185,6 +184,12 @@ struct ctxt_eager_bufs {
 		void *addr;
 		dma_addr_t dma;
 	} *rcvtids;
+	u32 size;                /* total size of eager buffers */
+	u32 rcvtid_size;         /* size of each eager rcv tid */
+	u16 count;               /* size of buffers array */
+	u16 numbufs;             /* number of buffers allocated */
+	u16 alloced;             /* number of rcvarray entries used */
+	u16 threshold;           /* head update threshold */
 };
 
 struct exp_tid_set {
@@ -192,116 +197,28 @@ struct exp_tid_set {
 	u32 count;
 };
 
+typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
+
+struct tid_queue {
+	struct list_head queue_head;
+			/* queue head for QP TID resource waiters */
+	u32 enqueue;	/* count of tid enqueues */
+	u32 dequeue;	/* count of tid dequeues */
+};
+
 struct hfi1_ctxtdata {
-	/* shadow the ctxt's RcvCtrl register */
-	u64 rcvctrl;
 	/* rcvhdrq base, needs mmap before useful */
 	void *rcvhdrq;
 	/* kernel virtual address where hdrqtail is updated */
 	volatile __le64 *rcvhdrtail_kvaddr;
-	/* when waiting for rcv or pioavail */
-	wait_queue_head_t wait;
-	/* rcvhdrq size (for freeing) */
-	size_t rcvhdrq_size;
-	/* number of rcvhdrq entries */
-	u16 rcvhdrq_cnt;
-	/* size of each of the rcvhdrq entries */
-	u16 rcvhdrqentsize;
-	/* mmap of hdrq, must fit in 44 bits */
-	dma_addr_t rcvhdrq_dma;
-	dma_addr_t rcvhdrqtailaddr_dma;
-	struct ctxt_eager_bufs egrbufs;
-	/* this receive context's assigned PIO ACK send context */
-	struct send_context *sc;
-
-	/* dynamic receive available interrupt timeout */
-	u32 rcvavail_timeout;
-	/* Reference count the base context usage */
-	struct kref kref;
-
-	/* Device context index */
-	u16 ctxt;
-	/*
-	 * non-zero if ctxt can be shared, and defines the maximum number of
-	 * sub-contexts for this device context.
-	 */
-	u16 subctxt_cnt;
-	/* non-zero if ctxt is being shared. */
-	u16 subctxt_id;
-	u8 uuid[16];
-	/* job key */
-	u16 jkey;
-	/* number of RcvArray groups for this context. */
-	u32 rcv_array_groups;
-	/* index of first eager TID entry. */
-	u32 eager_base;
-	/* number of expected TID entries */
-	u32 expected_count;
-	/* index of first expected TID entry. */
-	u32 expected_base;
-
-	struct exp_tid_set tid_group_list;
-	struct exp_tid_set tid_used_list;
-	struct exp_tid_set tid_full_list;
-
-	/* lock protecting all Expected TID data */
-	struct mutex exp_lock;
-	/* per-context configuration flags */
-	unsigned long flags;
-	/* per-context event flags for fileops/intr communication */
-	unsigned long event_flags;
-	/* total number of polled urgent packets */
-	u32 urgent;
-	/* saved total number of polled urgent packets for poll edge trigger */
-	u32 urgent_poll;
-	/* same size as task_struct .comm[], command that opened context */
-	char comm[TASK_COMM_LEN];
-	/* so file ops can get at unit */
-	struct hfi1_devdata *dd;
 	/* so functions that need physical port can get it easily */
 	struct hfi1_pportdata *ppd;
-	/* associated msix interrupt */
-	u32 msix_intr;
-	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
-	void *subctxt_uregbase;
-	/* An array of pages for the eager receive buffers * N */
-	void *subctxt_rcvegrbuf;
-	/* An array of pages for the eager header queue entries * N */
-	void *subctxt_rcvhdr_base;
-	/* Bitmask of in use context(s) */
-	DECLARE_BITMAP(in_use_ctxts, HFI1_MAX_SHARED_CTXTS);
-	/* The version of the library which opened this ctxt */
-	u32 userversion;
-	/* Type of packets or conditions we want to poll for */
-	u16 poll_type;
-	/* receive packet sequence counter */
-	u8 seq_cnt;
-	/* ctxt rcvhdrq head offset */
-	u32 head;
-	/* QPs waiting for context processing */
-	struct list_head qp_wait_list;
-	/* interrupt handling */
-	u64 imask;	/* clear interrupt mask */
-	int ireg;	/* clear interrupt register */
-	unsigned numa_id; /* numa node of this context */
-	/* verbs rx_stats per rcd */
-	struct hfi1_opcode_stats_perctx *opstats;
-
-	/* Is ASPM interrupt supported for this context */
-	bool aspm_intr_supported;
-	/* ASPM state (enabled/disabled) for this context */
-	bool aspm_enabled;
-	/* Timer for re-enabling ASPM if interrupt activity quietens down */
-	struct timer_list aspm_timer;
-	/* Lock to serialize between intr, timer intr and user threads */
-	spinlock_t aspm_lock;
-	/* Is ASPM processing enabled for this context (in intr context) */
-	bool aspm_intr_enable;
-	/* Last interrupt timestamp */
-	ktime_t aspm_ts_last_intr;
-	/* Last timestamp at which we scheduled a timer for this context */
-	ktime_t aspm_ts_timer_sched;
-
+	/* so file ops can get at unit */
+	struct hfi1_devdata *dd;
+	/* this receive context's assigned PIO ACK send context */
+	struct send_context *sc;
+	/* per context recv functions */
+	const rhf_rcv_function_ptr *rhf_rcv_function_map;
 	/*
 	 * The interrupt handler for a particular receive context can vary
 	 * throughout it's lifetime. This is not a lock protected data member so
@@ -310,13 +227,133 @@ struct hfi1_ctxtdata {
 	 * packets with the wrong interrupt handler.
 	 */
 	int (*do_interrupt)(struct hfi1_ctxtdata *rcd, int threaded);
-
+	/* verbs rx_stats per rcd */
+	struct hfi1_opcode_stats_perctx *opstats;
+	/* clear interrupt mask */
+	u64 imask;
+	/* ctxt rcvhdrq head offset */
+	u32 head;
+	/* number of rcvhdrq entries */
+	u16 rcvhdrq_cnt;
+	u8 ireg;	/* clear interrupt register */
+	/* receive packet sequence counter */
+	u8 seq_cnt;
+	/* size of each of the rcvhdrq entries */
+	u8 rcvhdrqentsize;
+	/* offset of RHF within receive header entry */
+	u8 rhf_offset;
+	/* dynamic receive available interrupt timeout */
+	u8 rcvavail_timeout;
 	/* Indicates that this is vnic context */
 	bool is_vnic;
-
 	/* vnic queue index this context is mapped to */
 	u8 vnic_q_idx;
+	/* Is ASPM interrupt supported for this context */
+	bool aspm_intr_supported;
+	/* ASPM state (enabled/disabled) for this context */
+	bool aspm_enabled;
+	/* Is ASPM processing enabled for this context (in intr context) */
+	bool aspm_intr_enable;
+	struct ctxt_eager_bufs egrbufs;
+	/* QPs waiting for context processing */
+	struct list_head qp_wait_list;
+	/* tid allocation lists */
+	struct exp_tid_set tid_group_list;
+	struct exp_tid_set tid_used_list;
+	struct exp_tid_set tid_full_list;
+
+	/* Timer for re-enabling ASPM if interrupt activity quiets down */
+	struct timer_list aspm_timer;
+	/* per-context configuration flags */
+	unsigned long flags;
+	/* array of tid_groups */
+	struct tid_group  *groups;
+	/* mmap of hdrq, must fit in 44 bits */
+	dma_addr_t rcvhdrq_dma;
+	dma_addr_t rcvhdrqtailaddr_dma;
+	/* Last interrupt timestamp */
+	ktime_t aspm_ts_last_intr;
+	/* Last timestamp at which we scheduled a timer for this context */
+	ktime_t aspm_ts_timer_sched;
+	/* Lock to serialize between intr, timer intr and user threads */
+	spinlock_t aspm_lock;
+	/* Reference count the base context usage */
+	struct kref kref;
+	/* numa node of this context */
+	int numa_id;
+	/* associated msix interrupt. */
+	s16 msix_intr;
+	/* job key */
+	u16 jkey;
+	/* number of RcvArray groups for this context. */
+	u16 rcv_array_groups;
+	/* index of first eager TID entry. */
+	u16 eager_base;
+	/* number of expected TID entries */
+	u16 expected_count;
+	/* index of first expected TID entry. */
+	u16 expected_base;
+	/* Device context index */
+	u8 ctxt;
+
+	/* PSM Specific fields */
+	/* lock protecting all Expected TID data */
+	struct mutex exp_mutex;
+	/* lock protecting all Expected TID data of kernel contexts */
+	spinlock_t exp_lock;
+	/* Queue for QP's waiting for HW TID flows */
+	struct tid_queue flow_queue;
+	/* Queue for QP's waiting for HW receive array entries */
+	struct tid_queue rarr_queue;
+	/* when waiting for rcv or pioavail */
+	wait_queue_head_t wait;
+	/* uuid from PSM */
+	u8 uuid[16];
+	/* same size as task_struct .comm[], command that opened context */
+	char comm[TASK_COMM_LEN];
+	/* Bitmask of in use context(s) */
+	DECLARE_BITMAP(in_use_ctxts, HFI1_MAX_SHARED_CTXTS);
+	/* per-context event flags for fileops/intr communication */
+	unsigned long event_flags;
+	/* A page of memory for rcvhdrhead, rcvegrhead, rcvegrtail * N */
+	void *subctxt_uregbase;
+	/* An array of pages for the eager receive buffers * N */
+	void *subctxt_rcvegrbuf;
+	/* An array of pages for the eager header queue entries * N */
+	void *subctxt_rcvhdr_base;
+	/* total number of polled urgent packets */
+	u32 urgent;
+	/* saved total number of polled urgent packets for poll edge trigger */
+	u32 urgent_poll;
+	/* Type of packets or conditions we want to poll for */
+	u16 poll_type;
+	/* non-zero if ctxt is being shared. */
+	u16 subctxt_id;
+	/* The version of the library which opened this ctxt */
+	u32 userversion;
+	/*
+	 * non-zero if ctxt can be shared, and defines the maximum number of
+	 * sub-contexts for this device context.
+	 */
+	u8 subctxt_cnt;
+
+	/* Bit mask to track free TID RDMA HW flows */
+	unsigned long flow_mask;
+	struct tid_flow_state flows[RXE_NUM_TID_FLOWS];
 };
+
+/**
+ * rcvhdrq_size - return total size in bytes for header queue
+ * @rcd: the receive context
+ *
+ * rcvhdrqentsize is in DWs, so we have to convert to bytes
+ *
+ */
+static inline u32 rcvhdrq_size(struct hfi1_ctxtdata *rcd)
+{
+	return PAGE_ALIGN(rcd->rcvhdrq_cnt *
+			  rcd->rcvhdrqentsize * sizeof(u32));
+}
 
 /*
  * Represents a single packet at a high level. Put commonly computed things in
@@ -334,6 +371,7 @@ struct hfi1_packet {
 	struct rvt_qp *qp;
 	struct ib_other_headers *ohdr;
 	struct ib_grh *grh;
+	struct opa_16b_mgmt *mgmt;
 	u64 rhf;
 	u32 maxcnt;
 	u32 rhqoff;
@@ -393,9 +431,16 @@ struct hfi1_packet {
  */
 #define OPA_16B_L4_9B		0x00
 #define OPA_16B_L2_TYPE		0x02
+#define OPA_16B_L4_FM		0x08
 #define OPA_16B_L4_IB_LOCAL	0x09
 #define OPA_16B_L4_IB_GLOBAL	0x0A
 #define OPA_16B_L4_ETHR		OPA_VNIC_L4_ETHR
+
+/*
+ * OPA 16B Management
+ */
+#define OPA_16B_L4_FM_PAD	3  /* fixed 3B pad */
+#define OPA_16B_L4_FM_HLEN	24 /* 16B(16) + L4_FM(8) */
 
 static inline u8 hfi1_16B_get_l4(struct hfi1_16b_header *hdr)
 {
@@ -471,6 +516,58 @@ static inline u8 hfi1_16B_bth_get_pad(struct ib_other_headers *ohdr)
 {
 	return (u8)((be32_to_cpu(ohdr->bth[0]) >> IB_BTH_PAD_SHIFT) &
 		   OPA_16B_BTH_PAD_MASK);
+}
+
+/*
+ * 16B Management
+ */
+#define OPA_16B_MGMT_QPN_MASK	0xFFFFFF
+static inline u32 hfi1_16B_get_dest_qpn(struct opa_16b_mgmt *mgmt)
+{
+	return be32_to_cpu(mgmt->dest_qpn) & OPA_16B_MGMT_QPN_MASK;
+}
+
+static inline u32 hfi1_16B_get_src_qpn(struct opa_16b_mgmt *mgmt)
+{
+	return be32_to_cpu(mgmt->src_qpn) & OPA_16B_MGMT_QPN_MASK;
+}
+
+static inline void hfi1_16B_set_qpn(struct opa_16b_mgmt *mgmt,
+				    u32 dest_qp, u32 src_qp)
+{
+	mgmt->dest_qpn = cpu_to_be32(dest_qp & OPA_16B_MGMT_QPN_MASK);
+	mgmt->src_qpn = cpu_to_be32(src_qp & OPA_16B_MGMT_QPN_MASK);
+}
+
+/**
+ * hfi1_get_rc_ohdr - get extended header
+ * @opah - the opaheader
+ */
+static inline struct ib_other_headers *
+hfi1_get_rc_ohdr(struct hfi1_opa_header *opah)
+{
+	struct ib_other_headers *ohdr;
+	struct ib_header *hdr = NULL;
+	struct hfi1_16b_header *hdr_16b = NULL;
+
+	/* Find out where the BTH is */
+	if (opah->hdr_type == HFI1_PKT_TYPE_9B) {
+		hdr = &opah->ibh;
+		if (ib_get_lnh(hdr) == HFI1_LRH_BTH)
+			ohdr = &hdr->u.oth;
+		else
+			ohdr = &hdr->u.l.oth;
+	} else {
+		u8 l4;
+
+		hdr_16b = &opah->opah;
+		l4  = hfi1_16B_get_l4(hdr_16b);
+		if (l4 == OPA_16B_L4_IB_LOCAL)
+			ohdr = &hdr_16b->u.oth;
+		else
+			ohdr = &hdr_16b->u.l.oth;
+	}
+	return ohdr;
 }
 
 struct rvt_sge_state;
@@ -577,6 +674,8 @@ struct rvt_sge_state;
 #define HFI1_RCVCTRL_NO_RHQ_DROP_DIS 0x8000
 #define HFI1_RCVCTRL_NO_EGR_DROP_ENB 0x10000
 #define HFI1_RCVCTRL_NO_EGR_DROP_DIS 0x20000
+#define HFI1_RCVCTRL_URGENT_ENB 0x40000
+#define HFI1_RCVCTRL_URGENT_DIS 0x80000
 
 /* partition enforcement flags */
 #define HFI1_PART_ENFORCE_IN	0x1
@@ -622,6 +721,14 @@ struct hfi1_msix_entry {
 	void *arg;
 	cpumask_t mask;
 	struct irq_affinity_notify notify;
+};
+
+struct hfi1_msix_info {
+	/* lock to synchronize in_use_msix access */
+	spinlock_t msix_lock;
+	DECLARE_BITMAP(in_use_msix, CCE_NUM_MSIX_VECTORS);
+	struct hfi1_msix_entry *msix_entries;
+	u16 max_requested;
 };
 
 /* per-SL CCA information */
@@ -867,12 +974,11 @@ struct hfi1_pportdata {
 	u64 vl_xmit_flit_cnt[C_VL_COUNT + 1];
 };
 
-typedef int (*rhf_rcv_function_ptr)(struct hfi1_packet *packet);
-
 typedef void (*opcode_handler)(struct hfi1_packet *packet);
 typedef void (*hfi1_make_req)(struct rvt_qp *qp,
 			      struct hfi1_pkt_state *ps,
 			      struct rvt_swqe *wqe);
+extern const rhf_rcv_function_ptr normal_rhf_rcv_functions[];
 
 
 /* return values for the RHF receive functions */
@@ -881,9 +987,9 @@ typedef void (*hfi1_make_req)(struct rvt_qp *qp,
 #define RHF_RCV_REPROCESS 2	/* stop. retain this packet */
 
 struct rcv_array_data {
-	u8 group_size;
 	u16 ngroups;
 	u16 nctxt_extra;
+	u8 group_size;
 };
 
 struct per_vl_data {
@@ -946,11 +1052,10 @@ struct hfi1_asic_data {
 struct hfi1_vnic_data {
 	struct hfi1_ctxtdata *ctxt[HFI1_NUM_VNIC_CTXT];
 	struct kmem_cache *txreq_cache;
+	struct xarray vesws;
 	u8 num_vports;
-	struct idr vesw_idr;
 	u8 rmt_start;
 	u8 num_ctxt;
-	u32 msix_idx;
 };
 
 struct hfi1_vnic_vport_info;
@@ -967,7 +1072,6 @@ struct sdma_vl_map;
 typedef int (*send_routine)(struct rvt_qp *, struct hfi1_pkt_state *, u64);
 struct hfi1_devdata {
 	struct hfi1_ibdev verbs_dev;     /* must be first */
-	struct list_head list;
 	/* pointers to related structs for this device */
 	/* pci access data structure */
 	struct pci_dev *pcidev;
@@ -1016,8 +1120,6 @@ struct hfi1_devdata {
 	dma_addr_t                          sdma_pad_phys;
 	/* for deallocation */
 	size_t                              sdma_heads_size;
-	/* number from the chip */
-	u32                                 chip_sdma_engines;
 	/* num used */
 	u32                                 num_sdma;
 	/* array of engines sized by num_sdma */
@@ -1072,8 +1174,6 @@ struct hfi1_devdata {
 	/* base receive interrupt timeout, in CSR units */
 	u32 rcv_intr_timeout_csr;
 
-	u32 freezelen; /* max length of freezemsg */
-	u64 __iomem *egrtidbase;
 	spinlock_t sendctrl_lock; /* protect changes to SendCtrl */
 	spinlock_t rcvctrl_lock; /* protect changes to RcvCtrl */
 	spinlock_t uctxt_lock; /* protect rcd changes */
@@ -1100,25 +1200,6 @@ struct hfi1_devdata {
 	/* Base GUID for device (network order) */
 	u64 base_guid;
 
-	/* these are the "32 bit" regs */
-
-	/* value we put in kr_rcvhdrsize */
-	u32 rcvhdrsize;
-	/* number of receive contexts the chip supports */
-	u32 chip_rcv_contexts;
-	/* number of receive array entries */
-	u32 chip_rcv_array_count;
-	/* number of PIO send contexts the chip supports */
-	u32 chip_send_contexts;
-	/* number of bytes in the PIO memory buffer */
-	u32 chip_pio_mem_size;
-	/* number of bytes in the SDMA memory buffer */
-	u32 chip_sdma_mem_size;
-
-	/* size of each rcvegrbuffer */
-	u32 rcvegrbufsize;
-	/* log2 of above */
-	u16 rcvegrbufsize_shift;
 	/* both sides of the PCIe link are gen3 capable */
 	u8 link_gen3_capable;
 	u8 dc_shutdown;
@@ -1186,14 +1267,6 @@ struct hfi1_devdata {
 
 	struct diag_client *diag_client;
 
-	/* MSI-X information */
-	struct hfi1_msix_entry *msix_entries;
-	u32 num_msix_entries;
-	u32 first_dyn_msix_idx;
-
-	/* INTx information */
-	u32 requested_intx_irq;		/* did we request one? */
-
 	/* general interrupt: mask of handled interrupts */
 	u64 gi_mask[CCE_NUM_INT_CSRS];
 
@@ -1206,6 +1279,9 @@ struct hfi1_devdata {
 	 * 64 bit synthetic counters
 	 */
 	struct timer_list synth_stats_timer;
+
+	/* MSI-X information */
+	struct hfi1_msix_info msix_info;
 
 	/*
 	 * device counters
@@ -1259,11 +1335,12 @@ struct hfi1_devdata {
 	u64 sw_cce_err_status_aggregate;
 	/* Software counter that aggregates all bypass packet rcv errors */
 	u64 sw_rcv_bypass_packet_errors;
-	/* receive interrupt function */
-	rhf_rcv_function_ptr normal_rhf_rcv_functions[8];
 
 	/* Save the enabled LCB error bits */
 	u64 lcb_err_en;
+	struct cpu_mask_set *comp_vect;
+	int *comp_vect_mappings;
+	u32 comp_vect_possible_cpus;
 
 	/*
 	 * Capability to have different send engines simply by changing a
@@ -1296,10 +1373,7 @@ struct hfi1_devdata {
 	/* seqlock for sc2vl */
 	seqlock_t sc2vl_lock ____cacheline_aligned_in_smp;
 	u64 sc2vl[4];
-	/* receive interrupt functions */
-	rhf_rcv_function_ptr *rhf_rcv_function_map;
 	u64 __percpu *rcv_limit;
-	u16 rhf_offset; /* offset of RHF within receive header entry */
 	/* adding a new field here would make it part of this cacheline */
 
 	/* OUI comes from the HW. Used everywhere as 3 separate bytes. */
@@ -1335,6 +1409,8 @@ struct hfi1_devdata {
 
 	/* vnic data */
 	struct hfi1_vnic_data vnic;
+	/* Lock to protect IRQ SRC register access */
+	spinlock_t irq_src_lock;
 };
 
 static inline bool hfi1_vnic_is_rsm_full(struct hfi1_devdata *dd, int spare)
@@ -1380,8 +1456,7 @@ struct hfi1_filedata {
 	struct mm_struct *mm;
 };
 
-extern struct list_head hfi1_dev_list;
-extern spinlock_t hfi1_devs_lock;
+extern struct xarray hfi1_dev_table;
 struct hfi1_devdata *hfi1_lookup(int unit);
 
 static inline unsigned long uctxt_offset(struct hfi1_ctxtdata *uctxt)
@@ -1409,7 +1484,7 @@ void hfi1_init_pportdata(struct pci_dev *pdev, struct hfi1_pportdata *ppd,
 			 struct hfi1_devdata *dd, u8 hw_pidx, u8 port);
 void hfi1_free_ctxtdata(struct hfi1_devdata *dd, struct hfi1_ctxtdata *rcd);
 int hfi1_rcd_put(struct hfi1_ctxtdata *rcd);
-void hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
+int hfi1_rcd_get(struct hfi1_ctxtdata *rcd);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index_safe(struct hfi1_devdata *dd,
 						 u16 ctxt);
 struct hfi1_ctxtdata *hfi1_rcd_get_by_index(struct hfi1_devdata *dd, u16 ctxt);
@@ -1417,9 +1492,6 @@ int handle_receive_interrupt(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_nodma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 int handle_receive_interrupt_dma_rtail(struct hfi1_ctxtdata *rcd, int thread);
 void set_all_slowpath(struct hfi1_devdata *dd);
-void hfi1_vnic_synchronize_irq(struct hfi1_devdata *dd);
-void hfi1_set_vnic_msix_info(struct hfi1_ctxtdata *rcd);
-void hfi1_reset_vnic_msix_info(struct hfi1_ctxtdata *rcd);
 
 extern const struct pci_device_id hfi1_pci_tbl[];
 void hfi1_make_ud_req_9B(struct rvt_qp *qp,
@@ -1438,7 +1510,7 @@ void hfi1_make_ud_req_16B(struct rvt_qp *qp,
 /* calculate the current RHF address */
 static inline __le32 *get_rhf_addr(struct hfi1_ctxtdata *rcd)
 {
-	return (__le32 *)rcd->rcvhdrq + rcd->head + rcd->dd->rhf_offset;
+	return (__le32 *)rcd->rcvhdrq + rcd->head + rcd->rhf_offset;
 }
 
 int hfi1_reset_device(int);
@@ -1538,13 +1610,13 @@ void set_link_ipg(struct hfi1_pportdata *ppd);
 void process_becn(struct hfi1_pportdata *ppd, u8 sl, u32 rlid, u32 lqpn,
 		  u32 rqpn, u8 svc_type);
 void return_cnp(struct hfi1_ibport *ibp, struct rvt_qp *qp, u32 remote_qpn,
-		u32 pkey, u32 slid, u32 dlid, u8 sc5,
+		u16 pkey, u32 slid, u32 dlid, u8 sc5,
 		const struct ib_grh *old_grh);
 void return_cnp_16B(struct hfi1_ibport *ibp, struct rvt_qp *qp,
-		    u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
+		    u32 remote_qpn, u16 pkey, u32 slid, u32 dlid,
 		    u8 sc5, const struct ib_grh *old_grh);
 typedef void (*hfi1_handle_cnp)(struct hfi1_ibport *ibp, struct rvt_qp *qp,
-				u32 remote_qpn, u32 pkey, u32 slid, u32 dlid,
+				u32 remote_qpn, u16 pkey, u32 slid, u32 dlid,
 				u8 sc5, const struct ib_grh *old_grh);
 
 #define PKEY_CHECK_INVALID -1
@@ -1781,13 +1853,20 @@ static inline struct hfi1_ibport *rcd_to_iport(struct hfi1_ctxtdata *rcd)
 	return &rcd->ppd->ibport_data;
 }
 
-void hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
-			       bool do_cnp);
-static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
-			       bool do_cnp)
+/**
+ * hfi1_may_ecn - Check whether FECN or BECN processing should be done
+ * @pkt: the packet to be evaluated
+ *
+ * Check whether the FECN or BECN bits in the packet's header are
+ * enabled, depending on packet type.
+ *
+ * This function only checks for FECN and BECN bits. Additional checks
+ * are done in the slowpath (hfi1_process_ecn_slowpath()) in order to
+ * ensure correct handling.
+ */
+static inline bool hfi1_may_ecn(struct hfi1_packet *pkt)
 {
-	bool becn;
-	bool fecn;
+	bool fecn, becn;
 
 	if (pkt->etype == RHF_RCV_TYPE_BYPASS) {
 		fecn = hfi1_16B_get_fecn(pkt->hdr);
@@ -1796,10 +1875,18 @@ static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt,
 		fecn = ib_bth_get_fecn(pkt->ohdr);
 		becn = ib_bth_get_becn(pkt->ohdr);
 	}
-	if (unlikely(fecn || becn)) {
-		hfi1_process_ecn_slowpath(qp, pkt, do_cnp);
-		return fecn;
-	}
+	return fecn || becn;
+}
+
+bool hfi1_process_ecn_slowpath(struct rvt_qp *qp, struct hfi1_packet *pkt,
+			       bool prescan);
+static inline bool process_ecn(struct rvt_qp *qp, struct hfi1_packet *pkt)
+{
+	bool do_work;
+
+	do_work = hfi1_may_ecn(pkt);
+	if (unlikely(do_work))
+		return hfi1_process_ecn_slowpath(qp, pkt, false);
 	return false;
 }
 
@@ -1857,6 +1944,7 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_HAS_SDMA_TIMEOUT  0x8
 #define HFI1_HAS_SEND_DMA      0x10   /* Supports Send DMA */
 #define HFI1_FORCED_FREEZE     0x80   /* driver forced freeze mode */
+#define HFI1_SHUTDOWN          0x100  /* device is shutting down */
 
 /* IB dword length mask in PBC (lower 11 bits); same for all chips */
 #define HFI1_PBC_LENGTH_MASK                     ((1 << 11) - 1)
@@ -1872,10 +1960,8 @@ struct cc_state *get_cc_state_protected(struct hfi1_pportdata *ppd)
 #define HFI1_CTXT_WAITING_URG 4
 
 /* free up any allocated data at closes */
-struct hfi1_devdata *hfi1_init_dd(struct pci_dev *pdev,
-				  const struct pci_device_id *ent);
+int hfi1_init_dd(struct hfi1_devdata *dd);
 void hfi1_free_devdata(struct hfi1_devdata *dd);
-struct hfi1_devdata *hfi1_alloc_devdata(struct pci_dev *pdev, size_t extra);
 
 /* LED beaconing functions */
 void hfi1_start_led_override(struct hfi1_pportdata *ppd, unsigned int timeon,
@@ -1948,6 +2034,7 @@ static inline u32 get_rcvhdrtail(const struct hfi1_ctxtdata *rcd)
  */
 
 extern const char ib_hfi1_version[];
+extern const struct attribute_group ib_hfi1_attr_group;
 
 int hfi1_device_create(struct hfi1_devdata *dd);
 void hfi1_device_remove(struct hfi1_devdata *dd);
@@ -1959,16 +2046,15 @@ void hfi1_verbs_unregister_sysfs(struct hfi1_devdata *dd);
 /* Hook for sysfs read of QSFP */
 int qsfp_dump(struct hfi1_pportdata *ppd, char *buf, int len);
 
-int hfi1_pcie_init(struct pci_dev *pdev, const struct pci_device_id *ent);
-void hfi1_clean_up_interrupts(struct hfi1_devdata *dd);
+int hfi1_pcie_init(struct hfi1_devdata *dd);
 void hfi1_pcie_cleanup(struct pci_dev *pdev);
 int hfi1_pcie_ddinit(struct hfi1_devdata *dd, struct pci_dev *pdev);
 void hfi1_pcie_ddcleanup(struct hfi1_devdata *);
 int pcie_speeds(struct hfi1_devdata *dd);
-int request_msix(struct hfi1_devdata *dd, u32 msireq);
 int restore_pci_variables(struct hfi1_devdata *dd);
 int save_pci_variables(struct hfi1_devdata *dd);
 int do_pcie_gen3_transition(struct hfi1_devdata *dd);
+void tune_pcie_caps(struct hfi1_devdata *dd);
 int parse_platform_config(struct hfi1_devdata *dd);
 int get_platform_config_field(struct hfi1_devdata *dd,
 			      enum platform_config_table_type_encoding
@@ -1987,12 +2073,6 @@ static inline void flush_wc(void)
 }
 
 void handle_eflags(struct hfi1_packet *packet);
-int process_receive_ib(struct hfi1_packet *packet);
-int process_receive_bypass(struct hfi1_packet *packet);
-int process_receive_error(struct hfi1_packet *packet);
-int kdeth_process_expected(struct hfi1_packet *packet);
-int kdeth_process_eager(struct hfi1_packet *packet);
-int process_receive_invalid(struct hfi1_packet *packet);
 void seqfile_dump_rcd(struct seq_file *s, struct hfi1_ctxtdata *rcd);
 
 /* global module parameter variables */
@@ -2049,7 +2129,9 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_LONG_BYPASS_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_LONG_IB_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_BAD_PKT_LEN_SMASK
+#ifndef CONFIG_FAULT_INJECTION
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_TEST_SMASK
+#endif
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_SMALL_BYPASS_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_TOO_SMALL_IB_PACKETS_SMASK
 	| SEND_CTXT_CHECK_ENABLE_DISALLOW_RAW_IPV6_SMASK
@@ -2062,8 +2144,12 @@ static inline u64 hfi1_pkt_default_send_ctxt_mask(struct hfi1_devdata *dd,
 	| SEND_CTXT_CHECK_ENABLE_CHECK_ENABLE_SMASK;
 
 	if (ctxt_type == SC_USER)
-		base_sc_integrity |= HFI1_PKT_USER_SC_INTEGRITY;
-	else
+		base_sc_integrity |=
+#ifndef CONFIG_FAULT_INJECTION
+			SEND_CTXT_CHECK_ENABLE_DISALLOW_PBC_TEST_SMASK |
+#endif
+			HFI1_PKT_USER_SC_INTEGRITY;
+	else if (ctxt_type != SC_KERNEL)
 		base_sc_integrity |= HFI1_PKT_KERNEL_SC_INTEGRITY;
 
 	/* turn on send-side job key checks if !A0 */
@@ -2108,19 +2194,6 @@ static inline u64 hfi1_pkt_base_sdma_integrity(struct hfi1_devdata *dd)
 
 	return base_sdma_integrity;
 }
-
-/*
- * hfi1_early_err is used (only!) to print early errors before devdata is
- * allocated, or when dd->pcidev may not be valid, and at the tail end of
- * cleanup when devdata may have been freed, etc.  hfi1_dev_porterr is
- * the same as dd_dev_err, but is used when the message really needs
- * the IB port# to be definitive as to what's happening..
- */
-#define hfi1_early_err(dev, fmt, ...) \
-	dev_err(dev, fmt, ##__VA_ARGS__)
-
-#define hfi1_early_info(dev, fmt, ...) \
-	dev_info(dev, fmt, ##__VA_ARGS__)
 
 #define dd_dev_emerg(dd, fmt, ...) \
 	dev_emerg(&(dd)->pcidev->dev, "%s: " fmt, \
@@ -2438,7 +2511,7 @@ static inline void hfi1_make_16b_hdr(struct hfi1_16b_header *hdr,
 		((slid >> OPA_16B_SLID_SHIFT) << OPA_16B_SLID_HIGH_SHIFT);
 	lrh2 = (lrh2 & ~OPA_16B_DLID_MASK) |
 		((dlid >> OPA_16B_DLID_SHIFT) << OPA_16B_DLID_HIGH_SHIFT);
-	lrh2 = (lrh2 & ~OPA_16B_PKEY_MASK) | (pkey << OPA_16B_PKEY_SHIFT);
+	lrh2 = (lrh2 & ~OPA_16B_PKEY_MASK) | ((u32)pkey << OPA_16B_PKEY_SHIFT);
 	lrh2 = (lrh2 & ~OPA_16B_L4_MASK) | l4;
 
 	hdr->lrh[0] = lrh0;

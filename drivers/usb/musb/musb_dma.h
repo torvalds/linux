@@ -44,31 +44,31 @@ struct musb_hw_ep;
 #endif
 
 #ifdef CONFIG_USB_UX500_DMA
-#define musb_dma_ux500(musb)		(musb->io.quirks & MUSB_DMA_UX500)
+#define musb_dma_ux500(musb)		(musb->ops->quirks & MUSB_DMA_UX500)
 #else
 #define musb_dma_ux500(musb)		0
 #endif
 
 #ifdef CONFIG_USB_TI_CPPI41_DMA
-#define musb_dma_cppi41(musb)		(musb->io.quirks & MUSB_DMA_CPPI41)
+#define musb_dma_cppi41(musb)		(musb->ops->quirks & MUSB_DMA_CPPI41)
 #else
 #define musb_dma_cppi41(musb)		0
 #endif
 
 #ifdef CONFIG_USB_TI_CPPI_DMA
-#define musb_dma_cppi(musb)		(musb->io.quirks & MUSB_DMA_CPPI)
+#define musb_dma_cppi(musb)		(musb->ops->quirks & MUSB_DMA_CPPI)
 #else
 #define musb_dma_cppi(musb)		0
 #endif
 
 #ifdef CONFIG_USB_TUSB_OMAP_DMA
-#define tusb_dma_omap(musb)		(musb->io.quirks & MUSB_DMA_TUSB_OMAP)
+#define tusb_dma_omap(musb)		(musb->ops->quirks & MUSB_DMA_TUSB_OMAP)
 #else
 #define tusb_dma_omap(musb)		0
 #endif
 
 #ifdef CONFIG_USB_INVENTRA_DMA
-#define musb_dma_inventra(musb)		(musb->io.quirks & MUSB_DMA_INVENTRA)
+#define musb_dma_inventra(musb)		(musb->ops->quirks & MUSB_DMA_INVENTRA)
 #else
 #define musb_dma_inventra(musb)		0
 #endif
@@ -78,17 +78,6 @@ struct musb_hw_ep;
 	(musb_dma_cppi(musb) || musb_dma_cppi41(musb))
 #else
 #define	is_cppi_enabled(musb)	0
-#endif
-
-/* Anomaly 05000456 - USB Receive Interrupt Is Not Generated in DMA Mode 1
- *	Only allow DMA mode 1 to be used when the USB will actually generate the
- *	interrupts we expect.
- */
-#ifdef CONFIG_BLACKFIN
-# undef USE_MODE1
-# if !ANOMALY_05000456
-#  define USE_MODE1
-# endif
 #endif
 
 /*

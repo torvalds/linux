@@ -6,6 +6,9 @@ intel_th-$(CONFIG_INTEL_TH_DEBUG) += debug.o
 obj-$(CONFIG_INTEL_TH_PCI)	+= intel_th_pci.o
 intel_th_pci-y			:= pci.o
 
+obj-$(CONFIG_INTEL_TH_ACPI)	+= intel_th_acpi.o
+intel_th_acpi-y			:= acpi.o
+
 obj-$(CONFIG_INTEL_TH_GTH)	+= intel_th_gth.o
 intel_th_gth-y			:= gth.o
 
@@ -17,3 +20,6 @@ intel_th_msu-y			:= msu.o
 
 obj-$(CONFIG_INTEL_TH_PTI)	+= intel_th_pti.o
 intel_th_pti-y			:= pti.o
+
+obj-$(CONFIG_INTEL_TH_MSU)	+= intel_th_msu_sink.o
+intel_th_msu_sink-y		:= msu-sink.o

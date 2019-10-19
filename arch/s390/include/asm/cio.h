@@ -7,6 +7,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
+#include <linux/genalloc.h>
 #include <asm/types.h>
 
 #define LPM_ANYPATH 0xff
@@ -227,7 +228,7 @@ struct esw_eadm {
  * a field is valid; a field not being valid is always passed as %0.
  * If a unit check occurred, @ecw may contain sense data; this is retrieved
  * by the common I/O layer itself if the device doesn't support concurrent
- * sense (so that the device driver never needs to perform basic sene itself).
+ * sense (so that the device driver never needs to perform basic sense itself).
  * For unsolicited interrupts, the irb is passed as-is (expect for sense data,
  * if applicable).
  */
@@ -262,6 +263,36 @@ struct ciw {
 #define CIW_TYPE_RCD	0x0    	/* read configuration data */
 #define CIW_TYPE_SII	0x1    	/* set interface identifier */
 #define CIW_TYPE_RNI	0x2    	/* read node identifier */
+
+/*
+ * Node Descriptor as defined in SA22-7204, "Common I/O-Device Commands"
+ */
+
+#define ND_VALIDITY_VALID	0
+#define ND_VALIDITY_OUTDATED	1
+#define ND_VALIDITY_INVALID	2
+
+struct node_descriptor {
+	/* Flags. */
+	union {
+		struct {
+			u32 validity:3;
+			u32 reserved:5;
+		} __packed;
+		u8 byte0;
+	} __packed;
+
+	/* Node parameters. */
+	u32 params:24;
+
+	/* Node ID. */
+	char type[6];
+	char model[3];
+	char manufacturer[3];
+	char plant[2];
+	char seq[12];
+	u16 tag;
+} __packed;
 
 /*
  * Flags used as input parameters for do_IO()
@@ -328,18 +359,19 @@ static inline u8 pathmask_to_pos(u8 mask)
 void channel_subsystem_reinit(void);
 extern void css_schedule_reprobe(void);
 
-extern void reipl_ccw_dev(struct ccw_dev_id *id);
+extern void *cio_dma_zalloc(size_t size);
+extern void cio_dma_free(void *cpu_addr, size_t size);
+extern struct device *cio_get_dma_css_dev(void);
 
-struct cio_iplinfo {
-	u8 ssid;
-	u16 devno;
-	int is_qdio;
-};
-
-extern int cio_get_iplinfo(struct cio_iplinfo *iplinfo);
+void *cio_gp_dma_zalloc(struct gen_pool *gp_dma, struct device *dma_dev,
+			size_t size);
+void cio_gp_dma_free(struct gen_pool *gp_dma, void *cpu_addr, size_t size);
+void cio_gp_dma_destroy(struct gen_pool *gp_dma, struct device *dma_dev);
+struct gen_pool *cio_gp_dma_create(struct device *dma_dev, int nr_pages);
 
 /* Function from drivers/s390/cio/chsc.c */
 int chsc_sstpc(void *page, unsigned int op, u16 ctrl, u64 *clock_delta);
 int chsc_sstpi(void *page, void *result, size_t size);
+int chsc_sgib(u32 origin);
 
 #endif

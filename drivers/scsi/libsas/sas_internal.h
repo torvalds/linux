@@ -1,26 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Serial Attached SCSI (SAS) class internal header file
  *
  * Copyright (C) 2005 Adaptec, Inc.  All rights reserved.
  * Copyright (C) 2005 Luben Tuikov <luben_tuikov@adaptec.com>
- *
- * This file is licensed under GPLv2.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
- * USA
- *
  */
 
 #ifndef _SAS_INTERNAL_H_
@@ -32,9 +15,13 @@
 #include <scsi/libsas.h>
 #include <scsi/sas_ata.h>
 
-#define sas_printk(fmt, ...) printk(KERN_NOTICE "sas: " fmt, ## __VA_ARGS__)
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
 
-#define SAS_DPRINTK(fmt, ...) printk(KERN_DEBUG "sas: " fmt, ## __VA_ARGS__)
+#define SAS_FMT "sas: "
+
+#define pr_fmt(fmt) SAS_FMT fmt
 
 #define TO_SAS_TASK(_scsi_cmd)  ((void *)(_scsi_cmd)->host_scribble)
 #define ASSIGN_SAS_TASK(_sc, _t) do { (_sc)->host_scribble = (void *) _t; } while (0)
@@ -120,10 +107,10 @@ static inline void sas_smp_host_handler(struct bsg_job *job,
 
 static inline void sas_fail_probe(struct domain_device *dev, const char *func, int err)
 {
-	SAS_DPRINTK("%s: for %s device %16llx returned %d\n",
-		    func, dev->parent ? "exp-attached" :
-					    "direct-attached",
-		    SAS_ADDR(dev->sas_addr), err);
+	pr_warn("%s: for %s device %16llx returned %d\n",
+		func, dev->parent ? "exp-attached" :
+		"direct-attached",
+		SAS_ADDR(dev->sas_addr), err);
 	sas_unregister_dev(dev->port, dev);
 }
 

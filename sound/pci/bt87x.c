@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * bt87x.c - Brooktree Bt878/Bt879 driver for ALSA
  *
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  *
  * based on btaudio.c by Gerd Knorr <kraxel@bytesex.org>
- *
- *
- *  This driver is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2 of the License, or
- *  (at your option) any later version.
- *
- *  This driver is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/init.h>
@@ -228,14 +214,14 @@ static int snd_bt87x_create_risc(struct snd_bt87x *chip, struct snd_pcm_substrea
 			       	 unsigned int periods, unsigned int period_bytes)
 {
 	unsigned int i, offset;
-	u32 *risc;
+	__le32 *risc;
 
 	if (chip->dma_risc.area == NULL) {
 		if (snd_dma_alloc_pages(SNDRV_DMA_TYPE_DEV, snd_dma_pci_data(chip->pci),
 					PAGE_ALIGN(MAX_RISC_SIZE), &chip->dma_risc) < 0)
 			return -ENOMEM;
 	}
-	risc = (u32 *)chip->dma_risc.area;
+	risc = (__le32 *)chip->dma_risc.area;
 	offset = 0;
 	*risc++ = cpu_to_le32(RISC_SYNC | RISC_SYNC_FM1);
 	*risc++ = cpu_to_le32(0);
@@ -714,11 +700,11 @@ static int snd_bt87x_pcm(struct snd_bt87x *chip, int device, char *name)
 	pcm->private_data = chip;
 	strcpy(pcm->name, name);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_bt87x_pcm_ops);
-	return snd_pcm_lib_preallocate_pages_for_all(pcm,
-						     SNDRV_DMA_TYPE_DEV_SG,
-						     snd_dma_pci_data(chip->pci),
-							128 * 1024,
-							ALIGN(255 * 4092, 1024));
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV_SG,
+					      snd_dma_pci_data(chip->pci),
+					      128 * 1024,
+					      ALIGN(255 * 4092, 1024));
+	return 0;
 }
 
 static int snd_bt87x_create(struct snd_card *card,

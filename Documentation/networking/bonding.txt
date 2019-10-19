@@ -140,7 +140,7 @@ bonding module at load time, or are specified via sysfs.
 
 	Module options may be given as command line arguments to the
 insmod or modprobe command, but are usually specified in either the
-/etc/modrobe.d/*.conf configuration files, or in a distro-specific
+/etc/modprobe.d/*.conf configuration files, or in a distro-specific
 configuration file (some of which are detailed in the next section).
 
 	Details on bonding support for sysfs is provided in the
@@ -706,9 +706,9 @@ num_unsol_na
 	unsolicited IPv6 Neighbor Advertisements) to be issued after a
 	failover event.  As soon as the link is up on the new slave
 	(possibly immediately) a peer notification is sent on the
-	bonding device and each VLAN sub-device.  This is repeated at
-	each link monitor interval (arp_interval or miimon, whichever
-	is active) if the number is greater than 1.
+	bonding device and each VLAN sub-device. This is repeated at
+	the rate specified by peer_notif_delay if the number is
+	greater than 1.
 
 	The valid range is 0 - 255; the default value is 1.  These options
 	affect only the active-backup mode.  These options were added for
@@ -726,6 +726,16 @@ packets_per_slave
 
 	The valid range is 0 - 65535; the default value is 1. This option
 	has effect only in balance-rr mode.
+
+peer_notif_delay
+
+        Specify the delay, in milliseconds, between each peer
+        notification (gratuitous ARP and unsolicited IPv6 Neighbor
+        Advertisement) when they are issued after a failover event.
+        This delay should be a multiple of the link monitor interval
+        (arp_interval or miimon, whichever is active). The default
+        value is 0 which means to match the value of the link monitor
+        interval.
 
 primary
 
@@ -1490,7 +1500,7 @@ To remove an ARP target:
 
 To configure the interval between learning packet transmits:
 # echo 12 > /sys/class/net/bond0/bonding/lp_interval
-	NOTE: the lp_inteval is the number of seconds between instances where
+	NOTE: the lp_interval is the number of seconds between instances where
 the bonding driver sends learning packets to each slaves peer switch.  The
 default interval is 1 second.
 

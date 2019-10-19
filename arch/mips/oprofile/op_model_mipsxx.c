@@ -36,7 +36,6 @@ static int perfcount_irq;
 #endif
 
 #ifdef CONFIG_MIPS_MT_SMP
-static int cpu_has_mipsmt_pertccounters;
 #define WHAT		(MIPS_PERFCTRL_MT_EN_VPE | \
 			 M_PERFCTL_VPEID(cpu_vpe_id(&current_cpu_data)))
 #define vpe_id()	(cpu_has_mipsmt_pertccounters ? \
@@ -173,12 +172,15 @@ static void mipsxx_cpu_setup(void *args)
 	case 4:
 		w_c0_perfctrl3(0);
 		w_c0_perfcntr3(reg.counter[3]);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(0);
 		w_c0_perfcntr2(reg.counter[2]);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(0);
 		w_c0_perfcntr1(reg.counter[1]);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(0);
 		w_c0_perfcntr0(reg.counter[0]);
@@ -196,10 +198,13 @@ static void mipsxx_cpu_start(void *args)
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(WHAT | reg.control[3]);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(WHAT | reg.control[2]);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(WHAT | reg.control[1]);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(WHAT | reg.control[0]);
 	}
@@ -216,10 +221,13 @@ static void mipsxx_cpu_stop(void *args)
 	switch (counters) {
 	case 4:
 		w_c0_perfctrl3(0);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(0);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(0);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(0);
 	}
@@ -237,6 +245,7 @@ static int mipsxx_perfcount_handler(void)
 
 	switch (counters) {
 #define HANDLE_COUNTER(n)						\
+	/* fall through */						\
 	case n + 1:							\
 		control = r_c0_perfctrl ## n();				\
 		counter = r_c0_perfcntr ## n();				\
@@ -298,12 +307,15 @@ static void reset_counters(void *arg)
 	case 4:
 		w_c0_perfctrl3(0);
 		w_c0_perfcntr3(0);
+		/* fall through */
 	case 3:
 		w_c0_perfctrl2(0);
 		w_c0_perfcntr2(0);
+		/* fall through */
 	case 2:
 		w_c0_perfctrl1(0);
 		w_c0_perfcntr1(0);
+		/* fall through */
 	case 1:
 		w_c0_perfctrl0(0);
 		w_c0_perfcntr0(0);
@@ -326,7 +338,6 @@ static int __init mipsxx_init(void)
 	}
 
 #ifdef CONFIG_MIPS_MT_SMP
-	cpu_has_mipsmt_pertccounters = read_c0_config7() & (1<<19);
 	if (!cpu_has_mipsmt_pertccounters)
 		counters = counters_total_to_per_cpu(counters);
 #endif

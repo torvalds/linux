@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * NXP TDA18212HN silicon tuner driver
  *
  * Copyright (C) 2011 Antti Palosaari <crope@iki.fi>
- *
- *    This program is free software; you can redistribute it and/or modify
- *    it under the terms of the GNU General Public License as published by
- *    the Free Software Foundation; either version 2 of the License, or
- *    (at your option) any later version.
- *
- *    This program is distributed in the hope that it will be useful,
- *    but WITHOUT ANY WARRANTY; without even the implied warranty of
- *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *    GNU General Public License for more details.
- *
- *    You should have received a copy of the GNU General Public License along
- *    with this program; if not, write to the Free Software Foundation, Inc.,
- *    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
 #include "tda18212.h"
@@ -175,11 +162,11 @@ static int tda18212_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static const struct dvb_tuner_ops tda18212_tuner_ops = {
 	.info = {
-		.name           = "NXP TDA18212",
+		.name              = "NXP TDA18212",
 
-		.frequency_min  =  48000000,
-		.frequency_max  = 864000000,
-		.frequency_step =      1000,
+		.frequency_min_hz  =  48 * MHz,
+		.frequency_max_hz  = 864 * MHz,
+		.frequency_step_hz =   1 * kHz,
 	},
 
 	.set_params    = tda18212_set_params,

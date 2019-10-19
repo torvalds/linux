@@ -7,7 +7,7 @@
  *
  * Original driver for 2.2.x by anonymous
  *
- * See Documentation/usb/usb-serial.txt for more information on using this
+ * See Documentation/usb/usb-serial.rst for more information on using this
  * driver
  */
 
@@ -46,11 +46,14 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_HCR331) },
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_MOTOROLA) },
 	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_ZTEK) },
+	{ USB_DEVICE(PL2303_VENDOR_ID, PL2303_PRODUCT_ID_TB) },
 	{ USB_DEVICE(IODATA_VENDOR_ID, IODATA_PRODUCT_ID) },
 	{ USB_DEVICE(IODATA_VENDOR_ID, IODATA_PRODUCT_ID_RSAQ5) },
 	{ USB_DEVICE(ATEN_VENDOR_ID, ATEN_PRODUCT_ID),
 		.driver_info = PL2303_QUIRK_ENDPOINT_HACK },
 	{ USB_DEVICE(ATEN_VENDOR_ID, ATEN_PRODUCT_UC485),
+		.driver_info = PL2303_QUIRK_ENDPOINT_HACK },
+	{ USB_DEVICE(ATEN_VENDOR_ID, ATEN_PRODUCT_UC232B),
 		.driver_info = PL2303_QUIRK_ENDPOINT_HACK },
 	{ USB_DEVICE(ATEN_VENDOR_ID, ATEN_PRODUCT_ID2) },
 	{ USB_DEVICE(ATEN_VENDOR_ID2, ATEN_PRODUCT_ID) },
@@ -89,15 +92,21 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(YCCABLE_VENDOR_ID, YCCABLE_PRODUCT_ID) },
 	{ USB_DEVICE(SUPERIAL_VENDOR_ID, SUPERIAL_PRODUCT_ID) },
 	{ USB_DEVICE(HP_VENDOR_ID, HP_LD220_PRODUCT_ID) },
+	{ USB_DEVICE(HP_VENDOR_ID, HP_LD220TA_PRODUCT_ID) },
 	{ USB_DEVICE(HP_VENDOR_ID, HP_LD960_PRODUCT_ID) },
+	{ USB_DEVICE(HP_VENDOR_ID, HP_LD960TA_PRODUCT_ID) },
 	{ USB_DEVICE(HP_VENDOR_ID, HP_LCM220_PRODUCT_ID) },
 	{ USB_DEVICE(HP_VENDOR_ID, HP_LCM960_PRODUCT_ID) },
+	{ USB_DEVICE(HP_VENDOR_ID, HP_LM920_PRODUCT_ID) },
+	{ USB_DEVICE(HP_VENDOR_ID, HP_LM940_PRODUCT_ID) },
+	{ USB_DEVICE(HP_VENDOR_ID, HP_TD620_PRODUCT_ID) },
 	{ USB_DEVICE(CRESSI_VENDOR_ID, CRESSI_EDY_PRODUCT_ID) },
 	{ USB_DEVICE(ZEAGLE_VENDOR_ID, ZEAGLE_N2ITION3_PRODUCT_ID) },
 	{ USB_DEVICE(SONY_VENDOR_ID, SONY_QN3USB_PRODUCT_ID) },
 	{ USB_DEVICE(SANWA_VENDOR_ID, SANWA_PRODUCT_ID) },
 	{ USB_DEVICE(ADLINK_VENDOR_ID, ADLINK_ND6530_PRODUCT_ID) },
 	{ USB_DEVICE(SMART_VENDOR_ID, SMART_PRODUCT_ID) },
+	{ USB_DEVICE(AT_VENDOR_ID, AT_VTKIT3_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
 
@@ -137,6 +146,8 @@ MODULE_DEVICE_TABLE(usb, id_table);
 #define UART_OVERRUN_ERROR		0x40
 #define UART_CTS			0x80
 
+#define PL2303_FLOWCTRL_MASK		0xf0
+
 static void pl2303_set_break(struct usb_serial_port *port, bool enable);
 
 enum pl2303_type {
@@ -148,6 +159,7 @@ enum pl2303_type {
 struct pl2303_type_data {
 	speed_t max_baud_rate;
 	unsigned long quirks;
+	unsigned int no_autoxonxoff:1;
 };
 
 struct pl2303_serial_private {
@@ -165,11 +177,12 @@ struct pl2303_private {
 
 static const struct pl2303_type_data pl2303_type_data[TYPE_COUNT] = {
 	[TYPE_01] = {
-		.max_baud_rate =	1228800,
-		.quirks =		PL2303_QUIRK_LEGACY,
+		.max_baud_rate		= 1228800,
+		.quirks			= PL2303_QUIRK_LEGACY,
+		.no_autoxonxoff		= true,
 	},
 	[TYPE_HX] = {
-		.max_baud_rate =	12000000,
+		.max_baud_rate		= 12000000,
 	},
 };
 
@@ -213,6 +226,29 @@ static int pl2303_vendor_write(struct usb_serial *serial, u16 value, u16 index)
 	}
 
 	return 0;
+}
+
+static int pl2303_update_reg(struct usb_serial *serial, u8 reg, u8 mask, u8 val)
+{
+	int ret = 0;
+	u8 *buf;
+
+	buf = kmalloc(1, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	ret = pl2303_vendor_read(serial, reg | 0x80, buf);
+	if (ret)
+		goto out_free;
+
+	*buf &= ~mask;
+	*buf |= val & mask;
+
+	ret = pl2303_vendor_write(serial, reg, *buf);
+out_free:
+	kfree(buf);
+
+	return ret;
 }
 
 static int pl2303_probe(struct usb_serial *serial,
@@ -533,6 +569,31 @@ static int pl2303_set_line_request(struct usb_serial_port *port,
 	return 0;
 }
 
+static bool pl2303_termios_change(const struct ktermios *a, const struct ktermios *b)
+{
+	bool ixon_change;
+
+	ixon_change = ((a->c_iflag ^ b->c_iflag) & (IXON | IXANY)) ||
+			a->c_cc[VSTART] != b->c_cc[VSTART] ||
+			a->c_cc[VSTOP] != b->c_cc[VSTOP];
+
+	return tty_termios_hw_change(a, b) || ixon_change;
+}
+
+static bool pl2303_enable_xonxoff(struct tty_struct *tty, const struct pl2303_type_data *type)
+{
+	if (!I_IXON(tty) || I_IXANY(tty))
+		return false;
+
+	if (START_CHAR(tty) != 0x11 || STOP_CHAR(tty) != 0x13)
+		return false;
+
+	if (type->no_autoxonxoff)
+		return false;
+
+	return true;
+}
+
 static void pl2303_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
@@ -544,7 +605,7 @@ static void pl2303_set_termios(struct tty_struct *tty,
 	int ret;
 	u8 control;
 
-	if (old_termios && !tty_termios_hw_change(&tty->termios, old_termios))
+	if (old_termios && !pl2303_termios_change(&tty->termios, old_termios))
 		return;
 
 	buf = kzalloc(7, GFP_KERNEL);
@@ -659,11 +720,13 @@ static void pl2303_set_termios(struct tty_struct *tty,
 
 	if (C_CRTSCTS(tty)) {
 		if (spriv->quirks & PL2303_QUIRK_LEGACY)
-			pl2303_vendor_write(serial, 0x0, 0x41);
+			pl2303_update_reg(serial, 0, PL2303_FLOWCTRL_MASK, 0x40);
 		else
-			pl2303_vendor_write(serial, 0x0, 0x61);
+			pl2303_update_reg(serial, 0, PL2303_FLOWCTRL_MASK, 0x60);
+	} else if (pl2303_enable_xonxoff(tty, spriv->type)) {
+		pl2303_update_reg(serial, 0, PL2303_FLOWCTRL_MASK, 0xc0);
 	} else {
-		pl2303_vendor_write(serial, 0x0, 0x0);
+		pl2303_update_reg(serial, 0, PL2303_FLOWCTRL_MASK, 0);
 	}
 
 	kfree(buf);
@@ -792,29 +855,16 @@ static int pl2303_carrier_raised(struct usb_serial_port *port)
 	return 0;
 }
 
-static int pl2303_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg)
+static int pl2303_get_serial(struct tty_struct *tty,
+			struct serial_struct *ss)
 {
-	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 
-	switch (cmd) {
-	case TIOCGSERIAL:
-		memset(&ser, 0, sizeof ser);
-		ser.type = PORT_16654;
-		ser.line = port->minor;
-		ser.port = port->port_number;
-		ser.baud_base = 460800;
-
-		if (copy_to_user((void __user *)arg, &ser, sizeof ser))
-			return -EFAULT;
-
-		return 0;
-	default:
-		break;
-	}
-
-	return -ENOIOCTLCMD;
+	ss->type = PORT_16654;
+	ss->line = port->minor;
+	ss->port = port->port_number;
+	ss->baud_base = 460800;
+	return 0;
 }
 
 static void pl2303_set_break(struct usb_serial_port *port, bool enable)
@@ -1000,7 +1050,7 @@ static struct usb_serial_driver pl2303_device = {
 	.close =		pl2303_close,
 	.dtr_rts =		pl2303_dtr_rts,
 	.carrier_raised =	pl2303_carrier_raised,
-	.ioctl =		pl2303_ioctl,
+	.get_serial =		pl2303_get_serial,
 	.break_ctl =		pl2303_break_ctl,
 	.set_termios =		pl2303_set_termios,
 	.tiocmget =		pl2303_tiocmget,

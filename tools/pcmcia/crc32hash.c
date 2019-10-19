@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* crc32hash.c - derived from linux/lib/crc32.c, GNU GPL v2 */
 /* Usage example:
 $ ./crc32hash "Dual Speed"

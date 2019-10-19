@@ -41,10 +41,10 @@ struct kstat {
 	kuid_t		uid;
 	kgid_t		gid;
 	loff_t		size;
-	struct timespec	atime;
-	struct timespec	mtime;
-	struct timespec	ctime;
-	struct timespec	btime;			/* File creation time */
+	struct timespec64 atime;
+	struct timespec64 mtime;
+	struct timespec64 ctime;
+	struct timespec64 btime;			/* File creation time */
 	u64		blocks;
 };
 

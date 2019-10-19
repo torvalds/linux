@@ -184,8 +184,9 @@ static struct mtd_info *cfi_staa_setup(struct map_info *map)
 	mtd->size = devsize * cfi->numchips;
 
 	mtd->numeraseregions = cfi->cfiq->NumEraseRegions * cfi->numchips;
-	mtd->eraseregions = kmalloc(sizeof(struct mtd_erase_region_info)
-			* mtd->numeraseregions, GFP_KERNEL);
+	mtd->eraseregions = kmalloc_array(mtd->numeraseregions,
+					  sizeof(struct mtd_erase_region_info),
+					  GFP_KERNEL);
 	if (!mtd->eraseregions) {
 		kfree(cfi->cmdset_priv);
 		kfree(mtd);
@@ -323,6 +324,7 @@ static inline int do_read_onechip(struct map_info *map, struct flchip *chip, lof
 	case FL_JEDEC_QUERY:
 		map_write(map, CMD(0x70), cmd_addr);
 		chip->state = FL_STATUS;
+		/* Fall through */
 
 	case FL_STATUS:
 		status = map_read(map, cmd_addr);
@@ -460,6 +462,7 @@ static int do_write_buffer(struct map_info *map, struct flchip *chip,
 #ifdef DEBUG_CFI_FEATURES
 	printk("%s: 1 status[%x]\n", __func__, map_read(map, cmd_adr));
 #endif
+		/* Fall through */
 
 	case FL_STATUS:
 		status = map_read(map, cmd_adr);
@@ -753,6 +756,7 @@ retry:
 	case FL_READY:
 		map_write(map, CMD(0x70), adr);
 		chip->state = FL_STATUS;
+		/* Fall through */
 
 	case FL_STATUS:
 		status = map_read(map, adr);
@@ -965,9 +969,6 @@ static int cfi_staa_erase_varsize(struct mtd_info *mtd,
 		}
 	}
 
-	instr->state = MTD_ERASE_DONE;
-	mtd_erase_callback(instr);
-
 	return 0;
 }
 
@@ -997,6 +998,7 @@ static void cfi_staa_sync (struct mtd_info *mtd)
 			 * as the whole point is that nobody can do anything
 			 * with the chip now anyway.
 			 */
+			/* Fall through */
 		case FL_SYNCING:
 			mutex_unlock(&chip->mutex);
 			break;
@@ -1052,6 +1054,7 @@ retry:
 	case FL_READY:
 		map_write(map, CMD(0x70), adr);
 		chip->state = FL_STATUS;
+		/* Fall through */
 
 	case FL_STATUS:
 		status = map_read(map, adr);
@@ -1198,6 +1201,7 @@ retry:
 	case FL_READY:
 		map_write(map, CMD(0x70), adr);
 		chip->state = FL_STATUS;
+		/* Fall through */
 
 	case FL_STATUS:
 		status = map_read(map, adr);

@@ -1,19 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2017 Oracle.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/types.h>
@@ -25,15 +12,15 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
 	struct extent_map *em;
 	struct rb_node *node;
 
-	while (!RB_EMPTY_ROOT(&em_tree->map)) {
-		node = rb_first(&em_tree->map);
+	while (!RB_EMPTY_ROOT(&em_tree->map.rb_root)) {
+		node = rb_first_cached(&em_tree->map);
 		em = rb_entry(node, struct extent_map, rb_node);
 		remove_extent_mapping(em_tree, em);
 
 #ifdef CONFIG_BTRFS_DEBUG
 		if (refcount_read(&em->refs) != 1) {
-			test_msg(
-"em leak: em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx) refs %d\n",
+			test_err(
+"em leak: em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx) refs %d",
 				 em->start, em->len, em->block_start,
 				 em->block_len, refcount_read(&em->refs));
 
@@ -60,7 +47,8 @@ static void free_extent_map_tree(struct extent_map_tree *em_tree)
  *                                    ->add_extent_mapping(0, 16K)
  *                                    -> #handle -EEXIST
  */
-static void test_case_1(struct extent_map_tree *em_tree)
+static int test_case_1(struct btrfs_fs_info *fs_info,
+		struct extent_map_tree *em_tree)
 {
 	struct extent_map *em;
 	u64 start = 0;
@@ -68,55 +56,79 @@ static void test_case_1(struct extent_map_tree *em_tree)
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
-		/* Skip the test on error. */
-		return;
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
 
 	/* Add [0, 16K) */
 	em->start = 0;
 	em->len = SZ_16K;
 	em->block_start = 0;
 	em->block_len = SZ_16K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("cannot add extent range [0, 16K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	/* Add [16K, 20K) following [0, 16K)  */
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	em->start = SZ_16K;
 	em->len = SZ_4K;
 	em->block_start = SZ_32K; /* avoid merging */
 	em->block_len = SZ_4K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("cannot add extent range [16K, 20K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	/* Add [0, 8K), should return [0, 16K) instead. */
 	em->start = start;
 	em->len = len;
 	em->block_start = start;
 	em->block_len = len;
-	ret = btrfs_add_extent_mapping(em_tree, &em, em->start, em->len);
-	if (ret)
-		test_msg("case1 [%llu %llu]: ret %d\n", start, start + len, ret);
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
+	if (ret) {
+		test_err("case1 [%llu %llu]: ret %d", start, start + len, ret);
+		goto out;
+	}
 	if (em &&
 	    (em->start != 0 || extent_map_end(em) != SZ_16K ||
-	     em->block_start != 0 || em->block_len != SZ_16K))
-		test_msg(
-"case1 [%llu %llu]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu\n",
+	     em->block_start != 0 || em->block_len != SZ_16K)) {
+		test_err(
+"case1 [%llu %llu]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
 			 start, start + len, ret, em->start, em->len,
 			 em->block_start, em->block_len);
+		ret = -EINVAL;
+	}
 	free_extent_map(em);
 out:
-	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
 /*
@@ -125,111 +137,153 @@ out:
  * Reading the inline ending up with EEXIST, ie. read an inline
  * extent and discard page cache and read it again.
  */
-static void test_case_2(struct extent_map_tree *em_tree)
+static int test_case_2(struct btrfs_fs_info *fs_info,
+		struct extent_map_tree *em_tree)
 {
 	struct extent_map *em;
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
-		/* Skip the test on error. */
-		return;
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
 
 	/* Add [0, 1K) */
 	em->start = 0;
 	em->len = SZ_1K;
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("cannot add extent range [0, 1K)");
+		goto out;
+	}
 	free_extent_map(em);
 
-	/* Add [4K, 4K) following [0, 1K)  */
+	/* Add [4K, 8K) following [0, 1K)  */
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	em->start = SZ_4K;
 	em->len = SZ_4K;
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("cannot add extent range [4K, 8K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	/* Add [0, 1K) */
 	em->start = 0;
 	em->len = SZ_1K;
 	em->block_start = EXTENT_MAP_INLINE;
 	em->block_len = (u64)-1;
-	ret = btrfs_add_extent_mapping(em_tree, &em, em->start, em->len);
-	if (ret)
-		test_msg("case2 [0 1K]: ret %d\n", ret);
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, em->start, em->len);
+	write_unlock(&em_tree->lock);
+	if (ret) {
+		test_err("case2 [0 1K]: ret %d", ret);
+		goto out;
+	}
 	if (em &&
 	    (em->start != 0 || extent_map_end(em) != SZ_1K ||
-	     em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1))
-		test_msg(
-"case2 [0 1K]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu\n",
+	     em->block_start != EXTENT_MAP_INLINE || em->block_len != (u64)-1)) {
+		test_err(
+"case2 [0 1K]: ret %d return a wrong em (start %llu len %llu block_start %llu block_len %llu",
 			 ret, em->start, em->len, em->block_start,
 			 em->block_len);
+		ret = -EINVAL;
+	}
 	free_extent_map(em);
 out:
-	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
-static void __test_case_3(struct extent_map_tree *em_tree, u64 start)
+static int __test_case_3(struct btrfs_fs_info *fs_info,
+		struct extent_map_tree *em_tree, u64 start)
 {
 	struct extent_map *em;
 	u64 len = SZ_4K;
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
-		/* Skip this test on error. */
-		return;
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
 
 	/* Add [4K, 8K) */
 	em->start = SZ_4K;
 	em->len = SZ_4K;
 	em->block_start = SZ_4K;
 	em->block_len = SZ_4K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("cannot add extent range [4K, 8K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	/* Add [0, 16K) */
 	em->start = 0;
 	em->len = SZ_16K;
 	em->block_start = 0;
 	em->block_len = SZ_16K;
-	ret = btrfs_add_extent_mapping(em_tree, &em, start, len);
-	if (ret)
-		test_msg("case3 [0x%llx 0x%llx): ret %d\n",
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
+	write_unlock(&em_tree->lock);
+	if (ret) {
+		test_err("case3 [0x%llx 0x%llx): ret %d",
 			 start, start + len, ret);
+		goto out;
+	}
 	/*
 	 * Since bytes within em are contiguous, em->block_start is identical to
 	 * em->start.
 	 */
 	if (em &&
 	    (start < em->start || start + len > extent_map_end(em) ||
-	     em->start != em->block_start || em->len != em->block_len))
-		test_msg(
-"case3 [0x%llx 0x%llx): ret %d em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)\n",
+	     em->start != em->block_start || em->len != em->block_len)) {
+		test_err(
+"case3 [0x%llx 0x%llx): ret %d em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
 			 start, start + len, ret, em->start, em->len,
 			 em->block_start, em->block_len);
+		ret = -EINVAL;
+	}
 	free_extent_map(em);
 out:
-	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
 /*
@@ -248,68 +302,101 @@ out:
  *   -> add_extent_mapping()
  *                            -> add_extent_mapping()
  */
-static void test_case_3(struct extent_map_tree *em_tree)
+static int test_case_3(struct btrfs_fs_info *fs_info,
+		struct extent_map_tree *em_tree)
 {
-	__test_case_3(em_tree, 0);
-	__test_case_3(em_tree, SZ_8K);
-	__test_case_3(em_tree, (12 * 1024ULL));
+	int ret;
+
+	ret = __test_case_3(fs_info, em_tree, 0);
+	if (ret)
+		return ret;
+	ret = __test_case_3(fs_info, em_tree, SZ_8K);
+	if (ret)
+		return ret;
+	ret = __test_case_3(fs_info, em_tree, (12 * SZ_1K));
+
+	return ret;
 }
 
-static void __test_case_4(struct extent_map_tree *em_tree, u64 start)
+static int __test_case_4(struct btrfs_fs_info *fs_info,
+		struct extent_map_tree *em_tree, u64 start)
 {
 	struct extent_map *em;
 	u64 len = SZ_4K;
 	int ret;
 
 	em = alloc_extent_map();
-	if (!em)
-		/* Skip this test on error. */
-		return;
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		return -ENOMEM;
+	}
 
 	/* Add [0K, 8K) */
 	em->start = 0;
 	em->len = SZ_8K;
 	em->block_start = 0;
 	em->block_len = SZ_8K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("cannot add extent range [0, 8K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
 		goto out;
+	}
 
-	/* Add [8K, 24K) */
+	/* Add [8K, 32K) */
 	em->start = SZ_8K;
-	em->len = 24 * 1024ULL;
+	em->len = 24 * SZ_1K;
 	em->block_start = SZ_16K; /* avoid merging */
-	em->block_len = 24 * 1024ULL;
+	em->block_len = 24 * SZ_1K;
+	write_lock(&em_tree->lock);
 	ret = add_extent_mapping(em_tree, em, 0);
-	ASSERT(ret == 0);
+	write_unlock(&em_tree->lock);
+	if (ret < 0) {
+		test_err("cannot add extent range [8K, 32K)");
+		goto out;
+	}
 	free_extent_map(em);
 
 	em = alloc_extent_map();
-	if (!em)
+	if (!em) {
+		test_std_err(TEST_ALLOC_EXTENT_MAP);
+		ret = -ENOMEM;
 		goto out;
+	}
 	/* Add [0K, 32K) */
 	em->start = 0;
 	em->len = SZ_32K;
 	em->block_start = 0;
 	em->block_len = SZ_32K;
-	ret = btrfs_add_extent_mapping(em_tree, &em, start, len);
-	if (ret)
-		test_msg("case4 [0x%llx 0x%llx): ret %d\n",
+	write_lock(&em_tree->lock);
+	ret = btrfs_add_extent_mapping(fs_info, em_tree, &em, start, len);
+	write_unlock(&em_tree->lock);
+	if (ret) {
+		test_err("case4 [0x%llx 0x%llx): ret %d",
 			 start, len, ret);
-	if (em &&
-	    (start < em->start || start + len > extent_map_end(em)))
-		test_msg(
-"case4 [0x%llx 0x%llx): ret %d, added wrong em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)\n",
+		goto out;
+	}
+	if (em && (start < em->start || start + len > extent_map_end(em))) {
+		test_err(
+"case4 [0x%llx 0x%llx): ret %d, added wrong em (start 0x%llx len 0x%llx block_start 0x%llx block_len 0x%llx)",
 			 start, len, ret, em->start, em->len, em->block_start,
 			 em->block_len);
+		ret = -EINVAL;
+	}
 	free_extent_map(em);
 out:
-	/* free memory */
 	free_extent_map_tree(em_tree);
+
+	return ret;
 }
 
 /*
@@ -337,30 +424,59 @@ out:
  *                                             # handle -EEXIST when adding
  *                                             # [0, 32K)
  */
-static void test_case_4(struct extent_map_tree *em_tree)
+static int test_case_4(struct btrfs_fs_info *fs_info,
+		struct extent_map_tree *em_tree)
 {
-	__test_case_4(em_tree, 0);
-	__test_case_4(em_tree, SZ_4K);
+	int ret;
+
+	ret = __test_case_4(fs_info, em_tree, 0);
+	if (ret)
+		return ret;
+	ret = __test_case_4(fs_info, em_tree, SZ_4K);
+
+	return ret;
 }
 
-int btrfs_test_extent_map()
+int btrfs_test_extent_map(void)
 {
+	struct btrfs_fs_info *fs_info = NULL;
 	struct extent_map_tree *em_tree;
+	int ret = 0;
 
-	test_msg("Running extent_map tests\n");
+	test_msg("running extent_map tests");
+
+	/*
+	 * Note: the fs_info is not set up completely, we only need
+	 * fs_info::fsid for the tracepoint.
+	 */
+	fs_info = btrfs_alloc_dummy_fs_info(PAGE_SIZE, PAGE_SIZE);
+	if (!fs_info) {
+		test_std_err(TEST_ALLOC_FS_INFO);
+		return -ENOMEM;
+	}
 
 	em_tree = kzalloc(sizeof(*em_tree), GFP_KERNEL);
-	if (!em_tree)
-		/* Skip the test on error. */
-		return 0;
+	if (!em_tree) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	extent_map_tree_init(em_tree);
 
-	test_case_1(em_tree);
-	test_case_2(em_tree);
-	test_case_3(em_tree);
-	test_case_4(em_tree);
+	ret = test_case_1(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_2(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_3(fs_info, em_tree);
+	if (ret)
+		goto out;
+	ret = test_case_4(fs_info, em_tree);
 
+out:
 	kfree(em_tree);
-	return 0;
+	btrfs_free_dummy_fs_info(fs_info);
+
+	return ret;
 }

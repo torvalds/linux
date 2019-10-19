@@ -148,7 +148,7 @@ static ssize_t read_file_ani(struct file *file, char __user *user_buf,
 		{ "OFDM LEVEL", ah->ani.ofdmNoiseImmunityLevel },
 		{ "CCK LEVEL", ah->ani.cckNoiseImmunityLevel },
 		{ "SPUR UP", ah->stats.ast_ani_spurup },
-		{ "SPUR DOWN", ah->stats.ast_ani_spurup },
+		{ "SPUR DOWN", ah->stats.ast_ani_spurdown },
 		{ "OFDM WS-DET ON", ah->stats.ast_ani_ofdmon },
 		{ "OFDM WS-DET OFF", ah->stats.ast_ani_ofdmoff },
 		{ "MRC-CCK ON", ah->stats.ast_ani_ccklow },
@@ -538,7 +538,7 @@ static int read_file_interrupt(struct seq_file *file, void *data)
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) {
 		PR_IS("RXLP", rxlp);
 		PR_IS("RXHP", rxhp);
-		PR_IS("WATHDOG", bb_watchdog);
+		PR_IS("WATCHDOG", bb_watchdog);
 	} else {
 		PR_IS("RX", rxok);
 	}
@@ -785,35 +785,35 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 {
 	int qnum = txq->axq_qnum;
 
-	TX_STAT_INC(qnum, tx_pkts_all);
+	TX_STAT_INC(sc, qnum, tx_pkts_all);
 	sc->debug.stats.txstats[qnum].tx_bytes_all += bf->bf_mpdu->len;
 
 	if (bf_isampdu(bf)) {
 		if (flags & ATH_TX_ERROR)
-			TX_STAT_INC(qnum, a_xretries);
+			TX_STAT_INC(sc, qnum, a_xretries);
 		else
-			TX_STAT_INC(qnum, a_completed);
+			TX_STAT_INC(sc, qnum, a_completed);
 	} else {
 		if (ts->ts_status & ATH9K_TXERR_XRETRY)
-			TX_STAT_INC(qnum, xretries);
+			TX_STAT_INC(sc, qnum, xretries);
 		else
-			TX_STAT_INC(qnum, completed);
+			TX_STAT_INC(sc, qnum, completed);
 	}
 
 	if (ts->ts_status & ATH9K_TXERR_FILT)
-		TX_STAT_INC(qnum, txerr_filtered);
+		TX_STAT_INC(sc, qnum, txerr_filtered);
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
-		TX_STAT_INC(qnum, fifo_underrun);
+		TX_STAT_INC(sc, qnum, fifo_underrun);
 	if (ts->ts_status & ATH9K_TXERR_XTXOP)
-		TX_STAT_INC(qnum, xtxop);
+		TX_STAT_INC(sc, qnum, xtxop);
 	if (ts->ts_status & ATH9K_TXERR_TIMER_EXPIRED)
-		TX_STAT_INC(qnum, timer_exp);
+		TX_STAT_INC(sc, qnum, timer_exp);
 	if (ts->ts_flags & ATH9K_TX_DESC_CFG_ERR)
-		TX_STAT_INC(qnum, desc_cfg_err);
+		TX_STAT_INC(sc, qnum, desc_cfg_err);
 	if (ts->ts_flags & ATH9K_TX_DATA_UNDERRUN)
-		TX_STAT_INC(qnum, data_underrun);
+		TX_STAT_INC(sc, qnum, data_underrun);
 	if (ts->ts_flags & ATH9K_TX_DELIM_UNDERRUN)
-		TX_STAT_INC(qnum, delim_underrun);
+		TX_STAT_INC(sc, qnum, delim_underrun);
 }
 
 void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
@@ -989,19 +989,6 @@ static int read_file_dump_nfcal(struct seq_file *file, void *data)
 
 	return 0;
 }
-
-static int open_file_dump_nfcal(struct inode *inode, struct file *f)
-{
-	return single_open(f, read_file_dump_nfcal, inode->i_private);
-}
-
-static const struct file_operations fops_dump_nfcal = {
-	.read = seq_read,
-	.open = open_file_dump_nfcal,
-	.owner = THIS_MODULE,
-	.llseek = seq_lseek,
-	.release = single_release,
-};
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 static ssize_t read_file_btcoex(struct file *file, char __user *user_buf,
@@ -1385,7 +1372,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 		return -ENOMEM;
 
 #ifdef CONFIG_ATH_DEBUG
-	debugfs_create_file("debug", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("debug", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_debug);
 #endif
 
@@ -1409,22 +1396,22 @@ int ath9k_init_debug(struct ath_hw *ah)
 	ath9k_cmn_debug_recv(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
 	ath9k_cmn_debug_phy_err(sc->debug.debugfs_phy, &sc->debug.stats.rxstats);
 
-	debugfs_create_u8("rx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_u8("rx_chainmask", 0400, sc->debug.debugfs_phy,
 			  &ah->rxchainmask);
-	debugfs_create_u8("tx_chainmask", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_u8("tx_chainmask", 0400, sc->debug.debugfs_phy,
 			  &ah->txchainmask);
-	debugfs_create_file("ani", S_IRUSR | S_IWUSR,
+	debugfs_create_file("ani", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_ani);
-	debugfs_create_bool("paprd", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_bool("paprd", 0600, sc->debug.debugfs_phy,
 			    &sc->sc_ah->config.enable_paprd);
-	debugfs_create_file("regidx", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("regidx", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regidx);
-	debugfs_create_file("regval", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("regval", 0600, sc->debug.debugfs_phy,
 			    sc, &fops_regval);
-	debugfs_create_bool("ignore_extcca", S_IRUSR | S_IWUSR,
+	debugfs_create_bool("ignore_extcca", 0600,
 			    sc->debug.debugfs_phy,
 			    &ah->config.cwm_ignore_extcca);
-	debugfs_create_file("regdump", S_IRUSR, sc->debug.debugfs_phy, sc,
+	debugfs_create_file("regdump", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_regdump);
 	debugfs_create_devm_seqfile(sc->dev, "dump_nfcal",
 				    sc->debug.debugfs_phy,
@@ -1433,35 +1420,30 @@ int ath9k_init_debug(struct ath_hw *ah)
 	ath9k_cmn_debug_base_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
 	ath9k_cmn_debug_modal_eeprom(sc->debug.debugfs_phy, sc->sc_ah);
 
-	debugfs_create_u32("gpio_mask", S_IRUSR | S_IWUSR,
+	debugfs_create_u32("gpio_mask", 0600,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
-	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
+	debugfs_create_u32("gpio_val", 0600,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
-	debugfs_create_file("antenna_diversity", S_IRUSR,
+	debugfs_create_file("antenna_diversity", 0400,
 			    sc->debug.debugfs_phy, sc, &fops_antenna_diversity);
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
-	debugfs_create_file("bt_ant_diversity", S_IRUSR | S_IWUSR,
+	debugfs_create_file("bt_ant_diversity", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_bt_ant_diversity);
-	debugfs_create_file("btcoex", S_IRUSR, sc->debug.debugfs_phy, sc,
+	debugfs_create_file("btcoex", 0400, sc->debug.debugfs_phy, sc,
 			    &fops_btcoex);
 #endif
 
 #ifdef CONFIG_ATH9K_WOW
-	debugfs_create_file("wow", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_wow);
+	debugfs_create_file("wow", 0600, sc->debug.debugfs_phy, sc, &fops_wow);
 #endif
 
 #ifdef CONFIG_ATH9K_DYNACK
-	debugfs_create_file("ack_to", S_IRUSR, sc->debug.debugfs_phy,
+	debugfs_create_file("ack_to", 0400, sc->debug.debugfs_phy,
 			    sc, &fops_ackto);
 #endif
-	debugfs_create_file("tpc", S_IRUSR | S_IWUSR,
-			    sc->debug.debugfs_phy, sc, &fops_tpc);
+	debugfs_create_file("tpc", 0600, sc->debug.debugfs_phy, sc, &fops_tpc);
 
-	debugfs_create_u16("airtime_flags", S_IRUSR | S_IWUSR,
-			   sc->debug.debugfs_phy, &sc->airtime_flags);
-
-	debugfs_create_file("nf_override", S_IRUSR | S_IWUSR,
+	debugfs_create_file("nf_override", 0600,
 			    sc->debug.debugfs_phy, sc, &fops_nf_override);
 
 	return 0;

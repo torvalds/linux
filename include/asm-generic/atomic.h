@@ -1,16 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Generic C implementation of atomic counter operations. Usable on
  * UP systems only. Do not include in machine independent code.
  *
- * Originally implemented for MN10300.
- *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 #ifndef __ASM_GENERIC_ATOMIC_H
 #define __ASM_GENERIC_ATOMIC_H
@@ -188,11 +182,6 @@ ATOMIC_OP(xor, ^)
 
 #include <linux/irqflags.h>
 
-static inline int atomic_add_negative(int i, atomic_t *v)
-{
-	return atomic_add_return(i, v) < 0;
-}
-
 static inline void atomic_add(int i, atomic_t *v)
 {
 	atomic_add_return(i, v);
@@ -203,35 +192,7 @@ static inline void atomic_sub(int i, atomic_t *v)
 	atomic_sub_return(i, v);
 }
 
-static inline void atomic_inc(atomic_t *v)
-{
-	atomic_add_return(1, v);
-}
-
-static inline void atomic_dec(atomic_t *v)
-{
-	atomic_sub_return(1, v);
-}
-
-#define atomic_dec_return(v)		atomic_sub_return(1, (v))
-#define atomic_inc_return(v)		atomic_add_return(1, (v))
-
-#define atomic_sub_and_test(i, v)	(atomic_sub_return((i), (v)) == 0)
-#define atomic_dec_and_test(v)		(atomic_dec_return(v) == 0)
-#define atomic_inc_and_test(v)		(atomic_inc_return(v) == 0)
-
 #define atomic_xchg(ptr, v)		(xchg(&(ptr)->counter, (v)))
 #define atomic_cmpxchg(v, old, new)	(cmpxchg(&((v)->counter), (old), (new)))
-
-#ifndef __atomic_add_unless
-static inline int __atomic_add_unless(atomic_t *v, int a, int u)
-{
-	int c, old;
-	c = atomic_read(v);
-	while (c != u && (old = atomic_cmpxchg(v, c, c + a)) != c)
-		c = old;
-	return c;
-}
-#endif
 
 #endif /* __ASM_GENERIC_ATOMIC_H */

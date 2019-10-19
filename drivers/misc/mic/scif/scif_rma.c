@@ -1,21 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Intel MIC Platform Software Stack (MPSS)
  *
  * Copyright(c) 2015 Intel Corporation.
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
- *
  * Intel SCIF driver.
- *
  */
-#include <linux/dma_remapping.h>
+#include <linux/intel-iommu.h>
 #include <linux/pagemap.h>
 #include <linux/sched/mm.h>
 #include <linux/sched/signal.h>
@@ -272,21 +263,12 @@ static inline void __scif_release_mm(struct mm_struct *mm)
 
 static inline int
 __scif_dec_pinned_vm_lock(struct mm_struct *mm,
-			  int nr_pages, bool try_lock)
+			  int nr_pages)
 {
 	if (!mm || !nr_pages || !scif_ulimit_check)
 		return 0;
-	if (try_lock) {
-		if (!down_write_trylock(&mm->mmap_sem)) {
-			dev_err(scif_info.mdev.this_device,
-				"%s %d err\n", __func__, __LINE__);
-			return -1;
-		}
-	} else {
-		down_write(&mm->mmap_sem);
-	}
-	mm->pinned_vm -= nr_pages;
-	up_write(&mm->mmap_sem);
+
+	atomic64_sub(nr_pages, &mm->pinned_vm);
 	return 0;
 }
 
@@ -298,16 +280,16 @@ static inline int __scif_check_inc_pinned_vm(struct mm_struct *mm,
 	if (!mm || !nr_pages || !scif_ulimit_check)
 		return 0;
 
-	locked = nr_pages;
-	locked += mm->pinned_vm;
 	lock_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;
+	locked = atomic64_add_return(nr_pages, &mm->pinned_vm);
+
 	if ((locked > lock_limit) && !capable(CAP_IPC_LOCK)) {
+		atomic64_sub(nr_pages, &mm->pinned_vm);
 		dev_err(scif_info.mdev.this_device,
 			"locked(%lu) > lock_limit(%lu)\n",
 			locked, lock_limit);
 		return -ENOMEM;
 	}
-	mm->pinned_vm = locked;
 	return 0;
 }
 
@@ -326,7 +308,7 @@ int scif_destroy_window(struct scif_endpt *ep, struct scif_window *window)
 
 	might_sleep();
 	if (!window->temp && window->mm) {
-		__scif_dec_pinned_vm_lock(window->mm, window->nr_pages, 0);
+		__scif_dec_pinned_vm_lock(window->mm, window->nr_pages);
 		__scif_release_mm(window->mm);
 		window->mm = NULL;
 	}
@@ -416,7 +398,7 @@ static int scif_create_remote_lookup(struct scif_dev *remote_dev,
 		if (err)
 			goto error_window;
 		err = scif_map_page(&window->num_pages_lookup.lookup[j],
-				    vmalloc_dma_phys ?
+				    vmalloc_num_pages ?
 				    vmalloc_to_page(&window->num_pages[i]) :
 				    virt_to_page(&window->num_pages[i]),
 				    remote_dev);
@@ -672,8 +654,8 @@ int scif_unregister_window(struct scif_window *window)
 	{
 		window->unreg_state = OP_IN_PROGRESS;
 		send_msg = true;
-		/* fall through */
 	}
+		/* fall through */
 	case OP_IN_PROGRESS:
 	{
 		scif_get_window(window, 1);
@@ -737,7 +719,7 @@ done:
 					    ep->rma_info.dma_chan);
 		} else {
 			if (!__scif_dec_pinned_vm_lock(window->mm,
-						       window->nr_pages, 1)) {
+						       window->nr_pages)) {
 				__scif_release_mm(window->mm);
 				window->mm = NULL;
 			}
@@ -1385,28 +1367,23 @@ int __scif_pin_pages(void *addr, size_t len, int *out_prot,
 		prot |= SCIF_PROT_WRITE;
 retry:
 		mm = current->mm;
-		down_write(&mm->mmap_sem);
 		if (ulimit) {
 			err = __scif_check_inc_pinned_vm(mm, nr_pages);
 			if (err) {
-				up_write(&mm->mmap_sem);
 				pinned_pages->nr_pages = 0;
 				goto error_unmap;
 			}
 		}
 
-		pinned_pages->nr_pages = get_user_pages(
+		pinned_pages->nr_pages = get_user_pages_fast(
 				(u64)addr,
 				nr_pages,
 				(prot & SCIF_PROT_WRITE) ? FOLL_WRITE : 0,
-				pinned_pages->pages,
-				NULL);
-		up_write(&mm->mmap_sem);
+				pinned_pages->pages);
 		if (nr_pages != pinned_pages->nr_pages) {
 			if (try_upgrade) {
 				if (ulimit)
-					__scif_dec_pinned_vm_lock(mm,
-								  nr_pages, 0);
+					__scif_dec_pinned_vm_lock(mm, nr_pages);
 				/* Roll back any pinned pages */
 				for (i = 0; i < pinned_pages->nr_pages; i++) {
 					if (pinned_pages->pages[i])
@@ -1433,7 +1410,7 @@ retry:
 	return err;
 dec_pinned:
 	if (ulimit)
-		__scif_dec_pinned_vm_lock(mm, nr_pages, 0);
+		__scif_dec_pinned_vm_lock(mm, nr_pages);
 	/* Something went wrong! Rollback */
 error_unmap:
 	pinned_pages->nr_pages = nr_pages;

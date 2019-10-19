@@ -1,0 +1,26 @@
+* Silicon Labs FM Radio receiver
+
+The Silicon Labs Si470x is family of FM radio receivers with receive power scan
+supporting 76-108 MHz, programmable through an I2C interface.
+Some of them includes an RDS encoder.
+
+Required Properties:
+- compatible: Should contain "silabs,si470x"
+- reg: the I2C address of the device
+
+Optional Properties:
+- interrupts : The interrupt number
+- reset-gpios: GPIO specifier for the chips reset line
+
+Example:
+
+&i2c2 {
+        si470x@63 {
+                compatible = "silabs,si470x";
+                reg = <0x63>;
+
+                interrupt-parent = <&gpj2>;
+                interrupts = <4 IRQ_TYPE_EDGE_FALLING>;
+                reset-gpios = <&gpj2 5 GPIO_ACTIVE_HIGH>;
+        };
+};

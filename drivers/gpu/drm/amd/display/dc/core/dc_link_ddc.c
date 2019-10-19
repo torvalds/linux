@@ -23,6 +23,8 @@
  *
  */
 
+#include <linux/slab.h>
+
 #include "dm_services.h"
 #include "dm_helpers.h"
 #include "gpio_service_interface.h"
@@ -33,6 +35,7 @@
 #include "include/vector.h"
 #include "core_types.h"
 #include "dc_link_ddc.h"
+#include "dce/dce_aux.h"
 
 #define AUX_POWER_UP_WA_DELAY 500
 #define I2C_OVER_AUX_DEFER_WA_DELAY 70
@@ -41,7 +44,6 @@
 #define CV_SMART_DONGLE_ADDRESS 0x20
 /* DVI-HDMI dongle slave address for retrieving dongle signature*/
 #define DVI_HDMI_DONGLE_ADDRESS 0x68
-static const int8_t dvi_hdmi_dongle_signature_str[] = "6140063500G";
 struct dvi_hdmi_dongle_signature_data {
 	int8_t vendor[3];/* "AMD" */
 	uint8_t version[2];
@@ -91,6 +93,8 @@ union hdmi_scdc_status_flags_data {
 		uint8_t CH2_LOCKED:1;
 		uint8_t RESERVED:4;
 		uint8_t RESERVED2:8;
+		uint8_t RESERVED3:8;
+
 	} fields;
 };
 
@@ -107,14 +111,10 @@ union hdmi_scdc_ced_data {
 		uint8_t CH2_7HIGH:7;
 		uint8_t CH2_VALID:1;
 		uint8_t CHECKSUM:8;
-	} fields;
-};
-
-union hdmi_scdc_test_config_Data {
-	uint8_t byte;
-	struct {
-		uint8_t TEST_READ_REQUEST_DELAY:7;
-		uint8_t TEST_READ_REQUEST: 1;
+		uint8_t RESERVED:8;
+		uint8_t RESERVED2:8;
+		uint8_t RESERVED3:8;
+		uint8_t RESERVED4:4;
 	} fields;
 };
 
@@ -164,43 +164,6 @@ static void dal_ddc_i2c_payloads_destroy(struct i2c_payloads **p)
 
 }
 
-static struct aux_payloads *dal_ddc_aux_payloads_create(struct dc_context *ctx, uint32_t count)
-{
-	struct aux_payloads *payloads;
-
-	payloads = kzalloc(sizeof(struct aux_payloads), GFP_KERNEL);
-
-	if (!payloads)
-		return NULL;
-
-	if (dal_vector_construct(
-		&payloads->payloads, ctx, count, sizeof(struct aux_payload)))
-		return payloads;
-
-	kfree(payloads);
-	return NULL;
-}
-
-static struct aux_payload *dal_ddc_aux_payloads_get(struct aux_payloads *p)
-{
-	return (struct aux_payload *)p->payloads.container;
-}
-
-static uint32_t  dal_ddc_aux_payloads_get_count(struct aux_payloads *p)
-{
-	return p->payloads.count;
-}
-
-static void dal_ddc_aux_payloads_destroy(struct aux_payloads **p)
-{
-	if (!p || !*p)
-		return;
-
-	dal_vector_destruct(&(*p)->payloads);
-	kfree(*p);
-	*p = NULL;
-}
-
 #define DDC_MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 void dal_ddc_i2c_payloads_add(
@@ -222,27 +185,6 @@ void dal_ddc_i2c_payloads_add(
 		dal_vector_append(&payloads->payloads, &payload);
 	}
 
-}
-
-void dal_ddc_aux_payloads_add(
-	struct aux_payloads *payloads,
-	uint32_t address,
-	uint32_t len,
-	uint8_t *data,
-	bool write)
-{
-	uint32_t payload_size = DEFAULT_AUX_MAX_DATA_SIZE;
-	uint32_t pos;
-
-	for (pos = 0; pos < len; pos += payload_size) {
-		struct aux_payload payload = {
-			.i2c_over_aux = true,
-			.write = write,
-			.address = address,
-			.length = DDC_MIN(payload_size, len - pos),
-			.data = data + pos };
-		dal_vector_append(&payloads->payloads, &payload);
-	}
 }
 
 static void construct(
@@ -352,7 +294,7 @@ static uint32_t defer_delay_converter_wa(
 {
 	struct dc_link *link = ddc->link;
 
-	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_4 &&
+	if (link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_0080E1 &&
 		!memcmp(link->dpcd_caps.branch_dev_name,
 			DP_DVI_CONVERTER_ID_4,
 			sizeof(link->dpcd_caps.branch_dev_name)))
@@ -573,32 +515,34 @@ bool dal_ddc_service_query_ddc_data(
 	/*TODO: len of payload data for i2c and aux is uint8!!!!,
 	 *  but we want to read 256 over i2c!!!!*/
 	if (dal_ddc_service_is_in_aux_transaction_mode(ddc)) {
-
-		struct aux_payloads *payloads =
-			dal_ddc_aux_payloads_create(ddc->ctx, payloads_num);
-
-		struct aux_command command = {
-			.payloads = dal_ddc_aux_payloads_get(payloads),
-			.number_of_payloads = 0,
+		struct aux_payload write_payload = {
+			.i2c_over_aux = true,
+			.write = true,
+			.mot = true,
+			.address = address,
+			.length = write_size,
+			.data = write_buf,
+			.reply = NULL,
 			.defer_delay = get_defer_delay(ddc),
-			.max_defer_write_retry = 0 };
+		};
 
-		dal_ddc_aux_payloads_add(
-			payloads, address, write_size, write_buf, true);
+		struct aux_payload read_payload = {
+			.i2c_over_aux = true,
+			.write = false,
+			.mot = false,
+			.address = address,
+			.length = read_size,
+			.data = read_buf,
+			.reply = NULL,
+			.defer_delay = get_defer_delay(ddc),
+		};
 
-		dal_ddc_aux_payloads_add(
-			payloads, address, read_size, read_buf, false);
+		ret = dc_link_aux_transfer_with_retries(ddc, &write_payload);
 
-		command.number_of_payloads =
-			dal_ddc_aux_payloads_get_count(payloads);
+		if (!ret)
+			return false;
 
-		ret = dal_i2caux_submit_aux_command(
-				ddc->ctx->i2caux,
-				ddc->ddc_pin,
-				&command);
-
-		dal_ddc_aux_payloads_destroy(&payloads);
-
+		ret = dc_link_aux_transfer_with_retries(ddc, &read_payload);
 	} else {
 		struct i2c_payloads *payloads =
 			dal_ddc_i2c_payloads_create(ddc->ctx, payloads_num);
@@ -629,78 +573,32 @@ bool dal_ddc_service_query_ddc_data(
 	return ret;
 }
 
-enum ddc_result dal_ddc_service_read_dpcd_data(
-	struct ddc_service *ddc,
-	bool i2c,
-	enum i2c_mot_mode mot,
-	uint32_t address,
-	uint8_t *data,
-	uint32_t len)
+/* dc_link_aux_transfer_raw() - Attempt to transfer
+ * the given aux payload.  This function does not perform
+ * retries or handle error states.  The reply is returned
+ * in the payload->reply and the result through
+ * *operation_result.  Returns the number of bytes transferred,
+ * or -1 on a failure.
+ */
+int dc_link_aux_transfer_raw(struct ddc_service *ddc,
+		struct aux_payload *payload,
+		enum aux_channel_operation_result *operation_result)
 {
-	struct aux_payload read_payload = {
-		.i2c_over_aux = i2c,
-		.write = false,
-		.address = address,
-		.length = len,
-		.data = data,
-	};
-	struct aux_command command = {
-		.payloads = &read_payload,
-		.number_of_payloads = 1,
-		.defer_delay = 0,
-		.max_defer_write_retry = 0,
-		.mot = mot
-	};
-
-	if (len > DEFAULT_AUX_MAX_DATA_SIZE) {
-		BREAK_TO_DEBUGGER();
-		return DDC_RESULT_FAILED_INVALID_OPERATION;
-	}
-
-	if (dal_i2caux_submit_aux_command(
-		ddc->ctx->i2caux,
-		ddc->ddc_pin,
-		&command))
-		return DDC_RESULT_SUCESSFULL;
-
-	return DDC_RESULT_FAILED_OPERATION;
+	return dce_aux_transfer_raw(ddc, payload, operation_result);
 }
 
-enum ddc_result dal_ddc_service_write_dpcd_data(
-	struct ddc_service *ddc,
-	bool i2c,
-	enum i2c_mot_mode mot,
-	uint32_t address,
-	const uint8_t *data,
-	uint32_t len)
+/* dc_link_aux_transfer_with_retries() - Attempt to submit an
+ * aux payload, retrying on timeouts, defers, and busy states
+ * as outlined in the DP spec.  Returns true if the request
+ * was successful.
+ *
+ * Unless you want to implement your own retry semantics, this
+ * is probably the one you want.
+ */
+bool dc_link_aux_transfer_with_retries(struct ddc_service *ddc,
+		struct aux_payload *payload)
 {
-	struct aux_payload write_payload = {
-		.i2c_over_aux = i2c,
-		.write = true,
-		.address = address,
-		.length = len,
-		.data = (uint8_t *)data,
-	};
-	struct aux_command command = {
-		.payloads = &write_payload,
-		.number_of_payloads = 1,
-		.defer_delay = 0,
-		.max_defer_write_retry = 0,
-		.mot = mot
-	};
-
-	if (len > DEFAULT_AUX_MAX_DATA_SIZE) {
-		BREAK_TO_DEBUGGER();
-		return DDC_RESULT_FAILED_INVALID_OPERATION;
-	}
-
-	if (dal_i2caux_submit_aux_command(
-		ddc->ctx->i2caux,
-		ddc->ddc_pin,
-		&command))
-		return DDC_RESULT_SUCESSFULL;
-
-	return DDC_RESULT_FAILED_OPERATION;
+	return dce_aux_transfer_with_retries(ddc, payload);
 }
 
 /*test only function*/

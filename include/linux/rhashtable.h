@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Resizable, Scalable, Concurrent Hash Table
  *
@@ -17,37 +18,33 @@
 #ifndef _LINUX_RHASHTABLE_H
 #define _LINUX_RHASHTABLE_H
 
-#include <linux/atomic.h>
-#include <linux/compiler.h>
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/jhash.h>
 #include <linux/list_nulls.h>
 #include <linux/workqueue.h>
-#include <linux/mutex.h>
 #include <linux/rculist.h>
+#include <linux/bit_spinlock.h>
 
+#include <linux/rhashtable-types.h>
 /*
+ * Objects in an rhashtable have an embedded struct rhash_head
+ * which is linked into as hash chain from the hash table - or one
+ * of two or more hash tables when the rhashtable is being resized.
  * The end of the chain is marked with a special nulls marks which has
- * the following format:
- *
- * +-------+-----------------------------------------------------+-+
- * | Base  |                      Hash                           |1|
- * +-------+-----------------------------------------------------+-+
- *
- * Base (4 bits) : Reserved to distinguish between multiple tables.
- *                 Specified via &struct rhashtable_params.nulls_base.
- * Hash (27 bits): Full hash (unmasked) of first element added to bucket
- * 1 (1 bit)     : Nulls marker (always set)
- *
- * The remaining bits of the next pointer remain unused for now.
+ * the least significant bit set but otherwise stores the address of
+ * the hash bucket.  This allows us to be be sure we've found the end
+ * of the right list.
+ * The value stored in the hash bucket has BIT(0) used as a lock bit.
+ * This bit must be atomically set before any changes are made to
+ * the chain.  To avoid dereferencing this pointer without clearing
+ * the bit first, we use an opaque 'struct rhash_lock_head *' for the
+ * pointer stored in the bucket.  This struct needs to be defined so
+ * that rcu_dereference() works on it, but it has no content so a
+ * cast is needed for it to be useful.  This ensures it isn't
+ * used by mistake with clearing the lock bit first.
  */
-#define RHT_BASE_BITS		4
-#define RHT_HASH_BITS		27
-#define RHT_BASE_SHIFT		RHT_HASH_BITS
-
-/* Base bits plus 1 bit for nulls marker */
-#define RHT_HASH_RESERVED_SPACE	(RHT_BASE_BITS + 1)
+struct rhash_lock_head {};
 
 /* Maximum chain length before rehash
  *
@@ -64,23 +61,12 @@
  */
 #define RHT_ELASTICITY	16u
 
-struct rhash_head {
-	struct rhash_head __rcu		*next;
-};
-
-struct rhlist_head {
-	struct rhash_head		rhead;
-	struct rhlist_head __rcu	*next;
-};
-
 /**
  * struct bucket_table - Table of hash buckets
  * @size: Number of hash buckets
  * @nest: Number of bits of first-level nested table.
  * @rehash: Current bucket being rehashed
  * @hash_rnd: Random seed to fold into hash
- * @locks_mask: Mask to apply before accessing locks[]
- * @locks: Array of spinlocks protecting individual buckets
  * @walkers: List of active walkers
  * @rcu: RCU structure for freeing the table
  * @future_tbl: Table under construction during rehashing
@@ -90,142 +76,38 @@ struct rhlist_head {
 struct bucket_table {
 	unsigned int		size;
 	unsigned int		nest;
-	unsigned int		rehash;
 	u32			hash_rnd;
-	unsigned int		locks_mask;
-	spinlock_t		*locks;
 	struct list_head	walkers;
 	struct rcu_head		rcu;
 
 	struct bucket_table __rcu *future_tbl;
 
-	struct rhash_head __rcu *buckets[] ____cacheline_aligned_in_smp;
+	struct lockdep_map	dep_map;
+
+	struct rhash_lock_head *buckets[] ____cacheline_aligned_in_smp;
 };
 
-/**
- * struct rhashtable_compare_arg - Key for the function rhashtable_compare
- * @ht: Hash table
- * @key: Key to compare against
+/*
+ * NULLS_MARKER() expects a hash value with the low
+ * bits mostly likely to be significant, and it discards
+ * the msb.
+ * We give it an address, in which the bottom bit is
+ * always 0, and the msb might be significant.
+ * So we shift the address down one bit to align with
+ * expectations and avoid losing a significant bit.
+ *
+ * We never store the NULLS_MARKER in the hash table
+ * itself as we need the lsb for locking.
+ * Instead we store a NULL
  */
-struct rhashtable_compare_arg {
-	struct rhashtable *ht;
-	const void *key;
-};
-
-typedef u32 (*rht_hashfn_t)(const void *data, u32 len, u32 seed);
-typedef u32 (*rht_obj_hashfn_t)(const void *data, u32 len, u32 seed);
-typedef int (*rht_obj_cmpfn_t)(struct rhashtable_compare_arg *arg,
-			       const void *obj);
-
-struct rhashtable;
-
-/**
- * struct rhashtable_params - Hash table construction parameters
- * @nelem_hint: Hint on number of elements, should be 75% of desired size
- * @key_len: Length of key
- * @key_offset: Offset of key in struct to be hashed
- * @head_offset: Offset of rhash_head in struct to be hashed
- * @max_size: Maximum size while expanding
- * @min_size: Minimum size while shrinking
- * @locks_mul: Number of bucket locks to allocate per cpu (default: 32)
- * @automatic_shrinking: Enable automatic shrinking of tables
- * @nulls_base: Base value to generate nulls marker
- * @hashfn: Hash function (default: jhash2 if !(key_len % 4), or jhash)
- * @obj_hashfn: Function to hash object
- * @obj_cmpfn: Function to compare key with object
- */
-struct rhashtable_params {
-	u16			nelem_hint;
-	u16			key_len;
-	u16			key_offset;
-	u16			head_offset;
-	unsigned int		max_size;
-	u16			min_size;
-	bool			automatic_shrinking;
-	u8			locks_mul;
-	u32			nulls_base;
-	rht_hashfn_t		hashfn;
-	rht_obj_hashfn_t	obj_hashfn;
-	rht_obj_cmpfn_t		obj_cmpfn;
-};
-
-/**
- * struct rhashtable - Hash table handle
- * @tbl: Bucket table
- * @nelems: Number of elements in table
- * @key_len: Key length for hashfn
- * @p: Configuration parameters
- * @max_elems: Maximum number of elements in table
- * @rhlist: True if this is an rhltable
- * @run_work: Deferred worker to expand/shrink asynchronously
- * @mutex: Mutex to protect current/future table swapping
- * @lock: Spin lock to protect walker list
- */
-struct rhashtable {
-	struct bucket_table __rcu	*tbl;
-	atomic_t			nelems;
-	unsigned int			key_len;
-	struct rhashtable_params	p;
-	unsigned int			max_elems;
-	bool				rhlist;
-	struct work_struct		run_work;
-	struct mutex                    mutex;
-	spinlock_t			lock;
-};
-
-/**
- * struct rhltable - Hash table with duplicate objects in a list
- * @ht: Underlying rhtable
- */
-struct rhltable {
-	struct rhashtable ht;
-};
-
-/**
- * struct rhashtable_walker - Hash table walker
- * @list: List entry on list of walkers
- * @tbl: The table that we were walking over
- */
-struct rhashtable_walker {
-	struct list_head list;
-	struct bucket_table *tbl;
-};
-
-/**
- * struct rhashtable_iter - Hash table iterator
- * @ht: Table to iterate through
- * @p: Current pointer
- * @list: Current hash list pointer
- * @walker: Associated rhashtable walker
- * @slot: Current slot
- * @skip: Number of entries to skip in slot
- */
-struct rhashtable_iter {
-	struct rhashtable *ht;
-	struct rhash_head *p;
-	struct rhlist_head *list;
-	struct rhashtable_walker walker;
-	unsigned int slot;
-	unsigned int skip;
-	bool end_of_table;
-};
-
-static inline unsigned long rht_marker(const struct rhashtable *ht, u32 hash)
-{
-	return NULLS_MARKER(ht->p.nulls_base + hash);
-}
-
-#define INIT_RHT_NULLS_HEAD(ptr, ht, hash) \
-	((ptr) = (typeof(ptr)) rht_marker(ht, hash))
+#define	RHT_NULLS_MARKER(ptr)	\
+	((void *)NULLS_MARKER(((unsigned long) (ptr)) >> 1))
+#define INIT_RHT_NULLS_HEAD(ptr)	\
+	((ptr) = NULL)
 
 static inline bool rht_is_a_nulls(const struct rhash_head *ptr)
 {
 	return ((unsigned long) ptr & 1);
-}
-
-static inline unsigned long rht_get_nulls_value(const struct rhash_head *ptr)
-{
-	return ((unsigned long) ptr) >> 1;
 }
 
 static inline void *rht_obj(const struct rhashtable *ht,
@@ -237,7 +119,7 @@ static inline void *rht_obj(const struct rhashtable *ht,
 static inline unsigned int rht_bucket_index(const struct bucket_table *tbl,
 					    unsigned int hash)
 {
-	return (hash >> RHT_HASH_RESERVED_SPACE) & (tbl->size - 1);
+	return hash & (tbl->size - 1);
 }
 
 static inline unsigned int rht_key_get_hash(struct rhashtable *ht,
@@ -341,25 +223,6 @@ static inline bool rht_grow_above_max(const struct rhashtable *ht,
 	return atomic_read(&ht->nelems) >= ht->max_elems;
 }
 
-/* The bucket lock is selected based on the hash and protects mutations
- * on a group of hash buckets.
- *
- * A maximum of tbl->size/2 bucket locks is allocated. This ensures that
- * a single lock always covers both buckets which may both contains
- * entries which link to the same bucket of the old table during resizing.
- * This allows to simplify the locking as locking the bucket in both
- * tables during resize always guarantee protection.
- *
- * IMPORTANT: When holding the bucket lock of both the old and new table
- * during expansions and shrinking, the old bucket lock must always be
- * acquired first.
- */
-static inline spinlock_t *rht_bucket_lock(const struct bucket_table *tbl,
-					  unsigned int hash)
-{
-	return &tbl->locks[hash & tbl->locks_mask];
-}
-
 #ifdef CONFIG_PROVE_LOCKING
 int lockdep_rht_mutex_is_held(struct rhashtable *ht);
 int lockdep_rht_bucket_is_held(const struct bucket_table *tbl, u32 hash);
@@ -375,11 +238,6 @@ static inline int lockdep_rht_bucket_is_held(const struct bucket_table *tbl,
 	return 1;
 }
 #endif /* CONFIG_PROVE_LOCKING */
-
-int rhashtable_init(struct rhashtable *ht,
-		    const struct rhashtable_params *params);
-int rhltable_init(struct rhltable *hlt,
-		  const struct rhashtable_params *params);
 
 void *rhashtable_insert_slow(struct rhashtable *ht, const void *key,
 			     struct rhash_head *obj);
@@ -403,11 +261,13 @@ void rhashtable_free_and_destroy(struct rhashtable *ht,
 				 void *arg);
 void rhashtable_destroy(struct rhashtable *ht);
 
-struct rhash_head __rcu **rht_bucket_nested(const struct bucket_table *tbl,
-					    unsigned int hash);
-struct rhash_head __rcu **rht_bucket_nested_insert(struct rhashtable *ht,
-						   struct bucket_table *tbl,
-						   unsigned int hash);
+struct rhash_lock_head **rht_bucket_nested(const struct bucket_table *tbl,
+					   unsigned int hash);
+struct rhash_lock_head **__rht_bucket_nested(const struct bucket_table *tbl,
+					     unsigned int hash);
+struct rhash_lock_head **rht_bucket_nested_insert(struct rhashtable *ht,
+						  struct bucket_table *tbl,
+						  unsigned int hash);
 
 #define rht_dereference(p, ht) \
 	rcu_dereference_protected(p, lockdep_rht_mutex_is_held(ht))
@@ -424,37 +284,143 @@ struct rhash_head __rcu **rht_bucket_nested_insert(struct rhashtable *ht,
 #define rht_entry(tpos, pos, member) \
 	({ tpos = container_of(pos, typeof(*tpos), member); 1; })
 
-static inline struct rhash_head __rcu *const *rht_bucket(
+static inline struct rhash_lock_head *const *rht_bucket(
 	const struct bucket_table *tbl, unsigned int hash)
 {
 	return unlikely(tbl->nest) ? rht_bucket_nested(tbl, hash) :
 				     &tbl->buckets[hash];
 }
 
-static inline struct rhash_head __rcu **rht_bucket_var(
+static inline struct rhash_lock_head **rht_bucket_var(
 	struct bucket_table *tbl, unsigned int hash)
 {
-	return unlikely(tbl->nest) ? rht_bucket_nested(tbl, hash) :
+	return unlikely(tbl->nest) ? __rht_bucket_nested(tbl, hash) :
 				     &tbl->buckets[hash];
 }
 
-static inline struct rhash_head __rcu **rht_bucket_insert(
+static inline struct rhash_lock_head **rht_bucket_insert(
 	struct rhashtable *ht, struct bucket_table *tbl, unsigned int hash)
 {
 	return unlikely(tbl->nest) ? rht_bucket_nested_insert(ht, tbl, hash) :
 				     &tbl->buckets[hash];
 }
 
+/*
+ * We lock a bucket by setting BIT(0) in the pointer - this is always
+ * zero in real pointers.  The NULLS mark is never stored in the bucket,
+ * rather we store NULL if the bucket is empty.
+ * bit_spin_locks do not handle contention well, but the whole point
+ * of the hashtable design is to achieve minimum per-bucket contention.
+ * A nested hash table might not have a bucket pointer.  In that case
+ * we cannot get a lock.  For remove and replace the bucket cannot be
+ * interesting and doesn't need locking.
+ * For insert we allocate the bucket if this is the last bucket_table,
+ * and then take the lock.
+ * Sometimes we unlock a bucket by writing a new pointer there.  In that
+ * case we don't need to unlock, but we do need to reset state such as
+ * local_bh. For that we have rht_assign_unlock().  As rcu_assign_pointer()
+ * provides the same release semantics that bit_spin_unlock() provides,
+ * this is safe.
+ * When we write to a bucket without unlocking, we use rht_assign_locked().
+ */
+
+static inline void rht_lock(struct bucket_table *tbl,
+			    struct rhash_lock_head **bkt)
+{
+	local_bh_disable();
+	bit_spin_lock(0, (unsigned long *)bkt);
+	lock_map_acquire(&tbl->dep_map);
+}
+
+static inline void rht_lock_nested(struct bucket_table *tbl,
+				   struct rhash_lock_head **bucket,
+				   unsigned int subclass)
+{
+	local_bh_disable();
+	bit_spin_lock(0, (unsigned long *)bucket);
+	lock_acquire_exclusive(&tbl->dep_map, subclass, 0, NULL, _THIS_IP_);
+}
+
+static inline void rht_unlock(struct bucket_table *tbl,
+			      struct rhash_lock_head **bkt)
+{
+	lock_map_release(&tbl->dep_map);
+	bit_spin_unlock(0, (unsigned long *)bkt);
+	local_bh_enable();
+}
+
+static inline struct rhash_head __rcu *__rht_ptr(
+	struct rhash_lock_head *const *bkt)
+{
+	return (struct rhash_head __rcu *)
+		((unsigned long)*bkt & ~BIT(0) ?:
+		 (unsigned long)RHT_NULLS_MARKER(bkt));
+}
+
+/*
+ * Where 'bkt' is a bucket and might be locked:
+ *   rht_ptr_rcu() dereferences that pointer and clears the lock bit.
+ *   rht_ptr() dereferences in a context where the bucket is locked.
+ *   rht_ptr_exclusive() dereferences in a context where exclusive
+ *            access is guaranteed, such as when destroying the table.
+ */
+static inline struct rhash_head *rht_ptr_rcu(
+	struct rhash_lock_head *const *bkt)
+{
+	struct rhash_head __rcu *p = __rht_ptr(bkt);
+
+	return rcu_dereference(p);
+}
+
+static inline struct rhash_head *rht_ptr(
+	struct rhash_lock_head *const *bkt,
+	struct bucket_table *tbl,
+	unsigned int hash)
+{
+	return rht_dereference_bucket(__rht_ptr(bkt), tbl, hash);
+}
+
+static inline struct rhash_head *rht_ptr_exclusive(
+	struct rhash_lock_head *const *bkt)
+{
+	return rcu_dereference_protected(__rht_ptr(bkt), 1);
+}
+
+static inline void rht_assign_locked(struct rhash_lock_head **bkt,
+				     struct rhash_head *obj)
+{
+	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
+
+	if (rht_is_a_nulls(obj))
+		obj = NULL;
+	rcu_assign_pointer(*p, (void *)((unsigned long)obj | BIT(0)));
+}
+
+static inline void rht_assign_unlock(struct bucket_table *tbl,
+				     struct rhash_lock_head **bkt,
+				     struct rhash_head *obj)
+{
+	struct rhash_head __rcu **p = (struct rhash_head __rcu **)bkt;
+
+	if (rht_is_a_nulls(obj))
+		obj = NULL;
+	lock_map_release(&tbl->dep_map);
+	rcu_assign_pointer(*p, obj);
+	preempt_enable();
+	__release(bitlock);
+	local_bh_enable();
+}
+
 /**
- * rht_for_each_continue - continue iterating over hash chain
+ * rht_for_each_from - iterate over hash chain from given head
  * @pos:	the &struct rhash_head to use as a loop cursor.
- * @head:	the previous &struct rhash_head to continue from
+ * @head:	the &struct rhash_head to start from
  * @tbl:	the &struct bucket_table
  * @hash:	the hash value / bucket index
  */
-#define rht_for_each_continue(pos, head, tbl, hash) \
-	for (pos = rht_dereference_bucket(head, tbl, hash); \
-	     !rht_is_a_nulls(pos); \
+#define rht_for_each_from(pos, head, tbl, hash) \
+	for (pos = head;			\
+	     !rht_is_a_nulls(pos);		\
 	     pos = rht_dereference_bucket((pos)->next, tbl, hash))
 
 /**
@@ -464,19 +430,20 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * @hash:	the hash value / bucket index
  */
 #define rht_for_each(pos, tbl, hash) \
-	rht_for_each_continue(pos, *rht_bucket(tbl, hash), tbl, hash)
+	rht_for_each_from(pos, rht_ptr(rht_bucket(tbl, hash), tbl, hash),  \
+			  tbl, hash)
 
 /**
- * rht_for_each_entry_continue - continue iterating over hash chain
+ * rht_for_each_entry_from - iterate over hash chain from given head
  * @tpos:	the type * to use as a loop cursor.
  * @pos:	the &struct rhash_head to use as a loop cursor.
- * @head:	the previous &struct rhash_head to continue from
+ * @head:	the &struct rhash_head to start from
  * @tbl:	the &struct bucket_table
  * @hash:	the hash value / bucket index
  * @member:	name of the &struct rhash_head within the hashable struct.
  */
-#define rht_for_each_entry_continue(tpos, pos, head, tbl, hash, member)	\
-	for (pos = rht_dereference_bucket(head, tbl, hash);		\
+#define rht_for_each_entry_from(tpos, pos, head, tbl, hash, member)	\
+	for (pos = head;						\
 	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	\
 	     pos = rht_dereference_bucket((pos)->next, tbl, hash))
 
@@ -489,8 +456,9 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * @member:	name of the &struct rhash_head within the hashable struct.
  */
 #define rht_for_each_entry(tpos, pos, tbl, hash, member)		\
-	rht_for_each_entry_continue(tpos, pos, *rht_bucket(tbl, hash),	\
-				    tbl, hash, member)
+	rht_for_each_entry_from(tpos, pos,				\
+				rht_ptr(rht_bucket(tbl, hash), tbl, hash), \
+				tbl, hash, member)
 
 /**
  * rht_for_each_entry_safe - safely iterate over hash chain of given type
@@ -505,7 +473,7 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * remove the loop cursor from the list.
  */
 #define rht_for_each_entry_safe(tpos, pos, next, tbl, hash, member)	      \
-	for (pos = rht_dereference_bucket(*rht_bucket(tbl, hash), tbl, hash), \
+	for (pos = rht_ptr(rht_bucket(tbl, hash), tbl, hash),		      \
 	     next = !rht_is_a_nulls(pos) ?				      \
 		       rht_dereference_bucket(pos->next, tbl, hash) : NULL;   \
 	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	      \
@@ -514,9 +482,9 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
 		       rht_dereference_bucket(pos->next, tbl, hash) : NULL)
 
 /**
- * rht_for_each_rcu_continue - continue iterating over rcu hash chain
+ * rht_for_each_rcu_from - iterate over rcu hash chain from given head
  * @pos:	the &struct rhash_head to use as a loop cursor.
- * @head:	the previous &struct rhash_head to continue from
+ * @head:	the &struct rhash_head to start from
  * @tbl:	the &struct bucket_table
  * @hash:	the hash value / bucket index
  *
@@ -524,9 +492,9 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * the _rcu mutation primitives such as rhashtable_insert() as long as the
  * traversal is guarded by rcu_read_lock().
  */
-#define rht_for_each_rcu_continue(pos, head, tbl, hash)			\
+#define rht_for_each_rcu_from(pos, head, tbl, hash)			\
 	for (({barrier(); }),						\
-	     pos = rht_dereference_bucket_rcu(head, tbl, hash);		\
+	     pos = head;						\
 	     !rht_is_a_nulls(pos);					\
 	     pos = rcu_dereference_raw(pos->next))
 
@@ -540,14 +508,17 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * the _rcu mutation primitives such as rhashtable_insert() as long as the
  * traversal is guarded by rcu_read_lock().
  */
-#define rht_for_each_rcu(pos, tbl, hash)				\
-	rht_for_each_rcu_continue(pos, *rht_bucket(tbl, hash), tbl, hash)
+#define rht_for_each_rcu(pos, tbl, hash)			\
+	for (({barrier(); }),					\
+	     pos = rht_ptr_rcu(rht_bucket(tbl, hash));		\
+	     !rht_is_a_nulls(pos);				\
+	     pos = rcu_dereference_raw(pos->next))
 
 /**
- * rht_for_each_entry_rcu_continue - continue iterating over rcu hash chain
+ * rht_for_each_entry_rcu_from - iterated over rcu hash chain from given head
  * @tpos:	the type * to use as a loop cursor.
  * @pos:	the &struct rhash_head to use as a loop cursor.
- * @head:	the previous &struct rhash_head to continue from
+ * @head:	the &struct rhash_head to start from
  * @tbl:	the &struct bucket_table
  * @hash:	the hash value / bucket index
  * @member:	name of the &struct rhash_head within the hashable struct.
@@ -556,9 +527,9 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * the _rcu mutation primitives such as rhashtable_insert() as long as the
  * traversal is guarded by rcu_read_lock().
  */
-#define rht_for_each_entry_rcu_continue(tpos, pos, head, tbl, hash, member) \
+#define rht_for_each_entry_rcu_from(tpos, pos, head, tbl, hash, member) \
 	for (({barrier(); }),						    \
-	     pos = rht_dereference_bucket_rcu(head, tbl, hash);		    \
+	     pos = head;						    \
 	     (!rht_is_a_nulls(pos)) && rht_entry(tpos, pos, member);	    \
 	     pos = rht_dereference_bucket_rcu(pos->next, tbl, hash))
 
@@ -575,8 +546,9 @@ static inline struct rhash_head __rcu **rht_bucket_insert(
  * traversal is guarded by rcu_read_lock().
  */
 #define rht_for_each_entry_rcu(tpos, pos, tbl, hash, member)		   \
-	rht_for_each_entry_rcu_continue(tpos, pos, *rht_bucket(tbl, hash), \
-					tbl, hash, member)
+	rht_for_each_entry_rcu_from(tpos, pos,				   \
+				    rht_ptr_rcu(rht_bucket(tbl, hash)),	   \
+				    tbl, hash, member)
 
 /**
  * rhl_for_each_rcu - iterate over rcu hash table list
@@ -621,6 +593,7 @@ static inline struct rhash_head *__rhashtable_lookup(
 		.ht = ht,
 		.key = key,
 	};
+	struct rhash_lock_head *const *bkt;
 	struct bucket_table *tbl;
 	struct rhash_head *he;
 	unsigned int hash;
@@ -628,13 +601,19 @@ static inline struct rhash_head *__rhashtable_lookup(
 	tbl = rht_dereference_rcu(ht->tbl, ht);
 restart:
 	hash = rht_key_hashfn(ht, tbl, key, params);
-	rht_for_each_rcu(he, tbl, hash) {
-		if (params.obj_cmpfn ?
-		    params.obj_cmpfn(&arg, rht_obj(ht, he)) :
-		    rhashtable_compare(&arg, rht_obj(ht, he)))
-			continue;
-		return he;
-	}
+	bkt = rht_bucket(tbl, hash);
+	do {
+		rht_for_each_rcu_from(he, rht_ptr_rcu(bkt), tbl, hash) {
+			if (params.obj_cmpfn ?
+			    params.obj_cmpfn(&arg, rht_obj(ht, he)) :
+			    rhashtable_compare(&arg, rht_obj(ht, he)))
+				continue;
+			return he;
+		}
+		/* An object might have been moved to a different hash chain,
+		 * while we walk along it - better check and retry.
+		 */
+	} while (he != RHT_NULLS_MARKER(bkt));
 
 	/* Ensure we see any new tables. */
 	smp_rmb();
@@ -730,10 +709,10 @@ static inline void *__rhashtable_insert_fast(
 		.ht = ht,
 		.key = key,
 	};
+	struct rhash_lock_head **bkt;
 	struct rhash_head __rcu **pprev;
 	struct bucket_table *tbl;
 	struct rhash_head *head;
-	spinlock_t *lock;
 	unsigned int hash;
 	int elasticity;
 	void *data;
@@ -742,23 +721,22 @@ static inline void *__rhashtable_insert_fast(
 
 	tbl = rht_dereference_rcu(ht->tbl, ht);
 	hash = rht_head_hashfn(ht, tbl, obj, params);
-	lock = rht_bucket_lock(tbl, hash);
-	spin_lock_bh(lock);
+	elasticity = RHT_ELASTICITY;
+	bkt = rht_bucket_insert(ht, tbl, hash);
+	data = ERR_PTR(-ENOMEM);
+	if (!bkt)
+		goto out;
+	pprev = NULL;
+	rht_lock(tbl, bkt);
 
-	if (unlikely(rht_dereference_bucket(tbl->future_tbl, tbl, hash))) {
+	if (unlikely(rcu_access_pointer(tbl->future_tbl))) {
 slow_path:
-		spin_unlock_bh(lock);
+		rht_unlock(tbl, bkt);
 		rcu_read_unlock();
 		return rhashtable_insert_slow(ht, key, obj);
 	}
 
-	elasticity = RHT_ELASTICITY;
-	pprev = rht_bucket_insert(ht, tbl, hash);
-	data = ERR_PTR(-ENOMEM);
-	if (!pprev)
-		goto out;
-
-	rht_for_each_continue(head, *pprev, tbl, hash) {
+	rht_for_each_from(head, rht_ptr(bkt, tbl, hash), tbl, hash) {
 		struct rhlist_head *plist;
 		struct rhlist_head *list;
 
@@ -766,13 +744,15 @@ slow_path:
 		if (!key ||
 		    (params.obj_cmpfn ?
 		     params.obj_cmpfn(&arg, rht_obj(ht, head)) :
-		     rhashtable_compare(&arg, rht_obj(ht, head))))
+		     rhashtable_compare(&arg, rht_obj(ht, head)))) {
+			pprev = &head->next;
 			continue;
+		}
 
 		data = rht_obj(ht, head);
 
 		if (!rhlist)
-			goto out;
+			goto out_unlock;
 
 
 		list = container_of(obj, struct rhlist_head, rhead);
@@ -781,9 +761,13 @@ slow_path:
 		RCU_INIT_POINTER(list->next, plist);
 		head = rht_dereference_bucket(head->next, tbl, hash);
 		RCU_INIT_POINTER(list->rhead.next, head);
-		rcu_assign_pointer(*pprev, obj);
-
-		goto good;
+		if (pprev) {
+			rcu_assign_pointer(*pprev, obj);
+			rht_unlock(tbl, bkt);
+		} else
+			rht_assign_unlock(tbl, bkt, obj);
+		data = NULL;
+		goto out;
 	}
 
 	if (elasticity <= 0)
@@ -791,12 +775,13 @@ slow_path:
 
 	data = ERR_PTR(-E2BIG);
 	if (unlikely(rht_grow_above_max(ht, tbl)))
-		goto out;
+		goto out_unlock;
 
 	if (unlikely(rht_grow_above_100(ht, tbl)))
 		goto slow_path;
 
-	head = rht_dereference_bucket(*pprev, tbl, hash);
+	/* Inserting at head of list makes unlocking free. */
+	head = rht_ptr(bkt, tbl, hash);
 
 	RCU_INIT_POINTER(obj->next, head);
 	if (rhlist) {
@@ -806,20 +791,21 @@ slow_path:
 		RCU_INIT_POINTER(list->next, NULL);
 	}
 
-	rcu_assign_pointer(*pprev, obj);
-
 	atomic_inc(&ht->nelems);
+	rht_assign_unlock(tbl, bkt, obj);
+
 	if (rht_grow_above_75(ht, tbl))
 		schedule_work(&ht->run_work);
 
-good:
 	data = NULL;
-
 out:
-	spin_unlock_bh(lock);
 	rcu_read_unlock();
 
 	return data;
+
+out_unlock:
+	rht_unlock(tbl, bkt);
+	goto out;
 }
 
 /**
@@ -828,15 +814,14 @@ out:
  * @obj:	pointer to hash head inside object
  * @params:	hash table parameters
  *
- * Will take a per bucket spinlock to protect against mutual mutations
+ * Will take the per bucket bitlock to protect against mutual mutations
  * on the same bucket. Multiple insertions may occur in parallel unless
- * they map to the same bucket lock.
+ * they map to the same bucket.
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhashtable_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
@@ -858,15 +843,14 @@ static inline int rhashtable_insert_fast(
  * @list:	pointer to hash list head inside object
  * @params:	hash table parameters
  *
- * Will take a per bucket spinlock to protect against mutual mutations
+ * Will take the per bucket bitlock to protect against mutual mutations
  * on the same bucket. Multiple insertions may occur in parallel unless
- * they map to the same bucket lock.
+ * they map to the same bucket.
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhltable_insert_key(
 	struct rhltable *hlt, const void *key, struct rhlist_head *list,
@@ -882,15 +866,14 @@ static inline int rhltable_insert_key(
  * @list:	pointer to hash list head inside object
  * @params:	hash table parameters
  *
- * Will take a per bucket spinlock to protect against mutual mutations
+ * Will take the per bucket bitlock to protect against mutual mutations
  * on the same bucket. Multiple insertions may occur in parallel unless
- * they map to the same bucket lock.
+ * they map to the same bucket.
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhltable_insert(
 	struct rhltable *hlt, struct rhlist_head *list,
@@ -909,20 +892,13 @@ static inline int rhltable_insert(
  * @obj:	pointer to hash head inside object
  * @params:	hash table parameters
  *
- * Locks down the bucket chain in both the old and new table if a resize
- * is in progress to ensure that writers can't remove from the old table
- * and can't insert to the new table during the atomic operation of search
- * and insertion. Searches for duplicates in both the old and new table if
- * a resize is in progress.
- *
  * This lookup function may only be used for fixed key hash table (key_len
  * parameter set). It will BUG() if used inappropriately.
  *
  * It is safe to call this function from atomic context.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  */
 static inline int rhashtable_lookup_insert_fast(
 	struct rhashtable *ht, struct rhash_head *obj,
@@ -971,17 +947,10 @@ static inline void *rhashtable_lookup_get_insert_fast(
  * @obj:	pointer to hash head inside object
  * @params:	hash table parameters
  *
- * Locks down the bucket chain in both the old and new table if a resize
- * is in progress to ensure that writers can't remove from the old table
- * and can't insert to the new table during the atomic operation of search
- * and insertion. Searches for duplicates in both the old and new table if
- * a resize is in progress.
- *
  * Lookups may occur in parallel with hashtable mutations and resizing.
  *
- * Will trigger an automatic deferred table resizing if the size grows
- * beyond the watermark indicated by grow_decision() which can be passed
- * to rhashtable_init().
+ * Will trigger an automatic deferred table resizing if residency in the
+ * table grows beyond 70%.
  *
  * Returns zero on success.
  */
@@ -1026,19 +995,20 @@ static inline int __rhashtable_remove_fast_one(
 	struct rhash_head *obj, const struct rhashtable_params params,
 	bool rhlist)
 {
+	struct rhash_lock_head **bkt;
 	struct rhash_head __rcu **pprev;
 	struct rhash_head *he;
-	spinlock_t * lock;
 	unsigned int hash;
 	int err = -ENOENT;
 
 	hash = rht_head_hashfn(ht, tbl, obj, params);
-	lock = rht_bucket_lock(tbl, hash);
+	bkt = rht_bucket_var(tbl, hash);
+	if (!bkt)
+		return -ENOENT;
+	pprev = NULL;
+	rht_lock(tbl, bkt);
 
-	spin_lock_bh(lock);
-
-	pprev = rht_bucket_var(tbl, hash);
-	rht_for_each_continue(he, *pprev, tbl, hash) {
+	rht_for_each_from(he, rht_ptr(bkt, tbl, hash), tbl, hash) {
 		struct rhlist_head *list;
 
 		list = container_of(he, struct rhlist_head, rhead);
@@ -1078,12 +1048,17 @@ static inline int __rhashtable_remove_fast_one(
 			}
 		}
 
-		rcu_assign_pointer(*pprev, obj);
-		break;
+		if (pprev) {
+			rcu_assign_pointer(*pprev, obj);
+			rht_unlock(tbl, bkt);
+		} else {
+			rht_assign_unlock(tbl, bkt, obj);
+		}
+		goto unlocked;
 	}
 
-	spin_unlock_bh(lock);
-
+	rht_unlock(tbl, bkt);
+unlocked:
 	if (err > 0) {
 		atomic_dec(&ht->nelems);
 		if (unlikely(ht->p.automatic_shrinking &&
@@ -1132,8 +1107,8 @@ static inline int __rhashtable_remove_fast(
  * walk the bucket chain upon removal. The removal operation is thus
  * considerable slow if the hash table is not correctly sized.
  *
- * Will automatically shrink the table via rhashtable_expand() if the
- * shrink_decision function specified at rhashtable_init() returns true.
+ * Will automatically shrink the table if permitted when residency drops
+ * below 30%.
  *
  * Returns zero on success, -ENOENT if the entry could not be found.
  */
@@ -1154,8 +1129,8 @@ static inline int rhashtable_remove_fast(
  * walk the bucket chain upon removal. The removal operation is thus
  * considerable slow if the hash table is not correctly sized.
  *
- * Will automatically shrink the table via rhashtable_expand() if the
- * shrink_decision function specified at rhashtable_init() returns true.
+ * Will automatically shrink the table if permitted when residency drops
+ * below 30%
  *
  * Returns zero on success, -ENOENT if the entry could not be found.
  */
@@ -1172,9 +1147,9 @@ static inline int __rhashtable_replace_fast(
 	struct rhash_head *obj_old, struct rhash_head *obj_new,
 	const struct rhashtable_params params)
 {
+	struct rhash_lock_head **bkt;
 	struct rhash_head __rcu **pprev;
 	struct rhash_head *he;
-	spinlock_t *lock;
 	unsigned int hash;
 	int err = -ENOENT;
 
@@ -1185,25 +1160,33 @@ static inline int __rhashtable_replace_fast(
 	if (hash != rht_head_hashfn(ht, tbl, obj_new, params))
 		return -EINVAL;
 
-	lock = rht_bucket_lock(tbl, hash);
+	bkt = rht_bucket_var(tbl, hash);
+	if (!bkt)
+		return -ENOENT;
 
-	spin_lock_bh(lock);
+	pprev = NULL;
+	rht_lock(tbl, bkt);
 
-	pprev = rht_bucket_var(tbl, hash);
-	rht_for_each_continue(he, *pprev, tbl, hash) {
+	rht_for_each_from(he, rht_ptr(bkt, tbl, hash), tbl, hash) {
 		if (he != obj_old) {
 			pprev = &he->next;
 			continue;
 		}
 
 		rcu_assign_pointer(obj_new->next, obj_old->next);
-		rcu_assign_pointer(*pprev, obj_new);
+		if (pprev) {
+			rcu_assign_pointer(*pprev, obj_new);
+			rht_unlock(tbl, bkt);
+		} else {
+			rht_assign_unlock(tbl, bkt, obj_new);
+		}
 		err = 0;
-		break;
+		goto unlocked;
 	}
 
-	spin_unlock_bh(lock);
+	rht_unlock(tbl, bkt);
 
+unlocked:
 	return err;
 }
 
@@ -1248,14 +1231,6 @@ static inline int rhashtable_replace_fast(
 	return err;
 }
 
-/* Obsolete function, do not use in new code. */
-static inline int rhashtable_walk_init(struct rhashtable *ht,
-				       struct rhashtable_iter *iter, gfp_t gfp)
-{
-	rhashtable_walk_enter(ht, iter);
-	return 0;
-}
-
 /**
  * rhltable_walk_enter - Initialise an iterator
  * @hlt:	Table to walk over
@@ -1271,8 +1246,9 @@ static inline int rhashtable_walk_init(struct rhashtable *ht,
  * For a completely stable walk you should construct your own data
  * structure outside the hash table.
  *
- * This function may sleep so you must not call it from interrupt
- * context or with spin locks held.
+ * This function may be called from any process context, including
+ * non-preemptable context, but cannot be called from softirq or
+ * hardirq context.
  *
  * You must call rhashtable_walk_exit after this function returns.
  */

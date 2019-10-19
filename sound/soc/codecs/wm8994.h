@@ -1,9 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * wm8994.h  --  WM8994 Soc Audio driver
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef _WM8994_H
@@ -43,18 +40,18 @@ enum wm8994_vmid_mode {
 typedef void (*wm1811_micdet_cb)(void *data);
 typedef void (*wm1811_mic_id_cb)(void *data, u16 status);
 
-int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+int wm8994_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack,
 		      int micbias);
-int wm8958_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+int wm8958_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack,
 		      wm1811_micdet_cb cb, void *det_cb_data,
 		      wm1811_mic_id_cb id_cb, void *id_cb_data);
 
-int wm8994_vmid_mode(struct snd_soc_codec *codec, enum wm8994_vmid_mode mode);
+int wm8994_vmid_mode(struct snd_soc_component *component, enum wm8994_vmid_mode mode);
 
 int wm8958_aif_ev(struct snd_soc_dapm_widget *w,
 		  struct snd_kcontrol *kcontrol, int event);
 
-void wm8958_dsp2_init(struct snd_soc_codec *codec);
+void wm8958_dsp2_init(struct snd_soc_component *component);
 
 struct wm8994_micdet {
 	struct snd_soc_jack *jack;

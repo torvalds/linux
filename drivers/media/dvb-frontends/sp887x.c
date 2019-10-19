@@ -1,10 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
    Driver for the Spase sp887x demodulator
 */
 
 /*
  * This driver needs external firmware. Please use the command
- * "<kerneldir>/Documentation/dvb/get_dvb_firmware sp887x" to
+ * "<kerneldir>/scripts/get_dvb_firmware sp887x" to
  * download/extract it, and then copy it to /usr/lib/hotplug/firmware
  * or /lib/firmware (depending on configuration of firmware hotplug).
  */
@@ -136,7 +137,7 @@ static void sp887x_setup_agc (struct sp887x_state* state)
 static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware *fw)
 {
 	struct sp887x_state* state = fe->demodulator_priv;
-	u8 buf [BLOCKSIZE+2];
+	u8 buf [BLOCKSIZE + 2];
 	int i;
 	int fw_size = fw->size;
 	const unsigned char *mem = fw->data;
@@ -144,7 +145,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 	dprintk("%s\n", __func__);
 
 	/* ignore the first 10 bytes, then we expect 0x4000 bytes of firmware */
-	if (fw_size < FW_SIZE+10)
+	if (fw_size < FW_SIZE + 10)
 		return -ENODEV;
 
 	mem = fw->data + 10;
@@ -167,7 +168,7 @@ static int sp887x_initial_setup (struct dvb_frontend* fe, const struct firmware 
 		int c = BLOCKSIZE;
 		int err;
 
-		if (i+c > FW_SIZE)
+		if (c > FW_SIZE - i)
 			c = FW_SIZE - i;
 
 		/* bit 0x8000 in address is set to enable 13bit mode */
@@ -594,9 +595,9 @@ static const struct dvb_frontend_ops sp887x_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "Spase SP887x DVB-T",
-		.frequency_min =  50500000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 166666,
+		.frequency_min_hz =  50500 * kHz,
+		.frequency_max_hz = 858000 * kHz,
+		.frequency_stepsize_hz = 166666,
 		.caps = FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 			FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |
 			FE_CAN_QPSK | FE_CAN_QAM_16 | FE_CAN_QAM_64 |

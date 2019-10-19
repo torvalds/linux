@@ -1,5 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menu "CAN USB interfaces"
 	depends on USB
+
+config CAN_8DEV_USB
+	tristate "8 devices USB2CAN interface"
+	---help---
+	  This driver supports the USB2CAN interface
+	  from 8 devices (http://www.8devices.com).
 
 config CAN_EMS_USB
 	tristate "EMS CPC-USB/ARM7 CAN/USB interface"
@@ -8,10 +15,10 @@ config CAN_EMS_USB
 	  from EMS Dr. Thomas Wuensche (http://www.ems-wuensche.de).
 
 config CAN_ESD_USB2
-        tristate "ESD USB/2 CAN/USB interface"
-        ---help---
-          This driver supports the CAN-USB/2 interface
-          from esd electronic system design gmbh (http://www.esd.eu).
+	tristate "ESD USB/2 CAN/USB interface"
+	---help---
+	  This driver supports the CAN-USB/2 interface
+	  from esd electronic system design gmbh (http://www.esd.eu).
 
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG interfaces"
@@ -26,7 +33,7 @@ config CAN_KVASER_USB
 	tristate "Kvaser CAN/USB interface"
 	---help---
 	  This driver adds support for Kvaser CAN/USB devices like Kvaser
-	  Leaf Light and Kvaser USBcan II.
+	  Leaf Light, Kvaser USBcan II and Kvaser Memorator Pro 5xHS.
 
 	  The driver provides support for the following devices:
 	    - Kvaser Leaf Light
@@ -55,11 +62,29 @@ config CAN_KVASER_USB
 	    - Kvaser Memorator HS/HS
 	    - Kvaser Memorator HS/LS
 	    - Scania VCI2 (if you have the Kvaser logo on top)
+	    - Kvaser BlackBird v2
+	    - Kvaser Leaf Pro HS v2
+	    - Kvaser Hybrid 2xCAN/LIN
+	    - Kvaser Hybrid Pro 2xCAN/LIN
+	    - Kvaser Memorator 2xHS v2
+	    - Kvaser Memorator Pro 2xHS v2
+	    - Kvaser Memorator Pro 5xHS
+	    - Kvaser USBcan Light 4xHS
+	    - Kvaser USBcan Pro 2xHS v2
+	    - Kvaser USBcan Pro 5xHS
+	    - ATI Memorator Pro 2xHS v2
+	    - ATI USBcan Pro 2xHS v2
 
 	  If unsure, say N.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called kvaser_usb.
+
+config CAN_MCBA_USB
+	tristate "Microchip CAN BUS Analyzer interface"
+	---help---
+	  This driver supports the CAN BUS Analyzer interface
+	  from Microchip (http://www.microchip.com/development-tools/).
 
 config CAN_PEAK_USB
 	tristate "PEAK PCAN-USB/USB Pro interfaces for CAN 2.0b/CAN-FD"
@@ -77,16 +102,20 @@ config CAN_PEAK_USB
 
 	  (see also http://www.peak-system.com).
 
-config CAN_8DEV_USB
-	tristate "8 devices USB2CAN interface"
+config CAN_UCAN
+	tristate "Theobroma Systems UCAN interface"
 	---help---
-	  This driver supports the USB2CAN interface
-	  from 8 devices (http://www.8devices.com).
+	  This driver supports the Theobroma Systems
+	  UCAN USB-CAN interface.
 
-config CAN_MCBA_USB
-	tristate "Microchip CAN BUS Analyzer interface"
-	---help---
-	  This driver supports the CAN BUS Analyzer interface
-	  from Microchip (http://www.microchip.com/development-tools/).
+	  The UCAN driver supports the microcontroller-based USB/CAN
+	  adapters from Theobroma Systems. There are two form-factors
+	  that run essentially the same firmware:
+
+	  * Seal: standalone USB stick
+	          https://www.theobroma-systems.com/seal)
+	  * Mule: integrated on the PCB of various System-on-Modules
+	          from Theobroma Systems like the A31-µQ7 and the RK3399-Q7
+	          (https://www.theobroma-systems.com/rk3399-q7)
 
 endmenu

@@ -1,12 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
+
 #ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #endif
 #include <linux/cpu.h>
 #include <linux/kexec.h>
+#include <linux/slab.h>
 
+#include <xen/xen.h>
 #include <xen/features.h>
 #include <xen/page.h>
-#include <xen/interface/memory.h>
 
 #include <asm/xen/hypercall.h>
 #include <asm/xen/hypervisor.h>
@@ -63,6 +66,13 @@ struct shared_info xen_dummy_shared_info;
 
 __read_mostly int xen_have_vector_callback;
 EXPORT_SYMBOL_GPL(xen_have_vector_callback);
+
+/*
+ * NB: needs to live in .data because it's used by xen_prepare_pvh which runs
+ * before clearing the bss.
+ */
+uint32_t xen_start_flags __attribute__((section(".data"))) = 0;
+EXPORT_SYMBOL(xen_start_flags);
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
@@ -259,18 +269,40 @@ void xen_reboot(int reason)
 		BUG();
 }
 
+static int reboot_reason = SHUTDOWN_reboot;
+static bool xen_legacy_crash;
 void xen_emergency_restart(void)
 {
-	xen_reboot(SHUTDOWN_reboot);
+	xen_reboot(reboot_reason);
 }
 
 static int
 xen_panic_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	if (!kexec_crash_loaded())
-		xen_reboot(SHUTDOWN_crash);
+	if (!kexec_crash_loaded()) {
+		if (xen_legacy_crash)
+			xen_reboot(SHUTDOWN_crash);
+
+		reboot_reason = SHUTDOWN_crash;
+
+		/*
+		 * If panic_timeout==0 then we are supposed to wait forever.
+		 * However, to preserve original dom0 behavior we have to drop
+		 * into hypervisor. (domU behavior is controlled by its
+		 * config file)
+		 */
+		if (panic_timeout == 0)
+			panic_timeout = -1;
+	}
 	return NOTIFY_DONE;
 }
+
+static int __init parse_xen_legacy_crash(char *arg)
+{
+	xen_legacy_crash = true;
+	return 0;
+}
+early_param("xen_legacy_crash", parse_xen_legacy_crash);
 
 static struct notifier_block xen_panic_block = {
 	.notifier_call = xen_panic_event,
@@ -335,80 +367,3 @@ void xen_arch_unregister_cpu(int num)
 }
 EXPORT_SYMBOL(xen_arch_unregister_cpu);
 #endif
-
-#ifdef CONFIG_XEN_BALLOON_MEMORY_HOTPLUG
-void __init arch_xen_balloon_init(struct resource *hostmem_resource)
-{
-	struct xen_memory_map memmap;
-	int rc;
-	unsigned int i, last_guest_ram;
-	phys_addr_t max_addr = PFN_PHYS(max_pfn);
-	struct e820_table *xen_e820_table;
-	const struct e820_entry *entry;
-	struct resource *res;
-
-	if (!xen_initial_domain())
-		return;
-
-	xen_e820_table = kmalloc(sizeof(*xen_e820_table), GFP_KERNEL);
-	if (!xen_e820_table)
-		return;
-
-	memmap.nr_entries = ARRAY_SIZE(xen_e820_table->entries);
-	set_xen_guest_handle(memmap.buffer, xen_e820_table->entries);
-	rc = HYPERVISOR_memory_op(XENMEM_machine_memory_map, &memmap);
-	if (rc) {
-		pr_warn("%s: Can't read host e820 (%d)\n", __func__, rc);
-		goto out;
-	}
-
-	last_guest_ram = 0;
-	for (i = 0; i < memmap.nr_entries; i++) {
-		if (xen_e820_table->entries[i].addr >= max_addr)
-			break;
-		if (xen_e820_table->entries[i].type == E820_TYPE_RAM)
-			last_guest_ram = i;
-	}
-
-	entry = &xen_e820_table->entries[last_guest_ram];
-	if (max_addr >= entry->addr + entry->size)
-		goto out; /* No unallocated host RAM. */
-
-	hostmem_resource->start = max_addr;
-	hostmem_resource->end = entry->addr + entry->size;
-
-	/*
-	 * Mark non-RAM regions between the end of dom0 RAM and end of host RAM
-	 * as unavailable. The rest of that region can be used for hotplug-based
-	 * ballooning.
-	 */
-	for (; i < memmap.nr_entries; i++) {
-		entry = &xen_e820_table->entries[i];
-
-		if (entry->type == E820_TYPE_RAM)
-			continue;
-
-		if (entry->addr >= hostmem_resource->end)
-			break;
-
-		res = kzalloc(sizeof(*res), GFP_KERNEL);
-		if (!res)
-			goto out;
-
-		res->name = "Unavailable host RAM";
-		res->start = entry->addr;
-		res->end = (entry->addr + entry->size < hostmem_resource->end) ?
-			    entry->addr + entry->size : hostmem_resource->end;
-		rc = insert_resource(hostmem_resource, res);
-		if (rc) {
-			pr_warn("%s: Can't insert [%llx - %llx) (%d)\n",
-				__func__, res->start, res->end, rc);
-			kfree(res);
-			goto  out;
-		}
-	}
-
- out:
-	kfree(xen_e820_table);
-}
-#endif /* CONFIG_XEN_BALLOON_MEMORY_HOTPLUG */

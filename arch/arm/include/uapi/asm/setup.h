@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  *
  *  Structure passed to kernel to tell it about the
- *  hardware it's running on.  See Documentation/arm/Setup
+ *  hardware it's running on.  See Documentation/arm/setup.rst
  *  for more info.
  */
 #ifndef _UAPI__ASMARM_SETUP_H

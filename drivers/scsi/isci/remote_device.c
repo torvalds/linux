@@ -310,7 +310,7 @@ static void isci_remote_device_not_ready(struct isci_host *ihost,
 		/* Kill all outstanding requests for the device. */
 		sci_remote_device_terminate_requests(idev);
 
-		/* Fall through into the default case... */
+		/* Fall through - into the default case... */
 	default:
 		clear_bit(IDEV_IO_READY, &idev->flags);
 		break;
@@ -593,7 +593,7 @@ enum sci_status sci_remote_device_event_handler(struct isci_remote_device *idev,
 
 			break;
 		}
-	/* Else, fall through and treat as unhandled... */
+		/* fall through - and treat as unhandled... */
 	default:
 		dev_dbg(scirdev_to_dev(idev),
 			"%s: device: %p event code: %x: %s\n",
@@ -1087,7 +1087,7 @@ static void sci_remote_device_ready_state_enter(struct sci_base_state_machine *s
 
 	if (dev->dev_type == SAS_SATA_DEV || (dev->tproto & SAS_PROTOCOL_SATA)) {
 		sci_change_state(&idev->sm, SCI_STP_DEV_IDLE);
-	} else if (dev_is_expander(dev)) {
+	} else if (dev_is_expander(dev->dev_type)) {
 		sci_change_state(&idev->sm, SCI_SMP_DEV_IDLE);
 	} else
 		isci_remote_device_ready(ihost, idev);
@@ -1478,7 +1478,7 @@ static enum sci_status isci_remote_device_construct(struct isci_port *iport,
 	struct domain_device *dev = idev->domain_dev;
 	enum sci_status status;
 
-	if (dev->parent && dev_is_expander(dev->parent))
+	if (dev->parent && dev_is_expander(dev->parent->dev_type))
 		status = sci_remote_device_ea_construct(iport, idev);
 	else
 		status = sci_remote_device_da_construct(iport, idev);

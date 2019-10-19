@@ -9,6 +9,7 @@ Required properties:
 
 Optional properties:
   - reset-gpios: a GPIO spec for the reset pin (active low).
+  - power-supply: phandle of the regulator that provides the supply voltage.
 
 Example:
 &dsi {
@@ -17,5 +18,6 @@ Example:
 		compatible = "orisetech,otm8009a";
 		reg = <0>;
 		reset-gpios = <&gpioh 7 GPIO_ACTIVE_LOW>;
+		power-supply = <&v1v8>;
 	};
 };

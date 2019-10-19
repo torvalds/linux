@@ -10,8 +10,15 @@ struct cpumask;
 struct mm_struct;
 
 #ifdef CONFIG_X86_UV
+#include <linux/efi.h>
+
+extern unsigned long uv_systab_phys;
 
 extern enum uv_system_type get_uv_system_type(void);
+static inline bool is_early_uv_system(void)
+{
+	return uv_systab_phys && uv_systab_phys != EFI_INVALID_TABLE_ADDR;
+}
 extern int is_uv_system(void);
 extern int is_uv_hubless(void);
 extern void uv_cpu_init(void);
@@ -23,6 +30,7 @@ extern const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 #else	/* X86_UV */
 
 static inline enum uv_system_type get_uv_system_type(void) { return UV_NONE; }
+static inline bool is_early_uv_system(void)	{ return 0; }
 static inline int is_uv_system(void)	{ return 0; }
 static inline int is_uv_hubless(void)	{ return 0; }
 static inline void uv_cpu_init(void)	{ }

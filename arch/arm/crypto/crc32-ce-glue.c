@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Accelerated CRC32(C) using ARM CRC, NEON and Crypto Extensions instructions
  *
  * Copyright (C) 2016 Linaro Ltd <ard.biesheuvel@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/cpufeature.h>
@@ -16,6 +13,7 @@
 #include <linux/string.h>
 
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 
 #include <asm/hwcap.h>
 #include <asm/neon.h>
@@ -113,7 +111,7 @@ static int crc32_pmull_update(struct shash_desc *desc, const u8 *data,
 	u32 *crc = shash_desc_ctx(desc);
 	unsigned int l;
 
-	if (may_use_simd()) {
+	if (crypto_simd_usable()) {
 		if ((u32)data % SCALE_F) {
 			l = min_t(u32, length, SCALE_F - ((u32)data % SCALE_F));
 
@@ -147,7 +145,7 @@ static int crc32c_pmull_update(struct shash_desc *desc, const u8 *data,
 	u32 *crc = shash_desc_ctx(desc);
 	unsigned int l;
 
-	if (may_use_simd()) {
+	if (crypto_simd_usable()) {
 		if ((u32)data % SCALE_F) {
 			l = min_t(u32, length, SCALE_F - ((u32)data % SCALE_F));
 
@@ -236,7 +234,7 @@ static void __exit crc32_pmull_mod_exit(void)
 				  ARRAY_SIZE(crc32_pmull_algs));
 }
 
-static const struct cpu_feature crc32_cpu_feature[] = {
+static const struct cpu_feature __maybe_unused crc32_cpu_feature[] = {
 	{ cpu_feature(CRC32) }, { cpu_feature(PMULL) }, { }
 };
 MODULE_DEVICE_TABLE(cpu, crc32_cpu_feature);

@@ -10,23 +10,21 @@
    module name. */
 #ifdef MODULE
 #define MODULE_PARAM_PREFIX /* empty */
+#define __MODULE_INFO_PREFIX /* empty */
 #else
 #define MODULE_PARAM_PREFIX KBUILD_MODNAME "."
+/* We cannot use MODULE_PARAM_PREFIX because some modules override it. */
+#define __MODULE_INFO_PREFIX KBUILD_MODNAME "."
 #endif
 
 /* Chosen so that structs with an unsigned long line up. */
 #define MAX_PARAM_PREFIX_LEN (64 - sizeof(unsigned long))
 
-#ifdef MODULE
 #define __MODULE_INFO(tag, name, info)					  \
 static const char __UNIQUE_ID(name)[]					  \
   __used __attribute__((section(".modinfo"), unused, aligned(1)))	  \
-  = __stringify(tag) "=" info
-#else  /* !MODULE */
-/* This struct is here for syntactic coherency, it is not used */
-#define __MODULE_INFO(tag, name, info)					  \
-  struct __UNIQUE_ID(name) {}
-#endif
+  = __MODULE_INFO_PREFIX __stringify(tag) "=" info
+
 #define __MODULE_PARM_TYPE(name, _type)					  \
   __MODULE_INFO(parmtype, name##type, #name ":" _type)
 

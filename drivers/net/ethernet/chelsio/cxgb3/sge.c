@@ -633,7 +633,6 @@ static void *alloc_ring(struct pci_dev *pdev, size_t nelem, size_t elem_size,
 		}
 		*(void **)metadata = s;
 	}
-	memset(p, 0, len);
 	return p;
 }
 
@@ -2133,7 +2132,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 	struct port_info *pi = netdev_priv(qs->netdev);
 	struct sk_buff *skb = NULL;
 	struct cpl_rx_pkt *cpl;
-	struct skb_frag_struct *rx_frag;
+	skb_frag_t *rx_frag;
 	int nr_frags;
 	int offset = 0;
 
@@ -2183,7 +2182,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	rx_frag += nr_frags;
 	__skb_frag_set_page(rx_frag, sd->pg_chunk.page);
-	rx_frag->page_offset = sd->pg_chunk.offset + offset;
+	skb_frag_off_set(rx_frag, sd->pg_chunk.offset + offset);
 	skb_frag_size_set(rx_frag, len);
 
 	skb->len += len;
@@ -2382,7 +2381,7 @@ no_mem:
 					lro_add_page(adap, qs, fl,
 						     G_RSPD_LEN(len),
 						     flags & F_RSPD_EOP);
-					 goto next_fl;
+					goto next_fl;
 				}
 
 				skb = get_packet_pg(adap, fl, q,
@@ -3215,11 +3214,13 @@ void t3_start_sge_timers(struct adapter *adap)
 	for (i = 0; i < SGE_QSETS; ++i) {
 		struct sge_qset *q = &adap->sge.qs[i];
 
-	if (q->tx_reclaim_timer.function)
-		mod_timer(&q->tx_reclaim_timer, jiffies + TX_RECLAIM_PERIOD);
+		if (q->tx_reclaim_timer.function)
+			mod_timer(&q->tx_reclaim_timer,
+				  jiffies + TX_RECLAIM_PERIOD);
 
-	if (q->rx_reclaim_timer.function)
-		mod_timer(&q->rx_reclaim_timer, jiffies + RX_RECLAIM_PERIOD);
+		if (q->rx_reclaim_timer.function)
+			mod_timer(&q->rx_reclaim_timer,
+				  jiffies + RX_RECLAIM_PERIOD);
 	}
 }
 

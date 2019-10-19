@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Networking over Thunderbolt cable using Apple ThunderboltIP protocol
  *
@@ -5,10 +6,6 @@
  * Authors: Amir Levy <amir.jer.levy@intel.com>
  *          Michael Jamet <michael.jamet@intel.com>
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/atomic.h>
@@ -166,6 +163,8 @@ struct tbnet_ring {
  * @connected_work: Worker that finalizes the ThunderboltIP connection
  *		    setup and enables DMA paths for high speed data
  *		    transfers
+ * @disconnect_work: Worker that handles tearing down the ThunderboltIP
+ *		     connection
  * @rx_hdr: Copy of the currently processed Rx frame. Used when a
  *	    network packet consists of multiple Thunderbolt frames.
  *	    In host byte order.
@@ -190,6 +189,7 @@ struct tbnet {
 	int login_retries;
 	struct delayed_work login_work;
 	struct work_struct connected_work;
+	struct work_struct disconnect_work;
 	struct thunderbolt_ip_frame_header rx_hdr;
 	struct tbnet_ring rx_ring;
 	atomic_t frame_id;
@@ -445,7 +445,7 @@ static int tbnet_handle_packet(const void *buf, size_t size, void *data)
 	case TBIP_LOGOUT:
 		ret = tbnet_logout_response(net, route, sequence, command_id);
 		if (!ret)
-			tbnet_tear_down(net, false);
+			queue_work(system_long_wq, &net->disconnect_work);
 		break;
 
 	default:
@@ -657,6 +657,13 @@ static void tbnet_login_work(struct work_struct *work)
 
 		queue_work(system_long_wq, &net->connected_work);
 	}
+}
+
+static void tbnet_disconnect_work(struct work_struct *work)
+{
+	struct tbnet *net = container_of(work, typeof(*net), disconnect_work);
+
+	tbnet_tear_down(net, false);
 }
 
 static bool tbnet_check_frame(struct tbnet *net, const struct tbnet_frame *tf,
@@ -881,6 +888,7 @@ static int tbnet_stop(struct net_device *dev)
 
 	napi_disable(&net->napi);
 
+	cancel_work_sync(&net->disconnect_work);
 	tbnet_tear_down(net, true);
 
 	tb_ring_free(net->rx_ring.ring);
@@ -997,7 +1005,7 @@ static void *tbnet_kmap_frag(struct sk_buff *skb, unsigned int frag_num,
 	const skb_frag_t *frag = &skb_shinfo(skb)->frags[frag_num];
 
 	*len = skb_frag_size(frag);
-	return kmap_atomic(skb_frag_page(frag)) + frag->page_offset;
+	return kmap_atomic(skb_frag_page(frag)) + skb_frag_off(frag);
 }
 
 static netdev_tx_t tbnet_start_xmit(struct sk_buff *skb,
@@ -1195,6 +1203,7 @@ static int tbnet_probe(struct tb_service *svc, const struct tb_service_id *id)
 	net = netdev_priv(dev);
 	INIT_DELAYED_WORK(&net->login_work, tbnet_login_work);
 	INIT_WORK(&net->connected_work, tbnet_connected_work);
+	INIT_WORK(&net->disconnect_work, tbnet_disconnect_work);
 	mutex_init(&net->connection_lock);
 	atomic_set(&net->command_id, 0);
 	atomic_set(&net->frame_id, 0);
@@ -1270,12 +1279,10 @@ static int __maybe_unused tbnet_suspend(struct device *dev)
 	stop_login(net);
 	if (netif_running(net->dev)) {
 		netif_device_detach(net->dev);
-		tb_ring_stop(net->rx_ring.ring);
-		tb_ring_stop(net->tx_ring.ring);
-		tbnet_free_buffers(&net->rx_ring);
-		tbnet_free_buffers(&net->tx_ring);
+		tbnet_tear_down(net, true);
 	}
 
+	tb_unregister_protocol_handler(&net->handler);
 	return 0;
 }
 
@@ -1283,6 +1290,8 @@ static int __maybe_unused tbnet_resume(struct device *dev)
 {
 	struct tb_service *svc = tb_to_service(dev);
 	struct tbnet *net = tb_service_get_drvdata(svc);
+
+	tb_register_protocol_handler(&net->handler);
 
 	netif_carrier_off(net->dev);
 	if (netif_running(net->dev)) {

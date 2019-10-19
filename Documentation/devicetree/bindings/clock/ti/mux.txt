@@ -48,6 +48,9 @@ Optional properties:
   zero
 - ti,set-rate-parent : clk_set_rate is propagated to parent clock,
   not supported by the composite-mux-clock subtype
+- ti,latch-bit : latch the mux value to HW, only needed if the register
+  access requires this. As an example, dra7x DPLL_GMAC H14 muxing
+  implements such behavior.
 
 Examples:
 

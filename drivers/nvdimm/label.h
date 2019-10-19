@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #ifndef __LABEL_H__
 #define __LABEL_H__
@@ -33,12 +25,10 @@ enum {
 	BTTINFO_UUID_LEN = 16,
 	BTTINFO_FLAG_ERROR = 0x1,    /* error state (read-only) */
 	BTTINFO_MAJOR_VERSION = 1,
-	ND_LABEL_MIN_SIZE = 512 * 129, /* see sizeof_namespace_index() */
+	ND_LABEL_MIN_SIZE = 256 * 4, /* see sizeof_namespace_index() */
 	ND_LABEL_ID_SIZE = 50,
 	ND_NSINDEX_INIT = 0x1,
 };
-
-static const char NSINDEX_SIGNATURE[] = "NAMESPACE_INDEX\0";
 
 /**
  * struct nd_namespace_index - label set superblock
@@ -138,9 +128,7 @@ static inline int nd_label_next_nsindex(int index)
 }
 
 struct nvdimm_drvdata;
-int nd_label_validate(struct nvdimm_drvdata *ndd);
-void nd_label_copy(struct nvdimm_drvdata *ndd, struct nd_namespace_index *dst,
-		struct nd_namespace_index *src);
+int nd_label_data_init(struct nvdimm_drvdata *ndd);
 size_t sizeof_namespace_index(struct nvdimm_drvdata *ndd);
 int nd_label_active_count(struct nvdimm_drvdata *ndd);
 struct nd_namespace_label *nd_label_active(struct nvdimm_drvdata *ndd, int n);

@@ -241,11 +241,17 @@ enum qed_dmae_address_type_t {
 #define QED_DMAE_FLAG_VF_SRC		0x00000002
 #define QED_DMAE_FLAG_VF_DST		0x00000004
 #define QED_DMAE_FLAG_COMPLETION_DST	0x00000008
+#define QED_DMAE_FLAG_PORT		0x00000010
+#define QED_DMAE_FLAG_PF_SRC		0x00000020
+#define QED_DMAE_FLAG_PF_DST		0x00000040
 
 struct qed_dmae_params {
 	u32 flags; /* consists of QED_DMAE_FLAG_* values */
 	u8 src_vfid;
 	u8 dst_vfid;
+	u8 port_id;
+	u8 src_pfid;
+	u8 dst_pfid;
 };
 
 /**
@@ -257,7 +263,7 @@ struct qed_dmae_params {
  * @param source_addr
  * @param grc_addr (dmae_data_offset)
  * @param size_in_dwords
- * @param flags (one of the flags defined above)
+ * @param p_params (default parameters will be used in case of NULL)
  */
 int
 qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
@@ -265,7 +271,7 @@ qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
 		  u64 source_addr,
 		  u32 grc_addr,
 		  u32 size_in_dwords,
-		  u32 flags);
+		  struct qed_dmae_params *p_params);
 
  /**
  * @brief qed_dmae_grc2host - Read data from dmae data offset
@@ -275,11 +281,11 @@ qed_dmae_host2grc(struct qed_hwfn *p_hwfn,
  * @param grc_addr (dmae_data_offset)
  * @param dest_addr
  * @param size_in_dwords
- * @param flags - one of the flags defined above
+ * @param p_params (default parameters will be used in case of NULL)
  */
 int qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 		      u32 grc_addr, dma_addr_t dest_addr, u32 size_in_dwords,
-		      u32 flags);
+		      struct qed_dmae_params *p_params);
 
 /**
  * @brief qed_dmae_host2host - copy data from to source address
@@ -290,7 +296,7 @@ int qed_dmae_grc2host(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
  * @param source_addr
  * @param dest_addr
  * @param size_in_dwords
- * @param params
+ * @param p_params (default parameters will be used in case of NULL)
  */
 int qed_dmae_host2host(struct qed_hwfn *p_hwfn,
 		       struct qed_ptt *p_ptt,
@@ -368,26 +374,66 @@ int qed_fw_rss_eng(struct qed_hwfn *p_hwfn,
 		   u8 *dst_id);
 
 /**
- * @brief qed_llh_add_mac_filter - configures a MAC filter in llh
+ * @brief qed_llh_get_num_ppfid - Return the allocated number of LLH filter
+ *	banks that are allocated to the PF.
  *
- * @param p_hwfn
- * @param p_ptt
- * @param p_filter - MAC to add
+ * @param cdev
+ *
+ * @return u8 - Number of LLH filter banks
  */
-int qed_llh_add_mac_filter(struct qed_hwfn *p_hwfn,
-			   struct qed_ptt *p_ptt, u8 *p_filter);
+u8 qed_llh_get_num_ppfid(struct qed_dev *cdev);
+
+enum qed_eng {
+	QED_ENG0,
+	QED_ENG1,
+	QED_BOTH_ENG,
+};
 
 /**
- * @brief qed_llh_remove_mac_filter - removes a MAC filter from llh
+ * @brief qed_llh_set_ppfid_affinity - Set the engine affinity for the given
+ *	LLH filter bank.
  *
- * @param p_hwfn
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param eng
+ *
+ * @return int
+ */
+int qed_llh_set_ppfid_affinity(struct qed_dev *cdev,
+			       u8 ppfid, enum qed_eng eng);
+
+/**
+ * @brief qed_llh_set_roce_affinity - Set the RoCE engine affinity
+ *
+ * @param cdev
+ * @param eng
+ *
+ * @return int
+ */
+int qed_llh_set_roce_affinity(struct qed_dev *cdev, enum qed_eng eng);
+
+/**
+ * @brief qed_llh_add_mac_filter - Add a LLH MAC filter into the given filter
+ *	bank.
+ *
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param mac_addr - MAC to add
+ */
+int qed_llh_add_mac_filter(struct qed_dev *cdev,
+			   u8 ppfid, u8 mac_addr[ETH_ALEN]);
+
+/**
+ * @brief qed_llh_remove_mac_filter - Remove a LLH MAC filter from the given
+ *	filter bank.
+ *
  * @param p_ptt
  * @param p_filter - MAC to remove
  */
-void qed_llh_remove_mac_filter(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt, u8 *p_filter);
+void qed_llh_remove_mac_filter(struct qed_dev *cdev,
+			       u8 ppfid, u8 mac_addr[ETH_ALEN]);
 
-enum qed_llh_port_filter_type_t {
+enum qed_llh_prot_filter_type_t {
 	QED_LLH_FILTER_ETHERTYPE,
 	QED_LLH_FILTER_TCP_SRC_PORT,
 	QED_LLH_FILTER_TCP_DEST_PORT,
@@ -398,36 +444,37 @@ enum qed_llh_port_filter_type_t {
 };
 
 /**
- * @brief qed_llh_add_protocol_filter - configures a protocol filter in llh
+ * @brief qed_llh_add_protocol_filter - Add a LLH protocol filter into the
+ *	given filter bank.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param type - type of filters and comparing
  * @param source_port_or_eth_type - source port or ethertype to add
  * @param dest_port - destination port to add
  * @param type - type of filters and comparing
  */
 int
-qed_llh_add_protocol_filter(struct qed_hwfn *p_hwfn,
-			    struct qed_ptt *p_ptt,
-			    u16 source_port_or_eth_type,
-			    u16 dest_port,
-			    enum qed_llh_port_filter_type_t type);
+qed_llh_add_protocol_filter(struct qed_dev *cdev,
+			    u8 ppfid,
+			    enum qed_llh_prot_filter_type_t type,
+			    u16 source_port_or_eth_type, u16 dest_port);
 
 /**
- * @brief qed_llh_remove_protocol_filter - remove a protocol filter in llh
+ * @brief qed_llh_remove_protocol_filter - Remove a LLH protocol filter from
+ *	the given filter bank.
  *
- * @param p_hwfn
- * @param p_ptt
+ * @param cdev
+ * @param ppfid - relative within the allocated ppfids ('0' is the default one).
+ * @param type - type of filters and comparing
  * @param source_port_or_eth_type - source port or ethertype to add
  * @param dest_port - destination port to add
- * @param type - type of filters and comparing
  */
 void
-qed_llh_remove_protocol_filter(struct qed_hwfn *p_hwfn,
-			       struct qed_ptt *p_ptt,
-			       u16 source_port_or_eth_type,
-			       u16 dest_port,
-			       enum qed_llh_port_filter_type_t type);
+qed_llh_remove_protocol_filter(struct qed_dev *cdev,
+			       u8 ppfid,
+			       enum qed_llh_prot_filter_type_t type,
+			       u16 source_port_or_eth_type, u16 dest_port);
 
 /**
  * *@brief Cleanup of previous driver remains prior to load
@@ -471,6 +518,46 @@ int qed_get_queue_coalesce(struct qed_hwfn *p_hwfn, u16 *coal, void *handle);
  **/
 int
 qed_set_queue_coalesce(u16 rx_coal, u16 tx_coal, void *p_handle);
+
+/**
+ * @brief qed_pglueb_set_pfid_enable - Enable or disable PCI BUS MASTER
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param b_enable - true/false
+ *
+ * @return int
+ */
+int qed_pglueb_set_pfid_enable(struct qed_hwfn *p_hwfn,
+			       struct qed_ptt *p_ptt, bool b_enable);
+
+/**
+ * @brief db_recovery_add - add doorbell information to the doorbell
+ * recovery mechanism.
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address of where db_data is stored
+ * @param db_width - doorbell is 32b pr 64b
+ * @param db_space - doorbell recovery addresses are user or kernel space
+ */
+int qed_db_recovery_add(struct qed_dev *cdev,
+			void __iomem *db_addr,
+			void *db_data,
+			enum qed_db_rec_width db_width,
+			enum qed_db_rec_space db_space);
+
+/**
+ * @brief db_recovery_del - remove doorbell information from the doorbell
+ * recovery mechanism. db_data serves as key (db_addr is not unique).
+ *
+ * @param cdev
+ * @param db_addr - doorbell address
+ * @param db_data - address where db_data is stored. Serves as key for the
+ *                  entry to delete.
+ */
+int qed_db_recovery_del(struct qed_dev *cdev,
+			void __iomem *db_addr, void *db_data);
 
 
 const char *qed_hw_get_resc_name(enum qed_resources res_id);

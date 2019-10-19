@@ -1,6 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MEDIA_CEC_RC
 	bool "HDMI CEC RC integration"
 	depends on CEC_CORE && RC_CORE
 	depends on CEC_CORE=m || RC_CORE=y
-	---help---
+	help
 	  Pass on CEC remote control messages to the RC framework.
+
+config CEC_PIN_ERROR_INJ
+	bool "Enable CEC error injection support"
+	depends on CEC_PIN && DEBUG_FS
+	help
+	  This option enables CEC error injection using debugfs.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * dev-path-parser.c - EFI Device Path parser
  * Copyright (C) 2016 Lukas Wunner <lukas@wunner.de>
@@ -5,14 +6,6 @@
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License (version 2) as
  * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/acpi.h>
@@ -24,9 +17,9 @@ struct acpi_hid_uid {
 	char uid[11]; /* UINT_MAX + null byte */
 };
 
-static int __init match_acpi_dev(struct device *dev, void *data)
+static int __init match_acpi_dev(struct device *dev, const void *data)
 {
-	struct acpi_hid_uid hid_uid = *(struct acpi_hid_uid *)data;
+	struct acpi_hid_uid hid_uid = *(const struct acpi_hid_uid *)data;
 	struct acpi_device *adev = to_acpi_device(dev);
 
 	if (acpi_match_device_ids(adev, hid_uid.hid))

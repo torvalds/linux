@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # TIPC configuration
 #
@@ -16,7 +17,7 @@ menuconfig TIPC
 	  This protocol support is also available as a module ( = code which
 	  can be inserted in and removed from the running kernel whenever you
 	  want). The module will be called tipc. If you want to compile it
-	  as a module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  as a module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 	  If in doubt, say N.
 
@@ -34,3 +35,11 @@ config TIPC_MEDIA_UDP
 	  Saying Y here will enable support for running TIPC over IP/UDP
 	bool
 	default y
+
+config TIPC_DIAG
+	tristate "TIPC: socket monitoring interface"
+	depends on TIPC
+	default y
+	---help---
+	Support for TIPC socket monitoring interface used by ss tool.
+	If unsure, say Y.

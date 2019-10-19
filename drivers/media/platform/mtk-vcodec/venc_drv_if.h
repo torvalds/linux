@@ -1,18 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Daniel Hsiao <daniel.hsiao@mediatek.com>
  *		Jungchang Tsao <jungchang.tsao@mediatek.com>
  *		Tiffany Lin <tiffany.lin@mediatek.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _VENC_DRV_IF_H_
@@ -106,7 +97,7 @@ struct venc_enc_param {
  * @fb_addr: plane frame buffer addresses
  */
 struct venc_frm_buf {
-	struct mtk_vcodec_mem fb_addr[MTK_VCODEC_MAX_PLANES];
+	struct mtk_vcodec_fb fb_addr[MTK_VCODEC_MAX_PLANES];
 };
 
 /*
@@ -118,6 +109,9 @@ struct venc_done_result {
 	unsigned int bs_size;
 	bool is_key_frm;
 };
+
+extern const struct venc_common_if venc_h264_if;
+extern const struct venc_common_if venc_vp8_if;
 
 /*
  * venc_if_init - Create the driver handle

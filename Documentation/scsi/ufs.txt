@@ -128,6 +128,44 @@ The current UFSHCD implementation supports following functionality,
 In this version of UFSHCD Query requests and power management
 functionality are not implemented.
 
+4. BSG Support
+------------------
+
+This transport driver supports exchanging UFS protocol information units
+(UPIUs) with a UFS device. Typically, user space will allocate
+struct ufs_bsg_request and struct ufs_bsg_reply (see ufs_bsg.h) as
+request_upiu and reply_upiu respectively.  Filling those UPIUs should
+be done in accordance with JEDEC spec UFS2.1 paragraph 10.7.
+*Caveat emptor*: The driver makes no further input validations and sends the
+UPIU to the device as it is.  Open the bsg device in /dev/ufs-bsg and
+send SG_IO with the applicable sg_io_v4:
+
+	io_hdr_v4.guard = 'Q';
+	io_hdr_v4.protocol = BSG_PROTOCOL_SCSI;
+	io_hdr_v4.subprotocol = BSG_SUB_PROTOCOL_SCSI_TRANSPORT;
+	io_hdr_v4.response = (__u64)reply_upiu;
+	io_hdr_v4.max_response_len = reply_len;
+	io_hdr_v4.request_len = request_len;
+	io_hdr_v4.request = (__u64)request_upiu;
+	if (dir == SG_DXFER_TO_DEV) {
+		io_hdr_v4.dout_xfer_len = (uint32_t)byte_cnt;
+		io_hdr_v4.dout_xferp = (uintptr_t)(__u64)buff;
+	} else {
+		io_hdr_v4.din_xfer_len = (uint32_t)byte_cnt;
+		io_hdr_v4.din_xferp = (uintptr_t)(__u64)buff;
+	}
+
+If you wish to read or write a descriptor, use the appropriate xferp of
+sg_io_v4.
+
+The userspace tool that interacts with the ufs-bsg endpoint and uses its
+upiu-based protocol is available at:
+
+	https://github.com/westerndigitalcorporation/ufs-tool
+
+For more detailed information about the tool and its supported
+features, please see the tool's README.
+
 UFS Specifications can be found at,
 UFS - http://www.jedec.org/sites/default/files/docs/JESD220.pdf
 UFSHCI - http://www.jedec.org/sites/default/files/docs/JESD223.pdf

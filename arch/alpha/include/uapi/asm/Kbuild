@@ -1,5 +1,2 @@
-# UAPI Header export list
-include include/uapi/asm-generic/Kbuild.asm
-
-generic-y += bpf_perf_event.h
-generic-y += poll.h
+# SPDX-License-Identifier: GPL-2.0
+generated-y += unistd_32.h

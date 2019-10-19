@@ -11,16 +11,16 @@
 /* Alex Hermann <gaaf@gmx.net> */
 
 static struct rc_map_table avermedia[] = {
-	{ 0x28, KEY_1 },
-	{ 0x18, KEY_2 },
-	{ 0x38, KEY_3 },
-	{ 0x24, KEY_4 },
-	{ 0x14, KEY_5 },
-	{ 0x34, KEY_6 },
-	{ 0x2c, KEY_7 },
-	{ 0x1c, KEY_8 },
-	{ 0x3c, KEY_9 },
-	{ 0x22, KEY_0 },
+	{ 0x28, KEY_NUMERIC_1 },
+	{ 0x18, KEY_NUMERIC_2 },
+	{ 0x38, KEY_NUMERIC_3 },
+	{ 0x24, KEY_NUMERIC_4 },
+	{ 0x14, KEY_NUMERIC_5 },
+	{ 0x34, KEY_NUMERIC_6 },
+	{ 0x2c, KEY_NUMERIC_7 },
+	{ 0x1c, KEY_NUMERIC_8 },
+	{ 0x3c, KEY_NUMERIC_9 },
+	{ 0x22, KEY_NUMERIC_0 },
 
 	{ 0x20, KEY_TV },		/* TV/FM */
 	{ 0x10, KEY_CD },		/* CD */

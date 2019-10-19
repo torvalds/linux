@@ -1,11 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2014 Linaro Ltd.
  * Copyright (c) 2014 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  *
  * Now only support 7 bit address.
  */
@@ -73,7 +69,6 @@
 #define I2C_OVER_INTR		BIT(0)
 
 #define HIX5I2C_MAX_FREQ	400000		/* 400k */
-#define HIX5I2C_READ_OPERATION	0x01
 
 enum hix5hd2_i2c_state {
 	HIX5I2C_STAT_RW_ERR = -1,
@@ -311,12 +306,8 @@ static void hix5hd2_i2c_message_start(struct hix5hd2_i2c_priv *priv, int stop)
 	hix5hd2_i2c_clr_all_irq(priv);
 	hix5hd2_i2c_enable_irq(priv);
 
-	if (priv->msg->flags & I2C_M_RD)
-		writel_relaxed((priv->msg->addr << 1) | HIX5I2C_READ_OPERATION,
-			       priv->regs + HIX5I2C_TXR);
-	else
-		writel_relaxed(priv->msg->addr << 1,
-			       priv->regs + HIX5I2C_TXR);
+	writel_relaxed(i2c_8bit_addr_from_msg(priv->msg),
+		       priv->regs + HIX5I2C_TXR);
 
 	writel_relaxed(I2C_WRITE | I2C_START, priv->regs + HIX5I2C_COM);
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -377,17 +368,7 @@ static int hix5hd2_i2c_xfer(struct i2c_adapter *adap,
 			goto out;
 	}
 
-	if (i == num) {
-		ret = num;
-	} else {
-		/* Only one message, cannot access the device */
-		if (i == 1)
-			ret = -EREMOTEIO;
-		else
-			ret = i;
-
-		dev_warn(priv->dev, "xfer message failed\n");
-	}
+	ret = num;
 
 out:
 	pm_runtime_mark_last_busy(priv->dev);
@@ -464,14 +445,12 @@ static int hix5hd2_i2c_probe(struct platform_device *pdev)
 	hix5hd2_i2c_init(priv);
 
 	ret = devm_request_irq(&pdev->dev, irq, hix5hd2_i2c_irq,
-			       IRQF_NO_SUSPEND | IRQF_ONESHOT,
-			       dev_name(&pdev->dev), priv);
+			       IRQF_NO_SUSPEND, dev_name(&pdev->dev), priv);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "cannot request HS-I2C IRQ %d\n", irq);
 		goto err_clk;
 	}
 
-	pm_suspend_ignore_children(&pdev->dev, true);
 	pm_runtime_set_autosuspend_delay(priv->dev, MSEC_PER_SEC);
 	pm_runtime_use_autosuspend(priv->dev);
 	pm_runtime_set_active(priv->dev);

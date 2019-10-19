@@ -1,18 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Hardware monitoring driver for Analog Devices ADM1275 Hot-Swap Controller
  * and Digital Power Monitor
  *
  * Copyright (c) 2011 Ericsson AB.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
+ * Copyright (c) 2018 Guenter Roeck
  */
 
 #include <linux/kernel.h>
@@ -22,9 +14,11 @@
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/bitops.h>
+#include <linux/bitfield.h>
+#include <linux/log2.h>
 #include "pmbus.h"
 
-enum chips { adm1075, adm1275, adm1276, adm1278, adm1293, adm1294 };
+enum chips { adm1075, adm1272, adm1275, adm1276, adm1278, adm1293, adm1294 };
 
 #define ADM1275_MFR_STATUS_IOUT_WARN2	BIT(0)
 #define ADM1293_MFR_STATUS_VAUX_UV_WARN	BIT(5)
@@ -40,6 +34,8 @@ enum chips { adm1075, adm1275, adm1276, adm1278, adm1293, adm1294 };
 #define ADM1075_IRANGE_50		BIT(4)
 #define ADM1075_IRANGE_25		BIT(3)
 #define ADM1075_IRANGE_MASK		(BIT(3) | BIT(4))
+
+#define ADM1272_IRANGE			BIT(0)
 
 #define ADM1278_TEMP1_EN		BIT(3)
 #define ADM1278_VIN_EN			BIT(2)
@@ -75,6 +71,18 @@ enum chips { adm1075, adm1275, adm1276, adm1278, adm1293, adm1294 };
 #define ADM1075_VAUX_OV_WARN		BIT(7)
 #define ADM1075_VAUX_UV_WARN		BIT(6)
 
+#define ADM1275_VI_AVG_SHIFT		0
+#define ADM1275_VI_AVG_MASK		GENMASK(ADM1275_VI_AVG_SHIFT + 2, \
+						ADM1275_VI_AVG_SHIFT)
+#define ADM1275_SAMPLES_AVG_MAX		128
+
+#define ADM1278_PWR_AVG_SHIFT		11
+#define ADM1278_PWR_AVG_MASK		GENMASK(ADM1278_PWR_AVG_SHIFT + 2, \
+						ADM1278_PWR_AVG_SHIFT)
+#define ADM1278_VI_AVG_SHIFT		8
+#define ADM1278_VI_AVG_MASK		GENMASK(ADM1278_VI_AVG_SHIFT + 2, \
+						ADM1278_VI_AVG_SHIFT)
+
 struct adm1275_data {
 	int id;
 	bool have_oc_fault;
@@ -86,6 +94,7 @@ struct adm1275_data {
 	bool have_pin_min;
 	bool have_pin_max;
 	bool have_temp_max;
+	bool have_power_sampling;
 	struct pmbus_driver_info info;
 };
 
@@ -103,6 +112,19 @@ static const struct coefficients adm1075_coefficients[] = {
 	[2] = { 404, 20475, -1 },	/* current, irange50 */
 	[3] = { 8549, 0, -1 },		/* power, irange25 */
 	[4] = { 4279, 0, -1 },		/* power, irange50 */
+};
+
+static const struct coefficients adm1272_coefficients[] = {
+	[0] = { 6770, 0, -2 },		/* voltage, vrange 60V */
+	[1] = { 4062, 0, -2 },		/* voltage, vrange 100V */
+	[2] = { 1326, 20480, -1 },	/* current, vsense range 15mV */
+	[3] = { 663, 20480, -1 },	/* current, vsense range 30mV */
+	[4] = { 3512, 0, -2 },		/* power, vrange 60V, irange 15mV */
+	[5] = { 21071, 0, -3 },		/* power, vrange 100V, irange 15mV */
+	[6] = { 17561, 0, -3 },		/* power, vrange 60V, irange 30mV */
+	[7] = { 10535, 0, -3 },		/* power, vrange 100V, irange 30mV */
+	[8] = { 42, 31871, -1 },	/* temperature */
+
 };
 
 static const struct coefficients adm1275_coefficients[] = {
@@ -148,13 +170,69 @@ static const struct coefficients adm1293_coefficients[] = {
 	[18] = { 7658, 0, -3 },		/* power, 21V, irange200 */
 };
 
+static int adm1275_read_pmon_config(const struct adm1275_data *data,
+				    struct i2c_client *client, bool is_power)
+{
+	int shift, ret;
+	u16 mask;
+
+	/*
+	 * The PMON configuration register is a 16-bit register only on chips
+	 * supporting power average sampling. On other chips it is an 8-bit
+	 * register.
+	 */
+	if (data->have_power_sampling) {
+		ret = i2c_smbus_read_word_data(client, ADM1275_PMON_CONFIG);
+		mask = is_power ? ADM1278_PWR_AVG_MASK : ADM1278_VI_AVG_MASK;
+		shift = is_power ? ADM1278_PWR_AVG_SHIFT : ADM1278_VI_AVG_SHIFT;
+	} else {
+		ret = i2c_smbus_read_byte_data(client, ADM1275_PMON_CONFIG);
+		mask = ADM1275_VI_AVG_MASK;
+		shift = ADM1275_VI_AVG_SHIFT;
+	}
+	if (ret < 0)
+		return ret;
+
+	return (ret & mask) >> shift;
+}
+
+static int adm1275_write_pmon_config(const struct adm1275_data *data,
+				     struct i2c_client *client,
+				     bool is_power, u16 word)
+{
+	int shift, ret;
+	u16 mask;
+
+	if (data->have_power_sampling) {
+		ret = i2c_smbus_read_word_data(client, ADM1275_PMON_CONFIG);
+		mask = is_power ? ADM1278_PWR_AVG_MASK : ADM1278_VI_AVG_MASK;
+		shift = is_power ? ADM1278_PWR_AVG_SHIFT : ADM1278_VI_AVG_SHIFT;
+	} else {
+		ret = i2c_smbus_read_byte_data(client, ADM1275_PMON_CONFIG);
+		mask = ADM1275_VI_AVG_MASK;
+		shift = ADM1275_VI_AVG_SHIFT;
+	}
+	if (ret < 0)
+		return ret;
+
+	word = (ret & ~mask) | ((word << shift) & mask);
+	if (data->have_power_sampling)
+		ret = i2c_smbus_write_word_data(client, ADM1275_PMON_CONFIG,
+						word);
+	else
+		ret = i2c_smbus_write_byte_data(client, ADM1275_PMON_CONFIG,
+						word);
+
+	return ret;
+}
+
 static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	const struct adm1275_data *data = to_adm1275_data(info);
 	int ret = 0;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {
@@ -226,6 +304,21 @@ static int adm1275_read_word_data(struct i2c_client *client, int page, int reg)
 		if (!data->have_temp_max)
 			return -ENXIO;
 		break;
+	case PMBUS_VIRT_POWER_SAMPLES:
+		if (!data->have_power_sampling)
+			return -ENXIO;
+		ret = adm1275_read_pmon_config(data, client, true);
+		if (ret < 0)
+			break;
+		ret = BIT(ret);
+		break;
+	case PMBUS_VIRT_IN_SAMPLES:
+	case PMBUS_VIRT_CURR_SAMPLES:
+		ret = adm1275_read_pmon_config(data, client, false);
+		if (ret < 0)
+			break;
+		ret = BIT(ret);
+		break;
 	default:
 		ret = -ENODATA;
 		break;
@@ -240,7 +333,7 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 	const struct adm1275_data *data = to_adm1275_data(info);
 	int ret;
 
-	if (page)
+	if (page > 0)
 		return -ENXIO;
 
 	switch (reg) {
@@ -269,6 +362,19 @@ static int adm1275_write_word_data(struct i2c_client *client, int page, int reg,
 		break;
 	case PMBUS_VIRT_RESET_TEMP_HISTORY:
 		ret = pmbus_write_word_data(client, 0, ADM1278_PEAK_TEMP, 0);
+		break;
+	case PMBUS_VIRT_POWER_SAMPLES:
+		if (!data->have_power_sampling)
+			return -ENXIO;
+		word = clamp_val(word, 1, ADM1275_SAMPLES_AVG_MAX);
+		ret = adm1275_write_pmon_config(data, client, true,
+						ilog2(word));
+		break;
+	case PMBUS_VIRT_IN_SAMPLES:
+	case PMBUS_VIRT_CURR_SAMPLES:
+		word = clamp_val(word, 1, ADM1275_SAMPLES_AVG_MAX);
+		ret = adm1275_write_pmon_config(data, client, false,
+						ilog2(word));
 		break;
 	default:
 		ret = -ENODATA;
@@ -335,6 +441,7 @@ static int adm1275_read_byte_data(struct i2c_client *client, int page, int reg)
 
 static const struct i2c_device_id adm1275_id[] = {
 	{ "adm1075", adm1075 },
+	{ "adm1272", adm1272 },
 	{ "adm1275", adm1275 },
 	{ "adm1276", adm1276 },
 	{ "adm1278", adm1278 },
@@ -356,6 +463,7 @@ static int adm1275_probe(struct i2c_client *client,
 	const struct coefficients *coefficients;
 	int vindex = -1, voindex = -1, cindex = -1, pindex = -1;
 	int tindex = -1;
+	u32 shunt;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA
@@ -404,6 +512,13 @@ static int adm1275_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
+	if (of_property_read_u32(client->dev.of_node,
+				 "shunt-resistor-micro-ohms", &shunt))
+		shunt = 1000; /* 1 mOhm if not set via DT */
+
+	if (shunt == 0)
+		return -EINVAL;
+
 	data->id = mid->driver_data;
 
 	info = &data->info;
@@ -414,7 +529,8 @@ static int adm1275_probe(struct i2c_client *client,
 	info->format[PSC_CURRENT_OUT] = direct;
 	info->format[PSC_POWER] = direct;
 	info->format[PSC_TEMPERATURE] = direct;
-	info->func[0] = PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT;
+	info->func[0] = PMBUS_HAVE_IOUT | PMBUS_HAVE_STATUS_IOUT |
+			PMBUS_HAVE_SAMPLES;
 
 	info->read_word_data = adm1275_read_word_data;
 	info->read_byte_data = adm1275_read_byte_data;
@@ -450,6 +566,55 @@ static int adm1275_probe(struct i2c_client *client,
 		if (config & ADM1275_VIN_VOUT_SELECT)
 			info->func[0] |=
 			  PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+		break;
+	case adm1272:
+		data->have_vout = true;
+		data->have_pin_max = true;
+		data->have_temp_max = true;
+		data->have_power_sampling = true;
+
+		coefficients = adm1272_coefficients;
+		vindex = (config & ADM1275_VRANGE) ? 1 : 0;
+		cindex = (config & ADM1272_IRANGE) ? 3 : 2;
+		/* pindex depends on the combination of the above */
+		switch (config & (ADM1275_VRANGE | ADM1272_IRANGE)) {
+		case 0:
+		default:
+			pindex = 4;
+			break;
+		case ADM1275_VRANGE:
+			pindex = 5;
+			break;
+		case ADM1272_IRANGE:
+			pindex = 6;
+			break;
+		case ADM1275_VRANGE | ADM1272_IRANGE:
+			pindex = 7;
+			break;
+		}
+		tindex = 8;
+
+		info->func[0] |= PMBUS_HAVE_PIN | PMBUS_HAVE_STATUS_INPUT |
+			PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+
+		/* Enable VOUT if not enabled (it is disabled by default) */
+		if (!(config & ADM1278_VOUT_EN)) {
+			config |= ADM1278_VOUT_EN;
+			ret = i2c_smbus_write_byte_data(client,
+							ADM1275_PMON_CONFIG,
+							config);
+			if (ret < 0) {
+				dev_err(&client->dev,
+					"Failed to enable VOUT monitoring\n");
+				return -ENODEV;
+			}
+		}
+
+		if (config & ADM1278_TEMP1_EN)
+			info->func[0] |=
+				PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
+		if (config & ADM1278_VIN_EN)
+			info->func[0] |= PMBUS_HAVE_VIN;
 		break;
 	case adm1275:
 		if (device_config & ADM1275_IOUT_WARN2_SELECT)
@@ -492,6 +657,7 @@ static int adm1275_probe(struct i2c_client *client,
 		data->have_vout = true;
 		data->have_pin_max = true;
 		data->have_temp_max = true;
+		data->have_power_sampling = true;
 
 		coefficients = adm1278_coefficients;
 		vindex = 0;
@@ -527,6 +693,7 @@ static int adm1275_probe(struct i2c_client *client,
 		data->have_pin_min = true;
 		data->have_pin_max = true;
 		data->have_mfr_vaux_status = true;
+		data->have_power_sampling = true;
 
 		coefficients = adm1293_coefficients;
 
@@ -589,12 +756,15 @@ static int adm1275_probe(struct i2c_client *client,
 		info->R[PSC_VOLTAGE_OUT] = coefficients[voindex].R;
 	}
 	if (cindex >= 0) {
-		info->m[PSC_CURRENT_OUT] = coefficients[cindex].m;
+		/* Scale current with sense resistor value */
+		info->m[PSC_CURRENT_OUT] =
+			coefficients[cindex].m * shunt / 1000;
 		info->b[PSC_CURRENT_OUT] = coefficients[cindex].b;
 		info->R[PSC_CURRENT_OUT] = coefficients[cindex].R;
 	}
 	if (pindex >= 0) {
-		info->m[PSC_POWER] = coefficients[pindex].m;
+		info->m[PSC_POWER] =
+			coefficients[pindex].m * shunt / 1000;
 		info->b[PSC_POWER] = coefficients[pindex].b;
 		info->R[PSC_POWER] = coefficients[pindex].R;
 	}

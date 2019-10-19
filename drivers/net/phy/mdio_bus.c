@@ -1,14 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0+
 /* MDIO Bus interface
  *
  * Author: Andy Fleming
  *
  * Copyright (c) 2004 Freescale Semiconductor, Inc.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -29,6 +24,7 @@
 #include <linux/of_gpio.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/reset.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/mm.h>
@@ -38,9 +34,6 @@
 #include <linux/phy.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/gpio/consumer.h>
-
-#include <asm/irq.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/mdio.h>
@@ -49,23 +42,35 @@
 
 static int mdiobus_register_gpiod(struct mdio_device *mdiodev)
 {
-	struct gpio_desc *gpiod = NULL;
+	int error;
 
 	/* Deassert the optional reset signal */
+	mdiodev->reset_gpio = gpiod_get_optional(&mdiodev->dev,
+						 "reset", GPIOD_OUT_LOW);
+	error = PTR_ERR_OR_ZERO(mdiodev->reset_gpio);
+	if (error)
+		return error;
+
+	if (mdiodev->reset_gpio)
+		gpiod_set_consumer_name(mdiodev->reset_gpio, "PHY reset");
+
+	return 0;
+}
+
+static int mdiobus_register_reset(struct mdio_device *mdiodev)
+{
+	struct reset_control *reset = NULL;
+
 	if (mdiodev->dev.of_node)
-		gpiod = fwnode_get_named_gpiod(&mdiodev->dev.of_node->fwnode,
-					       "reset-gpios", 0, GPIOD_OUT_LOW,
-					       "PHY reset");
-	if (PTR_ERR(gpiod) == -ENOENT ||
-	    PTR_ERR(gpiod) == -ENOSYS)
-		gpiod = NULL;
-	else if (IS_ERR(gpiod))
-		return PTR_ERR(gpiod);
+		reset = devm_reset_control_get_exclusive(&mdiodev->dev,
+							 "phy");
+	if (PTR_ERR(reset) == -ENOENT ||
+	    PTR_ERR(reset) == -ENOTSUPP)
+		reset = NULL;
+	else if (IS_ERR(reset))
+		return PTR_ERR(reset);
 
-	mdiodev->reset = gpiod;
-
-	/* Assert the reset signal again */
-	mdio_device_reset(mdiodev, 1);
+	mdiodev->reset_ctrl = reset;
 
 	return 0;
 }
@@ -81,6 +86,13 @@ int mdiobus_register_device(struct mdio_device *mdiodev)
 		err = mdiobus_register_gpiod(mdiodev);
 		if (err)
 			return err;
+
+		err = mdiobus_register_reset(mdiodev);
+		if (err)
+			return err;
+
+		/* Assert the reset signal */
+		mdio_device_reset(mdiodev, 1);
 	}
 
 	mdiodev->bus->mdio_map[mdiodev->addr] = mdiodev;
@@ -246,11 +258,6 @@ static struct class mdio_bus_class = {
 };
 
 #if IS_ENABLED(CONFIG_OF_MDIO)
-/* Helper function for of_mdio_find_bus */
-static int of_mdio_bus_match(struct device *dev, const void *mdio_bus_np)
-{
-	return dev->of_node == mdio_bus_np;
-}
 /**
  * of_mdio_find_bus - Given an mii_bus node, find the mii_bus.
  * @mdio_bus_np: Pointer to the mii_bus.
@@ -271,9 +278,7 @@ struct mii_bus *of_mdio_find_bus(struct device_node *mdio_bus_np)
 	if (!mdio_bus_np)
 		return NULL;
 
-	d = class_find_device(&mdio_bus_class, NULL,  mdio_bus_np,
-			      of_mdio_bus_match);
-
+	d = class_find_device_by_of_node(&mdio_bus_class, mdio_bus_np);
 	return d ? to_mii_bus(d) : NULL;
 }
 EXPORT_SYMBOL(of_mdio_find_bus);
@@ -380,7 +385,6 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	err = device_register(&bus->dev);
 	if (err) {
 		pr_err("mii_bus %s failed to register\n", bus->id);
-		put_device(&bus->dev);
 		return -EINVAL;
 	}
 
@@ -391,6 +395,7 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	if (IS_ERR(gpiod)) {
 		dev_err(&bus->dev, "mii_bus %s couldn't get reset GPIO\n",
 			bus->id);
+		device_del(&bus->dev);
 		return PTR_ERR(gpiod);
 	} else	if (gpiod) {
 		bus->reset_gpiod = gpiod;
@@ -453,8 +458,8 @@ void mdiobus_unregister(struct mii_bus *bus)
 		if (!mdiodev)
 			continue;
 
-		if (mdiodev->reset)
-			gpiod_put(mdiodev->reset);
+		if (mdiodev->reset_gpio)
+			gpiod_put(mdiodev->reset_gpio);
 
 		mdiodev->device_remove(mdiodev);
 		mdiodev->device_free(mdiodev);
@@ -717,58 +722,10 @@ static int mdio_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int mdio_bus_suspend(struct device *dev)
-{
-	struct mdio_device *mdio = to_mdio_device(dev);
-
-	if (mdio->pm_ops && mdio->pm_ops->suspend)
-		return mdio->pm_ops->suspend(dev);
-
-	return 0;
-}
-
-static int mdio_bus_resume(struct device *dev)
-{
-	struct mdio_device *mdio = to_mdio_device(dev);
-
-	if (mdio->pm_ops && mdio->pm_ops->resume)
-		return mdio->pm_ops->resume(dev);
-
-	return 0;
-}
-
-static int mdio_bus_restore(struct device *dev)
-{
-	struct mdio_device *mdio = to_mdio_device(dev);
-
-	if (mdio->pm_ops && mdio->pm_ops->restore)
-		return mdio->pm_ops->restore(dev);
-
-	return 0;
-}
-
-static const struct dev_pm_ops mdio_bus_pm_ops = {
-	.suspend = mdio_bus_suspend,
-	.resume = mdio_bus_resume,
-	.freeze = mdio_bus_suspend,
-	.thaw = mdio_bus_resume,
-	.restore = mdio_bus_restore,
-};
-
-#define MDIO_BUS_PM_OPS (&mdio_bus_pm_ops)
-
-#else
-
-#define MDIO_BUS_PM_OPS NULL
-
-#endif /* CONFIG_PM */
-
 struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
 	.match		= mdio_bus_match,
 	.uevent		= mdio_uevent,
-	.pm		= MDIO_BUS_PM_OPS,
 };
 EXPORT_SYMBOL(mdio_bus_type);
 

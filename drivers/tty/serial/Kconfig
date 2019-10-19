@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0
 #
 # Serial device configuration
 #
@@ -85,6 +86,18 @@ config SERIAL_EARLYCON_ARM_SEMIHOST
 	  with "earlycon=smh" on the kernel command line. The console is
 	  enabled when early_param is processed.
 
+config SERIAL_EARLYCON_RISCV_SBI
+	bool "Early console using RISC-V SBI"
+	depends on RISCV
+	select SERIAL_CORE
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Support for early debug console using RISC-V SBI. This enables
+	  the console before standard serial driver is probed. This is enabled
+	  with "earlycon=sbi" on the kernel command line. The console is
+	  enabled when early_param is processed.
+
 config SERIAL_SB1250_DUART
 	tristate "BCM1xxx on-chip DUART serial support"
 	depends on SIBYTE_SB1xxx_SOC=y
@@ -115,10 +128,10 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 on-chip serial port support"
-	depends on HAS_DMA
 	depends on ARCH_AT91 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
+	select MFD_AT91_USART
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
 	  AT91 processors.
@@ -183,23 +196,6 @@ config SERIAL_KGDB_NMI
 	  use raw console.
 
 	  If unsure, say N.
-
-config SERIAL_KS8695
-	bool "Micrel KS8695 (Centaur) serial port support"
-	depends on ARCH_KS8695
-	select SERIAL_CORE
-	help
-	  This selects the Micrel Centaur KS8695 UART.  Say Y here.
-
-config SERIAL_KS8695_CONSOLE
-	bool "Support for console on KS8695 (Centaur) serial port"
-	depends on SERIAL_KS8695=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you wish to use a KS8695 (Centaur) UART as the
-	  system console (the system console is the device which
-	  receives all kernel messages and warnings and which allows
-	  logins in single user mode).
 
 config SERIAL_MESON
 	tristate "Meson serial port support"
@@ -323,6 +319,28 @@ config SERIAL_TEGRA
 	  are enabled). This driver uses the APB DMA to achieve higher baudrate
 	  and better performance.
 
+config SERIAL_TEGRA_TCU
+	tristate "NVIDIA Tegra Combined UART"
+	depends on ARCH_TEGRA && TEGRA_HSP_MBOX
+	select SERIAL_CORE
+	help
+	  Support for the mailbox-based TCU (Tegra Combined UART) serial port.
+	  TCU is a virtual serial port that allows multiplexing multiple data
+	  streams into a single hardware serial port.
+
+config SERIAL_TEGRA_TCU_CONSOLE
+	bool "Support for console on a Tegra TCU serial port"
+	depends on SERIAL_TEGRA_TCU=y
+	select SERIAL_CORE_CONSOLE
+	default y
+	---help---
+	  If you say Y here, it will be possible to use a the Tegra TCU as the
+	  system console (the system console is the device which receives all
+	  kernel messages and warnings and which allows logins in single user
+	  mode).
+
+	  If unsure, say Y.
+
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
 	depends on SPI
@@ -335,7 +353,6 @@ config SERIAL_MAX310X
 	depends on SPI_MASTER
 	select SERIAL_CORE
 	select REGMAP_SPI if SPI_MASTER
-	default n
 	help
 	  This selects support for an advanced UART from Maxim (Dallas).
 	  Supported ICs are MAX3107, MAX3108, MAX3109, MAX14830.
@@ -423,20 +440,6 @@ config SERIAL_21285_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_MPSC
-	bool "Marvell MPSC serial port support"
-	depends on MV64X60
-	select SERIAL_CORE
-	help
-	  Say Y here if you want to use the Marvell MPSC serial controller.
-
-config SERIAL_MPSC_CONSOLE
-	bool "Support for console on Marvell MPSC serial port"
-	depends on SERIAL_MPSC
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you want to support a serial console on a Marvell MPSC.
-
 config SERIAL_PXA
 	bool "PXA serial port support (DEPRECATED)"
 	depends on ARCH_PXA || ARCH_MMP
@@ -477,10 +480,11 @@ config SERIAL_SA1100
 	bool "SA1100 serial port support"
 	depends on ARCH_SA1100
 	select SERIAL_CORE
+	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
 	  If you have a machine based on a SA1100/SA1110 StrongARM(R) CPU you
 	  can enable its onboard serial port by enabling this option.
-	  Please read <file:Documentation/arm/SA1100/serial_UART> for further
+	  Please read <file:Documentation/arm/sa1100/serial_uart.rst> for further
 	  info.
 
 config SERIAL_SA1100_CONSOLE
@@ -498,95 +502,8 @@ config SERIAL_SA1100_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_BFIN
-	tristate "Blackfin serial port support"
-	depends on BLACKFIN
-	select SERIAL_CORE
-	select SERIAL_BFIN_UART0 if (BF531 || BF532 || BF533 || BF561)
-	help
-	  Add support for the built-in UARTs on the Blackfin.
-
-	  To compile this driver as a module, choose M here: the
-	  module is named bfin_uart.ko.
-
-config SERIAL_BFIN_CONSOLE
-	bool "Console on Blackfin serial port"
-	depends on SERIAL_BFIN=y
-	select SERIAL_CORE_CONSOLE
-
-choice
-	prompt "UART Mode"
-	depends on SERIAL_BFIN
-	default SERIAL_BFIN_DMA
-	help
-	  This driver supports the built-in serial ports of the Blackfin family
-	  of CPUs
-
-config SERIAL_BFIN_DMA
-	bool "DMA mode"
-	depends on !DMA_UNCACHED_NONE && KGDB_SERIAL_CONSOLE=n
-	help
-	  This driver works under DMA mode. If this option is selected, the
-	  blackfin simple dma driver is also enabled.
-
-config SERIAL_BFIN_PIO
-	bool "PIO mode"
-	help
-	  This driver works under PIO mode.
-
-endchoice
-
-config SERIAL_BFIN_UART0
-	bool "Enable UART0"
-	depends on SERIAL_BFIN
-	help
-	  Enable UART0
-
-config BFIN_UART0_CTSRTS
-	bool "Enable UART0 hardware flow control"
-	depends on SERIAL_BFIN_UART0
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_UART1
-	bool "Enable UART1"
-	depends on SERIAL_BFIN && (!BF531 && !BF532 && !BF533 && !BF561)
-	help
-	  Enable UART1
-
-config BFIN_UART1_CTSRTS
-	bool "Enable UART1 hardware flow control"
-	depends on SERIAL_BFIN_UART1
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_UART2
-	bool "Enable UART2"
-	depends on SERIAL_BFIN && (BF54x || BF538 || BF539)
-	help
-	  Enable UART2
-
-config BFIN_UART2_CTSRTS
-	bool "Enable UART2 hardware flow control"
-	depends on SERIAL_BFIN_UART2
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_UART3
-	bool "Enable UART3"
-	depends on SERIAL_BFIN && (BF54x)
-	help
-	  Enable UART3
-
-config BFIN_UART3_CTSRTS
-	bool "Enable UART3 hardware flow control"
-	depends on SERIAL_BFIN_UART3
-	help
-	  Enable hardware flow control in the driver.
-
 config SERIAL_IMX
 	tristate "IMX serial port support"
-	depends on HAS_DMA
 	depends on ARCH_MXC || COMPILE_TEST
 	select SERIAL_CORE
 	select RATIONAL
@@ -705,7 +622,6 @@ config SERIAL_MUX_CONSOLE
 config PDC_CONSOLE
 	bool "PDC software console support"
 	depends on PARISC && !SERIAL_MUX && VT
-	default n
 	help
 	  Saying Y here will enable the software based PDC console to be 
 	  used as the system console.  This is useful for machines in 
@@ -762,6 +678,8 @@ config SERIAL_SH_SCI
 
 config SERIAL_SH_SCI_NR_UARTS
 	int "Maximum number of SCI(F) serial ports" if EXPERT
+	range 1 64 if 64BIT
+	range 1 32 if !64BIT
 	depends on SERIAL_SH_SCI
 	default "3" if H8300
 	default "10" if SUPERH
@@ -804,7 +722,8 @@ config SERIAL_PNX8XXX_CONSOLE
 
 config SERIAL_HS_LPC32XX
 	tristate "LPC32XX high speed serial port support"
-	depends on ARCH_LPC32XX && OF
+	depends on ARCH_LPC32XX || COMPILE_TEST
+	depends on OF
 	select SERIAL_CORE
 	help
 	  Support for the LPC32XX high speed serial ports (up to 900kbps).
@@ -920,16 +839,6 @@ config SERIAL_CPM_CONSOLE
 	  your boot loader (lilo or loadlin) about how to pass options to the
 	  kernel at boot time.)
 
-config SERIAL_SGI_L1_CONSOLE
-	bool "SGI Altix L1 serial console support"
-	depends on IA64_GENERIC || IA64_SGI_SN2
-	select SERIAL_CORE
-	select SERIAL_CORE_CONSOLE
-	help
-		If you have an SGI Altix and you would like to use the system
-		controller serial port as your console (you want this!),
-		say Y.  Otherwise, say N.
-
 config SERIAL_PIC32
 	tristate "Microchip PIC32 serial support"
 	depends on MACH_PIC32
@@ -991,35 +900,6 @@ config SERIAL_ICOM
 	  This driver can also be built as a module.  If so, the module
 	  will be called icom.
 
-config SERIAL_M32R_SIO
-	bool "M32R SIO I/F"
-	depends on M32R
-	default y
-	select SERIAL_CORE
-	help
-	  Say Y here if you want to use the M32R serial controller.
-
-config SERIAL_M32R_SIO_CONSOLE
-	bool "use SIO console"
-	depends on SERIAL_M32R_SIO=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  Say Y here if you want to support a serial console.
-
-	  If you use an M3T-M32700UT or an OPSPUT platform,
-	  please say also y for SERIAL_M32R_PLDSIO.
-
-config SERIAL_M32R_PLDSIO
-	bool "M32R SIO I/F on a PLD"
-	depends on SERIAL_M32R_SIO=y && (PLAT_OPSPUT || PLAT_USRV || PLAT_M32700UT)
-	default n
-	help
-	  Say Y here if you want to use the M32R serial controller
-	  on a PLD (Programmable Logic Device).
-
-	  If you use an M3T-M32700UT or an OPSPUT platform,
-	  please say Y.
-
 config SERIAL_TXX9
 	bool "TMPTX39XX/49XX SIO support"
 	depends on HAS_TXX9_SERIAL
@@ -1076,23 +956,6 @@ config SERIAL_JSM
 	  To compile this driver as a module, choose M here: the
 	  module will be called jsm.
 
-config SERIAL_SGI_IOC4
-	tristate "SGI IOC4 controller serial support"
-	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC4
-	select SERIAL_CORE
-	help
-		If you have an SGI Altix with an IOC4 based Base IO card
-		and wish to use the serial ports on this card, say Y.
-		Otherwise, say N.
-
-config SERIAL_SGI_IOC3
-	tristate "SGI Altix IOC3 serial support"
-	depends on (IA64_GENERIC || IA64_SGI_SN2) && SGI_IOC3
-	select SERIAL_CORE
-	help
-	  If you have an SGI Altix with an IOC3 serial card,
-	  say Y or M.  Otherwise, say N.
-
 config SERIAL_MSM
 	tristate "MSM on-chip serial port support"
 	depends on ARCH_QCOM
@@ -1104,6 +967,21 @@ config SERIAL_MSM_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	select SERIAL_EARLYCON
 
+config SERIAL_QCOM_GENI
+	tristate "QCOM on-chip GENI based serial port support"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on QCOM_GENI_SE
+	select SERIAL_CORE
+
+config SERIAL_QCOM_GENI_CONSOLE
+	bool "QCOM GENI Serial Console support"
+	depends on SERIAL_QCOM_GENI=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Serial console driver for Qualcomm Technologies Inc's GENI based
+	  QUP hardware.
+
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
 	depends on ARCH_VT8500
@@ -1113,36 +991,6 @@ config SERIAL_VT8500_CONSOLE
 	bool "VIA VT8500 serial console support"
 	depends on SERIAL_VT8500=y
 	select SERIAL_CORE_CONSOLE
-
-config SERIAL_ETRAXFS
-	bool "ETRAX FS serial port support"
-	depends on ETRAX_ARCH_V32 && OF
-	select SERIAL_CORE
-	select SERIAL_MCTRL_GPIO if GPIOLIB
-
-config SERIAL_ETRAXFS_CONSOLE
-	bool "ETRAX FS serial console support"
-	depends on SERIAL_ETRAXFS
-	select SERIAL_CORE_CONSOLE
-
-config SERIAL_NETX
-	tristate "NetX serial port support"
-	depends on ARCH_NETX
-	select SERIAL_CORE
-	help
-	  If you have a machine based on a Hilscher NetX SoC you
-	  can enable its onboard serial port by enabling this option.
-
-          To compile this driver as a module, choose M here: the
-          module will be called netx-serial.
-
-config SERIAL_NETX_CONSOLE
-	bool "Console on NetX serial port"
-	depends on SERIAL_NETX=y
-	select SERIAL_CORE_CONSOLE
-	help
-	  If you have enabled the serial port on the Hilscher NetX SoC
-	  you can make it the console by answering Y to this option.
 
 config SERIAL_OMAP
 	tristate "OMAP serial port support"
@@ -1171,6 +1019,31 @@ config SERIAL_OMAP_CONSOLE
 	  your boot loader about how to pass options to the kernel at
 	  boot time.)
 
+config SERIAL_SIFIVE
+	tristate "SiFive UART support"
+	depends on OF
+	select SERIAL_CORE
+	help
+	  Select this option if you are building a kernel for a device that
+	  contains a SiFive UART IP block.  This type of UART is present on
+	  SiFive FU540 SoCs, among others.
+
+config SERIAL_SIFIVE_CONSOLE
+	bool "Console on SiFive UART"
+	depends on SERIAL_SIFIVE=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Select this option if you would like to use a SiFive UART as the
+	  system console.
+
+	  Even if you say Y here, the currently visible virtual console
+	  (/dev/tty0) will still be used as the system console by default, but
+	  you can alter that using a kernel command line option such as
+	  "console=ttySIFx". (Try "man bootparam" or see the documentation of
+	  your boot loader about how to pass options to the kernel at
+	  boot time.)
+
 config SERIAL_LANTIQ
 	bool "Lantiq serial driver"
 	depends on LANTIQ
@@ -1185,7 +1058,6 @@ config SERIAL_QE
 	depends on QUICC_ENGINE
 	select SERIAL_CORE
 	select FW_LOADER
-	default n
 	help
 	  This driver supports the QE serial ports on Freescale embedded
 	  PowerPC that contain a QUICC Engine.
@@ -1241,69 +1113,6 @@ config SERIAL_SC16IS7XX_SPI
           If required say y, and say n to spi if not required,
           This is additional support to exsisting driver.
           You must select at least one bus for the driver to be built.
-
-config SERIAL_BFIN_SPORT
-	tristate "Blackfin SPORT emulate UART"
-	depends on BLACKFIN
-	select SERIAL_CORE
-	help
-	  Enable SPORT emulate UART on Blackfin series.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called bfin_sport_uart.
-
-config SERIAL_BFIN_SPORT_CONSOLE
-	bool "Console on Blackfin sport emulated uart"
-	depends on SERIAL_BFIN_SPORT=y
-	select SERIAL_CORE_CONSOLE
-
-config SERIAL_BFIN_SPORT0_UART
-	bool "Enable UART over SPORT0"
-	depends on SERIAL_BFIN_SPORT && !(BF542 || BF544)
-	help
-	  Enable UART over SPORT0
-
-config SERIAL_BFIN_SPORT0_UART_CTSRTS
-	bool "Enable UART over SPORT0 hardware flow control"
-	depends on SERIAL_BFIN_SPORT0_UART
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_SPORT1_UART
-	bool "Enable UART over SPORT1"
-	depends on SERIAL_BFIN_SPORT
-	help
-	  Enable UART over SPORT1
-
-config SERIAL_BFIN_SPORT1_UART_CTSRTS
-	bool "Enable UART over SPORT1 hardware flow control"
-	depends on SERIAL_BFIN_SPORT1_UART
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_SPORT2_UART
-	bool "Enable UART over SPORT2"
-	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
-	help
-	  Enable UART over SPORT2
-
-config SERIAL_BFIN_SPORT2_UART_CTSRTS
-	bool "Enable UART over SPORT2 hardware flow control"
-	depends on SERIAL_BFIN_SPORT2_UART
-	help
-	  Enable hardware flow control in the driver.
-
-config SERIAL_BFIN_SPORT3_UART
-	bool "Enable UART over SPORT3"
-	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
-	help
-	  Enable UART over SPORT3
-
-config SERIAL_BFIN_SPORT3_UART_CTSRTS
-	bool "Enable UART over SPORT3 hardware flow control"
-	depends on SERIAL_BFIN_SPORT3_UART
-	help
-	  Enable hardware flow control in the driver.
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
@@ -1436,7 +1245,6 @@ config SERIAL_PCH_UART_CONSOLE
 
 config SERIAL_MXS_AUART
 	tristate "MXS AUART support"
-	depends on HAS_DMA
 	depends on ARCH_MXS || MACH_ASM9260 || COMPILE_TEST
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
@@ -1469,7 +1277,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 
 config SERIAL_AR933X
 	tristate "AR933X serial port support"
-	depends on HAVE_CLK && SOC_AR933X
+	depends on HAVE_CLK && ATH79
 	select SERIAL_CORE
 	help
 	  If you have an Atheros AR933X SOC based board and want to use the
@@ -1518,15 +1326,6 @@ config SERIAL_EFM32_UART_CONSOLE
 	bool "EFM32 UART/USART console support"
 	depends on SERIAL_EFM32_UART=y
 	select SERIAL_CORE_CONSOLE
-
-config SERIAL_TILEGX
-	tristate "TILE-Gx on-chip serial port support"
-	depends on TILEGX
-	select TILE_GXIO_UART
-	select SERIAL_CORE
-	---help---
-	  This device provides access to the on-chip UARTs on the TILE-Gx
-	  processor.
 
 config SERIAL_ARC
 	tristate "ARC UART driver support"
@@ -1592,6 +1391,22 @@ config SERIAL_FSL_LPUART_CONSOLE
 	  If you have enabled the lpuart serial port on the Freescale SoCs,
 	  you can make it the console by answering Y to this option.
 
+config SERIAL_FSL_LINFLEXUART
+	tristate "Freescale linflexuart serial port support"
+	depends on PRINTK
+	select SERIAL_CORE
+	help
+	  Support for the on-chip linflexuart on some Freescale SOCs.
+
+config SERIAL_FSL_LINFLEXUART_CONSOLE
+	bool "Console on Freescale linflexuart serial port"
+	depends on SERIAL_FSL_LINFLEXUART=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  If you have enabled the linflexuart serial port on the Freescale
+	  SoCs, you can make it the console by answering Y to this option.
+
 config SERIAL_CONEXANT_DIGICOLOR
 	tristate "Conexant Digicolor CX92xxx USART serial port support"
 	depends on OF
@@ -1656,7 +1471,6 @@ config SERIAL_SPRD_CONSOLE
 config SERIAL_STM32
 	tristate "STMicroelectronics STM32 serial port support"
 	select SERIAL_CORE
-	depends on HAS_DMA
 	depends on ARCH_STM32 || COMPILE_TEST
 	help
 	  This driver is for the on-chip Serial Controller on
@@ -1712,6 +1526,51 @@ config SERIAL_OWL_CONSOLE
 	help
 	  Say 'Y' here if you wish to use Actions Semiconductor S500/S900 UART
 	  as the system console.
+
+config SERIAL_RDA
+	bool "RDA Micro serial port support"
+	depends on ARCH_RDA || COMPILE_TEST
+	select SERIAL_CORE
+	help
+	  This driver is for RDA8810PL SoC's UART.
+	  Say 'Y' here if you wish to use the on-board serial port.
+	  Otherwise, say 'N'.
+
+config SERIAL_RDA_CONSOLE
+	bool "Console on RDA Micro serial port"
+	depends on SERIAL_RDA=y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	default y
+	help
+	  Say 'Y' here if you wish to use the RDA8810PL UART as the system
+	  console. Only earlycon is implemented currently.
+
+config SERIAL_MILBEAUT_USIO
+	tristate "Milbeaut USIO/UART serial port support"
+	depends on ARCH_MILBEAUT || (COMPILE_TEST && OF)
+	default ARCH_MILBEAUT
+	select SERIAL_CORE
+	help
+	  This selects the USIO/UART IP found in Socionext Milbeaut SoCs.
+
+config SERIAL_MILBEAUT_USIO_PORTS
+	int "Maximum number of CSIO/UART ports (1-8)"
+	range 1 8
+	depends on SERIAL_MILBEAUT_USIO
+	default "4"
+
+config SERIAL_MILBEAUT_USIO_CONSOLE
+	bool "Support for console on MILBEAUT USIO/UART serial port"
+	depends on SERIAL_MILBEAUT_USIO=y
+	default y
+	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
+	help
+	  Say 'Y' here if you wish to use a USIO/UART of Socionext Milbeaut
+	  SoCs as the system console (the system console is the device which
+	  receives all kernel messages and warnings and which allows logins in
+	  single user mode).
 
 endmenu
 

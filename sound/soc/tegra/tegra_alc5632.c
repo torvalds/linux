@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
 * tegra_alc5632.c  --  Toshiba AC100(PAZ00) machine ASoC driver
  *
@@ -7,10 +8,6 @@
  * Authors:  Leon Romanovsky <leon@leon.nu>
  *           Andrey Danin <danindrey@mail.ru>
  *           Marc Dietrich <marvin24@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -124,15 +121,20 @@ static int tegra_alc5632_asoc_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+SND_SOC_DAILINK_DEFS(pcm,
+	DAILINK_COMP_ARRAY(COMP_EMPTY()),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "alc5632-hifi")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link tegra_alc5632_dai = {
 	.name = "ALC5632",
 	.stream_name = "ALC5632 PCM",
-	.codec_dai_name = "alc5632-hifi",
 	.init = tegra_alc5632_asoc_init,
 	.ops = &tegra_alc5632_asoc_ops,
 	.dai_fmt = SND_SOC_DAIFMT_I2S
 			   | SND_SOC_DAIFMT_NB_NF
 			   | SND_SOC_DAIFMT_CBS_CFS,
+	SND_SOC_DAILINK_REG(pcm),
 };
 
 static struct snd_soc_card snd_soc_tegra_alc5632 = {
@@ -174,30 +176,30 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	tegra_alc5632_dai.codec_of_node = of_parse_phandle(
+	tegra_alc5632_dai.codecs->of_node = of_parse_phandle(
 			pdev->dev.of_node, "nvidia,audio-codec", 0);
 
-	if (!tegra_alc5632_dai.codec_of_node) {
+	if (!tegra_alc5632_dai.codecs->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,audio-codec' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}
 
-	tegra_alc5632_dai.cpu_of_node = of_parse_phandle(np,
+	tegra_alc5632_dai.cpus->of_node = of_parse_phandle(np,
 			"nvidia,i2s-controller", 0);
-	if (!tegra_alc5632_dai.cpu_of_node) {
+	if (!tegra_alc5632_dai.cpus->of_node) {
 		dev_err(&pdev->dev,
 			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
-		goto err;
+		goto err_put_codec_of_node;
 	}
 
-	tegra_alc5632_dai.platform_of_node = tegra_alc5632_dai.cpu_of_node;
+	tegra_alc5632_dai.platforms->of_node = tegra_alc5632_dai.cpus->of_node;
 
 	ret = tegra_asoc_utils_init(&alc5632->util_data, &pdev->dev);
 	if (ret)
-		goto err;
+		goto err_put_cpu_of_node;
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
@@ -210,6 +212,13 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 
 err_fini_utils:
 	tegra_asoc_utils_fini(&alc5632->util_data);
+err_put_cpu_of_node:
+	of_node_put(tegra_alc5632_dai.cpus->of_node);
+	tegra_alc5632_dai.cpus->of_node = NULL;
+	tegra_alc5632_dai.platforms->of_node = NULL;
+err_put_codec_of_node:
+	of_node_put(tegra_alc5632_dai.codecs->of_node);
+	tegra_alc5632_dai.codecs->of_node = NULL;
 err:
 	return ret;
 }
@@ -222,6 +231,12 @@ static int tegra_alc5632_remove(struct platform_device *pdev)
 	snd_soc_unregister_card(card);
 
 	tegra_asoc_utils_fini(&machine->util_data);
+
+	of_node_put(tegra_alc5632_dai.cpus->of_node);
+	tegra_alc5632_dai.cpus->of_node = NULL;
+	tegra_alc5632_dai.platforms->of_node = NULL;
+	of_node_put(tegra_alc5632_dai.codecs->of_node);
+	tegra_alc5632_dai.codecs->of_node = NULL;
 
 	return 0;
 }

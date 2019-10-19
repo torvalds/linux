@@ -10,7 +10,7 @@
 
 #include "cavium_ptp.h"
 
-#define DRV_NAME	"Cavium PTP Driver"
+#define DRV_NAME "cavium_ptp"
 
 #define PCI_DEVICE_ID_CAVIUM_PTP	0xA00C
 #define PCI_DEVICE_ID_CAVIUM_RST	0xA00E
@@ -75,6 +75,8 @@ EXPORT_SYMBOL(cavium_ptp_get);
 
 void cavium_ptp_put(struct cavium_ptp *ptp)
 {
+	if (!ptp)
+		return;
 	pci_dev_put(ptp->pdev);
 }
 EXPORT_SYMBOL(cavium_ptp_put);
@@ -275,10 +277,6 @@ static int cavium_ptp_probe(struct pci_dev *pdev,
 	writeq(clock_comp, clock->reg_base + PTP_CLOCK_COMP);
 
 	clock->ptp_clock = ptp_clock_register(&clock->ptp_info, dev);
-	if (!clock->ptp_clock) {
-		err = -ENODEV;
-		goto error_stop;
-	}
 	if (IS_ERR(clock->ptp_clock)) {
 		err = PTR_ERR(clock->ptp_clock);
 		goto error_stop;
@@ -334,18 +332,7 @@ static struct pci_driver cavium_ptp_driver = {
 	.remove = cavium_ptp_remove,
 };
 
-static int __init cavium_ptp_init_module(void)
-{
-	return pci_register_driver(&cavium_ptp_driver);
-}
-
-static void __exit cavium_ptp_cleanup_module(void)
-{
-	pci_unregister_driver(&cavium_ptp_driver);
-}
-
-module_init(cavium_ptp_init_module);
-module_exit(cavium_ptp_cleanup_module);
+module_pci_driver(cavium_ptp_driver);
 
 MODULE_DESCRIPTION(DRV_NAME);
 MODULE_AUTHOR("Cavium Networks <support@cavium.com>");

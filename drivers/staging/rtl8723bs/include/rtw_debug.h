@@ -1,15 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #ifndef __RTW_DEBUG_H__
@@ -274,82 +266,5 @@ void sd_f0_reg_dump(void *sel, struct adapter *adapter);
 void mac_reg_dump(void *sel, struct adapter *adapter);
 void bb_reg_dump(void *sel, struct adapter *adapter);
 void rf_reg_dump(void *sel, struct adapter *adapter);
-
-#ifdef PROC_DEBUG
-ssize_t proc_set_write_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_read_reg(struct seq_file *m, void *v);
-ssize_t proc_set_read_reg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_fwstate(struct seq_file *m, void *v);
-int proc_get_sec_info(struct seq_file *m, void *v);
-int proc_get_mlmext_state(struct seq_file *m, void *v);
-
-int proc_get_roam_flags(struct seq_file *m, void *v);
-ssize_t proc_set_roam_flags(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_roam_param(struct seq_file *m, void *v);
-ssize_t proc_set_roam_param(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-ssize_t proc_set_roam_tgt_addr(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_qos_option(struct seq_file *m, void *v);
-int proc_get_ht_option(struct seq_file *m, void *v);
-int proc_get_rf_info(struct seq_file *m, void *v);
-int proc_get_survey_info(struct seq_file *m, void *v);
-int proc_get_ap_info(struct seq_file *m, void *v);
-int proc_get_adapter_state(struct seq_file *m, void *v);
-int proc_get_trx_info(struct seq_file *m, void *v);
-int proc_get_rate_ctl(struct seq_file *m, void *v);
-ssize_t proc_set_rate_ctl(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_suspend_resume_info(struct seq_file *m, void *v);
-
-ssize_t proc_set_fwdl_test_case(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-ssize_t proc_set_wait_hiq_empty(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_all_sta_info(struct seq_file *m, void *v);
-
-int proc_get_rx_signal(struct seq_file *m, void *v);
-ssize_t proc_set_rx_signal(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_hw_status(struct seq_file *m, void *v);
-
-int proc_get_ht_enable(struct seq_file *m, void *v);
-ssize_t proc_set_ht_enable(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_bw_mode(struct seq_file *m, void *v);
-ssize_t proc_set_bw_mode(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_ampdu_enable(struct seq_file *m, void *v);
-ssize_t proc_set_ampdu_enable(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_rx_ampdu(struct seq_file *m, void *v);
-ssize_t proc_set_rx_ampdu(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_rx_stbc(struct seq_file *m, void *v);
-ssize_t proc_set_rx_stbc(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_en_fwps(struct seq_file *m, void *v);
-ssize_t proc_set_en_fwps(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-/* int proc_get_two_path_rssi(struct seq_file *m, void *v); */
-int proc_get_rssi_disp(struct seq_file *m, void *v);
-ssize_t proc_set_rssi_disp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_btcoex_dbg(struct seq_file *m, void *v);
-ssize_t proc_set_btcoex_dbg(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_btcoex_info(struct seq_file *m, void *v);
-
-int proc_get_odm_dbg_comp(struct seq_file *m, void *v);
-ssize_t proc_set_odm_dbg_comp(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-int proc_get_odm_dbg_level(struct seq_file *m, void *v);
-ssize_t proc_set_odm_dbg_level(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-int proc_get_odm_adaptivity(struct seq_file *m, void *v);
-ssize_t proc_set_odm_adaptivity(struct file *file, const char __user *buffer, size_t count, loff_t *pos, void *data);
-
-#ifdef CONFIG_DBG_COUNTER
-int proc_get_rx_logs(struct seq_file *m, void *v);
-int proc_get_tx_logs(struct seq_file *m, void *v);
-int proc_get_int_logs(struct seq_file *m, void *v);
-#endif
-
-#endif /* PROC_DEBUG */
 
 #endif	/* __RTW_DEBUG_H__ */

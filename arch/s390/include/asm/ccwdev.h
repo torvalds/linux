@@ -226,9 +226,14 @@ extern int ccw_device_enable_console(struct ccw_device *);
 extern void ccw_device_wait_idle(struct ccw_device *);
 extern int ccw_device_force_console(struct ccw_device *);
 
+extern void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size);
+extern void ccw_device_dma_free(struct ccw_device *cdev,
+				void *cpu_addr, size_t size);
+
 int ccw_device_siosl(struct ccw_device *);
 
 extern void ccw_device_get_schid(struct ccw_device *, struct subchannel_id *);
 
-struct channel_path_desc *ccw_device_get_chp_desc(struct ccw_device *, int);
+struct channel_path_desc_fmt0 *ccw_device_get_chp_desc(struct ccw_device *, int);
+u8 *ccw_device_get_util_str(struct ccw_device *cdev, int chp_idx);
 #endif /* _S390_CCWDEV_H_ */

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 nvkm-y += nvkm/engine/msvld/base.o
 nvkm-y += nvkm/engine/msvld/g98.o
 nvkm-y += nvkm/engine/msvld/gt215.o

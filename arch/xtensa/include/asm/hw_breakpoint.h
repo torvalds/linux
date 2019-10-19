@@ -30,13 +30,16 @@ struct arch_hw_breakpoint {
 	u16 type;
 };
 
+struct perf_event_attr;
 struct perf_event;
 struct pt_regs;
 struct task_struct;
 
 int hw_breakpoint_slots(int type);
-int arch_check_bp_in_kernelspace(struct perf_event *bp);
-int arch_validate_hwbkpt_settings(struct perf_event *bp);
+int arch_check_bp_in_kernelspace(struct arch_hw_breakpoint *hw);
+int hw_breakpoint_arch_parse(struct perf_event *bp,
+			     const struct perf_event_attr *attr,
+			     struct arch_hw_breakpoint *hw);
 int hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 				    unsigned long val, void *data);
 

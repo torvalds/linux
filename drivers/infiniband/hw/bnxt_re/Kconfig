@@ -1,10 +1,11 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config INFINIBAND_BNXT_RE
-    tristate "Broadcom Netxtreme HCA support"
-    depends on ETHERNET && NETDEVICES && PCI && INET && DCB
-    depends on MAY_USE_DEVLINK
-    select NET_VENDOR_BROADCOM
-    select BNXT
-    ---help---
+        tristate "Broadcom Netxtreme HCA support"
+        depends on 64BIT
+        depends on ETHERNET && NETDEVICES && PCI && INET && DCB
+        select NET_VENDOR_BROADCOM
+        select BNXT
+        ---help---
 	  This driver supports Broadcom NetXtreme-E 10/25/40/50 gigabit
 	  RoCE HCAs.  To compile this driver as a module, choose M here:
 	  the module will be called bnxt_re.

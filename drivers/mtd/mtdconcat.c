@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * MTD device concatenation layer
  *
@@ -5,21 +6,6 @@
  * Copyright © 2002-2010 David Woodhouse <dwmw2@infradead.org>
  *
  * NAND support by Christian Gan <cgan@iders.ca>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- *
  */
 
 #include <linux/kernel.h>
@@ -333,45 +319,6 @@ concat_write_oob(struct mtd_info *mtd, loff_t to, struct mtd_oob_ops *ops)
 	return -EINVAL;
 }
 
-static void concat_erase_callback(struct erase_info *instr)
-{
-	wake_up((wait_queue_head_t *) instr->priv);
-}
-
-static int concat_dev_erase(struct mtd_info *mtd, struct erase_info *erase)
-{
-	int err;
-	wait_queue_head_t waitq;
-	DECLARE_WAITQUEUE(wait, current);
-
-	/*
-	 * This code was stol^H^H^H^Hinspired by mtdchar.c
-	 */
-	init_waitqueue_head(&waitq);
-
-	erase->mtd = mtd;
-	erase->callback = concat_erase_callback;
-	erase->priv = (unsigned long) &waitq;
-
-	/*
-	 * FIXME: Allow INTERRUPTIBLE. Which means
-	 * not having the wait_queue head on the stack.
-	 */
-	err = mtd_erase(mtd, erase);
-	if (!err) {
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		add_wait_queue(&waitq, &wait);
-		if (erase->state != MTD_ERASE_DONE
-		    && erase->state != MTD_ERASE_FAILED)
-			schedule();
-		remove_wait_queue(&waitq, &wait);
-		set_current_state(TASK_RUNNING);
-
-		err = (erase->state == MTD_ERASE_FAILED) ? -EIO : 0;
-	}
-	return err;
-}
-
 static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
@@ -466,7 +413,7 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 			erase->len = length;
 
 		length -= erase->len;
-		if ((err = concat_dev_erase(subdev, erase))) {
+		if ((err = mtd_erase(subdev, erase))) {
 			/* sanity check: should never happen since
 			 * block alignment has been checked above */
 			BUG_ON(err == -EINVAL);
@@ -485,17 +432,13 @@ static int concat_erase(struct mtd_info *mtd, struct erase_info *instr)
 		erase->addr = 0;
 		offset += subdev->size;
 	}
-	instr->state = erase->state;
 	kfree(erase);
-	if (err)
-		return err;
 
-	if (instr->callback)
-		instr->callback(instr);
-	return 0;
+	return err;
 }
 
-static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+static int concat_xxlock(struct mtd_info *mtd, loff_t ofs, uint64_t len,
+			 bool is_lock)
 {
 	struct mtd_concat *concat = CONCAT(mtd);
 	int i, err = -EINVAL;
@@ -514,7 +457,10 @@ static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 		else
 			size = len;
 
-		err = mtd_lock(subdev, ofs, size);
+		if (is_lock)
+			err = mtd_lock(subdev, ofs, size);
+		else
+			err = mtd_unlock(subdev, ofs, size);
 		if (err)
 			break;
 
@@ -529,35 +475,33 @@ static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 	return err;
 }
 
+static int concat_lock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
+	return concat_xxlock(mtd, ofs, len, true);
+}
+
 static int concat_unlock(struct mtd_info *mtd, loff_t ofs, uint64_t len)
 {
+	return concat_xxlock(mtd, ofs, len, false);
+}
+
+static int concat_is_locked(struct mtd_info *mtd, loff_t ofs, uint64_t len)
+{
 	struct mtd_concat *concat = CONCAT(mtd);
-	int i, err = 0;
+	int i, err = -EINVAL;
 
 	for (i = 0; i < concat->num_subdev; i++) {
 		struct mtd_info *subdev = concat->subdev[i];
-		uint64_t size;
 
 		if (ofs >= subdev->size) {
-			size = 0;
 			ofs -= subdev->size;
 			continue;
 		}
+
 		if (ofs + len > subdev->size)
-			size = subdev->size - ofs;
-		else
-			size = len;
-
-		err = mtd_unlock(subdev, ofs, size);
-		if (err)
 			break;
 
-		len -= size;
-		if (len == 0)
-			break;
-
-		err = -EINVAL;
-		ofs = 0;
+		return mtd_is_locked(subdev, ofs, len);
 	}
 
 	return err;
@@ -762,6 +706,7 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 	concat->mtd._sync = concat_sync;
 	concat->mtd._lock = concat_lock;
 	concat->mtd._unlock = concat_unlock;
+	concat->mtd._is_locked = concat_is_locked;
 	concat->mtd._suspend = concat_suspend;
 	concat->mtd._resume = concat_resume;
 
@@ -822,8 +767,9 @@ struct mtd_info *mtd_concat_create(struct mtd_info *subdev[],	/* subdevices to c
 		concat->mtd.erasesize = max_erasesize;
 		concat->mtd.numeraseregions = num_erase_region;
 		concat->mtd.eraseregions = erase_region_p =
-		    kmalloc(num_erase_region *
-			    sizeof (struct mtd_erase_region_info), GFP_KERNEL);
+		    kmalloc_array(num_erase_region,
+				  sizeof(struct mtd_erase_region_info),
+				  GFP_KERNEL);
 		if (!erase_region_p) {
 			kfree(concat);
 			printk

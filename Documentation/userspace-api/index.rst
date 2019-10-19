@@ -19,6 +19,8 @@ place where this information is gathered.
    no_new_privs
    seccomp_filter
    unshare
+   spec_ctrl
+   accelerators/ocxl
 
 .. only::  subproject and html
 

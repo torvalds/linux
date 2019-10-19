@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -184,7 +185,7 @@ static struct scsi_host_template gvp11_scsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
-	.use_clustering		= DISABLE_CLUSTERING
+	.dma_boundary		= PAGE_SIZE - 1,
 };
 
 static int check_wd33c93(struct gvp11_scsiregs *regs)

@@ -1,9 +1,5 @@
-/* Copyright (C) 2008-2013 Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- */
+// SPDX-License-Identifier: GPL-2.0-only
+/* Copyright (C) 2008-2013 Jozsef Kadlecsik <kadlec@netfilter.org> */
 
 /* Kernel module implementing an IP set type: the list:set type */
 
@@ -22,7 +18,7 @@
 #define IPSET_TYPE_REV_MAX	3 /* skbinfo support added */
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>");
+MODULE_AUTHOR("Jozsef Kadlecsik <kadlec@netfilter.org>");
 IP_SET_MODULE_DESC("list:set", IPSET_TYPE_REV_MIN, IPSET_TYPE_REV_MAX);
 MODULE_ALIAS("ip_set_list:set");
 
@@ -148,9 +144,7 @@ __list_set_del_rcu(struct rcu_head * rcu)
 {
 	struct set_elem *e = container_of(rcu, struct set_elem, rcu);
 	struct ip_set *set = e->set;
-	struct list_set *map = set->data;
 
-	ip_set_put_byindex(map->net, e->id);
 	ip_set_ext_destroy(set, e);
 	kfree(e);
 }
@@ -158,15 +152,21 @@ __list_set_del_rcu(struct rcu_head * rcu)
 static inline void
 list_set_del(struct ip_set *set, struct set_elem *e)
 {
+	struct list_set *map = set->data;
+
 	set->elements--;
 	list_del_rcu(&e->list);
+	ip_set_put_byindex(map->net, e->id);
 	call_rcu(&e->rcu, __list_set_del_rcu);
 }
 
 static inline void
-list_set_replace(struct set_elem *e, struct set_elem *old)
+list_set_replace(struct ip_set *set, struct set_elem *e, struct set_elem *old)
 {
+	struct list_set *map = set->data;
+
 	list_replace_rcu(&old->list, &e->list);
+	ip_set_put_byindex(map->net, old->id);
 	call_rcu(&old->rcu, __list_set_del_rcu);
 }
 
@@ -288,7 +288,7 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	if (n &&
 	    !(SET_WITH_TIMEOUT(set) &&
 	      ip_set_timeout_expired(ext_timeout(n, set))))
-		n =  NULL;
+		n = NULL;
 
 	e = kzalloc(set->dsize, GFP_ATOMIC);
 	if (!e)
@@ -298,7 +298,7 @@ list_set_uadd(struct ip_set *set, void *value, const struct ip_set_ext *ext,
 	INIT_LIST_HEAD(&e->list);
 	list_set_init_extensions(set, ext, e);
 	if (n)
-		list_set_replace(e, n);
+		list_set_replace(set, e, n);
 	else if (next)
 		list_add_tail_rcu(&e->list, &next->list);
 	else if (prev)
@@ -462,7 +462,7 @@ list_set_head(struct ip_set *set, struct sk_buff *skb)
 	struct nlattr *nested;
 	size_t memsize = list_set_memsize(map, set->dsize) + set->ext_size;
 
-	nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
+	nested = nla_nest_start(skb, IPSET_ATTR_DATA);
 	if (!nested)
 		goto nla_put_failure;
 	if (nla_put_net32(skb, IPSET_ATTR_SIZE, htonl(map->size)) ||
@@ -472,7 +472,7 @@ list_set_head(struct ip_set *set, struct sk_buff *skb)
 		goto nla_put_failure;
 	if (unlikely(ip_set_put_flags(skb, set)))
 		goto nla_put_failure;
-	ipset_nest_end(skb, nested);
+	nla_nest_end(skb, nested);
 
 	return 0;
 nla_put_failure:
@@ -486,10 +486,11 @@ list_set_list(const struct ip_set *set,
 	const struct list_set *map = set->data;
 	struct nlattr *atd, *nested;
 	u32 i = 0, first = cb->args[IPSET_CB_ARG0];
+	char name[IPSET_MAXNAMELEN];
 	struct set_elem *e;
 	int ret = 0;
 
-	atd = ipset_nest_start(skb, IPSET_ATTR_ADT);
+	atd = nla_nest_start(skb, IPSET_ATTR_ADT);
 	if (!atd)
 		return -EMSGSIZE;
 
@@ -501,19 +502,19 @@ list_set_list(const struct ip_set *set,
 			i++;
 			continue;
 		}
-		nested = ipset_nest_start(skb, IPSET_ATTR_DATA);
+		nested = nla_nest_start(skb, IPSET_ATTR_DATA);
 		if (!nested)
 			goto nla_put_failure;
-		if (nla_put_string(skb, IPSET_ATTR_NAME,
-				   ip_set_name_byindex(map->net, e->id)))
+		ip_set_name_byindex(map->net, e->id, name);
+		if (nla_put_string(skb, IPSET_ATTR_NAME, name))
 			goto nla_put_failure;
 		if (ip_set_put_extensions(skb, set, e, true))
 			goto nla_put_failure;
-		ipset_nest_end(skb, nested);
+		nla_nest_end(skb, nested);
 		i++;
 	}
 
-	ipset_nest_end(skb, atd);
+	nla_nest_end(skb, atd);
 	/* Set listing finished */
 	cb->args[IPSET_CB_ARG0] = 0;
 	goto out;
@@ -526,8 +527,8 @@ nla_put_failure:
 		ret = -EMSGSIZE;
 	} else {
 		cb->args[IPSET_CB_ARG0] = i;
+		nla_nest_end(skb, atd);
 	}
-	ipset_nest_end(skb, atd);
 out:
 	rcu_read_unlock();
 	return ret;

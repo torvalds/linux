@@ -4,11 +4,12 @@ The Tegra Audio DMA controller that is used for transferring data
 between system memory and the Audio Processing Engine (APE).
 
 Required properties:
-- compatible: Must be "nvidia,tegra210-adma".
+- compatible: Should contain one of the following:
+  - "nvidia,tegra210-adma": for Tegra210
+  - "nvidia,tegra186-adma": for Tegra186 and Tegra194
 - reg: Should contain DMA registers location and length. This should be
   a single entry that includes all of the per-channel registers in one
   contiguous bank.
-- interrupt-parent: Phandle to the interrupt parent controller.
 - interrupts: Should contain all of the per-channel DMA interrupts in
   ascending order with respect to the DMA channel index.
 - clocks: Must contain one entry for the ADMA module clock

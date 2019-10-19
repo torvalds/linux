@@ -22,8 +22,6 @@
 #include <asm/suspend.h>
 #include <asm/cacheflush.h>
 
-#include <mach/map.h>
-
 #include "common.h"
 
 static inline void __iomem *exynos_boot_vector_addr(void)
@@ -163,7 +161,7 @@ void exynos_enter_aftr(void)
 
 	exynos_pm_central_suspend();
 
-	if (of_machine_is_compatible("samsung,exynos4412")) {
+	if (soc_is_exynos4412()) {
 		/* Setting SEQ_OPTION register */
 		pmu_raw_writel(S5P_USE_STANDBY_WFI0 | S5P_USE_STANDBY_WFE0,
 			       S5P_CENTRAL_SEQ_OPTION);
@@ -172,7 +170,7 @@ void exynos_enter_aftr(void)
 	cpu_suspend(0, exynos_aftr_finisher);
 
 	if (read_cpuid_part() == ARM_CPU_PART_CORTEX_A9) {
-		scu_enable(S5P_VA_SCU);
+		exynos_scu_enable();
 		if (call_firmware_op(resume) == -ENOSYS)
 			exynos_cpu_restore_register();
 	}
@@ -271,11 +269,7 @@ abort:
 				goto fail;
 
 			call_firmware_op(cpu_boot, 1);
-
-			if (soc_is_exynos3250())
-				dsb_sev();
-			else
-				arch_send_wakeup_ipi_mask(cpumask_of(1));
+			dsb_sev();
 		}
 	}
 fail:

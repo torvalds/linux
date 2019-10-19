@@ -1,11 +1,5 @@
-/*
- * Copyright (c) 2016~2017 Hisilicon Limited.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+// Copyright (c) 2016-2017 Hisilicon Limited.
 
 #include <linux/etherdevice.h>
 #include <linux/string.h>
@@ -28,13 +22,18 @@ struct hns3_stats {
 static const struct hns3_stats hns3_txq_stats[] = {
 	/* Tx per-queue statistics */
 	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("tx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", tx_pkts),
 	HNS3_TQP_STAT("bytes", tx_bytes),
 	HNS3_TQP_STAT("errors", tx_err_cnt),
-	HNS3_TQP_STAT("tx_wake", restart_queue),
-	HNS3_TQP_STAT("tx_busy", tx_busy),
+	HNS3_TQP_STAT("wake", restart_queue),
+	HNS3_TQP_STAT("busy", tx_busy),
+	HNS3_TQP_STAT("copy", tx_copy),
+	HNS3_TQP_STAT("vlan_err", tx_vlan_err),
+	HNS3_TQP_STAT("l4_proto_err", tx_l4_proto_err),
+	HNS3_TQP_STAT("l2l3l4_err", tx_l2l3l4_err),
+	HNS3_TQP_STAT("tso_err", tx_tso_err),
 };
 
 #define HNS3_TXQ_STATS_COUNT ARRAY_SIZE(hns3_txq_stats)
@@ -42,27 +41,29 @@ static const struct hns3_stats hns3_txq_stats[] = {
 static const struct hns3_stats hns3_rxq_stats[] = {
 	/* Rx per-queue statistics */
 	HNS3_TQP_STAT("io_err_cnt", io_err_cnt),
-	HNS3_TQP_STAT("rx_dropped", sw_err_cnt),
+	HNS3_TQP_STAT("dropped", sw_err_cnt),
 	HNS3_TQP_STAT("seg_pkt_cnt", seg_pkt_cnt),
 	HNS3_TQP_STAT("packets", rx_pkts),
 	HNS3_TQP_STAT("bytes", rx_bytes),
 	HNS3_TQP_STAT("errors", rx_err_cnt),
 	HNS3_TQP_STAT("reuse_pg_cnt", reuse_pg_cnt),
 	HNS3_TQP_STAT("err_pkt_len", err_pkt_len),
-	HNS3_TQP_STAT("non_vld_descs", non_vld_descs),
 	HNS3_TQP_STAT("err_bd_num", err_bd_num),
 	HNS3_TQP_STAT("l2_err", l2_err),
 	HNS3_TQP_STAT("l3l4_csum_err", l3l4_csum_err),
+	HNS3_TQP_STAT("multicast", rx_multicast),
+	HNS3_TQP_STAT("non_reuse_pg", non_reuse_pg),
 };
 
 #define HNS3_RXQ_STATS_COUNT ARRAY_SIZE(hns3_rxq_stats)
 
 #define HNS3_TQP_STATS_COUNT (HNS3_TXQ_STATS_COUNT + HNS3_RXQ_STATS_COUNT)
 
-#define HNS3_SELF_TEST_TPYE_NUM		1
+#define HNS3_SELF_TEST_TYPE_NUM         4
 #define HNS3_NIC_LB_TEST_PKT_NUM	1
 #define HNS3_NIC_LB_TEST_RING_ID	0
 #define HNS3_NIC_LB_TEST_PACKET_SIZE	128
+#define HNS3_NIC_LB_SETUP_USEC		10000
 
 /* Nic loopback test err  */
 #define HNS3_NIC_LB_TEST_NO_MEM_ERR	1
@@ -74,22 +75,10 @@ struct hns3_link_mode_mapping {
 	u32 ethtool_link_mode;
 };
 
-static const struct hns3_link_mode_mapping hns3_lm_map[] = {
-	{HNS3_LM_FIBRE_BIT, ETHTOOL_LINK_MODE_FIBRE_BIT},
-	{HNS3_LM_AUTONEG_BIT, ETHTOOL_LINK_MODE_Autoneg_BIT},
-	{HNS3_LM_TP_BIT, ETHTOOL_LINK_MODE_TP_BIT},
-	{HNS3_LM_PAUSE_BIT, ETHTOOL_LINK_MODE_Pause_BIT},
-	{HNS3_LM_BACKPLANE_BIT, ETHTOOL_LINK_MODE_Backplane_BIT},
-	{HNS3_LM_10BASET_HALF_BIT, ETHTOOL_LINK_MODE_10baseT_Half_BIT},
-	{HNS3_LM_10BASET_FULL_BIT, ETHTOOL_LINK_MODE_10baseT_Full_BIT},
-	{HNS3_LM_100BASET_HALF_BIT, ETHTOOL_LINK_MODE_100baseT_Half_BIT},
-	{HNS3_LM_100BASET_FULL_BIT, ETHTOOL_LINK_MODE_100baseT_Full_BIT},
-	{HNS3_LM_1000BASET_FULL_BIT, ETHTOOL_LINK_MODE_1000baseT_Full_BIT},
-};
-
-static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop)
+static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop, bool en)
 {
 	struct hnae3_handle *h = hns3_get_handle(ndev);
+	bool vlan_filter_enable;
 	int ret;
 
 	if (!h->ae_algo->ops->set_loopback ||
@@ -97,25 +86,28 @@ static int hns3_lp_setup(struct net_device *ndev, enum hnae3_loop loop)
 		return -EOPNOTSUPP;
 
 	switch (loop) {
-	case HNAE3_MAC_INTER_LOOP_MAC:
-		ret = h->ae_algo->ops->set_loopback(h, loop, true);
-		break;
-	case HNAE3_MAC_LOOP_NONE:
-		ret = h->ae_algo->ops->set_loopback(h,
-			HNAE3_MAC_INTER_LOOP_MAC, false);
+	case HNAE3_LOOP_SERIAL_SERDES:
+	case HNAE3_LOOP_PARALLEL_SERDES:
+	case HNAE3_LOOP_APP:
+	case HNAE3_LOOP_PHY:
+		ret = h->ae_algo->ops->set_loopback(h, loop, en);
 		break;
 	default:
 		ret = -ENOTSUPP;
 		break;
 	}
 
-	if (ret)
+	if (ret || h->pdev->revision >= 0x21)
 		return ret;
 
-	if (loop == HNAE3_MAC_LOOP_NONE)
-		h->ae_algo->ops->set_promisc_mode(h, ndev->flags & IFF_PROMISC);
-	else
-		h->ae_algo->ops->set_promisc_mode(h, 1);
+	if (en) {
+		h->ae_algo->ops->set_promisc_mode(h, true, true);
+	} else {
+		/* recover promisc mode before loopback test */
+		hns3_update_promisc_mode(ndev, h->netdev_flags);
+		vlan_filter_enable = ndev->flags & IFF_PROMISC ? false : true;
+		hns3_enable_vlan_filter(ndev, vlan_filter_enable);
+	}
 
 	return ret;
 }
@@ -125,45 +117,37 @@ static int hns3_lp_up(struct net_device *ndev, enum hnae3_loop loop_mode)
 	struct hnae3_handle *h = hns3_get_handle(ndev);
 	int ret;
 
-	if (!h->ae_algo->ops->start)
-		return -EOPNOTSUPP;
-
-	ret = h->ae_algo->ops->start(h);
-	if (ret) {
-		netdev_err(ndev,
-			   "hns3_lb_up ae start return error: %d\n", ret);
+	ret = hns3_nic_reset_all_ring(h);
+	if (ret)
 		return ret;
-	}
 
-	ret = hns3_lp_setup(ndev, loop_mode);
-	usleep_range(10000, 20000);
+	ret = hns3_lp_setup(ndev, loop_mode, true);
+	usleep_range(HNS3_NIC_LB_SETUP_USEC, HNS3_NIC_LB_SETUP_USEC * 2);
 
 	return ret;
 }
 
-static int hns3_lp_down(struct net_device *ndev)
+static int hns3_lp_down(struct net_device *ndev, enum hnae3_loop loop_mode)
 {
-	struct hnae3_handle *h = hns3_get_handle(ndev);
 	int ret;
 
-	if (!h->ae_algo->ops->stop)
-		return -EOPNOTSUPP;
-
-	ret = hns3_lp_setup(ndev, HNAE3_MAC_LOOP_NONE);
+	ret = hns3_lp_setup(ndev, loop_mode, false);
 	if (ret) {
 		netdev_err(ndev, "lb_setup return error: %d\n", ret);
 		return ret;
 	}
 
-	h->ae_algo->ops->stop(h);
-	usleep_range(10000, 20000);
+	usleep_range(HNS3_NIC_LB_SETUP_USEC, HNS3_NIC_LB_SETUP_USEC * 2);
 
 	return 0;
 }
 
 static void hns3_lp_setup_skb(struct sk_buff *skb)
 {
+#define	HNS3_NIC_LB_DST_MAC_ADDR	0x1f
+
 	struct net_device *ndev = skb->dev;
+	struct hnae3_handle *handle;
 	unsigned char *packet;
 	struct ethhdr *ethh;
 	unsigned int i;
@@ -173,6 +157,15 @@ static void hns3_lp_setup_skb(struct sk_buff *skb)
 	packet = skb_put(skb, HNS3_NIC_LB_TEST_PACKET_SIZE);
 
 	memcpy(ethh->h_dest, ndev->dev_addr, ETH_ALEN);
+
+	/* The dst mac addr of loopback packet is the same as the host'
+	 * mac addr, the SSU component may loop back the packet to host
+	 * before the packet reaches mac or serdes, which will defect
+	 * the purpose of mac or serdes selftest.
+	 */
+	handle = hns3_get_handle(ndev);
+	if (handle->pdev->revision == 0x20)
+		ethh->h_dest[5] += HNS3_NIC_LB_DST_MAC_ADDR;
 	eth_zero_addr(ethh->h_source);
 	ethh->h_proto = htons(ETH_P_ARP);
 	skb_reset_mac_header(skb);
@@ -217,7 +210,9 @@ static u32 hns3_lb_check_rx_ring(struct hns3_nic_priv *priv, u32 budget)
 		rx_group = &ring->tqp_vector->rx_group;
 		pre_rx_pkt = rx_group->total_packets;
 
+		preempt_disable();
 		hns3_clean_rx_ring(ring, budget, hns3_lb_check_skb_data);
+		preempt_enable();
 
 		rcv_good_pkt_total += (rx_group->total_packets - pre_rx_pkt);
 		rx_group->total_packets = pre_rx_pkt;
@@ -233,7 +228,7 @@ static void hns3_lb_clear_tx_ring(struct hns3_nic_priv *priv, u32 start_ringid,
 	for (i = start_ringid; i <= end_ringid; i++) {
 		struct hns3_enet_ring *ring = priv->ring_data[i].ring;
 
-		hns3_clean_tx_ring(ring, budget);
+		hns3_clean_tx_ring(ring);
 	}
 }
 
@@ -264,11 +259,13 @@ static int hns3_lp_run_test(struct net_device *ndev, enum hnae3_loop mode)
 
 		skb_get(skb);
 		tx_ret = hns3_nic_net_xmit(skb, ndev);
-		if (tx_ret == NETDEV_TX_OK)
+		if (tx_ret == NETDEV_TX_OK) {
 			good_cnt++;
-		else
+		} else {
+			kfree_skb(skb);
 			netdev_err(ndev, "hns3_lb_run_test xmit failed: %d\n",
 				   tx_ret);
+		}
 	}
 	if (good_cnt != HNS3_NIC_LB_TEST_PKT_NUM) {
 		ret_val = HNS3_NIC_LB_TEST_TX_CNT_ERR;
@@ -307,35 +304,73 @@ static void hns3_self_test(struct net_device *ndev,
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
-	int st_param[HNS3_SELF_TEST_TPYE_NUM][2];
+	int st_param[HNS3_SELF_TEST_TYPE_NUM][2];
 	bool if_running = netif_running(ndev);
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
+	bool dis_vlan_filter;
+#endif
 	int test_index = 0;
 	u32 i;
+
+	if (hns3_nic_resetting(ndev)) {
+		netdev_err(ndev, "dev resetting!");
+		return;
+	}
 
 	/* Only do offline selftest, or pass by default */
 	if (eth_test->flags != ETH_TEST_FL_OFFLINE)
 		return;
 
-	st_param[HNAE3_MAC_INTER_LOOP_MAC][0] = HNAE3_MAC_INTER_LOOP_MAC;
-	st_param[HNAE3_MAC_INTER_LOOP_MAC][1] =
-			h->flags & HNAE3_SUPPORT_MAC_LOOPBACK;
+	netif_dbg(h, drv, ndev, "self test start");
+
+	st_param[HNAE3_LOOP_APP][0] = HNAE3_LOOP_APP;
+	st_param[HNAE3_LOOP_APP][1] =
+			h->flags & HNAE3_SUPPORT_APP_LOOPBACK;
+
+	st_param[HNAE3_LOOP_SERIAL_SERDES][0] = HNAE3_LOOP_SERIAL_SERDES;
+	st_param[HNAE3_LOOP_SERIAL_SERDES][1] =
+			h->flags & HNAE3_SUPPORT_SERDES_SERIAL_LOOPBACK;
+
+	st_param[HNAE3_LOOP_PARALLEL_SERDES][0] =
+			HNAE3_LOOP_PARALLEL_SERDES;
+	st_param[HNAE3_LOOP_PARALLEL_SERDES][1] =
+			h->flags & HNAE3_SUPPORT_SERDES_PARALLEL_LOOPBACK;
+
+	st_param[HNAE3_LOOP_PHY][0] = HNAE3_LOOP_PHY;
+	st_param[HNAE3_LOOP_PHY][1] =
+			h->flags & HNAE3_SUPPORT_PHY_LOOPBACK;
 
 	if (if_running)
-		dev_close(ndev);
+		ndev->netdev_ops->ndo_stop(ndev);
+
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
+	/* Disable the vlan filter for selftest does not support it */
+	dis_vlan_filter = (ndev->features & NETIF_F_HW_VLAN_CTAG_FILTER) &&
+				h->ae_algo->ops->enable_vlan_filter;
+	if (dis_vlan_filter)
+		h->ae_algo->ops->enable_vlan_filter(h, false);
+#endif
+
+	/* Tell firmware to stop mac autoneg before loopback test start,
+	 * otherwise loopback test may be failed when the port is still
+	 * negotiating.
+	 */
+	if (h->ae_algo->ops->halt_autoneg)
+		h->ae_algo->ops->halt_autoneg(h, true);
 
 	set_bit(HNS3_NIC_STATE_TESTING, &priv->state);
 
-	for (i = 0; i < HNS3_SELF_TEST_TPYE_NUM; i++) {
+	for (i = 0; i < HNS3_SELF_TEST_TYPE_NUM; i++) {
 		enum hnae3_loop loop_type = (enum hnae3_loop)st_param[i][0];
 
 		if (!st_param[i][1])
 			continue;
 
 		data[test_index] = hns3_lp_up(ndev, loop_type);
-		if (!data[test_index]) {
+		if (!data[test_index])
 			data[test_index] = hns3_lp_run_test(ndev, loop_type);
-			hns3_lp_down(ndev);
-		}
+
+		hns3_lp_down(ndev, loop_type);
 
 		if (data[test_index])
 			eth_test->flags |= ETH_TEST_FL_FAILED;
@@ -345,26 +380,18 @@ static void hns3_self_test(struct net_device *ndev,
 
 	clear_bit(HNS3_NIC_STATE_TESTING, &priv->state);
 
+	if (h->ae_algo->ops->halt_autoneg)
+		h->ae_algo->ops->halt_autoneg(h, false);
+
+#if IS_ENABLED(CONFIG_VLAN_8021Q)
+	if (dis_vlan_filter)
+		h->ae_algo->ops->enable_vlan_filter(h, true);
+#endif
+
 	if (if_running)
-		dev_open(ndev);
-}
+		ndev->netdev_ops->ndo_open(ndev);
 
-static void hns3_driv_to_eth_caps(u32 caps, struct ethtool_link_ksettings *cmd,
-				  bool is_advertised)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(hns3_lm_map); i++) {
-		if (!(caps & hns3_lm_map[i].hns3_link_mode))
-			continue;
-
-		if (is_advertised)
-			__set_bit(hns3_lm_map[i].ethtool_link_mode,
-				  cmd->link_modes.advertising);
-		else
-			__set_bit(hns3_lm_map[i].ethtool_link_mode,
-				  cmd->link_modes.supported);
-	}
+	netif_dbg(h, drv, ndev, "self test end\n");
 }
 
 static int hns3_get_sset_count(struct net_device *netdev, int stringset)
@@ -382,9 +409,10 @@ static int hns3_get_sset_count(struct net_device *netdev, int stringset)
 
 	case ETH_SS_TEST:
 		return ops->get_sset_count(h, stringset);
-	}
 
-	return 0;
+	default:
+		return -EOPNOTSUPP;
+	}
 }
 
 static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
@@ -400,7 +428,7 @@ static void *hns3_update_strings(u8 *data, const struct hns3_stats *stats,
 			data[ETH_GSTRING_LEN - 1] = '\0';
 
 			/* first, prepend the prefix string */
-			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s#%d_",
+			n1 = snprintf(data, MAX_PREFIX_SIZE, "%s%d_",
 				      prefix, i);
 			n1 = min_t(uint, n1, MAX_PREFIX_SIZE - 1);
 			size_left = (ETH_GSTRING_LEN - 1) - n1;
@@ -443,10 +471,12 @@ static void hns3_get_strings(struct net_device *netdev, u32 stringset, u8 *data)
 	switch (stringset) {
 	case ETH_SS_STATS:
 		buff = hns3_get_strings_tqps(h, buff);
-		h->ae_algo->ops->get_strings(h, stringset, (u8 *)buff);
+		ops->get_strings(h, stringset, (u8 *)buff);
 		break;
 	case ETH_SS_TEST:
 		ops->get_strings(h, stringset, data);
+		break;
+	default:
 		break;
 	}
 }
@@ -491,6 +521,11 @@ static void hns3_get_stats(struct net_device *netdev,
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 	u64 *p = data;
 
+	if (hns3_nic_resetting(netdev)) {
+		netdev_err(netdev, "dev resetting, could not get stats\n");
+		return;
+	}
+
 	if (!h->ae_algo->ops->get_stats || !h->ae_algo->ops->update_stats) {
 		netdev_err(netdev, "could not get any statistics\n");
 		return;
@@ -510,6 +545,12 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
+	u32 fw_version;
+
+	if (!h->ae_algo->ops->get_fw_version) {
+		netdev_err(netdev, "could not get fw version!\n");
+		return;
+	}
 
 	strncpy(drvinfo->version, hns3_driver_version,
 		sizeof(drvinfo->version));
@@ -523,15 +564,25 @@ static void hns3_get_drvinfo(struct net_device *netdev,
 		sizeof(drvinfo->bus_info));
 	drvinfo->bus_info[ETHTOOL_BUSINFO_LEN - 1] = '\0';
 
-	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version), "0x%08x",
-		 priv->ae_handle->ae_algo->ops->get_fw_version(h));
+	fw_version = priv->ae_handle->ae_algo->ops->get_fw_version(h);
+
+	snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
+		 "%lu.%lu.%lu.%lu",
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE3_MASK,
+				 HNAE3_FW_VERSION_BYTE3_SHIFT),
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE2_MASK,
+				 HNAE3_FW_VERSION_BYTE2_SHIFT),
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE1_MASK,
+				 HNAE3_FW_VERSION_BYTE1_SHIFT),
+		 hnae3_get_field(fw_version, HNAE3_FW_VERSION_BYTE0_MASK,
+				 HNAE3_FW_VERSION_BYTE0_SHIFT));
 }
 
 static u32 hns3_get_link(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (h->ae_algo && h->ae_algo->ops && h->ae_algo->ops->get_status)
+	if (h->ae_algo->ops->get_status)
 		return h->ae_algo->ops->get_status(h);
 	else
 		return 0;
@@ -543,6 +594,11 @@ static void hns3_get_ringparam(struct net_device *netdev,
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct hnae3_handle *h = priv->ae_handle;
 	int queue_num = h->kinfo.num_tqps;
+
+	if (hns3_nic_resetting(netdev)) {
+		netdev_err(netdev, "dev resetting!");
+		return;
+	}
 
 	param->tx_max_pending = HNS3_RING_MAX_PENDING;
 	param->rx_max_pending = HNS3_RING_MAX_PENDING;
@@ -556,7 +612,7 @@ static void hns3_get_pauseparam(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (h->ae_algo && h->ae_algo->ops && h->ae_algo->ops->get_pauseparam)
+	if (h->ae_algo->ops->get_pauseparam)
 		h->ae_algo->ops->get_pauseparam(h, &param->autoneg,
 			&param->rx_pause, &param->tx_pause);
 }
@@ -566,6 +622,10 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
+	netif_dbg(h, drv, netdev,
+		  "set pauseparam: autoneg=%u, rx:%u, tx:%u\n",
+		  param->autoneg, param->rx_pause, param->tx_pause);
+
 	if (h->ae_algo->ops->set_pauseparam)
 		return h->ae_algo->ops->set_pauseparam(h, param->autoneg,
 						       param->rx_pause,
@@ -573,29 +633,77 @@ static int hns3_set_pauseparam(struct net_device *netdev,
 	return -EOPNOTSUPP;
 }
 
+static void hns3_get_ksettings(struct hnae3_handle *h,
+			       struct ethtool_link_ksettings *cmd)
+{
+	const struct hnae3_ae_ops *ops = h->ae_algo->ops;
+
+	/* 1.auto_neg & speed & duplex from cmd */
+	if (ops->get_ksettings_an_result)
+		ops->get_ksettings_an_result(h,
+					     &cmd->base.autoneg,
+					     &cmd->base.speed,
+					     &cmd->base.duplex);
+
+	/* 2.get link mode */
+	if (ops->get_link_mode)
+		ops->get_link_mode(h,
+				   cmd->link_modes.supported,
+				   cmd->link_modes.advertising);
+
+	/* 3.mdix_ctrl&mdix get from phy reg */
+	if (ops->get_mdix_mode)
+		ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
+				   &cmd->base.eth_tp_mdix);
+}
+
 static int hns3_get_link_ksettings(struct net_device *netdev,
 				   struct ethtool_link_ksettings *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
-	u32 flowctrl_adv = 0;
-	u32 supported_caps;
-	u32 advertised_caps;
-	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
+	const struct hnae3_ae_ops *ops;
+	u8 module_type;
+	u8 media_type;
 	u8 link_stat;
 
-	if (!h->ae_algo || !h->ae_algo->ops)
-		return -EOPNOTSUPP;
-
-	/* 1.auto_neg & speed & duplex from cmd */
-	if (netdev->phydev)
-		phy_ethtool_ksettings_get(netdev->phydev, cmd);
-	else if (h->ae_algo->ops->get_ksettings_an_result)
-		h->ae_algo->ops->get_ksettings_an_result(h,
-							 &cmd->base.autoneg,
-							 &cmd->base.speed,
-							 &cmd->base.duplex);
+	ops = h->ae_algo->ops;
+	if (ops->get_media_type)
+		ops->get_media_type(h, &media_type, &module_type);
 	else
 		return -EOPNOTSUPP;
+
+	switch (media_type) {
+	case HNAE3_MEDIA_TYPE_NONE:
+		cmd->base.port = PORT_NONE;
+		hns3_get_ksettings(h, cmd);
+		break;
+	case HNAE3_MEDIA_TYPE_FIBER:
+		if (module_type == HNAE3_MODULE_TYPE_CR)
+			cmd->base.port = PORT_DA;
+		else
+			cmd->base.port = PORT_FIBRE;
+
+		hns3_get_ksettings(h, cmd);
+		break;
+	case HNAE3_MEDIA_TYPE_BACKPLANE:
+		cmd->base.port = PORT_NONE;
+		hns3_get_ksettings(h, cmd);
+		break;
+	case HNAE3_MEDIA_TYPE_COPPER:
+		cmd->base.port = PORT_TP;
+		if (!netdev->phydev)
+			hns3_get_ksettings(h, cmd);
+		else
+			phy_ethtool_ksettings_get(netdev->phydev, cmd);
+		break;
+	default:
+
+		netdev_warn(netdev, "Unknown media type");
+		return 0;
+	}
+
+	/* mdio_support */
+	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
 
 	link_stat = hns3_get_link(netdev);
 	if (!link_stat) {
@@ -603,81 +711,51 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 		cmd->base.duplex = DUPLEX_UNKNOWN;
 	}
 
-	/* 2.media_type get from bios parameter block */
-	if (h->ae_algo->ops->get_media_type) {
-		h->ae_algo->ops->get_media_type(h, &media_type);
+	return 0;
+}
 
-		switch (media_type) {
-		case HNAE3_MEDIA_TYPE_FIBER:
-			cmd->base.port = PORT_FIBRE;
-			supported_caps = HNS3_LM_FIBRE_BIT |
-					 HNS3_LM_AUTONEG_BIT |
-					 HNS3_LM_PAUSE_BIT |
-					 HNS3_LM_1000BASET_FULL_BIT;
+static int hns3_check_ksettings_param(const struct net_device *netdev,
+				      const struct ethtool_link_ksettings *cmd)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	u8 module_type = HNAE3_MODULE_TYPE_UNKNOWN;
+	u8 media_type = HNAE3_MEDIA_TYPE_UNKNOWN;
+	u8 autoneg;
+	u32 speed;
+	u8 duplex;
+	int ret;
 
-			advertised_caps = supported_caps;
-			break;
-		case HNAE3_MEDIA_TYPE_COPPER:
-			cmd->base.port = PORT_TP;
-			supported_caps = HNS3_LM_TP_BIT |
-					 HNS3_LM_AUTONEG_BIT |
-					 HNS3_LM_PAUSE_BIT |
-					 HNS3_LM_1000BASET_FULL_BIT |
-					 HNS3_LM_100BASET_FULL_BIT |
-					 HNS3_LM_100BASET_HALF_BIT |
-					 HNS3_LM_10BASET_FULL_BIT |
-					 HNS3_LM_10BASET_HALF_BIT;
-			advertised_caps = supported_caps;
-			break;
-		case HNAE3_MEDIA_TYPE_BACKPLANE:
-			cmd->base.port = PORT_NONE;
-			supported_caps = HNS3_LM_BACKPLANE_BIT |
-					 HNS3_LM_PAUSE_BIT |
-					 HNS3_LM_AUTONEG_BIT |
-					 HNS3_LM_1000BASET_FULL_BIT |
-					 HNS3_LM_100BASET_FULL_BIT |
-					 HNS3_LM_100BASET_HALF_BIT |
-					 HNS3_LM_10BASET_FULL_BIT |
-					 HNS3_LM_10BASET_HALF_BIT;
+	/* hw doesn't support use specified speed and duplex to negotiate,
+	 * unnecessary to check them when autoneg on.
+	 */
+	if (cmd->base.autoneg)
+		return 0;
 
-			advertised_caps = supported_caps;
-			break;
-		case HNAE3_MEDIA_TYPE_UNKNOWN:
-		default:
-			cmd->base.port = PORT_OTHER;
-			supported_caps = 0;
-			advertised_caps = 0;
-			break;
-		}
-
-		if (!cmd->base.autoneg)
-			advertised_caps &= ~HNS3_LM_AUTONEG_BIT;
-
-		advertised_caps &= ~HNS3_LM_PAUSE_BIT;
-
-		/* now, map driver link modes to ethtool link modes */
-		hns3_driv_to_eth_caps(supported_caps, cmd, false);
-		hns3_driv_to_eth_caps(advertised_caps, cmd, true);
+	if (ops->get_ksettings_an_result) {
+		ops->get_ksettings_an_result(handle, &autoneg, &speed, &duplex);
+		if (cmd->base.autoneg == autoneg && cmd->base.speed == speed &&
+		    cmd->base.duplex == duplex)
+			return 0;
 	}
 
-	/* 3.mdix_ctrl&mdix get from phy reg */
-	if (h->ae_algo->ops->get_mdix_mode)
-		h->ae_algo->ops->get_mdix_mode(h, &cmd->base.eth_tp_mdix_ctrl,
-					       &cmd->base.eth_tp_mdix);
-	/* 4.mdio_support */
-	cmd->base.mdio_support = ETH_MDIO_SUPPORTS_C22;
+	if (ops->get_media_type)
+		ops->get_media_type(handle, &media_type, &module_type);
 
-	/* 5.get flow control setttings */
-	if (h->ae_algo->ops->get_flowctrl_adv)
-		h->ae_algo->ops->get_flowctrl_adv(h, &flowctrl_adv);
+	if (cmd->base.duplex != DUPLEX_FULL &&
+	    media_type != HNAE3_MEDIA_TYPE_COPPER) {
+		netdev_err(netdev,
+			   "only copper port supports half duplex!");
+		return -EINVAL;
+	}
 
-	if (flowctrl_adv & ADVERTISED_Pause)
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     Pause);
-
-	if (flowctrl_adv & ADVERTISED_Asym_Pause)
-		ethtool_link_ksettings_add_link_mode(cmd, advertising,
-						     Asym_Pause);
+	if (ops->check_port_speed) {
+		ret = ops->check_port_speed(handle, cmd->base.speed);
+		if (ret) {
+			netdev_err(netdev, "unsupported speed\n");
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -685,20 +763,58 @@ static int hns3_get_link_ksettings(struct net_device *netdev,
 static int hns3_set_link_ksettings(struct net_device *netdev,
 				   const struct ethtool_link_ksettings *cmd)
 {
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	int ret;
+
+	/* Chip don't support this mode. */
+	if (cmd->base.speed == SPEED_1000 && cmd->base.duplex == DUPLEX_HALF)
+		return -EINVAL;
+
+	netif_dbg(handle, drv, netdev,
+		  "set link(%s): autoneg=%u, speed=%u, duplex=%u\n",
+		  netdev->phydev ? "phy" : "mac",
+		  cmd->base.autoneg, cmd->base.speed, cmd->base.duplex);
+
 	/* Only support ksettings_set for netdev with phy attached for now */
 	if (netdev->phydev)
 		return phy_ethtool_ksettings_set(netdev->phydev, cmd);
 
-	return -EOPNOTSUPP;
+	if (handle->pdev->revision == 0x20)
+		return -EOPNOTSUPP;
+
+	ret = hns3_check_ksettings_param(netdev, cmd);
+	if (ret)
+		return ret;
+
+	if (ops->set_autoneg) {
+		ret = ops->set_autoneg(handle, cmd->base.autoneg);
+		if (ret)
+			return ret;
+	}
+
+	/* hw doesn't support use specified speed and duplex to negotiate,
+	 * ignore them when autoneg on.
+	 */
+	if (cmd->base.autoneg) {
+		netdev_info(netdev,
+			    "autoneg is on, ignore the speed and duplex\n");
+		return 0;
+	}
+
+	if (ops->cfg_mac_speed_dup_h)
+		ret = ops->cfg_mac_speed_dup_h(handle, cmd->base.speed,
+					       cmd->base.duplex);
+
+	return ret;
 }
 
 static u32 hns3_get_rss_key_size(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops ||
-	    !h->ae_algo->ops->get_rss_key_size)
-		return -EOPNOTSUPP;
+	if (!h->ae_algo->ops->get_rss_key_size)
+		return 0;
 
 	return h->ae_algo->ops->get_rss_key_size(h);
 }
@@ -707,9 +823,8 @@ static u32 hns3_get_rss_indir_size(struct net_device *netdev)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops ||
-	    !h->ae_algo->ops->get_rss_indir_size)
-		return -EOPNOTSUPP;
+	if (!h->ae_algo->ops->get_rss_indir_size)
+		return 0;
 
 	return h->ae_algo->ops->get_rss_indir_size(h);
 }
@@ -719,7 +834,7 @@ static int hns3_get_rss(struct net_device *netdev, u32 *indir, u8 *key,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->get_rss)
+	if (!h->ae_algo->ops->get_rss)
 		return -EOPNOTSUPP;
 
 	return h->ae_algo->ops->get_rss(h, indir, key, hfunc);
@@ -730,15 +845,16 @@ static int hns3_set_rss(struct net_device *netdev, const u32 *indir,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_rss)
+	if (!h->ae_algo->ops->set_rss)
 		return -EOPNOTSUPP;
 
-	/* currently we only support Toeplitz hash */
-	if ((hfunc != ETH_RSS_HASH_NO_CHANGE) && (hfunc != ETH_RSS_HASH_TOP)) {
-		netdev_err(netdev,
-			   "hash func not supported (only Toeplitz hash)\n");
+	if ((h->pdev->revision == 0x20 &&
+	     hfunc != ETH_RSS_HASH_TOP) || (hfunc != ETH_RSS_HASH_NO_CHANGE &&
+	     hfunc != ETH_RSS_HASH_TOP && hfunc != ETH_RSS_HASH_XOR)) {
+		netdev_err(netdev, "hash func not supported\n");
 		return -EOPNOTSUPP;
 	}
+
 	if (!indir) {
 		netdev_err(netdev,
 			   "set rss failed for indir is empty\n");
@@ -754,34 +870,87 @@ static int hns3_get_rxnfc(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->get_rss_tuple)
-		return -EOPNOTSUPP;
-
 	switch (cmd->cmd) {
 	case ETHTOOL_GRXRINGS:
-		cmd->data = h->kinfo.rss_size;
-		break;
+		cmd->data = h->kinfo.num_tqps;
+		return 0;
 	case ETHTOOL_GRXFH:
-		return h->ae_algo->ops->get_rss_tuple(h, cmd);
+		if (h->ae_algo->ops->get_rss_tuple)
+			return h->ae_algo->ops->get_rss_tuple(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_GRXCLSRLCNT:
+		if (h->ae_algo->ops->get_fd_rule_cnt)
+			return h->ae_algo->ops->get_fd_rule_cnt(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_GRXCLSRULE:
+		if (h->ae_algo->ops->get_fd_rule_info)
+			return h->ae_algo->ops->get_fd_rule_info(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_GRXCLSRLALL:
+		if (h->ae_algo->ops->get_fd_all_rules)
+			return h->ae_algo->ops->get_fd_all_rules(h, cmd,
+								 rule_locs);
+		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
 	}
-
-	return 0;
 }
 
-static int hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
-				       u32 new_desc_num)
+static void hns3_change_all_ring_bd_num(struct hns3_nic_priv *priv,
+					u32 tx_desc_num, u32 rx_desc_num)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	int i;
 
-	h->kinfo.num_desc = new_desc_num;
+	h->kinfo.num_tx_desc = tx_desc_num;
+	h->kinfo.num_rx_desc = rx_desc_num;
 
-	for (i = 0; i < h->kinfo.num_tqps * 2; i++)
-		priv->ring_data[i].ring->desc_num = new_desc_num;
+	for (i = 0; i < h->kinfo.num_tqps; i++) {
+		priv->ring_data[i].ring->desc_num = tx_desc_num;
+		priv->ring_data[i + h->kinfo.num_tqps].ring->desc_num =
+			rx_desc_num;
+	}
+}
 
-	return hns3_init_all_ring(priv);
+static struct hns3_enet_ring *hns3_backup_ringparam(struct hns3_nic_priv *priv)
+{
+	struct hnae3_handle *handle = priv->ae_handle;
+	struct hns3_enet_ring *tmp_rings;
+	int i;
+
+	tmp_rings = kcalloc(handle->kinfo.num_tqps * 2,
+			    sizeof(struct hns3_enet_ring), GFP_KERNEL);
+	if (!tmp_rings)
+		return NULL;
+
+	for (i = 0; i < handle->kinfo.num_tqps * 2; i++) {
+		memcpy(&tmp_rings[i], priv->ring_data[i].ring,
+		       sizeof(struct hns3_enet_ring));
+		tmp_rings[i].skb = NULL;
+	}
+
+	return tmp_rings;
+}
+
+static int hns3_check_ringparam(struct net_device *ndev,
+				struct ethtool_ringparam *param)
+{
+	if (hns3_nic_resetting(ndev))
+		return -EBUSY;
+
+	if (param->rx_mini_pending || param->rx_jumbo_pending)
+		return -EINVAL;
+
+	if (param->tx_pending > HNS3_RING_MAX_PENDING ||
+	    param->tx_pending < HNS3_RING_MIN_PENDING ||
+	    param->rx_pending > HNS3_RING_MAX_PENDING ||
+	    param->rx_pending < HNS3_RING_MIN_PENDING) {
+		netdev_err(ndev, "Queue depth out of range [%d-%d]\n",
+			   HNS3_RING_MIN_PENDING, HNS3_RING_MAX_PENDING);
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static int hns3_set_ringparam(struct net_device *ndev,
@@ -789,59 +958,61 @@ static int hns3_set_ringparam(struct net_device *ndev,
 {
 	struct hns3_nic_priv *priv = netdev_priv(ndev);
 	struct hnae3_handle *h = priv->ae_handle;
+	struct hns3_enet_ring *tmp_rings;
 	bool if_running = netif_running(ndev);
-	u32 old_desc_num, new_desc_num;
-	int ret;
+	u32 old_tx_desc_num, new_tx_desc_num;
+	u32 old_rx_desc_num, new_rx_desc_num;
+	u16 queue_num = h->kinfo.num_tqps;
+	int ret, i;
 
-	if (param->rx_mini_pending || param->rx_jumbo_pending)
-		return -EINVAL;
-
-	if (param->tx_pending != param->rx_pending) {
-		netdev_err(ndev,
-			   "Descriptors of tx and rx must be equal");
-		return -EINVAL;
-	}
-
-	if (param->tx_pending > HNS3_RING_MAX_PENDING ||
-	    param->tx_pending < HNS3_RING_MIN_PENDING) {
-		netdev_err(ndev,
-			   "Descriptors requested (Tx/Rx: %d) out of range [%d-%d]\n",
-			   param->tx_pending, HNS3_RING_MIN_PENDING,
-			   HNS3_RING_MAX_PENDING);
-		return -EINVAL;
-	}
-
-	new_desc_num = param->tx_pending;
-
-	/* Hardware requires that its descriptors must be multiple of eight */
-	new_desc_num = ALIGN(new_desc_num, HNS3_RING_BD_MULTIPLE);
-	old_desc_num = h->kinfo.num_desc;
-	if (old_desc_num == new_desc_num)
-		return 0;
-
-	netdev_info(ndev,
-		    "Changing descriptor count from %d to %d.\n",
-		    old_desc_num, new_desc_num);
-
-	if (if_running)
-		dev_close(ndev);
-
-	ret = hns3_uninit_all_ring(priv);
+	ret = hns3_check_ringparam(ndev, param);
 	if (ret)
 		return ret;
 
-	ret = hns3_change_all_ring_bd_num(priv, new_desc_num);
-	if (ret) {
-		ret = hns3_change_all_ring_bd_num(priv, old_desc_num);
-		if (ret) {
-			netdev_err(ndev,
-				   "Revert to old bd num fail, ret=%d.\n", ret);
-			return ret;
-		}
+	/* Hardware requires that its descriptors must be multiple of eight */
+	new_tx_desc_num = ALIGN(param->tx_pending, HNS3_RING_BD_MULTIPLE);
+	new_rx_desc_num = ALIGN(param->rx_pending, HNS3_RING_BD_MULTIPLE);
+	old_tx_desc_num = priv->ring_data[0].ring->desc_num;
+	old_rx_desc_num = priv->ring_data[queue_num].ring->desc_num;
+	if (old_tx_desc_num == new_tx_desc_num &&
+	    old_rx_desc_num == new_rx_desc_num)
+		return 0;
+
+	tmp_rings = hns3_backup_ringparam(priv);
+	if (!tmp_rings) {
+		netdev_err(ndev,
+			   "backup ring param failed by allocating memory fail\n");
+		return -ENOMEM;
 	}
 
+	netdev_info(ndev,
+		    "Changing Tx/Rx ring depth from %d/%d to %d/%d\n",
+		    old_tx_desc_num, old_rx_desc_num,
+		    new_tx_desc_num, new_rx_desc_num);
+
 	if (if_running)
-		ret = dev_open(ndev);
+		ndev->netdev_ops->ndo_stop(ndev);
+
+	hns3_change_all_ring_bd_num(priv, new_tx_desc_num, new_rx_desc_num);
+	ret = hns3_init_all_ring(priv);
+	if (ret) {
+		netdev_err(ndev, "Change bd num fail, revert to old value(%d)\n",
+			   ret);
+
+		hns3_change_all_ring_bd_num(priv, old_tx_desc_num,
+					    old_rx_desc_num);
+		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
+			memcpy(priv->ring_data[i].ring, &tmp_rings[i],
+			       sizeof(struct hns3_enet_ring));
+	} else {
+		for (i = 0; i < h->kinfo.num_tqps * 2; i++)
+			hns3_fini_ring(&tmp_rings[i]);
+	}
+
+	kfree(tmp_rings);
+
+	if (if_running)
+		ret = ndev->netdev_ops->ndo_open(ndev);
 
 	return ret;
 }
@@ -850,12 +1021,19 @@ static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_rss_tuple)
-		return -EOPNOTSUPP;
-
 	switch (cmd->cmd) {
 	case ETHTOOL_SRXFH:
-		return h->ae_algo->ops->set_rss_tuple(h, cmd);
+		if (h->ae_algo->ops->set_rss_tuple)
+			return h->ae_algo->ops->set_rss_tuple(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_SRXCLSRLINS:
+		if (h->ae_algo->ops->add_fd_entry)
+			return h->ae_algo->ops->add_fd_entry(h, cmd);
+		return -EOPNOTSUPP;
+	case ETHTOOL_SRXCLSRLDEL:
+		if (h->ae_algo->ops->del_fd_entry)
+			return h->ae_algo->ops->del_fd_entry(h, cmd);
+		return -EOPNOTSUPP;
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -863,19 +1041,39 @@ static int hns3_set_rxnfc(struct net_device *netdev, struct ethtool_rxnfc *cmd)
 
 static int hns3_nway_reset(struct net_device *netdev)
 {
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
 	struct phy_device *phy = netdev->phydev;
+	int autoneg;
 
 	if (!netif_running(netdev))
 		return 0;
 
-	/* Only support nway_reset for netdev with phy attached for now */
-	if (!phy)
+	if (hns3_nic_resetting(netdev)) {
+		netdev_err(netdev, "dev resetting!");
+		return -EBUSY;
+	}
+
+	if (!ops->get_autoneg || !ops->restart_autoneg)
 		return -EOPNOTSUPP;
 
-	if (phy->autoneg != AUTONEG_ENABLE)
+	autoneg = ops->get_autoneg(handle);
+	if (autoneg != AUTONEG_ENABLE) {
+		netdev_err(netdev,
+			   "Autoneg is off, don't support to restart it\n");
 		return -EINVAL;
+	}
 
-	return genphy_restart_aneg(phy);
+	netif_dbg(handle, drv, netdev,
+		  "nway reset (using %s)\n", phy ? "phy" : "mac");
+
+	if (phy)
+		return genphy_restart_aneg(phy);
+
+	if (handle->pdev->revision == 0x20)
+		return -EOPNOTSUPP;
+
+	return ops->restart_autoneg(handle);
 }
 
 static void hns3_get_channels(struct net_device *netdev,
@@ -895,6 +1093,9 @@ static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
 	struct hnae3_handle *h = priv->ae_handle;
 	u16 queue_num = h->kinfo.num_tqps;
 
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
+
 	if (queue >= queue_num) {
 		netdev_err(netdev,
 			   "Invalid queue value %d! Queue max id=%d\n",
@@ -905,11 +1106,13 @@ static int hns3_get_coalesce_per_queue(struct net_device *netdev, u32 queue,
 	tx_vector = priv->ring_data[queue].ring->tqp_vector;
 	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
 
-	cmd->use_adaptive_tx_coalesce = tx_vector->tx_group.gl_adapt_enable;
-	cmd->use_adaptive_rx_coalesce = rx_vector->rx_group.gl_adapt_enable;
+	cmd->use_adaptive_tx_coalesce =
+			tx_vector->tx_group.coal.gl_adapt_enable;
+	cmd->use_adaptive_rx_coalesce =
+			rx_vector->rx_group.coal.gl_adapt_enable;
 
-	cmd->tx_coalesce_usecs = tx_vector->tx_group.int_gl;
-	cmd->rx_coalesce_usecs = rx_vector->rx_group.int_gl;
+	cmd->tx_coalesce_usecs = tx_vector->tx_group.coal.int_gl;
+	cmd->rx_coalesce_usecs = rx_vector->rx_group.coal.int_gl;
 
 	cmd->tx_coalesce_usecs_high = h->kinfo.int_rl_setting;
 	cmd->rx_coalesce_usecs_high = h->kinfo.int_rl_setting;
@@ -1029,14 +1232,18 @@ static void hns3_set_coalesce_per_queue(struct net_device *netdev,
 	tx_vector = priv->ring_data[queue].ring->tqp_vector;
 	rx_vector = priv->ring_data[queue_num + queue].ring->tqp_vector;
 
-	tx_vector->tx_group.gl_adapt_enable = cmd->use_adaptive_tx_coalesce;
-	rx_vector->rx_group.gl_adapt_enable = cmd->use_adaptive_rx_coalesce;
+	tx_vector->tx_group.coal.gl_adapt_enable =
+				cmd->use_adaptive_tx_coalesce;
+	rx_vector->rx_group.coal.gl_adapt_enable =
+				cmd->use_adaptive_rx_coalesce;
 
-	tx_vector->tx_group.int_gl = cmd->tx_coalesce_usecs;
-	rx_vector->rx_group.int_gl = cmd->rx_coalesce_usecs;
+	tx_vector->tx_group.coal.int_gl = cmd->tx_coalesce_usecs;
+	rx_vector->rx_group.coal.int_gl = cmd->rx_coalesce_usecs;
 
-	hns3_set_vector_coalesce_tx_gl(tx_vector, tx_vector->tx_group.int_gl);
-	hns3_set_vector_coalesce_rx_gl(rx_vector, rx_vector->rx_group.int_gl);
+	hns3_set_vector_coalesce_tx_gl(tx_vector,
+				       tx_vector->tx_group.coal.int_gl);
+	hns3_set_vector_coalesce_rx_gl(rx_vector,
+				       rx_vector->rx_group.coal.int_gl);
 
 	hns3_set_vector_coalesce_rl(tx_vector, h->kinfo.int_rl_setting);
 	hns3_set_vector_coalesce_rl(rx_vector, h->kinfo.int_rl_setting);
@@ -1049,6 +1256,9 @@ static int hns3_set_coalesce(struct net_device *netdev,
 	u16 queue_num = h->kinfo.num_tqps;
 	int ret;
 	int i;
+
+	if (hns3_nic_resetting(netdev))
+		return -EBUSY;
 
 	ret = hns3_check_coalesce_para(netdev, cmd);
 	if (ret)
@@ -1089,10 +1299,102 @@ static int hns3_set_phys_id(struct net_device *netdev,
 {
 	struct hnae3_handle *h = hns3_get_handle(netdev);
 
-	if (!h->ae_algo || !h->ae_algo->ops || !h->ae_algo->ops->set_led_id)
+	if (!h->ae_algo->ops->set_led_id)
 		return -EOPNOTSUPP;
 
 	return h->ae_algo->ops->set_led_id(h, state);
+}
+
+static u32 hns3_get_msglevel(struct net_device *netdev)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	return h->msg_enable;
+}
+
+static void hns3_set_msglevel(struct net_device *netdev, u32 msg_level)
+{
+	struct hnae3_handle *h = hns3_get_handle(netdev);
+
+	h->msg_enable = msg_level;
+}
+
+/* Translate local fec value into ethtool value. */
+static unsigned int loc_to_eth_fec(u8 loc_fec)
+{
+	u32 eth_fec = 0;
+
+	if (loc_fec & BIT(HNAE3_FEC_AUTO))
+		eth_fec |= ETHTOOL_FEC_AUTO;
+	if (loc_fec & BIT(HNAE3_FEC_RS))
+		eth_fec |= ETHTOOL_FEC_RS;
+	if (loc_fec & BIT(HNAE3_FEC_BASER))
+		eth_fec |= ETHTOOL_FEC_BASER;
+
+	/* if nothing is set, then FEC is off */
+	if (!eth_fec)
+		eth_fec = ETHTOOL_FEC_OFF;
+
+	return eth_fec;
+}
+
+/* Translate ethtool fec value into local value. */
+static unsigned int eth_to_loc_fec(unsigned int eth_fec)
+{
+	u32 loc_fec = 0;
+
+	if (eth_fec & ETHTOOL_FEC_OFF)
+		return loc_fec;
+
+	if (eth_fec & ETHTOOL_FEC_AUTO)
+		loc_fec |= BIT(HNAE3_FEC_AUTO);
+	if (eth_fec & ETHTOOL_FEC_RS)
+		loc_fec |= BIT(HNAE3_FEC_RS);
+	if (eth_fec & ETHTOOL_FEC_BASER)
+		loc_fec |= BIT(HNAE3_FEC_BASER);
+
+	return loc_fec;
+}
+
+static int hns3_get_fecparam(struct net_device *netdev,
+			     struct ethtool_fecparam *fec)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	u8 fec_ability;
+	u8 fec_mode;
+
+	if (handle->pdev->revision == 0x20)
+		return -EOPNOTSUPP;
+
+	if (!ops->get_fec)
+		return -EOPNOTSUPP;
+
+	ops->get_fec(handle, &fec_ability, &fec_mode);
+
+	fec->fec = loc_to_eth_fec(fec_ability);
+	fec->active_fec = loc_to_eth_fec(fec_mode);
+
+	return 0;
+}
+
+static int hns3_set_fecparam(struct net_device *netdev,
+			     struct ethtool_fecparam *fec)
+{
+	struct hnae3_handle *handle = hns3_get_handle(netdev);
+	const struct hnae3_ae_ops *ops = handle->ae_algo->ops;
+	u32 fec_mode;
+
+	if (handle->pdev->revision == 0x20)
+		return -EOPNOTSUPP;
+
+	if (!ops->set_fec)
+		return -EOPNOTSUPP;
+	fec_mode = eth_to_loc_fec(fec->fec);
+
+	netif_dbg(handle, drv, netdev, "set fecparam: mode=%u\n", fec_mode);
+
+	return ops->set_fec(handle, fec_mode);
 }
 
 static const struct ethtool_ops hns3vf_ethtool_ops = {
@@ -1103,14 +1405,21 @@ static const struct ethtool_ops hns3vf_ethtool_ops = {
 	.get_ethtool_stats = hns3_get_stats,
 	.get_sset_count = hns3_get_sset_count,
 	.get_rxnfc = hns3_get_rxnfc,
+	.set_rxnfc = hns3_set_rxnfc,
 	.get_rxfh_key_size = hns3_get_rss_key_size,
 	.get_rxfh_indir_size = hns3_get_rss_indir_size,
 	.get_rxfh = hns3_get_rss,
 	.set_rxfh = hns3_set_rss,
 	.get_link_ksettings = hns3_get_link_ksettings,
 	.get_channels = hns3_get_channels,
+	.set_channels = hns3_set_channels,
 	.get_coalesce = hns3_get_coalesce,
 	.set_coalesce = hns3_set_coalesce,
+	.get_regs_len = hns3_get_regs_len,
+	.get_regs = hns3_get_regs,
+	.get_link = hns3_get_link,
+	.get_msglevel = hns3_get_msglevel,
+	.set_msglevel = hns3_set_msglevel,
 };
 
 static const struct ethtool_ops hns3_ethtool_ops = {
@@ -1140,6 +1449,10 @@ static const struct ethtool_ops hns3_ethtool_ops = {
 	.get_regs_len = hns3_get_regs_len,
 	.get_regs = hns3_get_regs,
 	.set_phys_id = hns3_set_phys_id,
+	.get_msglevel = hns3_get_msglevel,
+	.set_msglevel = hns3_set_msglevel,
+	.get_fecparam = hns3_get_fecparam,
+	.set_fecparam = hns3_set_fecparam,
 };
 
 void hns3_ethtool_set_ops(struct net_device *netdev)

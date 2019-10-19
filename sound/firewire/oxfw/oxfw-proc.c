@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * oxfw_proc.c - a part of driver for OXFW970/971 based devices
  *
  * Copyright (c) 2014 Takashi Sakamoto
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "./oxfw.h"
@@ -83,12 +82,8 @@ static void add_node(struct snd_oxfw *oxfw, struct snd_info_entry *root,
 	struct snd_info_entry *entry;
 
 	entry = snd_info_create_card_entry(oxfw->card, name, root);
-	if (entry == NULL)
-		return;
-
-	snd_info_set_text_ops(entry, oxfw, op);
-	if (snd_info_register(entry) < 0)
-		snd_info_free_entry(entry);
+	if (entry)
+		snd_info_set_text_ops(entry, oxfw, op);
 }
 
 void snd_oxfw_proc_init(struct snd_oxfw *oxfw)
@@ -103,11 +98,7 @@ void snd_oxfw_proc_init(struct snd_oxfw *oxfw)
 					  oxfw->card->proc_root);
 	if (root == NULL)
 		return;
-	root->mode = S_IFDIR | S_IRUGO | S_IXUGO;
-	if (snd_info_register(root) < 0) {
-		snd_info_free_entry(root);
-		return;
-	}
+	root->mode = S_IFDIR | 0555;
 
 	add_node(oxfw, root, "formation", proc_read_formation);
 }

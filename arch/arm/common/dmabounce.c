@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  arch/arm/common/dmabounce.c
  *
@@ -16,10 +17,6 @@
  *
  *  Copyright (C) 2002 Hewlett Packard Company.
  *  Copyright (C) 2004 MontaVista Software, Inc.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  version 2 as published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -257,7 +254,7 @@ static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
 	if (buf == NULL) {
 		dev_err(dev, "%s: unable to map unsafe buffer %p!\n",
 		       __func__, ptr);
-		return ARM_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
 	}
 
 	dev_dbg(dev, "%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
@@ -327,7 +324,7 @@ static dma_addr_t dmabounce_map_page(struct device *dev, struct page *page,
 
 	ret = needs_bounce(dev, dma_addr, size);
 	if (ret < 0)
-		return ARM_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
 
 	if (ret == 0) {
 		arm_dma_ops.sync_single_for_device(dev, dma_addr, size, dir);
@@ -336,7 +333,7 @@ static dma_addr_t dmabounce_map_page(struct device *dev, struct page *page,
 
 	if (PageHighMem(page)) {
 		dev_err(dev, "DMA buffer bouncing of HIGHMEM pages is not supported\n");
-		return ARM_MAPPING_ERROR;
+		return DMA_MAPPING_ERROR;
 	}
 
 	return map_single(dev, page_address(page) + offset, size, dir, attrs);
@@ -453,11 +450,6 @@ static int dmabounce_dma_supported(struct device *dev, u64 dma_mask)
 	return arm_dma_ops.dma_supported(dev, dma_mask);
 }
 
-static int dmabounce_mapping_error(struct device *dev, dma_addr_t dma_addr)
-{
-	return arm_dma_ops.mapping_error(dev, dma_addr);
-}
-
 static const struct dma_map_ops dmabounce_ops = {
 	.alloc			= arm_dma_alloc,
 	.free			= arm_dma_free,
@@ -472,7 +464,6 @@ static const struct dma_map_ops dmabounce_ops = {
 	.sync_sg_for_cpu	= arm_dma_sync_sg_for_cpu,
 	.sync_sg_for_device	= arm_dma_sync_sg_for_device,
 	.dma_supported		= dmabounce_dma_supported,
-	.mapping_error		= dmabounce_mapping_error,
 };
 
 static int dmabounce_init_pool(struct dmabounce_pool *pool, struct device *dev,

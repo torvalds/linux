@@ -1,10 +1,13 @@
+.. SPDX-License-Identifier: GPL-2.0
+.. include:: <isonum.txt>
+
 ===============================================
 ``intel_pstate`` CPU Performance Scaling Driver
 ===============================================
 
-::
+:Copyright: |copy| 2017 Intel Corporation
 
- Copyright (c) 2017 Intel Corp., Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+:Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 
 
 General Information
@@ -20,11 +23,10 @@ you have not done that yet.]
 
 For the processors supported by ``intel_pstate``, the P-state concept is broader
 than just an operating frequency or an operating performance point (see the
-`LinuxCon Europe 2015 presentation by Kristen Accardi <LCEU2015_>`_ for more
+LinuxCon Europe 2015 presentation by Kristen Accardi [1]_ for more
 information about that).  For this reason, the representation of P-states used
 by ``intel_pstate`` internally follows the hardware specification (for details
-refer to `Intel® 64 and IA-32 Architectures Software Developer’s Manual
-Volume 3: System Programming Guide <SDM_>`_).  However, the ``CPUFreq`` core
+refer to Intel Software Developer’s Manual [2]_).  However, the ``CPUFreq`` core
 uses frequencies for identifying operating performance points of CPUs and
 frequencies are involved in the user space interface exposed by it, so
 ``intel_pstate`` maps its internal representation of P-states to frequencies too
@@ -145,7 +147,7 @@ feature enabled.]
 
 In this mode ``intel_pstate`` registers utilization update callbacks with the
 CPU scheduler in order to run a P-state selection algorithm, either
-``powersave`` or ``performance``, depending on the ``scaling_cur_freq`` policy
+``powersave`` or ``performance``, depending on the ``scaling_governor`` policy
 setting in ``sysfs``.  The current CPU frequency information to be made
 available from the ``scaling_cur_freq`` policy attribute in ``sysfs`` is
 periodically updated by those utilization update callbacks too.
@@ -324,8 +326,7 @@ Global Attributes
 
 ``intel_pstate`` exposes several global attributes (files) in ``sysfs`` to
 control its functionality at the system level.  They are located in the
-``/sys/devices/system/cpu/cpufreq/intel_pstate/`` directory and affect all
-CPUs.
+``/sys/devices/system/cpu/intel_pstate/`` directory and affect all CPUs.
 
 Some of them are not present if the ``intel_pstate=per_cpu_perf_limits``
 argument is passed to the kernel in the command line.
@@ -379,6 +380,17 @@ argument is passed to the kernel in the command line.
 	but it affects the maximum possible value of per-policy P-state	limits
 	(see `Interpretation of Policy Attributes`_ below for details).
 
+``hwp_dynamic_boost``
+	This attribute is only present if ``intel_pstate`` works in the
+	`active mode with the HWP feature enabled <Active Mode With HWP_>`_ in
+	the processor.  If set (equal to 1), it causes the minimum P-state limit
+	to be increased dynamically for a short time whenever a task previously
+	waiting on I/O is selected to run on a given logical CPU (the purpose
+	of this mechanism is to improve performance).
+
+	This setting has no effect on logical CPUs whose minimum P-state limit
+	is directly set to the highest non-turbo P-state or above it.
+
 .. _status_attr:
 
 ``status``
@@ -410,7 +422,7 @@ argument is passed to the kernel in the command line.
 	That only is supported in some configurations, though (for example, if
 	the `HWP feature is enabled in the processor <Active Mode With HWP_>`_,
 	the operation mode of the driver cannot be changed), and if it is not
-	supported in the current configuration, writes to this attribute with
+	supported in the current configuration, writes to this attribute will
 	fail with an appropriate error.
 
 Interpretation of Policy Attributes
@@ -455,6 +467,13 @@ Next, the following policy attributes have special meaning if
 	policy for the time interval between the last two invocations of the
 	driver's utilization update callback by the CPU scheduler for that CPU.
 
+One more policy attribute is present if the `HWP feature is enabled in the
+processor <Active Mode With HWP_>`_:
+
+``base_frequency``
+	Shows the base frequency of the CPU. Any frequency above this will be
+	in the turbo frequency range.
+
 The meaning of these attributes in the `passive mode <Passive Mode_>`_ is the
 same as for other scaling drivers.
 
@@ -478,7 +497,15 @@ on the following rules, regardless of the current operation mode of the driver:
 
  2. Each individual CPU is affected by its own per-policy limits (that is, it
     cannot be requested to run faster than its own per-policy maximum and it
-    cannot be requested to run slower than its own per-policy minimum).
+    cannot be requested to run slower than its own per-policy minimum). The
+    effective performance depends on whether the platform supports per core
+    P-states, hyper-threading is enabled and on current performance requests
+    from other CPUs. When platform doesn't support per core P-states, the
+    effective performance can be more than the policy limits set on a CPU, if
+    other CPUs are requesting higher performance at that moment. Even with per
+    core P-states support, when hyper-threading is enabled, if the sibling CPU
+    is requesting higher performance, the other siblings will get higher
+    performance than their policy limits.
 
  3. The global and per-policy limits can be set independently.
 
@@ -536,9 +563,9 @@ or to pin every task potentially sensitive to them to a specific CPU.]
 
 On the majority of systems supported by ``intel_pstate``, the ACPI tables
 provided by the platform firmware contain ``_PSS`` objects returning information
-that can be used for CPU performance scaling (refer to the `ACPI specification`_
-for details on the ``_PSS`` objects and the format of the information returned
-by them).
+that can be used for CPU performance scaling (refer to the ACPI specification
+[3]_ for details on the ``_PSS`` objects and the format of the information
+returned by them).
 
 The information returned by the ACPI ``_PSS`` objects is used by the
 ``acpi-cpufreq`` scaling driver.  On systems supported by ``intel_pstate``
@@ -703,6 +730,14 @@ P-state is called, the ``ftrace`` filter can be set to to
            <idle>-0     [000] ..s.  2537.654843: intel_pstate_set_pstate <-intel_pstate_timer_func
 
 
-.. _LCEU2015: http://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf
-.. _SDM: http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
-.. _ACPI specification: http://www.uefi.org/sites/default/files/resources/ACPI_6_1.pdf
+References
+==========
+
+.. [1] Kristen Accardi, *Balancing Power and Performance in the Linux Kernel*,
+       http://events.linuxfoundation.org/sites/events/files/slides/LinuxConEurope_2015.pdf
+
+.. [2] *Intel® 64 and IA-32 Architectures Software Developer’s Manual Volume 3: System Programming Guide*,
+       http://www.intel.com/content/www/us/en/architecture-and-technology/64-ia-32-architectures-software-developer-system-programming-manual-325384.html
+
+.. [3] *Advanced Configuration and Power Interface Specification*,
+       https://uefi.org/sites/default/files/resources/ACPI_6_3_final_Jan30.pdf

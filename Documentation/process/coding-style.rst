@@ -56,7 +56,7 @@ instead of ``double-indenting`` the ``case`` labels.  E.g.:
 	case 'K':
 	case 'k':
 		mem <<= 10;
-		/* fall through */
+		fallthrough;
 	default:
 		break;
 	}
@@ -198,6 +198,15 @@ statement; in the latter case use braces in both branches:
 		do_that();
 	} else {
 		otherwise();
+	}
+
+Also, use braces when a loop contains more than a single simple statement:
+
+.. code-block:: c
+
+	while (condition) {
+		if (test)
+			do_something();
 	}
 
 3.1) Spaces
@@ -434,6 +443,9 @@ In function prototypes, include parameter names with their data types.
 Although this is not required by the C language, it is preferred in Linux
 because it is a simple way to add valuable information for the reader.
 
+Do not use the ``extern`` keyword with function prototypes as this makes
+lines longer and isn't strictly necessary.
+
 
 7) Centralized exiting of functions
 -----------------------------------
@@ -583,26 +595,43 @@ values.  To do the latter, you can stick the following in your .emacs file:
       (* (max steps 1)
          c-basic-offset)))
 
-  (add-hook 'c-mode-common-hook
-            (lambda ()
-              ;; Add kernel style
-              (c-add-style
-               "linux-tabs-only"
-               '("linux" (c-offsets-alist
-                          (arglist-cont-nonempty
-                           c-lineup-gcc-asm-reg
-                           c-lineup-arglist-tabs-only))))))
+  (dir-locals-set-class-variables
+   'linux-kernel
+   '((c-mode . (
+          (c-basic-offset . 8)
+          (c-label-minimum-indentation . 0)
+          (c-offsets-alist . (
+                  (arglist-close         . c-lineup-arglist-tabs-only)
+                  (arglist-cont-nonempty .
+		      (c-lineup-gcc-asm-reg c-lineup-arglist-tabs-only))
+                  (arglist-intro         . +)
+                  (brace-list-intro      . +)
+                  (c                     . c-lineup-C-comments)
+                  (case-label            . 0)
+                  (comment-intro         . c-lineup-comment)
+                  (cpp-define-intro      . +)
+                  (cpp-macro             . -1000)
+                  (cpp-macro-cont        . +)
+                  (defun-block-intro     . +)
+                  (else-clause           . 0)
+                  (func-decl-cont        . +)
+                  (inclass               . +)
+                  (inher-cont            . c-lineup-multi-inher)
+                  (knr-argdecl-intro     . 0)
+                  (label                 . -1000)
+                  (statement             . 0)
+                  (statement-block-intro . +)
+                  (statement-case-intro  . +)
+                  (statement-cont        . +)
+                  (substatement          . +)
+                  ))
+          (indent-tabs-mode . t)
+          (show-trailing-whitespace . t)
+          ))))
 
-  (add-hook 'c-mode-hook
-            (lambda ()
-              (let ((filename (buffer-file-name)))
-                ;; Enable kernel mode for the appropriate files
-                (when (and filename
-                           (string-match (expand-file-name "~/src/linux-trees")
-                                         filename))
-                  (setq indent-tabs-mode t)
-                  (setq show-trailing-whitespace t)
-                  (c-set-style "linux-tabs-only")))))
+  (dir-locals-set-directory-class
+   (expand-file-name "~/src/linux-trees")
+   'linux-kernel)
 
 This will make emacs go better with the kernel coding style for C
 files below ``~/src/linux-trees``.
@@ -621,6 +650,14 @@ options ``-kr -i8`` (stands for ``K&R, 8 character indents``), or use
 ``indent`` has a lot of options, and especially when it comes to comment
 re-formatting you may want to take a look at the man page.  But
 remember: ``indent`` is not a fix for bad programming.
+
+Note that you can also use the ``clang-format`` tool to help you with
+these rules, to quickly re-format parts of your code automatically,
+and to review full files in order to spot coding style mistakes,
+typos and possible improvements. It is also handy for sorting ``#includes``,
+for aligning variables/macros, for reflowing text and other similar tasks.
+See the file :ref:`Documentation/process/clang-format.rst <clangformat>`
+for more details.
 
 
 10) Kconfig configuration files
@@ -649,7 +686,7 @@ filesystems) should advertise this prominently in their prompt string::
 	...
 
 For full documentation on the configuration files, see the file
-Documentation/kbuild/kconfig-language.txt.
+Documentation/kbuild/kconfig-language.rst.
 
 
 11) Data structures
@@ -806,7 +843,8 @@ used.
 The kernel provides the following general purpose memory allocators:
 kmalloc(), kzalloc(), kmalloc_array(), kcalloc(), vmalloc(), and
 vzalloc().  Please refer to the API documentation for further information
-about them.
+about them.  :ref:`Documentation/core-api/memory-allocation.rst
+<memory_allocation>`
 
 The preferred form for passing a size of a struct is the following:
 
@@ -837,6 +875,9 @@ The preferred form for allocating a zeroed array is the following:
 Both forms check for overflow on the allocation size n * sizeof(...),
 and return NULL if that occurred.
 
+These generic allocation functions all emit a stack dump on failure when used
+without __GFP_NOWARN so there is no use in emitting an additional failure
+message when NULL is returned.
 
 15) The inline disease
 ----------------------
@@ -901,7 +942,37 @@ result.  Typical examples would be functions that return pointers; they use
 NULL or the ERR_PTR mechanism to report failure.
 
 
-17) Don't re-invent the kernel macros
+17) Using bool
+--------------
+
+The Linux kernel bool type is an alias for the C99 _Bool type. bool values can
+only evaluate to 0 or 1, and implicit or explicit conversion to bool
+automatically converts the value to true or false. When using bool types the
+!! construction is not needed, which eliminates a class of bugs.
+
+When working with bool values the true and false definitions should be used
+instead of 1 and 0.
+
+bool function return types and stack variables are always fine to use whenever
+appropriate. Use of bool is encouraged to improve readability and is often a
+better option than 'int' for storing boolean values.
+
+Do not use bool if cache line layout or size of the value matters, as its size
+and alignment varies based on the compiled architecture. Structures that are
+optimized for alignment and size should not use bool.
+
+If a structure has many true/false values, consider consolidating them into a
+bitfield with 1 bit members, or using an appropriate fixed width type, such as
+u8.
+
+Similarly for function arguments, many true/false values can be consolidated
+into a single bitwise 'flags' argument and 'flags' can often be a more
+readable alternative if the call-sites have naked true/false constants.
+
+Otherwise limited use of bool in structures and arguments can improve
+readability.
+
+18) Don't re-invent the kernel macros
 -------------------------------------
 
 The header file include/linux/kernel.h contains a number of macros that
@@ -924,7 +995,7 @@ need them.  Feel free to peruse that header file to see what else is already
 defined that you shouldn't reproduce in your code.
 
 
-18) Editor modelines and other cruft
+19) Editor modelines and other cruft
 ------------------------------------
 
 Some editors can interpret configuration information embedded in source files,
@@ -958,7 +1029,7 @@ own custom mode, or may have some other magic method for making indentation
 work correctly.
 
 
-19) Inline assembly
+20) Inline assembly
 -------------------
 
 In architecture-specific code, you may need to use inline assembly to interface
@@ -990,7 +1061,7 @@ the next instruction in the assembly output:
 	     : /* outputs */ : /* inputs */ : /* clobbers */);
 
 
-20) Conditional Compilation
+21) Conditional Compilation
 ---------------------------
 
 Wherever possible, don't use preprocessor conditionals (#if, #ifdef) in .c
@@ -1058,5 +1129,5 @@ gcc internals and indent, all available from http://www.gnu.org/manual/
 WG14 is the international standardization working group for the programming
 language C, URL: http://www.open-std.org/JTC1/SC22/WG14/
 
-Kernel process/coding-style.rst, by greg@kroah.com at OLS 2002:
+Kernel :ref:`process/coding-style.rst <codingstyle>`, by greg@kroah.com at OLS 2002:
 http://www.kroah.com/linux/talks/ols_2002_kernel_codingstyle_talk/html/

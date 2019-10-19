@@ -1,27 +1,5 @@
-/******************************************************************************
- *
- * Copyright(c) 2012  Realtek Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in the
- * file called LICENSE.
- *
- * Contact Information:
- * wlanfae <wlanfae@realtek.com>
- * Realtek Corporation, No. 2, Innovation Road II, Hsinchu Science Park,
- * Hsinchu 300, Taiwan.
- *
- * Larry Finger <Larry.Finger@lwfinger.net>
- *
- *****************************************************************************/
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 2012  Realtek Corporation.*/
 
 /***************************************************************
  * Description:
@@ -1104,7 +1082,7 @@ static void halbtc8723b1ant_ps_tdma(struct btc_coexist *btcoexist,
 	}
 
 	if ((type == 1) || (type == 2) || (type == 9) || (type == 11) ||
-	    (type == 101) || (type == 102) || (type == 109) || (type == 101)) {
+	    (type == 101) || (type == 102) || (type == 109) || (type == 111)) {
 		if (!coex_sta->force_lps_on) {
 			/* Native power save TDMA, only for A2DP-only case
 			 * 1/2/9/11 while wifi noisy threshold > 30
@@ -1436,6 +1414,7 @@ static void halbtc8723b1ant_ps_tdma(struct btc_coexist *btcoexist,
 	coex_dm->pre_ps_tdma = coex_dm->cur_ps_tdma;
 }
 
+static
 void btc8723b1ant_tdma_dur_adj_for_acl(struct btc_coexist *btcoexist,
 				       u8 wifi_status)
 {

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 
 /*
  * MTD driver for the 28F160F3 Flash Memory (non-CFI) on LART.
@@ -5,10 +6,6 @@
  * Author: Abraham vd Merwe <abraham@2d3d.co.za>
  *
  * Copyright (c) 2001, 2d3D, Inc.
- *
- * This code is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * References:
  *
@@ -414,19 +411,13 @@ static int flash_erase (struct mtd_info *mtd,struct erase_info *instr)
    while (len)
 	 {
 		if (!erase_block (addr))
-		  {
-			 instr->state = MTD_ERASE_FAILED;
 			 return (-EIO);
-		  }
 
 		addr += mtd->eraseregions[i].erasesize;
 		len -= mtd->eraseregions[i].erasesize;
 
 		if (addr == mtd->eraseregions[i].offset + (mtd->eraseregions[i].erasesize * mtd->eraseregions[i].numblocks)) i++;
 	 }
-
-   instr->state = MTD_ERASE_DONE;
-   mtd_erase_callback(instr);
 
    return (0);
 }

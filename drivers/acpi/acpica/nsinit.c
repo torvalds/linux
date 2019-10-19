@@ -1,45 +1,11 @@
+// SPDX-License-Identifier: BSD-3-Clause OR GPL-2.0
 /******************************************************************************
  *
  * Module Name: nsinit - namespace initialization
  *
+ * Copyright (C) 2000 - 2019, Intel Corp.
+ *
  *****************************************************************************/
-
-/*
- * Copyright (C) 2000 - 2018, Intel Corp.
- * All rights reserved.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions, and the following disclaimer,
- *    without modification.
- * 2. Redistributions in binary form must reproduce at minimum a disclaimer
- *    substantially similar to the "NO WARRANTY" disclaimer below
- *    ("Disclaimer") and any redistribution must be conditioned upon
- *    including a substantially similar Disclaimer requirement for further
- *    binary redistribution.
- * 3. Neither the names of the above-listed copyright holders nor the names
- *    of any contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
- *
- * Alternatively, this software may be distributed under the terms of the
- * GNU General Public License ("GPL") version 2 as published by the Free
- * Software Foundation.
- *
- * NO WARRANTY
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR
- * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
- * HOLDERS OR CONTRIBUTORS BE LIABLE FOR SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
- * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
- * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGES.
- */
 
 #include <acpi/acpi.h>
 #include "accommon.h"
@@ -89,14 +55,19 @@ acpi_status acpi_ns_initialize_objects(void)
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "**** Starting initialization of namespace objects ****\n"));
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "Completing Region/Field/Buffer/Package initialization:\n"));
+			      "Final data object initialization: "));
 
-	/* Set all init info to zero */
+	/* Clear the info block */
 
 	memset(&info, 0, sizeof(struct acpi_init_walk_info));
 
 	/* Walk entire namespace from the supplied root */
 
+	/*
+	 * TBD: will become ACPI_TYPE_PACKAGE as this type object
+	 * is now the only one that supports deferred initialization
+	 * (forward references).
+	 */
 	status = acpi_walk_namespace(ACPI_TYPE_ANY, ACPI_ROOT_OBJECT,
 				     ACPI_UINT32_MAX, acpi_ns_init_one_object,
 				     NULL, &info, NULL);
@@ -105,13 +76,8 @@ acpi_status acpi_ns_initialize_objects(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "    Initialized %u/%u Regions %u/%u Fields %u/%u "
-			      "Buffers %u/%u Packages (%u nodes)\n",
-			      info.op_region_init, info.op_region_count,
-			      info.field_init, info.field_count,
-			      info.buffer_init, info.buffer_count,
-			      info.package_init, info.package_count,
-			      info.object_count));
+			      "Namespace contains %u (0x%X) objects\n",
+			      info.object_count, info.object_count));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
 			  "%u Control Methods found\n%u Op Regions found\n",
@@ -276,6 +242,58 @@ error_exit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_ns_init_one_package
+ *
+ * PARAMETERS:  obj_handle      - Node
+ *              level           - Current nesting level
+ *              context         - Not used
+ *              return_value    - Not used
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Callback from acpi_walk_namespace. Invoked for every package
+ *              within the namespace. Used during dynamic load of an SSDT.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_init_one_package(acpi_handle obj_handle,
+			 u32 level, void *context, void **return_value)
+{
+	acpi_status status;
+	union acpi_operand_object *obj_desc;
+	struct acpi_namespace_node *node =
+	    (struct acpi_namespace_node *)obj_handle;
+
+	obj_desc = acpi_ns_get_attached_object(node);
+	if (!obj_desc) {
+		return (AE_OK);
+	}
+
+	/* Exit if package is already initialized */
+
+	if (obj_desc->package.flags & AOPOBJ_DATA_VALID) {
+		return (AE_OK);
+	}
+
+	status = acpi_ds_get_package_arguments(obj_desc);
+	if (ACPI_FAILURE(status)) {
+		return (AE_OK);
+	}
+
+	status =
+	    acpi_ut_walk_package_tree(obj_desc, NULL,
+				      acpi_ds_init_package_element, NULL);
+	if (ACPI_FAILURE(status)) {
+		return (AE_OK);
+	}
+
+	obj_desc->package.flags |= AOPOBJ_DATA_VALID;
+	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_ns_init_one_object
  *
  * PARAMETERS:  obj_handle      - Node
@@ -286,7 +304,7 @@ error_exit:
  * RETURN:      Status
  *
  * DESCRIPTION: Callback from acpi_walk_namespace. Invoked for every object
- *              within the  namespace.
+ *              within the namespace.
  *
  *              Currently, the only objects that require initialization are:
  *              1) Methods
@@ -364,58 +382,36 @@ acpi_ns_init_one_object(acpi_handle obj_handle,
 	acpi_ex_enter_interpreter();
 
 	/*
-	 * Each of these types can contain executable AML code within the
-	 * declaration.
+	 * Only initialization of Package objects can be deferred, in order
+	 * to support forward references.
 	 */
 	switch (type) {
-	case ACPI_TYPE_REGION:
-
-		info->op_region_init++;
-		status = acpi_ds_get_region_arguments(obj_desc);
-		break;
-
-	case ACPI_TYPE_BUFFER_FIELD:
-
-		info->field_init++;
-		status = acpi_ds_get_buffer_field_arguments(obj_desc);
-		break;
-
 	case ACPI_TYPE_LOCAL_BANK_FIELD:
+
+		/* TBD: bank_fields do not require deferred init, remove this code */
 
 		info->field_init++;
 		status = acpi_ds_get_bank_field_arguments(obj_desc);
 		break;
 
-	case ACPI_TYPE_BUFFER:
-
-		info->buffer_init++;
-		status = acpi_ds_get_buffer_arguments(obj_desc);
-		break;
-
 	case ACPI_TYPE_PACKAGE:
 
-		info->package_init++;
-		status = acpi_ds_get_package_arguments(obj_desc);
-		if (ACPI_FAILURE(status)) {
-			break;
-		}
+		/* Complete the initialization/resolution of the package object */
 
-		/*
-		 * Resolve all named references in package objects (and all
-		 * sub-packages). This action has been deferred until the entire
-		 * namespace has been loaded, in order to support external and
-		 * forward references from individual package elements (05/2017).
-		 */
-		status = acpi_ut_walk_package_tree(obj_desc, NULL,
-						   acpi_ds_init_package_element,
-						   NULL);
-		obj_desc->package.flags |= AOPOBJ_DATA_VALID;
+		info->package_init++;
+		status =
+		    acpi_ns_init_one_package(obj_handle, level, NULL, NULL);
 		break;
 
 	default:
 
-		/* No other types can get here */
+		/* No other types should get here */
 
+		status = AE_TYPE;
+		ACPI_EXCEPTION((AE_INFO, status,
+				"Opcode is not deferred [%4.4s] (%s)",
+				acpi_ut_get_node_name(node),
+				acpi_ut_get_type_name(type)));
 		break;
 	}
 
@@ -471,7 +467,7 @@ acpi_ns_find_ini_methods(acpi_handle obj_handle,
 
 	/* We are only looking for methods named _INI */
 
-	if (!ACPI_COMPARE_NAME(node->name.ascii, METHOD_NAME__INI)) {
+	if (!ACPI_COMPARE_NAMESEG(node->name.ascii, METHOD_NAME__INI)) {
 		return (AE_OK);
 	}
 
@@ -634,7 +630,7 @@ acpi_ns_init_one_device(acpi_handle obj_handle,
 	 * Note: We know there is an _INI within this subtree, but it may not be
 	 * under this particular device, it may be lower in the branch.
 	 */
-	if (!ACPI_COMPARE_NAME(device_node->name.ascii, "_SB_") ||
+	if (!ACPI_COMPARE_NAMESEG(device_node->name.ascii, "_SB_") ||
 	    device_node->parent != acpi_gbl_root_node) {
 		ACPI_DEBUG_EXEC(acpi_ut_display_init_pathname
 				(ACPI_TYPE_METHOD, device_node,

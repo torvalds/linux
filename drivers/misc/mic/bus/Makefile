@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Makefile - Intel MIC Linux driver.
 # Copyright(c) 2014, Intel Corporation.

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #define pr_fmt(fmt) "IPsec: " fmt
 
 #include <crypto/algapi.h>
@@ -461,9 +462,9 @@ static int ah4_err(struct sk_buff *skb, u32 info)
 		return 0;
 
 	if (icmp_hdr(skb)->type == ICMP_DEST_UNREACH)
-		ipv4_update_pmtu(skb, net, info, 0, 0, IPPROTO_AH, 0);
+		ipv4_update_pmtu(skb, net, info, 0, IPPROTO_AH);
 	else
-		ipv4_redirect(skb, net, 0, 0, IPPROTO_AH, 0);
+		ipv4_redirect(skb, net, 0, IPPROTO_AH);
 	xfrm_state_put(x);
 
 	return 0;
@@ -589,8 +590,7 @@ static void __exit ah4_fini(void)
 {
 	if (xfrm4_protocol_deregister(&ah4_protocol, IPPROTO_AH) < 0)
 		pr_info("%s: can't remove protocol\n", __func__);
-	if (xfrm_unregister_type(&ah_type, AF_INET) < 0)
-		pr_info("%s: can't remove xfrm type\n", __func__);
+	xfrm_unregister_type(&ah_type, AF_INET);
 }
 
 module_init(ah4_init);

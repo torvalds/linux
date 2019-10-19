@@ -29,7 +29,6 @@
  */
 
 #include <linux/dma-buf.h>
-#include <drm/drmP.h>
 #include <linux/vfio.h>
 
 #include "i915_drv.h"
@@ -46,6 +45,7 @@ static int vgpu_gem_get_pages(
 	int i, ret;
 	gen8_pte_t __iomem *gtt_entries;
 	struct intel_vgpu_fb_info *fb_info;
+	u32 page_num;
 
 	fb_info = (struct intel_vgpu_fb_info *)obj->gvt_info;
 	if (WARN_ON(!fb_info))
@@ -55,14 +55,15 @@ static int vgpu_gem_get_pages(
 	if (unlikely(!st))
 		return -ENOMEM;
 
-	ret = sg_alloc_table(st, fb_info->size, GFP_KERNEL);
+	page_num = obj->base.size >> PAGE_SHIFT;
+	ret = sg_alloc_table(st, page_num, GFP_KERNEL);
 	if (ret) {
 		kfree(st);
 		return ret;
 	}
 	gtt_entries = (gen8_pte_t __iomem *)dev_priv->ggtt.gsm +
 		(fb_info->start >> PAGE_SHIFT);
-	for_each_sg(st->sgl, sg, fb_info->size, i) {
+	for_each_sg(st->sgl, sg, page_num, i) {
 		sg->offset = 0;
 		sg->length = PAGE_SIZE;
 		sg_dma_address(sg) =
@@ -154,34 +155,36 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
 
-	obj = i915_gem_object_alloc(dev_priv);
+	obj = i915_gem_object_alloc();
 	if (obj == NULL)
 		return NULL;
 
 	drm_gem_private_object_init(dev, &obj->base,
-		info->size << PAGE_SHIFT);
+		roundup(info->size, PAGE_SIZE));
 	i915_gem_object_init(obj, &intel_vgpu_gem_ops);
 
-	obj->base.read_domains = I915_GEM_DOMAIN_GTT;
-	obj->base.write_domain = 0;
-	if (IS_SKYLAKE(dev_priv) || IS_KABYLAKE(dev_priv)) {
+	obj->read_domains = I915_GEM_DOMAIN_GTT;
+	obj->write_domain = 0;
+	if (INTEL_GEN(dev_priv) >= 9) {
 		unsigned int tiling_mode = 0;
 		unsigned int stride = 0;
 
-		switch (info->drm_format_mod << 10) {
-		case PLANE_CTL_TILED_LINEAR:
+		switch (info->drm_format_mod) {
+		case DRM_FORMAT_MOD_LINEAR:
 			tiling_mode = I915_TILING_NONE;
 			break;
-		case PLANE_CTL_TILED_X:
+		case I915_FORMAT_MOD_X_TILED:
 			tiling_mode = I915_TILING_X;
 			stride = info->stride;
 			break;
-		case PLANE_CTL_TILED_Y:
+		case I915_FORMAT_MOD_Y_TILED:
+		case I915_FORMAT_MOD_Yf_TILED:
 			tiling_mode = I915_TILING_Y;
 			stride = info->stride;
 			break;
 		default:
-			gvt_dbg_core("not supported tiling mode\n");
+			gvt_dbg_core("invalid drm_format_mod %llx for tiling\n",
+				     info->drm_format_mod);
 		}
 		obj->tiling_and_stride = tiling_mode | stride;
 	} else {
@@ -192,15 +195,24 @@ static struct drm_i915_gem_object *vgpu_create_gem(struct drm_device *dev,
 	return obj;
 }
 
+static bool validate_hotspot(struct intel_vgpu_cursor_plane_format *c)
+{
+	if (c && c->x_hot <= c->width && c->y_hot <= c->height)
+		return true;
+	else
+		return false;
+}
+
 static int vgpu_get_plane_info(struct drm_device *dev,
 		struct intel_vgpu *vgpu,
 		struct intel_vgpu_fb_info *info,
 		int plane_id)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_vgpu_primary_plane_format p;
 	struct intel_vgpu_cursor_plane_format c;
-	int ret;
+	int ret, tile_height = 1;
+
+	memset(info, 0, sizeof(*info));
 
 	if (plane_id == DRM_PLANE_TYPE_PRIMARY) {
 		ret = intel_vgpu_decode_primary_plane(vgpu, &p);
@@ -212,9 +224,26 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 		info->height = p.height;
 		info->stride = p.stride;
 		info->drm_format = p.drm_format;
-		info->drm_format_mod = p.tiled;
-		info->size = (((p.stride * p.height * p.bpp) / 8) +
-				(PAGE_SIZE - 1)) >> PAGE_SHIFT;
+
+		switch (p.tiled) {
+		case PLANE_CTL_TILED_LINEAR:
+			info->drm_format_mod = DRM_FORMAT_MOD_LINEAR;
+			break;
+		case PLANE_CTL_TILED_X:
+			info->drm_format_mod = I915_FORMAT_MOD_X_TILED;
+			tile_height = 8;
+			break;
+		case PLANE_CTL_TILED_Y:
+			info->drm_format_mod = I915_FORMAT_MOD_Y_TILED;
+			tile_height = 32;
+			break;
+		case PLANE_CTL_TILED_YF:
+			info->drm_format_mod = I915_FORMAT_MOD_Yf_TILED;
+			tile_height = 32;
+			break;
+		default:
+			gvt_vgpu_err("invalid tiling mode: %x\n", p.tiled);
+		}
 	} else if (plane_id == DRM_PLANE_TYPE_CURSOR) {
 		ret = intel_vgpu_decode_cursor_plane(vgpu, &c);
 		if (ret)
@@ -229,19 +258,19 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 		info->x_pos = c.x_pos;
 		info->y_pos = c.y_pos;
 
-		/* The invalid cursor hotspot value is delivered to host
-		 * until we find a way to get the cursor hotspot info of
-		 * guest OS.
-		 */
-		info->x_hot = UINT_MAX;
-		info->y_hot = UINT_MAX;
-		info->size = (((info->stride * c.height * c.bpp) / 8)
-				+ (PAGE_SIZE - 1)) >> PAGE_SHIFT;
+		if (validate_hotspot(&c)) {
+			info->x_hot = c.x_hot;
+			info->y_hot = c.y_hot;
+		} else {
+			info->x_hot = UINT_MAX;
+			info->y_hot = UINT_MAX;
+		}
 	} else {
 		gvt_vgpu_err("invalid plane id:%d\n", plane_id);
 		return -EINVAL;
 	}
 
+	info->size = info->stride * roundup(info->height, tile_height);
 	if (info->size == 0) {
 		gvt_vgpu_err("fb size is zero\n");
 		return -EINVAL;
@@ -249,11 +278,6 @@ static int vgpu_get_plane_info(struct drm_device *dev,
 
 	if (info->start & (PAGE_SIZE - 1)) {
 		gvt_vgpu_err("Not aligned fb address:0x%llx\n", info->start);
-		return -EFAULT;
-	}
-	if (((info->start >> PAGE_SHIFT) + info->size) >
-		ggtt_total_entries(&dev_priv->ggtt)) {
-		gvt_vgpu_err("Invalid GTT offset or size\n");
 		return -EFAULT;
 	}
 
@@ -323,6 +347,7 @@ static void update_fb_info(struct vfio_device_gfx_plane_info *gvt_dmabuf,
 		      struct intel_vgpu_fb_info *fb_info)
 {
 	gvt_dmabuf->drm_format = fb_info->drm_format;
+	gvt_dmabuf->drm_format_mod = fb_info->drm_format_mod;
 	gvt_dmabuf->width = fb_info->width;
 	gvt_dmabuf->height = fb_info->height;
 	gvt_dmabuf->stride = fb_info->stride;
@@ -459,14 +484,14 @@ int intel_vgpu_get_dmabuf(struct intel_vgpu *vgpu, unsigned int dmabuf_id)
 
 	obj = vgpu_create_gem(dev, dmabuf_obj->info);
 	if (obj == NULL) {
-		gvt_vgpu_err("create gvt gem obj failed:%d\n", vgpu->id);
+		gvt_vgpu_err("create gvt gem obj failed\n");
 		ret = -ENOMEM;
 		goto out;
 	}
 
 	obj->gvt_info = dmabuf_obj->info;
 
-	dmabuf = i915_gem_prime_export(dev, &obj->base, DRM_CLOEXEC | DRM_RDWR);
+	dmabuf = i915_gem_prime_export(&obj->base, DRM_CLOEXEC | DRM_RDWR);
 	if (IS_ERR(dmabuf)) {
 		gvt_vgpu_err("export dma-buf failed\n");
 		ret = PTR_ERR(dmabuf);

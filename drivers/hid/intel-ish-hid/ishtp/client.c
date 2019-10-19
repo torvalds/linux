@@ -1,17 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ISHTP client logic
  *
  * Copyright (c) 2003-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
  */
 
 #include <linux/slab.h>
@@ -21,6 +12,25 @@
 #include <linux/dma-mapping.h>
 #include "hbm.h"
 #include "client.h"
+
+int ishtp_cl_get_tx_free_buffer_size(struct ishtp_cl *cl)
+{
+	unsigned long tx_free_flags;
+	int size;
+
+	spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
+	size = cl->tx_ring_free_size * cl->device->fw_client->props.max_msg_length;
+	spin_unlock_irqrestore(&cl->tx_free_list_spinlock, tx_free_flags);
+
+	return size;
+}
+EXPORT_SYMBOL(ishtp_cl_get_tx_free_buffer_size);
+
+int ishtp_cl_get_tx_free_rings(struct ishtp_cl *cl)
+{
+	return cl->tx_ring_free_size;
+}
+EXPORT_SYMBOL(ishtp_cl_get_tx_free_rings);
 
 /**
  * ishtp_read_list_flush() - Flush read queue
@@ -90,6 +100,7 @@ static void ishtp_cl_init(struct ishtp_cl *cl, struct ishtp_device *dev)
 
 	cl->rx_ring_size = CL_DEF_RX_RING_SIZE;
 	cl->tx_ring_size = CL_DEF_TX_RING_SIZE;
+	cl->tx_ring_free_size = cl->tx_ring_size;
 
 	/* dma */
 	cl->last_tx_path = CL_TX_PATH_IPC;
@@ -106,7 +117,7 @@ static void ishtp_cl_init(struct ishtp_cl *cl, struct ishtp_device *dev)
  *
  * Return: The allocated client instance or NULL on failure
  */
-struct ishtp_cl *ishtp_cl_allocate(struct ishtp_device *dev)
+struct ishtp_cl *ishtp_cl_allocate(struct ishtp_cl_device *cl_device)
 {
 	struct ishtp_cl *cl;
 
@@ -114,7 +125,7 @@ struct ishtp_cl *ishtp_cl_allocate(struct ishtp_device *dev)
 	if (!cl)
 		return NULL;
 
-	ishtp_cl_init(cl, dev);
+	ishtp_cl_init(cl, cl_device->ishtp_dev);
 	return cl;
 }
 EXPORT_SYMBOL(ishtp_cl_allocate);
@@ -148,9 +159,6 @@ EXPORT_SYMBOL(ishtp_cl_free);
 /**
  * ishtp_cl_link() - Reserve a host id and link the client instance
  * @cl: client device instance
- * @id: host client id to use. It can be ISHTP_HOST_CLIENT_ID_ANY if any
- *	id from the available can be used
- *
  *
  * This allocates a single bit in the hostmap. This function will make sure
  * that not many client sessions are opened at the same time. Once allocated
@@ -159,11 +167,11 @@ EXPORT_SYMBOL(ishtp_cl_free);
  *
  * Return: 0 or error code on failure
  */
-int ishtp_cl_link(struct ishtp_cl *cl, int id)
+int ishtp_cl_link(struct ishtp_cl *cl)
 {
 	struct ishtp_device *dev;
-	unsigned long	flags, flags_cl;
-	int	ret = 0;
+	unsigned long flags, flags_cl;
+	int id, ret = 0;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -EINVAL;
@@ -177,10 +185,7 @@ int ishtp_cl_link(struct ishtp_cl *cl, int id)
 		goto unlock_dev;
 	}
 
-	/* If Id is not assigned get one*/
-	if (id == ISHTP_HOST_CLIENT_ID_ANY)
-		id = find_first_zero_bit(dev->host_clients_map,
-			ISHTP_CLIENTS_MAX);
+	id = find_first_zero_bit(dev->host_clients_map, ISHTP_CLIENTS_MAX);
 
 	if (id >= ISHTP_CLIENTS_MAX) {
 		spin_unlock_irqrestore(&dev->device_lock, flags);
@@ -577,6 +582,8 @@ int ishtp_cl_send(struct ishtp_cl *cl, uint8_t *buf, size_t length)
 	 * max ISHTP message size per client
 	 */
 	list_del_init(&cl_msg->list);
+	--cl->tx_ring_free_size;
+
 	spin_unlock_irqrestore(&cl->tx_free_list_spinlock, tx_free_flags);
 	memcpy(cl_msg->send_buf.data, buf, length);
 	cl_msg->send_buf.size = length;
@@ -685,6 +692,7 @@ static void ipc_tx_callback(void *prm)
 		ishtp_write_message(dev, &ishtp_hdr, pmsg);
 		spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
 		list_add_tail(&cl_msg->list, &cl->tx_free_list.list);
+		++cl->tx_ring_free_size;
 		spin_unlock_irqrestore(&cl->tx_free_list_spinlock,
 			tx_free_flags);
 	} else {
@@ -778,6 +786,7 @@ static void ishtp_cl_send_msg_dma(struct ishtp_device *dev,
 	ishtp_write_message(dev, &hdr, (unsigned char *)&dma_xfer);
 	spin_lock_irqsave(&cl->tx_free_list_spinlock, tx_free_flags);
 	list_add_tail(&cl_msg->list, &cl->tx_free_list.list);
+	++cl->tx_ring_free_size;
 	spin_unlock_irqrestore(&cl->tx_free_list_spinlock, tx_free_flags);
 	++cl->send_msg_cnt_dma;
 }
@@ -1045,3 +1054,45 @@ void recv_ishtp_cl_msg_dma(struct ishtp_device *dev, void *msg,
 eoi:
 	return;
 }
+
+void *ishtp_get_client_data(struct ishtp_cl *cl)
+{
+	return cl->client_data;
+}
+EXPORT_SYMBOL(ishtp_get_client_data);
+
+void ishtp_set_client_data(struct ishtp_cl *cl, void *data)
+{
+	cl->client_data = data;
+}
+EXPORT_SYMBOL(ishtp_set_client_data);
+
+struct ishtp_device *ishtp_get_ishtp_device(struct ishtp_cl *cl)
+{
+	return cl->dev;
+}
+EXPORT_SYMBOL(ishtp_get_ishtp_device);
+
+void ishtp_set_tx_ring_size(struct ishtp_cl *cl, int size)
+{
+	cl->tx_ring_size = size;
+}
+EXPORT_SYMBOL(ishtp_set_tx_ring_size);
+
+void ishtp_set_rx_ring_size(struct ishtp_cl *cl, int size)
+{
+	cl->rx_ring_size = size;
+}
+EXPORT_SYMBOL(ishtp_set_rx_ring_size);
+
+void ishtp_set_connection_state(struct ishtp_cl *cl, int state)
+{
+	cl->state = state;
+}
+EXPORT_SYMBOL(ishtp_set_connection_state);
+
+void ishtp_cl_set_fw_client_id(struct ishtp_cl *cl, int fw_client_id)
+{
+	cl->fw_client_id = fw_client_id;
+}
+EXPORT_SYMBOL(ishtp_cl_set_fw_client_id);

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Fujitsu MB86A16 DVB-S/DSS DC Receiver driver
 
 	Copyright (C) Manu Abraham (abraham.manu@gmail.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #include <linux/init.h>
@@ -30,8 +18,6 @@
 
 static unsigned int verbose = 5;
 module_param(verbose, int, 0644);
-
-#define ABS(x)		((x) < 0 ? (-x) : (x))
 
 struct mb86a16_state {
 	struct i2c_adapter		*i2c_adap;
@@ -1202,12 +1188,12 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 
 			signal_dupl = 0;
 			for (j = 0; j < prev_freq_num; j++) {
-				if ((ABS(prev_swp_freq[j] - swp_freq)) < (swp_ofs * 3 / 2)) {
+				if ((abs(prev_swp_freq[j] - swp_freq)) < (swp_ofs * 3 / 2)) {
 					signal_dupl = 1;
 					dprintk(verbose, MB86A16_INFO, 1, "Probably Duplicate Signal, j = %d", j);
 				}
 			}
-			if ((signal_dupl == 0) && (swp_freq > 0) && (ABS(swp_freq - state->frequency * 1000) < fcp + state->srate / 6)) {
+			if ((signal_dupl == 0) && (swp_freq > 0) && (abs(swp_freq - state->frequency * 1000) < fcp + state->srate / 6)) {
 				dprintk(verbose, MB86A16_DEBUG, 1, "------ Signal detect ------ [swp_freq=[%07d, srate=%05d]]", swp_freq, state->srate);
 				prev_swp_freq[prev_freq_num] = swp_freq;
 				prev_freq_num++;
@@ -1381,7 +1367,7 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 			dprintk(verbose, MB86A16_INFO, 1, "SWEEP Frequency = %d", swp_freq);
 			swp_freq += delta_freq;
 			dprintk(verbose, MB86A16_INFO, 1, "Adjusting .., DELTA Freq = %d, SWEEP Freq=%d", delta_freq, swp_freq);
-			if (ABS(state->frequency * 1000 - swp_freq) > 3800) {
+			if (abs(state->frequency * 1000 - swp_freq) > 3800) {
 				dprintk(verbose, MB86A16_INFO, 1, "NO  --  SIGNAL !");
 			} else {
 
@@ -1810,10 +1796,9 @@ static const struct dvb_frontend_ops mb86a16_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name			= "Fujitsu MB86A16 DVB-S",
-		.frequency_min		= 950000,
-		.frequency_max		= 2150000,
-		.frequency_stepsize	= 3000,
-		.frequency_tolerance	= 0,
+		.frequency_min_hz	=  950 * MHz,
+		.frequency_max_hz	= 2150 * MHz,
+		.frequency_stepsize_hz	=    3 * MHz,
 		.symbol_rate_min	= 1000000,
 		.symbol_rate_max	= 45000000,
 		.symbol_rate_tolerance	= 500,

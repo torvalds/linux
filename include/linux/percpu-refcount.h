@@ -30,10 +30,14 @@
  * calls io_destroy() or the process exits.
  *
  * In the aio code, kill_ioctx() is called when we wish to destroy a kioctx; it
- * calls percpu_ref_kill(), then hlist_del_rcu() and synchronize_rcu() to remove
- * the kioctx from the proccess's list of kioctxs - after that, there can't be
- * any new users of the kioctx (from lookup_ioctx()) and it's then safe to drop
- * the initial ref with percpu_ref_put().
+ * removes the kioctx from the proccess's table of kioctxs and kills percpu_ref.
+ * After that, there can't be any new users of the kioctx (from lookup_ioctx())
+ * and it's then safe to drop the initial ref with percpu_ref_put().
+ *
+ * Note that the free path, free_ioctx(), needs to go through explicit call_rcu()
+ * to synchronize with RCU protected lookup_ioctx().  percpu_ref operations don't
+ * imply RCU grace periods of any kind and if a user wants to combine percpu_ref
+ * with RCU protection, it must be done explicitly.
  *
  * Code that does a two stage shutdown like this often needs some kind of
  * explicit synchronization to ensure the initial refcount can only be dropped
@@ -71,14 +75,21 @@ enum {
 	 * operation using percpu_ref_switch_to_percpu().  If initialized
 	 * with this flag, the ref will stay in atomic mode until
 	 * percpu_ref_switch_to_percpu() is invoked on it.
+	 * Implies ALLOW_REINIT.
 	 */
 	PERCPU_REF_INIT_ATOMIC	= 1 << 0,
 
 	/*
 	 * Start dead w/ ref == 0 in atomic mode.  Must be revived with
-	 * percpu_ref_reinit() before used.  Implies INIT_ATOMIC.
+	 * percpu_ref_reinit() before used.  Implies INIT_ATOMIC and
+	 * ALLOW_REINIT.
 	 */
 	PERCPU_REF_INIT_DEAD	= 1 << 1,
+
+	/*
+	 * Allow switching from atomic mode to percpu mode.
+	 */
+	PERCPU_REF_ALLOW_REINIT	= 1 << 2,
 };
 
 struct percpu_ref {
@@ -91,6 +102,7 @@ struct percpu_ref {
 	percpu_ref_func_t	*release;
 	percpu_ref_func_t	*confirm_switch;
 	bool			force_atomic:1;
+	bool			allow_reinit:1;
 	struct rcu_head		rcu;
 };
 
@@ -104,6 +116,7 @@ void percpu_ref_switch_to_atomic_sync(struct percpu_ref *ref);
 void percpu_ref_switch_to_percpu(struct percpu_ref *ref);
 void percpu_ref_kill_and_confirm(struct percpu_ref *ref,
 				 percpu_ref_func_t *confirm_kill);
+void percpu_ref_resurrect(struct percpu_ref *ref);
 void percpu_ref_reinit(struct percpu_ref *ref);
 
 /**
@@ -113,8 +126,10 @@ void percpu_ref_reinit(struct percpu_ref *ref);
  * Must be used to drop the initial ref on a percpu refcount; must be called
  * precisely once before shutdown.
  *
- * Puts @ref in non percpu mode, then does a call_rcu() before gathering up the
- * percpu counters and dropping the initial ref.
+ * Switches @ref into atomic mode before gathering up the percpu counters
+ * and dropping the initial ref.
+ *
+ * There are no implied RCU grace periods between kill and release.
  */
 static inline void percpu_ref_kill(struct percpu_ref *ref)
 {

@@ -35,7 +35,6 @@ int ceph_mdsmap_get_random_mds(struct ceph_mdsmap *m)
 
 	/* pick */
 	n = prandom_u32() % n;
-	i = 0;
 	for (i = 0; n > 0; i++, n--)
 		while (m->m_info[i].state <= 0)
 			i++;
@@ -108,7 +107,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 	struct ceph_mdsmap *m;
 	const void *start = *p;
 	int i, j, n;
-	int err = -EINVAL;
+	int err;
 	u8 mdsmap_v, mdsmap_cv;
 	u16 mdsmap_ev;
 
@@ -184,8 +183,9 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 		inc = ceph_decode_32(p);
 		state = ceph_decode_32(p);
 		state_seq = ceph_decode_64(p);
-		ceph_decode_copy(p, &addr, sizeof(addr));
-		ceph_decode_addr(&addr);
+		err = ceph_decode_entity_addr(p, end, &addr);
+		if (err)
+			goto corrupt;
 		ceph_decode_copy(p, &laggy_since, sizeof(laggy_since));
 		*p += sizeof(u32);
 		ceph_decode_32_safe(p, end, namelen, bad);
@@ -206,7 +206,7 @@ struct ceph_mdsmap *ceph_mdsmap_decode(void **p, void *end)
 
 		dout("mdsmap_decode %d/%d %lld mds%d.%d %s %s\n",
 		     i+1, n, global_id, mds, inc,
-		     ceph_pr_addr(&addr.in_addr),
+		     ceph_pr_addr(&addr),
 		     ceph_mds_state_name(state));
 
 		if (mds < 0 || state <= 0)
@@ -358,7 +358,7 @@ bad_ext:
 nomem:
 	err = -ENOMEM;
 	goto out_err;
-bad:
+corrupt:
 	pr_err("corrupt mdsmap\n");
 	print_hex_dump(KERN_DEBUG, "mdsmap: ",
 		       DUMP_PREFIX_OFFSET, 16, 1,
@@ -366,6 +366,9 @@ bad:
 out_err:
 	ceph_mdsmap_destroy(m);
 	return ERR_PTR(err);
+bad:
+	err = -EINVAL;
+	goto corrupt;
 }
 
 void ceph_mdsmap_destroy(struct ceph_mdsmap *m)

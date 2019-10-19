@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 #define _RTL8188E_XMIT_C_
@@ -23,7 +15,7 @@
 
 s32 rtw_hal_init_xmit_priv(struct adapter *adapt)
 {
-	struct xmit_priv	*pxmitpriv = &adapt->xmitpriv;
+	struct xmit_priv *pxmitpriv = &adapt->xmitpriv;
 
 	tasklet_init(&pxmitpriv->xmit_tasklet,
 		     (void(*)(unsigned long))rtl8188eu_xmit_tasklet,
@@ -38,8 +30,8 @@ static u8 urb_zero_packet_chk(struct adapter *adapt, int sz)
 
 static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 {
-	u16	*usptr = (u16 *)ptxdesc;
-	u32 count = 16;		/*  (32 bytes / 2 bytes per XOR) => 16 times */
+	u16 *usptr = (u16 *)ptxdesc;
+	u32 count = 16; /* (32 bytes / 2 bytes per XOR) => 16 times */
 	u32 index;
 	u16 checksum = 0;
 
@@ -51,9 +43,11 @@ static void rtl8188eu_cal_txdesc_chksum(struct tx_desc	*ptxdesc)
 	ptxdesc->txdw7 |= cpu_to_le32(0x0000ffff & checksum);
 }
 
-/*  Description: In normal chip, we should send some packet to Hw which will be used by Fw */
-/*			in FW LPS mode. The function is to fill the Tx descriptor of this packets, then */
-/*			Fw can tell Hw to send these packet derectly. */
+/*
+ * In normal chip, we should send some packet to Hw which will be used by Fw
+ * in FW LPS mode. The function is to fill the Tx descriptor of this packets,
+ * then Fw can tell Hw to send these packet derectly.
+ */
 void rtl8188e_fill_fake_txdesc(struct adapter *adapt, u8 *desc, u32 BufferLen, u8  ispspoll, u8  is_btqosnull)
 {
 	struct tx_desc *ptxdesc;
@@ -166,16 +160,15 @@ static void fill_txdesc_phy(struct pkt_attrib *pattrib, __le32 *pdw)
 
 static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bagg_pkt)
 {
-	int	pull = 0;
-	uint	qsel;
+	int pull = 0;
+	uint qsel;
 	u8 data_rate, pwr_status, offset;
-	struct adapter		*adapt = pxmitframe->padapter;
-	struct pkt_attrib	*pattrib = &pxmitframe->attrib;
+	struct adapter *adapt = pxmitframe->padapter;
+	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct odm_dm_struct *odmpriv = &adapt->HalData->odmpriv;
-	struct tx_desc	*ptxdesc = (struct tx_desc *)pmem;
-	struct mlme_ext_priv	*pmlmeext = &adapt->mlmeextpriv;
-	struct mlme_ext_info	*pmlmeinfo = &(pmlmeext->mlmext_info);
-	int	bmcst = IS_MCAST(pattrib->ra);
+	struct tx_desc *ptxdesc = (struct tx_desc *)pmem;
+	struct mlme_ext_priv *pmlmeext = &adapt->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
 
 	if (adapt->registrypriv.mp_mode == 0) {
 		if ((!bagg_pkt) && (urb_zero_packet_chk(adapt, sz) == 0)) {
@@ -194,7 +187,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 
 	ptxdesc->txdw0 |= cpu_to_le32(((offset) << OFFSET_SHT) & 0x00ff0000);/* 32 bytes for TX Desc */
 
-	if (bmcst)
+	if (is_multicast_ether_addr(pattrib->ra))
 		ptxdesc->txdw0 |= cpu_to_le32(BMC);
 
 	if (adapt->registrypriv.mp_mode == 0) {
@@ -335,7 +328,7 @@ static s32 update_txdesc(struct xmit_frame *pxmitframe, u8 *pmem, s32 sz, u8 bag
 	return pull;
 }
 
-/* for non-agg data frame or  management frame */
+/* for non-agg data frame or management frame */
 static s32 rtw_dump_xframe(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
 	s32 ret = _SUCCESS;
@@ -419,7 +412,8 @@ static u32 xmitframe_need_length(struct xmit_frame *pxmitframe)
 	return len;
 }
 
-s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitpriv)
+bool rtl8188eu_xmitframe_complete(struct adapter *adapt,
+				  struct xmit_priv *pxmitpriv)
 {
 	struct xmit_frame *pxmitframe = NULL;
 	struct xmit_frame *pfirstframe = NULL;
@@ -446,14 +440,14 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	RT_TRACE(_module_rtl8192c_xmit_c_, _drv_info_, ("+xmitframe_complete\n"));
 
 	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);
-	if (pxmitbuf == NULL)
+	if (!pxmitbuf)
 		return false;
 
 	/* 3 1. pick up first frame */
 	rtw_free_xmitframe(pxmitpriv, pxmitframe);
 
 	pxmitframe = rtw_dequeue_xframe(pxmitpriv, pxmitpriv->hwxmits, pxmitpriv->hwxmit_entry);
-	if (pxmitframe == NULL) {
+	if (!pxmitframe) {
 		/*  no more xmit frame, release xmit buffer */
 		rtw_free_xmitbuf(pxmitpriv, pxmitbuf);
 		return false;
@@ -492,23 +486,23 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 	switch (pfirstframe->attrib.priority) {
 	case 1:
 	case 2:
-		ptxservq = &(psta->sta_xmitpriv.bk_q);
+		ptxservq = &psta->sta_xmitpriv.bk_q;
 		phwxmit = pxmitpriv->hwxmits + 3;
 		break;
 	case 4:
 	case 5:
-		ptxservq = &(psta->sta_xmitpriv.vi_q);
+		ptxservq = &psta->sta_xmitpriv.vi_q;
 		phwxmit = pxmitpriv->hwxmits + 1;
 		break;
 	case 6:
 	case 7:
-		ptxservq = &(psta->sta_xmitpriv.vo_q);
+		ptxservq = &psta->sta_xmitpriv.vo_q;
 		phwxmit = pxmitpriv->hwxmits;
 		break;
 	case 0:
 	case 3:
 	default:
-		ptxservq = &(psta->sta_xmitpriv.be_q);
+		ptxservq = &psta->sta_xmitpriv.be_q;
 		phwxmit = pxmitpriv->hwxmits + 2;
 		break;
 	}
@@ -552,7 +546,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
 		pbuf = round_up(pbuf_tail, 8);
 
 		pfirstframe->agg_num++;
-		if (MAX_TX_AGG_PACKET_NUMBER == pfirstframe->agg_num)
+		if (pfirstframe->agg_num ==  MAX_TX_AGG_PACKET_NUMBER)
 			break;
 
 		if (pbuf < bulkptr) {
@@ -604,7 +598,7 @@ s32 rtl8188eu_xmitframe_complete(struct adapter *adapt, struct xmit_priv *pxmitp
  *	true	dump packet directly
  *	false	enqueue packet
  */
-s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
+bool rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 {
 	s32 res;
 	struct xmit_buf *pxmitbuf = NULL;
@@ -617,7 +611,7 @@ s32 rtw_hal_xmit(struct adapter *adapt, struct xmit_frame *pxmitframe)
 	if (rtw_txframes_sta_ac_pending(adapt, pattrib) > 0)
 		goto enqueue;
 
-	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY|_FW_UNDER_LINKING) == true)
+	if (check_fwstate(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING))
 		goto enqueue;
 
 	pxmitbuf = rtw_alloc_xmitbuf(pxmitpriv);

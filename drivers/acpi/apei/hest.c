@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * APEI Hardware Error Souce Table support
  *
@@ -12,15 +13,6 @@
  *
  * Copyright 2009 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -32,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <acpi/apei.h>
+#include <acpi/ghes.h>
 
 #include "apei-internal.h"
 
@@ -53,6 +46,7 @@ static const int hest_esrc_len_tab[ACPI_HEST_TYPE_RESERVED] = {
 	[ACPI_HEST_TYPE_AER_BRIDGE] = sizeof(struct acpi_hest_aer_bridge),
 	[ACPI_HEST_TYPE_GENERIC_ERROR] = sizeof(struct acpi_hest_generic),
 	[ACPI_HEST_TYPE_GENERIC_ERROR_V2] = sizeof(struct acpi_hest_generic_v2),
+	[ACPI_HEST_TYPE_IA32_DEFERRED_CHECK] = -1,
 };
 
 static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
@@ -73,6 +67,11 @@ static int hest_esrc_len(struct acpi_hest_header *hest_hdr)
 	} else if (hest_type == ACPI_HEST_TYPE_IA32_CHECK) {
 		struct acpi_hest_ia_machine_check *mc;
 		mc = (struct acpi_hest_ia_machine_check *)hest_hdr;
+		len = sizeof(*mc) + mc->num_hardware_banks *
+			sizeof(struct acpi_hest_ia_error_bank);
+	} else if (hest_type == ACPI_HEST_TYPE_IA32_DEFERRED_CHECK) {
+		struct acpi_hest_ia_deferred_check *mc;
+		mc = (struct acpi_hest_ia_deferred_check *)hest_hdr;
 		len = sizeof(*mc) + mc->num_hardware_banks *
 			sizeof(struct acpi_hest_ia_error_bank);
 	}
@@ -195,13 +194,19 @@ static int __init hest_ghes_dev_register(unsigned int ghes_count)
 	struct ghes_arr ghes_arr;
 
 	ghes_arr.count = 0;
-	ghes_arr.ghes_devs = kmalloc(sizeof(void *) * ghes_count, GFP_KERNEL);
+	ghes_arr.ghes_devs = kmalloc_array(ghes_count, sizeof(void *),
+					   GFP_KERNEL);
 	if (!ghes_arr.ghes_devs)
 		return -ENOMEM;
 
 	rc = apei_hest_parse(hest_parse_ghes, &ghes_arr);
 	if (rc)
 		goto err;
+
+	rc = ghes_estatus_pool_init(ghes_count);
+	if (rc)
+		goto err;
+
 out:
 	kfree(ghes_arr.ghes_devs);
 	return rc;
@@ -250,7 +255,9 @@ void __init acpi_hest_init(void)
 		rc = apei_hest_parse(hest_parse_ghes_count, &ghes_count);
 		if (rc)
 			goto err;
-		rc = hest_ghes_dev_register(ghes_count);
+
+		if (ghes_count)
+			rc = hest_ghes_dev_register(ghes_count);
 		if (rc)
 			goto err;
 	}

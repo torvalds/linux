@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config CORDIC
+	tristate "CORDIC algorithm"
+	help
+	  This option provides an implementation of the CORDIC algorithm;
+	  calculations are in fixed point. Module will be called cordic.
+
+config PRIME_NUMBERS
+	tristate
+
+config RATIONAL
+	bool

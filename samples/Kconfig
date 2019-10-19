@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig SAMPLES
 	bool "Sample kernel code"
 	help
@@ -19,8 +20,7 @@ config SAMPLE_TRACE_PRINTK
 	 test various trace_printk() calls from a module.
 
 config SAMPLE_KOBJECT
-	tristate "Build kobject examples -- loadable modules only"
-	depends on m
+	tristate "Build kobject examples"
 	help
 	  This config option will allow you to build a number of
 	  different kobject sample modules showing how to use kobjects,
@@ -62,6 +62,16 @@ config SAMPLE_KDB
 	  Build an example of how to dynamically add the hello
 	  command to the kdb shell.
 
+config SAMPLE_QMI_CLIENT
+	tristate "Build qmi client sample -- loadable modules only"
+	depends on m
+	depends on ARCH_QCOM
+	depends on NET
+	select QCOM_QMI_HELPERS
+	help
+	  Build an QMI client sample driver, which demonstrates how to
+	  communicate with a remote QRTR service, using QMI encoded messages.
+
 config SAMPLE_RPMSG_CLIENT
 	tristate "Build rpmsg client sample -- loadable modules only"
 	depends on RPMSG && m
@@ -84,25 +94,27 @@ config SAMPLE_CONFIGFS
 
 config SAMPLE_CONNECTOR
 	tristate "Build connector sample -- loadable modules only"
-	depends on CONNECTOR && m
+	depends on CONNECTOR && HEADERS_INSTALL && m
 	help
 	  When enabled, this builds both a sample kernel module for
 	  the connector interface and a user space tool to communicate
 	  with it.
-	  See also Documentation/connector/connector.txt
+	  See also Documentation/driver-api/connector.rst
+
+config SAMPLE_HIDRAW
+	bool "hidraw sample"
+	depends on HEADERS_INSTALL
+
+config SAMPLE_PIDFD
+	bool "pidfd sample"
+	depends on HEADERS_INSTALL
 
 config SAMPLE_SECCOMP
-	tristate "Build seccomp sample code -- loadable modules only"
-	depends on SECCOMP_FILTER && m
+	bool "Build seccomp sample code"
+	depends on SECCOMP_FILTER && HEADERS_INSTALL
 	help
 	  Build samples of seccomp filters using various methods of
 	  BPF filter construction.
-
-config SAMPLE_BLACKFIN_GPTIMERS
-	tristate "Build blackfin gptimers sample code -- loadable modules only"
-	depends on BLACKFIN && BFIN_GPTIMERS && m
-	help
-	  Build samples of blackfin gptimers sample module.
 
 config SAMPLE_VFIO_MDEV_MTTY
 	tristate "Build VFIO mtty example mediated device sample code -- loadable modules only"
@@ -111,10 +123,50 @@ config SAMPLE_VFIO_MDEV_MTTY
 	  Build a virtual tty sample driver for use as a VFIO
 	  mediated device
 
-config SAMPLE_STATX
-	bool "Build example extended-stat using code"
-	depends on BROKEN
+config SAMPLE_VFIO_MDEV_MDPY
+	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV_DEVICE && m
 	help
-	  Build example userspace program to use the new extended-stat syscall.
+	  Build a virtual display sample driver for use as a VFIO
+	  mediated device.  It is a simple framebuffer and supports
+	  the region display interface (VFIO_GFX_PLANE_TYPE_REGION).
+
+config SAMPLE_VFIO_MDEV_MDPY_FB
+	tristate "Build VFIO mdpy example guest fbdev driver -- loadable module only"
+	depends on FB && m
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Guest fbdev driver for the virtual display sample driver.
+
+config SAMPLE_VFIO_MDEV_MBOCHS
+	tristate "Build VFIO mdpy example mediated device sample code -- loadable modules only"
+	depends on VFIO_MDEV_DEVICE && m
+	select DMA_SHARED_BUFFER
+	help
+	  Build a virtual display sample driver for use as a VFIO
+	  mediated device.  It supports the region display interface
+	  (VFIO_GFX_PLANE_TYPE_DMABUF).
+	  Emulate enough of qemu stdvga to make bochs-drm.ko happy.
+	  That is basically the vram memory bar and the bochs dispi
+	  interface vbe registers in the mmio register bar.
+	  Specifically it does *not* include any legacy vga stuff.
+	  Device looks a lot like "qemu -device secondary-vga".
+
+config SAMPLE_ANDROID_BINDERFS
+	bool "Build Android binderfs example"
+	depends on CONFIG_ANDROID_BINDERFS
+	help
+	  Builds a sample program to illustrate the use of the Android binderfs
+	  filesystem.
+
+config SAMPLE_VFS
+	bool "Build example programs that use new VFS system calls"
+	depends on HEADERS_INSTALL
+	help
+	  Build example userspace programs that use new VFS system calls such
+	  as mount API and statx().  Note that this is restricted to the x86
+	  arch whilst it accesses system calls that aren't yet in all arches.
 
 endif # SAMPLES

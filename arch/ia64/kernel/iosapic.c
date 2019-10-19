@@ -67,10 +67,7 @@
  *     used as architecture-independent interrupt handling mechanism in Linux.
  *     As an IRQ is a number, we have to have
  *     IA-64 interrupt vector number <-> IRQ number mapping.  On smaller
- *     systems, we use one-to-one mapping between IA-64 vector and IRQ.  A
- *     platform can implement platform_irq_to_vector(irq) and
- *     platform_local_vector_to_irq(vector) APIs to differentiate the mapping.
- *     Please see also arch/ia64/include/asm/hw_irq.h for those APIs.
+ *     systems, we use one-to-one mapping between IA-64 vector and IRQ.
  *
  * To sum up, there are three levels of mappings involved:
  *
@@ -90,13 +87,12 @@
 #include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/string.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 
 #include <asm/delay.h>
 #include <asm/hw_irq.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>
-#include <asm/machvec.h>
 #include <asm/processor.h>
 #include <asm/ptrace.h>
 
@@ -646,10 +642,8 @@ get_target_cpu (unsigned int gsi, int irq)
 	if (!cpu_online(smp_processor_id()))
 		return cpu_physical_id(smp_processor_id());
 
-#ifdef CONFIG_ACPI
 	if (cpe_vector > 0 && irq_to_vector(irq) == IA64_CPEP_VECTOR)
 		return get_cpei_target_cpu();
-#endif
 
 #ifdef CONFIG_NUMA
 	{

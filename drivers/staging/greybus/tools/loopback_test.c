@@ -4,8 +4,6 @@
  *
  * Copyright 2015 Google Inc.
  * Copyright 2015 Linaro Ltd.
- *
- * Provided under the three clause BSD license found in the LICENSE file.
  */
 #include <errno.h>
 #include <fcntl.h>
@@ -192,7 +190,7 @@ void usage(void)
 	"   -t     must be one of the test names - sink, transfer or ping\n"
 	"   -i     iteration count - the number of iterations to run the test over\n"
 	" Optional arguments\n"
-	"   -S     sysfs location - location for greybus 'endo' entires default /sys/bus/greybus/devices/\n"
+	"   -S     sysfs location - location for greybus 'endo' entries default /sys/bus/greybus/devices/\n"
 	"   -D     debugfs location - location for loopback debugfs entries default /sys/kernel/debug/gb_loopback/\n"
 	"   -s     size of data packet to send during test - defaults to zero\n"
 	"   -m     mask - a bit mask of connections to include example: -m 8 = 4th connection -m 9 = 1st and 4th connection etc\n"
@@ -412,12 +410,6 @@ static int get_results(struct loopback_test *t)
 	}
 
 	return 0;
-}
-
-void log_csv_error(int len, int err)
-{
-	fprintf(stderr, "unable to write %d bytes to csv %s\n", len,
-		strerror(err));
 }
 
 int format_output(struct loopback_test *t,

@@ -1,16 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH Pin Function Controller GPIO driver.
  *
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2009 - 2012 Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #include <linux/device.h>
-#include <linux/gpio.h>
+#include <linux/gpio/driver.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/pinctrl/consumer.h>
@@ -107,7 +104,7 @@ static int gpio_setup_data_regs(struct sh_pfc_chip *chip)
 	for (i = 0; pfc->info->data_regs[i].reg_width; ++i)
 		;
 
-	chip->regs = devm_kzalloc(pfc->dev, i * sizeof(*chip->regs),
+	chip->regs = devm_kcalloc(pfc->dev, i, sizeof(*chip->regs),
 				  GFP_KERNEL);
 	if (chip->regs == NULL)
 		return -ENOMEM;
@@ -224,8 +221,9 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
 	struct gpio_chip *gc = &chip->gpio_chip;
 	int ret;
 
-	chip->pins = devm_kzalloc(pfc->dev, pfc->info->nr_pins *
-				  sizeof(*chip->pins), GFP_KERNEL);
+	chip->pins = devm_kcalloc(pfc->dev,
+				  pfc->info->nr_pins, sizeof(*chip->pins),
+				  GFP_KERNEL);
 	if (chip->pins == NULL)
 		return -ENOMEM;
 
@@ -254,21 +252,16 @@ static int gpio_pin_setup(struct sh_pfc_chip *chip)
  * Function GPIOs
  */
 
-#ifdef CONFIG_SUPERH
+#ifdef CONFIG_PINCTRL_SH_FUNC_GPIO
 static int gpio_function_request(struct gpio_chip *gc, unsigned offset)
 {
-	static bool __print_once;
 	struct sh_pfc *pfc = gpio_to_pfc(gc);
 	unsigned int mark = pfc->info->func_gpios[offset].enum_id;
 	unsigned long flags;
 	int ret;
 
-	if (!__print_once) {
-		dev_notice(pfc->dev,
-			   "Use of GPIO API for function requests is deprecated."
-			   " Convert to pinctrl\n");
-		__print_once = true;
-	}
+	dev_notice_once(pfc->dev,
+			"Use of GPIO API for function requests is deprecated, convert to pinctrl\n");
 
 	if (mark == 0)
 		return -EINVAL;
@@ -294,7 +287,7 @@ static int gpio_function_setup(struct sh_pfc_chip *chip)
 
 	return 0;
 }
-#endif
+#endif /* CONFIG_PINCTRL_SH_FUNC_GPIO */
 
 /* -----------------------------------------------------------------------------
  * Register/unregister
@@ -371,7 +364,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	if (IS_ENABLED(CONFIG_OF) && pfc->dev->of_node)
 		return 0;
 
-#ifdef CONFIG_SUPERH
+#ifdef CONFIG_PINCTRL_SH_FUNC_GPIO
 	/*
 	 * Register the GPIO to pin mappings. As pins with GPIO ports
 	 * must come first in the ranges, skip the pins without GPIO
@@ -399,7 +392,7 @@ int sh_pfc_register_gpiochip(struct sh_pfc *pfc)
 	chip = sh_pfc_add_gpiochip(pfc, gpio_function_setup, NULL);
 	if (IS_ERR(chip))
 		return PTR_ERR(chip);
-#endif /* CONFIG_SUPERH */
+#endif /* CONFIG_PINCTRL_SH_FUNC_GPIO */
 
 	return 0;
 }

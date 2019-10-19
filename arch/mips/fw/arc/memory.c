@@ -17,7 +17,7 @@
 #include <linux/types.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/swap.h>
 
 #include <asm/sgialib.h>
@@ -26,6 +26,11 @@
 #include <asm/bootinfo.h>
 
 #undef DEBUG
+
+#define MAX_PROM_MEM 5
+static phys_addr_t prom_mem_base[MAX_PROM_MEM] __initdata;
+static phys_addr_t prom_mem_size[MAX_PROM_MEM] __initdata;
+static unsigned int nr_prom_mem __initdata;
 
 /*
  * For ARC firmware memory functions the unit of meassuring memory is always
@@ -129,6 +134,7 @@ void __init prom_meminit(void)
 	}
 #endif
 
+	nr_prom_mem = 0;
 	p = PROM_NULL_MDESC;
 	while ((p = ArcGetMemoryDescriptor(p))) {
 		unsigned long base, size;
@@ -139,23 +145,28 @@ void __init prom_meminit(void)
 		type = prom_memtype_classify(p->type);
 
 		add_memory_region(base, size, type);
+
+		if (type == BOOT_MEM_ROM_DATA) {
+			if (nr_prom_mem >= 5) {
+				pr_err("Too many ROM DATA regions");
+				continue;
+			}
+			prom_mem_base[nr_prom_mem] = base;
+			prom_mem_size[nr_prom_mem] = size;
+			nr_prom_mem++;
+		}
 	}
 }
 
 void __init prom_free_prom_memory(void)
 {
-	unsigned long addr;
 	int i;
 
 	if (prom_flags & PROM_FLAG_DONT_FREE_TEMP)
 		return;
 
-	for (i = 0; i < boot_mem_map.nr_map; i++) {
-		if (boot_mem_map.map[i].type != BOOT_MEM_ROM_DATA)
-			continue;
-
-		addr = boot_mem_map.map[i].addr;
+	for (i = 0; i < nr_prom_mem; i++) {
 		free_init_pages("prom memory",
-				addr, addr + boot_mem_map.map[i].size);
+			prom_mem_base[i], prom_mem_base[i] + prom_mem_size[i]);
 	}
 }

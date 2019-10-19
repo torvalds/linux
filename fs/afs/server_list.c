@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* AFS fileserver list management.
  *
  * Copyright (C) 2017 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/kernel.h>
@@ -20,7 +16,8 @@ void afs_put_serverlist(struct afs_net *net, struct afs_server_list *slist)
 	if (slist && refcount_dec_and_test(&slist->usage)) {
 		for (i = 0; i < slist->nr_servers; i++) {
 			afs_put_cb_interest(net, slist->servers[i].cb_interest);
-			afs_put_server(net, slist->servers[i].server);
+			afs_put_server(net, slist->servers[i].server,
+				       afs_server_trace_put_slist);
 		}
 		kfree(slist);
 	}
@@ -42,13 +39,12 @@ struct afs_server_list *afs_alloc_server_list(struct afs_cell *cell,
 		if (vldb->fs_mask[i] & type_mask)
 			nr_servers++;
 
-	slist = kzalloc(sizeof(struct afs_server_list) +
-			sizeof(struct afs_server_entry) * nr_servers,
-			GFP_KERNEL);
+	slist = kzalloc(struct_size(slist, servers, nr_servers), GFP_KERNEL);
 	if (!slist)
 		goto error;
 
 	refcount_set(&slist->usage, 1);
+	rwlock_init(&slist->lock);
 
 	/* Make sure a records exists for each server in the list. */
 	for (i = 0; i < vldb->nr_servers; i++) {
@@ -64,13 +60,16 @@ struct afs_server_list *afs_alloc_server_list(struct afs_cell *cell,
 			goto error_2;
 		}
 
-		/* Insertion-sort by server pointer */
+		/* Insertion-sort by UUID */
 		for (j = 0; j < slist->nr_servers; j++)
-			if (slist->servers[j].server >= server)
+			if (memcmp(&slist->servers[j].server->uuid,
+				   &server->uuid,
+				   sizeof(server->uuid)) >= 0)
 				break;
 		if (j < slist->nr_servers) {
 			if (slist->servers[j].server == server) {
-				afs_put_server(cell->net, server);
+				afs_put_server(cell->net, server,
+					       afs_server_trace_put_slist_isort);
 				continue;
 			}
 
@@ -115,11 +114,11 @@ bool afs_annotate_server_list(struct afs_server_list *new,
 	return false;
 
 changed:
-	/* Maintain the same current server as before if possible. */
-	cur = old->servers[old->index].server;
+	/* Maintain the same preferred server as before if possible. */
+	cur = old->servers[old->preferred].server;
 	for (j = 0; j < new->nr_servers; j++) {
 		if (new->servers[j].server == cur) {
-			new->index = j;
+			new->preferred = j;
 			break;
 		}
 	}

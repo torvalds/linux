@@ -6,6 +6,7 @@
  *  Authors:	Andrey V. Savochkin <saw@msu.ru>
  */
 
+#include <linux/cache.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/slab.h>
@@ -51,7 +52,7 @@
  *		daddr: unchangeable
  */
 
-static struct kmem_cache *peer_cachep __read_mostly;
+static struct kmem_cache *peer_cachep __ro_after_init;
 
 void inet_peer_base_init(struct inet_peer_base *bp)
 {
@@ -210,10 +211,12 @@ struct inet_peer *inet_getpeer(struct inet_peer_base *base,
 		p = kmem_cache_alloc(peer_cachep, GFP_ATOMIC);
 		if (p) {
 			p->daddr = *daddr;
+			p->dtime = (__u32)jiffies;
 			refcount_set(&p->refcnt, 2);
 			atomic_set(&p->rid, 0);
 			p->metrics[RTAX_LOCK-1] = INETPEER_METRICS_NEW;
 			p->rate_tokens = 0;
+			p->n_redirects = 0;
 			/* 60*HZ is arbitrary, but chosen enough high so that the first
 			 * calculation of tokens is at its maximum.
 			 */

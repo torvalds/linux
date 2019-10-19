@@ -1,15 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
+
+#include <linux/delay.h>
 
 #include "dsi_phy.h"
 #include "dsi.xml.h"
@@ -64,7 +58,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 	void __iomem *lane_base = phy->lane_base;
 
 	if (msm_dsi_dphy_timing_calc_v2(timing, clk_req)) {
-		dev_err(&phy->pdev->dev,
+		DRM_DEV_ERROR(&phy->pdev->dev,
 			"%s: D-PHY timing calculation failed\n", __func__);
 		return -EINVAL;
 	}
@@ -115,7 +109,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy, int src_pll_id,
 
 	ret = msm_dsi_pll_set_usecase(phy->pll, phy->usecase);
 	if (ret) {
-		dev_err(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
+		DRM_DEV_ERROR(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
 			__func__, ret);
 		return ret;
 	}
@@ -142,7 +136,7 @@ static int dsi_14nm_phy_init(struct msm_dsi_phy *phy)
 	phy->lane_base = msm_ioremap(pdev, "dsi_phy_lane",
 				"DSI_PHY_LANE");
 	if (IS_ERR(phy->lane_base)) {
-		dev_err(&pdev->dev, "%s: failed to map phy lane base\n",
+		DRM_DEV_ERROR(&pdev->dev, "%s: failed to map phy lane base\n",
 			__func__);
 		return -ENOMEM;
 	}

@@ -59,6 +59,10 @@
 
 typedef __s32 sctp_assoc_t;
 
+#define SCTP_FUTURE_ASSOC	0
+#define SCTP_CURRENT_ASSOC	1
+#define SCTP_ALL_ASSOC		2
+
 /* The following symbols come from the Sockets API Extensions for
  * SCTP <draft-ietf-tsvwg-sctpsocket-07.txt>.
  */
@@ -99,6 +103,8 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_RECVRCVINFO	32
 #define SCTP_RECVNXTINFO	33
 #define SCTP_DEFAULT_SNDINFO	34
+#define SCTP_AUTH_DEACTIVATE_KEY	35
+#define SCTP_REUSE_PORT		36
 
 /* Internal Socket Options. Some of the sctp library functions are
  * implemented using these socket options.
@@ -126,6 +132,11 @@ typedef __s32 sctp_assoc_t;
 #define SCTP_STREAM_SCHEDULER	123
 #define SCTP_STREAM_SCHEDULER_VALUE	124
 #define SCTP_INTERLEAVING_SUPPORTED	125
+#define SCTP_SENDMSG_CONNECT	126
+#define SCTP_EVENT	127
+#define SCTP_ASCONF_SUPPORTED	128
+#define SCTP_AUTH_SUPPORTED	129
+#define SCTP_ECN_SUPPORTED	130
 
 /* PR-SCTP policies */
 #define SCTP_PR_SCTP_NONE	0x0000
@@ -260,6 +271,31 @@ struct sctp_nxtinfo {
 	sctp_assoc_t nxt_assoc_id;
 };
 
+/* 5.3.7 SCTP PR-SCTP Information Structure (SCTP_PRINFO)
+ *
+ *   This cmsghdr structure specifies SCTP options for sendmsg().
+ *
+ *   cmsg_level    cmsg_type      cmsg_data[]
+ *   ------------  ------------   -------------------
+ *   IPPROTO_SCTP  SCTP_PRINFO    struct sctp_prinfo
+ */
+struct sctp_prinfo {
+	__u16 pr_policy;
+	__u32 pr_value;
+};
+
+/* 5.3.8 SCTP AUTH Information Structure (SCTP_AUTHINFO)
+ *
+ *   This cmsghdr structure specifies SCTP options for sendmsg().
+ *
+ *   cmsg_level    cmsg_type      cmsg_data[]
+ *   ------------  ------------   -------------------
+ *   IPPROTO_SCTP  SCTP_AUTHINFO  struct sctp_authinfo
+ */
+struct sctp_authinfo {
+	__u16 auth_keynumber;
+};
+
 /*
  *  sinfo_flags: 16 bits (unsigned integer)
  *
@@ -271,6 +307,9 @@ enum sctp_sinfo_flags {
 	SCTP_ADDR_OVER		= (1 << 1), /* Override the primary destination. */
 	SCTP_ABORT		= (1 << 2), /* Send an ABORT message to the peer. */
 	SCTP_SACK_IMMEDIATELY	= (1 << 3), /* SACK should be sent without delay. */
+	/* 2 bits here have been used by SCTP_PR_SCTP_MASK */
+	SCTP_SENDALL		= (1 << 6),
+	SCTP_PR_SCTP_ALL	= (1 << 7),
 	SCTP_NOTIFICATION	= MSG_NOTIFICATION, /* Next message is not user msg but notification. */
 	SCTP_EOF		= MSG_FIN,  /* Initiate graceful shutdown process. */
 };
@@ -293,6 +332,14 @@ typedef enum sctp_cmsg_type {
 #define SCTP_RCVINFO	SCTP_RCVINFO
 	SCTP_NXTINFO,		/* 5.3.6 SCTP Next Receive Information Structure */
 #define SCTP_NXTINFO	SCTP_NXTINFO
+	SCTP_PRINFO,		/* 5.3.7 SCTP PR-SCTP Information Structure */
+#define SCTP_PRINFO	SCTP_PRINFO
+	SCTP_AUTHINFO,		/* 5.3.8 SCTP AUTH Information Structure */
+#define SCTP_AUTHINFO	SCTP_AUTHINFO
+	SCTP_DSTADDRV4,		/* 5.3.9 SCTP Destination IPv4 Address Structure */
+#define SCTP_DSTADDRV4	SCTP_DSTADDRV4
+	SCTP_DSTADDRV6,		/* 5.3.10 SCTP Destination IPv6 Address Structure */
+#define SCTP_DSTADDRV6	SCTP_DSTADDRV6
 } sctp_cmsg_t;
 
 /*
@@ -482,7 +529,12 @@ struct sctp_authkey_event {
 	sctp_assoc_t auth_assoc_id;
 };
 
-enum { SCTP_AUTH_NEWKEY = 0, };
+enum {
+	SCTP_AUTH_NEW_KEY,
+#define	SCTP_AUTH_NEWKEY	SCTP_AUTH_NEW_KEY /* compatible with before */
+	SCTP_AUTH_FREE_KEY,
+	SCTP_AUTH_NO_AUTH,
+};
 
 /*
  * 6.1.9. SCTP_SENDER_DRY_EVENT
@@ -524,6 +576,8 @@ struct sctp_assoc_reset_event {
 
 #define SCTP_ASSOC_CHANGE_DENIED	0x0004
 #define SCTP_ASSOC_CHANGE_FAILED	0x0008
+#define SCTP_STREAM_CHANGE_DENIED	SCTP_ASSOC_CHANGE_DENIED
+#define SCTP_STREAM_CHANGE_FAILED	SCTP_ASSOC_CHANGE_FAILED
 struct sctp_stream_change_event {
 	__u16 strchange_type;
 	__u16 strchange_flags;
@@ -586,7 +640,9 @@ union sctp_notification {
  */
 
 enum sctp_sn_type {
-	SCTP_SN_TYPE_BASE     = (1<<15),
+	SCTP_SN_TYPE_BASE	= (1<<15),
+	SCTP_DATA_IO_EVENT	= SCTP_SN_TYPE_BASE,
+#define SCTP_DATA_IO_EVENT		SCTP_DATA_IO_EVENT
 	SCTP_ASSOC_CHANGE,
 #define SCTP_ASSOC_CHANGE		SCTP_ASSOC_CHANGE
 	SCTP_PEER_ADDR_CHANGE,
@@ -611,6 +667,8 @@ enum sctp_sn_type {
 #define SCTP_ASSOC_RESET_EVENT		SCTP_ASSOC_RESET_EVENT
 	SCTP_STREAM_CHANGE_EVENT,
 #define SCTP_STREAM_CHANGE_EVENT	SCTP_STREAM_CHANGE_EVENT
+	SCTP_SN_TYPE_MAX	= SCTP_STREAM_CHANGE_EVENT,
+#define SCTP_SN_TYPE_MAX		SCTP_SN_TYPE_MAX
 };
 
 /* Notification error codes used to fill up the error fields in some
@@ -720,6 +778,8 @@ enum  sctp_spp_flags {
 	SPP_SACKDELAY_DISABLE = 1<<6,	/*Disable SACK*/
 	SPP_SACKDELAY = SPP_SACKDELAY_ENABLE | SPP_SACKDELAY_DISABLE,
 	SPP_HB_TIME_IS_ZERO = 1<<7,	/* Set HB delay to 0 */
+	SPP_IPV6_FLOWLABEL = 1<<8,
+	SPP_DSCP = 1<<9,
 };
 
 struct sctp_paddrparams {
@@ -730,6 +790,8 @@ struct sctp_paddrparams {
 	__u32			spp_pathmtu;
 	__u32			spp_sackdelay;
 	__u32			spp_flags;
+	__u32			spp_ipv6_flowlabel;
+	__u8			spp_dscp;
 } __attribute__((packed, aligned(4)));
 
 /*
@@ -1100,9 +1162,16 @@ struct sctp_add_streams {
 	uint16_t sas_outstrms;
 };
 
+struct sctp_event {
+	sctp_assoc_t se_assoc_id;
+	uint16_t se_type;
+	uint8_t se_on;
+};
+
 /* SCTP Stream schedulers */
 enum sctp_sched_type {
 	SCTP_SS_FCFS,
+	SCTP_SS_DEFAULT = SCTP_SS_FCFS,
 	SCTP_SS_PRIO,
 	SCTP_SS_RR,
 	SCTP_SS_MAX = SCTP_SS_RR

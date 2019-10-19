@@ -1,13 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * Copyright (C) 2008 Freescale Semiconductor, Inc. All rights reserved.
  * Dave Liu <daveliu@freescale.com>
  * copy from idle_6xx.S and modify for e500 based processor,
  * implement the power_save function in idle.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include <linux/threads.h>
@@ -17,14 +13,14 @@
 #include <asm/thread_info.h>
 #include <asm/ppc_asm.h>
 #include <asm/asm-offsets.h>
+#include <asm/feature-fixups.h>
 
 	.text
 
 _GLOBAL(e500_idle)
-	CURRENT_THREAD_INFO(r3, r1)
-	lwz	r4,TI_LOCAL_FLAGS(r3)	/* set napping bit */
+	lwz	r4,TI_LOCAL_FLAGS(r2)	/* set napping bit */
 	ori	r4,r4,_TLF_NAPPING	/* so when we take an exception */
-	stw	r4,TI_LOCAL_FLAGS(r3)	/* it will return to our caller */
+	stw	r4,TI_LOCAL_FLAGS(r2)	/* it will return to our caller */
 
 #ifdef CONFIG_PPC_E500MC
 	wrteei	1
@@ -87,8 +83,7 @@ _GLOBAL(power_save_ppc32_restore)
 	stw	r9,_NIP(r11)		/* make it do a blr */
 
 #ifdef CONFIG_SMP
-	CURRENT_THREAD_INFO(r12, r1)
-	lwz	r11,TI_CPU(r12)		/* get cpu number * 4 */
+	lwz	r11,TASK_CPU(r2)		/* get cpu number * 4 */
 	slwi	r11,r11,2
 #else
 	li	r11,0

@@ -213,6 +213,50 @@ enum qed_ov_wol {
 	QED_OV_WOL_ENABLED
 };
 
+enum qed_mfw_tlv_type {
+	QED_MFW_TLV_GENERIC = 0x1,	/* Core driver TLVs */
+	QED_MFW_TLV_ETH = 0x2,		/* L2 driver TLVs */
+	QED_MFW_TLV_FCOE = 0x4,		/* FCoE protocol TLVs */
+	QED_MFW_TLV_ISCSI = 0x8,	/* SCSI protocol TLVs */
+	QED_MFW_TLV_MAX = 0x16,
+};
+
+struct qed_mfw_tlv_generic {
+#define QED_MFW_TLV_FLAGS_SIZE	2
+	struct {
+		u8 ipv4_csum_offload;
+		u8 lso_supported;
+		bool b_set;
+	} flags;
+
+#define QED_MFW_TLV_MAC_COUNT 3
+	/* First entry for primary MAC, 2 secondary MACs possible */
+	u8 mac[QED_MFW_TLV_MAC_COUNT][6];
+	bool mac_set[QED_MFW_TLV_MAC_COUNT];
+
+	u64 rx_frames;
+	bool rx_frames_set;
+	u64 rx_bytes;
+	bool rx_bytes_set;
+	u64 tx_frames;
+	bool tx_frames_set;
+	u64 tx_bytes;
+	bool tx_bytes_set;
+};
+
+union qed_mfw_tlv_data {
+	struct qed_mfw_tlv_generic generic;
+	struct qed_mfw_tlv_eth eth;
+	struct qed_mfw_tlv_fcoe fcoe;
+	struct qed_mfw_tlv_iscsi iscsi;
+};
+
+#define QED_NVM_CFG_OPTION_ALL		BIT(0)
+#define QED_NVM_CFG_OPTION_INIT		BIT(1)
+#define QED_NVM_CFG_OPTION_COMMIT       BIT(2)
+#define QED_NVM_CFG_OPTION_FREE		BIT(3)
+#define QED_NVM_CFG_OPTION_ENTITY_SEL	BIT(4)
+
 /**
  * @brief - returns the link params of the hw function
  *
@@ -284,14 +328,61 @@ int qed_mcp_get_mbi_ver(struct qed_hwfn *p_hwfn,
  * @brief Get media type value of the port.
  *
  * @param cdev      - qed dev pointer
+ * @param p_ptt
  * @param mfw_ver    - media type value
  *
  * @return int -
  *      0 - Operation was successul.
  *      -EBUSY - Operation failed
  */
-int qed_mcp_get_media_type(struct qed_dev      *cdev,
-			   u32                  *media_type);
+int qed_mcp_get_media_type(struct qed_hwfn *p_hwfn,
+			   struct qed_ptt *p_ptt, u32 *media_type);
+
+/**
+ * @brief Get transceiver data of the port.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_transceiver_state - transceiver state.
+ * @param p_transceiver_type - media type value
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_transceiver_data(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt,
+				 u32 *p_transceiver_state,
+				 u32 *p_tranceiver_type);
+
+/**
+ * @brief Get transceiver supported speed mask.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_speed_mask - Bit mask of all supported speeds.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+
+int qed_mcp_trans_speed_mask(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_speed_mask);
+
+/**
+ * @brief Get board configuration.
+ *
+ * @param cdev      - qed dev pointer
+ * @param p_ptt
+ * @param p_board_config - Board config.
+ *
+ * @return int -
+ *      0 - Operation was successful.
+ *      -EBUSY - Operation failed
+ */
+int qed_mcp_get_board_config(struct qed_hwfn *p_hwfn,
+			     struct qed_ptt *p_ptt, u32 *p_board_config);
 
 /**
  * @brief General function for sending commands to the MCP
@@ -354,6 +445,38 @@ int
 qed_mcp_send_drv_version(struct qed_hwfn *p_hwfn,
 			 struct qed_ptt *p_ptt,
 			 struct qed_mcp_drv_version *p_ver);
+
+/**
+ * @brief Read the MFW process kill counter
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return u32
+ */
+u32 qed_get_process_kill_counter(struct qed_hwfn *p_hwfn,
+				 struct qed_ptt *p_ptt);
+
+/**
+ * @brief Trigger a recovery process
+ *
+ *  @param p_hwfn
+ *  @param p_ptt
+ *
+ * @return int
+ */
+int qed_start_recovery_process(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief A recovery handler must call this function as its first step.
+ *        It is assumed that the handler is not run from an interrupt context.
+ *
+ *  @param cdev
+ *  @param p_ptt
+ *
+ * @return int
+ */
+int qed_recovery_prolog(struct qed_dev *cdev);
 
 /**
  * @brief Notify MFW about the change in base device properties
@@ -443,6 +566,30 @@ int qed_mcp_set_led(struct qed_hwfn *p_hwfn,
  */
 int qed_mcp_nvm_read(struct qed_dev *cdev, u32 addr, u8 *p_buf, u32 len);
 
+/**
+ * @brief Write to nvm
+ *
+ *  @param cdev
+ *  @param addr - nvm offset
+ *  @param cmd - nvm command
+ *  @param p_buf - nvm write buffer
+ *  @param len - buffer len
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_write(struct qed_dev *cdev,
+		      u32 cmd, u32 addr, u8 *p_buf, u32 len);
+
+/**
+ * @brief Check latest response
+ *
+ *  @param cdev
+ *  @param p_buf - nvm write buffer
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_nvm_resp(struct qed_dev *cdev, u8 *p_buf);
+
 struct qed_nvm_image_att {
 	u32 start_addr;
 	u32 length;
@@ -452,7 +599,20 @@ struct qed_nvm_image_att {
  * @brief Allows reading a whole nvram image
  *
  * @param p_hwfn
- * @param p_ptt
+ * @param image_id - image to get attributes for
+ * @param p_image_att - image attributes structure into which to fill data
+ *
+ * @return int - 0 - operation was successful.
+ */
+int
+qed_mcp_get_nvm_image_att(struct qed_hwfn *p_hwfn,
+			  enum qed_nvm_images image_id,
+			  struct qed_nvm_image_att *p_image_att);
+
+/**
+ * @brief Allows reading a whole nvram image
+ *
+ * @param p_hwfn
  * @param image_id - image requested for reading
  * @param p_buffer - allocated buffer into which to fill data
  * @param buffer_len - length of the allocated buffer.
@@ -460,7 +620,6 @@ struct qed_nvm_image_att {
  * @return 0 iff p_buffer now contains the nvram image.
  */
 int qed_mcp_get_nvm_image(struct qed_hwfn *p_hwfn,
-			  struct qed_ptt *p_ptt,
 			  enum qed_nvm_images image_id,
 			  u8 *p_buffer, u32 buffer_len);
 
@@ -496,9 +655,9 @@ int qed_mcp_bist_clock_test(struct qed_hwfn *p_hwfn,
  *
  * @return int - 0 - operation was successful.
  */
-int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
-					 struct qed_ptt *p_ptt,
-					 u32 *num_images);
+int qed_mcp_bist_nvm_get_num_images(struct qed_hwfn *p_hwfn,
+				    struct qed_ptt *p_ptt,
+				    u32 *num_images);
 
 /**
  * @brief Bist nvm test - get image attributes by index
@@ -510,10 +669,21 @@ int qed_mcp_bist_nvm_test_get_num_images(struct qed_hwfn *p_hwfn,
  *
  * @return int - 0 - operation was successful.
  */
-int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
-					struct qed_ptt *p_ptt,
-					struct bist_nvm_image_att *p_image_att,
-					u32 image_index);
+int qed_mcp_bist_nvm_get_image_att(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   struct bist_nvm_image_att *p_image_att,
+				   u32 image_index);
+
+/**
+ * @brief - Processes the TLV request from MFW i.e., get the required TLV info
+ *          from the qed client and send it to the MFW.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @param return 0 upon success.
+ */
+int qed_mfw_process_tlv_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /* Using hwfn number (and not pf_num) is required since in CMT mode,
  * same pf_num may be used by two different hwfn
@@ -527,10 +697,6 @@ int qed_mcp_bist_nvm_test_get_image_att(struct qed_hwfn *p_hwfn,
 					    rel_pfid)
 #define MCP_PF_ID(p_hwfn) MCP_PF_ID_BY_REL(p_hwfn, (p_hwfn)->rel_pf_id)
 
-#define MFW_PORT(_p_hwfn)       ((_p_hwfn)->abs_pf_id %			  \
-				 ((_p_hwfn)->cdev->num_ports_in_engine * \
-				  qed_device_num_engines((_p_hwfn)->cdev)))
-
 struct qed_mcp_info {
 	/* List for mailbox commands which were sent and wait for a response */
 	struct list_head			cmd_list;
@@ -540,11 +706,14 @@ struct qed_mcp_info {
 	 */
 	spinlock_t				cmd_lock;
 
+	/* Flag to indicate whether sending a MFW mailbox command is blocked */
+	bool					b_block_cmd;
+
 	/* Spinlock used for syncing SW link-changes and link-changes
 	 * originating from attention context.
 	 */
 	spinlock_t				link_lock;
-	bool					block_mb_sending;
+
 	u32					public_base;
 	u32					drv_mb_addr;
 	u32					mfw_mb_addr;
@@ -565,14 +734,28 @@ struct qed_mcp_info {
 };
 
 struct qed_mcp_mb_params {
-	u32			cmd;
-	u32			param;
-	void			*p_data_src;
-	u8			data_src_size;
-	void			*p_data_dst;
-	u8			data_dst_size;
-	u32			mcp_resp;
-	u32			mcp_param;
+	u32 cmd;
+	u32 param;
+	void *p_data_src;
+	void *p_data_dst;
+	u8 data_src_size;
+	u8 data_dst_size;
+	u32 mcp_resp;
+	u32 mcp_param;
+	u32 flags;
+#define QED_MB_FLAG_CAN_SLEEP	(0x1 << 0)
+#define QED_MB_FLAG_AVOID_BLOCK	(0x1 << 1)
+#define QED_MB_FLAGS_IS_SET(params, flag) \
+	({ typeof(params) __params = (params); \
+	   (__params && (__params->flags & QED_MB_FLAG_ ## flag)); })
+};
+
+struct qed_drv_tlv_hdr {
+	u8 tlv_type;
+	u8 tlv_length;	/* In dwords - not including this header */
+	u8 tlv_reserved;
+#define QED_DRV_TLV_FLAGS_CHANGED 0x01
+	u8 tlv_flags;
 };
 
 /**
@@ -650,6 +833,16 @@ struct qed_load_req_params {
 int qed_mcp_load_req(struct qed_hwfn *p_hwfn,
 		     struct qed_ptt *p_ptt,
 		     struct qed_load_req_params *p_params);
+
+/**
+ * @brief Sends a LOAD_DONE message to the MFW
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ *
+ * @return int - 0 - Operation was successful.
+ */
+int qed_mcp_load_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
 
 /**
  * @brief Sends a UNLOAD_REQ message to the MFW
@@ -735,6 +928,22 @@ int qed_mcp_nvm_rd_cmd(struct qed_hwfn *p_hwfn,
 		       u32 param,
 		       u32 *o_mcp_resp,
 		       u32 *o_mcp_param, u32 *o_txn_size, u32 *o_buf);
+
+/**
+ * @brief Read from sfp
+ *
+ *  @param p_hwfn - hw function
+ *  @param p_ptt  - PTT required for register access
+ *  @param port   - transceiver port
+ *  @param addr   - I2C address
+ *  @param offset - offset in sfp
+ *  @param len    - buffer length
+ *  @param p_buf  - buffer to read into
+ *
+ * @return int - 0 - operation was successful.
+ */
+int qed_mcp_phy_sfp_read(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			 u32 port, u32 addr, u32 offset, u32 len, u8 *p_buf);
 
 /**
  * @brief indicates whether the MFW objects [under mcp_info] are accessible
@@ -941,6 +1150,16 @@ void qed_mcp_resc_lock_default_init(struct qed_resc_lock_params *p_lock,
 				    struct qed_resc_unlock_params *p_unlock,
 				    enum qed_resc_lock
 				    resource, bool b_is_permanent);
+
+/**
+ * @brief - Return whether management firmware support smart AN
+ *
+ * @param p_hwfn
+ *
+ * @return bool - true if feature is supported.
+ */
+bool qed_mcp_is_smart_an_supported(struct qed_hwfn *p_hwfn);
+
 /**
  * @brief Learn of supported MFW features; To be done during early init
  *
@@ -957,4 +1176,65 @@ int qed_mcp_get_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
  * @param p_ptt
  */
 int qed_mcp_set_capabilities(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Read ufp config from the shared memory.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+void qed_mcp_read_ufp_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Populate the nvm info shadow in the given hardware function
+ *
+ * @param p_hwfn
+ */
+int qed_mcp_nvm_info_populate(struct qed_hwfn *p_hwfn);
+
+/**
+ * @brief Get the engine affinity configuration.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+int qed_mcp_get_engine_config(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Get the PPFID bitmap.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ */
+int qed_mcp_get_ppfid_bitmap(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+
+/**
+ * @brief Get NVM config attribute value.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param option_id
+ * @param entity_id
+ * @param flags
+ * @param p_buf
+ * @param p_len
+ */
+int qed_mcp_nvm_get_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			u16 option_id, u8 entity_id, u16 flags, u8 *p_buf,
+			u32 *p_len);
+
+/**
+ * @brief Set NVM config attribute value.
+ *
+ * @param p_hwfn
+ * @param p_ptt
+ * @param option_id
+ * @param entity_id
+ * @param flags
+ * @param p_buf
+ * @param len
+ */
+int qed_mcp_nvm_set_cfg(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+			u16 option_id, u8 entity_id, u16 flags, u8 *p_buf,
+			u32 len);
 #endif

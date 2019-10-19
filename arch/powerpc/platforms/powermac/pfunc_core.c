@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *
  * FIXME: Properly make this race free with refcounting etc...
@@ -643,7 +644,7 @@ static int pmf_add_function_prop(struct pmf_device *dev, void *driverdata,
 
 	while (length >= 12) {
 		/* Allocate a structure */
-		func = kzalloc(sizeof(struct pmf_function), GFP_KERNEL);
+		func = kzalloc(sizeof(*func), GFP_KERNEL);
 		if (func == NULL)
 			goto bail;
 		kref_init(&func->ref);
@@ -719,7 +720,7 @@ int pmf_register_driver(struct device_node *np,
 		return -EBUSY;
 	}
 
-	dev = kzalloc(sizeof(struct pmf_device), GFP_KERNEL);
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		DBG("pmf: no memory !\n");
 		return -ENOMEM;

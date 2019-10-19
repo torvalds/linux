@@ -1,12 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * include/net/devlink.h - Network physical device Netlink interface
  * Copyright (c) 2016 Mellanox Technologies. All rights reserved.
  * Copyright (c) 2016 Jiri Pirko <jiri@mellanox.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 #ifndef _NET_DEVLINK_H_
 #define _NET_DEVLINK_H_
@@ -16,6 +12,9 @@
 #include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/netdevice.h>
+#include <linux/spinlock.h>
+#include <linux/workqueue.h>
+#include <linux/refcount.h>
 #include <net/net_namespace.h>
 #include <uapi/linux/devlink.h>
 
@@ -27,30 +26,73 @@ struct devlink {
 	struct list_head sb_list;
 	struct list_head dpipe_table_list;
 	struct list_head resource_list;
+	struct list_head param_list;
+	struct list_head region_list;
+	u32 snapshot_id;
+	struct list_head reporter_list;
+	struct mutex reporters_lock; /* protects reporter_list */
 	struct devlink_dpipe_headers *dpipe_headers;
+	struct list_head trap_list;
+	struct list_head trap_group_list;
 	const struct devlink_ops *ops;
 	struct device *dev;
 	possible_net_t _net;
 	struct mutex lock;
+	bool reload_failed;
 	char priv[0] __aligned(NETDEV_ALIGN);
+};
+
+struct devlink_port_phys_attrs {
+	u32 port_number; /* Same value as "split group".
+			  * A physical port which is visible to the user
+			  * for a given port flavour.
+			  */
+	u32 split_subport_number;
+};
+
+struct devlink_port_pci_pf_attrs {
+	u16 pf;	/* Associated PCI PF for this port. */
+};
+
+struct devlink_port_pci_vf_attrs {
+	u16 pf;	/* Associated PCI PF for this port. */
+	u16 vf;	/* Associated PCI VF for of the PCI PF for this port. */
+};
+
+struct devlink_port_attrs {
+	u8 set:1,
+	   split:1,
+	   switch_port:1;
+	enum devlink_port_flavour flavour;
+	struct netdev_phys_item_id switch_id;
+	union {
+		struct devlink_port_phys_attrs phys;
+		struct devlink_port_pci_pf_attrs pci_pf;
+		struct devlink_port_pci_vf_attrs pci_vf;
+	};
 };
 
 struct devlink_port {
 	struct list_head list;
+	struct list_head param_list;
 	struct devlink *devlink;
-	unsigned index;
+	unsigned int index;
 	bool registered;
+	spinlock_t type_lock; /* Protects type and type_dev
+			       * pointer consistency.
+			       */
 	enum devlink_port_type type;
 	enum devlink_port_type desired_type;
 	void *type_dev;
-	bool split;
-	u32 split_group;
+	struct devlink_port_attrs attrs;
+	struct delayed_work type_warn_dw;
 };
 
 struct devlink_sb_pool_info {
 	enum devlink_sb_pool_type pool_type;
 	u32 size;
 	enum devlink_sb_threshold_type threshold_type;
+	u32 cell_size;
 };
 
 /**
@@ -232,18 +274,6 @@ struct devlink_dpipe_headers {
 };
 
 /**
- * struct devlink_resource_ops - resource ops
- * @occ_get: get the occupied size
- * @size_validate: validate the size of the resource before update, reload
- *                 is needed for changes to take place
- */
-struct devlink_resource_ops {
-	u64 (*occ_get)(struct devlink *devlink);
-	int (*size_validate)(struct devlink *devlink, u64 size,
-			     struct netlink_ext_ack *extack);
-};
-
-/**
  * struct devlink_resource_size_params - resource's size parameters
  * @size_min: minimum size which can be set
  * @size_max: maximum size which can be set
@@ -257,6 +287,20 @@ struct devlink_resource_size_params {
 	enum devlink_resource_unit unit;
 };
 
+static inline void
+devlink_resource_size_params_init(struct devlink_resource_size_params *size_params,
+				  u64 size_min, u64 size_max,
+				  u64 size_granularity,
+				  enum devlink_resource_unit unit)
+{
+	size_params->size_min = size_min;
+	size_params->size_max = size_max;
+	size_params->size_granularity = size_granularity;
+	size_params->unit = unit;
+}
+
+typedef u64 devlink_resource_occ_get_t(void *priv);
+
 /**
  * struct devlink_resource - devlink resource
  * @name: name of the resource
@@ -269,7 +313,6 @@ struct devlink_resource_size_params {
  * @size_params: size parameters
  * @list: parent list
  * @resource_list: list of child resources
- * @resource_ops: resource ops
  */
 struct devlink_resource {
 	const char *name;
@@ -278,33 +321,351 @@ struct devlink_resource {
 	u64 size_new;
 	bool size_valid;
 	struct devlink_resource *parent;
-	struct devlink_resource_size_params *size_params;
+	struct devlink_resource_size_params size_params;
 	struct list_head list;
 	struct list_head resource_list;
-	const struct devlink_resource_ops *resource_ops;
+	devlink_resource_occ_get_t *occ_get;
+	void *occ_get_priv;
 };
 
 #define DEVLINK_RESOURCE_ID_PARENT_TOP 0
 
+#define __DEVLINK_PARAM_MAX_STRING_VALUE 32
+enum devlink_param_type {
+	DEVLINK_PARAM_TYPE_U8,
+	DEVLINK_PARAM_TYPE_U16,
+	DEVLINK_PARAM_TYPE_U32,
+	DEVLINK_PARAM_TYPE_STRING,
+	DEVLINK_PARAM_TYPE_BOOL,
+};
+
+union devlink_param_value {
+	u8 vu8;
+	u16 vu16;
+	u32 vu32;
+	char vstr[__DEVLINK_PARAM_MAX_STRING_VALUE];
+	bool vbool;
+};
+
+struct devlink_param_gset_ctx {
+	union devlink_param_value val;
+	enum devlink_param_cmode cmode;
+};
+
+/**
+ * struct devlink_param - devlink configuration parameter data
+ * @name: name of the parameter
+ * @generic: indicates if the parameter is generic or driver specific
+ * @type: parameter type
+ * @supported_cmodes: bitmap of supported configuration modes
+ * @get: get parameter value, used for runtime and permanent
+ *       configuration modes
+ * @set: set parameter value, used for runtime and permanent
+ *       configuration modes
+ * @validate: validate input value is applicable (within value range, etc.)
+ *
+ * This struct should be used by the driver to fill the data for
+ * a parameter it registers.
+ */
+struct devlink_param {
+	u32 id;
+	const char *name;
+	bool generic;
+	enum devlink_param_type type;
+	unsigned long supported_cmodes;
+	int (*get)(struct devlink *devlink, u32 id,
+		   struct devlink_param_gset_ctx *ctx);
+	int (*set)(struct devlink *devlink, u32 id,
+		   struct devlink_param_gset_ctx *ctx);
+	int (*validate)(struct devlink *devlink, u32 id,
+			union devlink_param_value val,
+			struct netlink_ext_ack *extack);
+};
+
+struct devlink_param_item {
+	struct list_head list;
+	const struct devlink_param *param;
+	union devlink_param_value driverinit_value;
+	bool driverinit_value_valid;
+	bool published;
+};
+
+enum devlink_param_generic_id {
+	DEVLINK_PARAM_GENERIC_ID_INT_ERR_RESET,
+	DEVLINK_PARAM_GENERIC_ID_MAX_MACS,
+	DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV,
+	DEVLINK_PARAM_GENERIC_ID_REGION_SNAPSHOT,
+	DEVLINK_PARAM_GENERIC_ID_IGNORE_ARI,
+	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
+	DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
+	DEVLINK_PARAM_GENERIC_ID_FW_LOAD_POLICY,
+	DEVLINK_PARAM_GENERIC_ID_RESET_DEV_ON_DRV_PROBE,
+
+	/* add new param generic ids above here*/
+	__DEVLINK_PARAM_GENERIC_ID_MAX,
+	DEVLINK_PARAM_GENERIC_ID_MAX = __DEVLINK_PARAM_GENERIC_ID_MAX - 1,
+};
+
+#define DEVLINK_PARAM_GENERIC_INT_ERR_RESET_NAME "internal_error_reset"
+#define DEVLINK_PARAM_GENERIC_INT_ERR_RESET_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_MAX_MACS_NAME "max_macs"
+#define DEVLINK_PARAM_GENERIC_MAX_MACS_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_NAME "enable_sriov"
+#define DEVLINK_PARAM_GENERIC_ENABLE_SRIOV_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_NAME "region_snapshot_enable"
+#define DEVLINK_PARAM_GENERIC_REGION_SNAPSHOT_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_NAME "ignore_ari"
+#define DEVLINK_PARAM_GENERIC_IGNORE_ARI_TYPE DEVLINK_PARAM_TYPE_BOOL
+
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MAX_NAME "msix_vec_per_pf_max"
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MAX_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MIN_NAME "msix_vec_per_pf_min"
+#define DEVLINK_PARAM_GENERIC_MSIX_VEC_PER_PF_MIN_TYPE DEVLINK_PARAM_TYPE_U32
+
+#define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_NAME "fw_load_policy"
+#define DEVLINK_PARAM_GENERIC_FW_LOAD_POLICY_TYPE DEVLINK_PARAM_TYPE_U8
+
+#define DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_NAME \
+	"reset_dev_on_drv_probe"
+#define DEVLINK_PARAM_GENERIC_RESET_DEV_ON_DRV_PROBE_TYPE DEVLINK_PARAM_TYPE_U8
+
+#define DEVLINK_PARAM_GENERIC(_id, _cmodes, _get, _set, _validate)	\
+{									\
+	.id = DEVLINK_PARAM_GENERIC_ID_##_id,				\
+	.name = DEVLINK_PARAM_GENERIC_##_id##_NAME,			\
+	.type = DEVLINK_PARAM_GENERIC_##_id##_TYPE,			\
+	.generic = true,						\
+	.supported_cmodes = _cmodes,					\
+	.get = _get,							\
+	.set = _set,							\
+	.validate = _validate,						\
+}
+
+#define DEVLINK_PARAM_DRIVER(_id, _name, _type, _cmodes, _get, _set, _validate)	\
+{									\
+	.id = _id,							\
+	.name = _name,							\
+	.type = _type,							\
+	.supported_cmodes = _cmodes,					\
+	.get = _get,							\
+	.set = _set,							\
+	.validate = _validate,						\
+}
+
+/* Part number, identifier of board design */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_ID	"board.id"
+/* Revision of board design */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_REV	"board.rev"
+/* Maker of the board */
+#define DEVLINK_INFO_VERSION_GENERIC_BOARD_MANUFACTURE	"board.manufacture"
+
+/* Part number, identifier of asic design */
+#define DEVLINK_INFO_VERSION_GENERIC_ASIC_ID	"asic.id"
+/* Revision of asic design */
+#define DEVLINK_INFO_VERSION_GENERIC_ASIC_REV	"asic.rev"
+
+/* Overall FW version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW		"fw"
+/* Control processor FW version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_MGMT	"fw.mgmt"
+/* Data path microcode controlling high-speed packet processing */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_APP	"fw.app"
+/* UNDI software version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_UNDI	"fw.undi"
+/* NCSI support/handler version */
+#define DEVLINK_INFO_VERSION_GENERIC_FW_NCSI	"fw.ncsi"
+
+struct devlink_region;
+struct devlink_info_req;
+
+typedef void devlink_snapshot_data_dest_t(const void *data);
+
+struct devlink_fmsg;
+struct devlink_health_reporter;
+
+enum devlink_health_reporter_state {
+	DEVLINK_HEALTH_REPORTER_STATE_HEALTHY,
+	DEVLINK_HEALTH_REPORTER_STATE_ERROR,
+};
+
+/**
+ * struct devlink_health_reporter_ops - Reporter operations
+ * @name: reporter name
+ * @recover: callback to recover from reported error
+ *           if priv_ctx is NULL, run a full recover
+ * @dump: callback to dump an object
+ *        if priv_ctx is NULL, run a full dump
+ * @diagnose: callback to diagnose the current status
+ */
+
+struct devlink_health_reporter_ops {
+	char *name;
+	int (*recover)(struct devlink_health_reporter *reporter,
+		       void *priv_ctx);
+	int (*dump)(struct devlink_health_reporter *reporter,
+		    struct devlink_fmsg *fmsg, void *priv_ctx);
+	int (*diagnose)(struct devlink_health_reporter *reporter,
+			struct devlink_fmsg *fmsg);
+};
+
+/**
+ * struct devlink_trap_group - Immutable packet trap group attributes.
+ * @name: Trap group name.
+ * @id: Trap group identifier.
+ * @generic: Whether the trap group is generic or not.
+ *
+ * Describes immutable attributes of packet trap groups that drivers register
+ * with devlink.
+ */
+struct devlink_trap_group {
+	const char *name;
+	u16 id;
+	bool generic;
+};
+
+#define DEVLINK_TRAP_METADATA_TYPE_F_IN_PORT	BIT(0)
+
+/**
+ * struct devlink_trap - Immutable packet trap attributes.
+ * @type: Trap type.
+ * @init_action: Initial trap action.
+ * @generic: Whether the trap is generic or not.
+ * @id: Trap identifier.
+ * @name: Trap name.
+ * @group: Immutable packet trap group attributes.
+ * @metadata_cap: Metadata types that can be provided by the trap.
+ *
+ * Describes immutable attributes of packet traps that drivers register with
+ * devlink.
+ */
+struct devlink_trap {
+	enum devlink_trap_type type;
+	enum devlink_trap_action init_action;
+	bool generic;
+	u16 id;
+	const char *name;
+	struct devlink_trap_group group;
+	u32 metadata_cap;
+};
+
+/* All traps must be documented in
+ * Documentation/networking/devlink-trap.rst
+ */
+enum devlink_trap_generic_id {
+	DEVLINK_TRAP_GENERIC_ID_SMAC_MC,
+	DEVLINK_TRAP_GENERIC_ID_VLAN_TAG_MISMATCH,
+	DEVLINK_TRAP_GENERIC_ID_INGRESS_VLAN_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_INGRESS_STP_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_EMPTY_TX_LIST,
+	DEVLINK_TRAP_GENERIC_ID_PORT_LOOPBACK_FILTER,
+	DEVLINK_TRAP_GENERIC_ID_BLACKHOLE_ROUTE,
+	DEVLINK_TRAP_GENERIC_ID_TTL_ERROR,
+	DEVLINK_TRAP_GENERIC_ID_TAIL_DROP,
+
+	/* Add new generic trap IDs above */
+	__DEVLINK_TRAP_GENERIC_ID_MAX,
+	DEVLINK_TRAP_GENERIC_ID_MAX = __DEVLINK_TRAP_GENERIC_ID_MAX - 1,
+};
+
+/* All trap groups must be documented in
+ * Documentation/networking/devlink-trap.rst
+ */
+enum devlink_trap_group_generic_id {
+	DEVLINK_TRAP_GROUP_GENERIC_ID_L2_DROPS,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_L3_DROPS,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_BUFFER_DROPS,
+
+	/* Add new generic trap group IDs above */
+	__DEVLINK_TRAP_GROUP_GENERIC_ID_MAX,
+	DEVLINK_TRAP_GROUP_GENERIC_ID_MAX =
+		__DEVLINK_TRAP_GROUP_GENERIC_ID_MAX - 1,
+};
+
+#define DEVLINK_TRAP_GENERIC_NAME_SMAC_MC \
+	"source_mac_is_multicast"
+#define DEVLINK_TRAP_GENERIC_NAME_VLAN_TAG_MISMATCH \
+	"vlan_tag_mismatch"
+#define DEVLINK_TRAP_GENERIC_NAME_INGRESS_VLAN_FILTER \
+	"ingress_vlan_filter"
+#define DEVLINK_TRAP_GENERIC_NAME_INGRESS_STP_FILTER \
+	"ingress_spanning_tree_filter"
+#define DEVLINK_TRAP_GENERIC_NAME_EMPTY_TX_LIST \
+	"port_list_is_empty"
+#define DEVLINK_TRAP_GENERIC_NAME_PORT_LOOPBACK_FILTER \
+	"port_loopback_filter"
+#define DEVLINK_TRAP_GENERIC_NAME_BLACKHOLE_ROUTE \
+	"blackhole_route"
+#define DEVLINK_TRAP_GENERIC_NAME_TTL_ERROR \
+	"ttl_value_is_too_small"
+#define DEVLINK_TRAP_GENERIC_NAME_TAIL_DROP \
+	"tail_drop"
+
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_L2_DROPS \
+	"l2_drops"
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_L3_DROPS \
+	"l3_drops"
+#define DEVLINK_TRAP_GROUP_GENERIC_NAME_BUFFER_DROPS \
+	"buffer_drops"
+
+#define DEVLINK_TRAP_GENERIC(_type, _init_action, _id, _group, _metadata_cap) \
+	{								      \
+		.type = DEVLINK_TRAP_TYPE_##_type,			      \
+		.init_action = DEVLINK_TRAP_ACTION_##_init_action,	      \
+		.generic = true,					      \
+		.id = DEVLINK_TRAP_GENERIC_ID_##_id,			      \
+		.name = DEVLINK_TRAP_GENERIC_NAME_##_id,		      \
+		.group = _group,					      \
+		.metadata_cap = _metadata_cap,				      \
+	}
+
+#define DEVLINK_TRAP_DRIVER(_type, _init_action, _id, _name, _group,	      \
+			    _metadata_cap)				      \
+	{								      \
+		.type = DEVLINK_TRAP_TYPE_##_type,			      \
+		.init_action = DEVLINK_TRAP_ACTION_##_init_action,	      \
+		.generic = false,					      \
+		.id = _id,						      \
+		.name = _name,						      \
+		.group = _group,					      \
+		.metadata_cap = _metadata_cap,				      \
+	}
+
+#define DEVLINK_TRAP_GROUP_GENERIC(_id)					      \
+	{								      \
+		.name = DEVLINK_TRAP_GROUP_GENERIC_NAME_##_id,		      \
+		.id = DEVLINK_TRAP_GROUP_GENERIC_ID_##_id,		      \
+		.generic = true,					      \
+	}
+
 struct devlink_ops {
-	int (*reload)(struct devlink *devlink);
+	int (*reload_down)(struct devlink *devlink,
+			   struct netlink_ext_ack *extack);
+	int (*reload_up)(struct devlink *devlink,
+			 struct netlink_ext_ack *extack);
 	int (*port_type_set)(struct devlink_port *devlink_port,
 			     enum devlink_port_type port_type);
 	int (*port_split)(struct devlink *devlink, unsigned int port_index,
-			  unsigned int count);
-	int (*port_unsplit)(struct devlink *devlink, unsigned int port_index);
+			  unsigned int count, struct netlink_ext_ack *extack);
+	int (*port_unsplit)(struct devlink *devlink, unsigned int port_index,
+			    struct netlink_ext_ack *extack);
 	int (*sb_pool_get)(struct devlink *devlink, unsigned int sb_index,
 			   u16 pool_index,
 			   struct devlink_sb_pool_info *pool_info);
 	int (*sb_pool_set)(struct devlink *devlink, unsigned int sb_index,
 			   u16 pool_index, u32 size,
-			   enum devlink_sb_threshold_type threshold_type);
+			   enum devlink_sb_threshold_type threshold_type,
+			   struct netlink_ext_ack *extack);
 	int (*sb_port_pool_get)(struct devlink_port *devlink_port,
 				unsigned int sb_index, u16 pool_index,
 				u32 *p_threshold);
 	int (*sb_port_pool_set)(struct devlink_port *devlink_port,
 				unsigned int sb_index, u16 pool_index,
-				u32 threshold);
+				u32 threshold, struct netlink_ext_ack *extack);
 	int (*sb_tc_pool_bind_get)(struct devlink_port *devlink_port,
 				   unsigned int sb_index,
 				   u16 tc_index,
@@ -314,7 +675,8 @@ struct devlink_ops {
 				   unsigned int sb_index,
 				   u16 tc_index,
 				   enum devlink_sb_pool_type pool_type,
-				   u16 pool_index, u32 threshold);
+				   u16 pool_index, u32 threshold,
+				   struct netlink_ext_ack *extack);
 	int (*sb_occ_snapshot)(struct devlink *devlink,
 			       unsigned int sb_index);
 	int (*sb_occ_max_clear)(struct devlink *devlink,
@@ -329,11 +691,53 @@ struct devlink_ops {
 				       u32 *p_cur, u32 *p_max);
 
 	int (*eswitch_mode_get)(struct devlink *devlink, u16 *p_mode);
-	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode);
+	int (*eswitch_mode_set)(struct devlink *devlink, u16 mode,
+				struct netlink_ext_ack *extack);
 	int (*eswitch_inline_mode_get)(struct devlink *devlink, u8 *p_inline_mode);
-	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode);
-	int (*eswitch_encap_mode_get)(struct devlink *devlink, u8 *p_encap_mode);
-	int (*eswitch_encap_mode_set)(struct devlink *devlink, u8 encap_mode);
+	int (*eswitch_inline_mode_set)(struct devlink *devlink, u8 inline_mode,
+				       struct netlink_ext_ack *extack);
+	int (*eswitch_encap_mode_get)(struct devlink *devlink,
+				      enum devlink_eswitch_encap_mode *p_encap_mode);
+	int (*eswitch_encap_mode_set)(struct devlink *devlink,
+				      enum devlink_eswitch_encap_mode encap_mode,
+				      struct netlink_ext_ack *extack);
+	int (*info_get)(struct devlink *devlink, struct devlink_info_req *req,
+			struct netlink_ext_ack *extack);
+	int (*flash_update)(struct devlink *devlink, const char *file_name,
+			    const char *component,
+			    struct netlink_ext_ack *extack);
+	/**
+	 * @trap_init: Trap initialization function.
+	 *
+	 * Should be used by device drivers to initialize the trap in the
+	 * underlying device. Drivers should also store the provided trap
+	 * context, so that they could efficiently pass it to
+	 * devlink_trap_report() when the trap is triggered.
+	 */
+	int (*trap_init)(struct devlink *devlink,
+			 const struct devlink_trap *trap, void *trap_ctx);
+	/**
+	 * @trap_fini: Trap de-initialization function.
+	 *
+	 * Should be used by device drivers to de-initialize the trap in the
+	 * underlying device.
+	 */
+	void (*trap_fini)(struct devlink *devlink,
+			  const struct devlink_trap *trap, void *trap_ctx);
+	/**
+	 * @trap_action_set: Trap action set function.
+	 */
+	int (*trap_action_set)(struct devlink *devlink,
+			       const struct devlink_trap *trap,
+			       enum devlink_trap_action action);
+	/**
+	 * @trap_group_init: Trap group initialization function.
+	 *
+	 * Should be used by device drivers to initialize the trap group in the
+	 * underlying device.
+	 */
+	int (*trap_group_init)(struct devlink *devlink,
+			       const struct devlink_trap_group *group);
 };
 
 static inline void *devlink_priv(struct devlink *devlink)
@@ -348,9 +752,24 @@ static inline struct devlink *priv_to_devlink(void *priv)
 	return container_of(priv, struct devlink, priv);
 }
 
-struct ib_device;
+static inline struct devlink_port *
+netdev_to_devlink_port(struct net_device *dev)
+{
+	if (dev->netdev_ops->ndo_get_devlink_port)
+		return dev->netdev_ops->ndo_get_devlink_port(dev);
+	return NULL;
+}
 
-#if IS_ENABLED(CONFIG_NET_DEVLINK)
+static inline struct devlink *netdev_to_devlink(struct net_device *dev)
+{
+	struct devlink_port *devlink_port = netdev_to_devlink_port(dev);
+
+	if (devlink_port)
+		return devlink_port->devlink;
+	return NULL;
+}
+
+struct ib_device;
 
 struct devlink *devlink_alloc(const struct devlink_ops *ops, size_t priv_size);
 int devlink_register(struct devlink *devlink, struct device *dev);
@@ -365,8 +784,19 @@ void devlink_port_type_eth_set(struct devlink_port *devlink_port,
 void devlink_port_type_ib_set(struct devlink_port *devlink_port,
 			      struct ib_device *ibdev);
 void devlink_port_type_clear(struct devlink_port *devlink_port);
-void devlink_port_split_set(struct devlink_port *devlink_port,
-			    u32 split_group);
+void devlink_port_attrs_set(struct devlink_port *devlink_port,
+			    enum devlink_port_flavour flavour,
+			    u32 port_number, bool split,
+			    u32 split_subport_number,
+			    const unsigned char *switch_id,
+			    unsigned char switch_id_len);
+void devlink_port_attrs_pci_pf_set(struct devlink_port *devlink_port,
+				   const unsigned char *switch_id,
+				   unsigned char switch_id_len, u16 pf);
+void devlink_port_attrs_pci_vf_set(struct devlink_port *devlink_port,
+				   const unsigned char *switch_id,
+				   unsigned char switch_id_len,
+				   u16 pf, u16 vf);
 int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 			u32 size, u16 ingress_pools_count,
 			u16 egress_pools_count, u16 ingress_tc_count,
@@ -398,12 +828,10 @@ extern struct devlink_dpipe_header devlink_dpipe_header_ipv6;
 
 int devlink_resource_register(struct devlink *devlink,
 			      const char *resource_name,
-			      bool top_hierarchy,
 			      u64 resource_size,
 			      u64 resource_id,
 			      u64 parent_resource_id,
-			      struct devlink_resource_size_params *size_params,
-			      const struct devlink_resource_ops *resource_ops);
+			      const struct devlink_resource_size_params *size_params);
 void devlink_resources_unregister(struct devlink *devlink,
 				  struct devlink_resource *resource);
 int devlink_resource_size_get(struct devlink *devlink,
@@ -412,173 +840,166 @@ int devlink_resource_size_get(struct devlink *devlink,
 int devlink_dpipe_table_resource_set(struct devlink *devlink,
 				     const char *table_name, u64 resource_id,
 				     u64 resource_units);
+void devlink_resource_occ_get_register(struct devlink *devlink,
+				       u64 resource_id,
+				       devlink_resource_occ_get_t *occ_get,
+				       void *occ_get_priv);
+void devlink_resource_occ_get_unregister(struct devlink *devlink,
+					 u64 resource_id);
+int devlink_params_register(struct devlink *devlink,
+			    const struct devlink_param *params,
+			    size_t params_count);
+void devlink_params_unregister(struct devlink *devlink,
+			       const struct devlink_param *params,
+			       size_t params_count);
+void devlink_params_publish(struct devlink *devlink);
+void devlink_params_unpublish(struct devlink *devlink);
+int devlink_port_params_register(struct devlink_port *devlink_port,
+				 const struct devlink_param *params,
+				 size_t params_count);
+void devlink_port_params_unregister(struct devlink_port *devlink_port,
+				    const struct devlink_param *params,
+				    size_t params_count);
+int devlink_param_driverinit_value_get(struct devlink *devlink, u32 param_id,
+				       union devlink_param_value *init_val);
+int devlink_param_driverinit_value_set(struct devlink *devlink, u32 param_id,
+				       union devlink_param_value init_val);
+int
+devlink_port_param_driverinit_value_get(struct devlink_port *devlink_port,
+					u32 param_id,
+					union devlink_param_value *init_val);
+int devlink_port_param_driverinit_value_set(struct devlink_port *devlink_port,
+					    u32 param_id,
+					    union devlink_param_value init_val);
+void devlink_param_value_changed(struct devlink *devlink, u32 param_id);
+void devlink_port_param_value_changed(struct devlink_port *devlink_port,
+				      u32 param_id);
+void devlink_param_value_str_fill(union devlink_param_value *dst_val,
+				  const char *src);
+struct devlink_region *devlink_region_create(struct devlink *devlink,
+					     const char *region_name,
+					     u32 region_max_snapshots,
+					     u64 region_size);
+void devlink_region_destroy(struct devlink_region *region);
+u32 devlink_region_shapshot_id_get(struct devlink *devlink);
+int devlink_region_snapshot_create(struct devlink_region *region,
+				   u8 *data, u32 snapshot_id,
+				   devlink_snapshot_data_dest_t *data_destructor);
+int devlink_info_serial_number_put(struct devlink_info_req *req,
+				   const char *sn);
+int devlink_info_driver_name_put(struct devlink_info_req *req,
+				 const char *name);
+int devlink_info_version_fixed_put(struct devlink_info_req *req,
+				   const char *version_name,
+				   const char *version_value);
+int devlink_info_version_stored_put(struct devlink_info_req *req,
+				    const char *version_name,
+				    const char *version_value);
+int devlink_info_version_running_put(struct devlink_info_req *req,
+				     const char *version_name,
+				     const char *version_value);
+
+int devlink_fmsg_obj_nest_start(struct devlink_fmsg *fmsg);
+int devlink_fmsg_obj_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_pair_nest_start(struct devlink_fmsg *fmsg, const char *name);
+int devlink_fmsg_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_arr_pair_nest_start(struct devlink_fmsg *fmsg,
+				     const char *name);
+int devlink_fmsg_arr_pair_nest_end(struct devlink_fmsg *fmsg);
+
+int devlink_fmsg_bool_put(struct devlink_fmsg *fmsg, bool value);
+int devlink_fmsg_u8_put(struct devlink_fmsg *fmsg, u8 value);
+int devlink_fmsg_u32_put(struct devlink_fmsg *fmsg, u32 value);
+int devlink_fmsg_u64_put(struct devlink_fmsg *fmsg, u64 value);
+int devlink_fmsg_string_put(struct devlink_fmsg *fmsg, const char *value);
+int devlink_fmsg_binary_put(struct devlink_fmsg *fmsg, const void *value,
+			    u16 value_len);
+
+int devlink_fmsg_bool_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			       bool value);
+int devlink_fmsg_u8_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			     u8 value);
+int devlink_fmsg_u32_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u32 value);
+int devlink_fmsg_u64_pair_put(struct devlink_fmsg *fmsg, const char *name,
+			      u64 value);
+int devlink_fmsg_string_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const char *value);
+int devlink_fmsg_binary_pair_put(struct devlink_fmsg *fmsg, const char *name,
+				 const void *value, u16 value_len);
+
+struct devlink_health_reporter *
+devlink_health_reporter_create(struct devlink *devlink,
+			       const struct devlink_health_reporter_ops *ops,
+			       u64 graceful_period, bool auto_recover,
+			       void *priv);
+void
+devlink_health_reporter_destroy(struct devlink_health_reporter *reporter);
+
+void *
+devlink_health_reporter_priv(struct devlink_health_reporter *reporter);
+int devlink_health_report(struct devlink_health_reporter *reporter,
+			  const char *msg, void *priv_ctx);
+void
+devlink_health_reporter_state_update(struct devlink_health_reporter *reporter,
+				     enum devlink_health_reporter_state state);
+
+bool devlink_is_reload_failed(const struct devlink *devlink);
+
+void devlink_flash_update_begin_notify(struct devlink *devlink);
+void devlink_flash_update_end_notify(struct devlink *devlink);
+void devlink_flash_update_status_notify(struct devlink *devlink,
+					const char *status_msg,
+					const char *component,
+					unsigned long done,
+					unsigned long total);
+
+int devlink_traps_register(struct devlink *devlink,
+			   const struct devlink_trap *traps,
+			   size_t traps_count, void *priv);
+void devlink_traps_unregister(struct devlink *devlink,
+			      const struct devlink_trap *traps,
+			      size_t traps_count);
+void devlink_trap_report(struct devlink *devlink,
+			 struct sk_buff *skb, void *trap_ctx,
+			 struct devlink_port *in_devlink_port);
+void *devlink_trap_ctx_priv(void *trap_ctx);
+
+#if IS_ENABLED(CONFIG_NET_DEVLINK)
+
+void devlink_compat_running_version(struct net_device *dev,
+				    char *buf, size_t len);
+int devlink_compat_flash_update(struct net_device *dev, const char *file_name);
+int devlink_compat_phys_port_name_get(struct net_device *dev,
+				      char *name, size_t len);
+int devlink_compat_switch_id_get(struct net_device *dev,
+				 struct netdev_phys_item_id *ppid);
 
 #else
 
-static inline struct devlink *devlink_alloc(const struct devlink_ops *ops,
-					    size_t priv_size)
-{
-	return kzalloc(sizeof(struct devlink) + priv_size, GFP_KERNEL);
-}
-
-static inline int devlink_register(struct devlink *devlink, struct device *dev)
-{
-	return 0;
-}
-
-static inline void devlink_unregister(struct devlink *devlink)
-{
-}
-
-static inline void devlink_free(struct devlink *devlink)
-{
-	kfree(devlink);
-}
-
-static inline int devlink_port_register(struct devlink *devlink,
-					struct devlink_port *devlink_port,
-					unsigned int port_index)
-{
-	return 0;
-}
-
-static inline void devlink_port_unregister(struct devlink_port *devlink_port)
-{
-}
-
-static inline void devlink_port_type_eth_set(struct devlink_port *devlink_port,
-					     struct net_device *netdev)
-{
-}
-
-static inline void devlink_port_type_ib_set(struct devlink_port *devlink_port,
-					    struct ib_device *ibdev)
-{
-}
-
-static inline void devlink_port_type_clear(struct devlink_port *devlink_port)
-{
-}
-
-static inline void devlink_port_split_set(struct devlink_port *devlink_port,
-					  u32 split_group)
-{
-}
-
-static inline int devlink_sb_register(struct devlink *devlink,
-				      unsigned int sb_index, u32 size,
-				      u16 ingress_pools_count,
-				      u16 egress_pools_count,
-				      u16 ingress_tc_count,
-				      u16 egress_tc_count)
-{
-	return 0;
-}
-
-static inline void devlink_sb_unregister(struct devlink *devlink,
-					 unsigned int sb_index)
-{
-}
-
-static inline int
-devlink_dpipe_table_register(struct devlink *devlink,
-			     const char *table_name,
-			     struct devlink_dpipe_table_ops *table_ops,
-			     void *priv, bool counter_control_extern)
-{
-	return 0;
-}
-
-static inline void devlink_dpipe_table_unregister(struct devlink *devlink,
-						  const char *table_name)
-{
-}
-
-static inline int devlink_dpipe_headers_register(struct devlink *devlink,
-						 struct devlink_dpipe_headers *
-						 dpipe_headers)
-{
-	return 0;
-}
-
-static inline void devlink_dpipe_headers_unregister(struct devlink *devlink)
-{
-}
-
-static inline bool devlink_dpipe_table_counter_enabled(struct devlink *devlink,
-						       const char *table_name)
-{
-	return false;
-}
-
-static inline int
-devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx)
-{
-	return 0;
-}
-
-static inline int
-devlink_dpipe_entry_ctx_append(struct devlink_dpipe_dump_ctx *dump_ctx,
-			       struct devlink_dpipe_entry *entry)
-{
-	return 0;
-}
-
-static inline int
-devlink_dpipe_entry_ctx_close(struct devlink_dpipe_dump_ctx *dump_ctx)
-{
-	return 0;
-}
-
 static inline void
-devlink_dpipe_entry_clear(struct devlink_dpipe_entry *entry)
+devlink_compat_running_version(struct net_device *dev, char *buf, size_t len)
 {
 }
 
 static inline int
-devlink_dpipe_action_put(struct sk_buff *skb,
-			 struct devlink_dpipe_action *action)
-{
-	return 0;
-}
-
-static inline int
-devlink_dpipe_match_put(struct sk_buff *skb,
-			struct devlink_dpipe_match *match)
-{
-	return 0;
-}
-
-static inline int
-devlink_resource_register(struct devlink *devlink,
-			  const char *resource_name,
-			  bool top_hierarchy,
-			  u64 resource_size,
-			  u64 resource_id,
-			  u64 parent_resource_id,
-			  struct devlink_resource_size_params *size_params,
-			  const struct devlink_resource_ops *resource_ops)
-{
-	return 0;
-}
-
-static inline void
-devlink_resources_unregister(struct devlink *devlink,
-			     struct devlink_resource *resource)
-{
-}
-
-static inline int
-devlink_resource_size_get(struct devlink *devlink, u64 resource_id,
-			  u64 *p_resource_size)
+devlink_compat_flash_update(struct net_device *dev, const char *file_name)
 {
 	return -EOPNOTSUPP;
 }
 
 static inline int
-devlink_dpipe_table_resource_set(struct devlink *devlink,
-				 const char *table_name, u64 resource_id,
-				 u64 resource_units)
+devlink_compat_phys_port_name_get(struct net_device *dev,
+				  char *name, size_t len)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+devlink_compat_switch_id_get(struct net_device *dev,
+			     struct netdev_phys_item_id *ppid)
 {
 	return -EOPNOTSUPP;
 }

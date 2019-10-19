@@ -24,9 +24,15 @@ extern u32 pnv_get_supported_cpuidle_states(void);
 
 extern void pnv_lpc_init(void);
 
-extern void opal_handle_events(uint64_t events);
+extern void opal_handle_events(void);
+extern bool opal_have_pending_events(void);
 extern void opal_event_shutdown(void);
 
 bool cpu_core_split_required(void);
+
+struct memcons;
+ssize_t memcons_copy(struct memcons *mc, char *to, loff_t pos, size_t count);
+u32 memcons_get_size(struct memcons *mc);
+struct memcons *memcons_init(struct device_node *node, const char *mc_prop_name);
 
 #endif /* _POWERNV_H */

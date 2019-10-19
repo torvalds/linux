@@ -49,6 +49,27 @@ static inline int hugepd_ok(hugepd_t hpd)
 }
 #define is_hugepd(hpd)		(hugepd_ok(hpd))
 
+/*
+ * 16M and 16G huge page directory tables are allocated from slab cache
+ *
+ */
+#define H_16M_CACHE_INDEX (PAGE_SHIFT + H_PTE_INDEX_SIZE + H_PMD_INDEX_SIZE - 24)
+#define H_16G_CACHE_INDEX                                                      \
+	(PAGE_SHIFT + H_PTE_INDEX_SIZE + H_PMD_INDEX_SIZE + H_PUD_INDEX_SIZE - 34)
+
+static inline int get_hugepd_cache_index(int index)
+{
+	switch (index) {
+	case H_16M_CACHE_INDEX:
+		return HTLB_16M_INDEX;
+	case H_16G_CACHE_INDEX:
+		return HTLB_16G_INDEX;
+	default:
+		BUG();
+	}
+	/* should not reach */
+}
+
 #else /* !CONFIG_HUGETLB_PAGE */
 static inline int pmd_huge(pmd_t pmd) { return 0; }
 static inline int pud_huge(pud_t pud) { return 0; }

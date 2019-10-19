@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __UTIL_DOT_H__
@@ -86,7 +83,7 @@ static inline int gfs2_meta_check(struct gfs2_sbd *sdp,
 	struct gfs2_meta_header *mh = (struct gfs2_meta_header *)bh->b_data;
 	u32 magic = be32_to_cpu(mh->mh_magic);
 	if (unlikely(magic != GFS2_MAGIC)) {
-		pr_err("Magic number missing at %llu\n",
+		fs_err(sdp, "Magic number missing at %llu\n",
 		       (unsigned long long)bh->b_blocknr);
 		return -EIO;
 	}
@@ -136,11 +133,15 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function,
 gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__);
 
 
-int gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
-		       const char *function, char *file, unsigned int line);
+void gfs2_io_error_bh_i(struct gfs2_sbd *sdp, struct buffer_head *bh,
+			const char *function, char *file, unsigned int line,
+			bool withdraw);
+
+#define gfs2_io_error_bh_wd(sdp, bh) \
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, true);
 
 #define gfs2_io_error_bh(sdp, bh) \
-gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__);
+gfs2_io_error_bh_i((sdp), (bh), __func__, __FILE__, __LINE__, false);
 
 
 extern struct kmem_cache *gfs2_glock_cachep;

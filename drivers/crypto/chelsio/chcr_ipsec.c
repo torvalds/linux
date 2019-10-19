@@ -76,12 +76,14 @@ static int chcr_xfrm_add_state(struct xfrm_state *x);
 static void chcr_xfrm_del_state(struct xfrm_state *x);
 static void chcr_xfrm_free_state(struct xfrm_state *x);
 static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x);
+static void chcr_advance_esn_state(struct xfrm_state *x);
 
 static const struct xfrmdev_ops chcr_xfrmdev_ops = {
 	.xdo_dev_state_add      = chcr_xfrm_add_state,
 	.xdo_dev_state_delete   = chcr_xfrm_del_state,
 	.xdo_dev_state_free     = chcr_xfrm_free_state,
 	.xdo_dev_offload_ok     = chcr_ipsec_offload_ok,
+	.xdo_dev_state_advance_esn = chcr_advance_esn_state,
 };
 
 /* Add offload xfrms to Chelsio Interface */
@@ -130,11 +132,11 @@ static inline int chcr_ipsec_setauthsize(struct xfrm_state *x,
 static inline int chcr_ipsec_setkey(struct xfrm_state *x,
 				    struct ipsec_sa_entry *sa_entry)
 {
-	struct crypto_cipher *cipher;
 	int keylen = (x->aead->alg_key_len + 7) / 8;
 	unsigned char *key = x->aead->alg_key;
 	int ck_size, key_ctx_size = 0;
 	unsigned char ghash_h[AEAD_H_SIZE];
+	struct crypto_aes_ctx aes;
 	int ret = 0;
 
 	if (keylen > 3) {
@@ -168,26 +170,19 @@ static inline int chcr_ipsec_setkey(struct xfrm_state *x,
 	/* Calculate the H = CIPH(K, 0 repeated 16 times).
 	 * It will go in key context
 	 */
-	cipher = crypto_alloc_cipher("aes-generic", 0, 0);
-	if (IS_ERR(cipher)) {
-		sa_entry->enckey_len = 0;
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = crypto_cipher_setkey(cipher, key, keylen);
+	ret = aes_expandkey(&aes, key, keylen);
 	if (ret) {
 		sa_entry->enckey_len = 0;
-		goto out1;
+		goto out;
 	}
 	memset(ghash_h, 0, AEAD_H_SIZE);
-	crypto_cipher_encrypt_one(cipher, ghash_h, ghash_h);
+	aes_encrypt(&aes, ghash_h, ghash_h);
+	memzero_explicit(&aes, sizeof(aes));
+
 	memcpy(sa_entry->key + (DIV_ROUND_UP(sa_entry->enckey_len, 16) *
 	       16), ghash_h, AEAD_H_SIZE);
 	sa_entry->kctx_len = ((DIV_ROUND_UP(sa_entry->enckey_len, 16)) << 4) +
 			      AEAD_H_SIZE;
-out1:
-	crypto_free_cipher(cipher);
 out:
 	return ret;
 }
@@ -208,10 +203,6 @@ static int chcr_xfrm_add_state(struct xfrm_state *x)
 	}
 	if (x->props.calgo != SADB_X_CALG_NONE) {
 		pr_debug("CHCR: Cannot offload compressed xfrm states\n");
-		return -EINVAL;
-	}
-	if (x->props.flags & XFRM_STATE_ESN) {
-		pr_debug("CHCR: Cannot offload ESN xfrm states\n");
 		return -EINVAL;
 	}
 	if (x->props.family != AF_INET &&
@@ -266,6 +257,8 @@ static int chcr_xfrm_add_state(struct xfrm_state *x)
 	}
 
 	sa_entry->hmac_ctrl = chcr_ipsec_setauthsize(x, sa_entry);
+	if (x->props.flags & XFRM_STATE_ESN)
+		sa_entry->esn = 1;
 	chcr_ipsec_setkey(x, sa_entry);
 	x->xso.offload_handle = (unsigned long)sa_entry;
 	try_module_get(THIS_MODULE);
@@ -294,36 +287,71 @@ static void chcr_xfrm_free_state(struct xfrm_state *x)
 
 static bool chcr_ipsec_offload_ok(struct sk_buff *skb, struct xfrm_state *x)
 {
-	/* Offload with IP options is not supported yet */
-	if (ip_hdr(skb)->ihl > 5)
+	if (x->props.family == AF_INET) {
+		/* Offload with IP options is not supported yet */
+		if (ip_hdr(skb)->ihl > 5)
+			return false;
+	} else {
+		/* Offload with IPv6 extension headers is not support yet */
+		if (ipv6_ext_hdr(ipv6_hdr(skb)->nexthdr))
+			return false;
+	}
+	/* Inline single pdu */
+	if (skb_shinfo(skb)->gso_size)
 		return false;
-
 	return true;
 }
 
-static inline int is_eth_imm(const struct sk_buff *skb, unsigned int kctx_len)
+static void chcr_advance_esn_state(struct xfrm_state *x)
 {
-	int hdrlen = sizeof(struct chcr_ipsec_req) + kctx_len;
+	/* do nothing */
+	if (!x->xso.offload_handle)
+		return;
+}
+
+static inline int is_eth_imm(const struct sk_buff *skb,
+			     struct ipsec_sa_entry *sa_entry)
+{
+	unsigned int kctx_len;
+	int hdrlen;
+
+	kctx_len = sa_entry->kctx_len;
+	hdrlen = sizeof(struct fw_ulptx_wr) +
+		 sizeof(struct chcr_ipsec_req) + kctx_len;
 
 	hdrlen += sizeof(struct cpl_tx_pkt);
+	if (sa_entry->esn)
+		hdrlen += (DIV_ROUND_UP(sizeof(struct chcr_ipsec_aadiv), 16)
+			   << 4);
 	if (skb->len <= MAX_IMM_TX_PKT_LEN - hdrlen)
 		return hdrlen;
 	return 0;
 }
 
 static inline unsigned int calc_tx_sec_flits(const struct sk_buff *skb,
-					     unsigned int kctx_len)
+					     struct ipsec_sa_entry *sa_entry,
+					     bool *immediate)
 {
+	unsigned int kctx_len;
 	unsigned int flits;
-	int hdrlen = is_eth_imm(skb, kctx_len);
+	int aadivlen;
+	int hdrlen;
+
+	kctx_len = sa_entry->kctx_len;
+	hdrlen = is_eth_imm(skb, sa_entry);
+	aadivlen = sa_entry->esn ? DIV_ROUND_UP(sizeof(struct chcr_ipsec_aadiv),
+						16) : 0;
+	aadivlen <<= 4;
 
 	/* If the skb is small enough, we can pump it out as a work request
 	 * with only immediate data.  In that case we just have to have the
 	 * TX Packet header plus the skb data in the Work Request.
 	 */
 
-	if (hdrlen)
+	if (hdrlen) {
+		*immediate = true;
 		return DIV_ROUND_UP(skb->len + hdrlen, sizeof(__be64));
+	}
 
 	flits = sgl_len(skb_shinfo(skb)->nr_frags + 1);
 
@@ -338,30 +366,90 @@ static inline unsigned int calc_tx_sec_flits(const struct sk_buff *skb,
 	flits += (sizeof(struct fw_ulptx_wr) +
 		  sizeof(struct chcr_ipsec_req) +
 		  kctx_len +
-		  sizeof(struct cpl_tx_pkt_core)) / sizeof(__be64);
+		  sizeof(struct cpl_tx_pkt_core) +
+		  aadivlen) / sizeof(__be64);
 	return flits;
 }
 
-inline void *copy_cpltx_pktxt(struct sk_buff *skb,
-				struct net_device *dev,
-				void *pos)
+inline void *copy_esn_pktxt(struct sk_buff *skb,
+			    struct net_device *dev,
+			    void *pos,
+			    struct ipsec_sa_entry *sa_entry)
 {
+	struct chcr_ipsec_aadiv *aadiv;
+	struct ulptx_idata *sc_imm;
+	struct ip_esp_hdr *esphdr;
+	struct xfrm_offload *xo;
+	struct sge_eth_txq *q;
 	struct adapter *adap;
 	struct port_info *pi;
-	struct sge_eth_txq *q;
-	struct cpl_tx_pkt_core *cpl;
-	u64 cntrl = 0;
-	u32 ctrl0, qidx;
+	__be64 seqno;
+	u32 qidx;
+	u32 seqlo;
+	u8 *iv;
+	int eoq;
+	int len;
 
 	pi = netdev_priv(dev);
 	adap = pi->adapter;
 	qidx = skb->queue_mapping;
 	q = &adap->sge.ethtxq[qidx + pi->first_qset];
 
+	/* end of queue, reset pos to start of queue */
+	eoq = (void *)q->q.stat - pos;
+	if (!eoq)
+		pos = q->q.desc;
+
+	len = DIV_ROUND_UP(sizeof(struct chcr_ipsec_aadiv), 16) << 4;
+	memset(pos, 0, len);
+	aadiv = (struct chcr_ipsec_aadiv *)pos;
+	esphdr = (struct ip_esp_hdr *)skb_transport_header(skb);
+	iv = skb_transport_header(skb) + sizeof(struct ip_esp_hdr);
+	xo = xfrm_offload(skb);
+
+	aadiv->spi = (esphdr->spi);
+	seqlo = htonl(esphdr->seq_no);
+	seqno = cpu_to_be64(seqlo + ((u64)xo->seq.hi << 32));
+	memcpy(aadiv->seq_no, &seqno, 8);
+	iv = skb_transport_header(skb) + sizeof(struct ip_esp_hdr);
+	memcpy(aadiv->iv, iv, 8);
+
+	if (is_eth_imm(skb, sa_entry) && !skb_is_nonlinear(skb)) {
+		sc_imm = (struct ulptx_idata *)(pos +
+			  (DIV_ROUND_UP(sizeof(struct chcr_ipsec_aadiv),
+					sizeof(__be64)) << 3));
+		sc_imm->cmd_more = FILL_CMD_MORE(0);
+		sc_imm->len = cpu_to_be32(skb->len);
+	}
+	pos += len;
+	return pos;
+}
+
+inline void *copy_cpltx_pktxt(struct sk_buff *skb,
+			      struct net_device *dev,
+			      void *pos,
+			      struct ipsec_sa_entry *sa_entry)
+{
+	struct cpl_tx_pkt_core *cpl;
+	struct sge_eth_txq *q;
+	struct adapter *adap;
+	struct port_info *pi;
+	u32 ctrl0, qidx;
+	u64 cntrl = 0;
+	int left;
+
+	pi = netdev_priv(dev);
+	adap = pi->adapter;
+	qidx = skb->queue_mapping;
+	q = &adap->sge.ethtxq[qidx + pi->first_qset];
+
+	left = (void *)q->q.stat - pos;
+	if (!left)
+		pos = q->q.desc;
+
 	cpl = (struct cpl_tx_pkt_core *)pos;
 
-	if (skb->ip_summed == CHECKSUM_PARTIAL)
-		cntrl = TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F;
+	cntrl = TXPKT_L4CSUM_DIS_F | TXPKT_IPCSUM_DIS_F;
 	ctrl0 = TXPKT_OPCODE_V(CPL_TX_PKT_XT) | TXPKT_INTF_V(pi->tx_chan) |
 			       TXPKT_PF_V(adap->pf);
 	if (skb_vlan_tag_present(skb)) {
@@ -375,6 +463,9 @@ inline void *copy_cpltx_pktxt(struct sk_buff *skb,
 	cpl->ctrl1 = cpu_to_be64(cntrl);
 
 	pos += sizeof(struct cpl_tx_pkt_core);
+	/* Copy ESN info for HW */
+	if (sa_entry->esn)
+		pos = copy_esn_pktxt(skb, dev, pos, sa_entry);
 	return pos;
 }
 
@@ -383,18 +474,17 @@ inline void *copy_key_cpltx_pktxt(struct sk_buff *skb,
 				void *pos,
 				struct ipsec_sa_entry *sa_entry)
 {
-	struct adapter *adap;
-	struct port_info *pi;
-	struct sge_eth_txq *q;
-	unsigned int len, qidx;
 	struct _key_ctx *key_ctx;
 	int left, eoq, key_len;
+	struct sge_eth_txq *q;
+	struct adapter *adap;
+	struct port_info *pi;
+	unsigned int qidx;
 
 	pi = netdev_priv(dev);
 	adap = pi->adapter;
 	qidx = skb->queue_mapping;
 	q = &adap->sge.ethtxq[qidx + pi->first_qset];
-	len = sa_entry->enckey_len + sizeof(struct cpl_tx_pkt_core);
 	key_len = sa_entry->kctx_len;
 
 	/* end of queue, reset pos to start of queue */
@@ -412,22 +502,17 @@ inline void *copy_key_cpltx_pktxt(struct sk_buff *skb,
 	pos += sizeof(struct _key_ctx);
 	left -= sizeof(struct _key_ctx);
 
-	if (likely(len <= left)) {
+	if (likely(key_len <= left)) {
 		memcpy(key_ctx->key, sa_entry->key, key_len);
 		pos += key_len;
 	} else {
-		if (key_len <= left) {
-			memcpy(pos, sa_entry->key, key_len);
-			pos += key_len;
-		} else {
-			memcpy(pos, sa_entry->key, left);
-			memcpy(q->q.desc, sa_entry->key + left,
-			       key_len - left);
-			pos = (u8 *)q->q.desc + (key_len - left);
-		}
+		memcpy(pos, sa_entry->key, left);
+		memcpy(q->q.desc, sa_entry->key + left,
+		       key_len - left);
+		pos = (u8 *)q->q.desc + (key_len - left);
 	}
 	/* Copy CPL TX PKT XT */
-	pos = copy_cpltx_pktxt(skb, dev, pos);
+	pos = copy_cpltx_pktxt(skb, dev, pos, sa_entry);
 
 	return pos;
 }
@@ -440,11 +525,20 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 {
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adap = pi->adapter;
-	unsigned int immdatalen = 0;
 	unsigned int ivsize = GCM_ESP_IV_SIZE;
 	struct chcr_ipsec_wr *wr;
+	bool immediate = false;
+	u16 immdatalen = 0;
 	unsigned int flits;
+	u32 ivinoffset;
+	u32 aadstart;
+	u32 aadstop;
+	u32 ciphstart;
+	u16 sc_more = 0;
+	u32 ivdrop = 0;
+	u32 esnlen = 0;
 	u32 wr_mid;
+	u16 ndesc;
 	int qidx = skb_get_queue_mapping(skb);
 	struct sge_eth_txq *q = &adap->sge.ethtxq[qidx + pi->first_qset];
 	unsigned int kctx_len = sa_entry->kctx_len;
@@ -452,61 +546,76 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 
 	atomic_inc(&adap->chcr_stats.ipsec_cnt);
 
-	flits = calc_tx_sec_flits(skb, kctx_len);
+	flits = calc_tx_sec_flits(skb, sa_entry, &immediate);
+	ndesc = DIV_ROUND_UP(flits, 2);
+	if (sa_entry->esn)
+		ivdrop = 1;
 
-	if (is_eth_imm(skb, kctx_len))
+	if (immediate)
 		immdatalen = skb->len;
+
+	if (sa_entry->esn) {
+		esnlen = sizeof(struct chcr_ipsec_aadiv);
+		if (!skb_is_nonlinear(skb))
+			sc_more  = 1;
+	}
 
 	/* WR Header */
 	wr = (struct chcr_ipsec_wr *)pos;
 	wr->wreq.op_to_compl = htonl(FW_WR_OP_V(FW_ULPTX_WR));
-	wr_mid = FW_CRYPTO_LOOKASIDE_WR_LEN16_V(DIV_ROUND_UP(flits, 2));
+	wr_mid = FW_CRYPTO_LOOKASIDE_WR_LEN16_V(ndesc);
 
 	if (unlikely(credits < ETHTXQ_STOP_THRES)) {
 		netif_tx_stop_queue(q->txq);
 		q->q.stops++;
-		wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
+		if (!q->dbqt)
+			wr_mid |= FW_WR_EQUEQ_F | FW_WR_EQUIQ_F;
 	}
 	wr_mid |= FW_ULPTX_WR_DATA_F;
 	wr->wreq.flowid_len16 = htonl(wr_mid);
 
 	/* ULPTX */
 	wr->req.ulptx.cmd_dest = FILL_ULPTX_CMD_DEST(pi->port_id, qid);
-	wr->req.ulptx.len = htonl(DIV_ROUND_UP(flits, 2)  - 1);
+	wr->req.ulptx.len = htonl(ndesc - 1);
 
 	/* Sub-command */
-	wr->req.sc_imm.cmd_more = FILL_CMD_MORE(immdatalen);
+	wr->req.sc_imm.cmd_more = FILL_CMD_MORE(!immdatalen || sc_more);
 	wr->req.sc_imm.len = cpu_to_be32(sizeof(struct cpl_tx_sec_pdu) +
 					 sizeof(wr->req.key_ctx) +
 					 kctx_len +
 					 sizeof(struct cpl_tx_pkt_core) +
-					 immdatalen);
+					 esnlen +
+					 (esnlen ? 0 : immdatalen));
 
 	/* CPL_SEC_PDU */
+	ivinoffset = sa_entry->esn ? (ESN_IV_INSERT_OFFSET + 1) :
+				     (skb_transport_offset(skb) +
+				      sizeof(struct ip_esp_hdr) + 1);
 	wr->req.sec_cpl.op_ivinsrtofst = htonl(
 				CPL_TX_SEC_PDU_OPCODE_V(CPL_TX_SEC_PDU) |
 				CPL_TX_SEC_PDU_CPLLEN_V(2) |
 				CPL_TX_SEC_PDU_PLACEHOLDER_V(1) |
 				CPL_TX_SEC_PDU_IVINSRTOFST_V(
-				(skb_transport_offset(skb) +
-				sizeof(struct ip_esp_hdr) + 1)));
+							     ivinoffset));
 
-	wr->req.sec_cpl.pldlen = htonl(skb->len);
+	wr->req.sec_cpl.pldlen = htonl(skb->len + esnlen);
+	aadstart = sa_entry->esn ? 1 : (skb_transport_offset(skb) + 1);
+	aadstop = sa_entry->esn ? ESN_IV_INSERT_OFFSET :
+				  (skb_transport_offset(skb) +
+				   sizeof(struct ip_esp_hdr));
+	ciphstart = skb_transport_offset(skb) + sizeof(struct ip_esp_hdr) +
+		    GCM_ESP_IV_SIZE + 1;
+	ciphstart += sa_entry->esn ?  esnlen : 0;
 
 	wr->req.sec_cpl.aadstart_cipherstop_hi = FILL_SEC_CPL_CIPHERSTOP_HI(
-				(skb_transport_offset(skb) + 1),
-				(skb_transport_offset(skb) +
-				 sizeof(struct ip_esp_hdr)),
-				(skb_transport_offset(skb) +
-				 sizeof(struct ip_esp_hdr) +
-				 GCM_ESP_IV_SIZE + 1), 0);
+							aadstart,
+							aadstop,
+							ciphstart, 0);
 
 	wr->req.sec_cpl.cipherstop_lo_authinsert =
-		FILL_SEC_CPL_AUTHINSERT(0, skb_transport_offset(skb) +
-					   sizeof(struct ip_esp_hdr) +
-					   GCM_ESP_IV_SIZE + 1,
-					   sa_entry->authsize,
-					   sa_entry->authsize);
+		FILL_SEC_CPL_AUTHINSERT(0, ciphstart,
+					sa_entry->authsize,
+					 sa_entry->authsize);
 	wr->req.sec_cpl.seqno_numivs =
 		FILL_SEC_CPL_SCMD0_SEQNO(CHCR_ENCRYPT_OP, 1,
 					 CHCR_SCMD_CIPHER_MODE_AES_GCM,
@@ -514,7 +623,7 @@ inline void *chcr_crypto_wreq(struct sk_buff *skb,
 					 sa_entry->hmac_ctrl,
 					 ivsize >> 1);
 	wr->req.sec_cpl.ivgen_hdrlen =  FILL_SEC_CPL_IVGEN_HDRLEN(0, 0, 1,
-								  0, 0, 0);
+								  0, ivdrop, 0);
 
 	pos += sizeof(struct fw_ulptx_wr) +
 	       sizeof(struct ulp_txpkt) +
@@ -567,20 +676,21 @@ int chcr_ipsec_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct ipsec_sa_entry *sa_entry;
 	u64 *pos, *end, *before, *sgl;
 	int qidx, left, credits;
-	unsigned int flits = 0, ndesc, kctx_len;
+	unsigned int flits = 0, ndesc;
 	struct adapter *adap;
 	struct sge_eth_txq *q;
 	struct port_info *pi;
 	dma_addr_t addr[MAX_SKB_FRAGS + 1];
+	struct sec_path *sp;
 	bool immediate = false;
 
 	if (!x->xso.offload_handle)
 		return NETDEV_TX_BUSY;
 
 	sa_entry = (struct ipsec_sa_entry *)x->xso.offload_handle;
-	kctx_len = sa_entry->kctx_len;
 
-	if (skb->sp->len != 1) {
+	sp = skb_sec_path(skb);
+	if (sp->len != 1) {
 out_free:       dev_kfree_skb_any(skb);
 		return NETDEV_TX_OK;
 	}
@@ -592,7 +702,7 @@ out_free:       dev_kfree_skb_any(skb);
 
 	cxgb4_reclaim_completed_tx(adap, &q->q, true);
 
-	flits = calc_tx_sec_flits(skb, sa_entry->kctx_len);
+	flits = calc_tx_sec_flits(skb, sa_entry, &immediate);
 	ndesc = flits_to_desc(flits);
 	credits = txq_avail(&q->q) - ndesc;
 
@@ -604,9 +714,6 @@ out_free:       dev_kfree_skb_any(skb);
 			flits);
 		return NETDEV_TX_BUSY;
 	}
-
-	if (is_eth_imm(skb, kctx_len))
-		immediate = true;
 
 	if (!immediate &&
 	    unlikely(cxgb4_map_skb(adap->pdev_dev, skb, addr) < 0)) {

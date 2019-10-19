@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Support for OLPC XO-1 System Control Interrupts (SCI)
  *
  * Copyright (C) 2010 One Laptop per Child
  * Copyright (C) 2006 Red Hat, Inc.
  * Copyright (C) 2006 Advanced Micro Devices, Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/cs5535.h>
@@ -109,7 +105,7 @@ static void detect_lid_state(void)
 	 * the edge detector hookup on the gpio inputs on the geode is
 	 * odd, to say the least.  See http://dev.laptop.org/ticket/5703
 	 * for details, but in a nutshell:  we don't use the edge
-	 * detectors.  instead, we make use of an anomoly:  with the both
+	 * detectors.  instead, we make use of an anomaly:  with the both
 	 * edge detectors turned off, we still get an edge event on a
 	 * positive edge transition.  to take advantage of this, we use the
 	 * front-end inverter to ensure that that's the edge we're always
@@ -160,6 +156,12 @@ static ssize_t lid_wake_mode_set(struct device *dev,
 }
 static DEVICE_ATTR(lid_wake_mode, S_IWUSR | S_IRUGO, lid_wake_mode_show,
 		   lid_wake_mode_set);
+
+static struct attribute *lid_attrs[] = {
+	&dev_attr_lid_wake_mode.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(lid);
 
 /*
  * Process all items in the EC's SCI queue.
@@ -514,17 +516,8 @@ static int setup_lid_switch(struct platform_device *pdev)
 		goto err_register;
 	}
 
-	r = device_create_file(&lid_switch_idev->dev, &dev_attr_lid_wake_mode);
-	if (r) {
-		dev_err(&pdev->dev, "failed to create wake mode attr: %d\n", r);
-		goto err_create_attr;
-	}
-
 	return 0;
 
-err_create_attr:
-	input_unregister_device(lid_switch_idev);
-	lid_switch_idev = NULL;
 err_register:
 	input_free_device(lid_switch_idev);
 	return r;
@@ -532,7 +525,6 @@ err_register:
 
 static void free_lid_switch(void)
 {
-	device_remove_file(&lid_switch_idev->dev, &dev_attr_lid_wake_mode);
 	input_unregister_device(lid_switch_idev);
 }
 
@@ -628,6 +620,7 @@ static int xo1_sci_remove(struct platform_device *pdev)
 static struct platform_driver xo1_sci_driver = {
 	.driver = {
 		.name = "olpc-xo1-sci-acpi",
+		.dev_groups = lid_groups,
 	},
 	.probe = xo1_sci_probe,
 	.remove = xo1_sci_remove,

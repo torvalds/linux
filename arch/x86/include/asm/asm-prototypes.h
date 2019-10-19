@@ -7,7 +7,6 @@
 
 #include <asm-generic/asm-prototypes.h>
 
-#include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/special_insns.h>
 #include <asm/preempt.h>
@@ -38,7 +37,4 @@ INDIRECT_THUNK(dx)
 INDIRECT_THUNK(si)
 INDIRECT_THUNK(di)
 INDIRECT_THUNK(bp)
-asmlinkage void __fill_rsb(void);
-asmlinkage void __clear_rsb(void);
-
 #endif /* CONFIG_RETPOLINE */

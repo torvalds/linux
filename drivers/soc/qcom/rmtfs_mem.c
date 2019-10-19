@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017 Linaro Ltd.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -37,15 +29,17 @@ struct qcom_rmtfs_mem {
 	phys_addr_t size;
 
 	unsigned int client_id;
+
+	unsigned int perms;
 };
 
 static ssize_t qcom_rmtfs_mem_show(struct device *dev,
 			      struct device_attribute *attr,
 			      char *buf);
 
-static DEVICE_ATTR(phys_addr, 0400, qcom_rmtfs_mem_show, NULL);
-static DEVICE_ATTR(size, 0400, qcom_rmtfs_mem_show, NULL);
-static DEVICE_ATTR(client_id, 0400, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(phys_addr, 0444, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(size, 0444, qcom_rmtfs_mem_show, NULL);
+static DEVICE_ATTR(client_id, 0444, qcom_rmtfs_mem_show, NULL);
 
 static ssize_t qcom_rmtfs_mem_show(struct device *dev,
 			      struct device_attribute *attr,
@@ -130,6 +124,31 @@ static int qcom_rmtfs_mem_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
+static struct class rmtfs_class = {
+	.owner          = THIS_MODULE,
+	.name           = "rmtfs",
+};
+
+static int qcom_rmtfs_mem_mmap(struct file *filep, struct vm_area_struct *vma)
+{
+	struct qcom_rmtfs_mem *rmtfs_mem = filep->private_data;
+
+	if (vma->vm_end - vma->vm_start > rmtfs_mem->size) {
+		dev_dbg(&rmtfs_mem->dev,
+			"vm_end[%lu] - vm_start[%lu] [%lu] > mem->size[%pa]\n",
+			vma->vm_end, vma->vm_start,
+			(vma->vm_end - vma->vm_start), &rmtfs_mem->size);
+		return -EINVAL;
+	}
+
+	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
+	return remap_pfn_range(vma,
+			       vma->vm_start,
+			       rmtfs_mem->addr >> PAGE_SHIFT,
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot);
+}
+
 static const struct file_operations qcom_rmtfs_mem_fops = {
 	.owner = THIS_MODULE,
 	.open = qcom_rmtfs_mem_open,
@@ -137,6 +156,7 @@ static const struct file_operations qcom_rmtfs_mem_fops = {
 	.write = qcom_rmtfs_mem_write,
 	.release = qcom_rmtfs_mem_release,
 	.llseek = default_llseek,
+	.mmap = qcom_rmtfs_mem_mmap,
 };
 
 static void qcom_rmtfs_mem_release_device(struct device *dev)
@@ -151,9 +171,11 @@ static void qcom_rmtfs_mem_release_device(struct device *dev)
 static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
+	struct qcom_scm_vmperm perms[2];
 	struct reserved_mem *rmem;
 	struct qcom_rmtfs_mem *rmtfs_mem;
 	u32 client_id;
+	u32 vmid;
 	int ret;
 
 	rmem = of_reserved_mem_lookup(node);
@@ -180,6 +202,7 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 	device_initialize(&rmtfs_mem->dev);
 	rmtfs_mem->dev.parent = &pdev->dev;
 	rmtfs_mem->dev.groups = qcom_rmtfs_mem_groups;
+	rmtfs_mem->dev.release = qcom_rmtfs_mem_release_device;
 
 	rmtfs_mem->base = devm_memremap(&rmtfs_mem->dev, rmtfs_mem->addr,
 					rmtfs_mem->size, MEMREMAP_WC);
@@ -194,6 +217,7 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 
 	dev_set_name(&rmtfs_mem->dev, "qcom_rmtfs_mem%d", client_id);
 	rmtfs_mem->dev.id = client_id;
+	rmtfs_mem->dev.class = &rmtfs_class;
 	rmtfs_mem->dev.devt = MKDEV(MAJOR(qcom_rmtfs_mem_major), client_id);
 
 	ret = cdev_device_add(&rmtfs_mem->cdev, &rmtfs_mem->dev);
@@ -202,12 +226,36 @@ static int qcom_rmtfs_mem_probe(struct platform_device *pdev)
 		goto put_device;
 	}
 
-	rmtfs_mem->dev.release = qcom_rmtfs_mem_release_device;
+	ret = of_property_read_u32(node, "qcom,vmid", &vmid);
+	if (ret < 0 && ret != -EINVAL) {
+		dev_err(&pdev->dev, "failed to parse qcom,vmid\n");
+		goto remove_cdev;
+	} else if (!ret) {
+		if (!qcom_scm_is_available()) {
+			ret = -EPROBE_DEFER;
+			goto remove_cdev;
+		}
+
+		perms[0].vmid = QCOM_SCM_VMID_HLOS;
+		perms[0].perm = QCOM_SCM_PERM_RW;
+		perms[1].vmid = vmid;
+		perms[1].perm = QCOM_SCM_PERM_RW;
+
+		rmtfs_mem->perms = BIT(QCOM_SCM_VMID_HLOS);
+		ret = qcom_scm_assign_mem(rmtfs_mem->addr, rmtfs_mem->size,
+					  &rmtfs_mem->perms, perms, 2);
+		if (ret < 0) {
+			dev_err(&pdev->dev, "assign memory failed\n");
+			goto remove_cdev;
+		}
+	}
 
 	dev_set_drvdata(&pdev->dev, rmtfs_mem);
 
 	return 0;
 
+remove_cdev:
+	cdev_device_del(&rmtfs_mem->cdev, &rmtfs_mem->dev);
 put_device:
 	put_device(&rmtfs_mem->dev);
 
@@ -217,6 +265,15 @@ put_device:
 static int qcom_rmtfs_mem_remove(struct platform_device *pdev)
 {
 	struct qcom_rmtfs_mem *rmtfs_mem = dev_get_drvdata(&pdev->dev);
+	struct qcom_scm_vmperm perm;
+
+	if (rmtfs_mem->perms) {
+		perm.vmid = QCOM_SCM_VMID_HLOS;
+		perm.perm = QCOM_SCM_PERM_RW;
+
+		qcom_scm_assign_mem(rmtfs_mem->addr, rmtfs_mem->size,
+				    &rmtfs_mem->perms, &perm, 1);
+	}
 
 	cdev_device_del(&rmtfs_mem->cdev, &rmtfs_mem->dev);
 	put_device(&rmtfs_mem->dev);
@@ -239,32 +296,42 @@ static struct platform_driver qcom_rmtfs_mem_driver = {
 	},
 };
 
-static int qcom_rmtfs_mem_init(void)
+static int __init qcom_rmtfs_mem_init(void)
 {
 	int ret;
+
+	ret = class_register(&rmtfs_class);
+	if (ret)
+		return ret;
 
 	ret = alloc_chrdev_region(&qcom_rmtfs_mem_major, 0,
 				  QCOM_RMTFS_MEM_DEV_MAX, "qcom_rmtfs_mem");
 	if (ret < 0) {
 		pr_err("qcom_rmtfs_mem: failed to allocate char dev region\n");
-		return ret;
+		goto unregister_class;
 	}
 
 	ret = platform_driver_register(&qcom_rmtfs_mem_driver);
 	if (ret < 0) {
 		pr_err("qcom_rmtfs_mem: failed to register rmtfs_mem driver\n");
-		unregister_chrdev_region(qcom_rmtfs_mem_major,
-					 QCOM_RMTFS_MEM_DEV_MAX);
+		goto unregister_chrdev;
 	}
 
+	return 0;
+
+unregister_chrdev:
+	unregister_chrdev_region(qcom_rmtfs_mem_major, QCOM_RMTFS_MEM_DEV_MAX);
+unregister_class:
+	class_unregister(&rmtfs_class);
 	return ret;
 }
 module_init(qcom_rmtfs_mem_init);
 
-static void qcom_rmtfs_mem_exit(void)
+static void __exit qcom_rmtfs_mem_exit(void)
 {
 	platform_driver_unregister(&qcom_rmtfs_mem_driver);
 	unregister_chrdev_region(qcom_rmtfs_mem_major, QCOM_RMTFS_MEM_DEV_MAX);
+	class_unregister(&rmtfs_class);
 }
 module_exit(qcom_rmtfs_mem_exit);
 

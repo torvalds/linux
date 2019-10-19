@@ -528,9 +528,9 @@ static int sun_pci_fd_test_drive(unsigned long port, int drive)
 
 static int __init ebus_fdthree_p(struct device_node *dp)
 {
-	if (!strcmp(dp->name, "fdthree"))
+	if (of_node_name_eq(dp, "fdthree"))
 		return 1;
-	if (!strcmp(dp->name, "floppy")) {
+	if (of_node_name_eq(dp, "floppy")) {
 		const char *compat;
 
 		compat = of_get_property(dp, "compatible", NULL);
@@ -555,7 +555,7 @@ static unsigned long __init sun_floppy_init(void)
 	op = NULL;
 
 	for_each_node_by_name(dp, "SUNW,fdtwo") {
-		if (strcmp(dp->parent->name, "sbus"))
+		if (!of_node_name_eq(dp->parent, "sbus"))
 			continue;
 		op = of_find_device_by_node(dp);
 		if (op)
@@ -656,7 +656,7 @@ static unsigned long __init sun_floppy_init(void)
 		 */
 		config = 0;
 		for (dp = ebus_dp->child; dp; dp = dp->sibling) {
-			if (!strcmp(dp->name, "ecpp")) {
+			if (of_node_name_eq(dp, "ecpp")) {
 				struct platform_device *ecpp_op;
 
 				ecpp_op = of_find_device_by_node(dp);

@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Ralink RT2880 timer
  * Author: John Crispin
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation.
  *
  * Copyright (C) 2013 John Crispin <john@phrozen.org>
 */
@@ -109,10 +106,8 @@ static int rt_timer_probe(struct platform_device *pdev)
 	}
 
 	rt->irq = platform_get_irq(pdev, 0);
-	if (rt->irq < 0) {
-		dev_err(&pdev->dev, "failed to load irq\n");
+	if (rt->irq < 0)
 		return rt->irq;
-	}
 
 	rt->membase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(rt->membase))

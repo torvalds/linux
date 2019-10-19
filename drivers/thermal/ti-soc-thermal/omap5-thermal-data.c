@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OMAP5 thermal driver.
  *
  * Copyright (C) 2011-2012 Texas Instruments Inc.
  * Contact:
  *	Eduardo Valentin <eduardo.valentin@ti.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
  */
 
 #include "ti-thermal.h"
@@ -38,12 +29,8 @@ omap5430_mpu_temp_sensor_registers = {
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_MPU_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_MPU_MASK,
-	.mask_sidlemode_mask = OMAP5430_MASK_SIDLEMODE_MASK,
 	.mask_counter_delay_mask = OMAP5430_MASK_COUNTER_DELAY_MASK,
 	.mask_freeze_mask = OMAP5430_MASK_FREEZE_MPU_MASK,
-	.mask_clear_mask = OMAP5430_MASK_CLEAR_MPU_MASK,
-	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_MPU_MASK,
-
 
 	.bgap_counter = OMAP5430_BGAP_CTRL_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
@@ -57,17 +44,11 @@ omap5430_mpu_temp_sensor_registers = {
 	.tshut_cold_mask = OMAP5430_TSHUT_COLD_MASK,
 
 	.bgap_status = OMAP5430_BGAP_STATUS_OFFSET,
-	.status_clean_stop_mask = 0x0,
-	.status_bgap_alert_mask = OMAP5430_BGAP_ALERT_MASK,
 	.status_hot_mask = OMAP5430_HOT_MPU_FLAG_MASK,
 	.status_cold_mask = OMAP5430_COLD_MPU_FLAG_MASK,
 
-	.bgap_cumul_dtemp = OMAP5430_BGAP_CUMUL_DTEMP_MPU_OFFSET,
-	.ctrl_dtemp_0 = OMAP5430_BGAP_DTEMP_MPU_0_OFFSET,
 	.ctrl_dtemp_1 = OMAP5430_BGAP_DTEMP_MPU_1_OFFSET,
 	.ctrl_dtemp_2 = OMAP5430_BGAP_DTEMP_MPU_2_OFFSET,
-	.ctrl_dtemp_3 = OMAP5430_BGAP_DTEMP_MPU_3_OFFSET,
-	.ctrl_dtemp_4 = OMAP5430_BGAP_DTEMP_MPU_4_OFFSET,
 	.bgap_efuse = OMAP5430_FUSE_OPP_BGAP_MPU,
 };
 
@@ -84,11 +65,8 @@ omap5430_gpu_temp_sensor_registers = {
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_GPU_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_GPU_MASK,
-	.mask_sidlemode_mask = OMAP5430_MASK_SIDLEMODE_MASK,
 	.mask_counter_delay_mask = OMAP5430_MASK_COUNTER_DELAY_MASK,
 	.mask_freeze_mask = OMAP5430_MASK_FREEZE_GPU_MASK,
-	.mask_clear_mask = OMAP5430_MASK_CLEAR_GPU_MASK,
-	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_GPU_MASK,
 
 	.bgap_counter = OMAP5430_BGAP_CTRL_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
@@ -102,17 +80,11 @@ omap5430_gpu_temp_sensor_registers = {
 	.tshut_cold_mask = OMAP5430_TSHUT_COLD_MASK,
 
 	.bgap_status = OMAP5430_BGAP_STATUS_OFFSET,
-	.status_clean_stop_mask = 0x0,
-	.status_bgap_alert_mask = OMAP5430_BGAP_ALERT_MASK,
 	.status_hot_mask = OMAP5430_HOT_GPU_FLAG_MASK,
 	.status_cold_mask = OMAP5430_COLD_GPU_FLAG_MASK,
 
-	.bgap_cumul_dtemp = OMAP5430_BGAP_CUMUL_DTEMP_GPU_OFFSET,
-	.ctrl_dtemp_0 = OMAP5430_BGAP_DTEMP_GPU_0_OFFSET,
 	.ctrl_dtemp_1 = OMAP5430_BGAP_DTEMP_GPU_1_OFFSET,
 	.ctrl_dtemp_2 = OMAP5430_BGAP_DTEMP_GPU_2_OFFSET,
-	.ctrl_dtemp_3 = OMAP5430_BGAP_DTEMP_GPU_3_OFFSET,
-	.ctrl_dtemp_4 = OMAP5430_BGAP_DTEMP_GPU_4_OFFSET,
 
 	.bgap_efuse = OMAP5430_FUSE_OPP_BGAP_GPU,
 };
@@ -130,11 +102,8 @@ omap5430_core_temp_sensor_registers = {
 	.bgap_mask_ctrl = OMAP5430_BGAP_CTRL_OFFSET,
 	.mask_hot_mask = OMAP5430_MASK_HOT_CORE_MASK,
 	.mask_cold_mask = OMAP5430_MASK_COLD_CORE_MASK,
-	.mask_sidlemode_mask = OMAP5430_MASK_SIDLEMODE_MASK,
 	.mask_counter_delay_mask = OMAP5430_MASK_COUNTER_DELAY_MASK,
 	.mask_freeze_mask = OMAP5430_MASK_FREEZE_CORE_MASK,
-	.mask_clear_mask = OMAP5430_MASK_CLEAR_CORE_MASK,
-	.mask_clear_accum_mask = OMAP5430_MASK_CLEAR_ACCUM_CORE_MASK,
 
 	.bgap_counter = OMAP5430_BGAP_CTRL_OFFSET,
 	.counter_mask = OMAP5430_COUNTER_MASK,
@@ -148,17 +117,11 @@ omap5430_core_temp_sensor_registers = {
 	.tshut_cold_mask = OMAP5430_TSHUT_COLD_MASK,
 
 	.bgap_status = OMAP5430_BGAP_STATUS_OFFSET,
-	.status_clean_stop_mask = 0x0,
-	.status_bgap_alert_mask = OMAP5430_BGAP_ALERT_MASK,
 	.status_hot_mask = OMAP5430_HOT_CORE_FLAG_MASK,
 	.status_cold_mask = OMAP5430_COLD_CORE_FLAG_MASK,
 
-	.bgap_cumul_dtemp = OMAP5430_BGAP_CUMUL_DTEMP_CORE_OFFSET,
-	.ctrl_dtemp_0 = OMAP5430_BGAP_DTEMP_CORE_0_OFFSET,
 	.ctrl_dtemp_1 = OMAP5430_BGAP_DTEMP_CORE_1_OFFSET,
 	.ctrl_dtemp_2 = OMAP5430_BGAP_DTEMP_CORE_2_OFFSET,
-	.ctrl_dtemp_3 = OMAP5430_BGAP_DTEMP_CORE_3_OFFSET,
-	.ctrl_dtemp_4 = OMAP5430_BGAP_DTEMP_CORE_4_OFFSET,
 
 	.bgap_efuse = OMAP5430_FUSE_OPP_BGAP_CORE,
 };
@@ -171,11 +134,6 @@ static struct temp_sensor_data omap5430_mpu_temp_sensor_data = {
 	.t_cold = OMAP5430_MPU_T_COLD,
 	.min_freq = OMAP5430_MPU_MIN_FREQ,
 	.max_freq = OMAP5430_MPU_MAX_FREQ,
-	.max_temp = OMAP5430_MPU_MAX_TEMP,
-	.min_temp = OMAP5430_MPU_MIN_TEMP,
-	.hyst_val = OMAP5430_MPU_HYST_VAL,
-	.update_int1 = 1000,
-	.update_int2 = 2000,
 };
 
 /* Thresholds and limits for OMAP5430 GPU temperature sensor */
@@ -186,11 +144,6 @@ static struct temp_sensor_data omap5430_gpu_temp_sensor_data = {
 	.t_cold = OMAP5430_GPU_T_COLD,
 	.min_freq = OMAP5430_GPU_MIN_FREQ,
 	.max_freq = OMAP5430_GPU_MAX_FREQ,
-	.max_temp = OMAP5430_GPU_MAX_TEMP,
-	.min_temp = OMAP5430_GPU_MIN_TEMP,
-	.hyst_val = OMAP5430_GPU_HYST_VAL,
-	.update_int1 = 1000,
-	.update_int2 = 2000,
 };
 
 /* Thresholds and limits for OMAP5430 CORE temperature sensor */
@@ -201,11 +154,6 @@ static struct temp_sensor_data omap5430_core_temp_sensor_data = {
 	.t_cold = OMAP5430_CORE_T_COLD,
 	.min_freq = OMAP5430_CORE_MIN_FREQ,
 	.max_freq = OMAP5430_CORE_MAX_FREQ,
-	.max_temp = OMAP5430_CORE_MAX_TEMP,
-	.min_temp = OMAP5430_CORE_MIN_TEMP,
-	.hyst_val = OMAP5430_CORE_HYST_VAL,
-	.update_int1 = 1000,
-	.update_int2 = 2000,
 };
 
 /*
@@ -310,7 +258,7 @@ omap5430_adc_to_temp[
 	119800, 120200, 120600, 121000, 121400, 121800, 122400, 122600, 123000,
 	123400,
 	/* Index 940 - 945 */
-	123800, 1242000, 124600, 124900, 125000, 125000,
+	123800, 124200, 124600, 124900, 125000, 125000,
 };
 
 /* OMAP54xx ES2.0 data */
@@ -319,8 +267,7 @@ const struct ti_bandgap_data omap5430_data = {
 			TI_BANDGAP_FEATURE_FREEZE_BIT |
 			TI_BANDGAP_FEATURE_TALERT |
 			TI_BANDGAP_FEATURE_COUNTER_DELAY |
-			TI_BANDGAP_FEATURE_HISTORY_BUFFER |
-			TI_BANDGAP_FEATURE_ERRATA_813,
+			TI_BANDGAP_FEATURE_HISTORY_BUFFER,
 	.fclock_name = "l3instr_ts_gclk_div",
 	.div_ck_name = "l3instr_ts_gclk_div",
 	.conv_table = omap5430_adc_to_temp,

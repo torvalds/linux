@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Intel Cherry Trail ACPI INT33FE pseudo device driver
  *
  * Copyright (C) 2017 Hans de Goede <hdegoede@redhat.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  *
  * Some Intel Cherry Trail based device which ship with Windows 10, have
  * this weird INT33FE ACPI device with a CRS table with 4 I2cSerialBusV2
@@ -24,15 +21,53 @@
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
+#include <linux/pci.h>
+#include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
+#include <linux/usb/pd.h>
 
 #define EXPECTED_PTYPE		4
+
+enum {
+	INT33FE_NODE_FUSB302,
+	INT33FE_NODE_MAX17047,
+	INT33FE_NODE_PI3USB30532,
+	INT33FE_NODE_DISPLAYPORT,
+	INT33FE_NODE_USB_CONNECTOR,
+	INT33FE_NODE_MAX,
+};
 
 struct cht_int33fe_data {
 	struct i2c_client *max17047;
 	struct i2c_client *fusb302;
 	struct i2c_client *pi3usb30532;
+
+	struct fwnode_handle *dp;
+};
+
+static const struct software_node nodes[];
+
+static const struct software_node_ref_args pi3usb30532_ref = {
+	&nodes[INT33FE_NODE_PI3USB30532]
+};
+
+static const struct software_node_ref_args dp_ref = {
+	&nodes[INT33FE_NODE_DISPLAYPORT]
+};
+
+static struct software_node_ref_args mux_ref;
+
+static const struct software_node_reference usb_connector_refs[] = {
+	{ "orientation-switch", 1, &pi3usb30532_ref},
+	{ "mode-switch", 1, &pi3usb30532_ref},
+	{ "displayport", 1, &dp_ref},
+	{ }
+};
+
+static const struct software_node_reference fusb302_refs[] = {
+	{ "usb-role-switch", 1, &mux_ref},
+	{ }
 };
 
 /*
@@ -63,14 +98,6 @@ static int cht_int33fe_check_for_max17047(struct device *dev, void *data)
 	return 1;
 }
 
-static struct i2c_client *cht_int33fe_find_max17047(void)
-{
-	struct i2c_client *max17047 = NULL;
-
-	i2c_for_each_dev(&max17047, cht_int33fe_check_for_max17047);
-	return max17047;
-}
-
 static const char * const max17047_suppliers[] = { "bq24190-charger" };
 
 static const struct property_entry max17047_props[] = {
@@ -79,19 +106,162 @@ static const struct property_entry max17047_props[] = {
 };
 
 static const struct property_entry fusb302_props[] = {
-	PROPERTY_ENTRY_STRING("fcs,extcon-name", "cht_wcove_pwrsrc"),
-	PROPERTY_ENTRY_U32("fcs,max-sink-microvolt", 12000000),
-	PROPERTY_ENTRY_U32("fcs,max-sink-microamp",   3000000),
-	PROPERTY_ENTRY_U32("fcs,max-sink-microwatt", 36000000),
+	PROPERTY_ENTRY_STRING("linux,extcon-name", "cht_wcove_pwrsrc"),
 	{ }
 };
 
-static int cht_int33fe_probe(struct i2c_client *client)
+#define PDO_FIXED_FLAGS \
+	(PDO_FIXED_DUAL_ROLE | PDO_FIXED_DATA_SWAP | PDO_FIXED_USB_COMM)
+
+static const u32 src_pdo[] = {
+	PDO_FIXED(5000, 1500, PDO_FIXED_FLAGS),
+};
+
+static const u32 snk_pdo[] = {
+	PDO_FIXED(5000, 400, PDO_FIXED_FLAGS),
+	PDO_VAR(5000, 12000, 3000),
+};
+
+static const struct property_entry usb_connector_props[] = {
+	PROPERTY_ENTRY_STRING("data-role", "dual"),
+	PROPERTY_ENTRY_STRING("power-role", "dual"),
+	PROPERTY_ENTRY_STRING("try-power-role", "sink"),
+	PROPERTY_ENTRY_U32_ARRAY("source-pdos", src_pdo),
+	PROPERTY_ENTRY_U32_ARRAY("sink-pdos", snk_pdo),
+	PROPERTY_ENTRY_U32("op-sink-microwatt", 2500000),
+	{ }
+};
+
+static const struct software_node nodes[] = {
+	{ "fusb302", NULL, fusb302_props, fusb302_refs },
+	{ "max17047", NULL, max17047_props },
+	{ "pi3usb30532" },
+	{ "displayport" },
+	{ "connector", &nodes[0], usb_connector_props, usb_connector_refs },
+	{ }
+};
+
+static int cht_int33fe_setup_dp(struct cht_int33fe_data *data)
 {
-	struct device *dev = &client->dev;
+	struct fwnode_handle *fwnode;
+	struct pci_dev *pdev;
+
+	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_DISPLAYPORT]);
+	if (!fwnode)
+		return -ENODEV;
+
+	/* First let's find the GPU PCI device */
+	pdev = pci_get_class(PCI_CLASS_DISPLAY_VGA << 8, NULL);
+	if (!pdev || pdev->vendor != PCI_VENDOR_ID_INTEL) {
+		pci_dev_put(pdev);
+		return -ENODEV;
+	}
+
+	/* Then the DP child device node */
+	data->dp = device_get_named_child_node(&pdev->dev, "DD02");
+	pci_dev_put(pdev);
+	if (!data->dp)
+		return -ENODEV;
+
+	fwnode->secondary = ERR_PTR(-ENODEV);
+	data->dp->secondary = fwnode;
+
+	return 0;
+}
+
+static void cht_int33fe_remove_nodes(struct cht_int33fe_data *data)
+{
+	software_node_unregister_nodes(nodes);
+
+	if (mux_ref.node) {
+		fwnode_handle_put(software_node_fwnode(mux_ref.node));
+		mux_ref.node = NULL;
+	}
+
+	if (data->dp) {
+		data->dp->secondary = NULL;
+		fwnode_handle_put(data->dp);
+		data->dp = NULL;
+	}
+}
+
+static int cht_int33fe_add_nodes(struct cht_int33fe_data *data)
+{
+	int ret;
+
+	ret = software_node_register_nodes(nodes);
+	if (ret)
+		return ret;
+
+	/* The devices that are not created in this driver need extra steps. */
+
+	/*
+	 * There is no ACPI device node for the USB role mux, so we need to wait
+	 * until the mux driver has created software node for the mux device.
+	 * It means we depend on the mux driver. This function will return
+	 * -EPROBE_DEFER until the mux device is registered.
+	 */
+	mux_ref.node = software_node_find_by_name(NULL, "intel-xhci-usb-sw");
+	if (!mux_ref.node) {
+		ret = -EPROBE_DEFER;
+		goto err_remove_nodes;
+	}
+
+	/*
+	 * The DP connector does have ACPI device node. In this case we can just
+	 * find that ACPI node and assign our node as the secondary node to it.
+	 */
+	ret = cht_int33fe_setup_dp(data);
+	if (ret)
+		goto err_remove_nodes;
+
+	return 0;
+
+err_remove_nodes:
+	cht_int33fe_remove_nodes(data);
+
+	return ret;
+}
+
+static int
+cht_int33fe_register_max17047(struct device *dev, struct cht_int33fe_data *data)
+{
+	struct i2c_client *max17047 = NULL;
+	struct i2c_board_info board_info;
+	struct fwnode_handle *fwnode;
+	int ret;
+
+	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_MAX17047]);
+	if (!fwnode)
+		return -ENODEV;
+
+	i2c_for_each_dev(&max17047, cht_int33fe_check_for_max17047);
+	if (max17047) {
+		/* Pre-existing i2c-client for the max17047, add device-props */
+		fwnode->secondary = ERR_PTR(-ENODEV);
+		max17047->dev.fwnode->secondary = fwnode;
+		/* And re-probe to get the new device-props applied. */
+		ret = device_reprobe(&max17047->dev);
+		if (ret)
+			dev_warn(dev, "Reprobing max17047 error: %d\n", ret);
+		return 0;
+	}
+
+	memset(&board_info, 0, sizeof(board_info));
+	strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
+	board_info.dev_name = "max17047";
+	board_info.fwnode = fwnode;
+	data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
+
+	return PTR_ERR_OR_ZERO(data->max17047);
+}
+
+static int cht_int33fe_probe(struct platform_device *pdev)
+{
+	struct device *dev = &pdev->dev;
 	struct i2c_board_info board_info;
 	struct cht_int33fe_data *data;
-	struct i2c_client *max17047;
+	struct fwnode_handle *fwnode;
 	struct regulator *regulator;
 	unsigned long long ptyp;
 	acpi_status status;
@@ -151,46 +321,51 @@ static int cht_int33fe_probe(struct i2c_client *client)
 	if (!data)
 		return -ENOMEM;
 
-	/* Work around BIOS bug, see comment on cht_int33fe_find_max17047 */
-	max17047 = cht_int33fe_find_max17047();
-	if (max17047) {
-		/* Pre-existing i2c-client for the max17047, add device-props */
-		ret = device_add_properties(&max17047->dev, max17047_props);
-		if (ret)
-			return ret;
-		/* And re-probe to get the new device-props applied. */
-		ret = device_reprobe(&max17047->dev);
-		if (ret)
-			dev_warn(dev, "Reprobing max17047 error: %d\n", ret);
-	} else {
-		memset(&board_info, 0, sizeof(board_info));
-		strlcpy(board_info.type, "max17047", I2C_NAME_SIZE);
-		board_info.dev_name = "max17047";
-		board_info.properties = max17047_props;
-		data->max17047 = i2c_acpi_new_device(dev, 1, &board_info);
-		if (!data->max17047)
-			return -EPROBE_DEFER; /* Wait for i2c-adapter to load */
+	ret = cht_int33fe_add_nodes(data);
+	if (ret)
+		return ret;
+
+	/* Work around BIOS bug, see comment on cht_int33fe_check_for_max17047 */
+	ret = cht_int33fe_register_max17047(dev, data);
+	if (ret)
+		goto out_remove_nodes;
+
+	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_FUSB302]);
+	if (!fwnode) {
+		ret = -ENODEV;
+		goto out_unregister_max17047;
 	}
 
 	memset(&board_info, 0, sizeof(board_info));
 	strlcpy(board_info.type, "typec_fusb302", I2C_NAME_SIZE);
 	board_info.dev_name = "fusb302";
-	board_info.properties = fusb302_props;
+	board_info.fwnode = fwnode;
 	board_info.irq = fusb302_irq;
 
 	data->fusb302 = i2c_acpi_new_device(dev, 2, &board_info);
-	if (!data->fusb302)
+	if (IS_ERR(data->fusb302)) {
+		ret = PTR_ERR(data->fusb302);
 		goto out_unregister_max17047;
+	}
+
+	fwnode = software_node_fwnode(&nodes[INT33FE_NODE_PI3USB30532]);
+	if (!fwnode) {
+		ret = -ENODEV;
+		goto out_unregister_fusb302;
+	}
 
 	memset(&board_info, 0, sizeof(board_info));
 	board_info.dev_name = "pi3usb30532";
+	board_info.fwnode = fwnode;
 	strlcpy(board_info.type, "pi3usb30532", I2C_NAME_SIZE);
 
 	data->pi3usb30532 = i2c_acpi_new_device(dev, 3, &board_info);
-	if (!data->pi3usb30532)
+	if (IS_ERR(data->pi3usb30532)) {
+		ret = PTR_ERR(data->pi3usb30532);
 		goto out_unregister_fusb302;
+	}
 
-	i2c_set_clientdata(client, data);
+	platform_set_drvdata(pdev, data);
 
 	return 0;
 
@@ -198,28 +373,26 @@ out_unregister_fusb302:
 	i2c_unregister_device(data->fusb302);
 
 out_unregister_max17047:
-	if (data->max17047)
-		i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->max17047);
 
-	return -EPROBE_DEFER; /* Wait for the i2c-adapter to load */
+out_remove_nodes:
+	cht_int33fe_remove_nodes(data);
+
+	return ret;
 }
 
-static int cht_int33fe_remove(struct i2c_client *i2c)
+static int cht_int33fe_remove(struct platform_device *pdev)
 {
-	struct cht_int33fe_data *data = i2c_get_clientdata(i2c);
+	struct cht_int33fe_data *data = platform_get_drvdata(pdev);
 
 	i2c_unregister_device(data->pi3usb30532);
 	i2c_unregister_device(data->fusb302);
-	if (data->max17047)
-		i2c_unregister_device(data->max17047);
+	i2c_unregister_device(data->max17047);
+
+	cht_int33fe_remove_nodes(data);
 
 	return 0;
 }
-
-static const struct i2c_device_id cht_int33fe_i2c_id[] = {
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, cht_int33fe_i2c_id);
 
 static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
 	{ "INT33FE", },
@@ -227,19 +400,17 @@ static const struct acpi_device_id cht_int33fe_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cht_int33fe_acpi_ids);
 
-static struct i2c_driver cht_int33fe_driver = {
+static struct platform_driver cht_int33fe_driver = {
 	.driver	= {
 		.name = "Intel Cherry Trail ACPI INT33FE driver",
 		.acpi_match_table = ACPI_PTR(cht_int33fe_acpi_ids),
 	},
-	.probe_new = cht_int33fe_probe,
+	.probe = cht_int33fe_probe,
 	.remove = cht_int33fe_remove,
-	.id_table = cht_int33fe_i2c_id,
-	.disable_i2c_core_irq_mapping = true,
 };
 
-module_i2c_driver(cht_int33fe_driver);
+module_platform_driver(cht_int33fe_driver);
 
 MODULE_DESCRIPTION("Intel Cherry Trail ACPI INT33FE pseudo device driver");
 MODULE_AUTHOR("Hans de Goede <hdegoede@redhat.com>");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");

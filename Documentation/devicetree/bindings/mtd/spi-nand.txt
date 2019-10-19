@@ -1,0 +1,5 @@
+SPI NAND flash
+
+Required properties:
+- compatible: should be "spi-nand"
+- reg: should encode the chip-select line used to access the NAND chip

@@ -1,13 +1,5 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015, Sony Mobile Communications, AB.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -330,7 +322,7 @@ static int pm8941_wled_configure(struct pm8941_wled *wled, struct device *dev)
 
 	rc = of_property_read_string(dev->of_node, "label", &wled->name);
 	if (rc)
-		wled->name = dev->of_node->name;
+		wled->name = devm_kasprintf(dev, GFP_KERNEL, "%pOFn", dev->of_node);
 
 	*cfg = pm8941_wled_config_defaults;
 	for (i = 0; i < ARRAY_SIZE(u32_opts); ++i) {

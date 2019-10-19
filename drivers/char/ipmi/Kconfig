@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # IPMI device configuration
 #
@@ -18,17 +19,13 @@ menuconfig IPMI_HANDLER
 	 If unsure, say N.
 
 config IPMI_DMI_DECODE
+       select IPMI_PLAT_DATA
+       bool
+
+config IPMI_PLAT_DATA
        bool
 
 if IPMI_HANDLER
-
-config IPMI_PROC_INTERFACE
-       bool 'Provide an interface for IPMI stats in /proc (deprecated)'
-       depends on PROC_FS
-       default y
-       help
-         Do not use this any more, use sysfs for this info.  It will be
-	 removed in future kernel versions.
 
 config IPMI_PANIC_EVENT
        bool 'Generate a panic event to all BMCs on a panic'
@@ -64,6 +61,7 @@ config IPMI_DEVICE_INTERFACE
 
 config IPMI_SI
        tristate 'IPMI System Interface handler'
+       select IPMI_PLAT_DATA
        help
          Provides a driver for System Interfaces (KCS, SMIC, BT).
 	 Currently, only KCS and SMIC are supported.  If
@@ -96,6 +94,36 @@ config IPMI_POWEROFF
 
 endif # IPMI_HANDLER
 
+config IPMI_KCS_BMC
+	tristate
+
+config ASPEED_KCS_IPMI_BMC
+	depends on ARCH_ASPEED || COMPILE_TEST
+	select IPMI_KCS_BMC
+	select REGMAP_MMIO
+	tristate "Aspeed KCS IPMI BMC driver"
+	help
+	  Provides a driver for the KCS (Keyboard Controller Style) IPMI
+	  interface found on Aspeed SOCs (AST2400 and AST2500).
+
+	  The driver implements the BMC side of the KCS contorller, it
+	  provides the access of KCS IO space for BMC side.
+
+config NPCM7XX_KCS_IPMI_BMC
+	depends on ARCH_NPCM7XX || COMPILE_TEST
+	select IPMI_KCS_BMC
+	select REGMAP_MMIO
+	tristate "NPCM7xx KCS IPMI BMC driver"
+	help
+	  Provides a driver for the KCS (Keyboard Controller Style) IPMI
+	  interface found on Nuvoton NPCM7xx SOCs.
+
+	  The driver implements the BMC side of the KCS contorller, it
+	  provides the access of KCS IO space for BMC side.
+
+	  This support is also available as a module.  If so, the module
+	  will be called kcs_bmc_npcm7xx.
+
 config ASPEED_BT_IPMI_BMC
 	depends on ARCH_ASPEED || COMPILE_TEST
        depends on REGMAP && REGMAP_MMIO && MFD_SYSCON
@@ -104,3 +132,12 @@ config ASPEED_BT_IPMI_BMC
 	  Provides a driver for the BT (Block Transfer) IPMI interface
 	  found on Aspeed SOCs (AST2400 and AST2500). The driver
 	  implements the BMC side of the BT interface.
+
+config IPMB_DEVICE_INTERFACE
+	tristate 'IPMB Interface handler'
+	depends on I2C
+	depends on I2C_SLAVE
+	help
+	  Provides a driver for a device (Satellite MC) to
+	  receive requests and send responses back to the BMC via
+	  the IPMB interface. This module requires I2C support.

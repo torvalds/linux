@@ -1,15 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *	inet6 interface/address list definitions
  *	Linux INET6 implementation 
  *
  *	Authors:
  *	Pedro Roque		<roque@di.fc.ul.pt>	
- *
- *
- *	This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #ifndef _NET_IF_INET6_H
@@ -42,6 +37,7 @@ enum {
 struct inet6_ifaddr {
 	struct in6_addr		addr;
 	__u32			prefix_len;
+	__u32			rt_priority;
 
 	/* In seconds, relative to tstamp. Expiry is at tstamp + HZ * lft. */
 	__u32			valid_lft;
@@ -64,7 +60,7 @@ struct inet6_ifaddr {
 	struct delayed_work	dad_work;
 
 	struct inet6_dev	*idev;
-	struct rt6_info		*rt;
+	struct fib6_info	*rt;
 
 	struct hlist_node	addr_lst;
 	struct list_head	if_list;
@@ -93,9 +89,9 @@ struct ip6_sf_socklist {
 struct ipv6_mc_socklist {
 	struct in6_addr		addr;
 	int			ifindex;
+	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
 	struct ipv6_mc_socklist __rcu *next;
 	rwlock_t		sflock;
-	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
 	struct ip6_sf_socklist	*sflist;
 	struct rcu_head		rcu;
 };
@@ -143,13 +139,14 @@ struct ipv6_ac_socklist {
 
 struct ifacaddr6 {
 	struct in6_addr		aca_addr;
-	struct inet6_dev	*aca_idev;
-	struct rt6_info		*aca_rt;
+	struct fib6_info	*aca_rt;
 	struct ifacaddr6	*aca_next;
+	struct hlist_node	aca_addr_lst;
 	int			aca_users;
 	refcount_t		aca_refcnt;
 	unsigned long		aca_cstamp;
 	unsigned long		aca_tstamp;
+	struct rcu_head		rcu;
 };
 
 #define	IFA_HOST	IPV6_ADDR_LOOPBACK

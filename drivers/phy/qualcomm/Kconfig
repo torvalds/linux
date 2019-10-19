@@ -1,6 +1,16 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
-# Phy drivers for Qualcomm platforms
+# Phy drivers for Qualcomm and Atheros platforms
 #
+config PHY_ATH79_USB
+	tristate "Atheros AR71XX/9XXX USB PHY driver"
+	depends on OF && (ATH79 || COMPILE_TEST)
+	default y if USB_EHCI_HCD_PLATFORM || USB_OHCI_HCD_PLATFORM
+	select RESET_CONTROLLER
+	select GENERIC_PHY
+	help
+	  Enable this to support the USB PHY on Atheros AR71XX/9XXX SoCs.
+
 config PHY_QCOM_APQ8064_SATA
 	tristate "Qualcomm APQ8064 SATA SerDes/PHY driver"
 	depends on ARCH_QCOM
@@ -14,6 +24,14 @@ config PHY_QCOM_IPQ806X_SATA
 	depends on HAS_IOMEM
 	depends on OF
 	select GENERIC_PHY
+
+config PHY_QCOM_PCIE2
+	tristate "Qualcomm PCIe Gen2 PHY Driver"
+	depends on OF && COMMON_CLK && (ARCH_QCOM || COMPILE_TEST)
+	select GENERIC_PHY
+	help
+	  Enable this to support the Qualcomm PCIe PHY, used with the Synopsys
+	  based PCIe controller.
 
 config PHY_QCOM_QMP
 	tristate "Qualcomm QMP PHY Driver"
@@ -40,6 +58,23 @@ config PHY_QCOM_UFS
 	select GENERIC_PHY
 	help
 	  Support for UFS PHY on QCOM chipsets.
+
+if PHY_QCOM_UFS
+
+config PHY_QCOM_UFS_14NM
+	tristate
+	default PHY_QCOM_UFS
+	help
+	  Support for 14nm UFS QMP phy present on QCOM chipsets.
+
+config PHY_QCOM_UFS_20NM
+	tristate
+	default PHY_QCOM_UFS
+	depends on BROKEN
+	help
+	  Support for 20nm UFS QMP phy present on QCOM chipsets.
+
+endif
 
 config PHY_QCOM_USB_HS
 	tristate "Qualcomm USB HS PHY module"

@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* bpf/cpumap.c
  *
  * Copyright (c) 2017 Jesper Dangaard Brouer, Red Hat Inc.
- * Released under terms in GPL version 2.  See COPYING.
  */
 
 /* The 'cpumap' is primarily used as a backend map for XDP BPF helper
@@ -19,6 +19,7 @@
 #include <linux/bpf.h>
 #include <linux/filter.h>
 #include <linux/ptr_ring.h>
+#include <net/xdp.h>
 
 #include <linux/sched.h>
 #include <linux/workqueue.h>
@@ -31,14 +32,19 @@
 
 /* General idea: XDP packets getting XDP redirected to another CPU,
  * will maximum be stored/queued for one driver ->poll() call.  It is
- * guaranteed that setting flush bit and flush operation happen on
+ * guaranteed that queueing the frame and the flush operation happen on
  * same CPU.  Thus, cpu_map_flush operation can deduct via this_cpu_ptr()
  * which queue in bpf_cpu_map_entry contains packets.
  */
 
 #define CPU_MAP_BULK_SIZE 8  /* 8 == one cacheline on 64-bit archs */
+struct bpf_cpu_map_entry;
+struct bpf_cpu_map;
+
 struct xdp_bulk_queue {
 	void *q[CPU_MAP_BULK_SIZE];
+	struct list_head flush_node;
+	struct bpf_cpu_map_entry *obj;
 	unsigned int count;
 };
 
@@ -50,6 +56,8 @@ struct bpf_cpu_map_entry {
 
 	/* XDP can run multiple RX-ring queues, need __percpu enqueue store */
 	struct xdp_bulk_queue __percpu *bulkq;
+
+	struct bpf_cpu_map *cmap;
 
 	/* Queue with potential multi-producers, and single-consumer kthread */
 	struct ptr_ring *queue;
@@ -64,23 +72,17 @@ struct bpf_cpu_map {
 	struct bpf_map map;
 	/* Below members specific for map type */
 	struct bpf_cpu_map_entry **cpu_map;
-	unsigned long __percpu *flush_needed;
+	struct list_head __percpu *flush_list;
 };
 
-static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
-			     struct xdp_bulk_queue *bq);
-
-static u64 cpu_map_bitmap_size(const union bpf_attr *attr)
-{
-	return BITS_TO_LONGS(attr->max_entries) * sizeof(unsigned long);
-}
+static int bq_flush_to_queue(struct xdp_bulk_queue *bq, bool in_napi_ctx);
 
 static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 {
 	struct bpf_cpu_map *cmap;
 	int err = -ENOMEM;
+	int ret, cpu;
 	u64 cost;
-	int ret;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
@@ -104,23 +106,21 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 
 	/* make sure page count doesn't overflow */
 	cost = (u64) cmap->map.max_entries * sizeof(struct bpf_cpu_map_entry *);
-	cost += cpu_map_bitmap_size(attr) * num_possible_cpus();
-	if (cost >= U32_MAX - PAGE_SIZE)
-		goto free_cmap;
-	cmap->map.pages = round_up(cost, PAGE_SIZE) >> PAGE_SHIFT;
+	cost += sizeof(struct list_head) * num_possible_cpus();
 
 	/* Notice returns -EPERM on if map size is larger than memlock limit */
-	ret = bpf_map_precharge_memlock(cmap->map.pages);
+	ret = bpf_map_charge_init(&cmap->map.memory, cost);
 	if (ret) {
 		err = ret;
 		goto free_cmap;
 	}
 
-	/* A per cpu bitfield with a bit per possible CPU in map  */
-	cmap->flush_needed = __alloc_percpu(cpu_map_bitmap_size(attr),
-					    __alignof__(unsigned long));
-	if (!cmap->flush_needed)
-		goto free_cmap;
+	cmap->flush_list = alloc_percpu(struct list_head);
+	if (!cmap->flush_list)
+		goto free_charge;
+
+	for_each_possible_cpu(cpu)
+		INIT_LIST_HEAD(per_cpu_ptr(cmap->flush_list, cpu));
 
 	/* Alloc array for possible remote "destination" CPUs */
 	cmap->cpu_map = bpf_map_area_alloc(cmap->map.max_entries *
@@ -131,31 +131,12 @@ static struct bpf_map *cpu_map_alloc(union bpf_attr *attr)
 
 	return &cmap->map;
 free_percpu:
-	free_percpu(cmap->flush_needed);
+	free_percpu(cmap->flush_list);
+free_charge:
+	bpf_map_charge_finish(&cmap->map.memory);
 free_cmap:
 	kfree(cmap);
 	return ERR_PTR(err);
-}
-
-static void __cpu_map_queue_destructor(void *ptr)
-{
-	/* The tear-down procedure should have made sure that queue is
-	 * empty.  See __cpu_map_entry_replace() and work-queue
-	 * invoked cpu_map_kthread_stop(). Catch any broken behaviour
-	 * gracefully and warn once.
-	 */
-	if (WARN_ON_ONCE(ptr))
-		page_frag_free(ptr);
-}
-
-static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
-{
-	if (atomic_dec_and_test(&rcpu->refcnt)) {
-		/* The queue should be empty at this point */
-		ptr_ring_cleanup(rcpu->queue, __cpu_map_queue_destructor);
-		kfree(rcpu->queue);
-		kfree(rcpu);
-	}
 }
 
 static void get_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
@@ -179,49 +160,16 @@ static void cpu_map_kthread_stop(struct work_struct *work)
 	kthread_stop(rcpu->kthread);
 }
 
-/* For now, xdp_pkt is a cpumap internal data structure, with info
- * carried between enqueue to dequeue. It is mapped into the top
- * headroom of the packet, to avoid allocating separate mem.
- */
-struct xdp_pkt {
-	void *data;
-	u16 len;
-	u16 headroom;
-	u16 metasize;
-	struct net_device *dev_rx;
-};
-
-/* Convert xdp_buff to xdp_pkt */
-static struct xdp_pkt *convert_to_xdp_pkt(struct xdp_buff *xdp)
-{
-	struct xdp_pkt *xdp_pkt;
-	int metasize;
-	int headroom;
-
-	/* Assure headroom is available for storing info */
-	headroom = xdp->data - xdp->data_hard_start;
-	metasize = xdp->data - xdp->data_meta;
-	metasize = metasize > 0 ? metasize : 0;
-	if (unlikely((headroom - metasize) < sizeof(*xdp_pkt)))
-		return NULL;
-
-	/* Store info in top of packet */
-	xdp_pkt = xdp->data_hard_start;
-
-	xdp_pkt->data = xdp->data;
-	xdp_pkt->len  = xdp->data_end - xdp->data;
-	xdp_pkt->headroom = headroom - sizeof(*xdp_pkt);
-	xdp_pkt->metasize = metasize;
-
-	return xdp_pkt;
-}
-
 static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
-					 struct xdp_pkt *xdp_pkt)
+					 struct xdp_frame *xdpf,
+					 struct sk_buff *skb)
 {
+	unsigned int hard_start_headroom;
 	unsigned int frame_size;
 	void *pkt_data_start;
-	struct sk_buff *skb;
+
+	/* Part of headroom was reserved to xdpf */
+	hard_start_headroom = sizeof(struct xdp_frame) +  xdpf->headroom;
 
 	/* build_skb need to place skb_shared_info after SKB end, and
 	 * also want to know the memory "truesize".  Thus, need to
@@ -232,7 +180,7 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 	 * would be preferred to set frame_size to 2048 or 4096
 	 * depending on the driver.
 	 *   frame_size = 2048;
-	 *   frame_len  = frame_size - sizeof(*xdp_pkt);
+	 *   frame_len  = frame_size - sizeof(*xdp_frame);
 	 *
 	 * Instead, with info avail, skb_shared_info in placed after
 	 * packet len.  This, unfortunately fakes the truesize.
@@ -240,21 +188,21 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 	 * is not at a fixed memory location, with mixed length
 	 * packets, which is bad for cache-line hotness.
 	 */
-	frame_size = SKB_DATA_ALIGN(xdp_pkt->len) + xdp_pkt->headroom +
+	frame_size = SKB_DATA_ALIGN(xdpf->len + hard_start_headroom) +
 		SKB_DATA_ALIGN(sizeof(struct skb_shared_info));
 
-	pkt_data_start = xdp_pkt->data - xdp_pkt->headroom;
-	skb = build_skb(pkt_data_start, frame_size);
-	if (!skb)
+	pkt_data_start = xdpf->data - hard_start_headroom;
+	skb = build_skb_around(skb, pkt_data_start, frame_size);
+	if (unlikely(!skb))
 		return NULL;
 
-	skb_reserve(skb, xdp_pkt->headroom);
-	__skb_put(skb, xdp_pkt->len);
-	if (xdp_pkt->metasize)
-		skb_metadata_set(skb, xdp_pkt->metasize);
+	skb_reserve(skb, hard_start_headroom);
+	__skb_put(skb, xdpf->len);
+	if (xdpf->metasize)
+		skb_metadata_set(skb, xdpf->metasize);
 
 	/* Essential SKB info: protocol and skb->dev */
-	skb->protocol = eth_type_trans(skb, xdp_pkt->dev_rx);
+	skb->protocol = eth_type_trans(skb, xdpf->dev_rx);
 
 	/* Optional SKB info, currently missing:
 	 * - HW checksum info		(skb->ip_summed)
@@ -262,8 +210,41 @@ static struct sk_buff *cpu_map_build_skb(struct bpf_cpu_map_entry *rcpu,
 	 * - RX ring dev queue index	(skb_record_rx_queue)
 	 */
 
+	/* Until page_pool get SKB return path, release DMA here */
+	xdp_release_frame(xdpf);
+
+	/* Allow SKB to reuse area used by xdp_frame */
+	xdp_scrub_frame(xdpf);
+
 	return skb;
 }
+
+static void __cpu_map_ring_cleanup(struct ptr_ring *ring)
+{
+	/* The tear-down procedure should have made sure that queue is
+	 * empty.  See __cpu_map_entry_replace() and work-queue
+	 * invoked cpu_map_kthread_stop(). Catch any broken behaviour
+	 * gracefully and warn once.
+	 */
+	struct xdp_frame *xdpf;
+
+	while ((xdpf = ptr_ring_consume(ring)))
+		if (WARN_ON_ONCE(xdpf))
+			xdp_return_frame(xdpf);
+}
+
+static void put_cpu_map_entry(struct bpf_cpu_map_entry *rcpu)
+{
+	if (atomic_dec_and_test(&rcpu->refcnt)) {
+		/* The queue should be empty at this point */
+		__cpu_map_ring_cleanup(rcpu->queue);
+		ptr_ring_cleanup(rcpu->queue, NULL);
+		kfree(rcpu->queue);
+		kfree(rcpu);
+	}
+}
+
+#define CPUMAP_BATCH 8
 
 static int cpu_map_kthread_run(void *data)
 {
@@ -277,8 +258,11 @@ static int cpu_map_kthread_run(void *data)
 	 * kthread_stop signal until queue is empty.
 	 */
 	while (!kthread_should_stop() || !__ptr_ring_empty(rcpu->queue)) {
-		unsigned int processed = 0, drops = 0, sched = 0;
-		struct xdp_pkt *xdp_pkt;
+		unsigned int drops = 0, sched = 0;
+		void *frames[CPUMAP_BATCH];
+		void *skbs[CPUMAP_BATCH];
+		gfp_t gfp = __GFP_ZERO | GFP_ATOMIC;
+		int i, n, m;
 
 		/* Release CPU reschedule checks */
 		if (__ptr_ring_empty(rcpu->queue)) {
@@ -294,20 +278,40 @@ static int cpu_map_kthread_run(void *data)
 			sched = cond_resched();
 		}
 
-		/* Process packets in rcpu->queue */
-		local_bh_disable();
 		/*
 		 * The bpf_cpu_map_entry is single consumer, with this
 		 * kthread CPU pinned. Lockless access to ptr_ring
 		 * consume side valid as no-resize allowed of queue.
 		 */
-		while ((xdp_pkt = __ptr_ring_consume(rcpu->queue))) {
-			struct sk_buff *skb;
+		n = ptr_ring_consume_batched(rcpu->queue, frames, CPUMAP_BATCH);
+
+		for (i = 0; i < n; i++) {
+			void *f = frames[i];
+			struct page *page = virt_to_page(f);
+
+			/* Bring struct page memory area to curr CPU. Read by
+			 * build_skb_around via page_is_pfmemalloc(), and when
+			 * freed written by page_frag_free call.
+			 */
+			prefetchw(page);
+		}
+
+		m = kmem_cache_alloc_bulk(skbuff_head_cache, gfp, n, skbs);
+		if (unlikely(m == 0)) {
+			for (i = 0; i < n; i++)
+				skbs[i] = NULL; /* effect: xdp_return_frame */
+			drops = n;
+		}
+
+		local_bh_disable();
+		for (i = 0; i < n; i++) {
+			struct xdp_frame *xdpf = frames[i];
+			struct sk_buff *skb = skbs[i];
 			int ret;
 
-			skb = cpu_map_build_skb(rcpu, xdp_pkt);
+			skb = cpu_map_build_skb(rcpu, xdpf, skb);
 			if (!skb) {
-				page_frag_free(xdp_pkt);
+				xdp_return_frame(xdpf);
 				continue;
 			}
 
@@ -315,13 +319,9 @@ static int cpu_map_kthread_run(void *data)
 			ret = netif_receive_skb_core(skb);
 			if (ret == NET_RX_DROP)
 				drops++;
-
-			/* Limit BH-disable period */
-			if (++processed == 8)
-				break;
 		}
 		/* Feedback loop via tracepoint */
-		trace_xdp_cpumap_kthread(rcpu->map_id, processed, drops, sched);
+		trace_xdp_cpumap_kthread(rcpu->map_id, n, drops, sched);
 
 		local_bh_enable(); /* resched point, may call do_softirq() */
 	}
@@ -334,9 +334,10 @@ static int cpu_map_kthread_run(void *data)
 static struct bpf_cpu_map_entry *__cpu_map_entry_alloc(u32 qsize, u32 cpu,
 						       int map_id)
 {
-	gfp_t gfp = GFP_ATOMIC|__GFP_NOWARN;
+	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
 	struct bpf_cpu_map_entry *rcpu;
-	int numa, err;
+	struct xdp_bulk_queue *bq;
+	int numa, err, i;
 
 	/* Have map->numa_node, but choose node of redirect target CPU */
 	numa = cpu_to_node(cpu);
@@ -350,6 +351,11 @@ static struct bpf_cpu_map_entry *__cpu_map_entry_alloc(u32 qsize, u32 cpu,
 					 sizeof(void *), gfp);
 	if (!rcpu->bulkq)
 		goto free_rcu;
+
+	for_each_possible_cpu(i) {
+		bq = per_cpu_ptr(rcpu->bulkq, i);
+		bq->obj = rcpu;
+	}
 
 	/* Alloc queue */
 	rcpu->queue = kzalloc_node(sizeof(*rcpu->queue), gfp, numa);
@@ -407,7 +413,7 @@ static void __cpu_map_entry_free(struct rcu_head *rcu)
 		struct xdp_bulk_queue *bq = per_cpu_ptr(rcpu->bulkq, cpu);
 
 		/* No concurrent bq_enqueue can run at this point */
-		bq_flush_to_queue(rcpu, bq);
+		bq_flush_to_queue(bq, false);
 	}
 	free_percpu(rcpu->bulkq);
 	/* Cannot kthread_stop() here, last put free rcpu resources */
@@ -490,6 +496,7 @@ static int cpu_map_update_elem(struct bpf_map *map, void *key, void *value,
 		rcpu = __cpu_map_entry_alloc(qsize, key_cpu, map->id);
 		if (!rcpu)
 			return -ENOMEM;
+		rcpu->cmap = cmap;
 	}
 	rcu_read_lock();
 	__cpu_map_entry_replace(cmap, key_cpu, rcpu);
@@ -511,17 +518,19 @@ static void cpu_map_free(struct bpf_map *map)
 	 * It does __not__ ensure pending flush operations (if any) are
 	 * complete.
 	 */
+
+	bpf_clear_redirect_map(map);
 	synchronize_rcu();
 
 	/* To ensure all pending flush operations have completed wait for flush
-	 * bitmap to indicate all flush_needed bits to be zero on _all_ cpus.
-	 * Because the above synchronize_rcu() ensures the map is disconnected
-	 * from the program we can assume no new bits will be set.
+	 * list be empty on _all_ cpus. Because the above synchronize_rcu()
+	 * ensures the map is disconnected from the program we can assume no new
+	 * items will be added to the list.
 	 */
 	for_each_online_cpu(cpu) {
-		unsigned long *bitmap = per_cpu_ptr(cmap->flush_needed, cpu);
+		struct list_head *flush_list = per_cpu_ptr(cmap->flush_list, cpu);
 
-		while (!bitmap_empty(bitmap, cmap->map.max_entries))
+		while (!list_empty(flush_list))
 			cond_resched();
 	}
 
@@ -538,7 +547,7 @@ static void cpu_map_free(struct bpf_map *map)
 		/* bq flush and cleanup happens after RCU graze-period */
 		__cpu_map_entry_replace(cmap, i, NULL); /* call_rcu */
 	}
-	free_percpu(cmap->flush_needed);
+	free_percpu(cmap->flush_list);
 	bpf_map_area_free(cmap->cpu_map);
 	kfree(cmap);
 }
@@ -587,11 +596,12 @@ const struct bpf_map_ops cpu_map_ops = {
 	.map_update_elem	= cpu_map_update_elem,
 	.map_lookup_elem	= cpu_map_lookup_elem,
 	.map_get_next_key	= cpu_map_get_next_key,
+	.map_check_btf		= map_check_no_btf,
 };
 
-static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
-			     struct xdp_bulk_queue *bq)
+static int bq_flush_to_queue(struct xdp_bulk_queue *bq, bool in_napi_ctx)
 {
+	struct bpf_cpu_map_entry *rcpu = bq->obj;
 	unsigned int processed = 0, drops = 0;
 	const int to_cpu = rcpu->cpu;
 	struct ptr_ring *q;
@@ -604,18 +614,23 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 	spin_lock(&q->producer_lock);
 
 	for (i = 0; i < bq->count; i++) {
-		void *xdp_pkt = bq->q[i];
+		struct xdp_frame *xdpf = bq->q[i];
 		int err;
 
-		err = __ptr_ring_produce(q, xdp_pkt);
+		err = __ptr_ring_produce(q, xdpf);
 		if (err) {
 			drops++;
-			page_frag_free(xdp_pkt); /* Free xdp_pkt */
+			if (likely(in_napi_ctx))
+				xdp_return_frame_rx_napi(xdpf);
+			else
+				xdp_return_frame(xdpf);
 		}
 		processed++;
 	}
 	bq->count = 0;
 	spin_unlock(&q->producer_lock);
+
+	__list_del_clearprev(&bq->flush_node);
 
 	/* Feedback loop via tracepoints */
 	trace_xdp_cpumap_enqueue(rcpu->map_id, processed, drops, to_cpu);
@@ -625,77 +640,57 @@ static int bq_flush_to_queue(struct bpf_cpu_map_entry *rcpu,
 /* Runs under RCU-read-side, plus in softirq under NAPI protection.
  * Thus, safe percpu variable access.
  */
-static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_pkt *xdp_pkt)
+static int bq_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_frame *xdpf)
 {
+	struct list_head *flush_list = this_cpu_ptr(rcpu->cmap->flush_list);
 	struct xdp_bulk_queue *bq = this_cpu_ptr(rcpu->bulkq);
 
 	if (unlikely(bq->count == CPU_MAP_BULK_SIZE))
-		bq_flush_to_queue(rcpu, bq);
+		bq_flush_to_queue(bq, true);
 
 	/* Notice, xdp_buff/page MUST be queued here, long enough for
 	 * driver to code invoking us to finished, due to driver
 	 * (e.g. ixgbe) recycle tricks based on page-refcnt.
 	 *
-	 * Thus, incoming xdp_pkt is always queued here (else we race
+	 * Thus, incoming xdp_frame is always queued here (else we race
 	 * with another CPU on page-refcnt and remaining driver code).
 	 * Queue time is very short, as driver will invoke flush
 	 * operation, when completing napi->poll call.
 	 */
-	bq->q[bq->count++] = xdp_pkt;
+	bq->q[bq->count++] = xdpf;
+
+	if (!bq->flush_node.prev)
+		list_add(&bq->flush_node, flush_list);
+
 	return 0;
 }
 
 int cpu_map_enqueue(struct bpf_cpu_map_entry *rcpu, struct xdp_buff *xdp,
 		    struct net_device *dev_rx)
 {
-	struct xdp_pkt *xdp_pkt;
+	struct xdp_frame *xdpf;
 
-	xdp_pkt = convert_to_xdp_pkt(xdp);
-	if (unlikely(!xdp_pkt))
+	xdpf = convert_to_xdp_frame(xdp);
+	if (unlikely(!xdpf))
 		return -EOVERFLOW;
 
 	/* Info needed when constructing SKB on remote CPU */
-	xdp_pkt->dev_rx = dev_rx;
+	xdpf->dev_rx = dev_rx;
 
-	bq_enqueue(rcpu, xdp_pkt);
+	bq_enqueue(rcpu, xdpf);
 	return 0;
-}
-
-void __cpu_map_insert_ctx(struct bpf_map *map, u32 bit)
-{
-	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
-	unsigned long *bitmap = this_cpu_ptr(cmap->flush_needed);
-
-	__set_bit(bit, bitmap);
 }
 
 void __cpu_map_flush(struct bpf_map *map)
 {
 	struct bpf_cpu_map *cmap = container_of(map, struct bpf_cpu_map, map);
-	unsigned long *bitmap = this_cpu_ptr(cmap->flush_needed);
-	u32 bit;
+	struct list_head *flush_list = this_cpu_ptr(cmap->flush_list);
+	struct xdp_bulk_queue *bq, *tmp;
 
-	/* The napi->poll softirq makes sure __cpu_map_insert_ctx()
-	 * and __cpu_map_flush() happen on same CPU. Thus, the percpu
-	 * bitmap indicate which percpu bulkq have packets.
-	 */
-	for_each_set_bit(bit, bitmap, map->max_entries) {
-		struct bpf_cpu_map_entry *rcpu = READ_ONCE(cmap->cpu_map[bit]);
-		struct xdp_bulk_queue *bq;
-
-		/* This is possible if entry is removed by user space
-		 * between xdp redirect and flush op.
-		 */
-		if (unlikely(!rcpu))
-			continue;
-
-		__clear_bit(bit, bitmap);
-
-		/* Flush all frames in bulkq to real queue */
-		bq = this_cpu_ptr(rcpu->bulkq);
-		bq_flush_to_queue(rcpu, bq);
+	list_for_each_entry_safe(bq, tmp, flush_list, flush_node) {
+		bq_flush_to_queue(bq, true);
 
 		/* If already running, costs spin_lock_irqsave + smb_mb */
-		wake_up_process(rcpu->kthread);
+		wake_up_process(bq->obj->kthread);
 	}
 }

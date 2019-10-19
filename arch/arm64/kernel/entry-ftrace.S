@@ -1,12 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * arch/arm64/kernel/entry-ftrace.S
  *
  * Copyright (C) 2013 Linaro Limited
  * Author: AKASHI Takahiro <takahiro.akashi@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/linkage.h>
@@ -79,7 +76,6 @@
 	.macro mcount_get_lr reg
 	ldr	\reg, [x29]
 	ldr	\reg, [\reg, #8]
-	mcount_adjust_addr	\reg, \reg
 	.endm
 
 	.macro mcount_get_lr_addr reg
@@ -121,6 +117,8 @@ skip_ftrace_call:			// }
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 	mcount_exit
 ENDPROC(_mcount)
+EXPORT_SYMBOL(_mcount)
+NOKPROBE(_mcount)
 
 #else /* CONFIG_DYNAMIC_FTRACE */
 /*
@@ -132,6 +130,8 @@ ENDPROC(_mcount)
 ENTRY(_mcount)
 	ret
 ENDPROC(_mcount)
+EXPORT_SYMBOL(_mcount)
+NOKPROBE(_mcount)
 
 /*
  * void ftrace_caller(unsigned long return_address)
@@ -148,14 +148,12 @@ ENTRY(ftrace_caller)
 	mcount_get_pc0	x0		//     function's pc
 	mcount_get_lr	x1		//     function's lr
 
-	.global ftrace_call
-ftrace_call:				// tracer(pc, lr);
+GLOBAL(ftrace_call)			// tracer(pc, lr);
 	nop				// This will be replaced with "bl xxx"
 					// where xxx can be any kind of tracer.
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	.global ftrace_graph_call
-ftrace_graph_call:			// ftrace_graph_caller();
+GLOBAL(ftrace_graph_call)		// ftrace_graph_caller();
 	nop				// If enabled, this will be replaced
 					// "b ftrace_graph_caller"
 #endif
@@ -169,24 +167,6 @@ ENTRY(ftrace_stub)
 ENDPROC(ftrace_stub)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-	/* save return value regs*/
-	.macro save_return_regs
-	sub sp, sp, #64
-	stp x0, x1, [sp]
-	stp x2, x3, [sp, #16]
-	stp x4, x5, [sp, #32]
-	stp x6, x7, [sp, #48]
-	.endm
-
-	/* restore return value regs*/
-	.macro restore_return_regs
-	ldp x0, x1, [sp]
-	ldp x2, x3, [sp, #16]
-	ldp x4, x5, [sp, #32]
-	ldp x6, x7, [sp, #48]
-	add sp, sp, #64
-	.endm
-
 /*
  * void ftrace_graph_caller(void)
  *
@@ -197,10 +177,10 @@ ENDPROC(ftrace_stub)
  * and run return_to_handler() later on its exit.
  */
 ENTRY(ftrace_graph_caller)
-	mcount_get_lr_addr	  x0	//     pointer to function's saved lr
-	mcount_get_pc		  x1	//     function's pc
+	mcount_get_pc		  x0	//     function's pc
+	mcount_get_lr_addr	  x1	//     pointer to function's saved lr
 	mcount_get_parent_fp	  x2	//     parent's fp
-	bl	prepare_ftrace_return	// prepare_ftrace_return(&lr, pc, fp)
+	bl	prepare_ftrace_return	// prepare_ftrace_return(pc, &lr, fp)
 
 	mcount_exit
 ENDPROC(ftrace_graph_caller)
@@ -209,15 +189,27 @@ ENDPROC(ftrace_graph_caller)
  * void return_to_handler(void)
  *
  * Run ftrace_return_to_handler() before going back to parent.
- * @fp is checked against the value passed by ftrace_graph_caller()
- * only when HAVE_FUNCTION_GRAPH_FP_TEST is enabled.
+ * @fp is checked against the value passed by ftrace_graph_caller().
  */
 ENTRY(return_to_handler)
-	save_return_regs
+	/* save return value regs */
+	sub sp, sp, #64
+	stp x0, x1, [sp]
+	stp x2, x3, [sp, #16]
+	stp x4, x5, [sp, #32]
+	stp x6, x7, [sp, #48]
+
 	mov	x0, x29			//     parent's fp
 	bl	ftrace_return_to_handler// addr = ftrace_return_to_hander(fp);
 	mov	x30, x0			// restore the original return address
-	restore_return_regs
+
+	/* restore return value regs */
+	ldp x0, x1, [sp]
+	ldp x2, x3, [sp, #16]
+	ldp x4, x5, [sp, #32]
+	ldp x6, x7, [sp, #48]
+	add sp, sp, #64
+
 	ret
 END(return_to_handler)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */

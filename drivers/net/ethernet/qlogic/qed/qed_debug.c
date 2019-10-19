@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* QLogic qed NIC Driver
  * Copyright (c) 2015 QLogic Corporation
- *
- * This software is available under the terms of the GNU General Public License
- * (GPL) Version 2, available from the file COPYING in the main directory of
- * this source tree.
  */
 
 #include <linux/module.h>
@@ -183,16 +180,9 @@ enum platform_ids {
 	MAX_PLATFORM_IDS
 };
 
-struct chip_platform_defs {
-	u8 num_ports;
-	u8 num_pfs;
-	u8 num_vfs;
-};
-
 /* Chip constant definitions */
 struct chip_defs {
 	const char *name;
-	struct chip_platform_defs per_platform[MAX_PLATFORM_IDS];
 };
 
 /* Platform constant definitions */
@@ -265,6 +255,7 @@ struct grc_param_defs {
 	u32 min;
 	u32 max;
 	bool is_preset;
+	bool is_persistent;
 	u32 exclude_all_preset_val;
 	u32 crash_preset_val;
 };
@@ -314,6 +305,11 @@ struct phy_defs {
 
 	/* Relative address of indirect TBUS data register (bits 8..11) */
 	u32 tbus_data_hi_addr;
+};
+
+/* Split type definitions */
+struct split_type_defs {
+	const char *name;
 };
 
 /******************************** Constants **********************************/
@@ -418,6 +414,7 @@ struct phy_defs {
 #define NUM_RSS_MEM_TYPES		5
 
 #define NUM_BIG_RAM_TYPES		3
+#define BIG_RAM_NAME_LEN		3
 
 #define NUM_PHY_TBUS_ADDRESSES		2048
 #define PHY_DUMP_SIZE_DWORDS		(NUM_PHY_TBUS_ADDRESSES / 2)
@@ -467,21 +464,9 @@ static struct dbg_array s_dbg_arrays[MAX_BIN_DBG_BUFFER_TYPE] = { {NULL} };
 
 /* Chip constant definitions array */
 static struct chip_defs s_chip_defs[MAX_CHIP_IDS] = {
-	{ "bb",
-	  {{MAX_NUM_PORTS_BB, MAX_NUM_PFS_BB, MAX_NUM_VFS_BB},
-	   {0, 0, 0},
-	   {0, 0, 0},
-	   {0, 0, 0} } },
-	{ "ah",
-	  {{MAX_NUM_PORTS_K2, MAX_NUM_PFS_K2, MAX_NUM_VFS_K2},
-	   {0, 0, 0},
-	   {0, 0, 0},
-	   {0, 0, 0} } },
-	{ "reserved",
-	   {{0, 0, 0},
-	   {0, 0, 0},
-	   {0, 0, 0},
-	   {0, 0, 0} } }
+	{"bb"},
+	{"ah"},
+	{"reserved"},
 };
 
 /* Storm constant definitions array */
@@ -1520,129 +1505,129 @@ static struct platform_defs s_platform_defs[] = {
 
 static struct grc_param_defs s_grc_param_defs[] = {
 	/* DBG_GRC_PARAM_DUMP_TSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_MSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_USTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_XSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_YSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PSTORM */
-	{{1, 1, 1}, 0, 1, false, 1, 1},
+	{{1, 1, 1}, 0, 1, false, false, 1, 1},
 
 	/* DBG_GRC_PARAM_DUMP_REGS */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_RAM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PBUF */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_IOR */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_VFC */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_CM_CTX */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_ILT */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_RSS */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_CAU */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_QM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_MCP */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
-	/* DBG_GRC_PARAM_RESERVED */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	/* DBG_GRC_PARAM_MCP_TRACE_META_SIZE */
+	{{1, 1, 1}, 1, 0xffffffff, false, true, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_CFC */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_IGU */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_BRB */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_BTB */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_BMB */
-	{{0, 0, 0}, 0, 1, false, 0, 1},
+	{{0, 0, 0}, 0, 1, false, false, 0, 0},
 
 	/* DBG_GRC_PARAM_DUMP_NIG */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_MULD */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PRS */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_DMAE */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_TM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_SDM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_DIF */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_STATIC */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_UNSTALL */
-	{{0, 0, 0}, 0, 1, false, 0, 0},
+	{{0, 0, 0}, 0, 1, false, false, 0, 0},
 
 	/* DBG_GRC_PARAM_NUM_LCIDS */
-	{{MAX_LCIDS, MAX_LCIDS, MAX_LCIDS}, 1, MAX_LCIDS, false, MAX_LCIDS,
-	 MAX_LCIDS},
+	{{MAX_LCIDS, MAX_LCIDS, MAX_LCIDS}, 1, MAX_LCIDS, false, false,
+	 MAX_LCIDS, MAX_LCIDS},
 
 	/* DBG_GRC_PARAM_NUM_LTIDS */
-	{{MAX_LTIDS, MAX_LTIDS, MAX_LTIDS}, 1, MAX_LTIDS, false, MAX_LTIDS,
-	 MAX_LTIDS},
+	{{MAX_LTIDS, MAX_LTIDS, MAX_LTIDS}, 1, MAX_LTIDS, false, false,
+	 MAX_LTIDS, MAX_LTIDS},
 
 	/* DBG_GRC_PARAM_EXCLUDE_ALL */
-	{{0, 0, 0}, 0, 1, true, 0, 0},
+	{{0, 0, 0}, 0, 1, true, false, 0, 0},
 
 	/* DBG_GRC_PARAM_CRASH */
-	{{0, 0, 0}, 0, 1, true, 0, 0},
+	{{0, 0, 0}, 0, 1, true, false, 0, 0},
 
 	/* DBG_GRC_PARAM_PARITY_SAFE */
-	{{0, 0, 0}, 0, 1, false, 1, 0},
+	{{0, 0, 0}, 0, 1, false, false, 1, 0},
 
 	/* DBG_GRC_PARAM_DUMP_CM */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_DUMP_PHY */
-	{{1, 1, 1}, 0, 1, false, 0, 1},
+	{{1, 1, 1}, 0, 1, false, false, 0, 1},
 
 	/* DBG_GRC_PARAM_NO_MCP */
-	{{0, 0, 0}, 0, 1, false, 0, 0},
+	{{0, 0, 0}, 0, 1, false, false, 0, 0},
 
 	/* DBG_GRC_PARAM_NO_FW_VER */
-	{{0, 0, 0}, 0, 1, false, 0, 0}
+	{{0, 0, 0}, 0, 1, false, false, 0, 0}
 };
 
 static struct rss_mem_defs s_rss_mem_defs[] = {
@@ -1743,6 +1728,23 @@ static struct phy_defs s_phy_defs[] = {
 	 PHY_PCIE_IP_REG_AHB_CMU_CSR_0_X131_K2_E5},
 };
 
+static struct split_type_defs s_split_type_defs[] = {
+	/* SPLIT_TYPE_NONE */
+	{"eng"},
+
+	/* SPLIT_TYPE_PORT */
+	{"port"},
+
+	/* SPLIT_TYPE_PF */
+	{"pf"},
+
+	/* SPLIT_TYPE_PORT_PF */
+	{"port"},
+
+	/* SPLIT_TYPE_VF */
+	{"vf"}
+};
+
 /**************************** Private Functions ******************************/
 
 /* Reads and returns a single dword from the specified unaligned buffer */
@@ -1752,6 +1754,15 @@ static u32 qed_read_unaligned_dword(u8 *buf)
 
 	memcpy((u8 *)&dword, buf, sizeof(dword));
 	return dword;
+}
+
+/* Sets the value of the specified GRC param */
+static void qed_grc_set_param(struct qed_hwfn *p_hwfn,
+			      enum dbg_grc_params grc_param, u32 val)
+{
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+
+	dev_data->grc.param_val[grc_param] = val;
 }
 
 /* Returns the value of the specified GRC param */
@@ -1779,28 +1790,68 @@ static enum dbg_status qed_dbg_dev_init(struct qed_hwfn *p_hwfn,
 					struct qed_ptt *p_ptt)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+	u8 num_pfs = 0, max_pfs_per_port = 0;
 
 	if (dev_data->initialized)
 		return DBG_STATUS_OK;
 
+	/* Set chip */
 	if (QED_IS_K2(p_hwfn->cdev)) {
 		dev_data->chip_id = CHIP_K2;
 		dev_data->mode_enable[MODE_K2] = 1;
+		dev_data->num_vfs = MAX_NUM_VFS_K2;
+		num_pfs = MAX_NUM_PFS_K2;
+		max_pfs_per_port = MAX_NUM_PFS_K2 / 2;
 	} else if (QED_IS_BB_B0(p_hwfn->cdev)) {
 		dev_data->chip_id = CHIP_BB;
 		dev_data->mode_enable[MODE_BB] = 1;
+		dev_data->num_vfs = MAX_NUM_VFS_BB;
+		num_pfs = MAX_NUM_PFS_BB;
+		max_pfs_per_port = MAX_NUM_PFS_BB;
 	} else {
 		return DBG_STATUS_UNKNOWN_CHIP;
 	}
 
+	/* Set platofrm */
 	dev_data->platform_id = PLATFORM_ASIC;
 	dev_data->mode_enable[MODE_ASIC] = 1;
+
+	/* Set port mode */
+	switch (qed_rd(p_hwfn, p_ptt, MISC_REG_PORT_MODE)) {
+	case 0:
+		dev_data->mode_enable[MODE_PORTS_PER_ENG_1] = 1;
+		break;
+	case 1:
+		dev_data->mode_enable[MODE_PORTS_PER_ENG_2] = 1;
+		break;
+	case 2:
+		dev_data->mode_enable[MODE_PORTS_PER_ENG_4] = 1;
+		break;
+	}
+
+	/* Set 100G mode */
+	if (dev_data->chip_id == CHIP_BB &&
+	    qed_rd(p_hwfn, p_ptt, CNIG_REG_NW_PORT_MODE_BB) == 2)
+		dev_data->mode_enable[MODE_100G] = 1;
+
+	/* Set number of ports */
+	if (dev_data->mode_enable[MODE_PORTS_PER_ENG_1] ||
+	    dev_data->mode_enable[MODE_100G])
+		dev_data->num_ports = 1;
+	else if (dev_data->mode_enable[MODE_PORTS_PER_ENG_2])
+		dev_data->num_ports = 2;
+	else if (dev_data->mode_enable[MODE_PORTS_PER_ENG_4])
+		dev_data->num_ports = 4;
+
+	/* Set number of PFs per port */
+	dev_data->num_pfs_per_port = min_t(u32,
+					   num_pfs / dev_data->num_ports,
+					   max_pfs_per_port);
 
 	/* Initializes the GRC parameters */
 	qed_dbg_grc_init_params(p_hwfn);
 
 	dev_data->use_dmae = true;
-	dev_data->num_regs_read = 0;
 	dev_data->initialized = 1;
 
 	return DBG_STATUS_OK;
@@ -1819,9 +1870,9 @@ static struct dbg_bus_block *get_dbg_bus_block_desc(struct qed_hwfn *p_hwfn,
 /* Reads the FW info structure for the specified Storm from the chip,
  * and writes it to the specified fw_info pointer.
  */
-static void qed_read_fw_info(struct qed_hwfn *p_hwfn,
-			     struct qed_ptt *p_ptt,
-			     u8 storm_id, struct fw_info *fw_info)
+static void qed_read_storm_fw_info(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   u8 storm_id, struct fw_info *fw_info)
 {
 	struct storm_defs *storm = &s_storm_defs[storm_id];
 	struct fw_info_location fw_info_location;
@@ -1943,45 +1994,29 @@ static u32 qed_dump_fw_ver_param(struct qed_hwfn *p_hwfn,
 				 struct qed_ptt *p_ptt,
 				 u32 *dump_buf, bool dump)
 {
-	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	char fw_ver_str[16] = EMPTY_FW_VERSION_STR;
 	char fw_img_str[16] = EMPTY_FW_IMAGE_STR;
 	struct fw_info fw_info = { {0}, {0} };
 	u32 offset = 0;
 
 	if (dump && !qed_grc_get_param(p_hwfn, DBG_GRC_PARAM_NO_FW_VER)) {
-		/* Read FW image/version from PRAM in a non-reset SEMI */
-		bool found = false;
-		u8 storm_id;
+		/* Read FW info from chip */
+		qed_read_fw_info(p_hwfn, p_ptt, &fw_info);
 
-		for (storm_id = 0; storm_id < MAX_DBG_STORMS && !found;
-		     storm_id++) {
-			struct storm_defs *storm = &s_storm_defs[storm_id];
-
-			/* Read FW version/image */
-			if (dev_data->block_in_reset[storm->block_id])
-				continue;
-
-			/* Read FW info for the current Storm */
-			qed_read_fw_info(p_hwfn, p_ptt, storm_id, &fw_info);
-
-			/* Create FW version/image strings */
-			if (snprintf(fw_ver_str, sizeof(fw_ver_str),
-				     "%d_%d_%d_%d", fw_info.ver.num.major,
-				     fw_info.ver.num.minor, fw_info.ver.num.rev,
-				     fw_info.ver.num.eng) < 0)
-				DP_NOTICE(p_hwfn,
-					  "Unexpected debug error: invalid FW version string\n");
-			switch (fw_info.ver.image_id) {
-			case FW_IMG_MAIN:
-				strcpy(fw_img_str, "main");
-				break;
-			default:
-				strcpy(fw_img_str, "unknown");
-				break;
-			}
-
-			found = true;
+		/* Create FW version/image strings */
+		if (snprintf(fw_ver_str, sizeof(fw_ver_str),
+			     "%d_%d_%d_%d", fw_info.ver.num.major,
+			     fw_info.ver.num.minor, fw_info.ver.num.rev,
+			     fw_info.ver.num.eng) < 0)
+			DP_NOTICE(p_hwfn,
+				  "Unexpected debug error: invalid FW version string\n");
+		switch (fw_info.ver.image_id) {
+		case FW_IMG_MAIN:
+			strcpy(fw_img_str, "main");
+			break;
+		default:
+			strcpy(fw_img_str, "unknown");
+			break;
 		}
 	}
 
@@ -2410,20 +2445,21 @@ static void qed_grc_clear_all_prty(struct qed_hwfn *p_hwfn,
 
 /* Dumps GRC registers section header. Returns the dumped size in dwords.
  * The following parameters are dumped:
- * - count:	 no. of dumped entries
- * - split:	 split type
- * - id:	 split ID (dumped only if split_id >= 0)
+ * - count: no. of dumped entries
+ * - split_type: split type
+ * - split_id: split ID (dumped only if split_id != SPLIT_TYPE_NONE)
  * - param_name: user parameter value (dumped only if param_name != NULL
  *		 and param_val != NULL).
  */
 static u32 qed_grc_dump_regs_hdr(u32 *dump_buf,
 				 bool dump,
 				 u32 num_reg_entries,
-				 const char *split_type,
-				 int split_id,
+				 enum init_split_types split_type,
+				 u8 split_id,
 				 const char *param_name, const char *param_val)
 {
-	u8 num_params = 2 + (split_id >= 0 ? 1 : 0) + (param_name ? 1 : 0);
+	u8 num_params = 2 +
+	    (split_type != SPLIT_TYPE_NONE ? 1 : 0) + (param_name ? 1 : 0);
 	u32 offset = 0;
 
 	offset += qed_dump_section_hdr(dump_buf + offset,
@@ -2431,8 +2467,9 @@ static u32 qed_grc_dump_regs_hdr(u32 *dump_buf,
 	offset += qed_dump_num_param(dump_buf + offset,
 				     dump, "count", num_reg_entries);
 	offset += qed_dump_str_param(dump_buf + offset,
-				     dump, "split", split_type);
-	if (split_id >= 0)
+				     dump, "split",
+				     s_split_type_defs[split_type].name);
+	if (split_type != SPLIT_TYPE_NONE)
 		offset += qed_dump_num_param(dump_buf + offset,
 					     dump, "id", split_id);
 	if (param_name && param_val)
@@ -2461,9 +2498,12 @@ void qed_read_regs(struct qed_hwfn *p_hwfn,
 static u32 qed_grc_dump_addr_range(struct qed_hwfn *p_hwfn,
 				   struct qed_ptt *p_ptt,
 				   u32 *dump_buf,
-				   bool dump, u32 addr, u32 len, bool wide_bus)
+				   bool dump, u32 addr, u32 len, bool wide_bus,
+				   enum init_split_types split_type,
+				   u8 split_id)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+	u8 port_id = 0, pf_id = 0, vf_id = 0, fid = 0;
 
 	if (!dump)
 		return len;
@@ -2479,12 +2519,31 @@ static u32 qed_grc_dump_addr_range(struct qed_hwfn *p_hwfn,
 		dev_data->num_regs_read = 0;
 	}
 
+	switch (split_type) {
+	case SPLIT_TYPE_PORT:
+		port_id = split_id;
+		break;
+	case SPLIT_TYPE_PF:
+		pf_id = split_id;
+		break;
+	case SPLIT_TYPE_PORT_PF:
+		port_id = split_id / dev_data->num_pfs_per_port;
+		pf_id = port_id + dev_data->num_ports *
+		    (split_id % dev_data->num_pfs_per_port);
+		break;
+	case SPLIT_TYPE_VF:
+		vf_id = split_id;
+		break;
+	default:
+		break;
+	}
+
 	/* Try reading using DMAE */
-	if (dev_data->use_dmae &&
+	if (dev_data->use_dmae && split_type == SPLIT_TYPE_NONE &&
 	    (len >= s_platform_defs[dev_data->platform_id].dmae_thresh ||
 	     wide_bus)) {
 		if (!qed_dmae_grc2host(p_hwfn, p_ptt, DWORDS_TO_BYTES(addr),
-				       (u64)(uintptr_t)(dump_buf), len, 0))
+				       (u64)(uintptr_t)(dump_buf), len, NULL))
 			return len;
 		dev_data->use_dmae = 0;
 		DP_VERBOSE(p_hwfn,
@@ -2492,7 +2551,37 @@ static u32 qed_grc_dump_addr_range(struct qed_hwfn *p_hwfn,
 			   "Failed reading from chip using DMAE, using GRC instead\n");
 	}
 
-	/* Read registers */
+	/* If not read using DMAE, read using GRC */
+
+	/* Set pretend */
+	if (split_type != dev_data->pretend.split_type || split_id !=
+	    dev_data->pretend.split_id) {
+		switch (split_type) {
+		case SPLIT_TYPE_PORT:
+			qed_port_pretend(p_hwfn, p_ptt, port_id);
+			break;
+		case SPLIT_TYPE_PF:
+			fid = pf_id << PXP_PRETEND_CONCRETE_FID_PFID_SHIFT;
+			qed_fid_pretend(p_hwfn, p_ptt, fid);
+			break;
+		case SPLIT_TYPE_PORT_PF:
+			fid = pf_id << PXP_PRETEND_CONCRETE_FID_PFID_SHIFT;
+			qed_port_fid_pretend(p_hwfn, p_ptt, port_id, fid);
+			break;
+		case SPLIT_TYPE_VF:
+			fid = BIT(PXP_PRETEND_CONCRETE_FID_VFVALID_SHIFT) |
+			      (vf_id << PXP_PRETEND_CONCRETE_FID_VFID_SHIFT);
+			qed_fid_pretend(p_hwfn, p_ptt, fid);
+			break;
+		default:
+			break;
+		}
+
+		dev_data->pretend.split_type = (u8)split_type;
+		dev_data->pretend.split_id = split_id;
+	}
+
+	/* Read registers using GRC */
 	qed_read_regs(p_hwfn, p_ptt, dump_buf, addr, len);
 
 	return len;
@@ -2516,7 +2605,8 @@ static u32 qed_grc_dump_reg_entry_hdr(u32 *dump_buf,
 static u32 qed_grc_dump_reg_entry(struct qed_hwfn *p_hwfn,
 				  struct qed_ptt *p_ptt,
 				  u32 *dump_buf,
-				  bool dump, u32 addr, u32 len, bool wide_bus)
+				  bool dump, u32 addr, u32 len, bool wide_bus,
+				  enum init_split_types split_type, u8 split_id)
 {
 	u32 offset = 0;
 
@@ -2524,7 +2614,8 @@ static u32 qed_grc_dump_reg_entry(struct qed_hwfn *p_hwfn,
 	offset += qed_grc_dump_addr_range(p_hwfn,
 					  p_ptt,
 					  dump_buf + offset,
-					  dump, addr, len, wide_bus);
+					  dump, addr, len, wide_bus,
+					  split_type, split_id);
 
 	return offset;
 }
@@ -2557,7 +2648,8 @@ static u32 qed_grc_dump_reg_entry_skip(struct qed_hwfn *p_hwfn,
 		offset += qed_grc_dump_addr_range(p_hwfn,
 						  p_ptt,
 						  dump_buf + offset,
-						  dump, addr, curr_len, false);
+						  dump,  addr, curr_len, false,
+						  SPLIT_TYPE_NONE, 0);
 		reg_offset += curr_len;
 		addr += curr_len;
 
@@ -2579,6 +2671,8 @@ static u32 qed_grc_dump_regs_entries(struct qed_hwfn *p_hwfn,
 				     struct dbg_array input_regs_arr,
 				     u32 *dump_buf,
 				     bool dump,
+				     enum init_split_types split_type,
+				     u8 split_id,
 				     bool block_enable[MAX_BLOCK_ID],
 				     u32 *num_dumped_reg_entries)
 {
@@ -2626,7 +2720,8 @@ static u32 qed_grc_dump_regs_entries(struct qed_hwfn *p_hwfn,
 							 dump,
 							 addr,
 							 len,
-							 wide_bus);
+							 wide_bus,
+							 split_type, split_id);
 			(*num_dumped_reg_entries)++;
 		}
 	}
@@ -2641,19 +2736,28 @@ static u32 qed_grc_dump_split_data(struct qed_hwfn *p_hwfn,
 				   u32 *dump_buf,
 				   bool dump,
 				   bool block_enable[MAX_BLOCK_ID],
-				   const char *split_type_name,
-				   u32 split_id,
+				   enum init_split_types split_type,
+				   u8 split_id,
 				   const char *param_name,
 				   const char *param_val)
 {
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+	enum init_split_types hdr_split_type = split_type;
 	u32 num_dumped_reg_entries, offset;
+	u8 hdr_split_id = split_id;
+
+	/* In PORT_PF split type, print a port split header */
+	if (split_type == SPLIT_TYPE_PORT_PF) {
+		hdr_split_type = SPLIT_TYPE_PORT;
+		hdr_split_id = split_id / dev_data->num_pfs_per_port;
+	}
 
 	/* Calculate register dump header size (and skip it for now) */
 	offset = qed_grc_dump_regs_hdr(dump_buf,
 				       false,
 				       0,
-				       split_type_name,
-				       split_id, param_name, param_val);
+				       hdr_split_type,
+				       hdr_split_id, param_name, param_val);
 
 	/* Dump registers */
 	offset += qed_grc_dump_regs_entries(p_hwfn,
@@ -2661,6 +2765,8 @@ static u32 qed_grc_dump_split_data(struct qed_hwfn *p_hwfn,
 					    input_regs_arr,
 					    dump_buf + offset,
 					    dump,
+					    split_type,
+					    split_id,
 					    block_enable,
 					    &num_dumped_reg_entries);
 
@@ -2669,8 +2775,8 @@ static u32 qed_grc_dump_split_data(struct qed_hwfn *p_hwfn,
 		qed_grc_dump_regs_hdr(dump_buf,
 				      dump,
 				      num_dumped_reg_entries,
-				      split_type_name,
-				      split_id, param_name, param_val);
+				      hdr_split_type,
+				      hdr_split_id, param_name, param_val);
 
 	return num_dumped_reg_entries > 0 ? offset : 0;
 }
@@ -2686,26 +2792,21 @@ static u32 qed_grc_dump_registers(struct qed_hwfn *p_hwfn,
 				  const char *param_name, const char *param_val)
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
-	struct chip_platform_defs *chip_platform;
 	u32 offset = 0, input_offset = 0;
-	struct chip_defs *chip;
-	u8 port_id, pf_id, vf_id;
 	u16 fid;
-
-	chip = &s_chip_defs[dev_data->chip_id];
-	chip_platform = &chip->per_platform[dev_data->platform_id];
-
 	while (input_offset <
 	       s_dbg_arrays[BIN_BUF_DBG_DUMP_REG].size_in_dwords) {
 		const struct dbg_dump_split_hdr *split_hdr;
 		struct dbg_array curr_input_regs_arr;
+		enum init_split_types split_type;
+		u16 split_count = 0;
 		u32 split_data_size;
-		u8 split_type_id;
+		u8 split_id;
 
 		split_hdr =
 			(const struct dbg_dump_split_hdr *)
 			&s_dbg_arrays[BIN_BUF_DBG_DUMP_REG].ptr[input_offset++];
-		split_type_id =
+		split_type =
 			GET_FIELD(split_hdr->hdr,
 				  DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID);
 		split_data_size =
@@ -2715,99 +2816,44 @@ static u32 qed_grc_dump_registers(struct qed_hwfn *p_hwfn,
 			&s_dbg_arrays[BIN_BUF_DBG_DUMP_REG].ptr[input_offset];
 		curr_input_regs_arr.size_in_dwords = split_data_size;
 
-		switch (split_type_id) {
+		switch (split_type) {
 		case SPLIT_TYPE_NONE:
-			offset += qed_grc_dump_split_data(p_hwfn,
-							  p_ptt,
-							  curr_input_regs_arr,
-							  dump_buf + offset,
-							  dump,
-							  block_enable,
-							  "eng",
-							  (u32)(-1),
-							  param_name,
-							  param_val);
+			split_count = 1;
 			break;
-
 		case SPLIT_TYPE_PORT:
-			for (port_id = 0; port_id < chip_platform->num_ports;
-			     port_id++) {
-				if (dump)
-					qed_port_pretend(p_hwfn, p_ptt,
-							 port_id);
-				offset +=
-				    qed_grc_dump_split_data(p_hwfn, p_ptt,
-							    curr_input_regs_arr,
-							    dump_buf + offset,
-							    dump, block_enable,
-							    "port", port_id,
-							    param_name,
-							    param_val);
-			}
+			split_count = dev_data->num_ports;
 			break;
-
 		case SPLIT_TYPE_PF:
 		case SPLIT_TYPE_PORT_PF:
-			for (pf_id = 0; pf_id < chip_platform->num_pfs;
-			     pf_id++) {
-				u8 pfid_shift =
-					PXP_PRETEND_CONCRETE_FID_PFID_SHIFT;
-
-				if (dump) {
-					fid = pf_id << pfid_shift;
-					qed_fid_pretend(p_hwfn, p_ptt, fid);
-				}
-
-				offset +=
-				    qed_grc_dump_split_data(p_hwfn,
-							    p_ptt,
-							    curr_input_regs_arr,
-							    dump_buf + offset,
-							    dump,
-							    block_enable,
-							    "pf",
-							    pf_id,
-							    param_name,
-							    param_val);
-			}
+			split_count = dev_data->num_ports *
+			    dev_data->num_pfs_per_port;
 			break;
-
 		case SPLIT_TYPE_VF:
-			for (vf_id = 0; vf_id < chip_platform->num_vfs;
-			     vf_id++) {
-				u8 vfvalid_shift =
-					PXP_PRETEND_CONCRETE_FID_VFVALID_SHIFT;
-				u8 vfid_shift =
-					PXP_PRETEND_CONCRETE_FID_VFID_SHIFT;
-
-				if (dump) {
-					fid = BIT(vfvalid_shift) |
-					      (vf_id << vfid_shift);
-					qed_fid_pretend(p_hwfn, p_ptt, fid);
-				}
-
-				offset +=
-				    qed_grc_dump_split_data(p_hwfn, p_ptt,
-							    curr_input_regs_arr,
-							    dump_buf + offset,
-							    dump, block_enable,
-							    "vf", vf_id,
-							    param_name,
-							    param_val);
-			}
+			split_count = dev_data->num_vfs;
 			break;
-
 		default:
-			break;
+			return 0;
 		}
+
+		for (split_id = 0; split_id < split_count; split_id++)
+			offset += qed_grc_dump_split_data(p_hwfn, p_ptt,
+							  curr_input_regs_arr,
+							  dump_buf + offset,
+							  dump, block_enable,
+							  split_type,
+							  split_id,
+							  param_name,
+							  param_val);
 
 		input_offset += split_data_size;
 	}
 
-	/* Pretend to original PF */
+	/* Cancel pretends (pretend to original PF) */
 	if (dump) {
 		fid = p_hwfn->rel_pf_id << PXP_PRETEND_CONCRETE_FID_PFID_SHIFT;
 		qed_fid_pretend(p_hwfn, p_ptt, fid);
+		dev_data->pretend.split_type = SPLIT_TYPE_NONE;
+		dev_data->pretend.split_id = 0;
 	}
 
 	return offset;
@@ -2823,7 +2869,8 @@ static u32 qed_grc_dump_reset_regs(struct qed_hwfn *p_hwfn,
 
 	/* Calculate header size */
 	offset += qed_grc_dump_regs_hdr(dump_buf,
-					false, 0, "eng", -1, NULL, NULL);
+					false, 0,
+					SPLIT_TYPE_NONE, 0, NULL, NULL);
 
 	/* Write reset registers */
 	for (i = 0; i < MAX_DBG_RESET_REGS; i++) {
@@ -2836,14 +2883,15 @@ static u32 qed_grc_dump_reset_regs(struct qed_hwfn *p_hwfn,
 						 dump,
 						 BYTES_TO_DWORDS
 						 (s_reset_regs_defs[i].addr), 1,
-						 false);
+						 false, SPLIT_TYPE_NONE, 0);
 		num_regs++;
 	}
 
 	/* Write header */
 	if (dump)
 		qed_grc_dump_regs_hdr(dump_buf,
-				      true, num_regs, "eng", -1, NULL, NULL);
+				      true, num_regs, SPLIT_TYPE_NONE,
+				      0, NULL, NULL);
 
 	return offset;
 }
@@ -2862,7 +2910,8 @@ static u32 qed_grc_dump_modified_regs(struct qed_hwfn *p_hwfn,
 
 	/* Calculate header size */
 	offset += qed_grc_dump_regs_hdr(dump_buf,
-					false, 0, "eng", -1, NULL, NULL);
+					false, 0, SPLIT_TYPE_NONE,
+					0, NULL, NULL);
 
 	/* Write parity registers */
 	for (block_id = 0; block_id < MAX_BLOCK_ID; block_id++) {
@@ -2897,7 +2946,8 @@ static u32 qed_grc_dump_modified_regs(struct qed_hwfn *p_hwfn,
 							 dump_buf + offset,
 							 dump,
 							 addr,
-							 1, false);
+							 1, false,
+							 SPLIT_TYPE_NONE, 0);
 			addr = GET_FIELD(reg_data->data,
 					 DBG_ATTN_REG_STS_ADDRESS);
 			offset += qed_grc_dump_reg_entry(p_hwfn,
@@ -2905,7 +2955,8 @@ static u32 qed_grc_dump_modified_regs(struct qed_hwfn *p_hwfn,
 							 dump_buf + offset,
 							 dump,
 							 addr,
-							 1, false);
+							 1, false,
+							 SPLIT_TYPE_NONE, 0);
 			num_reg_entries += 2;
 		}
 	}
@@ -2927,7 +2978,7 @@ static u32 qed_grc_dump_modified_regs(struct qed_hwfn *p_hwfn,
 						 dump,
 						 addr,
 						 1,
-						 false);
+						 false, SPLIT_TYPE_NONE, 0);
 		num_reg_entries++;
 	}
 
@@ -2935,7 +2986,8 @@ static u32 qed_grc_dump_modified_regs(struct qed_hwfn *p_hwfn,
 	if (dump)
 		qed_grc_dump_regs_hdr(dump_buf,
 				      true,
-				      num_reg_entries, "eng", -1, NULL, NULL);
+				      num_reg_entries, SPLIT_TYPE_NONE,
+				      0, NULL, NULL);
 
 	return offset;
 }
@@ -2948,7 +3000,8 @@ static u32 qed_grc_dump_special_regs(struct qed_hwfn *p_hwfn,
 	u32 offset = 0, addr;
 
 	offset += qed_grc_dump_regs_hdr(dump_buf,
-					dump, 2, "eng", -1, NULL, NULL);
+					dump, 2, SPLIT_TYPE_NONE, 0,
+					NULL, NULL);
 
 	/* Dump R/TDIF_REG_DEBUG_ERROR_INFO_SIZE (every 8'th register should be
 	 * skipped).
@@ -3094,7 +3147,8 @@ static u32 qed_grc_dump_mem(struct qed_hwfn *p_hwfn,
 	offset += qed_grc_dump_addr_range(p_hwfn,
 					  p_ptt,
 					  dump_buf + offset,
-					  dump, addr, len, wide_bus);
+					  dump, addr, len, wide_bus,
+					  SPLIT_TYPE_NONE, 0);
 
 	return offset;
 }
@@ -3233,12 +3287,12 @@ static u32 qed_grc_dump_memories(struct qed_hwfn *p_hwfn,
 	       s_dbg_arrays[BIN_BUF_DBG_DUMP_MEM].size_in_dwords) {
 		const struct dbg_dump_split_hdr *split_hdr;
 		struct dbg_array curr_input_mems_arr;
+		enum init_split_types split_type;
 		u32 split_data_size;
-		u8 split_type_id;
 
 		split_hdr = (const struct dbg_dump_split_hdr *)
 			&s_dbg_arrays[BIN_BUF_DBG_DUMP_MEM].ptr[input_offset++];
-		split_type_id =
+		split_type =
 			GET_FIELD(split_hdr->hdr,
 				  DBG_DUMP_SPLIT_HDR_SPLIT_TYPE_ID);
 		split_data_size =
@@ -3248,20 +3302,15 @@ static u32 qed_grc_dump_memories(struct qed_hwfn *p_hwfn,
 			&s_dbg_arrays[BIN_BUF_DBG_DUMP_MEM].ptr[input_offset];
 		curr_input_mems_arr.size_in_dwords = split_data_size;
 
-		switch (split_type_id) {
-		case SPLIT_TYPE_NONE:
+		if (split_type == SPLIT_TYPE_NONE)
 			offset += qed_grc_dump_mem_entries(p_hwfn,
 							   p_ptt,
 							   curr_input_mems_arr,
 							   dump_buf + offset,
 							   dump);
-			break;
-
-		default:
+		else
 			DP_NOTICE(p_hwfn,
 				  "Dumping split memories is currently not supported\n");
-			break;
-		}
 
 		input_offset += split_data_size;
 	}
@@ -3411,7 +3460,8 @@ static u32 qed_grc_dump_iors(struct qed_hwfn *p_hwfn,
 			addr = BYTES_TO_DWORDS(storm->sem_fast_mem_addr +
 					       SEM_FAST_REG_STORM_REG_FILE) +
 			       IOR_SET_OFFSET(set_id);
-			buf[strlen(buf) - 1] = '0' + set_id;
+			if (strlen(buf) > 0)
+				buf[strlen(buf) - 1] = '0' + set_id;
 			offset += qed_grc_dump_mem(p_hwfn,
 						   p_ptt,
 						   dump_buf + offset,
@@ -3621,7 +3671,8 @@ static u32 qed_grc_dump_rss(struct qed_hwfn *p_hwfn,
 							  dump,
 							  addr,
 							  num_dwords_to_read,
-							  false);
+							  false,
+							  SPLIT_TYPE_NONE, 0);
 			total_dwords -= num_dwords_to_read;
 			rss_addr++;
 		}
@@ -3649,8 +3700,8 @@ static u32 qed_grc_dump_big_ram(struct qed_hwfn *p_hwfn,
 		     BIT(big_ram->is_256b_bit_offset[dev_data->chip_id]) ? 256
 									 : 128;
 
-	strscpy(type_name, big_ram->instance_name, sizeof(type_name));
-	strscpy(mem_name, big_ram->instance_name, sizeof(mem_name));
+	strncpy(type_name, big_ram->instance_name, BIG_RAM_NAME_LEN);
+	strncpy(mem_name, big_ram->instance_name, BIG_RAM_NAME_LEN);
 
 	/* Dump memory header */
 	offset += qed_grc_dump_mem_hdr(p_hwfn,
@@ -3680,7 +3731,7 @@ static u32 qed_grc_dump_big_ram(struct qed_hwfn *p_hwfn,
 						  dump,
 						  addr,
 						  len,
-						  false);
+						  false, SPLIT_TYPE_NONE, 0);
 	}
 
 	return offset;
@@ -3729,7 +3780,8 @@ static u32 qed_grc_dump_mcp(struct qed_hwfn *p_hwfn,
 
 	/* Dump required non-MCP registers */
 	offset += qed_grc_dump_regs_hdr(dump_buf + offset,
-					dump, 1, "eng", -1, "block", "MCP");
+					dump, 1, SPLIT_TYPE_NONE, 0,
+					"block", "MCP");
 	addr = BYTES_TO_DWORDS(MISC_REG_SHARED_MEM_ADDR);
 	offset += qed_grc_dump_reg_entry(p_hwfn,
 					 p_ptt,
@@ -3737,7 +3789,7 @@ static u32 qed_grc_dump_mcp(struct qed_hwfn *p_hwfn,
 					 dump,
 					 addr,
 					 1,
-					 false);
+					 false, SPLIT_TYPE_NONE, 0);
 
 	/* Release MCP */
 	if (halted && qed_mcp_resume(p_hwfn, p_ptt))
@@ -3921,7 +3973,8 @@ static u32 qed_grc_dump_static_debug(struct qed_hwfn *p_hwfn,
 							  dump,
 							  addr,
 							  len,
-							  true);
+							  true, SPLIT_TYPE_NONE,
+							  0);
 		}
 
 		/* Disable block's client and debug output */
@@ -3947,28 +4000,15 @@ static enum dbg_status qed_grc_dump(struct qed_hwfn *p_hwfn,
 {
 	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
 	bool parities_masked = false;
-	u8 i, port_mode = 0;
 	u32 offset = 0;
+	u8 i;
 
 	*num_dumped_dwords = 0;
+	dev_data->num_regs_read = 0;
 
-	if (dump) {
-		/* Find port mode */
-		switch (qed_rd(p_hwfn, p_ptt, MISC_REG_PORT_MODE)) {
-		case 0:
-			port_mode = 1;
-			break;
-		case 1:
-			port_mode = 2;
-			break;
-		case 2:
-			port_mode = 4;
-			break;
-		}
-
-		/* Update reset state */
+	/* Update reset state */
+	if (dump)
 		qed_update_blocks_reset_state(p_hwfn, p_ptt);
-	}
 
 	/* Dump global params */
 	offset += qed_dump_common_global_params(p_hwfn,
@@ -3987,7 +4027,7 @@ static enum dbg_status qed_grc_dump(struct qed_hwfn *p_hwfn,
 				     qed_grc_get_param(p_hwfn,
 						DBG_GRC_PARAM_NUM_LTIDS));
 	offset += qed_dump_num_param(dump_buf + offset,
-				     dump, "num-ports", port_mode);
+				     dump, "num-ports", dev_data->num_ports);
 
 	/* Dump reset registers (dumped before taking blocks out of reset ) */
 	if (qed_grc_is_included(p_hwfn, DBG_GRC_PARAM_DUMP_REGS))
@@ -4091,10 +4131,10 @@ static enum dbg_status qed_grc_dump(struct qed_hwfn *p_hwfn,
 		offset += qed_grc_dump_phy(p_hwfn,
 					   p_ptt, dump_buf + offset, dump);
 
-	/* Dump static debug data  */
+	/* Dump static debug data (only if not during debug bus recording) */
 	if (qed_grc_is_included(p_hwfn,
 				DBG_GRC_PARAM_DUMP_STATIC) &&
-	    dev_data->bus.state == DBG_BUS_STATE_IDLE)
+	    (!dump || dev_data->bus.state == DBG_BUS_STATE_IDLE))
 		offset += qed_grc_dump_static_debug(p_hwfn,
 						    p_ptt,
 						    dump_buf + offset, dump);
@@ -4248,7 +4288,8 @@ static u32 qed_idle_chk_dump_failure(struct qed_hwfn *p_hwfn,
 							  dump_buf + offset,
 							  dump,
 							  addr,
-							  reg->size, wide_bus);
+							  reg->size, wide_bus,
+							  SPLIT_TYPE_NONE, 0);
 		}
 	}
 
@@ -4371,7 +4412,8 @@ qed_idle_chk_dump_rule_entries(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
 							    next_reg_offset,
 							    dump, addr,
 							    reg->entry_size,
-							    wide_bus);
+							    wide_bus,
+							    SPLIT_TYPE_NONE, 0);
 			}
 
 			/* Call rule condition function.
@@ -4721,7 +4763,8 @@ static enum dbg_status qed_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 					  dump_buf + offset,
 					  dump,
 					  BYTES_TO_DWORDS(trace_data_grc_addr),
-					  trace_data_size_dwords, false);
+					  trace_data_size_dwords, false,
+					  SPLIT_TYPE_NONE, 0);
 
 	/* Resume MCP (only if halt succeeded) */
 	if (halted && qed_mcp_resume(p_hwfn, p_ptt))
@@ -4731,8 +4774,13 @@ static enum dbg_status qed_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 	offset += qed_dump_section_hdr(dump_buf + offset,
 				       dump, "mcp_trace_meta", 1);
 
-	/* Read trace meta info (trace_meta_size_bytes is dword-aligned) */
-	if (mcp_access) {
+	/* If MCP Trace meta size parameter was set, use it.
+	 * Otherwise, read trace meta.
+	 * trace_meta_size_bytes is dword-aligned.
+	 */
+	trace_meta_size_bytes =
+		qed_grc_get_param(p_hwfn, DBG_GRC_PARAM_MCP_TRACE_META_SIZE);
+	if ((!trace_meta_size_bytes || dump) && mcp_access) {
 		status = qed_mcp_trace_get_meta_info(p_hwfn,
 						     p_ptt,
 						     trace_data_size_bytes,
@@ -4822,7 +4870,8 @@ static enum dbg_status qed_reg_fifo_dump(struct qed_hwfn *p_hwfn,
 						  true,
 						  addr,
 						  len,
-						  true);
+						  true, SPLIT_TYPE_NONE,
+						  0);
 		fifo_has_data = qed_rd(p_hwfn, p_ptt,
 				       GRC_REG_TRACE_FIFO_VALID_DATA) > 0;
 	}
@@ -4891,7 +4940,8 @@ static enum dbg_status qed_igu_fifo_dump(struct qed_hwfn *p_hwfn,
 						  true,
 						  addr,
 						  len,
-						  true);
+						  true, SPLIT_TYPE_NONE,
+						  0);
 		fifo_has_data = qed_rd(p_hwfn, p_ptt,
 				       IGU_REG_ERROR_HANDLING_DATA_VALID) > 0;
 	}
@@ -4949,7 +4999,7 @@ static enum dbg_status qed_protection_override_dump(struct qed_hwfn *p_hwfn,
 					  true,
 					  addr,
 					  override_window_dwords,
-					  true);
+					  true, SPLIT_TYPE_NONE, 0);
 	qed_dump_num_param(dump_buf + size_param_offset, dump, "size",
 			   override_window_dwords);
 out:
@@ -4991,7 +5041,7 @@ static u32 qed_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 			continue;
 
 		/* Read FW info for the current Storm */
-		qed_read_fw_info(p_hwfn, p_ptt, storm_id, &fw_info);
+		qed_read_storm_fw_info(p_hwfn, p_ptt, storm_id, &fw_info);
 
 		asserts = &fw_info.fw_asserts_section;
 
@@ -5029,7 +5079,7 @@ static u32 qed_fw_asserts_dump(struct qed_hwfn *p_hwfn,
 					    dump_buf + offset,
 					    dump, addr,
 					    asserts->list_element_dword_size,
-					    false);
+						  false, SPLIT_TYPE_NONE, 0);
 	}
 
 	/* Dump last section */
@@ -5056,6 +5106,91 @@ enum dbg_status qed_dbg_set_bin_ptr(const u8 * const bin_ptr)
 	return DBG_STATUS_OK;
 }
 
+bool qed_read_fw_info(struct qed_hwfn *p_hwfn,
+		      struct qed_ptt *p_ptt, struct fw_info *fw_info)
+{
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+	u8 storm_id;
+
+	for (storm_id = 0; storm_id < MAX_DBG_STORMS; storm_id++) {
+		struct storm_defs *storm = &s_storm_defs[storm_id];
+
+		/* Skip Storm if it's in reset */
+		if (dev_data->block_in_reset[storm->block_id])
+			continue;
+
+		/* Read FW info for the current Storm */
+		qed_read_storm_fw_info(p_hwfn, p_ptt, storm_id, fw_info);
+
+		return true;
+	}
+
+	return false;
+}
+
+enum dbg_status qed_dbg_grc_config(struct qed_hwfn *p_hwfn,
+				   struct qed_ptt *p_ptt,
+				   enum dbg_grc_params grc_param, u32 val)
+{
+	enum dbg_status status;
+	int i;
+
+	DP_VERBOSE(p_hwfn, QED_MSG_DEBUG,
+		   "dbg_grc_config: paramId = %d, val = %d\n", grc_param, val);
+
+	status = qed_dbg_dev_init(p_hwfn, p_ptt);
+	if (status != DBG_STATUS_OK)
+		return status;
+
+	/* Initializes the GRC parameters (if not initialized). Needed in order
+	 * to set the default parameter values for the first time.
+	 */
+	qed_dbg_grc_init_params(p_hwfn);
+
+	if (grc_param >= MAX_DBG_GRC_PARAMS)
+		return DBG_STATUS_INVALID_ARGS;
+	if (val < s_grc_param_defs[grc_param].min ||
+	    val > s_grc_param_defs[grc_param].max)
+		return DBG_STATUS_INVALID_ARGS;
+
+	if (s_grc_param_defs[grc_param].is_preset) {
+		/* Preset param */
+
+		/* Disabling a preset is not allowed. Call
+		 * dbg_grc_set_params_default instead.
+		 */
+		if (!val)
+			return DBG_STATUS_INVALID_ARGS;
+
+		/* Update all params with the preset values */
+		for (i = 0; i < MAX_DBG_GRC_PARAMS; i++) {
+			u32 preset_val;
+
+			/* Skip persistent params */
+			if (s_grc_param_defs[i].is_persistent)
+				continue;
+
+			/* Find preset value */
+			if (grc_param == DBG_GRC_PARAM_EXCLUDE_ALL)
+				preset_val =
+				    s_grc_param_defs[i].exclude_all_preset_val;
+			else if (grc_param == DBG_GRC_PARAM_CRASH)
+				preset_val =
+				    s_grc_param_defs[i].crash_preset_val;
+			else
+				return DBG_STATUS_INVALID_ARGS;
+
+			qed_grc_set_param(p_hwfn,
+					  (enum dbg_grc_params)i, preset_val);
+		}
+	} else {
+		/* Regular param - set its value */
+		qed_grc_set_param(p_hwfn, grc_param, val);
+	}
+
+	return DBG_STATUS_OK;
+}
+
 /* Assign default GRC param values */
 void qed_dbg_grc_set_params_default(struct qed_hwfn *p_hwfn)
 {
@@ -5063,8 +5198,9 @@ void qed_dbg_grc_set_params_default(struct qed_hwfn *p_hwfn)
 	u32 i;
 
 	for (i = 0; i < MAX_DBG_GRC_PARAMS; i++)
-		dev_data->grc.param_val[i] =
-		    s_grc_param_defs[i].default_val[dev_data->chip_id];
+		if (!s_grc_param_defs[i].is_persistent)
+			dev_data->grc.param_val[i] =
+			    s_grc_param_defs[i].default_val[dev_data->chip_id];
 }
 
 enum dbg_status qed_dbg_grc_get_dump_buf_size(struct qed_hwfn *p_hwfn,
@@ -5497,35 +5633,6 @@ struct block_info {
 	enum block_id id;
 };
 
-struct mcp_trace_format {
-	u32 data;
-#define MCP_TRACE_FORMAT_MODULE_MASK	0x0000ffff
-#define MCP_TRACE_FORMAT_MODULE_SHIFT	0
-#define MCP_TRACE_FORMAT_LEVEL_MASK	0x00030000
-#define MCP_TRACE_FORMAT_LEVEL_SHIFT	16
-#define MCP_TRACE_FORMAT_P1_SIZE_MASK	0x000c0000
-#define MCP_TRACE_FORMAT_P1_SIZE_SHIFT	18
-#define MCP_TRACE_FORMAT_P2_SIZE_MASK	0x00300000
-#define MCP_TRACE_FORMAT_P2_SIZE_SHIFT	20
-#define MCP_TRACE_FORMAT_P3_SIZE_MASK	0x00c00000
-#define MCP_TRACE_FORMAT_P3_SIZE_SHIFT	22
-#define MCP_TRACE_FORMAT_LEN_MASK	0xff000000
-#define MCP_TRACE_FORMAT_LEN_SHIFT	24
-
-	char *format_str;
-};
-
-/* Meta data structure, generated by a perl script during MFW build. therefore,
- * the structs mcp_trace_meta and mcp_trace_format are duplicated in the perl
- * script.
- */
-struct mcp_trace_meta {
-	u32 modules_num;
-	char **modules;
-	u32 formats_num;
-	struct mcp_trace_format *formats;
-};
-
 /* REG fifo element */
 struct reg_fifo_element {
 	u64 data;
@@ -5646,6 +5753,20 @@ struct igu_fifo_addr_data {
 	char *desc;
 	char *vf_desc;
 	enum igu_fifo_addr_types type;
+};
+
+struct mcp_trace_meta {
+	u32 modules_num;
+	char **modules;
+	u32 formats_num;
+	struct mcp_trace_format *formats;
+	bool is_allocated;
+};
+
+/* Debug Tools user data */
+struct dbg_tools_user_data {
+	struct mcp_trace_meta mcp_trace_meta;
+	const u32 *mcp_trace_user_meta_buf;
 };
 
 /******************************** Constants **********************************/
@@ -6019,7 +6140,7 @@ static const char * const s_igu_fifo_error_strs[] = {
 	"no error",
 	"length error",
 	"function disabled",
-	"VF sent command to attnetion address",
+	"VF sent command to attention address",
 	"host sent prod update command",
 	"read of during interrupt register while in MIMD mode",
 	"access to PXP BAR reserved address",
@@ -6071,11 +6192,6 @@ static const struct igu_fifo_addr_data s_igu_fifo_addr_data[] = {
 
 /******************************** Variables **********************************/
 
-/* MCP Trace meta data - used in case the dump doesn't contain the meta data
- * (e.g. due to no NVRAM access).
- */
-static struct user_dbg_array s_mcp_trace_meta = { NULL, 0 };
-
 /* Temporary buffer, used for print size calculations */
 static char s_temp_buf[MAX_MSG_LEN];
 
@@ -6104,6 +6220,9 @@ static u32 qed_read_from_cyclic_buf(void *buf,
 
 	val_ptr = (u8 *)&val;
 
+	/* Assume running on a LITTLE ENDIAN and the buffer is network order
+	 * (BIG ENDIAN), as high order bytes are placed in lower memory address.
+	 */
 	for (i = 0; i < num_bytes_to_read; i++) {
 		val_ptr[i] = bytes_buf[*offset];
 		*offset = qed_cyclic_add(*offset, 1, buf_size);
@@ -6185,7 +6304,7 @@ static u32 qed_read_param(u32 *dump_buf,
 		offset += 4;
 	}
 
-	return offset / 4;
+	return (u32)offset / 4;
 }
 
 /* Reads a section header from the specified buffer.
@@ -6236,6 +6355,12 @@ static u32 qed_print_section_params(u32 *dump_buf,
 	*num_chars_printed = results_offset;
 
 	return dump_offset;
+}
+
+static struct dbg_tools_user_data *
+qed_dbg_get_user_data(struct qed_hwfn *p_hwfn)
+{
+	return (struct dbg_tools_user_data *)p_hwfn->dbg_user_info;
 }
 
 /* Parses the idle check rules and returns the number of characters printed.
@@ -6497,37 +6622,26 @@ static enum dbg_status qed_parse_idle_chk_dump(u32 *dump_buf,
 	return DBG_STATUS_OK;
 }
 
-/* Frees the specified MCP Trace meta data */
-static void qed_mcp_trace_free_meta(struct qed_hwfn *p_hwfn,
-				    struct mcp_trace_meta *meta)
-{
-	u32 i;
-
-	/* Release modules */
-	if (meta->modules) {
-		for (i = 0; i < meta->modules_num; i++)
-			kfree(meta->modules[i]);
-		kfree(meta->modules);
-	}
-
-	/* Release formats */
-	if (meta->formats) {
-		for (i = 0; i < meta->formats_num; i++)
-			kfree(meta->formats[i].format_str);
-		kfree(meta->formats);
-	}
-}
-
 /* Allocates and fills MCP Trace meta data based on the specified meta data
  * dump buffer.
  * Returns debug status code.
  */
-static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
-						const u32 *meta_buf,
-						struct mcp_trace_meta *meta)
+static enum dbg_status
+qed_mcp_trace_alloc_meta_data(struct qed_hwfn *p_hwfn,
+			      const u32 *meta_buf)
 {
-	u8 *meta_buf_bytes = (u8 *)meta_buf;
+	struct dbg_tools_user_data *dev_user_data;
 	u32 offset = 0, signature, i;
+	struct mcp_trace_meta *meta;
+	u8 *meta_buf_bytes;
+
+	dev_user_data = qed_dbg_get_user_data(p_hwfn);
+	meta = &dev_user_data->mcp_trace_meta;
+	meta_buf_bytes = (u8 *)meta_buf;
+
+	/* Free the previous meta before loading a new one. */
+	if (meta->is_allocated)
+		qed_mcp_trace_free_meta_data(p_hwfn);
 
 	memset(meta, 0, sizeof(*meta));
 
@@ -6538,7 +6652,8 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
 
 	/* Read no. of modules and allocate memory for their pointers */
 	meta->modules_num = qed_read_byte_from_buf(meta_buf_bytes, &offset);
-	meta->modules = kzalloc(meta->modules_num * sizeof(char *), GFP_KERNEL);
+	meta->modules = kcalloc(meta->modules_num, sizeof(char *),
+				GFP_KERNEL);
 	if (!meta->modules)
 		return DBG_STATUS_VIRT_MEM_ALLOC_FAILED;
 
@@ -6566,7 +6681,7 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
 
 	/* Read number of formats and allocate memory for all formats */
 	meta->formats_num = qed_read_dword_from_buf(meta_buf_bytes, &offset);
-	meta->formats = kzalloc(meta->formats_num *
+	meta->formats = kcalloc(meta->formats_num,
 				sizeof(struct mcp_trace_format),
 				GFP_KERNEL);
 	if (!meta->formats)
@@ -6594,7 +6709,136 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
 				      format_len, format_ptr->format_str);
 	}
 
+	meta->is_allocated = true;
 	return DBG_STATUS_OK;
+}
+
+/* Parses an MCP trace buffer. If result_buf is not NULL, the MCP Trace results
+ * are printed to it. The parsing status is returned.
+ * Arguments:
+ * trace_buf - MCP trace cyclic buffer
+ * trace_buf_size - MCP trace cyclic buffer size in bytes
+ * data_offset - offset in bytes of the data to parse in the MCP trace cyclic
+ *               buffer.
+ * data_size - size in bytes of data to parse.
+ * parsed_buf - destination buffer for parsed data.
+ * parsed_results_bytes - size of parsed data in bytes.
+ */
+static enum dbg_status qed_parse_mcp_trace_buf(struct qed_hwfn *p_hwfn,
+					       u8 *trace_buf,
+					       u32 trace_buf_size,
+					       u32 data_offset,
+					       u32 data_size,
+					       char *parsed_buf,
+					       u32 *parsed_results_bytes)
+{
+	struct dbg_tools_user_data *dev_user_data;
+	struct mcp_trace_meta *meta;
+	u32 param_mask, param_shift;
+	enum dbg_status status;
+
+	dev_user_data = qed_dbg_get_user_data(p_hwfn);
+	meta = &dev_user_data->mcp_trace_meta;
+	*parsed_results_bytes = 0;
+
+	if (!meta->is_allocated)
+		return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+	status = DBG_STATUS_OK;
+
+	while (data_size) {
+		struct mcp_trace_format *format_ptr;
+		u8 format_level, format_module;
+		u32 params[3] = { 0, 0, 0 };
+		u32 header, format_idx, i;
+
+		if (data_size < MFW_TRACE_ENTRY_SIZE)
+			return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+		header = qed_read_from_cyclic_buf(trace_buf,
+						  &data_offset,
+						  trace_buf_size,
+						  MFW_TRACE_ENTRY_SIZE);
+		data_size -= MFW_TRACE_ENTRY_SIZE;
+		format_idx = header & MFW_TRACE_EVENTID_MASK;
+
+		/* Skip message if its index doesn't exist in the meta data */
+		if (format_idx >= meta->formats_num) {
+			u8 format_size =
+				(u8)((header & MFW_TRACE_PRM_SIZE_MASK) >>
+				     MFW_TRACE_PRM_SIZE_SHIFT);
+
+			if (data_size < format_size)
+				return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+			data_offset = qed_cyclic_add(data_offset,
+						     format_size,
+						     trace_buf_size);
+			data_size -= format_size;
+			continue;
+		}
+
+		format_ptr = &meta->formats[format_idx];
+
+		for (i = 0,
+		     param_mask = MCP_TRACE_FORMAT_P1_SIZE_MASK,
+		     param_shift = MCP_TRACE_FORMAT_P1_SIZE_SHIFT;
+		     i < MCP_TRACE_FORMAT_MAX_PARAMS;
+		     i++,
+		     param_mask <<= MCP_TRACE_FORMAT_PARAM_WIDTH,
+		     param_shift += MCP_TRACE_FORMAT_PARAM_WIDTH) {
+			/* Extract param size (0..3) */
+			u8 param_size = (u8)((format_ptr->data & param_mask) >>
+					     param_shift);
+
+			/* If the param size is zero, there are no other
+			 * parameters.
+			 */
+			if (!param_size)
+				break;
+
+			/* Size is encoded using 2 bits, where 3 is used to
+			 * encode 4.
+			 */
+			if (param_size == 3)
+				param_size = 4;
+
+			if (data_size < param_size)
+				return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+			params[i] = qed_read_from_cyclic_buf(trace_buf,
+							     &data_offset,
+							     trace_buf_size,
+							     param_size);
+			data_size -= param_size;
+		}
+
+		format_level = (u8)((format_ptr->data &
+				     MCP_TRACE_FORMAT_LEVEL_MASK) >>
+				    MCP_TRACE_FORMAT_LEVEL_SHIFT);
+		format_module = (u8)((format_ptr->data &
+				      MCP_TRACE_FORMAT_MODULE_MASK) >>
+				     MCP_TRACE_FORMAT_MODULE_SHIFT);
+		if (format_level >= ARRAY_SIZE(s_mcp_trace_level_str))
+			return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
+		/* Print current message to results buffer */
+		*parsed_results_bytes +=
+			sprintf(qed_get_buf_ptr(parsed_buf,
+						*parsed_results_bytes),
+				"%s %-8s: ",
+				s_mcp_trace_level_str[format_level],
+				meta->modules[format_module]);
+		*parsed_results_bytes +=
+		    sprintf(qed_get_buf_ptr(parsed_buf, *parsed_results_bytes),
+			    format_ptr->format_str,
+			    params[0], params[1], params[2]);
+	}
+
+	/* Add string NULL terminator */
+	(*parsed_results_bytes)++;
+
+	return status;
 }
 
 /* Parses an MCP Trace dump buffer.
@@ -6606,13 +6850,13 @@ static enum dbg_status qed_mcp_trace_alloc_meta(struct qed_hwfn *p_hwfn,
 static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 						u32 *dump_buf,
 						char *results_buf,
-						u32 *parsed_results_bytes)
+						u32 *parsed_results_bytes,
+						bool free_meta_data)
 {
-	u32 end_offset, bytes_left, trace_data_dwords, trace_meta_dwords;
-	u32 param_mask, param_shift, param_num_val, num_section_params;
 	const char *section_name, *param_name, *param_str_val;
-	u32 offset, results_offset = 0;
-	struct mcp_trace_meta meta;
+	u32 data_size, trace_data_dwords, trace_meta_dwords;
+	u32 offset, results_offset, results_buf_bytes;
+	u32 param_num_val, num_section_params;
 	struct mcp_trace *trace;
 	enum dbg_status status;
 	const u32 *meta_buf;
@@ -6644,10 +6888,12 @@ static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 
 	/* Prepare trace info */
 	trace = (struct mcp_trace *)dump_buf;
+	if (trace->signature != MFW_TRACE_SIGNATURE || !trace->size)
+		return DBG_STATUS_MCP_TRACE_BAD_DATA;
+
 	trace_buf = (u8 *)dump_buf + sizeof(*trace);
 	offset = trace->trace_oldest;
-	end_offset = trace->trace_prod;
-	bytes_left = qed_cyclic_sub(end_offset, offset, trace->size);
+	data_size = qed_cyclic_sub(trace->trace_prod, offset, trace->size);
 	dump_buf += trace_data_dwords;
 
 	/* Read meta_data section */
@@ -6664,126 +6910,41 @@ static enum dbg_status qed_parse_mcp_trace_dump(struct qed_hwfn *p_hwfn,
 	/* Choose meta data buffer */
 	if (!trace_meta_dwords) {
 		/* Dump doesn't include meta data */
-		if (!s_mcp_trace_meta.ptr)
+		struct dbg_tools_user_data *dev_user_data =
+			qed_dbg_get_user_data(p_hwfn);
+
+		if (!dev_user_data->mcp_trace_user_meta_buf)
 			return DBG_STATUS_MCP_TRACE_NO_META;
-		meta_buf = s_mcp_trace_meta.ptr;
+
+		meta_buf = dev_user_data->mcp_trace_user_meta_buf;
 	} else {
 		/* Dump includes meta data */
 		meta_buf = dump_buf;
 	}
 
 	/* Allocate meta data memory */
-	status = qed_mcp_trace_alloc_meta(p_hwfn, meta_buf, &meta);
+	status = qed_mcp_trace_alloc_meta_data(p_hwfn, meta_buf);
 	if (status != DBG_STATUS_OK)
-		goto free_mem;
+		return status;
 
-	/* Ignore the level and modules masks - just print everything that is
-	 * already in the buffer.
-	 */
-	while (bytes_left) {
-		struct mcp_trace_format *format_ptr;
-		u8 format_level, format_module;
-		u32 params[3] = { 0, 0, 0 };
-		u32 header, format_idx, i;
+	status = qed_parse_mcp_trace_buf(p_hwfn,
+					 trace_buf,
+					 trace->size,
+					 offset,
+					 data_size,
+					 results_buf ?
+					 results_buf + results_offset :
+					 NULL,
+					 &results_buf_bytes);
+	if (status != DBG_STATUS_OK)
+		return status;
 
-		if (bytes_left < MFW_TRACE_ENTRY_SIZE) {
-			status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-			goto free_mem;
-		}
+	if (free_meta_data)
+		qed_mcp_trace_free_meta_data(p_hwfn);
 
-		header = qed_read_from_cyclic_buf(trace_buf,
-						  &offset,
-						  trace->size,
-						  MFW_TRACE_ENTRY_SIZE);
-		bytes_left -= MFW_TRACE_ENTRY_SIZE;
-		format_idx = header & MFW_TRACE_EVENTID_MASK;
+	*parsed_results_bytes = results_offset + results_buf_bytes;
 
-		/* Skip message if its  index doesn't exist in the meta data */
-		if (format_idx > meta.formats_num) {
-			u8 format_size =
-			    (u8)((header &
-				  MFW_TRACE_PRM_SIZE_MASK) >>
-				 MFW_TRACE_PRM_SIZE_SHIFT);
-
-			if (bytes_left < format_size) {
-				status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-				goto free_mem;
-			}
-
-			offset = qed_cyclic_add(offset,
-						format_size, trace->size);
-			bytes_left -= format_size;
-			continue;
-		}
-
-		format_ptr = &meta.formats[format_idx];
-
-		for (i = 0,
-		     param_mask = MCP_TRACE_FORMAT_P1_SIZE_MASK, param_shift =
-		     MCP_TRACE_FORMAT_P1_SIZE_SHIFT;
-		     i < MCP_TRACE_FORMAT_MAX_PARAMS;
-		     i++, param_mask <<= MCP_TRACE_FORMAT_PARAM_WIDTH,
-		     param_shift += MCP_TRACE_FORMAT_PARAM_WIDTH) {
-			/* Extract param size (0..3) */
-			u8 param_size =
-			    (u8)((format_ptr->data &
-				  param_mask) >> param_shift);
-
-			/* If the param size is zero, there are no other
-			 * parameters.
-			 */
-			if (!param_size)
-				break;
-
-			/* Size is encoded using 2 bits, where 3 is used to
-			 * encode 4.
-			 */
-			if (param_size == 3)
-				param_size = 4;
-
-			if (bytes_left < param_size) {
-				status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-				goto free_mem;
-			}
-
-			params[i] = qed_read_from_cyclic_buf(trace_buf,
-							     &offset,
-							     trace->size,
-							     param_size);
-
-			bytes_left -= param_size;
-		}
-
-		format_level =
-		    (u8)((format_ptr->data &
-			  MCP_TRACE_FORMAT_LEVEL_MASK) >>
-			 MCP_TRACE_FORMAT_LEVEL_SHIFT);
-		format_module =
-		    (u8)((format_ptr->data &
-			  MCP_TRACE_FORMAT_MODULE_MASK) >>
-			 MCP_TRACE_FORMAT_MODULE_SHIFT);
-		if (format_level >= ARRAY_SIZE(s_mcp_trace_level_str)) {
-			status = DBG_STATUS_MCP_TRACE_BAD_DATA;
-			goto free_mem;
-		}
-
-		/* Print current message to results buffer */
-		results_offset +=
-		    sprintf(qed_get_buf_ptr(results_buf,
-					    results_offset), "%s %-8s: ",
-			    s_mcp_trace_level_str[format_level],
-			    meta.modules[format_module]);
-		results_offset +=
-		    sprintf(qed_get_buf_ptr(results_buf,
-					    results_offset),
-			    format_ptr->format_str, params[0], params[1],
-			    params[2]);
-	}
-
-free_mem:
-	*parsed_results_bytes = results_offset + 1;
-	qed_mcp_trace_free_meta(p_hwfn, &meta);
-	return status;
+	return DBG_STATUS_OK;
 }
 
 /* Parses a Reg FIFO dump buffer.
@@ -7253,6 +7414,16 @@ enum dbg_status qed_dbg_user_set_bin_ptr(const u8 * const bin_ptr)
 	return DBG_STATUS_OK;
 }
 
+enum dbg_status qed_dbg_alloc_user_data(struct qed_hwfn *p_hwfn)
+{
+	p_hwfn->dbg_user_info = kzalloc(sizeof(struct dbg_tools_user_data),
+					GFP_KERNEL);
+	if (!p_hwfn->dbg_user_info)
+		return DBG_STATUS_VIRT_MEM_ALLOC_FAILED;
+
+	return DBG_STATUS_OK;
+}
+
 const char *qed_dbg_get_status_str(enum dbg_status status)
 {
 	return (status <
@@ -7289,10 +7460,13 @@ enum dbg_status qed_print_idle_chk_results(struct qed_hwfn *p_hwfn,
 				       num_errors, num_warnings);
 }
 
-void qed_dbg_mcp_trace_set_meta_data(u32 *data, u32 size)
+void qed_dbg_mcp_trace_set_meta_data(struct qed_hwfn *p_hwfn,
+				     const u32 *meta_buf)
 {
-	s_mcp_trace_meta.ptr = data;
-	s_mcp_trace_meta.size_in_dwords = size;
+	struct dbg_tools_user_data *dev_user_data =
+		qed_dbg_get_user_data(p_hwfn);
+
+	dev_user_data->mcp_trace_user_meta_buf = meta_buf;
 }
 
 enum dbg_status qed_get_mcp_trace_results_buf_size(struct qed_hwfn *p_hwfn,
@@ -7301,7 +7475,7 @@ enum dbg_status qed_get_mcp_trace_results_buf_size(struct qed_hwfn *p_hwfn,
 						   u32 *results_buf_size)
 {
 	return qed_parse_mcp_trace_dump(p_hwfn,
-					dump_buf, NULL, results_buf_size);
+					dump_buf, NULL, results_buf_size, true);
 }
 
 enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
@@ -7313,7 +7487,61 @@ enum dbg_status qed_print_mcp_trace_results(struct qed_hwfn *p_hwfn,
 
 	return qed_parse_mcp_trace_dump(p_hwfn,
 					dump_buf,
-					results_buf, &parsed_buf_size);
+					results_buf, &parsed_buf_size, true);
+}
+
+enum dbg_status qed_print_mcp_trace_results_cont(struct qed_hwfn *p_hwfn,
+						 u32 *dump_buf,
+						 char *results_buf)
+{
+	u32 parsed_buf_size;
+
+	return qed_parse_mcp_trace_dump(p_hwfn, dump_buf, results_buf,
+					&parsed_buf_size, false);
+}
+
+enum dbg_status qed_print_mcp_trace_line(struct qed_hwfn *p_hwfn,
+					 u8 *dump_buf,
+					 u32 num_dumped_bytes,
+					 char *results_buf)
+{
+	u32 parsed_results_bytes;
+
+	return qed_parse_mcp_trace_buf(p_hwfn,
+				       dump_buf,
+				       num_dumped_bytes,
+				       0,
+				       num_dumped_bytes,
+				       results_buf, &parsed_results_bytes);
+}
+
+/* Frees the specified MCP Trace meta data */
+void qed_mcp_trace_free_meta_data(struct qed_hwfn *p_hwfn)
+{
+	struct dbg_tools_user_data *dev_user_data;
+	struct mcp_trace_meta *meta;
+	u32 i;
+
+	dev_user_data = qed_dbg_get_user_data(p_hwfn);
+	meta = &dev_user_data->mcp_trace_meta;
+	if (!meta->is_allocated)
+		return;
+
+	/* Release modules */
+	if (meta->modules) {
+		for (i = 0; i < meta->modules_num; i++)
+			kfree(meta->modules[i]);
+		kfree(meta->modules);
+	}
+
+	/* Release formats */
+	if (meta->formats) {
+		for (i = 0; i < meta->formats_num; i++)
+			kfree(meta->formats[i].format_str);
+		kfree(meta->formats);
+	}
+
+	meta->is_allocated = false;
 }
 
 enum dbg_status qed_get_reg_fifo_results_buf_size(struct qed_hwfn *p_hwfn,
@@ -7717,6 +7945,58 @@ int qed_dbg_igu_fifo_size(struct qed_dev *cdev)
 	return qed_dbg_feature_size(cdev, DBG_FEATURE_IGU_FIFO);
 }
 
+static int qed_dbg_nvm_image_length(struct qed_hwfn *p_hwfn,
+				    enum qed_nvm_images image_id, u32 *length)
+{
+	struct qed_nvm_image_att image_att;
+	int rc;
+
+	*length = 0;
+	rc = qed_mcp_get_nvm_image_att(p_hwfn, image_id, &image_att);
+	if (rc)
+		return rc;
+
+	*length = image_att.length;
+
+	return rc;
+}
+
+static int qed_dbg_nvm_image(struct qed_dev *cdev, void *buffer,
+			     u32 *num_dumped_bytes,
+			     enum qed_nvm_images image_id)
+{
+	struct qed_hwfn *p_hwfn =
+		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+	u32 len_rounded, i;
+	__be32 val;
+	int rc;
+
+	*num_dumped_bytes = 0;
+	rc = qed_dbg_nvm_image_length(p_hwfn, image_id, &len_rounded);
+	if (rc)
+		return rc;
+
+	DP_NOTICE(p_hwfn->cdev,
+		  "Collecting a debug feature [\"nvram image %d\"]\n",
+		  image_id);
+
+	len_rounded = roundup(len_rounded, sizeof(u32));
+	rc = qed_mcp_get_nvm_image(p_hwfn, image_id, buffer, len_rounded);
+	if (rc)
+		return rc;
+
+	/* QED_NVM_IMAGE_NVM_META image is not swapped like other images */
+	if (image_id != QED_NVM_IMAGE_NVM_META)
+		for (i = 0; i < len_rounded; i += 4) {
+			val = cpu_to_be32(*(u32 *)(buffer + i));
+			*(u32 *)(buffer + i) = val;
+		}
+
+	*num_dumped_bytes = len_rounded;
+
+	return rc;
+}
+
 int qed_dbg_protection_override(struct qed_dev *cdev, void *buffer,
 				u32 *num_dumped_bytes)
 {
@@ -7770,6 +8050,9 @@ enum debug_print_features {
 	IGU_FIFO = 6,
 	PHY = 7,
 	FW_ASSERTS = 8,
+	NVM_CFG1 = 9,
+	DEFAULT_CFG = 10,
+	NVM_META = 11,
 };
 
 static u32 qed_calc_regdump_header(enum debug_print_features feature,
@@ -7786,8 +8069,15 @@ static u32 qed_calc_regdump_header(enum debug_print_features feature,
 int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 {
 	u8 cur_engine, omit_engine = 0, org_engine;
+	struct qed_hwfn *p_hwfn =
+		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+	struct dbg_tools_data *dev_data = &p_hwfn->dbg_info;
+	int grc_params[MAX_DBG_GRC_PARAMS], i;
 	u32 offset = 0, feature_size;
 	int rc;
+
+	for (i = 0; i < MAX_DBG_GRC_PARAMS; i++)
+		grc_params[i] = dev_data->grc.param_val[i];
 
 	if (cdev->num_hwfns == 1)
 		omit_engine = 1;
@@ -7876,6 +8166,9 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 			       rc);
 		}
 
+		for (i = 0; i < MAX_DBG_GRC_PARAMS; i++)
+			dev_data->grc.param_val[i] = grc_params[i];
+
 		/* GRC dump - must be last because when mcp stuck it will
 		 * clutter idle_chk, reg_fifo, ...
 		 */
@@ -7891,6 +8184,7 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		}
 	}
 
+	qed_set_debug_engine(cdev, org_engine);
 	/* mcp_trace */
 	rc = qed_dbg_mcp_trace(cdev, (u8 *)buffer + offset +
 			       REGDUMP_HEADER_SIZE, &feature_size);
@@ -7903,15 +8197,61 @@ int qed_dbg_all_data(struct qed_dev *cdev, void *buffer)
 		DP_ERR(cdev, "qed_dbg_mcp_trace failed. rc = %d\n", rc);
 	}
 
-	qed_set_debug_engine(cdev, org_engine);
+	/* nvm cfg1 */
+	rc = qed_dbg_nvm_image(cdev,
+			       (u8 *)buffer + offset + REGDUMP_HEADER_SIZE,
+			       &feature_size, QED_NVM_IMAGE_NVM_CFG1);
+	if (!rc) {
+		*(u32 *)((u8 *)buffer + offset) =
+		    qed_calc_regdump_header(NVM_CFG1, cur_engine,
+					    feature_size, omit_engine);
+		offset += (feature_size + REGDUMP_HEADER_SIZE);
+	} else if (rc != -ENOENT) {
+		DP_ERR(cdev,
+		       "qed_dbg_nvm_image failed for image  %d (%s), rc = %d\n",
+		       QED_NVM_IMAGE_NVM_CFG1, "QED_NVM_IMAGE_NVM_CFG1", rc);
+	}
+
+	/* nvm default */
+	rc = qed_dbg_nvm_image(cdev,
+			       (u8 *)buffer + offset + REGDUMP_HEADER_SIZE,
+			       &feature_size, QED_NVM_IMAGE_DEFAULT_CFG);
+	if (!rc) {
+		*(u32 *)((u8 *)buffer + offset) =
+		    qed_calc_regdump_header(DEFAULT_CFG, cur_engine,
+					    feature_size, omit_engine);
+		offset += (feature_size + REGDUMP_HEADER_SIZE);
+	} else if (rc != -ENOENT) {
+		DP_ERR(cdev,
+		       "qed_dbg_nvm_image failed for image %d (%s), rc = %d\n",
+		       QED_NVM_IMAGE_DEFAULT_CFG, "QED_NVM_IMAGE_DEFAULT_CFG",
+		       rc);
+	}
+
+	/* nvm meta */
+	rc = qed_dbg_nvm_image(cdev,
+			       (u8 *)buffer + offset + REGDUMP_HEADER_SIZE,
+			       &feature_size, QED_NVM_IMAGE_NVM_META);
+	if (!rc) {
+		*(u32 *)((u8 *)buffer + offset) =
+		    qed_calc_regdump_header(NVM_META, cur_engine,
+					    feature_size, omit_engine);
+		offset += (feature_size + REGDUMP_HEADER_SIZE);
+	} else if (rc != -ENOENT) {
+		DP_ERR(cdev,
+		       "qed_dbg_nvm_image failed for image %d (%s), rc = %d\n",
+		       QED_NVM_IMAGE_NVM_META, "QED_NVM_IMAGE_NVM_META", rc);
+	}
 
 	return 0;
 }
 
 int qed_dbg_all_data_size(struct qed_dev *cdev)
 {
+	struct qed_hwfn *p_hwfn =
+		&cdev->hwfns[cdev->dbg_params.engine_for_debug];
+	u32 regs_len = 0, image_len = 0;
 	u8 cur_engine, org_engine;
-	u32 regs_len = 0;
 
 	org_engine = qed_get_debug_engine(cdev);
 	for (cur_engine = 0; cur_engine < cdev->num_hwfns; cur_engine++) {
@@ -7929,9 +8269,19 @@ int qed_dbg_all_data_size(struct qed_dev *cdev)
 			    REGDUMP_HEADER_SIZE + qed_dbg_fw_asserts_size(cdev);
 	}
 
+	qed_set_debug_engine(cdev, org_engine);
+
 	/* Engine common */
 	regs_len += REGDUMP_HEADER_SIZE + qed_dbg_mcp_trace_size(cdev);
-	qed_set_debug_engine(cdev, org_engine);
+	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_NVM_CFG1, &image_len);
+	if (image_len)
+		regs_len += REGDUMP_HEADER_SIZE + image_len;
+	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_DEFAULT_CFG, &image_len);
+	if (image_len)
+		regs_len += REGDUMP_HEADER_SIZE + image_len;
+	qed_dbg_nvm_image_length(p_hwfn, QED_NVM_IMAGE_NVM_META, &image_len);
+	if (image_len)
+		regs_len += REGDUMP_HEADER_SIZE + image_len;
 
 	return regs_len;
 }

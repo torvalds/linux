@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * palinfo.c
  *
@@ -920,18 +921,6 @@ static int proc_palinfo_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int proc_palinfo_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_palinfo_show, PDE_DATA(inode));
-}
-
-static const struct file_operations proc_palinfo_fops = {
-	.open		= proc_palinfo_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static int palinfo_add_proc(unsigned int cpu)
 {
 	pal_func_cpu_u_t f;
@@ -948,8 +937,8 @@ static int palinfo_add_proc(unsigned int cpu)
 
 	for (j=0; j < NR_PALINFO_ENTRIES; j++) {
 		f.func_id = j;
-		proc_create_data(palinfo_entries[j].name, 0, cpu_dir,
-				 &proc_palinfo_fops, (void *)f.value);
+		proc_create_single_data(palinfo_entries[j].name, 0, cpu_dir,
+				proc_palinfo_show, (void *)f.value);
 	}
 	return 0;
 }

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * motu-protocol-v2.c - a part of driver for MOTU FireWire series
  *
  * Copyright (c) 2015-2017 Takashi Sakamoto <o-takashi@sakamocchi.jp>
- *
- * Licensed under the terms of the GNU General Public License, version 2.
  */
 
 #include "motu.h"
@@ -13,6 +12,10 @@
 #define  V2_CLOCK_RATE_SHIFT			3
 #define  V2_CLOCK_SRC_MASK			0x00000007
 #define  V2_CLOCK_SRC_SHIFT			0
+#define  V2_CLOCK_TRAVELER_FETCH_DISABLE	0x04000000
+#define  V2_CLOCK_TRAVELER_FETCH_ENABLE		0x03000000
+#define  V2_CLOCK_8PRE_FETCH_DISABLE		0x02000000
+#define  V2_CLOCK_8PRE_FETCH_ENABLE		0x00000000
 
 #define V2_IN_OUT_CONF_OFFSET			0x0c04
 #define  V2_OPT_OUT_IFACE_MASK			0x00000c00
@@ -65,6 +68,11 @@ static int v2_set_clock_rate(struct snd_motu *motu, unsigned int rate)
 
 	data &= ~V2_CLOCK_RATE_MASK;
 	data |= i << V2_CLOCK_RATE_SHIFT;
+
+	if (motu->spec == &snd_motu_spec_traveler) {
+		data &= ~V2_CLOCK_TRAVELER_FETCH_ENABLE;
+		data |= V2_CLOCK_TRAVELER_FETCH_DISABLE;
+	}
 
 	reg = cpu_to_be32(data);
 	return snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET, &reg,
@@ -121,8 +129,42 @@ static int v2_get_clock_source(struct snd_motu *motu,
 
 static int v2_switch_fetching_mode(struct snd_motu *motu, bool enable)
 {
-	/* V2 protocol doesn't have this feature. */
-	return 0;
+	__be32 reg;
+	u32 data;
+	int err = 0;
+
+	if (motu->spec == &snd_motu_spec_traveler ||
+	    motu->spec == &snd_motu_spec_8pre) {
+		err = snd_motu_transaction_read(motu, V2_CLOCK_STATUS_OFFSET,
+						&reg, sizeof(reg));
+		if (err < 0)
+			return err;
+		data = be32_to_cpu(reg);
+
+		if (motu->spec == &snd_motu_spec_traveler) {
+			data &= ~(V2_CLOCK_TRAVELER_FETCH_DISABLE |
+				  V2_CLOCK_TRAVELER_FETCH_ENABLE);
+
+			if (enable)
+				data |= V2_CLOCK_TRAVELER_FETCH_ENABLE;
+			else
+				data |= V2_CLOCK_TRAVELER_FETCH_DISABLE;
+		} else if (motu->spec == &snd_motu_spec_8pre) {
+			data &= ~(V2_CLOCK_8PRE_FETCH_DISABLE |
+				  V2_CLOCK_8PRE_FETCH_ENABLE);
+
+			if (enable)
+				data |= V2_CLOCK_8PRE_FETCH_DISABLE;
+			else
+				data |= V2_CLOCK_8PRE_FETCH_ENABLE;
+		}
+
+		reg = cpu_to_be32(data);
+		err = snd_motu_transaction_write(motu, V2_CLOCK_STATUS_OFFSET,
+						 &reg, sizeof(reg));
+	}
+
+	return err;
 }
 
 static void calculate_fixed_part(struct snd_motu_packet_format *formats,
@@ -149,11 +191,20 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 			pcm_chunks[1] += 2;
 		}
 	} else {
-		/*
-		 * Packets to v2 units transfer main-out-1/2 and phone-out-1/2.
-		 */
-		pcm_chunks[0] += 4;
-		pcm_chunks[1] += 4;
+		if (flags & SND_MOTU_SPEC_RX_SEPARETED_MAIN) {
+			pcm_chunks[0] += 2;
+			pcm_chunks[1] += 2;
+		}
+
+		// Packets to v2 units include 2 chunks for phone 1/2, except
+		// for 176.4/192.0 kHz.
+		pcm_chunks[0] += 2;
+		pcm_chunks[1] += 2;
+	}
+
+	if (flags & SND_MOTU_SPEC_HAS_AESEBU_IFACE) {
+		pcm_chunks[0] += 2;
+		pcm_chunks[1] += 2;
 	}
 
 	/*
@@ -164,19 +215,16 @@ static void calculate_fixed_part(struct snd_motu_packet_format *formats,
 	pcm_chunks[0] += 2;
 	pcm_chunks[1] += 2;
 
-	/* This part should be multiples of 4. */
-	formats->fixed_part_pcm_chunks[0] = round_up(2 + pcm_chunks[0], 4) - 2;
-	formats->fixed_part_pcm_chunks[1] = round_up(2 + pcm_chunks[1], 4) - 2;
-	if (flags & SND_MOTU_SPEC_SUPPORT_CLOCK_X4)
-		formats->fixed_part_pcm_chunks[2] =
-					round_up(2 + pcm_chunks[2], 4) - 2;
+	formats->fixed_part_pcm_chunks[0] = pcm_chunks[0];
+	formats->fixed_part_pcm_chunks[1] = pcm_chunks[1];
+	formats->fixed_part_pcm_chunks[2] = pcm_chunks[2];
 }
 
 static void calculate_differed_part(struct snd_motu_packet_format *formats,
 				    enum snd_motu_spec_flags flags,
 				    u32 data, u32 mask, u32 shift)
 {
-	unsigned char pcm_chunks[3] = {0, 0};
+	unsigned char pcm_chunks[2] = {0, 0};
 
 	/*
 	 * When optical interfaces are configured for S/PDIF (TOSLINK),
@@ -184,10 +232,16 @@ static void calculate_differed_part(struct snd_motu_packet_format *formats,
 	 * interfaces.
 	 */
 	data = (data & mask) >> shift;
-	if ((flags & SND_MOTU_SPEC_HAS_OPT_IFACE_A) &&
-	    data == V2_OPT_IFACE_MODE_ADAT) {
-		pcm_chunks[0] += 8;
-		pcm_chunks[1] += 4;
+	if (data == V2_OPT_IFACE_MODE_ADAT) {
+		if (flags & SND_MOTU_SPEC_HAS_OPT_IFACE_A) {
+			pcm_chunks[0] += 8;
+			pcm_chunks[1] += 4;
+		}
+		// 8pre has two sets of optical interface and doesn't reduce
+		// chunks for ADAT signals.
+		if (flags & SND_MOTU_SPEC_HAS_OPT_IFACE_B) {
+			pcm_chunks[1] += 4;
+		}
 	}
 
 	/* At mode x4, no data chunks are supported in this part. */

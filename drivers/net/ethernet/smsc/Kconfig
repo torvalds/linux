@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # Western Digital/SMC network device configuration
 #
@@ -5,8 +6,8 @@
 config NET_VENDOR_SMSC
 	bool "SMC (SMSC)/Western Digital devices"
 	default y
-	depends on ARM || ARM64 || ATARI_ETHERNAT || BLACKFIN || COLDFIRE || \
-		   ISA || M32R || MAC || MIPS || MN10300 || NIOS2 || PCI || \
+	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
+		   ISA || MAC || MIPS || NIOS2 || PCI || \
 		   PCMCIA || SUPERH || XTENSA || H8300
 	---help---
 	  If you have a network (Ethernet) card belonging to this class, say Y.
@@ -20,14 +21,14 @@ if NET_VENDOR_SMSC
 
 config SMC9194
 	tristate "SMC 9194 support"
-	depends on (ISA || MAC && BROKEN)
+	depends on ISA
 	select CRC32
 	---help---
 	  This is support for the SMC9xxx based Ethernet cards. Choose this
 	  option if you have a DELL laptop with the docking station, or
 	  another SMC9192/9194 based chipset.  Say Y if you want it compiled
 	  into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt>.
+	  <file:Documentation/networking/device_drivers/smsc/smc9.txt>.
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called smc9194.
@@ -37,18 +38,18 @@ config SMC91X
 	select CRC32
 	select MII
 	depends on !OF || GPIOLIB
-	depends on ARM || ARM64 || ATARI_ETHERNAT || BLACKFIN || COLDFIRE || \
-		   M32R || MIPS || MN10300 || NIOS2 || SUPERH || XTENSA || H8300
+	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
+		   MIPS || NIOS2 || SUPERH || XTENSA || H8300
 	---help---
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
 	  compiled into the kernel, and read the file
-	  <file:Documentation/networking/smc9.txt>.
+	  <file:Documentation/networking/device_drivers/smsc/smc9.txt>.
 
 	  This driver is also available as a module ( = code which can be
 	  inserted in and removed from the running kernel whenever you want).
 	  The module will be called smc91x.  If you want to compile it as a
-	  module, say M here and read <file:Documentation/kbuild/modules.txt>.
+	  module, say M here and read <file:Documentation/kbuild/modules.rst>.
 
 config PCMCIA_SMC91C92
 	tristate "SMC 91Cxx PCMCIA support"
@@ -77,7 +78,7 @@ config SMC911X
 	tristate "SMSC LAN911[5678] support"
 	select CRC32
 	select MII
-	depends on (ARM || SUPERH || MN10300)
+	depends on (ARM || SUPERH)
 	---help---
 	  This is a driver for SMSC's LAN911x series of Ethernet chipsets
 	  including the new LAN9115, LAN9116, LAN9117, and LAN9118.
@@ -85,7 +86,7 @@ config SMC911X
 
 	  This driver is also available as a module. The module will be
 	  called smc911x.  If you want to compile it as a module, say M
-	  here and read <file:Documentation/kbuild/modules.txt>
+	  here and read <file:Documentation/kbuild/modules.rst>
 
 config SMSC911X
 	tristate "SMSC LAN911x/LAN921x families embedded ethernet support"
@@ -120,6 +121,6 @@ config SMSC9420
 
 	  This driver is also available as a module. The module will be
 	  called smsc9420.  If you want to compile it as a module, say M
-	  here and read <file:Documentation/kbuild/modules.txt>
+	  here and read <file:Documentation/kbuild/modules.rst>
 
 endif # NET_VENDOR_SMSC

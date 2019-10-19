@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Author: Alexander Shiyan <shc_work@mail.ru>, 2016
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <linux/io.h>
@@ -69,7 +65,7 @@ static void clps711x_restart(enum reboot_mode mode, const char *cmd)
 	soft_restart(0);
 }
 
-static const char *clps711x_compat[] __initconst = {
+static const char *const clps711x_compat[] __initconst = {
 	"cirrus,ep7209",
 	NULL
 };

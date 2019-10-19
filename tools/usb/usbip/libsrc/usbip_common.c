@@ -66,6 +66,29 @@ const char *usbip_speed_string(int num)
 	return "Unknown Speed";
 }
 
+struct op_common_status_string {
+	int num;
+	char *desc;
+};
+
+static struct op_common_status_string op_common_status_strings[] = {
+	{ ST_OK,	"Request Completed Successfully" },
+	{ ST_NA,	"Request Failed" },
+	{ ST_DEV_BUSY,	"Device busy (exported)" },
+	{ ST_DEV_ERR,	"Device in error state" },
+	{ ST_NODEV,	"Device not found" },
+	{ ST_ERROR,	"Unexpected response" },
+	{ 0, NULL}
+};
+
+const char *usbip_op_common_status_string(int status)
+{
+	for (int i = 0; op_common_status_strings[i].desc != NULL; i++)
+		if (op_common_status_strings[i].num == status)
+			return op_common_status_strings[i].desc;
+
+	return "Unknown Op Common Status";
+}
 
 #define DBG_UDEV_INTEGER(name)\
 	dbg("%-20s = %x", to_string(name), (int) udev->name)
@@ -203,8 +226,10 @@ int read_usb_device(struct udev_device *sdev, struct usbip_usb_device *udev)
 	path = udev_device_get_syspath(sdev);
 	name = udev_device_get_sysname(sdev);
 
-	strncpy(udev->path,  path,  SYSFS_PATH_MAX);
-	strncpy(udev->busid, name, SYSFS_BUS_ID_SIZE);
+	strncpy(udev->path,  path,  SYSFS_PATH_MAX - 1);
+	udev->path[SYSFS_PATH_MAX - 1] = '\0';
+	strncpy(udev->busid, name, SYSFS_BUS_ID_SIZE - 1);
+	udev->busid[SYSFS_BUS_ID_SIZE - 1] = '\0';
 
 	sscanf(name, "%u-%u", &busnum, &devnum);
 	udev->busnum = busnum;

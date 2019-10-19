@@ -29,7 +29,14 @@
 #include <linux/circ_buf.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
-#include <drm/drmP.h>
+#include <linux/poll.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_crtc.h>
+#include <drm/drm_debugfs_crc.h>
+#include <drm/drm_drv.h>
+#include <drm/drm_print.h>
+
 #include "drm_internal.h"
 
 /**
@@ -59,17 +66,47 @@
  * the reported CRCs of frames that should have the same contents.
  *
  * On the driver side the implementation effort is minimal, drivers only need to
- * implement &drm_crtc_funcs.set_crc_source. The debugfs files are automatically
- * set up if that vfunc is set. CRC samples need to be captured in the driver by
- * calling drm_crtc_add_crc_entry().
+ * implement &drm_crtc_funcs.set_crc_source and &drm_crtc_funcs.verify_crc_source.
+ * The debugfs files are automatically set up if those vfuncs are set. CRC samples
+ * need to be captured in the driver by calling drm_crtc_add_crc_entry().
+ * Depending on the driver and HW requirements, &drm_crtc_funcs.set_crc_source
+ * may result in a commit (even a full modeset).
+ *
+ * CRC results must be reliable across non-full-modeset atomic commits, so if a
+ * commit via DRM_IOCTL_MODE_ATOMIC would disable or otherwise interfere with
+ * CRC generation, then the driver must mark that commit as a full modeset
+ * (drm_atomic_crtc_needs_modeset() should return true). As a result, to ensure
+ * consistent results, generic userspace must re-setup CRC generation after a
+ * legacy SETCRTC or an atomic commit with DRM_MODE_ATOMIC_ALLOW_MODESET.
  */
 
 static int crc_control_show(struct seq_file *m, void *data)
 {
 	struct drm_crtc *crtc = m->private;
 
-	seq_printf(m, "%s\n", crtc->crc.source);
+	if (crtc->funcs->get_crc_sources) {
+		size_t count;
+		const char *const *sources = crtc->funcs->get_crc_sources(crtc,
+									&count);
+		size_t values_cnt;
+		int i;
 
+		if (count == 0 || !sources)
+			goto out;
+
+		for (i = 0; i < count; i++)
+			if (!crtc->funcs->verify_crc_source(crtc, sources[i],
+							    &values_cnt)) {
+				if (strcmp(sources[i], crtc->crc.source))
+					seq_printf(m, "%s\n", sources[i]);
+				else
+					seq_printf(m, "%s*\n", sources[i]);
+			}
+	}
+	return 0;
+
+out:
+	seq_printf(m, "%s*\n", crtc->crc.source);
 	return 0;
 }
 
@@ -87,6 +124,8 @@ static ssize_t crc_control_write(struct file *file, const char __user *ubuf,
 	struct drm_crtc *crtc = m->private;
 	struct drm_crtc_crc *crc = &crtc->crc;
 	char *source;
+	size_t values_cnt;
+	int ret;
 
 	if (len == 0)
 		return 0;
@@ -103,6 +142,10 @@ static ssize_t crc_control_write(struct file *file, const char __user *ubuf,
 
 	if (source[len] == '\n')
 		source[len] = '\0';
+
+	ret = crtc->funcs->verify_crc_source(crtc, source, &values_cnt);
+	if (ret)
+		return ret;
 
 	spin_lock_irq(&crc->lock);
 
@@ -139,6 +182,7 @@ static int crtc_crc_data_count(struct drm_crtc_crc *crc)
 static void crtc_crc_cleanup(struct drm_crtc_crc *crc)
 {
 	kfree(crc->entries);
+	crc->overflow = false;
 	crc->entries = NULL;
 	crc->head = 0;
 	crc->tail = 0;
@@ -167,57 +211,41 @@ static int crtc_crc_open(struct inode *inode, struct file *filep)
 			return ret;
 	}
 
-	spin_lock_irq(&crc->lock);
-	if (!crc->opened)
-		crc->opened = true;
-	else
-		ret = -EBUSY;
-	spin_unlock_irq(&crc->lock);
-
+	ret = crtc->funcs->verify_crc_source(crtc, crc->source, &values_cnt);
 	if (ret)
 		return ret;
 
-	ret = crtc->funcs->set_crc_source(crtc, crc->source, &values_cnt);
+	if (WARN_ON(values_cnt > DRM_MAX_CRC_NR))
+		return -EINVAL;
+
+	if (WARN_ON(values_cnt == 0))
+		return -EINVAL;
+
+	entries = kcalloc(DRM_CRC_ENTRIES_NR, sizeof(*entries), GFP_KERNEL);
+	if (!entries)
+		return -ENOMEM;
+
+	spin_lock_irq(&crc->lock);
+	if (!crc->opened) {
+		crc->opened = true;
+		crc->entries = entries;
+		crc->values_cnt = values_cnt;
+	} else {
+		ret = -EBUSY;
+	}
+	spin_unlock_irq(&crc->lock);
+
+	if (ret) {
+		kfree(entries);
+		return ret;
+	}
+
+	ret = crtc->funcs->set_crc_source(crtc, crc->source);
 	if (ret)
 		goto err;
 
-	if (WARN_ON(values_cnt > DRM_MAX_CRC_NR)) {
-		ret = -EINVAL;
-		goto err_disable;
-	}
-
-	if (WARN_ON(values_cnt == 0)) {
-		ret = -EINVAL;
-		goto err_disable;
-	}
-
-	entries = kcalloc(DRM_CRC_ENTRIES_NR, sizeof(*entries), GFP_KERNEL);
-	if (!entries) {
-		ret = -ENOMEM;
-		goto err_disable;
-	}
-
-	spin_lock_irq(&crc->lock);
-	crc->entries = entries;
-	crc->values_cnt = values_cnt;
-
-	/*
-	 * Only return once we got a first frame, so userspace doesn't have to
-	 * guess when this particular piece of HW will be ready to start
-	 * generating CRCs.
-	 */
-	ret = wait_event_interruptible_lock_irq(crc->wq,
-						crtc_crc_data_count(crc),
-						crc->lock);
-	spin_unlock_irq(&crc->lock);
-
-	if (ret)
-		goto err_disable;
-
 	return 0;
 
-err_disable:
-	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
 err:
 	spin_lock_irq(&crc->lock);
 	crtc_crc_cleanup(crc);
@@ -229,9 +257,8 @@ static int crtc_crc_release(struct inode *inode, struct file *filep)
 {
 	struct drm_crtc *crtc = filep->f_inode->i_private;
 	struct drm_crtc_crc *crc = &crtc->crc;
-	size_t values_cnt;
 
-	crtc->funcs->set_crc_source(crtc, NULL, &values_cnt);
+	crtc->funcs->set_crc_source(crtc, NULL);
 
 	spin_lock_irq(&crc->lock);
 	crtc_crc_cleanup(crc);
@@ -307,40 +334,45 @@ static ssize_t crtc_crc_read(struct file *filep, char __user *user_buf,
 	return LINE_LEN(crc->values_cnt);
 }
 
+static unsigned int crtc_crc_poll(struct file *file, poll_table *wait)
+{
+	struct drm_crtc *crtc = file->f_inode->i_private;
+	struct drm_crtc_crc *crc = &crtc->crc;
+	unsigned ret;
+
+	poll_wait(file, &crc->wq, wait);
+
+	spin_lock_irq(&crc->lock);
+	if (crc->source && crtc_crc_data_count(crc))
+		ret = POLLIN | POLLRDNORM;
+	else
+		ret = 0;
+	spin_unlock_irq(&crc->lock);
+
+	return ret;
+}
+
 static const struct file_operations drm_crtc_crc_data_fops = {
 	.owner = THIS_MODULE,
 	.open = crtc_crc_open,
 	.read = crtc_crc_read,
+	.poll = crtc_crc_poll,
 	.release = crtc_crc_release,
 };
 
-int drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
+void drm_debugfs_crtc_crc_add(struct drm_crtc *crtc)
 {
-	struct dentry *crc_ent, *ent;
+	struct dentry *crc_ent;
 
-	if (!crtc->funcs->set_crc_source)
-		return 0;
+	if (!crtc->funcs->set_crc_source || !crtc->funcs->verify_crc_source)
+		return;
 
 	crc_ent = debugfs_create_dir("crc", crtc->debugfs_entry);
-	if (!crc_ent)
-		return -ENOMEM;
 
-	ent = debugfs_create_file("control", S_IRUGO, crc_ent, crtc,
-				  &drm_crtc_crc_control_fops);
-	if (!ent)
-		goto error;
-
-	ent = debugfs_create_file("data", S_IRUGO, crc_ent, crtc,
-				  &drm_crtc_crc_data_fops);
-	if (!ent)
-		goto error;
-
-	return 0;
-
-error:
-	debugfs_remove_recursive(crc_ent);
-
-	return -ENOMEM;
+	debugfs_create_file("control", S_IRUGO, crc_ent, crtc,
+			    &drm_crtc_crc_control_fops);
+	debugfs_create_file("data", S_IRUGO, crc_ent, crtc,
+			    &drm_crtc_crc_data_fops);
 }
 
 /**
@@ -359,12 +391,13 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	struct drm_crtc_crc *crc = &crtc->crc;
 	struct drm_crtc_crc_entry *entry;
 	int head, tail;
+	unsigned long flags;
 
-	spin_lock(&crc->lock);
+	spin_lock_irqsave(&crc->lock, flags);
 
 	/* Caller may not have noticed yet that userspace has stopped reading */
 	if (!crc->entries) {
-		spin_unlock(&crc->lock);
+		spin_unlock_irqrestore(&crc->lock, flags);
 		return -EINVAL;
 	}
 
@@ -372,8 +405,14 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	tail = crc->tail;
 
 	if (CIRC_SPACE(head, tail, DRM_CRC_ENTRIES_NR) < 1) {
-		spin_unlock(&crc->lock);
-		DRM_ERROR("Overflow of CRC buffer, userspace reads too slow.\n");
+		bool was_overflow = crc->overflow;
+
+		crc->overflow = true;
+		spin_unlock_irqrestore(&crc->lock, flags);
+
+		if (!was_overflow)
+			DRM_ERROR("Overflow of CRC buffer, userspace reads too slow.\n");
+
 		return -ENOBUFS;
 	}
 
@@ -385,7 +424,7 @@ int drm_crtc_add_crc_entry(struct drm_crtc *crtc, bool has_frame,
 	head = (head + 1) & (DRM_CRC_ENTRIES_NR - 1);
 	crc->head = head;
 
-	spin_unlock(&crc->lock);
+	spin_unlock_irqrestore(&crc->lock, flags);
 
 	wake_up_interruptible(&crc->wq);
 

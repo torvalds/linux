@@ -1,30 +1,23 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2012 Texas Instruments
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#include <linux/delay.h>
+#include <linux/dma-mapping.h>
+#include <linux/of_graph.h>
+#include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
-#include <drm/drm_flip_work.h>
-#include <drm/drm_plane_helper.h>
-#include <linux/workqueue.h>
-#include <linux/completion.h>
-#include <linux/dma-mapping.h>
-#include <linux/of_graph.h>
-#include <linux/math64.h>
+#include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
+#include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_print.h>
+#include <drm/drm_vblank.h>
 
 #include "tilcdc_drv.h"
 #include "tilcdc_regs.h"
@@ -224,7 +217,7 @@ static void tilcdc_crtc_set_clk(struct drm_crtc *crtc)
 
 	ret = clk_set_rate(priv->clk, req_rate * clkdiv);
 	clk_rate = clk_get_rate(priv->clk);
-	if (ret < 0) {
+	if (ret < 0 || tilcdc_pclk_diff(req_rate, clk_rate) > 5) {
 		/*
 		 * If we fail to set the clock rate (some architectures don't
 		 * use the common clock framework yet and may not implement
@@ -657,9 +650,6 @@ static bool tilcdc_crtc_mode_fixup(struct drm_crtc *crtc,
 static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
 				    struct drm_crtc_state *state)
 {
-	struct drm_display_mode *mode = &state->mode;
-	int ret;
-
 	/* If we are not active we don't care */
 	if (!state->active)
 		return 0;
@@ -668,12 +658,6 @@ static int tilcdc_crtc_atomic_check(struct drm_crtc *crtc,
 	    state->state->planes[0].state == NULL ||
 	    state->state->planes[0].state->crtc != crtc) {
 		dev_dbg(crtc->dev->dev, "CRTC primary plane must be present");
-		return -EINVAL;
-	}
-
-	ret = tilcdc_crtc_mode_valid(crtc, mode);
-	if (ret) {
-		dev_dbg(crtc->dev->dev, "Mode \"%s\" not valid", mode->name);
 		return -EINVAL;
 	}
 
@@ -728,13 +712,6 @@ static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 	.disable_vblank	= tilcdc_crtc_disable_vblank,
 };
 
-static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
-		.mode_fixup     = tilcdc_crtc_mode_fixup,
-		.atomic_check	= tilcdc_crtc_atomic_check,
-		.atomic_enable	= tilcdc_crtc_atomic_enable,
-		.atomic_disable	= tilcdc_crtc_atomic_disable,
-};
-
 int tilcdc_crtc_max_width(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -749,7 +726,9 @@ int tilcdc_crtc_max_width(struct drm_crtc *crtc)
 	return max_width;
 }
 
-int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
+static enum drm_mode_status
+tilcdc_crtc_mode_valid(struct drm_crtc *crtc,
+		       const struct drm_display_mode *mode)
 {
 	struct tilcdc_drm_private *priv = crtc->dev->dev_private;
 	unsigned int bandwidth;
@@ -836,6 +815,14 @@ int tilcdc_crtc_mode_valid(struct drm_crtc *crtc, struct drm_display_mode *mode)
 
 	return MODE_OK;
 }
+
+static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
+	.mode_valid	= tilcdc_crtc_mode_valid,
+	.mode_fixup	= tilcdc_crtc_mode_fixup,
+	.atomic_check	= tilcdc_crtc_atomic_check,
+	.atomic_enable	= tilcdc_crtc_atomic_enable,
+	.atomic_disable	= tilcdc_crtc_atomic_disable,
+};
 
 void tilcdc_crtc_set_panel_info(struct drm_crtc *crtc,
 		const struct tilcdc_panel_info *info)
@@ -994,10 +981,8 @@ int tilcdc_crtc_create(struct drm_device *dev)
 	int ret;
 
 	tilcdc_crtc = devm_kzalloc(dev->dev, sizeof(*tilcdc_crtc), GFP_KERNEL);
-	if (!tilcdc_crtc) {
-		dev_err(dev->dev, "allocation failed\n");
+	if (!tilcdc_crtc)
 		return -ENOMEM;
-	}
 
 	init_completion(&tilcdc_crtc->palette_loaded);
 	tilcdc_crtc->palette_base = dmam_alloc_coherent(dev->dev,

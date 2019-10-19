@@ -1,21 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**
  * omap-usb-tll.c - The USB TLL driver for OMAP EHCI & OHCI
  *
  * Copyright (C) 2012-2013 Texas Instruments Incorporated - http://www.ti.com
  * Author: Keshava Munegowda <keshava_mgowda@ti.com>
  * Author: Roger Quadros <rogerq@ti.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2  of
- * the License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -108,9 +97,9 @@
 					 (x) != OMAP_EHCI_PORT_MODE_PHY)
 
 struct usbtll_omap {
-	int					nch;	/* num. of channels */
-	struct clk				**ch_clk;
-	void __iomem				*base;
+	void __iomem	*base;
+	int		nch;		/* num. of channels */
+	struct clk	*ch_clk[0];	/* must be the last member */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -216,53 +205,49 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	struct device				*dev =  &pdev->dev;
 	struct resource				*res;
 	struct usbtll_omap			*tll;
-	int					ret = 0;
-	int					i, ver;
+	void __iomem				*base;
+	int					i, nch, ver;
 
 	dev_dbg(dev, "starting TI HSUSB TLL Controller\n");
 
-	tll = devm_kzalloc(dev, sizeof(struct usbtll_omap), GFP_KERNEL);
-	if (!tll) {
-		dev_err(dev, "Memory allocation failed\n");
-		return -ENOMEM;
-	}
-
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	tll->base = devm_ioremap_resource(dev, res);
-	if (IS_ERR(tll->base))
-		return PTR_ERR(tll->base);
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
-	platform_set_drvdata(pdev, tll);
 	pm_runtime_enable(dev);
 	pm_runtime_get_sync(dev);
 
-	ver =  usbtll_read(tll->base, OMAP_USBTLL_REVISION);
+	ver = usbtll_read(base, OMAP_USBTLL_REVISION);
 	switch (ver) {
 	case OMAP_USBTLL_REV1:
 	case OMAP_USBTLL_REV4:
-		tll->nch = OMAP_TLL_CHANNEL_COUNT;
+		nch = OMAP_TLL_CHANNEL_COUNT;
 		break;
 	case OMAP_USBTLL_REV2:
 	case OMAP_USBTLL_REV3:
-		tll->nch = OMAP_REV2_TLL_CHANNEL_COUNT;
+		nch = OMAP_REV2_TLL_CHANNEL_COUNT;
 		break;
 	default:
-		tll->nch = OMAP_TLL_CHANNEL_COUNT;
-		dev_dbg(dev,
-		 "USB TLL Rev : 0x%x not recognized, assuming %d channels\n",
-			ver, tll->nch);
+		nch = OMAP_TLL_CHANNEL_COUNT;
+		dev_dbg(dev, "rev 0x%x not recognized, assuming %d channels\n",
+			ver, nch);
 		break;
 	}
 
-	tll->ch_clk = devm_kzalloc(dev, sizeof(struct clk *) * tll->nch,
-						GFP_KERNEL);
-	if (!tll->ch_clk) {
-		ret = -ENOMEM;
-		dev_err(dev, "Couldn't allocate memory for channel clocks\n");
-		goto err_clk_alloc;
+	tll = devm_kzalloc(dev, sizeof(*tll) + sizeof(tll->ch_clk[nch]),
+			   GFP_KERNEL);
+	if (!tll) {
+		pm_runtime_put_sync(dev);
+		pm_runtime_disable(dev);
+		return -ENOMEM;
 	}
 
-	for (i = 0; i < tll->nch; i++) {
+	tll->base = base;
+	tll->nch = nch;
+	platform_set_drvdata(pdev, tll);
+
+	for (i = 0; i < nch; i++) {
 		char clkname[] = "usb_tll_hs_usb_chx_clk";
 
 		snprintf(clkname, sizeof(clkname),
@@ -282,12 +267,6 @@ static int usbtll_omap_probe(struct platform_device *pdev)
 	spin_unlock(&tll_lock);
 
 	return 0;
-
-err_clk_alloc:
-	pm_runtime_put_sync(dev);
-	pm_runtime_disable(dev);
-
-	return ret;
 }
 
 /**
@@ -469,7 +448,6 @@ EXPORT_SYMBOL_GPL(omap_tll_disable);
 
 MODULE_AUTHOR("Keshava Munegowda <keshava_mgowda@ti.com>");
 MODULE_AUTHOR("Roger Quadros <rogerq@ti.com>");
-MODULE_ALIAS("platform:" USBHS_DRIVER_NAME);
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("usb tll driver for TI OMAP EHCI and OHCI controllers");
 

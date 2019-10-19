@@ -1,14 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2005-2006 Micronas USA Inc.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License (Version 2) as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/module.h>
@@ -208,7 +200,7 @@ static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *con
 	struct i2c_board_info info;
 
 	memset(&info, 0, sizeof(info));
-	strlcpy(info.type, i2c->type, sizeof(info.type));
+	strscpy(info.type, i2c->type, sizeof(info.type));
 	info.addr = i2c->addr;
 	info.flags = i2c->flags;
 
@@ -448,13 +440,14 @@ static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buf
 {
 	u32 *bytesused;
 	struct go7007_buffer *vb_tmp = NULL;
+	unsigned long flags;
 
 	if (vb == NULL) {
-		spin_lock(&go->spinlock);
+		spin_lock_irqsave(&go->spinlock, flags);
 		if (!list_empty(&go->vidq_active))
 			vb = go->active_buf =
 				list_first_entry(&go->vidq_active, struct go7007_buffer, list);
-		spin_unlock(&go->spinlock);
+		spin_unlock_irqrestore(&go->spinlock, flags);
 		go->next_seq++;
 		return vb;
 	}
@@ -468,7 +461,7 @@ static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buf
 
 	vb->vb.vb2_buf.timestamp = ktime_get_ns();
 	vb_tmp = vb;
-	spin_lock(&go->spinlock);
+	spin_lock_irqsave(&go->spinlock, flags);
 	list_del(&vb->list);
 	if (list_empty(&go->vidq_active))
 		vb = NULL;
@@ -476,7 +469,7 @@ static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buf
 		vb = list_first_entry(&go->vidq_active,
 				struct go7007_buffer, list);
 	go->active_buf = vb;
-	spin_unlock(&go->spinlock);
+	spin_unlock_irqrestore(&go->spinlock, flags);
 	vb2_buffer_done(&vb_tmp->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	return vb;
 }

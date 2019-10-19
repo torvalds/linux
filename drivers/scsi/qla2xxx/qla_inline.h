@@ -10,6 +10,7 @@
  * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
  * Continuation Type 1 IOCBs to allocate.
  *
+ * @vha: HA context
  * @dsds: number of data segment decriptors needed
  *
  * Returns the number of IOCB entries needed to store @dsds.
@@ -57,14 +58,12 @@ qla2x00_debounce_register(volatile uint16_t __iomem *addr)
 static inline void
 qla2x00_poll(struct rsp_que *rsp)
 {
-	unsigned long flags;
 	struct qla_hw_data *ha = rsp->hw;
-	local_irq_save(flags);
+
 	if (IS_P3P_TYPE(ha))
 		qla82xx_poll(0, rsp);
 	else
 		ha->isp_ops->intr_handler(0, rsp);
-	local_irq_restore(flags);
 }
 
 static inline uint8_t *
@@ -92,43 +91,6 @@ host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
 }
 
 static inline void
-qla2x00_set_reserved_loop_ids(struct qla_hw_data *ha)
-{
-	int i;
-
-	if (IS_FWI2_CAPABLE(ha))
-		return;
-
-	for (i = 0; i < SNS_FIRST_LOOP_ID; i++)
-		set_bit(i, ha->loop_id_map);
-	set_bit(MANAGEMENT_SERVER, ha->loop_id_map);
-	set_bit(BROADCAST, ha->loop_id_map);
-}
-
-static inline int
-qla2x00_is_reserved_id(scsi_qla_host_t *vha, uint16_t loop_id)
-{
-	struct qla_hw_data *ha = vha->hw;
-	if (IS_FWI2_CAPABLE(ha))
-		return (loop_id > NPH_LAST_HANDLE);
-
-	return ((loop_id > ha->max_loop_id && loop_id < SNS_FIRST_LOOP_ID) ||
-	    loop_id == MANAGEMENT_SERVER || loop_id == BROADCAST);
-}
-
-static inline void
-qla2x00_clear_loop_id(fc_port_t *fcport) {
-	struct qla_hw_data *ha = fcport->vha->hw;
-
-	if (fcport->loop_id == FC_NO_LOOP_ID ||
-	    qla2x00_is_reserved_id(fcport->vha, fcport->loop_id))
-		return;
-
-	clear_bit(fcport->loop_id, ha->loop_id_map);
-	fcport->loop_id = FC_NO_LOOP_ID;
-}
-
-static inline void
 qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 {
 	struct dsd_dma *dsd, *tdsd;
@@ -141,25 +103,6 @@ qla2x00_clean_dsd_pool(struct qla_hw_data *ha, struct crc_context *ctx)
 		kfree(dsd);
 	}
 	INIT_LIST_HEAD(&ctx->dsd_list);
-}
-
-static inline void
-qla2x00_set_fcport_state(fc_port_t *fcport, int state)
-{
-	int old_state;
-
-	old_state = atomic_read(&fcport->state);
-	atomic_set(&fcport->state, state);
-
-	/* Don't print state transitions during initial allocation of fcport */
-	if (old_state && old_state != state) {
-		ql_dbg(ql_dbg_disc, fcport->vha, 0x207d,
-		    "FCPort %8phC state transitioned from %s to %s - "
-			"portid=%02x%02x%02x.\n", fcport->port_name,
-		    port_state_str[old_state], port_state_str[state],
-		    fcport->d_id.b.domain, fcport->d_id.b.area,
-		    fcport->d_id.b.al_pa);
-	}
 }
 
 static inline int
@@ -203,8 +146,27 @@ qla2x00_reset_active(scsi_qla_host_t *vha)
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags);
 }
 
+static inline int
+qla2x00_chip_is_down(scsi_qla_host_t *vha)
+{
+	return (qla2x00_reset_active(vha) || !vha->hw->flags.fw_started);
+}
+
+static void qla2xxx_init_sp(srb_t *sp, scsi_qla_host_t *vha,
+			    struct qla_qpair *qpair, fc_port_t *fcport)
+{
+	memset(sp, 0, sizeof(*sp));
+	sp->fcport = fcport;
+	sp->iocbs = 1;
+	sp->vha = vha;
+	sp->qpair = qpair;
+	sp->cmd_type = TYPE_SRB;
+	INIT_LIST_HEAD(&sp->elem);
+}
+
 static inline srb_t *
-qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
+qla2xxx_get_qpair_sp(scsi_qla_host_t *vha, struct qla_qpair *qpair,
+    fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
 	uint8_t bail;
@@ -214,15 +176,9 @@ qla2xxx_get_qpair_sp(struct qla_qpair *qpair, fc_port_t *fcport, gfp_t flag)
 		return NULL;
 
 	sp = mempool_alloc(qpair->srb_mempool, flag);
-	if (!sp)
-		goto done;
-
-	memset(sp, 0, sizeof(*sp));
-	sp->fcport = fcport;
-	sp->iocbs = 1;
-	sp->vha = qpair->vha;
-done:
-	if (!sp)
+	if (sp)
+		qla2xxx_init_sp(sp, vha, qpair, fcport);
+	else
 		QLA_QPAIR_MARK_NOT_BUSY(qpair);
 	return sp;
 }
@@ -230,6 +186,7 @@ done:
 static inline void
 qla2xxx_rel_qpair_sp(struct qla_qpair *qpair, srb_t *sp)
 {
+	sp->qpair = NULL;
 	mempool_free(sp, qpair->srb_mempool);
 	QLA_QPAIR_MARK_NOT_BUSY(qpair);
 }
@@ -239,19 +196,17 @@ qla2x00_get_sp(scsi_qla_host_t *vha, fc_port_t *fcport, gfp_t flag)
 {
 	srb_t *sp = NULL;
 	uint8_t bail;
+	struct qla_qpair *qpair;
 
 	QLA_VHA_MARK_BUSY(vha, bail);
 	if (unlikely(bail))
 		return NULL;
 
-	sp = mempool_alloc(vha->hw->srb_mempool, flag);
+	qpair = vha->hw->base_qpair;
+	sp = qla2xxx_get_qpair_sp(vha, qpair, fcport, flag);
 	if (!sp)
 		goto done;
 
-	memset(sp, 0, sizeof(*sp));
-	sp->fcport = fcport;
-	sp->cmd_type = TYPE_SRB;
-	sp->iocbs = 1;
 	sp->vha = vha;
 done:
 	if (!sp)
@@ -263,21 +218,7 @@ static inline void
 qla2x00_rel_sp(srb_t *sp)
 {
 	QLA_VHA_MARK_NOT_BUSY(sp->vha);
-	mempool_free(sp, sp->vha->hw->srb_mempool);
-}
-
-static inline void
-qla2x00_init_timer(srb_t *sp, unsigned long tmo)
-{
-	timer_setup(&sp->u.iocb_cmd.timer, qla2x00_sp_timeout, 0);
-	sp->u.iocb_cmd.timer.expires = jiffies + tmo * HZ;
-	add_timer(&sp->u.iocb_cmd.timer);
-	sp->free = qla2x00_sp_free;
-	init_completion(&sp->comp);
-	if (IS_QLAFX00(sp->vha->hw) && (sp->type == SRB_FXIOCB_DCMD))
-		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
-	if (sp->type == SRB_ELS_DCMD)
-		init_completion(&sp->u.iocb_cmd.u.els_logo.comp);
+	qla2xxx_rel_qpair_sp(sp->qpair, sp);
 }
 
 static inline int
@@ -312,13 +253,13 @@ static inline bool
 qla_is_exch_offld_enabled(struct scsi_qla_host *vha)
 {
 	if (qla_ini_mode_enabled(vha) &&
-	    (ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
+	    (vha->ql2xiniexchg > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else if (qla_tgt_mode_enabled(vha) &&
-	    (ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
+	    (vha->ql2xexchoffld > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else if (qla_dual_mode_enabled(vha) &&
-	    ((ql2xiniexchg + ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
+	    ((vha->ql2xiniexchg + vha->ql2xexchoffld) > FW_DEF_EXCHANGES_CNT))
 		return true;
 	else
 		return false;

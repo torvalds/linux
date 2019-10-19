@@ -37,33 +37,23 @@ static struct dentry *root_folder;
 void brcms_debugfs_init(void)
 {
 	root_folder = debugfs_create_dir(KBUILD_MODNAME, NULL);
-	if (IS_ERR(root_folder))
-		root_folder = NULL;
 }
 
 void brcms_debugfs_exit(void)
 {
-	if (!root_folder)
-		return;
-
 	debugfs_remove_recursive(root_folder);
 	root_folder = NULL;
 }
 
-int brcms_debugfs_attach(struct brcms_pub *drvr)
+void brcms_debugfs_attach(struct brcms_pub *drvr)
 {
-	if (!root_folder)
-		return -ENODEV;
-
 	drvr->dbgfs_dir = debugfs_create_dir(
 		 dev_name(&drvr->wlc->hw->d11core->dev), root_folder);
-	return PTR_ERR_OR_ZERO(drvr->dbgfs_dir);
 }
 
 void brcms_debugfs_detach(struct brcms_pub *drvr)
 {
-	if (!IS_ERR_OR_NULL(drvr->dbgfs_dir))
-		debugfs_remove_recursive(drvr->dbgfs_dir);
+	debugfs_remove_recursive(drvr->dbgfs_dir);
 }
 
 struct dentry *brcms_debugfs_get_devdir(struct brcms_pub *drvr)
@@ -196,7 +186,7 @@ static const struct file_operations brcms_debugfs_def_ops = {
 	.llseek = seq_lseek
 };
 
-static int
+static void
 brcms_debugfs_add_entry(struct brcms_pub *drvr, const char *fn,
 			int (*read_fn)(struct seq_file *seq, void *data))
 {
@@ -204,27 +194,18 @@ brcms_debugfs_add_entry(struct brcms_pub *drvr, const char *fn,
 	struct dentry *dentry =  drvr->dbgfs_dir;
 	struct brcms_debugfs_entry *entry;
 
-	if (IS_ERR_OR_NULL(dentry))
-		return -ENOENT;
-
 	entry = devm_kzalloc(dev, sizeof(*entry), GFP_KERNEL);
 	if (!entry)
-		return -ENOMEM;
+		return;
 
 	entry->read = read_fn;
 	entry->drvr = drvr;
 
-	dentry = debugfs_create_file(fn, S_IRUGO, dentry, entry,
-				     &brcms_debugfs_def_ops);
-
-	return PTR_ERR_OR_ZERO(dentry);
+	debugfs_create_file(fn, 0444, dentry, entry, &brcms_debugfs_def_ops);
 }
 
 void brcms_debugfs_create_files(struct brcms_pub *drvr)
 {
-	if (IS_ERR_OR_NULL(drvr->dbgfs_dir))
-		return;
-
 	brcms_debugfs_add_entry(drvr, "hardware", brcms_debugfs_hardware_read);
 	brcms_debugfs_add_entry(drvr, "macstat", brcms_debugfs_macstat_read);
 }

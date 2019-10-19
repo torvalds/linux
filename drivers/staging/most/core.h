@@ -128,6 +128,7 @@ struct most_channel_config {
 	u16 extra_len;
 	u16 subbuffer_size;
 	u16 packets_per_xact;
+	u16 dbr_size;
 };
 
 /*
@@ -184,7 +185,7 @@ struct mbo {
 	u16 buffer_length;
 	u16 processed_length;
 	enum mbo_status_flags status;
-	void (*complete)(struct mbo *);
+	void (*complete)(struct mbo *mbo);
 };
 
 /**
@@ -229,11 +230,14 @@ struct mbo {
  */
 struct most_interface {
 	struct device dev;
+	struct device *driver_dev;
 	struct module *mod;
 	enum most_interface_type interface;
 	const char *description;
 	unsigned int num_channels;
 	struct most_channel_capability *channel_vector;
+	void *(*dma_alloc)(struct mbo *mbo, u32 size);
+	void (*dma_free)(struct mbo *mbo, u32 size);
 	int (*configure)(struct most_interface *iface, int channel_idx,
 			 struct most_channel_config *channel_config);
 	int (*enqueue)(struct most_interface *iface, int channel_idx,
@@ -262,11 +266,13 @@ struct core_component {
 	struct list_head list;
 	const char *name;
 	int (*probe_channel)(struct most_interface *iface, int channel_idx,
-			     struct most_channel_config *cfg, char *name);
+			     struct most_channel_config *cfg, char *name,
+			     char *param);
 	int (*disconnect_channel)(struct most_interface *iface,
 				  int channel_idx);
 	int (*rx_completion)(struct mbo *mbo);
 	int (*tx_completion)(struct most_interface *iface, int channel_idx);
+	int (*cfg_complete)(void);
 };
 
 /**
@@ -314,5 +320,19 @@ int most_start_channel(struct most_interface *iface, int channel_idx,
 		       struct core_component *comp);
 int most_stop_channel(struct most_interface *iface, int channel_idx,
 		      struct core_component *comp);
-
+int __init configfs_init(void);
+int most_register_configfs_subsys(struct core_component *comp);
+void most_deregister_configfs_subsys(struct core_component *comp);
+int most_add_link(char *mdev, char *mdev_ch, char *comp_name, char *link_name,
+		  char *comp_param);
+int most_remove_link(char *mdev, char *mdev_ch, char *comp_name);
+int most_set_cfg_buffer_size(char *mdev, char *mdev_ch, u16 val);
+int most_set_cfg_subbuffer_size(char *mdev, char *mdev_ch, u16 val);
+int most_set_cfg_dbr_size(char *mdev, char *mdev_ch, u16 val);
+int most_set_cfg_num_buffers(char *mdev, char *mdev_ch, u16 val);
+int most_set_cfg_datatype(char *mdev, char *mdev_ch, char *buf);
+int most_set_cfg_direction(char *mdev, char *mdev_ch, char *buf);
+int most_set_cfg_packets_xact(char *mdev, char *mdev_ch, u16 val);
+int most_cfg_complete(char *comp_name);
+void most_interface_register_notify(const char *mdev_name);
 #endif /* MOST_CORE_H_ */

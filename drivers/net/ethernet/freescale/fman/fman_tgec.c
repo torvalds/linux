@@ -44,6 +44,7 @@
 #define TGEC_TX_IPG_LENGTH_MASK	0x000003ff
 
 /* Command and Configuration Register (COMMAND_CONFIG) */
+#define CMD_CFG_EN_TIMESTAMP		0x00100000
 #define CMD_CFG_NO_LEN_CHK		0x00020000
 #define CMD_CFG_PAUSE_IGNORE		0x00000100
 #define CMF_CFG_CRC_FWD			0x00000040
@@ -217,6 +218,7 @@ struct fman_mac {
 	struct tgec_cfg *cfg;
 	void *fm;
 	struct fman_rev_info fm_rev_info;
+	bool allmulti_enabled;
 };
 
 static void set_mac_address(struct tgec_regs __iomem *regs, u8 *adr)
@@ -551,7 +553,7 @@ int tgec_add_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 	hash = (crc >> TGEC_HASH_MCAST_SHIFT) & TGEC_HASH_ADR_MSK;
 
 	/* Create element to be added to the driver hash table */
-	hash_entry = kmalloc(sizeof(*hash_entry), GFP_KERNEL);
+	hash_entry = kmalloc(sizeof(*hash_entry), GFP_ATOMIC);
 	if (!hash_entry)
 		return -ENOMEM;
 	hash_entry->addr = addr;
@@ -560,6 +562,49 @@ int tgec_add_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 	list_add_tail(&hash_entry->node,
 		      &tgec->multicast_addr_hash->lsts[hash]);
 	iowrite32be((hash | TGEC_HASH_MCAST_EN), &regs->hashtable_ctrl);
+
+	return 0;
+}
+
+int tgec_set_allmulti(struct fman_mac *tgec, bool enable)
+{
+	u32 entry;
+	struct tgec_regs __iomem *regs = tgec->regs;
+
+	if (!is_init_done(tgec->cfg))
+		return -EINVAL;
+
+	if (enable) {
+		for (entry = 0; entry < TGEC_HASH_TABLE_SIZE; entry++)
+			iowrite32be(entry | TGEC_HASH_MCAST_EN,
+				    &regs->hashtable_ctrl);
+	} else {
+		for (entry = 0; entry < TGEC_HASH_TABLE_SIZE; entry++)
+			iowrite32be(entry & ~TGEC_HASH_MCAST_EN,
+				    &regs->hashtable_ctrl);
+	}
+
+	tgec->allmulti_enabled = enable;
+
+	return 0;
+}
+
+int tgec_set_tstamp(struct fman_mac *tgec, bool enable)
+{
+	struct tgec_regs __iomem *regs = tgec->regs;
+	u32 tmp;
+
+	if (!is_init_done(tgec->cfg))
+		return -EINVAL;
+
+	tmp = ioread32be(&regs->command_config);
+
+	if (enable)
+		tmp |= CMD_CFG_EN_TIMESTAMP;
+	else
+		tmp &= ~CMD_CFG_EN_TIMESTAMP;
+
+	iowrite32be(tmp, &regs->command_config);
 
 	return 0;
 }
@@ -591,9 +636,12 @@ int tgec_del_hash_mac_address(struct fman_mac *tgec, enet_addr_t *eth_addr)
 			break;
 		}
 	}
-	if (list_empty(&tgec->multicast_addr_hash->lsts[hash]))
-		iowrite32be((hash & ~TGEC_HASH_MCAST_EN),
-			    &regs->hashtable_ctrl);
+
+	if (!tgec->allmulti_enabled) {
+		if (list_empty(&tgec->multicast_addr_hash->lsts[hash]))
+			iowrite32be((hash & ~TGEC_HASH_MCAST_EN),
+				    &regs->hashtable_ctrl);
+	}
 
 	return 0;
 }

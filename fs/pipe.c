@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/log2.h>
 #include <linux/mount.h>
+#include <linux/pseudo_fs.h>
 #include <linux/magic.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/uio.h>
@@ -140,8 +141,7 @@ static int anon_pipe_buf_steal(struct pipe_inode_info *pipe,
 	struct page *page = buf->page;
 
 	if (page_count(page) == 1) {
-		if (memcg_kmem_enabled())
-			memcg_kmem_uncharge(page, 0);
+		memcg_kmem_uncharge(page, 0);
 		__SetPageLocked(page);
 		return 0;
 	}
@@ -189,9 +189,9 @@ EXPORT_SYMBOL(generic_pipe_buf_steal);
  *	in the tee() system call, when we duplicate the buffers in one
  *	pipe into another.
  */
-void generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
+bool generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
-	get_page(buf->page);
+	return try_get_page(buf->page);
 }
 EXPORT_SYMBOL(generic_pipe_buf_get);
 
@@ -226,8 +226,15 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 }
 EXPORT_SYMBOL(generic_pipe_buf_release);
 
+/* New data written to a pipe may be appended to a buffer with this type. */
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
-	.can_merge = 1,
+	.confirm = generic_pipe_buf_confirm,
+	.release = anon_pipe_buf_release,
+	.steal = anon_pipe_buf_steal,
+	.get = generic_pipe_buf_get,
+};
+
+static const struct pipe_buf_operations anon_pipe_buf_nomerge_ops = {
 	.confirm = generic_pipe_buf_confirm,
 	.release = anon_pipe_buf_release,
 	.steal = anon_pipe_buf_steal,
@@ -235,12 +242,31 @@ static const struct pipe_buf_operations anon_pipe_buf_ops = {
 };
 
 static const struct pipe_buf_operations packet_pipe_buf_ops = {
-	.can_merge = 0,
 	.confirm = generic_pipe_buf_confirm,
 	.release = anon_pipe_buf_release,
 	.steal = anon_pipe_buf_steal,
 	.get = generic_pipe_buf_get,
 };
+
+/**
+ * pipe_buf_mark_unmergeable - mark a &struct pipe_buffer as unmergeable
+ * @buf:	the buffer to mark
+ *
+ * Description:
+ *	This function ensures that no future writes will be merged into the
+ *	given &struct pipe_buffer. This is necessary when multiple pipe buffers
+ *	share the same backing page.
+ */
+void pipe_buf_mark_unmergeable(struct pipe_buffer *buf)
+{
+	if (buf->ops == &anon_pipe_buf_ops)
+		buf->ops = &anon_pipe_buf_nomerge_ops;
+}
+
+static bool pipe_buf_can_merge(struct pipe_buffer *buf)
+{
+	return buf->ops == &anon_pipe_buf_ops;
+}
 
 static ssize_t
 pipe_read(struct kiocb *iocb, struct iov_iter *to)
@@ -379,7 +405,7 @@ pipe_write(struct kiocb *iocb, struct iov_iter *from)
 		struct pipe_buffer *buf = pipe->bufs + lastbuf;
 		int offset = buf->offset + buf->len;
 
-		if (buf->ops->can_merge && offset + chars <= PAGE_SIZE) {
+		if (pipe_buf_can_merge(buf) && offset + chars <= PAGE_SIZE) {
 			ret = pipe_buf_confirm(pipe, buf);
 			if (ret)
 				goto out;
@@ -741,54 +767,33 @@ fail_inode:
 
 int create_pipe_files(struct file **res, int flags)
 {
-	int err;
 	struct inode *inode = get_pipe_inode();
 	struct file *f;
-	struct path path;
 
 	if (!inode)
 		return -ENFILE;
 
-	err = -ENOMEM;
-	path.dentry = d_alloc_pseudo(pipe_mnt->mnt_sb, &empty_name);
-	if (!path.dentry)
-		goto err_inode;
-	path.mnt = mntget(pipe_mnt);
-
-	d_instantiate(path.dentry, inode);
-
-	f = alloc_file(&path, FMODE_WRITE, &pipefifo_fops);
+	f = alloc_file_pseudo(inode, pipe_mnt, "",
+				O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT)),
+				&pipefifo_fops);
 	if (IS_ERR(f)) {
-		err = PTR_ERR(f);
-		goto err_dentry;
+		free_pipe_info(inode->i_pipe);
+		iput(inode);
+		return PTR_ERR(f);
 	}
 
-	f->f_flags = O_WRONLY | (flags & (O_NONBLOCK | O_DIRECT));
 	f->private_data = inode->i_pipe;
 
-	res[0] = alloc_file(&path, FMODE_READ, &pipefifo_fops);
+	res[0] = alloc_file_clone(f, O_RDONLY | (flags & O_NONBLOCK),
+				  &pipefifo_fops);
 	if (IS_ERR(res[0])) {
-		err = PTR_ERR(res[0]);
-		goto err_file;
+		put_pipe_info(inode, inode->i_pipe);
+		fput(f);
+		return PTR_ERR(res[0]);
 	}
-
-	path_get(&path);
 	res[0]->private_data = inode->i_pipe;
-	res[0]->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	res[1] = f;
 	return 0;
-
-err_file:
-	put_filp(f);
-err_dentry:
-	free_pipe_info(inode->i_pipe);
-	path_put(&path);
-	return err;
-
-err_inode:
-	free_pipe_info(inode->i_pipe);
-	iput(inode);
-	return err;
 }
 
 static int __do_pipe_flags(int *fd, struct file **files, int flags)
@@ -841,7 +846,7 @@ int do_pipe_flags(int *fd, int flags)
  * sys_pipe() is the normal C calling standard for creating
  * a pipe. It's not the way Unix traditionally does this, though.
  */
-SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
+static int do_pipe2(int __user *fildes, int flags)
 {
 	struct file *files[2];
 	int fd[2];
@@ -863,9 +868,14 @@ SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
 	return error;
 }
 
+SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
+{
+	return do_pipe2(fildes, flags);
+}
+
 SYSCALL_DEFINE1(pipe, int __user *, fildes)
 {
-	return sys_pipe2(fildes, 0);
+	return do_pipe2(fildes, 0);
 }
 
 static int wait_for_partner(struct pipe_inode_info *pipe, unsigned int *cnt)
@@ -1173,16 +1183,20 @@ static const struct super_operations pipefs_ops = {
  * any operations on the root directory. However, we need a non-trivial
  * d_name - pipe: will go nicely and kill the special-casing in procfs.
  */
-static struct dentry *pipefs_mount(struct file_system_type *fs_type,
-			 int flags, const char *dev_name, void *data)
+
+static int pipefs_init_fs_context(struct fs_context *fc)
 {
-	return mount_pseudo(fs_type, "pipe:", &pipefs_ops,
-			&pipefs_dentry_operations, PIPEFS_MAGIC);
+	struct pseudo_fs_context *ctx = init_pseudo(fc, PIPEFS_MAGIC);
+	if (!ctx)
+		return -ENOMEM;
+	ctx->ops = &pipefs_ops;
+	ctx->dops = &pipefs_dentry_operations;
+	return 0;
 }
 
 static struct file_system_type pipe_fs_type = {
 	.name		= "pipefs",
-	.mount		= pipefs_mount,
+	.init_fs_context = pipefs_init_fs_context,
 	.kill_sb	= kill_anon_super,
 };
 

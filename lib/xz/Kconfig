@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config XZ_DEC
 	tristate "XZ decompression support"
 	select CRC32

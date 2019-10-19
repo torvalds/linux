@@ -55,22 +55,24 @@ static inline void XOR(int x, int y, int z)
 	asm volatile ("VX %0,%1,%2" : : "i" (x), "i" (y), "i" (z));
 }
 
-static inline void LOAD_DATA(int x, int n, u8 *ptr)
+static inline void LOAD_DATA(int x, u8 *ptr)
 {
-	typedef struct { u8 _[16*n]; } addrtype;
+	typedef struct { u8 _[16 * $#]; } addrtype;
 	register addrtype *__ptr asm("1") = (addrtype *) ptr;
 
-	asm volatile ("VLM %2,%3,0,%r1"
-		      : : "m" (*__ptr), "a" (__ptr), "i" (x), "i" (x + n - 1));
+	asm volatile ("VLM %2,%3,0,%1"
+		      : : "m" (*__ptr), "a" (__ptr), "i" (x),
+			  "i" (x + $# - 1));
 }
 
-static inline void STORE_DATA(int x, int n, u8 *ptr)
+static inline void STORE_DATA(int x, u8 *ptr)
 {
-	typedef struct { u8 _[16*n]; } addrtype;
+	typedef struct { u8 _[16 * $#]; } addrtype;
 	register addrtype *__ptr asm("1") = (addrtype *) ptr;
 
 	asm volatile ("VSTM %2,%3,0,1"
-		      : "=m" (*__ptr) : "a" (__ptr), "i" (x), "i" (x + n - 1));
+		      : "=m" (*__ptr) : "a" (__ptr), "i" (x),
+			"i" (x + $# - 1));
 }
 
 static inline void COPY_VEC(int x, int y)
@@ -93,19 +95,19 @@ static void raid6_s390vx$#_gen_syndrome(int disks, size_t bytes, void **ptrs)
 	q = dptr[z0 + 2];	/* RS syndrome */
 
 	for (d = 0; d < bytes; d += $#*NSIZE) {
-		LOAD_DATA(0,$#,&dptr[z0][d]);
+		LOAD_DATA(0,&dptr[z0][d]);
 		COPY_VEC(8+$$,0+$$);
 		for (z = z0 - 1; z >= 0; z--) {
 			MASK(16+$$,8+$$);
 			AND(16+$$,16+$$,25);
 			SHLBYTE(8+$$,8+$$);
 			XOR(8+$$,8+$$,16+$$);
-			LOAD_DATA(16,$#,&dptr[z][d]);
+			LOAD_DATA(16,&dptr[z][d]);
 			XOR(0+$$,0+$$,16+$$);
 			XOR(8+$$,8+$$,16+$$);
 		}
-		STORE_DATA(0,$#,&p[d]);
-		STORE_DATA(8,$#,&q[d]);
+		STORE_DATA(0,&p[d]);
+		STORE_DATA(8,&q[d]);
 	}
 	kernel_fpu_end(&vxstate, KERNEL_VXR);
 }
@@ -127,14 +129,14 @@ static void raid6_s390vx$#_xor_syndrome(int disks, int start, int stop,
 
 	for (d = 0; d < bytes; d += $#*NSIZE) {
 		/* P/Q data pages */
-		LOAD_DATA(0,$#,&dptr[z0][d]);
+		LOAD_DATA(0,&dptr[z0][d]);
 		COPY_VEC(8+$$,0+$$);
 		for (z = z0 - 1; z >= start; z--) {
 			MASK(16+$$,8+$$);
 			AND(16+$$,16+$$,25);
 			SHLBYTE(8+$$,8+$$);
 			XOR(8+$$,8+$$,16+$$);
-			LOAD_DATA(16,$#,&dptr[z][d]);
+			LOAD_DATA(16,&dptr[z][d]);
 			XOR(0+$$,0+$$,16+$$);
 			XOR(8+$$,8+$$,16+$$);
 		}
@@ -145,12 +147,12 @@ static void raid6_s390vx$#_xor_syndrome(int disks, int start, int stop,
 			SHLBYTE(8+$$,8+$$);
 			XOR(8+$$,8+$$,16+$$);
 		}
-		LOAD_DATA(16,$#,&p[d]);
+		LOAD_DATA(16,&p[d]);
 		XOR(16+$$,16+$$,0+$$);
-		STORE_DATA(16,$#,&p[d]);
-		LOAD_DATA(16,$#,&q[d]);
+		STORE_DATA(16,&p[d]);
+		LOAD_DATA(16,&q[d]);
 		XOR(16+$$,16+$$,8+$$);
-		STORE_DATA(16,$#,&q[d]);
+		STORE_DATA(16,&q[d]);
 	}
 	kernel_fpu_end(&vxstate, KERNEL_VXR);
 }

@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: LGPL-2.1
 /*
  * trace/beauty/statx.c
  *
  *  Copyright (C) 2017, Red Hat Inc, Arnaldo Carvalho de Melo <acme@redhat.com>
- *
- * Released under the GPL v2. (and only v2, not any later version)
  */
 
 #include "trace/beauty/beauty.h"
@@ -14,13 +13,15 @@
 
 size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "AT_";
 	int printed = 0, flags = arg->val;
 
 	if (flags == 0)
-		return scnprintf(bf, size, "SYNC_AS_STAT");
+		return scnprintf(bf, size, "%s%s", show_prefix ? "AT_STATX_" : "", "SYNC_AS_STAT");
 #define	P_FLAG(n) \
 	if (flags & AT_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~AT_##n; \
 	}
 
@@ -42,11 +43,13 @@ size_t syscall_arg__scnprintf_statx_flags(char *bf, size_t size, struct syscall_
 
 size_t syscall_arg__scnprintf_statx_mask(char *bf, size_t size, struct syscall_arg *arg)
 {
+	bool show_prefix = arg->show_string_prefix;
+	const char *prefix = "STATX_";
 	int printed = 0, flags = arg->val;
 
 #define	P_FLAG(n) \
 	if (flags & STATX_##n) { \
-		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", #n); \
+		printed += scnprintf(bf + printed, size - printed, "%s%s", printed ? "|" : "", show_prefix ? prefix : "", #n); \
 		flags &= ~STATX_##n; \
 	}
 

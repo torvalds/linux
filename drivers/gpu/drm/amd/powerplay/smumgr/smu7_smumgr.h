@@ -31,22 +31,15 @@
 
 struct smu7_buffer_entry {
 	uint32_t data_size;
-	uint32_t mc_addr_low;
-	uint32_t mc_addr_high;
+	uint64_t mc_addr;
 	void *kaddr;
-	unsigned long  handle;
-};
-
-struct smu7_avfs {
-	enum AVFS_BTC_STATUS avfs_btc_status;
-	uint32_t           avfs_btc_param;
+	struct amdgpu_bo *handle;
 };
 
 struct smu7_smumgr {
-	uint8_t *header;
-	uint8_t *mec_image;
 	struct smu7_buffer_entry smu_buffer;
 	struct smu7_buffer_entry header_buffer;
+	struct SMU_DRAMData_TOC *toc;
 
 	uint32_t                             soft_regs_start;
 	uint32_t                             dpm_table_start;
@@ -56,7 +49,7 @@ struct smu7_smumgr {
 	uint32_t                             ulv_setting_starts;
 	uint8_t                              security_hard_key;
 	uint32_t                             acpi_optimization;
-	struct smu7_avfs                     avfs;
+	uint32_t                             avfs_btc_param;
 };
 
 
@@ -73,7 +66,6 @@ int smu7_send_msg_to_smc_with_parameter(struct pp_hwmgr *hwmgr, uint16_t msg,
 int smu7_send_msg_to_smc_with_parameter_without_waiting(struct pp_hwmgr *hwmgr,
 						uint16_t msg, uint32_t parameter);
 int smu7_send_msg_to_smc_offset(struct pp_hwmgr *hwmgr);
-int smu7_wait_for_smc_inactive(struct pp_hwmgr *hwmgr);
 
 enum cgs_ucode_id smu7_convert_fw_type_to_cgs(uint32_t fw_type);
 int smu7_read_smc_sram_dword(struct pp_hwmgr *hwmgr, uint32_t smc_addr,

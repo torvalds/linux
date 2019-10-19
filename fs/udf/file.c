@@ -257,11 +257,21 @@ const struct file_operations udf_file_operations = {
 static int udf_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = d_inode(dentry);
+	struct super_block *sb = inode->i_sb;
 	int error;
 
 	error = setattr_prepare(dentry, attr);
 	if (error)
 		return error;
+
+	if ((attr->ia_valid & ATTR_UID) &&
+	    UDF_QUERY_FLAG(sb, UDF_FLAG_UID_SET) &&
+	    !uid_eq(attr->ia_uid, UDF_SB(sb)->s_uid))
+		return -EPERM;
+	if ((attr->ia_valid & ATTR_GID) &&
+	    UDF_QUERY_FLAG(sb, UDF_FLAG_GID_SET) &&
+	    !gid_eq(attr->ia_gid, UDF_SB(sb)->s_gid))
+		return -EPERM;
 
 	if ((attr->ia_valid & ATTR_SIZE) &&
 	    attr->ia_size != i_size_read(inode)) {
@@ -269,6 +279,9 @@ static int udf_setattr(struct dentry *dentry, struct iattr *attr)
 		if (error)
 			return error;
 	}
+
+	if (attr->ia_valid & ATTR_MODE)
+		udf_update_extra_perms(inode, attr->ia_mode);
 
 	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);

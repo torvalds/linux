@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * zpool memory storage api
  *
@@ -238,6 +239,22 @@ const char *zpool_get_type(struct zpool *zpool)
 }
 
 /**
+ * zpool_malloc_support_movable() - Check if the zpool support
+ * allocate movable memory
+ * @zpool:	The zpool to check
+ *
+ * This returns if the zpool support allocate movable memory.
+ *
+ * Implementations must guarantee this to be thread-safe.
+ *
+ * Returns: true if if the zpool support allocate movable memory, false if not
+ */
+bool zpool_malloc_support_movable(struct zpool *zpool)
+{
+	return zpool->driver->malloc_support_movable;
+}
+
+/**
  * zpool_malloc() - Allocate memory
  * @zpool:	The zpool to allocate from.
  * @size:	The amount of memory to allocate.
@@ -360,7 +377,7 @@ u64 zpool_get_total_size(struct zpool *zpool)
 
 /**
  * zpool_evictable() - Test if zpool is potentially evictable
- * @pool	The zpool to test
+ * @zpool:	The zpool to test
  *
  * Zpool is only potentially evictable when it's created with struct
  * zpool_ops.evict and its driver implements struct zpool_driver.shrink.

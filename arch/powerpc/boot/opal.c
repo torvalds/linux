@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (c) 2016 IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 #include "ops.h"
@@ -12,8 +8,6 @@
 #include "io.h"
 #include <libfdt.h>
 #include "../include/asm/opal-api.h"
-
-#ifdef CONFIG_PPC64_BOOT_WRAPPER
 
 /* Global OPAL struct used by opal-call.S */
 struct opal {
@@ -101,9 +95,3 @@ int opal_console_init(void *devp, struct serial_console_data *scdp)
 
 	return 0;
 }
-#else
-int opal_console_init(void *devp, struct serial_console_data *scdp)
-{
-	return -1;
-}
-#endif /* __powerpc64__ */

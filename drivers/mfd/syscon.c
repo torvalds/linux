@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * System Control Driver
  *
@@ -5,17 +6,13 @@
  * Copyright (C) 2012 Linaro Ltd.
  *
  * Author: Dong Aisheng <dong.aisheng@linaro.org>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
+#include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/hwspinlock.h>
 #include <linux/io.h>
-#include <linux/module.h>
+#include <linux/init.h>
 #include <linux/list.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -43,8 +40,9 @@ static const struct regmap_config syscon_regmap_config = {
 	.reg_stride = 4,
 };
 
-static struct syscon *of_syscon_register(struct device_node *np)
+static struct syscon *of_syscon_register(struct device_node *np, bool check_clk)
 {
+	struct clk *clk;
 	struct syscon *syscon;
 	struct regmap *regmap;
 	void __iomem *base;
@@ -52,9 +50,6 @@ static struct syscon *of_syscon_register(struct device_node *np)
 	int ret;
 	struct regmap_config syscon_config = syscon_regmap_config;
 	struct resource res;
-
-	if (!of_device_is_compatible(np, "syscon"))
-		return ERR_PTR(-EINVAL);
 
 	syscon = kzalloc(sizeof(*syscon), GFP_KERNEL);
 	if (!syscon)
@@ -106,15 +101,31 @@ static struct syscon *of_syscon_register(struct device_node *np)
 		}
 	}
 
+	syscon_config.name = of_node_full_name(np);
 	syscon_config.reg_stride = reg_io_width;
 	syscon_config.val_bits = reg_io_width * 8;
 	syscon_config.max_register = resource_size(&res) - reg_io_width;
+	syscon_config.name = of_node_full_name(np);
 
 	regmap = regmap_init_mmio(NULL, base, &syscon_config);
 	if (IS_ERR(regmap)) {
 		pr_err("regmap init failed\n");
 		ret = PTR_ERR(regmap);
 		goto err_regmap;
+	}
+
+	if (check_clk) {
+		clk = of_clk_get(np, 0);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
+			/* clock is optional */
+			if (ret != -ENOENT)
+				goto err_clk;
+		} else {
+			ret = regmap_mmio_attach_clk(regmap, clk);
+			if (ret)
+				goto err_attach;
+		}
 	}
 
 	syscon->regmap = regmap;
@@ -126,6 +137,11 @@ static struct syscon *of_syscon_register(struct device_node *np)
 
 	return syscon;
 
+err_attach:
+	if (!IS_ERR(clk))
+		clk_put(clk);
+err_clk:
+	regmap_exit(regmap);
 err_regmap:
 	iounmap(base);
 err_map:
@@ -133,7 +149,8 @@ err_map:
 	return ERR_PTR(ret);
 }
 
-struct regmap *syscon_node_to_regmap(struct device_node *np)
+static struct regmap *device_node_get_regmap(struct device_node *np,
+					     bool check_clk)
 {
 	struct syscon *entry, *syscon = NULL;
 
@@ -148,12 +165,26 @@ struct regmap *syscon_node_to_regmap(struct device_node *np)
 	spin_unlock(&syscon_list_slock);
 
 	if (!syscon)
-		syscon = of_syscon_register(np);
+		syscon = of_syscon_register(np, check_clk);
 
 	if (IS_ERR(syscon))
 		return ERR_CAST(syscon);
 
 	return syscon->regmap;
+}
+
+struct regmap *device_node_to_regmap(struct device_node *np)
+{
+	return device_node_get_regmap(np, false);
+}
+EXPORT_SYMBOL_GPL(device_node_to_regmap);
+
+struct regmap *syscon_node_to_regmap(struct device_node *np)
+{
+	if (!of_device_is_compatible(np, "syscon"))
+		return ERR_PTR(-EINVAL);
+
+	return device_node_get_regmap(np, true);
 }
 EXPORT_SYMBOL_GPL(syscon_node_to_regmap);
 
@@ -172,27 +203,6 @@ struct regmap *syscon_regmap_lookup_by_compatible(const char *s)
 	return regmap;
 }
 EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_compatible);
-
-static int syscon_match_pdevname(struct device *dev, void *data)
-{
-	return !strcmp(dev_name(dev), (const char *)data);
-}
-
-struct regmap *syscon_regmap_lookup_by_pdevname(const char *s)
-{
-	struct device *dev;
-	struct syscon *syscon;
-
-	dev = driver_find_device(&syscon_driver.driver, NULL, (void *)s,
-				 syscon_match_pdevname);
-	if (!dev)
-		return ERR_PTR(-EPROBE_DEFER);
-
-	syscon = dev_get_drvdata(dev);
-
-	return syscon->regmap;
-}
-EXPORT_SYMBOL_GPL(syscon_regmap_lookup_by_pdevname);
 
 struct regmap *syscon_regmap_lookup_by_phandle(struct device_node *np,
 					const char *property)
@@ -270,13 +280,3 @@ static int __init syscon_init(void)
 	return platform_driver_register(&syscon_driver);
 }
 postcore_initcall(syscon_init);
-
-static void __exit syscon_exit(void)
-{
-	platform_driver_unregister(&syscon_driver);
-}
-module_exit(syscon_exit);
-
-MODULE_AUTHOR("Dong Aisheng <dong.aisheng@linaro.org>");
-MODULE_DESCRIPTION("System Control driver");
-MODULE_LICENSE("GPL v2");

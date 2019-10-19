@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Driver for the NVIDIA Tegra pinmux
  *
@@ -7,15 +8,6 @@
  * Copyright (C) 2010 Google, Inc.
  * Copyright (C) 2010 NVIDIA Corporation
  * Copyright (C) 2009-2011 ST-Ericsson AB
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
  */
 
 #include <linux/err.h>
@@ -33,17 +25,6 @@
 #include "../pinctrl-utils.h"
 #include "pinctrl-tegra.h"
 
-struct tegra_pmx {
-	struct device *dev;
-	struct pinctrl_dev *pctl;
-
-	const struct tegra_pinctrl_soc_data *soc;
-	const char **group_pins;
-
-	int nbanks;
-	void __iomem **regs;
-};
-
 static inline u32 pmx_readl(struct tegra_pmx *pmx, u32 bank, u32 reg)
 {
 	return readl(pmx->regs[bank] + reg);
@@ -51,7 +32,9 @@ static inline u32 pmx_readl(struct tegra_pmx *pmx, u32 bank, u32 reg)
 
 static inline void pmx_writel(struct tegra_pmx *pmx, u32 val, u32 bank, u32 reg)
 {
-	writel(val, pmx->regs[bank] + reg);
+	writel_relaxed(val, pmx->regs[bank] + reg);
+	/* make sure pinmux register write completed */
+	pmx_readl(pmx, bank, reg);
 }
 
 static int tegra_pinctrl_get_groups_count(struct pinctrl_dev *pctldev)
@@ -303,7 +286,7 @@ static int tegra_pinconf_reg(struct tegra_pmx *pmx,
 			     const struct tegra_pingroup *g,
 			     enum tegra_pinconf_param param,
 			     bool report_err,
-			     s8 *bank, s16 *reg, s8 *bit, s8 *width)
+			     s8 *bank, s32 *reg, s8 *bit, s8 *width)
 {
 	switch (param) {
 	case TEGRA_PINCONF_PARAM_PULL:
@@ -462,7 +445,7 @@ static int tegra_pinconf_group_get(struct pinctrl_dev *pctldev,
 	const struct tegra_pingroup *g;
 	int ret;
 	s8 bank, bit, width;
-	s16 reg;
+	s32 reg;
 	u32 val, mask;
 
 	g = &pmx->soc->groups[group];
@@ -491,7 +474,7 @@ static int tegra_pinconf_group_set(struct pinctrl_dev *pctldev,
 	const struct tegra_pingroup *g;
 	int ret, i;
 	s8 bank, bit, width;
-	s16 reg;
+	s32 reg;
 	u32 val, mask;
 
 	g = &pmx->soc->groups[group];
@@ -559,7 +542,7 @@ static void tegra_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	const struct tegra_pingroup *g;
 	int i, ret;
 	s8 bank, bit, width;
-	s16 reg;
+	s32 reg;
 	u32 val;
 
 	g = &pmx->soc->groups[group];
@@ -632,20 +615,86 @@ static void tegra_pinctrl_clear_parked_bits(struct tegra_pmx *pmx)
 
 	for (i = 0; i < pmx->soc->ngroups; ++i) {
 		g = &pmx->soc->groups[i];
-		if (g->parked_bit >= 0) {
-			val = pmx_readl(pmx, g->mux_bank, g->mux_reg);
-			val &= ~(1 << g->parked_bit);
-			pmx_writel(pmx, val, g->mux_bank, g->mux_reg);
+		if (g->parked_bitmask > 0) {
+			unsigned int bank, reg;
+
+			if (g->mux_reg != -1) {
+				bank = g->mux_bank;
+				reg = g->mux_reg;
+			} else {
+				bank = g->drv_bank;
+				reg = g->drv_reg;
+			}
+
+			val = pmx_readl(pmx, bank, reg);
+			val &= ~g->parked_bitmask;
+			pmx_writel(pmx, val, bank, reg);
 		}
 	}
 }
 
-static bool gpio_node_has_range(void)
+static size_t tegra_pinctrl_get_bank_size(struct device *dev,
+					  unsigned int bank_id)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct resource *res;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, bank_id);
+
+	return resource_size(res) / 4;
+}
+
+static int tegra_pinctrl_suspend(struct device *dev)
+{
+	struct tegra_pmx *pmx = dev_get_drvdata(dev);
+	u32 *backup_regs = pmx->backup_regs;
+	u32 *regs;
+	size_t bank_size;
+	unsigned int i, k;
+
+	for (i = 0; i < pmx->nbanks; i++) {
+		bank_size = tegra_pinctrl_get_bank_size(dev, i);
+		regs = pmx->regs[i];
+		for (k = 0; k < bank_size; k++)
+			*backup_regs++ = readl_relaxed(regs++);
+	}
+
+	return pinctrl_force_sleep(pmx->pctl);
+}
+
+static int tegra_pinctrl_resume(struct device *dev)
+{
+	struct tegra_pmx *pmx = dev_get_drvdata(dev);
+	u32 *backup_regs = pmx->backup_regs;
+	u32 *regs;
+	size_t bank_size;
+	unsigned int i, k;
+
+	for (i = 0; i < pmx->nbanks; i++) {
+		bank_size = tegra_pinctrl_get_bank_size(dev, i);
+		regs = pmx->regs[i];
+		for (k = 0; k < bank_size; k++)
+			writel_relaxed(*backup_regs++, regs++);
+	}
+
+	/* flush all the prior writes */
+	readl_relaxed(pmx->regs[0]);
+	/* wait for pinctrl register read to complete */
+	rmb();
+	return 0;
+}
+
+const struct dev_pm_ops tegra_pinctrl_pm = {
+	.suspend = &tegra_pinctrl_suspend,
+	.resume = &tegra_pinctrl_resume
+};
+
+static bool gpio_node_has_range(const char *compatible)
 {
 	struct device_node *np;
 	bool has_prop = false;
 
-	np = of_find_compatible_node(NULL, NULL, "nvidia,tegra30-gpio");
+	np = of_find_compatible_node(NULL, NULL, compatible);
 	if (!np)
 		return has_prop;
 
@@ -664,6 +713,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	int i;
 	const char **group_pins;
 	int fn, gn, gfn;
+	unsigned long backup_regs_size = 0;
 
 	pmx = devm_kzalloc(&pdev->dev, sizeof(*pmx), GFP_KERNEL);
 	if (!pmx)
@@ -676,8 +726,8 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 	 * Each mux group will appear in 4 functions' list of groups.
 	 * This over-allocates slightly, since not all groups are mux groups.
 	 */
-	pmx->group_pins = devm_kzalloc(&pdev->dev,
-		soc_data->ngroups * 4 * sizeof(*pmx->group_pins),
+	pmx->group_pins = devm_kcalloc(&pdev->dev,
+		soc_data->ngroups * 4, sizeof(*pmx->group_pins),
 		GFP_KERNEL);
 	if (!pmx->group_pins)
 		return -ENOMEM;
@@ -716,12 +766,18 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 		res = platform_get_resource(pdev, IORESOURCE_MEM, i);
 		if (!res)
 			break;
+		backup_regs_size += resource_size(res);
 	}
 	pmx->nbanks = i;
 
-	pmx->regs = devm_kzalloc(&pdev->dev, pmx->nbanks * sizeof(*pmx->regs),
+	pmx->regs = devm_kcalloc(&pdev->dev, pmx->nbanks, sizeof(*pmx->regs),
 				 GFP_KERNEL);
 	if (!pmx->regs)
+		return -ENOMEM;
+
+	pmx->backup_regs = devm_kzalloc(&pdev->dev, backup_regs_size,
+					GFP_KERNEL);
+	if (!pmx->backup_regs)
 		return -ENOMEM;
 
 	for (i = 0; i < pmx->nbanks; i++) {
@@ -739,7 +795,7 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	tegra_pinctrl_clear_parked_bits(pmx);
 
-	if (!gpio_node_has_range())
+	if (!gpio_node_has_range(pmx->soc->gpio_compatible))
 		pinctrl_add_gpio_range(pmx->pctl, &tegra_pinctrl_gpio_range);
 
 	platform_set_drvdata(pdev, pmx);
@@ -748,4 +804,3 @@ int tegra_pinctrl_probe(struct platform_device *pdev,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(tegra_pinctrl_probe);

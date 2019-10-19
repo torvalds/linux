@@ -10,6 +10,6 @@
 
 #define get_user	__get_user
 
-#define access_ok(type, addr, size)	1
+#define access_ok(addr, size)	1
 
 #endif

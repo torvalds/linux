@@ -62,13 +62,13 @@ channel: a phandle to the DMA controller plus the following four integer cells:
 	0x1: medium
 	0x2: high
 	0x3: very high
-4. A 32bit mask specifying the DMA FIFO threshold configuration which are device
-   dependent:
- -bit 0-1: Fifo threshold
+4. A 32bit bitfield value specifying DMA features which are device dependent:
+ -bit 0-1: DMA FIFO threshold selection
 	0x0: 1/4 full FIFO
 	0x1: 1/2 full FIFO
 	0x2: 3/4 full FIFO
 	0x3: full FIFO
+
 
 Example:
 

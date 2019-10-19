@@ -1,23 +1,5 @@
-/* Intel PRO/1000 Linux driver
- * Copyright(c) 1999 - 2015 Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * The full GNU General Public License is included in this distribution in
- * the file called "COPYING".
- *
- * Contact Information:
- * Linux NICS <linux.nics@intel.com>
- * e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
- * Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright(c) 1999 - 2018 Intel Corporation. */
 
 /* 82562G 10/100 Network Connection
  * 82562G-2 10/100 Network Connection
@@ -289,7 +271,7 @@ static void e1000_toggle_lanphypc_pch_lpt(struct e1000_hw *hw)
 		u16 count = 20;
 
 		do {
-			usleep_range(5000, 10000);
+			usleep_range(5000, 6000);
 		} while (!(er32(CTRL_EXT) & E1000_CTRL_EXT_LPCD) && count--);
 
 		msleep(30);
@@ -423,7 +405,7 @@ out:
 	/* Ungate automatic PHY configuration on non-managed 82579 */
 	if ((hw->mac.type == e1000_pch2lan) &&
 	    !(fwsm & E1000_ICH_FWSM_FW_VALID)) {
-		usleep_range(10000, 20000);
+		usleep_range(10000, 11000);
 		e1000_gate_hw_phy_config_ich8lan(hw, false);
 	}
 
@@ -549,7 +531,7 @@ static s32 e1000_init_phy_params_ich8lan(struct e1000_hw *hw)
 	phy->id = 0;
 	while ((e1000_phy_unknown == e1000e_get_phy_type_from_id(phy->id)) &&
 	       (i++ < 100)) {
-		usleep_range(1000, 2000);
+		usleep_range(1000, 1100);
 		ret_val = e1000e_get_phy_id(hw);
 		if (ret_val)
 			return ret_val;
@@ -1262,7 +1244,7 @@ static s32 e1000_disable_ulp_lpt_lp(struct e1000_hw *hw, bool force)
 				goto out;
 			}
 
-			usleep_range(10000, 20000);
+			usleep_range(10000, 11000);
 		}
 		e_dbg("ULP_CONFIG_DONE cleared after %dmsec\n", i * 10);
 
@@ -1367,9 +1349,6 @@ out:
  *  Checks to see of the link status of the hardware has changed.  If a
  *  change in link status has been detected, then we read the PHY registers
  *  to get the current speed/duplex if link exists.
- *
- *  Returns a negative error code (-E1000_ERR_*) or 0 (link down) or 1 (link
- *  up).
  **/
 static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 {
@@ -1385,7 +1364,8 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 * Change or Rx Sequence Error interrupt.
 	 */
 	if (!mac->get_link_status)
-		return 1;
+		return 0;
+	mac->get_link_status = false;
 
 	/* First we want to see if the MII Status Register reports
 	 * link.  If so, then we want to get the current speed/duplex
@@ -1393,12 +1373,12 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 */
 	ret_val = e1000e_phy_has_link_generic(hw, 1, 0, &link);
 	if (ret_val)
-		return ret_val;
+		goto out;
 
 	if (hw->mac.type == e1000_pchlan) {
 		ret_val = e1000_k1_gig_workaround_hv(hw, link);
 		if (ret_val)
-			return ret_val;
+			goto out;
 	}
 
 	/* When connected at 10Mbps half-duplex, some parts are excessively
@@ -1431,7 +1411,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 
 		ret_val = hw->phy.ops.acquire(hw);
 		if (ret_val)
-			return ret_val;
+			goto out;
 
 		if (hw->mac.type == e1000_pch2lan)
 			emi_addr = I82579_RX_CONFIG;
@@ -1449,11 +1429,21 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			else
 				phy_reg |= 0xFA;
 			e1e_wphy_locked(hw, I217_PLL_CLOCK_GATE_REG, phy_reg);
+
+			if (speed == SPEED_1000) {
+				hw->phy.ops.read_reg_locked(hw, HV_PM_CTRL,
+							    &phy_reg);
+
+				phy_reg |= HV_PM_CTRL_K1_CLK_REQ;
+
+				hw->phy.ops.write_reg_locked(hw, HV_PM_CTRL,
+							     phy_reg);
+			}
 		}
 		hw->phy.ops.release(hw);
 
 		if (ret_val)
-			return ret_val;
+			goto out;
 
 		if (hw->mac.type >= e1000_pch_spt) {
 			u16 data;
@@ -1462,14 +1452,14 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 			if (speed == SPEED_1000) {
 				ret_val = hw->phy.ops.acquire(hw);
 				if (ret_val)
-					return ret_val;
+					goto out;
 
 				ret_val = e1e_rphy_locked(hw,
 							  PHY_REG(776, 20),
 							  &data);
 				if (ret_val) {
 					hw->phy.ops.release(hw);
-					return ret_val;
+					goto out;
 				}
 
 				ptr_gap = (data & (0x3FF << 2)) >> 2;
@@ -1483,18 +1473,18 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 				}
 				hw->phy.ops.release(hw);
 				if (ret_val)
-					return ret_val;
+					goto out;
 			} else {
 				ret_val = hw->phy.ops.acquire(hw);
 				if (ret_val)
-					return ret_val;
+					goto out;
 
 				ret_val = e1e_wphy_locked(hw,
 							  PHY_REG(776, 20),
 							  0xC023);
 				hw->phy.ops.release(hw);
 				if (ret_val)
-					return ret_val;
+					goto out;
 
 			}
 		}
@@ -1521,7 +1511,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	    (hw->adapter->pdev->device == E1000_DEV_ID_PCH_I218_V3)) {
 		ret_val = e1000_k1_workaround_lpt_lp(hw, link);
 		if (ret_val)
-			return ret_val;
+			goto out;
 	}
 	if (hw->mac.type >= e1000_pch_lpt) {
 		/* Set platform power management values for
@@ -1529,7 +1519,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 		 */
 		ret_val = e1000_platform_pm_pch_lpt(hw, link);
 		if (ret_val)
-			return ret_val;
+			goto out;
 	}
 
 	/* Clear link partner's EEE ability */
@@ -1552,9 +1542,7 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	}
 
 	if (!link)
-		return 0;	/* No link detected */
-
-	mac->get_link_status = false;
+		goto out;
 
 	switch (hw->mac.type) {
 	case e1000_pch2lan:
@@ -1616,12 +1604,14 @@ static s32 e1000_check_for_copper_link_ich8lan(struct e1000_hw *hw)
 	 * different link partner.
 	 */
 	ret_val = e1000e_config_fc_after_link_up(hw);
-	if (ret_val) {
+	if (ret_val)
 		e_dbg("Error configuring flow control\n");
-		return ret_val;
-	}
 
-	return 1;
+	return ret_val;
+
+out:
+	mac->get_link_status = true;
+	return ret_val;
 }
 
 static s32 e1000_get_variants_ich8lan(struct e1000_adapter *adapter)
@@ -2019,7 +2009,7 @@ static s32 e1000_check_reset_block_ich8lan(struct e1000_hw *hw)
 
 	while ((blocked = !(er32(FWSM) & E1000_ICH_FWSM_RSPCIPHY)) &&
 	       (i++ < 30))
-		usleep_range(10000, 20000);
+		usleep_range(10000, 11000);
 	return blocked ? E1000_BLK_PHY_RESET : 0;
 }
 
@@ -2838,7 +2828,7 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 		return 0;
 
 	/* Allow time for h/w to get to quiescent state after reset */
-	usleep_range(10000, 20000);
+	usleep_range(10000, 11000);
 
 	/* Perform any necessary post-reset workarounds */
 	switch (hw->mac.type) {
@@ -2874,7 +2864,7 @@ static s32 e1000_post_phy_reset_ich8lan(struct e1000_hw *hw)
 	if (hw->mac.type == e1000_pch2lan) {
 		/* Ungate automatic PHY configuration on non-managed 82579 */
 		if (!(er32(FWSM) & E1000_ICH_FWSM_FW_VALID)) {
-			usleep_range(10000, 20000);
+			usleep_range(10000, 11000);
 			e1000_gate_hw_phy_config_ich8lan(hw, false);
 		}
 
@@ -3895,7 +3885,7 @@ release:
 	 */
 	if (!ret_val) {
 		nvm->ops.reload(hw);
-		usleep_range(10000, 20000);
+		usleep_range(10000, 11000);
 	}
 
 out:
@@ -4046,7 +4036,7 @@ release:
 	 */
 	if (!ret_val) {
 		nvm->ops.reload(hw);
-		usleep_range(10000, 20000);
+		usleep_range(10000, 11000);
 	}
 
 out:
@@ -4670,7 +4660,7 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	ew32(TCTL, E1000_TCTL_PSP);
 	e1e_flush();
 
-	usleep_range(10000, 20000);
+	usleep_range(10000, 11000);
 
 	/* Workaround for ICH8 bit corruption issue in FIFO memory */
 	if (hw->mac.type == e1000_ich8lan) {

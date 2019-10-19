@@ -35,6 +35,19 @@
 #define __LINUX_PLATFORM_DATA_MLXREG_H
 
 #define MLXREG_CORE_LABEL_MAX_SIZE	32
+#define MLXREG_CORE_WD_FEATURE_NOWAYOUT		BIT(0)
+#define MLXREG_CORE_WD_FEATURE_START_AT_BOOT	BIT(1)
+
+/**
+ * enum mlxreg_wdt_type - type of HW watchdog
+ *
+ * TYPE1 HW watchdog implementation exist in old systems.
+ * All new systems have TYPE2 HW watchdog.
+ */
+enum mlxreg_wdt_type {
+	MLX_WDT_TYPE1,
+	MLX_WDT_TYPE2,
+};
 
 /**
  * struct mlxreg_hotplug_device - I2C device data:
@@ -58,11 +71,11 @@ struct mlxreg_hotplug_device {
  * struct mlxreg_core_data - attributes control data:
  *
  * @label: attribute label;
- * @label: attribute register offset;
  * @reg: attribute register;
  * @mask: attribute access mask;
- * @mode: access mode;
  * @bit: attribute effective bit;
+ * @capability: attribute capability register;
+ * @mode: access mode;
  * @np - pointer to node platform associated with attribute;
  * @hpdev - hotplug device data;
  * @health_cntr: dynamic device health indication counter;
@@ -73,6 +86,7 @@ struct mlxreg_core_data {
 	u32 reg;
 	u32 mask;
 	u32 bit;
+	u32 capability;
 	umode_t	mode;
 	struct device_node *np;
 	struct mlxreg_hotplug_device hpdev;
@@ -108,14 +122,20 @@ struct mlxreg_core_item {
 /**
  * struct mlxreg_core_platform_data - platform data:
  *
- * @led_data: led private data;
+ * @data: instance private data;
  * @regmap: register map of parent device;
- * @counter: number of led instances;
+ * @counter: number of instances;
+ * @features: supported features of device;
+ * @version: implementation version;
+ * @identity: device identity name;
  */
 struct mlxreg_core_platform_data {
 	struct mlxreg_core_data *data;
 	void *regmap;
 	int counter;
+	u32 features;
+	u32 version;
+	char identity[MLXREG_CORE_LABEL_MAX_SIZE];
 };
 
 /**
@@ -129,6 +149,8 @@ struct mlxreg_core_platform_data {
  * @mask: top aggregation interrupt common mask;
  * @cell_low: location of low aggregation interrupt register;
  * @mask_low: low aggregation interrupt common mask;
+ * @deferred_nr: I2C adapter number must be exist prior probing execution;
+ * @shift_nr: I2C adapter numbers must be incremented by this value;
  */
 struct mlxreg_core_hotplug_platform_data {
 	struct mlxreg_core_item *items;
@@ -139,6 +161,8 @@ struct mlxreg_core_hotplug_platform_data {
 	u32 mask;
 	u32 cell_low;
 	u32 mask_low;
+	int deferred_nr;
+	int shift_nr;
 };
 
 #endif /* __LINUX_PLATFORM_DATA_MLXREG_H */

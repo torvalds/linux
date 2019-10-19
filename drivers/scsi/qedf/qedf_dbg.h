@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  QLogic FCoE Offload Driver
- *  Copyright (c) 2016-2017 Cavium Inc.
- *
- *  This software is available under the terms of the GNU General Public License
- *  (GPL) Version 2, available from the file COPYING in the main directory of
- *  this source tree.
+ *  Copyright (c) 2016-2018 Cavium Inc.
  */
 #ifndef _QEDF_DBG_H_
 #define _QEDF_DBG_H_
@@ -116,16 +113,19 @@ extern int qedf_create_sysfs_attr(struct Scsi_Host *shost,
 extern void qedf_remove_sysfs_attr(struct Scsi_Host *shost,
 				    struct sysfs_bin_attrs *iter);
 
+struct qedf_debugfs_ops {
+	char *name;
+	struct qedf_list_of_funcs *qedf_funcs;
+};
+
+extern const struct qedf_debugfs_ops qedf_debugfs_ops[];
+extern const struct file_operations qedf_dbg_fops[];
+
 #ifdef CONFIG_DEBUG_FS
 /* DebugFS related code */
 struct qedf_list_of_funcs {
 	char *oper_str;
 	ssize_t (*oper_func)(struct qedf_dbg_ctx *qedf);
-};
-
-struct qedf_debugfs_ops {
-	char *name;
-	struct qedf_list_of_funcs *qedf_funcs;
 };
 
 #define qedf_dbg_fileops(drv, ops) \
@@ -147,8 +147,8 @@ struct qedf_debugfs_ops {
 }
 
 extern void qedf_dbg_host_init(struct qedf_dbg_ctx *qedf,
-				struct qedf_debugfs_ops *dops,
-				struct file_operations *fops);
+				const struct qedf_debugfs_ops *dops,
+				const struct file_operations *fops);
 extern void qedf_dbg_host_exit(struct qedf_dbg_ctx *qedf);
 extern void qedf_dbg_init(char *drv_name);
 extern void qedf_dbg_exit(void);

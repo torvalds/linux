@@ -27,9 +27,9 @@
 
 #define MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE    12
 
-static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
-					       struct mwifiex_sta_node *sta_ptr,
-					       struct sk_buff *event)
+static int mwifiex_check_ibss_peer_capabilities(struct mwifiex_private *priv,
+					        struct mwifiex_sta_node *sta_ptr,
+					        struct sk_buff *event)
 {
 	int evt_len, ele_len;
 	u8 *curr;
@@ -42,7 +42,7 @@ static int mwifiex_check_ibss_peer_capabilties(struct mwifiex_private *priv,
 	evt_len = event->len;
 	curr = event->data;
 
-	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilties:",
+	mwifiex_dbg_dump(priv->adapter, EVT_D, "ibss peer capabilities:",
 			 event->data, event->len);
 
 	skb_push(event, MWIFIEX_IBSS_CONNECT_EVT_FIX_SIZE);
@@ -224,7 +224,8 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	adapter->tx_lock_flag = false;
 	adapter->pps_uapsd_mode = false;
 
-	if (adapter->is_cmd_timedout && adapter->curr_cmd)
+	if (test_bit(MWIFIEX_IS_CMD_TIMEDOUT, &adapter->work_flags) &&
+	    adapter->curr_cmd)
 		return;
 	priv->media_connected = false;
 	mwifiex_dbg(adapter, MSG,
@@ -240,6 +241,9 @@ void mwifiex_reset_connect_state(struct mwifiex_private *priv, u16 reason_code,
 	mwifiex_stop_net_dev_queue(priv->netdev, adapter);
 	if (netif_carrier_ok(priv->netdev))
 		netif_carrier_off(priv->netdev);
+
+	if (!ISSUPP_FIRMWARE_SUPPLICANT(priv->adapter->fw_cap_info))
+		return;
 
 	mwifiex_send_cmd(priv, HostCmd_CMD_GTK_REKEY_OFFLOAD_CFG,
 			 HostCmd_ACT_GEN_REMOVE, 0, NULL, false);
@@ -341,7 +345,6 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 {
 	struct mwifiex_tx_pause_tlv *tp;
 	struct mwifiex_sta_node *sta_ptr;
-	unsigned long flags;
 
 	tp = (void *)tlv;
 	mwifiex_dbg(priv->adapter, EVENT,
@@ -357,14 +360,14 @@ static void mwifiex_process_uap_tx_pause(struct mwifiex_private *priv,
 	} else if (is_multicast_ether_addr(tp->peermac)) {
 		mwifiex_update_ralist_tx_pause(priv, tp->peermac, tp->tx_pause);
 	} else {
-		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		spin_lock_bh(&priv->sta_list_spinlock);
 		sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
 		if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 			sta_ptr->tx_pause = tp->tx_pause;
 			mwifiex_update_ralist_tx_pause(priv, tp->peermac,
 						       tp->tx_pause);
 		}
-		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+		spin_unlock_bh(&priv->sta_list_spinlock);
 	}
 }
 
@@ -374,7 +377,6 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 	struct mwifiex_tx_pause_tlv *tp;
 	struct mwifiex_sta_node *sta_ptr;
 	int status;
-	unsigned long flags;
 
 	tp = (void *)tlv;
 	mwifiex_dbg(priv->adapter, EVENT,
@@ -393,7 +395,7 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 
 		status = mwifiex_get_tdls_link_status(priv, tp->peermac);
 		if (mwifiex_is_tdls_link_setup(status)) {
-			spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+			spin_lock_bh(&priv->sta_list_spinlock);
 			sta_ptr = mwifiex_get_sta_entry(priv, tp->peermac);
 			if (sta_ptr && sta_ptr->tx_pause != tp->tx_pause) {
 				sta_ptr->tx_pause = tp->tx_pause;
@@ -401,7 +403,7 @@ static void mwifiex_process_sta_tx_pause(struct mwifiex_private *priv,
 							       tp->peermac,
 							       tp->tx_pause);
 			}
-			spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+			spin_unlock_bh(&priv->sta_list_spinlock);
 		}
 	}
 }
@@ -933,8 +935,8 @@ int mwifiex_process_sta_event(struct mwifiex_private *priv)
 			    ibss_sta_addr);
 		sta_ptr = mwifiex_add_sta_entry(priv, ibss_sta_addr);
 		if (sta_ptr && adapter->adhoc_11n_enabled) {
-			mwifiex_check_ibss_peer_capabilties(priv, sta_ptr,
-							    adapter->event_skb);
+			mwifiex_check_ibss_peer_capabilities(priv, sta_ptr,
+							     adapter->event_skb);
 			if (sta_ptr->is_11n_enabled)
 				for (i = 0; i < MAX_NUM_TID; i++)
 					sta_ptr->ampdu_sta[i] =

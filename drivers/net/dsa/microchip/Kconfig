@@ -1,12 +1,41 @@
-menuconfig MICROCHIP_KSZ
-	tristate "Microchip KSZ series switch support"
-	depends on NET_DSA
-	select NET_DSA_TAG_KSZ
-	help
-	  This driver adds support for Microchip KSZ switch chips.
+# SPDX-License-Identifier: GPL-2.0-only
+config NET_DSA_MICROCHIP_KSZ_COMMON
+	tristate
 
-config MICROCHIP_KSZ_SPI_DRIVER
-	tristate "KSZ series SPI connected switch driver"
-	depends on MICROCHIP_KSZ && SPI
+menuconfig NET_DSA_MICROCHIP_KSZ9477
+	tristate "Microchip KSZ9477 series switch support"
+	depends on NET_DSA
+	select NET_DSA_MICROCHIP_KSZ_COMMON
+	help
+	  This driver adds support for Microchip KSZ9477 switch chips.
+
+config NET_DSA_MICROCHIP_KSZ9477_I2C
+	tristate "KSZ9477 series I2C connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ9477 && I2C
+	select REGMAP_I2C
+	help
+	  Select to enable support for registering switches configured through I2C.
+
+config NET_DSA_MICROCHIP_KSZ9477_SPI
+	tristate "KSZ9477 series SPI connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ9477 && SPI
+	select REGMAP_SPI
 	help
 	  Select to enable support for registering switches configured through SPI.
+
+menuconfig NET_DSA_MICROCHIP_KSZ8795
+	tristate "Microchip KSZ8795 series switch support"
+	depends on NET_DSA
+	select NET_DSA_MICROCHIP_KSZ_COMMON
+	help
+	  This driver adds support for Microchip KSZ8795 switch chips.
+
+config NET_DSA_MICROCHIP_KSZ8795_SPI
+	tristate "KSZ8795 series SPI connected switch driver"
+	depends on NET_DSA_MICROCHIP_KSZ8795 && SPI
+	select REGMAP_SPI
+	help
+	  This driver accesses KSZ8795 chip through SPI.
+
+	  It is required to use the KSZ8795 switch driver as the only access
+	  is through SPI.

@@ -6,11 +6,13 @@
 #ifndef __LLVM_UTILS_H
 #define __LLVM_UTILS_H
 
-#include "debug.h"
+#include <stdbool.h>
 
 struct llvm_param {
 	/* Path of clang executable */
 	const char *clang_path;
+	/* Path of llc executable */
+	const char *llc_path;
 	/*
 	 * Template of clang bpf compiling. 5 env variables
 	 * can be used:
@@ -23,6 +25,13 @@ struct llvm_param {
 	const char *clang_bpf_cmd_template;
 	/* Will be filled in $CLANG_OPTIONS */
 	const char *clang_opt;
+	/*
+	 * If present it'll add -emit-llvm to $CLANG_OPTIONS to pipe
+	 * the clang output to llc, useful for new llvm options not
+	 * yet selectable via 'clang -mllvm option', such as -mattr=dwarfris
+	 * in clang 6.0/llvm 7
+	 */
+	const char *opts;
 	/* Where to find kbuild system */
 	const char *kbuild_dir;
 	/*

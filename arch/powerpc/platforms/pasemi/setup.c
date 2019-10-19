@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2006-2007 PA Semi, Inc
  *
@@ -7,19 +8,6 @@
  * Maintained by: Olof Johansson <olof@lixom.net>
  *
  * Based on arch/powerpc/platforms/maple/setup.c
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
 #include <linux/errno.h>
@@ -34,6 +22,7 @@
 #include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
+#include <asm/i8259.h>
 #include <asm/mpic.h>
 #include <asm/smp.h>
 #include <asm/time.h>
@@ -71,6 +60,40 @@ static void __noreturn pas_restart(char *cmd)
 	while (1)
 		out_le32(reset_reg, 0x6000000);
 }
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+void pas_shutdown(void)
+{
+	/* Set the PLD bit that makes the SB600 think the power button is being pressed */
+	void __iomem *pld_map = ioremap(0xf5000000,4096);
+	while (1)
+		out_8(pld_map+7,0x01);
+}
+
+/* RTC platform device structure as is not in device tree */
+static struct resource rtc_resource[] = {{
+	.name = "rtc",
+	.start = 0x70,
+	.end = 0x71,
+	.flags = IORESOURCE_IO,
+}, {
+	.name = "rtc",
+	.start = 8,
+	.end = 8,
+	.flags = IORESOURCE_IRQ,
+}};
+
+static inline void nemo_init_rtc(void)
+{
+	platform_device_register_simple("rtc_cmos", -1, rtc_resource, 2);
+}
+
+#else
+
+static inline void nemo_init_rtc(void)
+{
+}
+#endif
 
 #ifdef CONFIG_SMP
 static arch_spinlock_t timebase_lock;
@@ -183,6 +206,42 @@ static int __init pas_setup_mce_regs(void)
 }
 machine_device_initcall(pasemi, pas_setup_mce_regs);
 
+#ifdef CONFIG_PPC_PASEMI_NEMO
+static void sb600_8259_cascade(struct irq_desc *desc)
+{
+	struct irq_chip *chip = irq_desc_get_chip(desc);
+	unsigned int cascade_irq = i8259_irq();
+
+	if (cascade_irq)
+		generic_handle_irq(cascade_irq);
+
+	chip->irq_eoi(&desc->irq_data);
+}
+
+static void nemo_init_IRQ(struct mpic *mpic)
+{
+	struct device_node *np;
+	int gpio_virq;
+	/* Connect the SB600's legacy i8259 controller */
+	np = of_find_node_by_path("/pxp@0,e0000000");
+	i8259_init(np, 0);
+	of_node_put(np);
+
+	gpio_virq = irq_create_mapping(NULL, 3);
+	irq_set_irq_type(gpio_virq, IRQ_TYPE_LEVEL_HIGH);
+	irq_set_chained_handler(gpio_virq, sb600_8259_cascade);
+	mpic_unmask_irq(irq_get_irq_data(gpio_virq));
+
+	irq_set_default_host(mpic->irqhost);
+}
+
+#else
+
+static inline void nemo_init_IRQ(struct mpic *mpic)
+{
+}
+#endif
+
 static __init void pas_init_IRQ(void)
 {
 	struct device_node *np;
@@ -207,8 +266,7 @@ static __init void pas_init_IRQ(void)
 			break;
 		}
 	if (!mpic_node) {
-		printk(KERN_ERR
-			"Failed to locate the MPIC interrupt controller\n");
+		pr_err("Failed to locate the MPIC interrupt controller\n");
 		return;
 	}
 
@@ -217,12 +275,12 @@ static __init void pas_init_IRQ(void)
 	naddr = of_n_addr_cells(root);
 	opprop = of_get_property(root, "platform-open-pic", &opplen);
 	if (!opprop) {
-		printk(KERN_ERR "No platform-open-pic property.\n");
+		pr_err("No platform-open-pic property.\n");
 		of_node_put(root);
 		return;
 	}
 	openpic_addr = of_read_number(opprop, naddr);
-	printk(KERN_DEBUG "OpenPIC addr: %lx\n", openpic_addr);
+	pr_debug("OpenPIC addr: %lx\n", openpic_addr);
 
 	mpic_flags = MPIC_LARGE_VECTORS | MPIC_NO_BIAS | MPIC_NO_RESET;
 
@@ -243,6 +301,8 @@ static __init void pas_init_IRQ(void)
 		irq_set_irq_type(nmi_virq, IRQ_TYPE_EDGE_RISING);
 		mpic_unmask_irq(irq_get_irq_data(nmi_virq));
 	}
+
+	nemo_init_IRQ(mpic);
 
 	of_node_put(mpic_node);
 	of_node_put(root);
@@ -265,72 +325,72 @@ static int pas_machine_check_handler(struct pt_regs *regs)
 	srr1 = regs->msr;
 
 	if (nmi_virq && mpic_get_mcirq() == nmi_virq) {
-		printk(KERN_ERR "NMI delivered\n");
+		pr_err("NMI delivered\n");
 		debugger(regs);
 		mpic_end_irq(irq_get_irq_data(nmi_virq));
 		goto out;
 	}
 
 	dsisr = mfspr(SPRN_DSISR);
-	printk(KERN_ERR "Machine Check on CPU %d\n", cpu);
-	printk(KERN_ERR "SRR0  0x%016lx SRR1 0x%016lx\n", srr0, srr1);
-	printk(KERN_ERR "DSISR 0x%016lx DAR  0x%016lx\n", dsisr, regs->dar);
-	printk(KERN_ERR "BER   0x%016lx MER  0x%016lx\n", mfspr(SPRN_PA6T_BER),
+	pr_err("Machine Check on CPU %d\n", cpu);
+	pr_err("SRR0  0x%016lx SRR1 0x%016lx\n", srr0, srr1);
+	pr_err("DSISR 0x%016lx DAR  0x%016lx\n", dsisr, regs->dar);
+	pr_err("BER   0x%016lx MER  0x%016lx\n", mfspr(SPRN_PA6T_BER),
 		mfspr(SPRN_PA6T_MER));
-	printk(KERN_ERR "IER   0x%016lx DER  0x%016lx\n", mfspr(SPRN_PA6T_IER),
+	pr_err("IER   0x%016lx DER  0x%016lx\n", mfspr(SPRN_PA6T_IER),
 		mfspr(SPRN_PA6T_DER));
-	printk(KERN_ERR "Cause:\n");
+	pr_err("Cause:\n");
 
 	if (srr1 & 0x200000)
-		printk(KERN_ERR "Signalled by SDC\n");
+		pr_err("Signalled by SDC\n");
 
 	if (srr1 & 0x100000) {
-		printk(KERN_ERR "Load/Store detected error:\n");
+		pr_err("Load/Store detected error:\n");
 		if (dsisr & 0x8000)
-			printk(KERN_ERR "D-cache ECC double-bit error or bus error\n");
+			pr_err("D-cache ECC double-bit error or bus error\n");
 		if (dsisr & 0x4000)
-			printk(KERN_ERR "LSU snoop response error\n");
+			pr_err("LSU snoop response error\n");
 		if (dsisr & 0x2000) {
-			printk(KERN_ERR "MMU SLB multi-hit or invalid B field\n");
+			pr_err("MMU SLB multi-hit or invalid B field\n");
 			dump_slb = 1;
 		}
 		if (dsisr & 0x1000)
-			printk(KERN_ERR "Recoverable Duptags\n");
+			pr_err("Recoverable Duptags\n");
 		if (dsisr & 0x800)
-			printk(KERN_ERR "Recoverable D-cache parity error count overflow\n");
+			pr_err("Recoverable D-cache parity error count overflow\n");
 		if (dsisr & 0x400)
-			printk(KERN_ERR "TLB parity error count overflow\n");
+			pr_err("TLB parity error count overflow\n");
 	}
 
 	if (srr1 & 0x80000)
-		printk(KERN_ERR "Bus Error\n");
+		pr_err("Bus Error\n");
 
 	if (srr1 & 0x40000) {
-		printk(KERN_ERR "I-side SLB multiple hit\n");
+		pr_err("I-side SLB multiple hit\n");
 		dump_slb = 1;
 	}
 
 	if (srr1 & 0x20000)
-		printk(KERN_ERR "I-cache parity error hit\n");
+		pr_err("I-cache parity error hit\n");
 
 	if (num_mce_regs == 0)
-		printk(KERN_ERR "No MCE registers mapped yet, can't dump\n");
+		pr_err("No MCE registers mapped yet, can't dump\n");
 	else
-		printk(KERN_ERR "SoC debug registers:\n");
+		pr_err("SoC debug registers:\n");
 
 	for (i = 0; i < num_mce_regs; i++)
-		printk(KERN_ERR "%s: 0x%08x\n", mce_regs[i].name,
+		pr_err("%s: 0x%08x\n", mce_regs[i].name,
 			in_le32(mce_regs[i].addr));
 
 	if (dump_slb) {
 		unsigned long e, v;
 		int i;
 
-		printk(KERN_ERR "slb contents:\n");
+		pr_err("slb contents:\n");
 		for (i = 0; i < mmu_slb_size; i++) {
 			asm volatile("slbmfee  %0,%1" : "=r" (e) : "r" (i));
 			asm volatile("slbmfev  %0,%1" : "=r" (v) : "r" (i));
-			printk(KERN_ERR "%02d %016lx %016lx\n", i, e, v);
+			pr_err("%02d %016lx %016lx\n", i, e, v);
 		}
 	}
 
@@ -338,55 +398,6 @@ out:
 	/* SRR1[62] is from MSR[62] if recoverable, so pass that back */
 	return !!(srr1 & 0x2);
 }
-
-#ifdef CONFIG_PCMCIA
-static int pcmcia_notify(struct notifier_block *nb, unsigned long action,
-			 void *data)
-{
-	struct device *dev = data;
-	struct device *parent;
-	struct pcmcia_device *pdev = to_pcmcia_dev(dev);
-
-	/* We are only intereted in device addition */
-	if (action != BUS_NOTIFY_ADD_DEVICE)
-		return 0;
-
-	parent = pdev->socket->dev.parent;
-
-	/* We know electra_cf devices will always have of_node set, since
-	 * electra_cf is an of_platform driver.
-	 */
-	if (!parent->of_node)
-		return 0;
-
-	if (!of_device_is_compatible(parent->of_node, "electra-cf"))
-		return 0;
-
-	/* We use the direct ops for localbus */
-	dev->dma_ops = &dma_nommu_ops;
-
-	return 0;
-}
-
-static struct notifier_block pcmcia_notifier = {
-	.notifier_call = pcmcia_notify,
-};
-
-static inline void pasemi_pcmcia_init(void)
-{
-	extern struct bus_type pcmcia_bus_type;
-
-	bus_register_notifier(&pcmcia_bus_type, &pcmcia_notifier);
-}
-
-#else
-
-static inline void pasemi_pcmcia_init(void)
-{
-}
-
-#endif
-
 
 static const struct of_device_id pasemi_bus_ids[] = {
 	/* Unfortunately needed for legacy firmwares */
@@ -400,10 +411,10 @@ static const struct of_device_id pasemi_bus_ids[] = {
 
 static int __init pasemi_publish_devices(void)
 {
-	pasemi_pcmcia_init();
-
 	/* Publish OF platform devices for SDC and other non-PCI devices */
 	of_platform_bus_probe(NULL, pasemi_bus_ids, NULL);
+
+	nemo_init_rtc();
 
 	return 0;
 }
@@ -418,6 +429,17 @@ static int __init pas_probe(void)
 	if (!of_machine_is_compatible("PA6T-1682M") &&
 	    !of_machine_is_compatible("pasemi,pwrficient"))
 		return 0;
+
+#ifdef CONFIG_PPC_PASEMI_NEMO
+	/*
+	 * Check for the Nemo motherboard here, if we are running on one
+	 * change the machine definition to fit
+	 */
+	if (of_machine_is_compatible("pasemi,nemo")) {
+		pm_power_off		= pas_shutdown;
+		ppc_md.name		= "A-EON Amigaone X1000";
+	}
+#endif
 
 	iommu_init_early_pasemi();
 

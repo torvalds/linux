@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 Linus Walleij
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 #include <linux/smp.h>
 #include <linux/io.h>
@@ -17,7 +14,6 @@
 #include <asm/smp_scu.h>
 
 #include <plat/platsmp.h>
-#include "hotplug.h"
 
 #define REALVIEW_SYS_FLAGSSET_OFFSET	0x30
 
@@ -78,6 +74,13 @@ static void __init realview_smp_prepare_cpus(unsigned int max_cpus)
 	regmap_write(map, REALVIEW_SYS_FLAGSSET_OFFSET,
 		     __pa_symbol(versatile_secondary_startup));
 }
+
+#ifdef CONFIG_HOTPLUG_CPU
+static void realview_cpu_die(unsigned int cpu)
+{
+	return versatile_immitation_cpu_die(cpu, 0x20);
+}
+#endif
 
 static const struct smp_operations realview_dt_smp_ops __initconst = {
 	.smp_prepare_cpus	= realview_smp_prepare_cpus,

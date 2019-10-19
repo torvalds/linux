@@ -8,8 +8,6 @@ Required properties:
 - reg : should contain at least address and length of the DIU register
   set.
 - interrupts : one DIU interrupt should be described here.
-- interrupt-parent : the phandle for the interrupt controller that
-  services interrupts for this device.
 
 Optional properties:
 - edid : verbatim EDID data block describing attached display.

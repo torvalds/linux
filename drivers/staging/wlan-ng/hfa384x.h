@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
+/* SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1) */
 /* hfa384x.h
  *
  * Defines the constants and data structures for the hfa384x
@@ -1176,7 +1176,7 @@ struct hfa384x_usbctlx {
 	enum ctlx_state state;	/* Tracks running state */
 
 	struct completion done;
-	volatile int reapable;	/* Food for the reaper task */
+	int reapable;		/* Food for the reaper task */
 
 	ctlx_cmdcb_t cmdcb;	/* Async command callback */
 	ctlx_usercb_t usercb;	/* Async user callback, */
@@ -1369,8 +1369,8 @@ struct hfa384x {
 void hfa384x_create(struct hfa384x *hw, struct usb_device *usb);
 void hfa384x_destroy(struct hfa384x *hw);
 
-int
-hfa384x_corereset(struct hfa384x *hw, int holdtime, int settletime, int genesis);
+int hfa384x_corereset(struct hfa384x *hw, int holdtime, int settletime,
+		       int genesis);
 int hfa384x_drvr_disable(struct hfa384x *hw, u16 macport);
 int hfa384x_drvr_enable(struct hfa384x *hw, u16 macport);
 int hfa384x_drvr_flashdl_enable(struct hfa384x *hw);

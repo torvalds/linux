@@ -12,22 +12,22 @@
 
 #define DESC_TYPE_CODE_DATA	(1 << 0)
 
-struct efi_uga_draw_protocol_32 {
+typedef struct {
 	u32 get_mode;
 	u32 set_mode;
 	u32 blt;
-};
+} efi_uga_draw_protocol_32_t;
 
-struct efi_uga_draw_protocol_64 {
+typedef struct {
 	u64 get_mode;
 	u64 set_mode;
 	u64 blt;
-};
+} efi_uga_draw_protocol_64_t;
 
-struct efi_uga_draw_protocol {
+typedef struct {
 	void *get_mode;
 	void *set_mode;
 	void *blt;
-};
+} efi_uga_draw_protocol_t;
 
 #endif /* BOOT_COMPRESSED_EBOOT_H */

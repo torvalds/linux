@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * ngene-i2c.c: nGene PCIe bridge driver i2c functions
  *
@@ -7,20 +8,6 @@
  *                         Modifications for new nGene firmware,
  *                         support for EEPROM-copying,
  *                         support for new dual DVB-S2 card prototype
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 /* FIXME - some of these can probably be removed */
@@ -147,7 +134,7 @@ done:
 
 static u32 ngene_i2c_functionality(struct i2c_adapter *adap)
 {
-	return I2C_FUNC_SMBUS_EMUL;
+	return I2C_FUNC_I2C | I2C_FUNC_SMBUS_EMUL;
 }
 
 static const struct i2c_algorithm ngene_i2c_algo = {
@@ -161,7 +148,7 @@ int ngene_i2c_init(struct ngene *dev, int dev_nr)
 
 	i2c_set_adapdata(adap, &(dev->channel[dev_nr]));
 
-	strcpy(adap->name, "nGene");
+	strscpy(adap->name, "nGene", sizeof(adap->name));
 
 	adap->algo = &ngene_i2c_algo;
 	adap->algo_data = (void *)&(dev->channel[dev_nr]);

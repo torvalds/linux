@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015, Anton Blanchard, IBM Corp.
- * Licensed under GPLv2.
  */
 
 #include <sys/time.h>

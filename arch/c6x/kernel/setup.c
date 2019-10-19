@@ -1,17 +1,13 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  *  Port on Texas Instruments TMS320C6x architecture
  *
  *  Copyright (C) 2004, 2006, 2009, 2010, 2011 Texas Instruments Incorporated
  *  Author: Aurelien Jacquiot (aurelien.jacquiot@jaluna.com)
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License version 2 as
- *  published by the Free Software Foundation.
  */
 #include <linux/dma-mapping.h>
 #include <linux/memblock.h>
 #include <linux/seq_file.h>
-#include <linux/bootmem.h>
 #include <linux/clkdev.h>
 #include <linux/initrd.h>
 #include <linux/kernel.h>
@@ -96,7 +92,7 @@ static void __init get_cpuinfo(void)
 	unsigned long core_khz;
 	u64 tmp;
 	struct cpuinfo_c6x *p;
-	struct device_node *node, *np;
+	struct device_node *node;
 
 	p = &per_cpu(cpu_data, smp_processor_id());
 
@@ -190,13 +186,8 @@ static void __init get_cpuinfo(void)
 
 	p->core_id = get_coreid();
 
-	node = of_find_node_by_name(NULL, "cpus");
-	if (node) {
-		for_each_child_of_node(node, np)
-			if (!strcmp("cpu", np->name))
-				++c6x_num_cores;
-		of_node_put(node);
-	}
+	for_each_of_cpu_node(node)
+		++c6x_num_cores;
 
 	node = of_find_node_by_name(NULL, "soc");
 	if (node) {
@@ -270,7 +261,7 @@ int __init c6x_add_memory(phys_addr_t start, unsigned long size)
 notrace void __init machine_init(unsigned long dt_ptr)
 {
 	void *dtb = __va(dt_ptr);
-	void *fdt = _fdt_start;
+	void *fdt = __dtb_start;
 
 	/* interrupts must be masked */
 	set_creg(IER, 2);
@@ -296,7 +287,6 @@ notrace void __init machine_init(unsigned long dt_ptr)
 
 void __init setup_arch(char **cmdline_p)
 {
-	int bootmap_size;
 	struct memblock_region *reg;
 
 	printk(KERN_INFO "Initializing kernel\n");
@@ -353,17 +343,7 @@ void __init setup_arch(char **cmdline_p)
 	init_mm.end_data   = memory_start;
 	init_mm.brk        = memory_start;
 
-	/*
-	 * Give all the memory to the bootmap allocator,  tell it to put the
-	 * boot mem_map at the start of memory
-	 */
-	bootmap_size = init_bootmem_node(NODE_DATA(0),
-					 memory_start >> PAGE_SHIFT,
-					 PAGE_OFFSET >> PAGE_SHIFT,
-					 memory_end >> PAGE_SHIFT);
-	memblock_reserve(memory_start, bootmap_size);
-
-	unflatten_device_tree();
+	unflatten_and_copy_device_tree();
 
 	c6x_cache_init();
 
@@ -397,22 +377,9 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize the coherent memory allocator */
 	coherent_mem_init(dma_start, dma_size);
 
-	/*
-	 * Free all memory as a starting point.
-	 */
-	free_bootmem(PAGE_OFFSET, memory_end - PAGE_OFFSET);
-
-	/*
-	 * Then reserve memory which is already being used.
-	 */
-	for_each_memblock(reserved, reg) {
-		pr_debug("reserved - 0x%08x-0x%08x\n",
-			 (u32) reg->base, (u32) reg->size);
-		reserve_bootmem(reg->base, reg->size, BOOTMEM_DEFAULT);
-	}
-
 	max_low_pfn = PFN_DOWN(memory_end);
 	min_low_pfn = PFN_UP(memory_start);
+	max_pfn = max_low_pfn;
 	max_mapnr = max_low_pfn - min_low_pfn;
 
 	/* Get kmalloc into gear */

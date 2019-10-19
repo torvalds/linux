@@ -1,9 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015-2016 Texas Instruments Incorporated - http://www.ti.com/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include "am57xx-industrial-grade.dtsi"
@@ -372,15 +369,25 @@
 };
 
 &cpsw_emac0 {
-	phy_id = <&davinci_mdio>, <0>;
+	phy-handle = <&ethphy0>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <1>;
 };
 
 &cpsw_emac1 {
-	phy_id = <&davinci_mdio>, <1>;
+	phy-handle = <&ethphy1>;
 	phy-mode = "rgmii";
 	dual_emac_res_vlan = <2>;
+};
+
+&davinci_mdio {
+	ethphy0: ethernet-phy@0 {
+		reg = <0>;
+	};
+
+	ethphy1: ethernet-phy@1 {
+		reg = <1>;
+	};
 };
 
 &usb2_phy1 {
@@ -395,8 +402,13 @@
 	dr_mode = "host";
 };
 
+&omap_dwc3_2 {
+	extcon = <&extcon_usb2>;
+};
+
 &usb2 {
-	dr_mode = "peripheral";
+	extcon = <&extcon_usb2>;
+	dr_mode = "otg";
 };
 
 &mmc1 {
@@ -405,14 +417,17 @@
 	vqmmc-supply = <&ldo1_reg>;
 	bus-width = <4>;
 	cd-gpios = <&gpio6 27 GPIO_ACTIVE_LOW>; /* gpio 219 */
+	no-1-8-v;
 };
 
 &mmc2 {
 	status = "okay";
 	vmmc-supply = <&v3_3d>;
+	vqmmc-supply = <&v3_3d>;
 	bus-width = <8>;
-	ti,non-removable;
+	non-removable;
 	max-frequency = <96000000>;
+	no-1-8-v;
 };
 
 &dcan1 {
@@ -470,4 +485,8 @@
 			reg = <0x009e0000 0x01620000>;
 		};
 	};
+};
+
+&cpu0 {
+	vdd-supply = <&smps12_reg>;
 };

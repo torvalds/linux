@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2006 Fen Systems Ltd.
  * Copyright 2005-2013 Solarflare Communications Inc.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published
- * by the Free Software Foundation, incorporated herein by reference.
  */
 
 #include <linux/module.h>
@@ -264,10 +261,16 @@ static int efx_check_disabled(struct efx_nic *efx)
 static int efx_process_channel(struct efx_channel *channel, int budget)
 {
 	struct efx_tx_queue *tx_queue;
+	struct list_head rx_list;
 	int spent;
 
 	if (unlikely(!channel->enabled))
 		return 0;
+
+	/* Prepare the batch receive list */
+	EFX_WARN_ON_PARANOID(channel->rx_list != NULL);
+	INIT_LIST_HEAD(&rx_list);
+	channel->rx_list = &rx_list;
 
 	efx_for_each_channel_tx_queue(tx_queue, channel) {
 		tx_queue->pkts_compl = 0;
@@ -290,6 +293,10 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 				tx_queue->pkts_compl, tx_queue->bytes_compl);
 		}
 	}
+
+	/* Receive any packets we queued up */
+	netif_receive_skb_list(channel->rx_list);
+	channel->rx_list = NULL;
 
 	return spent;
 }
@@ -340,7 +347,10 @@ static int efx_poll(struct napi_struct *napi, int budget)
 			efx_update_irq_mod(efx, channel);
 		}
 
-		efx_filter_rfs_expire(channel);
+#ifdef CONFIG_RFS_ACCEL
+		/* Perhaps expire some ARFS filters */
+		schedule_work(&channel->filter_work);
+#endif
 
 		/* There is no race here; although napi_disable() will
 		 * only wait for napi_complete(), this isn't a problem
@@ -470,6 +480,10 @@ efx_alloc_channel(struct efx_nic *efx, int i, struct efx_channel *old_channel)
 		tx_queue->channel = channel;
 	}
 
+#ifdef CONFIG_RFS_ACCEL
+	INIT_WORK(&channel->filter_work, efx_filter_rfs_expire);
+#endif
+
 	rx_queue = &channel->rx_queue;
 	rx_queue->efx = efx;
 	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
@@ -512,6 +526,9 @@ efx_copy_channel(const struct efx_channel *old_channel)
 	rx_queue->buffer = NULL;
 	memset(&rx_queue->rxd, 0, sizeof(rx_queue->rxd));
 	timer_setup(&rx_queue->slow_fill, efx_rx_slow_fill, 0);
+#ifdef CONFIG_RFS_ACCEL
+	INIT_WORK(&channel->filter_work, efx_filter_rfs_expire);
+#endif
 
 	return channel;
 }
@@ -544,6 +561,8 @@ static int efx_probe_channel(struct efx_channel *channel)
 		if (rc)
 			goto fail;
 	}
+
+	channel->rx_list = NULL;
 
 	return 0;
 
@@ -893,7 +912,7 @@ rollback:
 
 void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue)
 {
-	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(100));
+	mod_timer(&rx_queue->slow_fill, jiffies + msecs_to_jiffies(10));
 }
 
 static bool efx_default_channel_want_txqs(struct efx_channel *channel)
@@ -1279,9 +1298,8 @@ static int efx_init_io(struct efx_nic *efx)
 
 	pci_set_master(pci_dev);
 
-	/* Set the PCI DMA mask.  Try all possibilities from our
-	 * genuine mask down to 32 bits, because some architectures
-	 * (e.g. x86_64 with iommu_sac_force set) will allow 40 bit
+	/* Set the PCI DMA mask.  Try all possibilities from our genuine mask
+	 * down to 32 bits, because some architectures will allow 40 bit
 	 * masks event though they reject 46 bit masks.
 	 */
 	while (dma_mask > 0x7fffffffUL) {
@@ -1353,12 +1371,13 @@ static void efx_fini_io(struct efx_nic *efx)
 		pci_disable_device(efx->pci_dev);
 }
 
-void efx_set_default_rx_indir_table(struct efx_nic *efx)
+void efx_set_default_rx_indir_table(struct efx_nic *efx,
+				    struct efx_rss_context *ctx)
 {
 	size_t i;
 
-	for (i = 0; i < ARRAY_SIZE(efx->rx_indir_table); i++)
-		efx->rx_indir_table[i] =
+	for (i = 0; i < ARRAY_SIZE(ctx->rx_indir_table); i++)
+		ctx->rx_indir_table[i] =
 			ethtool_rxfh_indir_default(i, efx->rss_spread);
 }
 
@@ -1539,6 +1558,38 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 
 	return 0;
 }
+
+#if defined(CONFIG_SMP)
+static void efx_set_interrupt_affinity(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+	unsigned int cpu;
+
+	efx_for_each_channel(channel, efx) {
+		cpu = cpumask_local_spread(channel->channel,
+					   pcibus_to_node(efx->pci_dev->bus));
+		irq_set_affinity_hint(channel->irq, cpumask_of(cpu));
+	}
+}
+
+static void efx_clear_interrupt_affinity(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+
+	efx_for_each_channel(channel, efx)
+		irq_set_affinity_hint(channel->irq, NULL);
+}
+#else
+static void
+efx_set_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+{
+}
+
+static void
+efx_clear_interrupt_affinity(struct efx_nic *efx __attribute__ ((unused)))
+{
+}
+#endif /* CONFIG_SMP */
 
 static int efx_soft_enable_interrupts(struct efx_nic *efx)
 {
@@ -1739,9 +1790,9 @@ static int efx_probe_nic(struct efx_nic *efx)
 	} while (rc == -EAGAIN);
 
 	if (efx->n_channels > 1)
-		netdev_rss_key_fill(&efx->rx_hash_key,
-				    sizeof(efx->rx_hash_key));
-	efx_set_default_rx_indir_table(efx);
+		netdev_rss_key_fill(efx->rss_context.rx_hash_key,
+				    sizeof(efx->rss_context.rx_hash_key));
+	efx_set_default_rx_indir_table(efx, &efx->rss_context);
 
 	netif_set_real_num_tx_queues(efx->net_dev, efx->n_tx_channels);
 	netif_set_real_num_rx_queues(efx->net_dev, efx->n_rx_channels);
@@ -1772,7 +1823,6 @@ static int efx_probe_filters(struct efx_nic *efx)
 {
 	int rc;
 
-	spin_lock_init(&efx->filter_lock);
 	init_rwsem(&efx->filter_sem);
 	mutex_lock(&efx->mac_lock);
 	down_write(&efx->filter_sem);
@@ -1830,12 +1880,6 @@ static void efx_remove_filters(struct efx_nic *efx)
 	up_write(&efx->filter_sem);
 }
 
-static void efx_restore_filters(struct efx_nic *efx)
-{
-	down_read(&efx->filter_sem);
-	efx->type->filter_table_restore(efx);
-	up_read(&efx->filter_sem);
-}
 
 /**************************************************************************
  *
@@ -2161,29 +2205,6 @@ static void efx_fini_napi(struct efx_nic *efx)
 
 /**************************************************************************
  *
- * Kernel netpoll interface
- *
- *************************************************************************/
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-
-/* Although in the common case interrupts will be disabled, this is not
- * guaranteed. However, all our work happens inside the NAPI callback,
- * so no locking is required.
- */
-static void efx_netpoll(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-	struct efx_channel *channel;
-
-	efx_for_each_channel(channel, efx)
-		efx_schedule_channel(channel);
-}
-
-#endif
-
-/**************************************************************************
- *
  * Kernel net device interface
  *
  *************************************************************************/
@@ -2462,9 +2483,6 @@ static const struct net_device_ops efx_netdev_ops = {
 #endif
 	.ndo_get_phys_port_id   = efx_get_phys_port_id,
 	.ndo_get_phys_port_name	= efx_get_phys_port_name,
-#ifdef CONFIG_NET_POLL_CONTROLLER
-	.ndo_poll_controller = efx_netpoll,
-#endif
 	.ndo_setup_tc		= efx_setup_tc,
 #ifdef CONFIG_RFS_ACCEL
 	.ndo_rx_flow_steer	= efx_filter_rfs,
@@ -2499,7 +2517,7 @@ static struct notifier_block efx_netdev_notifier = {
 static ssize_t
 show_phy_type(struct device *dev, struct device_attribute *attr, char *buf)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 	return sprintf(buf, "%d\n", efx->phy_type);
 }
 static DEVICE_ATTR(phy_type, 0444, show_phy_type, NULL);
@@ -2508,7 +2526,7 @@ static DEVICE_ATTR(phy_type, 0444, show_phy_type, NULL);
 static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
 			     char *buf)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n", mcdi->logging_enabled);
@@ -2516,7 +2534,7 @@ static ssize_t show_mcdi_log(struct device *dev, struct device_attribute *attr,
 static ssize_t set_mcdi_log(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 	struct efx_mcdi_iface *mcdi = efx_mcdi(efx);
 	bool enable = count > 0 && *buf != '0';
 
@@ -2647,6 +2665,8 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 	efx_disable_interrupts(efx);
 
 	mutex_lock(&efx->mac_lock);
+	down_write(&efx->filter_sem);
+	mutex_lock(&efx->rss_lock);
 	if (efx->port_initialized && method != RESET_TYPE_INVISIBLE &&
 	    method != RESET_TYPE_DATAPATH)
 		efx->phy_op->fini(efx);
@@ -2700,9 +2720,11 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 			   " VFs may not function\n", rc);
 #endif
 
-	down_read(&efx->filter_sem);
-	efx_restore_filters(efx);
-	up_read(&efx->filter_sem);
+	if (efx->type->rx_restore_rss_contexts)
+		efx->type->rx_restore_rss_contexts(efx);
+	mutex_unlock(&efx->rss_lock);
+	efx->type->filter_table_restore(efx);
+	up_write(&efx->filter_sem);
 	if (efx->type->sriov_reset)
 		efx->type->sriov_reset(efx);
 
@@ -2718,6 +2740,8 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 fail:
 	efx->port_initialized = false;
 
+	mutex_unlock(&efx->rss_lock);
+	up_write(&efx->filter_sem);
 	mutex_unlock(&efx->mac_lock);
 
 	return rc;
@@ -3003,11 +3027,20 @@ static int efx_init_struct(struct efx_nic *efx,
 		efx->type->rx_hash_offset - efx->type->rx_prefix_size;
 	efx->rx_packet_ts_offset =
 		efx->type->rx_ts_offset - efx->type->rx_prefix_size;
+	INIT_LIST_HEAD(&efx->rss_context.list);
+	mutex_init(&efx->rss_lock);
 	spin_lock_init(&efx->stats_lock);
 	efx->vi_stride = EFX_DEFAULT_VI_STRIDE;
 	efx->num_mac_stats = MC_CMD_MAC_NSTATS;
 	BUILD_BUG_ON(MC_CMD_MAC_NSTATS - 1 != MC_CMD_MAC_GENERATION_END);
 	mutex_init(&efx->mac_lock);
+#ifdef CONFIG_RFS_ACCEL
+	mutex_init(&efx->rps_mutex);
+	spin_lock_init(&efx->rps_hash_lock);
+	/* Failure to allocate is not fatal, but may degrade ARFS performance */
+	efx->rps_hash_table = kcalloc(EFX_ARFS_HASH_TABLE_SIZE,
+				      sizeof(*efx->rps_hash_table), GFP_KERNEL);
+#endif
 	efx->phy_op = &efx_dummy_phy_operations;
 	efx->mdio.dev = net_dev;
 	INIT_WORK(&efx->mac_work, efx_mac_work);
@@ -3050,6 +3083,10 @@ static void efx_fini_struct(struct efx_nic *efx)
 {
 	int i;
 
+#ifdef CONFIG_RFS_ACCEL
+	kfree(efx->rps_hash_table);
+#endif
+
 	for (i = 0; i < EFX_MAX_CHANNELS; i++)
 		kfree(efx->channel[i]);
 
@@ -3072,6 +3109,197 @@ void efx_update_sw_stats(struct efx_nic *efx, u64 *stats)
 	stats[GENERIC_STAT_rx_noskb_drops] = atomic_read(&efx->n_rx_noskb_drops);
 }
 
+bool efx_filter_spec_equal(const struct efx_filter_spec *left,
+			   const struct efx_filter_spec *right)
+{
+	if ((left->match_flags ^ right->match_flags) |
+	    ((left->flags ^ right->flags) &
+	     (EFX_FILTER_FLAG_RX | EFX_FILTER_FLAG_TX)))
+		return false;
+
+	return memcmp(&left->outer_vid, &right->outer_vid,
+		      sizeof(struct efx_filter_spec) -
+		      offsetof(struct efx_filter_spec, outer_vid)) == 0;
+}
+
+u32 efx_filter_spec_hash(const struct efx_filter_spec *spec)
+{
+	BUILD_BUG_ON(offsetof(struct efx_filter_spec, outer_vid) & 3);
+	return jhash2((const u32 *)&spec->outer_vid,
+		      (sizeof(struct efx_filter_spec) -
+		       offsetof(struct efx_filter_spec, outer_vid)) / 4,
+		      0);
+}
+
+#ifdef CONFIG_RFS_ACCEL
+bool efx_rps_check_rule(struct efx_arfs_rule *rule, unsigned int filter_idx,
+			bool *force)
+{
+	if (rule->filter_id == EFX_ARFS_FILTER_ID_PENDING) {
+		/* ARFS is currently updating this entry, leave it */
+		return false;
+	}
+	if (rule->filter_id == EFX_ARFS_FILTER_ID_ERROR) {
+		/* ARFS tried and failed to update this, so it's probably out
+		 * of date.  Remove the filter and the ARFS rule entry.
+		 */
+		rule->filter_id = EFX_ARFS_FILTER_ID_REMOVING;
+		*force = true;
+		return true;
+	} else if (WARN_ON(rule->filter_id != filter_idx)) { /* can't happen */
+		/* ARFS has moved on, so old filter is not needed.  Since we did
+		 * not mark the rule with EFX_ARFS_FILTER_ID_REMOVING, it will
+		 * not be removed by efx_rps_hash_del() subsequently.
+		 */
+		*force = true;
+		return true;
+	}
+	/* Remove it iff ARFS wants to. */
+	return true;
+}
+
+static
+struct hlist_head *efx_rps_hash_bucket(struct efx_nic *efx,
+				       const struct efx_filter_spec *spec)
+{
+	u32 hash = efx_filter_spec_hash(spec);
+
+	lockdep_assert_held(&efx->rps_hash_lock);
+	if (!efx->rps_hash_table)
+		return NULL;
+	return &efx->rps_hash_table[hash % EFX_ARFS_HASH_TABLE_SIZE];
+}
+
+struct efx_arfs_rule *efx_rps_hash_find(struct efx_nic *efx,
+					const struct efx_filter_spec *spec)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (!head)
+		return NULL;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec))
+			return rule;
+	}
+	return NULL;
+}
+
+struct efx_arfs_rule *efx_rps_hash_add(struct efx_nic *efx,
+				       const struct efx_filter_spec *spec,
+				       bool *new)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (!head)
+		return NULL;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec)) {
+			*new = false;
+			return rule;
+		}
+	}
+	rule = kmalloc(sizeof(*rule), GFP_ATOMIC);
+	*new = true;
+	if (rule) {
+		memcpy(&rule->spec, spec, sizeof(rule->spec));
+		hlist_add_head(&rule->node, head);
+	}
+	return rule;
+}
+
+void efx_rps_hash_del(struct efx_nic *efx, const struct efx_filter_spec *spec)
+{
+	struct efx_arfs_rule *rule;
+	struct hlist_head *head;
+	struct hlist_node *node;
+
+	head = efx_rps_hash_bucket(efx, spec);
+	if (WARN_ON(!head))
+		return;
+	hlist_for_each(node, head) {
+		rule = container_of(node, struct efx_arfs_rule, node);
+		if (efx_filter_spec_equal(spec, &rule->spec)) {
+			/* Someone already reused the entry.  We know that if
+			 * this check doesn't fire (i.e. filter_id == REMOVING)
+			 * then the REMOVING mark was put there by our caller,
+			 * because caller is holding a lock on filter table and
+			 * only holders of that lock set REMOVING.
+			 */
+			if (rule->filter_id != EFX_ARFS_FILTER_ID_REMOVING)
+				return;
+			hlist_del(node);
+			kfree(rule);
+			return;
+		}
+	}
+	/* We didn't find it. */
+	WARN_ON(1);
+}
+#endif
+
+/* RSS contexts.  We're using linked lists and crappy O(n) algorithms, because
+ * (a) this is an infrequent control-plane operation and (b) n is small (max 64)
+ */
+struct efx_rss_context *efx_alloc_rss_context_entry(struct efx_nic *efx)
+{
+	struct list_head *head = &efx->rss_context.list;
+	struct efx_rss_context *ctx, *new;
+	u32 id = 1; /* Don't use zero, that refers to the master RSS context */
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
+	/* Search for first gap in the numbering */
+	list_for_each_entry(ctx, head, list) {
+		if (ctx->user_id != id)
+			break;
+		id++;
+		/* Check for wrap.  If this happens, we have nearly 2^32
+		 * allocated RSS contexts, which seems unlikely.
+		 */
+		if (WARN_ON_ONCE(!id))
+			return NULL;
+	}
+
+	/* Create the new entry */
+	new = kmalloc(sizeof(struct efx_rss_context), GFP_KERNEL);
+	if (!new)
+		return NULL;
+	new->context_id = EFX_EF10_RSS_CONTEXT_INVALID;
+	new->rx_hash_udp_4tuple = false;
+
+	/* Insert the new entry into the gap */
+	new->user_id = id;
+	list_add_tail(&new->list, &ctx->list);
+	return new;
+}
+
+struct efx_rss_context *efx_find_rss_context_entry(struct efx_nic *efx, u32 id)
+{
+	struct list_head *head = &efx->rss_context.list;
+	struct efx_rss_context *ctx;
+
+	WARN_ON(!mutex_is_locked(&efx->rss_lock));
+
+	list_for_each_entry(ctx, head, list)
+		if (ctx->user_id == id)
+			return ctx;
+	return NULL;
+}
+
+void efx_free_rss_context_entry(struct efx_rss_context *ctx)
+{
+	list_del(&ctx->list);
+	kfree(ctx);
+}
+
 /**************************************************************************
  *
  * PCI interface
@@ -3090,6 +3318,7 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	cancel_work_sync(&efx->reset_work);
 
 	efx_disable_interrupts(efx);
+	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);
 	efx->type->fini(efx);
@@ -3222,7 +3451,9 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 
 	efx_init_napi(efx);
 
+	down_write(&efx->filter_sem);
 	rc = efx->type->init(efx);
+	up_write(&efx->filter_sem);
 	if (rc) {
 		netif_err(efx, probe, efx->net_dev,
 			  "failed to initialise NIC\n");
@@ -3239,6 +3470,8 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	rc = efx_nic_init_interrupt(efx);
 	if (rc)
 		goto fail5;
+
+	efx_set_interrupt_affinity(efx);
 	rc = efx_enable_interrupts(efx);
 	if (rc)
 		goto fail6;
@@ -3246,6 +3479,7 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 	return 0;
 
  fail6:
+	efx_clear_interrupt_affinity(efx);
 	efx_nic_fini_interrupt(efx);
  fail5:
 	efx_fini_port(efx);
@@ -3380,11 +3614,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 		netif_warn(efx, probe, efx->net_dev,
 			   "failed to create MTDs (%d)\n", rc);
 
-	rc = pci_enable_pcie_error_reporting(pci_dev);
-	if (rc && rc != -EINVAL)
-		netif_notice(efx, probe, efx->net_dev,
-			     "PCIE error reporting unavailable (%d).\n",
-			     rc);
+	(void)pci_enable_pcie_error_reporting(pci_dev);
 
 	if (efx->type->udp_tnl_push_ports)
 		efx->type->udp_tnl_push_ports(efx);
@@ -3424,7 +3654,7 @@ static int efx_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
 
 static int efx_pm_freeze(struct device *dev)
 {
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 
 	rtnl_lock();
 
@@ -3445,7 +3675,7 @@ static int efx_pm_freeze(struct device *dev)
 static int efx_pm_thaw(struct device *dev)
 {
 	int rc;
-	struct efx_nic *efx = pci_get_drvdata(to_pci_dev(dev));
+	struct efx_nic *efx = dev_get_drvdata(dev);
 
 	rtnl_lock();
 
@@ -3511,7 +3741,9 @@ static int efx_pm_resume(struct device *dev)
 	rc = efx->type->reset(efx, RESET_TYPE_ALL);
 	if (rc)
 		return rc;
+	down_write(&efx->filter_sem);
 	rc = efx->type->init(efx);
+	up_write(&efx->filter_sem);
 	if (rc)
 		return rc;
 	rc = efx_pm_thaw(dev);
@@ -3582,19 +3814,11 @@ static pci_ers_result_t efx_io_slot_reset(struct pci_dev *pdev)
 {
 	struct efx_nic *efx = pci_get_drvdata(pdev);
 	pci_ers_result_t status = PCI_ERS_RESULT_RECOVERED;
-	int rc;
 
 	if (pci_enable_device(pdev)) {
 		netif_err(efx, hw, efx->net_dev,
 			  "Cannot re-enable PCI device after reset.\n");
 		status =  PCI_ERS_RESULT_DISCONNECT;
-	}
-
-	rc = pci_cleanup_aer_uncorrect_error_status(pdev);
-	if (rc) {
-		netif_err(efx, hw, efx->net_dev,
-		"pci_cleanup_aer_uncorrect_error_status failed (%d)\n", rc);
-		/* Non-fatal error. Continue. */
 	}
 
 	return status;

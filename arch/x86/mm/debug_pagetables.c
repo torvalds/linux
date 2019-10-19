@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include <linux/debugfs.h>
+#include <linux/efi.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
 #include <asm/pgtable.h>
@@ -9,20 +11,9 @@ static int ptdump_show(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ptdump_open(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, ptdump_show, NULL);
-}
+DEFINE_SHOW_ATTRIBUTE(ptdump);
 
-static const struct file_operations ptdump_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ptdump_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
-static int ptdump_show_curknl(struct seq_file *m, void *v)
+static int ptdump_curknl_show(struct seq_file *m, void *v)
 {
 	if (current->mm->pgd) {
 		down_read(&current->mm->mmap_sem);
@@ -32,23 +23,10 @@ static int ptdump_show_curknl(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ptdump_open_curknl(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, ptdump_show_curknl, NULL);
-}
-
-static const struct file_operations ptdump_curknl_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ptdump_open_curknl,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ptdump_curknl);
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
-static struct dentry *pe_curusr;
-
-static int ptdump_show_curusr(struct seq_file *m, void *v)
+static int ptdump_curusr_show(struct seq_file *m, void *v)
 {
 	if (current->mm->pgd) {
 		down_read(&current->mm->mmap_sem);
@@ -58,48 +36,38 @@ static int ptdump_show_curusr(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int ptdump_open_curusr(struct inode *inode, struct file *filp)
-{
-	return single_open(filp, ptdump_show_curusr, NULL);
-}
-
-static const struct file_operations ptdump_curusr_fops = {
-	.owner		= THIS_MODULE,
-	.open		= ptdump_open_curusr,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
+DEFINE_SHOW_ATTRIBUTE(ptdump_curusr);
 #endif
 
-static struct dentry *dir, *pe_knl, *pe_curknl;
+#if defined(CONFIG_EFI) && defined(CONFIG_X86_64)
+static int ptdump_efi_show(struct seq_file *m, void *v)
+{
+	if (efi_mm.pgd)
+		ptdump_walk_pgd_level_debugfs(m, efi_mm.pgd, false);
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(ptdump_efi);
+#endif
+
+static struct dentry *dir;
 
 static int __init pt_dump_debug_init(void)
 {
 	dir = debugfs_create_dir("page_tables", NULL);
-	if (!dir)
-		return -ENOMEM;
 
-	pe_knl = debugfs_create_file("kernel", 0400, dir, NULL,
-				     &ptdump_fops);
-	if (!pe_knl)
-		goto err;
-
-	pe_curknl = debugfs_create_file("current_kernel", 0400,
-					dir, NULL, &ptdump_curknl_fops);
-	if (!pe_curknl)
-		goto err;
+	debugfs_create_file("kernel", 0400, dir, NULL, &ptdump_fops);
+	debugfs_create_file("current_kernel", 0400, dir, NULL,
+			    &ptdump_curknl_fops);
 
 #ifdef CONFIG_PAGE_TABLE_ISOLATION
-	pe_curusr = debugfs_create_file("current_user", 0400,
-					dir, NULL, &ptdump_curusr_fops);
-	if (!pe_curusr)
-		goto err;
+	debugfs_create_file("current_user", 0400, dir, NULL,
+			    &ptdump_curusr_fops);
+#endif
+#if defined(CONFIG_EFI) && defined(CONFIG_X86_64)
+	debugfs_create_file("efi", 0400, dir, NULL, &ptdump_efi_fops);
 #endif
 	return 0;
-err:
-	debugfs_remove_recursive(dir);
-	return -ENOMEM;
 }
 
 static void __exit pt_dump_debug_exit(void)

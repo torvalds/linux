@@ -34,25 +34,14 @@
 #define DBG_RES(x...)
 #endif
 
-/* To be used as: mdelay(pci_post_reset_delay);
- *
- * post_reset is the time the kernel should stall to prevent anyone from
- * accessing the PCI bus once #RESET is de-asserted. 
- * PCI spec somewhere says 1 second but with multi-PCI bus systems,
- * this makes the boot time much longer than necessary.
- * 20ms seems to work for all the HP PCI implementations to date.
- *
- * #define pci_post_reset_delay 50
- */
+struct pci_port_ops *pci_port __ro_after_init;
+struct pci_bios_ops *pci_bios __ro_after_init;
 
-struct pci_port_ops *pci_port __read_mostly;
-struct pci_bios_ops *pci_bios __read_mostly;
-
-static int pci_hba_count __read_mostly;
+static int pci_hba_count __ro_after_init;
 
 /* parisc_pci_hba used by pci_port->in/out() ops to lookup bus data.  */
 #define PCI_HBA_MAX 32
-static struct pci_hba_data *parisc_pci_hba[PCI_HBA_MAX] __read_mostly;
+static struct pci_hba_data *parisc_pci_hba[PCI_HBA_MAX] __ro_after_init;
 
 
 /********************************************************************
@@ -174,7 +163,7 @@ void pcibios_set_master(struct pci_dev *dev)
  * pcibios_init_bridge() initializes cache line and default latency
  * for pci controllers and pci-pci bridges
  */
-void __init pcibios_init_bridge(struct pci_dev *dev)
+void __ref pcibios_init_bridge(struct pci_dev *dev)
 {
 	unsigned short bridge_ctl, bridge_ctl_new;
 

@@ -1,20 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
 	Copyright (C) 2010 Willow Garage <http://www.willowgarage.com>
 	Copyright (C) 2010 Ivo van Doorn <IvDoorn@gmail.com>
 	Copyright (C) 2009 Bartlomiej Zolnierkiewicz
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifndef RT2800LIB_H
@@ -76,6 +65,7 @@ struct rt2800_ops {
 				  const u8 *data, const size_t len);
 	int (*drv_init_registers)(struct rt2x00_dev *rt2x00dev);
 	__le32 *(*drv_get_txwi)(struct queue_entry *entry);
+	unsigned int (*drv_get_dma_done)(struct data_queue *queue);
 };
 
 static inline u32 rt2800_register_read(struct rt2x00_dev *rt2x00dev,
@@ -177,6 +167,13 @@ static inline __le32 *rt2800_drv_get_txwi(struct queue_entry *entry)
 	return rt2800ops->drv_get_txwi(entry);
 }
 
+static inline unsigned int rt2800_drv_get_dma_done(struct data_queue *queue)
+{
+	const struct rt2800_ops *rt2800ops = queue->rt2x00dev->ops->drv;
+
+	return rt2800ops->drv_get_dma_done(queue);
+}
+
 void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 			const u8 command, const u8 token,
 			const u8 arg0, const u8 arg1);
@@ -195,6 +192,12 @@ void rt2800_process_rxwi(struct queue_entry *entry, struct rxdone_entry_desc *tx
 
 void rt2800_txdone_entry(struct queue_entry *entry, u32 status, __le32 *txwi,
 			 bool match);
+void rt2800_txdone(struct rt2x00_dev *rt2x00dev, unsigned int quota);
+void rt2800_txdone_nostatus(struct rt2x00_dev *rt2x00dev);
+bool rt2800_txstatus_timeout(struct rt2x00_dev *rt2x00dev);
+bool rt2800_txstatus_pending(struct rt2x00_dev *rt2x00dev);
+
+void rt2800_watchdog(struct rt2x00_dev *rt2x00dev);
 
 void rt2800_write_beacon(struct queue_entry *entry, struct txentry_desc *txdesc);
 void rt2800_clear_beacon(struct queue_entry *entry);
@@ -208,9 +211,10 @@ int rt2800_config_shared_key(struct rt2x00_dev *rt2x00dev,
 int rt2800_config_pairwise_key(struct rt2x00_dev *rt2x00dev,
 			       struct rt2x00lib_crypto *crypto,
 			       struct ieee80211_key_conf *key);
-int rt2800_sta_add(struct rt2x00_dev *rt2x00dev, struct ieee80211_vif *vif,
+int rt2800_sta_add(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		   struct ieee80211_sta *sta);
-int rt2800_sta_remove(struct rt2x00_dev *rt2x00dev, struct ieee80211_sta *sta);
+int rt2800_sta_remove(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		      struct ieee80211_sta *sta);
 void rt2800_config_filter(struct rt2x00_dev *rt2x00dev,
 			  const unsigned int filter_flags);
 void rt2800_config_intf(struct rt2x00_dev *rt2x00dev, struct rt2x00_intf *intf,
@@ -253,5 +257,6 @@ void rt2800_disable_wpdma(struct rt2x00_dev *rt2x00dev);
 void rt2800_get_txwi_rxwi_size(struct rt2x00_dev *rt2x00dev,
 			       unsigned short *txwi_size,
 			       unsigned short *rxwi_size);
+void rt2800_pre_reset_hw(struct rt2x00_dev *rt2x00dev);
 
 #endif /* RT2800LIB_H */

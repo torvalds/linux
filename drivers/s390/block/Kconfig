@@ -15,8 +15,8 @@ config BLK_DEV_XPRAM
 
 config DCSSBLK
 	def_tristate m
-	select DAX
 	select FS_DAX_LIMITED
+	select DAX_DRIVER
 	prompt "DCSSBLK support"
 	depends on S390 && BLOCK
 	help
@@ -38,7 +38,7 @@ config DASD_PROFILE
 	depends on DASD
 	help
 	  Enable this option if you want to see profiling information
-          in /proc/dasd/statistics.
+	  in /proc/dasd/statistics.
 
 config DASD_ECKD
 	def_tristate y

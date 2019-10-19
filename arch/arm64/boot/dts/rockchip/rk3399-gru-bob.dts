@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Google Gru-Bob Rev 4+ board device tree source
+ *
+ * Copyright 2018 Google, Inc
+ */
+
+/dts-v1/;
+#include "rk3399-gru-chromebook.dtsi"
+
+/ {
+	model = "Google Bob";
+	compatible = "google,bob-rev13", "google,bob-rev12",
+		     "google,bob-rev11", "google,bob-rev10",
+		     "google,bob-rev9", "google,bob-rev8",
+		     "google,bob-rev7", "google,bob-rev6",
+		     "google,bob-rev5", "google,bob-rev4",
+		     "google,bob", "google,gru", "rockchip,rk3399";
+
+	edp_panel: edp-panel {
+		compatible = "boe,nv101wxmn51", "simple-panel";
+		backlight = <&backlight>;
+		power-supply = <&pp3300_disp>;
+
+		port {
+			panel_in_edp: endpoint {
+				remote-endpoint = <&edp_out_panel>;
+			};
+		};
+	};
+};
+
+&ap_i2c_ts {
+	touchscreen: touchscreen@10 {
+		compatible = "elan,ekth3500";
+		reg = <0x10>;
+		interrupt-parent = <&gpio3>;
+		interrupts = <13 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touch_int_l &touch_reset_l>;
+		reset-gpios = <&gpio4 26 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&ap_i2c_tp {
+	trackpad: trackpad@15 {
+		compatible = "elan,ekth3000";
+		reg = <0x15>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <4 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&trackpad_int_l>;
+		wakeup-source;
+	};
+};
+
+&backlight {
+	pwms = <&cros_ec_pwm 0>;
+};
+
+&cpu_alert0 {
+	temperature = <65000>;
+};
+
+&cpu_alert1 {
+	temperature = <70000>;
+};
+
+&spi0 {
+	status = "okay";
+};
+
+&pinctrl {
+	tpm {
+		h1_int_od_l: h1-int-od-l {
+			rockchip,pins = <0 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+	};
+};

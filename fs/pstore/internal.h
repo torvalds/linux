@@ -37,4 +37,8 @@ extern bool	pstore_is_mounted(void);
 extern void	pstore_record_init(struct pstore_record *record,
 				   struct pstore_info *psi);
 
+/* Called during pstore init/exit. */
+int __init	pstore_init_fs(void);
+void __exit	pstore_exit_fs(void);
+
 #endif

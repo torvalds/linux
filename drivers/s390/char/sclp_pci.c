@@ -24,6 +24,7 @@
 
 #define SCLP_ATYPE_PCI				2
 
+#define SCLP_ERRNOTIFY_AQ_RESET			0
 #define SCLP_ERRNOTIFY_AQ_REPAIR		1
 #define SCLP_ERRNOTIFY_AQ_INFO_LOG		2
 
@@ -111,9 +112,14 @@ static int sclp_pci_check_report(struct zpci_report_error_header *report)
 	if (report->version != 1)
 		return -EINVAL;
 
-	if (report->action != SCLP_ERRNOTIFY_AQ_REPAIR &&
-	    report->action != SCLP_ERRNOTIFY_AQ_INFO_LOG)
+	switch (report->action) {
+	case SCLP_ERRNOTIFY_AQ_RESET:
+	case SCLP_ERRNOTIFY_AQ_REPAIR:
+	case SCLP_ERRNOTIFY_AQ_INFO_LOG:
+		break;
+	default:
 		return -EINVAL;
+	}
 
 	if (report->length > (PAGE_SIZE - sizeof(struct err_notify_sccb)))
 		return -EINVAL;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Socket CAN driver for Aeroflex Gaisler GRCAN and GRHCAN.
  *
@@ -17,11 +18,6 @@
  *
  * See "Documentation/admin-guide/kernel-parameters.rst" for information on the module
  * parameters.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
  *
  * Contributors: Andreas Larsson <andreas@gaisler.com>
  */
@@ -1057,7 +1053,7 @@ static int grcan_open(struct net_device *dev)
 		return err;
 	}
 
-	priv->echo_skb = kzalloc(dma->tx.size * sizeof(*priv->echo_skb),
+	priv->echo_skb = kcalloc(dma->tx.size, sizeof(*priv->echo_skb),
 				 GFP_KERNEL);
 	if (!priv->echo_skb) {
 		err = -ENOMEM;
@@ -1066,7 +1062,7 @@ static int grcan_open(struct net_device *dev)
 	priv->can.echo_skb_max = dma->tx.size;
 	priv->can.echo_skb = priv->echo_skb;
 
-	priv->txdlc = kzalloc(dma->tx.size * sizeof(*priv->txdlc), GFP_KERNEL);
+	priv->txdlc = kcalloc(dma->tx.size, sizeof(*priv->txdlc), GFP_KERNEL);
 	if (!priv->txdlc) {
 		err = -ENOMEM;
 		goto exit_free_echo_skb;
@@ -1484,7 +1480,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		}							\
 	}								\
 	module_param_named(name, grcan_module_config.name,		\
-			   mtype, S_IRUGO);				\
+			   mtype, 0444);				\
 	MODULE_PARM_DESC(name, desc)
 
 #define GRCAN_CONFIG_ATTR(name, desc)					\
@@ -1513,7 +1509,7 @@ static netdev_tx_t grcan_start_xmit(struct sk_buff *skb,
 		struct grcan_priv *priv = netdev_priv(dev);		\
 		return sprintf(buf, "%d\n", priv->config.name);		\
 	}								\
-	static DEVICE_ATTR(name, S_IRUGO | S_IWUSR,			\
+	static DEVICE_ATTR(name, 0644,					\
 			   grcan_show_##name,				\
 			   grcan_store_##name);				\
 	GRCAN_MODULE_PARAM(name, ushort, GRCAN_NOT_BOOL, desc)

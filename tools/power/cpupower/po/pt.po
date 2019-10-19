@@ -93,7 +93,7 @@ msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:74
 #, c-format
-msgid "\t -i: time intervall to measure for in seconds (default 1)\n"
+msgid "\t -i: time interval to measure for in seconds (default 1)\n"
 msgstr ""
 
 #: utils/idle_monitor/cpupower-monitor.c:75

@@ -69,10 +69,12 @@
 /*
  * Version numbers
  */
-#define VMXNET3_DRIVER_VERSION_STRING   "1.4.11.0-k"
+#define VMXNET3_DRIVER_VERSION_STRING   "1.4.17.0-k"
 
-/* a 32-bit int, each byte encode a verion number in VMXNET3_DRIVER_VERSION */
-#define VMXNET3_DRIVER_VERSION_NUM      0x01040b00
+/* Each byte of this 32-bit integer encodes a version number in
+ * VMXNET3_DRIVER_VERSION_STRING.
+ */
+#define VMXNET3_DRIVER_VERSION_NUM      0x01041100
 
 #if defined(CONFIG_PCI_MSI)
 	/* RSS only makes sense if MSI-X is supported. */
@@ -342,9 +344,6 @@ struct vmxnet3_adapter {
 	u8			__iomem *hw_addr1; /* for BAR 1 */
 	u8                              version;
 
-	bool				rxcsum;
-	bool				lro;
-
 #ifdef VMXNET3_RSS
 	struct UPT1_RSSConf		*rss_conf;
 	bool				rss;
@@ -454,6 +453,9 @@ vmxnet3_tq_destroy_all(struct vmxnet3_adapter *adapter);
 
 void
 vmxnet3_rq_destroy_all(struct vmxnet3_adapter *adapter);
+
+netdev_features_t
+vmxnet3_fix_features(struct net_device *netdev, netdev_features_t features);
 
 int
 vmxnet3_set_features(struct net_device *netdev, netdev_features_t features);

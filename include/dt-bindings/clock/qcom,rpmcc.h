@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright 2015 Linaro Limited
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #ifndef _DT_BINDINGS_CLK_MSM_RPMCC_H
@@ -40,6 +32,11 @@
 #define RPM_SMI_CLK				22
 #define RPM_SMI_A_CLK				23
 #define RPM_PLL4_CLK				24
+#define RPM_XO_D0				25
+#define RPM_XO_D1				26
+#define RPM_XO_A0				27
+#define RPM_XO_A1				28
+#define RPM_XO_A2				29
 
 /* SMD RPM clocks */
 #define RPM_SMD_XO_CLK_SRC				0
@@ -118,5 +115,19 @@
 #define RPM_SMD_DIV_A_CLK3			73
 #define RPM_SMD_LN_BB_CLK			74
 #define RPM_SMD_LN_BB_A_CLK			75
+#define RPM_SMD_BIMC_GPU_CLK			76
+#define RPM_SMD_BIMC_GPU_A_CLK			77
+#define RPM_SMD_QPIC_CLK			78
+#define RPM_SMD_QPIC_CLK_A			79
+#define RPM_SMD_LN_BB_CLK1			80
+#define RPM_SMD_LN_BB_CLK1_A			81
+#define RPM_SMD_LN_BB_CLK2			82
+#define RPM_SMD_LN_BB_CLK2_A			83
+#define RPM_SMD_LN_BB_CLK3_PIN			84
+#define RPM_SMD_LN_BB_CLK3_A_PIN		85
+#define RPM_SMD_RF_CLK3				86
+#define RPM_SMD_RF_CLK3_A			87
+#define RPM_SMD_RF_CLK3_PIN			88
+#define RPM_SMD_RF_CLK3_A_PIN			89
 
 #endif

@@ -51,6 +51,9 @@ static const struct v4l2_file_operations ivtv_v4l2_enc_fops = {
 	.write = ivtv_v4l2_write,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = video_ioctl2, /* for ivtv_default() */
+#endif
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_enc_poll,
 };
@@ -61,6 +64,9 @@ static const struct v4l2_file_operations ivtv_v4l2_dec_fops = {
 	.write = ivtv_v4l2_write,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = video_ioctl2, /* for ivtv_default() */
+#endif
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_dec_poll,
 };
@@ -69,6 +75,9 @@ static const struct v4l2_file_operations ivtv_v4l2_radio_fops = {
 	.owner = THIS_MODULE,
 	.open = ivtv_v4l2_open,
 	.unlocked_ioctl = video_ioctl2,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = video_ioctl2, /* for ivtv_default() */
+#endif
 	.release = ivtv_v4l2_close,
 	.poll = ivtv_v4l2_enc_poll,
 };
@@ -130,8 +139,7 @@ static struct {
 		"decoder MPG",
 		VFL_TYPE_GRABBER, IVTV_V4L2_DEC_MPG_OFFSET,
 		PCI_DMA_TODEVICE, 0,
-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
-		V4L2_CAP_VIDEO_OUTPUT_OVERLAY,
+		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
 		&ivtv_v4l2_dec_fops
 	},
 	{	/* IVTV_DEC_STREAM_TYPE_VBI */
@@ -152,8 +160,7 @@ static struct {
 		"decoder YUV",
 		VFL_TYPE_GRABBER, IVTV_V4L2_DEC_YUV_OFFSET,
 		PCI_DMA_TODEVICE, 0,
-		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE |
-		V4L2_CAP_VIDEO_OUTPUT_OVERLAY,
+		V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_AUDIO | V4L2_CAP_READWRITE,
 		&ivtv_v4l2_dec_fops
 	}
 };
@@ -291,6 +298,14 @@ static int ivtv_reg_dev(struct ivtv *itv, int type)
 
 		if (s_mpg->vdev.v4l2_dev)
 			num = s_mpg->vdev.num + ivtv_stream_info[type].num_offset;
+	}
+	s->vdev.device_caps = s->caps;
+	if (itv->osd_video_pbase) {
+		itv->streams[IVTV_DEC_STREAM_TYPE_YUV].vdev.device_caps |=
+			V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->streams[IVTV_DEC_STREAM_TYPE_MPG].vdev.device_caps |=
+			V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
+		itv->v4l2_cap |= V4L2_CAP_VIDEO_OUTPUT_OVERLAY;
 	}
 	video_set_drvdata(&s->vdev, s);
 

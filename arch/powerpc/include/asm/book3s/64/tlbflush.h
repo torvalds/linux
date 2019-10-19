@@ -4,7 +4,7 @@
 
 #define MMU_NO_CONTEXT	~0UL
 
-
+#include <linux/mm_types.h>
 #include <asm/book3s/64/tlbflush-hash.h>
 #include <asm/book3s/64/tlbflush-radix.h>
 
@@ -137,6 +137,16 @@ static inline void flush_all_mm(struct mm_struct *mm)
 #define flush_tlb_page(vma, addr)	local_flush_tlb_page(vma, addr)
 #define flush_all_mm(mm)		local_flush_all_mm(mm)
 #endif /* CONFIG_SMP */
+
+#define flush_tlb_fix_spurious_fault flush_tlb_fix_spurious_fault
+static inline void flush_tlb_fix_spurious_fault(struct vm_area_struct *vma,
+						unsigned long address)
+{
+	/* See ptep_set_access_flags comment */
+	if (atomic_read(&vma->vm_mm->context.copros) > 0)
+		flush_tlb_page(vma, address);
+}
+
 /*
  * flush the page walk cache for the address
  */
@@ -152,4 +162,13 @@ static inline void flush_tlb_pgtable(struct mmu_gather *tlb, unsigned long addre
 
 	radix__flush_tlb_pwc(tlb, address);
 }
+
+extern bool tlbie_capable;
+extern bool tlbie_enabled;
+
+static inline bool cputlb_use_tlbie(void)
+{
+	return tlbie_enabled;
+}
+
 #endif /*  _ASM_POWERPC_BOOK3S_64_TLBFLUSH_H */

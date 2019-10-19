@@ -1,10 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #ifndef __QUOTA_DOT_H__
@@ -45,6 +42,8 @@ static inline int gfs2_quota_lock_check(struct gfs2_inode *ip,
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	int ret;
+
+	ap->allowed = UINT_MAX; /* Assume we are permitted a whole lot */
 	if (sdp->sd_args.ar_quota == GFS2_QUOTA_OFF)
 		return 0;
 	ret = gfs2_quota_lock(ip, NO_UID_QUOTA_CHANGE, NO_GID_QUOTA_CHANGE);

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Pin Control and GPIO driver for SuperH Pin Function Controller.
  *
@@ -5,10 +6,6 @@
  *
  * Copyright (C) 2008 Magnus Damm
  * Copyright (C) 2009 - 2012 Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #define DRV_NAME "sh-pfc"
@@ -57,7 +54,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 		return -EINVAL;
 
 	/* Allocate memory windows and IRQs arrays. */
-	windows = devm_kzalloc(pfc->dev, num_windows * sizeof(*windows),
+	windows = devm_kcalloc(pfc->dev, num_windows, sizeof(*windows),
 			       GFP_KERNEL);
 	if (windows == NULL)
 		return -ENOMEM;
@@ -66,7 +63,7 @@ static int sh_pfc_map_resources(struct sh_pfc *pfc,
 	pfc->windows = windows;
 
 	if (num_irqs) {
-		irqs = devm_kzalloc(pfc->dev, num_irqs * sizeof(*irqs),
+		irqs = devm_kcalloc(pfc->dev, num_irqs, sizeof(*irqs),
 				    GFP_KERNEL);
 		if (irqs == NULL)
 			return -ENOMEM;
@@ -224,7 +221,7 @@ static void sh_pfc_write_config_reg(struct sh_pfc *pfc,
 
 	dev_dbg(pfc->dev, "write_reg addr = %x, value = 0x%x, field = %u, "
 		"r_width = %u, f_width = %u\n",
-		crp->reg, value, field, crp->reg_width, crp->field_width);
+		crp->reg, value, field, crp->reg_width, hweight32(mask));
 
 	mask = ~(mask << pos);
 	value = value << pos;
@@ -444,7 +441,7 @@ static int sh_pfc_init_ranges(struct sh_pfc *pfc)
 	}
 
 	pfc->nr_ranges = nr_ranges;
-	pfc->ranges = devm_kzalloc(pfc->dev, sizeof(*pfc->ranges) * nr_ranges,
+	pfc->ranges = devm_kcalloc(pfc->dev, nr_ranges, sizeof(*pfc->ranges),
 				   GFP_KERNEL);
 	if (pfc->ranges == NULL)
 		return -ENOMEM;
@@ -497,10 +494,34 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7743_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A7744
+	{
+		.compatible = "renesas,pfc-r8a7744",
+		.data = &r8a7744_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7745
 	{
 		.compatible = "renesas,pfc-r8a7745",
 		.data = &r8a7745_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77470
+	{
+		.compatible = "renesas,pfc-r8a77470",
+		.data = &r8a77470_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A774A1
+	{
+		.compatible = "renesas,pfc-r8a774a1",
+		.data = &r8a774a1_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A774C0
+	{
+		.compatible = "renesas,pfc-r8a774c0",
+		.data = &r8a774c0_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7778
@@ -550,6 +571,13 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.compatible = "renesas,pfc-r8a7795",
 		.data = &r8a7795_pinmux_info,
 	},
+#ifdef DEBUG
+	{
+		/* For sanity checks only (nothing matches against this) */
+		.compatible = "renesas,pfc-r8a77950",	/* R-Car H3 ES1.0 */
+		.data = &r8a7795es1_pinmux_info,
+	},
+#endif /* DEBUG */
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A7796
 	{
@@ -557,10 +585,28 @@ static const struct of_device_id sh_pfc_of_table[] = {
 		.data = &r8a7796_pinmux_info,
 	},
 #endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77965
+	{
+		.compatible = "renesas,pfc-r8a77965",
+		.data = &r8a77965_pinmux_info,
+	},
+#endif
 #ifdef CONFIG_PINCTRL_PFC_R8A77970
 	{
 		.compatible = "renesas,pfc-r8a77970",
 		.data = &r8a77970_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77980
+	{
+		.compatible = "renesas,pfc-r8a77980",
+		.data = &r8a77980_pinmux_info,
+	},
+#endif
+#ifdef CONFIG_PINCTRL_PFC_R8A77990
+	{
+		.compatible = "renesas,pfc-r8a77990",
+		.data = &r8a77990_pinmux_info,
 	},
 #endif
 #ifdef CONFIG_PINCTRL_PFC_R8A77995
@@ -669,6 +715,168 @@ static const struct dev_pm_ops sh_pfc_pm  = {
 static int sh_pfc_suspend_init(struct sh_pfc *pfc) { return 0; }
 #define DEV_PM_OPS	NULL
 #endif /* CONFIG_PM_SLEEP && CONFIG_ARM_PSCI_FW */
+
+#ifdef DEBUG
+static bool __init is0s(const u16 *enum_ids, unsigned int n)
+{
+	unsigned int i;
+
+	for (i = 0; i < n; i++)
+		if (enum_ids[i])
+			return false;
+
+	return true;
+}
+
+static unsigned int sh_pfc_errors __initdata = 0;
+static unsigned int sh_pfc_warnings __initdata = 0;
+
+static void __init sh_pfc_check_cfg_reg(const char *drvname,
+					const struct pinmux_cfg_reg *cfg_reg)
+{
+	unsigned int i, n, rw, fw;
+
+	if (cfg_reg->field_width) {
+		/* Checked at build time */
+		return;
+	}
+
+	for (i = 0, n = 0, rw = 0; (fw = cfg_reg->var_field_width[i]); i++) {
+		if (fw > 3 && is0s(&cfg_reg->enum_ids[n], 1 << fw)) {
+			pr_warn("%s: reg 0x%x: reserved field [%u:%u] can be split to reduce table size\n",
+				drvname, cfg_reg->reg, rw, rw + fw - 1);
+			sh_pfc_warnings++;
+		}
+		n += 1 << fw;
+		rw += fw;
+	}
+
+	if (rw != cfg_reg->reg_width) {
+		pr_err("%s: reg 0x%x: var_field_width declares %u instead of %u bits\n",
+		       drvname, cfg_reg->reg, rw, cfg_reg->reg_width);
+		sh_pfc_errors++;
+	}
+
+	if (n != cfg_reg->nr_enum_ids) {
+		pr_err("%s: reg 0x%x: enum_ids[] has %u instead of %u values\n",
+		       drvname, cfg_reg->reg, cfg_reg->nr_enum_ids, n);
+		sh_pfc_errors++;
+	}
+}
+
+static void __init sh_pfc_check_info(const struct sh_pfc_soc_info *info)
+{
+	const struct sh_pfc_function *func;
+	const char *drvname = info->name;
+	unsigned int *refcnts;
+	unsigned int i, j, k;
+
+	pr_info("Checking %s\n", drvname);
+
+	/* Check pins */
+	for (i = 0; i < info->nr_pins; i++) {
+		for (j = 0; j < i; j++) {
+			if (!strcmp(info->pins[i].name, info->pins[j].name)) {
+				pr_err("%s: pin %s/%s: name conflict\n",
+				       drvname, info->pins[i].name,
+				       info->pins[j].name);
+				sh_pfc_errors++;
+			}
+
+			if (info->pins[i].pin != (u16)-1 &&
+			    info->pins[i].pin == info->pins[j].pin) {
+				pr_err("%s: pin %s/%s: pin %u conflict\n",
+				       drvname, info->pins[i].name,
+				       info->pins[j].name, info->pins[i].pin);
+				sh_pfc_errors++;
+			}
+
+			if (info->pins[i].enum_id &&
+			    info->pins[i].enum_id == info->pins[j].enum_id) {
+				pr_err("%s: pin %s/%s: enum_id %u conflict\n",
+				       drvname, info->pins[i].name,
+				       info->pins[j].name,
+				       info->pins[i].enum_id);
+				sh_pfc_errors++;
+			}
+		}
+	}
+
+	/* Check groups and functions */
+	refcnts = kcalloc(info->nr_groups, sizeof(*refcnts), GFP_KERNEL);
+	if (!refcnts)
+		return;
+
+	for (i = 0; i < info->nr_functions; i++) {
+		func = &info->functions[i];
+		if (!func->name) {
+			pr_err("%s: empty function %u\n", drvname, i);
+			sh_pfc_errors++;
+			continue;
+		}
+		for (j = 0; j < func->nr_groups; j++) {
+			for (k = 0; k < info->nr_groups; k++) {
+				if (info->groups[k].name &&
+				    !strcmp(func->groups[j],
+					    info->groups[k].name)) {
+					refcnts[k]++;
+					break;
+				}
+			}
+
+			if (k == info->nr_groups) {
+				pr_err("%s: function %s: group %s not found\n",
+				       drvname, func->name, func->groups[j]);
+				sh_pfc_errors++;
+			}
+		}
+	}
+
+	for (i = 0; i < info->nr_groups; i++) {
+		if (!info->groups[i].name) {
+			pr_err("%s: empty group %u\n", drvname, i);
+			sh_pfc_errors++;
+			continue;
+		}
+		if (!refcnts[i]) {
+			pr_err("%s: orphan group %s\n", drvname,
+			       info->groups[i].name);
+			sh_pfc_errors++;
+		} else if (refcnts[i] > 1) {
+			pr_warn("%s: group %s referenced by %u functions\n",
+				drvname, info->groups[i].name, refcnts[i]);
+			sh_pfc_warnings++;
+		}
+	}
+
+	kfree(refcnts);
+
+	/* Check config register descriptions */
+	for (i = 0; info->cfg_regs && info->cfg_regs[i].reg; i++)
+		sh_pfc_check_cfg_reg(drvname, &info->cfg_regs[i]);
+}
+
+static void __init sh_pfc_check_driver(const struct platform_driver *pdrv)
+{
+	unsigned int i;
+
+	pr_warn("Checking builtin pinmux tables\n");
+
+	for (i = 0; pdrv->id_table[i].name[0]; i++)
+		sh_pfc_check_info((void *)pdrv->id_table[i].driver_data);
+
+#ifdef CONFIG_OF
+	for (i = 0; pdrv->driver.of_match_table[i].compatible[0]; i++)
+		sh_pfc_check_info(pdrv->driver.of_match_table[i].data);
+#endif
+
+	pr_warn("Detected %u errors and %u warnings\n", sh_pfc_errors,
+		sh_pfc_warnings);
+}
+
+#else /* !DEBUG */
+static inline void sh_pfc_check_driver(struct platform_driver *pdrv) {}
+#endif /* !DEBUG */
 
 static int sh_pfc_probe(struct platform_device *pdev)
 {
@@ -801,6 +1009,7 @@ static struct platform_driver sh_pfc_driver = {
 
 static int __init sh_pfc_init(void)
 {
+	sh_pfc_check_driver(&sh_pfc_driver);
 	return platform_driver_register(&sh_pfc_driver);
 }
 postcore_initcall(sh_pfc_init);

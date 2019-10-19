@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Sistina Software, Inc.  1997-2003 All rights reserved.
  * Copyright (C) 2004-2006 Red Hat, Inc.  All rights reserved.
- *
- * This copyrighted material is made available to anyone wishing to use,
- * modify, copy, or redistribute it subject to the terms and conditions
- * of the GNU General Public License version 2.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -74,16 +71,16 @@ fail:
 	return error;
 }
 
-static void gfs2_print_trans(const struct gfs2_trans *tr)
+static void gfs2_print_trans(struct gfs2_sbd *sdp, const struct gfs2_trans *tr)
 {
-	pr_warn("Transaction created at: %pSR\n", (void *)tr->tr_ip);
-	pr_warn("blocks=%u revokes=%u reserved=%u touched=%u\n",
+	fs_warn(sdp, "Transaction created at: %pSR\n", (void *)tr->tr_ip);
+	fs_warn(sdp, "blocks=%u revokes=%u reserved=%u touched=%u\n",
 		tr->tr_blocks, tr->tr_revokes, tr->tr_reserved,
 		test_bit(TR_TOUCHED, &tr->tr_flags));
-	pr_warn("Buf %u/%u Databuf %u/%u Revoke %u/%u\n",
+	fs_warn(sdp, "Buf %u/%u Databuf %u/%u Revoke %u\n",
 		tr->tr_num_buf_new, tr->tr_num_buf_rm,
 		tr->tr_num_databuf_new, tr->tr_num_databuf_rm,
-		tr->tr_num_revoke, tr->tr_num_revoke_rm);
+		tr->tr_num_revoke);
 }
 
 void gfs2_trans_end(struct gfs2_sbd *sdp)
@@ -109,7 +106,7 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 
 	if (gfs2_assert_withdraw(sdp, (nbuf <= tr->tr_blocks) &&
 				       (tr->tr_num_revoke <= tr->tr_revokes)))
-		gfs2_print_trans(tr);
+		gfs2_print_trans(sdp, tr);
 
 	gfs2_log_commit(sdp, tr);
 	if (alloced && !test_bit(TR_ATTACHED, &tr->tr_flags))
@@ -124,15 +121,13 @@ void gfs2_trans_end(struct gfs2_sbd *sdp)
 }
 
 static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
-					       struct buffer_head *bh,
-					       const struct gfs2_log_operations *lops)
+					       struct buffer_head *bh)
 {
 	struct gfs2_bufdata *bd;
 
 	bd = kmem_cache_zalloc(gfs2_bufdata_cachep, GFP_NOFS | __GFP_NOFAIL);
 	bd->bd_bh = bh;
 	bd->bd_gl = gl;
-	bd->bd_ops = lops;
 	INIT_LIST_HEAD(&bd->bd_list);
 	bh->b_private = bd;
 	return bd;
@@ -143,31 +138,20 @@ static struct gfs2_bufdata *gfs2_alloc_bufdata(struct gfs2_glock *gl,
  * @gl: The inode glock associated with the buffer
  * @bh: The buffer to add
  *
- * This is used in two distinct cases:
- * i) In ordered write mode
- *    We put the data buffer on a list so that we can ensure that it's
- *    synced to disk at the right time
- * ii) In journaled data mode
- *    We need to journal the data block in the same way as metadata in
- *    the functions above. The difference is that here we have a tag
- *    which is two __be64's being the block number (as per meta data)
- *    and a flag which says whether the data block needs escaping or
- *    not. This means we need a new log entry for each 251 or so data
- *    blocks, which isn't an enormous overhead but twice as much as
- *    for normal metadata blocks.
+ * This is used in journaled data mode.
+ * We need to journal the data block in the same way as metadata in
+ * the functions above. The difference is that here we have a tag
+ * which is two __be64's being the block number (as per meta data)
+ * and a flag which says whether the data block needs escaping or
+ * not. This means we need a new log entry for each 251 or so data
+ * blocks, which isn't an enormous overhead but twice as much as
+ * for normal metadata blocks.
  */
 void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 {
 	struct gfs2_trans *tr = current->journal_info;
 	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
-	struct address_space *mapping = bh->b_page->mapping;
-	struct gfs2_inode *ip = GFS2_I(mapping->host);
 	struct gfs2_bufdata *bd;
-
-	if (!gfs2_is_jdata(ip)) {
-		gfs2_ordered_add_inode(ip);
-		return;
-	}
 
 	lock_buffer(bh);
 	if (buffer_pinned(bh)) {
@@ -180,7 +164,7 @@ void gfs2_trans_add_data(struct gfs2_glock *gl, struct buffer_head *bh)
 		gfs2_log_unlock(sdp);
 		unlock_buffer(bh);
 		if (bh->b_private == NULL)
-			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_databuf_lops);
+			bd = gfs2_alloc_bufdata(gl, bh);
 		else
 			bd = bh->b_private;
 		lock_buffer(bh);
@@ -221,7 +205,7 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 		unlock_buffer(bh);
 		lock_page(bh->b_page);
 		if (bh->b_private == NULL)
-			bd = gfs2_alloc_bufdata(gl, bh, &gfs2_buf_lops);
+			bd = gfs2_alloc_bufdata(gl, bh);
 		else
 			bd = bh->b_private;
 		unlock_page(bh->b_page);
@@ -236,12 +220,13 @@ void gfs2_trans_add_meta(struct gfs2_glock *gl, struct buffer_head *bh)
 	set_bit(GLF_DIRTY, &bd->bd_gl->gl_flags);
 	mh = (struct gfs2_meta_header *)bd->bd_bh->b_data;
 	if (unlikely(mh->mh_magic != cpu_to_be32(GFS2_MAGIC))) {
-		pr_err("Attempting to add uninitialised block to journal (inplace block=%lld)\n",
+		fs_err(sdp, "Attempting to add uninitialised block to "
+		       "journal (inplace block=%lld)\n",
 		       (unsigned long long)bd->bd_bh->b_blocknr);
 		BUG();
 	}
 	if (unlikely(state == SFS_FROZEN)) {
-		printk(KERN_INFO "GFS2:adding buf while frozen\n");
+		fs_info(sdp, "GFS2:adding buf while frozen\n");
 		gfs2_assert_withdraw(sdp, 0);
 	}
 	gfs2_pin(sdp, bd->bd_bh);
@@ -265,20 +250,20 @@ void gfs2_trans_add_revoke(struct gfs2_sbd *sdp, struct gfs2_bufdata *bd)
 	tr->tr_num_revoke++;
 }
 
-void gfs2_trans_add_unrevoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
+void gfs2_trans_remove_revoke(struct gfs2_sbd *sdp, u64 blkno, unsigned int len)
 {
 	struct gfs2_bufdata *bd, *tmp;
 	struct gfs2_trans *tr = current->journal_info;
 	unsigned int n = len;
 
 	gfs2_log_lock(sdp);
-	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_le_revoke, bd_list) {
+	list_for_each_entry_safe(bd, tmp, &sdp->sd_log_revokes, bd_list) {
 		if ((bd->bd_blkno >= blkno) && (bd->bd_blkno < (blkno + len))) {
 			list_del_init(&bd->bd_list);
 			gfs2_assert_withdraw(sdp, sdp->sd_log_num_revoke);
 			sdp->sd_log_num_revoke--;
 			kmem_cache_free(gfs2_bufdata_cachep, bd);
-			tr->tr_num_revoke_rm++;
+			tr->tr_num_revoke--;
 			if (--n == 0)
 				break;
 		}

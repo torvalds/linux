@@ -1552,22 +1552,26 @@ pcnet32_probe_pci(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (!ioaddr) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("card has no PCI IO resources, aborting\n");
-		return -ENODEV;
+		err = -ENODEV;
+		goto err_disable_dev;
 	}
 
 	err = pci_set_dma_mask(pdev, PCNET32_DMA_MASK);
 	if (err) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("architecture does not support 32bit PCI busmaster DMA\n");
-		return err;
+		goto err_disable_dev;
 	}
 	if (!request_region(ioaddr, PCNET32_TOTAL_SIZE, "pcnet32_probe_pci")) {
 		if (pcnet32_debug & NETIF_MSG_PROBE)
 			pr_err("io address range already allocated\n");
-		return -EBUSY;
+		err = -EBUSY;
+		goto err_disable_dev;
 	}
 
 	err = pcnet32_probe1(ioaddr, 1, pdev);
+
+err_disable_dev:
 	if (err < 0)
 		pci_disable_device(pdev);
 
@@ -2032,22 +2036,22 @@ static int pcnet32_alloc_ring(struct net_device *dev, const char *name)
 	}
 
 	lp->tx_dma_addr = kcalloc(lp->tx_ring_size, sizeof(dma_addr_t),
-				  GFP_ATOMIC);
+				  GFP_KERNEL);
 	if (!lp->tx_dma_addr)
 		return -ENOMEM;
 
 	lp->rx_dma_addr = kcalloc(lp->rx_ring_size, sizeof(dma_addr_t),
-				  GFP_ATOMIC);
+				  GFP_KERNEL);
 	if (!lp->rx_dma_addr)
 		return -ENOMEM;
 
 	lp->tx_skbuff = kcalloc(lp->tx_ring_size, sizeof(struct sk_buff *),
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	if (!lp->tx_skbuff)
 		return -ENOMEM;
 
 	lp->rx_skbuff = kcalloc(lp->rx_ring_size, sizeof(struct sk_buff *),
-				GFP_ATOMIC);
+				GFP_KERNEL);
 	if (!lp->rx_skbuff)
 		return -ENOMEM;
 

@@ -18,6 +18,7 @@
 #define SMC_LLC_FLAG_RESP		0x80
 
 #define SMC_LLC_WAIT_FIRST_TIME		(5 * HZ)
+#define SMC_LLC_WAIT_TIME		(2 * HZ)
 
 enum smc_llc_reqresp {
 	SMC_LLC_REQ,
@@ -26,39 +27,30 @@ enum smc_llc_reqresp {
 
 enum smc_llc_msg_type {
 	SMC_LLC_CONFIRM_LINK		= 0x01,
-};
-
-#define SMC_LLC_DATA_LEN		40
-
-struct smc_llc_hdr {
-	struct smc_wr_rx_hdr common;
-	u8 length;	/* 44 */
-	u8 reserved;
-	u8 flags;
-};
-
-struct smc_llc_msg_confirm_link {	/* type 0x01 */
-	struct smc_llc_hdr hd;
-	u8 sender_mac[ETH_ALEN];
-	u8 sender_gid[SMC_GID_SIZE];
-	u8 sender_qp_num[3];
-	u8 link_num;
-	u8 link_uid[SMC_LGR_ID_SIZE];
-	u8 max_links;
-	u8 reserved[9];
-};
-
-union smc_llc_msg {
-	struct smc_llc_msg_confirm_link confirm_link;
-	struct {
-		struct smc_llc_hdr hdr;
-		u8 data[SMC_LLC_DATA_LEN];
-	} raw;
+	SMC_LLC_ADD_LINK		= 0x02,
+	SMC_LLC_DELETE_LINK		= 0x04,
+	SMC_LLC_CONFIRM_RKEY		= 0x06,
+	SMC_LLC_TEST_LINK		= 0x07,
+	SMC_LLC_CONFIRM_RKEY_CONT	= 0x08,
+	SMC_LLC_DELETE_RKEY		= 0x09,
 };
 
 /* transmit */
-int smc_llc_send_confirm_link(struct smc_link *lnk, u8 mac[], union ib_gid *gid,
+int smc_llc_send_confirm_link(struct smc_link *lnk,
 			      enum smc_llc_reqresp reqresp);
+int smc_llc_send_add_link(struct smc_link *link, u8 mac[], u8 gid[],
+			  enum smc_llc_reqresp reqresp);
+int smc_llc_send_delete_link(struct smc_link *link,
+			     enum smc_llc_reqresp reqresp, bool orderly);
+int smc_llc_link_init(struct smc_link *link);
+void smc_llc_link_active(struct smc_link *link, int testlink_time);
+void smc_llc_link_deleting(struct smc_link *link);
+void smc_llc_link_inactive(struct smc_link *link);
+void smc_llc_link_clear(struct smc_link *link);
+int smc_llc_do_confirm_rkey(struct smc_link *link,
+			    struct smc_buf_desc *rmb_desc);
+int smc_llc_do_delete_rkey(struct smc_link *link,
+			   struct smc_buf_desc *rmb_desc);
 int smc_llc_init(void) __init;
 
 #endif /* SMC_LLC_H */

@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * SoC-camera Media Bus API extensions
  *
  * Copyright (C) 2009, Guennadi Liakhovetski <g.liakhovetski@gmx.de>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef SOC_MEDIABUS_H
@@ -69,7 +66,6 @@ enum soc_mbus_layout {
 
 /**
  * struct soc_mbus_pixelfmt - Data format on the media bus
- * @name:		Name of the format
  * @fourcc:		Fourcc code, that will be obtained if the data is
  *			stored in memory in the following way:
  * @packing:		Type of sample-packing, that has to be used
@@ -77,7 +73,6 @@ enum soc_mbus_layout {
  * @bits_per_sample:	How many bits the bridge has to sample
  */
 struct soc_mbus_pixelfmt {
-	const char		*name;
 	u32			fourcc;
 	enum soc_mbus_packing	packing;
 	enum soc_mbus_order	order;

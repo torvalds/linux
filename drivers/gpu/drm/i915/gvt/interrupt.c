@@ -126,7 +126,7 @@ static const char * const irq_name[INTEL_GVT_EVENT_MAX] = {
 	[FDI_RX_INTERRUPTS_TRANSCODER_C] = "FDI RX Interrupts Combined C",
 	[AUDIO_CP_CHANGE_TRANSCODER_C] = "Audio CP Change Transcoder C",
 	[AUDIO_CP_REQUEST_TRANSCODER_C] = "Audio CP Request Transcoder C",
-	[ERR_AND_DBG] = "South Error and Debug Interupts Combined",
+	[ERR_AND_DBG] = "South Error and Debug Interrupts Combined",
 	[GMBUS] = "Gmbus",
 	[SDVO_B_HOTPLUG] = "SDVO B hotplug",
 	[CRT_HOTPLUG] = "CRT Hotplug",
@@ -350,7 +350,8 @@ static void update_upstream_irq(struct intel_vgpu *vgpu,
 			clear_bits |= (1 << bit);
 	}
 
-	WARN_ON(!up_irq_info);
+	if (WARN_ON(!up_irq_info))
+		return;
 
 	if (up_irq_info->group == INTEL_GVT_IRQ_INFO_MASTER) {
 		u32 isr = i915_mmio_reg_offset(up_irq_info->reg_base);
@@ -535,7 +536,7 @@ static void gen8_init_irq(
 	SET_BIT_INFO(irq, 4, VCS_MI_FLUSH_DW, INTEL_GVT_IRQ_INFO_GT1);
 	SET_BIT_INFO(irq, 8, VCS_AS_CONTEXT_SWITCH, INTEL_GVT_IRQ_INFO_GT1);
 
-	if (HAS_BSD2(gvt->dev_priv)) {
+	if (HAS_ENGINE(gvt->dev_priv, VCS1)) {
 		SET_BIT_INFO(irq, 16, VCS2_MI_USER_INTERRUPT,
 			INTEL_GVT_IRQ_INFO_GT1);
 		SET_BIT_INFO(irq, 20, VCS2_MI_FLUSH_DW,
@@ -580,7 +581,7 @@ static void gen8_init_irq(
 
 		SET_BIT_INFO(irq, 4, PRIMARY_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
 		SET_BIT_INFO(irq, 5, SPRITE_C_FLIP_DONE, INTEL_GVT_IRQ_INFO_DE_PIPE_C);
-	} else if (IS_SKYLAKE(gvt->dev_priv) || IS_KABYLAKE(gvt->dev_priv)) {
+	} else if (INTEL_GEN(gvt->dev_priv) >= 9) {
 		SET_BIT_INFO(irq, 25, AUX_CHANNEL_B, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 26, AUX_CHANNEL_C, INTEL_GVT_IRQ_INFO_DE_PORT);
 		SET_BIT_INFO(irq, 27, AUX_CHANNEL_D, INTEL_GVT_IRQ_INFO_DE_PORT);
@@ -671,7 +672,7 @@ void intel_gvt_clean_irq(struct intel_gvt *gvt)
 	hrtimer_cancel(&irq->vblank_timer.timer);
 }
 
-#define VBLNAK_TIMER_PERIOD 16000000
+#define VBLANK_TIMER_PERIOD 16000000
 
 /**
  * intel_gvt_init_irq - initialize GVT-g IRQ emulation subsystem
@@ -690,14 +691,8 @@ int intel_gvt_init_irq(struct intel_gvt *gvt)
 
 	gvt_dbg_core("init irq framework\n");
 
-	if (IS_BROADWELL(gvt->dev_priv) || IS_SKYLAKE(gvt->dev_priv)
-		|| IS_KABYLAKE(gvt->dev_priv)) {
-		irq->ops = &gen8_irq_ops;
-		irq->irq_map = gen8_irq_map;
-	} else {
-		WARN_ON(1);
-		return -ENODEV;
-	}
+	irq->ops = &gen8_irq_ops;
+	irq->irq_map = gen8_irq_map;
 
 	/* common event initialization */
 	init_events(irq);
@@ -709,7 +704,7 @@ int intel_gvt_init_irq(struct intel_gvt *gvt)
 
 	hrtimer_init(&vblank_timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 	vblank_timer->timer.function = vblank_timer_fn;
-	vblank_timer->period = VBLNAK_TIMER_PERIOD;
+	vblank_timer->period = VBLANK_TIMER_PERIOD;
 
 	return 0;
 }

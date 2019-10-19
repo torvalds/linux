@@ -24,7 +24,6 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "nouveau_drv.h"
@@ -556,6 +555,6 @@ nv04_dac_create(struct drm_connector *connector, struct dcb_output *entry)
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }

@@ -1,21 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 	Frontend/Card driver for TwinHan DST Frontend
 	Copyright (C) 2003 Jamie Honan
 	Copyright (C) 2004, 2005 Manu Abraham (manu@kromtek.com)
 
-	This program is free software; you can redistribute it and/or modify
-	it under the terms of the GNU General Public License as published by
-	the Free Software Foundation; either version 2 of the License, or
-	(at your option) any later version.
-
-	This program is distributed in the hope that it will be useful,
-	but WITHOUT ANY WARRANTY; without even the implied warranty of
-	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-	GNU General Public License for more details.
-
-	You should have received a copy of the GNU General Public License
-	along with this program; if not, write to the Free Software
-	Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1100,7 +1088,8 @@ static int dst_get_device_id(struct dst_state *state)
 			/*	Card capabilities	*/
 			state->dst_hw_cap = p_dst_type->dst_feature;
 			pr_err("Recognise [%s]\n", p_dst_type->device_id);
-			strncpy(&state->fw_name[0], p_dst_type->device_id, 6);
+			strscpy(state->fw_name, p_dst_type->device_id,
+			        sizeof(state->fw_name));
 			/*	Multiple tuners		*/
 			if (p_dst_type->tuner_type & TUNER_TYPE_MULTI) {
 				switch (use_dst_type) {
@@ -1295,15 +1284,15 @@ static int dst_get_signal(struct dst_state *state)
 
 static int dst_tone_power_cmd(struct dst_state *state)
 {
-	u8 paket[8] = { 0x00, 0x09, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00 };
+	u8 packet[8] = { 0x00, 0x09, 0xff, 0xff, 0x01, 0x00, 0x00, 0x00 };
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
 		return -EOPNOTSUPP;
-	paket[4] = state->tx_tuna[4];
-	paket[2] = state->tx_tuna[2];
-	paket[3] = state->tx_tuna[3];
-	paket[7] = dst_check_sum (paket, 7);
-	return dst_command(state, paket, 8);
+	packet[4] = state->tx_tuna[4];
+	packet[2] = state->tx_tuna[2];
+	packet[3] = state->tx_tuna[3];
+	packet[7] = dst_check_sum (packet, 7);
+	return dst_command(state, packet, 8);
 }
 
 static int dst_get_tuna(struct dst_state *state)
@@ -1429,18 +1418,18 @@ error:
 static int dst_set_diseqc(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *cmd)
 {
 	struct dst_state *state = fe->demodulator_priv;
-	u8 paket[8] = { 0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xf0, 0xec };
+	u8 packet[8] = { 0x00, 0x08, 0x04, 0xe0, 0x10, 0x38, 0xf0, 0xec };
 
 	if (state->dst_type != DST_TYPE_IS_SAT)
 		return -EOPNOTSUPP;
 	if (cmd->msg_len > 0 && cmd->msg_len < 5)
-		memcpy(&paket[3], cmd->msg, cmd->msg_len);
+		memcpy(&packet[3], cmd->msg, cmd->msg_len);
 	else if (cmd->msg_len == 5 && state->dst_hw_cap & DST_TYPE_HAS_DISEQC5)
-		memcpy(&paket[2], cmd->msg, cmd->msg_len);
+		memcpy(&packet[2], cmd->msg, cmd->msg_len);
 	else
 		return -EINVAL;
-	paket[7] = dst_check_sum(&paket[0], 7);
-	return dst_command(state, paket, 8);
+	packet[7] = dst_check_sum(&packet[0], 7);
+	return dst_command(state, packet, 8);
 }
 
 static int dst_set_voltage(struct dvb_frontend *fe, enum fe_sec_voltage voltage)
@@ -1657,7 +1646,7 @@ static int dst_tune_frontend(struct dvb_frontend* fe,
 	return 0;
 }
 
-static int dst_get_tuning_algo(struct dvb_frontend *fe)
+static enum dvbfe_algo dst_get_tuning_algo(struct dvb_frontend *fe)
 {
 	return dst_algo ? DVBFE_ALGO_HW : DVBFE_ALGO_SW;
 }
@@ -1739,9 +1728,9 @@ static const struct dvb_frontend_ops dst_dvbt_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name = "DST DVB-T",
-		.frequency_min = 137000000,
-		.frequency_max = 858000000,
-		.frequency_stepsize = 166667,
+		.frequency_min_hz = 137 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 166667,
 		.caps = FE_CAN_FEC_AUTO			|
 			FE_CAN_QAM_AUTO			|
 			FE_CAN_QAM_16			|
@@ -1768,10 +1757,10 @@ static const struct dvb_frontend_ops dst_dvbs_ops = {
 	.delsys = { SYS_DVBS },
 	.info = {
 		.name = "DST DVB-S",
-		.frequency_min = 950000,
-		.frequency_max = 2150000,
-		.frequency_stepsize = 1000,	/* kHz for QPSK frontends */
-		.frequency_tolerance = 29500,
+		.frequency_min_hz   =  950 * MHz,
+		.frequency_max_hz   = 2150 * MHz,
+		.frequency_stepsize_hz = 1 * MHz,
+		.frequency_tolerance_hz = 29500 * kHz,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 	/*     . symbol_rate_tolerance	=	???,*/
@@ -1797,9 +1786,9 @@ static const struct dvb_frontend_ops dst_dvbc_ops = {
 	.delsys = { SYS_DVBC_ANNEX_A },
 	.info = {
 		.name = "DST DVB-C",
-		.frequency_stepsize = 62500,
-		.frequency_min = 51000000,
-		.frequency_max = 858000000,
+		.frequency_min_hz =  51 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_FEC_AUTO |
@@ -1826,9 +1815,9 @@ static const struct dvb_frontend_ops dst_atsc_ops = {
 	.delsys = { SYS_ATSC },
 	.info = {
 		.name = "DST ATSC",
-		.frequency_stepsize = 62500,
-		.frequency_min = 510000000,
-		.frequency_max = 858000000,
+		.frequency_min_hz = 510 * MHz,
+		.frequency_max_hz = 858 * MHz,
+		.frequency_stepsize_hz = 62500,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
 		.caps = FE_CAN_FEC_AUTO | FE_CAN_QAM_AUTO | FE_CAN_QAM_64 | FE_CAN_QAM_256 | FE_CAN_8VSB

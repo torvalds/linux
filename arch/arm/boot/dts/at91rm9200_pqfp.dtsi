@@ -1,9 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * at91rm9200_pqfp.dtsi - Device Tree Include file for AT91RM9200 PQFP family SoC
  *
  * Copyright (C) 2013 Jean-Christophe PLAGNIOL-VILLARD <plagnioj@jcrosoft.com>
- *
- * Licensed under GPLv2 or later.
  */
 
 #include "at91rm9200.dtsi"

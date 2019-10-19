@@ -1,14 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015 Nicira, Inc.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * General Public License for more details.
  */
 
 #ifndef OVS_CONNTRACK_H
@@ -17,10 +9,11 @@
 #include "flow.h"
 
 struct ovs_conntrack_info;
+struct ovs_ct_limit_info;
 enum ovs_key_attr;
 
 #if IS_ENABLED(CONFIG_NF_CONNTRACK)
-void ovs_ct_init(struct net *);
+int ovs_ct_init(struct net *);
 void ovs_ct_exit(struct net *);
 bool ovs_ct_verify(struct net *, enum ovs_key_attr attr);
 int ovs_ct_copy_action(struct net *, const struct nlattr *,
@@ -44,7 +37,7 @@ void ovs_ct_free_action(const struct nlattr *a);
 #else
 #include <linux/errno.h>
 
-static inline void ovs_ct_init(struct net *net) { }
+static inline int ovs_ct_init(struct net *net) { return 0; }
 
 static inline void ovs_ct_exit(struct net *net) { }
 
@@ -104,4 +97,8 @@ static inline void ovs_ct_free_action(const struct nlattr *a) { }
 
 #define CT_SUPPORTED_MASK 0
 #endif /* CONFIG_NF_CONNTRACK */
+
+#if IS_ENABLED(CONFIG_NETFILTER_CONNCOUNT)
+extern struct genl_family dp_ct_limit_genl_family;
+#endif
 #endif /* ovs_conntrack.h */

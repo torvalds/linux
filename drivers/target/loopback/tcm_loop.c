@@ -128,14 +128,6 @@ static void tcm_loop_submission_work(struct work_struct *work)
 		set_host_byte(sc, DID_ERROR);
 		goto out_done;
 	}
-	if (scsi_bidi_cmnd(sc)) {
-		struct scsi_data_buffer *sdb = scsi_in(sc);
-
-		sgl_bidi = sdb->table.sgl;
-		sgl_bidi_count = sdb->table.nents;
-		se_cmd->se_cmd_flags |= SCF_BIDI;
-
-	}
 
 	transfer_length = scsi_transfer_length(sc);
 	if (!scsi_prot_sg_count(sc) &&
@@ -239,10 +231,7 @@ out:
 	return ret;
 
 release:
-	if (se_cmd)
-		transport_generic_free_cmd(se_cmd, 0);
-	else
-		kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
+	kmem_cache_free(tcm_loop_cmd_cache, tl_cmd);
 	goto out;
 }
 
@@ -307,12 +296,6 @@ static int tcm_loop_target_reset(struct scsi_cmnd *sc)
 	return FAILED;
 }
 
-static int tcm_loop_slave_alloc(struct scsi_device *sd)
-{
-	set_bit(QUEUE_FLAG_BIDI, &sd->request_queue->queue_flags);
-	return 0;
-}
-
 static struct scsi_host_template tcm_loop_driver_template = {
 	.show_info		= tcm_loop_show_info,
 	.proc_name		= "tcm_loopback",
@@ -327,8 +310,7 @@ static struct scsi_host_template tcm_loop_driver_template = {
 	.sg_tablesize		= 256,
 	.cmd_per_lun		= 1024,
 	.max_sectors		= 0xFFFF,
-	.use_clustering		= DISABLE_CLUSTERING,
-	.slave_alloc		= tcm_loop_slave_alloc,
+	.dma_boundary		= PAGE_SIZE - 1,
 	.module			= THIS_MODULE,
 	.track_queue_depth	= 1,
 };
@@ -463,11 +445,6 @@ static void tcm_loop_release_core_bus(void)
 	pr_debug("Releasing TCM Loop Core BUS\n");
 }
 
-static char *tcm_loop_get_fabric_name(void)
-{
-	return "loopback";
-}
-
 static inline struct tcm_loop_tpg *tl_tpg(struct se_portal_group *se_tpg)
 {
 	return container_of(se_tpg, struct tcm_loop_tpg, tl_se_tpg);
@@ -565,11 +542,6 @@ static int tcm_loop_write_pending(struct se_cmd *se_cmd)
 	 * object execution queue.
 	 */
 	target_execute_cmd(se_cmd);
-	return 0;
-}
-
-static int tcm_loop_write_pending_status(struct se_cmd *se_cmd)
-{
 	return 0;
 }
 
@@ -768,7 +740,7 @@ static int tcm_loop_make_nexus(
 	if (!tl_nexus)
 		return -ENOMEM;
 
-	tl_nexus->se_sess = target_alloc_session(&tl_tpg->tl_se_tpg, 0, 0,
+	tl_nexus->se_sess = target_setup_session(&tl_tpg->tl_se_tpg, 0, 0,
 					TARGET_PROT_DIN_PASS | TARGET_PROT_DOUT_PASS,
 					name, tl_nexus, tcm_loop_alloc_sess_cb);
 	if (IS_ERR(tl_nexus->se_sess)) {
@@ -808,7 +780,7 @@ static int tcm_loop_drop_nexus(
 	/*
 	 * Release the SCSI I_T Nexus to the emulated Target Port
 	 */
-	transport_deregister_session(tl_nexus->se_sess);
+	target_remove_session(se_sess);
 	tpg->tl_nexus = NULL;
 	kfree(tl_nexus);
 	return 0;
@@ -983,10 +955,8 @@ static struct configfs_attribute *tcm_loop_tpg_attrs[] = {
 
 /* Start items for tcm_loop_naa_cit */
 
-static struct se_portal_group *tcm_loop_make_naa_tpg(
-	struct se_wwn *wwn,
-	struct config_group *group,
-	const char *name)
+static struct se_portal_group *tcm_loop_make_naa_tpg(struct se_wwn *wwn,
+						     const char *name)
 {
 	struct tcm_loop_hba *tl_hba = container_of(wwn,
 			struct tcm_loop_hba, tl_hba_wwn);
@@ -1154,8 +1124,7 @@ static struct configfs_attribute *tcm_loop_wwn_attrs[] = {
 
 static const struct target_core_fabric_ops loop_ops = {
 	.module				= THIS_MODULE,
-	.name				= "loopback",
-	.get_fabric_name		= tcm_loop_get_fabric_name,
+	.fabric_name			= "loopback",
 	.tpg_get_wwn			= tcm_loop_get_endpoint_wwn,
 	.tpg_get_tag			= tcm_loop_get_tag,
 	.tpg_check_demo_mode		= tcm_loop_check_demo_mode,
@@ -1170,7 +1139,6 @@ static const struct target_core_fabric_ops loop_ops = {
 	.release_cmd			= tcm_loop_release_cmd,
 	.sess_get_index			= tcm_loop_sess_get_index,
 	.write_pending			= tcm_loop_write_pending,
-	.write_pending_status		= tcm_loop_write_pending_status,
 	.set_default_node_attributes	= tcm_loop_set_default_node_attributes,
 	.get_cmd_state			= tcm_loop_get_cmd_state,
 	.queue_data_in			= tcm_loop_queue_data_in,

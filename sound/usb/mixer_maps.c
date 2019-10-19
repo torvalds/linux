@@ -1,22 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *   Additional mixer mapping
  *
  *   Copyright (c) 2002 by Takashi Iwai <tiwai@suse.de>
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 struct usbmix_dB_map {
@@ -353,8 +339,11 @@ static struct usbmix_name_map bose_companion5_map[] = {
 /*
  * Dell usb dock with ALC4020 codec had a firmware problem where it got
  * screwed up when zero volume is passed; just skip it as a workaround
+ *
+ * Also the extension unit gives an access error, so skip it as well.
  */
 static const struct usbmix_name_map dell_alc4020_map[] = {
+	{ 4, NULL },	/* extension unit */
 	{ 16, NULL },
 	{ 19, NULL },
 	{ 0 }
@@ -482,3 +471,68 @@ static struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{ 0 } /* terminator */
 };
 
+/*
+ * Control map entries for UAC3 BADD profiles
+ */
+
+static struct usbmix_name_map uac3_badd_generic_io_map[] = {
+	{ UAC3_BADD_FU_ID2, "Generic Out Playback" },
+	{ UAC3_BADD_FU_ID5, "Generic In Capture" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_headphone_map[] = {
+	{ UAC3_BADD_FU_ID2, "Headphone Playback" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_speaker_map[] = {
+	{ UAC3_BADD_FU_ID2, "Speaker Playback" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_microphone_map[] = {
+	{ UAC3_BADD_FU_ID5, "Mic Capture" },
+	{ 0 }					/* terminator */
+};
+/* Covers also 'headset adapter' profile */
+static struct usbmix_name_map uac3_badd_headset_map[] = {
+	{ UAC3_BADD_FU_ID2, "Headset Playback" },
+	{ UAC3_BADD_FU_ID5, "Headset Capture" },
+	{ UAC3_BADD_FU_ID7, "Sidetone Mixing" },
+	{ 0 }					/* terminator */
+};
+static struct usbmix_name_map uac3_badd_speakerphone_map[] = {
+	{ UAC3_BADD_FU_ID2, "Speaker Playback" },
+	{ UAC3_BADD_FU_ID5, "Mic Capture" },
+	{ 0 }					/* terminator */
+};
+
+static struct usbmix_ctl_map uac3_badd_usbmix_ctl_maps[] = {
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_GENERIC_IO,
+		.map = uac3_badd_generic_io_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_HEADPHONE,
+		.map = uac3_badd_headphone_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_SPEAKER,
+		.map = uac3_badd_speaker_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_MICROPHONE,
+		.map = uac3_badd_microphone_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_HEADSET,
+		.map = uac3_badd_headset_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_HEADSET_ADAPTER,
+		.map = uac3_badd_headset_map,
+	},
+	{
+		.id = UAC3_FUNCTION_SUBCLASS_SPEAKERPHONE,
+		.map = uac3_badd_speakerphone_map,
+	},
+	{ 0 } /* terminator */
+};

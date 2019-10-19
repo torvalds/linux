@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
  * Author: Jacob Chen <jacob-chen@iotwrt.com>
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -39,23 +31,11 @@
 static int debug;
 module_param(debug, int, 0644);
 
-static void job_abort(void *prv)
-{
-	struct rga_ctx *ctx = prv;
-	struct rockchip_rga *rga = ctx->rga;
-
-	if (!rga->curr)	/* No job currently running */
-		return;
-
-	wait_event_timeout(rga->irq_queue,
-			   !rga->curr, msecs_to_jiffies(RGA_TIMEOUT));
-}
-
 static void device_run(void *prv)
 {
 	struct rga_ctx *ctx = prv;
 	struct rockchip_rga *rga = ctx->rga;
-	struct vb2_buffer *src, *dst;
+	struct vb2_v4l2_buffer *src, *dst;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rga->ctrl_lock, flags);
@@ -65,8 +45,8 @@ static void device_run(void *prv)
 	src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
 
-	rga_buf_map(src);
-	rga_buf_map(dst);
+	rga_buf_map(&src->vb2_buf);
+	rga_buf_map(&dst->vb2_buf);
 
 	rga_hw_start(rga);
 
@@ -104,16 +84,13 @@ static irqreturn_t rga_isr(int irq, void *prv)
 		v4l2_m2m_buf_done(src, VB2_BUF_STATE_DONE);
 		v4l2_m2m_buf_done(dst, VB2_BUF_STATE_DONE);
 		v4l2_m2m_job_finish(rga->m2m_dev, ctx->fh.m2m_ctx);
-
-		wake_up(&rga->irq_queue);
 	}
 
 	return IRQ_HANDLED;
 }
 
-static struct v4l2_m2m_ops rga_m2m_ops = {
+static const struct v4l2_m2m_ops rga_m2m_ops = {
 	.device_run = device_run,
-	.job_abort = job_abort,
 };
 
 static int
@@ -207,7 +184,7 @@ static int rga_setup_ctrls(struct rga_ctx *ctx)
 	return 0;
 }
 
-struct rga_fmt formats[] = {
+static struct rga_fmt formats[] = {
 	{
 		.fourcc = V4L2_PIX_FMT_ARGB32,
 		.color_swap = RGA_COLOR_RB_SWAP,
@@ -462,9 +439,9 @@ static const struct v4l2_file_operations rga_fops = {
 static int
 vidioc_querycap(struct file *file, void *priv, struct v4l2_capability *cap)
 {
-	strlcpy(cap->driver, RGA_NAME, sizeof(cap->driver));
-	strlcpy(cap->card, "rockchip-rga", sizeof(cap->card));
-	strlcpy(cap->bus_info, "platform:rga", sizeof(cap->bus_info));
+	strscpy(cap->driver, RGA_NAME, sizeof(cap->driver));
+	strscpy(cap->card, "rockchip-rga", sizeof(cap->card));
+	strscpy(cap->bus_info, "platform:rga", sizeof(cap->bus_info));
 
 	return 0;
 }
@@ -715,7 +692,7 @@ static const struct v4l2_ioctl_ops rga_ioctl_ops = {
 	.vidioc_s_selection = vidioc_s_selection,
 };
 
-static struct video_device rga_videodev = {
+static const struct video_device rga_videodev = {
 	.name = "rockchip-rga",
 	.fops = &rga_fops,
 	.ioctl_ops = &rga_ioctl_ops,
@@ -838,8 +815,6 @@ static int rga_probe(struct platform_device *pdev)
 	spin_lock_init(&rga->ctrl_lock);
 	mutex_init(&rga->mutex);
 
-	init_waitqueue_head(&rga->irq_queue);
-
 	ret = rga_parse_dt(rga);
 	if (ret)
 		dev_err(&pdev->dev, "Unable to parse OF data\n");
@@ -856,7 +831,6 @@ static int rga_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(rga->dev, "failed to get irq\n");
 		ret = irq;
 		goto err_put_clk;
 	}
@@ -882,7 +856,6 @@ static int rga_probe(struct platform_device *pdev)
 	vfd->v4l2_dev = &rga->v4l2_dev;
 
 	video_set_drvdata(vfd, rga);
-	snprintf(vfd->name, sizeof(vfd->name), "%s", rga_videodev.name);
 	rga->vfd = vfd;
 
 	platform_set_drvdata(pdev, rga);
@@ -943,7 +916,7 @@ static int rga_remove(struct platform_device *pdev)
 {
 	struct rockchip_rga *rga = platform_get_drvdata(pdev);
 
-	dma_free_attrs(rga->dev, RGA_CMDBUF_SIZE, &rga->cmdbuf_virt,
+	dma_free_attrs(rga->dev, RGA_CMDBUF_SIZE, rga->cmdbuf_virt,
 		       rga->cmdbuf_phy, DMA_ATTR_WRITE_COMBINE);
 
 	free_pages((unsigned long)rga->src_mmu_pages, 3);

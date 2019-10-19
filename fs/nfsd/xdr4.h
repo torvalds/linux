@@ -110,6 +110,7 @@ struct nfsd4_create {
 		struct {
 			u32 datalen;
 			char *data;
+			struct kvec first;
 		} link;   /* NF4LNK */
 		struct {
 			u32 specdata1;
@@ -118,12 +119,14 @@ struct nfsd4_create {
 	} u;
 	u32		cr_bmval[3];        /* request */
 	struct iattr	cr_iattr;           /* request */
+	int		cr_umask;           /* request */
 	struct nfsd4_change_info  cr_cinfo; /* response */
 	struct nfs4_acl *cr_acl;
 	struct xdr_netobj cr_label;
 };
 #define cr_datalen	u.link.datalen
 #define cr_data		u.link.data
+#define cr_first	u.link.first
 #define cr_specdata1	u.dev.specdata1
 #define cr_specdata2	u.dev.specdata2
 
@@ -228,6 +231,7 @@ struct nfsd4_open {
 	u32		op_why_no_deleg;    /* response - DELEG_NONE_EXT only */
 	u32		op_create;     	    /* request */
 	u32		op_createmode;      /* request */
+	int		op_umask;           /* request */
 	u32		op_bmval[3];        /* request */
 	struct iattr	op_iattr;           /* UNCHECKED4, GUARDED4, EXCLUSIVE4_1 */
 	nfs4_verifier	op_verf __attribute__((aligned(32)));
@@ -269,15 +273,14 @@ struct nfsd4_open_downgrade {
 
 
 struct nfsd4_read {
-	stateid_t	rd_stateid;         /* request */
-	u64		rd_offset;          /* request */
-	u32		rd_length;          /* request */
-	int		rd_vlen;
-	struct file     *rd_filp;
-	bool		rd_tmp_file;
+	stateid_t		rd_stateid;         /* request */
+	u64			rd_offset;          /* request */
+	u32			rd_length;          /* request */
+	int			rd_vlen;
+	struct nfsd_file	*rd_nf;
 	
-	struct svc_rqst *rd_rqstp;          /* response */
-	struct svc_fh * rd_fhp;             /* response */
+	struct svc_rqst		*rd_rqstp;          /* response */
+	struct svc_fh		*rd_fhp;             /* response */
 };
 
 struct nfsd4_readdir {
@@ -406,6 +409,9 @@ struct nfsd4_exchange_id {
 	int		spa_how;
 	u32             spo_must_enforce[3];
 	u32             spo_must_allow[3];
+	struct xdr_netobj nii_domain;
+	struct xdr_netobj nii_name;
+	struct timespec64 nii_time;
 };
 
 struct nfsd4_sequence {
@@ -468,7 +474,7 @@ struct nfsd4_layoutcommit {
 	u32			lc_reclaim;	/* request */
 	u32			lc_newoffset;	/* request */
 	u64			lc_last_wr;	/* request */
-	struct timespec		lc_mtime;	/* request */
+	struct timespec64	lc_mtime;	/* request */
 	u32			lc_layout_type;	/* request */
 	u32			lc_up_len;	/* layout length */
 	void			*lc_up_layout;	/* decoded by callback */
@@ -507,6 +513,7 @@ struct nfsd42_write_res {
 	u64			wr_bytes_written;
 	u32			wr_stable_how;
 	nfs4_verifier		wr_verifier;
+	stateid_t		cb_stateid;
 };
 
 struct nfsd4_copy {
@@ -518,11 +525,27 @@ struct nfsd4_copy {
 	u64		cp_count;
 
 	/* both */
-	bool		cp_consecutive;
 	bool		cp_synchronous;
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
+
+	/* for cb_offload */
+	struct nfsd4_callback	cp_cb;
+	__be32			nfserr;
+	struct knfsd_fh		fh;
+
+	struct nfs4_client      *cp_clp;
+
+	struct nfsd_file        *nf_src;
+	struct nfsd_file        *nf_dst;
+
+	stateid_t		cp_stateid;
+
+	struct list_head	copies;
+	struct task_struct	*copy_task;
+	refcount_t		refcount;
+	bool			stopped;
 };
 
 struct nfsd4_seek {
@@ -534,6 +557,15 @@ struct nfsd4_seek {
 	/* response */
 	u32		seek_eof;
 	loff_t		seek_pos;
+};
+
+struct nfsd4_offload_status {
+	/* request */
+	stateid_t	stateid;
+
+	/* response */
+	u64		count;
+	u32		status;
 };
 
 struct nfsd4_op {
@@ -594,6 +626,7 @@ struct nfsd4_op {
 		struct nfsd4_fallocate		deallocate;
 		struct nfsd4_clone		clone;
 		struct nfsd4_copy		copy;
+		struct nfsd4_offload_status	offload_status;
 		struct nfsd4_seek		seek;
 	} u;
 	struct nfs4_replay *			replay;

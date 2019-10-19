@@ -1,14 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
- * Amlogic Meson8b and GXBB DWMAC glue layer
+ * Amlogic Meson8b, Meson8m2 and GXBB DWMAC glue layer
  *
  * Copyright (C) 2016 Martin Blumenstingl <martin.blumenstingl@googlemail.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include <linux/clk.h>
@@ -18,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/ioport.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/of_net.h>
 #include <linux/mfd/syscon.h>
 #include <linux/platform_device.h>
@@ -28,6 +23,10 @@
 #define PRG_ETH0			0x0
 
 #define PRG_ETH0_RGMII_MODE		BIT(0)
+
+#define PRG_ETH0_EXT_PHY_MODE_MASK	GENMASK(2, 0)
+#define PRG_ETH0_EXT_RGMII_MODE		1
+#define PRG_ETH0_EXT_RMII_MODE		4
 
 /* mux to choose between fclk_div2 (bit unset) and mpll2 (bit set) */
 #define PRG_ETH0_CLK_M250_SEL_SHIFT	4
@@ -47,27 +46,27 @@
 
 #define MUX_CLK_NUM_PARENTS		2
 
+struct meson8b_dwmac;
+
+struct meson8b_dwmac_data {
+	int (*set_phy_mode)(struct meson8b_dwmac *dwmac);
+};
+
 struct meson8b_dwmac {
-	struct platform_device	*pdev;
+	struct device			*dev;
+	void __iomem			*regs;
 
-	void __iomem		*regs;
+	const struct meson8b_dwmac_data	*data;
+	phy_interface_t			phy_mode;
+	struct clk			*rgmii_tx_clk;
+	u32				tx_delay_ns;
+};
 
-	phy_interface_t		phy_mode;
-
+struct meson8b_dwmac_clk_configs {
 	struct clk_mux		m250_mux;
-	struct clk		*m250_mux_clk;
-	struct clk		*m250_mux_parent[MUX_CLK_NUM_PARENTS];
-
 	struct clk_divider	m250_div;
-	struct clk		*m250_div_clk;
-
 	struct clk_fixed_factor	fixed_div2;
-	struct clk		*fixed_div2_clk;
-
 	struct clk_gate		rgmii_tx_en;
-	struct clk		*rgmii_tx_en_clk;
-
-	u32			tx_delay_ns;
 };
 
 static void meson8b_dwmac_mask_bits(struct meson8b_dwmac *dwmac, u32 reg,
@@ -82,106 +81,152 @@ static void meson8b_dwmac_mask_bits(struct meson8b_dwmac *dwmac, u32 reg,
 	writel(data, dwmac->regs + reg);
 }
 
-static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
+static struct clk *meson8b_dwmac_register_clk(struct meson8b_dwmac *dwmac,
+					      const char *name_suffix,
+					      const char **parent_names,
+					      int num_parents,
+					      const struct clk_ops *ops,
+					      struct clk_hw *hw)
 {
 	struct clk_init_data init;
-	int i, ret;
-	struct device *dev = &dwmac->pdev->dev;
 	char clk_name[32];
-	const char *clk_div_parents[1];
-	const char *mux_parent_names[MUX_CLK_NUM_PARENTS];
+
+	snprintf(clk_name, sizeof(clk_name), "%s#%s", dev_name(dwmac->dev),
+		 name_suffix);
+
+	init.name = clk_name;
+	init.ops = ops;
+	init.flags = CLK_SET_RATE_PARENT;
+	init.parent_names = parent_names;
+	init.num_parents = num_parents;
+
+	hw->init = &init;
+
+	return devm_clk_register(dwmac->dev, hw);
+}
+
+static int meson8b_init_rgmii_tx_clk(struct meson8b_dwmac *dwmac)
+{
+	int i, ret;
+	struct clk *clk;
+	struct device *dev = dwmac->dev;
+	const char *parent_name, *mux_parent_names[MUX_CLK_NUM_PARENTS];
+	struct meson8b_dwmac_clk_configs *clk_configs;
+
+	clk_configs = devm_kzalloc(dev, sizeof(*clk_configs), GFP_KERNEL);
+	if (!clk_configs)
+		return -ENOMEM;
 
 	/* get the mux parents from DT */
 	for (i = 0; i < MUX_CLK_NUM_PARENTS; i++) {
 		char name[16];
 
 		snprintf(name, sizeof(name), "clkin%d", i);
-		dwmac->m250_mux_parent[i] = devm_clk_get(dev, name);
-		if (IS_ERR(dwmac->m250_mux_parent[i])) {
-			ret = PTR_ERR(dwmac->m250_mux_parent[i]);
+		clk = devm_clk_get(dev, name);
+		if (IS_ERR(clk)) {
+			ret = PTR_ERR(clk);
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev, "Missing clock %s\n", name);
 			return ret;
 		}
 
-		mux_parent_names[i] =
-			__clk_get_name(dwmac->m250_mux_parent[i]);
+		mux_parent_names[i] = __clk_get_name(clk);
 	}
 
-	/* create the m250_mux */
-	snprintf(clk_name, sizeof(clk_name), "%s#m250_sel", dev_name(dev));
-	init.name = clk_name;
-	init.ops = &clk_mux_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	init.parent_names = mux_parent_names;
-	init.num_parents = MUX_CLK_NUM_PARENTS;
+	clk_configs->m250_mux.reg = dwmac->regs + PRG_ETH0;
+	clk_configs->m250_mux.shift = PRG_ETH0_CLK_M250_SEL_SHIFT;
+	clk_configs->m250_mux.mask = PRG_ETH0_CLK_M250_SEL_MASK;
+	clk = meson8b_dwmac_register_clk(dwmac, "m250_sel", mux_parent_names,
+					 MUX_CLK_NUM_PARENTS, &clk_mux_ops,
+					 &clk_configs->m250_mux.hw);
+	if (WARN_ON(IS_ERR(clk)))
+		return PTR_ERR(clk);
 
-	dwmac->m250_mux.reg = dwmac->regs + PRG_ETH0;
-	dwmac->m250_mux.shift = PRG_ETH0_CLK_M250_SEL_SHIFT;
-	dwmac->m250_mux.mask = PRG_ETH0_CLK_M250_SEL_MASK;
-	dwmac->m250_mux.flags = 0;
-	dwmac->m250_mux.table = NULL;
-	dwmac->m250_mux.hw.init = &init;
-
-	dwmac->m250_mux_clk = devm_clk_register(dev, &dwmac->m250_mux.hw);
-	if (WARN_ON(IS_ERR(dwmac->m250_mux_clk)))
-		return PTR_ERR(dwmac->m250_mux_clk);
-
-	/* create the m250_div */
-	snprintf(clk_name, sizeof(clk_name), "%s#m250_div", dev_name(dev));
-	init.name = devm_kstrdup(dev, clk_name, GFP_KERNEL);
-	init.ops = &clk_divider_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	clk_div_parents[0] = __clk_get_name(dwmac->m250_mux_clk);
-	init.parent_names = clk_div_parents;
-	init.num_parents = ARRAY_SIZE(clk_div_parents);
-
-	dwmac->m250_div.reg = dwmac->regs + PRG_ETH0;
-	dwmac->m250_div.shift = PRG_ETH0_CLK_M250_DIV_SHIFT;
-	dwmac->m250_div.width = PRG_ETH0_CLK_M250_DIV_WIDTH;
-	dwmac->m250_div.hw.init = &init;
-	dwmac->m250_div.flags = CLK_DIVIDER_ONE_BASED |
+	parent_name = __clk_get_name(clk);
+	clk_configs->m250_div.reg = dwmac->regs + PRG_ETH0;
+	clk_configs->m250_div.shift = PRG_ETH0_CLK_M250_DIV_SHIFT;
+	clk_configs->m250_div.width = PRG_ETH0_CLK_M250_DIV_WIDTH;
+	clk_configs->m250_div.flags = CLK_DIVIDER_ONE_BASED |
 				CLK_DIVIDER_ALLOW_ZERO |
 				CLK_DIVIDER_ROUND_CLOSEST;
+	clk = meson8b_dwmac_register_clk(dwmac, "m250_div", &parent_name, 1,
+					 &clk_divider_ops,
+					 &clk_configs->m250_div.hw);
+	if (WARN_ON(IS_ERR(clk)))
+		return PTR_ERR(clk);
 
-	dwmac->m250_div_clk = devm_clk_register(dev, &dwmac->m250_div.hw);
-	if (WARN_ON(IS_ERR(dwmac->m250_div_clk)))
-		return PTR_ERR(dwmac->m250_div_clk);
+	parent_name = __clk_get_name(clk);
+	clk_configs->fixed_div2.mult = 1;
+	clk_configs->fixed_div2.div = 2;
+	clk = meson8b_dwmac_register_clk(dwmac, "fixed_div2", &parent_name, 1,
+					 &clk_fixed_factor_ops,
+					 &clk_configs->fixed_div2.hw);
+	if (WARN_ON(IS_ERR(clk)))
+		return PTR_ERR(clk);
 
-	/* create the fixed_div2 */
-	snprintf(clk_name, sizeof(clk_name), "%s#fixed_div2", dev_name(dev));
-	init.name = devm_kstrdup(dev, clk_name, GFP_KERNEL);
-	init.ops = &clk_fixed_factor_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	clk_div_parents[0] = __clk_get_name(dwmac->m250_div_clk);
-	init.parent_names = clk_div_parents;
-	init.num_parents = ARRAY_SIZE(clk_div_parents);
+	parent_name = __clk_get_name(clk);
+	clk_configs->rgmii_tx_en.reg = dwmac->regs + PRG_ETH0;
+	clk_configs->rgmii_tx_en.bit_idx = PRG_ETH0_RGMII_TX_CLK_EN;
+	clk = meson8b_dwmac_register_clk(dwmac, "rgmii_tx_en", &parent_name, 1,
+					 &clk_gate_ops,
+					 &clk_configs->rgmii_tx_en.hw);
+	if (WARN_ON(IS_ERR(clk)))
+		return PTR_ERR(clk);
 
-	dwmac->fixed_div2.mult = 1;
-	dwmac->fixed_div2.div = 2;
-	dwmac->fixed_div2.hw.init = &init;
+	dwmac->rgmii_tx_clk = clk;
 
-	dwmac->fixed_div2_clk = devm_clk_register(dev, &dwmac->fixed_div2.hw);
-	if (WARN_ON(IS_ERR(dwmac->fixed_div2_clk)))
-		return PTR_ERR(dwmac->fixed_div2_clk);
+	return 0;
+}
 
-	/* create the rgmii_tx_en */
-	init.name = devm_kasprintf(dev, GFP_KERNEL, "%s#rgmii_tx_en",
-				   dev_name(dev));
-	init.ops = &clk_gate_ops;
-	init.flags = CLK_SET_RATE_PARENT;
-	clk_div_parents[0] = __clk_get_name(dwmac->fixed_div2_clk);
-	init.parent_names = clk_div_parents;
-	init.num_parents = ARRAY_SIZE(clk_div_parents);
+static int meson8b_set_phy_mode(struct meson8b_dwmac *dwmac)
+{
+	switch (dwmac->phy_mode) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		/* enable RGMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_RGMII_MODE,
+					PRG_ETH0_RGMII_MODE);
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		/* disable RGMII mode -> enables RMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_RGMII_MODE, 0);
+		break;
+	default:
+		dev_err(dwmac->dev, "fail to set phy-mode %s\n",
+			phy_modes(dwmac->phy_mode));
+		return -EINVAL;
+	}
 
-	dwmac->rgmii_tx_en.reg = dwmac->regs + PRG_ETH0;
-	dwmac->rgmii_tx_en.bit_idx = PRG_ETH0_RGMII_TX_CLK_EN;
-	dwmac->rgmii_tx_en.hw.init = &init;
+	return 0;
+}
 
-	dwmac->rgmii_tx_en_clk = devm_clk_register(dev,
-						   &dwmac->rgmii_tx_en.hw);
-	if (WARN_ON(IS_ERR(dwmac->rgmii_tx_en_clk)))
-		return PTR_ERR(dwmac->rgmii_tx_en_clk);
+static int meson_axg_set_phy_mode(struct meson8b_dwmac *dwmac)
+{
+	switch (dwmac->phy_mode) {
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+		/* enable RGMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_EXT_PHY_MODE_MASK,
+					PRG_ETH0_EXT_RGMII_MODE);
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		/* disable RGMII mode -> enables RMII mode */
+		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
+					PRG_ETH0_EXT_PHY_MODE_MASK,
+					PRG_ETH0_EXT_RMII_MODE);
+		break;
+	default:
+		dev_err(dwmac->dev, "fail to set phy-mode %s\n",
+			phy_modes(dwmac->phy_mode));
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -203,10 +248,6 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 
 	case PHY_INTERFACE_MODE_RGMII_ID:
 	case PHY_INTERFACE_MODE_RGMII_TXID:
-		/* enable RGMII mode */
-		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_RGMII_MODE,
-					PRG_ETH0_RGMII_MODE);
-
 		/* only relevant for RMII mode -> disable in RGMII mode */
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
 					PRG_ETH0_INVERTED_RMII_CLK, 0);
@@ -219,26 +260,26 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 		 * a register) based on the line-speed (125MHz for Gbit speeds,
 		 * 25MHz for 100Mbit/s and 2.5MHz for 10Mbit/s).
 		 */
-		ret = clk_set_rate(dwmac->rgmii_tx_en_clk, 125 * 1000 * 1000);
+		ret = clk_set_rate(dwmac->rgmii_tx_clk, 125 * 1000 * 1000);
 		if (ret) {
-			dev_err(&dwmac->pdev->dev,
+			dev_err(dwmac->dev,
 				"failed to set RGMII TX clock\n");
 			return ret;
 		}
 
-		ret = clk_prepare_enable(dwmac->rgmii_tx_en_clk);
+		ret = clk_prepare_enable(dwmac->rgmii_tx_clk);
 		if (ret) {
-			dev_err(&dwmac->pdev->dev,
+			dev_err(dwmac->dev,
 				"failed to enable the RGMII TX clock\n");
 			return ret;
 		}
+
+		devm_add_action_or_reset(dwmac->dev,
+					(void(*)(void *))clk_disable_unprepare,
+					dwmac->rgmii_tx_clk);
 		break;
 
 	case PHY_INTERFACE_MODE_RMII:
-		/* disable RGMII mode -> enables RMII mode */
-		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0, PRG_ETH0_RGMII_MODE,
-					0);
-
 		/* invert internal clk_rmii_i to generate 25/2.5 tx_rx_clk */
 		meson8b_dwmac_mask_bits(dwmac, PRG_ETH0,
 					PRG_ETH0_INVERTED_RMII_CLK,
@@ -251,7 +292,7 @@ static int meson8b_init_prg_eth(struct meson8b_dwmac *dwmac)
 		break;
 
 	default:
-		dev_err(&dwmac->pdev->dev, "unsupported phy-mode %s\n",
+		dev_err(dwmac->dev, "unsupported phy-mode %s\n",
 			phy_modes(dwmac->phy_mode));
 		return -EINVAL;
 	}
@@ -267,7 +308,6 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 {
 	struct plat_stmmacenet_data *plat_dat;
 	struct stmmac_resources stmmac_res;
-	struct resource *res;
 	struct meson8b_dwmac *dwmac;
 	int ret;
 
@@ -285,16 +325,21 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 		goto err_remove_config_dt;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	dwmac->regs = devm_ioremap_resource(&pdev->dev, res);
+	dwmac->data = (const struct meson8b_dwmac_data *)
+		of_device_get_match_data(&pdev->dev);
+	if (!dwmac->data) {
+		ret = -EINVAL;
+		goto err_remove_config_dt;
+	}
+	dwmac->regs = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(dwmac->regs)) {
 		ret = PTR_ERR(dwmac->regs);
 		goto err_remove_config_dt;
 	}
 
-	dwmac->pdev = pdev;
+	dwmac->dev = &pdev->dev;
 	dwmac->phy_mode = of_get_phy_mode(pdev->dev.of_node);
-	if (dwmac->phy_mode < 0) {
+	if ((int)dwmac->phy_mode < 0) {
 		dev_err(&pdev->dev, "missing phy-mode property\n");
 		ret = -EINVAL;
 		goto err_remove_config_dt;
@@ -309,6 +354,10 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_remove_config_dt;
 
+	ret = dwmac->data->set_phy_mode(dwmac);
+	if (ret)
+		goto err_remove_config_dt;
+
 	ret = meson8b_init_prg_eth(dwmac);
 	if (ret)
 		goto err_remove_config_dt;
@@ -317,39 +366,48 @@ static int meson8b_dwmac_probe(struct platform_device *pdev)
 
 	ret = stmmac_dvr_probe(&pdev->dev, plat_dat, &stmmac_res);
 	if (ret)
-		goto err_clk_disable;
+		goto err_remove_config_dt;
 
 	return 0;
 
-err_clk_disable:
-	if (phy_interface_mode_is_rgmii(dwmac->phy_mode))
-		clk_disable_unprepare(dwmac->rgmii_tx_en_clk);
 err_remove_config_dt:
 	stmmac_remove_config_dt(pdev, plat_dat);
 
 	return ret;
 }
 
-static int meson8b_dwmac_remove(struct platform_device *pdev)
-{
-	struct meson8b_dwmac *dwmac = get_stmmac_bsp_priv(&pdev->dev);
+static const struct meson8b_dwmac_data meson8b_dwmac_data = {
+	.set_phy_mode = meson8b_set_phy_mode,
+};
 
-	if (phy_interface_mode_is_rgmii(dwmac->phy_mode))
-		clk_disable_unprepare(dwmac->rgmii_tx_en_clk);
-
-	return stmmac_pltfr_remove(pdev);
-}
+static const struct meson8b_dwmac_data meson_axg_dwmac_data = {
+	.set_phy_mode = meson_axg_set_phy_mode,
+};
 
 static const struct of_device_id meson8b_dwmac_match[] = {
-	{ .compatible = "amlogic,meson8b-dwmac" },
-	{ .compatible = "amlogic,meson-gxbb-dwmac" },
+	{
+		.compatible = "amlogic,meson8b-dwmac",
+		.data = &meson8b_dwmac_data,
+	},
+	{
+		.compatible = "amlogic,meson8m2-dwmac",
+		.data = &meson8b_dwmac_data,
+	},
+	{
+		.compatible = "amlogic,meson-gxbb-dwmac",
+		.data = &meson8b_dwmac_data,
+	},
+	{
+		.compatible = "amlogic,meson-axg-dwmac",
+		.data = &meson_axg_dwmac_data,
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(of, meson8b_dwmac_match);
 
 static struct platform_driver meson8b_dwmac_driver = {
 	.probe  = meson8b_dwmac_probe,
-	.remove = meson8b_dwmac_remove,
+	.remove = stmmac_pltfr_remove,
 	.driver = {
 		.name           = "meson8b-dwmac",
 		.pm		= &stmmac_pltfr_pm_ops,
@@ -359,5 +417,5 @@ static struct platform_driver meson8b_dwmac_driver = {
 module_platform_driver(meson8b_dwmac_driver);
 
 MODULE_AUTHOR("Martin Blumenstingl <martin.blumenstingl@googlemail.com>");
-MODULE_DESCRIPTION("Amlogic Meson8b and GXBB DWMAC glue layer");
+MODULE_DESCRIPTION("Amlogic Meson8b, Meson8m2 and GXBB DWMAC glue layer");
 MODULE_LICENSE("GPL v2");

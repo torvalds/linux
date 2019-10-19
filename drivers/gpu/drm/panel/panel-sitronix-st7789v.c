@@ -1,19 +1,20 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2017 Free Electrons
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
  */
 
+#include <linux/backlight.h>
+#include <linux/delay.h>
 #include <linux/gpio/consumer.h>
+#include <linux/module.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
-#include <drm/drmP.h>
-#include <drm/drm_panel.h>
-
 #include <video/mipi_display.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_modes.h>
+#include <drm/drm_panel.h>
 
 #define ST7789V_COLMOD_RGB_FMT_18BITS		(6 << 4)
 #define ST7789V_COLMOD_CTRL_FMT_18BITS		(6 << 0)
@@ -419,7 +420,6 @@ static int st7789v_remove(struct spi_device *spi)
 {
 	struct st7789v *ctx = spi_get_drvdata(spi);
 
-	drm_panel_detach(&ctx->panel);
 	drm_panel_remove(&ctx->panel);
 
 	if (ctx->backlight)

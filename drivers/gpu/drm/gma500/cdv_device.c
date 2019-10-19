@@ -1,32 +1,21 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /**************************************************************************
  * Copyright (c) 2011, Intel Corporation.
  * All Rights Reserved.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
  **************************************************************************/
 
 #include <linux/backlight.h>
-#include <drm/drmP.h>
+#include <linux/delay.h>
+
 #include <drm/drm.h>
-#include <drm/gma_drm.h>
-#include "psb_drv.h"
-#include "psb_reg.h"
-#include "psb_intel_reg.h"
-#include "intel_bios.h"
+
 #include "cdv_device.h"
 #include "gma_device.h"
+#include "intel_bios.h"
+#include "psb_drv.h"
+#include "psb_intel_reg.h"
+#include "psb_reg.h"
 
 #define VGA_SR_INDEX		0x3c4
 #define VGA_SR_DATA		0x3c5
@@ -485,7 +474,7 @@ void cdv_intel_attach_force_audio_property(struct drm_connector *connector)
 			return;
 
 		for (i = 0; i < ARRAY_SIZE(force_audio_names); i++)
-			drm_property_add_enum(prop, i, i-1, force_audio_names[i]);
+			drm_property_add_enum(prop, i-1, force_audio_names[i]);
 
 		dev_priv->force_audio_property = prop;
 	}
@@ -514,7 +503,7 @@ void cdv_intel_attach_broadcast_rgb_property(struct drm_connector *connector)
 			return;
 
 		for (i = 0; i < ARRAY_SIZE(broadcast_rgb_names); i++)
-			drm_property_add_enum(prop, i, i, broadcast_rgb_names[i]);
+			drm_property_add_enum(prop, i, broadcast_rgb_names[i]);
 
 		dev_priv->broadcast_rgb_property = prop;
 	}

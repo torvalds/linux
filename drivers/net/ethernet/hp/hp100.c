@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
 ** hp100.c
 ** HP CASCADE Architecture Driver for 100VG-AnyLan Network Adapters
@@ -31,19 +32,6 @@
 **       -  some updates for EISA version of card
 **
 **
-**   This code is free software; you can redistribute it and/or modify
-**   it under the terms of the GNU General Public License as published by
-**   the Free Software Foundation; either version 2 of the License, or
-**   (at your option) any later version.
-**
-**   This code is distributed in the hope that it will be useful,
-**   but WITHOUT ANY WARRANTY; without even the implied warranty of
-**   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-**   GNU General Public License for more details.
-**
-**   You should have received a copy of the GNU General Public License
-**   along with this program; if not, write to the Free Software
-**   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 **
 ** 1.57c -> 1.58
 **   - used indent to change coding-style
@@ -2634,7 +2622,7 @@ static int hp100_login_to_vg_hub(struct net_device *dev, u_short force_relogin)
 		/* Wait for link to drop */
 		time = jiffies + (HZ / 10);
 		do {
-			if (~(hp100_inb(VG_LAN_CFG_1) & HP100_LINK_UP_ST))
+			if (!(hp100_inb(VG_LAN_CFG_1) & HP100_LINK_UP_ST))
 				break;
 			if (!in_interrupt())
 				schedule_timeout_interruptible(1);

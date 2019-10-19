@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * OMAP2/3 clockdomain framework functions
  *
@@ -5,10 +6,6 @@
  * Copyright (C) 2008-2011 Nokia Corporation
  *
  * Paul Walmsley
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __ARCH_ARM_MACH_OMAP2_CLOCKDOMAIN_H
@@ -141,6 +138,7 @@ struct clockdomain {
 	int usecount;
 	int forcewake_count;
 	struct list_head node;
+	u32 context;
 };
 
 /**
@@ -159,6 +157,8 @@ struct clockdomain {
  * @clkdm_deny_idle: Disable hw supervised idle transitions for clock domain
  * @clkdm_clk_enable: Put the clkdm in right state for a clock enable
  * @clkdm_clk_disable: Put the clkdm in right state for a clock disable
+ * @clkdm_save_context: Save the current clkdm context
+ * @clkdm_restore_context: Restore the clkdm context
  */
 struct clkdm_ops {
 	int	(*clkdm_add_wkdep)(struct clockdomain *clkdm1, struct clockdomain *clkdm2);
@@ -175,6 +175,8 @@ struct clkdm_ops {
 	void	(*clkdm_deny_idle)(struct clockdomain *clkdm);
 	int	(*clkdm_clk_enable)(struct clockdomain *clkdm);
 	int	(*clkdm_clk_disable)(struct clockdomain *clkdm);
+	int	(*clkdm_save_context)(struct clockdomain *clkdm);
+	int	(*clkdm_restore_context)(struct clockdomain *clkdm);
 };
 
 int clkdm_register_platform_funcs(struct clkdm_ops *co);
@@ -213,6 +215,9 @@ int clkdm_clk_enable(struct clockdomain *clkdm, struct clk *clk);
 int clkdm_clk_disable(struct clockdomain *clkdm, struct clk *clk);
 int clkdm_hwmod_enable(struct clockdomain *clkdm, struct omap_hwmod *oh);
 int clkdm_hwmod_disable(struct clockdomain *clkdm, struct omap_hwmod *oh);
+
+void clkdm_save_context(void);
+void clkdm_restore_context(void);
 
 extern void __init omap242x_clockdomains_init(void);
 extern void __init omap243x_clockdomains_init(void);

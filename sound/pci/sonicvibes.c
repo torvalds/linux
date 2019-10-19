@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Driver for S3 SonicVibes soundcard
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>
@@ -5,21 +6,6 @@
  *  BUGS:
  *    It looks like 86c617 rev 3 doesn't supports DDMA buffers above 16MB?
  *    Driver sometimes hangs... Nobody knows why at this moment...
- *
- *   This program is free software; you can redistribute it and/or modify
- *   it under the terms of the GNU General Public License as published by
- *   the Free Software Foundation; either version 2 of the License, or
- *   (at your option) any later version.
- *
- *   This program is distributed in the hope that it will be useful,
- *   but WITHOUT ANY WARRANTY; without even the implied warranty of
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *   GNU General Public License for more details.
- *
- *   You should have received a copy of the GNU General Public License
- *   along with this program; if not, write to the Free Software
- *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
- *
  */
 
 #include <linux/delay.h>
@@ -1171,10 +1157,8 @@ static void snd_sonicvibes_proc_read(struct snd_info_entry *entry,
 
 static void snd_sonicvibes_proc_init(struct sonicvibes *sonic)
 {
-	struct snd_info_entry *entry;
-
-	if (! snd_card_proc_new(sonic->card, "sonicvibes", &entry))
-		snd_info_set_text_ops(entry, sonic, snd_sonicvibes_proc_read);
+	snd_card_ro_proc_new(sonic->card, "sonicvibes", sonic,
+			     snd_sonicvibes_proc_read);
 }
 
 /*
@@ -1188,6 +1172,7 @@ SONICVIBES_SINGLE("Joystick Speed", 0, SV_IREG_GAME_PORT, 1, 15, 0);
 static int snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
 {
 	struct gameport *gp;
+	int err;
 
 	sonic->gameport = gp = gameport_allocate_port();
 	if (!gp) {
@@ -1203,7 +1188,10 @@ static int snd_sonicvibes_create_gameport(struct sonicvibes *sonic)
 
 	gameport_register_port(gp);
 
-	snd_ctl_add(sonic->card, snd_ctl_new1(&snd_sonicvibes_game_control, sonic));
+	err = snd_ctl_add(sonic->card,
+		snd_ctl_new1(&snd_sonicvibes_game_control, sonic));
+	if (err < 0)
+		return err;
 
 	return 0;
 }
@@ -1429,14 +1417,12 @@ static int snd_sonicvibes_midi(struct sonicvibes *sonic,
 {
 	struct snd_mpu401 * mpu = rmidi->private_data;
 	struct snd_card *card = sonic->card;
-	struct snd_rawmidi_str *dir;
 	unsigned int idx;
 	int err;
 
 	mpu->private_data = sonic;
 	mpu->open_input = snd_sonicvibes_midi_input_open;
 	mpu->close_input = snd_sonicvibes_midi_input_close;
-	dir = &rmidi->streams[SNDRV_RAWMIDI_STREAM_OUTPUT];
 	for (idx = 0; idx < ARRAY_SIZE(snd_sonicvibes_midi_controls); idx++)
 		if ((err = snd_ctl_add(card, snd_ctl_new1(&snd_sonicvibes_midi_controls[idx], sonic))) < 0)
 			return err;
@@ -1515,7 +1501,11 @@ static int snd_sonic_probe(struct pci_dev *pci,
 		return err;
 	}
 
-	snd_sonicvibes_create_gameport(sonic);
+	err = snd_sonicvibes_create_gameport(sonic);
+	if (err < 0) {
+		snd_card_free(card);
+		return err;
+	}
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);

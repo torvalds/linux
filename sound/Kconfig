@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig SOUND
 	tristate "Sound card support"
 	depends on HAS_IOMEM
@@ -95,6 +96,8 @@ source "sound/soc/Kconfig"
 source "sound/x86/Kconfig"
 
 source "sound/synth/Kconfig"
+
+source "sound/xen/Kconfig"
 
 endif # SND
 

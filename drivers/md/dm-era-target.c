@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 #include "dm.h"
 #include "persistent-data/dm-transaction-manager.h"
 #include "persistent-data/dm-bitset.h"
@@ -1635,7 +1636,8 @@ err:
 	DMEMIT("Error");
 }
 
-static int era_message(struct dm_target *ti, unsigned argc, char **argv)
+static int era_message(struct dm_target *ti, unsigned argc, char **argv,
+		       char *result, unsigned maxlen)
 {
 	struct era *era = ti->private;
 

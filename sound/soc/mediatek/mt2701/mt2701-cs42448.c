@@ -1,19 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * mt2701-cs42448.c  --  MT2701 CS42448 ALSA SoC machine driver
  *
  * Copyright (c) 2016 MediaTek Inc.
  * Author: Ir Lian <ir.lian@mediatek.com>
- *              Garlic Tseng <garlic.tseng@mediatek.com>
- *
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ *	   Garlic Tseng <garlic.tseng@mediatek.com>
  */
 
 #include <linux/module.h>
@@ -172,118 +163,153 @@ enum {
 	DAI_LINK_BE_MRG_BT,
 };
 
+SND_SOC_DAILINK_DEFS(fe_multi_ch_out,
+	DAILINK_COMP_ARRAY(COMP_CPU("PCM_multi")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(fe_pcm0_in,
+	DAILINK_COMP_ARRAY(COMP_CPU("PCM0")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(fe_pcm1_in,
+	DAILINK_COMP_ARRAY(COMP_CPU("PCM1")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(fe_bt_out,
+	DAILINK_COMP_ARRAY(COMP_CPU("PCM_BT_DL")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(fe_bt_in,
+	DAILINK_COMP_ARRAY(COMP_CPU("PCM_BT_UL")),
+	DAILINK_COMP_ARRAY(COMP_DUMMY()),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(be_i2s0,
+	DAILINK_COMP_ARRAY(COMP_CPU("I2S0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "cs42448")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(be_i2s1,
+	DAILINK_COMP_ARRAY(COMP_CPU("I2S1")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "cs42448")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(be_i2s2,
+	DAILINK_COMP_ARRAY(COMP_CPU("I2S2")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "cs42448")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(be_i2s3,
+	DAILINK_COMP_ARRAY(COMP_CPU("I2S3")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "cs42448")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
+SND_SOC_DAILINK_DEFS(be_mrg_bt,
+	DAILINK_COMP_ARRAY(COMP_CPU("MRG BT")),
+	DAILINK_COMP_ARRAY(COMP_CODEC(NULL, "bt-sco-pcm-wb")),
+	DAILINK_COMP_ARRAY(COMP_EMPTY()));
+
 static struct snd_soc_dai_link mt2701_cs42448_dai_links[] = {
 	/* FE */
 	[DAI_LINK_FE_MULTI_CH_OUT] = {
 		.name = "mt2701-cs42448-multi-ch-out",
 		.stream_name = "mt2701-cs42448-multi-ch-out",
-		.cpu_dai_name = "PCM_multi",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.ops = &mt2701_cs42448_48k_fe_ops,
 		.dynamic = 1,
 		.dpcm_playback = 1,
+		SND_SOC_DAILINK_REG(fe_multi_ch_out),
 	},
 	[DAI_LINK_FE_PCM0_IN] = {
 		.name = "mt2701-cs42448-pcm0",
 		.stream_name = "mt2701-cs42448-pcm0-data-UL",
-		.cpu_dai_name = "PCM0",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.ops = &mt2701_cs42448_48k_fe_ops,
 		.dynamic = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(fe_pcm0_in),
 	},
 	[DAI_LINK_FE_PCM1_IN] = {
 		.name = "mt2701-cs42448-pcm1-data-UL",
 		.stream_name = "mt2701-cs42448-pcm1-data-UL",
-		.cpu_dai_name = "PCM1",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.ops = &mt2701_cs42448_48k_fe_ops,
 		.dynamic = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(fe_pcm1_in),
 	},
 	[DAI_LINK_FE_BT_OUT] = {
 		.name = "mt2701-cs42448-pcm-BT-out",
 		.stream_name = "mt2701-cs42448-pcm-BT",
-		.cpu_dai_name = "PCM_BT_DL",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.dynamic = 1,
 		.dpcm_playback = 1,
+		SND_SOC_DAILINK_REG(fe_bt_out),
 	},
 	[DAI_LINK_FE_BT_IN] = {
 		.name = "mt2701-cs42448-pcm-BT-in",
 		.stream_name = "mt2701-cs42448-pcm-BT",
-		.cpu_dai_name = "PCM_BT_UL",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
 		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
 			    SND_SOC_DPCM_TRIGGER_POST},
 		.dynamic = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(fe_bt_in),
 	},
 	/* BE */
 	[DAI_LINK_BE_I2S0] = {
 		.name = "mt2701-cs42448-I2S0",
-		.cpu_dai_name = "I2S0",
 		.no_pcm = 1,
-		.codec_dai_name = "cs42448",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(be_i2s0),
 	},
 	[DAI_LINK_BE_I2S1] = {
 		.name = "mt2701-cs42448-I2S1",
-		.cpu_dai_name = "I2S1",
 		.no_pcm = 1,
-		.codec_dai_name = "cs42448",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(be_i2s1),
 	},
 	[DAI_LINK_BE_I2S2] = {
 		.name = "mt2701-cs42448-I2S2",
-		.cpu_dai_name = "I2S2",
 		.no_pcm = 1,
-		.codec_dai_name = "cs42448",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(be_i2s2),
 	},
 	[DAI_LINK_BE_I2S3] = {
 		.name = "mt2701-cs42448-I2S3",
-		.cpu_dai_name = "I2S3",
 		.no_pcm = 1,
-		.codec_dai_name = "cs42448",
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_CBS_CFS
 			 | SND_SOC_DAIFMT_GATED,
 		.ops = &mt2701_cs42448_be_ops,
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(be_i2s3),
 	},
 	[DAI_LINK_BE_MRG_BT] = {
 		.name = "mt2701-cs42448-MRG-BT",
-		.cpu_dai_name = "MRG BT",
 		.no_pcm = 1,
-		.codec_dai_name = "bt-sco-pcm-wb",
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
+		SND_SOC_DAILINK_REG(be_mrg_bt),
 	},
 };
 
@@ -308,6 +334,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		devm_kzalloc(&pdev->dev, sizeof(struct mt2701_cs42448_private),
 			     GFP_KERNEL);
 	struct device *dev = &pdev->dev;
+	struct snd_soc_dai_link *dai_link;
 
 	if (!priv)
 		return -ENOMEM;
@@ -318,10 +345,10 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Property 'platform' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_cs42448_dai_links[i].platform_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->platforms->name)
 			continue;
-		mt2701_cs42448_dai_links[i].platform_of_node = platform_node;
+		dai_link->platforms->of_node = platform_node;
 	}
 
 	card->dev = dev;
@@ -333,10 +360,10 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 			"Property 'audio-codec' missing or invalid\n");
 		return -EINVAL;
 	}
-	for (i = 0; i < card->num_links; i++) {
-		if (mt2701_cs42448_dai_links[i].codec_name)
+	for_each_card_prelinks(card, i, dai_link) {
+		if (dai_link->codecs->name)
 			continue;
-		mt2701_cs42448_dai_links[i].codec_of_node = codec_node;
+		dai_link->codecs->of_node = codec_node;
 	}
 
 	codec_node_bt_mrg = of_parse_phandle(pdev->dev.of_node,
@@ -346,7 +373,7 @@ static int mt2701_cs42448_machine_probe(struct platform_device *pdev)
 			"Property 'audio-codec-bt-mrg' missing or invalid\n");
 		return -EINVAL;
 	}
-	mt2701_cs42448_dai_links[DAI_LINK_BE_MRG_BT].codec_of_node
+	mt2701_cs42448_dai_links[DAI_LINK_BE_MRG_BT].codecs->of_node
 							= codec_node_bt_mrg;
 
 	ret = snd_soc_of_parse_audio_routing(card, "audio-routing");

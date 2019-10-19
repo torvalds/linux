@@ -1,14 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2015 VanguardiaSur - www.vanguardiasur.com.ar
  *
  * Based on original driver by Krzysztof Ha?asa:
  * Copyright (C) 2015 Industrial Research Institute for Automation
  * and Measurements PIAP
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
  */
 
 #include <linux/init.h>
@@ -765,13 +761,10 @@ static int tw686x_querycap(struct file *file, void *priv,
 	struct tw686x_video_channel *vc = video_drvdata(file);
 	struct tw686x_dev *dev = vc->dev;
 
-	strlcpy(cap->driver, "tw686x", sizeof(cap->driver));
-	strlcpy(cap->card, dev->name, sizeof(cap->card));
+	strscpy(cap->driver, "tw686x", sizeof(cap->driver));
+	strscpy(cap->card, dev->name, sizeof(cap->card));
 	snprintf(cap->bus_info, sizeof(cap->bus_info),
 		 "PCI:%s", pci_name(dev->pci_dev));
-	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING |
-			   V4L2_CAP_READWRITE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
@@ -1190,6 +1183,14 @@ int tw686x_video_init(struct tw686x_dev *dev)
 			return err;
 	}
 
+	/* Initialize vc->dev and vc->ch for the error path */
+	for (ch = 0; ch < max_channels(dev); ch++) {
+		struct tw686x_video_channel *vc = &dev->video_channels[ch];
+
+		vc->dev = dev;
+		vc->ch = ch;
+	}
+
 	for (ch = 0; ch < max_channels(dev); ch++) {
 		struct tw686x_video_channel *vc = &dev->video_channels[ch];
 		struct video_device *vdev;
@@ -1197,9 +1198,6 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		mutex_init(&vc->vb_mutex);
 		spin_lock_init(&vc->qlock);
 		INIT_LIST_HEAD(&vc->vidq_queued);
-
-		vc->dev = dev;
-		vc->ch = ch;
 
 		/* default settings */
 		err = tw686x_set_standard(vc, V4L2_STD_NTSC);
@@ -1228,7 +1226,8 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vc->vidq.timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 		vc->vidq.min_buffers_needed = 2;
 		vc->vidq.lock = &vc->vb_mutex;
-		vc->vidq.gfp_flags = GFP_DMA32;
+		vc->vidq.gfp_flags = dev->dma_mode != TW686X_DMA_MODE_MEMCPY ?
+				     GFP_DMA32 : 0;
 		vc->vidq.dev = &dev->pci_dev->dev;
 
 		err = vb2_queue_init(&vc->vidq);
@@ -1278,6 +1277,8 @@ int tw686x_video_init(struct tw686x_dev *dev)
 		vdev->minor = -1;
 		vdev->lock = &vc->vb_mutex;
 		vdev->ctrl_handler = &vc->ctrl_handler;
+		vdev->device_caps = V4L2_CAP_VIDEO_CAPTURE |
+				    V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
 		vc->device = vdev;
 		video_set_drvdata(vdev, vc);
 

@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AMD Cryptographic Coprocessor (CCP) crypto API support
  *
  * Copyright (C) 2013,2017 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef __CCP_CRYPTO_H__
@@ -15,7 +12,6 @@
 
 #include <linux/list.h>
 #include <linux/wait.h>
-#include <linux/pci.h>
 #include <linux/ccp.h>
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
@@ -26,6 +22,10 @@
 #include <crypto/sha.h>
 #include <crypto/akcipher.h>
 #include <crypto/internal/rsa.h>
+
+/* We want the module name in front of our messages */
+#undef pr_fmt
+#define	pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
 #define	CCP_LOG_LEVEL	KERN_INFO
 
@@ -88,10 +88,7 @@ static inline struct ccp_crypto_ahash_alg *
 /***** AES related defines *****/
 struct ccp_aes_ctx {
 	/* Fallback cipher for XTS with unsupported unit sizes */
-	struct crypto_skcipher *tfm_skcipher;
-
-	/* Cipher used to generate CMAC K1/K2 keys */
-	struct crypto_cipher *tfm_cipher;
+	struct crypto_sync_skcipher *tfm_skcipher;
 
 	enum ccp_engine engine;
 	enum ccp_aes_type type;

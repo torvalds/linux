@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2015 Synaptics Incorporated
  * Copyright (C) 2016 Zodiac Inflight Innovations
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
  */
 
 #include <linux/kernel.h>
@@ -456,25 +453,15 @@ static int rmi_f54_vidioc_fmt(struct file *file, void *priv,
 static int rmi_f54_vidioc_enum_fmt(struct file *file, void *priv,
 				   struct v4l2_fmtdesc *fmt)
 {
+	struct f54_data *f54 = video_drvdata(file);
+
 	if (fmt->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
 
-	switch (fmt->index) {
-	case 0:
-		fmt->pixelformat = V4L2_TCH_FMT_DELTA_TD16;
-		break;
-
-	case 1:
-		fmt->pixelformat = V4L2_TCH_FMT_DELTA_TD08;
-		break;
-
-	case 2:
-		fmt->pixelformat = V4L2_TCH_FMT_TU16;
-		break;
-
-	default:
+	if (fmt->index)
 		return -EINVAL;
-	}
+
+	fmt->pixelformat = f54->format.pixelformat;
 
 	return 0;
 }
@@ -610,11 +597,6 @@ error:
 	mutex_unlock(&f54->data_mutex);
 }
 
-static int rmi_f54_attention(struct rmi_function *fn, unsigned long *irqbits)
-{
-	return 0;
-}
-
 static int rmi_f54_config(struct rmi_function *fn)
 {
 	struct rmi_driver *drv = fn->rmi_dev->driver;
@@ -685,7 +667,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 	rx = f54->num_rx_electrodes;
 	tx = f54->num_tx_electrodes;
 	f54->report_data = devm_kzalloc(&fn->dev,
-					sizeof(u16) * tx * rx,
+					array3_size(tx, rx, sizeof(u16)),
 					GFP_KERNEL);
 	if (f54->report_data == NULL)
 		return -ENOMEM;
@@ -697,6 +679,7 @@ static int rmi_f54_probe(struct rmi_function *fn)
 		return -ENOMEM;
 
 	rmi_f54_create_input_map(f54);
+	rmi_f54_set_input(f54, 0);
 
 	/* register video device */
 	strlcpy(f54->v4l2.name, F54_NAME, sizeof(f54->v4l2.name));
@@ -756,6 +739,5 @@ struct rmi_function_handler rmi_f54_handler = {
 	.func = 0x54,
 	.probe = rmi_f54_probe,
 	.config = rmi_f54_config,
-	.attention = rmi_f54_attention,
 	.remove = rmi_f54_remove,
 };

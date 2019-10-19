@@ -1,10 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2007, Michael Ellerman, IBM Corporation.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version
- * 2 of the License, or (at your option) any later version.
  */
 
 
@@ -342,7 +338,7 @@ static int axon_msi_probe(struct platform_device *device)
 
 	pr_devel("axon_msi: setting up dn %pOF\n", dn);
 
-	msic = kzalloc(sizeof(struct axon_msic), GFP_KERNEL);
+	msic = kzalloc(sizeof(*msic), GFP_KERNEL);
 	if (!msic) {
 		printk(KERN_ERR "axon_msi: couldn't allocate msic for %pOF\n",
 		       dn);

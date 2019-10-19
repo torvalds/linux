@@ -5,7 +5,7 @@ Required properties:
   "mrvl,mmp2-mux-intc"
 - reg : Address and length of the register set of the interrupt controller.
   If the interrupt controller is intc, address and length means the range
-  of the whold interrupt controller. If the interrupt controller is mux-intc,
+  of the whole interrupt controller. If the interrupt controller is mux-intc,
   address and length means one register. Since address of mux-intc is in the
   range of intc. mux-intc is secondary interrupt controller.
 - reg-names : Name of the register set of the interrupt controller. It's

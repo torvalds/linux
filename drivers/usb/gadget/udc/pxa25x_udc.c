@@ -1233,8 +1233,7 @@ static const struct usb_gadget_ops pxa25x_udc_ops = {
 
 #ifdef CONFIG_USB_GADGET_DEBUG_FS
 
-static int
-udc_seq_show(struct seq_file *m, void *_d)
+static int udc_debug_show(struct seq_file *m, void *_d)
 {
 	struct pxa25x_udc	*dev = m->private;
 	unsigned long		flags;
@@ -1335,25 +1334,12 @@ done:
 	local_irq_restore(flags);
 	return 0;
 }
-
-static int
-udc_debugfs_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, udc_seq_show, inode->i_private);
-}
-
-static const struct file_operations debug_fops = {
-	.open		= udc_debugfs_open,
-	.read		= seq_read,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-	.owner		= THIS_MODULE,
-};
+DEFINE_SHOW_ATTRIBUTE(udc_debug);
 
 #define create_debug_files(dev) \
 	do { \
 		dev->debugfs_udc = debugfs_create_file(dev->gadget.name, \
-			S_IRUGO, NULL, dev, &debug_fops); \
+			S_IRUGO, NULL, dev, &udc_debug_fops); \
 	} while (0)
 #define remove_debug_files(dev) debugfs_remove(dev->debugfs_udc)
 

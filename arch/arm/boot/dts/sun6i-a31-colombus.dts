@@ -60,13 +60,11 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	i2c_lcd: i2c@0 {
+	i2c_lcd: i2c {
 		/* The lcd panel i2c interface is hooked up via gpios */
 		compatible = "i2c-gpio";
-		pinctrl-names = "default";
-		pinctrl-0 = <&i2c_lcd_pins>;
-		gpios = <&pio 0 23 GPIO_ACTIVE_HIGH>, /* PA23, sda */
-			<&pio 0 24 GPIO_ACTIVE_HIGH>; /* PA24, scl */
+		sda-gpios = <&pio 0 23 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PA23 */
+		scl-gpios = <&pio 0 24 (GPIO_ACTIVE_HIGH | GPIO_PULL_UP)>; /* PA24 */
 		i2c-gpio,delay-us = <5>;
 	};
 };
@@ -77,31 +75,21 @@
 
 &gmac {
 	pinctrl-names = "default";
-	pinctrl-0 = <&gmac_pins_rgmii_a>;
-	phy = <&phy1>;
+	pinctrl-0 = <&gmac_rgmii_pins>;
+	phy-handle = <&phy1>;
 	phy-mode = "rgmii";
 	status = "okay";
-
-	phy1: ethernet-phy@1 {
-		reg = <1>;
-	};
 };
 
 &i2c0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c0_pins_a>;
 	status = "fail";
 };
 
 &i2c1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c1_pins_a>;
 	status = "okay";
 };
 
 &i2c2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&i2c2_pins_a>;
 	status = "okay";
 
 	mma8452: mma8452@1d {
@@ -112,49 +100,27 @@
 	};
 };
 
+&mdio {
+	phy1: ethernet-phy@1 {
+		reg = <1>;
+	};
+};
+
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_colombus>;
 	vmmc-supply = <&reg_vcc3v0>;
 	bus-width = <4>;
-	cd-gpios = <&pio 0 8 GPIO_ACTIVE_HIGH>; /* PA8 */
-	cd-inverted;
+	cd-gpios = <&pio 0 8 GPIO_ACTIVE_LOW>; /* PA8 */
 	status = "okay";
 };
 
-&mmc0_pins_a {
-	bias-pull-up;
-};
-
-&pio {
-	mmc0_cd_pin_colombus: mmc0_cd_pin@0 {
-		pins = "PA8";
-		function = "gpio_in";
-		bias-pull-up;
-	};
-
-	usb2_vbus_pin_colombus: usb2_vbus_pin@0 {
-		pins = "PH24";
-		function = "gpio_out";
-	};
-
-	i2c_lcd_pins: i2c_lcd_pin@0 {
-		pins = "PA23", "PA24";
-		function = "gpio_out";
-		bias-pull-up;
-	};
-};
-
 &reg_usb2_vbus {
-	pinctrl-names = "default";
-	pinctrl-0 = <&usb2_vbus_pin_colombus>;
 	gpio = <&pio 7 24 GPIO_ACTIVE_HIGH>;
 	status = "okay";
 };
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_a>;
+	pinctrl-0 = <&uart0_ph_pins>;
 	status = "okay";
 };
 

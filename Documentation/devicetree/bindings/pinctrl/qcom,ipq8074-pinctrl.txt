@@ -40,6 +40,14 @@ IPQ8074 platform.
 	Definition: must be 2. Specifying the pin number and flags, as defined
 		    in <dt-bindings/gpio/gpio.h>
 
+- gpio-ranges:
+	Usage: required
+	Definition:  see ../gpio/gpio.txt
+
+- gpio-reserved-ranges:
+	Usage: optional
+	Definition: see ../gpio/gpio.txt
+
 Please refer to ../gpio/gpio.txt and ../interrupt-controller/interrupts.txt for
 a general description of GPIO and interrupt bindings.
 
@@ -110,17 +118,17 @@ to specify in a pin configuration subnode:
 - bias-disable:
 	Usage: optional
 	Value type: <none>
-	Definition: The specified pins should be configued as no pull.
+	Definition: The specified pins should be configured as no pull.
 
 - bias-pull-down:
 	Usage: optional
 	Value type: <none>
-	Definition: The specified pins should be configued as pull down.
+	Definition: The specified pins should be configured as pull down.
 
 - bias-pull-up:
 	Usage: optional
 	Value type: <none>
-	Definition: The specified pins should be configued as pull up.
+	Definition: The specified pins should be configured as pull up.
 
 - output-high:
 	Usage: optional
@@ -148,6 +156,7 @@ Example:
 		interrupts = <GIC_SPI 208 IRQ_TYPE_LEVEL_HIGH>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		gpio-ranges = <&tlmm 0 0 70>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 

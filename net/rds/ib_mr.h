@@ -57,6 +57,9 @@ struct rds_ib_frmr {
 	struct ib_mr		*mr;
 	enum rds_ib_fr_state	fr_state;
 	bool			fr_inv;
+	wait_queue_head_t	fr_inv_done;
+	bool			fr_reg;
+	wait_queue_head_t	fr_reg_done;
 	struct ib_send_wr	fr_wr;
 	unsigned int		dma_npages;
 	unsigned int		sg_byte_len;
@@ -97,6 +100,7 @@ struct rds_ib_mr_pool {
 	struct llist_head	free_list;	/* unused MRs */
 	struct llist_head	clean_list;	/* unused & unmapped MRs */
 	wait_queue_head_t	flush_wait;
+	spinlock_t		clean_lock;	/* "clean_list" concurrency */
 
 	atomic_t		free_pinned;	/* memory pinned by free MRs */
 	unsigned long		max_items;
@@ -113,9 +117,12 @@ struct rds_ib_mr_pool *rds_ib_create_mr_pool(struct rds_ib_device *rds_dev,
 					     int npages);
 void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
 			struct rds_info_rdma_connection *iinfo);
+void rds6_ib_get_mr_info(struct rds_ib_device *rds_ibdev,
+			 struct rds6_info_rdma_connection *iinfo6);
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *);
 void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
-		    struct rds_sock *rs, u32 *key_ret);
+		    struct rds_sock *rs, u32 *key_ret,
+		    struct rds_connection *conn);
 void rds_ib_sync_mr(void *trans_private, int dir);
 void rds_ib_free_mr(void *trans_private, int invalidate);
 void rds_ib_flush_mrs(void);

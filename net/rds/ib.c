@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Oracle.  All rights reserved.
+ * Copyright (c) 2006, 2018 Oracle and/or its affiliates. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -39,6 +39,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <net/addrconf.h>
 
 #include "rds_single_path.h"
 #include "rds.h"
@@ -86,7 +87,7 @@ static void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
 
 	spin_lock_irqsave(&rds_ibdev->spinlock, flags);
 	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_node)
-		rds_conn_drop(ic->conn);
+		rds_conn_path_drop(&ic->conn->c_path[0], true);
 	spin_unlock_irqrestore(&rds_ibdev->spinlock, flags);
 }
 
@@ -142,13 +143,16 @@ static void rds_ib_add_one(struct ib_device *device)
 	refcount_set(&rds_ibdev->refcount, 1);
 	INIT_WORK(&rds_ibdev->free_work, rds_ib_dev_free);
 
+	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
+	INIT_LIST_HEAD(&rds_ibdev->conn_list);
+
 	rds_ibdev->max_wrs = device->attrs.max_qp_wr;
-	rds_ibdev->max_sge = min(device->attrs.max_sge, RDS_IB_MAX_SGE);
+	rds_ibdev->max_sge = min(device->attrs.max_send_sge, RDS_IB_MAX_SGE);
 
 	has_fr = (device->attrs.device_cap_flags &
 		  IB_DEVICE_MEM_MGT_EXTENSIONS);
-	has_fmr = (device->alloc_fmr && device->dealloc_fmr &&
-		   device->map_phys_fmr && device->unmap_fmr);
+	has_fmr = (device->ops.alloc_fmr && device->ops.dealloc_fmr &&
+		   device->ops.map_phys_fmr && device->ops.unmap_fmr);
 	rds_ibdev->use_fastreg = (has_fr && !has_fmr);
 
 	rds_ibdev->fmr_max_remaps = device->attrs.max_map_per_fmr?: 32;
@@ -163,7 +167,8 @@ static void rds_ib_add_one(struct ib_device *device)
 	rds_ibdev->max_initiator_depth = device->attrs.max_qp_init_rd_atom;
 	rds_ibdev->max_responder_resources = device->attrs.max_qp_rd_atom;
 
-	rds_ibdev->vector_load = kzalloc(sizeof(int) * device->num_comp_vectors,
+	rds_ibdev->vector_load = kcalloc(device->num_comp_vectors,
+					 sizeof(int),
 					 GFP_KERNEL);
 	if (!rds_ibdev->vector_load) {
 		pr_err("RDS/IB: %s failed to allocate vector memory\n",
@@ -200,9 +205,6 @@ static void rds_ib_add_one(struct ib_device *device)
 	pr_info("RDS/IB: %s: %s supported and preferred\n",
 		device->name,
 		rds_ibdev->use_fastreg ? "FRMR" : "FMR");
-
-	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
-	INIT_LIST_HEAD(&rds_ibdev->conn_list);
 
 	down_write(&rds_ib_devices_lock);
 	list_add_tail_rcu(&rds_ibdev->list, &rds_ib_devices);
@@ -289,21 +291,25 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 				    void *buffer)
 {
 	struct rds_info_rdma_connection *iinfo = buffer;
-	struct rds_ib_connection *ic;
+	struct rds_ib_connection *ic = conn->c_transport_data;
 
 	/* We will only ever look at IB transports */
 	if (conn->c_trans != &rds_ib_transport)
 		return 0;
+	if (conn->c_isv6)
+		return 0;
 
-	iinfo->src_addr = conn->c_laddr;
-	iinfo->dst_addr = conn->c_faddr;
+	iinfo->src_addr = conn->c_laddr.s6_addr32[3];
+	iinfo->dst_addr = conn->c_faddr.s6_addr32[3];
+	if (ic) {
+		iinfo->tos = conn->c_tos;
+		iinfo->sl = ic->i_sl;
+	}
 
 	memset(&iinfo->src_gid, 0, sizeof(iinfo->src_gid));
 	memset(&iinfo->dst_gid, 0, sizeof(iinfo->dst_gid));
 	if (rds_conn_state(conn) == RDS_CONN_UP) {
 		struct rds_ib_device *rds_ibdev;
-
-		ic = conn->c_transport_data;
 
 		rdma_read_gids(ic->i_cm_id, (union ib_gid *)&iinfo->src_gid,
 			       (union ib_gid *)&iinfo->dst_gid);
@@ -313,19 +319,75 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 		iinfo->max_recv_wr = ic->i_recv_ring.w_nr;
 		iinfo->max_send_sge = rds_ibdev->max_sge;
 		rds_ib_get_mr_info(rds_ibdev, iinfo);
+		iinfo->cache_allocs = atomic_read(&ic->i_cache_allocs);
 	}
 	return 1;
 }
+
+#if IS_ENABLED(CONFIG_IPV6)
+/* IPv6 version of rds_ib_conn_info_visitor(). */
+static int rds6_ib_conn_info_visitor(struct rds_connection *conn,
+				     void *buffer)
+{
+	struct rds6_info_rdma_connection *iinfo6 = buffer;
+	struct rds_ib_connection *ic = conn->c_transport_data;
+
+	/* We will only ever look at IB transports */
+	if (conn->c_trans != &rds_ib_transport)
+		return 0;
+
+	iinfo6->src_addr = conn->c_laddr;
+	iinfo6->dst_addr = conn->c_faddr;
+	if (ic) {
+		iinfo6->tos = conn->c_tos;
+		iinfo6->sl = ic->i_sl;
+	}
+
+	memset(&iinfo6->src_gid, 0, sizeof(iinfo6->src_gid));
+	memset(&iinfo6->dst_gid, 0, sizeof(iinfo6->dst_gid));
+
+	if (rds_conn_state(conn) == RDS_CONN_UP) {
+		struct rds_ib_device *rds_ibdev;
+
+		rdma_read_gids(ic->i_cm_id, (union ib_gid *)&iinfo6->src_gid,
+			       (union ib_gid *)&iinfo6->dst_gid);
+		rds_ibdev = ic->rds_ibdev;
+		iinfo6->max_send_wr = ic->i_send_ring.w_nr;
+		iinfo6->max_recv_wr = ic->i_recv_ring.w_nr;
+		iinfo6->max_send_sge = rds_ibdev->max_sge;
+		rds6_ib_get_mr_info(rds_ibdev, iinfo6);
+		iinfo6->cache_allocs = atomic_read(&ic->i_cache_allocs);
+	}
+	return 1;
+}
+#endif
 
 static void rds_ib_ic_info(struct socket *sock, unsigned int len,
 			   struct rds_info_iterator *iter,
 			   struct rds_info_lengths *lens)
 {
+	u64 buffer[(sizeof(struct rds_info_rdma_connection) + 7) / 8];
+
 	rds_for_each_conn_info(sock, len, iter, lens,
 				rds_ib_conn_info_visitor,
+				buffer,
 				sizeof(struct rds_info_rdma_connection));
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
+/* IPv6 version of rds_ib_ic_info(). */
+static void rds6_ib_ic_info(struct socket *sock, unsigned int len,
+			    struct rds_info_iterator *iter,
+			    struct rds_info_lengths *lens)
+{
+	u64 buffer[(sizeof(struct rds6_info_rdma_connection) + 7) / 8];
+
+	rds_for_each_conn_info(sock, len, iter, lens,
+			       rds6_ib_conn_info_visitor,
+			       buffer,
+			       sizeof(struct rds6_info_rdma_connection));
+}
+#endif
 
 /*
  * Early RDS/IB was built to only bind to an address if there is an IPoIB
@@ -337,12 +399,19 @@ static void rds_ib_ic_info(struct socket *sock, unsigned int len,
  * allowed to influence which paths have priority.  We could call userspace
  * asserting this policy "routing".
  */
-static int rds_ib_laddr_check(struct net *net, __be32 addr)
+static int rds_ib_laddr_check(struct net *net, const struct in6_addr *addr,
+			      __u32 scope_id)
 {
 	int ret;
 	struct rdma_cm_id *cm_id;
+#if IS_ENABLED(CONFIG_IPV6)
+	struct sockaddr_in6 sin6;
+#endif
 	struct sockaddr_in sin;
+	struct sockaddr *sa;
+	bool isv4;
 
+	isv4 = ipv6_addr_v4mapped(addr);
 	/* Create a CMA ID and try to bind it. This catches both
 	 * IB and iWARP capable NICs.
 	 */
@@ -351,22 +420,66 @@ static int rds_ib_laddr_check(struct net *net, __be32 addr)
 	if (IS_ERR(cm_id))
 		return PTR_ERR(cm_id);
 
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = addr;
+	if (isv4) {
+		memset(&sin, 0, sizeof(sin));
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = addr->s6_addr32[3];
+		sa = (struct sockaddr *)&sin;
+	} else {
+#if IS_ENABLED(CONFIG_IPV6)
+		memset(&sin6, 0, sizeof(sin6));
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = *addr;
+		sin6.sin6_scope_id = scope_id;
+		sa = (struct sockaddr *)&sin6;
+
+		/* XXX Do a special IPv6 link local address check here.  The
+		 * reason is that rdma_bind_addr() always succeeds with IPv6
+		 * link local address regardless it is indeed configured in a
+		 * system.
+		 */
+		if (ipv6_addr_type(addr) & IPV6_ADDR_LINKLOCAL) {
+			struct net_device *dev;
+
+			if (scope_id == 0) {
+				ret = -EADDRNOTAVAIL;
+				goto out;
+			}
+
+			/* Use init_net for now as RDS is not network
+			 * name space aware.
+			 */
+			dev = dev_get_by_index(&init_net, scope_id);
+			if (!dev) {
+				ret = -EADDRNOTAVAIL;
+				goto out;
+			}
+			if (!ipv6_chk_addr(&init_net, addr, dev, 1)) {
+				dev_put(dev);
+				ret = -EADDRNOTAVAIL;
+				goto out;
+			}
+			dev_put(dev);
+		}
+#else
+		ret = -EADDRNOTAVAIL;
+		goto out;
+#endif
+	}
 
 	/* rdma_bind_addr will only succeed for IB & iWARP devices */
-	ret = rdma_bind_addr(cm_id, (struct sockaddr *)&sin);
+	ret = rdma_bind_addr(cm_id, sa);
 	/* due to this, we will claim to support iWARP devices unless we
 	   check node_type. */
 	if (ret || !cm_id->device ||
 	    cm_id->device->node_type != RDMA_NODE_IB_CA)
 		ret = -EADDRNOTAVAIL;
 
-	rdsdebug("addr %pI4 ret %d node type %d\n",
-		&addr, ret,
-		cm_id->device ? cm_id->device->node_type : -1);
+	rdsdebug("addr %pI6c%%%u ret %d node type %d\n",
+		 addr, scope_id, ret,
+		 cm_id->device ? cm_id->device->node_type : -1);
 
+out:
 	rdma_destroy_id(cm_id);
 
 	return ret;
@@ -397,12 +510,24 @@ void rds_ib_exit(void)
 	rds_ib_set_unloading();
 	synchronize_rcu();
 	rds_info_deregister_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
+#if IS_ENABLED(CONFIG_IPV6)
+	rds_info_deregister_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
+#endif
 	rds_ib_unregister_client();
 	rds_ib_destroy_nodev_conns();
 	rds_ib_sysctl_exit();
 	rds_ib_recv_exit();
 	rds_trans_unregister(&rds_ib_transport);
 	rds_ib_mr_exit();
+}
+
+static u8 rds_ib_get_tos_map(u8 tos)
+{
+	/* 1:1 user to transport map for RDMA transport.
+	 * In future, if custom map is desired, hook can export
+	 * user configurable map.
+	 */
+	return tos;
 }
 
 struct rds_transport rds_ib_transport = {
@@ -427,6 +552,7 @@ struct rds_transport rds_ib_transport = {
 	.sync_mr		= rds_ib_sync_mr,
 	.free_mr		= rds_ib_free_mr,
 	.flush_mrs		= rds_ib_flush_mrs,
+	.get_tos_map		= rds_ib_get_tos_map,
 	.t_owner		= THIS_MODULE,
 	.t_name			= "infiniband",
 	.t_unloading		= rds_ib_is_unloading,
@@ -458,6 +584,9 @@ int rds_ib_init(void)
 	rds_trans_register(&rds_ib_transport);
 
 	rds_info_register_func(RDS_INFO_IB_CONNECTIONS, rds_ib_ic_info);
+#if IS_ENABLED(CONFIG_IPV6)
+	rds_info_register_func(RDS6_INFO_IB_CONNECTIONS, rds6_ib_ic_info);
+#endif
 
 	goto out;
 
@@ -472,4 +601,3 @@ out:
 }
 
 MODULE_LICENSE("GPL");
-

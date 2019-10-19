@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
+# SPDX-License-Identifier: GPL-2.0-only
 
-# Copyright (c) Mauro Carvalho Chehab <mchehab@infradead.org>
-# Released under GPLv2
+# Copyright (c) Mauro Carvalho Chehab <mchehab@kernel.org>
 #
 # In order to use, you need to:
 #	1) Download the windows driver with something like:

@@ -30,6 +30,9 @@
 #include <linux/printk.h>
 #include <linux/seq_file.h>
 #include <linux/device.h>
+#include <linux/debugfs.h>
+
+#include <drm/drm.h>
 
 /**
  * DOC: print
@@ -69,16 +72,22 @@
 struct drm_printer {
 	/* private: */
 	void (*printfn)(struct drm_printer *p, struct va_format *vaf);
+	void (*puts)(struct drm_printer *p, const char *str);
 	void *arg;
 	const char *prefix;
 };
 
+void __drm_printfn_coredump(struct drm_printer *p, struct va_format *vaf);
+void __drm_puts_coredump(struct drm_printer *p, const char *str);
 void __drm_printfn_seq_file(struct drm_printer *p, struct va_format *vaf);
+void __drm_puts_seq_file(struct drm_printer *p, const char *str);
 void __drm_printfn_info(struct drm_printer *p, struct va_format *vaf);
 void __drm_printfn_debug(struct drm_printer *p, struct va_format *vaf);
 
 __printf(2, 3)
 void drm_printf(struct drm_printer *p, const char *f, ...);
+void drm_puts(struct drm_printer *p, const char *str);
+void drm_print_regset32(struct drm_printer *p, struct debugfs_regset32 *regset);
 
 __printf(2, 0)
 /**
@@ -105,6 +114,71 @@ drm_vprintf(struct drm_printer *p, const char *fmt, va_list *va)
 	drm_printf((printer), "%.*s" fmt, (indent), "\t\t\t\t\tX", ##__VA_ARGS__)
 
 /**
+ * struct drm_print_iterator - local struct used with drm_printer_coredump
+ * @data: Pointer to the devcoredump output buffer
+ * @start: The offset within the buffer to start writing
+ * @remain: The number of bytes to write for this iteration
+ */
+struct drm_print_iterator {
+	void *data;
+	ssize_t start;
+	ssize_t remain;
+	/* private: */
+	ssize_t offset;
+};
+
+/**
+ * drm_coredump_printer - construct a &drm_printer that can output to a buffer
+ * from the read function for devcoredump
+ * @iter: A pointer to a struct drm_print_iterator for the read instance
+ *
+ * This wrapper extends drm_printf() to work with a dev_coredumpm() callback
+ * function. The passed in drm_print_iterator struct contains the buffer
+ * pointer, size and offset as passed in from devcoredump.
+ *
+ * For example::
+ *
+ *	void coredump_read(char *buffer, loff_t offset, size_t count,
+ *		void *data, size_t datalen)
+ *	{
+ *		struct drm_print_iterator iter;
+ *		struct drm_printer p;
+ *
+ *		iter.data = buffer;
+ *		iter.start = offset;
+ *		iter.remain = count;
+ *
+ *		p = drm_coredump_printer(&iter);
+ *
+ *		drm_printf(p, "foo=%d\n", foo);
+ *	}
+ *
+ *	void makecoredump(...)
+ *	{
+ *		...
+ *		dev_coredumpm(dev, THIS_MODULE, data, 0, GFP_KERNEL,
+ *			coredump_read, ...)
+ *	}
+ *
+ * RETURNS:
+ * The &drm_printer object
+ */
+static inline struct drm_printer
+drm_coredump_printer(struct drm_print_iterator *iter)
+{
+	struct drm_printer p = {
+		.printfn = __drm_printfn_coredump,
+		.puts = __drm_puts_coredump,
+		.arg = iter,
+	};
+
+	/* Set the internal offset of the iterator to zero */
+	iter->offset = 0;
+
+	return p;
+}
+
+/**
  * drm_seq_file_printer - construct a &drm_printer that outputs to &seq_file
  * @f:  the &struct seq_file to output to
  *
@@ -115,6 +189,7 @@ static inline struct drm_printer drm_seq_file_printer(struct seq_file *f)
 {
 	struct drm_printer p = {
 		.printfn = __drm_printfn_seq_file,
+		.puts = __drm_puts_seq_file,
 		.arg = f,
 	};
 	return p;
@@ -195,22 +270,24 @@ static inline struct drm_printer drm_debug_printer(const char *prefix)
 #define DRM_UT_VBL		0x20
 #define DRM_UT_STATE		0x40
 #define DRM_UT_LEASE		0x80
+#define DRM_UT_DP		0x100
 
-__printf(6, 7)
-void drm_dev_printk(const struct device *dev, const char *level,
-		    unsigned int category, const char *function_name,
-		    const char *prefix, const char *format, ...);
 __printf(3, 4)
-void drm_printk(const char *level, unsigned int category,
-		const char *format, ...);
+void drm_dev_printk(const struct device *dev, const char *level,
+		    const char *format, ...);
+__printf(3, 4)
+void drm_dev_dbg(const struct device *dev, unsigned int category,
+		 const char *format, ...);
+
+__printf(2, 3)
+void drm_dbg(unsigned int category, const char *format, ...);
+__printf(1, 2)
+void drm_err(const char *format, ...);
 
 /* Macros to make printk easier */
 
 #define _DRM_PRINTK(once, level, fmt, ...)				\
-	do {								\
-		printk##once(KERN_##level "[" DRM_NAME "] " fmt,	\
-			     ##__VA_ARGS__);				\
-	} while (0)
+	printk##once(KERN_##level "[" DRM_NAME "] " fmt, ##__VA_ARGS__)
 
 #define DRM_INFO(fmt, ...)						\
 	_DRM_PRINTK(, INFO, fmt, ##__VA_ARGS__)
@@ -233,10 +310,9 @@ void drm_printk(const char *level, unsigned int category,
  * @fmt: printf() like format string.
  */
 #define DRM_DEV_ERROR(dev, fmt, ...)					\
-	drm_dev_printk(dev, KERN_ERR, DRM_UT_NONE, __func__, " *ERROR*",\
-		       fmt, ##__VA_ARGS__)
+	drm_dev_printk(dev, KERN_ERR, "*ERROR* " fmt, ##__VA_ARGS__)
 #define DRM_ERROR(fmt, ...)						\
-	drm_printk(KERN_ERR, DRM_UT_NONE, fmt,	##__VA_ARGS__)
+	drm_err(fmt, ##__VA_ARGS__)
 
 /**
  * Rate limited error output.  Like DRM_ERROR() but won't flood the log.
@@ -257,8 +333,7 @@ void drm_printk(const char *level, unsigned int category,
 	DRM_DEV_ERROR_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_INFO(dev, fmt, ...)					\
-	drm_dev_printk(dev, KERN_INFO, DRM_UT_NONE, __func__, "", fmt,	\
-		       ##__VA_ARGS__)
+	drm_dev_printk(dev, KERN_INFO, fmt, ##__VA_ARGS__)
 
 #define DRM_DEV_INFO_ONCE(dev, fmt, ...)				\
 ({									\
@@ -275,53 +350,51 @@ void drm_printk(const char *level, unsigned int category,
  * @dev: device pointer
  * @fmt: printf() like format string.
  */
-#define DRM_DEV_DEBUG(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_CORE, __func__, "", fmt,	\
-		       ##args)
+#define DRM_DEV_DEBUG(dev, fmt, ...)					\
+	drm_dev_dbg(dev, DRM_UT_CORE, fmt, ##__VA_ARGS__)
 #define DRM_DEBUG(fmt, ...)						\
-	drm_printk(KERN_DEBUG, DRM_UT_CORE, fmt, ##__VA_ARGS__)
+	drm_dbg(DRM_UT_CORE, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_DRIVER(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_DRIVER, __func__, "",	\
-		       fmt, ##args)
+#define DRM_DEV_DEBUG_DRIVER(dev, fmt, ...)				\
+	drm_dev_dbg(dev, DRM_UT_DRIVER,	fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_DRIVER(fmt, ...)					\
-	drm_printk(KERN_DEBUG, DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
+	drm_dbg(DRM_UT_DRIVER, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_KMS(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_KMS, __func__, "", fmt,	\
-		       ##args)
-#define DRM_DEBUG_KMS(fmt, ...)					\
-	drm_printk(KERN_DEBUG, DRM_UT_KMS, fmt, ##__VA_ARGS__)
+#define DRM_DEV_DEBUG_KMS(dev, fmt, ...)				\
+	drm_dev_dbg(dev, DRM_UT_KMS, fmt, ##__VA_ARGS__)
+#define DRM_DEBUG_KMS(fmt, ...)						\
+	drm_dbg(DRM_UT_KMS, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_PRIME(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_PRIME, __func__, "",	\
-		       fmt, ##args)
+#define DRM_DEV_DEBUG_PRIME(dev, fmt, ...)				\
+	drm_dev_dbg(dev, DRM_UT_PRIME, fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_PRIME(fmt, ...)					\
-	drm_printk(KERN_DEBUG, DRM_UT_PRIME, fmt, ##__VA_ARGS__)
+	drm_dbg(DRM_UT_PRIME, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_ATOMIC(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_ATOMIC, __func__, "",	\
-		       fmt, ##args)
+#define DRM_DEV_DEBUG_ATOMIC(dev, fmt, ...)				\
+	drm_dev_dbg(dev, DRM_UT_ATOMIC,	fmt, ##__VA_ARGS__)
 #define DRM_DEBUG_ATOMIC(fmt, ...)					\
-	drm_printk(KERN_DEBUG, DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
+	drm_dbg(DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
 
-#define DRM_DEV_DEBUG_VBL(dev, fmt, args...)				\
-	drm_dev_printk(dev, KERN_DEBUG, DRM_UT_VBL, __func__, "", fmt,	\
-		       ##args)
-#define DRM_DEBUG_VBL(fmt, ...)					\
-	drm_printk(KERN_DEBUG, DRM_UT_VBL, fmt, ##__VA_ARGS__)
+#define DRM_DEV_DEBUG_VBL(dev, fmt, ...)				\
+	drm_dev_dbg(dev, DRM_UT_VBL, fmt, ##__VA_ARGS__)
+#define DRM_DEBUG_VBL(fmt, ...)						\
+	drm_dbg(DRM_UT_VBL, fmt, ##__VA_ARGS__)
 
 #define DRM_DEBUG_LEASE(fmt, ...)					\
-	drm_printk(KERN_DEBUG, DRM_UT_LEASE, fmt, ##__VA_ARGS__)
+	drm_dbg(DRM_UT_LEASE, fmt, ##__VA_ARGS__)
 
-#define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, level, fmt, args...)	\
+#define	DRM_DEV_DEBUG_DP(dev, fmt, ...)					\
+	drm_dev_dbg(dev, DRM_UT_DP, fmt, ## __VA_ARGS__)
+#define DRM_DEBUG_DP(fmt, ...)						\
+	drm_dbg(DRM_UT_DP, fmt, ## __VA_ARGS__)
+
+#define _DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, category, fmt, ...)	\
 ({									\
 	static DEFINE_RATELIMIT_STATE(_rs,				\
 				      DEFAULT_RATELIMIT_INTERVAL,	\
 				      DEFAULT_RATELIMIT_BURST);		\
 	if (__ratelimit(&_rs))						\
-		drm_dev_printk(dev, KERN_DEBUG, DRM_UT_ ## level,	\
-			       __func__, "", fmt, ##args);		\
+		drm_dev_dbg(dev, category, fmt, ##__VA_ARGS__);		\
 })
 
 /**
@@ -330,21 +403,28 @@ void drm_printk(const char *level, unsigned int category,
  * @dev: device pointer
  * @fmt: printf() like format string.
  */
-#define DRM_DEV_DEBUG_RATELIMITED(dev, fmt, args...)			\
-	DEV__DRM_DEFINE_DEBUG_RATELIMITED(dev, CORE, fmt, ##args)
-#define DRM_DEBUG_RATELIMITED(fmt, args...)				\
-	DRM_DEV_DEBUG_RATELIMITED(NULL, fmt, ##args)
-#define DRM_DEV_DEBUG_DRIVER_RATELIMITED(dev, fmt, args...)		\
-	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRIVER, fmt, ##args)
-#define DRM_DEBUG_DRIVER_RATELIMITED(fmt, args...)			\
-	DRM_DEV_DEBUG_DRIVER_RATELIMITED(NULL, fmt, ##args)
-#define DRM_DEV_DEBUG_KMS_RATELIMITED(dev, fmt, args...)		\
-	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, KMS, fmt, ##args)
-#define DRM_DEBUG_KMS_RATELIMITED(fmt, args...)				\
-	DRM_DEV_DEBUG_KMS_RATELIMITED(NULL, fmt, ##args)
-#define DRM_DEV_DEBUG_PRIME_RATELIMITED(dev, fmt, args...)		\
-	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, PRIME, fmt, ##args)
-#define DRM_DEBUG_PRIME_RATELIMITED(fmt, args...)			\
-	DRM_DEV_DEBUG_PRIME_RATELIMITED(NULL, fmt, ##args)
+#define DRM_DEV_DEBUG_RATELIMITED(dev, fmt, ...)			\
+	_DEV_DRM_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_CORE,		\
+					  fmt, ##__VA_ARGS__)
+#define DRM_DEBUG_RATELIMITED(fmt, ...)					\
+	DRM_DEV_DEBUG_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_DRIVER_RATELIMITED(dev, fmt, ...)			\
+	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_DRIVER,		\
+					  fmt, ##__VA_ARGS__)
+#define DRM_DEBUG_DRIVER_RATELIMITED(fmt, ...)				\
+	DRM_DEV_DEBUG_DRIVER_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_KMS_RATELIMITED(dev, fmt, ...)			\
+	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_KMS,		\
+					  fmt, ##__VA_ARGS__)
+#define DRM_DEBUG_KMS_RATELIMITED(fmt, ...)				\
+	DRM_DEV_DEBUG_KMS_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
+
+#define DRM_DEV_DEBUG_PRIME_RATELIMITED(dev, fmt, ...)			\
+	_DRM_DEV_DEFINE_DEBUG_RATELIMITED(dev, DRM_UT_PRIME,		\
+					  fmt, ##__VA_ARGS__)
+#define DRM_DEBUG_PRIME_RATELIMITED(fmt, ...)				\
+	DRM_DEV_DEBUG_PRIME_RATELIMITED(NULL, fmt, ##__VA_ARGS__)
 
 #endif /* DRM_PRINT_H_ */

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2007, 2011 Wolfgang Grandegger <wg@grandegger.com>
  * Copyright (C) 2012 Stephane Grosjean <s.grosjean@peak-system.com>
@@ -5,15 +6,6 @@
  * Derived from the PCAN project file driver/src/pcan_pci.c:
  *
  * Copyright (C) 2001-2006  PEAK System-Technik GmbH
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the version 2 of the GNU General Public License
- * as published by the Free Software Foundation
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
  */
 
 #include <linux/kernel.h>
@@ -57,6 +49,10 @@ MODULE_LICENSE("GPL v2");
 /* Version info registers */
 #define PCIEFD_REG_SYS_VER1		0x0040	/* version reg #1 */
 #define PCIEFD_REG_SYS_VER2		0x0044	/* version reg #2 */
+
+#define PCIEFD_FW_VERSION(x, y, z)	(((u32)(x) << 24) | \
+					 ((u32)(y) << 16) | \
+					 ((u32)(z) << 8))
 
 /* System Control Registers Bits */
 #define PCIEFD_SYS_CTL_TS_RST		0x00000001	/* timestamp clock */
@@ -169,9 +165,6 @@ struct pciefd_page {
 	u32 offset;
 	u32 size;
 };
-
-#define CANFD_IRQ_SET		0x00000001
-#define CANFD_TX_PATH_SET	0x00000002
 
 /* CAN-FD channel object */
 struct pciefd_board;
@@ -349,8 +342,12 @@ static irqreturn_t pciefd_irq_handler(int irq, void *arg)
 		priv->tx_pages_free++;
 		spin_unlock_irqrestore(&priv->tx_lock, flags);
 
-		/* wake producer up */
-		netif_wake_queue(priv->ucan.ndev);
+		/* wake producer up (only if enough room in echo_skb array) */
+		spin_lock_irqsave(&priv->ucan.echo_lock, flags);
+		if (!priv->ucan.can.echo_skb[priv->ucan.echo_idx])
+			netif_wake_queue(priv->ucan.ndev);
+
+		spin_unlock_irqrestore(&priv->ucan.echo_lock, flags);
 	}
 
 	/* re-enable Rx DMA transfer for this CAN */
@@ -410,7 +407,7 @@ static int pciefd_pre_cmd(struct peak_canfd_priv *ucan)
 			break;
 
 		/* going into operational mode: setup IRQ handler */
-		err = request_irq(priv->board->pci_dev->irq,
+		err = request_irq(priv->ucan.ndev->irq,
 				  pciefd_irq_handler,
 				  IRQF_SHARED,
 				  PCIEFD_DRV_NAME,
@@ -483,15 +480,18 @@ static int pciefd_post_cmd(struct peak_canfd_priv *ucan)
 
 		/* controller now in reset mode: */
 
-		/* stop and reset DMA addresses in Tx/Rx engines */
-		pciefd_can_clear_tx_dma(priv);
-		pciefd_can_clear_rx_dma(priv);
-
 		/* disable IRQ for this CAN */
 		pciefd_can_writereg(priv, CANFD_CTL_IEN_BIT,
 				    PCIEFD_REG_CAN_RX_CTL_CLR);
 
-		free_irq(priv->board->pci_dev->irq, priv);
+		/* stop and reset DMA addresses in Tx/Rx engines */
+		pciefd_can_clear_tx_dma(priv);
+		pciefd_can_clear_rx_dma(priv);
+
+		/* wait for above commands to complete (read cycle) */
+		(void)pciefd_sys_readreg(priv->board, PCIEFD_REG_SYS_VER1);
+
+		free_irq(priv->ucan.ndev->irq, priv);
 
 		ucan->can.state = CAN_STATE_STOPPED;
 
@@ -630,7 +630,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 						 GFP_KERNEL);
 	if (!priv->tx_dma_vaddr) {
 		dev_err(&pciefd->pci_dev->dev,
-			"Tx dmaim_alloc_coherent(%u) failure\n",
+			"Tx dmam_alloc_coherent(%u) failure\n",
 			PCIEFD_TX_DMA_SIZE);
 		goto err_free_candev;
 	}
@@ -660,7 +660,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 		pciefd_can_writereg(priv, CANFD_CLK_SEL_80MHZ,
 				    PCIEFD_REG_CAN_CLK_SEL);
 
-		/* fallthough */
+		/* fall through */
 	case CANFD_CLK_SEL_80MHZ:
 		priv->ucan.can.clock.freq = 80 * 1000 * 1000;
 		break;
@@ -683,7 +683,7 @@ static int pciefd_can_probe(struct pciefd_board *pciefd)
 	pciefd->can[pciefd->can_count] = priv;
 
 	dev_info(&pciefd->pci_dev->dev, "%s at reg_base=0x%p irq=%d\n",
-		 ndev->name, priv->reg_base, pciefd->pci_dev->irq);
+		 ndev->name, priv->reg_base, ndev->irq);
 
 	return 0;
 
@@ -748,8 +748,7 @@ static int peak_pciefd_probe(struct pci_dev *pdev,
 		can_count = 1;
 
 	/* allocate board structure object */
-	pciefd = devm_kzalloc(&pdev->dev, sizeof(*pciefd) +
-			      can_count * sizeof(*pciefd->can),
+	pciefd = devm_kzalloc(&pdev->dev, struct_size(pciefd, can, can_count),
 			      GFP_KERNEL);
 	if (!pciefd) {
 		err = -ENOMEM;
@@ -778,6 +777,21 @@ static int peak_pciefd_probe(struct pci_dev *pdev,
 	dev_info(&pdev->dev,
 		 "%ux CAN-FD PCAN-PCIe FPGA v%u.%u.%u:\n", can_count,
 		 hw_ver_major, hw_ver_minor, hw_ver_sub);
+
+#ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
+	/* FW < v3.3.0 DMA logic doesn't handle correctly the mix of 32-bit and
+	 * 64-bit logical addresses: this workaround forces usage of 32-bit
+	 * DMA addresses only when such a fw is detected.
+	 */
+	if (PCIEFD_FW_VERSION(hw_ver_major, hw_ver_minor, hw_ver_sub) <
+	    PCIEFD_FW_VERSION(3, 3, 0)) {
+		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+		if (err)
+			dev_warn(&pdev->dev,
+				 "warning: can't set DMA mask %llxh (err %d)\n",
+				 DMA_BIT_MASK(32), err);
+	}
+#endif
 
 	/* stop system clock */
 	pciefd_sys_writereg(pciefd, PCIEFD_SYS_CTL_CLK_EN,

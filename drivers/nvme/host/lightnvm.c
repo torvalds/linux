@@ -1,23 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * nvme-lightnvm.c - LightNVM NVMe device
  *
  * Copyright (C) 2014-2015 IT University of Copenhagen
  * Initial release: Matias Bjorling <mb@lightnvm.io>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License version
- * 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; see the file COPYING.  If not, write to
- * the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139,
- * USA.
- *
  */
 
 #include "nvme.h"
@@ -33,6 +19,10 @@ enum nvme_nvm_admin_opcode {
 	nvme_nvm_admin_identity		= 0xe2,
 	nvme_nvm_admin_get_bb_tbl	= 0xf2,
 	nvme_nvm_admin_set_bb_tbl	= 0xf1,
+};
+
+enum nvme_nvm_log_page {
+	NVME_NVM_LOG_REPORT_CHUNK	= 0xca,
 };
 
 struct nvme_nvm_ph_rw {
@@ -51,6 +41,21 @@ struct nvme_nvm_ph_rw {
 	__le64			resv;
 };
 
+struct nvme_nvm_erase_blk {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd[2];
+	__le64			prp1;
+	__le64			prp2;
+	__le64			spba;
+	__le16			length;
+	__le16			control;
+	__le32			dsmgmt;
+	__le64			resv;
+};
+
 struct nvme_nvm_identity {
 	__u8			opcode;
 	__u8			flags;
@@ -59,8 +64,7 @@ struct nvme_nvm_identity {
 	__u64			rsvd[2];
 	__le64			prp1;
 	__le64			prp2;
-	__le32			chnl_off;
-	__u32			rsvd11[5];
+	__u32			rsvd11[6];
 };
 
 struct nvme_nvm_getbbtbl {
@@ -90,44 +94,18 @@ struct nvme_nvm_setbbtbl {
 	__u32			rsvd4[3];
 };
 
-struct nvme_nvm_erase_blk {
-	__u8			opcode;
-	__u8			flags;
-	__u16			command_id;
-	__le32			nsid;
-	__u64			rsvd[2];
-	__le64			prp1;
-	__le64			prp2;
-	__le64			spba;
-	__le16			length;
-	__le16			control;
-	__le32			dsmgmt;
-	__le64			resv;
-};
-
 struct nvme_nvm_command {
 	union {
 		struct nvme_common_command common;
-		struct nvme_nvm_identity identity;
 		struct nvme_nvm_ph_rw ph_rw;
+		struct nvme_nvm_erase_blk erase;
+		struct nvme_nvm_identity identity;
 		struct nvme_nvm_getbbtbl get_bb;
 		struct nvme_nvm_setbbtbl set_bb;
-		struct nvme_nvm_erase_blk erase;
 	};
 };
 
-#define NVME_NVM_LP_MLC_PAIRS 886
-struct nvme_nvm_lp_mlc {
-	__le16			num_pairs;
-	__u8			pairs[NVME_NVM_LP_MLC_PAIRS];
-};
-
-struct nvme_nvm_lp_tbl {
-	__u8			id[8];
-	struct nvme_nvm_lp_mlc	mlc;
-};
-
-struct nvme_nvm_id_group {
+struct nvme_nvm_id12_grp {
 	__u8			mtype;
 	__u8			fmtype;
 	__le16			res16;
@@ -150,11 +128,10 @@ struct nvme_nvm_id_group {
 	__le32			mpos;
 	__le32			mccap;
 	__le16			cpar;
-	__u8			reserved[10];
-	struct nvme_nvm_lp_tbl lptbl;
+	__u8			reserved[906];
 } __packed;
 
-struct nvme_nvm_addr_format {
+struct nvme_nvm_id12_addrf {
 	__u8			ch_offset;
 	__u8			ch_len;
 	__u8			lun_offset;
@@ -165,21 +142,22 @@ struct nvme_nvm_addr_format {
 	__u8			blk_len;
 	__u8			pg_offset;
 	__u8			pg_len;
-	__u8			sect_offset;
-	__u8			sect_len;
+	__u8			sec_offset;
+	__u8			sec_len;
 	__u8			res[4];
 } __packed;
 
-struct nvme_nvm_id {
+struct nvme_nvm_id12 {
 	__u8			ver_id;
 	__u8			vmnt;
 	__u8			cgrps;
 	__u8			res;
 	__le32			cap;
 	__le32			dom;
-	struct nvme_nvm_addr_format ppaf;
+	struct nvme_nvm_id12_addrf ppaf;
 	__u8			resv[228];
-	struct nvme_nvm_id_group groups[4];
+	struct nvme_nvm_id12_grp grp;
+	__u8			resv2[2880];
 } __packed;
 
 struct nvme_nvm_bb_tbl {
@@ -196,6 +174,68 @@ struct nvme_nvm_bb_tbl {
 	__u8	blk[0];
 };
 
+struct nvme_nvm_id20_addrf {
+	__u8			grp_len;
+	__u8			pu_len;
+	__u8			chk_len;
+	__u8			lba_len;
+	__u8			resv[4];
+};
+
+struct nvme_nvm_id20 {
+	__u8			mjr;
+	__u8			mnr;
+	__u8			resv[6];
+
+	struct nvme_nvm_id20_addrf lbaf;
+
+	__le32			mccap;
+	__u8			resv2[12];
+
+	__u8			wit;
+	__u8			resv3[31];
+
+	/* Geometry */
+	__le16			num_grp;
+	__le16			num_pu;
+	__le32			num_chk;
+	__le32			clba;
+	__u8			resv4[52];
+
+	/* Write data requirements */
+	__le32			ws_min;
+	__le32			ws_opt;
+	__le32			mw_cunits;
+	__le32			maxoc;
+	__le32			maxocpu;
+	__u8			resv5[44];
+
+	/* Performance related metrics */
+	__le32			trdt;
+	__le32			trdm;
+	__le32			twrt;
+	__le32			twrm;
+	__le32			tcrst;
+	__le32			tcrsm;
+	__u8			resv6[40];
+
+	/* Reserved area */
+	__u8			resv7[2816];
+
+	/* Vendor specific */
+	__u8			vs[1024];
+};
+
+struct nvme_nvm_chk_meta {
+	__u8	state;
+	__u8	type;
+	__u8	wi;
+	__u8	rsvd[5];
+	__le64	slba;
+	__le64	cnlb;
+	__le64	wp;
+};
+
 /*
  * Check we didn't inadvertently grow the command struct
  */
@@ -203,105 +243,232 @@ static inline void _nvme_nvm_check_size(void)
 {
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_identity) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_ph_rw) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_erase_blk) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_getbbtbl) != 64);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_setbbtbl) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_erase_blk) != 64);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id_group) != 960);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_addr_format) != 16);
-	BUILD_BUG_ON(sizeof(struct nvme_nvm_id) != NVME_IDENTIFY_DATA_SIZE);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_id12_grp) != 960);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_id12_addrf) != 16);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_id12) != NVME_IDENTIFY_DATA_SIZE);
 	BUILD_BUG_ON(sizeof(struct nvme_nvm_bb_tbl) != 64);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_id20_addrf) != 8);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_id20) != NVME_IDENTIFY_DATA_SIZE);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_chk_meta) != 32);
+	BUILD_BUG_ON(sizeof(struct nvme_nvm_chk_meta) !=
+						sizeof(struct nvm_chk_meta));
 }
 
-static int init_grps(struct nvm_id *nvm_id, struct nvme_nvm_id *nvme_nvm_id)
+static void nvme_nvm_set_addr_12(struct nvm_addrf_12 *dst,
+				 struct nvme_nvm_id12_addrf *src)
 {
-	struct nvme_nvm_id_group *src;
-	struct nvm_id_group *grp;
+	dst->ch_len = src->ch_len;
+	dst->lun_len = src->lun_len;
+	dst->blk_len = src->blk_len;
+	dst->pg_len = src->pg_len;
+	dst->pln_len = src->pln_len;
+	dst->sec_len = src->sec_len;
+
+	dst->ch_offset = src->ch_offset;
+	dst->lun_offset = src->lun_offset;
+	dst->blk_offset = src->blk_offset;
+	dst->pg_offset = src->pg_offset;
+	dst->pln_offset = src->pln_offset;
+	dst->sec_offset = src->sec_offset;
+
+	dst->ch_mask = ((1ULL << dst->ch_len) - 1) << dst->ch_offset;
+	dst->lun_mask = ((1ULL << dst->lun_len) - 1) << dst->lun_offset;
+	dst->blk_mask = ((1ULL << dst->blk_len) - 1) << dst->blk_offset;
+	dst->pg_mask = ((1ULL << dst->pg_len) - 1) << dst->pg_offset;
+	dst->pln_mask = ((1ULL << dst->pln_len) - 1) << dst->pln_offset;
+	dst->sec_mask = ((1ULL << dst->sec_len) - 1) << dst->sec_offset;
+}
+
+static int nvme_nvm_setup_12(struct nvme_nvm_id12 *id,
+			     struct nvm_geo *geo)
+{
+	struct nvme_nvm_id12_grp *src;
 	int sec_per_pg, sec_per_pl, pg_per_blk;
 
-	if (nvme_nvm_id->cgrps != 1)
+	if (id->cgrps != 1)
 		return -EINVAL;
 
-	src = &nvme_nvm_id->groups[0];
-	grp = &nvm_id->grp;
+	src = &id->grp;
 
-	grp->mtype = src->mtype;
-	grp->fmtype = src->fmtype;
-
-	grp->num_ch = src->num_ch;
-	grp->num_lun = src->num_lun;
-
-	grp->num_chk = le16_to_cpu(src->num_chk);
-	grp->csecs = le16_to_cpu(src->csecs);
-	grp->sos = le16_to_cpu(src->sos);
-
-	pg_per_blk = le16_to_cpu(src->num_pg);
-	sec_per_pg = le16_to_cpu(src->fpg_sz) / grp->csecs;
-	sec_per_pl = sec_per_pg * src->num_pln;
-	grp->clba = sec_per_pl * pg_per_blk;
-	grp->ws_per_chk = pg_per_blk;
-
-	grp->mpos = le32_to_cpu(src->mpos);
-	grp->cpar = le16_to_cpu(src->cpar);
-	grp->mccap = le32_to_cpu(src->mccap);
-
-	grp->ws_opt = grp->ws_min = sec_per_pg;
-	grp->ws_seq = NVM_IO_SNGL_ACCESS;
-
-	if (grp->mpos & 0x020202) {
-		grp->ws_seq = NVM_IO_DUAL_ACCESS;
-		grp->ws_opt <<= 1;
-	} else if (grp->mpos & 0x040404) {
-		grp->ws_seq = NVM_IO_QUAD_ACCESS;
-		grp->ws_opt <<= 2;
+	if (src->mtype != 0) {
+		pr_err("nvm: memory type not supported\n");
+		return -EINVAL;
 	}
 
-	grp->trdt = le32_to_cpu(src->trdt);
-	grp->trdm = le32_to_cpu(src->trdm);
-	grp->tprt = le32_to_cpu(src->tprt);
-	grp->tprm = le32_to_cpu(src->tprm);
-	grp->tbet = le32_to_cpu(src->tbet);
-	grp->tbem = le32_to_cpu(src->tbem);
+	/* 1.2 spec. only reports a single version id - unfold */
+	geo->major_ver_id = id->ver_id;
+	geo->minor_ver_id = 2;
+
+	/* Set compacted version for upper layers */
+	geo->version = NVM_OCSSD_SPEC_12;
+
+	geo->num_ch = src->num_ch;
+	geo->num_lun = src->num_lun;
+	geo->all_luns = geo->num_ch * geo->num_lun;
+
+	geo->num_chk = le16_to_cpu(src->num_chk);
+
+	geo->csecs = le16_to_cpu(src->csecs);
+	geo->sos = le16_to_cpu(src->sos);
+
+	pg_per_blk = le16_to_cpu(src->num_pg);
+	sec_per_pg = le16_to_cpu(src->fpg_sz) / geo->csecs;
+	sec_per_pl = sec_per_pg * src->num_pln;
+	geo->clba = sec_per_pl * pg_per_blk;
+
+	geo->all_chunks = geo->all_luns * geo->num_chk;
+	geo->total_secs = geo->clba * geo->all_chunks;
+
+	geo->ws_min = sec_per_pg;
+	geo->ws_opt = sec_per_pg;
+	geo->mw_cunits = geo->ws_opt << 3;	/* default to MLC safe values */
+
+	/* Do not impose values for maximum number of open blocks as it is
+	 * unspecified in 1.2. Users of 1.2 must be aware of this and eventually
+	 * specify these values through a quirk if restrictions apply.
+	 */
+	geo->maxoc = geo->all_luns * geo->num_chk;
+	geo->maxocpu = geo->num_chk;
+
+	geo->mccap = le32_to_cpu(src->mccap);
+
+	geo->trdt = le32_to_cpu(src->trdt);
+	geo->trdm = le32_to_cpu(src->trdm);
+	geo->tprt = le32_to_cpu(src->tprt);
+	geo->tprm = le32_to_cpu(src->tprm);
+	geo->tbet = le32_to_cpu(src->tbet);
+	geo->tbem = le32_to_cpu(src->tbem);
 
 	/* 1.2 compatibility */
-	grp->num_pln = src->num_pln;
-	grp->num_pg = le16_to_cpu(src->num_pg);
-	grp->fpg_sz = le16_to_cpu(src->fpg_sz);
+	geo->vmnt = id->vmnt;
+	geo->cap = le32_to_cpu(id->cap);
+	geo->dom = le32_to_cpu(id->dom);
+
+	geo->mtype = src->mtype;
+	geo->fmtype = src->fmtype;
+
+	geo->cpar = le16_to_cpu(src->cpar);
+	geo->mpos = le32_to_cpu(src->mpos);
+
+	geo->pln_mode = NVM_PLANE_SINGLE;
+
+	if (geo->mpos & 0x020202) {
+		geo->pln_mode = NVM_PLANE_DOUBLE;
+		geo->ws_opt <<= 1;
+	} else if (geo->mpos & 0x040404) {
+		geo->pln_mode = NVM_PLANE_QUAD;
+		geo->ws_opt <<= 2;
+	}
+
+	geo->num_pln = src->num_pln;
+	geo->num_pg = le16_to_cpu(src->num_pg);
+	geo->fpg_sz = le16_to_cpu(src->fpg_sz);
+
+	nvme_nvm_set_addr_12((struct nvm_addrf_12 *)&geo->addrf, &id->ppaf);
 
 	return 0;
 }
 
-static int nvme_nvm_identity(struct nvm_dev *nvmdev, struct nvm_id *nvm_id)
+static void nvme_nvm_set_addr_20(struct nvm_addrf *dst,
+				 struct nvme_nvm_id20_addrf *src)
+{
+	dst->ch_len = src->grp_len;
+	dst->lun_len = src->pu_len;
+	dst->chk_len = src->chk_len;
+	dst->sec_len = src->lba_len;
+
+	dst->sec_offset = 0;
+	dst->chk_offset = dst->sec_len;
+	dst->lun_offset = dst->chk_offset + dst->chk_len;
+	dst->ch_offset = dst->lun_offset + dst->lun_len;
+
+	dst->ch_mask = ((1ULL << dst->ch_len) - 1) << dst->ch_offset;
+	dst->lun_mask = ((1ULL << dst->lun_len) - 1) << dst->lun_offset;
+	dst->chk_mask = ((1ULL << dst->chk_len) - 1) << dst->chk_offset;
+	dst->sec_mask = ((1ULL << dst->sec_len) - 1) << dst->sec_offset;
+}
+
+static int nvme_nvm_setup_20(struct nvme_nvm_id20 *id,
+			     struct nvm_geo *geo)
+{
+	geo->major_ver_id = id->mjr;
+	geo->minor_ver_id = id->mnr;
+
+	/* Set compacted version for upper layers */
+	geo->version = NVM_OCSSD_SPEC_20;
+
+	geo->num_ch = le16_to_cpu(id->num_grp);
+	geo->num_lun = le16_to_cpu(id->num_pu);
+	geo->all_luns = geo->num_ch * geo->num_lun;
+
+	geo->num_chk = le32_to_cpu(id->num_chk);
+	geo->clba = le32_to_cpu(id->clba);
+
+	geo->all_chunks = geo->all_luns * geo->num_chk;
+	geo->total_secs = geo->clba * geo->all_chunks;
+
+	geo->ws_min = le32_to_cpu(id->ws_min);
+	geo->ws_opt = le32_to_cpu(id->ws_opt);
+	geo->mw_cunits = le32_to_cpu(id->mw_cunits);
+	geo->maxoc = le32_to_cpu(id->maxoc);
+	geo->maxocpu = le32_to_cpu(id->maxocpu);
+
+	geo->trdt = le32_to_cpu(id->trdt);
+	geo->trdm = le32_to_cpu(id->trdm);
+	geo->tprt = le32_to_cpu(id->twrt);
+	geo->tprm = le32_to_cpu(id->twrm);
+	geo->tbet = le32_to_cpu(id->tcrst);
+	geo->tbem = le32_to_cpu(id->tcrsm);
+
+	nvme_nvm_set_addr_20(&geo->addrf, &id->lbaf);
+
+	return 0;
+}
+
+static int nvme_nvm_identity(struct nvm_dev *nvmdev)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
-	struct nvme_nvm_id *nvme_nvm_id;
+	struct nvme_nvm_id12 *id;
 	struct nvme_nvm_command c = {};
 	int ret;
 
 	c.identity.opcode = nvme_nvm_admin_identity;
 	c.identity.nsid = cpu_to_le32(ns->head->ns_id);
-	c.identity.chnl_off = 0;
 
-	nvme_nvm_id = kmalloc(sizeof(struct nvme_nvm_id), GFP_KERNEL);
-	if (!nvme_nvm_id)
+	id = kmalloc(sizeof(struct nvme_nvm_id12), GFP_KERNEL);
+	if (!id)
 		return -ENOMEM;
 
 	ret = nvme_submit_sync_cmd(ns->ctrl->admin_q, (struct nvme_command *)&c,
-				nvme_nvm_id, sizeof(struct nvme_nvm_id));
+				id, sizeof(struct nvme_nvm_id12));
 	if (ret) {
 		ret = -EIO;
 		goto out;
 	}
 
-	nvm_id->ver_id = nvme_nvm_id->ver_id;
-	nvm_id->vmnt = nvme_nvm_id->vmnt;
-	nvm_id->cap = le32_to_cpu(nvme_nvm_id->cap);
-	nvm_id->dom = le32_to_cpu(nvme_nvm_id->dom);
-	memcpy(&nvm_id->ppaf, &nvme_nvm_id->ppaf,
-					sizeof(struct nvm_addr_format));
+	/*
+	 * The 1.2 and 2.0 specifications share the first byte in their geometry
+	 * command to make it possible to know what version a device implements.
+	 */
+	switch (id->ver_id) {
+	case 1:
+		ret = nvme_nvm_setup_12(id, &nvmdev->geo);
+		break;
+	case 2:
+		ret = nvme_nvm_setup_20((struct nvme_nvm_id20 *)id,
+							&nvmdev->geo);
+		break;
+	default:
+		dev_err(ns->ctrl->device, "OCSSD revision not supported (%d)\n",
+							id->ver_id);
+		ret = -EINVAL;
+	}
 
-	ret = init_grps(nvm_id, nvme_nvm_id);
 out:
-	kfree(nvme_nvm_id);
+	kfree(id);
 	return ret;
 }
 
@@ -314,7 +481,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 	struct nvme_ctrl *ctrl = ns->ctrl;
 	struct nvme_nvm_command c = {};
 	struct nvme_nvm_bb_tbl *bb_tbl;
-	int nr_blks = geo->nr_chks * geo->plane_mode;
+	int nr_blks = geo->num_chk * geo->num_pln;
 	int tblsz = sizeof(struct nvme_nvm_bb_tbl) + nr_blks;
 	int ret = 0;
 
@@ -355,7 +522,7 @@ static int nvme_nvm_get_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr ppa,
 		goto out;
 	}
 
-	memcpy(blks, bb_tbl->blk, geo->nr_chks * geo->plane_mode);
+	memcpy(blks, bb_tbl->blk, geo->num_chk * geo->num_pln);
 out:
 	kfree(bb_tbl);
 	return ret;
@@ -379,6 +546,78 @@ static int nvme_nvm_set_bb_tbl(struct nvm_dev *nvmdev, struct ppa_addr *ppas,
 	if (ret)
 		dev_err(ns->ctrl->device, "set bad block table failed (%d)\n",
 									ret);
+	return ret;
+}
+
+/*
+ * Expect the lba in device format
+ */
+static int nvme_nvm_get_chk_meta(struct nvm_dev *ndev,
+				 sector_t slba, int nchks,
+				 struct nvm_chk_meta *meta)
+{
+	struct nvm_geo *geo = &ndev->geo;
+	struct nvme_ns *ns = ndev->q->queuedata;
+	struct nvme_ctrl *ctrl = ns->ctrl;
+	struct nvme_nvm_chk_meta *dev_meta, *dev_meta_off;
+	struct ppa_addr ppa;
+	size_t left = nchks * sizeof(struct nvme_nvm_chk_meta);
+	size_t log_pos, offset, len;
+	int i, max_len;
+	int ret = 0;
+
+	/*
+	 * limit requests to maximum 256K to avoid issuing arbitrary large
+	 * requests when the device does not specific a maximum transfer size.
+	 */
+	max_len = min_t(unsigned int, ctrl->max_hw_sectors << 9, 256 * 1024);
+
+	dev_meta = kmalloc(max_len, GFP_KERNEL);
+	if (!dev_meta)
+		return -ENOMEM;
+
+	/* Normalize lba address space to obtain log offset */
+	ppa.ppa = slba;
+	ppa = dev_to_generic_addr(ndev, ppa);
+
+	log_pos = ppa.m.chk;
+	log_pos += ppa.m.pu * geo->num_chk;
+	log_pos += ppa.m.grp * geo->num_lun * geo->num_chk;
+
+	offset = log_pos * sizeof(struct nvme_nvm_chk_meta);
+
+	while (left) {
+		len = min_t(unsigned int, left, max_len);
+
+		memset(dev_meta, 0, max_len);
+		dev_meta_off = dev_meta;
+
+		ret = nvme_get_log(ctrl, ns->head->ns_id,
+				NVME_NVM_LOG_REPORT_CHUNK, 0, dev_meta, len,
+				offset);
+		if (ret) {
+			dev_err(ctrl->device, "Get REPORT CHUNK log error\n");
+			break;
+		}
+
+		for (i = 0; i < len; i += sizeof(struct nvme_nvm_chk_meta)) {
+			meta->state = dev_meta_off->state;
+			meta->type = dev_meta_off->type;
+			meta->wi = dev_meta_off->wi;
+			meta->slba = le64_to_cpu(dev_meta_off->slba);
+			meta->cnlb = le64_to_cpu(dev_meta_off->cnlb);
+			meta->wp = le64_to_cpu(dev_meta_off->wp);
+
+			meta++;
+			dev_meta_off++;
+		}
+
+		offset += len;
+		left -= len;
+	}
+
+	kfree(dev_meta);
+
 	return ret;
 }
 
@@ -420,21 +659,22 @@ static struct request *nvme_nvm_alloc_request(struct request_queue *q,
 
 	rq->cmd_flags &= ~REQ_FAILFAST_DRIVER;
 
-	if (rqd->bio) {
-		blk_init_request_from_bio(rq, rqd->bio);
-	} else {
+	if (rqd->bio)
+		blk_rq_append_bio(rq, &rqd->bio);
+	else
 		rq->ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, IOPRIO_NORM);
-		rq->__data_len = 0;
-	}
 
 	return rq;
 }
 
-static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
+static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd,
+			      void *buf)
 {
+	struct nvm_geo *geo = &dev->geo;
 	struct request_queue *q = dev->q;
 	struct nvme_nvm_command *cmd;
 	struct request *rq;
+	int ret;
 
 	cmd = kzalloc(sizeof(struct nvme_nvm_command), GFP_KERNEL);
 	if (!cmd)
@@ -442,8 +682,15 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 
 	rq = nvme_nvm_alloc_request(q, rqd, cmd);
 	if (IS_ERR(rq)) {
-		kfree(cmd);
-		return PTR_ERR(rq);
+		ret = PTR_ERR(rq);
+		goto err_free_cmd;
+	}
+
+	if (buf) {
+		ret = blk_rq_map_kern(q, rq, buf, geo->csecs * rqd->nr_ppas,
+				GFP_KERNEL);
+		if (ret)
+			goto err_free_cmd;
 	}
 
 	rq->end_io_data = rqd;
@@ -451,41 +698,18 @@ static int nvme_nvm_submit_io(struct nvm_dev *dev, struct nvm_rq *rqd)
 	blk_execute_rq_nowait(q, NULL, rq, 0, nvme_nvm_end_io);
 
 	return 0;
-}
 
-static int nvme_nvm_submit_io_sync(struct nvm_dev *dev, struct nvm_rq *rqd)
-{
-	struct request_queue *q = dev->q;
-	struct request *rq;
-	struct nvme_nvm_command cmd;
-	int ret = 0;
-
-	memset(&cmd, 0, sizeof(struct nvme_nvm_command));
-
-	rq = nvme_nvm_alloc_request(q, rqd, &cmd);
-	if (IS_ERR(rq))
-		return PTR_ERR(rq);
-
-	/* I/Os can fail and the error is signaled through rqd. Callers must
-	 * handle the error accordingly.
-	 */
-	blk_execute_rq(q, NULL, rq, 0);
-	if (nvme_req(rq)->flags & NVME_REQ_CANCELLED)
-		ret = -EINTR;
-
-	rqd->ppa_status = le64_to_cpu(nvme_req(rq)->result.u64);
-	rqd->error = nvme_req(rq)->status;
-
-	blk_mq_free_request(rq);
-
+err_free_cmd:
+	kfree(cmd);
 	return ret;
 }
 
-static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name)
+static void *nvme_nvm_create_dma_pool(struct nvm_dev *nvmdev, char *name,
+					int size)
 {
 	struct nvme_ns *ns = nvmdev->q->queuedata;
 
-	return dma_pool_create(name, ns->ctrl->dev, PAGE_SIZE, PAGE_SIZE, 0);
+	return dma_pool_create(name, ns->ctrl->dev, size, PAGE_SIZE, 0);
 }
 
 static void nvme_nvm_destroy_dma_pool(void *pool)
@@ -513,15 +737,14 @@ static struct nvm_dev_ops nvme_nvm_dev_ops = {
 	.get_bb_tbl		= nvme_nvm_get_bb_tbl,
 	.set_bb_tbl		= nvme_nvm_set_bb_tbl,
 
+	.get_chk_meta		= nvme_nvm_get_chk_meta,
+
 	.submit_io		= nvme_nvm_submit_io,
-	.submit_io_sync		= nvme_nvm_submit_io_sync,
 
 	.create_dma_pool	= nvme_nvm_create_dma_pool,
 	.destroy_dma_pool	= nvme_nvm_destroy_dma_pool,
 	.dev_dma_alloc		= nvme_nvm_dev_dma_alloc,
 	.dev_dma_free		= nvme_nvm_dev_dma_free,
-
-	.max_phys_sect		= 64,
 };
 
 static int nvme_nvm_submit_user_cmd(struct request_queue *q,
@@ -685,9 +908,9 @@ static int nvme_nvm_user_vcmd(struct nvme_ns *ns, int admin,
 	/* cdw11-12 */
 	c.ph_rw.length = cpu_to_le16(vcmd.nppas);
 	c.ph_rw.control  = cpu_to_le16(vcmd.control);
-	c.common.cdw10[3] = cpu_to_le32(vcmd.cdw13);
-	c.common.cdw10[4] = cpu_to_le32(vcmd.cdw14);
-	c.common.cdw10[5] = cpu_to_le32(vcmd.cdw15);
+	c.common.cdw13 = cpu_to_le32(vcmd.cdw13);
+	c.common.cdw14 = cpu_to_le32(vcmd.cdw14);
+	c.common.cdw15 = cpu_to_le32(vcmd.cdw15);
 
 	if (vcmd.timeout_ms)
 		timeout = msecs_to_jiffies(vcmd.timeout_ms);
@@ -726,12 +949,20 @@ int nvme_nvm_register(struct nvme_ns *ns, char *disk_name, int node)
 {
 	struct request_queue *q = ns->queue;
 	struct nvm_dev *dev;
+	struct nvm_geo *geo;
 
 	_nvme_nvm_check_size();
 
 	dev = nvm_alloc_dev(node);
 	if (!dev)
 		return -ENOMEM;
+
+	/* Note that csecs and sos will be overridden if it is a 1.2 drive. */
+	geo = &dev->geo;
+	geo->csecs = 1 << ns->lba_shift;
+	geo->sos = ns->ms;
+	geo->ext = ns->ext;
+	geo->mdts = ns->ctrl->max_hw_sectors;
 
 	dev->q = q;
 	memcpy(dev->name, disk_name, DISK_NAME_LEN);
@@ -748,125 +979,224 @@ void nvme_nvm_unregister(struct nvme_ns *ns)
 }
 
 static ssize_t nvm_dev_attr_show(struct device *dev,
-				 struct device_attribute *dattr, char *page)
+		struct device_attribute *dattr, char *page)
 {
 	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
 	struct nvm_dev *ndev = ns->ndev;
-	struct nvm_id *id;
-	struct nvm_id_group *grp;
+	struct nvm_geo *geo = &ndev->geo;
 	struct attribute *attr;
 
 	if (!ndev)
 		return 0;
 
-	id = &ndev->identity;
-	grp = &id->grp;
 	attr = &dattr->attr;
 
 	if (strcmp(attr->name, "version") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", id->ver_id);
-	} else if (strcmp(attr->name, "vendor_opcode") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", id->vmnt);
+		if (geo->major_ver_id == 1)
+			return scnprintf(page, PAGE_SIZE, "%u\n",
+						geo->major_ver_id);
+		else
+			return scnprintf(page, PAGE_SIZE, "%u.%u\n",
+						geo->major_ver_id,
+						geo->minor_ver_id);
 	} else if (strcmp(attr->name, "capabilities") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", id->cap);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->cap);
+	} else if (strcmp(attr->name, "read_typ") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->trdt);
+	} else if (strcmp(attr->name, "read_max") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->trdm);
+	} else {
+		return scnprintf(page,
+				 PAGE_SIZE,
+				 "Unhandled attr(%s) in `%s`\n",
+				 attr->name, __func__);
+	}
+}
+
+static ssize_t nvm_dev_attr_show_ppaf(struct nvm_addrf_12 *ppaf, char *page)
+{
+	return scnprintf(page, PAGE_SIZE,
+		"0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+				ppaf->ch_offset, ppaf->ch_len,
+				ppaf->lun_offset, ppaf->lun_len,
+				ppaf->pln_offset, ppaf->pln_len,
+				ppaf->blk_offset, ppaf->blk_len,
+				ppaf->pg_offset, ppaf->pg_len,
+				ppaf->sec_offset, ppaf->sec_len);
+}
+
+static ssize_t nvm_dev_attr_show_12(struct device *dev,
+		struct device_attribute *dattr, char *page)
+{
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+	struct nvm_dev *ndev = ns->ndev;
+	struct nvm_geo *geo = &ndev->geo;
+	struct attribute *attr;
+
+	if (!ndev)
+		return 0;
+
+	attr = &dattr->attr;
+
+	if (strcmp(attr->name, "vendor_opcode") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->vmnt);
 	} else if (strcmp(attr->name, "device_mode") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", id->dom);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->dom);
 	/* kept for compatibility */
 	} else if (strcmp(attr->name, "media_manager") == 0) {
 		return scnprintf(page, PAGE_SIZE, "%s\n", "gennvm");
 	} else if (strcmp(attr->name, "ppa_format") == 0) {
-		return scnprintf(page, PAGE_SIZE,
-			"0x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x\n",
-			id->ppaf.ch_offset, id->ppaf.ch_len,
-			id->ppaf.lun_offset, id->ppaf.lun_len,
-			id->ppaf.pln_offset, id->ppaf.pln_len,
-			id->ppaf.blk_offset, id->ppaf.blk_len,
-			id->ppaf.pg_offset, id->ppaf.pg_len,
-			id->ppaf.sect_offset, id->ppaf.sect_len);
+		return nvm_dev_attr_show_ppaf((void *)&geo->addrf, page);
 	} else if (strcmp(attr->name, "media_type") == 0) {	/* u8 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->mtype);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->mtype);
 	} else if (strcmp(attr->name, "flash_media_type") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->fmtype);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->fmtype);
 	} else if (strcmp(attr->name, "num_channels") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_ch);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_ch);
 	} else if (strcmp(attr->name, "num_luns") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_lun);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_lun);
 	} else if (strcmp(attr->name, "num_planes") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_pln);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_pln);
 	} else if (strcmp(attr->name, "num_blocks") == 0) {	/* u16 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_chk);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_chk);
 	} else if (strcmp(attr->name, "num_pages") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->num_pg);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_pg);
 	} else if (strcmp(attr->name, "page_size") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->fpg_sz);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->fpg_sz);
 	} else if (strcmp(attr->name, "hw_sector_size") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->csecs);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->csecs);
 	} else if (strcmp(attr->name, "oob_sector_size") == 0) {/* u32 */
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->sos);
-	} else if (strcmp(attr->name, "read_typ") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->trdt);
-	} else if (strcmp(attr->name, "read_max") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->trdm);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->sos);
 	} else if (strcmp(attr->name, "prog_typ") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tprt);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tprt);
 	} else if (strcmp(attr->name, "prog_max") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tprm);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tprm);
 	} else if (strcmp(attr->name, "erase_typ") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tbet);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tbet);
 	} else if (strcmp(attr->name, "erase_max") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n", grp->tbem);
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tbem);
 	} else if (strcmp(attr->name, "multiplane_modes") == 0) {
-		return scnprintf(page, PAGE_SIZE, "0x%08x\n", grp->mpos);
+		return scnprintf(page, PAGE_SIZE, "0x%08x\n", geo->mpos);
 	} else if (strcmp(attr->name, "media_capabilities") == 0) {
-		return scnprintf(page, PAGE_SIZE, "0x%08x\n", grp->mccap);
+		return scnprintf(page, PAGE_SIZE, "0x%08x\n", geo->mccap);
 	} else if (strcmp(attr->name, "max_phys_secs") == 0) {
-		return scnprintf(page, PAGE_SIZE, "%u\n",
-				ndev->ops->max_phys_sect);
+		return scnprintf(page, PAGE_SIZE, "%u\n", NVM_MAX_VLBA);
 	} else {
-		return scnprintf(page,
-				 PAGE_SIZE,
-				 "Unhandled attr(%s) in `nvm_dev_attr_show`\n",
-				 attr->name);
+		return scnprintf(page, PAGE_SIZE,
+			"Unhandled attr(%s) in `%s`\n",
+			attr->name, __func__);
 	}
 }
 
-#define NVM_DEV_ATTR_RO(_name)						\
+static ssize_t nvm_dev_attr_show_20(struct device *dev,
+		struct device_attribute *dattr, char *page)
+{
+	struct nvme_ns *ns = nvme_get_ns_from_dev(dev);
+	struct nvm_dev *ndev = ns->ndev;
+	struct nvm_geo *geo = &ndev->geo;
+	struct attribute *attr;
+
+	if (!ndev)
+		return 0;
+
+	attr = &dattr->attr;
+
+	if (strcmp(attr->name, "groups") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_ch);
+	} else if (strcmp(attr->name, "punits") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_lun);
+	} else if (strcmp(attr->name, "chunks") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->num_chk);
+	} else if (strcmp(attr->name, "clba") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->clba);
+	} else if (strcmp(attr->name, "ws_min") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->ws_min);
+	} else if (strcmp(attr->name, "ws_opt") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->ws_opt);
+	} else if (strcmp(attr->name, "maxoc") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->maxoc);
+	} else if (strcmp(attr->name, "maxocpu") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->maxocpu);
+	} else if (strcmp(attr->name, "mw_cunits") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->mw_cunits);
+	} else if (strcmp(attr->name, "write_typ") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tprt);
+	} else if (strcmp(attr->name, "write_max") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tprm);
+	} else if (strcmp(attr->name, "reset_typ") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tbet);
+	} else if (strcmp(attr->name, "reset_max") == 0) {
+		return scnprintf(page, PAGE_SIZE, "%u\n", geo->tbem);
+	} else {
+		return scnprintf(page, PAGE_SIZE,
+			"Unhandled attr(%s) in `%s`\n",
+			attr->name, __func__);
+	}
+}
+
+#define NVM_DEV_ATTR_RO(_name)					\
 	DEVICE_ATTR(_name, S_IRUGO, nvm_dev_attr_show, NULL)
+#define NVM_DEV_ATTR_12_RO(_name)					\
+	DEVICE_ATTR(_name, S_IRUGO, nvm_dev_attr_show_12, NULL)
+#define NVM_DEV_ATTR_20_RO(_name)					\
+	DEVICE_ATTR(_name, S_IRUGO, nvm_dev_attr_show_20, NULL)
 
+/* general attributes */
 static NVM_DEV_ATTR_RO(version);
-static NVM_DEV_ATTR_RO(vendor_opcode);
 static NVM_DEV_ATTR_RO(capabilities);
-static NVM_DEV_ATTR_RO(device_mode);
-static NVM_DEV_ATTR_RO(ppa_format);
-static NVM_DEV_ATTR_RO(media_manager);
 
-static NVM_DEV_ATTR_RO(media_type);
-static NVM_DEV_ATTR_RO(flash_media_type);
-static NVM_DEV_ATTR_RO(num_channels);
-static NVM_DEV_ATTR_RO(num_luns);
-static NVM_DEV_ATTR_RO(num_planes);
-static NVM_DEV_ATTR_RO(num_blocks);
-static NVM_DEV_ATTR_RO(num_pages);
-static NVM_DEV_ATTR_RO(page_size);
-static NVM_DEV_ATTR_RO(hw_sector_size);
-static NVM_DEV_ATTR_RO(oob_sector_size);
 static NVM_DEV_ATTR_RO(read_typ);
 static NVM_DEV_ATTR_RO(read_max);
-static NVM_DEV_ATTR_RO(prog_typ);
-static NVM_DEV_ATTR_RO(prog_max);
-static NVM_DEV_ATTR_RO(erase_typ);
-static NVM_DEV_ATTR_RO(erase_max);
-static NVM_DEV_ATTR_RO(multiplane_modes);
-static NVM_DEV_ATTR_RO(media_capabilities);
-static NVM_DEV_ATTR_RO(max_phys_secs);
+
+/* 1.2 values */
+static NVM_DEV_ATTR_12_RO(vendor_opcode);
+static NVM_DEV_ATTR_12_RO(device_mode);
+static NVM_DEV_ATTR_12_RO(ppa_format);
+static NVM_DEV_ATTR_12_RO(media_manager);
+static NVM_DEV_ATTR_12_RO(media_type);
+static NVM_DEV_ATTR_12_RO(flash_media_type);
+static NVM_DEV_ATTR_12_RO(num_channels);
+static NVM_DEV_ATTR_12_RO(num_luns);
+static NVM_DEV_ATTR_12_RO(num_planes);
+static NVM_DEV_ATTR_12_RO(num_blocks);
+static NVM_DEV_ATTR_12_RO(num_pages);
+static NVM_DEV_ATTR_12_RO(page_size);
+static NVM_DEV_ATTR_12_RO(hw_sector_size);
+static NVM_DEV_ATTR_12_RO(oob_sector_size);
+static NVM_DEV_ATTR_12_RO(prog_typ);
+static NVM_DEV_ATTR_12_RO(prog_max);
+static NVM_DEV_ATTR_12_RO(erase_typ);
+static NVM_DEV_ATTR_12_RO(erase_max);
+static NVM_DEV_ATTR_12_RO(multiplane_modes);
+static NVM_DEV_ATTR_12_RO(media_capabilities);
+static NVM_DEV_ATTR_12_RO(max_phys_secs);
+
+/* 2.0 values */
+static NVM_DEV_ATTR_20_RO(groups);
+static NVM_DEV_ATTR_20_RO(punits);
+static NVM_DEV_ATTR_20_RO(chunks);
+static NVM_DEV_ATTR_20_RO(clba);
+static NVM_DEV_ATTR_20_RO(ws_min);
+static NVM_DEV_ATTR_20_RO(ws_opt);
+static NVM_DEV_ATTR_20_RO(maxoc);
+static NVM_DEV_ATTR_20_RO(maxocpu);
+static NVM_DEV_ATTR_20_RO(mw_cunits);
+static NVM_DEV_ATTR_20_RO(write_typ);
+static NVM_DEV_ATTR_20_RO(write_max);
+static NVM_DEV_ATTR_20_RO(reset_typ);
+static NVM_DEV_ATTR_20_RO(reset_max);
 
 static struct attribute *nvm_dev_attrs[] = {
+	/* version agnostic attrs */
 	&dev_attr_version.attr,
-	&dev_attr_vendor_opcode.attr,
 	&dev_attr_capabilities.attr,
+	&dev_attr_read_typ.attr,
+	&dev_attr_read_max.attr,
+
+	/* 1.2 attrs */
+	&dev_attr_vendor_opcode.attr,
 	&dev_attr_device_mode.attr,
 	&dev_attr_media_manager.attr,
-
 	&dev_attr_ppa_format.attr,
 	&dev_attr_media_type.attr,
 	&dev_attr_flash_media_type.attr,
@@ -878,8 +1208,6 @@ static struct attribute *nvm_dev_attrs[] = {
 	&dev_attr_page_size.attr,
 	&dev_attr_hw_sector_size.attr,
 	&dev_attr_oob_sector_size.attr,
-	&dev_attr_read_typ.attr,
-	&dev_attr_read_max.attr,
 	&dev_attr_prog_typ.attr,
 	&dev_attr_prog_max.attr,
 	&dev_attr_erase_typ.attr,
@@ -887,22 +1215,58 @@ static struct attribute *nvm_dev_attrs[] = {
 	&dev_attr_multiplane_modes.attr,
 	&dev_attr_media_capabilities.attr,
 	&dev_attr_max_phys_secs.attr,
+
+	/* 2.0 attrs */
+	&dev_attr_groups.attr,
+	&dev_attr_punits.attr,
+	&dev_attr_chunks.attr,
+	&dev_attr_clba.attr,
+	&dev_attr_ws_min.attr,
+	&dev_attr_ws_opt.attr,
+	&dev_attr_maxoc.attr,
+	&dev_attr_maxocpu.attr,
+	&dev_attr_mw_cunits.attr,
+
+	&dev_attr_write_typ.attr,
+	&dev_attr_write_max.attr,
+	&dev_attr_reset_typ.attr,
+	&dev_attr_reset_max.attr,
+
 	NULL,
 };
 
-static const struct attribute_group nvm_dev_attr_group = {
+static umode_t nvm_dev_attrs_visible(struct kobject *kobj,
+				     struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct gendisk *disk = dev_to_disk(dev);
+	struct nvme_ns *ns = disk->private_data;
+	struct nvm_dev *ndev = ns->ndev;
+	struct device_attribute *dev_attr =
+		container_of(attr, typeof(*dev_attr), attr);
+
+	if (!ndev)
+		return 0;
+
+	if (dev_attr->show == nvm_dev_attr_show)
+		return attr->mode;
+
+	switch (ndev->geo.major_ver_id) {
+	case 1:
+		if (dev_attr->show == nvm_dev_attr_show_12)
+			return attr->mode;
+		break;
+	case 2:
+		if (dev_attr->show == nvm_dev_attr_show_20)
+			return attr->mode;
+		break;
+	}
+
+	return 0;
+}
+
+const struct attribute_group nvme_nvm_attr_group = {
 	.name		= "lightnvm",
 	.attrs		= nvm_dev_attrs,
+	.is_visible	= nvm_dev_attrs_visible,
 };
-
-int nvme_nvm_register_sysfs(struct nvme_ns *ns)
-{
-	return sysfs_create_group(&disk_to_dev(ns->disk)->kobj,
-					&nvm_dev_attr_group);
-}
-
-void nvme_nvm_unregister_sysfs(struct nvme_ns *ns)
-{
-	sysfs_remove_group(&disk_to_dev(ns->disk)->kobj,
-					&nvm_dev_attr_group);
-}

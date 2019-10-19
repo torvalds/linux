@@ -47,17 +47,16 @@
 		((a)->lrca == (b)->lrca))
 
 static int context_switch_events[] = {
-	[RCS] = RCS_AS_CONTEXT_SWITCH,
-	[BCS] = BCS_AS_CONTEXT_SWITCH,
-	[VCS] = VCS_AS_CONTEXT_SWITCH,
-	[VCS2] = VCS2_AS_CONTEXT_SWITCH,
-	[VECS] = VECS_AS_CONTEXT_SWITCH,
+	[RCS0]  = RCS_AS_CONTEXT_SWITCH,
+	[BCS0]  = BCS_AS_CONTEXT_SWITCH,
+	[VCS0]  = VCS_AS_CONTEXT_SWITCH,
+	[VCS1]  = VCS2_AS_CONTEXT_SWITCH,
+	[VECS0] = VECS_AS_CONTEXT_SWITCH,
 };
 
-static int ring_id_to_context_switch_event(int ring_id)
+static int ring_id_to_context_switch_event(unsigned int ring_id)
 {
-	if (WARN_ON(ring_id < RCS ||
-		    ring_id >= ARRAY_SIZE(context_switch_events)))
+	if (WARN_ON(ring_id >= ARRAY_SIZE(context_switch_events)))
 		return -EINVAL;
 
 	return context_switch_events[ring_id];
@@ -411,7 +410,7 @@ static int complete_execlist_workload(struct intel_vgpu_workload *workload)
 	gvt_dbg_el("complete workload %p status %d\n", workload,
 			workload->status);
 
-	if (workload->status || (vgpu->resetting_eng & ENGINE_MASK(ring_id)))
+	if (workload->status || (vgpu->resetting_eng & BIT(ring_id)))
 		goto out;
 
 	if (!list_empty(workload_q_head(vgpu, ring_id))) {
@@ -527,12 +526,13 @@ static void init_vgpu_execlist(struct intel_vgpu *vgpu, int ring_id)
 	vgpu_vreg(vgpu, ctx_status_ptr_reg) = ctx_status_ptr.dw;
 }
 
-static void clean_execlist(struct intel_vgpu *vgpu, unsigned long engine_mask)
+static void clean_execlist(struct intel_vgpu *vgpu,
+			   intel_engine_mask_t engine_mask)
 {
-	unsigned int tmp;
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine;
 	struct intel_vgpu_submission *s = &vgpu->submission;
+	intel_engine_mask_t tmp;
 
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp) {
 		kfree(s->ring_scan_buffer[engine->id]);
@@ -542,18 +542,18 @@ static void clean_execlist(struct intel_vgpu *vgpu, unsigned long engine_mask)
 }
 
 static void reset_execlist(struct intel_vgpu *vgpu,
-		unsigned long engine_mask)
+			   intel_engine_mask_t engine_mask)
 {
 	struct drm_i915_private *dev_priv = vgpu->gvt->dev_priv;
 	struct intel_engine_cs *engine;
-	unsigned int tmp;
+	intel_engine_mask_t tmp;
 
 	for_each_engine_masked(engine, dev_priv, engine_mask, tmp)
 		init_vgpu_execlist(vgpu, engine->id);
 }
 
 static int init_execlist(struct intel_vgpu *vgpu,
-			 unsigned long engine_mask)
+			 intel_engine_mask_t engine_mask)
 {
 	reset_execlist(vgpu, engine_mask);
 	return 0;

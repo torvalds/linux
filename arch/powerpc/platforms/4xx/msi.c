@@ -1,24 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Adding PCI-E MSI support for PPC4XX SoCs.
  *
  * Copyright (c) 2010, Applied Micro Circuits Corporation
  * Authors:	Tirumala R Marri <tmarri@apm.com>
  *		Feng Kan <fkan@apm.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of
- * the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston,
- * MA 02111-1307 USA
  */
 
 #include <linux/irq.h>
@@ -89,7 +75,7 @@ static int ppc4xx_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 	if (type == PCI_CAP_ID_MSIX)
 		pr_debug("ppc4xx msi: MSI-X untested, trying anyway.\n");
 
-	msi_data->msi_virqs = kmalloc((msi_irqs) * sizeof(int), GFP_KERNEL);
+	msi_data->msi_virqs = kmalloc_array(msi_irqs, sizeof(int), GFP_KERNEL);
 	if (!msi_data->msi_virqs)
 		return -ENOMEM;
 
@@ -146,13 +132,19 @@ static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
 	const u32 *sdr_addr;
 	dma_addr_t msi_phys;
 	void *msi_virt;
+	int err;
 
 	sdr_addr = of_get_property(dev->dev.of_node, "sdr-base", NULL);
 	if (!sdr_addr)
-		return -1;
+		return -EINVAL;
 
-	mtdcri(SDR0, *sdr_addr, upper_32_bits(res.start));	/*HIGH addr */
-	mtdcri(SDR0, *sdr_addr + 1, lower_32_bits(res.start));	/* Low addr */
+	msi_data = of_get_property(dev->dev.of_node, "msi-data", NULL);
+	if (!msi_data)
+		return -EINVAL;
+
+	msi_mask = of_get_property(dev->dev.of_node, "msi-mask", NULL);
+	if (!msi_mask)
+		return -EINVAL;
 
 	msi->msi_dev = of_find_node_by_name(NULL, "ppc4xx-msi");
 	if (!msi->msi_dev)
@@ -160,30 +152,30 @@ static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
 
 	msi->msi_regs = of_iomap(msi->msi_dev, 0);
 	if (!msi->msi_regs) {
-		dev_err(&dev->dev, "of_iomap problem failed\n");
-		return -ENOMEM;
+		dev_err(&dev->dev, "of_iomap failed\n");
+		err = -ENOMEM;
+		goto node_put;
 	}
 	dev_dbg(&dev->dev, "PCIE-MSI: msi register mapped 0x%x 0x%x\n",
 		(u32) (msi->msi_regs + PEIH_TERMADH), (u32) (msi->msi_regs));
 
 	msi_virt = dma_alloc_coherent(&dev->dev, 64, &msi_phys, GFP_KERNEL);
-	if (!msi_virt)
-		return -ENOMEM;
+	if (!msi_virt) {
+		err = -ENOMEM;
+		goto iounmap;
+	}
 	msi->msi_addr_hi = upper_32_bits(msi_phys);
 	msi->msi_addr_lo = lower_32_bits(msi_phys & 0xffffffff);
 	dev_dbg(&dev->dev, "PCIE-MSI: msi address high 0x%x, low 0x%x\n",
 		msi->msi_addr_hi, msi->msi_addr_lo);
 
+	mtdcri(SDR0, *sdr_addr, upper_32_bits(res.start));	/*HIGH addr */
+	mtdcri(SDR0, *sdr_addr + 1, lower_32_bits(res.start));	/* Low addr */
+
 	/* Progam the Interrupt handler Termination addr registers */
 	out_be32(msi->msi_regs + PEIH_TERMADH, msi->msi_addr_hi);
 	out_be32(msi->msi_regs + PEIH_TERMADL, msi->msi_addr_lo);
 
-	msi_data = of_get_property(dev->dev.of_node, "msi-data", NULL);
-	if (!msi_data)
-		return -1;
-	msi_mask = of_get_property(dev->dev.of_node, "msi-mask", NULL);
-	if (!msi_mask)
-		return -1;
 	/* Program MSI Expected data and Mask bits */
 	out_be32(msi->msi_regs + PEIH_MSIED, *msi_data);
 	out_be32(msi->msi_regs + PEIH_MSIMK, *msi_mask);
@@ -191,6 +183,12 @@ static int ppc4xx_setup_pcieh_hw(struct platform_device *dev,
 	dma_free_coherent(&dev->dev, 64, msi_virt, msi_phys);
 
 	return 0;
+
+iounmap:
+	iounmap(msi->msi_regs);
+node_put:
+	of_node_put(msi->msi_dev);
+	return err;
 }
 
 static int ppc4xx_of_msi_remove(struct platform_device *dev)
@@ -209,7 +207,6 @@ static int ppc4xx_of_msi_remove(struct platform_device *dev)
 		msi_bitmap_free(&msi->bitmap);
 	iounmap(msi->msi_regs);
 	of_node_put(msi->msi_dev);
-	kfree(msi);
 
 	return 0;
 }
@@ -223,26 +220,25 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 
 	dev_dbg(&dev->dev, "PCIE-MSI: Setting up MSI support...\n");
 
-	msi = kzalloc(sizeof(struct ppc4xx_msi), GFP_KERNEL);
-	if (!msi) {
-		dev_err(&dev->dev, "No memory for MSI structure\n");
+	msi = devm_kzalloc(&dev->dev, sizeof(*msi), GFP_KERNEL);
+	if (!msi)
 		return -ENOMEM;
-	}
 	dev->dev.platform_data = msi;
 
 	/* Get MSI ranges */
 	err = of_address_to_resource(dev->dev.of_node, 0, &res);
 	if (err) {
 		dev_err(&dev->dev, "%pOF resource error!\n", dev->dev.of_node);
-		goto error_out;
+		return err;
 	}
 
 	msi_irqs = of_irq_count(dev->dev.of_node);
 	if (!msi_irqs)
 		return -ENODEV;
 
-	if (ppc4xx_setup_pcieh_hw(dev, res, msi))
-		goto error_out;
+	err = ppc4xx_setup_pcieh_hw(dev, res, msi);
+	if (err)
+		return err;
 
 	err = ppc4xx_msi_init_allocator(dev, msi);
 	if (err) {
@@ -255,7 +251,7 @@ static int ppc4xx_msi_probe(struct platform_device *dev)
 		phb->controller_ops.setup_msi_irqs = ppc4xx_setup_msi_irqs;
 		phb->controller_ops.teardown_msi_irqs = ppc4xx_teardown_msi_irqs;
 	}
-	return err;
+	return 0;
 
 error_out:
 	ppc4xx_of_msi_remove(dev);

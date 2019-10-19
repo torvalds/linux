@@ -61,3 +61,13 @@
 		"Headset Mic", "HBIAS";
 	status = "okay";
 };
+
+&panel {
+	compatible = "bananapi,s070wv20-ct16";
+};
+
+&tcon0_out {
+	tcon0_out_lcd: endpoint {
+		remote-endpoint = <&panel_input>;
+	};
+};

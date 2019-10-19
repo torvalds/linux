@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /* CacheFiles extended attribute management
  *
  * Copyright (C) 2007 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public Licence
- * as published by the Free Software Foundation; either version
- * 2 of the Licence, or (at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -113,6 +109,7 @@ int cachefiles_set_object_xattr(struct cachefiles_object *object,
 	/* attempt to install the cache metadata directly */
 	_debug("SET #%u", auxdata->len);
 
+	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,
 			   XATTR_CREATE);
@@ -134,13 +131,15 @@ int cachefiles_update_object_xattr(struct cachefiles_object *object,
 	struct dentry *dentry = object->dentry;
 	int ret;
 
-	ASSERT(dentry);
+	if (!dentry)
+		return -ESTALE;
 
 	_enter("%p,#%d", object, auxdata->len);
 
 	/* attempt to install the cache metadata directly */
 	_debug("SET #%u", auxdata->len);
 
+	clear_bit(FSCACHE_COOKIE_AUX_UPDATED, &object->fscache.cookie->flags);
 	ret = vfs_setxattr(dentry, cachefiles_xattr_cache,
 			   &auxdata->type, auxdata->len,
 			   XATTR_REPLACE);
@@ -180,7 +179,8 @@ int cachefiles_check_auxdata(struct cachefiles_object *object)
 		goto error;
 
 	xlen--;
-	validity = fscache_check_aux(&object->fscache, &auxbuf->data, xlen);
+	validity = fscache_check_aux(&object->fscache, &auxbuf->data, xlen,
+				     i_size_read(d_backing_inode(dentry)));
 	if (validity != FSCACHE_CHECKAUX_OKAY)
 		goto error;
 
@@ -249,7 +249,8 @@ int cachefiles_check_object_xattr(struct cachefiles_object *object,
 		       object->fscache.cookie->def->name, dlen);
 
 		result = fscache_check_aux(&object->fscache,
-					   &auxbuf->data, dlen);
+					   &auxbuf->data, dlen,
+					   i_size_read(d_backing_inode(dentry)));
 
 		switch (result) {
 			/* entry okay as is */

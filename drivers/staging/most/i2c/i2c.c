@@ -11,7 +11,6 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/err.h>
 
@@ -29,32 +28,27 @@ enum { CH_RX, CH_TX, NUM_CHANNELS };
 #define list_first_mbo(ptr) \
 	list_first_entry(ptr, struct mbo, list)
 
-/* IRQ / Polling option */
-static bool polling_req;
-module_param(polling_req, bool, 0444);
-MODULE_PARM_DESC(polling_req, "Request Polling. Default = 0 (use irq)");
-
-/* Polling Rate */
-static int scan_rate = 100;
-module_param(scan_rate, int, 0644);
-MODULE_PARM_DESC(scan_rate, "Polling rate in times/sec. Default = 100");
+static unsigned int polling_rate;
+module_param(polling_rate, uint, 0644);
+MODULE_PARM_DESC(polling_rate, "Polling rate [Hz]. Default = 0 (use IRQ)");
 
 struct hdm_i2c {
-	bool is_open[NUM_CHANNELS];
-	bool polling_mode;
 	struct most_interface most_iface;
 	struct most_channel_capability capabilities[NUM_CHANNELS];
 	struct i2c_client *client;
 	struct rx {
 		struct delayed_work dwork;
-		wait_queue_head_t waitq;
 		struct list_head list;
-		struct mutex list_mutex;
+		bool int_disabled;
+		unsigned int delay;
 	} rx;
 	char name[64];
 };
 
 #define to_hdm(iface) container_of(iface, struct hdm_i2c, most_iface)
+
+static irqreturn_t most_irq_handler(int, void *);
+static void pending_rx_work(struct work_struct *);
 
 /**
  * configure_channel - called from MOST core to configure a channel
@@ -71,10 +65,11 @@ static int configure_channel(struct most_interface *most_iface,
 			     int ch_idx,
 			     struct most_channel_config *channel_config)
 {
+	int ret;
 	struct hdm_i2c *dev = to_hdm(most_iface);
+	unsigned int delay, pr;
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
-	BUG_ON(dev->is_open[ch_idx]);
 
 	if (channel_config->data_type != MOST_CH_CONTROL) {
 		pr_err("bad data type for channel %d\n", ch_idx);
@@ -86,11 +81,27 @@ static int configure_channel(struct most_interface *most_iface,
 		return -EPERM;
 	}
 
-	if ((channel_config->direction == MOST_CH_RX) && (dev->polling_mode)) {
-		schedule_delayed_work(&dev->rx.dwork,
-				      msecs_to_jiffies(MSEC_PER_SEC / 4));
+	if (channel_config->direction == MOST_CH_RX) {
+		if (!polling_rate) {
+			if (dev->client->irq <= 0) {
+				pr_err("bad irq: %d\n", dev->client->irq);
+				return -ENOENT;
+			}
+			dev->rx.int_disabled = false;
+			ret = request_irq(dev->client->irq, most_irq_handler, 0,
+					  dev->client->name, dev);
+			if (ret) {
+				pr_err("request_irq(%d) failed: %d\n",
+				       dev->client->irq, ret);
+				return ret;
+			}
+		} else {
+			delay = msecs_to_jiffies(MSEC_PER_SEC / polling_rate);
+			dev->rx.delay = delay ? delay : 1;
+			pr = MSEC_PER_SEC / jiffies_to_msecs(dev->rx.delay);
+			pr_info("polling rate is %u Hz\n", pr);
+		}
 	}
-	dev->is_open[ch_idx] = true;
 
 	return 0;
 }
@@ -113,14 +124,17 @@ static int enqueue(struct most_interface *most_iface,
 	int ret;
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
-	BUG_ON(!dev->is_open[ch_idx]);
 
 	if (ch_idx == CH_RX) {
 		/* RX */
-		mutex_lock(&dev->rx.list_mutex);
+		if (!polling_rate)
+			disable_irq(dev->client->irq);
+		cancel_delayed_work_sync(&dev->rx.dwork);
 		list_add_tail(&mbo->list, &dev->rx.list);
-		mutex_unlock(&dev->rx.list_mutex);
-		wake_up_interruptible(&dev->rx.waitq);
+		if (dev->rx.int_disabled || polling_rate)
+			pending_rx_work(&dev->rx.dwork.work);
+		if (!polling_rate)
+			enable_irq(dev->client->irq);
 	} else {
 		/* TX */
 		ret = i2c_master_send(dev->client, mbo->virt_address,
@@ -155,25 +169,20 @@ static int poison_channel(struct most_interface *most_iface,
 	struct mbo *mbo;
 
 	BUG_ON(ch_idx < 0 || ch_idx >= NUM_CHANNELS);
-	BUG_ON(!dev->is_open[ch_idx]);
-
-	dev->is_open[ch_idx] = false;
 
 	if (ch_idx == CH_RX) {
-		mutex_lock(&dev->rx.list_mutex);
+		if (!polling_rate)
+			free_irq(dev->client->irq, dev);
+		cancel_delayed_work_sync(&dev->rx.dwork);
+
 		while (!list_empty(&dev->rx.list)) {
 			mbo = list_first_mbo(&dev->rx.list);
 			list_del(&mbo->list);
-			mutex_unlock(&dev->rx.list_mutex);
 
 			mbo->processed_length = 0;
 			mbo->status = MBO_E_CLOSE;
 			mbo->complete(mbo);
-
-			mutex_lock(&dev->rx.list_mutex);
 		}
-		mutex_unlock(&dev->rx.list_mutex);
-		wake_up_interruptible(&dev->rx.waitq);
 	}
 
 	return 0;
@@ -183,7 +192,7 @@ static void do_rx_work(struct hdm_i2c *dev)
 {
 	struct mbo *mbo;
 	unsigned char msg[MAX_BUF_SIZE_CONTROL];
-	int ret, ch_idx = CH_RX;
+	int ret;
 	u16 pml, data_size;
 
 	/* Read PML (2 bytes) */
@@ -206,32 +215,8 @@ static void do_rx_work(struct hdm_i2c *dev)
 		return;
 	}
 
-	for (;;) {
-		/* Conditions to wait for: poisoned channel or free buffer
-		 * available for reading
-		 */
-		if (wait_event_interruptible(dev->rx.waitq,
-					     !dev->is_open[ch_idx] ||
-					     !list_empty(&dev->rx.list))) {
-			pr_err("wait_event_interruptible() failed\n");
-			return;
-		}
-
-		if (!dev->is_open[ch_idx])
-			return;
-
-		mutex_lock(&dev->rx.list_mutex);
-
-		/* list may be empty if poison or remove is called */
-		if (!list_empty(&dev->rx.list))
-			break;
-
-		mutex_unlock(&dev->rx.list_mutex);
-	}
-
 	mbo = list_first_mbo(&dev->rx.list);
 	list_del(&mbo->list);
-	mutex_unlock(&dev->rx.list_mutex);
 
 	mbo->processed_length = min(data_size, mbo->buffer_length);
 	memcpy(mbo->virt_address, msg, mbo->processed_length);
@@ -249,14 +234,15 @@ static void pending_rx_work(struct work_struct *work)
 {
 	struct hdm_i2c *dev = container_of(work, struct hdm_i2c, rx.dwork.work);
 
+	if (list_empty(&dev->rx.list))
+		return;
+
 	do_rx_work(dev);
 
-	if (dev->polling_mode) {
-		if (dev->is_open[CH_RX])
-			schedule_delayed_work(&dev->rx.dwork,
-					      msecs_to_jiffies(MSEC_PER_SEC
-							       / scan_rate));
+	if (polling_rate) {
+		schedule_delayed_work(&dev->rx.dwork, dev->rx.delay);
 	} else {
+		dev->rx.int_disabled = false;
 		enable_irq(dev->client->irq);
 	}
 }
@@ -284,7 +270,7 @@ static irqreturn_t most_irq_handler(int irq, void *_dev)
 	struct hdm_i2c *dev = _dev;
 
 	disable_irq_nosync(irq);
-
+	dev->rx.int_disabled = true;
 	schedule_delayed_work(&dev->rx.dwork, 0);
 
 	return IRQ_HANDLED;
@@ -313,7 +299,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		 client->adapter->nr, client->addr);
 
 	for (i = 0; i < NUM_CHANNELS; i++) {
-		dev->is_open[i] = false;
 		dev->capabilities[i].data_type = MOST_CH_CONTROL;
 		dev->capabilities[i].num_buffers_packet = MAX_BUFFERS_CONTROL;
 		dev->capabilities[i].buffer_size_packet = MAX_BUF_SIZE_CONTROL;
@@ -332,8 +317,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev->most_iface.poison_channel = poison_channel;
 
 	INIT_LIST_HEAD(&dev->rx.list);
-	mutex_init(&dev->rx.list_mutex);
-	init_waitqueue_head(&dev->rx.waitq);
 
 	INIT_DELAYED_WORK(&dev->rx.dwork, pending_rx_work);
 
@@ -346,21 +329,6 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		kfree(dev);
 		return ret;
 	}
-
-	dev->polling_mode = polling_req || client->irq <= 0;
-	if (!dev->polling_mode) {
-		pr_info("Requesting IRQ: %d\n", client->irq);
-		ret = request_irq(client->irq, most_irq_handler, 0,
-				  client->name, dev);
-		if (ret) {
-			pr_info("IRQ request failed: %d, falling back to polling\n",
-				ret);
-			dev->polling_mode = true;
-		}
-	}
-
-	if (dev->polling_mode)
-		pr_info("Using polling at rate: %d times/sec\n", scan_rate);
 
 	return 0;
 }
@@ -376,17 +344,8 @@ static int i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 static int i2c_remove(struct i2c_client *client)
 {
 	struct hdm_i2c *dev = i2c_get_clientdata(client);
-	int i;
-
-	if (!dev->polling_mode)
-		free_irq(client->irq, dev);
 
 	most_deregister_interface(&dev->most_iface);
-
-	for (i = 0 ; i < NUM_CHANNELS; i++)
-		if (dev->is_open[i])
-			poison_channel(&dev->most_iface, i);
-	cancel_delayed_work_sync(&dev->rx.dwork);
 	kfree(dev);
 
 	return 0;
@@ -410,7 +369,6 @@ static struct i2c_driver i2c_driver = {
 
 module_i2c_driver(i2c_driver);
 
-MODULE_AUTHOR("Jain Roy Ambi <JainRoy.Ambi@microchip.com>");
 MODULE_AUTHOR("Andrey Shvetsov <andrey.shvetsov@k2l.de>");
 MODULE_DESCRIPTION("I2C Hardware Dependent Module");
 MODULE_LICENSE("GPL");

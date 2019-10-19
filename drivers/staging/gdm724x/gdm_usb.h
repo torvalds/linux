@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+/* SPDX-License-Identifier: GPL-2.0 */
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #ifndef _GDM_USB_H_
 #define _GDM_USB_H_
@@ -93,11 +83,11 @@ struct rx_cxt {
 
 struct lte_udev {
 	struct usb_device *usbdev;
-	struct gdm_endian gdm_ed;
 	struct tx_cxt tx;
 	struct rx_cxt rx;
 	struct delayed_work work_tx;
 	struct delayed_work work_rx;
+	u8 gdm_ed;
 	u8 send_complete;
 	u8 tx_stop;
 	struct usb_interface *intf;

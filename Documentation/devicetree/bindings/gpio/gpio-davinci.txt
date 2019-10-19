@@ -5,6 +5,8 @@ Required Properties:
 			"ti,keystone-gpio": for Keystone 2 66AK2H/K, 66AK2L,
 						66AK2E SoCs
 			"ti,k2g-gpio", "ti,keystone-gpio": for 66AK2G
+			"ti,am654-gpio", "ti,keystone-gpio": for TI K3 AM654
+			"ti,j721e-gpio", "ti,keystone-gpio": for J721E SoCs
 
 - reg: Physical base address of the controller and the size of memory mapped
        registers.
@@ -14,8 +16,6 @@ Required Properties:
 - #gpio-cells : Should be two.
   - first cell is the pin number
   - second cell is used to specify optional parameters (unused)
-
-- interrupt-parent: phandle of the parent interrupt controller.
 
 - interrupts: Array of GPIO interrupt number. Only banked or unbanked IRQs are
 	      supported at a time.
@@ -146,4 +146,21 @@ gpio0: gpio@260bf00 {
 	clock-names = "gpio";
 	ti,ngpio = <32>;
 	ti,davinci-gpio-unbanked = <32>;
+};
+
+Example for K3 AM654:
+
+wkup_gpio0: wkup_gpio0@42110000 {
+	compatible = "ti,am654-gpio", "ti,keystone-gpio";
+	reg = <0x42110000 0x100>;
+	gpio-controller;
+	#gpio-cells = <2>;
+	interrupt-parent = <&intr_wkup_gpio>;
+	interrupts = <59 128>, <59 129>, <59 130>, <59 131>;
+	interrupt-controller;
+	#interrupt-cells = <2>;
+	ti,ngpio = <56>;
+	ti,davinci-gpio-unbanked = <0>;
+	clocks = <&k3_clks 59 0>;
+	clock-names = "gpio";
 };

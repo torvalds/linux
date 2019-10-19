@@ -46,7 +46,6 @@ enum qed_iwarp_qp_state qed_roce2iwarp_state(enum qed_roce_qp_state state);
 
 #define QED_IWARP_LL2_SYN_TX_SIZE       (128)
 #define QED_IWARP_LL2_SYN_RX_SIZE       (256)
-#define QED_IWARP_MAX_SYN_PKT_SIZE      (128)
 
 #define QED_IWARP_LL2_OOO_DEF_TX_SIZE   (256)
 #define QED_IWARP_MAX_OOO		(16)
@@ -184,13 +183,13 @@ struct qed_iwarp_listener {
 
 int qed_iwarp_alloc(struct qed_hwfn *p_hwfn);
 
-int qed_iwarp_setup(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt,
+int qed_iwarp_setup(struct qed_hwfn *p_hwfn,
 		    struct qed_rdma_start_in_params *params);
 
 void qed_iwarp_init_fw_ramrod(struct qed_hwfn *p_hwfn,
 			      struct iwarp_init_func_ramrod_data *p_ramrod);
 
-int qed_iwarp_stop(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt);
+int qed_iwarp_stop(struct qed_hwfn *p_hwfn);
 
 void qed_iwarp_resc_free(struct qed_hwfn *p_hwfn);
 

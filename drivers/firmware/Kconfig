@@ -1,23 +1,44 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 
 menu "Firmware Drivers"
 
-config ARM_PSCI_FW
-	bool
-
-config ARM_PSCI_CHECKER
-	bool "ARM PSCI checker"
-	depends on ARM_PSCI_FW && HOTPLUG_CPU && CPU_IDLE && !TORTURE_TEST
+config ARM_SCMI_PROTOCOL
+	bool "ARM System Control and Management Interface (SCMI) Message Protocol"
+	depends on ARM || ARM64 || COMPILE_TEST
+	depends on MAILBOX
 	help
-	  Run the PSCI checker during startup. This checks that hotplug and
-	  suspend operations work correctly when using PSCI.
+	  ARM System Control and Management Interface (SCMI) protocol is a
+	  set of operating system-independent software interfaces that are
+	  used in system management. SCMI is extensible and currently provides
+	  interfaces for: Discovery and self-description of the interfaces
+	  it supports, Power domain management which is the ability to place
+	  a given device or domain into the various power-saving states that
+	  it supports, Performance management which is the ability to control
+	  the performance of a domain that is composed of compute engines
+	  such as application processors and other accelerators, Clock
+	  management which is the ability to set and inquire rates on platform
+	  managed clocks and Sensor management which is the ability to read
+	  sensor data, and be notified of sensor value.
 
-	  The torture tests may interfere with the PSCI checker by turning CPUs
-	  on and off through hotplug, so for now torture tests and PSCI checker
-	  are mutually exclusive.
+	  This protocol library provides interface for all the client drivers
+	  making use of the features offered by the SCMI.
+
+config ARM_SCMI_POWER_DOMAIN
+	tristate "SCMI power domain driver"
+	depends on ARM_SCMI_PROTOCOL || (COMPILE_TEST && OF)
+	default y
+	select PM_GENERIC_DOMAINS if PM
+	help
+	  This enables support for the SCMI power domains which can be
+	  enabled or disabled via the SCP firmware
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called scmi_pm_domain. Note this may needed early in boot
+	  before rootfs may be available.
 
 config ARM_SCPI_PROTOCOL
 	tristate "ARM System Control and Power Interface (SCPI) Message Protocol"
@@ -111,34 +132,6 @@ config EFI_PCDP
 	  See DIG64_HCDPv20_042804.pdf available from
 	  <http://www.dig64.org/specifications/> 
 
-config DELL_RBU
-	tristate "BIOS update support for DELL systems via sysfs"
-	depends on X86
-	select FW_LOADER
-	select FW_LOADER_USER_HELPER
-	help
-	 Say m if you want to have the option of updating the BIOS for your
-	 DELL system. Note you need a Dell OpenManage or Dell Update package (DUP)
-	 supporting application to communicate with the BIOS regarding the new
-	 image for the image update to take effect.
-	 See <file:Documentation/dell_rbu.txt> for more details on the driver.
-
-config DCDBAS
-	tristate "Dell Systems Management Base Driver"
-	depends on X86
-	help
-	  The Dell Systems Management Base Driver provides a sysfs interface
-	  for systems management software to perform System Management
-	  Interrupts (SMIs) and Host Control Actions (system power cycle or
-	  power off after OS shutdown) on certain Dell systems.
-
-	  See <file:Documentation/dcdbas.txt> for more details on the driver
-	  and the Dell systems on which Dell systems management software makes
-	  use of this driver.
-
-	  Say Y or M here to enable the driver for use by Dell systems
-	  management software such as Dell OpenManage.
-
 config DMIID
     bool "Export DMI identification via sysfs to userspace"
     depends on DMI
@@ -164,7 +157,7 @@ config DMI_SCAN_MACHINE_NON_EFI_FALLBACK
 
 config ISCSI_IBFT_FIND
 	bool "iSCSI Boot Firmware Table Attributes"
-	depends on X86 && ACPI
+	depends on X86 && ISCSI_IBFT
 	default n
 	help
 	  This option enables the kernel to find the region of memory
@@ -175,7 +168,8 @@ config ISCSI_IBFT_FIND
 config ISCSI_IBFT
 	tristate "iSCSI Boot Firmware Table Attributes module"
 	select ISCSI_BOOT_SYSFS
-	depends on ISCSI_IBFT_FIND && SCSI && SCSI_LOWLEVEL
+	select ISCSI_IBFT_FIND if X86
+	depends on ACPI && SCSI && SCSI_LOWLEVEL
 	default	n
 	help
 	  This option enables support for detection and exposing of iSCSI
@@ -209,6 +203,36 @@ config FW_CFG_SYSFS_CMDLINE
 	  command line or using a module parameter.
 	  WARNING: Using incorrect parameters (base address in particular)
 	  may crash your system.
+
+config INTEL_STRATIX10_SERVICE
+	tristate "Intel Stratix10 Service Layer"
+	depends on ARCH_STRATIX10 && HAVE_ARM_SMCCC
+	default n
+	help
+	  Intel Stratix10 service layer runs at privileged exception level,
+	  interfaces with the service providers (FPGA manager is one of them)
+	  and manages secure monitor call to communicate with secure monitor
+	  software at secure monitor exception level.
+
+	  Say Y here if you want Stratix10 service layer support.
+
+config INTEL_STRATIX10_RSU
+	tristate "Intel Stratix10 Remote System Update"
+	depends on INTEL_STRATIX10_SERVICE
+	help
+	  The Intel Remote System Update (RSU) driver exposes interfaces
+	  access through the Intel Service Layer to user space via sysfs
+	  device attribute nodes. The RSU interfaces report/control some of
+	  the optional RSU features of the Stratix 10 SoC FPGA.
+
+	  The RSU provides a way for customers to update the boot
+	  configuration of a Stratix 10 SoC device with significantly reduced
+	  risk of corrupting the bitstream storage and bricking the system.
+
+	  Enable RSU support if you are using an Intel SoC FPGA with the RSU
+	  feature enabled and you want Linux user space control.
+
+	  Say Y here if you want Intel RSU support.
 
 config QCOM_SCM
 	bool
@@ -249,13 +273,46 @@ config TI_SCI_PROTOCOL
 	  This protocol library is used by client drivers to use the features
 	  provided by the system controller.
 
+config TRUSTED_FOUNDATIONS
+	bool "Trusted Foundations secure monitor support"
+	depends on ARM && CPU_V7
+	help
+	  Some devices (including most early Tegra-based consumer devices on
+	  the market) are booted with the Trusted Foundations secure monitor
+	  active, requiring some core operations to be performed by the secure
+	  monitor instead of the kernel.
+
+	  This option allows the kernel to invoke the secure monitor whenever
+	  required on devices using Trusted Foundations. See the functions and
+	  comments in linux/firmware/trusted_foundations.h or the device tree
+	  bindings for "tlm,trusted-foundations" for details on how to use it.
+
+	  Choose N if you don't know what this is about.
+
+config TURRIS_MOX_RWTM
+	tristate "Turris Mox rWTM secure firmware driver"
+	depends on ARCH_MVEBU || COMPILE_TEST
+	depends on HAS_DMA && OF
+	depends on MAILBOX
+	select HW_RANDOM
+	select ARMADA_37XX_RWTM_MBOX
+	help
+	  This driver communicates with the firmware on the Cortex-M3 secure
+	  processor of the Turris Mox router. Enable if you are building for
+	  Turris Mox, and you will be able to read the device serial number and
+	  other manufacturing data and also utilize the Entropy Bit Generator
+	  for hardware random number generation.
+
 config HAVE_ARM_SMCCC
 	bool
 
+source "drivers/firmware/psci/Kconfig"
 source "drivers/firmware/broadcom/Kconfig"
 source "drivers/firmware/google/Kconfig"
 source "drivers/firmware/efi/Kconfig"
+source "drivers/firmware/imx/Kconfig"
 source "drivers/firmware/meson/Kconfig"
 source "drivers/firmware/tegra/Kconfig"
+source "drivers/firmware/xilinx/Kconfig"
 
 endmenu

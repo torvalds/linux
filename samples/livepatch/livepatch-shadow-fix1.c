@@ -1,18 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2017 Joe Lawrence <joe.lawrence@redhat.com>
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * as published by the Free Software Foundation; either version 2
- * of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses/>.
  */
 
 /*
@@ -56,7 +44,22 @@ struct dummy {
 	unsigned long jiffies_expire;
 };
 
-struct dummy *livepatch_fix1_dummy_alloc(void)
+/*
+ * The constructor makes more sense together with klp_shadow_get_or_alloc().
+ * In this example, it would be safe to assign the pointer also to the shadow
+ * variable returned by klp_shadow_alloc().  But we wanted to show the more
+ * complicated use of the API.
+ */
+static int shadow_leak_ctor(void *obj, void *shadow_data, void *ctor_data)
+{
+	void **shadow_leak = shadow_data;
+	void *leak = ctor_data;
+
+	*shadow_leak = leak;
+	return 0;
+}
+
+static struct dummy *livepatch_fix1_dummy_alloc(void)
 {
 	struct dummy *d;
 	void *leak;
@@ -74,7 +77,13 @@ struct dummy *livepatch_fix1_dummy_alloc(void)
 	 * pointer to handle resource release.
 	 */
 	leak = kzalloc(sizeof(int), GFP_KERNEL);
-	klp_shadow_alloc(d, SV_LEAK, &leak, sizeof(leak), GFP_KERNEL);
+	if (!leak) {
+		kfree(d);
+		return NULL;
+	}
+
+	klp_shadow_alloc(d, SV_LEAK, sizeof(leak), GFP_KERNEL,
+			 shadow_leak_ctor, leak);
 
 	pr_info("%s: dummy @ %p, expires @ %lx\n",
 		__func__, d, d->jiffies_expire);
@@ -82,9 +91,19 @@ struct dummy *livepatch_fix1_dummy_alloc(void)
 	return d;
 }
 
-void livepatch_fix1_dummy_free(struct dummy *d)
+static void livepatch_fix1_dummy_leak_dtor(void *obj, void *shadow_data)
 {
-	void **shadow_leak, *leak;
+	void *d = obj;
+	void **shadow_leak = shadow_data;
+
+	kfree(*shadow_leak);
+	pr_info("%s: dummy @ %p, prevented leak @ %p\n",
+			 __func__, d, *shadow_leak);
+}
+
+static void livepatch_fix1_dummy_free(struct dummy *d)
+{
+	void **shadow_leak;
 
 	/*
 	 * Patch: fetch the saved SV_LEAK shadow variable, detach and
@@ -93,15 +112,10 @@ void livepatch_fix1_dummy_free(struct dummy *d)
 	 * was loaded.)
 	 */
 	shadow_leak = klp_shadow_get(d, SV_LEAK);
-	if (shadow_leak) {
-		leak = *shadow_leak;
-		klp_shadow_free(d, SV_LEAK);
-		kfree(leak);
-		pr_info("%s: dummy @ %p, prevented leak @ %p\n",
-			 __func__, d, leak);
-	} else {
+	if (shadow_leak)
+		klp_shadow_free(d, SV_LEAK, livepatch_fix1_dummy_leak_dtor);
+	else
 		pr_info("%s: dummy @ %p leaked!\n", __func__, d);
-	}
 
 	kfree(d);
 }
@@ -131,25 +145,13 @@ static struct klp_patch patch = {
 
 static int livepatch_shadow_fix1_init(void)
 {
-	int ret;
-
-	ret = klp_register_patch(&patch);
-	if (ret)
-		return ret;
-	ret = klp_enable_patch(&patch);
-	if (ret) {
-		WARN_ON(klp_unregister_patch(&patch));
-		return ret;
-	}
-	return 0;
+	return klp_enable_patch(&patch);
 }
 
 static void livepatch_shadow_fix1_exit(void)
 {
 	/* Cleanup any existing SV_LEAK shadow variables */
-	klp_shadow_free_all(SV_LEAK);
-
-	WARN_ON(klp_unregister_patch(&patch));
+	klp_shadow_free_all(SV_LEAK, livepatch_fix1_dummy_leak_dtor);
 }
 
 module_init(livepatch_shadow_fix1_init);

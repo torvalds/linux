@@ -1,11 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (C) 2013 Boris BREZILLON <b.brezillon@overkiz.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
  */
 
 #include <linux/clk-provider.h>
@@ -125,7 +120,7 @@ static const struct clk_ops utmi_ops = {
 	.recalc_rate = clk_utmi_recalc_rate,
 };
 
-static struct clk_hw * __init
+struct clk_hw * __init
 at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
 		       const char *name, const char *parent_name)
 {
@@ -157,46 +152,3 @@ at91_clk_register_utmi(struct regmap *regmap_pmc, struct regmap *regmap_sfr,
 
 	return hw;
 }
-
-static void __init of_at91sam9x5_clk_utmi_setup(struct device_node *np)
-{
-	struct clk_hw *hw;
-	const char *parent_name;
-	const char *name = np->name;
-	struct regmap *regmap_pmc, *regmap_sfr;
-
-	parent_name = of_clk_get_parent_name(np, 0);
-
-	of_property_read_string(np, "clock-output-names", &name);
-
-	regmap_pmc = syscon_node_to_regmap(of_get_parent(np));
-	if (IS_ERR(regmap_pmc))
-		return;
-
-	/*
-	 * If the device supports different mainck rates, this value has to be
-	 * set in the UTMI Clock Trimming register.
-	 * - 9x5: mainck supports several rates but it is indicated that a
-	 *   12 MHz is needed in case of USB.
-	 * - sama5d3 and sama5d2: mainck supports several rates. Configuring
-	 *   the FREQ field of the UTMI Clock Trimming register is mandatory.
-	 * - sama5d4: mainck is at 12 MHz.
-	 *
-	 * We only need to retrieve sama5d3 or sama5d2 sfr regmap.
-	 */
-	regmap_sfr = syscon_regmap_lookup_by_compatible("atmel,sama5d3-sfr");
-	if (IS_ERR(regmap_sfr)) {
-		regmap_sfr = syscon_regmap_lookup_by_compatible("atmel,sama5d2-sfr");
-		if (IS_ERR(regmap_sfr))
-			regmap_sfr = NULL;
-	}
-
-	hw = at91_clk_register_utmi(regmap_pmc, regmap_sfr, name, parent_name);
-	if (IS_ERR(hw))
-		return;
-
-	of_clk_add_hw_provider(np, of_clk_hw_simple_get, hw);
-	return;
-}
-CLK_OF_DECLARE(at91sam9x5_clk_utmi, "atmel,at91sam9x5-clk-utmi",
-	       of_at91sam9x5_clk_utmi_setup);

@@ -54,7 +54,7 @@
 		allwinner,pipelines = <&fe0>;
 	};
 
-	soc@1c00000 {
+	soc {
 		pwm: pwm@1c20e00 {
 			compatible = "allwinner,sun5i-a10s-pwm";
 			reg = <0x01c20e00 0xc>;
@@ -98,28 +98,28 @@
 &pio {
 	compatible = "nextthing,gr8-pinctrl";
 
-	i2s0_data_pins_a: i2s0-data@0 {
+	i2s0_data_pins: i2s0-data-pins {
 		pins = "PB6", "PB7", "PB8", "PB9";
 		function = "i2s0";
 	};
 
-	i2s0_mclk_pins_a: i2s0-mclk@0 {
+	i2s0_mclk_pin: i2s0-mclk-pin {
 		pins = "PB5";
 		function = "i2s0";
 	};
 
-	pwm1_pins: pwm1 {
+	pwm1_pins: pwm1-pin {
 		pins = "PG13";
 		function = "pwm1";
 	};
 
-	spdif_tx_pins_a: spdif@0 {
+	spdif_tx_pin: spdif-tx-pin {
 		pins = "PB10";
 		function = "spdif";
 		bias-pull-up;
 	};
 
-	uart1_cts_rts_pins_a: uart1-cts-rts@0 {
+	uart1_cts_rts_pins: uart1-cts-rts-pins {
 		pins = "PG5", "PG6";
 		function = "uart1";
 	};

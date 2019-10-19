@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2006-2010, 2012-2013 Freescale Semiconductor, Inc.
  * All rights reserved.
@@ -10,11 +11,6 @@
  *
  * Description:
  * MPC85xx MDS board specific routines.
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #include <linux/stddef.h>
@@ -366,10 +362,6 @@ static int __init mpc85xx_publish_devices(void)
 machine_arch_initcall(mpc8568_mds, mpc85xx_publish_devices);
 machine_arch_initcall(mpc8569_mds, mpc85xx_publish_devices);
 machine_arch_initcall(p1021_mds, mpc85xx_common_publish_devices);
-
-machine_arch_initcall(mpc8568_mds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(mpc8569_mds, swiotlb_setup_bus_notifier);
-machine_arch_initcall(p1021_mds, swiotlb_setup_bus_notifier);
 
 static void __init mpc85xx_mds_pic_init(void)
 {

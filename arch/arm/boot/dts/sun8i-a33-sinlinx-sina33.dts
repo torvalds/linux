@@ -63,16 +63,9 @@
 
 	panel {
 		compatible = "netron-dy,e231732";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		port@0 {
-			reg = <0>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			panel_input: endpoint@0 {
-				reg = <0>;
+		port {
+			panel_input: endpoint {
 				remote-endpoint = <&tcon0_out_panel>;
 			};
 		};
@@ -117,21 +110,21 @@
 	vref-supply = <&reg_dcdc1>;
 	status = "okay";
 
-	button@200 {
+	button-200 {
 		label = "Volume Up";
 		linux,code = <KEY_VOLUMEUP>;
 		channel = <0>;
 		voltage = <191011>;
 	};
 
-	button@400 {
+	button-400 {
 		label = "Volume Down";
 		linux,code = <KEY_VOLUMEDOWN>;
 		channel = <0>;
 		voltage = <391304>;
 	};
 
-	button@600 {
+	button-600 {
 		label = "Home";
 		linux,code = <KEY_HOME>;
 		channel = <0>;
@@ -140,12 +133,9 @@
 };
 
 &mmc0 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc0_pins_a>, <&mmc0_cd_pin_sina33>;
 	vmmc-supply = <&reg_dcdc1>;
 	bus-width = <4>;
-	cd-gpios = <&pio 1 4 GPIO_ACTIVE_HIGH>; /* PB4 */
-	cd-inverted;
+	cd-gpios = <&pio 1 4 GPIO_ACTIVE_LOW>; /* PB4 */
 	status = "okay";
 };
 
@@ -162,20 +152,10 @@
 &mmc2_8bit_pins {
 	/* Increase drive strength for DDR modes */
 	drive-strength = <40>;
-	/* eMMC is missing pull-ups */
-	bias-pull-up;
 };
 
 &ohci0 {
 	status = "okay";
-};
-
-&pio {
-	mmc0_cd_pin_sina33: mmc0_cd_pin@0 {
-		pins = "PB4";
-		function = "gpio_in";
-		bias-pull-up;
-	};
 };
 
 &r_rsb {
@@ -279,7 +259,7 @@
 
 &uart0 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&uart0_pins_b>;
+	pinctrl-0 = <&uart0_pb_pins>;
 	status = "okay";
 };
 

@@ -1188,19 +1188,6 @@ static int aty_crtc_to_var(const struct crtc *crtc,
 		(c_sync ? FB_SYNC_COMP_HIGH_ACT : 0);
 
 	switch (pix_width) {
-#if 0
-	case CRTC_PIX_WIDTH_4BPP:
-		bpp = 4;
-		var->red.offset = 0;
-		var->red.length = 8;
-		var->green.offset = 0;
-		var->green.length = 8;
-		var->blue.offset = 0;
-		var->blue.length = 8;
-		var->transp.offset = 0;
-		var->transp.length = 0;
-		break;
-#endif
 	case CRTC_PIX_WIDTH_8BPP:
 		bpp = 8;
 		var->red.offset = 0;
@@ -1466,11 +1453,6 @@ static int atyfb_set_par(struct fb_info *info)
 		var->bits_per_pixel,
 		par->crtc.vxres * var->bits_per_pixel / 8);
 #endif /* CONFIG_BOOTX_TEXT */
-#if 0
-	/* switch to accelerator mode */
-	if (!(par->crtc.gen_cntl & CRTC_EXT_DISP_EN))
-		aty_st_le32(CRTC_GEN_CNTL, par->crtc.gen_cntl | CRTC_EXT_DISP_EN, par);
-#endif
 #ifdef DEBUG
 {
 	/* dump non shadow CRTC, pll, LCD registers */
@@ -1480,24 +1462,28 @@ static int atyfb_set_par(struct fb_info *info)
 	base = 0x2000;
 	printk("debug atyfb: Mach64 non-shadow register values:");
 	for (i = 0; i < 256; i = i+4) {
-		if (i % 16 == 0)
-			printk("\ndebug atyfb: 0x%04X: ", base + i);
-		printk(" %08X", aty_ld_le32(i, par));
+		if (i % 16 == 0) {
+			pr_cont("\n");
+			printk("debug atyfb: 0x%04X: ", base + i);
+		}
+		pr_cont(" %08X", aty_ld_le32(i, par));
 	}
-	printk("\n\n");
+	pr_cont("\n\n");
 
 #ifdef CONFIG_FB_ATY_CT
 	/* PLL registers */
 	base = 0x00;
 	printk("debug atyfb: Mach64 PLL register values:");
 	for (i = 0; i < 64; i++) {
-		if (i % 16 == 0)
-			printk("\ndebug atyfb: 0x%02X: ", base + i);
+		if (i % 16 == 0) {
+			pr_cont("\n");
+			printk("debug atyfb: 0x%02X: ", base + i);
+		}
 		if (i % 4 == 0)
-			printk(" ");
-		printk("%02X", aty_ld_pll_ct(i, par));
+			pr_cont(" ");
+		pr_cont("%02X", aty_ld_pll_ct(i, par));
 	}
-	printk("\n\n");
+	pr_cont("\n\n");
 #endif	/* CONFIG_FB_ATY_CT */
 
 #ifdef CONFIG_FB_ATY_GENERIC_LCD
@@ -1509,19 +1495,19 @@ static int atyfb_set_par(struct fb_info *info)
 			for (i = 0; i <= POWER_MANAGEMENT; i++) {
 				if (i == EXT_VERT_STRETCH)
 					continue;
-				printk("\ndebug atyfb: 0x%04X: ",
+				pr_cont("\ndebug atyfb: 0x%04X: ",
 				       lt_lcd_regs[i]);
-				printk(" %08X", aty_ld_lcd(i, par));
+				pr_cont(" %08X", aty_ld_lcd(i, par));
 			}
 		} else {
 			for (i = 0; i < 64; i++) {
 				if (i % 4 == 0)
-					printk("\ndebug atyfb: 0x%02X: ",
+					pr_cont("\ndebug atyfb: 0x%02X: ",
 					       base + i);
-				printk(" %08X", aty_ld_lcd(i, par));
+				pr_cont(" %08X", aty_ld_lcd(i, par));
 			}
 		}
-		printk("\n\n");
+		pr_cont("\n\n");
 	}
 #endif /* CONFIG_FB_ATY_GENERIC_LCD */
 }
@@ -2392,17 +2378,6 @@ static int aty_init(struct fb_info *info)
 			par->pll_ops = &aty_pll_ibm514;
 			break;
 #endif
-#if 0 /* dead code */
-		case CLK_STG1703:
-			par->pll_ops = &aty_pll_stg1703;
-			break;
-		case CLK_CH8398:
-			par->pll_ops = &aty_pll_ch8398;
-			break;
-		case CLK_ATT20C408:
-			par->pll_ops = &aty_pll_att20c408;
-			break;
-#endif
 		default:
 			PRINTKI("aty_init: CLK type not implemented yet!");
 			par->pll_ops = &aty_pll_unsupported;
@@ -2597,8 +2572,8 @@ static int aty_init(struct fb_info *info)
 		       aty_ld_le32(DSP_ON_OFF, par),
 		       aty_ld_le32(CLOCK_CNTL, par));
 		for (i = 0; i < 40; i++)
-			printk(" %02x", aty_ld_pll_ct(i, par));
-		printk("\n");
+			pr_cont(" %02x", aty_ld_pll_ct(i, par));
+		pr_cont("\n");
 	}
 #endif
 	if (par->pll_ops->init_pll)
@@ -3087,17 +3062,18 @@ static int atyfb_setup_sparc(struct pci_dev *pdev, struct fb_info *info,
 		/*
 		 * PLL Reference Divider M:
 		 */
-		M = pll_regs[2];
+		M = pll_regs[PLL_REF_DIV];
 
 		/*
 		 * PLL Feedback Divider N (Dependent on CLOCK_CNTL):
 		 */
-		N = pll_regs[7 + (clock_cntl & 3)];
+		N = pll_regs[VCLK0_FB_DIV + (clock_cntl & 3)];
 
 		/*
 		 * PLL Post Divider P (Dependent on CLOCK_CNTL):
 		 */
-		P = 1 << (pll_regs[6] >> ((clock_cntl & 3) << 1));
+		P = aty_postdividers[((pll_regs[VCLK_POST_DIV] >> ((clock_cntl & 3) << 1)) & 3) |
+		                     ((pll_regs[PLL_EXT_CNTL] >> (2 + (clock_cntl & 3))) & 4)];
 
 		/*
 		 * PLL Divider Q:
@@ -3545,10 +3521,9 @@ static int atyfb_pci_probe(struct pci_dev *pdev,
 
 	/* Allocate framebuffer */
 	info = framebuffer_alloc(sizeof(struct atyfb_par), &pdev->dev);
-	if (!info) {
-		PRINTKE("atyfb_pci_probe() can't alloc fb_info\n");
+	if (!info)
 		return -ENOMEM;
-	}
+
 	par = info->par;
 	par->bus_type = PCI;
 	info->fix = atyfb_fix;
@@ -3638,10 +3613,9 @@ static int __init atyfb_atari_probe(void)
 		}
 
 		info = framebuffer_alloc(sizeof(struct atyfb_par), NULL);
-		if (!info) {
-			PRINTKE("atyfb_atari_probe() can't alloc fb_info\n");
+		if (!info)
 			return -ENOMEM;
-		}
+
 		par = info->par;
 
 		info->fix = atyfb_fix;
@@ -3911,8 +3885,7 @@ static int atyfb_reboot_notify(struct notifier_block *nb,
 	if (!reboot_info)
 		goto out;
 
-	if (!lock_fb_info(reboot_info))
-		goto out;
+	lock_fb_info(reboot_info);
 
 	par = reboot_info->par;
 

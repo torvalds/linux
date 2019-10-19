@@ -1,20 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2016 Linaro Ltd.
  * Copyright 2016 ZTE Corporation.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  */
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fb_cma_helper.h>
+#include <drm/drm_fourcc.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_plane_helper.h>
-#include <drm/drmP.h>
 
 #include "zx_common_regs.h"
 #include "zx_drm_drv.h"
@@ -55,7 +51,6 @@ static int zx_vl_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_crtc *crtc = plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip;
 	int min_scale = FRAC_16_16(1, 8);
 	int max_scale = FRAC_16_16(8, 1);
 
@@ -75,13 +70,8 @@ static int zx_vl_plane_atomic_check(struct drm_plane *plane,
 	if (!plane_state->crtc)
 		return -EINVAL;
 
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						   &clip, min_scale, max_scale,
+						   min_scale, max_scale,
 						   true, true);
 }
 
@@ -205,7 +195,6 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	u32 dst_x, dst_y, dst_w, dst_h;
 	uint32_t format;
 	int fmt;
-	int num_planes;
 	int i;
 
 	if (!fb)
@@ -224,13 +213,12 @@ static void zx_vl_plane_atomic_update(struct drm_plane *plane,
 	dst_h = drm_rect_height(dst);
 
 	/* Set up data address registers for Y, Cb and Cr planes */
-	num_planes = drm_format_num_planes(format);
 	paddr_reg = layer + VL_Y;
-	for (i = 0; i < num_planes; i++) {
+	for (i = 0; i < fb->format->num_planes; i++) {
 		cma_obj = drm_fb_cma_get_gem_obj(fb, i);
 		paddr = cma_obj->paddr + fb->offsets[i];
 		paddr += src_y * fb->pitches[i];
-		paddr += src_x * drm_format_plane_cpp(format, i);
+		paddr += src_x * fb->format->cpp[i];
 		zx_writel(paddr_reg, paddr);
 		paddr_reg += 4;
 	}
@@ -274,7 +262,7 @@ static void zx_plane_atomic_disable(struct drm_plane *plane,
 	struct zx_plane *zplane = to_zx_plane(plane);
 	void __iomem *hbsc = zplane->hbsc;
 
-	zx_vou_layer_disable(plane);
+	zx_vou_layer_disable(plane, old_state);
 
 	/* Disable HBSC block */
 	zx_writel_mask(hbsc + HBSC_CTRL0, HBSC_CTRL_EN, 0);
@@ -292,7 +280,6 @@ static int zx_gl_plane_atomic_check(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_crtc *crtc = plane_state->crtc;
 	struct drm_crtc_state *crtc_state;
-	struct drm_rect clip;
 
 	if (!crtc || !fb)
 		return 0;
@@ -310,13 +297,7 @@ static int zx_gl_plane_atomic_check(struct drm_plane *plane,
 	if (!plane_state->crtc)
 		return -EINVAL;
 
-	clip.x1 = 0;
-	clip.y1 = 0;
-	clip.x2 = crtc_state->adjusted_mode.hdisplay;
-	clip.y2 = crtc_state->adjusted_mode.vdisplay;
-
 	return drm_atomic_helper_check_plane_state(plane_state, crtc_state,
-						   &clip,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   DRM_PLANE_HELPER_NO_SCALING,
 						   false, true);
@@ -459,7 +440,6 @@ static const struct drm_plane_helper_funcs zx_gl_plane_helper_funcs = {
 
 static void zx_plane_destroy(struct drm_plane *plane)
 {
-	drm_plane_helper_disable(plane);
 	drm_plane_cleanup(plane);
 }
 

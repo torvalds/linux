@@ -408,26 +408,29 @@ static ssize_t thunderx_lmc_inject_ecc_write(struct file *file,
 					     size_t count, loff_t *ppos)
 {
 	struct thunderx_lmc *lmc = file->private_data;
-
 	unsigned int cline_size = cache_line_size();
-
-	u8 tmp[cline_size];
+	u8 *tmp;
 	void __iomem *addr;
 	unsigned int offs, timeout = 100000;
 
 	atomic_set(&lmc->ecc_int, 0);
 
 	lmc->mem = alloc_pages_node(lmc->node, GFP_KERNEL, 0);
-
 	if (!lmc->mem)
 		return -ENOMEM;
+
+	tmp = kmalloc(cline_size, GFP_KERNEL);
+	if (!tmp) {
+		__free_pages(lmc->mem, 0);
+		return -ENOMEM;
+	}
 
 	addr = page_address(lmc->mem);
 
 	while (!atomic_read(&lmc->ecc_int) && timeout--) {
 		stop_machine(inject_ecc_fn, lmc, NULL);
 
-		for (offs = 0; offs < PAGE_SIZE; offs += sizeof(tmp)) {
+		for (offs = 0; offs < PAGE_SIZE; offs += cline_size) {
 			/*
 			 * Do a load from the previously rigged location
 			 * This should generate an error interrupt.
@@ -437,6 +440,7 @@ static ssize_t thunderx_lmc_inject_ecc_write(struct file *file,
 		}
 	}
 
+	kfree(tmp);
 	__free_pages(lmc->mem, 0);
 
 	return count;
@@ -1880,7 +1884,7 @@ static irqreturn_t thunderx_l2c_threaded_isr(int irq, void *irq_id)
 	default:
 		dev_err(&l2c->pdev->dev, "Unsupported device: %04x\n",
 			l2c->pdev->device);
-		return IRQ_NONE;
+		goto err_free;
 	}
 
 	while (CIRC_CNT(l2c->ring_head, l2c->ring_tail,
@@ -1902,7 +1906,7 @@ static irqreturn_t thunderx_l2c_threaded_isr(int irq, void *irq_id)
 		l2c->ring_tail++;
 	}
 
-	return IRQ_HANDLED;
+	ret = IRQ_HANDLED;
 
 err_free:
 	kfree(other);

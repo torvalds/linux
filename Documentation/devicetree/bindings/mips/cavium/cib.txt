@@ -13,8 +13,6 @@ Properties:
 - cavium,max-bits: The index (zero based) of the highest numbered bit
   in the CIB block.
 
-- interrupt-parent:  Always the CIU on the SoC.
-
 - interrupts: The CIU line to which the CIB block is connected.
 
 - #interrupt-cells: Must be <2>.  The first cell is the bit within the

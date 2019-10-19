@@ -26,29 +26,8 @@ menuconfig BLOCK
 
 if BLOCK
 
-config LBDAF
-	bool "Support for large (2TB+) block devices and files"
-	depends on !64BIT
-	default y
-	help
-	  Enable block devices or files of size 2TB and larger.
-
-	  This option is required to support the full capacity of large
-	  (2TB+) block devices, including RAID, disk, Network Block Device,
-	  Logical Volume Manager (LVM) and loopback.
-	
-	  This option also enables support for single files larger than
-	  2TB.
-
-	  The ext4 filesystem requires that this feature be enabled in
-	  order to support filesystems that have the huge_file feature
-	  enabled.  Otherwise, it will refuse to mount in the read-write
-	  mode any filesystems that use the huge_file feature, which is
-	  enabled by default by mke2fs.ext4.
-
-	  The GFS2 filesystem also requires this feature.
-
-	  If unsure, say Y.
+config BLK_RQ_ALLOC_TIME
+	bool
 
 config BLK_SCSI_REQUEST
 	bool
@@ -74,7 +53,6 @@ config BLK_DEV_BSG
 
 config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
-	default n
 	select BLK_DEV_BSG
 	select BLK_SCSI_REQUEST
 	help
@@ -98,6 +76,7 @@ config BLK_DEV_INTEGRITY
 
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
+	select MQ_IOSCHED_DEADLINE
 	---help---
 	Block layer zoned block device support. This option enables
 	support for ZAC/ZBC host-managed and host-aware zoned block devices.
@@ -107,19 +86,17 @@ config BLK_DEV_ZONED
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
 	depends on BLK_CGROUP=y
-	default n
 	---help---
 	Block layer bio throttling support. It can be used to limit
 	the IO rate to a device. IO rate policies are per cgroup and
 	one needs to mount and use blkio cgroup controller for creating
 	cgroups and specifying per device IO rate policies.
 
-	See Documentation/cgroups/blkio-controller.txt for more information.
+	See Documentation/admin-guide/cgroup-v1/blkio-controller.rst for more information.
 
 config BLK_DEV_THROTTLING_LOW
 	bool "Block throttling .low limit interface support (EXPERIMENTAL)"
 	depends on BLK_DEV_THROTTLING
-	default n
 	---help---
 	Add .low limit interface for block throttling. The low limit is a best
 	effort limit to prioritize cgroups. Depending on the setting, the limit
@@ -130,18 +107,16 @@ config BLK_DEV_THROTTLING_LOW
 
 config BLK_CMDLINE_PARSER
 	bool "Block device command line partition parser"
-	default n
 	---help---
 	Enabling this option allows you to specify the partition layout from
 	the kernel boot args.  This is typically of use for embedded devices
 	which don't otherwise have any standardized method for listing the
 	partitions on a block device.
 
-	See Documentation/block/cmdline-partition.txt for more information.
+	See Documentation/block/cmdline-partition.rst for more information.
 
 config BLK_WBT
 	bool "Enable support for block device writeback throttling"
-	default n
 	---help---
 	Enabling this option enables the block layer to throttle buffered
 	background writeback from the VM, making it more smooth and having
@@ -149,12 +124,26 @@ config BLK_WBT
 	dynamically on an algorithm loosely based on CoDel, factoring in
 	the realtime performance of the disk.
 
-config BLK_WBT_SQ
-	bool "Single queue writeback throttling"
-	default n
-	depends on BLK_WBT
+config BLK_CGROUP_IOLATENCY
+	bool "Enable support for latency based cgroup IO protection"
+	depends on BLK_CGROUP=y
 	---help---
-	Enable writeback throttling by default on legacy single queue devices
+	Enabling this option enables the .latency interface for IO throttling.
+	The IO controller will attempt to maintain average IO latencies below
+	the configured latency target, throttling anybody with a higher latency
+	target than the victimized group.
+
+	Note, this is an experimental interface and could be changed someday.
+
+config BLK_CGROUP_IOCOST
+	bool "Enable support for cost model based cgroup IO controller"
+	depends on BLK_CGROUP=y
+	select BLK_RQ_ALLOC_TIME
+	---help---
+	Enabling this option enables the .weight interface for cost
+	model based proportional IO control.  The IO controller
+	distributes IO capacity between different groups based on
+	their share of the overall weight distribution.
 
 config BLK_WBT_MQ
 	bool "Multiqueue writeback throttling"
@@ -176,6 +165,10 @@ config BLK_DEBUG_FS
 
 	Unless you are building a kernel for a tiny system, you should
 	say Y here.
+
+config BLK_DEBUG_FS_ZONED
+       bool
+       default BLK_DEBUG_FS && BLK_DEV_ZONED
 
 config BLK_SED_OPAL
 	bool "Logic for interfacing with Opal enabled SEDs"
@@ -212,4 +205,7 @@ config BLK_MQ_RDMA
 	depends on BLOCK && INFINIBAND
 	default y
 
-source block/Kconfig.iosched
+config BLK_PM
+	def_bool BLOCK && PM
+
+source "block/Kconfig.iosched"

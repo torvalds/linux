@@ -4,7 +4,7 @@
 
 #include <linux/configfs.h>      /* struct config_group */
 #include <linux/dma-direction.h> /* enum dma_data_direction */
-#include <linux/percpu_ida.h>    /* struct percpu_ida */
+#include <linux/sbitmap.h>
 #include <linux/percpu-refcount.h>
 #include <linux/semaphore.h>     /* struct semaphore */
 #include <linux/completion.h>
@@ -45,6 +45,10 @@
 #define INQUIRY_VPD_SERIAL_LEN			254
 /* Used by transport_get_inquiry_vpd_device_ident() */
 #define INQUIRY_VPD_DEVICE_IDENTIFIER_LEN	254
+
+#define INQUIRY_VENDOR_LEN			8
+#define INQUIRY_MODEL_LEN			16
+#define INQUIRY_REVISION_LEN			4
 
 /* Attempts before moving from SHORT to LONG */
 #define PYX_TRANSPORT_WINDOW_CLOSED_THRESHOLD	3
@@ -87,6 +91,8 @@
 #define DA_EMULATE_3PC				1
 /* No Emulation for PSCSI by default */
 #define DA_EMULATE_ALUA				0
+/* Emulate SCSI2 RESERVE/RELEASE and Persistent Reservations by default */
+#define DA_EMULATE_PR				1
 /* Enforce SCSI Initiator Port TransportID with 'ISID' for PR */
 #define DA_ENFORCE_PR_ISIDS			1
 /* Force SPC-3 PR Activate Persistence across Target Power Loss */
@@ -134,15 +140,14 @@ enum se_cmd_flags_table {
 	SCF_SENT_CHECK_CONDITION	= 0x00000800,
 	SCF_OVERFLOW_BIT		= 0x00001000,
 	SCF_UNDERFLOW_BIT		= 0x00002000,
-	SCF_SEND_DELAYED_TAS		= 0x00004000,
 	SCF_ALUA_NON_OPTIMIZED		= 0x00008000,
 	SCF_PASSTHROUGH_SG_TO_MEM_NOALLOC = 0x00020000,
 	SCF_COMPARE_AND_WRITE		= 0x00080000,
-	SCF_COMPARE_AND_WRITE_POST	= 0x00100000,
 	SCF_PASSTHROUGH_PROT_SG_TO_MEM_NOALLOC = 0x00200000,
 	SCF_ACK_KREF			= 0x00400000,
 	SCF_USE_CPUID			= 0x00800000,
 	SCF_TASK_ATTR_SET		= 0x01000000,
+	SCF_TREAT_READ_AS_NORMAL	= 0x02000000,
 };
 
 /*
@@ -314,9 +319,13 @@ struct t10_vpd {
 };
 
 struct t10_wwn {
-	char vendor[8];
-	char model[16];
-	char revision[4];
+	/*
+	 * SCSI left aligned strings may not be null terminated. +1 to ensure a
+	 * null terminator is always present.
+	 */
+	char vendor[INQUIRY_VENDOR_LEN + 1];
+	char model[INQUIRY_MODEL_LEN + 1];
+	char revision[INQUIRY_REVISION_LEN + 1];
 	char unit_serial[INQUIRY_VPD_SERIAL_LEN];
 	spinlock_t t10_vpd_lock;
 	struct se_device *t10_dev;
@@ -442,7 +451,6 @@ struct se_cmd {
 	u8			scsi_asc;
 	u8			scsi_ascq;
 	u16			scsi_sense_length;
-	unsigned		cmd_wait_set:1;
 	unsigned		unknown_data_length:1;
 	bool			state_active:1;
 	u64			tag; /* SAM command identifier aka task tag */
@@ -454,6 +462,7 @@ struct se_cmd {
 	int			sam_task_attr;
 	/* Used for se_sess->sess_tag_pool */
 	unsigned int		map_tag;
+	int			map_cpu;
 	/* Transport protocol dependent state, see transport_state_table */
 	enum transport_state_table t_state;
 	/* See se_cmd_flags_table */
@@ -474,7 +483,8 @@ struct se_cmd {
 	struct se_session	*se_sess;
 	struct se_tmr_req	*se_tmr_req;
 	struct list_head	se_cmd_list;
-	struct completion	cmd_wait_comp;
+	struct completion	*free_compl;
+	struct completion	*abrt_compl;
 	const struct target_core_fabric_ops *se_tfo;
 	sense_reason_t		(*execute_cmd)(struct se_cmd *);
 	sense_reason_t (*transport_complete_callback)(struct se_cmd *, bool, int *);
@@ -492,7 +502,6 @@ struct se_cmd {
 #define CMD_T_STOP		(1 << 5)
 #define CMD_T_TAS		(1 << 10)
 #define CMD_T_FABRIC_STOP	(1 << 11)
-#define CMD_T_PRE_EXECUTE	(1 << 12)
 	spinlock_t		t_state_lock;
 	struct kref		cmd_kref;
 	struct completion	t_transport_stop_comp;
@@ -601,13 +610,14 @@ struct se_session {
 	struct se_node_acl	*se_node_acl;
 	struct se_portal_group *se_tpg;
 	void			*fabric_sess_ptr;
+	struct percpu_ref	cmd_count;
 	struct list_head	sess_list;
 	struct list_head	sess_acl_list;
 	struct list_head	sess_cmd_list;
-	struct list_head	sess_wait_list;
 	spinlock_t		sess_cmd_lock;
+	wait_queue_head_t	cmd_list_wq;
 	void			*sess_cmd_map;
-	struct percpu_ida	sess_tag_pool;
+	struct sbitmap_queue	sess_tag_pool;
 };
 
 struct se_device;
@@ -637,7 +647,6 @@ struct se_dev_entry {
 	atomic_long_t		total_cmds;
 	atomic_long_t		read_bytes;
 	atomic_long_t		write_bytes;
-	atomic_t		ua_count;
 	/* Used for PR SPEC_I_PT=1 and REGISTER_AND_MOVE */
 	struct kref		pr_kref;
 	struct completion	pr_comp;
@@ -665,7 +674,7 @@ struct se_dev_attrib {
 	int		emulate_tpws;
 	int		emulate_caw;
 	int		emulate_3pc;
-	int		pi_prot_format;
+	int		emulate_pr;
 	enum target_prot_type pi_prot_type;
 	enum target_prot_type hw_pi_prot_type;
 	int		pi_prot_verify;
@@ -732,7 +741,6 @@ struct se_lun {
 	struct scsi_port_stats	lun_stats;
 	struct config_group	lun_group;
 	struct se_port_stat_grps port_stat_grps;
-	struct completion	lun_ref_comp;
 	struct completion	lun_shutdown_comp;
 	struct percpu_ref	lun_ref;
 	struct list_head	lun_dev_link;
@@ -787,15 +795,14 @@ struct se_device {
 	spinlock_t		se_tmr_lock;
 	spinlock_t		qf_cmd_lock;
 	struct semaphore	caw_sem;
-	/* Used for legacy SPC-2 reservationsa */
-	struct se_node_acl	*dev_reserved_node_acl;
+	/* Used for legacy SPC-2 reservations */
+	struct se_session	*reservation_holder;
 	/* Used for ALUA Logical Unit Group membership */
 	struct t10_alua_lu_gp_member *dev_alua_lu_gp_mem;
 	/* Used for SPC-3 Persistent Reservations */
 	struct t10_pr_registration *dev_pr_res_holder;
 	struct list_head	dev_sep_list;
 	struct list_head	dev_tmr_list;
-	struct workqueue_struct *tmr_wq;
 	struct work_struct	qf_work_queue;
 	struct list_head	delayed_cmd_list;
 	struct list_head	state_list;
@@ -931,6 +938,11 @@ static inline void atomic_dec_mb(atomic_t *v)
 	smp_mb__before_atomic();
 	atomic_dec(v);
 	smp_mb__after_atomic();
+}
+
+static inline void target_free_tag(struct se_session *sess, struct se_cmd *cmd)
+{
+	sbitmap_queue_clear(&sess->sess_tag_pool, cmd->map_tag, cmd->map_cpu);
 }
 
 #endif /* TARGET_CORE_BASE_H */

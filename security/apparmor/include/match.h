@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2012 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #ifndef __AA_MATCH_H
@@ -40,6 +36,7 @@
  */
 
 #define YYTH_MAGIC	0x1B5E783D
+#define YYTH_FLAG_DIFF_ENCODE	1
 
 struct table_set_header {
 	u32 th_magic;		/* YYTH_MAGIC */
@@ -101,6 +98,7 @@ struct aa_dfa {
 };
 
 extern struct aa_dfa *nulldfa;
+extern struct aa_dfa *stacksplitdfa;
 
 #define byte_to_byte(X) (X)
 
@@ -129,8 +127,31 @@ unsigned int aa_dfa_match(struct aa_dfa *dfa, unsigned int start,
 			  const char *str);
 unsigned int aa_dfa_next(struct aa_dfa *dfa, unsigned int state,
 			 const char c);
+unsigned int aa_dfa_match_until(struct aa_dfa *dfa, unsigned int start,
+				const char *str, const char **retpos);
+unsigned int aa_dfa_matchn_until(struct aa_dfa *dfa, unsigned int start,
+				 const char *str, int n, const char **retpos);
 
 void aa_dfa_free_kref(struct kref *kref);
+
+#define WB_HISTORY_SIZE 8
+struct match_workbuf {
+	unsigned int count;
+	unsigned int pos;
+	unsigned int len;
+	unsigned int size;	/* power of 2, same as history size */
+	unsigned int history[WB_HISTORY_SIZE];
+};
+#define DEFINE_MATCH_WB(N)		\
+struct match_workbuf N = {		\
+	.count = 0,			\
+	.pos = 0,			\
+	.len = 0,			\
+	.size = WB_HISTORY_SIZE,			\
+}
+
+unsigned int aa_dfa_leftmatch(struct aa_dfa *dfa, unsigned int start,
+			      const char *str, unsigned int *count);
 
 /**
  * aa_get_dfa - increment refcount on dfa @p
@@ -158,5 +179,8 @@ static inline void aa_put_dfa(struct aa_dfa *dfa)
 	if (dfa)
 		kref_put(&dfa->count, aa_dfa_free_kref);
 }
+
+#define MATCH_FLAG_DIFF_ENCODE 0x80000000
+#define MARK_DIFF_ENCODE 0x40000000
 
 #endif /* __AA_MATCH_H */

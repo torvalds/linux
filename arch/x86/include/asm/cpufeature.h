@@ -22,8 +22,8 @@ enum cpuid_leafs
 	CPUID_LNX_3,
 	CPUID_7_0_EBX,
 	CPUID_D_1_EAX,
-	CPUID_F_0_EDX,
-	CPUID_F_1_EDX,
+	CPUID_LNX_4,
+	CPUID_7_1_EAX,
 	CPUID_8000_0008_EBX,
 	CPUID_6_EAX,
 	CPUID_8000_000A_EDX,
@@ -61,6 +61,13 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 #define CHECK_BIT_IN_MASK_WORD(maskname, word, bit)	\
 	(((bit)>>5)==(word) && (1UL<<((bit)&31) & maskname##word ))
 
+/*
+ * {REQUIRED,DISABLED}_MASK_CHECK below may seem duplicated with the
+ * following BUILD_BUG_ON_ZERO() check but when NCAPINTS gets changed, all
+ * header macros which use NCAPINTS need to be changed. The duplicated macro
+ * use causes the compiler to issue errors for all headers so that all usage
+ * sites can be corrected.
+ */
 #define REQUIRED_MASK_BIT_SET(feature_bit)		\
 	 ( CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK,  0, feature_bit) ||	\
 	   CHECK_BIT_IN_MASK_WORD(REQUIRED_MASK,  1, feature_bit) ||	\
@@ -112,8 +119,9 @@ extern const char * const x86_bug_flags[NBUGINTS*32];
 	 test_cpu_cap(c, bit))
 
 #define this_cpu_has(bit)						\
-	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 : 	\
-	 x86_this_cpu_test_bit(bit, (unsigned long *)&cpu_info.x86_capability))
+	(__builtin_constant_p(bit) && REQUIRED_MASK_BIT_SET(bit) ? 1 :	\
+	 x86_this_cpu_test_bit(bit,					\
+		(unsigned long __percpu *)&cpu_info.x86_capability))
 
 /*
  * This macro is for detection of features which need kernel
@@ -140,53 +148,70 @@ extern void clear_cpu_cap(struct cpuinfo_x86 *c, unsigned int bit);
 
 #define setup_force_cpu_bug(bit) setup_force_cpu_cap(bit)
 
-#if defined(CC_HAVE_ASM_GOTO) && defined(CONFIG_X86_FAST_FEATURE_TESTS)
+#if defined(__clang__) && !defined(CONFIG_CC_HAS_ASM_GOTO)
+
 /*
- * Static testing of CPU features.  Used the same as boot_cpu_has().
- * These will statically patch the target code for additional
- * performance.
+ * Workaround for the sake of BPF compilation which utilizes kernel
+ * headers, but clang does not support ASM GOTO and fails the build.
  */
-static __always_inline __pure bool _static_cpu_has(u16 bit)
+#ifndef __BPF_TRACING__
+#warning "Compiler lacks ASM_GOTO support. Add -D __BPF_TRACING__ to your compiler arguments"
+#endif
+
+#define static_cpu_has(bit)            boot_cpu_has(bit)
+
+#else
+
+/*
+ * Static testing of CPU features. Used the same as boot_cpu_has(). It
+ * statically patches the target code for additional performance. Use
+ * static_cpu_has() only in fast paths, where every cycle counts. Which
+ * means that the boot_cpu_has() variant is already fast enough for the
+ * majority of cases and you should stick to using it as it is generally
+ * only two instructions: a RIP-relative MOV and a TEST.
+ */
+static __always_inline bool _static_cpu_has(u16 bit)
 {
-		asm_volatile_goto("1: jmp 6f\n"
-			 "2:\n"
-			 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
-			         "((5f-4f) - (2b-1b)),0x90\n"
-			 "3:\n"
-			 ".section .altinstructions,\"a\"\n"
-			 " .long 1b - .\n"		/* src offset */
-			 " .long 4f - .\n"		/* repl offset */
-			 " .word %P1\n"			/* always replace */
-			 " .byte 3b - 1b\n"		/* src len */
-			 " .byte 5f - 4f\n"		/* repl len */
-			 " .byte 3b - 2b\n"		/* pad len */
-			 ".previous\n"
-			 ".section .altinstr_replacement,\"ax\"\n"
-			 "4: jmp %l[t_no]\n"
-			 "5:\n"
-			 ".previous\n"
-			 ".section .altinstructions,\"a\"\n"
-			 " .long 1b - .\n"		/* src offset */
-			 " .long 0\n"			/* no replacement */
-			 " .word %P0\n"			/* feature bit */
-			 " .byte 3b - 1b\n"		/* src len */
-			 " .byte 0\n"			/* repl len */
-			 " .byte 0\n"			/* pad len */
-			 ".previous\n"
-			 ".section .altinstr_aux,\"ax\"\n"
-			 "6:\n"
-			 " testb %[bitnum],%[cap_byte]\n"
-			 " jnz %l[t_yes]\n"
-			 " jmp %l[t_no]\n"
-			 ".previous\n"
-			 : : "i" (bit), "i" (X86_FEATURE_ALWAYS),
-			     [bitnum] "i" (1 << (bit & 7)),
-			     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
-			 : : t_yes, t_no);
-	t_yes:
-		return true;
-	t_no:
-		return false;
+	asm_volatile_goto("1: jmp 6f\n"
+		 "2:\n"
+		 ".skip -(((5f-4f) - (2b-1b)) > 0) * "
+			 "((5f-4f) - (2b-1b)),0x90\n"
+		 "3:\n"
+		 ".section .altinstructions,\"a\"\n"
+		 " .long 1b - .\n"		/* src offset */
+		 " .long 4f - .\n"		/* repl offset */
+		 " .word %P[always]\n"		/* always replace */
+		 " .byte 3b - 1b\n"		/* src len */
+		 " .byte 5f - 4f\n"		/* repl len */
+		 " .byte 3b - 2b\n"		/* pad len */
+		 ".previous\n"
+		 ".section .altinstr_replacement,\"ax\"\n"
+		 "4: jmp %l[t_no]\n"
+		 "5:\n"
+		 ".previous\n"
+		 ".section .altinstructions,\"a\"\n"
+		 " .long 1b - .\n"		/* src offset */
+		 " .long 0\n"			/* no replacement */
+		 " .word %P[feature]\n"		/* feature bit */
+		 " .byte 3b - 1b\n"		/* src len */
+		 " .byte 0\n"			/* repl len */
+		 " .byte 0\n"			/* pad len */
+		 ".previous\n"
+		 ".section .altinstr_aux,\"ax\"\n"
+		 "6:\n"
+		 " testb %[bitnum],%[cap_byte]\n"
+		 " jnz %l[t_yes]\n"
+		 " jmp %l[t_no]\n"
+		 ".previous\n"
+		 : : [feature]  "i" (bit),
+		     [always]   "i" (X86_FEATURE_ALWAYS),
+		     [bitnum]   "i" (1 << (bit & 7)),
+		     [cap_byte] "m" (((const char *)boot_cpu_data.x86_capability)[bit >> 3])
+		 : : t_yes, t_no);
+t_yes:
+	return true;
+t_no:
+	return false;
 }
 
 #define static_cpu_has(bit)					\
@@ -195,12 +220,6 @@ static __always_inline __pure bool _static_cpu_has(u16 bit)
 		boot_cpu_has(bit) :				\
 		_static_cpu_has(bit)				\
 )
-#else
-/*
- * Fall back to dynamic for gcc versions which don't support asm goto. Should be
- * a minority now anyway.
- */
-#define static_cpu_has(bit)		boot_cpu_has(bit)
 #endif
 
 #define cpu_has_bug(c, bit)		cpu_has(c, (bit))

@@ -37,7 +37,7 @@ struct abm_backlight_registers {
 struct abm {
 	struct dc_context *ctx;
 	const struct abm_funcs *funcs;
-
+	bool dmcu_is_running;
 	/* registers setting needs to be saved and restored at InitBacklight */
 	struct abm_backlight_registers stored_backlight_registers;
 };
@@ -46,13 +46,20 @@ struct abm_funcs {
 	void (*abm_init)(struct abm *abm);
 	bool (*set_abm_level)(struct abm *abm, unsigned int abm_level);
 	bool (*set_abm_immediate_disable)(struct abm *abm);
+	bool (*set_pipe)(struct abm *abm, unsigned int controller_id);
 	bool (*init_backlight)(struct abm *abm);
-	bool (*set_backlight_level)(struct abm *abm,
-			unsigned int backlight_level,
+
+	/* backlight_pwm_u16_16 is unsigned 32 bit,
+	 * 16 bit integer + 16 fractional, where 1.0 is max backlight value.
+	 */
+	bool (*set_backlight_level_pwm)(struct abm *abm,
+			unsigned int backlight_pwm_u16_16,
 			unsigned int frame_ramp,
 			unsigned int controller_id,
 			bool use_smooth_brightness);
-	unsigned int (*get_current_backlight_8_bit)(struct abm *abm);
+
+	unsigned int (*get_current_backlight)(struct abm *abm);
+	unsigned int (*get_target_backlight)(struct abm *abm);
 };
 
 #endif

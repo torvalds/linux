@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * MAX44000 Ambient and Infrared Proximity Sensor
  *
  * Copyright (c) 2016, Intel Corporation.
- *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
  *
  * Data sheet: https://datasheets.maximintegrated.com/en/ds/MAX44000.pdf
  *
@@ -99,7 +96,6 @@ static const int max44000_alspga_shift[] = {0, 2, 4, 7};
  * Handling this internally is also required for buffer support because the
  * channel's scan_type can't be modified dynamically.
  */
-static const int max44000_alstim_shift[] = {0, 2, 4, 6};
 #define MAX44000_ALSTIM_SHIFT(alstim) (2 * (alstim))
 
 /* Available integration times with pretty manual alignment: */
@@ -473,17 +469,18 @@ static bool max44000_precious_reg(struct device *dev, unsigned int reg)
 }
 
 static const struct regmap_config max44000_regmap_config = {
-	.reg_bits	= 8,
-	.val_bits	= 8,
+	.reg_bits		= 8,
+	.val_bits		= 8,
 
-	.max_register	= MAX44000_REG_PRX_DATA,
-	.readable_reg	= max44000_readable_reg,
-	.writeable_reg	= max44000_writeable_reg,
-	.volatile_reg	= max44000_volatile_reg,
-	.precious_reg	= max44000_precious_reg,
+	.max_register		= MAX44000_REG_PRX_DATA,
+	.readable_reg		= max44000_readable_reg,
+	.writeable_reg		= max44000_writeable_reg,
+	.volatile_reg		= max44000_volatile_reg,
+	.precious_reg		= max44000_precious_reg,
 
-	.use_single_rw	= 1,
-	.cache_type	= REGCACHE_RBTREE,
+	.use_single_read	= true,
+	.use_single_write	= true,
+	.cache_type		= REGCACHE_RBTREE,
 };
 
 static irqreturn_t max44000_trigger_handler(int irq, void *p)

@@ -1,15 +1,5 @@
-/*
- * Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0
+/* Copyright (c) 2012 GCT Semiconductor, Inc. All rights reserved. */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
@@ -37,20 +27,13 @@
 
 #define MUX_TX_MAX_SIZE 2048
 
-#define gdm_tty_send(n, d, l, i, c, b) (\
-	n->tty_dev->send_func(n->tty_dev->priv_dev, d, l, i, c, b))
-#define gdm_tty_recv(n, c) (\
-	n->tty_dev->recv_func(n->tty_dev->priv_dev, c))
-#define gdm_tty_send_control(n, r, v, d, l) (\
-	n->tty_dev->send_control(n->tty_dev->priv_dev, r, v, d, l))
-
 #define GDM_TTY_READY(gdm) (gdm && gdm->tty_dev && gdm->port.count)
 
 static struct tty_driver *gdm_driver[TTY_MAX_COUNT];
 static struct gdm *gdm_table[TTY_MAX_COUNT][GDM_TTY_MINOR];
 static DEFINE_MUTEX(gdm_table_lock);
 
-static char *DRIVER_STRING[TTY_MAX_COUNT] = {"GCTATC", "GCTDM"};
+static const char *DRIVER_STRING[TTY_MAX_COUNT] = {"GCTATC", "GCTDM"};
 static char *DEVICE_STRING[TTY_MAX_COUNT] = {"GCT-ATC", "GCT-DM"};
 
 static void gdm_port_destruct(struct tty_port *port)
@@ -72,22 +55,14 @@ static int gdm_tty_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct gdm *gdm = NULL;
 	int ret;
-	int i;
-	int j;
 
-	j = GDM_TTY_MINOR;
-	for (i = 0; i < TTY_MAX_COUNT; i++) {
-		if (!strcmp(tty->driver->driver_name, DRIVER_STRING[i])) {
-			j = tty->index;
-			break;
-		}
-	}
-
-	if (j == GDM_TTY_MINOR)
+	ret = match_string(DRIVER_STRING, TTY_MAX_COUNT,
+			   tty->driver->driver_name);
+	if (ret < 0)
 		return -ENODEV;
 
 	mutex_lock(&gdm_table_lock);
-	gdm = gdm_table[i][j];
+	gdm = gdm_table[ret][tty->index];
 	if (!gdm) {
 		mutex_unlock(&gdm_table_lock);
 		return -ENODEV;
@@ -146,7 +121,8 @@ static int gdm_tty_recv_complete(void *data,
 
 	if (!GDM_TTY_READY(gdm)) {
 		if (complete == RECV_PACKET_PROCESS_COMPLETE)
-			gdm_tty_recv(gdm, gdm_tty_recv_complete);
+			gdm->tty_dev->recv_func(gdm->tty_dev->priv_dev,
+						gdm_tty_recv_complete);
 		return TO_HOST_PORT_CLOSE;
 	}
 
@@ -160,7 +136,8 @@ static int gdm_tty_recv_complete(void *data,
 	}
 
 	if (complete == RECV_PACKET_PROCESS_COMPLETE)
-		gdm_tty_recv(gdm, gdm_tty_recv_complete);
+		gdm->tty_dev->recv_func(gdm->tty_dev->priv_dev,
+					gdm_tty_recv_complete);
 
 	return 0;
 }
@@ -191,13 +168,12 @@ static int gdm_tty_write(struct tty_struct *tty, const unsigned char *buf,
 
 	while (1) {
 		sending_len = min(MUX_TX_MAX_SIZE, remain);
-		gdm_tty_send(gdm,
-			     (void *)(buf + sent_len),
-			     sending_len,
-			     gdm->index,
-			     gdm_tty_send_complete,
-			     gdm
-			    );
+		gdm->tty_dev->send_func(gdm->tty_dev->priv_dev,
+					(void *)(buf + sent_len),
+					sending_len,
+					gdm->index,
+					gdm_tty_send_complete,
+					gdm);
 		sent_len += sending_len;
 		remain -= sending_len;
 		if (remain <= 0)
@@ -256,7 +232,8 @@ int register_lte_tty_device(struct tty_dev *tty_dev, struct device *device)
 	}
 
 	for (i = 0; i < MAX_ISSUE_NUM; i++)
-		gdm_tty_recv(gdm, gdm_tty_recv_complete);
+		gdm->tty_dev->recv_func(gdm->tty_dev->priv_dev,
+					gdm_tty_recv_complete);
 
 	return 0;
 }

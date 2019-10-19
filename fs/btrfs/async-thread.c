@@ -1,20 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (C) 2007 Oracle.  All rights reserved.
  * Copyright (C) 2014 Fujitsu.  All rights reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public
- * License v2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public
- * License along with this program; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 021110-1307, USA.
  */
 
 #include <linux/kthread.h>
@@ -25,9 +12,11 @@
 #include "async-thread.h"
 #include "ctree.h"
 
-#define WORK_DONE_BIT 0
-#define WORK_ORDER_DONE_BIT 1
-#define WORK_HIGH_PRIO_BIT 2
+enum {
+	WORK_DONE_BIT,
+	WORK_ORDER_DONE_BIT,
+	WORK_HIGH_PRIO_BIT,
+};
 
 #define NO_THRESHOLD (-1)
 #define DFT_THRESHOLD (32)
@@ -152,13 +141,11 @@ __btrfs_alloc_workqueue(struct btrfs_fs_info *fs_info, const char *name,
 	}
 
 	if (flags & WQ_HIGHPRI)
-		ret->normal_wq = alloc_workqueue("%s-%s-high", flags,
-						 ret->current_active, "btrfs",
-						 name);
+		ret->normal_wq = alloc_workqueue("btrfs-%s-high", flags,
+						 ret->current_active, name);
 	else
-		ret->normal_wq = alloc_workqueue("%s-%s", flags,
-						 ret->current_active, "btrfs",
-						 name);
+		ret->normal_wq = alloc_workqueue("btrfs-%s", flags,
+						 ret->current_active, name);
 	if (!ret->normal_wq) {
 		kfree(ret);
 		return NULL;

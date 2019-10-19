@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Routines for tracking a legacy ISA bridge
  *
@@ -6,11 +7,6 @@
  * Some bits and pieces moved over from pci_64.c
  *
  * Copyrigh 2003 Anton Blanchard <anton@au.ibm.com>, IBM Corp.
- *
- *      This program is free software; you can redistribute it and/or
- *      modify it under the terms of the GNU General Public License
- *      as published by the Free Software Foundation; either version
- *      2 of the License, or (at your option) any later version.
  */
 
 #define DEBUG
@@ -110,14 +106,14 @@ static void pci_process_ISA_OF_ranges(struct device_node *isa_node,
 		size = 0x10000;
 
 	__ioremap_at(phb_io_base_phys, (void *)ISA_IO_BASE,
-		     size, pgprot_val(pgprot_noncached(__pgprot(0))));
+		     size, pgprot_noncached(PAGE_KERNEL));
 	return;
 
 inval_range:
 	printk(KERN_ERR "no ISA IO ranges or unexpected isa range, "
 	       "mapping 64k\n");
 	__ioremap_at(phb_io_base_phys, (void *)ISA_IO_BASE,
-		     0x10000, pgprot_val(pgprot_noncached(__pgprot(0))));
+		     0x10000, pgprot_noncached(PAGE_KERNEL));
 }
 
 
@@ -253,7 +249,7 @@ void __init isa_bridge_init_non_pci(struct device_node *np)
 	 */
 	isa_io_base = ISA_IO_BASE;
 	__ioremap_at(pbase, (void *)ISA_IO_BASE,
-		     size, pgprot_val(pgprot_noncached(__pgprot(0))));
+		     size, pgprot_noncached(PAGE_KERNEL));
 
 	pr_debug("ISA: Non-PCI bridge is %pOF\n", np);
 }
@@ -327,8 +323,7 @@ static int isa_bridge_notify(struct notifier_block *nb, unsigned long action,
 		/* Check if we have no ISA device, and this happens to be one,
 		 * register it as such if it has an OF device
 		 */
-		if (!isa_bridge_devnode && devnode && devnode->type &&
-		    !strcmp(devnode->type, "isa"))
+		if (!isa_bridge_devnode && of_node_is_type(devnode, "isa"))
 			isa_bridge_find_late(pdev, devnode);
 
 		return 0;

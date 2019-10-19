@@ -1,15 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2015-16 Golden Delicious Computers
  *
  * Author: Nikolaus Schaller <hns@goldelico.com>
  *
- * This file is subject to the terms and conditions of version 2 of
- * the GNU General Public License.  See the file COPYING in the main
- * directory of this archive for more details.
- *
  * LED driver for the IS31FL319{0,1,3,6,9} to drive 1, 3, 6 or 9 light
  * effect LEDs.
- *
  */
 
 #include <linux/err.h>
@@ -337,12 +333,11 @@ static int is31fl319x_probe(struct i2c_client *client,
 {
 	struct is31fl319x_chip *is31;
 	struct device *dev = &client->dev;
-	struct i2c_adapter *adapter = to_i2c_adapter(dev->parent);
 	int err;
 	int i = 0;
 	u32 aggregated_led_microamp = IS31FL319X_CURRENT_MAX;
 
-	if (!i2c_check_functionality(adapter, I2C_FUNC_I2C))
+	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C))
 		return -EIO;
 
 	is31 = devm_kzalloc(&client->dev, sizeof(*is31), GFP_KERNEL);

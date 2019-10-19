@@ -1,26 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * tda18271c2dd: Driver for the TDA18271C2 tuner
  *
  * Copyright (C) 2010 Digital Devices GmbH
- *
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License
- * version 2 only, as published by the Free Software Foundation.
- *
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * To obtain the license, point your browser to
- * http://www.gnu.org/copyleft/gpl.html
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
@@ -106,7 +92,7 @@ struct tda_state {
 	s32   m_RF_B2[7];
 	u32   m_RF3[7];
 
-	u8    m_TMValue_RFCal;    /* Calibration temperatur */
+	u8    m_TMValue_RFCal;    /* Calibration temperature */
 
 	bool  m_bFMInput;         /* true to use Pin 8 for FM Radio */
 
@@ -401,7 +387,7 @@ static int CalibrateRF(struct tda_state *state,
 			break;
 
 		/* Switching off LT (as datasheet says) causes calibration on C1 to fail */
-		/* (Readout of Cprog is allways 255) */
+		/* (Readout of Cprog is always 255) */
 		if (state->m_Regs[ID] != 0x83)    /* C1: ID == 83, C2: ID == 84 */
 			state->m_Regs[EP3] |= 0x40; /* SM_LT = 1 */
 
@@ -645,7 +631,7 @@ static int PowerScan(struct tda_state *state,
 		if (status < 0)
 			break;
 		CID_Gain = Regs[EB10] & 0x3F;
-		state->m_Regs[ID] = Regs[ID];  /* Chip version, (needed for C1 workarround in CalibrateRF) */
+		state->m_Regs[ID] = Regs[ID];  /* Chip version, (needed for C1 workaround in CalibrateRF) */
 
 		*pRF_Out = RF_in;
 
@@ -1154,6 +1140,7 @@ static int set_params(struct dvb_frontend *fe)
 		default:
 			return -EINVAL;
 		}
+		break;
 	case SYS_DVBC_ANNEX_A:
 	case SYS_DVBC_ANNEX_C:
 		if (bw <= 6000000)
@@ -1214,9 +1201,9 @@ static int get_bandwidth(struct dvb_frontend *fe, u32 *bandwidth)
 static const struct dvb_tuner_ops tuner_ops = {
 	.info = {
 		.name = "NXP TDA18271C2D",
-		.frequency_min  =  47125000,
-		.frequency_max  = 865000000,
-		.frequency_step =     62500
+		.frequency_min_hz  =  47125 * kHz,
+		.frequency_max_hz  =    865 * MHz,
+		.frequency_step_hz =  62500
 	},
 	.init              = init,
 	.sleep             = sleep,

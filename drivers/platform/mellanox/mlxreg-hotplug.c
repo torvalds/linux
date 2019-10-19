@@ -50,18 +50,20 @@
 #define MLXREG_HOTPLUG_MASK_OFF		2
 #define MLXREG_HOTPLUG_AGGR_MASK_OFF	1
 
-/* ASIC health parameters. */
-#define MLXREG_HOTPLUG_HEALTH_MASK	0x02
-#define MLXREG_HOTPLUG_RST_CNTR		3
+/* ASIC good health mask. */
+#define MLXREG_HOTPLUG_GOOD_HEALTH_MASK	0x02
 
 #define MLXREG_HOTPLUG_ATTRS_MAX	24
+#define MLXREG_HOTPLUG_NOT_ASSERT	3
 
 /**
  * struct mlxreg_hotplug_priv_data - platform private data:
  * @irq: platform device interrupt number;
+ * @dev: basic device;
  * @pdev: platform device;
  * @plat: platform data;
- * @dwork: delayed work template;
+ * @regmap: register map handle;
+ * @dwork_irq: delayed work template;
  * @lock: spin lock;
  * @hwmon: hwmon device;
  * @mlxreg_hotplug_attr: sysfs attributes array;
@@ -71,6 +73,8 @@
  * @cell: location of top aggregation interrupt register;
  * @mask: top aggregation interrupt common mask;
  * @aggr_cache: last value of aggregation register status;
+ * @after_probe: flag indication probing completion;
+ * @not_asserted: number of entries in workqueue with no signal assertion;
  */
 struct mlxreg_hotplug_priv_data {
 	int irq;
@@ -79,7 +83,6 @@ struct mlxreg_hotplug_priv_data {
 	struct mlxreg_hotplug_platform_data *plat;
 	struct regmap *regmap;
 	struct delayed_work dwork_irq;
-	struct delayed_work dwork;
 	spinlock_t lock; /* sync with interrupt */
 	struct device *hwmon;
 	struct attribute *mlxreg_hotplug_attr[MLXREG_HOTPLUG_ATTRS_MAX + 1];
@@ -91,11 +94,17 @@ struct mlxreg_hotplug_priv_data {
 	u32 mask;
 	u32 aggr_cache;
 	bool after_probe;
+	u8 not_asserted;
 };
 
-static int mlxreg_hotplug_device_create(struct device *dev,
+static int mlxreg_hotplug_device_create(struct mlxreg_hotplug_priv_data *priv,
 					struct mlxreg_core_data *data)
 {
+	struct mlxreg_core_hotplug_platform_data *pdata;
+
+	/* Notify user by sending hwmon uevent. */
+	kobject_uevent(&priv->hwmon->kobj, KOBJ_CHANGE);
+
 	/*
 	 * Return if adapter number is negative. It could be in case hotplug
 	 * event is not associated with hotplug device.
@@ -103,19 +112,21 @@ static int mlxreg_hotplug_device_create(struct device *dev,
 	if (data->hpdev.nr < 0)
 		return 0;
 
-	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr);
+	pdata = dev_get_platdata(&priv->pdev->dev);
+	data->hpdev.adapter = i2c_get_adapter(data->hpdev.nr +
+					      pdata->shift_nr);
 	if (!data->hpdev.adapter) {
-		dev_err(dev, "Failed to get adapter for bus %d\n",
-			data->hpdev.nr);
+		dev_err(priv->dev, "Failed to get adapter for bus %d\n",
+			data->hpdev.nr + pdata->shift_nr);
 		return -EFAULT;
 	}
 
 	data->hpdev.client = i2c_new_device(data->hpdev.adapter,
 					    data->hpdev.brdinfo);
 	if (!data->hpdev.client) {
-		dev_err(dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
-			data->hpdev.brdinfo->type, data->hpdev.nr,
-			data->hpdev.brdinfo->addr);
+		dev_err(priv->dev, "Failed to create client %s at bus %d at addr 0x%02x\n",
+			data->hpdev.brdinfo->type, data->hpdev.nr +
+			pdata->shift_nr, data->hpdev.brdinfo->addr);
 
 		i2c_put_adapter(data->hpdev.adapter);
 		data->hpdev.adapter = NULL;
@@ -125,8 +136,13 @@ static int mlxreg_hotplug_device_create(struct device *dev,
 	return 0;
 }
 
-static void mlxreg_hotplug_device_destroy(struct mlxreg_core_data *data)
+static void
+mlxreg_hotplug_device_destroy(struct mlxreg_hotplug_priv_data *priv,
+			      struct mlxreg_core_data *data)
 {
+	/* Notify user by sending hwmon uevent. */
+	kobject_uevent(&priv->hwmon->kobj, KOBJ_CHANGE);
+
 	if (data->hpdev.client) {
 		i2c_unregister_device(data->hpdev.client);
 		data->hpdev.client = NULL;
@@ -213,7 +229,8 @@ static int mlxreg_hotplug_attr_init(struct mlxreg_hotplug_priv_data *priv)
 		}
 	}
 
-	priv->group.attrs = devm_kzalloc(&priv->pdev->dev, num_attrs *
+	priv->group.attrs = devm_kcalloc(&priv->pdev->dev,
+					 num_attrs,
 					 sizeof(struct attribute *),
 					 GFP_KERNEL);
 	if (!priv->group.attrs)
@@ -231,7 +248,8 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 			   struct mlxreg_core_item *item)
 {
 	struct mlxreg_core_data *data;
-	u32 asserted, regval, bit;
+	unsigned long asserted;
+	u32 regval, bit;
 	int ret;
 
 	/*
@@ -264,18 +282,18 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 	asserted = item->cache ^ regval;
 	item->cache = regval;
 
-	for_each_set_bit(bit, (unsigned long *)&asserted, 8) {
+	for_each_set_bit(bit, &asserted, 8) {
 		data = item->data + bit;
 		if (regval & BIT(bit)) {
 			if (item->inversed)
-				mlxreg_hotplug_device_destroy(data);
+				mlxreg_hotplug_device_destroy(priv, data);
 			else
-				mlxreg_hotplug_device_create(priv->dev, data);
+				mlxreg_hotplug_device_create(priv, data);
 		} else {
 			if (item->inversed)
-				mlxreg_hotplug_device_create(priv->dev, data);
+				mlxreg_hotplug_device_create(priv, data);
 			else
-				mlxreg_hotplug_device_destroy(data);
+				mlxreg_hotplug_device_destroy(priv, data);
 		}
 	}
 
@@ -315,21 +333,40 @@ mlxreg_hotplug_health_work_helper(struct mlxreg_hotplug_priv_data *priv,
 			goto out;
 
 		regval &= data->mask;
-		item->cache = regval;
-		if (regval == MLXREG_HOTPLUG_HEALTH_MASK) {
-			if ((data->health_cntr++ == MLXREG_HOTPLUG_RST_CNTR) ||
-			    !priv->after_probe) {
-				mlxreg_hotplug_device_create(priv->dev, data);
+
+		if (item->cache == regval)
+			goto ack_event;
+
+		/*
+		 * ASIC health indication is provided through two bits. Bits
+		 * value 0x2 indicates that ASIC reached the good health, value
+		 * 0x0 indicates ASIC the bad health or dormant state and value
+		 * 0x3 indicates the booting state. During ASIC reset it should
+		 * pass the following states: dormant -> booting -> good.
+		 */
+		if (regval == MLXREG_HOTPLUG_GOOD_HEALTH_MASK) {
+			if (!data->attached) {
+				/*
+				 * ASIC is in steady state. Connect associated
+				 * device, if configured.
+				 */
+				mlxreg_hotplug_device_create(priv, data);
 				data->attached = true;
 			}
 		} else {
 			if (data->attached) {
-				mlxreg_hotplug_device_destroy(data);
+				/*
+				 * ASIC health is failed after ASIC has been
+				 * in steady state. Disconnect associated
+				 * device, if it has been connected.
+				 */
+				mlxreg_hotplug_device_destroy(priv, data);
 				data->attached = false;
 				data->health_cntr = 0;
 			}
 		}
-
+		item->cache = regval;
+ack_event:
 		/* Acknowledge event. */
 		ret = regmap_write(priv->regmap, data->reg +
 				   MLXREG_HOTPLUG_EVENT_OFF, 0);
@@ -404,6 +441,18 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 	aggr_asserted = priv->aggr_cache ^ regval;
 	priv->aggr_cache = regval;
 
+	/*
+	 * Handler is invoked, but no assertion is detected at top aggregation
+	 * status level. Set aggr_asserted to mask value to allow handler extra
+	 * run over all relevant signals to recover any missed signal.
+	 */
+	if (priv->not_asserted == MLXREG_HOTPLUG_NOT_ASSERT) {
+		priv->not_asserted = 0;
+		aggr_asserted = pdata->mask;
+	}
+	if (!aggr_asserted)
+		goto unmask_event;
+
 	/* Handle topology and health configuration changes. */
 	for (i = 0; i < pdata->counter; i++, item++) {
 		if (aggr_asserted & item->aggr_mask) {
@@ -414,27 +463,26 @@ static void mlxreg_hotplug_work_handler(struct work_struct *work)
 		}
 	}
 
-	if (aggr_asserted) {
-		spin_lock_irqsave(&priv->lock, flags);
+	spin_lock_irqsave(&priv->lock, flags);
 
-		/*
-		 * It is possible, that some signals have been inserted, while
-		 * interrupt has been masked by mlxreg_hotplug_work_handler.
-		 * In this case such signals will be missed. In order to handle
-		 * these signals delayed work is canceled and work task
-		 * re-scheduled for immediate execution. It allows to handle
-		 * missed signals, if any. In other case work handler just
-		 * validates that no new signals have been received during
-		 * masking.
-		 */
-		cancel_delayed_work(&priv->dwork_irq);
-		schedule_delayed_work(&priv->dwork_irq, 0);
+	/*
+	 * It is possible, that some signals have been inserted, while
+	 * interrupt has been masked by mlxreg_hotplug_work_handler. In this
+	 * case such signals will be missed. In order to handle these signals
+	 * delayed work is canceled and work task re-scheduled for immediate
+	 * execution. It allows to handle missed signals, if any. In other case
+	 * work handler just validates that no new signals have been received
+	 * during masking.
+	 */
+	cancel_delayed_work(&priv->dwork_irq);
+	schedule_delayed_work(&priv->dwork_irq, 0);
 
-		spin_unlock_irqrestore(&priv->lock, flags);
+	spin_unlock_irqrestore(&priv->lock, flags);
 
-		return;
-	}
+	return;
 
+unmask_event:
+	priv->not_asserted++;
 	/* Unmask aggregation event (no need acknowledge). */
 	ret = regmap_write(priv->regmap, pdata->cell +
 			   MLXREG_HOTPLUG_AGGR_MASK_OFF, pdata->mask);
@@ -448,7 +496,9 @@ static int mlxreg_hotplug_set_irq(struct mlxreg_hotplug_priv_data *priv)
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct mlxreg_core_item *item;
-	int i, ret;
+	struct mlxreg_core_data *data;
+	u32 regval;
+	int i, j, ret;
 
 	pdata = dev_get_platdata(&priv->pdev->dev);
 	item = pdata->items;
@@ -459,6 +509,25 @@ static int mlxreg_hotplug_set_irq(struct mlxreg_hotplug_priv_data *priv)
 				   MLXREG_HOTPLUG_EVENT_OFF, 0);
 		if (ret)
 			goto out;
+
+		/*
+		 * Verify if hardware configuration requires to disable
+		 * interrupt capability for some of components.
+		 */
+		data = item->data;
+		for (j = 0; j < item->count; j++, data++) {
+			/* Verify if the attribute has capability register. */
+			if (data->capability) {
+				/* Read capability register. */
+				ret = regmap_read(priv->regmap,
+						  data->capability, &regval);
+				if (ret)
+					goto out;
+
+				if (!(regval & data->bit))
+					item->mask &= ~BIT(j);
+			}
+		}
 
 		/* Set group initial status as mask and unmask group event. */
 		if (item->inversed) {
@@ -530,7 +599,7 @@ static void mlxreg_hotplug_unset_irq(struct mlxreg_hotplug_priv_data *priv)
 		/* Remove all the attached devices in group. */
 		count = item->count;
 		for (j = 0; j < count; j++, data++)
-			mlxreg_hotplug_device_destroy(data);
+			mlxreg_hotplug_device_destroy(priv, data);
 	}
 }
 
@@ -550,6 +619,7 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 {
 	struct mlxreg_core_hotplug_platform_data *pdata;
 	struct mlxreg_hotplug_priv_data *priv;
+	struct i2c_adapter *deferred_adap;
 	int err;
 
 	pdata = dev_get_platdata(&pdev->dev);
@@ -557,6 +627,12 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to get platform data.\n");
 		return -EINVAL;
 	}
+
+	/* Defer probing if the necessary adapter is not configured yet. */
+	deferred_adap = i2c_get_adapter(pdata->deferred_nr);
+	if (!deferred_adap)
+		return -EPROBE_DEFER;
+	i2c_put_adapter(deferred_adap);
 
 	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -566,11 +642,8 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		priv->irq = pdata->irq;
 	} else {
 		priv->irq = platform_get_irq(pdev, 0);
-		if (priv->irq < 0) {
-			dev_err(&pdev->dev, "Failed to get platform irq: %d\n",
-				priv->irq);
+		if (priv->irq < 0)
 			return priv->irq;
-		}
 	}
 
 	priv->regmap = pdata->regmap;
@@ -588,10 +661,6 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 	disable_irq(priv->irq);
 	spin_lock_init(&priv->lock);
 	INIT_DELAYED_WORK(&priv->dwork_irq, mlxreg_hotplug_work_handler);
-	/* Perform initial interrupts setup. */
-	mlxreg_hotplug_set_irq(priv);
-
-	priv->after_probe = true;
 	dev_set_drvdata(&pdev->dev, priv);
 
 	err = mlxreg_hotplug_attr_init(priv);
@@ -609,6 +678,10 @@ static int mlxreg_hotplug_probe(struct platform_device *pdev)
 		return PTR_ERR(priv->hwmon);
 	}
 
+	/* Perform initial interrupts setup. */
+	mlxreg_hotplug_set_irq(priv);
+	priv->after_probe = true;
+
 	return 0;
 }
 
@@ -618,6 +691,7 @@ static int mlxreg_hotplug_remove(struct platform_device *pdev)
 
 	/* Clean interrupts setup. */
 	mlxreg_hotplug_unset_irq(priv);
+	devm_free_irq(&pdev->dev, priv->irq, priv);
 
 	return 0;
 }

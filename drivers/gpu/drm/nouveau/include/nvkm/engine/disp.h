@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+/* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_H__
 #define __NVKM_DISP_H__
 #define nvkm_disp(p) container_of((p), struct nvkm_disp, engine)
@@ -35,4 +35,6 @@ int gm107_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gm200_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gp100_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 int gp102_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
+int gv100_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
+int tu102_disp_new(struct nvkm_device *, int, struct nvkm_disp **);
 #endif

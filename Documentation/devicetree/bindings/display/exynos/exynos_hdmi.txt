@@ -16,6 +16,7 @@ Required properties:
 - ddc: phandle to the hdmi ddc node
 - phy: phandle to the hdmi phy node
 - samsung,syscon-phandle: phandle for system controller node for PMU.
+- #sound-dai-cells: should be 0.
 
 Required properties for Exynos 4210, 4212, 5420 and 5433:
 - clocks: list of clock IDs from SoC clock driver.

@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 The Virtual Video Test Driver (vivid)
 =====================================
 
@@ -938,6 +940,11 @@ Digital Video Controls
 	sets the transmit mode of the HDMI output to HDMI or DVI-D. This
 	affects the reported colorspace since DVI_D outputs will always use
 	sRGB.
+
+- Display Present:
+
+	sets the presence of a "display" on the HDMI output. This affects
+	the tx_edid_present, tx_hotplug and tx_rxsense controls.
 
 
 FM Radio Receiver Controls

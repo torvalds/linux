@@ -1,33 +1,32 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # For a description of the syntax of this configuration file,
-# see Documentation/kbuild/kconfig-language.txt.
+# see Documentation/kbuild/kconfig-language.rst.
 #
 
 config C6X
 	def_bool y
+	select ARCH_32BIT_OFF_T
+	select ARCH_HAS_BINFMT_FLAT
+	select ARCH_HAS_SYNC_DMA_FOR_CPU
+	select ARCH_HAS_SYNC_DMA_FOR_DEVICE
 	select CLKDEV_LOOKUP
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
 	select HAVE_ARCH_TRACEHOOK
-	select HAVE_DMA_API_DEBUG
-	select HAVE_MEMBLOCK
 	select SPARSE_IRQ
 	select IRQ_DOMAIN
 	select OF
 	select OF_EARLY_FLATTREE
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
-	select ARCH_NO_COHERENT_DMA_MMAP
+	select MMU_GATHER_NO_RANGE if MMU
 
 config MMU
 	def_bool n
 
 config FPU
 	def_bool n
-
-config RWSEM_GENERIC_SPINLOCK
-	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
@@ -51,11 +50,7 @@ config C6X_BIG_KERNEL
 
 	  If unsure, say N.
 
-source "init/Kconfig"
-
 # Use the generic interrupt handling code in kernel/irq/
-
-source "kernel/Kconfig.freezer"
 
 config CMDLINE_BOOL
 	bool "Default bootloader kernel arguments"
@@ -112,43 +107,6 @@ config KERNEL_RAM_BASE_ADDRESS
 	default 0xe0000000 if SOC_TMS320C6472
 	default 0x80000000
 
-source "mm/Kconfig"
-
-source "kernel/Kconfig.preempt"
-
 source "kernel/Kconfig.hz"
-
-endmenu
-
-menu "Executable file formats"
-
-source "fs/Kconfig.binfmt"
-
-endmenu
-
-source "net/Kconfig"
-
-source "drivers/Kconfig"
-
-source "fs/Kconfig"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-config ACCESS_CHECK
-	bool "Check the user pointer address"
-	default y
-	help
-	  Usually the pointer transfer from user space is checked to see if its
-	  address is in the kernel space.
-
-	  Say N here to disable that check to improve the performance.
 
 endmenu

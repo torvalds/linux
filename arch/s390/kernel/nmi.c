@@ -15,7 +15,7 @@
 #include <linux/hardirq.h>
 #include <linux/log2.h>
 #include <linux/kprobes.h>
-#include <linux/slab.h>
+#include <linux/kmemleak.h>
 #include <linux/time.h>
 #include <linux/module.h>
 #include <linux/sched/signal.h>
@@ -125,7 +125,7 @@ void nmi_free_per_cpu(struct lowcore *lc)
 static notrace void s390_handle_damage(void)
 {
 	smp_emergency_stop();
-	disabled_wait((unsigned long) __builtin_return_address(0));
+	disabled_wait();
 	while (1);
 }
 NOKPROBE_SYMBOL(s390_handle_damage);

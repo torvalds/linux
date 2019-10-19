@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: GPL-2.0-only
 menuconfig PWM
 	bool "Pulse-Width Modulation (PWM) Support"
 	help
@@ -43,7 +44,7 @@ config PWM_AB8500
 
 config PWM_ATMEL
 	tristate "Atmel PWM support"
-	depends on ARCH_AT91 || AVR32
+	depends on ARCH_AT91 && OF
 	help
 	  Generic PWM framework driver for Atmel SoC.
 
@@ -88,7 +89,9 @@ config PWM_BCM_IPROC
 
 config PWM_BCM_KONA
 	tristate "Kona PWM support"
-	depends on ARCH_BCM_MOBILE
+	depends on ARCH_BCM_MOBILE || ARCH_BCM_CYGNUS || COMPILE_TEST
+	depends on HAVE_CLK && HAS_IOMEM
+	default ARCH_BCM_MOBILE || ARCH_BCM_CYGNUS
 	help
 	  Generic PWM framework driver for Broadcom Kona PWM block.
 
@@ -112,15 +115,6 @@ config PWM_BERLIN
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-berlin.
-
-config PWM_BFIN
-	tristate "Blackfin PWM support"
-	depends on BFIN_GPTIMERS
-	help
-	  Generic PWM framework driver for Blackfin.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-bfin.
 
 config PWM_BRCMSTB
 	tristate "Broadcom STB PWM support"
@@ -151,7 +145,7 @@ config PWM_CRC
 
 config PWM_CROS_EC
 	tristate "ChromeOS EC PWM driver"
-	depends on MFD_CROS_EC
+	depends on CROS_EC
 	help
 	  PWM driver for exposing a PWM attached to the ChromeOS Embedded
 	  Controller.
@@ -199,20 +193,40 @@ config PWM_IMG
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-img
 
-config PWM_IMX
-	tristate "i.MX PWM support"
+config PWM_IMX1
+	tristate "i.MX1 PWM support"
 	depends on ARCH_MXC
 	help
-	  Generic PWM framework driver for i.MX.
+	  Generic PWM framework driver for i.MX1 and i.MX21
 
 	  To compile this driver as a module, choose M here: the module
-	  will be called pwm-imx.
+	  will be called pwm-imx1.
+
+config PWM_IMX27
+	tristate "i.MX27 PWM support"
+	depends on ARCH_MXC
+	help
+	  Generic PWM framework driver for i.MX27 and later i.MX SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-imx27.
+
+config PWM_IMX_TPM
+	tristate "i.MX TPM PWM support"
+	depends on ARCH_MXC || COMPILE_TEST
+	depends on HAVE_CLK && HAS_IOMEM
+	help
+	  Generic PWM framework driver for i.MX7ULP TPM module, TPM's full
+	  name is Low Power Timer/Pulse Width Modulation Module.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-imx-tpm.
 
 config PWM_JZ4740
-	tristate "Ingenic JZ4740 PWM support"
-	depends on MACH_JZ4740
+	tristate "Ingenic JZ47xx PWM support"
+	depends on MACH_INGENIC
 	help
-	  Generic PWM framework driver for Ingenic JZ4740 based
+	  Generic PWM framework driver for Ingenic JZ47xx based
 	  machines.
 
 	  To compile this driver as a module, choose M here: the module
@@ -295,7 +309,7 @@ config PWM_MTK_DISP
 
 config PWM_MEDIATEK
 	tristate "MediaTek PWM support"
-	depends on ARCH_MEDIATEK || COMPILE_TEST
+	depends on ARCH_MEDIATEK || RALINK || COMPILE_TEST
 	help
 	  Generic PWM framework driver for Mediatek ARM SoC.
 
@@ -387,6 +401,17 @@ config PWM_SAMSUNG
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-samsung.
 
+config PWM_SIFIVE
+	tristate "SiFive PWM support"
+	depends on OF
+	depends on COMMON_CLK
+	depends on RISCV || COMPILE_TEST
+	help
+	  Generic PWM framework driver for SiFive SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sifive.
+
 config PWM_SPEAR
 	tristate "STMicroelectronics SPEAr PWM support"
 	depends on PLAT_SPEAR
@@ -397,6 +422,17 @@ config PWM_SPEAR
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-spear.
+
+config PWM_SPRD
+	tristate "Spreadtrum PWM support"
+	depends on ARCH_SPRD || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  Generic PWM framework driver for the PWM controller on
+	  Spreadtrum SoCs.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called pwm-sprd.
 
 config PWM_STI
 	tristate "STiH4xx PWM support"
@@ -410,7 +446,7 @@ config PWM_STI
 
 config PWM_STM32
 	tristate "STMicroelectronics STM32 PWM"
-	depends on MFD_STM32_TIMERS || COMPILE_TEST
+	depends on MFD_STM32_TIMERS
 	help
 	  Generic PWM framework driver for STM32 SoCs.
 
@@ -456,20 +492,18 @@ config PWM_TEGRA
 
 config  PWM_TIECAP
 	tristate "ECAP PWM support"
-	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_KEYSTONE
+	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_KEYSTONE || ARCH_K3
 	help
-	  PWM driver support for the ECAP APWM controller found on AM33XX
-	  TI SOC
+	  PWM driver support for the ECAP APWM controller found on TI SOCs
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tiecap.
 
 config  PWM_TIEHRPWM
 	tristate "EHRPWM PWM support"
-	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX
+	depends on ARCH_OMAP2PLUS || ARCH_DAVINCI_DA8XX || ARCH_K3
 	help
-	  PWM driver support for the EHRPWM controller found on AM33XX
-	  TI SOC
+	  PWM driver support for the EHRPWM controller found on TI SOCs
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called pwm-tiehrpwm.

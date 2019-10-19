@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Copyright (c) 2000-2002 Vojtech Pavlik <vojtech@ucw.cz>
  *  Copyright (c) 2001-2002, 2007 Johann Deneux <johann.deneux@gmail.com>
@@ -5,49 +6,23 @@
  *  USB/RS232 I-Force joysticks and wheels.
  */
 
-/*
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
- *
- * Should you need to contact me, the author, you can do so either by
- * e-mail - mail your message to <vojtech@ucw.cz>, or by paper mail:
- * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
- */
-
+#include <asm/unaligned.h>
 #include "iforce.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@ucw.cz>, Johann Deneux <johann.deneux@gmail.com>");
-MODULE_DESCRIPTION("USB/RS232 I-Force joysticks and wheels driver");
+MODULE_DESCRIPTION("Core I-Force joysticks and wheels driver");
 MODULE_LICENSE("GPL");
 
 static signed short btn_joystick[] =
 { BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A, BTN_B, BTN_C, -1 };
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A,
+  BTN_B, BTN_C, BTN_DEAD, -1 };
 
-static signed short btn_avb_pegasus[] =
-{ BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, -1 };
+static signed short btn_joystick_avb[] =
+{ BTN_TRIGGER, BTN_THUMB, BTN_TOP, BTN_TOP2, BTN_BASE,
+  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_DEAD, -1 };
 
 static signed short btn_wheel[] =
-{ BTN_TRIGGER, BTN_TOP, BTN_THUMB, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, BTN_BASE5, BTN_A, BTN_B, BTN_C, -1 };
-
-static signed short btn_avb_tw[] =
-{ BTN_TRIGGER, BTN_THUMB, BTN_TOP, BTN_TOP2, BTN_BASE,
-  BTN_BASE2, BTN_BASE3, BTN_BASE4, -1 };
-
-static signed short btn_avb_wheel[] =
 { BTN_GEAR_DOWN, BTN_GEAR_UP, BTN_BASE, BTN_BASE2, BTN_BASE3,
   BTN_BASE4, BTN_BASE5, BTN_BASE6, -1 };
 
@@ -73,11 +48,12 @@ static struct iforce_device iforce_device[] = {
 	{ 0x044f, 0xa01c, "Thrustmaster Motor Sport GT",		btn_wheel, abs_wheel, ff_iforce },
 	{ 0x046d, 0xc281, "Logitech WingMan Force",			btn_joystick, abs_joystick, ff_iforce },
 	{ 0x046d, 0xc291, "Logitech WingMan Formula Force",		btn_wheel, abs_wheel, ff_iforce },
-	{ 0x05ef, 0x020a, "AVB Top Shot Pegasus",			btn_avb_pegasus, abs_avb_pegasus, ff_iforce },
-	{ 0x05ef, 0x8884, "AVB Mag Turbo Force",			btn_avb_wheel, abs_wheel, ff_iforce },
-	{ 0x05ef, 0x8888, "AVB Top Shot Force Feedback Racing Wheel",	btn_avb_tw, abs_wheel, ff_iforce }, //?
+	{ 0x05ef, 0x020a, "AVB Top Shot Pegasus",			btn_joystick_avb, abs_avb_pegasus, ff_iforce },
+	{ 0x05ef, 0x8884, "AVB Mag Turbo Force",			btn_wheel, abs_wheel, ff_iforce },
+	{ 0x05ef, 0x8888, "AVB Top Shot Force Feedback Racing Wheel",	btn_wheel, abs_wheel, ff_iforce }, //?
 	{ 0x061c, 0xc0a4, "ACT LABS Force RS",                          btn_wheel, abs_wheel, ff_iforce }, //?
 	{ 0x061c, 0xc084, "ACT LABS Force RS",				btn_wheel, abs_wheel, ff_iforce },
+	{ 0x06a3, 0xff04, "Saitek R440 Force Wheel",			btn_wheel, abs_wheel, ff_iforce }, //?
 	{ 0x06f8, 0x0001, "Guillemot Race Leader Force Feedback",	btn_wheel, abs_wheel, ff_iforce }, //?
 	{ 0x06f8, 0x0001, "Guillemot Jet Leader Force Feedback",	btn_joystick, abs_joystick_rudder, ff_iforce },
 	{ 0x06f8, 0x0004, "Guillemot Force Feedback Racing Wheel",	btn_wheel, abs_wheel, ff_iforce }, //?
@@ -143,22 +119,21 @@ static int iforce_upload_effect(struct input_dev *dev, struct ff_effect *effect,
  * Upload the effect
  */
 	switch (effect->type) {
+	case FF_PERIODIC:
+		ret = iforce_upload_periodic(iforce, effect, old);
+		break;
 
-		case FF_PERIODIC:
-			ret = iforce_upload_periodic(iforce, effect, old);
-			break;
+	case FF_CONSTANT:
+		ret = iforce_upload_constant(iforce, effect, old);
+		break;
 
-		case FF_CONSTANT:
-			ret = iforce_upload_constant(iforce, effect, old);
-			break;
+	case FF_SPRING:
+	case FF_DAMPER:
+		ret = iforce_upload_condition(iforce, effect, old);
+		break;
 
-		case FF_SPRING:
-		case FF_DAMPER:
-			ret = iforce_upload_condition(iforce, effect, old);
-			break;
-
-		default:
-			return -EINVAL;
+	default:
+		return -EINVAL;
 	}
 
 	if (ret == 0) {
@@ -196,15 +171,7 @@ static int iforce_open(struct input_dev *dev)
 {
 	struct iforce *iforce = input_get_drvdata(dev);
 
-	switch (iforce->bus) {
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-		case IFORCE_USB:
-			iforce->irq->dev = iforce->usbdev;
-			if (usb_submit_urb(iforce->irq, GFP_KERNEL))
-				return -EIO;
-			break;
-#endif
-	}
+	iforce->xport_ops->start_io(iforce);
 
 	if (test_bit(EV_FF, dev->evbit)) {
 		/* Enable force feedback */
@@ -237,27 +204,17 @@ static void iforce_close(struct input_dev *dev)
 			!test_bit(IFORCE_XMIT_RUNNING, iforce->xmit_flags));
 	}
 
-	switch (iforce->bus) {
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	case IFORCE_USB:
-		usb_kill_urb(iforce->irq);
-		usb_kill_urb(iforce->out);
-		usb_kill_urb(iforce->ctrl);
-		break;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	case IFORCE_232:
-		//TODO: Wait for the last packets to be sent
-		break;
-#endif
-	}
+	iforce->xport_ops->stop_io(iforce);
 }
 
-int iforce_init_device(struct iforce *iforce)
+int iforce_init_device(struct device *parent, u16 bustype,
+		       struct iforce *iforce)
 {
 	struct input_dev *input_dev;
 	struct ff_device *ff;
-	unsigned char c[] = "CEOV";
+	u8 c[] = "CEOV";
+	u8 buf[IFORCE_MAX_LENGTH];
+	size_t len;
 	int i, error;
 	int ff_effects = 0;
 
@@ -275,20 +232,8 @@ int iforce_init_device(struct iforce *iforce)
  * Input device fields.
  */
 
-	switch (iforce->bus) {
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	case IFORCE_USB:
-		input_dev->id.bustype = BUS_USB;
-		input_dev->dev.parent = &iforce->usbdev->dev;
-		break;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	case IFORCE_232:
-		input_dev->id.bustype = BUS_RS232;
-		input_dev->dev.parent = &iforce->serio->dev;
-		break;
-#endif
-	}
+	input_dev->id.bustype = bustype;
+	input_dev->dev.parent = parent;
 
 	input_set_drvdata(input_dev, iforce);
 
@@ -313,7 +258,7 @@ int iforce_init_device(struct iforce *iforce)
  */
 
 	for (i = 0; i < 20; i++)
-		if (!iforce_get_id_packet(iforce, "O"))
+		if (!iforce_get_id_packet(iforce, 'O', buf, &len))
 			break;
 
 	if (i == 20) { /* 5 seconds */
@@ -327,23 +272,23 @@ int iforce_init_device(struct iforce *iforce)
  * Get device info.
  */
 
-	if (!iforce_get_id_packet(iforce, "M"))
-		input_dev->id.vendor = (iforce->edata[2] << 8) | iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'M', buf, &len) || len < 3)
+		input_dev->id.vendor = get_unaligned_le16(buf + 1);
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet M\n");
 
-	if (!iforce_get_id_packet(iforce, "P"))
-		input_dev->id.product = (iforce->edata[2] << 8) | iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'P', buf, &len) || len < 3)
+		input_dev->id.product = get_unaligned_le16(buf + 1);
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet P\n");
 
-	if (!iforce_get_id_packet(iforce, "B"))
-		iforce->device_memory.end = (iforce->edata[2] << 8) | iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'B', buf, &len) || len < 3)
+		iforce->device_memory.end = get_unaligned_le16(buf + 1);
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet B\n");
 
-	if (!iforce_get_id_packet(iforce, "N"))
-		ff_effects = iforce->edata[1];
+	if (!iforce_get_id_packet(iforce, 'N', buf, &len) || len < 2)
+		ff_effects = buf[1];
 	else
 		dev_warn(&iforce->dev->dev, "Device does not respond to id packet N\n");
 
@@ -359,8 +304,9 @@ int iforce_init_device(struct iforce *iforce)
  */
 
 	for (i = 0; c[i]; i++)
-		if (!iforce_get_id_packet(iforce, c + i))
-			iforce_dump_packet("info", iforce->ecmd, iforce->edata);
+		if (!iforce_get_id_packet(iforce, c[i], buf, &len))
+			iforce_dump_packet(iforce, "info",
+					   (FF_CMD_QUERY & 0xff00) | len, buf);
 
 /*
  * Disable spring, enable force feedback.
@@ -388,41 +334,35 @@ int iforce_init_device(struct iforce *iforce)
 
 	for (i = 0; iforce->type->btn[i] >= 0; i++)
 		set_bit(iforce->type->btn[i], input_dev->keybit);
-	set_bit(BTN_DEAD, input_dev->keybit);
 
 	for (i = 0; iforce->type->abs[i] >= 0; i++) {
 
 		signed short t = iforce->type->abs[i];
 
 		switch (t) {
+		case ABS_X:
+		case ABS_Y:
+		case ABS_WHEEL:
+			input_set_abs_params(input_dev, t, -1920, 1920, 16, 128);
+			set_bit(t, input_dev->ffbit);
+			break;
 
-			case ABS_X:
-			case ABS_Y:
-			case ABS_WHEEL:
+		case ABS_THROTTLE:
+		case ABS_GAS:
+		case ABS_BRAKE:
+			input_set_abs_params(input_dev, t, 0, 255, 0, 0);
+			break;
 
-				input_set_abs_params(input_dev, t, -1920, 1920, 16, 128);
-				set_bit(t, input_dev->ffbit);
-				break;
+		case ABS_RUDDER:
+			input_set_abs_params(input_dev, t, -128, 127, 0, 0);
+			break;
 
-			case ABS_THROTTLE:
-			case ABS_GAS:
-			case ABS_BRAKE:
-
-				input_set_abs_params(input_dev, t, 0, 255, 0, 0);
-				break;
-
-			case ABS_RUDDER:
-
-				input_set_abs_params(input_dev, t, -128, 127, 0, 0);
-				break;
-
-			case ABS_HAT0X:
-			case ABS_HAT0Y:
-		        case ABS_HAT1X:
-		        case ABS_HAT1Y:
-
-				input_set_abs_params(input_dev, t, -1, 1, 0, 0);
-				break;
+		case ABS_HAT0X:
+		case ABS_HAT0Y:
+		case ABS_HAT1X:
+		case ABS_HAT1Y:
+			input_set_abs_params(input_dev, t, -1, 1, 0, 0);
+			break;
 		}
 	}
 
@@ -455,35 +395,4 @@ int iforce_init_device(struct iforce *iforce)
  fail:	input_free_device(input_dev);
 	return error;
 }
-
-static int __init iforce_init(void)
-{
-	int err = 0;
-
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	err = usb_register(&iforce_usb_driver);
-	if (err)
-		return err;
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	err = serio_register_driver(&iforce_serio_drv);
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	if (err)
-		usb_deregister(&iforce_usb_driver);
-#endif
-#endif
-	return err;
-}
-
-static void __exit iforce_exit(void)
-{
-#ifdef CONFIG_JOYSTICK_IFORCE_USB
-	usb_deregister(&iforce_usb_driver);
-#endif
-#ifdef CONFIG_JOYSTICK_IFORCE_232
-	serio_unregister_driver(&iforce_serio_drv);
-#endif
-}
-
-module_init(iforce_init);
-module_exit(iforce_exit);
+EXPORT_SYMBOL(iforce_init_device);

@@ -512,10 +512,18 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	return -ESHUTDOWN;
 }
 
+static unsigned long ehci_get_resuming_ports(struct usb_hcd *hcd)
+{
+	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
+
+	return ehci->resuming_ports;
+}
+
 #else
 
 #define ehci_bus_suspend	NULL
 #define ehci_bus_resume		NULL
+#define ehci_get_resuming_ports	NULL
 
 #endif	/* CONFIG_PM */
 
@@ -774,12 +782,12 @@ static struct urb *request_single_step_set_feature_urb(
 	atomic_inc(&urb->use_count);
 	atomic_inc(&urb->dev->urbnum);
 	urb->setup_dma = dma_map_single(
-			hcd->self.controller,
+			hcd->self.sysdev,
 			urb->setup_packet,
 			sizeof(struct usb_ctrlrequest),
 			DMA_TO_DEVICE);
 	urb->transfer_dma = dma_map_single(
-			hcd->self.controller,
+			hcd->self.sysdev,
 			urb->transfer_buffer,
 			urb->transfer_buffer_length,
 			DMA_FROM_DEVICE);

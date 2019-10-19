@@ -23,7 +23,7 @@ r8723bs-y = \
 		hal/hal_com_phycfg.o \
 		hal/hal_btcoex.o \
 		hal/hal_sdio.o \
-		hal/Hal8723BPwrSeq.o \
+		hal/hal_pwr_seq.o \
 		hal/HalPhyRf.o \
 		hal/HalPwrSeqCmd.o \
 		hal/odm.o \
@@ -60,7 +60,6 @@ r8723bs-y = \
 		os_dep/osdep_service.o \
 		os_dep/os_intfs.o \
 		os_dep/recv_linux.o \
-		os_dep/rtw_proc.o \
 		os_dep/sdio_intf.o \
 		os_dep/sdio_ops_linux.o \
 		os_dep/wifi_regd.o \

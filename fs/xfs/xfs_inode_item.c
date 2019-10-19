@@ -1,22 +1,11 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include "xfs.h"
 #include "xfs_fs.h"
+#include "xfs_shared.h"
 #include "xfs_format.h"
 #include "xfs_log_format.h"
 #include "xfs_trans_resv.h"
@@ -24,7 +13,6 @@
 #include "xfs_inode.h"
 #include "xfs_trans.h"
 #include "xfs_inode_item.h"
-#include "xfs_error.h"
 #include "xfs_trace.h"
 #include "xfs_trans_priv.h"
 #include "xfs_buf_item.h"
@@ -206,8 +194,6 @@ xfs_inode_item_format_data_fork(
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_df.if_bytes, 4);
-			ASSERT(ip->i_df.if_real_bytes == 0 ||
-			       ip->i_df.if_real_bytes >= data_bytes);
 			ASSERT(ip->i_df.if_u1.if_data != NULL);
 			ASSERT(ip->i_d.di_size > 0);
 			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_ILOCAL,
@@ -292,8 +278,6 @@ xfs_inode_item_format_attr_fork(
 			 * to be there by xfs_idata_realloc().
 			 */
 			data_bytes = roundup(ip->i_afp->if_bytes, 4);
-			ASSERT(ip->i_afp->if_real_bytes == 0 ||
-			       ip->i_afp->if_real_bytes >= data_bytes);
 			ASSERT(ip->i_afp->if_u1.if_data != NULL);
 			xlog_copy_iovec(lv, vecp, XLOG_REG_TYPE_IATTR_LOCAL,
 					ip->i_afp->if_u1.if_data,
@@ -502,8 +486,8 @@ STATIC uint
 xfs_inode_item_push(
 	struct xfs_log_item	*lip,
 	struct list_head	*buffer_list)
-		__releases(&lip->li_ailp->xa_lock)
-		__acquires(&lip->li_ailp->xa_lock)
+		__releases(&lip->li_ailp->ail_lock)
+		__acquires(&lip->li_ailp->ail_lock)
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
 	struct xfs_inode	*ip = iip->ili_inode;
@@ -518,7 +502,7 @@ xfs_inode_item_push(
 	 * The buffer containing this item failed to be written back
 	 * previously. Resubmit the buffer for IO.
 	 */
-	if (lip->li_flags & XFS_LI_FAILED) {
+	if (test_bit(XFS_LI_FAILED, &lip->li_flags)) {
 		if (!xfs_buf_trylock(bp))
 			return XFS_ITEM_LOCKED;
 
@@ -562,7 +546,7 @@ xfs_inode_item_push(
 	ASSERT(iip->ili_fields != 0 || XFS_FORCED_SHUTDOWN(ip->i_mount));
 	ASSERT(iip->ili_logged == 0 || XFS_FORCED_SHUTDOWN(ip->i_mount));
 
-	spin_unlock(&lip->li_ailp->xa_lock);
+	spin_unlock(&lip->li_ailp->ail_lock);
 
 	error = xfs_iflush(ip, &bp);
 	if (!error) {
@@ -571,7 +555,7 @@ xfs_inode_item_push(
 		xfs_buf_relse(bp);
 	}
 
-	spin_lock(&lip->li_ailp->xa_lock);
+	spin_lock(&lip->li_ailp->ail_lock);
 out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 	return rval;
@@ -579,12 +563,9 @@ out_unlock:
 
 /*
  * Unlock the inode associated with the inode log item.
- * Clear the fields of the inode and inode log item that
- * are specific to the current transaction.  If the
- * hold flags is set, do not unlock the inode.
  */
 STATIC void
-xfs_inode_item_unlock(
+xfs_inode_item_release(
 	struct xfs_log_item	*lip)
 {
 	struct xfs_inode_log_item *iip = INODE_ITEM(lip);
@@ -637,30 +618,24 @@ xfs_inode_item_committed(
 	return lsn;
 }
 
-/*
- * XXX rcc - this one really has to do something.  Probably needs
- * to stamp in a new field in the incore inode.
- */
 STATIC void
 xfs_inode_item_committing(
 	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn)
+	xfs_lsn_t		commit_lsn)
 {
-	INODE_ITEM(lip)->ili_last_lsn = lsn;
+	INODE_ITEM(lip)->ili_last_lsn = commit_lsn;
+	return xfs_inode_item_release(lip);
 }
 
-/*
- * This is the ops vector shared by all buf log items.
- */
 static const struct xfs_item_ops xfs_inode_item_ops = {
 	.iop_size	= xfs_inode_item_size,
 	.iop_format	= xfs_inode_item_format,
 	.iop_pin	= xfs_inode_item_pin,
 	.iop_unpin	= xfs_inode_item_unpin,
-	.iop_unlock	= xfs_inode_item_unlock,
+	.iop_release	= xfs_inode_item_release,
 	.iop_committed	= xfs_inode_item_committed,
 	.iop_push	= xfs_inode_item_push,
-	.iop_committing = xfs_inode_item_committing,
+	.iop_committing	= xfs_inode_item_committing,
 	.iop_error	= xfs_inode_item_error
 };
 
@@ -676,7 +651,7 @@ xfs_inode_item_init(
 	struct xfs_inode_log_item *iip;
 
 	ASSERT(ip->i_itemp == NULL);
-	iip = ip->i_itemp = kmem_zone_zalloc(xfs_ili_zone, KM_SLEEP);
+	iip = ip->i_itemp = kmem_zone_zalloc(xfs_ili_zone, 0);
 
 	iip->ili_inode = ip;
 	xfs_log_item_init(mp, &iip->ili_item, XFS_LI_INODE,
@@ -736,14 +711,14 @@ xfs_iflush_done(
 		 */
 		iip = INODE_ITEM(blip);
 		if ((iip->ili_logged && blip->li_lsn == iip->ili_flush_lsn) ||
-		    (blip->li_flags & XFS_LI_FAILED))
+		    test_bit(XFS_LI_FAILED, &blip->li_flags))
 			need_ail++;
 	}
 
 	/* make sure we capture the state of the initial inode. */
 	iip = INODE_ITEM(lip);
 	if ((iip->ili_logged && lip->li_lsn == iip->ili_flush_lsn) ||
-	    lip->li_flags & XFS_LI_FAILED)
+	    test_bit(XFS_LI_FAILED, &lip->li_flags))
 		need_ail++;
 
 	/*
@@ -759,7 +734,7 @@ xfs_iflush_done(
 		bool			mlip_changed = false;
 
 		/* this is an opencoded batch version of xfs_trans_ail_delete */
-		spin_lock(&ailp->xa_lock);
+		spin_lock(&ailp->ail_lock);
 		list_for_each_entry(blip, &tmp, li_bio_list) {
 			if (INODE_ITEM(blip)->ili_logged &&
 			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn)
@@ -770,15 +745,15 @@ xfs_iflush_done(
 		}
 
 		if (mlip_changed) {
-			if (!XFS_FORCED_SHUTDOWN(ailp->xa_mount))
-				xlog_assign_tail_lsn_locked(ailp->xa_mount);
-			if (list_empty(&ailp->xa_ail))
-				wake_up_all(&ailp->xa_empty);
+			if (!XFS_FORCED_SHUTDOWN(ailp->ail_mount))
+				xlog_assign_tail_lsn_locked(ailp->ail_mount);
+			if (list_empty(&ailp->ail_head))
+				wake_up_all(&ailp->ail_empty);
 		}
-		spin_unlock(&ailp->xa_lock);
+		spin_unlock(&ailp->ail_lock);
 
 		if (mlip_changed)
-			xfs_log_space_wake(ailp->xa_mount);
+			xfs_log_space_wake(ailp->ail_mount);
 	}
 
 	/*
@@ -810,7 +785,7 @@ xfs_iflush_abort(
 	xfs_inode_log_item_t	*iip = ip->i_itemp;
 
 	if (iip) {
-		if (iip->ili_item.li_flags & XFS_LI_IN_AIL) {
+		if (test_bit(XFS_LI_IN_AIL, &iip->ili_item.li_flags)) {
 			xfs_trans_ail_remove(&iip->ili_item,
 					     stale ? SHUTDOWN_LOG_IO_ERROR :
 						     SHUTDOWN_CORRUPT_INCORE);

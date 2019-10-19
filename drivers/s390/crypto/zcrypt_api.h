@@ -1,8 +1,6 @@
-// SPDX-License-Identifier: GPL-2.0+
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
- *  zcrypt 2.1.0
- *
- *  Copyright IBM Corp. 2001, 2012
+ *  Copyright IBM Corp. 2001, 2019
  *  Author(s): Robert Burroughs
  *	       Eric Rossman (edrossma@us.ibm.com)
  *	       Cornelia Huck <cornelia.huck@de.ibm.com>
@@ -21,42 +19,9 @@
 #include <asm/zcrypt.h>
 #include "ap_bus.h"
 
-/* deprecated status calls */
-#define ICAZ90STATUS		_IOR(ZCRYPT_IOCTL_MAGIC, 0x10, struct ica_z90_status)
-#define Z90STAT_PCIXCCCOUNT	_IOR(ZCRYPT_IOCTL_MAGIC, 0x43, int)
-
 /**
- * This structure is deprecated and the corresponding ioctl() has been
- * replaced with individual ioctl()s for each piece of data!
+ * Supported device types
  */
-struct ica_z90_status {
-	int totalcount;
-	int leedslitecount; // PCICA
-	int leeds2count;    // PCICC
-	// int PCIXCCCount; is not in struct for backward compatibility
-	int requestqWaitCount;
-	int pendingqWaitCount;
-	int totalOpenCount;
-	int cryptoDomain;
-	// status: 0=not there, 1=PCICA, 2=PCICC, 3=PCIXCC_MCL2, 4=PCIXCC_MCL3,
-	//	   5=CEX2C
-	unsigned char status[64];
-	// qdepth: # work elements waiting for each device
-	unsigned char qdepth[64];
-};
-
-/**
- * device type for an actual device is either PCICA, PCICC, PCIXCC_MCL2,
- * PCIXCC_MCL3, CEX2C, or CEX2A
- *
- * NOTE: PCIXCC_MCL3 refers to a PCIXCC with May 2004 version of Licensed
- *	 Internal Code (LIC) (EC J12220 level 29).
- *	 PCIXCC_MCL2 refers to any LIC before this level.
- */
-#define ZCRYPT_PCICA		1
-#define ZCRYPT_PCICC		2
-#define ZCRYPT_PCIXCC_MCL2	3
-#define ZCRYPT_PCIXCC_MCL3	4
 #define ZCRYPT_CEX2C		5
 #define ZCRYPT_CEX2A		6
 #define ZCRYPT_CEX3C		7
@@ -64,6 +29,7 @@ struct ica_z90_status {
 #define ZCRYPT_CEX4	       10
 #define ZCRYPT_CEX5	       11
 #define ZCRYPT_CEX6	       12
+#define ZCRYPT_CEX7	       13
 
 /**
  * Large random numbers are pulled in 4096 byte chunks from the crypto cards
@@ -156,9 +122,6 @@ void zcrypt_card_get(struct zcrypt_card *);
 int zcrypt_card_put(struct zcrypt_card *);
 int zcrypt_card_register(struct zcrypt_card *);
 void zcrypt_card_unregister(struct zcrypt_card *);
-struct zcrypt_card *zcrypt_card_get_best(unsigned int *,
-					 unsigned int, unsigned int);
-void zcrypt_card_put_best(struct zcrypt_card *, unsigned int);
 
 struct zcrypt_queue *zcrypt_queue_alloc(size_t);
 void zcrypt_queue_free(struct zcrypt_queue *);
@@ -167,8 +130,6 @@ int zcrypt_queue_put(struct zcrypt_queue *);
 int zcrypt_queue_register(struct zcrypt_queue *);
 void zcrypt_queue_unregister(struct zcrypt_queue *);
 void zcrypt_queue_force_online(struct zcrypt_queue *, int);
-struct zcrypt_queue *zcrypt_queue_get_best(unsigned int, unsigned int);
-void  zcrypt_queue_put_best(struct zcrypt_queue *, unsigned int);
 
 int zcrypt_rng_device_add(void);
 void zcrypt_rng_device_remove(void);
@@ -179,6 +140,8 @@ struct zcrypt_ops *zcrypt_msgtype(unsigned char *, int);
 int zcrypt_api_init(void);
 void zcrypt_api_exit(void);
 long zcrypt_send_cprb(struct ica_xcRB *xcRB);
-void zcrypt_device_status_mask(struct zcrypt_device_matrix *devstatus);
+void zcrypt_device_status_mask_ext(struct zcrypt_device_status_ext *devstatus);
+int zcrypt_device_status_ext(int card, int queue,
+			     struct zcrypt_device_status_ext *devstatus);
 
 #endif /* _ZCRYPT_API_H_ */

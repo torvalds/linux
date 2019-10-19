@@ -31,7 +31,7 @@
 static void
 nfs_free_unlinkdata(struct nfs_unlinkdata *data)
 {
-	put_rpccred(data->cred);
+	put_cred(data->cred);
 	kfree(data->args.name.name);
 	kfree(data);
 }
@@ -39,6 +39,7 @@ nfs_free_unlinkdata(struct nfs_unlinkdata *data)
 /**
  * nfs_async_unlink_done - Sillydelete post-processing
  * @task: rpc_task of the sillydelete
+ * @calldata: pointer to nfs_unlinkdata
  *
  * Do the directory attribute update.
  */
@@ -54,7 +55,7 @@ static void nfs_async_unlink_done(struct rpc_task *task, void *calldata)
 
 /**
  * nfs_async_unlink_release - Release the sillydelete data.
- * @task: rpc_task of the sillydelete
+ * @calldata: struct nfs_unlinkdata to release
  *
  * We need to call nfs_put_unlinkdata as a 'tk_release' task since the
  * rpc_task would be freed too.
@@ -85,7 +86,7 @@ static const struct rpc_call_ops nfs_unlink_ops = {
 	.rpc_call_prepare = nfs_unlink_prepare,
 };
 
-static void nfs_do_call_unlink(struct nfs_unlinkdata *data)
+static void nfs_do_call_unlink(struct inode *inode, struct nfs_unlinkdata *data)
 {
 	struct rpc_message msg = {
 		.rpc_argp = &data->args,
@@ -105,7 +106,7 @@ static void nfs_do_call_unlink(struct nfs_unlinkdata *data)
 	data->args.fh = NFS_FH(dir);
 	nfs_fattr_init(data->res.dir_attr);
 
-	NFS_PROTO(dir)->unlink_setup(&msg, dir);
+	NFS_PROTO(dir)->unlink_setup(&msg, data->dentry, inode);
 
 	task_setup_data.rpc_client = NFS_CLIENT(dir);
 	task = rpc_run_task(&task_setup_data);
@@ -113,7 +114,7 @@ static void nfs_do_call_unlink(struct nfs_unlinkdata *data)
 		rpc_put_task_async(task);
 }
 
-static int nfs_call_unlink(struct dentry *dentry, struct nfs_unlinkdata *data)
+static int nfs_call_unlink(struct dentry *dentry, struct inode *inode, struct nfs_unlinkdata *data)
 {
 	struct inode *dir = d_inode(dentry->d_parent);
 	struct dentry *alias;
@@ -153,14 +154,14 @@ static int nfs_call_unlink(struct dentry *dentry, struct nfs_unlinkdata *data)
 		return ret;
 	}
 	data->dentry = alias;
-	nfs_do_call_unlink(data);
+	nfs_do_call_unlink(inode, data);
 	return 1;
 }
 
 /**
  * nfs_async_unlink - asynchronous unlinking of a file
- * @dir: parent directory of dentry
- * @dentry: dentry to unlink
+ * @dentry: parent directory of dentry
+ * @name: name of dentry to unlink
  */
 static int
 nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
@@ -177,11 +178,7 @@ nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 		goto out_free;
 	data->args.name.len = name->len;
 
-	data->cred = rpc_lookup_cred();
-	if (IS_ERR(data->cred)) {
-		status = PTR_ERR(data->cred);
-		goto out_free_name;
-	}
+	data->cred = get_current_cred();
 	data->res.dir_attr = &data->dir_attr;
 	init_waitqueue_head(&data->wq);
 
@@ -202,8 +199,7 @@ nfs_async_unlink(struct dentry *dentry, const struct qstr *name)
 	return 0;
 out_unlock:
 	spin_unlock(&dentry->d_lock);
-	put_rpccred(data->cred);
-out_free_name:
+	put_cred(data->cred);
 	kfree(data->args.name.name);
 out_free:
 	kfree(data);
@@ -231,7 +227,7 @@ nfs_complete_unlink(struct dentry *dentry, struct inode *inode)
 	dentry->d_fsdata = NULL;
 	spin_unlock(&dentry->d_lock);
 
-	if (NFS_STALE(inode) || !nfs_call_unlink(dentry, data))
+	if (NFS_STALE(inode) || !nfs_call_unlink(dentry, inode, data))
 		nfs_free_unlinkdata(data);
 }
 
@@ -307,7 +303,7 @@ static void nfs_async_rename_release(void *calldata)
 	iput(data->old_dir);
 	iput(data->new_dir);
 	nfs_sb_deactive(sb);
-	put_rpccred(data->cred);
+	put_cred(data->cred);
 	kfree(data);
 }
 
@@ -329,6 +325,7 @@ static const struct rpc_call_ops nfs_rename_ops = {
  * @new_dir: target directory for the rename
  * @old_dentry: original dentry to be renamed
  * @new_dentry: dentry to which the old_dentry should be renamed
+ * @complete: Function to run on successful completion
  *
  * It's expected that valid references to the dentries and inodes are held
  */
@@ -352,12 +349,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 		return ERR_PTR(-ENOMEM);
 	task_setup_data.callback_data = data;
 
-	data->cred = rpc_lookup_cred();
-	if (IS_ERR(data->cred)) {
-		struct rpc_task *task = ERR_CAST(data->cred);
-		kfree(data);
-		return task;
-	}
+	data->cred = get_current_cred();
 
 	msg.rpc_argp = &data->args;
 	msg.rpc_resp = &data->res;
@@ -386,7 +378,7 @@ nfs_async_rename(struct inode *old_dir, struct inode *new_dir,
 
 	nfs_sb_active(old_dir->i_sb);
 
-	NFS_PROTO(data->old_dir)->rename_setup(&msg, old_dir);
+	NFS_PROTO(data->old_dir)->rename_setup(&msg, old_dentry, new_dentry);
 
 	return rpc_run_task(&task_setup_data);
 }
@@ -404,12 +396,6 @@ nfs_complete_sillyrename(struct rpc_task *task, struct nfs_renamedata *data)
 		nfs_cancel_async_unlink(dentry);
 		return;
 	}
-
-	/*
-	 * vfs_unlink and the like do not issue this when a file is
-	 * sillyrenamed, so do it here.
-	 */
-	fsnotify_nameremove(dentry, 0);
 }
 
 #define SILLYNAME_PREFIX ".nfs"
@@ -448,6 +434,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	unsigned char silly[SILLYNAME_LEN + 1];
 	unsigned long long fileid;
 	struct dentry *sdentry;
+	struct inode *inode = d_inode(dentry);
 	struct rpc_task *task;
 	int            error = -EBUSY;
 
@@ -462,9 +449,6 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		goto out;
 
 	fileid = NFS_FILEID(d_inode(dentry));
-
-	/* Return delegation in anticipation of the rename */
-	NFS_PROTO(d_inode(dentry))->return_delegation(d_inode(dentry));
 
 	sdentry = NULL;
 	do {
@@ -487,6 +471,8 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 		if (IS_ERR(sdentry))
 			goto out;
 	} while (d_inode(sdentry) != NULL); /* need negative lookup */
+
+	ihold(inode);
 
 	/* queue unlink first. Can't do this from rpc_release as it
 	 * has to allocate memory
@@ -512,6 +498,12 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	case 0:
 		/* The rename succeeded */
 		nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
+		spin_lock(&inode->i_lock);
+		NFS_I(inode)->attr_gencount = nfs_inc_attr_generation_counter();
+		NFS_I(inode)->cache_validity |= NFS_INO_INVALID_CHANGE
+			| NFS_INO_INVALID_CTIME
+			| NFS_INO_REVAL_FORCED;
+		spin_unlock(&inode->i_lock);
 		d_move(dentry, sdentry);
 		break;
 	case -ERESTARTSYS:
@@ -522,6 +514,7 @@ nfs_sillyrename(struct inode *dir, struct dentry *dentry)
 	}
 	rpc_put_task(task);
 out_dput:
+	iput(inode);
 	dput(sdentry);
 out:
 	return error;

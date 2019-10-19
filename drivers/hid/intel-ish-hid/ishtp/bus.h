@@ -1,22 +1,15 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ISHTP bus definitions
  *
  * Copyright (c) 2014-2016, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  */
 #ifndef _LINUX_ISHTP_CL_BUS_H
 #define _LINUX_ISHTP_CL_BUS_H
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/intel-ish-client-if.h>
 
 struct ishtp_cl;
 struct ishtp_cl_device;
@@ -52,25 +45,6 @@ struct ishtp_cl_device {
 	void (*event_cb)(struct ishtp_cl_device *device);
 };
 
-/**
- * struct ishtp_cl_device - ISHTP device handle
- * @driver:	driver instance on a bus
- * @name:	Name of the device for probe
- * @probe:	driver callback for device probe
- * @remove:	driver callback on device removal
- *
- * Client drivers defines to get probed/removed for ISHTP client device.
- */
-struct ishtp_cl_driver {
-	struct device_driver driver;
-	const char *name;
-	int (*probe)(struct ishtp_cl_device *dev);
-	int (*remove)(struct ishtp_cl_device *dev);
-	int (*reset)(struct ishtp_cl_device *dev);
-	const struct dev_pm_ops *pm;
-};
-
-
 int	ishtp_bus_new_client(struct ishtp_device *dev);
 void	ishtp_remove_all_clients(struct ishtp_device *dev);
 int	ishtp_cl_device_bind(struct ishtp_cl *cl);
@@ -85,7 +59,7 @@ int	ishtp_send_msg(struct ishtp_device *dev,
 /* Write a single-fragment message */
 int	ishtp_write_message(struct ishtp_device *dev,
 			    struct ishtp_msg_hdr *hdr,
-			    unsigned char *buf);
+			    void *buf);
 
 /* Use DMA to send/receive messages */
 int ishtp_use_dma_transfer(void);
@@ -98,17 +72,5 @@ void	ishtp_recv(struct ishtp_device *dev);
 void	ishtp_reset_handler(struct ishtp_device *dev);
 void	ishtp_reset_compl_handler(struct ishtp_device *dev);
 
-void	ishtp_put_device(struct ishtp_cl_device *);
-void	ishtp_get_device(struct ishtp_cl_device *);
-
-int	__ishtp_cl_driver_register(struct ishtp_cl_driver *driver,
-				   struct module *owner);
-#define ishtp_cl_driver_register(driver)		\
-	__ishtp_cl_driver_register(driver, THIS_MODULE)
-void	ishtp_cl_driver_unregister(struct ishtp_cl_driver *driver);
-
-int	ishtp_register_event_cb(struct ishtp_cl_device *device,
-				void (*read_cb)(struct ishtp_cl_device *));
-int	ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const uuid_le *cuuid);
-
+int	ishtp_fw_cl_by_uuid(struct ishtp_device *dev, const guid_t *cuuid);
 #endif /* _LINUX_ISHTP_CL_BUS_H */

@@ -1,10 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * DDR PHY Front End (DPFE) driver for Broadcom set top box SoCs
  *
  * Copyright (c) 2017 Broadcom
- *
- * Released under the GPLv2 only.
- * SPDX-License-Identifier: GPL-2.0
  */
 
 /*
@@ -35,24 +33,33 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 
 #define DRVNAME			"brcmstb-dpfe"
-#define FIRMWARE_NAME		"dpfe.bin"
 
 /* DCPU register offsets */
 #define REG_DCPU_RESET		0x0
 #define REG_TO_DCPU_MBOX	0x10
 #define REG_TO_HOST_MBOX	0x14
 
+/* Macros to process offsets returned by the DCPU */
+#define DRAM_MSG_ADDR_OFFSET	0x0
+#define DRAM_MSG_TYPE_OFFSET	0x1c
+#define DRAM_MSG_ADDR_MASK	((1UL << DRAM_MSG_TYPE_OFFSET) - 1)
+#define DRAM_MSG_TYPE_MASK	((1UL << \
+				 (BITS_PER_LONG - DRAM_MSG_TYPE_OFFSET)) - 1)
+
 /* Message RAM */
-#define DCPU_MSG_RAM(x)		(0x100 + (x) * sizeof(u32))
+#define DCPU_MSG_RAM_START	0x100
+#define DCPU_MSG_RAM(x)		(DCPU_MSG_RAM_START + (x) * sizeof(u32))
 
 /* DRAM Info Offsets & Masks */
 #define DRAM_INFO_INTERVAL	0x0
 #define DRAM_INFO_MR4		0x4
 #define DRAM_INFO_ERROR		0x8
 #define DRAM_INFO_MR4_MASK	0xff
+#define DRAM_INFO_MR4_SHIFT	24	/* We need to look at byte 3 */
 
 /* DRAM MR4 Offsets & Masks */
 #define DRAM_MR4_REFRESH	0x0	/* Refresh rate */
@@ -67,13 +74,23 @@
 #define DRAM_MR4_TH_OFFS_MASK	0x3
 #define DRAM_MR4_TUF_MASK	0x1
 
-/* DRAM Vendor Offsets & Masks */
+/* DRAM Vendor Offsets & Masks (API v2) */
 #define DRAM_VENDOR_MR5		0x0
 #define DRAM_VENDOR_MR6		0x4
 #define DRAM_VENDOR_MR7		0x8
 #define DRAM_VENDOR_MR8		0xc
 #define DRAM_VENDOR_ERROR	0x10
 #define DRAM_VENDOR_MASK	0xff
+#define DRAM_VENDOR_SHIFT	24	/* We need to look at byte 3 */
+
+/* DRAM Information Offsets & Masks (API v3) */
+#define DRAM_DDR_INFO_MR4	0x0
+#define DRAM_DDR_INFO_MR5	0x4
+#define DRAM_DDR_INFO_MR6	0x8
+#define DRAM_DDR_INFO_MR7	0xc
+#define DRAM_DDR_INFO_MR8	0x10
+#define DRAM_DDR_INFO_ERROR	0x14
+#define DRAM_DDR_INFO_MASK	0xff
 
 /* Reset register bits & masks */
 #define DCPU_RESET_SHIFT	0x0
@@ -103,7 +120,7 @@
 #define DPFE_MSG_TYPE_COMMAND	1
 #define DPFE_MSG_TYPE_RESPONSE	2
 
-#define DELAY_LOOP_MAX		200000
+#define DELAY_LOOP_MAX		1000
 
 enum dpfe_msg_fields {
 	MSG_HEADER,
@@ -111,7 +128,7 @@ enum dpfe_msg_fields {
 	MSG_ARG_COUNT,
 	MSG_ARG0,
 	MSG_CHKSUM,
-	MSG_FIELD_MAX /* Last entry */
+	MSG_FIELD_MAX	= 16 /* Max number of arguments */
 };
 
 enum dpfe_commands {
@@ -119,14 +136,6 @@ enum dpfe_commands {
 	DPFE_CMD_GET_REFRESH,
 	DPFE_CMD_GET_VENDOR,
 	DPFE_CMD_MAX /* Last entry */
-};
-
-struct dpfe_msg {
-	u32 header;
-	u32 command;
-	u32 arg_count;
-	u32 arg0;
-	u32 chksum; /* This is the sum of all other entries. */
 };
 
 /*
@@ -162,13 +171,21 @@ struct init_data {
 	bool is_big_endian;
 };
 
+/* API version and corresponding commands */
+struct dpfe_api {
+	int version;
+	const char *fw_name;
+	const struct attribute_group **sysfs_attrs;
+	u32 command[DPFE_CMD_MAX][MSG_FIELD_MAX];
+};
+
 /* Things we need for as long as we are active. */
 struct private_data {
 	void __iomem *regs;
 	void __iomem *dmem;
 	void __iomem *imem;
 	struct device *dev;
-	unsigned int index;
+	const struct dpfe_api *dpfe_api;
 	struct mutex lock;
 };
 
@@ -177,28 +194,99 @@ static const char *error_text[] = {
 	"Incorrect checksum", "Malformed command", "Timed out",
 };
 
-/* List of supported firmware commands */
-static const u32 dpfe_commands[DPFE_CMD_MAX][MSG_FIELD_MAX] = {
-	[DPFE_CMD_GET_INFO] = {
-		[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
-		[MSG_COMMAND] = 1,
-		[MSG_ARG_COUNT] = 1,
-		[MSG_ARG0] = 1,
-		[MSG_CHKSUM] = 4,
-	},
-	[DPFE_CMD_GET_REFRESH] = {
-		[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
-		[MSG_COMMAND] = 2,
-		[MSG_ARG_COUNT] = 1,
-		[MSG_ARG0] = 1,
-		[MSG_CHKSUM] = 5,
-	},
-	[DPFE_CMD_GET_VENDOR] = {
-		[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
-		[MSG_COMMAND] = 2,
-		[MSG_ARG_COUNT] = 1,
-		[MSG_ARG0] = 2,
-		[MSG_CHKSUM] = 6,
+/*
+ * Forward declaration of our sysfs attribute functions, so we can declare the
+ * attribute data structures early.
+ */
+static ssize_t show_info(struct device *, struct device_attribute *, char *);
+static ssize_t show_refresh(struct device *, struct device_attribute *, char *);
+static ssize_t store_refresh(struct device *, struct device_attribute *,
+			  const char *, size_t);
+static ssize_t show_vendor(struct device *, struct device_attribute *, char *);
+static ssize_t show_dram(struct device *, struct device_attribute *, char *);
+
+/*
+ * Declare our attributes early, so they can be referenced in the API data
+ * structure. We need to do this, because the attributes depend on the API
+ * version.
+ */
+static DEVICE_ATTR(dpfe_info, 0444, show_info, NULL);
+static DEVICE_ATTR(dpfe_refresh, 0644, show_refresh, store_refresh);
+static DEVICE_ATTR(dpfe_vendor, 0444, show_vendor, NULL);
+static DEVICE_ATTR(dpfe_dram, 0444, show_dram, NULL);
+
+/* API v2 sysfs attributes */
+static struct attribute *dpfe_v2_attrs[] = {
+	&dev_attr_dpfe_info.attr,
+	&dev_attr_dpfe_refresh.attr,
+	&dev_attr_dpfe_vendor.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(dpfe_v2);
+
+/* API v3 sysfs attributes */
+static struct attribute *dpfe_v3_attrs[] = {
+	&dev_attr_dpfe_info.attr,
+	&dev_attr_dpfe_dram.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(dpfe_v3);
+
+/* API v2 firmware commands */
+static const struct dpfe_api dpfe_api_v2 = {
+	.version = 2,
+	.fw_name = "dpfe.bin",
+	.sysfs_attrs = dpfe_v2_groups,
+	.command = {
+		[DPFE_CMD_GET_INFO] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 1,
+			[MSG_ARG_COUNT] = 1,
+			[MSG_ARG0] = 1,
+			[MSG_CHKSUM] = 4,
+		},
+		[DPFE_CMD_GET_REFRESH] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 2,
+			[MSG_ARG_COUNT] = 1,
+			[MSG_ARG0] = 1,
+			[MSG_CHKSUM] = 5,
+		},
+		[DPFE_CMD_GET_VENDOR] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 2,
+			[MSG_ARG_COUNT] = 1,
+			[MSG_ARG0] = 2,
+			[MSG_CHKSUM] = 6,
+		},
+	}
+};
+
+/* API v3 firmware commands */
+static const struct dpfe_api dpfe_api_v3 = {
+	.version = 3,
+	.fw_name = NULL, /* We expect the firmware to have been downloaded! */
+	.sysfs_attrs = dpfe_v3_groups,
+	.command = {
+		[DPFE_CMD_GET_INFO] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x0101,
+			[MSG_ARG_COUNT] = 1,
+			[MSG_ARG0] = 1,
+			[MSG_CHKSUM] = 0x104,
+		},
+		[DPFE_CMD_GET_REFRESH] = {
+			[MSG_HEADER] = DPFE_MSG_TYPE_COMMAND,
+			[MSG_COMMAND] = 0x0202,
+			[MSG_ARG_COUNT] = 0,
+			/*
+			 * This is a bit ugly. Without arguments, the checksum
+			 * follows right after the argument count and not at
+			 * offset MSG_CHKSUM.
+			 */
+			[MSG_ARG0] = 0x203,
+		},
+		/* There's no GET_VENDOR command in API v3. */
 	},
 };
 
@@ -243,24 +331,76 @@ static void __enable_dcpu(void __iomem *regs)
 	writel_relaxed(val, regs + REG_DCPU_RESET);
 }
 
-static unsigned int get_msg_chksum(const u32 msg[])
+static unsigned int get_msg_chksum(const u32 msg[], unsigned int max)
 {
 	unsigned int sum = 0;
 	unsigned int i;
 
 	/* Don't include the last field in the checksum. */
-	for (i = 0; i < MSG_FIELD_MAX - 1; i++)
+	for (i = 0; i < max; i++)
 		sum += msg[i];
 
 	return sum;
 }
 
+static void __iomem *get_msg_ptr(struct private_data *priv, u32 response,
+				 char *buf, ssize_t *size)
+{
+	unsigned int msg_type;
+	unsigned int offset;
+	void __iomem *ptr = NULL;
+
+	/* There is no need to use this function for API v3 or later. */
+	if (unlikely(priv->dpfe_api->version >= 3)) {
+		return NULL;
+	}
+
+	msg_type = (response >> DRAM_MSG_TYPE_OFFSET) & DRAM_MSG_TYPE_MASK;
+	offset = (response >> DRAM_MSG_ADDR_OFFSET) & DRAM_MSG_ADDR_MASK;
+
+	/*
+	 * msg_type == 1: the offset is relative to the message RAM
+	 * msg_type == 0: the offset is relative to the data RAM (this is the
+	 *                previous way of passing data)
+	 * msg_type is anything else: there's critical hardware problem
+	 */
+	switch (msg_type) {
+	case 1:
+		ptr = priv->regs + DCPU_MSG_RAM_START + offset;
+		break;
+	case 0:
+		ptr = priv->dmem + offset;
+		break;
+	default:
+		dev_emerg(priv->dev, "invalid message reply from DCPU: %#x\n",
+			response);
+		if (buf && size)
+			*size = sprintf(buf,
+				"FATAL: communication error with DCPU\n");
+	}
+
+	return ptr;
+}
+
+static void __finalize_command(struct private_data *priv)
+{
+	unsigned int release_mbox;
+
+	/*
+	 * It depends on the API version which MBOX register we have to write to
+	 * to signal we are done.
+	 */
+	release_mbox = (priv->dpfe_api->version < 3)
+			? REG_TO_HOST_MBOX : REG_TO_DCPU_MBOX;
+	writel_relaxed(0, priv->regs + release_mbox);
+}
+
 static int __send_command(struct private_data *priv, unsigned int cmd,
 			  u32 result[])
 {
-	const u32 *msg = dpfe_commands[cmd];
+	const u32 *msg = priv->dpfe_api->command[cmd];
 	void __iomem *regs = priv->regs;
-	unsigned int i, chksum;
+	unsigned int i, chksum, chksum_idx;
 	int ret = 0;
 	u32 resp;
 
@@ -268,6 +408,18 @@ static int __send_command(struct private_data *priv, unsigned int cmd,
 		return -1;
 
 	mutex_lock(&priv->lock);
+
+	/* Wait for DCPU to become ready */
+	for (i = 0; i < DELAY_LOOP_MAX; i++) {
+		resp = readl_relaxed(regs + REG_TO_HOST_MBOX);
+		if (resp == 0)
+			break;
+		msleep(1);
+	}
+	if (resp != 0) {
+		mutex_unlock(&priv->lock);
+		return -ETIMEDOUT;
+	}
 
 	/* Write command and arguments to message area */
 	for (i = 0; i < MSG_FIELD_MAX; i++)
@@ -282,7 +434,7 @@ static int __send_command(struct private_data *priv, unsigned int cmd,
 		resp = readl_relaxed(regs + REG_TO_HOST_MBOX);
 		if (resp > 0)
 			break;
-		udelay(5);
+		msleep(1);
 	}
 
 	if (i == DELAY_LOOP_MAX) {
@@ -292,10 +444,11 @@ static int __send_command(struct private_data *priv, unsigned int cmd,
 		/* Read response data */
 		for (i = 0; i < MSG_FIELD_MAX; i++)
 			result[i] = readl_relaxed(regs + DCPU_MSG_RAM(i));
+		chksum_idx = result[MSG_ARG_COUNT] + MSG_ARG_COUNT + 1;
 	}
 
 	/* Tell DCPU we are done */
-	writel_relaxed(0, regs + REG_TO_HOST_MBOX);
+	__finalize_command(priv);
 
 	mutex_unlock(&priv->lock);
 
@@ -303,8 +456,8 @@ static int __send_command(struct private_data *priv, unsigned int cmd,
 		return ret;
 
 	/* Verify response */
-	chksum = get_msg_chksum(result);
-	if (chksum != result[MSG_CHKSUM])
+	chksum = get_msg_chksum(result, chksum_idx);
+	if (chksum != result[chksum_idx])
 		resp = DCPU_RET_ERR_CHKSUM;
 
 	if (resp != DCPU_RET_SUCCESS) {
@@ -445,7 +598,15 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 			return 0;
 	}
 
-	ret = request_firmware(&fw, FIRMWARE_NAME, dev);
+	/*
+	 * If the firmware filename is NULL it means the boot firmware has to
+	 * download the DCPU firmware for us. If that didn't work, we have to
+	 * bail, since downloading it ourselves wouldn't work either.
+	 */
+	if (!priv->dpfe_api->fw_name)
+		return -ENODEV;
+
+	ret = request_firmware(&fw, priv->dpfe_api->fw_name, dev);
 	/* request_firmware() prints its own error messages. */
 	if (ret)
 		return ret;
@@ -486,12 +647,10 @@ static int brcmstb_dpfe_download_firmware(struct platform_device *pdev,
 }
 
 static ssize_t generic_show(unsigned int command, u32 response[],
-			    struct device *dev, char *buf)
+			    struct private_data *priv, char *buf)
 {
-	struct private_data *priv;
 	int ret;
 
-	priv = dev_get_drvdata(dev);
 	if (!priv)
 		return sprintf(buf, "ERROR: driver private data not set\n");
 
@@ -506,10 +665,12 @@ static ssize_t show_info(struct device *dev, struct device_attribute *devattr,
 			 char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
+	struct private_data *priv;
 	unsigned int info;
-	int ret;
+	ssize_t ret;
 
-	ret = generic_show(DPFE_CMD_GET_INFO, response, dev, buf);
+	priv = dev_get_drvdata(dev);
+	ret = generic_show(DPFE_CMD_GET_INFO, response, priv, buf);
 	if (ret)
 		return ret;
 
@@ -528,20 +689,21 @@ static ssize_t show_refresh(struct device *dev,
 	u32 response[MSG_FIELD_MAX];
 	void __iomem *info;
 	struct private_data *priv;
-	unsigned int offset;
 	u8 refresh, sr_abort, ppre, thermal_offs, tuf;
 	u32 mr4;
-	int ret;
+	ssize_t ret;
 
-	ret = generic_show(DPFE_CMD_GET_REFRESH, response, dev, buf);
+	priv = dev_get_drvdata(dev);
+	ret = generic_show(DPFE_CMD_GET_REFRESH, response, priv, buf);
 	if (ret)
 		return ret;
 
-	priv = dev_get_drvdata(dev);
-	offset = response[MSG_ARG0];
-	info = priv->dmem + offset;
+	info = get_msg_ptr(priv, response[MSG_ARG0], buf, &ret);
+	if (!info)
+		return ret;
 
-	mr4 = readl_relaxed(info + DRAM_INFO_MR4) & DRAM_INFO_MR4_MASK;
+	mr4 = (readl_relaxed(info + DRAM_INFO_MR4) >> DRAM_INFO_MR4_SHIFT) &
+	       DRAM_INFO_MR4_MASK;
 
 	refresh = (mr4 >> DRAM_MR4_REFRESH) & DRAM_MR4_REFRESH_MASK;
 	sr_abort = (mr4 >> DRAM_MR4_SR_ABORT) & DRAM_MR4_SR_ABORT_MASK;
@@ -561,7 +723,6 @@ static ssize_t store_refresh(struct device *dev, struct device_attribute *attr,
 	u32 response[MSG_FIELD_MAX];
 	struct private_data *priv;
 	void __iomem *info;
-	unsigned int offset;
 	unsigned long val;
 	int ret;
 
@@ -569,41 +730,72 @@ static ssize_t store_refresh(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 
 	priv = dev_get_drvdata(dev);
-
 	ret = __send_command(priv, DPFE_CMD_GET_REFRESH, response);
 	if (ret)
 		return ret;
 
-	offset = response[MSG_ARG0];
-	info = priv->dmem + offset;
+	info = get_msg_ptr(priv, response[MSG_ARG0], NULL, NULL);
+	if (!info)
+		return -EIO;
+
 	writel_relaxed(val, info + DRAM_INFO_INTERVAL);
 
 	return count;
 }
 
 static ssize_t show_vendor(struct device *dev, struct device_attribute *devattr,
-			 char *buf)
+			   char *buf)
 {
 	u32 response[MSG_FIELD_MAX];
 	struct private_data *priv;
 	void __iomem *info;
-	unsigned int offset;
-	int ret;
+	ssize_t ret;
+	u32 mr5, mr6, mr7, mr8, err;
 
-	ret = generic_show(DPFE_CMD_GET_VENDOR, response, dev, buf);
+	priv = dev_get_drvdata(dev);
+	ret = generic_show(DPFE_CMD_GET_VENDOR, response, priv, buf);
 	if (ret)
 		return ret;
 
-	offset = response[MSG_ARG0];
-	priv = dev_get_drvdata(dev);
-	info = priv->dmem + offset;
+	info = get_msg_ptr(priv, response[MSG_ARG0], buf, &ret);
+	if (!info)
+		return ret;
 
-	return sprintf(buf, "%#x %#x %#x %#x %#x\n",
-		       readl_relaxed(info + DRAM_VENDOR_MR5) & DRAM_VENDOR_MASK,
-		       readl_relaxed(info + DRAM_VENDOR_MR6) & DRAM_VENDOR_MASK,
-		       readl_relaxed(info + DRAM_VENDOR_MR7) & DRAM_VENDOR_MASK,
-		       readl_relaxed(info + DRAM_VENDOR_MR8) & DRAM_VENDOR_MASK,
-		       readl_relaxed(info + DRAM_VENDOR_ERROR));
+	mr5 = (readl_relaxed(info + DRAM_VENDOR_MR5) >> DRAM_VENDOR_SHIFT) &
+		DRAM_VENDOR_MASK;
+	mr6 = (readl_relaxed(info + DRAM_VENDOR_MR6) >> DRAM_VENDOR_SHIFT) &
+		DRAM_VENDOR_MASK;
+	mr7 = (readl_relaxed(info + DRAM_VENDOR_MR7) >> DRAM_VENDOR_SHIFT) &
+		DRAM_VENDOR_MASK;
+	mr8 = (readl_relaxed(info + DRAM_VENDOR_MR8) >> DRAM_VENDOR_SHIFT) &
+		DRAM_VENDOR_MASK;
+	err = readl_relaxed(info + DRAM_VENDOR_ERROR) & DRAM_VENDOR_MASK;
+
+	return sprintf(buf, "%#x %#x %#x %#x %#x\n", mr5, mr6, mr7, mr8, err);
+}
+
+static ssize_t show_dram(struct device *dev, struct device_attribute *devattr,
+			 char *buf)
+{
+	u32 response[MSG_FIELD_MAX];
+	struct private_data *priv;
+	ssize_t ret;
+	u32 mr4, mr5, mr6, mr7, mr8, err;
+
+	priv = dev_get_drvdata(dev);
+	ret = generic_show(DPFE_CMD_GET_REFRESH, response, priv, buf);
+	if (ret)
+		return ret;
+
+	mr4 = response[MSG_ARG0 + 0] & DRAM_INFO_MR4_MASK;
+	mr5 = response[MSG_ARG0 + 1] & DRAM_DDR_INFO_MASK;
+	mr6 = response[MSG_ARG0 + 2] & DRAM_DDR_INFO_MASK;
+	mr7 = response[MSG_ARG0 + 3] & DRAM_DDR_INFO_MASK;
+	mr8 = response[MSG_ARG0 + 4] & DRAM_DDR_INFO_MASK;
+	err = response[MSG_ARG0 + 5] & DRAM_DDR_INFO_MASK;
+
+	return sprintf(buf, "%#x %#x %#x %#x %#x %#x\n", mr4, mr5, mr6, mr7,
+			mr8, err);
 }
 
 static int brcmstb_dpfe_resume(struct platform_device *pdev)
@@ -613,25 +805,12 @@ static int brcmstb_dpfe_resume(struct platform_device *pdev)
 	return brcmstb_dpfe_download_firmware(pdev, &init);
 }
 
-static DEVICE_ATTR(dpfe_info, 0444, show_info, NULL);
-static DEVICE_ATTR(dpfe_refresh, 0644, show_refresh, store_refresh);
-static DEVICE_ATTR(dpfe_vendor, 0444, show_vendor, NULL);
-static struct attribute *dpfe_attrs[] = {
-	&dev_attr_dpfe_info.attr,
-	&dev_attr_dpfe_refresh.attr,
-	&dev_attr_dpfe_vendor.attr,
-	NULL
-};
-ATTRIBUTE_GROUPS(dpfe);
-
 static int brcmstb_dpfe_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct private_data *priv;
-	struct device *dpfe_dev;
 	struct init_data init;
 	struct resource *res;
-	u32 index;
 	int ret;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -640,11 +819,6 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 
 	mutex_init(&priv->lock);
 	platform_set_drvdata(pdev, priv);
-
-	/* Cell index is optional; default to 0 if not present. */
-	ret = of_property_read_u32(dev->of_node, "cell-index", &index);
-	if (ret)
-		index = 0;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dpfe-cpu");
 	priv->regs = devm_ioremap_resource(dev, res);
@@ -667,41 +841,47 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	ret = brcmstb_dpfe_download_firmware(pdev, &init);
-	if (ret)
-		goto err;
-
-	dpfe_dev = devm_kzalloc(dev, sizeof(*dpfe_dev), GFP_KERNEL);
-	if (!dpfe_dev) {
-		ret = -ENOMEM;
-		goto err;
+	priv->dpfe_api = of_device_get_match_data(dev);
+	if (unlikely(!priv->dpfe_api)) {
+		/*
+		 * It should be impossible to end up here, but to be safe we
+		 * check anyway.
+		 */
+		dev_err(dev, "Couldn't determine API\n");
+		return -ENOENT;
 	}
 
-	priv->dev = dpfe_dev;
-	priv->index = index;
+	ret = brcmstb_dpfe_download_firmware(pdev, &init);
+	if (ret) {
+		dev_err(dev, "Couldn't download firmware -- %d\n", ret);
+		return ret;
+	}
 
-	dpfe_dev->parent = dev;
-	dpfe_dev->groups = dpfe_groups;
-	dpfe_dev->of_node = dev->of_node;
-	dev_set_drvdata(dpfe_dev, priv);
-	dev_set_name(dpfe_dev, "dpfe%u", index);
-
-	ret = device_register(dpfe_dev);
-	if (ret)
-		goto err;
-
-	dev_info(dev, "registered.\n");
-
-	return 0;
-
-err:
-	dev_err(dev, "failed to initialize -- error %d\n", ret);
+	ret = sysfs_create_groups(&pdev->dev.kobj, priv->dpfe_api->sysfs_attrs);
+	if (!ret)
+		dev_info(dev, "registered with API v%d.\n",
+			 priv->dpfe_api->version);
 
 	return ret;
 }
 
+static int brcmstb_dpfe_remove(struct platform_device *pdev)
+{
+	struct private_data *priv = dev_get_drvdata(&pdev->dev);
+
+	sysfs_remove_groups(&pdev->dev.kobj, priv->dpfe_api->sysfs_attrs);
+
+	return 0;
+}
+
 static const struct of_device_id brcmstb_dpfe_of_match[] = {
-	{ .compatible = "brcm,dpfe-cpu", },
+	/* Use legacy API v2 for a select number of chips */
+	{ .compatible = "brcm,bcm7268-dpfe-cpu", .data = &dpfe_api_v2 },
+	{ .compatible = "brcm,bcm7271-dpfe-cpu", .data = &dpfe_api_v2 },
+	{ .compatible = "brcm,bcm7278-dpfe-cpu", .data = &dpfe_api_v2 },
+	{ .compatible = "brcm,bcm7211-dpfe-cpu", .data = &dpfe_api_v2 },
+	/* API v3 is the default going forward */
+	{ .compatible = "brcm,dpfe-cpu", .data = &dpfe_api_v3 },
 	{}
 };
 MODULE_DEVICE_TABLE(of, brcmstb_dpfe_of_match);
@@ -712,6 +892,7 @@ static struct platform_driver brcmstb_dpfe_driver = {
 		.of_match_table = brcmstb_dpfe_of_match,
 	},
 	.probe = brcmstb_dpfe_probe,
+	.remove	= brcmstb_dpfe_remove,
 	.resume = brcmstb_dpfe_resume,
 };
 

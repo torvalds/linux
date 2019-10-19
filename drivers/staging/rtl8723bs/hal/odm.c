@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 
@@ -347,12 +339,8 @@ void ODM_TXPowerTrackingCheck(PDM_ODM_T pDM_Odm);
 
 void odm_RateAdaptiveMaskInit(PDM_ODM_T pDM_Odm);
 
-void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm);
-
 
 void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm);
-
-void odm_TXPowerTrackingCheckCE(PDM_ODM_T pDM_Odm);
 
 /* Remove Edca by Yu Chen */
 
@@ -699,7 +687,7 @@ void ODM_CmnInfoHook(PDM_ODM_T pDM_Odm, ODM_CMNINFO_E CmnInfo, void *pValue)
 	/* break; */
 
 	/* case ODM_CMNINFO_MAC_STATUS: */
-	/* pDM_Odm->pMacInfo = (ODM_MAC_INFO *)pValue; */
+	/* pDM_Odm->pMacInfo = (struct odm_mac_status_info *)pValue; */
 	/* break; */
 	/* To remove the compiler warning, must add an empty default statement to handle the other values. */
 	default:
@@ -1084,7 +1072,7 @@ u32 ODM_Get_Rate_Bitmap(
 	/* printk("%s ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x\n", __func__, rssi_level, WirelessMode, rate_bitmap); */
 	ODM_RT_TRACE(pDM_Odm, ODM_COMP_RA_MASK, ODM_DBG_LOUD, (" ==> rssi_level:0x%02x, WirelessMode:0x%02x, rate_bitmap:0x%08x\n", rssi_level, WirelessMode, rate_bitmap));
 
-	return (ra_mask&rate_bitmap);
+	return ra_mask & rate_bitmap;
 
 }
 
@@ -1267,13 +1255,11 @@ void odm_RSSIMonitorCheckCE(PDM_ODM_T pDM_Odm)
 	int tmpEntryMaxPWDB = 0, tmpEntryMinPWDB = 0xff;
 	u8 sta_cnt = 0;
 	u32 PWDB_rssi[NUM_STA] = {0};/* 0~15]:MACID, [16~31]:PWDB_rssi */
-	bool FirstConnect = false;
 	pRA_T pRA_Table = &pDM_Odm->DM_RA_Table;
 
 	if (pDM_Odm->bLinked != true)
 		return;
 
-	FirstConnect = (pDM_Odm->bLinked) && (pRA_Table->firstconnect == false);
 	pRA_Table->firstconnect = pDM_Odm->bLinked;
 
 	/* if (check_fwstate(&Adapter->mlmepriv, WIFI_AP_STATE|WIFI_ADHOC_STATE|WIFI_ADHOC_MASTER_STATE) == true) */
@@ -1332,11 +1318,6 @@ void odm_RSSIMonitorCheckCE(PDM_ODM_T pDM_Odm)
 /* 3 Tx Power Tracking */
 /* 3 ============================================================ */
 
-void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm)
-{
-	odm_TXPowerTrackingThermalMeterInit(pDM_Odm);
-}
-
 static u8 getSwingIndex(PDM_ODM_T pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
@@ -1361,7 +1342,7 @@ static u8 getSwingIndex(PDM_ODM_T pDM_Odm)
 	return i;
 }
 
-void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm)
+void odm_TXPowerTrackingInit(PDM_ODM_T pDM_Odm)
 {
 	u8 defaultSwingIndex = getSwingIndex(pDM_Odm);
 	u8 p = 0;
@@ -1405,13 +1386,7 @@ void odm_TXPowerTrackingThermalMeterInit(PDM_ODM_T pDM_Odm)
 
 }
 
-
 void ODM_TXPowerTrackingCheck(PDM_ODM_T pDM_Odm)
-{
-	odm_TXPowerTrackingCheckCE(pDM_Odm);
-}
-
-void odm_TXPowerTrackingCheckCE(PDM_ODM_T pDM_Odm)
 {
 	struct adapter *Adapter = pDM_Odm->Adapter;
 

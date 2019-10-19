@@ -1,15 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Mediatek DSA Tag support
  * Copyright (C) 2017 Landen Chao <landen.chao@mediatek.com>
  *		      Sean Wang <sean.wang@mediatek.com>
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/etherdevice.h>
@@ -105,8 +98,16 @@ static int mtk_tag_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	return 0;
 }
 
-const struct dsa_device_ops mtk_netdev_ops = {
+static const struct dsa_device_ops mtk_netdev_ops = {
+	.name		= "mtk",
+	.proto		= DSA_TAG_PROTO_MTK,
 	.xmit		= mtk_tag_xmit,
 	.rcv		= mtk_tag_rcv,
 	.flow_dissect	= mtk_tag_flow_dissect,
+	.overhead	= MTK_HDR_LEN,
 };
+
+MODULE_LICENSE("GPL");
+MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_MTK);
+
+module_dsa_tag_driver(mtk_netdev_ops);

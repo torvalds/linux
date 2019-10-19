@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * phy-da8xx-usb - TI DaVinci DA8xx USB PHY driver
  *
  * Copyright (C) 2016 David Lechner <david@lechnology.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -20,6 +12,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/phy/phy.h>
+#include <linux/platform_data/phy-da8xx-usb.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
@@ -92,7 +85,8 @@ static int da8xx_usb20_phy_power_off(struct phy *phy)
 	return 0;
 }
 
-static int da8xx_usb20_phy_set_mode(struct phy *phy, enum phy_mode mode)
+static int da8xx_usb20_phy_set_mode(struct phy *phy,
+				    enum phy_mode mode, int submode)
 {
 	struct da8xx_usb_phy *d_phy = phy_get_drvdata(phy);
 	u32 val;
@@ -145,6 +139,7 @@ static struct phy *da8xx_usb_phy_of_xlate(struct device *dev,
 static int da8xx_usb_phy_probe(struct platform_device *pdev)
 {
 	struct device		*dev = &pdev->dev;
+	struct da8xx_usb_phy_platform_data *pdata = dev->platform_data;
 	struct device_node	*node = dev->of_node;
 	struct da8xx_usb_phy	*d_phy;
 
@@ -152,25 +147,25 @@ static int da8xx_usb_phy_probe(struct platform_device *pdev)
 	if (!d_phy)
 		return -ENOMEM;
 
-	if (node)
+	if (pdata)
+		d_phy->regmap = pdata->cfgchip;
+	else
 		d_phy->regmap = syscon_regmap_lookup_by_compatible(
 							"ti,da830-cfgchip");
-	else
-		d_phy->regmap = syscon_regmap_lookup_by_pdevname("syscon");
 	if (IS_ERR(d_phy->regmap)) {
 		dev_err(dev, "Failed to get syscon\n");
 		return PTR_ERR(d_phy->regmap);
 	}
 
-	d_phy->usb11_clk = devm_clk_get(dev, "usb11_phy");
+	d_phy->usb11_clk = devm_clk_get(dev, "usb1_clk48");
 	if (IS_ERR(d_phy->usb11_clk)) {
-		dev_err(dev, "Failed to get usb11_phy clock\n");
+		dev_err(dev, "Failed to get usb1_clk48\n");
 		return PTR_ERR(d_phy->usb11_clk);
 	}
 
-	d_phy->usb20_clk = devm_clk_get(dev, "usb20_phy");
+	d_phy->usb20_clk = devm_clk_get(dev, "usb0_clk48");
 	if (IS_ERR(d_phy->usb20_clk)) {
-		dev_err(dev, "Failed to get usb20_phy clock\n");
+		dev_err(dev, "Failed to get usb0_clk48\n");
 		return PTR_ERR(d_phy->usb20_clk);
 	}
 

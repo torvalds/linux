@@ -1,34 +1,28 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright(c) 2013-2015 Intel Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
  */
 #ifndef __ND_CORE_H__
 #define __ND_CORE_H__
 #include <linux/libnvdimm.h>
 #include <linux/device.h>
-#include <linux/libnvdimm.h>
 #include <linux/sizes.h>
 #include <linux/mutex.h>
 #include <linux/nd.h>
+#include "nd.h"
 
 extern struct list_head nvdimm_bus_list;
 extern struct mutex nvdimm_bus_list_mutex;
 extern int nvdimm_major;
+extern struct workqueue_struct *nvdimm_wq;
 
 struct nvdimm_bus {
 	struct nvdimm_bus_descriptor *nd_desc;
-	wait_queue_head_t probe_wait;
+	wait_queue_head_t wait;
 	struct list_head list;
 	struct device dev;
 	int id, probe_active;
+	atomic_t ioctl_active;
 	struct list_head mapping_list;
 	struct mutex reconfig_mutex;
 	struct badrange badrange;
@@ -42,7 +36,50 @@ struct nvdimm {
 	atomic_t busy;
 	int id, num_flush;
 	struct resource *flush_wpq;
+	const char *dimm_id;
+	struct {
+		const struct nvdimm_security_ops *ops;
+		unsigned long flags;
+		unsigned long ext_flags;
+		unsigned int overwrite_tmo;
+		struct kernfs_node *overwrite_state;
+	} sec;
+	struct delayed_work dwork;
 };
+
+static inline unsigned long nvdimm_security_flags(
+		struct nvdimm *nvdimm, enum nvdimm_passphrase_type ptype)
+{
+	u64 flags;
+	const u64 state_flags = 1UL << NVDIMM_SECURITY_DISABLED
+		| 1UL << NVDIMM_SECURITY_LOCKED
+		| 1UL << NVDIMM_SECURITY_UNLOCKED
+		| 1UL << NVDIMM_SECURITY_OVERWRITE;
+
+	if (!nvdimm->sec.ops)
+		return 0;
+
+	flags = nvdimm->sec.ops->get_flags(nvdimm, ptype);
+	/* disabled, locked, unlocked, and overwrite are mutually exclusive */
+	dev_WARN_ONCE(&nvdimm->dev, hweight64(flags & state_flags) > 1,
+			"reported invalid security state: %#llx\n",
+			(unsigned long long) flags);
+	return flags;
+}
+int nvdimm_security_freeze(struct nvdimm *nvdimm);
+#if IS_ENABLED(CONFIG_NVDIMM_KEYS)
+ssize_t nvdimm_security_store(struct device *dev, const char *buf, size_t len);
+void nvdimm_security_overwrite_query(struct work_struct *work);
+#else
+static inline ssize_t nvdimm_security_store(struct device *dev,
+		const char *buf, size_t len)
+{
+	return -EOPNOTSUPP;
+}
+static inline void nvdimm_security_overwrite_query(struct work_struct *work)
+{
+}
+#endif
 
 /**
  * struct blk_alloc_info - tracking info for BLK dpa scanning
@@ -78,13 +115,12 @@ int __init nvdimm_bus_init(void);
 void nvdimm_bus_exit(void);
 void nvdimm_devs_exit(void);
 void nd_region_devs_exit(void);
-void nd_region_probe_success(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 struct nd_region;
+void nd_region_advance_seeds(struct nd_region *nd_region, struct device *dev);
 void nd_region_create_ns_seed(struct nd_region *nd_region);
 void nd_region_create_btt_seed(struct nd_region *nd_region);
 void nd_region_create_pfn_seed(struct nd_region *nd_region);
 void nd_region_create_dax_seed(struct nd_region *nd_region);
-void nd_region_disable(struct nvdimm_bus *nvdimm_bus, struct device *dev);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nd_synchronize(void);
@@ -100,10 +136,20 @@ struct nd_region;
 struct nvdimm_drvdata;
 struct nd_mapping;
 void nd_mapping_free_labels(struct nd_mapping *nd_mapping);
+
+int __reserve_free_pmem(struct device *dev, void *data);
+void release_free_pmem(struct nvdimm_bus *nvdimm_bus,
+		       struct nd_mapping *nd_mapping);
+
+resource_size_t nd_pmem_max_contiguous_dpa(struct nd_region *nd_region,
+					   struct nd_mapping *nd_mapping);
+resource_size_t nd_region_allocatable_dpa(struct nd_region *nd_region);
 resource_size_t nd_pmem_available_dpa(struct nd_region *nd_region,
 		struct nd_mapping *nd_mapping, resource_size_t *overlap);
 resource_size_t nd_blk_available_dpa(struct nd_region *nd_region);
 resource_size_t nd_region_available_dpa(struct nd_region *nd_region);
+int nd_region_conflict(struct nd_region *nd_region, resource_size_t start,
+		resource_size_t size);
 resource_size_t nvdimm_allocated_dpa(struct nvdimm_drvdata *ndd,
 		struct nd_label_id *label_id);
 int alias_dpa_busy(struct device *dev, void *data);
@@ -123,4 +169,71 @@ ssize_t nd_namespace_store(struct device *dev,
 		struct nd_namespace_common **_ndns, const char *buf,
 		size_t len);
 struct nd_pfn *to_nd_pfn_safe(struct device *dev);
+bool is_nvdimm_bus(struct device *dev);
+
+#ifdef CONFIG_PROVE_LOCKING
+extern struct class *nd_class;
+
+enum {
+	LOCK_BUS,
+	LOCK_NDCTL,
+	LOCK_REGION,
+	LOCK_DIMM = LOCK_REGION,
+	LOCK_NAMESPACE,
+	LOCK_CLAIM,
+};
+
+static inline void debug_nvdimm_lock(struct device *dev)
+{
+	if (is_nd_region(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_REGION);
+	else if (is_nvdimm(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_DIMM);
+	else if (is_nd_btt(dev) || is_nd_pfn(dev) || is_nd_dax(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_CLAIM);
+	else if (dev->parent && (is_nd_region(dev->parent)))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NAMESPACE);
+	else if (is_nvdimm_bus(dev))
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_BUS);
+	else if (dev->class && dev->class == nd_class)
+		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NDCTL);
+	else
+		dev_WARN(dev, "unknown lock level\n");
+}
+
+static inline void debug_nvdimm_unlock(struct device *dev)
+{
+	mutex_unlock(&dev->lockdep_mutex);
+}
+
+static inline void nd_device_lock(struct device *dev)
+{
+	device_lock(dev);
+	debug_nvdimm_lock(dev);
+}
+
+static inline void nd_device_unlock(struct device *dev)
+{
+	debug_nvdimm_unlock(dev);
+	device_unlock(dev);
+}
+#else
+static inline void nd_device_lock(struct device *dev)
+{
+	device_lock(dev);
+}
+
+static inline void nd_device_unlock(struct device *dev)
+{
+	device_unlock(dev);
+}
+
+static inline void debug_nvdimm_lock(struct device *dev)
+{
+}
+
+static inline void debug_nvdimm_unlock(struct device *dev)
+{
+}
+#endif
 #endif /* __ND_CORE_H__ */

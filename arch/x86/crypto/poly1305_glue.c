@@ -1,21 +1,17 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Poly1305 authenticator algorithm, RFC7539, SIMD glue code
  *
  * Copyright (C) 2015 Martin Willi
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
  */
 
 #include <crypto/algapi.h>
 #include <crypto/internal/hash.h>
+#include <crypto/internal/simd.h>
 #include <crypto/poly1305.h>
 #include <linux/crypto.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <asm/fpu/api.h>
 #include <asm/simd.h>
 
 struct poly1305_simd_desc_ctx {
@@ -83,35 +79,37 @@ static unsigned int poly1305_simd_blocks(struct poly1305_desc_ctx *dctx,
 	if (poly1305_use_avx2 && srclen >= POLY1305_BLOCK_SIZE * 4) {
 		if (unlikely(!sctx->wset)) {
 			if (!sctx->uset) {
-				memcpy(sctx->u, dctx->r, sizeof(sctx->u));
-				poly1305_simd_mult(sctx->u, dctx->r);
+				memcpy(sctx->u, dctx->r.r, sizeof(sctx->u));
+				poly1305_simd_mult(sctx->u, dctx->r.r);
 				sctx->uset = true;
 			}
 			memcpy(sctx->u + 5, sctx->u, sizeof(sctx->u));
-			poly1305_simd_mult(sctx->u + 5, dctx->r);
+			poly1305_simd_mult(sctx->u + 5, dctx->r.r);
 			memcpy(sctx->u + 10, sctx->u + 5, sizeof(sctx->u));
-			poly1305_simd_mult(sctx->u + 10, dctx->r);
+			poly1305_simd_mult(sctx->u + 10, dctx->r.r);
 			sctx->wset = true;
 		}
 		blocks = srclen / (POLY1305_BLOCK_SIZE * 4);
-		poly1305_4block_avx2(dctx->h, src, dctx->r, blocks, sctx->u);
+		poly1305_4block_avx2(dctx->h.h, src, dctx->r.r, blocks,
+				     sctx->u);
 		src += POLY1305_BLOCK_SIZE * 4 * blocks;
 		srclen -= POLY1305_BLOCK_SIZE * 4 * blocks;
 	}
 #endif
 	if (likely(srclen >= POLY1305_BLOCK_SIZE * 2)) {
 		if (unlikely(!sctx->uset)) {
-			memcpy(sctx->u, dctx->r, sizeof(sctx->u));
-			poly1305_simd_mult(sctx->u, dctx->r);
+			memcpy(sctx->u, dctx->r.r, sizeof(sctx->u));
+			poly1305_simd_mult(sctx->u, dctx->r.r);
 			sctx->uset = true;
 		}
 		blocks = srclen / (POLY1305_BLOCK_SIZE * 2);
-		poly1305_2block_sse2(dctx->h, src, dctx->r, blocks, sctx->u);
+		poly1305_2block_sse2(dctx->h.h, src, dctx->r.r, blocks,
+				     sctx->u);
 		src += POLY1305_BLOCK_SIZE * 2 * blocks;
 		srclen -= POLY1305_BLOCK_SIZE * 2 * blocks;
 	}
 	if (srclen >= POLY1305_BLOCK_SIZE) {
-		poly1305_block_sse2(dctx->h, src, dctx->r, 1);
+		poly1305_block_sse2(dctx->h.h, src, dctx->r.r, 1);
 		srclen -= POLY1305_BLOCK_SIZE;
 	}
 	return srclen;
@@ -124,7 +122,7 @@ static int poly1305_simd_update(struct shash_desc *desc,
 	unsigned int bytes;
 
 	/* kernel_fpu_begin/end is costly, use fallback for small updates */
-	if (srclen <= 288 || !may_use_simd())
+	if (srclen <= 288 || !crypto_simd_usable())
 		return crypto_poly1305_update(desc, src, srclen);
 
 	kernel_fpu_begin();
@@ -169,7 +167,6 @@ static struct shash_alg alg = {
 		.cra_name		= "poly1305",
 		.cra_driver_name	= "poly1305-simd",
 		.cra_priority		= 300,
-		.cra_flags		= CRYPTO_ALG_TYPE_SHASH,
 		.cra_blocksize		= POLY1305_BLOCK_SIZE,
 		.cra_module		= THIS_MODULE,
 	},

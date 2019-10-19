@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Thunderbolt Cactus Ridge driver - eeprom access
+ * Thunderbolt driver - eeprom access
  *
  * Copyright (c) 2014 Andreas Noever <andreas.noever@gmail.com>
+ * Copyright (C) 2018, Intel Corporation
  */
 
 #include <linux/crc32.h>
@@ -413,7 +414,7 @@ static int tb_drom_copy_efi(struct tb_switch *sw, u16 *size)
 	struct device *dev = &sw->tb->nhi->pdev->dev;
 	int len, res;
 
-	len = device_property_read_u8_array(dev, "ThunderboltDROM", NULL, 0);
+	len = device_property_count_u8(dev, "ThunderboltDROM");
 	if (len < 0 || len < sizeof(struct tb_drom_header))
 		return -EINVAL;
 
@@ -524,10 +525,6 @@ int tb_drom_read(struct tb_switch *sw)
 		sw->ports[3].dual_link_port = &sw->ports[4];
 		sw->ports[4].dual_link_port = &sw->ports[3];
 
-		/* Port 5 is inaccessible on this gen 1 controller */
-		if (sw->config.device_id == PCI_DEVICE_ID_INTEL_LIGHT_RIDGE)
-			sw->ports[5].disabled = true;
-
 		return 0;
 	}
 
@@ -540,7 +537,7 @@ int tb_drom_read(struct tb_switch *sw)
 		return res;
 	size &= 0x3ff;
 	size += TB_DROM_DATA_START;
-	tb_sw_info(sw, "reading drom (length: %#x)\n", size);
+	tb_sw_dbg(sw, "reading drom (length: %#x)\n", size);
 	if (size < sizeof(*header)) {
 		tb_sw_warn(sw, "drom too small, aborting\n");
 		return -EIO;

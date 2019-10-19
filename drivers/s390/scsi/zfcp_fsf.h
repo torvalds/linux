@@ -4,7 +4,7 @@
  *
  * Interface to the FSF support functions.
  *
- * Copyright IBM Corp. 2002, 2017
+ * Copyright IBM Corp. 2002, 2018
  */
 
 #ifndef FSF_H
@@ -356,7 +356,7 @@ struct fsf_qtcb_bottom_config {
 	u32 adapter_features;
 	u32 connection_features;
 	u32 fc_topology;
-	u32 fc_link_speed;
+	u32 fc_link_speed;	/* one of ZFCP_FSF_PORTSPEED_* */
 	u32 adapter_type;
 	u8 res0;
 	u8 peer_d_id[3];
@@ -382,7 +382,7 @@ struct fsf_qtcb_bottom_port {
 	u32 class_of_service;	/* should be 0x00000006 for class 2 and 3 */
 	u8 supported_fc4_types[32]; /* should be 0x00000100 for scsi fcp */
 	u8 active_fc4_types[32];
-	u32 supported_speed;	/* 0x0001 for 1 GBit/s or 0x0002 for 2 GBit/s */
+	u32 supported_speed;	/* any combination of ZFCP_FSF_PORTSPEED_* */
 	u32 maximum_frame_size;	/* fixed value of 2112 */
 	u64 seconds_since_last_reset;
 	u64 tx_frames;
@@ -438,8 +438,8 @@ struct zfcp_blk_drv_data {
 
 /**
  * struct zfcp_fsf_ct_els - zfcp data for ct or els request
- * @req: scatter-gather list for request
- * @resp: scatter-gather list for response
+ * @req: scatter-gather list for request, points to &zfcp_fc_req.sg_req or BSG
+ * @resp: scatter-gather list for response, points to &zfcp_fc_req.sg_rsp or BSG
  * @handler: handler function (called for response to the request)
  * @handler_data: data passed to handler function
  * @port: Optional pointer to port for zfcp internal ELS (only test link ADISC)

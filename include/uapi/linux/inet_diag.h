@@ -137,20 +137,35 @@ enum {
 	INET_DIAG_TCLASS,
 	INET_DIAG_SKMEMINFO,
 	INET_DIAG_SHUTDOWN,
-	INET_DIAG_DCTCPINFO,
-	INET_DIAG_PROTOCOL,  /* response attribute only */
+
+	/*
+	 * Next extenstions cannot be requested in struct inet_diag_req_v2:
+	 * its field idiag_ext has only 8 bits.
+	 */
+
+	INET_DIAG_DCTCPINFO,	/* request as INET_DIAG_VEGASINFO */
+	INET_DIAG_PROTOCOL,	/* response attribute only */
 	INET_DIAG_SKV6ONLY,
 	INET_DIAG_LOCALS,
 	INET_DIAG_PEERS,
 	INET_DIAG_PAD,
-	INET_DIAG_MARK,
-	INET_DIAG_BBRINFO,
-	INET_DIAG_CLASS_ID,
+	INET_DIAG_MARK,		/* only with CAP_NET_ADMIN */
+	INET_DIAG_BBRINFO,	/* request as INET_DIAG_VEGASINFO */
+	INET_DIAG_CLASS_ID,	/* request as INET_DIAG_TCLASS */
 	INET_DIAG_MD5SIG,
+	INET_DIAG_ULP_INFO,
 	__INET_DIAG_MAX,
 };
 
 #define INET_DIAG_MAX (__INET_DIAG_MAX - 1)
+
+enum {
+	INET_ULP_INFO_UNSPEC,
+	INET_ULP_INFO_NAME,
+	INET_ULP_INFO_TLS,
+	__INET_ULP_INFO_MAX,
+};
+#define INET_ULP_INFO_MAX (__INET_ULP_INFO_MAX - 1)
 
 /* INET_DIAG_MEM */
 

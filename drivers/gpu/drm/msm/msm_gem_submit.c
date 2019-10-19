@@ -1,25 +1,19 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2013 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License version 2 as published by
- * the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <linux/file.h>
 #include <linux/sync_file.h>
+#include <linux/uaccess.h>
+
+#include <drm/drm_file.h>
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
 #include "msm_gem.h"
+#include "msm_gpu_trace.h"
 
 /*
  * Cmdstream submission:
@@ -31,12 +25,13 @@
 #define BO_PINNED   0x2000
 
 static struct msm_gem_submit *submit_create(struct drm_device *dev,
-		struct msm_gpu *gpu, struct msm_gpu_submitqueue *queue,
-		uint32_t nr_bos, uint32_t nr_cmds)
+		struct msm_gpu *gpu, struct msm_gem_address_space *aspace,
+		struct msm_gpu_submitqueue *queue, uint32_t nr_bos,
+		uint32_t nr_cmds)
 {
 	struct msm_gem_submit *submit;
-	uint64_t sz = sizeof(*submit) + ((u64)nr_bos * sizeof(submit->bos[0])) +
-		((u64)nr_cmds * sizeof(submit->cmd[0]));
+	uint64_t sz = struct_size(submit, bos, nr_bos) +
+				  ((u64)nr_cmds * sizeof(submit->cmd[0]));
 
 	if (sz > SIZE_MAX)
 		return NULL;
@@ -46,9 +41,9 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 		return NULL;
 
 	submit->dev = dev;
+	submit->aspace = aspace;
 	submit->gpu = gpu;
 	submit->fence = NULL;
-	submit->pid = get_pid(task_pid(current));
 	submit->cmd = (void *)&submit->bos[nr_bos];
 	submit->queue = queue;
 	submit->ring = gpu->rb[queue->prio];
@@ -74,27 +69,14 @@ void msm_gem_submit_free(struct msm_gem_submit *submit)
 	kfree(submit);
 }
 
-static inline unsigned long __must_check
-copy_from_user_inatomic(void *to, const void __user *from, unsigned long n)
-{
-	if (access_ok(VERIFY_READ, from, n))
-		return __copy_from_user_inatomic(to, from, n);
-	return -EFAULT;
-}
-
 static int submit_lookup_objects(struct msm_gem_submit *submit,
 		struct drm_msm_gem_submit *args, struct drm_file *file)
 {
 	unsigned i;
 	int ret = 0;
 
-	spin_lock(&file->table_lock);
-	pagefault_disable();
-
 	for (i = 0; i < args->nr_bos; i++) {
 		struct drm_msm_gem_submit_bo submit_bo;
-		struct drm_gem_object *obj;
-		struct msm_gem_object *msm_obj;
 		void __user *userptr =
 			u64_to_user_ptr(args->bos + (i * sizeof(submit_bo)));
 
@@ -103,34 +85,41 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 		 */
 		submit->bos[i].flags = 0;
 
-		if (copy_from_user_inatomic(&submit_bo, userptr, sizeof(submit_bo))) {
-			pagefault_enable();
-			spin_unlock(&file->table_lock);
-			if (copy_from_user(&submit_bo, userptr, sizeof(submit_bo))) {
-				ret = -EFAULT;
-				goto out;
-			}
-			spin_lock(&file->table_lock);
-			pagefault_disable();
+		if (copy_from_user(&submit_bo, userptr, sizeof(submit_bo))) {
+			ret = -EFAULT;
+			i = 0;
+			goto out;
 		}
+
+/* at least one of READ and/or WRITE flags should be set: */
+#define MANDATORY_FLAGS (MSM_SUBMIT_BO_READ | MSM_SUBMIT_BO_WRITE)
 
 		if ((submit_bo.flags & ~MSM_SUBMIT_BO_FLAGS) ||
-			!(submit_bo.flags & MSM_SUBMIT_BO_FLAGS)) {
+			!(submit_bo.flags & MANDATORY_FLAGS)) {
 			DRM_ERROR("invalid flags: %x\n", submit_bo.flags);
 			ret = -EINVAL;
-			goto out_unlock;
+			i = 0;
+			goto out;
 		}
 
+		submit->bos[i].handle = submit_bo.handle;
 		submit->bos[i].flags = submit_bo.flags;
 		/* in validate_objects() we figure out if this is true: */
 		submit->bos[i].iova  = submit_bo.presumed;
+	}
+
+	spin_lock(&file->table_lock);
+
+	for (i = 0; i < args->nr_bos; i++) {
+		struct drm_gem_object *obj;
+		struct msm_gem_object *msm_obj;
 
 		/* normally use drm_gem_object_lookup(), but for bulk lookup
 		 * all under single table_lock just hit object_idr directly:
 		 */
-		obj = idr_find(&file->object_idr, submit_bo.handle);
+		obj = idr_find(&file->object_idr, submit->bos[i].handle);
 		if (!obj) {
-			DRM_ERROR("invalid handle %u at index %u\n", submit_bo.handle, i);
+			DRM_ERROR("invalid handle %u at index %u\n", submit->bos[i].handle, i);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
@@ -139,12 +128,12 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 
 		if (!list_empty(&msm_obj->submit_entry)) {
 			DRM_ERROR("handle %u at index %u already on submit list\n",
-					submit_bo.handle, i);
+					submit->bos[i].handle, i);
 			ret = -EINVAL;
 			goto out_unlock;
 		}
 
-		drm_gem_object_reference(obj);
+		drm_gem_object_get(obj);
 
 		submit->bos[i].obj = msm_obj;
 
@@ -152,7 +141,6 @@ static int submit_lookup_objects(struct msm_gem_submit *submit,
 	}
 
 out_unlock:
-	pagefault_enable();
 	spin_unlock(&file->table_lock);
 
 out:
@@ -167,10 +155,10 @@ static void submit_unlock_unpin_bo(struct msm_gem_submit *submit,
 	struct msm_gem_object *msm_obj = submit->bos[i].obj;
 
 	if (submit->bos[i].flags & BO_PINNED)
-		msm_gem_put_iova(&msm_obj->base, submit->gpu->aspace);
+		msm_gem_unpin_iova(&msm_obj->base, submit->aspace);
 
 	if (submit->bos[i].flags & BO_LOCKED)
-		ww_mutex_unlock(&msm_obj->resv->lock);
+		ww_mutex_unlock(&msm_obj->base.resv->lock);
 
 	if (backoff && !(submit->bos[i].flags & BO_VALID))
 		submit->bos[i].iova = 0;
@@ -193,7 +181,7 @@ retry:
 		contended = i;
 
 		if (!(submit->bos[i].flags & BO_LOCKED)) {
-			ret = ww_mutex_lock_interruptible(&msm_obj->resv->lock,
+			ret = ww_mutex_lock_interruptible(&msm_obj->base.resv->lock,
 					&submit->ticket);
 			if (ret)
 				goto fail;
@@ -215,7 +203,7 @@ fail:
 	if (ret == -EDEADLK) {
 		struct msm_gem_object *msm_obj = submit->bos[contended].obj;
 		/* we lost out in a seqno race, lock and retry.. */
-		ret = ww_mutex_lock_slow_interruptible(&msm_obj->resv->lock,
+		ret = ww_mutex_lock_slow_interruptible(&msm_obj->base.resv->lock,
 				&submit->ticket);
 		if (!ret) {
 			submit->bos[contended].flags |= BO_LOCKED;
@@ -241,7 +229,8 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 			 * strange place to call it.  OTOH this is a
 			 * convenient can-fail point to hook it in.
 			 */
-			ret = reservation_object_reserve_shared(msm_obj->resv);
+			ret = dma_resv_reserve_shared(msm_obj->base.resv,
+								1);
 			if (ret)
 				return ret;
 		}
@@ -269,8 +258,8 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 		uint64_t iova;
 
 		/* if locking succeeded, pin bo: */
-		ret = msm_gem_get_iova(&msm_obj->base,
-				submit->gpu->aspace, &iova);
+		ret = msm_gem_get_and_pin_iova(&msm_obj->base,
+				submit->aspace, &iova);
 
 		if (ret)
 			break;
@@ -316,6 +305,9 @@ static int submit_reloc(struct msm_gem_submit *submit, struct msm_gem_object *ob
 	uint32_t i, last_offset = 0;
 	uint32_t *ptr;
 	int ret = 0;
+
+	if (!nr_relocs)
+		return 0;
 
 	if (offset % 4) {
 		DRM_ERROR("non-aligned cmdstream buffer: %u\n", offset);
@@ -396,7 +388,7 @@ static void submit_cleanup(struct msm_gem_submit *submit)
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
 		submit_unlock_unpin_bo(submit, i, false);
 		list_del_init(&msm_obj->submit_entry);
-		drm_gem_object_unreference(&msm_obj->base);
+		drm_gem_object_put(&msm_obj->base);
 	}
 
 	ww_acquire_fini(&submit->ticket);
@@ -405,19 +397,19 @@ static void submit_cleanup(struct msm_gem_submit *submit)
 int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
+	static atomic_t ident = ATOMIC_INIT(0);
 	struct msm_drm_private *priv = dev->dev_private;
 	struct drm_msm_gem_submit *args = data;
 	struct msm_file_private *ctx = file->driver_priv;
 	struct msm_gem_submit *submit;
 	struct msm_gpu *gpu = priv->gpu;
-	struct dma_fence *in_fence = NULL;
 	struct sync_file *sync_file = NULL;
 	struct msm_gpu_submitqueue *queue;
 	struct msm_ringbuffer *ring;
 	int out_fence_fd = -1;
+	struct pid *pid = get_pid(task_pid(current));
 	unsigned i;
-	int ret;
-
+	int ret, submitid;
 	if (!gpu)
 		return -ENXIO;
 
@@ -430,13 +422,26 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (MSM_PIPE_FLAGS(args->flags) & ~MSM_SUBMIT_FLAGS)
 		return -EINVAL;
 
+	if (args->flags & MSM_SUBMIT_SUDO) {
+		if (!IS_ENABLED(CONFIG_DRM_MSM_GPU_SUDO) ||
+		    !capable(CAP_SYS_RAWIO))
+			return -EINVAL;
+	}
+
 	queue = msm_submitqueue_get(ctx, args->queueid);
 	if (!queue)
 		return -ENOENT;
 
+	/* Get a unique identifier for the submission for logging purposes */
+	submitid = atomic_inc_return(&ident) - 1;
+
 	ring = gpu->rb[queue->prio];
+	trace_msm_gpu_submit(pid_nr(pid), ring->id, submitid,
+		args->nr_bos, args->nr_cmds);
 
 	if (args->flags & MSM_SUBMIT_FENCE_FD_IN) {
+		struct dma_fence *in_fence;
+
 		in_fence = sync_file_get_fence(args->fence_fd);
 
 		if (!in_fence)
@@ -446,11 +451,13 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		 * Wait if the fence is from a foreign context, or if the fence
 		 * array contains any fence from a foreign context.
 		 */
-		if (!dma_fence_match_context(in_fence, ring->fctx->context)) {
+		ret = 0;
+		if (!dma_fence_match_context(in_fence, ring->fctx->context))
 			ret = dma_fence_wait(in_fence, true);
-			if (ret)
-				return ret;
-		}
+
+		dma_fence_put(in_fence);
+		if (ret)
+			return ret;
 	}
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
@@ -465,11 +472,18 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		}
 	}
 
-	submit = submit_create(dev, gpu, queue, args->nr_bos, args->nr_cmds);
+	submit = submit_create(dev, gpu, ctx->aspace, queue, args->nr_bos,
+		args->nr_cmds);
 	if (!submit) {
 		ret = -ENOMEM;
 		goto out_unlock;
 	}
+
+	submit->pid = pid;
+	submit->ident = submitid;
+
+	if (args->flags & MSM_SUBMIT_SUDO)
+		submit->in_rb = true;
 
 	ret = submit_lookup_objects(submit, args, file);
 	if (ret)
@@ -573,8 +587,6 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	}
 
 out:
-	if (in_fence)
-		dma_fence_put(in_fence);
 	submit_cleanup(submit);
 	if (ret)
 		msm_gem_submit_free(submit);

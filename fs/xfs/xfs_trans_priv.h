@@ -1,25 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000,2002,2005 Silicon Graphics, Inc.
  * All Rights Reserved.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it would be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write the Free Software Foundation,
- * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef __XFS_TRANS_PRIV_H__
 #define	__XFS_TRANS_PRIV_H__
 
 struct xfs_log_item;
-struct xfs_log_item_desc;
 struct xfs_mount;
 struct xfs_trans;
 struct xfs_ail;
@@ -29,12 +16,10 @@ struct xfs_log_vec;
 void	xfs_trans_init(struct xfs_mount *);
 void	xfs_trans_add_item(struct xfs_trans *, struct xfs_log_item *);
 void	xfs_trans_del_item(struct xfs_log_item *);
-void	xfs_trans_free_items(struct xfs_trans *tp, xfs_lsn_t commit_lsn,
-				bool abort);
 void	xfs_trans_unreserve_and_mod_sb(struct xfs_trans *tp);
 
 void	xfs_trans_committed_bulk(struct xfs_ail *ailp, struct xfs_log_vec *lv,
-				xfs_lsn_t commit_lsn, int aborted);
+				xfs_lsn_t commit_lsn, bool aborted);
 /*
  * AIL traversal cursor.
  *
@@ -65,17 +50,17 @@ struct xfs_ail_cursor {
  * Eventually we need to drive the locking in here as well.
  */
 struct xfs_ail {
-	struct xfs_mount	*xa_mount;
-	struct task_struct	*xa_task;
-	struct list_head	xa_ail;
-	xfs_lsn_t		xa_target;
-	xfs_lsn_t		xa_target_prev;
-	struct list_head	xa_cursors;
-	spinlock_t		xa_lock;
-	xfs_lsn_t		xa_last_pushed_lsn;
-	int			xa_log_flush;
-	struct list_head	xa_buf_list;
-	wait_queue_head_t	xa_empty;
+	struct xfs_mount	*ail_mount;
+	struct task_struct	*ail_task;
+	struct list_head	ail_head;
+	xfs_lsn_t		ail_target;
+	xfs_lsn_t		ail_target_prev;
+	struct list_head	ail_cursors;
+	spinlock_t		ail_lock;
+	xfs_lsn_t		ail_last_pushed_lsn;
+	int			ail_log_flush;
+	struct list_head	ail_buf_list;
+	wait_queue_head_t	ail_empty;
 };
 
 /*
@@ -84,7 +69,7 @@ struct xfs_ail {
 void	xfs_trans_ail_update_bulk(struct xfs_ail *ailp,
 				struct xfs_ail_cursor *cur,
 				struct xfs_log_item **log_items, int nr_items,
-				xfs_lsn_t lsn) __releases(ailp->xa_lock);
+				xfs_lsn_t lsn) __releases(ailp->ail_lock);
 /*
  * Return a pointer to the first item in the AIL.  If the AIL is empty, then
  * return NULL.
@@ -93,7 +78,7 @@ static inline struct xfs_log_item *
 xfs_ail_min(
 	struct xfs_ail  *ailp)
 {
-	return list_first_entry_or_null(&ailp->xa_ail, struct xfs_log_item,
+	return list_first_entry_or_null(&ailp->ail_head, struct xfs_log_item,
 					li_ail);
 }
 
@@ -101,14 +86,14 @@ static inline void
 xfs_trans_ail_update(
 	struct xfs_ail		*ailp,
 	struct xfs_log_item	*lip,
-	xfs_lsn_t		lsn) __releases(ailp->xa_lock)
+	xfs_lsn_t		lsn) __releases(ailp->ail_lock)
 {
 	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
 }
 
 bool xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
 void xfs_trans_ail_delete(struct xfs_ail *ailp, struct xfs_log_item *lip,
-		int shutdown_type) __releases(ailp->xa_lock);
+		int shutdown_type) __releases(ailp->ail_lock);
 
 static inline void
 xfs_trans_ail_remove(
@@ -117,12 +102,12 @@ xfs_trans_ail_remove(
 {
 	struct xfs_ail		*ailp = lip->li_ailp;
 
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	/* xfs_trans_ail_delete() drops the AIL lock */
-	if (lip->li_flags & XFS_LI_IN_AIL)
+	if (test_bit(XFS_LI_IN_AIL, &lip->li_flags))
 		xfs_trans_ail_delete(ailp, lip, shutdown_type);
 	else
-		spin_unlock(&ailp->xa_lock);
+		spin_unlock(&ailp->ail_lock);
 }
 
 void			xfs_ail_push(struct xfs_ail *, xfs_lsn_t);
@@ -149,9 +134,9 @@ xfs_trans_ail_copy_lsn(
 	xfs_lsn_t	*src)
 {
 	ASSERT(sizeof(xfs_lsn_t) == 8);	/* don't lock if it shrinks */
-	spin_lock(&ailp->xa_lock);
+	spin_lock(&ailp->ail_lock);
 	*dst = *src;
-	spin_unlock(&ailp->xa_lock);
+	spin_unlock(&ailp->ail_lock);
 }
 #else
 static inline void
@@ -171,11 +156,10 @@ xfs_clear_li_failed(
 {
 	struct xfs_buf	*bp = lip->li_buf;
 
-	ASSERT(lip->li_flags & XFS_LI_IN_AIL);
-	lockdep_assert_held(&lip->li_ailp->xa_lock);
+	ASSERT(test_bit(XFS_LI_IN_AIL, &lip->li_flags));
+	lockdep_assert_held(&lip->li_ailp->ail_lock);
 
-	if (lip->li_flags & XFS_LI_FAILED) {
-		lip->li_flags &= ~XFS_LI_FAILED;
+	if (test_and_clear_bit(XFS_LI_FAILED, &lip->li_flags)) {
 		lip->li_buf = NULL;
 		xfs_buf_rele(bp);
 	}
@@ -186,11 +170,10 @@ xfs_set_li_failed(
 	struct xfs_log_item	*lip,
 	struct xfs_buf		*bp)
 {
-	lockdep_assert_held(&lip->li_ailp->xa_lock);
+	lockdep_assert_held(&lip->li_ailp->ail_lock);
 
-	if (!(lip->li_flags & XFS_LI_FAILED)) {
+	if (!test_and_set_bit(XFS_LI_FAILED, &lip->li_flags)) {
 		xfs_buf_hold(bp);
-		lip->li_flags |= XFS_LI_FAILED;
 		lip->li_buf = bp;
 	}
 }

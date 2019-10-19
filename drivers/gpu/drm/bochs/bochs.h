@@ -1,17 +1,16 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+
 #include <linux/io.h>
 #include <linux/console.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
-
 #include <drm/drm_gem.h>
-
-#include <drm/ttm/ttm_bo_driver.h>
-#include <drm/ttm/ttm_page_alloc.h>
+#include <drm/drm_gem_vram_helper.h>
+#include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_vram_mm_helper.h>
 
 /* ---------------------------------------------------------------------- */
 
@@ -51,11 +50,6 @@ enum bochs_types {
 	BOCHS_UNKNOWN,
 };
 
-struct bochs_framebuffer {
-	struct drm_framebuffer base;
-	struct drm_gem_object *obj;
-};
-
 struct bochs_device {
 	/* hw */
 	void __iomem   *mmio;
@@ -63,6 +57,7 @@ struct bochs_device {
 	void __iomem   *fb_map;
 	unsigned long  fb_base;
 	unsigned long  fb_size;
+	unsigned long  qext_size;
 
 	/* mode */
 	u16 xres;
@@ -70,97 +65,35 @@ struct bochs_device {
 	u16 yres_virtual;
 	u32 stride;
 	u32 bpp;
+	struct edid *edid;
 
 	/* drm */
-	struct drm_device  *dev;
-	struct drm_crtc crtc;
-	struct drm_encoder encoder;
+	struct drm_device *dev;
+	struct drm_simple_display_pipe pipe;
 	struct drm_connector connector;
-	bool mode_config_initialized;
-
-	/* ttm */
-	struct {
-		struct drm_global_reference mem_global_ref;
-		struct ttm_bo_global_ref bo_global_ref;
-		struct ttm_bo_device bdev;
-		bool initialized;
-	} ttm;
-
-	/* fbdev */
-	struct {
-		struct bochs_framebuffer gfb;
-		struct drm_fb_helper helper;
-		int size;
-		bool initialized;
-	} fb;
 };
-
-#define to_bochs_framebuffer(x) container_of(x, struct bochs_framebuffer, base)
-
-struct bochs_bo {
-	struct ttm_buffer_object bo;
-	struct ttm_placement placement;
-	struct ttm_bo_kmap_obj kmap;
-	struct drm_gem_object gem;
-	struct ttm_place placements[3];
-	int pin_count;
-};
-
-static inline struct bochs_bo *bochs_bo(struct ttm_buffer_object *bo)
-{
-	return container_of(bo, struct bochs_bo, bo);
-}
-
-static inline struct bochs_bo *gem_to_bochs_bo(struct drm_gem_object *gem)
-{
-	return container_of(gem, struct bochs_bo, gem);
-}
-
-#define DRM_FILE_PAGE_OFFSET (0x100000000ULL >> PAGE_SHIFT)
-
-static inline u64 bochs_bo_mmap_offset(struct bochs_bo *bo)
-{
-	return drm_vma_node_offset_addr(&bo->bo.vma_node);
-}
 
 /* ---------------------------------------------------------------------- */
 
 /* bochs_hw.c */
-int bochs_hw_init(struct drm_device *dev, uint32_t flags);
+int bochs_hw_init(struct drm_device *dev);
 void bochs_hw_fini(struct drm_device *dev);
 
 void bochs_hw_setmode(struct bochs_device *bochs,
 		      struct drm_display_mode *mode);
+void bochs_hw_setformat(struct bochs_device *bochs,
+			const struct drm_format_info *format);
 void bochs_hw_setbase(struct bochs_device *bochs,
-		      int x, int y, u64 addr);
+		      int x, int y, int stride, u64 addr);
+int bochs_hw_load_edid(struct bochs_device *bochs);
 
 /* bochs_mm.c */
 int bochs_mm_init(struct bochs_device *bochs);
 void bochs_mm_fini(struct bochs_device *bochs);
-int bochs_mmap(struct file *filp, struct vm_area_struct *vma);
-
-int bochs_gem_create(struct drm_device *dev, u32 size, bool iskernel,
-		     struct drm_gem_object **obj);
-int bochs_gem_init_object(struct drm_gem_object *obj);
-void bochs_gem_free_object(struct drm_gem_object *obj);
-int bochs_dumb_create(struct drm_file *file, struct drm_device *dev,
-		      struct drm_mode_create_dumb *args);
-int bochs_dumb_mmap_offset(struct drm_file *file, struct drm_device *dev,
-			   uint32_t handle, uint64_t *offset);
-
-int bochs_framebuffer_init(struct drm_device *dev,
-			   struct bochs_framebuffer *gfb,
-			   const struct drm_mode_fb_cmd2 *mode_cmd,
-			   struct drm_gem_object *obj);
-int bochs_bo_pin(struct bochs_bo *bo, u32 pl_flag, u64 *gpu_addr);
-int bochs_bo_unpin(struct bochs_bo *bo);
-
-extern const struct drm_mode_config_funcs bochs_mode_funcs;
 
 /* bochs_kms.c */
 int bochs_kms_init(struct bochs_device *bochs);
 void bochs_kms_fini(struct bochs_device *bochs);
 
 /* bochs_fbdev.c */
-int bochs_fbdev_init(struct bochs_device *bochs);
-void bochs_fbdev_fini(struct bochs_device *bochs);
+extern const struct drm_mode_config_funcs bochs_mode_funcs;

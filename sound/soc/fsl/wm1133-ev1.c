@@ -1,16 +1,11 @@
-/*
- *  wm1133-ev1.c - Audio for WM1133-EV1 on i.MX31ADS
- *
- *  Copyright (c) 2010 Wolfson Microelectronics plc
- *  Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
- *
- *  Based on an earlier driver for the same hardware by Liam Girdwood.
- *
- *  This program is free software; you can redistribute  it and/or modify it
- *  under  the terms of  the GNU General  Public License as published by the
- *  Free Software Foundation;  either version 2 of the  License, or (at your
- *  option) any later version.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+//  wm1133-ev1.c - Audio for WM1133-EV1 on i.MX31ADS
+//
+//  Copyright (c) 2010 Wolfson Microelectronics plc
+//  Author: Mark Brown <broonie@opensource.wolfsonmicro.com>
+//
+//  Based on an earlier driver for the same hardware by Liam Girdwood.
 
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -201,18 +196,18 @@ static struct snd_soc_jack_pin mic_jack_pins[] = {
 
 static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_component *component = rtd->codec_dai->component;
 
 	/* Headphone jack detection */
 	snd_soc_card_jack_new(rtd->card, "Headphone", SND_JACK_HEADPHONE,
 			      &hp_jack, hp_jack_pins, ARRAY_SIZE(hp_jack_pins));
-	wm8350_hp_jack_detect(codec, WM8350_JDR, &hp_jack, SND_JACK_HEADPHONE);
+	wm8350_hp_jack_detect(component, WM8350_JDR, &hp_jack, SND_JACK_HEADPHONE);
 
 	/* Microphone jack detection */
 	snd_soc_card_jack_new(rtd->card, "Microphone",
 			      SND_JACK_MICROPHONE | SND_JACK_BTN_0, &mic_jack,
 			      mic_jack_pins, ARRAY_SIZE(mic_jack_pins));
-	wm8350_mic_jack_detect(codec, &mic_jack, SND_JACK_MICROPHONE,
+	wm8350_mic_jack_detect(component, &mic_jack, SND_JACK_MICROPHONE,
 			       SND_JACK_BTN_0);
 
 	snd_soc_dapm_force_enable_pin(&rtd->card->dapm, "Mic Bias");
@@ -221,18 +216,20 @@ static int wm1133_ev1_init(struct snd_soc_pcm_runtime *rtd)
 }
 
 
+SND_SOC_DAILINK_DEFS(ev1,
+	DAILINK_COMP_ARRAY(COMP_CPU("imx-ssi.0")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("wm8350-codec.0-0x1a", "wm8350-hifi")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("imx-ssi.0")));
+
 static struct snd_soc_dai_link wm1133_ev1_dai = {
 	.name = "WM1133-EV1",
 	.stream_name = "Audio",
-	.cpu_dai_name = "imx-ssi.0",
-	.codec_dai_name = "wm8350-hifi",
-	.platform_name = "imx-ssi.0",
-	.codec_name = "wm8350-codec.0-0x1a",
 	.init = wm1133_ev1_init,
 	.ops = &wm1133_ev1_ops,
 	.symmetric_rates = 1,
 	.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 		   SND_SOC_DAIFMT_CBM_CFM,
+	SND_SOC_DAILINK_REG(ev1),
 };
 
 static struct snd_soc_card wm1133_ev1 = {

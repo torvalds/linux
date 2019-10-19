@@ -1,19 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2013 Cisco Systems, Inc. and/or its affiliates.
  * All rights reserved.
- *
- * This program is free software; you may redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; version 2 of the License.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
- * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
- * BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
- * ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
- * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
  */
 
 /* kernel includes */
@@ -79,12 +67,9 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	struct si4713_usb_device *radio = video_drvdata(file);
 
-	strlcpy(v->driver, "radio-usb-si4713", sizeof(v->driver));
-	strlcpy(v->card, "Si4713 FM Transmitter", sizeof(v->card));
+	strscpy(v->driver, "radio-usb-si4713", sizeof(v->driver));
+	strscpy(v->card, "Si4713 FM Transmitter", sizeof(v->card));
 	usb_make_path(radio->usbdev, v->bus_info, sizeof(v->bus_info));
-	v->device_caps = V4L2_CAP_MODULATOR | V4L2_CAP_RDS_OUTPUT;
-	v->capabilities = v->device_caps | V4L2_CAP_DEVICE_CAPS;
-
 	return 0;
 }
 
@@ -382,9 +367,6 @@ static int si4713_transfer(struct i2c_adapter *i2c_adapter,
 	int retval = -EINVAL;
 	int i;
 
-	if (num <= 0)
-		return 0;
-
 	for (i = 0; i < num; i++) {
 		if (msgs[i].flags & I2C_M_RD)
 			retval = si4713_i2c_read(radio, msgs[i].buf, msgs[i].len);
@@ -482,7 +464,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 
 	radio->vdev.ctrl_handler = sd->ctrl_handler;
 	radio->v4l2_dev.release = usb_si4713_video_device_release;
-	strlcpy(radio->vdev.name, radio->v4l2_dev.name,
+	strscpy(radio->vdev.name, radio->v4l2_dev.name,
 		sizeof(radio->vdev.name));
 	radio->vdev.v4l2_dev = &radio->v4l2_dev;
 	radio->vdev.fops = &usb_si4713_fops;
@@ -490,6 +472,7 @@ static int usb_si4713_probe(struct usb_interface *intf,
 	radio->vdev.lock = &radio->lock;
 	radio->vdev.release = video_device_release_empty;
 	radio->vdev.vfl_dir = VFL_DIR_TX;
+	radio->vdev.device_caps = V4L2_CAP_MODULATOR | V4L2_CAP_RDS_OUTPUT;
 
 	video_set_drvdata(&radio->vdev, radio);
 

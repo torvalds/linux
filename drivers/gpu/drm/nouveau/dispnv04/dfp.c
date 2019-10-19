@@ -24,8 +24,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fourcc.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_reg.h"
@@ -716,6 +716,6 @@ nv04_dfp_create(struct drm_connector *connector, struct dcb_output *entry)
 	    entry->location != DCB_LOC_ON_CHIP)
 		nv04_tmds_slave_init(encoder);
 
-	drm_mode_connector_attach_encoder(connector, encoder);
+	drm_connector_attach_encoder(connector, encoder);
 	return 0;
 }

@@ -1,12 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * PowerNV OPAL IPMI driver
  *
  * Copyright 2014 IBM Corp.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the Free
- * Software Foundation; either version 2 of the License, or (at your option)
- * any later version.
  */
 
 #define pr_fmt(fmt)        "ipmi-powernv: " fmt
@@ -23,7 +19,7 @@
 
 struct ipmi_smi_powernv {
 	u64			interface_id;
-	ipmi_smi_t		intf;
+	struct ipmi_smi		*intf;
 	unsigned int		irq;
 
 	/**
@@ -37,7 +33,7 @@ struct ipmi_smi_powernv {
 	struct opal_ipmi_msg	*opal_msg;
 };
 
-static int ipmi_powernv_start_processing(void *send_info, ipmi_smi_t intf)
+static int ipmi_powernv_start_processing(void *send_info, struct ipmi_smi *intf)
 {
 	struct ipmi_smi_powernv *smi = send_info;
 

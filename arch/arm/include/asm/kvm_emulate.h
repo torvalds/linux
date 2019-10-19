@@ -1,19 +1,7 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2012 - Virtual Open Systems and Columbia University
  * Author: Christoffer Dall <c.dall@virtualopensystems.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License, version 2, as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
 #ifndef __ARM_KVM_EMULATE_H__
@@ -26,13 +14,13 @@
 #include <asm/cputype.h>
 
 /* arm64 compatibility macros */
-#define COMPAT_PSR_MODE_ABT	ABT_MODE
-#define COMPAT_PSR_MODE_UND	UND_MODE
-#define COMPAT_PSR_T_BIT	PSR_T_BIT
-#define COMPAT_PSR_I_BIT	PSR_I_BIT
-#define COMPAT_PSR_A_BIT	PSR_A_BIT
-#define COMPAT_PSR_E_BIT	PSR_E_BIT
-#define COMPAT_PSR_IT_MASK	PSR_IT_MASK
+#define PSR_AA32_MODE_ABT	ABT_MODE
+#define PSR_AA32_MODE_UND	UND_MODE
+#define PSR_AA32_T_BIT		PSR_T_BIT
+#define PSR_AA32_I_BIT		PSR_I_BIT
+#define PSR_AA32_A_BIT		PSR_A_BIT
+#define PSR_AA32_E_BIT		PSR_E_BIT
+#define PSR_AA32_IT_MASK	PSR_IT_MASK
 
 unsigned long *vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num);
 
@@ -41,7 +29,17 @@ static inline unsigned long *vcpu_reg32(struct kvm_vcpu *vcpu, u8 reg_num)
 	return vcpu_reg(vcpu, reg_num);
 }
 
-unsigned long *vcpu_spsr(struct kvm_vcpu *vcpu);
+unsigned long *__vcpu_spsr(struct kvm_vcpu *vcpu);
+
+static inline unsigned long vpcu_read_spsr(struct kvm_vcpu *vcpu)
+{
+	return *__vcpu_spsr(vcpu);
+}
+
+static inline void vcpu_write_spsr(struct kvm_vcpu *vcpu, unsigned long v)
+{
+	*__vcpu_spsr(vcpu) = v;
+}
 
 static inline unsigned long vcpu_get_reg(struct kvm_vcpu *vcpu,
 					 u8 reg_num)
@@ -92,19 +90,24 @@ static inline void vcpu_reset_hcr(struct kvm_vcpu *vcpu)
 	vcpu->arch.hcr = HCR_GUEST_MASK;
 }
 
-static inline unsigned long vcpu_get_hcr(const struct kvm_vcpu *vcpu)
+static inline unsigned long *vcpu_hcr(const struct kvm_vcpu *vcpu)
 {
-	return vcpu->arch.hcr;
+	return (unsigned long *)&vcpu->arch.hcr;
 }
 
-static inline void vcpu_set_hcr(struct kvm_vcpu *vcpu, unsigned long hcr)
+static inline void vcpu_clear_wfe_traps(struct kvm_vcpu *vcpu)
 {
-	vcpu->arch.hcr = hcr;
+	vcpu->arch.hcr &= ~HCR_TWE;
+}
+
+static inline void vcpu_set_wfe_traps(struct kvm_vcpu *vcpu)
+{
+	vcpu->arch.hcr |= HCR_TWE;
 }
 
 static inline bool vcpu_mode_is_32bit(const struct kvm_vcpu *vcpu)
 {
-	return 1;
+	return true;
 }
 
 static inline unsigned long *vcpu_pc(struct kvm_vcpu *vcpu)
@@ -250,6 +253,14 @@ static inline bool kvm_vcpu_dabt_isextabt(struct kvm_vcpu *vcpu)
 	}
 }
 
+static inline bool kvm_is_write_fault(struct kvm_vcpu *vcpu)
+{
+	if (kvm_vcpu_trap_is_iabt(vcpu))
+		return false;
+
+	return kvm_vcpu_dabt_iswrite(vcpu);
+}
+
 static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 {
 	return kvm_vcpu_get_hsr(vcpu) & HSR_HVC_IMM_MASK;
@@ -258,6 +269,16 @@ static inline u32 kvm_vcpu_hvc_get_imm(struct kvm_vcpu *vcpu)
 static inline unsigned long kvm_vcpu_get_mpidr_aff(struct kvm_vcpu *vcpu)
 {
 	return vcpu_cp15(vcpu, c0_MPIDR) & MPIDR_HWID_BITMASK;
+}
+
+static inline bool kvm_arm_get_vcpu_workaround_2_flag(struct kvm_vcpu *vcpu)
+{
+	return false;
+}
+
+static inline void kvm_arm_set_vcpu_workaround_2_flag(struct kvm_vcpu *vcpu,
+						      bool flag)
+{
 }
 
 static inline void kvm_vcpu_set_be(struct kvm_vcpu *vcpu)
@@ -319,5 +340,7 @@ static inline unsigned long vcpu_data_host_to_guest(struct kvm_vcpu *vcpu,
 		}
 	}
 }
+
+static inline void vcpu_ptrauth_setup_lazy(struct kvm_vcpu *vcpu) {}
 
 #endif /* __ARM_KVM_EMULATE_H__ */

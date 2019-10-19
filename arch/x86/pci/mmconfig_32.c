@@ -1,8 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2004 Matthew Wilcox <matthew@wil.cx>
  * Copyright (C) 2004 Intel Corp.
- *
- * This code is released under the GNU General Public License version 2.
  */
 
 /*

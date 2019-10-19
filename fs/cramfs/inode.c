@@ -24,6 +24,7 @@
 #include <linux/blkdev.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/super.h>
+#include <linux/fs_context.h>
 #include <linux/slab.h>
 #include <linux/vfs.h>
 #include <linux/mutex.h>
@@ -90,7 +91,7 @@ static struct inode *get_cramfs_inode(struct super_block *sb,
 	const struct cramfs_inode *cramfs_inode, unsigned int offset)
 {
 	struct inode *inode;
-	static struct timespec zerotime;
+	static struct timespec64 zerotime;
 
 	inode = iget_locked(sb, cramino(cramfs_inode, offset));
 	if (!inode)
@@ -202,7 +203,8 @@ static void *cramfs_blkdev_read(struct super_block *sb, unsigned int offset,
 			continue;
 		blk_offset = (blocknr - buffer_blocknr[i]) << PAGE_SHIFT;
 		blk_offset += offset;
-		if (blk_offset + len > BUFFER_SIZE)
+		if (blk_offset > BUFFER_SIZE ||
+		    blk_offset + len > BUFFER_SIZE)
 			continue;
 		return read_buffers[i] + blk_offset;
 	}
@@ -418,9 +420,12 @@ static int cramfs_physmem_mmap(struct file *file, struct vm_area_struct *vma)
 		int i;
 		vma->vm_flags |= VM_MIXEDMAP;
 		for (i = 0; i < pages && !ret; i++) {
+			vm_fault_t vmf;
 			unsigned long off = i * PAGE_SIZE;
 			pfn_t pfn = phys_to_pfn_t(address + off, PFN_DEV);
-			ret = vm_insert_mixed(vma, vma->vm_start + off, pfn);
+			vmf = vmf_insert_mixed(vma, vma->vm_start + off, pfn);
+			if (vmf & VM_FAULT_ERROR)
+				ret = vm_fault_to_errno(vmf, 0);
 		}
 	}
 
@@ -492,7 +497,7 @@ static void cramfs_kill_sb(struct super_block *sb)
 {
 	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
 
-	if (IS_ENABLED(CCONFIG_CRAMFS_MTD) && sb->s_mtd) {
+	if (IS_ENABLED(CONFIG_CRAMFS_MTD) && sb->s_mtd) {
 		if (sbi && sbi->mtd_point_size)
 			mtd_unpoint(sb->s_mtd, 0, sbi->mtd_point_size);
 		kill_mtd_super(sb);
@@ -502,18 +507,19 @@ static void cramfs_kill_sb(struct super_block *sb)
 	kfree(sbi);
 }
 
-static int cramfs_remount(struct super_block *sb, int *flags, char *data)
+static int cramfs_reconfigure(struct fs_context *fc)
 {
-	sync_filesystem(sb);
-	*flags |= SB_RDONLY;
+	sync_filesystem(fc->root->d_sb);
+	fc->sb_flags |= SB_RDONLY;
 	return 0;
 }
 
-static int cramfs_read_super(struct super_block *sb,
-			     struct cramfs_super *super, int silent)
+static int cramfs_read_super(struct super_block *sb, struct fs_context *fc,
+			     struct cramfs_super *super)
 {
 	struct cramfs_sb_info *sbi = CRAMFS_SB(sb);
 	unsigned long root_offset;
+	bool silent = fc->sb_flags & SB_SILENT;
 
 	/* We don't know the real size yet */
 	sbi->size = PAGE_SIZE;
@@ -528,7 +534,7 @@ static int cramfs_read_super(struct super_block *sb,
 		/* check for wrong endianness */
 		if (super->magic == CRAMFS_MAGIC_WEND) {
 			if (!silent)
-				pr_err("wrong endianness\n");
+				errorf(fc, "cramfs: wrong endianness");
 			return -EINVAL;
 		}
 
@@ -540,22 +546,22 @@ static int cramfs_read_super(struct super_block *sb,
 		mutex_unlock(&read_mutex);
 		if (super->magic != CRAMFS_MAGIC) {
 			if (super->magic == CRAMFS_MAGIC_WEND && !silent)
-				pr_err("wrong endianness\n");
+				errorf(fc, "cramfs: wrong endianness");
 			else if (!silent)
-				pr_err("wrong magic\n");
+				errorf(fc, "cramfs: wrong magic");
 			return -EINVAL;
 		}
 	}
 
 	/* get feature flags first */
 	if (super->flags & ~CRAMFS_SUPPORTED_FLAGS) {
-		pr_err("unsupported filesystem features\n");
+		errorf(fc, "cramfs: unsupported filesystem features");
 		return -EINVAL;
 	}
 
 	/* Check that the root inode is in a sane state */
 	if (!S_ISDIR(super->root.mode)) {
-		pr_err("root is not a directory\n");
+		errorf(fc, "cramfs: root is not a directory");
 		return -EINVAL;
 	}
 	/* correct strange, hard-coded permissions of mkcramfs */
@@ -574,12 +580,12 @@ static int cramfs_read_super(struct super_block *sb,
 	sbi->magic = super->magic;
 	sbi->flags = super->flags;
 	if (root_offset == 0)
-		pr_info("empty filesystem");
+		infof(fc, "cramfs: empty filesystem");
 	else if (!(super->flags & CRAMFS_FLAG_SHIFTED_ROOT_OFFSET) &&
 		 ((root_offset != sizeof(struct cramfs_super)) &&
 		  (root_offset != 512 + sizeof(struct cramfs_super))))
 	{
-		pr_err("bad root offset %lu\n", root_offset);
+		errorf(fc, "cramfs: bad root offset %lu", root_offset);
 		return -EINVAL;
 	}
 
@@ -593,6 +599,8 @@ static int cramfs_finalize_super(struct super_block *sb,
 
 	/* Set it all up.. */
 	sb->s_flags |= SB_RDONLY;
+	sb->s_time_min = 0;
+	sb->s_time_max = 0;
 	sb->s_op = &cramfs_ops;
 	root = get_cramfs_inode(sb, cramfs_root, 0);
 	if (IS_ERR(root))
@@ -603,8 +611,7 @@ static int cramfs_finalize_super(struct super_block *sb,
 	return 0;
 }
 
-static int cramfs_blkdev_fill_super(struct super_block *sb, void *data,
-				    int silent)
+static int cramfs_blkdev_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct cramfs_sb_info *sbi;
 	struct cramfs_super super;
@@ -619,14 +626,13 @@ static int cramfs_blkdev_fill_super(struct super_block *sb, void *data,
 	for (i = 0; i < READ_BUFFERS; i++)
 		buffer_blocknr[i] = -1;
 
-	err = cramfs_read_super(sb, &super, silent);
+	err = cramfs_read_super(sb, fc, &super);
 	if (err)
 		return err;
 	return cramfs_finalize_super(sb, &super.root);
 }
 
-static int cramfs_mtd_fill_super(struct super_block *sb, void *data,
-				 int silent)
+static int cramfs_mtd_fill_super(struct super_block *sb, struct fs_context *fc)
 {
 	struct cramfs_sb_info *sbi;
 	struct cramfs_super super;
@@ -648,7 +654,7 @@ static int cramfs_mtd_fill_super(struct super_block *sb, void *data,
 
 	pr_info("checking physical address %pap for linear cramfs image\n",
 		&sbi->linear_phys_addr);
-	err = cramfs_read_super(sb, &super, silent);
+	err = cramfs_read_super(sb, fc, &super);
 	if (err)
 		return err;
 
@@ -808,10 +814,7 @@ static struct dentry *cramfs_lookup(struct inode *dir, struct dentry *dentry, un
 	}
 out:
 	mutex_unlock(&read_mutex);
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static int cramfs_readpage(struct file *file, struct page *page)
@@ -872,8 +875,8 @@ static int cramfs_readpage(struct file *file, struct page *page)
 			if (unlikely(block_start & CRAMFS_BLK_FLAG_DIRECT_PTR)) {
 				/* See comments on earlier code. */
 				u32 prev_start = block_start;
-			       block_start = prev_start & ~CRAMFS_BLK_FLAGS;
-			       block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
+				block_start = prev_start & ~CRAMFS_BLK_FLAGS;
+				block_start <<= CRAMFS_BLK_DIRECT_PTR_SHIFT;
 				if (prev_start & CRAMFS_BLK_FLAG_UNCOMPRESSED) {
 					block_start += PAGE_SIZE;
 				} else {
@@ -946,32 +949,41 @@ static const struct inode_operations cramfs_dir_inode_operations = {
 };
 
 static const struct super_operations cramfs_ops = {
-	.remount_fs	= cramfs_remount,
 	.statfs		= cramfs_statfs,
 };
 
-static struct dentry *cramfs_mount(struct file_system_type *fs_type, int flags,
-				   const char *dev_name, void *data)
+static int cramfs_get_tree(struct fs_context *fc)
 {
-	struct dentry *ret = ERR_PTR(-ENOPROTOOPT);
+	int ret = -ENOPROTOOPT;
 
 	if (IS_ENABLED(CONFIG_CRAMFS_MTD)) {
-		ret = mount_mtd(fs_type, flags, dev_name, data,
-				cramfs_mtd_fill_super);
-		if (!IS_ERR(ret))
+		ret = get_tree_mtd(fc, cramfs_mtd_fill_super);
+		if (ret < 0)
 			return ret;
 	}
-	if (IS_ENABLED(CONFIG_CRAMFS_BLOCKDEV)) {
-		ret = mount_bdev(fs_type, flags, dev_name, data,
-				 cramfs_blkdev_fill_super);
-	}
+	if (IS_ENABLED(CONFIG_CRAMFS_BLOCKDEV))
+		ret = get_tree_bdev(fc, cramfs_blkdev_fill_super);
 	return ret;
+}
+
+static const struct fs_context_operations cramfs_context_ops = {
+	.get_tree	= cramfs_get_tree,
+	.reconfigure	= cramfs_reconfigure,
+};
+
+/*
+ * Set up the filesystem mount context.
+ */
+static int cramfs_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &cramfs_context_ops;
+	return 0;
 }
 
 static struct file_system_type cramfs_fs_type = {
 	.owner		= THIS_MODULE,
 	.name		= "cramfs",
-	.mount		= cramfs_mount,
+	.init_fs_context = cramfs_init_fs_context,
 	.kill_sb	= cramfs_kill_sb,
 	.fs_flags	= FS_REQUIRES_DEV,
 };

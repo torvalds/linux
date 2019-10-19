@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright 2008 Freescale Semiconductor, Inc. All Rights Reserved.
  *
@@ -9,12 +10,6 @@
  *           York Sun <yorksun@freescale.com>
  *
  *   Based on imxfb.c Copyright (C) 2004 S.Hauer, Pengutronix
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
- *
  */
 
 #include <linux/module.h>
@@ -360,6 +355,10 @@ struct mfb_info {
  * @ad[]: Area Descriptors for each real AOI
  * @gamma: gamma color table
  * @cursor: hardware cursor data
+ * @blank_cursor: blank cursor for hiding cursor
+ * @next_cursor: scratch space to build load cursor
+ * @edid_data: EDID information buffer
+ * @has_edid: whether or not the EDID buffer is valid
  *
  * This data structure must be allocated with 32-byte alignment, so that the
  * internal fields can be aligned properly.
@@ -381,6 +380,8 @@ struct fsl_diu_data {
 	__le16 cursor[MAX_CURS * MAX_CURS] __aligned(32);
 	/* Blank cursor data -- used to hide the cursor */
 	__le16 blank_cursor[MAX_CURS * MAX_CURS] __aligned(32);
+	/* Scratch cursor data -- used to build new cursor */
+	__le16 next_cursor[MAX_CURS * MAX_CURS] __aligned(32);
 	uint8_t edid_data[EDID_LENGTH];
 	bool has_edid;
 } __aligned(32);
@@ -1056,26 +1057,23 @@ static int fsl_diu_cursor(struct fb_info *info, struct fb_cursor *cursor)
 	 * FB_CUR_SETSHAPE - the cursor bitmask has changed
 	 */
 	if (cursor->set & (FB_CUR_SETSHAPE | FB_CUR_SETCMAP | FB_CUR_SETIMAGE)) {
+		/*
+		 * Determine the size of the cursor image data.  Normally,
+		 * it's 8x16.
+		 */
 		unsigned int image_size =
-			DIV_ROUND_UP(cursor->image.width, 8) * cursor->image.height;
+			DIV_ROUND_UP(cursor->image.width, 8) *
+			cursor->image.height;
 		unsigned int image_words =
 			DIV_ROUND_UP(image_size, sizeof(uint32_t));
 		unsigned int bg_idx = cursor->image.bg_color;
 		unsigned int fg_idx = cursor->image.fg_color;
-		uint8_t buffer[image_size];
 		uint32_t *image, *source, *mask;
 		uint16_t fg, bg;
 		unsigned int i;
 
 		if (info->state != FBINFO_STATE_RUNNING)
 			return 0;
-
-		/*
-		 * Determine the size of the cursor image data.  Normally,
-		 * it's 8x16.
-		 */
-		image_size = DIV_ROUND_UP(cursor->image.width, 8) *
-			cursor->image.height;
 
 		bg = ((info->cmap.red[bg_idx] & 0xf8) << 7) |
 		     ((info->cmap.green[bg_idx] & 0xf8) << 2) |
@@ -1088,7 +1086,7 @@ static int fsl_diu_cursor(struct fb_info *info, struct fb_cursor *cursor)
 		     1 << 15;
 
 		/* Use 32-bit operations on the data to improve performance */
-		image = (uint32_t *)buffer;
+		image = (uint32_t *)data->next_cursor;
 		source = (uint32_t *)cursor->image.data;
 		mask = (uint32_t *)cursor->mask;
 
@@ -1572,8 +1570,7 @@ static void uninstall_fb(struct fb_info *info)
 
 	unregister_framebuffer(info);
 	unmap_video_memory(info);
-	if (&info->cmap)
-		fb_dealloc_cmap(&info->cmap);
+	fb_dealloc_cmap(&info->cmap);
 
 	mfbi->registered = 0;
 }
@@ -1922,7 +1919,7 @@ static int __init fsl_diu_init(void)
 	pr_info("Freescale Display Interface Unit (DIU) framebuffer driver\n");
 
 #ifdef CONFIG_NOT_COHERENT_CACHE
-	np = of_find_node_by_type(NULL, "cpu");
+	np = of_get_cpu_node(0, NULL);
 	if (!np) {
 		pr_err("fsl-diu-fb: can't find 'cpu' device node\n");
 		return -ENODEV;
@@ -1960,12 +1957,8 @@ static int __init fsl_diu_init(void)
 
 	of_node_put(np);
 	coherence_data = vmalloc(coherence_data_size);
-	if (!coherence_data) {
-		pr_err("fsl-diu-fb: could not allocate coherence data "
-		       "(size=%zu)\n", coherence_data_size);
+	if (!coherence_data)
 		return -ENOMEM;
-	}
-
 #endif
 
 	ret = platform_driver_register(&fsl_diu_driver);

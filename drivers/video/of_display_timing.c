@@ -1,11 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * OF helpers for parsing display timings
  *
  * Copyright (c) 2012 Steffen Trumtrar <s.trumtrar@pengutronix.de>, Pengutronix
  *
  * based on of_videomode.c by Sascha Hauer <s.hauer@pengutronix.de>
- *
- * This file is released under the GPLv2
  */
 #include <linux/export.h>
 #include <linux/of.h>
@@ -120,17 +119,20 @@ int of_get_display_timing(const struct device_node *np, const char *name,
 		struct display_timing *dt)
 {
 	struct device_node *timing_np;
+	int ret;
 
 	if (!np)
 		return -EINVAL;
 
 	timing_np = of_get_child_by_name(np, name);
-	if (!timing_np) {
-		pr_err("%pOF: could not find node '%s'\n", np, name);
+	if (!timing_np)
 		return -ENOENT;
-	}
 
-	return of_parse_display_timing(timing_np, dt);
+	ret = of_parse_display_timing(timing_np, dt);
+
+	of_node_put(timing_np);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(of_get_display_timing);
 
@@ -170,7 +172,7 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		goto entryfail;
 	}
 
-	pr_debug("%pOF: using %s as default timing\n", np, entry->name);
+	pr_debug("%pOF: using %pOFn as default timing\n", np, entry);
 
 	native_mode = entry;
 
@@ -181,8 +183,9 @@ struct display_timings *of_get_display_timings(const struct device_node *np)
 		goto entryfail;
 	}
 
-	disp->timings = kzalloc(sizeof(struct display_timing *) *
-				disp->num_timings, GFP_KERNEL);
+	disp->timings = kcalloc(disp->num_timings,
+				sizeof(struct display_timing *),
+				GFP_KERNEL);
 	if (!disp->timings) {
 		pr_err("%pOF: could not allocate timings array\n", np);
 		goto entryfail;
@@ -244,23 +247,3 @@ dispfail:
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(of_get_display_timings);
-
-/**
- * of_display_timings_exist - check if a display-timings node is provided
- * @np: device_node with the timing
- **/
-int of_display_timings_exist(const struct device_node *np)
-{
-	struct device_node *timings_np;
-
-	if (!np)
-		return -EINVAL;
-
-	timings_np = of_parse_phandle(np, "display-timings", 0);
-	if (!timings_np)
-		return -EINVAL;
-
-	of_node_put(timings_np);
-	return 1;
-}
-EXPORT_SYMBOL_GPL(of_display_timings_exist);

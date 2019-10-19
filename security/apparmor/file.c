@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AppArmor security module
  *
@@ -5,11 +6,6 @@
  *
  * Copyright (C) 1998-2008 Novell/SUSE
  * Copyright 2009-2010 Canonical Ltd.
- *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation, version 2 of the
- * License.
  */
 
 #include <linux/tty.h>
@@ -18,9 +14,10 @@
 
 #include "include/apparmor.h"
 #include "include/audit.h"
-#include "include/context.h"
+#include "include/cred.h"
 #include "include/file.h"
 #include "include/match.h"
+#include "include/net.h"
 #include "include/path.h"
 #include "include/policy.h"
 #include "include/label.h"
@@ -46,7 +43,8 @@ static void audit_file_mask(struct audit_buffer *ab, u32 mask)
 {
 	char str[10];
 
-	aa_perm_mask_to_str(str, aa_file_perm_chrs, map_mask_to_chr_mask(mask));
+	aa_perm_mask_to_str(str, sizeof(str), aa_file_perm_chrs,
+			    map_mask_to_chr_mask(mask));
 	audit_log_string(ab, str);
 }
 
@@ -494,7 +492,7 @@ static void update_file_ctx(struct aa_file_ctx *fctx, struct aa_label *label,
 	/* update caching of label on file_ctx */
 	spin_lock(&fctx->lock);
 	old = rcu_dereference_protected(fctx->label,
-					spin_is_locked(&fctx->lock));
+					lockdep_is_held(&fctx->lock));
 	l = aa_label_merge(old, label, GFP_ATOMIC);
 	if (l) {
 		if (l != old) {
@@ -560,6 +558,32 @@ static int __file_path_perm(const char *op, struct aa_label *label,
 	return error;
 }
 
+static int __file_sock_perm(const char *op, struct aa_label *label,
+			    struct aa_label *flabel, struct file *file,
+			    u32 request, u32 denied)
+{
+	struct socket *sock = (struct socket *) file->private_data;
+	int error;
+
+	AA_BUG(!sock);
+
+	/* revalidation due to label out of date. No revocation at this time */
+	if (!denied && aa_label_is_subset(flabel, label))
+		return 0;
+
+	/* TODO: improve to skip profiles cached in flabel */
+	error = aa_sock_file_perm(label, op, request, sock);
+	if (denied) {
+		/* TODO: improve to skip profiles checked above */
+		/* check every profile in file label to is cached */
+		last_error(error, aa_sock_file_perm(flabel, op, request, sock));
+	}
+	if (!error)
+		update_file_ctx(file_ctx(file), label, request);
+
+	return error;
+}
+
 /**
  * aa_file_perm - do permission revalidation check & audit for @file
  * @op: operation being checked
@@ -604,6 +628,9 @@ int aa_file_perm(const char *op, struct aa_label *label, struct file *file,
 		error = __file_path_perm(op, label, flabel, file, request,
 					 denied);
 
+	else if (S_ISSOCK(file_inode(file)->i_mode))
+		error = __file_sock_perm(op, label, flabel, file, request,
+					 denied);
 done:
 	rcu_read_unlock();
 

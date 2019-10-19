@@ -55,7 +55,7 @@ static void iser_event_handler(struct ib_event_handler *handler,
 {
 	iser_err("async event %s (%d) on device %s port %d\n",
 		 ib_event_msg(event->event), event->event,
-		 event->device->name, event->element.port_num);
+		dev_name(&event->device->dev), event->element.port_num);
 }
 
 /**
@@ -85,7 +85,7 @@ static int iser_create_device_ib_res(struct iser_device *device)
 	max_cqe = min(ISER_MAX_CQ_LEN, ib_dev->attrs.max_cqe);
 
 	iser_info("using %d CQs, device %s supports %d vectors max_cqe %d\n",
-		  device->comps_used, ib_dev->name,
+		  device->comps_used, dev_name(&ib_dev->dev),
 		  ib_dev->num_comp_vectors, max_cqe);
 
 	device->pd = ib_alloc_pd(ib_dev,
@@ -233,85 +233,6 @@ void iser_free_fmr_pool(struct ib_conn *ib_conn)
 	kfree(desc);
 }
 
-static int
-iser_alloc_reg_res(struct iser_device *device,
-		   struct ib_pd *pd,
-		   struct iser_reg_resources *res,
-		   unsigned int size)
-{
-	struct ib_device *ib_dev = device->ib_device;
-	enum ib_mr_type mr_type;
-	int ret;
-
-	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
-		mr_type = IB_MR_TYPE_SG_GAPS;
-	else
-		mr_type = IB_MR_TYPE_MEM_REG;
-
-	res->mr = ib_alloc_mr(pd, mr_type, size);
-	if (IS_ERR(res->mr)) {
-		ret = PTR_ERR(res->mr);
-		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
-		return ret;
-	}
-	res->mr_valid = 0;
-
-	return 0;
-}
-
-static void
-iser_free_reg_res(struct iser_reg_resources *rsc)
-{
-	ib_dereg_mr(rsc->mr);
-}
-
-static int
-iser_alloc_pi_ctx(struct iser_device *device,
-		  struct ib_pd *pd,
-		  struct iser_fr_desc *desc,
-		  unsigned int size)
-{
-	struct iser_pi_context *pi_ctx = NULL;
-	int ret;
-
-	desc->pi_ctx = kzalloc(sizeof(*desc->pi_ctx), GFP_KERNEL);
-	if (!desc->pi_ctx)
-		return -ENOMEM;
-
-	pi_ctx = desc->pi_ctx;
-
-	ret = iser_alloc_reg_res(device, pd, &pi_ctx->rsc, size);
-	if (ret) {
-		iser_err("failed to allocate reg_resources\n");
-		goto alloc_reg_res_err;
-	}
-
-	pi_ctx->sig_mr = ib_alloc_mr(pd, IB_MR_TYPE_SIGNATURE, 2);
-	if (IS_ERR(pi_ctx->sig_mr)) {
-		ret = PTR_ERR(pi_ctx->sig_mr);
-		goto sig_mr_failure;
-	}
-	pi_ctx->sig_mr_valid = 0;
-	desc->pi_ctx->sig_protected = 0;
-
-	return 0;
-
-sig_mr_failure:
-	iser_free_reg_res(&pi_ctx->rsc);
-alloc_reg_res_err:
-	kfree(desc->pi_ctx);
-
-	return ret;
-}
-
-static void
-iser_free_pi_ctx(struct iser_pi_context *pi_ctx)
-{
-	iser_free_reg_res(&pi_ctx->rsc);
-	ib_dereg_mr(pi_ctx->sig_mr);
-	kfree(pi_ctx);
-}
-
 static struct iser_fr_desc *
 iser_create_fastreg_desc(struct iser_device *device,
 			 struct ib_pd *pd,
@@ -319,30 +240,56 @@ iser_create_fastreg_desc(struct iser_device *device,
 			 unsigned int size)
 {
 	struct iser_fr_desc *desc;
+	struct ib_device *ib_dev = device->ib_device;
+	enum ib_mr_type mr_type;
 	int ret;
 
 	desc = kzalloc(sizeof(*desc), GFP_KERNEL);
 	if (!desc)
 		return ERR_PTR(-ENOMEM);
 
-	ret = iser_alloc_reg_res(device, pd, &desc->rsc, size);
-	if (ret)
-		goto reg_res_alloc_failure;
+	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+		mr_type = IB_MR_TYPE_SG_GAPS;
+	else
+		mr_type = IB_MR_TYPE_MEM_REG;
+
+	desc->rsc.mr = ib_alloc_mr(pd, mr_type, size);
+	if (IS_ERR(desc->rsc.mr)) {
+		ret = PTR_ERR(desc->rsc.mr);
+		iser_err("Failed to allocate ib_fast_reg_mr err=%d\n", ret);
+		goto err_alloc_mr;
+	}
 
 	if (pi_enable) {
-		ret = iser_alloc_pi_ctx(device, pd, desc, size);
-		if (ret)
-			goto pi_ctx_alloc_failure;
+		desc->rsc.sig_mr = ib_alloc_mr_integrity(pd, size, size);
+		if (IS_ERR(desc->rsc.sig_mr)) {
+			ret = PTR_ERR(desc->rsc.sig_mr);
+			iser_err("Failed to allocate sig_mr err=%d\n", ret);
+			goto err_alloc_mr_integrity;
+		}
 	}
+	desc->rsc.mr_valid = 0;
 
 	return desc;
 
-pi_ctx_alloc_failure:
-	iser_free_reg_res(&desc->rsc);
-reg_res_alloc_failure:
+err_alloc_mr_integrity:
+	ib_dereg_mr(desc->rsc.mr);
+err_alloc_mr:
 	kfree(desc);
 
 	return ERR_PTR(ret);
+}
+
+static void iser_destroy_fastreg_desc(struct iser_fr_desc *desc)
+{
+	struct iser_reg_resources *res = &desc->rsc;
+
+	ib_dereg_mr(res->mr);
+	if (res->sig_mr) {
+		ib_dereg_mr(res->sig_mr);
+		res->sig_mr = NULL;
+	}
+	kfree(desc);
 }
 
 /**
@@ -399,10 +346,7 @@ void iser_free_fastreg_pool(struct ib_conn *ib_conn)
 
 	list_for_each_entry_safe(desc, tmp, &fr_pool->all_list, all_list) {
 		list_del(&desc->all_list);
-		iser_free_reg_res(&desc->rsc);
-		if (desc->pi_ctx)
-			iser_free_pi_ctx(desc->pi_ctx);
-		kfree(desc);
+		iser_destroy_fastreg_desc(desc);
 		++i;
 	}
 
@@ -455,7 +399,7 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 	init_attr.qp_type	= IB_QPT_RC;
 	if (ib_conn->pi_support) {
 		init_attr.cap.max_send_wr = ISER_QP_SIG_MAX_REQ_DTOS + 1;
-		init_attr.create_flags |= IB_QP_CREATE_SIGNATURE_EN;
+		init_attr.create_flags |= IB_QP_CREATE_INTEGRITY_EN;
 		iser_conn->max_cmds =
 			ISER_GET_MAX_XMIT_CMDS(ISER_QP_SIG_MAX_REQ_DTOS);
 	} else {
@@ -468,7 +412,8 @@ static int iser_create_ib_conn_res(struct ib_conn *ib_conn)
 			iser_conn->max_cmds =
 				ISER_GET_MAX_XMIT_CMDS(ib_dev->attrs.max_qp_wr);
 			iser_dbg("device %s supports max_send_wr %d\n",
-				 device->ib_device->name, ib_dev->attrs.max_qp_wr);
+				 dev_name(&device->ib_device->dev),
+				 ib_dev->attrs.max_qp_wr);
 		}
 	}
 
@@ -703,19 +648,40 @@ iser_calc_scsi_params(struct iser_conn *iser_conn,
 		      unsigned int max_sectors)
 {
 	struct iser_device *device = iser_conn->ib_conn.device;
+	struct ib_device_attr *attr = &device->ib_device->attrs;
 	unsigned short sg_tablesize, sup_sg_tablesize;
+	unsigned short reserved_mr_pages;
+	u32 max_num_sg;
+
+	/*
+	 * FRs without SG_GAPS or FMRs can only map up to a (device) page per
+	 * entry, but if the first entry is misaligned we'll end up using two
+	 * entries (head and tail) for a single page worth data, so one
+	 * additional entry is required.
+	 */
+	if ((attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS) &&
+	    (attr->device_cap_flags & IB_DEVICE_SG_GAPS_REG))
+		reserved_mr_pages = 0;
+	else
+		reserved_mr_pages = 1;
+
+	if (iser_conn->ib_conn.pi_support)
+		max_num_sg = attr->max_pi_fast_reg_page_list_len;
+	else
+		max_num_sg = attr->max_fast_reg_page_list_len;
 
 	sg_tablesize = DIV_ROUND_UP(max_sectors * 512, SIZE_4K);
-	if (device->ib_device->attrs.device_cap_flags &
-			IB_DEVICE_MEM_MGT_EXTENSIONS)
+	if (attr->device_cap_flags & IB_DEVICE_MEM_MGT_EXTENSIONS)
 		sup_sg_tablesize =
 			min_t(
 			 uint, ISCSI_ISER_MAX_SG_TABLESIZE,
-			 device->ib_device->attrs.max_fast_reg_page_list_len);
+			 max_num_sg - reserved_mr_pages);
 	else
 		sup_sg_tablesize = ISCSI_ISER_MAX_SG_TABLESIZE;
 
 	iser_conn->scsi_sg_tablesize = min(sg_tablesize, sup_sg_tablesize);
+	iser_conn->pages_per_mr =
+		iser_conn->scsi_sg_tablesize + reserved_mr_pages;
 }
 
 /**
@@ -746,10 +712,10 @@ static void iser_addr_handler(struct rdma_cm_id *cma_id)
 	/* connection T10-PI support */
 	if (iser_pi_enable) {
 		if (!(device->ib_device->attrs.device_cap_flags &
-		      IB_DEVICE_SIGNATURE_HANDOVER)) {
+		      IB_DEVICE_INTEGRITY_HANDOVER)) {
 			iser_warn("T10-PI requested but not supported on %s, "
 				  "continue without T10-PI\n",
-				  ib_conn->device->ib_device->name);
+				  dev_name(&ib_conn->device->ib_device->dev));
 			ib_conn->pi_support = false;
 		} else {
 			ib_conn->pi_support = true;
@@ -1007,7 +973,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 {
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	struct iser_login_desc *desc = &iser_conn->login_desc;
-	struct ib_recv_wr wr, *wr_failed;
+	struct ib_recv_wr wr;
 	int ib_ret;
 
 	desc->sge.addr = desc->rsp_dma;
@@ -1021,7 +987,7 @@ int iser_post_recvl(struct iser_conn *iser_conn)
 	wr.next = NULL;
 
 	ib_conn->post_recv_buf_count++;
-	ib_ret = ib_post_recv(ib_conn->qp, &wr, &wr_failed);
+	ib_ret = ib_post_recv(ib_conn->qp, &wr, NULL);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count--;
@@ -1035,7 +1001,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 	struct ib_conn *ib_conn = &iser_conn->ib_conn;
 	unsigned int my_rx_head = iser_conn->rx_desc_head;
 	struct iser_rx_desc *rx_desc;
-	struct ib_recv_wr *wr, *wr_failed;
+	struct ib_recv_wr *wr;
 	int i, ib_ret;
 
 	for (wr = ib_conn->rx_wr, i = 0; i < count; i++, wr++) {
@@ -1052,7 +1018,7 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 	wr->next = NULL; /* mark end of work requests list */
 
 	ib_conn->post_recv_buf_count += count;
-	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, &wr_failed);
+	ib_ret = ib_post_recv(ib_conn->qp, ib_conn->rx_wr, NULL);
 	if (ib_ret) {
 		iser_err("ib_post_recv failed ret=%d\n", ib_ret);
 		ib_conn->post_recv_buf_count -= count;
@@ -1071,7 +1037,8 @@ int iser_post_recvm(struct iser_conn *iser_conn, int count)
 int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 		   bool signal)
 {
-	struct ib_send_wr *bad_wr, *wr = iser_tx_next_wr(tx_desc);
+	struct ib_send_wr *wr = &tx_desc->send_wr;
+	struct ib_send_wr *first_wr;
 	int ib_ret;
 
 	ib_dma_sync_single_for_device(ib_conn->device->ib_device,
@@ -1085,10 +1052,17 @@ int iser_post_send(struct ib_conn *ib_conn, struct iser_tx_desc *tx_desc,
 	wr->opcode = IB_WR_SEND;
 	wr->send_flags = signal ? IB_SEND_SIGNALED : 0;
 
-	ib_ret = ib_post_send(ib_conn->qp, &tx_desc->wrs[0].send, &bad_wr);
+	if (tx_desc->inv_wr.next)
+		first_wr = &tx_desc->inv_wr;
+	else if (tx_desc->reg_wr.wr.next)
+		first_wr = &tx_desc->reg_wr.wr;
+	else
+		first_wr = wr;
+
+	ib_ret = ib_post_send(ib_conn->qp, first_wr, NULL);
 	if (ib_ret)
 		iser_err("ib_post_send failed, ret:%d opcode:%d\n",
-			 ib_ret, bad_wr->opcode);
+			 ib_ret, wr->opcode);
 
 	return ib_ret;
 }
@@ -1102,13 +1076,15 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 	struct ib_mr_status mr_status;
 	int ret;
 
-	if (desc && desc->pi_ctx->sig_protected) {
-		desc->pi_ctx->sig_protected = 0;
-		ret = ib_check_mr_status(desc->pi_ctx->sig_mr,
+	if (desc && desc->sig_protected) {
+		desc->sig_protected = 0;
+		ret = ib_check_mr_status(desc->rsc.sig_mr,
 					 IB_MR_CHECK_SIG_STATUS, &mr_status);
 		if (ret) {
 			pr_err("ib_check_mr_status failed, ret %d\n", ret);
-			goto err;
+			/* Not a lot we can do, return ambiguous guard error */
+			*sector = 0;
+			return 0x1;
 		}
 
 		if (mr_status.fail_status & IB_MR_CHECK_SIG_STATUS) {
@@ -1136,9 +1112,6 @@ u8 iser_check_task_pi_status(struct iscsi_iser_task *iser_task,
 	}
 
 	return 0;
-err:
-	/* Not alot we can do here, return ambiguous guard error */
-	return 0x1;
 }
 
 void iser_err_comp(struct ib_wc *wc, const char *type)

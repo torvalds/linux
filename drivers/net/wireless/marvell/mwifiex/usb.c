@@ -181,7 +181,8 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 		atomic_dec(&card->rx_data_urb_pending);
 
 	if (recv_length) {
-		if (urb->status || (adapter->surprise_removed)) {
+		if (urb->status ||
+		    test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags)) {
 			mwifiex_dbg(adapter, ERROR,
 				    "URB status is failed: %d\n", urb->status);
 			/* Do not free skb in case of command ep */
@@ -218,10 +219,10 @@ static void mwifiex_usb_rx_complete(struct urb *urb)
 				dev_kfree_skb_any(skb);
 		}
 	} else if (urb->status) {
-		if (!adapter->is_suspended) {
+		if (!test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
 			mwifiex_dbg(adapter, FATAL,
 				    "Card is removed: %d\n", urb->status);
-			adapter->surprise_removed = true;
+			set_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags);
 		}
 		dev_kfree_skb_any(skb);
 		return;
@@ -296,6 +297,19 @@ static int mwifiex_usb_submit_rx_urb(struct urb_context *ctx, int size)
 {
 	struct mwifiex_adapter *adapter = ctx->adapter;
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
+
+	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
+		if (card->rx_cmd_ep == ctx->ep) {
+			mwifiex_dbg(adapter, INFO, "%s: free rx_cmd skb\n",
+				    __func__);
+			dev_kfree_skb_any(ctx->skb);
+			ctx->skb = NULL;
+		}
+		mwifiex_dbg(adapter, ERROR,
+			    "%s: card removed/suspended, EP %d rx_cmd URB submit skipped\n",
+			    __func__, ctx->ep);
+		return -1;
+	}
 
 	if (card->rx_cmd_ep != ctx->ep) {
 		ctx->skb = dev_alloc_skb(size);
@@ -529,7 +543,7 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 		return 0;
 	}
 
-	if (unlikely(adapter->is_suspended))
+	if (unlikely(test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)))
 		mwifiex_dbg(adapter, WARN,
 			    "Device already suspended\n");
 
@@ -537,19 +551,19 @@ static int mwifiex_usb_suspend(struct usb_interface *intf, pm_message_t message)
 	if (!mwifiex_enable_hs(adapter)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "cmd: failed to suspend\n");
-		adapter->hs_enabling = false;
+		clear_bit(MWIFIEX_IS_HS_ENABLING, &adapter->work_flags);
 		return -EFAULT;
 	}
 
 
-	/* 'is_suspended' flag indicates device is suspended.
+	/* 'MWIFIEX_IS_SUSPENDED' bit indicates device is suspended.
 	 * It must be set here before the usb_kill_urb() calls. Reason
 	 * is in the complete handlers, urb->status(= -ENOENT) and
 	 * this flag is used in combination to distinguish between a
 	 * 'suspended' state and a 'disconnect' one.
 	 */
-	adapter->is_suspended = true;
-	adapter->hs_enabling = false;
+	set_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags);
+	clear_bit(MWIFIEX_IS_HS_ENABLING, &adapter->work_flags);
 
 	if (atomic_read(&card->rx_cmd_urb_pending) && card->rx_cmd.urb)
 		usb_kill_urb(card->rx_cmd.urb);
@@ -593,7 +607,7 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 	}
 	adapter = card->adapter;
 
-	if (unlikely(!adapter->is_suspended)) {
+	if (unlikely(!test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags))) {
 		mwifiex_dbg(adapter, WARN,
 			    "Device already resumed\n");
 		return 0;
@@ -602,7 +616,7 @@ static int mwifiex_usb_resume(struct usb_interface *intf)
 	/* Indicate device resumed. The netdev queue will be resumed only
 	 * after the urbs have been re-submitted
 	 */
-	adapter->is_suspended = false;
+	clear_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags);
 
 	if (!atomic_read(&card->rx_data_urb_pending))
 		for (i = 0; i < MWIFIEX_RX_DATA_URB; i++)
@@ -644,13 +658,20 @@ static void mwifiex_usb_disconnect(struct usb_interface *intf)
 					 MWIFIEX_FUNC_SHUTDOWN);
 	}
 
-	mwifiex_usb_free(card);
-
 	mwifiex_dbg(adapter, FATAL,
 		    "%s: removing card\n", __func__);
 	mwifiex_remove_card(adapter);
 
 	usb_put_dev(interface_to_usbdev(intf));
+}
+
+static void mwifiex_usb_coredump(struct device *dev)
+{
+	struct usb_interface *intf = to_usb_interface(dev);
+	struct usb_card_rec *card = usb_get_intfdata(intf);
+
+	mwifiex_fw_dump_event(mwifiex_get_priv(card->adapter,
+					       MWIFIEX_BSS_ROLE_ANY));
 }
 
 static struct usb_driver mwifiex_usb_driver = {
@@ -661,6 +682,9 @@ static struct usb_driver mwifiex_usb_driver = {
 	.suspend = mwifiex_usb_suspend,
 	.resume = mwifiex_usb_resume,
 	.soft_unbind = 1,
+	.drvwrap.driver = {
+		.coredump = mwifiex_usb_coredump,
+	},
 };
 
 static int mwifiex_write_data_sync(struct mwifiex_adapter *adapter, u8 *pbuf,
@@ -1104,10 +1128,9 @@ static void mwifiex_usb_tx_aggr_tmo(struct timer_list *t)
 		from_timer(timer_context, t, hold_timer);
 	struct mwifiex_adapter *adapter = timer_context->adapter;
 	struct usb_tx_data_port *port = timer_context->port;
-	unsigned long flags;
 	int err = 0;
 
-	spin_lock_irqsave(&port->tx_aggr_lock, flags);
+	spin_lock_bh(&port->tx_aggr_lock);
 	err = mwifiex_usb_prepare_tx_aggr_skb(adapter, port, &skb_send);
 	if (err) {
 		mwifiex_dbg(adapter, ERROR,
@@ -1134,7 +1157,7 @@ done:
 	if (err == -1)
 		mwifiex_write_data_complete(adapter, skb_send, 0, -1);
 unlock:
-	spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
+	spin_unlock_bh(&port->tx_aggr_lock);
 }
 
 /* This function write a command/data packet to card. */
@@ -1145,16 +1168,15 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 	struct usb_card_rec *card = adapter->card;
 	struct urb_context *context = NULL;
 	struct usb_tx_data_port *port = NULL;
-	unsigned long flags;
 	int idx, ret;
 
-	if (adapter->is_suspended) {
+	if (test_bit(MWIFIEX_IS_SUSPENDED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR,
 			    "%s: not allowed while suspended\n", __func__);
 		return -1;
 	}
 
-	if (adapter->surprise_removed) {
+	if (test_bit(MWIFIEX_SURPRISE_REMOVED, &adapter->work_flags)) {
 		mwifiex_dbg(adapter, ERROR, "%s: device removed\n", __func__);
 		return -1;
 	}
@@ -1187,10 +1209,10 @@ static int mwifiex_usb_host_to_card(struct mwifiex_adapter *adapter, u8 ep,
 		}
 
 		if (adapter->bus_aggr.enable) {
-			spin_lock_irqsave(&port->tx_aggr_lock, flags);
+			spin_lock_bh(&port->tx_aggr_lock);
 			ret =  mwifiex_usb_aggr_tx_data(adapter, ep, skb,
 							tx_param, port);
-			spin_unlock_irqrestore(&port->tx_aggr_lock, flags);
+			spin_unlock_bh(&port->tx_aggr_lock);
 			return ret;
 		}
 
@@ -1340,6 +1362,8 @@ static void mwifiex_usb_cleanup_tx_aggr(struct mwifiex_adapter *adapter)
 static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 {
 	struct usb_card_rec *card = (struct usb_card_rec *)adapter->card;
+
+	mwifiex_usb_free(card);
 
 	mwifiex_usb_cleanup_tx_aggr(adapter);
 

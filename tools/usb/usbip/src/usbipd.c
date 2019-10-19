@@ -1,22 +1,10 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Copyright (C) 2011 matt mooney <mfm@muteddisk.com>
  *               2005-2007 Takahiro Hirofuchi
  * Copyright (C) 2015-2016 Samsung Electronics
  *               Igor Kotrasinski <i.kotrasinsk@samsung.com>
  *               Krzysztof Opasiak <k.opasiak@samsung.com>
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #ifdef HAVE_CONFIG_H
@@ -107,7 +95,7 @@ static int recv_request_import(int sockfd)
 	struct usbip_usb_device pdu_udev;
 	struct list_head *i;
 	int found = 0;
-	int error = 0;
+	int status = ST_OK;
 	int rc;
 
 	memset(&req, 0, sizeof(req));
@@ -133,22 +121,21 @@ static int recv_request_import(int sockfd)
 		usbip_net_set_nodelay(sockfd);
 
 		/* export device needs a TCP/IP socket descriptor */
-		rc = usbip_export_device(edev, sockfd);
-		if (rc < 0)
-			error = 1;
+		status = usbip_export_device(edev, sockfd);
+		if (status < 0)
+			status = ST_NA;
 	} else {
 		info("requested device not found: %s", req.busid);
-		error = 1;
+		status = ST_NODEV;
 	}
 
-	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT,
-				      (!error ? ST_OK : ST_NA));
+	rc = usbip_net_send_op_common(sockfd, OP_REP_IMPORT, status);
 	if (rc < 0) {
 		dbg("usbip_net_send_op_common failed: %#0x", OP_REP_IMPORT);
 		return -1;
 	}
 
-	if (error) {
+	if (status) {
 		dbg("import request busid %s: failed", req.busid);
 		return -1;
 	}
@@ -176,10 +163,21 @@ static int send_reply_devlist(int connfd)
 	struct list_head *j;
 	int rc, i;
 
+	/*
+	 * Exclude devices that are already exported to a client from
+	 * the exportable device list to avoid:
+	 *	- import requests for devices that are exported only to
+	 *	  fail the request.
+	 *	- revealing devices that are imported by a client to
+	 *	  another client.
+	 */
+
 	reply.ndev = 0;
 	/* number of exported devices */
 	list_for_each(j, &driver->edev_list) {
-		reply.ndev += 1;
+		edev = list_entry(j, struct usbip_exported_device, node);
+		if (edev->status != SDEV_ST_USED)
+			reply.ndev += 1;
 	}
 	info("exportable devices: %d", reply.ndev);
 
@@ -198,6 +196,9 @@ static int send_reply_devlist(int connfd)
 
 	list_for_each(j, &driver->edev_list) {
 		edev = list_entry(j, struct usbip_exported_device, node);
+		if (edev->status == SDEV_ST_USED)
+			continue;
+
 		dump_usb_device(&edev->udev);
 		memcpy(&pdu_udev, &edev->udev, sizeof(pdu_udev));
 		usbip_net_pack_usb_device(1, &pdu_udev);
@@ -251,8 +252,9 @@ static int recv_pdu(int connfd)
 {
 	uint16_t code = OP_UNSPEC;
 	int ret;
+	int status;
 
-	ret = usbip_net_recv_op_common(connfd, &code);
+	ret = usbip_net_recv_op_common(connfd, &code, &status);
 	if (ret < 0) {
 		dbg("could not receive opcode: %#0x", code);
 		return -1;

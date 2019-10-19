@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Core private header for the pin control subsystem
  *
@@ -5,8 +6,6 @@
  * Written on behalf of Linaro for ST-Ericsson
  *
  * Author: Linus Walleij <linus.walleij@linaro.org>
- *
- * License terms: GNU General Public License (GPL) version 2
  */
 
 #include <linux/kref.h>
@@ -217,12 +216,6 @@ int pinctrl_generic_add_group(struct pinctrl_dev *pctldev, const char *name,
 
 int pinctrl_generic_remove_group(struct pinctrl_dev *pctldev,
 				 unsigned int group_selector);
-
-static inline int
-pinctrl_generic_remove_last_group(struct pinctrl_dev *pctldev)
-{
-	return pinctrl_generic_remove_group(pctldev, pctldev->num_groups - 1);
-}
 
 #endif	/* CONFIG_GENERIC_PINCTRL_GROUPS */
 

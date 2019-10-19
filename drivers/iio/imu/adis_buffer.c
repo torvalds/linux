@@ -1,10 +1,9 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * Common library for ADIS16XXX devices
  *
  * Copyright 2012 Analog Devices Inc.
  *   Author: Lars-Peter Clausen <lars@metafoo.de>
- *
- * Licensed under the GPL-2 or later.
  */
 
 #include <linux/export.h>
@@ -20,6 +19,46 @@
 #include <linux/iio/triggered_buffer.h>
 #include <linux/iio/imu/adis.h>
 
+static int adis_update_scan_mode_burst(struct iio_dev *indio_dev,
+	const unsigned long *scan_mask)
+{
+	struct adis *adis = iio_device_get_drvdata(indio_dev);
+	unsigned int burst_length;
+	u8 *tx;
+
+	/* All but the timestamp channel */
+	burst_length = (indio_dev->num_channels - 1) * sizeof(u16);
+	burst_length += adis->burst->extra_len;
+
+	adis->xfer = kcalloc(2, sizeof(*adis->xfer), GFP_KERNEL);
+	if (!adis->xfer)
+		return -ENOMEM;
+
+	adis->buffer = kzalloc(burst_length + sizeof(u16), GFP_KERNEL);
+	if (!adis->buffer) {
+		kfree(adis->xfer);
+		adis->xfer = NULL;
+		return -ENOMEM;
+	}
+
+	tx = adis->buffer + burst_length;
+	tx[0] = ADIS_READ_REG(adis->burst->reg_cmd);
+	tx[1] = 0;
+
+	adis->xfer[0].tx_buf = tx;
+	adis->xfer[0].bits_per_word = 8;
+	adis->xfer[0].len = 2;
+	adis->xfer[1].rx_buf = adis->buffer;
+	adis->xfer[1].bits_per_word = 8;
+	adis->xfer[1].len = burst_length;
+
+	spi_message_init(&adis->msg);
+	spi_message_add_tail(&adis->xfer[0], &adis->msg);
+	spi_message_add_tail(&adis->xfer[1], &adis->msg);
+
+	return 0;
+}
+
 int adis_update_scan_mode(struct iio_dev *indio_dev,
 	const unsigned long *scan_mask)
 {
@@ -32,15 +71,21 @@ int adis_update_scan_mode(struct iio_dev *indio_dev,
 	kfree(adis->xfer);
 	kfree(adis->buffer);
 
+	if (adis->burst && adis->burst->en)
+		return adis_update_scan_mode_burst(indio_dev, scan_mask);
+
 	scan_count = indio_dev->scan_bytes / 2;
 
 	adis->xfer = kcalloc(scan_count + 1, sizeof(*adis->xfer), GFP_KERNEL);
 	if (!adis->xfer)
 		return -ENOMEM;
 
-	adis->buffer = kzalloc(indio_dev->scan_bytes * 2, GFP_KERNEL);
-	if (!adis->buffer)
+	adis->buffer = kcalloc(indio_dev->scan_bytes, 2, GFP_KERNEL);
+	if (!adis->buffer) {
+		kfree(adis->xfer);
+		adis->xfer = NULL;
 		return -ENOMEM;
+	}
 
 	rx = adis->buffer;
 	tx = rx + scan_count;

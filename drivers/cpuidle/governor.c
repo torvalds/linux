@@ -8,21 +8,27 @@
  * This code is licenced under the GPL.
  */
 
-#include <linux/mutex.h>
+#include <linux/cpu.h>
 #include <linux/cpuidle.h>
+#include <linux/mutex.h>
+#include <linux/module.h>
+#include <linux/pm_qos.h>
 
 #include "cpuidle.h"
 
+char param_governor[CPUIDLE_NAME_LEN];
+
 LIST_HEAD(cpuidle_governors);
 struct cpuidle_governor *cpuidle_curr_governor;
+struct cpuidle_governor *cpuidle_prev_governor;
 
 /**
- * __cpuidle_find_governor - finds a governor of the specified name
+ * cpuidle_find_governor - finds a governor of the specified name
  * @str: the name
  *
  * Must be called with cpuidle_lock acquired.
  */
-static struct cpuidle_governor * __cpuidle_find_governor(const char *str)
+struct cpuidle_governor *cpuidle_find_governor(const char *str)
 {
 	struct cpuidle_governor *gov;
 
@@ -82,14 +88,30 @@ int cpuidle_register_governor(struct cpuidle_governor *gov)
 		return -ENODEV;
 
 	mutex_lock(&cpuidle_lock);
-	if (__cpuidle_find_governor(gov->name) == NULL) {
+	if (cpuidle_find_governor(gov->name) == NULL) {
 		ret = 0;
 		list_add_tail(&gov->governor_list, &cpuidle_governors);
 		if (!cpuidle_curr_governor ||
-		    cpuidle_curr_governor->rating < gov->rating)
+		    !strncasecmp(param_governor, gov->name, CPUIDLE_NAME_LEN) ||
+		    (cpuidle_curr_governor->rating < gov->rating &&
+		     strncasecmp(param_governor, cpuidle_curr_governor->name,
+				 CPUIDLE_NAME_LEN)))
 			cpuidle_switch_governor(gov);
 	}
 	mutex_unlock(&cpuidle_lock);
 
 	return ret;
+}
+
+/**
+ * cpuidle_governor_latency_req - Compute a latency constraint for CPU
+ * @cpu: Target CPU
+ */
+int cpuidle_governor_latency_req(unsigned int cpu)
+{
+	int global_req = pm_qos_request(PM_QOS_CPU_DMA_LATENCY);
+	struct device *device = get_cpu_device(cpu);
+	int device_req = dev_pm_qos_raw_resume_latency(device);
+
+	return device_req < global_req ? device_req : global_req;
 }

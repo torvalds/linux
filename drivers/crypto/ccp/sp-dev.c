@@ -1,15 +1,12 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Secure Processor driver
  *
- * Copyright (C) 2017 Advanced Micro Devices, Inc.
+ * Copyright (C) 2017-2018 Advanced Micro Devices, Inc.
  *
  * Author: Tom Lendacky <thomas.lendacky@amd.com>
  * Author: Gary R Hook <gary.hook@amd.com>
  * Author: Brijesh Singh <brijesh.singh@amd.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #include <linux/module.h>
@@ -252,12 +249,12 @@ struct sp_device *sp_get_psp_master_device(void)
 		goto unlock;
 
 	list_for_each_entry(i, &sp_units, entry) {
-		if (i->psp_data)
+		if (i->psp_data && i->get_psp_master_device) {
+			ret = i->get_psp_master_device();
 			break;
+		}
 	}
 
-	if (i->get_psp_master_device)
-		ret = i->get_psp_master_device();
 unlock:
 	write_unlock_irqrestore(&sp_unit_lock, flags);
 	return ret;

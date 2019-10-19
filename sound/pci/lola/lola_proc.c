@@ -1,21 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *  Support for Digigram Lola PCI-e boards
  *
  *  Copyright (c) 2011 Takashi Iwai <tiwai@suse.de>
- *
- *  This program is free software; you can redistribute it and/or modify it
- *  under the terms of the GNU General Public License as published by the Free
- *  Software Foundation; either version 2 of the License, or (at your option)
- *  any later version.
- *
- *  This program is distributed in the hope that it will be useful, but WITHOUT
- *  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- *  FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- *  more details.
- *
- *  You should have received a copy of the GNU General Public License along with
- *  this program; if not, write to the Free Software Foundation, Inc., 59
- *  Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 
 #include <linux/kernel.h>
@@ -208,15 +195,9 @@ static void lola_proc_regs_read(struct snd_info_entry *entry,
 
 void lola_proc_debug_new(struct lola *chip)
 {
-	struct snd_info_entry *entry;
-
-	if (!snd_card_proc_new(chip->card, "codec", &entry))
-		snd_info_set_text_ops(entry, chip, lola_proc_codec_read);
-	if (!snd_card_proc_new(chip->card, "codec_rw", &entry)) {
-		snd_info_set_text_ops(entry, chip, lola_proc_codec_rw_read);
-		entry->mode |= S_IWUSR;
-		entry->c.text.write = lola_proc_codec_rw_write;
-	}
-	if (!snd_card_proc_new(chip->card, "regs", &entry))
-		snd_info_set_text_ops(entry, chip, lola_proc_regs_read);
+	snd_card_ro_proc_new(chip->card, "codec", chip, lola_proc_codec_read);
+	snd_card_rw_proc_new(chip->card, "codec_rw", chip,
+			     lola_proc_codec_rw_read,
+			     lola_proc_codec_rw_write);
+	snd_card_ro_proc_new(chip->card, "regs", chip, lola_proc_regs_read);
 }

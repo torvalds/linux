@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  *  Copyright (C) 2004 - 2010 Vladislav Bolkhovitin <vst@vlnb.net>
  *  Copyright (C) 2004 - 2005 Leonid Stoljar
@@ -9,16 +10,6 @@
  *  Copyright (C) 2010-2011 Nicholas A. Bellinger <nab@kernel.org>
  *
  *  Additional file for the target driver support.
- *
- *  This program is free software; you can redistribute it and/or
- *  modify it under the terms of the GNU General Public License
- *  as published by the Free Software Foundation; either version 2
- *  of the License, or (at your option) any later version.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- *  GNU General Public License for more details.
  */
 /*
  * This is the global def file that is useful for including from the
@@ -29,6 +20,7 @@
 #define __QLA_TARGET_H
 
 #include "qla_def.h"
+#include "qla_dsd.h"
 
 /*
  * Must be changed on any change in any initiator visible interfaces or
@@ -224,12 +216,7 @@ struct ctio_to_2xxx {
 	uint16_t reserved_1[3];
 	uint16_t scsi_status;
 	uint32_t transfer_length;
-	uint32_t dseg_0_address;	/* Data segment 0 address. */
-	uint32_t dseg_0_length;		/* Data segment 0 length. */
-	uint32_t dseg_1_address;	/* Data segment 1 address. */
-	uint32_t dseg_1_length;		/* Data segment 1 length. */
-	uint32_t dseg_2_address;	/* Data segment 2 address. */
-	uint32_t dseg_2_length;		/* Data segment 2 length. */
+	struct dsd32 dsd[3];
 } __packed;
 #define ATIO_PATH_INVALID       0x07
 #define ATIO_CANT_PROV_CAP      0x16
@@ -260,9 +247,9 @@ struct ctio_to_2xxx {
 
 struct fcp_hdr {
 	uint8_t  r_ctl;
-	uint8_t  d_id[3];
+	be_id_t  d_id;
 	uint8_t  cs_ctl;
-	uint8_t  s_id[3];
+	be_id_t  s_id;
 	uint8_t  type;
 	uint8_t  f_ctl[3];
 	uint8_t  seq_id;
@@ -274,9 +261,9 @@ struct fcp_hdr {
 } __packed;
 
 struct fcp_hdr_le {
-	uint8_t  d_id[3];
+	le_id_t  d_id;
 	uint8_t  r_ctl;
-	uint8_t  s_id[3];
+	le_id_t  s_id;
 	uint8_t  cs_ctl;
 	uint8_t  f_ctl[3];
 	uint8_t  type;
@@ -374,8 +361,8 @@ struct atio_from_isp {
 static inline int fcpcmd_is_corrupted(struct atio *atio)
 {
 	if (atio->entry_type == ATIO_TYPE7 &&
-	    (le16_to_cpu(atio->attr_n_length & FCP_CMD_LENGTH_MASK) <
-	    FCP_CMD_LENGTH_MIN))
+	    ((le16_to_cpu(atio->attr_n_length) & FCP_CMD_LENGTH_MASK) <
+	     FCP_CMD_LENGTH_MIN))
 		return 1;
 	else
 		return 0;
@@ -415,7 +402,7 @@ struct ctio7_to_24xx {
 	uint16_t dseg_count;		    /* Data segment count. */
 	uint8_t  vp_index;
 	uint8_t  add_flags;
-	uint8_t  initiator_id[3];
+	le_id_t  initiator_id;
 	uint8_t  reserved;
 	uint32_t exchange_addr;
 	union {
@@ -429,10 +416,7 @@ struct ctio7_to_24xx {
 			uint32_t reserved2;
 			uint32_t transfer_length;
 			uint32_t reserved3;
-			/* Data segment 0 address. */
-			uint32_t dseg_0_address[2];
-			/* Data segment 0 length. */
-			uint32_t dseg_0_length;
+			struct dsd64 dsd;
 		} status0;
 		struct {
 			uint16_t sense_length;
@@ -514,7 +498,7 @@ struct ctio_crc2_to_fw {
 	uint8_t  add_flags;		/* additional flags */
 #define CTIO_CRC2_AF_DIF_DSD_ENA BIT_3
 
-	uint8_t  initiator_id[3];	/* initiator ID */
+	le_id_t  initiator_id;		/* initiator ID */
 	uint8_t  reserved1;
 	uint32_t exchange_addr;		/* rcv exchange address */
 	uint16_t reserved2;
@@ -526,10 +510,10 @@ struct ctio_crc2_to_fw {
 	uint32_t reserved5;
 	__le32 transfer_length;		/* total fc transfer length */
 	uint32_t reserved6;
-	__le32 crc_context_address[2];/* Data segment address. */
+	__le64	 crc_context_address __packed; /* Data segment address. */
 	uint16_t crc_context_len;	/* Data segment length. */
 	uint16_t reserved_1;		/* MUST be set to 0. */
-} __packed;
+};
 
 /* CTIO Type CRC_x Status IOCB */
 struct ctio_crc_from_fw {
@@ -682,7 +666,7 @@ struct qla_tgt_cmd;
  * target module (tcm_qla2xxx).
  */
 struct qla_tgt_func_tmpl {
-
+	struct qla_tgt_cmd *(*find_cmd_by_tag)(struct fc_port *, uint64_t);
 	int (*handle_cmd)(struct scsi_qla_host *, struct qla_tgt_cmd *,
 			unsigned char *, uint32_t, int, int, int);
 	void (*handle_data)(struct qla_tgt_cmd *);
@@ -698,7 +682,7 @@ struct qla_tgt_func_tmpl {
 	struct fc_port *(*find_sess_by_loop_id)(struct scsi_qla_host *,
 						const uint16_t);
 	struct fc_port *(*find_sess_by_s_id)(struct scsi_qla_host *,
-						const uint8_t *);
+					     const be_id_t);
 	void (*clear_nacl_from_fcport_map)(struct fc_port *);
 	void (*put_sess)(struct fc_port *);
 	void (*shutdown_sess)(struct fc_port *);
@@ -770,14 +754,6 @@ int qla2x00_wait_for_hba_online(struct scsi_qla_host *);
 #define	FC_TM_FCP_DATA_MISMATCH     3
 #define	FC_TM_REJECT                4
 #define FC_TM_FAILED                5
-
-#if (BITS_PER_LONG > 32) || defined(CONFIG_HIGHMEM64G)
-#define pci_dma_lo32(a) (a & 0xffffffff)
-#define pci_dma_hi32(a) ((((a) >> 16)>>16) & 0xffffffff)
-#else
-#define pci_dma_lo32(a) (a & 0xffffffff)
-#define pci_dma_hi32(a) 0
-#endif
 
 #define QLA_TGT_SENSE_VALID(sense)  ((sense != NULL) && \
 				(((const uint8_t *)(sense))[0] & 0x70) == 0x70)
@@ -863,7 +839,7 @@ enum trace_flags {
 	TRC_CTIO_ERR = BIT_11,
 	TRC_CTIO_DONE = BIT_12,
 	TRC_CTIO_ABORTED =  BIT_13,
-	TRC_CTIO_STRANGE= BIT_14,
+	TRC_CTIO_STRANGE = BIT_14,
 	TRC_CMD_DONE = BIT_15,
 	TRC_CMD_CHK_STOP = BIT_16,
 	TRC_CMD_FREE = BIT_17,
@@ -897,9 +873,14 @@ struct qla_tgt_cmd {
 	unsigned int term_exchg:1;
 	unsigned int cmd_sent_to_fw:1;
 	unsigned int cmd_in_wq:1;
-	unsigned int aborted:1;
-	unsigned int data_work:1;
-	unsigned int data_work_free:1;
+
+	/*
+	 * This variable may be set from outside the LIO and I/O completion
+	 * callback functions. Do not declare this member variable as a
+	 * bitfield to avoid a read-modify-write operation when this variable
+	 * is set.
+	 */
+	unsigned int aborted;
 
 	struct scatterlist *sg;	/* cmd data buffer SG vector */
 	int sg_cnt;		/* SG segments count */
@@ -908,6 +889,7 @@ struct qla_tgt_cmd {
 	u64 unpacked_lun;
 	enum dma_data_direction dma_data_direction;
 
+	uint16_t ctio_flags;
 	uint16_t vp_idx;
 	uint16_t loop_id;	/* to save extra sess dereferences */
 	struct qla_tgt *tgt;	/* to save extra sess dereferences */
@@ -930,10 +912,12 @@ struct qla_tgt_cmd {
 	uint8_t scsi_status, sense_key, asc, ascq;
 
 	struct crc_context *ctx;
-	uint8_t		*cdb;
+	const uint8_t	*cdb;
 	uint64_t	lba;
 	uint16_t	a_guard, e_guard, a_app_tag, e_app_tag;
 	uint32_t	a_ref_tag, e_ref_tag;
+#define DIF_BUNDL_DMA_VALID 1
+	uint16_t prot_flags;
 
 	uint64_t jiffies_at_alloc;
 	uint64_t jiffies_at_free;
@@ -956,16 +940,22 @@ struct qla_tgt_sess_work_param {
 };
 
 struct qla_tgt_mgmt_cmd {
+	uint8_t cmd_type;
+	uint8_t pad[3];
 	uint16_t tmr_func;
 	uint8_t fc_tm_rsp;
+	uint8_t abort_io_attr;
 	struct fc_port *sess;
 	struct qla_qpair *qpair;
 	struct scsi_qla_host *vha;
 	struct se_cmd se_cmd;
 	struct work_struct free_work;
 	unsigned int flags;
+#define QLA24XX_MGMT_SEND_NACK	BIT_0
+#define QLA24XX_MGMT_ABORT_IO_ATTR_VALID BIT_1
 	uint32_t reset_count;
-#define QLA24XX_MGMT_SEND_NACK	1
+	struct work_struct work;
+	uint64_t unpacked_lun;
 	union {
 		struct atio_from_isp atio;
 		struct imm_ntfy_from_isp imm_ntfy;
@@ -1016,7 +1006,7 @@ extern void qlt_fc_port_deleted(struct scsi_qla_host *, fc_port_t *, int);
 extern int __init qlt_init(void);
 extern void qlt_exit(void);
 extern void qlt_update_vp_map(struct scsi_qla_host *, int);
-
+extern void qlt_free_session_done(struct work_struct *);
 /*
  * This macro is used during early initializations when host->active_mode
  * is not set. Right now, ha value is ignored.
@@ -1040,22 +1030,11 @@ static inline bool qla_dual_mode_enabled(struct scsi_qla_host *ha)
 	return (ha->host->active_mode == MODE_DUAL);
 }
 
-static inline uint32_t sid_to_key(const uint8_t *s_id)
+static inline uint32_t sid_to_key(const be_id_t s_id)
 {
-	uint32_t key;
-
-	key = (((unsigned long)s_id[0] << 16) |
-	       ((unsigned long)s_id[1] << 8) |
-	       (unsigned long)s_id[2]);
-	return key;
-}
-
-static inline void sid_to_portid(const uint8_t *s_id, port_id_t *p)
-{
-	memset(p, 0, sizeof(*p));
-	p->b.domain = s_id[0];
-	p->b.area = s_id[1];
-	p->b.al_pa = s_id[2];
+	return s_id.domain << 16 |
+		s_id.area << 8 |
+		s_id.al_pa;
 }
 
 /*
@@ -1101,7 +1080,5 @@ extern void qlt_do_generation_tick(struct scsi_qla_host *, int *);
 
 void qlt_send_resp_ctio(struct qla_qpair *, struct qla_tgt_cmd *, uint8_t,
     uint8_t, uint8_t, uint8_t);
-extern void qlt_abort_cmd_on_host_reset(struct scsi_qla_host *,
-    struct qla_tgt_cmd *);
 
 #endif /* __QLA_TARGET_H */

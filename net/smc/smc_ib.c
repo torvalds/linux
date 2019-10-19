@@ -16,12 +16,15 @@
 #include <linux/workqueue.h>
 #include <linux/scatterlist.h>
 #include <rdma/ib_verbs.h>
+#include <rdma/ib_cache.h>
 
 #include "smc_pnet.h"
 #include "smc_ib.h"
 #include "smc_core.h"
 #include "smc_wr.h"
 #include "smc.h"
+
+#define SMC_MAX_CQE 32766	/* max. # of completion queue elements */
 
 #define SMC_QP_MIN_RNR_TIMER		5
 #define SMC_QP_TIMEOUT			15 /* 4096 * 2 ** timeout usec */
@@ -66,7 +69,7 @@ static int smc_ib_modify_qp_rtr(struct smc_link *lnk)
 	qp_attr.path_mtu = min(lnk->path_mtu, lnk->peer_mtu);
 	qp_attr.ah_attr.type = RDMA_AH_ATTR_TYPE_ROCE;
 	rdma_ah_set_port_num(&qp_attr.ah_attr, lnk->ibport);
-	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, 0, 1, 0);
+	rdma_ah_set_grh(&qp_attr.ah_attr, NULL, 0, lnk->sgid_index, 1, 0);
 	rdma_ah_set_dgid_raw(&qp_attr.ah_attr, lnk->peer_gid);
 	memcpy(&qp_attr.ah_attr.roce.dmac, lnk->peer_mac,
 	       sizeof(lnk->peer_mac));
@@ -110,8 +113,7 @@ int smc_ib_modify_qp_reset(struct smc_link *lnk)
 
 int smc_ib_ready_link(struct smc_link *lnk)
 {
-	struct smc_link_group *lgr =
-		container_of(lnk, struct smc_link_group, lnk[0]);
+	struct smc_link_group *lgr = smc_get_lgr(lnk);
 	int rc = 0;
 
 	rc = smc_ib_modify_qp_init(lnk);
@@ -141,15 +143,93 @@ out:
 	return rc;
 }
 
-static void smc_ib_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
+static int smc_ib_fill_mac(struct smc_ib_device *smcibdev, u8 ibport)
 {
-	struct smc_link_group *lgr, *l;
+	const struct ib_gid_attr *attr;
+	int rc;
 
-	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
-		if (lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev &&
-		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport)
-			smc_lgr_terminate(lgr);
+	attr = rdma_get_gid_attr(smcibdev->ibdev, ibport, 0);
+	if (IS_ERR(attr))
+		return -ENODEV;
+
+	rc = rdma_read_gid_l2_fields(attr, NULL, smcibdev->mac[ibport - 1]);
+	rdma_put_gid_attr(attr);
+	return rc;
+}
+
+/* Create an identifier unique for this instance of SMC-R.
+ * The MAC-address of the first active registered IB device
+ * plus a random 2-byte number is used to create this identifier.
+ * This name is delivered to the peer during connection initialization.
+ */
+static inline void smc_ib_define_local_systemid(struct smc_ib_device *smcibdev,
+						u8 ibport)
+{
+	memcpy(&local_systemid[2], &smcibdev->mac[ibport - 1],
+	       sizeof(smcibdev->mac[ibport - 1]));
+	get_random_bytes(&local_systemid[0], 2);
+}
+
+bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport)
+{
+	return smcibdev->pattr[ibport - 1].state == IB_PORT_ACTIVE;
+}
+
+/* determine the gid for an ib-device port and vlan id */
+int smc_ib_determine_gid(struct smc_ib_device *smcibdev, u8 ibport,
+			 unsigned short vlan_id, u8 gid[], u8 *sgid_index)
+{
+	const struct ib_gid_attr *attr;
+	const struct net_device *ndev;
+	int i;
+
+	for (i = 0; i < smcibdev->pattr[ibport - 1].gid_tbl_len; i++) {
+		attr = rdma_get_gid_attr(smcibdev->ibdev, ibport, i);
+		if (IS_ERR(attr))
+			continue;
+
+		rcu_read_lock();
+		ndev = rdma_read_gid_attr_ndev_rcu(attr);
+		if (!IS_ERR(ndev) &&
+		    ((!vlan_id && !is_vlan_dev(attr->ndev)) ||
+		     (vlan_id && is_vlan_dev(attr->ndev) &&
+		      vlan_dev_vlan_id(attr->ndev) == vlan_id)) &&
+		    attr->gid_type == IB_GID_TYPE_ROCE) {
+			rcu_read_unlock();
+			if (gid)
+				memcpy(gid, &attr->gid, SMC_GID_SIZE);
+			if (sgid_index)
+				*sgid_index = attr->index;
+			rdma_put_gid_attr(attr);
+			return 0;
+		}
+		rcu_read_unlock();
+		rdma_put_gid_attr(attr);
 	}
+	return -ENODEV;
+}
+
+static int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
+{
+	int rc;
+
+	memset(&smcibdev->pattr[ibport - 1], 0,
+	       sizeof(smcibdev->pattr[ibport - 1]));
+	rc = ib_query_port(smcibdev->ibdev, ibport,
+			   &smcibdev->pattr[ibport - 1]);
+	if (rc)
+		goto out;
+	/* the SMC protocol requires specification of the RoCE MAC address */
+	rc = smc_ib_fill_mac(smcibdev, ibport);
+	if (rc)
+		goto out;
+	if (!strncmp(local_systemid, SMC_LOCAL_SYSTEMID_RESET,
+		     sizeof(local_systemid)) &&
+	    smc_ib_port_active(smcibdev, ibport))
+		/* create unique system identifier */
+		smc_ib_define_local_systemid(smcibdev, ibport);
+out:
+	return rc;
 }
 
 /* process context wrapper for might_sleep smc_ib_remember_port_attr */
@@ -163,7 +243,7 @@ static void smc_ib_port_event_work(struct work_struct *work)
 		smc_ib_remember_port_attr(smcibdev, port_idx + 1);
 		clear_bit(port_idx, &smcibdev->port_event_mask);
 		if (!smc_ib_port_active(smcibdev, port_idx + 1))
-			smc_ib_port_terminate(smcibdev, port_idx + 1);
+			smc_port_terminate(smcibdev, port_idx + 1);
 	}
 }
 
@@ -177,12 +257,20 @@ static void smc_ib_global_event_handler(struct ib_event_handler *handler,
 	smcibdev = container_of(handler, struct smc_ib_device, event_handler);
 
 	switch (ibevent->event) {
-	case IB_EVENT_PORT_ERR:
 	case IB_EVENT_DEVICE_FATAL:
-	case IB_EVENT_PORT_ACTIVE:
-		port_idx = ibevent->element.port_num - 1;
-		set_bit(port_idx, &smcibdev->port_event_mask);
+		/* terminate all ports on device */
+		for (port_idx = 0; port_idx < SMC_MAX_PORTS; port_idx++)
+			set_bit(port_idx, &smcibdev->port_event_mask);
 		schedule_work(&smcibdev->port_event_work);
+		break;
+	case IB_EVENT_PORT_ERR:
+	case IB_EVENT_PORT_ACTIVE:
+	case IB_EVENT_GID_CHANGE:
+		port_idx = ibevent->element.port_num - 1;
+		if (port_idx < SMC_MAX_PORTS) {
+			set_bit(port_idx, &smcibdev->port_event_mask);
+			schedule_work(&smcibdev->port_event_work);
+		}
 		break;
 	default:
 		break;
@@ -209,18 +297,18 @@ int smc_ib_create_protection_domain(struct smc_link *lnk)
 
 static void smc_ib_qp_event_handler(struct ib_event *ibevent, void *priv)
 {
-	struct smc_ib_device *smcibdev =
-		(struct smc_ib_device *)ibevent->device;
+	struct smc_link *lnk = (struct smc_link *)priv;
+	struct smc_ib_device *smcibdev = lnk->smcibdev;
 	u8 port_idx;
 
 	switch (ibevent->event) {
-	case IB_EVENT_DEVICE_FATAL:
-	case IB_EVENT_GID_CHANGE:
-	case IB_EVENT_PORT_ERR:
+	case IB_EVENT_QP_FATAL:
 	case IB_EVENT_QP_ACCESS_ERR:
-		port_idx = ibevent->element.port_num - 1;
-		set_bit(port_idx, &smcibdev->port_event_mask);
-		schedule_work(&smcibdev->port_event_work);
+		port_idx = ibevent->element.qp->port - 1;
+		if (port_idx < SMC_MAX_PORTS) {
+			set_bit(port_idx, &smcibdev->port_event_mask);
+			schedule_work(&smcibdev->port_event_work);
+		}
 		break;
 	default:
 		break;
@@ -379,68 +467,18 @@ void smc_ib_buf_unmap_sg(struct smc_ib_device *smcibdev,
 	buf_slot->sgt[SMC_SINGLE_LINK].sgl->dma_address = 0;
 }
 
-static int smc_ib_fill_gid_and_mac(struct smc_ib_device *smcibdev, u8 ibport)
-{
-	struct ib_gid_attr gattr;
-	int rc;
-
-	rc = ib_query_gid(smcibdev->ibdev, ibport, 0,
-			  &smcibdev->gid[ibport - 1], &gattr);
-	if (rc || !gattr.ndev)
-		return -ENODEV;
-
-	memcpy(smcibdev->mac[ibport - 1], gattr.ndev->dev_addr, ETH_ALEN);
-	dev_put(gattr.ndev);
-	return 0;
-}
-
-/* Create an identifier unique for this instance of SMC-R.
- * The MAC-address of the first active registered IB device
- * plus a random 2-byte number is used to create this identifier.
- * This name is delivered to the peer during connection initialization.
- */
-static inline void smc_ib_define_local_systemid(struct smc_ib_device *smcibdev,
-						u8 ibport)
-{
-	memcpy(&local_systemid[2], &smcibdev->mac[ibport - 1],
-	       sizeof(smcibdev->mac[ibport - 1]));
-	get_random_bytes(&local_systemid[0], 2);
-}
-
-bool smc_ib_port_active(struct smc_ib_device *smcibdev, u8 ibport)
-{
-	return smcibdev->pattr[ibport - 1].state == IB_PORT_ACTIVE;
-}
-
-int smc_ib_remember_port_attr(struct smc_ib_device *smcibdev, u8 ibport)
-{
-	int rc;
-
-	memset(&smcibdev->pattr[ibport - 1], 0,
-	       sizeof(smcibdev->pattr[ibport - 1]));
-	rc = ib_query_port(smcibdev->ibdev, ibport,
-			   &smcibdev->pattr[ibport - 1]);
-	if (rc)
-		goto out;
-	/* the SMC protocol requires specification of the RoCE MAC address */
-	rc = smc_ib_fill_gid_and_mac(smcibdev, ibport);
-	if (rc)
-		goto out;
-	if (!strncmp(local_systemid, SMC_LOCAL_SYSTEMID_RESET,
-		     sizeof(local_systemid)) &&
-	    smc_ib_port_active(smcibdev, ibport))
-		/* create unique system identifier */
-		smc_ib_define_local_systemid(smcibdev, ibport);
-out:
-	return rc;
-}
-
 long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
 {
 	struct ib_cq_init_attr cqattr =	{
-		.cqe = SMC_WR_MAX_CQE, .comp_vector = 0 };
+		.cqe = SMC_MAX_CQE, .comp_vector = 0 };
+	int cqe_size_order, smc_order;
 	long rc;
 
+	/* the calculated number of cq entries fits to mlx5 cq allocation */
+	cqe_size_order = cache_line_size() == 128 ? 7 : 6;
+	smc_order = MAX_ORDER - cqe_size_order - 1;
+	if (SMC_MAX_CQE + 2 > (0x00000001 << smc_order) * PAGE_SIZE)
+		cqattr.cqe = (0x00000001 << smc_order) * PAGE_SIZE - 2;
 	smcibdev->roce_cq_send = ib_create_cq(smcibdev->ibdev,
 					      smc_wr_tx_cq_handler, NULL,
 					      smcibdev, &cqattr);
@@ -457,9 +495,6 @@ long smc_ib_setup_per_ibdev(struct smc_ib_device *smcibdev)
 		smcibdev->roce_cq_recv = NULL;
 		goto err;
 	}
-	INIT_IB_EVENT_HANDLER(&smcibdev->event_handler, smcibdev->ibdev,
-			      smc_ib_global_event_handler);
-	ib_register_event_handler(&smcibdev->event_handler);
 	smc_wr_add_dev(smcibdev);
 	smcibdev->initialized = 1;
 	return rc;
@@ -475,7 +510,6 @@ static void smc_ib_cleanup_per_ibdev(struct smc_ib_device *smcibdev)
 		return;
 	smcibdev->initialized = 0;
 	smc_wr_remove_dev(smcibdev);
-	ib_unregister_event_handler(&smcibdev->event_handler);
 	ib_destroy_cq(smcibdev->roce_cq_recv);
 	ib_destroy_cq(smcibdev->roce_cq_send);
 }
@@ -486,6 +520,8 @@ static struct ib_client smc_ib_client;
 static void smc_ib_add_dev(struct ib_device *ibdev)
 {
 	struct smc_ib_device *smcibdev;
+	u8 port_cnt;
+	int i;
 
 	if (ibdev->node_type != RDMA_NODE_IB_CA)
 		return;
@@ -501,6 +537,21 @@ static void smc_ib_add_dev(struct ib_device *ibdev)
 	list_add_tail(&smcibdev->list, &smc_ib_devices.list);
 	spin_unlock(&smc_ib_devices.lock);
 	ib_set_client_data(ibdev, &smc_ib_client, smcibdev);
+	INIT_IB_EVENT_HANDLER(&smcibdev->event_handler, smcibdev->ibdev,
+			      smc_ib_global_event_handler);
+	ib_register_event_handler(&smcibdev->event_handler);
+
+	/* trigger reading of the port attributes */
+	port_cnt = smcibdev->ibdev->phys_port_cnt;
+	for (i = 0;
+	     i < min_t(size_t, port_cnt, SMC_MAX_PORTS);
+	     i++) {
+		set_bit(i, &smcibdev->port_event_mask);
+		/* determine pnetids of the port */
+		smc_pnetid_by_dev_port(ibdev->dev.parent, i,
+				       smcibdev->pnetid[i]);
+	}
+	schedule_work(&smcibdev->port_event_work);
 }
 
 /* callback function for ib_register_client() */
@@ -513,8 +564,8 @@ static void smc_ib_remove_dev(struct ib_device *ibdev, void *client_data)
 	spin_lock(&smc_ib_devices.lock);
 	list_del_init(&smcibdev->list); /* remove from smc_ib_devices */
 	spin_unlock(&smc_ib_devices.lock);
-	smc_pnet_remove_by_ibdev(smcibdev);
 	smc_ib_cleanup_per_ibdev(smcibdev);
+	ib_unregister_event_handler(&smcibdev->event_handler);
 	kfree(smcibdev);
 }
 

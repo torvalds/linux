@@ -24,7 +24,7 @@ static void discover_timer(struct timer_list *t)
 	aoecmd_cfg(0xffff, 0xff);
 }
 
-static void
+static void __exit
 aoe_exit(void)
 {
 	del_timer_sync(&timer);

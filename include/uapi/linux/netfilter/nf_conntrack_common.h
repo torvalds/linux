@@ -112,7 +112,7 @@ enum ip_conntrack_status {
 				 IPS_EXPECTED | IPS_CONFIRMED | IPS_DYING |
 				 IPS_SEQ_ADJUST | IPS_TEMPLATE | IPS_OFFLOAD),
 
-	__IPS_MAX_BIT = 14,
+	__IPS_MAX_BIT = 15,
 };
 
 /* Connection tracking event types */
@@ -129,6 +129,7 @@ enum ip_conntrack_events {
 	IPCT_NATSEQADJ = IPCT_SEQADJ,
 	IPCT_SECMARK,		/* new security mark has been set */
 	IPCT_LABEL,		/* new connlabel has been set */
+	IPCT_SYNPROXY,		/* synproxy has been set */
 #ifdef __KERNEL__
 	__IPCT_MAX
 #endif

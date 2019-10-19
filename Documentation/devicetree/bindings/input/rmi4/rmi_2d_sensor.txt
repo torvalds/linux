@@ -12,7 +12,7 @@ Additional documentation for F11 can be found at:
 http://www.synaptics.com/sites/default/files/511-000136-01-Rev-E-RMI4-Interfacing-Guide.pdf
 
 Optional Touch Properties:
-Description in Documentation/devicetree/bindings/input/touch
+Description in Documentation/devicetree/bindings/input/touchscreen
 - touchscreen-inverted-x
 - touchscreen-inverted-y
 - touchscreen-swapped-x-y

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /* xfrm4_tunnel.c: Generic IP tunnel transformer.
  *
  * Copyright (C) 2003 David S. Miller (davem@redhat.com)
@@ -107,8 +108,7 @@ static void __exit ipip_fini(void)
 	if (xfrm4_tunnel_deregister(&xfrm_tunnel_handler, AF_INET))
 		pr_info("%s: can't remove xfrm handler for AF_INET\n",
 			__func__);
-	if (xfrm_unregister_type(&ipip_type, AF_INET) < 0)
-		pr_info("%s: can't remove xfrm type\n", __func__);
+	xfrm_unregister_type(&ipip_type, AF_INET);
 }
 
 module_init(ipip_init);

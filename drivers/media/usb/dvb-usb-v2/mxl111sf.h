@@ -1,11 +1,8 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (C) 2010-2014 Michael Krufky (mkrufky@linuxtv.org)
  *
- *   This program is free software; you can redistribute it and/or modify it
- *   under the terms of the GNU General Public License as published by the Free
- *   Software Foundation, version 2.
- *
- * see Documentation/dvb/README.dvb-usb for more information
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 
 #ifndef _DVB_USB_MXL111SF_H_
@@ -52,6 +49,12 @@ struct mxl111sf_adap_state {
 	int (*fe_sleep)(struct dvb_frontend *);
 };
 
+enum mxl111sf_pads {
+	MXL111SF_PAD_RF_INPUT,
+	MXL111SF_PAD_OUTPUT,
+	MXL111SF_NUM_PADS
+};
+
 struct mxl111sf_state {
 	struct dvb_usb_device *d;
 
@@ -94,7 +97,7 @@ struct mxl111sf_state {
 	struct mutex msg_lock;
 #ifdef CONFIG_MEDIA_CONTROLLER_DVB
 	struct media_entity tuner;
-	struct media_pad tuner_pads[2];
+	struct media_pad tuner_pads[MXL111SF_NUM_PADS];
 #endif
 };
 

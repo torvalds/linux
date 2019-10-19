@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0 */
 /* TI sysc interconnect target module defines */
 
 /* Generic sysc found on omap2 and later, also known as type1 */
@@ -14,6 +15,8 @@
 
 /* SmartReflex sysc found on 36xx and later */
 #define SYSC_OMAP3_SR_ENAWAKEUP		(1 << 26)
+
+#define SYSC_DRA7_MCAN_ENAWAKEUP	(1 << 4)
 
 /* SYSCONFIG STANDBYMODE/MIDLEMODE/SIDLEMODE supported by hardware */
 #define SYSC_IDLE_FORCE			0

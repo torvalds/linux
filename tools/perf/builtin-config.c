@@ -7,14 +7,13 @@
  */
 #include "builtin.h"
 
-#include "perf.h"
-
 #include "util/cache.h"
 #include <subcmd/parse-options.h>
-#include "util/util.h"
 #include "util/debug.h"
 #include "util/config.h"
 #include <linux/string.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 static bool use_system_config, use_user_config;
 
@@ -196,6 +195,7 @@ int cmd_config(int argc, const char **argv)
 			pr_err("Error: takes no arguments\n");
 			parse_options_usage(config_usage, config_options, "l", 1);
 		} else {
+do_action_list:
 			if (show_config(set) < 0) {
 				pr_err("Nothing configured, "
 				       "please check your %s \n", config_filename);
@@ -204,10 +204,8 @@ int cmd_config(int argc, const char **argv)
 		}
 		break;
 	default:
-		if (!argc) {
-			usage_with_options(config_usage, config_options);
-			break;
-		}
+		if (!argc)
+			goto do_action_list;
 
 		for (i = 0; argv[i]; i++) {
 			char *var, *value;

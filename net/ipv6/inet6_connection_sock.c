@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  * INET        An implementation of the TCP/IP protocol suite for the LINUX
  *             operating system.  INET is implemented using the  BSD Socket
@@ -6,11 +7,6 @@
  *             Support for INET6 connection oriented protocols.
  *
  * Authors:    See the TCPv6 sources
- *
- *             This program is free software; you can redistribute it and/or
- *             modify it under the terms of the GNU General Public License
- *             as published by the Free Software Foundation; either version
- *             2 of the License, or(at your option) any later version.
  */
 
 #include <linux/module.h>
@@ -137,7 +133,7 @@ int inet6_csk_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl_unused
 	fl6.daddr = sk->sk_v6_daddr;
 
 	res = ip6_xmit(sk, skb, &fl6, sk->sk_mark, rcu_dereference(np->opt),
-		       np->tclass);
+		       np->tclass,  sk->sk_priority);
 	rcu_read_unlock();
 	return res;
 }

@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH Pin Function Controller pinmux support.
  *
  * Copyright (C) 2012  Paul Mundt
- *
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
  */
 
 #define DRV_NAME "sh-pfc"
@@ -29,7 +26,9 @@
 #include "../pinconf.h"
 
 struct sh_pfc_pin_config {
-	u32 type;
+	unsigned int mux_mark;
+	bool mux_set;
+	bool gpio_enabled;
 };
 
 struct sh_pfc_pinctrl {
@@ -75,7 +74,7 @@ static int sh_pfc_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 static void sh_pfc_pin_dbg_show(struct pinctrl_dev *pctldev, struct seq_file *s,
 				unsigned offset)
 {
-	seq_printf(s, "%s", DRV_NAME);
+	seq_puts(s, DRV_NAME);
 }
 
 #ifdef CONFIG_OF
@@ -350,22 +349,35 @@ static int sh_pfc_func_set_mux(struct pinctrl_dev *pctldev, unsigned selector,
 	unsigned int i;
 	int ret = 0;
 
+	dev_dbg(pctldev->dev, "Configuring pin group %s\n", grp->name);
+
 	spin_lock_irqsave(&pfc->lock, flags);
 
 	for (i = 0; i < grp->nr_pins; ++i) {
 		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
 		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 
-		if (cfg->type != PINMUX_TYPE_NONE) {
+		/*
+		 * This driver cannot manage both gpio and mux when the gpio
+		 * pin is already enabled. So, this function fails.
+		 */
+		if (cfg->gpio_enabled) {
 			ret = -EBUSY;
 			goto done;
 		}
-	}
 
-	for (i = 0; i < grp->nr_pins; ++i) {
 		ret = sh_pfc_config_mux(pfc, grp->mux[i], PINMUX_TYPE_FUNCTION);
 		if (ret < 0)
-			break;
+			goto done;
+	}
+
+	/* All group pins are configured, mark the pins as mux_set */
+	for (i = 0; i < grp->nr_pins; ++i) {
+		int idx = sh_pfc_get_pin_index(pfc, grp->pins[i]);
+		struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
+
+		cfg->mux_set = true;
+		cfg->mux_mark = grp->mux[i];
 	}
 
 done:
@@ -386,14 +398,6 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 
 	spin_lock_irqsave(&pfc->lock, flags);
 
-	if (cfg->type != PINMUX_TYPE_NONE) {
-		dev_err(pfc->dev,
-			"Pin %u is busy, can't configure it as GPIO.\n",
-			offset);
-		ret = -EBUSY;
-		goto done;
-	}
-
 	if (!pfc->gpio) {
 		/* If GPIOs are handled externally the pin mux type need to be
 		 * set to GPIO here.
@@ -405,7 +409,7 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 			goto done;
 	}
 
-	cfg->type = PINMUX_TYPE_GPIO;
+	cfg->gpio_enabled = true;
 
 	ret = 0;
 
@@ -426,7 +430,10 @@ static void sh_pfc_gpio_disable_free(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 
 	spin_lock_irqsave(&pfc->lock, flags);
-	cfg->type = PINMUX_TYPE_NONE;
+	cfg->gpio_enabled = false;
+	/* If mux is already set, this configures it here */
+	if (cfg->mux_set)
+		sh_pfc_config_mux(pfc, cfg->mux_mark, PINMUX_TYPE_FUNCTION);
 	spin_unlock_irqrestore(&pfc->lock, flags);
 }
 
@@ -439,7 +446,6 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	int new_type = input ? PINMUX_TYPE_INPUT : PINMUX_TYPE_OUTPUT;
 	int idx = sh_pfc_get_pin_index(pfc, offset);
 	const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
-	struct sh_pfc_pin_config *cfg = &pmx->configs[idx];
 	unsigned long flags;
 	unsigned int dir;
 	int ret;
@@ -458,8 +464,6 @@ static int sh_pfc_gpio_set_direction(struct pinctrl_dev *pctldev,
 	ret = sh_pfc_config_mux(pfc, pin->enum_id, new_type);
 	if (ret < 0)
 		goto done;
-
-	cfg->type = new_type;
 
 done:
 	spin_unlock_irqrestore(&pfc->lock, flags);
@@ -570,8 +574,7 @@ static bool sh_pfc_pinconf_validate(struct sh_pfc *pfc, unsigned int _pin,
 
 	switch (param) {
 	case PIN_CONFIG_BIAS_DISABLE:
-		return pin->configs &
-			(SH_PFC_PIN_CFG_PULL_UP | SH_PFC_PIN_CFG_PULL_DOWN);
+		return pin->configs & SH_PFC_PIN_CFG_PULL_UP_DOWN;
 
 	case PIN_CONFIG_BIAS_PULL_UP:
 		return pin->configs & SH_PFC_PIN_CFG_PULL_UP;
@@ -770,27 +773,25 @@ static int sh_pfc_map_pins(struct sh_pfc *pfc, struct sh_pfc_pinctrl *pmx)
 	unsigned int i;
 
 	/* Allocate and initialize the pins and configs arrays. */
-	pmx->pins = devm_kzalloc(pfc->dev,
-				 sizeof(*pmx->pins) * pfc->info->nr_pins,
+	pmx->pins = devm_kcalloc(pfc->dev,
+				 pfc->info->nr_pins, sizeof(*pmx->pins),
 				 GFP_KERNEL);
 	if (unlikely(!pmx->pins))
 		return -ENOMEM;
 
-	pmx->configs = devm_kzalloc(pfc->dev,
-				    sizeof(*pmx->configs) * pfc->info->nr_pins,
+	pmx->configs = devm_kcalloc(pfc->dev,
+				    pfc->info->nr_pins, sizeof(*pmx->configs),
 				    GFP_KERNEL);
 	if (unlikely(!pmx->configs))
 		return -ENOMEM;
 
 	for (i = 0; i < pfc->info->nr_pins; ++i) {
 		const struct sh_pfc_pin *info = &pfc->info->pins[i];
-		struct sh_pfc_pin_config *cfg = &pmx->configs[i];
 		struct pinctrl_pin_desc *pin = &pmx->pins[i];
 
 		/* If the pin number is equal to -1 all pins are considered */
 		pin->number = info->pin != (u16)-1 ? info->pin : i;
 		pin->name = info->name;
-		cfg->type = PINMUX_TYPE_NONE;
 	}
 
 	return 0;

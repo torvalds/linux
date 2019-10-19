@@ -18,9 +18,6 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  * General Public License for more details.
  *
- * You should have received a copy of the GNU General Public License
- * along with this program.
- *
  * The full GNU General Public License is included in this distribution
  * in the file called COPYING.
  *
@@ -66,22 +63,11 @@
 #include "runtime.h"
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
+void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
 			    struct dentry *dbgfs_dir);
 
-static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt)
-{
-	fwrt->timestamp.delay = 0;
-	cancel_delayed_work_sync(&fwrt->timestamp.wk);
-}
-
 #else
-static inline int iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
-					  struct dentry *dbgfs_dir)
-{
-	return 0;
-}
-
-static inline void iwl_fw_cancel_timestamp(struct iwl_fw_runtime *fwrt) {}
+static inline void iwl_fwrt_dbgfs_register(struct iwl_fw_runtime *fwrt,
+					   struct dentry *dbgfs_dir) { }
 
 #endif /* CONFIG_IWLWIFI_DEBUGFS */

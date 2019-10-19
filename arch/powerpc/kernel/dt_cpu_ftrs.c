@@ -1,6 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright 2017, Nicholas Piggin, IBM Corporation
- * Licensed under GPLv2.
  */
 
 #define pr_fmt(fmt) "dt-cpu-ftrs: " fmt
@@ -53,19 +53,6 @@ struct dt_cpu_feature {
 	int disabled;
 };
 
-#define CPU_FTRS_BASE \
-	   (CPU_FTR_USE_TB | \
-	    CPU_FTR_LWSYNC | \
-	    CPU_FTR_FPU_UNAVAILABLE |\
-	    CPU_FTR_NODSISRALIGN |\
-	    CPU_FTR_NOEXECUTE |\
-	    CPU_FTR_COHERENT_ICACHE | \
-	    CPU_FTR_STCX_CHECKS_ADDRESS |\
-	    CPU_FTR_POPCNTB | CPU_FTR_POPCNTD | \
-	    CPU_FTR_DAWR | \
-	    CPU_FTR_ARCH_206 |\
-	    CPU_FTR_ARCH_207S)
-
 #define MMU_FTRS_HASH_BASE (MMU_FTRS_POWER8)
 
 #define COMMON_USER_BASE	(PPC_FEATURE_32 | PPC_FEATURE_64 | \
@@ -84,6 +71,7 @@ static int hv_mode;
 
 static struct {
 	u64	lpcr;
+	u64	lpcr_clear;
 	u64	hfscr;
 	u64	fscr;
 } system_registers;
@@ -92,6 +80,8 @@ static void (*init_pmu_registers)(void);
 
 static void __restore_cpu_cpufeatures(void)
 {
+	u64 lpcr;
+
 	/*
 	 * LPCR is restored by the power on engine already. It can be changed
 	 * after early init e.g., by radix enable, and we have no unified API
@@ -104,11 +94,14 @@ static void __restore_cpu_cpufeatures(void)
 	 * The best we can do to accommodate secondary boot and idle restore
 	 * for now is "or" LPCR with existing.
 	 */
-
-	mtspr(SPRN_LPCR, system_registers.lpcr | mfspr(SPRN_LPCR));
+	lpcr = mfspr(SPRN_LPCR);
+	lpcr |= system_registers.lpcr;
+	lpcr &= ~system_registers.lpcr_clear;
+	mtspr(SPRN_LPCR, lpcr);
 	if (hv_mode) {
 		mtspr(SPRN_LPID, 0);
 		mtspr(SPRN_HFSCR, system_registers.hfscr);
+		mtspr(SPRN_PCR, PCR_MASK);
 	}
 	mtspr(SPRN_FSCR, system_registers.fscr);
 
@@ -120,7 +113,7 @@ static char dt_cpu_name[64];
 
 static struct cpu_spec __initdata base_cpu_spec = {
 	.cpu_name		= NULL,
-	.cpu_features		= CPU_FTRS_BASE,
+	.cpu_features		= CPU_FTRS_DT_CPU_BASE,
 	.cpu_user_features	= COMMON_USER_BASE,
 	.cpu_user_features2	= COMMON_USER2_BASE,
 	.mmu_features		= 0,
@@ -151,6 +144,7 @@ static void __init cpufeatures_setup_cpu(void)
 		mtspr(SPRN_HFSCR, 0);
 	}
 	mtspr(SPRN_FSCR, 0);
+	mtspr(SPRN_PCR, PCR_MASK);
 
 	/*
 	 * LPCR does not get cleared, to match behaviour with secondaries
@@ -325,8 +319,9 @@ static int __init feat_enable_mmu_hash_v3(struct dt_cpu_feature *f)
 {
 	u64 lpcr;
 
+	system_registers.lpcr_clear |= (LPCR_ISL | LPCR_UPRT | LPCR_HR);
 	lpcr = mfspr(SPRN_LPCR);
-	lpcr &= ~LPCR_ISL;
+	lpcr &= ~(LPCR_ISL | LPCR_UPRT | LPCR_HR);
 	mtspr(SPRN_LPCR, lpcr);
 
 	cur_cpu_spec->mmu_features |= MMU_FTRS_HASH_BASE;
@@ -590,6 +585,8 @@ static struct dt_cpu_feature_match __initdata
 	{"virtual-page-class-key-protection", feat_enable, 0},
 	{"transactional-memory", feat_enable_tm, CPU_FTR_TM},
 	{"transactional-memory-v3", feat_enable_tm, 0},
+	{"tm-suspend-hypervisor-assist", feat_enable, CPU_FTR_P9_TM_HV_ASSIST},
+	{"tm-suspend-xer-so-bug", feat_enable, CPU_FTR_P9_TM_XER_SO_BUG},
 	{"idle-nap", feat_enable_idle_nap, 0},
 	{"alignment-interrupt-dsisr", feat_enable_align_dsisr, 0},
 	{"idle-stop", feat_enable_idle_stop, 0},
@@ -670,8 +667,10 @@ static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 		m = &dt_cpu_feature_match_table[i];
 		if (!strcmp(f->name, m->name)) {
 			known = true;
-			if (m->enable(f))
+			if (m->enable(f)) {
+				cur_cpu_spec->cpu_features |= m->cpu_ftr_bit_mask;
 				break;
+			}
 
 			pr_info("not enabling: %s (disabled or unsupported by kernel)\n",
 				f->name);
@@ -679,16 +678,11 @@ static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 		}
 	}
 
-	if (!known && enable_unknown) {
-		if (!feat_try_enable_unknown(f)) {
-			pr_info("not enabling: %s (unknown and unsupported by kernel)\n",
-				f->name);
-			return false;
-		}
+	if (!known && (!enable_unknown || !feat_try_enable_unknown(f))) {
+		pr_info("not enabling: %s (unknown and unsupported by kernel)\n",
+			f->name);
+		return false;
 	}
-
-	if (m->cpu_ftr_bit_mask)
-		cur_cpu_spec->cpu_features |= m->cpu_ftr_bit_mask;
 
 	if (known)
 		pr_debug("enabling: %s\n", f->name);
@@ -698,17 +692,65 @@ static bool __init cpufeatures_process_feature(struct dt_cpu_feature *f)
 	return true;
 }
 
+/*
+ * Handle POWER9 broadcast tlbie invalidation issue using
+ * cpu feature flag.
+ */
+static __init void update_tlbie_feature_flag(unsigned long pvr)
+{
+	if (PVR_VER(pvr) == PVR_POWER9) {
+		/*
+		 * Set the tlbie feature flag for anything below
+		 * Nimbus DD 2.3 and Cumulus DD 1.3
+		 */
+		if ((pvr & 0xe000) == 0) {
+			/* Nimbus */
+			if ((pvr & 0xfff) < 0x203)
+				cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
+		} else if ((pvr & 0xc000) == 0) {
+			/* Cumulus */
+			if ((pvr & 0xfff) < 0x103)
+				cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
+		} else {
+			WARN_ONCE(1, "Unknown PVR");
+			cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_STQ_BUG;
+		}
+
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TLBIE_ERAT_BUG;
+	}
+}
+
 static __init void cpufeatures_cpu_quirks(void)
 {
-	int version = mfspr(SPRN_PVR);
+	unsigned long version = mfspr(SPRN_PVR);
 
 	/*
 	 * Not all quirks can be derived from the cpufeatures device tree.
 	 */
-	if ((version & 0xffffff00) == 0x004e0100)
-		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD1;
+	if ((version & 0xffffefff) == 0x004e0200)
+		; /* DD2.0 has no feature flag */
 	else if ((version & 0xffffefff) == 0x004e0201)
 		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
+	else if ((version & 0xffffefff) == 0x004e0202) {
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_HV_ASSIST;
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TM_XER_SO_BUG;
+		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
+	} else if ((version & 0xffff0000) == 0x004e0000)
+		/* DD2.1 and up have DD2_1 */
+		cur_cpu_spec->cpu_features |= CPU_FTR_POWER9_DD2_1;
+
+	if ((version & 0xffff0000) == 0x004e0000) {
+		cur_cpu_spec->cpu_features &= ~(CPU_FTR_DAWR);
+		cur_cpu_spec->cpu_features |= CPU_FTR_P9_TIDR;
+	}
+
+	update_tlbie_feature_flag(version);
+	/*
+	 * PKEY was not in the initial base or feature node
+	 * specification, but it should become optional in the next
+	 * cpu feature version sequence.
+	 */
+	cur_cpu_spec->cpu_features |= CPU_FTR_PKEY;
 }
 
 static void __init cpufeatures_setup_finished(void)
@@ -719,6 +761,9 @@ static void __init cpufeatures_setup_finished(void)
 		pr_err("hypervisor not present in device tree but HV mode is enabled in the CPU. Enabling.\n");
 		cur_cpu_spec->cpu_features |= CPU_FTR_HVMODE;
 	}
+
+	/* Make sure powerpc_base_platform is non-NULL */
+	powerpc_base_platform = cur_cpu_spec->platform;
 
 	system_registers.lpcr = mfspr(SPRN_LPCR);
 	system_registers.hfscr = mfspr(SPRN_HFSCR);
@@ -794,7 +839,6 @@ static int __init process_cpufeatures_node(unsigned long node,
 	int len;
 
 	f = &dt_cpu_features[i];
-	memset(f, 0, sizeof(struct dt_cpu_feature));
 
 	f->node = node;
 
@@ -989,9 +1033,12 @@ static int __init dt_cpu_ftrs_scan_callback(unsigned long node, const char
 	/* Count and allocate space for cpu features */
 	of_scan_flat_dt_subnodes(node, count_cpufeatures_subnodes,
 						&nr_dt_cpu_features);
-	dt_cpu_features = __va(
-		memblock_alloc(sizeof(struct dt_cpu_feature)*
-				nr_dt_cpu_features, PAGE_SIZE));
+	dt_cpu_features = memblock_alloc(sizeof(struct dt_cpu_feature) * nr_dt_cpu_features, PAGE_SIZE);
+	if (!dt_cpu_features)
+		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
+		      __func__,
+		      sizeof(struct dt_cpu_feature) * nr_dt_cpu_features,
+		      PAGE_SIZE);
 
 	cpufeatures_setup_start(isa);
 

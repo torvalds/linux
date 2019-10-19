@@ -1,18 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * HID Sensors Driver
  * Copyright (c) 2017, Intel Corporation.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program.
  */
 #include <linux/device.h>
 #include <linux/hid-sensor-hub.h>
@@ -75,7 +64,8 @@ static int humidity_read_raw(struct iio_dev *indio_dev,
 				HID_USAGE_SENSOR_HUMIDITY,
 				HID_USAGE_SENSOR_ATMOSPHERIC_HUMIDITY,
 				humid_st->humidity_attr.report_id,
-				SENSOR_HUB_SYNC);
+				SENSOR_HUB_SYNC,
+				humid_st->humidity_attr.logical_minimum < 0);
 		hid_sensor_power_state(&humid_st->common_attributes, false);
 
 		return IIO_VAL_INT;

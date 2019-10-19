@@ -1,32 +1,22 @@
-/*
- * Freescale MXS SPI master driver
- *
- * Copyright 2012 DENX Software Engineering, GmbH.
- * Copyright 2012 Freescale Semiconductor, Inc.
- * Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
- *
- * Rework and transition to new API by:
- * Marek Vasut <marex@denx.de>
- *
- * Based on previous attempt by:
- * Fabio Estevam <fabio.estevam@freescale.com>
- *
- * Based on code from U-Boot bootloader by:
- * Marek Vasut <marex@denx.de>
- *
- * Based on spi-stmp.c, which is:
- * Author: Dmitry Pervushin <dimka@embeddedalley.com>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- */
+// SPDX-License-Identifier: GPL-2.0+
+//
+// Freescale MXS SPI master driver
+//
+// Copyright 2012 DENX Software Engineering, GmbH.
+// Copyright 2012 Freescale Semiconductor, Inc.
+// Copyright 2008 Embedded Alley Solutions, Inc All Rights Reserved.
+//
+// Rework and transition to new API by:
+// Marek Vasut <marex@denx.de>
+//
+// Based on previous attempt by:
+// Fabio Estevam <fabio.estevam@freescale.com>
+//
+// Based on code from U-Boot bootloader by:
+// Marek Vasut <marex@denx.de>
+//
+// Based on spi-stmp.c, which is:
+// Author: Dmitry Pervushin <dimka@embeddedalley.com>
 
 #include <linux/kernel.h>
 #include <linux/ioport.h>
@@ -49,6 +39,7 @@
 #include <linux/stmp_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/mxs-spi.h>
+#include <trace/events/spi.h>
 
 #define DRIVER_NAME		"mxs-spi"
 
@@ -384,6 +375,8 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 
 	list_for_each_entry(t, &m->transfers, transfer_list) {
 
+		trace_spi_transfer_start(m, t);
+
 		status = mxs_spi_setup_transfer(m->spi, t);
 		if (status)
 			break;
@@ -428,6 +421,8 @@ static int mxs_spi_transfer_one(struct spi_master *master,
 						t->rx_buf, t->len,
 						flag);
 		}
+
+		trace_spi_transfer_stop(m, t);
 
 		if (status) {
 			stmp_reset_block(ssp->base);
@@ -537,7 +532,6 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	struct spi_master *master;
 	struct mxs_spi *spi;
 	struct mxs_ssp *ssp;
-	struct resource *iores;
 	struct clk *clk;
 	void __iomem *base;
 	int devid, clk_freq;
@@ -550,12 +544,11 @@ static int mxs_spi_probe(struct platform_device *pdev)
 	 */
 	const int clk_freq_default = 160000000;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq_err = platform_get_irq(pdev, 0);
 	if (irq_err < 0)
 		return irq_err;
 
-	base = devm_ioremap_resource(&pdev->dev, iores);
+	base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
 

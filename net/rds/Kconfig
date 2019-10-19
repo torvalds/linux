@@ -1,6 +1,7 @@
+# SPDX-License-Identifier: GPL-2.0-only
 
 config RDS
-	tristate "The RDS Protocol"
+	tristate "The Reliable Datagram Sockets Protocol"
 	depends on INET
 	---help---
 	  The RDS (Reliable Datagram Sockets) protocol provides reliable,
@@ -16,12 +17,12 @@ config RDS_RDMA
 config RDS_TCP
 	tristate "RDS over TCP"
 	depends on RDS
+	depends on IPV6 || !IPV6
 	---help---
 	  Allow RDS to use TCP as a transport.
 	  This transport does not support RDMA operations.
 
 config RDS_DEBUG
-        bool "RDS debugging messages"
+	bool "RDS debugging messages"
 	depends on RDS
-        default n
-
+	default n

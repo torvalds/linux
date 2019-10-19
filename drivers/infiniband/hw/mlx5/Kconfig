@@ -1,5 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
 config MLX5_INFINIBAND
-	tristate "Mellanox Connect-IB HCA support"
+	tristate "Mellanox 5th generation network adapters (ConnectX series) support"
 	depends on NETDEVICES && ETHERNET && PCI && MLX5_CORE
 	---help---
 	  This driver provides low-level InfiniBand support for

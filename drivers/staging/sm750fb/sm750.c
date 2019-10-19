@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/errno.h>
@@ -512,12 +513,10 @@ static int lynxfb_ops_check_var(struct fb_var_screeninfo *var,
 {
 	struct lynxfb_par *par;
 	struct lynxfb_crtc *crtc;
-	struct lynxfb_output *output;
 	resource_size_t request;
 
 	par = info->par;
 	crtc = &par->crtc;
-	output = &par->output;
 
 	pr_debug("check var:%dx%d-%d\n",
 		 var->xres,
@@ -697,7 +696,7 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 			output->paths = sm750_crt;
 			crtc->channel = sm750_secondary;
 			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
+			crtc->oScreen = sm750_dev->vidmem_size >> 1;
 			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
 		break;
@@ -711,7 +710,7 @@ static int sm750fb_set_drv(struct lynxfb_par *par)
 			output->paths = sm750_crt;
 			crtc->channel = sm750_primary;
 			/* not consider of padding stuffs for oScreen,need fix */
-			crtc->oScreen = (sm750_dev->vidmem_size >> 1);
+			crtc->oScreen = sm750_dev->vidmem_size >> 1;
 			crtc->vScreen = sm750_dev->pvMem + crtc->oScreen;
 		}
 		break;
@@ -749,7 +748,7 @@ static int lynxfb_set_fbinfo(struct fb_info *info, int index)
 		lynx750_ext, NULL, vesa_modes,
 	};
 	int cdb[] = {ARRAY_SIZE(lynx750_ext), 0, VESA_MODEDB_SIZE};
-	static const char *mdb_desc[] = {
+	static const char * const mdb_desc[] = {
 		"driver prepared modes",
 		"kernel prepared default modedb",
 		"kernel HELPERS prepared vesa_modes",
@@ -1009,7 +1008,7 @@ NO_PARAM:
 	}
 }
 
-static void sm750fb_frambuffer_release(struct sm750_dev *sm750_dev)
+static void sm750fb_framebuffer_release(struct sm750_dev *sm750_dev)
 {
 	struct fb_info *fb_info;
 
@@ -1021,7 +1020,7 @@ static void sm750fb_frambuffer_release(struct sm750_dev *sm750_dev)
 	}
 }
 
-static int sm750fb_frambuffer_alloc(struct sm750_dev *sm750_dev, int fbidx)
+static int sm750fb_framebuffer_alloc(struct sm750_dev *sm750_dev, int fbidx)
 {
 	struct fb_info *fb_info;
 	struct lynxfb_par *par;
@@ -1139,7 +1138,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	/* allocate frame buffer info structures according to g_dualview */
 	max_fb = g_dualview ? 2 : 1;
 	for (fbidx = 0; fbidx < max_fb; fbidx++) {
-		err = sm750fb_frambuffer_alloc(sm750_dev, fbidx);
+		err = sm750fb_framebuffer_alloc(sm750_dev, fbidx);
 		if (err)
 			goto release_fb;
 	}
@@ -1147,7 +1146,7 @@ static int lynxfb_pci_probe(struct pci_dev *pdev,
 	return 0;
 
 release_fb:
-	sm750fb_frambuffer_release(sm750_dev);
+	sm750fb_framebuffer_release(sm750_dev);
 	return err;
 }
 
@@ -1157,7 +1156,7 @@ static void lynxfb_pci_remove(struct pci_dev *pdev)
 
 	sm750_dev = pci_get_drvdata(pdev);
 
-	sm750fb_frambuffer_release(sm750_dev);
+	sm750fb_framebuffer_release(sm750_dev);
 	arch_phys_wc_del(sm750_dev->mtrr.vram);
 
 	iounmap(sm750_dev->pvReg);

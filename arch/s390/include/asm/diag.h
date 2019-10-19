@@ -32,6 +32,7 @@ enum diag_stat_enum {
 	DIAG_STAT_X2FC,
 	DIAG_STAT_X304,
 	DIAG_STAT_X308,
+	DIAG_STAT_X318,
 	DIAG_STAT_X500,
 	NR_DIAG_STAT
 };
@@ -293,7 +294,31 @@ struct diag26c_mac_resp {
 	u8	res[2];
 } __aligned(8);
 
+#define CPNC_LINUX		0x4
+union diag318_info {
+	unsigned long val;
+	struct {
+		unsigned int cpnc : 8;
+		unsigned int cpvc_linux : 24;
+		unsigned char cpvc_distro[3];
+		unsigned char zero;
+	};
+};
+
 int diag204(unsigned long subcode, unsigned long size, void *addr);
 int diag224(void *ptr);
 int diag26c(void *req, void *resp, enum diag26c_sc subcode);
+
+struct hypfs_diag0c_entry;
+
+struct diag_ops {
+	int (*diag210)(struct diag210 *addr);
+	int (*diag26c)(void *req, void *resp, enum diag26c_sc subcode);
+	int (*diag14)(unsigned long rx, unsigned long ry1, unsigned long subcode);
+	void (*diag0c)(struct hypfs_diag0c_entry *entry);
+	void (*diag308_reset)(void);
+};
+
+extern struct diag_ops diag_dma_ops;
+extern struct diag210 *__diag210_tmp_dma;
 #endif /* _ASM_S390_DIAG_H */

@@ -1,14 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
  * da7218.h - DA7218 ALSA SoC Codec Driver
  *
  * Copyright (c) 2015 Dialog Semiconductor
  *
  * Author: Adam Thomson <Adam.Thomson.Opensource@diasemi.com>
- *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
- * Free Software Foundation;  either version 2 of the  License, or (at your
- * option) any later version.
  */
 
 #ifndef _DA7218_H
@@ -1410,6 +1406,6 @@ struct da7218_priv {
 };
 
 /* HP detect control */
-int da7218_hpldet(struct snd_soc_codec *codec, struct snd_soc_jack *jack);
+int da7218_hpldet(struct snd_soc_component *component, struct snd_soc_jack *jack);
 
 #endif /* _DA7218_H */

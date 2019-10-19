@@ -6,6 +6,8 @@
 #include <asm/pgtable.h>
 #include <asm/processor-flags.h>
 #include <asm/tlb.h>
+#include <asm/nospec-branch.h>
+#include <asm/mmu_context.h>
 
 /*
  * We map the EFI regions needed for runtime services non-contiguously,
@@ -17,7 +19,7 @@
  * This is the main reason why we're doing stable VA mappings for RT
  * services.
  *
- * This flag is used in conjuction with a chicken bit called
+ * This flag is used in conjunction with a chicken bit called
  * "efi=old_map" which can be used as a fallback to the old runtime
  * services mapping method in case there's some b0rkage with a
  * particular EFI implementation (haha, it is hard to hold up the
@@ -36,8 +38,18 @@
 
 extern asmlinkage unsigned long efi_call_phys(void *, ...);
 
-#define arch_efi_call_virt_setup()	kernel_fpu_begin()
-#define arch_efi_call_virt_teardown()	kernel_fpu_end()
+#define arch_efi_call_virt_setup()					\
+({									\
+	kernel_fpu_begin();						\
+	firmware_restrict_branch_speculation_start();			\
+})
+
+#define arch_efi_call_virt_teardown()					\
+({									\
+	firmware_restrict_branch_speculation_end();			\
+	kernel_fpu_end();						\
+})
+
 
 /*
  * Wrap all the virtual calls in a way that forces the parameters on the stack.
@@ -58,27 +70,23 @@ extern asmlinkage u64 efi_call(void *fp, ...);
 #define efi_call_phys(f, args...)		efi_call((f), args)
 
 /*
- * Scratch space used for switching the pagetable in the EFI stub
+ * struct efi_scratch - Scratch space used while switching to/from efi_mm
+ * @phys_stack: stack used during EFI Mixed Mode
+ * @prev_mm:    store/restore stolen mm_struct while switching to/from efi_mm
  */
 struct efi_scratch {
-	u64	r15;
-	u64	prev_cr3;
-	pgd_t	*efi_pgt;
-	bool	use_pgd;
-	u64	phys_stack;
+	u64			phys_stack;
+	struct mm_struct	*prev_mm;
 } __packed;
 
 #define arch_efi_call_virt_setup()					\
 ({									\
 	efi_sync_low_kernel_mappings();					\
-	preempt_disable();						\
-	__kernel_fpu_begin();						\
+	kernel_fpu_begin();						\
+	firmware_restrict_branch_speculation_start();			\
 									\
-	if (efi_scratch.use_pgd) {					\
-		efi_scratch.prev_cr3 = __read_cr3();			\
-		write_cr3((unsigned long)efi_scratch.efi_pgt);		\
-		__flush_tlb_all();					\
-	}								\
+	if (!efi_enabled(EFI_OLD_MEMMAP))				\
+		efi_switch_mm(&efi_mm);					\
 })
 
 #define arch_efi_call_virt(p, f, args...)				\
@@ -86,13 +94,11 @@ struct efi_scratch {
 
 #define arch_efi_call_virt_teardown()					\
 ({									\
-	if (efi_scratch.use_pgd) {					\
-		write_cr3(efi_scratch.prev_cr3);			\
-		__flush_tlb_all();					\
-	}								\
+	if (!efi_enabled(EFI_OLD_MEMMAP))				\
+		efi_switch_mm(efi_scratch.prev_mm);			\
 									\
-	__kernel_fpu_end();						\
-	preempt_enable();						\
+	firmware_restrict_branch_speculation_end();			\
+	kernel_fpu_end();						\
 })
 
 extern void __iomem *__init efi_ioremap(unsigned long addr, unsigned long size,
@@ -131,6 +137,10 @@ extern void __init efi_dump_pagetable(void);
 extern void __init efi_apply_memmap_quirks(void);
 extern int __init efi_reuse_config(u64 tables, int nr_tables);
 extern void efi_delete_dummy_variable(void);
+extern void efi_switch_mm(struct mm_struct *mm);
+extern void efi_recover_from_page_fault(unsigned long phys_addr);
+extern void efi_free_boot_services(void);
+extern void efi_reserve_boot_services(void);
 
 struct efi_setup_data {
 	u64 fw_vendor;
@@ -160,7 +170,6 @@ static inline bool efi_runtime_supported(void)
 	return false;
 }
 
-extern struct console early_efi_console;
 extern void parse_efi_setup(u64 phys_addr, u32 data_len);
 
 extern void efifb_setup_from_dmi(struct screen_info *si, const char *opt);
@@ -233,10 +242,15 @@ static inline bool efi_is_64bit(void)
 		__efi_early()->runtime_services), __VA_ARGS__)
 
 extern bool efi_reboot_required(void);
+extern bool efi_is_table_address(unsigned long phys_addr);
 
 #else
 static inline void parse_efi_setup(u64 phys_addr, u32 data_len) {}
 static inline bool efi_reboot_required(void)
+{
+	return false;
+}
+static inline  bool efi_is_table_address(unsigned long phys_addr)
 {
 	return false;
 }

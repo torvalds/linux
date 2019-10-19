@@ -625,9 +625,9 @@ int qla4xxx_initialize_fw_cb(struct scsi_qla_host * ha)
 	uint32_t mbox_sts[MBOX_REG_COUNT];
 	int status = QLA_ERROR;
 
-	init_fw_cb = dma_zalloc_coherent(&ha->pdev->dev,
-					 sizeof(struct addr_ctrl_blk),
-					 &init_fw_cb_dma, GFP_KERNEL);
+	init_fw_cb = dma_alloc_coherent(&ha->pdev->dev,
+					sizeof(struct addr_ctrl_blk),
+					&init_fw_cb_dma, GFP_KERNEL);
 	if (init_fw_cb == NULL) {
 		DEBUG2(printk("scsi%ld: %s: Unable to alloc init_cb\n",
 			      ha->host_no, __func__));
@@ -709,9 +709,9 @@ int qla4xxx_get_dhcp_ip_address(struct scsi_qla_host * ha)
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
 
-	init_fw_cb = dma_zalloc_coherent(&ha->pdev->dev,
-					 sizeof(struct addr_ctrl_blk),
-					 &init_fw_cb_dma, GFP_KERNEL);
+	init_fw_cb = dma_alloc_coherent(&ha->pdev->dev,
+					sizeof(struct addr_ctrl_blk),
+					&init_fw_cb_dma, GFP_KERNEL);
 	if (init_fw_cb == NULL) {
 		printk("scsi%ld: %s: Unable to alloc init_cb\n", ha->host_no,
 		       __func__);
@@ -1340,9 +1340,9 @@ int qla4xxx_about_firmware(struct scsi_qla_host *ha)
 	uint32_t mbox_sts[MBOX_REG_COUNT];
 	int status = QLA_ERROR;
 
-	about_fw = dma_zalloc_coherent(&ha->pdev->dev,
-				       sizeof(struct about_fw_info),
-				       &about_fw_dma, GFP_KERNEL);
+	about_fw = dma_alloc_coherent(&ha->pdev->dev,
+				      sizeof(struct about_fw_info),
+				      &about_fw_dma, GFP_KERNEL);
 	if (!about_fw) {
 		DEBUG2(ql4_printk(KERN_ERR, ha, "%s: Unable to alloc memory "
 				  "for about_fw\n", __func__));
@@ -1584,12 +1584,11 @@ int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 	struct ql4_chap_table *chap_table;
 	dma_addr_t chap_dma;
 
-	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
+	chap_table = dma_pool_zalloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
 	if (chap_table == NULL)
 		return -ENOMEM;
 
 	chap_size = sizeof(struct ql4_chap_table);
-	memset(chap_table, 0, chap_size);
 
 	if (is_qla40XX(ha))
 		offset = FLASH_CHAP_OFFSET | (idx * chap_size);
@@ -1648,13 +1647,12 @@ int qla4xxx_set_chap(struct scsi_qla_host *ha, char *username, char *password,
 	uint32_t chap_size = 0;
 	dma_addr_t chap_dma;
 
-	chap_table = dma_pool_alloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
+	chap_table = dma_pool_zalloc(ha->chap_dma_pool, GFP_KERNEL, &chap_dma);
 	if (chap_table == NULL) {
 		ret =  -ENOMEM;
 		goto exit_set_chap;
 	}
 
-	memset(chap_table, 0, sizeof(struct ql4_chap_table));
 	if (bidi)
 		chap_table->flags |= BIT_6; /* peer */
 	else

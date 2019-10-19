@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Frontend driver for mobile DVB-T demodulator DiBcom 3000M-B
  * DiBcom (http://www.dibcom.fr/)
@@ -8,17 +9,12 @@
  *
  * Copyright (C) 2004 Amaury Demol for DiBcom
  *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License as
- *	published by the Free Software Foundation, version 2.
- *
  * Acknowledgements
  *
  *  Amaury Demol from DiBcom for providing specs and driver
  *  sources, on which this driver (and the dvb-dibusb) are based.
  *
- * see Documentation/dvb/README.dvb-usb for more information
- *
+ * see Documentation/media/dvb-drivers/dvb-usb.rst for more information
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -786,9 +782,9 @@ static const struct dvb_frontend_ops dib3000mb_ops = {
 	.delsys = { SYS_DVBT },
 	.info = {
 		.name			= "DiBcom 3000M-B DVB-T",
-		.frequency_min		= 44250000,
-		.frequency_max		= 867250000,
-		.frequency_stepsize	= 62500,
+		.frequency_min_hz	=  44250 * kHz,
+		.frequency_max_hz	= 867250 * kHz,
+		.frequency_stepsize_hz	= 62500,
 		.caps = FE_CAN_INVERSION_AUTO |
 				FE_CAN_FEC_1_2 | FE_CAN_FEC_2_3 | FE_CAN_FEC_3_4 |
 				FE_CAN_FEC_5_6 | FE_CAN_FEC_7_8 | FE_CAN_FEC_AUTO |

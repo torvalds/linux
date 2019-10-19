@@ -23,29 +23,29 @@ struct chsc_async_header {
 	__u32 key : 4;
 	__u32 : 28;
 	struct subchannel_id sid;
-} __attribute__ ((packed));
+};
 
 struct chsc_async_area {
 	struct chsc_async_header header;
 	__u8 data[CHSC_SIZE - sizeof(struct chsc_async_header)];
-} __attribute__ ((packed));
+};
 
 struct chsc_header {
 	__u16 length;
 	__u16 code;
-} __attribute__ ((packed));
+};
 
 struct chsc_sync_area {
 	struct chsc_header header;
 	__u8 data[CHSC_SIZE - sizeof(struct chsc_header)];
-} __attribute__ ((packed));
+};
 
 struct chsc_response_struct {
 	__u16 length;
 	__u16 code;
 	__u32 parms;
 	__u8 data[CHSC_SIZE - 2 * sizeof(__u16) - sizeof(__u32)];
-} __attribute__ ((packed));
+};
 
 struct chsc_chp_cd {
 	struct chp_id chpid;

@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
 /*
  *	Sound core.  This file is composed of two parts.  sound_class
  *	which is common to both OSS and ALSA and OSS sound core which
@@ -72,12 +73,6 @@ module_exit(cleanup_soundcore);
  *	Author:		Alan Cox <alan@lxorguk.ukuu.org.uk>
  *
  *	Fixes:
- *
- *
- *	This program is free software; you can redistribute it and/or
- *	modify it under the terms of the GNU General Public License
- *	as published by the Free Software Foundation; either version
- *	2 of the License, or (at your option) any later version.
  *
  *                         --------------------
  * 
@@ -280,7 +275,8 @@ retry:
 				goto retry;
 			}
 			spin_unlock(&sound_loader_lock);
-			return -EBUSY;
+			r = -EBUSY;
+			goto fail;
 		}
 	}
 
@@ -413,7 +409,7 @@ int register_sound_special_device(const struct file_operations *fops, int unit,
 		break;
 	}
 	return sound_insert_unit(&chains[chain], fops, -1, unit, max_unit,
-				 name, S_IRUSR | S_IWUSR, dev);
+				 name, 0600, dev);
 }
  
 EXPORT_SYMBOL(register_sound_special_device);
@@ -440,7 +436,7 @@ EXPORT_SYMBOL(register_sound_special);
 int register_sound_mixer(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[0], fops, dev, 0, 128,
-				 "mixer", S_IRUSR | S_IWUSR, NULL);
+				 "mixer", 0600, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_mixer);
@@ -468,7 +464,7 @@ EXPORT_SYMBOL(register_sound_mixer);
 int register_sound_dsp(const struct file_operations *fops, int dev)
 {
 	return sound_insert_unit(&chains[3], fops, dev, 3, 131,
-				 "dsp", S_IWUSR | S_IRUSR, NULL);
+				 "dsp", 0600, NULL);
 }
 
 EXPORT_SYMBOL(register_sound_dsp);

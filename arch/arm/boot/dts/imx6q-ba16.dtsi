@@ -46,7 +46,8 @@
 #include <dt-bindings/gpio/gpio.h>
 
 / {
-	memory {
+	memory@10000000 {
+		device_type = "memory";
 		reg = <0x10000000 0x40000000>;
 	};
 
@@ -157,7 +158,12 @@
 
 		partition@d0000 {
 			label = "spare";
-			reg = <0xd0000 0x130000>;
+			reg = <0xd0000 0x320000>;
+		};
+
+		partition@3f0000 {
+			label = "mfg";
+			reg = <0x3f0000 0x10000>;
 		};
 	};
 };
@@ -165,7 +171,7 @@
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
-	phy-mode = "rgmii";
+	phy-mode = "rgmii-id";
 	status = "okay";
 };
 

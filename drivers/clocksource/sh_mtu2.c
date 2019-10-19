@@ -1,16 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SuperH Timer Support - MTU2
  *
  *  Copyright (C) 2009 Magnus Damm
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
  */
 
 #include <linux/clk.h>
@@ -418,7 +410,7 @@ static int sh_mtu2_setup(struct sh_mtu2_device *mtu,
 	/* Allocate and setup the channels. */
 	mtu->num_channels = 3;
 
-	mtu->channels = kzalloc(sizeof(*mtu->channels) * mtu->num_channels,
+	mtu->channels = kcalloc(mtu->num_channels, sizeof(*mtu->channels),
 				GFP_KERNEL);
 	if (mtu->channels == NULL) {
 		ret = -ENOMEM;

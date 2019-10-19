@@ -112,6 +112,11 @@ EXPORT_SYMBOL(vgacon_text_force);
 static int __init text_mode(char *str)
 {
 	vgacon_text_mode_force = true;
+
+	pr_warning("You have booted with nomodeset. This means your GPU drivers are DISABLED\n");
+	pr_warning("Any video related functionality will be severely degraded, and you may not even be able to suspend the system properly\n");
+	pr_warning("Unless you actually understand what nomodeset does, you should reboot without enabling it\n");
+
 	return 1;
 }
 
@@ -266,6 +271,7 @@ static void vgacon_scrollback_update(struct vc_data *c, int t, int count)
 
 static void vgacon_restore_screen(struct vc_data *c)
 {
+	c->vc_origin = c->vc_visible_origin;
 	vgacon_scrollback_cur->save = 0;
 
 	if (!vga_is_gfx && !vgacon_scrollback_cur->restore) {
@@ -282,8 +288,7 @@ static void vgacon_scrolldelta(struct vc_data *c, int lines)
 	int start, end, count, soff;
 
 	if (!lines) {
-		c->vc_visible_origin = c->vc_origin;
-		vga_set_mem_top(c);
+		vgacon_restore_screen(c);
 		return;
 	}
 
@@ -293,6 +298,7 @@ static void vgacon_scrolldelta(struct vc_data *c, int lines)
 	if (!vgacon_scrollback_cur->save) {
 		vgacon_cursor(c, CM_ERASE);
 		vgacon_save_screen(c);
+		c->vc_origin = (unsigned long)c->vc_screenbuf;
 		vgacon_scrollback_cur->save = 1;
 	}
 
@@ -330,7 +336,7 @@ static void vgacon_scrolldelta(struct vc_data *c, int lines)
 		int copysize;
 
 		int diff = c->vc_rows - count;
-		void *d = (void *) c->vc_origin;
+		void *d = (void *) c->vc_visible_origin;
 		void *s = (void *) c->vc_screenbuf;
 
 		count *= c->vc_size_row;
@@ -1272,7 +1278,8 @@ static int vgacon_adjust_height(struct vc_data *vc, unsigned fontheight)
 	return 0;
 }
 
-static int vgacon_font_set(struct vc_data *c, struct console_font *font, unsigned flags)
+static int vgacon_font_set(struct vc_data *c, struct console_font *font,
+			   unsigned int flags)
 {
 	unsigned charcount = font->charcount;
 	int rc;
@@ -1407,21 +1414,20 @@ static bool vgacon_scroll(struct vc_data *c, unsigned int t, unsigned int b,
  *  The console `switch' structure for the VGA based console
  */
 
-static int vgacon_dummy(struct vc_data *c)
-{
-	return 0;
-}
-
-#define DUMMY (void *) vgacon_dummy
+static void vgacon_clear(struct vc_data *vc, int sy, int sx, int height,
+			 int width) { }
+static void vgacon_putc(struct vc_data *vc, int c, int ypos, int xpos) { }
+static void vgacon_putcs(struct vc_data *vc, const unsigned short *s,
+			 int count, int ypos, int xpos) { }
 
 const struct consw vga_con = {
 	.owner = THIS_MODULE,
 	.con_startup = vgacon_startup,
 	.con_init = vgacon_init,
 	.con_deinit = vgacon_deinit,
-	.con_clear = DUMMY,
-	.con_putc = DUMMY,
-	.con_putcs = DUMMY,
+	.con_clear = vgacon_clear,
+	.con_putc = vgacon_putc,
+	.con_putcs = vgacon_putcs,
 	.con_cursor = vgacon_cursor,
 	.con_scroll = vgacon_scroll,
 	.con_switch = vgacon_switch,

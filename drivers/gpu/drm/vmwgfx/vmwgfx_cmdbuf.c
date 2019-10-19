@@ -1,7 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright © 2015 VMware, Inc., Palo Alto, CA., USA
- * All Rights Reserved.
+ * Copyright 2015 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -24,6 +24,9 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.
  *
  **************************************************************************/
+
+#include <linux/dmapool.h>
+#include <linux/pci.h>
 
 #include <drm/ttm/ttm_bo_api.h>
 
@@ -101,6 +104,7 @@ struct vmw_cmdbuf_context {
  * @handle: DMA address handle for the command buffer space if @using_mob is
  * false. Immutable.
  * @size: The size of the command buffer space. Immutable.
+ * @num_contexts: Number of contexts actually enabled.
  */
 struct vmw_cmdbuf_man {
 	struct mutex cur_mutex;
@@ -128,6 +132,7 @@ struct vmw_cmdbuf_man {
 	bool has_pool;
 	dma_addr_t handle;
 	size_t size;
+	u32 num_contexts;
 };
 
 /**
@@ -185,7 +190,7 @@ struct vmw_cmdbuf_alloc_info {
 
 /* Loop over each context in the command buffer manager. */
 #define for_each_cmdbuf_ctx(_man, _i, _ctx)				\
-	for (_i = 0, _ctx = &(_man)->ctx[0]; (_i) < SVGA_CB_CONTEXT_MAX; \
+	for (_i = 0, _ctx = &(_man)->ctx[0]; (_i) < (_man)->num_contexts; \
 	     ++(_i), ++(_ctx))
 
 static int vmw_cmdbuf_startstop(struct vmw_cmdbuf_man *man, u32 context,
@@ -391,6 +396,7 @@ static void vmw_cmdbuf_ctx_process(struct vmw_cmdbuf_man *man,
 			__vmw_cmdbuf_header_free(entry);
 			break;
 		case SVGA_CB_STATUS_COMMAND_ERROR:
+			WARN_ONCE(true, "Command buffer error.\n");
 			entry->cb_header->status = SVGA_CB_STATUS_NONE;
 			list_add_tail(&entry->list, &man->error);
 			schedule_work(&man->work);
@@ -509,16 +515,14 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		container_of(work, struct vmw_cmdbuf_man, work);
 	struct vmw_cmdbuf_header *entry, *next;
 	uint32_t dummy;
-	bool restart[SVGA_CB_CONTEXT_MAX];
 	bool send_fence = false;
 	struct list_head restart_head[SVGA_CB_CONTEXT_MAX];
 	int i;
 	struct vmw_cmdbuf_context *ctx;
+	bool global_block = false;
 
-	for_each_cmdbuf_ctx(man, i, ctx) {
+	for_each_cmdbuf_ctx(man, i, ctx)
 		INIT_LIST_HEAD(&restart_head[i]);
-		restart[i] = false;
-	}
 
 	mutex_lock(&man->error_mutex);
 	spin_lock(&man->lock);
@@ -530,22 +534,23 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		const char *cmd_name;
 
 		list_del_init(&entry->list);
-		restart[entry->cb_context] = true;
+		global_block = true;
 
 		if (!vmw_cmd_describe(header, &error_cmd_size, &cmd_name)) {
-			DRM_ERROR("Unknown command causing device error.\n");
-			DRM_ERROR("Command buffer offset is %lu\n",
-				  (unsigned long) cb_hdr->errorOffset);
+			VMW_DEBUG_USER("Unknown command causing device error.\n");
+			VMW_DEBUG_USER("Command buffer offset is %lu\n",
+				       (unsigned long) cb_hdr->errorOffset);
 			__vmw_cmdbuf_header_free(entry);
 			send_fence = true;
 			continue;
 		}
 
-		DRM_ERROR("Command \"%s\" causing device error.\n", cmd_name);
-		DRM_ERROR("Command buffer offset is %lu\n",
-			  (unsigned long) cb_hdr->errorOffset);
-		DRM_ERROR("Command size is %lu\n",
-			  (unsigned long) error_cmd_size);
+		VMW_DEBUG_USER("Command \"%s\" causing device error.\n",
+			       cmd_name);
+		VMW_DEBUG_USER("Command buffer offset is %lu\n",
+			       (unsigned long) cb_hdr->errorOffset);
+		VMW_DEBUG_USER("Command size is %lu\n",
+			       (unsigned long) error_cmd_size);
 
 		new_start_offset = cb_hdr->errorOffset + error_cmd_size;
 
@@ -564,23 +569,21 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		cb_hdr->length -= new_start_offset;
 		cb_hdr->errorOffset = 0;
 		cb_hdr->offset = 0;
+
 		list_add_tail(&entry->list, &restart_head[entry->cb_context]);
-		man->ctx[entry->cb_context].block_submission = true;
 	}
+
+	for_each_cmdbuf_ctx(man, i, ctx)
+		man->ctx[i].block_submission = true;
+
 	spin_unlock(&man->lock);
 
-	/* Preempt all contexts with errors */
-	for_each_cmdbuf_ctx(man, i, ctx) {
-		if (ctx->block_submission && vmw_cmdbuf_preempt(man, i))
-			DRM_ERROR("Failed preempting command buffer "
-				  "context %u.\n", i);
-	}
+	/* Preempt all contexts */
+	if (global_block && vmw_cmdbuf_preempt(man, 0))
+		DRM_ERROR("Failed preempting command buffer contexts\n");
 
 	spin_lock(&man->lock);
 	for_each_cmdbuf_ctx(man, i, ctx) {
-		if (!ctx->block_submission)
-			continue;
-
 		/* Move preempted command buffers to the preempted queue. */
 		vmw_cmdbuf_ctx_process(man, ctx, &dummy);
 
@@ -594,19 +597,16 @@ static void vmw_cmdbuf_work_func(struct work_struct *work)
 		 * Finally add all command buffers first in the submitted
 		 * queue, to rerun them.
 		 */
-		list_splice_init(&restart_head[i], &ctx->submitted);
 
 		ctx->block_submission = false;
+		list_splice_init(&restart_head[i], &ctx->submitted);
 	}
 
 	vmw_cmdbuf_man_process(man);
 	spin_unlock(&man->lock);
 
-	for_each_cmdbuf_ctx(man, i, ctx) {
-		if (restart[i] && vmw_cmdbuf_startstop(man, i, true))
-			DRM_ERROR("Failed restarting command buffer "
-				  "context %u.\n", i);
-	}
+	if (global_block && vmw_cmdbuf_startstop(man, 0, true))
+		DRM_ERROR("Failed restarting command buffer contexts\n");
 
 	/* Send a new fence in case one was removed */
 	if (send_fence) {
@@ -661,7 +661,7 @@ static void __vmw_cmdbuf_cur_flush(struct vmw_cmdbuf_man *man)
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	lockdep_assert_held_once(&man->cur_mutex);
 
 	if (!cur)
 		return;
@@ -766,7 +766,7 @@ static bool vmw_cmdbuf_try_alloc(struct vmw_cmdbuf_man *man,
 
 	if (info->done)
 		return true;
- 
+
 	memset(info->node, 0, sizeof(*info->node));
 	spin_lock(&man->lock);
 	ret = drm_mm_insert_node(&man->mm, info->node, info->page_size);
@@ -1046,7 +1046,7 @@ static void vmw_cmdbuf_commit_cur(struct vmw_cmdbuf_man *man,
 {
 	struct vmw_cmdbuf_header *cur = man->cur;
 
-	WARN_ON(!mutex_is_locked(&man->cur_mutex));
+	lockdep_assert_held_once(&man->cur_mutex);
 
 	WARN_ON(size > cur->reserved);
 	man->cur_pos += size;
@@ -1245,7 +1245,7 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 			return -ENOMEM;
 
 		ret = ttm_bo_create(&dev_priv->bdev, size, ttm_bo_type_device,
-				    &vmw_mob_ne_placement, 0, false, NULL,
+				    &vmw_mob_ne_placement, 0, false,
 				    &man->cmd_space);
 		if (ret)
 			return ret;
@@ -1277,8 +1277,10 @@ int vmw_cmdbuf_set_pool_size(struct vmw_cmdbuf_man *man,
 	return 0;
 
 out_no_map:
-	if (man->using_mob)
-		ttm_bo_unref(&man->cmd_space);
+	if (man->using_mob) {
+		ttm_bo_put(man->cmd_space);
+		man->cmd_space = NULL;
+	}
 
 	return ret;
 }
@@ -1307,6 +1309,8 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	if (!man)
 		return ERR_PTR(-ENOMEM);
 
+	man->num_contexts = (dev_priv->capabilities & SVGA_CAP_HP_CMD_QUEUE) ?
+		2 : 1;
 	man->headers = dma_pool_create("vmwgfx cmdbuf",
 				       &dev_priv->dev->pdev->dev,
 				       sizeof(SVGACBHeader),
@@ -1341,14 +1345,11 @@ struct vmw_cmdbuf_man *vmw_cmdbuf_man_create(struct vmw_private *dev_priv)
 	INIT_WORK(&man->work, &vmw_cmdbuf_work_func);
 	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_ERROR,
 			       &dev_priv->error_waiters);
-	for_each_cmdbuf_ctx(man, i, ctx) {
-		ret = vmw_cmdbuf_startstop(man, i, true);
-		if (ret) {
-			DRM_ERROR("Failed starting command buffer "
-				  "context %u.\n", i);
-			vmw_cmdbuf_man_destroy(man);
-			return ERR_PTR(ret);
-		}
+	ret = vmw_cmdbuf_startstop(man, 0, true);
+	if (ret) {
+		DRM_ERROR("Failed starting command buffer contexts\n");
+		vmw_cmdbuf_man_destroy(man);
+		return ERR_PTR(ret);
 	}
 
 	return man;
@@ -1382,7 +1383,8 @@ void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man)
 	(void) vmw_cmdbuf_idle(man, false, 10*HZ);
 	if (man->using_mob) {
 		(void) ttm_bo_kunmap(&man->map_obj);
-		ttm_bo_unref(&man->cmd_space);
+		ttm_bo_put(man->cmd_space);
+		man->cmd_space = NULL;
 	} else {
 		dma_free_coherent(&man->dev_priv->dev->pdev->dev,
 				  man->size, man->map, man->handle);
@@ -1398,16 +1400,11 @@ void vmw_cmdbuf_remove_pool(struct vmw_cmdbuf_man *man)
  */
 void vmw_cmdbuf_man_destroy(struct vmw_cmdbuf_man *man)
 {
-	struct vmw_cmdbuf_context *ctx;
-	unsigned int i;
-
 	WARN_ON_ONCE(man->has_pool);
 	(void) vmw_cmdbuf_idle(man, false, 10*HZ);
 
-	for_each_cmdbuf_ctx(man, i, ctx)
-		if (vmw_cmdbuf_startstop(man, i, false))
-			DRM_ERROR("Failed stopping command buffer "
-				  "context %u.\n", i);
+	if (vmw_cmdbuf_startstop(man, 0, false))
+		DRM_ERROR("Failed stopping command buffer contexts.\n");
 
 	vmw_generic_waiter_remove(man->dev_priv, SVGA_IRQFLAG_ERROR,
 				  &man->dev_priv->error_waiters);

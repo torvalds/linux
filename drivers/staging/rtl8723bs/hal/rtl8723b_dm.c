@@ -1,15 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0
 /******************************************************************************
  *
  * Copyright(c) 2007 - 2012 Realtek Corporation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of version 2 of the GNU General Public License as
- * published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
  *
  ******************************************************************************/
 /*  Description: */
@@ -181,7 +173,7 @@ void rtl8723b_HalDmWatchDog(struct adapter *Adapter)
 	if (hw_init_completed == true) {
 		u8 bLinked = false;
 		u8 bsta_state = false;
-		u8 bBtDisabled = true;
+		bool bBtDisabled = true;
 
 		if (rtw_linked_check(Adapter)) {
 			bLinked = true;
@@ -194,7 +186,7 @@ void rtl8723b_HalDmWatchDog(struct adapter *Adapter)
 
 		/* ODM_CmnInfoUpdate(&pHalData->odmpriv , ODM_CMNINFO_RSSI_MIN, pdmpriv->MinUndecoratedPWDBForDM); */
 
-		bBtDisabled = rtw_btcoex_IsBtDisabled(Adapter);
+		bBtDisabled = hal_btcoex_IsBtDisabled(Adapter);
 
 		ODM_CmnInfoUpdate(&pHalData->odmpriv, ODM_CMNINFO_BT_ENABLED, ((bBtDisabled == true)?false:true));
 
@@ -262,7 +254,7 @@ void rtl8723b_HalDmWatchDog_in_LPS(struct adapter *Adapter)
 
       /* 1 Find MIN-RSSI */
 	psta = rtw_get_stainfo(pstapriv, get_bssid(pmlmepriv));
-	if (psta == NULL)
+	if (!psta)
 		goto skip_lps_dm;
 
 	pdmpriv->EntryMinUndecoratedSmoothedPWDB = psta->rssi_stat.UndecoratedSmoothedPWDB;

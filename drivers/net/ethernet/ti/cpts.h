@@ -1,21 +1,9 @@
+/* SPDX-License-Identifier: GPL-2.0+ */
 /*
  * TI Common Platform Time Sync
  *
  * Copyright (C) 2012 Richard Cochran <richardcochran@gmail.com>
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #ifndef _TI_CPTS_H_
 #define _TI_CPTS_H_
@@ -36,7 +24,7 @@
 struct cpsw_cpts {
 	u32 idver;                /* Identification and version */
 	u32 control;              /* Time sync control */
-	u32 res1;
+	u32 rftclk_sel;		  /* Reference Clock Select Register */
 	u32 ts_push;              /* Time stamp event push */
 	u32 ts_load_val;          /* Time stamp load value */
 	u32 ts_load_en;           /* Time stamp load enable */
@@ -136,26 +124,6 @@ struct cpts *cpts_create(struct device *dev, void __iomem *regs,
 			 struct device_node *node);
 void cpts_release(struct cpts *cpts);
 
-static inline void cpts_rx_enable(struct cpts *cpts, int enable)
-{
-	cpts->rx_enable = enable;
-}
-
-static inline bool cpts_is_rx_enabled(struct cpts *cpts)
-{
-	return !!cpts->rx_enable;
-}
-
-static inline void cpts_tx_enable(struct cpts *cpts, int enable)
-{
-	cpts->tx_enable = enable;
-}
-
-static inline bool cpts_is_tx_enabled(struct cpts *cpts)
-{
-	return !!cpts->tx_enable;
-}
-
 static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)
 {
 	unsigned int class = ptp_classify_raw(skb);
@@ -195,24 +163,6 @@ cpts_register(struct cpts *cpts)
 
 static inline void cpts_unregister(struct cpts *cpts)
 {
-}
-
-static inline void cpts_rx_enable(struct cpts *cpts, int enable)
-{
-}
-
-static inline bool cpts_is_rx_enabled(struct cpts *cpts)
-{
-	return false;
-}
-
-static inline void cpts_tx_enable(struct cpts *cpts, int enable)
-{
-}
-
-static inline bool cpts_is_tx_enabled(struct cpts *cpts)
-{
-	return false;
 }
 
 static inline bool cpts_can_timestamp(struct cpts *cpts, struct sk_buff *skb)

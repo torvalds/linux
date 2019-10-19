@@ -49,7 +49,7 @@
    followed by an older IP core version which implements the same
    interface or any other device with the same interface.
 
-   'reg', 'interrupt-parent' and 'interrupts' are all optional properties.
+   'reg' and 'interrupts' are all optional properties.
 
    For example, the following block from system.mhs:
 

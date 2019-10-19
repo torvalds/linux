@@ -1,22 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
    cx231xx.h - driver for Conexant Cx23100/101/102 USB video capture devices
 
    Copyright (C) 2008 <srinivasa.deevi at conexant dot com>
 	Based on em28xx driver
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
-
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
 #ifndef _CX231XX_H
@@ -38,7 +26,6 @@
 #include <media/v4l2-fh.h>
 #include <media/rc-core.h>
 #include <media/i2c/ir-kbd-i2c.h>
-#include <media/videobuf-dvb.h>
 
 #include "cx231xx-reg.h"
 #include "cx231xx-pcb-cfg.h"
@@ -81,6 +68,8 @@
 #define CX231XX_BOARD_EVROMEDIA_FULL_HYBRID_FULLHD 23
 #define CX231XX_BOARD_ASTROMETA_T2HYBRID 24
 #define CX231XX_BOARD_THE_IMAGING_SOURCE_DFG_USB2_PRO 25
+#define CX231XX_BOARD_HAUPPAUGE_935C 26
+#define CX231XX_BOARD_HAUPPAUGE_975 27
 
 /* Limits minimum and default number of buffers */
 #define CX231XX_MIN_BUF                 4
@@ -132,7 +121,6 @@
 #define CX23417_RESET    9
 
 struct cx23417_fmt {
-	char  *name;
 	u32   fourcc;          /* v4l2 format id */
 	int   depth;
 	int   flags;
@@ -343,6 +331,7 @@ struct cx231xx_board {
 
 	/* demod related */
 	int demod_addr;
+	int demod_addr2;
 	u8 demod_xfer_mode;	/* 0 - Serial; 1 - parallel */
 
 	/* GPIO Pins */
@@ -543,8 +532,6 @@ struct cx231xx_tsport {
 	int                        nr;
 	int                        sram_chno;
 
-	struct videobuf_dvb_frontends frontends;
-
 	/* dma queues */
 
 	u32                        ts_packet_size;
@@ -646,7 +633,7 @@ struct cx231xx {
 	/* frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
-	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
+	int interlaced;		/* 1=interlace fields, 0=just top fields */
 
 	struct cx231xx_audio adev;
 

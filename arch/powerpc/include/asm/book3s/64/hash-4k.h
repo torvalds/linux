@@ -1,15 +1,32 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #ifndef _ASM_POWERPC_BOOK3S_64_HASH_4K_H
 #define _ASM_POWERPC_BOOK3S_64_HASH_4K_H
+
+#define H_PTE_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x   4KB =   2MB
+#define H_PMD_INDEX_SIZE  7  // size: 8B << 7 = 1KB, maps: 2^7 x   2MB = 256MB
+#define H_PUD_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x 256MB = 128GB
+#define H_PGD_INDEX_SIZE  9  // size: 8B << 9 = 4KB, maps: 2^9 x 128GB =  64TB
+
 /*
- * Entries per page directory level.  The PTE level must use a 64b record
- * for each page table entry.  The PMD and PGD level use a 32b record for
- * each entry by assuming that each entry is page aligned.
+ * Each context is 512TB. But on 4k we restrict our max TASK size to 64TB
+ * Hence also limit max EA bits to 64TB.
  */
-#define H_PTE_INDEX_SIZE  9
-#define H_PMD_INDEX_SIZE  7
-#define H_PUD_INDEX_SIZE  9
-#define H_PGD_INDEX_SIZE  9
+#define MAX_EA_BITS_PER_CONTEXT		46
+
+#define REGION_SHIFT		(MAX_EA_BITS_PER_CONTEXT - 2)
+
+/*
+ * Our page table limit us to 64TB. Hence for the kernel mapping,
+ * each MAP area is limited to 16 TB.
+ * The four map areas are:  linear mapping, vmap, IO and vmemmap
+ */
+#define H_KERN_MAP_SIZE		(ASM_CONST(1) << REGION_SHIFT)
+
+/*
+ * Define the address range of the kernel non-linear virtual area
+ * 16TB
+ */
+#define H_KERN_VIRT_START	ASM_CONST(0xc000100000000000)
 
 #ifndef __ASSEMBLY__
 #define H_PTE_TABLE_SIZE	(sizeof(pte_t) << H_PTE_INDEX_SIZE)
@@ -32,8 +49,20 @@
 #define H_PAGE_4K_PFN	0x0
 #define H_PAGE_THP_HUGE 0x0
 #define H_PAGE_COMBO	0x0
-#define H_PTE_FRAG_NR	0
-#define H_PTE_FRAG_SIZE_SHIFT  0
+
+/* 8 bytes per each pte entry */
+#define H_PTE_FRAG_SIZE_SHIFT  (H_PTE_INDEX_SIZE + 3)
+#define H_PTE_FRAG_NR	(PAGE_SIZE >> H_PTE_FRAG_SIZE_SHIFT)
+#define H_PMD_FRAG_SIZE_SHIFT  (H_PMD_INDEX_SIZE + 3)
+#define H_PMD_FRAG_NR	(PAGE_SIZE >> H_PMD_FRAG_SIZE_SHIFT)
+
+/* memory key bits, only 8 keys supported */
+#define H_PTE_PKEY_BIT0	0
+#define H_PTE_PKEY_BIT1	0
+#define H_PTE_PKEY_BIT2	_RPAGE_RSV3
+#define H_PTE_PKEY_BIT3	_RPAGE_RSV4
+#define H_PTE_PKEY_BIT4	_RPAGE_RSV5
+
 /*
  * On all 4K setups, remap_4k_pfn() equates to remap_pfn_range()
  */
@@ -48,7 +77,7 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
 	 * if it is not a pte and have hugepd shift mask
 	 * set, then it is a hugepd directory pointer
 	 */
-	if (!(hpdval & _PAGE_PTE) &&
+	if (!(hpdval & _PAGE_PTE) && (hpdval & _PAGE_PRESENT) &&
 	    ((hpdval & HUGEPD_SHIFT_MASK) != 0))
 		return true;
 	return false;
@@ -63,7 +92,8 @@ static inline int hash__hugepd_ok(hugepd_t hpd)
  * keeping the prototype consistent across the two formats.
  */
 static inline unsigned long pte_set_hidx(pte_t *ptep, real_pte_t rpte,
-			unsigned int subpg_index, unsigned long hidx)
+					 unsigned int subpg_index, unsigned long hidx,
+					 int offset)
 {
 	return (hidx << H_PAGE_F_GIX_SHIFT) &
 		(H_PAGE_F_SECOND | H_PAGE_F_GIX);

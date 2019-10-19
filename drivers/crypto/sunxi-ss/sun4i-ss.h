@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * sun4i-ss.h - hardware cryptographic accelerator for Allwinner A20 SoC
  *
@@ -7,9 +8,7 @@
  * Support MD5 and SHA1 hash algorithms.
  * Support DES and 3DES
  *
- * You could find the datasheet in Documentation/arm/sunxi/README
- *
- * Licensed under the GPL-2.
+ * You could find the datasheet in Documentation/arm/sunxi.rst
  */
 
 #include <linux/clk.h>
@@ -30,7 +29,7 @@
 #include <crypto/internal/hash.h>
 #include <crypto/internal/skcipher.h>
 #include <crypto/aes.h>
-#include <crypto/des.h>
+#include <crypto/internal/des.h>
 #include <crypto/internal/rng.h>
 #include <crypto/rng.h>
 
@@ -161,6 +160,7 @@ struct sun4i_tfm_ctx {
 	u32 keylen;
 	u32 keymode;
 	struct sun4i_ss_ctx *ss;
+	struct crypto_sync_skcipher *fallback_tfm;
 };
 
 struct sun4i_cipher_req_ctx {
@@ -203,6 +203,7 @@ int sun4i_ss_ecb_des3_encrypt(struct skcipher_request *areq);
 int sun4i_ss_ecb_des3_decrypt(struct skcipher_request *areq);
 
 int sun4i_ss_cipher_init(struct crypto_tfm *tfm);
+void sun4i_ss_cipher_exit(struct crypto_tfm *tfm);
 int sun4i_ss_aes_setkey(struct crypto_skcipher *tfm, const u8 *key,
 			unsigned int keylen);
 int sun4i_ss_des_setkey(struct crypto_skcipher *tfm, const u8 *key,

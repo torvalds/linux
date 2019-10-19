@@ -35,14 +35,19 @@
  * close to the one of the R600 family (R600 likely being an evolution
  * of the RS600 GART block).
  */
-#include <drm/drmP.h>
+
+#include <linux/io-64-nonatomic-lo-hi.h>
+
+#include <drm/drm_device.h>
+#include <drm/drm_pci.h>
+#include <drm/drm_vblank.h>
+
+#include "atom.h"
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_audio.h"
-#include "atom.h"
-#include "rs600d.h"
-
 #include "rs600_reg_safe.h"
+#include "rs600d.h"
 
 static void rs600_gpu_init(struct radeon_device *rdev);
 int rs600_mc_wait_for_idle(struct radeon_device *rdev);

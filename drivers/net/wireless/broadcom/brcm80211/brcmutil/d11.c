@@ -1,17 +1,6 @@
+// SPDX-License-Identifier: ISC
 /*
  * Copyright (c) 2013 Broadcom Corporation
- *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY
- * SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION
- * OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
- * CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 /*********************channel spec common functions*********************/
 
@@ -77,6 +66,8 @@ static u16 d11ac_bw(enum brcmu_chan_bw bw)
 		return BRCMU_CHSPEC_D11AC_BW_40;
 	case BRCMU_CHAN_BW_80:
 		return BRCMU_CHSPEC_D11AC_BW_80;
+	case BRCMU_CHAN_BW_160:
+		return BRCMU_CHSPEC_D11AC_BW_160;
 	default:
 		WARN_ON(1);
 	}
@@ -126,7 +117,7 @@ static void brcmu_d11n_decchspec(struct brcmu_chan *ch)
 		}
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 
@@ -138,7 +129,7 @@ static void brcmu_d11n_decchspec(struct brcmu_chan *ch)
 		ch->band = BRCMU_CHAN_BAND_2G;
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 }
@@ -165,7 +156,7 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 			ch->sb = BRCMU_CHAN_SB_U;
 			ch->control_ch_num += CH_10MHZ_APART;
 		} else {
-			WARN_ON_ONCE(1);
+			WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		}
 		break;
 	case BRCMU_CHSPEC_D11AC_BW_80:
@@ -186,14 +177,47 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 			ch->control_ch_num += CH_30MHZ_APART;
 			break;
 		default:
-			WARN_ON_ONCE(1);
+			WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
+			break;
+		}
+		break;
+	case BRCMU_CHSPEC_D11AC_BW_160:
+		ch->bw = BRCMU_CHAN_BW_160;
+		ch->sb = brcmu_maskget16(ch->chspec, BRCMU_CHSPEC_D11AC_SB_MASK,
+					 BRCMU_CHSPEC_D11AC_SB_SHIFT);
+		switch (ch->sb) {
+		case BRCMU_CHAN_SB_LLL:
+			ch->control_ch_num -= CH_70MHZ_APART;
+			break;
+		case BRCMU_CHAN_SB_LLU:
+			ch->control_ch_num -= CH_50MHZ_APART;
+			break;
+		case BRCMU_CHAN_SB_LUL:
+			ch->control_ch_num -= CH_30MHZ_APART;
+			break;
+		case BRCMU_CHAN_SB_LUU:
+			ch->control_ch_num -= CH_10MHZ_APART;
+			break;
+		case BRCMU_CHAN_SB_ULL:
+			ch->control_ch_num += CH_10MHZ_APART;
+			break;
+		case BRCMU_CHAN_SB_ULU:
+			ch->control_ch_num += CH_30MHZ_APART;
+			break;
+		case BRCMU_CHAN_SB_UUL:
+			ch->control_ch_num += CH_50MHZ_APART;
+			break;
+		case BRCMU_CHAN_SB_UUU:
+			ch->control_ch_num += CH_70MHZ_APART;
+			break;
+		default:
+			WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 			break;
 		}
 		break;
 	case BRCMU_CHSPEC_D11AC_BW_8080:
-	case BRCMU_CHSPEC_D11AC_BW_160:
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 
@@ -205,7 +229,7 @@ static void brcmu_d11ac_decchspec(struct brcmu_chan *ch)
 		ch->band = BRCMU_CHAN_BAND_2G;
 		break;
 	default:
-		WARN_ON_ONCE(1);
+		WARN_ONCE(1, "Invalid chanspec 0x%04x\n", ch->chspec);
 		break;
 	}
 }

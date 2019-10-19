@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * omap_hwmod_2430_data.c - hardware modules present on the OMAP2430 chips
  *
@@ -5,20 +6,13 @@
  * Copyright (C) 2012 Texas Instruments, Inc.
  * Paul Walmsley
  *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
- *
  * XXX handle crossbar/shared link difference for L3?
  * XXX these should be marked initdata for multi-OMAP kernels
  */
 
-#include <linux/i2c-omap.h>
-#include <linux/platform_data/asoc-ti-mcbsp.h>
+#include <linux/platform_data/i2c-omap.h>
 #include <linux/platform_data/hsmmc-omap.h>
-#include <linux/platform_data/spi-omap2-mcspi.h>
 #include <linux/omap-dma.h>
-#include <plat/dmtimer.h>
 
 #include "omap_hwmod.h"
 #include "l3_2xxx.h"
@@ -71,14 +65,7 @@ static struct omap_hwmod_class_sysconfig i2c_sysc = {
 static struct omap_hwmod_class i2c_class = {
 	.name		= "i2c",
 	.sysc		= &i2c_sysc,
-	.rev		= OMAP_I2C_IP_VERSION_1,
 	.reset		= &omap_i2c_reset,
-};
-
-static struct omap_i2c_dev_attr i2c_dev_attr = {
-	.fifo_depth	= 8, /* bytes */
-	.flags		= OMAP_I2C_FLAG_BUS_SHIFT_2 |
-			  OMAP_I2C_FLAG_FORCE_19200_INT_CLK,
 };
 
 /* I2C1 */
@@ -102,7 +89,6 @@ static struct omap_hwmod omap2430_i2c1_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* I2C2 */
@@ -118,7 +104,6 @@ static struct omap_hwmod omap2430_i2c2_hwmod = {
 		},
 	},
 	.class		= &i2c_class,
-	.dev_attr	= &i2c_dev_attr,
 };
 
 /* gpio5 */
@@ -134,7 +119,6 @@ static struct omap_hwmod omap2430_gpio5_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_gpio_hwmod_class,
-	.dev_attr	= &omap2xxx_gpio_dev_attr,
 };
 
 /* dma attributes */
@@ -167,10 +151,6 @@ static struct omap_hwmod omap2430_mailbox_hwmod = {
 };
 
 /* mcspi3 */
-static struct omap2_mcspi_dev_attr omap_mcspi3_dev_attr = {
-	.num_chipselect = 2,
-};
-
 static struct omap_hwmod omap2430_mcspi3_hwmod = {
 	.name		= "mcspi3",
 	.main_clk	= "mcspi3_fck",
@@ -182,7 +162,6 @@ static struct omap_hwmod omap2430_mcspi3_hwmod = {
 		},
 	},
 	.class		= &omap2xxx_mcspi_class,
-	.dev_attr	= &omap_mcspi3_dev_attr,
 };
 
 /* usbhsotg */
@@ -239,7 +218,6 @@ static struct omap_hwmod_class_sysconfig omap2430_mcbsp_sysc = {
 static struct omap_hwmod_class omap2430_mcbsp_hwmod_class = {
 	.name = "mcbsp",
 	.sysc = &omap2430_mcbsp_sysc,
-	.rev  = MCBSP_CONFIG_TYPE2,
 };
 
 static struct omap_hwmod_opt_clk mcbsp_opt_clks[] = {

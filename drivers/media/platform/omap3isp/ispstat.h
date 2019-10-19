@@ -1,3 +1,4 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * ispstat.h
  *
@@ -9,10 +10,6 @@
  * Contacts: David Cohen <dacohen@gmail.com>
  *	     Laurent Pinchart <laurent.pinchart@ideasonboard.com>
  *	     Sakari Ailus <sakari.ailus@iki.fi>
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation.
  */
 
 #ifndef OMAP3_ISP_STAT_H
@@ -39,7 +36,7 @@ struct ispstat_buffer {
 	struct sg_table sgt;
 	void *virt_addr;
 	dma_addr_t dma_addr;
-	struct timeval ts;
+	struct timespec64 ts;
 	u32 buf_size;
 	u32 frame_number;
 	u16 config_counter;
@@ -130,6 +127,8 @@ struct ispstat_generic_config {
 int omap3isp_stat_config(struct ispstat *stat, void *new_conf);
 int omap3isp_stat_request_statistics(struct ispstat *stat,
 				     struct omap3isp_stat_data *data);
+int omap3isp_stat_request_statistics_time32(struct ispstat *stat,
+				     struct omap3isp_stat_data_time32 *data);
 int omap3isp_stat_init(struct ispstat *stat, const char *name,
 		       const struct v4l2_subdev_ops *sd_ops);
 void omap3isp_stat_cleanup(struct ispstat *stat);
