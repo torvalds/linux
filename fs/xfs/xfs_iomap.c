@@ -102,6 +102,17 @@ xfs_hole_to_iomap(
 	iomap->dax_dev = xfs_find_daxdev_for_inode(VFS_I(ip));
 }
 
+static inline xfs_fileoff_t
+xfs_iomap_end_fsb(
+	struct xfs_mount	*mp,
+	loff_t			offset,
+	loff_t			count)
+{
+	ASSERT(offset <= mp->m_super->s_maxbytes);
+	return min(XFS_B_TO_FSB(mp, offset + count),
+		   XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes));
+}
+
 xfs_extlen_t
 xfs_eof_alignment(
 	struct xfs_inode	*ip,
@@ -172,8 +183,8 @@ xfs_iomap_write_direct(
 	int		nmaps)
 {
 	xfs_mount_t	*mp = ip->i_mount;
-	xfs_fileoff_t	offset_fsb;
-	xfs_fileoff_t	last_fsb;
+	xfs_fileoff_t	offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t	last_fsb = xfs_iomap_end_fsb(mp, offset, count);
 	xfs_filblks_t	count_fsb, resaligned;
 	xfs_extlen_t	extsz;
 	int		nimaps;
@@ -192,8 +203,6 @@ xfs_iomap_write_direct(
 
 	ASSERT(xfs_isilocked(ip, lockmode));
 
-	offset_fsb = XFS_B_TO_FSBT(mp, offset);
-	last_fsb = XFS_B_TO_FSB(mp, ((xfs_ufsize_t)(offset + count)));
 	if ((offset + count) > XFS_ISIZE(ip)) {
 		/*
 		 * Assert that the in-core extent list is present since this can
@@ -533,9 +542,7 @@ xfs_file_iomap_begin_delay(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
-	xfs_fileoff_t		maxbytes_fsb =
-		XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes);
-	xfs_fileoff_t		end_fsb;
+	xfs_fileoff_t		end_fsb = xfs_iomap_end_fsb(mp, offset, count);
 	struct xfs_bmbt_irec	imap, cmap;
 	struct xfs_iext_cursor	icur, ccur;
 	xfs_fsblock_t		prealloc_blocks = 0;
@@ -564,8 +571,6 @@ xfs_file_iomap_begin_delay(
 		if (error)
 			goto out_unlock;
 	}
-
-	end_fsb = min(XFS_B_TO_FSB(mp, offset + count), maxbytes_fsb);
 
 	/*
 	 * Search the data fork fork first to look up our source mapping.  We
@@ -648,7 +653,7 @@ xfs_file_iomap_begin_delay(
 		 * the lower level functions are updated.
 		 */
 		count = min_t(loff_t, count, 1024 * PAGE_SIZE);
-		end_fsb = min(XFS_B_TO_FSB(mp, offset + count), maxbytes_fsb);
+		end_fsb = xfs_iomap_end_fsb(mp, offset, count);
 
 		if (xfs_is_always_cow_inode(ip))
 			whichfork = XFS_COW_FORK;
@@ -674,7 +679,8 @@ xfs_file_iomap_begin_delay(
 			if (align)
 				p_end_fsb = roundup_64(p_end_fsb, align);
 
-			p_end_fsb = min(p_end_fsb, maxbytes_fsb);
+			p_end_fsb = min(p_end_fsb,
+				XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes));
 			ASSERT(p_end_fsb > offset_fsb);
 			prealloc_blocks = p_end_fsb - end_fsb;
 		}
@@ -937,7 +943,8 @@ xfs_file_iomap_begin(
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
 	struct xfs_bmbt_irec	imap, cmap;
-	xfs_fileoff_t		offset_fsb, end_fsb;
+	xfs_fileoff_t		offset_fsb = XFS_B_TO_FSBT(mp, offset);
+	xfs_fileoff_t		end_fsb = xfs_iomap_end_fsb(mp, offset, length);
 	int			nimaps = 1, error = 0;
 	bool			shared = false;
 	u16			iomap_flags = 0;
@@ -962,12 +969,6 @@ xfs_file_iomap_begin(
 	error = xfs_ilock_for_iomap(ip, flags, &lockmode);
 	if (error)
 		return error;
-
-	ASSERT(offset <= mp->m_super->s_maxbytes);
-	if (offset > mp->m_super->s_maxbytes - length)
-		length = mp->m_super->s_maxbytes - offset;
-	offset_fsb = XFS_B_TO_FSBT(mp, offset);
-	end_fsb = XFS_B_TO_FSB(mp, offset + length);
 
 	error = xfs_bmapi_read(ip, offset_fsb, end_fsb - offset_fsb, &imap,
 			       &nimaps, 0);
@@ -1196,8 +1197,7 @@ xfs_seek_iomap_begin(
 		/*
 		 * Fake a hole until the end of the file.
 		 */
-		data_fsb = min(XFS_B_TO_FSB(mp, offset + length),
-			       XFS_B_TO_FSB(mp, mp->m_super->s_maxbytes));
+		data_fsb = xfs_iomap_end_fsb(mp, offset, length);
 	}
 
 	/*
