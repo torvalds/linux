@@ -87,26 +87,6 @@ struct ds1343_priv {
 	int alarm_mday;
 };
 
-static int ds1343_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
-{
-	switch (cmd) {
-#ifdef RTC_SET_CHARGE
-	case RTC_SET_CHARGE:
-	{
-		int val;
-
-		if (copy_from_user(&val, (int __user *)arg, sizeof(int)))
-			return -EFAULT;
-
-		return regmap_write(priv->map, DS1343_TRICKLE_REG, val);
-	}
-	break;
-#endif
-	}
-
-	return -ENOIOCTLCMD;
-}
-
 static ssize_t ds1343_show_glitchfilter(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -452,7 +432,6 @@ out:
 }
 
 static const struct rtc_class_ops ds1343_rtc_ops = {
-	.ioctl		= ds1343_ioctl,
 	.read_time	= ds1343_read_time,
 	.set_time	= ds1343_set_time,
 	.read_alarm	= ds1343_read_alarm,
