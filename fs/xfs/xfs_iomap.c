@@ -996,9 +996,8 @@ xfs_file_iomap_begin(
 			goto out_found;
 
 		/* may drop and re-acquire the ilock */
-		cmap = imap;
-		error = xfs_reflink_allocate_cow(ip, &cmap, &shared, &lockmode,
-				directio);
+		error = xfs_reflink_allocate_cow(ip, &imap, &cmap, &shared,
+				&lockmode, directio);
 		if (error)
 			goto out_unlock;
 
@@ -1011,7 +1010,8 @@ xfs_file_iomap_begin(
 		 * newly allocated address.  If the data fork has a hole, copy
 		 * the COW fork mapping to avoid allocating to the data fork.
 		 */
-		if (directio || imap.br_startblock == HOLESTARTBLOCK)
+		if (shared &&
+		    (directio || imap.br_startblock == HOLESTARTBLOCK))
 			imap = cmap;
 
 		end_fsb = imap.br_startoff + imap.br_blockcount;

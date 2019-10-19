@@ -308,13 +308,13 @@ static int
 xfs_find_trim_cow_extent(
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*imap,
+	struct xfs_bmbt_irec	*cmap,
 	bool			*shared,
 	bool			*found)
 {
 	xfs_fileoff_t		offset_fsb = imap->br_startoff;
 	xfs_filblks_t		count_fsb = imap->br_blockcount;
 	struct xfs_iext_cursor	icur;
-	struct xfs_bmbt_irec	got;
 
 	*found = false;
 
@@ -322,23 +322,22 @@ xfs_find_trim_cow_extent(
 	 * If we don't find an overlapping extent, trim the range we need to
 	 * allocate to fit the hole we found.
 	 */
-	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, &got))
-		got.br_startoff = offset_fsb + count_fsb;
-	if (got.br_startoff > offset_fsb) {
+	if (!xfs_iext_lookup_extent(ip, ip->i_cowfp, offset_fsb, &icur, cmap))
+		cmap->br_startoff = offset_fsb + count_fsb;
+	if (cmap->br_startoff > offset_fsb) {
 		xfs_trim_extent(imap, imap->br_startoff,
-				got.br_startoff - imap->br_startoff);
+				cmap->br_startoff - imap->br_startoff);
 		return xfs_inode_need_cow(ip, imap, shared);
 	}
 
 	*shared = true;
-	if (isnullstartblock(got.br_startblock)) {
-		xfs_trim_extent(imap, got.br_startoff, got.br_blockcount);
+	if (isnullstartblock(cmap->br_startblock)) {
+		xfs_trim_extent(imap, cmap->br_startoff, cmap->br_blockcount);
 		return 0;
 	}
 
 	/* real extent found - no need to allocate */
-	xfs_trim_extent(&got, offset_fsb, count_fsb);
-	*imap = got;
+	xfs_trim_extent(cmap, offset_fsb, count_fsb);
 	*found = true;
 	return 0;
 }
@@ -348,6 +347,7 @@ int
 xfs_reflink_allocate_cow(
 	struct xfs_inode	*ip,
 	struct xfs_bmbt_irec	*imap,
+	struct xfs_bmbt_irec	*cmap,
 	bool			*shared,
 	uint			*lockmode,
 	bool			convert_now)
@@ -367,7 +367,7 @@ xfs_reflink_allocate_cow(
 		xfs_ifork_init_cow(ip);
 	}
 
-	error = xfs_find_trim_cow_extent(ip, imap, shared, &found);
+	error = xfs_find_trim_cow_extent(ip, imap, cmap, shared, &found);
 	if (error || !*shared)
 		return error;
 	if (found)
@@ -392,7 +392,7 @@ xfs_reflink_allocate_cow(
 	/*
 	 * Check for an overlapping extent again now that we dropped the ilock.
 	 */
-	error = xfs_find_trim_cow_extent(ip, imap, shared, &found);
+	error = xfs_find_trim_cow_extent(ip, imap, cmap, shared, &found);
 	if (error || !*shared)
 		goto out_trans_cancel;
 	if (found) {
@@ -411,7 +411,7 @@ xfs_reflink_allocate_cow(
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
 			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC,
-			resblks, imap, &nimaps);
+			resblks, cmap, &nimaps);
 	if (error)
 		goto out_unreserve;
 
@@ -427,15 +427,15 @@ xfs_reflink_allocate_cow(
 	if (nimaps == 0)
 		return -ENOSPC;
 convert:
-	xfs_trim_extent(imap, offset_fsb, count_fsb);
+	xfs_trim_extent(cmap, offset_fsb, count_fsb);
 	/*
 	 * COW fork extents are supposed to remain unwritten until we're ready
 	 * to initiate a disk write.  For direct I/O we are going to write the
 	 * data and need the conversion, but for buffered writes we're done.
 	 */
-	if (!convert_now || imap->br_state == XFS_EXT_NORM)
+	if (!convert_now || cmap->br_state == XFS_EXT_NORM)
 		return 0;
-	trace_xfs_reflink_convert_cow(ip, imap);
+	trace_xfs_reflink_convert_cow(ip, cmap);
 	return xfs_reflink_convert_cow_locked(ip, offset_fsb, count_fsb);
 
 out_unreserve:
