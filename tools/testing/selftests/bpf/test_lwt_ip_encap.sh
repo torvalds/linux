@@ -314,15 +314,15 @@ test_gso()
 	command -v nc >/dev/null 2>&1 || \
 		{ echo >&2 "nc is not available: skipping TSO tests"; return; }
 
-	# listen on IPv*_DST, capture TCP into $TMPFILE
+	# listen on port 9000, capture TCP into $TMPFILE
 	if [ "${PROTO}" == "IPv4" ] ; then
 		IP_DST=${IPv4_DST}
 		ip netns exec ${NS3} bash -c \
-			"nc -4 -l -s ${IPv4_DST} -p 9000 > ${TMPFILE} &"
+			"nc -4 -l -p 9000 > ${TMPFILE} &"
 	elif [ "${PROTO}" == "IPv6" ] ; then
 		IP_DST=${IPv6_DST}
 		ip netns exec ${NS3} bash -c \
-			"nc -6 -l -s ${IPv6_DST} -p 9000 > ${TMPFILE} &"
+			"nc -6 -l -p 9000 > ${TMPFILE} &"
 		RET=$?
 	else
 		echo "    test_gso: unknown PROTO: ${PROTO}"
