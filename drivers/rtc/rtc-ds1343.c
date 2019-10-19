@@ -108,20 +108,18 @@ static ssize_t ds1343_store_glitchfilter(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
-	int data;
-
-	regmap_read(priv->map, DS1343_CONTROL_REG, &data);
+	int data = 0;
+	int res;
 
 	if (strncmp(buf, "enabled", 7) == 0)
-		data |= DS1343_EGFIL;
-
-	else if (strncmp(buf, "disabled", 8) == 0)
-		data &= ~(DS1343_EGFIL);
-
-	else
+		data = DS1343_EGFIL;
+	else if (strncmp(buf, "disabled", 8))
 		return -EINVAL;
 
-	regmap_write(priv->map, DS1343_CONTROL_REG, data);
+	res = regmap_update_bits(priv->map, DS1343_CONTROL_REG,
+				 DS1343_EGFIL, data);
+	if (res)
+		return res;
 
 	return count;
 }
