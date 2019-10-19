@@ -2478,7 +2478,7 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 
 void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 {
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct netdev_queue *dev_queue;
 	int bytes, pkts;
@@ -2560,7 +2560,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 				ring->stats.sw_err_cnt++;
 				u64_stats_update_end(&ring->syncp);
 
-				hns3_rl_err(ring->tqp_vector->napi.dev,
+				hns3_rl_err(ring_to_netdev(ring),
 					    "alloc rx buffer failed: %d\n",
 					    ret);
 				break;
@@ -2669,7 +2669,7 @@ static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 			     u32 l234info, u32 bd_base_info, u32 ol_info)
 {
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	int l3_type, l4_type;
 	int ol4_type;
 
@@ -2785,7 +2785,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 {
 #define HNS3_NEED_ADD_FRAG	1
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_clean];
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	struct sk_buff *skb;
 
 	ring->skb = napi_alloc_skb(&ring->tqp_vector->napi, HNS3_RX_HEAD_SIZE);
@@ -2866,7 +2866,7 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 			new_skb = napi_alloc_skb(&ring->tqp_vector->napi,
 						 HNS3_RX_HEAD_SIZE);
 			if (unlikely(!new_skb)) {
-				hns3_rl_err(ring->tqp_vector->napi.dev,
+				hns3_rl_err(ring_to_netdev(ring),
 					    "alloc rx fraglist skb fail\n");
 				return -ENXIO;
 			}
@@ -2942,7 +2942,7 @@ static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
 
 static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 {
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	enum hns3_pkt_l2t_type l2_frame_type;
 	u32 bd_base_info, l234info, ol_info;
 	struct hns3_desc *desc;
@@ -4224,7 +4224,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 				/* if alloc new buffer fail, exit directly
 				 * and reclear in up flow.
 				 */
-				netdev_warn(ring->tqp->handle->kinfo.netdev,
+				netdev_warn(ring_to_netdev(ring),
 					    "reserve buffer map failed, ret = %d\n",
 					    ret);
 				return ret;

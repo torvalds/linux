@@ -607,6 +607,8 @@ static inline bool hns3_nic_resetting(struct net_device *netdev)
 
 #define ring_to_dev(ring) ((ring)->dev)
 
+#define ring_to_netdev(ring)	((ring)->tqp_vector->napi.dev)
+
 #define ring_to_dma_dir(ring) (HNAE3_IS_TX_RING(ring) ? \
 	DMA_TO_DEVICE : DMA_FROM_DEVICE)
 
