@@ -90,7 +90,7 @@ struct ds1343_priv {
 static ssize_t ds1343_show_glitchfilter(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct ds1343_priv *priv = dev_get_drvdata(dev);
+	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
 	int glitch_filt_status, data;
 
 	regmap_read(priv->map, DS1343_CONTROL_REG, &data);
@@ -107,7 +107,7 @@ static ssize_t ds1343_store_glitchfilter(struct device *dev,
 					struct device_attribute *attr,
 					const char *buf, size_t count)
 {
-	struct ds1343_priv *priv = dev_get_drvdata(dev);
+	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
 	int data;
 
 	regmap_read(priv->map, DS1343_CONTROL_REG, &data);
@@ -148,7 +148,7 @@ static int ds1343_nvram_read(void *priv, unsigned int off, void *val,
 static ssize_t ds1343_show_tricklecharger(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
-	struct ds1343_priv *priv = dev_get_drvdata(dev);
+	struct ds1343_priv *priv = dev_get_drvdata(dev->parent);
 	int data;
 	char *diodes = "disabled", *resistors = " ";
 
@@ -189,28 +189,15 @@ static ssize_t ds1343_show_tricklecharger(struct device *dev,
 
 static DEVICE_ATTR(trickle_charger, S_IRUGO, ds1343_show_tricklecharger, NULL);
 
-static int ds1343_sysfs_register(struct device *dev)
-{
-	int err;
+static struct attribute *ds1343_attrs[] = {
+	&dev_attr_glitch_filter.attr,
+	&dev_attr_trickle_charger.attr,
+	NULL
+};
 
-	err = device_create_file(dev, &dev_attr_glitch_filter);
-	if (err)
-		return err;
-
-	err = device_create_file(dev, &dev_attr_trickle_charger);
-	if (!err)
-		return 0;
-
-	device_remove_file(dev, &dev_attr_glitch_filter);
-
-	return err;
-}
-
-static void ds1343_sysfs_unregister(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_glitch_filter);
-	device_remove_file(dev, &dev_attr_trickle_charger);
-}
+static const struct attribute_group ds1343_attr_group = {
+	.attrs  = ds1343_attrs,
+};
 
 static int ds1343_read_time(struct device *dev, struct rtc_time *dt)
 {
@@ -474,6 +461,11 @@ static int ds1343_probe(struct spi_device *spi)
 	priv->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	priv->rtc->range_max = RTC_TIMESTAMP_END_2099;
 
+	res = rtc_add_group(priv->rtc, &ds1343_attr_group);
+	if (res)
+		dev_err(&spi->dev,
+			"unable to create sysfs entries for rtc ds1343\n");
+
 	res = rtc_register_device(priv->rtc);
 	if (res)
 		return res;
@@ -497,11 +489,6 @@ static int ds1343_probe(struct spi_device *spi)
 		}
 	}
 
-	res = ds1343_sysfs_register(&spi->dev);
-	if (res)
-		dev_err(&spi->dev,
-			"unable to create sysfs entries for rtc ds1343\n");
-
 	return 0;
 }
 
@@ -520,8 +507,6 @@ static int ds1343_remove(struct spi_device *spi)
 	}
 
 	spi_set_drvdata(spi, NULL);
-
-	ds1343_sysfs_unregister(&spi->dev);
 
 	return 0;
 }
