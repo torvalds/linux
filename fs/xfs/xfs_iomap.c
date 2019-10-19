@@ -869,7 +869,7 @@ xfs_buffered_write_iomap_begin(
 	struct xfs_iext_cursor	icur, ccur;
 	xfs_fsblock_t		prealloc_blocks = 0;
 	bool			eof = false, cow_eof = false, shared = false;
-	int			whichfork = XFS_DATA_FORK;
+	int			allocfork = XFS_DATA_FORK;
 	int			error = 0;
 
 	/* we can't use delayed allocations when using extent size hints */
@@ -966,7 +966,7 @@ xfs_buffered_write_iomap_begin(
 		 * Fork all the shared blocks from our write offset until the
 		 * end of the extent.
 		 */
-		whichfork = XFS_COW_FORK;
+		allocfork = XFS_COW_FORK;
 		end_fsb = imap.br_startoff + imap.br_blockcount;
 	} else {
 		/*
@@ -982,7 +982,7 @@ xfs_buffered_write_iomap_begin(
 		end_fsb = xfs_iomap_end_fsb(mp, offset, count);
 
 		if (xfs_is_always_cow_inode(ip))
-			whichfork = XFS_COW_FORK;
+			allocfork = XFS_COW_FORK;
 	}
 
 	error = xfs_qm_dqattach_locked(ip, false);
@@ -990,7 +990,7 @@ xfs_buffered_write_iomap_begin(
 		goto out_unlock;
 
 	if (eof) {
-		prealloc_blocks = xfs_iomap_prealloc_size(ip, whichfork, offset,
+		prealloc_blocks = xfs_iomap_prealloc_size(ip, allocfork, offset,
 				count, &icur);
 		if (prealloc_blocks) {
 			xfs_extlen_t	align;
@@ -1013,11 +1013,11 @@ xfs_buffered_write_iomap_begin(
 	}
 
 retry:
-	error = xfs_bmapi_reserve_delalloc(ip, whichfork, offset_fsb,
+	error = xfs_bmapi_reserve_delalloc(ip, allocfork, offset_fsb,
 			end_fsb - offset_fsb, prealloc_blocks,
-			whichfork == XFS_DATA_FORK ? &imap : &cmap,
-			whichfork == XFS_DATA_FORK ? &icur : &ccur,
-			whichfork == XFS_DATA_FORK ? eof : cow_eof);
+			allocfork == XFS_DATA_FORK ? &imap : &cmap,
+			allocfork == XFS_DATA_FORK ? &icur : &ccur,
+			allocfork == XFS_DATA_FORK ? eof : cow_eof);
 	switch (error) {
 	case 0:
 		break;
@@ -1034,8 +1034,8 @@ retry:
 		goto out_unlock;
 	}
 
-	if (whichfork == XFS_COW_FORK) {
-		trace_xfs_iomap_alloc(ip, offset, count, whichfork, &cmap);
+	if (allocfork == XFS_COW_FORK) {
+		trace_xfs_iomap_alloc(ip, offset, count, allocfork, &cmap);
 		goto found_cow;
 	}
 
@@ -1044,7 +1044,7 @@ retry:
 	 * them out if the write happens to fail.
 	 */
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	trace_xfs_iomap_alloc(ip, offset, count, whichfork, &imap);
+	trace_xfs_iomap_alloc(ip, offset, count, allocfork, &imap);
 	return xfs_bmbt_to_iomap(ip, iomap, &imap, IOMAP_F_NEW);
 
 found_imap:
