@@ -13,11 +13,12 @@ properties:
   $nodename:
     const: '/'
   compatible:
-    # RTD1295 SoC based boards
-    items:
-      - enum:
-          - mele,v9
-          - probox2,ava
-          - zidoo,x9s
-      - const: realtek,rtd1295
+    oneOf:
+      # RTD1295 SoC based boards
+      - items:
+          - enum:
+              - mele,v9 # MeLE V9
+              - probox2,ava # ProBox2 AVA
+              - zidoo,x9s # Zidoo X9S
+          - const: realtek,rtd1295
 ...
