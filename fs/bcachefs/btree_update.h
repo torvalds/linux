@@ -93,9 +93,30 @@ int bch2_btree_node_rewrite(struct bch_fs *c, struct btree_iter *,
 int bch2_btree_node_update_key(struct bch_fs *, struct btree_iter *,
 			       struct btree *, struct bkey_i_btree_ptr *);
 
-int bch2_trans_commit(struct btree_trans *,
-		      struct disk_reservation *,
-		      u64 *, unsigned);
+int __bch2_trans_commit(struct btree_trans *);
+
+/**
+ * bch2_trans_commit - insert keys at given iterator positions
+ *
+ * This is main entry point for btree updates.
+ *
+ * Return values:
+ * -EINTR: locking changed, this function should be called again. Only returned
+ *  if passed BTREE_INSERT_ATOMIC.
+ * -EROFS: filesystem read only
+ * -EIO: journal or btree node IO error
+ */
+static inline int bch2_trans_commit(struct btree_trans *trans,
+				    struct disk_reservation *disk_res,
+				    u64 *journal_seq,
+				    unsigned flags)
+{
+	trans->disk_res		= disk_res;
+	trans->journal_seq	= journal_seq;
+	trans->flags		= flags;
+
+	return __bch2_trans_commit(trans);
+}
 
 static inline void bch2_trans_update(struct btree_trans *trans,
 				     struct btree_iter *iter,

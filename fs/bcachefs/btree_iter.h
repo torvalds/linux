@@ -48,6 +48,11 @@ static inline int btree_iter_err(const struct btree_iter *iter)
 
 /* Iterate over iters within a transaction: */
 
+#define trans_for_each_iter_all(_trans, _iter)				\
+	for (_iter = (_trans)->iters;					\
+	     _iter < (_trans)->iters + (_trans)->nr_iters;		\
+	     _iter++)
+
 static inline struct btree_iter *
 __trans_next_iter(struct btree_trans *trans, unsigned idx)
 {

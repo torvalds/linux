@@ -301,7 +301,6 @@ do {									\
 	x(btree_node_sort)			\
 	x(btree_node_read)			\
 	x(btree_gc)				\
-	x(btree_update)				\
 	x(btree_lock_contended_read)		\
 	x(btree_lock_contended_intent)		\
 	x(btree_lock_contended_write)		\

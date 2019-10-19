@@ -166,6 +166,9 @@ s64 bch2_remap_range(struct bch_fs *c,
 	u64 src_done, dst_done;
 	int ret = 0, ret2 = 0;
 
+	if (!percpu_ref_tryget(&c->writes))
+		return -EROFS;
+
 	if (!(c->sb.features & (1ULL << BCH_FEATURE_REFLINK))) {
 		mutex_lock(&c->sb_lock);
 		if (!(c->sb.features & (1ULL << BCH_FEATURE_REFLINK))) {
@@ -294,6 +297,8 @@ err:
 	} while (ret2 == -EINTR);
 
 	ret = bch2_trans_exit(&trans) ?: ret;
+
+	percpu_ref_put(&c->writes);
 
 	return dst_done ?: ret ?: ret2;
 }

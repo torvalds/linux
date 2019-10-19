@@ -2720,20 +2720,26 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 			     loff_t offset, loff_t len)
 {
 	struct bch_inode_info *inode = file_bch_inode(file);
+	struct bch_fs *c = inode->v.i_sb->s_fs_info;
+	long ret;
+
+	if (!percpu_ref_tryget(&c->writes))
+		return -EROFS;
 
 	if (!(mode & ~(FALLOC_FL_KEEP_SIZE|FALLOC_FL_ZERO_RANGE)))
-		return bchfs_fallocate(inode, mode, offset, len);
+		ret = bchfs_fallocate(inode, mode, offset, len);
+	else if (mode == (FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE))
+		ret = bchfs_fpunch(inode, offset, len);
+	else if (mode == FALLOC_FL_INSERT_RANGE)
+		ret = bchfs_fcollapse_finsert(inode, offset, len, true);
+	else if (mode == FALLOC_FL_COLLAPSE_RANGE)
+		ret = bchfs_fcollapse_finsert(inode, offset, len, false);
+	else
+		ret = -EOPNOTSUPP;
 
-	if (mode == (FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE))
-		return bchfs_fpunch(inode, offset, len);
+	percpu_ref_put(&c->writes);
 
-	if (mode == FALLOC_FL_INSERT_RANGE)
-		return bchfs_fcollapse_finsert(inode, offset, len, true);
-
-	if (mode == FALLOC_FL_COLLAPSE_RANGE)
-		return bchfs_fcollapse_finsert(inode, offset, len, false);
-
-	return -EOPNOTSUPP;
+	return ret;
 }
 
 static void mark_range_unallocated(struct bch_inode_info *inode,

@@ -255,7 +255,6 @@ struct btree_insert_entry {
 struct btree_trans {
 	struct bch_fs		*c;
 	unsigned long		ip;
-	u64			commit_start;
 
 	u64			iters_linked;
 	u64			iters_live;
@@ -283,12 +282,11 @@ struct btree_trans {
 	struct disk_reservation *disk_res;
 	unsigned		flags;
 	unsigned		journal_u64s;
+	struct replicas_delta_list *fs_usage_deltas;
 
 	struct btree_iter	iters_onstack[2];
 	struct btree_insert_entry updates_onstack[6];
 	u8			updates_sorted_onstack[6];
-
-	struct replicas_delta_list *fs_usage_deltas;
 };
 
 #define BTREE_FLAG(flag)						\
@@ -419,6 +417,12 @@ static inline unsigned btree_bkey_first_offset(const struct bset_tree *t)
 									\
 	__btree_node_offset_to_key(_b, (_t)->end_offset);		\
 })
+
+static inline unsigned bset_u64s(struct bset_tree *t)
+{
+	return t->end_offset - t->data_offset -
+		sizeof(struct bset) / sizeof(u64);
+}
 
 static inline unsigned bset_byte_offset(struct btree *b, void *i)
 {
