@@ -586,6 +586,49 @@ bool strarray__strtoul(struct strarray *sa, char *bf, size_t size, u64 *ret)
 	return false;
 }
 
+bool strarray__strtoul_flags(struct strarray *sa, char *bf, size_t size, u64 *ret)
+{
+	u64 val = 0;
+	char *tok = bf, *sep, *end;
+
+	*ret = 0;
+
+	while (size != 0) {
+		int toklen = size;
+
+		sep = memchr(tok, '|', size);
+		if (sep != NULL) {
+			size -= sep - tok + 1;
+
+			end = sep - 1;
+			while (end > tok && isspace(*end))
+				--end;
+
+			toklen = end - tok + 1;
+		}
+
+		while (isspace(*tok))
+			++tok;
+
+		if (isalpha(*tok) || *tok == '_') {
+			if (!strarray__strtoul(sa, tok, toklen, &val))
+				return false;
+		} else {
+			bool is_hexa = tok[0] == 0 && (tok[1] = 'x' || tok[1] == 'X');
+
+			val = strtoul(tok, NULL, is_hexa ? 16 : 0);
+		}
+
+		*ret |= (1 << (val - 1));
+
+		if (sep == NULL)
+			break;
+		tok = sep + 1;
+	}
+
+	return true;
+}
+
 bool strarrays__strtoul(struct strarrays *sas, char *bf, size_t size, u64 *ret)
 {
 	int i;
@@ -3676,7 +3719,7 @@ static int trace__expand_filter(struct trace *trace __maybe_unused, struct evsel
 			}
 
 		right_end = right + 1;
-		while (isalnum(*right_end) || *right_end == '_')
+		while (isalnum(*right_end) || *right_end == '_' || *right_end == '|')
 			++right_end;
 
 		if (isalpha(*right)) {
