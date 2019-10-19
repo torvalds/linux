@@ -32,7 +32,7 @@ static int wfx_get_hw_rate(struct wfx_dev *wdev,
 		}
 		return rate->idx + 14;
 	}
-	// WFx only support 2GHz, else band information should be retreived
+	// WFx only support 2GHz, else band information should be retrieved
 	// from ieee80211_tx_info
 	return wdev->hw->wiphy->bands[NL80211_BAND_2GHZ]->bitrates[rate->idx].hw_value;
 }
@@ -664,7 +664,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta,
 	req->ht_tx_parameters = wfx_tx_get_tx_parms(wvif->wdev, tx_info);
 	req->tx_flags.retry_policy_index = wfx_tx_get_rate_id(wvif, tx_info);
 
-	// Auxilliary operations
+	// Auxiliary operations
 	wfx_tx_manage_pm(wvif, hdr, tx_priv, sta);
 	wfx_tx_queue_put(wvif->wdev, &wvif->wdev->tx_queue[queue_id], skb);
 	wfx_bh_request_tx(wvif->wdev);
