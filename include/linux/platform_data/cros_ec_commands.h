@@ -556,6 +556,9 @@ enum host_event_code {
 	/* Keyboard recovery combo with hardware reinitialization */
 	EC_HOST_EVENT_KEYBOARD_RECOVERY_HW_REINIT = 30,
 
+	/* WoV */
+	EC_HOST_EVENT_WOV = 31,
+
 	/*
 	 * The high bit of the event mask is not used as a host event code.  If
 	 * it reads back as set, then the entire event mask should be
@@ -4477,10 +4480,14 @@ enum ec_codec_subcmd {
 };
 
 enum ec_codec_cap {
+	EC_CODEC_CAP_WOV_AUDIO_SHM = 0,
+	EC_CODEC_CAP_WOV_LANG_SHM = 1,
 	EC_CODEC_CAP_LAST = 32,
 };
 
 enum ec_codec_shm_id {
+	EC_CODEC_SHM_ID_WOV_AUDIO = 0x0,
+	EC_CODEC_SHM_ID_WOV_LANG = 0x1,
 	EC_CODEC_SHM_ID_LAST,
 };
 
@@ -4639,6 +4646,68 @@ struct __ec_align4 ec_param_ec_codec_i2s_rx {
 		struct ec_param_ec_codec_i2s_rx_set_bclk
 				set_bclk_param;
 	};
+};
+
+/*****************************************************************************/
+/* Commands for WoV on audio codec. */
+
+#define EC_CMD_EC_CODEC_WOV 0x00BF
+
+enum ec_codec_wov_subcmd {
+	EC_CODEC_WOV_SET_LANG = 0x0,
+	EC_CODEC_WOV_SET_LANG_SHM = 0x1,
+	EC_CODEC_WOV_GET_LANG = 0x2,
+	EC_CODEC_WOV_ENABLE = 0x3,
+	EC_CODEC_WOV_DISABLE = 0x4,
+	EC_CODEC_WOV_READ_AUDIO = 0x5,
+	EC_CODEC_WOV_READ_AUDIO_SHM = 0x6,
+	EC_CODEC_WOV_SUBCMD_COUNT,
+};
+
+/*
+ * @hash is SHA256 of the whole language model.
+ * @total_len indicates the length of whole language model.
+ * @offset is the cursor from the beginning of the model.
+ * @buf is the packet buffer.
+ * @len denotes how many bytes in the buf.
+ */
+struct __ec_align4 ec_param_ec_codec_wov_set_lang {
+	uint8_t hash[32];
+	uint32_t total_len;
+	uint32_t offset;
+	uint8_t buf[128];
+	uint32_t len;
+};
+
+struct __ec_align4 ec_param_ec_codec_wov_set_lang_shm {
+	uint8_t hash[32];
+	uint32_t total_len;
+};
+
+struct __ec_align4 ec_param_ec_codec_wov {
+	uint8_t cmd; /* enum ec_codec_wov_subcmd */
+	uint8_t reserved[3];
+
+	union {
+		struct ec_param_ec_codec_wov_set_lang
+				set_lang_param;
+		struct ec_param_ec_codec_wov_set_lang_shm
+				set_lang_shm_param;
+	};
+};
+
+struct __ec_align4 ec_response_ec_codec_wov_get_lang {
+	uint8_t hash[32];
+};
+
+struct __ec_align4 ec_response_ec_codec_wov_read_audio {
+	uint8_t buf[128];
+	uint32_t len;
+};
+
+struct __ec_align4 ec_response_ec_codec_wov_read_audio_shm {
+	uint32_t offset;
+	uint32_t len;
 };
 
 /*****************************************************************************/
