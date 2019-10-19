@@ -1896,6 +1896,7 @@ static inline void security_bpf_prog_free(struct bpf_prog_aux *aux)
 
 #ifdef CONFIG_PERF_EVENTS
 struct perf_event_attr;
+struct perf_event;
 
 #ifdef CONFIG_SECURITY
 extern int security_perf_event_open(struct perf_event_attr *attr, int type);
