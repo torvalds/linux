@@ -427,7 +427,7 @@ void wfx_link_id_work(struct work_struct *work)
 
 static bool ieee80211_is_action_back(struct ieee80211_hdr *hdr)
 {
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) hdr;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)hdr;
 
 	if (!ieee80211_is_action(mgmt->frame_control))
 		return false;
@@ -591,7 +591,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	struct wfx_tx_priv *tx_priv;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int queue_id = tx_info->hw_queue;
 	size_t offset = (size_t) skb->data & 3;
 	int wmsg_len = sizeof(struct hif_msg) + sizeof(struct hif_req_tx) + offset;
@@ -602,7 +602,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	// From now tx_info->control is unusable
 	memset(tx_info->rate_driver_data, 0, sizeof(struct wfx_tx_priv));
 	// Fill tx_priv
-	tx_priv = (struct wfx_tx_priv *) tx_info->rate_driver_data;
+	tx_priv = (struct wfx_tx_priv *)tx_info->rate_driver_data;
 	tx_priv->tid = wfx_tx_get_tid(hdr);
 	tx_priv->raw_link_id = wfx_tx_get_raw_link_id(wvif, sta, hdr);
 	tx_priv->link_id = tx_priv->raw_link_id;
@@ -619,7 +619,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	skb_put(skb, wfx_tx_get_icv_len(tx_priv->hw_key));
 	skb_push(skb, wmsg_len);
 	memset(skb->data, 0, wmsg_len);
-	hif_msg = (struct hif_msg *) skb->data;
+	hif_msg = (struct hif_msg *)skb->data;
 	hif_msg->len = cpu_to_le16(skb->len);
 	hif_msg->id = HIF_REQ_ID_TX;
 	hif_msg->interface = wvif->id;
@@ -631,7 +631,7 @@ static int wfx_tx_inner(struct wfx_vif *wvif, struct ieee80211_sta *sta, struct 
 	}
 
 	// Fill tx request
-	req = (struct hif_req_tx *) hif_msg->body;
+	req = (struct hif_req_tx *)hif_msg->body;
 	req->packet_id = queue_id << 16 | IEEE80211_SEQ_TO_SN(le16_to_cpu(hdr->seq_ctrl));
 	req->data_flags.fc_offset = offset;
 	req->queue_id.peer_sta_id = tx_priv->raw_link_id;
@@ -654,7 +654,7 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	struct wfx_vif *wvif;
 	struct ieee80211_sta *sta = control ? control->sta : NULL;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	size_t driver_data_room = FIELD_SIZEOF(struct ieee80211_tx_info, rate_driver_data);
 
 	compiletime_assert(sizeof(struct wfx_tx_priv) <= driver_data_room,
@@ -662,7 +662,7 @@ void wfx_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	WARN(skb->next || skb->prev, "skb is already member of a list");
 	// control.vif can be NULL for injected frames
 	if (tx_info->control.vif)
-		wvif = (struct wfx_vif *) tx_info->control.vif->drv_priv;
+		wvif = (struct wfx_vif *)tx_info->control.vif->drv_priv;
 	else
 		wvif = wvif_iterate(wdev, NULL);
 	if (WARN_ON(!wvif))
@@ -762,7 +762,7 @@ static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb,
 				   struct hif_req_tx *req)
 {
 	struct ieee80211_sta *sta;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	int tid = wfx_tx_get_tid(hdr);
 	int raw_link_id = req->queue_id.peer_sta_id;
 	u8 *buffered;
@@ -787,8 +787,8 @@ static void wfx_notify_buffered_tx(struct wfx_vif *wvif, struct sk_buff *skb,
 
 void wfx_skb_dtor(struct wfx_dev *wdev, struct sk_buff *skb)
 {
-	struct hif_msg *hif = (struct hif_msg *) skb->data;
-	struct hif_req_tx *req = (struct hif_req_tx *) hif->body;
+	struct hif_msg *hif = (struct hif_msg *)skb->data;
+	struct hif_req_tx *req = (struct hif_req_tx *)hif->body;
 	struct wfx_vif *wvif = wdev_to_wvif(wdev, hif->interface);
 	unsigned int offset = sizeof(struct hif_req_tx) + sizeof(struct hif_msg) + req->data_flags.fc_offset;
 

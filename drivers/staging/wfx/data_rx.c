@@ -29,7 +29,7 @@ static int wfx_handle_pspoll(struct wfx_vif *wvif, struct sk_buff *skb)
 	rcu_read_lock();
 	sta = ieee80211_find_sta(wvif->vif, pspoll->ta);
 	if (sta)
-		link_id = ((struct wfx_sta_priv *) &sta->drv_priv)->link_id;
+		link_id = ((struct wfx_sta_priv *)&sta->drv_priv)->link_id;
 	rcu_read_unlock();
 	if (link_id)
 		pspoll_mask = BIT(link_id);
@@ -102,8 +102,8 @@ void wfx_rx_cb(struct wfx_vif *wvif, struct hif_ind_rx *arg, struct sk_buff *skb
 {
 	int link_id = arg->rx_flags.peer_sta_id;
 	struct ieee80211_rx_status *hdr = IEEE80211_SKB_RXCB(skb);
-	struct ieee80211_hdr *frame = (struct ieee80211_hdr *) skb->data;
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *) skb->data;
+	struct ieee80211_hdr *frame = (struct ieee80211_hdr *)skb->data;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)skb->data;
 	struct wfx_link_entry *entry = NULL;
 	bool early_data = false;
 
@@ -173,7 +173,7 @@ void wfx_rx_cb(struct wfx_vif *wvif, struct hif_ind_rx *arg, struct sk_buff *skb
 
 		tim_ie = cfg80211_find_ie(WLAN_EID_TIM, ies, ies_len);
 		if (tim_ie) {
-			struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *) &tim_ie[2];
+			struct ieee80211_tim_ie *tim = (struct ieee80211_tim_ie *)&tim_ie[2];
 
 			if (wvif->dtim_period != tim->dtim_period) {
 				wvif->dtim_period = tim->dtim_period;

@@ -90,7 +90,7 @@ static int wfx_spi_copy_to_io(void *priv, unsigned int addr,
 	struct wfx_spi_priv *bus = priv;
 	u16 regaddr = (addr << 12) | (count / 2);
 	// FIXME: use a bounce buffer
-	u16 *src16 = (void *) src;
+	u16 *src16 = (void *)src;
 	int ret, i;
 	struct spi_message      m;
 	struct spi_transfer     t_addr = {

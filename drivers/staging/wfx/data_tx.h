@@ -79,12 +79,12 @@ static inline struct wfx_tx_priv *wfx_skb_tx_priv(struct sk_buff *skb)
 	if (!skb)
 		return NULL;
 	tx_info = IEEE80211_SKB_CB(skb);
-	return (struct wfx_tx_priv *) tx_info->rate_driver_data;
+	return (struct wfx_tx_priv *)tx_info->rate_driver_data;
 }
 
 static inline struct hif_req_tx *wfx_skb_txreq(struct sk_buff *skb)
 {
-	struct hif_msg *hif = (struct hif_msg *) skb->data;
+	struct hif_msg *hif = (struct hif_msg *)skb->data;
 	struct hif_req_tx *req = (struct hif_req_tx *) hif->body;
 
 	return req;

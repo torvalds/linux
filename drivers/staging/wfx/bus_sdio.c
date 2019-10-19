@@ -38,7 +38,7 @@ static int wfx_sdio_copy_from_io(void *priv, unsigned int reg_id,
 	int ret;
 
 	WARN(reg_id > 7, "chip only has 7 registers");
-	WARN(((uintptr_t) dst) & 3, "unaligned buffer size");
+	WARN(((uintptr_t)dst) & 3, "unaligned buffer size");
 	WARN(count & 3, "unaligned buffer address");
 
 	/* Use queue mode buffers */
@@ -59,14 +59,14 @@ static int wfx_sdio_copy_to_io(void *priv, unsigned int reg_id,
 	int ret;
 
 	WARN(reg_id > 7, "chip only has 7 registers");
-	WARN(((uintptr_t) src) & 3, "unaligned buffer size");
+	WARN(((uintptr_t)src) & 3, "unaligned buffer size");
 	WARN(count & 3, "unaligned buffer address");
 
 	/* Use queue mode buffers */
 	if (reg_id == WFX_REG_IN_OUT_QUEUE)
 		sdio_addr |= bus->buf_id_tx << 7;
 	// FIXME: discards 'const' qualifier for src
-	ret = sdio_memcpy_toio(bus->func, sdio_addr, (void *) src, count);
+	ret = sdio_memcpy_toio(bus->func, sdio_addr, (void *)src, count);
 	if (!ret && reg_id == WFX_REG_IN_OUT_QUEUE)
 		bus->buf_id_tx = (bus->buf_id_tx + 1) % 32;
 
