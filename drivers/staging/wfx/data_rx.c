@@ -163,14 +163,14 @@ void wfx_rx_cb(struct wfx_vif *wvif, struct hif_ind_rx *arg,
 	}
 
 	/* Filter block ACK negotiation: fully controlled by firmware */
-	if (ieee80211_is_action(frame->frame_control)
-	    && arg->rx_flags.match_uc_addr
-	    && mgmt->u.action.category == WLAN_CATEGORY_BACK)
+	if (ieee80211_is_action(frame->frame_control) &&
+	    arg->rx_flags.match_uc_addr &&
+	    mgmt->u.action.category == WLAN_CATEGORY_BACK)
 		goto drop;
-	if (ieee80211_is_beacon(frame->frame_control)
-	    && !arg->status && wvif->vif
-	    && ether_addr_equal(ieee80211_get_SA(frame),
-				wvif->vif->bss_conf.bssid)) {
+	if (ieee80211_is_beacon(frame->frame_control) &&
+	    !arg->status && wvif->vif &&
+	    ether_addr_equal(ieee80211_get_SA(frame),
+			     wvif->vif->bss_conf.bssid)) {
 		const u8 *tim_ie;
 		u8 *ies = mgmt->u.beacon.variable;
 		size_t ies_len = skb->len - (ies - skb->data);
