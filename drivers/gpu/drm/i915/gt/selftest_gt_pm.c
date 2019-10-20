@@ -5,6 +5,8 @@
  * Copyright © 2019 Intel Corporation
  */
 
+#include "selftest_llc.h"
+
 static int live_gt_resume(void *arg)
 {
 	struct intel_gt *gt = arg;
@@ -30,6 +32,13 @@ static int live_gt_resume(void *arg)
 			pr_err("rc6 not enabled upon resume!\n");
 			intel_gt_set_wedged_on_init(gt);
 			err = -EINVAL;
+			break;
+		}
+
+		err = st_llc_verify(&gt->llc);
+		if (err) {
+			pr_err("llc state not restored upon resume!\n");
+			intel_gt_set_wedged_on_init(gt);
 			break;
 		}
 	} while (!__igt_timeout(end_time, NULL));

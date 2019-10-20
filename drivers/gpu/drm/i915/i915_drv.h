@@ -605,13 +605,8 @@ struct intel_rps {
 	struct intel_rps_ei ei;
 };
 
-struct intel_llc_pstate {
-	bool enabled;
-};
-
 struct intel_gen6_power_mgmt {
 	struct intel_rps rps;
-	struct intel_llc_pstate llc_pstate;
 };
 
 /* defined intel_pm.c */

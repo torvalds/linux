@@ -17,6 +17,7 @@
 
 #include "i915_vma.h"
 #include "intel_engine_types.h"
+#include "intel_llc_types.h"
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
 #include "intel_wakeref.h"
@@ -79,6 +80,7 @@ struct intel_gt {
 	 */
 	intel_wakeref_t awake;
 
+	struct intel_llc llc;
 	struct intel_rc6 rc6;
 
 	struct blocking_notifier_head pm_notifications;

@@ -25,7 +25,6 @@
  *
  */
 
-#include <linux/cpufreq.h>
 #include <linux/module.h>
 #include <linux/pm_runtime.h>
 
@@ -37,6 +36,8 @@
 #include "display/intel_display_types.h"
 #include "display/intel_fbc.h"
 #include "display/intel_sprite.h"
+
+#include "gt/intel_llc.h"
 
 #include "i915_drv.h"
 #include "i915_irq.h"
@@ -7030,93 +7031,6 @@ static void gen6_enable_rps(struct drm_i915_private *dev_priv)
 	intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
 }
 
-static void gen6_update_ring_freq(struct drm_i915_private *dev_priv)
-{
-	struct intel_rps *rps = &dev_priv->gt_pm.rps;
-	const int min_freq = 15;
-	const int scaling_factor = 180;
-	unsigned int gpu_freq;
-	unsigned int max_ia_freq, min_ring_freq;
-	unsigned int max_gpu_freq, min_gpu_freq;
-	struct cpufreq_policy *policy;
-
-	lockdep_assert_held(&rps->lock);
-
-	if (rps->max_freq <= rps->min_freq)
-		return;
-
-	policy = cpufreq_cpu_get(0);
-	if (policy) {
-		max_ia_freq = policy->cpuinfo.max_freq;
-		cpufreq_cpu_put(policy);
-	} else {
-		/*
-		 * Default to measured freq if none found, PCU will ensure we
-		 * don't go over
-		 */
-		max_ia_freq = tsc_khz;
-	}
-
-	/* Convert from kHz to MHz */
-	max_ia_freq /= 1000;
-
-	min_ring_freq = I915_READ(DCLK) & 0xf;
-	/* convert DDR frequency from units of 266.6MHz to bandwidth */
-	min_ring_freq = mult_frac(min_ring_freq, 8, 3);
-
-	min_gpu_freq = rps->min_freq;
-	max_gpu_freq = rps->max_freq;
-	if (IS_GEN9_BC(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
-		/* Convert GT frequency to 50 HZ units */
-		min_gpu_freq /= GEN9_FREQ_SCALER;
-		max_gpu_freq /= GEN9_FREQ_SCALER;
-	}
-
-	/*
-	 * For each potential GPU frequency, load a ring frequency we'd like
-	 * to use for memory access.  We do this by specifying the IA frequency
-	 * the PCU should use as a reference to determine the ring frequency.
-	 */
-	for (gpu_freq = max_gpu_freq; gpu_freq >= min_gpu_freq; gpu_freq--) {
-		const int diff = max_gpu_freq - gpu_freq;
-		unsigned int ia_freq = 0, ring_freq = 0;
-
-		if (IS_GEN9_BC(dev_priv) || INTEL_GEN(dev_priv) >= 10) {
-			/*
-			 * ring_freq = 2 * GT. ring_freq is in 100MHz units
-			 * No floor required for ring frequency on SKL.
-			 */
-			ring_freq = gpu_freq;
-		} else if (INTEL_GEN(dev_priv) >= 8) {
-			/* max(2 * GT, DDR). NB: GT is 50MHz units */
-			ring_freq = max(min_ring_freq, gpu_freq);
-		} else if (IS_HASWELL(dev_priv)) {
-			ring_freq = mult_frac(gpu_freq, 5, 4);
-			ring_freq = max(min_ring_freq, ring_freq);
-			/* leave ia_freq as the default, chosen by cpufreq */
-		} else {
-			/* On older processors, there is no separate ring
-			 * clock domain, so in order to boost the bandwidth
-			 * of the ring, we need to upclock the CPU (ia_freq).
-			 *
-			 * For GPU frequencies less than 750MHz,
-			 * just use the lowest ring freq.
-			 */
-			if (gpu_freq < min_freq)
-				ia_freq = 800;
-			else
-				ia_freq = max_ia_freq - ((diff * scaling_factor) / 2);
-			ia_freq = DIV_ROUND_CLOSEST(ia_freq, 100);
-		}
-
-		sandybridge_pcode_write(dev_priv,
-					GEN6_PCODE_WRITE_MIN_FREQ_TABLE,
-					ia_freq << GEN6_PCODE_FREQ_IA_RATIO_SHIFT |
-					ring_freq << GEN6_PCODE_FREQ_RING_RATIO_SHIFT |
-					gpu_freq);
-	}
-}
-
 static int cherryview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rp0;
@@ -7965,18 +7879,6 @@ void intel_sanitize_gt_powersave(struct drm_i915_private *dev_priv)
 		gen6_reset_rps_interrupts(dev_priv);
 }
 
-static inline void intel_disable_llc_pstate(struct drm_i915_private *i915)
-{
-	lockdep_assert_held(&i915->gt_pm.rps.lock);
-
-	if (!i915->gt_pm.llc_pstate.enabled)
-		return;
-
-	/* Currently there is no HW configuration to be done to disable. */
-
-	i915->gt_pm.llc_pstate.enabled = false;
-}
-
 static void intel_disable_rps(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->gt_pm.rps.lock);
@@ -8004,21 +7906,9 @@ void intel_disable_gt_powersave(struct drm_i915_private *dev_priv)
 
 	intel_disable_rps(dev_priv);
 	if (HAS_LLC(dev_priv))
-		intel_disable_llc_pstate(dev_priv);
+		intel_llc_disable(&dev_priv->gt.llc);
 
 	mutex_unlock(&dev_priv->gt_pm.rps.lock);
-}
-
-static inline void intel_enable_llc_pstate(struct drm_i915_private *i915)
-{
-	lockdep_assert_held(&i915->gt_pm.rps.lock);
-
-	if (i915->gt_pm.llc_pstate.enabled)
-		return;
-
-	gen6_update_ring_freq(i915);
-
-	i915->gt_pm.llc_pstate.enabled = true;
 }
 
 static void intel_enable_rps(struct drm_i915_private *dev_priv)
@@ -8064,8 +7954,8 @@ void intel_enable_gt_powersave(struct drm_i915_private *dev_priv)
 
 	if (HAS_RPS(dev_priv))
 		intel_enable_rps(dev_priv);
-	if (HAS_LLC(dev_priv))
-		intel_enable_llc_pstate(dev_priv);
+
+	intel_llc_enable(&dev_priv->gt.llc);
 
 	mutex_unlock(&dev_priv->gt_pm.rps.lock);
 }
