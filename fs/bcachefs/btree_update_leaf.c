@@ -426,20 +426,16 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 	btree_insert_key_leaf(trans, insert);
 }
 
-static inline bool update_triggers_transactional(struct btree_trans *trans,
-						 struct btree_insert_entry *i)
+static inline bool update_has_trans_triggers(struct btree_insert_entry *i)
 {
-	return likely(!(trans->flags & BTREE_INSERT_MARK_INMEM)) &&
-		(i->iter->btree_id == BTREE_ID_EXTENTS ||
-		 i->iter->btree_id == BTREE_ID_INODES ||
-		 i->iter->btree_id == BTREE_ID_REFLINK);
+	return BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->iter->btree_id);
 }
 
-static inline bool update_has_triggers(struct btree_trans *trans,
-				       struct btree_insert_entry *i)
+static inline bool update_has_nontrans_triggers(struct btree_insert_entry *i)
 {
-	return likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
-		btree_node_type_needs_gc(i->iter->btree_id);
+	return (BTREE_NODE_TYPE_HAS_TRIGGERS &
+		~BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS) &
+		(1U << i->iter->btree_id);
 }
 
 /*
@@ -465,8 +461,8 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	 * updates as we're walking it:
 	 */
 	trans_for_each_update(trans, i)
-		if (update_has_triggers(trans, i) &&
-		    update_triggers_transactional(trans, i)) {
+		if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
+		    update_has_trans_triggers(i)) {
 			ret = bch2_trans_mark_update(trans, i->iter, i->k);
 			if (ret == -EINTR)
 				trace_trans_restart_mark(trans->ip);
@@ -551,8 +547,8 @@ static inline int do_btree_insert_at(struct btree_trans *trans,
 	}
 
 	trans_for_each_update(trans, i)
-		if (update_has_triggers(trans, i) &&
-		    !update_triggers_transactional(trans, i))
+		if (likely(!(trans->flags & BTREE_INSERT_NOMARK)) &&
+		    update_has_nontrans_triggers(i))
 			bch2_mark_update(trans, i, &fs_usage->u, mark_flags);
 
 	if (fs_usage && trans->fs_usage_deltas)

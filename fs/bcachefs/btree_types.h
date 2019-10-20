@@ -460,19 +460,22 @@ static inline bool btree_node_is_extents(struct btree *b)
 	return btree_node_type_is_extents(btree_node_type(b));
 }
 
+#define BTREE_NODE_TYPE_HAS_TRIGGERS			\
+	((1U << BKEY_TYPE_EXTENTS)|			\
+	 (1U << BKEY_TYPE_ALLOC)|			\
+	 (1U << BKEY_TYPE_INODES)|			\
+	 (1U << BKEY_TYPE_REFLINK)|			\
+	 (1U << BKEY_TYPE_EC)|				\
+	 (1U << BKEY_TYPE_BTREE))
+
+#define BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS		\
+	((1U << BKEY_TYPE_EXTENTS)|			\
+	 (1U << BKEY_TYPE_INODES)|			\
+	 (1U << BKEY_TYPE_REFLINK))
+
 static inline bool btree_node_type_needs_gc(enum btree_node_type type)
 {
-	switch (type) {
-	case BKEY_TYPE_ALLOC:
-	case BKEY_TYPE_BTREE:
-	case BKEY_TYPE_EXTENTS:
-	case BKEY_TYPE_INODES:
-	case BKEY_TYPE_EC:
-	case BKEY_TYPE_REFLINK:
-		return true;
-	default:
-		return false;
-	}
+	return BTREE_NODE_TYPE_HAS_TRIGGERS & (1U << type);
 }
 
 struct btree_root {
