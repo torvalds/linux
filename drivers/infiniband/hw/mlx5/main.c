@@ -694,21 +694,6 @@ static void get_atomic_caps_qp(struct mlx5_ib_dev *dev,
 	get_atomic_caps(dev, atomic_size_qp, props);
 }
 
-static void get_atomic_caps_dc(struct mlx5_ib_dev *dev,
-			       struct ib_device_attr *props)
-{
-	u8 atomic_size_qp = MLX5_CAP_ATOMIC(dev->mdev, atomic_size_dc);
-
-	get_atomic_caps(dev, atomic_size_qp, props);
-}
-
-bool mlx5_ib_dc_atomic_is_supported(struct mlx5_ib_dev *dev)
-{
-	struct ib_device_attr props = {};
-
-	get_atomic_caps_dc(dev, &props);
-	return (props.atomic_cap == IB_ATOMIC_HCA) ? true : false;
-}
 static int mlx5_query_system_image_guid(struct ib_device *ibdev,
 					__be64 *sys_image_guid)
 {
