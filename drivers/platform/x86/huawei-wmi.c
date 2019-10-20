@@ -345,7 +345,7 @@ static int huawei_wmi_battery_set(int start, int end)
 	union hwmi_arg arg;
 	int err;
 
-	if (start < 0 || end > 100)
+	if (start < 0 || end < 0 || start > 100 || end > 100)
 		return -EINVAL;
 
 	arg.cmd = BATTERY_THRESH_SET;
