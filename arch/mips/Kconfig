@@ -461,7 +461,33 @@ config MACH_LOONGSON2EF
 
 config MACH_LOONGSON64
 	bool "Loongson-2/3 GSx64 family of machines"
+	select ARCH_SPARSEMEM_ENABLE
+	select ARCH_MIGHT_HAVE_PC_PARPORT
+	select ARCH_MIGHT_HAVE_PC_SERIO
+	select GENERIC_ISA_DMA_SUPPORT_BROKEN
+	select BOOT_ELF32
+	select BOARD_SCACHE
+	select CSRC_R4K
+	select CEVT_R4K
+	select CPU_HAS_WB
+	select FORCE_PCI
+	select ISA
+	select I8259
+	select IRQ_MIPS_CPU
+	select NR_CPUS_DEFAULT_4
+	select USE_GENERIC_EARLY_PRINTK_8250
+	select SYS_HAS_CPU_LOONGSON64
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_SMP
+	select SYS_SUPPORTS_HOTPLUG_CPU
+	select SYS_SUPPORTS_NUMA
+	select SYS_SUPPORTS_64BIT_KERNEL
+	select SYS_SUPPORTS_HIGHMEM
+	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT
+	select LOONGSON_MC146818
+	select ZONE_DMA32
+	select NUMA
 	help
 	  This enables the support of Loongson-2/3 family of processors with
 	  GSx64 microarchitecture.
