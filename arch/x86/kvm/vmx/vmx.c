@@ -4162,12 +4162,13 @@ static void ept_set_mmio_spte_mask(void)
 #define VMX_XSS_EXIT_BITMAP 0
 
 /*
- * Sets up the vmcs for emulated real mode.
+ * Noting that the initialization of Guest-state Area of VMCS is in
+ * vmx_vcpu_reset().
  */
-static void vmx_vcpu_setup(struct vcpu_vmx *vmx)
+static void init_vmcs(struct vcpu_vmx *vmx)
 {
 	if (nested)
-		nested_vmx_vcpu_setup();
+		nested_vmx_set_vmcs_shadowing_bitmap();
 
 	if (cpu_has_vmx_msr_bitmap())
 		vmcs_write64(MSR_BITMAP, __pa(vmx->vmcs01.msr_bitmap));
@@ -6774,7 +6775,7 @@ static struct kvm_vcpu *vmx_create_vcpu(struct kvm *kvm, unsigned int id)
 	cpu = get_cpu();
 	vmx_vcpu_load(&vmx->vcpu, cpu);
 	vmx->vcpu.cpu = cpu;
-	vmx_vcpu_setup(vmx);
+	init_vmcs(vmx);
 	vmx_vcpu_put(&vmx->vcpu);
 	put_cpu();
 	if (cpu_need_virtualize_apic_accesses(&vmx->vcpu)) {

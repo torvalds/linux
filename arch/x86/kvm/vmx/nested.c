@@ -5768,7 +5768,7 @@ error_guest_mode:
 	return ret;
 }
 
-void nested_vmx_vcpu_setup(void)
+void nested_vmx_set_vmcs_shadowing_bitmap(void)
 {
 	if (enable_shadow_vmcs) {
 		vmcs_write64(VMREAD_BITMAP, __pa(vmx_vmread_bitmap));
