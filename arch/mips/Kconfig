@@ -1377,9 +1377,9 @@ choice
 	prompt "CPU type"
 	default CPU_R4X00
 
-config CPU_LOONGSON3
-	bool "Loongson 3 CPU"
-	depends on SYS_HAS_CPU_LOONGSON3
+config CPU_LOONGSON64
+	bool "Loongson GSx64 CPU"
+	depends on SYS_HAS_CPU_LOONGSON64
 	select ARCH_HAS_PHYS_TO_DMA
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
@@ -1394,19 +1394,19 @@ config CPU_LOONGSON3
 	select GPIOLIB
 	select SWIOTLB
 	help
-		The Loongson 3 processor implements the MIPS64R2 instruction
-		set with many extensions.
+		The Loongson GSx64 series of processor cores implements the
+		MIPS64R2 instruction set with many extensions.
 
-config LOONGSON3_ENHANCEMENT
-	bool "New Loongson 3 CPU Enhancements"
+config LOONGSON64_ENHANCEMENT
+	bool "New Loongson GSx64E CPU Enhancements"
 	default n
 	select CPU_MIPSR2
 	select CPU_HAS_PREFETCH
-	depends on CPU_LOONGSON3
+	depends on CPU_LOONGSON64
 	help
-	  New Loongson 3 CPU (since Loongson-3A R2, as opposed to Loongson-3A
+	  New Loongson GSx64E cores (since Loongson-3A R2, as opposed to Loongson-3A
 	  R1, Loongson-3B R1 and Loongson-3B R2) has many enhancements, such as
-	  FTLB, L1-VCache, EI/DI/Wait/Prefetch instruction, DSP/DSPv2 ASE, User
+	  FTLB, L1-VCache, EI/DI/Wait/Prefetch instruction, DSP/DSPr2 ASE, User
 	  Local register, Read-Inhibit/Execute-Inhibit, SFB (Store Fill Buffer),
 	  Fast TLB refill support, etc.
 
@@ -1418,7 +1418,7 @@ config LOONGSON3_ENHANCEMENT
 config CPU_LOONGSON3_WORKAROUNDS
 	bool "Old Loongson 3 LLSC Workarounds"
 	default y if SMP
-	depends on CPU_LOONGSON3
+	depends on CPU_LOONGSON64
 	help
 	  Loongson 3 processors have the llsc issues which require workarounds.
 	  Without workarounds the system may hang unexpectedly.
@@ -1433,7 +1433,7 @@ config CPU_LOONGSON3_WORKAROUNDS
 config CPU_LOONGSON2E
 	bool "Loongson 2E"
 	depends on SYS_HAS_CPU_LOONGSON2E
-	select CPU_LOONGSON2
+	select CPU_LOONGSON2EF
 	help
 	  The Loongson 2E processor implements the MIPS III instruction set
 	  with many extensions.
@@ -1444,7 +1444,7 @@ config CPU_LOONGSON2E
 config CPU_LOONGSON2F
 	bool "Loongson 2F"
 	depends on SYS_HAS_CPU_LOONGSON2F
-	select CPU_LOONGSON2
+	select CPU_LOONGSON2EF
 	select GPIOLIB
 	help
 	  The Loongson 2F processor implements the MIPS III instruction set
@@ -1857,7 +1857,7 @@ config SYS_SUPPORTS_ZBOOT_UART_PROM
 	bool
 	select SYS_SUPPORTS_ZBOOT
 
-config CPU_LOONGSON2
+config CPU_LOONGSON2EF
 	bool
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
@@ -1900,7 +1900,7 @@ config CPU_BMIPS5000
 	select SYS_SUPPORTS_HOTPLUG_CPU
 	select CPU_HAS_RIXI
 
-config SYS_HAS_CPU_LOONGSON3
+config SYS_HAS_CPU_LOONGSON64
 	bool
 	select CPU_SUPPORTS_CPUFREQ
 	select CPU_HAS_RIXI
@@ -2162,7 +2162,7 @@ choice
 
 config PAGE_SIZE_4KB
 	bool "4kB"
-	depends on !CPU_LOONGSON2 && !CPU_LOONGSON3
+	depends on !CPU_LOONGSON2EF && !CPU_LOONGSON64
 	help
 	  This option select the standard 4kB Linux page size.  On some
 	  R3000-family processors this is the only available page size.  Using
@@ -2616,7 +2616,7 @@ config CPU_SUPPORTS_MSA
 
 config ARCH_FLATMEM_ENABLE
 	def_bool y
-	depends on !NUMA && !CPU_LOONGSON2
+	depends on !NUMA && !CPU_LOONGSON2EF
 
 config ARCH_SPARSEMEM_ENABLE
 	bool
@@ -2697,7 +2697,7 @@ config NODES_SHIFT
 
 config HW_PERF_EVENTS
 	bool "Enable hardware performance counter support for perf events"
-	depends on PERF_EVENTS && !OPROFILE && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON3)
+	depends on PERF_EVENTS && !OPROFILE && (CPU_MIPS32 || CPU_MIPS64 || CPU_R10000 || CPU_SB1 || CPU_CAVIUM_OCTEON || CPU_XLP || CPU_LOONGSON64)
 	default y
 	help
 	  Enable hardware performance counter support for perf events. If

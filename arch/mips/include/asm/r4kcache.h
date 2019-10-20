@@ -72,7 +72,7 @@ static inline void flush_scache_line_indexed(unsigned long addr)
 static inline void flush_icache_line(unsigned long addr)
 {
 	switch (boot_cpu_type()) {
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 		cache_op(Hit_Invalidate_I_Loongson2, addr);
 		break;
 
@@ -154,7 +154,7 @@ static inline void flush_scache_line(unsigned long addr)
 static inline int protected_flush_icache_line(unsigned long addr)
 {
 	switch (boot_cpu_type()) {
-	case CPU_LOONGSON2:
+	case CPU_LOONGSON2EF:
 		return protected_cache_op(Hit_Invalidate_I_Loongson2, addr);
 
 	default:

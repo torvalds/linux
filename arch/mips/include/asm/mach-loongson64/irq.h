@@ -4,7 +4,7 @@
 
 #include <boot_param.h>
 
-#ifdef CONFIG_CPU_LOONGSON3
+#ifdef CONFIG_CPU_LOONGSON64
 
 /* cpu core interrupt numbers */
 #define MIPS_CPU_IRQ_BASE 56
