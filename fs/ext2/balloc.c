@@ -1404,6 +1404,7 @@ allocated:
 		 * use.  So we may want to selectively mark some of the blocks
 		 * as free
 		 */
+		num = *count;
 		goto retry_alloc;
 	}
 
