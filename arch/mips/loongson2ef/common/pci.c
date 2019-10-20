@@ -7,7 +7,6 @@
 
 #include <pci.h>
 #include <loongson.h>
-#include <boot_param.h>
 
 static struct resource loongson_pci_mem_resource = {
 	.name	= "pci memory space",
@@ -81,15 +80,8 @@ static int __init pcibios_init(void)
 	setup_pcimap();
 
 	loongson_pci_controller.io_map_base = mips_io_port_base;
-#ifdef CONFIG_LEFI_FIRMWARE_INTERFACE
-	loongson_pci_mem_resource.start = loongson_sysconf.pci_mem_start_addr;
-	loongson_pci_mem_resource.end = loongson_sysconf.pci_mem_end_addr;
-#endif
 	register_pci_controller(&loongson_pci_controller);
 
-#ifdef CONFIG_CPU_LOONGSON64
-	sbx00_acpi_init();
-#endif
 
 	return 0;
 }

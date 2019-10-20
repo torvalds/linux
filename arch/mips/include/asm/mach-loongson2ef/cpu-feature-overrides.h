@@ -1,8 +1,5 @@
+/* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * This file is subject to the terms and conditions of the GNU General Public
- * License.  See the file "COPYING" in the main directory of this archive
- * for more details.
- *
  * Copyright (C) 2009 Wu Zhangjin <wuzhangjin@gmail.com>
  * Copyright (C) 2009 Philippe Vachon <philippe@cowpig.ca>
  * Copyright (C) 2009 Zhang Le <r0bertz@gentoo.org>
@@ -13,8 +10,8 @@
  *	loongson2f user manual.
  */
 
-#ifndef __ASM_MACH_LOONGSON64_CPU_FEATURE_OVERRIDES_H
-#define __ASM_MACH_LOONGSON64_CPU_FEATURE_OVERRIDES_H
+#ifndef __ASM_MACH_LOONGSON2EF_CPU_FEATURE_OVERRIDES_H
+#define __ASM_MACH_LOONGSON2EF_CPU_FEATURE_OVERRIDES_H
 
 #define cpu_has_32fpr		1
 #define cpu_has_3k_cache	0
@@ -43,11 +40,5 @@
 #define cpu_has_vint		0
 #define cpu_has_vtag_icache	0
 #define cpu_has_watch		1
-
-#ifdef CONFIG_CPU_LOONGSON64
-#define cpu_has_wsbh		1
-#define cpu_has_ic_fills_f_dc	1
-#define cpu_hwrena_impl_bits	0xc0000000
-#endif
 
 #endif /* __ASM_MACH_LOONGSON64_CPU_FEATURE_OVERRIDES_H */

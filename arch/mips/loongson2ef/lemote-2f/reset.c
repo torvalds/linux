@@ -24,7 +24,7 @@ static void reset_cpu(void)
 	 * reset cpu to full speed, this is needed when enabling cpu frequency
 	 * scalling
 	 */
-	LOONGSON_CHIPCFG(0) |= 0x7;
+	writel(readl(LOONGSON_CHIPCFG) | 0x7, LOONGSON_CHIPCFG);
 }
 
 /* reset support for fuloong2f */

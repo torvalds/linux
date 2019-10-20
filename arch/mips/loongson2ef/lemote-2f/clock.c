@@ -118,9 +118,9 @@ int clk_set_rate(struct clk *clk, unsigned long rate)
 
 	clk->rate = rate;
 
-	regval = LOONGSON_CHIPCFG(0);
+	regval = readl(LOONGSON_CHIPCFG);
 	regval = (regval & ~0x7) | (pos->driver_data - 1);
-	LOONGSON_CHIPCFG(0) = regval;
+	writel(regval, LOONGSON_CHIPCFG);
 
 	return ret;
 }

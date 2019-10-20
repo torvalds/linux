@@ -9,11 +9,9 @@
 #include <asm/bootinfo.h>
 
 #include <loongson.h>
-#include <boot_param.h>
 #include <mem.h>
 #include <pci.h>
 
-#ifndef CONFIG_LEFI_FIRMWARE_INTERFACE
 
 u32 memsize, highmemsize;
 
@@ -51,41 +49,6 @@ void __init prom_init_memory(void)
 
 #endif /* !CONFIG_64BIT */
 }
-
-#else /* CONFIG_LEFI_FIRMWARE_INTERFACE */
-
-void __init prom_init_memory(void)
-{
-	int i;
-	u32 node_id;
-	u32 mem_type;
-
-	/* parse memory information */
-	for (i = 0; i < loongson_memmap->nr_map; i++) {
-		node_id = loongson_memmap->map[i].node_id;
-		mem_type = loongson_memmap->map[i].mem_type;
-
-		if (node_id != 0)
-			continue;
-
-		switch (mem_type) {
-		case SYSTEM_RAM_LOW:
-			memblock_add(loongson_memmap->map[i].mem_start,
-				(u64)loongson_memmap->map[i].mem_size << 20);
-			break;
-		case SYSTEM_RAM_HIGH:
-			memblock_add(loongson_memmap->map[i].mem_start,
-				(u64)loongson_memmap->map[i].mem_size << 20);
-			break;
-		case SYSTEM_RAM_RESERVED:
-			memblock_reserve(loongson_memmap->map[i].mem_start,
-				(u64)loongson_memmap->map[i].mem_size << 20);
-			break;
-		}
-	}
-}
-
-#endif /* CONFIG_LEFI_FIRMWARE_INTERFACE */
 
 /* override of arch/mips/mm/cache.c: __uncached_access */
 int __uncached_access(struct file *file, unsigned long addr)

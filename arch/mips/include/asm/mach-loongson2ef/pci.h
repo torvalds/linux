@@ -4,8 +4,8 @@
  * Copyright (c) 2009 Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
-#ifndef __ASM_MACH_LOONGSON64_PCI_H_
-#define __ASM_MACH_LOONGSON64_PCI_H_
+#ifndef __ASM_MACH_LOONGSON2EF_PCI_H_
+#define __ASM_MACH_LOONGSON2EF_PCI_H_
 
 extern struct pci_ops loongson_pci_ops;
 
@@ -35,16 +35,12 @@ extern struct pci_ops loongson_pci_ops;
 #else	/* loongson2f/32bit & loongson2e */
 
 /* this pci memory space is mapped by pcimap in pci.c */
-#ifdef CONFIG_CPU_LOONGSON64
-#define LOONGSON_PCI_MEM_START	0x40000000UL
-#define LOONGSON_PCI_MEM_END	0x7effffffUL
-#else
 #define LOONGSON_PCI_MEM_START	LOONGSON_PCILO1_BASE
 #define LOONGSON_PCI_MEM_END	(LOONGSON_PCILO1_BASE + 0x04000000 * 2)
-#endif
+
 /* this is an offset from mips_io_port_base */
 #define LOONGSON_PCI_IO_START	0x00004000UL
 
 #endif	/* !CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
-#endif /* !__ASM_MACH_LOONGSON64_PCI_H_ */
+#endif /* !__ASM_MACH_LOONGSON2EF_PCI_H_ */

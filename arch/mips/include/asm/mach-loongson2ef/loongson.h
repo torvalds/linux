@@ -4,13 +4,12 @@
  * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
-#ifndef __ASM_MACH_LOONGSON64_LOONGSON_H
-#define __ASM_MACH_LOONGSON64_LOONGSON_H
+#ifndef __ASM_MACH_LOONGSON2EF_LOONGSON_H
+#define __ASM_MACH_LOONGSON2EF_LOONGSON_H
 
 #include <linux/io.h>
 #include <linux/init.h>
 #include <linux/irq.h>
-#include <boot_param.h>
 
 /* loongson internal northbridge initialization */
 extern void bonito_irq_init(void);
@@ -30,7 +29,7 @@ extern void __init prom_init_cmdline(void);
 extern void __init prom_init_machtype(void);
 extern void __init prom_init_env(void);
 #ifdef CONFIG_LOONGSON_UART_BASE
-extern unsigned long _loongson_uart_base[], loongson_uart_base[];
+extern unsigned long _loongson_uart_base, loongson_uart_base;
 extern void prom_init_loongson_uart_base(void);
 #endif
 
@@ -58,12 +57,6 @@ extern int mach_i8259_irq(void);
 #define LOONGSON_REG(x) \
 	(*(volatile u32 *)((char *)CKSEG1ADDR(LOONGSON_REG_BASE) + (x)))
 
-#define LOONGSON3_REG8(base, x) \
-	(*(volatile u8 *)((char *)TO_UNCAC(base) + (x)))
-
-#define LOONGSON3_REG32(base, x) \
-	(*(volatile u32 *)((char *)TO_UNCAC(base) + (x)))
-
 #define LOONGSON_IRQ_BASE	32
 #define LOONGSON2_PERFCNT_IRQ	(MIPS_CPU_IRQ_BASE + 6) /* cpu perf counter */
 
@@ -89,10 +82,6 @@ static inline void do_perfcnt_IRQ(void)
 #define LOONGSON_REG_BASE	0x1fe00000
 #define LOONGSON_REG_SIZE	0x00100000	/* 256Bytes + 256Bytes + ??? */
 #define LOONGSON_REG_TOP	(LOONGSON_REG_BASE+LOONGSON_REG_SIZE-1)
-/* Loongson-3 specific registers */
-#define LOONGSON3_REG_BASE	0x3ff00000
-#define LOONGSON3_REG_SIZE	0x00100000	/* 256Bytes + 256Bytes + ??? */
-#define LOONGSON3_REG_TOP	(LOONGSON3_REG_BASE+LOONGSON3_REG_SIZE-1)
 
 #define LOONGSON_LIO1_BASE	0x1ff00000
 #define LOONGSON_LIO1_SIZE	0x00100000	/* 1M */
@@ -108,12 +97,7 @@ static inline void do_perfcnt_IRQ(void)
 #define LOONGSON_PCICFG_BASE	0x1fe80000
 #define LOONGSON_PCICFG_SIZE	0x00000800	/* 2K */
 #define LOONGSON_PCICFG_TOP	(LOONGSON_PCICFG_BASE+LOONGSON_PCICFG_SIZE-1)
-
-#ifdef CONFIG_CPU_LOONGSON64
-#define LOONGSON_PCIIO_BASE	loongson_sysconf.pci_io_base
-#else
 #define LOONGSON_PCIIO_BASE	0x1fd00000
-#endif
 
 #define LOONGSON_PCIIO_SIZE	0x00100000	/* 1M */
 #define LOONGSON_PCIIO_TOP	(LOONGSON_PCIIO_BASE+LOONGSON_PCIIO_SIZE-1)
@@ -244,19 +228,8 @@ static inline void do_perfcnt_IRQ(void)
 #define LOONGSON_PXARB_CFG		LOONGSON_REG(LOONGSON_REGBASE + 0x68)
 #define LOONGSON_PXARB_STATUS		LOONGSON_REG(LOONGSON_REGBASE + 0x6c)
 
-#define MAX_PACKAGES 4
-
 /* Chip Config registor of each physical cpu package, PRid >= Loongson-2F */
-extern u64 loongson_chipcfg[MAX_PACKAGES];
-#define LOONGSON_CHIPCFG(id) (*(volatile u32 *)(loongson_chipcfg[id]))
-
-/* Chip Temperature registor of each physical cpu package, PRid >= Loongson-3A */
-extern u64 loongson_chiptemp[MAX_PACKAGES];
-#define LOONGSON_CHIPTEMP(id) (*(volatile u32 *)(loongson_chiptemp[id]))
-
-/* Freq Control register of each physical cpu package, PRid >= Loongson-3B */
-extern u64 loongson_freqctrl[MAX_PACKAGES];
-#define LOONGSON_FREQCTRL(id) (*(volatile u32 *)(loongson_freqctrl[id]))
+#define LOONGSON_CHIPCFG	(void __iomem *)TO_UNCAC(0x1fc00180)
 
 /* pcimap */
 
@@ -352,4 +325,4 @@ extern unsigned long _loongson_addrwincfg_base;
 
 #endif	/* ! CONFIG_CPU_SUPPORTS_ADDRWINCFG */
 
-#endif /* __ASM_MACH_LOONGSON64_LOONGSON_H */
+#endif /* __ASM_MACH_LOONGSON2EF_LOONGSON_H */

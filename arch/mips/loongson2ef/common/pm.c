@@ -75,7 +75,7 @@ int __weak wakeup_loongson(void)
 static void wait_for_wakeup_events(void)
 {
 	while (!wakeup_loongson())
-		LOONGSON_CHIPCFG(0) &= ~0x7;
+		writel(readl(LOONGSON_CHIPCFG) & ~0x7, LOONGSON_CHIPCFG);
 }
 
 /*
@@ -98,15 +98,16 @@ static void loongson_suspend_enter(void)
 
 	stop_perf_counters();
 
-	cached_cpu_freq = LOONGSON_CHIPCFG(0);
+	cached_cpu_freq = readl(LOONGSON_CHIPCFG);
 
 	/* Put CPU into wait mode */
-	LOONGSON_CHIPCFG(0) &= ~0x7;
+	writel(readl(LOONGSON_CHIPCFG) & ~0x7, LOONGSON_CHIPCFG);
 
 	/* wait for the given events to wakeup cpu from wait mode */
 	wait_for_wakeup_events();
 
-	LOONGSON_CHIPCFG(0) = cached_cpu_freq;
+	writel(cached_cpu_freq, LOONGSON_CHIPCFG);
+
 	mmiowb();
 }
 

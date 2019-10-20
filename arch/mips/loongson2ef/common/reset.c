@@ -13,7 +13,6 @@
 #include <asm/reboot.h>
 
 #include <loongson.h>
-#include <boot_param.h>
 
 static inline void loongson_reboot(void)
 {
@@ -35,26 +34,15 @@ static inline void loongson_reboot(void)
 
 static void loongson_restart(char *command)
 {
-#ifndef CONFIG_LEFI_FIRMWARE_INTERFACE
 	/* do preparation for reboot */
 	mach_prepare_reboot();
 
 	/* reboot via jumping to boot base address */
 	loongson_reboot();
-#else
-	void (*fw_restart)(void) = (void *)loongson_sysconf.restart_addr;
-
-	fw_restart();
-	while (1) {
-		if (cpu_wait)
-			cpu_wait();
-	}
-#endif
 }
 
 static void loongson_poweroff(void)
 {
-#ifndef CONFIG_LEFI_FIRMWARE_INTERFACE
 	mach_prepare_shutdown();
 
 	/*
@@ -62,15 +50,6 @@ static void loongson_poweroff(void)
 	 * a generic delay loop, machine_hang(), so simply return.
 	 */
 	return;
-#else
-	void (*fw_poweroff)(void) = (void *)loongson_sysconf.poweroff_addr;
-
-	fw_poweroff();
-	while (1) {
-		if (cpu_wait)
-			cpu_wait();
-	}
-#endif
 }
 
 static void loongson_halt(void)

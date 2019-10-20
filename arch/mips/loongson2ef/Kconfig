@@ -90,7 +90,4 @@ config LOONGSON_MC146818
 	bool
 	default n
 
-config LEFI_FIRMWARE_INTERFACE
-	bool
-
 endif # MACH_LOONGSON2EF
