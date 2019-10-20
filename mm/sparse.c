@@ -219,7 +219,7 @@ static inline unsigned long first_present_section_nr(void)
 	return next_present_section_nr(-1);
 }
 
-void subsection_mask_set(unsigned long *map, unsigned long pfn,
+static void subsection_mask_set(unsigned long *map, unsigned long pfn,
 		unsigned long nr_pages)
 {
 	int idx = subsection_map_index(pfn);

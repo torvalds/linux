@@ -1270,7 +1270,7 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("port %c trying to use the same DDC pin (0x%x) as port %c, "
 			      "disabling port %c DVI/HDMI support\n",
 			      port_name(port), info->alternate_ddc_pin,
-			      port_name(p), port_name(port));
+			      port_name(p), port_name(p));
 
 		/*
 		 * If we have multiple ports supposedly sharing the
@@ -1278,9 +1278,14 @@ static void sanitize_ddc_pin(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same ddc bin and
 		 * system couldn't communicate with them separately.
 		 *
-		 * Give child device order the priority, first come first
-		 * served.
+		 * Give inverse child device order the priority,
+		 * last one wins. Yes, there are real machines
+		 * (eg. Asrock B250M-HDV) where VBT has both
+		 * port A and port E with the same AUX ch and
+		 * we must pick port E :(
 		 */
+		info = &dev_priv->vbt.ddi_port_info[p];
+
 		info->supports_dvi = false;
 		info->supports_hdmi = false;
 		info->alternate_ddc_pin = 0;
@@ -1316,7 +1321,7 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 		DRM_DEBUG_KMS("port %c trying to use the same AUX CH (0x%x) as port %c, "
 			      "disabling port %c DP support\n",
 			      port_name(port), info->alternate_aux_channel,
-			      port_name(p), port_name(port));
+			      port_name(p), port_name(p));
 
 		/*
 		 * If we have multiple ports supposedlt sharing the
@@ -1324,9 +1329,14 @@ static void sanitize_aux_ch(struct drm_i915_private *dev_priv,
 		 * port. Otherwise they share the same aux channel
 		 * and system couldn't communicate with them separately.
 		 *
-		 * Give child device order the priority, first come first
-		 * served.
+		 * Give inverse child device order the priority,
+		 * last one wins. Yes, there are real machines
+		 * (eg. Asrock B250M-HDV) where VBT has both
+		 * port A and port E with the same AUX ch and
+		 * we must pick port E :(
 		 */
+		info = &dev_priv->vbt.ddi_port_info[p];
+
 		info->supports_dp = false;
 		info->alternate_aux_channel = 0;
 	}

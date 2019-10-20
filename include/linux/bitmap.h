@@ -326,10 +326,11 @@ static inline int bitmap_equal(const unsigned long *src1,
 }
 
 /**
- * bitmap_or_equal - Check whether the or of two bitnaps is equal to a third
+ * bitmap_or_equal - Check whether the or of two bitmaps is equal to a third
  * @src1:	Pointer to bitmap 1
  * @src2:	Pointer to bitmap 2 will be or'ed with bitmap 1
  * @src3:	Pointer to bitmap 3. Compare to the result of *@src1 | *@src2
+ * @nbits:	number of bits in each of these bitmaps
  *
  * Returns: True if (*@src1 | *@src2) == *@src3, false otherwise
  */

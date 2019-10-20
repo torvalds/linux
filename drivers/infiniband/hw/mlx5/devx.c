@@ -1298,29 +1298,6 @@ static int devx_handle_mkey_create(struct mlx5_ib_dev *dev,
 	return 0;
 }
 
-static void devx_free_indirect_mkey(struct rcu_head *rcu)
-{
-	kfree(container_of(rcu, struct devx_obj, devx_mr.rcu));
-}
-
-/* This function to delete from the radix tree needs to be called before
- * destroying the underlying mkey. Otherwise a race might occur in case that
- * other thread will get the same mkey before this one will be deleted,
- * in that case it will fail via inserting to the tree its own data.
- *
- * Note:
- * An error in the destroy is not expected unless there is some other indirect
- * mkey which points to this one. In a kernel cleanup flow it will be just
- * destroyed in the iterative destruction call. In a user flow, in case
- * the application didn't close in the expected order it's its own problem,
- * the mkey won't be part of the tree, in both cases the kernel is safe.
- */
-static void devx_cleanup_mkey(struct devx_obj *obj)
-{
-	xa_erase(&obj->ib_dev->mdev->priv.mkey_table,
-		 mlx5_base_mkey(obj->devx_mr.mmkey.key));
-}
-
 static void devx_cleanup_subscription(struct mlx5_ib_dev *dev,
 				      struct devx_event_subscription *sub)
 {
@@ -1362,8 +1339,16 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	int ret;
 
 	dev = mlx5_udata_to_mdev(&attrs->driver_udata);
-	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
-		devx_cleanup_mkey(obj);
+	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
+		/*
+		 * The pagefault_single_data_segment() does commands against
+		 * the mmkey, we must wait for that to stop before freeing the
+		 * mkey, as another allocation could get the same mkey #.
+		 */
+		xa_erase(&obj->ib_dev->mdev->priv.mkey_table,
+			 mlx5_base_mkey(obj->devx_mr.mmkey.key));
+		synchronize_srcu(&dev->mr_srcu);
+	}
 
 	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
 		ret = mlx5_core_destroy_dct(obj->ib_dev->mdev, &obj->core_dct);
@@ -1381,12 +1366,6 @@ static int devx_obj_cleanup(struct ib_uobject *uobject,
 	list_for_each_entry_safe(sub_entry, tmp, &obj->event_sub, obj_list)
 		devx_cleanup_subscription(dev, sub_entry);
 	mutex_unlock(&devx_event_table->event_xa_lock);
-
-	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
-		call_srcu(&dev->mr_srcu, &obj->devx_mr.rcu,
-			  devx_free_indirect_mkey);
-		return ret;
-	}
 
 	kfree(obj);
 	return ret;
@@ -1491,26 +1470,21 @@ static int UVERBS_HANDLER(MLX5_IB_METHOD_DEVX_OBJ_CREATE)(
 				   &obj_id);
 	WARN_ON(obj->dinlen > MLX5_MAX_DESTROY_INBOX_SIZE_DW * sizeof(u32));
 
+	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
+	if (err)
+		goto obj_destroy;
+
+	if (opcode == MLX5_CMD_OP_CREATE_GENERAL_OBJECT)
+		obj_type = MLX5_GET(general_obj_in_cmd_hdr, cmd_in, obj_type);
+	obj->obj_id = get_enc_obj_id(opcode | obj_type << 16, obj_id);
+
 	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY) {
 		err = devx_handle_mkey_indirect(obj, dev, cmd_in, cmd_out);
 		if (err)
 			goto obj_destroy;
 	}
-
-	err = uverbs_copy_to(attrs, MLX5_IB_ATTR_DEVX_OBJ_CREATE_CMD_OUT, cmd_out, cmd_out_len);
-	if (err)
-		goto err_copy;
-
-	if (opcode == MLX5_CMD_OP_CREATE_GENERAL_OBJECT)
-		obj_type = MLX5_GET(general_obj_in_cmd_hdr, cmd_in, obj_type);
-
-	obj->obj_id = get_enc_obj_id(opcode | obj_type << 16, obj_id);
-
 	return 0;
 
-err_copy:
-	if (obj->flags & DEVX_OBJ_FLAGS_INDIRECT_MKEY)
-		devx_cleanup_mkey(obj);
 obj_destroy:
 	if (obj->flags & DEVX_OBJ_FLAGS_DCT)
 		mlx5_core_destroy_dct(obj->ib_dev->mdev, &obj->core_dct);

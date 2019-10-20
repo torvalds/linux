@@ -6639,10 +6639,13 @@ static int rbd_add_acquire_lock(struct rbd_device *rbd_dev)
 	queue_delayed_work(rbd_dev->task_wq, &rbd_dev->lock_dwork, 0);
 	ret = wait_for_completion_killable_timeout(&rbd_dev->acquire_wait,
 			    ceph_timeout_jiffies(rbd_dev->opts->lock_timeout));
-	if (ret > 0)
+	if (ret > 0) {
 		ret = rbd_dev->acquire_err;
-	else if (!ret)
-		ret = -ETIMEDOUT;
+	} else {
+		cancel_delayed_work_sync(&rbd_dev->lock_dwork);
+		if (!ret)
+			ret = -ETIMEDOUT;
+	}
 
 	if (ret) {
 		rbd_warn(rbd_dev, "failed to acquire exclusive lock: %ld", ret);

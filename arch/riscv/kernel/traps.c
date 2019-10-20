@@ -124,24 +124,24 @@ static inline unsigned long get_break_insn_length(unsigned long pc)
 
 asmlinkage void do_trap_break(struct pt_regs *regs)
 {
+	if (user_mode(regs)) {
+		force_sig_fault(SIGTRAP, TRAP_BRKPT,
+				(void __user *)(regs->sepc));
+		return;
+	}
 #ifdef CONFIG_GENERIC_BUG
-	if (!user_mode(regs)) {
+	{
 		enum bug_trap_type type;
 
 		type = report_bug(regs->sepc, regs);
-		switch (type) {
-		case BUG_TRAP_TYPE_NONE:
-			break;
-		case BUG_TRAP_TYPE_WARN:
+		if (type == BUG_TRAP_TYPE_WARN) {
 			regs->sepc += get_break_insn_length(regs->sepc);
-			break;
-		case BUG_TRAP_TYPE_BUG:
-			die(regs, "Kernel BUG");
+			return;
 		}
 	}
 #endif /* CONFIG_GENERIC_BUG */
 
-	force_sig_fault(SIGTRAP, TRAP_BRKPT, (void __user *)(regs->sepc));
+	die(regs, "Kernel BUG");
 }
 
 #ifdef CONFIG_GENERIC_BUG
