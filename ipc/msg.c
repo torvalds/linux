@@ -66,7 +66,7 @@ struct msg_receiver {
 	struct list_head	r_list;
 	struct task_struct	*r_tsk;
 
-	int			r_mode;
+	int r_mode;
 	long			r_msgtype;
 	long			r_maxsize;
 
