@@ -560,7 +560,7 @@ static void cpcap_charger_update_state(struct cpcap_charger_ddata *ddata,
 	dev_dbg(ddata->dev, "state: %s\n", status);
 }
 
-int cpcap_charger_voltage_to_regval(int voltage)
+static int cpcap_charger_voltage_to_regval(int voltage)
 {
 	int offset;
 
