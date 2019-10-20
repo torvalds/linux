@@ -1151,6 +1151,7 @@ do_io:
 		if (w->io &&
 		    (w->io->op.res.nr_replicas != nr_replicas_this_write ||
 		     bio_full(&w->io->op.wbio.bio, PAGE_SIZE) ||
+		     w->io->op.wbio.bio.bi_iter.bi_size >= (256U << 20) ||
 		     bio_end_sector(&w->io->op.wbio.bio) != sector))
 			bch2_writepage_do_io(w);
 
