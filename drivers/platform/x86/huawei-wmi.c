@@ -67,7 +67,6 @@ struct huawei_wmi {
 	struct led_classdev cdev;
 	struct device *dev;
 
-	struct mutex battery_lock;
 	struct mutex wmi_lock;
 };
 
@@ -807,7 +806,6 @@ static int huawei_wmi_probe(struct platform_device *pdev)
 
 	if (wmi_has_guid(HWMI_METHOD_GUID)) {
 		mutex_init(&huawei_wmi->wmi_lock);
-		mutex_init(&huawei_wmi->battery_lock);
 
 		huawei_wmi_leds_setup(&pdev->dev);
 		huawei_wmi_fn_lock_setup(&pdev->dev);
