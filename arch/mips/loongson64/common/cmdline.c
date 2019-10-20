@@ -39,6 +39,4 @@ void __init prom_init_cmdline(void)
 		strcat(arcs_cmdline, ((char *)l));
 		strcat(arcs_cmdline, " ");
 	}
-
-	prom_init_machtype();
 }

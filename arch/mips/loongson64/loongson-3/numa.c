@@ -26,11 +26,14 @@
 #include <asm/wbflush.h>
 #include <boot_param.h>
 
-static struct node_data prealloc__node_data[MAX_NUMNODES];
+static struct pglist_data prealloc__node_data[MAX_NUMNODES];
 unsigned char __node_distances[MAX_NUMNODES][MAX_NUMNODES];
 EXPORT_SYMBOL(__node_distances);
-struct node_data *__node_data[MAX_NUMNODES];
+struct pglist_data *__node_data[MAX_NUMNODES];
 EXPORT_SYMBOL(__node_data);
+
+cpumask_t __node_cpumask[MAX_NUMNODES];
+EXPORT_SYMBOL(__node_cpumask);
 
 static void enable_lpa(void)
 {
@@ -214,7 +217,7 @@ static __init void prom_meminit(void)
 		if (node_online(node)) {
 			szmem(node);
 			node_mem_init(node);
-			cpumask_clear(&__node_data[(node)]->cpumask);
+			cpumask_clear(&__node_cpumask[node]);
 		}
 	}
 	memblocks_present();
@@ -228,7 +231,7 @@ static __init void prom_meminit(void)
 		if (loongson_sysconf.reserved_cpus_mask & (1<<cpu))
 			continue;
 
-		cpumask_set_cpu(active_cpu, &__node_data[(node)]->cpumask);
+		cpumask_set_cpu(active_cpu, &__node_cpumask[node]);
 		pr_info("NUMA: set cpumask cpu %d on node %d\n", active_cpu, node);
 
 		active_cpu++;

@@ -60,56 +60,6 @@ void __weak setup_wakeup_events(void)
 {
 }
 
-/*
- * Check wakeup events
- */
-int __weak wakeup_loongson(void)
-{
-	return 1;
-}
-
-/*
- * If the events are really what we want to wakeup the CPU, wake it up
- * otherwise put the CPU asleep again.
- */
-static void wait_for_wakeup_events(void)
-{
-	while (!wakeup_loongson())
-		LOONGSON_CHIPCFG(0) &= ~0x7;
-}
-
-/*
- * Stop all perf counters
- *
- * $24 is the control register of Loongson perf counter
- */
-static inline void stop_perf_counters(void)
-{
-	__write_64bit_c0_register($24, 0, 0);
-}
-
-
-static void loongson_suspend_enter(void)
-{
-	static unsigned int cached_cpu_freq;
-
-	/* setup wakeup events via enabling the IRQs */
-	setup_wakeup_events();
-
-	stop_perf_counters();
-
-	cached_cpu_freq = LOONGSON_CHIPCFG(0);
-
-	/* Put CPU into wait mode */
-	LOONGSON_CHIPCFG(0) &= ~0x7;
-
-	/* wait for the given events to wakeup cpu from wait mode */
-	wait_for_wakeup_events();
-
-	LOONGSON_CHIPCFG(0) = cached_cpu_freq;
-	mmiowb();
-}
-
 void __weak mach_suspend(void)
 {
 }
@@ -121,9 +71,6 @@ void __weak mach_resume(void)
 static int loongson_pm_enter(suspend_state_t state)
 {
 	mach_suspend();
-
-	/* processor specific suspend */
-	loongson_suspend_enter();
 
 	mach_resume();
 

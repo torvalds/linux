@@ -78,8 +78,12 @@ static void ht_irqdispatch(void)
 
 #define UNUSED_IPS (CAUSEF_IP5 | CAUSEF_IP4 | CAUSEF_IP1 | CAUSEF_IP0)
 
-void mach_irq_dispatch(unsigned int pending)
+asmlinkage void plat_irq_dispatch(void)
 {
+	unsigned int pending;
+
+	pending = read_c0_cause() & read_c0_status() & ST0_IM;
+
 	if (pending & CAUSEF_IP7)
 		do_IRQ(LOONGSON_TIMER_IRQ);
 #if defined(CONFIG_SMP)
@@ -127,7 +131,7 @@ void irq_router_init(void)
 		LOONGSON_INT_ROUTER_INTEN | (0xffff << 16) | 0x1 << 10;
 }
 
-void __init mach_init_irq(void)
+void __init arch_init_irq(void)
 {
 	struct irq_chip *chip;
 

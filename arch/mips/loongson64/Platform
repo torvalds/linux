@@ -53,4 +53,4 @@ endif
 
 platform-$(CONFIG_MACH_LOONGSON64) += loongson64/
 cflags-$(CONFIG_MACH_LOONGSON64) += -I$(srctree)/arch/mips/include/asm/mach-loongson64 -mno-branch-likely
-load-$(CONFIG_LOONGSON_MACH3X) += 0xffffffff80200000
+load-$(CONFIG_CPU_LOONGSON64) += 0xffffffff80200000
