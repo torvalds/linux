@@ -453,18 +453,18 @@ config MACH_LOONGSON32
 	  the Institute of Computing Technology (ICT), Chinese Academy of
 	  Sciences (CAS).
 
-config MACH_LOONGSON64
-	bool "Loongson-2/3 family of machines"
+config MACH_LOONGSON2EF
+	bool "Loongson-2E/F family of machines"
 	select SYS_SUPPORTS_ZBOOT
 	help
-	  This enables the support of Loongson-2/3 family of machines.
+	  This enables the support of early Loongson-2E/F family of machines.
 
-	  Loongson-2 is a family of single-core CPUs and Loongson-3 is a
-	  family of multi-core CPUs. They are both 64-bit general-purpose
-	  MIPS-compatible CPUs. Loongson-2/3 are developed by the Institute
-	  of Computing Technology (ICT), Chinese Academy of Sciences (CAS)
-	  in the People's Republic of China. The chief architect is Professor
-	  Weiwu Hu.
+config MACH_LOONGSON64
+	bool "Loongson-2/3 GSx64 family of machines"
+	select SYS_SUPPORTS_ZBOOT
+	help
+	  This enables the support of Loongson-2/3 family of processors with
+	  GSx64 microarchitecture.
 
 config MACH_PISTACHIO
 	bool "IMG Pistachio SoC based boards"
@@ -1037,6 +1037,7 @@ source "arch/mips/sibyte/Kconfig"
 source "arch/mips/txx9/Kconfig"
 source "arch/mips/vr41xx/Kconfig"
 source "arch/mips/cavium-octeon/Kconfig"
+source "arch/mips/loongson2ef/Kconfig"
 source "arch/mips/loongson32/Kconfig"
 source "arch/mips/loongson64/Kconfig"
 source "arch/mips/netlogic/Kconfig"

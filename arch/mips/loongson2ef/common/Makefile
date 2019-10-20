@@ -15,6 +15,12 @@ obj-$(CONFIG_LOONGSON_UART_BASE) += uart_base.o
 obj-$(CONFIG_LOONGSON_MC146818) += rtc.o
 
 #
+# Enable CS5536 Virtual Support Module(VSM) to virtulize the PCI configure
+# space
+#
+obj-$(CONFIG_CS5536) += cs5536/
+
+#
 # Suspend Support
 #
 
