@@ -587,9 +587,11 @@ out:
 	bch2_journal_res_put(&c->journal, &trans->journal_res);
 out_clear_replicas:
 	if (trans->fs_usage_deltas) {
-		memset(&trans->fs_usage_deltas->fs_usage, 0,
-		       sizeof(trans->fs_usage_deltas->fs_usage));
 		trans->fs_usage_deltas->used = 0;
+		memset((void *) trans->fs_usage_deltas +
+		       offsetof(struct replicas_delta_list, memset_start), 0,
+		       (void *) &trans->fs_usage_deltas->memset_end -
+		       (void *) &trans->fs_usage_deltas->memset_start);
 	}
 
 	return ret;

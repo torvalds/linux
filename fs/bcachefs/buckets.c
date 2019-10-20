@@ -585,9 +585,14 @@ void bch2_replicas_delta_list_apply(struct bch_fs *c,
 {
 	struct replicas_delta *d = r->d;
 	struct replicas_delta *top = (void *) r->d + r->used;
+	unsigned i;
 
-	acc_u64s((u64 *) fs_usage,
-		 (u64 *) &r->fs_usage, sizeof(*fs_usage) / sizeof(u64));
+	fs_usage->nr_inodes += r->nr_inodes;
+
+	for (i = 0; i < BCH_REPLICAS_MAX; i++) {
+		fs_usage->reserved += r->persistent_reserved[i];
+		fs_usage->persistent_reserved[i] += r->persistent_reserved[i];
+	}
 
 	while (d != top) {
 		BUG_ON((void *) d > (void *) top);
@@ -1739,9 +1744,9 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 		d = replicas_deltas_realloc(trans, 0);
 
 		if (!(flags & BCH_BUCKET_MARK_OVERWRITE))
-			d->fs_usage.nr_inodes++;
+			d->nr_inodes++;
 		else
-			d->fs_usage.nr_inodes--;
+			d->nr_inodes--;
 		return 0;
 	case KEY_TYPE_reservation: {
 		unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
@@ -1750,10 +1755,9 @@ int bch2_trans_mark_key(struct btree_trans *trans, struct bkey_s_c k,
 
 		sectors *= replicas;
 		replicas = clamp_t(unsigned, replicas, 1,
-				   ARRAY_SIZE(d->fs_usage.persistent_reserved));
+				   ARRAY_SIZE(d->persistent_reserved));
 
-		d->fs_usage.reserved				+= sectors;
-		d->fs_usage.persistent_reserved[replicas - 1]	+= sectors;
+		d->persistent_reserved[replicas - 1] += sectors;
 		return 0;
 	}
 	case KEY_TYPE_reflink_p:

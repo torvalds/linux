@@ -100,7 +100,11 @@ struct replicas_delta {
 struct replicas_delta_list {
 	unsigned		size;
 	unsigned		used;
-	struct bch_fs_usage	fs_usage;
+
+	struct			{} memset_start;
+	u64			nr_inodes;
+	u64			persistent_reserved[BCH_REPLICAS_MAX];
+	struct			{} memset_end;
 	struct replicas_delta	d[0];
 };
 
