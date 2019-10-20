@@ -31,7 +31,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS THE
  * SOFTWARE.
  */
-#if !defined(CM_MSGS_H)
+#ifndef CM_MSGS_H
 #define CM_MSGS_H
 
 #include <rdma/ib_mad.h>

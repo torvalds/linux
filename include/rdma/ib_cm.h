@@ -32,7 +32,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-#if !defined(IB_CM_H)
+#ifndef IB_CM_H
 #define IB_CM_H
 
 #include <rdma/ib_mad.h>
