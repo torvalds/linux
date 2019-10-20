@@ -247,12 +247,7 @@ struct mlx5_ib_flow_db {
  * These flags are intended for internal use by the mlx5_ib driver, and they
  * rely on the range reserved for that use in the ib_qp_create_flags enum.
  */
-
-/* Create a UD QP whose source QP number is 1 */
-static inline enum ib_qp_create_flags mlx5_ib_create_qp_sqpn_qp1(void)
-{
-	return IB_QP_CREATE_RESERVED_START;
-}
+#define MLX5_IB_QP_CREATE_SQPN_QP1	IB_QP_CREATE_RESERVED_START
 
 struct wr_list {
 	u16	opcode;
