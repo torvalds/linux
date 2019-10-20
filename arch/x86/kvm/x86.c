@@ -7379,6 +7379,8 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
+        printk(KERN_ERR "KVM: Calling Switch with NR value %llx \n", nr);
+
 	switch (nr) {
 	case KVM_HC_VAPIC_POLL_IRQ:
 		ret = 0;
@@ -7400,10 +7402,17 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		kvm_sched_yield(vcpu->kvm, a0);
 		ret = 0;
 		break;
+	case 0x283:
+		ret = 0x0033383245504D43;
+		break;
 	default:
 		ret = -KVM_ENOSYS;
 		break;
 	}
+
+        printk(KERN_ERR "KVM: Ending Switch with RET value %llx \n", ret);
+
+
 out:
 	if (!op_64_bit)
 		ret = (u32)ret;
