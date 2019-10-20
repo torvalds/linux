@@ -2296,6 +2296,10 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 		10000,
 		cpu_timeout);
 
+	/* Read U-Boot version now in case we will later fail */
+	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
+	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
+
 	if (rc) {
 		dev_err(hdev->dev, "Error in ARM u-boot!");
 		switch (status) {
@@ -2346,10 +2350,6 @@ static int goya_init_cpu(struct hl_device *hdev, u32 cpu_timeout)
 		}
 		return -EIO;
 	}
-
-	/* Read U-Boot version now in case we will later fail */
-	goya_read_device_fw_version(hdev, FW_COMP_UBOOT);
-	goya_read_device_fw_version(hdev, FW_COMP_PREBOOT);
 
 	if (!hdev->fw_loading) {
 		dev_info(hdev->dev, "Skip loading FW\n");
