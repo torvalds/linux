@@ -132,7 +132,6 @@
 
 		target-module@7000 {			/* 0x44e07000, ap 14 20.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio1";
 			reg = <0x7000 0x4>,
 			      <0x7010 0x4>,
 			      <0x7114 0x4>;
@@ -1048,7 +1047,6 @@
 
 		target-module@4c000 {			/* 0x4804c000, ap 28 36.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio2";
 			reg = <0x4c000 0x4>,
 			      <0x4c010 0x4>,
 			      <0x4c114 0x4>;
@@ -1475,7 +1473,6 @@
 
 		target-module@ac000 {			/* 0x481ac000, ap 46 30.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio3";
 			reg = <0xac000 0x4>,
 			      <0xac010 0x4>,
 			      <0xac114 0x4>;
@@ -1510,7 +1507,6 @@
 
 		target-module@ae000 {			/* 0x481ae000, ap 48 32.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio4";
 			reg = <0xae000 0x4>,
 			      <0xae010 0x4>,
 			      <0xae114 0x4>;
@@ -2038,7 +2034,6 @@
 
 		target-module@20000 {			/* 0x48320000, ap 82 34.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio5";
 			reg = <0x20000 0x4>,
 			      <0x20010 0x4>,
 			      <0x20114 0x4>;
@@ -2073,7 +2068,6 @@
 
 		target-module@22000 {			/* 0x48322000, ap 116 64.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "gpio6";
 			reg = <0x22000 0x4>,
 			      <0x22010 0x4>,
 			      <0x22114 0x4>;
