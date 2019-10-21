@@ -2277,7 +2277,6 @@
 
 		target-module@47000 {			/* 0x48347000, ap 110 70.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "hdq1w";
 			reg = <0x47000 0x4>,
 			      <0x47014 0x4>,
 			      <0x47018 0x4>;
