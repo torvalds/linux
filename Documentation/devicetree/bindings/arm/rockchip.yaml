@@ -464,6 +464,11 @@ properties:
               - rockchip,rk3288-evb-rk808
           - const: rockchip,rk3288
 
+      - description: Rockchip RK3308 Evaluation board
+        items:
+          - const: rockchip,rk3308-evb
+          - const: rockchip,rk3308
+
       - description: Rockchip RK3328 Evaluation board
         items:
           - const: rockchip,rk3328-evb
