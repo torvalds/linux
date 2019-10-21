@@ -264,16 +264,6 @@ static int lpc32xx_rtc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int lpc32xx_rtc_remove(struct platform_device *pdev)
-{
-	struct lpc32xx_rtc *rtc = platform_get_drvdata(pdev);
-
-	if (rtc->irq >= 0)
-		device_init_wakeup(&pdev->dev, 0);
-
-	return 0;
-}
-
 #ifdef CONFIG_PM
 static int lpc32xx_rtc_suspend(struct device *dev)
 {
@@ -355,7 +345,6 @@ MODULE_DEVICE_TABLE(of, lpc32xx_rtc_match);
 
 static struct platform_driver lpc32xx_rtc_driver = {
 	.probe		= lpc32xx_rtc_probe,
-	.remove		= lpc32xx_rtc_remove,
 	.driver = {
 		.name	= "rtc-lpc32xx",
 		.pm	= LPC32XX_RTC_PM_OPS,
