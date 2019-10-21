@@ -1304,7 +1304,7 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int kernel_map,
 	if (kernel_map) {
 		phdr->p_type = PT_LOAD;
 		phdr->p_flags = PF_R|PF_W|PF_X;
-		phdr->p_vaddr = (Elf64_Addr)_text;
+		phdr->p_vaddr = (unsigned long) _text;
 		phdr->p_filesz = phdr->p_memsz = _end - _text;
 		phdr->p_offset = phdr->p_paddr = __pa_symbol(_text);
 		ehdr->e_phnum++;
@@ -1321,7 +1321,7 @@ int crash_prepare_elf64_headers(struct crash_mem *mem, int kernel_map,
 		phdr->p_offset  = mstart;
 
 		phdr->p_paddr = mstart;
-		phdr->p_vaddr = (unsigned long long) __va(mstart);
+		phdr->p_vaddr = (unsigned long) __va(mstart);
 		phdr->p_filesz = phdr->p_memsz = mend - mstart + 1;
 		phdr->p_align = 0;
 		ehdr->e_phnum++;
