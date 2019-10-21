@@ -79,12 +79,12 @@
 			#size-cells = <1>;
 			ranges = <0 0x02020000 0x20000>;
 
-			smp-sysram@0 {
+			smp-sram@0 {
 				compatible = "samsung,exynos4210-sysram";
 				reg = <0x0 0x1000>;
 			};
 
-			smp-sysram@1f000 {
+			smp-sram@1f000 {
 				compatible = "samsung,exynos4210-sysram-ns";
 				reg = <0x1f000 0x1000>;
 			};
