@@ -154,6 +154,7 @@ static void smc_lgr_unregister_conn(struct smc_connection *conn)
 		__smc_lgr_unregister_conn(conn);
 	}
 	write_unlock_bh(&lgr->conns_lock);
+	conn->lgr = NULL;
 }
 
 /* Send delete link, either as client to request the initiation
@@ -344,7 +345,7 @@ static void smc_buf_unuse(struct smc_connection *conn,
 		conn->sndbuf_desc->used = 0;
 	if (conn->rmb_desc) {
 		if (!conn->rmb_desc->regerr) {
-			if (!lgr->is_smcd) {
+			if (!lgr->is_smcd && !list_empty(&lgr->list)) {
 				/* unregister rmb with peer */
 				smc_llc_do_delete_rkey(
 						&lgr->lnk[SMC_SINGLE_LINK],
@@ -375,9 +376,10 @@ void smc_conn_free(struct smc_connection *conn)
 	} else {
 		smc_cdc_tx_dismiss_slots(conn);
 	}
-	smc_lgr_unregister_conn(conn);
-	smc_buf_unuse(conn, lgr);		/* allow buffer reuse */
-	conn->lgr = NULL;
+	if (!list_empty(&lgr->list)) {
+		smc_lgr_unregister_conn(conn);
+		smc_buf_unuse(conn, lgr); /* allow buffer reuse */
+	}
 
 	if (!lgr->conns_num)
 		smc_lgr_schedule_free_work(lgr);
@@ -491,6 +493,28 @@ void smc_lgr_forget(struct smc_link_group *lgr)
 	spin_unlock_bh(lgr_lock);
 }
 
+static void smc_sk_wake_ups(struct smc_sock *smc)
+{
+	smc->sk.sk_write_space(&smc->sk);
+	smc->sk.sk_data_ready(&smc->sk);
+	smc->sk.sk_state_change(&smc->sk);
+}
+
+/* kill a connection */
+static void smc_conn_kill(struct smc_connection *conn)
+{
+	struct smc_sock *smc = container_of(conn, struct smc_sock, conn);
+
+	smc_close_abort(conn);
+	conn->killed = 1;
+	smc_sk_wake_ups(smc);
+	smc_lgr_unregister_conn(conn);
+	smc->sk.sk_err = ECONNABORTED;
+	sock_hold(&smc->sk); /* sock_put in close work */
+	if (!schedule_work(&conn->close_work))
+		sock_put(&smc->sk);
+}
+
 /* terminate link group */
 static void __smc_lgr_terminate(struct smc_link_group *lgr)
 {
@@ -512,13 +536,7 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 		conn = rb_entry(node, struct smc_connection, alert_node);
 		smc = container_of(conn, struct smc_sock, conn);
 		lock_sock(&smc->sk);
-		sock_hold(&smc->sk); /* sock_put in close work */
-		smc_close_abort(conn);
-		conn->killed = 1;
-		smc_lgr_unregister_conn(conn);
-		conn->lgr = NULL;
-		if (!schedule_work(&conn->close_work))
-			sock_put(&smc->sk);
+		smc_conn_kill(conn);
 		release_sock(&smc->sk);
 		read_lock_bh(&lgr->conns_lock);
 		node = rb_first(&lgr->conns_all);
