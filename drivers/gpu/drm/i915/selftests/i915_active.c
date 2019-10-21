@@ -79,7 +79,6 @@ __live_active_setup(struct drm_i915_private *i915)
 	struct intel_engine_cs *engine;
 	struct i915_sw_fence *submit;
 	struct live_active *active;
-	enum intel_engine_id id;
 	unsigned int count = 0;
 	int err = 0;
 
@@ -97,7 +96,7 @@ __live_active_setup(struct drm_i915_private *i915)
 	if (err)
 		goto out;
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
 
 		rq = i915_request_create(engine->kernel_context);
