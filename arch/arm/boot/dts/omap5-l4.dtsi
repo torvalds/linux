@@ -593,7 +593,6 @@
 
 		target-module@74000 {			/* 0x4a0f4000, ap 25 04.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox";
 			reg = <0x74000 0x4>,
 			      <0x74010 0x4>;
 			reg-names = "rev", "sysc";
