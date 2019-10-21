@@ -255,39 +255,6 @@ static struct omap_hwmod am33xx_lcdc_hwmod = {
 };
 
 /*
- * 'usb_otg' class
- * high-speed on-the-go universal serial bus (usb_otg) controller
- */
-static struct omap_hwmod_class_sysconfig am33xx_usbhsotg_sysc = {
-	.rev_offs	= 0x0,
-	.sysc_offs	= 0x10,
-	.sysc_flags	= (SYSC_HAS_SIDLEMODE | SYSC_HAS_MIDLEMODE),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			  MSTANDBY_FORCE | MSTANDBY_NO | MSTANDBY_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class am33xx_usbotg_class = {
-	.name		= "usbotg",
-	.sysc		= &am33xx_usbhsotg_sysc,
-};
-
-static struct omap_hwmod am33xx_usbss_hwmod = {
-	.name		= "usb_otg_hs",
-	.class		= &am33xx_usbotg_class,
-	.clkdm_name	= "l3s_clkdm",
-	.flags		= HWMOD_SWSUP_SIDLE | HWMOD_SWSUP_MSTANDBY,
-	.main_clk	= "usbotg_fck",
-	.prcm		= {
-		.omap4	= {
-			.clkctrl_offs	= AM33XX_CM_PER_USB0_CLKCTRL_OFFSET,
-			.modulemode	= MODULEMODE_SWCTRL,
-		},
-	},
-};
-
-
-/*
  * Interfaces
  */
 
@@ -386,16 +353,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__timer1 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* usbss */
-/* l3 s -> USBSS interface */
-static struct omap_hwmod_ocp_if am33xx_l3_s__usbss = {
-	.master		= &am33xx_l3_s_hwmod,
-	.slave		= &am33xx_usbss_hwmod,
-	.clk		= "l3s_gclk",
-	.user		= OCP_USER_MPU,
-	.flags		= OCPIF_SWSUP_IDLE,
-};
-
 static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__emif,
 	&am33xx_mpu__l3_main,
@@ -441,7 +398,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l3_main__tptc1,
 	&am33xx_l3_main__tptc2,
 	&am33xx_l3_main__ocmc,
-	&am33xx_l3_s__usbss,
 	&am33xx_l3_main__sha0,
 	&am33xx_l3_main__aes0,
 	NULL,
