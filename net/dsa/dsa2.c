@@ -708,7 +708,7 @@ static int dsa_switch_parse_ports_of(struct dsa_switch *ds,
 			goto out_put_node;
 		}
 
-		dp = &ds->ports[reg];
+		dp = dsa_to_port(ds, reg);
 
 		err = dsa_port_parse_of(dp, port);
 		if (err)
@@ -787,7 +787,7 @@ static int dsa_switch_parse_ports(struct dsa_switch *ds,
 	for (i = 0; i < DSA_MAX_PORTS; i++) {
 		name = cd->port_names[i];
 		dev = cd->netdev[i];
-		dp = &ds->ports[i];
+		dp = dsa_to_port(ds, i);
 
 		if (!name)
 			continue;

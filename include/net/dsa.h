@@ -278,7 +278,7 @@ struct dsa_switch {
 	struct dsa_port ports[];
 };
 
-static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
 {
 	return &ds->ports[p];
 }

@@ -1075,7 +1075,7 @@ static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
 		return mv88e6xxx_port_mask(chip);
 
-	br = ds->ports[port].bridge_dev;
+	br = dsa_to_port(ds, port)->bridge_dev;
 	pvlan = 0;
 
 	/* Frames from user ports can egress any local DSA links and CPU ports,
@@ -1402,7 +1402,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
-			if (!ds->ports[i].slave)
+			if (!dsa_to_port(ds, i)->slave)
 				continue;
 
 			if (vlan.member[i] ==
@@ -1410,7 +1410,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 				continue;
 
 			if (dsa_to_port(ds, i)->bridge_dev ==
-			    ds->ports[port].bridge_dev)
+			    dsa_to_port(ds, port)->bridge_dev)
 				break; /* same bridge, check next VLAN */
 
 			if (!dsa_to_port(ds, i)->bridge_dev)
@@ -2042,7 +2042,7 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 
 	/* Remap the Port VLAN of each local bridge group member */
 	for (port = 0; port < mv88e6xxx_num_ports(chip); ++port) {
-		if (chip->ds->ports[port].bridge_dev == br) {
+		if (dsa_to_port(chip->ds, port)->bridge_dev == br) {
 			err = mv88e6xxx_port_vlan_map(chip, port);
 			if (err)
 				return err;
@@ -2059,7 +2059,7 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 			break;
 
 		for (port = 0; port < ds->num_ports; ++port) {
-			if (ds->ports[port].bridge_dev == br) {
+			if (dsa_to_port(ds, port)->bridge_dev == br) {
 				err = mv88e6xxx_pvt_map(chip, dev, port);
 				if (err)
 					return err;

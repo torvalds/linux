@@ -661,7 +661,7 @@ qca8k_setup(struct dsa_switch *ds)
 		return ret;
 
 	/* Initialize CPU port pad mode (xMII type, delays...) */
-	phy_mode = of_get_phy_mode(ds->ports[QCA8K_CPU_PORT].dn);
+	phy_mode = of_get_phy_mode(dsa_to_port(ds, QCA8K_CPU_PORT)->dn);
 	if (phy_mode < 0) {
 		pr_err("Can't find phy-mode for master device\n");
 		return phy_mode;

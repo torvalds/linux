@@ -246,7 +246,9 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 #ifdef CONFIG_PM_SLEEP
 static bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
 {
-	return dsa_is_user_port(ds, p) && ds->ports[p].slave;
+	const struct dsa_port *dp = dsa_to_port(ds, p);
+
+	return dp->type == DSA_PORT_TYPE_USER && dp->slave;
 }
 
 int dsa_switch_suspend(struct dsa_switch *ds)
@@ -258,7 +260,7 @@ int dsa_switch_suspend(struct dsa_switch *ds)
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
-		ret = dsa_slave_suspend(ds->ports[i].slave);
+		ret = dsa_slave_suspend(dsa_to_port(ds, i)->slave);
 		if (ret)
 			return ret;
 	}
@@ -285,7 +287,7 @@ int dsa_switch_resume(struct dsa_switch *ds)
 		if (!dsa_is_port_initialized(ds, i))
 			continue;
 
-		ret = dsa_slave_resume(ds->ports[i].slave);
+		ret = dsa_slave_resume(dsa_to_port(ds, i)->slave);
 		if (ret)
 			return ret;
 	}

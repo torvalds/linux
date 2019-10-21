@@ -1058,7 +1058,7 @@ int sja1105pqrs_fdb_add(struct dsa_switch *ds, int port,
 	l2_lookup.vlanid = vid;
 	l2_lookup.iotag = SJA1105_S_TAG;
 	l2_lookup.mask_macaddr = GENMASK_ULL(ETH_ALEN * 8 - 1, 0);
-	if (dsa_port_is_vlan_filtering(&ds->ports[port])) {
+	if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port))) {
 		l2_lookup.mask_vlanid = VLAN_VID_MASK;
 		l2_lookup.mask_iotag = BIT(0);
 	} else {
@@ -1121,7 +1121,7 @@ int sja1105pqrs_fdb_del(struct dsa_switch *ds, int port,
 	l2_lookup.vlanid = vid;
 	l2_lookup.iotag = SJA1105_S_TAG;
 	l2_lookup.mask_macaddr = GENMASK_ULL(ETH_ALEN * 8 - 1, 0);
-	if (dsa_port_is_vlan_filtering(&ds->ports[port])) {
+	if (dsa_port_is_vlan_filtering(dsa_to_port(ds, port))) {
 		l2_lookup.mask_vlanid = VLAN_VID_MASK;
 		l2_lookup.mask_iotag = BIT(0);
 	} else {
@@ -1167,7 +1167,7 @@ static int sja1105_fdb_add(struct dsa_switch *ds, int port,
 	 * for what gets printed in 'bridge fdb show'.  In the case of zero,
 	 * no VID gets printed at all.
 	 */
-	if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
+	if (!dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 		vid = 0;
 
 	return priv->info->fdb_add_cmd(ds, port, addr, vid);
@@ -1178,7 +1178,7 @@ static int sja1105_fdb_del(struct dsa_switch *ds, int port,
 {
 	struct sja1105_private *priv = ds->priv;
 
-	if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
+	if (!dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 		vid = 0;
 
 	return priv->info->fdb_del_cmd(ds, port, addr, vid);
@@ -1217,7 +1217,7 @@ static int sja1105_fdb_dump(struct dsa_switch *ds, int port,
 		u64_to_ether_addr(l2_lookup.macaddr, macaddr);
 
 		/* We need to hide the dsa_8021q VLANs from the user. */
-		if (!dsa_port_is_vlan_filtering(&ds->ports[port]))
+		if (!dsa_port_is_vlan_filtering(dsa_to_port(ds, port)))
 			l2_lookup.vlanid = 0;
 		cb(macaddr, l2_lookup.vlanid, l2_lookup.lockeds, data);
 	}
@@ -1704,7 +1704,7 @@ static int sja1105_port_enable(struct dsa_switch *ds, int port,
 	if (!dsa_is_user_port(ds, port))
 		return 0;
 
-	slave = ds->ports[port].slave;
+	slave = dsa_to_port(ds, port)->slave;
 
 	slave->features &= ~NETIF_F_HW_VLAN_CTAG_FILTER;
 
@@ -1736,7 +1736,7 @@ static int sja1105_mgmt_xmit(struct dsa_switch *ds, int port, int slot,
 	}
 
 	/* Transfer skb to the host port. */
-	dsa_enqueue_skb(skb, ds->ports[port].slave);
+	dsa_enqueue_skb(skb, dsa_to_port(ds, port)->slave);
 
 	/* Wait until the switch has processed the frame */
 	do {
@@ -2061,8 +2061,8 @@ static int sja1105_probe(struct spi_device *spi)
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		struct sja1105_port *sp = &priv->ports[i];
 
-		ds->ports[i].priv = sp;
-		sp->dp = &ds->ports[i];
+		dsa_to_port(ds, i)->priv = sp;
+		sp->dp = dsa_to_port(ds, i);
 		sp->data = tagger_data;
 	}
 	mutex_init(&priv->ptp_data.lock);
