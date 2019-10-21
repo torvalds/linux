@@ -1032,7 +1032,6 @@
 
 		target-module@20000 {			/* 0x48020000, ap 3 04.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart3";
 			reg = <0x20050 0x4>,
 			      <0x20054 0x4>,
 			      <0x20058 0x4>;
@@ -1438,7 +1437,6 @@
 
 		target-module@66000 {			/* 0x48066000, ap 63 4c.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart5";
 			reg = <0x66050 0x4>,
 			      <0x66054 0x4>,
 			      <0x66058 0x4>;
@@ -1468,7 +1466,6 @@
 
 		target-module@68000 {			/* 0x48068000, ap 53 54.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart6";
 			reg = <0x68050 0x4>,
 			      <0x68054 0x4>,
 			      <0x68058 0x4>;
@@ -1498,7 +1495,6 @@
 
 		target-module@6a000 {			/* 0x4806a000, ap 24 0a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart1";
 			reg = <0x6a050 0x4>,
 			      <0x6a054 0x4>,
 			      <0x6a058 0x4>;
@@ -1528,7 +1524,6 @@
 
 		target-module@6c000 {			/* 0x4806c000, ap 26 22.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart2";
 			reg = <0x6c050 0x4>,
 			      <0x6c054 0x4>,
 			      <0x6c058 0x4>;
@@ -1558,7 +1553,6 @@
 
 		target-module@6e000 {			/* 0x4806e000, ap 28 44.1 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "uart4";
 			reg = <0x6e050 0x4>,
 			      <0x6e054 0x4>,
 			      <0x6e058 0x4>;
