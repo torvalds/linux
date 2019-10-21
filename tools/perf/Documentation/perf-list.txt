@@ -36,6 +36,9 @@ Enable debugging output.
 Print how named events are resolved internally into perf events, and also
 any extra expressions computed by perf stat.
 
+--deprecated::
+Print deprecated events. By default the deprecated events are hidden.
+
 [[EVENT_MODIFIERS]]
 EVENT MODIFIERS
 ---------------
