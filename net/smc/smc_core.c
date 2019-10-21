@@ -491,23 +491,26 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 	if (!lgr->is_smcd)
 		smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
 
-	write_lock_bh(&lgr->conns_lock);
+	/* kill remaining link group connections */
+	read_lock_bh(&lgr->conns_lock);
 	node = rb_first(&lgr->conns_all);
 	while (node) {
+		read_unlock_bh(&lgr->conns_lock);
 		conn = rb_entry(node, struct smc_connection, alert_node);
 		smc = container_of(conn, struct smc_sock, conn);
+		lock_sock(&smc->sk);
 		sock_hold(&smc->sk); /* sock_put in close work */
 		conn->killed = 1;
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
-		__smc_lgr_unregister_conn(conn);
+		smc_lgr_unregister_conn(conn);
 		conn->lgr = NULL;
-		write_unlock_bh(&lgr->conns_lock);
 		if (!schedule_work(&conn->close_work))
 			sock_put(&smc->sk);
-		write_lock_bh(&lgr->conns_lock);
+		release_sock(&smc->sk);
+		read_lock_bh(&lgr->conns_lock);
 		node = rb_first(&lgr->conns_all);
 	}
-	write_unlock_bh(&lgr->conns_lock);
+	read_unlock_bh(&lgr->conns_lock);
 	if (!lgr->is_smcd)
 		wake_up(&lgr->lnk[SMC_SINGLE_LINK].wr_reg_wait);
 	smc_lgr_schedule_free_work(lgr);
