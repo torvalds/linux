@@ -65,6 +65,8 @@ patternProperties:
           Should contain a vendor specific string in the form
           <vendor>,[<device>-]<usage>
         enum:
+          - amlogic,meson8-smp-sram
+          - amlogic,meson8b-smp-sram
           - samsung,exynos4210-sysram
           - samsung,exynos4210-sysram-ns
 
@@ -161,5 +163,25 @@ examples:
         smp-sram@53000 {
             compatible = "samsung,exynos4210-sysram-ns";
             reg = <0x53000 0x1000>;
+        };
+    };
+
+  - |
+    // Amlogic's SMP-capable SoCs use part of the sram for the bringup of the cores.
+    // Once the core gets powered up it executes the code that is residing at a
+    // specific location.
+    //
+    // Therefore a reserved section sub-node has to be added to the mmio-sram
+    // declaration.
+    sram@d9000000 {
+        compatible = "mmio-sram";
+        reg = <0xd9000000 0x20000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0xd9000000 0x20000>;
+
+        smp-sram@1ff80 {
+            compatible = "amlogic,meson8b-smp-sram";
+            reg = <0x1ff80 0x8>;
         };
     };
