@@ -66,7 +66,8 @@ static void smc_close_stream_wait(struct smc_sock *smc, long timeout)
 		rc = sk_wait_event(sk, &timeout,
 				   !smc_tx_prepared_sends(&smc->conn) ||
 				   sk->sk_err == ECONNABORTED ||
-				   sk->sk_err == ECONNRESET,
+				   sk->sk_err == ECONNRESET ||
+				   smc->conn.killed,
 				   &wait);
 		if (rc)
 			break;
@@ -95,6 +96,8 @@ static int smc_close_final(struct smc_connection *conn)
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 	else
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_closed = 1;
+	if (conn->killed)
+		return -EPIPE;
 
 	return smc_cdc_get_slot_and_msg_send(conn);
 }
@@ -326,7 +329,7 @@ static void smc_close_passive_work(struct work_struct *work)
 	lock_sock(sk);
 	old_state = sk->sk_state;
 
-	if (!conn->alert_token_local) {
+	if (conn->killed) {
 		/* abnormal termination */
 		smc_close_active_abort(smc);
 		goto wakeup;
