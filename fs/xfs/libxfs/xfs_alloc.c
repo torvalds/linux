@@ -2116,7 +2116,8 @@ xfs_alloc_longest_free_extent(
 	 * reservations and AGFL rules in place, we can return this extent.
 	 */
 	if (pag->pagf_longest > delta)
-		return pag->pagf_longest - delta;
+		return min_t(xfs_extlen_t, pag->pag_mount->m_ag_max_usable,
+				pag->pagf_longest - delta);
 
 	/* Otherwise, let the caller try for 1 block if there's space. */
 	return pag->pagf_flcount > 0 || pag->pagf_longest > 0;

@@ -3501,13 +3501,11 @@ xfs_bmap_btalloc(
 			args.mod = args.prod - args.mod;
 	}
 	/*
-	 * If we are not low on available data blocks, and the
-	 * underlying logical volume manager is a stripe, and
-	 * the file offset is zero then try to allocate data
-	 * blocks on stripe unit boundary.
-	 * NOTE: ap->aeof is only set if the allocation length
-	 * is >= the stripe unit and the allocation offset is
-	 * at the end of file.
+	 * If we are not low on available data blocks, and the underlying
+	 * logical volume manager is a stripe, and the file offset is zero then
+	 * try to allocate data blocks on stripe unit boundary. NOTE: ap->aeof
+	 * is only set if the allocation length is >= the stripe unit and the
+	 * allocation offset is at the end of file.
 	 */
 	if (!(ap->tp->t_flags & XFS_TRANS_LOWMODE) && ap->aeof) {
 		if (!ap->offset) {
@@ -3515,9 +3513,11 @@ xfs_bmap_btalloc(
 			atype = args.type;
 			isaligned = 1;
 			/*
-			 * Adjust for alignment
+			 * Adjust minlen to try and preserve alignment if we
+			 * can't guarantee an aligned maxlen extent.
 			 */
-			if (blen > args.alignment && blen <= args.maxlen)
+			if (blen > args.alignment &&
+			    blen <= args.maxlen + args.alignment)
 				args.minlen = blen - args.alignment;
 			args.minalignslop = 0;
 		} else {
