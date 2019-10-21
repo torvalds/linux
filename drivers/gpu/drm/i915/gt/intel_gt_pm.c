@@ -71,6 +71,7 @@ static int __gt_park(struct intel_wakeref *wf)
 	pm_notify(gt, INTEL_GT_PARK);
 	intel_gt_park_requests(gt);
 
+	i915_vma_parked(gt);
 	i915_pmu_gt_parked(i915);
 	if (INTEL_GEN(i915) >= 6)
 		gen6_rps_idle(i915);

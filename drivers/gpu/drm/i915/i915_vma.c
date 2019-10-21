@@ -106,7 +106,7 @@ vma_create(struct drm_i915_gem_object *obj,
 	struct rb_node *rb, **p;
 
 	/* The aliasing_ppgtt should never be used directly! */
-	GEM_BUG_ON(vm == &vm->i915->ggtt.alias->vm);
+	GEM_BUG_ON(vm == &vm->gt->ggtt->alias->vm);
 
 	vma = i915_vma_alloc();
 	if (vma == NULL)
@@ -412,7 +412,7 @@ void __iomem *i915_vma_pin_iomap(struct i915_vma *vma)
 	int err;
 
 	/* Access through the GTT requires the device to be awake. */
-	assert_rpm_wakelock_held(&vma->vm->i915->runtime_pm);
+	assert_rpm_wakelock_held(vma->vm->gt->uncore->rpm);
 	if (GEM_WARN_ON(!i915_vma_is_map_and_fenceable(vma))) {
 		err = -ENODEV;
 		goto err;
@@ -945,7 +945,7 @@ err_pages:
 
 void i915_vma_close(struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
+	struct intel_gt *gt = vma->vm->gt;
 	unsigned long flags;
 
 	GEM_BUG_ON(i915_vma_is_closed(vma));
@@ -962,18 +962,18 @@ void i915_vma_close(struct i915_vma *vma)
 	 * causing us to rebind the VMA once more. This ends up being a lot
 	 * of wasted work for the steady state.
 	 */
-	spin_lock_irqsave(&i915->gt.closed_lock, flags);
-	list_add(&vma->closed_link, &i915->gt.closed_vma);
-	spin_unlock_irqrestore(&i915->gt.closed_lock, flags);
+	spin_lock_irqsave(&gt->closed_lock, flags);
+	list_add(&vma->closed_link, &gt->closed_vma);
+	spin_unlock_irqrestore(&gt->closed_lock, flags);
 }
 
 static void __i915_vma_remove_closed(struct i915_vma *vma)
 {
-	struct drm_i915_private *i915 = vma->vm->i915;
+	struct intel_gt *gt = vma->vm->gt;
 
-	spin_lock_irq(&i915->gt.closed_lock);
+	spin_lock_irq(&gt->closed_lock);
 	list_del_init(&vma->closed_link);
-	spin_unlock_irq(&i915->gt.closed_lock);
+	spin_unlock_irq(&gt->closed_lock);
 }
 
 void i915_vma_reopen(struct i915_vma *vma)
@@ -1009,12 +1009,12 @@ void i915_vma_destroy(struct i915_vma *vma)
 	i915_vma_free(vma);
 }
 
-void i915_vma_parked(struct drm_i915_private *i915)
+void i915_vma_parked(struct intel_gt *gt)
 {
 	struct i915_vma *vma, *next;
 
-	spin_lock_irq(&i915->gt.closed_lock);
-	list_for_each_entry_safe(vma, next, &i915->gt.closed_vma, closed_link) {
+	spin_lock_irq(&gt->closed_lock);
+	list_for_each_entry_safe(vma, next, &gt->closed_vma, closed_link) {
 		struct drm_i915_gem_object *obj = vma->obj;
 		struct i915_address_space *vm = vma->vm;
 
@@ -1028,7 +1028,7 @@ void i915_vma_parked(struct drm_i915_private *i915)
 			obj = NULL;
 		}
 
-		spin_unlock_irq(&i915->gt.closed_lock);
+		spin_unlock_irq(&gt->closed_lock);
 
 		if (obj) {
 			i915_vma_destroy(vma);
@@ -1038,11 +1038,11 @@ void i915_vma_parked(struct drm_i915_private *i915)
 		i915_vm_close(vm);
 
 		/* Restart after dropping lock */
-		spin_lock_irq(&i915->gt.closed_lock);
-		next = list_first_entry(&i915->gt.closed_vma,
+		spin_lock_irq(&gt->closed_lock);
+		next = list_first_entry(&gt->closed_vma,
 					typeof(*next), closed_link);
 	}
-	spin_unlock_irq(&i915->gt.closed_lock);
+	spin_unlock_irq(&gt->closed_lock);
 }
 
 static void __i915_vma_iounmap(struct i915_vma *vma)

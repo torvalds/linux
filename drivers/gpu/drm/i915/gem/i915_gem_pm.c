@@ -23,7 +23,6 @@ static int pm_notifier(struct notifier_block *nb,
 		break;
 
 	case INTEL_GT_PARK:
-		i915_vma_parked(i915);
 		break;
 	}
 
