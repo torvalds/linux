@@ -31,7 +31,8 @@ void test_reference_tracking(void)
 		if (strstr(title, ".text") != NULL)
 			continue;
 
-		bpf_program__set_type(prog, BPF_PROG_TYPE_SCHED_CLS);
+		if (!test__start_subtest(title))
+			continue;
 
 		/* Expect verifier failure if test name has 'fail' */
 		if (strstr(title, "fail") != NULL) {
