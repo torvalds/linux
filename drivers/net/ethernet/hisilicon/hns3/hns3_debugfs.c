@@ -16,15 +16,14 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 			       const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
-	struct hns3_nic_ring_data *ring_data;
 	struct hns3_enet_ring *ring;
 	u32 base_add_l, base_add_h;
 	u32 queue_num, queue_max;
 	u32 value, i = 0;
 	int cnt;
 
-	if (!priv->ring_data) {
-		dev_err(&h->pdev->dev, "ring_data is NULL\n");
+	if (!priv->ring) {
+		dev_err(&h->pdev->dev, "priv->ring is NULL\n");
 		return -EFAULT;
 	}
 
@@ -44,7 +43,6 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 		return -EINVAL;
 	}
 
-	ring_data = priv->ring_data;
 	for (i = queue_num; i < queue_max; i++) {
 		/* Each cycle needs to determine whether the instance is reset,
 		 * to prevent reference to invalid memory. And need to ensure
@@ -54,7 +52,7 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 		    test_bit(HNS3_NIC_STATE_RESETTING, &priv->state))
 			return -EPERM;
 
-		ring = ring_data[(u32)(i + h->kinfo.num_tqps)].ring;
+		ring = &priv->ring[(u32)(i + h->kinfo.num_tqps)];
 		base_add_h = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_RX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
@@ -86,7 +84,7 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 				      HNS3_RING_RX_RING_PKTNUM_RECORD_REG);
 		dev_info(&h->pdev->dev, "RX(%d) RING PKTNUM: %u\n", i, value);
 
-		ring = ring_data[i].ring;
+		ring = &priv->ring[i];
 		base_add_h = readl_relaxed(ring->tqp->io_base +
 					   HNS3_RING_TX_RING_BASEADDR_H_REG);
 		base_add_l = readl_relaxed(ring->tqp->io_base +
@@ -130,7 +128,6 @@ static int hns3_dbg_queue_info(struct hnae3_handle *h,
 static int hns3_dbg_queue_map(struct hnae3_handle *h)
 {
 	struct hns3_nic_priv *priv = h->priv;
-	struct hns3_nic_ring_data *ring_data;
 	int i;
 
 	if (!h->ae_algo->ops->get_global_queue_id)
@@ -143,15 +140,12 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 		u16 global_qid;
 
 		global_qid = h->ae_algo->ops->get_global_queue_id(h, i);
-		ring_data = &priv->ring_data[i];
-		if (!ring_data || !ring_data->ring ||
-		    !ring_data->ring->tqp_vector)
+		if (!priv->ring || !priv->ring[i].tqp_vector)
 			continue;
 
 		dev_info(&h->pdev->dev,
 			 "      %4d            %4d            %4d\n",
-			 i, global_qid,
-			 ring_data->ring->tqp_vector->vector_irq);
+			 i, global_qid, priv->ring[i].tqp_vector->vector_irq);
 	}
 
 	return 0;
@@ -160,7 +154,6 @@ static int hns3_dbg_queue_map(struct hnae3_handle *h)
 static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 {
 	struct hns3_nic_priv *priv = h->priv;
-	struct hns3_nic_ring_data *ring_data;
 	struct hns3_desc *rx_desc, *tx_desc;
 	struct device *dev = &h->pdev->dev;
 	struct hns3_enet_ring *ring;
@@ -183,8 +176,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 		return -EINVAL;
 	}
 
-	ring_data = priv->ring_data;
-	ring  = ring_data[q_num].ring;
+	ring  = &priv->ring[q_num];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_TX_RING_TAIL_REG);
 	tx_index = (cnt == 1) ? value : tx_index;
 
@@ -214,7 +206,7 @@ static int hns3_dbg_bd_info(struct hnae3_handle *h, const char *cmd_buf)
 	dev_info(dev, "(TX)vld_ra_ri: %u\n", tx_desc->tx.bdtp_fe_sc_vld_ra_ri);
 	dev_info(dev, "(TX)mss: %u\n", tx_desc->tx.mss);
 
-	ring  = ring_data[q_num + h->kinfo.num_tqps].ring;
+	ring  = &priv->ring[q_num + h->kinfo.num_tqps];
 	value = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_TAIL_REG);
 	rx_index = (cnt == 1) ? value : tx_index;
 	rx_desc	 = &ring->desc[rx_index];

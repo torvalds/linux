@@ -325,8 +325,7 @@ static const struct hclge_mac_mgr_tbl_entry_cmd hclge_mgr_table[] = {
 	{
 		.flags = HCLGE_MAC_MGR_MASK_VLAN_B,
 		.ethter_type = cpu_to_le16(ETH_P_LLDP),
-		.mac_addr_hi32 = cpu_to_le32(htonl(0x0180C200)),
-		.mac_addr_lo16 = cpu_to_le16(htons(0x000E)),
+		.mac_addr = {0x01, 0x80, 0xc2, 0x00, 0x00, 0x0e},
 		.i_port_bitmap = 0x1,
 	},
 };
@@ -9800,6 +9799,9 @@ static int hclge_reset_ae_dev(struct hnae3_ae_dev *ae_dev)
 		dev_err(&pdev->dev, "fd table init fail, ret=%d\n", ret);
 		return ret;
 	}
+
+	/* Log and clear the hw errors those already occurred */
+	hclge_handle_all_hns_hw_errors(ae_dev);
 
 	/* Re-enable the hw error interrupts because
 	 * the interrupts get disabled on global reset.

@@ -483,7 +483,7 @@ static void hns3_reset_tx_queue(struct hnae3_handle *h)
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
 		dev_queue = netdev_get_tx_queue(ndev,
-						priv->ring_data[i].queue_index);
+						priv->ring[i].queue_index);
 		netdev_tx_reset_queue(dev_queue);
 	}
 }
@@ -1390,9 +1390,7 @@ static int hns3_fill_skb_to_desc(struct hns3_enet_ring *ring,
 netdev_tx_t hns3_nic_net_xmit(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
-	struct hns3_nic_ring_data *ring_data =
-		&tx_ring_data(priv, skb->queue_mapping);
-	struct hns3_enet_ring *ring = ring_data->ring;
+	struct hns3_enet_ring *ring = &priv->ring[skb->queue_mapping];
 	struct netdev_queue *dev_queue;
 	int pre_ntu, next_to_use_head;
 	struct sk_buff *frag_skb;
@@ -1444,7 +1442,7 @@ out:
 				cpu_to_le16(BIT(HNS3_TXD_FE_B));
 
 	/* Complete translate all packets */
-	dev_queue = netdev_get_tx_queue(netdev, ring_data->queue_index);
+	dev_queue = netdev_get_tx_queue(netdev, ring->queue_index);
 	netdev_tx_sent_queue(dev_queue, skb->len);
 
 	wmb(); /* Commit all data before submit */
@@ -1461,7 +1459,7 @@ out_err_tx_ok:
 	return NETDEV_TX_OK;
 
 out_net_tx_busy:
-	netif_stop_subqueue(netdev, ring_data->queue_index);
+	netif_stop_subqueue(netdev, ring->queue_index);
 	smp_mb(); /* Commit all data before submit */
 
 	return NETDEV_TX_BUSY;
@@ -1584,7 +1582,7 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 
 	for (idx = 0; idx < queue_num; idx++) {
 		/* fetch the tx stats */
-		ring = priv->ring_data[idx].ring;
+		ring = &priv->ring[idx];
 		do {
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			tx_bytes += ring->stats.tx_bytes;
@@ -1602,7 +1600,7 @@ static void hns3_nic_get_stats64(struct net_device *netdev,
 		} while (u64_stats_fetch_retry_irq(&ring->syncp, start));
 
 		/* fetch the rx stats */
-		ring = priv->ring_data[idx + queue_num].ring;
+		ring = &priv->ring[idx + queue_num];
 		do {
 			start = u64_stats_fetch_begin_irq(&ring->syncp);
 			rx_bytes += ring->stats.rx_bytes;
@@ -1807,7 +1805,7 @@ static bool hns3_get_tx_timeo_queue_info(struct net_device *ndev)
 
 	priv->tx_timeout_count++;
 
-	tx_ring = priv->ring_data[timeout_queue].ring;
+	tx_ring = &priv->ring[timeout_queue];
 	napi = &tx_ring->tqp_vector->napi;
 
 	netdev_info(ndev,
@@ -2480,17 +2478,18 @@ static int is_valid_clean_head(struct hns3_enet_ring *ring, int h)
 
 void hns3_clean_tx_ring(struct hns3_enet_ring *ring)
 {
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	struct hns3_nic_priv *priv = netdev_priv(netdev);
 	struct netdev_queue *dev_queue;
 	int bytes, pkts;
 	int head;
 
 	head = readl_relaxed(ring->tqp->io_base + HNS3_RING_TX_RING_HEAD_REG);
-	rmb(); /* Make sure head is ready before touch any data */
 
 	if (is_ring_empty(ring) || head == ring->next_to_clean)
 		return; /* no data to poll */
+
+	rmb(); /* Make sure head is ready before touch any data */
 
 	if (unlikely(!is_valid_clean_head(ring, head))) {
 		netdev_err(netdev, "wrong head (%d, %d-%d)\n", head,
@@ -2561,7 +2560,7 @@ static void hns3_nic_alloc_rx_buffers(struct hns3_enet_ring *ring,
 				ring->stats.sw_err_cnt++;
 				u64_stats_update_end(&ring->syncp);
 
-				hns3_rl_err(ring->tqp_vector->napi.dev,
+				hns3_rl_err(ring_to_netdev(ring),
 					    "alloc rx buffer failed: %d\n",
 					    ret);
 				break;
@@ -2670,7 +2669,7 @@ static int hns3_gro_complete(struct sk_buff *skb, u32 l234info)
 static void hns3_rx_checksum(struct hns3_enet_ring *ring, struct sk_buff *skb,
 			     u32 l234info, u32 bd_base_info, u32 ol_info)
 {
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	int l3_type, l4_type;
 	int ol4_type;
 
@@ -2786,7 +2785,7 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 {
 #define HNS3_NEED_ADD_FRAG	1
 	struct hns3_desc_cb *desc_cb = &ring->desc_cb[ring->next_to_clean];
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	struct sk_buff *skb;
 
 	ring->skb = napi_alloc_skb(&ring->tqp_vector->napi, HNS3_RX_HEAD_SIZE);
@@ -2832,10 +2831,10 @@ static int hns3_alloc_skb(struct hns3_enet_ring *ring, unsigned int length,
 }
 
 static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
-			 struct sk_buff **out_skb, bool pending)
+			 bool pending)
 {
-	struct sk_buff *skb = *out_skb;
-	struct sk_buff *head_skb = *out_skb;
+	struct sk_buff *skb = ring->skb;
+	struct sk_buff *head_skb = skb;
 	struct sk_buff *new_skb;
 	struct hns3_desc_cb *desc_cb;
 	struct hns3_desc *pre_desc;
@@ -2864,10 +2863,9 @@ static int hns3_add_frag(struct hns3_enet_ring *ring, struct hns3_desc *desc,
 			return -ENXIO;
 
 		if (unlikely(ring->frag_num >= MAX_SKB_FRAGS)) {
-			new_skb = napi_alloc_skb(&ring->tqp_vector->napi,
-						 HNS3_RX_HEAD_SIZE);
+			new_skb = napi_alloc_skb(&ring->tqp_vector->napi, 0);
 			if (unlikely(!new_skb)) {
-				hns3_rl_err(ring->tqp_vector->napi.dev,
+				hns3_rl_err(ring_to_netdev(ring),
 					    "alloc rx fraglist skb fail\n");
 				return -ENXIO;
 			}
@@ -2943,7 +2941,7 @@ static void hns3_set_rx_skb_rss_type(struct hns3_enet_ring *ring,
 
 static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 {
-	struct net_device *netdev = ring->tqp->handle->kinfo.netdev;
+	struct net_device *netdev = ring_to_netdev(ring);
 	enum hns3_pkt_l2t_type l2_frame_type;
 	u32 bd_base_info, l234info, ol_info;
 	struct hns3_desc *desc;
@@ -3018,8 +3016,7 @@ static int hns3_handle_bdinfo(struct hns3_enet_ring *ring, struct sk_buff *skb)
 	return 0;
 }
 
-static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
-			     struct sk_buff **out_skb)
+static int hns3_handle_rx_bd(struct hns3_enet_ring *ring)
 {
 	struct sk_buff *skb = ring->skb;
 	struct hns3_desc_cb *desc_cb;
@@ -3057,12 +3054,12 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 
 	if (!skb) {
 		ret = hns3_alloc_skb(ring, length, ring->va);
-		*out_skb = skb = ring->skb;
+		skb = ring->skb;
 
 		if (ret < 0) /* alloc buffer fail */
 			return ret;
 		if (ret > 0) { /* need add frag */
-			ret = hns3_add_frag(ring, desc, &skb, false);
+			ret = hns3_add_frag(ring, desc, false);
 			if (ret)
 				return ret;
 
@@ -3073,7 +3070,7 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 			       ALIGN(ring->pull_len, sizeof(long)));
 		}
 	} else {
-		ret = hns3_add_frag(ring, desc, &skb, true);
+		ret = hns3_add_frag(ring, desc, true);
 		if (ret)
 			return ret;
 
@@ -3091,8 +3088,6 @@ static int hns3_handle_rx_bd(struct hns3_enet_ring *ring,
 	}
 
 	skb_record_rx_queue(skb, ring->tqp->tqp_index);
-	*out_skb = skb;
-
 	return 0;
 }
 
@@ -3101,16 +3096,18 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 {
 #define RCB_NOF_ALLOC_RX_BUFF_ONCE 16
 	int unused_count = hns3_desc_unused(ring);
-	struct sk_buff *skb = ring->skb;
 	int recv_pkts = 0;
 	int recv_bds = 0;
 	int err, num;
 
 	num = readl_relaxed(ring->tqp->io_base + HNS3_RING_RX_RING_FBDNUM_REG);
-	rmb(); /* Make sure num taken effect before the other data is touched */
-
 	num -= unused_count;
 	unused_count -= ring->pending_buf;
+
+	if (num <= 0)
+		goto out;
+
+	rmb(); /* Make sure num taken effect before the other data is touched */
 
 	while (recv_pkts < budget && recv_bds < num) {
 		/* Reuse or realloc buffers */
@@ -3121,27 +3118,19 @@ int hns3_clean_rx_ring(struct hns3_enet_ring *ring, int budget,
 		}
 
 		/* Poll one pkt */
-		err = hns3_handle_rx_bd(ring, &skb);
-		if (unlikely(!skb)) /* This fault cannot be repaired */
+		err = hns3_handle_rx_bd(ring);
+		/* Do not get FE for the packet or failed to alloc skb */
+		if (unlikely(!ring->skb || err == -ENXIO)) {
 			goto out;
-
-		if (err == -ENXIO) { /* Do not get FE for the packet */
-			goto out;
-		} else if (unlikely(err)) {  /* Do jump the err */
-			recv_bds += ring->pending_buf;
-			unused_count += ring->pending_buf;
-			ring->skb = NULL;
-			ring->pending_buf = 0;
-			continue;
+		} else if (likely(!err)) {
+			rx_fn(ring, ring->skb);
+			recv_pkts++;
 		}
 
-		rx_fn(ring, skb);
 		recv_bds += ring->pending_buf;
 		unused_count += ring->pending_buf;
 		ring->skb = NULL;
 		ring->pending_buf = 0;
-
-		recv_pkts++;
 	}
 
 out:
@@ -3484,13 +3473,13 @@ static int hns3_nic_init_vector_data(struct hns3_nic_priv *priv)
 		tqp_vector = &priv->tqp_vector[vector_i];
 
 		hns3_add_ring_to_group(&tqp_vector->tx_group,
-				       priv->ring_data[i].ring);
+				       &priv->ring[i]);
 
 		hns3_add_ring_to_group(&tqp_vector->rx_group,
-				       priv->ring_data[i + tqp_num].ring);
+				       &priv->ring[i + tqp_num]);
 
-		priv->ring_data[i].ring->tqp_vector = tqp_vector;
-		priv->ring_data[i + tqp_num].ring->tqp_vector = tqp_vector;
+		priv->ring[i].tqp_vector = tqp_vector;
+		priv->ring[i + tqp_num].tqp_vector = tqp_vector;
 		tqp_vector->num_tqps++;
 	}
 
@@ -3634,28 +3623,22 @@ static int hns3_nic_dealloc_vector_data(struct hns3_nic_priv *priv)
 	return 0;
 }
 
-static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
-			     unsigned int ring_type)
+static void hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
+			      unsigned int ring_type)
 {
-	struct hns3_nic_ring_data *ring_data = priv->ring_data;
 	int queue_num = priv->ae_handle->kinfo.num_tqps;
-	struct pci_dev *pdev = priv->ae_handle->pdev;
 	struct hns3_enet_ring *ring;
 	int desc_num;
 
-	ring = devm_kzalloc(&pdev->dev, sizeof(*ring), GFP_KERNEL);
-	if (!ring)
-		return -ENOMEM;
-
 	if (ring_type == HNAE3_RING_TYPE_TX) {
+		ring = &priv->ring[q->tqp_index];
 		desc_num = priv->ae_handle->kinfo.num_tx_desc;
-		ring_data[q->tqp_index].ring = ring;
-		ring_data[q->tqp_index].queue_index = q->tqp_index;
+		ring->queue_index = q->tqp_index;
 		ring->io_base = (u8 __iomem *)q->io_base + HNS3_TX_REG_OFFSET;
 	} else {
+		ring = &priv->ring[q->tqp_index + queue_num];
 		desc_num = priv->ae_handle->kinfo.num_rx_desc;
-		ring_data[q->tqp_index + queue_num].ring = ring;
-		ring_data[q->tqp_index + queue_num].queue_index = q->tqp_index;
+		ring->queue_index = q->tqp_index;
 		ring->io_base = q->io_base;
 	}
 
@@ -3670,76 +3653,41 @@ static int hns3_ring_get_cfg(struct hnae3_queue *q, struct hns3_nic_priv *priv,
 	ring->desc_num = desc_num;
 	ring->next_to_use = 0;
 	ring->next_to_clean = 0;
-
-	return 0;
 }
 
-static int hns3_queue_to_ring(struct hnae3_queue *tqp,
-			      struct hns3_nic_priv *priv)
+static void hns3_queue_to_ring(struct hnae3_queue *tqp,
+			       struct hns3_nic_priv *priv)
 {
-	int ret;
-
-	ret = hns3_ring_get_cfg(tqp, priv, HNAE3_RING_TYPE_TX);
-	if (ret)
-		return ret;
-
-	ret = hns3_ring_get_cfg(tqp, priv, HNAE3_RING_TYPE_RX);
-	if (ret) {
-		devm_kfree(priv->dev, priv->ring_data[tqp->tqp_index].ring);
-		return ret;
-	}
-
-	return 0;
+	hns3_ring_get_cfg(tqp, priv, HNAE3_RING_TYPE_TX);
+	hns3_ring_get_cfg(tqp, priv, HNAE3_RING_TYPE_RX);
 }
 
 static int hns3_get_ring_config(struct hns3_nic_priv *priv)
 {
 	struct hnae3_handle *h = priv->ae_handle;
 	struct pci_dev *pdev = h->pdev;
-	int i, ret;
+	int i;
 
-	priv->ring_data =  devm_kzalloc(&pdev->dev,
-					array3_size(h->kinfo.num_tqps,
-						    sizeof(*priv->ring_data),
-						    2),
-					GFP_KERNEL);
-	if (!priv->ring_data)
+	priv->ring = devm_kzalloc(&pdev->dev,
+				  array3_size(h->kinfo.num_tqps,
+					      sizeof(*priv->ring), 2),
+				  GFP_KERNEL);
+	if (!priv->ring)
 		return -ENOMEM;
 
-	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		ret = hns3_queue_to_ring(h->kinfo.tqp[i], priv);
-		if (ret)
-			goto err;
-	}
+	for (i = 0; i < h->kinfo.num_tqps; i++)
+		hns3_queue_to_ring(h->kinfo.tqp[i], priv);
 
 	return 0;
-err:
-	while (i--) {
-		devm_kfree(priv->dev, priv->ring_data[i].ring);
-		devm_kfree(priv->dev,
-			   priv->ring_data[i + h->kinfo.num_tqps].ring);
-	}
-
-	devm_kfree(&pdev->dev, priv->ring_data);
-	priv->ring_data = NULL;
-	return ret;
 }
 
 static void hns3_put_ring_config(struct hns3_nic_priv *priv)
 {
-	struct hnae3_handle *h = priv->ae_handle;
-	int i;
-
-	if (!priv->ring_data)
+	if (!priv->ring)
 		return;
 
-	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		devm_kfree(priv->dev, priv->ring_data[i].ring);
-		devm_kfree(priv->dev,
-			   priv->ring_data[i + h->kinfo.num_tqps].ring);
-	}
-	devm_kfree(priv->dev, priv->ring_data);
-	priv->ring_data = NULL;
+	devm_kfree(priv->dev, priv->ring);
+	priv->ring = NULL;
 }
 
 static int hns3_alloc_ring_memory(struct hns3_enet_ring *ring)
@@ -3856,7 +3804,7 @@ static void hns3_init_tx_ring_tc(struct hns3_nic_priv *priv)
 		for (j = 0; j < tc_info->tqp_count; j++) {
 			struct hnae3_queue *q;
 
-			q = priv->ring_data[tc_info->tqp_offset + j].ring->tqp;
+			q = priv->ring[tc_info->tqp_offset + j].tqp;
 			hns3_write_dev(q, HNS3_RING_TX_RING_TC_REG,
 				       tc_info->tc);
 		}
@@ -3871,21 +3819,21 @@ int hns3_init_all_ring(struct hns3_nic_priv *priv)
 	int ret;
 
 	for (i = 0; i < ring_num; i++) {
-		ret = hns3_alloc_ring_memory(priv->ring_data[i].ring);
+		ret = hns3_alloc_ring_memory(&priv->ring[i]);
 		if (ret) {
 			dev_err(priv->dev,
 				"Alloc ring memory fail! ret=%d\n", ret);
 			goto out_when_alloc_ring_memory;
 		}
 
-		u64_stats_init(&priv->ring_data[i].ring->syncp);
+		u64_stats_init(&priv->ring[i].syncp);
 	}
 
 	return 0;
 
 out_when_alloc_ring_memory:
 	for (j = i - 1; j >= 0; j--)
-		hns3_fini_ring(priv->ring_data[j].ring);
+		hns3_fini_ring(&priv->ring[j]);
 
 	return -ENOMEM;
 }
@@ -3896,8 +3844,8 @@ int hns3_uninit_all_ring(struct hns3_nic_priv *priv)
 	int i;
 
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
-		hns3_fini_ring(priv->ring_data[i].ring);
-		hns3_fini_ring(priv->ring_data[i + h->kinfo.num_tqps].ring);
+		hns3_fini_ring(&priv->ring[i]);
+		hns3_fini_ring(&priv->ring[i + h->kinfo.num_tqps]);
 	}
 	return 0;
 }
@@ -4058,7 +4006,7 @@ static int hns3_client_init(struct hnae3_handle *handle)
 	ret = hns3_init_all_ring(priv);
 	if (ret) {
 		ret = -ENOMEM;
-		goto out_init_ring_data;
+		goto out_init_ring;
 	}
 
 	ret = hns3_init_phy(netdev);
@@ -4097,12 +4045,12 @@ out_reg_netdev_fail:
 	hns3_uninit_phy(netdev);
 out_init_phy:
 	hns3_uninit_all_ring(priv);
-out_init_ring_data:
+out_init_ring:
 	hns3_nic_uninit_vector_data(priv);
 out_init_vector_data:
 	hns3_nic_dealloc_vector_data(priv);
 out_alloc_vector_data:
-	priv->ring_data = NULL;
+	priv->ring = NULL;
 out_get_ring_cfg:
 	priv->ae_handle = NULL;
 	free_netdev(netdev);
@@ -4263,7 +4211,7 @@ static int hns3_clear_rx_ring(struct hns3_enet_ring *ring)
 				/* if alloc new buffer fail, exit directly
 				 * and reclear in up flow.
 				 */
-				netdev_warn(ring->tqp->handle->kinfo.netdev,
+				netdev_warn(ring_to_netdev(ring),
 					    "reserve buffer map failed, ret = %d\n",
 					    ret);
 				return ret;
@@ -4309,10 +4257,10 @@ static void hns3_clear_all_ring(struct hnae3_handle *h, bool force)
 	for (i = 0; i < h->kinfo.num_tqps; i++) {
 		struct hns3_enet_ring *ring;
 
-		ring = priv->ring_data[i].ring;
+		ring = &priv->ring[i];
 		hns3_clear_tx_ring(ring);
 
-		ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
+		ring = &priv->ring[i + h->kinfo.num_tqps];
 		/* Continue to clear other rings even if clearing some
 		 * rings failed.
 		 */
@@ -4336,16 +4284,16 @@ int hns3_nic_reset_all_ring(struct hnae3_handle *h)
 		if (ret)
 			return ret;
 
-		hns3_init_ring_hw(priv->ring_data[i].ring);
+		hns3_init_ring_hw(&priv->ring[i]);
 
 		/* We need to clear tx ring here because self test will
 		 * use the ring and will not run down before up
 		 */
-		hns3_clear_tx_ring(priv->ring_data[i].ring);
-		priv->ring_data[i].ring->next_to_clean = 0;
-		priv->ring_data[i].ring->next_to_use = 0;
+		hns3_clear_tx_ring(&priv->ring[i]);
+		priv->ring[i].next_to_clean = 0;
+		priv->ring[i].next_to_use = 0;
 
-		rx_ring = priv->ring_data[i + h->kinfo.num_tqps].ring;
+		rx_ring = &priv->ring[i + h->kinfo.num_tqps];
 		hns3_init_ring_hw(rx_ring);
 		ret = hns3_clear_rx_ring(rx_ring);
 		if (ret)
