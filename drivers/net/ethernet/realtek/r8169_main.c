@@ -4520,13 +4520,6 @@ static void rtl_hw_start_8168d(struct rtl8169_private *tp)
 	rtl_disable_clock_request(tp);
 }
 
-static void rtl_hw_start_8168dp(struct rtl8169_private *tp)
-{
-	rtl_set_def_aspm_entry_latency(tp);
-
-	rtl_disable_clock_request(tp);
-}
-
 static void rtl_hw_start_8168d_4(struct rtl8169_private *tp)
 {
 	static const struct ephy_info e_info_8168d_4[] = {
@@ -5317,7 +5310,7 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_28] = rtl_hw_start_8168d_4,
 		[RTL_GIGA_MAC_VER_29] = rtl_hw_start_8105e_1,
 		[RTL_GIGA_MAC_VER_30] = rtl_hw_start_8105e_2,
-		[RTL_GIGA_MAC_VER_31] = rtl_hw_start_8168dp,
+		[RTL_GIGA_MAC_VER_31] = rtl_hw_start_8168d,
 		[RTL_GIGA_MAC_VER_32] = rtl_hw_start_8168e_1,
 		[RTL_GIGA_MAC_VER_33] = rtl_hw_start_8168e_1,
 		[RTL_GIGA_MAC_VER_34] = rtl_hw_start_8168e_2,
