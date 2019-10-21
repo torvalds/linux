@@ -725,24 +725,10 @@ method, the sys I/F structure will be built like this::
     |---temp1_input:		37000
     |---temp1_crit:		100000
 
-4. Event Notification
+4. Export Symbol APIs
 =====================
 
-The framework includes a simple notification mechanism, in the form of a
-netlink event. Netlink socket initialization is done during the _init_
-of the framework. Drivers which intend to use the notification mechanism
-just need to call thermal_generate_netlink_event() with two arguments viz
-(originator, event). The originator is a pointer to struct thermal_zone_device
-from where the event has been originated. An integer which represents the
-thermal zone device will be used in the message to identify the zone. The
-event will be one of:{THERMAL_AUX0, THERMAL_AUX1, THERMAL_CRITICAL,
-THERMAL_DEV_FAULT}. Notification can be sent when the current temperature
-crosses any of the configured thresholds.
-
-5. Export Symbol APIs
-=====================
-
-5.1. get_tz_trend
+4.1. get_tz_trend
 -----------------
 
 This function returns the trend of a thermal zone, i.e the rate of change
@@ -751,14 +737,14 @@ are supposed to implement the callback. If they don't, the thermal
 framework calculated the trend by comparing the previous and the current
 temperature values.
 
-5.2. get_thermal_instance
+4.2. get_thermal_instance
 -------------------------
 
 This function returns the thermal_instance corresponding to a given
 {thermal_zone, cooling_device, trip_point} combination. Returns NULL
 if such an instance does not exist.
 
-5.3. thermal_notify_framework
+4.3. thermal_notify_framework
 -----------------------------
 
 This function handles the trip events from sensor drivers. It starts
@@ -768,14 +754,14 @@ and does actual throttling for other trip points i.e ACTIVE and PASSIVE.
 The throttling policy is based on the configured platform data; if no
 platform data is provided, this uses the step_wise throttling policy.
 
-5.4. thermal_cdev_update
+4.4. thermal_cdev_update
 ------------------------
 
 This function serves as an arbitrator to set the state of a cooling
 device. It sets the cooling device to the deepest cooling state if
 possible.
 
-6. thermal_emergency_poweroff
+5. thermal_emergency_poweroff
 =============================
 
 On an event of critical trip temperature crossing. Thermal framework
