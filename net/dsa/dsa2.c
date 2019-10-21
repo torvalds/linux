@@ -588,7 +588,13 @@ static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
 	struct dsa_switch_tree *dst = ds->dst;
 	struct dsa_port *dp;
 
-	dp = &ds->ports[index];
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds == ds && dp->index == index)
+			return dp;
+
+	dp = kzalloc(sizeof(*dp), GFP_KERNEL);
+	if (!dp)
+		return NULL;
 
 	dp->ds = ds;
 	dp->index = index;
@@ -857,7 +863,7 @@ struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 {
 	struct dsa_switch *ds;
 
-	ds = devm_kzalloc(dev, struct_size(ds, ports, n), GFP_KERNEL);
+	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return NULL;
 
@@ -885,6 +891,12 @@ static void dsa_switch_remove(struct dsa_switch *ds)
 {
 	struct dsa_switch_tree *dst = ds->dst;
 	unsigned int index = ds->index;
+	struct dsa_port *dp, *next;
+
+	list_for_each_entry_safe(dp, next, &dst->ports, list) {
+		list_del(&dp->list);
+		kfree(dp);
+	}
 
 	dsa_tree_remove_switch(dst, index);
 }
