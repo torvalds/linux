@@ -1044,6 +1044,7 @@ phy_GetSecondaryChnl_8703B(
 
 	}
 
+	barrier(); /* work around https://bugs.llvm.org/show_bug.cgi?id=42576 */
 	return (SCSettingOf40 << 4) | SCSettingOf20;
 }
 
