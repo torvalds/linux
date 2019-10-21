@@ -627,92 +627,6 @@ static struct omap_hwmod omap54xx_kbd_hwmod = {
 	},
 };
 
-
-/*
- * 'mcbsp' class
- * multi channel buffered serial port controller
- */
-
-static struct omap_hwmod_class_sysconfig omap54xx_mcbsp_sysc = {
-	.rev_offs	= -ENODEV,
-	.sysc_offs	= 0x008c,
-	.sysc_flags	= (SYSC_HAS_CLOCKACTIVITY | SYSC_HAS_ENAWAKEUP |
-			   SYSC_HAS_SIDLEMODE | SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap54xx_mcbsp_hwmod_class = {
-	.name	= "mcbsp",
-	.sysc	= &omap54xx_mcbsp_sysc,
-};
-
-/* mcbsp1 */
-static struct omap_hwmod_opt_clk mcbsp1_opt_clks[] = {
-	{ .role = "pad_fck", .clk = "pad_clks_ck" },
-	{ .role = "prcm_fck", .clk = "mcbsp1_sync_mux_ck" },
-};
-
-static struct omap_hwmod omap54xx_mcbsp1_hwmod = {
-	.name		= "mcbsp1",
-	.class		= &omap54xx_mcbsp_hwmod_class,
-	.clkdm_name	= "abe_clkdm",
-	.main_clk	= "mcbsp1_gfclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_ABE_MCBSP1_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_ABE_MCBSP1_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-	.opt_clks	= mcbsp1_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(mcbsp1_opt_clks),
-};
-
-/* mcbsp2 */
-static struct omap_hwmod_opt_clk mcbsp2_opt_clks[] = {
-	{ .role = "pad_fck", .clk = "pad_clks_ck" },
-	{ .role = "prcm_fck", .clk = "mcbsp2_sync_mux_ck" },
-};
-
-static struct omap_hwmod omap54xx_mcbsp2_hwmod = {
-	.name		= "mcbsp2",
-	.class		= &omap54xx_mcbsp_hwmod_class,
-	.clkdm_name	= "abe_clkdm",
-	.main_clk	= "mcbsp2_gfclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_ABE_MCBSP2_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_ABE_MCBSP2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-	.opt_clks	= mcbsp2_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(mcbsp2_opt_clks),
-};
-
-/* mcbsp3 */
-static struct omap_hwmod_opt_clk mcbsp3_opt_clks[] = {
-	{ .role = "pad_fck", .clk = "pad_clks_ck" },
-	{ .role = "prcm_fck", .clk = "mcbsp3_sync_mux_ck" },
-};
-
-static struct omap_hwmod omap54xx_mcbsp3_hwmod = {
-	.name		= "mcbsp3",
-	.class		= &omap54xx_mcbsp_hwmod_class,
-	.clkdm_name	= "abe_clkdm",
-	.main_clk	= "mcbsp3_gfclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP54XX_CM_ABE_MCBSP3_CLKCTRL_OFFSET,
-			.context_offs = OMAP54XX_RM_ABE_MCBSP3_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-	.opt_clks	= mcbsp3_opt_clks,
-	.opt_clks_cnt	= ARRAY_SIZE(mcbsp3_opt_clks),
-};
-
 /*
  * 'mcpdm' class
  * multi channel pdm controller (proprietary interface with phoenix power
@@ -1597,30 +1511,6 @@ static struct omap_hwmod_ocp_if omap54xx_l4_wkup__kbd = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_abe -> mcbsp1 */
-static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp1 = {
-	.master		= &omap54xx_l4_abe_hwmod,
-	.slave		= &omap54xx_mcbsp1_hwmod,
-	.clk		= "abe_iclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4_abe -> mcbsp2 */
-static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp2 = {
-	.master		= &omap54xx_l4_abe_hwmod,
-	.slave		= &omap54xx_mcbsp2_hwmod,
-	.clk		= "abe_iclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4_abe -> mcbsp3 */
-static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcbsp3 = {
-	.master		= &omap54xx_l4_abe_hwmod,
-	.slave		= &omap54xx_mcbsp3_hwmod,
-	.clk		= "abe_iclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4_abe -> mcpdm */
 static struct omap_hwmod_ocp_if omap54xx_l4_abe__mcpdm = {
 	.master		= &omap54xx_l4_abe_hwmod,
@@ -1796,9 +1686,6 @@ static struct omap_hwmod_ocp_if *omap54xx_hwmod_ocp_ifs[] __initdata = {
 	&omap54xx_mpu__emif2,
 	&omap54xx_l3_main_2__mmu_ipu,
 	&omap54xx_l4_wkup__kbd,
-	&omap54xx_l4_abe__mcbsp1,
-	&omap54xx_l4_abe__mcbsp2,
-	&omap54xx_l4_abe__mcbsp3,
 	&omap54xx_l4_abe__mcpdm,
 	&omap54xx_l4_cfg__mpu,
 	&omap54xx_l4_cfg__spinlock,
