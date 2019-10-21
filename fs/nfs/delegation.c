@@ -771,8 +771,19 @@ static bool nfs_revoke_delegation(struct inode *inode,
 	if (stateid == NULL) {
 		nfs4_stateid_copy(&tmp, &delegation->stateid);
 		stateid = &tmp;
-	} else if (!nfs4_stateid_match(stateid, &delegation->stateid))
-		goto out;
+	} else {
+		if (!nfs4_stateid_match_other(stateid, &delegation->stateid))
+			goto out;
+		spin_lock(&delegation->lock);
+		if (stateid->seqid) {
+			if (nfs4_stateid_is_newer(&delegation->stateid, stateid)) {
+				spin_unlock(&delegation->lock);
+				goto out;
+			}
+			delegation->stateid.seqid = stateid->seqid;
+		}
+		spin_unlock(&delegation->lock);
+	}
 	nfs_mark_delegation_revoked(NFS_SERVER(inode), delegation);
 	ret = true;
 out:
