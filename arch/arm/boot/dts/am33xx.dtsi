@@ -236,7 +236,6 @@
 
 		target-module@47810000 {
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mmc3";
 			reg = <0x478102fc 0x4>,
 			      <0x47810110 0x4>,
 			      <0x47810114 0x4>;
