@@ -364,7 +364,7 @@ static inline bool kvm_pat_valid(u64 data)
 	return (data | ((data & 0x0202020202020202ull) << 1)) == data;
 }
 
-void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu);
-void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu);
+void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu);
+void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu);
 
 #endif

@@ -116,8 +116,6 @@ MODULE_DEVICE_TABLE(x86cpu, svm_cpu_id);
 
 static bool erratum_383_found __read_mostly;
 
-static u64 __read_mostly host_xss;
-
 static const u32 host_save_user_msrs[] = {
 #ifdef CONFIG_X86_64
 	MSR_STAR, MSR_LSTAR, MSR_CSTAR, MSR_SYSCALL_MASK, MSR_KERNEL_GS_BASE,
@@ -1410,9 +1408,6 @@ static __init int svm_hardware_setup(void)
 		else
 			pr_info("Virtual GIF supported\n");
 	}
-
-	if (boot_cpu_has(X86_FEATURE_XSAVES))
-		rdmsrl(MSR_IA32_XSS, host_xss);
 
 	return 0;
 
@@ -5603,22 +5598,6 @@ static void svm_cancel_injection(struct kvm_vcpu *vcpu)
 	svm_complete_interrupts(svm);
 }
 
-static void svm_load_guest_xss(struct kvm_vcpu *vcpu)
-{
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
-	    vcpu->arch.xsaves_enabled &&
-	    vcpu->arch.ia32_xss != host_xss)
-		wrmsrl(MSR_IA32_XSS, vcpu->arch.ia32_xss);
-}
-
-static void svm_load_host_xss(struct kvm_vcpu *vcpu)
-{
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
-	    vcpu->arch.xsaves_enabled &&
-	    vcpu->arch.ia32_xss != host_xss)
-		wrmsrl(MSR_IA32_XSS, host_xss);
-}
-
 static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
@@ -5657,8 +5636,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	svm->vmcb->save.cr2 = vcpu->arch.cr2;
 
 	clgi();
-	kvm_load_guest_xcr0(vcpu);
-	svm_load_guest_xss(vcpu);
+	kvm_load_guest_xsave_state(vcpu);
 
 	if (lapic_in_kernel(vcpu) &&
 		vcpu->arch.apic->lapic_timer.timer_advance_ns)
@@ -5808,8 +5786,7 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu)
 	if (unlikely(svm->vmcb->control.exit_code == SVM_EXIT_NMI))
 		kvm_before_interrupt(&svm->vcpu);
 
-	svm_load_host_xss(vcpu);
-	kvm_put_guest_xcr0(vcpu);
+	kvm_load_host_xsave_state(vcpu);
 	stgi();
 
 	/* Any pending NMI will happen here */

@@ -176,6 +176,8 @@ struct kvm_shared_msrs {
 static struct kvm_shared_msrs_global __read_mostly shared_msrs_global;
 static struct kvm_shared_msrs __percpu *shared_msrs;
 
+static u64 __read_mostly host_xss;
+
 struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ "pf_fixed", VCPU_STAT(pf_fixed) },
 	{ "pf_guest", VCPU_STAT(pf_guest) },
@@ -808,21 +810,34 @@ void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
-void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu)
+void kvm_load_guest_xsave_state(struct kvm_vcpu *vcpu)
 {
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
-	    vcpu->arch.xcr0 != host_xcr0)
-		xsetbv(XCR_XFEATURE_ENABLED_MASK, vcpu->arch.xcr0);
-}
-EXPORT_SYMBOL_GPL(kvm_load_guest_xcr0);
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE)) {
 
-void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu)
-{
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
-	    vcpu->arch.xcr0 != host_xcr0)
-		xsetbv(XCR_XFEATURE_ENABLED_MASK, host_xcr0);
+		if (vcpu->arch.xcr0 != host_xcr0)
+			xsetbv(XCR_XFEATURE_ENABLED_MASK, vcpu->arch.xcr0);
+
+		if (vcpu->arch.xsaves_enabled &&
+		    vcpu->arch.ia32_xss != host_xss)
+			wrmsrl(MSR_IA32_XSS, vcpu->arch.ia32_xss);
+	}
 }
-EXPORT_SYMBOL_GPL(kvm_put_guest_xcr0);
+EXPORT_SYMBOL_GPL(kvm_load_guest_xsave_state);
+
+void kvm_load_host_xsave_state(struct kvm_vcpu *vcpu)
+{
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE)) {
+
+		if (vcpu->arch.xcr0 != host_xcr0)
+			xsetbv(XCR_XFEATURE_ENABLED_MASK, host_xcr0);
+
+		if (vcpu->arch.xsaves_enabled &&
+		    vcpu->arch.ia32_xss != host_xss)
+			wrmsrl(MSR_IA32_XSS, host_xss);
+	}
+
+}
+EXPORT_SYMBOL_GPL(kvm_load_host_xsave_state);
 
 static int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 {
@@ -9277,6 +9292,9 @@ int kvm_arch_hardware_setup(void)
 
 		kvm_default_tsc_scaling_ratio = 1ULL << kvm_tsc_scaling_ratio_frac_bits;
 	}
+
+	if (boot_cpu_has(X86_FEATURE_XSAVES))
+		rdmsrl(MSR_IA32_XSS, host_xss);
 
 	kvm_init_msr_list();
 	return 0;
