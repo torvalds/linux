@@ -262,37 +262,38 @@
 			};
 		};
 
-		usb: usb@47400000 {
-			compatible = "ti,am33xx-usb";
-			reg = <0x47400000 0x1000>;
-			ranges;
+		usb: target-module@47400000 {
+			compatible = "ti,sysc-omap4", "ti,sysc";
+			reg = <0x47400000 0x4>,
+			      <0x47400010 0x4>;
+			reg-names = "rev", "sysc";
+			ti,sysc-mask = <(SYSC_OMAP4_FREEEMU |
+					 SYSC_OMAP2_SOFTRESET)>;
+			ti,sysc-midle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>;
+			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
+					<SYSC_IDLE_NO>,
+					<SYSC_IDLE_SMART>,
+					<SYSC_IDLE_SMART_WKUP>;
+			clocks = <&l3s_clkctrl AM3_L3S_USB_OTG_HS_CLKCTRL 0>;
+			clock-names = "fck";
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ti,hwmods = "usb_otg_hs";
-			status = "disabled";
+			ranges = <0x0 0x47400000 0x5000>;
 
-			usb_ctrl_mod: control@44e10620 {
-				compatible = "ti,am335x-usb-ctrl-module";
-				reg = <0x44e10620 0x10
-					0x44e10648 0x4>;
-				reg-names = "phy_ctrl", "wakeup";
-				status = "disabled";
-			};
-
-			usb0_phy: usb-phy@47401300 {
+			usb0_phy: usb-phy@1300 {
 				compatible = "ti,am335x-usb-phy";
-				reg = <0x47401300 0x100>;
+				reg = <0x1300 0x100>;
 				reg-names = "phy";
-				status = "disabled";
 				ti,ctrl_mod = <&usb_ctrl_mod>;
 				#phy-cells = <0>;
 			};
 
-			usb0: usb@47401000 {
+			usb0: usb@1400 {
 				compatible = "ti,musb-am33xx";
-				status = "disabled";
-				reg = <0x47401400 0x400
-					0x47401000 0x200>;
+				reg = <0x1400 0x400>,
+				      <0x1000 0x200>;
 				reg-names = "mc", "control";
 
 				interrupts = <18>;
@@ -328,20 +329,18 @@
 					"tx14", "tx15";
 			};
 
-			usb1_phy: usb-phy@47401b00 {
+			usb1_phy: usb-phy@1b00 {
 				compatible = "ti,am335x-usb-phy";
-				reg = <0x47401b00 0x100>;
+				reg = <0x1b00 0x100>;
 				reg-names = "phy";
-				status = "disabled";
 				ti,ctrl_mod = <&usb_ctrl_mod>;
 				#phy-cells = <0>;
 			};
 
-			usb1: usb@47401800 {
+			usb1: usb@1800 {
 				compatible = "ti,musb-am33xx";
-				status = "disabled";
-				reg = <0x47401c00 0x400
-					0x47401800 0x200>;
+				reg = <0x1c00 0x400>,
+				      <0x1800 0x200>;
 				reg-names = "mc", "control";
 				interrupts = <19>;
 				interrupt-names = "mc";
@@ -376,19 +375,18 @@
 					"tx14", "tx15";
 			};
 
-			cppi41dma: dma-controller@47402000 {
+			cppi41dma: dma-controller@2000 {
 				compatible = "ti,am3359-cppi41";
-				reg =  <0x47400000 0x1000
-					0x47402000 0x1000
-					0x47403000 0x1000
-					0x47404000 0x4000>;
+				reg =  <0x0000 0x1000>,
+				       <0x2000 0x1000>,
+				       <0x3000 0x1000>,
+				       <0x4000 0x4000>;
 				reg-names = "glue", "controller", "scheduler", "queuemgr";
 				interrupts = <17>;
 				interrupt-names = "glue";
 				#dma-cells = <2>;
 				#dma-channels = <30>;
 				#dma-requests = <256>;
-				status = "disabled";
 			};
 		};
 

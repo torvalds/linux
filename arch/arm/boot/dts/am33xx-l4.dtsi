@@ -303,6 +303,13 @@
 					};
 				};
 
+				usb_ctrl_mod: control@620 {
+					compatible = "ti,am335x-usb-ctrl-module";
+					reg = <0x620 0x10>,
+					      <0x648 0x4>;
+					reg-names = "phy_ctrl", "wakeup";
+				};
+
 				wkup_m3_ipc: wkup_m3_ipc@1324 {
 					compatible = "ti,am3352-wkup-m3-ipc";
 					reg = <0x1324 0x24>;
