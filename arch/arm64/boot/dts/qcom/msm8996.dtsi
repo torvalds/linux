@@ -1447,7 +1447,7 @@
 			};
 		};
 
-		phy@34000 {
+		pcie_phy: phy@34000 {
 			compatible = "qcom,msm8996-qmp-pcie-phy";
 			reg = <0x34000 0x488>;
 			#clock-cells = <1>;
@@ -1509,7 +1509,7 @@
 			};
 		};
 
-		phy@7410000 {
+		usb3phy: phy@7410000 {
 			compatible = "qcom,msm8996-qmp-usb3-phy";
 			reg = <0x7410000 0x1c4>;
 			#clock-cells = <1>;
