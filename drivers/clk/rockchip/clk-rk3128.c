@@ -212,9 +212,9 @@ static struct rockchip_clk_branch common_clk_branches[] __initdata = {
 			RK2928_CLKGATE_CON(0), 2, GFLAGS),
 	GATE(0, "gpll_div2_ddr", "gpll_div2", CLK_IGNORE_UNUSED,
 			RK2928_CLKGATE_CON(0), 2, GFLAGS),
-	COMPOSITE_NOGATE(0, "ddrphy2x", mux_ddrphy_p, CLK_IGNORE_UNUSED,
-			RK2928_CLKSEL_CON(26), 8, 2, MFLAGS, 0, 2, DFLAGS | CLK_DIVIDER_POWER_OF_TWO),
-	FACTOR(SCLK_DDRC, "clk_ddrc", "ddrphy2x", 0, 1, 2),
+	COMPOSITE_DDRCLK(SCLK_DDRC, "clk_ddrc", mux_ddrphy_p, 0,
+			RK2928_CLKSEL_CON(26), 8, 2, 0, 2,
+			ROCKCHIP_DDRCLK_SIP_V2),
 	FACTOR(0, "clk_ddrphy", "ddrphy2x", 0, 1, 2),
 
 	/* PD_CORE */
