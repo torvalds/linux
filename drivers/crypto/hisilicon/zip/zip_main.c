@@ -84,8 +84,8 @@
 
 static const char hisi_zip_name[] = "hisi_zip";
 static struct dentry *hzip_debugfs_root;
-LIST_HEAD(hisi_zip_list);
-DEFINE_MUTEX(hisi_zip_list_lock);
+static LIST_HEAD(hisi_zip_list);
+static DEFINE_MUTEX(hisi_zip_list_lock);
 
 #ifdef CONFIG_NUMA
 static struct hisi_zip *find_zip_device_numa(int node)
@@ -944,7 +944,7 @@ static struct pci_driver hisi_zip_pci_driver = {
 	.probe			= hisi_zip_probe,
 	.remove			= hisi_zip_remove,
 	.sriov_configure	= IS_ENABLED(CONFIG_PCI_IOV) ?
-					hisi_zip_sriov_configure : 0,
+					hisi_zip_sriov_configure : NULL,
 	.err_handler		= &hisi_zip_err_handler,
 };
 
