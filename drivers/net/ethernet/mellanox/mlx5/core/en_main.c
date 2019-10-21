@@ -1128,6 +1128,7 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	sq->txq_ix    = txq_ix;
 	sq->uar_map   = mdev->mlx5e_res.bfreg.map;
 	sq->min_inline_mode = params->tx_min_inline_mode;
+	sq->hw_mtu    = MLX5E_SW2HW_MTU(params, params->sw_mtu);
 	sq->stats     = &c->priv->channel_stats[c->ix].sq[tc];
 	sq->stop_room = MLX5E_SQ_STOP_ROOM;
 	INIT_WORK(&sq->recover_work, mlx5e_tx_err_cqe_work);
@@ -1135,10 +1136,14 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 		set_bit(MLX5E_SQ_STATE_VLAN_NEED_L2_INLINE, &sq->state);
 	if (MLX5_IPSEC_DEV(c->priv->mdev))
 		set_bit(MLX5E_SQ_STATE_IPSEC, &sq->state);
+#ifdef CONFIG_MLX5_EN_TLS
 	if (mlx5_accel_is_tls_device(c->priv->mdev)) {
 		set_bit(MLX5E_SQ_STATE_TLS, &sq->state);
-		sq->stop_room += MLX5E_SQ_TLS_ROOM;
+		sq->stop_room += MLX5E_SQ_TLS_ROOM +
+			mlx5e_ktls_dumps_num_wqebbs(sq, MAX_SKB_FRAGS,
+						    TLS_MAX_PAYLOAD_SIZE);
 	}
+#endif
 
 	param->wq.db_numa_node = cpu_to_node(c->cpu);
 	err = mlx5_wq_cyc_create(mdev, &param->wq, sqc_wq, wq, &sq->wq_ctrl);
@@ -1349,9 +1354,13 @@ static void mlx5e_deactivate_txqsq(struct mlx5e_txqsq *sq)
 	/* last doorbell out, godspeed .. */
 	if (mlx5e_wqc_has_room_for(wq, sq->cc, sq->pc, 1)) {
 		u16 pi = mlx5_wq_cyc_ctr2ix(wq, sq->pc);
+		struct mlx5e_tx_wqe_info *wi;
 		struct mlx5e_tx_wqe *nop;
 
-		sq->db.wqe_info[pi].skb = NULL;
+		wi = &sq->db.wqe_info[pi];
+
+		memset(wi, 0, sizeof(*wi));
+		wi->num_wqebbs = 1;
 		nop = mlx5e_post_nop(wq, sq->sqn, &sq->pc);
 		mlx5e_notify_hw(wq, sq->pc, sq->uar_map, &nop->ctrl);
 	}
