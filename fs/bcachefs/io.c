@@ -1008,6 +1008,8 @@ do_write:
 				bkey_start_pos(&key_to_write->k),
 				total_input >> 9);
 
+	bch2_alloc_sectors_done(c, wp);
+
 	dst->bi_end_io	= bch2_write_endio;
 	dst->bi_private	= &op->cl;
 	dst->bi_opf	= REQ_OP_WRITE;
@@ -1022,6 +1024,8 @@ csum_err:
 		"rewriting existing data (memory corruption?)");
 	ret = -EIO;
 err:
+	bch2_alloc_sectors_done(c, wp);
+
 	if (to_wbio(dst)->bounce)
 		bch2_bio_free_pages_pool(c, dst);
 	if (to_wbio(dst)->put_bio)
@@ -1072,10 +1076,9 @@ again:
 			goto flush_io;
 		}
 
-		ret = bch2_write_extent(op, wp);
-
 		bch2_open_bucket_get(c, wp, &op->open_buckets);
-		bch2_alloc_sectors_done(c, wp);
+
+		ret = bch2_write_extent(op, wp);
 
 		if (ret < 0)
 			goto err;
