@@ -3399,7 +3399,7 @@ static void rtl_clear_bp(struct r8152 *tp, u16 type)
 
 static bool rtl8152_is_fw_mac_ok(struct r8152 *tp, struct fw_mac *mac)
 {
-	u16 fw_reg, bp_ba_addr, bp_en_addr, bp_start;
+	u16 fw_reg, bp_ba_addr, bp_en_addr, bp_start, fw_offset;
 	bool rc = false;
 	u32 length, type;
 	int i, max_bp;
@@ -3461,13 +3461,19 @@ static bool rtl8152_is_fw_mac_ok(struct r8152 *tp, struct fw_mac *mac)
 		goto out;
 	}
 
+	fw_offset = __le16_to_cpu(mac->fw_offset);
+	if (fw_offset < sizeof(*mac)) {
+		dev_err(&tp->intf->dev, "fw_offset too small\n");
+		goto out;
+	}
+
 	length = __le32_to_cpu(mac->blk_hdr.length);
-	if (length < __le16_to_cpu(mac->fw_offset)) {
+	if (length < fw_offset) {
 		dev_err(&tp->intf->dev, "invalid fw_offset\n");
 		goto out;
 	}
 
-	length -= __le16_to_cpu(mac->fw_offset);
+	length -= fw_offset;
 	if (length < 4 || (length & 3)) {
 		dev_err(&tp->intf->dev, "invalid block length\n");
 		goto out;
