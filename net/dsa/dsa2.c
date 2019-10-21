@@ -157,6 +157,7 @@ static bool dsa_port_setup_routing_table(struct dsa_port *dp)
 
 static bool dsa_switch_setup_routing_table(struct dsa_switch *ds)
 {
+	struct dsa_switch_tree *dst = ds->dst;
 	bool complete = true;
 	struct dsa_port *dp;
 	int i;
@@ -164,10 +165,8 @@ static bool dsa_switch_setup_routing_table(struct dsa_switch *ds)
 	for (i = 0; i < DSA_MAX_SWITCHES; i++)
 		ds->rtable[i] = DSA_RTABLE_NONE;
 
-	for (i = 0; i < ds->num_ports; i++) {
-		dp = &ds->ports[i];
-
-		if (dsa_port_is_dsa(dp)) {
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->ds == ds && dsa_port_is_dsa(dp)) {
 			complete = dsa_port_setup_routing_table(dp);
 			if (!complete)
 				break;
