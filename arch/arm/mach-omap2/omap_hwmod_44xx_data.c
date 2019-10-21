@@ -1061,40 +1061,6 @@ static struct omap_hwmod omap44xx_gpmc_hwmod = {
 	},
 };
 
-/*
- * 'hdq1w' class
- * hdq / 1-wire serial interface controller
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_hdq1w_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0014,
-	.syss_offs	= 0x0018,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class omap44xx_hdq1w_hwmod_class = {
-	.name	= "hdq1w",
-	.sysc	= &omap44xx_hdq1w_sysc,
-};
-
-/* hdq1w */
-static struct omap_hwmod omap44xx_hdq1w_hwmod = {
-	.name		= "hdq1w",
-	.class		= &omap44xx_hdq1w_hwmod_class,
-	.clkdm_name	= "l4_per_clkdm",
-	.flags		= HWMOD_INIT_NO_RESET, /* XXX temporary */
-	.main_clk	= "func_12m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4PER_HDQ1W_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4PER_HDQ1W_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 /*
  * 'hsi' class
@@ -2759,14 +2725,6 @@ static struct omap_hwmod_ocp_if omap44xx_l3_main_2__gpmc = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per -> hdq1w */
-static struct omap_hwmod_ocp_if omap44xx_l4_per__hdq1w = {
-	.master		= &omap44xx_l4_per_hwmod,
-	.slave		= &omap44xx_hdq1w_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> hsi */
 static struct omap_hwmod_ocp_if omap44xx_l4_cfg__hsi = {
 	.master		= &omap44xx_l4_cfg_hwmod,
@@ -3160,7 +3118,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	&omap44xx_l4_per__elm,
 	&omap44xx_l4_cfg__fdif,
 	&omap44xx_l3_main_2__gpmc,
-	&omap44xx_l4_per__hdq1w,
 	&omap44xx_l4_cfg__hsi,
 	&omap44xx_l3_main_2__ipu,
 	&omap44xx_l3_main_2__iss,
