@@ -21,7 +21,6 @@
 #include "cm33xx.h"
 #include "prm33xx.h"
 #include "prm-regbits-33xx.h"
-#include "wd_timer.h"
 #include "omap_hwmod_33xx_43xx_common_data.h"
 
 /*
@@ -387,14 +386,6 @@ static struct omap_hwmod_ocp_if am33xx_l4_wkup__timer1 = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4 wkup -> wd_timer1 */
-static struct omap_hwmod_ocp_if am33xx_l4_wkup__wd_timer1 = {
-	.master		= &am33xx_l4_wkup_hwmod,
-	.slave		= &am33xx_wd_timer1_hwmod,
-	.clk		= "dpll_core_m4_div2_ck",
-	.user		= OCP_USER_MPU,
-};
-
 /* usbss */
 /* l3 s -> USBSS interface */
 static struct omap_hwmod_ocp_if am33xx_l3_s__usbss = {
@@ -427,7 +418,6 @@ static struct omap_hwmod_ocp_if *am33xx_hwmod_ocp_ifs[] __initdata = {
 	&am33xx_l4_wkup__timer1,
 	&am33xx_l4_wkup__rtc,
 	&am33xx_l4_wkup__adc_tsc,
-	&am33xx_l4_wkup__wd_timer1,
 	&am33xx_l4_hs__pruss,
 	&am33xx_l4_per__dcan0,
 	&am33xx_l4_per__dcan1,
