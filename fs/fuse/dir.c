@@ -405,7 +405,8 @@ static struct dentry *fuse_lookup(struct inode *dir, struct dentry *entry,
 	else
 		fuse_invalidate_entry_cache(entry);
 
-	fuse_advise_use_readdirplus(dir);
+	if (inode)
+		fuse_advise_use_readdirplus(dir);
 	return newent;
 
  out_iput:
