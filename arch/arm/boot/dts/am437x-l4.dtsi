@@ -1982,7 +1982,6 @@
 
 		target-module@10000 {			/* 0x48310000, ap 64 4e.1 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "rng";
 			reg = <0x11fe0 0x4>,
 			      <0x11fe4 0x4>;
 			reg-names = "rev", "sysc";
