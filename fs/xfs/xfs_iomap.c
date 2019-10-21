@@ -285,8 +285,8 @@ xfs_iomap_write_direct(
 	 * caller gave to us.
 	 */
 	nimaps = 1;
-	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb,
-				bmapi_flags, resblks, imap, &nimaps);
+	error = xfs_bmapi_write(tp, ip, offset_fsb, count_fsb, bmapi_flags, 0,
+				imap, &nimaps);
 	if (error)
 		goto out_res_cancel;
 

@@ -305,8 +305,8 @@ xfs_dquot_disk_alloc(
 	/* Create the block mapping. */
 	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	error = xfs_bmapi_write(tp, quotip, dqp->q_fileoffset,
-			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA,
-			XFS_QM_DQALLOC_SPACE_RES(mp), &map, &nmaps);
+			XFS_DQUOT_CLUSTER_SIZE_FSB, XFS_BMAPI_METADATA, 0, &map,
+			&nmaps);
 	if (error)
 		return error;
 	ASSERT(map.br_blockcount == XFS_DQUOT_CLUSTER_SIZE_FSB);

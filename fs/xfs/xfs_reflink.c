@@ -410,8 +410,8 @@ xfs_reflink_allocate_cow(
 	/* Allocate the entire reservation as unwritten blocks. */
 	nimaps = 1;
 	error = xfs_bmapi_write(tp, ip, imap->br_startoff, imap->br_blockcount,
-			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC,
-			resblks, cmap, &nimaps);
+			XFS_BMAPI_COWFORK | XFS_BMAPI_PREALLOC, 0, cmap,
+			&nimaps);
 	if (error)
 		goto out_unreserve;
 
