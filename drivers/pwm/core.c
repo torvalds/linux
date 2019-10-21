@@ -114,6 +114,9 @@ static int pwm_device_request(struct pwm_device *pwm, const char *label)
 		}
 	}
 
+	if (pwm->chip->ops->get_state)
+		pwm->chip->ops->get_state(pwm->chip, pwm, &pwm->state);
+
 	set_bit(PWMF_REQUESTED, &pwm->flags);
 	pwm->label = label;
 
@@ -282,9 +285,6 @@ int pwmchip_add_with_polarity(struct pwm_chip *chip,
 		pwm->pwm = chip->base + i;
 		pwm->hwpwm = i;
 		pwm->state.polarity = polarity;
-
-		if (chip->ops->get_state)
-			chip->ops->get_state(chip, pwm, &pwm->state);
 
 		radix_tree_insert(&pwm_tree, pwm->pwm, pwm);
 	}
