@@ -3397,6 +3397,33 @@ static void rtl_clear_bp(struct r8152 *tp, u16 type)
 	ocp_write_word(tp, type, PLA_BP_BA, 0);
 }
 
+static int r8153_patch_request(struct r8152 *tp, bool request)
+{
+	u16 data;
+	int i;
+
+	data = ocp_reg_read(tp, OCP_PHY_PATCH_CMD);
+	if (request)
+		data |= PATCH_REQUEST;
+	else
+		data &= ~PATCH_REQUEST;
+	ocp_reg_write(tp, OCP_PHY_PATCH_CMD, data);
+
+	for (i = 0; request && i < 5000; i++) {
+		usleep_range(1000, 2000);
+		if (ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)
+			break;
+	}
+
+	if (request && !(ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)) {
+		netif_err(tp, drv, tp->netdev, "patch request fail\n");
+		r8153_patch_request(tp, false);
+		return -ETIME;
+	} else {
+		return 0;
+	}
+}
+
 static bool rtl8152_is_fw_mac_ok(struct r8152 *tp, struct fw_mac *mac)
 {
 	u16 fw_reg, bp_ba_addr, bp_en_addr, bp_start, fw_offset;
@@ -4054,33 +4081,6 @@ static void r8152b_enter_oob(struct r8152 *tp)
 	ocp_data = ocp_read_dword(tp, MCU_TYPE_PLA, PLA_RCR);
 	ocp_data |= RCR_APM | RCR_AM | RCR_AB;
 	ocp_write_dword(tp, MCU_TYPE_PLA, PLA_RCR, ocp_data);
-}
-
-static int r8153_patch_request(struct r8152 *tp, bool request)
-{
-	u16 data;
-	int i;
-
-	data = ocp_reg_read(tp, OCP_PHY_PATCH_CMD);
-	if (request)
-		data |= PATCH_REQUEST;
-	else
-		data &= ~PATCH_REQUEST;
-	ocp_reg_write(tp, OCP_PHY_PATCH_CMD, data);
-
-	for (i = 0; request && i < 5000; i++) {
-		usleep_range(1000, 2000);
-		if (ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)
-			break;
-	}
-
-	if (request && !(ocp_reg_read(tp, OCP_PHY_PATCH_STAT) & PATCH_READY)) {
-		netif_err(tp, drv, tp->netdev, "patch request fail\n");
-		r8153_patch_request(tp, false);
-		return -ETIME;
-	} else {
-		return 0;
-	}
 }
 
 static int r8153_pre_firmware_1(struct r8152 *tp)
