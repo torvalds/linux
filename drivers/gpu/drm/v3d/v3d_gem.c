@@ -557,13 +557,16 @@ v3d_submit_cl_ioctl(struct drm_device *dev, void *data,
 
 	if (args->bcl_start != args->bcl_end) {
 		bin = kcalloc(1, sizeof(*bin), GFP_KERNEL);
-		if (!bin)
+		if (!bin) {
+			v3d_job_put(&render->base);
 			return -ENOMEM;
+		}
 
 		ret = v3d_job_init(v3d, file_priv, &bin->base,
 				   v3d_job_free, args->in_sync_bcl);
 		if (ret) {
 			v3d_job_put(&render->base);
+			kfree(bin);
 			return ret;
 		}
 
