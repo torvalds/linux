@@ -142,6 +142,10 @@
 	status = "okay";
 };
 
+&camss {
+	vdda-supply = <&pm8994_l2>;
+};
+
 &sdhc2 {
 	/* External SD card */
 	pinctrl-names = "default", "sleep";
@@ -155,10 +159,28 @@
 
 &ufsphy {
 	status = "okay";
+
+	vdda-phy-supply = <&pm8994_l28>;
+	vdda-pll-supply = <&pm8994_l12>;
+
+	vdda-phy-max-microamp = <18380>;
+	vdda-pll-max-microamp = <9440>;
+
+	vddp-ref-clk-supply = <&pm8994_l25>;
+	vddp-ref-clk-max-microamp = <100>;
+	vddp-ref-clk-always-on;
 };
 
 &ufshc {
 	status = "okay";
+
+	vcc-supply = <&pm8994_l20>;
+	vccq-supply = <&pm8994_l25>;
+	vccq2-supply = <&pm8994_s4>;
+
+	vcc-max-microamp = <600000>;
+	vccq-max-microamp = <450000>;
+	vccq2-max-microamp = <450000>;
 };
 
 &msmgpio {
@@ -369,18 +391,31 @@
 
 &pcie_phy {
 	status = "okay";
+
+	vdda-phy-supply = <&pm8994_l28>;
+	vdda-pll-supply = <&pm8994_l12>;
 };
 
 &usb3phy {
 	status = "okay";
+
+	vdda-phy-supply = <&pm8994_l28>;
+	vdda-pll-supply = <&pm8994_l12>;
+
 };
 
 &hsusb_phy1 {
 	status = "okay";
+
+	vdda-pll-supply = <&pm8994_l12>;
+	vdda-phy-dpdm-supply = <&pm8994_l24>;
 };
 
 &hsusb_phy2 {
 	status = "okay";
+
+	vdda-pll-supply = <&pm8994_l12>;
+	vdda-phy-dpdm-supply = <&pm8994_l24>;
 };
 
 &usb3 {
@@ -408,22 +443,31 @@
 	status = "okay";
 	perst-gpio = <&msmgpio 35 GPIO_ACTIVE_LOW>;
 	vddpe-3v3-supply = <&wlan_en>;
+	vdda-supply = <&pm8994_l28>;
 };
 
 &pcie1 {
 	status = "okay";
 	perst-gpio = <&msmgpio 130 GPIO_ACTIVE_LOW>;
+	vdda-supply = <&pm8994_l28>;
 };
 
 &pcie2 {
 	status = "okay";
 	perst-gpio = <&msmgpio 114 GPIO_ACTIVE_LOW>;
+	vdda-supply = <&pm8994_l28>;
 };
 
 &wcd9335 {
 	clock-names = "mclk", "slimbus";
 	clocks = <&div1_mclk>,
 		 <&rpmcc RPM_SMD_BB_CLK1>;
+
+	vdd-buck-supply = <&pm8994_s4>;
+	vdd-buck-sido-supply = <&pm8994_s4>;
+	vdd-tx-supply = <&pm8994_s4>;
+	vdd-rx-supply = <&pm8994_s4>;
+	vdd-io-supply = <&pm8994_s4>;
 };
 
 &mdss {

@@ -1326,16 +1326,6 @@
 			reg-names = "phy_mem";
 			#phy-cells = <0>;
 
-			vdda-phy-supply = <&pm8994_l28>;
-			vdda-pll-supply = <&pm8994_l12>;
-
-			vdda-phy-max-microamp = <18380>;
-			vdda-pll-max-microamp = <9440>;
-
-			vddp-ref-clk-supply = <&pm8994_l25>;
-			vddp-ref-clk-max-microamp = <100>;
-			vddp-ref-clk-always-on;
-
 			clock-names = "ref_clk_src", "ref_clk";
 			clocks = <&rpmcc RPM_SMD_LN_BB_CLK>,
 				 <&gcc GCC_UFS_CLKREF_CLK>;
@@ -1350,14 +1340,6 @@
 
 			phys = <&ufsphy>;
 			phy-names = "ufsphy";
-
-			vcc-supply = <&pm8994_l20>;
-			vccq-supply = <&pm8994_l25>;
-			vccq2-supply = <&pm8994_s4>;
-
-			vcc-max-microamp = <600000>;
-			vccq-max-microamp = <450000>;
-			vccq2-max-microamp = <450000>;
 
 			power-domains = <&gcc UFS_GDSC>;
 
@@ -1460,9 +1442,6 @@
 				<&gcc GCC_PCIE_CLKREF_CLK>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			vdda-phy-supply = <&pm8994_l28>;
-			vdda-pll-supply = <&pm8994_l12>;
-
 			resets = <&gcc GCC_PCIE_PHY_BCR>,
 				<&gcc GCC_PCIE_PHY_COM_BCR>,
 				<&gcc GCC_PCIE_PHY_COM_NOCSR_BCR>;
@@ -1522,9 +1501,6 @@
 				<&gcc GCC_USB3_CLKREF_CLK>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			vdda-phy-supply = <&pm8994_l28>;
-			vdda-pll-supply = <&pm8994_l12>;
-
 			resets = <&gcc GCC_USB3_PHY_BCR>,
 				<&gcc GCC_USB3PHY_PHY_BCR>;
 			reset-names = "phy", "common";
@@ -1551,9 +1527,6 @@
 				<&gcc GCC_RX1_USB2_CLKREF_CLK>;
 			clock-names = "cfg_ahb", "ref";
 
-			vdda-pll-supply = <&pm8994_l12>;
-			vdda-phy-dpdm-supply = <&pm8994_l24>;
-
 			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
 			nvmem-cells = <&qusb2p_hstx_trim>;
 			status = "disabled";
@@ -1567,9 +1540,6 @@
 			clocks = <&gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>,
 				<&gcc GCC_RX2_USB2_CLKREF_CLK>;
 			clock-names = "cfg_ahb", "ref";
-
-			vdda-pll-supply = <&pm8994_l12>;
-			vdda-phy-dpdm-supply = <&pm8994_l24>;
 
 			resets = <&gcc GCC_QUSB2PHY_SEC_BCR>;
 			nvmem-cells = <&qusb2s_hstx_trim>;
@@ -1778,7 +1748,6 @@
 				"vfe1_stream",
 				"vfe_ahb",
 				"vfe_axi";
-			vdda-supply = <&pm8994_l2>;
 			iommus = <&vfe_smmu 0>,
 				 <&vfe_smmu 1>,
 				 <&vfe_smmu 2>,
@@ -1890,9 +1859,6 @@
 				pinctrl-0 = <&pcie0_clkreq_default &pcie0_perst_default &pcie0_wake_default>;
 				pinctrl-1 = <&pcie0_clkreq_sleep &pcie0_perst_default &pcie0_wake_sleep>;
 
-
-				vdda-supply = <&pm8994_l28>;
-
 				linux,pci-domain = <0>;
 
 				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>,
@@ -1945,8 +1911,6 @@
 				pinctrl-0 = <&pcie1_clkreq_default &pcie1_perst_default &pcie1_wake_default>;
 				pinctrl-1 = <&pcie1_clkreq_sleep &pcie1_perst_default &pcie1_wake_sleep>;
 
-
-				vdda-supply = <&pm8994_l28>;
 				linux,pci-domain = <1>;
 
 				clocks = <&gcc GCC_PCIE_1_PIPE_CLK>,
@@ -1997,8 +1961,6 @@
 				pinctrl-names = "default", "sleep";
 				pinctrl-0 = <&pcie2_clkreq_default &pcie2_perst_default &pcie2_wake_default>;
 				pinctrl-1 = <&pcie2_clkreq_sleep &pcie2_perst_default &pcie2_wake_sleep >;
-
-				vdda-supply = <&pm8994_l28>;
 
 				linux,pci-domain = <2>;
 				clocks = <&gcc GCC_PCIE_2_PIPE_CLK>,
@@ -2063,12 +2025,6 @@
 					reset-gpios = <&msmgpio 64 0>;
 
 					slim-ifc-dev  = <&tasha_ifd>;
-
-					vdd-buck-supply = <&pm8994_s4>;
-					vdd-buck-sido-supply = <&pm8994_s4>;
-					vdd-tx-supply = <&pm8994_s4>;
-					vdd-rx-supply = <&pm8994_s4>;
-					vdd-io-supply = <&pm8994_s4>;
 
 					#sound-dai-cells = <1>;
 				};
