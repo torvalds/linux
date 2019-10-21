@@ -298,6 +298,10 @@ nfs_detach_delegation_locked(struct nfs_inode *nfsi,
 		return NULL;
 
 	spin_lock(&delegation->lock);
+	if (!delegation->inode) {
+		spin_unlock(&delegation->lock);
+		return NULL;
+	}
 	set_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
 	list_del_rcu(&delegation->super_list);
 	delegation->inode = NULL;
