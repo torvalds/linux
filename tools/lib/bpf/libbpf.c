@@ -4463,6 +4463,11 @@ int bpf_program__nth_fd(const struct bpf_program *prog, int n)
 	return fd;
 }
 
+enum bpf_prog_type bpf_program__get_type(struct bpf_program *prog)
+{
+	return prog->type;
+}
+
 void bpf_program__set_type(struct bpf_program *prog, enum bpf_prog_type type)
 {
 	prog->type = type;
@@ -4496,6 +4501,12 @@ BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
 BPF_PROG_TYPE_FNS(raw_tracepoint, BPF_PROG_TYPE_RAW_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
+
+enum bpf_attach_type
+bpf_program__get_expected_attach_type(struct bpf_program *prog)
+{
+	return prog->expected_attach_type;
+}
 
 void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 					   enum bpf_attach_type type)
