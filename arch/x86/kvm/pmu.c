@@ -62,8 +62,7 @@ static void kvm_perf_overflow(struct perf_event *perf_event,
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
-	if (!test_and_set_bit(pmc->idx,
-			      (unsigned long *)&pmu->reprogram_pmi)) {
+	if (!test_and_set_bit(pmc->idx, pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 	}
@@ -76,8 +75,7 @@ static void kvm_perf_overflow_intr(struct perf_event *perf_event,
 	struct kvm_pmc *pmc = perf_event->overflow_handler_context;
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 
-	if (!test_and_set_bit(pmc->idx,
-			      (unsigned long *)&pmu->reprogram_pmi)) {
+	if (!test_and_set_bit(pmc->idx, pmu->reprogram_pmi)) {
 		__set_bit(pmc->idx, (unsigned long *)&pmu->global_status);
 		kvm_make_request(KVM_REQ_PMU, pmc->vcpu);
 
@@ -137,7 +135,7 @@ static void pmc_reprogram_counter(struct kvm_pmc *pmc, u32 type,
 	}
 
 	pmc->perf_event = event;
-	clear_bit(pmc->idx, (unsigned long*)&pmc_to_pmu(pmc)->reprogram_pmi);
+	clear_bit(pmc->idx, pmc_to_pmu(pmc)->reprogram_pmi);
 }
 
 void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)
@@ -253,16 +251,13 @@ EXPORT_SYMBOL_GPL(reprogram_counter);
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu)
 {
 	struct kvm_pmu *pmu = vcpu_to_pmu(vcpu);
-	u64 bitmask;
 	int bit;
 
-	bitmask = pmu->reprogram_pmi;
-
-	for_each_set_bit(bit, (unsigned long *)&bitmask, X86_PMC_IDX_MAX) {
+	for_each_set_bit(bit, pmu->reprogram_pmi, X86_PMC_IDX_MAX) {
 		struct kvm_pmc *pmc = kvm_x86_ops->pmu_ops->pmc_idx_to_pmc(pmu, bit);
 
 		if (unlikely(!pmc || !pmc->perf_event)) {
-			clear_bit(bit, (unsigned long *)&pmu->reprogram_pmi);
+			clear_bit(bit, pmu->reprogram_pmi);
 			continue;
 		}
 

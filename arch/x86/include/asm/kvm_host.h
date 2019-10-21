@@ -467,7 +467,7 @@ struct kvm_pmu {
 	struct kvm_pmc gp_counters[INTEL_PMC_MAX_GENERIC];
 	struct kvm_pmc fixed_counters[INTEL_PMC_MAX_FIXED];
 	struct irq_work irq_work;
-	u64 reprogram_pmi;
+	DECLARE_BITMAP(reprogram_pmi, X86_PMC_IDX_MAX);
 };
 
 struct kvm_pmu_ops;
