@@ -627,7 +627,7 @@ static struct topa *topa_alloc(int cpu, gfp_t gfp)
 	 * link as the 2nd entry in the table
 	 */
 	if (!intel_pt_validate_hw_cap(PT_CAP_topa_multiple_entries)) {
-		TOPA_ENTRY(&tp->topa, 1)->base = page_to_phys(p);
+		TOPA_ENTRY(&tp->topa, 1)->base = page_to_phys(p) >> TOPA_SHIFT;
 		TOPA_ENTRY(&tp->topa, 1)->end = 1;
 	}
 
