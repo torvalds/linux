@@ -36,11 +36,7 @@ static inline void arch_maybe_save_ip(unsigned long flags)
 static inline unsigned long arch_local_save_flags(void)
 {
 	ia64_stop();
-#ifdef CONFIG_PARAVIRT
-	return ia64_get_psr_i();
-#else
 	return ia64_getreg(_IA64_REG_PSR);
-#endif
 }
 
 static inline unsigned long arch_local_irq_save(void)
