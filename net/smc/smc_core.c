@@ -219,6 +219,14 @@ static void smc_lgr_free_work(struct work_struct *work)
 	smc_lgr_free(lgr);
 }
 
+static void smc_lgr_terminate_work(struct work_struct *work)
+{
+	struct smc_link_group *lgr = container_of(work, struct smc_link_group,
+						  terminate_work);
+
+	smc_lgr_terminate(lgr);
+}
+
 /* create a new SMC link group */
 static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 {
@@ -258,6 +266,7 @@ static int smc_lgr_create(struct smc_sock *smc, struct smc_init_info *ini)
 	smc_lgr_list.num += SMC_LGR_NUM_INCR;
 	memcpy(&lgr->id, (u8 *)&smc_lgr_list.num, SMC_LGR_ID_SIZE);
 	INIT_DELAYED_WORK(&lgr->free_work, smc_lgr_free_work);
+	INIT_WORK(&lgr->terminate_work, smc_lgr_terminate_work);
 	lgr->conns_all = RB_ROOT;
 	if (ini->is_smcd) {
 		/* SMC-D specific settings */
