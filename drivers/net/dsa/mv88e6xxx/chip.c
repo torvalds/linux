@@ -1057,35 +1057,43 @@ static int mv88e6xxx_set_mac_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+/* Mask of the local ports allowed to receive frames from a given fabric port */
 static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 {
-	struct dsa_switch *ds = NULL;
+	struct dsa_switch *ds = chip->ds;
+	struct dsa_switch_tree *dst = ds->dst;
 	struct net_device *br;
+	struct dsa_port *dp;
+	bool found = false;
 	u16 pvlan;
-	int i;
 
-	if (dev < DSA_MAX_SWITCHES)
-		ds = chip->ds->dst->ds[dev];
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->ds->index == dev && dp->index == port) {
+			found = true;
+			break;
+		}
+	}
 
 	/* Prevent frames from unknown switch or port */
-	if (!ds || port >= ds->num_ports)
+	if (!found)
 		return 0;
 
 	/* Frames from DSA links and CPU ports can egress any local port */
-	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+	if (dp->type == DSA_PORT_TYPE_CPU || dp->type == DSA_PORT_TYPE_DSA)
 		return mv88e6xxx_port_mask(chip);
 
-	br = dsa_to_port(ds, port)->bridge_dev;
+	br = dp->bridge_dev;
 	pvlan = 0;
 
 	/* Frames from user ports can egress any local DSA links and CPU ports,
 	 * as well as any local member of their bridge group.
 	 */
-	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
-		if (dsa_is_cpu_port(chip->ds, i) ||
-		    dsa_is_dsa_port(chip->ds, i) ||
-		    (br && dsa_to_port(chip->ds, i)->bridge_dev == br))
-			pvlan |= BIT(i);
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds == ds &&
+		    (dp->type == DSA_PORT_TYPE_CPU ||
+		     dp->type == DSA_PORT_TYPE_DSA ||
+		     (br && dp->bridge_dev == br)))
+			pvlan |= BIT(dp->index);
 
 	return pvlan;
 }
