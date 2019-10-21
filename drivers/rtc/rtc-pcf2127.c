@@ -417,6 +417,7 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 			const char *name, bool has_nvmem)
 {
 	struct pcf2127 *pcf2127;
+	u32 wdd_timeout;
 	int ret = 0;
 
 	dev_dbg(dev, "%s\n", __func__);
@@ -459,7 +460,6 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 	/*
 	 * Watchdog timer enabled and reset pin /RST activated when timed out.
 	 * Select 1Hz clock source for watchdog timer.
-	 * Timer is not started until WD_VAL is loaded with a valid value.
 	 * Note: Countdown timer disabled and not available.
 	 */
 	ret = regmap_update_bits(pcf2127->regmap, PCF2127_REG_WD_CTL,
@@ -474,6 +474,14 @@ static int pcf2127_probe(struct device *dev, struct regmap *regmap,
 		dev_err(dev, "%s: watchdog config (wd_ctl) failed\n", __func__);
 		return ret;
 	}
+
+	/* Test if watchdog timer is started by bootloader */
+	ret = regmap_read(pcf2127->regmap, PCF2127_REG_WD_VAL, &wdd_timeout);
+	if (ret)
+		return ret;
+
+	if (wdd_timeout)
+		set_bit(WDOG_HW_RUNNING, &pcf2127->wdd.status);
 
 #ifdef CONFIG_WATCHDOG
 	ret = devm_watchdog_register_device(dev, &pcf2127->wdd);
