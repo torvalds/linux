@@ -391,7 +391,6 @@ void test_core_reloc(void)
 		if (CHECK(!prog, "find_probe",
 			  "prog '%s' not found\n", probe_name))
 			goto cleanup;
-		bpf_program__set_type(prog, BPF_PROG_TYPE_RAW_TRACEPOINT);
 
 		load_attr.obj = obj;
 		load_attr.log_level = 0;

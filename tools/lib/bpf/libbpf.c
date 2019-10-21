@@ -3611,6 +3611,7 @@ static struct bpf_object *
 __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 		   struct bpf_object_open_opts *opts)
 {
+	struct bpf_program *prog;
 	struct bpf_object *obj;
 	const char *obj_name;
 	char tmp_name[64];
@@ -3650,8 +3651,24 @@ __bpf_object__open(const char *path, const void *obj_buf, size_t obj_buf_sz,
 	CHECK_ERR(bpf_object__probe_caps(obj), err, out);
 	CHECK_ERR(bpf_object__elf_collect(obj, relaxed_maps), err, out);
 	CHECK_ERR(bpf_object__collect_reloc(obj), err, out);
-
 	bpf_object__elf_finish(obj);
+
+	bpf_object__for_each_program(prog, obj) {
+		enum bpf_prog_type prog_type;
+		enum bpf_attach_type attach_type;
+
+		err = libbpf_prog_type_by_name(prog->section_name, &prog_type,
+					       &attach_type);
+		if (err == -ESRCH)
+			/* couldn't guess, but user might manually specify */
+			continue;
+		if (err)
+			goto out;
+
+		bpf_program__set_type(prog, prog_type);
+		bpf_program__set_expected_attach_type(prog, attach_type);
+	}
+
 	return obj;
 out:
 	bpf_object__close(obj);
@@ -4463,6 +4480,11 @@ int bpf_program__nth_fd(const struct bpf_program *prog, int n)
 	return fd;
 }
 
+enum bpf_prog_type bpf_program__get_type(struct bpf_program *prog)
+{
+	return prog->type;
+}
+
 void bpf_program__set_type(struct bpf_program *prog, enum bpf_prog_type type)
 {
 	prog->type = type;
@@ -4496,6 +4518,12 @@ BPF_PROG_TYPE_FNS(tracepoint, BPF_PROG_TYPE_TRACEPOINT);
 BPF_PROG_TYPE_FNS(raw_tracepoint, BPF_PROG_TYPE_RAW_TRACEPOINT);
 BPF_PROG_TYPE_FNS(xdp, BPF_PROG_TYPE_XDP);
 BPF_PROG_TYPE_FNS(perf_event, BPF_PROG_TYPE_PERF_EVENT);
+
+enum bpf_attach_type
+bpf_program__get_expected_attach_type(struct bpf_program *prog)
+{
+	return prog->expected_attach_type;
+}
 
 void bpf_program__set_expected_attach_type(struct bpf_program *prog,
 					   enum bpf_attach_type type)
@@ -4536,11 +4564,15 @@ static const struct {
 } section_names[] = {
 	BPF_PROG_SEC("socket",			BPF_PROG_TYPE_SOCKET_FILTER),
 	BPF_PROG_SEC("kprobe/",			BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("uprobe/",			BPF_PROG_TYPE_KPROBE),
 	BPF_PROG_SEC("kretprobe/",		BPF_PROG_TYPE_KPROBE),
+	BPF_PROG_SEC("uretprobe/",		BPF_PROG_TYPE_KPROBE),
 	BPF_PROG_SEC("classifier",		BPF_PROG_TYPE_SCHED_CLS),
 	BPF_PROG_SEC("action",			BPF_PROG_TYPE_SCHED_ACT),
 	BPF_PROG_SEC("tracepoint/",		BPF_PROG_TYPE_TRACEPOINT),
+	BPF_PROG_SEC("tp/",			BPF_PROG_TYPE_TRACEPOINT),
 	BPF_PROG_SEC("raw_tracepoint/",		BPF_PROG_TYPE_RAW_TRACEPOINT),
+	BPF_PROG_SEC("raw_tp/",			BPF_PROG_TYPE_RAW_TRACEPOINT),
 	BPF_PROG_BTF("tp_btf/",			BPF_PROG_TYPE_RAW_TRACEPOINT),
 	BPF_PROG_SEC("xdp",			BPF_PROG_TYPE_XDP),
 	BPF_PROG_SEC("perf_event",		BPF_PROG_TYPE_PERF_EVENT),
@@ -4676,7 +4708,7 @@ int libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 		free(type_names);
 	}
 
-	return -EINVAL;
+	return -ESRCH;
 }
 
 int libbpf_attach_type_by_name(const char *name,
@@ -4704,15 +4736,6 @@ int libbpf_attach_type_by_name(const char *name,
 	}
 
 	return -EINVAL;
-}
-
-static int
-bpf_program__identify_section(struct bpf_program *prog,
-			      enum bpf_prog_type *prog_type,
-			      enum bpf_attach_type *expected_attach_type)
-{
-	return libbpf_prog_type_by_name(prog->section_name, prog_type,
-					expected_attach_type);
 }
 
 int bpf_map__fd(const struct bpf_map *map)
@@ -4882,8 +4905,6 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 {
 	struct bpf_object_open_attr open_attr = {};
 	struct bpf_program *prog, *first_prog = NULL;
-	enum bpf_attach_type expected_attach_type;
-	enum bpf_prog_type prog_type;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	int err;
@@ -4901,26 +4922,27 @@ int bpf_prog_load_xattr(const struct bpf_prog_load_attr *attr,
 		return -ENOENT;
 
 	bpf_object__for_each_program(prog, obj) {
+		enum bpf_attach_type attach_type = attr->expected_attach_type;
 		/*
-		 * If type is not specified, try to guess it based on
-		 * section name.
+		 * to preserve backwards compatibility, bpf_prog_load treats
+		 * attr->prog_type, if specified, as an override to whatever
+		 * bpf_object__open guessed
 		 */
-		prog_type = attr->prog_type;
-		prog->prog_ifindex = attr->ifindex;
-		expected_attach_type = attr->expected_attach_type;
-		if (prog_type == BPF_PROG_TYPE_UNSPEC) {
-			err = bpf_program__identify_section(prog, &prog_type,
-							    &expected_attach_type);
-			if (err < 0) {
-				bpf_object__close(obj);
-				return -EINVAL;
-			}
+		if (attr->prog_type != BPF_PROG_TYPE_UNSPEC) {
+			bpf_program__set_type(prog, attr->prog_type);
+			bpf_program__set_expected_attach_type(prog,
+							      attach_type);
+		}
+		if (bpf_program__get_type(prog) == BPF_PROG_TYPE_UNSPEC) {
+			/*
+			 * we haven't guessed from section name and user
+			 * didn't provide a fallback type, too bad...
+			 */
+			bpf_object__close(obj);
+			return -EINVAL;
 		}
 
-		bpf_program__set_type(prog, prog_type);
-		bpf_program__set_expected_attach_type(prog,
-						      expected_attach_type);
-
+		prog->prog_ifindex = attr->ifindex;
 		prog->log_level = attr->log_level;
 		prog->prog_flags = attr->prog_flags;
 		if (!first_prog)
