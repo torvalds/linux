@@ -182,8 +182,7 @@ static void smc_lgr_free_work(struct work_struct *work)
 		spin_unlock_bh(lgr_lock);
 		return;
 	}
-	if (!list_empty(&lgr->list))
-		list_del_init(&lgr->list); /* remove from smc_lgr_list */
+	list_del_init(&lgr->list); /* remove from smc_lgr_list */
 	spin_unlock_bh(lgr_lock);
 
 	if (!lgr->is_smcd && !lgr->terminating)	{
@@ -479,7 +478,7 @@ void smc_lgr_forget(struct smc_link_group *lgr)
 	spin_unlock_bh(lgr_lock);
 }
 
-/* terminate linkgroup abnormally */
+/* terminate link group */
 static void __smc_lgr_terminate(struct smc_link_group *lgr)
 {
 	struct smc_connection *conn;
@@ -489,8 +488,6 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 	if (lgr->terminating)
 		return;	/* lgr already terminating */
 	lgr->terminating = 1;
-	if (!list_empty(&lgr->list)) /* forget lgr */
-		list_del_init(&lgr->list);
 	if (!lgr->is_smcd)
 		smc_llc_link_inactive(&lgr->lnk[SMC_SINGLE_LINK]);
 
@@ -516,29 +513,41 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 	smc_lgr_schedule_free_work(lgr);
 }
 
+/* unlink and terminate link group */
 void smc_lgr_terminate(struct smc_link_group *lgr)
 {
 	spinlock_t *lgr_lock;
 
 	smc_lgr_list_head(lgr, &lgr_lock);
 	spin_lock_bh(lgr_lock);
-	__smc_lgr_terminate(lgr);
+	if (lgr->terminating) {
+		spin_unlock_bh(lgr_lock);
+		return;	/* lgr already terminating */
+	}
+	list_del_init(&lgr->list);
 	spin_unlock_bh(lgr_lock);
+	__smc_lgr_terminate(lgr);
 }
 
 /* Called when IB port is terminated */
 void smc_port_terminate(struct smc_ib_device *smcibdev, u8 ibport)
 {
 	struct smc_link_group *lgr, *l;
+	LIST_HEAD(lgr_free_list);
 
 	spin_lock_bh(&smc_lgr_list.lock);
 	list_for_each_entry_safe(lgr, l, &smc_lgr_list.list, list) {
 		if (!lgr->is_smcd &&
 		    lgr->lnk[SMC_SINGLE_LINK].smcibdev == smcibdev &&
 		    lgr->lnk[SMC_SINGLE_LINK].ibport == ibport)
-			__smc_lgr_terminate(lgr);
+			list_move(&lgr->list, &lgr_free_list);
 	}
 	spin_unlock_bh(&smc_lgr_list.lock);
+
+	list_for_each_entry_safe(lgr, l, &lgr_free_list, list) {
+		list_del_init(&lgr->list);
+		__smc_lgr_terminate(lgr);
+	}
 }
 
 /* Called when SMC-D device is terminated or peer is lost */
@@ -552,7 +561,6 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 	list_for_each_entry_safe(lgr, l, &dev->lgr_list, list) {
 		if ((!peer_gid || lgr->peer_gid == peer_gid) &&
 		    (vlan == VLAN_VID_MASK || lgr->vlan_id == vlan)) {
-			__smc_lgr_terminate(lgr);
 			list_move(&lgr->list, &lgr_free_list);
 		}
 	}
@@ -561,6 +569,7 @@ void smc_smcd_terminate(struct smcd_dev *dev, u64 peer_gid, unsigned short vlan)
 	/* cancel the regular free workers and actually free lgrs */
 	list_for_each_entry_safe(lgr, l, &lgr_free_list, list) {
 		list_del_init(&lgr->list);
+		__smc_lgr_terminate(lgr);
 		cancel_delayed_work_sync(&lgr->free_work);
 		if (!peer_gid && vlan == VLAN_VID_MASK) /* dev terminated? */
 			smc_ism_signal_shutdown(lgr);
