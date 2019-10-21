@@ -12,7 +12,7 @@
 int kvm_hvc_call_handler(struct kvm_vcpu *vcpu)
 {
 	u32 func_id = smccc_get_function(vcpu);
-	u32 val = SMCCC_RET_NOT_SUPPORTED;
+	long val = SMCCC_RET_NOT_SUPPORTED;
 	u32 feature;
 
 	switch (func_id) {
@@ -48,7 +48,13 @@ int kvm_hvc_call_handler(struct kvm_vcpu *vcpu)
 				break;
 			}
 			break;
+		case ARM_SMCCC_HV_PV_TIME_FEATURES:
+			val = SMCCC_RET_SUCCESS;
+			break;
 		}
+		break;
+	case ARM_SMCCC_HV_PV_TIME_FEATURES:
+		val = kvm_hypercall_pv_features(vcpu);
 		break;
 	default:
 		return kvm_psci_call(vcpu);
