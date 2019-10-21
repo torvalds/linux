@@ -294,14 +294,13 @@ static int intel_punit_ipc_probe(struct platform_device *pdev)
 
 	ret = intel_punit_get_bars(pdev);
 	if (ret)
-		goto out;
+		return ret;
 
 	punit_ipcdev->dev = &pdev->dev;
 	mutex_init(&punit_ipcdev->lock);
 	init_completion(&punit_ipcdev->cmd_complete);
 
-out:
-	return ret;
+	return 0;
 }
 
 static int intel_punit_ipc_remove(struct platform_device *pdev)
