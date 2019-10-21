@@ -115,4 +115,11 @@ config PINCTRL_SUNRISEPOINT
 	  provides an interface that allows configuring of PCH pins and
 	  using them as GPIOs.
 
+config PINCTRL_TIGERLAKE
+	tristate "Intel Tiger Lake pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Tiger Lake PCH pins and using them as GPIOs.
 endif
