@@ -854,7 +854,7 @@ static int ccp5_init(struct ccp_device *ccp)
 
 	if (ccp->cmd_q_count == 0) {
 		dev_notice(dev, "no command queues available\n");
-		ret = -EIO;
+		ret = 1;
 		goto e_pool;
 	}
 
