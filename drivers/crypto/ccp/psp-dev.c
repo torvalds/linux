@@ -929,8 +929,22 @@ static int sev_misc_init(struct psp_device *psp)
 
 static int psp_check_sev_support(struct psp_device *psp)
 {
-	/* Check if device supports SEV feature */
-	if (!(ioread32(psp->io_regs + psp->vdata->feature_reg) & 1)) {
+	unsigned int val = ioread32(psp->io_regs + psp->vdata->feature_reg);
+
+	/*
+	 * Check for a access to the registers.  If this read returns
+	 * 0xffffffff, it's likely that the system is running a broken
+	 * BIOS which disallows access to the device. Stop here and
+	 * fail the PSP initialization (but not the load, as the CCP
+	 * could get properly initialized).
+	 */
+	if (val == 0xffffffff) {
+		dev_notice(psp->dev, "psp: unable to access the device: you might be running a broken BIOS.\n");
+		return -ENODEV;
+	}
+
+	if (!(val & 1)) {
+		/* Device does not support the SEV feature */
 		dev_dbg(psp->dev, "psp does not support SEV\n");
 		return -ENODEV;
 	}
