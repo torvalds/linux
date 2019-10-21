@@ -29,25 +29,20 @@ static int bnxt_fw_reporter_diagnose(struct devlink_health_reporter *reporter,
 	val = bnxt_fw_health_readl(bp, BNXT_FW_HEALTH_REG);
 	health_status = val & 0xffff;
 
-	if (health_status == BNXT_FW_STATUS_HEALTHY) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
-						  "Healthy;");
-		if (rc)
-			return rc;
-	} else if (health_status < BNXT_FW_STATUS_HEALTHY) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
-						  "Not yet completed initialization;");
+	if (health_status < BNXT_FW_STATUS_HEALTHY) {
+		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
+						  "Not yet completed initialization");
 		if (rc)
 			return rc;
 	} else if (health_status > BNXT_FW_STATUS_HEALTHY) {
-		rc = devlink_fmsg_string_pair_put(fmsg, "FW status",
-						  "Encountered fatal error and cannot recover;");
+		rc = devlink_fmsg_string_pair_put(fmsg, "Description",
+						  "Encountered fatal error and cannot recover");
 		if (rc)
 			return rc;
 	}
 
 	if (val >> 16) {
-		rc = devlink_fmsg_u32_pair_put(fmsg, "Error", val >> 16);
+		rc = devlink_fmsg_u32_pair_put(fmsg, "Error code", val >> 16);
 		if (rc)
 			return rc;
 	}
