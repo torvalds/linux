@@ -4294,7 +4294,6 @@
 
 		target-module@4000 {			/* 0x4ae14000, ap 7 28.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "wd_timer2";
 			reg = <0x4000 0x4>,
 			      <0x4010 0x4>,
 			      <0x4014 0x4>;

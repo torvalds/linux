@@ -24,7 +24,6 @@
 #include "cm1_7xx.h"
 #include "cm2_7xx.h"
 #include "prm7xx.h"
-#include "wd_timer.h"
 #include "soc.h"
 
 /* Base offset for all DRA7XX interrupts external to MPUSS */
@@ -1627,43 +1626,6 @@ static struct omap_hwmod dra7xx_vcp2_hwmod = {
 	},
 };
 
-/*
- * 'wd_timer' class
- *
- */
-
-static struct omap_hwmod_class_sysconfig dra7xx_wd_timer_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.syss_offs	= 0x0014,
-	.sysc_flags	= (SYSC_HAS_EMUFREE | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET | SYSS_HAS_RESET_STATUS),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART |
-			   SIDLE_SMART_WKUP),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_wd_timer_hwmod_class = {
-	.name		= "wd_timer",
-	.sysc		= &dra7xx_wd_timer_sysc,
-	.pre_shutdown	= &omap2_wd_timer_disable,
-	.reset		= &omap2_wd_timer_reset,
-};
-
-/* wd_timer2 */
-static struct omap_hwmod dra7xx_wd_timer2_hwmod = {
-	.name		= "wd_timer2",
-	.class		= &dra7xx_wd_timer_hwmod_class,
-	.clkdm_name	= "wkupaon_clkdm",
-	.main_clk	= "sys_32k_ck",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_WKUPAON_WD_TIMER2_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_WKUPAON_WD_TIMER2_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 
 /*
@@ -2221,14 +2183,6 @@ static struct omap_hwmod_ocp_if dra7xx_l4_per2__vcp2 = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_wkup -> wd_timer2 */
-static struct omap_hwmod_ocp_if dra7xx_l4_wkup__wd_timer2 = {
-	.master		= &dra7xx_l4_wkup_hwmod,
-	.slave		= &dra7xx_wd_timer2_hwmod,
-	.clk		= "wkupaon_iclk_mux",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_per2 -> epwmss0 */
 static struct omap_hwmod_ocp_if dra7xx_l4_per2__epwmss0 = {
 	.master		= &dra7xx_l4_per2_hwmod,
@@ -2319,7 +2273,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l4_per2__vcp1,
 	&dra7xx_l3_main_1__vcp2,
 	&dra7xx_l4_per2__vcp2,
-	&dra7xx_l4_wkup__wd_timer2,
 	&dra7xx_l4_per2__epwmss0,
 	&dra7xx_l4_per2__epwmss1,
 	&dra7xx_l4_per2__epwmss2,
