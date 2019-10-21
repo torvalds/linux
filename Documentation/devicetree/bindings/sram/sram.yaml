@@ -67,6 +67,7 @@ patternProperties:
         enum:
           - amlogic,meson8-smp-sram
           - amlogic,meson8b-smp-sram
+          - renesas,smp-sram
           - samsung,exynos4210-sysram
           - samsung,exynos4210-sysram-ns
 
@@ -183,5 +184,19 @@ examples:
         smp-sram@1ff80 {
             compatible = "amlogic,meson8b-smp-sram";
             reg = <0x1ff80 0x8>;
+        };
+    };
+
+  - |
+    sram@e63c0000 {
+        compatible = "mmio-sram";
+        reg = <0xe63c0000 0x1000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0xe63c0000 0x1000>;
+
+        smp-sram@0 {
+            compatible = "renesas,smp-sram";
+            reg = <0 0x10>;
         };
     };
