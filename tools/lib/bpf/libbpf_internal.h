@@ -43,7 +43,7 @@ do {				\
 	libbpf_print(level, "libbpf: " fmt, ##__VA_ARGS__);	\
 } while (0)
 
-#define pr_warning(fmt, ...)	__pr(LIBBPF_WARN, fmt, ##__VA_ARGS__)
+#define pr_warn(fmt, ...)	__pr(LIBBPF_WARN, fmt, ##__VA_ARGS__)
 #define pr_info(fmt, ...)	__pr(LIBBPF_INFO, fmt, ##__VA_ARGS__)
 #define pr_debug(fmt, ...)	__pr(LIBBPF_DEBUG, fmt, ##__VA_ARGS__)
 
@@ -52,7 +52,7 @@ static inline bool libbpf_validate_opts(const char *opts,
 					const char *type_name)
 {
 	if (user_sz < sizeof(size_t)) {
-		pr_warning("%s size (%zu) is too small\n", type_name, user_sz);
+		pr_warn("%s size (%zu) is too small\n", type_name, user_sz);
 		return false;
 	}
 	if (user_sz > opts_sz) {
@@ -60,8 +60,8 @@ static inline bool libbpf_validate_opts(const char *opts,
 
 		for (i = opts_sz; i < user_sz; i++) {
 			if (opts[i]) {
-				pr_warning("%s has non-zero extra bytes",
-					   type_name);
+				pr_warn("%s has non-zero extra bytes",
+					type_name);
 				return false;
 			}
 		}
