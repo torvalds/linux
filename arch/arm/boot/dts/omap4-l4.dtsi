@@ -381,7 +381,6 @@
 
 		target-module@2b000 {			/* 0x4a0ab000, ap 84 12.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "usb_otg_hs";
 			reg = <0x2b400 0x4>,
 			      <0x2b404 0x4>,
 			      <0x2b408 0x4>;
