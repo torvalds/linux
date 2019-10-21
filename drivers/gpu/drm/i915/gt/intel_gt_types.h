@@ -83,8 +83,6 @@ struct intel_gt {
 	struct intel_llc llc;
 	struct intel_rc6 rc6;
 
-	struct blocking_notifier_head pm_notifications;
-
 	ktime_t last_init_time;
 
 	struct i915_vma *scratch;

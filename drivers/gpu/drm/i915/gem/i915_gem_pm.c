@@ -11,24 +11,6 @@
 
 #include "i915_drv.h"
 
-static int pm_notifier(struct notifier_block *nb,
-		       unsigned long action,
-		       void *data)
-{
-	struct drm_i915_private *i915 =
-		container_of(nb, typeof(*i915), gem.pm_notifier);
-
-	switch (action) {
-	case INTEL_GT_UNPARK:
-		break;
-
-	case INTEL_GT_PARK:
-		break;
-	}
-
-	return NOTIFY_OK;
-}
-
 static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 {
 	bool result = !intel_gt_is_wedged(gt);
@@ -205,11 +187,4 @@ err_wedged:
 		intel_gt_set_wedged(&i915->gt);
 	}
 	goto out_unlock;
-}
-
-void i915_gem_init__pm(struct drm_i915_private *i915)
-{
-	i915->gem.pm_notifier.notifier_call = pm_notifier;
-	blocking_notifier_chain_register(&i915->gt.pm_notifications,
-					 &i915->gem.pm_notifier);
 }

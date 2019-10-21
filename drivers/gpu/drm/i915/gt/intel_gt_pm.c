@@ -16,11 +16,6 @@
 #include "intel_rc6.h"
 #include "intel_wakeref.h"
 
-static void pm_notify(struct intel_gt *gt, int state)
-{
-	blocking_notifier_call_chain(&gt->pm_notifications, state, gt->i915);
-}
-
 static int __gt_unpark(struct intel_wakeref *wf)
 {
 	struct intel_gt *gt = container_of(wf, typeof(*gt), wakeref);
@@ -55,8 +50,6 @@ static int __gt_unpark(struct intel_wakeref *wf)
 	intel_gt_queue_hangcheck(gt);
 	intel_gt_unpark_requests(gt);
 
-	pm_notify(gt, INTEL_GT_UNPARK);
-
 	return 0;
 }
 
@@ -68,7 +61,6 @@ static int __gt_park(struct intel_wakeref *wf)
 
 	GEM_TRACE("\n");
 
-	pm_notify(gt, INTEL_GT_PARK);
 	intel_gt_park_requests(gt);
 
 	i915_vma_parked(gt);
@@ -96,8 +88,6 @@ static const struct intel_wakeref_ops wf_ops = {
 void intel_gt_pm_init_early(struct intel_gt *gt)
 {
 	intel_wakeref_init(&gt->wakeref, gt->uncore->rpm, &wf_ops);
-
-	BLOCKING_INIT_NOTIFIER_HEAD(&gt->pm_notifications);
 }
 
 void intel_gt_pm_init(struct intel_gt *gt)

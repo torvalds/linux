@@ -12,11 +12,6 @@
 #include "intel_gt_types.h"
 #include "intel_wakeref.h"
 
-enum {
-	INTEL_GT_UNPARK,
-	INTEL_GT_PARK,
-};
-
 static inline bool intel_gt_pm_is_awake(const struct intel_gt *gt)
 {
 	return intel_wakeref_is_active(&gt->wakeref);
