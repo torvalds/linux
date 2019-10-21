@@ -846,6 +846,12 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 	struct device_node *np = ds->dev->of_node;
 	int err;
 
+	if (!ds->dev)
+		return -ENODEV;
+
+	if (!ds->num_ports)
+		return -EINVAL;
+
 	if (np)
 		err = dsa_switch_parse_of(ds, np);
 	else if (pdata)
@@ -858,21 +864,6 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 
 	return dsa_switch_add(ds);
 }
-
-struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
-{
-	struct dsa_switch *ds;
-
-	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
-	if (!ds)
-		return NULL;
-
-	ds->dev = dev;
-	ds->num_ports = n;
-
-	return ds;
-}
-EXPORT_SYMBOL_GPL(dsa_switch_alloc);
 
 int dsa_register_switch(struct dsa_switch *ds)
 {
