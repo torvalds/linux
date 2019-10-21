@@ -387,8 +387,10 @@ int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
 		/* Is this an update of the existing delegation? */
 		if (nfs4_stateid_match_other(&old_delegation->stateid,
 					&delegation->stateid)) {
+			spin_lock(&old_delegation->lock);
 			nfs_update_inplace_delegation(old_delegation,
 					delegation);
+			spin_unlock(&old_delegation->lock);
 			goto out;
 		}
 		/*
