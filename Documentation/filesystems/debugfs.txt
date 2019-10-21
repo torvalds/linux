@@ -93,8 +93,8 @@ the following functions can be used instead:
 
 These functions are useful as long as the developer knows the size of the
 value to be exported.  Some types can have different widths on different
-architectures, though, complicating the situation somewhat.  There is a
-function meant to help out in one special case:
+architectures, though, complicating the situation somewhat.  There are
+functions meant to help out in such special cases:
 
     struct dentry *debugfs_create_size_t(const char *name, umode_t mode,
 				         struct dentry *parent, 
@@ -102,6 +102,12 @@ function meant to help out in one special case:
 
 As might be expected, this function will create a debugfs file to represent
 a variable of type size_t.
+
+Similarly, there is a helper for variables of type unsigned long:
+
+    struct dentry *debugfs_create_ulong(const char *name, umode_t mode,
+					struct dentry *parent,
+					unsigned long *value);
 
 Boolean values can be placed in debugfs with:
 
