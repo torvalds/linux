@@ -14,12 +14,6 @@ config LKL
        select ARCH_WANT_FRAME_POINTERS
        select HAS_DMA
        select DMA_DIRECT_OPS
-       select PHYS_ADDR_T_64BIT if 64BIT
-       select 64BIT if "$(OUTPUT_FORMAT)" = "elf64-x86-64"
-       select 64BIT if "$(OUTPUT_FORMAT)" = "pe-x86-64"
-       select HAVE_UNDERSCORE_SYMBOL_PREFIX if "$(OUTPUT_FORMAT)" = "pe-i386"
-       select 64BIT if "$(OUTPUT_FORMAT)" = "elf64-x86-64-freebsd"
-       select 64BIT if "$(OUTPUT_FORMAT)" = "elf64-littleaarch64"
        select NET
        select MULTIUSER
        select INET
@@ -50,14 +44,20 @@ config OUTPUT_FORMAT
 config ARCH_DMA_ADDR_T_64BIT
        def_bool 64BIT
 
+config PHYS_ADDR_T_64BIT
+       def_bool 64BIT
+
 config 64BIT
-       def_bool n
+       def_bool y if "$(EXEC_FORMAT)" = "elf64" || "$(OUTPUT_FORMAT)" = "pe-x86-64"
 
 config COREDUMP
        def_bool n
 
 config BIG_ENDIAN
-       def_bool n
+       def_bool y if "$(OUTPUT_FORMAT)" = "elf64-s390"
+
+config CPU_BIG_ENDIAN
+       def_bool BIG_ENDIAN
 
 config GENERIC_CSUM
        def_bool y
@@ -73,7 +73,7 @@ config RWSEM_GENERIC_SPINLOCK
 	default y
 
 config HAVE_UNDERSCORE_SYMBOL_PREFIX
-       bool
+       def_bool y if "$(OUTPUT_FORMAT)" = "pe-i386"
        help
          Some architectures generate an _ in front of C symbols; things like
          module loading and assembly files need to know about this.

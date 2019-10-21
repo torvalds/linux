@@ -11,6 +11,7 @@
 #define le16toh(x) (x)
 #define htole32(x) (x)
 #define htole16(x) (x)
+#define htole64(x) (x)
 #define le64toh(x) (x)
 #define htobe32(x) htonl(x)
 #define htobe16(x) htons(x)
