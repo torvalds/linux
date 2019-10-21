@@ -45,6 +45,8 @@ static struct dsa_switch_tree *dsa_tree_alloc(int index)
 
 	dst->index = index;
 
+	INIT_LIST_HEAD(&dst->ports);
+
 	INIT_LIST_HEAD(&dst->list);
 	list_add_tail(&dst->list, &dsa_tree_list);
 
@@ -616,6 +618,22 @@ static int dsa_tree_add_switch(struct dsa_switch_tree *dst,
 	return err;
 }
 
+static struct dsa_port *dsa_port_touch(struct dsa_switch *ds, int index)
+{
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp;
+
+	dp = &ds->ports[index];
+
+	dp->ds = ds;
+	dp->index = index;
+
+	INIT_LIST_HEAD(&dp->list);
+	list_add_tail(&dp->list, &dst->ports);
+
+	return dp;
+}
+
 static int dsa_port_parse_user(struct dsa_port *dp, const char *name)
 {
 	if (!name)
@@ -742,11 +760,29 @@ static int dsa_switch_parse_member_of(struct dsa_switch *ds,
 	return 0;
 }
 
+static int dsa_switch_touch_ports(struct dsa_switch *ds)
+{
+	struct dsa_port *dp;
+	int port;
+
+	for (port = 0; port < ds->num_ports; port++) {
+		dp = dsa_port_touch(ds, port);
+		if (!dp)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
 static int dsa_switch_parse_of(struct dsa_switch *ds, struct device_node *dn)
 {
 	int err;
 
 	err = dsa_switch_parse_member_of(ds, dn);
+	if (err)
+		return err;
+
+	err = dsa_switch_touch_ports(ds);
 	if (err)
 		return err;
 
@@ -807,6 +843,8 @@ static int dsa_switch_parse_ports(struct dsa_switch *ds,
 
 static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 {
+	int err;
+
 	ds->cd = cd;
 
 	/* We don't support interconnected switches nor multiple trees via
@@ -816,6 +854,10 @@ static int dsa_switch_parse(struct dsa_switch *ds, struct dsa_chip_data *cd)
 	ds->dst = dsa_tree_touch(0);
 	if (!ds->dst)
 		return -ENOMEM;
+
+	err = dsa_switch_touch_ports(ds);
+	if (err)
+		return err;
 
 	return dsa_switch_parse_ports(ds, cd);
 }
@@ -849,7 +891,6 @@ static int dsa_switch_probe(struct dsa_switch *ds)
 struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 {
 	struct dsa_switch *ds;
-	int i;
 
 	ds = devm_kzalloc(dev, struct_size(ds, ports, n), GFP_KERNEL);
 	if (!ds)
@@ -857,11 +898,6 @@ struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n)
 
 	ds->dev = dev;
 	ds->num_ports = n;
-
-	for (i = 0; i < ds->num_ports; ++i) {
-		ds->ports[i].index = i;
-		ds->ports[i].ds = ds;
-	}
 
 	return ds;
 }

@@ -125,6 +125,9 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_port		*cpu_dp;
 
+	/* List of switch ports */
+	struct list_head ports;
+
 	/*
 	 * Data for the individual switch chips.
 	 */
@@ -194,6 +197,8 @@ struct dsa_port {
 
 	struct work_struct	xmit_work;
 	struct sk_buff_head	xmit_queue;
+
+	struct list_head list;
 
 	/*
 	 * Give the switch driver somewhere to hang its per-port private data
