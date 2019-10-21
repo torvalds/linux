@@ -1142,7 +1142,6 @@ out_sockmap:
 #define MAPINMAP_PROG "./test_map_in_map.o"
 static void test_map_in_map(void)
 {
-	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	int mim_fd, fd, err;
@@ -1179,9 +1178,6 @@ static void test_map_in_map(void)
 		goto out_map_in_map;
 	}
 
-	bpf_object__for_each_program(prog, obj) {
-		bpf_program__set_xdp(prog);
-	}
 	bpf_object__load(obj);
 
 	map = bpf_object__find_map_by_name(obj, "mim_array");
