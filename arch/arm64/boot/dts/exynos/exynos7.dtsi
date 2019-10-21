@@ -12,8 +12,8 @@
 / {
 	compatible = "samsung,exynos7";
 	interrupt-parent = <&gic>;
-	#address-cells = <1>;
-	#size-cells = <1>;
+	#address-cells = <2>;
+	#size-cells = <2>;
 
 	aliases {
 		pinctrl0 = &pinctrl_alive;
@@ -78,17 +78,6 @@
 		};
 	};
 
-	gpu: gpu@14ac0000 {
-		compatible = "samsung,exynos5433-mali", "arm,mali-t760";
-		reg = <0x14ac0000 0x5000>;
-		interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
-			     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
-		interrupt-names = "job", "mmu", "gpu";
-		status = "disabled";
-		/* TODO: operating points for DVFS, cooling device */
-	};
-
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
@@ -98,7 +87,7 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges;
+		ranges = <0 0 0 0x18000000>;
 
 		chipid@10000000 {
 			compatible = "samsung,exynos4210-chipid";
@@ -521,6 +510,17 @@
 			clock-names = "watchdog";
 			samsung,syscon-phandle = <&pmu_system_controller>;
 			status = "disabled";
+		};
+
+		gpu: gpu@14ac0000 {
+			compatible = "samsung,exynos5433-mali", "arm,mali-t760";
+			reg = <0x14ac0000 0x5000>;
+			interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 242 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "job", "mmu", "gpu";
+			status = "disabled";
+			/* TODO: operating points for DVFS, cooling device */
 		};
 
 		mmc_0: mmc@15740000 {
