@@ -444,7 +444,7 @@ setundefined:
 #ifdef CONFIG_KGDB_KDB
 void kdb_dump_stack_on_cpu(int cpu)
 {
-	if (cpu == raw_smp_processor_id()) {
+	if (cpu == raw_smp_processor_id() || !IS_ENABLED(CONFIG_SMP)) {
 		dump_stack();
 		return;
 	}
