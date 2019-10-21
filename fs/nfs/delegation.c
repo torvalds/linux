@@ -585,19 +585,22 @@ restart:
 }
 
 /**
- * nfs_inode_return_delegation_noreclaim - return delegation, don't reclaim opens
+ * nfs_inode_evict_delegation - return delegation, don't reclaim opens
  * @inode: inode to process
  *
  * Does not protect against delegation reclaims, therefore really only safe
- * to be called from nfs4_clear_inode().
+ * to be called from nfs4_clear_inode(). Guaranteed to always free
+ * the delegation structure.
  */
-void nfs_inode_return_delegation_noreclaim(struct inode *inode)
+void nfs_inode_evict_delegation(struct inode *inode)
 {
 	struct nfs_delegation *delegation;
 
 	delegation = nfs_inode_detach_delegation(inode);
-	if (delegation != NULL)
+	if (delegation != NULL) {
+		set_bit(NFS_DELEGATION_INODE_FREEING, &delegation->flags);
 		nfs_do_return_delegation(inode, delegation, 1);
+	}
 }
 
 /**
