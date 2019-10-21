@@ -158,14 +158,6 @@ struct omap_hwmod_ocp_if am33xx_l3_s__gpmc = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4 ls -> mailbox */
-struct omap_hwmod_ocp_if am33xx_l4_per__mailbox = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mailbox_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4 ls -> spinlock */
 struct omap_hwmod_ocp_if am33xx_l4_ls__spinlock = {
 	.master		= &am33xx_l4_ls_hwmod,

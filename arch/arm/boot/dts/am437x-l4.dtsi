@@ -1147,7 +1147,6 @@
 
 		target-module@c8000 {			/* 0x480c8000, ap 73 06.0 */
 			compatible = "ti,sysc-omap4", "ti,sysc";
-			ti,hwmods = "mailbox";
 			reg = <0xc8000 0x4>,
 			      <0xc8010 0x4>;
 			reg-names = "rev", "sysc";
