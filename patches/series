@@ -167,7 +167,6 @@ ANDROID-GKI-enable-CONFIG_SPI-for-x86.patch
 ANDROID-GKI-enable-CONFIG_TIPC-for-x86.patch
 ANDROID-Catch-rockpi4_defconfig-up-with-gki_defconfig.patch
 ANDROID-first-pass-cuttlefish-GKI-modularization.patch
-drivers-qcom-rpmh-rsc-modularize-RSC-controller-driver.patch
 staging-ion-fix-off-by-1-error-in-heap-search.patch
 staging-ion-uapi-match-the-existing-heap-type-enums.patch
 staging-ion-export-ion_free-for-ion_heaps.patch
@@ -228,7 +227,6 @@ ANDROID-gki_defconfig-enable-accelerated-AES-and-SHA-256.patch
 ANDROID-gki_defconfig-enabled-CONFIG_TMPFS-explicitly.patch
 gki_defconfig-Enable-CONFIG_DM_SNAPSHOT.patch
 ANDROID-Fix-x86_64-allmodconfig-build.patch
-Revert-drivers-qcom-rpmh-rsc-modularize-RSC-controller-driver.patch
 clk-add-pre-and-post-change-rate-callbacks.patch
 ANDROID-gki_defconfig-enable-fs-verity.patch
 UPSTREAM-base-soc-Handle-custom-soc-information-sysfs-entries.patch
