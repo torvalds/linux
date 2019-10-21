@@ -57,38 +57,38 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts)
 {
 	struct st1232_ts_finger *finger = ts->finger;
 	struct i2c_client *client = ts->client;
-	struct i2c_msg msg[2];
-	int error;
-	int i, y;
 	u8 start_reg = ts->chip_info->start_reg;
-	u8 *buf = ts->read_buf;
+	struct i2c_msg msg[] = {
+		{
+			.addr	= client->addr,
+			.len	= sizeof(start_reg),
+			.buf	= &start_reg,
+		},
+		{
+			.addr	= client->addr,
+			.flags	= I2C_M_RD,
+			.len	= ts->read_buf_len,
+			.buf	= ts->read_buf,
+		}
+	};
+	int ret;
+	int i;
+	u8 *buf;
 
-	/* read touchscreen data */
-	msg[0].addr = client->addr;
-	msg[0].flags = 0;
-	msg[0].len = 1;
-	msg[0].buf = &start_reg;
+	ret = i2c_transfer(client->adapter, msg, ARRAY_SIZE(msg));
+	if (ret != ARRAY_SIZE(msg))
+		return ret < 0 ? ret : -EIO;
 
-	msg[1].addr = ts->client->addr;
-	msg[1].flags = I2C_M_RD;
-	msg[1].len = ts->read_buf_len;
-	msg[1].buf = buf;
-
-	error = i2c_transfer(client->adapter, msg, 2);
-	if (error < 0)
-		return error;
-
-	for (i = 0, y = 0; i < ts->chip_info->max_fingers; i++, y += 3) {
-		finger[i].is_valid = buf[i + y] >> 7;
+	for (i = 0; i < ts->chip_info->max_fingers; i++) {
+		buf = &ts->read_buf[i * 4];
+		finger[i].is_valid = buf[0] >> 7;
 		if (finger[i].is_valid) {
-			finger[i].x = ((buf[i + y] & 0x0070) << 4) |
-					buf[i + y + 1];
-			finger[i].y = ((buf[i + y] & 0x0007) << 8) |
-					buf[i + y + 2];
+			finger[i].x = ((buf[0] & 0x70) << 4) | buf[1];
+			finger[i].y = ((buf[0] & 0x07) << 8) | buf[2];
 
 			/* st1232 includes a z-axis / touch strength */
 			if (ts->chip_info->have_z)
-				finger[i].t = buf[i + 6];
+				finger[i].t = ts->read_buf[i + 6];
 		}
 	}
 
