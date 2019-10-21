@@ -464,13 +464,12 @@ static int rockchip_combphy_exit(struct phy *phy)
 	 */
 	clk_disable_unprepare(priv->ref_clk);
 
-	priv->phy_initialized = false;
-
 	/* in case of waiting phy PLL lock timeout */
 	if (priv->phy_type == PHY_TYPE_PCIE) {
 		reset_control_assert(priv->rsts[PHY_GRF_P_RSTN]);
 		udelay(5);
 		reset_control_deassert(priv->rsts[PHY_GRF_P_RSTN]);
+		priv->phy_initialized = false;
 	}
 
 	return 0;
