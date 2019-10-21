@@ -1830,10 +1830,8 @@ static int vmx_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		return vmx_get_vmx_msr(&vmx->nested.msrs, msr_info->index,
 				       &msr_info->data);
 	case MSR_IA32_XSS:
-		if (!vmx_xsaves_supported() ||
-		    (!msr_info->host_initiated &&
-		     !(guest_cpuid_has(vcpu, X86_FEATURE_XSAVE) &&
-		       guest_cpuid_has(vcpu, X86_FEATURE_XSAVES))))
+		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_XSAVES))
 			return 1;
 		msr_info->data = vcpu->arch.ia32_xss;
 		break;
@@ -2073,10 +2071,8 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 			return 1;
 		return vmx_set_vmx_msr(vcpu, msr_index, data);
 	case MSR_IA32_XSS:
-		if (!vmx_xsaves_supported() ||
-		    (!msr_info->host_initiated &&
-		     !(guest_cpuid_has(vcpu, X86_FEATURE_XSAVE) &&
-		       guest_cpuid_has(vcpu, X86_FEATURE_XSAVES))))
+		if (!msr_info->host_initiated &&
+		    !guest_cpuid_has(vcpu, X86_FEATURE_XSAVES))
 			return 1;
 		/*
 		 * The only supported bit as of Skylake is bit 8, but
@@ -2085,11 +2081,13 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (data != 0)
 			return 1;
 		vcpu->arch.ia32_xss = data;
-		if (vcpu->arch.ia32_xss != host_xss)
-			add_atomic_switch_msr(vmx, MSR_IA32_XSS,
-				vcpu->arch.ia32_xss, host_xss, false);
-		else
-			clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
+		if (vcpu->arch.xsaves_enabled) {
+			if (vcpu->arch.ia32_xss != host_xss)
+				add_atomic_switch_msr(vmx, MSR_IA32_XSS,
+					vcpu->arch.ia32_xss, host_xss, false);
+			else
+				clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
+		}
 		break;
 	case MSR_IA32_RTIT_CTL:
 		if ((pt_mode != PT_MODE_HOST_GUEST) ||
