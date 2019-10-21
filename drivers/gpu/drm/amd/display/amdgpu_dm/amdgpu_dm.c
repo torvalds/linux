@@ -728,6 +728,9 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 	if (amdgpu_dc_feature_mask & DC_MULTI_MON_PP_MCLK_SWITCH_MASK)
 		init_data.flags.multi_mon_pp_mclk_switch = true;
 
+	if (amdgpu_dc_feature_mask & DC_DISABLE_FRACTIONAL_PWM_MASK)
+		init_data.flags.disable_fractional_pwm = true;
+
 	init_data.flags.power_down_display_on_boot = true;
 
 #ifdef CONFIG_DRM_AMD_DC_DCN2_0
