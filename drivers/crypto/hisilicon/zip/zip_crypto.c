@@ -42,7 +42,7 @@ enum hisi_zip_alg_type {
 
 #define TO_HEAD(req_type)						\
 	(((req_type) == HZIP_ALG_TYPE_ZLIB) ? zlib_head :		\
-	 ((req_type) == HZIP_ALG_TYPE_GZIP) ? gzip_head : 0)		\
+	 ((req_type) == HZIP_ALG_TYPE_GZIP) ? gzip_head : NULL)		\
 
 struct hisi_zip_req {
 	struct acomp_req *req;
