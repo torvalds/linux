@@ -469,8 +469,9 @@ int amdgpu_fence_driver_init_ring(struct amdgpu_ring *ring,
 	if (!ring->fence_drv.fences)
 		return -ENOMEM;
 
-	/* No need to setup the GPU scheduler for KIQ ring */
-	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ) {
+	/* No need to setup the GPU scheduler for KIQ and MES ring */
+	if (ring->funcs->type != AMDGPU_RING_TYPE_KIQ ||
+	    ring->funcs->type != AMDGPU_RING_TYPE_MES) {
 		switch (ring->funcs->type) {
 		case AMDGPU_RING_TYPE_GFX:
 			timeout = adev->gfx_timeout;
