@@ -185,7 +185,6 @@
 
 		target-module@28000 {			/* 0x40128000, ap 8 08.0 */
 			compatible = "ti,sysc-mcasp", "ti,sysc";
-			ti,hwmods = "mcasp";
 			reg = <0x28000 0x4>,
 			      <0x28004 0x4>;
 			reg-names = "rev", "sysc";
