@@ -137,6 +137,7 @@
 # define DP_DETAILED_CAP_INFO_AVAILABLE	    (1 << 4) /* DPI */
 
 #define DP_MAIN_LINK_CHANNEL_CODING         0x006
+# define DP_CAP_ANSI_8B10B		    (1 << 0)
 
 #define DP_DOWN_STREAM_PORT_COUNT	    0x007
 # define DP_PORT_COUNT_MASK		    0x0f
@@ -1285,6 +1286,12 @@ static inline bool
 drm_dp_sink_supports_fec(const u8 fec_capable)
 {
 	return fec_capable & DP_FEC_CAPABLE;
+}
+
+static inline bool
+drm_dp_channel_coding_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_MAIN_LINK_CHANNEL_CODING] & DP_CAP_ANSI_8B10B;
 }
 
 /*
