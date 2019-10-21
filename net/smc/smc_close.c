@@ -13,6 +13,7 @@
 #include <linux/sched/signal.h>
 
 #include <net/sock.h>
+#include <net/tcp.h>
 
 #include "smc.h"
 #include "smc_tx.h"
@@ -102,7 +103,7 @@ static int smc_close_final(struct smc_connection *conn)
 	return smc_cdc_get_slot_and_msg_send(conn);
 }
 
-static int smc_close_abort(struct smc_connection *conn)
+int smc_close_abort(struct smc_connection *conn)
 {
 	conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 
@@ -118,10 +119,8 @@ static void smc_close_active_abort(struct smc_sock *smc)
 
 	if (sk->sk_state != SMC_INIT && smc->clcsock && smc->clcsock->sk) {
 		sk->sk_err = ECONNABORTED;
-		if (smc->clcsock && smc->clcsock->sk) {
-			smc->clcsock->sk->sk_err = ECONNABORTED;
-			smc->clcsock->sk->sk_state_change(smc->clcsock->sk);
-		}
+		if (smc->clcsock && smc->clcsock->sk)
+			tcp_abort(smc->clcsock->sk, ECONNABORTED);
 	}
 	switch (sk->sk_state) {
 	case SMC_ACTIVE:

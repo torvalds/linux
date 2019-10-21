@@ -513,8 +513,8 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 		smc = container_of(conn, struct smc_sock, conn);
 		lock_sock(&smc->sk);
 		sock_hold(&smc->sk); /* sock_put in close work */
+		smc_close_abort(conn);
 		conn->killed = 1;
-		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 		smc_lgr_unregister_conn(conn);
 		conn->lgr = NULL;
 		if (!schedule_work(&conn->close_work))
