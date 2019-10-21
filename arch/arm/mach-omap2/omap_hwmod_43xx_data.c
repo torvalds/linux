@@ -786,8 +786,6 @@ static struct omap_hwmod_ocp_if *am43xx_hwmod_ocp_ifs[] __initdata = {
 	&am43xx_l3_s__qspi,
 	&am33xx_l4_per__dcan0,
 	&am33xx_l4_per__dcan1,
-	&am33xx_l4_ls__mcasp0,
-	&am33xx_l4_ls__mcasp1,
 	&am33xx_l4_ls__timer2,
 	&am33xx_l4_ls__timer3,
 	&am33xx_l4_ls__timer4,

@@ -810,7 +810,6 @@
 
 		target-module@38000 {			/* 0x48038000, ap 14 04.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "mcasp0";
 			reg = <0x38000 0x4>,
 			      <0x38004 0x4>;
 			reg-names = "rev", "sysc";
@@ -842,7 +841,6 @@
 
 		target-module@3c000 {			/* 0x4803c000, ap 16 2a.0 */
 			compatible = "ti,sysc-omap4-simple", "ti,sysc";
-			ti,hwmods = "mcasp1";
 			reg = <0x3c000 0x4>,
 			      <0x3c004 0x4>;
 			reg-names = "rev", "sysc";

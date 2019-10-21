@@ -166,22 +166,6 @@ struct omap_hwmod_ocp_if am33xx_l4_ls__spinlock = {
 	.user		= OCP_USER_MPU,
 };
 
-/* l4 ls -> mcasp0 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__mcasp0 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mcasp0_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
-/* l4 ls -> mcasp1 */
-struct omap_hwmod_ocp_if am33xx_l4_ls__mcasp1 = {
-	.master		= &am33xx_l4_ls_hwmod,
-	.slave		= &am33xx_mcasp1_hwmod,
-	.clk		= "l4ls_gclk",
-	.user		= OCP_USER_MPU,
-};
-
 /* l4 ls -> mcspi0 */
 struct omap_hwmod_ocp_if am33xx_l4_ls__mcspi0 = {
 	.master		= &am33xx_l4_ls_hwmod,
