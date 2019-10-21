@@ -2057,6 +2057,15 @@ static int sja1105_probe(struct spi_device *spi)
 
 	tagger_data = &priv->tagger_data;
 
+	mutex_init(&priv->ptp_data.lock);
+	mutex_init(&priv->mgmt_lock);
+
+	sja1105_tas_setup(ds);
+
+	rc = dsa_register_switch(priv->ds);
+	if (rc)
+		return rc;
+
 	/* Connections between dsa_port and sja1105_port */
 	for (i = 0; i < SJA1105_NUM_PORTS; i++) {
 		struct sja1105_port *sp = &priv->ports[i];
@@ -2065,12 +2074,8 @@ static int sja1105_probe(struct spi_device *spi)
 		sp->dp = dsa_to_port(ds, i);
 		sp->data = tagger_data;
 	}
-	mutex_init(&priv->ptp_data.lock);
-	mutex_init(&priv->mgmt_lock);
 
-	sja1105_tas_setup(ds);
-
-	return dsa_register_switch(priv->ds);
+	return 0;
 }
 
 static int sja1105_remove(struct spi_device *spi)
