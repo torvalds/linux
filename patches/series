@@ -2,7 +2,7 @@
 # android-mainline patches
 #
 # Applies onto mainline 4f5cafb5cb84 Linux v5.4-rc3
-# Matches android-mainline 1caeb408f5db UPSTREAM: base: soc: Handle custom soc information sysfs entries
+# Matches android-mainline 06dc94f19d2f "ANDROID: sched: Honor sync flag for energy-aware wakeups"
 #
 ANDROID-x86-Remove-a-useless-warning-message.patch
 ANDROID-Kbuild-LLVMLinux-allow-overriding-clang-target-triple.patch
@@ -232,3 +232,6 @@ Revert-drivers-qcom-rpmh-rsc-modularize-RSC-controller-driver.patch
 clk-add-pre-and-post-change-rate-callbacks.patch
 ANDROID-gki_defconfig-enable-fs-verity.patch
 UPSTREAM-base-soc-Handle-custom-soc-information-sysfs-entries.patch
+ANDROID-unconditionally-compile-sig_ok-in-struct-module.patch
+ANDROID-gki_defconfig-remove-PWRSEQ_EMMC-and-PWRSEQ_SIMPLE.patch
+ANDROID-sched-Honor-sync-flag-for-energy-aware-wakeups.patch

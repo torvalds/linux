@@ -1,0 +1,27 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ram Muthiah <rammuthiah@google.com>
+Date: Thu, 17 Oct 2019 18:28:10 -0700
+Subject: ANDROID: gki_defconfig: remove PWRSEQ_EMMC and PWRSEQ_SIMPLE
+
+These modules are not required for GKI.
+
+Bug: 139431025
+Signed-off-by: Ram Muthiah <rammuthiah@google.com>
+Change-Id: I9a82010eb326b0a336725037e0356a63a0c9f053
+---
+ arch/x86/configs/gki_defconfig | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/arch/x86/configs/gki_defconfig b/arch/x86/configs/gki_defconfig
+index 18c3429c7ede..949c449b9d1f 100644
+--- a/arch/x86/configs/gki_defconfig
++++ b/arch/x86/configs/gki_defconfig
+@@ -289,6 +289,8 @@ CONFIG_USB_CONFIGFS_F_ACC=y
+ CONFIG_USB_CONFIGFS_F_AUDIO_SRC=y
+ CONFIG_USB_CONFIGFS_F_MIDI=y
+ CONFIG_MMC=m
++# CONFIG_PWRSEQ_EMMC is not set
++# CONFIG_PWRSEQ_SIMPLE is not set
+ CONFIG_NEW_LEDS=y
+ CONFIG_LEDS_CLASS=y
+ CONFIG_LEDS_TRIGGERS=y

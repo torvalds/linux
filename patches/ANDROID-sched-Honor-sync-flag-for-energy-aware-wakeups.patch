@@ -1,0 +1,51 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Chris Redpath <chris.redpath@arm.com>
+Date: Thu, 17 Oct 2019 11:18:08 +0100
+Subject: ANDROID: sched: Honor sync flag for energy-aware wakeups
+
+Since we don't do energy-aware wakeups when we are overutilized, always
+honoring sync wakeups in this state does not prevent wake-wide mechanics
+overruling the flag as normal.
+
+Having the check for (cpu_rq(cpu)->nr_running == 1) in the test condition
+means that we only bypass the energy model for sync wakeups where the
+cpu is about to become idle. This matches the use of this flag in Binder
+which is the main place where sync wakeups come from in Android.
+
+This patch is based upon previous work to build EAS for android products.
+It replaces
+commit 79e3a4a27ee5 ("ANDROID: sched: Unconditionally honor sync flag
+ for energy-aware wakeups")
+in what's considered to be 'EAS'.
+
+sync-hint code taken from wahoo
+https://android.googlesource.com/kernel/msm/+/4a5e890ec60d
+written by Juri Lelli <juri.lelli@arm.com>
+
+Change-Id: I4b3d79141fc8e53dc51cd63ac11096c2e3cb10f5
+Signed-off-by: Chris Redpath <chris.redpath@arm.com>
+(cherry-picked from commit f1ec666a62de)
+[ Moved the feature to find_energy_efficient_cpu() and removed the
+  sysctl knob ]
+Signed-off-by: Quentin Perret <quentin.perret@arm.com>
+[ Add 'cpu_rq(cpu)->nr_running == 1' to the condition and remove the
+  word 'Unconditionally' from the patch name ]
+Signed-off-by: Dietmar Eggemann <dietmar.eggemann@arm.com>
+---
+ kernel/sched/fair.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/kernel/sched/fair.c b/kernel/sched/fair.c
+index ba1eaa599dbc..8f8692baa679 100644
+--- a/kernel/sched/fair.c
++++ b/kernel/sched/fair.c
+@@ -6364,7 +6364,8 @@ static int find_energy_efficient_cpu(struct task_struct *p, int prev_cpu, int sy
+ 		goto fail;
+ 
+ 	cpu = smp_processor_id();
+-	if (sync && cpumask_test_cpu(cpu, p->cpus_ptr)) {
++	if (sync && cpu_rq(cpu)->nr_running == 1 &&
++	    cpumask_test_cpu(cpu, p->cpus_ptr)) {
+ 		rcu_read_unlock();
+ 		return cpu;
+ 	}
