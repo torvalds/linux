@@ -987,9 +987,6 @@ static int qm_create_debugfs_file(struct hisi_qm *qm, enum qm_debug_file index)
 static void qm_hw_error_init_v1(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 				u32 msi)
 {
-	dev_info(&qm->pdev->dev,
-		 "QM v%d does not support hw error handle\n", qm->ver);
-
 	writel(QM_ABNORMAL_INT_MASK_VALUE, qm->io_base + QM_ABNORMAL_INT_MASK);
 }
 
@@ -1868,8 +1865,7 @@ void hisi_qm_hw_error_init(struct hisi_qm *qm, u32 ce, u32 nfe, u32 fe,
 			   u32 msi)
 {
 	if (!qm->ops->hw_error_init) {
-		dev_err(&qm->pdev->dev, "QM version %d doesn't support hw error handling!\n",
-			qm->ver);
+		dev_err(&qm->pdev->dev, "QM doesn't support hw error handling!\n");
 		return;
 	}
 
@@ -1886,8 +1882,7 @@ EXPORT_SYMBOL_GPL(hisi_qm_hw_error_init);
 int hisi_qm_hw_error_handle(struct hisi_qm *qm)
 {
 	if (!qm->ops->hw_error_handle) {
-		dev_err(&qm->pdev->dev, "QM version %d doesn't support hw error report!\n",
-			qm->ver);
+		dev_err(&qm->pdev->dev, "QM doesn't support hw error report!\n");
 		return PCI_ERS_RESULT_NONE;
 	}
 

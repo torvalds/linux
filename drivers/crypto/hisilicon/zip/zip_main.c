@@ -335,8 +335,7 @@ static void hisi_zip_hw_error_set_state(struct hisi_zip *hisi_zip, bool state)
 
 	if (qm->ver == QM_HW_V1) {
 		writel(HZIP_CORE_INT_DISABLE, qm->io_base + HZIP_CORE_INT_MASK);
-		dev_info(&qm->pdev->dev, "ZIP v%d does not support hw error handle\n",
-			 qm->ver);
+		dev_info(&qm->pdev->dev, "Does not support hw error handle\n");
 		return;
 	}
 
