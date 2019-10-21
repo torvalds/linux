@@ -341,6 +341,7 @@ struct rockchip_pcie {
 	struct dma_trx_obj *dma_obj;
 	struct list_head resources;
 	struct pci_host_bridge *bridge;
+	int in_remove;
 };
 
 static u32 rockchip_pcie_read(struct rockchip_pcie *rockchip, u32 reg)

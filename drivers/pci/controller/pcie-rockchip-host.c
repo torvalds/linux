@@ -178,6 +178,9 @@ static int rockchip_pcie_rd_other_conf(struct rockchip_pcie *rockchip,
 {
 	u32 busdev;
 
+	if (rockchip->in_remove)
+		return PCIBIOS_SUCCESSFUL;
+
 	busdev = PCIE_ECAM_ADDR(bus->number, PCI_SLOT(devfn),
 				PCI_FUNC(devfn), where);
 
@@ -211,6 +214,9 @@ static int rockchip_pcie_wr_other_conf(struct rockchip_pcie *rockchip,
 				       int where, int size, u32 val)
 {
 	u32 busdev;
+
+	if (rockchip->in_remove)
+		return PCIBIOS_SUCCESSFUL;
 
 	busdev = PCIE_ECAM_ADDR(bus->number, PCI_SLOT(devfn),
 				PCI_FUNC(devfn), where);
@@ -1279,6 +1285,13 @@ static int rockchip_pcie_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct rockchip_pcie *rockchip = dev_get_drvdata(dev);
+	u32 status1, status2;
+
+	status1 = rockchip_pcie_read(rockchip, PCIE_CLIENT_BASIC_STATUS1);
+	status2 = rockchip_pcie_read(rockchip, PCIE_CLIENT_DEBUG_OUT_0);
+
+	if (!PCIE_LINK_UP(status1) || !PCIE_LINK_IS_L0(status2))
+		rockchip->in_remove = 1;
 
 	if (rockchip->root_bus) {
 		pci_stop_root_bus(rockchip->root_bus);
