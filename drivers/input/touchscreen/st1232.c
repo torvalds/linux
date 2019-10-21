@@ -266,7 +266,6 @@ static int st1232_ts_probe(struct i2c_client *client,
 	}
 
 	i2c_set_clientdata(client, ts);
-	device_init_wakeup(&client->dev, 1);
 
 	return 0;
 }
