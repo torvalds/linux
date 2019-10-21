@@ -39,6 +39,7 @@ enum {
  * active request.
  */
 #define I915_PRIORITY_UNPREEMPTABLE INT_MAX
+#define I915_PRIORITY_BARRIER INT_MAX
 
 #define __NO_PREEMPTION (I915_PRIORITY_WAIT)
 

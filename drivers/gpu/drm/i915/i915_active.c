@@ -595,6 +595,7 @@ int i915_active_acquire_preallocate_barrier(struct i915_active *ref,
 	struct llist_node *pos, *next;
 	int err;
 
+	GEM_BUG_ON(i915_active_is_idle(ref));
 	GEM_BUG_ON(!llist_empty(&ref->preallocated_barriers));
 
 	/*
