@@ -10,6 +10,12 @@ From RK3368 SoCs, the GRF is divided into two sections,
 
 On RK3328 SoCs, the GRF adds a section for USB2PHYGRF,
 
+ON RK3308 SoC, the GRF is divided into four sections:
+- GRF, used for general non-secure system,
+- SGRF, used for general secure system,
+- DETECTGRF, used for audio codec system,
+- COREGRF, used for pvtm,
+
 Required Properties:
 
 - compatible: GRF should be one of the following:
@@ -19,10 +25,15 @@ Required Properties:
    - "rockchip,rk3188-grf", "syscon": for rk3188
    - "rockchip,rk3228-grf", "syscon": for rk3228
    - "rockchip,rk3288-grf", "syscon": for rk3288
+   - "rockchip,rk3308-grf", "syscon": for rk3308
    - "rockchip,rk3328-grf", "syscon": for rk3328
    - "rockchip,rk3368-grf", "syscon": for rk3368
    - "rockchip,rk3399-grf", "syscon": for rk3399
    - "rockchip,rv1108-grf", "syscon": for rv1108
+- compatible: DETECTGRF should be one of the following:
+   - "rockchip,rk3308-detect-grf", "syscon": for rk3308
+- compatilbe: COREGRF should be one of the following:
+   - "rockchip,rk3308-core-grf", "syscon": for rk3308
 - compatible: PMUGRF should be one of the following:
    - "rockchip,px30-pmugrf", "syscon": for px30
    - "rockchip,rk3368-pmugrf", "syscon": for rk3368
