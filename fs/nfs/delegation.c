@@ -343,6 +343,7 @@ nfs_update_inplace_delegation(struct nfs_delegation *delegation,
 		delegation->stateid.seqid = update->stateid.seqid;
 		smp_wmb();
 		delegation->type = update->type;
+		clear_bit(NFS_DELEGATION_REVOKED, &delegation->flags);
 	}
 }
 
