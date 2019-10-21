@@ -325,10 +325,10 @@
 		#size-cells = <0>;
 	};
 
-        /*
-         * IIC2 and I2C2 may be switched using pinmux.
-         * A fallback to GPIO is also provided.
-         */
+	/*
+	 * IIC2 and I2C2 may be switched using pinmux.
+	 * A fallback to GPIO is also provided.
+	 */
 	i2chdmi: i2c-12 {
 		compatible = "i2c-demux-pinctrl";
 		i2c-parent = <&iic2>, <&i2c2>, <&gpioi2c2>;
