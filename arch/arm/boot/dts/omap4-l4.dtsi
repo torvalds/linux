@@ -2013,7 +2013,6 @@
 
 		target-module@96000 {			/* 0x48096000, ap 37 26.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "mcbsp4";
 			reg = <0x9608c 0x4>;
 			reg-names = "sysc";
 			ti,sysc-mask = <(SYSC_OMAP2_CLOCKACTIVITY |
