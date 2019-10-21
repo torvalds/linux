@@ -215,15 +215,15 @@ enum bnxt_dl_param_id {
 
 static const struct bnxt_dl_nvm_param nvm_params[] = {
 	{DEVLINK_PARAM_GENERIC_ID_ENABLE_SRIOV, NVM_OFF_ENABLE_SRIOV,
-	 BNXT_NVM_SHARED_CFG, 1},
+	 BNXT_NVM_SHARED_CFG, 1, 1},
 	{DEVLINK_PARAM_GENERIC_ID_IGNORE_ARI, NVM_OFF_IGNORE_ARI,
-	 BNXT_NVM_SHARED_CFG, 1},
+	 BNXT_NVM_SHARED_CFG, 1, 1},
 	{DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MAX,
-	 NVM_OFF_MSIX_VEC_PER_PF_MAX, BNXT_NVM_SHARED_CFG, 10},
+	 NVM_OFF_MSIX_VEC_PER_PF_MAX, BNXT_NVM_SHARED_CFG, 10, 4},
 	{DEVLINK_PARAM_GENERIC_ID_MSIX_VEC_PER_PF_MIN,
-	 NVM_OFF_MSIX_VEC_PER_PF_MIN, BNXT_NVM_SHARED_CFG, 7},
+	 NVM_OFF_MSIX_VEC_PER_PF_MIN, BNXT_NVM_SHARED_CFG, 7, 4},
 	{BNXT_DEVLINK_PARAM_ID_GRE_VER_CHECK, NVM_OFF_DIS_GRE_VER_CHECK,
-	 BNXT_NVM_SHARED_CFG, 1},
+	 BNXT_NVM_SHARED_CFG, 1, 1},
 };
 
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
@@ -232,8 +232,8 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	struct hwrm_nvm_get_variable_input *req = msg;
 	void *data_addr = NULL, *buf = NULL;
 	struct bnxt_dl_nvm_param nvm_param;
-	int bytesize, idx = 0, rc, i;
 	dma_addr_t data_dma_addr;
+	int idx = 0, rc, i;
 
 	/* Get/Set NVM CFG parameter is supported only on PFs */
 	if (BNXT_VF(bp))
@@ -254,10 +254,9 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	else if (nvm_param.dir_type == BNXT_NVM_FUNC_CFG)
 		idx = bp->pf.fw_fid - BNXT_FIRST_PF_FID;
 
-	bytesize = roundup(nvm_param.num_bits, BITS_PER_BYTE) / BITS_PER_BYTE;
-	switch (bytesize) {
+	switch (nvm_param.dl_num_bytes) {
 	case 1:
-		if (nvm_param.num_bits == 1)
+		if (nvm_param.nvm_num_bits == 1)
 			buf = &val->vbool;
 		else
 			buf = &val->vu8;
@@ -272,29 +271,30 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 		return -EFAULT;
 	}
 
-	data_addr = dma_alloc_coherent(&bp->pdev->dev, bytesize,
+	data_addr = dma_alloc_coherent(&bp->pdev->dev, nvm_param.dl_num_bytes,
 				       &data_dma_addr, GFP_KERNEL);
 	if (!data_addr)
 		return -ENOMEM;
 
 	req->dest_data_addr = cpu_to_le64(data_dma_addr);
-	req->data_len = cpu_to_le16(nvm_param.num_bits);
+	req->data_len = cpu_to_le16(nvm_param.nvm_num_bits);
 	req->option_num = cpu_to_le16(nvm_param.offset);
 	req->index_0 = cpu_to_le16(idx);
 	if (idx)
 		req->dimensions = cpu_to_le16(1);
 
 	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE)) {
-		memcpy(data_addr, buf, bytesize);
+		memcpy(data_addr, buf, nvm_param.dl_num_bytes);
 		rc = hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
 	} else {
 		rc = hwrm_send_message_silent(bp, msg, msg_len,
 					      HWRM_CMD_TIMEOUT);
 	}
 	if (!rc && req->req_type == cpu_to_le16(HWRM_NVM_GET_VARIABLE))
-		memcpy(buf, data_addr, bytesize);
+		memcpy(buf, data_addr, nvm_param.dl_num_bytes);
 
-	dma_free_coherent(&bp->pdev->dev, bytesize, data_addr, data_dma_addr);
+	dma_free_coherent(&bp->pdev->dev, nvm_param.dl_num_bytes, data_addr,
+			  data_dma_addr);
 	if (rc == -EACCES)
 		netdev_err(bp->dev, "PF does not have admin privileges to modify NVM config\n");
 	return rc;
