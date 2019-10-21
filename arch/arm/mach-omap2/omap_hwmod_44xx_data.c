@@ -1288,38 +1288,6 @@ static struct omap_hwmod omap44xx_kbd_hwmod = {
 	},
 };
 
-/*
- * 'mailbox' class
- * mailbox module allowing communication between the on-chip processors using a
- * queued mailbox-interrupt mechanism.
- */
-
-static struct omap_hwmod_class_sysconfig omap44xx_mailbox_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0010,
-	.sysc_flags	= (SYSC_HAS_RESET_STATUS | SYSC_HAS_SIDLEMODE |
-			   SYSC_HAS_SOFTRESET),
-	.idlemodes	= (SIDLE_FORCE | SIDLE_NO | SIDLE_SMART),
-	.sysc_fields	= &omap_hwmod_sysc_type2,
-};
-
-static struct omap_hwmod_class omap44xx_mailbox_hwmod_class = {
-	.name	= "mailbox",
-	.sysc	= &omap44xx_mailbox_sysc,
-};
-
-/* mailbox */
-static struct omap_hwmod omap44xx_mailbox_hwmod = {
-	.name		= "mailbox",
-	.class		= &omap44xx_mailbox_hwmod_class,
-	.clkdm_name	= "l4_cfg_clkdm",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = OMAP4_CM_L4CFG_MAILBOX_CLKCTRL_OFFSET,
-			.context_offs = OMAP4_RM_L4CFG_MAILBOX_CONTEXT_OFFSET,
-		},
-	},
-};
 
 /*
  * 'mcasp' class
@@ -2954,14 +2922,6 @@ static struct omap_hwmod_ocp_if omap44xx_l4_wkup__kbd = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_cfg -> mailbox */
-static struct omap_hwmod_ocp_if omap44xx_l4_cfg__mailbox = {
-	.master		= &omap44xx_l4_cfg_hwmod,
-	.slave		= &omap44xx_mailbox_hwmod,
-	.clk		= "l4_div_ck",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_abe -> mcasp */
 static struct omap_hwmod_ocp_if omap44xx_l4_abe__mcasp = {
 	.master		= &omap44xx_l4_abe_hwmod,
@@ -3346,7 +3306,6 @@ static struct omap_hwmod_ocp_if *omap44xx_hwmod_ocp_ifs[] __initdata = {
 	/* &omap44xx_iva__sl2if, */
 	&omap44xx_l3_main_2__iva,
 	&omap44xx_l4_wkup__kbd,
-	&omap44xx_l4_cfg__mailbox,
 	&omap44xx_l4_abe__mcasp,
 	&omap44xx_l4_abe__mcasp_dma,
 	&omap44xx_l4_abe__mcbsp1,
