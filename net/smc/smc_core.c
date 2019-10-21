@@ -519,9 +519,7 @@ static void smc_conn_kill(struct smc_connection *conn)
 	smc_sk_wake_ups(smc);
 	smc_lgr_unregister_conn(conn);
 	smc->sk.sk_err = ECONNABORTED;
-	sock_hold(&smc->sk); /* sock_put in close work */
-	if (!schedule_work(&conn->close_work))
-		sock_put(&smc->sk);
+	smc_close_active_abort(smc);
 }
 
 /* terminate link group */
@@ -544,9 +542,11 @@ static void __smc_lgr_terminate(struct smc_link_group *lgr)
 		read_unlock_bh(&lgr->conns_lock);
 		conn = rb_entry(node, struct smc_connection, alert_node);
 		smc = container_of(conn, struct smc_sock, conn);
+		sock_hold(&smc->sk); /* sock_put below */
 		lock_sock(&smc->sk);
 		smc_conn_kill(conn);
 		release_sock(&smc->sk);
+		sock_put(&smc->sk); /* sock_hold above */
 		read_lock_bh(&lgr->conns_lock);
 		node = rb_first(&lgr->conns_all);
 	}
