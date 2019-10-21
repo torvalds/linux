@@ -1253,7 +1253,7 @@ static int mv88e6xxx_pvt_map(struct mv88e6xxx_chip *chip, int dev, int port)
 	u16 pvlan = 0;
 
 	if (!mv88e6xxx_has_pvt(chip))
-		return -EOPNOTSUPP;
+		return 0;
 
 	/* Skip the local source device, which uses in-chip port VLAN */
 	if (dev != chip->ds->index)
@@ -2049,9 +2049,6 @@ static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 		}
 	}
 
-	if (!mv88e6xxx_has_pvt(chip))
-		return 0;
-
 	/* Remap the Port VLAN of each cross-chip bridge group member */
 	for (dev = 0; dev < DSA_MAX_SWITCHES; ++dev) {
 		ds = chip->ds->dst->ds[dev];
@@ -2101,9 +2098,6 @@ static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds, int dev,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
-	if (!mv88e6xxx_has_pvt(chip))
-		return 0;
-
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_pvt_map(chip, dev, port);
 	mv88e6xxx_reg_unlock(chip);
@@ -2115,9 +2109,6 @@ static void mv88e6xxx_crosschip_bridge_leave(struct dsa_switch *ds, int dev,
 					     int port, struct net_device *br)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-
-	if (!mv88e6xxx_has_pvt(chip))
-		return;
 
 	mv88e6xxx_reg_lock(chip);
 	if (mv88e6xxx_pvt_map(chip, dev, port))
