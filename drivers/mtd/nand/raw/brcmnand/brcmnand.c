@@ -932,7 +932,7 @@ static inline void disable_ctrl_irqs(struct brcmnand_controller *ctrl)
 		return;
 
 	if (has_flash_dma(ctrl)) {
-		ctrl->flash_dma_base = 0;
+		ctrl->flash_dma_base = NULL;
 		disable_irq(ctrl->dma_irq);
 	}
 
