@@ -64,6 +64,9 @@ patternProperties:
         description:
           Should contain a vendor specific string in the form
           <vendor>,[<device>-]<usage>
+        enum:
+          - samsung,exynos4210-sysram
+          - samsung,exynos4210-sysram-ns
 
       reg:
         description:
@@ -132,5 +135,31 @@ examples:
         exported-sram@20000 {
             reg = <0x20000 0x20000>;
             export;
+        };
+    };
+
+  - |
+    // Samsung SMP-capable Exynos SoCs use part of the SYSRAM for the bringup
+    // of the secondary cores. Once the core gets powered up it executes the
+    // code that is residing at some specific location of the SYSRAM.
+    //
+    // Therefore reserved section sub-nodes have to be added to the mmio-sram
+    // declaration. These nodes are of two types depending upon secure or
+    // non-secure execution environment.
+    sram@2020000 {
+        compatible = "mmio-sram";
+        reg = <0x02020000 0x54000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0x02020000 0x54000>;
+
+        smp-sram@0 {
+            compatible = "samsung,exynos4210-sysram";
+            reg = <0x0 0x1000>;
+        };
+
+        smp-sram@53000 {
+            compatible = "samsung,exynos4210-sysram-ns";
+            reg = <0x53000 0x1000>;
         };
     };
