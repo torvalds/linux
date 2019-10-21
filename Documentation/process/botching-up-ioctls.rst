@@ -46,7 +46,7 @@ will need to add a 32-bit compat layer:
    conversion or worse, fiddle the raw __u64 through your code since that
    diminishes the checking tools like sparse can provide. The macro
    u64_to_user_ptr can be used in the kernel to avoid warnings about integers
-   and pointres of different sizes.
+   and pointers of different sizes.
 
 
 Basics
