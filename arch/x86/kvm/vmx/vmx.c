@@ -2081,13 +2081,6 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (data != 0)
 			return 1;
 		vcpu->arch.ia32_xss = data;
-		if (vcpu->arch.xsaves_enabled) {
-			if (vcpu->arch.ia32_xss != host_xss)
-				add_atomic_switch_msr(vmx, MSR_IA32_XSS,
-					vcpu->arch.ia32_xss, host_xss, false);
-			else
-				clear_atomic_switch_msr(vmx, MSR_IA32_XSS);
-		}
 		break;
 	case MSR_IA32_RTIT_CTL:
 		if ((pt_mode != PT_MODE_HOST_GUEST) ||
@@ -6473,6 +6466,22 @@ void vmx_update_host_rsp(struct vcpu_vmx *vmx, unsigned long host_rsp)
 	}
 }
 
+static void vmx_load_guest_xss(struct kvm_vcpu *vcpu)
+{
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
+	    vcpu->arch.xsaves_enabled &&
+	    vcpu->arch.ia32_xss != host_xss)
+		wrmsrl(MSR_IA32_XSS, vcpu->arch.ia32_xss);
+}
+
+static void vmx_load_host_xss(struct kvm_vcpu *vcpu)
+{
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
+	    vcpu->arch.xsaves_enabled &&
+	    vcpu->arch.ia32_xss != host_xss)
+		wrmsrl(MSR_IA32_XSS, host_xss);
+}
+
 bool __vmx_vcpu_run(struct vcpu_vmx *vmx, unsigned long *regs, bool launched);
 
 static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
@@ -6524,6 +6533,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 		vmx_set_interrupt_shadow(vcpu, 0);
 
 	kvm_load_guest_xcr0(vcpu);
+	vmx_load_guest_xss(vcpu);
 
 	if (static_cpu_has(X86_FEATURE_PKU) &&
 	    kvm_read_cr4_bits(vcpu, X86_CR4_PKE) &&
@@ -6630,6 +6640,7 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu)
 			__write_pkru(vmx->host_pkru);
 	}
 
+	vmx_load_host_xss(vcpu);
 	kvm_put_guest_xcr0(vcpu);
 
 	vmx->nested.nested_run_pending = 0;
