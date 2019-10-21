@@ -193,7 +193,6 @@
 
 		target-module@b000 {			/* 0x44e0b000, ap 18 48.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "i2c1";
 			reg = <0xb000 0x8>,
 			      <0xb010 0x8>,
 			      <0xb090 0x8>;
@@ -972,7 +971,6 @@
 
 		target-module@2a000 {			/* 0x4802a000, ap 14 2a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "i2c2";
 			reg = <0x2a000 0x8>,
 			      <0x2a010 0x8>,
 			      <0x2a090 0x8>;
@@ -1500,7 +1498,6 @@
 
 		target-module@9c000 {			/* 0x4819c000, ap 46 5a.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "i2c3";
 			reg = <0x9c000 0x8>,
 			      <0x9c010 0x8>,
 			      <0x9c090 0x8>;
