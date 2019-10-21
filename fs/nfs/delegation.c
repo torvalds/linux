@@ -806,6 +806,42 @@ void nfs_remove_bad_delegation(struct inode *inode,
 }
 EXPORT_SYMBOL_GPL(nfs_remove_bad_delegation);
 
+void nfs_delegation_mark_returned(struct inode *inode,
+		const nfs4_stateid *stateid)
+{
+	struct nfs_delegation *delegation;
+
+	if (!inode)
+		return;
+
+	rcu_read_lock();
+	delegation = rcu_dereference(NFS_I(inode)->delegation);
+	if (!delegation)
+		goto out_rcu_unlock;
+
+	spin_lock(&delegation->lock);
+	if (!nfs4_stateid_match_other(stateid, &delegation->stateid))
+		goto out_spin_unlock;
+	if (stateid->seqid) {
+		/* If delegation->stateid is newer, dont mark as returned */
+		if (nfs4_stateid_is_newer(&delegation->stateid, stateid))
+			goto out_clear_returning;
+		if (delegation->stateid.seqid != stateid->seqid)
+			delegation->stateid.seqid = stateid->seqid;
+	}
+
+	set_bit(NFS_DELEGATION_REVOKED, &delegation->flags);
+
+out_clear_returning:
+	clear_bit(NFS_DELEGATION_RETURNING, &delegation->flags);
+out_spin_unlock:
+	spin_unlock(&delegation->lock);
+out_rcu_unlock:
+	rcu_read_unlock();
+
+	nfs_inode_find_state_and_recover(inode, stateid);
+}
+
 /**
  * nfs_expire_unused_delegation_types
  * @clp: client to process
