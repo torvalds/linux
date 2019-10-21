@@ -10669,14 +10669,11 @@ static void bnxt_fw_reset_task(struct work_struct *work)
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_RESET_FW;
 	}
 	/* fall through */
-	case BNXT_FW_RESET_STATE_RESET_FW: {
-		u32 wait_dsecs = bp->fw_health->post_reset_wait_dsecs;
-
+	case BNXT_FW_RESET_STATE_RESET_FW:
 		bnxt_reset_all(bp);
 		bp->fw_reset_state = BNXT_FW_RESET_STATE_ENABLE_DEV;
-		bnxt_queue_fw_reset_work(bp, wait_dsecs * HZ / 10);
+		bnxt_queue_fw_reset_work(bp, bp->fw_reset_min_dsecs * HZ / 10);
 		return;
-	}
 	case BNXT_FW_RESET_STATE_ENABLE_DEV:
 		if (test_bit(BNXT_STATE_FW_FATAL_COND, &bp->state) &&
 		    bp->fw_health) {
