@@ -226,12 +226,55 @@ static const struct bnxt_dl_nvm_param nvm_params[] = {
 	 BNXT_NVM_SHARED_CFG, 1, 1},
 };
 
+union bnxt_nvm_data {
+	u8	val8;
+	__le32	val32;
+};
+
+static void bnxt_copy_to_nvm_data(union bnxt_nvm_data *dst,
+				  union devlink_param_value *src,
+				  int nvm_num_bits, int dl_num_bytes)
+{
+	u32 val32 = 0;
+
+	if (nvm_num_bits == 1) {
+		dst->val8 = src->vbool;
+		return;
+	}
+	if (dl_num_bytes == 4)
+		val32 = src->vu32;
+	else if (dl_num_bytes == 2)
+		val32 = (u32)src->vu16;
+	else if (dl_num_bytes == 1)
+		val32 = (u32)src->vu8;
+	dst->val32 = cpu_to_le32(val32);
+}
+
+static void bnxt_copy_from_nvm_data(union devlink_param_value *dst,
+				    union bnxt_nvm_data *src,
+				    int nvm_num_bits, int dl_num_bytes)
+{
+	u32 val32;
+
+	if (nvm_num_bits == 1) {
+		dst->vbool = src->val8;
+		return;
+	}
+	val32 = le32_to_cpu(src->val32);
+	if (dl_num_bytes == 4)
+		dst->vu32 = val32;
+	else if (dl_num_bytes == 2)
+		dst->vu16 = (u16)val32;
+	else if (dl_num_bytes == 1)
+		dst->vu8 = (u8)val32;
+}
+
 static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 			     int msg_len, union devlink_param_value *val)
 {
 	struct hwrm_nvm_get_variable_input *req = msg;
-	void *data_addr = NULL, *buf = NULL;
 	struct bnxt_dl_nvm_param nvm_param;
+	union bnxt_nvm_data *data;
 	dma_addr_t data_dma_addr;
 	int idx = 0, rc, i;
 
@@ -254,26 +297,9 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 	else if (nvm_param.dir_type == BNXT_NVM_FUNC_CFG)
 		idx = bp->pf.fw_fid - BNXT_FIRST_PF_FID;
 
-	switch (nvm_param.dl_num_bytes) {
-	case 1:
-		if (nvm_param.nvm_num_bits == 1)
-			buf = &val->vbool;
-		else
-			buf = &val->vu8;
-		break;
-	case 2:
-		buf = &val->vu16;
-		break;
-	case 4:
-		buf = &val->vu32;
-		break;
-	default:
-		return -EFAULT;
-	}
-
-	data_addr = dma_alloc_coherent(&bp->pdev->dev, nvm_param.dl_num_bytes,
-				       &data_dma_addr, GFP_KERNEL);
-	if (!data_addr)
+	data = dma_alloc_coherent(&bp->pdev->dev, sizeof(*data),
+				  &data_dma_addr, GFP_KERNEL);
+	if (!data)
 		return -ENOMEM;
 
 	req->dest_data_addr = cpu_to_le64(data_dma_addr);
@@ -284,17 +310,18 @@ static int bnxt_hwrm_nvm_req(struct bnxt *bp, u32 param_id, void *msg,
 		req->dimensions = cpu_to_le16(1);
 
 	if (req->req_type == cpu_to_le16(HWRM_NVM_SET_VARIABLE)) {
-		memcpy(data_addr, buf, nvm_param.dl_num_bytes);
+		bnxt_copy_to_nvm_data(data, val, nvm_param.nvm_num_bits,
+				      nvm_param.dl_num_bytes);
 		rc = hwrm_send_message(bp, msg, msg_len, HWRM_CMD_TIMEOUT);
 	} else {
 		rc = hwrm_send_message_silent(bp, msg, msg_len,
 					      HWRM_CMD_TIMEOUT);
+		if (!rc)
+			bnxt_copy_from_nvm_data(val, data,
+						nvm_param.nvm_num_bits,
+						nvm_param.dl_num_bytes);
 	}
-	if (!rc && req->req_type == cpu_to_le16(HWRM_NVM_GET_VARIABLE))
-		memcpy(buf, data_addr, nvm_param.dl_num_bytes);
-
-	dma_free_coherent(&bp->pdev->dev, nvm_param.dl_num_bytes, data_addr,
-			  data_dma_addr);
+	dma_free_coherent(&bp->pdev->dev, sizeof(*data), data, data_dma_addr);
 	if (rc == -EACCES)
 		netdev_err(bp->dev, "PF does not have admin privileges to modify NVM config\n");
 	return rc;
