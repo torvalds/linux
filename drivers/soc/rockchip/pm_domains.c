@@ -22,6 +22,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regulator/consumer.h>
 #include <soc/rockchip/pm_domains.h>
+#include <soc/rockchip/rockchip_dmc.h>
 #include <dt-bindings/power/px30-power.h>
 #include <dt-bindings/power/rk1808-power.h>
 #include <dt-bindings/power/rk3036-power.h>
@@ -93,6 +94,18 @@ struct rockchip_pmu {
 };
 
 static struct rockchip_pmu *g_pmu;
+
+static void rockchip_pmu_lock(struct rockchip_pm_domain *pd)
+{
+	mutex_lock(&pd->pmu->mutex);
+	rockchip_dmcfreq_lock();
+}
+
+static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
+{
+	rockchip_dmcfreq_unlock();
+	mutex_unlock(&pd->pmu->mutex);
+}
 
 #define to_rockchip_pd(gpd) container_of(gpd, struct rockchip_pm_domain, genpd)
 
@@ -239,9 +252,9 @@ int rockchip_pmu_idle_request(struct device *dev, bool idle)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_set_idle_request(pd, idle);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -311,9 +324,9 @@ int rockchip_save_qos(struct device *dev)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_save_qos(pd);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -334,9 +347,9 @@ int rockchip_restore_qos(struct device *dev)
 	genpd = pd_to_genpd(dev->pm_domain);
 	pd = to_rockchip_pd(genpd);
 
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	ret = rockchip_pmu_restore_qos(pd);
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	return ret;
 }
@@ -398,7 +411,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 	int ret = 0;
 	struct generic_pm_domain *genpd = &pd->genpd;
 
-	mutex_lock(&pmu->mutex);
+	rockchip_pmu_lock(pd);
 
 	if (rockchip_pmu_domain_is_on(pd) != power_on) {
 		if (IS_ERR_OR_NULL(pd->supply) &&
@@ -411,7 +424,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 			if (ret < 0) {
 				dev_err(pd->pmu->dev, "failed to set vdd supply enable '%s',\n",
 					genpd->name);
-				mutex_unlock(&pmu->mutex);
+				rockchip_pmu_unlock(pd);
 				return ret;
 			}
 		}
@@ -419,7 +432,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 		ret = clk_bulk_enable(pd->num_clks, pd->clks);
 		if (ret < 0) {
 			dev_err(pmu->dev, "failed to enable clocks\n");
-			mutex_unlock(&pmu->mutex);
+			rockchip_pmu_unlock(pd);
 			return ret;
 		}
 
@@ -463,7 +476,7 @@ out:
 			ret = regulator_disable(pd->supply);
 	}
 
-	mutex_unlock(&pmu->mutex);
+	rockchip_pmu_unlock(pd);
 	return ret;
 }
 
@@ -695,9 +708,9 @@ static void rockchip_pm_remove_one_domain(struct rockchip_pm_domain *pd)
 	clk_bulk_put(pd->num_clks, pd->clks);
 
 	/* protect the zeroing of pm->num_clks */
-	mutex_lock(&pd->pmu->mutex);
+	rockchip_pmu_lock(pd);
 	pd->num_clks = 0;
-	mutex_unlock(&pd->pmu->mutex);
+	rockchip_pmu_unlock(pd);
 
 	/* devm will free our memory */
 }
