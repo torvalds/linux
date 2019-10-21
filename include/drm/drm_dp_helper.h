@@ -1294,6 +1294,13 @@ drm_dp_channel_coding_supported(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
 	return dpcd[DP_MAIN_LINK_CHANNEL_CODING] & DP_CAP_ANSI_8B10B;
 }
 
+static inline bool
+drm_dp_alternate_scrambler_reset_cap(const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	return dpcd[DP_EDP_CONFIGURATION_CAP] &
+			DP_ALTERNATE_SCRAMBLER_RESET_CAP;
+}
+
 /*
  * DisplayPort AUX channel
  */
