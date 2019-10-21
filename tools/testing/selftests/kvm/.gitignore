@@ -13,6 +13,7 @@
 /x86_64/vmx_dirty_log_test
 /x86_64/vmx_set_nested_state_test
 /x86_64/vmx_tsc_adjust_test
+/x86_64/xss_msr_test
 /clear_dirty_log_test
 /dirty_log_test
 /kvm_create_max_vcpus
