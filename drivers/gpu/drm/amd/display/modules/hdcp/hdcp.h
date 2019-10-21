@@ -29,34 +29,28 @@
 #include "mod_hdcp.h"
 #include "hdcp_log.h"
 
-#define BCAPS_READY_MASK				0x20
-#define BCAPS_REPEATER_MASK				0x40
-#define BSTATUS_DEVICE_COUNT_MASK			0X007F
-#define BSTATUS_MAX_DEVS_EXCEEDED_MASK			0x0080
-#define BSTATUS_MAX_CASCADE_EXCEEDED_MASK		0x0800
-#define BCAPS_HDCP_CAPABLE_MASK_DP			0x01
-#define BCAPS_REPEATER_MASK_DP				0x02
-#define BSTATUS_READY_MASK_DP				0x01
-#define BSTATUS_R0_P_AVAILABLE_MASK_DP			0x02
-#define BSTATUS_LINK_INTEGRITY_FAILURE_MASK_DP		0x04
-#define BSTATUS_REAUTH_REQUEST_MASK_DP			0x08
-#define BINFO_DEVICE_COUNT_MASK_DP			0X007F
-#define BINFO_MAX_DEVS_EXCEEDED_MASK_DP			0x0080
-#define BINFO_MAX_CASCADE_EXCEEDED_MASK_DP		0x0800
+#include <drm/drm_hdcp.h>
+#include <drm/drm_dp_helper.h>
 
-#define VERSION_HDCP2_MASK				0x04
+/* TODO:
+ * Replace below defines with these
+ *
+ * #define DRM_HDCP_MAX_CASCADE_EXCEEDED(x)        (x & BIT(3))
+ * #define DRM_HDCP_MAX_CASCADE_EXCEEDED(x)        (x & BIT(3))
+ * #define HDCP_2_2_HDMI_RXSTATUS_MSG_SZ_HI(x)     ((x) & 0x3)
+ * #define HDCP_2_2_HDMI_RXSTATUS_READY(x)         ((x) & BIT(2))
+ * #define HDCP_2_2_HDMI_RXSTATUS_REAUTH_REQ(x)    ((x) & BIT(3))
+ *
+ * Currently we share rx_status between HDMI and DP, so we use 16bits
+ * The upstream defines work with 1bytes at a time. So we need to
+ * split the HDMI rxstatus into 2bytes before we can use usptream defs
+ */
+
+#define BSTATUS_MAX_CASCADE_EXCEEDED_MASK		0x0800
+#define BINFO_MAX_CASCADE_EXCEEDED_MASK_DP		0x0800
 #define RXSTATUS_MSG_SIZE_MASK				0x03FF
 #define RXSTATUS_READY_MASK				0x0400
 #define RXSTATUS_REAUTH_REQUEST_MASK			0x0800
-#define RXIDLIST_DEVICE_COUNT_LOWER_MASK		0xf0
-#define RXIDLIST_DEVICE_COUNT_UPPER_MASK		0x01
-#define RXCAPS_BYTE2_HDCP2_VERSION_DP			0x02
-#define RXCAPS_BYTE0_HDCP_CAPABLE_MASK_DP		0x02
-#define RXSTATUS_READY_MASK_DP				0x0001
-#define RXSTATUS_H_P_AVAILABLE_MASK_DP			0x0002
-#define RXSTATUS_PAIRING_AVAILABLE_MASK_DP		0x0004
-#define RXSTATUS_REAUTH_REQUEST_MASK_DP			0x0008
-#define RXSTATUS_LINK_INTEGRITY_FAILURE_MASK_DP		0x0010
 
 enum mod_hdcp_trans_input_result {
 	UNKNOWN = 0,

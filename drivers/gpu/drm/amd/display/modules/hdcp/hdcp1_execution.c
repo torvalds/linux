@@ -41,17 +41,17 @@ static inline enum mod_hdcp_status validate_bksv(struct mod_hdcp *hdcp)
 static inline enum mod_hdcp_status check_ksv_ready(struct mod_hdcp *hdcp)
 {
 	if (is_dp_hdcp(hdcp))
-		return (hdcp->auth.msg.hdcp1.bstatus & BSTATUS_READY_MASK_DP) ?
+		return (hdcp->auth.msg.hdcp1.bstatus & DP_BSTATUS_READY) ?
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP1_KSV_LIST_NOT_READY;
-	return (hdcp->auth.msg.hdcp1.bcaps & BCAPS_READY_MASK) ?
+	return (hdcp->auth.msg.hdcp1.bcaps & DRM_HDCP_DDC_BCAPS_KSV_FIFO_READY) ?
 			MOD_HDCP_STATUS_SUCCESS :
 			MOD_HDCP_STATUS_HDCP1_KSV_LIST_NOT_READY;
 }
 
 static inline enum mod_hdcp_status check_hdcp_capable_dp(struct mod_hdcp *hdcp)
 {
-	return (hdcp->auth.msg.hdcp1.bcaps & BCAPS_HDCP_CAPABLE_MASK_DP) ?
+	return (hdcp->auth.msg.hdcp1.bcaps & DP_BCAPS_HDCP_CAPABLE) ?
 			MOD_HDCP_STATUS_SUCCESS :
 			MOD_HDCP_STATUS_HDCP1_NOT_CAPABLE;
 }
@@ -61,7 +61,7 @@ static inline enum mod_hdcp_status check_r0p_available_dp(struct mod_hdcp *hdcp)
 	enum mod_hdcp_status status;
 	if (is_dp_hdcp(hdcp)) {
 		status = (hdcp->auth.msg.hdcp1.bstatus &
-				BSTATUS_R0_P_AVAILABLE_MASK_DP) ?
+				DP_BSTATUS_R0_PRIME_READY) ?
 			MOD_HDCP_STATUS_SUCCESS :
 			MOD_HDCP_STATUS_HDCP1_R0_PRIME_PENDING;
 	} else {
@@ -74,7 +74,7 @@ static inline enum mod_hdcp_status check_link_integrity_dp(
 		struct mod_hdcp *hdcp)
 {
 	return (hdcp->auth.msg.hdcp1.bstatus &
-			BSTATUS_LINK_INTEGRITY_FAILURE_MASK_DP) ?
+			DP_BSTATUS_LINK_FAILURE) ?
 			MOD_HDCP_STATUS_HDCP1_LINK_INTEGRITY_FAILURE :
 			MOD_HDCP_STATUS_SUCCESS;
 }
@@ -82,7 +82,7 @@ static inline enum mod_hdcp_status check_link_integrity_dp(
 static inline enum mod_hdcp_status check_no_reauthentication_request_dp(
 		struct mod_hdcp *hdcp)
 {
-	return (hdcp->auth.msg.hdcp1.bstatus & BSTATUS_REAUTH_REQUEST_MASK_DP) ?
+	return (hdcp->auth.msg.hdcp1.bstatus & DP_BSTATUS_REAUTH_REQ) ?
 			MOD_HDCP_STATUS_HDCP1_REAUTH_REQUEST_ISSUED :
 			MOD_HDCP_STATUS_SUCCESS;
 }
@@ -109,13 +109,11 @@ static inline enum mod_hdcp_status check_no_max_devs(struct mod_hdcp *hdcp)
 	enum mod_hdcp_status status;
 
 	if (is_dp_hdcp(hdcp))
-		status = (hdcp->auth.msg.hdcp1.binfo_dp &
-				BINFO_MAX_DEVS_EXCEEDED_MASK_DP) ?
+		status = DRM_HDCP_MAX_DEVICE_EXCEEDED(hdcp->auth.msg.hdcp1.binfo_dp) ?
 				MOD_HDCP_STATUS_HDCP1_MAX_DEVS_EXCEEDED_FAILURE :
 				MOD_HDCP_STATUS_SUCCESS;
 	else
-		status = (hdcp->auth.msg.hdcp1.bstatus &
-				BSTATUS_MAX_DEVS_EXCEEDED_MASK) ?
+		status = DRM_HDCP_MAX_DEVICE_EXCEEDED(hdcp->auth.msg.hdcp1.bstatus) ?
 				MOD_HDCP_STATUS_HDCP1_MAX_DEVS_EXCEEDED_FAILURE :
 				MOD_HDCP_STATUS_SUCCESS;
 	return status;
@@ -124,8 +122,8 @@ static inline enum mod_hdcp_status check_no_max_devs(struct mod_hdcp *hdcp)
 static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 {
 	return is_dp_hdcp(hdcp) ?
-			(hdcp->auth.msg.hdcp1.binfo_dp & BINFO_DEVICE_COUNT_MASK_DP) :
-			(hdcp->auth.msg.hdcp1.bstatus & BSTATUS_DEVICE_COUNT_MASK);
+			DRM_HDCP_NUM_DOWNSTREAM(hdcp->auth.msg.hdcp1.binfo_dp) :
+			DRM_HDCP_NUM_DOWNSTREAM(hdcp->auth.msg.hdcp1.bstatus);
 }
 
 static inline enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)

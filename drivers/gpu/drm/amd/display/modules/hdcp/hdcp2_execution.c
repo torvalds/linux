@@ -30,7 +30,7 @@ static inline enum mod_hdcp_status check_receiver_id_list_ready(struct mod_hdcp 
 	uint8_t is_ready = 0;
 
 	if (is_dp_hdcp(hdcp))
-		is_ready = (hdcp->auth.msg.hdcp2.rxstatus & RXSTATUS_READY_MASK_DP) ? 1 : 0;
+		is_ready = HDCP_2_2_DP_RXSTATUS_READY(hdcp->auth.msg.hdcp2.rxstatus) ? 1 : 0;
 	else
 		is_ready = ((hdcp->auth.msg.hdcp2.rxstatus & RXSTATUS_READY_MASK) &&
 				(hdcp->auth.msg.hdcp2.rxstatus & RXSTATUS_MSG_SIZE_MASK)) ? 1 : 0;
@@ -43,14 +43,12 @@ static inline enum mod_hdcp_status check_hdcp2_capable(struct mod_hdcp *hdcp)
 	enum mod_hdcp_status status;
 
 	if (is_dp_hdcp(hdcp))
-		status = ((hdcp->auth.msg.hdcp2.rxcaps_dp[2] &
-						RXCAPS_BYTE0_HDCP_CAPABLE_MASK_DP) &&
-				(hdcp->auth.msg.hdcp2.rxcaps_dp[0] ==
-						RXCAPS_BYTE2_HDCP2_VERSION_DP)) ?
+		status = (hdcp->auth.msg.hdcp2.rxcaps_dp[2] & HDCP_2_2_RX_CAPS_VERSION_VAL) &&
+				HDCP_2_2_DP_HDCP_CAPABLE(hdcp->auth.msg.hdcp2.rxcaps_dp[0]) ?
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
 	else
-		status = (hdcp->auth.msg.hdcp2.hdcp2version_hdmi & VERSION_HDCP2_MASK) ?
+		status = (hdcp->auth.msg.hdcp2.hdcp2version_hdmi & HDCP_2_2_HDMI_SUPPORT_MASK) ?
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP2_NOT_CAPABLE;
 	return status;
@@ -62,8 +60,7 @@ static inline enum mod_hdcp_status check_reauthentication_request(
 	uint8_t ret = 0;
 
 	if (is_dp_hdcp(hdcp))
-		ret = (hdcp->auth.msg.hdcp2.rxstatus &
-				RXSTATUS_REAUTH_REQUEST_MASK_DP) ?
+		ret = HDCP_2_2_DP_RXSTATUS_REAUTH_REQ(hdcp->auth.msg.hdcp2.rxstatus) ?
 				MOD_HDCP_STATUS_HDCP2_REAUTH_REQUEST :
 				MOD_HDCP_STATUS_SUCCESS;
 	else
@@ -76,8 +73,7 @@ static inline enum mod_hdcp_status check_reauthentication_request(
 static inline enum mod_hdcp_status check_link_integrity_failure_dp(
 		struct mod_hdcp *hdcp)
 {
-	return (hdcp->auth.msg.hdcp2.rxstatus &
-			RXSTATUS_LINK_INTEGRITY_FAILURE_MASK_DP) ?
+	return HDCP_2_2_DP_RXSTATUS_LINK_FAILED(hdcp->auth.msg.hdcp2.rxstatus) ?
 			MOD_HDCP_STATUS_HDCP2_REAUTH_LINK_INTEGRITY_FAILURE :
 			MOD_HDCP_STATUS_SUCCESS;
 }
@@ -111,7 +107,7 @@ static enum mod_hdcp_status check_h_prime_available(struct mod_hdcp *hdcp)
 		goto out;
 
 	if (is_dp_hdcp(hdcp)) {
-		status = (hdcp->auth.msg.hdcp2.rxstatus & RXSTATUS_H_P_AVAILABLE_MASK_DP) ?
+		status = HDCP_2_2_DP_RXSTATUS_H_PRIME(hdcp->auth.msg.hdcp2.rxstatus) ?
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP2_H_PRIME_PENDING;
 	} else {
@@ -134,7 +130,7 @@ static enum mod_hdcp_status check_pairing_info_available(struct mod_hdcp *hdcp)
 		goto out;
 
 	if (is_dp_hdcp(hdcp)) {
-		status = (hdcp->auth.msg.hdcp2.rxstatus & RXSTATUS_PAIRING_AVAILABLE_MASK_DP) ?
+		status = HDCP_2_2_DP_RXSTATUS_PAIRING(hdcp->auth.msg.hdcp2.rxstatus) ?
 				MOD_HDCP_STATUS_SUCCESS :
 				MOD_HDCP_STATUS_HDCP2_PAIRING_INFO_PENDING;
 	} else {
@@ -197,8 +193,8 @@ out:
 
 static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 {
-	return ((hdcp->auth.msg.hdcp2.rx_id_list[2] & RXIDLIST_DEVICE_COUNT_LOWER_MASK) >> 4) +
-		((hdcp->auth.msg.hdcp2.rx_id_list[1] & RXIDLIST_DEVICE_COUNT_UPPER_MASK) << 4);
+	return HDCP_2_2_DEV_COUNT_LO(hdcp->auth.msg.hdcp2.rx_id_list[2]) +
+			(HDCP_2_2_DEV_COUNT_HI(hdcp->auth.msg.hdcp2.rx_id_list[1]) << 4);
 }
 
 static enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
