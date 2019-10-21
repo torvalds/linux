@@ -5,12 +5,6 @@
 
 #include <uapi/linux/arm_sdei.h>
 
-enum sdei_conduit_types {
-	CONDUIT_INVALID = 0,
-	CONDUIT_SMC,
-	CONDUIT_HVC,
-};
-
 #include <acpi/ghes.h>
 
 #ifdef CONFIG_ARM_SDE_INTERFACE

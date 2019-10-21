@@ -2,6 +2,7 @@
 // Copyright (C) 2017 Arm Ltd.
 #define pr_fmt(fmt) "sdei: " fmt
 
+#include <linux/arm-smccc.h>
 #include <linux/arm_sdei.h>
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
@@ -161,7 +162,7 @@ unsigned long sdei_arch_get_entry_point(int conduit)
 			return 0;
 	}
 
-	sdei_exit_mode = (conduit == CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
+	sdei_exit_mode = (conduit == SMCCC_CONDUIT_HVC) ? SDEI_EXIT_HVC : SDEI_EXIT_SMC;
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	if (arm64_kernel_unmapped_at_el0()) {
