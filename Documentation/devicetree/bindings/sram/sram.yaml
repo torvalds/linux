@@ -72,6 +72,7 @@ patternProperties:
           - rockchip,rk3066-smp-sram
           - samsung,exynos4210-sysram
           - samsung,exynos4210-sysram-ns
+          - socionext,milbeaut-smp-sram
 
       reg:
         description:
@@ -238,5 +239,19 @@ examples:
             // cpu0 should jump to SMP entry vector
             compatible = "allwinner,sun9i-a80-smp-sram";
             reg = <0x1000 0x8>;
+        };
+    };
+
+  - |
+    sram@0 {
+        compatible = "mmio-sram";
+        reg = <0x0 0x10000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges = <0 0x0 0x10000>;
+
+        smp-sram@f100 {
+            compatible = "socionext,milbeaut-smp-sram";
+            reg = <0xf100 0x20>;
         };
     };
