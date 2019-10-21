@@ -178,6 +178,13 @@ config ARCH_R8A774A1
 	help
 	  This enables support for the Renesas RZ/G2M SoC.
 
+config ARCH_R8A774B1
+	bool "Renesas RZ/G2N SoC Platform"
+	select ARCH_RCAR_GEN3
+	select SYSC_R8A774B1
+	help
+	  This enables support for the Renesas RZ/G2N SoC.
+
 config ARCH_R8A774C0
 	bool "Renesas RZ/G2E SoC Platform"
 	select ARCH_RCAR_GEN3
@@ -251,6 +258,10 @@ config SYSC_R8A77470
 
 config SYSC_R8A774A1
 	bool "RZ/G2M System Controller support" if COMPILE_TEST
+	select SYSC_RCAR
+
+config SYSC_R8A774B1
+	bool "RZ/G2N System Controller support" if COMPILE_TEST
 	select SYSC_RCAR
 
 config SYSC_R8A774C0

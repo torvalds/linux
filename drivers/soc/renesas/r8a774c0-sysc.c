@@ -6,7 +6,7 @@
  * Based on Renesas R-Car E3 System Controller
  */
 
-#include <linux/bug.h>
+#include <linux/bits.h>
 #include <linux/kernel.h>
 #include <linux/sys_soc.h>
 
@@ -50,4 +50,6 @@ const struct rcar_sysc_info r8a774c0_sysc_info __initconst = {
 	.init = r8a774c0_sysc_init,
 	.areas = r8a774c0_areas,
 	.num_areas = ARRAY_SIZE(r8a774c0_areas),
+	.extmask_offs = 0x2f8,
+	.extmask_val = BIT(0),
 };
