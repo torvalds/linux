@@ -4415,16 +4415,9 @@ static void rtl8168g_set_pause_thresholds(struct rtl8169_private *tp,
 	rtl_eri_write(tp, 0xd0, ERIAR_MASK_0001, high);
 }
 
-static void rtl_hw_start_8168bb(struct rtl8169_private *tp)
+static void rtl_hw_start_8168b(struct rtl8169_private *tp)
 {
 	RTL_W8(tp, Config3, RTL_R8(tp, Config3) & ~Beacon_en);
-}
-
-static void rtl_hw_start_8168bef(struct rtl8169_private *tp)
-{
-	rtl_hw_start_8168bb(tp);
-
-	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~(1 << 0));
 }
 
 static void __rtl_hw_start_8168cp(struct rtl8169_private *tp)
@@ -5290,13 +5283,13 @@ static void rtl_hw_config(struct rtl8169_private *tp)
 		[RTL_GIGA_MAC_VER_08] = rtl_hw_start_8102e_3,
 		[RTL_GIGA_MAC_VER_09] = rtl_hw_start_8102e_2,
 		[RTL_GIGA_MAC_VER_10] = NULL,
-		[RTL_GIGA_MAC_VER_11] = rtl_hw_start_8168bb,
-		[RTL_GIGA_MAC_VER_12] = rtl_hw_start_8168bef,
+		[RTL_GIGA_MAC_VER_11] = rtl_hw_start_8168b,
+		[RTL_GIGA_MAC_VER_12] = rtl_hw_start_8168b,
 		[RTL_GIGA_MAC_VER_13] = NULL,
 		[RTL_GIGA_MAC_VER_14] = NULL,
 		[RTL_GIGA_MAC_VER_15] = NULL,
 		[RTL_GIGA_MAC_VER_16] = NULL,
-		[RTL_GIGA_MAC_VER_17] = rtl_hw_start_8168bef,
+		[RTL_GIGA_MAC_VER_17] = rtl_hw_start_8168b,
 		[RTL_GIGA_MAC_VER_18] = rtl_hw_start_8168cp_1,
 		[RTL_GIGA_MAC_VER_19] = rtl_hw_start_8168c_1,
 		[RTL_GIGA_MAC_VER_20] = rtl_hw_start_8168c_2,
