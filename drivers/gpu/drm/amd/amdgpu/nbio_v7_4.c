@@ -324,7 +324,12 @@ static void nbio_v7_4_handle_ras_controller_intr_no_bifring(struct amdgpu_device
 						RAS_CNTLR_INTERRUPT_CLEAR, 1);
 		WREG32_SOC15(NBIO, 0, mmBIF_DOORBELL_INT_CNTL, bif_doorbell_intr_cntl);
 
-		amdgpu_ras_global_ras_isr(adev);
+		DRM_WARN("RAS controller interrupt triggered by NBIF error\n");
+
+		/* ras_controller_int is dedicated for nbif ras error,
+		 * not the global interrupt for sync flood
+		 */
+		amdgpu_ras_reset_gpu(adev, true);
 	}
 }
 
