@@ -68,6 +68,7 @@ patternProperties:
           - amlogic,meson8-smp-sram
           - amlogic,meson8b-smp-sram
           - renesas,smp-sram
+          - rockchip,rk3066-smp-sram
           - samsung,exynos4210-sysram
           - samsung,exynos4210-sysram-ns
 
@@ -198,5 +199,19 @@ examples:
         smp-sram@0 {
             compatible = "renesas,smp-sram";
             reg = <0 0x10>;
+        };
+    };
+
+  - |
+    sram@10080000 {
+        compatible = "mmio-sram";
+        reg = <0x10080000 0x10000>;
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        smp-sram@10080000 {
+            compatible = "rockchip,rk3066-smp-sram";
+            reg = <0x10080000 0x50>;
         };
     };
