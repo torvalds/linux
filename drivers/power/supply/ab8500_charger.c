@@ -3393,7 +3393,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 		if (PTR_ERR(di->adc_main_charger_c) == -ENODEV)
 			return -EPROBE_DEFER;
 		dev_err(&pdev->dev, "failed to get ADC main charger current\n");
-		return PTR_ERR(di->adc_main_charger_v);
+		return PTR_ERR(di->adc_main_charger_c);
 	}
 	di->adc_vbus_v = devm_iio_channel_get(&pdev->dev, "vbus_v");
 	if (IS_ERR(di->adc_vbus_v)) {
