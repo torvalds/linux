@@ -10260,6 +10260,12 @@ enum skl_power_gate {
 						     _DKL_PHY2_BASE) + \
 						     _DKL_TX_FW_CALIB)
 
+#define _DKL_TX_PMD_LANE_SUS				0xD00
+#define DKL_TX_PMD_LANE_SUS(tc_port) _MMIO(_PORT(tc_port, \
+							  _DKL_PHY1_BASE, \
+							  _DKL_PHY2_BASE) + \
+							  _DKL_TX_PMD_LANE_SUS)
+
 #define _DKL_TX_DW17					0xDC4
 #define DKL_TX_DW17(tc_port) _MMIO(_PORT(tc_port, \
 						     _DKL_PHY1_BASE, \

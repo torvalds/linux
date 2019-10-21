@@ -2838,6 +2838,8 @@ tgl_dkl_phy_ddi_vswing_sequence(struct intel_encoder *encoder, int link_clock,
 	for (ln = 0; ln < 2; ln++) {
 		I915_WRITE(HIP_INDEX_REG(tc_port), HIP_INDEX_VAL(tc_port, ln));
 
+		I915_WRITE(DKL_TX_PMD_LANE_SUS(tc_port), 0);
+
 		/* All the registers are RMW */
 		val = I915_READ(DKL_TX_DPCNTL0(tc_port));
 		val &= ~dpcnt_mask;
