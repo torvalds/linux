@@ -4058,29 +4058,13 @@ static void r8168e_hw_jumbo_disable(struct rtl8169_private *tp)
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~0x01);
 }
 
-static void r8168b_0_hw_jumbo_enable(struct rtl8169_private *tp)
-{
-	pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
-				 PCI_EXP_DEVCTL_NOSNOOP_EN);
-}
-
-static void r8168b_0_hw_jumbo_disable(struct rtl8169_private *tp)
-{
-	pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
-				 PCI_EXP_DEVCTL_NOSNOOP_EN);
-}
-
 static void r8168b_1_hw_jumbo_enable(struct rtl8169_private *tp)
 {
-	r8168b_0_hw_jumbo_enable(tp);
-
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) | (1 << 0));
 }
 
 static void r8168b_1_hw_jumbo_disable(struct rtl8169_private *tp)
 {
-	r8168b_0_hw_jumbo_disable(tp);
-
 	RTL_W8(tp, Config4, RTL_R8(tp, Config4) & ~(1 << 0));
 }
 
@@ -4088,9 +4072,6 @@ static void rtl_hw_jumbo_enable(struct rtl8169_private *tp)
 {
 	rtl_unlock_config_regs(tp);
 	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_11:
-		r8168b_0_hw_jumbo_enable(tp);
-		break;
 	case RTL_GIGA_MAC_VER_12:
 	case RTL_GIGA_MAC_VER_17:
 		r8168b_1_hw_jumbo_enable(tp);
@@ -4114,9 +4095,6 @@ static void rtl_hw_jumbo_disable(struct rtl8169_private *tp)
 {
 	rtl_unlock_config_regs(tp);
 	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_11:
-		r8168b_0_hw_jumbo_disable(tp);
-		break;
 	case RTL_GIGA_MAC_VER_12:
 	case RTL_GIGA_MAC_VER_17:
 		r8168b_1_hw_jumbo_disable(tp);
@@ -5381,10 +5359,18 @@ static void rtl_hw_start_8125(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8168(struct rtl8169_private *tp)
 {
-	if (tp->mac_version == RTL_GIGA_MAC_VER_13 ||
-	    tp->mac_version == RTL_GIGA_MAC_VER_16)
+	switch (tp->mac_version) {
+	case RTL_GIGA_MAC_VER_11:
+	case RTL_GIGA_MAC_VER_12:
+	case RTL_GIGA_MAC_VER_13:
+	case RTL_GIGA_MAC_VER_16:
+	case RTL_GIGA_MAC_VER_17:
 		pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
 					 PCI_EXP_DEVCTL_NOSNOOP_EN);
+		break;
+	default:
+		break;
+	}
 
 	if (rtl_is_8168evl_up(tp))
 		RTL_W8(tp, MaxTxPacketSize, EarlySize);
