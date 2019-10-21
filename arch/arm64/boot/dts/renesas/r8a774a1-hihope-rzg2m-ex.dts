@@ -13,3 +13,7 @@
 	compatible = "hoperun,hihope-rzg2-ex", "hoperun,hihope-rzg2m",
 		     "renesas,r8a774a1";
 };
+
+&pciec1 {
+	status = "okay";
+};
