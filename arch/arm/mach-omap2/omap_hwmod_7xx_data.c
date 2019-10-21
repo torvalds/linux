@@ -771,41 +771,7 @@ static struct omap_hwmod dra7xx_gpmc_hwmod = {
 	},
 };
 
-/*
- * 'hdq1w' class
- *
- */
 
-static struct omap_hwmod_class_sysconfig dra7xx_hdq1w_sysc = {
-	.rev_offs	= 0x0000,
-	.sysc_offs	= 0x0014,
-	.syss_offs	= 0x0018,
-	.sysc_flags	= (SYSC_HAS_AUTOIDLE | SYSC_HAS_SOFTRESET |
-			   SYSS_HAS_RESET_STATUS),
-	.sysc_fields	= &omap_hwmod_sysc_type1,
-};
-
-static struct omap_hwmod_class dra7xx_hdq1w_hwmod_class = {
-	.name	= "hdq1w",
-	.sysc	= &dra7xx_hdq1w_sysc,
-};
-
-/* hdq1w */
-
-static struct omap_hwmod dra7xx_hdq1w_hwmod = {
-	.name		= "hdq1w",
-	.class		= &dra7xx_hdq1w_hwmod_class,
-	.clkdm_name	= "l4per_clkdm",
-	.flags		= HWMOD_INIT_NO_RESET,
-	.main_clk	= "func_12m_fclk",
-	.prcm = {
-		.omap4 = {
-			.clkctrl_offs = DRA7XX_CM_L4PER_HDQ1W_CLKCTRL_OFFSET,
-			.context_offs = DRA7XX_RM_L4PER_HDQ1W_CONTEXT_OFFSET,
-			.modulemode   = MODULEMODE_SWCTRL,
-		},
-	},
-};
 
 /*
  * 'mpu' class
@@ -1864,14 +1830,6 @@ static struct omap_hwmod_ocp_if dra7xx_l3_main_1__gpmc = {
 	.user		= OCP_USER_MPU | OCP_USER_SDMA,
 };
 
-/* l4_per1 -> hdq1w */
-static struct omap_hwmod_ocp_if dra7xx_l4_per1__hdq1w = {
-	.master		= &dra7xx_l4_per1_hwmod,
-	.slave		= &dra7xx_hdq1w_hwmod,
-	.clk		= "l3_iclk_div",
-	.user		= OCP_USER_MPU | OCP_USER_SDMA,
-};
-
 /* l4_cfg -> mpu */
 static struct omap_hwmod_ocp_if dra7xx_l4_cfg__mpu = {
 	.master		= &dra7xx_l4_cfg_hwmod,
@@ -2237,7 +2195,6 @@ static struct omap_hwmod_ocp_if *dra7xx_hwmod_ocp_ifs[] __initdata = {
 	&dra7xx_l3_main_1__sha0,
 	&dra7xx_l4_per1__elm,
 	&dra7xx_l3_main_1__gpmc,
-	&dra7xx_l4_per1__hdq1w,
 	&dra7xx_l4_cfg__mpu,
 	&dra7xx_l4_cfg__ocp2scp1,
 	&dra7xx_l4_cfg__ocp2scp3,

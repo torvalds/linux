@@ -2089,7 +2089,6 @@
 
 		target-module@b2000 {			/* 0x480b2000, ap 37 52.0 */
 			compatible = "ti,sysc-omap2", "ti,sysc";
-			ti,hwmods = "hdq1w";
 			reg = <0xb2000 0x4>,
 			      <0xb2014 0x4>,
 			      <0xb2018 0x4>;
