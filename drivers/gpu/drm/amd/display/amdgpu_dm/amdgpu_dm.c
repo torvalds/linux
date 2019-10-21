@@ -3399,6 +3399,9 @@ static void fill_stream_properties_from_drm_display_mode(
 	struct hdmi_vendor_infoframe hv_frame;
 	struct hdmi_avi_infoframe avi_frame;
 
+	memset(&hv_frame, 0, sizeof(hv_frame));
+	memset(&avi_frame, 0, sizeof(avi_frame));
+
 	timing_out->h_border_left = 0;
 	timing_out->h_border_right = 0;
 	timing_out->v_border_top = 0;
