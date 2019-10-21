@@ -10382,7 +10382,8 @@ static void bnxt_cleanup_pci(struct bnxt *bp)
 {
 	bnxt_unmap_bars(bp, bp->pdev);
 	pci_release_regions(bp->pdev);
-	pci_disable_device(bp->pdev);
+	if (pci_is_enabled(bp->pdev))
+		pci_disable_device(bp->pdev);
 }
 
 static void bnxt_init_dflt_coal(struct bnxt *bp)
