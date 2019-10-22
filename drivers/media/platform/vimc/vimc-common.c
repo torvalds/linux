@@ -171,7 +171,6 @@ const struct vimc_pix_map *vimc_pix_map_by_index(unsigned int i)
 
 	return &vimc_pix_map_list[i];
 }
-EXPORT_SYMBOL_GPL(vimc_pix_map_by_index);
 
 const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 {
@@ -183,7 +182,6 @@ const struct vimc_pix_map *vimc_pix_map_by_code(u32 code)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(vimc_pix_map_by_code);
 
 const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 {
@@ -195,7 +193,6 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat)
 	}
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(vimc_pix_map_by_pixelformat);
 
 /* Helper function to allocate and initialize pads */
 struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
@@ -216,7 +213,6 @@ struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
 
 	return pads;
 }
-EXPORT_SYMBOL_GPL(vimc_pads_init);
 
 int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 {
@@ -245,7 +241,6 @@ int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vimc_pipeline_s_stream);
 
 static int vimc_get_mbus_format(struct media_pad *pad,
 				struct v4l2_subdev_format *fmt)
@@ -357,7 +352,6 @@ int vimc_link_validate(struct media_link *link)
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vimc_link_validate);
 
 static const struct media_entity_operations vimc_ent_sd_mops = {
 	.link_validate = vimc_link_validate,
@@ -419,5 +413,3 @@ err_clean_pads:
 	vimc_pads_cleanup(ved->pads);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(vimc_ent_sd_register);
-

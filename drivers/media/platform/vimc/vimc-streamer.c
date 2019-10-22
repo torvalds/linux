@@ -216,4 +216,3 @@ int vimc_streamer_s_stream(struct vimc_stream *stream,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(vimc_streamer_s_stream);
