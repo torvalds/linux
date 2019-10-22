@@ -15,13 +15,6 @@
 #include <asm/sgiarcs.h>
 
 extern struct linux_romvec *romvec;
-extern int prom_argc;
-
-extern LONG *_prom_argv;
-
-/* A 32-bit ARC PROM pass arguments and environment as 32-bit pointer.
-   These macros take care of sign extension.  */
-#define prom_argv(index) ((char *) (long) _prom_argv[(index)])
 
 extern int prom_flags;
 
@@ -55,7 +48,7 @@ extern void prom_identify_arch(void);
 extern PCHAR ArcGetEnvironmentVariable(PCHAR name);
 
 /* ARCS command line parsing. */
-extern void prom_init_cmdline(void);
+extern void prom_init_cmdline(int argc, LONG *argv);
 
 /* File operations. */
 extern LONG ArcRead(ULONG fd, PVOID buf, ULONG num, PULONG cnt);

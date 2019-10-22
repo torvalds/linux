@@ -18,8 +18,6 @@
 
 /* Master romvec interface. */
 struct linux_romvec *romvec;
-int prom_argc;
-LONG *_prom_argv;
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_FW_ARC32)
 /* stack for calling 32bit ARC prom */
@@ -32,9 +30,6 @@ void __init prom_init(void)
 
 	romvec = ROMVECTOR;
 
-	prom_argc = fw_arg0;
-	_prom_argv = (LONG *) fw_arg1;
-
 	if (pb->magic != 0x53435241) {
 		printk(KERN_CRIT "Aieee, bad prom vector magic %08lx\n",
 		       (unsigned long) pb->magic);
@@ -42,7 +37,7 @@ void __init prom_init(void)
 			;
 	}
 
-	prom_init_cmdline();
+	prom_init_cmdline(fw_arg0, (LONG *)fw_arg1);
 	prom_identify_arch();
 	printk(KERN_INFO "PROMLIB: ARC firmware Version %d Revision %d\n",
 	       pb->ver, pb->rev);
