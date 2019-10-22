@@ -64,6 +64,36 @@ static int sdw_slave_add(struct sdw_bus *bus,
 }
 
 #if IS_ENABLED(CONFIG_ACPI)
+
+static bool find_slave(struct sdw_bus *bus,
+		       struct acpi_device *adev,
+		       struct sdw_slave_id *id)
+{
+	unsigned long long addr;
+	unsigned int link_id;
+	acpi_status status;
+
+	status = acpi_evaluate_integer(adev->handle,
+				       METHOD_NAME__ADR, NULL, &addr);
+
+	if (ACPI_FAILURE(status)) {
+		dev_err(bus->dev, "_ADR resolution failed: %x\n",
+			status);
+		return false;
+	}
+
+	/* Extract link id from ADR, Bit 51 to 48 (included) */
+	link_id = (addr >> 48) & GENMASK(3, 0);
+
+	/* Check for link_id match */
+	if (link_id != bus->link_id)
+		return false;
+
+	sdw_extract_slave_id(bus, addr, id);
+
+	return true;
+}
+
 /*
  * sdw_acpi_find_slaves() - Find Slave devices in Master ACPI node
  * @bus: SDW bus instance
@@ -81,28 +111,10 @@ int sdw_acpi_find_slaves(struct sdw_bus *bus)
 	}
 
 	list_for_each_entry(adev, &parent->children, node) {
-		unsigned long long addr;
 		struct sdw_slave_id id;
-		unsigned int link_id;
-		acpi_status status;
 
-		status = acpi_evaluate_integer(adev->handle,
-					       METHOD_NAME__ADR, NULL, &addr);
-
-		if (ACPI_FAILURE(status)) {
-			dev_err(bus->dev, "_ADR resolution failed: %x\n",
-				status);
-			return status;
-		}
-
-		/* Extract link id from ADR, Bit 51 to 48 (included) */
-		link_id = (addr >> 48) & GENMASK(3, 0);
-
-		/* Check for link_id match */
-		if (link_id != bus->link_id)
+		if (!find_slave(bus, adev, &id))
 			continue;
-
-		sdw_extract_slave_id(bus, addr, &id);
 
 		/*
 		 * don't error check for sdw_slave_add as we want to continue
