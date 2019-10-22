@@ -12,6 +12,7 @@
 #include "aq_hw.h"
 #include "aq_pci_func.h"
 #include "aq_main.h"
+#include "aq_phy.h"
 #include "aq_ptp.h"
 #include "aq_filters.h"
 
@@ -336,6 +337,11 @@ int aq_nic_init(struct aq_nic_s *self)
 				       aq_nic_get_ndev(self)->dev_addr);
 	if (err < 0)
 		goto err_exit;
+
+	if (self->aq_nic_cfg.aq_hw_caps->media_type == AQ_HW_MEDIA_TYPE_TP) {
+		self->aq_hw->phy_id = HW_ATL_PHY_ID_MAX;
+		err = aq_phy_init(self->aq_hw);
+	}
 
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])

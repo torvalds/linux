@@ -1644,6 +1644,11 @@ u32 hw_atl_sem_ram_get(struct aq_hw_s *self)
 	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_RAM);
 }
 
+u32 hw_atl_sem_mdio_get(struct aq_hw_s *self)
+{
+	return hw_atl_reg_glb_cpu_sem_get(self, HW_ATL_FW_SM_MDIO);
+}
+
 u32 hw_atl_scrpad_get(struct aq_hw_s *aq_hw, u32 scratch_scp)
 {
 	return aq_hw_read_reg(aq_hw,
@@ -1658,4 +1663,61 @@ u32 hw_atl_scrpad12_get(struct aq_hw_s *self)
 u32 hw_atl_scrpad25_get(struct aq_hw_s *self)
 {
 	return hw_atl_scrpad_get(self, 0x18);
+}
+
+void hw_atl_glb_mdio_iface1_set(struct aq_hw_s *aq_hw, u32 value)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(1), value);
+}
+
+u32 hw_atl_glb_mdio_iface1_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(1));
+}
+
+void hw_atl_glb_mdio_iface2_set(struct aq_hw_s *aq_hw, u32 value)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(2), value);
+}
+
+u32 hw_atl_glb_mdio_iface2_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(2));
+}
+
+void hw_atl_glb_mdio_iface3_set(struct aq_hw_s *aq_hw, u32 value)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(3), value);
+}
+
+u32 hw_atl_glb_mdio_iface3_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(3));
+}
+
+void hw_atl_glb_mdio_iface4_set(struct aq_hw_s *aq_hw, u32 value)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(4), value);
+}
+
+u32 hw_atl_glb_mdio_iface4_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(4));
+}
+
+void hw_atl_glb_mdio_iface5_set(struct aq_hw_s *aq_hw, u32 value)
+{
+	aq_hw_write_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(5), value);
+}
+
+u32 hw_atl_glb_mdio_iface5_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg(aq_hw, HW_ATL_GLB_MDIO_IFACE_N_ADR(5));
+}
+
+u32 hw_atl_mdio_busy_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_MDIO_BUSY_ADR,
+				  HW_ATL_MDIO_BUSY_MSK,
+				  HW_ATL_MDIO_BUSY_SHIFT);
 }
