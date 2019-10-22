@@ -57,6 +57,8 @@ static void reboot_mode_write(struct reboot_mode_driver *reboot,
 	int magic;
 
 	magic = get_reboot_mode_magic(reboot, cmd);
+	if (!magic)
+		magic = get_reboot_mode_magic(reboot, NULL);
 	if (magic)
 		reboot->write(reboot, magic);
 }
