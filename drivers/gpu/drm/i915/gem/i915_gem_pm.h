@@ -12,7 +12,6 @@
 struct drm_i915_private;
 struct work_struct;
 
-bool i915_gem_load_power_context(struct drm_i915_private *i915);
 void i915_gem_resume(struct drm_i915_private *i915);
 
 void i915_gem_idle_work_handler(struct work_struct *work);

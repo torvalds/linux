@@ -37,11 +37,6 @@ static bool switch_to_kernel_context_sync(struct intel_gt *gt)
 	return result;
 }
 
-bool i915_gem_load_power_context(struct drm_i915_private *i915)
-{
-	return switch_to_kernel_context_sync(&i915->gt);
-}
-
 static void user_forcewake(struct intel_gt *gt, bool suspend)
 {
 	int count = atomic_read(&gt->user_wakeref);
@@ -171,7 +166,7 @@ void i915_gem_resume(struct drm_i915_private *i915)
 	intel_uc_resume(&i915->gt.uc);
 
 	/* Always reload a context for powersaving. */
-	if (!i915_gem_load_power_context(i915))
+	if (!switch_to_kernel_context_sync(&i915->gt))
 		goto err_wedged;
 
 	user_forcewake(&i915->gt, false);

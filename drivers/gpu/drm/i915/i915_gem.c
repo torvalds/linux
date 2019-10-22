@@ -48,6 +48,7 @@
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_gt_requests.h"
 #include "gt/intel_mocs.h"
 #include "gt/intel_reset.h"
 #include "gt/intel_renderstate.h"
@@ -1069,7 +1070,7 @@ void i915_gem_sanitize(struct drm_i915_private *i915)
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
-static int __intel_engines_record_defaults(struct drm_i915_private *i915)
+static int __intel_engines_record_defaults(struct intel_gt *gt)
 {
 	struct i915_request *requests[I915_NUM_ENGINES] = {};
 	struct intel_engine_cs *engine;
@@ -1085,7 +1086,7 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 	 * from the same default HW values.
 	 */
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_context *ce;
 		struct i915_request *rq;
 
@@ -1093,7 +1094,8 @@ static int __intel_engines_record_defaults(struct drm_i915_private *i915)
 		GEM_BUG_ON(!engine->kernel_context);
 		engine->serial++; /* force the kernel context switch */
 
-		ce = intel_context_create(i915->kernel_context, engine);
+		ce = intel_context_create(engine->kernel_context->gem_context,
+					  engine);
 		if (IS_ERR(ce)) {
 			err = PTR_ERR(ce);
 			goto out;
@@ -1122,7 +1124,7 @@ err_rq:
 	}
 
 	/* Flush the default context image to memory, and enable powersaving. */
-	if (!i915_gem_load_power_context(i915)) {
+	if (intel_gt_wait_for_idle(gt, I915_GEM_IDLE_TIMEOUT) == -ETIME) {
 		err = -EIO;
 		goto out;
 	}
@@ -1181,7 +1183,7 @@ out:
 	 * this is by declaring ourselves wedged.
 	 */
 	if (err)
-		intel_gt_set_wedged(&i915->gt);
+		intel_gt_set_wedged(gt);
 
 	for (id = 0; id < ARRAY_SIZE(requests); id++) {
 		struct intel_context *ce;
@@ -1295,7 +1297,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (ret)
 		goto err_gt;
 
-	ret = __intel_engines_record_defaults(dev_priv);
+	ret = __intel_engines_record_defaults(&dev_priv->gt);
 	if (ret)
 		goto err_gt;
 
