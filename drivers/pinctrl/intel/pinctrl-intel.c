@@ -1607,6 +1607,27 @@ intel_gpio_update_pad_mode(void __iomem *hostown, u32 mask, u32 value)
 	return curr;
 }
 
+static void intel_restore_padcfg(struct intel_pinctrl *pctrl, unsigned int pin,
+				 unsigned int reg, u32 saved)
+{
+	u32 mask = (reg == PADCFG0) ? PADCFG0_GPIORXSTATE : 0;
+	unsigned int n = reg / sizeof(u32);
+	struct device *dev = pctrl->dev;
+	void __iomem *padcfg;
+	u32 value;
+
+	padcfg = intel_get_padcfg(pctrl, pin, reg);
+	if (!padcfg)
+		return;
+
+	value = readl(padcfg) & ~mask;
+	if (value == saved)
+		return;
+
+	writel(saved, padcfg);
+	dev_dbg(dev, "restored pin %u padcfg%u %#08x\n", pin, n, readl(padcfg));
+}
+
 int intel_pinctrl_resume_noirq(struct device *dev)
 {
 	struct intel_pinctrl *pctrl = dev_get_drvdata(dev);
@@ -1620,37 +1641,13 @@ int intel_pinctrl_resume_noirq(struct device *dev)
 	pads = pctrl->context.pads;
 	for (i = 0; i < pctrl->soc->npins; i++) {
 		const struct pinctrl_pin_desc *desc = &pctrl->soc->pins[i];
-		void __iomem *padcfg;
-		u32 val;
 
 		if (!intel_pinctrl_should_save(pctrl, desc->number))
 			continue;
 
-		padcfg = intel_get_padcfg(pctrl, desc->number, PADCFG0);
-		val = readl(padcfg) & ~PADCFG0_GPIORXSTATE;
-		if (val != pads[i].padcfg0) {
-			writel(pads[i].padcfg0, padcfg);
-			dev_dbg(dev, "restored pin %u padcfg0 %#08x\n",
-				desc->number, readl(padcfg));
-		}
-
-		padcfg = intel_get_padcfg(pctrl, desc->number, PADCFG1);
-		val = readl(padcfg);
-		if (val != pads[i].padcfg1) {
-			writel(pads[i].padcfg1, padcfg);
-			dev_dbg(dev, "restored pin %u padcfg1 %#08x\n",
-				desc->number, readl(padcfg));
-		}
-
-		padcfg = intel_get_padcfg(pctrl, desc->number, PADCFG2);
-		if (padcfg) {
-			val = readl(padcfg);
-			if (val != pads[i].padcfg2) {
-				writel(pads[i].padcfg2, padcfg);
-				dev_dbg(dev, "restored pin %u padcfg2 %#08x\n",
-					desc->number, readl(padcfg));
-			}
-		}
+		intel_restore_padcfg(pctrl, desc->number, PADCFG0, pads[i].padcfg0);
+		intel_restore_padcfg(pctrl, desc->number, PADCFG1, pads[i].padcfg1);
+		intel_restore_padcfg(pctrl, desc->number, PADCFG2, pads[i].padcfg2);
 	}
 
 	communities = pctrl->context.communities;
