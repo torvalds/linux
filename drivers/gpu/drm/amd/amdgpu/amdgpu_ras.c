@@ -68,6 +68,11 @@ const char *ras_block_string[] = {
 /* inject address is 52 bits */
 #define	RAS_UMC_INJECT_ADDR_LIMIT	(0x1ULL << 52)
 
+enum amdgpu_ras_retire_page_reservation {
+	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
+	AMDGPU_RAS_RETIRE_PAGE_PENDING,
+	AMDGPU_RAS_RETIRE_PAGE_FAULT,
+};
 
 atomic_t amdgpu_ras_in_intr = ATOMIC_INIT(0);
 
@@ -809,11 +814,11 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 static char *amdgpu_ras_badpage_flags_str(unsigned int flags)
 {
 	switch (flags) {
-	case 0:
+	case AMDGPU_RAS_RETIRE_PAGE_RESERVED:
 		return "R";
-	case 1:
+	case AMDGPU_RAS_RETIRE_PAGE_PENDING:
 		return "P";
-	case 2:
+	case AMDGPU_RAS_RETIRE_PAGE_FAULT:
 	default:
 		return "F";
 	};
@@ -1294,13 +1299,13 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 		(*bps)[i] = (struct ras_badpage){
 			.bp = data->bps[i].retired_page,
 			.size = AMDGPU_GPU_PAGE_SIZE,
-			.flags = 0,
+			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
 
 		if (data->last_reserved <= i)
-			(*bps)[i].flags = 1;
+			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
 		else if (data->bps_bo[i] == NULL)
-			(*bps)[i].flags = 2;
+			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_FAULT;
 	}
 
 	*count = data->count;
