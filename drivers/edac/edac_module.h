@@ -82,6 +82,8 @@ void edac_debugfs_create_x8(const char *name, umode_t mode,
 			    struct dentry *parent, u8 *value);
 void edac_debugfs_create_x16(const char *name, umode_t mode,
 			     struct dentry *parent, u16 *value);
+void edac_debugfs_create_x32(const char *name, umode_t mode,
+			     struct dentry *parent, u32 *value);
 #else
 static inline void edac_debugfs_init(void)					{ }
 static inline void edac_debugfs_exit(void)					{ }
@@ -96,6 +98,8 @@ static inline void edac_debugfs_create_x8(const char *name, umode_t mode,
 					  struct dentry *parent, u8 *value)	{ }
 static inline void edac_debugfs_create_x16(const char *name, umode_t mode,
 					   struct dentry *parent, u16 *value)	{ }
+static inline void edac_debugfs_create_x32(const char *name, umode_t mode,
+		       struct dentry *parent, u32 *value)			{ }
 #endif
 
 /*
