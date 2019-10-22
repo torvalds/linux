@@ -202,14 +202,14 @@ void nf_ct_deliver_cached_events(struct nf_conn *ct)
 	if (notify == NULL)
 		goto out_unlock;
 
+	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
+		goto out_unlock;
+
 	e = nf_ct_ecache_find(ct);
 	if (e == NULL)
 		goto out_unlock;
 
 	events = xchg(&e->cache, 0);
-
-	if (!nf_ct_is_confirmed(ct) || nf_ct_is_dying(ct))
-		goto out_unlock;
 
 	/* We make a copy of the missed event cache without taking
 	 * the lock, thus we may send missed events twice. However,
