@@ -240,10 +240,8 @@ static int calibrate_8976(struct tsens_priv *priv)
 	u32 *qfprom_cdata;
 
 	qfprom_cdata = (u32 *)qfprom_read(priv->dev, "calib");
-	if (IS_ERR(qfprom_cdata)) {
-		kfree(qfprom_cdata);
+	if (IS_ERR(qfprom_cdata))
 		return PTR_ERR(qfprom_cdata);
-	}
 
 	mode = (qfprom_cdata[4] & MSM8976_CAL_SEL_MASK);
 	dev_dbg(priv->dev, "calibration mode is %d\n", mode);
