@@ -30,31 +30,6 @@ struct config_entry {
  * - the first successful match will win
  */
 static const struct config_entry config_table[] = {
-/* Cometlake-LP */
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CML_LP)
-	{
-		/* prefer SST */
-		.flags = FLAG_SST,
-		.device = 0x02c8,
-	},
-#elif IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_LP)
-	{
-		.flags = FLAG_SOF,
-		.device = 0x02c8,
-	},
-#endif
-/* Cometlake-H */
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_CML_H)
-	{
-		.flags = FLAG_SST,
-		.device = 0x06c8,
-	},
-#elif IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
-	{
-		.flags = FLAG_SOF,
-		.device = 0x06c8,
-	},
-#endif
 /* Merrifield */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_MERRIFIELD)
 	{
@@ -65,47 +40,15 @@ static const struct config_entry config_table[] = {
 /* Broxton-T */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.flags = FLAG_SOF,
 		.device = 0x1a98,
 	},
 #endif
-/* Geminilake */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
-	{
-		.flags = FLAG_SOF,
-		.device = 0x3198,
-		.dmi_table = (const struct dmi_system_id []) {
-			{
-				.ident = "Google Chromebooks",
-				.matches = {
-					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
-				}
-			},
-			{}
-		}
-	},
-#endif
-#if IS_ENABLED(CONFIG_SND_SOC_INTEL_GLK)
-	{
-		.flags = FLAG_SST,
-		.device = 0x3198,
-	},
-#endif
-/* Icelake */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
-	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
-		.device = 0x34c8,
-	},
-#endif
-/* Elkhart Lake */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_ELKHARTLAKE)
-	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
-		.device = 0x4b55,
-	},
-#endif
-/* Appololake (Broxton-P) */
+/*
+ * Apollolake (Broxton-P)
+ * the legacy HDaudio driver is used except on Up Squared (SOF) and
+ * Chromebooks (SST)
+ */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_APOLLOLAKE)
 	{
 		.flags = FLAG_SOF,
@@ -126,43 +69,208 @@ static const struct config_entry config_table[] = {
 	{
 		.flags = FLAG_SST,
 		.device = 0x5a98,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
 	},
 #endif
+/*
+ * Skylake and Kabylake use legacy HDaudio driver except for Google
+ * Chromebooks (SST)
+ */
+
+/* Sunrise Point-LP */
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_SKL)
+	{
+		.flags = FLAG_SST,
+		.device = 0x9d70,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+#endif
+/* Kabylake-LP */
+#if IS_ENABLED(CONFIG_SND_SOC_INTEL_KBL)
+	{
+		.flags = FLAG_SST,
+		.device = 0x9d71,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+#endif
+
+/*
+ * Geminilake uses legacy HDaudio driver except for Google
+ * Chromebooks
+ */
+/* Geminilake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_GEMINILAKE)
+	{
+		.flags = FLAG_SOF,
+		.device = 0x3198,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+#endif
+
+/*
+ * CoffeeLake, CannonLake, CometLake, IceLake, TigerLake use legacy
+ * HDaudio driver except for Google Chromebooks and when DMICs are
+ * present. Two cases are required since Coreboot does not expose NHLT
+ * tables.
+ *
+ * When the Chromebook quirk is not present, it's based on information
+ * that no such device exists. When the quirk is present, it could be
+ * either based on product information or a placeholder.
+ */
+
 /* Cannonlake */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_CANNONLAKE)
+	{
+		.flags = FLAG_SOF,
+		.device = 0x9dc8,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
 	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
 		.device = 0x9dc8,
 	},
 #endif
-/* Sunrise Point-LP */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_SKYLAKE)
-	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
-		.device = 0x9d70,
-	},
-#endif
-/* Kabylake-LP */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_KABYLAKE)
-	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
-		.device = 0x9d71,
-	},
-#endif
-/* Tigerlake */
-#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE)
-	{
-		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
-		.device = 0xa0c8,
-	},
-#endif
+
 /* Coffelake */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_COFFEELAKE)
+	{
+		.flags = FLAG_SOF,
+		.device = 0xa348,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
 	{
 		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
 		.device = 0xa348,
 	},
 #endif
+
+/* Cometlake-LP */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_LP)
+	{
+		.flags = FLAG_SOF,
+		.device = 0x02c8,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.device = 0x02c8,
+	},
+#endif
+/* Cometlake-H */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_COMETLAKE_H)
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.device = 0x06c8,
+	},
+#endif
+
+/* Icelake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_ICELAKE)
+	{
+		.flags = FLAG_SOF,
+		.device = 0x34c8,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.device = 0x34c8,
+	},
+#endif
+
+/* Tigerlake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_TIGERLAKE)
+	{
+		.flags = FLAG_SOF,
+		.device = 0xa0c8,
+		.dmi_table = (const struct dmi_system_id []) {
+			{
+				.ident = "Google Chromebooks",
+				.matches = {
+					DMI_MATCH(DMI_SYS_VENDOR, "Google"),
+				}
+			},
+			{}
+		}
+	},
+
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.device = 0xa0c8,
+	},
+#endif
+
+/* Elkhart Lake */
+#if IS_ENABLED(CONFIG_SND_SOC_SOF_ELKHARTLAKE)
+	{
+		.flags = FLAG_SOF | FLAG_SOF_ONLY_IF_DMIC,
+		.device = 0x4b55,
+	},
+#endif
+
 };
 
 static const struct config_entry *snd_intel_dsp_find_config
