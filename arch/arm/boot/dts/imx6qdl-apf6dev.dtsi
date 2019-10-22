@@ -11,6 +11,14 @@
 		stdout-path = &uart4;
 	};
 
+	backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&pwm3 0 191000>;
+		brightness-levels = <0 4 8 16 32 64 128 255>;
+		default-brightness-level = <0>;
+		power-supply = <&reg_5v>;
+	};
+
 	disp0 {
 		compatible = "fsl,imx-parallel-display";
 		interface-pix-fmt = "bgr666";
