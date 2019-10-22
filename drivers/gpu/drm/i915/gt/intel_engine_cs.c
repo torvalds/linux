@@ -370,12 +370,12 @@ static void __setup_engine_capabilities(struct intel_engine_cs *engine)
 	}
 }
 
-static void intel_setup_engine_capabilities(struct drm_i915_private *i915)
+static void intel_setup_engine_capabilities(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, gt, id)
 		__setup_engine_capabilities(engine);
 }
 
@@ -439,7 +439,7 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 
 	intel_gt_check_and_clear_faults(gt);
 
-	intel_setup_engine_capabilities(i915);
+	intel_setup_engine_capabilities(gt);
 
 	return 0;
 
