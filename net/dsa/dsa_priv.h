@@ -104,25 +104,14 @@ static inline struct net_device *dsa_master_find_slave(struct net_device *dev,
 {
 	struct dsa_port *cpu_dp = dev->dsa_ptr;
 	struct dsa_switch_tree *dst = cpu_dp->dst;
-	struct dsa_switch *ds;
-	struct dsa_port *slave_port;
+	struct dsa_port *dp;
 
-	if (device < 0 || device >= DSA_MAX_SWITCHES)
-		return NULL;
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds->index == device && dp->index == port &&
+		    dp->type == DSA_PORT_TYPE_USER)
+			return dp->slave;
 
-	ds = dst->ds[device];
-	if (!ds)
-		return NULL;
-
-	if (port < 0 || port >= ds->num_ports)
-		return NULL;
-
-	slave_port = &ds->ports[port];
-
-	if (unlikely(slave_port->type != DSA_PORT_TYPE_USER))
-		return NULL;
-
-	return slave_port->slave;
+	return NULL;
 }
 
 /* port.c */

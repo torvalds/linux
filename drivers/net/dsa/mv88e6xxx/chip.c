@@ -1057,35 +1057,43 @@ static int mv88e6xxx_set_mac_eee(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+/* Mask of the local ports allowed to receive frames from a given fabric port */
 static u16 mv88e6xxx_port_vlan(struct mv88e6xxx_chip *chip, int dev, int port)
 {
-	struct dsa_switch *ds = NULL;
+	struct dsa_switch *ds = chip->ds;
+	struct dsa_switch_tree *dst = ds->dst;
 	struct net_device *br;
+	struct dsa_port *dp;
+	bool found = false;
 	u16 pvlan;
-	int i;
 
-	if (dev < DSA_MAX_SWITCHES)
-		ds = chip->ds->dst->ds[dev];
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->ds->index == dev && dp->index == port) {
+			found = true;
+			break;
+		}
+	}
 
 	/* Prevent frames from unknown switch or port */
-	if (!ds || port >= ds->num_ports)
+	if (!found)
 		return 0;
 
 	/* Frames from DSA links and CPU ports can egress any local port */
-	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port))
+	if (dp->type == DSA_PORT_TYPE_CPU || dp->type == DSA_PORT_TYPE_DSA)
 		return mv88e6xxx_port_mask(chip);
 
-	br = ds->ports[port].bridge_dev;
+	br = dp->bridge_dev;
 	pvlan = 0;
 
 	/* Frames from user ports can egress any local DSA links and CPU ports,
 	 * as well as any local member of their bridge group.
 	 */
-	for (i = 0; i < mv88e6xxx_num_ports(chip); ++i)
-		if (dsa_is_cpu_port(chip->ds, i) ||
-		    dsa_is_dsa_port(chip->ds, i) ||
-		    (br && dsa_to_port(chip->ds, i)->bridge_dev == br))
-			pvlan |= BIT(i);
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds == ds &&
+		    (dp->type == DSA_PORT_TYPE_CPU ||
+		     dp->type == DSA_PORT_TYPE_DSA ||
+		     (br && dp->bridge_dev == br)))
+			pvlan |= BIT(dp->index);
 
 	return pvlan;
 }
@@ -1253,7 +1261,7 @@ static int mv88e6xxx_pvt_map(struct mv88e6xxx_chip *chip, int dev, int port)
 	u16 pvlan = 0;
 
 	if (!mv88e6xxx_has_pvt(chip))
-		return -EOPNOTSUPP;
+		return 0;
 
 	/* Skip the local source device, which uses in-chip port VLAN */
 	if (dev != chip->ds->index)
@@ -1402,7 +1410,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 			if (dsa_is_dsa_port(ds, i) || dsa_is_cpu_port(ds, i))
 				continue;
 
-			if (!ds->ports[i].slave)
+			if (!dsa_to_port(ds, i)->slave)
 				continue;
 
 			if (vlan.member[i] ==
@@ -1410,7 +1418,7 @@ static int mv88e6xxx_port_check_hw_vlan(struct dsa_switch *ds, int port,
 				continue;
 
 			if (dsa_to_port(ds, i)->bridge_dev ==
-			    ds->ports[port].bridge_dev)
+			    dsa_to_port(ds, port)->bridge_dev)
 				break; /* same bridge, check next VLAN */
 
 			if (!dsa_to_port(ds, i)->bridge_dev)
@@ -2035,32 +2043,26 @@ static int mv88e6xxx_port_fdb_dump(struct dsa_switch *ds, int port,
 static int mv88e6xxx_bridge_map(struct mv88e6xxx_chip *chip,
 				struct net_device *br)
 {
-	struct dsa_switch *ds;
-	int port;
-	int dev;
+	struct dsa_switch *ds = chip->ds;
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp;
 	int err;
 
-	/* Remap the Port VLAN of each local bridge group member */
-	for (port = 0; port < mv88e6xxx_num_ports(chip); ++port) {
-		if (chip->ds->ports[port].bridge_dev == br) {
-			err = mv88e6xxx_port_vlan_map(chip, port);
-			if (err)
-				return err;
-		}
-	}
-
-	if (!mv88e6xxx_has_pvt(chip))
-		return 0;
-
-	/* Remap the Port VLAN of each cross-chip bridge group member */
-	for (dev = 0; dev < DSA_MAX_SWITCHES; ++dev) {
-		ds = chip->ds->dst->ds[dev];
-		if (!ds)
-			break;
-
-		for (port = 0; port < ds->num_ports; ++port) {
-			if (ds->ports[port].bridge_dev == br) {
-				err = mv88e6xxx_pvt_map(chip, dev, port);
+	list_for_each_entry(dp, &dst->ports, list) {
+		if (dp->bridge_dev == br) {
+			if (dp->ds == ds) {
+				/* This is a local bridge group member,
+				 * remap its Port VLAN Map.
+				 */
+				err = mv88e6xxx_port_vlan_map(chip, dp->index);
+				if (err)
+					return err;
+			} else {
+				/* This is an external bridge group member,
+				 * remap its cross-chip Port VLAN Table entry.
+				 */
+				err = mv88e6xxx_pvt_map(chip, dp->ds->index,
+							dp->index);
 				if (err)
 					return err;
 			}
@@ -2101,9 +2103,6 @@ static int mv88e6xxx_crosschip_bridge_join(struct dsa_switch *ds, int dev,
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int err;
 
-	if (!mv88e6xxx_has_pvt(chip))
-		return 0;
-
 	mv88e6xxx_reg_lock(chip);
 	err = mv88e6xxx_pvt_map(chip, dev, port);
 	mv88e6xxx_reg_unlock(chip);
@@ -2115,9 +2114,6 @@ static void mv88e6xxx_crosschip_bridge_leave(struct dsa_switch *ds, int dev,
 					     int port, struct net_device *br)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
-
-	if (!mv88e6xxx_has_pvt(chip))
-		return;
 
 	mv88e6xxx_reg_lock(chip);
 	if (mv88e6xxx_pvt_map(chip, dev, port))
@@ -4982,10 +4978,12 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 	struct device *dev = chip->dev;
 	struct dsa_switch *ds;
 
-	ds = dsa_switch_alloc(dev, mv88e6xxx_num_ports(chip));
+	ds = devm_kzalloc(dev, sizeof(*ds), GFP_KERNEL);
 	if (!ds)
 		return -ENOMEM;
 
+	ds->dev = dev;
+	ds->num_ports = mv88e6xxx_num_ports(chip);
 	ds->priv = chip;
 	ds->dev = dev;
 	ds->ops = &mv88e6xxx_switch_ops;

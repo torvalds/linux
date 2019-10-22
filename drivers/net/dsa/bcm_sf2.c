@@ -662,7 +662,7 @@ static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
 		 * state machine and make it go in PHY_FORCING state instead.
 		 */
 		if (!status->link)
-			netif_carrier_off(ds->ports[port].slave);
+			netif_carrier_off(dsa_to_port(ds, port)->slave);
 		status->duplex = DUPLEX_FULL;
 	} else {
 		status->link = true;
@@ -728,7 +728,7 @@ static int bcm_sf2_sw_resume(struct dsa_switch *ds)
 static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 			       struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->ports[port].cpu_dp->master;
+	struct net_device *p = dsa_to_port(ds, port)->cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
 	struct ethtool_wolinfo pwol = { };
 
@@ -752,9 +752,9 @@ static void bcm_sf2_sw_get_wol(struct dsa_switch *ds, int port,
 static int bcm_sf2_sw_set_wol(struct dsa_switch *ds, int port,
 			      struct ethtool_wolinfo *wol)
 {
-	struct net_device *p = ds->ports[port].cpu_dp->master;
+	struct net_device *p = dsa_to_port(ds, port)->cpu_dp->master;
 	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	s8 cpu_port = ds->ports[port].cpu_dp->index;
+	s8 cpu_port = dsa_to_port(ds, port)->cpu_dp->index;
 	struct ethtool_wolinfo pwol =  { };
 
 	if (p->ethtool_ops->get_wol)

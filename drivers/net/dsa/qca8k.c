@@ -661,7 +661,7 @@ qca8k_setup(struct dsa_switch *ds)
 		return ret;
 
 	/* Initialize CPU port pad mode (xMII type, delays...) */
-	phy_mode = of_get_phy_mode(ds->ports[QCA8K_CPU_PORT].dn);
+	phy_mode = of_get_phy_mode(dsa_to_port(ds, QCA8K_CPU_PORT)->dn);
 	if (phy_mode < 0) {
 		pr_err("Can't find phy-mode for master device\n");
 		return phy_mode;
@@ -1077,10 +1077,13 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	if (id != QCA8K_ID_QCA8337)
 		return -ENODEV;
 
-	priv->ds = dsa_switch_alloc(&mdiodev->dev, QCA8K_NUM_PORTS);
+	priv->ds = devm_kzalloc(&mdiodev->dev, sizeof(*priv->ds),
+				QCA8K_NUM_PORTS);
 	if (!priv->ds)
 		return -ENOMEM;
 
+	priv->ds->dev = &mdiodev->dev;
+	priv->ds->num_ports = DSA_MAX_PORTS;
 	priv->ds->priv = priv;
 	priv->ops = qca8k_switch_ops;
 	priv->ds->ops = &priv->ops;

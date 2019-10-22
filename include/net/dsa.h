@@ -120,10 +120,8 @@ struct dsa_switch_tree {
 	 */
 	struct dsa_platform_data	*pd;
 
-	/*
-	 * The switch port to which the CPU is attached.
-	 */
-	struct dsa_port		*cpu_dp;
+	/* List of switch ports */
+	struct list_head ports;
 
 	/*
 	 * Data for the individual switch chips.
@@ -195,6 +193,8 @@ struct dsa_port {
 	struct work_struct	xmit_work;
 	struct sk_buff_head	xmit_queue;
 
+	struct list_head list;
+
 	/*
 	 * Give the switch driver somewhere to hang its per-port private data
 	 * structures (accessible from the tagger).
@@ -210,9 +210,13 @@ struct dsa_port {
 	 * Original copy of the master netdev net_device_ops
 	 */
 	const struct net_device_ops *orig_ndo_ops;
+
+	bool setup;
 };
 
 struct dsa_switch {
+	bool setup;
+
 	struct device *dev;
 
 	/*
@@ -273,14 +277,19 @@ struct dsa_switch {
 	 */
 	bool			vlan_filtering;
 
-	/* Dynamically allocated ports, keep last */
 	size_t num_ports;
-	struct dsa_port ports[];
 };
 
-static inline const struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
+static inline struct dsa_port *dsa_to_port(struct dsa_switch *ds, int p)
 {
-	return &ds->ports[p];
+	struct dsa_switch_tree *dst = ds->dst;
+	struct dsa_port *dp = NULL;
+
+	list_for_each_entry(dp, &dst->ports, list)
+		if (dp->ds == ds && dp->index == p)
+			break;
+
+	return dp;
 }
 
 static inline bool dsa_is_unused_port(struct dsa_switch *ds, int p)
@@ -568,7 +577,6 @@ static inline bool dsa_can_decode(const struct sk_buff *skb,
 	return false;
 }
 
-struct dsa_switch *dsa_switch_alloc(struct device *dev, size_t n);
 void dsa_unregister_switch(struct dsa_switch *ds);
 int dsa_register_switch(struct dsa_switch *ds);
 #ifdef CONFIG_PM_SLEEP
