@@ -4,6 +4,7 @@ config GKI_HIDDEN_DRM_CONFIGS
 	select DRM_GEM_CMA_HELPER
 	select DRM_KMS_CMA_HELPER
 	select DRM_MIPI_DSI
+	select SND_PCM_ELD
 	help
 	  Dummy config option used to enable hidden DRM configs.
 	  These are normally selected implicitely when including a
