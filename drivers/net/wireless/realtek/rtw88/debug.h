@@ -17,6 +17,7 @@ enum rtw_debug_mask {
 	RTW_DBG_REGD		= 0x00000100,
 	RTW_DBG_DEBUGFS		= 0x00000200,
 	RTW_DBG_PS		= 0x00000400,
+	RTW_DBG_BF		= 0x00000800,
 
 	RTW_DBG_ALL		= 0xffffffff
 };

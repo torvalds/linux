@@ -14,6 +14,7 @@
 #include "reg.h"
 #include "debug.h"
 #include "util.h"
+#include "bf.h"
 
 static void rtw8822c_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 				     u8 rx_path, bool is_tx2_path);
@@ -1068,6 +1069,8 @@ static void rtw8822c_phy_set_param(struct rtw_dev *rtwdev)
 
 	rtw8822c_rf_init(rtwdev);
 	rtw8822c_pwrtrack_init(rtwdev);
+
+	rtw_bf_phy_init(rtwdev);
 }
 
 #define WLAN_TXQ_RPT_EN		0x1F
@@ -2076,6 +2079,57 @@ static void rtw8822c_coex_cfg_wl_rx_gain(struct rtw_dev *rtwdev, bool low_gain)
 		rtw_write_rf(rtwdev, RF_PATH_A, 0x1d, 0xfffff, 0x0);
 		rtw_write_rf(rtwdev, RF_PATH_B, 0x1d, 0xfffff, 0x0);
 	}
+}
+
+static void rtw8822c_bf_enable_bfee_su(struct rtw_dev *rtwdev,
+				       struct rtw_vif *vif,
+				       struct rtw_bfee *bfee)
+{
+	u8 csi_rsc = 0;
+	u32 tmp6dc;
+
+	rtw_bf_enable_bfee_su(rtwdev, vif, bfee);
+
+	tmp6dc = rtw_read32(rtwdev, REG_BBPSF_CTRL) |
+			    BIT_WMAC_USE_NDPARATE |
+			    (csi_rsc << 13);
+	if (vif->net_type == RTW_NET_AP_MODE)
+		rtw_write32(rtwdev, REG_BBPSF_CTRL, tmp6dc | BIT(12));
+	else
+		rtw_write32(rtwdev, REG_BBPSF_CTRL, tmp6dc & ~BIT(12));
+
+	rtw_write32(rtwdev, REG_CSI_RRSR, 0x550);
+}
+
+static void rtw8822c_bf_config_bfee_su(struct rtw_dev *rtwdev,
+				       struct rtw_vif *vif,
+				       struct rtw_bfee *bfee, bool enable)
+{
+	if (enable)
+		rtw8822c_bf_enable_bfee_su(rtwdev, vif, bfee);
+	else
+		rtw_bf_remove_bfee_su(rtwdev, bfee);
+}
+
+static void rtw8822c_bf_config_bfee_mu(struct rtw_dev *rtwdev,
+				       struct rtw_vif *vif,
+				       struct rtw_bfee *bfee, bool enable)
+{
+	if (enable)
+		rtw_bf_enable_bfee_mu(rtwdev, vif, bfee);
+	else
+		rtw_bf_remove_bfee_mu(rtwdev, bfee);
+}
+
+static void rtw8822c_bf_config_bfee(struct rtw_dev *rtwdev, struct rtw_vif *vif,
+				    struct rtw_bfee *bfee, bool enable)
+{
+	if (bfee->role == RTW_BFEE_SU)
+		rtw8822c_bf_config_bfee_su(rtwdev, vif, bfee, enable);
+	else if (bfee->role == RTW_BFEE_MU)
+		rtw8822c_bf_config_bfee_mu(rtwdev, vif, bfee, enable);
+	else
+		rtw_warn(rtwdev, "wrong bfee role\n");
 }
 
 struct dpk_cfg_pair {
@@ -3678,6 +3732,9 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.phy_calibration	= rtw8822c_phy_calibration,
 	.cck_pd_set		= rtw8822c_phy_cck_pd_set,
 	.pwr_track		= rtw8822c_pwr_track,
+	.config_bfee		= rtw8822c_bf_config_bfee,
+	.set_gid_table		= rtw_bf_set_gid_table,
+	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
@@ -3998,6 +4055,8 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.dpd_ratemask = DIS_DPD_RATEALL,
 	.pwr_track_tbl = &rtw8822c_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
+	.bfer_su_max_num = 2,
+	.bfer_mu_max_num = 1,
 
 	.coex_para_ver = 0x19062706,
 	.bt_desired_ver = 0x6,

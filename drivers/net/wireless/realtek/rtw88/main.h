@@ -29,6 +29,7 @@
 #define RTW_RF_PATH_MAX			4
 #define HW_FEATURE_LEN			13
 
+extern bool rtw_bf_support;
 extern unsigned int rtw_fw_lps_deep_mode;
 extern unsigned int rtw_debug_mask;
 extern const struct ieee80211_ops rtw_ops;
@@ -647,6 +648,34 @@ struct rtw_sta_info {
 	struct rtw_ra_report ra_report;
 };
 
+enum rtw_bfee_role {
+	RTW_BFEE_NONE,
+	RTW_BFEE_SU,
+	RTW_BFEE_MU
+};
+
+struct rtw_bfee {
+	enum rtw_bfee_role role;
+
+	u16 p_aid;
+	u8 g_id;
+	u8 mac_addr[ETH_ALEN];
+	u8 sound_dim;
+
+	/* SU-MIMO */
+	u8 su_reg_index;
+
+	/* MU-MIMO */
+	u16 aid;
+};
+
+struct rtw_bf_info {
+	u8 bfer_mu_cnt;
+	u8 bfer_su_cnt;
+	DECLARE_BITMAP(bfer_su_reg_maping, 2);
+	u8 cur_csi_rpt_rate;
+};
+
 struct rtw_vif {
 	struct ieee80211_vif *vif;
 	enum rtw_net_type net_type;
@@ -660,6 +689,8 @@ struct rtw_vif {
 
 	struct rtw_traffic_stats stats;
 	bool in_lps;
+
+	struct rtw_bfee bfee;
 };
 
 struct rtw_regulatory {
@@ -692,6 +723,13 @@ struct rtw_chip_ops {
 	void (*dpk_track)(struct rtw_dev *rtwdev);
 	void (*cck_pd_set)(struct rtw_dev *rtwdev, u8 level);
 	void (*pwr_track)(struct rtw_dev *rtwdev);
+	void (*config_bfee)(struct rtw_dev *rtwdev, struct rtw_vif *vif,
+			    struct rtw_bfee *bfee, bool enable);
+	void (*set_gid_table)(struct rtw_dev *rtwdev,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *conf);
+	void (*cfg_csi_rate)(struct rtw_dev *rtwdev, u8 rssi, u8 cur_rate,
+			     u8 fixrate_en, u8 *new_rate);
 
 	/* for coex */
 	void (*coex_set_init)(struct rtw_dev *rtwdev);
@@ -949,6 +987,9 @@ struct rtw_chip_info {
 	u16 dpd_ratemask;
 	u8 iqk_threshold;
 	const struct rtw_pwr_track_tbl *pwr_track_tbl;
+
+	u8 bfer_su_max_num;
+	u8 bfer_mu_max_num;
 
 	/* coex paras */
 	u32 coex_para_ver;
@@ -1386,6 +1427,7 @@ struct rtw_hal {
 	u8 rf_path_num;
 	u8 antenna_tx;
 	u8 antenna_rx;
+	u8 bfee_sts_cap;
 
 	/* protect tx power section */
 	struct mutex tx_power_mutex;
@@ -1423,6 +1465,7 @@ struct rtw_dev {
 	struct rtw_sec_desc sec;
 	struct rtw_traffic_stats stats;
 	struct rtw_regulatory regd;
+	struct rtw_bf_info bf_info;
 
 	struct rtw_dm_info dm_info;
 	struct rtw_coex coex;

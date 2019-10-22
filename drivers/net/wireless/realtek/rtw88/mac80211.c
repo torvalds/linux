@@ -10,6 +10,7 @@
 #include "coex.h"
 #include "ps.h"
 #include "reg.h"
+#include "bf.h"
 #include "debug.h"
 
 static void rtw_ops_tx(struct ieee80211_hw *hw,
@@ -157,6 +158,7 @@ static int rtw_ops_add_interface(struct ieee80211_hw *hw,
 	rtwvif->stats.tx_cnt = 0;
 	rtwvif->stats.rx_cnt = 0;
 	rtwvif->in_lps = false;
+	memset(&rtwvif->bfee, 0, sizeof(struct rtw_bfee));
 	rtwvif->conf = &rtw_vif_port[port];
 	rtw_txq_init(rtwdev, vif->txq);
 
@@ -348,11 +350,14 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_fw_download_rsvd_page(rtwdev, vif);
 			rtw_send_rsvd_page_h2c(rtwdev);
 			rtw_coex_media_status_notify(rtwdev, conf->assoc);
+			if (rtw_bf_support)
+				rtw_bf_assoc(rtwdev, vif, conf);
 		} else {
 			rtw_leave_lps(rtwdev);
 			net_type = RTW_NET_NO_LINK;
 			rtwvif->aid = 0;
 			rtw_reset_rsvd_page(rtwdev);
+			rtw_bf_disassoc(rtwdev, vif, conf);
 		}
 
 		rtwvif->net_type = net_type;
@@ -367,6 +372,12 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_BEACON)
 		rtw_fw_download_rsvd_page(rtwdev, vif);
+
+	if (changed & BSS_CHANGED_MU_GROUPS) {
+		struct rtw_chip_info *chip = rtwdev->chip;
+
+		chip->ops->set_gid_table(rtwdev, vif, conf);
+	}
 
 	if (changed & BSS_CHANGED_ERP_SLOT)
 		rtw_conf_tx(rtwdev, rtwvif);

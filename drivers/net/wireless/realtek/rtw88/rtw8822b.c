@@ -13,6 +13,7 @@
 #include "mac.h"
 #include "reg.h"
 #include "debug.h"
+#include "bf.h"
 
 static void rtw8822b_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 				     u8 rx_path, bool is_tx2_path);
@@ -120,6 +121,13 @@ static void rtw8822b_pwrtrack_init(struct rtw_dev *rtwdev)
 	dm_info->thermal_meter_k = rtwdev->efuse.thermal_meter_k;
 }
 
+static void rtw8822b_phy_bf_init(struct rtw_dev *rtwdev)
+{
+	rtw_bf_phy_init(rtwdev);
+	/* Grouping bitmap parameters */
+	rtw_write32(rtwdev, 0x1C94, 0xAFFFAFFF);
+}
+
 static void rtw8822b_phy_set_param(struct rtw_dev *rtwdev)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
@@ -152,6 +160,8 @@ static void rtw8822b_phy_set_param(struct rtw_dev *rtwdev)
 
 	rtw8822b_phy_rfe_init(rtwdev);
 	rtw8822b_pwrtrack_init(rtwdev);
+
+	rtw8822b_phy_bf_init(rtwdev);
 }
 
 #define WLAN_SLOT_TIME		0x09
@@ -1456,6 +1466,37 @@ void rtw8822b_pwr_track(struct rtw_dev *rtwdev)
 	dm_info->pwr_trk_triggered = false;
 }
 
+static void rtw8822b_bf_config_bfee_su(struct rtw_dev *rtwdev,
+				       struct rtw_vif *vif,
+				       struct rtw_bfee *bfee, bool enable)
+{
+	if (enable)
+		rtw_bf_enable_bfee_su(rtwdev, vif, bfee);
+	else
+		rtw_bf_remove_bfee_su(rtwdev, bfee);
+}
+
+static void rtw8822b_bf_config_bfee_mu(struct rtw_dev *rtwdev,
+				       struct rtw_vif *vif,
+				       struct rtw_bfee *bfee, bool enable)
+{
+	if (enable)
+		rtw_bf_enable_bfee_mu(rtwdev, vif, bfee);
+	else
+		rtw_bf_remove_bfee_mu(rtwdev, bfee);
+}
+
+static void rtw8822b_bf_config_bfee(struct rtw_dev *rtwdev, struct rtw_vif *vif,
+				    struct rtw_bfee *bfee, bool enable)
+{
+	if (bfee->role == RTW_BFEE_SU)
+		rtw8822b_bf_config_bfee_su(rtwdev, vif, bfee, enable);
+	else if (bfee->role == RTW_BFEE_MU)
+		rtw8822b_bf_config_bfee_mu(rtwdev, vif, bfee, enable);
+	else
+		rtw_warn(rtwdev, "wrong bfee role\n");
+}
+
 static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822b[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -2003,6 +2044,9 @@ static struct rtw_chip_ops rtw8822b_ops = {
 	.false_alarm_statistics	= rtw8822b_false_alarm_statistics,
 	.phy_calibration	= rtw8822b_phy_calibration,
 	.pwr_track		= rtw8822b_pwr_track,
+	.config_bfee		= rtw8822b_bf_config_bfee,
+	.set_gid_table		= rtw_bf_set_gid_table,
+	.cfg_csi_rate		= rtw_bf_cfg_csi_rate,
 
 	.coex_set_init		= rtw8822b_coex_cfg_init,
 	.coex_set_ant_switch	= rtw8822b_coex_cfg_ant_switch,
@@ -2320,6 +2364,8 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.rfe_defs_size = ARRAY_SIZE(rtw8822b_rfe_defs),
 	.pwr_track_tbl = &rtw8822b_rtw_pwr_track_tbl,
 	.iqk_threshold = 8,
+	.bfer_su_max_num = 2,
+	.bfer_mu_max_num = 1,
 
 	.coex_para_ver = 0x19062706,
 	.bt_desired_ver = 0x6,
