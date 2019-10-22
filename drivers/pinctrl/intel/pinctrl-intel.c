@@ -1595,16 +1595,18 @@ intel_gpio_is_requested(struct gpio_chip *chip, int base, unsigned int size)
 	return requested;
 }
 
-static u32
-intel_gpio_update_pad_mode(void __iomem *hostown, u32 mask, u32 value)
+static bool intel_gpio_update_reg(void __iomem *reg, u32 mask, u32 value)
 {
 	u32 curr, updated;
 
-	curr = readl(hostown);
-	updated = (curr & ~mask) | (value & mask);
-	writel(updated, hostown);
+	curr = readl(reg);
 
-	return curr;
+	updated = (curr & ~mask) | (value & mask);
+	if (curr == updated)
+		return false;
+
+	writel(updated, reg);
+	return true;
 }
 
 static void intel_restore_hostown(struct intel_pinctrl *pctrl, unsigned int c,
@@ -1613,14 +1615,13 @@ static void intel_restore_hostown(struct intel_pinctrl *pctrl, unsigned int c,
 	const struct intel_community *community = &pctrl->communities[c];
 	const struct intel_padgroup *padgrp = &community->gpps[gpp];
 	struct device *dev = pctrl->dev;
-	u32 requested, value;
+	u32 requested;
 
 	if (padgrp->gpio_base < 0)
 		return;
 
 	requested = intel_gpio_is_requested(&pctrl->chip, padgrp->gpio_base, padgrp->size);
-	value = intel_gpio_update_pad_mode(base + gpp * 4, requested, saved);
-	if (!((value ^ saved) & requested))
+	if (!intel_gpio_update_reg(base + gpp * 4, requested, saved))
 		return;
 
 	dev_dbg(dev, "restored hostown %u/%u %#08x\n", c, gpp, readl(base + gpp * 4));
@@ -1631,7 +1632,9 @@ static void intel_restore_intmask(struct intel_pinctrl *pctrl, unsigned int c,
 {
 	struct device *dev = pctrl->dev;
 
-	writel(saved, base + gpp * 4);
+	if (!intel_gpio_update_reg(base + gpp * 4, ~0U, saved))
+		return;
+
 	dev_dbg(dev, "restored mask %u/%u %#08x\n", c, gpp, readl(base + gpp * 4));
 }
 
@@ -1642,17 +1645,14 @@ static void intel_restore_padcfg(struct intel_pinctrl *pctrl, unsigned int pin,
 	unsigned int n = reg / sizeof(u32);
 	struct device *dev = pctrl->dev;
 	void __iomem *padcfg;
-	u32 value;
 
 	padcfg = intel_get_padcfg(pctrl, pin, reg);
 	if (!padcfg)
 		return;
 
-	value = readl(padcfg) & ~mask;
-	if (value == saved)
+	if (!intel_gpio_update_reg(padcfg, ~mask, saved))
 		return;
 
-	writel(saved, padcfg);
 	dev_dbg(dev, "restored pin %u padcfg%u %#08x\n", pin, n, readl(padcfg));
 }
 
