@@ -57,8 +57,8 @@ struct safexcel_cipher_ctx {
 	/* All the below is AEAD specific */
 	u32 hash_alg;
 	u32 state_sz;
-	u32 ipad[SHA512_DIGEST_SIZE / sizeof(u32)];
-	u32 opad[SHA512_DIGEST_SIZE / sizeof(u32)];
+	__be32 ipad[SHA512_DIGEST_SIZE / sizeof(u32)];
+	__be32 opad[SHA512_DIGEST_SIZE / sizeof(u32)];
 
 	struct crypto_cipher *hkaes;
 	struct crypto_aead *fback;
@@ -92,7 +92,8 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 			cdesc->control_data.token[3] = 0;
 		} else {
 			/* 32 bit counter, start at 1 (big endian!) */
-			cdesc->control_data.token[3] = cpu_to_be32(1);
+			cdesc->control_data.token[3] =
+				(__force u32)cpu_to_be32(1);
 		}
 
 		return;
@@ -108,7 +109,8 @@ static void safexcel_cipher_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 			cdesc->control_data.token[3] = 0;
 		} else {
 			/* 32 bit counter, start at 1 (big endian!) */
-			cdesc->control_data.token[3] = cpu_to_be32(1);
+			*(__be32 *)&cdesc->control_data.token[3] =
+				cpu_to_be32(1);
 		}
 
 		return;
@@ -267,7 +269,7 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 	if (ctx->xcm != EIP197_XCM_MODE_GCM) {
 		u8 *final_iv = (u8 *)cdesc->control_data.token;
 		u8 *cbcmaciv = (u8 *)&token[1];
-		u32 *aadlen = (u32 *)&token[5];
+		__le32 *aadlen = (__le32 *)&token[5];
 
 		/* Construct IV block B0 for the CBC-MAC */
 		token[0].opcode = EIP197_TOKEN_OPCODE_INSERT;
@@ -286,7 +288,8 @@ static void safexcel_aead_token(struct safexcel_cipher_ctx *ctx, u8 *iv,
 		cbcmaciv[15] = cryptlen & 255;
 
 		if (assoclen) {
-			*aadlen = cpu_to_le32(cpu_to_be16(assoclen));
+			*aadlen = cpu_to_le32((assoclen >> 8) |
+					      ((assoclen & 0xff) << 8));
 			assoclen += 2;
 		}
 
@@ -333,7 +336,7 @@ static int safexcel_skcipher_aes_setkey(struct crypto_skcipher *ctfm,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < len / sizeof(u32); i++) {
-			if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
+			if (le32_to_cpu(ctx->key[i]) != aes.key_enc[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -358,7 +361,7 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 	struct safexcel_crypto_priv *priv = ctx->priv;
 	struct crypto_authenc_keys keys;
 	struct crypto_aes_ctx aes;
-	int err = -EINVAL;
+	int err = -EINVAL, i;
 
 	if (unlikely(crypto_authenc_extractkeys(&keys, key, len)))
 		goto badkey;
@@ -400,9 +403,14 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 		goto badkey;
 	}
 
-	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma &&
-	    memcmp(ctx->key, keys.enckey, keys.enckeylen))
-		ctx->base.needs_inv = true;
+	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
+		for (i = 0; i < keys.enckeylen / sizeof(u32); i++) {
+			if (le32_to_cpu(ctx->key[i]) != aes.key_enc[i]) {
+				ctx->base.needs_inv = true;
+				break;
+			}
+		}
+	}
 
 	/* Auth key */
 	switch (ctx->hash_alg) {
@@ -450,7 +458,8 @@ static int safexcel_aead_setkey(struct crypto_aead *ctfm, const u8 *key,
 		ctx->base.needs_inv = true;
 
 	/* Now copy the keys into the context */
-	memcpy(ctx->key, keys.enckey, keys.enckeylen);
+	for (i = 0; i < keys.enckeylen / sizeof(u32); i++)
+		ctx->key[i] = cpu_to_le32(aes.key_enc[i]);
 	ctx->key_len = keys.enckeylen;
 
 	memcpy(ctx->ipad, &istate.state, ctx->state_sz);
@@ -1378,7 +1387,7 @@ static int safexcel_skcipher_aesctr_setkey(struct crypto_skcipher *ctfm,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < keylen / sizeof(u32); i++) {
-			if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
+			if (le32_to_cpu(ctx->key[i]) != aes.key_enc[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -1534,13 +1543,11 @@ static int safexcel_des3_ede_setkey(struct crypto_skcipher *ctfm,
 		return err;
 
 	/* if context exits and key changed, need to invalidate it */
-	if (ctx->base.ctxr_dma) {
+	if (ctx->base.ctxr_dma)
 		if (memcmp(ctx->key, key, len))
 			ctx->base.needs_inv = true;
-	}
 
 	memcpy(ctx->key, key, len);
-
 	ctx->key_len = len;
 
 	return 0;
@@ -2361,7 +2368,7 @@ static int safexcel_skcipher_aesxts_setkey(struct crypto_skcipher *ctfm,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < keylen / sizeof(u32); i++) {
-			if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
+			if (le32_to_cpu(ctx->key[i]) != aes.key_enc[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -2380,8 +2387,8 @@ static int safexcel_skcipher_aesxts_setkey(struct crypto_skcipher *ctfm,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < keylen / sizeof(u32); i++) {
-			if (ctx->key[i + keylen / sizeof(u32)] !=
-			    cpu_to_le32(aes.key_enc[i])) {
+			if (le32_to_cpu(ctx->key[i + keylen / sizeof(u32)]) !=
+			    aes.key_enc[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -2471,7 +2478,7 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < len / sizeof(u32); i++) {
-			if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
+			if (le32_to_cpu(ctx->key[i]) != aes.key_enc[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -2498,7 +2505,7 @@ static int safexcel_aead_gcm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++) {
-			if (ctx->ipad[i] != cpu_to_be32(hashkey[i])) {
+			if (be32_to_cpu(ctx->ipad[i]) != hashkey[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -2588,7 +2595,7 @@ static int safexcel_aead_ccm_setkey(struct crypto_aead *ctfm, const u8 *key,
 
 	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
 		for (i = 0; i < len / sizeof(u32); i++) {
-			if (ctx->key[i] != cpu_to_le32(aes.key_enc[i])) {
+			if (le32_to_cpu(ctx->key[i]) != aes.key_enc[i]) {
 				ctx->base.needs_inv = true;
 				break;
 			}
@@ -2697,20 +2704,12 @@ static void safexcel_chacha20_setkey(struct safexcel_cipher_ctx *ctx,
 				     const u8 *key)
 {
 	struct safexcel_crypto_priv *priv = ctx->priv;
-	int i;
 
-	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
-		for (i = 0; i < CHACHA_KEY_SIZE / sizeof(u32); i++) {
-			if (ctx->key[i] !=
-			    get_unaligned_le32(key + i * sizeof(u32))) {
-				ctx->base.needs_inv = true;
-				break;
-			}
-		}
-	}
+	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma)
+		if (memcmp(ctx->key, key, CHACHA_KEY_SIZE))
+			ctx->base.needs_inv = true;
 
-	for (i = 0; i < CHACHA_KEY_SIZE / sizeof(u32); i++)
-		ctx->key[i] = get_unaligned_le32(key + i * sizeof(u32));
+	memcpy(ctx->key, key, CHACHA_KEY_SIZE);
 	ctx->key_len = CHACHA_KEY_SIZE;
 }
 
@@ -2801,7 +2800,7 @@ static int safexcel_aead_chachapoly_crypt(struct aead_request *req,
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct aead_request *subreq = aead_request_ctx(req);
 	u32 key[CHACHA_KEY_SIZE / sizeof(u32) + 1];
-	int i, ret = 0;
+	int ret = 0;
 
 	/*
 	 * Instead of wasting time detecting umpteen silly corner cases,
@@ -2815,8 +2814,7 @@ static int safexcel_aead_chachapoly_crypt(struct aead_request *req,
 	}
 
 	/* HW cannot do full (AAD+payload) zero length, use fallback */
-	for (i = 0; i < CHACHA_KEY_SIZE / sizeof(u32); i++)
-		key[i] = cpu_to_le32(ctx->key[i]);
+	memcpy(key, ctx->key, CHACHA_KEY_SIZE);
 	if (ctx->aead == EIP197_AEAD_TYPE_IPSEC_ESP) {
 		/* ESP variant has nonce appended to the key */
 		key[CHACHA_KEY_SIZE / sizeof(u32)] = ctx->nonce;
@@ -2971,25 +2969,17 @@ static int safexcel_skcipher_sm4_setkey(struct crypto_skcipher *ctfm,
 	struct crypto_tfm *tfm = crypto_skcipher_tfm(ctfm);
 	struct safexcel_cipher_ctx *ctx = crypto_tfm_ctx(tfm);
 	struct safexcel_crypto_priv *priv = ctx->priv;
-	int i;
 
 	if (len != SM4_KEY_SIZE) {
 		crypto_skcipher_set_flags(ctfm, CRYPTO_TFM_RES_BAD_KEY_LEN);
 		return -EINVAL;
 	}
 
-	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma) {
-		for (i = 0; i < SM4_KEY_SIZE / sizeof(u32); i++) {
-			if (ctx->key[i] !=
-			    get_unaligned_le32(key + i * sizeof(u32))) {
-				ctx->base.needs_inv = true;
-				break;
-			}
-		}
-	}
+	if (priv->flags & EIP197_TRC_CACHE && ctx->base.ctxr_dma)
+		if (memcmp(ctx->key, key, SM4_KEY_SIZE))
+			ctx->base.needs_inv = true;
 
-	for (i = 0; i < SM4_KEY_SIZE / sizeof(u32); i++)
-		ctx->key[i] = get_unaligned_le32(key + i * sizeof(u32));
+	memcpy(ctx->key, key, SM4_KEY_SIZE);
 	ctx->key_len = SM4_KEY_SIZE;
 
 	return 0;

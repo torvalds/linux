@@ -29,8 +29,8 @@ struct safexcel_ahash_ctx {
 	bool fb_init_done;
 	bool fb_do_setkey;
 
-	u32 ipad[SHA3_512_BLOCK_SIZE / sizeof(u32)];
-	u32 opad[SHA3_512_BLOCK_SIZE / sizeof(u32)];
+	__le32 ipad[SHA3_512_BLOCK_SIZE / sizeof(__le32)];
+	__le32 opad[SHA3_512_BLOCK_SIZE / sizeof(__le32)];
 
 	struct crypto_cipher *kaes;
 	struct crypto_ahash *fback;
@@ -56,7 +56,8 @@ struct safexcel_ahash_req {
 	u8 state_sz;    /* expected state size, only set once */
 	u8 block_sz;    /* block size, only set once */
 	u8 digest_sz;   /* output digest size, only set once */
-	u32 state[SHA3_512_BLOCK_SIZE / sizeof(u32)] __aligned(sizeof(u32));
+	__le32 state[SHA3_512_BLOCK_SIZE /
+		     sizeof(__le32)] __aligned(sizeof(__le32));
 
 	u64 len;
 	u64 processed;
@@ -287,7 +288,7 @@ static int safexcel_handle_req_result(struct safexcel_crypto_priv *priv,
 		if (unlikely(sreq->digest == CONTEXT_CONTROL_DIGEST_XCM &&
 			     ctx->alg == CONTEXT_CONTROL_CRYPTO_ALG_CRC32)) {
 			/* Undo final XOR with 0xffffffff ...*/
-			*(u32 *)areq->result = ~sreq->state[0];
+			*(__le32 *)areq->result = ~sreq->state[0];
 		} else {
 			memcpy(areq->result, sreq->state,
 			       crypto_ahash_digestsize(ahash));
@@ -372,9 +373,9 @@ static int safexcel_ahash_send_req(struct crypto_async_request *async, int ring,
 				req->cache[cache_len + skip] = 0x80;
 				// HW will use K2 iso K3 - compensate!
 				for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++)
-					((u32 *)req->cache)[i] ^=
-						cpu_to_be32(ctx->ipad[i]) ^
-						cpu_to_be32(ctx->ipad[i + 4]);
+					((__be32 *)req->cache)[i] ^=
+					  cpu_to_be32(le32_to_cpu(
+					    ctx->ipad[i] ^ ctx->ipad[i + 4]));
 			}
 			cache_len = AES_BLOCK_SIZE;
 			queued = queued + extra;
@@ -807,8 +808,8 @@ static int safexcel_ahash_final(struct ahash_request *areq)
 		int i;
 
 		for (i = 0; i < AES_BLOCK_SIZE / sizeof(u32); i++)
-			((u32 *)areq->result)[i] =
-				cpu_to_be32(ctx->ipad[i + 4]);	// K3
+			((__be32 *)areq->result)[i] =
+				cpu_to_be32(le32_to_cpu(ctx->ipad[i + 4]));//K3
 		areq->result[0] ^= 0x80;			// 10- padding
 		crypto_cipher_encrypt_one(ctx->kaes, areq->result, areq->result);
 		return 0;
@@ -1891,7 +1892,7 @@ static int safexcel_crc32_init(struct ahash_request *areq)
 	memset(req, 0, sizeof(*req));
 
 	/* Start from loaded key */
-	req->state[0]	= cpu_to_le32(~ctx->ipad[0]);
+	req->state[0]	= (__force __le32)le32_to_cpu(~ctx->ipad[0]);
 	/* Set processed to non-zero to enable invalidation detection */
 	req->len	= sizeof(u32);
 	req->processed	= sizeof(u32);
@@ -1993,7 +1994,7 @@ static int safexcel_cbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 
 	memset(ctx->ipad, 0, 2 * AES_BLOCK_SIZE);
 	for (i = 0; i < len / sizeof(u32); i++)
-		ctx->ipad[i + 8] = cpu_to_be32(aes.key_enc[i]);
+		ctx->ipad[i + 8] = (__force __le32)cpu_to_be32(aes.key_enc[i]);
 
 	if (len == AES_KEYSIZE_192) {
 		ctx->alg    = CONTEXT_CONTROL_CRYPTO_ALG_XCBC192;
@@ -2078,7 +2079,8 @@ static int safexcel_xcbcmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	crypto_cipher_encrypt_one(ctx->kaes, (u8 *)key_tmp + AES_BLOCK_SIZE,
 		"\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3\x3");
 	for (i = 0; i < 3 * AES_BLOCK_SIZE / sizeof(u32); i++)
-		ctx->ipad[i] = cpu_to_be32(key_tmp[i]);
+		ctx->ipad[i] =
+			cpu_to_le32((__force u32)cpu_to_be32(key_tmp[i]));
 
 	crypto_cipher_clear_flags(ctx->kaes, CRYPTO_TFM_REQ_MASK);
 	crypto_cipher_set_flags(ctx->kaes, crypto_ahash_get_flags(tfm) &
@@ -2164,7 +2166,8 @@ static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	}
 
 	for (i = 0; i < len / sizeof(u32); i++)
-		ctx->ipad[i + 8] = cpu_to_be32(aes.key_enc[i]);
+		ctx->ipad[i + 8] =
+			cpu_to_le32((__force u32)cpu_to_be32(aes.key_enc[i]));
 
 	/* precompute the CMAC key material */
 	crypto_cipher_clear_flags(ctx->kaes, CRYPTO_TFM_REQ_MASK);
@@ -2197,7 +2200,7 @@ static int safexcel_cmac_setkey(struct crypto_ahash *tfm, const u8 *key,
 	/* end of code borrowed from crypto/cmac.c */
 
 	for (i = 0; i < 2 * AES_BLOCK_SIZE / sizeof(u32); i++)
-		ctx->ipad[i] = cpu_to_be32(((u32 *)consts)[i]);
+		ctx->ipad[i] = (__force __le32)cpu_to_be32(((u32 *)consts)[i]);
 
 	if (len == AES_KEYSIZE_192) {
 		ctx->alg    = CONTEXT_CONTROL_CRYPTO_ALG_XCBC192;

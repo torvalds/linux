@@ -360,8 +360,8 @@
 
 /* Context Control */
 struct safexcel_context_record {
-	u32 control0;
-	u32 control1;
+	__le32 control0;
+	__le32 control1;
 
 	__le32 data[40];
 } __packed;
