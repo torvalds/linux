@@ -515,20 +515,19 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
-	struct i915_vma *vma;
-	int err;
 
-	vma = i915_vma_instance(obj, &i915->ggtt.vm, NULL);
-	if (IS_ERR(vma))
-		return PTR_ERR(vma);
-
-	err = i915_vma_pin(vma, 0, 0, PIN_USER);
-	if (err)
-		return err;
-
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
+		struct i915_vma *vma;
+		int err;
+
+		vma = i915_vma_instance(obj, &engine->gt->ggtt->vm, NULL);
+		if (IS_ERR(vma))
+			return PTR_ERR(vma);
+
+		err = i915_vma_pin(vma, 0, 0, PIN_USER);
+		if (err)
+			return err;
 
 		rq = i915_request_create(engine->kernel_context);
 		if (IS_ERR(rq)) {
@@ -544,12 +543,13 @@ static int make_obj_busy(struct drm_i915_gem_object *obj)
 		i915_vma_unlock(vma);
 
 		i915_request_add(rq);
+		i915_vma_unpin(vma);
+		if (err)
+			return err;
 	}
 
-	i915_vma_unpin(vma);
 	i915_gem_object_put(obj); /* leave it only alive via its active ref */
-
-	return err;
+	return 0;
 }
 
 static bool assert_mmap_offset(struct drm_i915_private *i915,
