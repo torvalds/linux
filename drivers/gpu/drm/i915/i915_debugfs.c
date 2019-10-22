@@ -1866,8 +1866,8 @@ static void i915_guc_log_info(struct seq_file *m,
 	struct intel_guc_log *log = &dev_priv->gt.uc.guc.log;
 	enum guc_log_buffer_type type;
 
-	if (!intel_guc_log_relay_enabled(log)) {
-		seq_puts(m, "GuC log relay disabled\n");
+	if (!intel_guc_log_relay_created(log)) {
+		seq_puts(m, "GuC log relay not created\n");
 		return;
 	}
 
@@ -2054,9 +2054,23 @@ i915_guc_log_relay_write(struct file *filp,
 			 loff_t *ppos)
 {
 	struct intel_guc_log *log = filp->private_data;
+	int val;
+	int ret;
 
-	intel_guc_log_relay_flush(log);
-	return cnt;
+	ret = kstrtoint_from_user(ubuf, cnt, 0, &val);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 * Enable and start the guc log relay on value of 1.
+	 * Flush log relay for any other value.
+	 */
+	if (val == 1)
+		ret = intel_guc_log_relay_start(log);
+	else
+		intel_guc_log_relay_flush(log);
+
+	return ret ?: cnt;
 }
 
 static int i915_guc_log_relay_release(struct inode *inode, struct file *file)
