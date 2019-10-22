@@ -326,7 +326,7 @@ __intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
 
 int intel_engines_init_mmio(struct intel_gt *gt);
 int intel_engines_setup(struct intel_gt *gt);
-int intel_engines_init(struct drm_i915_private *i915);
+int intel_engines_init(struct intel_gt *gt);
 void intel_engines_cleanup(struct intel_gt *gt);
 
 int intel_engine_init_common(struct intel_engine_cs *engine);

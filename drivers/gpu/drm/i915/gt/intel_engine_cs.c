@@ -451,23 +451,23 @@ cleanup:
 
 /**
  * intel_engines_init() - init the Engine Command Streamers
- * @i915: i915 device private
+ * @gt: pointer to struct intel_gt
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init(struct drm_i915_private *i915)
+int intel_engines_init(struct intel_gt *gt)
 {
 	int (*init)(struct intel_engine_cs *engine);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
 
-	if (HAS_EXECLISTS(i915))
+	if (HAS_EXECLISTS(gt->i915))
 		init = intel_execlists_submission_init;
 	else
 		init = intel_ring_submission_init;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = init(engine);
 		if (err)
 			goto cleanup;
@@ -476,7 +476,7 @@ int intel_engines_init(struct drm_i915_private *i915)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(&i915->gt);
+	intel_engines_cleanup(gt);
 	return err;
 }
 
