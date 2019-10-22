@@ -32,7 +32,6 @@ static int live_nop_switch(void *arg)
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
 	struct i915_gem_context **ctx;
-	enum intel_engine_id id;
 	struct igt_live_test t;
 	struct drm_file *file;
 	unsigned long n;
@@ -67,7 +66,7 @@ static int live_nop_switch(void *arg)
 		}
 	}
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		struct i915_request *rq;
 		unsigned long end_time, prime;
 		ktime_t times[2] = {};
@@ -583,7 +582,6 @@ static int igt_ctx_exec(void *arg)
 {
 	struct drm_i915_private *i915 = arg;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	int err = -ENODEV;
 
 	/*
@@ -595,7 +593,7 @@ static int igt_ctx_exec(void *arg)
 	if (!DRIVER_CAPS(i915)->has_logical_contexts)
 		return 0;
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		struct drm_i915_gem_object *obj = NULL;
 		unsigned long ncontexts, ndwords, dw;
 		struct i915_request *tq[5] = {};
@@ -711,7 +709,6 @@ static int igt_shared_ctx_exec(void *arg)
 	struct i915_request *tq[5] = {};
 	struct i915_gem_context *parent;
 	struct intel_engine_cs *engine;
-	enum intel_engine_id id;
 	struct igt_live_test t;
 	struct drm_file *file;
 	int err = 0;
@@ -743,7 +740,7 @@ static int igt_shared_ctx_exec(void *arg)
 	if (err)
 		goto out_file;
 
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		unsigned long ncontexts, ndwords, dw;
 		struct drm_i915_gem_object *obj = NULL;
 		IGT_TIMEOUT(end_time);
@@ -1651,7 +1648,6 @@ static int igt_vm_isolation(void *arg)
 	struct drm_file *file;
 	I915_RND_STATE(prng);
 	unsigned long count;
-	unsigned int id;
 	u64 vm_total;
 	int err;
 
@@ -1692,7 +1688,7 @@ static int igt_vm_isolation(void *arg)
 	vm_total -= I915_GTT_PAGE_SIZE;
 
 	count = 0;
-	for_each_engine(engine, i915, id) {
+	for_each_uabi_engine(engine, i915) {
 		IGT_TIMEOUT(end_time);
 		unsigned long this = 0;
 
