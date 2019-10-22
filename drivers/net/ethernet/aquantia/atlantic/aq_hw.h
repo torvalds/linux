@@ -259,6 +259,16 @@ struct aq_hw_ops {
 
 	int (*hw_set_sys_clock)(struct aq_hw_s *self, u64 time, u64 ts);
 
+	int (*hw_ts_to_sys_clock)(struct aq_hw_s *self, u64 ts, u64 *time);
+
+	int (*hw_gpio_pulse)(struct aq_hw_s *self, u32 index, u64 start,
+			     u32 period);
+
+	int (*hw_extts_gpio_enable)(struct aq_hw_s *self, u32 index,
+				    u32 enable);
+
+	int (*hw_get_sync_ts)(struct aq_hw_s *self, u64 *ts);
+
 	u16 (*rx_extract_ts)(struct aq_hw_s *self, u8 *p, unsigned int len,
 			     u64 *timestamp);
 

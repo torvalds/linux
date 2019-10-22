@@ -52,4 +52,6 @@ u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct sk_buff *skb, u8 *p,
 
 struct ptp_clock *aq_ptp_get_ptp_clock(struct aq_ptp_s *aq_ptp);
 
+int aq_ptp_link_change(struct aq_nic_s *aq_nic);
+
 #endif /* AQ_PTP_H */

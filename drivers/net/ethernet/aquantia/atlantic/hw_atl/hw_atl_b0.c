@@ -10,6 +10,7 @@
 #include "../aq_hw_utils.h"
 #include "../aq_ring.h"
 #include "../aq_nic.h"
+#include "../aq_phy.h"
 #include "hw_atl_b0.h"
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
@@ -1151,6 +1152,12 @@ static int hw_atl_b0_set_sys_clock(struct aq_hw_s *self, u64 time, u64 ts)
 	return hw_atl_b0_adj_sys_clock(self, delta);
 }
 
+int hw_atl_b0_ts_to_sys_clock(struct aq_hw_s *self, u64 ts, u64 *time)
+{
+	*time = self->ptp_clk_offset + ts;
+	return 0;
+}
+
 static int hw_atl_b0_adj_clock_freq(struct aq_hw_s *self, s32 ppb)
 {
 	struct hw_fw_request_iface fwreq;
@@ -1171,6 +1178,57 @@ static int hw_atl_b0_adj_clock_freq(struct aq_hw_s *self, s32 ppb)
 
 	size = sizeof(fwreq.msg_id) + sizeof(fwreq.ptp_adj_freq);
 	return self->aq_fw_ops->send_fw_request(self, &fwreq, size);
+}
+
+static int hw_atl_b0_gpio_pulse(struct aq_hw_s *self, u32 index,
+				u64 start, u32 period)
+{
+	struct hw_fw_request_iface fwreq;
+	size_t size;
+
+	memset(&fwreq, 0, sizeof(fwreq));
+
+	fwreq.msg_id = HW_AQ_FW_REQUEST_PTP_GPIO_CTRL;
+	fwreq.ptp_gpio_ctrl.index = index;
+	fwreq.ptp_gpio_ctrl.period = period;
+	/* Apply time offset */
+	fwreq.ptp_gpio_ctrl.start = start - self->ptp_clk_offset;
+
+	size = sizeof(fwreq.msg_id) + sizeof(fwreq.ptp_gpio_ctrl);
+	return self->aq_fw_ops->send_fw_request(self, &fwreq, size);
+}
+
+static int hw_atl_b0_extts_gpio_enable(struct aq_hw_s *self, u32 index,
+				       u32 enable)
+{
+	/* Enable/disable Sync1588 GPIO Timestamping */
+	aq_phy_write_reg(self, MDIO_MMD_PCS, 0xc611, enable ? 0x71 : 0);
+
+	return 0;
+}
+
+static int hw_atl_b0_get_sync_ts(struct aq_hw_s *self, u64 *ts)
+{
+	u64 sec_l;
+	u64 sec_h;
+	u64 nsec_l;
+	u64 nsec_h;
+
+	if (!ts)
+		return -1;
+
+	/* PTP external GPIO clock seconds count 15:0 */
+	sec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc914);
+	/* PTP external GPIO clock seconds count 31:16 */
+	sec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc915);
+	/* PTP external GPIO clock nanoseconds count 15:0 */
+	nsec_l = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc916);
+	/* PTP external GPIO clock nanoseconds count 31:16 */
+	nsec_h = aq_phy_read_reg(self, MDIO_MMD_PCS, 0xc917);
+
+	*ts = (nsec_h << 16) + nsec_l + ((sec_h << 16) + sec_l) * NSEC_PER_SEC;
+
+	return 0;
 }
 
 static u16 hw_atl_b0_rx_extract_ts(struct aq_hw_s *self, u8 *p,
@@ -1416,8 +1474,11 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_get_ptp_ts           = hw_atl_b0_get_ptp_ts,
 	.hw_adj_sys_clock        = hw_atl_b0_adj_sys_clock,
 	.hw_set_sys_clock        = hw_atl_b0_set_sys_clock,
+	.hw_ts_to_sys_clock      = hw_atl_b0_ts_to_sys_clock,
 	.hw_adj_clock_freq       = hw_atl_b0_adj_clock_freq,
-
+	.hw_gpio_pulse           = hw_atl_b0_gpio_pulse,
+	.hw_extts_gpio_enable    = hw_atl_b0_extts_gpio_enable,
+	.hw_get_sync_ts          = hw_atl_b0_get_sync_ts,
 	.rx_extract_ts           = hw_atl_b0_rx_extract_ts,
 	.extract_hwts            = hw_atl_b0_extract_hwts,
 	.hw_set_offload          = hw_atl_b0_hw_offload_set,

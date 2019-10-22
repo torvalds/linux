@@ -152,6 +152,7 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 			aq_ptp_clock_init(self);
 			aq_ptp_tm_offset_set(self,
 					     self->aq_hw->aq_link_status.mbps);
+			aq_ptp_link_change(self);
 		}
 
 		/* Driver has to update flow control settings on RX block

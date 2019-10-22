@@ -288,6 +288,12 @@ struct __packed offload_info {
 };
 
 /* Mailbox FW Request interface */
+struct __packed hw_fw_request_ptp_gpio_ctrl {
+	u32 index;
+	u32 period;
+	u64 start;
+};
+
 struct __packed hw_fw_request_ptp_adj_freq {
 	u32 ns_mac;
 	u32 fns_mac;
@@ -303,6 +309,7 @@ struct __packed hw_fw_request_ptp_adj_clock {
 	int sign;
 };
 
+#define HW_AQ_FW_REQUEST_PTP_GPIO_CTRL	         0x11
 #define HW_AQ_FW_REQUEST_PTP_ADJ_FREQ	         0x12
 #define HW_AQ_FW_REQUEST_PTP_ADJ_CLOCK	         0x13
 
@@ -310,6 +317,7 @@ struct __packed hw_fw_request_iface {
 	u32 msg_id;
 	union {
 		/* PTP FW Request */
+		struct hw_fw_request_ptp_gpio_ctrl ptp_gpio_ctrl;
 		struct hw_fw_request_ptp_adj_freq ptp_adj_freq;
 		struct hw_fw_request_ptp_adj_clock ptp_adj_clock;
 	};
