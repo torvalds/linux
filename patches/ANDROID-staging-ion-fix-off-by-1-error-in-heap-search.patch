@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Mon, 9 Sep 2019 08:21:20 -0700
-Subject: staging: ion: fix off-by-1 error in heap search
+Subject: ANDROID: staging: ion: fix off-by-1 error in heap search
 
 ion allocation was wrong because of an off-by-1 error
 in heap search for buffer allocation. Fix it.

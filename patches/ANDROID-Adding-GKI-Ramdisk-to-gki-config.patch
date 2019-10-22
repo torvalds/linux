@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Tue, 13 Aug 2019 10:11:28 -0700
-Subject: Adding GKI Ramdisk to gki config
+Subject: ANDROID: Adding GKI Ramdisk to gki config
 
 Test: Treehugger
 Bug: 132629930

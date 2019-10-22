@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Mark Salyzyn <salyzyn@google.com>
 Date: Thu, 12 Sep 2019 14:06:44 -0700
-Subject: CONFIG_MMC=m
+Subject: ANDROID: CONFIG_MMC=m
 
 Signed-off-by: Mark Salyzyn <salyzyn@google.com>
 Test: compile

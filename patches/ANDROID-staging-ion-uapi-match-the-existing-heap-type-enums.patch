@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Mon, 9 Sep 2019 08:34:43 -0700
-Subject: staging: ion: uapi: match the existing heap type enums
+Subject: ANDROID: staging: ion: uapi: match the existing heap type enums
 
 Change the enup order for ion heap types to match how it was before so
 as to not break any userspace code that depends on them.

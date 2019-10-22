@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Delva <adelva@google.com>
 Date: Thu, 22 Aug 2019 16:53:19 -0700
-Subject: Revert "um: irq: don't set the chip for all irqs"
+Subject: ANDROID: Revert "um: irq: don't set the chip for all irqs"
 
 This reverts commit 1987b1b8f9f17a06255877e7917d0bb5b5377774.
 

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Thu, 8 Aug 2019 08:50:56 -0700
-Subject: staging: ion: split system and system-contig heaps
+Subject: ANDROID: staging: ion: split system and system-contig heaps
 
 This will allows us to build and load them both as individual
 kernel modules.

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alessio Balsini <balsini@google.com>
 Date: Fri, 11 Oct 2019 13:50:20 +0100
-Subject: gki_defconfig: Enable CONFIG_DM_SNAPSHOT
+Subject: ANDROID: gki_defconfig: Enable CONFIG_DM_SNAPSHOT
 
 The snapshot dm target is required to implement the Virtual-AB
 mechanism.

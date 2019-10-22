@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Mon, 12 Aug 2019 17:23:25 -0700
-Subject: staging: ion: make system and contig heaps modular
+Subject: ANDROID: staging: ion: make system and contig heaps modular
 
 Add symmetric heap add/remove APIs and export symbols from
 ion core that are needed to make both heaps modular.

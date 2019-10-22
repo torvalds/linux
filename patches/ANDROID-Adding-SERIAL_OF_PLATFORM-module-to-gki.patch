@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Ram Muthiah <rammuthiah@google.com>
 Date: Wed, 4 Sep 2019 16:18:17 -0700
-Subject: Adding SERIAL_OF_PLATFORM module to gki
+Subject: ANDROID: Adding SERIAL_OF_PLATFORM module to gki
 
 Bug: 132629930
 Change-Id: I722540edb8b7a7289e45e63de2959399cb563e23

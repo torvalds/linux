@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: "Jorge E. Moreira" <jemoreira@google.com>
 Date: Thu, 23 May 2019 17:26:51 -0700
-Subject: Enable CONFIG_ION_SYSTEM_HEAP
+Subject: ANDROID: Enable CONFIG_ION_SYSTEM_HEAP
 
 Bug: 132983011
 Test: atest MediaStore_Video_ThumbnailsTest

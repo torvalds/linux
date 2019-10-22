@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Delva <adelva@google.com>
 Date: Wed, 9 Oct 2019 15:25:35 -0400
-Subject: Revert "kheaders: make headers archive reproducible"
+Subject: ANDROID: Revert "kheaders: make headers archive reproducible"
 
 This reverts commit 86cdd2fdc4e39c388d39c7ba2396d1a9dfd66226.
 

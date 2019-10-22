@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Alistair Delva <adelva@google.com>
 Date: Thu, 22 Aug 2019 16:53:55 -0700
-Subject: Revert "um: remove uses of variable length arrays"
+Subject: ANDROID: Revert "um: remove uses of variable length arrays"
 
 This reverts commit 0d4e5ac7e78035950d564e65c38ce148cb9af681.
 

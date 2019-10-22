@@ -1,7 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Greg Kroah-Hartman <gregkh@google.com>
 Date: Tue, 23 Jul 2019 14:52:18 +0200
-Subject: Revert "x86/mm: Identify the end of the kernel area to be reserved"
+Subject: ANDROID: Revert "x86/mm: Identify the end of the kernel area to be
+ reserved"
 
 This reverts commit c603a309cc75f3dd018ddb20ee44c05047918cbf.
 

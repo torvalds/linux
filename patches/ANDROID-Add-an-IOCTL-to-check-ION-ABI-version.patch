@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Hridya Valsaraju <hridya@google.com>
 Date: Wed, 2 Oct 2019 14:32:19 -0700
-Subject: Add an IOCTL to check ION ABI version
+Subject: ANDROID: Add an IOCTL to check ION ABI version
 
 Userspace needs a way to detect ION ABI version at runtime to determine
 heap IDs. CURRENT_ION_ABI_VERSION is set to 2 considering legacy and

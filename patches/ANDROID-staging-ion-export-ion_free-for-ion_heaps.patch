@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Tue, 10 Sep 2019 05:13:51 -0700
-Subject: staging: ion: export ion_free() for ion_heaps.
+Subject: ANDROID: staging: ion: export ion_free() for ion_heaps.
 
 ion_free() is a generic function needed to release
 an ion buffer back to the heap. So, export it for the

@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Thu, 8 Aug 2019 08:00:53 -0700
-Subject: staging: ion: Move ion heaps into their own directory
+Subject: ANDROID: staging: ion: Move ion heaps into their own directory
 
 This is preparatory work for ION heaps to be kernel modules, so
 they stay in their own directory inside ION. The heap modules are

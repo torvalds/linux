@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Thu, 8 Aug 2019 08:35:46 -0700
-Subject: staging: ion: refactor ion's heap API into linux/ion.h
+Subject: ANDROID: staging: ion: refactor ion's heap API into linux/ion.h
 
 Now that we know the APIs needed by system and cma heaps,
 refactor and move all those into linux/ion.h.

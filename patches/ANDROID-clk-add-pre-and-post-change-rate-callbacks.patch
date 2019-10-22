@@ -1,7 +1,7 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: David Dai <daidavid1@codeaurora.org>
 Date: Mon, 19 Aug 2019 16:35:44 -0700
-Subject: clk: add pre and post change rate callbacks
+Subject: ANDROID: clk: add pre and post change rate callbacks
 
 There are scenarios where a rate change could result in a configuration
 change for both the targeted clock and its parent.

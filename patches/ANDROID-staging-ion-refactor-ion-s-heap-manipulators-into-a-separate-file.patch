@@ -1,7 +1,8 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Sandeep Patil <sspatil@google.com>
 Date: Thu, 8 Aug 2019 07:52:27 -0700
-Subject: staging: ion: refactor ion's heap manipulators into a separate file.
+Subject: ANDROID: staging: ion: refactor ion's heap manipulators into a
+ separate file.
 
 This patch is preparatory work for making ion heaps modular. The patch
 itself doesn't make any significant changes except for re-organizing the
