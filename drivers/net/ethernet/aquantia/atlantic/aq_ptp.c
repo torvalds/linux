@@ -44,6 +44,7 @@ struct ptp_tx_timeout {
 
 struct aq_ptp_s {
 	struct aq_nic_s *aq_nic;
+	struct hwtstamp_config hwtstamp_config;
 	spinlock_t ptp_lock;
 	spinlock_t ptp_ring_lock;
 	struct ptp_clock *ptp_clock;
@@ -386,6 +387,68 @@ static void aq_ptp_rx_hwtstamp(struct aq_ptp_s *aq_ptp, struct sk_buff *skb,
 {
 	timestamp -= atomic_read(&aq_ptp->offset_ingress);
 	aq_ptp_convert_to_hwtstamp(aq_ptp, skb_hwtstamps(skb), timestamp);
+}
+
+void aq_ptp_hwtstamp_config_get(struct aq_ptp_s *aq_ptp,
+				struct hwtstamp_config *config)
+{
+	*config = aq_ptp->hwtstamp_config;
+}
+
+static void aq_ptp_prepare_filters(struct aq_ptp_s *aq_ptp)
+{
+	aq_ptp->udp_filter.cmd = HW_ATL_RX_ENABLE_FLTR_L3L4 |
+			       HW_ATL_RX_ENABLE_CMP_PROT_L4 |
+			       HW_ATL_RX_UDP |
+			       HW_ATL_RX_ENABLE_CMP_DEST_PORT_L4 |
+			       HW_ATL_RX_HOST << HW_ATL_RX_ACTION_FL3F4_SHIFT |
+			       HW_ATL_RX_ENABLE_QUEUE_L3L4 |
+			       aq_ptp->ptp_rx.idx << HW_ATL_RX_QUEUE_FL3L4_SHIFT;
+	aq_ptp->udp_filter.p_dst = PTP_EV_PORT;
+
+	aq_ptp->eth_type_filter.ethertype = ETH_P_1588;
+	aq_ptp->eth_type_filter.queue = aq_ptp->ptp_rx.idx;
+}
+
+int aq_ptp_hwtstamp_config_set(struct aq_ptp_s *aq_ptp,
+			       struct hwtstamp_config *config)
+{
+	struct aq_nic_s *aq_nic = aq_ptp->aq_nic;
+	const struct aq_hw_ops *hw_ops;
+	int err = 0;
+
+	hw_ops = aq_nic->aq_hw_ops;
+	if (config->tx_type == HWTSTAMP_TX_ON ||
+	    config->rx_filter == HWTSTAMP_FILTER_PTP_V2_EVENT) {
+		aq_ptp_prepare_filters(aq_ptp);
+		if (hw_ops->hw_filter_l3l4_set) {
+			err = hw_ops->hw_filter_l3l4_set(aq_nic->aq_hw,
+							 &aq_ptp->udp_filter);
+		}
+		if (!err && hw_ops->hw_filter_l2_set) {
+			err = hw_ops->hw_filter_l2_set(aq_nic->aq_hw,
+						       &aq_ptp->eth_type_filter);
+		}
+		aq_utils_obj_set(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP);
+	} else {
+		aq_ptp->udp_filter.cmd &= ~HW_ATL_RX_ENABLE_FLTR_L3L4;
+		if (hw_ops->hw_filter_l3l4_set) {
+			err = hw_ops->hw_filter_l3l4_set(aq_nic->aq_hw,
+							 &aq_ptp->udp_filter);
+		}
+		if (!err && hw_ops->hw_filter_l2_clear) {
+			err = hw_ops->hw_filter_l2_clear(aq_nic->aq_hw,
+							&aq_ptp->eth_type_filter);
+		}
+		aq_utils_obj_clear(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP);
+	}
+
+	if (err)
+		return -EREMOTEIO;
+
+	aq_ptp->hwtstamp_config = *config;
+
+	return 0;
 }
 
 bool aq_ptp_ring(struct aq_nic_s *aq_nic, struct aq_ring_s *ring)
