@@ -327,11 +327,6 @@ static int caam_remove(struct platform_device *pdev)
 	if (!ctrlpriv->mc_en && ctrlpriv->rng4_sh_init)
 		deinstantiate_rng(ctrldev, ctrlpriv->rng4_sh_init);
 
-	/* Shut down debug views */
-#ifdef CONFIG_DEBUG_FS
-	debugfs_remove_recursive(ctrlpriv->dfs_root);
-#endif
-
 	return 0;
 }
 
@@ -563,6 +558,13 @@ static int init_clocks(struct device *dev, const struct caam_imx_data *data)
 	return devm_add_action_or_reset(dev, disable_clocks, ctrlpriv);
 }
 
+#ifdef CONFIG_DEBUG_FS
+static void caam_remove_debugfs(void *root)
+{
+	debugfs_remove_recursive(root);
+}
+#endif
+
 /* Probe routine for CAAM top (controller) level */
 static int caam_probe(struct platform_device *pdev)
 {
@@ -575,6 +577,7 @@ static int caam_probe(struct platform_device *pdev)
 	struct caam_drv_private *ctrlpriv;
 #ifdef CONFIG_DEBUG_FS
 	struct caam_perfmon *perfmon;
+	struct dentry *dfs_root;
 #endif
 	u32 scfgr, comp_params;
 	u8 rng_vid;
@@ -728,8 +731,12 @@ static int caam_probe(struct platform_device *pdev)
 	 */
 	perfmon = (struct caam_perfmon __force *)&ctrl->perfmon;
 
-	ctrlpriv->dfs_root = debugfs_create_dir(dev_name(dev), NULL);
-	ctrlpriv->ctl = debugfs_create_dir("ctl", ctrlpriv->dfs_root);
+	dfs_root = debugfs_create_dir(dev_name(dev), NULL);
+	ret = devm_add_action_or_reset(dev, caam_remove_debugfs, dfs_root);
+	if (ret)
+		return ret;
+
+	ctrlpriv->ctl = debugfs_create_dir("ctl", dfs_root);
 #endif
 
 	/* Check to see if (DPAA 1.x) QI present. If so, enable */
