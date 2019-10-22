@@ -37,10 +37,8 @@ struct dpdmai_rsp_get_tx_queue {
 	((_cmd).params[_param] |= mc_enc((_offset), (_width), _arg))
 
 /* cmd, param, offset, width, type, arg_name */
-#define DPDMAI_CMD_CREATE(_cmd, _cfg) \
+#define DPDMAI_CMD_CREATE(cmd, cfg) \
 do { \
-	typeof(_cmd) (cmd) = (_cmd); \
-	typeof(_cfg) (cfg) = (_cfg); \
 	MC_CMD_OP(cmd, 0, 8,  8,  u8,  (cfg)->priorities[0]);\
 	MC_CMD_OP(cmd, 0, 16, 8,  u8,  (cfg)->priorities[1]);\
 } while (0)
