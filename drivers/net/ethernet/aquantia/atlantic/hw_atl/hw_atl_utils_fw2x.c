@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_utils_fw2x.c: Definition of firmware 2.x functions for
@@ -17,14 +17,17 @@
 #include "hw_atl_utils.h"
 #include "hw_atl_llh.h"
 
-#define HW_ATL_FW2X_MPI_RPC_ADDR        0x334
+#define HW_ATL_FW2X_MPI_RPC_ADDR         0x334
 
-#define HW_ATL_FW2X_MPI_MBOX_ADDR       0x360
-#define HW_ATL_FW2X_MPI_EFUSE_ADDR	0x364
-#define HW_ATL_FW2X_MPI_CONTROL_ADDR	0x368
-#define HW_ATL_FW2X_MPI_CONTROL2_ADDR	0x36C
-#define HW_ATL_FW2X_MPI_STATE_ADDR	0x370
-#define HW_ATL_FW2X_MPI_STATE2_ADDR     0x374
+#define HW_ATL_FW2X_MPI_MBOX_ADDR        0x360
+#define HW_ATL_FW2X_MPI_EFUSE_ADDR       0x364
+#define HW_ATL_FW2X_MPI_CONTROL_ADDR     0x368
+#define HW_ATL_FW2X_MPI_CONTROL2_ADDR    0x36C
+#define HW_ATL_FW2X_MPI_STATE_ADDR       0x370
+#define HW_ATL_FW2X_MPI_STATE2_ADDR      0x374
+
+#define HW_ATL_FW3X_EXT_CONTROL_ADDR     0x378
+#define HW_ATL_FW3X_EXT_STATE_ADDR       0x37c
 
 #define HW_ATL_FW2X_CAP_PAUSE            BIT(CAPS_HI_PAUSE)
 #define HW_ATL_FW2X_CAP_ASYM_PAUSE       BIT(CAPS_HI_ASYMMETRIC_PAUSE)
@@ -444,6 +447,54 @@ err_exit:
 	return err;
 }
 
+static int aq_fw2x_send_fw_request(struct aq_hw_s *self,
+				   const struct hw_fw_request_iface *fw_req,
+				   size_t size)
+{
+	u32 ctrl2, orig_ctrl2;
+	u32 dword_cnt;
+	int err = 0;
+	u32 val;
+
+	/* Write data to drvIface Mailbox */
+	dword_cnt = size / sizeof(u32);
+	if (size % sizeof(u32))
+		dword_cnt++;
+	err = hw_atl_utils_fw_upload_dwords(self, aq_fw2x_rpc_get(self),
+					    (void *)fw_req, dword_cnt);
+	if (err < 0)
+		goto err_exit;
+
+	/* Toggle statistics bit for FW to update */
+	ctrl2 = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
+	orig_ctrl2 = ctrl2 & BIT(CAPS_HI_FW_REQUEST);
+	ctrl2 = ctrl2 ^ BIT(CAPS_HI_FW_REQUEST);
+	aq_hw_write_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR, ctrl2);
+
+	/* Wait FW to report back */
+	err = readx_poll_timeout_atomic(aq_fw2x_state2_get, self, val,
+					orig_ctrl2 != (val &
+						       BIT(CAPS_HI_FW_REQUEST)),
+					1U, 10000U);
+
+err_exit:
+	return err;
+}
+
+static void aq_fw3x_enable_ptp(struct aq_hw_s *self, int enable)
+{
+	u32 ptp_opts = aq_hw_read_reg(self, HW_ATL_FW3X_EXT_STATE_ADDR);
+	u32 all_ptp_features = BIT(CAPS_EX_PHY_PTP_EN) |
+						   BIT(CAPS_EX_PTP_GPIO_EN);
+
+	if (enable)
+		ptp_opts |= all_ptp_features;
+	else
+		ptp_opts &= ~all_ptp_features;
+
+	aq_hw_write_reg(self, HW_ATL_FW3X_EXT_CONTROL_ADDR, ptp_opts);
+}
+
 static int aq_fw2x_set_eee_rate(struct aq_hw_s *self, u32 speed)
 {
 	u32 mpi_opts = aq_hw_read_reg(self, HW_ATL_FW2X_MPI_CONTROL2_ADDR);
@@ -534,19 +585,21 @@ static u32 aq_fw2x_state2_get(struct aq_hw_s *self)
 }
 
 const struct aq_fw_ops aq_fw_2x_ops = {
-	.init = aq_fw2x_init,
-	.deinit = aq_fw2x_deinit,
-	.reset = NULL,
-	.renegotiate = aq_fw2x_renegotiate,
-	.get_mac_permanent = aq_fw2x_get_mac_permanent,
-	.set_link_speed = aq_fw2x_set_link_speed,
-	.set_state = aq_fw2x_set_state,
+	.init               = aq_fw2x_init,
+	.deinit             = aq_fw2x_deinit,
+	.reset              = NULL,
+	.renegotiate        = aq_fw2x_renegotiate,
+	.get_mac_permanent  = aq_fw2x_get_mac_permanent,
+	.set_link_speed     = aq_fw2x_set_link_speed,
+	.set_state          = aq_fw2x_set_state,
 	.update_link_status = aq_fw2x_update_link_status,
-	.update_stats = aq_fw2x_update_stats,
-	.get_phy_temp = aq_fw2x_get_phy_temp,
-	.set_power = aq_fw2x_set_power,
-	.set_eee_rate = aq_fw2x_set_eee_rate,
-	.get_eee_rate = aq_fw2x_get_eee_rate,
-	.set_flow_control = aq_fw2x_set_flow_control,
-	.get_flow_control = aq_fw2x_get_flow_control
+	.update_stats       = aq_fw2x_update_stats,
+	.get_phy_temp       = aq_fw2x_get_phy_temp,
+	.set_power          = aq_fw2x_set_power,
+	.set_eee_rate       = aq_fw2x_set_eee_rate,
+	.get_eee_rate       = aq_fw2x_get_eee_rate,
+	.set_flow_control   = aq_fw2x_set_flow_control,
+	.get_flow_control   = aq_fw2x_get_flow_control,
+	.send_fw_request    = aq_fw2x_send_fw_request,
+	.enable_ptp         = aq_fw3x_enable_ptp,
 };

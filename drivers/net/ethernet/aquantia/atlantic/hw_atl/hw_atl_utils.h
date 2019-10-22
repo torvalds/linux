@@ -279,6 +279,34 @@ struct __packed offload_info {
 	u8 buf[0];
 };
 
+/* Mailbox FW Request interface */
+struct __packed hw_fw_request_ptp_adj_freq {
+	u32 ns_mac;
+	u32 fns_mac;
+	u32 ns_phy;
+	u32 fns_phy;
+	u32 mac_ns_adj;
+	u32 mac_fns_adj;
+};
+
+struct __packed hw_fw_request_ptp_adj_clock {
+	u32 ns;
+	u32 sec;
+	int sign;
+};
+
+#define HW_AQ_FW_REQUEST_PTP_ADJ_FREQ	         0x12
+#define HW_AQ_FW_REQUEST_PTP_ADJ_CLOCK	         0x13
+
+struct __packed hw_fw_request_iface {
+	u32 msg_id;
+	union {
+		/* PTP FW Request */
+		struct hw_fw_request_ptp_adj_freq ptp_adj_freq;
+		struct hw_fw_request_ptp_adj_clock ptp_adj_clock;
+	};
+};
+
 enum hw_atl_rx_action_with_traffic {
 	HW_ATL_RX_DISCARD,
 	HW_ATL_RX_HOST,
@@ -560,6 +588,8 @@ struct aq_stats_s *hw_atl_utils_get_hw_stats(struct aq_hw_s *self);
 
 int hw_atl_utils_fw_downld_dwords(struct aq_hw_s *self, u32 a,
 				  u32 *p, u32 cnt);
+
+int hw_atl_utils_fw_upload_dwords(struct aq_hw_s *self, u32 a, u32 *p, u32 cnt);
 
 int hw_atl_utils_fw_set_wol(struct aq_hw_s *self, bool wol_enabled, u8 *mac);
 

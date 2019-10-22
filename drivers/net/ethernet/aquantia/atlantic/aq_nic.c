@@ -146,6 +146,9 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 			self->aq_hw->aq_link_status.mbps);
 		aq_nic_update_interrupt_moderation_settings(self);
 
+		if (self->aq_ptp)
+			aq_ptp_clock_init(self);
+
 		/* Driver has to update flow control settings on RX block
 		 * on any link event.
 		 * We should query FW whether it negotiated FC.

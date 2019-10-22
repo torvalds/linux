@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_b0.c: Definition of Atlantic hardware specific functions. */
@@ -48,6 +48,8 @@
 	.mtu = HW_ATL_B0_MTU_JUMBO,	  \
 	.mac_regs_count = 88,		  \
 	.hw_alive_check_addr = 0x10U
+
+#define FRAC_PER_NS 0x100000000LL
 
 const struct aq_hw_caps_s hw_atl_b0_caps_aqc100 = {
 	DEFAULT_B0_BOARD_BASIC_CAPABILITIES,
@@ -1005,6 +1007,104 @@ static int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+#define get_ptp_ts_val_u64(self, indx) \
+	((u64)(hw_atl_pcs_ptp_clock_get(self, indx) & 0xffff))
+
+static void hw_atl_b0_get_ptp_ts(struct aq_hw_s *self, u64 *stamp)
+{
+	u64 ns;
+
+	hw_atl_pcs_ptp_clock_read_enable(self, 1);
+	hw_atl_pcs_ptp_clock_read_enable(self, 0);
+	ns = (get_ptp_ts_val_u64(self, 0) +
+	      (get_ptp_ts_val_u64(self, 1) << 16)) * NSEC_PER_SEC +
+	     (get_ptp_ts_val_u64(self, 3) +
+	      (get_ptp_ts_val_u64(self, 4) << 16));
+
+	*stamp = ns + self->ptp_clk_offset;
+}
+
+static void hw_atl_b0_adj_params_get(u64 freq, s64 adj, u32 *ns, u32 *fns)
+{
+	/* For accuracy, the digit is extended */
+	s64 base_ns = ((adj + NSEC_PER_SEC) * NSEC_PER_SEC);
+	u64 nsi_frac = 0;
+	u64 nsi;
+
+	base_ns = div64_s64(base_ns, freq);
+	nsi = div64_u64(base_ns, NSEC_PER_SEC);
+
+	if (base_ns != nsi * NSEC_PER_SEC) {
+		s64 divisor = div64_s64((s64)NSEC_PER_SEC * NSEC_PER_SEC,
+					base_ns - nsi * NSEC_PER_SEC);
+		nsi_frac = div64_s64(FRAC_PER_NS * NSEC_PER_SEC, divisor);
+	}
+
+	*ns = (u32)nsi;
+	*fns = (u32)nsi_frac;
+}
+
+static void
+hw_atl_b0_mac_adj_param_calc(struct hw_fw_request_ptp_adj_freq *ptp_adj_freq,
+			     u64 phyfreq, u64 macfreq)
+{
+	s64 adj_fns_val;
+	s64 fns_in_sec_phy = phyfreq * (ptp_adj_freq->fns_phy +
+					FRAC_PER_NS * ptp_adj_freq->ns_phy);
+	s64 fns_in_sec_mac = macfreq * (ptp_adj_freq->fns_mac +
+					FRAC_PER_NS * ptp_adj_freq->ns_mac);
+	s64 fault_in_sec_phy = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_phy;
+	s64 fault_in_sec_mac = FRAC_PER_NS * NSEC_PER_SEC - fns_in_sec_mac;
+	/* MAC MCP counter freq is macfreq / 4 */
+	s64 diff_in_mcp_overflow = (fault_in_sec_mac - fault_in_sec_phy) *
+				   4 * FRAC_PER_NS;
+
+	diff_in_mcp_overflow = div64_s64(diff_in_mcp_overflow,
+					 AQ_HW_MAC_COUNTER_HZ);
+	adj_fns_val = (ptp_adj_freq->fns_mac + FRAC_PER_NS *
+		       ptp_adj_freq->ns_mac) + diff_in_mcp_overflow;
+
+	ptp_adj_freq->mac_ns_adj = div64_s64(adj_fns_val, FRAC_PER_NS);
+	ptp_adj_freq->mac_fns_adj = adj_fns_val - ptp_adj_freq->mac_ns_adj *
+				    FRAC_PER_NS;
+}
+
+static int hw_atl_b0_adj_sys_clock(struct aq_hw_s *self, s64 delta)
+{
+	self->ptp_clk_offset += delta;
+
+	return 0;
+}
+
+static int hw_atl_b0_set_sys_clock(struct aq_hw_s *self, u64 time, u64 ts)
+{
+	s64 delta = time - (self->ptp_clk_offset + ts);
+
+	return hw_atl_b0_adj_sys_clock(self, delta);
+}
+
+static int hw_atl_b0_adj_clock_freq(struct aq_hw_s *self, s32 ppb)
+{
+	struct hw_fw_request_iface fwreq;
+	size_t size;
+
+	memset(&fwreq, 0, sizeof(fwreq));
+
+	fwreq.msg_id = HW_AQ_FW_REQUEST_PTP_ADJ_FREQ;
+	hw_atl_b0_adj_params_get(AQ_HW_MAC_COUNTER_HZ, ppb,
+				 &fwreq.ptp_adj_freq.ns_mac,
+				 &fwreq.ptp_adj_freq.fns_mac);
+	hw_atl_b0_adj_params_get(AQ_HW_PHY_COUNTER_HZ, ppb,
+				 &fwreq.ptp_adj_freq.ns_phy,
+				 &fwreq.ptp_adj_freq.fns_phy);
+	hw_atl_b0_mac_adj_param_calc(&fwreq.ptp_adj_freq,
+				     AQ_HW_PHY_COUNTER_HZ,
+				     AQ_HW_MAC_COUNTER_HZ);
+
+	size = sizeof(fwreq.msg_id) + sizeof(fwreq.ptp_adj_freq);
+	return self->aq_fw_ops->send_fw_request(self, &fwreq, size);
+}
+
 static int hw_atl_b0_hw_fl3l4_clear(struct aq_hw_s *self,
 				    struct aq_rx_filter_l3l4 *data)
 {
@@ -1177,6 +1277,12 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
-	.hw_set_offload              = hw_atl_b0_hw_offload_set,
+
+	.hw_get_ptp_ts           = hw_atl_b0_get_ptp_ts,
+	.hw_adj_sys_clock        = hw_atl_b0_adj_sys_clock,
+	.hw_set_sys_clock        = hw_atl_b0_set_sys_clock,
+	.hw_adj_clock_freq       = hw_atl_b0_adj_clock_freq,
+
+	.hw_set_offload          = hw_atl_b0_hw_offload_set,
 	.hw_set_fc                   = hw_atl_b0_set_fc,
 };
