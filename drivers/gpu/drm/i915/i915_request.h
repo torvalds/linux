@@ -216,8 +216,9 @@ struct i915_request {
 	unsigned long emitted_jiffies;
 
 	unsigned long flags;
-#define I915_REQUEST_WAITBOOST BIT(0)
-#define I915_REQUEST_NOPREEMPT BIT(1)
+#define I915_REQUEST_WAITBOOST	BIT(0)
+#define I915_REQUEST_NOPREEMPT	BIT(1)
+#define I915_REQUEST_SENTINEL	BIT(2)
 
 	/** timeline->request entry for this request */
 	struct list_head link;
@@ -438,6 +439,11 @@ static inline bool i915_request_has_nopreempt(const struct i915_request *rq)
 {
 	/* Preemption should only be disabled very rarely */
 	return unlikely(rq->flags & I915_REQUEST_NOPREEMPT);
+}
+
+static inline bool i915_request_has_sentinel(const struct i915_request *rq)
+{
+	return unlikely(rq->flags & I915_REQUEST_SENTINEL);
 }
 
 static inline struct intel_timeline *

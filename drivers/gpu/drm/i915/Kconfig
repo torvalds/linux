@@ -76,7 +76,7 @@ config DRM_I915_CAPTURE_ERROR
 	  This option enables capturing the GPU state when a hang is detected.
 	  This information is vital for triaging hangs and assists in debugging.
 	  Please report any hang to
-            https://bugs.freedesktop.org/enter_bug.cgi?product=DRI
+	    https://bugs.freedesktop.org/enter_bug.cgi?product=DRI
 	  for triaging.
 
 	  If in doubt, say "Y".
@@ -105,11 +105,11 @@ config DRM_I915_USERPTR
 	  If in doubt, say "Y".
 
 config DRM_I915_GVT
-        bool "Enable Intel GVT-g graphics virtualization host support"
-        depends on DRM_I915
-        depends on 64BIT
-        default n
-        help
+	bool "Enable Intel GVT-g graphics virtualization host support"
+	depends on DRM_I915
+	depends on 64BIT
+	default n
+	help
 	  Choose this option if you want to enable Intel GVT-g graphics
 	  virtualization technology host support with integrated graphics.
 	  With GVT-g, it's possible to have one integrated graphics

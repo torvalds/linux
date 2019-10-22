@@ -1900,9 +1900,11 @@ intel_set_cdclk_post_plane_update(struct drm_i915_private *dev_priv,
 		intel_set_cdclk(dev_priv, new_state, pipe);
 }
 
-static int intel_pixel_rate_to_cdclk(struct drm_i915_private *dev_priv,
-				     int pixel_rate)
+static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
 {
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+	int pixel_rate = crtc_state->pixel_rate;
+
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEMINILAKE(dev_priv))
 		return DIV_ROUND_UP(pixel_rate, 2);
 	else if (IS_GEN(dev_priv, 9) ||
@@ -1910,6 +1912,8 @@ static int intel_pixel_rate_to_cdclk(struct drm_i915_private *dev_priv,
 		return pixel_rate;
 	else if (IS_CHERRYVIEW(dev_priv))
 		return DIV_ROUND_UP(pixel_rate * 100, 95);
+	else if (crtc_state->double_wide)
+		return DIV_ROUND_UP(pixel_rate * 100, 90 * 2);
 	else
 		return DIV_ROUND_UP(pixel_rate * 100, 90);
 }
@@ -1923,7 +1927,7 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	if (!crtc_state->base.enable)
 		return 0;
 
-	min_cdclk = intel_pixel_rate_to_cdclk(dev_priv, crtc_state->pixel_rate);
+	min_cdclk = intel_pixel_rate_to_cdclk(crtc_state);
 
 	/* pixel rate mustn't exceed 95% of cdclk with IPS on BDW */
 	if (IS_BROADWELL(dev_priv) && hsw_crtc_state_ips_capable(crtc_state))
@@ -2277,14 +2281,27 @@ static int intel_modeset_all_pipes(struct intel_atomic_state *state)
 	return 0;
 }
 
+static int fixed_modeset_calc_cdclk(struct intel_atomic_state *state)
+{
+	int min_cdclk;
+
+	/*
+	 * We can't change the cdclk frequency, but we still want to
+	 * check that the required minimum frequency doesn't exceed
+	 * the actual cdclk frequency.
+	 */
+	min_cdclk = intel_compute_min_cdclk(state);
+	if (min_cdclk < 0)
+		return min_cdclk;
+
+	return 0;
+}
+
 int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
 	enum pipe pipe;
 	int ret;
-
-	if (!dev_priv->display.modeset_calc_cdclk)
-		return 0;
 
 	ret = dev_priv->display.modeset_calc_cdclk(state);
 	if (ret)
@@ -2596,6 +2613,8 @@ void intel_init_cdclk_hooks(struct drm_i915_private *dev_priv)
 	} else if (IS_VALLEYVIEW(dev_priv)) {
 		dev_priv->display.set_cdclk = vlv_set_cdclk;
 		dev_priv->display.modeset_calc_cdclk = vlv_modeset_calc_cdclk;
+	} else {
+		dev_priv->display.modeset_calc_cdclk = fixed_modeset_calc_cdclk;
 	}
 
 	if (INTEL_GEN(dev_priv) >= 10 || IS_GEN9_LP(dev_priv))

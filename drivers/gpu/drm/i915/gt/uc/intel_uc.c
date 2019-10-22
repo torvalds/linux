@@ -587,7 +587,7 @@ void intel_uc_suspend(struct intel_uc *uc)
 	if (!intel_guc_is_running(guc))
 		return;
 
-	with_intel_runtime_pm(&uc_to_gt(uc)->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(uc_to_gt(uc)->uncore->rpm, wakeref)
 		intel_uc_runtime_suspend(uc);
 }
 

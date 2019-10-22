@@ -287,10 +287,8 @@ int intel_plane_check_src_coordinates(struct intel_plane_state *plane_state)
 	src_y = src->y1 >> 16;
 	src_h = drm_rect_height(src) >> 16;
 
-	src->x1 = src_x << 16;
-	src->x2 = (src_x + src_w) << 16;
-	src->y1 = src_y << 16;
-	src->y2 = (src_y + src_h) << 16;
+	drm_rect_init(src, src_x << 16, src_y << 16,
+		      src_w << 16, src_h << 16);
 
 	if (!fb->format->is_yuv)
 		return 0;

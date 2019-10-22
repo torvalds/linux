@@ -5,6 +5,7 @@
 #include "gt/intel_engine_user.h"
 
 #include "i915_drv.h"
+#include "i915_perf.h"
 
 int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
@@ -155,6 +156,9 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_MMAP_GTT_COHERENT:
 		value = INTEL_INFO(i915)->has_coherent_ggtt;
+		break;
+	case I915_PARAM_PERF_REVISION:
+		value = i915_perf_ioctl_version();
 		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);

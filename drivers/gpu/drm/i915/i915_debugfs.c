@@ -1660,9 +1660,9 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
-		   swizzle_string(dev_priv->mm.bit_6_swizzle_x));
+		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_x));
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
-		   swizzle_string(dev_priv->mm.bit_6_swizzle_y));
+		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_y));
 
 	if (IS_GEN_RANGE(dev_priv, 3, 4)) {
 		seq_printf(m, "DDC = 0x%08x\n",
@@ -2405,6 +2405,13 @@ static int i915_dmc_info(struct seq_file *m, void *unused)
 	if (INTEL_GEN(dev_priv) >= 12) {
 		dc5_reg = TGL_DMC_DEBUG_DC5_COUNT;
 		dc6_reg = TGL_DMC_DEBUG_DC6_COUNT;
+		/*
+		 * NOTE: DMC_DEBUG3 is a general purpose reg.
+		 * According to B.Specs:49196 DMC f/w reuses DC5/6 counter
+		 * reg for DC3CO debugging and validation,
+		 * but TGL DMC f/w is using DMC_DEBUG3 reg for DC3CO counter.
+		 */
+		seq_printf(m, "DC3CO count: %d\n", I915_READ(DMC_DEBUG3));
 	} else {
 		dc5_reg = IS_BROXTON(dev_priv) ? BXT_CSR_DC3_DC5_COUNT :
 						 SKL_CSR_DC3_DC5_COUNT;
@@ -3583,6 +3590,37 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
 			"%llu\n");
 
+static int
+i915_perf_noa_delay_set(void *data, u64 val)
+{
+	struct drm_i915_private *i915 = data;
+	const u32 clk = RUNTIME_INFO(i915)->cs_timestamp_frequency_khz;
+
+	/*
+	 * This would lead to infinite waits as we're doing timestamp
+	 * difference on the CS with only 32bits.
+	 */
+	if (val > mul_u32_u32(U32_MAX, clk))
+		return -EINVAL;
+
+	atomic64_set(&i915->perf.noa_programming_delay, val);
+	return 0;
+}
+
+static int
+i915_perf_noa_delay_get(void *data, u64 *val)
+{
+	struct drm_i915_private *i915 = data;
+
+	*val = atomic64_read(&i915->perf.noa_programming_delay);
+	return 0;
+}
+
+DEFINE_SIMPLE_ATTRIBUTE(i915_perf_noa_delay_fops,
+			i915_perf_noa_delay_get,
+			i915_perf_noa_delay_set,
+			"%llu\n");
+
 #define DROP_UNBOUND	BIT(0)
 #define DROP_BOUND	BIT(1)
 #define DROP_RETIRE	BIT(2)
@@ -3592,6 +3630,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 #define DROP_IDLE	BIT(6)
 #define DROP_RESET_ACTIVE	BIT(7)
 #define DROP_RESET_SEQNO	BIT(8)
+#define DROP_RCU	BIT(9)
 #define DROP_ALL (DROP_UNBOUND	| \
 		  DROP_BOUND	| \
 		  DROP_RETIRE	| \
@@ -3600,7 +3639,8 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 		  DROP_SHRINK_ALL |\
 		  DROP_IDLE	| \
 		  DROP_RESET_ACTIVE | \
-		  DROP_RESET_SEQNO)
+		  DROP_RESET_SEQNO | \
+		  DROP_RCU)
 static int
 i915_drop_caches_get(void *data, u64 *val)
 {
@@ -3651,6 +3691,9 @@ i915_drop_caches_set(void *data, u64 val)
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(i915);
 	fs_reclaim_release(GFP_KERNEL);
+
+	if (val & DROP_RCU)
+		rcu_barrier();
 
 	if (val & DROP_FREED)
 		i915_gem_drain_freed_objects(i915);
@@ -4333,6 +4376,7 @@ static const struct i915_debugfs_files {
 	const char *name;
 	const struct file_operations *fops;
 } i915_debugfs_files[] = {
+	{"i915_perf_noa_delay", &i915_perf_noa_delay_fops},
 	{"i915_wedged", &i915_wedged_fops},
 	{"i915_cache_sharing", &i915_cache_sharing_fops},
 	{"i915_gem_drop_caches", &i915_drop_caches_fops},

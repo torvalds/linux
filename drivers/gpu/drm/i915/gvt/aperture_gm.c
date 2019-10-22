@@ -198,7 +198,7 @@ static int alloc_vgpu_fence(struct intel_vgpu *vgpu)
 	mutex_lock(&dev_priv->ggtt.vm.mutex);
 
 	for (i = 0; i < vgpu_fence_sz(vgpu); i++) {
-		reg = i915_reserve_fence(dev_priv);
+		reg = i915_reserve_fence(&dev_priv->ggtt);
 		if (IS_ERR(reg))
 			goto out_free_fence;
 

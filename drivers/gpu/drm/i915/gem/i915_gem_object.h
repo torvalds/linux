@@ -25,10 +25,11 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj);
 void i915_gem_object_init(struct drm_i915_gem_object *obj,
 			  const struct drm_i915_gem_object_ops *ops);
 struct drm_i915_gem_object *
-i915_gem_object_create_shmem(struct drm_i915_private *i915, u64 size);
+i915_gem_object_create_shmem(struct drm_i915_private *i915,
+			     resource_size_t size);
 struct drm_i915_gem_object *
 i915_gem_object_create_shmem_from_data(struct drm_i915_private *i915,
-				       const void *data, size_t size);
+				       const void *data, resource_size_t size);
 
 extern const struct drm_i915_gem_object_ops i915_gem_shmem_ops;
 void __i915_gem_object_release_shmem(struct drm_i915_gem_object *obj,
@@ -137,6 +138,24 @@ static inline bool
 i915_gem_object_is_readonly(const struct drm_i915_gem_object *obj)
 {
 	return obj->base.vma_node.readonly;
+}
+
+static inline bool
+i915_gem_object_is_contiguous(const struct drm_i915_gem_object *obj)
+{
+	return obj->flags & I915_BO_ALLOC_CONTIGUOUS;
+}
+
+static inline bool
+i915_gem_object_is_volatile(const struct drm_i915_gem_object *obj)
+{
+	return obj->flags & I915_BO_ALLOC_VOLATILE;
+}
+
+static inline void
+i915_gem_object_set_volatile(struct drm_i915_gem_object *obj)
+{
+	obj->flags |= I915_BO_ALLOC_VOLATILE;
 }
 
 static inline bool

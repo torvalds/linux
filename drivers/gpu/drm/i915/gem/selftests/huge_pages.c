@@ -8,6 +8,7 @@
 
 #include "i915_selftest.h"
 
+#include "gem/i915_gem_region.h"
 #include "gem/i915_gem_pm.h"
 
 #include "gt/intel_gt.h"
@@ -17,6 +18,7 @@
 
 #include "selftests/mock_drm.h"
 #include "selftests/mock_gem_device.h"
+#include "selftests/mock_region.h"
 #include "selftests/i915_random.h"
 
 static const unsigned int page_sizes[] = {
@@ -113,8 +115,6 @@ static int get_huge_pages(struct drm_i915_gem_object *obj)
 	if (i915_gem_gtt_prepare_pages(obj, st))
 		goto err;
 
-	obj->mm.madv = I915_MADV_DONTNEED;
-
 	GEM_BUG_ON(sg_page_sizes != obj->mm.page_mask);
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
@@ -135,7 +135,6 @@ static void put_huge_pages(struct drm_i915_gem_object *obj,
 	huge_pages_free_pages(pages);
 
 	obj->mm.dirty = false;
-	obj->mm.madv = I915_MADV_WILLNEED;
 }
 
 static const struct drm_i915_gem_object_ops huge_page_ops = {
@@ -167,6 +166,8 @@ huge_pages_object(struct drm_i915_private *i915,
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
 	i915_gem_object_init(obj, &huge_page_ops);
+
+	i915_gem_object_set_volatile(obj);
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
@@ -227,8 +228,6 @@ static int fake_get_huge_pages(struct drm_i915_gem_object *obj)
 
 	i915_sg_trim(st);
 
-	obj->mm.madv = I915_MADV_DONTNEED;
-
 	__i915_gem_object_set_pages(obj, st, sg_page_sizes);
 
 	return 0;
@@ -261,8 +260,6 @@ static int fake_get_huge_pages_single(struct drm_i915_gem_object *obj)
 	sg_dma_len(sg) = obj->base.size;
 	sg_dma_address(sg) = page_size;
 
-	obj->mm.madv = I915_MADV_DONTNEED;
-
 	__i915_gem_object_set_pages(obj, st, sg->length);
 
 	return 0;
@@ -281,7 +278,6 @@ static void fake_put_huge_pages(struct drm_i915_gem_object *obj,
 {
 	fake_free_huge_pages(obj, pages);
 	obj->mm.dirty = false;
-	obj->mm.madv = I915_MADV_WILLNEED;
 }
 
 static const struct drm_i915_gem_object_ops fake_ops = {
@@ -320,6 +316,8 @@ fake_huge_pages_object(struct drm_i915_private *i915, u64 size, bool single)
 		i915_gem_object_init(obj, &fake_ops_single);
 	else
 		i915_gem_object_init(obj, &fake_ops);
+
+	i915_gem_object_set_volatile(obj);
 
 	obj->write_domain = I915_GEM_DOMAIN_CPU;
 	obj->read_domains = I915_GEM_DOMAIN_CPU;
@@ -449,6 +447,88 @@ out_put:
 out_device:
 	mkwrite_device_info(i915)->page_sizes = saved_mask;
 
+	return err;
+}
+
+static int igt_mock_memory_region_huge_pages(void *arg)
+{
+	const unsigned int flags[] = { 0, I915_BO_ALLOC_CONTIGUOUS };
+	struct i915_ppgtt *ppgtt = arg;
+	struct drm_i915_private *i915 = ppgtt->vm.i915;
+	unsigned long supported = INTEL_INFO(i915)->page_sizes;
+	struct intel_memory_region *mem;
+	struct drm_i915_gem_object *obj;
+	struct i915_vma *vma;
+	int bit;
+	int err = 0;
+
+	mem = mock_region_create(i915, 0, SZ_2G, I915_GTT_PAGE_SIZE_4K, 0);
+	if (IS_ERR(mem)) {
+		pr_err("%s failed to create memory region\n", __func__);
+		return PTR_ERR(mem);
+	}
+
+	for_each_set_bit(bit, &supported, ilog2(I915_GTT_MAX_PAGE_SIZE) + 1) {
+		unsigned int page_size = BIT(bit);
+		resource_size_t phys;
+		int i;
+
+		for (i = 0; i < ARRAY_SIZE(flags); ++i) {
+			obj = i915_gem_object_create_region(mem, page_size,
+							    flags[i]);
+			if (IS_ERR(obj)) {
+				err = PTR_ERR(obj);
+				goto out_region;
+			}
+
+			vma = i915_vma_instance(obj, &ppgtt->vm, NULL);
+			if (IS_ERR(vma)) {
+				err = PTR_ERR(vma);
+				goto out_put;
+			}
+
+			err = i915_vma_pin(vma, 0, 0, PIN_USER);
+			if (err)
+				goto out_close;
+
+			err = igt_check_page_sizes(vma);
+			if (err)
+				goto out_unpin;
+
+			phys = i915_gem_object_get_dma_address(obj, 0);
+			if (!IS_ALIGNED(phys, page_size)) {
+				pr_err("%s addr misaligned(%pa) page_size=%u\n",
+				       __func__, &phys, page_size);
+				err = -EINVAL;
+				goto out_unpin;
+			}
+
+			if (vma->page_sizes.gtt != page_size) {
+				pr_err("%s page_sizes.gtt=%u, expected=%u\n",
+				       __func__, vma->page_sizes.gtt,
+				       page_size);
+				err = -EINVAL;
+				goto out_unpin;
+			}
+
+			i915_vma_unpin(vma);
+			i915_vma_close(vma);
+
+			__i915_gem_object_put_pages(obj, I915_MM_NORMAL);
+			i915_gem_object_put(obj);
+		}
+	}
+
+	goto out_region;
+
+out_unpin:
+	i915_vma_unpin(vma);
+out_close:
+	i915_vma_close(vma);
+out_put:
+	i915_gem_object_put(obj);
+out_region:
+	intel_memory_region_put(mem);
 	return err;
 }
 
@@ -1623,6 +1703,7 @@ int i915_gem_huge_page_mock_selftests(void)
 {
 	static const struct i915_subtest tests[] = {
 		SUBTEST(igt_mock_exhaust_device_supported_pages),
+		SUBTEST(igt_mock_memory_region_huge_pages),
 		SUBTEST(igt_mock_ppgtt_misaligned_dma),
 		SUBTEST(igt_mock_ppgtt_huge_fill),
 		SUBTEST(igt_mock_ppgtt_64K),

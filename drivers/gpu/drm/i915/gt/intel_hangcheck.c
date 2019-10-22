@@ -237,7 +237,7 @@ static void hangcheck_declare_hang(struct intel_gt *gt,
 		hung &= ~stuck;
 	len = scnprintf(msg, sizeof(msg),
 			"%s on ", stuck == hung ? "no progress" : "hang");
-	for_each_engine_masked(engine, gt->i915, hung, tmp)
+	for_each_engine_masked(engine, gt, hung, tmp)
 		len += scnprintf(msg + len, sizeof(msg) - len,
 				 "%s, ", engine->name);
 	msg[len-2] = '\0';
@@ -271,7 +271,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	if (intel_gt_is_wedged(gt))
 		return;
 
-	wakeref = intel_runtime_pm_get_if_in_use(&gt->i915->runtime_pm);
+	wakeref = intel_runtime_pm_get_if_in_use(gt->uncore->rpm);
 	if (!wakeref)
 		return;
 
@@ -281,7 +281,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(gt->uncore);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct hangcheck hc;
 
 		intel_engine_breadcrumbs_irq(engine);
@@ -303,7 +303,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	if (GEM_SHOW_DEBUG() && (hung | stuck)) {
 		struct drm_printer p = drm_debug_printer("hangcheck");
 
-		for_each_engine(engine, gt->i915, id) {
+		for_each_engine(engine, gt, id) {
 			if (intel_engine_is_idle(engine))
 				continue;
 
@@ -322,7 +322,7 @@ static void hangcheck_elapsed(struct work_struct *work)
 	if (hung)
 		hangcheck_declare_hang(gt, hung, stuck);
 
-	intel_runtime_pm_put(&gt->i915->runtime_pm, wakeref);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 
 	/* Reset timer in case GPU hangs without another request being added */
 	intel_gt_queue_hangcheck(gt);

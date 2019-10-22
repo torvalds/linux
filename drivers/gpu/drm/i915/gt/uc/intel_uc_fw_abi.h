@@ -39,9 +39,6 @@
  * 3. Length info of each component can be found in header, in dwords.
  * 4. Modulus and exponent key are not required by driver. They may not appear
  *    in fw. So driver will load a truncated firmware in this case.
- *
- * The only difference between GuC and HuC firmwares is how the version
- * information is saved.
  */
 
 struct uc_css_header {

@@ -247,8 +247,7 @@ static struct intel_shared_dpll *
 intel_find_shared_dpll(struct intel_atomic_state *state,
 		       const struct intel_crtc *crtc,
 		       const struct intel_dpll_hw_state *pll_state,
-		       enum intel_dpll_id range_min,
-		       enum intel_dpll_id range_max)
+		       unsigned long dpll_mask)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	struct intel_shared_dpll *pll, *unused_pll = NULL;
@@ -257,7 +256,9 @@ intel_find_shared_dpll(struct intel_atomic_state *state,
 
 	shared_dpll = intel_atomic_get_shared_dpll_state(&state->base);
 
-	for (i = range_min; i <= range_max; i++) {
+	WARN_ON(dpll_mask & ~(BIT(I915_NUM_PLLS) - 1));
+
+	for_each_set_bit(i, &dpll_mask, I915_NUM_PLLS) {
 		pll = &dev_priv->shared_dplls[i];
 
 		/* Only want to check enabled timings first */
@@ -464,8 +465,8 @@ static bool ibx_get_dpll(struct intel_atomic_state *state,
 	} else {
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_PCH_PLL_A,
-					     DPLL_ID_PCH_PLL_B);
+					     BIT(DPLL_ID_PCH_PLL_B) |
+					     BIT(DPLL_ID_PCH_PLL_A));
 	}
 
 	if (!pll)
@@ -814,7 +815,8 @@ hsw_ddi_hdmi_get_dpll(struct intel_atomic_state *state,
 
 	pll = intel_find_shared_dpll(state, crtc,
 				     &crtc_state->dpll_hw_state,
-				     DPLL_ID_WRPLL1, DPLL_ID_WRPLL2);
+				     BIT(DPLL_ID_WRPLL2) |
+				     BIT(DPLL_ID_WRPLL1));
 
 	if (!pll)
 		return NULL;
@@ -877,7 +879,7 @@ static bool hsw_get_dpll(struct intel_atomic_state *state,
 
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_SPLL, DPLL_ID_SPLL);
+					     BIT(DPLL_ID_SPLL));
 	} else {
 		return false;
 	}
@@ -1447,13 +1449,13 @@ static bool skl_get_dpll(struct intel_atomic_state *state,
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_EDP))
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_SKL_DPLL0,
-					     DPLL_ID_SKL_DPLL0);
+					     BIT(DPLL_ID_SKL_DPLL0));
 	else
 		pll = intel_find_shared_dpll(state, crtc,
 					     &crtc_state->dpll_hw_state,
-					     DPLL_ID_SKL_DPLL1,
-					     DPLL_ID_SKL_DPLL3);
+					     BIT(DPLL_ID_SKL_DPLL3) |
+					     BIT(DPLL_ID_SKL_DPLL2) |
+					     BIT(DPLL_ID_SKL_DPLL1));
 	if (!pll)
 		return false;
 
@@ -2401,8 +2403,9 @@ static bool cnl_get_dpll(struct intel_atomic_state *state,
 
 	pll = intel_find_shared_dpll(state, crtc,
 				     &crtc_state->dpll_hw_state,
-				     DPLL_ID_SKL_DPLL0,
-				     DPLL_ID_SKL_DPLL2);
+				     BIT(DPLL_ID_SKL_DPLL2) |
+				     BIT(DPLL_ID_SKL_DPLL1) |
+				     BIT(DPLL_ID_SKL_DPLL0));
 	if (!pll) {
 		DRM_DEBUG_KMS("No PLL selected\n");
 		return false;
@@ -2975,7 +2978,7 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum port port = encoder->port;
-	bool has_dpll4 = false;
+	unsigned long dpll_mask;
 
 	if (!icl_calc_dpll_state(crtc_state, encoder, &port_dpll->hw_state)) {
 		DRM_DEBUG_KMS("Could not calculate combo PHY PLL state.\n");
@@ -2984,13 +2987,16 @@ static bool icl_get_combo_phy_dpll(struct intel_atomic_state *state,
 	}
 
 	if (IS_ELKHARTLAKE(dev_priv) && port != PORT_A)
-		has_dpll4 = true;
+		dpll_mask =
+			BIT(DPLL_ID_EHL_DPLL4) |
+			BIT(DPLL_ID_ICL_DPLL1) |
+			BIT(DPLL_ID_ICL_DPLL0);
+	else
+		dpll_mask = BIT(DPLL_ID_ICL_DPLL1) | BIT(DPLL_ID_ICL_DPLL0);
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
-						DPLL_ID_ICL_DPLL0,
-						has_dpll4 ? DPLL_ID_EHL_DPLL4
-							  : DPLL_ID_ICL_DPLL1);
+						dpll_mask);
 	if (!port_dpll->pll) {
 		DRM_DEBUG_KMS("No combo PHY PLL found for [ENCODER:%d:%s]\n",
 			      encoder->base.base.id, encoder->base.name);
@@ -3023,8 +3029,7 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
-						DPLL_ID_ICL_TBTPLL,
-						DPLL_ID_ICL_TBTPLL);
+						BIT(DPLL_ID_ICL_TBTPLL));
 	if (!port_dpll->pll) {
 		DRM_DEBUG_KMS("No TBT-ALT PLL found\n");
 		return false;
@@ -3043,8 +3048,7 @@ static bool icl_get_tc_phy_dplls(struct intel_atomic_state *state,
 							 encoder->port));
 	port_dpll->pll = intel_find_shared_dpll(state, crtc,
 						&port_dpll->hw_state,
-						dpll_id,
-						dpll_id);
+						BIT(dpll_id));
 	if (!port_dpll->pll) {
 		DRM_DEBUG_KMS("No MG PHY PLL found\n");
 		goto err_unreference_tbt_pll;

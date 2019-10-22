@@ -534,6 +534,73 @@ transcoder_has_psr2(struct drm_i915_private *dev_priv, enum transcoder trans)
 		return trans == TRANSCODER_EDP;
 }
 
+static u32 intel_get_frame_time_us(const struct intel_crtc_state *cstate)
+{
+	if (!cstate || !cstate->base.active)
+		return 0;
+
+	return DIV_ROUND_UP(1000 * 1000,
+			    drm_mode_vrefresh(&cstate->base.adjusted_mode));
+}
+
+static void psr2_program_idle_frames(struct drm_i915_private *dev_priv,
+				     u32 idle_frames)
+{
+	u32 val;
+
+	idle_frames <<=  EDP_PSR2_IDLE_FRAME_SHIFT;
+	val = I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder));
+	val &= ~EDP_PSR2_IDLE_FRAME_MASK;
+	val |= idle_frames;
+	I915_WRITE(EDP_PSR2_CTL(dev_priv->psr.transcoder), val);
+}
+
+static void tgl_psr2_enable_dc3co(struct drm_i915_private *dev_priv)
+{
+	psr2_program_idle_frames(dev_priv, 0);
+	intel_display_power_set_target_dc_state(dev_priv, DC_STATE_EN_DC3CO);
+}
+
+static void tgl_psr2_disable_dc3co(struct drm_i915_private *dev_priv)
+{
+	int idle_frames;
+
+	intel_display_power_set_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
+	/*
+	 * Restore PSR2 idle frame let's use 6 as the minimum to cover all known
+	 * cases including the off-by-one issue that HW has in some cases.
+	 */
+	idle_frames = max(6, dev_priv->vbt.psr.idle_frames);
+	idle_frames = max(idle_frames, dev_priv->psr.sink_sync_latency + 1);
+	psr2_program_idle_frames(dev_priv, idle_frames);
+}
+
+static void tgl_dc5_idle_thread(struct work_struct *work)
+{
+	struct drm_i915_private *dev_priv =
+		container_of(work, typeof(*dev_priv), psr.idle_work.work);
+
+	mutex_lock(&dev_priv->psr.lock);
+	/* If delayed work is pending, it is not idle */
+	if (delayed_work_pending(&dev_priv->psr.idle_work))
+		goto unlock;
+
+	DRM_DEBUG_KMS("DC5/6 idle thread\n");
+	tgl_psr2_disable_dc3co(dev_priv);
+unlock:
+	mutex_unlock(&dev_priv->psr.lock);
+}
+
+static void tgl_disallow_dc3co_on_psr2_exit(struct drm_i915_private *dev_priv)
+{
+	if (!dev_priv->psr.dc3co_enabled)
+		return;
+
+	cancel_delayed_work(&dev_priv->psr.idle_work);
+	/* Before PSR2 exit disallow dc3co*/
+	tgl_psr2_disable_dc3co(dev_priv);
+}
+
 static bool intel_psr2_config_valid(struct intel_dp *intel_dp,
 				    struct intel_crtc_state *crtc_state)
 {
@@ -746,6 +813,8 @@ static void intel_psr_enable_locked(struct drm_i915_private *dev_priv,
 	dev_priv->psr.psr2_enabled = intel_psr2_enabled(dev_priv, crtc_state);
 	dev_priv->psr.busy_frontbuffer_bits = 0;
 	dev_priv->psr.pipe = to_intel_crtc(crtc_state->base.crtc)->pipe;
+	dev_priv->psr.dc3co_enabled = !!crtc_state->dc3co_exitline;
+	dev_priv->psr.dc3co_exit_delay = intel_get_frame_time_us(crtc_state);
 	dev_priv->psr.transcoder = crtc_state->cpu_transcoder;
 
 	/*
@@ -829,6 +898,7 @@ static void intel_psr_exit(struct drm_i915_private *dev_priv)
 	}
 
 	if (dev_priv->psr.psr2_enabled) {
+		tgl_disallow_dc3co_on_psr2_exit(dev_priv);
 		val = I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder));
 		WARN_ON(!(val & EDP_PSR2_ENABLE));
 		val &= ~EDP_PSR2_ENABLE;
@@ -901,6 +971,7 @@ void intel_psr_disable(struct intel_dp *intel_dp,
 
 	mutex_unlock(&dev_priv->psr.lock);
 	cancel_work_sync(&dev_priv->psr.work);
+	cancel_delayed_work_sync(&dev_priv->psr.idle_work);
 }
 
 static void psr_force_hw_tracking_exit(struct drm_i915_private *dev_priv)
@@ -1208,6 +1279,44 @@ void intel_psr_invalidate(struct drm_i915_private *dev_priv,
 	mutex_unlock(&dev_priv->psr.lock);
 }
 
+/*
+ * When we will be completely rely on PSR2 S/W tracking in future,
+ * intel_psr_flush() will invalidate and flush the PSR for ORIGIN_FLIP
+ * event also therefore tgl_dc3co_flush() require to be changed
+ * accrodingly in future.
+ */
+static void
+tgl_dc3co_flush(struct drm_i915_private *dev_priv,
+		unsigned int frontbuffer_bits, enum fb_op_origin origin)
+{
+	u32 delay;
+
+	mutex_lock(&dev_priv->psr.lock);
+
+	if (!dev_priv->psr.dc3co_enabled)
+		goto unlock;
+
+	if (!dev_priv->psr.psr2_enabled || !dev_priv->psr.active)
+		goto unlock;
+
+	/*
+	 * At every frontbuffer flush flip event modified delay of delayed work,
+	 * when delayed work schedules that means display has been idle.
+	 */
+	if (!(frontbuffer_bits &
+	    INTEL_FRONTBUFFER_ALL_MASK(dev_priv->psr.pipe)))
+		goto unlock;
+
+	tgl_psr2_enable_dc3co(dev_priv);
+	/* DC5/DC6 required idle frames = 6 */
+	delay = 6 * dev_priv->psr.dc3co_exit_delay;
+	mod_delayed_work(system_wq, &dev_priv->psr.idle_work,
+			 usecs_to_jiffies(delay));
+
+unlock:
+	mutex_unlock(&dev_priv->psr.lock);
+}
+
 /**
  * intel_psr_flush - Flush PSR
  * @dev_priv: i915 device
@@ -1227,8 +1336,10 @@ void intel_psr_flush(struct drm_i915_private *dev_priv,
 	if (!CAN_PSR(dev_priv))
 		return;
 
-	if (origin == ORIGIN_FLIP)
+	if (origin == ORIGIN_FLIP) {
+		tgl_dc3co_flush(dev_priv, frontbuffer_bits, origin);
 		return;
+	}
 
 	mutex_lock(&dev_priv->psr.lock);
 	if (!dev_priv->psr.enabled) {
@@ -1284,6 +1395,7 @@ void intel_psr_init(struct drm_i915_private *dev_priv)
 		dev_priv->psr.link_standby = dev_priv->vbt.psr.full_link;
 
 	INIT_WORK(&dev_priv->psr.work, intel_psr_work);
+	INIT_DELAYED_WORK(&dev_priv->psr.idle_work, tgl_dc5_idle_thread);
 	mutex_init(&dev_priv->psr.lock);
 }
 

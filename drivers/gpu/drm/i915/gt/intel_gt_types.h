@@ -17,6 +17,7 @@
 
 #include "i915_vma.h"
 #include "intel_engine_types.h"
+#include "intel_llc_types.h"
 #include "intel_reset_types.h"
 #include "intel_rc6_types.h"
 #include "intel_wakeref.h"
@@ -79,6 +80,7 @@ struct intel_gt {
 	 */
 	intel_wakeref_t awake;
 
+	struct intel_llc llc;
 	struct intel_rc6 rc6;
 
 	struct blocking_notifier_head pm_notifications;
@@ -109,6 +111,11 @@ enum intel_gt_scratch_field {
 	/* 8 bytes */
 	INTEL_GT_SCRATCH_FIELD_COHERENTL3_WA = 256,
 
+	/* 6 * 8 bytes */
+	INTEL_GT_SCRATCH_FIELD_PERF_CS_GPR = 2048,
+
+	/* 4 bytes */
+	INTEL_GT_SCRATCH_FIELD_PERF_PREDICATE_RESULT_1 = 2096,
 };
 
 #endif /* __INTEL_GT_TYPES_H__ */

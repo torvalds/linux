@@ -591,6 +591,25 @@ static u8 intel_dp_dsc_get_slice_count(struct intel_dp *intel_dp,
 	return 0;
 }
 
+static bool intel_dp_hdisplay_bad(struct drm_i915_private *dev_priv,
+				  int hdisplay)
+{
+	/*
+	 * Older platforms don't like hdisplay==4096 with DP.
+	 *
+	 * On ILK/SNB/IVB the pipe seems to be somewhat running (scanline
+	 * and frame counter increment), but we don't get vblank interrupts,
+	 * and the pipe underruns immediately. The link also doesn't seem
+	 * to get trained properly.
+	 *
+	 * On CHV the vblank interrupts don't seem to disappear but
+	 * otherwise the symptoms are similar.
+	 *
+	 * TODO: confirm the behaviour on HSW+
+	 */
+	return hdisplay == 4096 && !HAS_DDI(dev_priv);
+}
+
 static enum drm_mode_status
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
@@ -625,6 +644,9 @@ intel_dp_mode_valid(struct drm_connector *connector,
 
 	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
 	mode_rate = intel_dp_link_required(target_clock, 18);
+
+	if (intel_dp_hdisplay_bad(dev_priv, mode->hdisplay))
+		return MODE_H_ILLEGAL;
 
 	/*
 	 * Output bpp is stored in 6.4 format so right shift by 4 to get the
@@ -1644,6 +1666,7 @@ static i915_reg_t skl_aux_ctl_reg(struct intel_dp *intel_dp)
 	case AUX_CH_D:
 	case AUX_CH_E:
 	case AUX_CH_F:
+	case AUX_CH_G:
 		return DP_AUX_CH_CTL(aux_ch);
 	default:
 		MISSING_CASE(aux_ch);
@@ -1664,6 +1687,7 @@ static i915_reg_t skl_aux_data_reg(struct intel_dp *intel_dp, int index)
 	case AUX_CH_D:
 	case AUX_CH_E:
 	case AUX_CH_F:
+	case AUX_CH_G:
 		return DP_AUX_CH_DATA(aux_ch, index);
 	default:
 		MISSING_CASE(aux_ch);
@@ -2297,6 +2321,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
+
 	if (lspcon->active)
 		lspcon_ycbcr420_config(&intel_connector->base, pipe_config);
 	else
@@ -2340,6 +2365,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 		return -EINVAL;
 
 	if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK)
+		return -EINVAL;
+
+	if (intel_dp_hdisplay_bad(dev_priv, adjusted_mode->crtc_hdisplay))
 		return -EINVAL;
 
 	ret = intel_dp_compute_link_config(encoder, pipe_config, conn_state);
@@ -4450,7 +4478,7 @@ intel_dp_configure_mst(struct intel_dp *intel_dp)
 		&dp_to_dig_port(intel_dp)->base;
 	bool sink_can_mst = intel_dp_sink_can_mst(intel_dp);
 
-	DRM_DEBUG_KMS("[ENCODER:%d:%s] MST support? port: %s, sink: %s, modparam: %s\n",
+	DRM_DEBUG_KMS("[ENCODER:%d:%s] MST support: port: %s, sink: %s, modparam: %s\n",
 		      encoder->base.base.id, encoder->base.name,
 		      yesno(intel_dp->can_mst), yesno(sink_can_mst),
 		      yesno(i915_modparams.enable_dp_mst));
@@ -4473,9 +4501,36 @@ intel_dp_get_sink_irq_esi(struct intel_dp *intel_dp, u8 *sink_irq_vector)
 		DP_DPRX_ESI_LEN;
 }
 
+bool
+intel_dp_needs_vsc_sdp(const struct intel_crtc_state *crtc_state,
+		       const struct drm_connector_state *conn_state)
+{
+	/*
+	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
+	 * of Color Encoding Format and Content Color Gamut], in order to
+	 * sending YCBCR 420 or HDR BT.2020 signals we should use DP VSC SDP.
+	 */
+	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+		return true;
+
+	switch (conn_state->colorspace) {
+	case DRM_MODE_COLORIMETRY_SYCC_601:
+	case DRM_MODE_COLORIMETRY_OPYCC_601:
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+	case DRM_MODE_COLORIMETRY_BT2020_CYCC:
+		return true;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 static void
-intel_pixel_encoding_setup_vsc(struct intel_dp *intel_dp,
-			       const struct intel_crtc_state *crtc_state)
+intel_dp_setup_vsc_sdp(struct intel_dp *intel_dp,
+		       const struct intel_crtc_state *crtc_state,
+		       const struct drm_connector_state *conn_state)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
 	struct dp_sdp vsc_sdp = {};
@@ -4496,13 +4551,55 @@ intel_pixel_encoding_setup_vsc(struct intel_dp *intel_dp,
 	 */
 	vsc_sdp.sdp_header.HB3 = 0x13;
 
-	/*
-	 * YCbCr 420 = 3h DB16[7:4] ITU-R BT.601 = 0h, ITU-R BT.709 = 1h
-	 * DB16[3:0] DP 1.4a spec, Table 2-120
-	 */
-	vsc_sdp.db[16] = 0x3 << 4; /* 0x3 << 4 , YCbCr 420*/
-	/* RGB->YCBCR color conversion uses the BT.709 color space. */
-	vsc_sdp.db[16] |= 0x1; /* 0x1, ITU-R BT.709 */
+	/* DP 1.4a spec, Table 2-120 */
+	switch (crtc_state->output_format) {
+	case INTEL_OUTPUT_FORMAT_YCBCR444:
+		vsc_sdp.db[16] = 0x1 << 4; /* YCbCr 444 : DB16[7:4] = 1h */
+		break;
+	case INTEL_OUTPUT_FORMAT_YCBCR420:
+		vsc_sdp.db[16] = 0x3 << 4; /* YCbCr 420 : DB16[7:4] = 3h */
+		break;
+	case INTEL_OUTPUT_FORMAT_RGB:
+	default:
+		/* RGB: DB16[7:4] = 0h */
+		break;
+	}
+
+	switch (conn_state->colorspace) {
+	case DRM_MODE_COLORIMETRY_BT709_YCC:
+		vsc_sdp.db[16] |= 0x1;
+		break;
+	case DRM_MODE_COLORIMETRY_XVYCC_601:
+		vsc_sdp.db[16] |= 0x2;
+		break;
+	case DRM_MODE_COLORIMETRY_XVYCC_709:
+		vsc_sdp.db[16] |= 0x3;
+		break;
+	case DRM_MODE_COLORIMETRY_SYCC_601:
+		vsc_sdp.db[16] |= 0x4;
+		break;
+	case DRM_MODE_COLORIMETRY_OPYCC_601:
+		vsc_sdp.db[16] |= 0x5;
+		break;
+	case DRM_MODE_COLORIMETRY_BT2020_CYCC:
+	case DRM_MODE_COLORIMETRY_BT2020_RGB:
+		vsc_sdp.db[16] |= 0x6;
+		break;
+	case DRM_MODE_COLORIMETRY_BT2020_YCC:
+		vsc_sdp.db[16] |= 0x7;
+		break;
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_D65:
+	case DRM_MODE_COLORIMETRY_DCI_P3_RGB_THEATER:
+		vsc_sdp.db[16] |= 0x4; /* DCI-P3 (SMPTE RP 431-2) */
+		break;
+	default:
+		/* sRGB (IEC 61966-2-1) / ITU-R BT.601: DB16[0:3] = 0h */
+
+		/* RGB->YCBCR color conversion uses the BT.709 color space. */
+		if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
+			vsc_sdp.db[16] |= 0x1; /* 0x1, ITU-R BT.709 */
+		break;
+	}
 
 	/*
 	 * For pixel encoding formats YCbCr444, YCbCr422, YCbCr420, and Y Only,
@@ -4554,13 +4651,106 @@ intel_pixel_encoding_setup_vsc(struct intel_dp *intel_dp,
 			crtc_state, DP_SDP_VSC, &vsc_sdp, sizeof(vsc_sdp));
 }
 
-void intel_dp_ycbcr_420_enable(struct intel_dp *intel_dp,
-			       const struct intel_crtc_state *crtc_state)
+static void
+intel_dp_setup_hdr_metadata_infoframe_sdp(struct intel_dp *intel_dp,
+					  const struct intel_crtc_state *crtc_state,
+					  const struct drm_connector_state *conn_state)
 {
-	if (crtc_state->output_format != INTEL_OUTPUT_FORMAT_YCBCR420)
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct dp_sdp infoframe_sdp = {};
+	struct hdmi_drm_infoframe drm_infoframe = {};
+	const int infoframe_size = HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE;
+	unsigned char buf[HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE];
+	ssize_t len;
+	int ret;
+
+	ret = drm_hdmi_infoframe_set_hdr_metadata(&drm_infoframe, conn_state);
+	if (ret) {
+		DRM_DEBUG_KMS("couldn't set HDR metadata in infoframe\n");
+		return;
+	}
+
+	len = hdmi_drm_infoframe_pack_only(&drm_infoframe, buf, sizeof(buf));
+	if (len < 0) {
+		DRM_DEBUG_KMS("buffer size is smaller than hdr metadata infoframe\n");
+		return;
+	}
+
+	if (len != infoframe_size) {
+		DRM_DEBUG_KMS("wrong static hdr metadata size\n");
+		return;
+	}
+
+	/*
+	 * Set up the infoframe sdp packet for HDR static metadata.
+	 * Prepare VSC Header for SU as per DP 1.4a spec,
+	 * Table 2-100 and Table 2-101
+	 */
+
+	/* Packet ID, 00h for non-Audio INFOFRAME */
+	infoframe_sdp.sdp_header.HB0 = 0;
+	/*
+	 * Packet Type 80h + Non-audio INFOFRAME Type value
+	 * HDMI_INFOFRAME_TYPE_DRM: 0x87,
+	 */
+	infoframe_sdp.sdp_header.HB1 = drm_infoframe.type;
+	/*
+	 * Least Significant Eight Bits of (Data Byte Count – 1)
+	 * infoframe_size - 1,
+	 */
+	infoframe_sdp.sdp_header.HB2 = 0x1D;
+	/* INFOFRAME SDP Version Number */
+	infoframe_sdp.sdp_header.HB3 = (0x13 << 2);
+	/* CTA Header Byte 2 (INFOFRAME Version Number) */
+	infoframe_sdp.db[0] = drm_infoframe.version;
+	/* CTA Header Byte 3 (Length of INFOFRAME): HDMI_DRM_INFOFRAME_SIZE */
+	infoframe_sdp.db[1] = drm_infoframe.length;
+	/*
+	 * Copy HDMI_DRM_INFOFRAME_SIZE size from a buffer after
+	 * HDMI_INFOFRAME_HEADER_SIZE
+	 */
+	BUILD_BUG_ON(sizeof(infoframe_sdp.db) < HDMI_DRM_INFOFRAME_SIZE + 2);
+	memcpy(&infoframe_sdp.db[2], &buf[HDMI_INFOFRAME_HEADER_SIZE],
+	       HDMI_DRM_INFOFRAME_SIZE);
+
+	/*
+	 * Size of DP infoframe sdp packet for HDR static metadata is consist of
+	 * - DP SDP Header(struct dp_sdp_header): 4 bytes
+	 * - Two Data Blocks: 2 bytes
+	 *    CTA Header Byte2 (INFOFRAME Version Number)
+	 *    CTA Header Byte3 (Length of INFOFRAME)
+	 * - HDMI_DRM_INFOFRAME_SIZE: 26 bytes
+	 *
+	 * Prior to GEN11's GMP register size is identical to DP HDR static metadata
+	 * infoframe size. But GEN11+ has larger than that size, write_infoframe
+	 * will pad rest of the size.
+	 */
+	intel_dig_port->write_infoframe(&intel_dig_port->base, crtc_state,
+					HDMI_PACKET_TYPE_GAMUT_METADATA,
+					&infoframe_sdp,
+					sizeof(struct dp_sdp_header) + 2 + HDMI_DRM_INFOFRAME_SIZE);
+}
+
+void intel_dp_vsc_enable(struct intel_dp *intel_dp,
+			 const struct intel_crtc_state *crtc_state,
+			 const struct drm_connector_state *conn_state)
+{
+	if (!intel_dp_needs_vsc_sdp(crtc_state, conn_state))
 		return;
 
-	intel_pixel_encoding_setup_vsc(intel_dp, crtc_state);
+	intel_dp_setup_vsc_sdp(intel_dp, crtc_state, conn_state);
+}
+
+void intel_dp_hdr_metadata_enable(struct intel_dp *intel_dp,
+				  const struct intel_crtc_state *crtc_state,
+				  const struct drm_connector_state *conn_state)
+{
+	if (!conn_state->hdr_output_metadata)
+		return;
+
+	intel_dp_setup_hdr_metadata_infoframe_sdp(intel_dp,
+						  crtc_state,
+						  conn_state);
 }
 
 static u8 intel_dp_autotest_link_training(struct intel_dp *intel_dp)
@@ -5281,6 +5471,9 @@ static bool icl_combo_port_connected(struct drm_i915_private *dev_priv,
 				     struct intel_digital_port *intel_dig_port)
 {
 	enum port port = intel_dig_port->base.port;
+
+	if (HAS_PCH_MCC(dev_priv) && port == PORT_C)
+		return I915_READ(SDEISR) & SDE_TC_HOTPLUG_ICP(PORT_TC1);
 
 	return I915_READ(SDEISR) & SDE_DDI_HOTPLUG_ICP(port);
 }
@@ -6402,6 +6595,13 @@ intel_dp_add_properties(struct intel_dp *intel_dp, struct drm_connector *connect
 	else if (INTEL_GEN(dev_priv) >= 5)
 		drm_connector_attach_max_bpc_property(connector, 6, 12);
 
+	intel_attach_colorspace_property(connector);
+
+	if (IS_GEMINILAKE(dev_priv) || INTEL_GEN(dev_priv) >= 11)
+		drm_object_attach_property(&connector->base,
+					   connector->dev->mode_config.hdr_output_metadata_property,
+					   0);
+
 	if (intel_dp_is_edp(intel_dp)) {
 		u32 allowed_scalers;
 
@@ -7268,11 +7468,8 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	/* init MST on ports that can support it */
-	if (HAS_DP_MST(dev_priv) && !intel_dp_is_edp(intel_dp) &&
-	    (port == PORT_B || port == PORT_C ||
-	     port == PORT_D || port == PORT_F))
-		intel_dp_mst_encoder_init(intel_dig_port,
-					  intel_connector->base.base.id);
+	intel_dp_mst_encoder_init(intel_dig_port,
+				  intel_connector->base.base.id);
 
 	if (!intel_edp_init_connector(intel_dp, intel_connector)) {
 		intel_dp_aux_fini(intel_dp);

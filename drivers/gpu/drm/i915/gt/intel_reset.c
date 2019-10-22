@@ -282,14 +282,14 @@ static int gen6_reset_engines(struct intel_gt *gt,
 			      intel_engine_mask_t engine_mask,
 			      unsigned int retry)
 {
-	struct intel_engine_cs *engine;
-	const u32 hw_engine_mask[] = {
+	static const u32 hw_engine_mask[] = {
 		[RCS0]  = GEN6_GRDOM_RENDER,
 		[BCS0]  = GEN6_GRDOM_BLT,
 		[VCS0]  = GEN6_GRDOM_MEDIA,
 		[VCS1]  = GEN8_GRDOM_MEDIA2,
 		[VECS0] = GEN6_GRDOM_VECS,
 	};
+	struct intel_engine_cs *engine;
 	u32 hw_mask;
 
 	if (engine_mask == ALL_ENGINES) {
@@ -298,7 +298,7 @@ static int gen6_reset_engines(struct intel_gt *gt,
 		intel_engine_mask_t tmp;
 
 		hw_mask = 0;
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
 		}
@@ -413,7 +413,7 @@ static int gen11_reset_engines(struct intel_gt *gt,
 			       intel_engine_mask_t engine_mask,
 			       unsigned int retry)
 {
-	const u32 hw_engine_mask[] = {
+	static const u32 hw_engine_mask[] = {
 		[RCS0]  = GEN11_GRDOM_RENDER,
 		[BCS0]  = GEN11_GRDOM_BLT,
 		[VCS0]  = GEN11_GRDOM_MEDIA,
@@ -432,7 +432,7 @@ static int gen11_reset_engines(struct intel_gt *gt,
 		hw_mask = GEN11_GRDOM_FULL;
 	} else {
 		hw_mask = 0;
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			GEM_BUG_ON(engine->id >= ARRAY_SIZE(hw_engine_mask));
 			hw_mask |= hw_engine_mask[engine->id];
 			ret = gen11_lock_sfc(engine, &hw_mask);
@@ -451,7 +451,7 @@ sfc_unlock:
 	 * expiration).
 	 */
 	if (engine_mask != ALL_ENGINES)
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp)
+		for_each_engine_masked(engine, gt, engine_mask, tmp)
 			gen11_unlock_sfc(engine);
 
 	return ret;
@@ -510,7 +510,7 @@ static int gen8_reset_engines(struct intel_gt *gt,
 	intel_engine_mask_t tmp;
 	int ret;
 
-	for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+	for_each_engine_masked(engine, gt, engine_mask, tmp) {
 		ret = gen8_engine_reset_prepare(engine);
 		if (ret && !reset_non_ready)
 			goto skip_reset;
@@ -536,7 +536,7 @@ static int gen8_reset_engines(struct intel_gt *gt,
 		ret = gen6_reset_engines(gt, engine_mask, retry);
 
 skip_reset:
-	for_each_engine_masked(engine, gt->i915, engine_mask, tmp)
+	for_each_engine_masked(engine, gt, engine_mask, tmp)
 		gen8_engine_reset_cancel(engine);
 
 	return ret;
@@ -682,7 +682,7 @@ static intel_engine_mask_t reset_prepare(struct intel_gt *gt)
 	intel_engine_mask_t awake = 0;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		if (intel_engine_pm_get_if_awake(engine))
 			awake |= engine->mask;
 		reset_prepare_engine(engine);
@@ -712,10 +712,10 @@ static int gt_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 	if (err)
 		return err;
 
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		__intel_engine_reset(engine, stalled_mask & engine->mask);
 
-	i915_gem_restore_fences(gt->i915);
+	i915_gem_restore_fences(gt->ggtt);
 
 	return err;
 }
@@ -733,7 +733,7 @@ static void reset_finish(struct intel_gt *gt, intel_engine_mask_t awake)
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		reset_finish_engine(engine);
 		if (awake & engine->mask)
 			intel_engine_pm_put(engine);
@@ -769,7 +769,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	if (GEM_SHOW_DEBUG() && !intel_engines_are_idle(gt)) {
 		struct drm_printer p = drm_debug_printer(__func__);
 
-		for_each_engine(engine, gt->i915, id)
+		for_each_engine(engine, gt, id)
 			intel_engine_dump(engine, &p, "%s\n", engine->name);
 	}
 
@@ -786,7 +786,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		__intel_gt_reset(gt, ALL_ENGINES);
 
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		engine->submit_request = nop_submit_request;
 
 	/*
@@ -798,7 +798,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 	set_bit(I915_WEDGED, &gt->reset.flags);
 
 	/* Mark all executing requests as skipped */
-	for_each_engine(engine, gt->i915, id)
+	for_each_engine(engine, gt, id)
 		engine->cancel_requests(engine);
 
 	reset_finish(gt, awake);
@@ -811,7 +811,7 @@ void intel_gt_set_wedged(struct intel_gt *gt)
 	intel_wakeref_t wakeref;
 
 	mutex_lock(&gt->reset.mutex);
-	with_intel_runtime_pm(&gt->i915->runtime_pm, wakeref)
+	with_intel_runtime_pm(gt->uncore->rpm, wakeref)
 		__intel_gt_set_wedged(gt);
 	mutex_unlock(&gt->reset.mutex);
 }
@@ -872,8 +872,14 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	ok = !HAS_EXECLISTS(gt->i915); /* XXX better agnosticism desired */
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
 		ok = __intel_gt_reset(gt, ALL_ENGINES) == 0;
-	if (!ok)
+	if (!ok) {
+		/*
+		 * Warn CI about the unrecoverable wedged condition.
+		 * Time for a reboot.
+		 */
+		add_taint_for_CI(TAINT_WARN);
 		return false;
+	}
 
 	/*
 	 * Undo nop_submit_request. We prevent all new i915 requests from
@@ -928,7 +934,7 @@ static int resume(struct intel_gt *gt)
 	enum intel_engine_id id;
 	int ret;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		ret = engine->resume(engine);
 		if (ret)
 			return ret;
@@ -1186,7 +1192,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 * isn't the case at least when we get here by doing a
 	 * simulated reset via debugfs, so get an RPM reference.
 	 */
-	wakeref = intel_runtime_pm_get(&gt->i915->runtime_pm);
+	wakeref = intel_runtime_pm_get(gt->uncore->rpm);
 
 	engine_mask &= INTEL_INFO(gt->i915)->engine_mask;
 
@@ -1200,7 +1206,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	 * single reset fails.
 	 */
 	if (intel_has_reset_engine(gt) && !intel_gt_is_wedged(gt)) {
-		for_each_engine_masked(engine, gt->i915, engine_mask, tmp) {
+		for_each_engine_masked(engine, gt, engine_mask, tmp) {
 			BUILD_BUG_ON(I915_RESET_MODESET >= I915_RESET_ENGINE);
 			if (test_and_set_bit(I915_RESET_ENGINE + engine->id,
 					     &gt->reset.flags))
@@ -1228,7 +1234,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	synchronize_rcu_expedited();
 
 	/* Prevent any other reset-engine attempt. */
-	for_each_engine(engine, gt->i915, tmp) {
+	for_each_engine(engine, gt, tmp) {
 		while (test_and_set_bit(I915_RESET_ENGINE + engine->id,
 					&gt->reset.flags))
 			wait_on_bit(&gt->reset.flags,
@@ -1238,7 +1244,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 
 	intel_gt_reset_global(gt, engine_mask, msg);
 
-	for_each_engine(engine, gt->i915, tmp)
+	for_each_engine(engine, gt, tmp)
 		clear_bit_unlock(I915_RESET_ENGINE + engine->id,
 				 &gt->reset.flags);
 	clear_bit_unlock(I915_RESET_BACKOFF, &gt->reset.flags);
@@ -1246,7 +1252,7 @@ void intel_gt_handle_error(struct intel_gt *gt,
 	wake_up_all(&gt->reset.queue);
 
 out:
-	intel_runtime_pm_put(&gt->i915->runtime_pm, wakeref);
+	intel_runtime_pm_put(gt->uncore->rpm, wakeref);
 }
 
 int intel_gt_reset_trylock(struct intel_gt *gt, int *srcu)

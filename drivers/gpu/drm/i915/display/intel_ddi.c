@@ -45,6 +45,7 @@
 #include "intel_lspcon.h"
 #include "intel_panel.h"
 #include "intel_psr.h"
+#include "intel_sprite.h"
 #include "intel_tc.h"
 #include "intel_vdsc.h"
 
@@ -1740,7 +1741,8 @@ static void intel_ddi_clock_get(struct intel_encoder *encoder,
 		hsw_ddi_clock_get(encoder, pipe_config);
 }
 
-void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
+void intel_ddi_set_dp_msa(const struct intel_crtc_state *crtc_state,
+			  const struct drm_connector_state *conn_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
@@ -1752,20 +1754,20 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 
 	WARN_ON(transcoder_is_dsi(cpu_transcoder));
 
-	temp = TRANS_MSA_SYNC_CLK;
+	temp = DP_MSA_MISC_SYNC_CLOCK;
 
 	switch (crtc_state->pipe_bpp) {
 	case 18:
-		temp |= TRANS_MSA_6_BPC;
+		temp |= DP_MSA_MISC_6_BPC;
 		break;
 	case 24:
-		temp |= TRANS_MSA_8_BPC;
+		temp |= DP_MSA_MISC_8_BPC;
 		break;
 	case 30:
-		temp |= TRANS_MSA_10_BPC;
+		temp |= DP_MSA_MISC_10_BPC;
 		break;
 	case 36:
-		temp |= TRANS_MSA_12_BPC;
+		temp |= DP_MSA_MISC_12_BPC;
 		break;
 	default:
 		MISSING_CASE(crtc_state->pipe_bpp);
@@ -1777,7 +1779,7 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 		crtc_state->output_format != INTEL_OUTPUT_FORMAT_RGB);
 
 	if (crtc_state->limited_color_range)
-		temp |= TRANS_MSA_CEA_RANGE;
+		temp |= DP_MSA_MISC_COLOR_CEA_RGB;
 
 	/*
 	 * As per DP 1.2 spec section 2.3.4.3 while sending
@@ -1785,17 +1787,19 @@ void intel_ddi_set_pipe_settings(const struct intel_crtc_state *crtc_state)
 	 * colorspace information.
 	 */
 	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR444)
-		temp |= TRANS_MSA_SAMPLING_444 | TRANS_MSA_CLRSP_YCBCR |
-			TRANS_MSA_YCBCR_BT709;
+		temp |= DP_MSA_MISC_COLOR_YCBCR_444_BT709;
 
 	/*
 	 * As per DP 1.4a spec section 2.2.4.3 [MSA Field for Indication
 	 * of Color Encoding Format and Content Color Gamut] while sending
-	 * YCBCR 420 signals we should program MSA MISC1 fields which
-	 * indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
+	 * YCBCR 420, HDR BT.2020 signals we should program MSA MISC1 fields
+	 * which indicate VSC SDP for the Pixel Encoding/Colorimetry Format.
+	 *
+	 * FIXME MST doesn't pass in the conn_state
 	 */
-	if (crtc_state->output_format == INTEL_OUTPUT_FORMAT_YCBCR420)
-		temp |= TRANS_MSA_USE_VSC_SDP;
+	if (conn_state && intel_dp_needs_vsc_sdp(crtc_state, conn_state))
+		temp |= DP_MSA_MISC_COLOR_VSC_SDP;
+
 	I915_WRITE(TRANS_MSA_MISC(cpu_transcoder), temp);
 }
 
@@ -3330,6 +3334,86 @@ static void intel_ddi_disable_fec_state(struct intel_encoder *encoder,
 	POSTING_READ(intel_dp->regs.dp_tp_ctl);
 }
 
+static void
+tgl_clear_psr2_transcoder_exitline(const struct intel_crtc_state *cstate)
+{
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
+	u32 val;
+
+	if (!cstate->dc3co_exitline)
+		return;
+
+	val = I915_READ(EXITLINE(cstate->cpu_transcoder));
+	val &= ~(EXITLINE_MASK | EXITLINE_ENABLE);
+	I915_WRITE(EXITLINE(cstate->cpu_transcoder), val);
+}
+
+static void
+tgl_set_psr2_transcoder_exitline(const struct intel_crtc_state *cstate)
+{
+	u32 val, exit_scanlines;
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
+
+	if (!cstate->dc3co_exitline)
+		return;
+
+	exit_scanlines = cstate->dc3co_exitline;
+	exit_scanlines <<= EXITLINE_SHIFT;
+	val = I915_READ(EXITLINE(cstate->cpu_transcoder));
+	val &= ~(EXITLINE_MASK | EXITLINE_ENABLE);
+	val |= exit_scanlines;
+	val |= EXITLINE_ENABLE;
+	I915_WRITE(EXITLINE(cstate->cpu_transcoder), val);
+}
+
+static void tgl_dc3co_exitline_compute_config(struct intel_encoder *encoder,
+					      struct intel_crtc_state *cstate)
+{
+	u32 exit_scanlines;
+	struct drm_i915_private *dev_priv = to_i915(cstate->base.crtc->dev);
+	u32 crtc_vdisplay = cstate->base.adjusted_mode.crtc_vdisplay;
+
+	cstate->dc3co_exitline = 0;
+
+	if (!(dev_priv->csr.allowed_dc_mask & DC_STATE_EN_DC3CO))
+		return;
+
+	/* B.Specs:49196 DC3CO only works with pipeA and DDIA.*/
+	if (to_intel_crtc(cstate->base.crtc)->pipe != PIPE_A ||
+	    encoder->port != PORT_A)
+		return;
+
+	if (!cstate->has_psr2 || !cstate->base.active)
+		return;
+
+	/*
+	 * DC3CO Exit time 200us B.Spec 49196
+	 * PSR2 transcoder Early Exit scanlines = ROUNDUP(200 / line time) + 1
+	 */
+	exit_scanlines =
+		intel_usecs_to_scanlines(&cstate->base.adjusted_mode, 200) + 1;
+
+	if (WARN_ON(exit_scanlines > crtc_vdisplay))
+		return;
+
+	cstate->dc3co_exitline = crtc_vdisplay - exit_scanlines;
+	DRM_DEBUG_KMS("DC3CO exit scanlines %d\n", cstate->dc3co_exitline);
+}
+
+static void tgl_dc3co_exitline_get_config(struct intel_crtc_state *crtc_state)
+{
+	u32 val;
+	struct drm_i915_private *dev_priv = to_i915(crtc_state->base.crtc->dev);
+
+	if (INTEL_GEN(dev_priv) < 12)
+		return;
+
+	val = I915_READ(EXITLINE(crtc_state->cpu_transcoder));
+
+	if (val & EXITLINE_ENABLE)
+		crtc_state->dc3co_exitline = val & EXITLINE_MASK;
+}
+
 static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 				  const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state)
@@ -3342,6 +3426,7 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	int level = intel_ddi_dp_level(intel_dp);
 	enum transcoder transcoder = crtc_state->cpu_transcoder;
 
+	tgl_set_psr2_transcoder_exitline(crtc_state);
 	intel_dp_set_link_params(intel_dp, crtc_state->port_clock,
 				 crtc_state->lane_count, is_mst);
 
@@ -3415,7 +3500,8 @@ static void tgl_ddi_pre_enable_dp(struct intel_encoder *encoder,
 	intel_dp_start_link_train(intel_dp);
 
 	/* 7.k */
-	intel_dp_stop_link_train(intel_dp);
+	if (!is_trans_port_sync_mode(crtc_state))
+		intel_dp_stop_link_train(intel_dp);
 
 	/*
 	 * TODO: enable clock gating
@@ -3489,7 +3575,8 @@ static void hsw_ddi_pre_enable_dp(struct intel_encoder *encoder,
 					      true);
 	intel_dp_sink_set_fec_ready(intel_dp, crtc_state);
 	intel_dp_start_link_train(intel_dp);
-	if (port != PORT_A || INTEL_GEN(dev_priv) >= 9)
+	if ((port != PORT_A || INTEL_GEN(dev_priv) >= 9) &&
+	    !is_trans_port_sync_mode(crtc_state))
 		intel_dp_stop_link_train(intel_dp);
 
 	intel_ddi_enable_fec(encoder, crtc_state);
@@ -3512,6 +3599,8 @@ static void intel_ddi_pre_enable_dp(struct intel_encoder *encoder,
 		tgl_ddi_pre_enable_dp(encoder, crtc_state, conn_state);
 	else
 		hsw_ddi_pre_enable_dp(encoder, crtc_state, conn_state);
+
+	intel_ddi_set_dp_msa(crtc_state, conn_state);
 }
 
 static void intel_ddi_pre_enable_hdmi(struct intel_encoder *encoder,
@@ -3666,6 +3755,7 @@ static void intel_ddi_post_disable_dp(struct intel_encoder *encoder,
 						  dig_port->ddi_io_power_domain);
 
 	intel_ddi_clk_disable(encoder);
+	tgl_clear_psr2_transcoder_exitline(old_crtc_state);
 }
 
 static void intel_ddi_post_disable_hdmi(struct intel_encoder *encoder,
@@ -3768,7 +3858,8 @@ static void intel_enable_ddi_dp(struct intel_encoder *encoder,
 
 	intel_edp_backlight_on(crtc_state, conn_state);
 	intel_psr_enable(intel_dp, crtc_state);
-	intel_dp_ycbcr_420_enable(intel_dp, crtc_state);
+	intel_dp_vsc_enable(intel_dp, crtc_state, conn_state);
+	intel_dp_hdr_metadata_enable(intel_dp, crtc_state, conn_state);
 	intel_edp_drrs_enable(intel_dp, crtc_state);
 
 	if (crtc_state->has_audio)
@@ -3926,7 +4017,7 @@ static void intel_ddi_update_pipe_dp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 
-	intel_ddi_set_pipe_settings(crtc_state);
+	intel_ddi_set_dp_msa(crtc_state, conn_state);
 
 	intel_psr_update(intel_dp, crtc_state);
 	intel_edp_drrs_enable(intel_dp, crtc_state);
@@ -4212,6 +4303,9 @@ void intel_ddi_get_config(struct intel_encoder *encoder,
 		break;
 	}
 
+	if (encoder->type == INTEL_OUTPUT_EDP)
+		tgl_dc3co_exitline_get_config(pipe_config);
+
 	pipe_config->has_audio =
 		intel_ddi_is_audio_enabled(dev_priv, cpu_transcoder);
 
@@ -4289,10 +4383,13 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 	if (HAS_TRANSCODER_EDP(dev_priv) && port == PORT_A)
 		pipe_config->cpu_transcoder = TRANSCODER_EDP;
 
-	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI))
+	if (intel_crtc_has_type(pipe_config, INTEL_OUTPUT_HDMI)) {
 		ret = intel_hdmi_compute_config(encoder, pipe_config, conn_state);
-	else
+	} else {
 		ret = intel_dp_compute_config(encoder, pipe_config, conn_state);
+		tgl_dc3co_exitline_compute_config(encoder, pipe_config);
+	}
+
 	if (ret)
 		return ret;
 
@@ -4661,46 +4758,9 @@ void intel_ddi_init(struct drm_i915_private *dev_priv, enum port port)
 		intel_encoder->update_complete = intel_ddi_update_complete;
 	}
 
-	switch (port) {
-	case PORT_A:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_A_IO;
-		break;
-	case PORT_B:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_B_IO;
-		break;
-	case PORT_C:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_C_IO;
-		break;
-	case PORT_D:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_D_IO;
-		break;
-	case PORT_E:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_E_IO;
-		break;
-	case PORT_F:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_F_IO;
-		break;
-	case PORT_G:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_G_IO;
-		break;
-	case PORT_H:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_H_IO;
-		break;
-	case PORT_I:
-		intel_dig_port->ddi_io_power_domain =
-			POWER_DOMAIN_PORT_DDI_I_IO;
-		break;
-	default:
-		MISSING_CASE(port);
-	}
+	WARN_ON(port > PORT_I);
+	intel_dig_port->ddi_io_power_domain = POWER_DOMAIN_PORT_DDI_A_IO +
+					      port - PORT_A;
 
 	if (init_dp) {
 		if (!intel_ddi_init_dp_connector(intel_dig_port))

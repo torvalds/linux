@@ -2077,6 +2077,9 @@ static int eb_submit(struct i915_execbuffer *eb)
 	if (err)
 		return err;
 
+	if (i915_gem_context_nopreempt(eb->gem_context))
+		eb->request->flags |= I915_REQUEST_NOPREEMPT;
+
 	return 0;
 }
 

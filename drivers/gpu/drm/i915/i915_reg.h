@@ -545,7 +545,9 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define MI_PREDICATE_SRC0_UDW	_MMIO(0x2400 + 4)
 #define MI_PREDICATE_SRC1	_MMIO(0x2408)
 #define MI_PREDICATE_SRC1_UDW	_MMIO(0x2408 + 4)
-
+#define MI_PREDICATE_DATA       _MMIO(0x2410)
+#define MI_PREDICATE_RESULT     _MMIO(0x2418)
+#define MI_PREDICATE_RESULT_1   _MMIO(0x241c)
 #define MI_PREDICATE_RESULT_2	_MMIO(0x2214)
 #define  LOWER_SLICE_ENABLED	(1 << 0)
 #define  LOWER_SLICE_DISABLED	(0 << 0)
@@ -2883,6 +2885,7 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 
 #define GEN6_RC_SLEEP_PSMI_CONTROL	_MMIO(0x2050)
 #define   GEN6_PSMI_SLEEP_MSG_DISABLE	(1 << 0)
+#define   GEN12_WAIT_FOR_EVENT_POWER_DOWN_DISABLE REG_BIT(7)
 #define   GEN8_RC_SEMA_IDLE_MSG_DISABLE	(1 << 12)
 #define   GEN8_FF_DOP_CLOCK_GATE_DISABLE	(1 << 10)
 
@@ -4048,9 +4051,14 @@ enum {
 #define  SARBUNIT_CLKGATE_DIS		(1 << 5)
 #define  RCCUNIT_CLKGATE_DIS		(1 << 7)
 #define  MSCUNIT_CLKGATE_DIS		(1 << 10)
+#define  L3_CLKGATE_DIS			REG_BIT(16)
+#define  L3_CR2X_CLKGATE_DIS		REG_BIT(17)
 
 #define SUBSLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x9524)
 #define  GWUNIT_CLKGATE_DIS		(1 << 16)
+
+#define SUBSLICE_UNIT_LEVEL_CLKGATE2	_MMIO(0x9528)
+#define  CPSSUNIT_CLKGATE_DIS		REG_BIT(9)
 
 #define UNSLICE_UNIT_LEVEL_CLKGATE	_MMIO(0x9434)
 #define  VFUNIT_CLKGATE_DIS		(1 << 20)
@@ -4145,6 +4153,7 @@ enum {
 #define _VTOTAL_A	0x6000c
 #define _VBLANK_A	0x60010
 #define _VSYNC_A	0x60014
+#define _EXITLINE_A	0x60018
 #define _PIPEASRC	0x6001c
 #define _BCLRPAT_A	0x60020
 #define _VSYNCSHIFT_A	0x60028
@@ -4195,6 +4204,11 @@ enum {
 #define VSYNCSHIFT(trans)	_MMIO_TRANS2(trans, _VSYNCSHIFT_A)
 #define PIPESRC(trans)		_MMIO_TRANS2(trans, _PIPEASRC)
 #define PIPE_MULT(trans)	_MMIO_TRANS2(trans, _PIPE_MULT_A)
+
+#define EXITLINE(trans)		_MMIO_TRANS2(trans, _EXITLINE_A)
+#define   EXITLINE_ENABLE	REG_BIT(31)
+#define   EXITLINE_MASK		REG_GENMASK(12, 0)
+#define   EXITLINE_SHIFT	0
 
 /*
  * HSW+ eDP PSR registers
@@ -4684,6 +4698,7 @@ enum {
  * (Haswell and newer) to see which VIDEO_DIP_DATA byte corresponds to each byte
  * of the infoframe structure specified by CEA-861. */
 #define   VIDEO_DIP_DATA_SIZE	32
+#define   VIDEO_DIP_GMP_DATA_SIZE	36
 #define   VIDEO_DIP_VSC_DATA_SIZE	36
 #define   VIDEO_DIP_PPS_DATA_SIZE	132
 #define VIDEO_DIP_CTL		_MMIO(0x61170)
@@ -7262,6 +7277,8 @@ enum {
 #define TGL_DMC_DEBUG_DC5_COUNT	_MMIO(0x101084)
 #define TGL_DMC_DEBUG_DC6_COUNT	_MMIO(0x101088)
 
+#define DMC_DEBUG3		_MMIO(0x101090)
+
 /* interrupts */
 #define DE_MASTER_IRQ_CONTROL   (1 << 31)
 #define DE_SPRITEB_FLIP_DONE    (1 << 29)
@@ -7660,7 +7677,10 @@ enum {
 #define  GEN9_POOLED_EU_LOAD_BALANCING_FIX_DISABLE  (1 << 10)
 
 #define GEN9_CS_DEBUG_MODE1		_MMIO(0x20ec)
+#define   FF_DOP_CLOCK_GATE_DISABLE	REG_BIT(1)
 #define GEN9_CTX_PREEMPT_REG		_MMIO(0x2248)
+#define   GEN12_DISABLE_POSH_BUSY_FF_DOP_CG REG_BIT(11)
+
 #define GEN8_CS_CHICKEN1		_MMIO(0x2580)
 #define GEN9_PREEMPT_3D_OBJECT_LEVEL		(1 << 0)
 #define GEN9_PREEMPT_GPGPU_LEVEL(hi, lo)	(((hi) << 2) | ((lo) << 1))
@@ -8870,6 +8890,7 @@ enum {
 #define     GEN9_SAGV_DISABLE			0x0
 #define     GEN9_SAGV_IS_DISABLED		0x1
 #define     GEN9_SAGV_ENABLE			0x3
+#define GEN12_PCODE_READ_SAGV_BLOCK_TIME_US	0x23
 #define GEN6_PCODE_DATA				_MMIO(0x138128)
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 #define   GEN6_PCODE_FREQ_RING_RATIO_SHIFT	16
@@ -9747,18 +9768,7 @@ enum skl_power_gate {
 #define _TRANSC_MSA_MISC		0x62410
 #define _TRANS_EDP_MSA_MISC		0x6f410
 #define TRANS_MSA_MISC(tran) _MMIO_TRANS2(tran, _TRANSA_MSA_MISC)
-
-#define  TRANS_MSA_SYNC_CLK		(1 << 0)
-#define  TRANS_MSA_SAMPLING_444		(2 << 1)
-#define  TRANS_MSA_CLRSP_YCBCR		(1 << 3)
-#define  TRANS_MSA_YCBCR_BT709		(1 << 4)
-#define  TRANS_MSA_6_BPC		(0 << 5)
-#define  TRANS_MSA_8_BPC		(1 << 5)
-#define  TRANS_MSA_10_BPC		(2 << 5)
-#define  TRANS_MSA_12_BPC		(3 << 5)
-#define  TRANS_MSA_16_BPC		(4 << 5)
-#define  TRANS_MSA_CEA_RANGE		(1 << 3)
-#define  TRANS_MSA_USE_VSC_SDP		(1 << 14)
+/* See DP_MSA_MISC_* for the bit definitions */
 
 /* LCPLL Control */
 #define LCPLL_CTL			_MMIO(0x130040)
@@ -10291,6 +10301,8 @@ enum skl_power_gate {
 /* GEN9 DC */
 #define DC_STATE_EN			_MMIO(0x45504)
 #define  DC_STATE_DISABLE		0
+#define  DC_STATE_EN_DC3CO		REG_BIT(30)
+#define  DC_STATE_DC3CO_STATUS		REG_BIT(29)
 #define  DC_STATE_EN_UPTO_DC5		(1 << 0)
 #define  DC_STATE_EN_DC9		(1 << 3)
 #define  DC_STATE_EN_UPTO_DC6		(2 << 0)

@@ -695,7 +695,11 @@ static u32 gen9_dc_mask(struct drm_i915_private *dev_priv)
 	u32 mask;
 
 	mask = DC_STATE_EN_UPTO_DC5;
-	if (INTEL_GEN(dev_priv) >= 11)
+
+	if (INTEL_GEN(dev_priv) >= 12)
+		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC6
+					  | DC_STATE_EN_DC9;
+	else if (IS_GEN(dev_priv, 11))
 		mask |= DC_STATE_EN_UPTO_DC6 | DC_STATE_EN_DC9;
 	else if (IS_GEN9_LP(dev_priv))
 		mask |= DC_STATE_EN_DC9;
@@ -765,6 +769,52 @@ static void gen9_set_dc_state(struct drm_i915_private *dev_priv, u32 state)
 	dev_priv->csr.dc_state = val & mask;
 }
 
+static u32
+sanitize_target_dc_state(struct drm_i915_private *dev_priv,
+			 u32 target_dc_state)
+{
+	u32 states[] = {
+		DC_STATE_EN_UPTO_DC6,
+		DC_STATE_EN_UPTO_DC5,
+		DC_STATE_EN_DC3CO,
+		DC_STATE_DISABLE,
+	};
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(states) - 1; i++) {
+		if (target_dc_state != states[i])
+			continue;
+
+		if (dev_priv->csr.allowed_dc_mask & target_dc_state)
+			break;
+
+		target_dc_state = states[i + 1];
+	}
+
+	return target_dc_state;
+}
+
+static void tgl_enable_dc3co(struct drm_i915_private *dev_priv)
+{
+	DRM_DEBUG_KMS("Enabling DC3CO\n");
+	gen9_set_dc_state(dev_priv, DC_STATE_EN_DC3CO);
+}
+
+static void tgl_disable_dc3co(struct drm_i915_private *dev_priv)
+{
+	u32 val;
+
+	DRM_DEBUG_KMS("Disabling DC3CO\n");
+	val = I915_READ(DC_STATE_EN);
+	val &= ~DC_STATE_DC3CO_STATUS;
+	I915_WRITE(DC_STATE_EN, val);
+	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
+	/*
+	 * Delay of 200us DC3CO Exit time B.Spec 49196
+	 */
+	usleep_range(200, 210);
+}
+
 static void bxt_enable_dc9(struct drm_i915_private *dev_priv)
 {
 	assert_can_enable_dc9(dev_priv);
@@ -818,6 +868,51 @@ lookup_power_well(struct drm_i915_private *dev_priv,
 	 */
 	WARN(1, "Power well %d not defined for this platform\n", power_well_id);
 	return &dev_priv->power_domains.power_wells[0];
+}
+
+/**
+ * intel_display_power_set_target_dc_state - Set target dc state.
+ * @dev_priv: i915 device
+ * @state: state which needs to be set as target_dc_state.
+ *
+ * This function set the "DC off" power well target_dc_state,
+ * based upon this target_dc_stste, "DC off" power well will
+ * enable desired DC state.
+ */
+void intel_display_power_set_target_dc_state(struct drm_i915_private *dev_priv,
+					     u32 state)
+{
+	struct i915_power_well *power_well;
+	bool dc_off_enabled;
+	struct i915_power_domains *power_domains = &dev_priv->power_domains;
+
+	mutex_lock(&power_domains->lock);
+	power_well = lookup_power_well(dev_priv, SKL_DISP_DC_OFF);
+
+	if (WARN_ON(!power_well))
+		goto unlock;
+
+	state = sanitize_target_dc_state(dev_priv, state);
+
+	if (state == dev_priv->csr.target_dc_state)
+		goto unlock;
+
+	dc_off_enabled = power_well->desc->ops->is_enabled(dev_priv,
+							   power_well);
+	/*
+	 * If DC off power well is disabled, need to enable and disable the
+	 * DC off power well to effect target DC state.
+	 */
+	if (!dc_off_enabled)
+		power_well->desc->ops->enable(dev_priv, power_well);
+
+	dev_priv->csr.target_dc_state = state;
+
+	if (!dc_off_enabled)
+		power_well->desc->ops->disable(dev_priv, power_well);
+
+unlock:
+	mutex_unlock(&power_domains->lock);
 }
 
 static void assert_can_enable_dc5(struct drm_i915_private *dev_priv)
@@ -932,7 +1027,8 @@ static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
 static bool gen9_dc_off_power_well_enabled(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	return (I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0;
+	return ((I915_READ(DC_STATE_EN) & DC_STATE_EN_DC3CO) == 0 &&
+		(I915_READ(DC_STATE_EN) & DC_STATE_EN_UPTO_DC5_DC6_MASK) == 0);
 }
 
 static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
@@ -947,6 +1043,11 @@ static void gen9_assert_dbuf_enabled(struct drm_i915_private *dev_priv)
 static void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 {
 	struct intel_cdclk_state cdclk_state = {};
+
+	if (dev_priv->csr.target_dc_state == DC_STATE_EN_DC3CO) {
+		tgl_disable_dc3co(dev_priv);
+		return;
+	}
 
 	gen9_set_dc_state(dev_priv, DC_STATE_DISABLE);
 
@@ -980,10 +1081,17 @@ static void gen9_dc_off_power_well_disable(struct drm_i915_private *dev_priv,
 	if (!dev_priv->csr.dmc_payload)
 		return;
 
-	if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC6)
+	switch (dev_priv->csr.target_dc_state) {
+	case DC_STATE_EN_DC3CO:
+		tgl_enable_dc3co(dev_priv);
+		break;
+	case DC_STATE_EN_UPTO_DC6:
 		skl_enable_dc6(dev_priv);
-	else if (dev_priv->csr.allowed_dc_mask & DC_STATE_EN_UPTO_DC5)
+		break;
+	case DC_STATE_EN_UPTO_DC5:
 		gen9_enable_dc5(dev_priv);
+		break;
+	}
 }
 
 static void i9xx_power_well_sync_hw_noop(struct drm_i915_private *dev_priv,
@@ -2931,7 +3039,7 @@ static const struct i915_power_well_desc skl_power_wells[] = {
 		.name = "DC off",
 		.domains = SKL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3013,7 +3121,7 @@ static const struct i915_power_well_desc bxt_power_wells[] = {
 		.name = "DC off",
 		.domains = BXT_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3073,7 +3181,7 @@ static const struct i915_power_well_desc glk_power_wells[] = {
 		.name = "DC off",
 		.domains = GLK_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3242,7 +3350,7 @@ static const struct i915_power_well_desc cnl_power_wells[] = {
 		.name = "DC off",
 		.domains = CNL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3370,7 +3478,7 @@ static const struct i915_power_well_desc icl_power_wells[] = {
 		.name = "DC off",
 		.domains = ICL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3603,7 +3711,7 @@ static const struct i915_power_well_desc tgl_power_wells[] = {
 		.name = "DC off",
 		.domains = TGL_DISPLAY_DC_OFF_POWER_DOMAINS,
 		.ops = &gen9_dc_off_power_well_ops,
-		.id = DISP_PW_ID_NONE,
+		.id = SKL_DISP_DC_OFF,
 	},
 	{
 		.name = "power well 2",
@@ -3924,13 +4032,16 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 	int requested_dc;
 	int max_dc;
 
-	if (INTEL_GEN(dev_priv) >= 11) {
-		max_dc = 2;
+	if (INTEL_GEN(dev_priv) >= 12) {
+		max_dc = 4;
 		/*
 		 * DC9 has a separate HW flow from the rest of the DC states,
 		 * not depending on the DMC firmware. It's needed by system
 		 * suspend/resume, so allow it unconditionally.
 		 */
+		mask = DC_STATE_EN_DC9;
+	} else if (IS_GEN(dev_priv, 11)) {
+		max_dc = 2;
 		mask = DC_STATE_EN_DC9;
 	} else if (IS_GEN(dev_priv, 10) || IS_GEN9_BC(dev_priv)) {
 		max_dc = 2;
@@ -3950,7 +4061,7 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		requested_dc = enable_dc;
 	} else if (enable_dc == -1) {
 		requested_dc = max_dc;
-	} else if (enable_dc > max_dc && enable_dc <= 2) {
+	} else if (enable_dc > max_dc && enable_dc <= 4) {
 		DRM_DEBUG_KMS("Adjusting requested max DC state (%d->%d)\n",
 			      enable_dc, max_dc);
 		requested_dc = max_dc;
@@ -3959,10 +4070,20 @@ static u32 get_allowed_dc_mask(const struct drm_i915_private *dev_priv,
 		requested_dc = max_dc;
 	}
 
-	if (requested_dc > 1)
+	switch (requested_dc) {
+	case 4:
+		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC6;
+		break;
+	case 3:
+		mask |= DC_STATE_EN_DC3CO | DC_STATE_EN_UPTO_DC5;
+		break;
+	case 2:
 		mask |= DC_STATE_EN_UPTO_DC6;
-	if (requested_dc > 0)
+		break;
+	case 1:
 		mask |= DC_STATE_EN_UPTO_DC5;
+		break;
+	}
 
 	DRM_DEBUG_KMS("Allowed DC state mask %02x\n", mask);
 
@@ -4022,6 +4143,9 @@ int intel_power_domains_init(struct drm_i915_private *dev_priv)
 						   i915_modparams.disable_power_well);
 	dev_priv->csr.allowed_dc_mask =
 		get_allowed_dc_mask(dev_priv, i915_modparams.enable_dc);
+
+	dev_priv->csr.target_dc_state =
+		sanitize_target_dc_state(dev_priv, DC_STATE_EN_UPTO_DC6);
 
 	BUILD_BUG_ON(POWER_DOMAIN_NUM > 64);
 

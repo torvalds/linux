@@ -412,7 +412,7 @@ void gen9_reset_guc_interrupts(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+	assert_rpm_wakelock_held(gt->uncore->rpm);
 
 	spin_lock_irq(&gt->irq_lock);
 	gen6_gt_pm_reset_iir(gt, gt->pm_guc_events);
@@ -423,7 +423,7 @@ void gen9_enable_guc_interrupts(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+	assert_rpm_wakelock_held(gt->uncore->rpm);
 
 	spin_lock_irq(&gt->irq_lock);
 	if (!guc->interrupts.enabled) {
@@ -440,7 +440,7 @@ void gen9_disable_guc_interrupts(struct intel_guc *guc)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
 
-	assert_rpm_wakelock_held(&gt->i915->runtime_pm);
+	assert_rpm_wakelock_held(gt->uncore->rpm);
 
 	spin_lock_irq(&gt->irq_lock);
 	guc->interrupts.enabled = false;
@@ -2248,11 +2248,19 @@ static void icp_irq_handler(struct drm_i915_private *dev_priv, u32 pch_iir)
 		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_TGP;
 		tc_port_hotplug_long_detect = tgp_tc_port_hotplug_long_detect;
 		pins = hpd_tgp;
-	} else if (HAS_PCH_MCC(dev_priv)) {
+	} else if (HAS_PCH_JSP(dev_priv)) {
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_TGP;
 		tc_hotplug_trigger = 0;
+		pins = hpd_tgp;
+	} else if (HAS_PCH_MCC(dev_priv)) {
+		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
+		tc_hotplug_trigger = pch_iir & SDE_TC_HOTPLUG_ICP(PORT_TC1);
+		tc_port_hotplug_long_detect = icp_tc_port_hotplug_long_detect;
 		pins = hpd_icp;
 	} else {
+		WARN(!HAS_PCH_ICP(dev_priv),
+		     "Unrecognized PCH type 0x%x\n", INTEL_PCH_TYPE(dev_priv));
+
 		ddi_hotplug_trigger = pch_iir & SDE_DDI_MASK_ICP;
 		tc_hotplug_trigger = pch_iir & SDE_TC_MASK_ICP;
 		tc_port_hotplug_long_detect = icp_tc_port_hotplug_long_detect;
@@ -3377,9 +3385,22 @@ static void icp_hpd_irq_setup(struct drm_i915_private *dev_priv,
 static void mcc_hpd_irq_setup(struct drm_i915_private *dev_priv)
 {
 	icp_hpd_irq_setup(dev_priv,
+			  SDE_DDI_MASK_ICP, SDE_TC_HOTPLUG_ICP(PORT_TC1),
+			  ICP_DDI_HPD_ENABLE_MASK, ICP_TC_HPD_ENABLE(PORT_TC1),
+			  hpd_icp);
+}
+
+/*
+ * JSP behaves exactly the same as MCC above except that port C is mapped to
+ * the DDI-C pins instead of the TC1 pins.  This means we should follow TGP's
+ * masks & tables rather than ICP's masks & tables.
+ */
+static void jsp_hpd_irq_setup(struct drm_i915_private *dev_priv)
+{
+	icp_hpd_irq_setup(dev_priv,
 			  SDE_DDI_MASK_TGP, 0,
 			  TGP_DDI_HPD_ENABLE_MASK, 0,
-			  hpd_icp);
+			  hpd_tgp);
 }
 
 static void gen11_hpd_detection_setup(struct drm_i915_private *dev_priv)
@@ -3782,8 +3803,11 @@ static void icp_irq_postinstall(struct drm_i915_private *dev_priv)
 	if (HAS_PCH_TGP(dev_priv))
 		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK,
 					TGP_TC_HPD_ENABLE_MASK);
-	else if (HAS_PCH_MCC(dev_priv))
+	else if (HAS_PCH_JSP(dev_priv))
 		icp_hpd_detection_setup(dev_priv, TGP_DDI_HPD_ENABLE_MASK, 0);
+	else if (HAS_PCH_MCC(dev_priv))
+		icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
+					ICP_TC_HPD_ENABLE(PORT_TC1));
 	else
 		icp_hpd_detection_setup(dev_priv, ICP_DDI_HPD_ENABLE_MASK,
 					ICP_TC_HPD_ENABLE_MASK);
@@ -4313,7 +4337,9 @@ void intel_irq_init(struct drm_i915_private *dev_priv)
 		if (I915_HAS_HOTPLUG(dev_priv))
 			dev_priv->display.hpd_irq_setup = i915_hpd_irq_setup;
 	} else {
-		if (HAS_PCH_MCC(dev_priv))
+		if (HAS_PCH_JSP(dev_priv))
+			dev_priv->display.hpd_irq_setup = jsp_hpd_irq_setup;
+		else if (HAS_PCH_MCC(dev_priv))
 			dev_priv->display.hpd_irq_setup = mcc_hpd_irq_setup;
 		else if (INTEL_GEN(dev_priv) >= 11)
 			dev_priv->display.hpd_irq_setup = gen11_hpd_irq_setup;
@@ -4460,10 +4486,10 @@ void intel_irq_uninstall(struct drm_i915_private *dev_priv)
 	int irq = dev_priv->drm.pdev->irq;
 
 	/*
-	 * FIXME we can get called twice during driver load
-	 * error handling due to intel_modeset_cleanup()
-	 * calling us out of sequence. Would be nice if
-	 * it didn't do that...
+	 * FIXME we can get called twice during driver probe
+	 * error handling as well as during driver remove due to
+	 * intel_modeset_driver_remove() calling us out of sequence.
+	 * Would be nice if it didn't do that...
 	 */
 	if (!dev_priv->drm.irq_enabled)
 		return;

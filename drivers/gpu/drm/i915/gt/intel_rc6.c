@@ -65,7 +65,7 @@ static void gen11_rc6_enable(struct intel_rc6 *rc6)
 
 	set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
-	for_each_engine(engine, rc6_to_gt(rc6)->i915, id)
+	for_each_engine(engine, rc6_to_gt(rc6), id)
 		set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
 
 	set(uncore, GUC_MAX_IDLE_COUNT, 0xA);
@@ -133,7 +133,7 @@ static void gen9_rc6_enable(struct intel_rc6 *rc6)
 
 	set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
-	for_each_engine(engine, rc6_to_gt(rc6)->i915, id)
+	for_each_engine(engine, rc6_to_gt(rc6), id)
 		set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
 
 	set(uncore, GUC_MAX_IDLE_COUNT, 0xA);
@@ -192,7 +192,7 @@ static void gen8_rc6_enable(struct intel_rc6 *rc6)
 	set(uncore, GEN6_RC6_WAKE_RATE_LIMIT, 40 << 16);
 	set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
-	for_each_engine(engine, rc6_to_gt(rc6)->i915, id)
+	for_each_engine(engine, rc6_to_gt(rc6), id)
 		set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
 	set(uncore, GEN6_RC_SLEEP, 0);
 	set(uncore, GEN6_RC6_THRESHOLD, 625); /* 800us/1.28 for TO */
@@ -219,7 +219,7 @@ static void gen6_rc6_enable(struct intel_rc6 *rc6)
 	set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000);
 	set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25);
 
-	for_each_engine(engine, i915, id)
+	for_each_engine(engine, rc6_to_gt(rc6), id)
 		set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
 
 	set(uncore, GEN6_RC_SLEEP, 0);
@@ -344,7 +344,7 @@ static void chv_rc6_enable(struct intel_rc6 *rc6)
 	set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000); /* 12500 * 1280ns */
 	set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25); /* 25 * 1280ns */
 
-	for_each_engine(engine, rc6_to_gt(rc6)->i915, id)
+	for_each_engine(engine, rc6_to_gt(rc6), id)
 		set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
 	set(uncore, GEN6_RC_SLEEP, 0);
 
@@ -371,7 +371,7 @@ static void vlv_rc6_enable(struct intel_rc6 *rc6)
 	set(uncore, GEN6_RC_EVALUATION_INTERVAL, 125000);
 	set(uncore, GEN6_RC_IDLE_HYSTERSIS, 25);
 
-	for_each_engine(engine, rc6_to_gt(rc6)->i915, id)
+	for_each_engine(engine, rc6_to_gt(rc6), id)
 		set(uncore, RING_MAX_IDLE(engine->mmio_base), 10);
 
 	set(uncore, GEN6_RC6_THRESHOLD, 0x557);

@@ -1609,7 +1609,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 			struct intel_engine_cs *signaller;
 
 			*cs++ = MI_LOAD_REGISTER_IMM(num_engines);
-			for_each_engine(signaller, i915, id) {
+			for_each_engine(signaller, engine->gt, id) {
 				if (signaller == engine)
 					continue;
 
@@ -1663,7 +1663,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 			i915_reg_t last_reg = {}; /* keep gcc quiet */
 
 			*cs++ = MI_LOAD_REGISTER_IMM(num_engines);
-			for_each_engine(signaller, i915, id) {
+			for_each_engine(signaller, engine->gt, id) {
 				if (signaller == engine)
 					continue;
 
@@ -1676,7 +1676,7 @@ static inline int mi_set_context(struct i915_request *rq, u32 flags)
 			/* Insert a delay before the next switch! */
 			*cs++ = MI_STORE_REGISTER_MEM | MI_SRM_LRM_GLOBAL_GTT;
 			*cs++ = i915_mmio_reg_offset(last_reg);
-			*cs++ = intel_gt_scratch_offset(rq->engine->gt,
+			*cs++ = intel_gt_scratch_offset(engine->gt,
 							INTEL_GT_SCRATCH_FIELD_DEFAULT);
 			*cs++ = MI_NOOP;
 		}

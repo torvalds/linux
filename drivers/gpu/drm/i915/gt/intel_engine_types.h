@@ -148,6 +148,7 @@ enum intel_engine_id {
 	VECS1,
 #define _VECS(n) (VECS0 + (n))
 	I915_NUM_ENGINES
+#define INVALID_ENGINE ((enum intel_engine_id)-1)
 };
 
 struct st_preempt_hang {

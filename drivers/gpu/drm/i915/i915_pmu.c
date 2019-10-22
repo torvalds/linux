@@ -301,7 +301,7 @@ engines_sample(struct intel_gt *gt, unsigned int period_ns)
 	if ((i915->pmu.enable & ENGINE_SAMPLE_MASK) == 0)
 		return;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct intel_engine_pmu *pmu = &engine->pmu;
 		unsigned long flags;
 		bool busy;
@@ -1080,10 +1080,21 @@ static void i915_pmu_unregister_cpuhp_state(struct i915_pmu *pmu)
 	cpuhp_remove_multi_state(cpuhp_slot);
 }
 
+static bool is_igp(struct drm_i915_private *i915)
+{
+	struct pci_dev *pdev = i915->drm.pdev;
+
+	/* IGP is 0000:00:02.0 */
+	return pci_domain_nr(pdev->bus) == 0 &&
+	       pdev->bus->number == 0 &&
+	       PCI_SLOT(pdev->devfn) == 2 &&
+	       PCI_FUNC(pdev->devfn) == 0;
+}
+
 void i915_pmu_register(struct drm_i915_private *i915)
 {
 	struct i915_pmu *pmu = &i915->pmu;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (INTEL_GEN(i915) <= 2) {
 		dev_info(i915->drm.dev, "PMU not supported for this GPU.");
@@ -1091,10 +1102,8 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	}
 
 	i915_pmu_events_attr_group.attrs = create_event_attributes(pmu);
-	if (!i915_pmu_events_attr_group.attrs) {
-		ret = -ENOMEM;
+	if (!i915_pmu_events_attr_group.attrs)
 		goto err;
-	}
 
 	pmu->base.attr_groups	= i915_pmu_attr_groups;
 	pmu->base.task_ctx_nr	= perf_invalid_context;
@@ -1110,9 +1119,18 @@ void i915_pmu_register(struct drm_i915_private *i915)
 	hrtimer_init(&pmu->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	pmu->timer.function = i915_sample;
 
-	ret = perf_pmu_register(&pmu->base, "i915", -1);
-	if (ret)
+	if (!is_igp(i915))
+		pmu->name = kasprintf(GFP_KERNEL,
+				      "i915-%s",
+				      dev_name(i915->drm.dev));
+	else
+		pmu->name = "i915";
+	if (!pmu->name)
 		goto err;
+
+	ret = perf_pmu_register(&pmu->base, pmu->name, -1);
+	if (ret)
+		goto err_name;
 
 	ret = i915_pmu_register_cpuhp_state(pmu);
 	if (ret)
@@ -1122,6 +1140,9 @@ void i915_pmu_register(struct drm_i915_private *i915)
 
 err_unreg:
 	perf_pmu_unregister(&pmu->base);
+err_name:
+	if (!is_igp(i915))
+		kfree(pmu->name);
 err:
 	pmu->base.event_init = NULL;
 	free_event_attributes(pmu);
@@ -1143,5 +1164,7 @@ void i915_pmu_unregister(struct drm_i915_private *i915)
 
 	perf_pmu_unregister(&pmu->base);
 	pmu->base.event_init = NULL;
+	if (!is_igp(i915))
+		kfree(pmu->name);
 	free_event_attributes(pmu);
 }

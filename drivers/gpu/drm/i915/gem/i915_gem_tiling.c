@@ -348,9 +348,9 @@ i915_gem_set_tiling_ioctl(struct drm_device *dev, void *data,
 		args->stride = 0;
 	} else {
 		if (args->tiling_mode == I915_TILING_X)
-			args->swizzle_mode = to_i915(dev)->mm.bit_6_swizzle_x;
+			args->swizzle_mode = to_i915(dev)->ggtt.bit_6_swizzle_x;
 		else
-			args->swizzle_mode = to_i915(dev)->mm.bit_6_swizzle_y;
+			args->swizzle_mode = to_i915(dev)->ggtt.bit_6_swizzle_y;
 
 		/* Hide bit 17 swizzling from the user.  This prevents old Mesa
 		 * from aborting the application on sw fallbacks to bit 17,
@@ -421,10 +421,10 @@ i915_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 
 	switch (args->tiling_mode) {
 	case I915_TILING_X:
-		args->swizzle_mode = dev_priv->mm.bit_6_swizzle_x;
+		args->swizzle_mode = dev_priv->ggtt.bit_6_swizzle_x;
 		break;
 	case I915_TILING_Y:
-		args->swizzle_mode = dev_priv->mm.bit_6_swizzle_y;
+		args->swizzle_mode = dev_priv->ggtt.bit_6_swizzle_y;
 		break;
 	default:
 	case I915_TILING_NONE:

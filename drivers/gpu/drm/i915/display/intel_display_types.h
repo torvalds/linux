@@ -870,6 +870,7 @@ struct intel_crtc_state {
 
 	bool has_psr;
 	bool has_psr2;
+	u32 dc3co_exitline;
 
 	/*
 	 * Frequence the dpll for the port should run at. Differs from the
@@ -990,6 +991,12 @@ struct intel_crtc_state {
 
 	/* Forward Error correction State */
 	bool fec_enable;
+
+	/* Pointer to master transcoder in case of tiled displays */
+	enum transcoder master_transcoder;
+
+	/* Bitmask to indicate slaves attached */
+	u8 sync_mode_slaves_mask;
 };
 
 struct intel_crtc {

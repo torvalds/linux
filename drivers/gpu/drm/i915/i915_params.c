@@ -46,7 +46,8 @@ i915_param_named(modeset, int, 0400,
 
 i915_param_named_unsafe(enable_dc, int, 0400,
 	"Enable power-saving display C-states. "
-	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6)");
+	"(-1=auto [default]; 0=disable; 1=up to DC5; 2=up to DC6; "
+	"3=up to DC5 with DC3CO; 4=up to DC6 with DC3CO)");
 
 i915_param_named_unsafe(enable_fbc, int, 0600,
 	"Enable frame buffer compression for power savings "

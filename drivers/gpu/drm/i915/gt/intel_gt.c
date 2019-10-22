@@ -186,7 +186,7 @@ intel_gt_clear_error_registers(struct intel_gt *gt,
 		struct intel_engine_cs *engine;
 		enum intel_engine_id id;
 
-		for_each_engine_masked(engine, i915, engine_mask, id)
+		for_each_engine_masked(engine, gt, engine_mask, id)
 			gen8_clear_engine_error_register(engine);
 	}
 }
@@ -197,7 +197,7 @@ static void gen6_check_faults(struct intel_gt *gt)
 	enum intel_engine_id id;
 	u32 fault;
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		fault = GEN6_RING_FAULT_REG_READ(engine);
 		if (fault & RING_FAULT_VALID) {
 			DRM_DEBUG_DRIVER("Unexpected fault\n"
@@ -273,7 +273,7 @@ void intel_gt_check_and_clear_faults(struct intel_gt *gt)
 
 void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 {
-	struct drm_i915_private *i915 = gt->i915;
+	struct intel_uncore *uncore = gt->uncore;
 	intel_wakeref_t wakeref;
 
 	/*
@@ -297,13 +297,12 @@ void intel_gt_flush_ggtt_writes(struct intel_gt *gt)
 
 	wmb();
 
-	if (INTEL_INFO(i915)->has_coherent_ggtt)
+	if (INTEL_INFO(gt->i915)->has_coherent_ggtt)
 		return;
 
 	intel_gt_chipset_flush(gt);
 
-	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		struct intel_uncore *uncore = gt->uncore;
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&uncore->lock, flags);

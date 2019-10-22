@@ -159,7 +159,7 @@ static int live_context_size(void *arg)
 	if (IS_ERR(fixme))
 		return PTR_ERR(fixme);
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		struct {
 			struct drm_i915_gem_object *state;
 			void *pinned;
@@ -305,7 +305,7 @@ static int live_active_context(void *arg)
 		goto out_file;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = __live_active_context(engine, fixme);
 		if (err)
 			break;
@@ -415,7 +415,7 @@ static int live_remote_context(void *arg)
 		goto out_file;
 	}
 
-	for_each_engine(engine, gt->i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = __live_remote_context(engine, fixme);
 		if (err)
 			break;
