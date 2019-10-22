@@ -21,31 +21,25 @@
 
 	disp0 {
 		compatible = "fsl,imx-parallel-display";
-		interface-pix-fmt = "bgr666";
 		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_ipu1_disp1>;
+		pinctrl-0 = <&pinctrl_ipu1_disp0>;
 
-		display-timings {
-			lw700 {
-				clock-frequency = <33000033>;
-				hactive = <800>;
-				vactive = <480>;
-				hback-porch = <96>;
-				hfront-porch = <96>;
-				vback-porch = <20>;
-				vfront-porch = <21>;
-				hsync-len = <64>;
-				vsync-len = <4>;
-				hsync-active = <1>;
-				vsync-active = <1>;
-				de-active = <1>;
-				pixelclk-active = <1>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+
+			display_in: endpoint {
+				remote-endpoint = <&ipu1_di0_disp0>;
 			};
 		};
 
-		port {
-			display_in: endpoint {
-				remote-endpoint = <&ipu1_di0_disp0>;
+		port@1 {
+			reg = <1>;
+
+			display_out: endpoint {
+				remote-endpoint = <&panel_in>;
 			};
 		};
 	};
@@ -73,6 +67,18 @@
 			gpios = <&gpio7 12 GPIO_ACTIVE_HIGH>;
 			linux,default-trigger = "heartbeat";
 			default-state = "on";
+		};
+	};
+
+	panel {
+		compatible = "armadeus,st0700-adapt";
+		power-supply = <&reg_3p3v>;
+		backlight = <&backlight>;
+
+		port {
+			panel_in: endpoint {
+				remote-endpoint = <&display_out>;
+			};
 		};
 	};
 
@@ -351,7 +357,7 @@
 		>;
 	};
 
-	pinctrl_ipu1_disp1: ipu1disp1grp {
+	pinctrl_ipu1_disp0: ipu1disp0grp {
 		fsl,pins = <
 			MX6QDL_PAD_DI0_DISP_CLK__IPU1_DI0_DISP_CLK	0x100b1
 			MX6QDL_PAD_DI0_PIN15__IPU1_DI0_PIN15		0x100b1
