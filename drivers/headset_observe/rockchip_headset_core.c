@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2014 Rockchip Corporation.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -34,7 +34,7 @@
 #define DBG(x...) do { } while (0)
 #endif
 
-struct rk_headset_pdata *pdata_info;
+static struct rk_headset_pdata *pdata_info;
 
 static int rockchip_headset_probe(struct platform_device *pdev)
 {
@@ -43,156 +43,154 @@ static int rockchip_headset_probe(struct platform_device *pdev)
 	int ret;
 	enum of_gpio_flags flags;
 
-	pdata = kzalloc(sizeof(struct rk_headset_pdata), GFP_KERNEL);
-	if (pdata == NULL) {
-		printk("%s failed to allocate driver data\n",__FUNCTION__);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		printk("%s failed to allocate driver data\n", __func__);
 		return -ENOMEM;
 	}
-	memset(pdata,0,sizeof(struct rk_headset_pdata));
 	pdata_info = pdata;
 
-	//headset
+	/* headset */
 	ret = of_get_named_gpio_flags(node, "headset_gpio", 0, &flags);
 	if (ret < 0) {
-		printk("%s() Can not read property headset_gpio\n", __FUNCTION__);
+		dev_err(&pdev->dev, "Can not read property headset_gpio\n");
 		goto err;
 	} else {
 		pdata->headset_gpio = ret;
-		ret = devm_gpio_request(&pdev->dev, pdata->headset_gpio, "headset_gpio");
-		if(ret < 0){
-			printk("%s() devm_gpio_request headset_gpio request ERROR\n", __FUNCTION__);
+		ret = devm_gpio_request(&pdev->dev, pdata->headset_gpio,
+					"headset_gpio");
+		if (ret < 0) {
+			dev_err(&pdev->dev, "headset_gpio request fail\n");
 			goto err;
 		}
-
-		ret = gpio_direction_input(pdata->headset_gpio); 
-		if(ret < 0){
-			printk("%s() gpio_direction_input headset_gpio set ERROR\n", __FUNCTION__);
+		ret = gpio_direction_input(pdata->headset_gpio);
+		if (ret < 0) {
+			dev_err(&pdev->dev,
+				"headset_gpio set direction fail\n");
 			goto err;
 		}
-
-		pdata->headset_insert_type = (flags & OF_GPIO_ACTIVE_LOW) ? HEADSET_IN_LOW : HEADSET_IN_HIGH;
+		pdata->headset_insert_type = (flags & OF_GPIO_ACTIVE_LOW) ?
+						     HEADSET_IN_LOW :
+						     HEADSET_IN_HIGH;
 	}
-
-	//hook
+	/* hook */
 	ret = of_get_named_gpio_flags(node, "hook_gpio", 0, &pdata->hook_gpio);
 	if (ret < 0) {
-		DBG("%s() Can not read property hook_gpio\n", __FUNCTION__);
+		dev_warn(&pdev->dev, "Can not read property hook_gpio\n");
 		pdata->hook_gpio = 0;
-		//adc mode
+		/* adc mode */
 		pdata->chan = iio_channel_get(&pdev->dev, NULL);
-   		if (IS_ERR(pdata->chan))
- 	       	{
+		if (IS_ERR(pdata->chan)) {
 			pdata->chan = NULL;
-			printk("%s() have not set adc chan\n", __FUNCTION__);
+			dev_warn(&pdev->dev, "have not set adc chan\n");
 		}
 	} else {
-		ret = of_property_read_u32(node, "hook_down_type", &pdata->hook_down_type);
+		ret = of_property_read_u32(node, "hook_down_type",
+					   &pdata->hook_down_type);
 		if (ret < 0) {
-			DBG("%s() have not set hook_down_type,set >hook< insert type low level default\n", __FUNCTION__);
+			dev_warn(&pdev->dev,
+				 "have not set hook_down_type,set >hook< insert type low level default\n");
 			pdata->hook_down_type = 0;
 		}
-		ret = devm_gpio_request(&pdev->dev, pdata->hook_gpio, "hook_gpio");
-		if(ret < 0){
-			printk("%s() devm_gpio_request hook_gpio request ERROR\n", __FUNCTION__);
+		ret = devm_gpio_request(&pdev->dev, pdata->hook_gpio,
+					"hook_gpio");
+		if (ret < 0) {
+			dev_warn(&pdev->dev,
+				 "devm_gpio_request hook_gpio request ERROR\n");
 			goto err;
 		}
-		ret = gpio_direction_input(pdata->hook_gpio); 
-		if(ret < 0){
-			printk("%s() gpio_direction_input hook_gpio set ERROR\n", __FUNCTION__);
+		ret = gpio_direction_input(pdata->hook_gpio);
+		if (ret < 0) {
+			dev_warn(&pdev->dev,
+				 "gpio_direction_input hook_gpio set ERROR\n");
 			goto err;
 		}
 	}
 
-	#ifdef CONFIG_MODEM_MIC_SWITCH
-	//mic
+#ifdef CONFIG_MODEM_MIC_SWITCH
+	/* mic */
 	ret = of_get_named_gpio_flags(node, "mic_switch_gpio", 0, &flags);
 	if (ret < 0) {
-		DBG("%s() Can not read property mic_switch_gpio\n", __FUNCTION__);
+		DBG("%s() Can not read property mic_switch_gpio\n",
+		    __func__);
 	} else {
 		pdata->headset_gpio = ret;
-		ret = of_property_read_u32(node, "hp_mic_io_value", &pdata->hp_mic_io_value);
+		ret = of_property_read_u32(node, "hp_mic_io_value",
+					   &pdata->hp_mic_io_value);
 		if (ret < 0) {
-			DBG("%s() have not set hp_mic_io_value ,so default set pull down low level\n", __FUNCTION__);
+			DBG("%s() have not set hp_mic_io_value ,so default set pull down low level\n",
+			    __func__);
 			pdata->hp_mic_io_value = 0;
 		}
-		ret = of_property_read_u32(node, "main_mic_io_value", &pdata->main_mic_io_value);
+		ret = of_property_read_u32(node, "main_mic_io_value",
+					   &pdata->main_mic_io_value);
 		if (ret < 0) {
-			DBG("%s() have not set main_mic_io_value ,so default set pull down low level\n", __FUNCTION__);
+			DBG("%s() have not set main_mic_io_value ,so default set pull down low level\n",
+			    __func__);
 			pdata->main_mic_io_value = 1;
 		}
 	}
-	#endif
-
-	ret = of_property_read_u32(node, "rockchip,headset_wakeup", &pdata->headset_wakeup);
+#endif
+	ret = of_property_read_u32(node, "rockchip,headset_wakeup",
+				   &pdata->headset_wakeup);
 	if (ret < 0)
 		pdata->headset_wakeup = 1;
-
-	if(pdata->chan != NULL)
-	{//hook adc mode
-		printk("%s() headset have hook adc mode\n",__FUNCTION__);
-		ret = rk_headset_adc_probe(pdev,pdata);
-		if(ret < 0)
-		{
+	if (pdata->chan) { /* hook adc mode */
+		dev_info(&pdev->dev, "headset have hook adc mode\n");
+		ret = rk_headset_adc_probe(pdev, pdata);
+		if (ret < 0) {
 			goto err;
-		}	
-
-	}
-	else
-	{//hook interrupt mode and not hook
-		printk("%s() headset have %s mode\n",__FUNCTION__,pdata->hook_gpio?"interrupt hook":"no hook");
-		ret = rk_headset_probe(pdev,pdata);
-		if(ret < 0)
-		{
+		}
+	} else { /* hook interrupt mode and not hook */
+		dev_info(&pdev->dev, "headset have %s mode\n",
+			 pdata->hook_gpio ? "interrupt hook" : "no hook");
+		ret = rk_headset_probe(pdev, pdata);
+		if (ret < 0) {
 			goto err;
 		}
 	}
-
 	return 0;
 err:
-	kfree(pdata);
 	return ret;
 }
 
 static int rockchip_headset_remove(struct platform_device *pdev)
 {
-	if(pdata_info)
-		kfree(pdata_info);
 	return 0;
 }
 
-static int rockchip_headset_suspend(struct platform_device *pdev, pm_message_t state)
+static int rockchip_headset_suspend(struct platform_device *pdev,
+				    pm_message_t state)
 {
-	if(pdata_info->chan != 0)
-	{
-		return rk_headset_adc_suspend(pdev,state);
+	if (pdata_info->chan != 0) {
+		return rk_headset_adc_suspend(pdev, state);
 	}
 	return 0;
 }
 
 static int rockchip_headset_resume(struct platform_device *pdev)
 {
-	if(pdata_info->chan != 0)
-	{
+	if (pdata_info->chan != 0) {
 		return rk_headset_adc_resume(pdev);
-	}	
+	}
 	return 0;
 }
 
 static const struct of_device_id rockchip_headset_of_match[] = {
-        { .compatible = "rockchip_headset", },
-        {},
+	{ .compatible = "rockchip_headset", },
+	{},
 };
 MODULE_DEVICE_TABLE(of, rockchip_headset_of_match);
 
 static struct platform_driver rockchip_headset_driver = {
 	.probe	= rockchip_headset_probe,
 	.remove = rockchip_headset_remove,
-	.resume = 	rockchip_headset_resume,	
-	.suspend = 	rockchip_headset_suspend,	
+	.resume =	rockchip_headset_resume,
+	.suspend =	rockchip_headset_suspend,
 	.driver	= {
 		.name	= "rockchip_headset",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(rockchip_headset_of_match),		
+		.of_match_table = of_match_ptr(rockchip_headset_of_match),
 	},
 };
 
