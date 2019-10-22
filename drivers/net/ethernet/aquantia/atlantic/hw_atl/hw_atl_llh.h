@@ -292,6 +292,9 @@ void hw_atl_rpb_dma_sys_lbk_set(struct aq_hw_s *aq_hw, u32 dma_sys_lbk);
 void hw_atl_rpb_rpf_rx_traf_class_mode_set(struct aq_hw_s *aq_hw,
 					   u32 rx_traf_class_mode);
 
+/* get rx traffic class mode */
+u32 hw_atl_rpb_rpf_rx_traf_class_mode_get(struct aq_hw_s *aq_hw);
+
 /* set rx buffer enable */
 void hw_atl_rpb_rx_buff_en_set(struct aq_hw_s *aq_hw, u32 rx_buff_en);
 
@@ -604,6 +607,9 @@ void hw_atl_thm_lso_tcp_flag_of_middle_pkt_set(struct aq_hw_s *aq_hw,
 /* set TX Traffic Class Mode */
 void hw_atl_rpb_tps_tx_tc_mode_set(struct aq_hw_s *aq_hw,
 				   u32 tx_traf_class_mode);
+
+/* get TX Traffic Class Mode */
+u32 hw_atl_rpb_tps_tx_tc_mode_get(struct aq_hw_s *aq_hw);
 
 /* set tx buffer enable */
 void hw_atl_tpb_tx_buff_en_set(struct aq_hw_s *aq_hw, u32 tx_buff_en);

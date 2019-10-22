@@ -572,6 +572,13 @@ void hw_atl_rpb_rpf_rx_traf_class_mode_set(struct aq_hw_s *aq_hw,
 			    rx_traf_class_mode);
 }
 
+u32 hw_atl_rpb_rpf_rx_traf_class_mode_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_RPB_RPF_RX_TC_MODE_ADR,
+			HW_ATL_RPB_RPF_RX_TC_MODE_MSK,
+			HW_ATL_RPB_RPF_RX_TC_MODE_SHIFT);
+}
+
 void hw_atl_rpb_rx_buff_en_set(struct aq_hw_s *aq_hw, u32 rx_buff_en)
 {
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_RPB_RX_BUF_EN_ADR,
@@ -1288,6 +1295,13 @@ void hw_atl_tpb_tx_buff_en_set(struct aq_hw_s *aq_hw, u32 tx_buff_en)
 	aq_hw_write_reg_bit(aq_hw, HW_ATL_TPB_TX_BUF_EN_ADR,
 			    HW_ATL_TPB_TX_BUF_EN_MSK,
 			    HW_ATL_TPB_TX_BUF_EN_SHIFT, tx_buff_en);
+}
+
+u32 hw_atl_rpb_tps_tx_tc_mode_get(struct aq_hw_s *aq_hw)
+{
+	return aq_hw_read_reg_bit(aq_hw, HW_ATL_TPB_TX_TC_MODE_ADDR,
+			HW_ATL_TPB_TX_TC_MODE_MSK,
+			HW_ATL_TPB_TX_TC_MODE_SHIFT);
 }
 
 void hw_atl_rpb_tps_tx_tc_mode_set(struct aq_hw_s *aq_hw,

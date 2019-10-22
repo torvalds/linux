@@ -17,6 +17,14 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec);
 void aq_ptp_unregister(struct aq_nic_s *aq_nic);
 void aq_ptp_free(struct aq_nic_s *aq_nic);
 
+int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic);
+void aq_ptp_ring_free(struct aq_nic_s *aq_nic);
+
+int aq_ptp_ring_init(struct aq_nic_s *aq_nic);
+int aq_ptp_ring_start(struct aq_nic_s *aq_nic);
+void aq_ptp_ring_stop(struct aq_nic_s *aq_nic);
+void aq_ptp_ring_deinit(struct aq_nic_s *aq_nic);
+
 void aq_ptp_clock_init(struct aq_nic_s *aq_nic);
 
 #endif /* AQ_PTP_H */

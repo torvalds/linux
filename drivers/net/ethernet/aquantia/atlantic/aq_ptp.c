@@ -12,13 +12,54 @@
 
 #include "aq_nic.h"
 #include "aq_ptp.h"
+#include "aq_ring.h"
+
+struct ptp_skb_ring {
+	struct sk_buff **buff;
+	spinlock_t lock;
+	unsigned int size;
+	unsigned int head;
+	unsigned int tail;
+};
 
 struct aq_ptp_s {
 	struct aq_nic_s *aq_nic;
 	spinlock_t ptp_lock;
+	spinlock_t ptp_ring_lock;
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_info;
+
+	struct aq_ring_param_s ptp_ring_param;
+
+	struct aq_ring_s ptp_tx;
+	struct aq_ring_s ptp_rx;
+	struct aq_ring_s hwts_rx;
+
+	struct ptp_skb_ring skb_ring;
 };
+
+static int aq_ptp_skb_ring_init(struct ptp_skb_ring *ring, unsigned int size)
+{
+	struct sk_buff **buff = kmalloc(sizeof(*buff) * size, GFP_KERNEL);
+
+	if (!buff)
+		return -ENOMEM;
+
+	spin_lock_init(&ring->lock);
+
+	ring->buff = buff;
+	ring->size = size;
+	ring->head = 0;
+	ring->tail = 0;
+
+	return 0;
+}
+
+static void aq_ptp_skb_ring_release(struct ptp_skb_ring *ring)
+{
+	kfree(ring->buff);
+	ring->buff = NULL;
+}
 
 /* aq_ptp_adjfine
  * @ptp: the ptp clock structure
@@ -107,6 +148,190 @@ static int aq_ptp_settime(struct ptp_clock_info *ptp,
 	return 0;
 }
 
+int aq_ptp_ring_init(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+	int err = 0;
+
+	if (!aq_ptp)
+		return 0;
+
+	err = aq_ring_init(&aq_ptp->ptp_tx);
+	if (err < 0)
+		goto err_exit;
+	err = aq_nic->aq_hw_ops->hw_ring_tx_init(aq_nic->aq_hw,
+						 &aq_ptp->ptp_tx,
+						 &aq_ptp->ptp_ring_param);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_ring_init(&aq_ptp->ptp_rx);
+	if (err < 0)
+		goto err_exit;
+	err = aq_nic->aq_hw_ops->hw_ring_rx_init(aq_nic->aq_hw,
+						 &aq_ptp->ptp_rx,
+						 &aq_ptp->ptp_ring_param);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_ring_rx_fill(&aq_ptp->ptp_rx);
+	if (err < 0)
+		goto err_rx_free;
+	err = aq_nic->aq_hw_ops->hw_ring_rx_fill(aq_nic->aq_hw,
+						 &aq_ptp->ptp_rx,
+						 0U);
+	if (err < 0)
+		goto err_rx_free;
+
+	err = aq_ring_init(&aq_ptp->hwts_rx);
+	if (err < 0)
+		goto err_rx_free;
+	err = aq_nic->aq_hw_ops->hw_ring_rx_init(aq_nic->aq_hw,
+						 &aq_ptp->hwts_rx,
+						 &aq_ptp->ptp_ring_param);
+
+	return err;
+
+err_rx_free:
+	aq_ring_rx_deinit(&aq_ptp->ptp_rx);
+err_exit:
+	return err;
+}
+
+int aq_ptp_ring_start(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+	int err = 0;
+
+	if (!aq_ptp)
+		return 0;
+
+	err = aq_nic->aq_hw_ops->hw_ring_tx_start(aq_nic->aq_hw, &aq_ptp->ptp_tx);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_nic->aq_hw_ops->hw_ring_rx_start(aq_nic->aq_hw, &aq_ptp->ptp_rx);
+	if (err < 0)
+		goto err_exit;
+
+	err = aq_nic->aq_hw_ops->hw_ring_rx_start(aq_nic->aq_hw,
+						  &aq_ptp->hwts_rx);
+	if (err < 0)
+		goto err_exit;
+
+err_exit:
+	return err;
+}
+
+void aq_ptp_ring_stop(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+
+	if (!aq_ptp)
+		return;
+
+	aq_nic->aq_hw_ops->hw_ring_tx_stop(aq_nic->aq_hw, &aq_ptp->ptp_tx);
+	aq_nic->aq_hw_ops->hw_ring_rx_stop(aq_nic->aq_hw, &aq_ptp->ptp_rx);
+
+	aq_nic->aq_hw_ops->hw_ring_rx_stop(aq_nic->aq_hw, &aq_ptp->hwts_rx);
+}
+
+void aq_ptp_ring_deinit(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+
+	if (!aq_ptp || !aq_ptp->ptp_tx.aq_nic || !aq_ptp->ptp_rx.aq_nic)
+		return;
+
+	aq_ring_tx_clean(&aq_ptp->ptp_tx);
+	aq_ring_rx_deinit(&aq_ptp->ptp_rx);
+}
+
+#define PTP_8TC_RING_IDX             8
+#define PTP_4TC_RING_IDX            16
+#define PTP_HWST_RING_IDX           31
+
+int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+	unsigned int tx_ring_idx, rx_ring_idx;
+	struct aq_ring_s *hwts = 0;
+	u32 tx_tc_mode, rx_tc_mode;
+	struct aq_ring_s *ring;
+	int err;
+
+	if (!aq_ptp)
+		return 0;
+
+	/* Index must to be 8 (8 TCs) or 16 (4 TCs).
+	 * It depends from Traffic Class mode.
+	 */
+	aq_nic->aq_hw_ops->hw_tx_tc_mode_get(aq_nic->aq_hw, &tx_tc_mode);
+	if (tx_tc_mode == 0)
+		tx_ring_idx = PTP_8TC_RING_IDX;
+	else
+		tx_ring_idx = PTP_4TC_RING_IDX;
+
+	ring = aq_ring_tx_alloc(&aq_ptp->ptp_tx, aq_nic,
+				tx_ring_idx, &aq_nic->aq_nic_cfg);
+	if (!ring) {
+		err = -ENOMEM;
+		goto err_exit;
+	}
+
+	aq_nic->aq_hw_ops->hw_rx_tc_mode_get(aq_nic->aq_hw, &rx_tc_mode);
+	if (rx_tc_mode == 0)
+		rx_ring_idx = PTP_8TC_RING_IDX;
+	else
+		rx_ring_idx = PTP_4TC_RING_IDX;
+
+	ring = aq_ring_rx_alloc(&aq_ptp->ptp_rx, aq_nic,
+				rx_ring_idx, &aq_nic->aq_nic_cfg);
+	if (!ring) {
+		err = -ENOMEM;
+		goto err_exit_ptp_tx;
+	}
+
+	hwts = aq_ring_hwts_rx_alloc(&aq_ptp->hwts_rx, aq_nic, PTP_HWST_RING_IDX,
+				     aq_nic->aq_nic_cfg.rxds,
+				     aq_nic->aq_nic_cfg.aq_hw_caps->rxd_size);
+	if (!hwts) {
+		err = -ENOMEM;
+		goto err_exit_ptp_rx;
+	}
+
+	err = aq_ptp_skb_ring_init(&aq_ptp->skb_ring, aq_nic->aq_nic_cfg.rxds);
+	if (err != 0) {
+		err = -ENOMEM;
+		goto err_exit_hwts_rx;
+	}
+
+	return 0;
+
+err_exit_hwts_rx:
+	aq_ring_free(&aq_ptp->hwts_rx);
+err_exit_ptp_rx:
+	aq_ring_free(&aq_ptp->ptp_rx);
+err_exit_ptp_tx:
+	aq_ring_free(&aq_ptp->ptp_tx);
+err_exit:
+	return err;
+}
+
+void aq_ptp_ring_free(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+
+	if (!aq_ptp)
+		return;
+
+	aq_ring_free(&aq_ptp->ptp_tx);
+	aq_ring_free(&aq_ptp->ptp_rx);
+	aq_ring_free(&aq_ptp->hwts_rx);
+
+	aq_ptp_skb_ring_release(&aq_ptp->skb_ring);
+}
+
 static struct ptp_clock_info aq_ptp_clock = {
 	.owner		= THIS_MODULE,
 	.name		= "atlantic ptp",
@@ -121,6 +346,15 @@ static struct ptp_clock_info aq_ptp_clock = {
 	.n_pins		= 0,
 	.pin_config	= NULL,
 };
+
+void aq_ptp_clock_init(struct aq_nic_s *aq_nic)
+{
+	struct aq_ptp_s *aq_ptp = aq_nic->aq_ptp;
+	struct timespec64 ts;
+
+	ktime_get_real_ts64(&ts);
+	aq_ptp_settime(&aq_ptp->ptp_info, &ts);
+}
 
 int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 {
@@ -155,6 +389,7 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 	aq_ptp->aq_nic = aq_nic;
 
 	spin_lock_init(&aq_ptp->ptp_lock);
+	spin_lock_init(&aq_ptp->ptp_ring_lock);
 
 	aq_ptp->ptp_info = aq_ptp_clock;
 	clock = ptp_clock_register(&aq_ptp->ptp_info, &aq_nic->ndev->dev);

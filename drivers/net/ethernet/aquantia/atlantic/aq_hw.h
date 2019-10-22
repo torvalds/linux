@@ -240,6 +240,10 @@ struct aq_hw_ops {
 	int (*hw_set_offload)(struct aq_hw_s *self,
 			      struct aq_nic_cfg_s *aq_nic_cfg);
 
+	int (*hw_tx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
+
+	int (*hw_rx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
+
 	void (*hw_get_ptp_ts)(struct aq_hw_s *self, u64 *stamp);
 
 	int (*hw_adj_clock_freq)(struct aq_hw_s *self, s32 delta);

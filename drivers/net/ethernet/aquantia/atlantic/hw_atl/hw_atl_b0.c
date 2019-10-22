@@ -126,13 +126,16 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 	hw_atl_tps_tx_pkt_shed_desc_tc_arb_mode_set(self, 0U);
 	hw_atl_tps_tx_pkt_shed_data_arb_mode_set(self, 0U);
 
-	hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF, 0U);
-	hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0x64, 0U);
-	hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, 0U);
-	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, 0U);
+	tc = 0;
 
-	/* Tx buf size */
-	buff_size = HW_ATL_B0_TXBUF_MAX;
+	/* TX Packet Scheduler Data TC0 */
+	hw_atl_tps_tx_pkt_shed_tc_data_max_credit_set(self, 0xFFF, tc);
+	hw_atl_tps_tx_pkt_shed_tc_data_weight_set(self, 0x64, tc);
+	hw_atl_tps_tx_pkt_shed_desc_tc_max_credit_set(self, 0x50, tc);
+	hw_atl_tps_tx_pkt_shed_desc_tc_weight_set(self, 0x1E, tc);
+
+	/* Tx buf size TC0 */
+	buff_size = HW_ATL_B0_TXBUF_MAX - HW_ATL_B0_PTP_TXBUF_SIZE;
 
 	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, buff_size, tc);
 	hw_atl_tpb_tx_buff_hi_threshold_per_tc_set(self,
@@ -143,10 +146,15 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 						   (buff_size *
 						   (1024 / 32U) * 50U) /
 						   100U, tc);
+	/* Init TC2 for PTP_TX */
+	tc = 2;
+
+	hw_atl_tpb_tx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_TXBUF_SIZE,
+					       tc);
 
 	/* QoS Rx buf size per TC */
 	tc = 0;
-	buff_size = HW_ATL_B0_RXBUF_MAX;
+	buff_size = HW_ATL_B0_RXBUF_MAX - HW_ATL_B0_PTP_RXBUF_SIZE;
 
 	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, buff_size, tc);
 	hw_atl_rpb_rx_buff_hi_threshold_per_tc_set(self,
@@ -159,6 +167,14 @@ static int hw_atl_b0_hw_qos_set(struct aq_hw_s *self)
 						   100U, tc);
 
 	hw_atl_b0_set_fc(self, self->aq_nic_cfg->flow_control, tc);
+
+	/* Init TC2 for PTP_RX */
+	tc = 2;
+
+	hw_atl_rpb_rx_pkt_buff_size_per_tc_set(self, HW_ATL_B0_PTP_RXBUF_SIZE,
+					       tc);
+	/* No flow control for PTP */
+	hw_atl_rpb_rx_xoff_en_per_tc_set(self, 0U, tc);
 
 	/* QoS 802.1p priority -> TC mapping */
 	for (i_priority = 8U; i_priority--;)
@@ -1007,6 +1023,18 @@ static int hw_atl_b0_hw_ring_rx_stop(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_b0_tx_tc_mode_get(struct aq_hw_s *self, u32 *tc_mode)
+{
+	*tc_mode = hw_atl_rpb_tps_tx_tc_mode_get(self);
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl_b0_rx_tc_mode_get(struct aq_hw_s *self, u32 *tc_mode)
+{
+	*tc_mode = hw_atl_rpb_rpf_rx_traf_class_mode_get(self);
+	return aq_hw_err_from_flags(self);
+}
+
 #define get_ptp_ts_val_u64(self, indx) \
 	((u64)(hw_atl_pcs_ptp_clock_get(self, indx) & 0xffff))
 
@@ -1277,6 +1305,9 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_get_regs                 = hw_atl_utils_hw_get_regs,
 	.hw_get_hw_stats             = hw_atl_utils_get_hw_stats,
 	.hw_get_fw_version           = hw_atl_utils_get_fw_version,
+
+	.hw_tx_tc_mode_get       = hw_atl_b0_tx_tc_mode_get,
+	.hw_rx_tc_mode_get       = hw_atl_b0_rx_tc_mode_get,
 
 	.hw_get_ptp_ts           = hw_atl_b0_get_ptp_ts,
 	.hw_adj_sys_clock        = hw_atl_b0_adj_sys_clock,

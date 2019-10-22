@@ -44,6 +44,14 @@ struct __packed hw_atl_rxd_wb_s {
 	u16 vlan;
 };
 
+/* Hardware rx HW TIMESTAMP writeback */
+struct __packed hw_atl_rxd_hwts_wb_s {
+	u32 sec_hw;
+	u32 ns;
+	u32 sec_lw0;
+	u32 sec_lw1;
+};
+
 struct __packed hw_atl_stats_s {
 	u32 uprc;
 	u32 mprc;

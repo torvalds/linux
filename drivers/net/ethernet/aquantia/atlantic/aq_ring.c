@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_ring.c: Definition of functions for Rx/Tx rings. */
@@ -174,6 +174,30 @@ err_exit:
 		aq_ring_free(self);
 		self = NULL;
 	}
+	return self;
+}
+
+struct aq_ring_s *
+aq_ring_hwts_rx_alloc(struct aq_ring_s *self, struct aq_nic_s *aq_nic,
+		      unsigned int idx, unsigned int size, unsigned int dx_size)
+{
+	struct device *dev = aq_nic_get_dev(aq_nic);
+	size_t sz = size * dx_size + AQ_CFG_RXDS_DEF;
+
+	memset(self, 0, sizeof(*self));
+
+	self->aq_nic = aq_nic;
+	self->idx = idx;
+	self->size = size;
+	self->dx_size = dx_size;
+
+	self->dx_ring = dma_alloc_coherent(dev, sz, &self->dx_ring_pa,
+					   GFP_KERNEL);
+	if (!self->dx_ring) {
+		aq_ring_free(self);
+		return NULL;
+	}
+
 	return self;
 }
 
