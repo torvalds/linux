@@ -3648,16 +3648,10 @@ i915_drop_caches_get(void *data, u64 *val)
 
 	return 0;
 }
-
 static int
-i915_drop_caches_set(void *data, u64 val)
+gt_drop_caches(struct intel_gt *gt, u64 val)
 {
-	struct drm_i915_private *i915 = data;
-	struct intel_gt *gt = &i915->gt;
 	int ret;
-
-	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
-		  val, val & DROP_ALL);
 
 	if (val & DROP_RESET_ACTIVE &&
 	    wait_for(intel_engines_are_idle(gt), I915_IDLE_ENGINES_TIMEOUT))
@@ -3680,6 +3674,22 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_RESET_ACTIVE && intel_gt_terminally_wedged(gt))
 		intel_gt_handle_error(gt, ALL_ENGINES, 0, NULL);
+
+	return 0;
+}
+
+static int
+i915_drop_caches_set(void *data, u64 val)
+{
+	struct drm_i915_private *i915 = data;
+	int ret;
+
+	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
+		  val, val & DROP_ALL);
+
+	ret = gt_drop_caches(&i915->gt, val);
+	if (ret)
+		return ret;
 
 	fs_reclaim_acquire(GFP_KERNEL);
 	if (val & DROP_BOUND)
