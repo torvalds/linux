@@ -1353,6 +1353,8 @@ struct drm_i915_private {
 		} contexts;
 	} gem;
 
+	u8 pch_ssc_use;
+
 	/* For i915gm/i945gm vblank irq workaround */
 	u8 vblank_enabled;
 
