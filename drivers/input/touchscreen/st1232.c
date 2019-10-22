@@ -66,7 +66,7 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts)
 		},
 		{
 			.addr	= client->addr,
-			.flags	= I2C_M_RD,
+			.flags	= I2C_M_RD | I2C_M_DMA_SAFE,
 			.len	= ts->read_buf_len,
 			.buf	= ts->read_buf,
 		}
