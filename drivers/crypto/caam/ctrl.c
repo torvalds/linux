@@ -747,12 +747,6 @@ static int caam_probe(struct platform_device *pdev)
 #endif
 	}
 
-	ret = devm_of_platform_populate(dev);
-	if (ret) {
-		dev_err(dev, "JR platform devices creation error\n");
-		return ret;
-	}
-
 	ring = 0;
 	for_each_available_child_of_node(nprop, np)
 		if (of_device_is_compatible(np, "fsl,sec-v4.0-job-ring") ||
@@ -905,7 +899,12 @@ static int caam_probe(struct platform_device *pdev)
 	debugfs_create_blob("tdsk", S_IRUSR | S_IRGRP | S_IROTH, ctrlpriv->ctl,
 			    &ctrlpriv->ctl_tdsk_wrap);
 #endif
-	return 0;
+
+	ret = devm_of_platform_populate(dev);
+	if (ret)
+		dev_err(dev, "JR platform devices creation error\n");
+
+	return ret;
 }
 
 static struct platform_driver caam_driver = {
