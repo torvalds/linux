@@ -661,6 +661,7 @@
 		clock-names = "aclk", "iface";
 		power-domains = <&power RK3128_PD_VIO>;
 		#iommu-cells = <0>;
+		rockchip,disable-device-link-resume;
 		status = "disabled";
 	};
 
