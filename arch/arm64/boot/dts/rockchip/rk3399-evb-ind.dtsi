@@ -41,7 +41,7 @@
 			"Headphone Jack", "HPOL",
 			"Headphone Jack", "HPOR";
 		simple-audio-card,cpu {
-			sound-dai = <&i2s1>;
+			sound-dai = <&i2s0>;
 		};
 		simple-audio-card,codec {
 			sound-dai = <&rk809_codec>;
@@ -189,10 +189,11 @@
 		pinctrl-0 = <&usbnet_pwr_drv>;
 		regulator-name = "vcc5v0_usbnet";
 		startup-delay-us = <20000>;
-		regulator-always-on;
+		regulator-always-off;
 		regulator-boot-on;
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
+		status = "okay";
 	};
 
 	vcc5v0_sys: vcc5v0-sys {
@@ -215,7 +216,6 @@
 
 	vdd_log: vdd-log {
 		compatible = "pwm-regulator";
-		pwms = <&pwm2 0 25000 1>;
 		regulator-name = "vdd_log";
 		regulator-min-microvolt = <800000>;
 		regulator-max-microvolt = <1400000>;
@@ -291,6 +291,7 @@
 		1894    3012     856000
 		3013    99999    856000
 	>;
+
 	auto-min-freq = <416000>;
 	auto-freq-en = <0>;
 };
@@ -307,6 +308,10 @@
 			opp-hz = /bits/ 64 <300000000>;
 			opp-microvolt = <900000>;
 			status = "disabled";
+		};
+		opp-328000000 {
+			opp-hz = /bits/ 64 <328000000>;
+			opp-microvolt = <900000>;
 		};
 		opp-400000000 {
 			opp-hz = /bits/ 64 <400000000>;
@@ -327,6 +332,10 @@
 			opp-microvolt = <900000>;
 			status = "disabled";
 		};
+		opp-666000000 {
+			opp-hz = /bits/ 64 <666000000>;
+			opp-microvolt = <900000>;
+		};
 		opp-800000000 {
 			opp-hz = /bits/ 64 <800000000>;
 			opp-microvolt = <900000>;
@@ -335,6 +344,11 @@
 		opp-856000000 {
 			opp-hz = /bits/ 64 <856000000>;
 			opp-microvolt = <900000>;
+		};
+		opp-928000000 {
+			opp-hz = /bits/ 64 <928000000>;
+			opp-microvolt = <900000>;
+			status = "disabled";
 		};
 };
 
@@ -727,9 +741,9 @@
 		compatible = "toshiba,tc358749x";
 		reg = <0x0f>;
 		power-gpios = <&gpio0 13 GPIO_ACTIVE_HIGH>;
-		stanby-gpios = <&gpio3 26 GPIO_ACTIVE_HIGH>;
-		reset-gpios = <&gpio3 31 GPIO_ACTIVE_HIGH>;
-		int-gpios = <&gpio4 5 GPIO_ACTIVE_HIGH>;
+		stanby-gpios = <&gpio3 25 GPIO_ACTIVE_HIGH>;
+		reset-gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+		int-gpios = <&gpio4 4 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&hdmiin_gpios>;
 		status = "okay";
@@ -865,10 +879,15 @@
 &io_domains {
 	status = "okay";
 
-	bt656-supply = <&vcc_1v8>;		/* bt656_gpio2ab_ms */
+	bt656-supply = <&vcc_3v0>;		/* bt656_gpio2ab_ms */
 	audio-supply = <&vcca_1v8>;	/* audio_gpio3d4a_ms */
 	sdmmc-supply = <&vccio_sd>;		/* sdmmc_gpio4b_ms */
 	gpio1830-supply = <&vcc_3v0>;		/* gpio1833_gpio4cd_ms */
+};
+
+&pmu_io_domains {
+	pmu1830-supply = <&vcc_1v8>;
+	status = "okay";
 };
 
 &isp0 {
@@ -1220,6 +1239,23 @@
 		};
 	};
 
+	i2s0 {
+		i2s0_8ch_bus: i2s0-8ch-bus {
+			rockchip,pins =
+				<3 24 RK_FUNC_1 &pcfg_pull_none>,
+				<3 26 RK_FUNC_1 &pcfg_pull_none>,
+				<3 27 RK_FUNC_1 &pcfg_pull_none>,
+				<3 28 RK_FUNC_1 &pcfg_pull_none>,
+				<3 29 RK_FUNC_1 &pcfg_pull_none>,
+				<3 30 RK_FUNC_1 &pcfg_pull_none>,
+				<3 31 RK_FUNC_1 &pcfg_pull_none>;
+			};
+
+		i2s_8ch_mclk: i2s-8ch-mclk {
+				rockchip,pins = <4 0 RK_FUNC_1 &pcfg_pull_none>;
+		};
+	};
+
 	i2s1 {
 		i2s1_2ch_bus: i2s1-2ch-bus {
 			rockchip,pins =
@@ -1241,9 +1277,9 @@
 		hdmiin_gpios: hdmiin_gpios {
 		rockchip,pins =
 				<0 13 RK_FUNC_GPIO &pcfg_pull_none>,
-				<3 26 RK_FUNC_GPIO &pcfg_pull_none>,
-				<3 31 RK_FUNC_GPIO &pcfg_pull_none>,
-				<4 5 RK_FUNC_GPIO &pcfg_pull_none>;
+				<3 25 RK_FUNC_GPIO &pcfg_pull_none>,
+				<0 2 RK_FUNC_GPIO &pcfg_pull_none>,
+				<4 4 RK_FUNC_GPIO &pcfg_pull_none>;
 		};
 	};
 

@@ -57,6 +57,7 @@
 			240 241 242 243 244 245 246 247
 			248 249 250 251 252 253 254 255>;
 		default-brightness-level = <200>;
+		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 	};
 
 	vcc_lcd: vcc-lcd {
@@ -74,9 +75,9 @@
 		compatible = "simple-panel";
 		backlight = <&backlight>;
 		power-supply = <&vcc_lcd>;
-		enable-gpios = <&gpio1 13 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 23 GPIO_ACTIVE_LOW>;
 		prepare-delay-ms = <20>;
+		reset-delay-ms = <20>;
 		enable-delay-ms = <20>;
 
 		display-timings {
@@ -109,11 +110,6 @@
 	test-power {
 		status = "okay";
 	};
-};
-
-&backlight {
-	status = "okay";
-	enable-gpios = <&gpio1 18 GPIO_ACTIVE_HIGH>;
 };
 
 &dmac_bus {
@@ -178,7 +174,7 @@
 
 &i2s1 {
 	#sound-dai-cells = <0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &rk809_sound {
@@ -198,7 +194,7 @@
 
 &i2s0 {
 	#sound-dai-cells = <0>;
-	status = "disabled";
+	status = "okay";
 };
 
 &tc358749x_sound {
