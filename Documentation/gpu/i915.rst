@@ -550,9 +550,9 @@ i915 Perf Stream
 This section covers the stream-semantics-agnostic structures and functions
 for representing an i915 perf stream FD and associated file operations.
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf_types.h
    :functions: i915_perf_stream
-.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf_types.h
    :functions: i915_perf_stream_ops
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
@@ -577,7 +577,7 @@ for representing an i915 perf stream FD and associated file operations.
 i915 Perf Observation Architecture Stream
 -----------------------------------------
 
-.. kernel-doc:: drivers/gpu/drm/i915/i915_drv.h
+.. kernel-doc:: drivers/gpu/drm/i915/i915_perf_types.h
    :functions: i915_oa_ops
 
 .. kernel-doc:: drivers/gpu/drm/i915/i915_perf.c
