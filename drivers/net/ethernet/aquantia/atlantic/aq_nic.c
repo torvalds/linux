@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_nic.c: Definition of common code for NIC. */
@@ -12,6 +12,7 @@
 #include "aq_hw.h"
 #include "aq_pci_func.h"
 #include "aq_main.h"
+#include "aq_ptp.h"
 
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -330,6 +331,10 @@ int aq_nic_init(struct aq_nic_s *self)
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_init(aq_vec, self->aq_hw_ops, self->aq_hw);
+
+	err = aq_ptp_init(self, self->irqvecs - 1);
+	if (err < 0)
+		goto err_exit;
 
 	netif_carrier_off(self->ndev);
 
@@ -971,6 +976,9 @@ void aq_nic_deinit(struct aq_nic_s *self)
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])
 		aq_vec_deinit(aq_vec);
+
+	aq_ptp_unregister(self);
+	aq_ptp_free(self);
 
 	if (likely(self->aq_fw_ops->deinit)) {
 		mutex_lock(&self->fwreq_mutex);

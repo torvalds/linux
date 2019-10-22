@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File hw_atl_utils.h: Declaration of common functions for Atlantic hardware
@@ -168,6 +168,34 @@ struct __packed hw_atl_utils_mbox_header {
 	u32 error;
 };
 
+struct __packed hw_aq_ptp_offset {
+	u16 ingress_100;
+	u16 egress_100;
+	u16 ingress_1000;
+	u16 egress_1000;
+	u16 ingress_2500;
+	u16 egress_2500;
+	u16 ingress_5000;
+	u16 egress_5000;
+	u16 ingress_10000;
+	u16 egress_10000;
+};
+
+enum gpio_pin_function {
+	GPIO_PIN_FUNCTION_NC,
+	GPIO_PIN_FUNCTION_VAUX_ENABLE,
+	GPIO_PIN_FUNCTION_EFUSE_BURN_ENABLE,
+	GPIO_PIN_FUNCTION_SFP_PLUS_DETECT,
+	GPIO_PIN_FUNCTION_TX_DISABLE,
+	GPIO_PIN_FUNCTION_RATE_SEL_0,
+	GPIO_PIN_FUNCTION_RATE_SEL_1,
+	GPIO_PIN_FUNCTION_TX_FAULT,
+	GPIO_PIN_FUNCTION_PTP0,
+	GPIO_PIN_FUNCTION_PTP1,
+	GPIO_PIN_FUNCTION_PTP2,
+	GPIO_PIN_FUNCTION_SIZE
+};
+
 struct __packed hw_aq_info {
 	u8 reserved[6];
 	u16 phy_fault_code;
@@ -175,9 +203,23 @@ struct __packed hw_aq_info {
 	u8 cable_len;
 	u8 reserved1;
 	u32 cable_diag_data[4];
-	u8 reserved2[32];
+	struct hw_aq_ptp_offset ptp_offset;
+	u8 reserved2[12];
 	u32 caps_lo;
 	u32 caps_hi;
+	u32 reserved_datapath;
+	u32 reserved3[7];
+	u32 reserved_simpleresp[3];
+	u32 reserved_linkstat[7];
+	u32 reserved_wakes_count;
+	u32 reserved_eee_stat[12];
+	u32 tx_stuck_cnt;
+	u32 setting_address;
+	u32 setting_length;
+	u32 caps_ex;
+	enum gpio_pin_function gpio_pin[3];
+	u32 pcie_aer_dump[18];
+	u16 snr_margin[4];
 };
 
 struct __packed hw_atl_utils_mbox {
@@ -372,7 +414,7 @@ enum hw_atl_fw2x_caps_hi {
 	CAPS_HI_2P5GBASET_FD_EEE,
 	CAPS_HI_5GBASET_FD_EEE,
 	CAPS_HI_10GBASET_FD_EEE,
-	CAPS_HI_RESERVED5,
+	CAPS_HI_FW_REQUEST,
 	CAPS_HI_RESERVED6,
 	CAPS_HI_RESERVED7,
 	CAPS_HI_RESERVED8,
@@ -380,7 +422,7 @@ enum hw_atl_fw2x_caps_hi {
 	CAPS_HI_CABLE_DIAG,
 	CAPS_HI_TEMPERATURE,
 	CAPS_HI_DOWNSHIFT,
-	CAPS_HI_PTP_AVB_EN,
+	CAPS_HI_PTP_AVB_EN_FW2X   = 20,
 	CAPS_HI_MEDIA_DETECT,
 	CAPS_HI_LINK_DROP,
 	CAPS_HI_SLEEP_PROXY,
@@ -427,6 +469,41 @@ enum hw_atl_fw2x_ctrl {
 	CTRL_WOL_TIMER,
 	CTRL_STATISTICS,
 	CTRL_FORCE_RECONNECT,
+};
+
+enum hw_atl_caps_ex {
+	CAPS_EX_LED_CONTROL       =  0,
+	CAPS_EX_LED0_MODE_LO,
+	CAPS_EX_LED0_MODE_HI,
+	CAPS_EX_LED1_MODE_LO,
+	CAPS_EX_LED1_MODE_HI,
+	CAPS_EX_LED2_MODE_LO      =  5,
+	CAPS_EX_LED2_MODE_HI,
+	CAPS_EX_RESERVED07,
+	CAPS_EX_RESERVED08,
+	CAPS_EX_RESERVED09,
+	CAPS_EX_RESERVED10        = 10,
+	CAPS_EX_RESERVED11,
+	CAPS_EX_RESERVED12,
+	CAPS_EX_RESERVED13,
+	CAPS_EX_RESERVED14,
+	CAPS_EX_RESERVED15        = 15,
+	CAPS_EX_PHY_PTP_EN,
+	CAPS_EX_MAC_PTP_EN,
+	CAPS_EX_EXT_CLK_EN,
+	CAPS_EX_SCHED_DMA_EN,
+	CAPS_EX_PTP_GPIO_EN       = 20,
+	CAPS_EX_UPDATE_SETTINGS,
+	CAPS_EX_PHY_CTRL_TS_PIN,
+	CAPS_EX_SNR_OPERATING_MARGIN,
+	CAPS_EX_RESERVED24,
+	CAPS_EX_RESERVED25        = 25,
+	CAPS_EX_RESERVED26,
+	CAPS_EX_RESERVED27,
+	CAPS_EX_RESERVED28,
+	CAPS_EX_RESERVED29,
+	CAPS_EX_RESERVED30        = 30,
+	CAPS_EX_RESERVED31
 };
 
 struct aq_hw_s;
