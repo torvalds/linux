@@ -21,9 +21,6 @@ static struct amd64_family_type *fam_type;
 /* Per-node stuff */
 static struct ecc_settings **ecc_stngs;
 
-/* Number of Unified Memory Controllers */
-static u8 num_umcs;
-
 /*
  * Valid scrub rates for the K8 hardware memory scrubber. We map the scrubbing
  * bandwidth to a valid bit pattern. The 'set' operation finds the 'matching-
@@ -456,7 +453,7 @@ static void get_cs_base_and_mask(struct amd64_pvt *pvt, int csrow, u8 dct,
 	for (i = 0; i < pvt->csels[dct].m_cnt; i++)
 
 #define for_each_umc(i) \
-	for (i = 0; i < num_umcs; i++)
+	for (i = 0; i < fam_type->max_mcs; i++)
 
 /*
  * @input_addr is an InputAddr associated with the node given by mci. Return the
@@ -2226,6 +2223,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "K8",
 		.f1_id = PCI_DEVICE_ID_AMD_K8_NB_ADDRMAP,
 		.f2_id = PCI_DEVICE_ID_AMD_K8_NB_MEMCTL,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= k8_early_channel_count,
 			.map_sysaddr_to_csrow	= k8_map_sysaddr_to_csrow,
@@ -2236,6 +2234,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F10h",
 		.f1_id = PCI_DEVICE_ID_AMD_10H_NB_MAP,
 		.f2_id = PCI_DEVICE_ID_AMD_10H_NB_DRAM,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
@@ -2246,6 +2245,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F15h",
 		.f1_id = PCI_DEVICE_ID_AMD_15H_NB_F1,
 		.f2_id = PCI_DEVICE_ID_AMD_15H_NB_F2,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
@@ -2256,6 +2256,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F15h_M30h",
 		.f1_id = PCI_DEVICE_ID_AMD_15H_M30H_NB_F1,
 		.f2_id = PCI_DEVICE_ID_AMD_15H_M30H_NB_F2,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
@@ -2266,6 +2267,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F15h_M60h",
 		.f1_id = PCI_DEVICE_ID_AMD_15H_M60H_NB_F1,
 		.f2_id = PCI_DEVICE_ID_AMD_15H_M60H_NB_F2,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
@@ -2276,6 +2278,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F16h",
 		.f1_id = PCI_DEVICE_ID_AMD_16H_NB_F1,
 		.f2_id = PCI_DEVICE_ID_AMD_16H_NB_F2,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
@@ -2286,6 +2289,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F16h_M30h",
 		.f1_id = PCI_DEVICE_ID_AMD_16H_M30H_NB_F1,
 		.f2_id = PCI_DEVICE_ID_AMD_16H_M30H_NB_F2,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f1x_early_channel_count,
 			.map_sysaddr_to_csrow	= f1x_map_sysaddr_to_csrow,
@@ -2296,6 +2300,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h",
 		.f0_id = PCI_DEVICE_ID_AMD_17H_DF_F0,
 		.f6_id = PCI_DEVICE_ID_AMD_17H_DF_F6,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
@@ -2305,6 +2310,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h_M10h",
 		.f0_id = PCI_DEVICE_ID_AMD_17H_M10H_DF_F0,
 		.f6_id = PCI_DEVICE_ID_AMD_17H_M10H_DF_F6,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
@@ -2314,6 +2320,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h_M30h",
 		.f0_id = PCI_DEVICE_ID_AMD_17H_M30H_DF_F0,
 		.f6_id = PCI_DEVICE_ID_AMD_17H_M30H_DF_F6,
+		.max_mcs = 8,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
@@ -2323,6 +2330,7 @@ static struct amd64_family_type family_types[] = {
 		.ctl_name = "F17h_M70h",
 		.f0_id = PCI_DEVICE_ID_AMD_17H_M70H_DF_F0,
 		.f6_id = PCI_DEVICE_ID_AMD_17H_M70H_DF_F6,
+		.max_mcs = 2,
 		.ops = {
 			.early_channel_count	= f17_early_channel_count,
 			.dbam_to_cs		= f17_addr_mask_to_cs_size,
@@ -3402,29 +3410,13 @@ static const struct attribute_group *amd64_edac_attr_groups[] = {
 	NULL
 };
 
-/* Set the number of Unified Memory Controllers in the system. */
-static void compute_num_umcs(void)
-{
-	u8 model = boot_cpu_data.x86_model;
-
-	if (boot_cpu_data.x86 < 0x17)
-		return;
-
-	if (model >= 0x30 && model <= 0x3f)
-		num_umcs = 8;
-	else
-		num_umcs = 2;
-
-	edac_dbg(1, "Number of UMCs: %x", num_umcs);
-}
-
 static int hw_info_get(struct amd64_pvt *pvt)
 {
 	u16 pci_id1, pci_id2;
 	int ret = -EINVAL;
 
 	if (pvt->fam >= 0x17) {
-		pvt->umc = kcalloc(num_umcs, sizeof(struct amd64_umc), GFP_KERNEL);
+		pvt->umc = kcalloc(fam_type->max_mcs, sizeof(struct amd64_umc), GFP_KERNEL);
 		if (!pvt->umc)
 			return -ENOMEM;
 
@@ -3477,14 +3469,8 @@ static int init_one_instance(struct amd64_pvt *pvt)
 	 * Always allocate two channels since we can have setups with DIMMs on
 	 * only one channel. Also, this simplifies handling later for the price
 	 * of a couple of KBs tops.
-	 *
-	 * On Fam17h+, the number of controllers may be greater than two. So set
-	 * the size equal to the maximum number of UMCs.
 	 */
-	if (pvt->fam >= 0x17)
-		layers[1].size = num_umcs;
-	else
-		layers[1].size = 2;
+	layers[1].size = fam_type->max_mcs;
 	layers[1].is_virt_csrow = false;
 
 	mci = edac_mc_alloc(pvt->mc_node_id, ARRAY_SIZE(layers), layers, 0);
@@ -3668,8 +3654,6 @@ static int __init amd64_edac_init(void)
 	msrs = msrs_alloc();
 	if (!msrs)
 		goto err_free;
-
-	compute_num_umcs();
 
 	for (i = 0; i < amd_nb_num(); i++) {
 		err = probe_one_instance(i);
