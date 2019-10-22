@@ -202,8 +202,11 @@ struct smc_link_group {
 
 	u8			id[SMC_LGR_ID_SIZE];	/* unique lgr id */
 	struct delayed_work	free_work;	/* delayed freeing of an lgr */
+	struct work_struct	terminate_work;	/* abnormal lgr termination */
 	u8			sync_err : 1;	/* lgr no longer fits to peer */
 	u8			terminating : 1;/* lgr is terminating */
+	u8			freefast : 1;	/* free worker scheduled fast */
+	u8			freeing : 1;	/* lgr is being freed */
 
 	bool			is_smcd;	/* SMC-R or SMC-D */
 	union {
@@ -278,6 +281,12 @@ static inline struct smc_connection *smc_lgr_find_conn(
 	}
 
 	return res;
+}
+
+static inline void smc_lgr_terminate_sched(struct smc_link_group *lgr)
+{
+	if (!lgr->terminating)
+		schedule_work(&lgr->terminate_work);
 }
 
 struct smc_sock;

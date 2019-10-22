@@ -475,7 +475,7 @@ static void smc_llc_rx_delete_link(struct smc_link *link,
 			smc_llc_prep_delete_link(llc, link, SMC_LLC_RESP, true);
 		}
 		smc_llc_send_message(link, llc, sizeof(*llc));
-		smc_lgr_schedule_free_work_fast(lgr);
+		smc_lgr_terminate_sched(lgr);
 	}
 }
 
