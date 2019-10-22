@@ -120,6 +120,8 @@ void __init plat_mem_setup(void)
 	u64 p, e, n_mode;
 	nasid_t nid;
 
+	register_smp_ops(&ip27_smp_ops);
+
 	ip27_reboot_setup();
 
 	/*

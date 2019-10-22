@@ -54,11 +54,4 @@ void __init prom_init(void)
 	ArcRead(0, &c, 1, &cnt);
 	ArcEnterInteractiveMode();
 #endif
-#ifdef CONFIG_SGI_IP27
-	{
-		extern const struct plat_smp_ops ip27_smp_ops;
-
-		register_smp_ops(&ip27_smp_ops);
-	}
-#endif
 }
