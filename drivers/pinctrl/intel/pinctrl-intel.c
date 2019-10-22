@@ -1607,6 +1607,25 @@ intel_gpio_update_pad_mode(void __iomem *hostown, u32 mask, u32 value)
 	return curr;
 }
 
+static void intel_restore_hostown(struct intel_pinctrl *pctrl, unsigned int c,
+				  void __iomem *base, unsigned int gpp, u32 saved)
+{
+	const struct intel_community *community = &pctrl->communities[c];
+	const struct intel_padgroup *padgrp = &community->gpps[gpp];
+	struct device *dev = pctrl->dev;
+	u32 requested, value;
+
+	if (padgrp->gpio_base < 0)
+		return;
+
+	requested = intel_gpio_is_requested(&pctrl->chip, padgrp->gpio_base, padgrp->size);
+	value = intel_gpio_update_pad_mode(base + gpp * 4, requested, saved);
+	if (!((value ^ saved) & requested))
+		return;
+
+	dev_warn(dev, "restored hostown %u/%u %#8x->%#8x\n", c, gpp, value, saved);
+}
+
 static void intel_restore_padcfg(struct intel_pinctrl *pctrl, unsigned int pin,
 				 unsigned int reg, u32 saved)
 {
@@ -1664,23 +1683,8 @@ int intel_pinctrl_resume_noirq(struct device *dev)
 		}
 
 		base = community->regs + community->hostown_offset;
-		for (gpp = 0; gpp < community->ngpps; gpp++) {
-			const struct intel_padgroup *padgrp = &community->gpps[gpp];
-			u32 requested = 0, value = 0;
-			u32 saved = communities[i].hostown[gpp];
-
-			if (padgrp->gpio_base < 0)
-				continue;
-
-			requested = intel_gpio_is_requested(&pctrl->chip,
-					padgrp->gpio_base, padgrp->size);
-			value = intel_gpio_update_pad_mode(base + gpp * 4,
-					requested, saved);
-			if ((value ^ saved) & requested) {
-				dev_warn(dev, "restore hostown %d/%u %#8x->%#8x\n",
-					i, gpp, value, saved);
-			}
-		}
+		for (gpp = 0; gpp < community->ngpps; gpp++)
+			intel_restore_hostown(pctrl, i, base, gpp, communities[i].hostown[gpp]);
 	}
 
 	return 0;
