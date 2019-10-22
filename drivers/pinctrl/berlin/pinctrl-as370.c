@@ -43,7 +43,7 @@ static const struct berlin_desc_group as370_soc_pinctrl_groups[] = {
 			BERLIN_PINCTRL_FUNCTION(0x0, "gpio"), /* GPIO5 */
 			BERLIN_PINCTRL_FUNCTION(0x1, "i2s1"), /* DO3 */
 			BERLIN_PINCTRL_FUNCTION(0x2, "pwm"), /* PWM5 */
-			BERLIN_PINCTRL_FUNCTION(0x3, "spififib"), /* SPDIFIB */
+			BERLIN_PINCTRL_FUNCTION(0x3, "spdifib"), /* SPDIFIB */
 			BERLIN_PINCTRL_FUNCTION(0x4, "spdifo"), /* SPDIFO */
 			BERLIN_PINCTRL_FUNCTION(0x5, "phy")), /* DBG5 */
 	BERLIN_PINCTRL_GROUP("I2S1_MCLK", 0x0, 0x3, 0x12,
