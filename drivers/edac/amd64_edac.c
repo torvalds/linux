@@ -3418,34 +3418,15 @@ static void compute_num_umcs(void)
 	edac_dbg(1, "Number of UMCs: %x", num_umcs);
 }
 
-static int init_one_instance(unsigned int nid)
+static int hw_info_get(struct amd64_pvt *pvt)
 {
-	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
-	struct mem_ctl_info *mci = NULL;
-	struct edac_mc_layer layers[2];
-	struct amd64_pvt *pvt = NULL;
 	u16 pci_id1, pci_id2;
-	int err = 0, ret;
-
-	ret = -ENOMEM;
-	pvt = kzalloc(sizeof(struct amd64_pvt), GFP_KERNEL);
-	if (!pvt)
-		goto err_ret;
-
-	pvt->mc_node_id	= nid;
-	pvt->F3 = F3;
-
-	ret = -EINVAL;
-	fam_type = per_family_init(pvt);
-	if (!fam_type)
-		goto err_free;
+	int ret = -EINVAL;
 
 	if (pvt->fam >= 0x17) {
 		pvt->umc = kcalloc(num_umcs, sizeof(struct amd64_umc), GFP_KERNEL);
-		if (!pvt->umc) {
-			ret = -ENOMEM;
-			goto err_free;
-		}
+		if (!pvt->umc)
+			return -ENOMEM;
 
 		pci_id1 = fam_type->f0_id;
 		pci_id2 = fam_type->f6_id;
@@ -3454,21 +3435,37 @@ static int init_one_instance(unsigned int nid)
 		pci_id2 = fam_type->f2_id;
 	}
 
-	err = reserve_mc_sibling_devs(pvt, pci_id1, pci_id2);
-	if (err)
-		goto err_post_init;
+	ret = reserve_mc_sibling_devs(pvt, pci_id1, pci_id2);
+	if (ret)
+		return ret;
 
 	read_mc_regs(pvt);
+
+	return 0;
+}
+
+static void hw_info_put(struct amd64_pvt *pvt)
+{
+	if (pvt->F0 || pvt->F1)
+		free_mc_sibling_devs(pvt);
+
+	kfree(pvt->umc);
+}
+
+static int init_one_instance(struct amd64_pvt *pvt)
+{
+	struct mem_ctl_info *mci = NULL;
+	struct edac_mc_layer layers[2];
+	int ret = -EINVAL;
 
 	/*
 	 * We need to determine how many memory channels there are. Then use
 	 * that information for calculating the size of the dynamic instance
 	 * tables in the 'mci' structure.
 	 */
-	ret = -EINVAL;
 	pvt->channel_count = pvt->ops->early_channel_count(pvt);
 	if (pvt->channel_count < 0)
-		goto err_siblings;
+		return ret;
 
 	ret = -ENOMEM;
 	layers[0].type = EDAC_MC_LAYER_CHIP_SELECT;
@@ -3490,9 +3487,9 @@ static int init_one_instance(unsigned int nid)
 		layers[1].size = 2;
 	layers[1].is_virt_csrow = false;
 
-	mci = edac_mc_alloc(nid, ARRAY_SIZE(layers), layers, 0);
+	mci = edac_mc_alloc(pvt->mc_node_id, ARRAY_SIZE(layers), layers, 0);
 	if (!mci)
-		goto err_siblings;
+		return ret;
 
 	mci->pvt_info = pvt;
 	mci->pdev = &pvt->F3->dev;
@@ -3505,31 +3502,17 @@ static int init_one_instance(unsigned int nid)
 	ret = -ENODEV;
 	if (edac_mc_add_mc_with_groups(mci, amd64_edac_attr_groups)) {
 		edac_dbg(1, "failed edac_mc_add_mc()\n");
-		goto err_add_mc;
+		edac_mc_free(mci);
+		return ret;
 	}
 
 	return 0;
-
-err_add_mc:
-	edac_mc_free(mci);
-
-err_siblings:
-	free_mc_sibling_devs(pvt);
-
-err_post_init:
-	if (pvt->fam >= 0x17)
-		kfree(pvt->umc);
-
-err_free:
-	kfree(pvt);
-
-err_ret:
-	return ret;
 }
 
 static int probe_one_instance(unsigned int nid)
 {
 	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
+	struct amd64_pvt *pvt = NULL;
 	struct ecc_settings *s;
 	int ret;
 
@@ -3539,6 +3522,21 @@ static int probe_one_instance(unsigned int nid)
 		goto err_out;
 
 	ecc_stngs[nid] = s;
+
+	pvt = kzalloc(sizeof(struct amd64_pvt), GFP_KERNEL);
+	if (!pvt)
+		goto err_settings;
+
+	pvt->mc_node_id	= nid;
+	pvt->F3 = F3;
+
+	fam_type = per_family_init(pvt);
+	if (!fam_type)
+		goto err_enable;
+
+	ret = hw_info_get(pvt);
+	if (ret < 0)
+		goto err_enable;
 
 	if (!ecc_enabled(F3, nid)) {
 		ret = 0;
@@ -3556,7 +3554,7 @@ static int probe_one_instance(unsigned int nid)
 			goto err_enable;
 	}
 
-	ret = init_one_instance(nid);
+	ret = init_one_instance(pvt);
 	if (ret < 0) {
 		amd64_err("Error probing instance: %d\n", nid);
 
@@ -3569,6 +3567,10 @@ static int probe_one_instance(unsigned int nid)
 	return ret;
 
 err_enable:
+	hw_info_put(pvt);
+	kfree(pvt);
+
+err_settings:
 	kfree(s);
 	ecc_stngs[nid] = NULL;
 
@@ -3595,14 +3597,13 @@ static void remove_one_instance(unsigned int nid)
 
 	restore_ecc_error_reporting(s, nid, F3);
 
-	free_mc_sibling_devs(pvt);
-
 	kfree(ecc_stngs[nid]);
 	ecc_stngs[nid] = NULL;
 
 	/* Free the EDAC CORE resources */
 	mci->pvt_info = NULL;
 
+	hw_info_put(pvt);
 	kfree(pvt);
 	edac_mc_free(mci);
 }
