@@ -309,7 +309,8 @@ void hw_atl_rpb_rx_buff_lo_threshold_per_tc_set(struct aq_hw_s *aq_hw,
 					 u32 buffer);
 
 /* set rx flow control mode */
-void hw_atl_rpb_rx_flow_ctl_mode_set(struct aq_hw_s *aq_hw, u32 rx_flow_ctl_mode);
+void hw_atl_rpb_rx_flow_ctl_mode_set(struct aq_hw_s *aq_hw,
+				     u32 rx_flow_ctl_mode);
 
 /* set rx packet buffer size (per tc) */
 void hw_atl_rpb_rx_pkt_buff_size_per_tc_set(struct aq_hw_s *aq_hw,
@@ -323,7 +324,8 @@ void hw_atl_rdm_rx_dma_desc_cache_init_tgl(struct aq_hw_s *aq_hw);
 u32 hw_atl_rdm_rx_dma_desc_cache_init_done_get(struct aq_hw_s *aq_hw);
 
 /* set rx xoff enable (per tc) */
-void hw_atl_rpb_rx_xoff_en_per_tc_set(struct aq_hw_s *aq_hw, u32 rx_xoff_en_per_tc,
+void hw_atl_rpb_rx_xoff_en_per_tc_set(struct aq_hw_s *aq_hw,
+				      u32 rx_xoff_en_per_tc,
 				      u32 buffer);
 
 /* rpf */
@@ -629,7 +631,8 @@ void hw_atl_tpb_tx_dma_sys_lbk_en_set(struct aq_hw_s *aq_hw, u32 tx_dma_sys_lbk_
 
 /* set tx packet buffer size (per tc) */
 void hw_atl_tpb_tx_pkt_buff_size_per_tc_set(struct aq_hw_s *aq_hw,
-					    u32 tx_pkt_buff_size_per_tc, u32 buffer);
+					    u32 tx_pkt_buff_size_per_tc,
+					    u32 buffer);
 
 /* set tx path pad insert enable */
 void hw_atl_tpb_tx_path_scp_ins_en_set(struct aq_hw_s *aq_hw, u32 tx_path_scp_ins_en);
