@@ -49,11 +49,19 @@ static struct pulse *pulse_create(void)
 	return p;
 }
 
+static void pulse_unlock_wait(struct pulse *p)
+{
+	mutex_lock(&p->active.mutex);
+	mutex_unlock(&p->active.mutex);
+}
+
 static int __live_idle_pulse(struct intel_engine_cs *engine,
 			     int (*fn)(struct intel_engine_cs *cs))
 {
 	struct pulse *p;
 	int err;
+
+	GEM_BUG_ON(!intel_engine_pm_is_awake(engine));
 
 	p = pulse_create();
 	if (!p)
@@ -73,15 +81,20 @@ static int __live_idle_pulse(struct intel_engine_cs *engine,
 	i915_active_release(&p->active);
 
 	GEM_BUG_ON(i915_active_is_idle(&p->active));
+	GEM_BUG_ON(llist_empty(&engine->barrier_tasks));
 
 	err = fn(engine);
 	if (err)
 		goto out;
 
+	GEM_BUG_ON(!llist_empty(&engine->barrier_tasks));
+
 	if (intel_gt_retire_requests_timeout(engine->gt, HZ / 5)) {
 		err = -ETIME;
 		goto out;
 	}
+
+	pulse_unlock_wait(p); /* synchronize with the retirement callback */
 
 	if (!i915_active_is_idle(&p->active)) {
 		pr_err("%s: heartbeat pulse did not flush idle tasks\n",
