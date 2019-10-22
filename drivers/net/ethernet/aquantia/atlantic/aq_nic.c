@@ -146,8 +146,11 @@ static int aq_nic_update_link_status(struct aq_nic_s *self)
 			self->aq_hw->aq_link_status.mbps);
 		aq_nic_update_interrupt_moderation_settings(self);
 
-		if (self->aq_ptp)
+		if (self->aq_ptp) {
 			aq_ptp_clock_init(self);
+			aq_ptp_tm_offset_set(self,
+					     self->aq_hw->aq_link_status.mbps);
+		}
 
 		/* Driver has to update flow control settings on RX block
 		 * on any link event.
@@ -195,6 +198,8 @@ static void aq_nic_service_task(struct work_struct *work)
 	struct aq_nic_s *self = container_of(work, struct aq_nic_s,
 					     service_task);
 	int err;
+
+	aq_ptp_service_task(self);
 
 	if (aq_utils_obj_test(&self->flags, AQ_NIC_FLAGS_IS_NOT_READY))
 		return;
@@ -408,6 +413,10 @@ int aq_nic_start(struct aq_nic_s *self)
 				goto err_exit;
 		}
 
+		err = aq_ptp_irq_alloc(self);
+		if (err < 0)
+			goto err_exit;
+
 		if (self->aq_nic_cfg.link_irq_vec) {
 			int irqvec = pci_irq_vector(self->pdev,
 						   self->aq_nic_cfg.link_irq_vec);
@@ -440,9 +449,8 @@ err_exit:
 	return err;
 }
 
-static unsigned int aq_nic_map_skb(struct aq_nic_s *self,
-				   struct sk_buff *skb,
-				   struct aq_ring_s *ring)
+unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
+			    struct aq_ring_s *ring)
 {
 	unsigned int ret = 0U;
 	unsigned int nr_frags = skb_shinfo(skb)->nr_frags;
@@ -972,6 +980,8 @@ int aq_nic_stop(struct aq_nic_s *self)
 		del_timer_sync(&self->polling_timer);
 	else
 		aq_pci_func_free_irqs(self);
+
+	aq_ptp_irq_free(self);
 
 	for (i = 0U, aq_vec = self->aq_vec[0];
 		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i])

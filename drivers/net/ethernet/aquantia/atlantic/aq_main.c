@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * aQuantia Corporation Network Driver
- * Copyright (C) 2014-2017 aQuantia Corporation. All rights reserved
+ * Copyright (C) 2014-2019 aQuantia Corporation. All rights reserved
  */
 
 /* File aq_main.c: Main file for aQuantia Linux driver. */
@@ -10,10 +10,13 @@
 #include "aq_nic.h"
 #include "aq_pci_func.h"
 #include "aq_ethtool.h"
+#include "aq_ptp.h"
 #include "aq_filters.h"
 
 #include <linux/netdevice.h>
 #include <linux/module.h>
+#include <linux/ip.h>
+#include <linux/udp.h>
 
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(AQ_CFG_DRV_VERSION);
@@ -93,6 +96,24 @@ static int aq_ndev_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	struct aq_nic_s *aq_nic = netdev_priv(ndev);
 
+	if (unlikely(aq_utils_obj_test(&aq_nic->flags, AQ_NIC_PTP_DPATH_UP))) {
+		/* Hardware adds the Timestamp for PTPv2 802.AS1
+		 * and PTPv2 IPv4 UDP.
+		 * We have to push even general 320 port messages to the ptp
+		 * queue explicitly. This is a limitation of current firmware
+		 * and hardware PTP design of the chip. Otherwise ptp stream
+		 * will fail to sync
+		 */
+		if (unlikely(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) ||
+		    unlikely((ip_hdr(skb)->version == 4) &&
+			     (ip_hdr(skb)->protocol == IPPROTO_UDP) &&
+			     ((udp_hdr(skb)->dest == htons(319)) ||
+			      (udp_hdr(skb)->dest == htons(320)))) ||
+		    unlikely(eth_hdr(skb)->h_proto == htons(ETH_P_1588)))
+			return aq_ptp_xmit(aq_nic, skb);
+	}
+
+	skb_tx_timestamp(skb);
 	return aq_nic_xmit(aq_nic, skb);
 }
 

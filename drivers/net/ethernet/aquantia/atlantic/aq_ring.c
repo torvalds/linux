@@ -10,6 +10,7 @@
 #include "aq_nic.h"
 #include "aq_hw.h"
 #include "aq_hw_utils.h"
+#include "aq_ptp.h"
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -314,6 +315,7 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		self->sw_head = aq_ring_next_dx(self, self->sw_head),
 		--budget, ++(*work_done)) {
 		struct aq_ring_buff_s *buff = &self->buff_ring[self->sw_head];
+		bool is_ptp_ring = aq_ptp_ring(self->aq_nic, self);
 		struct aq_ring_buff_s *buff_ = NULL;
 		struct sk_buff *skb = NULL;
 		unsigned int next_ = 0U;
@@ -378,6 +380,11 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 				err = -ENOMEM;
 				goto err_exit;
 			}
+			if (is_ptp_ring)
+				buff->len -=
+					aq_ptp_extract_ts(self->aq_nic, skb,
+						aq_buf_vaddr(&buff->rxdata),
+						buff->len);
 			skb_put(skb, buff->len);
 			page_ref_inc(buff->rxdata.page);
 		} else {
@@ -386,6 +393,11 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 				err = -ENOMEM;
 				goto err_exit;
 			}
+			if (is_ptp_ring)
+				buff->len -=
+					aq_ptp_extract_ts(self->aq_nic, skb,
+						aq_buf_vaddr(&buff->rxdata),
+						buff->len);
 
 			hdr_len = buff->len;
 			if (hdr_len > AQ_CFG_RX_HDR_SIZE)
@@ -445,8 +457,8 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 		skb_set_hash(skb, buff->rss_hash,
 			     buff->is_hash_l4 ? PKT_HASH_TYPE_L4 :
 			     PKT_HASH_TYPE_NONE);
-
-		skb_record_rx_queue(skb, self->idx);
+		/* Send all PTP traffic to 0 queue */
+		skb_record_rx_queue(skb, is_ptp_ring ? 0 : self->idx);
 
 		++self->stats.rx.packets;
 		self->stats.rx.bytes += skb->len;
@@ -456,6 +468,21 @@ int aq_ring_rx_clean(struct aq_ring_s *self,
 
 err_exit:
 	return err;
+}
+
+void aq_ring_hwts_rx_clean(struct aq_ring_s *self, struct aq_nic_s *aq_nic)
+{
+	while (self->sw_head != self->hw_head) {
+		u64 ns;
+
+		aq_nic->aq_hw_ops->extract_hwts(aq_nic->aq_hw,
+						self->dx_ring +
+						(self->sw_head * self->dx_size),
+						self->dx_size, &ns);
+		aq_ptp_tx_hwtstamp(aq_nic, ns);
+
+		self->sw_head = aq_ring_next_dx(self, self->sw_head);
+	}
 }
 
 int aq_ring_rx_fill(struct aq_ring_s *self)

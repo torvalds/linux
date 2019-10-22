@@ -17,6 +17,9 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec);
 void aq_ptp_unregister(struct aq_nic_s *aq_nic);
 void aq_ptp_free(struct aq_nic_s *aq_nic);
 
+int aq_ptp_irq_alloc(struct aq_nic_s *aq_nic);
+void aq_ptp_irq_free(struct aq_nic_s *aq_nic);
+
 int aq_ptp_ring_alloc(struct aq_nic_s *aq_nic);
 void aq_ptp_ring_free(struct aq_nic_s *aq_nic);
 
@@ -25,6 +28,22 @@ int aq_ptp_ring_start(struct aq_nic_s *aq_nic);
 void aq_ptp_ring_stop(struct aq_nic_s *aq_nic);
 void aq_ptp_ring_deinit(struct aq_nic_s *aq_nic);
 
+void aq_ptp_service_task(struct aq_nic_s *aq_nic);
+
+void aq_ptp_tm_offset_set(struct aq_nic_s *aq_nic, unsigned int mbps);
+
 void aq_ptp_clock_init(struct aq_nic_s *aq_nic);
+
+/* Traffic processing functions */
+int aq_ptp_xmit(struct aq_nic_s *aq_nic, struct sk_buff *skb);
+void aq_ptp_tx_hwtstamp(struct aq_nic_s *aq_nic, u64 timestamp);
+
+/* Return either ring is belong to PTP or not*/
+bool aq_ptp_ring(struct aq_nic_s *aq_nic, struct aq_ring_s *ring);
+
+u16 aq_ptp_extract_ts(struct aq_nic_s *aq_nic, struct sk_buff *skb, u8 *p,
+		      unsigned int len);
+
+struct ptp_clock *aq_ptp_get_ptp_clock(struct aq_ptp_s *aq_ptp);
 
 #endif /* AQ_PTP_H */

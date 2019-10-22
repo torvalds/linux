@@ -244,6 +244,12 @@ struct aq_hw_ops {
 
 	int (*hw_rx_tc_mode_get)(struct aq_hw_s *self, u32 *tc_mode);
 
+	int (*hw_ring_hwts_rx_fill)(struct aq_hw_s *self,
+				    struct aq_ring_s *aq_ring);
+
+	int (*hw_ring_hwts_rx_receive)(struct aq_hw_s *self,
+				       struct aq_ring_s *ring);
+
 	void (*hw_get_ptp_ts)(struct aq_hw_s *self, u64 *stamp);
 
 	int (*hw_adj_clock_freq)(struct aq_hw_s *self, s32 delta);
@@ -251,6 +257,12 @@ struct aq_hw_ops {
 	int (*hw_adj_sys_clock)(struct aq_hw_s *self, s64 delta);
 
 	int (*hw_set_sys_clock)(struct aq_hw_s *self, u64 time, u64 ts);
+
+	u16 (*rx_extract_ts)(struct aq_hw_s *self, u8 *p, unsigned int len,
+			     u64 *timestamp);
+
+	int (*extract_hwts)(struct aq_hw_s *self, u8 *p, unsigned int len,
+			    u64 *timestamp);
 
 	int (*hw_set_fc)(struct aq_hw_s *self, u32 fc, u32 tc);
 };

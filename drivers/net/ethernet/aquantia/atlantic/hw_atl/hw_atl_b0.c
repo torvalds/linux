@@ -682,6 +682,46 @@ static int hw_atl_b0_hw_ring_rx_fill(struct aq_hw_s *self,
 	return aq_hw_err_from_flags(self);
 }
 
+static int hw_atl_b0_hw_ring_hwts_rx_fill(struct aq_hw_s *self,
+					  struct aq_ring_s *ring)
+{
+	unsigned int i;
+
+	for (i = aq_ring_avail_dx(ring); i--;
+			ring->sw_tail = aq_ring_next_dx(ring, ring->sw_tail)) {
+		struct hw_atl_rxd_s *rxd =
+			(struct hw_atl_rxd_s *)
+			&ring->dx_ring[ring->sw_tail * HW_ATL_B0_RXD_SIZE];
+
+		rxd->buf_addr = ring->dx_ring_pa + ring->size * ring->dx_size;
+		rxd->hdr_addr = 0U;
+	}
+	/* Make sure descriptors are updated before bump tail*/
+	wmb();
+
+	hw_atl_reg_rx_dma_desc_tail_ptr_set(self, ring->sw_tail, ring->idx);
+
+	return aq_hw_err_from_flags(self);
+}
+
+static int hw_atl_b0_hw_ring_hwts_rx_receive(struct aq_hw_s *self,
+					     struct aq_ring_s *ring)
+{
+	while (ring->hw_head != ring->sw_tail) {
+		struct hw_atl_rxd_hwts_wb_s *hwts_wb =
+			(struct hw_atl_rxd_hwts_wb_s *)
+			(ring->dx_ring + (ring->hw_head * HW_ATL_B0_RXD_SIZE));
+
+		/* RxD is not done */
+		if (!(hwts_wb->sec_lw0 & 0x1U))
+			break;
+
+		ring->hw_head = aq_ring_next_dx(ring, ring->hw_head);
+	}
+
+	return aq_hw_err_from_flags(self);
+}
+
 static int hw_atl_b0_hw_ring_tx_head_update(struct aq_hw_s *self,
 					    struct aq_ring_s *ring)
 {
@@ -1133,6 +1173,61 @@ static int hw_atl_b0_adj_clock_freq(struct aq_hw_s *self, s32 ppb)
 	return self->aq_fw_ops->send_fw_request(self, &fwreq, size);
 }
 
+static u16 hw_atl_b0_rx_extract_ts(struct aq_hw_s *self, u8 *p,
+				   unsigned int len, u64 *timestamp)
+{
+	unsigned int offset = 14;
+	struct ethhdr *eth;
+	u64 sec;
+	u8 *ptr;
+	u32 ns;
+
+	if (len <= offset || !timestamp)
+		return 0;
+
+	/* The TIMESTAMP in the end of package has following format:
+	 * (big-endian)
+	 *   struct {
+	 *     uint64_t sec;
+	 *     uint32_t ns;
+	 *     uint16_t stream_id;
+	 *   };
+	 */
+	ptr = p + (len - offset);
+	memcpy(&sec, ptr, sizeof(sec));
+	ptr += sizeof(sec);
+	memcpy(&ns, ptr, sizeof(ns));
+
+	sec = be64_to_cpu(sec) & 0xffffffffffffllu;
+	ns = be32_to_cpu(ns);
+	*timestamp = sec * NSEC_PER_SEC + ns + self->ptp_clk_offset;
+
+	eth = (struct ethhdr *)p;
+
+	return (eth->h_proto == htons(ETH_P_1588)) ? 12 : 14;
+}
+
+static int hw_atl_b0_extract_hwts(struct aq_hw_s *self, u8 *p, unsigned int len,
+				  u64 *timestamp)
+{
+	struct hw_atl_rxd_hwts_wb_s *hwts_wb = (struct hw_atl_rxd_hwts_wb_s *)p;
+	u64 tmp, sec, ns;
+
+	sec = 0;
+	tmp = (hwts_wb->sec_lw0 >> 2) & 0x3ff;
+	sec += tmp;
+	tmp = (u64)((hwts_wb->sec_lw1 >> 16) & 0xffff) << 10;
+	sec += tmp;
+	tmp = (u64)(hwts_wb->sec_hw & 0xfff) << 26;
+	sec += tmp;
+	tmp = (u64)((hwts_wb->sec_hw >> 22) & 0x3ff) << 38;
+	sec += tmp;
+	ns = sec * NSEC_PER_SEC + hwts_wb->ns;
+	if (timestamp)
+		*timestamp = ns + self->ptp_clk_offset;
+	return 0;
+}
+
 static int hw_atl_b0_hw_fl3l4_clear(struct aq_hw_s *self,
 				    struct aq_rx_filter_l3l4 *data)
 {
@@ -1309,11 +1404,16 @@ const struct aq_hw_ops hw_atl_ops_b0 = {
 	.hw_tx_tc_mode_get       = hw_atl_b0_tx_tc_mode_get,
 	.hw_rx_tc_mode_get       = hw_atl_b0_rx_tc_mode_get,
 
+	.hw_ring_hwts_rx_fill        = hw_atl_b0_hw_ring_hwts_rx_fill,
+	.hw_ring_hwts_rx_receive     = hw_atl_b0_hw_ring_hwts_rx_receive,
+
 	.hw_get_ptp_ts           = hw_atl_b0_get_ptp_ts,
 	.hw_adj_sys_clock        = hw_atl_b0_adj_sys_clock,
 	.hw_set_sys_clock        = hw_atl_b0_set_sys_clock,
 	.hw_adj_clock_freq       = hw_atl_b0_adj_clock_freq,
 
+	.rx_extract_ts           = hw_atl_b0_rx_extract_ts,
+	.extract_hwts            = hw_atl_b0_extract_hwts,
 	.hw_set_offload          = hw_atl_b0_hw_offload_set,
 	.hw_set_fc                   = hw_atl_b0_set_fc,
 };
