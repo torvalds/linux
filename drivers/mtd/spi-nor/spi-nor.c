@@ -4577,6 +4577,11 @@ static void intel_set_default_init(struct spi_nor *nor)
 	nor->flags |= SNOR_F_HAS_LOCK;
 }
 
+static void issi_set_default_init(struct spi_nor *nor)
+{
+	nor->params.quad_enable = spi_nor_sr1_bit6_quad_enable;
+}
+
 static void macronix_set_default_init(struct spi_nor *nor)
 {
 	nor->params.quad_enable = spi_nor_sr1_bit6_quad_enable;
@@ -4615,6 +4620,10 @@ static void spi_nor_manufacturer_init_params(struct spi_nor *nor)
 
 	case SNOR_MFR_INTEL:
 		intel_set_default_init(nor);
+		break;
+
+	case SNOR_MFR_ISSI:
+		issi_set_default_init(nor);
 		break;
 
 	case SNOR_MFR_MACRONIX:
