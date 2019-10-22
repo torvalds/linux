@@ -214,34 +214,6 @@ struct media_pad *vimc_pads_init(u16 num_pads, const unsigned long *pads_flag)
 	return pads;
 }
 
-int vimc_pipeline_s_stream(struct media_entity *ent, int enable)
-{
-	struct v4l2_subdev *sd;
-	struct media_pad *pad;
-	unsigned int i;
-	int ret;
-
-	for (i = 0; i < ent->num_pads; i++) {
-		if (ent->pads[i].flags & MEDIA_PAD_FL_SOURCE)
-			continue;
-
-		/* Start the stream in the subdevice direct connected */
-		pad = media_entity_remote_pad(&ent->pads[i]);
-		if (!pad)
-			continue;
-
-		if (!is_media_entity_v4l2_subdev(pad->entity))
-			return -EINVAL;
-
-		sd = media_entity_to_v4l2_subdev(pad->entity);
-		ret = v4l2_subdev_call(sd, video, s_stream, enable);
-		if (ret && ret != -ENOIOCTLCMD)
-			return ret;
-	}
-
-	return 0;
-}
-
 static int vimc_get_mbus_format(struct media_pad *pad,
 				struct v4l2_subdev_format *fmt)
 {
