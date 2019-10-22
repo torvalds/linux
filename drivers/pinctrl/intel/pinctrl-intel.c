@@ -1623,7 +1623,7 @@ static void intel_restore_hostown(struct intel_pinctrl *pctrl, unsigned int c,
 	if (!((value ^ saved) & requested))
 		return;
 
-	dev_warn(dev, "restored hostown %u/%u %#8x->%#8x\n", c, gpp, value, saved);
+	dev_dbg(dev, "restored hostown %u/%u %#08x\n", c, gpp, readl(base + gpp * 4));
 }
 
 static void intel_restore_intmask(struct intel_pinctrl *pctrl, unsigned int c,
