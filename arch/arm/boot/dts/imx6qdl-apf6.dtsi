@@ -5,6 +5,24 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interrupt-controller/irq.h>
 
+/ {
+	reg_1p8v: regulator-1p8v {
+		compatible = "regulator-fixed";
+		regulator-name = "1P8V";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		regulator-always-on;
+		vin-supply = <&reg_3p3v>;
+	};
+
+	usdhc1_pwrseq: usdhc1-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		reset-gpios = <&gpio2 8 GPIO_ACTIVE_LOW>;
+		post-power-on-delay-ms = <15>;
+		power-off-delay-us = <70>;
+	};
+};
+
 &fec {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_enet>;
@@ -40,6 +58,12 @@
 &usdhc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_usdhc1>;
+	bus-width = <4>;
+	mmc-pwrseq = <&usdhc1_pwrseq>;
+	vmmc-supply = <&reg_3p3v>;
+	vqmmc-supply = <&reg_1p8v>;
+	cap-power-off-card;
+	keep-power-in-suspend;
 	non-removable;
 	status = "okay";
 
@@ -106,8 +130,8 @@
 			MX6QDL_PAD_SD1_DAT1__SD1_DATA1	0x17059
 			MX6QDL_PAD_SD1_DAT2__SD1_DATA2	0x17059
 			MX6QDL_PAD_SD1_DAT3__SD1_DATA3	0x17059
-			MX6QDL_PAD_SD4_DAT0__GPIO2_IO08	0x1b0b0 /* WL_EN */
-			MX6QDL_PAD_SD4_DAT2__GPIO2_IO10	0x1b0b0 /* WL_IRQ */
+			MX6QDL_PAD_SD4_DAT0__GPIO2_IO08	0x130b0 /* WL_EN */
+			MX6QDL_PAD_SD4_DAT2__GPIO2_IO10	0x130b0 /* WL_IRQ */
 		>;
 	};
 
