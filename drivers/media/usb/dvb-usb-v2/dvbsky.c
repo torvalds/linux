@@ -592,16 +592,7 @@ static int dvbsky_identify_state(struct dvb_usb_device *d, const char **name)
 static int dvbsky_init(struct dvb_usb_device *d)
 {
 	struct dvbsky_state *state = d_to_priv(d);
-
-	/* use default interface */
-	/*
-	ret = usb_set_interface(d->udev, 0, 0);
-	if (ret)
-		return ret;
-	*/
-
 	state->last_lock = 0;
-
 	return 0;
 }
 
