@@ -274,33 +274,55 @@ static int xsk_load_xdp_prog(struct xsk_socket *xsk)
 	/* This is the C-program:
 	 * SEC("xdp_sock") int xdp_sock_prog(struct xdp_md *ctx)
 	 * {
-	 *     int index = ctx->rx_queue_index;
+	 *     int ret, index = ctx->rx_queue_index;
 	 *
 	 *     // A set entry here means that the correspnding queue_id
 	 *     // has an active AF_XDP socket bound to it.
+	 *     ret = bpf_redirect_map(&xsks_map, index, XDP_PASS);
+	 *     if (ret > 0)
+	 *         return ret;
+	 *
+	 *     // Fallback for pre-5.3 kernels, not supporting default
+	 *     // action in the flags parameter.
 	 *     if (bpf_map_lookup_elem(&xsks_map, &index))
 	 *         return bpf_redirect_map(&xsks_map, index, 0);
-	 *
 	 *     return XDP_PASS;
 	 * }
 	 */
 	struct bpf_insn prog[] = {
-		/* r1 = *(u32 *)(r1 + 16) */
-		BPF_LDX_MEM(BPF_W, BPF_REG_1, BPF_REG_1, 16),
-		/* *(u32 *)(r10 - 4) = r1 */
-		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_1, -4),
-		BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
-		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
+		/* r2 = *(u32 *)(r1 + 16) */
+		BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_1, 16),
+		/* *(u32 *)(r10 - 4) = r2 */
+		BPF_STX_MEM(BPF_W, BPF_REG_10, BPF_REG_2, -4),
+		/* r1 = xskmap[] */
 		BPF_LD_MAP_FD(BPF_REG_1, xsk->xsks_map_fd),
+		/* r3 = XDP_PASS */
+		BPF_MOV64_IMM(BPF_REG_3, 2),
+		/* call bpf_redirect_map */
+		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
+		/* if w0 != 0 goto pc+13 */
+		BPF_JMP32_IMM(BPF_JSGT, BPF_REG_0, 0, 13),
+		/* r2 = r10 */
+		BPF_MOV64_REG(BPF_REG_2, BPF_REG_10),
+		/* r2 += -4 */
+		BPF_ALU64_IMM(BPF_ADD, BPF_REG_2, -4),
+		/* r1 = xskmap[] */
+		BPF_LD_MAP_FD(BPF_REG_1, xsk->xsks_map_fd),
+		/* call bpf_map_lookup_elem */
 		BPF_EMIT_CALL(BPF_FUNC_map_lookup_elem),
+		/* r1 = r0 */
 		BPF_MOV64_REG(BPF_REG_1, BPF_REG_0),
-		BPF_MOV32_IMM(BPF_REG_0, 2),
-		/* if r1 == 0 goto +5 */
+		/* r0 = XDP_PASS */
+		BPF_MOV64_IMM(BPF_REG_0, 2),
+		/* if r1 == 0 goto pc+5 */
 		BPF_JMP_IMM(BPF_JEQ, BPF_REG_1, 0, 5),
 		/* r2 = *(u32 *)(r10 - 4) */
-		BPF_LD_MAP_FD(BPF_REG_1, xsk->xsks_map_fd),
 		BPF_LDX_MEM(BPF_W, BPF_REG_2, BPF_REG_10, -4),
-		BPF_MOV32_IMM(BPF_REG_3, 0),
+		/* r1 = xskmap[] */
+		BPF_LD_MAP_FD(BPF_REG_1, xsk->xsks_map_fd),
+		/* r3 = 0 */
+		BPF_MOV64_IMM(BPF_REG_3, 0),
+		/* call bpf_redirect_map */
 		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
 		/* The jumps are to this instruction */
 		BPF_EXIT_INSN(),
