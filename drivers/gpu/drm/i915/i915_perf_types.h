@@ -199,14 +199,43 @@ struct i915_perf_stream {
 	 * @pinned_ctx: The OA context specific information.
 	 */
 	struct intel_context *pinned_ctx;
+
+	/**
+	 * @specific_ctx_id: The id of the specific context.
+	 */
 	u32 specific_ctx_id;
+
+	/**
+	 * @specific_ctx_id_mask: The mask used to masking specific_ctx_id bits.
+	 */
 	u32 specific_ctx_id_mask;
 
+	/**
+	 * @poll_check_timer: High resolution timer that will periodically
+	 * check for data in the circular OA buffer for notifying userspace
+	 * (e.g. during a read() or poll()).
+	 */
 	struct hrtimer poll_check_timer;
+
+	/**
+	 * @poll_wq: The wait queue that hrtimer callback wakes when it
+	 * sees data ready to read in the circular OA buffer.
+	 */
 	wait_queue_head_t poll_wq;
+
+	/**
+	 * @pollin: Whether there is data available to read.
+	 */
 	bool pollin;
 
+	/**
+	 * @periodic: Whether periodic sampling is currently enabled.
+	 */
 	bool periodic;
+
+	/**
+	 * @period_exponent: The OA unit sampling frequency is derived from this.
+	 */
 	int period_exponent;
 
 	/**
@@ -276,7 +305,7 @@ struct i915_perf_stream {
 	} oa_buffer;
 
 	/**
-	 * A batch buffer doing a wait on the GPU for the NOA logic to be
+	 * @noa_wait: A batch buffer doing a wait on the GPU for the NOA logic to be
 	 * reprogrammed.
 	 */
 	struct i915_vma *noa_wait;
