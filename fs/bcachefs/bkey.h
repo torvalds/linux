@@ -95,8 +95,8 @@ do {								\
 		(u64 *) (_dst) < (u64 *) (_src) +		\
 		((struct bkey *) (_src))->u64s);		\
 								\
-	__memmove_u64s_down((_dst), (_src),			\
-			    ((struct bkey *) (_src))->u64s);	\
+	memcpy_u64s_small((_dst), (_src),			\
+			  ((struct bkey *) (_src))->u64s);	\
 } while (0)
 
 struct btree;
