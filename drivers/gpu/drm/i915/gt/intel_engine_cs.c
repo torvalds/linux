@@ -381,16 +381,17 @@ static void intel_setup_engine_capabilities(struct intel_gt *gt)
 
 /**
  * intel_engines_cleanup() - free the resources allocated for Command Streamers
- * @i915: the i915 devic
+ * @gt: pointer to struct intel_gt
  */
-void intel_engines_cleanup(struct drm_i915_private *i915)
+void intel_engines_cleanup(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		engine->destroy(engine);
-		i915->engine[id] = NULL;
+		gt->engine[id] = NULL;
+		gt->i915->engine[id] = NULL;
 	}
 }
 
@@ -444,7 +445,7 @@ int intel_engines_init_mmio(struct intel_gt *gt)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(i915);
+	intel_engines_cleanup(gt);
 	return err;
 }
 
@@ -475,7 +476,7 @@ int intel_engines_init(struct drm_i915_private *i915)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(i915);
+	intel_engines_cleanup(&i915->gt);
 	return err;
 }
 
@@ -659,7 +660,7 @@ int intel_engines_setup(struct drm_i915_private *i915)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(i915);
+	intel_engines_cleanup(&i915->gt);
 	return err;
 }
 

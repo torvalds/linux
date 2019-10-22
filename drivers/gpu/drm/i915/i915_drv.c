@@ -621,7 +621,7 @@ err_bridge:
  */
 static void i915_driver_mmio_release(struct drm_i915_private *dev_priv)
 {
-	intel_engines_cleanup(dev_priv);
+	intel_engines_cleanup(&dev_priv->gt);
 	intel_teardown_mchbar(dev_priv);
 	intel_uncore_fini_mmio(&dev_priv->uncore);
 	pci_dev_put(dev_priv->bridge_dev);

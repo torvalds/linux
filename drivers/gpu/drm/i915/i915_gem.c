@@ -1328,7 +1328,7 @@ err_init_hw:
 err_uc_init:
 	if (ret != -EIO) {
 		intel_uc_fini(&dev_priv->gt.uc);
-		intel_engines_cleanup(dev_priv);
+		intel_engines_cleanup(&dev_priv->gt);
 	}
 err_context:
 	if (ret != -EIO)
@@ -1397,7 +1397,7 @@ void i915_gem_driver_remove(struct drm_i915_private *dev_priv)
 
 void i915_gem_driver_release(struct drm_i915_private *dev_priv)
 {
-	intel_engines_cleanup(dev_priv);
+	intel_engines_cleanup(&dev_priv->gt);
 	i915_gem_driver_release__contexts(dev_priv);
 	intel_gt_driver_release(&dev_priv->gt);
 
