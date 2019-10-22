@@ -614,8 +614,8 @@ static int arc_pmu_device_probe(struct platform_device *pdev)
 	/* loop thru all available h/w condition indexes */
 	for (i = 0; i < cc_bcr.c; i++) {
 		write_aux_reg(ARC_REG_CC_INDEX, i);
-		cc_name.indiv.word0 = read_aux_reg(ARC_REG_CC_NAME0);
-		cc_name.indiv.word1 = read_aux_reg(ARC_REG_CC_NAME1);
+		cc_name.indiv.word0 = le32_to_cpu(read_aux_reg(ARC_REG_CC_NAME0));
+		cc_name.indiv.word1 = le32_to_cpu(read_aux_reg(ARC_REG_CC_NAME1));
 
 		arc_pmu_map_hw_event(i, cc_name.str);
 		arc_pmu_add_raw_event_attr(i, cc_name.str);
