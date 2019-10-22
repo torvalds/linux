@@ -15,6 +15,7 @@
 #include <xen/interface/grant_table.h>
 #include <xen/interface/memory.h>
 #include <xen/page.h>
+#include <xen/xen-ops.h>
 #include <xen/swiotlb-xen.h>
 
 #include <asm/cacheflush.h>
