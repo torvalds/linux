@@ -209,6 +209,11 @@ static int vmx_setup_l1d_flush(enum vmx_l1d_flush_state l1tf)
 	struct page *page;
 	unsigned int i;
 
+	if (!boot_cpu_has_bug(X86_BUG_L1TF)) {
+		l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_NOT_REQUIRED;
+		return 0;
+	}
+
 	if (!enable_ept) {
 		l1tf_vmx_mitigation = VMENTER_L1D_FLUSH_EPT_DISABLED;
 		return 0;
@@ -7995,12 +8000,10 @@ static int __init vmx_init(void)
 	 * contain 'auto' which will be turned into the default 'cond'
 	 * mitigation mode.
 	 */
-	if (boot_cpu_has(X86_BUG_L1TF)) {
-		r = vmx_setup_l1d_flush(vmentry_l1d_flush_param);
-		if (r) {
-			vmx_exit();
-			return r;
-		}
+	r = vmx_setup_l1d_flush(vmentry_l1d_flush_param);
+	if (r) {
+		vmx_exit();
+		return r;
 	}
 
 #ifdef CONFIG_KEXEC_CORE

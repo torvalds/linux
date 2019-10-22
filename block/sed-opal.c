@@ -129,7 +129,7 @@ static const u8 opaluid[][OPAL_UID_LENGTH] = {
 		{ 0x00, 0x00, 0x00, 0x09, 0x00, 0x00, 0x84, 0x01 },
 
 	/* tables */
-	[OPAL_TABLE_TABLE]
+	[OPAL_TABLE_TABLE] =
 		{ 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01 },
 	[OPAL_LOCKINGRANGE_GLOBAL] =
 		{ 0x00, 0x00, 0x08, 0x02, 0x00, 0x00, 0x00, 0x01 },
@@ -372,8 +372,8 @@ static void check_geometry(struct opal_dev *dev, const void *data)
 {
 	const struct d0_geometry_features *geo = data;
 
-	dev->align = geo->alignment_granularity;
-	dev->lowest_lba = geo->lowest_aligned_lba;
+	dev->align = be64_to_cpu(geo->alignment_granularity);
+	dev->lowest_lba = be64_to_cpu(geo->lowest_aligned_lba);
 }
 
 static int execute_step(struct opal_dev *dev,

@@ -137,7 +137,8 @@ dr_icm_pool_mr_create(struct mlx5dr_icm_pool *pool,
 
 	icm_mr->icm_start_addr = icm_mr->dm.addr;
 
-	align_diff = icm_mr->icm_start_addr % align_base;
+	/* align_base is always a power of 2 */
+	align_diff = icm_mr->icm_start_addr & (align_base - 1);
 	if (align_diff)
 		icm_mr->used_length = align_base - align_diff;
 
