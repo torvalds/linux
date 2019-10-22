@@ -321,20 +321,6 @@ static int instantiate_rng(struct device *ctrldev, int state_handle_mask,
 	return ret;
 }
 
-static int caam_remove(struct platform_device *pdev)
-{
-	struct device *ctrldev;
-	struct caam_drv_private *ctrlpriv;
-
-	ctrldev = &pdev->dev;
-	ctrlpriv = dev_get_drvdata(ctrldev);
-
-	/* Remove platform devices under the crypto node */
-	of_platform_depopulate(ctrldev);
-
-	return 0;
-}
-
 /*
  * kick_trng - sets the various parameters for enabling the initialization
  *	       of the RNG4 block in CAAM
@@ -761,7 +747,7 @@ static int caam_probe(struct platform_device *pdev)
 #endif
 	}
 
-	ret = of_platform_populate(nprop, caam_match, NULL, dev);
+	ret = devm_of_platform_populate(dev);
 	if (ret) {
 		dev_err(dev, "JR platform devices creation error\n");
 		return ret;
@@ -783,8 +769,7 @@ static int caam_probe(struct platform_device *pdev)
 	/* If no QI and no rings specified, quit and go home */
 	if ((!ctrlpriv->qi_present) && (!ctrlpriv->total_jobrs)) {
 		dev_err(dev, "no queues configured, terminating\n");
-		ret = -ENOMEM;
-		goto caam_remove;
+		return -ENOMEM;
 	}
 
 	if (ctrlpriv->era < 10)
@@ -847,7 +832,7 @@ static int caam_probe(struct platform_device *pdev)
 		} while ((ret == -EAGAIN) && (ent_delay < RTSDCTL_ENT_DLY_MAX));
 		if (ret) {
 			dev_err(dev, "failed to instantiate RNG");
-			goto caam_remove;
+			return ret;
 		}
 		/*
 		 * Set handles init'ed by this module as the complement of the
@@ -921,10 +906,6 @@ static int caam_probe(struct platform_device *pdev)
 			    &ctrlpriv->ctl_tdsk_wrap);
 #endif
 	return 0;
-
-caam_remove:
-	caam_remove(pdev);
-	return ret;
 }
 
 static struct platform_driver caam_driver = {
@@ -933,7 +914,6 @@ static struct platform_driver caam_driver = {
 		.of_match_table = caam_match,
 	},
 	.probe       = caam_probe,
-	.remove      = caam_remove,
 };
 
 module_platform_driver(caam_driver);
