@@ -1062,8 +1062,8 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 			       struct bkey_i *insert)
 {
 	struct btree_iter_level *l = &iter->l[0];
-	struct btree_node_iter node_iter;
-	struct bkey_packed *k;
+	struct bkey_packed *k =
+		bch2_btree_node_iter_bset_pos(&l->iter, l->b, bset_tree_last(l->b));
 
 	BUG_ON(insert->k.u64s > bch_btree_keys_u64s_remaining(c, l->b));
 
@@ -1072,18 +1072,6 @@ static void extent_bset_insert(struct bch_fs *c, struct btree_iter *iter,
 
 	if (debug_check_bkeys(c))
 		bch2_bkey_debugcheck(c, l->b, bkey_i_to_s_c(insert));
-
-	/*
-	 * may have skipped past some deleted extents greater than the insert
-	 * key, before we got to a non deleted extent and knew we could bail out
-	 * rewind the iterator a bit if necessary:
-	 */
-	node_iter = l->iter;
-	while ((k = bch2_btree_node_iter_prev_all(&node_iter, l->b)) &&
-	       bkey_cmp_left_packed(l->b, k, &insert->k.p) > 0)
-		l->iter = node_iter;
-
-	k = bch2_btree_node_iter_bset_pos(&l->iter, l->b, bset_tree_last(l->b));
 
 	bch2_bset_insert(l->b, &l->iter, k, insert, 0);
 	bch2_btree_node_iter_fix(iter, l->b, &l->iter, k, 0, k->u64s);
@@ -1225,6 +1213,7 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 	struct btree_iter *iter	= insert_entry->iter;
 	struct bkey_i *insert	= insert_entry->k;
 	struct btree_iter_level *l = &iter->l[0];
+	struct btree_node_iter node_iter = l->iter;
 	bool deleting		= bkey_whiteout(&insert->k);
 	bool update_journal	= !deleting;
 	bool update_btree	= !deleting;
@@ -1294,10 +1283,15 @@ void bch2_insert_fixup_extent(struct btree_trans *trans,
 		if (!update_btree)
 			bch2_cut_front(cur_end, insert);
 next:
+		node_iter = l->iter;
+
 		if (overlap == BCH_EXTENT_OVERLAP_FRONT ||
 		    overlap == BCH_EXTENT_OVERLAP_MIDDLE)
 			break;
 	}
+
+	l->iter = node_iter;
+	bch2_btree_iter_set_pos_same_leaf(iter, insert->k.p);
 
 	if (update_btree) {
 		bkey_copy(&tmp.k, insert);
@@ -1322,7 +1316,6 @@ next:
 	}
 
 	bch2_cut_front(insert->k.p, insert);
-	bch2_btree_iter_set_pos_same_leaf(iter, insert->k.p);
 }
 
 const char *bch2_extent_invalid(const struct bch_fs *c, struct bkey_s_c k)
