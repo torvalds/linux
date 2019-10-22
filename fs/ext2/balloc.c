@@ -1313,6 +1313,13 @@ retry_alloc:
 	if (free_blocks > 0) {
 		grp_target_blk = ((goal - le32_to_cpu(es->s_first_data_block)) %
 				EXT2_BLOCKS_PER_GROUP(sb));
+		/*
+		 * In case we retry allocation (due to fs reservation not
+		 * working out or fs corruption), the bitmap_bh is non-null
+		 * pointer and we have to release it before calling
+		 * read_block_bitmap().
+		 */
+		brelse(bitmap_bh);
 		bitmap_bh = read_block_bitmap(sb, group_no);
 		if (!bitmap_bh)
 			goto io_error;
