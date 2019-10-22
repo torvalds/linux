@@ -175,7 +175,7 @@ static int inet_sctp_diag_fill(struct sock *sk, struct sctp_association *asoc,
 		mem[SK_MEMINFO_FWD_ALLOC] = sk->sk_forward_alloc;
 		mem[SK_MEMINFO_WMEM_QUEUED] = sk->sk_wmem_queued;
 		mem[SK_MEMINFO_OPTMEM] = atomic_read(&sk->sk_omem_alloc);
-		mem[SK_MEMINFO_BACKLOG] = sk->sk_backlog.len;
+		mem[SK_MEMINFO_BACKLOG] = READ_ONCE(sk->sk_backlog.len);
 		mem[SK_MEMINFO_DROPS] = atomic_read(&sk->sk_drops);
 
 		if (nla_put(skb, INET_DIAG_SKMEMINFO, sizeof(mem), &mem) < 0)

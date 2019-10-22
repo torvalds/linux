@@ -2119,13 +2119,13 @@ static unsigned int rcvbuf_limit(struct sock *sk, struct sk_buff *skb)
 	struct tipc_msg *hdr = buf_msg(skb);
 
 	if (unlikely(msg_in_group(hdr)))
-		return sk->sk_rcvbuf;
+		return READ_ONCE(sk->sk_rcvbuf);
 
 	if (unlikely(!msg_connected(hdr)))
-		return sk->sk_rcvbuf << msg_importance(hdr);
+		return READ_ONCE(sk->sk_rcvbuf) << msg_importance(hdr);
 
 	if (likely(tsk->peer_caps & TIPC_BLOCK_FLOWCTL))
-		return sk->sk_rcvbuf;
+		return READ_ONCE(sk->sk_rcvbuf);
 
 	return FLOWCTL_MSG_LIM;
 }
@@ -3790,7 +3790,7 @@ int tipc_sk_dump(struct sock *sk, u16 dqueues, char *buf)
 	i += scnprintf(buf + i, sz - i, " %d", sk->sk_sndbuf);
 	i += scnprintf(buf + i, sz - i, " | %d", sk_rmem_alloc_get(sk));
 	i += scnprintf(buf + i, sz - i, " %d", sk->sk_rcvbuf);
-	i += scnprintf(buf + i, sz - i, " | %d\n", sk->sk_backlog.len);
+	i += scnprintf(buf + i, sz - i, " | %d\n", READ_ONCE(sk->sk_backlog.len));
 
 	if (dqueues & TIPC_DUMP_SK_SNDQ) {
 		i += scnprintf(buf + i, sz - i, "sk_write_queue: ");
