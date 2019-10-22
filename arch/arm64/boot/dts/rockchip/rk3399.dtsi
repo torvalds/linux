@@ -1164,6 +1164,7 @@
 			mode-fastboot = <BOOT_FASTBOOT>;
 			mode-loader = <BOOT_BL_DOWNLOAD>;
 			mode-normal = <BOOT_NORMAL>;
+			mode-panic = <BOOT_PANIC>;
 			mode-recovery = <BOOT_RECOVERY>;
 			mode-ums = <BOOT_UMS>;
 		};
