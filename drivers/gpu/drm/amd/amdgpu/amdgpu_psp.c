@@ -1305,6 +1305,9 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_VCN1_RAM:
 		*type = GFX_FW_TYPE_VCN1_RAM;
 		break;
+	case AMDGPU_UCODE_ID_DMCUB:
+		*type = GFX_FW_TYPE_DMUB;
+		break;
 	case AMDGPU_UCODE_ID_MAXIMUM:
 	default:
 		return -EINVAL;
