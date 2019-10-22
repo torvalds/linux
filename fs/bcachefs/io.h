@@ -71,7 +71,6 @@ static inline void bch2_write_op_init(struct bch_write_op *op, struct bch_fs *c,
 				      struct bch_io_opts opts)
 {
 	op->c			= c;
-	op->io_wq		= index_update_wq(op);
 	op->flags		= 0;
 	op->written		= 0;
 	op->error		= 0;

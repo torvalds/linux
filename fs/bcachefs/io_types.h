@@ -95,7 +95,6 @@ struct bch_write_bio {
 struct bch_write_op {
 	struct closure		cl;
 	struct bch_fs		*c;
-	struct workqueue_struct	*io_wq;
 	u64			start_time;
 
 	unsigned		written; /* sectors */
@@ -111,7 +110,6 @@ struct bch_write_op {
 	struct bch_devs_list	devs_have;
 	u16			target;
 	u16			nonce;
-
 	struct bch_io_opts	opts;
 
 	struct bpos		pos;
