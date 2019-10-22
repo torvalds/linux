@@ -979,6 +979,52 @@ static int scmi_remove(struct platform_device *pdev)
 	return ret;
 }
 
+static ssize_t protocol_version_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%u.%u\n", info->version.major_ver,
+		       info->version.minor_ver);
+}
+static DEVICE_ATTR_RO(protocol_version);
+
+static ssize_t firmware_version_show(struct device *dev,
+				     struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "0x%x\n", info->version.impl_ver);
+}
+static DEVICE_ATTR_RO(firmware_version);
+
+static ssize_t vendor_id_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", info->version.vendor_id);
+}
+static DEVICE_ATTR_RO(vendor_id);
+
+static ssize_t sub_vendor_id_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	struct scmi_info *info = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%s\n", info->version.sub_vendor_id);
+}
+static DEVICE_ATTR_RO(sub_vendor_id);
+
+static struct attribute *versions_attrs[] = {
+	&dev_attr_firmware_version.attr,
+	&dev_attr_protocol_version.attr,
+	&dev_attr_vendor_id.attr,
+	&dev_attr_sub_vendor_id.attr,
+	NULL,
+};
+ATTRIBUTE_GROUPS(versions);
+
 static const struct scmi_desc scmi_generic_desc = {
 	.max_rx_timeout_ms = 30,	/* We may increase this if required */
 	.max_msg = 20,		/* Limited by MBOX_TX_QUEUE_LEN */
@@ -997,6 +1043,7 @@ static struct platform_driver scmi_driver = {
 	.driver = {
 		   .name = "arm-scmi",
 		   .of_match_table = scmi_of_match,
+		   .dev_groups = versions_groups,
 		   },
 	.probe = scmi_probe,
 	.remove = scmi_remove,
