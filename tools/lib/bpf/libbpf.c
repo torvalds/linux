@@ -3678,7 +3678,7 @@ out:
 static struct bpf_object *
 __bpf_object__open_xattr(struct bpf_object_open_attr *attr, int flags)
 {
-	LIBBPF_OPTS(bpf_object_open_opts, opts,
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
 		.relaxed_maps = flags & MAPS_RELAX_COMPAT,
 	);
 
@@ -3730,7 +3730,7 @@ struct bpf_object *
 bpf_object__open_buffer(const void *obj_buf, size_t obj_buf_sz,
 			const char *name)
 {
-	LIBBPF_OPTS(bpf_object_open_opts, opts,
+	DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
 		.object_name = name,
 		/* wrong default, but backwards-compatible */
 		.relaxed_maps = true,

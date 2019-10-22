@@ -377,7 +377,7 @@ void test_core_reloc(void)
 		if (!test__start_subtest(test_case->case_name))
 			continue;
 
-		LIBBPF_OPTS(bpf_object_open_opts, opts,
+		DECLARE_LIBBPF_OPTS(bpf_object_open_opts, opts,
 			.relaxed_core_relocs = test_case->relaxed_core_relocs,
 		);
 
