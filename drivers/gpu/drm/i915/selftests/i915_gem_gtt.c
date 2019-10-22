@@ -104,6 +104,7 @@ static const struct drm_i915_gem_object_ops fake_ops = {
 static struct drm_i915_gem_object *
 fake_dma_object(struct drm_i915_private *i915, u64 size)
 {
+	static struct lock_class_key lock_class;
 	struct drm_i915_gem_object *obj;
 
 	GEM_BUG_ON(!size);
@@ -117,7 +118,7 @@ fake_dma_object(struct drm_i915_private *i915, u64 size)
 		goto err;
 
 	drm_gem_private_object_init(&i915->drm, &obj->base, size);
-	i915_gem_object_init(obj, &fake_ops);
+	i915_gem_object_init(obj, &fake_ops, &lock_class);
 
 	i915_gem_object_set_volatile(obj);
 
