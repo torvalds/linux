@@ -78,8 +78,10 @@ static const char *rcdev_name(struct reset_controller_dev *rcdev)
  * @reset_spec: reset line specifier as found in the device tree
  * @flags: a flags pointer to fill in (optional)
  *
- * This simple translation function should be used for reset controllers
- * with 1:1 mapping, where reset lines can be indexed by number without gaps.
+ * This static translation function is used by default if of_xlate in
+ * :c:type:`reset_controller_dev` is not set. It is useful for all reset
+ * controllers with 1:1 mapping, where reset lines can be indexed by number
+ * without gaps.
  */
 static int of_reset_simple_xlate(struct reset_controller_dev *rcdev,
 			  const struct of_phandle_args *reset_spec)
