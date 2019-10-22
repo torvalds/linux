@@ -211,9 +211,8 @@ static int rtw8822b_mac_init(struct rtw_dev *rtwdev)
 static void rtw8822b_set_channel_rfe_efem(struct rtw_dev *rtwdev, u8 channel)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
-	bool is_channel_2g = (channel <= 14) ? true : false;
 
-	if (is_channel_2g) {
+	if (IS_CH_2G_BAND(channel)) {
 		rtw_write32s_mask(rtwdev, REG_RFESEL0, 0xffffff, 0x705770);
 		rtw_write32s_mask(rtwdev, REG_RFESEL8, MASKBYTE1, 0x57);
 		rtw_write32s_mask(rtwdev, REG_RFECTL, BIT(4), 0);
@@ -241,9 +240,8 @@ static void rtw8822b_set_channel_rfe_efem(struct rtw_dev *rtwdev, u8 channel)
 static void rtw8822b_set_channel_rfe_ifem(struct rtw_dev *rtwdev, u8 channel)
 {
 	struct rtw_hal *hal = &rtwdev->hal;
-	bool is_channel_2g = (channel <= 14) ? true : false;
 
-	if (is_channel_2g) {
+	if (IS_CH_2G_BAND(channel)) {
 		/* signal source */
 		rtw_write32s_mask(rtwdev, REG_RFESEL0, 0xffffff, 0x745774);
 		rtw_write32s_mask(rtwdev, REG_RFESEL8, MASKBYTE1, 0x57);
@@ -255,7 +253,7 @@ static void rtw8822b_set_channel_rfe_ifem(struct rtw_dev *rtwdev, u8 channel)
 
 	rtw_write32s_mask(rtwdev, REG_RFEINV, BIT(11) | BIT(10) | 0x3f, 0x0);
 
-	if (is_channel_2g) {
+	if (IS_CH_2G_BAND(channel)) {
 		if (hal->antenna_rx == BB_PATH_AB ||
 		    hal->antenna_tx == BB_PATH_AB) {
 			/* 2TX or 2RX */
@@ -350,7 +348,7 @@ static void rtw8822b_set_channel_cca(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	u32 reg82c, reg830, reg838;
 	bool is_efem_cca = false, is_ifem_cca = false, is_rfe_type = false;
 
-	if (channel <= 14) {
+	if (IS_CH_2G_BAND(channel)) {
 		cca_ccut = rfe_info->cca_ccut_2g;
 
 		if (hal->antenna_rx == BB_PATH_A ||
@@ -381,7 +379,7 @@ static void rtw8822b_set_channel_cca(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		is_efem_cca = true;
 		break;
 	case RTW_RFE_IFEM2G_EFEM5G:
-		if (channel <= 14)
+		if (IS_CH_2G_BAND(channel))
 			is_ifem_cca = true;
 		else
 			is_efem_cca = true;
@@ -405,9 +403,7 @@ static void rtw8822b_set_channel_cca(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	if (is_efem_cca && !(hal->cut_version == RTW_CHIP_VER_CUT_B))
 		rtw_write32_mask(rtwdev, REG_L1WT, MASKDWORD, 0x9194b2b9);
 
-	if (bw == RTW_CHANNEL_WIDTH_20 &&
-	    ((channel >= 52 && channel <= 64) ||
-	     (channel >= 100 && channel <= 144)))
+	if (bw == RTW_CHANNEL_WIDTH_20 && IS_CH_5G_BAND_MID(channel))
 		rtw_write32_mask(rtwdev, REG_CCA2ND, 0xf0, 0x4);
 }
 
@@ -442,7 +438,7 @@ static void rtw8822b_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 	rf_reg18 &= ~(RF18_BAND_MASK | RF18_CHANNEL_MASK | RF18_RFSI_MASK |
 		      RF18_BW_MASK);
 
-	rf_reg18 |= (channel <= 14 ? RF18_BAND_2G : RF18_BAND_5G);
+	rf_reg18 |= (IS_CH_2G_BAND(channel) ? RF18_BAND_2G : RF18_BAND_5G);
 	rf_reg18 |= (channel & RF18_CHANNEL_MASK);
 	if (channel > 144)
 		rf_reg18 |= RF18_RFSI_GT_CH144;
@@ -464,13 +460,13 @@ static void rtw8822b_set_channel_rf(struct rtw_dev *rtwdev, u8 channel, u8 bw)
 		break;
 	}
 
-	if (channel <= 14)
+	if (IS_CH_2G_BAND(channel))
 		rf_reg_be = 0x0;
-	else if (channel >= 36 && channel <= 64)
+	else if (IS_CH_5G_BAND_1(channel) || IS_CH_5G_BAND_2(channel))
 		rf_reg_be = low_band[(channel - 36) >> 1];
-	else if (channel >= 100 && channel <= 144)
+	else if (IS_CH_5G_BAND_3(channel))
 		rf_reg_be = middle_band[(channel - 100) >> 1];
-	else if (channel >= 149 && channel <= 177)
+	else if (IS_CH_5G_BAND_4(channel))
 		rf_reg_be = high_band[(channel - 149) >> 1];
 	else
 		goto err;
@@ -539,7 +535,7 @@ static void rtw8822b_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 	u8 rfe_option = efuse->rfe_option;
 	u32 val32;
 
-	if (channel <= 14) {
+	if (IS_CH_2G_BAND(channel)) {
 		rtw_write32_mask(rtwdev, REG_RXPSEL, BIT(28), 0x1);
 		rtw_write32_mask(rtwdev, REG_CCK_CHECK, BIT(7), 0x0);
 		rtw_write32_mask(rtwdev, REG_ENTXCCK, BIT(18), 0x0);
@@ -556,22 +552,22 @@ static void rtw8822b_set_channel_bb(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 		}
 
 		rtw_write32_mask(rtwdev, REG_RFEINV, 0x300, 0x2);
-	} else if (channel > 35) {
+	} else if (IS_CH_5G_BAND(channel)) {
 		rtw_write32_mask(rtwdev, REG_ENTXCCK, BIT(18), 0x1);
 		rtw_write32_mask(rtwdev, REG_CCK_CHECK, BIT(7), 0x1);
 		rtw_write32_mask(rtwdev, REG_RXPSEL, BIT(28), 0x0);
 		rtw_write32_mask(rtwdev, REG_RXCCAMSK, 0x0000FC00, 34);
 
-		if (channel >= 36 && channel <= 64)
+		if (IS_CH_5G_BAND_1(channel) || IS_CH_5G_BAND_2(channel))
 			rtw_write32_mask(rtwdev, REG_ACGG2TBL, 0x1f, 0x1);
-		else if (channel >= 100 && channel <= 144)
+		else if (IS_CH_5G_BAND_3(channel))
 			rtw_write32_mask(rtwdev, REG_ACGG2TBL, 0x1f, 0x2);
-		else if (channel >= 149)
+		else if (IS_CH_5G_BAND_4(channel))
 			rtw_write32_mask(rtwdev, REG_ACGG2TBL, 0x1f, 0x3);
 
-		if (channel >= 36 && channel <= 48)
+		if (IS_CH_5G_BAND_1(channel))
 			rtw_write32_mask(rtwdev, REG_CLKTRK, 0x1ffe0000, 0x494);
-		else if (channel >= 52 && channel <= 64)
+		else if (IS_CH_5G_BAND_2(channel))
 			rtw_write32_mask(rtwdev, REG_CLKTRK, 0x1ffe0000, 0x453);
 		else if (channel >= 100 && channel <= 116)
 			rtw_write32_mask(rtwdev, REG_CLKTRK, 0x1ffe0000, 0x452);

@@ -47,7 +47,7 @@ void rtw_set_channel_mac(struct rtw_dev *rtwdev, u8 channel, u8 bw,
 
 	value8 = rtw_read8(rtwdev, REG_CCK_CHECK);
 	value8 = value8 & ~BIT_CHECK_CCK_EN;
-	if (channel > 35)
+	if (IS_CH_5G_BAND(channel))
 		value8 |= BIT_CHECK_CCK_EN;
 	rtw_write8(rtwdev, REG_CCK_CHECK, value8);
 }

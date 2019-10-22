@@ -58,6 +58,19 @@ struct rtw_hci {
 	u8 bulkout_num;
 };
 
+#define IS_CH_5G_BAND_1(channel) ((channel) >= 36 && (channel <= 48))
+#define IS_CH_5G_BAND_2(channel) ((channel) >= 52 && (channel <= 64))
+#define IS_CH_5G_BAND_3(channel) ((channel) >= 100 && (channel <= 144))
+#define IS_CH_5G_BAND_4(channel) ((channel) >= 149 && (channel <= 177))
+
+#define IS_CH_5G_BAND_MID(channel) \
+	(IS_CH_5G_BAND_2(channel) || IS_CH_5G_BAND_3(channel))
+
+#define IS_CH_2G_BAND(channel) ((channel) <= 14)
+#define IS_CH_5G_BAND(channel) \
+	(IS_CH_5G_BAND_1(channel) || IS_CH_5G_BAND_2(channel) || \
+	 IS_CH_5G_BAND_3(channel) || IS_CH_5G_BAND_4(channel))
+
 enum rtw_supported_band {
 	RTW_BAND_2G = 1 << 0,
 	RTW_BAND_5G = 1 << 1,

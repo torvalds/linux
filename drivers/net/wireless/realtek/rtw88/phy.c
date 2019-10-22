@@ -1748,7 +1748,7 @@ void rtw_get_tx_power_params(struct rtw_dev *rtwdev, u8 path, u8 rate, u8 bw,
 	group = rtw_get_channel_group(ch);
 
 	/* base power index for 2.4G/5G */
-	if (ch <= 14) {
+	if (IS_CH_2G_BAND(ch)) {
 		band = PHY_BAND_2G;
 		*base = rtw_phy_get_2g_tx_power_index(rtwdev,
 						      &pwr_idx->pwr_idx_2g,
