@@ -1198,7 +1198,7 @@ out:
 	return err;
 }
 
-static int intel_engines_verify_workarounds(struct drm_i915_private *i915)
+static int intel_engines_verify_workarounds(struct intel_gt *gt)
 {
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
@@ -1207,7 +1207,7 @@ static int intel_engines_verify_workarounds(struct drm_i915_private *i915)
 	if (!IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
 		return 0;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		if (intel_engine_verify_workarounds(engine, "load"))
 			err = -EIO;
 	}
@@ -1291,7 +1291,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	 */
 	intel_init_clock_gating(dev_priv);
 
-	ret = intel_engines_verify_workarounds(dev_priv);
+	ret = intel_engines_verify_workarounds(&dev_priv->gt);
 	if (ret)
 		goto err_gt;
 
