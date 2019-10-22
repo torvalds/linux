@@ -428,9 +428,7 @@ static inline int ptep_clear_flush_young(struct vm_area_struct *vma,
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val })
 
-#ifdef CONFIG_FLATMEM
 #define kern_addr_valid(addr)   (1) /* FIXME */
-#endif
 
 extern void *dtb_early_va;
 extern void setup_bootmem(void);
