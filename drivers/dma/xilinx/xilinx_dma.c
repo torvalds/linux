@@ -391,6 +391,7 @@ struct xilinx_dma_config {
 	int (*clk_init)(struct platform_device *pdev, struct clk **axi_clk,
 			struct clk **tx_clk, struct clk **txs_clk,
 			struct clk **rx_clk, struct clk **rxs_clk);
+	irqreturn_t (*irq_handler)(int irq, void *data);
 };
 
 /**
@@ -2402,8 +2403,8 @@ static int xilinx_dma_chan_probe(struct xilinx_dma_device *xdev,
 
 	/* Request the interrupt */
 	chan->irq = irq_of_parse_and_map(node, 0);
-	err = request_irq(chan->irq, xilinx_dma_irq_handler, IRQF_SHARED,
-			  "xilinx-dma-controller", chan);
+	err = request_irq(chan->irq, xdev->dma_config->irq_handler,
+			  IRQF_SHARED, "xilinx-dma-controller", chan);
 	if (err) {
 		dev_err(xdev->dev, "unable to request IRQ %d\n", chan->irq);
 		return err;
@@ -2497,16 +2498,19 @@ static struct dma_chan *of_dma_xilinx_xlate(struct of_phandle_args *dma_spec,
 static const struct xilinx_dma_config axidma_config = {
 	.dmatype = XDMA_TYPE_AXIDMA,
 	.clk_init = axidma_clk_init,
+	.irq_handler = xilinx_dma_irq_handler,
 };
 
 static const struct xilinx_dma_config axicdma_config = {
 	.dmatype = XDMA_TYPE_CDMA,
 	.clk_init = axicdma_clk_init,
+	.irq_handler = xilinx_dma_irq_handler,
 };
 
 static const struct xilinx_dma_config axivdma_config = {
 	.dmatype = XDMA_TYPE_VDMA,
 	.clk_init = axivdma_clk_init,
+	.irq_handler = xilinx_dma_irq_handler,
 };
 
 static const struct of_device_id xilinx_dma_of_ids[] = {
