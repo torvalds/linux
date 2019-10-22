@@ -2234,7 +2234,7 @@ static void intel_ddi_get_power_domains(struct intel_encoder *encoder,
 	/*
 	 * VDSC power is needed when DSC is enabled
 	 */
-	if (crtc_state->dsc_params.compression_enable)
+	if (crtc_state->dsc.compression_enable)
 		intel_display_power_get(dev_priv,
 					intel_dsc_power_domain(crtc_state));
 }

@@ -2080,10 +2080,10 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	pipe_config->lane_count = limits->max_lane_count;
 
 	if (intel_dp_is_edp(intel_dp)) {
-		pipe_config->dsc_params.compressed_bpp =
+		pipe_config->dsc.compressed_bpp =
 			min_t(u16, drm_edp_dsc_sink_output_bpp(intel_dp->dsc_dpcd) >> 4,
 			      pipe_config->pipe_bpp);
-		pipe_config->dsc_params.slice_count =
+		pipe_config->dsc.slice_count =
 			drm_dp_dsc_sink_max_slice_count(intel_dp->dsc_dpcd,
 							true);
 	} else {
@@ -2104,10 +2104,10 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 			DRM_DEBUG_KMS("Compressed BPP/Slice Count not supported\n");
 			return -EINVAL;
 		}
-		pipe_config->dsc_params.compressed_bpp = min_t(u16,
+		pipe_config->dsc.compressed_bpp = min_t(u16,
 							       dsc_max_output_bpp >> 4,
 							       pipe_config->pipe_bpp);
-		pipe_config->dsc_params.slice_count = dsc_dp_slice_count;
+		pipe_config->dsc.slice_count = dsc_dp_slice_count;
 	}
 	/*
 	 * VDSC engine operates at 1 Pixel per clock, so if peak pixel rate
@@ -2115,8 +2115,8 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 	 * then we need to use 2 VDSC instances.
 	 */
 	if (adjusted_mode->crtc_clock > dev_priv->max_cdclk_freq) {
-		if (pipe_config->dsc_params.slice_count > 1) {
-			pipe_config->dsc_params.dsc_split = true;
+		if (pipe_config->dsc.slice_count > 1) {
+			pipe_config->dsc.dsc_split = true;
 		} else {
 			DRM_DEBUG_KMS("Cannot split stream to use 2 VDSC instances\n");
 			return -EINVAL;
@@ -2128,16 +2128,16 @@ static int intel_dp_dsc_compute_config(struct intel_dp *intel_dp,
 		DRM_DEBUG_KMS("Cannot compute valid DSC parameters for Input Bpp = %d "
 			      "Compressed BPP = %d\n",
 			      pipe_config->pipe_bpp,
-			      pipe_config->dsc_params.compressed_bpp);
+			      pipe_config->dsc.compressed_bpp);
 		return ret;
 	}
 
-	pipe_config->dsc_params.compression_enable = true;
+	pipe_config->dsc.compression_enable = true;
 	DRM_DEBUG_KMS("DP DSC computed with Input Bpp = %d "
 		      "Compressed Bpp = %d Slice Count = %d\n",
 		      pipe_config->pipe_bpp,
-		      pipe_config->dsc_params.compressed_bpp,
-		      pipe_config->dsc_params.slice_count);
+		      pipe_config->dsc.compressed_bpp,
+		      pipe_config->dsc.slice_count);
 
 	return 0;
 }
@@ -2211,15 +2211,15 @@ intel_dp_compute_link_config(struct intel_encoder *encoder,
 			return ret;
 	}
 
-	if (pipe_config->dsc_params.compression_enable) {
+	if (pipe_config->dsc.compression_enable) {
 		DRM_DEBUG_KMS("DP lane count %d clock %d Input bpp %d Compressed bpp %d\n",
 			      pipe_config->lane_count, pipe_config->port_clock,
 			      pipe_config->pipe_bpp,
-			      pipe_config->dsc_params.compressed_bpp);
+			      pipe_config->dsc.compressed_bpp);
 
 		DRM_DEBUG_KMS("DP link rate required %i available %i\n",
 			      intel_dp_link_required(adjusted_mode->crtc_clock,
-						     pipe_config->dsc_params.compressed_bpp),
+						     pipe_config->dsc.compressed_bpp),
 			      intel_dp_max_data_rate(pipe_config->port_clock,
 						     pipe_config->lane_count));
 	} else {
@@ -2377,8 +2377,8 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	pipe_config->limited_color_range =
 		intel_dp_limited_color_range(pipe_config, conn_state);
 
-	if (pipe_config->dsc_params.compression_enable)
-		output_bpp = pipe_config->dsc_params.compressed_bpp;
+	if (pipe_config->dsc.compression_enable)
+		output_bpp = pipe_config->dsc.compressed_bpp;
 	else
 		output_bpp = intel_dp_output_bpp(pipe_config, pipe_config->pipe_bpp);
 
@@ -3102,7 +3102,7 @@ void intel_dp_sink_set_decompression_state(struct intel_dp *intel_dp,
 {
 	int ret;
 
-	if (!crtc_state->dsc_params.compression_enable)
+	if (!crtc_state->dsc.compression_enable)
 		return;
 
 	ret = drm_dp_dpcd_writeb(&intel_dp->aux, DP_DSC_ENABLE,
