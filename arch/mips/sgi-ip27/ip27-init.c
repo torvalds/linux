@@ -13,9 +13,11 @@
 #include <linux/mm.h>
 #include <linux/export.h>
 #include <linux/cpumask.h>
+#include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
+#include <asm/sgialib.h>
 #include <asm/time.h>
 #include <asm/sn/types.h>
 #include <asm/sn/sn0/addrs.h>
@@ -160,3 +162,15 @@ void __init plat_mem_setup(void)
 	ioport_resource.end = ~0UL;
 	set_io_port_base(IO_BASE);
 }
+
+const char *get_system_type(void)
+{
+	return "SGI Origin";
+}
+
+void __init prom_init(void)
+{
+	prom_init_cmdline(fw_arg0, (LONG *)fw_arg1);
+	prom_meminit();
+}
+

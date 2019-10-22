@@ -675,6 +675,7 @@ config SGI_IP27
 	select ARCH_SPARSEMEM_ENABLE
 	select FW_ARC
 	select FW_ARC64
+	select ARC_CMDLINE_ONLY
 	select BOOT_ELF64
 	select DEFAULT_SGI_PARTITION
 	select SYS_HAS_EARLY_PRINTK
@@ -1349,6 +1350,9 @@ config MIPS_L1_CACHE_SHIFT
 	default "5"
 
 config HAVE_STD_PC_SERIAL_PORT
+	bool
+
+config ARC_CMDLINE_ONLY
 	bool
 
 config ARC_CONSOLE
