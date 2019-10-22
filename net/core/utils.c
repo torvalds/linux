@@ -458,6 +458,19 @@ void inet_proto_csum_replace16(__sum16 *sum, struct sk_buff *skb,
 }
 EXPORT_SYMBOL(inet_proto_csum_replace16);
 
+void inet_proto_skb_csum_replace16(struct sk_buff *skb,
+			       const __be32 *from, const __be32 *to)
+{
+	__be32 diff[] = {
+		~from[0], ~from[1], ~from[2], ~from[3],
+		to[0], to[1], to[2], to[3],
+	};
+	if (skb->ip_summed == CHECKSUM_COMPLETE)
+		skb->csum = csum_partial(diff, sizeof(diff),
+				  skb->csum);
+}
+EXPORT_SYMBOL(inet_proto_skb_csum_replace16);
+
 void inet_proto_csum_replace_by_diff(__sum16 *sum, struct sk_buff *skb,
 				     __wsum diff, bool pseudohdr)
 {
