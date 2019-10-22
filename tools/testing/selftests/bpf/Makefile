@@ -30,17 +30,7 @@ TEST_GEN_PROGS = test_verifier test_tag test_maps test_lru_map test_lpm_map test
 	test_sock test_btf test_sockmap get_cgroup_id_user test_socket_cookie \
 	test_cgroup_storage test_select_reuseport test_section_names \
 	test_netcnt test_tcpnotify_user test_sock_fields test_sysctl test_hashmap \
-	test_cgroup_attach xdping
-
-# Also test sub-register code-gen if LLVM has eBPF v3 processor support which
-# contains both ALU32 and JMP32 instructions.
-SUBREG_CODEGEN := $(shell echo "int cal(int a) { return a > 0; }" | \
-			$(CLANG) -target bpf -O2 -emit-llvm -S -x c - -o - | \
-			$(LLC) -mattr=+alu32 -mcpu=v3 2>&1 | \
-			grep 'if w')
-ifneq ($(SUBREG_CODEGEN),)
-TEST_GEN_PROGS += test_progs-alu32
-endif
+	test_cgroup_attach xdping test_progs-no_alu32
 
 # Also test bpf-gcc, if present
 ifneq ($(BPF_GCC),)
@@ -179,7 +169,7 @@ endef
 # $eval()) and pass control to DEFINE_TEST_RUNNER_RULES.
 # Parameters:
 # $1 - test runner base binary name (e.g., test_progs)
-# $2 - test runner extra "flavor" (e.g., alu32, gcc-bpf, etc)
+# $2 - test runner extra "flavor" (e.g., no_alu32, gcc-bpf, etc)
 define DEFINE_TEST_RUNNER
 
 TRUNNER_OUTPUT := $(OUTPUT)$(if $2,/)$2
@@ -201,7 +191,7 @@ endef
 # Using TRUNNER_XXX variables, provided by callers of DEFINE_TEST_RUNNER and
 # set up by DEFINE_TEST_RUNNER itself, create test runner build rules with:
 # $1 - test runner base binary name (e.g., test_progs)
-# $2 - test runner extra "flavor" (e.g., alu32, gcc-bpf, etc)
+# $2 - test runner extra "flavor" (e.g., no_alu32, gcc-bpf, etc)
 define DEFINE_TEST_RUNNER_RULES
 
 ifeq ($($(TRUNNER_OUTPUT)-dir),)
@@ -272,14 +262,12 @@ TRUNNER_EXTRA_FILES := $(OUTPUT)/urandom_read				\
 		       $(wildcard progs/btf_dump_test_case_*.c)
 TRUNNER_BPF_BUILD_RULE := CLANG_BPF_BUILD_RULE
 TRUNNER_BPF_CFLAGS := -I. -I$(OUTPUT) $(BPF_CFLAGS) $(CLANG_CFLAGS)
-TRUNNER_BPF_LDFLAGS :=
+TRUNNER_BPF_LDFLAGS := -mattr=+alu32
 $(eval $(call DEFINE_TEST_RUNNER,test_progs))
 
-# Define test_progs-alu32 test runner.
-ifneq ($(SUBREG_CODEGEN),)
-TRUNNER_BPF_LDFLAGS += -mattr=+alu32
-$(eval $(call DEFINE_TEST_RUNNER,test_progs,alu32))
-endif
+# Define test_progs-no_alu32 test runner.
+TRUNNER_BPF_LDFLAGS :=
+$(eval $(call DEFINE_TEST_RUNNER,test_progs,no_alu32))
 
 # Define test_progs BPF-GCC-flavored test runner.
 ifneq ($(BPF_GCC),)
@@ -319,4 +307,4 @@ $(OUTPUT)/test_verifier: test_verifier.c verifier/tests.h $(BPFOBJ) | $(OUTPUT)
 
 EXTRA_CLEAN := $(TEST_CUSTOM_PROGS)					\
 	prog_tests/tests.h map_tests/tests.h verifier/tests.h		\
-	feature $(OUTPUT)/*.o $(OUTPUT)/alu32 $(OUTPUT)/bpf_gcc
+	feature $(OUTPUT)/*.o $(OUTPUT)/no_alu32 $(OUTPUT)/bpf_gcc
