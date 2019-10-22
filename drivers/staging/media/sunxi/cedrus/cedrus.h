@@ -27,12 +27,14 @@
 #define CEDRUS_NAME			"cedrus"
 
 #define CEDRUS_CAPABILITY_UNTILED	BIT(0)
+#define CEDRUS_CAPABILITY_H265_DEC	BIT(1)
 
 #define CEDRUS_QUIRK_NO_DMA_OFFSET	BIT(0)
 
 enum cedrus_codec {
 	CEDRUS_CODEC_MPEG2,
 	CEDRUS_CODEC_H264,
+	CEDRUS_CODEC_H265,
 	CEDRUS_CODEC_LAST,
 };
 
@@ -67,6 +69,12 @@ struct cedrus_mpeg2_run {
 	const struct v4l2_ctrl_mpeg2_quantization	*quantization;
 };
 
+struct cedrus_h265_run {
+	const struct v4l2_ctrl_hevc_sps			*sps;
+	const struct v4l2_ctrl_hevc_pps			*pps;
+	const struct v4l2_ctrl_hevc_slice_params	*slice_params;
+};
+
 struct cedrus_run {
 	struct vb2_v4l2_buffer	*src;
 	struct vb2_v4l2_buffer	*dst;
@@ -74,6 +82,7 @@ struct cedrus_run {
 	union {
 		struct cedrus_h264_run	h264;
 		struct cedrus_mpeg2_run	mpeg2;
+		struct cedrus_h265_run	h265;
 	};
 };
 
@@ -110,6 +119,14 @@ struct cedrus_ctx {
 			void		*neighbor_info_buf;
 			dma_addr_t	neighbor_info_buf_dma;
 		} h264;
+		struct {
+			void		*mv_col_buf;
+			dma_addr_t	mv_col_buf_addr;
+			ssize_t		mv_col_buf_size;
+			ssize_t		mv_col_buf_unit_size;
+			void		*neighbor_info_buf;
+			dma_addr_t	neighbor_info_buf_addr;
+		} h265;
 	} codec;
 };
 
@@ -155,6 +172,7 @@ struct cedrus_dev {
 
 extern struct cedrus_dec_ops cedrus_dec_ops_mpeg2;
 extern struct cedrus_dec_ops cedrus_dec_ops_h264;
+extern struct cedrus_dec_ops cedrus_dec_ops_h265;
 
 static inline void cedrus_write(struct cedrus_dev *dev, u32 reg, u32 val)
 {
