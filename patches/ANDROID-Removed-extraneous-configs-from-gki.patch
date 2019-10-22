@@ -9,32 +9,10 @@ Test: Boot x86 cuttlefish and gki
 Signed-off-by: Ram Muthiah <rammuthiah@google.com>
 Change-Id: I342ee9a9a2c715565ce5304f37d40575c234efd6
 ---
- arch/arm64/configs/cuttlefish_defconfig      | 2 --
- arch/arm64/configs/gki_defconfig             | 2 --
- arch/x86/configs/gki_defconfig               | 2 --
- arch/x86/configs/x86_64_cuttlefish_defconfig | 2 --
- 4 files changed, 8 deletions(-)
+ arch/arm64/configs/gki_defconfig | 2 --
+ arch/x86/configs/gki_defconfig   | 2 --
+ 2 files changed, 4 deletions(-)
 
-diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index 69ee170e471d..0b89a91037a8 100644
---- a/arch/arm64/configs/cuttlefish_defconfig
-+++ b/arch/arm64/configs/cuttlefish_defconfig
-@@ -204,7 +204,6 @@ CONFIG_UID_SYS_STATS=y
- CONFIG_SCSI=y
- # CONFIG_SCSI_PROC_FS is not set
- CONFIG_BLK_DEV_SD=y
--CONFIG_SCSI_VIRTIO=y
- CONFIG_MD=y
- CONFIG_BLK_DEV_DM=y
- CONFIG_DM_CRYPT=y
-@@ -382,7 +381,6 @@ CONFIG_RTC_DRV_PL030=y
- CONFIG_RTC_DRV_PL031=y
- CONFIG_VIRTIO_PCI=y
- # CONFIG_VIRTIO_PCI_LEGACY is not set
--CONFIG_VIRTIO_BALLOON=y
- CONFIG_VIRTIO_INPUT=y
- CONFIG_VIRTIO_MMIO=y
- CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
 index 9bc2782661dc..7eeafbecf1b9 100644
 --- a/arch/arm64/configs/gki_defconfig
@@ -70,26 +48,6 @@ index 7f4edee2b52d..c0993920b94d 100644
 @@ -282,7 +281,6 @@ CONFIG_LEDS_TRIGGERS=y
  CONFIG_RTC_CLASS=y
  # CONFIG_RTC_SYSTOHC is not set
- CONFIG_VIRTIO_PCI=y
--CONFIG_VIRTIO_BALLOON=y
- CONFIG_VIRTIO_INPUT=y
- CONFIG_VIRTIO_MMIO=y
- CONFIG_VIRTIO_MMIO_CMDLINE_DEVICES=y
-diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index cdb7e31593e1..5baf17714b0c 100644
---- a/arch/x86/configs/x86_64_cuttlefish_defconfig
-+++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
-@@ -217,7 +217,6 @@ CONFIG_BLK_DEV_SR_VENDOR=y
- CONFIG_CHR_DEV_SG=y
- CONFIG_SCSI_CONSTANTS=y
- CONFIG_SCSI_SPI_ATTRS=y
--CONFIG_SCSI_VIRTIO=y
- CONFIG_MD=y
- CONFIG_BLK_DEV_DM=y
- CONFIG_DM_CRYPT=y
-@@ -399,7 +398,6 @@ CONFIG_MMC=y
- CONFIG_RTC_CLASS=y
- CONFIG_SW_SYNC=y
  CONFIG_VIRTIO_PCI=y
 -CONFIG_VIRTIO_BALLOON=y
  CONFIG_VIRTIO_INPUT=y

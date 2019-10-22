@@ -17,12 +17,9 @@ Change-Id: I685ccea29efc7ba14f7b0a24f41983e37203f9a2
 Signed-off-by: Ram Muthiah <rammuthiah@google.com>
 Signed-off-by: Matthias Maennich <maennich@google.com>
 ---
- arch/x86/configs/gki_defconfig               | 328 +++++++++++++++++++
- arch/x86/configs/x86_64_cuttlefish_defconfig |   8 +-
- build.config.cuttlefish.aarch64              |   3 +-
- build.config.cuttlefish.x86_64               |   3 +-
- build.config.gki.x86_64                      |  17 +
- 5 files changed, 352 insertions(+), 7 deletions(-)
+ arch/x86/configs/gki_defconfig | 328 +++++++++++++++++++++++++++++++++
+ build.config.gki.x86_64        |  17 ++
+ 2 files changed, 345 insertions(+)
  create mode 100644 arch/x86/configs/gki_defconfig
  create mode 100644 build.config.gki.x86_64
 
@@ -360,82 +357,6 @@ index 000000000000..18ba312d0a60
 +CONFIG_SCHEDSTATS=y
 +# CONFIG_RUNTIME_TESTING_MENU is not set
 +CONFIG_UNWINDER_FRAME_POINTER=y
-diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index d1f0fa08eacf..06c931405999 100644
---- a/arch/x86/configs/x86_64_cuttlefish_defconfig
-+++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
-@@ -67,7 +67,6 @@ CONFIG_IA32_EMULATION=y
- # CONFIG_FIRMWARE_MEMMAP is not set
- CONFIG_OPROFILE=y
- CONFIG_KPROBES=y
--CONFIG_JUMP_LABEL=y
- CONFIG_REFCOUNT_FULL=y
- CONFIG_MODULES=y
- CONFIG_MODULE_UNLOAD=y
-@@ -96,7 +95,6 @@ CONFIG_IP_PIMSM_V2=y
- CONFIG_SYN_COOKIES=y
- CONFIG_NET_IPVTI=y
- CONFIG_INET_ESP=y
--# CONFIG_INET_XFRM_MODE_BEET is not set
- CONFIG_INET_UDP_DIAG=y
- CONFIG_INET_DIAG_DESTROY=y
- CONFIG_TCP_CONG_ADVANCED=y
-@@ -199,7 +197,8 @@ CONFIG_VIRTIO_VSOCKETS=y
- CONFIG_CFG80211=y
- CONFIG_MAC80211=y
- CONFIG_RFKILL=y
--CONFIG_UEVENT_HELPER_PATH="/sbin/hotplug"
-+CONFIG_PCI=y
-+CONFIG_PCI_MSI=y
- CONFIG_DEVTMPFS=y
- CONFIG_DEBUG_DEVRES=y
- CONFIG_OF=y
-@@ -459,10 +458,10 @@ CONFIG_DEBUG_INFO=y
- # CONFIG_ENABLE_MUST_CHECK is not set
- CONFIG_FRAME_WARN=1024
- # CONFIG_UNUSED_SYMBOLS is not set
-+CONFIG_OPTIMIZE_INLINING=y
- CONFIG_MAGIC_SYSRQ=y
- CONFIG_DEBUG_STACK_USAGE=y
- CONFIG_DEBUG_MEMORY_INIT=y
--CONFIG_DEBUG_STACKOVERFLOW=y
- CONFIG_HARDLOCKUP_DETECTOR=y
- CONFIG_PANIC_TIMEOUT=5
- CONFIG_SCHEDSTATS=y
-@@ -470,5 +469,4 @@ CONFIG_RCU_CPU_STALL_TIMEOUT=60
- CONFIG_ENABLE_DEFAULT_TRACERS=y
- CONFIG_IO_DELAY_NONE=y
- CONFIG_DEBUG_BOOT_PARAMS=y
--CONFIG_OPTIMIZE_INLINING=y
- CONFIG_UNWINDER_FRAME_POINTER=y
-diff --git a/build.config.cuttlefish.aarch64 b/build.config.cuttlefish.aarch64
-index ec53d6eac9ea..bec1288d65e1 100644
---- a/build.config.cuttlefish.aarch64
-+++ b/build.config.cuttlefish.aarch64
-@@ -1,7 +1,8 @@
- ARCH=arm64
--BRANCH=android-4.19
-+BRANCH=android-mainline
- CLANG_TRIPLE=aarch64-linux-gnu-
- CROSS_COMPILE=aarch64-linux-androidkernel-
-+CC=clang
- DEFCONFIG=cuttlefish_defconfig
- EXTRA_CMDS=''
- KERNEL_DIR=common
-diff --git a/build.config.cuttlefish.x86_64 b/build.config.cuttlefish.x86_64
-index b49683d476d6..33063abed0ed 100644
---- a/build.config.cuttlefish.x86_64
-+++ b/build.config.cuttlefish.x86_64
-@@ -1,7 +1,8 @@
- ARCH=x86_64
--BRANCH=android-4.19
-+BRANCH=android-mainline
- CLANG_TRIPLE=x86_64-linux-gnu-
- CROSS_COMPILE=x86_64-linux-androidkernel-
-+CC=clang
- DEFCONFIG=x86_64_cuttlefish_defconfig
- EXTRA_CMDS=''
- KERNEL_DIR=common
 diff --git a/build.config.gki.x86_64 b/build.config.gki.x86_64
 new file mode 100644
 index 000000000000..69d339dce4a0

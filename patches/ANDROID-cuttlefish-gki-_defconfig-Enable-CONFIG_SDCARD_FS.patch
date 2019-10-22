@@ -7,24 +7,10 @@ Bug: 118439987
 Change-Id: I020ec721d98c5612bfe76dcfc05caabb1f3588c1
 Signed-off-by: Alistair Strachan <astrachan@google.com>
 ---
- arch/arm64/configs/cuttlefish_defconfig      | 1 +
- arch/arm64/configs/gki_defconfig             | 1 +
- arch/x86/configs/gki_defconfig               | 1 +
- arch/x86/configs/x86_64_cuttlefish_defconfig | 1 +
- 4 files changed, 4 insertions(+)
+ arch/arm64/configs/gki_defconfig | 1 +
+ arch/x86/configs/gki_defconfig   | 1 +
+ 2 files changed, 2 insertions(+)
 
-diff --git a/arch/arm64/configs/cuttlefish_defconfig b/arch/arm64/configs/cuttlefish_defconfig
-index 0b89a91037a8..b84aad53e6d6 100644
---- a/arch/arm64/configs/cuttlefish_defconfig
-+++ b/arch/arm64/configs/cuttlefish_defconfig
-@@ -409,6 +409,7 @@ CONFIG_MSDOS_FS=y
- CONFIG_VFAT_FS=y
- CONFIG_TMPFS=y
- CONFIG_TMPFS_POSIX_ACL=y
-+CONFIG_SDCARD_FS=y
- CONFIG_PSTORE=y
- CONFIG_PSTORE_CONSOLE=y
- CONFIG_PSTORE_RAM=y
 diff --git a/arch/arm64/configs/gki_defconfig b/arch/arm64/configs/gki_defconfig
 index 140804afdd32..18e8f81cc0fb 100644
 --- a/arch/arm64/configs/gki_defconfig
@@ -45,18 +31,6 @@ index 65c67797fb74..eacebe96e422 100644
  CONFIG_VFAT_FS=y
  CONFIG_TMPFS=y
  CONFIG_TMPFS_POSIX_ACL=y
-+CONFIG_SDCARD_FS=y
- CONFIG_PSTORE=y
- CONFIG_PSTORE_CONSOLE=y
- CONFIG_PSTORE_RAM=y
-diff --git a/arch/x86/configs/x86_64_cuttlefish_defconfig b/arch/x86/configs/x86_64_cuttlefish_defconfig
-index 5baf17714b0c..cad481541d69 100644
---- a/arch/x86/configs/x86_64_cuttlefish_defconfig
-+++ b/arch/x86/configs/x86_64_cuttlefish_defconfig
-@@ -430,6 +430,7 @@ CONFIG_PROC_KCORE=y
- CONFIG_TMPFS=y
- CONFIG_TMPFS_POSIX_ACL=y
- CONFIG_HUGETLBFS=y
 +CONFIG_SDCARD_FS=y
  CONFIG_PSTORE=y
  CONFIG_PSTORE_CONSOLE=y
