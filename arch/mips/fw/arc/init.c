@@ -19,7 +19,7 @@
 /* Master romvec interface. */
 struct linux_romvec *romvec;
 int prom_argc;
-LONG *_prom_argv, *_prom_envp;
+LONG *_prom_argv;
 
 #if defined(CONFIG_64BIT) && defined(CONFIG_FW_ARC32)
 /* stack for calling 32bit ARC prom */
@@ -34,7 +34,6 @@ void __init prom_init(void)
 
 	prom_argc = fw_arg0;
 	_prom_argv = (LONG *) fw_arg1;
-	_prom_envp = (LONG *) fw_arg2;
 
 	if (pb->magic != 0x53435241) {
 		printk(KERN_CRIT "Aieee, bad prom vector magic %08lx\n",

@@ -17,12 +17,11 @@
 extern struct linux_romvec *romvec;
 extern int prom_argc;
 
-extern LONG *_prom_argv, *_prom_envp;
+extern LONG *_prom_argv;
 
 /* A 32-bit ARC PROM pass arguments and environment as 32-bit pointer.
    These macros take care of sign extension.  */
 #define prom_argv(index) ((char *) (long) _prom_argv[(index)])
-#define prom_argc(index) ((char *) (long) _prom_argc[(index)])
 
 extern int prom_flags;
 
