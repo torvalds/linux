@@ -79,12 +79,12 @@ PNAME(mux_codec_src_p) = { "codec_pre_clk", clkin_name };
 
 /* Two PLL, one for dual datarate input logic, the other for scaler */
 static const struct clk_pll_data rk618_clk_plls[] = {
-	PLL(VIF_PLL_CLK, "vif_pll_clk", "vif_pllin_clk",
-	    RK618_CRU_PLL0_CON0,
-	    0),
-	PLL(SCALER_PLL_CLK, "scaler_pll_clk", "scaler_pllin_clk",
-	    RK618_CRU_PLL1_CON0,
-	    0),
+	RK618_PLL(VIF_PLL_CLK, "vif_pll_clk", "vif_pllin_clk",
+		  RK618_CRU_PLL0_CON0,
+		  0),
+	RK618_PLL(SCALER_PLL_CLK, "scaler_pll_clk", "scaler_pllin_clk",
+		  RK618_CRU_PLL1_CON0,
+		  0),
 };
 
 static const struct clk_mux_data rk618_clk_muxes[] = {
@@ -281,7 +281,11 @@ static void rk618_clk_register_plls(struct rk618_cru *cru)
 
 		clk = devm_clk_regmap_register_pll(cru->dev, data->name,
 						   data->parent_name,
-						   cru->regmap, data->reg,
+						   cru->regmap,
+						   data->reg,
+						   data->pd_shift,
+						   data->dsmpd_shift,
+						   data->lock_shift,
 						   data->flags);
 		if (IS_ERR(clk)) {
 			dev_err(cru->dev, "failed to register clock %s\n",

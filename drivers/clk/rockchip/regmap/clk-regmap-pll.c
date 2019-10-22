@@ -26,12 +26,6 @@
 #define PLL_FBDIV_MASK			GENMASK(11, 0)
 #define PLL_FBDIV_SHIFT			0
 
-#define PLL_LOCK			BIT(15)
-#define PLL_POWER_DOWN			HIWORD_UPDATE(1, 10, 10)
-#define PLL_POWER_UP			HIWORD_UPDATE(0, 10, 10)
-#define PLL_DSMPD_MASK			BIT(9)
-#define PLL_DSMPD_SHIFT			9
-#define PLL_DSMPD(x)			HIWORD_UPDATE(x, 9, 9)
 #define PLL_POSTDIV2(x)			HIWORD_UPDATE(x, 8, 6)
 #define PLL_POSTDIV2_MASK		GENMASK(8, 6)
 #define PLL_POSTDIV2_SHIFT		6
@@ -61,6 +55,9 @@ struct clk_regmap_pll {
 	struct device *dev;
 	struct regmap *regmap;
 	unsigned int reg;
+	u8 pd_shift;
+	u8 dsmpd_shift;
+	u8 lock_shift;
 };
 
 #define to_clk_regmap_pll(_hw)	container_of(_hw, struct clk_regmap_pll, hw)
@@ -80,7 +77,7 @@ clk_regmap_pll_recalc_rate(struct clk_hw *hw, unsigned long prate)
 	bypass = (con0 & PLL_BYPASS_MASK) >> PLL_BYPASS_SHIFT;
 	postdiv1 = (con0 & PLL_POSTDIV1_MASK) >> PLL_POSTDIV1_SHIFT;
 	fbdiv = (con0 & PLL_FBDIV_MASK) >> PLL_FBDIV_SHIFT;
-	dsmpd = (con1 & PLL_DSMPD_MASK) >> PLL_DSMPD_SHIFT;
+	dsmpd = (con1 & BIT(pll->dsmpd_shift)) >> pll->dsmpd_shift;
 	postdiv2 = (con1 & PLL_POSTDIV2_MASK) >> PLL_POSTDIV2_SHIFT;
 	refdiv = (con1 & PLL_REFDIV_MASK) >> PLL_REFDIV_SHIFT;
 	frac = (con2 & PLL_FRAC_MASK) >> PLL_FRAC_SHIFT;
@@ -274,8 +271,8 @@ clk_regmap_pll_set_rate(struct clk_hw *hw, unsigned long drate,
 			     PLL_BYPASS(0) | PLL_POSTDIV1(postdiv1) |
 			     PLL_FBDIV(fbdiv));
 		regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1),
-			     PLL_DSMPD(dsmpd) | PLL_POSTDIV2(postdiv2) |
-			     PLL_REFDIV(refdiv));
+			     HIWORD_UPDATE(dsmpd, pll->dsmpd_shift, pll->dsmpd_shift) |
+			     PLL_POSTDIV2(postdiv2) | PLL_REFDIV(refdiv));
 		regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(2),
 			     PLL_FRAC(frac));
 
@@ -294,11 +291,12 @@ static int clk_regmap_pll_prepare(struct clk_hw *hw)
 	u32 v;
 	int ret;
 
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1), PLL_POWER_UP);
+	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1),
+		     HIWORD_UPDATE(0, pll->pd_shift, pll->pd_shift));
 
 	ret = regmap_read_poll_timeout(pll->regmap,
 				       pll->reg + PLLCON_OFFSET(1),
-				       v, v & PLL_LOCK, 50, 50000);
+				       v, v & BIT(pll->lock_shift), 50, 50000);
 	if (ret)
 		dev_err(pll->dev, "%s is not lock\n", clk_hw_get_name(hw));
 
@@ -309,7 +307,8 @@ static void clk_regmap_pll_unprepare(struct clk_hw *hw)
 {
 	struct clk_regmap_pll *pll = to_clk_regmap_pll(hw);
 
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1), PLL_POWER_DOWN);
+	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(1),
+		     HIWORD_UPDATE(1, pll->pd_shift, pll->pd_shift));
 }
 
 static int clk_regmap_pll_is_prepared(struct clk_hw *hw)
@@ -319,14 +318,7 @@ static int clk_regmap_pll_is_prepared(struct clk_hw *hw)
 
 	regmap_read(pll->regmap, pll->reg + PLLCON_OFFSET(1), &con1);
 
-	return !(con1 & PLL_POWER_DOWN);
-}
-
-static void clk_regmap_pll_init(struct clk_hw *hw)
-{
-	struct clk_regmap_pll *pll = to_clk_regmap_pll(hw);
-
-	regmap_write(pll->regmap, pll->reg + PLLCON_OFFSET(0), PLL_BYPASS(1));
+	return !(con1 & BIT(pll->pd_shift));
 }
 
 static const struct clk_ops clk_regmap_pll_ops = {
@@ -336,13 +328,13 @@ static const struct clk_ops clk_regmap_pll_ops = {
 	.prepare = clk_regmap_pll_prepare,
 	.unprepare = clk_regmap_pll_unprepare,
 	.is_prepared = clk_regmap_pll_is_prepared,
-	.init = clk_regmap_pll_init,
 };
 
 struct clk *
 devm_clk_regmap_register_pll(struct device *dev, const char *name,
 			     const char *parent_name,
-			     struct regmap *regmap, u32 reg,
+			     struct regmap *regmap, u32 reg, u8 pd_shift,
+			     u8 dsmpd_shift, u8 lock_shift,
 			     unsigned long flags)
 {
 	struct clk_regmap_pll *pll;
@@ -361,6 +353,9 @@ devm_clk_regmap_register_pll(struct device *dev, const char *name,
 	pll->dev = dev;
 	pll->regmap = regmap;
 	pll->reg = reg;
+	pll->pd_shift = pd_shift;
+	pll->dsmpd_shift = dsmpd_shift;
+	pll->lock_shift = lock_shift;
 	pll->hw.init = &init;
 
 	return devm_clk_register(dev, &pll->hw);

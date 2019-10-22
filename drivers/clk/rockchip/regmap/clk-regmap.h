@@ -31,17 +31,27 @@ struct clk_pll_data {
 	const char *name;
 	const char *parent_name;
 	u32 reg;
+	u8 pd_shift;
+	u8 dsmpd_shift;
+	u8 lock_shift;
 	unsigned long flags;
 };
 
-#define PLL(_id, _name, _parent_name, _reg, _flags) \
+#define PLL(_id, _name, _parent_name, _reg, _pd_shift, _dsmpd_shift, \
+	    _lock_shift, _flags) \
 { \
 	.id = _id, \
 	.name = _name, \
 	.parent_name = _parent_name, \
 	.reg = _reg, \
+	.pd_shift = _pd_shift, \
+	.dsmpd_shift = _dsmpd_shift, \
+	.lock_shift = _lock_shift, \
 	.flags = _flags, \
 }
+
+#define RK618_PLL(_id, _name, _parent_name, _reg, _flags) \
+	PLL(_id, _name, _parent_name, _reg, 10, 9, 15, _flags)
 
 struct clk_mux_data {
 	unsigned int id;
@@ -225,7 +235,8 @@ extern const struct clk_ops clk_regmap_fractional_divider_ops;
 struct clk *
 devm_clk_regmap_register_pll(struct device *dev, const char *name,
 			     const char *parent_name,
-			     struct regmap *regmap, u32 reg,
+			     struct regmap *regmap, u32 reg, u8 pd_shift,
+			     u8 dsmpd_shift, u8 lock_shift,
 			     unsigned long flags);
 
 struct clk *
