@@ -239,7 +239,6 @@ static int st1232_ts_probe(struct i2c_client *client,
 
 	input_dev->name = "st1232-touchscreen";
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
 
 	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 	__set_bit(EV_SYN, input_dev->evbit);
