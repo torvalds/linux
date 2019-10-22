@@ -5345,19 +5345,6 @@ static void rtl_hw_start_8125(struct rtl8169_private *tp)
 
 static void rtl_hw_start_8168(struct rtl8169_private *tp)
 {
-	switch (tp->mac_version) {
-	case RTL_GIGA_MAC_VER_11:
-	case RTL_GIGA_MAC_VER_12:
-	case RTL_GIGA_MAC_VER_13:
-	case RTL_GIGA_MAC_VER_16:
-	case RTL_GIGA_MAC_VER_17:
-		pcie_capability_set_word(tp->pci_dev, PCI_EXP_DEVCTL,
-					 PCI_EXP_DEVCTL_NOSNOOP_EN);
-		break;
-	default:
-		break;
-	}
-
 	if (rtl_is_8168evl_up(tp))
 		RTL_W8(tp, MaxTxPacketSize, EarlySize);
 	else
