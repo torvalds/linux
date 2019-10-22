@@ -5391,6 +5391,37 @@ static unsigned long cpu_load(struct rq *rq)
 	return cfs_rq_load_avg(&rq->cfs);
 }
 
+/*
+ * cpu_load_without - compute CPU load without any contributions from *p
+ * @cpu: the CPU which load is requested
+ * @p: the task which load should be discounted
+ *
+ * The load of a CPU is defined by the load of tasks currently enqueued on that
+ * CPU as well as tasks which are currently sleeping after an execution on that
+ * CPU.
+ *
+ * This method returns the load of the specified CPU by discounting the load of
+ * the specified task, whenever the task is currently contributing to the CPU
+ * load.
+ */
+static unsigned long cpu_load_without(struct rq *rq, struct task_struct *p)
+{
+	struct cfs_rq *cfs_rq;
+	unsigned int load;
+
+	/* Task has no contribution or is new */
+	if (cpu_of(rq) != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
+		return cpu_load(rq);
+
+	cfs_rq = &rq->cfs;
+	load = READ_ONCE(cfs_rq->avg.load_avg);
+
+	/* Discount task's util from CPU's util */
+	lsub_positive(&load, task_h_load(p));
+
+	return load;
+}
+
 static unsigned long capacity_of(int cpu)
 {
 	return cpu_rq(cpu)->cpu_capacity;
@@ -8142,10 +8173,55 @@ static inline enum fbq_type fbq_classify_rq(struct rq *rq)
 struct sg_lb_stats;
 
 /*
+ * task_running_on_cpu - return 1 if @p is running on @cpu.
+ */
+
+static unsigned int task_running_on_cpu(int cpu, struct task_struct *p)
+{
+	/* Task has no contribution or is new */
+	if (cpu != task_cpu(p) || !READ_ONCE(p->se.avg.last_update_time))
+		return 0;
+
+	if (task_on_rq_queued(p))
+		return 1;
+
+	return 0;
+}
+
+/**
+ * idle_cpu_without - would a given CPU be idle without p ?
+ * @cpu: the processor on which idleness is tested.
+ * @p: task which should be ignored.
+ *
+ * Return: 1 if the CPU would be idle. 0 otherwise.
+ */
+static int idle_cpu_without(int cpu, struct task_struct *p)
+{
+	struct rq *rq = cpu_rq(cpu);
+
+	if (rq->curr != rq->idle && rq->curr != p)
+		return 0;
+
+	/*
+	 * rq->nr_running can't be used but an updated version without the
+	 * impact of p on cpu must be used instead. The updated nr_running
+	 * be computed and tested before calling idle_cpu_without().
+	 */
+
+#ifdef CONFIG_SMP
+	if (!llist_empty(&rq->wake_list))
+		return 0;
+#endif
+
+	return 1;
+}
+
+/*
  * update_sg_wakeup_stats - Update sched_group's statistics for wakeup.
- * @denv: The ched_domain level to look for idlest group.
+ * @sd: The sched_domain level to look for idlest group.
  * @group: sched_group whose statistics are to be updated.
  * @sgs: variable to hold the statistics for this group.
+ * @p: The task for which we look for the idlest group/CPU.
  */
 static inline void update_sg_wakeup_stats(struct sched_domain *sd,
 					  struct sched_group *group,
@@ -8158,20 +8234,21 @@ static inline void update_sg_wakeup_stats(struct sched_domain *sd,
 
 	for_each_cpu(i, sched_group_span(group)) {
 		struct rq *rq = cpu_rq(i);
+		unsigned int local;
 
-		sgs->group_load += cpu_load(rq);
+		sgs->group_load += cpu_load_without(rq, p);
 		sgs->group_util += cpu_util_without(i, p);
-		sgs->sum_h_nr_running += rq->cfs.h_nr_running;
+		local = task_running_on_cpu(i, p);
+		sgs->sum_h_nr_running += rq->cfs.h_nr_running - local;
 
-		nr_running = rq->nr_running;
+		nr_running = rq->nr_running - local;
 		sgs->sum_nr_running += nr_running;
 
 		/*
-		 * No need to call idle_cpu() if nr_running is not 0
+		 * No need to call idle_cpu_without() if nr_running is not 0
 		 */
-		if (!nr_running && idle_cpu(i))
+		if (!nr_running && idle_cpu_without(i, p))
 			sgs->idle_cpus++;
-
 
 	}
 
