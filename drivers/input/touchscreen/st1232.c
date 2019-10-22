@@ -50,12 +50,12 @@ struct st1232_ts_data {
 	const struct st_chip_info *chip_info;
 	int read_buf_len;
 	u8 *read_buf;
-	struct st1232_ts_finger *finger;
+	struct st1232_ts_finger fingers[];
 };
 
 static int st1232_ts_read_data(struct st1232_ts_data *ts)
 {
-	struct st1232_ts_finger *finger = ts->finger;
+	struct st1232_ts_finger *finger = ts->fingers;
 	struct i2c_client *client = ts->client;
 	u8 start_reg = ts->chip_info->start_reg;
 	struct i2c_msg msg[] = {
@@ -98,7 +98,7 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts)
 static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 {
 	struct st1232_ts_data *ts = dev_id;
-	struct st1232_ts_finger *finger = ts->finger;
+	struct st1232_ts_finger *finger = ts->fingers;
 	struct input_dev *input_dev = ts->input_dev;
 	int count = 0;
 	int i, ret;
@@ -177,7 +177,6 @@ static int st1232_ts_probe(struct i2c_client *client,
 {
 	const struct st_chip_info *match;
 	struct st1232_ts_data *ts;
-	struct st1232_ts_finger *finger;
 	struct input_dev *input_dev;
 	int error;
 
@@ -199,16 +198,13 @@ static int st1232_ts_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
+	ts = devm_kzalloc(&client->dev,
+			  struct_size(ts, fingers, match->max_fingers),
+			  GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
 
 	ts->chip_info = match;
-	ts->finger = devm_kcalloc(&client->dev,
-				  ts->chip_info->max_fingers, sizeof(*finger),
-				  GFP_KERNEL);
-	if (!ts->finger)
-		return -ENOMEM;
 
 	/* allocate a buffer according to the number of registers to read */
 	ts->read_buf_len = ts->chip_info->max_fingers * 4;
