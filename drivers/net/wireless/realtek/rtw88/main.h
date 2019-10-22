@@ -29,6 +29,8 @@
 #define RTW_RF_PATH_MAX			4
 #define HW_FEATURE_LEN			13
 
+#define RTW_TP_SHIFT			18 /* bytes/2s --> Mbps */
+
 extern bool rtw_bf_support;
 extern unsigned int rtw_fw_lps_deep_mode;
 extern unsigned int rtw_debug_mask;
@@ -339,6 +341,32 @@ enum rtw_flags {
 	NUM_OF_RTW_FLAGS,
 };
 
+enum rtw_evm {
+	RTW_EVM_OFDM = 0,
+	RTW_EVM_1SS,
+	RTW_EVM_2SS_A,
+	RTW_EVM_2SS_B,
+	/* keep it last */
+	RTW_EVM_NUM
+};
+
+enum rtw_snr {
+	RTW_SNR_OFDM_A = 0,
+	RTW_SNR_OFDM_B,
+	RTW_SNR_OFDM_C,
+	RTW_SNR_OFDM_D,
+	RTW_SNR_1SS_A,
+	RTW_SNR_1SS_B,
+	RTW_SNR_1SS_C,
+	RTW_SNR_1SS_D,
+	RTW_SNR_2SS_A,
+	RTW_SNR_2SS_B,
+	RTW_SNR_2SS_C,
+	RTW_SNR_2SS_D,
+	/* keep it last */
+	RTW_SNR_NUM
+};
+
 /* the power index is represented by differences, which cck-1s & ht40-1s are
  * the base values, so for 1s's differences, there are only ht20 & ofdm
  */
@@ -527,9 +555,15 @@ struct rtw_rx_pkt_stat {
 	s8 rx_power[RTW_RF_PATH_MAX];
 	u8 rssi;
 	u8 rxsc;
+	s8 rx_snr[RTW_RF_PATH_MAX];
+	u8 rx_evm[RTW_RF_PATH_MAX];
+	s8 cfo_tail[RTW_RF_PATH_MAX];
+
 	struct rtw_sta_info *si;
 	struct ieee80211_vif *vif;
 };
+
+DECLARE_EWMA(tp, 10, 2);
 
 struct rtw_traffic_stats {
 	/* units in bytes */
@@ -543,6 +577,8 @@ struct rtw_traffic_stats {
 	/* units in Mbps */
 	u32 tx_throughput;
 	u32 rx_throughput;
+	struct ewma_tp tx_ewma_tp;
+	struct ewma_tp rx_ewma_tp;
 };
 
 enum rtw_lps_mode {
@@ -1251,10 +1287,21 @@ struct rtw_swing_table {
 	const u8 *n[RTW_RF_PATH_MAX];
 };
 
+struct rtw_pkt_count {
+	u16 num_bcn_pkt;
+	u16 num_qry_pkt[DESC_RATE_MAX];
+};
+
+DECLARE_EWMA(evm, 10, 4);
+DECLARE_EWMA(snr, 10, 4);
+
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
 	u32 total_fa_cnt;
+	u32 cck_cca_cnt;
+	u32 ofdm_cca_cnt;
+	u32 total_cca_cnt;
 
 	u32 cck_ok_cnt;
 	u32 cck_err_cnt;
@@ -1296,6 +1343,17 @@ struct rtw_dm_info {
 	/* [bandwidth 0:20M/1:40M][number of path] */
 	u8 cck_pd_lv[2][RTW_RF_PATH_MAX];
 	u32 cck_fa_avg;
+
+	/* save the last rx phy status for debug */
+	s8 rx_snr[RTW_RF_PATH_MAX];
+	u8 rx_evm_dbm[RTW_RF_PATH_MAX];
+	s16 cfo_tail[RTW_RF_PATH_MAX];
+	u8 rssi[RTW_RF_PATH_MAX];
+	u8 curr_rx_rate;
+	struct rtw_pkt_count cur_pkt_count;
+	struct rtw_pkt_count last_pkt_count;
+	struct ewma_evm ewma_evm[RTW_EVM_NUM];
+	struct ewma_snr ewma_snr[RTW_SNR_NUM];
 };
 
 struct rtw_efuse {

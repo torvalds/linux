@@ -815,6 +815,7 @@ static void rtw8822b_config_trx_mode(struct rtw_dev *rtwdev, u8 tx_path,
 static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 				   struct rtw_rx_pkt_stat *pkt_stat)
 {
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	s8 min_rx_power = -120;
 	u8 pwdb = GET_PHY_STAT_P0_PWDB(phy_status);
 
@@ -824,13 +825,19 @@ static void query_phy_status_page0(struct rtw_dev *rtwdev, u8 *phy_status,
 	pkt_stat->bw = RTW_CHANNEL_WIDTH_20;
 	pkt_stat->signal_power = max(pkt_stat->rx_power[RF_PATH_A],
 				     min_rx_power);
+	dm_info->rssi[RF_PATH_A] = pkt_stat->rssi;
 }
 
 static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 				   struct rtw_rx_pkt_stat *pkt_stat)
 {
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u8 rxsc, bw;
 	s8 min_rx_power = -120;
+	s8 rx_evm;
+	u8 evm_dbm = 0;
+	u8 rssi;
+	int path;
 
 	if (pkt_stat->rate > DESC_RATE11M && pkt_stat->rate < DESC_RATEMCS0)
 		rxsc = GET_PHY_STAT_P1_L_RXSC(phy_status);
@@ -853,6 +860,34 @@ static void query_phy_status_page1(struct rtw_dev *rtwdev, u8 *phy_status,
 	pkt_stat->signal_power = max3(pkt_stat->rx_power[RF_PATH_A],
 				      pkt_stat->rx_power[RF_PATH_B],
 				      min_rx_power);
+
+	dm_info->curr_rx_rate = pkt_stat->rate;
+
+	pkt_stat->rx_evm[RF_PATH_A] = GET_PHY_STAT_P1_RXEVM_A(phy_status);
+	pkt_stat->rx_evm[RF_PATH_B] = GET_PHY_STAT_P1_RXEVM_B(phy_status);
+
+	pkt_stat->rx_snr[RF_PATH_A] = GET_PHY_STAT_P1_RXSNR_A(phy_status);
+	pkt_stat->rx_snr[RF_PATH_B] = GET_PHY_STAT_P1_RXSNR_B(phy_status);
+
+	pkt_stat->cfo_tail[RF_PATH_A] = GET_PHY_STAT_P1_CFO_TAIL_A(phy_status);
+	pkt_stat->cfo_tail[RF_PATH_B] = GET_PHY_STAT_P1_CFO_TAIL_B(phy_status);
+
+	for (path = 0; path <= rtwdev->hal.rf_path_num; path++) {
+		rssi = rtw_phy_rf_power_2_rssi(&pkt_stat->rx_power[path], 1);
+		dm_info->rssi[path] = rssi;
+		dm_info->rx_snr[path] = pkt_stat->rx_snr[path] >> 1;
+		dm_info->cfo_tail[path] = (pkt_stat->cfo_tail[path] * 5) >> 1;
+
+		rx_evm = pkt_stat->rx_evm[path];
+
+		if (rx_evm < 0) {
+			if (rx_evm == S8_MIN)
+				evm_dbm = 0;
+			else
+				evm_dbm = ((u8)-rx_evm >> 1);
+		}
+		dm_info->rx_evm_dbm[path] = evm_dbm;
+	}
 }
 
 static void query_phy_status(struct rtw_dev *rtwdev, u8 *phy_status,
@@ -999,6 +1034,7 @@ static void rtw8822b_false_alarm_statistics(struct rtw_dev *rtwdev)
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
 	u32 crc32_cnt;
+	u32 cca32_cnt;
 
 	cck_enable = rtw_read32(rtwdev, 0x808) & BIT(28);
 	cck_fa_cnt = rtw_read16(rtwdev, 0xa5c);
@@ -1021,6 +1057,15 @@ static void rtw8822b_false_alarm_statistics(struct rtw_dev *rtwdev)
 	crc32_cnt = rtw_read32(rtwdev, 0xf0c);
 	dm_info->vht_ok_cnt = crc32_cnt & 0xffff;
 	dm_info->vht_err_cnt = (crc32_cnt & 0xffff0000) >> 16;
+
+	cca32_cnt = rtw_read32(rtwdev, 0xf08);
+	dm_info->ofdm_cca_cnt = ((cca32_cnt & 0xffff0000) >> 16);
+	dm_info->total_cca_cnt = dm_info->ofdm_cca_cnt;
+	if (cck_enable) {
+		cca32_cnt = rtw_read32(rtwdev, 0xfcc);
+		dm_info->cck_cca_cnt = cca32_cnt & 0xffff;
+		dm_info->total_cca_cnt += dm_info->cck_cca_cnt;
+	}
 
 	rtw_write32_set(rtwdev, 0x9a4, BIT(17));
 	rtw_write32_clr(rtwdev, 0x9a4, BIT(17));

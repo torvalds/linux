@@ -178,6 +178,7 @@ static void rtw_watch_dog_work(struct work_struct *work)
 {
 	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
 					      watch_dog_work.work);
+	struct rtw_traffic_stats *stats = &rtwdev->stats;
 	struct rtw_watch_dog_iter_data data = {};
 	bool busy_traffic = test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags);
 	bool ps_active;
@@ -198,17 +199,24 @@ static void rtw_watch_dog_work(struct work_struct *work)
 	if (busy_traffic != test_bit(RTW_FLAG_BUSY_TRAFFIC, rtwdev->flags))
 		rtw_coex_wl_status_change_notify(rtwdev);
 
-	if (rtwdev->stats.tx_cnt > RTW_LPS_THRESHOLD ||
-	    rtwdev->stats.rx_cnt > RTW_LPS_THRESHOLD)
+	if (stats->tx_cnt > RTW_LPS_THRESHOLD ||
+	    stats->rx_cnt > RTW_LPS_THRESHOLD)
 		ps_active = true;
 	else
 		ps_active = false;
 
+	ewma_tp_add(&stats->tx_ewma_tp,
+		    (u32)(stats->tx_unicast >> RTW_TP_SHIFT));
+	ewma_tp_add(&stats->rx_ewma_tp,
+		    (u32)(stats->rx_unicast >> RTW_TP_SHIFT));
+	stats->tx_throughput = ewma_tp_read(&stats->tx_ewma_tp);
+	stats->rx_throughput = ewma_tp_read(&stats->rx_ewma_tp);
+
 	/* reset tx/rx statictics */
-	rtwdev->stats.tx_unicast = 0;
-	rtwdev->stats.rx_unicast = 0;
-	rtwdev->stats.tx_cnt = 0;
-	rtwdev->stats.rx_cnt = 0;
+	stats->tx_unicast = 0;
+	stats->rx_unicast = 0;
+	stats->tx_cnt = 0;
+	stats->rx_cnt = 0;
 
 	if (test_bit(RTW_FLAG_SCANNING, rtwdev->flags))
 		goto unlock;
@@ -1281,6 +1289,21 @@ err_out:
 }
 EXPORT_SYMBOL(rtw_chip_info_setup);
 
+static void rtw_stats_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_traffic_stats *stats = &rtwdev->stats;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	int i;
+
+	ewma_tp_init(&stats->tx_ewma_tp);
+	ewma_tp_init(&stats->rx_ewma_tp);
+
+	for (i = 0; i < RTW_EVM_NUM; i++)
+		ewma_evm_init(&dm_info->ewma_evm[i]);
+	for (i = 0; i < RTW_SNR_NUM; i++)
+		ewma_snr_init(&dm_info->ewma_snr[i]);
+}
+
 int rtw_core_init(struct rtw_dev *rtwdev)
 {
 	struct rtw_chip_info *chip = rtwdev->chip;
@@ -1328,6 +1351,8 @@ int rtw_core_init(struct rtw_dev *rtwdev)
 	mutex_lock(&rtwdev->mutex);
 	rtw_add_rsvd_page(rtwdev, RSVD_BEACON, false);
 	mutex_unlock(&rtwdev->mutex);
+
+	rtw_stats_init(rtwdev);
 
 	/* default rx filter setting */
 	rtwdev->hal.rcr = BIT_APP_FCS | BIT_APP_MIC | BIT_APP_ICV |

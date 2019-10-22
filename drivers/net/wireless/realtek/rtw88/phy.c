@@ -222,10 +222,19 @@ static void rtw_phy_stat_rssi(struct rtw_dev *rtwdev)
 	dm_info->min_rssi = data.min_rssi;
 }
 
+static void rtw_phy_stat_rate_cnt(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+
+	dm_info->last_pkt_count = dm_info->cur_pkt_count;
+	memset(&dm_info->cur_pkt_count, 0, sizeof(dm_info->cur_pkt_count));
+}
+
 static void rtw_phy_statistics(struct rtw_dev *rtwdev)
 {
 	rtw_phy_stat_rssi(rtwdev);
 	rtw_phy_stat_false_alarm(rtwdev);
+	rtw_phy_stat_rate_cnt(rtwdev);
 }
 
 #define DIG_PERF_FA_TH_LOW			250
