@@ -20,6 +20,8 @@
 
 struct drm_printer;
 
+struct intel_gt;
+
 /* Early gen2 devices have a cacheline of just 32 bytes, using 64 is overkill,
  * but keeps the logic simple. Indeed, the whole purpose of this macro is just
  * to give some inclination as to some of the magic values used in the various
@@ -322,7 +324,7 @@ __intel_ring_space(unsigned int head, unsigned int tail, unsigned int size)
 	return (head - tail - CACHELINE_BYTES) & (size - 1);
 }
 
-int intel_engines_init_mmio(struct drm_i915_private *i915);
+int intel_engines_init_mmio(struct intel_gt *gt);
 int intel_engines_setup(struct drm_i915_private *i915);
 int intel_engines_init(struct drm_i915_private *i915);
 void intel_engines_cleanup(struct drm_i915_private *i915);

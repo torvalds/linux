@@ -396,12 +396,13 @@ void intel_engines_cleanup(struct drm_i915_private *i915)
 
 /**
  * intel_engines_init_mmio() - allocate and prepare the Engine Command Streamers
- * @i915: the i915 device
+ * @gt: pointer to struct intel_gt
  *
  * Return: non-zero if the initialization failed.
  */
-int intel_engines_init_mmio(struct drm_i915_private *i915)
+int intel_engines_init_mmio(struct intel_gt *gt)
 {
+	struct drm_i915_private *i915 = gt->i915;
 	struct intel_device_info *device_info = mkwrite_device_info(i915);
 	const unsigned int engine_mask = INTEL_INFO(i915)->engine_mask;
 	unsigned int mask = 0;
@@ -419,7 +420,7 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 		if (!HAS_ENGINE(i915, i))
 			continue;
 
-		err = intel_engine_setup(&i915->gt, i);
+		err = intel_engine_setup(gt, i);
 		if (err)
 			goto cleanup;
 
@@ -436,7 +437,7 @@ int intel_engines_init_mmio(struct drm_i915_private *i915)
 
 	RUNTIME_INFO(i915)->num_engines = hweight32(mask);
 
-	intel_gt_check_and_clear_faults(&i915->gt);
+	intel_gt_check_and_clear_faults(gt);
 
 	intel_setup_engine_capabilities(i915);
 
