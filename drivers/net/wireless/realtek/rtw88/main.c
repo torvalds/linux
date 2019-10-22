@@ -612,12 +612,71 @@ static u8 get_rate_id(u8 wireless_set, enum rtw_bandwidth bw_mode, u8 tx_num)
 #define RA_MASK_OFDM_IN_HT_2G	0x00010
 #define RA_MASK_OFDM_IN_HT_5G	0x00030
 
+static u64 rtw_update_rate_mask(struct rtw_dev *rtwdev,
+				struct rtw_sta_info *si,
+				u64 ra_mask, bool is_vht_enable,
+				u8 wireless_set)
+{
+	struct rtw_hal *hal = &rtwdev->hal;
+	const struct cfg80211_bitrate_mask *mask = si->mask;
+	u64 cfg_mask = GENMASK(63, 0);
+	u8 rssi_level, band;
+
+	if (wireless_set != WIRELESS_CCK) {
+		rssi_level = si->rssi_level;
+		if (rssi_level == 0)
+			ra_mask &= 0xffffffffffffffffULL;
+		else if (rssi_level == 1)
+			ra_mask &= 0xfffffffffffffff0ULL;
+		else if (rssi_level == 2)
+			ra_mask &= 0xffffffffffffefe0ULL;
+		else if (rssi_level == 3)
+			ra_mask &= 0xffffffffffffcfc0ULL;
+		else if (rssi_level == 4)
+			ra_mask &= 0xffffffffffff8f80ULL;
+		else if (rssi_level >= 5)
+			ra_mask &= 0xffffffffffff0f00ULL;
+	}
+
+	if (!si->use_cfg_mask)
+		return ra_mask;
+
+	band = hal->current_band_type;
+	if (band == RTW_BAND_2G) {
+		band = NL80211_BAND_2GHZ;
+		cfg_mask = mask->control[band].legacy;
+	} else if (band == RTW_BAND_5G) {
+		band = NL80211_BAND_5GHZ;
+		cfg_mask = u64_encode_bits(mask->control[band].legacy,
+					   RA_MASK_OFDM_RATES);
+	}
+
+	if (!is_vht_enable) {
+		if (ra_mask & RA_MASK_HT_RATES_1SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[0],
+						    RA_MASK_HT_RATES_1SS);
+		if (ra_mask & RA_MASK_HT_RATES_2SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].ht_mcs[1],
+						    RA_MASK_HT_RATES_2SS);
+	} else {
+		if (ra_mask & RA_MASK_VHT_RATES_1SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[0],
+						    RA_MASK_VHT_RATES_1SS);
+		if (ra_mask & RA_MASK_VHT_RATES_2SS)
+			cfg_mask |= u64_encode_bits(mask->control[band].vht_mcs[1],
+						    RA_MASK_VHT_RATES_2SS);
+	}
+
+	ra_mask &= cfg_mask;
+
+	return ra_mask;
+}
+
 void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 {
 	struct ieee80211_sta *sta = si->sta;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 	struct rtw_hal *hal = &rtwdev->hal;
-	u8 rssi_level;
 	u8 wireless_set;
 	u8 bw_mode;
 	u8 rate_id;
@@ -710,21 +769,8 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si)
 
 	rate_id = get_rate_id(wireless_set, bw_mode, tx_num);
 
-	if (wireless_set != WIRELESS_CCK) {
-		rssi_level = si->rssi_level;
-		if (rssi_level == 0)
-			ra_mask &= 0xffffffffffffffffULL;
-		else if (rssi_level == 1)
-			ra_mask &= 0xfffffffffffffff0ULL;
-		else if (rssi_level == 2)
-			ra_mask &= 0xffffffffffffefe0ULL;
-		else if (rssi_level == 3)
-			ra_mask &= 0xffffffffffffcfc0ULL;
-		else if (rssi_level == 4)
-			ra_mask &= 0xffffffffffff8f80ULL;
-		else if (rssi_level >= 5)
-			ra_mask &= 0xffffffffffff0f00ULL;
-	}
+	ra_mask = rtw_update_rate_mask(rtwdev, si, ra_mask, is_vht_enable,
+				       wireless_set);
 
 	si->bw_mode = bw_mode;
 	si->stbc_en = stbc_en;

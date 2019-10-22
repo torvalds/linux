@@ -475,6 +475,8 @@ static int rtw_ops_sta_remove(struct ieee80211_hw *hw,
 	for (i = 0; i < ARRAY_SIZE(sta->txq); i++)
 		rtw_txq_cleanup(rtwdev, sta->txq[i]);
 
+	kfree(si->mask);
+
 	rtwdev->sta_cnt--;
 
 	rtw_info(rtwdev, "sta %pM with macid %d left\n",
@@ -684,6 +686,56 @@ static void rtw_ops_flush(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
+struct rtw_iter_bitrate_mask_data {
+	struct rtw_dev *rtwdev;
+	struct ieee80211_vif *vif;
+	const struct cfg80211_bitrate_mask *mask;
+};
+
+static void rtw_ra_mask_info_update_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw_iter_bitrate_mask_data *br_data = data;
+	struct rtw_sta_info *si = (struct rtw_sta_info *)sta->drv_priv;
+
+	if (si->vif != br_data->vif)
+		return;
+
+	/* free previous mask setting */
+	kfree(si->mask);
+	si->mask = kmemdup(br_data->mask, sizeof(struct cfg80211_bitrate_mask),
+			   GFP_ATOMIC);
+	if (!si->mask) {
+		si->use_cfg_mask = false;
+		return;
+	}
+
+	si->use_cfg_mask = true;
+	rtw_update_sta_info(br_data->rtwdev, si);
+}
+
+static void rtw_ra_mask_info_update(struct rtw_dev *rtwdev,
+				    struct ieee80211_vif *vif,
+				    const struct cfg80211_bitrate_mask *mask)
+{
+	struct rtw_iter_bitrate_mask_data br_data;
+
+	br_data.rtwdev = rtwdev;
+	br_data.vif = vif;
+	br_data.mask = mask;
+	rtw_iterate_stas_atomic(rtwdev, rtw_ra_mask_info_update_iter, &br_data);
+}
+
+static int rtw_ops_set_bitrate_mask(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    const struct cfg80211_bitrate_mask *mask)
+{
+	struct rtw_dev *rtwdev = hw->priv;
+
+	rtw_ra_mask_info_update(rtwdev, vif, mask);
+
+	return 0;
+}
+
 const struct ieee80211_ops rtw_ops = {
 	.tx			= rtw_ops_tx,
 	.wake_tx_queue		= rtw_ops_wake_tx_queue,
@@ -705,5 +757,6 @@ const struct ieee80211_ops rtw_ops = {
 	.set_rts_threshold	= rtw_ops_set_rts_threshold,
 	.sta_statistics		= rtw_ops_sta_statistics,
 	.flush			= rtw_ops_flush,
+	.set_bitrate_mask	= rtw_ops_set_bitrate_mask,
 };
 EXPORT_SYMBOL(rtw_ops);

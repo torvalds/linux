@@ -646,6 +646,9 @@ struct rtw_sta_info {
 	DECLARE_BITMAP(tid_ba, IEEE80211_NUM_TIDS);
 
 	struct rtw_ra_report ra_report;
+
+	bool use_cfg_mask;
+	struct cfg80211_bitrate_mask *mask;
 };
 
 enum rtw_bfee_role {
