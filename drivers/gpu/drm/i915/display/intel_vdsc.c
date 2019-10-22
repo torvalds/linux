@@ -322,7 +322,7 @@ static int get_column_index_for_rc_params(u8 bits_per_component)
 int intel_dp_compute_dsc_params(struct intel_dp *intel_dp,
 				struct intel_crtc_state *pipe_config)
 {
-	struct drm_dsc_config *vdsc_cfg = &pipe_config->dp_dsc_cfg;
+	struct drm_dsc_config *vdsc_cfg = &pipe_config->dsc.config;
 	u16 compressed_bpp = pipe_config->dsc.compressed_bpp;
 	u8 i = 0;
 	int row_index = 0;
@@ -485,7 +485,7 @@ static void intel_configure_pps_for_dsc_encoder(struct intel_encoder *encoder,
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dp_dsc_cfg;
+	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	enum pipe pipe = crtc->pipe;
 	enum transcoder cpu_transcoder = crtc_state->cpu_transcoder;
 	u32 pps_val = 0;
@@ -885,7 +885,7 @@ static void intel_dp_write_dsc_pps_sdp(struct intel_encoder *encoder,
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dp_dsc_cfg;
+	const struct drm_dsc_config *vdsc_cfg = &crtc_state->dsc.config;
 	struct drm_dsc_pps_infoframe dp_dsc_pps_sdp;
 
 	/* Prepare DP SDP PPS header as per DP 1.4 spec, Table 2-123 */

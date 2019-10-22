@@ -986,8 +986,8 @@ struct intel_crtc_state {
 		bool dsc_split;
 		u16 compressed_bpp;
 		u8 slice_count;
+		struct drm_dsc_config config;
 	} dsc;
-	struct drm_dsc_config dp_dsc_cfg;
 
 	/* Forward Error correction State */
 	bool fec_enable;
