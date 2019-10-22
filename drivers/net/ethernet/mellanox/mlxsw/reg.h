@@ -8412,6 +8412,7 @@ MLXSW_ITEM32(reg, mcia, device_address, 0x04, 0, 16);
 MLXSW_ITEM32(reg, mcia, size, 0x08, 0, 16);
 
 #define MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH	256
+#define MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH	128
 #define MLXSW_REG_MCIA_EEPROM_SIZE		48
 #define MLXSW_REG_MCIA_I2C_ADDR_LOW		0x50
 #define MLXSW_REG_MCIA_I2C_ADDR_HIGH		0x51
@@ -8446,6 +8447,14 @@ enum mlxsw_reg_mcia_eeprom_module_info {
  * Access: RW
  */
 MLXSW_ITEM_BUF(reg, mcia, eeprom, 0x10, MLXSW_REG_MCIA_EEPROM_SIZE);
+
+/* This is used to access the optional upper pages (1-3) in the QSFP+
+ * memory map. Page 1 is available on offset 256 through 383, page 2 -
+ * on offset 384 through 511, page 3 - on offset 512 through 639.
+ */
+#define MLXSW_REG_MCIA_PAGE_GET(off) (((off) - \
+				MLXSW_REG_MCIA_EEPROM_PAGE_LENGTH) / \
+				MLXSW_REG_MCIA_EEPROM_UP_PAGE_LENGTH + 1)
 
 static inline void mlxsw_reg_mcia_pack(char *payload, u8 module, u8 lock,
 				       u8 page_number, u16 device_addr,
