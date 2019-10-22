@@ -12,6 +12,7 @@
 #include "xfs_trans.h"
 #include "xfs_bmap.h"
 #include "xfs_iomap.h"
+#include "xfs_pnfs.h"
 
 /*
  * Ensure that we do not have any outstanding pNFS layouts that can be used by
