@@ -655,6 +655,10 @@ config XILINX_DMA
 	  destination address.
 	  AXI DMA engine provides high-bandwidth one dimensional direct
 	  memory access between memory and AXI4-Stream target peripherals.
+	  AXI MCDMA engine provides high-bandwidth direct memory access
+	  between memory and AXI4-Stream target peripherals. It provides
+	  the scatter gather interface with multiple channels independent
+	  configuration support.
 
 config XILINX_ZYNQMP_DMA
 	tristate "Xilinx ZynqMP DMA Engine"
