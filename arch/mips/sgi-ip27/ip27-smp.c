@@ -27,6 +27,8 @@
 #include <asm/sn/sn0/hubio.h>
 #include <asm/sn/sn0/ip27.h>
 
+#include "ip27-common.h"
+
 /*
  * Takes as first input the PROM assigned cpu id, and the kernel
  * assigned cpu id as the second.
@@ -147,8 +149,6 @@ static void ip27_init_cpu(void)
 
 static void ip27_smp_finish(void)
 {
-	extern void hub_rt_clock_event_init(void);
-
 	hub_rt_clock_event_init();
 	local_irq_enable();
 }

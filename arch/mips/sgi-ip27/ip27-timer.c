@@ -38,6 +38,8 @@
 #include <asm/sn/sn0/hubio.h>
 #include <asm/pci/bridge.h>
 
+#include "ip27-common.h"
+
 static int rt_next_event(unsigned long delta, struct clock_event_device *evt)
 {
 	unsigned int cpu = smp_processor_id();

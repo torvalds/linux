@@ -26,6 +26,8 @@
 #include <asm/sn/gda.h>
 #include <asm/sn/sn0/hub.h>
 
+#include "ip27-common.h"
+
 void machine_restart(char *command) __noreturn;
 void machine_halt(void) __noreturn;
 void machine_power_off(void) __noreturn;

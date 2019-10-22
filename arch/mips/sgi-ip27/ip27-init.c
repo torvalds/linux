@@ -36,6 +36,8 @@
 #include <asm/sn/sn0/ip27.h>
 #include <asm/sn/mapped_kernel.h>
 
+#include "ip27-common.h"
+
 #define CPU_NONE		(cpuid_t)-1
 
 static DECLARE_BITMAP(hub_init_mask, MAX_COMPACT_NODES);
@@ -112,8 +114,6 @@ get_nasid(void)
 	return (nasid_t)((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_NODEID_MASK)
 			 >> NSRI_NODEID_SHFT);
 }
-
-extern void ip27_reboot_setup(void);
 
 void __init plat_mem_setup(void)
 {
