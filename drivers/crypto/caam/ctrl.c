@@ -308,11 +308,9 @@ static int caam_remove(struct platform_device *pdev)
 {
 	struct device *ctrldev;
 	struct caam_drv_private *ctrlpriv;
-	struct caam_ctrl __iomem *ctrl;
 
 	ctrldev = &pdev->dev;
 	ctrlpriv = dev_get_drvdata(ctrldev);
-	ctrl = (struct caam_ctrl __iomem *)ctrlpriv->ctrl;
 
 	/* Remove platform devices under the crypto node */
 	of_platform_depopulate(ctrldev);
@@ -333,9 +331,6 @@ static int caam_remove(struct platform_device *pdev)
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(ctrlpriv->dfs_root);
 #endif
-
-	/* Unmap controller region */
-	iounmap(ctrl);
 
 	return 0;
 }
@@ -611,10 +606,11 @@ static int caam_probe(struct platform_device *pdev)
 
 	/* Get configuration properties from device tree */
 	/* First, get register page */
-	ctrl = of_iomap(nprop, 0);
-	if (!ctrl) {
+	ctrl = devm_of_iomap(dev, nprop, 0, NULL);
+	ret = PTR_ERR_OR_ZERO(ctrl);
+	if (ret) {
 		dev_err(dev, "caam: of_iomap() failed\n");
-		return -ENOMEM;
+		return ret;
 	}
 
 	caam_little_end = !(bool)(rd_reg32(&ctrl->perfmon.status) &
@@ -632,22 +628,18 @@ static int caam_probe(struct platform_device *pdev)
 	if (ctrlpriv->qi_present && !caam_dpaa2) {
 		ret = qman_is_probed();
 		if (!ret) {
-			ret = -EPROBE_DEFER;
-			goto iounmap_ctrl;
+			return -EPROBE_DEFER;
 		} else if (ret < 0) {
 			dev_err(dev, "failing probe due to qman probe error\n");
-			ret = -ENODEV;
-			goto iounmap_ctrl;
+			return -ENODEV;
 		}
 
 		ret = qman_portals_probed();
 		if (!ret) {
-			ret = -EPROBE_DEFER;
-			goto iounmap_ctrl;
+			return -EPROBE_DEFER;
 		} else if (ret < 0) {
 			dev_err(dev, "failing probe due to qman portals probe error\n");
-			ret = -ENODEV;
-			goto iounmap_ctrl;
+			return -ENODEV;
 		}
 	}
 #endif
@@ -722,7 +714,7 @@ static int caam_probe(struct platform_device *pdev)
 	ret = dma_set_mask_and_coherent(dev, caam_get_dma_mask(dev));
 	if (ret) {
 		dev_err(dev, "dma_set_mask_and_coherent failed (%d)\n", ret);
-		goto iounmap_ctrl;
+		return ret;
 	}
 
 	ctrlpriv->era = caam_get_era(ctrl);
@@ -927,8 +919,6 @@ shutdown_qi:
 	if (ctrlpriv->qi_init)
 		caam_qi_shutdown(dev);
 #endif
-iounmap_ctrl:
-	iounmap(ctrl);
 	return ret;
 }
 
