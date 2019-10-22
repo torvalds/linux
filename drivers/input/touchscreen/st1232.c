@@ -14,23 +14,19 @@
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
+#include <linux/input/mt.h>
+#include <linux/input/touchscreen.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/pm_qos.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/input/touchscreen.h>
 
 #define ST1232_TS_NAME	"st1232-ts"
 #define ST1633_TS_NAME	"st1633-ts"
 
-struct st1232_ts_finger {
-	u16 x;
-	u16 y;
-	u8 t;
-	bool is_valid;
-};
+#define ST_TS_MAX_FINGERS	10
 
 struct st_chip_info {
 	bool	have_z;
@@ -50,12 +46,10 @@ struct st1232_ts_data {
 	const struct st_chip_info *chip_info;
 	int read_buf_len;
 	u8 *read_buf;
-	struct st1232_ts_finger fingers[];
 };
 
 static int st1232_ts_read_data(struct st1232_ts_data *ts)
 {
-	struct st1232_ts_finger *finger = ts->fingers;
 	struct i2c_client *client = ts->client;
 	u8 start_reg = ts->chip_info->start_reg;
 	struct i2c_msg msg[] = {
@@ -72,59 +66,69 @@ static int st1232_ts_read_data(struct st1232_ts_data *ts)
 		}
 	};
 	int ret;
-	int i;
-	u8 *buf;
 
 	ret = i2c_transfer(client->adapter, msg, ARRAY_SIZE(msg));
 	if (ret != ARRAY_SIZE(msg))
 		return ret < 0 ? ret : -EIO;
 
+	return 0;
+}
+
+static int st1232_ts_parse_and_report(struct st1232_ts_data *ts)
+{
+	struct input_dev *input = ts->input_dev;
+	struct input_mt_pos pos[ST_TS_MAX_FINGERS];
+	u8 z[ST_TS_MAX_FINGERS];
+	int slots[ST_TS_MAX_FINGERS];
+	int n_contacts = 0;
+	int i;
+
 	for (i = 0; i < ts->chip_info->max_fingers; i++) {
-		buf = &ts->read_buf[i * 4];
-		finger[i].is_valid = buf[0] >> 7;
-		if (finger[i].is_valid) {
-			finger[i].x = ((buf[0] & 0x70) << 4) | buf[1];
-			finger[i].y = ((buf[0] & 0x07) << 8) | buf[2];
+		u8 *buf = &ts->read_buf[i * 4];
+
+		if (buf[0] & BIT(7)) {
+			unsigned int x = ((buf[0] & 0x70) << 4) | buf[1];
+			unsigned int y = ((buf[0] & 0x07) << 8) | buf[2];
+
+			touchscreen_set_mt_pos(&pos[n_contacts],
+					       &ts->prop, x, y);
 
 			/* st1232 includes a z-axis / touch strength */
 			if (ts->chip_info->have_z)
-				finger[i].t = ts->read_buf[i + 6];
+				z[n_contacts] = ts->read_buf[i + 6];
+
+			n_contacts++;
 		}
 	}
 
-	return 0;
+	input_mt_assign_slots(input, slots, pos, n_contacts, 0);
+	for (i = 0; i < n_contacts; i++) {
+		input_mt_slot(input, slots[i]);
+		input_mt_report_slot_state(input, MT_TOOL_FINGER, true);
+		input_report_abs(input, ABS_MT_POSITION_X, pos[i].x);
+		input_report_abs(input, ABS_MT_POSITION_Y, pos[i].y);
+		if (ts->chip_info->have_z)
+			input_report_abs(input, ABS_MT_TOUCH_MAJOR, z[i]);
+	}
+
+	input_mt_sync_frame(input);
+	input_sync(input);
+
+	return n_contacts;
 }
 
 static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 {
 	struct st1232_ts_data *ts = dev_id;
-	struct st1232_ts_finger *finger = ts->fingers;
-	struct input_dev *input_dev = ts->input_dev;
-	int count = 0;
-	int i, ret;
+	int count;
+	int error;
 
-	ret = st1232_ts_read_data(ts);
-	if (ret < 0)
-		goto end;
+	error = st1232_ts_read_data(ts);
+	if (error)
+		goto out;
 
-	/* multi touch protocol */
-	for (i = 0; i < ts->chip_info->max_fingers; i++) {
-		if (!finger[i].is_valid)
-			continue;
-
-		if (ts->chip_info->have_z)
-			input_report_abs(input_dev, ABS_MT_TOUCH_MAJOR,
-					 finger[i].t);
-
-		touchscreen_report_pos(input_dev, &ts->prop,
-					finger[i].x, finger[i].y, true);
-		input_mt_sync(input_dev);
-		count++;
-	}
-
-	/* SYN_MT_REPORT only if no contact */
+	count = st1232_ts_parse_and_report(ts);
 	if (!count) {
-		input_mt_sync(input_dev);
 		if (ts->low_latency_req.dev) {
 			dev_pm_qos_remove_request(&ts->low_latency_req);
 			ts->low_latency_req.dev = NULL;
@@ -136,10 +140,7 @@ static irqreturn_t st1232_ts_irq_handler(int irq, void *dev_id)
 						DEV_PM_QOS_RESUME_LATENCY, 100);
 	}
 
-	/* SYN_REPORT */
-	input_sync(input_dev);
-
-end:
+out:
 	return IRQ_HANDLED;
 }
 
@@ -198,9 +199,7 @@ static int st1232_ts_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	ts = devm_kzalloc(&client->dev,
-			  struct_size(ts, fingers, match->max_fingers),
-			  GFP_KERNEL);
+	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
 
@@ -240,11 +239,6 @@ static int st1232_ts_probe(struct i2c_client *client,
 	input_dev->name = "st1232-touchscreen";
 	input_dev->id.bustype = BUS_I2C;
 
-	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
-	__set_bit(EV_SYN, input_dev->evbit);
-	__set_bit(EV_KEY, input_dev->evbit);
-	__set_bit(EV_ABS, input_dev->evbit);
-
 	if (ts->chip_info->have_z)
 		input_set_abs_params(input_dev, ABS_MT_TOUCH_MAJOR, 0,
 				     ts->chip_info->max_area, 0, 0);
@@ -255,6 +249,14 @@ static int st1232_ts_probe(struct i2c_client *client,
 			     0, ts->chip_info->max_y, 0, 0);
 
 	touchscreen_parse_properties(input_dev, true, &ts->prop);
+
+	error = input_mt_init_slots(input_dev, ts->chip_info->max_fingers,
+				    INPUT_MT_DIRECT | INPUT_MT_TRACK |
+					INPUT_MT_DROP_UNUSED);
+	if (error) {
+		dev_err(&client->dev, "failed to initialize MT slots\n");
+		return error;
+	}
 
 	error = devm_request_threaded_irq(&client->dev, client->irq,
 					  NULL, st1232_ts_irq_handler,
