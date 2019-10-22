@@ -623,26 +623,26 @@ static int intel_engine_setup_common(struct intel_engine_cs *engine)
 
 /**
  * intel_engines_setup- setup engine state not requiring hw access
- * @i915: Device to setup.
+ * @gt: pointer to struct intel_gt
  *
  * Initializes engine structure members shared between legacy and execlists
  * submission modes which do not require hardware access.
  *
  * Typically done early in the submission mode specific engine setup stage.
  */
-int intel_engines_setup(struct drm_i915_private *i915)
+int intel_engines_setup(struct intel_gt *gt)
 {
 	int (*setup)(struct intel_engine_cs *engine);
 	struct intel_engine_cs *engine;
 	enum intel_engine_id id;
 	int err;
 
-	if (HAS_EXECLISTS(i915))
+	if (HAS_EXECLISTS(gt->i915))
 		setup = intel_execlists_submission_setup;
 	else
 		setup = intel_ring_submission_setup;
 
-	for_each_engine(engine, i915, id) {
+	for_each_engine(engine, gt, id) {
 		err = intel_engine_setup_common(engine);
 		if (err)
 			goto cleanup;
@@ -660,7 +660,7 @@ int intel_engines_setup(struct drm_i915_private *i915)
 	return 0;
 
 cleanup:
-	intel_engines_cleanup(&i915->gt);
+	intel_engines_cleanup(gt);
 	return err;
 }
 

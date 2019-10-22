@@ -1249,7 +1249,7 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 
 	intel_gt_init(&dev_priv->gt);
 
-	ret = intel_engines_setup(dev_priv);
+	ret = intel_engines_setup(&dev_priv->gt);
 	if (ret) {
 		GEM_BUG_ON(ret == -EIO);
 		goto err_unlock;
