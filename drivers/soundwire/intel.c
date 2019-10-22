@@ -604,66 +604,6 @@ static int intel_post_bank_switch(struct sdw_bus *bus)
  * DAI routines
  */
 
-static struct sdw_cdns_port *intel_alloc_port(struct sdw_intel *sdw,
-					      u32 ch, u32 dir, bool pcm)
-{
-	struct sdw_cdns *cdns = &sdw->cdns;
-	struct sdw_cdns_port *port = NULL;
-	int i, ret = 0;
-
-	for (i = 0; i < cdns->num_ports; i++) {
-		if (cdns->ports[i].assigned)
-			continue;
-
-		port = &cdns->ports[i];
-		port->assigned = true;
-		port->direction = dir;
-		port->ch = ch;
-		break;
-	}
-
-	if (!port) {
-		dev_err(cdns->dev, "Unable to find a free port\n");
-		return NULL;
-	}
-
-	if (pcm) {
-		ret = sdw_cdns_alloc_stream(cdns, &cdns->pcm, port, ch, dir);
-		if (ret)
-			goto out;
-
-		intel_pdi_shim_configure(sdw, port->pdi);
-		sdw_cdns_config_stream(cdns, port, ch, dir, port->pdi);
-
-		intel_pdi_alh_configure(sdw, port->pdi);
-
-	} else {
-		ret = sdw_cdns_alloc_stream(cdns, &cdns->pdm, port, ch, dir);
-	}
-
-out:
-	if (ret) {
-		port->assigned = false;
-		port = NULL;
-	}
-
-	return port;
-}
-
-static void intel_port_cleanup(struct sdw_cdns_dma_data *dma)
-{
-	int i;
-
-	for (i = 0; i < dma->nr_ports; i++) {
-		if (dma->port[i]) {
-			dma->port[i]->pdi->assigned = false;
-			dma->port[i]->pdi = NULL;
-			dma->port[i]->assigned = false;
-			dma->port[i] = NULL;
-		}
-	}
-}
-
 static int intel_hw_params(struct snd_pcm_substream *substream,
 			   struct snd_pcm_hw_params *params,
 			   struct snd_soc_dai *dai)
@@ -671,9 +611,11 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
 	struct sdw_intel *sdw = cdns_to_intel(cdns);
 	struct sdw_cdns_dma_data *dma;
+	struct sdw_cdns_pdi *pdi;
 	struct sdw_stream_config sconfig;
 	struct sdw_port_config *pconfig;
-	int ret, i, ch, dir;
+	int ch, dir;
+	int ret;
 	bool pcm = true;
 
 	dma = snd_soc_dai_get_dma_data(dai, substream);
@@ -686,38 +628,30 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	else
 		dir = SDW_DATA_DIR_TX;
 
-	if (dma->stream_type == SDW_STREAM_PDM) {
-		/* TODO: Check whether PDM decimator is already in use */
-		dma->nr_ports = sdw_cdns_get_stream(cdns, &cdns->pdm, ch, dir);
+	if (dma->stream_type == SDW_STREAM_PDM)
 		pcm = false;
-	} else {
-		dma->nr_ports = sdw_cdns_get_stream(cdns, &cdns->pcm, ch, dir);
+
+	if (pcm)
+		pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pcm, ch, dir, dai->id);
+	else
+		pdi = sdw_cdns_alloc_pdi(cdns, &cdns->pdm, ch, dir, dai->id);
+
+	if (!pdi) {
+		ret = -EINVAL;
+		goto error;
 	}
 
-	if (!dma->nr_ports) {
-		dev_err(dai->dev, "ports/resources not available\n");
-		return -EINVAL;
-	}
+	/* do run-time configurations for SHIM, ALH and PDI/PORT */
+	intel_pdi_shim_configure(sdw, pdi);
+	intel_pdi_alh_configure(sdw, pdi);
+	sdw_cdns_config_stream(cdns, ch, dir, pdi);
 
-	dma->port = kcalloc(dma->nr_ports, sizeof(*dma->port), GFP_KERNEL);
-	if (!dma->port)
-		return -ENOMEM;
-
-	for (i = 0; i < dma->nr_ports; i++) {
-		dma->port[i] = intel_alloc_port(sdw, ch, dir, pcm);
-		if (!dma->port[i]) {
-			ret = -EINVAL;
-			goto port_error;
-		}
-	}
 
 	/* Inform DSP about PDI stream number */
-	for (i = 0; i < dma->nr_ports; i++) {
-		ret = intel_config_stream(sdw, substream, dai, params,
-					  dma->port[i]->pdi->intel_alh_id);
-		if (ret)
-			goto port_error;
-	}
+	ret = intel_config_stream(sdw, substream, dai, params,
+				  pdi->intel_alh_id);
+	if (ret)
+		goto error;
 
 	sconfig.direction = dir;
 	sconfig.ch_count = ch;
@@ -732,32 +666,22 @@ static int intel_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* Port configuration */
-	pconfig = kcalloc(dma->nr_ports, sizeof(*pconfig), GFP_KERNEL);
+	pconfig = kcalloc(1, sizeof(*pconfig), GFP_KERNEL);
 	if (!pconfig) {
 		ret =  -ENOMEM;
-		goto port_error;
+		goto error;
 	}
 
-	for (i = 0; i < dma->nr_ports; i++) {
-		pconfig[i].num = dma->port[i]->num;
-		pconfig[i].ch_mask = (1 << ch) - 1;
-	}
+	pconfig->num = pdi->num;
+	pconfig->ch_mask = (1 << ch) - 1;
 
 	ret = sdw_stream_add_master(&cdns->bus, &sconfig,
-				    pconfig, dma->nr_ports, dma->stream);
-	if (ret) {
+				    pconfig, 1, dma->stream);
+	if (ret)
 		dev_err(cdns->dev, "add master to stream failed:%d\n", ret);
-		goto stream_error;
-	}
 
 	kfree(pconfig);
-	return ret;
-
-stream_error:
-	kfree(pconfig);
-port_error:
-	intel_port_cleanup(dma);
-	kfree(dma->port);
+error:
 	return ret;
 }
 
@@ -777,8 +701,6 @@ intel_hw_free(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 		dev_err(dai->dev, "remove master from stream %s failed: %d\n",
 			dma->stream->name, ret);
 
-	intel_port_cleanup(dma);
-	kfree(dma->port);
 	return ret;
 }
 
@@ -843,14 +765,6 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 			return -ENOMEM;
 
 		if (type == INTEL_PDI_BD || type == INTEL_PDI_OUT) {
-			dais[i].playback.stream_name =
-				kasprintf(GFP_KERNEL, "SDW%d Tx%d",
-					  cdns->instance, i);
-			if (!dais[i].playback.stream_name) {
-				kfree(dais[i].name);
-				return -ENOMEM;
-			}
-
 			dais[i].playback.channels_min = 1;
 			dais[i].playback.channels_max = max_ch;
 			dais[i].playback.rates = SNDRV_PCM_RATE_48000;
@@ -858,22 +772,11 @@ static int intel_create_dai(struct sdw_cdns *cdns,
 		}
 
 		if (type == INTEL_PDI_BD || type == INTEL_PDI_IN) {
-			dais[i].capture.stream_name =
-				kasprintf(GFP_KERNEL, "SDW%d Rx%d",
-					  cdns->instance, i);
-			if (!dais[i].capture.stream_name) {
-				kfree(dais[i].name);
-				kfree(dais[i].playback.stream_name);
-				return -ENOMEM;
-			}
-
 			dais[i].capture.channels_min = 1;
 			dais[i].capture.channels_max = max_ch;
 			dais[i].capture.rates = SNDRV_PCM_RATE_48000;
 			dais[i].capture.formats = SNDRV_PCM_FMTBIT_S16_LE;
 		}
-
-		dais[i].id = SDW_DAI_ID_RANGE_START + i;
 
 		if (pcm)
 			dais[i].ops = &intel_pcm_dai_ops;
@@ -901,7 +804,7 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	/* Create PCM DAIs */
 	stream = &cdns->pcm;
 
-	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, stream->num_in,
+	ret = intel_create_dai(cdns, dais, INTEL_PDI_IN, cdns->pcm.num_in,
 			       off, stream->num_ch_in, true);
 	if (ret)
 		return ret;
@@ -932,7 +835,7 @@ static int intel_register_dai(struct sdw_intel *sdw)
 	if (ret)
 		return ret;
 
-	off += cdns->pdm.num_bd;
+	off += cdns->pdm.num_out;
 	ret = intel_create_dai(cdns, dais, INTEL_PDI_BD, cdns->pdm.num_bd,
 			       off, stream->num_ch_bd, false);
 	if (ret)
