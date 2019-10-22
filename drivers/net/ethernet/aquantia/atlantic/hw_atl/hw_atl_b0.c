@@ -1261,7 +1261,8 @@ static int hw_atl_b0_hw_fl3l4_set(struct aq_hw_s *self,
 
 	hw_atl_b0_hw_fl3l4_clear(self, data);
 
-	if (data->cmd) {
+	if (data->cmd & (HW_ATL_RX_ENABLE_CMP_DEST_ADDR_L3 |
+			 HW_ATL_RX_ENABLE_CMP_SRC_ADDR_L3)) {
 		if (!data->is_ipv6) {
 			hw_atl_rpfl3l4_ipv4_dest_addr_set(self,
 							  location,
@@ -1278,8 +1279,13 @@ static int hw_atl_b0_hw_fl3l4_set(struct aq_hw_s *self,
 							 data->ip_src);
 		}
 	}
-	hw_atl_rpf_l4_dpd_set(self, data->p_dst, location);
-	hw_atl_rpf_l4_spd_set(self, data->p_src, location);
+
+	if (data->cmd & (HW_ATL_RX_ENABLE_CMP_DEST_PORT_L4 |
+			 HW_ATL_RX_ENABLE_CMP_SRC_PORT_L4)) {
+		hw_atl_rpf_l4_dpd_set(self, data->p_dst, location);
+		hw_atl_rpf_l4_spd_set(self, data->p_src, location);
+	}
+
 	hw_atl_rpfl3l4_cmd_set(self, location, data->cmd);
 
 	return aq_hw_err_from_flags(self);

@@ -8,12 +8,14 @@
  */
 
 #include <linux/ptp_clock_kernel.h>
+#include <linux/ptp_classify.h>
 #include <linux/interrupt.h>
 #include <linux/clocksource.h>
 
 #include "aq_nic.h"
 #include "aq_ptp.h"
 #include "aq_ring.h"
+#include "aq_filters.h"
 
 #define AQ_PTP_TX_TIMEOUT        (HZ *  10)
 
@@ -62,6 +64,9 @@ struct aq_ptp_s {
 	struct aq_ring_s hwts_rx;
 
 	struct ptp_skb_ring skb_ring;
+
+	struct aq_rx_filter_l3l4 udp_filter;
+	struct aq_rx_filter_l2 eth_type_filter;
 };
 
 struct ptp_tm_offset {
@@ -933,6 +938,11 @@ int aq_ptp_init(struct aq_nic_s *aq_nic, unsigned int idx_vec)
 	aq_ptp_clock_init(aq_nic);
 	mutex_unlock(&aq_nic->fwreq_mutex);
 
+	aq_ptp->eth_type_filter.location =
+			aq_nic_reserve_filter(aq_nic, aq_rx_filter_ethertype);
+	aq_ptp->udp_filter.location =
+			aq_nic_reserve_filter(aq_nic, aq_rx_filter_l3l4);
+
 	return 0;
 
 err_exit:
@@ -958,6 +968,10 @@ void aq_ptp_free(struct aq_nic_s *aq_nic)
 	if (!aq_ptp)
 		return;
 
+	aq_nic_release_filter(aq_nic, aq_rx_filter_ethertype,
+			      aq_ptp->eth_type_filter.location);
+	aq_nic_release_filter(aq_nic, aq_rx_filter_l3l4,
+			      aq_ptp->udp_filter.location);
 	/* disable ptp */
 	mutex_lock(&aq_nic->fwreq_mutex);
 	aq_nic->aq_fw_ops->enable_ptp(aq_nic->aq_hw, 0);

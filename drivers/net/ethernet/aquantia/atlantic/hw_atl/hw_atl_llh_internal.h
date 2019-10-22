@@ -1308,6 +1308,52 @@
 /* default value of bitfield et_val{f}[f:0] */
 #define HW_ATL_RPF_ET_VALF_DEFAULT 0x0
 
+/* RX l3_l4_en{F} Bitfield Definitions
+ * Preprocessor definitions for the bitfield "l3_l4_en{F}".
+ * Parameter: filter {F} | stride size 0x4 | range [0, 7]
+ * PORT="pif_rpf_l3_l4_en_i[0]"
+ */
+
+#define HW_ATL_RPF_L3_REG_CTRL_ADR(filter) (0x00005380 + (filter) * 0x4)
+
+/* RX rpf_l3_sa{D}[1F:0] Bitfield Definitions
+ * Preprocessor definitions for the bitfield "l3_sa{D}[1F:0]".
+ * Parameter: location {D} | stride size 0x4 | range [0, 7]
+ * PORT="pif_rpf_l3_sa0_i[31:0]"
+ */
+
+/* Register address for bitfield pif_rpf_l3_sa0_i[31:0] */
+#define HW_ATL_RPF_L3_SRCA_ADR(filter) (0x000053B0 + (filter) * 0x4)
+/* Bitmask for bitfield l3_sa0[1F:0] */
+#define HW_ATL_RPF_L3_SRCA_MSK 0xFFFFFFFFu
+/* Inverted bitmask for bitfield l3_sa0[1F:0] */
+#define HW_ATL_RPF_L3_SRCA_MSKN 0xFFFFFFFFu
+/* Lower bit position of bitfield l3_sa0[1F:0] */
+#define HW_ATL_RPF_L3_SRCA_SHIFT 0
+/* Width of bitfield l3_sa0[1F:0] */
+#define HW_ATL_RPF_L3_SRCA_WIDTH 32
+/* Default value of bitfield l3_sa0[1F:0] */
+#define HW_ATL_RPF_L3_SRCA_DEFAULT 0x0
+
+/* RX rpf_l3_da{D}[1F:0] Bitfield Definitions
+ * Preprocessor definitions for the bitfield "l3_da{D}[1F:0]".
+ * Parameter: location {D} | stride size 0x4 | range [0, 7]
+ * PORT="pif_rpf_l3_da0_i[31:0]"
+ */
+
+ /* Register address for bitfield pif_rpf_l3_da0_i[31:0] */
+#define HW_ATL_RPF_L3_DSTA_ADR(filter) (0x000053B0 + (filter) * 0x4)
+/* Bitmask for bitfield l3_da0[1F:0] */
+#define HW_ATL_RPF_L3_DSTA_MSK 0xFFFFFFFFu
+/* Inverted bitmask for bitfield l3_da0[1F:0] */
+#define HW_ATL_RPF_L3_DSTA_MSKN 0xFFFFFFFFu
+/* Lower bit position of bitfield l3_da0[1F:0] */
+#define HW_ATL_RPF_L3_DSTA_SHIFT 0
+/* Width of bitfield l3_da0[1F:0] */
+#define HW_ATL_RPF_L3_DSTA_WIDTH 32
+/* Default value of bitfield l3_da0[1F:0] */
+#define HW_ATL_RPF_L3_DSTA_DEFAULT 0x0
+
 /* RX l4_sp{D}[F:0] Bitfield Definitions
  * Preprocessor definitions for the bitfield "l4_sp{D}[F:0]".
  * Parameter: srcport {D} | stride size 0x4 | range [0, 7]
@@ -2547,50 +2593,6 @@
 #define HW_ATL_MCP_UP_FORCE_INTERRUPT_WIDTH 1
 /* default value of bitfield uP Force Interrupt */
 #define HW_ATL_MCP_UP_FORCE_INTERRUPT_DEFAULT 0x0
-
-#define HW_ATL_RX_CTRL_ADDR_BEGIN_FL3L4   0x00005380
-#define HW_ATL_RX_SRCA_ADDR_BEGIN_FL3L4   0x000053B0
-#define HW_ATL_RX_DESTA_ADDR_BEGIN_FL3L4  0x000053D0
-
-#define HW_ATL_RPF_L3_REG_CTRL_ADR(location) (0x00005380 + (location) * 0x4)
-
-/* RX rpf_l3_sa{D}[1F:0] Bitfield Definitions
- * Preprocessor definitions for the bitfield "l3_sa{D}[1F:0]".
- * Parameter: location {D} | stride size 0x4 | range [0, 7]
- * PORT="pif_rpf_l3_sa0_i[31:0]"
- */
-
-/* Register address for bitfield pif_rpf_l3_sa0_i[31:0] */
-#define HW_ATL_RPF_L3_SRCA_ADR(location) (0x000053B0 + (location) * 0x4)
-/* Bitmask for bitfield l3_sa0[1F:0] */
-#define HW_ATL_RPF_L3_SRCA_MSK 0xFFFFFFFFu
-/* Inverted bitmask for bitfield l3_sa0[1F:0] */
-#define HW_ATL_RPF_L3_SRCA_MSKN 0xFFFFFFFFu
-/* Lower bit position of bitfield l3_sa0[1F:0] */
-#define HW_ATL_RPF_L3_SRCA_SHIFT 0
-/* Width of bitfield l3_sa0[1F:0] */
-#define HW_ATL_RPF_L3_SRCA_WIDTH 32
-/* Default value of bitfield l3_sa0[1F:0] */
-#define HW_ATL_RPF_L3_SRCA_DEFAULT 0x0
-
-/* RX rpf_l3_da{D}[1F:0] Bitfield Definitions
- * Preprocessor definitions for the bitfield "l3_da{D}[1F:0]".
- * Parameter: location {D} | stride size 0x4 | range [0, 7]
- * PORT="pif_rpf_l3_da0_i[31:0]"
- */
-
- /* Register address for bitfield pif_rpf_l3_da0_i[31:0] */
-#define HW_ATL_RPF_L3_DSTA_ADR(location) (0x000053B0 + (location) * 0x4)
-/* Bitmask for bitfield l3_da0[1F:0] */
-#define HW_ATL_RPF_L3_DSTA_MSK 0xFFFFFFFFu
-/* Inverted bitmask for bitfield l3_da0[1F:0] */
-#define HW_ATL_RPF_L3_DSTA_MSKN 0xFFFFFFFFu
-/* Lower bit position of bitfield l3_da0[1F:0] */
-#define HW_ATL_RPF_L3_DSTA_SHIFT 0
-/* Width of bitfield l3_da0[1F:0] */
-#define HW_ATL_RPF_L3_DSTA_WIDTH 32
-/* Default value of bitfield l3_da0[1F:0] */
-#define HW_ATL_RPF_L3_DSTA_DEFAULT 0x0
 
 #define HW_ATL_FW_SM_RAM        0x2U
 

@@ -18,6 +18,7 @@ struct aq_hw_ops;
 struct aq_fw_s;
 struct aq_vec_s;
 struct aq_ptp_s;
+enum aq_rx_filter_type;
 
 struct aq_nic_cfg_s {
 	const struct aq_hw_caps_s *aq_hw_caps;
@@ -72,6 +73,7 @@ struct aq_hw_rx_fl3l4 {
 	u8   active_ipv4;
 	u8   active_ipv6:2;
 	u8 is_ipv6;
+	u8 reserved_count;
 };
 
 struct aq_hw_rx_fltrs_s {
@@ -79,6 +81,8 @@ struct aq_hw_rx_fltrs_s {
 	u16                   active_filters;
 	struct aq_hw_rx_fl2   fl2;
 	struct aq_hw_rx_fl3l4 fl3l4;
+	/*filter ether type */
+	u8 fet_reserved_count;
 };
 
 struct aq_nic_s {
@@ -154,5 +158,7 @@ u32 aq_nic_get_fw_version(struct aq_nic_s *self);
 int aq_nic_change_pm_state(struct aq_nic_s *self, pm_message_t *pm_msg);
 int aq_nic_update_interrupt_moderation_settings(struct aq_nic_s *self);
 void aq_nic_shutdown(struct aq_nic_s *self);
-
+u8 aq_nic_reserve_filter(struct aq_nic_s *self, enum aq_rx_filter_type type);
+void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
+			   u32 location);
 #endif /* AQ_NIC_H */

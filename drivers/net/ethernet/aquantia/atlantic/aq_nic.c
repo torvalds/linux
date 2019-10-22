@@ -13,6 +13,7 @@
 #include "aq_pci_func.h"
 #include "aq_main.h"
 #include "aq_ptp.h"
+#include "aq_filters.h"
 
 #include <linux/moduleparam.h>
 #include <linux/netdevice.h>
@@ -1104,4 +1105,47 @@ void aq_nic_shutdown(struct aq_nic_s *self)
 
 err_exit:
 	rtnl_unlock();
+}
+
+u8 aq_nic_reserve_filter(struct aq_nic_s *self, enum aq_rx_filter_type type)
+{
+	u8 location = 0xFF;
+	u32 fltr_cnt;
+	u32 n_bit;
+
+	switch (type) {
+	case aq_rx_filter_ethertype:
+		location = AQ_RX_LAST_LOC_FETHERT - AQ_RX_FIRST_LOC_FETHERT -
+			   self->aq_hw_rx_fltrs.fet_reserved_count;
+		self->aq_hw_rx_fltrs.fet_reserved_count++;
+		break;
+	case aq_rx_filter_l3l4:
+		fltr_cnt = AQ_RX_LAST_LOC_FL3L4 - AQ_RX_FIRST_LOC_FL3L4;
+		n_bit = fltr_cnt - self->aq_hw_rx_fltrs.fl3l4.reserved_count;
+
+		self->aq_hw_rx_fltrs.fl3l4.active_ipv4 |= BIT(n_bit);
+		self->aq_hw_rx_fltrs.fl3l4.reserved_count++;
+		location = n_bit;
+		break;
+	default:
+		break;
+	}
+
+	return location;
+}
+
+void aq_nic_release_filter(struct aq_nic_s *self, enum aq_rx_filter_type type,
+			   u32 location)
+{
+	switch (type) {
+	case aq_rx_filter_ethertype:
+		self->aq_hw_rx_fltrs.fet_reserved_count--;
+		break;
+	case aq_rx_filter_l3l4:
+		self->aq_hw_rx_fltrs.fl3l4.reserved_count--;
+		self->aq_hw_rx_fltrs.fl3l4.active_ipv4 &= ~BIT(location);
+		break;
+	default:
+		break;
+	}
 }
