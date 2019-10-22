@@ -1626,6 +1626,15 @@ static void intel_restore_hostown(struct intel_pinctrl *pctrl, unsigned int c,
 	dev_warn(dev, "restored hostown %u/%u %#8x->%#8x\n", c, gpp, value, saved);
 }
 
+static void intel_restore_intmask(struct intel_pinctrl *pctrl, unsigned int c,
+				  void __iomem *base, unsigned int gpp, u32 saved)
+{
+	struct device *dev = pctrl->dev;
+
+	writel(saved, base + gpp * 4);
+	dev_dbg(dev, "restored mask %u/%u %#08x\n", c, gpp, readl(base + gpp * 4));
+}
+
 static void intel_restore_padcfg(struct intel_pinctrl *pctrl, unsigned int pin,
 				 unsigned int reg, u32 saved)
 {
@@ -1676,11 +1685,8 @@ int intel_pinctrl_resume_noirq(struct device *dev)
 		unsigned int gpp;
 
 		base = community->regs + community->ie_offset;
-		for (gpp = 0; gpp < community->ngpps; gpp++) {
-			writel(communities[i].intmask[gpp], base + gpp * 4);
-			dev_dbg(dev, "restored mask %d/%u %#08x\n", i, gpp,
-				readl(base + gpp * 4));
-		}
+		for (gpp = 0; gpp < community->ngpps; gpp++)
+			intel_restore_intmask(pctrl, i, base, gpp, communities[i].intmask[gpp]);
 
 		base = community->regs + community->hostown_offset;
 		for (gpp = 0; gpp < community->ngpps; gpp++)
