@@ -62,7 +62,7 @@ static int omap3_rom_rng_read(struct hwrng *rng, void *data, size_t max, bool w)
 	return r;
 }
 
-static int omap_rom_rng_runtime_suspend(struct device *dev)
+static int __maybe_unused omap_rom_rng_runtime_suspend(struct device *dev)
 {
 	struct omap_rom_rng *ddata;
 	int r;
@@ -78,7 +78,7 @@ static int omap_rom_rng_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static int omap_rom_rng_runtime_resume(struct device *dev)
+static int __maybe_unused omap_rom_rng_runtime_resume(struct device *dev)
 {
 	struct omap_rom_rng *ddata;
 	int r;
