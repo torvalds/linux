@@ -74,11 +74,12 @@
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
+		vin-supply = <&reg_5v>;
 	};
 
-	reg_usbh1_vbus: regulator-usb-h1-vbus {
+	reg_5v: regulator-5v {
 		compatible = "regulator-fixed";
-		regulator-name = "usb_h1_vbus";
+		regulator-name = "5V";
 		regulator-min-microvolt = <5000000>;
 		regulator-max-microvolt = <5000000>;
 		regulator-always-on;
@@ -123,6 +124,7 @@
 &can2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_flexcan2>;
+	xceiver-supply = <&reg_5v>;
 	status = "okay";
 };
 
@@ -223,7 +225,7 @@
 };
 
 &usbh1 {
-	vbus-supply = <&reg_usbh1_vbus>;
+	vbus-supply = <&reg_5v>;
 	phy_type = "utmi";
 	status = "okay";
 };
