@@ -71,7 +71,6 @@ struct anx78xx {
 	struct i2c_client *client;
 	struct edid *edid;
 	struct drm_connector connector;
-	struct drm_dp_link link;
 	struct anx78xx_platform_data pdata;
 	struct mutex lock;
 
@@ -748,7 +747,7 @@ static int anx78xx_init_pdata(struct anx78xx *anx78xx)
 
 static int anx78xx_dp_link_training(struct anx78xx *anx78xx)
 {
-	u8 dp_bw, value;
+	u8 dp_bw, dpcd[2];
 	int err;
 
 	err = regmap_write(anx78xx->map[I2C_IDX_RX_P0], SP_HDMI_MUTE_CTRL_REG,
@@ -801,18 +800,34 @@ static int anx78xx_dp_link_training(struct anx78xx *anx78xx)
 	if (err)
 		return err;
 
-	/* Check link capabilities */
-	err = drm_dp_link_probe(&anx78xx->aux, &anx78xx->link);
-	if (err < 0) {
-		DRM_ERROR("Failed to probe link capabilities: %d\n", err);
-		return err;
-	}
+	/*
+	 * Power up the sink (DP_SET_POWER register is only available on DPCD
+	 * v1.1 and later).
+	 */
+	if (anx78xx->dpcd[DP_DPCD_REV] >= 0x11) {
+		err = drm_dp_dpcd_readb(&anx78xx->aux, DP_SET_POWER, &dpcd[0]);
+		if (err < 0) {
+			DRM_ERROR("Failed to read DP_SET_POWER register: %d\n",
+				  err);
+			return err;
+		}
 
-	/* Power up the sink */
-	err = drm_dp_link_power_up(&anx78xx->aux, &anx78xx->link);
-	if (err < 0) {
-		DRM_ERROR("Failed to power up DisplayPort link: %d\n", err);
-		return err;
+		dpcd[0] &= ~DP_SET_POWER_MASK;
+		dpcd[0] |= DP_SET_POWER_D0;
+
+		err = drm_dp_dpcd_writeb(&anx78xx->aux, DP_SET_POWER, dpcd[0]);
+		if (err < 0) {
+			DRM_ERROR("Failed to power up DisplayPort link: %d\n",
+				  err);
+			return err;
+		}
+
+		/*
+		 * According to the DP 1.1 specification, a "Sink Device must
+		 * exit the power saving state within 1 ms" (Section 2.5.3.1,
+		 * Table 5-52, "Sink Control Field" (register 0x600).
+		 */
+		usleep_range(1000, 2000);
 	}
 
 	/* Possibly enable downspread on the sink */
@@ -851,15 +866,22 @@ static int anx78xx_dp_link_training(struct anx78xx *anx78xx)
 	if (err)
 		return err;
 
-	value = drm_dp_link_rate_to_bw_code(anx78xx->link.rate);
+	dpcd[0] = drm_dp_max_link_rate(anx78xx->dpcd);
+	dpcd[0] = drm_dp_link_rate_to_bw_code(dpcd[0]);
 	err = regmap_write(anx78xx->map[I2C_IDX_TX_P0],
-			   SP_DP_MAIN_LINK_BW_SET_REG, value);
+			   SP_DP_MAIN_LINK_BW_SET_REG, dpcd[0]);
 	if (err)
 		return err;
 
-	err = drm_dp_link_configure(&anx78xx->aux, &anx78xx->link);
+	dpcd[1] = drm_dp_max_lane_count(anx78xx->dpcd);
+
+	if (drm_dp_enhanced_frame_cap(anx78xx->dpcd))
+		dpcd[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
+
+	err = drm_dp_dpcd_write(&anx78xx->aux, DP_LINK_BW_SET, dpcd,
+				sizeof(dpcd));
 	if (err < 0) {
-		DRM_ERROR("Failed to configure DisplayPort link: %d\n", err);
+		DRM_ERROR("Failed to configure link: %d\n", err);
 		return err;
 	}
 
