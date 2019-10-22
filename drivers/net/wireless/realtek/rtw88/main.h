@@ -691,6 +691,7 @@ struct rtw_chip_ops {
 	void (*phy_calibration)(struct rtw_dev *rtwdev);
 	void (*dpk_track)(struct rtw_dev *rtwdev);
 	void (*cck_pd_set)(struct rtw_dev *rtwdev, u8 level);
+	void (*pwr_track)(struct rtw_dev *rtwdev);
 
 	/* for coex */
 	void (*coex_set_init)(struct rtw_dev *rtwdev);
@@ -867,6 +868,34 @@ struct rtw_rfe_def {
 	.txpwr_lmt_tbl = &rtw ## chip ## _txpwr_lmt_type ## pwrlmt ## _tbl, \
 	}
 
+#define RTW_PWR_TRK_5G_1		0
+#define RTW_PWR_TRK_5G_2		1
+#define RTW_PWR_TRK_5G_3		2
+#define RTW_PWR_TRK_5G_NUM		3
+
+#define RTW_PWR_TRK_TBL_SZ		30
+
+/* This table stores the values of TX power that will be adjusted by power
+ * tracking.
+ *
+ * For 5G bands, there are 3 different settings.
+ * For 2G there are cck rate and ofdm rate with different settings.
+ */
+struct rtw_pwr_track_tbl {
+	const u8 *pwrtrk_5gb_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5gb_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5ga_n[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_5ga_p[RTW_PWR_TRK_5G_NUM];
+	const u8 *pwrtrk_2gb_n;
+	const u8 *pwrtrk_2gb_p;
+	const u8 *pwrtrk_2ga_n;
+	const u8 *pwrtrk_2ga_p;
+	const u8 *pwrtrk_2g_cckb_n;
+	const u8 *pwrtrk_2g_cckb_p;
+	const u8 *pwrtrk_2g_ccka_n;
+	const u8 *pwrtrk_2g_ccka_p;
+};
+
 /* hardware configuration for each IC */
 struct rtw_chip_info {
 	struct rtw_chip_ops *ops;
@@ -918,6 +947,8 @@ struct rtw_chip_info {
 
 	bool en_dis_dpd;
 	u16 dpd_ratemask;
+	u8 iqk_threshold;
+	const struct rtw_pwr_track_tbl *pwr_track_tbl;
 
 	/* coex paras */
 	u32 coex_para_ver;
@@ -1171,6 +1202,11 @@ struct rtw_phy_cck_pd_reg {
 #define DACK_MSBK_BACKUP_NUM	0xf
 #define DACK_DCK_BACKUP_NUM	0x2
 
+struct rtw_swing_table {
+	const u8 *p[RTW_RF_PATH_MAX];
+	const u8 *n[RTW_RF_PATH_MAX];
+};
+
 struct rtw_dm_info {
 	u32 cck_fa_cnt;
 	u32 ofdm_fa_cnt;
@@ -1197,6 +1233,15 @@ struct rtw_dm_info {
 	u8 cck_gi_u_bnd;
 	u8 cck_gi_l_bnd;
 
+	u8 tx_rate;
+	u8 thermal_avg[RTW_RF_PATH_MAX];
+	u8 thermal_meter_k;
+	s8 delta_power_index[RTW_RF_PATH_MAX];
+	u8 default_ofdm_index;
+	bool pwr_trk_triggered;
+	bool pwr_trk_init_trigger;
+	struct ewma_thermal avg_thermal[RTW_RF_PATH_MAX];
+
 	/* backup dack results for each path and I/Q */
 	u32 dack_adck[RTW_RF_PATH_MAX];
 	u16 dack_msbk[RTW_RF_PATH_MAX][2][DACK_MSBK_BACKUP_NUM];
@@ -1220,7 +1265,9 @@ struct rtw_efuse {
 	u8 country_code[2];
 	u8 rf_board_option;
 	u8 rfe_option;
-	u8 thermal_meter;
+	u8 power_track_type;
+	u8 thermal_meter[RTW_RF_PATH_MAX];
+	u8 thermal_meter_k;
 	u8 crystal_cap;
 	u8 ant_div_cfg;
 	u8 ant_div_type;

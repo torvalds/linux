@@ -117,6 +117,7 @@ static void rtw_fw_ra_report_handle(struct rtw_dev *rtwdev, u8 *payload,
 	if (WARN(length < 7, "invalid ra report c2h length\n"))
 		return;
 
+	rtwdev->dm_info.tx_rate = GET_RA_REPORT_RATE(payload);
 	ra_data.rtwdev = rtwdev;
 	ra_data.payload = payload;
 	rtw_iterate_stas_atomic(rtwdev, rtw_fw_ra_report_iter, &ra_data);

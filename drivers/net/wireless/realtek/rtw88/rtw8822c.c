@@ -40,6 +40,11 @@ static int rtw8822c_read_efuse(struct rtw_dev *rtwdev, u8 *log_map)
 	efuse->country_code[1] = map->country_code[1];
 	efuse->bt_setting = map->rf_bt_setting;
 	efuse->regd = map->rf_board_option & 0x7;
+	efuse->thermal_meter[RF_PATH_A] = map->path_a_thermal;
+	efuse->thermal_meter[RF_PATH_B] = map->path_b_thermal;
+	efuse->thermal_meter_k =
+			(map->path_a_thermal + map->path_b_thermal) >> 1;
+	efuse->power_track_type = (map->tx_pwr_calibrate_rate >> 4) & 0xf;
 
 	for (i = 0; i < 4; i++)
 		efuse->txpwr_idx_table[i] = map->txpwr_idx_table[i];
@@ -1000,6 +1005,21 @@ static void rtw8822c_rf_init(struct rtw_dev *rtwdev)
 	rtw8822c_rf_x2_check(rtwdev);
 }
 
+void rtw8822c_pwrtrack_init(struct rtw_dev *rtwdev)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 path;
+
+	for (path = RF_PATH_A; path < RTW_RF_PATH_MAX; path++) {
+		dm_info->delta_power_index[path] = 0;
+		ewma_thermal_init(&dm_info->avg_thermal[path]);
+		dm_info->thermal_avg[path] = 0xff;
+	}
+
+	dm_info->pwr_trk_triggered = false;
+	dm_info->thermal_meter_k = rtwdev->efuse.thermal_meter_k;
+}
+
 static void rtw8822c_phy_set_param(struct rtw_dev *rtwdev)
 {
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
@@ -1047,6 +1067,7 @@ static void rtw8822c_phy_set_param(struct rtw_dev *rtwdev)
 	dm_info->cck_gi_l_bnd = ((cck_gi_l_bnd_msb << 4) | (cck_gi_l_bnd_lsb));
 
 	rtw8822c_rf_init(rtwdev);
+	rtw8822c_pwrtrack_init(rtwdev);
 }
 
 #define WLAN_TXQ_RPT_EN		0x1F
@@ -3195,6 +3216,87 @@ static void rtw8822c_phy_cck_pd_set(struct rtw_dev *rtwdev, u8 new_lvl)
 	dm_info->cck_pd_lv[bw][nrx] = new_lvl;
 }
 
+#define PWR_TRACK_MASK 0x7f
+static void rtw8822c_pwrtrack_set(struct rtw_dev *rtwdev, u8 rf_path)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+
+	switch (rf_path) {
+	case RF_PATH_A:
+		rtw_write32_mask(rtwdev, 0x18a0, PWR_TRACK_MASK,
+				 dm_info->delta_power_index[rf_path]);
+		break;
+	case RF_PATH_B:
+		rtw_write32_mask(rtwdev, 0x41a0, PWR_TRACK_MASK,
+				 dm_info->delta_power_index[rf_path]);
+		break;
+	default:
+		break;
+	}
+}
+
+static void rtw8822c_pwr_track_path(struct rtw_dev *rtwdev,
+				    struct rtw_swing_table *swing_table,
+				    u8 path)
+{
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+	u8 thermal_value, delta;
+
+	if (rtwdev->efuse.thermal_meter[path] == 0xff)
+		return;
+
+	thermal_value = rtw_read_rf(rtwdev, path, RF_T_METER, 0x7e);
+
+	rtw_phy_pwrtrack_avg(rtwdev, thermal_value, path);
+
+	delta = rtw_phy_pwrtrack_get_delta(rtwdev, path);
+
+	dm_info->delta_power_index[path] =
+		rtw_phy_pwrtrack_get_pwridx(rtwdev, swing_table, path, path,
+					    delta);
+
+	rtw8822c_pwrtrack_set(rtwdev, path);
+}
+
+static void __rtw8822c_pwr_track(struct rtw_dev *rtwdev)
+{
+	struct rtw_swing_table swing_table;
+	u8 i;
+
+	rtw_phy_config_swing_table(rtwdev, &swing_table);
+
+	for (i = 0; i < rtwdev->hal.rf_path_num; i++)
+		rtw8822c_pwr_track_path(rtwdev, &swing_table, i);
+
+	if (rtw_phy_pwrtrack_need_iqk(rtwdev))
+		rtw8822c_do_iqk(rtwdev);
+}
+
+static void rtw8822c_pwr_track(struct rtw_dev *rtwdev)
+{
+	struct rtw_efuse *efuse = &rtwdev->efuse;
+	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
+
+	if (efuse->power_track_type != 0)
+		return;
+
+	if (!dm_info->pwr_trk_triggered) {
+		rtw_write_rf(rtwdev, RF_PATH_A, RF_T_METER, BIT(19), 0x01);
+		rtw_write_rf(rtwdev, RF_PATH_A, RF_T_METER, BIT(19), 0x00);
+		rtw_write_rf(rtwdev, RF_PATH_A, RF_T_METER, BIT(19), 0x01);
+
+		rtw_write_rf(rtwdev, RF_PATH_B, RF_T_METER, BIT(19), 0x01);
+		rtw_write_rf(rtwdev, RF_PATH_B, RF_T_METER, BIT(19), 0x00);
+		rtw_write_rf(rtwdev, RF_PATH_B, RF_T_METER, BIT(19), 0x01);
+
+		dm_info->pwr_trk_triggered = true;
+		return;
+	}
+
+	__rtw8822c_pwr_track(rtwdev);
+	dm_info->pwr_trk_triggered = false;
+}
+
 static struct rtw_pwr_seq_cmd trans_carddis_to_cardemu_8822c[] = {
 	{0x0086,
 	 RTW_PWR_CUT_ALL_MSK,
@@ -3575,6 +3677,7 @@ static struct rtw_chip_ops rtw8822c_ops = {
 	.dpk_track		= rtw8822c_dpk_track,
 	.phy_calibration	= rtw8822c_phy_calibration,
 	.cck_pd_set		= rtw8822c_phy_cck_pd_set,
+	.pwr_track		= rtw8822c_pwr_track,
 
 	.coex_set_init		= rtw8822c_coex_cfg_init,
 	.coex_set_ant_switch	= NULL,
@@ -3729,6 +3832,129 @@ static const struct coex_rf_para rf_para_rx_8822c[] = {
 
 static_assert(ARRAY_SIZE(rf_para_tx_8822c) == ARRAY_SIZE(rf_para_rx_8822c));
 
+static const u8
+rtw8822c_pwrtrk_5gb_n[RTW_PWR_TRK_5G_NUM][RTW_PWR_TRK_TBL_SZ] = {
+	{ 0,  1,  2,  3,  5,  6,  7,  8,  9, 10,
+	 11, 12, 13, 14, 15, 16, 18, 19, 20, 21,
+	 22, 23, 24, 25, 26, 27, 28, 29, 30, 32 },
+	{ 0,  1,  2,  3,  5,  6,  7,  8,  9, 10,
+	 11, 12, 13, 14, 15, 16, 18, 19, 20, 21,
+	 22, 23, 24, 25, 26, 27, 28, 29, 30, 32 },
+	{ 0,  1,  2,  3,  5,  6,  7,  8,  9, 10,
+	 11, 12, 13, 14, 15, 16, 18, 19, 20, 21,
+	 22, 23, 24, 25, 26, 27, 28, 29, 30, 32 },
+};
+
+static const u8
+rtw8822c_pwrtrk_5gb_p[RTW_PWR_TRK_5G_NUM][RTW_PWR_TRK_TBL_SZ] = {
+	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	 10, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+	 19, 20, 21, 22, 22, 23, 24, 25, 26, 27 },
+	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	 10, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+	 19, 20, 21, 22, 22, 23, 24, 25, 26, 27 },
+	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	 10, 10, 11, 12, 13, 14, 15, 16, 17, 18,
+	 19, 20, 21, 22, 22, 23, 24, 25, 26, 27 },
+};
+
+static const u8
+rtw8822c_pwrtrk_5ga_n[RTW_PWR_TRK_5G_NUM][RTW_PWR_TRK_TBL_SZ] = {
+	{ 0,  1,  2,  4,  5,  6,  7,  8,  9, 10,
+	 11, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+	 23, 24, 25, 26, 27, 28, 29, 30, 31, 33 },
+	{ 0,  1,  2,  4,  5,  6,  7,  8,  9, 10,
+	 11, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+	 23, 24, 25, 26, 27, 28, 29, 30, 31, 33 },
+	{ 0,  1,  2,  4,  5,  6,  7,  8,  9, 10,
+	 11, 13, 14, 15, 16, 17, 18, 19, 20, 21,
+	 23, 24, 25, 26, 27, 28, 29, 30, 31, 33 },
+};
+
+static const u8
+rtw8822c_pwrtrk_5ga_p[RTW_PWR_TRK_5G_NUM][RTW_PWR_TRK_TBL_SZ] = {
+	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	 10, 11, 12, 13, 14, 15, 16, 17, 18, 20,
+	 21, 22, 23, 24, 25, 26, 27, 28, 29, 30 },
+	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	 10, 11, 12, 13, 14, 15, 16, 17, 18, 20,
+	 21, 22, 23, 24, 25, 26, 27, 28, 29, 30 },
+	{ 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	 10, 11, 12, 13, 14, 15, 16, 17, 18, 20,
+	 21, 22, 23, 24, 25, 26, 27, 28, 29, 30 },
+};
+
+static const u8 rtw8822c_pwrtrk_2gb_n[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  3,  4,  4,  5,  6,  7,  8,
+	 9,  9, 10, 11, 12, 13, 14, 15, 15, 16,
+	17, 18, 19, 20, 20, 21, 22, 23, 24, 25
+};
+
+static const u8 rtw8822c_pwrtrk_2gb_p[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	10, 11, 12, 13, 14, 14, 15, 16, 17, 18,
+	19, 20, 21, 22, 23, 24, 25, 26, 27, 28
+};
+
+static const u8 rtw8822c_pwrtrk_2ga_n[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  2,  3,  4,  4,  5,  6,  6,
+	 7,  8,  8,  9,  9, 10, 11, 11, 12, 13,
+	13, 14, 15, 15, 16, 17, 17, 18, 19, 19
+};
+
+static const u8 rtw8822c_pwrtrk_2ga_p[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	10, 11, 11, 12, 13, 14, 15, 16, 17, 18,
+	19, 20, 21, 22, 23, 24, 25, 25, 26, 27
+};
+
+static const u8 rtw8822c_pwrtrk_2g_cck_b_n[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  3,  4,  5,  5,  6,  7,  8,
+	 9, 10, 11, 11, 12, 13, 14, 15, 16, 17,
+	17, 18, 19, 20, 21, 22, 23, 23, 24, 25
+};
+
+static const u8 rtw8822c_pwrtrk_2g_cck_b_p[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+	10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+	20, 21, 22, 23, 24, 25, 26, 27, 28, 29
+};
+
+static const u8 rtw8822c_pwrtrk_2g_cck_a_n[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  3,  3,  4,  5,  6,  6,  7,
+	 8,  9,  9, 10, 11, 12, 12, 13, 14, 15,
+	15, 16, 17, 18, 18, 19, 20, 21, 21, 22
+};
+
+static const u8 rtw8822c_pwrtrk_2g_cck_a_p[RTW_PWR_TRK_TBL_SZ] = {
+	 0,  1,  2,  3,  4,  5,  5,  6,  7,  8,
+	 9, 10, 11, 11, 12, 13, 14, 15, 16, 17,
+	18, 18, 19, 20, 21, 22, 23, 24, 24, 25
+};
+
+static const struct rtw_pwr_track_tbl rtw8822c_rtw_pwr_track_tbl = {
+	.pwrtrk_5gb_n[RTW_PWR_TRK_5G_1] = rtw8822c_pwrtrk_5gb_n[RTW_PWR_TRK_5G_1],
+	.pwrtrk_5gb_n[RTW_PWR_TRK_5G_2] = rtw8822c_pwrtrk_5gb_n[RTW_PWR_TRK_5G_2],
+	.pwrtrk_5gb_n[RTW_PWR_TRK_5G_3] = rtw8822c_pwrtrk_5gb_n[RTW_PWR_TRK_5G_3],
+	.pwrtrk_5gb_p[RTW_PWR_TRK_5G_1] = rtw8822c_pwrtrk_5gb_p[RTW_PWR_TRK_5G_1],
+	.pwrtrk_5gb_p[RTW_PWR_TRK_5G_2] = rtw8822c_pwrtrk_5gb_p[RTW_PWR_TRK_5G_2],
+	.pwrtrk_5gb_p[RTW_PWR_TRK_5G_3] = rtw8822c_pwrtrk_5gb_p[RTW_PWR_TRK_5G_3],
+	.pwrtrk_5ga_n[RTW_PWR_TRK_5G_1] = rtw8822c_pwrtrk_5ga_n[RTW_PWR_TRK_5G_1],
+	.pwrtrk_5ga_n[RTW_PWR_TRK_5G_2] = rtw8822c_pwrtrk_5ga_n[RTW_PWR_TRK_5G_2],
+	.pwrtrk_5ga_n[RTW_PWR_TRK_5G_3] = rtw8822c_pwrtrk_5ga_n[RTW_PWR_TRK_5G_3],
+	.pwrtrk_5ga_p[RTW_PWR_TRK_5G_1] = rtw8822c_pwrtrk_5ga_p[RTW_PWR_TRK_5G_1],
+	.pwrtrk_5ga_p[RTW_PWR_TRK_5G_2] = rtw8822c_pwrtrk_5ga_p[RTW_PWR_TRK_5G_2],
+	.pwrtrk_5ga_p[RTW_PWR_TRK_5G_3] = rtw8822c_pwrtrk_5ga_p[RTW_PWR_TRK_5G_3],
+	.pwrtrk_2gb_n = rtw8822c_pwrtrk_2gb_n,
+	.pwrtrk_2gb_p = rtw8822c_pwrtrk_2gb_p,
+	.pwrtrk_2ga_n = rtw8822c_pwrtrk_2ga_n,
+	.pwrtrk_2ga_p = rtw8822c_pwrtrk_2ga_p,
+	.pwrtrk_2g_cckb_n = rtw8822c_pwrtrk_2g_cck_b_n,
+	.pwrtrk_2g_cckb_p = rtw8822c_pwrtrk_2g_cck_b_p,
+	.pwrtrk_2g_ccka_n = rtw8822c_pwrtrk_2g_cck_a_n,
+	.pwrtrk_2g_ccka_p = rtw8822c_pwrtrk_2g_cck_a_p,
+};
+
 struct rtw_chip_info rtw8822c_hw_spec = {
 	.ops = &rtw8822c_ops,
 	.id = RTW_CHIP_TYPE_8822C,
@@ -3770,6 +3996,8 @@ struct rtw_chip_info rtw8822c_hw_spec = {
 	.rfe_defs_size = ARRAY_SIZE(rtw8822c_rfe_defs),
 	.en_dis_dpd = true,
 	.dpd_ratemask = DIS_DPD_RATEALL,
+	.pwr_track_tbl = &rtw8822c_rtw_pwr_track_tbl,
+	.iqk_threshold = 8,
 
 	.coex_para_ver = 0x19062706,
 	.bt_desired_ver = 0x6,
