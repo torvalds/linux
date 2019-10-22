@@ -2830,6 +2830,19 @@ int amdgpu_pm_sysfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("failed to create device file pp_dpm_sclk\n");
 		return ret;
 	}
+
+	/* Arcturus does not support standalone mclk/socclk/fclk level setting */
+	if (adev->asic_type == CHIP_ARCTURUS) {
+		dev_attr_pp_dpm_mclk.attr.mode &= ~S_IWUGO;
+		dev_attr_pp_dpm_mclk.store = NULL;
+
+		dev_attr_pp_dpm_socclk.attr.mode &= ~S_IWUGO;
+		dev_attr_pp_dpm_socclk.store = NULL;
+
+		dev_attr_pp_dpm_fclk.attr.mode &= ~S_IWUGO;
+		dev_attr_pp_dpm_fclk.store = NULL;
+	}
+
 	ret = device_create_file(adev->dev, &dev_attr_pp_dpm_mclk);
 	if (ret) {
 		DRM_ERROR("failed to create device file pp_dpm_mclk\n");

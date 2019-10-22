@@ -37,6 +37,7 @@
 #include "smu_v11_0_pptable.h"
 #include "arcturus_ppsmc.h"
 #include "nbio/nbio_7_4_sh_mask.h"
+#include "amdgpu_xgmi.h"
 #include <linux/i2c.h>
 #include <linux/pci.h>
 #include "amdgpu_ras.h"
@@ -807,84 +808,13 @@ static int arcturus_force_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_MCLK:
-		single_dpm_table = &(dpm_table->mem_table);
-
-		if (soft_max_level >= single_dpm_table->count) {
-			pr_err("Clock level specified %d is over max allowed %d\n",
-					soft_max_level, single_dpm_table->count - 1);
-			ret = -EINVAL;
-			break;
-		}
-
-		single_dpm_table->dpm_state.soft_min_level =
-			single_dpm_table->dpm_levels[soft_min_level].value;
-		single_dpm_table->dpm_state.soft_max_level =
-			single_dpm_table->dpm_levels[soft_max_level].value;
-
-		ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_UCLK_MASK);
-		if (ret) {
-			pr_err("Failed to upload boot level to lowest!\n");
-			break;
-		}
-
-		ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_UCLK_MASK);
-		if (ret)
-			pr_err("Failed to upload dpm max level to highest!\n");
-
-		break;
-
 	case SMU_SOCCLK:
-		single_dpm_table = &(dpm_table->soc_table);
-
-		if (soft_max_level >= single_dpm_table->count) {
-			pr_err("Clock level specified %d is over max allowed %d\n",
-					soft_max_level, single_dpm_table->count - 1);
-			ret = -EINVAL;
-			break;
-		}
-
-		single_dpm_table->dpm_state.soft_min_level =
-			single_dpm_table->dpm_levels[soft_min_level].value;
-		single_dpm_table->dpm_state.soft_max_level =
-			single_dpm_table->dpm_levels[soft_max_level].value;
-
-		ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_SOCCLK_MASK);
-		if (ret) {
-			pr_err("Failed to upload boot level to lowest!\n");
-			break;
-		}
-
-		ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_SOCCLK_MASK);
-		if (ret)
-			pr_err("Failed to upload dpm max level to highest!\n");
-
-		break;
-
 	case SMU_FCLK:
-		single_dpm_table = &(dpm_table->fclk_table);
-
-		if (soft_max_level >= single_dpm_table->count) {
-			pr_err("Clock level specified %d is over max allowed %d\n",
-					soft_max_level, single_dpm_table->count - 1);
-			ret = -EINVAL;
-			break;
-		}
-
-		single_dpm_table->dpm_state.soft_min_level =
-			single_dpm_table->dpm_levels[soft_min_level].value;
-		single_dpm_table->dpm_state.soft_max_level =
-			single_dpm_table->dpm_levels[soft_max_level].value;
-
-		ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_FCLK_MASK);
-		if (ret) {
-			pr_err("Failed to upload boot level to lowest!\n");
-			break;
-		}
-
-		ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_FCLK_MASK);
-		if (ret)
-			pr_err("Failed to upload dpm max level to highest!\n");
-
+		/*
+		 * Should not arrive here since Arcturus does not
+		 * support mclk/socclk/fclk softmin/softmax settings
+		 */
+		ret = -EINVAL;
 		break;
 
 	default:
@@ -1200,6 +1130,7 @@ static int arcturus_force_dpm_limit_value(struct smu_context *smu, bool highest)
 {
 	struct arcturus_dpm_table *dpm_table =
 		(struct arcturus_dpm_table *)smu->smu_dpm.dpm_context;
+	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(smu->adev, 0);
 	uint32_t soft_level;
 	int ret = 0;
 
@@ -1213,39 +1144,26 @@ static int arcturus_force_dpm_limit_value(struct smu_context *smu, bool highest)
 		dpm_table->gfx_table.dpm_state.soft_max_level =
 		dpm_table->gfx_table.dpm_levels[soft_level].value;
 
-	/* uclk */
-	if (highest)
-		soft_level = arcturus_find_highest_dpm_level(&(dpm_table->mem_table));
-	else
-		soft_level = arcturus_find_lowest_dpm_level(&(dpm_table->mem_table));
-
-	dpm_table->mem_table.dpm_state.soft_min_level =
-		dpm_table->mem_table.dpm_state.soft_max_level =
-		dpm_table->mem_table.dpm_levels[soft_level].value;
-
-	/* socclk */
-	if (highest)
-		soft_level = arcturus_find_highest_dpm_level(&(dpm_table->soc_table));
-	else
-		soft_level = arcturus_find_lowest_dpm_level(&(dpm_table->soc_table));
-
-	dpm_table->soc_table.dpm_state.soft_min_level =
-		dpm_table->soc_table.dpm_state.soft_max_level =
-		dpm_table->soc_table.dpm_levels[soft_level].value;
-
-	ret = arcturus_upload_dpm_level(smu, false, 0xFFFFFFFF);
+	ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
 		pr_err("Failed to upload boot level to %s!\n",
 				highest ? "highest" : "lowest");
 		return ret;
 	}
 
-	ret = arcturus_upload_dpm_level(smu, true, 0xFFFFFFFF);
+	ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
 		pr_err("Failed to upload dpm max level to %s!\n!",
 				highest ? "highest" : "lowest");
 		return ret;
 	}
+
+	if (hive)
+		/*
+		 * Force XGMI Pstate to highest or lowest
+		 * TODO: revise this when xgmi dpm is functional
+		 */
+		ret = smu_v11_0_set_xgmi_pstate(smu, highest ? 1 : 0);
 
 	return ret;
 }
@@ -1254,6 +1172,7 @@ static int arcturus_unforce_dpm_levels(struct smu_context *smu)
 {
 	struct arcturus_dpm_table *dpm_table =
 		(struct arcturus_dpm_table *)smu->smu_dpm.dpm_context;
+	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(smu->adev, 0);
 	uint32_t soft_min_level, soft_max_level;
 	int ret = 0;
 
@@ -1265,33 +1184,24 @@ static int arcturus_unforce_dpm_levels(struct smu_context *smu)
 	dpm_table->gfx_table.dpm_state.soft_max_level =
 		dpm_table->gfx_table.dpm_levels[soft_max_level].value;
 
-	/* uclk */
-	soft_min_level = arcturus_find_lowest_dpm_level(&(dpm_table->mem_table));
-	soft_max_level = arcturus_find_highest_dpm_level(&(dpm_table->mem_table));
-	dpm_table->mem_table.dpm_state.soft_min_level =
-		dpm_table->gfx_table.dpm_levels[soft_min_level].value;
-	dpm_table->mem_table.dpm_state.soft_max_level =
-		dpm_table->gfx_table.dpm_levels[soft_max_level].value;
-
-	/* socclk */
-	soft_min_level = arcturus_find_lowest_dpm_level(&(dpm_table->soc_table));
-	soft_max_level = arcturus_find_highest_dpm_level(&(dpm_table->soc_table));
-	dpm_table->soc_table.dpm_state.soft_min_level =
-		dpm_table->soc_table.dpm_levels[soft_min_level].value;
-	dpm_table->soc_table.dpm_state.soft_max_level =
-		dpm_table->soc_table.dpm_levels[soft_max_level].value;
-
-	ret = arcturus_upload_dpm_level(smu, false, 0xFFFFFFFF);
+	ret = arcturus_upload_dpm_level(smu, false, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
 		pr_err("Failed to upload DPM Bootup Levels!");
 		return ret;
 	}
 
-	ret = arcturus_upload_dpm_level(smu, true, 0xFFFFFFFF);
+	ret = arcturus_upload_dpm_level(smu, true, FEATURE_DPM_GFXCLK_MASK);
 	if (ret) {
 		pr_err("Failed to upload DPM Max Levels!");
 		return ret;
 	}
+
+	if (hive)
+		/*
+		 * Reset XGMI Pstate back to default
+		 * TODO: revise this when xgmi dpm is functional
+		 */
+		ret = smu_v11_0_set_xgmi_pstate(smu, 0);
 
 	return ret;
 }
