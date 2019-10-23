@@ -248,8 +248,8 @@ static struct reada_zone *reada_find_zone(struct btrfs_device *dev, u64 logical,
 	if (!cache)
 		return NULL;
 
-	start = cache->key.objectid;
-	end = start + cache->key.offset - 1;
+	start = cache->start;
+	end = start + cache->length - 1;
 	btrfs_put_block_group(cache);
 
 	zone = kzalloc(sizeof(*zone), GFP_KERNEL);

@@ -404,8 +404,8 @@ static u64 get_full_stripe_logical(struct btrfs_block_group_cache *cache,
 	 * round_down() can only handle power of 2, while RAID56 full
 	 * stripe length can be 64KiB * n, so we need to manually round down.
 	 */
-	ret = div64_u64(bytenr - cache->key.objectid, cache->full_stripe_len) *
-		cache->full_stripe_len + cache->key.objectid;
+	ret = div64_u64(bytenr - cache->start, cache->full_stripe_len) *
+			cache->full_stripe_len + cache->start;
 	return ret;
 }
 
@@ -3583,8 +3583,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 			btrfs_wait_block_group_reservations(cache);
 			btrfs_wait_nocow_writers(cache);
 			ret = btrfs_wait_ordered_roots(fs_info, U64_MAX,
-						       cache->key.objectid,
-						       cache->key.offset);
+						       cache->start,
+						       cache->length);
 			if (ret > 0) {
 				struct btrfs_trans_handle *trans;
 

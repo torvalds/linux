@@ -107,7 +107,7 @@ struct inode *lookup_free_space_inode(
 		return inode;
 
 	inode = __lookup_free_space_inode(fs_info->tree_root, path,
-					  block_group->key.objectid);
+					  block_group->start);
 	if (IS_ERR(inode))
 		return inode;
 
@@ -201,7 +201,7 @@ int create_free_space_inode(struct btrfs_trans_handle *trans,
 		return ret;
 
 	return __create_free_space_inode(trans->fs_info->tree_root, trans, path,
-					 ino, block_group->key.objectid);
+					 ino, block_group->start);
 }
 
 int btrfs_check_trunc_cache_free_space(struct btrfs_fs_info *fs_info,
@@ -882,13 +882,13 @@ int load_free_space_cache(struct btrfs_block_group_cache *block_group)
 	spin_unlock(&block_group->lock);
 
 	ret = __load_free_space_cache(fs_info->tree_root, inode, ctl,
-				      path, block_group->key.objectid);
+				      path, block_group->start);
 	btrfs_free_path(path);
 	if (ret <= 0)
 		goto out;
 
 	spin_lock(&ctl->tree_lock);
-	matched = (ctl->free_space == (block_group->key.offset - used -
+	matched = (ctl->free_space == (block_group->length - used -
 				       block_group->bytes_super));
 	spin_unlock(&ctl->tree_lock);
 
@@ -896,7 +896,7 @@ int load_free_space_cache(struct btrfs_block_group_cache *block_group)
 		__btrfs_remove_free_space_cache(ctl);
 		btrfs_warn(fs_info,
 			   "block group %llu has wrong amount of free space",
-			   block_group->key.objectid);
+			   block_group->start);
 		ret = -1;
 	}
 out:
@@ -909,7 +909,7 @@ out:
 
 		btrfs_warn(fs_info,
 			   "failed to load free space cache for block group %llu, rebuilding it now",
-			   block_group->key.objectid);
+			   block_group->start);
 	}
 
 	iput(inode);
@@ -1067,9 +1067,9 @@ static noinline_for_stack int write_pinned_extent_entries(
 	 */
 	unpin = block_group->fs_info->pinned_extents;
 
-	start = block_group->key.objectid;
+	start = block_group->start;
 
-	while (start < block_group->key.objectid + block_group->key.offset) {
+	while (start < block_group->start + block_group->length) {
 		ret = find_first_extent_bit(unpin, start,
 					    &extent_start, &extent_end,
 					    EXTENT_DIRTY, NULL);
@@ -1077,13 +1077,12 @@ static noinline_for_stack int write_pinned_extent_entries(
 			return 0;
 
 		/* This pinned extent is out of our range */
-		if (extent_start >= block_group->key.objectid +
-		    block_group->key.offset)
+		if (extent_start >= block_group->start + block_group->length)
 			return 0;
 
 		extent_start = max(extent_start, start);
-		extent_end = min(block_group->key.objectid +
-				 block_group->key.offset, extent_end + 1);
+		extent_end = min(block_group->start + block_group->length,
+				 extent_end + 1);
 		len = extent_end - extent_start;
 
 		*entries += 1;
@@ -1174,7 +1173,7 @@ out:
 #ifdef DEBUG
 			btrfs_err(root->fs_info,
 				  "failed to write free space cache for block group %llu",
-				  block_group->key.objectid);
+				  block_group->start);
 #endif
 		}
 	}
@@ -1221,7 +1220,7 @@ int btrfs_wait_cache_io(struct btrfs_trans_handle *trans,
 {
 	return __btrfs_wait_cache_io(block_group->fs_info->tree_root, trans,
 				     block_group, &block_group->io_ctl,
-				     path, block_group->key.objectid);
+				     path, block_group->start);
 }
 
 /**
@@ -1400,7 +1399,7 @@ int btrfs_write_out_cache(struct btrfs_trans_handle *trans,
 #ifdef DEBUG
 		btrfs_err(fs_info,
 			  "failed to write free space cache for block group %llu",
-			  block_group->key.objectid);
+			  block_group->start);
 #endif
 		spin_lock(&block_group->lock);
 		block_group->disk_cache_state = BTRFS_DC_ERROR;
@@ -1657,7 +1656,7 @@ static void recalculate_thresholds(struct btrfs_free_space_ctl *ctl)
 	u64 max_bytes;
 	u64 bitmap_bytes;
 	u64 extent_bytes;
-	u64 size = block_group->key.offset;
+	u64 size = block_group->length;
 	u64 bytes_per_bg = BITS_PER_BITMAP * ctl->unit;
 	u64 max_bitmaps = div64_u64(size + bytes_per_bg - 1, bytes_per_bg);
 
@@ -2034,7 +2033,7 @@ static bool use_bitmap(struct btrfs_free_space_ctl *ctl,
 	 * so allow those block groups to still be allowed to have a bitmap
 	 * entry.
 	 */
-	if (((BITS_PER_BITMAP * ctl->unit) >> 1) > block_group->key.offset)
+	if (((BITS_PER_BITMAP * ctl->unit) >> 1) > block_group->length)
 		return false;
 
 	return true;
@@ -2516,7 +2515,7 @@ void btrfs_init_free_space_ctl(struct btrfs_block_group_cache *block_group)
 
 	spin_lock_init(&ctl->tree_lock);
 	ctl->unit = fs_info->sectorsize;
-	ctl->start = block_group->key.objectid;
+	ctl->start = block_group->start;
 	ctl->private = block_group;
 	ctl->op = &free_space_op;
 	INIT_LIST_HEAD(&ctl->trimming_ranges);
@@ -3379,7 +3378,7 @@ void btrfs_put_block_group_trimming(struct btrfs_block_group_cache *block_group)
 		mutex_lock(&fs_info->chunk_mutex);
 		em_tree = &fs_info->mapping_tree;
 		write_lock(&em_tree->lock);
-		em = lookup_extent_mapping(em_tree, block_group->key.objectid,
+		em = lookup_extent_mapping(em_tree, block_group->start,
 					   1);
 		BUG_ON(!em); /* logic error, can't happen */
 		remove_extent_mapping(em_tree, em);

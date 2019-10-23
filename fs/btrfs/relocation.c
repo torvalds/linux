@@ -1563,8 +1563,8 @@ again:
 static int in_block_group(u64 bytenr,
 			  struct btrfs_block_group_cache *block_group)
 {
-	if (bytenr >= block_group->key.objectid &&
-	    bytenr < block_group->key.objectid + block_group->key.offset)
+	if (bytenr >= block_group->start &&
+	    bytenr < block_group->start + block_group->length)
 		return 1;
 	return 0;
 }
@@ -3863,7 +3863,7 @@ int find_next_extent(struct reloc_control *rc, struct btrfs_path *path,
 	u64 start, end, last;
 	int ret;
 
-	last = rc->block_group->key.objectid + rc->block_group->key.offset;
+	last = rc->block_group->start + rc->block_group->length;
 	while (1) {
 		cond_resched();
 		if (rc->search_start >= last) {
@@ -3980,7 +3980,7 @@ int prepare_to_relocate(struct reloc_control *rc)
 		return -ENOMEM;
 
 	memset(&rc->cluster, 0, sizeof(rc->cluster));
-	rc->search_start = rc->block_group->key.objectid;
+	rc->search_start = rc->block_group->start;
 	rc->extents_found = 0;
 	rc->nodes_relocated = 0;
 	rc->merging_rsv_size = 0;
@@ -4248,7 +4248,7 @@ struct inode *create_reloc_inode(struct btrfs_fs_info *fs_info,
 	key.offset = 0;
 	inode = btrfs_iget(fs_info->sb, &key, root);
 	BUG_ON(IS_ERR(inode));
-	BTRFS_I(inode)->index_cnt = group->key.objectid;
+	BTRFS_I(inode)->index_cnt = group->start;
 
 	err = btrfs_orphan_add(trans, BTRFS_I(inode));
 out:
@@ -4291,7 +4291,7 @@ static void describe_relocation(struct btrfs_fs_info *fs_info,
 
 	btrfs_info(fs_info,
 		   "relocating block group %llu flags %s",
-		   block_group->key.objectid, buf);
+		   block_group->start, buf);
 }
 
 /*
@@ -4364,8 +4364,8 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	btrfs_wait_block_group_reservations(rc->block_group);
 	btrfs_wait_nocow_writers(rc->block_group);
 	btrfs_wait_ordered_roots(fs_info, U64_MAX,
-				 rc->block_group->key.objectid,
-				 rc->block_group->key.offset);
+				 rc->block_group->start,
+				 rc->block_group->length);
 
 	while (1) {
 		mutex_lock(&fs_info->cleaner_mutex);

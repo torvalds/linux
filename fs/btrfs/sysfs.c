@@ -402,7 +402,7 @@ static ssize_t raid_bytes_show(struct kobject *kobj,
 	down_read(&sinfo->groups_sem);
 	list_for_each_entry(block_group, &sinfo->block_groups[index], list) {
 		if (&attr->attr == BTRFS_ATTR_PTR(raid, total_bytes))
-			val += block_group->key.offset;
+			val += block_group->length;
 		else
 			val += block_group->used;
 	}

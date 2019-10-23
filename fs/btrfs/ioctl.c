@@ -4038,7 +4038,7 @@ static void get_block_group_info(struct list_head *groups_list,
 	space->flags = 0;
 	list_for_each_entry(block_group, groups_list, list) {
 		space->flags = block_group->flags;
-		space->total_bytes += block_group->key.offset;
+		space->total_bytes += block_group->length;
 		space->used_bytes += block_group->used;
 	}
 }

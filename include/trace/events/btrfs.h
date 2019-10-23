@@ -713,8 +713,8 @@ TRACE_EVENT(btrfs_add_block_group,
 	),
 
 	TP_fast_assign_btrfs(fs_info,
-		__entry->offset		= block_group->key.objectid;
-		__entry->size		= block_group->key.offset;
+		__entry->offset		= block_group->start;
+		__entry->size		= block_group->length;
 		__entry->flags		= block_group->flags;
 		__entry->bytes_used	= block_group->used;
 		__entry->bytes_super	= block_group->bytes_super;
@@ -1197,7 +1197,7 @@ DECLARE_EVENT_CLASS(btrfs__reserve_extent,
 	),
 
 	TP_fast_assign_btrfs(block_group->fs_info,
-		__entry->bg_objectid	= block_group->key.objectid;
+		__entry->bg_objectid	= block_group->start;
 		__entry->flags		= block_group->flags;
 		__entry->start		= start;
 		__entry->len		= len;
@@ -1245,7 +1245,7 @@ TRACE_EVENT(btrfs_find_cluster,
 	),
 
 	TP_fast_assign_btrfs(block_group->fs_info,
-		__entry->bg_objectid	= block_group->key.objectid;
+		__entry->bg_objectid	= block_group->start;
 		__entry->flags		= block_group->flags;
 		__entry->start		= start;
 		__entry->bytes		= bytes;
@@ -1272,7 +1272,7 @@ TRACE_EVENT(btrfs_failed_cluster_setup,
 	),
 
 	TP_fast_assign_btrfs(block_group->fs_info,
-		__entry->bg_objectid	= block_group->key.objectid;
+		__entry->bg_objectid	= block_group->start;
 	),
 
 	TP_printk_btrfs("block_group=%llu", __entry->bg_objectid)
@@ -1296,7 +1296,7 @@ TRACE_EVENT(btrfs_setup_cluster,
 	),
 
 	TP_fast_assign_btrfs(block_group->fs_info,
-		__entry->bg_objectid	= block_group->key.objectid;
+		__entry->bg_objectid	= block_group->start;
 		__entry->flags		= block_group->flags;
 		__entry->start		= cluster->window_start;
 		__entry->max_size	= cluster->max_size;
@@ -1856,8 +1856,8 @@ DECLARE_EVENT_CLASS(btrfs__block_group,
 	),
 
 	TP_fast_assign_btrfs(bg_cache->fs_info,
-		__entry->bytenr = bg_cache->key.objectid,
-		__entry->len	= bg_cache->key.offset,
+		__entry->bytenr = bg_cache->start,
+		__entry->len	= bg_cache->length,
 		__entry->used	= bg_cache->used;
 		__entry->flags	= bg_cache->flags;
 	),
