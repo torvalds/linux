@@ -380,8 +380,9 @@ static int get_cluster_clk_and_freq_table(struct device *cpu_dev,
 		goto put_clusters;
 
 	/* Assuming 2 cluster, set clk_big_min and clk_little_max */
-	clk_big_min = get_table_min(freq_table[0]);
-	clk_little_max = VIRT_FREQ(1, get_table_max(freq_table[1]));
+	clk_big_min = get_table_min(freq_table[A15_CLUSTER]);
+	clk_little_max = VIRT_FREQ(A7_CLUSTER,
+				   get_table_max(freq_table[A7_CLUSTER]));
 
 	return 0;
 
