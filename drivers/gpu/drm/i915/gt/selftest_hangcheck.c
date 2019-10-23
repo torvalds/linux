@@ -1563,7 +1563,7 @@ static int __igt_atomic_reset_engine(struct intel_engine_cs *engine,
 	GEM_TRACE("i915_reset_engine(%s:%s) under %s\n",
 		  engine->name, mode, p->name);
 
-	tasklet_disable_nosync(t);
+	tasklet_disable(t);
 	p->critical_section_begin();
 
 	err = intel_engine_reset(engine, NULL);
