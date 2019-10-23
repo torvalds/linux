@@ -15,9 +15,8 @@
 #include <linux/reset.h>
 #include <linux/phy/phy.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -863,7 +862,7 @@ static int rk628_dsi_connector_get_modes(struct drm_connector *connector)
 {
 	struct rk628_dsi *dsi = connector_to_dsi(connector);
 
-	return drm_panel_get_modes(dsi->panel);
+	return drm_panel_get_modes(dsi->panel, connector);
 }
 
 static struct drm_connector_helper_funcs rk628_dsi_connector_helper_funcs = {
@@ -1150,8 +1149,8 @@ static void rk628_dsi_bridge_disable(struct drm_bridge *bridge)
 }
 
 static void rk628_dsi_bridge_mode_set(struct drm_bridge *bridge,
-				      struct drm_display_mode *mode,
-				      struct drm_display_mode *adj)
+				      const struct drm_display_mode *mode,
+				      const struct drm_display_mode *adj)
 {
 	struct rk628_dsi *dsi = bridge_to_dsi(bridge);
 
@@ -1162,7 +1161,8 @@ static void rk628_dsi_bridge_mode_set(struct drm_bridge *bridge,
 	}
 }
 
-static int rk628_dsi_bridge_attach(struct drm_bridge *bridge)
+static int rk628_dsi_bridge_attach(struct drm_bridge *bridge,
+				   enum drm_bridge_attach_flags flags)
 {
 	struct rk628_dsi *dsi = bridge_to_dsi(bridge);
 	struct drm_connector *connector = &dsi->connector;
@@ -1171,6 +1171,9 @@ static int rk628_dsi_bridge_attach(struct drm_bridge *bridge)
 
 	if (!dsi->panel)
 		return -EPROBE_DEFER;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+		return 0;
 
 	ret = drm_connector_init(drm, connector, &rk628_dsi_connector_funcs,
 				 DRM_MODE_CONNECTOR_DSI);
@@ -1181,12 +1184,6 @@ static int rk628_dsi_bridge_attach(struct drm_bridge *bridge)
 
 	drm_connector_helper_add(connector, &rk628_dsi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, bridge->encoder);
-
-	ret = drm_panel_attach(dsi->panel, connector);
-	if (ret) {
-		dev_err(dsi->dev, "Failed to attach panel\n");
-		return ret;
-	}
 
 	return 0;
 }

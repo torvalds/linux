@@ -18,10 +18,9 @@
 #include <linux/mfd/rk628.h>
 #include <linux/phy/phy.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_print.h>
 #include <drm/drm_dp_helper.h>
 #include <drm/drm_of.h>
 
@@ -817,7 +816,8 @@ static void rk628_hdmirx_bridge_disable(struct drm_bridge *bridge)
 	phy_power_off(hdmirx->phy);
 }
 
-static int rk628_hdmirx_bridge_attach(struct drm_bridge *bridge)
+static int rk628_hdmirx_bridge_attach(struct drm_bridge *bridge,
+				      enum drm_bridge_attach_flags flags)
 {
 	struct rk628_hdmirx *hdmirx = bridge_to_hdmirx(bridge);
 	struct device *dev = hdmirx->dev;
@@ -830,24 +830,22 @@ static int rk628_hdmirx_bridge_attach(struct drm_bridge *bridge)
 		return ret;
 	}
 
-	ret = drm_bridge_attach(bridge->encoder, hdmirx->bridge, bridge);
+	ret = drm_bridge_attach(bridge->encoder, hdmirx->bridge, bridge, flags);
 	if (ret) {
 		dev_err(dev, "failed to attach bridge\n");
 		return ret;
 	}
 
-	bridge->next = hdmirx->bridge;
-
 	return 0;
 }
 
 static void rk628_hdmirx_bridge_mode_set(struct drm_bridge *bridge,
-				    struct drm_display_mode *orig_mode,
-				    struct drm_display_mode *mode)
+					 const struct drm_display_mode *mode,
+					 const struct drm_display_mode *adj)
 {
 	struct rk628_hdmirx *hdmirx = bridge_to_hdmirx(bridge);
 
-	memcpy(&hdmirx->mode, mode, sizeof(hdmirx->mode));
+	memcpy(&hdmirx->mode, adj, sizeof(hdmirx->mode));
 }
 
 static const struct drm_bridge_funcs rk628_hdmirx_bridge_funcs = {

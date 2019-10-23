@@ -14,10 +14,9 @@
 #include <linux/phy/phy.h>
 #include <linux/reset.h>
 
-#include <drm/drmP.h>
 #include <drm/drm_of.h>
 #include <drm/drm_atomic.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_panel.h>
 
@@ -85,7 +84,7 @@ static int rk628_rgb_connector_get_modes(struct drm_connector *connector)
 {
 	struct rk628_rgb *rgb = connector_to_rgb(connector);
 
-	return drm_panel_get_modes(rgb->panel);
+	return drm_panel_get_modes(rgb->panel, connector);
 }
 
 static const struct drm_connector_helper_funcs
@@ -96,9 +95,6 @@ rk628_rgb_connector_helper_funcs = {
 
 static void rk628_rgb_connector_destroy(struct drm_connector *connector)
 {
-	struct rk628_rgb *rgb = connector_to_rgb(connector);
-
-	drm_panel_detach(rgb->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -229,7 +225,8 @@ static void rk628_rgb_bridge_disable(struct drm_bridge *bridge)
 		reset_control_assert(rgb->rstc);
 }
 
-static int rk628_rgb_bridge_attach(struct drm_bridge *bridge)
+static int rk628_rgb_bridge_attach(struct drm_bridge *bridge,
+				   enum drm_bridge_attach_flags flags)
 {
 	struct rk628_rgb *rgb = bridge_to_rgb(bridge);
 	struct drm_connector *connector = &rgb->connector;
@@ -248,25 +245,24 @@ static int rk628_rgb_bridge_attach(struct drm_bridge *bridge)
 			return -EPROBE_DEFER;
 		}
 
-		rgb->bridge->encoder = bridge->encoder;
-		ret = drm_bridge_attach(bridge->encoder, rgb->bridge, bridge);
+		ret = drm_bridge_attach(bridge->encoder, rgb->bridge, bridge,
+					flags);
 		if (ret) {
 			dev_err(dev, "failed to attach bridge\n");
 			return ret;
 		}
-
-		bridge->next = rgb->bridge;
 	} else {
 		if (rgb->bridge) {
-			rgb->bridge->encoder = bridge->encoder;
-			ret = drm_bridge_attach(bridge->encoder, rgb->bridge, bridge);
+			ret = drm_bridge_attach(bridge->encoder, rgb->bridge,
+						bridge, flags);
 			if (ret) {
 				dev_err(dev, "failed to attach bridge\n");
 				return ret;
 			}
-
-			bridge->next = rgb->bridge;
 		}
+
+		if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+			return 0;
 
 		if (rgb->panel) {
 			ret = drm_connector_init(drm, connector,
@@ -282,11 +278,6 @@ static int rk628_rgb_bridge_attach(struct drm_bridge *bridge)
 						 &rk628_rgb_connector_helper_funcs);
 			drm_connector_attach_encoder(connector,
 							  bridge->encoder);
-			ret = drm_panel_attach(rgb->panel, connector);
-			if (ret) {
-				dev_err(dev, "Failed to attach panel\n");
-				return ret;
-			}
 		}
 	}
 
@@ -294,8 +285,8 @@ static int rk628_rgb_bridge_attach(struct drm_bridge *bridge)
 }
 
 static void rk628_rgb_bridge_mode_set(struct drm_bridge *bridge,
-				      struct drm_display_mode *mode,
-				      struct drm_display_mode *adj)
+				      const struct drm_display_mode *mode,
+				      const struct drm_display_mode *adj)
 {
 	struct rk628_rgb *rgb = bridge_to_rgb(bridge);
 

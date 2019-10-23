@@ -12,10 +12,10 @@
 #include <linux/regmap.h>
 #include <linux/reset.h>
 #include <linux/mfd/rk628.h>
-#include <drm/drmP.h>
+
 #include <drm/drm_of.h>
 #include <drm/drm_atomic.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_panel.h>
 #include <video/of_display_timing.h>
@@ -273,7 +273,7 @@ static int rk628_gvi_connector_get_modes(struct drm_connector *connector)
 	struct drm_display_info *info = &connector->display_info;
 	int num_modes;
 
-	num_modes = drm_panel_get_modes(gvi->panel);
+	num_modes = drm_panel_get_modes(gvi->panel, connector);
 
 	if (info->num_bus_formats)
 		gvi->bus_format = info->bus_formats[0];
@@ -333,9 +333,6 @@ rk628_gvi_connector_detect(struct drm_connector *connector, bool force)
 
 static void rk628_gvi_connector_destroy(struct drm_connector *connector)
 {
-	struct rk628_gvi *gvi = connector_to_gvi(connector);
-
-	drm_panel_detach(gvi->panel);
 	drm_connector_cleanup(connector);
 }
 
@@ -462,7 +459,7 @@ static void rk628_gvi_bridge_enable(struct drm_bridge *bridge)
 			   SW_OUTPUT_MODE(OUTPUT_MODE_GVI));
 	phy_set_bus_width(gvi->phy, rate);
 	rk628_combtxphy_set_gvi_division_mode(gvi->phy, gvi->division_mode);
-	ret = phy_set_mode(gvi->phy, PHY_MODE_GVI);
+	ret = phy_set_mode(gvi->phy, 0);
 	if (ret) {
 		dev_err(gvi->dev, "failed to set phy mode: %d\n", ret);
 		return;
@@ -499,12 +496,16 @@ static void rk628_gvi_bridge_disable(struct drm_bridge *bridge)
 	phy_power_off(gvi->phy);
 }
 
-static int rk628_gvi_bridge_attach(struct drm_bridge *bridge)
+static int rk628_gvi_bridge_attach(struct drm_bridge *bridge,
+				   enum drm_bridge_attach_flags flags)
 {
 	struct rk628_gvi *gvi = bridge_to_gvi(bridge);
 	struct drm_connector *connector = &gvi->connector;
 	struct drm_device *drm = bridge->dev;
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+		return 0;
 
 	ret = drm_connector_init(drm, connector, &rk628_gvi_connector_funcs,
 				 DRM_MODE_CONNECTOR_LVDS);
@@ -516,18 +517,12 @@ static int rk628_gvi_bridge_attach(struct drm_bridge *bridge)
 	drm_connector_helper_add(connector, &rk628_gvi_connector_helper_funcs);
 	drm_connector_attach_encoder(connector, bridge->encoder);
 
-	ret = drm_panel_attach(gvi->panel, connector);
-	if (ret) {
-		dev_err(gvi->dev, "Failed to attach panel\n");
-		return ret;
-	}
-
 	return 0;
 }
 
 static void rk628_gvi_bridge_mode_set(struct drm_bridge *bridge,
-				      struct drm_display_mode *mode,
-				      struct drm_display_mode *adj)
+				      const struct drm_display_mode *mode,
+				      const struct drm_display_mode *adj)
 {
 	struct rk628_gvi *gvi = bridge_to_gvi(bridge);
 

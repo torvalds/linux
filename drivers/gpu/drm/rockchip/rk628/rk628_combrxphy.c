@@ -22,7 +22,6 @@ struct rk628_combrxphy {
 	struct regmap *regmap;
 	struct clk *pclk;
 	struct reset_control *rstc;
-	enum phy_mode mode;
 	bool is_cable_mode;
 };
 
@@ -875,17 +874,7 @@ static int rk628_combrxphy_power_off(struct phy *phy)
 	return 0;
 }
 
-static int rk628_combrxphy_set_mode(struct phy *phy, enum phy_mode mode)
-{
-	struct rk628_combrxphy *combrxphy = phy_get_drvdata(phy);
-
-	combrxphy->mode = mode;
-
-	return 0;
-}
-
 static const struct phy_ops rk628_combrxphy_ops = {
-	.set_mode = rk628_combrxphy_set_mode,
 	.power_on = rk628_combrxphy_power_on,
 	.power_off = rk628_combrxphy_power_off,
 	.owner = THIS_MODULE,

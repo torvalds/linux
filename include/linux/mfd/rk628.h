@@ -267,6 +267,6 @@ int rk628_scaler_add_src_mode(struct rk628 *rk628,
  * Call the function at mode_set, replace drm_mode_copy.
  */
 void rk628_mode_copy(struct rk628 *rk628, struct drm_display_mode *dst,
-		     struct drm_display_mode *src);
+		     const struct drm_display_mode *src);
 
 #endif

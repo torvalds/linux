@@ -16,7 +16,6 @@
 #include <video/videomode.h>
 
 #include <drm/drm_of.h>
-#include <drm/drmP.h>
 
 enum rk628_mode_sync_pol {
 	MODE_FLAG_NSYNC,
@@ -263,8 +262,8 @@ static void rk628_post_process_bridge_disable(struct drm_bridge *bridge)
 }
 
 static void rk628_post_process_bridge_mode_set(struct drm_bridge *bridge,
-					       struct drm_display_mode *mode,
-					       struct drm_display_mode *adj)
+					       const struct drm_display_mode *mode,
+					       const struct drm_display_mode *adj)
 {
 	struct rk628_post_process *pp = bridge_to_pp(bridge);
 	struct rk628 *rk628 = pp->parent;
@@ -281,7 +280,8 @@ static void rk628_post_process_bridge_mode_set(struct drm_bridge *bridge,
 		regmap_write(pp->grf, GRF_CSC_CTRL_CON, SW_Y2R_EN(1));
 }
 
-static int rk628_post_process_bridge_attach(struct drm_bridge *bridge)
+static int rk628_post_process_bridge_attach(struct drm_bridge *bridge,
+					    enum drm_bridge_attach_flags flags)
 {
 	struct rk628_post_process *pp = bridge_to_pp(bridge);
 	struct device *dev = pp->dev;
@@ -292,7 +292,7 @@ static int rk628_post_process_bridge_attach(struct drm_bridge *bridge)
 	if (ret)
 		return ret;
 
-	ret = drm_bridge_attach(bridge->encoder, pp->bridge, bridge);
+	ret = drm_bridge_attach(bridge->encoder, pp->bridge, bridge, flags);
 	if (ret) {
 		dev_err(dev, "failed to attach bridge\n");
 		return ret;
@@ -377,7 +377,7 @@ EXPORT_SYMBOL(rk628_scaler_add_src_mode);
  * Call the function at mode_set, replace drm_mode_copy.
  */
 void rk628_mode_copy(struct rk628 *rk628, struct drm_display_mode *dst,
-		     struct drm_display_mode *src)
+		     const struct drm_display_mode *src)
 {
 	if (rk628->dst_mode_valid)
 		drm_mode_copy(dst, &rk628->dst_mode);

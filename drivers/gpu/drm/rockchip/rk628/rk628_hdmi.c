@@ -20,9 +20,8 @@
 #include <linux/regmap.h>
 
 #include <drm/drm_of.h>
-#include <drm/drmP.h>
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_crtc_helper.h>
+#include <drm/drm_probe_helper.h>
 #include <drm/drm_edid.h>
 #include <sound/hdmi-codec.h>
 
@@ -676,7 +675,8 @@ static int rk628_hdmi_config_video_avi(struct rk628_hdmi *hdmi,
 	union hdmi_infoframe frame;
 	int rc;
 
-	rc = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi, mode, false);
+	rc = drm_hdmi_avi_infoframe_from_display_mode(&frame.avi,
+						      &hdmi->connector, mode);
 
 	if (hdmi->hdmi_data.enc_out_format == HDMI_COLORSPACE_YUV444)
 		frame.avi.colorspace = HDMI_COLORSPACE_YUV444;
@@ -1023,8 +1023,8 @@ rk628_hdmi_connector_helper_funcs = {
 };
 
 static void rk628_hdmi_bridge_mode_set(struct drm_bridge *bridge,
-				       struct drm_display_mode *mode,
-				       struct drm_display_mode *adj_mode)
+				       const struct drm_display_mode *mode,
+				       const struct drm_display_mode *adj_mode)
 {
 	struct rk628_hdmi *hdmi = bridge_to_hdmi(bridge);
 
@@ -1047,12 +1047,16 @@ static void rk628_hdmi_bridge_disable(struct drm_bridge *bridge)
 	rk628_hdmi_set_pwr_mode(hdmi, LOWER_PWR);
 }
 
-static int rk628_hdmi_bridge_attach(struct drm_bridge *bridge)
+static int rk628_hdmi_bridge_attach(struct drm_bridge *bridge,
+				    enum drm_bridge_attach_flags flags)
 {
 	struct rk628_hdmi *hdmi = bridge_to_hdmi(bridge);
 	struct drm_connector *connector = &hdmi->connector;
 	struct drm_device *drm = bridge->dev;
 	int ret;
+
+	if (flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)
+		return 0;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
@@ -1193,7 +1197,8 @@ static void rk628_hdmi_audio_shutdown(struct device *dev, void *d)
 	/* do nothing */
 }
 
-static int rk628_hdmi_audio_digital_mute(struct device *dev, void *d, bool mute)
+static int rk628_hdmi_audio_mute(struct device *dev, void *d, bool mute,
+				 int direction)
 {
 	struct rk628_hdmi *hdmi = dev_get_drvdata(dev);
 
@@ -1238,8 +1243,9 @@ static int rk628_hdmi_audio_get_eld(struct device *dev, void *d,
 static const struct hdmi_codec_ops audio_codec_ops = {
 	.hw_params = rk628_hdmi_audio_hw_params,
 	.audio_shutdown = rk628_hdmi_audio_shutdown,
-	.digital_mute = rk628_hdmi_audio_digital_mute,
+	.mute_stream = rk628_hdmi_audio_mute,
 	.get_eld = rk628_hdmi_audio_get_eld,
+	.no_capture_mute = 1,
 };
 
 static int rk628_hdmi_audio_codec_init(struct rk628_hdmi *hdmi,
