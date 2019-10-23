@@ -1474,7 +1474,7 @@ static int find_first_block_group(struct btrfs_fs_info *fs_info,
 				read_extent_buffer(leaf, &bg,
 					btrfs_item_ptr_offset(leaf, slot),
 					sizeof(bg));
-				flags = btrfs_block_group_flags(&bg) &
+				flags = btrfs_stack_block_group_flags(&bg) &
 					BTRFS_BLOCK_GROUP_TYPE_MASK;
 
 				if (flags != (em->map_lookup->type &
@@ -1753,8 +1753,8 @@ int btrfs_read_block_groups(struct btrfs_fs_info *info)
 				   btrfs_item_ptr_offset(leaf, path->slots[0]),
 				   sizeof(bgi));
 		/* cache::chunk_objectid is unused */
-		cache->used = btrfs_block_group_used(&bgi);
-		cache->flags = btrfs_block_group_flags(&bgi);
+		cache->used = btrfs_stack_block_group_used(&bgi);
+		cache->flags = btrfs_stack_block_group_flags(&bgi);
 		if (!mixed &&
 		    ((cache->flags & BTRFS_BLOCK_GROUP_METADATA) &&
 		    (cache->flags & BTRFS_BLOCK_GROUP_DATA))) {
@@ -1878,10 +1878,10 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 			goto next;
 
 		spin_lock(&block_group->lock);
-		btrfs_set_block_group_used(&item, block_group->used);
-		btrfs_set_block_group_chunk_objectid(&item,
+		btrfs_set_stack_block_group_used(&item, block_group->used);
+		btrfs_set_stack_block_group_chunk_objectid(&item,
 				BTRFS_FIRST_CHUNK_TREE_OBJECTID);
-		btrfs_set_block_group_flags(&item, block_group->flags);
+		btrfs_set_stack_block_group_flags(&item, block_group->flags);
 		memcpy(&key, &block_group->key, sizeof(key));
 		spin_unlock(&block_group->lock);
 
@@ -2130,10 +2130,10 @@ static int write_one_cache_group(struct btrfs_trans_handle *trans,
 
 	leaf = path->nodes[0];
 	bi = btrfs_item_ptr_offset(leaf, path->slots[0]);
-	btrfs_set_block_group_used(&bgi, cache->used);
-	btrfs_set_block_group_chunk_objectid(&bgi,
+	btrfs_set_stack_block_group_used(&bgi, cache->used);
+	btrfs_set_stack_block_group_chunk_objectid(&bgi,
 			BTRFS_FIRST_CHUNK_TREE_OBJECTID);
-	btrfs_set_block_group_flags(&bgi, cache->flags);
+	btrfs_set_stack_block_group_flags(&bgi, cache->flags);
 	write_extent_buffer(leaf, &bgi, bi, sizeof(bgi));
 	btrfs_mark_buffer_dirty(leaf);
 fail:
