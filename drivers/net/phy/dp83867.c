@@ -299,7 +299,7 @@ static int dp83867_probe(struct phy_device *phydev)
 
 	phydev->priv = dp83867;
 
-	return 0;
+	return dp83867_of_init(phydev);
 }
 
 static int dp83867_config_init(struct phy_device *phydev)
@@ -307,10 +307,6 @@ static int dp83867_config_init(struct phy_device *phydev)
 	struct dp83867_private *dp83867 = phydev->priv;
 	int ret, val, bs;
 	u16 delay;
-
-	ret = dp83867_of_init(phydev);
-	if (ret)
-		return ret;
 
 	/* RX_DV/RX_CTRL strapped in mode 1 or mode 2 workaround */
 	if (dp83867->rxctrl_strap_quirk)
