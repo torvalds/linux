@@ -421,8 +421,8 @@ static void mlxsw_sp_sb_ports_fini(struct mlxsw_sp *mlxsw_sp)
 		.freeze_size = _freeze_size,				\
 	}
 
-#define MLXSW_SP1_SB_PR_INGRESS_SIZE	12440000
-#define MLXSW_SP1_SB_PR_EGRESS_SIZE	13232000
+#define MLXSW_SP1_SB_PR_INGRESS_SIZE	13768608
+#define MLXSW_SP1_SB_PR_EGRESS_SIZE	13768608
 #define MLXSW_SP1_SB_PR_CPU_SIZE	(256 * 1000)
 
 /* Order according to mlxsw_sp1_sb_pool_dess */
@@ -445,8 +445,8 @@ static const struct mlxsw_sp_sb_pr mlxsw_sp1_sb_prs[] = {
 			   MLXSW_SP1_SB_PR_CPU_SIZE, true, false),
 };
 
-#define MLXSW_SP2_SB_PR_INGRESS_SIZE	35297568
-#define MLXSW_SP2_SB_PR_EGRESS_SIZE	35297568
+#define MLXSW_SP2_SB_PR_INGRESS_SIZE	34084800
+#define MLXSW_SP2_SB_PR_EGRESS_SIZE	34084800
 #define MLXSW_SP2_SB_PR_CPU_SIZE	(256 * 1000)
 
 /* Order according to mlxsw_sp2_sb_pool_dess */
@@ -904,7 +904,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, CELL_SIZE))
 		return -EIO;
 
-	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_BUFFER_SIZE))
+	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, GUARANTEED_SHARED_BUFFER))
 		return -EIO;
 
 	if (!MLXSW_CORE_RES_VALID(mlxsw_sp->core, MAX_HEADROOM_SIZE))
@@ -915,7 +915,7 @@ int mlxsw_sp_buffers_init(struct mlxsw_sp *mlxsw_sp)
 		return -ENOMEM;
 	mlxsw_sp->sb->cell_size = MLXSW_CORE_RES_GET(mlxsw_sp->core, CELL_SIZE);
 	mlxsw_sp->sb->sb_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
-						   MAX_BUFFER_SIZE);
+						   GUARANTEED_SHARED_BUFFER);
 	max_headroom_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 					       MAX_HEADROOM_SIZE);
 	/* Round down, because this limit must not be overstepped. */
@@ -1013,7 +1013,8 @@ int mlxsw_sp_sb_pool_set(struct mlxsw_core *mlxsw_core,
 	mode = (enum mlxsw_reg_sbpr_mode) threshold_type;
 	pr = &mlxsw_sp->sb_vals->prs[pool_index];
 
-	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE)) {
+	if (size > MLXSW_CORE_RES_GET(mlxsw_sp->core,
+				      GUARANTEED_SHARED_BUFFER)) {
 		NL_SET_ERR_MSG_MOD(extack, "Exceeded shared buffer size");
 		return -EINVAL;
 	}

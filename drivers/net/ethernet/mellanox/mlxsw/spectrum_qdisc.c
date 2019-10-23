@@ -305,7 +305,8 @@ mlxsw_sp_qdisc_red_check_params(struct mlxsw_sp_port *mlxsw_sp_port,
 			p->max);
 		return -EINVAL;
 	}
-	if (p->max > MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_BUFFER_SIZE)) {
+	if (p->max > MLXSW_CORE_RES_GET(mlxsw_sp->core,
+					GUARANTEED_SHARED_BUFFER)) {
 		dev_err(mlxsw_sp->bus_info->dev,
 			"spectrum: RED: max value %u is too big\n", p->max);
 		return -EINVAL;
