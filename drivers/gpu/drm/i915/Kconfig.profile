@@ -25,3 +25,14 @@ config DRM_I915_SPIN_REQUEST
 	  May be 0 to disable the initial spin. In practice, we estimate
 	  the cost of enabling the interrupt (if currently disabled) to be
 	  a few microseconds.
+
+config DRM_I915_STOP_TIMEOUT
+	int "How long to wait for an engine to quiesce gracefully before reset (ms)"
+	default 100 # milliseconds
+	help
+	  By stopping submission and sleeping for a short time before resetting
+	  the GPU, we allow the innocent contexts also on the system to quiesce.
+	  It is then less likely for a hanging context to cause collateral
+	  damage as the system is reset in order to recover. The corollary is
+	  that the reset itself may take longer and so be more disruptive to
+	  interactive or low latency workloads.

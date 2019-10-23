@@ -542,6 +542,10 @@ struct intel_engine_cs {
 		 */
 		ktime_t total;
 	} stats;
+
+	struct {
+		unsigned long stop_timeout_ms;
+	} props;
 };
 
 static inline bool

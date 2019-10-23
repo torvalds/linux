@@ -308,6 +308,9 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->instance = info->instance;
 	__sprint_engine_name(engine);
 
+	engine->props.stop_timeout_ms =
+		CONFIG_DRM_I915_STOP_TIMEOUT;
+
 	/*
 	 * To be overridden by the backend on setup. However to facilitate
 	 * cleanup on error during setup, we always provide the destroy vfunc.
@@ -875,6 +878,21 @@ u64 intel_engine_get_last_batch_head(const struct intel_engine_cs *engine)
 	return bbaddr;
 }
 
+static unsigned long stop_timeout(const struct intel_engine_cs *engine)
+{
+	if (in_atomic() || irqs_disabled()) /* inside atomic preempt-reset? */
+		return 0;
+
+	/*
+	 * If we are doing a normal GPU reset, we can take our time and allow
+	 * the engine to quiesce. We've stopped submission to the engine, and
+	 * if we wait long enough an innocent context should complete and
+	 * leave the engine idle. So they should not be caught unaware by
+	 * the forthcoming GPU reset (which usually follows the stop_cs)!
+	 */
+	return READ_ONCE(engine->props.stop_timeout_ms);
+}
+
 int intel_engine_stop_cs(struct intel_engine_cs *engine)
 {
 	struct intel_uncore *uncore = engine->uncore;
@@ -892,7 +910,7 @@ int intel_engine_stop_cs(struct intel_engine_cs *engine)
 	err = 0;
 	if (__intel_wait_for_register_fw(uncore,
 					 mode, MODE_IDLE, MODE_IDLE,
-					 1000, 0,
+					 1000, stop_timeout(engine),
 					 NULL)) {
 		GEM_TRACE("%s: timed out on STOP_RING -> IDLE\n", engine->name);
 		err = -ETIMEDOUT;
