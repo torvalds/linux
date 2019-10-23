@@ -900,6 +900,24 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 	if (copy_from_user(&eventreq, ip, sizeof(eventreq)))
 		return -EFAULT;
 
+	offset = eventreq.lineoffset;
+	lflags = eventreq.handleflags;
+	eflags = eventreq.eventflags;
+
+	if (offset >= gdev->ngpio)
+		return -EINVAL;
+
+	/* Return an error if a unknown flag is set */
+	if ((lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS) ||
+	    (eflags & ~GPIOEVENT_REQUEST_VALID_FLAGS))
+		return -EINVAL;
+
+	/* This is just wrong: we don't look for events on output lines */
+	if ((lflags & GPIOHANDLE_REQUEST_OUTPUT) ||
+	    (lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN) ||
+	    (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE))
+		return -EINVAL;
+
 	le = kzalloc(sizeof(*le), GFP_KERNEL);
 	if (!le)
 		return -ENOMEM;
@@ -915,30 +933,6 @@ static int lineevent_create(struct gpio_device *gdev, void __user *ip)
 			ret = -ENOMEM;
 			goto out_free_le;
 		}
-	}
-
-	offset = eventreq.lineoffset;
-	lflags = eventreq.handleflags;
-	eflags = eventreq.eventflags;
-
-	if (offset >= gdev->ngpio) {
-		ret = -EINVAL;
-		goto out_free_label;
-	}
-
-	/* Return an error if a unknown flag is set */
-	if ((lflags & ~GPIOHANDLE_REQUEST_VALID_FLAGS) ||
-	    (eflags & ~GPIOEVENT_REQUEST_VALID_FLAGS)) {
-		ret = -EINVAL;
-		goto out_free_label;
-	}
-
-	/* This is just wrong: we don't look for events on output lines */
-	if ((lflags & GPIOHANDLE_REQUEST_OUTPUT) ||
-	    (lflags & GPIOHANDLE_REQUEST_OPEN_DRAIN) ||
-	    (lflags & GPIOHANDLE_REQUEST_OPEN_SOURCE)) {
-		ret = -EINVAL;
-		goto out_free_label;
 	}
 
 	desc = &gdev->descs[offset];

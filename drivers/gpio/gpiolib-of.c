@@ -135,18 +135,20 @@ static void of_gpio_flags_quirks(struct device_node *np,
 	     (!(strcmp(propname, "enable-gpio") &&
 		strcmp(propname, "enable-gpios")) &&
 	      of_device_is_compatible(np, "regulator-gpio")))) {
+		bool active_low = !of_property_read_bool(np,
+							 "enable-active-high");
 		/*
 		 * The regulator GPIO handles are specified such that the
 		 * presence or absence of "enable-active-high" solely controls
 		 * the polarity of the GPIO line. Any phandle flags must
 		 * be actively ignored.
 		 */
-		if (*flags & OF_GPIO_ACTIVE_LOW) {
+		if ((*flags & OF_GPIO_ACTIVE_LOW) && !active_low) {
 			pr_warn("%s GPIO handle specifies active low - ignored\n",
 				of_node_full_name(np));
 			*flags &= ~OF_GPIO_ACTIVE_LOW;
 		}
-		if (!of_property_read_bool(np, "enable-active-high"))
+		if (active_low)
 			*flags |= OF_GPIO_ACTIVE_LOW;
 	}
 	/*
