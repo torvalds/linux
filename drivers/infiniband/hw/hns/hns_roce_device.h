@@ -53,8 +53,6 @@
 
 #define BA_BYTE_LEN				8
 
-#define BITS_PER_BYTE				8
-
 /* Hardware specification only for v1 engine */
 #define HNS_ROCE_MIN_CQE_NUM			0x40
 #define HNS_ROCE_MIN_WQE_NUM			0x20
