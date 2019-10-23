@@ -182,6 +182,8 @@ struct ionic_lif {
 
 #define lif_to_txqcq(lif, i)	((lif)->txqcqs[i].qcq)
 #define lif_to_rxqcq(lif, i)	((lif)->rxqcqs[i].qcq)
+#define lif_to_txstats(lif, i)	((lif)->txqcqs[i].stats->tx)
+#define lif_to_rxstats(lif, i)	((lif)->rxqcqs[i].stats->rx)
 #define lif_to_txq(lif, i)	(&lif_to_txqcq((lif), i)->q)
 #define lif_to_rxq(lif, i)	(&lif_to_txqcq((lif), i)->q)
 
