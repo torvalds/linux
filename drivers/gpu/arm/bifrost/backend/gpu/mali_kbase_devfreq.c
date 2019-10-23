@@ -60,6 +60,7 @@ static struct monitor_dev_profile mali_mdevp = {
  *                 frequency and core mask
  * @kbdev:     Device pointer
  * @freq:      Nominal frequency
+ * @volt:      Nominal voltage
  * @core_mask: Pointer to u64 to store core mask to
  * @freqs:     Pointer to array of frequencies
  * @volts:     Pointer to array of voltages
@@ -69,7 +70,8 @@ static struct monitor_dev_profile mali_mdevp = {
  * untranslated frequency and all cores enabled.
  */
 static void opp_translate(struct kbase_device *kbdev, unsigned long freq,
-	u64 *core_mask, unsigned long *freqs, unsigned long *volts)
+			  unsigned long volt, u64 *core_mask,
+			  unsigned long *freqs, unsigned long *volts)
 {
 	unsigned int i;
 
@@ -94,8 +96,10 @@ static void opp_translate(struct kbase_device *kbdev, unsigned long freq,
 	 */
 	if (i == kbdev->num_opps) {
 		*core_mask = kbdev->gpu_props.props.raw_props.shader_present;
-		for (i = 0; i < kbdev->nr_clocks; i++)
+		for (i = 0; i < kbdev->nr_clocks; i++) {
 			freqs[i] = freq;
+			volts[i] = volt;
+		}
 	}
 }
 
@@ -104,11 +108,11 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 {
 	struct kbase_device *kbdev = dev_get_drvdata(dev);
 	struct dev_pm_opp *opp;
-	unsigned long nominal_freq;
+	unsigned long nominal_freq, nominal_volt;
 	unsigned long freqs[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
 	unsigned long volts[BASE_MAX_NR_CLOCKS_REGULATORS] = {0};
 	unsigned int i;
-	u64 core_mask;
+	u64 core_mask = 0;
 
 	nominal_freq = *target_freq;
 
@@ -116,18 +120,23 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 	rcu_read_lock();
 #endif
 	opp = devfreq_recommended_opp(dev, &nominal_freq, flags);
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
-	rcu_read_unlock();
-#endif
 	if (IS_ERR_OR_NULL(opp)) {
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+		rcu_read_unlock();
+#endif
 		dev_err(dev, "Failed to get opp (%ld)\n", PTR_ERR(opp));
 		return PTR_ERR(opp);
 	}
+	nominal_volt = dev_pm_opp_get_voltage(opp);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 11, 0)
+	rcu_read_unlock();
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 11, 0)
 	dev_pm_opp_put(opp);
 #endif
 
-	opp_translate(kbdev, nominal_freq, &core_mask, freqs, volts);
+	opp_translate(kbdev, nominal_freq, nominal_volt, &core_mask, freqs,
+		      volts);
 
 	/*
 	 * Only update if there is a change of frequency
@@ -155,6 +164,7 @@ kbase_devfreq_target(struct device *dev, unsigned long *target_freq, u32 flags)
 #endif
 		return 0;
 	}
+	dev_dbg(dev, "%lu-->%lu\n", kbdev->current_nominal_freq, nominal_freq);
 
 #ifdef CONFIG_REGULATOR
 	/* Regulators and clocks work in pairs: every clock has a regulator,
