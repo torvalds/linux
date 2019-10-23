@@ -103,71 +103,15 @@ property_entry_get(const struct property_entry *prop, const char *name)
 	return NULL;
 }
 
-static void
-property_set_pointer(struct property_entry *prop, const void *pointer)
-{
-	switch (prop->type) {
-	case DEV_PROP_U8:
-		if (prop->is_array)
-			prop->pointer.u8_data = pointer;
-		else
-			prop->value.u8_data = *((u8 *)pointer);
-		break;
-	case DEV_PROP_U16:
-		if (prop->is_array)
-			prop->pointer.u16_data = pointer;
-		else
-			prop->value.u16_data = *((u16 *)pointer);
-		break;
-	case DEV_PROP_U32:
-		if (prop->is_array)
-			prop->pointer.u32_data = pointer;
-		else
-			prop->value.u32_data = *((u32 *)pointer);
-		break;
-	case DEV_PROP_U64:
-		if (prop->is_array)
-			prop->pointer.u64_data = pointer;
-		else
-			prop->value.u64_data = *((u64 *)pointer);
-		break;
-	case DEV_PROP_STRING:
-		if (prop->is_array)
-			prop->pointer.str = pointer;
-		else
-			prop->value.str = pointer;
-		break;
-	default:
-		break;
-	}
-}
-
 static const void *property_get_pointer(const struct property_entry *prop)
 {
-	switch (prop->type) {
-	case DEV_PROP_U8:
-		if (prop->is_array)
-			return prop->pointer.u8_data;
-		return &prop->value.u8_data;
-	case DEV_PROP_U16:
-		if (prop->is_array)
-			return prop->pointer.u16_data;
-		return &prop->value.u16_data;
-	case DEV_PROP_U32:
-		if (prop->is_array)
-			return prop->pointer.u32_data;
-		return &prop->value.u32_data;
-	case DEV_PROP_U64:
-		if (prop->is_array)
-			return prop->pointer.u64_data;
-		return &prop->value.u64_data;
-	case DEV_PROP_STRING:
-		if (prop->is_array)
-			return prop->pointer.str;
-		return &prop->value.str;
-	default:
+	if (!prop->length)
 		return NULL;
-	}
+
+	if (prop->is_array)
+		return prop->pointer;
+
+	return &prop->value;
 }
 
 static const void *property_entry_find(const struct property_entry *props,
@@ -322,13 +266,15 @@ static int property_entry_read_string_array(const struct property_entry *props,
 static void property_entry_free_data(const struct property_entry *p)
 {
 	const void *pointer = property_get_pointer(p);
+	const char * const *src_str;
 	size_t i, nval;
 
 	if (p->is_array) {
-		if (p->type == DEV_PROP_STRING && p->pointer.str) {
+		if (p->type == DEV_PROP_STRING && p->pointer) {
+			src_str = p->pointer;
 			nval = p->length / sizeof(const char *);
 			for (i = 0; i < nval; i++)
-				kfree(p->pointer.str[i]);
+				kfree(src_str[i]);
 		}
 		kfree(pointer);
 	} else if (p->type == DEV_PROP_STRING) {
@@ -341,6 +287,7 @@ static const char * const *
 property_copy_string_array(const struct property_entry *src)
 {
 	const char **d;
+	const char * const *src_str = src->pointer;
 	size_t nval = src->length / sizeof(*d);
 	int i;
 
@@ -349,8 +296,8 @@ property_copy_string_array(const struct property_entry *src)
 		return NULL;
 
 	for (i = 0; i < nval; i++) {
-		d[i] = kstrdup(src->pointer.str[i], GFP_KERNEL);
-		if (!d[i] && src->pointer.str[i]) {
+		d[i] = kstrdup(src_str[i], GFP_KERNEL);
+		if (!d[i] && src_str[i]) {
 			while (--i >= 0)
 				kfree(d[i]);
 			kfree(d);
@@ -380,20 +327,21 @@ static int property_entry_copy_data(struct property_entry *dst,
 			if (!new)
 				return -ENOMEM;
 		}
+
+		dst->is_array = true;
+		dst->pointer = new;
 	} else if (src->type == DEV_PROP_STRING) {
 		new = kstrdup(src->value.str, GFP_KERNEL);
 		if (!new && src->value.str)
 			return -ENOMEM;
+
+		dst->value.str = new;
 	} else {
-		new = pointer;
+		dst->value = src->value;
 	}
 
 	dst->length = src->length;
-	dst->is_array = src->is_array;
 	dst->type = src->type;
-
-	property_set_pointer(dst, new);
-
 	dst->name = kstrdup(src->name, GFP_KERNEL);
 	if (!dst->name)
 		goto out_free_data;

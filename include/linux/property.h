@@ -238,13 +238,7 @@ struct property_entry {
 	bool is_array;
 	enum dev_prop_type type;
 	union {
-		union {
-			const u8 *u8_data;
-			const u16 *u16_data;
-			const u32 *u32_data;
-			const u64 *u64_data;
-			const char * const *str;
-		} pointer;
+		const void *pointer;
 		union {
 			u8 u8_data;
 			u16 u16_data;
@@ -267,7 +261,7 @@ struct property_entry {
 	.length = (_len_) * sizeof(_type_),				\
 	.is_array = true,						\
 	.type = DEV_PROP_##_Type_,					\
-	{ .pointer = { ._type_##_data = _val_ } },			\
+	{ .pointer = _val_ },						\
 }
 
 #define PROPERTY_ENTRY_U8_ARRAY_LEN(_name_, _val_, _len_)		\
@@ -285,7 +279,7 @@ struct property_entry {
 	.length = (_len_) * sizeof(const char *),			\
 	.is_array = true,						\
 	.type = DEV_PROP_STRING,					\
-	{ .pointer = { .str = _val_ } },				\
+	{ .pointer = _val_ },						\
 }
 
 #define PROPERTY_ENTRY_U8_ARRAY(_name_, _val_)				\
