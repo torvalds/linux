@@ -255,11 +255,18 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 	dpcd_lt_buffer[DP_TRAINING_PATTERN_SET - DP_TRAINING_PATTERN_SET]
 		= dpcd_pattern.raw;
 
-	DC_LOG_HW_LINK_TRAINING("%s\n 0x%X pattern = %x\n",
-		__func__,
-		dpcd_base_lt_offset,
-		dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
-
+	if (is_repeater(link, offset)) {
+		DC_LOG_HW_LINK_TRAINING("%s\n LTTPR Repeater ID: %d\n 0x%X pattern = %x\n",
+			__func__,
+			offset,
+			dpcd_base_lt_offset,
+			dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
+	} else {
+		DC_LOG_HW_LINK_TRAINING("%s\n 0x%X pattern = %x\n",
+			__func__,
+			dpcd_base_lt_offset,
+			dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
+	}
 	/*****************************************************************
 	* DpcdAddress_Lane0Set -> DpcdAddress_Lane3Set
 	*****************************************************************/
@@ -289,14 +296,25 @@ static void dpcd_set_lt_pattern_and_lane_settings(
 		dpcd_lane,
 		size_in_bytes);
 
-	DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
-		__func__,
-		dpcd_base_lt_offset,
-		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
-		dpcd_lane[0].bits.PRE_EMPHASIS_SET,
-		dpcd_lane[0].bits.MAX_SWING_REACHED,
-		dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
-
+	if (is_repeater(link, offset)) {
+		DC_LOG_HW_LINK_TRAINING("%s:\n LTTPR Repeater ID: %d\n"
+				" 0x%X VS set = %x PE set = %x max VS Reached = %x  max PE Reached = %x\n",
+			__func__,
+			offset,
+			dpcd_base_lt_offset,
+			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
+			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
+			dpcd_lane[0].bits.MAX_SWING_REACHED,
+			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+	} else {
+		DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
+			__func__,
+			dpcd_base_lt_offset,
+			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
+			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
+			dpcd_lane[0].bits.MAX_SWING_REACHED,
+			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+	}
 	if (edp_workaround) {
 		/* for eDP write in 2 parts because the 5-byte burst is
 		* causing issues on some eDP panels (EPR#366724)
@@ -544,23 +562,42 @@ static void get_lane_status_and_drive_settings(
 
 	ln_status_updated->raw = dpcd_buf[2];
 
-	DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X Lane01Status = %x\n 0x%X Lane23Status = %x\n ",
-		__func__,
-		lane01_status_address, dpcd_buf[0],
-		lane01_status_address + 1, dpcd_buf[1]);
-
+	if (is_repeater(link, offset)) {
+		DC_LOG_HW_LINK_TRAINING("%s:\n LTTPR Repeater ID: %d\n"
+				" 0x%X Lane01Status = %x\n 0x%X Lane23Status = %x\n ",
+			__func__,
+			offset,
+			lane01_status_address, dpcd_buf[0],
+			lane01_status_address + 1, dpcd_buf[1]);
+	} else {
+		DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X Lane01Status = %x\n 0x%X Lane23Status = %x\n ",
+			__func__,
+			lane01_status_address, dpcd_buf[0],
+			lane01_status_address + 1, dpcd_buf[1]);
+	}
 	lane01_adjust_address = DP_ADJUST_REQUEST_LANE0_1;
 
 	if (is_repeater(link, offset))
 		lane01_adjust_address = DP_ADJUST_REQUEST_LANE0_1_PHY_REPEATER1 +
 				((DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE) * (offset - 1));
 
-	DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X Lane01AdjustRequest = %x\n 0x%X Lane23AdjustRequest = %x\n",
-		__func__,
-		lane01_adjust_address,
-		dpcd_buf[lane_adjust_offset],
-		lane01_adjust_address + 1,
-		dpcd_buf[lane_adjust_offset + 1]);
+	if (is_repeater(link, offset)) {
+		DC_LOG_HW_LINK_TRAINING("%s:\n LTTPR Repeater ID: %d\n"
+				" 0x%X Lane01AdjustRequest = %x\n 0x%X Lane23AdjustRequest = %x\n",
+					__func__,
+					offset,
+					lane01_adjust_address,
+					dpcd_buf[lane_adjust_offset],
+					lane01_adjust_address + 1,
+					dpcd_buf[lane_adjust_offset + 1]);
+	} else {
+		DC_LOG_HW_LINK_TRAINING("%s:\n 0x%X Lane01AdjustRequest = %x\n 0x%X Lane23AdjustRequest = %x\n",
+			__func__,
+			lane01_adjust_address,
+			dpcd_buf[lane_adjust_offset],
+			lane01_adjust_address + 1,
+			dpcd_buf[lane_adjust_offset + 1]);
+	}
 
 	/*copy to req_settings*/
 	request_settings.link_settings.lane_count =
@@ -656,14 +693,26 @@ static void dpcd_set_lane_settings(
 	}
 	*/
 
-	DC_LOG_HW_LINK_TRAINING("%s\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
-		__func__,
-		lane0_set_address,
-		dpcd_lane[0].bits.VOLTAGE_SWING_SET,
-		dpcd_lane[0].bits.PRE_EMPHASIS_SET,
-		dpcd_lane[0].bits.MAX_SWING_REACHED,
-		dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+	if (is_repeater(link, offset)) {
+		DC_LOG_HW_LINK_TRAINING("%s\n LTTPR Repeater ID: %d\n"
+				" 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
+			__func__,
+			offset,
+			lane0_set_address,
+			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
+			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
+			dpcd_lane[0].bits.MAX_SWING_REACHED,
+			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
 
+	} else {
+		DC_LOG_HW_LINK_TRAINING("%s\n 0x%X VS set = %x  PE set = %x max VS Reached = %x  max PE Reached = %x\n",
+			__func__,
+			lane0_set_address,
+			dpcd_lane[0].bits.VOLTAGE_SWING_SET,
+			dpcd_lane[0].bits.PRE_EMPHASIS_SET,
+			dpcd_lane[0].bits.MAX_SWING_REACHED,
+			dpcd_lane[0].bits.MAX_PRE_EMPHASIS_REACHED);
+	}
 	link->cur_lane_setting = link_training_setting->lane_settings[0];
 
 }
@@ -1170,12 +1219,16 @@ static void configure_lttpr_mode(struct dc_link *link)
 	uint8_t repeater_id;
 	uint8_t repeater_mode = DP_PHY_REPEATER_MODE_TRANSPARENT;
 
+	DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Non Transparent Mode\n", __func__);
 	core_link_write_dpcd(link,
 			DP_PHY_REPEATER_MODE,
 			(uint8_t *)&repeater_mode,
 			sizeof(repeater_mode));
 
 	if (!link->is_lttpr_mode_transparent) {
+
+		DC_LOG_HW_LINK_TRAINING("%s\n Set LTTPR to Transparent Mode\n", __func__);
+
 		repeater_mode = DP_PHY_REPEATER_MODE_NON_TRANSPARENT;
 		core_link_write_dpcd(link,
 				DP_PHY_REPEATER_MODE,
@@ -1212,8 +1265,9 @@ static void repeater_training_done(struct dc_link *link, uint32_t offset)
 		&dpcd_pattern.raw,
 		1);
 
-	DC_LOG_HW_LINK_TRAINING("%s\n 0x%X pattern = %x\n",
+	DC_LOG_HW_LINK_TRAINING("%s\n LTTPR Id: %d 0x%X pattern = %x\n",
 		__func__,
+		offset,
 		dpcd_base_lt_offset,
 		dpcd_pattern.v1_4.TRAINING_PATTERN_SET);
 }
@@ -1663,6 +1717,11 @@ static struct dc_link_settings get_max_link_cap(struct dc_link *link)
 
 		if (link->dpcd_caps.lttpr_caps.max_link_rate < max_link_cap.link_rate)
 			max_link_cap.link_rate = link->dpcd_caps.lttpr_caps.max_link_rate;
+
+		DC_LOG_HW_LINK_TRAINING("%s\n Training with LTTPR,  max_lane count %d max_link rate %d \n",
+						__func__,
+						max_link_cap.lane_count,
+						max_link_cap.link_rate);
 	}
 	return max_link_cap;
 }
@@ -3196,6 +3255,8 @@ static bool retrieve_link_cap(struct dc_link *link)
 			link->is_lttpr_mode_transparent = true;
 			dc_link_aux_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);
 		}
+
+		CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
 	}
 
 	{
