@@ -1642,7 +1642,7 @@ config INDYDOG
 
 config JZ4740_WDT
 	tristate "Ingenic jz4740 SoC hardware watchdog"
-	depends on MACH_JZ4740 || MACH_JZ4780
+	depends on MIPS
 	depends on COMMON_CLK
 	select WATCHDOG_CORE
 	select MFD_SYSCON
