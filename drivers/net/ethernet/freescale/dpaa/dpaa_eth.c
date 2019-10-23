@@ -901,7 +901,7 @@ static void dpaa_fq_setup(struct dpaa_priv *priv,
 
 	if (num_portals == 0)
 		dev_err(priv->net_dev->dev.parent,
-			"No Qman software (affine) channels found");
+			"No Qman software (affine) channels found\n");
 
 	/* Initialize each FQ in the list */
 	list_for_each_entry(fq, &priv->dpaa_fq_list, list) {
