@@ -498,6 +498,24 @@ static const struct ts_dmi_data pov_mobii_wintab_p1006w_v10_data = {
 	.properties	= pov_mobii_wintab_p1006w_v10_props,
 };
 
+static const struct property_entry schneider_sct101ctm_props[] = {
+	PROPERTY_ENTRY_U32("touchscreen-size-x", 1715),
+	PROPERTY_ENTRY_U32("touchscreen-size-y", 1140),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-x"),
+	PROPERTY_ENTRY_BOOL("touchscreen-inverted-y"),
+	PROPERTY_ENTRY_BOOL("touchscreen-swapped-x-y"),
+	PROPERTY_ENTRY_STRING("firmware-name",
+			      "gsl1680-schneider-sct101ctm.fw"),
+	PROPERTY_ENTRY_U32("silead,max-fingers", 10),
+	PROPERTY_ENTRY_BOOL("silead,home-button"),
+	{ }
+};
+
+static const struct ts_dmi_data schneider_sct101ctm_data = {
+	.acpi_name	= "MSSL1680:00",
+	.properties	= schneider_sct101ctm_props,
+};
+
 static const struct property_entry teclast_x3_plus_props[] = {
 	PROPERTY_ENTRY_U32("touchscreen-size-x", 1980),
 	PROPERTY_ENTRY_U32("touchscreen-size-y", 1500),
@@ -906,6 +924,14 @@ static const struct dmi_system_id touchscreen_dmi_table[] = {
 			/* Note 105b is Foxcon's USB/PCI vendor id */
 			DMI_EXACT_MATCH(DMI_BOARD_VENDOR, "105B"),
 			DMI_EXACT_MATCH(DMI_BOARD_NAME, "0E57"),
+		},
+	},
+	{
+		/* Schneider SCT101CTM */
+		.driver_data = (void *)&schneider_sct101ctm_data,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Default string"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "SCT101CTM"),
 		},
 	},
 	{
