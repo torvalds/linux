@@ -156,6 +156,14 @@ struct usb251xb_data {
 	char product_str[USB251XB_STRING_BUFSIZE / 2]; /* ASCII string */
 };
 
+static const struct usb251xb_data usb2422_data = {
+	.product_id = 0x2422,
+	.port_cnt = 2,
+	.led_support = false,
+	.bat_support = true,
+	.product_str = "USB2422",
+};
+
 static const struct usb251xb_data usb2512b_data = {
 	.product_id = 0x2512,
 	.port_cnt = 2,
@@ -593,6 +601,9 @@ static int usb251xb_get_ofdata(struct usb251xb *hub,
 
 static const struct of_device_id usb251xb_of_match[] = {
 	{
+		.compatible = "microchip,usb2422",
+		.data = &usb2422_data,
+	}, {
 		.compatible = "microchip,usb2512b",
 		.data = &usb2512b_data,
 	}, {
@@ -720,6 +731,7 @@ static int __maybe_unused usb251xb_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(usb251xb_pm_ops, usb251xb_suspend, usb251xb_resume);
 
 static const struct i2c_device_id usb251xb_id[] = {
+	{ "usb2422", 0 },
 	{ "usb2512b", 0 },
 	{ "usb2512bi", 0 },
 	{ "usb2513b", 0 },
