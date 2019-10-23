@@ -92,7 +92,7 @@ static ssize_t driver_override_store(struct device *dev,
 	if (len) {
 		spi->driver_override = driver_override;
 	} else {
-		/* Emptry string, disable driver override */
+		/* Empty string, disable driver override */
 		spi->driver_override = NULL;
 		kfree(driver_override);
 	}
@@ -469,7 +469,7 @@ static LIST_HEAD(board_list);
 static LIST_HEAD(spi_controller_list);
 
 /*
- * Used to protect add/del opertion for board_info list and
+ * Used to protect add/del operation for board_info list and
  * spi_controller list, and their matching process
  * also used to protect object of type struct idr
  */
