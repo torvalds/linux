@@ -228,7 +228,7 @@ static ssize_t qeth_l3_dev_sniffer_store(struct device *dev,
 		break;
 	case 1:
 		qdio_get_ssqd_desc(CARD_DDEV(card), &card->ssqd);
-		if (card->ssqd.qdioac2 & QETH_SNIFF_AVAIL) {
+		if (card->ssqd.qdioac2 & CHSC_AC2_SNIFFER_AVAILABLE) {
 			card->options.sniffer = i;
 			if (card->qdio.init_pool.buf_count !=
 					QETH_IN_BUF_COUNT_MAX)

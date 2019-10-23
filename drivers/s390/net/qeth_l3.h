@@ -13,8 +13,6 @@
 #include "qeth_core.h"
 #include <linux/hashtable.h>
 
-#define QETH_SNIFF_AVAIL	0x0008
-
 enum qeth_ip_types {
 	QETH_IP_TYPE_NORMAL,
 	QETH_IP_TYPE_VIPA,
