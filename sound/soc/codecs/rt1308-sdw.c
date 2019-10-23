@@ -129,15 +129,15 @@ static int rt1308_read_prop(struct sdw_slave *slave)
 	prop->paging_support = true;
 
 	/* first we need to allocate memory for set bits in port lists */
-	prop->source_ports = 0x00;	/* BITMAP: 00010100 (not enable yet) */
-	prop->sink_ports = 0x2;	/* BITMAP:  00000010 */
+	prop->source_ports = 0x00; /* BITMAP: 00010100 (not enable yet) */
+	prop->sink_ports = 0x2; /* BITMAP:  00000010 */
 
 	/* for sink */
 	nval = hweight32(prop->sink_ports);
 	num_of_ports += nval;
 	prop->sink_dpn_prop = devm_kcalloc(&slave->dev, nval,
-					   sizeof(*prop->sink_dpn_prop),
-					   GFP_KERNEL);
+						sizeof(*prop->sink_dpn_prop),
+						GFP_KERNEL);
 	if (!prop->sink_dpn_prop)
 		return -ENOMEM;
 
@@ -154,8 +154,8 @@ static int rt1308_read_prop(struct sdw_slave *slave)
 
 	/* Allocate port_ready based on num_of_ports */
 	slave->port_ready = devm_kcalloc(&slave->dev, num_of_ports,
-					 sizeof(*slave->port_ready),
-					 GFP_KERNEL);
+					sizeof(*slave->port_ready),
+					GFP_KERNEL);
 	if (!slave->port_ready)
 		return -ENOMEM;
 
@@ -258,7 +258,7 @@ _io_init_err_:
 }
 
 static int rt1308_update_status(struct sdw_slave *slave,
-			       enum sdw_slave_status status)
+					enum sdw_slave_status status)
 {
 	struct  rt1308_sdw_priv *rt1308 = dev_get_drvdata(&slave->dev);
 
@@ -280,7 +280,7 @@ static int rt1308_update_status(struct sdw_slave *slave,
 }
 
 static int rt1308_bus_config(struct sdw_slave *slave,
-			    struct sdw_bus_params *params)
+				struct sdw_bus_params *params)
 {
 	struct rt1308_sdw_priv *rt1308 = dev_get_drvdata(&slave->dev);
 	int ret;
@@ -295,7 +295,7 @@ static int rt1308_bus_config(struct sdw_slave *slave,
 }
 
 static int rt1308_interrupt_callback(struct sdw_slave *slave,
-				    struct sdw_slave_intr_status *status)
+					struct sdw_slave_intr_status *status)
 {
 	dev_dbg(&slave->dev,
 		"%s control_port_stat=%x", __func__, status->control_port);
@@ -469,7 +469,7 @@ static int rt1308_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 }
 
 static void rt1308_sdw_shutdown(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct sdw_stream_data *stream;
 
@@ -528,7 +528,7 @@ static int rt1308_sdw_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int rt1308_sdw_pcm_hw_free(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt1308_sdw_priv *rt1308 =
@@ -590,7 +590,7 @@ static struct snd_soc_dai_driver rt1308_sdw_dai[] = {
 };
 
 static int rt1308_sdw_init(struct device *dev, struct regmap *regmap,
-			   struct sdw_slave *slave)
+				struct sdw_slave *slave)
 {
 	struct rt1308_sdw_priv *rt1308;
 	int ret;
@@ -611,9 +611,9 @@ static int rt1308_sdw_init(struct device *dev, struct regmap *regmap,
 	rt1308->first_init = false;
 
 	ret =  devm_snd_soc_register_component(dev,
-					  &soc_component_sdw_rt1308,
-					  rt1308_sdw_dai,
-					  ARRAY_SIZE(rt1308_sdw_dai));
+					&soc_component_sdw_rt1308,
+					rt1308_sdw_dai,
+					ARRAY_SIZE(rt1308_sdw_dai));
 
 	dev_dbg(&slave->dev, "%s\n", __func__);
 
@@ -621,7 +621,7 @@ static int rt1308_sdw_init(struct device *dev, struct regmap *regmap,
 }
 
 static int rt1308_sdw_probe(struct sdw_slave *slave,
-			   const struct sdw_device_id *id)
+				const struct sdw_device_id *id)
 {
 	struct regmap *regmap;
 
@@ -668,7 +668,7 @@ static int rt1308_dev_resume(struct device *dev)
 		return 0;
 
 	time = wait_for_completion_timeout(&slave->enumeration_complete,
-					   msecs_to_jiffies(RT1308_PROBE_TIMEOUT));
+				msecs_to_jiffies(RT1308_PROBE_TIMEOUT));
 	if (!time) {
 		dev_err(&slave->dev, "Enumeration not complete, timed out\n");
 		return -ETIMEDOUT;
