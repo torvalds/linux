@@ -171,6 +171,9 @@ static void nvmet_execute_disc_get_log_page(struct nvmet_req *req)
 	u16 status = 0;
 	void *buffer;
 
+	if (!nvmet_check_data_len(req, data_len))
+		return;
+
 	if (req->cmd->get_log_page.lid != NVME_LOG_DISC) {
 		req->error_loc =
 			offsetof(struct nvme_get_log_page_command, lid);
@@ -240,6 +243,9 @@ static void nvmet_execute_disc_identify(struct nvmet_req *req)
 	struct nvme_id_ctrl *id;
 	u16 status = 0;
 
+	if (!nvmet_check_data_len(req, NVME_IDENTIFY_DATA_SIZE))
+		return;
+
 	if (req->cmd->identify.cns != NVME_ID_CNS_CTRL) {
 		req->error_loc = offsetof(struct nvme_identify, cns);
 		status = NVME_SC_INVALID_OPCODE | NVME_SC_DNR;
@@ -286,6 +292,9 @@ static void nvmet_execute_disc_set_features(struct nvmet_req *req)
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 stat;
 
+	if (!nvmet_check_data_len(req, 0))
+		return;
+
 	switch (cdw10 & 0xff) {
 	case NVME_FEAT_KATO:
 		stat = nvmet_set_feat_kato(req);
@@ -308,6 +317,9 @@ static void nvmet_execute_disc_get_features(struct nvmet_req *req)
 {
 	u32 cdw10 = le32_to_cpu(req->cmd->common.cdw10);
 	u16 stat = 0;
+
+	if (!nvmet_check_data_len(req, 0))
+		return;
 
 	switch (cdw10 & 0xff) {
 	case NVME_FEAT_KATO:
@@ -341,26 +353,20 @@ u16 nvmet_parse_discovery_cmd(struct nvmet_req *req)
 	switch (cmd->common.opcode) {
 	case nvme_admin_set_features:
 		req->execute = nvmet_execute_disc_set_features;
-		req->data_len = 0;
 		return 0;
 	case nvme_admin_get_features:
 		req->execute = nvmet_execute_disc_get_features;
-		req->data_len = 0;
 		return 0;
 	case nvme_admin_async_event:
 		req->execute = nvmet_execute_async_event;
-		req->data_len = 0;
 		return 0;
 	case nvme_admin_keep_alive:
 		req->execute = nvmet_execute_keep_alive;
-		req->data_len = 0;
 		return 0;
 	case nvme_admin_get_log_page:
-		req->data_len = nvmet_get_log_page_len(cmd);
 		req->execute = nvmet_execute_disc_get_log_page;
 		return 0;
 	case nvme_admin_identify:
-		req->data_len = NVME_IDENTIFY_DATA_SIZE;
 		req->execute = nvmet_execute_disc_identify;
 		return 0;
 	default:
