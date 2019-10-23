@@ -47,16 +47,16 @@ static const struct soc_device_attribute r8a7796es1[] __initconst = {
 	{ /* sentinel */ }
 };
 
-static int __init r8a7796_sysc_init(void)
+static int __init r8a77960_sysc_init(void)
 {
 	if (soc_device_match(r8a7796es1))
-		r8a7796_sysc_info.extmask_val = 0;
+		r8a77960_sysc_info.extmask_val = 0;
 
 	return 0;
 }
 
-struct rcar_sysc_info r8a7796_sysc_info __initdata = {
-	.init = r8a7796_sysc_init,
+struct rcar_sysc_info r8a77960_sysc_info __initdata = {
+	.init = r8a77960_sysc_init,
 	.areas = r8a7796_areas,
 	.num_areas = ARRAY_SIZE(r8a7796_areas),
 	.extmask_offs = 0x2f8,
