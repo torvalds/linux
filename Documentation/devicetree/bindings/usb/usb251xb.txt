@@ -7,7 +7,7 @@ Required properties :
  - compatible : Should be "microchip,usb251xb" or one of the specific types:
 	"microchip,usb2512b", "microchip,usb2512bi", "microchip,usb2513b",
 	"microchip,usb2513bi", "microchip,usb2514b", "microchip,usb2514bi",
-	"microchip,usb2517", "microchip,usb2517i"
+	"microchip,usb2517", "microchip,usb2517i", "microchip,usb2422"
  - reg : I2C address on the selected bus (default is <0x2C>)
 
 Optional properties :
