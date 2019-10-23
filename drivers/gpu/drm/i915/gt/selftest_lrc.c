@@ -7,6 +7,7 @@
 #include <linux/prime_numbers.h>
 
 #include "gem/i915_gem_pm.h"
+#include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_reset.h"
 
 #include "i915_selftest.h"
@@ -1157,6 +1158,325 @@ err_wedged:
 	igt_spinner_end(&a.spin);
 	intel_gt_set_wedged(gt);
 	err = -EIO;
+	goto err_client_b;
+}
+
+struct live_preempt_cancel {
+	struct intel_engine_cs *engine;
+	struct preempt_client a, b;
+};
+
+static int __cancel_active0(struct live_preempt_cancel *arg)
+{
+	struct i915_request *rq;
+	struct igt_live_test t;
+	int err;
+
+	/* Preempt cancel of ELSP0 */
+	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
+	if (igt_live_test_begin(&t, arg->engine->i915,
+				__func__, arg->engine->name))
+		return -EIO;
+
+	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
+	rq = spinner_create_request(&arg->a.spin,
+				    arg->a.ctx, arg->engine,
+				    MI_ARB_CHECK);
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+	if (!igt_wait_for_spinner(&arg->a.spin, rq)) {
+		err = -EIO;
+		goto out;
+	}
+
+	i915_gem_context_set_banned(arg->a.ctx);
+	err = intel_engine_pulse(arg->engine);
+	if (err)
+		goto out;
+
+	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
+		err = -EIO;
+		goto out;
+	}
+
+	if (rq->fence.error != -EIO) {
+		pr_err("Cancelled inflight0 request did not report -EIO\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+out:
+	i915_request_put(rq);
+	if (igt_live_test_end(&t))
+		err = -EIO;
+	return err;
+}
+
+static int __cancel_active1(struct live_preempt_cancel *arg)
+{
+	struct i915_request *rq[2] = {};
+	struct igt_live_test t;
+	int err;
+
+	/* Preempt cancel of ELSP1 */
+	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
+	if (igt_live_test_begin(&t, arg->engine->i915,
+				__func__, arg->engine->name))
+		return -EIO;
+
+	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
+	rq[0] = spinner_create_request(&arg->a.spin,
+				       arg->a.ctx, arg->engine,
+				       MI_NOOP); /* no preemption */
+	if (IS_ERR(rq[0]))
+		return PTR_ERR(rq[0]);
+
+	i915_request_get(rq[0]);
+	i915_request_add(rq[0]);
+	if (!igt_wait_for_spinner(&arg->a.spin, rq[0])) {
+		err = -EIO;
+		goto out;
+	}
+
+	clear_bit(CONTEXT_BANNED, &arg->b.ctx->flags);
+	rq[1] = spinner_create_request(&arg->b.spin,
+				       arg->b.ctx, arg->engine,
+				       MI_ARB_CHECK);
+	if (IS_ERR(rq[1])) {
+		err = PTR_ERR(rq[1]);
+		goto out;
+	}
+
+	i915_request_get(rq[1]);
+	err = i915_request_await_dma_fence(rq[1], &rq[0]->fence);
+	i915_request_add(rq[1]);
+	if (err)
+		goto out;
+
+	i915_gem_context_set_banned(arg->b.ctx);
+	err = intel_engine_pulse(arg->engine);
+	if (err)
+		goto out;
+
+	igt_spinner_end(&arg->a.spin);
+	if (i915_request_wait(rq[1], 0, HZ / 5) < 0) {
+		err = -EIO;
+		goto out;
+	}
+
+	if (rq[0]->fence.error != 0) {
+		pr_err("Normal inflight0 request did not complete\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (rq[1]->fence.error != -EIO) {
+		pr_err("Cancelled inflight1 request did not report -EIO\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+out:
+	i915_request_put(rq[1]);
+	i915_request_put(rq[0]);
+	if (igt_live_test_end(&t))
+		err = -EIO;
+	return err;
+}
+
+static int __cancel_queued(struct live_preempt_cancel *arg)
+{
+	struct i915_request *rq[3] = {};
+	struct igt_live_test t;
+	int err;
+
+	/* Full ELSP and one in the wings */
+	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
+	if (igt_live_test_begin(&t, arg->engine->i915,
+				__func__, arg->engine->name))
+		return -EIO;
+
+	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
+	rq[0] = spinner_create_request(&arg->a.spin,
+				       arg->a.ctx, arg->engine,
+				       MI_ARB_CHECK);
+	if (IS_ERR(rq[0]))
+		return PTR_ERR(rq[0]);
+
+	i915_request_get(rq[0]);
+	i915_request_add(rq[0]);
+	if (!igt_wait_for_spinner(&arg->a.spin, rq[0])) {
+		err = -EIO;
+		goto out;
+	}
+
+	clear_bit(CONTEXT_BANNED, &arg->b.ctx->flags);
+	rq[1] = igt_request_alloc(arg->b.ctx, arg->engine);
+	if (IS_ERR(rq[1])) {
+		err = PTR_ERR(rq[1]);
+		goto out;
+	}
+
+	i915_request_get(rq[1]);
+	err = i915_request_await_dma_fence(rq[1], &rq[0]->fence);
+	i915_request_add(rq[1]);
+	if (err)
+		goto out;
+
+	rq[2] = spinner_create_request(&arg->b.spin,
+				       arg->a.ctx, arg->engine,
+				       MI_ARB_CHECK);
+	if (IS_ERR(rq[2])) {
+		err = PTR_ERR(rq[2]);
+		goto out;
+	}
+
+	i915_request_get(rq[2]);
+	err = i915_request_await_dma_fence(rq[2], &rq[1]->fence);
+	i915_request_add(rq[2]);
+	if (err)
+		goto out;
+
+	i915_gem_context_set_banned(arg->a.ctx);
+	err = intel_engine_pulse(arg->engine);
+	if (err)
+		goto out;
+
+	if (i915_request_wait(rq[2], 0, HZ / 5) < 0) {
+		err = -EIO;
+		goto out;
+	}
+
+	if (rq[0]->fence.error != -EIO) {
+		pr_err("Cancelled inflight0 request did not report -EIO\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (rq[1]->fence.error != 0) {
+		pr_err("Normal inflight1 request did not complete\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+	if (rq[2]->fence.error != -EIO) {
+		pr_err("Cancelled queued request did not report -EIO\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+out:
+	i915_request_put(rq[2]);
+	i915_request_put(rq[1]);
+	i915_request_put(rq[0]);
+	if (igt_live_test_end(&t))
+		err = -EIO;
+	return err;
+}
+
+static int __cancel_hostile(struct live_preempt_cancel *arg)
+{
+	struct i915_request *rq;
+	int err;
+
+	/* Preempt cancel non-preemptible spinner in ELSP0 */
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
+		return 0;
+
+	GEM_TRACE("%s(%s)\n", __func__, arg->engine->name);
+	clear_bit(CONTEXT_BANNED, &arg->a.ctx->flags);
+	rq = spinner_create_request(&arg->a.spin,
+				    arg->a.ctx, arg->engine,
+				    MI_NOOP); /* preemption disabled */
+	if (IS_ERR(rq))
+		return PTR_ERR(rq);
+
+	i915_request_get(rq);
+	i915_request_add(rq);
+	if (!igt_wait_for_spinner(&arg->a.spin, rq)) {
+		err = -EIO;
+		goto out;
+	}
+
+	i915_gem_context_set_banned(arg->a.ctx);
+	err = intel_engine_pulse(arg->engine); /* force reset */
+	if (err)
+		goto out;
+
+	if (i915_request_wait(rq, 0, HZ / 5) < 0) {
+		err = -EIO;
+		goto out;
+	}
+
+	if (rq->fence.error != -EIO) {
+		pr_err("Cancelled inflight0 request did not report -EIO\n");
+		err = -EINVAL;
+		goto out;
+	}
+
+out:
+	i915_request_put(rq);
+	if (igt_flush_test(arg->engine->i915))
+		err = -EIO;
+	return err;
+}
+
+static int live_preempt_cancel(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct live_preempt_cancel data;
+	enum intel_engine_id id;
+	int err = -ENOMEM;
+
+	/*
+	 * To cancel an inflight context, we need to first remove it from the
+	 * GPU. That sounds like preemption! Plus a little bit of bookkeeping.
+	 */
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
+		return 0;
+
+	if (preempt_client_init(gt, &data.a))
+		return -ENOMEM;
+	if (preempt_client_init(gt, &data.b))
+		goto err_client_a;
+
+	for_each_engine(data.engine, gt, id) {
+		if (!intel_engine_has_preemption(data.engine))
+			continue;
+
+		err = __cancel_active0(&data);
+		if (err)
+			goto err_wedged;
+
+		err = __cancel_active1(&data);
+		if (err)
+			goto err_wedged;
+
+		err = __cancel_queued(&data);
+		if (err)
+			goto err_wedged;
+
+		err = __cancel_hostile(&data);
+		if (err)
+			goto err_wedged;
+	}
+
+	err = 0;
+err_client_b:
+	preempt_client_fini(&data.b);
+err_client_a:
+	preempt_client_fini(&data.a);
+	return err;
+
+err_wedged:
+	GEM_TRACE_DUMP();
+	igt_spinner_end(&data.b.spin);
+	igt_spinner_end(&data.a.spin);
+	intel_gt_set_wedged(gt);
 	goto err_client_b;
 }
 
@@ -2693,6 +3013,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_preempt),
 		SUBTEST(live_late_preempt),
 		SUBTEST(live_nopreempt),
+		SUBTEST(live_preempt_cancel),
 		SUBTEST(live_suppress_self_preempt),
 		SUBTEST(live_suppress_wait_preempt),
 		SUBTEST(live_chain_preempt),

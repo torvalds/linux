@@ -234,6 +234,9 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     const struct intel_engine_cs *engine,
 				     const struct intel_ring *ring,
 				     bool close);
+static void
+__execlists_update_reg_state(const struct intel_context *ce,
+			     const struct intel_engine_cs *engine);
 
 static void mark_eio(struct i915_request *rq)
 {
@@ -244,6 +247,31 @@ static void mark_eio(struct i915_request *rq)
 
 	dma_fence_set_error(&rq->fence, -EIO);
 	i915_request_mark_complete(rq);
+}
+
+static struct i915_request *active_request(struct i915_request *rq)
+{
+	const struct intel_context * const ce = rq->hw_context;
+	struct i915_request *active = NULL;
+	struct list_head *list;
+
+	if (!i915_request_is_active(rq)) /* unwound, but incomplete! */
+		return rq;
+
+	rcu_read_lock();
+	list = &rcu_dereference(rq->timeline)->requests;
+	list_for_each_entry_from_reverse(rq, list, link) {
+		if (i915_request_completed(rq))
+			break;
+
+		if (rq->hw_context != ce)
+			break;
+
+		active = rq;
+	}
+	rcu_read_unlock();
+
+	return active;
 }
 
 static inline u32 intel_hws_preempt_address(struct intel_engine_cs *engine)
@@ -972,6 +1000,58 @@ static void kick_siblings(struct i915_request *rq, struct intel_context *ce)
 		tasklet_schedule(&ve->base.execlists.tasklet);
 }
 
+static void restore_default_state(struct intel_context *ce,
+				  struct intel_engine_cs *engine)
+{
+	u32 *regs = ce->lrc_reg_state;
+
+	if (engine->pinned_default_state)
+		memcpy(regs, /* skip restoring the vanilla PPHWSP */
+		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
+		       engine->context_size - PAGE_SIZE);
+
+	execlists_init_reg_state(regs, ce, engine, ce->ring, false);
+}
+
+static void reset_active(struct i915_request *rq,
+			 struct intel_engine_cs *engine)
+{
+	struct intel_context * const ce = rq->hw_context;
+
+	/*
+	 * The executing context has been cancelled. We want to prevent
+	 * further execution along this context and propagate the error on
+	 * to anything depending on its results.
+	 *
+	 * In __i915_request_submit(), we apply the -EIO and remove the
+	 * requests' payloads for any banned requests. But first, we must
+	 * rewind the context back to the start of the incomplete request so
+	 * that we do not jump back into the middle of the batch.
+	 *
+	 * We preserve the breadcrumbs and semaphores of the incomplete
+	 * requests so that inter-timeline dependencies (i.e other timelines)
+	 * remain correctly ordered. And we defer to __i915_request_submit()
+	 * so that all asynchronous waits are correctly handled.
+	 */
+	GEM_TRACE("%s(%s): { rq=%llx:%lld }\n",
+		  __func__, engine->name, rq->fence.context, rq->fence.seqno);
+
+	/* On resubmission of the active request, payload will be scrubbed */
+	rq = active_request(rq);
+	if (rq)
+		ce->ring->head = intel_ring_wrap(ce->ring, rq->head);
+	else
+		ce->ring->head = ce->ring->tail;
+	intel_ring_update_space(ce->ring);
+
+	/* Scrub the context image to prevent replaying the previous batch */
+	restore_default_state(ce, engine);
+	__execlists_update_reg_state(ce, engine);
+
+	/* We've switched away, so this should be a no-op, but intent matters */
+	ce->lrc_desc |= CTX_DESC_FORCE_RESTORE;
+}
+
 static inline void
 __execlists_schedule_out(struct i915_request *rq,
 			 struct intel_engine_cs * const engine)
@@ -981,6 +1061,9 @@ __execlists_schedule_out(struct i915_request *rq,
 	intel_engine_context_out(engine);
 	execlists_context_status_change(rq, INTEL_CONTEXT_SCHEDULE_OUT);
 	intel_gt_pm_put(engine->gt);
+
+	if (unlikely(i915_gem_context_is_banned(ce->gem_context)))
+		reset_active(rq, engine);
 
 	/*
 	 * If this is part of a virtual engine, its next request may
@@ -1379,6 +1462,10 @@ static unsigned long active_preempt_timeout(struct intel_engine_cs *engine)
 	rq = last_active(&engine->execlists);
 	if (!rq)
 		return 0;
+
+	/* Force a fast reset for terminated contexts (ignoring sysfs!) */
+	if (unlikely(i915_gem_context_is_banned(rq->gem_context)))
+		return 1;
 
 	return READ_ONCE(engine->props.preempt_timeout_ms);
 }
@@ -2792,29 +2879,6 @@ static void reset_csb_pointers(struct intel_engine_cs *engine)
 			       &execlists->csb_status[reset_value]);
 }
 
-static struct i915_request *active_request(struct i915_request *rq)
-{
-	const struct intel_context * const ce = rq->hw_context;
-	struct i915_request *active = NULL;
-	struct list_head *list;
-
-	if (!i915_request_is_active(rq)) /* unwound, but incomplete! */
-		return rq;
-
-	list = &i915_request_active_timeline(rq)->requests;
-	list_for_each_entry_from_reverse(rq, list, link) {
-		if (i915_request_completed(rq))
-			break;
-
-		if (rq->hw_context != ce)
-			break;
-
-		active = rq;
-	}
-
-	return active;
-}
-
 static void __execlists_reset_reg_state(const struct intel_context *ce,
 					const struct intel_engine_cs *engine)
 {
@@ -2831,7 +2895,6 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	struct intel_engine_execlists * const execlists = &engine->execlists;
 	struct intel_context *ce;
 	struct i915_request *rq;
-	u32 *regs;
 
 	mb(); /* paranoia: read the CSB pointers from after the reset */
 	clflush(execlists->csb_write);
@@ -2907,13 +2970,7 @@ static void __execlists_reset(struct intel_engine_cs *engine, bool stalled)
 	 * to recreate its own state.
 	 */
 	GEM_BUG_ON(!intel_context_is_pinned(ce));
-	regs = ce->lrc_reg_state;
-	if (engine->pinned_default_state) {
-		memcpy(regs, /* skip restoring the vanilla PPHWSP */
-		       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
-		       engine->context_size - PAGE_SIZE);
-	}
-	execlists_init_reg_state(regs, ce, engine, ce->ring, false);
+	restore_default_state(ce, engine);
 
 out_replay:
 	GEM_TRACE("%s replay {head:%04x, tail:%04x\n",
@@ -4574,16 +4631,8 @@ void intel_lr_context_reset(struct intel_engine_cs *engine,
 	 * future request will be after userspace has had the opportunity
 	 * to recreate its own state.
 	 */
-	if (scrub) {
-		u32 *regs = ce->lrc_reg_state;
-
-		if (engine->pinned_default_state) {
-			memcpy(regs, /* skip restoring the vanilla PPHWSP */
-			       engine->pinned_default_state + LRC_STATE_PN * PAGE_SIZE,
-			       engine->context_size - PAGE_SIZE);
-		}
-		execlists_init_reg_state(regs, ce, engine, ce->ring, false);
-	}
+	if (scrub)
+		restore_default_state(ce, engine);
 
 	/* Rerun the request; its payload has been neutered (if guilty). */
 	ce->ring->head = head;
