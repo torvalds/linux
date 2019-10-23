@@ -4690,6 +4690,32 @@
 			marks the TSC unconditionally unstable at bootup and
 			avoids any further wobbles once the TSC watchdog notices.
 
+	tsx=		[X86] Control Transactional Synchronization
+			Extensions (TSX) feature in Intel processors that
+			support TSX control.
+
+			This parameter controls the TSX feature. The options are:
+
+			on	- Enable TSX on the system. Although there are
+				mitigations for all known security vulnerabilities,
+				TSX has been known to be an accelerator for
+				several previous speculation-related CVEs, and
+				so there may be unknown	security risks associated
+				with leaving it enabled.
+
+			off	- Disable TSX on the system. (Note that this
+				option takes effect only on newer CPUs which are
+				not vulnerable to MDS, i.e., have
+				MSR_IA32_ARCH_CAPABILITIES.MDS_NO=1 and which get
+				the new IA32_TSX_CTRL MSR through a microcode
+				update. This new MSR allows for the reliable
+				deactivation of the TSX functionality.)
+
+			Not specifying this option is equivalent to tsx=off.
+
+			See Documentation/admin-guide/hw-vuln/tsx_async_abort.rst
+			for more details.
+
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
 			Format:
