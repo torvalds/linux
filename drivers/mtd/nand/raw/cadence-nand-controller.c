@@ -2961,10 +2961,9 @@ static int cadence_nand_dt_probe(struct platform_device *ofdev)
 
 	cdns_ctrl->dev = &ofdev->dev;
 	cdns_ctrl->irq = platform_get_irq(ofdev, 0);
-	if (cdns_ctrl->irq < 0) {
-		dev_err(&ofdev->dev, "no irq defined\n");
+	if (cdns_ctrl->irq < 0)
 		return cdns_ctrl->irq;
-	}
+
 	dev_info(cdns_ctrl->dev, "IRQ: nr %d\n", cdns_ctrl->irq);
 
 	cdns_ctrl->reg = devm_platform_ioremap_resource(ofdev, 0);
