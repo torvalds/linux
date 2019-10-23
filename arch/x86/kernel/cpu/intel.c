@@ -762,6 +762,11 @@ static void init_intel(struct cpuinfo_x86 *c)
 		detect_tme(c);
 
 	init_intel_misc_features(c);
+
+	if (tsx_ctrl_state == TSX_CTRL_ENABLE)
+		tsx_enable();
+	if (tsx_ctrl_state == TSX_CTRL_DISABLE)
+		tsx_disable();
 }
 
 #ifdef CONFIG_X86_32

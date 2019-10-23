@@ -30,7 +30,7 @@ obj-$(CONFIG_PROC_FS)	+= proc.o
 obj-$(CONFIG_X86_FEATURE_NAMES) += capflags.o powerflags.o
 
 ifdef CONFIG_CPU_SUP_INTEL
-obj-y			+= intel.o intel_pconfig.o
+obj-y			+= intel.o intel_pconfig.o tsx.o
 obj-$(CONFIG_PM)	+= intel_epb.o
 endif
 obj-$(CONFIG_CPU_SUP_AMD)		+= amd.o
