@@ -2122,8 +2122,12 @@ static int i915_edp_psr_status(struct seq_file *m, void *data)
 		status = "disabled";
 	seq_printf(m, "PSR mode: %s\n", status);
 
-	if (!psr->enabled)
+	if (!psr->enabled) {
+		seq_printf(m, "PSR sink not reliable: %s\n",
+			   yesno(psr->sink_not_reliable));
+
 		goto unlock;
+	}
 
 	if (psr->psr2_enabled) {
 		val = I915_READ(EDP_PSR2_CTL(dev_priv->psr.transcoder));
