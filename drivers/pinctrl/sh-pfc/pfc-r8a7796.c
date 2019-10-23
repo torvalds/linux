@@ -6210,8 +6210,8 @@ const struct sh_pfc_soc_info r8a774a1_pinmux_info = {
 };
 #endif
 
-#ifdef CONFIG_PINCTRL_PFC_R8A7796
-const struct sh_pfc_soc_info r8a7796_pinmux_info = {
+#ifdef CONFIG_PINCTRL_PFC_R8A77960
+const struct sh_pfc_soc_info r8a77960_pinmux_info = {
 	.name = "r8a77960_pfc",
 	.ops = &r8a7796_pinmux_ops,
 	.unlock_reg = 0xe6060000, /* PMMR */
