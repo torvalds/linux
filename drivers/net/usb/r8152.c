@@ -4000,14 +4000,17 @@ static void rtl8152_fw_mac_apply(struct r8152 *tp, struct fw_mac *mac)
 static void rtl8152_apply_firmware(struct r8152 *tp)
 {
 	struct rtl_fw *rtl_fw = &tp->rtl_fw;
-	const struct firmware *fw = rtl_fw->fw;
-	struct fw_header *fw_hdr = (struct fw_header *)fw->data;
+	const struct firmware *fw;
+	struct fw_header *fw_hdr;
 	struct fw_phy_patch_key *key;
 	u16 key_addr = 0;
 	int i;
 
 	if (IS_ERR_OR_NULL(rtl_fw->fw))
 		return;
+
+	fw = rtl_fw->fw;
+	fw_hdr = (struct fw_header *)fw->data;
 
 	if (rtl_fw->pre_fw)
 		rtl_fw->pre_fw(tp);
