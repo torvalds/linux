@@ -80,9 +80,11 @@ struct dpaa_fq_cbs {
 	struct qman_fq egress_ern;
 };
 
+struct dpaa_priv;
+
 struct dpaa_bp {
-	/* device used in the DMA mapping operations */
-	struct device *dev;
+	/* used in the DMA mapping operations */
+	struct dpaa_priv *priv;
 	/* current number of buffers in the buffer pool alloted to each CPU */
 	int __percpu *percpu_count;
 	/* all buffers allocated for this pool have this raw size */
@@ -153,6 +155,8 @@ struct dpaa_priv {
 	u16 tx_headroom;
 	struct net_device *net_dev;
 	struct mac_device *mac_dev;
+	struct device *rx_dma_dev;
+	struct device *tx_dma_dev;
 	struct qman_fq *egress_fqs[DPAA_ETH_TXQ_NUM];
 	struct qman_fq *conf_fqs[DPAA_ETH_TXQ_NUM];
 
