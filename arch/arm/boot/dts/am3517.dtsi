@@ -115,6 +115,12 @@
 	};
 };
 
+/* Not currently working, probably needs at least different clocks */
+&rng_target {
+	status = "disabled";
+	/delete-property/ clocks;
+};
+
 /* Table Table 5-79 of the TRM shows 480ab000 is reserved */
 &usb_otg_hs {
 	status = "disabled";
