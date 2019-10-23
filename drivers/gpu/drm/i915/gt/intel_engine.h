@@ -527,4 +527,13 @@ void intel_engine_init_active(struct intel_engine_cs *engine,
 #define ENGINE_MOCK	1
 #define ENGINE_VIRTUAL	2
 
+static inline bool
+intel_engine_has_preempt_reset(const struct intel_engine_cs *engine)
+{
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
+		return 0;
+
+	return intel_engine_has_preemption(engine);
+}
+
 #endif /* _INTEL_RINGBUFFER_H_ */

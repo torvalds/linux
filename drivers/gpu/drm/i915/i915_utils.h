@@ -32,6 +32,7 @@
 #include <linux/workqueue.h>
 
 struct drm_i915_private;
+struct timer_list;
 
 #undef WARN_ON
 /* Many gcc seem to no see through this and fall over :( */
@@ -419,6 +420,14 @@ static inline void add_taint_for_CI(unsigned int taint)
 	 * the machine if the kernel is tainted.
 	 */
 	add_taint(taint, LOCKDEP_STILL_OK);
+}
+
+void cancel_timer(struct timer_list *t);
+void set_timer_ms(struct timer_list *t, unsigned long timeout);
+
+static inline bool timer_expired(const struct timer_list *t)
+{
+	return READ_ONCE(t->expires) && !timer_pending(t);
 }
 
 #endif /* !__I915_UTILS_H */

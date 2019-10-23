@@ -76,3 +76,32 @@ bool i915_error_injected(void)
 }
 
 #endif
+
+void cancel_timer(struct timer_list *t)
+{
+	if (!READ_ONCE(t->expires))
+		return;
+
+	del_timer(t);
+	WRITE_ONCE(t->expires, 0);
+}
+
+void set_timer_ms(struct timer_list *t, unsigned long timeout)
+{
+	if (!timeout) {
+		cancel_timer(t);
+		return;
+	}
+
+	timeout = msecs_to_jiffies_timeout(timeout);
+
+	/*
+	 * Paranoia to make sure the compiler computes the timeout before
+	 * loading 'jiffies' as jiffies is volatile and may be updated in
+	 * the background by a timer tick. All to reduce the complexity
+	 * of the addition and reduce the risk of losing a jiffie.
+	 */
+	barrier();
+
+	mod_timer(t, jiffies + timeout);
+}

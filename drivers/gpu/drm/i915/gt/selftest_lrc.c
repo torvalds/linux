@@ -1697,6 +1697,105 @@ err_spin_hi:
 	return err;
 }
 
+static int live_preempt_timeout(void *arg)
+{
+	struct intel_gt *gt = arg;
+	struct i915_gem_context *ctx_hi, *ctx_lo;
+	struct igt_spinner spin_lo;
+	struct intel_engine_cs *engine;
+	enum intel_engine_id id;
+	int err = -ENOMEM;
+
+	/*
+	 * Check that we force preemption to occur by cancelling the previous
+	 * context if it refuses to yield the GPU.
+	 */
+	if (!CONFIG_DRM_I915_PREEMPT_TIMEOUT)
+		return 0;
+
+	if (!HAS_LOGICAL_RING_PREEMPTION(gt->i915))
+		return 0;
+
+	if (!intel_has_reset_engine(gt))
+		return 0;
+
+	if (igt_spinner_init(&spin_lo, gt))
+		return -ENOMEM;
+
+	ctx_hi = kernel_context(gt->i915);
+	if (!ctx_hi)
+		goto err_spin_lo;
+	ctx_hi->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MAX_USER_PRIORITY);
+
+	ctx_lo = kernel_context(gt->i915);
+	if (!ctx_lo)
+		goto err_ctx_hi;
+	ctx_lo->sched.priority =
+		I915_USER_PRIORITY(I915_CONTEXT_MIN_USER_PRIORITY);
+
+	for_each_engine(engine, gt, id) {
+		unsigned long saved_timeout;
+		struct i915_request *rq;
+
+		if (!intel_engine_has_preemption(engine))
+			continue;
+
+		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
+					    MI_NOOP); /* preemption disabled */
+		if (IS_ERR(rq)) {
+			err = PTR_ERR(rq);
+			goto err_ctx_lo;
+		}
+
+		i915_request_add(rq);
+		if (!igt_wait_for_spinner(&spin_lo, rq)) {
+			intel_gt_set_wedged(gt);
+			err = -EIO;
+			goto err_ctx_lo;
+		}
+
+		rq = igt_request_alloc(ctx_hi, engine);
+		if (IS_ERR(rq)) {
+			igt_spinner_end(&spin_lo);
+			err = PTR_ERR(rq);
+			goto err_ctx_lo;
+		}
+
+		/* Flush the previous CS ack before changing timeouts */
+		while (READ_ONCE(engine->execlists.pending[0]))
+			cpu_relax();
+
+		saved_timeout = engine->props.preempt_timeout_ms;
+		engine->props.preempt_timeout_ms = 1; /* in ms, -> 1 jiffie */
+
+		i915_request_get(rq);
+		i915_request_add(rq);
+
+		intel_engine_flush_submission(engine);
+		engine->props.preempt_timeout_ms = saved_timeout;
+
+		if (i915_request_wait(rq, 0, HZ / 10) < 0) {
+			intel_gt_set_wedged(gt);
+			i915_request_put(rq);
+			err = -ETIME;
+			goto err_ctx_lo;
+		}
+
+		igt_spinner_end(&spin_lo);
+		i915_request_put(rq);
+	}
+
+	err = 0;
+err_ctx_lo:
+	kernel_context_close(ctx_lo);
+err_ctx_hi:
+	kernel_context_close(ctx_hi);
+err_spin_lo:
+	igt_spinner_fini(&spin_lo);
+	return err;
+}
+
 static int random_range(struct rnd_state *rnd, int min, int max)
 {
 	return i915_prandom_u32_max_state(max - min, rnd) + min;
@@ -2598,6 +2697,7 @@ int intel_execlists_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_suppress_wait_preempt),
 		SUBTEST(live_chain_preempt),
 		SUBTEST(live_preempt_hang),
+		SUBTEST(live_preempt_timeout),
 		SUBTEST(live_preempt_smoke),
 		SUBTEST(live_virtual_engine),
 		SUBTEST(live_virtual_mask),

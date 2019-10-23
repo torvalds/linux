@@ -12,6 +12,18 @@ config DRM_I915_USERFAULT_AUTOSUSPEND
 	  May be 0 to disable the extra delay and solely use the device level
 	  runtime pm autosuspend delay tunable.
 
+config DRM_I915_PREEMPT_TIMEOUT
+	int "Preempt timeout (ms, jiffy granularity)"
+	default 100 # milliseconds
+	help
+	  How long to wait (in milliseconds) for a preemption event to occur
+	  when submitting a new context via execlists. If the current context
+	  does not hit an arbitration point and yield to HW before the timer
+	  expires, the HW will be reset to allow the more important context
+	  to execute.
+
+	  May be 0 to disable the timeout.
+
 config DRM_I915_SPIN_REQUEST
 	int "Busywait for request completion (us)"
 	default 5 # microseconds

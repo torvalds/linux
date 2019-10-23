@@ -175,6 +175,11 @@ struct intel_engine_execlists {
 	struct timer_list timer;
 
 	/**
+	 * @preempt: reset the current context if it fails to give way
+	 */
+	struct timer_list preempt;
+
+	/**
 	 * @default_priolist: priority list for I915_PRIORITY_NORMAL
 	 */
 	struct i915_priolist default_priolist;
@@ -544,6 +549,7 @@ struct intel_engine_cs {
 	} stats;
 
 	struct {
+		unsigned long preempt_timeout_ms;
 		unsigned long stop_timeout_ms;
 	} props;
 };

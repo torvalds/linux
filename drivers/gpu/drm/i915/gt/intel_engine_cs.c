@@ -308,6 +308,8 @@ static int intel_engine_setup(struct intel_gt *gt, enum intel_engine_id id)
 	engine->instance = info->instance;
 	__sprint_engine_name(engine);
 
+	engine->props.preempt_timeout_ms =
+		CONFIG_DRM_I915_PREEMPT_TIMEOUT;
 	engine->props.stop_timeout_ms =
 		CONFIG_DRM_I915_STOP_TIMEOUT;
 
@@ -1338,10 +1340,11 @@ static void intel_engine_print_registers(struct intel_engine_cs *engine,
 		unsigned int idx;
 		u8 read, write;
 
-		drm_printf(m, "\tExeclist tasklet queued? %s (%s), timeslice? %s\n",
+		drm_printf(m, "\tExeclist tasklet queued? %s (%s), preempt? %s, timeslice? %s\n",
 			   yesno(test_bit(TASKLET_STATE_SCHED,
 					  &engine->execlists.tasklet.state)),
 			   enableddisabled(!atomic_read(&engine->execlists.tasklet.count)),
+			   repr_timer(&engine->execlists.preempt),
 			   repr_timer(&engine->execlists.timer));
 
 		read = execlists->csb_head;
