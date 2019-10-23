@@ -7379,7 +7379,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		goto out;
 	}
 
-        printk(KERN_ERR "KVM: Calling Switch with NR value %llx \n", nr);
+        printk(KERN_ERR "KVM: Calling Switch with NR value %lx \n", nr);
 
 	switch (nr) {
 	case KVM_HC_VAPIC_POLL_IRQ:
@@ -7410,7 +7410,7 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
 		break;
 	}
 
-        printk(KERN_ERR "KVM: Ending Switch with RET value %llx \n", ret);
+        printk(KERN_ERR "KVM: Ending Switch with RET value %lx \n", ret);
 
 
 out:
