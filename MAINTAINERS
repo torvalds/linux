@@ -6159,6 +6159,7 @@ F:	include/uapi/linux/mii.h
 
 EXFAT FILE SYSTEM
 M:	Valdis Kletnieks <valdis.kletnieks@vt.edu>
+L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 F:	drivers/staging/exfat/
 
