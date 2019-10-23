@@ -532,8 +532,14 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
 		if (unlikely(!hmm_vma_walk->pgmap))
 			return -EBUSY;
 	} else if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) && pte_special(pte)) {
-		*pfn = range->values[HMM_PFN_SPECIAL];
-		return -EFAULT;
+		if (!is_zero_pfn(pte_pfn(pte))) {
+			*pfn = range->values[HMM_PFN_SPECIAL];
+			return -EFAULT;
+		}
+		/*
+		 * Since each architecture defines a struct page for the zero
+		 * page, just fall through and treat it like a normal page.
+		 */
 	}
 
 	*pfn = hmm_device_entry_from_pfn(range, pte_pfn(pte)) | cpu_flags;
