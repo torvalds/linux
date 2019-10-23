@@ -175,6 +175,7 @@ Example:
 			maxim,thermal-regulation-celsius = <75>;
 			maxim,battery-overcurrent-microamp = <3000000>;
 			maxim,charge-input-threshold-microvolt = <4300000>;
+		};
 
 		led {
 			compatible = "maxim,max77693-led";
