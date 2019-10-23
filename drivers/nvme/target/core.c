@@ -942,12 +942,6 @@ bool nvmet_check_data_len(struct nvmet_req *req, size_t data_len)
 }
 EXPORT_SYMBOL_GPL(nvmet_check_data_len);
 
-void nvmet_req_execute(struct nvmet_req *req)
-{
-	req->execute(req);
-}
-EXPORT_SYMBOL_GPL(nvmet_req_execute);
-
 int nvmet_req_alloc_sgl(struct nvmet_req *req)
 {
 	struct pci_dev *p2p_dev = NULL;
