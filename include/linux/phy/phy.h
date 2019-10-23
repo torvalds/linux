@@ -45,6 +45,8 @@ enum phy_mode {
 	PHY_MODE_VIDEO_TTL,
 	PHY_MODE_PCIE_RC,
 	PHY_MODE_PCIE_EP,
+	PHY_MODE_GVI,
+	PHY_MODE_HDMI,
 };
 
 /**
