@@ -5189,6 +5189,7 @@ static void rtl8xxxu_rx_urb_work(struct work_struct *work)
  * cases which Realtek doesn't provide detail for these settings. Keep
  * this aligned with vendor driver for easier maintenance.
  */
+static
 void rtl8723bu_set_coex_with_type(struct rtl8xxxu_priv *priv, u8 type)
 {
 	switch (type) {
@@ -5240,6 +5241,7 @@ void rtl8723bu_set_coex_with_type(struct rtl8xxxu_priv *priv, u8 type)
 	}
 }
 
+static
 void rtl8723bu_update_bt_link_info(struct rtl8xxxu_priv *priv, u8 bt_info)
 {
 	struct rtl8xxxu_btcoex *btcoex = &priv->bt_coex;
@@ -5306,6 +5308,7 @@ void rtl8723bu_update_bt_link_info(struct rtl8xxxu_priv *priv, u8 bt_info)
 		btcoex->bt_busy = false;
 }
 
+static
 void rtl8723bu_handle_bt_inquiry(struct rtl8xxxu_priv *priv)
 {
 	struct ieee80211_vif *vif;
@@ -5331,6 +5334,7 @@ void rtl8723bu_handle_bt_inquiry(struct rtl8xxxu_priv *priv)
 	}
 }
 
+static
 void rtl8723bu_handle_bt_info(struct rtl8xxxu_priv *priv)
 {
 	struct ieee80211_vif *vif;
