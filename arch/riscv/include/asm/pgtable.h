@@ -184,10 +184,7 @@ static inline pte_t pfn_pte(unsigned long pfn, pgprot_t prot)
 	return __pte((pfn << _PAGE_PFN_SHIFT) | pgprot_val(prot));
 }
 
-static inline pte_t mk_pte(struct page *page, pgprot_t prot)
-{
-	return pfn_pte(page_to_pfn(page), prot);
-}
+#define mk_pte(page, prot)       pfn_pte(page_to_pfn(page), prot)
 
 #define pte_index(addr) (((addr) >> PAGE_SHIFT) & (PTRS_PER_PTE - 1))
 
