@@ -73,6 +73,14 @@ static bool __init tsx_ctrl_is_supported(void)
 	return !!(ia32_cap & ARCH_CAP_TSX_CTRL_MSR);
 }
 
+static enum tsx_ctrl_states x86_get_tsx_auto_mode(void)
+{
+	if (boot_cpu_has_bug(X86_BUG_TAA))
+		return TSX_CTRL_DISABLE;
+
+	return TSX_CTRL_ENABLE;
+}
+
 void __init tsx_init(void)
 {
 	char arg[5] = {};
@@ -88,17 +96,19 @@ void __init tsx_init(void)
 		} else if (!strcmp(arg, "off")) {
 			tsx_ctrl_state = TSX_CTRL_DISABLE;
 		} else if (!strcmp(arg, "auto")) {
-			if (boot_cpu_has_bug(X86_BUG_TAA))
-				tsx_ctrl_state = TSX_CTRL_DISABLE;
-			else
-				tsx_ctrl_state = TSX_CTRL_ENABLE;
+			tsx_ctrl_state = x86_get_tsx_auto_mode();
 		} else {
 			tsx_ctrl_state = TSX_CTRL_DISABLE;
 			pr_err("tsx: invalid option, defaulting to off\n");
 		}
 	} else {
-		/* tsx= not provided, defaulting to off */
-		tsx_ctrl_state = TSX_CTRL_DISABLE;
+		/* tsx= not provided */
+		if (IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_AUTO))
+			tsx_ctrl_state = x86_get_tsx_auto_mode();
+		else if (IS_ENABLED(CONFIG_X86_INTEL_TSX_MODE_OFF))
+			tsx_ctrl_state = TSX_CTRL_DISABLE;
+		else
+			tsx_ctrl_state = TSX_CTRL_ENABLE;
 	}
 
 	if (tsx_ctrl_state == TSX_CTRL_DISABLE) {
