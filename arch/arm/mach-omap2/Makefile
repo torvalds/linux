@@ -29,6 +29,11 @@ obj-y += mcbsp.o
 endif
 
 obj-$(CONFIG_TWL4030_CORE) += omap_twl.o
+
+ifneq ($(CONFIG_MFD_CPCAP),)
+obj-y 					+= pmic-cpcap.o
+endif
+
 obj-$(CONFIG_SOC_HAS_OMAP2_SDRC)	+= sdrc.o
 
 # SMP support ONLY available for OMAP4
