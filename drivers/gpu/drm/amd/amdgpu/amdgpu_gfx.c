@@ -319,8 +319,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 	return r;
 }
 
-void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring,
-			      struct amdgpu_irq_src *irq)
+void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring)
 {
 	amdgpu_device_wb_free(ring->adev, ring->adev->virt.reg_val_offs);
 	amdgpu_ring_fini(ring);

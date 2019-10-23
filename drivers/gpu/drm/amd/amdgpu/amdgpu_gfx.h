@@ -330,8 +330,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 			     struct amdgpu_ring *ring,
 			     struct amdgpu_irq_src *irq);
 
-void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring,
-			      struct amdgpu_irq_src *irq);
+void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring);
 
 void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev);
 int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
