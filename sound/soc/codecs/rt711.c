@@ -41,11 +41,12 @@ static int rt711_index_write(struct regmap *regmap,
 		unsigned int nid, unsigned int reg, unsigned int value)
 {
 	int ret;
-	unsigned int addr = ((RT711_PRIV_INDEX_W_H | nid) << 16) | reg;
+	unsigned int addr = ((RT711_PRIV_INDEX_W_H | nid) << 8) | reg;
 
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
-		pr_err("Failed to set private value: %08x <= %04x %d\n", ret, addr, value);
+		pr_err("Failed to set private value: %06x <= %04x ret=%d\n",
+			addr, value, ret);
 
 	return ret;
 }
@@ -54,12 +55,13 @@ static unsigned int rt711_index_read(struct regmap *regmap,
 		unsigned int nid, unsigned int reg, unsigned int *value)
 {
 	int ret;
-	unsigned int addr = ((RT711_PRIV_INDEX_W_H | nid) << 16) | reg;
+	unsigned int addr = ((RT711_PRIV_INDEX_W_H | nid) << 8) | reg;
 
 	*value = 0;
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
-		pr_err("Failed to get private value: %08x => %04x %d\n", ret, addr, *value);
+		pr_err("Failed to get private value: %06x => %04x ret=%d\n",
+			addr, *value, ret);
 
 	return ret;
 }
@@ -71,7 +73,7 @@ static void rt711_reset(struct regmap *regmap)
 	regmap_write(regmap, RT711_FUNC_RESET, 0);
 	rt711_index_read(regmap, RT711_VENDOR_REG, RT711_PARA_VERB_CTL, &val);
 	rt711_index_write(regmap, RT711_VENDOR_REG,
-		RT711_PARA_VERB_CTL,	(val | RT711_HIDDEN_REG_SW_RESET));
+		RT711_PARA_VERB_CTL, (val | RT711_HIDDEN_REG_SW_RESET));
 }
 
 static int rt711_calibration(struct rt711_priv *rt711)
@@ -184,7 +186,7 @@ static int rt711_headset_detect(struct rt711_priv *rt711)
 	int ret;
 
 	ret = rt711_index_read(rt711->regmap, RT711_VENDOR_REG,
-			       RT711_COMBO_JACK_AUTO_CTL2, &buf);
+				RT711_COMBO_JACK_AUTO_CTL2, &buf);
 	if (ret < 0)
 		goto io_error;
 
@@ -402,8 +404,8 @@ static int rt711_set_jack_detect(struct snd_soc_component *component,
 }
 
 static void rt711_get_gain(struct rt711_priv *rt711, unsigned int addr_h,
-			   unsigned int addr_l, unsigned int val_h,
-			   unsigned int *r_val, unsigned int *l_val)
+				unsigned int addr_l, unsigned int val_h,
+				unsigned int *r_val, unsigned int *l_val)
 {
 	/* R Channel */
 	*r_val = (val_h << 8);
@@ -417,7 +419,7 @@ static void rt711_get_gain(struct rt711_priv *rt711, unsigned int addr_h,
 
 /* For Verb-Set Amplifier Gain (Verb ID = 3h) */
 static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_dapm_context *dapm =
@@ -459,7 +461,7 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 
 	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt711->regmap,
-			     RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D0);
+				RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D0);
 
 	/* R Channel */
 	if (mc->invert) {
@@ -484,16 +486,20 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 		if (val_ll == val_lr) {
 			/* Set both L/R channels at the same time */
 			val_h = (1 << mc->shift) | (3 << 4);
-			regmap_write(rt711->regmap, addr_h, (val_h << 8 | val_ll));
-			regmap_write(rt711->regmap, addr_l, (val_h << 8 | val_ll));
+			regmap_write(rt711->regmap,
+				addr_h, (val_h << 8 | val_ll));
+			regmap_write(rt711->regmap,
+				addr_l, (val_h << 8 | val_ll));
 		} else {
 			/* Lch*/
 			val_h = (1 << mc->shift) | (1 << 5);
-			regmap_write(rt711->regmap, addr_h, (val_h << 8 | val_ll));
+			regmap_write(rt711->regmap,
+				addr_h, (val_h << 8 | val_ll));
 
 			/* Rch */
 			val_h = (1 << mc->shift) | (1 << 4);
-			regmap_write(rt711->regmap, addr_l, (val_h << 8 | val_lr));
+			regmap_write(rt711->regmap,
+				addr_l, (val_h << 8 | val_lr));
 		}
 		/* check result */
 		if (mc->shift == RT711_DIR_OUT_SFT) /* output */
@@ -502,19 +508,19 @@ static int rt711_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 			val_h = 0x0;
 
 		rt711_get_gain(rt711, addr_h, addr_l, val_h,
-			       &read_rl, &read_ll);
+					&read_rl, &read_ll);
 		if (read_rl == val_lr && read_ll == val_ll)
 			break;
 	}
 
 	if (dapm->bias_level <= SND_SOC_BIAS_STANDBY)
 		regmap_write(rt711->regmap,
-			     RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
+				RT711_SET_AUDIO_POWER_STATE, AC_PWRST_D3);
 	return 0;
 }
 
 static int rt711_set_amp_gain_get(struct snd_kcontrol *kcontrol,
-				  struct snd_ctl_elem_value *ucontrol)
+					struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component = snd_kcontrol_chip(kcontrol);
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
@@ -553,40 +559,42 @@ static const DECLARE_TLV_DB_SCALE(in_vol_tlv, -1725, 75, 0);
 static const DECLARE_TLV_DB_SCALE(mic_vol_tlv, 0, 1000, 0);
 
 static const struct snd_kcontrol_new rt711_snd_controls[] = {
-	SOC_DOUBLE_R_EXT_TLV("DAC Surr Playback Volume", RT711_SET_GAIN_DAC2_H,
-			    RT711_SET_GAIN_DAC2_L, RT711_DIR_OUT_SFT, 0x57, 0,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put,
-			    out_vol_tlv),
-	SOC_DOUBLE_R_EXT("ADC 08 Capture Switch", RT711_SET_GAIN_ADC2_H,
-			    RT711_SET_GAIN_ADC2_L, RT711_DIR_IN_SFT, 1, 1,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put),
-	SOC_DOUBLE_R_EXT("ADC 09 Capture Switch", RT711_SET_GAIN_ADC1_H,
-			    RT711_SET_GAIN_ADC1_L, RT711_DIR_IN_SFT, 1, 1,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put),
-	SOC_DOUBLE_R_EXT_TLV("ADC 08 Capture Volume", RT711_SET_GAIN_ADC2_H,
-			    RT711_SET_GAIN_ADC2_L, RT711_DIR_IN_SFT, 0x3f, 0,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put,
-			    in_vol_tlv),
-	SOC_DOUBLE_R_EXT_TLV("ADC 09 Capture Volume", RT711_SET_GAIN_ADC1_H,
-			    RT711_SET_GAIN_ADC1_L, RT711_DIR_IN_SFT, 0x3f, 0,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put,
-			    in_vol_tlv),
-	SOC_DOUBLE_R_EXT_TLV("AMIC Volume", RT711_SET_GAIN_AMIC_H,
-			    RT711_SET_GAIN_AMIC_L, RT711_DIR_IN_SFT, 3, 0,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put,
-			    mic_vol_tlv),
-	SOC_DOUBLE_R_EXT_TLV("DMIC1 Volume", RT711_SET_GAIN_DMIC1_H,
-			    RT711_SET_GAIN_DMIC1_L, RT711_DIR_IN_SFT, 3, 0,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put,
-			    mic_vol_tlv),
-	SOC_DOUBLE_R_EXT_TLV("DMIC2 Volume", RT711_SET_GAIN_DMIC2_H,
-			    RT711_SET_GAIN_DMIC2_L, RT711_DIR_IN_SFT, 3, 0,
-			    rt711_set_amp_gain_get, rt711_set_amp_gain_put,
-			    mic_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("DAC Surr Playback Volume",
+		RT711_SET_GAIN_DAC2_H, RT711_SET_GAIN_DAC2_L,
+		RT711_DIR_OUT_SFT, 0x57, 0,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put, out_vol_tlv),
+	SOC_DOUBLE_R_EXT("ADC 08 Capture Switch",
+		RT711_SET_GAIN_ADC2_H, RT711_SET_GAIN_ADC2_L,
+		RT711_DIR_IN_SFT, 1, 1,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put),
+	SOC_DOUBLE_R_EXT("ADC 09 Capture Switch",
+		RT711_SET_GAIN_ADC1_H, RT711_SET_GAIN_ADC1_L,
+		RT711_DIR_IN_SFT, 1, 1,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put),
+	SOC_DOUBLE_R_EXT_TLV("ADC 08 Capture Volume",
+		RT711_SET_GAIN_ADC2_H, RT711_SET_GAIN_ADC2_L,
+		RT711_DIR_IN_SFT, 0x3f, 0,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put, in_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("ADC 09 Capture Volume",
+		RT711_SET_GAIN_ADC1_H, RT711_SET_GAIN_ADC1_L,
+		RT711_DIR_IN_SFT, 0x3f, 0,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put, in_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("AMIC Volume",
+		RT711_SET_GAIN_AMIC_H, RT711_SET_GAIN_AMIC_L,
+		RT711_DIR_IN_SFT, 3, 0,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put, mic_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("DMIC1 Volume",
+		RT711_SET_GAIN_DMIC1_H, RT711_SET_GAIN_DMIC1_L,
+		RT711_DIR_IN_SFT, 3, 0,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put, mic_vol_tlv),
+	SOC_DOUBLE_R_EXT_TLV("DMIC2 Volume",
+		RT711_SET_GAIN_DMIC2_H, RT711_SET_GAIN_DMIC2_L,
+		RT711_DIR_IN_SFT, 3, 0,
+		rt711_set_amp_gain_get, rt711_set_amp_gain_put, mic_vol_tlv),
 };
 
 static int rt711_mux_get(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
@@ -605,7 +613,8 @@ static int rt711_mux_get(struct snd_kcontrol *kcontrol,
 	reg = RT711_VERB_SET_CONNECT_SEL | nid;
 	ret = regmap_read(rt711->regmap, reg, &val);
 	if (ret < 0) {
-		dev_err(component->dev, "%s: sdw read failed: %d\n", __func__, ret);
+		dev_err(component->dev, "%s: sdw read failed: %d\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -615,7 +624,7 @@ static int rt711_mux_get(struct snd_kcontrol *kcontrol,
 }
 
 static int rt711_mux_put(struct snd_kcontrol *kcontrol,
-			 struct snd_ctl_elem_value *ucontrol)
+			struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_component *component =
 		snd_soc_dapm_kcontrol_component(kcontrol);
@@ -643,7 +652,8 @@ static int rt711_mux_put(struct snd_kcontrol *kcontrol,
 	reg = RT711_VERB_SET_CONNECT_SEL | nid;
 	ret = regmap_read(rt711->regmap, reg, &val2);
 	if (ret < 0) {
-		dev_err(component->dev, "%s: sdw read failed: %d\n", __func__, ret);
+		dev_err(component->dev, "%s: sdw read failed: %d\n",
+			__func__, ret);
 		return ret;
 	}
 
@@ -658,7 +668,7 @@ static int rt711_mux_put(struct snd_kcontrol *kcontrol,
 	}
 
 	snd_soc_dapm_mux_update_power(dapm, kcontrol,
-					      item[0], e, NULL);
+						item[0], e, NULL);
 
 	return change;
 }
@@ -871,7 +881,7 @@ static int rt711_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,
 }
 
 static void rt711_shutdown(struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct sdw_stream_data *stream;
 
@@ -881,8 +891,8 @@ static void rt711_shutdown(struct snd_pcm_substream *substream,
 }
 
 static int rt711_pcm_hw_params(struct snd_pcm_substream *substream,
-			       struct snd_pcm_hw_params *params,
-			       struct snd_soc_dai *dai)
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
@@ -926,7 +936,7 @@ static int rt711_pcm_hw_params(struct snd_pcm_substream *substream,
 	port_config.num = port;
 
 	retval = sdw_stream_add_slave(rt711->slave, &stream_config,
-				      &port_config, 1, stream->sdw_stream);
+					&port_config, 1, stream->sdw_stream);
 	if (retval) {
 		dev_err(dai->dev, "Unable to configure port\n");
 		return retval;
@@ -970,7 +980,7 @@ static int rt711_pcm_hw_params(struct snd_pcm_substream *substream,
 }
 
 static int rt711_pcm_hw_free(struct snd_pcm_substream *substream,
-			     struct snd_soc_dai *dai)
+				struct snd_soc_dai *dai)
 {
 	struct snd_soc_component *component = dai->component;
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
@@ -1084,7 +1094,7 @@ static void rt711_calibration_work(struct work_struct *work)
 }
 
 int rt711_init(struct device *dev, struct regmap *sdw_regmap,
-	       struct regmap *regmap, struct sdw_slave *slave)
+			struct regmap *regmap, struct sdw_slave *slave)
 {
 	struct rt711_priv *rt711;
 	int ret;
@@ -1106,9 +1116,9 @@ int rt711_init(struct device *dev, struct regmap *sdw_regmap,
 	rt711->first_init = false;
 
 	ret =  devm_snd_soc_register_component(dev,
-						  &soc_codec_dev_rt711,
-						  rt711_dai,
-						  ARRAY_SIZE(rt711_dai));
+						&soc_codec_dev_rt711,
+						rt711_dai,
+						ARRAY_SIZE(rt711_dai));
 
 	dev_dbg(&slave->dev, "%s\n", __func__);
 
