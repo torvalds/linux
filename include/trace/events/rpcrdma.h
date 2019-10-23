@@ -416,6 +416,7 @@ DEFINE_RXPRT_EVENT(xprtrdma_remove);
 DEFINE_RXPRT_EVENT(xprtrdma_reinsert);
 DEFINE_RXPRT_EVENT(xprtrdma_op_inject_dsc);
 DEFINE_RXPRT_EVENT(xprtrdma_op_close);
+DEFINE_RXPRT_EVENT(xprtrdma_op_setport);
 
 TRACE_EVENT(xprtrdma_op_connect,
 	TP_PROTO(
