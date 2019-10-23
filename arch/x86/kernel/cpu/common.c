@@ -1053,6 +1053,21 @@ static void __init cpu_set_bug_bits(struct cpuinfo_x86 *c)
 	if (!cpu_matches(NO_SWAPGS))
 		setup_force_cpu_bug(X86_BUG_SWAPGS);
 
+	/*
+	 * When the CPU is not mitigated for TAA (TAA_NO=0) set TAA bug when:
+	 *	- TSX is supported or
+	 *	- TSX_CTRL is present
+	 *
+	 * TSX_CTRL check is needed for cases when TSX could be disabled before
+	 * the kernel boot e.g. kexec.
+	 * TSX_CTRL check alone is not sufficient for cases when the microcode
+	 * update is not present or running as guest that don't get TSX_CTRL.
+	 */
+	if (!(ia32_cap & ARCH_CAP_TAA_NO) &&
+	    (cpu_has(c, X86_FEATURE_RTM) ||
+	     (ia32_cap & ARCH_CAP_TSX_CTRL_MSR)))
+		setup_force_cpu_bug(X86_BUG_TAA);
+
 	if (cpu_matches(NO_MELTDOWN))
 		return;
 
