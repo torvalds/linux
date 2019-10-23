@@ -1086,7 +1086,6 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 	curlen = rqst->rq_rcv_buf.head[0].iov_len;
 	if (curlen > copy_len)
 		curlen = copy_len;
-	trace_xprtrdma_fixup(rqst, copy_len, curlen);
 	srcp += curlen;
 	copy_len -= curlen;
 
@@ -1106,8 +1105,6 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 			if (curlen > pagelist_len)
 				curlen = pagelist_len;
 
-			trace_xprtrdma_fixup_pg(rqst, i, srcp,
-						copy_len, curlen);
 			destp = kmap_atomic(ppages[i]);
 			memcpy(destp + page_base, srcp, curlen);
 			flush_dcache_page(ppages[i]);
@@ -1139,6 +1136,8 @@ rpcrdma_inline_fixup(struct rpc_rqst *rqst, char *srcp, int copy_len, int pad)
 		rqst->rq_private_buf.tail[0].iov_base = srcp;
 	}
 
+	if (fixup_copy_count)
+		trace_xprtrdma_fixup(rqst, fixup_copy_count);
 	return fixup_copy_count;
 }
 

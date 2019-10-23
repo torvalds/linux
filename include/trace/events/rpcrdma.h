@@ -1084,66 +1084,32 @@ DEFINE_REPLY_EVENT(xprtrdma_reply_hdr);
 TRACE_EVENT(xprtrdma_fixup,
 	TP_PROTO(
 		const struct rpc_rqst *rqst,
-		int len,
-		int hdrlen
+		unsigned long fixup
 	),
 
-	TP_ARGS(rqst, len, hdrlen),
+	TP_ARGS(rqst, fixup),
 
 	TP_STRUCT__entry(
 		__field(unsigned int, task_id)
 		__field(unsigned int, client_id)
-		__field(const void *, base)
-		__field(int, len)
-		__field(int, hdrlen)
+		__field(unsigned long, fixup)
+		__field(size_t, headlen)
+		__field(unsigned int, pagelen)
+		__field(size_t, taillen)
 	),
 
 	TP_fast_assign(
 		__entry->task_id = rqst->rq_task->tk_pid;
 		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
-		__entry->base = rqst->rq_rcv_buf.head[0].iov_base;
-		__entry->len = len;
-		__entry->hdrlen = hdrlen;
+		__entry->fixup = fixup;
+		__entry->headlen = rqst->rq_rcv_buf.head[0].iov_len;
+		__entry->pagelen = rqst->rq_rcv_buf.page_len;
+		__entry->taillen = rqst->rq_rcv_buf.tail[0].iov_len;
 	),
 
-	TP_printk("task:%u@%u base=%p len=%d hdrlen=%d",
-		__entry->task_id, __entry->client_id,
-		__entry->base, __entry->len, __entry->hdrlen
-	)
-);
-
-TRACE_EVENT(xprtrdma_fixup_pg,
-	TP_PROTO(
-		const struct rpc_rqst *rqst,
-		int pageno,
-		const void *pos,
-		int len,
-		int curlen
-	),
-
-	TP_ARGS(rqst, pageno, pos, len, curlen),
-
-	TP_STRUCT__entry(
-		__field(unsigned int, task_id)
-		__field(unsigned int, client_id)
-		__field(const void *, pos)
-		__field(int, pageno)
-		__field(int, len)
-		__field(int, curlen)
-	),
-
-	TP_fast_assign(
-		__entry->task_id = rqst->rq_task->tk_pid;
-		__entry->client_id = rqst->rq_task->tk_client->cl_clid;
-		__entry->pos = pos;
-		__entry->pageno = pageno;
-		__entry->len = len;
-		__entry->curlen = curlen;
-	),
-
-	TP_printk("task:%u@%u pageno=%d pos=%p len=%d curlen=%d",
-		__entry->task_id, __entry->client_id,
-		__entry->pageno, __entry->pos, __entry->len, __entry->curlen
+	TP_printk("task:%u@%u fixup=%lu xdr=%zu/%u/%zu",
+		__entry->task_id, __entry->client_id, __entry->fixup,
+		__entry->headlen, __entry->pagelen, __entry->taillen
 	)
 );
 
