@@ -2523,6 +2523,7 @@
 					       ssbd=force-off [ARM64]
 					       l1tf=off [X86]
 					       mds=off [X86]
+					       tsx_async_abort=off [X86]
 
 			auto (default)
 				Mitigate all CPU vulnerabilities, but leave SMT
@@ -2538,6 +2539,7 @@
 				be fully mitigated, even if it means losing SMT.
 				Equivalent to: l1tf=flush,nosmt [X86]
 					       mds=full,nosmt [X86]
+					       tsx_async_abort=full,nosmt [X86]
 
 	mminit_loglevel=
 			[KNL] When CONFIG_DEBUG_MEMORY_INIT is set, this
@@ -4718,6 +4720,42 @@
 
 			See Documentation/admin-guide/hw-vuln/tsx_async_abort.rst
 			for more details.
+
+	tsx_async_abort= [X86,INTEL] Control mitigation for the TSX Async
+			Abort (TAA) vulnerability.
+
+			Similar to Micro-architectural Data Sampling (MDS)
+			certain CPUs that support Transactional
+			Synchronization Extensions (TSX) are vulnerable to an
+			exploit against CPU internal buffers which can forward
+			information to a disclosure gadget under certain
+			conditions.
+
+			In vulnerable processors, the speculatively forwarded
+			data can be used in a cache side channel attack, to
+			access data to which the attacker does not have direct
+			access.
+
+			This parameter controls the TAA mitigation.  The
+			options are:
+
+			full       - Enable TAA mitigation on vulnerable CPUs
+				     if TSX is enabled.
+
+			full,nosmt - Enable TAA mitigation and disable SMT on
+				     vulnerable CPUs. If TSX is disabled, SMT
+				     is not disabled because CPU is not
+				     vulnerable to cross-thread TAA attacks.
+			off        - Unconditionally disable TAA mitigation
+
+			Not specifying this option is equivalent to
+			tsx_async_abort=full.  On CPUs which are MDS affected
+			and deploy MDS mitigation, TAA mitigation is not
+			required and doesn't provide any additional
+			mitigation.
+
+			For details see:
+			Documentation/admin-guide/hw-vuln/tsx_async_abort.rst
 
 	turbografx.map[2|3]=	[HW,JOY]
 			TurboGraFX parallel port interface
