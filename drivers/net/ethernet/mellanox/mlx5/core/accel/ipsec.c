@@ -57,7 +57,8 @@ int mlx5_accel_ipsec_counters_read(struct mlx5_core_dev *mdev, u64 *counters,
 }
 
 void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
-				       struct mlx5_accel_esp_xfrm *xfrm)
+				       struct mlx5_accel_esp_xfrm *xfrm,
+				       u32 *sa_handle)
 {
 	__be32 saddr[4] = {}, daddr[4] = {};
 
@@ -71,7 +72,7 @@ void *mlx5_accel_esp_create_hw_context(struct mlx5_core_dev *mdev,
 
 	return mlx5_fpga_ipsec_create_sa_ctx(mdev, xfrm, saddr,
 					     daddr, xfrm->attrs.spi,
-					     xfrm->attrs.is_ipv6);
+					     xfrm->attrs.is_ipv6, sa_handle);
 }
 
 void mlx5_accel_esp_free_hw_context(void *context)

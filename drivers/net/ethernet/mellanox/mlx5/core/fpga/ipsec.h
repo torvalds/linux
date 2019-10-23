@@ -47,7 +47,8 @@ void *mlx5_fpga_ipsec_create_sa_ctx(struct mlx5_core_dev *mdev,
 				    struct mlx5_accel_esp_xfrm *accel_xfrm,
 				    const __be32 saddr[4],
 				    const __be32 daddr[4],
-				    const __be32 spi, bool is_ipv6);
+				    const __be32 spi, bool is_ipv6,
+				    u32 *sa_handle);
 void mlx5_fpga_ipsec_delete_sa_ctx(void *context);
 
 int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev);

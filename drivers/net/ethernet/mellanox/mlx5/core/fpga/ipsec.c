@@ -65,6 +65,7 @@ struct mlx5_fpga_esp_xfrm;
 struct mlx5_fpga_ipsec_sa_ctx {
 	struct rhash_head		hash;
 	struct mlx5_ifc_fpga_ipsec_sa	hw_sa;
+	u32				sa_handle;
 	struct mlx5_core_dev		*dev;
 	struct mlx5_fpga_esp_xfrm	*fpga_xfrm;
 };
@@ -119,6 +120,8 @@ struct mlx5_fpga_ipsec {
 	 */
 	struct rb_root rules_rb;
 	struct mutex rules_rb_lock; /* rules lock */
+
+	struct ida halloc;
 };
 
 static bool mlx5_fpga_is_ipsec_device(struct mlx5_core_dev *mdev)
@@ -666,7 +669,8 @@ void *mlx5_fpga_ipsec_create_sa_ctx(struct mlx5_core_dev *mdev,
 				    struct mlx5_accel_esp_xfrm *accel_xfrm,
 				    const __be32 saddr[4],
 				    const __be32 daddr[4],
-				    const __be32 spi, bool is_ipv6)
+				    const __be32 spi, bool is_ipv6,
+				    u32 *sa_handle)
 {
 	struct mlx5_fpga_ipsec_sa_ctx *sa_ctx;
 	struct mlx5_fpga_esp_xfrm *fpga_xfrm =
@@ -704,6 +708,17 @@ void *mlx5_fpga_ipsec_create_sa_ctx(struct mlx5_core_dev *mdev,
 		goto exists;
 	}
 
+	if (accel_xfrm->attrs.action & MLX5_ACCEL_ESP_ACTION_DECRYPT) {
+		err = ida_simple_get(&fipsec->halloc, 1, 0, GFP_KERNEL);
+		if (err < 0) {
+			context = ERR_PTR(err);
+			goto exists;
+		}
+
+		sa_ctx->sa_handle = err;
+		if (sa_handle)
+			*sa_handle = sa_ctx->sa_handle;
+	}
 	/* This is unbounded fpga_xfrm, try to add to hash */
 	mutex_lock(&fipsec->sa_hash_lock);
 
@@ -744,7 +759,8 @@ delete_hash:
 				       rhash_sa));
 unlock_hash:
 	mutex_unlock(&fipsec->sa_hash_lock);
-
+	if (accel_xfrm->attrs.action & MLX5_ACCEL_ESP_ACTION_DECRYPT)
+		ida_simple_remove(&fipsec->halloc, sa_ctx->sa_handle);
 exists:
 	mutex_unlock(&fpga_xfrm->lock);
 	kfree(sa_ctx);
@@ -816,7 +832,7 @@ mlx5_fpga_ipsec_fs_create_sa_ctx(struct mlx5_core_dev *mdev,
 	/* create */
 	return mlx5_fpga_ipsec_create_sa_ctx(mdev, accel_xfrm,
 					     saddr, daddr,
-					     spi, is_ipv6);
+					     spi, is_ipv6, NULL);
 }
 
 static void
@@ -835,6 +851,10 @@ mlx5_fpga_ipsec_release_sa_ctx(struct mlx5_fpga_ipsec_sa_ctx *sa_ctx)
 		WARN_ON(err);
 		return;
 	}
+
+	if (sa_ctx->fpga_xfrm->accel_xfrm.attrs.action &
+	    MLX5_ACCEL_ESP_ACTION_DECRYPT)
+		ida_simple_remove(&fipsec->halloc, sa_ctx->sa_handle);
 
 	mutex_lock(&fipsec->sa_hash_lock);
 	WARN_ON(rhashtable_remove_fast(&fipsec->sa_hash, &sa_ctx->hash,
@@ -1299,6 +1319,8 @@ int mlx5_fpga_ipsec_init(struct mlx5_core_dev *mdev)
 		goto err_destroy_hash;
 	}
 
+	ida_init(&fdev->ipsec->halloc);
+
 	return 0;
 
 err_destroy_hash:
@@ -1331,6 +1353,7 @@ void mlx5_fpga_ipsec_cleanup(struct mlx5_core_dev *mdev)
 	if (!mlx5_fpga_is_ipsec_device(mdev))
 		return;
 
+	ida_destroy(&fdev->ipsec->halloc);
 	destroy_rules_rb(&fdev->ipsec->rules_rb);
 	rhashtable_destroy(&fdev->ipsec->sa_hash);
 
