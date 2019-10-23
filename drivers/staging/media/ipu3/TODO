@@ -24,5 +24,3 @@ staging directory.
 - Document different operation modes, and which buffer queues are relevant
   in each mode. To process an image, which queues require a buffer an in
   which ones is it optional?
-
-- Make sure it builds fine with no warnings with W=1
