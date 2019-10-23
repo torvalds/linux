@@ -15,8 +15,6 @@
 #include "voltage.h"
 
 #include <linux/init.h>
-#include <linux/kernel.h>
-#include "pm.h"
 #include "vc.h"
 
 /**
