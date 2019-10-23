@@ -364,16 +364,33 @@ struct srpt_port_attrib {
 };
 
 /**
+ * struct srpt_tpg - information about a single "target portal group"
+ * @entry:	Entry in @sport_id->tpg_list.
+ * @sport_id:	Port name this TPG is associated with.
+ * @tpg:	LIO TPG data structure.
+ *
+ * Zero or more target portal groups are associated with each port name
+ * (srpt_port_id). With each TPG an ACL list is associated.
+ */
+struct srpt_tpg {
+	struct list_head	entry;
+	struct srpt_port_id	*sport_id;
+	struct se_portal_group	tpg;
+};
+
+/**
  * struct srpt_port_id - information about an RDMA port name
- * @tpg: TPG associated with the RDMA port.
- * @wwn: WWN associated with the RDMA port.
- * @name: ASCII representation of the port name.
+ * @mutex:	Protects @tpg_list changes.
+ * @tpg_list:	TPGs associated with the RDMA port name.
+ * @wwn:	WWN associated with the RDMA port name.
+ * @name:	ASCII representation of the port name.
  *
  * Multiple sysfs directories can be associated with a single RDMA port. This
  * data structure represents a single (port, name) pair.
  */
 struct srpt_port_id {
-	struct se_portal_group	tpg;
+	struct mutex		mutex;
+	struct list_head	tpg_list;
 	struct se_wwn		wwn;
 	char			name[64];
 };

@@ -2131,6 +2131,7 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 	char i_port_id[36];
 	u32 it_iu_len;
 	int i, tag_num, tag_size, ret;
+	struct srpt_tpg *stpg;
 
 	WARN_ON_ONCE(irqs_disabled());
 
@@ -2288,19 +2289,33 @@ static int srpt_cm_req_recv(struct srpt_device *const sdev,
 
 	tag_num = ch->rq_size;
 	tag_size = 1; /* ib_srpt does not use se_sess->sess_cmd_map */
-	if (sport->port_guid_id.tpg.se_tpg_wwn)
-		ch->sess = target_setup_session(&sport->port_guid_id.tpg, tag_num,
+
+	mutex_lock(&sport->port_guid_id.mutex);
+	list_for_each_entry(stpg, &sport->port_guid_id.tpg_list, entry) {
+		if (!IS_ERR_OR_NULL(ch->sess))
+			break;
+		ch->sess = target_setup_session(&stpg->tpg, tag_num,
 						tag_size, TARGET_PROT_NORMAL,
 						ch->sess_name, ch, NULL);
-	if (sport->port_gid_id.tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_id.tpg, tag_num,
+	}
+	mutex_unlock(&sport->port_guid_id.mutex);
+
+	mutex_lock(&sport->port_gid_id.mutex);
+	list_for_each_entry(stpg, &sport->port_gid_id.tpg_list, entry) {
+		if (!IS_ERR_OR_NULL(ch->sess))
+			break;
+		ch->sess = target_setup_session(&stpg->tpg, tag_num,
 					tag_size, TARGET_PROT_NORMAL, i_port_id,
 					ch, NULL);
-	/* Retry without leading "0x" */
-	if (sport->port_gid_id.tpg.se_tpg_wwn && IS_ERR_OR_NULL(ch->sess))
-		ch->sess = target_setup_session(&sport->port_gid_id.tpg, tag_num,
+		if (!IS_ERR_OR_NULL(ch->sess))
+			break;
+		/* Retry without leading "0x" */
+		ch->sess = target_setup_session(&stpg->tpg, tag_num,
 						tag_size, TARGET_PROT_NORMAL,
 						i_port_id + 2, ch, NULL);
+	}
+	mutex_unlock(&sport->port_gid_id.mutex);
+
 	if (IS_ERR_OR_NULL(ch->sess)) {
 		WARN_ON_ONCE(ch->sess == NULL);
 		ret = PTR_ERR(ch->sess);
@@ -3140,6 +3155,10 @@ static void srpt_add_one(struct ib_device *device)
 		sport->port_attrib.srp_sq_size = DEF_SRPT_SQ_SIZE;
 		sport->port_attrib.use_srq = false;
 		INIT_WORK(&sport->work, srpt_refresh_port_work);
+		mutex_init(&sport->port_guid_id.mutex);
+		INIT_LIST_HEAD(&sport->port_guid_id.tpg_list);
+		mutex_init(&sport->port_gid_id.mutex);
+		INIT_LIST_HEAD(&sport->port_gid_id.tpg_list);
 
 		if (srpt_refresh_port(sport)) {
 			pr_err("MAD registration failed for %s-%d.\n",
@@ -3242,18 +3261,6 @@ static struct srpt_port *srpt_tpg_to_sport(struct se_portal_group *tpg)
 	return tpg->se_tpg_wwn->priv;
 }
 
-static struct srpt_port_id *srpt_tpg_to_sport_id(struct se_portal_group *tpg)
-{
-	struct srpt_port *sport = srpt_tpg_to_sport(tpg);
-
-	if (tpg == &sport->port_guid_id.tpg)
-		return &sport->port_guid_id;
-	if (tpg == &sport->port_gid_id.tpg)
-		return &sport->port_gid_id;
-	WARN_ON_ONCE(true);
-	return NULL;
-}
-
 static struct srpt_port_id *srpt_wwn_to_sport_id(struct se_wwn *wwn)
 {
 	struct srpt_port *sport = wwn->priv;
@@ -3268,7 +3275,9 @@ static struct srpt_port_id *srpt_wwn_to_sport_id(struct se_wwn *wwn)
 
 static char *srpt_get_fabric_wwn(struct se_portal_group *tpg)
 {
-	return srpt_tpg_to_sport_id(tpg)->name;
+	struct srpt_tpg *stpg = container_of(tpg, typeof(*stpg), tpg);
+
+	return stpg->sport_id->name;
 }
 
 static u16 srpt_get_tag(struct se_portal_group *tpg)
@@ -3725,16 +3734,27 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
 					     const char *name)
 {
 	struct srpt_port *sport = wwn->priv;
-	struct se_portal_group *tpg = &srpt_wwn_to_sport_id(wwn)->tpg;
-	int res;
+	struct srpt_port_id *sport_id = srpt_wwn_to_sport_id(wwn);
+	struct srpt_tpg *stpg;
+	int res = -ENOMEM;
 
-	res = core_tpg_register(wwn, tpg, SCSI_PROTOCOL_SRP);
-	if (res)
+	stpg = kzalloc(sizeof(*stpg), GFP_KERNEL);
+	if (!stpg)
 		return ERR_PTR(res);
+	stpg->sport_id = sport_id;
+	res = core_tpg_register(wwn, &stpg->tpg, SCSI_PROTOCOL_SRP);
+	if (res) {
+		kfree(stpg);
+		return ERR_PTR(res);
+	}
+
+	mutex_lock(&sport_id->mutex);
+	list_add_tail(&stpg->entry, &sport_id->tpg_list);
+	mutex_unlock(&sport_id->mutex);
 
 	atomic_inc(&sport->refcount);
 
-	return tpg;
+	return &stpg->tpg;
 }
 
 /**
@@ -3743,10 +3763,17 @@ static struct se_portal_group *srpt_make_tpg(struct se_wwn *wwn,
  */
 static void srpt_drop_tpg(struct se_portal_group *tpg)
 {
+	struct srpt_tpg *stpg = container_of(tpg, typeof(*stpg), tpg);
+	struct srpt_port_id *sport_id = stpg->sport_id;
 	struct srpt_port *sport = srpt_tpg_to_sport(tpg);
+
+	mutex_lock(&sport_id->mutex);
+	list_del(&stpg->entry);
+	mutex_unlock(&sport_id->mutex);
 
 	sport->enabled = false;
 	core_tpg_deregister(tpg);
+	kfree(stpg);
 	srpt_drop_sport_ref(sport);
 }
 
