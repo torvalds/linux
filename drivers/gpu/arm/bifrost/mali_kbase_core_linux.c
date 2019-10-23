@@ -3493,10 +3493,6 @@ static int power_control_init(struct platform_device *pdev)
 	kbdev->nr_clocks = i;
 	dev_dbg(&pdev->dev, "Clocks probed: %u\n", kbdev->nr_clocks);
 
-	err = kbase_platform_rk_init_opp_table(kbdev);
-	if (err)
-		dev_err(kbdev->dev, "Failed to init_opp_table (%d)\n", err);
-
 #if defined(CONFIG_PM_OPP)
 #if ((KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE) && \
 	defined(CONFIG_REGULATOR))
@@ -3505,8 +3501,14 @@ static int power_control_init(struct platform_device *pdev)
 			regulator_names, BASE_MAX_NR_CLOCKS_REGULATORS);
 	}
 #endif /* (KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE */
+#ifdef CONFIG_ARCH_ROCKCHIP
+	err = kbase_platform_rk_init_opp_table(kbdev);
+	if (err)
+		dev_err(kbdev->dev, "Failed to init_opp_table (%d)\n", err);
+#else
 	err = dev_pm_opp_of_add_table(kbdev->dev);
 	CSTD_UNUSED(err);
+#endif
 #endif /* CONFIG_PM_OPP */
 
 #endif /* KERNEL_VERSION(4, 4, 0) > LINUX_VERSION_CODE */
