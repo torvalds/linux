@@ -329,7 +329,7 @@ bool bch2_bkey_pack_key(struct bkey_packed *out, const struct bkey *in,
 void bch2_bkey_unpack(const struct btree *b, struct bkey_i *dst,
 		 const struct bkey_packed *src)
 {
-	dst->k = bkey_unpack_key(b, src);
+	__bkey_unpack_key(b, &dst->k, src);
 
 	memcpy_u64s(&dst->v,
 		    bkeyp_val(&b->format, src),

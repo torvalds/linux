@@ -939,7 +939,7 @@ static void btree_iter_prefetch(struct btree_iter *iter)
 		btree_node_unlock(iter, iter->level);
 }
 
-static inline int btree_iter_down(struct btree_iter *iter)
+static __always_inline int btree_iter_down(struct btree_iter *iter)
 {
 	struct bch_fs *c = iter->trans->c;
 	struct btree_iter_level *l = &iter->l[iter->level];
@@ -948,7 +948,7 @@ static inline int btree_iter_down(struct btree_iter *iter)
 	enum six_lock_type lock_type = __btree_lock_want(iter, level);
 	BKEY_PADDED(k) tmp;
 
-	BUG_ON(!btree_node_locked(iter, iter->level));
+	EBUG_ON(!btree_node_locked(iter, iter->level));
 
 	bch2_bkey_unpack(l->b, &tmp.k,
 			 bch2_btree_node_iter_peek(&l->iter, l->b));

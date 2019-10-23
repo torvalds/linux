@@ -1548,11 +1548,13 @@ static void btree_node_iter_init_pack_failed(struct btree_node_iter *iter,
  *    So we've got to search for start_of_range, then after the lookup iterate
  *    past any extents that compare equal to the position we searched for.
  */
+__flatten
 void bch2_btree_node_iter_init(struct btree_node_iter *iter,
 			       struct btree *b, struct bpos *search)
 {
 	struct bset_tree *t;
 	struct bkey_packed p, *packed_search = NULL;
+	struct btree_node_iter_set *pos = iter->data;
 
 	EBUG_ON(bkey_cmp(*search, b->data->min_key) < 0);
 	bset_aux_tree_verify(b);
@@ -1571,11 +1573,17 @@ void bch2_btree_node_iter_init(struct btree_node_iter *iter,
 		return;
 	}
 
-	for_each_bset(b, t)
-		__bch2_btree_node_iter_push(iter, b,
-					   bch2_bset_search(b, t, search,
-							    packed_search, &p),
-					   btree_bkey_last(b, t));
+	for_each_bset(b, t) {
+		struct bkey_packed *k = bch2_bset_search(b, t, search,
+							 packed_search, &p);
+		struct bkey_packed *end = btree_bkey_last(b, t);
+
+		if (k != end)
+			*pos++ = (struct btree_node_iter_set) {
+				__btree_node_key_to_offset(b, k),
+				__btree_node_key_to_offset(b, end)
+			};
+	}
 
 	bch2_btree_node_iter_sort(iter, b);
 }
