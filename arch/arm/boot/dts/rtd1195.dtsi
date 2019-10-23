@@ -8,6 +8,7 @@
 /memreserve/ 0x17fff000 0x00001000;
 
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/reset/realtek,rtd1195.h>
 
 / {
 	compatible = "realtek,rtd1195";
@@ -179,6 +180,7 @@
 		reg = <0x800 0x400>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		resets = <&iso_reset RTD1195_ISO_RSTN_UR0>;
 		clock-frequency = <27000000>;
 		status = "disabled";
 	};
@@ -190,6 +192,7 @@
 		reg = <0x200 0x100>;
 		reg-shift = <2>;
 		reg-io-width = <4>;
+		resets = <&reset2 RTD1195_RSTN_UR1>;
 		clock-frequency = <27000000>;
 		status = "disabled";
 	};
