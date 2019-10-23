@@ -242,6 +242,19 @@ static inline u32 get_table_max(struct cpufreq_frequency_table *table)
 	return max_freq;
 }
 
+static bool search_frequency(struct cpufreq_frequency_table *table, int size,
+			     unsigned int freq)
+{
+	int count;
+
+	for (count = 0; count < size; count++) {
+		if (table[count].frequency == freq)
+			return true;
+	}
+
+	return false;
+}
+
 static int merge_cluster_tables(void)
 {
 	int i, j, k = 0, count = 1;
@@ -257,10 +270,13 @@ static int merge_cluster_tables(void)
 	freq_table[MAX_CLUSTERS] = table;
 
 	/* Add in reverse order to get freqs in increasing order */
-	for (i = MAX_CLUSTERS - 1; i >= 0; i--) {
+	for (i = MAX_CLUSTERS - 1; i >= 0; i--, count = k) {
 		for (j = 0; freq_table[i][j].frequency != CPUFREQ_TABLE_END;
-		     j++, k++) {
-			table[k].frequency =
+		     j++) {
+			if (i == A15_CLUSTER &&
+			    search_frequency(table, count, freq_table[i][j].frequency))
+				continue; /* skip duplicates */
+			table[k++].frequency =
 				VIRT_FREQ(i, freq_table[i][j].frequency);
 		}
 	}
