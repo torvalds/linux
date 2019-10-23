@@ -70,6 +70,7 @@
 #include <drm/i915_drm.h>
 
 #include "gt/intel_lrc_reg.h"
+#include "gt/intel_engine_heartbeat.h"
 #include "gt/intel_engine_user.h"
 
 #include "i915_gem_context.h"
@@ -276,6 +277,135 @@ void i915_gem_context_release(struct kref *ref)
 		schedule_work(&gc->free_work);
 }
 
+static inline struct i915_gem_engines *
+__context_engines_static(const struct i915_gem_context *ctx)
+{
+	return rcu_dereference_protected(ctx->engines, true);
+}
+
+static bool __reset_engine(struct intel_engine_cs *engine)
+{
+	struct intel_gt *gt = engine->gt;
+	bool success = false;
+
+	if (!intel_has_reset_engine(gt))
+		return false;
+
+	if (!test_and_set_bit(I915_RESET_ENGINE + engine->id,
+			      &gt->reset.flags)) {
+		success = intel_engine_reset(engine, NULL) == 0;
+		clear_and_wake_up_bit(I915_RESET_ENGINE + engine->id,
+				      &gt->reset.flags);
+	}
+
+	return success;
+}
+
+static void __reset_context(struct i915_gem_context *ctx,
+			    struct intel_engine_cs *engine)
+{
+	intel_gt_handle_error(engine->gt, engine->mask, 0,
+			      "context closure in %s", ctx->name);
+}
+
+static bool __cancel_engine(struct intel_engine_cs *engine)
+{
+	/*
+	 * Send a "high priority pulse" down the engine to cause the
+	 * current request to be momentarily preempted. (If it fails to
+	 * be preempted, it will be reset). As we have marked our context
+	 * as banned, any incomplete request, including any running, will
+	 * be skipped following the preemption.
+	 *
+	 * If there is no hangchecking (one of the reasons why we try to
+	 * cancel the context) and no forced preemption, there may be no
+	 * means by which we reset the GPU and evict the persistent hog.
+	 * Ergo if we are unable to inject a preemptive pulse that can
+	 * kill the banned context, we fallback to doing a local reset
+	 * instead.
+	 */
+	if (CONFIG_DRM_I915_PREEMPT_TIMEOUT && !intel_engine_pulse(engine))
+		return true;
+
+	/* If we are unable to send a pulse, try resetting this engine. */
+	return __reset_engine(engine);
+}
+
+static struct intel_engine_cs *
+active_engine(struct dma_fence *fence, struct intel_context *ce)
+{
+	struct i915_request *rq = to_request(fence);
+	struct intel_engine_cs *engine, *locked;
+
+	/*
+	 * Serialise with __i915_request_submit() so that it sees
+	 * is-banned?, or we know the request is already inflight.
+	 */
+	locked = READ_ONCE(rq->engine);
+	spin_lock_irq(&locked->active.lock);
+	while (unlikely(locked != (engine = READ_ONCE(rq->engine)))) {
+		spin_unlock(&locked->active.lock);
+		spin_lock(&engine->active.lock);
+		locked = engine;
+	}
+
+	engine = NULL;
+	if (i915_request_is_active(rq) && !rq->fence.error)
+		engine = rq->engine;
+
+	spin_unlock_irq(&locked->active.lock);
+
+	return engine;
+}
+
+static void kill_context(struct i915_gem_context *ctx)
+{
+	struct i915_gem_engines_iter it;
+	struct intel_context *ce;
+
+	/*
+	 * If we are already banned, it was due to a guilty request causing
+	 * a reset and the entire context being evicted from the GPU.
+	 */
+	if (i915_gem_context_is_banned(ctx))
+		return;
+
+	i915_gem_context_set_banned(ctx);
+
+	/*
+	 * Map the user's engine back to the actual engines; one virtual
+	 * engine will be mapped to multiple engines, and using ctx->engine[]
+	 * the same engine may be have multiple instances in the user's map.
+	 * However, we only care about pending requests, so only include
+	 * engines on which there are incomplete requests.
+	 */
+	for_each_gem_engine(ce, __context_engines_static(ctx), it) {
+		struct intel_engine_cs *engine;
+		struct dma_fence *fence;
+
+		if (!ce->timeline)
+			continue;
+
+		fence = i915_active_fence_get(&ce->timeline->last_request);
+		if (!fence)
+			continue;
+
+		/* Check with the backend if the request is still inflight */
+		engine = active_engine(fence, ce);
+
+		/* First attempt to gracefully cancel the context */
+		if (engine && !__cancel_engine(engine))
+			/*
+			 * If we are unable to send a preemptive pulse to bump
+			 * the context from the GPU, we have to resort to a full
+			 * reset. We hope the collateral damage is worth it.
+			 */
+			__reset_context(ctx, engine);
+
+		dma_fence_put(fence);
+	}
+}
+
 static void context_close(struct i915_gem_context *ctx)
 {
 	struct i915_address_space *vm;
@@ -298,6 +428,17 @@ static void context_close(struct i915_gem_context *ctx)
 	lut_close(ctx);
 
 	mutex_unlock(&ctx->mutex);
+
+	/*
+	 * If the user has disabled hangchecking, we can not be sure that
+	 * the batches will ever complete after the context is closed,
+	 * keeping the context and all resources pinned forever. So in this
+	 * case we opt to forcibly kill off all remaining requests on
+	 * context close.
+	 */
+	if (!i915_modparams.enable_hangcheck)
+		kill_context(ctx);
+
 	i915_gem_context_put(ctx);
 }
 
