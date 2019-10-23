@@ -786,6 +786,8 @@ __bad_area_nosemaphore(struct pt_regs *regs, unsigned long error_code,
 
 		force_sig_fault(SIGSEGV, si_code, (void __user *)address);
 
+		local_irq_disable();
+
 		return;
 	}
 
@@ -1384,9 +1386,18 @@ do_page_fault(struct pt_regs *regs, unsigned long hw_error_code,
 		return;
 
 	/* Was the fault on kernel-controlled part of the address space? */
-	if (unlikely(fault_in_kernel_space(address)))
+	if (unlikely(fault_in_kernel_space(address))) {
 		do_kern_addr_fault(regs, hw_error_code, address);
-	else
+	} else {
 		do_user_addr_fault(regs, hw_error_code, address);
+		/*
+		 * User address page fault handling might have reenabled
+		 * interrupts. Fixing up all potential exit points of
+		 * do_user_addr_fault() and its leaf functions is just not
+		 * doable w/o creating an unholy mess or turning the code
+		 * upside down.
+		 */
+		local_irq_disable();
+	}
 }
 NOKPROBE_SYMBOL(do_page_fault);

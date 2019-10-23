@@ -201,6 +201,7 @@ static void do_error_trap(struct pt_regs *regs, long error_code, char *str,
 			NOTIFY_STOP) {
 		cond_local_irq_enable(regs);
 		do_trap(trapnr, signr, str, regs, error_code, sicode, addr);
+		cond_local_irq_disable(regs);
 	}
 }
 
@@ -397,6 +398,8 @@ dotraplinkage void do_bounds(struct pt_regs *regs, long error_code)
 		die("bounds", regs, error_code);
 
 	do_trap(X86_TRAP_BR, SIGSEGV, "bounds", regs, error_code, 0, NULL);
+
+	cond_local_irq_disable(regs);
 }
 
 enum kernel_gp_hint {
@@ -456,12 +459,13 @@ dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
 
 	if (static_cpu_has(X86_FEATURE_UMIP)) {
 		if (user_mode(regs) && fixup_umip_exception(regs))
-			return;
+			goto exit;
 	}
 
 	if (v8086_mode(regs)) {
 		local_irq_enable();
 		handle_vm86_fault((struct kernel_vm86_regs *) regs, error_code);
+		local_irq_disable();
 		return;
 	}
 
@@ -473,12 +477,11 @@ dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
 
 		show_signal(tsk, SIGSEGV, "", desc, regs, error_code);
 		force_sig(SIGSEGV);
-
-		return;
+		goto exit;
 	}
 
 	if (fixup_exception(regs, X86_TRAP_GP, error_code, 0))
-		return;
+		goto exit;
 
 	tsk->thread.error_code = error_code;
 	tsk->thread.trap_nr = X86_TRAP_GP;
@@ -490,11 +493,11 @@ dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
 	if (!preemptible() &&
 	    kprobe_running() &&
 	    kprobe_fault_handler(regs, X86_TRAP_GP))
-		return;
+		goto exit;
 
 	ret = notify_die(DIE_GPF, desc, regs, error_code, X86_TRAP_GP, SIGSEGV);
 	if (ret == NOTIFY_STOP)
-		return;
+		goto exit;
 
 	if (error_code)
 		snprintf(desc, sizeof(desc), "segment-related " GPFSTR);
@@ -516,6 +519,8 @@ dotraplinkage void do_general_protection(struct pt_regs *regs, long error_code)
 
 	die_addr(desc, regs, error_code, gp_addr);
 
+exit:
+	cond_local_irq_disable(regs);
 }
 NOKPROBE_SYMBOL(do_general_protection);
 
@@ -773,7 +778,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 
 	if (!user_mode(regs)) {
 		if (fixup_exception(regs, trapnr, error_code, 0))
-			return;
+			goto exit;
 
 		task->thread.error_code = error_code;
 		task->thread.trap_nr = trapnr;
@@ -781,7 +786,7 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 		if (notify_die(DIE_TRAP, str, regs, error_code,
 					trapnr, SIGFPE) != NOTIFY_STOP)
 			die(str, regs, error_code);
-		return;
+		goto exit;
 	}
 
 	/*
@@ -795,10 +800,12 @@ static void math_error(struct pt_regs *regs, int error_code, int trapnr)
 	si_code = fpu__exception_code(fpu, trapnr);
 	/* Retry when we get spurious exceptions: */
 	if (!si_code)
-		return;
+		goto exit;
 
 	force_sig_fault(SIGFPE, si_code,
 			(void __user *)uprobe_get_trap_addr(regs));
+exit:
+	cond_local_irq_disable(regs);
 }
 
 dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
@@ -853,6 +860,8 @@ do_device_not_available(struct pt_regs *regs, long error_code)
 
 		info.regs = regs;
 		math_emulate(&info);
+
+		cond_local_irq_disable(regs);
 		return;
 	}
 #endif
@@ -883,6 +892,7 @@ dotraplinkage void do_iret_error(struct pt_regs *regs, long error_code)
 		do_trap(X86_TRAP_IRET, SIGILL, "iret exception", regs, error_code,
 			ILL_BADSTK, (void __user *)NULL);
 	}
+	local_irq_disable();
 }
 #endif
 
