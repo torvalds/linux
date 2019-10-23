@@ -967,6 +967,7 @@ ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
  * @band: the band to transmit on (use for checking for races)
  * @hw_queue: HW queue to put the frame on, skb_get_queue_mapping() gives the AC
  * @ack_frame_id: internal frame ID for TX status, used internally
+ * @tx_time_est: TX time estimate in units of 4us, used internally
  * @control: union part for control data
  * @control.rates: TX rates array to try
  * @control.rts_cts_rate_idx: rate for RTS or CTS
@@ -1007,7 +1008,8 @@ struct ieee80211_tx_info {
 
 	u8 hw_queue;
 
-	u16 ack_frame_id;
+	u16 ack_frame_id:6;
+	u16 tx_time_est:10;
 
 	union {
 		struct {
