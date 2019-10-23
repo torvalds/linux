@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config DRM_ROCKCHIP_RK628
+	tristate "Rockchip RK628 display bridge driver"
+	depends on DRM_ROCKCHIP
+	depends on MFD_RK628
+	---help---
+	  Rockchip RK628 display bridge chips driver.

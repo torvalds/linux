@@ -94,5 +94,6 @@ config ROCKCHIP_RGB
 	  say Y to enable its driver.
 
 source "drivers/gpu/drm/rockchip/rk618/Kconfig"
+source "drivers/gpu/drm/rockchip/rk628/Kconfig"
 
 endif
