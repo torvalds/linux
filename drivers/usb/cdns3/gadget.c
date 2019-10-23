@@ -2329,8 +2329,6 @@ static void cdns3_gadget_config(struct cdns3_device *priv_dev)
 	writel(USB_CONF_CLK2OFFDS | USB_CONF_L1DS, &regs->usb_conf);
 
 	cdns3_configure_dmult(priv_dev, NULL);
-
-	cdns3_gadget_pullup(&priv_dev->gadget, 1);
 }
 
 /**
@@ -2712,8 +2710,6 @@ static int cdns3_gadget_suspend(struct cdns3 *cdns, bool do_wakeup)
 
 	/* disable interrupt for device */
 	writel(0, &priv_dev->regs->usb_ien);
-
-	cdns3_gadget_pullup(&priv_dev->gadget, 0);
 
 	return 0;
 }
