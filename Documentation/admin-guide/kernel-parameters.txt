@@ -3540,6 +3540,8 @@
 			even if the platform doesn't give the OS permission to
 			use them.  This may cause conflicts if the platform
 			also tries to use these services.
+		dpc-native	Use native PCIe service for DPC only.  May
+				cause conflicts if firmware uses AER or DPC.
 		compat	Disable native PCIe services (PME, AER, DPC, PCIe
 			hotplug).
 

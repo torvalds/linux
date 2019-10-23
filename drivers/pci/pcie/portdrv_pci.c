@@ -29,12 +29,20 @@ bool pcie_ports_disabled;
  */
 bool pcie_ports_native;
 
+/*
+ * If the user specified "pcie_ports=dpc-native", use the Linux DPC PCIe
+ * service even if the platform hasn't given us permission.
+ */
+bool pcie_ports_dpc_native;
+
 static int __init pcie_port_setup(char *str)
 {
 	if (!strncmp(str, "compat", 6))
 		pcie_ports_disabled = true;
 	else if (!strncmp(str, "native", 6))
 		pcie_ports_native = true;
+	else if (!strncmp(str, "dpc-native", 10))
+		pcie_ports_dpc_native = true;
 
 	return 1;
 }
