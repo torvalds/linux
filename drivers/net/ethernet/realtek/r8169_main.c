@@ -1558,7 +1558,7 @@ static netdev_features_t rtl8169_fix_features(struct net_device *dev,
 
 	if (dev->mtu > JUMBO_1K &&
 	    tp->mac_version > RTL_GIGA_MAC_VER_06)
-		features &= ~NETIF_F_IP_CSUM;
+		features &= ~(NETIF_F_CSUM_MASK | NETIF_F_ALL_TSO);
 
 	return features;
 }
