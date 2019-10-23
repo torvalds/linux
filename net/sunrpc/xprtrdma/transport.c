@@ -243,16 +243,13 @@ xprt_rdma_connect_worker(struct work_struct *work)
 	rc = rpcrdma_ep_connect(&r_xprt->rx_ep, &r_xprt->rx_ia);
 	xprt_clear_connecting(xprt);
 	if (r_xprt->rx_ep.rep_connected > 0) {
-		if (!xprt_test_and_set_connected(xprt)) {
-			xprt->stat.connect_count++;
-			xprt->stat.connect_time += (long)jiffies -
-						   xprt->stat.connect_start;
-			xprt_wake_pending_tasks(xprt, -EAGAIN);
-		}
-	} else {
-		if (xprt_test_and_clear_connected(xprt))
-			xprt_wake_pending_tasks(xprt, rc);
+		xprt->stat.connect_count++;
+		xprt->stat.connect_time += (long)jiffies -
+					   xprt->stat.connect_start;
+		xprt_set_connected(xprt);
+		rc = -EAGAIN;
 	}
+	xprt_wake_pending_tasks(xprt, rc);
 }
 
 /**
